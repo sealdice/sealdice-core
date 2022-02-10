@@ -72,35 +72,36 @@ type Message struct {
 }
 
 type PlayerInfo struct {
-	UserId int64;
+	UserId int64 `yaml:"userId"`;
 	Name string;
-	ValueNumMap map[string]int64;
-	ValueStrMap map[string]string;
-	lastUpdateTime int64
+	ValueNumMap map[string]int64 `yaml:"valueNumMap"`;
+	ValueStrMap map[string]string `yaml:"valueStrMap"`;
+	RpToday int `yaml:"rpToday"`;
+	RpTime string `yaml:"rpTime"`;
+	lastUpdateTime int64 `yaml:"lastUpdateTime"`;
 }
 
 type ServiceAtItem struct {
-	Active bool `json:"active"` // 需要能记住配置，故有此选项
-	ActivatedExtList []*ExtInfo // 当前群开启的扩展列表
+	Active bool `json:"active" yaml:"active"` // 需要能记住配置，故有此选项
+	ActivatedExtList []*ExtInfo `yaml:"activatedExtList"` // 当前群开启的扩展列表
 	Players map[int64]*PlayerInfo // 群员信息
 }
 
 type IMSession struct {
-	Socket   *gowebsocket.Socket
-	Nickname string `json:"nickname"`
-	UserId   int64  `json:"user_id"`
-	parent *Dice;
+	Socket   *gowebsocket.Socket `yaml:"-"`
+	Nickname string `yaml:"-"`
+	UserId   int64 `yaml:"-"`
+	parent   *Dice `yaml:"-"`
 
-	ServiceAt map[int64]*ServiceAtItem `json:"serviceAt"`
+	ServiceAt map[int64]*ServiceAtItem `json:"serviceAt" yaml:"serviceAt"`
 	//GroupId int64 `json:"group_id"`
 }
 
-func (s IMSession) serve() {
+func (s *IMSession) serve() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	session := &s;
-
+	session := s;
 	socket := gowebsocket.New("ws://127.0.0.1:6700")
 	session.Socket = &socket
 
@@ -136,10 +137,10 @@ func (s IMSession) serve() {
 						session.commandSolve(session, msg, msgInfo);
 						//c, _ := json.Marshal(msgInfo)
 						//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);
-						//replyGroup(socket, 438115120, text)
+						//replyGroup(Socket, 438115120, text)
 					} else {
 						//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
-						//replyGroup(socket, 438115120, text)
+						//replyGroup(Socket, 438115120, text)
 					}
 				}
 				//}
@@ -178,10 +179,10 @@ func (s IMSession) serve() {
 	}
 }
 
-func (s IMSession) commandSolve(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
+func (s *IMSession) commandSolve(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
 	//c, _ := json.Marshal(msgInfo)
 	//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);
-	//replyGroup(socket, 111, text)
+	//replyGroup(Socket, 111, text)
 
 	cmdArgs.AmIBeMentioned = false;
 	for _, i := range cmdArgs.At {

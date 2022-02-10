@@ -12,5 +12,6 @@ require (
 	github.com/sacOO7/gowebsocket v0.0.0-20210515122958-9396f1a71e23
 	go.uber.org/zap v1.15.0
 	golang.org/x/tools v0.0.0-20191029190741-b9c20aec41a5
+	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/gorm v1.20.0 // indirect
 )

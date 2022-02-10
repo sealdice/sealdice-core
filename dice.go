@@ -2,9 +2,13 @@ package main
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"log"
 	"math/rand"
 	"regexp"
 	"strconv"
+	"time"
 )
 
 type CmdItemInfo struct{
@@ -15,35 +19,83 @@ type CmdItemInfo struct{
 type CmdMapCls map[string]*CmdItemInfo;
 
 type ExtInfo struct {
-	name string  // 名字
-	version string  // 版本
-	autoActive bool // 是否自动开启
-	cmdMap CmdMapCls; // 指令集合
+	Name       string     // 名字
+	version    string     // 版本
+	autoActive bool       // 是否自动开启
+	cmdMap     CmdMapCls `yaml:"-"`  // 指令集合
 	//activeInSession bool; // 在当前会话中开启
 }
 
 type Dice struct {
-	imSession *IMSession;
-	cmdMap CmdMapCls;
-	extList []*ExtInfo;
+	ImSession *IMSession `yaml:"imSession"`;
+	cmdMap    CmdMapCls;
+	extList   []*ExtInfo;
 }
 
 func (self *Dice) init() {
-	self.imSession = &IMSession{};
-	self.imSession.parent = self;
-	self.imSession.ServiceAt = make(map[int64]*ServiceAtItem);
+	self.ImSession = &IMSession{};
+	self.ImSession.parent = self;
+	self.ImSession.ServiceAt = make(map[int64]*ServiceAtItem);
 	self.cmdMap = CmdMapCls{}
-	self.loads();
 	self.registerCoreCommands();
 	self.registerBuiltinExt()
+	self.loads();
 }
 
-func (self Dice) loads() {
-	
+func (self *Dice) loads() {
+	data, err := ioutil.ReadFile("save.yaml")
+
+	if err == nil {
+		session := self.ImSession
+		d := Dice{}
+		err2 := yaml.Unmarshal(data, &d)
+		if err2 == nil {
+			m := map[string]*ExtInfo{};
+			for _, i := range self.extList {
+				m[i.Name] = i
+			}
+
+			session.ServiceAt = d.ImSession.ServiceAt
+			for _, v := range d.ImSession.ServiceAt {
+				tmp := []*ExtInfo{}
+				for _, i := range v.ActivatedExtList {
+					if m[i.Name] != nil {
+						tmp = append(tmp, m[i.Name])
+					}
+				}
+				v.ActivatedExtList = tmp;
+			}
+
+			log.Println("save.yaml loaded")
+			//info, _ := yaml.Marshal(session.ServiceAt)
+			//replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
+		} else {
+			log.Println("save.yaml parse failed")
+			panic(err2)
+		}
+	} else {
+		log.Println("save.yaml not found")
+	}
 }
 
 func (self Dice) save() {
 	
+}
+
+func DiceRoll(dicePoints int) int {
+	if dicePoints == 0 {
+		return 0
+	}
+	val := rand.Int() % dicePoints + 1;
+	return val
+}
+
+func DiceRoll64(dicePoints int64) int64 {
+	if dicePoints == 0 {
+		return 0
+	}
+	val := rand.Int63() % dicePoints + 1;
+	return val
 }
 
 /** 这几条指令不能移除 */
@@ -68,7 +120,7 @@ func (self *Dice) registerCoreCommands() {
 							Players: map[int64]*PlayerInfo{},
 						};
 					}
-					replyGroup(session.Socket, msg.GroupId, "SealDice 已启用(开发中) v20220208");
+					replyGroup(session.Socket, msg.GroupId, "SealDice 已启用(开发中) v20220210");
 				} else if cmdArgs.Args[0] == "off" {
 					if len(session.ServiceAt[msg.GroupId].ActivatedExtList) == 0 {
 						delete(session.ServiceAt, msg.GroupId);
@@ -119,7 +171,7 @@ func (self *Dice) registerCoreCommands() {
 					valAll := 0
 
 					for i := 0; i < diceTime; i++ {
-						val := rand.Int() % dicePoints;
+						val := DiceRoll(dicePoints);
 						valAll += val;
 						points = append(points, val)
 					}
@@ -133,7 +185,7 @@ func (self *Dice) registerCoreCommands() {
 					}
 					text = fmt.Sprintf("%s<%s> 掷出了 %dD%d=%s=%d", prefix, p.Name, diceTime, dicePoints, text1, valAll);
 				} else {
-					val := rand.Int() % dicePoints;
+					val := DiceRoll(dicePoints);
 					text = fmt.Sprintf("%s<%s> 掷出了 D%d=%d", prefix, p.Name, dicePoints, val);
 				}
 				replyGroup(session.Socket, msg.GroupId, text);
@@ -154,7 +206,7 @@ func (self *Dice) registerCoreCommands() {
 				if cmdArgs.Args[0] == "list" {
 					text := "检测到以下扩展：\n"
 					for index, i := range session.parent.extList {
-						text += fmt.Sprintf("%d. [%s] version %s\n", index + 1, i.name, i.version)
+						text += fmt.Sprintf("%d. [%s] version %s\n", index + 1, i.Name, i.version)
 					}
 					text += "使用命令 ”.ext on/off 扩展名“ 可以在当前群开启或关闭某扩展。"
 					replyGroup(session.Socket, msg.GroupId, text);
@@ -162,7 +214,7 @@ func (self *Dice) registerCoreCommands() {
 					if len(cmdArgs.Args) >= 2 {
 						extName := cmdArgs.Args[1];
 						for _, i := range self.extList {
-							if i.name == extName {
+							if i.Name == extName {
 								session.ServiceAt[msg.GroupId].ActivatedExtList = append(session.ServiceAt[msg.GroupId].ActivatedExtList, i);
 								replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("打开扩展 %s", extName));
 								break;
@@ -174,7 +226,7 @@ func (self *Dice) registerCoreCommands() {
 						gInfo := session.ServiceAt[msg.GroupId]
 						extName := cmdArgs.Args[1];
 						for index, i := range gInfo.ActivatedExtList {
-							if i.name == extName {
+							if i.Name == extName {
 								gInfo.ActivatedExtList = append(gInfo.ActivatedExtList[:index], gInfo.ActivatedExtList[index+1:]...)
 								replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("关闭扩展 %s", extName));
 								break;
@@ -214,6 +266,73 @@ func (self *Dice) registerCoreCommands() {
 		},
 	}
 	self.cmdMap["nn"] = cmdNN;
+
+	cmdJrrp := &CmdItemInfo{
+		name: "jrrp",
+		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+			if msg.MessageType == "group" {
+				if isCurGroupBotOn(session, msg) {
+					p := getPlayerInfoBySender(session, msg)
+					todayTime := time.Now().Format("2006-01-02")
+
+					rp := 0
+					if p.RpTime == todayTime {
+						rp = p.RpToday
+					} else {
+						rp = DiceRoll(100)
+						p.RpTime = todayTime
+						p.RpToday = rp
+					}
+
+					replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("<%s> 的今日人品为 %d", p.Name, rp));
+				}
+			}
+
+			return struct{ success bool }{
+				success: true,
+			}
+		},
+	}
+	self.cmdMap["jrrp"] = cmdJrrp;
+
+	cmdTmpLoad := &CmdItemInfo{
+		name: "load",
+		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+			if msg.MessageType == "group" {
+
+				//a, err := yaml.Marshal(session.parent)
+				//if err == nil {
+				//}
+				//replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("临时指令：试图存档 \n%s \n%s", string(a), err));
+			}
+
+			return struct{ success bool }{
+				success: true,
+			}
+		},
+	}
+	self.cmdMap["load"] = cmdTmpLoad;
+
+	cmdTmpSave := &CmdItemInfo{
+		name: "save",
+		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+			if msg.MessageType == "group" {
+				if isCurGroupBotOn(session, msg) {
+					a, err := yaml.Marshal(session.parent)
+					if err == nil {
+						ioutil.WriteFile("save.yaml", a, 0666)
+					}
+
+					replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("临时指令：试图存档"));
+				}
+			}
+
+			return struct{ success bool }{
+				success: true,
+			}
+		},
+	}
+	self.cmdMap["save"] = cmdTmpSave;
 }
 
 func isCurGroupBotOn(session *IMSession, msg *Message) bool {
