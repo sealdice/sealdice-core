@@ -35,7 +35,7 @@ func (self *Dice) registerBuiltinExt() {
 						if re1.MatchString(cmdArgs.Args[0]) {
 							// .ra [0-9]+
 							cond, _ := strconv.Atoi(cmdArgs.Args[0])
-							val := rand.Int() % 100;
+							val := DiceRoll(100);
 
 							suffix := "成功"
 							if val > cond {
@@ -63,7 +63,7 @@ func (self *Dice) registerBuiltinExt() {
 								}
 
 								for k, cond := range valueMap {
-									val := rand.Int63() % 100;
+									val := DiceRoll64(100);
 
 									suffix := "成功"
 									if val > cond {
@@ -110,7 +110,7 @@ func (self *Dice) registerBuiltinExt() {
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 					// .st show
 					// .st help
-					// .st (<name>[0-9]+)+
+					// .st (<Name>[0-9]+)+
 					if isCurGroupBotOn(session, msg) && len(cmdArgs.Args) >= 0 {
 						switch cmdArgs.Args[0] {
 						case "help":

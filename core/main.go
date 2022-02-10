@@ -30,7 +30,7 @@ func main() {
 	dice := &Dice{};
 	dice.init();
 
-	dice.imSession.serve();
+	dice.ImSession.serve();
 
 	return
 

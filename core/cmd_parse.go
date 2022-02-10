@@ -8,7 +8,7 @@ import (
 )
 
 type Kwarg struct {
-	Name        string `json:"name"`
+	Name        string `json:"Name"`
 	ValueExists bool   `json:"valueExists"`
 	Value       string `json:"value"`
 	AsBool      bool   `json:"asBool"`
