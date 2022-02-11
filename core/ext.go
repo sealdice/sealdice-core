@@ -120,7 +120,7 @@ func (self *Dice) registerBuiltinExt() {
 							text += ".st <属性名><值> // 例：.st 敏捷50"
 							replyGroup(session.Socket, msg.GroupId, text);
 
-						case "show":
+						case "show", "list":
 							info := ""
 							name := msg.Sender.Nickname
 
