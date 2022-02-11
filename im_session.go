@@ -79,6 +79,9 @@ type PlayerInfo struct {
 	RpToday int `yaml:"rpToday"`;
 	RpTime string `yaml:"rpTime"`;
 	lastUpdateTime int64 `yaml:"lastUpdateTime"`;
+
+	// level int 权限
+	DiceSideNum int `yaml:"diceSideNum"` // 面数，为0时等同于d100
 }
 
 type ServiceAtItem struct {

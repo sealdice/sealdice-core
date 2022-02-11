@@ -6,12 +6,10 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
-	"regexp"
-	"strconv"
 	"time"
 )
 
-type CmdItemInfo struct{
+type CmdItemInfo struct {
 	name string;
 	solve func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct { success bool };
 }
@@ -30,6 +28,7 @@ type Dice struct {
 	ImSession *IMSession `yaml:"imSession"`;
 	cmdMap    CmdMapCls;
 	extList   []*ExtInfo;
+	RollParser *DiceRollParser `yaml:"-"`;
 }
 
 func (self *Dice) init() {
@@ -37,9 +36,18 @@ func (self *Dice) init() {
 	self.ImSession.parent = self;
 	self.ImSession.ServiceAt = make(map[int64]*ServiceAtItem);
 	self.cmdMap = CmdMapCls{}
+
 	self.registerCoreCommands();
 	self.registerBuiltinExt()
 	self.loads();
+}
+
+
+func (self *Dice) rebuildParser(buffer string) {
+	p := &DiceRollParser{Buffer: buffer}
+	_ = p.Init()
+	p.RollExpression.Init(255)
+	self.RollParser = p;
 }
 
 func (self *Dice) loads() {
@@ -83,7 +91,7 @@ func (self Dice) save() {
 }
 
 func DiceRoll(dicePoints int) int {
-	if dicePoints == 0 {
+	if dicePoints <= 0 {
 		return 0
 	}
 	val := rand.Int() % dicePoints + 1;
@@ -143,22 +151,24 @@ func (self *Dice) registerCoreCommands() {
 			if isCurGroupBotOn(session, msg) {
 				var text string;
 				var prefix string;
-				diceTime := 0;
-				dicePoints := 100;
+				var diceResult int64
 				p := getPlayerInfoBySender(session, msg)
 
 				forWhat := "";
 				if len(cmdArgs.Args) >= 1 {
-					re := regexp.MustCompile(`(\d*)d(\d+)`);
-					m := re.FindStringSubmatch(cmdArgs.Args[0])
-					if len(m) > 0 {
-						diceTime, _ = strconv.Atoi(m[1])
-						dicePoints, _ = strconv.Atoi(m[2])
+					session.parent.rebuildParser(cmdArgs.Args[0])
+					p := session.parent.RollParser;
+
+					if err := p.Parse(); err != nil {
+						fmt.Println("???", err)
+						forWhat = cmdArgs.Args[0];
+					} else {
+						p.Execute()
+						diceResult = p.Evaluate().Int64();
+
 						if len(cmdArgs.Args) >= 2 {
 							forWhat = cmdArgs.Args[1]
 						}
-					} else {
-						forWhat = cmdArgs.Args[0];
 					}
 				}
 
@@ -166,28 +176,14 @@ func (self *Dice) registerCoreCommands() {
 					prefix = "为了" + forWhat + "，";
 				}
 
-				if diceTime > 0 {
-					points := make([]int, 0)
-					valAll := 0
-
-					for i := 0; i < diceTime; i++ {
-						val := DiceRoll(dicePoints);
-						valAll += val;
-						points = append(points, val)
-					}
-
-					text1 := ""
-					for i := 0; i < diceTime; i++ {
-						text1 = text1 + strconv.Itoa(points[i])
-						if i != diceTime -1 {
-							text1 += "+"
-						}
-					}
-					text = fmt.Sprintf("%s<%s> 掷出了 %dD%d=%s=%d", prefix, p.Name, diceTime, dicePoints, text1, valAll);
+				if diceResult != 0 {
+					text = fmt.Sprintf("%s<%s>掷出了 %s=%d", prefix, p.Name, cmdArgs.Args[0], diceResult);
 				} else {
+					dicePoints := 100
 					val := DiceRoll(dicePoints);
-					text = fmt.Sprintf("%s<%s> 掷出了 D%d=%d", prefix, p.Name, dicePoints, val);
+					text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, p.Name, dicePoints, val);
 				}
+
 				replyGroup(session.Socket, msg.GroupId, text);
 			}
 

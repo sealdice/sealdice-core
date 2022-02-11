@@ -1,0 +1,36 @@
+package main
+
+type DiceRollParser Peg {
+    RollExpression
+}
+
+e <- sp e1 !.
+e1 <- e2 ( add e2 { p.AddOperator(TypeAdd); fmt.Println("!!!!!"); }
+         / minus e2 { p.AddOperator(TypeSubtract) }
+         )*
+e2 <- e3 ( multiply e3 { p.AddOperator(TypeMultiply) }
+         / divide e3 { p.AddOperator(TypeDivide) }
+         / modulus e3 { p.AddOperator(TypeModulus) }
+         )*
+e3 <- eDice ( exponentiation eDice { p.AddOperator(TypeExponentiation) }
+         )*
+
+eDice <- e4 ( 'd' e4 ('k' e4)? { p.AddOperator(TypeDice) }
+         )*
+         / ( 'd' e4 ('k' e4)? { p.AddOperator(TypeDiceUnary) } )*
+
+e4 <- minus value { p.AddOperator(TypeNegation) }
+    / value
+value <- number { p.AddValue(buffer[begin:end]) }
+       / sub
+number <- < [0-9]+ > sp
+sub <- open e1 close
+add <- '+' sp
+minus <- '-' sp
+multiply <- '*' sp
+divide <- '/' sp
+modulus <- '%' sp
+exponentiation <- '^' sp / '**' sp
+open <- '(' sp
+close <- ')' sp
+sp <- ( ' ' / '\t' )*

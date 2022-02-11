@@ -13,6 +13,22 @@ func main() {
 	core.LoggerInit()
 	model.DBInit()
 	defer model.GetDB().Close()
+	//
+	//exp := "(10d1)d(3+5-7)"
+	////exp := "1234^4+15*6-17+6d12+3d15k2-d12"
+	//dep := &DiceRollParser{ Buffer: exp }
+	//_ = dep.Init()
+	//
+	//dep.RollExpression.Init(1000)
+	//if err := dep.Parse(); err != nil {
+	//	panic(err)
+	//}
+	//
+	//dep.Execute()
+	//fmt.Println(dep.Evaluate());
+
+	//return;
+	//dep.RollExpression.Execute()
 
 	//args2, _ := flags.ParseArgs(&struct {}{}, args)
 	//fmt.Println(args2, opts)
