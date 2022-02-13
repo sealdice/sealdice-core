@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"regexp"
 	"strconv"
 	"time"
@@ -29,74 +28,41 @@ func (self *Dice) registerBuiltinExt() {
 				name: "ra",
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 					if isCurGroupBotOn(session, msg) && len(cmdArgs.Args) >= 1 {
+						var cond int64
 						p := getPlayerInfoBySender(session, msg)
 
-						re1 := regexp.MustCompile(`^\d+$`);
-						if re1.MatchString(cmdArgs.Args[0]) {
-							// .ra [0-9]+
-							cond, _ := strconv.Atoi(cmdArgs.Args[0])
-							val := DiceRoll(100);
-
-							suffix := "成功"
-							if val > cond {
-								suffix = "失败"
-							} else if val <= 5 {
-								suffix = "大成功！"
-							}
-
-							text := fmt.Sprintf("<%s>的%s检定结果为: D100=%d/%d %s", p.Name, "", val, cond, suffix)
-							replyGroup(session.Socket, msg.GroupId, text);
-						} else {
-							re2, _ := regexp.Compile(`^([^\d]+)(\d+)$`)
-							if re2.MatchString(cmdArgs.Args[0]) {
-								valueMap := map[string]int64{};
-								m := re2.FindAllStringSubmatch(cmdArgs.Args[0], -1)
-
-								for _, i := range m {
-									num, err := strconv.ParseInt(i[2], 10, 64);
-									if err == nil {
-										valueMap[i[1]] = num;
-									} else {
-										valueMap[i[1]] = 50; // 默认值 50
-									}
-									break // TODO: 先只判定一个，偷个懒
+						if len(cmdArgs.Args) >= 1 {
+							var err error
+							var suffix, detail string
+							d100 := DiceRoll64(100)
+							cond, detail, err = session.parent.exprEval(cmdArgs.RawArgs, p)
+							if d100 <= cond {
+								suffix = "成功"
+								if d100 <= cond / 2 {
+									suffix = "成功(困难)"
 								}
-
-								for k, cond := range valueMap {
-									val := DiceRoll64(100);
-
-									suffix := "成功"
-									if val > cond {
-										suffix = "失败"
-									} else if val <= 5 {
-										suffix = "大成功！"
-									}
-
-									text := fmt.Sprintf("<%s>的%s检定结果为: D100=%d/%d %s", p.Name, k, val, cond, suffix)
-									replyGroup(session.Socket, msg.GroupId, text);
+								if d100 <= cond / 4 {
+									suffix = "成功(极难)"
+								}
+								if d100 <= 5 {
+									suffix = "大成功！"
 								}
 							} else {
-								re3, _ := regexp.Compile(`[^\d]+`)
-								if re3.MatchString(cmdArgs.Args[0]) {
-									attrName := re3.FindString(cmdArgs.Args[0])
-
-									if cond, ok := p.ValueNumMap[attrName]; ok {
-										val := rand.Int63() % 100;
-
-										suffix := "成功"
-										if val > cond {
-											suffix = "失败"
-										} else if val <= 5 {
-											suffix = "大成功！"
-										}
-
-										text := fmt.Sprintf("<%s>的%s检定结果为: D100=%d/%d %s", p.Name, attrName, val, cond, suffix)
-										replyGroup(session.Socket, msg.GroupId, text);
-									} else {
-										text := fmt.Sprintf("<%s>检定失败，找不到属性:%s", p.Name, attrName)
-										replyGroup(session.Socket, msg.GroupId, text);
-									}
+								if d100 > 95 {
+									suffix = "大失败！"
 								}
+							}
+
+							if err == nil {
+								detailWrap := ""
+								if detail != "" {
+									detailWrap = "=(" + detail + ")"
+								}
+
+								text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", p.Name, cmdArgs.RawArgs, d100, cond, detailWrap, suffix)
+								replyGroup(session.Socket, msg.GroupId, text);
+							} else {
+								replyGroup(session.Socket, msg.GroupId, "表达式不正确，可能是找不到属性");
 							}
 						}
 					}
