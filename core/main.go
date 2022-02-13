@@ -46,6 +46,12 @@ func main() {
 	dice := &Dice{};
 	dice.init();
 
+	//1+2*3+d1+4+1d5+
+	//a, d, err := dice.exprEval("0 + 100 + 10 + 2d5 + 2*3*1d5 + 1d4 + 7 + 力量", nil)
+
+	//a, d, err := dice.exprEval("1d30+1", nil)
+	//fmt.Println("DDD", a, d, err)
+
 	dice.ImSession.serve();
 
 	return

@@ -4,8 +4,8 @@ type DiceRollParser Peg {
     RollExpression
 }
 
-e <- sp e1 !.
-e1 <- e2 ( add e2 { p.AddOperator(TypeAdd); fmt.Println("!!!!!"); }
+e <- sp e1 !. { p.AddOperator(TypeHalt) }
+e1 <- e2 ( add e2 { p.AddOperator(TypeAdd) }
          / minus e2 { p.AddOperator(TypeSubtract) }
          )*
 e2 <- e3 ( multiply e3 { p.AddOperator(TypeMultiply) }
@@ -17,13 +17,17 @@ e3 <- eDice ( exponentiation eDice { p.AddOperator(TypeExponentiation) }
 
 eDice <- e4 ( 'd' e4 ('k' e4)? { p.AddOperator(TypeDice) }
          )*
-         / ( 'd' e4 ('k' e4)? { p.AddOperator(TypeDiceUnary) } )*
+         / ( 'd' e4 ('k' e4)? { p.AddValue("1"); p.AddOperator(TypeSwap); p.AddOperator(TypeDice) } )*
 
 e4 <- minus value { p.AddOperator(TypeNegation) }
     / value
-value <- number { p.AddValue(buffer[begin:end]) }
+value <- number { p.AddValue(string(text)) }
+       / identifier { p.AddLoadVarname(string(text)) }
        / sub
 number <- < [0-9]+ > sp
+
+identifier <- !'d' < [^!"#$%&\'()*+,-./:;<=>?@\[\\\]^_`{|}~0-9 \t\n\r]+ > sp // not (punctuation+number)
+// identifier2 <- !'d' ![0-9] < (universalCharacter / [a-zA-Z_])+ > sp // not (punctuation+number)
 sub <- open e1 close
 add <- '+' sp
 minus <- '-' sp
