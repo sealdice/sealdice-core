@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"sealdice-core/api"
@@ -50,7 +51,9 @@ func main() {
 	//a, d, err := dice.exprEval("0 + 100 + 10 + 2d5 + 2*3*1d5 + 1d4 + 7 + 力量", nil)
 
 	//a, d, err := dice.exprEval("1d30+1", nil)
-	//fmt.Println("DDD", a, d, err)
+	a, d, err := dice.exprEval("`ROLL:{ 1d20 } LIFE:{ 3d20 } test: { 4 + 5 + 力量}`", nil)
+	//a, d, err := dice.exprEval("`ROLL:{ 1d20 } LIFE:{ 4 }`", nil)
+	fmt.Println("DDD", a.typeId, a.value, d, err)
 
 	dice.ImSession.serve();
 

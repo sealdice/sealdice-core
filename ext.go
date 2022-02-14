@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/big"
 	"regexp"
 	"strconv"
 	"time"
@@ -34,8 +35,13 @@ func (self *Dice) registerBuiltinExt() {
 						if len(cmdArgs.Args) >= 1 {
 							var err error
 							var suffix, detail string
+							var r *vmStack
 							d100 := DiceRoll64(100)
-							cond, detail, err = session.parent.exprEval(cmdArgs.RawArgs, p)
+							r, detail, err = session.parent.exprEval(cmdArgs.RawArgs, p)
+							if r != nil && r.typeId == 0 {
+								cond = r.value.(*big.Int).Int64()
+							}
+
 							if d100 <= cond {
 								suffix = "成功"
 								if d100 <= cond / 2 {
