@@ -50,6 +50,8 @@ func (self *Dice) registerBuiltinExt() {
 							} else {
 								if d100 > 95 {
 									suffix = "大失败！"
+								} else {
+									suffix = "失败！"
 								}
 							}
 
@@ -78,12 +80,46 @@ func (self *Dice) registerBuiltinExt() {
 					// .st help
 					// .st (<Name>[0-9]+)+
 					if isCurGroupBotOn(session, msg) && len(cmdArgs.Args) >= 0 {
-						switch cmdArgs.Args[0] {
-						case "help":
+						var param1 string
+						if len(cmdArgs.Args) == 0 {
+							param1 = ""
+						} else {
+							param1 = cmdArgs.Args[0]
+						}
+						switch param1 {
+						case "help", "":
 							text := "属性设置指令，支持分支指令如下：\n"
-							text += ".st show // 展示个人属性\n"
+							text += ".st show/list // 展示个人属性\n"
+							text += ".st clr/clear // 清除属性\n"
+							text += ".st del <属性名1> <属性名2> ... // 删除属性，可多项，以空格间隔\n"
 							text += ".st help // 帮助\n"
 							text += ".st <属性名><值> // 例：.st 敏捷50"
+							replyGroup(session.Socket, msg.GroupId, text);
+
+						case "del":
+							p := getPlayerInfoBySender(session, msg)
+							vm := p.ValueNumMap
+							nums := []string{}
+							failed := []string{}
+
+							for _, varname := range cmdArgs.Args[1:] {
+								_, ok := vm[varname]
+								if ok {
+									nums = append(nums, varname)
+									delete(p.ValueNumMap, varname)
+								} else {
+									failed = append(failed, varname)
+								}
+							}
+
+							text := fmt.Sprintf("<%s>的如下属性被成功删除:%s，失败%d项\n", p.Name, nums, len(failed))
+							replyGroup(session.Socket, msg.GroupId, text);
+
+						case "clr", "clear":
+							p := getPlayerInfoBySender(session, msg)
+							num := len(p.ValueNumMap)
+							p.ValueNumMap = map[string]int64{};
+							text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
 							replyGroup(session.Socket, msg.GroupId, text);
 
 						case "show", "list":
@@ -107,17 +143,27 @@ func (self *Dice) registerBuiltinExt() {
 
 						default:
 							valueMap := map[string]int64{};
-							re, _ := regexp.Compile(`([^\d]+)(\d+)`)
+							re, _ := regexp.Compile(`([^\d]+?)[:=]?(\d+)`)
 
 							// 读取所有参数中的值
+							stText := ""
 							for _, text := range cmdArgs.Args {
-								m := re.FindAllStringSubmatch(text, -1)
+								stText += text
+							}
 
-								for _, i := range m {
-									num, err := strconv.ParseInt(i[2], 10, 64);
-									if err == nil {
-										valueMap[i[1]] = num;
-									}
+							m := re.FindAllStringSubmatch(RemoveSpace(stText), -1)
+
+							for _, i := range m {
+								num, err := strconv.ParseInt(i[2], 10, 64);
+								if err == nil {
+									valueMap[i[1]] = num;
+								}
+							}
+
+							for _, v := range cmdArgs.Kwargs {
+								vint, err := strconv.ParseInt(v.Value, 10, 64)
+								if err == nil {
+									valueMap[v.Name] = vint
 								}
 							}
 
