@@ -5,6 +5,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"math/rand"
 	"strconv"
 	"time"
@@ -53,15 +54,15 @@ func (self *Dice) rebuildParser(buffer string) *DiceRollParser {
 	return p;
 }
 
-func (self *Dice) exprEval(buffer string, p *PlayerInfo) (int64, string, error) {
+func (self *Dice) exprEval(buffer string, p *PlayerInfo) (*vmStack, string, error) {
 	parser := self.rebuildParser(buffer)
 	err := parser.Parse()
 	if err == nil {
 		parser.Execute()
 		num, detail, _ := parser.Evaluate(self, p)
-		return num.Int64(), detail, nil;
+		return num, detail, nil;
 	}
-	return 0, "", err
+	return nil, "", err
 }
 
 func (self *Dice) loads() {
@@ -176,7 +177,12 @@ func (self *Dice) registerCoreCommands() {
 				forWhat := "";
 				if len(cmdArgs.Args) >= 1 {
 					var err error
-					diceResult, detail, err = session.parent.exprEval(cmdArgs.Args[0], p)
+					var r *vmStack
+					r, detail, err = session.parent.exprEval(cmdArgs.Args[0], p)
+					if r != nil && r.typeId == 0 {
+						diceResult = r.value.(*big.Int).Int64()
+						//return errors.New("错误的类型")
+					}
 
 					if err == nil {
 						if len(cmdArgs.Args) >= 2 {
@@ -206,7 +212,12 @@ func (self *Dice) registerCoreCommands() {
 					text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, p.Name, dicePoints, val);
 				}
 
-				replyGroup(session.Socket, msg.GroupId, text);
+				if cmdArgs.Command == "rh" {
+					replyGroup(session.Socket, msg.GroupId, "黑暗的角落里，传来命运转动的声音");
+					replyPerson(session.Socket, msg.Sender.UserId, text);
+				} else {
+					replyGroup(session.Socket, msg.GroupId, text);
+				}
 			}
 
 			return struct{ success bool }{
@@ -216,6 +227,7 @@ func (self *Dice) registerCoreCommands() {
 	}
 	self.cmdMap["r"] = cmdRoll;
 	self.cmdMap["roll"] = cmdRoll;
+	self.cmdMap["rh"] = cmdRoll;
 
 	cmdExt := &CmdItemInfo{
 		name: "ext",
@@ -364,6 +376,31 @@ func (self *Dice) registerCoreCommands() {
 		},
 	}
 	self.cmdMap["cfgsave"] = cmdTmpSave;
+
+
+	cmdText := &CmdItemInfo{
+		name: "text",
+		// help
+		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+			if msg.MessageType == "group" {
+				if isCurGroupBotOn(session, msg) {
+					p := getPlayerInfoBySender(session, msg)
+					val, _, err := self.exprEval("`" + cmdArgs.RawArgs + "`", p)
+
+					if err == nil && val.typeId == 1 {
+						replyGroup(session.Socket, msg.GroupId, val.value.(string));
+					} else {
+						replyGroup(session.Socket, msg.GroupId, "格式错误");
+					}
+				}
+			}
+
+			return struct{ success bool }{
+				success: true,
+			}
+		},
+	}
+	self.cmdMap["text"] = cmdText;
 }
 
 func isCurGroupBotOn(session *IMSession, msg *Message) bool {

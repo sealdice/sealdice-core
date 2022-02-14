@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/big"
+	"regexp"
 	"strings"
 )
 
@@ -20,6 +21,7 @@ const (
 	TypeDiceUnary
 	TypeDice
 	TypeLoadVarname
+	TypeLoadFormatString
 	TypeHalt
 	TypeSwap
 )
@@ -28,6 +30,7 @@ type ByteCode struct {
 	T     Type
 	Value *big.Int
 	ValueStr string
+	ValueAny interface{}
 }
 
 func (code *ByteCode) String() string {
@@ -86,8 +89,25 @@ func (e *RollExpression) AddValue(value string) {
 	code[top].Value.SetString(value, 10)
 }
 
-func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*big.Int, string, error) {
-	stack, top := make([]big.Int, len(e.Code)), 0
+func (e *RollExpression) AddFormatString(value string) {
+	// 载入一个字符串并格式化
+	code, top := e.Code, e.Top
+	e.Top++
+	code[top].T = TypeLoadFormatString
+	code[top].Value = big.NewInt(1)
+
+	re := regexp.MustCompile(`\{[^}]*?\}`)
+	code[top].ValueStr = value
+	code[top].ValueAny = re.FindAllString(value, -1)
+}
+
+type vmStack struct {
+	typeId int
+	value interface{}
+}
+
+func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, error) {
+	stack, top := make([]vmStack, len(e.Code)), 0
 	//lastIsDice := false
 	//var lastValIndex int
 	times := 0
@@ -98,8 +118,23 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*big.Int, string, err
 	for _, code := range e.Code[0:e.Top] {
 		// 单目运算符
 		switch code.T {
+		case TypeLoadFormatString:
+			parts := code.ValueAny.([]string)
+			str := code.ValueStr
+
+			for index, i := range parts {
+				str = strings.Replace(str, i, stack[top-len(parts)+index].value.(*big.Int).String(), 1)
+			}
+
+			top -= len(parts)
+			stack[top].typeId = 1
+			stack[top].value = str
+			top++
+			continue
 		case TypeNumber:
-			stack[top].Set(code.Value)
+			stack[top].typeId = 0
+			stack[top].value = &big.Int{}
+			stack[top].value.(*big.Int).Set(code.Value)
 			top++
 			continue
 		case TypeLoadVarname:
@@ -111,7 +146,10 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*big.Int, string, err
 					// TODO: 找不到时的处理
 				}
 			}
-			stack[top].Set(big.NewInt(v))
+
+			stack[top].typeId = 0
+			stack[top].value = &big.Int{}
+			stack[top].value.(*big.Int).SetInt64(v)
 			top++
 
 			lastDetail := fmt.Sprintf("%s=%d", code.ValueStr, v)
@@ -119,12 +157,12 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*big.Int, string, err
 			continue
 		case TypeNegation:
 			a := &stack[top-1]
-			a.Neg(a)
+			a.value.(*big.Int).Neg(a.value.(*big.Int))
 			continue
 		case TypeDiceUnary:
 			a := &stack[top-1]
 			// dice XXX, 如 d100
-			a.SetInt64(DiceRoll64(a.Int64()))
+			a.value.(*big.Int).SetInt64(DiceRoll64(a.value.(*big.Int).Int64()))
 			continue
 		case TypeHalt:
 			continue
@@ -141,7 +179,7 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*big.Int, string, err
 
 			checkLeft := func () {
 				if calcDetail == "" {
-					calcDetail += a.String()
+					calcDetail += a.value.(*big.Int).String()
 
 					if len(lastDetails) > 0 {
 						calcDetail += fmt.Sprintf("[%s]", strings.Join(lastDetails, ","))
@@ -165,43 +203,47 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*big.Int, string, err
 			}
 		}
 
+		aInt := a.value.(*big.Int)
+		bInt := b.value.(*big.Int)
+
 		// 二目运算符
 		switch code.T {
 		case TypeAdd:
 			checkDice(&code)
-			a.Add(a, b)
+			// a.value.(*big.Int)
+			aInt.Add(aInt, bInt)
 		case TypeSubtract:
 			checkDice(&code)
-			a.Sub(a, b)
+			aInt.Sub(aInt, bInt)
 		case TypeMultiply:
 			checkDice(&code)
-			a.Mul(a, b)
+			aInt.Mul(aInt, bInt)
 		case TypeDivide:
 			checkDice(&code)
-			a.Div(a, b)
+			aInt.Div(aInt, bInt)
 		case TypeModulus:
 			checkDice(&code)
-			a.Mod(a, b)
+			aInt.Mod(aInt, bInt)
 		case TypeExponentiation:
 			checkDice(&code)
-			a.Exp(a, b, nil)
+			aInt.Exp(aInt, bInt, nil)
 		case TypeSwap:
 			tmp := big.NewInt(0)
-			tmp.Set(a)
-			a.Set(b)
-			b.Set(tmp)
+			tmp.Set(aInt)
+			aInt.Set(bInt)
+			bInt.Set(tmp)
 			top++
 		case TypeDice:
 			checkDice(&code)
 			// XXX dice YYY, 如 3d100
 			var num int64
-			for i := int64(0); i < a.Int64(); i+=1 {
-				num += DiceRoll64(b.Int64())
+			for i := int64(0); i < aInt.Int64(); i+=1 {
+				num += DiceRoll64(bInt.Int64())
 			}
 
-			lastDetail := fmt.Sprintf("%dd%d=%d", a.Int64(), b.Int64(), num)
+			lastDetail := fmt.Sprintf("%dd%d=%d", aInt.Int64(), bInt.Int64(), num)
 			lastDetails = append(lastDetails, lastDetail)
-			a.SetInt64(num)
+			aInt.SetInt64(num)
 		}
 	}
 

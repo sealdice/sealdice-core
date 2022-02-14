@@ -14,6 +14,30 @@ import (
 // {"anonymous":null,"font":0,"group_id":111,"message":"qqq","message_id":884917177,"message_seq":1434,"message_type":"group","post_type":"message","raw_message":"qqq","self_id":1001,"sender":{"age":0,"area":"","card":"","level":"","nickname":"鏈ㄨ惤","role":"member","sex":"unknown","title":"","user_id":1002},"sub_type":"normal","time":1643863961,"user_id":1002}
 // {"anonymous":null,"font":0,"group_id":111,"message":"[CQ:at,qq=1001]   .r test","message_id":888971055,"message_seq":1669,"message_type":"group","post_type":"message","raw_message":"[CQ:at,qq=1001]   .r test","self_id":1001,"sender":{"age":0,"area":"","card":"","level":"","nickname":"鏈ㄨ惤","role":"member","sex":"unknown","title":"","user_id":1002},"sub_type":"normal","time":1644127751,"user_id":1002}
 
+func replyPerson(socket *gowebsocket.Socket, userId int64, text string) {
+	time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
+
+	type GroupMessageParams struct {
+		MessageType string        `json:"message_type"`
+		UserId int64             `json:"user_id"`
+		Message string            `json:"message"`
+	}
+
+	a, _ := json.Marshal(struct {
+		Action string             `json:"action"`
+		Params GroupMessageParams `json:"params"`
+	}{
+		Action: "send_msg",
+		Params: GroupMessageParams{
+			MessageType: "private",
+			UserId:      userId,
+			Message:     text,
+		},
+	})
+
+	socket.SendText(string(a))
+}
+
 func replyGroup(socket *gowebsocket.Socket, groupId int64, text string) {
 	time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 
@@ -38,8 +62,10 @@ func replyGroup(socket *gowebsocket.Socket, groupId int64, text string) {
 func getLoginInfo(socket gowebsocket.Socket) {
 	a, _ := json.Marshal(struct {
 		Action string `json:"action"`
+		Echo string `json:"echo"`
 	}{
-		"get_login_info",
+		Action: "get_login_info",
+		Echo: "123",
 	})
 	socket.SendText(string(a))
 }

@@ -4,7 +4,7 @@ type DiceRollParser Peg {
     RollExpression
 }
 
-e <- sp e1 !. { p.AddOperator(TypeHalt) }
+e <- sp (fstring / e1) !. { p.AddOperator(TypeHalt) }
 e1 <- e2 ( add e2 { p.AddOperator(TypeAdd) }
          / minus e2 { p.AddOperator(TypeSubtract) }
          )*
@@ -38,3 +38,6 @@ exponentiation <- '^' sp / '**' sp
 open <- '(' sp
 close <- ')' sp
 sp <- ( ' ' / '\t' )*
+
+fstring <- '`' < ( ('{' sp e1 sp '}') / escape / ![`\\\n\r] .)* > '`' sp { p.AddFormatString(string(text)) }
+escape <- '\\' ([btnfr"'\\])  //  / OctalEscape / UnicodeEscape
