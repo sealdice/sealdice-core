@@ -62,6 +62,7 @@ func (code *ByteCode) String() string {
 type RollExpression struct {
 	Code []ByteCode
 	Top  int
+	BigFailDiceOn bool
 }
 
 func (e *RollExpression) Init(stackLength int) {
@@ -238,7 +239,11 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			// XXX dice YYY, 如 3d100
 			var num int64
 			for i := int64(0); i < aInt.Int64(); i+=1 {
-				num += DiceRoll64(bInt.Int64())
+				if e.BigFailDiceOn {
+					num += bInt.Int64()
+				} else {
+					num += DiceRoll64(bInt.Int64())
+				}
 			}
 
 			lastDetail := fmt.Sprintf("%dd%d=%d", aInt.Int64(), bInt.Int64(), num)

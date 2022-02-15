@@ -15,9 +15,9 @@ e2 <- e3 ( multiply e3 { p.AddOperator(TypeMultiply) }
 e3 <- eDice ( exponentiation eDice { p.AddOperator(TypeExponentiation) }
          )*
 
-eDice <- e4 ( 'd' e4 ('k' e4)? { p.AddOperator(TypeDice) }
+eDice <- e4 ( ('d'/'D') e4 ('k' e4)? { p.AddOperator(TypeDice) }
          )*
-         / ( 'd' e4 ('k' e4)? { p.AddValue("1"); p.AddOperator(TypeSwap); p.AddOperator(TypeDice) } )*
+         / ( ('d'/'D') e4 ('k' e4)? { p.AddValue("1"); p.AddOperator(TypeSwap); p.AddOperator(TypeDice) } )*
 
 e4 <- minus value { p.AddOperator(TypeNegation) }
     / value
