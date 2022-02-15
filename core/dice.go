@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -54,9 +55,11 @@ func (self *Dice) rebuildParser(buffer string) *DiceRollParser {
 	return p;
 }
 
-func (self *Dice) exprEval(buffer string, p *PlayerInfo) (*vmStack, string, error) {
+func (self *Dice) exprEvalBase(buffer string, p *PlayerInfo, bigFailDice bool) (*vmStack, string, error) {
 	parser := self.rebuildParser(buffer)
 	err := parser.Parse()
+	parser.RollExpression.BigFailDiceOn = bigFailDice
+
 	if err == nil {
 		parser.Execute()
 		num, detail, _ := parser.Evaluate(self, p)
@@ -64,6 +67,21 @@ func (self *Dice) exprEval(buffer string, p *PlayerInfo) (*vmStack, string, erro
 	}
 	return nil, "", err
 }
+
+func (self *Dice) exprEval(buffer string, p *PlayerInfo) (*vmStack, string, error) {
+	return self.exprEvalBase(buffer, p, false)
+}
+
+func (self *Dice) exprText(buffer string, p *PlayerInfo) (string, string, error) {
+	val, detail, err := self.exprEval("`" + buffer + "`", p)
+
+	if err == nil && val.typeId == 1 {
+		return val.value.(string), detail, err
+	}
+
+	return "", "", errors.New("错误的表达式")
+}
+
 
 func (self *Dice) loads() {
 	data, err := ioutil.ReadFile("save.yaml")
@@ -385,10 +403,10 @@ func (self *Dice) registerCoreCommands() {
 			if msg.MessageType == "group" {
 				if isCurGroupBotOn(session, msg) {
 					p := getPlayerInfoBySender(session, msg)
-					val, _, err := self.exprEval("`" + cmdArgs.RawArgs + "`", p)
+					val, _, err := self.exprText(cmdArgs.RawArgs, p)
 
-					if err == nil && val.typeId == 1 {
-						replyGroup(session.Socket, msg.GroupId, val.value.(string));
+					if err == nil {
+						replyGroup(session.Socket, msg.GroupId, val);
 					} else {
 						replyGroup(session.Socket, msg.GroupId, "格式错误");
 					}
