@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -99,16 +100,50 @@ type Message struct {
 }
 
 type PlayerInfo struct {
-	UserId int64 `yaml:"userId"`;
-	Name string;
-	ValueNumMap map[string]int64 `yaml:"valueNumMap"`;
-	ValueStrMap map[string]string `yaml:"valueStrMap"`;
-	RpToday int `yaml:"rpToday"`;
-	RpTime string `yaml:"rpTime"`;
-	lastUpdateTime int64 `yaml:"lastUpdateTime"`;
+	UserId         int64 `yaml:"userId"`
+	Name           string
+	ValueNumMap    map[string]int64  `yaml:"valueNumMap"`
+	ValueStrMap    map[string]string `yaml:"valueStrMap"`
+	RpToday        int               `yaml:"rpToday"`
+	RpTime         string            `yaml:"rpTime"`
+	lastUpdateTime int64             `yaml:"lastUpdateTime"`
 
 	// level int 权限
-	DiceSideNum int `yaml:"diceSideNum"` // 面数，为0时等同于d100
+	DiceSideNum    int `yaml:"diceSideNum"` // 面数，为0时等同于d100
+	TempValueAlias *map[string][]string `yaml:"-"`
+}
+
+func (i PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) string {
+	name := s
+
+	if alias == nil {
+		alias = *i.TempValueAlias
+	}
+
+	for k, v := range alias {
+		if strings.EqualFold(s, k) {
+			break // 名字本身就是确定值，不用修改
+		}
+		for _, i := range v {
+			if strings.EqualFold(s, i) {
+				name = k
+				break
+			}
+		}
+	}
+
+	return name;
+}
+
+func (i PlayerInfo) SetValueInt64(s string, sanNew int64, alias map[string][]string) {
+	name := i.GetValueNameByAlias(s, alias)
+	i.ValueNumMap[name] = sanNew
+}
+
+func (i PlayerInfo) GetValueInt64(s string, alias map[string][]string) (int64, bool) {
+	name := i.GetValueNameByAlias(s, alias)
+	v, e := i.ValueNumMap[name]
+	return v, e
 }
 
 type ServiceAtItem struct {
@@ -193,17 +228,17 @@ func (s *IMSession) serve() {
 				//log.Println(msgInfo)
 
 				//if msg.Sender.UserId == 303451945 || msg.Sender.UserId == 184023393 {
-				if msg.MessageType == "group" {
-					if msgInfo != nil {
-						session.commandSolve(session, msg, msgInfo);
-						//c, _ := json.Marshal(msgInfo)
-						//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);
-						//replyGroup(Socket, 438115120, text)
-					} else {
-						//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
-						//replyGroup(Socket, 438115120, text)
-					}
+				//if msg.MessageType == "group" {
+				if msgInfo != nil {
+					session.commandSolve(session, msg, msgInfo);
+					//c, _ := json.Marshal(msgInfo)
+					//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);
+					//replyGroup(Socket, 438115120, text)
+				} else {
+					//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
+					//replyGroup(Socket, 438115120, text)
 				}
+				//}
 				//}
 			}
 		} else {
@@ -263,12 +298,18 @@ func (s *IMSession) commandSolve(session *IMSession, msg *Message, cmdArgs *CmdA
 		return false;
 	}
 
+	sa := session.ServiceAt[msg.GroupId];
+	if sa != nil && sa.Active {
+		for _, i := range sa.ActivatedExtList {
+			i.EntryHook(session, msg, cmdArgs)
+		}
+	}
+
 	item := session.parent.cmdMap[cmdArgs.Command];
 	if tryItemSolve(item) {
 		return
 	};
 
-	sa := session.ServiceAt[msg.GroupId];
 	if sa != nil && sa.Active {
 		for _, i := range sa.ActivatedExtList {
 			item := i.cmdMap[cmdArgs.Command];

@@ -142,7 +142,7 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			var v int64
 			if p != nil {
 				var exists bool
-				v, exists = p.ValueNumMap[code.ValueStr]
+				v, exists = p.GetValueInt64(code.ValueStr, nil)
 				if !exists {
 					// TODO: 找不到时的处理
 				}

@@ -20,3 +20,4 @@ go.sum
 .idea
 sealdice-core
 save.yaml
+configs/

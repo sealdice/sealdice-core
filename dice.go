@@ -25,15 +25,17 @@ type ExtInfo struct {
 	version    string     // 版本
 	autoActive bool       // 是否自动开启
 	cmdMap     CmdMapCls `yaml:"-"`  // 指令集合
+	EntryHook func(session *IMSession, msg *Message, cmdArgs *CmdArgs) `yaml:"-"`
 	//activeInSession bool; // 在当前会话中开启
 }
 
 type Dice struct {
-	ImSession *IMSession `yaml:"imSession"`;
-	cmdMap    CmdMapCls;
-	extList   []*ExtInfo;
-	RollParser *DiceRollParser `yaml:"-"`;
-	CommandCompatibleMode bool `yaml:"commandCompatibleMode"`
+	ImSession             *IMSession `yaml:"imSession"`
+	cmdMap                CmdMapCls
+	extList               []*ExtInfo
+	RollParser            *DiceRollParser `yaml:"-"`
+	CommandCompatibleMode bool            `yaml:"commandCompatibleMode"`
+	lastSavedTime         *time.Time       `yaml:"lastSavedTime"`
 }
 
 func (self *Dice) init() {
@@ -46,6 +48,15 @@ func (self *Dice) init() {
 	self.registerCoreCommands();
 	self.registerBuiltinExt()
 	self.loads();
+
+	autoSave := func() {
+		t := time.Tick(15 * time.Second)
+		for {
+			<-t
+			self.save()
+		}
+	}
+	go autoSave()
 }
 
 
@@ -121,8 +132,16 @@ func (self *Dice) loads() {
 	}
 }
 
-func (self Dice) save() {
-	
+func (self *Dice) save() {
+	a, err := yaml.Marshal(self)
+	if err == nil {
+		err := ioutil.WriteFile("save.yaml", a, 0666)
+		if err == nil {
+			now := time.Now()
+			self.lastSavedTime = &now
+			fmt.Println("自动保存", self.lastSavedTime)
+		}
+	}
 }
 
 func DiceRoll(dicePoints int) int {
@@ -141,42 +160,66 @@ func DiceRoll64(dicePoints int64) int64 {
 	return val
 }
 
+var VERSION = "v20220216"
+
 /** 这几条指令不能移除 */
 func (self *Dice) registerCoreCommands() {
 	cmdBot := &CmdItemInfo{
 		name: "bot",
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if msg.MessageType == "group" && cmdArgs.AmIBeMentioned {
-				if len(cmdArgs.Args) == 0 {
-					replyGroup(session.Socket, msg.GroupId, "SealDice 测试版");
-				} else if len(cmdArgs.Args) >= 1 {
-					if cmdArgs.Args[0] == "on" {
-						if session.ServiceAt[msg.GroupId] != nil {
-							session.ServiceAt[msg.GroupId].Active = true;
-						} else {
-							extLst := []*ExtInfo{};
-							for _, i := range self.extList {
-								if i.autoActive {
-									extLst = append(extLst, i)
+			inGroup := msg.MessageType == "group"
+
+			if len(cmdArgs.Args) == 0 {
+				count := 0
+				for _, i := range self.ImSession.ServiceAt {
+					if i.Active {
+						count += 1
+					}
+				}
+				lastSavedTimeText := "从未"
+				if self.lastSavedTime != nil {
+					fmt.Println("!!!!", self.lastSavedTime, self.lastSavedTime.Format("2022-02-17 01:35:20"))
+					lastSavedTimeText = self.lastSavedTime.Format("2006-01-02 15:04:05")
+				}
+				text := fmt.Sprintf("SealDice 0.9测试版 %s\n兼容模式: 已开启\n供职于%d个群，其中%d个处于开启状态\n上次自动保存时间: %s", VERSION, len(self.ImSession.ServiceAt), count, lastSavedTimeText)
+
+				if inGroup {
+					replyGroup(session.Socket, msg.GroupId, text)
+				} else {
+					replyPerson(session.Socket, msg.Sender.UserId, text)
+				}
+			} else {
+				if inGroup && cmdArgs.AmIBeMentioned {
+					if len(cmdArgs.Args) >= 1 {
+						if cmdArgs.Args[0] == "on" {
+							if session.ServiceAt[msg.GroupId] != nil {
+								session.ServiceAt[msg.GroupId].Active = true;
+							} else {
+								extLst := []*ExtInfo{};
+								for _, i := range self.extList {
+									if i.autoActive {
+										extLst = append(extLst, i)
+									}
 								}
+								session.ServiceAt[msg.GroupId] = &ServiceAtItem{
+									Active:           true,
+									ActivatedExtList: extLst,
+									Players:          map[int64]*PlayerInfo{},
+								};
 							}
-							session.ServiceAt[msg.GroupId] = &ServiceAtItem{
-								Active:           true,
-								ActivatedExtList: extLst,
-								Players:          map[int64]*PlayerInfo{},
-							};
+							replyGroup(session.Socket, msg.GroupId, "SealDice 已启用(开发中) " + VERSION);
+						} else if cmdArgs.Args[0] == "off" {
+							if len(session.ServiceAt[msg.GroupId].ActivatedExtList) == 0 {
+								delete(session.ServiceAt, msg.GroupId);
+							} else {
+								session.ServiceAt[msg.GroupId].Active = false;
+							}
+							replyGroup(session.Socket, msg.GroupId, "停止服务");
 						}
-						replyGroup(session.Socket, msg.GroupId, "SealDice 已启用(开发中) v20220210");
-					} else if cmdArgs.Args[0] == "off" {
-						if len(session.ServiceAt[msg.GroupId].ActivatedExtList) == 0 {
-							delete(session.ServiceAt, msg.GroupId);
-						} else {
-							session.ServiceAt[msg.GroupId].Active = false;
-						}
-						replyGroup(session.Socket, msg.GroupId, "停止服务");
 					}
 				}
 			}
+
 			return struct{ success bool }{
 				success: true,
 			}
@@ -392,11 +435,7 @@ func (self *Dice) registerCoreCommands() {
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if msg.MessageType == "group" {
 				if isCurGroupBotOn(session, msg) {
-					a, err := yaml.Marshal(session.parent)
-					if err == nil {
-						ioutil.WriteFile("save.yaml", a, 0666)
-					}
-
+					self.save()
 					replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("临时指令：试图存档"));
 				}
 			}

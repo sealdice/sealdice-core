@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"math/big"
 	"regexp"
 	"strconv"
@@ -230,11 +232,24 @@ func (self *Dice) registerBuiltinExt() {
 		maniaMap[n] = i[2]
 	}
 
+	ac := AttributeConfigs{}
+	af, err := ioutil.ReadFile(CONFIG_ATTRIBUTE_FILE)
+	if err == nil {
+		err = yaml.Unmarshal(af, &ac)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	self.extList = append(self.extList, &ExtInfo{
-		"coc7",
-		"0.0.1",
-		true,
-		CmdMapCls{
+		Name: "coc7",
+		version: "0.0.1",
+		autoActive: true,
+		EntryHook: func (session *IMSession, msg *Message, cmdArgs *CmdArgs) {
+			p := getPlayerInfoBySender(session, msg)
+			p.TempValueAlias = &ac.Alias;
+		},
+		cmdMap: CmdMapCls{
 			"ti": &CmdItemInfo{
 				name: "ti",
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
@@ -444,12 +459,12 @@ func (self *Dice) registerBuiltinExt() {
 									reduceFail = r.value.(*big.Int).Int64()
 								}
 
-
 								var sanNew int64
 								var suffix string
 								if d100 <= san {
 									suffix = "成功"
 									sanNew = san - reduceSuccess
+									text1 = successExpr
 								} else {
 									if d100 > 95 {
 										suffix = "大失败！"
@@ -457,12 +472,28 @@ func (self *Dice) registerBuiltinExt() {
 										suffix = "失败！"
 									}
 									sanNew = san - reduceFail
+									text1 = failedExpr
 								}
 
-								p.ValueNumMap["san"] = sanNew
+								if sanNew < 0 {
+									sanNew = 0
+								}
+
+								p.SetValueInt64("理智", sanNew, ac.Alias)
 
 								//输出结果
-								text := fmt.Sprintf("<%s>的理智检定: %s -> g%d/%d\nd100=%d %s\n理智变化: %d -> %d\n", p.Name, text1, reduceSuccess, reduceFail, d100, suffix, san, sanNew)
+								offset := san - sanNew
+								text := fmt.Sprintf("<%s>的理智(%d)检定:\nD100=%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", p.Name, san, d100, suffix, san, sanNew, text1, offset)
+
+								if sanNew == 0 {
+									text += "提示：理智归零，已永久疯狂(可用.ti或.li抽取症状)\n"
+								} else {
+									if offset >= 5 {
+										text += "提示：单次损失理智超过5点，若智力检定通过，将进入临时性疯狂(可用.ti或.li抽取症状)\n"
+									}
+								}
+
+								// 临时疯狂
 								replyGroup(session.Socket, msg.GroupId, text);
 							} else {
 								replyGroup(session.Socket, msg.GroupId, "命令格式错误");
@@ -481,6 +512,8 @@ func (self *Dice) registerBuiltinExt() {
 					// .st show
 					// .st help
 					// .st (<Name>[0-9]+)+
+					// .st (<Name>)
+					// .st (<Name>)+-<表达式>
 					if isCurGroupBotOn(session, msg) && len(cmdArgs.Args) >= 0 {
 						var param1 string
 						if len(cmdArgs.Args) == 0 {
@@ -528,8 +561,7 @@ func (self *Dice) registerBuiltinExt() {
 							info := ""
 							name := msg.Sender.Nickname
 
-							players := session.ServiceAt[msg.GroupId].Players;
-							p := players[msg.Sender.UserId]
+							p := getPlayerInfoBySender(session, msg)
 							name = p.Name
 
 							usePickItem := len(cmdArgs.Args) >= 2
@@ -564,41 +596,79 @@ func (self *Dice) registerBuiltinExt() {
 							replyGroup(session.Socket, msg.GroupId, text);
 
 						default:
-							valueMap := map[string]int64{};
-							re, _ := regexp.Compile(`([^\d]+?)[:=]?(\d+)`)
+							re1, _ := regexp.Compile(`([^\d]+?)([+-])=?(.+)$`)
+							m := re1.FindStringSubmatch(cmdArgs.cleanArgs)
+							if len(m) > 0 {
+								p := getPlayerInfoBySender(session, msg)
+								val, exists := p.GetValueInt64(m[1], ac.Alias)
+								if !exists {
+									text := fmt.Sprintf("<%s>: 无法找到名下属性 %s，不能作出修改", p.Name, m[1])
+									replyGroup(session.Socket, msg.GroupId, text);
+								} else {
+									v, _, err := self.exprEval(m[3], p)
+									if err == nil && v.typeId == 0 {
+										var newVal int64
+										rightVal := v.value.(*big.Int).Int64()
+										signText := ""
 
-							// 读取所有参数中的值
-							stText := ""
-							for _, text := range cmdArgs.Args {
-								stText += text
-							}
+										if m[2] == "+" {
+											signText = "增加"
+											newVal = val + rightVal
+										} else {
+											signText = "扣除"
+											newVal = val - rightVal
+										}
+										p.SetValueInt64(m[1], newVal, ac.Alias)
 
-							m := re.FindAllStringSubmatch(RemoveSpace(stText), -1)
-
-							for _, i := range m {
-								num, err := strconv.ParseInt(i[2], 10, 64);
-								if err == nil {
-									valueMap[i[1]] = num;
+										text := fmt.Sprintf("<%s>的“%s”变化: %d ➯ %d (%s%s=%d)\n", p.Name, m[1], val, newVal, signText, m[3], rightVal)
+										replyGroup(session.Socket, msg.GroupId, text);
+									} else {
+										text := fmt.Sprintf("<%s>: 错误的增减值: %s", p.Name, m[3])
+										replyGroup(session.Socket, msg.GroupId, text);
+									}
 								}
-							}
+							} else {
+								valueMap := map[string]int64{};
+								re, _ := regexp.Compile(`([^\d]+?)[:=]?(\d+)`)
 
-							for _, v := range cmdArgs.Kwargs {
-								vint, err := strconv.ParseInt(v.Value, 10, 64)
-								if err == nil {
-									valueMap[v.Name] = vint
+								// 读取所有参数中的值
+								stText := cmdArgs.cleanArgs
+
+								m := re.FindAllStringSubmatch(RemoveSpace(stText), -1)
+
+								for _, i := range m {
+									num, err := strconv.ParseInt(i[2], 10, 64);
+									if err == nil {
+										valueMap[i[1]] = num;
+									}
 								}
+
+								for _, v := range cmdArgs.Kwargs {
+									vint, err := strconv.ParseInt(v.Value, 10, 64)
+									if err == nil {
+										valueMap[v.Name] = vint
+									}
+								}
+
+								count := 0
+								synonymsCount := 0
+								p := getPlayerInfoBySender(session, msg)
+
+								for k, v := range valueMap {
+									name := p.GetValueNameByAlias(k, ac.Alias)
+									if k != name {
+										synonymsCount += 1
+									} else {
+										count += 1
+									}
+									p.SetValueInt64(name, v, ac.Alias)
+								}
+
+								p.lastUpdateTime = time.Now().Unix();
+								//s, _ := json.Marshal(valueMap)
+								text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据 (其中%d条为同义词)", p.Name, len(valueMap), synonymsCount)
+								replyGroup(session.Socket, msg.GroupId, text);
 							}
-
-							p := getPlayerInfoBySender(session, msg)
-
-							for k, v := range valueMap {
-								p.ValueNumMap[k] = v;
-							}
-
-							p.lastUpdateTime = time.Now().Unix();
-							//s, _ := json.Marshal(valueMap)
-							text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据", p.Name, len(valueMap))
-							replyGroup(session.Socket, msg.GroupId, text);
 						}
 					}
 					return struct{ success bool }{
