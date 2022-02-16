@@ -42,6 +42,7 @@ func main() {
 	//AtParse("[CQ:at,qq=3604749540]")
 	//AtParse("[CQ:at,qq=3604749540] 333 [CQ:at,qq=3604749540] 2222")
 	//AtParse("[CQ:at,qq=3604749540] 333 \n[CQ:at,qq=3604749540] 2222")
+	configInit()
 
 	dice := &Dice{};
 	dice.init();
