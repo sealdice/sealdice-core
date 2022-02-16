@@ -462,7 +462,7 @@ func (self *Dice) registerBuiltinExt() {
 								p.ValueNumMap["san"] = sanNew
 
 								//输出结果
-								text := fmt.Sprintf("<%s>的理智检定: %s -> %d/%d\nd100=%d %s\n理智变化: %d -> %d\n", p.Name, text1, reduceSuccess, reduceFail, d100, suffix, san, sanNew)
+								text := fmt.Sprintf("<%s>的理智检定: %s -> g%d/%d\nd100=%d %s\n理智变化: %d -> %d\n", p.Name, text1, reduceSuccess, reduceFail, d100, suffix, san, sanNew)
 								replyGroup(session.Socket, msg.GroupId, text);
 							} else {
 								replyGroup(session.Socket, msg.GroupId, "命令格式错误");

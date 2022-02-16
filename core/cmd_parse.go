@@ -5,6 +5,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type Kwarg struct {
@@ -28,9 +29,23 @@ type CmdArgs struct {
 	AmIBeMentioned bool `json:"amIBeMentioned"`
 }
 
-func CommandParse(rawCmd string) *CmdArgs {
+func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string) *CmdArgs {
 	restText, atInfo := AtParse(rawCmd);
 	re := regexp.MustCompile(`^\s*[.。](\S+)\s*([^\n]*)`)
+
+	if commandCompatibleMode {
+		matched := ""
+		for _, i := range currentCmdLst {
+			if strings.HasPrefix(restText, "." + i) {
+				matched = i
+				break
+			}
+		}
+		if matched != "" {
+			restText = "." + matched + " " + restText[len(matched)+1:]
+		}
+	}
+
 	m := re.FindStringSubmatch(restText)
 	if len(m) == 3 {
 		cmdInfo := new(CmdArgs)

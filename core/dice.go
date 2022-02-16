@@ -33,9 +33,11 @@ type Dice struct {
 	cmdMap    CmdMapCls;
 	extList   []*ExtInfo;
 	RollParser *DiceRollParser `yaml:"-"`;
+	CommandCompatibleMode bool `yaml:"commandCompatibleMode"`
 }
 
 func (self *Dice) init() {
+	self.CommandCompatibleMode = true;
 	self.ImSession = &IMSession{};
 	self.ImSession.parent = self;
 	self.ImSession.ServiceAt = make(map[int64]*ServiceAtItem);
@@ -192,6 +194,16 @@ func (self *Dice) registerCoreCommands() {
 				var detail string
 				p := getPlayerInfoBySender(session, msg)
 
+				if session.parent.CommandCompatibleMode {
+					if cmdArgs.Command == "rd" {
+						cmdArgs.Args[0] = "d" + cmdArgs.Args[0]
+					}
+				} else {
+					return struct{ success bool }{
+						success: false,
+					}
+				}
+
 				forWhat := "";
 				if len(cmdArgs.Args) >= 1 {
 					var err error
@@ -244,6 +256,7 @@ func (self *Dice) registerCoreCommands() {
 		},
 	}
 	self.cmdMap["r"] = cmdRoll;
+	self.cmdMap["rd"] = cmdRoll;
 	self.cmdMap["roll"] = cmdRoll;
 	self.cmdMap["rh"] = cmdRoll;
 
