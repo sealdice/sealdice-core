@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"sort"
 	"time"
 )
 
@@ -126,6 +127,19 @@ type IMSession struct {
 	//GroupId int64 `json:"group_id"`
 }
 
+
+type ByLength []string
+
+func (s ByLength) Len() int {
+	return len(s)
+}
+func (s ByLength) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByLength) Less(i, j int) bool {
+	return len(s[i]) > len(s[j])
+}
+
 func (s *IMSession) serve() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
@@ -157,7 +171,25 @@ func (s *IMSession) serve() {
 			}
 
 			if msg.MessageType == "group" || msg.MessageType == "private" {
-				msgInfo := CommandParse(msg.Message)
+				cmdLst := []string{};
+
+				if s.parent.CommandCompatibleMode {
+					for k, _ := range session.parent.cmdMap {
+						cmdLst = append(cmdLst, k)
+					}
+
+					sa := session.ServiceAt[msg.GroupId];
+					if sa != nil && sa.Active {
+						for _, i := range sa.ActivatedExtList {
+							for k, _ := range i.cmdMap {
+								cmdLst = append(cmdLst, k)
+							}
+						}
+					}
+					sort.Sort(ByLength(cmdLst))
+				}
+
+				msgInfo := CommandParse(msg.Message, s.parent.CommandCompatibleMode, cmdLst)
 				//log.Println(msgInfo)
 
 				//if msg.Sender.UserId == 303451945 || msg.Sender.UserId == 184023393 {

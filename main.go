@@ -6,14 +6,13 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"sealdice-core/api"
 	"sealdice-core/core"
-	"sealdice-core/model"
 )
 
 
 func main() {
 	core.LoggerInit()
-	model.DBInit()
-	defer model.GetDB().Close()
+	//model.DBInit()
+	//defer model.GetDB().Close()
 	//
 	//exp := "(10d1)d(3+5-7)"
 	////exp := "1234^4+15*6-17+6d12+3d15k2-d12"
