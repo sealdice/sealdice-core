@@ -189,6 +189,7 @@ func (self *Dice) registerCoreCommands() {
 					replyPerson(session.Socket, msg.Sender.UserId, text)
 				}
 			} else {
+				fmt.Println("?????????????", inGroup, cmdArgs.AmIBeMentioned)
 				if inGroup && cmdArgs.AmIBeMentioned {
 					if len(cmdArgs.Args) >= 1 {
 						if cmdArgs.Args[0] == "on" {
