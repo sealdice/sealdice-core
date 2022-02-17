@@ -15,7 +15,7 @@ type Kwarg struct {
 	AsBool      bool   `json:"asBool"`
 }
 
-// [CQ:at,qq=3604749540]
+// [CQ:at,qq=22]
 type AtInfo struct {
 	UserId int64 `json:"user_id"`
 }
@@ -37,13 +37,15 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 	if commandCompatibleMode {
 		matched := ""
 		for _, i := range currentCmdLst {
-			if strings.HasPrefix(restText, "." + i) {
+			if strings.HasPrefix(restText, "." + i) || strings.HasPrefix(restText, "。" + i) {
 				matched = i
 				break
 			}
 		}
 		if matched != "" {
-			restText = "." + matched + " " + restText[len(matched)+1:]
+			runes := []rune(restText)
+			restParams := runes[len([]rune(matched))+1:]
+			restText = "." + matched + " " + string(restParams)
 		}
 	}
 

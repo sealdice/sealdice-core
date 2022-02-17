@@ -1,9 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"math/big"
+	"math"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -28,7 +30,7 @@ const (
 
 type ByteCode struct {
 	T     Type
-	Value *big.Int
+	Value int64
 	ValueStr string
 	ValueAny interface{}
 }
@@ -36,7 +38,7 @@ type ByteCode struct {
 func (code *ByteCode) String() string {
 	switch code.T {
 	case TypeNumber:
-		return code.Value.String()
+		return string(code.Value)
 	case TypeAdd:
 		return "+"
 	case TypeNegation, TypeSubtract:
@@ -63,20 +65,39 @@ type RollExpression struct {
 	Code []ByteCode
 	Top  int
 	BigFailDiceOn bool
+	error error
 }
 
 func (e *RollExpression) Init(stackLength int) {
 	e.Code = make([]ByteCode, stackLength)
 }
 
+func (e *RollExpression) checkStackOverflow() bool {
+	if e.error != nil {
+		return true;
+	}
+	if e.Top >= len(e.Code) {
+		e.error = errors.New("E1:指令虚拟机栈溢出，请不要发送过于离谱的指令")
+		return true;
+	}
+	return false
+}
+
+
 func (e *RollExpression) AddOperator(operator Type) {
 	code, top := e.Code, e.Top
+	if e.checkStackOverflow() {
+		return
+	}
 	e.Top++
 	code[top].T = operator
 }
 
 func (e *RollExpression) AddLoadVarname(value string) {
 	code, top := e.Code, e.Top
+	if e.checkStackOverflow() {
+		return
+	}
 	e.Top++
 	code[top].T = TypeLoadVarname
 	code[top].ValueStr = value
@@ -85,17 +106,22 @@ func (e *RollExpression) AddLoadVarname(value string) {
 func (e *RollExpression) AddValue(value string) {
 	// 实质上的压栈命令
 	code, top := e.Code, e.Top
+	if e.checkStackOverflow() {
+		return
+	}
 	e.Top++
-	code[top].Value = new(big.Int)
-	code[top].Value.SetString(value, 10)
+	code[top].Value, _ = strconv.ParseInt(value, 10, 64)
 }
 
 func (e *RollExpression) AddFormatString(value string) {
 	// 载入一个字符串并格式化
 	code, top := e.Code, e.Top
+	if e.checkStackOverflow() {
+		return
+	}
 	e.Top++
 	code[top].T = TypeLoadFormatString
-	code[top].Value = big.NewInt(1)
+	code[top].Value = 1
 
 	re := regexp.MustCompile(`\{[^}]*?\}`)
 	code[top].ValueStr = value
@@ -115,7 +141,6 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 	lastDetails := []string{}
 	calcDetail := ""
 
-
 	for _, code := range e.Code[0:e.Top] {
 		// 单目运算符
 		switch code.T {
@@ -124,7 +149,7 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			str := code.ValueStr
 
 			for index, i := range parts {
-				str = strings.Replace(str, i, stack[top-len(parts)+index].value.(*big.Int).String(), 1)
+				str = strings.Replace(str, i, strconv.FormatInt(stack[top-len(parts)+index].value.(int64), 10), 1)
 			}
 
 			top -= len(parts)
@@ -134,8 +159,7 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			continue
 		case TypeNumber:
 			stack[top].typeId = 0
-			stack[top].value = &big.Int{}
-			stack[top].value.(*big.Int).Set(code.Value)
+			stack[top].value = code.Value
 			top++
 			continue
 		case TypeLoadVarname:
@@ -149,8 +173,7 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			}
 
 			stack[top].typeId = 0
-			stack[top].value = &big.Int{}
-			stack[top].value.(*big.Int).SetInt64(v)
+			stack[top].value = v
 			top++
 
 			lastDetail := fmt.Sprintf("%s=%d", code.ValueStr, v)
@@ -158,12 +181,12 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			continue
 		case TypeNegation:
 			a := &stack[top-1]
-			a.value.(*big.Int).Neg(a.value.(*big.Int))
+			a.value = -a.value.(int64);
 			continue
 		case TypeDiceUnary:
 			a := &stack[top-1]
 			// dice XXX, 如 d100
-			a.value.(*big.Int).SetInt64(DiceRoll64(a.value.(*big.Int).Int64()))
+			a.value = DiceRoll64(a.value.(int64))
 			continue
 		case TypeHalt:
 			continue
@@ -180,7 +203,7 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 
 			checkLeft := func () {
 				if calcDetail == "" {
-					calcDetail += a.value.(*big.Int).String()
+					calcDetail += strconv.FormatInt(a.value.(int64), 10)
 
 					if len(lastDetails) > 0 {
 						calcDetail += fmt.Sprintf("[%s]", strings.Join(lastDetails, ","))
@@ -191,10 +214,10 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 
 			if t.T != TypeDice && top == 1 {
 				if times == 1 {
-					calcDetail += fmt.Sprintf("%d %s %d", a, t.String(), b)
+					calcDetail += fmt.Sprintf("%d %s %d", a.value.(int64), t.String(), b.value.(int64))
 				} else {
 					checkLeft()
-					calcDetail += fmt.Sprintf(" %s %d", t.String(), b)
+					calcDetail += fmt.Sprintf(" %s %d", t.String(), b.value.(int64))
 
 					if len(lastDetails) > 0 {
 						calcDetail += fmt.Sprintf("[%s]", strings.Join(lastDetails, ","))
@@ -204,51 +227,47 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			}
 		}
 
-		aInt := a.value.(*big.Int)
-		bInt := b.value.(*big.Int)
+		aInt := a.value.(int64)
+		bInt := b.value.(int64)
 
 		// 二目运算符
 		switch code.T {
 		case TypeAdd:
 			checkDice(&code)
-			// a.value.(*big.Int)
-			aInt.Add(aInt, bInt)
+			a.value = aInt + bInt;
 		case TypeSubtract:
 			checkDice(&code)
-			aInt.Sub(aInt, bInt)
+			a.value = aInt - bInt;
 		case TypeMultiply:
 			checkDice(&code)
-			aInt.Mul(aInt, bInt)
+			a.value = aInt * bInt;
 		case TypeDivide:
 			checkDice(&code)
-			aInt.Div(aInt, bInt)
+			a.value = aInt / bInt;
 		case TypeModulus:
 			checkDice(&code)
-			aInt.Mod(aInt, bInt)
+			a.value = aInt % bInt;
 		case TypeExponentiation:
 			checkDice(&code)
-			aInt.Exp(aInt, bInt, nil)
+			a.value = int64(math.Pow(float64(aInt), float64(bInt)))
 		case TypeSwap:
-			tmp := big.NewInt(0)
-			tmp.Set(aInt)
-			aInt.Set(bInt)
-			bInt.Set(tmp)
+			a.value, b.value = bInt, aInt
 			top++
 		case TypeDice:
 			checkDice(&code)
 			// XXX dice YYY, 如 3d100
 			var num int64
-			for i := int64(0); i < aInt.Int64(); i+=1 {
+			for i := int64(0); i < aInt; i+=1 {
 				if e.BigFailDiceOn {
-					num += bInt.Int64()
+					num += bInt
 				} else {
-					num += DiceRoll64(bInt.Int64())
+					num += DiceRoll64(bInt)
 				}
 			}
 
-			lastDetail := fmt.Sprintf("%dd%d=%d", aInt.Int64(), bInt.Int64(), num)
+			lastDetail := fmt.Sprintf("%dd%d=%d", aInt, bInt, num)
 			lastDetails = append(lastDetails, lastDetail)
-			aInt.SetInt64(num)
+			a.value = num
 		}
 	}
 
