@@ -239,7 +239,7 @@ func (self *Dice) registerCoreCommands() {
 				p := getPlayerInfoBySender(session, msg)
 
 				if session.parent.CommandCompatibleMode {
-					if cmdArgs.Command == "rd" {
+					if cmdArgs.Command == "rd" && len(cmdArgs.Args) >= 1 {
 						cmdArgs.Args[0] = "d" + cmdArgs.Args[0]
 					}
 				} else {
