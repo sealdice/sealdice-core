@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/sacOO7/gowebsocket"
 	"log"
 	"math/rand"
@@ -61,15 +62,24 @@ func replyGroup(socket *gowebsocket.Socket, groupId int64, text string) {
 	socket.SendText(string(a))
 }
 
-func getLoginInfo(socket gowebsocket.Socket) {
+func replyToSender(socket *gowebsocket.Socket, msg *Message, text string) {
+	inGroup := msg.MessageType == "group"
+	if inGroup {
+		replyGroup(socket, msg.GroupId, text)
+	} else {
+		replyPerson(socket, msg.Sender.UserId, text)
+	}
+}
+
+func (s *IMSession) GetLoginInfo() {
 	a, _ := json.Marshal(struct {
 		Action string `json:"action"`
-		Echo string `json:"echo"`
+		Echo int64 `json:"echo"`
 	}{
 		Action: "get_login_info",
-		Echo: "123",
+		Echo: -1,
 	})
-	socket.SendText(string(a))
+	s.Socket.SendText(string(a))
 }
 
 type Sender struct {
@@ -97,6 +107,7 @@ type Message struct {
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	//Status string `json:"status"`
+	Echo int `json:"echo"`
 }
 
 type PlayerInfo struct {
@@ -113,7 +124,7 @@ type PlayerInfo struct {
 	TempValueAlias *map[string][]string `yaml:"-"`
 }
 
-func (i PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) string {
+func (i *PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) string {
 	name := s
 
 	if alias == nil {
@@ -135,12 +146,12 @@ func (i PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) str
 	return name;
 }
 
-func (i PlayerInfo) SetValueInt64(s string, sanNew int64, alias map[string][]string) {
+func (i *PlayerInfo) SetValueInt64(s string, sanNew int64, alias map[string][]string) {
 	name := i.GetValueNameByAlias(s, alias)
 	i.ValueNumMap[name] = sanNew
 }
 
-func (i PlayerInfo) GetValueInt64(s string, alias map[string][]string) (int64, bool) {
+func (i *PlayerInfo) GetValueInt64(s string, alias map[string][]string) (int64, bool) {
 	name := i.GetValueNameByAlias(s, alias)
 	v, e := i.ValueNumMap[name]
 	return v, e
@@ -155,10 +166,11 @@ type ServiceAtItem struct {
 type IMSession struct {
 	Socket   *gowebsocket.Socket `yaml:"-"`
 	Nickname string `yaml:"-"`
-	UserId   int64 `yaml:"-"`
+	UserId   int64 `yaml:"userId"`
 	parent   *Dice `yaml:"-"`
 
 	ServiceAt map[int64]*ServiceAtItem `json:"serviceAt" yaml:"serviceAt"`
+	CommandIndex int64 `yaml:"-"`
 	//GroupId int64 `json:"group_id"`
 }
 
@@ -186,7 +198,7 @@ func (s *IMSession) serve() {
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		log.Println("Connected to server")
 		//  {"data":{"nickname":"闃斧鐗岃�佽檸鏈�","user_id":1001},"retcode":0,"status":"ok"}
-		getLoginInfo(socket)
+		s.GetLoginInfo()
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
@@ -197,8 +209,9 @@ func (s *IMSession) serve() {
 		msg := new(Message)
 		log.Println("Recieved message " + message)
 		err := json.Unmarshal([]byte(message), msg)
+
 		if err == nil {
-			if msg.Data != nil && msg.Retcode == 0 {
+			if msg.Echo == -1 {
 				session.UserId = msg.Data.UserId
 				session.Nickname = msg.Data.Nickname
 				log.Println("User info received.")
@@ -230,13 +243,22 @@ func (s *IMSession) serve() {
 				//if msg.Sender.UserId == 303451945 || msg.Sender.UserId == 184023393 {
 				//if msg.MessageType == "group" {
 				if msgInfo != nil {
-					session.commandSolve(session, msg, msgInfo);
+					f := func() {
+						defer func() {
+							if r := recover(); r != nil {
+								replyToSender(s.Socket, msg, "已从核心崩溃中恢复，请带指令联系开发者: " + fmt.Sprintf("%s", r))
+							}
+						}()
+						session.commandSolve(session, msg, msgInfo);
+					}
+					go f();
+
 					//c, _ := json.Marshal(msgInfo)
 					//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);
-					//replyGroup(Socket, 438115120, text)
+					//replyGroup(Socket, 11, text)
 				} else {
 					//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
-					//replyGroup(Socket, 438115120, text)
+					//replyGroup(Socket, 22, text)
 				}
 				//}
 				//}

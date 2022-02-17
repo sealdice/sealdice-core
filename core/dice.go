@@ -6,9 +6,10 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"math/rand"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -75,6 +76,9 @@ func (self *Dice) exprEvalBase(buffer string, p *PlayerInfo, bigFailDice bool) (
 
 	if err == nil {
 		parser.Execute()
+		if parser.error != nil{
+			return nil, "", parser.error
+		}
 		num, detail, _ := parser.Evaluate(self, p)
 		return num, detail, nil;
 	}
@@ -139,7 +143,10 @@ func (self *Dice) save() {
 		if err == nil {
 			now := time.Now()
 			self.lastSavedTime = &now
-			fmt.Println("自动保存", self.lastSavedTime)
+			fmt.Println("此时的用户ID", self.ImSession.UserId)
+			if self.ImSession.UserId == 0 {
+				self.ImSession.GetLoginInfo()
+			}
 		}
 	}
 }
@@ -160,7 +167,7 @@ func DiceRoll64(dicePoints int64) int64 {
 	return val
 }
 
-var VERSION = "v20220216"
+var VERSION = "v20220217"
 
 /** 这几条指令不能移除 */
 func (self *Dice) registerCoreCommands() {
@@ -179,7 +186,7 @@ func (self *Dice) registerCoreCommands() {
 				lastSavedTimeText := "从未"
 				if self.lastSavedTime != nil {
 					fmt.Println("!!!!", self.lastSavedTime, self.lastSavedTime.Format("2022-02-17 01:35:20"))
-					lastSavedTimeText = self.lastSavedTime.Format("2006-01-02 15:04:05")
+					lastSavedTimeText = self.lastSavedTime.Format("2006-01-02 15:04:05") + " UTC"
 				}
 				text := fmt.Sprintf("SealDice 0.9测试版 %s\n兼容模式: 已开启\n供职于%d个群，其中%d个处于开启状态\n上次自动保存时间: %s", VERSION, len(self.ImSession.ServiceAt), count, lastSavedTimeText)
 
@@ -189,7 +196,7 @@ func (self *Dice) registerCoreCommands() {
 					replyPerson(session.Socket, msg.Sender.UserId, text)
 				}
 			} else {
-				fmt.Println("?????????????", inGroup, cmdArgs.AmIBeMentioned)
+				fmt.Println("?????????????", inGroup, cmdArgs.At, cmdArgs.AmIBeMentioned, session.UserId)
 				if inGroup && cmdArgs.AmIBeMentioned {
 					if len(cmdArgs.Args) >= 1 {
 						if cmdArgs.Args[0] == "on" {
@@ -235,12 +242,15 @@ func (self *Dice) registerCoreCommands() {
 				var text string;
 				var prefix string;
 				var diceResult int64
+				var diceResultExists bool
 				var detail string
 				p := getPlayerInfoBySender(session, msg)
 
 				if session.parent.CommandCompatibleMode {
 					if cmdArgs.Command == "rd" && len(cmdArgs.Args) >= 1 {
-						cmdArgs.Args[0] = "d" + cmdArgs.Args[0]
+						if m, _ := regexp.MatchString(`^\d`, cmdArgs.Args[0]); m {
+							cmdArgs.Args[0] = "d" + cmdArgs.Args[0]
+						}
 					}
 				} else {
 					return struct{ success bool }{
@@ -253,8 +263,10 @@ func (self *Dice) registerCoreCommands() {
 					var err error
 					var r *vmStack
 					r, detail, err = session.parent.exprEval(cmdArgs.Args[0], p)
+
 					if r != nil && r.typeId == 0 {
-						diceResult = r.value.(*big.Int).Int64()
+						diceResult = r.value.(int64)
+						diceResultExists = true
 						//return errors.New("错误的类型")
 					}
 
@@ -263,6 +275,14 @@ func (self *Dice) registerCoreCommands() {
 							forWhat = cmdArgs.Args[1]
 						}
 					} else {
+						errs := string(err.Error())
+						if strings.HasPrefix(errs, "E1:") {
+							replyGroup(session.Socket, msg.GroupId, errs);
+
+							return struct{ success bool }{
+								success: true,
+							}
+						}
 						forWhat = cmdArgs.Args[0];
 					}
 				}
@@ -271,7 +291,7 @@ func (self *Dice) registerCoreCommands() {
 					prefix = "为了" + forWhat + "，";
 				}
 
-				if diceResult != 0 {
+				if diceResultExists {
 					detailWrap := ""
 					if detail != "" {
 						detailWrap = "=" + detail

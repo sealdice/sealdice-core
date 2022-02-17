@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"math/big"
 	"regexp"
 	"strconv"
 	"time"
@@ -376,7 +375,7 @@ func (self *Dice) registerBuiltinExt() {
 							d100 := DiceRoll64(100)
 							r, detail, err = session.parent.exprEval(cmdArgs.RawArgs, p)
 							if r != nil && r.typeId == 0 {
-								cond = r.value.(*big.Int).Int64()
+								cond = r.value.(int64)
 							}
 
 							if d100 <= cond {
@@ -431,7 +430,7 @@ func (self *Dice) registerBuiltinExt() {
 							// 读取san值
 							r, _, err := session.parent.exprEval("san", p)
 							if err == nil {
-								san = r.value.(*big.Int).Int64()
+								san = r.value.(int64)
 							}
 
 							// roll
@@ -452,11 +451,11 @@ func (self *Dice) registerBuiltinExt() {
 
 								r, _, err = session.parent.exprEvalBase(successExpr, p, false)
 								if err == nil {
-									reduceSuccess = r.value.(*big.Int).Int64()
+									reduceSuccess = r.value.(int64)
 								}
 								r, _, err = session.parent.exprEvalBase(failedExpr, p, bigFail)
 								if err == nil {
-									reduceFail = r.value.(*big.Int).Int64()
+									reduceFail = r.value.(int64)
 								}
 
 								var sanNew int64
@@ -483,7 +482,7 @@ func (self *Dice) registerBuiltinExt() {
 
 								//输出结果
 								offset := san - sanNew
-								text := fmt.Sprintf("<%s>的理智(%d)检定:\nD100=%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", p.Name, san, d100, suffix, san, sanNew, text1, offset)
+								text := fmt.Sprintf("<%s>的理智检定:\nD100=%d/%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", p.Name, d100, san, suffix, san, sanNew, text1, offset)
 
 								if sanNew == 0 {
 									text += "提示：理智归零，已永久疯狂(可用.ti或.li抽取症状)\n"
@@ -608,7 +607,7 @@ func (self *Dice) registerBuiltinExt() {
 									v, _, err := self.exprEval(m[3], p)
 									if err == nil && v.typeId == 0 {
 										var newVal int64
-										rightVal := v.value.(*big.Int).Int64()
+										rightVal := v.value.(int64)
 										signText := ""
 
 										if m[2] == "+" {
