@@ -56,7 +56,7 @@ func main() {
 	//a, d, err := dice.exprEval("+", nil)
 	a, d, err := dice.exprEval("测试", nil)
 	if err == nil {
-		fmt.Println("DDD", a.typeId, a.value, d, err)
+		fmt.Println("DDD" + "#{a}", a.typeId, a.value, d, err)
 	} else {
 		fmt.Println("DDD2", err)
 	}

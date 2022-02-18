@@ -5,6 +5,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"regexp"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -243,14 +244,36 @@ func (self *Dice) registerBuiltinExtCoc7() {
 	self.extList = append(self.extList, &ExtInfo{
 		Name: "coc7",
 		version: "0.0.1",
+		Brief: "第七版克苏鲁的呼唤TRPG跑团扩展指令集",
 		autoActive: true,
-		EntryHook: func (session *IMSession, msg *Message, cmdArgs *CmdArgs) {
+		Author: "木落",
+		OnPrepare: func (session *IMSession, msg *Message, cmdArgs *CmdArgs) {
 			p := getPlayerInfoBySender(session, msg)
 			p.TempValueAlias = &ac.Alias;
+		},
+		GetDescText: func (ei *ExtInfo) string {
+			text := "> " + ei.Brief + "\n" + "提供命令:\n"
+			keys := make([]string, 0, len(ei.cmdMap))
+			for k := range ei.cmdMap {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+
+			for _, i := range keys {
+				i := ei.cmdMap[i]
+				brief := i.Brief
+				if brief != "" {
+					brief = " // " + brief
+				}
+				text += "." + i.name + brief + "\n"
+			}
+
+			return text
 		},
 		cmdMap: CmdMapCls{
 			"ti": &CmdItemInfo{
 				name: "ti",
+				Brief: "随机抽取一个临时性疯狂症状",
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 					// 临时性疯狂
 					if isCurGroupBotOn(session, msg) {
@@ -301,6 +324,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 			},
 			"li": &CmdItemInfo{
 				name: "li",
+				Brief: "随机抽取一个总结性疯狂症状",
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 					// 总结性疯狂
 					if isCurGroupBotOn(session, msg) {
@@ -350,19 +374,9 @@ func (self *Dice) registerBuiltinExtCoc7() {
 				},
 			},
 
-			"coc7test": &CmdItemInfo{
-				name: "test",
-				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-					if isCurGroupBotOn(session, msg) && len(cmdArgs.Args) >= 0 {
-						replyGroup(session.Socket, msg.GroupId, "模块装载测试");
-					}
-					return struct{ success bool }{
-						success: true,
-					}
-				},
-			},
 			"ra": &CmdItemInfo{
-				name: "ra",
+				name: "ra <属性>",
+				Brief: "属性检定指令，骰一个D100，当有“D100 ≤ 属性”时，检定通过",
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 					if isCurGroupBotOn(session, msg) && len(cmdArgs.Args) >= 1 {
 						var cond int64
@@ -416,7 +430,8 @@ func (self *Dice) registerBuiltinExtCoc7() {
 				},
 			},
 			"sc": &CmdItemInfo{
-				name: "sc",
+				name: "sc <成功时掉san>/<失败时掉san>",
+				Brief: "对理智进行一次D100检定，根据结果扣除理智。如“.sc 0/1d3”为成功不扣除理智，失败扣除1d3。大失败时按掷骰最大值扣除。支持复杂表达式。如.sc 1d2+3/1d(知识+1)",
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 					if isCurGroupBotOn(session, msg) && len(cmdArgs.Args) >= 1 {
 						//var cond int64
@@ -488,7 +503,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 									text += "提示：理智归零，已永久疯狂(可用.ti或.li抽取症状)\n"
 								} else {
 									if offset >= 5 {
-										text += "提示：单次损失理智超过5点，若智力检定通过，将进入临时性疯狂(可用.ti或.li抽取症状)\n"
+										text += "提示：单次损失理智超过5点，若智力检定(.ra 智力)通过，将进入临时性疯狂(可用.ti或.li抽取症状)\n"
 									}
 								}
 
@@ -506,7 +521,8 @@ func (self *Dice) registerBuiltinExtCoc7() {
 				},
 			},
 			"st": &CmdItemInfo{
-				name: "st",
+				name: "st show <最小数值> / <属性><数值> / <属性>±<表达式>",
+				Brief: "复杂指令，详见文档。举例: “.st 力量50“ ”.st 力量+1d10““.st show 40“ ",
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 					// .st show
 					// .st help
@@ -523,7 +539,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 						switch param1 {
 						case "help", "":
 							text := "属性设置指令，支持分支指令如下：\n"
-							text += ".st show/list // 展示个人属性\n"
+							text += ".st show/list <数值> // 展示个人属性，若加<数值>则不显示小于该数值的属性\n"
 							text += ".st clr/clear // 清除属性\n"
 							text += ".st del <属性名1> <属性名2> ... // 删除属性，可多项，以空格间隔\n"
 							text += ".st help // 帮助\n"
@@ -563,7 +579,21 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							p := getPlayerInfoBySender(session, msg)
 							name = p.Name
 
-							usePickItem := len(cmdArgs.Args) >= 2
+							useLimit := false
+							usePickItem := false
+							var limit int64
+
+							if len(cmdArgs.Args) >= 2 {
+								arg2, _ := cmdArgs.GetArgN(2)
+								_limit, err := strconv.ParseInt(arg2, 10, 64)
+								if err == nil {
+									limit = _limit
+									useLimit = true
+								} else {
+									usePickItem = true
+								}
+							}
+
 							pickItems := map[string]int{}
 
 							if usePickItem {
@@ -576,7 +606,42 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							if len(p.ValueNumMap) == 0 {
 								info = "未发现属性记录"
 							} else {
-								for k, v := range p.ValueNumMap {
+								// 按照配置文件排序
+								attrKeys := []string{}
+								used := map[string]bool{}
+								for _, i := range ac.Order.Top {
+									key := p.GetValueNameByAlias(i, ac.Alias)
+									if used[key] {
+										continue
+									}
+									attrKeys = append(attrKeys, key)
+									used[key] = true
+								}
+
+								// 其余按字典序
+								topNum := len(attrKeys)
+								attrKeys2 := []string{}
+								for k, _ := range p.ValueNumMap {
+									attrKeys2 = append(attrKeys2, k)
+								}
+								sort.Strings(attrKeys2)
+								for _, key := range attrKeys2 {
+									if used[key] {
+										continue
+									}
+									attrKeys = append(attrKeys, key)
+								}
+
+								// 遍历输出
+								for index, k := range attrKeys {
+									v := p.ValueNumMap[k]
+
+									if index >= topNum {
+										if useLimit && v < limit {
+											continue
+										}
+									}
+
 									if usePickItem {
 										_, ok := pickItems[k]
 										if !ok {

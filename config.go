@@ -41,9 +41,10 @@ func configInit() {
 			"幸运": {"luck", "幸运值"},
 			"生命值": {"hp", "生命", "血量"},
 			"魔法值": {"mp", "魔法", "魔力", "魔力值"},
+			"克苏鲁神话": {"cm"},
 		},
 		Order: AttributeOrder{
-			Top: []string{"力量", "敏捷", "体质", "体型", "外貌", "智力", "意志", "教育", "理智"},
+			Top: []string{"力量", "敏捷", "体质", "体型", "外貌", "智力", "意志", "教育", "理智", "克苏鲁神话"},
 			Others: AttributeOrderOthers{ SortBy: "name" },
 		},
 	}

@@ -323,7 +323,7 @@ func (s *IMSession) commandSolve(session *IMSession, msg *Message, cmdArgs *CmdA
 	sa := session.ServiceAt[msg.GroupId];
 	if sa != nil && sa.Active {
 		for _, i := range sa.ActivatedExtList {
-			i.EntryHook(session, msg, cmdArgs)
+			i.OnPrepare(session, msg, cmdArgs)
 		}
 	}
 
@@ -338,6 +338,17 @@ func (s *IMSession) commandSolve(session *IMSession, msg *Message, cmdArgs *CmdA
 			if tryItemSolve(item) {
 				return
 			};
+		}
+	}
+
+	if msg.MessageType == "private" {
+		for _, i := range session.parent.extList {
+			if i.ActiveOnPrivate {
+				item := i.cmdMap[cmdArgs.Command];
+				if tryItemSolve(item) {
+					return
+				};
+			}
 		}
 	}
 }

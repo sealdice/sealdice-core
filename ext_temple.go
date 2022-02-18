@@ -6,9 +6,20 @@ func (self *Dice) registerBuiltinExtTemple() {
 		version:    "0.0.1",
 		Brief: "一行字简介",
 		autoActive: true, // 是否自动开启
-		EntryHook: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
+		OnPrepare: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
 			//p := getPlayerInfoBySender(session, msg)
 			//p.TempValueAlias = &ac.Alias;
+		},
+		GetDescText: func (i *ExtInfo) string {
+			text := "> " + i.Brief + "\n" + "提供命令:\n"
+			for _, i := range i.cmdMap {
+				brief := i.Brief
+				if brief != "" {
+					brief = " // " + brief
+				}
+				text += "." + i.name + brief + "\n"
+			}
+			return text
 		},
 		cmdMap: CmdMapCls{
 			"command": &CmdItemInfo{

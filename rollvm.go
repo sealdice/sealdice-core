@@ -26,6 +26,8 @@ const (
 	TypeLoadFormatString
 	TypeHalt
 	TypeSwap
+	TypeLeftValueMark
+	TypeRightValueMark
 )
 
 type ByteCode struct {
@@ -81,6 +83,15 @@ func (e *RollExpression) checkStackOverflow() bool {
 		return true;
 	}
 	return false
+}
+
+func (e *RollExpression) AddLeftValueMark() {
+	code, top := e.Code, e.Top
+	if e.checkStackOverflow() {
+		return
+	}
+	e.Top++
+	code[top].T = TypeLeftValueMark
 }
 
 
@@ -139,11 +150,19 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 	//var lastValIndex int
 	times := 0
 	lastDetails := []string{}
+	lastDetailsLeft := []string{}
 	calcDetail := ""
 
 	for _, code := range e.Code[0:e.Top] {
 		// 单目运算符
 		switch code.T {
+		case TypeLeftValueMark:
+			fmt.Println(222, top, times)
+			if top == 1 {
+				lastDetailsLeft = lastDetails
+				lastDetails = lastDetails[:0]
+			}
+			continue
 		case TypeLoadFormatString:
 			parts := code.ValueAny.([]string)
 			str := code.ValueStr
@@ -217,6 +236,7 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 					calcDetail += fmt.Sprintf("%d %s %d", a.value.(int64), t.String(), b.value.(int64))
 				} else {
 					checkLeft()
+					fmt.Println("2222222222222222222", lastDetailsLeft)
 					calcDetail += fmt.Sprintf(" %s %d", t.String(), b.value.(int64))
 
 					if len(lastDetails) > 0 {
