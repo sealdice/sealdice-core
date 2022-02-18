@@ -22,11 +22,15 @@ type CmdItemInfo struct {
 type CmdMapCls map[string]*CmdItemInfo;
 
 type ExtInfo struct {
-	Name       string     // 名字
-	version    string     // 版本
-	autoActive bool       // 是否自动开启
-	cmdMap     CmdMapCls `yaml:"-"`  // 指令集合
-	EntryHook func(session *IMSession, msg *Message, cmdArgs *CmdArgs) `yaml:"-"`
+	Name    string // 名字
+	version string // 版本
+	// 作者
+	// 更新时间
+	autoActive bool                                                     // 是否自动开启
+	cmdMap     CmdMapCls                                                `yaml:"-"` // 指令集合
+	EntryHook  func(session *IMSession, msg *Message, cmdArgs *CmdArgs) `yaml:"-"`
+	Brief      string `yaml:"-"`
+
 	//activeInSession bool; // 在当前会话中开启
 }
 
@@ -47,7 +51,7 @@ func (self *Dice) init() {
 	self.cmdMap = CmdMapCls{}
 
 	self.registerCoreCommands();
-	self.registerBuiltinExt()
+	self.RegisterBuiltinExt()
 	self.loads();
 
 	autoSave := func() {
@@ -185,13 +189,14 @@ func (self *Dice) registerCoreCommands() {
 				}
 				lastSavedTimeText := "从未"
 				if self.lastSavedTime != nil {
-					fmt.Println("!!!!", self.lastSavedTime, self.lastSavedTime.Format("2022-02-17 01:35:20"))
 					lastSavedTimeText = self.lastSavedTime.Format("2006-01-02 15:04:05") + " UTC"
 				}
 				text := fmt.Sprintf("SealDice 0.9测试版 %s\n兼容模式: 已开启\n供职于%d个群，其中%d个处于开启状态\n上次自动保存时间: %s", VERSION, len(self.ImSession.ServiceAt), count, lastSavedTimeText)
 
 				if inGroup {
-					replyGroup(session.Socket, msg.GroupId, text)
+					if cmdArgs.AmIBeMentioned {
+						replyGroup(session.Socket, msg.GroupId, text)
+					}
 				} else {
 					replyPerson(session.Socket, msg.Sender.UserId, text)
 				}
@@ -327,11 +332,22 @@ func (self *Dice) registerCoreCommands() {
 	cmdExt := &CmdItemInfo{
 		name: "ext",
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+			if msg.MessageType == "group" && len(cmdArgs.Args) == 0 {
+				// 临时
+				cmdArgs.Args = []string{"list"}
+			}
 			if msg.MessageType == "group" && len(cmdArgs.Args) >= 1 {
 				if cmdArgs.Args[0] == "list" {
 					text := "检测到以下扩展：\n"
 					for index, i := range session.parent.extList {
-						text += fmt.Sprintf("%d. [%s] version %s\n", index + 1, i.Name, i.version)
+						state := "关"
+						for _, j := range session.ServiceAt[msg.GroupId].ActivatedExtList {
+							if i.Name == j.Name {
+								state = "开"
+								break
+							}
+						}
+						text += fmt.Sprintf("%d. [%s][%s] version %s\n", index + 1, state, i.Name, i.version)
 					}
 					text += "使用命令 ”.ext on/off 扩展名“ 可以在当前群开启或关闭某扩展。"
 					replyGroup(session.Socket, msg.GroupId, text);
