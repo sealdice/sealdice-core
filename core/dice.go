@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 type CmdItemInfo struct {
 	name  string
 	solve func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool }
+	Brief string
 	texts map[string]string
 }
 
@@ -26,13 +28,18 @@ type ExtInfo struct {
 	version string // 版本
 	// 作者
 	// 更新时间
-	autoActive bool                                                     // 是否自动开启
-	cmdMap     CmdMapCls                                                `yaml:"-"` // 指令集合
-	EntryHook  func(session *IMSession, msg *Message, cmdArgs *CmdArgs) `yaml:"-"`
-	Brief      string `yaml:"-"`
+	autoActive      bool      // 是否自动开启
+	cmdMap          CmdMapCls `yaml:"-"` // 指令集合
+	Brief           string    `yaml:"-"`
+	ActiveOnPrivate bool      `yaml:"-"`
 
+	Author      string `yaml:"-"`
 	//activeInSession bool; // 在当前会话中开启
+
+	OnPrepare   func(session *IMSession, msg *Message, cmdArgs *CmdArgs) `yaml:"-"`
+	GetDescText func(i *ExtInfo) string                                  `yaml:"-"`
 }
+
 
 type Dice struct {
 	ImSession             *IMSession `yaml:"imSession"`
@@ -175,8 +182,50 @@ var VERSION = "v20220217"
 
 /** 这几条指令不能移除 */
 func (self *Dice) registerCoreCommands() {
+	cmdHelp := &CmdItemInfo{
+		name: "help",
+		Brief: "查看本帮助",
+		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+			// inGroup := msg.MessageType == "group"
+			if isCurGroupBotOn(session, msg) {
+				text := "核心指令列表如下:\n"
+
+				used := map[*CmdItemInfo]bool{}
+				keys := make([]string, 0, len(self.cmdMap))
+				for k, v := range self.cmdMap {
+					if used[v] {
+						continue
+					}
+					keys = append(keys, k)
+					used[v] = true
+				}
+				sort.Strings(keys)
+
+				for _, i := range keys {
+					i := self.cmdMap[i]
+					brief := i.Brief
+					if brief != "" {
+						brief = "   // " + brief
+					}
+					text += "." + i.name + brief + "\n"
+				}
+
+				text += "注意：由于篇幅此处仅列出核心指令。\n"
+				text += "扩展指令请输入 .ext 和 .ext <扩展名> 进行查看\n"
+				text += "-----------------------------------------------\n"
+				text += "SealDice 目前 7*24h 运行于一块陈年OrangePi卡片电脑上，随时可能因为软硬件故障停机（例如过热、被猫打翻）。届时可以来Q群524364253询问。"
+				replyToSender(session.Socket, msg, text)
+			}
+			return struct{ success bool }{
+				success: true,
+			}
+		},
+	}
+	self.cmdMap["help"] = cmdHelp;
+
 	cmdBot := &CmdItemInfo{
-		name: "bot",
+		name: "bot on/off",
+		Brief: "开启、关闭、查看信息",
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			inGroup := msg.MessageType == "group"
 
@@ -241,7 +290,8 @@ func (self *Dice) registerCoreCommands() {
 	self.cmdMap["bot"] = cmdBot;
 
 	cmdRoll := &CmdItemInfo{
-		name: "roll",
+		name: "r <表达式> <原因>",
+		Brief: "骰点指令，案例:“.r d16” “.r 3d10*2+3” “.r d10+力量” “.r 2d(力量+1d3)” “.rh d16 (暗骰)” ",
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if isCurGroupBotOn(session, msg) {
 				var text string;
@@ -331,13 +381,10 @@ func (self *Dice) registerCoreCommands() {
 
 	cmdExt := &CmdItemInfo{
 		name: "ext",
+		Brief: "查看扩展列表",
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if msg.MessageType == "group" && len(cmdArgs.Args) == 0 {
-				// 临时
-				cmdArgs.Args = []string{"list"}
-			}
-			if msg.MessageType == "group" && len(cmdArgs.Args) >= 1 {
-				if cmdArgs.Args[0] == "list" {
+			if isCurGroupBotOn(session, msg) {
+				showList := func () {
 					text := "检测到以下扩展：\n"
 					for index, i := range session.parent.extList {
 						state := "关"
@@ -347,13 +394,26 @@ func (self *Dice) registerCoreCommands() {
 								break
 							}
 						}
-						text += fmt.Sprintf("%d. [%s][%s] version %s\n", index + 1, state, i.Name, i.version)
+						author := i.Author
+						if author == "" {
+							author = "<未注明>"
+						}
+						text += fmt.Sprintf("%d. [%s]%s - 版本:%s 作者:%s\n", index + 1, state, i.Name, i.version, author)
 					}
-					text += "使用命令 ”.ext on/off 扩展名“ 可以在当前群开启或关闭某扩展。"
+					text += "使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n"
+					text += "命令: .ext <扩展名> 可以查看扩展介绍及帮助"
 					replyGroup(session.Socket, msg.GroupId, text);
-				} else if cmdArgs.Args[0] == "on" && session.ServiceAt[msg.GroupId] != nil && session.ServiceAt[msg.GroupId].Active {
-					if len(cmdArgs.Args) >= 2 {
-						extName := cmdArgs.Args[1];
+				}
+
+				if len(cmdArgs.Args) == 0 {
+					showList()
+				}
+
+				if len(cmdArgs.Args) >= 1 {
+					if cmdArgs.isArgEqual(1, "list") {
+						showList()
+					} else if cmdArgs.isArgEqual(2, "on") {
+						extName := cmdArgs.Args[0];
 						for _, i := range self.extList {
 							if i.Name == extName {
 								session.ServiceAt[msg.GroupId].ActivatedExtList = append(session.ServiceAt[msg.GroupId].ActivatedExtList, i);
@@ -361,21 +421,29 @@ func (self *Dice) registerCoreCommands() {
 								break;
 							}
 						}
-					}
-				} else if cmdArgs.Args[0] == "off" && session.ServiceAt[msg.GroupId] != nil && session.ServiceAt[msg.GroupId].Active {
-					if len(cmdArgs.Args) >= 2 {
+					} else if cmdArgs.isArgEqual(2, "off") {
 						gInfo := session.ServiceAt[msg.GroupId]
-						extName := cmdArgs.Args[1];
+						extName := cmdArgs.Args[0];
 						for index, i := range gInfo.ActivatedExtList {
 							if i.Name == extName {
 								gInfo.ActivatedExtList = append(gInfo.ActivatedExtList[:index], gInfo.ActivatedExtList[index+1:]...)
 								replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("关闭扩展 %s", extName));
-								break;
+							}
+						}
+					} else {
+						extName := cmdArgs.Args[0]
+						for _, i := range self.extList {
+							if i.Name == extName {
+								text := fmt.Sprintf("> [%s] 版本%s 作者%s\n", i.Name, i.version, i.Author)
+								replyToSender(session.Socket, msg, text + i.GetDescText(i))
+								break
 							}
 						}
 					}
 				}
+
 			}
+
 			return struct{ success bool }{
 				success: true,
 			}
@@ -384,7 +452,8 @@ func (self *Dice) registerCoreCommands() {
 	self.cmdMap["ext"] = cmdExt;
 
 	cmdNN := &CmdItemInfo{
-		name: "nn",
+		name: "nn <角色名>",
+		Brief: ".nn后跟角色名则改角色名，不带则重置角色名",
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if msg.MessageType == "group" {
 				if isCurGroupBotOn(session, msg) {
@@ -413,6 +482,7 @@ func (self *Dice) registerCoreCommands() {
 	}
 	cmdJrrp := &CmdItemInfo{
 		name: "jrrp",
+		Brief: "获得一个D100随机值，一天内不会变化",
 		texts: jrrpTexts,
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if msg.MessageType == "group" {
@@ -441,7 +511,8 @@ func (self *Dice) registerCoreCommands() {
 	self.cmdMap["jrrp"] = cmdJrrp;
 
 	cmdSet := &CmdItemInfo{
-		name: "set",
+		name: "set <面数>",
+		Brief: "设置默认骰子面数，只对自己有效",
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if isCurGroupBotOn(session, msg) {
 				p := getPlayerInfoBySender(session, msg)
@@ -467,7 +538,7 @@ func (self *Dice) registerCoreCommands() {
 	self.cmdMap["set"] = cmdSet;
 
 	cmdTmpSave := &CmdItemInfo{
-		name: "save",
+		name: "cfgsave",
 		// help
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if msg.MessageType == "group" {
@@ -486,7 +557,8 @@ func (self *Dice) registerCoreCommands() {
 
 
 	cmdText := &CmdItemInfo{
-		name: "text",
+		name: "text <文本模板>",
+		Brief: "文本指令(测试)，举例: .text 1D16={ 1d16 }，属性计算: 攻击 - 防御 = {攻击} - {防御} = {攻击 - 防御}",
 		// help
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if msg.MessageType == "group" {

@@ -5,19 +5,19 @@ type DiceRollParser Peg {
 }
 
 e <- sp (fstring / e1) !. { p.AddOperator(TypeHalt) }
-e1 <- e2 ( add e2 { p.AddOperator(TypeAdd) }
-         / minus e2 { p.AddOperator(TypeSubtract) }
+e1 <- e2 ( add { p.AddLeftValueMark() } e2 { p.AddOperator(TypeAdd) }
+         / minus { p.AddLeftValueMark() } e2 { p.AddOperator(TypeSubtract) }
          )*
-e2 <- e3 ( multiply e3 { p.AddOperator(TypeMultiply) }
-         / divide e3 { p.AddOperator(TypeDivide) }
-         / modulus e3 { p.AddOperator(TypeModulus) }
+e2 <- e3 ( multiply { p.AddLeftValueMark() } e3 { p.AddOperator(TypeMultiply) }
+         / divide { p.AddLeftValueMark() } e3 { p.AddOperator(TypeDivide) }
+         / modulus { p.AddLeftValueMark() } e3 { p.AddOperator(TypeModulus) }
          )*
-e3 <- eDice ( exponentiation eDice { p.AddOperator(TypeExponentiation) }
+e3 <- eDice ( exponentiation { p.AddLeftValueMark() } eDice { p.AddOperator(TypeExponentiation) }
          )*
 
-eDice <- e4 ( ('d'/'D') e4 ('k' e4)? { p.AddOperator(TypeDice) }
+eDice <- e4 ( ('d'/'D') { p.AddLeftValueMark() } e4 ('k' e4)? { p.AddOperator(TypeDice) }
          )*
-         / ( ('d'/'D') e4 ('k' e4)? { p.AddValue("1"); p.AddOperator(TypeSwap); p.AddOperator(TypeDice) } )+
+         / ( ('d'/'D') { p.AddLeftValueMark() } e4 ('k' e4)? { p.AddValue("1"); p.AddOperator(TypeSwap); p.AddOperator(TypeDice) } )+
 
 e4 <- minus value { p.AddOperator(TypeNegation) }
     / value
