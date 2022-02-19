@@ -380,12 +380,13 @@ func (self *Dice) registerBuiltinExtCoc7() {
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 					if isCurGroupBotOn(session, msg) && len(cmdArgs.Args) >= 1 {
 						var cond int64
+						var r *vmResult
 						p := getPlayerInfoBySender(session, msg)
+						group := session.ServiceAt[msg.GroupId]
 
 						if len(cmdArgs.Args) >= 1 {
 							var err error
 							var suffix, detail string
-							var r *vmStack
 							d100 := DiceRoll64(100)
 							r, detail, err = session.parent.exprEval(cmdArgs.RawArgs, p)
 							if r != nil && r.typeId == 0 {
@@ -400,11 +401,11 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								if d100 <= cond / 4 {
 									suffix = "成功(极难)"
 								}
-								if d100 <= 1 {
+								if d100 <= group.getCriticalSuccessValue() {
 									suffix = "大成功！"
 								}
 							} else {
-								if d100 > 95 {
+								if d100 >= group.GetFumbleValue() {
 									suffix = "大失败！"
 								} else {
 									suffix = "失败！"
@@ -436,6 +437,11 @@ func (self *Dice) registerBuiltinExtCoc7() {
 					if isCurGroupBotOn(session, msg) && len(cmdArgs.Args) >= 1 {
 						//var cond int64
 						p := getPlayerInfoBySender(session, msg)
+
+						// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
+						// v2: (worst) FAIL — REGULAR SUCCESS — HARD SUCCESS — EXTREME SUCCESS (best)
+						group := session.ServiceAt[msg.GroupId]
+
 						if len(cmdArgs.Args) >= 1 {
 							var san int64
 							var reduceSuccess int64
@@ -450,7 +456,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 
 							// roll
 							d100 := DiceRoll64(100)
-							bigFail := d100 > 95
+							bigFail := d100 > group.GetFumbleValue()
 
 							// 计算成功或失败
 							re := regexp.MustCompile(`(.+?)/(.+?)(\s+(\d+))?$`)
@@ -477,10 +483,13 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								var suffix string
 								if d100 <= san {
 									suffix = "成功"
+									if d100 <= group.getCriticalSuccessValue() {
+										suffix = "大成功！"
+									}
 									sanNew = san - reduceSuccess
 									text1 = successExpr
 								} else {
-									if d100 > 95 {
+									if d100 > group.GetFumbleValue() {
 										suffix = "大失败！"
 									} else {
 										suffix = "失败！"
@@ -581,6 +590,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 
 							useLimit := false
 							usePickItem := false
+							limktSkipCount := 0
 							var limit int64
 
 							if len(cmdArgs.Args) >= 2 {
@@ -598,7 +608,8 @@ func (self *Dice) registerBuiltinExtCoc7() {
 
 							if usePickItem {
 								for _, i := range cmdArgs.Args[1:] {
-									pickItems[i] = 1
+									key := p.GetValueNameByAlias(i, ac.Alias)
+									pickItems[key] = 1
 								}
 							}
 
@@ -638,6 +649,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 
 									if index >= topNum {
 										if useLimit && v < limit {
+											limktSkipCount += 1
 											continue
 										}
 									}
@@ -648,7 +660,8 @@ func (self *Dice) registerBuiltinExtCoc7() {
 											continue
 										}
 									}
-									tick += 1
+
+							 		tick += 1
 									info += fmt.Sprintf("%s: %d\t", k, v)
 									if tick % 4 == 0 {
 										info += fmt.Sprintf("\n")
@@ -656,6 +669,9 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								}
 							}
 
+							if useLimit {
+								info += fmt.Sprintf("\n注：%d条属性因≤%d被隐藏", limktSkipCount, limit)
+							}
 							text := fmt.Sprintf("<%s>的个人属性为：\n%s", name, info)
 							replyGroup(session.Socket, msg.GroupId, text);
 

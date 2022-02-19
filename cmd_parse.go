@@ -51,6 +51,15 @@ func (a *CmdArgs) GetArgN(n int) (string, bool) {
 	return "", false
 }
 
+func (a *CmdArgs) GetKwarg(s string) *Kwarg {
+	for _, i := range a.Kwargs {
+		if i.Name == s {
+			return i
+		}
+	}
+	return nil
+}
+
 func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string) *CmdArgs {
 	restText, atInfo := AtParse(rawCmd);
 	re := regexp.MustCompile(`^\s*[.。](\S+)\s*([^\n]*)`)

@@ -54,8 +54,12 @@ func main() {
 	//a, d, err := dice.exprEval("`ROLL:{ 1d20 } LIFE:{ 3d20 } test: { 4 + 5 + 力量}`", nil)
 	//a, d, err := dice.exprEval("`ROLL:{ 1d20 } LIFE:{ 4 }`", nil)
 	//a, d, err := dice.exprEval("+", nil)
-	a, d, err := dice.exprEval("测试", nil)
+	//a, d, err := dice.exprEval("测试", nil)
+	//a, d, err := dice.exprEval("1 + 1d10 + 力量", nil)
+	//a, d, err := dice.exprEval("1d10 + 1 + 力量", nil)
+	a, d, err := dice.exprEval("1d10+1d6+1", nil)
 	if err == nil {
+		fmt.Println(d)
 		fmt.Println("DDD" + "#{a}", a.typeId, a.value, d, err)
 	} else {
 		fmt.Println("DDD2", err)
