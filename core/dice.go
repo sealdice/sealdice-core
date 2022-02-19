@@ -62,13 +62,24 @@ func (self *Dice) init() {
 	self.loads();
 
 	autoSave := func() {
-		t := time.Tick(15 * time.Second)
+		t := time.Tick(18 * time.Second)
 		for {
 			<-t
 			self.save()
 		}
 	}
 	go autoSave()
+
+	refreshGroupInfo := func() {
+		t := time.Tick(15 * time.Second)
+		for {
+			<-t
+			for k, _ := range self.ImSession.ServiceAt {
+				GetGroupInfo(self.ImSession.Socket, k)
+			}
+		}
+	}
+	go refreshGroupInfo()
 }
 
 
@@ -80,7 +91,7 @@ func (self *Dice) rebuildParser(buffer string) *DiceRollParser {
 	return p;
 }
 
-func (self *Dice) exprEvalBase(buffer string, p *PlayerInfo, bigFailDice bool) (*vmStack, string, error) {
+func (self *Dice) exprEvalBase(buffer string, p *PlayerInfo, bigFailDice bool) (*vmResult, string, error) {
 	parser := self.rebuildParser(buffer)
 	err := parser.Parse()
 	parser.RollExpression.BigFailDiceOn = bigFailDice
@@ -91,12 +102,16 @@ func (self *Dice) exprEvalBase(buffer string, p *PlayerInfo, bigFailDice bool) (
 			return nil, "", parser.error
 		}
 		num, detail, _ := parser.Evaluate(self, p)
-		return num, detail, nil;
+		ret := vmResult{}
+		ret.value = num.value
+		ret.typeId = num.typeId
+		ret.parser = parser
+		return &ret, detail, nil;
 	}
 	return nil, "", err
 }
 
-func (self *Dice) exprEval(buffer string, p *PlayerInfo) (*vmStack, string, error) {
+func (self *Dice) exprEval(buffer string, p *PlayerInfo) (*vmResult, string, error) {
 	return self.exprEvalBase(buffer, p, false)
 }
 
@@ -178,7 +193,7 @@ func DiceRoll64(dicePoints int64) int64 {
 	return val
 }
 
-var VERSION = "v20220217"
+var VERSION = "v20220219"
 
 /** 这几条指令不能移除 */
 func (self *Dice) registerCoreCommands() {
@@ -224,12 +239,12 @@ func (self *Dice) registerCoreCommands() {
 	self.cmdMap["help"] = cmdHelp;
 
 	cmdBot := &CmdItemInfo{
-		name: "bot on/off",
-		Brief: "开启、关闭、查看信息",
+		name: "bot on/off/about/bye",
+		Brief: "开启、关闭、查看信息、退群",
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			inGroup := msg.MessageType == "group"
 
-			if len(cmdArgs.Args) == 0 {
+			if len(cmdArgs.Args) == 0 || cmdArgs.isArgEqual(1, "about") {
 				count := 0
 				for _, i := range self.ImSession.ServiceAt {
 					if i.Active {
@@ -277,6 +292,10 @@ func (self *Dice) registerCoreCommands() {
 								session.ServiceAt[msg.GroupId].Active = false;
 							}
 							replyGroup(session.Socket, msg.GroupId, "停止服务");
+						} else if cmdArgs.Args[0] == "bye" {
+							replyGroup(session.Socket, msg.GroupId, "收到指令，5s后将退出当前群组");
+							time.Sleep(6 * time.Second)
+							quitGroup(session.Socket, msg.GroupId)
 						}
 					}
 				}
@@ -302,7 +321,7 @@ func (self *Dice) registerCoreCommands() {
 				p := getPlayerInfoBySender(session, msg)
 
 				if session.parent.CommandCompatibleMode {
-					if cmdArgs.Command == "rd" && len(cmdArgs.Args) >= 1 {
+					if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd") && len(cmdArgs.Args) >= 1 {
 						if m, _ := regexp.MatchString(`^\d`, cmdArgs.Args[0]); m {
 							cmdArgs.Args[0] = "d" + cmdArgs.Args[0]
 						}
@@ -314,9 +333,9 @@ func (self *Dice) registerCoreCommands() {
 				}
 
 				forWhat := "";
+				var r *vmResult
 				if len(cmdArgs.Args) >= 1 {
 					var err error
-					var r *vmStack
 					r, detail, err = session.parent.exprEval(cmdArgs.Args[0], p)
 
 					if r != nil && r.typeId == 0 {
@@ -361,9 +380,16 @@ func (self *Dice) registerCoreCommands() {
 					text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, p.Name, dicePoints, val);
 				}
 
-				if cmdArgs.Command == "rh" {
+				if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
+					asm := r.parser.GetAsmText()
+					text += "\n" + asm
+				}
+
+				if cmdArgs.Command == "rh" || cmdArgs.Command == "rhd" {
+					group := session.ServiceAt[msg.GroupId]
+					prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", group.GroupName, msg.GroupId)
 					replyGroup(session.Socket, msg.GroupId, "黑暗的角落里，传来命运转动的声音");
-					replyPerson(session.Socket, msg.Sender.UserId, text);
+					replyPerson(session.Socket, msg.Sender.UserId, prefix + text);
 				} else {
 					replyGroup(session.Socket, msg.GroupId, text);
 				}
@@ -378,6 +404,7 @@ func (self *Dice) registerCoreCommands() {
 	self.cmdMap["rd"] = cmdRoll;
 	self.cmdMap["roll"] = cmdRoll;
 	self.cmdMap["rh"] = cmdRoll;
+	self.cmdMap["rhd"] = cmdRoll;
 
 	cmdExt := &CmdItemInfo{
 		name: "ext",

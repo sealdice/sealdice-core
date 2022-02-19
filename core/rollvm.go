@@ -39,12 +39,10 @@ type ByteCode struct {
 
 func (code *ByteCode) String() string {
 	switch code.T {
-	case TypeNumber:
-		return string(code.Value)
 	case TypeAdd:
 		return "+"
 	case TypeNegation, TypeSubtract:
-		return "-"
+		return "/"
 	case TypeMultiply:
 		return "*"
 	case TypeDivide:
@@ -52,13 +50,41 @@ func (code *ByteCode) String() string {
 	case TypeModulus:
 		return "%"
 	case TypeExponentiation:
-		return "^"
+		return "**"
+	}
+	return ""
+}
+
+func (code *ByteCode) CodeString() string {
+	switch code.T {
+	case TypeNumber:
+		return "push " + strconv.FormatInt(code.Value, 10)
+	case TypeAdd:
+		return "add"
+	case TypeNegation, TypeSubtract:
+		return "subtract"
+	case TypeMultiply:
+		return "mul"
+	case TypeDivide:
+		return "div"
+	case TypeModulus:
+		return "mod"
+	case TypeExponentiation:
+		return "pow"
 	case TypeDice:
-		return "d"
+		return "dice"
 	case TypeDiceUnary:
-		return "d"
+		return "dice1"
 	case TypeLoadVarname:
-		return "ldv"
+		return "ld.v " + code.ValueStr
+	case TypeLoadFormatString:
+		return "ld.fs"
+	case TypeHalt:
+		return "halt"
+	case TypeSwap:
+		return "swap"
+	case TypeLeftValueMark:
+		return "mark.leftValue"
 	}
 	return ""
 }
@@ -144,6 +170,11 @@ type vmStack struct {
 	value interface{}
 }
 
+type vmResult struct {
+	vmStack
+	parser *DiceRollParser
+}
+
 func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, error) {
 	stack, top := make([]vmStack, len(e.Code)), 0
 	//lastIsDice := false
@@ -157,9 +188,9 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 		// 单目运算符
 		switch code.T {
 		case TypeLeftValueMark:
-			fmt.Println(222, top, times)
 			if top == 1 {
-				lastDetailsLeft = lastDetails
+				lastDetailsLeft = make([]string, len(lastDetails))
+				copy(lastDetailsLeft, lastDetails)
 				lastDetails = lastDetails[:0]
 			}
 			continue
@@ -223,11 +254,11 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			checkLeft := func () {
 				if calcDetail == "" {
 					calcDetail += strconv.FormatInt(a.value.(int64), 10)
+				}
 
-					if len(lastDetails) > 0 {
-						calcDetail += fmt.Sprintf("[%s]", strings.Join(lastDetails, ","))
-						lastDetails = lastDetails[:0]
-					}
+				if len(lastDetailsLeft) > 0 {
+					vLeft := "[" + strings.Join(lastDetailsLeft, ",") + "]"
+					calcDetail += vLeft
 				}
 			}
 
@@ -236,7 +267,6 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 					calcDetail += fmt.Sprintf("%d %s %d", a.value.(int64), t.String(), b.value.(int64))
 				} else {
 					checkLeft()
-					fmt.Println("2222222222222222222", lastDetailsLeft)
 					calcDetail += fmt.Sprintf(" %s %d", t.String(), b.value.(int64))
 
 					if len(lastDetails) > 0 {
@@ -292,4 +322,23 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 	}
 
 	return &stack[0], calcDetail, nil
+}
+
+func (e *RollExpression) GetAsmText() string {
+	ret := ""
+	ret += "=== VM Code ===\n"
+	for index, i := range e.Code {
+		if index >= e.Top {
+			break
+		}
+		s := i.CodeString()
+		if s != "" {
+			ret += s + "\n"
+			fmt.Println(s)
+		} else {
+			ret += "@raw: " + string(i.T) + "\n"
+		}
+	}
+	ret += "=== VM Code End===\n"
+	return ret
 }

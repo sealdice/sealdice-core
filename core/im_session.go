@@ -41,6 +41,43 @@ func replyPerson(socket *gowebsocket.Socket, userId int64, text string) {
 	socket.SendText(string(a))
 }
 
+func GetGroupInfo(socket *gowebsocket.Socket, groupId int64) {
+	type GroupMessageParams struct {
+		GroupId int64  `json:"group_id"`
+	}
+
+	a, _ := json.Marshal(struct {
+		Action string             `json:"action"`
+		Params GroupMessageParams `json:"params"`
+		Echo int64 `json:"echo"`
+	}{
+		"get_group_info",
+		GroupMessageParams{
+			groupId,
+		},
+		-2,
+	})
+	socket.SendText(string(a))
+}
+
+
+func quitGroup(socket *gowebsocket.Socket, groupId int64) {
+	type GroupMessageParams struct {
+		GroupId int64  `json:"group_id"`
+	}
+
+	a, _ := json.Marshal(struct {
+		Action string             `json:"action"`
+		Params GroupMessageParams `json:"params"`
+	}{
+		"set_group_leave",
+		GroupMessageParams{
+			groupId,
+		},
+	})
+	socket.SendText(string(a))
+}
+
 func replyGroup(socket *gowebsocket.Socket, groupId int64, text string) {
 	time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 
@@ -100,10 +137,16 @@ type Message struct {
 	MetaEventType string `json:"meta_event_type"`
 	GroupId       int64  `json:"group_id"` // 群号
 
-	// 个人信息
 	Data *struct {
+		// 个人信息
 		Nickname string `json:"nickname"`
 		UserId   int64  `json:"user_id"`
+
+		// 群信息
+		GroupId       int64  `json:"group_id"` // 群号
+		GroupCreateTime       uint32  `json:"group_create_time"` // 群号
+		MemberCount int64 `json:"member_count"`
+		GroupName string `json:"group_name"`
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	//Status string `json:"status"`
@@ -161,7 +204,25 @@ type ServiceAtItem struct {
 	Active bool `json:"active" yaml:"active"` // 需要能记住配置，故有此选项
 	ActivatedExtList []*ExtInfo `yaml:"activatedExtList"` // 当前群开启的扩展列表
 	Players map[int64]*PlayerInfo // 群员信息
+	LogOn bool `yaml:"logOn"`
+	LogCurLines int64 `yaml:"logCurLines"`
+	tmpTexts []string `yaml:"-"`
+	GroupName string `yaml:"groupName"`
+
+	// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
+	//RuleCriticalSuccessValue *int64 // 大成功值，1默认
+	//RuleFumbleValue *int64 // 大失败值 96默认
 }
+
+func (i *ServiceAtItem) GetFumbleValue() int64 {
+	return 96;
+}
+
+func (i *ServiceAtItem) getCriticalSuccessValue() int64 {
+	return 1
+}
+
+
 
 type IMSession struct {
 	Socket   *gowebsocket.Socket `yaml:"-"`
@@ -211,6 +272,7 @@ func (s *IMSession) serve() {
 		err := json.Unmarshal([]byte(message), msg)
 
 		if err == nil {
+			// 获得用户信息
 			if msg.Echo == -1 {
 				session.UserId = msg.Data.UserId
 				session.Nickname = msg.Data.Nickname
@@ -218,6 +280,29 @@ func (s *IMSession) serve() {
 				return
 			}
 
+			// 获得群信息
+			if msg.Echo == -2 {
+				group := session.ServiceAt[msg.Data.GroupId]
+				if group != nil {
+					group.GroupName = msg.Data.GroupName
+				}
+				log.Println("Group info received: ", msg.Data.GroupName)
+				return
+			}
+
+			// 处理日志
+			if msg.MessageType == "group" {
+				if isCurGroupBotOn(session, msg) {
+					group := session.ServiceAt[msg.GroupId]
+					if group.LogOn {
+						group.LogCurLines += 1
+						group.tmpTexts = append(group.tmpTexts, msg.Message)
+						fmt.Println("XXX", msg.Message, msg.Sender.UserId)
+					}
+				}
+			}
+
+			// 处理命令
 			if msg.MessageType == "group" || msg.MessageType == "private" {
 				cmdLst := []string{};
 
