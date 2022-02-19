@@ -42,7 +42,7 @@ func (code *ByteCode) String() string {
 	case TypeAdd:
 		return "+"
 	case TypeNegation, TypeSubtract:
-		return "/"
+		return "-"
 	case TypeMultiply:
 		return "*"
 	case TypeDivide:
@@ -62,7 +62,7 @@ func (code *ByteCode) CodeString() string {
 	case TypeAdd:
 		return "add"
 	case TypeNegation, TypeSubtract:
-		return "subtract"
+		return "sub"
 	case TypeMultiply:
 		return "mul"
 	case TypeDivide:
@@ -84,7 +84,7 @@ func (code *ByteCode) CodeString() string {
 	case TypeSwap:
 		return "swap"
 	case TypeLeftValueMark:
-		return "mark.leftValue"
+		return "mark.left"
 	}
 	return ""
 }
