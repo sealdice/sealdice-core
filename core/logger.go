@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/natefinch/lumberjack"
+	"os"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -11,8 +12,9 @@ var loggerRaw *zap.Logger
 var logger *zap.SugaredLogger
 
 func LoggerInit() {
+	os.MkdirAll("./data", 0644)
 	lumlog := &lumberjack.Logger{
-		Filename:   "./record.log",
+		Filename:   "./data/record.log",
 		MaxSize:    10, // megabytes
 		MaxBackups: 3,  // number of log files
 		MaxAge:     7,  // days

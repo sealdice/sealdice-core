@@ -24,3 +24,5 @@ configs/
 data/
 pegtest/
 temp/
+
+dist/
