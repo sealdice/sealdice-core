@@ -19,5 +19,8 @@ record.log
 go.sum
 .idea
 sealdice-core
-save.yaml
+data/save.yaml
 configs/
+data/
+pegtest/
+temp/

@@ -6,13 +6,20 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"sealdice-core/api"
 	"sealdice-core/core"
+	"sealdice-core/model"
 )
 
 
 func main() {
 	core.LoggerInit()
-	//model.DBInit()
-	//defer model.GetDB().Close()
+	model.DBInit()
+	aa := func() {
+		fmt.Println("收尾")
+		model.GetDB().Close()
+	}
+
+	defer aa()
+
 	//
 	//exp := "(10d1)d(3+5-7)"
 	////exp := "1234^4+15*6-17+6d12+3d15k2-d12"
@@ -57,13 +64,14 @@ func main() {
 	//a, d, err := dice.exprEval("测试", nil)
 	//a, d, err := dice.exprEval("1 + 1d10 + 力量", nil)
 	//a, d, err := dice.exprEval("1d10 + 1 + 力量", nil)
-	a, d, err := dice.exprEval("1d10+1d6+1", nil)
-	if err == nil {
-		fmt.Println(d)
-		fmt.Println("DDD" + "#{a}", a.typeId, a.value, d, err)
-	} else {
-		fmt.Println("DDD2", err)
-	}
+	//a, d, err := dice.exprEval("2+$a=$b+1d10+1d6+1", nil)
+	//if err == nil {
+	//	fmt.Println(a.parser.GetAsmText())
+	//	fmt.Println(d)
+	//	fmt.Println("DDD" + "#{a}", a.typeId, a.value, d, err)
+	//} else {
+	//	fmt.Println("DDD2", err)
+	//}
 
 	dice.ImSession.serve();
 

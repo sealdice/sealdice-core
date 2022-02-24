@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -33,11 +34,15 @@ type ExtInfo struct {
 	Brief           string    `yaml:"-"`
 	ActiveOnPrivate bool      `yaml:"-"`
 
-	Author      string `yaml:"-"`
+	Author string `yaml:"-"`
 	//activeInSession bool; // 在当前会话中开启
 
-	OnPrepare   func(session *IMSession, msg *Message, cmdArgs *CmdArgs) `yaml:"-"`
-	GetDescText func(i *ExtInfo) string                                  `yaml:"-"`
+	OnCommandReceived func(session *IMSession, msg *Message, cmdArgs *CmdArgs) `yaml:"-"`
+	OnMessageReceived func(session *IMSession, msg *Message) `yaml:"-"`
+	OnMessageSend func(session *IMSession, messageType string, userId int64, text string, flag string) `yaml:"-"`
+	GetDescText       func(i *ExtInfo) string                                  `yaml:"-"`
+	IsLoaded         bool                                                     `yaml:"-"`
+	OnLoad            func()                                                   `yaml:"-"`
 }
 
 
@@ -60,6 +65,12 @@ func (self *Dice) init() {
 	self.registerCoreCommands();
 	self.RegisterBuiltinExt()
 	self.loads();
+
+	for _, i := range self.extList {
+		if i.OnLoad != nil {
+			i.OnLoad()
+		}
+	}
 
 	autoSave := func() {
 		t := time.Tick(18 * time.Second)
@@ -125,9 +136,11 @@ func (self *Dice) exprText(buffer string, p *PlayerInfo) (string, string, error)
 	return "", "", errors.New("错误的表达式")
 }
 
+var BASE_CONFIG = "./data/config.yaml"
 
 func (self *Dice) loads() {
-	data, err := ioutil.ReadFile("save.yaml")
+	os.MkdirAll("./data", 0644)
+	data, err := ioutil.ReadFile(BASE_CONFIG)
 
 	if err == nil {
 		session := self.ImSession
@@ -150,22 +163,22 @@ func (self *Dice) loads() {
 				v.ActivatedExtList = tmp;
 			}
 
-			log.Println("save.yaml loaded")
+			log.Println("config.yaml loaded")
 			//info, _ := yaml.Marshal(session.ServiceAt)
-			//replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
+			//replyGroup(session, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
 		} else {
-			log.Println("save.yaml parse failed")
+			log.Println("config.yaml parse failed")
 			panic(err2)
 		}
 	} else {
-		log.Println("save.yaml not found")
+		log.Println("config.yaml not found")
 	}
 }
 
 func (self *Dice) save() {
 	a, err := yaml.Marshal(self)
 	if err == nil {
-		err := ioutil.WriteFile("save.yaml", a, 0666)
+		err := ioutil.WriteFile(BASE_CONFIG, a, 0644)
 		if err == nil {
 			now := time.Now()
 			self.lastSavedTime = &now
@@ -229,7 +242,7 @@ func (self *Dice) registerCoreCommands() {
 				text += "扩展指令请输入 .ext 和 .ext <扩展名> 进行查看\n"
 				text += "-----------------------------------------------\n"
 				text += "SealDice 目前 7*24h 运行于一块陈年OrangePi卡片电脑上，随时可能因为软硬件故障停机（例如过热、被猫打翻）。届时可以来Q群524364253询问。"
-				replyToSender(session.Socket, msg, text)
+				replyToSender(session, msg, text)
 			}
 			return struct{ success bool }{
 				success: true,
@@ -259,10 +272,10 @@ func (self *Dice) registerCoreCommands() {
 
 				if inGroup {
 					if cmdArgs.AmIBeMentioned {
-						replyGroup(session.Socket, msg.GroupId, text)
+						replyGroup(session, msg.GroupId, text)
 					}
 				} else {
-					replyPerson(session.Socket, msg.Sender.UserId, text)
+					replyPerson(session, msg.Sender.UserId, text)
 				}
 			} else {
 				fmt.Println("?????????????", inGroup, cmdArgs.At, cmdArgs.AmIBeMentioned, session.UserId)
@@ -282,20 +295,21 @@ func (self *Dice) registerCoreCommands() {
 									Active:           true,
 									ActivatedExtList: extLst,
 									Players:          map[int64]*PlayerInfo{},
+									GroupId: msg.GroupId,
 								};
 							}
-							replyGroup(session.Socket, msg.GroupId, "SealDice 已启用(开发中) " + VERSION);
+							replyGroup(session, msg.GroupId, "SealDice 已启用(开发中) " + VERSION);
 						} else if cmdArgs.Args[0] == "off" {
 							if len(session.ServiceAt[msg.GroupId].ActivatedExtList) == 0 {
 								delete(session.ServiceAt, msg.GroupId);
 							} else {
 								session.ServiceAt[msg.GroupId].Active = false;
 							}
-							replyGroup(session.Socket, msg.GroupId, "停止服务");
+							replyGroup(session, msg.GroupId, "停止服务");
 						} else if cmdArgs.Args[0] == "bye" {
-							replyGroup(session.Socket, msg.GroupId, "收到指令，5s后将退出当前群组");
+							replyGroup(session, msg.GroupId, "收到指令，5s后将退出当前群组");
 							time.Sleep(6 * time.Second)
-							quitGroup(session.Socket, msg.GroupId)
+							quitGroup(session, msg.GroupId)
 						}
 					}
 				}
@@ -351,7 +365,7 @@ func (self *Dice) registerCoreCommands() {
 					} else {
 						errs := string(err.Error())
 						if strings.HasPrefix(errs, "E1:") {
-							replyGroup(session.Socket, msg.GroupId, errs);
+							replyGroup(session, msg.GroupId, errs);
 
 							return struct{ success bool }{
 								success: true,
@@ -388,10 +402,10 @@ func (self *Dice) registerCoreCommands() {
 				if cmdArgs.Command == "rh" || cmdArgs.Command == "rhd" {
 					group := session.ServiceAt[msg.GroupId]
 					prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", group.GroupName, msg.GroupId)
-					replyGroup(session.Socket, msg.GroupId, "黑暗的角落里，传来命运转动的声音");
-					replyPerson(session.Socket, msg.Sender.UserId, prefix + text);
+					replyGroup(session, msg.GroupId, "黑暗的角落里，传来命运转动的声音");
+					replyPerson(session, msg.Sender.UserId, prefix + text);
 				} else {
-					replyGroup(session.Socket, msg.GroupId, text);
+					replyGroup(session, msg.GroupId, text);
 				}
 			}
 
@@ -429,7 +443,7 @@ func (self *Dice) registerCoreCommands() {
 					}
 					text += "使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n"
 					text += "命令: .ext <扩展名> 可以查看扩展介绍及帮助"
-					replyGroup(session.Socket, msg.GroupId, text);
+					replyGroup(session, msg.GroupId, text);
 				}
 
 				if len(cmdArgs.Args) == 0 {
@@ -444,7 +458,7 @@ func (self *Dice) registerCoreCommands() {
 						for _, i := range self.extList {
 							if i.Name == extName {
 								session.ServiceAt[msg.GroupId].ActivatedExtList = append(session.ServiceAt[msg.GroupId].ActivatedExtList, i);
-								replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("打开扩展 %s", extName));
+								replyGroup(session, msg.GroupId, fmt.Sprintf("打开扩展 %s", extName));
 								break;
 							}
 						}
@@ -454,7 +468,7 @@ func (self *Dice) registerCoreCommands() {
 						for index, i := range gInfo.ActivatedExtList {
 							if i.Name == extName {
 								gInfo.ActivatedExtList = append(gInfo.ActivatedExtList[:index], gInfo.ActivatedExtList[index+1:]...)
-								replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("关闭扩展 %s", extName));
+								replyGroup(session, msg.GroupId, fmt.Sprintf("关闭扩展 %s", extName));
 							}
 						}
 					} else {
@@ -462,7 +476,7 @@ func (self *Dice) registerCoreCommands() {
 						for _, i := range self.extList {
 							if i.Name == extName {
 								text := fmt.Sprintf("> [%s] 版本%s 作者%s\n", i.Name, i.version, i.Author)
-								replyToSender(session.Socket, msg, text + i.GetDescText(i))
+								replyToSender(session, msg, text + i.GetDescText(i))
 								break
 							}
 						}
@@ -487,12 +501,12 @@ func (self *Dice) registerCoreCommands() {
 					if len(cmdArgs.Args) == 0 {
 						p := getPlayerInfoBySender(session, msg)
 						p.Name = msg.Sender.Nickname;
-						replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称已重置为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name));
+						replyGroup(session, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称已重置为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name));
 					}
 					if len(cmdArgs.Args) >= 1 {
 						p := getPlayerInfoBySender(session, msg)
 						p.Name = cmdArgs.Args[0]
-						replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name));
+						replyGroup(session, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name));
 					}
 				}
 			}
@@ -504,39 +518,6 @@ func (self *Dice) registerCoreCommands() {
 	}
 	self.cmdMap["nn"] = cmdNN;
 
-	jrrpTexts := map[string]string{
-		"rp": "<%s> 的今日人品为 %d",
-	}
-	cmdJrrp := &CmdItemInfo{
-		name: "jrrp",
-		Brief: "获得一个D100随机值，一天内不会变化",
-		texts: jrrpTexts,
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if msg.MessageType == "group" {
-				if isCurGroupBotOn(session, msg) {
-					p := getPlayerInfoBySender(session, msg)
-					todayTime := time.Now().Format("2006-01-02")
-
-					rp := 0
-					if p.RpTime == todayTime {
-						rp = p.RpToday
-					} else {
-						rp = DiceRoll(100)
-						p.RpTime = todayTime
-						p.RpToday = rp
-					}
-
-					replyGroup(session.Socket, msg.GroupId, fmt.Sprintf(jrrpTexts["rp"], p.Name, rp));
-				}
-			}
-
-			return struct{ success bool }{
-				success: true,
-			}
-		},
-	}
-	self.cmdMap["jrrp"] = cmdJrrp;
-
 	cmdSet := &CmdItemInfo{
 		name: "set <面数>",
 		Brief: "设置默认骰子面数，只对自己有效",
@@ -547,13 +528,13 @@ func (self *Dice) registerCoreCommands() {
 					num, err := strconv.Atoi(cmdArgs.Args[0])
 					if err == nil {
 						p.DiceSideNum = num
-						replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num));
+						replyGroup(session, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num));
 					} else {
-						replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"));
+						replyGroup(session, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"));
 					}
 				} else {
 					p.DiceSideNum = 0
-					replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"));
+					replyGroup(session, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"));
 				}
 			}
 
@@ -571,7 +552,7 @@ func (self *Dice) registerCoreCommands() {
 			if msg.MessageType == "group" {
 				if isCurGroupBotOn(session, msg) {
 					self.save()
-					replyGroup(session.Socket, msg.GroupId, fmt.Sprintf("临时指令：试图存档"));
+					replyGroup(session, msg.GroupId, fmt.Sprintf("临时指令：试图存档"));
 				}
 			}
 
@@ -594,9 +575,9 @@ func (self *Dice) registerCoreCommands() {
 					val, _, err := self.exprText(cmdArgs.RawArgs, p)
 
 					if err == nil {
-						replyGroup(session.Socket, msg.GroupId, val);
+						replyGroup(session, msg.GroupId, val);
 					} else {
-						replyGroup(session.Socket, msg.GroupId, "格式错误");
+						replyGroup(session, msg.GroupId, "格式错误");
 					}
 				}
 			}
@@ -611,6 +592,10 @@ func (self *Dice) registerCoreCommands() {
 
 func isCurGroupBotOn(session *IMSession, msg *Message) bool {
 	return msg.MessageType == "group" && session.ServiceAt[msg.GroupId] != nil && session.ServiceAt[msg.GroupId].Active
+}
+
+func isCurGroupBotOnById(session *IMSession, messageType string, groupId int64) bool {
+	return messageType == "group" && session.ServiceAt[groupId] != nil && session.ServiceAt[groupId].Active
 }
 
 /** 获取玩家群内信息，没有就创建 */
