@@ -44,7 +44,6 @@ func (self *Dice) registerBuiltinExtLog() {
 			if flag == "skip" {
 				return
 			}
-			fmt.Println("XXXXXX", flag, text)
 			if isCurGroupBotOnById(session, messageType, userId) {
 				group := session.ServiceAt[userId]
 				if group.LogOn {
