@@ -318,7 +318,7 @@ func (s *IMSession) serve() {
 
 			// 处理命令
 			if msg.MessageType == "group" || msg.MessageType == "private" {
-				cmdLst := []string{}
+				var cmdLst []string
 
 				if s.parent.CommandCompatibleMode {
 					for k := range session.parent.cmdMap {

@@ -29,7 +29,6 @@ const (
 	TypeHalt
 	TypeSwap
 	TypeLeftValueMark
-	TypeRightValueMark
 )
 
 type ByteCode struct {
@@ -108,11 +107,11 @@ func (e *RollExpression) Init(stackLength int) {
 
 func (e *RollExpression) checkStackOverflow() bool {
 	if e.error != nil {
-		return true;
+		return true
 	}
 	if e.Top >= len(e.Code) {
 		e.error = errors.New("E1:指令虚拟机栈溢出，请不要发送过于离谱的指令")
-		return true;
+		return true
 	}
 	return false
 }
@@ -262,7 +261,7 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			continue
 		case TypeNegation:
 			a := &stack[top-1]
-			a.value = -a.value.(int64);
+			a.value = -a.value.(int64)
 			continue
 		case TypeDiceUnary:
 			a := &stack[top-1]
@@ -320,19 +319,19 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 		switch code.T {
 		case TypeAdd:
 			checkDice(&code)
-			a.value = aInt + bInt;
+			a.value = aInt + bInt
 		case TypeSubtract:
 			checkDice(&code)
-			a.value = aInt - bInt;
+			a.value = aInt - bInt
 		case TypeMultiply:
 			checkDice(&code)
-			a.value = aInt * bInt;
+			a.value = aInt * bInt
 		case TypeDivide:
 			checkDice(&code)
-			a.value = aInt / bInt;
+			a.value = aInt / bInt
 		case TypeModulus:
 			checkDice(&code)
-			a.value = aInt % bInt;
+			a.value = aInt % bInt
 		case TypeExponentiation:
 			checkDice(&code)
 			a.value = int64(math.Pow(float64(aInt), float64(bInt)))

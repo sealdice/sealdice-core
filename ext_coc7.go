@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var fearListText string = `
+var fearListText = `
 1) 洗澡恐惧症（Ablutophobia）：对于洗涤或洗澡的恐惧。
 2) 恐高症（Acrophobia）：对于身处高处的恐惧。
 3) 飞行恐惧症（Aerophobia）：对飞行的恐惧。
@@ -113,7 +113,7 @@ var fearListText string = `
 100) 动物恐惧症（Zoophobia）：对动物的恐惧。
 `
 
-var ManiaListText string = `
+var ManiaListText = `
 1) 沐浴癖（Ablutomania）：执着于清洗自己。
 2) 犹豫癖（Aboulomania）：病态地犹豫不定。
 3) 喜暗狂（Achluomania）：对黑暗的过度热爱。
@@ -250,7 +250,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 		OnLoad: func() {},
 		OnCommandReceived: func (session *IMSession, msg *Message, cmdArgs *CmdArgs) {
 			p := getPlayerInfoBySender(session, msg)
-			p.TempValueAlias = &ac.Alias;
+			p.TempValueAlias = &ac.Alias
 		},
 		GetDescText: func (ei *ExtInfo) string {
 			text := "> " + ei.Brief + "\n" + "提供命令:\n"
@@ -316,7 +316,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							text += maniaMap[num2]
 						}
 
-						replyGroup(session, msg.GroupId, text);
+						replyGroup(session, msg.GroupId, text)
 					}
 					return struct{ success bool }{
 						success: true,
@@ -367,7 +367,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							text += maniaMap[num2]
 						}
 
-						replyGroup(session, msg.GroupId, text);
+						replyGroup(session, msg.GroupId, text)
 					}
 					return struct{ success bool }{
 						success: true,
@@ -420,9 +420,9 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								}
 
 								text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", p.Name, cmdArgs.RawArgs, d100, cond, detailWrap, suffix)
-								replyGroup(session, msg.GroupId, text);
+								replyGroup(session, msg.GroupId, text)
 							} else {
-								replyGroup(session, msg.GroupId, "表达式不正确，可能是找不到属性");
+								replyGroup(session, msg.GroupId, "表达式不正确，可能是找不到属性")
 							}
 						}
 					}
@@ -518,9 +518,9 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								}
 
 								// 临时疯狂
-								replyGroup(session, msg.GroupId, text);
+								replyGroup(session, msg.GroupId, text)
 							} else {
-								replyGroup(session, msg.GroupId, "命令格式错误");
+								replyGroup(session, msg.GroupId, "命令格式错误")
 							}
 						}
 					}
@@ -554,7 +554,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							text += ".st del <属性名1> <属性名2> ... // 删除属性，可多项，以空格间隔\n"
 							text += ".st help // 帮助\n"
 							text += ".st <属性名><值> // 例：.st 敏捷50"
-							replyGroup(session, msg.GroupId, text);
+							replyGroup(session, msg.GroupId, text)
 
 						case "del":
 							p := getPlayerInfoBySender(session, msg)
@@ -573,14 +573,14 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							}
 
 							text := fmt.Sprintf("<%s>的如下属性被成功删除:%s，失败%d项\n", p.Name, nums, len(failed))
-							replyGroup(session, msg.GroupId, text);
+							replyGroup(session, msg.GroupId, text)
 
 						case "clr", "clear":
 							p := getPlayerInfoBySender(session, msg)
 							num := len(p.ValueNumMap)
-							p.ValueNumMap = map[string]int64{};
+							p.ValueNumMap = map[string]int64{}
 							text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
-							replyGroup(session, msg.GroupId, text);
+							replyGroup(session, msg.GroupId, text)
 
 						case "show", "list":
 							info := ""
@@ -633,7 +633,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								// 其余按字典序
 								topNum := len(attrKeys)
 								attrKeys2 := []string{}
-								for k, _ := range p.ValueNumMap {
+								for k := range p.ValueNumMap {
 									attrKeys2 = append(attrKeys2, k)
 								}
 								sort.Strings(attrKeys2)
@@ -677,7 +677,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								info += fmt.Sprintf("\n注：%d条属性因≤%d被隐藏", limktSkipCount, limit)
 							}
 							text := fmt.Sprintf("<%s>的个人属性为：\n%s", name, info)
-							replyGroup(session, msg.GroupId, text);
+							replyGroup(session, msg.GroupId, text)
 
 						default:
 							re1, _ := regexp.Compile(`([^\d]+?)([+-])=?(.+)$`)
@@ -687,7 +687,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								val, exists := p.GetValueInt64(m[1], ac.Alias)
 								if !exists {
 									text := fmt.Sprintf("<%s>: 无法找到名下属性 %s，不能作出修改", p.Name, m[1])
-									replyGroup(session, msg.GroupId, text);
+									replyGroup(session, msg.GroupId, text)
 								} else {
 									v, _, err := self.exprEval(m[3], p)
 									if err == nil && v.typeId == 0 {
@@ -705,14 +705,14 @@ func (self *Dice) registerBuiltinExtCoc7() {
 										p.SetValueInt64(m[1], newVal, ac.Alias)
 
 										text := fmt.Sprintf("<%s>的“%s”变化: %d ➯ %d (%s%s=%d)\n", p.Name, m[1], val, newVal, signText, m[3], rightVal)
-										replyGroup(session, msg.GroupId, text);
+										replyGroup(session, msg.GroupId, text)
 									} else {
 										text := fmt.Sprintf("<%s>: 错误的增减值: %s", p.Name, m[3])
-										replyGroup(session, msg.GroupId, text);
+										replyGroup(session, msg.GroupId, text)
 									}
 								}
 							} else {
-								valueMap := map[string]int64{};
+								valueMap := map[string]int64{}
 								re, _ := regexp.Compile(`([^\d]+?)[:=]?(\d+)`)
 
 								// 读取所有参数中的值
@@ -721,9 +721,9 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								m := re.FindAllStringSubmatch(RemoveSpace(stText), -1)
 
 								for _, i := range m {
-									num, err := strconv.ParseInt(i[2], 10, 64);
+									num, err := strconv.ParseInt(i[2], 10, 64)
 									if err == nil {
-										valueMap[i[1]] = num;
+										valueMap[i[1]] = num
 									}
 								}
 
@@ -748,10 +748,10 @@ func (self *Dice) registerBuiltinExtCoc7() {
 									p.SetValueInt64(name, v, ac.Alias)
 								}
 
-								p.lastUpdateTime = time.Now().Unix();
+								p.lastUpdateTime = time.Now().Unix()
 								//s, _ := json.Marshal(valueMap)
 								text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据 (其中%d条为同义词)", p.Name, len(valueMap), synonymsCount)
-								replyGroup(session, msg.GroupId, text);
+								replyGroup(session, msg.GroupId, text)
 							}
 						}
 					}
