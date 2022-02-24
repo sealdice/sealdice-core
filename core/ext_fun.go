@@ -122,7 +122,7 @@ func (self *Dice) registerBuiltinExtFun() {
 						p.RpToday = rp
 					}
 
-					replyGroup(session, msg.GroupId, fmt.Sprintf(jrrpTexts["rp"], p.Name, rp));
+					replyGroup(session, msg.GroupId, fmt.Sprintf(jrrpTexts["rp"], p.Name, rp))
 				}
 			}
 
@@ -156,7 +156,7 @@ func (self *Dice) registerBuiltinExtFun() {
 				name: "deck",
 				Brief: "从牌堆抽牌",
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-					replyToSender(session, msg, "尚未开发完成，敬请期待");
+					replyToSender(session, msg, "尚未开发完成，敬请期待")
 					return struct{ success bool }{
 						success: true,
 					}

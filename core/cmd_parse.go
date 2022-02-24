@@ -61,7 +61,7 @@ func (a *CmdArgs) GetKwarg(s string) *Kwarg {
 }
 
 func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string) *CmdArgs {
-	restText, atInfo := AtParse(rawCmd);
+	restText, atInfo := AtParse(rawCmd)
 	re := regexp.MustCompile(`^\s*[.。](\S+)\s*([^\n]*)`)
 
 	if commandCompatibleMode {
@@ -82,13 +82,13 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 	m := re.FindStringSubmatch(restText)
 	if len(m) == 3 {
 		cmdInfo := new(CmdArgs)
-		cmdInfo.Command = m[1];
-		cmdInfo.RawArgs = m[2];
-		cmdInfo.At = atInfo;
+		cmdInfo.Command = m[1]
+		cmdInfo.RawArgs = m[2]
+		cmdInfo.At = atInfo
 
 		a := ArgsParse(m[2])
-		cmdInfo.Args = a.Args;
-		cmdInfo.Kwargs = a.Kwargs;
+		cmdInfo.Args = a.Args
+		cmdInfo.Kwargs = a.Kwargs
 		//log.Println(222, m[1], "[sep]", m[2])
 
 		// 将所有args连接起来，存入一个cleanArgs变量。主要用于兼容非标准参数
@@ -98,30 +98,30 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		}
 		cmdInfo.cleanArgs = stText
 
-		return cmdInfo;
+		return cmdInfo
 	}
 
-	return nil;
+	return nil
 }
 
 func AtParse(cmd string) (string, []*AtInfo) {
 	//[CQ:at,qq=3604749540]
-	ret := make([]*AtInfo, 0);
+	ret := make([]*AtInfo, 0)
 	re := regexp.MustCompile(`\[CQ:at,qq=(\d+?)]`)
-	m := re.FindAllStringSubmatch(cmd, -1);
+	m := re.FindAllStringSubmatch(cmd, -1)
 
 	for _, i := range m {
 		if len(i) == 2 {
 			at := new(AtInfo)
-			at.UserId, _ = strconv.ParseInt(i[1], 10, 64);
-			ret = append(ret, at);
+			at.UserId, _ = strconv.ParseInt(i[1], 10, 64)
+			ret = append(ret, at)
 		}
 	}
 
 	replaced := re.ReplaceAllString(cmd, "")
-	log.Println(replaced, ret);
+	log.Println(replaced, ret)
 
-	return replaced, ret;
+	return replaced, ret
 }
 
 
@@ -158,5 +158,5 @@ func ArgsParse(rawCmd string) *CmdArgs {
 	//log.Println(cmdArgs)
 	//a, _ := json.Marshal(cmdArgs)
 	//log.Println(string((a)))
-	return cmdArgs;
+	return cmdArgs
 }

@@ -51,8 +51,8 @@ func main() {
 	//AtParse("[CQ:at,qq=3604749540] 333 \n[CQ:at,qq=3604749540] 2222")
 	configInit()
 
-	dice := &Dice{};
-	dice.init();
+	dice := &Dice{}
+	dice.init()
 
 	//1+2*3+d1+4+1d5+
 	//a, d, err := dice.exprEval("0 + 100 + 10 + 2d5 + 2*3*1d5 + 1d4 + 7 + 力量", nil)
@@ -73,7 +73,7 @@ func main() {
 	//	fmt.Println("DDD2", err)
 	//}
 
-	dice.ImSession.serve();
+	dice.ImSession.serve()
 
 	return
 

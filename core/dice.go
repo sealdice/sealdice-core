@@ -22,7 +22,7 @@ type CmdItemInfo struct {
 	texts map[string]string
 }
 
-type CmdMapCls map[string]*CmdItemInfo;
+type CmdMapCls map[string]*CmdItemInfo
 
 type ExtInfo struct {
 	Name    string // 名字
@@ -56,15 +56,15 @@ type Dice struct {
 }
 
 func (self *Dice) init() {
-	self.CommandCompatibleMode = true;
-	self.ImSession = &IMSession{};
-	self.ImSession.parent = self;
-	self.ImSession.ServiceAt = make(map[int64]*ServiceAtItem);
+	self.CommandCompatibleMode = true
+	self.ImSession = &IMSession{}
+	self.ImSession.parent = self
+	self.ImSession.ServiceAt = make(map[int64]*ServiceAtItem)
 	self.cmdMap = CmdMapCls{}
 
-	self.registerCoreCommands();
+	self.registerCoreCommands()
 	self.RegisterBuiltinExt()
-	self.loads();
+	self.loads()
 
 	for _, i := range self.extList {
 		if i.OnLoad != nil {
@@ -85,7 +85,7 @@ func (self *Dice) init() {
 		t := time.Tick(15 * time.Second)
 		for {
 			<-t
-			for k, _ := range self.ImSession.ServiceAt {
+			for k := range self.ImSession.ServiceAt {
 				GetGroupInfo(self.ImSession.Socket, k)
 			}
 		}
@@ -99,7 +99,7 @@ func (self *Dice) rebuildParser(buffer string) *DiceRollParser {
 	_ = p.Init()
 	p.RollExpression.Init(255)
 	//self.RollParser = p;
-	return p;
+	return p
 }
 
 func (self *Dice) exprEvalBase(buffer string, p *PlayerInfo, bigFailDice bool) (*vmResult, string, error) {
@@ -117,7 +117,7 @@ func (self *Dice) exprEvalBase(buffer string, p *PlayerInfo, bigFailDice bool) (
 		ret.value = num.value
 		ret.typeId = num.typeId
 		ret.parser = parser
-		return &ret, detail, nil;
+		return &ret, detail, nil
 	}
 	return nil, "", err
 }
@@ -147,7 +147,7 @@ func (self *Dice) loads() {
 		d := Dice{}
 		err2 := yaml.Unmarshal(data, &d)
 		if err2 == nil {
-			m := map[string]*ExtInfo{};
+			m := map[string]*ExtInfo{}
 			for _, i := range self.extList {
 				m[i.Name] = i
 			}
@@ -160,7 +160,7 @@ func (self *Dice) loads() {
 						tmp = append(tmp, m[i.Name])
 					}
 				}
-				v.ActivatedExtList = tmp;
+				v.ActivatedExtList = tmp
 			}
 
 			log.Println("config.yaml loaded")
@@ -194,7 +194,7 @@ func DiceRoll(dicePoints int) int {
 	if dicePoints <= 0 {
 		return 0
 	}
-	val := rand.Int() % dicePoints + 1;
+	val := rand.Int() % dicePoints + 1
 	return val
 }
 
@@ -202,11 +202,11 @@ func DiceRoll64(dicePoints int64) int64 {
 	if dicePoints == 0 {
 		return 0
 	}
-	val := rand.Int63() % dicePoints + 1;
+	val := rand.Int63() % dicePoints + 1
 	return val
 }
 
-var VERSION = "v20220219"
+var VERSION = "v20220224"
 
 /** 这几条指令不能移除 */
 func (self *Dice) registerCoreCommands() {
@@ -249,7 +249,7 @@ func (self *Dice) registerCoreCommands() {
 			}
 		},
 	}
-	self.cmdMap["help"] = cmdHelp;
+	self.cmdMap["help"] = cmdHelp
 
 	cmdBot := &CmdItemInfo{
 		name: "bot on/off/about/bye",
@@ -283,9 +283,9 @@ func (self *Dice) registerCoreCommands() {
 					if len(cmdArgs.Args) >= 1 {
 						if cmdArgs.Args[0] == "on" {
 							if session.ServiceAt[msg.GroupId] != nil {
-								session.ServiceAt[msg.GroupId].Active = true;
+								session.ServiceAt[msg.GroupId].Active = true
 							} else {
-								extLst := []*ExtInfo{};
+								extLst := []*ExtInfo{}
 								for _, i := range self.extList {
 									if i.autoActive {
 										extLst = append(extLst, i)
@@ -296,18 +296,18 @@ func (self *Dice) registerCoreCommands() {
 									ActivatedExtList: extLst,
 									Players:          map[int64]*PlayerInfo{},
 									GroupId: msg.GroupId,
-								};
+								}
 							}
-							replyGroup(session, msg.GroupId, "SealDice 已启用(开发中) " + VERSION);
+							replyGroup(session, msg.GroupId, "SealDice 已启用(开发中) " + VERSION)
 						} else if cmdArgs.Args[0] == "off" {
 							if len(session.ServiceAt[msg.GroupId].ActivatedExtList) == 0 {
-								delete(session.ServiceAt, msg.GroupId);
+								delete(session.ServiceAt, msg.GroupId)
 							} else {
-								session.ServiceAt[msg.GroupId].Active = false;
+								session.ServiceAt[msg.GroupId].Active = false
 							}
-							replyGroup(session, msg.GroupId, "停止服务");
+							replyGroup(session, msg.GroupId, "停止服务")
 						} else if cmdArgs.Args[0] == "bye" {
-							replyGroup(session, msg.GroupId, "收到指令，5s后将退出当前群组");
+							replyGroup(session, msg.GroupId, "收到指令，5s后将退出当前群组")
 							time.Sleep(6 * time.Second)
 							quitGroup(session, msg.GroupId)
 						}
@@ -320,15 +320,15 @@ func (self *Dice) registerCoreCommands() {
 			}
 		},
 	}
-	self.cmdMap["bot"] = cmdBot;
+	self.cmdMap["bot"] = cmdBot
 
 	cmdRoll := &CmdItemInfo{
 		name: "r <表达式> <原因>",
 		Brief: "骰点指令，案例:“.r d16” “.r 3d10*2+3” “.r d10+力量” “.r 2d(力量+1d3)” “.rh d16 (暗骰)” ",
 		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if isCurGroupBotOn(session, msg) {
-				var text string;
-				var prefix string;
+				var text string
+				var prefix string
 				var diceResult int64
 				var diceResultExists bool
 				var detail string
@@ -346,7 +346,7 @@ func (self *Dice) registerCoreCommands() {
 					}
 				}
 
-				forWhat := "";
+				forWhat := ""
 				var r *vmResult
 				if len(cmdArgs.Args) >= 1 {
 					var err error
@@ -365,18 +365,18 @@ func (self *Dice) registerCoreCommands() {
 					} else {
 						errs := string(err.Error())
 						if strings.HasPrefix(errs, "E1:") {
-							replyGroup(session, msg.GroupId, errs);
+							replyGroup(session, msg.GroupId, errs)
 
 							return struct{ success bool }{
 								success: true,
 							}
 						}
-						forWhat = cmdArgs.Args[0];
+						forWhat = cmdArgs.Args[0]
 					}
 				}
 
 				if forWhat != "" {
-					prefix = "为了" + forWhat + "，";
+					prefix = "为了" + forWhat + "，"
 				}
 
 				if diceResultExists {
@@ -384,14 +384,14 @@ func (self *Dice) registerCoreCommands() {
 					if detail != "" {
 						detailWrap = "=" + detail
 					}
-					text = fmt.Sprintf("%s<%s>掷出了 %s%s=%d", prefix, p.Name, cmdArgs.Args[0], detailWrap, diceResult);
+					text = fmt.Sprintf("%s<%s>掷出了 %s%s=%d", prefix, p.Name, cmdArgs.Args[0], detailWrap, diceResult)
 				} else {
 					dicePoints := p.DiceSideNum
 					if dicePoints <= 0 {
 						dicePoints = 100
 					}
-					val := DiceRoll(dicePoints);
-					text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, p.Name, dicePoints, val);
+					val := DiceRoll(dicePoints)
+					text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, p.Name, dicePoints, val)
 				}
 
 				if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
@@ -402,10 +402,10 @@ func (self *Dice) registerCoreCommands() {
 				if cmdArgs.Command == "rh" || cmdArgs.Command == "rhd" {
 					group := session.ServiceAt[msg.GroupId]
 					prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", group.GroupName, msg.GroupId)
-					replyGroup(session, msg.GroupId, "黑暗的角落里，传来命运转动的声音");
-					replyPerson(session, msg.Sender.UserId, prefix + text);
+					replyGroup(session, msg.GroupId, "黑暗的角落里，传来命运转动的声音")
+					replyPerson(session, msg.Sender.UserId, prefix + text)
 				} else {
-					replyGroup(session, msg.GroupId, text);
+					replyGroup(session, msg.GroupId, text)
 				}
 			}
 
@@ -414,11 +414,11 @@ func (self *Dice) registerCoreCommands() {
 			}
 		},
 	}
-	self.cmdMap["r"] = cmdRoll;
-	self.cmdMap["rd"] = cmdRoll;
-	self.cmdMap["roll"] = cmdRoll;
-	self.cmdMap["rh"] = cmdRoll;
-	self.cmdMap["rhd"] = cmdRoll;
+	self.cmdMap["r"] = cmdRoll
+	self.cmdMap["rd"] = cmdRoll
+	self.cmdMap["roll"] = cmdRoll
+	self.cmdMap["rh"] = cmdRoll
+	self.cmdMap["rhd"] = cmdRoll
 
 	cmdExt := &CmdItemInfo{
 		name: "ext",
@@ -443,7 +443,7 @@ func (self *Dice) registerCoreCommands() {
 					}
 					text += "使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n"
 					text += "命令: .ext <扩展名> 可以查看扩展介绍及帮助"
-					replyGroup(session, msg.GroupId, text);
+					replyGroup(session, msg.GroupId, text)
 				}
 
 				if len(cmdArgs.Args) == 0 {
@@ -454,21 +454,21 @@ func (self *Dice) registerCoreCommands() {
 					if cmdArgs.isArgEqual(1, "list") {
 						showList()
 					} else if cmdArgs.isArgEqual(2, "on") {
-						extName := cmdArgs.Args[0];
+						extName := cmdArgs.Args[0]
 						for _, i := range self.extList {
 							if i.Name == extName {
-								session.ServiceAt[msg.GroupId].ActivatedExtList = append(session.ServiceAt[msg.GroupId].ActivatedExtList, i);
-								replyGroup(session, msg.GroupId, fmt.Sprintf("打开扩展 %s", extName));
-								break;
+								session.ServiceAt[msg.GroupId].ActivatedExtList = append(session.ServiceAt[msg.GroupId].ActivatedExtList, i)
+								replyGroup(session, msg.GroupId, fmt.Sprintf("打开扩展 %s", extName))
+								break
 							}
 						}
 					} else if cmdArgs.isArgEqual(2, "off") {
 						gInfo := session.ServiceAt[msg.GroupId]
-						extName := cmdArgs.Args[0];
+						extName := cmdArgs.Args[0]
 						for index, i := range gInfo.ActivatedExtList {
 							if i.Name == extName {
 								gInfo.ActivatedExtList = append(gInfo.ActivatedExtList[:index], gInfo.ActivatedExtList[index+1:]...)
-								replyGroup(session, msg.GroupId, fmt.Sprintf("关闭扩展 %s", extName));
+								replyGroup(session, msg.GroupId, fmt.Sprintf("关闭扩展 %s", extName))
 							}
 						}
 					} else {
@@ -490,7 +490,7 @@ func (self *Dice) registerCoreCommands() {
 			}
 		},
 	}
-	self.cmdMap["ext"] = cmdExt;
+	self.cmdMap["ext"] = cmdExt
 
 	cmdNN := &CmdItemInfo{
 		name: "nn <角色名>",
@@ -500,13 +500,13 @@ func (self *Dice) registerCoreCommands() {
 				if isCurGroupBotOn(session, msg) {
 					if len(cmdArgs.Args) == 0 {
 						p := getPlayerInfoBySender(session, msg)
-						p.Name = msg.Sender.Nickname;
-						replyGroup(session, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称已重置为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name));
+						p.Name = msg.Sender.Nickname
+						replyGroup(session, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称已重置为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
 					}
 					if len(cmdArgs.Args) >= 1 {
 						p := getPlayerInfoBySender(session, msg)
 						p.Name = cmdArgs.Args[0]
-						replyGroup(session, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name));
+						replyGroup(session, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
 					}
 				}
 			}
@@ -516,7 +516,7 @@ func (self *Dice) registerCoreCommands() {
 			}
 		},
 	}
-	self.cmdMap["nn"] = cmdNN;
+	self.cmdMap["nn"] = cmdNN
 
 	cmdSet := &CmdItemInfo{
 		name: "set <面数>",
@@ -528,13 +528,13 @@ func (self *Dice) registerCoreCommands() {
 					num, err := strconv.Atoi(cmdArgs.Args[0])
 					if err == nil {
 						p.DiceSideNum = num
-						replyGroup(session, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num));
+						replyGroup(session, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num))
 					} else {
-						replyGroup(session, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"));
+						replyGroup(session, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"))
 					}
 				} else {
 					p.DiceSideNum = 0
-					replyGroup(session, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"));
+					replyGroup(session, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"))
 				}
 			}
 
@@ -543,7 +543,7 @@ func (self *Dice) registerCoreCommands() {
 			}
 		},
 	}
-	self.cmdMap["set"] = cmdSet;
+	self.cmdMap["set"] = cmdSet
 
 	cmdTmpSave := &CmdItemInfo{
 		name: "cfgsave",
@@ -552,7 +552,7 @@ func (self *Dice) registerCoreCommands() {
 			if msg.MessageType == "group" {
 				if isCurGroupBotOn(session, msg) {
 					self.save()
-					replyGroup(session, msg.GroupId, fmt.Sprintf("临时指令：试图存档"));
+					replyGroup(session, msg.GroupId, fmt.Sprintf("临时指令：试图存档"))
 				}
 			}
 
@@ -561,8 +561,7 @@ func (self *Dice) registerCoreCommands() {
 			}
 		},
 	}
-	self.cmdMap["cfgsave"] = cmdTmpSave;
-
+	self.cmdMap["cfgsave"] = cmdTmpSave
 
 	cmdText := &CmdItemInfo{
 		name: "text <文本模板>",
@@ -575,9 +574,9 @@ func (self *Dice) registerCoreCommands() {
 					val, _, err := self.exprText(cmdArgs.RawArgs, p)
 
 					if err == nil {
-						replyGroup(session, msg.GroupId, val);
+						replyGroup(session, msg.GroupId, val)
 					} else {
-						replyGroup(session, msg.GroupId, "格式错误");
+						replyGroup(session, msg.GroupId, "格式错误")
 					}
 				}
 			}
@@ -587,7 +586,7 @@ func (self *Dice) registerCoreCommands() {
 			}
 		},
 	}
-	self.cmdMap["text"] = cmdText;
+	self.cmdMap["text"] = cmdText
 }
 
 func isCurGroupBotOn(session *IMSession, msg *Message) bool {
@@ -600,7 +599,7 @@ func isCurGroupBotOnById(session *IMSession, messageType string, groupId int64) 
 
 /** 获取玩家群内信息，没有就创建 */
 func getPlayerInfoBySender(session *IMSession, msg *Message) *PlayerInfo {
-	players := session.ServiceAt[msg.GroupId].Players;
+	players := session.ServiceAt[msg.GroupId].Players
 	p := players[msg.Sender.UserId]
 	if p == nil {
 		p = &PlayerInfo{
@@ -609,7 +608,7 @@ func getPlayerInfoBySender(session *IMSession, msg *Message) *PlayerInfo {
 			ValueNumMap: map[string]int64{},
 			ValueStrMap: map[string]string{},
 		}
-		players[msg.Sender.UserId] = p;
+		players[msg.Sender.UserId] = p
 	}
-	return p;
+	return p
 }

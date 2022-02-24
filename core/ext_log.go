@@ -169,11 +169,11 @@ func LogSaveToZip(group *ServiceAtItem) string {
 
 		text := ""
 		for _, i := range lines {
-			time := time.Now().Format("2006-01-02 15:04:05")
+			timeTxt := time.Now().Format("2006-01-02 15:04:05")
 			if i.IsDice {
-				text += fmt.Sprintf("[%s] %s(骰子): %s\n", time, i.Nickname, i.Message)
+				text += fmt.Sprintf("[%s] %s(骰子): %s\n", timeTxt, i.Nickname, i.Message)
 			} else {
-				text += fmt.Sprintf("[%s] <%s>: %s\n", time, i.Nickname, i.Message)
+				text += fmt.Sprintf("[%s] <%s>: %s\n", timeTxt, i.Nickname, i.Message)
 			}
 		}
 
@@ -187,8 +187,8 @@ func LogSaveToZip(group *ServiceAtItem) string {
 		// 第二份，QQ格式
 		text = ""
 		for _, i := range lines {
-			time := time.Now().Format("2006-01-02 15:04:05")
-			text += fmt.Sprintf("%s(%d) %s\n%s\n\n", i.Nickname, i.IMUserId, time, i.Message)
+			timeTxt := time.Now().Format("2006-01-02 15:04:05")
+			text += fmt.Sprintf("%s(%d) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
 		}
 
 		fileWriter, _ = writer.Create("跑团日志(类QQ格式).txt")
