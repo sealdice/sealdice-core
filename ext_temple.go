@@ -6,7 +6,7 @@ func (self *Dice) registerBuiltinExtTemple() {
 		version:    "0.0.1",
 		Brief: "一行字简介",
 		autoActive: true, // 是否自动开启
-		OnPrepare: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
+		OnCommandReceived: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
 			//p := getPlayerInfoBySender(session, msg)
 			//p.TempValueAlias = &ac.Alias;
 		},

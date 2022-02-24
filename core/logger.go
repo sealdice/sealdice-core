@@ -28,6 +28,11 @@ func LoggerInit() {
 	logger.Infow("程序启动")
 }
 
+func GetLogger() *zap.SugaredLogger {
+	return logger;
+	return nil
+}
+
 func getEncoder() zapcore.Encoder {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/sacOO7/gowebsocket"
 	"log"
 	"math/rand"
@@ -17,7 +16,16 @@ import (
 // {"anonymous":null,"font":0,"group_id":111,"message":"qqq","message_id":884917177,"message_seq":1434,"message_type":"group","post_type":"message","raw_message":"qqq","self_id":1001,"sender":{"age":0,"area":"","card":"","level":"","nickname":"鏈ㄨ惤","role":"member","sex":"unknown","title":"","user_id":1002},"sub_type":"normal","time":1643863961,"user_id":1002}
 // {"anonymous":null,"font":0,"group_id":111,"message":"[CQ:at,qq=1001]   .r test","message_id":888971055,"message_seq":1669,"message_type":"group","post_type":"message","raw_message":"[CQ:at,qq=1001]   .r test","self_id":1001,"sender":{"age":0,"area":"","card":"","level":"","nickname":"鏈ㄨ惤","role":"member","sex":"unknown","title":"","user_id":1002},"sub_type":"normal","time":1644127751,"user_id":1002}
 
-func replyPerson(socket *gowebsocket.Socket, userId int64, text string) {
+func replyPerson(s *IMSession, userId int64, text string) {
+	replyPersonRaw(s, userId, text, "")
+}
+
+func replyPersonRaw(s *IMSession, userId int64, text string, flag string) {
+	for _, i := range s.parent.extList {
+		if i.OnMessageSend != nil {
+			i.OnMessageSend(s, "private", userId, text, flag)
+		}
+	}
 	time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 
 	type GroupMessageParams struct {
@@ -38,7 +46,7 @@ func replyPerson(socket *gowebsocket.Socket, userId int64, text string) {
 		},
 	})
 
-	socket.SendText(string(a))
+	s.Socket.SendText(string(a))
 }
 
 func GetGroupInfo(socket *gowebsocket.Socket, groupId int64) {
@@ -61,7 +69,7 @@ func GetGroupInfo(socket *gowebsocket.Socket, groupId int64) {
 }
 
 
-func quitGroup(socket *gowebsocket.Socket, groupId int64) {
+func quitGroup(s *IMSession, groupId int64) {
 	type GroupMessageParams struct {
 		GroupId int64  `json:"group_id"`
 	}
@@ -75,10 +83,22 @@ func quitGroup(socket *gowebsocket.Socket, groupId int64) {
 			groupId,
 		},
 	})
-	socket.SendText(string(a))
+	s.Socket.SendText(string(a))
 }
 
-func replyGroup(socket *gowebsocket.Socket, groupId int64, text string) {
+func replyGroup(s *IMSession, groupId int64, text string) {
+	replyGroupRaw(s, groupId, text, "")
+}
+
+func replyGroupRaw(s *IMSession, groupId int64, text string, flag string) {
+	if s.ServiceAt[groupId] != nil {
+		for _, i := range s.ServiceAt[groupId].ActivatedExtList {
+			if i.OnMessageSend != nil {
+				i.OnMessageSend(s, "group", groupId, text, flag)
+			}
+		}
+	}
+
 	time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 
 	type GroupMessageParams struct {
@@ -96,16 +116,20 @@ func replyGroup(socket *gowebsocket.Socket, groupId int64, text string) {
 			text, // "golang client test",
 		},
 	})
-	socket.SendText(string(a))
+	s.Socket.SendText(string(a))
 }
 
-func replyToSender(socket *gowebsocket.Socket, msg *Message, text string) {
+func replyToSenderRaw(s *IMSession, msg *Message, text string, flag string) {
 	inGroup := msg.MessageType == "group"
 	if inGroup {
-		replyGroup(socket, msg.GroupId, text)
+		replyGroupRaw(s, msg.GroupId, text, flag)
 	} else {
-		replyPerson(socket, msg.Sender.UserId, text)
+		replyPersonRaw(s, msg.Sender.UserId, text, flag)
 	}
+}
+
+func replyToSender(s *IMSession, msg *Message, text string) {
+	replyToSenderRaw(s, msg, text, "")
 }
 
 func (s *IMSession) GetLoginInfo() {
@@ -186,7 +210,7 @@ func (i *PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) st
 		}
 	}
 
-	return name;
+	return name
 }
 
 func (i *PlayerInfo) SetValueInt64(s string, sanNew int64, alias map[string][]string) {
@@ -204,10 +228,11 @@ type ServiceAtItem struct {
 	Active bool `json:"active" yaml:"active"` // 需要能记住配置，故有此选项
 	ActivatedExtList []*ExtInfo `yaml:"activatedExtList"` // 当前群开启的扩展列表
 	Players map[int64]*PlayerInfo // 群员信息
-	LogOn bool `yaml:"logOn"`
-	LogCurLines int64 `yaml:"logCurLines"`
-	tmpTexts []string `yaml:"-"`
-	GroupName string `yaml:"groupName"`
+
+	LogCurName  string   `yaml:"logCurFile"`
+	LogOn       bool     `yaml:"logOn"`
+	GroupId int64 `yaml:"groupId"`
+	GroupName   string   `yaml:"groupName"`
 
 	// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
 	//RuleCriticalSuccessValue *int64 // 大成功值，1默认
@@ -215,7 +240,7 @@ type ServiceAtItem struct {
 }
 
 func (i *ServiceAtItem) GetFumbleValue() int64 {
-	return 96;
+	return 96
 }
 
 func (i *ServiceAtItem) getCriticalSuccessValue() int64 {
@@ -252,7 +277,7 @@ func (s *IMSession) serve() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	session := s;
+	session := s
 	socket := gowebsocket.New("ws://127.0.0.1:6700")
 	session.Socket = &socket
 
@@ -285,41 +310,40 @@ func (s *IMSession) serve() {
 				group := session.ServiceAt[msg.Data.GroupId]
 				if group != nil {
 					group.GroupName = msg.Data.GroupName
+					group.GroupId = msg.Data.GroupId
 				}
 				log.Println("Group info received: ", msg.Data.GroupName)
 				return
 			}
 
-			// 处理日志
-			if msg.MessageType == "group" {
-				if isCurGroupBotOn(session, msg) {
-					group := session.ServiceAt[msg.GroupId]
-					if group.LogOn {
-						group.LogCurLines += 1
-						group.tmpTexts = append(group.tmpTexts, msg.Message)
-						fmt.Println("XXX", msg.Message, msg.Sender.UserId)
-					}
-				}
-			}
-
 			// 处理命令
 			if msg.MessageType == "group" || msg.MessageType == "private" {
-				cmdLst := []string{};
+				cmdLst := []string{}
 
 				if s.parent.CommandCompatibleMode {
-					for k, _ := range session.parent.cmdMap {
+					for k := range session.parent.cmdMap {
 						cmdLst = append(cmdLst, k)
 					}
 
-					sa := session.ServiceAt[msg.GroupId];
+					sa := session.ServiceAt[msg.GroupId]
 					if sa != nil && sa.Active {
 						for _, i := range sa.ActivatedExtList {
-							for k, _ := range i.cmdMap {
+							for k := range i.cmdMap {
 								cmdLst = append(cmdLst, k)
 							}
 						}
 					}
 					sort.Sort(ByLength(cmdLst))
+				}
+
+				// 收到信息回调
+				sa := session.ServiceAt[msg.GroupId]
+				if sa != nil && sa.Active {
+					for _, i := range sa.ActivatedExtList {
+						if i.OnMessageReceived != nil {
+							i.OnMessageReceived(session, msg)
+						}
+					}
 				}
 
 				msgInfo := CommandParse(msg.Message, s.parent.CommandCompatibleMode, cmdLst)
@@ -329,14 +353,17 @@ func (s *IMSession) serve() {
 				//if msg.MessageType == "group" {
 				if msgInfo != nil {
 					f := func() {
-						defer func() {
-							if r := recover(); r != nil {
-								replyToSender(s.Socket, msg, "已从核心崩溃中恢复，请带指令联系开发者: " + fmt.Sprintf("%s", r))
-							}
-						}()
-						session.commandSolve(session, msg, msgInfo);
+						//defer func() {
+						//	if r := recover(); r != nil {
+						//		//  + fmt.Sprintf("%s", r)
+						//		core.GetLogger().Error(r)
+						//		fmt.Println(r)
+						//		replyToSender(s, msg, "已从核心崩溃中恢复，请带指令联系开发者。注意不要重复发送本指令以免风控。")
+						//	}
+						//}()
+						session.commandSolve(session, msg, msgInfo)
 					}
-					go f();
+					go f()
 
 					//c, _ := json.Marshal(msgInfo)
 					//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);
@@ -387,52 +414,54 @@ func (s *IMSession) commandSolve(session *IMSession, msg *Message, cmdArgs *CmdA
 	//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);
 	//replyGroup(Socket, 111, text)
 
-	cmdArgs.AmIBeMentioned = false;
+	cmdArgs.AmIBeMentioned = false
 	for _, i := range cmdArgs.At {
 		if i.UserId == session.UserId {
-			cmdArgs.AmIBeMentioned = true;
-			break;
+			cmdArgs.AmIBeMentioned = true
+			break
 		}
 	}
 
 	tryItemSolve := func (item *CmdItemInfo) bool {
 		if item != nil {
-			ret := item.solve(session, msg, cmdArgs);
+			ret := item.solve(session, msg, cmdArgs)
 			if ret.success {
-				return true;
+				return true
 			}
 		}
-		return false;
+		return false
 	}
 
-	sa := session.ServiceAt[msg.GroupId];
+	sa := session.ServiceAt[msg.GroupId]
 	if sa != nil && sa.Active {
 		for _, i := range sa.ActivatedExtList {
-			i.OnPrepare(session, msg, cmdArgs)
+			if i.OnCommandReceived != nil {
+				i.OnCommandReceived(session, msg, cmdArgs)
+			}
 		}
 	}
 
-	item := session.parent.cmdMap[cmdArgs.Command];
+	item := session.parent.cmdMap[cmdArgs.Command]
 	if tryItemSolve(item) {
 		return
-	};
+	}
 
 	if sa != nil && sa.Active {
 		for _, i := range sa.ActivatedExtList {
-			item := i.cmdMap[cmdArgs.Command];
+			item := i.cmdMap[cmdArgs.Command]
 			if tryItemSolve(item) {
 				return
-			};
+			}
 		}
 	}
 
 	if msg.MessageType == "private" {
 		for _, i := range session.parent.extList {
 			if i.ActiveOnPrivate {
-				item := i.cmdMap[cmdArgs.Command];
+				item := i.cmdMap[cmdArgs.Command]
 				if tryItemSolve(item) {
 					return
-				};
+				}
 			}
 		}
 	}

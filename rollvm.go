@@ -13,6 +13,7 @@ type Type uint8
 
 const (
 	TypeNumber Type = iota
+	TypePushString
 	TypeNegation
 	TypeAdd
 	TypeSubtract
@@ -24,6 +25,7 @@ const (
 	TypeDice
 	TypeLoadVarname
 	TypeLoadFormatString
+	TypeStore
 	TypeHalt
 	TypeSwap
 	TypeLeftValueMark
@@ -59,6 +61,8 @@ func (code *ByteCode) CodeString() string {
 	switch code.T {
 	case TypeNumber:
 		return "push " + strconv.FormatInt(code.Value, 10)
+	case TypePushString:
+		return "push.str " + code.ValueStr
 	case TypeAdd:
 		return "add"
 	case TypeNegation, TypeSubtract:
@@ -79,6 +83,8 @@ func (code *ByteCode) CodeString() string {
 		return "ld.v " + code.ValueStr
 	case TypeLoadFormatString:
 		return "ld.fs"
+	case TypeStore:
+		return "store"
 	case TypeHalt:
 		return "halt"
 	case TypeSwap:
@@ -140,6 +146,15 @@ func (e *RollExpression) AddLoadVarname(value string) {
 	code[top].ValueStr = value
 }
 
+func (e *RollExpression) AddStore() {
+	code, top := e.Code, e.Top
+	if e.checkStackOverflow() {
+		return
+	}
+	e.Top++
+	code[top].T = TypeStore
+}
+
 func (e *RollExpression) AddValue(value string) {
 	// 实质上的压栈命令
 	code, top := e.Code, e.Top
@@ -148,6 +163,17 @@ func (e *RollExpression) AddValue(value string) {
 	}
 	e.Top++
 	code[top].Value, _ = strconv.ParseInt(value, 10, 64)
+}
+
+func (e *RollExpression) AddValueStr(value string) {
+	// 实质上的压栈命令
+	code, top := e.Code, e.Top
+	if e.checkStackOverflow() {
+		return
+	}
+	e.Top++
+	code[top].T = TypePushString
+	code[top].ValueStr = value
 }
 
 func (e *RollExpression) AddFormatString(value string) {
@@ -210,6 +236,11 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 		case TypeNumber:
 			stack[top].typeId = 0
 			stack[top].value = code.Value
+			top++
+			continue
+		case TypePushString:
+			stack[top].typeId = 1
+			stack[top].value = code.ValueStr
 			top++
 			continue
 		case TypeLoadVarname:
@@ -277,8 +308,13 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			}
 		}
 
-		aInt := a.value.(int64)
-		bInt := b.value.(int64)
+		var aInt, bInt int64
+		if a.typeId == 0 {
+			aInt = a.value.(int64)
+		}
+		if b.typeId == 0 {
+			bInt = b.value.(int64)
+		}
 
 		// 二目运算符
 		switch code.T {
@@ -303,6 +339,16 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 		case TypeSwap:
 			a.value, b.value = bInt, aInt
 			top++
+		case TypeStore:
+			fmt.Println(e.GetAsmText())
+			top--
+			if p != nil {
+				p.SetValueInt64(a.value.(string), b.value.(int64), nil)
+			}
+			stack[top].typeId = b.typeId
+			stack[top].value = b.value
+			top++
+			continue
 		case TypeDice:
 			checkDice(&code)
 			// XXX dice YYY, 如 3d100
@@ -334,7 +380,6 @@ func (e *RollExpression) GetAsmText() string {
 		s := i.CodeString()
 		if s != "" {
 			ret += s + "\n"
-			fmt.Println(s)
 		} else {
 			ret += "@raw: " + string(i.T) + "\n"
 		}

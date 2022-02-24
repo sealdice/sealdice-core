@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	wr "github.com/mroth/weightedrand"
 	"math/rand"
 	"time"
@@ -70,7 +71,7 @@ var gugu = []string{
 	"我有点事，你们先开",
 	"我家猫生病了，带他去看病",
 	"医生说今天疫苗到了，带猫打疫苗",
-	"我鸽某人今天就是要咕！",
+	"我鸽某人今天就是要咕口牙！",
 	"当你们都觉得我要咕的时候，我咕了，这其实是一种不咕",
 
 	"说咕就咕怎么能算是咕咕了呢！",
@@ -91,8 +92,40 @@ func (self *Dice) registerBuiltinExtFun() {
 			if isCurGroupBotOn(session, msg) || msg.MessageType == "private" {
 				//p := getPlayerInfoBySender(session, msg)
 				rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
-				replyToSender(session.Socket, msg, "🕊️: " + guguRandomPool.Pick().(string))
+				replyToSender(session, msg, "🕊️: " + guguRandomPool.Pick().(string))
 			}
+			return struct{ success bool }{
+				success: true,
+			}
+		},
+	}
+
+	jrrpTexts := map[string]string{
+		"rp": "<%s> 的今日人品为 %d",
+	}
+	cmdJrrp := CmdItemInfo{
+		name: "jrrp",
+		Brief: "获得一个D100随机值，一天内不会变化",
+		texts: jrrpTexts,
+		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+			if msg.MessageType == "group" {
+				if isCurGroupBotOn(session, msg) {
+					p := getPlayerInfoBySender(session, msg)
+					todayTime := time.Now().Format("2006-01-02")
+
+					rp := 0
+					if p.RpTime == todayTime {
+						rp = p.RpToday
+					} else {
+						rp = DiceRoll(100)
+						p.RpTime = todayTime
+						p.RpToday = rp
+					}
+
+					replyGroup(session, msg.GroupId, fmt.Sprintf(jrrpTexts["rp"], p.Name, rp));
+				}
+			}
+
 			return struct{ success bool }{
 				success: true,
 			}
@@ -106,21 +139,24 @@ func (self *Dice) registerBuiltinExtFun() {
 		autoActive: true, // 是否自动开启
 		ActiveOnPrivate: true,
 		Author: "木落",
-		OnPrepare: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
+		OnCommandReceived: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
 			//p := getPlayerInfoBySender(session, msg)
 			//p.TempValueAlias = &ac.Alias;
 		},
+		OnLoad: func() {
+		},
 		GetDescText: func (i *ExtInfo) string {
-			return "> " + i.Brief + "\n" + "提供命令:\n.gugu / .咕咕  // 获取一个随机的咕咕理由\n.deck <牌堆> // 从牌堆抽牌"
+			return "> " + i.Brief + "\n" + "提供命令:\n.gugu / .咕咕  // 获取一个随机的咕咕理由\n.deck <牌堆> // 从牌堆抽牌\n.jrrp 今日人品"
 		},
 		cmdMap: CmdMapCls{
 			"gugu": &cmdGugu,
 			"咕咕": &cmdGugu,
+			"jrrp": &cmdJrrp,
 			"deck": &CmdItemInfo{
 				name: "deck",
 				Brief: "从牌堆抽牌",
 				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-					replyToSender(session.Socket, msg, "尚未开发完成，敬请期待");
+					replyToSender(session, msg, "尚未开发完成，敬请期待");
 					return struct{ success bool }{
 						success: true,
 					}

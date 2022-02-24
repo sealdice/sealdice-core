@@ -1,40 +1,25 @@
 package model
 
 import (
-	"time"
-
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"go.etcd.io/bbolt"
+	"os"
 )
 
-var db *gorm.DB
+var db *bbolt.DB
 
-type BaseModel struct {
-	ID        uint       `gorm:"primary_key" json:"id"`
-	CreatedAt time.Time  `json:"createdAt"`
-	UpdatedAt time.Time  `json:"updatedAt"`
-	DeletedAt *time.Time `sql:"index" json:"deletedAt"`
-}
-
-type BytePKBaseModel struct {
-	ID        []byte     `gorm:"primary_key" json:"id"`
-	CreatedAt time.Time  `json:"createdAt"`
-	UpdatedAt time.Time  `json:"updatedAt"`
-	DeletedAt *time.Time `sql:"index" json:"deletedAt"`
-}
-
-func SqliteDBInit() {
+func BoltDBInit() {
+	os.MkdirAll("./data", 0644)
 	var err error
-	db, err = gorm.Open("sqlite3", "info.db")
+	db, err = bbolt.Open("./data/data.bdb", 0644, nil)
 	if err != nil {
-		panic("连接数据库失败")
+		panic(err)
 	}
 }
 
 func DBInit() {
-	SqliteDBInit()
+	BoltDBInit()
 }
 
-func GetDB() *gorm.DB {
+func GetDB() *bbolt.DB {
 	return db
 }

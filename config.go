@@ -22,7 +22,7 @@ type AttributeConfigs struct {
 
 }
 
-var CONFIG_ATTRIBUTE_FILE = "configs/attribute.yaml"
+var CONFIG_ATTRIBUTE_FILE = "./data/configs/attribute.yaml"
 
 
 func configInit() {
@@ -42,6 +42,8 @@ func configInit() {
 			"生命值": {"hp", "生命", "血量"},
 			"魔法值": {"mp", "魔法", "魔力", "魔力值"},
 			"克苏鲁神话": {"cm", "克苏鲁"},
+			"图书馆使用": {"图书馆"},
+			"链枷": {"连枷"},
 		},
 		Order: AttributeOrder{
 			Top: []string{"力量", "敏捷", "体质", "体型", "外貌", "智力", "意志", "教育", "理智", "克苏鲁神话"},
@@ -53,8 +55,8 @@ func configInit() {
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		os.MkdirAll("configs", 0600)
-		ioutil.WriteFile(CONFIG_ATTRIBUTE_FILE, buf, 0600)
+		os.MkdirAll("./data/configs", 0644)
+		ioutil.WriteFile(CONFIG_ATTRIBUTE_FILE, buf, 0644)
 	}
 
 }
