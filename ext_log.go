@@ -39,12 +39,13 @@ func (self *Dice) registerBuiltinExtLog() {
 				return err
 			})
 		},
-		OnMessageSend: func(session *IMSession, messageType string, userId int64, text string, flag string) {
+		OnMessageSend: func(ctx *MsgContext, messageType string, userId int64, text string, flag string) {
 			// 记录骰子发言
 			if flag == "skip" {
 				return
 			}
-			if isCurGroupBotOnById(session, messageType, userId) {
+			if isCurGroupBotOnById(ctx.session, messageType, userId) {
+				session := ctx.session
 				group := session.ServiceAt[userId]
 				if group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
@@ -59,23 +60,20 @@ func (self *Dice) registerBuiltinExtLog() {
 				}
 			}
 		},
-		OnMessageReceived: func(session *IMSession, msg *Message) {
+		OnMessageReceived: func(ctx *MsgContext, msg *Message) {
 			// 处理日志
-			if isCurGroupBotOn(session, msg) {
-				p := getPlayerInfoBySender(session, msg)
-
-				group := session.ServiceAt[msg.GroupId]
-				if group.LogOn {
+			if ctx.isCurGroupBotOn {
+				if ctx.group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					a := LogOneItem{
-						Nickname: p.Name,
-						IMUserId: p.UserId,
+						Nickname: ctx.player.Name,
+						IMUserId: ctx.player.UserId,
 						Time: msg.Time,
 						Message: msg.Message,
 						IsDice: false,
 					}
 
-					LogAppend(group, &a)
+					LogAppend(ctx.group, &a)
 				}
 			}
 		},
@@ -101,10 +99,9 @@ func (self *Dice) registerBuiltinExtLog() {
 		cmdMap: CmdMapCls{
 			"log": &CmdItemInfo{
 				name: ".log",
-				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-					if isCurGroupBotOn(session, msg) {
-						//p := getPlayerInfoBySender(session, msg)
-						group := session.ServiceAt[msg.GroupId]
+				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+					if ctx.isCurGroupBotOn {
+						group := ctx.group
 
 						if len(cmdArgs.Args) == 0 {
 							onText := "关闭"
@@ -112,40 +109,40 @@ func (self *Dice) registerBuiltinExtLog() {
 								onText = "开启"
 							}
 							text := fmt.Sprintf("记录，当前状态: %s\n已记录文本%d条", onText, LogLinesGet(group))
-							replyToSender(session, msg, text)
+							replyToSender(ctx, msg, text)
 						} else {
 							if cmdArgs.isArgEqual(1, "on") {
 								group.LogOn = true
 								text := fmt.Sprintf("记录已经继续开启，当前已记录文本%d条", LogLinesGet(group))
-								replyToSender(session, msg, text)
+								replyToSender(ctx, msg, text)
 							} else if cmdArgs.isArgEqual(1, "off") {
 								group.LogOn = false
 								text := fmt.Sprintf("记录已经暂时关闭，当前已记录文本%d条", LogLinesGet(group))
-								replyToSender(session, msg, text)
+								replyToSender(ctx, msg, text)
 							} else if cmdArgs.isArgEqual(1, "save") {
 								fn := LogSaveToZip(group)
-								replyToSenderRaw(session, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色服务正在开发中，目前请使用公开的着色网站进行着色。", fn), "skip")
+								replyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色服务正在开发中，目前请使用公开的着色网站进行着色。", fn), "skip")
 							} else if cmdArgs.isArgEqual(1, "end") {
-								replyToSender(session, msg, "故事落下了帷幕。\n记录已经关闭。")
+								replyToSender(ctx, msg, "故事落下了帷幕。\n记录已经关闭。")
 								group.LogOn = false
 
 								time.Sleep(time.Duration(0.5 * float64(time.Second)))
 								fn := LogSaveToZip(group)
-								replyToSenderRaw(session, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色服务正在开发中，目前请使用公开的着色网站进行着色。", fn), "skip")
+								replyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色服务正在开发中，目前请使用公开的着色网站进行着色。", fn), "skip")
 								group.LogCurName = ""
 							} else if cmdArgs.isArgEqual(1, "new") {
 								if group.LogCurName != "" {
-									replyToSender(session, msg, "上一段旅程还未结束，请先使用.log end结束故事")
+									replyToSender(ctx, msg, "上一段旅程还未结束，请先使用.log end结束故事")
 								} else {
 									todayTime := time.Now().Format("2006_01_02_15_04_05")
 									group.LogCurName = todayTime
 									group.LogOn = true
-									replyToSender(session, msg, "新的故事开始了，祝旅途愉快！\n记录已经开启。")
-									//replyToSender(session, msg, "log new")
+									replyToSender(ctx, msg, "新的故事开始了，祝旅途愉快！\n记录已经开启。")
+									//replyToSender(ctx, msg, "log new")
 									//fmt.Println("新的故事开始了，祝旅途愉快！\n记录已经开启。")
 									//fmt.Println("!!!", err)
 									//err := b.Put([]byte("answer"), []byte("42"))
-									//replyToSender(session, msg, "似乎出了一点问题，与数据库的连接失败了")
+									//replyToSender(ctx, msg, "似乎出了一点问题，与数据库的连接失败了")
 								}
 							}
 						}
@@ -198,6 +195,7 @@ func LogSaveToZip(group *ServiceAtItem) string {
 		// 回到开头上传
 		fzip.Seek(0, 0)
 		fn := UploadFileToTransferSh(group.LogCurName + ".zip", fzip)
+		//fn := UploadFileToFileIo(group.LogCurName + ".zip", fzip)
 
 		return fn
 	}

@@ -20,18 +20,18 @@ func main() {
 
 	defer aa()
 
-	//
 	//exp := "(10d1)d(3+5-7)"
-	////exp := "1234^4+15*6-17+6d12+3d15k2-d12"
-	//dep := &DiceRollParser{ Buffer: exp }
-	//_ = dep.Init()
-	//
-	//dep.RollExpression.Init(1000)
-	//if err := dep.Parse(); err != nil {
-	//	panic(err)
-	//}
-	//
-	//dep.Execute()
+	exp := "$1=1d10"
+	//exp := "1234^4+15*6-17+6d12+3d15k2-d12"
+	dep := &DiceRollParser{ Buffer: exp }
+	_ = dep.Init()
+
+	dep.RollExpression.Init(1000)
+	if err := dep.Parse(); err != nil {
+		panic(err)
+	}
+
+	dep.Execute()
 	//fmt.Println(dep.Evaluate());
 
 	//return;
