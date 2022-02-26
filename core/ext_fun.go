@@ -88,11 +88,11 @@ func (self *Dice) registerBuiltinExtFun() {
 	cmdGugu := CmdItemInfo{
 		name: "gugu",
 		Brief: "获取一个随机的咕咕理由",
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if isCurGroupBotOn(session, msg) || msg.MessageType == "private" {
+		solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+			if ctx.isCurGroupBotOn || msg.MessageType == "private" {
 				//p := getPlayerInfoBySender(session, msg)
 				rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
-				replyToSender(session, msg, "🕊️: " + guguRandomPool.Pick().(string))
+				replyToSender(ctx, msg, "🕊️: " + guguRandomPool.Pick().(string))
 			}
 			return struct{ success bool }{
 				success: true,
@@ -107,10 +107,10 @@ func (self *Dice) registerBuiltinExtFun() {
 		name: "jrrp",
 		Brief: "获得一个D100随机值，一天内不会变化",
 		texts: jrrpTexts,
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+		solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if msg.MessageType == "group" {
-				if isCurGroupBotOn(session, msg) {
-					p := getPlayerInfoBySender(session, msg)
+				if ctx.isCurGroupBotOn {
+					p := ctx.player
 					todayTime := time.Now().Format("2006-01-02")
 
 					rp := 0
@@ -122,7 +122,7 @@ func (self *Dice) registerBuiltinExtFun() {
 						p.RpToday = rp
 					}
 
-					replyGroup(session, msg.GroupId, fmt.Sprintf(jrrpTexts["rp"], p.Name, rp))
+					replyGroup(ctx, msg.GroupId, fmt.Sprintf(jrrpTexts["rp"], p.Name, rp))
 				}
 			}
 
@@ -139,7 +139,7 @@ func (self *Dice) registerBuiltinExtFun() {
 		autoActive: true, // 是否自动开启
 		ActiveOnPrivate: true,
 		Author: "木落",
-		OnCommandReceived: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
+		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 			//p := getPlayerInfoBySender(session, msg)
 			//p.TempValueAlias = &ac.Alias;
 		},
@@ -155,8 +155,8 @@ func (self *Dice) registerBuiltinExtFun() {
 			"deck": &CmdItemInfo{
 				name: "deck",
 				Brief: "从牌堆抽牌",
-				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-					replyToSender(session, msg, "尚未开发完成，敬请期待")
+				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+					replyToSender(ctx, msg, "尚未开发完成，敬请期待")
 					return struct{ success bool }{
 						success: true,
 					}

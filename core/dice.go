@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"gopkg.in/yaml.v2"
@@ -8,18 +9,17 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"regexp"
-	"sort"
-	"strconv"
-	"strings"
+	"sealdice-core/core"
+	"sealdice-core/model"
 	"time"
 )
 
 type CmdItemInfo struct {
 	name  string
-	solve func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool }
+	solve func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool }
 	Brief string
 	texts map[string]string
+	Help  string
 }
 
 type CmdMapCls map[string]*CmdItemInfo
@@ -37,9 +37,9 @@ type ExtInfo struct {
 	Author string `yaml:"-"`
 	//activeInSession bool; // 在当前会话中开启
 
-	OnCommandReceived func(session *IMSession, msg *Message, cmdArgs *CmdArgs) `yaml:"-"`
-	OnMessageReceived func(session *IMSession, msg *Message) `yaml:"-"`
-	OnMessageSend func(session *IMSession, messageType string, userId int64, text string, flag string) `yaml:"-"`
+	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) `yaml:"-"`
+	OnMessageReceived func(ctx *MsgContext, msg *Message) `yaml:"-"`
+	OnMessageSend func(ctx *MsgContext, messageType string, userId int64, text string, flag string) `yaml:"-"`
 	GetDescText       func(i *ExtInfo) string                                  `yaml:"-"`
 	IsLoaded         bool                                                     `yaml:"-"`
 	OnLoad            func()                                                   `yaml:"-"`
@@ -73,7 +73,7 @@ func (self *Dice) init() {
 	}
 
 	autoSave := func() {
-		t := time.Tick(18 * time.Second)
+		t := time.Tick(15 * time.Second)
 		for {
 			<-t
 			self.save()
@@ -82,7 +82,7 @@ func (self *Dice) init() {
 	go autoSave()
 
 	refreshGroupInfo := func() {
-		t := time.Tick(15 * time.Second)
+		t := time.Tick(35 * time.Second)
 		for {
 			<-t
 			for k := range self.ImSession.ServiceAt {
@@ -102,7 +102,7 @@ func (self *Dice) rebuildParser(buffer string) *DiceRollParser {
 	return p
 }
 
-func (self *Dice) exprEvalBase(buffer string, p *PlayerInfo, bigFailDice bool) (*vmResult, string, error) {
+func (self *Dice) exprEvalBase(buffer string, ctx *MsgContext, bigFailDice bool) (*vmResult, string, error) {
 	parser := self.rebuildParser(buffer)
 	err := parser.Parse()
 	parser.RollExpression.BigFailDiceOn = bigFailDice
@@ -112,25 +112,25 @@ func (self *Dice) exprEvalBase(buffer string, p *PlayerInfo, bigFailDice bool) (
 		if parser.error != nil{
 			return nil, "", parser.error
 		}
-		num, detail, _ := parser.Evaluate(self, p)
+		num, detail, _ := parser.Evaluate(self, ctx)
 		ret := vmResult{}
-		ret.value = num.value
-		ret.typeId = num.typeId
+		ret.Value = num.Value
+		ret.TypeId = num.TypeId
 		ret.parser = parser
 		return &ret, detail, nil
 	}
 	return nil, "", err
 }
 
-func (self *Dice) exprEval(buffer string, p *PlayerInfo) (*vmResult, string, error) {
-	return self.exprEvalBase(buffer, p, false)
+func (self *Dice) exprEval(buffer string, ctx *MsgContext) (*vmResult, string, error) {
+	return self.exprEvalBase(buffer, ctx, false)
 }
 
-func (self *Dice) exprText(buffer string, p *PlayerInfo) (string, string, error) {
-	val, detail, err := self.exprEval("`" + buffer + "`", p)
+func (self *Dice) exprText(buffer string, ctx *MsgContext) (string, string, error) {
+	val, detail, err := self.exprEval("`" + buffer + "`", ctx)
 
-	if err == nil && val.typeId == 1 {
-		return val.value.(string), detail, err
+	if err == nil && val.TypeId == VMTypeString {
+		return val.Value.(string), detail, err
 	}
 
 	return "", "", errors.New("错误的表达式")
@@ -163,9 +163,50 @@ func (self *Dice) loads() {
 				v.ActivatedExtList = tmp
 			}
 
+			// 读取新版数据
+			for _, g := range d.ImSession.ServiceAt {
+				// 群组数据
+				data := model.AttrGroupGetAll(g.GroupId)
+				err := JsonValueMapUnmarshal(data, &g.ValueMap)
+				if err != nil {
+					core.GetLogger().Error(err)
+				}
+				if g.ValueMap == nil {
+					g.ValueMap = map[string]VMValue{}
+				}
+
+				// 个人群组数据
+				for _, p := range g.Players {
+					if p.ValueMap == nil {
+						p.ValueMap = map[string]VMValue{}
+					}
+					if p.ValueMapTemp == nil {
+						p.ValueMapTemp = map[string]VMValue{}
+					}
+
+					data := model.AttrGroupUserGetAll(g.GroupId, p.UserId)
+					err := JsonValueMapUnmarshal(data, &p.ValueMap)
+					if err != nil {
+						core.GetLogger().Error(err)
+					}
+				}
+			}
+
+			// 旧版数据转写
+			for _, g := range d.ImSession.ServiceAt {
+				for _, b := range g.Players {
+					for k, v := range b.ValueNumMap {
+						b.ValueMap[k] = VMValue{VMTypeInt64, v}
+					}
+					for k, v := range b.ValueStrMap {
+						b.ValueMap[k] = VMValue{VMTypeString, v}
+					}
+				}
+			}
+
 			log.Println("config.yaml loaded")
 			//info, _ := yaml.Marshal(session.ServiceAt)
-			//replyGroup(session, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
+			//replyGroup(ctx, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
 		} else {
 			log.Println("config.yaml parse failed")
 			panic(err2)
@@ -176,6 +217,13 @@ func (self *Dice) loads() {
 }
 
 func (self *Dice) save() {
+	//for _, g := range self.ImSession.ServiceAt {
+	//	for _, ui := range g.Players {
+	//		ui.ValueStrMap = nil
+	//		ui.ValueNumMap = nil
+	//	}
+	//}
+
 	a, err := yaml.Marshal(self)
 	if err == nil {
 		err := ioutil.WriteFile(BASE_CONFIG, a, 0644)
@@ -186,6 +234,26 @@ func (self *Dice) save() {
 			if self.ImSession.UserId == 0 {
 				self.ImSession.GetLoginInfo()
 			}
+		}
+	}
+
+	userIds := map[int64]bool{}
+	for _, g := range self.ImSession.ServiceAt {
+		for _, b := range g.Players {
+			userIds[b.UserId] = true
+			data, _ := json.Marshal(b.ValueMap)
+			model.AttrGroupUserSave(g.GroupId, b.UserId, data)
+		}
+
+		data, _ := json.Marshal(g.ValueMap)
+		model.AttrGroupSave(g.GroupId, data)
+	}
+
+	// 保存玩家个人全局数据
+	for k, v := range self.ImSession.PlayerVarsData {
+		if v.Loaded {
+			data, _ := json.Marshal(v.ValueMap)
+			model.AttrUserSave(k, data)
 		}
 	}
 }
@@ -206,389 +274,6 @@ func DiceRoll64(dicePoints int64) int64 {
 	return val
 }
 
-var VERSION = "v20220224"
-
-/** 这几条指令不能移除 */
-func (self *Dice) registerCoreCommands() {
-	cmdHelp := &CmdItemInfo{
-		name: "help",
-		Brief: "查看本帮助",
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			// inGroup := msg.MessageType == "group"
-			if isCurGroupBotOn(session, msg) {
-				text := "核心指令列表如下:\n"
-
-				used := map[*CmdItemInfo]bool{}
-				keys := make([]string, 0, len(self.cmdMap))
-				for k, v := range self.cmdMap {
-					if used[v] {
-						continue
-					}
-					keys = append(keys, k)
-					used[v] = true
-				}
-				sort.Strings(keys)
-
-				for _, i := range keys {
-					i := self.cmdMap[i]
-					brief := i.Brief
-					if brief != "" {
-						brief = "   // " + brief
-					}
-					text += "." + i.name + brief + "\n"
-				}
-
-				text += "注意：由于篇幅此处仅列出核心指令。\n"
-				text += "扩展指令请输入 .ext 和 .ext <扩展名> 进行查看\n"
-				text += "-----------------------------------------------\n"
-				text += "SealDice 目前 7*24h 运行于一块陈年OrangePi卡片电脑上，随时可能因为软硬件故障停机（例如过热、被猫打翻）。届时可以来Q群524364253询问。"
-				replyToSender(session, msg, text)
-			}
-			return struct{ success bool }{
-				success: true,
-			}
-		},
-	}
-	self.cmdMap["help"] = cmdHelp
-
-	cmdBot := &CmdItemInfo{
-		name: "bot on/off/about/bye",
-		Brief: "开启、关闭、查看信息、退群",
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			inGroup := msg.MessageType == "group"
-
-			if len(cmdArgs.Args) == 0 || cmdArgs.isArgEqual(1, "about") {
-				count := 0
-				for _, i := range self.ImSession.ServiceAt {
-					if i.Active {
-						count += 1
-					}
-				}
-				lastSavedTimeText := "从未"
-				if self.lastSavedTime != nil {
-					lastSavedTimeText = self.lastSavedTime.Format("2006-01-02 15:04:05") + " UTC"
-				}
-				text := fmt.Sprintf("SealDice 0.9测试版 %s\n兼容模式: 已开启\n供职于%d个群，其中%d个处于开启状态\n上次自动保存时间: %s", VERSION, len(self.ImSession.ServiceAt), count, lastSavedTimeText)
-
-				if inGroup {
-					if cmdArgs.AmIBeMentioned {
-						replyGroup(session, msg.GroupId, text)
-					}
-				} else {
-					replyPerson(session, msg.Sender.UserId, text)
-				}
-			} else {
-				fmt.Println("?????????????", inGroup, cmdArgs.At, cmdArgs.AmIBeMentioned, session.UserId)
-				if inGroup && cmdArgs.AmIBeMentioned {
-					if len(cmdArgs.Args) >= 1 {
-						if cmdArgs.Args[0] == "on" {
-							if session.ServiceAt[msg.GroupId] != nil {
-								session.ServiceAt[msg.GroupId].Active = true
-							} else {
-								extLst := []*ExtInfo{}
-								for _, i := range self.extList {
-									if i.autoActive {
-										extLst = append(extLst, i)
-									}
-								}
-								session.ServiceAt[msg.GroupId] = &ServiceAtItem{
-									Active:           true,
-									ActivatedExtList: extLst,
-									Players:          map[int64]*PlayerInfo{},
-									GroupId: msg.GroupId,
-								}
-							}
-							replyGroup(session, msg.GroupId, "SealDice 已启用(开发中) " + VERSION)
-						} else if cmdArgs.Args[0] == "off" {
-							if len(session.ServiceAt[msg.GroupId].ActivatedExtList) == 0 {
-								delete(session.ServiceAt, msg.GroupId)
-							} else {
-								session.ServiceAt[msg.GroupId].Active = false
-							}
-							replyGroup(session, msg.GroupId, "停止服务")
-						} else if cmdArgs.Args[0] == "bye" {
-							replyGroup(session, msg.GroupId, "收到指令，5s后将退出当前群组")
-							time.Sleep(6 * time.Second)
-							quitGroup(session, msg.GroupId)
-						}
-					}
-				}
-			}
-
-			return struct{ success bool }{
-				success: true,
-			}
-		},
-	}
-	self.cmdMap["bot"] = cmdBot
-
-	cmdRoll := &CmdItemInfo{
-		name: "r <表达式> <原因>",
-		Brief: "骰点指令，案例:“.r d16” “.r 3d10*2+3” “.r d10+力量” “.r 2d(力量+1d3)” “.rh d16 (暗骰)” ",
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if isCurGroupBotOn(session, msg) {
-				var text string
-				var prefix string
-				var diceResult int64
-				var diceResultExists bool
-				var detail string
-				p := getPlayerInfoBySender(session, msg)
-
-				if session.parent.CommandCompatibleMode {
-					if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd") && len(cmdArgs.Args) >= 1 {
-						if m, _ := regexp.MatchString(`^\d`, cmdArgs.Args[0]); m {
-							cmdArgs.Args[0] = "d" + cmdArgs.Args[0]
-						}
-					}
-				} else {
-					return struct{ success bool }{
-						success: false,
-					}
-				}
-
-				forWhat := ""
-				var r *vmResult
-				if len(cmdArgs.Args) >= 1 {
-					var err error
-					r, detail, err = session.parent.exprEval(cmdArgs.Args[0], p)
-
-					if r != nil && r.typeId == 0 {
-						diceResult = r.value.(int64)
-						diceResultExists = true
-						//return errors.New("错误的类型")
-					}
-
-					if err == nil {
-						if len(cmdArgs.Args) >= 2 {
-							forWhat = cmdArgs.Args[1]
-						}
-					} else {
-						errs := string(err.Error())
-						if strings.HasPrefix(errs, "E1:") {
-							replyGroup(session, msg.GroupId, errs)
-
-							return struct{ success bool }{
-								success: true,
-							}
-						}
-						forWhat = cmdArgs.Args[0]
-					}
-				}
-
-				if forWhat != "" {
-					prefix = "为了" + forWhat + "，"
-				}
-
-				if diceResultExists {
-					detailWrap := ""
-					if detail != "" {
-						detailWrap = "=" + detail
-					}
-					text = fmt.Sprintf("%s<%s>掷出了 %s%s=%d", prefix, p.Name, cmdArgs.Args[0], detailWrap, diceResult)
-				} else {
-					dicePoints := p.DiceSideNum
-					if dicePoints <= 0 {
-						dicePoints = 100
-					}
-					val := DiceRoll(dicePoints)
-					text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, p.Name, dicePoints, val)
-				}
-
-				if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
-					asm := r.parser.GetAsmText()
-					text += "\n" + asm
-				}
-
-				if cmdArgs.Command == "rh" || cmdArgs.Command == "rhd" {
-					group := session.ServiceAt[msg.GroupId]
-					prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", group.GroupName, msg.GroupId)
-					replyGroup(session, msg.GroupId, "黑暗的角落里，传来命运转动的声音")
-					replyPerson(session, msg.Sender.UserId, prefix + text)
-				} else {
-					replyGroup(session, msg.GroupId, text)
-				}
-			}
-
-			return struct{ success bool }{
-				success: true,
-			}
-		},
-	}
-	self.cmdMap["r"] = cmdRoll
-	self.cmdMap["rd"] = cmdRoll
-	self.cmdMap["roll"] = cmdRoll
-	self.cmdMap["rh"] = cmdRoll
-	self.cmdMap["rhd"] = cmdRoll
-
-	cmdExt := &CmdItemInfo{
-		name: "ext",
-		Brief: "查看扩展列表",
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if isCurGroupBotOn(session, msg) {
-				showList := func () {
-					text := "检测到以下扩展：\n"
-					for index, i := range session.parent.extList {
-						state := "关"
-						for _, j := range session.ServiceAt[msg.GroupId].ActivatedExtList {
-							if i.Name == j.Name {
-								state = "开"
-								break
-							}
-						}
-						author := i.Author
-						if author == "" {
-							author = "<未注明>"
-						}
-						text += fmt.Sprintf("%d. [%s]%s - 版本:%s 作者:%s\n", index + 1, state, i.Name, i.version, author)
-					}
-					text += "使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n"
-					text += "命令: .ext <扩展名> 可以查看扩展介绍及帮助"
-					replyGroup(session, msg.GroupId, text)
-				}
-
-				if len(cmdArgs.Args) == 0 {
-					showList()
-				}
-
-				if len(cmdArgs.Args) >= 1 {
-					if cmdArgs.isArgEqual(1, "list") {
-						showList()
-					} else if cmdArgs.isArgEqual(2, "on") {
-						extName := cmdArgs.Args[0]
-						for _, i := range self.extList {
-							if i.Name == extName {
-								session.ServiceAt[msg.GroupId].ActivatedExtList = append(session.ServiceAt[msg.GroupId].ActivatedExtList, i)
-								replyGroup(session, msg.GroupId, fmt.Sprintf("打开扩展 %s", extName))
-								break
-							}
-						}
-					} else if cmdArgs.isArgEqual(2, "off") {
-						gInfo := session.ServiceAt[msg.GroupId]
-						extName := cmdArgs.Args[0]
-						for index, i := range gInfo.ActivatedExtList {
-							if i.Name == extName {
-								gInfo.ActivatedExtList = append(gInfo.ActivatedExtList[:index], gInfo.ActivatedExtList[index+1:]...)
-								replyGroup(session, msg.GroupId, fmt.Sprintf("关闭扩展 %s", extName))
-							}
-						}
-					} else {
-						extName := cmdArgs.Args[0]
-						for _, i := range self.extList {
-							if i.Name == extName {
-								text := fmt.Sprintf("> [%s] 版本%s 作者%s\n", i.Name, i.version, i.Author)
-								replyToSender(session, msg, text + i.GetDescText(i))
-								break
-							}
-						}
-					}
-				}
-
-			}
-
-			return struct{ success bool }{
-				success: true,
-			}
-		},
-	}
-	self.cmdMap["ext"] = cmdExt
-
-	cmdNN := &CmdItemInfo{
-		name: "nn <角色名>",
-		Brief: ".nn后跟角色名则改角色名，不带则重置角色名",
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if msg.MessageType == "group" {
-				if isCurGroupBotOn(session, msg) {
-					if len(cmdArgs.Args) == 0 {
-						p := getPlayerInfoBySender(session, msg)
-						p.Name = msg.Sender.Nickname
-						replyGroup(session, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称已重置为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
-					}
-					if len(cmdArgs.Args) >= 1 {
-						p := getPlayerInfoBySender(session, msg)
-						p.Name = cmdArgs.Args[0]
-						replyGroup(session, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
-					}
-				}
-			}
-
-			return struct{ success bool }{
-				success: true,
-			}
-		},
-	}
-	self.cmdMap["nn"] = cmdNN
-
-	cmdSet := &CmdItemInfo{
-		name: "set <面数>",
-		Brief: "设置默认骰子面数，只对自己有效",
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if isCurGroupBotOn(session, msg) {
-				p := getPlayerInfoBySender(session, msg)
-				if len(cmdArgs.Args) >= 1 {
-					num, err := strconv.Atoi(cmdArgs.Args[0])
-					if err == nil {
-						p.DiceSideNum = num
-						replyGroup(session, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num))
-					} else {
-						replyGroup(session, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"))
-					}
-				} else {
-					p.DiceSideNum = 0
-					replyGroup(session, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"))
-				}
-			}
-
-			return struct{ success bool }{
-				success: true,
-			}
-		},
-	}
-	self.cmdMap["set"] = cmdSet
-
-	cmdTmpSave := &CmdItemInfo{
-		name: "cfgsave",
-		// help
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if msg.MessageType == "group" {
-				if isCurGroupBotOn(session, msg) {
-					self.save()
-					replyGroup(session, msg.GroupId, fmt.Sprintf("临时指令：试图存档"))
-				}
-			}
-
-			return struct{ success bool }{
-				success: true,
-			}
-		},
-	}
-	self.cmdMap["cfgsave"] = cmdTmpSave
-
-	cmdText := &CmdItemInfo{
-		name: "text <文本模板>",
-		Brief: "文本指令(测试)，举例: .text 1D16={ 1d16 }，属性计算: 攻击 - 防御 = {攻击} - {防御} = {攻击 - 防御}",
-		// help
-		solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if msg.MessageType == "group" {
-				if isCurGroupBotOn(session, msg) {
-					p := getPlayerInfoBySender(session, msg)
-					val, _, err := self.exprText(cmdArgs.RawArgs, p)
-
-					if err == nil {
-						replyGroup(session, msg.GroupId, val)
-					} else {
-						replyGroup(session, msg.GroupId, "格式错误")
-					}
-				}
-			}
-
-			return struct{ success bool }{
-				success: true,
-			}
-		},
-	}
-	self.cmdMap["text"] = cmdText
-}
-
 func isCurGroupBotOn(session *IMSession, msg *Message) bool {
 	return msg.MessageType == "group" && session.ServiceAt[msg.GroupId] != nil && session.ServiceAt[msg.GroupId].Active
 }
@@ -599,16 +284,32 @@ func isCurGroupBotOnById(session *IMSession, messageType string, groupId int64) 
 
 /** 获取玩家群内信息，没有就创建 */
 func getPlayerInfoBySender(session *IMSession, msg *Message) *PlayerInfo {
-	players := session.ServiceAt[msg.GroupId].Players
-	p := players[msg.Sender.UserId]
-	if p == nil {
-		p = &PlayerInfo{
-			Name: msg.Sender.Nickname,
-			UserId: msg.Sender.UserId,
-			ValueNumMap: map[string]int64{},
-			ValueStrMap: map[string]string{},
+	if msg.MessageType == "group" {
+		g := session.ServiceAt[msg.GroupId]
+		if g == nil {
+			return nil
 		}
-		players[msg.Sender.UserId] = p
+		players := g.Players
+		p := players[msg.Sender.UserId]
+		if p == nil {
+			p = &PlayerInfo{
+				Name:         msg.Sender.Nickname,
+				UserId:       msg.Sender.UserId,
+				ValueNumMap:  map[string]int64{},
+				ValueStrMap:  map[string]string{},
+				ValueMap:     map[string]VMValue{},
+				ValueMapTemp: map[string]VMValue{},
+			}
+			players[msg.Sender.UserId] = p
+		}
+		if p.ValueMap == nil {
+			p.ValueMap = map[string]VMValue{}
+		}
+		if p.ValueMapTemp == nil {
+			p.ValueMapTemp = map[string]VMValue{}
+		}
+		return p
 	}
-	return p
+	return nil
 }
+

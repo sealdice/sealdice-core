@@ -6,7 +6,7 @@ func (self *Dice) registerBuiltinExtTemple() {
 		version:    "0.0.1",
 		Brief: "一行字简介",
 		autoActive: true, // 是否自动开启
-		OnCommandReceived: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
+		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 			//p := getPlayerInfoBySender(session, msg)
 			//p.TempValueAlias = &ac.Alias;
 		},
@@ -24,8 +24,8 @@ func (self *Dice) registerBuiltinExtTemple() {
 		cmdMap: CmdMapCls{
 			"command": &CmdItemInfo{
 				name: "command",
-				solve: func(session *IMSession, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-					if isCurGroupBotOn(session, msg) {
+				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+					if ctx.isCurGroupBotOn {
 						//p := getPlayerInfoBySender(session, msg)
 					}
 					return struct{ success bool }{

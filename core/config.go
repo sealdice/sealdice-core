@@ -46,7 +46,7 @@ func configInit() {
 			"链枷": {"连枷"},
 		},
 		Order: AttributeOrder{
-			Top: []string{"力量", "敏捷", "体质", "体型", "外貌", "智力", "意志", "教育", "理智", "克苏鲁神话"},
+			Top: []string{"力量", "敏捷", "体质", "体型", "外貌", "智力", "意志", "教育", "理智", "克苏鲁神话", "生命值", "魔法值"},
 			Others: AttributeOrderOthers{ SortBy: "name" },
 		},
 	}

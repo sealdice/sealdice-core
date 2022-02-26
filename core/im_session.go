@@ -2,13 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/sacOO7/gowebsocket"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
+	"sealdice-core/core"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -16,14 +16,14 @@ import (
 // {"anonymous":null,"font":0,"group_id":111,"message":"qqq","message_id":884917177,"message_seq":1434,"message_type":"group","post_type":"message","raw_message":"qqq","self_id":1001,"sender":{"age":0,"area":"","card":"","level":"","nickname":"鏈ㄨ惤","role":"member","sex":"unknown","title":"","user_id":1002},"sub_type":"normal","time":1643863961,"user_id":1002}
 // {"anonymous":null,"font":0,"group_id":111,"message":"[CQ:at,qq=1001]   .r test","message_id":888971055,"message_seq":1669,"message_type":"group","post_type":"message","raw_message":"[CQ:at,qq=1001]   .r test","self_id":1001,"sender":{"age":0,"area":"","card":"","level":"","nickname":"鏈ㄨ惤","role":"member","sex":"unknown","title":"","user_id":1002},"sub_type":"normal","time":1644127751,"user_id":1002}
 
-func replyPerson(s *IMSession, userId int64, text string) {
-	replyPersonRaw(s, userId, text, "")
+func replyPerson(ctx *MsgContext, userId int64, text string) {
+	replyPersonRaw(ctx, userId, text, "")
 }
 
-func replyPersonRaw(s *IMSession, userId int64, text string, flag string) {
-	for _, i := range s.parent.extList {
+func replyPersonRaw(ctx *MsgContext, userId int64, text string, flag string) {
+	for _, i := range ctx.dice.extList {
 		if i.OnMessageSend != nil {
-			i.OnMessageSend(s, "private", userId, text, flag)
+			i.OnMessageSend(ctx, "private", userId, text, flag)
 		}
 	}
 	time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
@@ -46,7 +46,7 @@ func replyPersonRaw(s *IMSession, userId int64, text string, flag string) {
 		},
 	})
 
-	s.Socket.SendText(string(a))
+	ctx.session.Socket.SendText(string(a))
 }
 
 func GetGroupInfo(socket *gowebsocket.Socket, groupId int64) {
@@ -86,15 +86,15 @@ func quitGroup(s *IMSession, groupId int64) {
 	s.Socket.SendText(string(a))
 }
 
-func replyGroup(s *IMSession, groupId int64, text string) {
-	replyGroupRaw(s, groupId, text, "")
+func replyGroup(ctx *MsgContext, groupId int64, text string) {
+	replyGroupRaw(ctx, groupId, text, "")
 }
 
-func replyGroupRaw(s *IMSession, groupId int64, text string, flag string) {
-	if s.ServiceAt[groupId] != nil {
-		for _, i := range s.ServiceAt[groupId].ActivatedExtList {
+func replyGroupRaw(ctx *MsgContext, groupId int64, text string, flag string) {
+	if ctx.session.ServiceAt[groupId] != nil {
+		for _, i := range ctx.session.ServiceAt[groupId].ActivatedExtList {
 			if i.OnMessageSend != nil {
-				i.OnMessageSend(s, "group", groupId, text, flag)
+				i.OnMessageSend(ctx, "group", groupId, text, flag)
 			}
 		}
 	}
@@ -116,20 +116,20 @@ func replyGroupRaw(s *IMSession, groupId int64, text string, flag string) {
 			text, // "golang client test",
 		},
 	})
-	s.Socket.SendText(string(a))
+	ctx.session.Socket.SendText(string(a))
 }
 
-func replyToSenderRaw(s *IMSession, msg *Message, text string, flag string) {
+func replyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	inGroup := msg.MessageType == "group"
 	if inGroup {
-		replyGroupRaw(s, msg.GroupId, text, flag)
+		replyGroupRaw(ctx, msg.GroupId, text, flag)
 	} else {
-		replyPersonRaw(s, msg.Sender.UserId, text, flag)
+		replyPersonRaw(ctx, msg.Sender.UserId, text, flag)
 	}
 }
 
-func replyToSender(s *IMSession, msg *Message, text string) {
-	replyToSenderRaw(s, msg, text, "")
+func replyToSender(ctx *MsgContext, msg *Message, text string) {
+	replyToSenderRaw(ctx, msg, text, "")
 }
 
 func (s *IMSession) GetLoginInfo() {
@@ -179,7 +179,7 @@ type Message struct {
 
 type PlayerInfo struct {
 	UserId         int64 `yaml:"userId"`
-	Name           string
+	Name           string // 玩家昵称
 	ValueNumMap    map[string]int64  `yaml:"valueNumMap"`
 	ValueStrMap    map[string]string `yaml:"valueStrMap"`
 	RpToday        int               `yaml:"rpToday"`
@@ -189,39 +189,9 @@ type PlayerInfo struct {
 	// level int 权限
 	DiceSideNum    int `yaml:"diceSideNum"` // 面数，为0时等同于d100
 	TempValueAlias *map[string][]string `yaml:"-"`
-}
 
-func (i *PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) string {
-	name := s
-
-	if alias == nil {
-		alias = *i.TempValueAlias
-	}
-
-	for k, v := range alias {
-		if strings.EqualFold(s, k) {
-			break // 名字本身就是确定值，不用修改
-		}
-		for _, i := range v {
-			if strings.EqualFold(s, i) {
-				name = k
-				break
-			}
-		}
-	}
-
-	return name
-}
-
-func (i *PlayerInfo) SetValueInt64(s string, sanNew int64, alias map[string][]string) {
-	name := i.GetValueNameByAlias(s, alias)
-	i.ValueNumMap[name] = sanNew
-}
-
-func (i *PlayerInfo) GetValueInt64(s string, alias map[string][]string) (int64, bool) {
-	name := i.GetValueNameByAlias(s, alias)
-	v, e := i.ValueNumMap[name]
-	return v, e
+	ValueMap map[string]VMValue `yaml:"-"`
+	ValueMapTemp map[string]VMValue `yaml:"-"`
 }
 
 type ServiceAtItem struct {
@@ -234,26 +204,36 @@ type ServiceAtItem struct {
 	GroupId int64 `yaml:"groupId"`
 	GroupName   string   `yaml:"groupName"`
 
+	ValueMap map[string]VMValue `yaml:"-"`
 	// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
 	//RuleCriticalSuccessValue *int64 // 大成功值，1默认
 	//RuleFumbleValue *int64 // 大失败值 96默认
 }
 
+// 大失败
 func (i *ServiceAtItem) GetFumbleValue() int64 {
 	return 96
 }
 
+// 大成功
 func (i *ServiceAtItem) getCriticalSuccessValue() int64 {
 	return 1
 }
 
-
+type PlayerVariablesItem struct{
+	Loaded bool `yaml:"-"`
+	ValueMap map[string]VMValue `yaml:"-"`
+	LastSyncToCloudTime int64 `yaml:"lastSyncToCloudTime"`
+	LastUsedTime int64 `yaml:"lastUsedTime"`
+}
 
 type IMSession struct {
 	Socket   *gowebsocket.Socket `yaml:"-"`
 	Nickname string `yaml:"-"`
 	UserId   int64 `yaml:"userId"`
 	parent   *Dice `yaml:"-"`
+
+	PlayerVarsData map[int64]*PlayerVariablesItem `yaml:"PlayerVarsData"`
 
 	ServiceAt map[int64]*ServiceAtItem `json:"serviceAt" yaml:"serviceAt"`
 	CommandIndex int64 `yaml:"-"`
@@ -273,7 +253,24 @@ func (s ByLength) Less(i, j int) bool {
 	return len(s[i]) > len(s[j])
 }
 
+type MsgContext struct {
+	MessageType     string
+	session         *IMSession
+	group           *ServiceAtItem
+	player          *PlayerInfo
+	dice            *Dice
+	isCurGroupBotOn bool
+}
+
+func (ctx *MsgContext) LoadPlayerVars() *PlayerVariablesItem {
+	if ctx.player != nil {
+		return LoadPlayerVars(ctx.session, ctx.player.UserId)
+	}
+	return nil
+}
+
 func (s *IMSession) serve() {
+	log := core.GetLogger()
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -282,18 +279,18 @@ func (s *IMSession) serve() {
 	session.Socket = &socket
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
-		log.Println("Connected to server")
+		log.Info("Connected to server")
 		//  {"data":{"nickname":"闃斧鐗岃�佽檸鏈�","user_id":1001},"retcode":0,"status":"ok"}
 		s.GetLoginInfo()
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
-		log.Println("Recieved connect error ", err)
+		log.Info("Recieved connect error: ", err)
 	}
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		msg := new(Message)
-		log.Println("Recieved message " + message)
+		fmt.Println("Recieved message " + message)
 		err := json.Unmarshal([]byte(message), msg)
 
 		if err == nil {
@@ -301,7 +298,8 @@ func (s *IMSession) serve() {
 			if msg.Echo == -1 {
 				session.UserId = msg.Data.UserId
 				session.Nickname = msg.Data.Nickname
-				log.Println("User info received.")
+
+				log.Debug("User info received.")
 				return
 			}
 
@@ -312,14 +310,19 @@ func (s *IMSession) serve() {
 					group.GroupName = msg.Data.GroupName
 					group.GroupId = msg.Data.GroupId
 				}
-				log.Println("Group info received: ", msg.Data.GroupName)
+				log.Debug("Group info received: ", msg.Data.GroupName)
 				return
 			}
 
 			// 处理命令
 			if msg.MessageType == "group" || msg.MessageType == "private" {
+				mctx := &MsgContext{}
+				mctx.dice = session.parent
+				mctx.MessageType = msg.MessageType
+				mctx.session = session
 				var cmdLst []string
 
+				// 兼容模式检查
 				if s.parent.CommandCompatibleMode {
 					for k := range session.parent.cmdMap {
 						cmdLst = append(cmdLst, k)
@@ -338,32 +341,33 @@ func (s *IMSession) serve() {
 
 				// 收到信息回调
 				sa := session.ServiceAt[msg.GroupId]
+				mctx.group = sa
+				mctx.player = getPlayerInfoBySender(session, msg)
+				mctx.isCurGroupBotOn = isCurGroupBotOn(session, msg)
+
 				if sa != nil && sa.Active {
 					for _, i := range sa.ActivatedExtList {
 						if i.OnMessageReceived != nil {
-							i.OnMessageReceived(session, msg)
+							i.OnMessageReceived(mctx, msg)
 						}
 					}
 				}
 
 				msgInfo := CommandParse(msg.Message, s.parent.CommandCompatibleMode, cmdLst)
-				//log.Println(msgInfo)
 
-				//if msg.Sender.UserId == 303451945 || msg.Sender.UserId == 184023393 {
-				//if msg.MessageType == "group" {
 				if msgInfo != nil {
-					f := func() {
-						//defer func() {
-						//	if r := recover(); r != nil {
-						//		//  + fmt.Sprintf("%s", r)
-						//		core.GetLogger().Error(r)
-						//		fmt.Println(r)
-						//		replyToSender(s, msg, "已从核心崩溃中恢复，请带指令联系开发者。注意不要重复发送本指令以免风控。")
-						//	}
-						//}()
-						session.commandSolve(session, msg, msgInfo)
-					}
-					go f()
+					//f := func() {
+					//	defer func() {
+					//		if r := recover(); r != nil {
+					//			//  + fmt.Sprintf("%s", r)
+					//			core.GetLogger().Error(r)
+					//			replyToSender(mctx, msg, "已从核心崩溃中恢复，请带指令联系开发者。注意不要重复发送本指令以免风控。")
+					//		}
+					//	}()
+					//	session.commandSolve(mctx, msg, msgInfo)
+					//}
+					//go f()
+					session.commandSolve(mctx, msg, msgInfo)
 
 					//c, _ := json.Marshal(msgInfo)
 					//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);
@@ -376,24 +380,24 @@ func (s *IMSession) serve() {
 				//}
 			}
 		} else {
-			log.Println("error" + err.Error())
+			log.Error("error" + err.Error())
 		}
 	}
 
 	socket.OnBinaryMessage = func(data []byte, socket gowebsocket.Socket) {
-		log.Println("Recieved binary data ", data)
+		log.Debug("Recieved binary data ", data)
 	}
 
 	socket.OnPingReceived = func(data string, socket gowebsocket.Socket) {
-		log.Println("Recieved ping " + data)
+		log.Debug("Recieved ping " + data)
 	}
 
 	socket.OnPongReceived = func(data string, socket gowebsocket.Socket) {
-		log.Println("Recieved pong " + data)
+		log.Debug("Recieved pong " + data)
 	}
 
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
-		log.Println("Disconnected from server ")
+		log.Info("Disconnected from server ")
 		return
 	}
 
@@ -402,21 +406,17 @@ func (s *IMSession) serve() {
 	for {
 		select {
 		case <-interrupt:
-			log.Println("interrupt")
+			log.Info("interrupt")
 			socket.Close()
 			return
 		}
 	}
 }
 
-func (s *IMSession) commandSolve(session *IMSession, msg *Message, cmdArgs *CmdArgs) {
-	//c, _ := json.Marshal(msgInfo)
-	//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);
-	//replyGroup(Socket, 111, text)
-
+func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 	cmdArgs.AmIBeMentioned = false
 	for _, i := range cmdArgs.At {
-		if i.UserId == session.UserId {
+		if i.UserId == ctx.session.UserId {
 			cmdArgs.AmIBeMentioned = true
 			break
 		}
@@ -424,7 +424,7 @@ func (s *IMSession) commandSolve(session *IMSession, msg *Message, cmdArgs *CmdA
 
 	tryItemSolve := func (item *CmdItemInfo) bool {
 		if item != nil {
-			ret := item.solve(session, msg, cmdArgs)
+			ret := item.solve(ctx, msg, cmdArgs)
 			if ret.success {
 				return true
 			}
@@ -432,16 +432,16 @@ func (s *IMSession) commandSolve(session *IMSession, msg *Message, cmdArgs *CmdA
 		return false
 	}
 
-	sa := session.ServiceAt[msg.GroupId]
+	sa := ctx.group
 	if sa != nil && sa.Active {
 		for _, i := range sa.ActivatedExtList {
 			if i.OnCommandReceived != nil {
-				i.OnCommandReceived(session, msg, cmdArgs)
+				i.OnCommandReceived(ctx, msg, cmdArgs)
 			}
 		}
 	}
 
-	item := session.parent.cmdMap[cmdArgs.Command]
+	item := ctx.session.parent.cmdMap[cmdArgs.Command]
 	if tryItemSolve(item) {
 		return
 	}
@@ -456,7 +456,7 @@ func (s *IMSession) commandSolve(session *IMSession, msg *Message, cmdArgs *CmdA
 	}
 
 	if msg.MessageType == "private" {
-		for _, i := range session.parent.extList {
+		for _, i := range ctx.dice.extList {
 			if i.ActiveOnPrivate {
 				item := i.cmdMap[cmdArgs.Command]
 				if tryItemSolve(item) {

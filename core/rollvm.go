@@ -190,17 +190,39 @@ func (e *RollExpression) AddFormatString(value string) {
 	code[top].ValueAny = re.FindAllString(value, -1)
 }
 
-type vmStack struct {
-	typeId int
-	value interface{}
+type VMValueType int
+
+const (
+	VMTypeInt64      VMValueType = 0
+	VMTypeString      VMValueType = 1
+	VMTypeBool      VMValueType = 2
+	VMTypeExpression VMValueType = 3
+)
+
+type VMValue struct {
+	TypeId VMValueType `json:"typeId"`
+	Value  interface{} `json:"value"`
 }
 
+func (v *VMValue) toString() interface{} {
+	switch v.TypeId {
+	case VMTypeInt64:
+		return strconv.FormatInt(v.Value.(int64), 10)
+	case VMTypeString:
+		return v.Value.(string)
+	default:
+		return "a value"
+	}
+}
+
+type vmStack = VMValue
+
 type vmResult struct {
-	vmStack
+	VMValue
 	parser *DiceRollParser
 }
 
-func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, error) {
+func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, error) {
 	stack, top := make([]vmStack, len(e.Code)), 0
 	//lastIsDice := false
 	//var lastValIndex int
@@ -224,36 +246,43 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			str := code.ValueStr
 
 			for index, i := range parts {
-				str = strings.Replace(str, i, strconv.FormatInt(stack[top-len(parts)+index].value.(int64), 10), 1)
+				str = strings.Replace(str, i, strconv.FormatInt(stack[top-len(parts)+index].Value.(int64), 10), 1)
 			}
 
 			top -= len(parts)
-			stack[top].typeId = 1
-			stack[top].value = str
+			stack[top].TypeId = VMTypeString
+			stack[top].Value = str
 			top++
 			continue
 		case TypeNumber:
-			stack[top].typeId = 0
-			stack[top].value = code.Value
+			stack[top].TypeId = VMTypeInt64
+			stack[top].Value = code.Value
 			top++
 			continue
 		case TypePushString:
-			stack[top].typeId = 1
-			stack[top].value = code.ValueStr
+			stack[top].TypeId = VMTypeString
+			stack[top].Value = code.ValueStr
 			top++
 			continue
 		case TypeLoadVarname:
 			var v int64
-			if p != nil {
+			if ctx != nil {
 				var exists bool
-				v, exists = p.GetValueInt64(code.ValueStr, nil)
-				if !exists {
-					// TODO: 找不到时的处理
+				v2, exists := VarGetValue(ctx, code.ValueStr)
+				if exists {
+					v = v2.Value.(int64)
+				} else {
+					if ctx.player != nil {
+						v, exists = ctx.player.GetValueInt64(code.ValueStr, nil)
+						if !exists {
+							// TODO: 找不到时的处理
+						}
+					}
 				}
 			}
 
-			stack[top].typeId = 0
-			stack[top].value = v
+			stack[top].TypeId = VMTypeInt64
+			stack[top].Value = v
 			top++
 
 			lastDetail := fmt.Sprintf("%s=%d", code.ValueStr, v)
@@ -261,12 +290,12 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 			continue
 		case TypeNegation:
 			a := &stack[top-1]
-			a.value = -a.value.(int64)
+			a.Value = -a.Value.(int64)
 			continue
 		case TypeDiceUnary:
 			a := &stack[top-1]
 			// dice XXX, 如 d100
-			a.value = DiceRoll64(a.value.(int64))
+			a.Value = DiceRoll64(a.Value.(int64))
 			continue
 		case TypeHalt:
 			continue
@@ -283,7 +312,7 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 
 			checkLeft := func () {
 				if calcDetail == "" {
-					calcDetail += strconv.FormatInt(a.value.(int64), 10)
+					calcDetail += strconv.FormatInt(a.Value.(int64), 10)
 				}
 
 				if len(lastDetailsLeft) > 0 {
@@ -294,10 +323,10 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 
 			if t.T != TypeDice && top == 1 {
 				if times == 1 {
-					calcDetail += fmt.Sprintf("%d %s %d", a.value.(int64), t.String(), b.value.(int64))
+					calcDetail += fmt.Sprintf("%d %s %d", a.Value.(int64), t.String(), b.Value.(int64))
 				} else {
 					checkLeft()
-					calcDetail += fmt.Sprintf(" %s %d", t.String(), b.value.(int64))
+					calcDetail += fmt.Sprintf(" %s %d", t.String(), b.Value.(int64))
 
 					if len(lastDetails) > 0 {
 						calcDetail += fmt.Sprintf("[%s]", strings.Join(lastDetails, ","))
@@ -308,44 +337,44 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 		}
 
 		var aInt, bInt int64
-		if a.typeId == 0 {
-			aInt = a.value.(int64)
+		if a.TypeId == 0 {
+			aInt = a.Value.(int64)
 		}
-		if b.typeId == 0 {
-			bInt = b.value.(int64)
+		if b.TypeId == 0 {
+			bInt = b.Value.(int64)
 		}
 
 		// 二目运算符
 		switch code.T {
 		case TypeAdd:
 			checkDice(&code)
-			a.value = aInt + bInt
+			a.Value = aInt + bInt
 		case TypeSubtract:
 			checkDice(&code)
-			a.value = aInt - bInt
+			a.Value = aInt - bInt
 		case TypeMultiply:
 			checkDice(&code)
-			a.value = aInt * bInt
+			a.Value = aInt * bInt
 		case TypeDivide:
 			checkDice(&code)
-			a.value = aInt / bInt
+			a.Value = aInt / bInt
 		case TypeModulus:
 			checkDice(&code)
-			a.value = aInt % bInt
+			a.Value = aInt % bInt
 		case TypeExponentiation:
 			checkDice(&code)
-			a.value = int64(math.Pow(float64(aInt), float64(bInt)))
+			a.Value = int64(math.Pow(float64(aInt), float64(bInt)))
 		case TypeSwap:
-			a.value, b.value = bInt, aInt
+			a.Value, b.Value = bInt, aInt
 			top++
 		case TypeStore:
-			fmt.Println(e.GetAsmText())
 			top--
-			if p != nil {
-				p.SetValueInt64(a.value.(string), b.value.(int64), nil)
+			if ctx != nil {
+				VarSetValue(ctx, a.Value.(string), b)
+				//p.SetValueInt64(a.value.(string), b.value.(int64), nil)
 			}
-			stack[top].typeId = b.typeId
-			stack[top].value = b.value
+			stack[top].TypeId = b.TypeId
+			stack[top].Value = b.Value
 			top++
 			continue
 		case TypeDice:
@@ -362,7 +391,7 @@ func (e *RollExpression) Evaluate(d *Dice, p *PlayerInfo) (*vmStack, string, err
 
 			lastDetail := fmt.Sprintf("%dd%d=%d", aInt, bInt, num)
 			lastDetails = append(lastDetails, lastDetail)
-			a.value = num
+			a.Value = num
 		}
 	}
 
