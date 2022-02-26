@@ -328,6 +328,14 @@ func (s *IMSession) serve() {
 		err := json.Unmarshal([]byte(message), msg)
 
 		if err == nil {
+			// 心跳包，忽略
+			if msg.MetaEventType == "heartbeat" {
+				return
+			}
+			if msg.MetaEventType == "heartbeat" {
+				return
+			}
+
 			// 获得用户信息
 			if msg.Echo == -1 {
 				session.UserId = msg.Data.UserId
