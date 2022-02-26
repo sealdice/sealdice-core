@@ -68,6 +68,29 @@ func GetGroupInfo(socket *gowebsocket.Socket, groupId int64) {
 	socket.SendText(string(a))
 }
 
+func SetGroupAddRequest(socket *gowebsocket.Socket, flag string, subType string, approve bool, reason string) {
+	type DetailParams struct {
+		Flag    string `json:"flag"`
+		SubType string `json:"sub_type"`
+		Approve bool   `json:"approve"`
+		Reason  string `json:"reason"`
+	}
+
+	a, _ := json.Marshal(struct {
+		Action string       `json:"action"`
+		Params DetailParams `json:"params"`
+	}{
+		"set_group_add_request",
+		DetailParams{
+			Flag:    flag,
+			SubType: subType,
+			Approve: approve,
+			Reason:  reason,
+		},
+	})
+	socket.SendText(string(a))
+}
+
 
 func quitGroup(s *IMSession, groupId int64) {
 	type GroupMessageParams struct {
@@ -159,7 +182,14 @@ type Message struct {
 	Message       string `json:"message"` // 消息内容
 	Time          int64  `json:"time"`    // 发送时间
 	MetaEventType string `json:"meta_event_type"`
-	GroupId       int64  `json:"group_id"` // 群号
+	GroupId       int64  `json:"group_id"`     // 群号
+	PostType      string `json:"post_type"`    // 上报类型，如group、notice
+	RequestType   string `json:"request_type"` // 请求类型，如group
+	SubType       string `json:"sub_type"`     // 子类型，如add invite
+	Flag          string `json:"flag"`         // 请求 flag, 在调用处理请求的 API 时需要传入
+	NoticeType    string `json:"notice_type"`
+	UserId int64 `json:"user_id"`
+	SelfId int64 `json:"self_id"`
 
 	Data *struct {
 		// 个人信息
@@ -167,14 +197,14 @@ type Message struct {
 		UserId   int64  `json:"user_id"`
 
 		// 群信息
-		GroupId       int64  `json:"group_id"` // 群号
-		GroupCreateTime       uint32  `json:"group_create_time"` // 群号
-		MemberCount int64 `json:"member_count"`
-		GroupName string `json:"group_name"`
+		GroupId         int64  `json:"group_id"`          // 群号
+		GroupCreateTime uint32 `json:"group_create_time"` // 群号
+		MemberCount     int64  `json:"member_count"`
+		GroupName       string `json:"group_name"`
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	//Status string `json:"status"`
-	Echo int `json:"echo"`
+	Echo   int `json:"echo"`
 }
 
 type PlayerInfo struct {
@@ -229,14 +259,16 @@ type PlayerVariablesItem struct{
 
 type IMSession struct {
 	Socket   *gowebsocket.Socket `yaml:"-"`
-	Nickname string `yaml:"-"`
-	UserId   int64 `yaml:"userId"`
-	parent   *Dice `yaml:"-"`
+	Nickname string              `yaml:"-"`
+	UserId   int64               `yaml:"userId"`
+	parent   *Dice               `yaml:"-"`
 
 	PlayerVarsData map[int64]*PlayerVariablesItem `yaml:"PlayerVarsData"`
 
-	ServiceAt map[int64]*ServiceAtItem `json:"serviceAt" yaml:"serviceAt"`
-	CommandIndex int64 `yaml:"-"`
+	ServiceAt    map[int64]*ServiceAtItem `json:"serviceAt" yaml:"serviceAt"`
+	CommandIndex int64                    `yaml:"-"`
+	ConnectUrl   string                   `yaml:"connectUrl"`
+
 	//GroupId int64 `json:"group_id"`
 }
 
@@ -275,7 +307,10 @@ func (s *IMSession) serve() {
 	signal.Notify(interrupt, os.Interrupt)
 
 	session := s
-	socket := gowebsocket.New("ws://127.0.0.1:6700")
+	if s.ConnectUrl == "" {
+		s.ConnectUrl = "ws://127.0.0.1:6700"
+	}
+	socket := gowebsocket.New(s.ConnectUrl)
 	session.Socket = &socket
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
@@ -290,7 +325,6 @@ func (s *IMSession) serve() {
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		msg := new(Message)
-		fmt.Println("Recieved message " + message)
 		err := json.Unmarshal([]byte(message), msg)
 
 		if err == nil {
@@ -305,14 +339,35 @@ func (s *IMSession) serve() {
 
 			// 获得群信息
 			if msg.Echo == -2 {
-				group := session.ServiceAt[msg.Data.GroupId]
-				if group != nil {
-					group.GroupName = msg.Data.GroupName
-					group.GroupId = msg.Data.GroupId
+				if msg.Data != nil {
+					group := session.ServiceAt[msg.Data.GroupId]
+					if group != nil {
+						group.GroupName = msg.Data.GroupName
+						group.GroupId = msg.Data.GroupId
+					}
+					log.Debug("Group info received: ", msg.Data.GroupName)
 				}
-				log.Debug("Group info received: ", msg.Data.GroupName)
 				return
 			}
+
+			// 处理加群请求
+			if msg.PostType == "request" && msg.RequestType == "group" && msg.SubType == "invite" {
+				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
+				SetGroupAddRequest(s.Socket, msg.Flag, msg.SubType, true, "")
+				return
+			}
+
+			// 入群后自动开启
+			if msg.PostType == "notice"  && msg.NoticeType == "group_increase" {
+				if msg.UserId == msg.SelfId {
+					// 判断进群的人是自己，自动启动
+					SetBotOnAtGroup(session, msg)
+					replyGroupRaw(&MsgContext{session: session, dice: session.parent}, msg.GroupId, fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", session.Nickname), "")
+				}
+				return
+			}
+
+			fmt.Println("Recieved message " + message)
 
 			// 处理命令
 			if msg.MessageType == "group" || msg.MessageType == "private" {
@@ -356,18 +411,18 @@ func (s *IMSession) serve() {
 				msgInfo := CommandParse(msg.Message, s.parent.CommandCompatibleMode, cmdLst)
 
 				if msgInfo != nil {
-					//f := func() {
-					//	defer func() {
-					//		if r := recover(); r != nil {
-					//			//  + fmt.Sprintf("%s", r)
-					//			core.GetLogger().Error(r)
-					//			replyToSender(mctx, msg, "已从核心崩溃中恢复，请带指令联系开发者。注意不要重复发送本指令以免风控。")
-					//		}
-					//	}()
-					//	session.commandSolve(mctx, msg, msgInfo)
-					//}
-					//go f()
-					session.commandSolve(mctx, msg, msgInfo)
+					f := func() {
+						defer func() {
+							if r := recover(); r != nil {
+								//  + fmt.Sprintf("%s", r)
+								core.GetLogger().Error(r)
+								replyToSender(mctx, msg, "已从核心崩溃中恢复，请带指令联系开发者。注意不要重复发送本指令以免风控。")
+							}
+						}()
+						session.commandSolve(mctx, msg, msgInfo)
+					}
+					go f()
+					//session.commandSolve(mctx, msg, msgInfo)
 
 					//c, _ := json.Marshal(msgInfo)
 					//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);

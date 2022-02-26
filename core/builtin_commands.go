@@ -12,6 +12,27 @@ import (
 
 var VERSION = "0.9测试版 v20220226"
 
+func SetBotOnAtGroup(session *IMSession, msg *Message) {
+	group := session.ServiceAt[msg.GroupId]
+	if group != nil {
+		group.Active = true
+	} else {
+		extLst := []*ExtInfo{}
+		for _, i := range session.parent.extList {
+			if i.autoActive {
+				extLst = append(extLst, i)
+			}
+		}
+		session.ServiceAt[msg.GroupId] = &ServiceAtItem{
+			Active:           true,
+			ActivatedExtList: extLst,
+			Players:          map[int64]*PlayerInfo{},
+			GroupId: msg.GroupId,
+			ValueMap: map[string]VMValue{},
+		}
+	}
+}
+
 /** 这几条指令不能移除 */
 func (self *Dice) registerCoreCommands() {
 	cmdHelp := &CmdItemInfo{
@@ -91,25 +112,9 @@ func (self *Dice) registerCoreCommands() {
 				if inGroup && cmdArgs.AmIBeMentioned {
 					if len(cmdArgs.Args) >= 1 {
 						if cmdArgs.Args[0] == "on" {
-							if ctx.group != nil {
-								ctx.group.Active = true
-							} else {
-								extLst := []*ExtInfo{}
-								for _, i := range self.extList {
-									if i.autoActive {
-										extLst = append(extLst, i)
-									}
-								}
-								ctx.session.ServiceAt[msg.GroupId] = &ServiceAtItem{
-									Active:           true,
-									ActivatedExtList: extLst,
-									Players:          map[int64]*PlayerInfo{},
-									GroupId: msg.GroupId,
-									ValueMap: map[string]VMValue{},
-								}
-								ctx.group = ctx.session.ServiceAt[msg.GroupId]
-								ctx.isCurGroupBotOn = true
-							}
+							SetBotOnAtGroup(ctx.session, msg)
+							ctx.group = ctx.session.ServiceAt[msg.GroupId]
+							ctx.isCurGroupBotOn = true
 							replyGroup(ctx, msg.GroupId, "SealDice 已启用(开发中) " + VERSION)
 						} else if cmdArgs.Args[0] == "off" {
 							if len(ctx.group.ActivatedExtList) == 0 {
@@ -120,6 +125,7 @@ func (self *Dice) registerCoreCommands() {
 							replyGroup(ctx, msg.GroupId, "停止服务")
 						} else if cmdArgs.Args[0] == "bye" {
 							replyGroup(ctx, msg.GroupId, "收到指令，5s后将退出当前群组")
+							ctx.group.Active = false
 							time.Sleep(6 * time.Second)
 							quitGroup(ctx.session, msg.GroupId)
 						} else if cmdArgs.Args[0] == "save" {
