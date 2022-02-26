@@ -126,9 +126,9 @@ func (i *PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) st
 	return name
 }
 
-func (i *PlayerInfo) SetValueInt64(s string, sanNew int64, alias map[string][]string) {
+func (i *PlayerInfo) SetValueInt64(s string, value int64, alias map[string][]string) {
 	name := i.GetValueNameByAlias(s, alias)
-	VarSetValue(&MsgContext{player: i}, name, &VMValue{VMTypeInt64, sanNew})
+	VarSetValue(&MsgContext{player: i}, name, &VMValue{VMTypeInt64, value})
 }
 
 func (i *PlayerInfo) GetValueInt64(s string, alias map[string][]string) (int64, bool) {

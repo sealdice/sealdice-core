@@ -672,7 +672,11 @@ func (self *Dice) registerBuiltinExtCoc7() {
 									//if strings.HasPrefix(k, "$") {
 									//	continue
 									//}
-									v := p.ValueMap[k]
+									v, exists := p.ValueMap[k]
+									if !exists {
+										// 不存在的值，强行补0
+										v.Value = int64(0)
+									}
 
 									if index >= topNum {
 										if useLimit && v.TypeId == VMTypeInt64 && v.Value.(int64) < limit {
