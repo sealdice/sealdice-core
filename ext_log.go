@@ -159,8 +159,8 @@ func (self *Dice) registerBuiltinExtLog() {
 func LogSaveToZip(group *ServiceAtItem) string {
 	lines, err := LogGetAllLines(group)
 	if err == nil {
-		os.MkdirAll("./temp", 0644)
-		fzip, _ := ioutil.TempFile("./temp", group.LogCurName + ".*.zip")
+		os.MkdirAll("./data/logs", 0644)
+		fzip, _ := ioutil.TempFile("./data/logs", group.LogCurName + ".*.zip")
 		writer := zip.NewWriter(fzip)
 		defer writer.Close()
 

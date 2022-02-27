@@ -242,6 +242,57 @@ func (self *Dice) registerBuiltinExtCoc7() {
 		}
 	}
 
+	cmdRc := &CmdItemInfo{
+		name: "ra/rc <属性>",
+		Brief: "属性检定指令，骰一个D100，当有“D100 ≤ 属性”时，检定通过",
+		solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+			if ctx.isCurGroupBotOn && len(cmdArgs.Args) >= 1 {
+				var cond int64
+				var r *vmResult
+
+				if len(cmdArgs.Args) >= 1 {
+					var err error
+					var suffix, detail string
+					d100 := DiceRoll64(100)
+					r, detail, err = ctx.dice.exprEval(cmdArgs.RawArgs, ctx)
+					if r != nil && r.TypeId == 0 {
+						cond = r.Value.(int64)
+					}
+
+					cocRule := ctx.group.CocRuleIndex
+					if cmdArgs.Command == "rc" {
+						// 强制规则书
+						cocRule = 0
+					}
+					successRank := ResultCheck(cocRule, d100, cond)
+					switch successRank {
+					case -2: suffix = DiceFormatTmpl(ctx, "COC7:判定-大失败")
+					case -1: suffix = DiceFormatTmpl(ctx, "COC7:判定-失败")
+					case +1: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-普通")
+					case +2: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+					case +3: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+					case +4: suffix = DiceFormatTmpl(ctx, "COC7:判定-大成功")
+					}
+
+					if err == nil {
+						detailWrap := ""
+						if detail != "" {
+							detailWrap = "=(" + detail + ")"
+						}
+
+						text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.player.Name, cmdArgs.RawArgs, d100, cond, detailWrap, suffix)
+						replyGroup(ctx, msg.GroupId, text)
+					} else {
+						replyGroup(ctx, msg.GroupId, "表达式不正确，可能是找不到属性")
+					}
+				}
+			}
+			return struct{ success bool }{
+				success: true,
+			}
+		},
+	}
+
 	self.extList = append(self.extList, &ExtInfo{
 		Name: "coc7",
 		version: "0.0.1",
@@ -272,6 +323,40 @@ func (self *Dice) registerBuiltinExtCoc7() {
 			return text
 		},
 		cmdMap: CmdMapCls{
+			"setcoc": &CmdItemInfo{
+				name: "setcoc",
+				Brief: "设置房规",
+				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+					n, _ := cmdArgs.GetArgN(1)
+					switch n {
+					case "0":
+						ctx.group.CocRuleIndex = 0
+						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-0"))
+					case "1":
+						ctx.group.CocRuleIndex = 1
+						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-1"))
+					case "2":
+						ctx.group.CocRuleIndex = 2
+						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-2"))
+					case "3":
+						ctx.group.CocRuleIndex = 3
+						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-3"))
+					case "4":
+						ctx.group.CocRuleIndex = 4
+						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-4"))
+					case "5":
+						ctx.group.CocRuleIndex = 5
+						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-5"))
+					default:
+						VarSetValue(ctx, "$t房规", &VMValue{VMTypeInt64, int64(ctx.group.CocRuleIndex)})
+						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-当前"))
+					}
+
+					return struct{ success bool }{
+						success: true,
+					}
+				},
+			},
 			"ti": &CmdItemInfo{
 				name: "ti",
 				Brief: "随机抽取一个临时性疯狂症状",
@@ -372,61 +457,8 @@ func (self *Dice) registerBuiltinExtCoc7() {
 					}
 				},
 			},
-
-			"ra": &CmdItemInfo{
-				name: "ra <属性>",
-				Brief: "属性检定指令，骰一个D100，当有“D100 ≤ 属性”时，检定通过",
-				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-					if ctx.isCurGroupBotOn && len(cmdArgs.Args) >= 1 {
-						var cond int64
-						var r *vmResult
-
-						if len(cmdArgs.Args) >= 1 {
-							var err error
-							var suffix, detail string
-							d100 := DiceRoll64(100)
-							r, detail, err = ctx.dice.exprEval(cmdArgs.RawArgs, ctx)
-							if r != nil && r.TypeId == 0 {
-								cond = r.Value.(int64)
-							}
-
-							if d100 <= cond {
-								suffix = "成功"
-								if d100 <= cond / 2 {
-									suffix = "成功(困难)"
-								}
-								if d100 <= cond / 4 {
-									suffix = "成功(极难)"
-								}
-								if d100 <= ctx.group.getCriticalSuccessValue() {
-									suffix = "大成功！"
-								}
-							} else {
-								if d100 >= ctx.group.GetFumbleValue() {
-									suffix = "大失败！"
-								} else {
-									suffix = "失败！"
-								}
-							}
-
-							if err == nil {
-								detailWrap := ""
-								if detail != "" {
-									detailWrap = "=(" + detail + ")"
-								}
-
-								text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.player.Name, cmdArgs.RawArgs, d100, cond, detailWrap, suffix)
-								replyGroup(ctx, msg.GroupId, text)
-							} else {
-								replyGroup(ctx, msg.GroupId, "表达式不正确，可能是找不到属性")
-							}
-						}
-					}
-					return struct{ success bool }{
-						success: true,
-					}
-				},
-			},
+			"ra": cmdRc,
+			"rc": cmdRc,
 			"sc": &CmdItemInfo{
 				name: "sc <成功时掉san>/<失败时掉san>",
 				Brief: "对理智进行一次D100检定，根据结果扣除理智。如“.sc 0/1d3”为成功不扣除理智，失败扣除1d3。大失败时按掷骰最大值扣除。支持复杂表达式。如.sc 1d2+3/1d(知识+1)",
@@ -443,13 +475,12 @@ func (self *Dice) registerBuiltinExtCoc7() {
 
 							// 读取san值
 							r, _, err := ctx.dice.exprEval("san", ctx)
-							if err == nil {
+							if err == nil && r.TypeId == VMTypeInt64 {
 								san = r.Value.(int64)
 							}
 
 							// roll
 							d100 := DiceRoll64(100)
-							bigFail := d100 > ctx.group.GetFumbleValue()
 
 							// 计算成功或失败
 							re := regexp.MustCompile(`(.+?)/(.+?)(\s+(\d+))?$`)
@@ -467,26 +498,29 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								if err == nil {
 									reduceSuccess = r.Value.(int64)
 								}
-								r, _, err = ctx.dice.exprEvalBase(failedExpr, ctx, bigFail)
+
+								var sanNew int64
+								var suffix string
+
+								successRank := ResultCheck(ctx.group.CocRuleIndex, d100, san)
+								switch successRank {
+								case -2: suffix = DiceFormatTmpl(ctx, "COC7:判定-大失败")
+								case -1: suffix = DiceFormatTmpl(ctx, "COC7:判定-失败")
+								case +1: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-普通")
+								case +2: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+								case +3: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+								case +4: suffix = DiceFormatTmpl(ctx, "COC7:判定-大成功")
+								}
+
+								r, _, err = ctx.dice.exprEvalBase(failedExpr, ctx, successRank == -2)
 								if err == nil {
 									reduceFail = r.Value.(int64)
 								}
 
-								var sanNew int64
-								var suffix string
-								if d100 <= san {
-									suffix = "成功"
-									if d100 <= ctx.group.getCriticalSuccessValue() {
-										suffix = "大成功！"
-									}
+								if successRank > 0 {
 									sanNew = san - reduceSuccess
 									text1 = successExpr
 								} else {
-									if d100 > ctx.group.GetFumbleValue() {
-										suffix = "大失败！"
-									} else {
-										suffix = "失败！"
-									}
 									sanNew = san - reduceFail
 									text1 = failedExpr
 								}
@@ -541,7 +575,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 
 						var ss []string
 						for i = 0; i < val; i++ {
-							result, _, err := self.exprText(`力量:{$t1=3d6*5} 敏捷:{$t2=3d6*5} 意志:{$t3=3d6*5} 体质:{$t4=3d6*5} 魅力:{$t5=3d6*5} 教育:{$t6=(2d6+6)*5} 体型:{$t7=(2d6+6)*5} 智力:{$t8=(2d6+6)*5} 幸运:{$t9=3d6*5} 血量:{($t4+$t7)/10} 总数:{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8}`, ctx)
+							result, _, err := self.exprText(`力量:{$t1=3d6*5} 敏捷:{$t2=3d6*5} 意志:{$t3=3d6*5} 体质:{$t4=3d6*5} 外貌:{$t5=3d6*5} 教育:{$t6=(2d6+6)*5} 体型:{$t7=(2d6+6)*5} 智力:{$t8=(2d6+6)*5} 幸运:{$t9=3d6*5} 生命值:{($t4+$t7)/10} 总数:{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8}`, ctx)
 							if err != nil {
 								break
 							}
@@ -789,4 +823,115 @@ func (self *Dice) registerBuiltinExtCoc7() {
 			},
 		},
 	})
+}
+
+
+/**
+大失败：骰出 100。若成功需要的值低于 50，大于等于 96 的结果都是大失败 -> -2
+失败：骰出大于角色技能或属性值（但不是大失败） -> -1
+常规成功：骰出小于等于角色技能或属性值 -> 1
+困难成功：骰出小于等于角色技能或属性值的一半 -> 2
+极难成功：骰出小于等于角色技能或属性值的五分之一 -> 3
+大成功：骰出1 -> 4
+ */
+func ResultCheck(cocRule int, d100 int64, checkValue int64) int {
+	var successRank int
+
+	if d100 <= checkValue {
+		successRank = 1
+	} else {
+		successRank = -1
+	}
+
+	criticalSuccessValue := int64(1) // 大成功阈值
+	fumbleValue := int64(100) // 大失败阈值
+
+	// 村规设定
+	switch cocRule {
+	case 0:
+		// 规则书规则
+		//不满50出96-100大失败，满50出100大失败
+		if checkValue < 50 {
+			fumbleValue = 96
+		}
+	case 1:
+		//不满50出1大成功，满50出1-5大成功
+		//不满50出96-100大失败，满50出100大失败
+		if checkValue >= 50 {
+			criticalSuccessValue = 5
+		}
+		if checkValue < 50 {
+			fumbleValue = 96
+		}
+	case 2:
+		//出1-5且<=成功率大成功
+		//出100或出96-99且>成功率大失败
+		criticalSuccessValue = 5
+		fumbleValue = 96
+	case 3:
+		//出1-5大成功
+		//出100或出96-99大失败
+		criticalSuccessValue = 5
+		fumbleValue = 96
+	case 4:
+		//出1-5且<=成功率/10大成功
+		//不满50出>=96+成功率/10大失败，满50出100大失败
+		//规则4 -> 大成功判定值 = min(5, 判定值/10)，大失败判定值 = min(96+判定值/10, 100)
+		criticalSuccessValue = checkValue / 10
+		if criticalSuccessValue > 5 {
+			criticalSuccessValue = 5
+		}
+		fumbleValue = 96 + checkValue / 10
+		if 100 < fumbleValue {
+			fumbleValue = 100
+		}
+	case 5:
+		//出1-2且<成功率/5大成功
+		//不满50出96-100大失败，满50出99-100大失败
+		criticalSuccessValue = checkValue / 5
+		if criticalSuccessValue > 2 {
+			criticalSuccessValue = 2
+		}
+		if checkValue < 50 {
+			fumbleValue = 96
+		} else {
+			fumbleValue = 99
+		}
+	}
+
+	// 成功判定
+	if successRank == 1 {
+		// 区分大成功、困难成功、极难成功等
+		if d100 <= checkValue / 2 {
+			//suffix = "成功(困难)"
+			successRank = 2
+		}
+		if d100 <= checkValue / 5 {
+			//suffix = "成功(极难)"
+			successRank = 3
+		}
+		if d100 <= criticalSuccessValue {
+			//suffix = "大成功！"
+			successRank = 4
+		}
+	} else {
+		if d100 >= fumbleValue {
+			//suffix = "大失败！"
+			successRank = -2
+		}
+	}
+
+	// 规则3的改判，强行大成功或大失败
+	if cocRule == 3 {
+		if d100 <= criticalSuccessValue {
+			//suffix = "大成功！"
+			successRank = 4
+		}
+		if d100 >= fumbleValue {
+			//suffix = "大失败！"
+			successRank = -2
+		}
+	}
+
+	return successRank
 }

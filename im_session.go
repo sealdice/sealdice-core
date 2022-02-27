@@ -225,16 +225,18 @@ type PlayerInfo struct {
 }
 
 type ServiceAtItem struct {
-	Active bool `json:"active" yaml:"active"` // 需要能记住配置，故有此选项
-	ActivatedExtList []*ExtInfo `yaml:"activatedExtList"` // 当前群开启的扩展列表
-	Players map[int64]*PlayerInfo // 群员信息
+	Active           bool                  `json:"active" yaml:"active"` // 需要能记住配置，故有此选项
+	ActivatedExtList []*ExtInfo            `yaml:"activatedExtList"`     // 当前群开启的扩展列表
+	Players          map[int64]*PlayerInfo // 群员信息
 
-	LogCurName  string   `yaml:"logCurFile"`
-	LogOn       bool     `yaml:"logOn"`
-	GroupId int64 `yaml:"groupId"`
-	GroupName   string   `yaml:"groupName"`
+	LogCurName string `yaml:"logCurFile"`
+	LogOn      bool   `yaml:"logOn"`
+	GroupId    int64  `yaml:"groupId"`
+	GroupName  string `yaml:"groupName"`
 
-	ValueMap map[string]VMValue `yaml:"-"`
+	ValueMap     map[string]VMValue `yaml:"-"`
+	CocRuleIndex int `yaml:"cocRuleIndex"`
+
 	// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
 	//RuleCriticalSuccessValue *int64 // 大成功值，1默认
 	//RuleFumbleValue *int64 // 大失败值 96默认
@@ -419,18 +421,18 @@ func (s *IMSession) serve() {
 				msgInfo := CommandParse(msg.Message, s.parent.CommandCompatibleMode, cmdLst)
 
 				if msgInfo != nil {
-					f := func() {
-						defer func() {
-							if r := recover(); r != nil {
-								//  + fmt.Sprintf("%s", r)
-								core.GetLogger().Error(r)
-								replyToSender(mctx, msg, "已从核心崩溃中恢复，请带指令联系开发者。注意不要重复发送本指令以免风控。")
-							}
-						}()
-						session.commandSolve(mctx, msg, msgInfo)
-					}
-					go f()
-					//session.commandSolve(mctx, msg, msgInfo)
+					//f := func() {
+					//	defer func() {
+					//		if r := recover(); r != nil {
+					//			//  + fmt.Sprintf("%s", r)
+					//			core.GetLogger().Error(r)
+					//			replyToSender(mctx, msg, "已从核心崩溃中恢复，请带指令联系开发者。注意不要重复发送本指令以免风控。")
+					//		}
+					//	}()
+					//	session.commandSolve(mctx, msg, msgInfo)
+					//}
+					//go f()
+					session.commandSolve(mctx, msg, msgInfo)
 
 					//c, _ := json.Marshal(msgInfo)
 					//text := fmt.Sprintf("指令测试，来自群%d - %s(%d)：参数 %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, c);
@@ -477,6 +479,7 @@ func (s *IMSession) serve() {
 }
 
 func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
+	// 设置AmIBeMentioned
 	cmdArgs.AmIBeMentioned = false
 	for _, i := range cmdArgs.At {
 		if i.UserId == ctx.session.UserId {
@@ -484,6 +487,14 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			break
 		}
 	}
+
+	// 设置临时变量
+	if ctx.player != nil {
+		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.player.Name)})
+		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", msg.Sender.Nickname)})
+		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, ctx.player.DiceSideNum})
+	}
+	VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, msg.Sender.UserId})
 
 	tryItemSolve := func (item *CmdItemInfo) bool {
 		if item != nil {
