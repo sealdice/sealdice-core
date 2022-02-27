@@ -204,7 +204,7 @@ type VMValue struct {
 	Value  interface{} `json:"value"`
 }
 
-func (v *VMValue) toString() interface{} {
+func (v *VMValue) toString() string {
 	switch v.TypeId {
 	case VMTypeInt64:
 		return strconv.FormatInt(v.Value.(int64), 10)
@@ -246,7 +246,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			str := code.ValueStr
 
 			for index, i := range parts {
-				str = strings.Replace(str, i, strconv.FormatInt(stack[top-len(parts)+index].Value.(int64), 10), 1)
+				val := stack[top-len(parts)+index]
+				str = strings.Replace(str, i, val.toString(), 1)
 			}
 
 			top -= len(parts)
@@ -265,12 +266,15 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			top++
 			continue
 		case TypeLoadVarname:
-			var v int64
+			var v interface{}
+			var vType VMValueType
+
 			if ctx != nil {
 				var exists bool
 				v2, exists := VarGetValue(ctx, code.ValueStr)
 				if exists {
-					v = v2.Value.(int64)
+					vType = v2.TypeId
+					v = v2.Value
 				} else {
 					if ctx.player != nil {
 						v, exists = ctx.player.GetValueInt64(code.ValueStr, nil)
@@ -278,15 +282,26 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 							// TODO: 找不到时的处理
 						}
 					}
+
+					textTmpl := ctx.dice.TextMap[code.ValueStr]
+					if textTmpl != nil {
+						vType = VMTypeString
+						v = DiceFormat(ctx, textTmpl.Pick().(string))
+					} else {
+						vType = VMTypeString
+						v = "<%未定义值-" + code.ValueStr + "%>"
+					}
 				}
 			}
 
-			stack[top].TypeId = VMTypeInt64
+			stack[top].TypeId = vType
 			stack[top].Value = v
 			top++
 
-			lastDetail := fmt.Sprintf("%s=%d", code.ValueStr, v)
-			lastDetails = append(lastDetails, lastDetail)
+			if vType == VMTypeInt64 {
+				lastDetail := fmt.Sprintf("%s=%d", code.ValueStr, v)
+				lastDetails = append(lastDetails, lastDetail)
+			}
 			continue
 		case TypeNegation:
 			a := &stack[top-1]

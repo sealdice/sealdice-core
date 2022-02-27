@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-var VERSION = "0.9测试版 v20220226"
-
 func SetBotOnAtGroup(session *IMSession, msg *Message) {
 	group := session.ServiceAt[msg.GroupId]
 	if group != nil {
@@ -115,22 +113,26 @@ func (self *Dice) registerCoreCommands() {
 							SetBotOnAtGroup(ctx.session, msg)
 							ctx.group = ctx.session.ServiceAt[msg.GroupId]
 							ctx.isCurGroupBotOn = true
-							replyGroup(ctx, msg.GroupId, "SealDice 已启用(开发中) " + VERSION)
+							// "SealDice 已启用(开发中) " + VERSION
+							replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子开启"))
 						} else if cmdArgs.Args[0] == "off" {
 							if len(ctx.group.ActivatedExtList) == 0 {
 								delete(ctx.session.ServiceAt, msg.GroupId)
 							} else {
 								ctx.group.Active = false
 							}
-							replyGroup(ctx, msg.GroupId, "停止服务")
+							// 停止服务
+							replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子关闭"))
 						} else if cmdArgs.Args[0] == "bye" {
-							replyGroup(ctx, msg.GroupId, "收到指令，5s后将退出当前群组")
+							// 收到指令，5s后将退出当前群组
+							replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
 							ctx.group.Active = false
 							time.Sleep(6 * time.Second)
 							quitGroup(ctx.session, msg.GroupId)
 						} else if cmdArgs.Args[0] == "save" {
 							self.save()
-							replyGroup(ctx, msg.GroupId, fmt.Sprintf("数据已保存"))
+							// 数据已保存
+							replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子保存设置"))
 						}
 					}
 				}
@@ -222,7 +224,7 @@ func (self *Dice) registerCoreCommands() {
 
 				if cmdArgs.Command == "rh" || cmdArgs.Command == "rhd" {
 					prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", ctx.group.GroupName, msg.GroupId)
-					replyGroup(ctx, msg.GroupId, "黑暗的角落里，传来命运转动的声音")
+					replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:暗骰-群内"))
 					replyPerson(ctx, msg.Sender.UserId, prefix + text)
 				} else {
 					replyGroup(ctx, msg.GroupId, text)
@@ -320,12 +322,18 @@ func (self *Dice) registerCoreCommands() {
 					if len(cmdArgs.Args) == 0 {
 						p := ctx.player
 						p.Name = msg.Sender.Nickname
-						replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称已重置为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
+						VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.player.Name)})
+
+						replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:昵称-重置"))
+						//replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称已重置为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
 					}
 					if len(cmdArgs.Args) >= 1 {
 						p := ctx.player
 						p.Name = cmdArgs.Args[0]
-						replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
+						VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.player.Name)})
+
+						replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:昵称-改名"))
+						//replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
 					}
 				}
 			}
@@ -347,13 +355,16 @@ func (self *Dice) registerCoreCommands() {
 					num, err := strconv.Atoi(cmdArgs.Args[0])
 					if err == nil {
 						p.DiceSideNum = num
-						replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num))
+						replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:设定默认骰子面数"))
+						//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num))
 					} else {
-						replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"))
+						//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"))
+						replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:设定默认骰子面数-错误"))
 					}
 				} else {
 					p.DiceSideNum = 0
-					replyGroup(ctx, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"))
+					//replyGroup(ctx, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"))
+					replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:设定默认骰子面数-重置"))
 				}
 			}
 
@@ -367,7 +378,7 @@ func (self *Dice) registerCoreCommands() {
 	cmdText := &CmdItemInfo{
 		name: "text",
 		Brief: "文本指令(测试)，举例: .text 1D16={ 1d16 }，属性计算: 攻击 - 防御 = {攻击} - {防御} = {攻击 - 防御}",
-		Help: ".text <文本模板> // 文本指令，例: .text 丢个16面骰看看: {1d16}",
+		Help: ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}",
 		solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if ctx.isCurGroupBotOn || ctx.MessageType == "private" {
 				val, _, err := self.exprText(cmdArgs.RawArgs, ctx)
@@ -390,7 +401,7 @@ func (self *Dice) registerCoreCommands() {
 	cmdChar := &CmdItemInfo{
 		name: "ch",
 		//Help: ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色\n.ch list // 列出当前角色",
-		Help: ".ch list/save/load // 角色管理",
+		Help: ".ch list/save/load/del // 角色管理",
 		solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
 			if ctx.isCurGroupBotOn {
 				getNickname := func() string {
@@ -424,12 +435,17 @@ func (self *Dice) registerCoreCommands() {
 						err := JsonValueMapUnmarshal([]byte(data.Value.(string)), &ctx.player.ValueMap)
 						if err == nil {
 							ctx.player.Name = name
-							replyToSender(ctx, msg, fmt.Sprintf("角色<%s>加载成功，欢迎回来。", name))
+							VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.player.Name)})
+
+							//replyToSender(ctx, msg, fmt.Sprintf("角色<%s>加载成功，欢迎回来。", name))
+							replyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:角色管理-加载成功"))
 						} else {
-							replyToSender(ctx, msg, "无法加载角色：序列化失败")
+							//replyToSender(ctx, msg, "无法加载角色：序列化失败")
+							replyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理-序列化失败"))
 						}
 					} else {
-						replyToSender(ctx, msg, "无法加载角色：你所指定的角色不存在")
+						//replyToSender(ctx, msg, "无法加载角色：你所指定的角色不存在")
+						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理-角色不存在"))
 					}
 				}  else if cmdArgs.isArgEqual(1, "save") {
 					name := getNickname()
@@ -441,13 +457,23 @@ func (self *Dice) registerCoreCommands() {
 							VMTypeString,
 							string(v),
 						}
-						replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", name))
+						VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
+						//replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", name))
+						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理-储存成功"))
 					} else {
-						replyToSender(ctx, msg, "无法储存角色：序列化失败")
+						//replyToSender(ctx, msg, "无法储存角色：序列化失败")
+						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理-序列化失败"))
 					}
+				}  else if cmdArgs.isArgEqual(1, "del", "rm") {
+					name := getNickname()
+					vars := ctx.LoadPlayerVars()
+
+					VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
+					delete(vars.ValueMap, "$ch:" + name)
+					replyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理-删除成功"))
 				} else {
 					help := "角色指令\n"
-					help += ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色，角色名省略则为当前昵称\n.ch list // 列出当前角色"
+					help += ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色，角色名省略则为当前昵称\n.ch list // 列出当前角色\n.ch del <角色名> // 删除角色"
 					replyToSender(ctx, msg, help)
 				}
 			}
@@ -461,4 +487,20 @@ func (self *Dice) registerCoreCommands() {
 	self.cmdMap["ch"] = cmdChar
 	self.cmdMap["char"] = cmdChar
 	self.cmdMap["character"] = cmdChar
+}
+
+func DiceFormatTmpl(ctx *MsgContext, s string) string {
+	var text string
+	a := ctx.dice.TextMap[s]
+	if a == nil {
+		text = "<%未知项-" + s + "%>"
+	} else {
+		text = ctx.dice.TextMap[s].Pick().(string)
+	}
+	return DiceFormat(ctx, text)
+}
+
+func DiceFormat(ctx *MsgContext, s string) string {
+	r, _, _ := ctx.dice.exprText(s, ctx)
+	return r
 }

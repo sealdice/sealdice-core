@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	wr "github.com/mroth/weightedrand"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -13,6 +14,8 @@ import (
 	"sealdice-core/model"
 	"time"
 )
+
+var VERSION = "0.9测试版 v20220226"
 
 type CmdItemInfo struct {
 	name  string
@@ -52,7 +55,8 @@ type Dice struct {
 	extList               []*ExtInfo
 	RollParser            *DiceRollParser `yaml:"-"`
 	CommandCompatibleMode bool            `yaml:"commandCompatibleMode"`
-	lastSavedTime         *time.Time       `yaml:"lastSavedTime"`
+	lastSavedTime         *time.Time      `yaml:"lastSavedTime"`
+	TextMap               map[string]*wr.Chooser `yaml:"-"`
 }
 
 func (self *Dice) init() {
@@ -136,8 +140,6 @@ func (self *Dice) exprText(buffer string, ctx *MsgContext) (string, string, erro
 	return "", "", errors.New("错误的表达式")
 }
 
-var BASE_CONFIG = "./data/config.yaml"
-
 func (self *Dice) loads() {
 	os.MkdirAll("./data", 0644)
 	data, err := ioutil.ReadFile(BASE_CONFIG)
@@ -214,6 +216,33 @@ func (self *Dice) loads() {
 	} else {
 		log.Println("config.yaml not found")
 	}
+
+	// 读取文本模板
+	data, err = ioutil.ReadFile(CONFIG_TEXT_TEMPLATE_FILE)
+	if err != nil {
+		panic(err)
+	}
+	texts := TextTemplateWithWeightDict{}
+	err = yaml.Unmarshal(data, &texts)
+	if err != nil {
+		panic(err)
+	}
+	self.TextMap = map[string]*wr.Chooser{}
+
+	for category, item := range texts {
+		for k, v := range item {
+			choices := []wr.Choice{}
+			for t, w := range v {
+				choices = append(choices, wr.Choice{Item: t, Weight: w})
+			}
+
+			pool, _ := wr.NewChooser(choices...)
+			self.TextMap[fmt.Sprintf("%s:%s", category, k)] = pool
+		}
+	}
+
+	picker, _ := wr.NewChooser(wr.Choice{VERSION, 1})
+	self.TextMap["常量:VERSION"] = picker
 }
 
 func (self *Dice) save() {

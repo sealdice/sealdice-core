@@ -100,15 +100,21 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 	}
 
 	// 个人群变量
-	v, e := ctx.player.ValueMap[name]
-	return &v, e
+	if ctx.player != nil {
+		v, e := ctx.player.ValueMap[name]
+		return &v, e
+	}
+	return nil, false
 }
 
 func (i *PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) string {
 	name := s
 
 	if alias == nil {
-		alias = *i.TempValueAlias
+		// 当私聊的时候，i就会是nil
+		if i != nil && i.TempValueAlias != nil {
+			alias = *i.TempValueAlias
+		}
 	}
 
 	for k, v := range alias {
