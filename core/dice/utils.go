@@ -1,4 +1,4 @@
-package main
+package dice
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ func RemoveSpace(s string) string {
 func UploadFileToTransferSh(filename string, data io.Reader) string {
 	log := core.GetLogger()
 	client := &http.Client{}
-	req, err := http.NewRequest("PUT", "https://transfer.sh/" + filename, data)
+	req, err := http.NewRequest("PUT", "https://transfer.sh/"+filename, data)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func UploadFileToFileIo(filename string, data io.Reader) string {
 		log.Fatal(err)
 	}
 
-	var ret struct{
+	var ret struct {
 		Link string `json:"string"`
 	}
 	_ = json.Unmarshal(bodyText, &ret)
@@ -104,11 +104,11 @@ func UploadFileToFileIo(filename string, data io.Reader) string {
 	//maxDownloads: 1
 	//mimeType: "application/x-zip-compressed"
 	//modified: "2022-02-25T04:57:05.297Z"
-	//name: "2022_02_24_17_11_38.zip"
+	//Name: "2022_02_24_17_11_38.zip"
 	//private: false
 	//size: 1359
 	//status: 200
-	//success: true
+	//Success: true
 }
 
 func JsonNumberUnmarshal(data []byte, v interface{}) error {

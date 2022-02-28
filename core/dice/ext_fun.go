@@ -1,7 +1,6 @@
-package main
+package dice
 
 import (
-	"fmt"
 	wr "github.com/mroth/weightedrand"
 	"math/rand"
 	"time"
@@ -77,8 +76,7 @@ var gugu = []string{
 	"说咕就咕怎么能算是咕咕了呢！",
 }
 
-
-func (self *Dice) registerBuiltinExtFun() {
+func RegisterBuiltinExtFun(self *Dice) {
 	choices := []wr.Choice{}
 	for _, i := range gugu {
 		choices = append(choices, wr.Choice{Item: i, Weight: 1})
@@ -86,31 +84,25 @@ func (self *Dice) registerBuiltinExtFun() {
 	guguRandomPool, _ := wr.NewChooser(choices...)
 
 	cmdGugu := CmdItemInfo{
-		name: "gugu",
+		Name:  "gugu",
 		Brief: "获取一个随机的咕咕理由",
-		solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if ctx.isCurGroupBotOn || msg.MessageType == "private" {
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				//p := getPlayerInfoBySender(session, msg)
 				rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
-				replyToSender(ctx, msg, "🕊️: " + guguRandomPool.Pick().(string))
+				ReplyToSender(ctx, msg, "🕊️: "+guguRandomPool.Pick().(string))
 			}
-			return struct{ success bool }{
-				success: true,
-			}
+			return CmdExecuteResult{Success: true}
 		},
 	}
 
-	jrrpTexts := map[string]string{
-		"rp": "<%s> 的今日人品为 %d",
-	}
 	cmdJrrp := CmdItemInfo{
-		name: "jrrp",
+		Name:  "jrrp",
 		Brief: "获得一个D100随机值，一天内不会变化",
-		texts: jrrpTexts,
-		solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if msg.MessageType == "group" {
-				if ctx.isCurGroupBotOn {
-					p := ctx.player
+				if ctx.IsCurGroupBotOn {
+					p := ctx.Player
 					todayTime := time.Now().Format("2006-01-02")
 
 					rp := 0
@@ -122,44 +114,40 @@ func (self *Dice) registerBuiltinExtFun() {
 						p.RpToday = rp
 					}
 
-					replyGroup(ctx, msg.GroupId, fmt.Sprintf(jrrpTexts["rp"], p.Name, rp))
+					VarSetValue(ctx, "$t人品", &VMValue{VMTypeInt64, int64(rp)})
+					ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "娱乐:今日人品"))
 				}
 			}
-
-			return struct{ success bool }{
-				success: true,
-			}
+			return CmdExecuteResult{Success: true}
 		},
 	}
 
-	self.extList = append(self.extList, &ExtInfo{
-		Name:       "fun", // 扩展的名称，需要用于指令中，写简短点
-		version:    "0.0.1",
-		Brief: "娱乐扩展，主打抽牌功能、智能鸽子",
-		autoActive: true, // 是否自动开启
+	self.ExtList = append(self.ExtList, &ExtInfo{
+		Name:            "fun", // 扩展的名称，需要用于指令中，写简短点
+		Version:         "0.0.1",
+		Brief:           "娱乐扩展，主打抽牌功能、智能鸽子",
+		AutoActive:      true, // 是否自动开启
 		ActiveOnPrivate: true,
-		Author: "木落",
+		Author:          "木落",
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 			//p := getPlayerInfoBySender(session, msg)
 			//p.TempValueAlias = &ac.Alias;
 		},
 		OnLoad: func() {
 		},
-		GetDescText: func (i *ExtInfo) string {
+		GetDescText: func(i *ExtInfo) string {
 			return "> " + i.Brief + "\n" + "提供命令:\n.gugu / .咕咕  // 获取一个随机的咕咕理由\n.deck <牌堆> // 从牌堆抽牌\n.jrrp 今日人品"
 		},
-		cmdMap: CmdMapCls{
+		CmdMap: CmdMapCls{
 			"gugu": &cmdGugu,
-			"咕咕": &cmdGugu,
+			"咕咕":   &cmdGugu,
 			"jrrp": &cmdJrrp,
 			"deck": &CmdItemInfo{
-				name: "deck",
+				Name:  "deck",
 				Brief: "从牌堆抽牌",
-				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-					replyToSender(ctx, msg, "尚未开发完成，敬请期待")
-					return struct{ success bool }{
-						success: true,
-					}
+				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+					ReplyToSender(ctx, msg, "尚未开发完成，敬请期待")
+					return CmdExecuteResult{Success: true}
 				},
 			},
 		},

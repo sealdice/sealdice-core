@@ -1,4 +1,6 @@
-package main
+package dice
+
+// 用户变量相关
 
 import (
 	"sealdice-core/core"
@@ -6,18 +8,25 @@ import (
 	"strings"
 )
 
+func (ctx *MsgContext) LoadPlayerVars() *PlayerVariablesItem {
+	if ctx.Player != nil {
+		return LoadPlayerVars(ctx.Session, ctx.Player.UserId)
+	}
+	return nil
+}
+
 func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
-	name := ctx.player.GetValueNameByAlias(s, nil)
+	name := ctx.Player.GetValueNameByAlias(s, nil)
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
-		ctx.player.ValueMapTemp[s] = *v
+		ctx.Player.ValueMapTemp[s] = *v
 		return
 	}
 
 	// 个人变量
 	if strings.HasPrefix(s, "$m") {
-		if ctx.session != nil && ctx.player != nil {
+		if ctx.Session != nil && ctx.Player != nil {
 			playerVars := ctx.LoadPlayerVars()
 			playerVars.ValueMap[s] = *v
 		}
@@ -25,63 +34,63 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	}
 
 	// 群变量
-	if ctx.group != nil && strings.HasPrefix(s, "$g") {
+	if ctx.Group != nil && strings.HasPrefix(s, "$g") {
 		// 这里不知道原因，但是有时候 ValueMap 不会被创建
-		g := ctx.group
+		g := ctx.Group
 		if g.ValueMap == nil {
 			g.ValueMap = map[string]VMValue{}
 		}
 
-		ctx.group.ValueMap[s] = *v
+		ctx.Group.ValueMap[s] = *v
 		return
 	}
 
-	ctx.player.ValueMap[name] = *v
+	ctx.Player.ValueMap[name] = *v
 }
 
 func VarDelValue(ctx *MsgContext, s string) {
-	name := ctx.player.GetValueNameByAlias(s, nil)
+	name := ctx.Player.GetValueNameByAlias(s, nil)
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
-		delete(ctx.player.ValueMapTemp, s)
+		delete(ctx.Player.ValueMapTemp, s)
 		return
 	}
 
 	// 个人变量
 	if strings.HasPrefix(s, "$m") {
-		if ctx.session != nil && ctx.player != nil {
+		if ctx.Session != nil && ctx.Player != nil {
 			playerVars := ctx.LoadPlayerVars()
 			delete(playerVars.ValueMap, s)
 		}
 	}
 
 	// 群变量
-	if ctx.group != nil && strings.HasPrefix(s, "$g") {
-		g := ctx.group
+	if ctx.Group != nil && strings.HasPrefix(s, "$g") {
+		g := ctx.Group
 		if g.ValueMap == nil {
 			g.ValueMap = map[string]VMValue{}
 		}
 
-		delete(ctx.group.ValueMap, s)
+		delete(ctx.Group.ValueMap, s)
 		return
 	}
 
-	delete(ctx.player.ValueMap, name)
+	delete(ctx.Player.ValueMap, name)
 }
 
 func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
-	name := ctx.player.GetValueNameByAlias(s, nil)
+	name := ctx.Player.GetValueNameByAlias(s, nil)
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
-		v, exists := ctx.player.ValueMapTemp[s]
+		v, exists := ctx.Player.ValueMapTemp[s]
 		return &v, exists
 	}
 
 	// 个人全局变量
 	if strings.HasPrefix(s, "$m") {
-		if ctx.session != nil && ctx.player != nil {
+		if ctx.Session != nil && ctx.Player != nil {
 			playerVars := ctx.LoadPlayerVars()
 			a, b := playerVars.ValueMap[s]
 			return &a, b
@@ -89,19 +98,19 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 	}
 
 	// 群变量
-	if ctx.group != nil && strings.HasPrefix(s, "$g") {
-		g := ctx.group
+	if ctx.Group != nil && strings.HasPrefix(s, "$g") {
+		g := ctx.Group
 		if g.ValueMap == nil {
 			g.ValueMap = map[string]VMValue{}
 		}
 
-		v, exists := ctx.group.ValueMap[s]
+		v, exists := ctx.Group.ValueMap[s]
 		return &v, exists
 	}
 
 	// 个人群变量
-	if ctx.player != nil {
-		v, e := ctx.player.ValueMap[name]
+	if ctx.Player != nil {
+		v, e := ctx.Player.ValueMap[name]
 		return &v, e
 	}
 	return nil, false
@@ -134,13 +143,13 @@ func (i *PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) st
 
 func (i *PlayerInfo) SetValueInt64(s string, value int64, alias map[string][]string) {
 	name := i.GetValueNameByAlias(s, alias)
-	VarSetValue(&MsgContext{player: i}, name, &VMValue{VMTypeInt64, value})
+	VarSetValue(&MsgContext{Player: i}, name, &VMValue{VMTypeInt64, value})
 }
 
 func (i *PlayerInfo) GetValueInt64(s string, alias map[string][]string) (int64, bool) {
 	var ret int64
 	name := i.GetValueNameByAlias(s, alias)
-	v, exists := VarGetValue(&MsgContext{player: i}, name)
+	v, exists := VarGetValue(&MsgContext{Player: i}, name)
 
 	if exists {
 		ret = v.Value.(int64)

@@ -1,4 +1,4 @@
-package main
+package dice
 
 import (
 	"errors"
@@ -32,8 +32,8 @@ const (
 )
 
 type ByteCode struct {
-	T     Type
-	Value int64
+	T        Type
+	Value    int64
 	ValueStr string
 	ValueAny interface{}
 }
@@ -75,7 +75,7 @@ func (code *ByteCode) CodeString() string {
 	case TypeExponentiation:
 		return "pow"
 	case TypeDice:
-		return "dice"
+		return "Dice"
 	case TypeDiceUnary:
 		return "dice1"
 	case TypeLoadVarname:
@@ -95,10 +95,10 @@ func (code *ByteCode) CodeString() string {
 }
 
 type RollExpression struct {
-	Code []ByteCode
-	Top  int
+	Code          []ByteCode
+	Top           int
 	BigFailDiceOn bool
-	error error
+	Error         error
 }
 
 func (e *RollExpression) Init(stackLength int) {
@@ -106,11 +106,11 @@ func (e *RollExpression) Init(stackLength int) {
 }
 
 func (e *RollExpression) checkStackOverflow() bool {
-	if e.error != nil {
+	if e.Error != nil {
 		return true
 	}
 	if e.Top >= len(e.Code) {
-		e.error = errors.New("E1:指令虚拟机栈溢出，请不要发送过于离谱的指令")
+		e.Error = errors.New("E1:指令虚拟机栈溢出，请不要发送过于离谱的指令")
 		return true
 	}
 	return false
@@ -124,7 +124,6 @@ func (e *RollExpression) AddLeftValueMark() {
 	e.Top++
 	code[top].T = TypeLeftValueMark
 }
-
 
 func (e *RollExpression) AddOperator(operator Type) {
 	code, top := e.Code, e.Top
@@ -190,36 +189,11 @@ func (e *RollExpression) AddFormatString(value string) {
 	code[top].ValueAny = re.FindAllString(value, -1)
 }
 
-type VMValueType int
-
-const (
-	VMTypeInt64      VMValueType = 0
-	VMTypeString      VMValueType = 1
-	VMTypeBool      VMValueType = 2
-	VMTypeExpression VMValueType = 3
-)
-
-type VMValue struct {
-	TypeId VMValueType `json:"typeId"`
-	Value  interface{} `json:"value"`
-}
-
-func (v *VMValue) toString() string {
-	switch v.TypeId {
-	case VMTypeInt64:
-		return strconv.FormatInt(v.Value.(int64), 10)
-	case VMTypeString:
-		return v.Value.(string)
-	default:
-		return "a value"
-	}
-}
-
 type vmStack = VMValue
 
-type vmResult struct {
+type VmResult struct {
 	VMValue
-	parser *DiceRollParser
+	Parser *DiceRollParser
 }
 
 func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, error) {
@@ -247,7 +221,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 			for index, i := range parts {
 				val := stack[top-len(parts)+index]
-				str = strings.Replace(str, i, val.toString(), 1)
+				str = strings.Replace(str, i, val.ToString(), 1)
 			}
 
 			top -= len(parts)
@@ -276,14 +250,14 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 					vType = v2.TypeId
 					v = v2.Value
 				} else {
-					if ctx.player != nil {
-						v, exists = ctx.player.GetValueInt64(code.ValueStr, nil)
+					if ctx.Player != nil {
+						v, exists = ctx.Player.GetValueInt64(code.ValueStr, nil)
 						if !exists {
 							// TODO: 找不到时的处理
 						}
 					}
 
-					textTmpl := ctx.dice.TextMap[code.ValueStr]
+					textTmpl := ctx.Dice.TextMap[code.ValueStr]
 					if textTmpl != nil {
 						vType = VMTypeString
 						v = DiceFormat(ctx, textTmpl.Pick().(string))
@@ -309,7 +283,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 		case TypeDiceUnary:
 			a := &stack[top-1]
-			// dice XXX, 如 d100
+			// Dice XXX, 如 d100
 			a.Value = DiceRoll64(a.Value.(int64))
 			continue
 		case TypeHalt:
@@ -320,12 +294,12 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 		//lastValIndex = top-3
 		top--
 
-		checkDice := func (t *ByteCode) {
+		checkDice := func(t *ByteCode) {
 			// 第一次 左然后右
 			// 后 一直右
 			times += 1
 
-			checkLeft := func () {
+			checkLeft := func() {
 				if calcDetail == "" {
 					calcDetail += strconv.FormatInt(a.Value.(int64), 10)
 				}
@@ -394,9 +368,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 		case TypeDice:
 			checkDice(&code)
-			// XXX dice YYY, 如 3d100
+			// XXX Dice YYY, 如 3d100
 			var num int64
-			for i := int64(0); i < aInt; i+=1 {
+			for i := int64(0); i < aInt; i += 1 {
 				if e.BigFailDiceOn {
 					num += bInt
 				} else {

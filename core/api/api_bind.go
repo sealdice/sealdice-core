@@ -1,9 +1,7 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
-	"sealdice-core/core/dice"
 
 	"github.com/labstack/echo/v4"
 )
@@ -13,10 +11,10 @@ func hello(c echo.Context) error {
 }
 
 func hello2(c echo.Context) error {
-	dice.CmdRegister("aaa", "bb");
-	a := dice.CmdList();
-	b, _ := json.Marshal(a)
-	return c.String(http.StatusOK, string(b));
+	//dice.CmdRegister("aaa", "bb");
+	//a := dice.CmdList();
+	//b, _ := json.Marshal(a)
+	return c.String(http.StatusOK, string(""))
 }
 
 func Bind(e *echo.Echo) {

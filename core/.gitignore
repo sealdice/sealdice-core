@@ -26,3 +26,4 @@ pegtest/
 temp/
 
 dist/
+go-cqhttp/
