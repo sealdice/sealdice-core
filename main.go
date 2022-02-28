@@ -4,79 +4,66 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"os"
+	"os/signal"
 	"sealdice-core/api"
 	"sealdice-core/core"
+	"sealdice-core/dice"
 	"sealdice-core/model"
+	"syscall"
+	"time"
 )
 
+/**
+二进制目录结构:
+data/configs
+data/extensions
+data/logs
+
+extensions/
+*/
 
 func main() {
 	core.LoggerInit()
 	model.DBInit()
-	aa := func() {
-		fmt.Println("收尾")
+	cleanUp := func() {
+		fmt.Println("程序即将推出，进行清理……")
 		model.GetDB().Close()
 	}
+	defer cleanUp()
 
-	defer aa()
+	go (func() {
+		// 创建核心并提供服务
+		myDice := &dice.Dice{}
+		myDice.Init()
 
-	//exp := "(10d1)d(3+5-7)"
-	exp := "$1=1d10"
-	//exp := "1234^4+15*6-17+6d12+3d15k2-d12"
-	dep := &DiceRollParser{ Buffer: exp }
-	_ = dep.Init()
+		for {
+			// 骰子开始连接
+			fmt.Println("开始连接 onebot 服务")
+			ret := myDice.ImSession.Serve()
 
-	dep.RollExpression.Init(1000)
-	if err := dep.Parse(); err != nil {
-		panic(err)
-	}
+			if ret == 0 {
+				break
+			}
 
-	dep.Execute()
-	//fmt.Println(dep.Evaluate());
+			fmt.Println("onebot 连接中断，将在15秒后重新连接")
+			time.Sleep(time.Duration(15 * time.Second))
+		}
+	})()
 
-	//return;
-	//dep.RollExpression.Execute()
+	go (func() {
+		interrupt := make(chan os.Signal, 1)
+		signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		select {
+		case <-interrupt:
+			time.Sleep(time.Duration(5 * time.Second))
+			fmt.Println("仍未关闭，强制退出")
+			cleanUp()
+			os.Exit(0)
+		}
+	})()
 
-	//args2, _ := flags.ParseArgs(&struct {}{}, args)
-	//fmt.Println(args2, opts)
-	//CommandParse("。asdasd")
-	//CommandParse("。asdasd   222")
-	//CommandParse(".aaa bbb ccc ddd")
-	//CommandParse("  .aaa bbb ccc ddd")
-	//CommandParse("  .aaa bbb \n   ccc ddd")
-	//ArgsParse("aaaa -vv ffas -f=3")
-
-	//AtParse("[CQ:at,qq=3604749540]")
-	//AtParse("[CQ:at,qq=3604749540] 333 [CQ:at,qq=3604749540] 2222")
-	//AtParse("[CQ:at,qq=3604749540] 333 \n[CQ:at,qq=3604749540] 2222")
-	configInit()
-
-	dice := &Dice{}
-	dice.init()
-
-	//1+2*3+d1+4+1d5+
-	//a, d, err := dice.exprEval("0 + 100 + 10 + 2d5 + 2*3*1d5 + 1d4 + 7 + 力量", nil)
-
-	//a, d, err := dice.exprEval("1d30+1", nil)
-	//a, d, err := dice.exprEval("`ROLL:{ 1d20 } LIFE:{ 3d20 } test: { 4 + 5 + 力量}`", nil)
-	//a, d, err := dice.exprEval("`ROLL:{ 1d20 } LIFE:{ 4 }`", nil)
-	//a, d, err := dice.exprEval("+", nil)
-	//a, d, err := dice.exprEval("测试", nil)
-	//a, d, err := dice.exprEval("1 + 1d10 + 力量", nil)
-	//a, d, err := dice.exprEval("1d10 + 1 + 力量", nil)
-	//a, d, err := dice.exprEval("2+$a=$b+1d10+1d6+1", nil)
-	//if err == nil {
-	//	fmt.Println(a.parser.GetAsmText())
-	//	fmt.Println(d)
-	//	fmt.Println("DDD" + "#{a}", a.typeId, a.value, d, err)
-	//} else {
-	//	fmt.Println("DDD2", err)
-	//}
-
-	dice.ImSession.serve()
-
-	return
-
+	fmt.Println("即将启动webui")
 	// Echo instance
 	e := echo.New()
 
@@ -86,7 +73,6 @@ func main() {
 
 	// Routes
 	api.Bind(e)
-
 	// Start server
 	e.Logger.Fatal(e.Start(":1323"))
 }

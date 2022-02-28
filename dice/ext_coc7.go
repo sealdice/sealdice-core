@@ -1,9 +1,10 @@
-package main
+package dice
 
 import (
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -217,7 +218,8 @@ var ManiaListText = `
 100) 喜兽癖（Zoomania）：对待动物的态度近乎疯狂地友好
 `
 
-func (self *Dice) registerBuiltinExtCoc7() {
+func RegisterBuiltinExtCoc7(self *Dice) {
+	// 初始化疯狂列表
 	reFear := regexp.MustCompile(`(\d+)\)\s+([^\n]+)`)
 	m := reFear.FindAllStringSubmatch(fearListText, -1)
 	fearMap := map[int]string{}
@@ -233,45 +235,45 @@ func (self *Dice) registerBuiltinExtCoc7() {
 		maniaMap[n] = i[2]
 	}
 
-	ac := AttributeConfigs{}
-	af, err := ioutil.ReadFile(CONFIG_ATTRIBUTE_FILE)
-	if err == nil {
-		err = yaml.Unmarshal(af, &ac)
-		if err != nil {
-			panic(err)
-		}
-	}
+	// 初始化配置（读取同义词）
+	ac := setupConfig(self)
 
 	cmdRc := &CmdItemInfo{
-		name: "ra/rc <属性>",
+		Name:  "ra/rc <属性>",
 		Brief: "属性检定指令，骰一个D100，当有“D100 ≤ 属性”时，检定通过",
-		solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-			if ctx.isCurGroupBotOn && len(cmdArgs.Args) >= 1 {
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 1 {
 				var cond int64
-				var r *vmResult
+				var r *VmResult
 
 				if len(cmdArgs.Args) >= 1 {
 					var err error
 					var suffix, detail string
 					d100 := DiceRoll64(100)
-					r, detail, err = ctx.dice.exprEval(cmdArgs.RawArgs, ctx)
+					r, detail, err = ctx.Dice.ExprEval(cmdArgs.RawArgs, ctx)
 					if r != nil && r.TypeId == 0 {
 						cond = r.Value.(int64)
 					}
 
-					cocRule := ctx.group.CocRuleIndex
+					cocRule := ctx.Group.CocRuleIndex
 					if cmdArgs.Command == "rc" {
 						// 强制规则书
 						cocRule = 0
 					}
 					successRank := ResultCheck(cocRule, d100, cond)
 					switch successRank {
-					case -2: suffix = DiceFormatTmpl(ctx, "COC7:判定-大失败")
-					case -1: suffix = DiceFormatTmpl(ctx, "COC7:判定-失败")
-					case +1: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-普通")
-					case +2: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
-					case +3: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
-					case +4: suffix = DiceFormatTmpl(ctx, "COC7:判定-大成功")
+					case -2:
+						suffix = DiceFormatTmpl(ctx, "COC7:判定-大失败")
+					case -1:
+						suffix = DiceFormatTmpl(ctx, "COC7:判定-失败")
+					case +1:
+						suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-普通")
+					case +2:
+						suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+					case +3:
+						suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+					case +4:
+						suffix = DiceFormatTmpl(ctx, "COC7:判定-大成功")
 					}
 
 					if err == nil {
@@ -280,96 +282,94 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							detailWrap = "=(" + detail + ")"
 						}
 
-						text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.player.Name, cmdArgs.RawArgs, d100, cond, detailWrap, suffix)
-						replyGroup(ctx, msg.GroupId, text)
+						text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.Player.Name, cmdArgs.RawArgs, d100, cond, detailWrap, suffix)
+						ReplyGroup(ctx, msg.GroupId, text)
 					} else {
-						replyGroup(ctx, msg.GroupId, "表达式不正确，可能是找不到属性")
+						ReplyGroup(ctx, msg.GroupId, "表达式不正确，可能是找不到属性")
 					}
 				}
 			}
-			return struct{ success bool }{
-				success: true,
-			}
+			return CmdExecuteResult{Success: true}
 		},
 	}
 
-	self.extList = append(self.extList, &ExtInfo{
-		Name: "coc7",
-		version: "0.0.1",
-		Brief: "第七版克苏鲁的呼唤TRPG跑团指令集",
-		autoActive: true,
-		Author: "木落",
-		OnLoad: func() {},
-		OnCommandReceived: func (ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			ctx.player.TempValueAlias = &ac.Alias
+	theExt := &ExtInfo{
+		Name:       "coc7",
+		Version:    "0.0.1",
+		Brief:      "第七版克苏鲁的呼唤TRPG跑团指令集",
+		AutoActive: true,
+		Author:     "木落",
+		OnLoad: func() {
+
 		},
-		GetDescText: func (ei *ExtInfo) string {
+		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
+			ctx.Player.TempValueAlias = &ac.Alias
+		},
+		GetDescText: func(ei *ExtInfo) string {
 			text := "> " + ei.Brief + "\n" + "提供命令:\n"
-			keys := make([]string, 0, len(ei.cmdMap))
-			for k := range ei.cmdMap {
+			keys := make([]string, 0, len(ei.CmdMap))
+			for k := range ei.CmdMap {
 				keys = append(keys, k)
 			}
 			sort.Strings(keys)
 
 			for _, i := range keys {
-				i := ei.cmdMap[i]
+				i := ei.CmdMap[i]
 				brief := i.Brief
 				if brief != "" {
 					brief = " // " + brief
 				}
-				text += "." + i.name + brief + "\n"
+				text += "." + i.Name + brief + "\n"
 			}
 
 			return text
 		},
-		cmdMap: CmdMapCls{
+		CmdMap: CmdMapCls{
 			"setcoc": &CmdItemInfo{
-				name: "setcoc",
+				Name:  "setcoc",
 				Brief: "设置房规",
-				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					n, _ := cmdArgs.GetArgN(1)
 					switch n {
 					case "0":
-						ctx.group.CocRuleIndex = 0
-						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-0"))
+						ctx.Group.CocRuleIndex = 0
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-0"))
 					case "1":
-						ctx.group.CocRuleIndex = 1
-						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-1"))
+						ctx.Group.CocRuleIndex = 1
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-1"))
 					case "2":
-						ctx.group.CocRuleIndex = 2
-						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-2"))
+						ctx.Group.CocRuleIndex = 2
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-2"))
 					case "3":
-						ctx.group.CocRuleIndex = 3
-						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-3"))
+						ctx.Group.CocRuleIndex = 3
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-3"))
 					case "4":
-						ctx.group.CocRuleIndex = 4
-						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-4"))
+						ctx.Group.CocRuleIndex = 4
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-4"))
 					case "5":
-						ctx.group.CocRuleIndex = 5
-						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-5"))
+						ctx.Group.CocRuleIndex = 5
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-5"))
 					default:
-						VarSetValue(ctx, "$t房规", &VMValue{VMTypeInt64, int64(ctx.group.CocRuleIndex)})
-						replyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-当前"))
+						VarSetValue(ctx, "$t房规", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-当前"))
 					}
 
-					return struct{ success bool }{
-						success: true,
-					}
+					return CmdExecuteResult{Success: true}
 				},
 			},
 			"ti": &CmdItemInfo{
-				name: "ti",
+				Name:  "ti",
 				Brief: "随机抽取一个临时性疯狂症状",
-				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// 临时性疯狂
-					if ctx.isCurGroupBotOn {
+					if ctx.IsCurGroupBotOn {
 						foo := func(tmpl string) string {
-							val, _, _ := self.exprText(tmpl, ctx)
+							val, _, _ := self.ExprText(tmpl, ctx)
 							return val
 						}
 
 						num := DiceRoll(10)
-						text := fmt.Sprintf("<%s>的疯狂发作-即时症状:\n1D10=%d\n", ctx.player.Name, num)
+						text := fmt.Sprintf("<%s>的疯狂发作-即时症状:\n1D10=%d\n", ctx.Player.Name, num)
 
 						switch num {
 						case 1:
@@ -400,26 +400,24 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							text += maniaMap[num2]
 						}
 
-						replyGroup(ctx, msg.GroupId, text)
+						ReplyGroup(ctx, msg.GroupId, text)
 					}
-					return struct{ success bool }{
-						success: true,
-					}
+					return CmdExecuteResult{Success: true}
 				},
 			},
 			"li": &CmdItemInfo{
-				name: "li",
+				Name:  "li",
 				Brief: "随机抽取一个总结性疯狂症状",
-				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// 总结性疯狂
-					if ctx.isCurGroupBotOn {
+					if ctx.IsCurGroupBotOn {
 						foo := func(tmpl string) string {
-							val, _, _ := self.exprText(tmpl, ctx)
+							val, _, _ := self.ExprText(tmpl, ctx)
 							return val
 						}
 
 						num := DiceRoll(10)
-						text := fmt.Sprintf("<%s>的疯狂发作-总结症状:\n1D10=%d\n", ctx.player.Name, num)
+						text := fmt.Sprintf("<%s>的疯狂发作-总结症状:\n1D10=%d\n", ctx.Player.Name, num)
 
 						switch num {
 						case 1:
@@ -450,20 +448,18 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							text += maniaMap[num2]
 						}
 
-						replyGroup(ctx, msg.GroupId, text)
+						ReplyGroup(ctx, msg.GroupId, text)
 					}
-					return struct{ success bool }{
-						success: true,
-					}
+					return CmdExecuteResult{Success: true}
 				},
 			},
 			"ra": cmdRc,
 			"rc": cmdRc,
 			"sc": &CmdItemInfo{
-				name: "sc <成功时掉san>/<失败时掉san>",
+				Name:  "sc <成功时掉san>/<失败时掉san>",
 				Brief: "对理智进行一次D100检定，根据结果扣除理智。如“.sc 0/1d3”为成功不扣除理智，失败扣除1d3。大失败时按掷骰最大值扣除。支持复杂表达式。如.sc 1d2+3/1d(知识+1)",
-				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-					if ctx.isCurGroupBotOn && len(cmdArgs.Args) >= 1 {
+				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+					if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 1 {
 						// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
 						// v2: (worst) FAIL — REGULAR SUCCESS — HARD SUCCESS — EXTREME SUCCESS (best)
 
@@ -474,7 +470,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							var text1 string
 
 							// 读取san值
-							r, _, err := ctx.dice.exprEval("san", ctx)
+							r, _, err := ctx.Dice.ExprEval("san", ctx)
 							if err == nil && r.TypeId == VMTypeInt64 {
 								san = r.Value.(int64)
 							}
@@ -494,7 +490,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 									san = _san
 								}
 
-								r, _, err = ctx.dice.exprEvalBase(successExpr, ctx, false)
+								r, _, err = ctx.Dice.ExprEvalBase(successExpr, ctx, false)
 								if err == nil {
 									reduceSuccess = r.Value.(int64)
 								}
@@ -502,17 +498,23 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								var sanNew int64
 								var suffix string
 
-								successRank := ResultCheck(ctx.group.CocRuleIndex, d100, san)
+								successRank := ResultCheck(ctx.Group.CocRuleIndex, d100, san)
 								switch successRank {
-								case -2: suffix = DiceFormatTmpl(ctx, "COC7:判定-大失败")
-								case -1: suffix = DiceFormatTmpl(ctx, "COC7:判定-失败")
-								case +1: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-普通")
-								case +2: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
-								case +3: suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
-								case +4: suffix = DiceFormatTmpl(ctx, "COC7:判定-大成功")
+								case -2:
+									suffix = DiceFormatTmpl(ctx, "COC7:判定-大失败")
+								case -1:
+									suffix = DiceFormatTmpl(ctx, "COC7:判定-失败")
+								case +1:
+									suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-普通")
+								case +2:
+									suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+								case +3:
+									suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+								case +4:
+									suffix = DiceFormatTmpl(ctx, "COC7:判定-大成功")
 								}
 
-								r, _, err = ctx.dice.exprEvalBase(failedExpr, ctx, successRank == -2)
+								r, _, err = ctx.Dice.ExprEvalBase(failedExpr, ctx, successRank == -2)
 								if err == nil {
 									reduceFail = r.Value.(int64)
 								}
@@ -529,11 +531,11 @@ func (self *Dice) registerBuiltinExtCoc7() {
 									sanNew = 0
 								}
 
-								ctx.player.SetValueInt64("理智", sanNew, ac.Alias)
+								ctx.Player.SetValueInt64("理智", sanNew, ac.Alias)
 
 								//输出结果
 								offset := san - sanNew
-								text := fmt.Sprintf("<%s>的理智检定:\nD100=%d/%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", ctx.player.Name, d100, san, suffix, san, sanNew, text1, offset)
+								text := fmt.Sprintf("<%s>的理智检定:\nD100=%d/%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", ctx.Player.Name, d100, san, suffix, san, sanNew, text1, offset)
 
 								if sanNew == 0 {
 									text += "提示：理智归零，已永久疯狂(可用.ti或.li抽取症状)\n"
@@ -544,24 +546,21 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								}
 
 								// 临时疯狂
-								replyGroup(ctx, msg.GroupId, text)
+								ReplyGroup(ctx, msg.GroupId, text)
 							} else {
-								replyGroup(ctx, msg.GroupId, "命令格式错误")
+								ReplyGroup(ctx, msg.GroupId, "命令格式错误")
 							}
 						}
 					}
-
-					return struct{ success bool }{
-						success: true,
-					}
+					return CmdExecuteResult{Success: true}
 				},
 			},
 
 			"coc": &CmdItemInfo{
-				name:  "coc",
+				Name: "coc",
 				Help: ".coc <数量> // 制卡指令，返回<数量>组",
-				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
-					if ctx.isCurGroupBotOn {
+				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+					if ctx.IsCurGroupBotOn {
 						n, _ := cmdArgs.GetArgN(1)
 						val, err := strconv.ParseInt(n, 10, 64)
 						if err != nil {
@@ -575,29 +574,29 @@ func (self *Dice) registerBuiltinExtCoc7() {
 
 						var ss []string
 						for i = 0; i < val; i++ {
-							result, _, err := self.exprText(`力量:{$t1=3d6*5} 敏捷:{$t2=3d6*5} 意志:{$t3=3d6*5} 体质:{$t4=3d6*5} 外貌:{$t5=3d6*5} 教育:{$t6=(2d6+6)*5} 体型:{$t7=(2d6+6)*5} 智力:{$t8=(2d6+6)*5} 幸运:{$t9=3d6*5} 生命值:{($t4+$t7)/10} 总数:{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8}`, ctx)
+							result, _, err := self.ExprText(`力量:{$t1=3d6*5} 敏捷:{$t2=3d6*5} 意志:{$t3=3d6*5} 体质:{$t4=3d6*5} 外貌:{$t5=3d6*5} 教育:{$t6=(2d6+6)*5} 体型:{$t7=(2d6+6)*5} 智力:{$t8=(2d6+6)*5} 幸运:{$t9=3d6*5} 生命值:{($t4+$t7)/10} 总数:{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8}`, ctx)
 							if err != nil {
 								break
 							}
 							ss = append(ss, result)
 						}
 						info := strings.Join(ss, "\n")
-						replyToSender(ctx, msg, fmt.Sprintf("<%s>的七版COC人物作成:\n%s", ctx.player.Name, info))
+						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的七版COC人物作成:\n%s", ctx.Player.Name, info))
 					}
-					return struct{ success bool }{ true }
+					return CmdExecuteResult{true}
 				},
 			},
 
 			"st": &CmdItemInfo{
-				name: "st show <最小数值> / <属性><数值> / <属性>±<表达式>",
+				Name:  "st show <最小数值> / <属性><数值> / <属性>±<表达式>",
 				Brief: "复杂指令，详见文档。举例: “.st 力量50“ ”.st 力量+1d10““.st show 40“ ",
-				solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) struct{ success bool } {
+				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// .st show
 					// .st help
 					// .st (<Name>[0-9]+)+
 					// .st (<Name>)
 					// .st (<Name>)+-<表达式>
-					if ctx.isCurGroupBotOn && len(cmdArgs.Args) >= 0 {
+					if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 0 {
 						var param1 string
 						if len(cmdArgs.Args) == 0 {
 							param1 = ""
@@ -612,38 +611,38 @@ func (self *Dice) registerBuiltinExtCoc7() {
 							text += ".st del <属性名1> <属性名2> ... // 删除属性，可多项，以空格间隔\n"
 							text += ".st help // 帮助\n"
 							text += ".st <属性名><值> // 例：.st 敏捷50"
-							replyGroup(ctx, msg.GroupId, text)
+							ReplyGroup(ctx, msg.GroupId, text)
 
 						case "del", "rm":
-							p := ctx.player
-							nums := []string{}
-							failed := []string{}
+							p := ctx.Player
+							var nums []string
+							var failed []string
 
 							for _, varname := range cmdArgs.Args[1:] {
-								_, ok := ctx.player.ValueMap[varname]
+								_, ok := ctx.Player.ValueMap[varname]
 								if ok {
 									nums = append(nums, varname)
-									delete(ctx.player.ValueMap, varname)
+									delete(ctx.Player.ValueMap, varname)
 								} else {
 									failed = append(failed, varname)
 								}
 							}
 
 							text := fmt.Sprintf("<%s>的如下属性被成功删除:%s，失败%d项\n", p.Name, nums, len(failed))
-							replyGroup(ctx, msg.GroupId, text)
+							ReplyGroup(ctx, msg.GroupId, text)
 
 						case "clr", "clear":
-							p := ctx.player
+							p := ctx.Player
 							num := len(p.ValueMap)
 							p.ValueMap = map[string]VMValue{}
 							text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
-							replyGroup(ctx, msg.GroupId, text)
+							ReplyGroup(ctx, msg.GroupId, text)
 
 						case "show", "list":
 							info := ""
 							name := msg.Sender.Nickname
 
-							p := ctx.player
+							p := ctx.Player
 							name = p.Name
 
 							useLimit := false
@@ -726,9 +725,9 @@ func (self *Dice) registerBuiltinExtCoc7() {
 										}
 									}
 
-							 		tick += 1
-									info += fmt.Sprintf("%s: %s\t", k, v.toString())
-									if tick % 4 == 0 {
+									tick += 1
+									info += fmt.Sprintf("%s: %s\t", k, v.ToString())
+									if tick%4 == 0 {
 										info += fmt.Sprintf("\n")
 									}
 								}
@@ -738,19 +737,19 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								info += fmt.Sprintf("\n注：%d条属性因≤%d被隐藏", limktSkipCount, limit)
 							}
 							text := fmt.Sprintf("<%s>的个人属性为：\n%s", name, info)
-							replyGroup(ctx, msg.GroupId, text)
+							ReplyGroup(ctx, msg.GroupId, text)
 
 						default:
 							re1, _ := regexp.Compile(`([^\d]+?)([+-])=?(.+)$`)
-							m := re1.FindStringSubmatch(cmdArgs.cleanArgs)
+							m := re1.FindStringSubmatch(cmdArgs.CleanArgs)
 							if len(m) > 0 {
-								p := ctx.player
+								p := ctx.Player
 								val, exists := p.GetValueInt64(m[1], ac.Alias)
 								if !exists {
 									text := fmt.Sprintf("<%s>: 无法找到名下属性 %s，不能作出修改", p.Name, m[1])
-									replyGroup(ctx, msg.GroupId, text)
+									ReplyGroup(ctx, msg.GroupId, text)
 								} else {
-									v, _, err := self.exprEval(m[3], ctx)
+									v, _, err := self.ExprEval(m[3], ctx)
 									if err == nil && v.TypeId == 0 {
 										var newVal int64
 										rightVal := v.Value.(int64)
@@ -766,10 +765,10 @@ func (self *Dice) registerBuiltinExtCoc7() {
 										p.SetValueInt64(m[1], newVal, ac.Alias)
 
 										text := fmt.Sprintf("<%s>的“%s”变化: %d ➯ %d (%s%s=%d)\n", p.Name, m[1], val, newVal, signText, m[3], rightVal)
-										replyGroup(ctx, msg.GroupId, text)
+										ReplyGroup(ctx, msg.GroupId, text)
 									} else {
 										text := fmt.Sprintf("<%s>: 错误的增减值: %s", p.Name, m[3])
-										replyGroup(ctx, msg.GroupId, text)
+										ReplyGroup(ctx, msg.GroupId, text)
 									}
 								}
 							} else {
@@ -777,7 +776,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 								re, _ := regexp.Compile(`([^\d]+?)[:=]?(\d+)`)
 
 								// 读取所有参数中的值
-								stText := cmdArgs.cleanArgs
+								stText := cmdArgs.CleanArgs
 
 								m := re.FindAllStringSubmatch(RemoveSpace(stText), -1)
 
@@ -797,7 +796,7 @@ func (self *Dice) registerBuiltinExtCoc7() {
 
 								count := 0
 								synonymsCount := 0
-								p := ctx.player
+								p := ctx.Player
 
 								for k, v := range valueMap {
 									name := p.GetValueNameByAlias(k, ac.Alias)
@@ -809,31 +808,29 @@ func (self *Dice) registerBuiltinExtCoc7() {
 									p.SetValueInt64(name, v, ac.Alias)
 								}
 
-								p.lastUpdateTime = time.Now().Unix()
+								p.LastUpdateTime = time.Now().Unix()
 								//s, _ := json.Marshal(valueMap)
 								text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据 (其中%d条为同义词)", p.Name, len(valueMap), synonymsCount)
-								replyGroup(ctx, msg.GroupId, text)
+								ReplyGroup(ctx, msg.GroupId, text)
 							}
 						}
 					}
-					return struct{ success bool }{
-						success: true,
-					}
+					return CmdExecuteResult{Success: true}
 				},
 			},
 		},
-	})
+	}
+	self.RegisterExtension(theExt)
 }
 
-
-/**
+/*
 大失败：骰出 100。若成功需要的值低于 50，大于等于 96 的结果都是大失败 -> -2
 失败：骰出大于角色技能或属性值（但不是大失败） -> -1
 常规成功：骰出小于等于角色技能或属性值 -> 1
 困难成功：骰出小于等于角色技能或属性值的一半 -> 2
 极难成功：骰出小于等于角色技能或属性值的五分之一 -> 3
 大成功：骰出1 -> 4
- */
+*/
 func ResultCheck(cocRule int, d100 int64, checkValue int64) int {
 	var successRank int
 
@@ -844,7 +841,7 @@ func ResultCheck(cocRule int, d100 int64, checkValue int64) int {
 	}
 
 	criticalSuccessValue := int64(1) // 大成功阈值
-	fumbleValue := int64(100) // 大失败阈值
+	fumbleValue := int64(100)        // 大失败阈值
 
 	// 村规设定
 	switch cocRule {
@@ -881,7 +878,7 @@ func ResultCheck(cocRule int, d100 int64, checkValue int64) int {
 		if criticalSuccessValue > 5 {
 			criticalSuccessValue = 5
 		}
-		fumbleValue = 96 + checkValue / 10
+		fumbleValue = 96 + checkValue/10
 		if 100 < fumbleValue {
 			fumbleValue = 100
 		}
@@ -902,11 +899,11 @@ func ResultCheck(cocRule int, d100 int64, checkValue int64) int {
 	// 成功判定
 	if successRank == 1 {
 		// 区分大成功、困难成功、极难成功等
-		if d100 <= checkValue / 2 {
+		if d100 <= checkValue/2 {
 			//suffix = "成功(困难)"
 			successRank = 2
 		}
-		if d100 <= checkValue / 5 {
+		if d100 <= checkValue/5 {
 			//suffix = "成功(极难)"
 			successRank = 3
 		}
@@ -934,4 +931,69 @@ func ResultCheck(cocRule int, d100 int64, checkValue int64) int {
 	}
 
 	return successRank
+}
+
+type AttributeOrderOthers struct {
+	SortBy string `yaml:"sortBy"` // time | Name | value desc
+}
+
+type AttributeOrder struct {
+	Top    []string             `yaml:"top,flow"`
+	Others AttributeOrderOthers `yaml:"others"`
+}
+
+type AttributeConfigs struct {
+	Alias map[string][]string `yaml:"alias"`
+	Order AttributeOrder      `yaml:"order"`
+}
+
+func setupConfig(d *Dice) AttributeConfigs {
+	attrConfigFn := d.GetExtConfigFilePath("coc7", "attribute.yaml")
+
+	if _, err := os.Stat(attrConfigFn); err == nil {
+		// 如果文件存在，那么读取
+		ac := AttributeConfigs{}
+		af, err := ioutil.ReadFile(attrConfigFn)
+		if err == nil {
+			err = yaml.Unmarshal(af, &ac)
+			if err != nil {
+				panic(err)
+			}
+		}
+		return ac
+	} else {
+		// 如果不存在，新建
+		defaultVals := AttributeConfigs{
+			Alias: map[string][]string{
+				"理智": {"san", "san值", "理智值"},
+				"力量": {"str"},
+				"体质": {"con"},
+				"体型": {"siz"},
+				"敏捷": {"dex"},
+				"外貌": {"app"},
+				"意志": {"pow"},
+				"教育": {"edu", "知识"}, // 教育和知识等值而不是一回事，注意
+				"智力": {"int", "灵感"}, // 智力和灵感等值而不是一回事，注意
+
+				"幸运":    {"luck", "幸运值"},
+				"生命值":   {"hp", "生命", "血量"},
+				"魔法值":   {"mp", "魔法", "魔力", "魔力值"},
+				"克苏鲁神话": {"cm", "克苏鲁"},
+				"图书馆使用": {"图书馆"},
+				"链枷":    {"连枷"},
+			},
+			Order: AttributeOrder{
+				Top:    []string{"力量", "敏捷", "体质", "体型", "外貌", "智力", "意志", "教育", "理智", "克苏鲁神话", "生命值", "魔法值"},
+				Others: AttributeOrderOthers{SortBy: "Name"},
+			},
+		}
+
+		buf, err := yaml.Marshal(defaultVals)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			ioutil.WriteFile(attrConfigFn, buf, 0644)
+		}
+		return defaultVals
+	}
 }

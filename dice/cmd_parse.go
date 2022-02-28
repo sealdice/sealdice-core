@@ -1,4 +1,4 @@
-package main
+package dice
 
 import (
 	"github.com/jessevdk/go-flags"
@@ -27,11 +27,11 @@ type CmdArgs struct {
 	At             []*AtInfo `json:"atInfo"`
 	RawArgs        string    `json:"rawArgs"`
 	AmIBeMentioned bool      `json:"amIBeMentioned"`
-	cleanArgs      string
+	CleanArgs      string
 }
 
 /** 检查第N项参数是否为某个字符串，n >= 1，若没有第n项参数也视为失败 */
-func (a *CmdArgs) isArgEqual(n int, ss ...string) bool {
+func (a *CmdArgs) IsArgEqual(n int, ss ...string) bool {
 	if len(a.Args) >= n {
 		for _, i := range ss {
 			if a.Args[n-1] == i {
@@ -67,7 +67,7 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 	if commandCompatibleMode {
 		matched := ""
 		for _, i := range currentCmdLst {
-			if strings.HasPrefix(restText, "." + i) || strings.HasPrefix(restText, "。" + i) {
+			if strings.HasPrefix(restText, "."+i) || strings.HasPrefix(restText, "。"+i) {
 				matched = i
 				break
 			}
@@ -96,7 +96,7 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		for _, text := range cmdInfo.Args {
 			stText += text
 		}
-		cmdInfo.cleanArgs = stText
+		cmdInfo.CleanArgs = stText
 
 		return cmdInfo
 	}
@@ -123,7 +123,6 @@ func AtParse(cmd string) (string, []*AtInfo) {
 
 	return replaced, ret
 }
-
 
 func ArgsParse(rawCmd string) *CmdArgs {
 	re := regexp.MustCompile(`\s+`)
