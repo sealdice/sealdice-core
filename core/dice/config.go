@@ -179,16 +179,18 @@ func (d *Dice) loads() {
 
 	if err == nil {
 		session := d.ImSession
-		d := Dice{}
-		err2 := yaml.Unmarshal(data, &d)
+		dNew := Dice{}
+		err2 := yaml.Unmarshal(data, &dNew)
 		if err2 == nil {
+			d.CommandCompatibleMode = dNew.CommandCompatibleMode
+
 			m := map[string]*ExtInfo{}
 			for _, i := range d.ExtList {
 				m[i.Name] = i
 			}
 
-			session.ServiceAt = d.ImSession.ServiceAt
-			for _, v := range d.ImSession.ServiceAt {
+			session.ServiceAt = dNew.ImSession.ServiceAt
+			for _, v := range dNew.ImSession.ServiceAt {
 				tmp := []*ExtInfo{}
 				for _, i := range v.ActivatedExtList {
 					if m[i.Name] != nil {
