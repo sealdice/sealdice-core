@@ -243,18 +243,18 @@ func (s *IMSession) Serve() int {
 				msgInfo := CommandParse(msg.Message, s.Parent.CommandCompatibleMode, cmdLst)
 
 				if msgInfo != nil {
-					f := func() {
-						defer func() {
-							if r := recover(); r != nil {
-								//  + fmt.Sprintf("%s", r)
-								core.GetLogger().Error(r)
-								ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
-							}
-						}()
-						session.commandSolve(mctx, msg, msgInfo)
-					}
-					go f()
-					//session.commandSolve(mctx, msg, msgInfo)
+					//f := func() {
+					//	defer func() {
+					//		if r := recover(); r != nil {
+					//			//  + fmt.Sprintf("%s", r)
+					//			core.GetLogger().Error(r)
+					//			ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
+					//		}
+					//	}()
+					//	session.commandSolve(mctx, msg, msgInfo)
+					//}
+					//go f()
+					session.commandSolve(mctx, msg, msgInfo)
 				} else {
 					//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
 					//replyGroup(Socket, 22, text)
@@ -288,6 +288,13 @@ func (s *IMSession) Serve() int {
 	defer func() {
 		fmt.Println("socket close")
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Println("关闭连接时遭遇异常")
+					//core.GetLogger().Error(r)
+				}
+			}()
+
 			// 可能耗时好久
 			socket.Close()
 		}()
@@ -320,8 +327,9 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
 		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", msg.Sender.Nickname)})
 		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, ctx.Player.DiceSideNum})
+		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, msg.Sender.UserId})
+		// 注: 未来将私聊视为空群吧
 	}
-	VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, msg.Sender.UserId})
 
 	tryItemSolve := func(item *CmdItemInfo) bool {
 		if item != nil {
@@ -342,7 +350,6 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		}
 	}
 
-	fmt.Println("??????????????", cmdArgs.Command)
 	item := ctx.Session.Parent.CmdMap[cmdArgs.Command]
 	if tryItemSolve(item) {
 		return

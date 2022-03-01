@@ -25,11 +25,11 @@ type CmdItemInfo struct {
 type CmdMapCls map[string]*CmdItemInfo
 
 type ExtInfo struct {
-	Name    string // 名字
-	Version string // 版本
+	Name    string `yaml:"name"` // 名字
+	Version string `yaml:"-"`    // 版本
 	// 作者
 	// 更新时间
-	AutoActive      bool      // 是否自动开启
+	AutoActive      bool      `yaml:"-"` // 是否自动开启
 	CmdMap          CmdMapCls `yaml:"-"` // 指令集合
 	Brief           string    `yaml:"-"`
 	ActiveOnPrivate bool      `yaml:"-"`
@@ -54,6 +54,10 @@ type Dice struct {
 	LastSavedTime         *time.Time             `yaml:"lastSavedTime"`
 	TextMap               map[string]*wr.Chooser `yaml:"-"`
 	ConfigVersion         int                    `yaml:"configVersion"`
+
+	InPackGoCqHttpExists       bool `yaml:"-"` // 是否存在同目录的gocqhttp
+	InPackGoCqHttpLoginSuccess bool `yaml:"-"` // 是否登录成功
+	InPackGoCqHttpRunning      bool `yaml:"-"` // 是否仍在运行
 }
 
 func (d *Dice) Init() {

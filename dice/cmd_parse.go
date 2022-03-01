@@ -2,7 +2,6 @@ package dice
 
 import (
 	"github.com/jessevdk/go-flags"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -119,7 +118,6 @@ func AtParse(cmd string) (string, []*AtInfo) {
 	}
 
 	replaced := re.ReplaceAllString(cmd, "")
-	log.Println(replaced, ret)
 
 	return replaced, ret
 }
