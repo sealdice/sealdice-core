@@ -1,3 +1,5 @@
+// part of SealDice project
+
 package dice
 
 type DiceRollParser Peg {
@@ -15,9 +17,15 @@ e2 <- e3 ( multiply { p.AddLeftValueMark() } e3 { p.AddOperator(TypeMultiply) }
 e3 <- eDice ( exponentiation { p.AddLeftValueMark() } eDice { p.AddOperator(TypeExponentiation) }
          )*
 
-eDice <- e4 ( ('d'/'D') { p.AddLeftValueMark() } e4 ('k' e4)? { p.AddOperator(TypeDice) }
+eDice <- eDice2 ( ('d'/'D') { p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) } )? { p.AddOperator(TypeDice) }
          )*
-         / ( ('d'/'D') { p.AddLeftValueMark() } e4 ('k' e4)? { p.AddValue("1"); p.AddOperator(TypeSwap); p.AddOperator(TypeDice) } )+
+         / ( ('d'/'D') { p.AddValue("1"); p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? { p.AddOperator(TypeDice) } )+
+
+eDice2 <- ('p' / 'P') eDice3 { p.AddOperator(TypeDicePenalty) }
+         / eDice3
+
+eDice3 <- ('b' / 'B') eDice3 { p.AddOperator(TypeDiceBonus) }
+         / e4
 
 e4 <- minus value { p.AddOperator(TypeNegation) }
     / value

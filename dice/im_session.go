@@ -96,18 +96,26 @@ type PlayerVariablesItem struct {
 	LastUsedTime        int64              `yaml:"lastUsedTime"`
 }
 
+type ConnectInfoItem struct {
+	Socket            *gowebsocket.Socket `yaml:"-"`
+	ConnectUrl        string              `yaml:"connectUrl"`
+	Platform          string              `yaml:"platform"`
+	UseInPackGoCqhttp bool                `yaml:"useInPackGoCqhttp"`
+	WorkDir           string              `yaml:"workDir"`
+}
+
 type IMSession struct {
-	Socket   *gowebsocket.Socket `yaml:"-"`
-	Nickname string              `yaml:"-"`
-	UserId   int64               `yaml:"userId"`
-	Parent   *Dice               `yaml:"-"`
+	//Socket     *gowebsocket.Socket `yaml:"-"`
+	//ConnectUrl string              `yaml:"connectUrl"`
+	Conns []*ConnectInfoItem `yaml:"connections"`
 
+	Nickname string `yaml:"-"`
+	UserId   int64  `yaml:"userId"`
+	Parent   *Dice  `yaml:"-"`
+
+	ServiceAt      map[int64]*ServiceAtItem       `json:"serviceAt" yaml:"serviceAt"`
 	PlayerVarsData map[int64]*PlayerVariablesItem `yaml:"PlayerVarsData"`
-
-	ServiceAt    map[int64]*ServiceAtItem `json:"serviceAt" yaml:"serviceAt"`
-	CommandIndex int64                    `yaml:"-"`
-	ConnectUrl   string                   `yaml:"connectUrl"`
-
+	//CommandIndex int64                    `yaml:"-"`
 	//GroupId int64 `json:"group_id"`
 }
 
@@ -118,21 +126,22 @@ type MsgContext struct {
 	Player          *PlayerInfo
 	Dice            *Dice
 	IsCurGroupBotOn bool
+	Socket          *gowebsocket.Socket
 }
 
-func (s *IMSession) Serve() int {
+func (s *IMSession) Serve(index int) int {
 	log := core.GetLogger()
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	disconnected := make(chan int, 1)
 
+	conn := s.Conns[index]
+
 	session := s
-	if s.ConnectUrl == "" {
-		s.ConnectUrl = "ws://127.0.0.1:6700"
-	}
-	socket := gowebsocket.New(s.ConnectUrl)
-	session.Socket = &socket
+
+	socket := gowebsocket.New(conn.ConnectUrl)
+	conn.Socket = &socket
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		fmt.Println("onebot 连接成功")
@@ -185,7 +194,7 @@ func (s *IMSession) Serve() int {
 			// 处理加群请求
 			if msg.PostType == "request" && msg.RequestType == "group" && msg.SubType == "invite" {
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
-				SetGroupAddRequest(s.Socket, msg.Flag, msg.SubType, true, "")
+				SetGroupAddRequest(conn.Socket, msg.Flag, msg.SubType, true, "")
 				return
 			}
 
@@ -207,6 +216,7 @@ func (s *IMSession) Serve() int {
 				mctx.Dice = session.Parent
 				mctx.MessageType = msg.MessageType
 				mctx.Session = session
+				mctx.Socket = conn.Socket
 				var cmdLst []string
 
 				// 兼容模式检查
@@ -243,18 +253,18 @@ func (s *IMSession) Serve() int {
 				msgInfo := CommandParse(msg.Message, s.Parent.CommandCompatibleMode, cmdLst)
 
 				if msgInfo != nil {
-					//f := func() {
-					//	defer func() {
-					//		if r := recover(); r != nil {
-					//			//  + fmt.Sprintf("%s", r)
-					//			core.GetLogger().Error(r)
-					//			ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
-					//		}
-					//	}()
-					//	session.commandSolve(mctx, msg, msgInfo)
-					//}
-					//go f()
-					session.commandSolve(mctx, msg, msgInfo)
+					f := func() {
+						defer func() {
+							if r := recover(); r != nil {
+								//  + fmt.Sprintf("%s", r)
+								core.GetLogger().Error(r)
+								ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
+							}
+						}()
+						session.commandSolve(mctx, msg, msgInfo)
+					}
+					go f()
+					//session.commandSolve(mctx, msg, msgInfo)
 				} else {
 					//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
 					//replyGroup(Socket, 22, text)

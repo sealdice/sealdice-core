@@ -263,17 +263,17 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					successRank := ResultCheck(cocRule, d100, cond)
 					switch successRank {
 					case -2:
-						suffix = DiceFormatTmpl(ctx, "COC7:判定-大失败")
+						suffix = DiceFormatTmpl(ctx, "COC:判定-大失败")
 					case -1:
-						suffix = DiceFormatTmpl(ctx, "COC7:判定-失败")
+						suffix = DiceFormatTmpl(ctx, "COC:判定-失败")
 					case +1:
-						suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-普通")
+						suffix = DiceFormatTmpl(ctx, "COC:判定-成功-普通")
 					case +2:
-						suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+						suffix = DiceFormatTmpl(ctx, "COC:判定-成功-极难")
 					case +3:
-						suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+						suffix = DiceFormatTmpl(ctx, "COC:判定-成功-极难")
 					case +4:
-						suffix = DiceFormatTmpl(ctx, "COC7:判定-大成功")
+						suffix = DiceFormatTmpl(ctx, "COC:判定-大成功")
 					}
 
 					if err == nil {
@@ -333,25 +333,25 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					switch n {
 					case "0":
 						ctx.Group.CocRuleIndex = 0
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-0"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-0"))
 					case "1":
 						ctx.Group.CocRuleIndex = 1
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-1"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-1"))
 					case "2":
 						ctx.Group.CocRuleIndex = 2
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-2"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-2"))
 					case "3":
 						ctx.Group.CocRuleIndex = 3
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-3"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-3"))
 					case "4":
 						ctx.Group.CocRuleIndex = 4
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-4"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-4"))
 					case "5":
 						ctx.Group.CocRuleIndex = 5
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-5"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-5"))
 					default:
 						VarSetValue(ctx, "$t房规", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC7:设置房规-当前"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-当前"))
 					}
 
 					return CmdExecuteResult{Success: true}
@@ -490,7 +490,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									san = _san
 								}
 
-								r, _, err = ctx.Dice.ExprEvalBase(successExpr, ctx, false)
+								r, _, err = ctx.Dice.ExprEvalBase(successExpr, ctx, false, false)
 								if err == nil {
 									reduceSuccess = r.Value.(int64)
 								}
@@ -501,20 +501,20 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								successRank := ResultCheck(ctx.Group.CocRuleIndex, d100, san)
 								switch successRank {
 								case -2:
-									suffix = DiceFormatTmpl(ctx, "COC7:判定-大失败")
+									suffix = DiceFormatTmpl(ctx, "COC:判定-大失败")
 								case -1:
-									suffix = DiceFormatTmpl(ctx, "COC7:判定-失败")
+									suffix = DiceFormatTmpl(ctx, "COC:判定-失败")
 								case +1:
-									suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-普通")
+									suffix = DiceFormatTmpl(ctx, "COC:判定-成功-普通")
 								case +2:
-									suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+									suffix = DiceFormatTmpl(ctx, "COC:判定-成功-极难")
 								case +3:
-									suffix = DiceFormatTmpl(ctx, "COC7:判定-成功-极难")
+									suffix = DiceFormatTmpl(ctx, "COC:判定-成功-极难")
 								case +4:
-									suffix = DiceFormatTmpl(ctx, "COC7:判定-大成功")
+									suffix = DiceFormatTmpl(ctx, "COC:判定-大成功")
 								}
 
-								r, _, err = ctx.Dice.ExprEvalBase(failedExpr, ctx, successRank == -2)
+								r, _, err = ctx.Dice.ExprEvalBase(failedExpr, ctx, successRank == -2, false)
 								if err == nil {
 									reduceFail = r.Value.(int64)
 								}
