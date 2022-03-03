@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -23,12 +24,15 @@ const (
 	TypeExponentiation
 	TypeDiceUnary
 	TypeDice
+	TypeDicePenalty
+	TypeDiceBonus
 	TypeLoadVarname
 	TypeLoadFormatString
 	TypeStore
 	TypeHalt
 	TypeSwap
 	TypeLeftValueMark
+	TypeDiceSetK
 )
 
 type ByteCode struct {
@@ -75,7 +79,13 @@ func (code *ByteCode) CodeString() string {
 	case TypeExponentiation:
 		return "pow"
 	case TypeDice:
-		return "Dice"
+		return "dice"
+	case TypeDicePenalty:
+		return "dice.penalty"
+	case TypeDiceBonus:
+		return "dice.bonus"
+	case TypeDiceSetK:
+		return "dice.setk"
 	case TypeDiceUnary:
 		return "dice1"
 	case TypeLoadVarname:
@@ -95,10 +105,11 @@ func (code *ByteCode) CodeString() string {
 }
 
 type RollExpression struct {
-	Code          []ByteCode
-	Top           int
-	BigFailDiceOn bool
-	Error         error
+	Code               []ByteCode
+	Top                int
+	BigFailDiceOn      bool
+	DisableLoadVarname bool
+	Error              error
 }
 
 func (e *RollExpression) Init(stackLength int) {
@@ -205,7 +216,10 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	lastDetailsLeft := []string{}
 	calcDetail := ""
 
+	var registerDiceK *VMValue
+
 	for _, code := range e.Code[0:e.Top] {
+		//fmt.Println(code.CodeString())
 		// 单目运算符
 		switch code.T {
 		case TypeLeftValueMark:
@@ -234,6 +248,64 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			stack[top].Value = code.Value
 			top++
 			continue
+		case TypeDiceSetK:
+			t := stack[top-1]
+			registerDiceK = &VMValue{t.TypeId, t.Value}
+			top--
+			continue
+		case TypeDicePenalty, TypeDiceBonus:
+			t := stack[top-1]
+			diceResult := DiceRoll64(100)
+			diceTens := diceResult / 10
+			diceUnits := diceResult % 10
+
+			nums := []string{}
+			diceMin := diceTens
+			diceMax := diceTens
+			num10Exists := false
+			for i := int64(0); i < t.Value.(int64); i++ {
+				n := DiceRoll64(10)
+
+				if n == 10 {
+					num10Exists = true
+					nums = append(nums, "0")
+					continue
+				} else {
+					nums = append(nums, strconv.FormatInt(n, 10))
+				}
+
+				if n < diceMin {
+					diceMin = n
+				}
+				if n > diceMax {
+					diceMax = n
+				}
+			}
+
+			var newVal int64
+			if code.T == TypeDiceBonus {
+				// 如果个位数不是0，那么允许十位为0
+				if diceUnits != 0 && num10Exists {
+					diceMin = 0
+				}
+
+				newVal = diceMin*10 + diceUnits
+				lastDetail := fmt.Sprintf("D100=%d, 奖励 %s", newVal, strings.Join(nums, " "))
+				lastDetails = append(lastDetails, lastDetail)
+			} else {
+				// 如果个位数为0，那么允许十位为0
+				if diceUnits == 0 && num10Exists {
+					diceMax = 0
+				}
+
+				newVal = diceMax*10 + diceUnits
+				lastDetail := fmt.Sprintf("D100=%d, 惩罚 %s", newVal, strings.Join(nums, " "))
+				lastDetails = append(lastDetails, lastDetail)
+			}
+
+			stack[top-1].Value = newVal
+			stack[top-1].TypeId = VMTypeInt64
+			continue
 		case TypePushString:
 			stack[top].TypeId = VMTypeString
 			stack[top].Value = code.ValueStr
@@ -243,6 +315,10 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			var v interface{}
 			var vType VMValueType
 
+			if e.DisableLoadVarname {
+				return nil, calcDetail, errors.New("解析失败")
+			}
+
 			if ctx != nil {
 				var exists bool
 				v2, exists := VarGetValue(ctx, code.ValueStr)
@@ -250,20 +326,25 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 					vType = v2.TypeId
 					v = v2.Value
 				} else {
-					if ctx.Player != nil {
-						v, exists = ctx.Player.GetValueInt64(code.ValueStr, nil)
-						if !exists {
-							// TODO: 找不到时的处理
-						}
-					}
+					//if ctx.Player != nil {
+					//	v, exists = ctx.Player.GetValueInt64(code.ValueStr, nil)
+					//	if !exists {
+					//		// TODO: 找不到时的处理
+					//	}
+					//}
 
 					textTmpl := ctx.Dice.TextMap[code.ValueStr]
 					if textTmpl != nil {
 						vType = VMTypeString
 						v = DiceFormat(ctx, textTmpl.Pick().(string))
 					} else {
-						vType = VMTypeString
-						v = "<%未定义值-" + code.ValueStr + "%>"
+						if strings.Contains(code.ValueStr, ":") {
+							vType = VMTypeString
+							v = "<%未定义值-" + code.ValueStr + "%>"
+						} else {
+							vType = VMTypeInt64 // 这个方案不好，更多类型的时候就出事了
+							v = int64(0)
+						}
 					}
 				}
 			}
@@ -287,6 +368,10 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			a.Value = DiceRoll64(a.Value.(int64))
 			continue
 		case TypeHalt:
+			if len(lastDetails) > 0 {
+				calcDetail += fmt.Sprintf("[%s]", strings.Join(lastDetails, ","))
+				lastDetails = lastDetails[:0]
+			}
 			continue
 		}
 
@@ -301,7 +386,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 			checkLeft := func() {
 				if calcDetail == "" {
-					calcDetail += strconv.FormatInt(a.Value.(int64), 10)
+					if a.TypeId == VMTypeNone {
+						calcDetail += "0"
+					} else {
+						calcDetail += strconv.FormatInt(a.Value.(int64), 10)
+					}
 				}
 
 				if len(lastDetailsLeft) > 0 {
@@ -368,19 +457,53 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 		case TypeDice:
 			checkDice(&code)
-			// XXX Dice YYY, 如 3d100
-			var num int64
-			for i := int64(0); i < aInt; i += 1 {
-				if e.BigFailDiceOn {
-					num += bInt
-				} else {
-					num += DiceRoll64(bInt)
+			if registerDiceK != nil {
+				var nums []int64
+				for i := int64(0); i < aInt; i += 1 {
+					if e.BigFailDiceOn {
+						nums = append(nums, bInt)
+					} else {
+						nums = append(nums, DiceRoll64(bInt))
+					}
 				}
-			}
 
-			lastDetail := fmt.Sprintf("%dd%d=%d", aInt, bInt, num)
-			lastDetails = append(lastDetails, lastDetail)
-			a.Value = num
+				sort.Slice(nums, func(i, j int) bool { return nums[i] > nums[j] })
+
+				num := int64(0)
+				for i := int64(0); i < registerDiceK.Value.(int64); i++ {
+					num += nums[i]
+				}
+
+				text := "{"
+				for i := int64(0); i < int64(len(nums)); i++ {
+					if i == registerDiceK.Value.(int64) {
+						text += "| "
+					}
+					text += fmt.Sprintf("%d ", nums[i])
+				}
+				text += "}"
+
+				fmt.Println("111", nums, text)
+				lastDetail := text
+				lastDetails = append(lastDetails, lastDetail)
+				a.Value = num
+
+				registerDiceK = nil
+			} else {
+				// XXX Dice YYY, 如 3d100
+				var num int64
+				for i := int64(0); i < aInt; i += 1 {
+					if e.BigFailDiceOn {
+						num += bInt
+					} else {
+						num += DiceRoll64(bInt)
+					}
+				}
+
+				lastDetail := fmt.Sprintf("%dd%d=%d", aInt, bInt, num)
+				lastDetails = append(lastDetails, lastDetail)
+				a.Value = num
+			}
 		}
 	}
 

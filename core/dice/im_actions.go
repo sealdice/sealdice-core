@@ -54,7 +54,7 @@ func replyPersonRaw(ctx *MsgContext, userId int64, text string, flag string) {
 		},
 	})
 
-	socketSendText(ctx.Session.Socket, string(a))
+	socketSendText(ctx.Socket, string(a))
 }
 
 func GetGroupInfo(socket *gowebsocket.Socket, groupId int64) {
@@ -103,7 +103,7 @@ func SetGroupAddRequest(socket *gowebsocket.Socket, flag string, subType string,
 	//socket.SendText(string(a))
 }
 
-func QuitGroup(s *IMSession, groupId int64) {
+func QuitGroup(ctx *MsgContext, groupId int64) {
 	type GroupMessageParams struct {
 		GroupId int64 `json:"group_id"`
 	}
@@ -118,7 +118,7 @@ func QuitGroup(s *IMSession, groupId int64) {
 		},
 	})
 
-	socketSendText(s.Socket, string(a))
+	socketSendText(ctx.Socket, string(a))
 	//s.Socket.SendText(string(a))
 }
 
@@ -152,7 +152,7 @@ func replyGroupRaw(ctx *MsgContext, groupId int64, text string, flag string) {
 			text, // "golang client test",
 		},
 	})
-	socketSendText(ctx.Session.Socket, string(a))
+	socketSendText(ctx.Socket, string(a))
 	//ctx.Session.Socket.SendText(string(a))
 }
 
@@ -179,7 +179,7 @@ func (s *IMSession) GetLoginInfo() {
 	})
 
 	//if s.Socket != nil {
-	socketSendText(s.Socket, string(a))
+	socketSendText(s.Conns[0].Socket, string(a))
 	//s.Socket.SendText(string(a))
 	//}
 }

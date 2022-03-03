@@ -9,7 +9,8 @@ import (
 	"time"
 )
 
-var VERSION = "0.91测试版 v20220227"
+var APPNAME = "SealDice"
+var VERSION = "0.92测试版 v20220303"
 
 type CmdExecuteResult struct {
 	Success bool
@@ -55,12 +56,14 @@ type Dice struct {
 	TextMap               map[string]*wr.Chooser `yaml:"-"`
 	ConfigVersion         int                    `yaml:"configVersion"`
 
-	InPackGoCqHttpExists       bool `yaml:"-"` // 是否存在同目录的gocqhttp
-	InPackGoCqHttpLoginSuccess bool `yaml:"-"` // 是否登录成功
-	InPackGoCqHttpRunning      bool `yaml:"-"` // 是否仍在运行
+	InPackGoCqHttpExists       bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
+	InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
+	InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
+	TextMapRaw                 TextTemplateWithWeightDict `yaml:"-"`
 }
 
 func (d *Dice) Init() {
+	os.MkdirAll("./data", 0644)
 	os.MkdirAll("./data/configs", 0644)
 	os.MkdirAll("./data/extensions", 0644)
 	os.MkdirAll("./data/logs", 0644)
@@ -101,9 +104,10 @@ func (d *Dice) Init() {
 
 		for {
 			<-t
-			if d.ImSession.Socket != nil {
+
+			for _, i := range d.ImSession.Conns {
 				for k := range d.ImSession.ServiceAt {
-					GetGroupInfo(d.ImSession.Socket, k)
+					GetGroupInfo(i.Socket, k)
 				}
 			}
 		}
@@ -119,17 +123,22 @@ func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
 	return p
 }
 
-func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, bigFailDice bool) (*VmResult, string, error) {
+func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, bigFailDice bool, disableLoadVarname bool) (*VmResult, string, error) {
 	parser := d.rebuildParser(buffer)
 	err := parser.Parse()
 	parser.RollExpression.BigFailDiceOn = bigFailDice
+	parser.RollExpression.DisableLoadVarname = disableLoadVarname
 
 	if err == nil {
 		parser.Execute()
 		if parser.Error != nil {
 			return nil, "", parser.Error
 		}
-		num, detail, _ := parser.Evaluate(d, ctx)
+		num, detail, err := parser.Evaluate(d, ctx)
+		if err != nil {
+			return nil, "", err
+		}
+
 		ret := VmResult{}
 		ret.Value = num.Value
 		ret.TypeId = num.TypeId
@@ -140,13 +149,13 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, bigFailDice bool) (*
 }
 
 func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VmResult, string, error) {
-	return d.ExprEvalBase(buffer, ctx, false)
+	return d.ExprEvalBase(buffer, ctx, false, false)
 }
 
 func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) {
 	val, detail, err := d.ExprEval("`"+buffer+"`", ctx)
 
-	if err == nil && val.TypeId == VMTypeString {
+	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
 		return val.Value.(string), detail, err
 	}
 

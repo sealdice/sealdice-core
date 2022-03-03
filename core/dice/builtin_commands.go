@@ -126,7 +126,7 @@ func (d *Dice) registerCoreCommands() {
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
 							ctx.Group.Active = false
 							time.Sleep(6 * time.Second)
-							QuitGroup(ctx.Session, msg.GroupId)
+							QuitGroup(ctx, msg.GroupId)
 						} else if cmdArgs.Args[0] == "save" {
 							d.save()
 							// 数据已保存
@@ -151,6 +151,7 @@ func (d *Dice) registerCoreCommands() {
 				var diceResult int64
 				var diceResultExists bool
 				var detail string
+				disableLoadVarname := !(cmdArgs.Command == "rx" || cmdArgs.Command == "rhx")
 
 				if ctx.Dice.CommandCompatibleMode {
 					if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd") && len(cmdArgs.Args) >= 1 {
@@ -166,7 +167,7 @@ func (d *Dice) registerCoreCommands() {
 				var r *VmResult
 				if len(cmdArgs.Args) >= 1 {
 					var err error
-					r, detail, err = ctx.Dice.ExprEval(cmdArgs.Args[0], ctx)
+					r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.Args[0], ctx, false, disableLoadVarname)
 
 					if r != nil && r.TypeId == 0 {
 						diceResult = r.Value.(int64)
@@ -228,6 +229,8 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["roll"] = cmdRoll
 	d.CmdMap["rh"] = cmdRoll
 	d.CmdMap["rhd"] = cmdRoll
+	d.CmdMap["rx"] = cmdRoll
+	d.CmdMap["rhx"] = cmdRoll
 
 	cmdExt := &CmdItemInfo{
 		Name:  "ext",
@@ -443,8 +446,20 @@ func (d *Dice) registerCoreCommands() {
 					vars := ctx.LoadPlayerVars()
 
 					VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
-					delete(vars.ValueMap, "$ch:"+name)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理-删除成功"))
+					_, exists := vars.ValueMap["$ch:"+name]
+					if exists {
+						delete(vars.ValueMap, "$ch:"+name)
+
+						text := DiceFormatTmpl(ctx, "核心:角色管理-删除成功")
+						if name == ctx.Player.Name {
+							VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", msg.Sender.Nickname)})
+							text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理-删除成功-当前卡")
+						}
+
+						ReplyToSender(ctx, msg, text)
+					} else {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理-角色不存在"))
+					}
 				} else {
 					help := "角色指令\n"
 					help += ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色，角色名省略则为当前昵称\n.ch list // 列出当前角色\n.ch del <角色名> // 删除角色"
