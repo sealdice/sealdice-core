@@ -9,6 +9,7 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
+      - CGO_FLAGS=-Werror=unused-variable -Werror=implicit-function-declaration  -O2
     goos:
       - linux
       - windows
@@ -24,6 +25,8 @@ archives:
       386: i386
       amd64: amd64
     files:
+      - src: frontend
+        dst: .
       - src: temp/go-cqhttp_{{ .Os }}_{{ .Arch }}
         dst: go-cqhttp
         strip_parent: true
@@ -32,7 +35,7 @@ checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  name_template: "{{ incpatch .Version }}"
 
 changelog:
   sort: asc

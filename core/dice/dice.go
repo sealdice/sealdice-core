@@ -3,14 +3,18 @@ package dice
 import (
 	"errors"
 	wr "github.com/mroth/weightedrand"
+	"go.etcd.io/bbolt"
+	"go.uber.org/zap"
 	"math/rand"
 	"os"
-	"sealdice-core/core"
+	"path/filepath"
+	"sealdice-core/dice/logger"
+	"sealdice-core/dice/model"
 	"time"
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.92测试版 v20220303"
+var VERSION = "0.93内测版 v20220306"
 
 type CmdExecuteResult struct {
 	Success bool
@@ -46,6 +50,12 @@ type ExtInfo struct {
 	OnLoad            func()                                                                            `yaml:"-"`
 }
 
+type DiceConfig struct {
+	Name       string `yaml:"name"`       // 名称，默认为default
+	DataDir    string `yaml:"dataDir"`    // 数据路径，为./data/{name}，例如data/default
+	IsLogPrint bool   `yaml:"isLogPrint"` // 是否在控制台打印log
+}
+
 type Dice struct {
 	ImSession             *IMSession             `yaml:"imSession"`
 	CmdMap                CmdMapCls              `yaml:"-"`
@@ -54,8 +64,12 @@ type Dice struct {
 	CommandCompatibleMode bool                   `yaml:"commandCompatibleMode"`
 	LastSavedTime         *time.Time             `yaml:"lastSavedTime"`
 	TextMap               map[string]*wr.Chooser `yaml:"-"`
-	ConfigVersion         int                    `yaml:"configVersion"`
+	BaseConfig            DiceConfig             `yaml:"-"`
+	DB                    *bbolt.DB              `yaml:"-"`      // 数据库对象
+	Logger                *zap.SugaredLogger     `yaml:"logger"` // 日志
+	LogWriter             *logger.WriterX        `yaml:"-"`      // 用于api的log对象
 
+	//ConfigVersion         int                    `yaml:"configVersion"`
 	InPackGoCqHttpExists       bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
 	InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
@@ -63,10 +77,17 @@ type Dice struct {
 }
 
 func (d *Dice) Init() {
-	os.MkdirAll("./data", 0644)
-	os.MkdirAll("./data/configs", 0644)
-	os.MkdirAll("./data/extensions", 0644)
-	os.MkdirAll("./data/logs", 0644)
+	d.BaseConfig.DataDir = filepath.Join("./data", d.BaseConfig.Name)
+	os.MkdirAll(d.BaseConfig.DataDir, 0644)
+	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0644)
+	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0644)
+	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "logs"), 0644)
+	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0644)
+
+	d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
+	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
+	d.Logger = log.Logger
+	d.LogWriter = log.WX
 
 	d.CommandCompatibleMode = true
 	d.ImSession = &IMSession{}
@@ -88,7 +109,7 @@ func (d *Dice) Init() {
 		t := time.Tick(30 * time.Second)
 		for {
 			<-t
-			d.save()
+			d.Save(true)
 		}
 	}
 	go autoSave()
@@ -98,7 +119,7 @@ func (d *Dice) Init() {
 		defer func() {
 			// 防止报错
 			if r := recover(); r != nil {
-				core.GetLogger().Error(r)
+				d.Logger.Error(r)
 			}
 		}()
 

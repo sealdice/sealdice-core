@@ -8,7 +8,7 @@ import (
 	"go.etcd.io/bbolt"
 	"io/ioutil"
 	"os"
-	"sealdice-core/model"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"time"
@@ -33,8 +33,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Author:     "木落",
 		AutoActive: true,
 		OnLoad: func() {
-			os.MkdirAll("./data/logs", 0644)
-			model.GetDB().Update(func(tx *bbolt.Tx) error {
+			os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "logs"), 0644)
+			self.DB.Update(func(tx *bbolt.Tx) error {
 				_, err := tx.CreateBucketIfNotExists([]byte("logs"))
 				return err
 			})
@@ -50,13 +50,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					a := LogOneItem{
-						Nickname: session.Nickname,
-						IMUserId: session.UserId,
+						Nickname: ctx.conn.Nickname,
+						IMUserId: ctx.conn.UserId,
 						Time:     time.Now().Unix(),
 						Message:  text,
 						IsDice:   true,
 					}
-					LogAppend(group, &a)
+					LogAppend(ctx, group, &a)
 				}
 			}
 		},
@@ -73,7 +73,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IsDice:   false,
 					}
 
-					LogAppend(ctx.Group, &a)
+					LogAppend(ctx, ctx.Group, &a)
 				}
 			}
 		},
@@ -108,26 +108,26 @@ func RegisterBuiltinExtLog(self *Dice) {
 							if group.LogOn {
 								onText = "开启"
 							}
-							text := fmt.Sprintf("记录，当前状态: %s\n已记录文本%d条", onText, LogLinesGet(group))
+							text := fmt.Sprintf("记录，当前状态: %s\n已记录文本%d条", onText, LogLinesGet(ctx, group))
 							ReplyToSender(ctx, msg, text)
 						} else {
 							if cmdArgs.IsArgEqual(1, "on") {
 								group.LogOn = true
-								text := fmt.Sprintf("记录已经继续开启，当前已记录文本%d条", LogLinesGet(group))
+								text := fmt.Sprintf("记录已经继续开启，当前已记录文本%d条", LogLinesGet(ctx, group))
 								ReplyToSender(ctx, msg, text)
 							} else if cmdArgs.IsArgEqual(1, "off") {
 								group.LogOn = false
-								text := fmt.Sprintf("记录已经暂时关闭，当前已记录文本%d条", LogLinesGet(group))
+								text := fmt.Sprintf("记录已经暂时关闭，当前已记录文本%d条", LogLinesGet(ctx, group))
 								ReplyToSender(ctx, msg, text)
-							} else if cmdArgs.IsArgEqual(1, "save") {
-								fn := LogSaveToZip(group)
+							} else if cmdArgs.IsArgEqual(1, "Save") {
+								fn := LogSaveToZip(ctx, group)
 								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色服务正在开发中，目前请使用公开的着色网站进行着色。", fn), "skip")
 							} else if cmdArgs.IsArgEqual(1, "end") {
 								ReplyToSender(ctx, msg, "故事落下了帷幕。\n记录已经关闭。")
 								group.LogOn = false
 
 								time.Sleep(time.Duration(0.5 * float64(time.Second)))
-								fn := LogSaveToZip(group)
+								fn := LogSaveToZip(ctx, group)
 								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色服务正在开发中，目前请使用公开的着色网站进行着色。", fn), "skip")
 								group.LogCurName = ""
 							} else if cmdArgs.IsArgEqual(1, "new") {
@@ -154,11 +154,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 	})
 }
 
-func LogSaveToZip(group *ServiceAtItem) string {
-	lines, err := LogGetAllLines(group)
+func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
+	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "logs")
+
+	lines, err := LogGetAllLines(ctx, group)
 	if err == nil {
-		os.MkdirAll("./data/logs", 0644)
-		fzip, _ := ioutil.TempFile("./data/logs", group.LogCurName+".*.zip")
+
+		os.MkdirAll(dirpath, 0644)
+		fzip, _ := ioutil.TempFile(dirpath, group.LogCurName+".*.zip")
 		writer := zip.NewWriter(fzip)
 		defer writer.Close()
 
@@ -192,7 +195,7 @@ func LogSaveToZip(group *ServiceAtItem) string {
 
 		// 回到开头上传
 		fzip.Seek(0, 0)
-		fn := UploadFileToTransferSh(group.LogCurName+".zip", fzip)
+		fn := UploadFileToTransferSh(ctx.Dice.Logger, group.LogCurName+".zip", fzip)
 		//fn := UploadFileToFileIo(group.LogCurName + ".zip", fzip)
 
 		return fn
@@ -200,9 +203,9 @@ func LogSaveToZip(group *ServiceAtItem) string {
 	return ""
 }
 
-func LogLinesGet(group *ServiceAtItem) int {
+func LogLinesGet(ctx *MsgContext, group *ServiceAtItem) int {
 	var size int
-	model.GetDB().View(func(tx *bbolt.Tx) error {
+	ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
 		// Retrieve the users bucket.
 		// This should be created when the DB is first opened.
 		b0 := tx.Bucket([]byte("logs"))
@@ -223,9 +226,9 @@ func LogLinesGet(group *ServiceAtItem) int {
 	return size
 }
 
-func LogGetAllLines(group *ServiceAtItem) ([]*LogOneItem, error) {
+func LogGetAllLines(ctx *MsgContext, group *ServiceAtItem) ([]*LogOneItem, error) {
 	ret := []*LogOneItem{}
-	return ret, model.GetDB().View(func(tx *bbolt.Tx) error {
+	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
 		b0 := tx.Bucket([]byte("logs"))
 		if b0 == nil {
 			return nil
@@ -252,8 +255,8 @@ func LogGetAllLines(group *ServiceAtItem) ([]*LogOneItem, error) {
 	})
 }
 
-func LogAppend(group *ServiceAtItem, l *LogOneItem) error {
-	return model.GetDB().Update(func(tx *bbolt.Tx) error {
+func LogAppend(ctx *MsgContext, group *ServiceAtItem, l *LogOneItem) error {
+	return ctx.Dice.DB.Update(func(tx *bbolt.Tx) error {
 		// Retrieve the users bucket.
 		// This should be created when the DB is first opened.
 		b0 := tx.Bucket([]byte("logs"))

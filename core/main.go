@@ -1,22 +1,16 @@
 package main
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
-	"github.com/fy0/procs"
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"io/ioutil"
+	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"sealdice-core/api"
-	"sealdice-core/core"
 	"sealdice-core/dice"
-	"sealdice-core/model"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -31,7 +25,6 @@ extensions/
 */
 
 func main() {
-	core.LoggerInit()
 	var opts struct {
 		GoCqhttpClear bool `long:"gclr" description:"清除go-cqhttp登录信息"`
 		Install       bool `short:"i" long:"install" description:"安装为系统服务"`
@@ -61,28 +54,50 @@ func main() {
 		return
 	}
 
-	model.DBInit()
+	cwd, _ := os.Getwd()
+	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
+	fmt.Println("工作路径: ", cwd)
+
+	diceManager := &dice.DiceManager{}
+
 	cleanUp := func() {
 		fmt.Println("程序即将退出，进行清理……")
-		model.GetDB().Close()
+		for _, i := range diceManager.Dice {
+			i.DB.Close()
+		}
+		diceManager.Save()
 	}
 	defer cleanUp()
 
 	// 初始化核心
-	myDice := &dice.Dice{}
-	myDice.Init()
+	//myDice := &dice.Dice{}
+	//myDice.Init()
 
-	cwd, _ := os.Getwd()
-	fmt.Println("工作路径: ", cwd)
+	diceManager.LoadDice()
+	diceManager.TryCreateDefault()
+	diceManager.InitDice()
 
-	a, d, err := myDice.ExprEval("7d12k4", nil)
-	if err == nil {
-		fmt.Println(a.Parser.GetAsmText())
-		fmt.Println(d)
-		fmt.Println("DDD"+"#{a}", a.TypeId, a.Value, d, err)
-	} else {
-		fmt.Println("DDD2", err)
-	}
+	//a, d, err := myDice.ExprEval("7d12k4", nil)
+	//if err == nil {
+	//	fmt.Println(a.Parser.GetAsmText())
+	//	fmt.Println(d)
+	//	fmt.Println("DDD"+"#{a}", a.TypeId, a.Value, d, err)
+	//} else {
+	//	fmt.Println("DDD2", err)
+	//}
+
+	//runtime := quickjs.NewRuntime()
+	//defer runtime.Free()
+	//
+	//context := runtime.NewContext()
+	//defer context.Free()
+
+	//globals := context.Globals()
+
+	// Test evaluating template strings.
+
+	//result, err := context.Eval("`Hello world! 2 ** 8 = ${2 ** 8}.`")
+	//fmt.Println("XXXXXXX", result, err)
 
 	// 强制清理机制
 	go (func() {
@@ -97,24 +112,62 @@ func main() {
 		}
 	})()
 
-	if checkCqHttpExists() {
-		myDice.InPackGoCqHttpExists = true
-		go goCqHttpServe(myDice)
-		// 等待登录成功
-		for {
-			if myDice.InPackGoCqHttpLoginSuccess {
-				diceIMServe(myDice)
-				break
-			}
-			time.Sleep(1 * time.Second)
-		}
-	} else {
-		myDice.InPackGoCqHttpExists = false
-		// 假设已经有一个onebot服务存在
-		diceIMServe(myDice)
+	//for _, v := range myDice.ImSession.Conns {
+	//	if v.UseInPackGoCqhttp {
+	//		go dice.goCqHttpServe(myDice)
+	//	}
+	//}
+
+	for _, d := range diceManager.Dice {
+		go diceServe(d)
 	}
 
-	//uiServe(myDice)
+	uiServe(diceManager)
+
+	//if checkCqHttpExists() {
+	//	myDice.InPackGoCqHttpExists = true
+	//	go goCqHttpServe(myDice)
+	//	// 等待登录成功
+	//	for {
+	//		if myDice.InPackGoCqHttpLoginSuccess {
+	//			diceIMServe(myDice)
+	//			break
+	//		}
+	//		time.Sleep(1 * time.Second)
+	//	}
+	//} else {
+	//	myDice.InPackGoCqHttpExists = false
+	//	// 假设已经有一个onebot服务存在
+	//	diceIMServe(myDice)
+	//}
+}
+
+func diceServe(d *dice.Dice) {
+	if len(d.ImSession.Conns) == 0 {
+		d.Logger.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
+	}
+
+	for index, conn := range d.ImSession.Conns {
+		if conn.Enable {
+			if conn.UseInPackGoCqhttp {
+				dice.GoCqHttpServe(d, conn, "", 1, true)
+				time.Sleep(10 * time.Second) // 稍作等待再连接
+			}
+
+			for {
+				// 骰子开始连接
+				d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
+				ret := d.ImSession.Serve(index)
+
+				if ret == 0 {
+					break
+				}
+
+				d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
+				time.Sleep(time.Duration(15 * time.Second))
+			}
+		}
+	}
 }
 
 func diceIMServe(myDice *dice.Dice) {
@@ -122,7 +175,9 @@ func diceIMServe(myDice *dice.Dice) {
 		myDice.ImSession.Conns = append(myDice.ImSession.Conns, &dice.ConnectInfoItem{
 			ConnectUrl:        "ws://127.0.0.1:6700",
 			Platform:          "qq",
+			Type:              "onebot",
 			UseInPackGoCqhttp: myDice.InPackGoCqHttpExists,
+			Enable:            true,
 		})
 	}
 
@@ -140,19 +195,40 @@ func diceIMServe(myDice *dice.Dice) {
 	}
 }
 
-func uiServe(myDice *dice.Dice) {
+func uiServe(myDice *dice.DiceManager) {
 	fmt.Println("即将启动webui")
 	// Echo instance
 	e := echo.New()
 
 	// Middleware
-	e.Use(middleware.Logger())
+	//e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		Skipper:      middleware.DefaultSkipper,
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
+	}))
+	e.Static("/", "./frontend")
 
-	// Routes
 	api.Bind(e, myDice)
-	// Start server
-	e.Logger.Fatal(e.Start(":1323"))
+	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置
+
+	exec.Command(`cmd`, `/c`, `start`, `http://localhost:3211`).Start()
+	fmt.Println("如果浏览器没有自动打开，请手动访问:")
+	fmt.Println("http://localhost:3211")
+	e.Start(myDice.ServeAddress) // 默认:3211
+
+	//interrupt := make(chan os.Signal, 1)
+	//signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	//
+	//for {
+	//	select {
+	//	case <-interrupt:
+	//		fmt.Println("主动关闭")
+	//		return
+	//	}
+	//}
 }
 
 func checkCqHttpExists() bool {
@@ -160,95 +236,4 @@ func checkCqHttpExists() bool {
 		return true
 	}
 	return false
-}
-
-func goCqHttpServe(myDice *dice.Dice) {
-	// 注：给他另一份log
-	qrcodeFile := "./go-cqhttp/qrcode.png"
-	if _, err := os.Stat(qrcodeFile); err == nil {
-		// 如果已经存在二维码文件，将其删除
-		os.Remove(qrcodeFile)
-		fmt.Println("删除已存在的二维码文件")
-	}
-
-	if _, err := os.Stat("./go-cqhttp/session.token"); errors.Is(err, os.ErrNotExist) {
-		// 并未登录成功，删除记录文件
-		os.Remove("./go-cqhttp/config.yml")
-		os.Remove("./go-cqhttp/device.json")
-	}
-
-	// 创建设备配置文件
-	if _, err := os.Stat("./go-cqhttp/device.json"); errors.Is(err, os.ErrNotExist) {
-		deviceInfo, err := dice.GenerateDeviceJson()
-		if err == nil {
-			ioutil.WriteFile("./go-cqhttp/device.json", deviceInfo, 0644)
-		}
-	} else {
-		fmt.Println("设备文件已存在，跳过")
-	}
-
-	// 创建配置文件
-	if _, err := os.Stat("./go-cqhttp/config.yml"); errors.Is(err, os.ErrNotExist) {
-		// 如果不存在 config.yml 那么启动一次，让它自动生成
-		// 改为：如果不存在，帮他创建
-		input := bufio.NewScanner(os.Stdin)
-		fmt.Println("请输入你的QQ号:")
-		input.Scan()
-		qq, err := strconv.ParseInt(input.Text(), 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("请输入密码(可以不填，直接扫二维码登录):")
-		input.Scan()
-		pw := input.Text()
-		if err != nil {
-			panic(err)
-		}
-
-		c := dice.GenerateConfig(qq, pw, 6700)
-		ioutil.WriteFile("./go-cqhttp/config.yml", []byte(c), 0644)
-	}
-
-	// 启动客户端
-	p := procs.NewProcess("./go-cqhttp faststart")
-	p.Dir = "./go-cqhttp"
-
-	chQrCode := make(chan int, 1)
-	p.OutputHandler = func(line string) string {
-		// 请使用手机QQ扫描二维码 (qrcode.png) :
-		if strings.Contains(line, "qrcode.png") {
-			chQrCode <- 1
-		}
-		if strings.Contains(line, "CQ WebSocket 服务器已启动") {
-			// CQ WebSocket 服务器已启动
-			// 登录成功 欢迎使用
-			myDice.InPackGoCqHttpLoginSuccess = true
-		}
-
-		if myDice.InPackGoCqHttpLoginSuccess == false || strings.Contains(line, "风控") || strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
-			fmt.Printf("onebot | %s\n", line)
-		}
-		return line
-	}
-
-	go func() {
-		<-chQrCode
-		if _, err := os.Stat(qrcodeFile); err == nil {
-			fmt.Println("二维码已经就绪")
-			fmt.Println("如控制台二维码不好扫描，可以手动打开go-cqhttp目录下qrcode.png")
-			//qrdata, err := ioutil.ReadFile(qrcodeFile)
-		}
-	}()
-
-	myDice.InPackGoCqHttpRunning = true
-	err := p.Run()
-	defer func() {
-		p.Stop()
-	}()
-	myDice.InPackGoCqHttpRunning = false
-	if err != nil {
-		fmt.Println("go-cqhttp 进程退出: ", err)
-	} else {
-		fmt.Println("go-cqhttp 进程退出")
-	}
 }

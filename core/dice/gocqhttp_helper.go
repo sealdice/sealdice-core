@@ -2,10 +2,16 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ShiraazMoollatjie/goluhn"
+	"github.com/acarl005/stripansi"
+	"github.com/fy0/procs"
 	"github.com/google/uuid"
+	"io/ioutil"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -56,7 +62,7 @@ func randomMacAddress() string {
 	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5])
 }
 
-func GenerateDeviceJson() ([]byte, error) {
+func GenerateDeviceJson(protocol int) ([]byte, error) {
 	rand.Seed(time.Now().Unix())
 	bootId := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
@@ -85,7 +91,7 @@ func GenerateDeviceJson() ([]byte, error) {
 		APN:          "wifi",
 		VendorName:   "MIUI", // 这个和下面一个选项(VendorOSName)都属于意义不明，找不到相似对应，不知道是啥
 		VendorOSName: "xiaomi",
-		Protocol:     1,
+		Protocol:     protocol,
 		Version: &osVersionFile{
 			Incremental: "OCACNFA", // Build.Version.INCREMENTAL, MIUI12: V12.5.3.0.RJBCNXM
 			Release:     "11",
@@ -206,4 +212,153 @@ func GenerateConfig(qq int64, password string, port int) string {
 	password2, _ := json.Marshal(password)
 	ret = strings.Replace(ret, "{QQ密码}", fmt.Sprintf("%s", string(password2)), 1)
 	return ret
+}
+
+func NewGoCqhttpConnectInfoItem(account string) *ConnectInfoItem {
+	conn := new(ConnectInfoItem)
+	conn.Id = uuid.New().String()
+	conn.Platform = "QQ"
+	conn.UseInPackGoCqhttp = true
+	conn.Type = "onebot"
+	conn.Enable = false
+	conn.RelWorkDir = "extra/go-cqhttp-qq" + account
+	return conn
+}
+
+func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
+	defer func() {
+		defer func() {
+			if r := recover(); r != nil {
+				dice.Logger.Error(r)
+			}
+		}()
+
+		conn.InPackGoCqHttpLoginSuccess = false
+		conn.InPackGoCqHttpQrcodeData = nil
+		conn.InPackGoCqHttpRunning = false
+		conn.InPackGoCqHttpQrcodeReady = false
+		conn.InPackGoCqHttpNeedQrCode = false
+
+		// 注意这个会panic，因此recover捕获了
+		if conn.InPackGoCqHttpProcess != nil {
+			conn.InPackGoCqHttpProcess.Stop()
+		}
+	}()
+}
+
+func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol int, isAsyncRun bool) {
+	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
+	os.MkdirAll(workDir, 0644)
+
+	qrcodeFile := filepath.Join(workDir, "qrcode.png")
+	deviceFilePath := filepath.Join(workDir, "device.json")
+	configFilePath := filepath.Join(workDir, "config.yml")
+	if _, err := os.Stat(qrcodeFile); err == nil {
+		// 如果已经存在二维码文件，将其删除
+		os.Remove(qrcodeFile)
+		fmt.Println("删除已存在的二维码文件")
+	}
+
+	//if _, err := os.Stat(filepath.Join(workDir, "session.token")); errors.Is(err, os.ErrNotExist) {
+	if !conn.InPackGoCqHttpLoginSucceeded {
+		// 并未登录成功，删除记录文件
+		os.Remove(configFilePath)
+		os.Remove(deviceFilePath)
+	}
+
+	// 创建设备配置文件
+	if _, err := os.Stat(deviceFilePath); errors.Is(err, os.ErrNotExist) {
+		deviceInfo, err := GenerateDeviceJson(protocol)
+		if err == nil {
+			ioutil.WriteFile(deviceFilePath, deviceInfo, 0644)
+		}
+	} else {
+		fmt.Println("设备文件已存在，跳过")
+	}
+
+	// 创建配置文件
+	if _, err := os.Stat(configFilePath); errors.Is(err, os.ErrNotExist) {
+		// 如果不存在 config.yml 那么启动一次，让它自动生成
+		// 改为：如果不存在，帮他创建
+		p, _ := GetRandomFreePort()
+		conn.ConnectUrl = fmt.Sprintf("ws://localhost:%d", p)
+		c := GenerateConfig(conn.UserId, password, p)
+		ioutil.WriteFile(configFilePath, []byte(c), 0644)
+	}
+
+	// 启动客户端
+	wd, _ := os.Getwd()
+	gocqhttpExePath, _ := filepath.Abs(filepath.Join(wd, "go-cqhttp/go-cqhttp"))
+	gocqhttpExePath = strings.Replace(gocqhttpExePath, "\\", "/", -1) // windows平台需要这个替换
+
+	p := procs.NewProcess(gocqhttpExePath + " faststart")
+	p.Dir = workDir
+
+	chQrCode := make(chan int, 1)
+	p.OutputHandler = func(line string) string {
+		// 请使用手机QQ扫描二维码 (qrcode.png) :
+		if strings.Contains(line, "qrcode.png") {
+			chQrCode <- 1
+		}
+		if strings.Contains(line, "CQ WebSocket 服务器已启动") {
+			// CQ WebSocket 服务器已启动
+			// 登录成功 欢迎使用
+			conn.InPackGoCqHttpLoginSuccess = true
+			conn.InPackGoCqHttpLoginSucceeded = true
+			conn.Enable = true
+			conn.State = 1
+			dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%d)", conn.Nickname, conn.UserId)
+		}
+
+		if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
+			conn.InPackGoCqHttpNeedQrCode = true
+		}
+
+		if conn.InPackGoCqHttpLoginSuccess == false || strings.Contains(line, "风控") || strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
+			//  [WARNING]: 登录需要滑条验证码, 请使用手机QQ扫描二维码以继续登录
+			if conn.InPackGoCqHttpLoginSuccess {
+				dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+			} else {
+				fmt.Printf("onebot | %s\n", line)
+
+				// error 之类错误无条件警告
+				if strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
+					dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+				}
+			}
+		}
+		return line
+	}
+
+	go func() {
+		<-chQrCode
+		if _, err := os.Stat(qrcodeFile); err == nil {
+			fmt.Println("二维码已经就绪")
+			fmt.Println("如控制台二维码不好扫描，可以手动打开go-cqhttp目录下qrcode.png")
+			qrdata, err := ioutil.ReadFile(qrcodeFile)
+			if err == nil {
+				conn.InPackGoCqHttpQrcodeData = qrdata
+			}
+			conn.InPackGoCqHttpQrcodeReady = true
+		}
+	}()
+
+	run := func() {
+		conn.InPackGoCqHttpRunning = true
+		conn.InPackGoCqHttpProcess = p
+		err := p.Run()
+		GoCqHttpServeProcessKill(dice, conn)
+		conn.InPackGoCqHttpRunning = false
+		if err != nil {
+			dice.Logger.Info("go-cqhttp 进程退出: ", err)
+		} else {
+			dice.Logger.Info("go-cqhttp 进程退出")
+		}
+	}
+
+	if isAsyncRun {
+		go run()
+	} else {
+		run()
+	}
 }

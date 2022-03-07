@@ -2,15 +2,10 @@ package model
 
 import (
 	"go.etcd.io/bbolt"
-	"os"
 )
 
-var db *bbolt.DB
-
-func BoltDBInit() {
-	os.MkdirAll("./data", 0644)
-	var err error
-	db, err = bbolt.Open("./data/data.bdb", 0644, nil)
+func BoltDBInit(path string) *bbolt.DB {
+	db, err := bbolt.Open(path, 0644, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -21,12 +16,6 @@ func BoltDBInit() {
 		_, err = tx.CreateBucketIfNotExists([]byte("attrs_group_user")) // 组_用户_属性
 		return err
 	})
-}
 
-func DBInit() {
-	BoltDBInit()
-}
-
-func GetDB() *bbolt.DB {
 	return db
 }

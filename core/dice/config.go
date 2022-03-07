@@ -6,10 +6,9 @@ import (
 	wr "github.com/mroth/weightedrand"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"log"
 	"os"
-	"sealdice-core/core"
-	"sealdice-core/model"
+	"path/filepath"
+	"sealdice-core/dice/model"
 	"time"
 )
 
@@ -18,11 +17,10 @@ type TextTemplateItem = []interface{} // 实际上是 [](string | int) 类型
 type TextTemplateWithWeight = map[string][]TextTemplateItem
 type TextTemplateWithWeightDict = map[string]TextTemplateWithWeight
 
-const BASE_CONFIG = "./data/serve.yaml"
-const CONFIG_TEXT_TEMPLATE_FILE = "./data/configs/text-template.yaml"
+//const CONFIG_TEXT_TEMPLATE_FILE = "./data/configs/text-template.yaml"
 
 func setupTextTemplate(d *Dice) {
-	textTemplateFn := CONFIG_TEXT_TEMPLATE_FILE
+	textTemplateFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 	var texts TextTemplateWithWeightDict
 
 	if _, err := os.Stat(textTemplateFn); err == nil {
@@ -80,6 +78,9 @@ func setupTextTemplate(d *Dice) {
 				},
 			},
 			"核心": {
+				"骰子名字": {
+					{"海豹bot", 1},
+				},
 				"骰子崩溃": {
 					{"已从核心崩溃中恢复，请带指令联系开发者。注意不要重复发送本指令以免风控。", 1},
 				},
@@ -87,7 +88,10 @@ func setupTextTemplate(d *Dice) {
 					{"{常量:APPNAME} 已启用(开发中) {常量:VERSION}", 1},
 				},
 				"骰子关闭": {
-					{"{核心:名字} 停止服务", 1},
+					{"<{核心:骰子名字}> 停止服务", 1},
+				},
+				"骰子进群": {
+					{"<{核心:骰子名字}> 已经就绪。可通过.help查看指令列表", 1},
 				},
 				"骰子退群预告": {
 					{"收到指令，5s后将退出当前群组", 1},
@@ -158,11 +162,15 @@ func setupTextTemplate(d *Dice) {
 		}
 	}
 
+	d.TextMapRaw = texts
+	d.GenerateTextMap()
+}
+
+func (d *Dice) GenerateTextMap() {
 	// 生成TextMap
 	d.TextMap = map[string]*wr.Chooser{}
 
-	d.TextMapRaw = texts
-	for category, item := range texts {
+	for category, item := range d.TextMapRaw {
 		for k, v := range item {
 			choices := []wr.Choice{}
 			for _, textItem := range v {
@@ -174,10 +182,15 @@ func setupTextTemplate(d *Dice) {
 		}
 	}
 
+	picker, _ := wr.NewChooser(wr.Choice{APPNAME, 1})
+	d.TextMap["常量:APPNAME"] = picker
+
+	picker, _ = wr.NewChooser(wr.Choice{VERSION, 1})
+	d.TextMap["常量:VERSION"] = picker
 }
 
 func (d *Dice) loads() {
-	data, err := ioutil.ReadFile(BASE_CONFIG)
+	data, err := ioutil.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
 
 	if err == nil {
 		session := d.ImSession
@@ -185,6 +198,7 @@ func (d *Dice) loads() {
 		err2 := yaml.Unmarshal(data, &dNew)
 		if err2 == nil {
 			d.CommandCompatibleMode = dNew.CommandCompatibleMode
+			d.ImSession.Conns = dNew.ImSession.Conns
 
 			m := map[string]*ExtInfo{}
 			for _, i := range d.ExtList {
@@ -205,10 +219,10 @@ func (d *Dice) loads() {
 			// 读取新版数据
 			for _, g := range d.ImSession.ServiceAt {
 				// 群组数据
-				data := model.AttrGroupGetAll(g.GroupId)
+				data := model.AttrGroupGetAll(d.DB, g.GroupId)
 				err := JsonValueMapUnmarshal(data, &g.ValueMap)
 				if err != nil {
-					core.GetLogger().Error(err)
+					d.Logger.Error(err)
 				}
 				if g.ValueMap == nil {
 					g.ValueMap = map[string]VMValue{}
@@ -223,45 +237,55 @@ func (d *Dice) loads() {
 						p.ValueMapTemp = map[string]VMValue{}
 					}
 
-					data := model.AttrGroupUserGetAll(g.GroupId, p.UserId)
+					data := model.AttrGroupUserGetAll(d.DB, g.GroupId, p.UserId)
 					err := JsonValueMapUnmarshal(data, &p.ValueMap)
 					if err != nil {
-						core.GetLogger().Error(err)
+						d.Logger.Error(err)
 					}
 				}
 			}
 
-			log.Println("serve.yaml loaded")
+			d.Logger.Info("serve.yaml loaded")
 			//info, _ := yaml.Marshal(Session.ServiceAt)
 			//replyGroup(ctx, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
 		} else {
-			log.Println("serve.yaml parse failed")
+			d.Logger.Info("serve.yaml parse failed")
 			panic(err2)
 		}
 	} else {
-		log.Println("serve.yaml not found")
+		d.Logger.Info("serve.yaml not found")
 	}
 
 	// 读取文本模板
 	setupTextTemplate(d)
-
-	picker, _ := wr.NewChooser(wr.Choice{APPNAME, 1})
-	d.TextMap["常量:APPNAME"] = picker
-
-	picker, _ = wr.NewChooser(wr.Choice{VERSION, 1})
-	d.TextMap["常量:VERSION"] = picker
 }
 
-func (d *Dice) save() {
+func (d *Dice) SaveText() {
+	buf, err := yaml.Marshal(d.TextMapRaw)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
+	}
+}
+
+func (d *Dice) Save(isAuto bool) {
 	a, err := yaml.Marshal(d)
 	if err == nil {
-		err := ioutil.WriteFile(BASE_CONFIG, a, 0644)
+		err := ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0644)
 		if err == nil {
 			now := time.Now()
 			d.LastSavedTime = &now
-			core.GetLogger().Info("保存数据。当前用户ID: ", d.ImSession.UserId)
-			if d.ImSession.UserId == 0 {
-				d.ImSession.GetLoginInfo()
+			if isAuto {
+				d.Logger.Info("自动保存")
+			} else {
+				d.Logger.Info("保存数据")
+			}
+
+			for _, i := range d.ImSession.Conns {
+				if i.UserId == 0 {
+					i.GetLoginInfo()
+				}
 			}
 		}
 	}
@@ -271,18 +295,18 @@ func (d *Dice) save() {
 		for _, b := range g.Players {
 			userIds[b.UserId] = true
 			data, _ := json.Marshal(b.ValueMap)
-			model.AttrGroupUserSave(g.GroupId, b.UserId, data)
+			model.AttrGroupUserSave(d.DB, g.GroupId, b.UserId, data)
 		}
 
 		data, _ := json.Marshal(g.ValueMap)
-		model.AttrGroupSave(g.GroupId, data)
+		model.AttrGroupSave(d.DB, g.GroupId, data)
 	}
 
 	// 保存玩家个人全局数据
 	for k, v := range d.ImSession.PlayerVarsData {
 		if v.Loaded {
 			data, _ := json.Marshal(v.ValueMap)
-			model.AttrUserSave(k, data)
+			model.AttrUserSave(d.DB, k, data)
 		}
 	}
 }

@@ -79,13 +79,13 @@ func (code *ByteCode) CodeString() string {
 	case TypeExponentiation:
 		return "pow"
 	case TypeDice:
-		return "dice"
+		return "Dice"
 	case TypeDicePenalty:
-		return "dice.penalty"
+		return "Dice.penalty"
 	case TypeDiceBonus:
-		return "dice.bonus"
+		return "Dice.bonus"
 	case TypeDiceSetK:
-		return "dice.setk"
+		return "Dice.setk"
 	case TypeDiceUnary:
 		return "dice1"
 	case TypeLoadVarname:

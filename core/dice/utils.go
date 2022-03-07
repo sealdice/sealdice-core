@@ -3,12 +3,13 @@ package dice
 import (
 	"bytes"
 	"encoding/json"
+	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"regexp"
-	"sealdice-core/core"
 )
 
 func RemoveSpace(s string) string {
@@ -16,8 +17,7 @@ func RemoveSpace(s string) string {
 	return re.ReplaceAllString(s, "")
 }
 
-func UploadFileToTransferSh(filename string, data io.Reader) string {
-	log := core.GetLogger()
+func UploadFileToTransferSh(log *zap.SugaredLogger, filename string, data io.Reader) string {
 	client := &http.Client{}
 	req, err := http.NewRequest("PUT", "https://transfer.sh/"+filename, data)
 	if err != nil {
@@ -50,8 +50,7 @@ func UploadFileToTransferSh(filename string, data io.Reader) string {
 }
 
 // fileio 似乎会被风控
-func UploadFileToFileIo(filename string, data io.Reader) string {
-	log := core.GetLogger()
+func UploadFileToFileIo(log *zap.SugaredLogger, filename string, data io.Reader) string {
 	client := &http.Client{}
 
 	body := &bytes.Buffer{}
@@ -136,4 +135,18 @@ func JsonValueMapUnmarshal(data []byte, v *map[string]VMValue) error {
 		}
 	}
 	return err
+}
+
+func GetRandomFreePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }

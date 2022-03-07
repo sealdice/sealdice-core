@@ -16,7 +16,7 @@ func (d *Dice) RegisterExtension(extInfo *ExtInfo) {
 }
 
 func (d *Dice) GetExtDataDir(extName string) string {
-	p := path.Join("./data/extensions/", extName)
+	p := path.Join(d.BaseConfig.DataDir, "extensions", extName)
 	os.MkdirAll(p, 0644)
 	return p
 }

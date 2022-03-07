@@ -3,11 +3,11 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/fy0/procs"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"os"
 	"os/signal"
-	"sealdice-core/core"
 	"sort"
 	"syscall"
 	"time"
@@ -97,22 +97,36 @@ type PlayerVariablesItem struct {
 }
 
 type ConnectInfoItem struct {
-	Socket            *gowebsocket.Socket `yaml:"-"`
-	ConnectUrl        string              `yaml:"connectUrl"`
-	Platform          string              `yaml:"platform"`
-	UseInPackGoCqhttp bool                `yaml:"useInPackGoCqhttp"`
-	WorkDir           string              `yaml:"workDir"`
+	//Password            string              `yaml:"password" json:"password"`
+	Socket              *gowebsocket.Socket `yaml:"-" json:"-"`
+	Id                  string              `yaml:"id" json:"id"` // uuid
+	Nickname            string              `yaml:"nickname" json:"nickname"`
+	State               int                 `yaml:"state" json:"state"` // 状态 0 断开 1已连接
+	UserId              int64               `yaml:"userId" json:"userId"`
+	GroupNum            int64               `yaml:"groupNum" json:"groupNum"`                       // 拥有群数
+	CmdExecutedNum      int64               `yaml:"cmdExecutedNum" json:"cmdExecutedNum"`           // 指令执行次数
+	CmdExecutedLastTime int64               `yaml:"cmdExecutedLastTime" json:"cmdExecutedLastTime"` // 指令执行次数
+	OnlineTotalTime     int64               `yaml:"onlineTotalTime" json:"onlineTotalTime"`         // 在线时长
+	ConnectUrl          string              `yaml:"connectUrl" json:"connectUrl"`                   // 连接地址
+
+	Platform          string `yaml:"platform" json:"platform"`                   // 平台，如QQ等
+	RelWorkDir        string `yaml:"relWorkDir" json:"relWorkDir"`               // 工作目录
+	Enable            bool   `yaml:"enable" json:"enable"`                       // 是否启用
+	Type              string `yaml:"type" json:"type"`                           // 协议类型，如onebot、koishi等
+	UseInPackGoCqhttp bool   `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
+
+	InPackGoCqHttpProcess        *procs.Process `yaml:"-" json:"-"`
+	InPackGoCqHttpLoginSuccess   bool           `yaml:"-" json:"inPackGoCqHttpLoginSuccess"`   // 是否登录成功
+	InPackGoCqHttpLoginSucceeded bool           `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"` // 是否登录成功过
+	InPackGoCqHttpRunning        bool           `yaml:"-" json:"inPackGoCqHttpRunning"`        // 是否仍在运行
+	InPackGoCqHttpQrcodeReady    bool           `yaml:"-" json:"inPackGoCqHttpQrcodeReady"`    // 二维码已就绪
+	InPackGoCqHttpNeedQrCode     bool           `yaml:"-" json:"inPackGoCqHttpNeedQrCode"`     // 是否需要二维码
+	InPackGoCqHttpQrcodeData     []byte         `yaml:"-" json:"-"`                            // 二维码数据
 }
 
 type IMSession struct {
-	//Socket     *gowebsocket.Socket `yaml:"-"`
-	//ConnectUrl string              `yaml:"connectUrl"`
-	Conns []*ConnectInfoItem `yaml:"connections"`
-
-	Nickname string `yaml:"-"`
-	UserId   int64  `yaml:"userId"`
-	Parent   *Dice  `yaml:"-"`
-
+	Conns          []*ConnectInfoItem             `yaml:"connections"`
+	Parent         *Dice                          `yaml:"-"`
 	ServiceAt      map[int64]*ServiceAtItem       `json:"serviceAt" yaml:"serviceAt"`
 	PlayerVarsData map[int64]*PlayerVariablesItem `yaml:"PlayerVarsData"`
 	//CommandIndex int64                    `yaml:"-"`
@@ -127,17 +141,17 @@ type MsgContext struct {
 	Dice            *Dice
 	IsCurGroupBotOn bool
 	Socket          *gowebsocket.Socket
+	conn            *ConnectInfoItem
 }
 
 func (s *IMSession) Serve(index int) int {
-	log := core.GetLogger()
+	log := s.Parent.Logger
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	disconnected := make(chan int, 1)
 
 	conn := s.Conns[index]
-
 	session := s
 
 	socket := gowebsocket.New(conn.ConnectUrl)
@@ -147,7 +161,7 @@ func (s *IMSession) Serve(index int) int {
 		fmt.Println("onebot 连接成功")
 		log.Info("onebot 连接成功")
 		//  {"data":{"nickname":"闃斧鐗岃�佽檸鏈�","user_id":1001},"retcode":0,"status":"ok"}
-		s.GetLoginInfo()
+		conn.GetLoginInfo()
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
@@ -171,8 +185,8 @@ func (s *IMSession) Serve(index int) int {
 
 			// 获得用户信息
 			if msg.Echo == -1 {
-				session.UserId = msg.Data.UserId
-				session.Nickname = msg.Data.Nickname
+				conn.UserId = msg.Data.UserId
+				conn.Nickname = msg.Data.Nickname
 
 				log.Debug("骰子信息已刷新")
 				return
@@ -203,12 +217,10 @@ func (s *IMSession) Serve(index int) int {
 				if msg.UserId == msg.SelfId {
 					// 判断进群的人是自己，自动启动
 					SetBotOnAtGroup(session, msg)
-					replyGroupRaw(&MsgContext{Session: session, Dice: session.Parent}, msg.GroupId, fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", session.Nickname), "")
+					replyGroupRaw(&MsgContext{Session: session, Dice: session.Parent}, msg.GroupId, fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname), "")
 				}
 				return
 			}
-
-			fmt.Println("Recieved message " + message)
 
 			// 处理命令
 			if msg.MessageType == "group" || msg.MessageType == "private" {
@@ -217,6 +229,7 @@ func (s *IMSession) Serve(index int) int {
 				mctx.MessageType = msg.MessageType
 				mctx.Session = session
 				mctx.Socket = conn.Socket
+				mctx.conn = conn
 				var cmdLst []string
 
 				// 兼容模式检查
@@ -242,6 +255,14 @@ func (s *IMSession) Serve(index int) int {
 				mctx.Player = GetPlayerInfoBySender(session, msg)
 				mctx.IsCurGroupBotOn = IsCurGroupBotOn(session, msg)
 
+				// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
+				if msg.MessageType == "group" {
+					log.Infof("收到群(%d)内<%s>(%d)的消息: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+				}
+				if msg.MessageType == "private" {
+					log.Infof("收到<%s>(%d)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+				}
+
 				if sa != nil && sa.Active {
 					for _, i := range sa.ActivatedExtList {
 						if i.OnMessageReceived != nil {
@@ -257,7 +278,7 @@ func (s *IMSession) Serve(index int) int {
 						defer func() {
 							if r := recover(); r != nil {
 								//  + fmt.Sprintf("%s", r)
-								core.GetLogger().Error(r)
+								log.Error(r)
 								ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
 							}
 						}()
@@ -271,6 +292,8 @@ func (s *IMSession) Serve(index int) int {
 				}
 				//}
 				//}
+			} else {
+				fmt.Println("Recieved message " + message)
 			}
 		} else {
 			log.Error("error" + err.Error())
@@ -326,7 +349,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	// 设置AmIBeMentioned
 	cmdArgs.AmIBeMentioned = false
 	for _, i := range cmdArgs.At {
-		if i.UserId == ctx.Session.UserId {
+		if i.UserId == ctx.conn.UserId {
 			cmdArgs.AmIBeMentioned = true
 			break
 		}
@@ -338,6 +361,8 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", msg.Sender.Nickname)})
 		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, ctx.Player.DiceSideNum})
 		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, msg.Sender.UserId})
+		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeInt64, ctx.conn.UserId})
+		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeInt64, ctx.conn.Nickname})
 		// 注: 未来将私聊视为空群吧
 	}
 

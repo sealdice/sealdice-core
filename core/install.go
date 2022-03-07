@@ -5,7 +5,6 @@ import (
 	"github.com/kardianos/service"
 	"os"
 	"path/filepath"
-	"sealdice-core/core"
 )
 
 type program struct{}
@@ -27,8 +26,6 @@ func (p *program) Stop(s service.Service) error {
 }
 
 func serviceInstall(isInstall bool) {
-	log := core.GetLogger()
-
 	cwd, _ := os.Getwd()
 	wd, _ := filepath.Abs(cwd)
 
@@ -51,7 +48,7 @@ func serviceInstall(isInstall bool) {
 		_, err = s.Logger(nil)
 		if err != nil {
 			fmt.Printf("安装失败: %s\n", err.Error())
-			log.Fatal(err)
+			fmt.Println(err)
 		}
 		err = s.Install()
 		if err != nil {
