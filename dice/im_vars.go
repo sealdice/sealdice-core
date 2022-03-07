@@ -3,8 +3,7 @@ package dice
 // 用户变量相关
 
 import (
-	"sealdice-core/core"
-	"sealdice-core/model"
+	"sealdice-core/dice/model"
 	"strings"
 )
 
@@ -175,10 +174,10 @@ func LoadPlayerVars(s *IMSession, id int64) *PlayerVariablesItem {
 
 	if vd.Loaded == false {
 		vd.Loaded = true
-		data := model.AttrUserGetAll(id)
+		data := model.AttrUserGetAll(s.Parent.DB, id)
 		err := JsonValueMapUnmarshal(data, &vd.ValueMap)
 		if err != nil {
-			core.GetLogger().Error(err)
+			s.Parent.Logger.Error(err)
 		}
 	}
 

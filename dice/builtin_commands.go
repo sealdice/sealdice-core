@@ -127,8 +127,8 @@ func (d *Dice) registerCoreCommands() {
 							ctx.Group.Active = false
 							time.Sleep(6 * time.Second)
 							QuitGroup(ctx, msg.GroupId)
-						} else if cmdArgs.Args[0] == "save" {
-							d.save()
+						} else if cmdArgs.Args[0] == "Save" {
+							d.Save(false)
 							// 数据已保存
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子保存设置"))
 						}
@@ -377,8 +377,8 @@ func (d *Dice) registerCoreCommands() {
 
 	cmdChar := &CmdItemInfo{
 		Name: "ch",
-		//Help: ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色\n.ch list // 列出当前角色",
-		Help: ".ch list/save/load/del // 角色管理",
+		//Help: ".ch Save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色\n.ch list // 列出当前角色",
+		Help: ".ch list/Save/load/del // 角色管理",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn {
 				getNickname := func() string {
@@ -424,7 +424,7 @@ func (d *Dice) registerCoreCommands() {
 						//replyToSender(ctx, msg, "无法加载角色：你所指定的角色不存在")
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理-角色不存在"))
 					}
-				} else if cmdArgs.IsArgEqual(1, "save") {
+				} else if cmdArgs.IsArgEqual(1, "Save") {
 					name := getNickname()
 					vars := ctx.LoadPlayerVars()
 					v, err := json.Marshal(ctx.Player.ValueMap)
@@ -462,7 +462,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				} else {
 					help := "角色指令\n"
-					help += ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色，角色名省略则为当前昵称\n.ch list // 列出当前角色\n.ch del <角色名> // 删除角色"
+					help += ".ch Save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色，角色名省略则为当前昵称\n.ch list // 列出当前角色\n.ch del <角色名> // 删除角色"
 					ReplyToSender(ctx, msg, help)
 				}
 			}

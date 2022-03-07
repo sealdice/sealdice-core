@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
-	"sealdice-core/core"
 	"time"
 )
 
@@ -15,7 +14,7 @@ import (
 func socketSendText(socket *gowebsocket.Socket, s string) {
 	defer func() {
 		if r := recover(); r != nil {
-			core.GetLogger().Error(r)
+			//core.GetLogger().Error(r)
 		}
 	}()
 
@@ -169,7 +168,7 @@ func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
 	ReplyToSenderRaw(ctx, msg, text, "")
 }
 
-func (s *IMSession) GetLoginInfo() {
+func (c *ConnectInfoItem) GetLoginInfo() {
 	a, _ := json.Marshal(struct {
 		Action string `json:"action"`
 		Echo   int64  `json:"echo"`
@@ -179,7 +178,7 @@ func (s *IMSession) GetLoginInfo() {
 	})
 
 	//if s.Socket != nil {
-	socketSendText(s.Conns[0].Socket, string(a))
+	socketSendText(c.Socket, string(a))
 	//s.Socket.SendText(string(a))
 	//}
 }
