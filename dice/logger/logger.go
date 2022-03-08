@@ -25,13 +25,15 @@ type LogInfo struct {
 	WX        *WriterX
 }
 
+var logLimit = 100
+
 func (w *WriterX) Write(p []byte) (n int, err error) {
 	var a LogItem
 	err2 := json.Unmarshal(p, &a)
 	if err2 == nil {
 		w.Items = append(w.Items, &a)
-		if len(w.Items) > 32 {
-			w.Items = w.Items[16:]
+		if len(w.Items) > logLimit {
+			w.Items = w.Items[1:]
 		}
 	}
 	return len(p), nil

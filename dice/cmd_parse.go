@@ -91,10 +91,11 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		//log.Println(222, m[1], "[sep]", m[2])
 
 		// 将所有args连接起来，存入一个cleanArgs变量。主要用于兼容非标准参数
-		stText := ""
-		for _, text := range cmdInfo.Args {
-			stText += text
-		}
+		//stText := ""
+		//for _, text := range cmdInfo.Args {
+		//	stText += text
+		//}
+		stText := strings.Join(cmdInfo.Args, " ")
 		cmdInfo.CleanArgs = stText
 
 		return cmdInfo

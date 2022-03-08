@@ -91,7 +91,7 @@ func (code *ByteCode) CodeString() string {
 	case TypeLoadVarname:
 		return "ld.v " + code.ValueStr
 	case TypeLoadFormatString:
-		return "ld.fs"
+		return fmt.Sprintf("ld.fs %s", code.ValueAny.([]string))
 	case TypeStore:
 		return "store"
 	case TypeHalt:
@@ -483,7 +483,6 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				}
 				text += "}"
 
-				fmt.Println("111", nums, text)
 				lastDetail := text
 				lastDetails = append(lastDetails, lastDetail)
 				a.Value = num

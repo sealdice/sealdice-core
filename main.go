@@ -29,6 +29,7 @@ func main() {
 		GoCqhttpClear bool `long:"gclr" description:"清除go-cqhttp登录信息"`
 		Install       bool `short:"i" long:"install" description:"安装为系统服务"`
 		Uninstall     bool `long:"uninstall" description:"删除系统服务"`
+		ShowConsole   bool `long:"show-console" description:"Windows上显示控制台界面"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -54,6 +55,14 @@ func main() {
 		return
 	}
 
+	if !opts.ShowConsole {
+		hideWindow()
+	}
+
+	if TestRunning() {
+		return
+	}
+
 	cwd, _ := os.Getwd()
 	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
 	fmt.Println("工作路径: ", cwd)
@@ -72,7 +81,6 @@ func main() {
 	// 初始化核心
 	//myDice := &dice.Dice{}
 	//myDice.Init()
-
 	diceManager.LoadDice()
 	diceManager.TryCreateDefault()
 	diceManager.InitDice()
@@ -122,6 +130,7 @@ func main() {
 		go diceServe(d)
 	}
 
+	aaa()
 	uiServe(diceManager)
 
 	//if checkCqHttpExists() {
@@ -147,25 +156,27 @@ func diceServe(d *dice.Dice) {
 		d.Logger.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
 	}
 
-	for index, conn := range d.ImSession.Conns {
+	for _, conn := range d.ImSession.Conns {
 		if conn.Enable {
 			if conn.UseInPackGoCqhttp {
 				dice.GoCqHttpServe(d, conn, "", 1, true)
 				time.Sleep(10 * time.Second) // 稍作等待再连接
 			}
 
-			for {
-				// 骰子开始连接
-				d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
-				ret := d.ImSession.Serve(index)
-
-				if ret == 0 {
-					break
-				}
-
-				d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
-				time.Sleep(time.Duration(15 * time.Second))
-			}
+			go dice.DiceServe(d, conn)
+			//for {
+			//	conn.DiceServing = true
+			//	// 骰子开始连接
+			//	d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
+			//	ret := d.ImSession.Serve(index)
+			//
+			//	if ret == 0 {
+			//		break
+			//	}
+			//
+			//	d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
+			//	time.Sleep(time.Duration(15 * time.Second))
+			//}
 		}
 	}
 }
