@@ -14,6 +14,10 @@ func (ctx *MsgContext) LoadPlayerVars() *PlayerVariablesItem {
 	return nil
 }
 
+func VarSetValueStr(ctx *MsgContext, s string, v string) {
+	VarSetValue(ctx, s, &VMValue{VMTypeString, v})
+}
+
 func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	name := ctx.Player.GetValueNameByAlias(s, nil)
 

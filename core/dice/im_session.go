@@ -37,6 +37,7 @@ type Message struct {
 	NoticeType    string `json:"notice_type"`
 	UserId        int64  `json:"user_id"`
 	SelfId        int64  `json:"self_id"`
+	Duration      int64  `json:"duration"`
 
 	Data *struct {
 		// 个人信息
@@ -62,6 +63,7 @@ type PlayerInfo struct {
 	RpToday        int    `yaml:"rpToday"`
 	RpTime         string `yaml:"rpTime"`
 	LastUpdateTime int64  `yaml:"lastUpdateTime"`
+	InGroup        bool   `yaml:"inGroup"`
 
 	// level int 权限
 	DiceSideNum    int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
@@ -115,13 +117,15 @@ type ConnectInfoItem struct {
 	Type              string `yaml:"type" json:"type"`                           // 协议类型，如onebot、koishi等
 	UseInPackGoCqhttp bool   `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
 
-	InPackGoCqHttpProcess        *procs.Process `yaml:"-" json:"-"`
-	InPackGoCqHttpLoginSuccess   bool           `yaml:"-" json:"inPackGoCqHttpLoginSuccess"`   // 是否登录成功
-	InPackGoCqHttpLoginSucceeded bool           `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"` // 是否登录成功过
-	InPackGoCqHttpRunning        bool           `yaml:"-" json:"inPackGoCqHttpRunning"`        // 是否仍在运行
-	InPackGoCqHttpQrcodeReady    bool           `yaml:"-" json:"inPackGoCqHttpQrcodeReady"`    // 二维码已就绪
-	InPackGoCqHttpNeedQrCode     bool           `yaml:"-" json:"inPackGoCqHttpNeedQrCode"`     // 是否需要二维码
-	InPackGoCqHttpQrcodeData     []byte         `yaml:"-" json:"-"`                            // 二维码数据
+	InPackGoCqHttpProcess            *procs.Process `yaml:"-" json:"-"`
+	InPackGoCqHttpLoginSuccess       bool           `yaml:"-" json:"inPackGoCqHttpLoginSuccess"`   // 是否登录成功
+	InPackGoCqHttpLoginSucceeded     bool           `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"` // 是否登录成功过
+	InPackGoCqHttpRunning            bool           `yaml:"-" json:"inPackGoCqHttpRunning"`        // 是否仍在运行
+	InPackGoCqHttpQrcodeReady        bool           `yaml:"-" json:"inPackGoCqHttpQrcodeReady"`    // 二维码已就绪
+	InPackGoCqHttpNeedQrCode         bool           `yaml:"-" json:"inPackGoCqHttpNeedQrCode"`     // 是否需要二维码
+	InPackGoCqHttpQrcodeData         []byte         `yaml:"-" json:"-"`                            // 二维码数据
+	InPackGoCqHttpLoginDeviceLockUrl string         `yaml:"-" json:"inPackGoCqHttpLoginDeviceLockUrl"`
+	DiceServing                      bool           `yaml:"-"`
 }
 
 type IMSession struct {
@@ -207,6 +211,8 @@ func (s *IMSession) Serve(index int) int {
 
 			// 处理加群请求
 			if msg.PostType == "request" && msg.RequestType == "group" && msg.SubType == "invite" {
+				// {"comment":"","flag":"111","group_id":222,"post_type":"request","request_type":"group","self_id":333,"sub_type":"invite","time":1646782195,"user_id":444}
+				log.Infof("收到加群邀请: 群组(%d) 邀请人:%d", msg.GroupId, msg.UserId)
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 				SetGroupAddRequest(conn.Socket, msg.Flag, msg.SubType, true, "")
 				return
@@ -214,10 +220,32 @@ func (s *IMSession) Serve(index int) int {
 
 			// 入群后自动开启
 			if msg.PostType == "notice" && msg.NoticeType == "group_increase" {
+				//{"group_id":111,"notice_type":"group_increase","operator_id":0,"post_type":"notice","self_id":333,"sub_type":"approve","time":1646782012,"user_id":333}
 				if msg.UserId == msg.SelfId {
 					// 判断进群的人是自己，自动启动
 					SetBotOnAtGroup(session, msg)
-					replyGroupRaw(&MsgContext{Session: session, Dice: session.Parent}, msg.GroupId, fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname), "")
+					// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname)
+					ctx := &MsgContext{Session: session, Dice: session.Parent, Socket: conn.Socket}
+					replyGroupRaw(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
+					log.Infof("加入群组: (%d)", msg.GroupId)
+				}
+				return
+			}
+
+			if msg.PostType == "notice" && msg.NoticeType == "group_decrease" && msg.SubType == "kick_me" {
+				// 被踢
+				//  {"group_id":111,"notice_type":"group_decrease","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"kick_me","time":1646689414 ,"user_id":333}
+				if msg.UserId == msg.SelfId {
+					log.Infof("被踢出群: 在群组(%d)中被踢出，操作者:(%d)", msg.GroupId, msg.UserId)
+				}
+				return
+			}
+
+			if msg.PostType == "notice" && msg.NoticeType == "group_ban" && msg.SubType == "ban" {
+				// 禁言
+				// {"duration":600,"group_id":111,"notice_type":"group_ban","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"ban","time":1646689567,"user_id":333}
+				if msg.UserId == msg.SelfId {
+					log.Infof("被禁言: 在群组(%d)中被禁言，时长%d秒，操作者:(%d)", msg.GroupId, msg.Duration, msg.UserId)
 				}
 				return
 			}

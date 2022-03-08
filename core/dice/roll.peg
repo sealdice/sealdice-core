@@ -37,7 +37,7 @@ number <- < [0-9]+ > sp
 
 assign_expr <- identifier { p.AddValueStr(string(text)) } '=' e1 { p.AddStore() }
 
-identifier <- !'d' < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^_`{|}~0-9 \t\n\r][^!"#$%&\'()*+,-./;<=>?@\[\\\]^_`{|}~ \t\n\r]* > sp // not (punctuation+number)
+identifier <- !'d' < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^`{|}~0-9 \t\n\r][^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]* > sp // not (punctuation+number)
 // identifier2 <- !'d' ![0-9] < (universalCharacter / [a-zA-Z_])+ > sp // not (punctuation+number)
 sub <- open e1 close
 add <- '+' sp

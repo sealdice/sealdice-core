@@ -8,14 +8,20 @@ before:
 #    - go generate ./...
 builds:
   - env:
+      - GO111MODULE=on
       - CGO_ENABLED=0
-      - CGO_FLAGS=-Werror=unused-variable -Werror=implicit-function-declaration  -O2
+      - CGO_FLAGS=-Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+#    ldflags:
+#      -H windowsgui
     goos:
       - linux
       - windows
       - darwin
     flags:
       - -trimpath
+    ignore:
+      - goos: windows
+        goarch: arm64
 
 archives:
   - replacements:
@@ -24,6 +30,9 @@ archives:
       windows: windows
       386: i386
       amd64: amd64
+    format_overrides:
+      - goos: windows
+        format: zip
     files:
       - src: frontend
         dst: .

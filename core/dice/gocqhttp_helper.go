@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -238,6 +239,7 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
 		conn.InPackGoCqHttpRunning = false
 		conn.InPackGoCqHttpQrcodeReady = false
 		conn.InPackGoCqHttpNeedQrCode = false
+		conn.InPackGoCqHttpLoginDeviceLockUrl = ""
 
 		// 注意这个会panic，因此recover捕获了
 		if conn.InPackGoCqHttpProcess != nil {
@@ -308,6 +310,16 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 			conn.Enable = true
 			conn.State = 1
 			dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%d)", conn.Nickname, conn.UserId)
+
+			go DiceServe(dice, conn)
+		}
+
+		if strings.Contains(line, "账号已开启设备锁，请前往") {
+			re := regexp.MustCompile(`-> (.+?) <-`)
+			m := re.FindStringSubmatch(line)
+			if len(m) > 0 {
+				conn.InPackGoCqHttpLoginDeviceLockUrl = m[1]
+			}
 		}
 
 		if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
@@ -360,5 +372,33 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 		go run()
 	} else {
 		run()
+	}
+}
+
+func DiceServe(d *Dice, conn *ConnectInfoItem) {
+	if !conn.DiceServing {
+		conn.DiceServing = true
+	} else {
+		return
+	}
+
+	var _index int
+	for index, a := range d.ImSession.Conns {
+		if a == conn {
+			_index = index
+		}
+	}
+
+	for {
+		// 骰子开始连接
+		d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
+		ret := d.ImSession.Serve(_index)
+
+		if ret == 0 {
+			break
+		}
+
+		d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
+		time.Sleep(time.Duration(15 * time.Second))
 	}
 }

@@ -1,5 +1,9 @@
 package dice
 
+import (
+	"strings"
+)
+
 func IsCurGroupBotOn(session *IMSession, msg *Message) bool {
 	return msg.MessageType == "group" && session.ServiceAt[msg.GroupId] != nil && session.ServiceAt[msg.GroupId].Active
 }
@@ -19,10 +23,8 @@ func GetPlayerInfoBySender(session *IMSession, msg *Message) *PlayerInfo {
 		p := players[msg.Sender.UserId]
 		if p == nil {
 			p = &PlayerInfo{
-				Name:   msg.Sender.Nickname,
-				UserId: msg.Sender.UserId,
-				//ValueNumMap:  map[string]int64{},
-				//ValueStrMap:  map[string]string{},
+				Name:         msg.Sender.Nickname,
+				UserId:       msg.Sender.UserId,
 				ValueMap:     map[string]VMValue{},
 				ValueMapTemp: map[string]VMValue{},
 			}
@@ -34,9 +36,19 @@ func GetPlayerInfoBySender(session *IMSession, msg *Message) *PlayerInfo {
 		if p.ValueMapTemp == nil {
 			p.ValueMapTemp = map[string]VMValue{}
 		}
+		if p.InGroup == false {
+			p.InGroup = true
+		}
 		return p
 	}
-	return nil
+
+	// 私聊信息
+	return &PlayerInfo{
+		Name:         msg.Sender.Nickname,
+		UserId:       msg.Sender.UserId,
+		ValueMap:     map[string]VMValue{},
+		ValueMapTemp: map[string]VMValue{},
+	}
 }
 
 type ByLength []string
@@ -64,5 +76,17 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 
 func DiceFormat(ctx *MsgContext, s string) string {
 	r, _, _ := ctx.Dice.ExprText(s, ctx)
-	return r
+
+	convert := func(s string) string {
+		//var s2 string
+		//raw := []byte(`"` + strings.Replace(s, `"`, `\"`, -1) + `"`)
+		//err := json.Unmarshal(raw, &s2)
+		//if err != nil {
+		//	ctx.Dice.Logger.Info(err)
+		//	return s
+		//}
+		return strings.Replace(s, `\n`, "\n", -1)
+	}
+
+	return convert(r)
 }

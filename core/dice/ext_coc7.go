@@ -2,7 +2,7 @@ package dice
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -239,7 +239,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	ac := setupConfig(self)
 
 	cmdRc := &CmdItemInfo{
-		Name:  "ra/rc <属性>",
+		Name:  "ra/rc <表达式/属性>",
 		Brief: "属性检定指令，骰一个D100，当有“D100 ≤ 属性”时，检定通过",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 1 {
@@ -250,7 +250,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					var err error
 					var suffix, detail string
 					d100 := DiceRoll64(100)
-					r, detail, err = ctx.Dice.ExprEval(cmdArgs.RawArgs, ctx)
+					r, detail, err = ctx.Dice.ExprEval(cmdArgs.CleanArgs, ctx)
 					if r != nil && r.TypeId == 0 {
 						cond = r.Value.(int64)
 					}
@@ -261,20 +261,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						cocRule = 0
 					}
 					successRank := ResultCheck(cocRule, d100, cond)
-					switch successRank {
-					case -2:
-						suffix = DiceFormatTmpl(ctx, "COC:判定-大失败")
-					case -1:
-						suffix = DiceFormatTmpl(ctx, "COC:判定-失败")
-					case +1:
-						suffix = DiceFormatTmpl(ctx, "COC:判定-成功-普通")
-					case +2:
-						suffix = DiceFormatTmpl(ctx, "COC:判定-成功-极难")
-					case +3:
-						suffix = DiceFormatTmpl(ctx, "COC:判定-成功-极难")
-					case +4:
-						suffix = DiceFormatTmpl(ctx, "COC:判定-大成功")
-					}
+					suffix = GetResultText(ctx, successRank)
+					VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, d100})
+					VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, cond})
+					VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, suffix})
 
 					if err == nil {
 						detailWrap := ""
@@ -282,7 +272,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							detailWrap = "=(" + detail + ")"
 						}
 
-						text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.Player.Name, cmdArgs.RawArgs, d100, cond, detailWrap, suffix)
+						VarSetValueStr(ctx, "$t表达式文本", cmdArgs.CleanArgs)
+						VarSetValueStr(ctx, "$t计算过程", detailWrap)
+
+						//text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.Player.Name, cmdArgs.CleanArgs, d100, cond, detailWrap, suffix)
+						text := DiceFormatTmpl(ctx, "COC:检定")
 						ReplyGroup(ctx, msg.GroupId, text)
 					} else {
 						ReplyGroup(ctx, msg.GroupId, "表达式不正确，可能是找不到属性")
@@ -295,7 +289,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	theExt := &ExtInfo{
 		Name:       "coc7",
-		Version:    "0.0.1",
+		Version:    "1.0.0",
 		Brief:      "第七版克苏鲁的呼唤TRPG跑团指令集",
 		AutoActive: true,
 		Author:     "木落",
@@ -325,6 +319,108 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			return text
 		},
 		CmdMap: CmdMapCls{
+			"en": &CmdItemInfo{
+				Name: "en",
+				Help: ".en // 成长",
+				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+					if ctx.IsCurGroupBotOn {
+						// 首先处理单参数形式
+						// .en [技能名称]([技能值])+(([失败成长值]/)[成功成长值])
+						re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+(([^/]+)/)?\s*(.+))?`)
+						m := re.FindStringSubmatch(cmdArgs.CleanArgs)
+
+						if m != nil {
+							varName := m[1]     // 技能名称
+							varValueStr := m[2] // 技能值 - 字符串
+							successExpr := m[6] // 成功的加值表达式
+							failExpr := m[5]    // 失败的加值表达式
+
+							var varValue int64
+							VarSetValue(ctx, "$t技能", &VMValue{VMTypeString, varName})
+
+							// 首先，试图读取技能的值
+							if varValueStr != "" {
+								varValue, _ = strconv.ParseInt(varValueStr, 10, 64)
+							} else {
+								val, exists := VarGetValue(ctx, varName)
+								if !exists {
+									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长_属性未录入"))
+									return CmdExecuteResult{Success: true}
+								}
+								if val.TypeId != VMTypeInt64 {
+									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长_错误的属性类型"))
+									return CmdExecuteResult{Success: true}
+								}
+								varValue = val.Value.(int64)
+							}
+
+							d100 := DiceRoll64(100)
+							// 注意一下，这里其实是，小于失败 大于成功
+							successRank := ResultCheck(ctx.Group.CocRuleIndex, d100, varValue)
+							var resultText string
+							if successRank > 0 {
+								resultText = "失败"
+							} else {
+								resultText = "成功"
+							}
+
+							VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, d100})
+							VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, varValue})
+							VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, resultText})
+
+							if successRank < 0 {
+								// 如果成功
+								if successExpr == "" {
+									successExpr = "1d10"
+								}
+
+								r, _, err := ctx.Dice.ExprEval(successExpr, ctx)
+								VarSetValue(ctx, "$t表达式文本", &VMValue{VMTypeString, successExpr})
+								if err != nil {
+									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长_错误的成功成长值"))
+									return CmdExecuteResult{Success: true}
+								}
+
+								VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, varValue})
+								varValue += r.VMValue.Value.(int64)
+								nv := &VMValue{VMTypeInt64, varValue}
+
+								VarSetValue(ctx, "$t增量", &r.VMValue)
+								VarSetValue(ctx, "$t新值", nv)
+								VarSetValue(ctx, varName, nv)
+								VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "COC:技能成长_结果_成功"))
+							} else {
+								// 如果失败
+								if failExpr == "" {
+									VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "COC:技能成长_结果_失败"))
+									return CmdExecuteResult{Success: true}
+								} else {
+									r, _, err := ctx.Dice.ExprEval(failExpr, ctx)
+									VarSetValue(ctx, "$t表达式文本", &VMValue{VMTypeString, failExpr})
+									if err != nil {
+										ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长_错误的失败成长值"))
+										return CmdExecuteResult{Success: true}
+									}
+
+									VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, varValue})
+									varValue += r.VMValue.Value.(int64)
+									nv := &VMValue{VMTypeInt64, varValue}
+
+									VarSetValue(ctx, "$t增量", &r.VMValue)
+									VarSetValue(ctx, "$t新值", nv)
+									VarSetValue(ctx, varName, nv)
+									VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "COC:技能成长_结果_失败变更"))
+								}
+
+							}
+
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长"))
+							return CmdExecuteResult{Success: true}
+						}
+					}
+					return CmdExecuteResult{Success: false}
+				},
+			},
 			"setcoc": &CmdItemInfo{
 				Name:  "setcoc",
 				Brief: "设置房规",
@@ -333,25 +429,25 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					switch n {
 					case "0":
 						ctx.Group.CocRuleIndex = 0
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-0"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_0"))
 					case "1":
 						ctx.Group.CocRuleIndex = 1
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-1"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_1"))
 					case "2":
 						ctx.Group.CocRuleIndex = 2
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-2"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_2"))
 					case "3":
 						ctx.Group.CocRuleIndex = 3
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-3"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_3"))
 					case "4":
 						ctx.Group.CocRuleIndex = 4
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-4"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_4"))
 					case "5":
 						ctx.Group.CocRuleIndex = 5
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-5"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_5"))
 					default:
 						VarSetValue(ctx, "$t房规", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规-当前"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
 					}
 
 					return CmdExecuteResult{Success: true}
@@ -499,20 +595,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								var suffix string
 
 								successRank := ResultCheck(ctx.Group.CocRuleIndex, d100, san)
-								switch successRank {
-								case -2:
-									suffix = DiceFormatTmpl(ctx, "COC:判定-大失败")
-								case -1:
-									suffix = DiceFormatTmpl(ctx, "COC:判定-失败")
-								case +1:
-									suffix = DiceFormatTmpl(ctx, "COC:判定-成功-普通")
-								case +2:
-									suffix = DiceFormatTmpl(ctx, "COC:判定-成功-极难")
-								case +3:
-									suffix = DiceFormatTmpl(ctx, "COC:判定-成功-极难")
-								case +4:
-									suffix = DiceFormatTmpl(ctx, "COC:判定-大成功")
-								}
+								suffix = GetResultText(ctx, successRank)
+								VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, d100})
+								VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, san})
+								VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, suffix})
+								VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, san})
 
 								r, _, err = ctx.Dice.ExprEvalBase(failedExpr, ctx, successRank == -2, false)
 								if err == nil {
@@ -535,18 +622,23 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 								//输出结果
 								offset := san - sanNew
-								text := fmt.Sprintf("<%s>的理智检定:\nD100=%d/%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", ctx.Player.Name, d100, san, suffix, san, sanNew, text1, offset)
+								VarSetValue(ctx, "$t新值", &VMValue{VMTypeInt64, sanNew})
+								VarSetValueStr(ctx, "$t表达式文本", text1)
+								VarSetValue(ctx, "$t表达式值", &VMValue{VMTypeInt64, offset})
+								//text := fmt.Sprintf("<%s>的理智检定:\nD100=%d/%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", ctx.Player.Name, d100, san, suffix, san, sanNew, text1, offset)
 
+								var crazyTip string
 								if sanNew == 0 {
-									text += "提示：理智归零，已永久疯狂(可用.ti或.li抽取症状)\n"
+									crazyTip += DiceFormatTmpl(ctx, "COC:提示_永久疯狂") + "\n"
 								} else {
 									if offset >= 5 {
-										text += "提示：单次损失理智超过5点，若智力检定(.ra 智力)通过，将进入临时性疯狂(可用.ti或.li抽取症状)\n"
+										crazyTip += DiceFormatTmpl(ctx, "COC:提示_临时疯狂") + "\n"
 									}
 								}
+								VarSetValueStr(ctx, "$t提示_角色疯狂", crazyTip)
 
 								// 临时疯狂
-								ReplyGroup(ctx, msg.GroupId, text)
+								ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:理智检定"))
 							} else {
 								ReplyGroup(ctx, msg.GroupId, "命令格式错误")
 							}
@@ -823,6 +915,25 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	self.RegisterExtension(theExt)
 }
 
+func GetResultText(ctx *MsgContext, successRank int) string {
+	var suffix string
+	switch successRank {
+	case -2:
+		suffix = DiceFormatTmpl(ctx, "COC:判定_大失败")
+	case -1:
+		suffix = DiceFormatTmpl(ctx, "COC:判定_失败")
+	case +1:
+		suffix = DiceFormatTmpl(ctx, "COC:判定_成功_普通")
+	case +2:
+		suffix = DiceFormatTmpl(ctx, "COC:判定_成功_极难")
+	case +3:
+		suffix = DiceFormatTmpl(ctx, "COC:判定_成功_极难")
+	case +4:
+		suffix = DiceFormatTmpl(ctx, "COC:判定_大成功")
+	}
+	return suffix
+}
+
 /*
 大失败：骰出 100。若成功需要的值低于 50，大于等于 96 的结果都是大失败 -> -2
 失败：骰出大于角色技能或属性值（但不是大失败） -> -1
@@ -965,7 +1076,7 @@ func setupConfig(d *Dice) AttributeConfigs {
 		// 如果不存在，新建
 		defaultVals := AttributeConfigs{
 			Alias: map[string][]string{
-				"理智": {"san", "san值", "理智值"},
+				"理智": {"san", "san值", "理智值", "理智点数", "心智", "心智点数"},
 				"力量": {"str"},
 				"体质": {"con"},
 				"体型": {"siz"},
@@ -976,11 +1087,22 @@ func setupConfig(d *Dice) AttributeConfigs {
 				"智力": {"int", "灵感"}, // 智力和灵感等值而不是一回事，注意
 
 				"幸运":    {"luck", "幸运值"},
-				"生命值":   {"hp", "生命", "血量"},
+				"生命值":   {"hp", "生命", "血量", "耐久值"},
 				"魔法值":   {"mp", "魔法", "魔力", "魔力值"},
 				"克苏鲁神话": {"cm", "克苏鲁"},
-				"图书馆使用": {"图书馆"},
+				"图书馆使用": {"图书馆", "图书馆利用"},
+				"计算机使用": {"电脑使用"},
+				"电气维修":  {"电器维修"},
+				"话术":    {"快速交谈"},
+				"锁匠":    {"钳工"},
+				"机械维修":  {"机器维修"},
+				"精神分析":  {"心理分析"},
+				"追踪":    {"跟踪"},
+				"地质学":   {"地理学"},
 				"链枷":    {"连枷"},
+				"信用评级":  {"信誉", "信用", "信誉度"},
+				"护甲":    {"装甲"},
+				"枪械":    {"火器", "射击"},
 			},
 			Order: AttributeOrder{
 				Top:    []string{"力量", "敏捷", "体质", "体型", "外貌", "智力", "意志", "教育", "理智", "克苏鲁神话", "生命值", "魔法值"},
