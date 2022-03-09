@@ -239,8 +239,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	ac := setupConfig(self)
 
 	cmdRc := &CmdItemInfo{
-		Name:  "ra/rc <表达式/属性>",
-		Brief: "属性检定指令，骰一个D100，当有“D100 ≤ 属性”时，检定通过",
+		Name: "ra/rc",
+		Help: ".rc/ra <表达式/属性> (<原因>) // 属性检定指令，骰一个D100，当有“D100 ≤ 表达式”时，检定通过",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 1 {
 				var cond int64
@@ -251,6 +251,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					var suffix, detail string
 					d100 := DiceRoll64(100)
 					r, detail, err = ctx.Dice.ExprEval(cmdArgs.CleanArgs, ctx)
+					forWhat := strings.TrimSpace(r.restInput)
+					if forWhat == "" {
+						forWhat = cmdArgs.CleanArgs
+					}
+
 					if r != nil && r.TypeId == 0 {
 						cond = r.Value.(int64)
 					}
@@ -272,6 +277,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							detailWrap = "=(" + detail + ")"
 						}
 
+						VarSetValueStr(ctx, "$t原因", forWhat)
 						VarSetValueStr(ctx, "$t表达式文本", cmdArgs.CleanArgs)
 						VarSetValueStr(ctx, "$t计算过程", detailWrap)
 
@@ -279,7 +285,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						text := DiceFormatTmpl(ctx, "COC:检定")
 						ReplyGroup(ctx, msg.GroupId, text)
 					} else {
-						ReplyGroup(ctx, msg.GroupId, "表达式不正确，可能是找不到属性")
+						ReplyGroup(ctx, msg.GroupId, "表达式不正确")
 					}
 				}
 			}
