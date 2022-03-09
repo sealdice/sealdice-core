@@ -1,6 +1,11 @@
 package dice
 
 import (
+	"errors"
+	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -85,7 +90,37 @@ func DiceFormat(ctx *MsgContext, s string) string {
 		//	ctx.Dice.Logger.Info(err)
 		//	return s
 		//}
-		return strings.Replace(s, `\n`, "\n", -1)
+
+		solve := func(cq *CQCommand) {
+			if cq.Type == "image" {
+				fn, exists := cq.Args["file"]
+				if exists {
+					afn, _ := filepath.Abs(fn)
+					cwd, _ := os.Getwd()
+
+					if strings.HasPrefix(afn, cwd) {
+						if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
+							cq.Overwrite = "[找不到图片]"
+						} else {
+							// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
+							if runtime.GOOS == `windows` {
+								afn = "/" + afn
+							}
+							u := url.URL{
+								Scheme: "file",
+								Path:   afn,
+							}
+							cq.Args["file"] = u.String()
+						}
+					} else {
+						cq.Overwrite = "[CQ码读取非当前目录图片，可能是恶意行为，已禁止]"
+					}
+				}
+			}
+		}
+
+		text := strings.Replace(s, `\n`, "\n", -1)
+		return CQRewrite(text, solve)
 	}
 
 	return convert(r)

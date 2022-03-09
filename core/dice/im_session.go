@@ -279,6 +279,11 @@ func (s *IMSession) Serve(index int) int {
 
 				// 收到信息回调
 				sa := session.ServiceAt[msg.GroupId]
+				if sa == nil {
+					log.Infof("自动激活: 发现无记录群组(%d)，因为已是群成员，所以自动激活", msg.GroupId)
+					SetBotOnAtGroup(mctx.Session, msg)
+				}
+
 				mctx.Group = sa
 				mctx.Player = GetPlayerInfoBySender(session, msg)
 				mctx.IsCurGroupBotOn = IsCurGroupBotOn(session, msg)

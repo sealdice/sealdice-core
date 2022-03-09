@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"fmt"
 	"github.com/jessevdk/go-flags"
 	"regexp"
 	"strconv"
@@ -102,6 +103,63 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 	}
 
 	return nil
+}
+
+type CQCommand struct {
+	Type      string
+	Args      map[string]string
+	Overwrite string
+}
+
+func (c *CQCommand) Compile() string {
+	if c.Overwrite != "" {
+		return c.Overwrite
+	}
+	argsPart := ""
+	for k, v := range c.Args {
+		argsPart += fmt.Sprintf(",%s=%s", k, v)
+	}
+	return fmt.Sprintf("[CQ:%s%s]", c.Type, argsPart)
+}
+
+func CQRewrite(longText string, solve func(cq *CQCommand)) string {
+	re := regexp.MustCompile(`\[CQ:.+?]`)
+	m := re.FindAllStringIndex(longText, -1)
+
+	newText := longText
+	for i := len(m) - 1; i >= 0; i-- {
+		p := m[i]
+		cq := CQParse(longText[p[0]:p[1]])
+		solve(cq)
+		newText = newText[:p[0]] + cq.Compile() + newText[p[1]:]
+	}
+
+	return newText
+}
+
+func CQParse(cmd string) *CQCommand {
+	// [CQ:image,file=data/images/1.png,type=show,id=40004]
+	var main string
+	args := make(map[string]string)
+
+	re := regexp.MustCompile(`\[CQ:([^],]+)(,[^]]+)?]`)
+	m := re.FindStringSubmatch(cmd)
+	if m != nil {
+		main = m[1]
+		if m[2] != "" {
+			argList := strings.Split(m[2], ",")
+			for _, i := range argList {
+				pair := strings.Split(i, "=")
+				if len(pair) >= 2 {
+					args[pair[0]] = pair[1]
+				}
+			}
+		}
+	}
+	return &CQCommand{
+		Type: main,
+		Args: args,
+	}
 }
 
 func AtParse(cmd string) (string, []*AtInfo) {
