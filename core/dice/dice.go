@@ -164,6 +164,9 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, bigFailDice bool, di
 		ret.Value = num.Value
 		ret.TypeId = num.TypeId
 		ret.Parser = parser
+
+		tks := parser.Tokens()
+		ret.restInput = buffer[tks[len(tks)-1].end:]
 		return &ret, detail, nil
 	}
 	return nil, "", err

@@ -204,7 +204,8 @@ type vmStack = VMValue
 
 type VmResult struct {
 	VMValue
-	Parser *DiceRollParser
+	Parser    *DiceRollParser
+	restInput string
 }
 
 func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, error) {
