@@ -176,7 +176,7 @@ func (d *Dice) registerCoreCommands() {
 				var r *VmResult
 				if len(cmdArgs.Args) >= 1 {
 					var err error
-					r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.Args[0], ctx, false, disableLoadVarname)
+					r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, false, disableLoadVarname)
 
 					if r != nil && r.TypeId == 0 {
 						diceResult = r.Value.(int64)
@@ -185,9 +185,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					if err == nil {
-						if len(cmdArgs.Args) >= 2 {
-							forWhat = cmdArgs.Args[1]
-						}
+						forWhat = r.restInput
 					} else {
 						errs := string(err.Error())
 						if strings.HasPrefix(errs, "E1:") {
@@ -195,7 +193,7 @@ func (d *Dice) registerCoreCommands() {
 							//ReplyGroup(ctx, msg.GroupId, errs)
 							return CmdExecuteResult{true}
 						}
-						forWhat = cmdArgs.Args[0]
+						forWhat = cmdArgs.CleanArgs
 					}
 				}
 
