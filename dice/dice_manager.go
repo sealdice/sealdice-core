@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"os"
 )
 
 type DiceManager struct {
@@ -17,6 +18,9 @@ type DiceConfigs struct {
 }
 
 func (dm *DiceManager) LoadDice() {
+	os.MkdirAll("./data/images", 0644)
+	ioutil.WriteFile("./data/images/sealdice.png", ICON_PNG, 0644)
+
 	data, err := ioutil.ReadFile("./data/dice.yaml")
 	if err != nil {
 		return

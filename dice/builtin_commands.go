@@ -112,11 +112,11 @@ func (d *Dice) registerCoreCommands() {
 							// "SealDice 已启用(开发中) " + VERSION
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子开启"))
 						} else if cmdArgs.Args[0] == "off" {
-							if len(ctx.Group.ActivatedExtList) == 0 {
-								delete(ctx.Session.ServiceAt, msg.GroupId)
-							} else {
-								ctx.Group.Active = false
-							}
+							//if len(ctx.Group.ActivatedExtList) == 0 {
+							//	delete(ctx.Session.ServiceAt, msg.GroupId)
+							//} else {
+							ctx.Group.Active = false
+							//}
 							// 停止服务
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子关闭"))
 						} else if cmdArgs.Args[0] == "bye" {
