@@ -11,9 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func hello(c echo.Context) error {
-	return c.String(http.StatusOK, "Hello, World!")
-}
+const CODE_ALREADY_EXISTS = 602
 
 var startTime = time.Now().Unix()
 
@@ -160,13 +158,15 @@ func ImConnectionsAdd(c echo.Context) error {
 		if err != nil {
 			return c.String(430, "")
 		}
+
+		for _, i := range myDice.ImSession.Conns {
+			if i.UserId == uid {
+				return c.JSON(CODE_ALREADY_EXISTS, i)
+			}
+		}
+
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
 		conn.UserId = uid
-		//myDice.ImSession.Conns = append(myDice.ImSession.Conns, )
-		//myDice.TextMapRaw[v.Category] = v.Data
-		//myDice.GenerateTextMap()
-		//myDice.SaveText()
-		//return c.String(http.StatusOK, "")
 		myDice.ImSession.Conns = append(myDice.ImSession.Conns, conn)
 		dice.GoCqHttpServe(myDice, conn, v.Password, 1, true)
 		myDice.Save(false)
