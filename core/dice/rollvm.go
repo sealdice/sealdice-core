@@ -492,15 +492,25 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			} else {
 				// XXX Dice YYY, 如 3d100
 				var num int64
+				text := ""
 				for i := int64(0); i < aInt; i += 1 {
+					var curNum int64
 					if e.BigFailDiceOn {
-						num += bInt
+						curNum = bInt
 					} else {
-						num += DiceRoll64(bInt)
+						curNum = DiceRoll64(bInt)
 					}
+
+					num += curNum
+					text += fmt.Sprintf("+%d", curNum)
 				}
 
-				lastDetail := fmt.Sprintf("%dd%d=%d", aInt, bInt, num)
+				var suffix string
+				if aInt > 1 {
+					suffix = ", " + text[1:]
+				}
+
+				lastDetail := fmt.Sprintf("%dd%d=%d%s", aInt, bInt, num, suffix)
 				lastDetails = append(lastDetails, lastDetail)
 				a.Value = num
 			}
