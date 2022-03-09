@@ -85,6 +85,10 @@ func (d *Dice) registerCoreCommands() {
 			inGroup := msg.MessageType == "group"
 
 			if len(cmdArgs.Args) == 0 || cmdArgs.IsArgEqual(1, "about") {
+				if len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned {
+					// 喊的不是当前骰子
+					return CmdExecuteResult{true}
+				}
 				count := 0
 				for _, i := range d.ImSession.ServiceAt {
 					if i.Active {
@@ -95,9 +99,15 @@ func (d *Dice) registerCoreCommands() {
 				if d.LastSavedTime != nil {
 					lastSavedTimeText = d.LastSavedTime.Format("2006-01-02 15:04:05") + " UTC"
 				}
-				text := fmt.Sprintf("SealDice %s\n兼容模式: 已开启\n供职于%d个群，其中%d个处于开启状态\n上次自动保存时间: %s", VERSION, len(d.ImSession.ServiceAt), count, lastSavedTimeText)
+				text := fmt.Sprintf("SealDice %s\n供职于%d个群，其中%d个处于开启状态\n上次自动保存时间: %s", VERSION, len(d.ImSession.ServiceAt), count, lastSavedTimeText)
 
 				if inGroup {
+					isActive := ctx.Group != nil && ctx.Group.Active
+					activeText := "开启"
+					if !isActive {
+						activeText = "关闭"
+					}
+					text += "\n群内工作状态: " + activeText
 					ReplyGroup(ctx, msg.GroupId, text)
 				} else {
 					ReplyPerson(ctx, msg.Sender.UserId, text)
@@ -381,8 +391,8 @@ func (d *Dice) registerCoreCommands() {
 
 	cmdChar := &CmdItemInfo{
 		Name: "ch",
-		//Help: ".ch Save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色\n.ch list // 列出当前角色",
-		Help: ".ch list/Save/load/del // 角色管理",
+		//Help: ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色\n.ch list // 列出当前角色",
+		Help: ".ch list/save/load/del // 角色管理",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn {
 				getNickname := func() string {
@@ -466,7 +476,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				} else {
 					help := "角色指令\n"
-					help += ".ch Save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色，角色名省略则为当前昵称\n.ch list // 列出当前角色\n.ch del <角色名> // 删除角色"
+					help += ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色，角色名省略则为当前昵称\n.ch list // 列出当前角色\n.ch del <角色名> // 删除角色"
 					ReplyToSender(ctx, msg, help)
 				}
 			}
@@ -477,4 +487,5 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["ch"] = cmdChar
 	d.CmdMap["char"] = cmdChar
 	d.CmdMap["character"] = cmdChar
+	d.CmdMap["pc"] = cmdChar
 }
