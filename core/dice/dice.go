@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
+	"strings"
 	"time"
 )
 
@@ -168,7 +169,7 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, bigFailDice bool, di
 		tks := parser.Tokens()
 		// 注意，golang的string下标等同于[]byte下标，也就是说中文会被打断
 		// parser里有一个[]rune类型的，但问题是他句尾带了一个endsymbol
-		ret.restInput = string([]rune(buffer)[tks[len(tks)-1].end:])
+		ret.restInput = strings.TrimSpace(string([]rune(buffer)[tks[len(tks)-1].end:]))
 		return &ret, detail, nil
 	}
 	return nil, "", err
