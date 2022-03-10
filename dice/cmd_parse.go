@@ -30,11 +30,11 @@ type CmdArgs struct {
 	CleanArgs      string
 }
 
-/** 检查第N项参数是否为某个字符串，n >= 1，若没有第n项参数也视为失败 */
+/** 检查第N项参数是否为某个字符串，n从1开始，若没有第n项参数也视为失败 */
 func (a *CmdArgs) IsArgEqual(n int, ss ...string) bool {
 	if len(a.Args) >= n {
 		for _, i := range ss {
-			if a.Args[n-1] == i {
+			if strings.EqualFold(a.Args[n-1], i) {
 				return true
 			}
 		}

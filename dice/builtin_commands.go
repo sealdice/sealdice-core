@@ -115,13 +115,13 @@ func (d *Dice) registerCoreCommands() {
 			} else {
 				if inGroup && cmdArgs.AmIBeMentioned {
 					if len(cmdArgs.Args) >= 1 {
-						if cmdArgs.Args[0] == "on" {
+						if cmdArgs.IsArgEqual(1, "on") {
 							SetBotOnAtGroup(ctx.Session, msg)
 							ctx.Group = ctx.Session.ServiceAt[msg.GroupId]
 							ctx.IsCurGroupBotOn = true
 							// "SealDice 已启用(开发中) " + VERSION
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子开启"))
-						} else if cmdArgs.Args[0] == "off" {
+						} else if cmdArgs.IsArgEqual(1, "off") {
 							//if len(ctx.Group.ActivatedExtList) == 0 {
 							//	delete(ctx.Session.ServiceAt, msg.GroupId)
 							//} else {
@@ -129,14 +129,14 @@ func (d *Dice) registerCoreCommands() {
 							//}
 							// 停止服务
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子关闭"))
-						} else if cmdArgs.Args[0] == "bye" {
+						} else if cmdArgs.IsArgEqual(1, "byte") {
 							// 收到指令，5s后将退出当前群组
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
 							d.Logger.Infof("指令退群: 于群组(%d)中告别，操作者:(%d)", msg.GroupId, msg.UserId)
 							ctx.Group.Active = false
 							time.Sleep(6 * time.Second)
 							QuitGroup(ctx, msg.GroupId)
-						} else if cmdArgs.Args[0] == "Save" {
+						} else if cmdArgs.IsArgEqual(1, "save") {
 							d.Save(false)
 							// 数据已保存
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子保存设置"))
