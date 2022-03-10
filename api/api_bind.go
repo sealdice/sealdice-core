@@ -95,6 +95,7 @@ func ImConnectionsDel(c echo.Context) error {
 	if err == nil {
 		for index, i := range myDice.ImSession.Conns {
 			if i.Id == v.Id {
+				dice.GoCqHttpServeProcessKill(myDice, i)
 				myDice.ImSession.Conns = append(myDice.ImSession.Conns[:index], myDice.ImSession.Conns[index+1:]...)
 				return c.JSON(http.StatusOK, i)
 			}

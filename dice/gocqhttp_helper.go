@@ -234,16 +234,18 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
 			}
 		}()
 
-		conn.InPackGoCqHttpLoginSuccess = false
-		conn.InPackGoCqHttpQrcodeData = nil
-		conn.InPackGoCqHttpRunning = false
-		conn.InPackGoCqHttpQrcodeReady = false
-		conn.InPackGoCqHttpNeedQrCode = false
-		conn.InPackGoCqHttpLoginDeviceLockUrl = ""
+		if conn.UseInPackGoCqhttp {
+			conn.InPackGoCqHttpLoginSuccess = false
+			conn.InPackGoCqHttpQrcodeData = nil
+			conn.InPackGoCqHttpRunning = false
+			conn.InPackGoCqHttpQrcodeReady = false
+			conn.InPackGoCqHttpNeedQrCode = false
+			conn.InPackGoCqHttpLoginDeviceLockUrl = ""
 
-		// 注意这个会panic，因此recover捕获了
-		if conn.InPackGoCqHttpProcess != nil {
-			conn.InPackGoCqHttpProcess.Stop()
+			// 注意这个会panic，因此recover捕获了
+			if conn.InPackGoCqHttpProcess != nil {
+				conn.InPackGoCqHttpProcess.Stop()
+			}
 		}
 	}()
 }
