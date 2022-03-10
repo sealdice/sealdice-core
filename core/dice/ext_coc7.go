@@ -240,7 +240,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	cmdRc := &CmdItemInfo{
 		Name: "ra/rc",
-		Help: ".rc/ra <表达式/属性> (<原因>) // 属性检定指令，骰一个D100，当有“D100 ≤ 表达式”时，检定通过",
+		Help: ".rc/ra (<检定表达式，默认d100>) <属性表达式> // 属性检定指令，当前者小于后者，检定通过",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 1 {
 				var cond int64
