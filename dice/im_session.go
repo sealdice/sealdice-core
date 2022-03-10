@@ -378,6 +378,23 @@ func (s *IMSession) Serve(index int) int {
 	}
 }
 
+func SetTempVars(ctx *MsgContext, qqNickname string) {
+	// 设置临时变量
+	if ctx.Player != nil {
+		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
+		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
+		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, ctx.Player.DiceSideNum})
+		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})
+		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeInt64, ctx.conn.UserId})
+		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeInt64, ctx.conn.Nickname})
+	}
+	if ctx.Group != nil {
+		// 注: 未来将私聊视为空群吧
+		VarSetValue(ctx, "$t群号", &VMValue{VMTypeInt64, ctx.Group.GroupId})
+		VarSetValue(ctx, "$t群名", &VMValue{VMTypeString, ctx.Group.GroupName})
+	}
+}
+
 func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 	// 设置AmIBeMentioned
 	cmdArgs.AmIBeMentioned = false
@@ -390,13 +407,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 	// 设置临时变量
 	if ctx.Player != nil {
-		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
-		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", msg.Sender.Nickname)})
-		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, ctx.Player.DiceSideNum})
-		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, msg.Sender.UserId})
-		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeInt64, ctx.conn.UserId})
-		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeInt64, ctx.conn.Nickname})
-		// 注: 未来将私聊视为空群吧
+		SetTempVars(ctx, msg.Sender.Nickname)
 	}
 
 	tryItemSolve := func(item *CmdItemInfo) bool {

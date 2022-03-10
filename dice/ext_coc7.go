@@ -239,27 +239,39 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	ac := setupConfig(self)
 
 	cmdRc := &CmdItemInfo{
-		Name: "ra/rc",
-		Help: ".rc/ra (<检定表达式，默认d100可省略>) <属性表达式> // 属性检定指令，当前者小于后者，检定通过",
+		Name:  "ra/rc",
+		Brief: "ra (<检定表达式，默认d100可省略>) <属性表达式> (@某人) // 属性检定指令，当前者小于后者，检定通过。当@某人时，对此人做检定",
+		Help:  ".rc/ra (<检定表达式，默认d100可省略>) <属性表达式> (@某人) // 属性检定指令，当前者小于后者，检定通过。当@某人时，对此人做检定",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 1 {
 				if len(cmdArgs.Args) >= 1 {
+					mctx := &*ctx // 复制一个ctx，用于其他用途
+					if len(cmdArgs.At) > 0 {
+						p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
+						if exists {
+							mctx.Player = p
+						}
+					}
+
 					// 试图读取检定表达式
 					swap := false
-					r1, detail1, err := ctx.Dice.ExprEval(cmdArgs.CleanArgs, ctx)
+					r1, detail1, err := ctx.Dice.ExprEval(cmdArgs.CleanArgs, mctx)
 
 					if err != nil {
 						ReplyToSender(ctx, msg, "解析出错: "+cmdArgs.CleanArgs)
 						return CmdExecuteResult{Success: true}
 					}
 
+					expr1Text := r1.Matched
 					expr2Text := r1.restInput
+
+					// 如果读取完了，那么说明刚才读取的实际上是属性表达式
 					if expr2Text == "" {
 						expr2Text = "d100"
 						swap = true
 					}
 
-					r2, detail2, err := ctx.Dice.ExprEval(expr2Text, ctx)
+					r2, detail2, err := ctx.Dice.ExprEval(expr2Text, mctx)
 					if err != nil {
 						ReplyToSender(ctx, msg, "解析出错: "+expr2Text)
 						return CmdExecuteResult{Success: true}
@@ -267,7 +279,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 					if swap {
 						r1, detail1, r2, detail2 = r2, detail2, r1, detail1
-						expr2Text = cmdArgs.CleanArgs
+						expr1Text, expr2Text = expr2Text, expr1Text
 					}
 
 					if r1.TypeId != VMTypeInt64 || r2.TypeId != VMTypeInt64 {
@@ -296,13 +308,21 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							detailWrap = ", (" + detail1 + ")"
 						}
 
-						VarSetValueStr(ctx, "$t原因", expr2Text)
-						VarSetValueStr(ctx, "$t表达式文本", cmdArgs.CleanArgs)
+						VarSetValueStr(ctx, "$t检定表达式文本", expr1Text)
+						VarSetValueStr(ctx, "$t属性表达式文本", expr2Text)
+						VarSetValueStr(ctx, "$t检定计算过程", detailWrap)
 						VarSetValueStr(ctx, "$t计算过程", detailWrap)
 
 						//text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.Player.Name, cmdArgs.CleanArgs, d100, cond, detailWrap, suffix)
+						SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
 						text := DiceFormatTmpl(ctx, "COC:检定")
-						ReplyGroup(ctx, msg.GroupId, text)
+
+						if cmdArgs.Command == "rah" || cmdArgs.Command == "rch" {
+							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
+							ReplyPerson(ctx, msg.Sender.UserId, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
+						} else {
+							ReplyGroup(ctx, msg.GroupId, text)
+						}
 						return CmdExecuteResult{Success: true}
 					}
 				}
@@ -574,8 +594,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return CmdExecuteResult{Success: true}
 				},
 			},
-			"ra": cmdRc,
-			"rc": cmdRc,
+			"ra":  cmdRc,
+			"rc":  cmdRc,
+			"rch": cmdRc,
+			"rah": cmdRc,
 			"sc": &CmdItemInfo{
 				Name:  "sc <成功时掉san>/<失败时掉san>",
 				Brief: "对理智进行一次D100检定，根据结果扣除理智。如“.sc 0/1d3”为成功不扣除理智，失败扣除1d3。大失败时按掷骰最大值扣除。支持复杂表达式。如.sc 1d2+3/1d(知识+1)",

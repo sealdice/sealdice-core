@@ -97,7 +97,7 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		//	stText += text
 		//}
 		stText := strings.Join(cmdInfo.Args, " ")
-		cmdInfo.CleanArgs = stText
+		cmdInfo.CleanArgs = strings.TrimSpace(stText)
 
 		return cmdInfo
 	}

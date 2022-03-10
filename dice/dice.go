@@ -169,7 +169,10 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, bigFailDice bool, di
 		tks := parser.Tokens()
 		// 注意，golang的string下标等同于[]byte下标，也就是说中文会被打断
 		// parser里有一个[]rune类型的，但问题是他句尾带了一个endsymbol
-		ret.restInput = strings.TrimSpace(string([]rune(buffer)[tks[len(tks)-1].end:]))
+		runeBuffer := []rune(buffer)
+		lastToken := tks[len(tks)-1]
+		ret.restInput = strings.TrimSpace(string(runeBuffer[lastToken.end:]))
+		ret.Matched = strings.TrimSpace(string(runeBuffer[:lastToken.end]))
 		return &ret, detail, nil
 	}
 	return nil, "", err
