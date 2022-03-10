@@ -320,6 +320,8 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 			re := regexp.MustCompile(`-> (.+?) <-`)
 			m := re.FindStringSubmatch(line)
 			if len(m) > 0 {
+				// 设备锁流程，因为需要重新登录，进行一个“已成功登录过”的标记，这样配置文件不会被删除
+				conn.InPackGoCqHttpLoginSucceeded = true
 				conn.InPackGoCqHttpLoginDeviceLockUrl = m[1]
 			}
 		}

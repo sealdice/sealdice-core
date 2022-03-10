@@ -205,6 +205,7 @@ type vmStack = VMValue
 type VmResult struct {
 	VMValue
 	Parser    *DiceRollParser
+	Matched   string
 	restInput string
 }
 
