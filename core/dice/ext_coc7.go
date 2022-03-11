@@ -438,7 +438,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								// 如果失败
 								if failExpr == "" {
 									VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "COC:技能成长_结果_失败"))
-									return CmdExecuteResult{Success: true}
 								} else {
 									r, _, err := ctx.Dice.ExprEval(failExpr, ctx)
 									VarSetValue(ctx, "$t表达式文本", &VMValue{VMTypeString, failExpr})
@@ -461,6 +460,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长"))
 							return CmdExecuteResult{Success: true}
+						} else {
+							ReplyToSender(ctx, msg, "指令格式不匹配")
 						}
 					}
 					return CmdExecuteResult{Success: false}
