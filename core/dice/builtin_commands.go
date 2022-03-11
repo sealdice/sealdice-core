@@ -129,7 +129,7 @@ func (d *Dice) registerCoreCommands() {
 							//}
 							// 停止服务
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子关闭"))
-						} else if cmdArgs.IsArgEqual(1, "byte") {
+						} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
 							// 收到指令，5s后将退出当前群组
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
 							d.Logger.Infof("指令退群: 于群组(%d)中告别，操作者:(%d)", msg.GroupId, msg.UserId)

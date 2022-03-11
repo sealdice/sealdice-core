@@ -1,9 +1,9 @@
 package dice
 
-func registerBuiltinExtTemple(self *Dice) {
-	self.ExtList = append(self.ExtList, &ExtInfo{
-		Name:       "name", // 扩展的名称，需要用于指令中，写简短点
-		Version:    "0.0.1",
+func RegisterBuiltinExtTemple(self *Dice) {
+	theExt := &ExtInfo{
+		Name:       "name", // 扩展的名称，需要用于开启和关闭指令中，写简短点
+		Version:    "1.0.0",
 		Brief:      "一行字简介",
 		AutoActive: true, // 是否自动开启
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
@@ -26,11 +26,13 @@ func registerBuiltinExtTemple(self *Dice) {
 				Name: "command",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn {
-						//p := getPlayerInfoBySender(session, msg)
+						// do something
 					}
 					return CmdExecuteResult{Success: true}
 				},
 			},
 		},
-	})
+	}
+
+	self.RegisterExtension(theExt)
 }

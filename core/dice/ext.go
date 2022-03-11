@@ -9,6 +9,7 @@ func (d *Dice) RegisterBuiltinExt() {
 	RegisterBuiltinExtCoc7(d)
 	RegisterBuiltinExtLog(d)
 	RegisterBuiltinExtFun(d)
+	RegisterBuiltinExtDeck(d)
 }
 
 func (d *Dice) RegisterExtension(extInfo *ExtInfo) {
