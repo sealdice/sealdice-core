@@ -230,7 +230,8 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
 	defer func() {
 		defer func() {
 			if r := recover(); r != nil {
-				dice.Logger.Error(r)
+				dice.Logger.Error("go-cqhttp清理报错: ", r)
+				// go-cqhttp 进程退出: exit status 1
 			}
 		}()
 
@@ -245,9 +246,17 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
 			// 注意这个会panic，因此recover捕获了
 			if conn.InPackGoCqHttpProcess != nil {
 				conn.InPackGoCqHttpProcess.Stop()
+				conn.InPackGoCqHttpProcess.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
 			}
 		}
 	}()
+}
+
+func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *ConnectInfoItem) {
+	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
+	if _, err := os.Stat(filepath.Join(workDir, "session.token")); err == nil {
+		os.Remove(filepath.Join(workDir, "session.token"))
+	}
 }
 
 func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol int, isAsyncRun bool) {

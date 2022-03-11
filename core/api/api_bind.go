@@ -134,6 +134,8 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 			if i.Id == v.Id {
 				myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%d)", i.Nickname, i.UserId)
 				dice.GoCqHttpServeProcessKill(myDice, i)
+				time.Sleep(1 * time.Second)
+				dice.GoCqHttpServeRemoveSessionToken(myDice, i) // 删除session.token
 				dice.GoCqHttpServe(myDice, i, "", 1, true)
 				return c.JSON(http.StatusOK, nil)
 			}
