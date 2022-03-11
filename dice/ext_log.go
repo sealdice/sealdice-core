@@ -28,7 +28,7 @@ type LogOneItem struct {
 func RegisterBuiltinExtLog(self *Dice) {
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:       "log",
-		Version:    "0.0.1",
+		Version:    "1.0.0",
 		Brief:      "跑团辅助扩展，提供日志、染色等功能",
 		Author:     "木落",
 		AutoActive: true,
@@ -119,7 +119,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 								group.LogOn = false
 								text := fmt.Sprintf("记录已经暂时关闭，当前已记录文本%d条", LogLinesGet(ctx, group))
 								ReplyToSender(ctx, msg, text)
-							} else if cmdArgs.IsArgEqual(1, "Save") {
+							} else if cmdArgs.IsArgEqual(1, "save") {
 								fn := LogSaveToZip(ctx, group)
 								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色服务正在开发中，目前请使用公开的着色网站进行着色。", fn), "skip")
 							} else if cmdArgs.IsArgEqual(1, "end") {

@@ -66,9 +66,10 @@ type Dice struct {
 	LastSavedTime         *time.Time             `yaml:"lastSavedTime"`
 	TextMap               map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig            DiceConfig             `yaml:"-"`
-	DB                    *bbolt.DB              `yaml:"-"`      // 数据库对象
-	Logger                *zap.SugaredLogger     `yaml:"logger"` // 日志
-	LogWriter             *logger.WriterX        `yaml:"-"`      // 用于api的log对象
+	DB                    *bbolt.DB              `yaml:"-"`        // 数据库对象
+	Logger                *zap.SugaredLogger     `yaml:"logger"`   // 日志
+	LogWriter             *logger.WriterX        `yaml:"-"`        // 用于api的log对象
+	DeckList              []*DeckInfo            `yaml:"deckList"` // 牌堆信息
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	InPackGoCqHttpExists       bool                       `yaml:"-"` // 是否存在同目录的gocqhttp

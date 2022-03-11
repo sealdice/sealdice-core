@@ -146,6 +146,7 @@ type MsgContext struct {
 	IsCurGroupBotOn bool
 	Socket          *gowebsocket.Socket
 	conn            *ConnectInfoItem
+	IsPrivate       bool
 }
 
 func (s *IMSession) Serve(index int) int {
@@ -255,6 +256,7 @@ func (s *IMSession) Serve(index int) int {
 				mctx := &MsgContext{}
 				mctx.Dice = session.Parent
 				mctx.MessageType = msg.MessageType
+				mctx.IsPrivate = mctx.MessageType == "private"
 				mctx.Session = session
 				mctx.Socket = conn.Socket
 				mctx.conn = conn
@@ -318,7 +320,6 @@ func (s *IMSession) Serve(index int) int {
 						session.commandSolve(mctx, msg, msgInfo)
 					}
 					go f()
-					//session.commandSolve(mctx, msg, msgInfo)
 				} else {
 					//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
 					//replyGroup(Socket, 22, text)
