@@ -122,6 +122,20 @@ func (c *CQCommand) Compile() string {
 	return fmt.Sprintf("[CQ:%s%s]", c.Type, argsPart)
 }
 
+func ImageRewrite(longText string, solve func(text string) string) string {
+	re := regexp.MustCompile(`\[(img|图):.+?]`) // [img:] 或 [图:]
+	m := re.FindAllStringIndex(longText, -1)
+
+	newText := longText
+	for i := len(m) - 1; i >= 0; i-- {
+		p := m[i]
+		text := solve(longText[p[0]:p[1]])
+		newText = newText[:p[0]] + text + newText[p[1]:]
+	}
+
+	return newText
+}
+
 func CQRewrite(longText string, solve func(cq *CQCommand)) string {
 	re := regexp.MustCompile(`\[CQ:.+?]`)
 	m := re.FindAllStringIndex(longText, -1)

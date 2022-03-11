@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -91,11 +92,65 @@ func DiceFormat(ctx *MsgContext, s string) string {
 		//	return s
 		//}
 
+		solve2 := func(text string) string {
+			re := regexp.MustCompile(`\[(img|图):(.+?)]`) // [img:] 或 [图:]
+			m := re.FindStringSubmatch(text)
+			if m != nil {
+				fn := m[2]
+				if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
+					u, err := url.Parse(fn)
+					if err != nil {
+						return text
+					}
+					cq := CQCommand{
+						Type: "image",
+						Args: map[string]string{"file": u.String()},
+					}
+					return cq.Compile()
+				}
+
+				afn, err := filepath.Abs(fn)
+				if err != nil {
+					return text // 不是文件路径，不管
+				}
+				cwd, _ := os.Getwd()
+				if strings.HasPrefix(afn, cwd) {
+					if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
+						return "[找不到图片]"
+					} else {
+						// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
+						if runtime.GOOS == `windows` {
+							afn = "/" + afn
+						}
+						u := url.URL{
+							Scheme: "file",
+							Path:   afn,
+						}
+						cq := CQCommand{
+							Type: "image",
+							Args: map[string]string{"file": u.String()},
+						}
+						return cq.Compile()
+					}
+				} else {
+					return "[图片指向非当前程序目录，已禁止]"
+				}
+			}
+			return text
+		}
+
 		solve := func(cq *CQCommand) {
 			if cq.Type == "image" {
 				fn, exists := cq.Args["file"]
 				if exists {
-					afn, _ := filepath.Abs(fn)
+					if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
+						return
+					}
+
+					afn, err := filepath.Abs(fn)
+					if err != nil {
+						return // 不是文件路径，不管
+					}
 					cwd, _ := os.Getwd()
 
 					if strings.HasPrefix(afn, cwd) {
@@ -120,6 +175,7 @@ func DiceFormat(ctx *MsgContext, s string) string {
 		}
 
 		text := strings.Replace(s, `\n`, "\n", -1)
+		text = ImageRewrite(text, solve2)
 		return CQRewrite(text, solve)
 	}
 

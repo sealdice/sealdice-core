@@ -147,7 +147,7 @@ func setupTextTemplate(d *Dice) {
 					{"<{核心:骰子名字}> 停止服务", 1},
 				},
 				"骰子进群": {
-					{`<{核心:骰子名字}> 已经就绪。可通过.help查看指令列表\n[CQ:image,file=data/images/sealdice.png]`, 1},
+					{`<{核心:骰子名字}> 已经就绪。可通过.help查看指令列表\n[图:data/images/sealdice.png]`, 1},
 				},
 				"骰子退群预告": {
 					{"收到指令，5s后将退出当前群组", 1},
