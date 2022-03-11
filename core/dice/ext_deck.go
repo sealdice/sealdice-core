@@ -87,7 +87,6 @@ func tryParseSinaNya(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	jsonData := map[string]interface{}{}
 	err := yaml.Unmarshal(content, &jsonData)
 	if err != nil {
-		fmt.Println("!!!!!!", err)
 		return false
 	}
 	jsonData2 := DeckSinaNyaFormat{}
@@ -194,7 +193,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 			return ""
 		},
 		CmdMap: CmdMapCls{
-			"d3ck": &CmdItemInfo{
+			"deck": &CmdItemInfo{
 				Name: "deck",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
