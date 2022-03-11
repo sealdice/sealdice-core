@@ -225,9 +225,15 @@ func (s *IMSession) Serve(index int) int {
 				if msg.UserId == msg.SelfId {
 					// 判断进群的人是自己，自动启动
 					SetBotOnAtGroup(session, msg)
+					// 立即获取群信息
+					GetGroupInfo(conn.Socket, msg.GroupId)
 					// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname)
 					ctx := &MsgContext{Session: session, Dice: session.Parent, Socket: conn.Socket}
-					replyGroupRaw(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
+					go func() {
+						// 稍作等待后发送入群致词
+						time.Sleep(2 * time.Second)
+						replyGroupRaw(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
+					}()
 					log.Infof("加入群组: (%d)", msg.GroupId)
 				}
 				return
@@ -284,6 +290,7 @@ func (s *IMSession) Serve(index int) int {
 				if sa == nil {
 					log.Infof("自动激活: 发现无记录群组(%d)，因为已是群成员，所以自动激活", msg.GroupId)
 					SetBotOnAtGroup(mctx.Session, msg)
+					GetGroupInfo(conn.Socket, msg.GroupId)
 				}
 
 				mctx.Group = sa
