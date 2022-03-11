@@ -83,10 +83,10 @@ func (d *Dice) registerCoreCommands() {
 		Help:  ".bot on/off/about/bye // 开启、关闭、查看信息、退群",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			inGroup := msg.MessageType == "group"
+			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
 
 			if len(cmdArgs.Args) == 0 || cmdArgs.IsArgEqual(1, "about") {
-				if len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned {
-					// 喊的不是当前骰子
+				if AtSomebodyButNotMe {
 					return CmdExecuteResult{true}
 				}
 				count := 0
@@ -113,7 +113,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyPerson(ctx, msg.Sender.UserId, text)
 				}
 			} else {
-				if inGroup && cmdArgs.AmIBeMentioned {
+				if inGroup && !AtSomebodyButNotMe {
 					if len(cmdArgs.Args) >= 1 {
 						if cmdArgs.IsArgEqual(1, "on") {
 							SetBotOnAtGroup(ctx.Session, msg)

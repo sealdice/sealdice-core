@@ -136,20 +136,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 		OnLoad: func() {
 		},
 		GetDescText: func(i *ExtInfo) string {
-			return "> " + i.Brief + "\n" + "提供命令:\n.gugu / .咕咕  // 获取一个随机的咕咕理由\n.deck <牌堆> // 从牌堆抽牌\n.jrrp 今日人品"
+			return "> " + i.Brief + "\n" + "提供命令:\n.gugu / .咕咕  // 获取一个随机的咕咕理由\n.jrrp 今日人品"
 		},
 		CmdMap: CmdMapCls{
 			"gugu": &cmdGugu,
 			"咕咕":   &cmdGugu,
 			"jrrp": &cmdJrrp,
-			"deck": &CmdItemInfo{
-				Name:  "deck",
-				Brief: "从牌堆抽牌",
-				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					ReplyToSender(ctx, msg, "尚未开发完成，敬请期待")
-					return CmdExecuteResult{Success: true}
-				},
-			},
 		},
 	})
 }
