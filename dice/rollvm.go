@@ -295,9 +295,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				lastDetail := fmt.Sprintf("D100=%d, 奖励 %s", newVal, strings.Join(nums, " "))
 				lastDetails = append(lastDetails, lastDetail)
 			} else {
-				// 如果个位数为0，那么允许十位为0
+				// 如果个位数为0，那么允许十位为10
 				if diceUnits == 0 && num10Exists {
-					diceMax = 0
+					diceMax = 10
 				}
 
 				newVal = diceMax*10 + diceUnits
