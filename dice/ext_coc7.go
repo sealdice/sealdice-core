@@ -685,10 +685,21 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								}
 								VarSetValueStr(ctx, "$t提示_角色疯狂", crazyTip)
 
-								// 临时疯狂
+								switch successRank {
+								case -2:
+									VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_大失败"))
+								case -1:
+									VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_失败"))
+								case 1, 2, 3:
+									VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_成功"))
+								case 4:
+									VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_大成功"))
+								}
+								VarSetValueStr(ctx, "$t附加语", crazyTip)
+
 								ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:理智检定"))
 							} else {
-								ReplyGroup(ctx, msg.GroupId, "命令格式错误")
+								ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:理智检定_格式错误"))
 							}
 						}
 					}
