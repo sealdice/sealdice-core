@@ -1109,7 +1109,7 @@ type AttributeConfigs struct {
 func setupConfig(d *Dice) AttributeConfigs {
 	attrConfigFn := d.GetExtConfigFilePath("coc7", "attribute.yaml")
 
-	if _, err := os.Stat(attrConfigFn); err == nil || true {
+	if _, err := os.Stat(attrConfigFn); err == nil && false {
 		// 如果文件存在，那么读取
 		ac := AttributeConfigs{}
 		af, err := ioutil.ReadFile(attrConfigFn)
@@ -1139,7 +1139,7 @@ func setupConfig(d *Dice) AttributeConfigs {
 				"魔法值":   {"mp", "魔法", "魔力", "魔力值"},
 				"克苏鲁神话": {"cm", "克苏鲁", "克蘇魯", "克蘇魯神話"},
 				"图书馆使用": {"图书馆", "图书馆利用", "圖書館", "圖書館利用"},
-				"计算机使用": {"电脑使用", "計算機使用", "電腦使用"},
+				"计算机使用": {"电脑使用", "計算機使用", "電腦使用", "计算机", "电脑", "計算機", "電腦"},
 				"电气维修":  {"电器维修", "電氣維修", "電器維修"},
 				"话术":    {"快速交谈", "話術", "快速交談"},
 				"锁匠":    {"钳工", "鎖匠", "鉗工"},
