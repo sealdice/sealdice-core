@@ -261,6 +261,9 @@ func (d *Dice) registerCoreCommands() {
 		Brief: "查看扩展列表",
 		Help:  ".ext // 查看扩展列表",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsPrivate {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+			}
 			if ctx.IsCurGroupBotOn {
 				showList := func() {
 					text := "检测到以下扩展：\n"

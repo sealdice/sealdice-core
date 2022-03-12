@@ -76,6 +76,7 @@ type Dice struct {
 	InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 	TextMapRaw                 TextTemplateWithWeightDict `yaml:"-"`
+	TextMapHelpInfo            TextTemplateWithHelpDict   `yaml:"-"`
 }
 
 func (d *Dice) Init() {
