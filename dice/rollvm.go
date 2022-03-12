@@ -292,7 +292,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				}
 
 				newVal = diceMin*10 + diceUnits
-				lastDetail := fmt.Sprintf("D100=%d, 奖励 %s", newVal, strings.Join(nums, " "))
+				lastDetail := fmt.Sprintf("D100=%d, 奖励 %s", diceResult, strings.Join(nums, " "))
 				lastDetails = append(lastDetails, lastDetail)
 			} else {
 				// 如果个位数为0，那么允许十位为10
@@ -301,7 +301,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				}
 
 				newVal = diceMax*10 + diceUnits
-				lastDetail := fmt.Sprintf("D100=%d, 惩罚 %s", newVal, strings.Join(nums, " "))
+				lastDetail := fmt.Sprintf("D100=%d, 惩罚 %s", diceResult, strings.Join(nums, " "))
 				lastDetails = append(lastDetails, lastDetail)
 			}
 
