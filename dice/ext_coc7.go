@@ -253,80 +253,109 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						}
 					}
 
-					// 试图读取检定表达式
-					swap := false
-					r1, detail1, err := ctx.Dice.ExprEval(cmdArgs.CleanArgs, mctx)
+					rollOne := func() *CmdExecuteResult {
+						// 试图读取检定表达式
+						swap := false
+						r1, detail1, err := ctx.Dice.ExprEval(cmdArgs.CleanArgs, mctx)
 
-					if err != nil {
-						ReplyToSender(ctx, msg, "解析出错: "+cmdArgs.CleanArgs)
-						return CmdExecuteResult{Success: true}
-					}
-
-					expr1Text := r1.Matched
-					expr2Text := r1.restInput
-
-					// 如果读取完了，那么说明刚才读取的实际上是属性表达式
-					if expr2Text == "" {
-						expr2Text = "d100"
-						swap = true
-					}
-
-					r2, detail2, err := ctx.Dice.ExprEval(expr2Text, mctx)
-					if err != nil {
-						ReplyToSender(ctx, msg, "解析出错: "+expr2Text)
-						return CmdExecuteResult{Success: true}
-					}
-
-					if swap {
-						r1, detail1, r2, detail2 = r2, detail2, r1, detail1
-						expr1Text, expr2Text = expr2Text, expr1Text
-					}
-
-					if r1.TypeId != VMTypeInt64 || r2.TypeId != VMTypeInt64 {
-						ReplyToSender(ctx, msg, "你输入的表达式并非文本类型")
-						return CmdExecuteResult{Success: true}
-					}
-
-					var checkVal = r1.Value.(int64)
-					var attrVal = r2.Value.(int64)
-
-					cocRule := ctx.Group.CocRuleIndex
-					if cmdArgs.Command == "rc" {
-						// 强制规则书
-						cocRule = 0
-					}
-
-					successRank := ResultCheck(cocRule, checkVal, attrVal)
-					suffix := GetResultText(ctx, successRank)
-					VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, checkVal})
-					VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, attrVal})
-					VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, suffix})
-
-					if err == nil {
-						detailWrap := ""
-						if detail1 != "" {
-							detailWrap = ", (" + detail1 + ")"
+						if err != nil {
+							ReplyToSender(ctx, msg, "解析出错: "+cmdArgs.CleanArgs)
+							return &CmdExecuteResult{Success: true}
 						}
 
-						VarSetValueStr(ctx, "$t检定表达式文本", expr1Text)
-						VarSetValueStr(ctx, "$t属性表达式文本", expr2Text)
-						VarSetValueStr(ctx, "$t检定计算过程", detailWrap)
-						VarSetValueStr(ctx, "$t计算过程", detailWrap)
+						expr1Text := r1.Matched
+						expr2Text := r1.restInput
 
-						//text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.Player.Name, cmdArgs.CleanArgs, d100, cond, detailWrap, suffix)
-						SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
-						text := DiceFormatTmpl(ctx, "COC:检定")
-
-						if cmdArgs.Command == "rah" || cmdArgs.Command == "rch" {
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
-							ReplyPerson(ctx, msg.Sender.UserId, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
-						} else {
-							ReplyGroup(ctx, msg.GroupId, text)
+						// 如果读取完了，那么说明刚才读取的实际上是属性表达式
+						if expr2Text == "" {
+							expr2Text = "d100"
+							swap = true
 						}
-						return CmdExecuteResult{Success: true}
+
+						r2, detail2, err := ctx.Dice.ExprEval(expr2Text, mctx)
+						if err != nil {
+							ReplyToSender(ctx, msg, "解析出错: "+expr2Text)
+							return &CmdExecuteResult{Success: true}
+						}
+
+						if swap {
+							r1, detail1, r2, detail2 = r2, detail2, r1, detail1
+							expr1Text, expr2Text = expr2Text, expr1Text
+						}
+
+						if r1.TypeId != VMTypeInt64 || r2.TypeId != VMTypeInt64 {
+							ReplyToSender(ctx, msg, "你输入的表达式并非文本类型")
+							return &CmdExecuteResult{Success: true}
+						}
+
+						var checkVal = r1.Value.(int64)
+						var attrVal = r2.Value.(int64)
+
+						cocRule := ctx.Group.CocRuleIndex
+						if cmdArgs.Command == "rc" {
+							// 强制规则书
+							cocRule = 0
+						}
+
+						successRank := ResultCheck(cocRule, checkVal, attrVal)
+						suffix := GetResultText(ctx, successRank)
+						VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, checkVal})
+						VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, attrVal})
+						VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, suffix})
+
+						if err == nil {
+							detailWrap := ""
+							if detail1 != "" {
+								detailWrap = ", (" + detail1 + ")"
+							}
+
+							VarSetValueStr(ctx, "$t检定表达式文本", expr1Text)
+							VarSetValueStr(ctx, "$t属性表达式文本", expr2Text)
+							VarSetValueStr(ctx, "$t检定计算过程", detailWrap)
+							VarSetValueStr(ctx, "$t计算过程", detailWrap)
+
+							//text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.Player.Name, cmdArgs.CleanArgs, d100, cond, detailWrap, suffix)
+							SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
+							VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "COC:检定_单项结果文本"))
+						}
+						return nil
 					}
+
+					var text string
+					if cmdArgs.SpecialExecuteTimes > 1 {
+						VarSetValueInt64(ctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
+						if cmdArgs.SpecialExecuteTimes > 12 {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_轮数过多警告"))
+							return CmdExecuteResult{Success: true}
+						}
+						texts := []string{}
+						for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
+							ret := rollOne()
+							if ret != nil {
+								return *ret
+							}
+							texts = append(texts, DiceFormatTmpl(ctx, "COC:检定_单项结果文本"))
+						}
+						VarSetValueStr(ctx, "$t结果文本", strings.Join(texts, `\n`))
+						text = DiceFormatTmpl(ctx, "COC:检定_多轮")
+					} else {
+						ret := rollOne()
+						if ret != nil {
+							return *ret
+						}
+						VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "COC:检定_单项结果文本"))
+						text = DiceFormatTmpl(ctx, "COC:检定")
+					}
+
+					if cmdArgs.Command == "rah" || cmdArgs.Command == "rch" {
+						ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
+						ReplyPerson(ctx, msg.Sender.UserId, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
+					} else {
+						ReplyGroup(ctx, msg.GroupId, text)
+					}
+					return CmdExecuteResult{Success: true}
 				}
-				ReplyGroup(ctx, msg.GroupId, "表达式不正确")
+				ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
 			}
 			return CmdExecuteResult{Success: true}
 		},
