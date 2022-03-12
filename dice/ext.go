@@ -10,6 +10,7 @@ func (d *Dice) RegisterBuiltinExt() {
 	RegisterBuiltinExtLog(d)
 	RegisterBuiltinExtFun(d)
 	RegisterBuiltinExtDeck(d)
+	RegisterBuiltinExtReply(d)
 }
 
 func (d *Dice) RegisterExtension(extInfo *ExtInfo) {

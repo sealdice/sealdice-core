@@ -197,8 +197,12 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				VarSetValueStr(ctx, "$t原因", forWhat)
-				forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
-				VarSetValueStr(ctx, "$t原因句子", forWhatText)
+				if forWhat != "" {
+					forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
+					VarSetValueStr(ctx, "$t原因句子", forWhatText)
+				} else {
+					VarSetValueStr(ctx, "$t原因句子", "")
+				}
 
 				if diceResultExists {
 					detailWrap := ""
