@@ -3,6 +3,7 @@ package dice
 // 用户变量相关
 
 import (
+	"reflect"
 	"sealdice-core/dice/model"
 	"strings"
 )
@@ -16,6 +17,41 @@ func (ctx *MsgContext) LoadPlayerVars() *PlayerVariablesItem {
 
 func VarSetValueStr(ctx *MsgContext, s string, v string) {
 	VarSetValue(ctx, s, &VMValue{VMTypeString, v})
+}
+
+func VarSetValueInt64(ctx *MsgContext, s string, v int64) {
+	VarSetValue(ctx, s, &VMValue{VMTypeInt64, v})
+}
+
+func VarSetValueAuto(ctx *MsgContext, s string, v interface{}) {
+	switch reflect.TypeOf(v).Kind() {
+	case reflect.Int:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(int))})
+	case reflect.Int8:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(int8))})
+	case reflect.Int16:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(int16))})
+	case reflect.Int32:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(int32))})
+	case reflect.Int64:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(int64))})
+	case reflect.Uint:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint))})
+	case reflect.Uint8:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint8))})
+	case reflect.Uint16:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint16))})
+	case reflect.Uint32:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint32))})
+	case reflect.Uint64:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint64))})
+	case reflect.Float32:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint64))})
+	case reflect.Float64:
+		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(float64))})
+	case reflect.String:
+		VarSetValue(ctx, s, &VMValue{VMTypeString, v.(string)})
+	}
 }
 
 func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
