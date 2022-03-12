@@ -179,6 +179,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 	theExt := &ExtInfo{
 		Name:       "deck", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
+		Author:     "木落",
 		Brief:      "牌堆扩展，提供.deck指令支持，兼容Dice!和塔系牌堆",
 		AutoActive: true, // 是否自动开启
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {

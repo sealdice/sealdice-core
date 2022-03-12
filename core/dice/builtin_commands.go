@@ -156,7 +156,6 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				var text string
-				var prefix string
 				var diceResult int64
 				var diceResultExists bool
 				var detail string
@@ -197,23 +196,35 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 
-				if forWhat != "" {
-					prefix = "为了" + forWhat + "，"
-				}
+				VarSetValueStr(ctx, "$t原因", forWhat)
+				forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
+				VarSetValueStr(ctx, "$t原因句子", forWhatText)
 
 				if diceResultExists {
 					detailWrap := ""
 					if detail != "" {
 						detailWrap = "=" + detail
 					}
-					text = fmt.Sprintf("%s<%s>掷出了 %s%s=%d", prefix, ctx.Player.Name, cmdArgs.Args[0], detailWrap, diceResult)
+
+					VarSetValueStr(ctx, "$t表达式文本", cmdArgs.Args[0])
+					VarSetValueStr(ctx, "$t计算过程", detailWrap)
+					VarSetValueInt64(ctx, "$t计算结果", diceResult)
+
+					text = DiceFormatTmpl(ctx, "核心:骰点")
+					//text = fmt.Sprintf("%s<%s>掷出了 %s%s=%d", prefix, ctx.Player.Name, cmdArgs.Args[0], detailWrap, diceResult)
 				} else {
 					dicePoints := ctx.Player.DiceSideNum
 					if dicePoints <= 0 {
 						dicePoints = 100
 					}
-					val := DiceRoll(dicePoints)
-					text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, ctx.Player.Name, dicePoints, val)
+					val := DiceRoll64(int64(dicePoints))
+
+					VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("D%d", dicePoints))
+					VarSetValueStr(ctx, "$t计算过程", "")
+					VarSetValueInt64(ctx, "$t计算结果", val)
+
+					text = DiceFormatTmpl(ctx, "核心:骰点")
+					//text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, ctx.Player.Name, dicePoints, val)
 				}
 
 				if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
@@ -223,7 +234,8 @@ func (d *Dice) registerCoreCommands() {
 
 				if cmdArgs.Command == "rh" || cmdArgs.Command == "rhd" {
 					if ctx.Group != nil {
-						prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", ctx.Group.GroupName, msg.GroupId)
+						//prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", ctx.Group.GroupName, msg.GroupId)
+						prefix := DiceFormatTmpl(ctx, "核心:暗骰_私聊_前缀")
 						ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:暗骰_群内"))
 						ReplyPerson(ctx, msg.Sender.UserId, prefix+text)
 					} else {
