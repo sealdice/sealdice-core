@@ -402,12 +402,29 @@ func DiceServe(d *Dice, conn *ConnectInfoItem) {
 		}
 	}
 
+	checkQuit := func() bool {
+		if !conn.DiceServing {
+			// 退出连接
+			d.Logger.Infof("检测到连接删除，不再进行此onebot服务的重连: <%s>(%d)", conn.Nickname, conn.UserId)
+			return true
+		}
+		return false
+	}
+
 	for {
+		if checkQuit() {
+			break
+		}
+
 		// 骰子开始连接
 		d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
 		ret := d.ImSession.Serve(_index)
 
 		if ret == 0 {
+			break
+		}
+
+		if checkQuit() {
 			break
 		}
 

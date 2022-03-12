@@ -354,7 +354,7 @@ func (s *IMSession) Serve(index int) int {
 	}
 
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
-		log.Info("Disconnected from server ")
+		log.Info("onebot 服务的连接被对方关闭 ")
 		disconnected <- 1
 	}
 
