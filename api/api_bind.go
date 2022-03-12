@@ -45,7 +45,10 @@ var myDice *dice.Dice
 var dm *dice.DiceManager
 
 func customText(c echo.Context) error {
-	return c.JSON(http.StatusOK, myDice.TextMapRaw)
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"texts":    myDice.TextMapRaw,
+		"helpInfo": myDice.TextMapHelpInfo,
+	})
 }
 
 func customTextSave(c echo.Context) error {
@@ -61,6 +64,7 @@ func customTextSave(c echo.Context) error {
 			}
 		}
 		myDice.TextMapRaw[v.Category] = v.Data
+		dice.SetupTextHelpInfo(myDice, myDice.TextMapHelpInfo, myDice.TextMapRaw, "configs/text-template.yaml")
 		myDice.GenerateTextMap()
 		myDice.SaveText()
 		return c.String(http.StatusOK, "")
