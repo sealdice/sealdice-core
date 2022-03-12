@@ -163,72 +163,86 @@ func (d *Dice) registerCoreCommands() {
 
 				if ctx.Dice.CommandCompatibleMode {
 					if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd") && len(cmdArgs.Args) >= 1 {
-						if m, _ := regexp.MatchString(`^\d`, cmdArgs.Args[0]); m {
-							cmdArgs.Args[0] = "d" + cmdArgs.Args[0]
+						if m, _ := regexp.MatchString(`^\d`, cmdArgs.CleanArgs); m {
+							cmdArgs.CleanArgs = "d" + cmdArgs.CleanArgs
 						}
 					}
 				} else {
 					return CmdExecuteResult{false}
 				}
 
-				forWhat := ""
 				var r *VmResult
-				if len(cmdArgs.Args) >= 1 {
-					var err error
-					r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, false, disableLoadVarname)
+				rollOne := func() *CmdExecuteResult {
+					forWhat := ""
+					if len(cmdArgs.Args) >= 1 {
+						var err error
+						r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, false, disableLoadVarname)
 
-					if r != nil && r.TypeId == 0 {
-						diceResult = r.Value.(int64)
-						diceResultExists = true
-						//return errors.New("错误的类型")
-					}
-
-					if err == nil {
-						forWhat = r.restInput
-					} else {
-						errs := string(err.Error())
-						if strings.HasPrefix(errs, "E1:") {
-							ReplyToSender(ctx, msg, errs)
-							//ReplyGroup(ctx, msg.GroupId, errs)
-							return CmdExecuteResult{true}
+						if r != nil && r.TypeId == 0 {
+							diceResult = r.Value.(int64)
+							diceResultExists = true
+							//return errors.New("错误的类型")
 						}
-						forWhat = cmdArgs.CleanArgs
+
+						if err == nil {
+							forWhat = r.restInput
+						} else {
+							errs := string(err.Error())
+							if strings.HasPrefix(errs, "E1:") {
+								ReplyToSender(ctx, msg, errs)
+								//ReplyGroup(ctx, msg.GroupId, errs)
+								return &CmdExecuteResult{true}
+							}
+							forWhat = cmdArgs.CleanArgs
+						}
 					}
+
+					VarSetValueStr(ctx, "$t原因", forWhat)
+					if forWhat != "" {
+						forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
+						VarSetValueStr(ctx, "$t原因句子", forWhatText)
+					} else {
+						VarSetValueStr(ctx, "$t原因句子", "")
+					}
+
+					if diceResultExists {
+						detailWrap := ""
+						if detail != "" {
+							detailWrap = "=" + detail
+						}
+
+						VarSetValueStr(ctx, "$t表达式文本", r.Matched)
+						VarSetValueStr(ctx, "$t计算过程", detailWrap)
+						VarSetValueInt64(ctx, "$t计算结果", diceResult)
+						//text = fmt.Sprintf("%s<%s>掷出了 %s%s=%d", prefix, ctx.Player.Name, cmdArgs.Args[0], detailWrap, diceResult)
+					} else {
+						dicePoints := ctx.Player.DiceSideNum
+						if dicePoints <= 0 {
+							dicePoints = 100
+						}
+						val := DiceRoll64(int64(dicePoints))
+
+						VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("D%d", dicePoints))
+						VarSetValueStr(ctx, "$t计算过程", "")
+						VarSetValueInt64(ctx, "$t计算结果", val)
+						//text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, ctx.Player.Name, dicePoints, val)
+					}
+					return nil
 				}
 
-				VarSetValueStr(ctx, "$t原因", forWhat)
-				if forWhat != "" {
-					forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
-					VarSetValueStr(ctx, "$t原因句子", forWhatText)
-				} else {
-					VarSetValueStr(ctx, "$t原因句子", "")
-				}
-
-				if diceResultExists {
-					detailWrap := ""
-					if detail != "" {
-						detailWrap = "=" + detail
+				if cmdArgs.SpecialExecuteTimes > 1 {
+					VarSetValueInt64(ctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
+					texts := []string{}
+					for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
+						rollOne()
+						texts = append(texts, DiceFormatTmpl(ctx, "核心:骰点_单项结果文本"))
 					}
-
-					VarSetValueStr(ctx, "$t表达式文本", cmdArgs.Args[0])
-					VarSetValueStr(ctx, "$t计算过程", detailWrap)
-					VarSetValueInt64(ctx, "$t计算结果", diceResult)
-
-					text = DiceFormatTmpl(ctx, "核心:骰点")
-					//text = fmt.Sprintf("%s<%s>掷出了 %s%s=%d", prefix, ctx.Player.Name, cmdArgs.Args[0], detailWrap, diceResult)
+					VarSetValueStr(ctx, "$t结果文本", strings.Join(texts, `\n`))
+					text = DiceFormatTmpl(ctx, "核心:骰点_多轮")
 				} else {
-					dicePoints := ctx.Player.DiceSideNum
-					if dicePoints <= 0 {
-						dicePoints = 100
-					}
-					val := DiceRoll64(int64(dicePoints))
-
-					VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("D%d", dicePoints))
-					VarSetValueStr(ctx, "$t计算过程", "")
-					VarSetValueInt64(ctx, "$t计算结果", val)
-
+					rollOne()
+					VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "核心:骰点_单项结果文本"))
 					text = DiceFormatTmpl(ctx, "核心:骰点")
-					//text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, ctx.Player.Name, dicePoints, val)
 				}
 
 				if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
