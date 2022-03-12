@@ -19,6 +19,13 @@ type TextTemplateItem = []interface{} // 实际上是 [](string | int) 类型
 type TextTemplateWithWeight = map[string][]TextTemplateItem
 type TextTemplateWithWeightDict = map[string]TextTemplateWithWeight
 
+// TextTemplateHelp 辅助信息，用于UI中，大部分自动生成
+type TextTemplateHelp = map[string]struct {
+	origin TextTemplateItem // 初始文本
+	vars   []string         // 可用变量
+}
+type TextTemplateWithHelpDict = map[string]TextTemplateHelp
+
 //const CONFIG_TEXT_TEMPLATE_FILE = "./data/configs/text-template.yaml"
 
 func setupTextTemplate(d *Dice) {
@@ -102,6 +109,38 @@ func setupTextTemplate(d *Dice) {
 				"理智检定": {
 					{`{$t玩家}的理智检定:\n{COC:通用_D100判定}\n理智变化: {$t旧值} ➯ {$t新值} (扣除{$t表达式文本}={$t表达式值}点)\n{$t提示_角色疯狂}`, 1},
 				},
+
+				// -------------------- st --------------------------
+				"属性设置_删除": {
+					{`{$t玩家}的如下属性被成功删除:{$t属性列表}，失败{$t失败数量}项`, 1},
+				},
+				"属性设置_清除": {
+					{`{$t玩家}的属性数据已经清除，共计{$t数量}条`, 1},
+				},
+				"属性设置_增减": {
+					{`{$t玩家}的“{$t属性}”变化: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})\n{COC:属性设置_保存提醒}`, 1},
+				},
+				"属性设置_增减_错误的值": {
+					{`"{$t玩家}: 错误的增减值: {$t表达式文本}"`, 1},
+				},
+				"属性设置_列出": {
+					{`{$t玩家}的个人属性为:\n{$t属性信息}`, 1},
+				},
+				"属性设置_列出_未发现记录": {
+					{`未发现属性记录`, 1},
+				},
+				"属性设置_列出_隐藏提示": {
+					{`\n注：{$t数量}条属性因≤{$t判定值}被隐藏`, 1},
+				},
+				"属性设置": {
+					{`{$t玩家}的属性录入完成，本次共记录了{$t数量}条数据 (其中{$t同义词数量}条为同义词)`, 1},
+				},
+				"属性设置_保存提醒": {
+					{`角色信息已经变更，别忘了使用.ch save来进行保存！`, 1},
+				},
+				// -------------------- st end --------------------------
+
+				// -------------------- en --------------------------
 				"技能成长_导入语": {
 					{"{$t玩家}的“{$t技能}”成长检定：", 1},
 				},
@@ -118,17 +157,18 @@ func setupTextTemplate(d *Dice) {
 					{`{COC:技能成长_导入语}\n你没有使用st录入这个属性，或在en指令中指定属性的值`, 1},
 				},
 				"技能成长_结果_成功": {
-					{"“{$t技能}”增加了{$t表达式文本}={$t增量}点，当前为{$t新值}点", 1},
+					{`“{$t技能}”增加了{$t表达式文本}={$t增量}点，当前为{$t新值}点\n{COC:属性设置_保存提醒}`, 1},
 				},
 				"技能成长_结果_失败": {
 					{"“{$t技能}”成长失败了！", 1},
 				},
 				"技能成长_结果_失败变更": {
-					{"“{$t技能}”变化{$t表达式文本}={$t增量}点，当前为{$t新值}点", 1},
+					{`“{$t技能}”变化{$t表达式文本}={$t增量}点，当前为{$t新值}点\n{COC:属性设置_保存提醒}`, 1},
 				},
 				"技能成长": {
 					{`{COC:技能成长_导入语}\n{COC:通用_D100判定}\n{$t结果文本}`, 1},
 				},
+				// -------------------- en end --------------------------
 			},
 			"核心": {
 				"骰子名字": {
@@ -225,6 +265,8 @@ func setupTextTemplate(d *Dice) {
 func (d *Dice) GenerateTextMap() {
 	// 生成TextMap
 	d.TextMap = map[string]*wr.Chooser{}
+	textHelps := TextTemplateWithHelpDict{}
+	fmt.Println(textHelps)
 
 	for category, item := range d.TextMapRaw {
 		for k, v := range item {
