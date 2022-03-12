@@ -21,13 +21,14 @@ type AtInfo struct {
 }
 
 type CmdArgs struct {
-	Command        string    `json:"command"`
-	Args           []string  `json:"args"`
-	Kwargs         []*Kwarg  `json:"kwargs"`
-	At             []*AtInfo `json:"atInfo"`
-	RawArgs        string    `json:"rawArgs"`
-	AmIBeMentioned bool      `json:"amIBeMentioned"`
-	CleanArgs      string
+	Command             string    `json:"command"`
+	Args                []string  `json:"args"`
+	Kwargs              []*Kwarg  `json:"kwargs"`
+	At                  []*AtInfo `json:"atInfo"`
+	RawArgs             string    `json:"rawArgs"`
+	AmIBeMentioned      bool      `json:"amIBeMentioned"`
+	CleanArgs           string
+	SpecialExecuteTimes int // 特殊的执行次数，对应 3# 这种
 }
 
 /** 检查第N项参数是否为某个字符串，n从1开始，若没有第n项参数也视为失败 */
@@ -61,8 +62,9 @@ func (a *CmdArgs) GetKwarg(s string) *Kwarg {
 }
 
 func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string) *CmdArgs {
+	specialExecuteTimes := 0
 	restText, atInfo := AtParse(rawCmd)
-	re := regexp.MustCompile(`^\s*[.。](\S+)\s*([^\n]*)`)
+	restText, specialExecuteTimes = SpecialExecuteTimesParse(restText)
 
 	if commandCompatibleMode {
 		matched := ""
@@ -79,6 +81,7 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		}
 	}
 
+	re := regexp.MustCompile(`^\s*[.。](\S+)\s*([^\n]*)`)
 	m := re.FindStringSubmatch(restText)
 	if len(m) == 3 {
 		cmdInfo := new(CmdArgs)
@@ -92,17 +95,28 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		//log.Println(222, m[1], "[sep]", m[2])
 
 		// 将所有args连接起来，存入一个cleanArgs变量。主要用于兼容非标准参数
-		//stText := ""
-		//for _, text := range cmdInfo.Args {
-		//	stText += text
-		//}
 		stText := strings.Join(cmdInfo.Args, " ")
 		cmdInfo.CleanArgs = strings.TrimSpace(stText)
+		cmdInfo.SpecialExecuteTimes = specialExecuteTimes
 
 		return cmdInfo
 	}
 
 	return nil
+}
+
+func SpecialExecuteTimesParse(cmd string) (string, int) {
+	re := regexp.MustCompile(`\d+?#`)
+	m := re.FindAllStringIndex(cmd, 1)
+	var times int64
+	if m != nil {
+		for _, i := range m {
+			text := cmd[i[0]:i[1]]
+			times, _ = strconv.ParseInt(text[:len(text)-1], 10, 32)
+			cmd = cmd[:i[0]] + cmd[i[1]:]
+		}
+	}
+	return cmd, int(times)
 }
 
 type CQCommand struct {

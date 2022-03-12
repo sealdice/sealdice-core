@@ -76,7 +76,8 @@ type PlayerInfo struct {
 type ServiceAtItem struct {
 	Active           bool                  `json:"active" yaml:"active"` // 需要能记住配置，故有此选项
 	ActivatedExtList []*ExtInfo            `yaml:"activatedExtList"`     // 当前群开启的扩展列表
-	Players          map[int64]*PlayerInfo // 群员信息
+	Players          map[int64]*PlayerInfo // 群员角色数据
+	NotInGroup       bool                  // 是否已经离开群
 
 	LogCurName string `yaml:"logCurFile"`
 	LogOn      bool   `yaml:"logOn"`

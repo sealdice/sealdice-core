@@ -694,8 +694,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_成功"))
 								case 4:
 									VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_大成功"))
+								default:
+									VarSetValueStr(ctx, "$t附加语", "")
 								}
-								VarSetValueStr(ctx, "$t附加语", crazyTip)
 
 								ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:理智检定"))
 							} else {
