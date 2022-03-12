@@ -33,7 +33,11 @@ func replyPersonRaw(ctx *MsgContext, userId int64, text string, flag string) {
 			i.OnMessageSend(ctx, "private", userId, text, flag)
 		}
 	}
-	time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
+
+	if ctx.Dice != nil {
+		ctx.Dice.Logger.Infof("发给(帐号%d): %s", userId, text)
+	}
+	time.Sleep(time.Duration((0.6 + rand.Float64()) * float64(time.Second)))
 
 	type GroupMessageParams struct {
 		MessageType string `json:"message_type"`
@@ -134,7 +138,10 @@ func replyGroupRaw(ctx *MsgContext, groupId int64, text string, flag string) {
 		}
 	}
 
-	time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
+	if ctx.Dice != nil {
+		ctx.Dice.Logger.Infof("发给(群%d): %s", groupId, text)
+	}
+	time.Sleep(time.Duration((0.6 + rand.Float64()) * float64(time.Second)))
 
 	type GroupMessageParams struct {
 		GroupId int64  `json:"group_id"`
@@ -151,6 +158,7 @@ func replyGroupRaw(ctx *MsgContext, groupId int64, text string, flag string) {
 			text, // "golang client test",
 		},
 	})
+
 	socketSendText(ctx.Socket, string(a))
 	//ctx.Session.Socket.SendText(string(a))
 }
