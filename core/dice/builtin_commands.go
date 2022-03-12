@@ -232,15 +232,25 @@ func (d *Dice) registerCoreCommands() {
 
 				if cmdArgs.SpecialExecuteTimes > 1 {
 					VarSetValueInt64(ctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
+					if cmdArgs.SpecialExecuteTimes > 12 {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_轮数过多警告"))
+						return CmdExecuteResult{Success: true}
+					}
 					texts := []string{}
 					for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
-						rollOne()
+						ret := rollOne()
+						if ret != nil {
+							return *ret
+						}
 						texts = append(texts, DiceFormatTmpl(ctx, "核心:骰点_单项结果文本"))
 					}
 					VarSetValueStr(ctx, "$t结果文本", strings.Join(texts, `\n`))
 					text = DiceFormatTmpl(ctx, "核心:骰点_多轮")
 				} else {
-					rollOne()
+					ret := rollOne()
+					if ret != nil {
+						return *ret
+					}
 					VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "核心:骰点_单项结果文本"))
 					text = DiceFormatTmpl(ctx, "核心:骰点")
 				}
