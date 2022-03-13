@@ -339,6 +339,11 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 			conn.InPackGoCqHttpNeedQrCode = true
 		}
 
+		if (strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
+			//群消息发送失败: 账号可能被风控
+			conn.InPackGoCqHttpLastRestrictedTime = time.Now().Unix()
+		}
+
 		if conn.InPackGoCqHttpLoginSuccess == false || strings.Contains(line, "风控") || strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
 			//  [WARNING]: 登录需要滑条验证码, 请使用手机QQ扫描二维码以继续登录
 			if conn.InPackGoCqHttpLoginSuccess {
