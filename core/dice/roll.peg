@@ -15,8 +15,15 @@ e2 <- e3 ( multiply { p.AddLeftValueMark() } e3 { p.AddOperator(TypeMultiply) }
          / divide { p.AddLeftValueMark() } e3 { p.AddOperator(TypeDivide) }
          / modulus { p.AddLeftValueMark() } e3 { p.AddOperator(TypeModulus) }
          )*
-e3 <- eDice ( exponentiation { p.AddLeftValueMark() } eDice { p.AddOperator(TypeExponentiation) }
+
+e3 <- e4 ( exponentiation { p.AddLeftValueMark() } e4 { p.AddOperator(TypeExponentiation) }
          )*
+
+e4 <- minus e5 { p.AddOperator(TypeNegation) }
+    / e5
+
+e5 <- add eDice
+    / eDice
 
 eDice <- eDice2 ( ('d'/'D') { p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) } )? { p.AddOperator(TypeDice) }
          )*
@@ -29,10 +36,8 @@ eDice2 <- ('p' / 'P') number { p.AddOperator(TypeDicePenalty) }
 
 eDice3 <- ('b' / 'B') number { p.AddOperator(TypeDiceBonus) }
          / ('b' / 'B')  { p.AddValue("1"); p.AddOperator(TypeDiceBonus) }
-         / e4
+         / value
 
-e4 <- minus value { p.AddOperator(TypeNegation) }
-    / value
 value <- number
        / assign_expr
        / identifier { p.AddLoadVarname(string(text)) }
