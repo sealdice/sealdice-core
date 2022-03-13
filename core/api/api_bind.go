@@ -141,6 +141,7 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 				dice.GoCqHttpServeProcessKill(myDice, i)
 				time.Sleep(1 * time.Second)
 				dice.GoCqHttpServeRemoveSessionToken(myDice, i) // 删除session.token
+				i.InPackGoCqHttpLastRestrictedTime = 0          // 重置风控时间
 				dice.GoCqHttpServe(myDice, i, "", 1, true)
 				return c.JSON(http.StatusOK, nil)
 			}
