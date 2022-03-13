@@ -739,9 +739,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 			"coc": &CmdItemInfo{
 				Name: "coc",
-				Help: ".coc <数量> // 制卡指令，返回<数量>组",
+				Help: ".coc (<数量>) // 制卡指令，返回<数量>组人物属性",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					if ctx.IsCurGroupBotOn {
+					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						n, _ := cmdArgs.GetArgN(1)
 						val, err := strconv.ParseInt(n, 10, 64)
 						if err != nil {
@@ -755,7 +755,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 						var ss []string
 						for i = 0; i < val; i++ {
-							result, _, err := self.ExprText(`力量:{$t1=3d6*5} 敏捷:{$t2=3d6*5} 意志:{$t3=3d6*5} 体质:{$t4=3d6*5} 外貌:{$t5=3d6*5} 教育:{$t6=(2d6+6)*5} 体型:{$t7=(2d6+6)*5} 智力:{$t8=(2d6+6)*5} 幸运:{$t9=3d6*5} 生命值:{($t4+$t7)/10} 总数:{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8}`, ctx)
+							result, _, err := self.ExprText(`力量:{$t1=3d6*5} 敏捷:{$t2=3d6*5} 意志:{$t3=3d6*5} 体质:{$t4=3d6*5} 外貌:{$t5=3d6*5} 教育:{$t6=(2d6+6)*5} 体型:{$t7=(2d6+6)*5} 智力:{$t8=(2d6+6)*5} 幸运:{$t9=3d6*5} 生命值:{($t4+$t7)/10} 总数:{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8}/{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8+$t9}`, ctx)
 							if err != nil {
 								break
 							}
@@ -770,6 +770,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 			"st": &CmdItemInfo{
 				Name:  "st show <最小数值> / <属性><数值> / <属性>±<表达式>",
+				Help:  ".st <属性><数值>\n.st <属性>±<表达式>",
 				Brief: "复杂指令，详见文档。举例: “.st 力量50“ ”.st 力量+1d10““.st show 40“ ",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// .st show
@@ -792,6 +793,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							text += ".st del <属性名1> <属性名2> ... // 删除属性，可多项，以空格间隔\n"
 							text += ".st help // 帮助\n"
 							text += ".st <属性名><值> // 例：.st 敏捷50"
+							text += ".st <属性名>±<表达式> // 例：.st 敏捷+1d50"
 							ReplyGroup(ctx, msg.GroupId, text)
 
 						case "del", "rm":
@@ -1211,6 +1213,7 @@ func setupConfig(d *Dice) AttributeConfigs {
 				"信用评级":  {"信誉", "信用", "信誉度", "信用評級", "信譽", "信譽度"},
 				"护甲":    {"装甲", "護甲", "裝甲"},
 				"枪械":    {"火器", "射击", "槍械", "射擊"},
+				"侦查":    {"侦察", "偵查", "偵察"},
 			},
 			Order: AttributeOrder{
 				Top:    []string{"力量", "敏捷", "体质", "体型", "外貌", "智力", "意志", "教育", "理智", "克苏鲁神话", "生命值", "魔法值"},

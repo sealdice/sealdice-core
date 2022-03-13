@@ -90,16 +90,20 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{true}
 				}
 				count := 0
+				serveCount := 0
 				for _, i := range d.ImSession.ServiceAt {
-					if i.Active {
-						count += 1
+					if !i.NotInGroup && i.GroupId != 0 {
+						if i.Active {
+							count += 1
+						}
+						serveCount += 1
 					}
 				}
 				lastSavedTimeText := "从未"
 				if d.LastSavedTime != nil {
 					lastSavedTimeText = d.LastSavedTime.Format("2006-01-02 15:04:05") + " UTC"
 				}
-				text := fmt.Sprintf("SealDice %s\n供职于%d个群，其中%d个处于开启状态\n上次自动保存时间: %s", VERSION, len(d.ImSession.ServiceAt), count, lastSavedTimeText)
+				text := fmt.Sprintf("SealDice %s\n供职于%d个群，其中%d个处于开启状态\n上次自动保存时间: %s", VERSION, serveCount, count, lastSavedTimeText)
 
 				if inGroup {
 					isActive := ctx.Group != nil && ctx.Group.Active

@@ -49,6 +49,7 @@ type Message struct {
 		GroupCreateTime uint32 `json:"group_create_time"` // 群号
 		MemberCount     int64  `json:"member_count"`
 		GroupName       string `json:"group_name"`
+		MaxMemberCount  int32  `json:"max_member_count"`
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	//Status string `json:"status"`
@@ -201,10 +202,17 @@ func (s *IMSession) Serve(index int) int {
 			// 获得群信息
 			if msg.Echo == -2 {
 				if msg.Data != nil {
+					//fmt.Println("XXXX", message)
 					group := session.ServiceAt[msg.Data.GroupId]
 					if group != nil {
-						group.GroupName = msg.Data.GroupName
-						group.GroupId = msg.Data.GroupId
+						if msg.Data.MaxMemberCount == 0 {
+							group.NotInGroup = true
+							group.Active = false
+							delete(session.ServiceAt, msg.Data.GroupId)
+						} else {
+							group.GroupName = msg.Data.GroupName
+							group.GroupId = msg.Data.GroupId
+						}
 					}
 					log.Debug("群信息刷新: ", msg.Data.GroupName)
 				}
