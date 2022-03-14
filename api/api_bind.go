@@ -154,6 +154,7 @@ func ImConnectionsAdd(c echo.Context) error {
 	v := struct {
 		Account  string `yaml:"account" json:"account"`
 		Password string `yaml:"password" json:"password"`
+		Protocol int    `json:"protocol"`
 		//ConnectUrl        string `yaml:"connectUrl" json:"connectUrl"`               // 连接地址
 		//Platform          string `yaml:"platform" json:"platform"`                   // 平台，如QQ、QQ频道
 		//Enable            bool   `yaml:"enable" json:"enable"`                       // 是否启用
@@ -177,7 +178,7 @@ func ImConnectionsAdd(c echo.Context) error {
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
 		conn.UserId = uid
 		myDice.ImSession.Conns = append(myDice.ImSession.Conns, conn)
-		dice.GoCqHttpServe(myDice, conn, v.Password, 1, true)
+		dice.GoCqHttpServe(myDice, conn, v.Password, v.Protocol, true)
 		myDice.Save(false)
 		return c.JSON(200, conn)
 	}
