@@ -9,8 +9,10 @@ require (
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/fy0/procs v0.0.0-20220228213613-f7dcb4478391
 	github.com/fy0/systray v1.2.2
+	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959 // indirect
 	github.com/gen2brain/beeep v0.0.0-20210529141713-5586760f0cc1
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
+	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.3.0
 	github.com/gopherjs/gopherjs v0.0.0-20220221023154-0b2280d3ff96 // indirect
 	github.com/jessevdk/go-flags v1.5.0

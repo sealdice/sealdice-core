@@ -3,6 +3,7 @@ package dice
 import (
 	"os"
 	"path"
+	"sort"
 )
 
 func (d *Dice) RegisterBuiltinExt() {
@@ -25,4 +26,31 @@ func (d *Dice) GetExtDataDir(extName string) string {
 
 func (d *Dice) GetExtConfigFilePath(extName string, filename string) string {
 	return path.Join(d.GetExtDataDir(extName), filename)
+}
+
+func GetExtensionDesc(ei *ExtInfo) string {
+	text := "> " + ei.Brief + "\n" + "提供命令:\n"
+	keys := make([]string, 0, len(ei.CmdMap))
+
+	valueMap := map[*CmdItemInfo]bool{}
+
+	for k, _ := range ei.CmdMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, i := range keys {
+		i := ei.CmdMap[i]
+		if valueMap[i] {
+			continue
+		}
+		valueMap[i] = true
+		if i.Help == "" {
+			text += "." + i.Name + "\n"
+		} else {
+			text += i.Help + "\n"
+		}
+	}
+
+	return text
 }

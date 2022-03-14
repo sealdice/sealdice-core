@@ -89,7 +89,7 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		cmdInfo.RawArgs = m[2]
 		cmdInfo.At = atInfo
 
-		a := ArgsParse(m[2])
+		a := ArgsParse2(m[2])
 		cmdInfo.Args = a.Args
 		cmdInfo.Kwargs = a.Kwargs
 		//log.Println(222, m[1], "[sep]", m[2])
@@ -207,6 +207,39 @@ func AtParse(cmd string) (string, []*AtInfo) {
 	replaced := re.ReplaceAllString(cmd, "")
 
 	return replaced, ret
+}
+
+var reSpace = regexp.MustCompile(`\s+`)
+var reKeywordParam = regexp.MustCompile(`^--([^\s=]+)(?:=(\S+))?$`)
+
+func ArgsParse2(rawCmd string) *CmdArgs {
+	args := reSpace.Split(rawCmd, -1)
+	newArgs := []string{}
+
+	cmd := CmdArgs{}
+	cmd.Kwargs = make([]*Kwarg, 0)
+
+	for _, oneText := range args {
+		newText := oneText
+		if oneText == "" {
+			continue
+		}
+		m := reKeywordParam.FindStringSubmatch(oneText)
+		if len(m) > 0 {
+			kw := Kwarg{}
+			kw.Name = m[1]
+			kw.Value = m[2]
+			kw.ValueExists = m[2] != ""
+			kw.AsBool = m[2] != "false"
+			cmd.Kwargs = append(cmd.Kwargs, &kw)
+			newText = ""
+		} else {
+			newArgs = append(newArgs, newText)
+		}
+	}
+
+	cmd.Args = newArgs
+	return &cmd
 }
 
 func ArgsParse(rawCmd string) *CmdArgs {

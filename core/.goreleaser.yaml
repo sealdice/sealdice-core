@@ -34,6 +34,7 @@ archives:
       - goos: windows
         format: zip
     files:
+      - "SealDice 指令手册.pdf"
       - src: frontend
         dst: .
       - src: temp/go-cqhttp_{{ .Os }}_{{ .Arch }}

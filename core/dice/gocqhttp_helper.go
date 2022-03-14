@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -269,12 +270,13 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 	if _, err := os.Stat(qrcodeFile); err == nil {
 		// 如果已经存在二维码文件，将其删除
 		os.Remove(qrcodeFile)
-		fmt.Println("删除已存在的二维码文件")
+		dice.Logger.Info("onebot: 删除已存在的二维码文件")
 	}
 
 	//if _, err := os.Stat(filepath.Join(workDir, "session.token")); errors.Is(err, os.ErrNotExist) {
 	if !conn.InPackGoCqHttpLoginSucceeded {
 		// 并未登录成功，删除记录文件
+		dice.Logger.Info("onebot: 之前并未登录成功，删除设备文件和配置文件")
 		os.Remove(configFilePath)
 		os.Remove(deviceFilePath)
 	}
@@ -284,9 +286,8 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 		deviceInfo, err := GenerateDeviceJson(protocol)
 		if err == nil {
 			ioutil.WriteFile(deviceFilePath, deviceInfo, 0644)
+			dice.Logger.Info("onebot: 成功创建设备文件")
 		}
-	} else {
-		fmt.Println("设备文件已存在，跳过")
 	}
 
 	// 创建配置文件
@@ -304,6 +305,7 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 	gocqhttpExePath, _ := filepath.Abs(filepath.Join(wd, "go-cqhttp/go-cqhttp"))
 	gocqhttpExePath = strings.Replace(gocqhttpExePath, "\\", "/", -1) // windows平台需要这个替换
 
+	dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
 	p := procs.NewProcess(gocqhttpExePath + " faststart")
 	p.Dir = workDir
 
@@ -363,7 +365,7 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 	go func() {
 		<-chQrCode
 		if _, err := os.Stat(qrcodeFile); err == nil {
-			fmt.Println("二维码已经就绪")
+			dice.Logger.Info("onebot: 二维码已经就绪")
 			fmt.Println("如控制台二维码不好扫描，可以手动打开go-cqhttp目录下qrcode.png")
 			qrdata, err := ioutil.ReadFile(qrcodeFile)
 			if err == nil {
@@ -374,9 +376,16 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 	}()
 
 	run := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				dice.Logger.Errorf("onebot: 异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+
 		conn.InPackGoCqHttpRunning = true
 		conn.InPackGoCqHttpProcess = p
 		err := p.Run()
+
 		GoCqHttpServeProcessKill(dice, conn)
 		conn.InPackGoCqHttpRunning = false
 		if err != nil {
@@ -416,6 +425,7 @@ func DiceServe(d *Dice, conn *ConnectInfoItem) {
 		return false
 	}
 
+	waitTimes := 0
 	for {
 		if checkQuit() {
 			break
@@ -430,6 +440,13 @@ func DiceServe(d *Dice, conn *ConnectInfoItem) {
 		}
 
 		if checkQuit() {
+			break
+		}
+
+		waitTimes += 1
+		if waitTimes > 5 {
+			d.Logger.Infof("onebot 连接重试次数过多，先行中断: <%s>(%d)", conn.Nickname, conn.UserId)
+			conn.DiceServing = false
 			break
 		}
 

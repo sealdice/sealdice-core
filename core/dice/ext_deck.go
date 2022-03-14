@@ -191,7 +191,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 			d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
 		},
 		GetDescText: func(i *ExtInfo) string {
-			return ""
+			return GetExtensionDesc(i)
 		},
 		CmdMap: CmdMapCls{
 			"deck": &CmdItemInfo{
