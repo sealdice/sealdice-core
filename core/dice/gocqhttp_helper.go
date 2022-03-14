@@ -27,7 +27,7 @@ type deviceFile struct {
 	FingerPrint  string         `json:"finger_print"`
 	BootId       string         `json:"boot_id"`
 	ProcVersion  string         `json:"proc_version"`
-	Protocol     int            `json:"protocol"` // 0: Pad 1: Android 2: Watch
+	Protocol     int            `json:"protocol"` // 0: iPad 1: Android 2: AndroidWatch  // 3 macOS 4 企点
 	IMEI         string         `json:"imei"`
 	Brand        string         `json:"brand"`
 	Bootloader   string         `json:"bootloader"`
@@ -64,7 +64,129 @@ func randomMacAddress() string {
 	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5])
 }
 
+func RandString(len int) string {
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+
+	bytes := make([]byte, len)
+	for i := 0; i < len; i++ {
+		b := r.Intn(26) + 65
+		bytes[i] = byte(b)
+	}
+	return string(bytes)
+}
+
+//model	设备
+//"iPhone11,2"	iPhone XS
+//"iPhone11,8"	iPhone XR
+//"iPhone12,1"	iPhone 11
+//"iPhone13,2"	iPhone 12
+//"iPad8,1"	iPad Pro
+//"iPad11,2"	iPad mini
+//"iPad13,2"	iPad Air 4
+//"Apple Watch"	Apple Watch
+
+func GenerateDeviceJsonIOS(protocol int) ([]byte, error) {
+	rand.Seed(time.Now().Unix())
+	bootId := uuid.New()
+	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
+	androidId := fmt.Sprintf("%X", rand.Uint64())
+
+	deviceJson := deviceFile{
+		Display:      "iPhone",      // Rom的名字 比如 Flyme 1.1.2（魅族rom）  JWR66V（Android nexus系列原生4.3rom）
+		Product:      RandString(6), // 产品名，比如这是小米6的代号
+		Device:       RandString(6),
+		Board:        RandString(6),  // 主板:骁龙835                                                                    //
+		Brand:        "Apple",        // 品牌
+		Model:        "iPhone13,2",   // 型号
+		Bootloader:   "unknown",      // unknown不需要改
+		FingerPrint:  RandString(24), // 指纹
+		BootId:       bootId.String(),
+		ProcVersion:  "1.0", // 很长，后面 builder省略了
+		BaseBand:     "",    // 基带版本 4.3CPL2-... 一大堆，直接不写
+		SimInfo:      "",
+		OSType:       "iOS",
+		MacAddress:   randomMacAddress(),
+		IpAddress:    []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2}, // 192.168.x.x
+		WifiBSSID:    randomMacAddress(),
+		WifiSSID:     "<unknown ssid>",
+		IMEI:         imei,
+		AndroidId:    androidId, // 原版的 androidId和Display内容一样，我没看协议，但是按android文档上说应该是64-bit number的hex，姑且这么做
+		APN:          "wifi",
+		VendorName:   "Apple", // 这个和下面一个选项(VendorOSName)都属于意义不明，找不到相似对应，不知道是啥
+		VendorOSName: "Apple",
+		Protocol:     protocol,
+		Version: &osVersionFile{
+			Incremental: "OCACNFA", // Build.Version.INCREMENTAL, MIUI12: V12.5.3.0.RJBCNXM
+			Release:     "11",
+			Codename:    "REL",
+			Sdk:         29,
+		},
+	}
+
+	if protocol == 2 {
+		deviceJson.Model = "Apple Watch"
+	}
+
+	if protocol == 3 {
+		deviceJson.Model = "mac OS X"
+	}
+
+	return json.Marshal(deviceJson)
+}
+
+func GenerateDeviceJsonAllRandom(protocol int) ([]byte, error) {
+	rand.Seed(time.Now().Unix())
+	bootId := uuid.New()
+	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
+	androidId := fmt.Sprintf("%X", rand.Uint64())
+
+	deviceJson := deviceFile{
+		Display:      RandString(6), // Rom的名字 比如 Flyme 1.1.2（魅族rom）  JWR66V（Android nexus系列原生4.3rom）
+		Product:      RandString(6), // 产品名，比如这是小米6的代号
+		Device:       RandString(6),
+		Board:        RandString(6),  // 主板:骁龙835                                                                    //
+		Brand:        RandString(12), // 品牌
+		Model:        RandString(24), // 型号
+		Bootloader:   "unknown",      // unknown不需要改
+		FingerPrint:  RandString(24), // 指纹
+		BootId:       bootId.String(),
+		ProcVersion:  "1.0", // 很长，后面 builder省略了
+		BaseBand:     "",    // 基带版本 4.3CPL2-... 一大堆，直接不写
+		SimInfo:      "",
+		OSType:       "android",
+		MacAddress:   randomMacAddress(),
+		IpAddress:    []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2}, // 192.168.x.x
+		WifiBSSID:    randomMacAddress(),
+		WifiSSID:     "<unknown ssid>",
+		IMEI:         imei,
+		AndroidId:    androidId, // 原版的 androidId和Display内容一样，我没看协议，但是按android文档上说应该是64-bit number的hex，姑且这么做
+		APN:          "wifi",
+		VendorName:   RandString(12), // 这个和下面一个选项(VendorOSName)都属于意义不明，找不到相似对应，不知道是啥
+		VendorOSName: RandString(12),
+		Protocol:     protocol,
+		Version: &osVersionFile{
+			Incremental: "OCACNFA", // Build.Version.INCREMENTAL, MIUI12: V12.5.3.0.RJBCNXM
+			Release:     "11",
+			Codename:    "REL",
+			Sdk:         29,
+		},
+	}
+
+	return json.Marshal(deviceJson)
+}
+
 func GenerateDeviceJson(protocol int) ([]byte, error) {
+	switch protocol {
+	case 0, 2, 3:
+		return GenerateDeviceJsonIOS(protocol)
+	case 1:
+		return GenerateDeviceJsonAndroid(protocol)
+	default:
+		return GenerateDeviceJsonAllRandom(protocol)
+	}
+}
+
+func GenerateDeviceJsonAndroid(protocol int) ([]byte, error) {
 	rand.Seed(time.Now().Unix())
 	bootId := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
@@ -237,6 +359,7 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
 		}()
 
 		if conn.UseInPackGoCqhttp {
+			conn.State = 0
 			conn.InPackGoCqHttpLoginSuccess = false
 			conn.InPackGoCqHttpQrcodeData = nil
 			conn.InPackGoCqHttpRunning = false
@@ -321,15 +444,20 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 			conn.InPackGoCqHttpLoginSuccess = true
 			conn.InPackGoCqHttpLoginSucceeded = true
 			conn.Enable = true
-			conn.State = 1
+			conn.State = 2
 			dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%d)", conn.Nickname, conn.UserId)
 
 			go DiceServe(dice, conn)
 		}
 
-		if strings.Contains(line, "账号已开启设备锁，请前往") {
+		if strings.Contains(line, "fetch qrcode error: Packet timed out ") {
+			dice.Logger.Infof("从QQ服务器获取二维码错误（超时），帐号: <%s>(%d)", conn.Nickname, conn.UserId)
+		}
+
+		if strings.Contains(line, "WARNING") && strings.Contains(line, "账号已开启设备锁，请前往") {
 			re := regexp.MustCompile(`-> (.+?) <-`)
 			m := re.FindStringSubmatch(line)
+			dice.Logger.Info("触发设备锁流程: ", len(m))
 			if len(m) > 0 {
 				// 设备锁流程，因为需要重新登录，进行一个“已成功登录过”的标记，这样配置文件不会被删除
 				conn.InPackGoCqHttpLoginSucceeded = true

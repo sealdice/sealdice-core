@@ -106,7 +106,7 @@ type ConnectInfoItem struct {
 	Socket              *gowebsocket.Socket `yaml:"-" json:"-"`
 	Id                  string              `yaml:"id" json:"id"` // uuid
 	Nickname            string              `yaml:"nickname" json:"nickname"`
-	State               int                 `yaml:"state" json:"state"` // 状态 0 断开 1已连接
+	State               int                 `yaml:"state" json:"state"` // 状态 0 断开 1已连接 2连接中
 	UserId              int64               `yaml:"userId" json:"userId"`
 	GroupNum            int64               `yaml:"groupNum" json:"groupNum"`                       // 拥有群数
 	CmdExecutedNum      int64               `yaml:"cmdExecutedNum" json:"cmdExecutedNum"`           // 指令执行次数
@@ -167,7 +167,7 @@ func (s *IMSession) Serve(index int) int {
 	conn.Socket = &socket
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
-		fmt.Println("onebot 连接成功")
+		conn.State = 1
 		log.Info("onebot 连接成功")
 		//  {"data":{"nickname":"闃斧鐗岃�佽檸鏈�","user_id":1001},"retcode":0,"status":"ok"}
 		conn.GetLoginInfo()
