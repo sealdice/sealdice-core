@@ -218,6 +218,13 @@ var ManiaListText = `
 100) 喜兽癖（Zoomania）：对待动物的态度近乎疯狂地友好
 `
 
+var difficultPrefixMap = map[string]int{
+	"常规":  1,
+	"困难":  2,
+	"极难":  3,
+	"大成功": 4,
+}
+
 func RegisterBuiltinExtCoc7(self *Dice) {
 	// 初始化疯狂列表
 	reFear := regexp.MustCompile(`(\d+)\)\s+([^\n]+)`)
@@ -254,15 +261,20 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					}
 
 					rollOne := func() *CmdExecuteResult {
+						difficultRequire := 0
 						// 试图读取检定表达式
 						swap := false
-						r1, detail1, err := ctx.Dice.ExprEval(cmdArgs.CleanArgs, mctx)
+						r1, detail1, err := ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, mctx, false, false, true)
 
 						if err != nil {
 							ReplyToSender(ctx, msg, "解析出错: "+cmdArgs.CleanArgs)
 							return &CmdExecuteResult{Success: true}
 						}
 
+						difficultRequire2 := difficultPrefixMap[r1.Parser.CocFlagVarPrefix]
+						if difficultRequire2 > difficultRequire {
+							difficultRequire = difficultRequire2
+						}
 						expr1Text := r1.Matched
 						expr2Text := r1.restInput
 
@@ -272,10 +284,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							swap = true
 						}
 
-						r2, detail2, err := ctx.Dice.ExprEval(expr2Text, mctx)
+						r2, detail2, err := ctx.Dice.ExprEvalBase(expr2Text, mctx, false, false, true)
 						if err != nil {
 							ReplyToSender(ctx, msg, "解析出错: "+expr2Text)
 							return &CmdExecuteResult{Success: true}
+						}
+						difficultRequire2 = difficultPrefixMap[r2.Parser.CocFlagVarPrefix]
+						if difficultRequire2 > difficultRequire {
+							difficultRequire = difficultRequire2
 						}
 
 						if swap {
@@ -298,7 +314,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						}
 
 						successRank := ResultCheck(cocRule, checkVal, attrVal)
-						suffix := GetResultText(ctx, successRank)
+						var suffix string
+						suffix = GetResultTextWithRequire(ctx, successRank, difficultRequire)
 						VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, checkVal})
 						VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, attrVal})
 						VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, suffix})
@@ -647,7 +664,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									san = _san
 								}
 
-								r, _, err = ctx.Dice.ExprEvalBase(successExpr, ctx, false, false)
+								r, _, err = ctx.Dice.ExprEvalBase(successExpr, ctx, false, false, false)
 								if err == nil {
 									reduceSuccess = r.Value.(int64)
 								}
@@ -662,7 +679,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, suffix})
 								VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, san})
 
-								r, _, err = ctx.Dice.ExprEvalBase(failedExpr, ctx, successRank == -2, false)
+								r, _, err = ctx.Dice.ExprEvalBase(failedExpr, ctx, successRank == -2, false, false)
 								if err == nil {
 									reduceFail = r.Value.(int64)
 								}
@@ -1008,6 +1025,37 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	self.RegisterExtension(theExt)
 }
 
+func GetResultTextWithRequire(ctx *MsgContext, successRank int, difficultRequire int) string {
+	fmt.Println("???", successRank, difficultRequire)
+	if difficultRequire > 1 {
+		isSuccess := successRank >= difficultRequire
+		var suffix string
+		switch difficultRequire {
+		case +2:
+			if isSuccess {
+				suffix = DiceFormatTmpl(ctx, "COC:判定_必须_困难_成功")
+			} else {
+				suffix = DiceFormatTmpl(ctx, "COC:判定_必须_困难_失败")
+			}
+		case +3:
+			if isSuccess {
+				suffix = DiceFormatTmpl(ctx, "COC:判定_必须_极难_成功")
+			} else {
+				suffix = DiceFormatTmpl(ctx, "COC:判定_必须_极难_失败")
+			}
+		case +4:
+			if isSuccess {
+				suffix = DiceFormatTmpl(ctx, "COC:判定_必须_大成功_成功")
+			} else {
+				suffix = DiceFormatTmpl(ctx, "COC:判定_必须_大成功_失败")
+			}
+		}
+		return suffix
+	} else {
+		return GetResultText(ctx, successRank)
+	}
+}
+
 func GetResultText(ctx *MsgContext, successRank int) string {
 	var suffix string
 	switch successRank {
@@ -1018,7 +1066,7 @@ func GetResultText(ctx *MsgContext, successRank int) string {
 	case +1:
 		suffix = DiceFormatTmpl(ctx, "COC:判定_成功_普通")
 	case +2:
-		suffix = DiceFormatTmpl(ctx, "COC:判定_成功_极难")
+		suffix = DiceFormatTmpl(ctx, "COC:判定_成功_困难")
 	case +3:
 		suffix = DiceFormatTmpl(ctx, "COC:判定_成功_极难")
 	case +4:

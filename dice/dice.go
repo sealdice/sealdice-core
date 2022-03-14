@@ -147,11 +147,12 @@ func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
 	return p
 }
 
-func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, bigFailDice bool, disableLoadVarname bool) (*VmResult, string, error) {
+func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, bigFailDice bool, disableLoadVarname bool, varNumberMode bool) (*VmResult, string, error) {
 	parser := d.rebuildParser(buffer)
 	err := parser.Parse()
 	parser.RollExpression.BigFailDiceOn = bigFailDice
 	parser.RollExpression.DisableLoadVarname = disableLoadVarname
+	parser.RollExpression.CocVarNumberMode = varNumberMode
 
 	if err == nil {
 		parser.Execute()
@@ -181,7 +182,7 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, bigFailDice bool, di
 }
 
 func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VmResult, string, error) {
-	return d.ExprEvalBase(buffer, ctx, false, false)
+	return d.ExprEvalBase(buffer, ctx, false, false, false)
 }
 
 func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) {

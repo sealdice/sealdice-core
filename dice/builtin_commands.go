@@ -180,7 +180,7 @@ func (d *Dice) registerCoreCommands() {
 					forWhat := ""
 					if len(cmdArgs.Args) >= 1 {
 						var err error
-						r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, false, disableLoadVarname)
+						r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, false, disableLoadVarname, false)
 
 						if r != nil && r.TypeId == 0 {
 							diceResult = r.Value.(int64)
