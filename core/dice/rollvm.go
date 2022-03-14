@@ -109,6 +109,8 @@ type RollExpression struct {
 	Top                int
 	BigFailDiceOn      bool
 	DisableLoadVarname bool
+	CocVarNumberMode   bool   // 特殊的变量模式，此时这种类型的变量“力量50”被读取为50，而解析的文本被算作“力量”，如果没有后面的数字则正常进行
+	CocFlagVarPrefix   string // 解析过程中出现，当VarNumber开启时有效，可以是困难极难常规大成功
 	Error              error
 }
 
@@ -317,13 +319,32 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			var v interface{}
 			var vType VMValueType
 
+			varname := code.ValueStr
+
 			if e.DisableLoadVarname {
 				return nil, calcDetail, errors.New("解析失败")
 			}
 
-			if ctx != nil {
+			if e.CocVarNumberMode {
+				re := regexp.MustCompile(`^(困难|极难|大成功|常规|失败)?([^\d]+)(\d+)?$`)
+				m := re.FindStringSubmatch(code.ValueStr)
+				if len(m) > 0 {
+					if m[1] != "" {
+						e.CocFlagVarPrefix = m[1]
+						varname = varname[len(m[1]):]
+					}
+
+					// 有末值时覆盖，有初值时
+					if m[3] != "" {
+						vType = VMTypeInt64
+						v, _ = strconv.ParseInt(m[3], 10, 64)
+					}
+				}
+			}
+
+			if v == nil && ctx != nil {
 				var exists bool
-				v2, exists := VarGetValue(ctx, code.ValueStr)
+				v2, exists := VarGetValue(ctx, varname)
 				if exists {
 					vType = v2.TypeId
 					v = v2.Value
@@ -335,14 +356,14 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 					//	}
 					//}
 
-					textTmpl := ctx.Dice.TextMap[code.ValueStr]
+					textTmpl := ctx.Dice.TextMap[varname]
 					if textTmpl != nil {
 						vType = VMTypeString
 						v = DiceFormat(ctx, textTmpl.Pick().(string))
 					} else {
-						if strings.Contains(code.ValueStr, ":") {
+						if strings.Contains(varname, ":") {
 							vType = VMTypeString
-							v = "<%未定义值-" + code.ValueStr + "%>"
+							v = "<%未定义值-" + varname + "%>"
 						} else {
 							vType = VMTypeInt64 // 这个方案不好，更多类型的时候就出事了
 							v = int64(0)
@@ -356,7 +377,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			top++
 
 			if vType == VMTypeInt64 {
-				lastDetail := fmt.Sprintf("%s=%d", code.ValueStr, v)
+				lastDetail := fmt.Sprintf("%s=%d", varname, v)
 				lastDetails = append(lastDetails, lastDetail)
 			}
 			continue
