@@ -239,9 +239,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	ac := setupConfig(self)
 
 	cmdRc := &CmdItemInfo{
-		Name:  "ra/rc",
-		Brief: "ra (<检定表达式，默认d100可省略>) <属性表达式> (@某人) // 属性检定指令，当前者小于后者，检定通过。当@某人时，对此人做检定",
-		Help:  ".rc/ra (<检定表达式，默认d100可省略>) <属性表达式> (@某人) // 属性检定指令，当前者小于后者，检定通过。当@某人时，对此人做检定",
+		Name: "ra/rc",
+		Help: ".rc/ra (<检定表达式，默认d100>) <属性表达式> (@某人) // 属性检定指令，当前者小于后者，检定通过。当@某人时，对此人做检定\n" +
+			".rch/rah // 暗中检定，和鉴定指令用法相同",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 1 {
 				if len(cmdArgs.Args) >= 1 {
@@ -374,23 +374,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			ctx.Player.TempValueAlias = &ac.Alias
 		},
 		GetDescText: func(ei *ExtInfo) string {
-			text := "> " + ei.Brief + "\n" + "提供命令:\n"
-			keys := make([]string, 0, len(ei.CmdMap))
-			for k := range ei.CmdMap {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-
-			for _, i := range keys {
-				i := ei.CmdMap[i]
-				brief := i.Brief
-				if brief != "" {
-					brief = " // " + brief
-				}
-				text += "." + i.Name + brief + "\n"
-			}
-
-			return text
+			return GetExtensionDesc(ei)
 		},
 		CmdMap: CmdMapCls{
 			"en": &CmdItemInfo{
@@ -497,8 +481,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				},
 			},
 			"setcoc": &CmdItemInfo{
-				Name:  "setcoc",
-				Brief: "设置房规",
+				Name: "setcoc",
+				Help: ".setcoc 0-5 // 设置房规",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					n, _ := cmdArgs.GetArgN(1)
 					switch n {
@@ -529,8 +513,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				},
 			},
 			"ti": &CmdItemInfo{
-				Name:  "ti",
-				Brief: "随机抽取一个临时性疯狂症状",
+				Name: "ti",
+				Help: ".ti // 抽取一个临时性疯狂症状",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// 临时性疯狂
 					if ctx.IsCurGroupBotOn {
@@ -577,8 +561,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				},
 			},
 			"li": &CmdItemInfo{
-				Name:  "li",
-				Brief: "随机抽取一个总结性疯狂症状",
+				Name: "li",
+				Help: ".li // 抽取一个总结性疯狂症状",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// 总结性疯狂
 					if ctx.IsCurGroupBotOn {
@@ -629,8 +613,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			"rch": cmdRc,
 			"rah": cmdRc,
 			"sc": &CmdItemInfo{
-				Name:  "sc <成功时掉san>/<失败时掉san>",
-				Brief: "对理智进行一次D100检定，根据结果扣除理智。如“.sc 0/1d3”为成功不扣除理智，失败扣除1d3。大失败时按掷骰最大值扣除。支持复杂表达式。如.sc 1d2+3/1d(知识+1)",
+				Name: "sc",
+				Help: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 1 {
 						// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
@@ -769,9 +753,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			},
 
 			"st": &CmdItemInfo{
-				Name:  "st show <最小数值> / <属性><数值> / <属性>±<表达式>",
-				Help:  ".st <属性><数值>\n.st <属性>±<表达式>",
-				Brief: "复杂指令，详见文档。举例: “.st 力量50“ ”.st 力量+1d10““.st show 40“ ",
+				Name: "st show <最小数值> / <属性><数值> / <属性>±<表达式>",
+				Help: ".st <属性><数值>\n.st <属性>±<表达式>",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// .st show
 					// .st help
