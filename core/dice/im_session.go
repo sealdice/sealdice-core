@@ -129,7 +129,33 @@ type ConnectInfoItem struct {
 	InPackGoCqHttpQrcodeData         []byte         `yaml:"-" json:"-"`                            // 二维码数据
 	InPackGoCqHttpLoginDeviceLockUrl string         `yaml:"-" json:"inPackGoCqHttpLoginDeviceLockUrl"`
 	InPackGoCqHttpLastRestrictedTime int64          `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
+	InPackGoCqHttpProtocol           int            `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
 	DiceServing                      bool           `yaml:"-"`
+}
+
+// SetEnable
+/* 如果已连接，将断开连接，如果开着GCQ将自动结束。如果启用的话，则反过来  */
+func (c *ConnectInfoItem) SetEnable(d *Dice, enable bool) {
+	if c.Enable != enable {
+		if enable {
+			c.Enable = true
+			c.DiceServing = true
+
+			if c.UseInPackGoCqhttp {
+				GoCqHttpServeProcessKill(d, c)
+				time.Sleep(1 * time.Second)
+				GoCqHttpServe(d, c, "", c.InPackGoCqHttpProtocol, true)
+			} else {
+				DiceServe(d, c)
+			}
+		} else {
+			c.Enable = false
+			c.DiceServing = false
+			if c.UseInPackGoCqhttp {
+				GoCqHttpServeProcessKill(d, c)
+			}
+		}
+	}
 }
 
 type IMSession struct {
@@ -183,6 +209,10 @@ func (s *IMSession) Serve(index int) int {
 		msg := new(Message)
 		err := json.Unmarshal([]byte(message), msg)
 
+		if !conn.Enable {
+			disconnected <- 3
+		}
+
 		if err == nil {
 			// 心跳包，忽略
 			if msg.MetaEventType == "heartbeat" {
@@ -204,7 +234,6 @@ func (s *IMSession) Serve(index int) int {
 			// 获得群信息
 			if msg.Echo == -2 {
 				if msg.Data != nil {
-					//fmt.Println("XXXX", message)
 					group := session.ServiceAt[msg.Data.GroupId]
 					if group != nil {
 						if msg.Data.MaxMemberCount == 0 {
