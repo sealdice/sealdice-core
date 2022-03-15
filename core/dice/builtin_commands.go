@@ -10,7 +10,12 @@ import (
 	"time"
 )
 
-func SetBotOnAtGroup(session *IMSession, msg *Message) {
+func FormatDiceIdQQ(diceQQ int64) string {
+	return fmt.Sprintf("QQ:%s", strconv.FormatInt(diceQQ, 10))
+}
+
+func SetBotOnAtGroup(ctx *MsgContext, msg *Message) {
+	session := ctx.Session
 	group := session.ServiceAt[msg.GroupId]
 	if group != nil {
 		group.Active = true
@@ -27,8 +32,12 @@ func SetBotOnAtGroup(session *IMSession, msg *Message) {
 			Players:          map[int64]*PlayerInfo{},
 			GroupId:          msg.GroupId,
 			ValueMap:         map[string]VMValue{},
+			DiceIds:          map[string]bool{},
 		}
+		group = session.ServiceAt[msg.GroupId]
 	}
+
+	group.DiceIds[FormatDiceIdQQ(ctx.conn.UserId)] = true
 }
 
 /** 这几条指令不能移除 */
@@ -120,7 +129,7 @@ func (d *Dice) registerCoreCommands() {
 				if inGroup && !AtSomebodyButNotMe {
 					if len(cmdArgs.Args) >= 1 {
 						if cmdArgs.IsArgEqual(1, "on") {
-							SetBotOnAtGroup(ctx.Session, msg)
+							SetBotOnAtGroup(ctx, msg)
 							ctx.Group = ctx.Session.ServiceAt[msg.GroupId]
 							ctx.IsCurGroupBotOn = true
 							// "SealDice 已启用(开发中) " + VERSION

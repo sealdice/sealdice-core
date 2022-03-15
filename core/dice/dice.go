@@ -15,7 +15,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.2内测版 v20220314"
+var VERSION = "0.99.3内测版 v20220315"
 
 type CmdExecuteResult struct {
 	Success bool
@@ -129,9 +129,20 @@ func (d *Dice) Init() {
 		for {
 			<-t
 
+			// 自动更新群信息
 			for _, i := range d.ImSession.Conns {
-				for k := range d.ImSession.ServiceAt {
-					GetGroupInfo(i.Socket, k)
+				if i.Enable && i.DiceServing {
+					for k, v := range d.ImSession.ServiceAt {
+						if v.Active {
+							diceId := FormatDiceIdQQ(i.UserId)
+							if len(v.DiceIds) == 0 {
+								v.DiceIds[diceId] = true
+							}
+							if v.DiceIds[diceId] {
+								GetGroupInfo(i.Socket, k)
+							}
+						}
+					}
 				}
 			}
 		}
