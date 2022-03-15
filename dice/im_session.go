@@ -81,10 +81,12 @@ type ServiceAtItem struct {
 	Players          map[int64]*PlayerInfo // 群员角色数据
 	NotInGroup       bool                  // 是否已经离开群
 
-	LogCurName string `yaml:"logCurFile"`
-	LogOn      bool   `yaml:"logOn"`
-	GroupId    int64  `yaml:"groupId"`
-	GroupName  string `yaml:"groupName"`
+	LogCurName string          `yaml:"logCurFile"`
+	LogOn      bool            `yaml:"logOn"`
+	GroupId    int64           `yaml:"groupId"`
+	GroupName  string          `yaml:"groupName"`
+	Platform   string          `yaml:"platform"` // 默认为QQ（为空）
+	DiceIds    map[string]bool `yaml:"diceIds"`  // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
 
 	ValueMap     map[string]VMValue `yaml:"-"`
 	CocRuleIndex int                `yaml:"cocRuleIndex"`
@@ -130,7 +132,7 @@ type ConnectInfoItem struct {
 	InPackGoCqHttpLoginDeviceLockUrl string         `yaml:"-" json:"inPackGoCqHttpLoginDeviceLockUrl"`
 	InPackGoCqHttpLastRestrictedTime int64          `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
 	InPackGoCqHttpProtocol           int            `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
-	DiceServing                      bool           `yaml:"-"`
+	DiceServing                      bool           `yaml:"-"` // 是否正在连接中
 }
 
 // SetEnable
@@ -237,9 +239,17 @@ func (s *IMSession) Serve(index int) int {
 					group := session.ServiceAt[msg.Data.GroupId]
 					if group != nil {
 						if msg.Data.MaxMemberCount == 0 {
-							group.NotInGroup = true
-							group.Active = false
-							delete(session.ServiceAt, msg.Data.GroupId)
+							// 试图删除自己
+							diceId := FormatDiceIdQQ(conn.UserId)
+							if _, exists := group.DiceIds[diceId]; exists {
+								// 删除自己的登记信息
+								delete(group.DiceIds, diceId)
+
+								if len(group.DiceIds) == 0 {
+									// 如果该群所有账号都被删除了，那么也删掉整条记录
+									delete(session.ServiceAt, msg.Data.GroupId)
+								}
+							}
 						} else {
 							group.GroupName = msg.Data.GroupName
 							group.GroupId = msg.Data.GroupId
@@ -264,11 +274,11 @@ func (s *IMSession) Serve(index int) int {
 				//{"group_id":111,"notice_type":"group_increase","operator_id":0,"post_type":"notice","self_id":333,"sub_type":"approve","time":1646782012,"user_id":333}
 				if msg.UserId == msg.SelfId {
 					// 判断进群的人是自己，自动启动
-					SetBotOnAtGroup(session, msg)
+					ctx := &MsgContext{Session: session, Dice: session.Parent, Socket: conn.Socket}
+					SetBotOnAtGroup(ctx, msg)
 					// 立即获取群信息
 					GetGroupInfo(conn.Socket, msg.GroupId)
 					// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname)
-					ctx := &MsgContext{Session: session, Dice: session.Parent, Socket: conn.Socket}
 					go func() {
 						// 稍作等待后发送入群致词
 						time.Sleep(2 * time.Second)
@@ -329,7 +339,7 @@ func (s *IMSession) Serve(index int) int {
 				sa := session.ServiceAt[msg.GroupId]
 				if sa == nil {
 					log.Infof("自动激活: 发现无记录群组(%d)，因为已是群成员，所以自动激活", msg.GroupId)
-					SetBotOnAtGroup(mctx.Session, msg)
+					SetBotOnAtGroup(mctx, msg)
 					GetGroupInfo(conn.Socket, msg.GroupId)
 				}
 

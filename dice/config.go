@@ -534,6 +534,9 @@ func (d *Dice) loads() {
 				if g.ValueMap == nil {
 					g.ValueMap = map[string]VMValue{}
 				}
+				if g.DiceIds == nil {
+					g.DiceIds = map[string]bool{}
+				}
 
 				// 个人群组数据
 				for _, p := range g.Players {

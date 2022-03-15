@@ -547,7 +547,7 @@ func DiceServe(d *Dice, conn *ConnectInfoItem) {
 	checkQuit := func() bool {
 		if !conn.DiceServing {
 			// 退出连接
-			d.Logger.Infof("检测到连接删除，不再进行此onebot服务的重连: <%s>(%d)", conn.Nickname, conn.UserId)
+			d.Logger.Infof("检测到连接关闭，不再进行此onebot服务的重连: <%s>(%d)", conn.Nickname, conn.UserId)
 			return true
 		}
 		return false
