@@ -313,9 +313,19 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							cocRule = 0
 						}
 
-						successRank := ResultCheck(cocRule, checkVal, attrVal)
+						successRank, criticalSuccessValue := ResultCheck(cocRule, checkVal, attrVal)
 						var suffix string
 						suffix = GetResultTextWithRequire(ctx, successRank, difficultRequire)
+
+						// 根据难度需求，修改判定值
+						switch difficultRequire {
+						case 2:
+							attrVal /= 2
+						case 3:
+							attrVal /= 5
+						case 4:
+							attrVal = criticalSuccessValue
+						}
 						VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, checkVal})
 						VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, attrVal})
 						VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, suffix})
@@ -431,7 +441,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 							d100 := DiceRoll64(100)
 							// 注意一下，这里其实是，小于失败 大于成功
-							successRank := ResultCheck(ctx.Group.CocRuleIndex, d100, varValue)
+							successRank, _ := ResultCheck(ctx.Group.CocRuleIndex, d100, varValue)
 							var resultText string
 							if successRank > 0 {
 								resultText = "失败"
@@ -672,7 +682,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								var sanNew int64
 								var suffix string
 
-								successRank := ResultCheck(ctx.Group.CocRuleIndex, d100, san)
+								successRank, _ := ResultCheck(ctx.Group.CocRuleIndex, d100, san)
 								suffix = GetResultText(ctx, successRank)
 								VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, d100})
 								VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, san})
@@ -1026,7 +1036,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 }
 
 func GetResultTextWithRequire(ctx *MsgContext, successRank int, difficultRequire int) string {
-	fmt.Println("???", successRank, difficultRequire)
 	if difficultRequire > 1 {
 		isSuccess := successRank >= difficultRequire
 		var suffix string
@@ -1083,17 +1092,15 @@ func GetResultText(ctx *MsgContext, successRank int) string {
 极难成功：骰出小于等于角色技能或属性值的五分之一 -> 3
 大成功：骰出1 -> 4
 */
-func ResultCheck(cocRule int, d100 int64, checkValue int64) int {
-	var successRank int
-
+func ResultCheck(cocRule int, d100 int64, checkValue int64) (successRank int, criticalSuccessValue int64) {
 	if d100 <= checkValue {
 		successRank = 1
 	} else {
 		successRank = -1
 	}
 
-	criticalSuccessValue := int64(1) // 大成功阈值
-	fumbleValue := int64(100)        // 大失败阈值
+	criticalSuccessValue = int64(1) // 大成功阈值
+	fumbleValue := int64(100)       // 大失败阈值
 
 	// 村规设定
 	switch cocRule {
@@ -1182,7 +1189,7 @@ func ResultCheck(cocRule int, d100 int64, checkValue int64) int {
 		}
 	}
 
-	return successRank
+	return successRank, criticalSuccessValue
 }
 
 type AttributeOrderOthers struct {

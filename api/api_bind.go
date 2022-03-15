@@ -91,6 +91,23 @@ func ImConnectionsGet(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
+func ImConnectionsSetEnable(c echo.Context) error {
+	v := struct {
+		Id     string `form:"id" json:"id"`
+		Enable bool   `form:"enable" json:"enable"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		for _, i := range myDice.ImSession.Conns {
+			if i.Id == v.Id {
+				i.SetEnable(myDice, v.Enable)
+				return c.JSON(http.StatusOK, i)
+			}
+		}
+	}
+	return c.JSON(http.StatusNotFound, nil)
+}
+
 func ImConnectionsDel(c echo.Context) error {
 	v := struct {
 		Id string `form:"id" json:"id"`
@@ -142,7 +159,7 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 				time.Sleep(1 * time.Second)
 				dice.GoCqHttpServeRemoveSessionToken(myDice, i) // 删除session.token
 				i.InPackGoCqHttpLastRestrictedTime = 0          // 重置风控时间
-				dice.GoCqHttpServe(myDice, i, "", 1, true)
+				dice.GoCqHttpServe(myDice, i, "", i.InPackGoCqHttpProtocol, true)
 				return c.JSON(http.StatusOK, nil)
 			}
 		}
@@ -177,6 +194,7 @@ func ImConnectionsAdd(c echo.Context) error {
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
 		conn.UserId = uid
+		conn.InPackGoCqHttpProtocol = v.Protocol
 		myDice.ImSession.Conns = append(myDice.ImSession.Conns, conn)
 		dice.GoCqHttpServe(myDice, conn, v.Password, v.Protocol, true)
 		myDice.Save(false)
@@ -205,5 +223,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST("/configs/customText/save", customTextSave)
 	e.POST("/im_connections/add", ImConnectionsAdd)
 	e.POST("/im_connections/del", ImConnectionsDel)
+	e.POST("/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST("/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
 }
