@@ -147,8 +147,9 @@ func (c *ConnectInfoItem) SetEnable(d *Dice, enable bool) {
 				GoCqHttpServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
 				GoCqHttpServe(d, c, "", c.InPackGoCqHttpProtocol, true)
+				go DiceServe(d, c)
 			} else {
-				DiceServe(d, c)
+				go DiceServe(d, c)
 			}
 		} else {
 			c.Enable = false

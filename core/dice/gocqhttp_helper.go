@@ -369,8 +369,11 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
 
 			// 注意这个会panic，因此recover捕获了
 			if conn.InPackGoCqHttpProcess != nil {
-				conn.InPackGoCqHttpProcess.Stop()
-				conn.InPackGoCqHttpProcess.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
+				p := conn.InPackGoCqHttpProcess
+				conn.InPackGoCqHttpProcess = nil
+				//sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
+				p.Stop()
+				p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
 			}
 		}
 	}()
@@ -384,6 +387,11 @@ func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *ConnectInfoItem) {
 }
 
 func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol int, isAsyncRun bool) {
+	if conn.InPackGoCqHttpRunning {
+		return
+	}
+	conn.InPackGoCqHttpRunning = true
+
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 	os.MkdirAll(workDir, 0644)
 
@@ -463,6 +471,9 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 				conn.InPackGoCqHttpLoginSucceeded = true
 				conn.InPackGoCqHttpLoginDeviceLockUrl = m[1]
 			}
+		}
+
+		if strings.Contains(line, "open backend error: open leveldb error:") {
 		}
 
 		if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
@@ -553,6 +564,7 @@ func DiceServe(d *Dice, conn *ConnectInfoItem) {
 		return false
 	}
 
+	lastRetryTime := time.Now().Unix()
 	waitTimes := 0
 	for {
 		if checkQuit() {
@@ -562,6 +574,11 @@ func DiceServe(d *Dice, conn *ConnectInfoItem) {
 		// 骰子开始连接
 		d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
 		ret := d.ImSession.Serve(_index)
+
+		if time.Now().Unix()-lastRetryTime > 8*60 {
+			lastRetryTime = 0
+		}
+		lastRetryTime = time.Now().Unix()
 
 		if ret == 0 {
 			break

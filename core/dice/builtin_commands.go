@@ -37,6 +37,9 @@ func SetBotOnAtGroup(ctx *MsgContext, msg *Message) {
 		group = session.ServiceAt[msg.GroupId]
 	}
 
+	if group.DiceIds == nil {
+		group.DiceIds = map[string]bool{}
+	}
 	group.DiceIds[FormatDiceIdQQ(ctx.conn.UserId)] = true
 }
 
