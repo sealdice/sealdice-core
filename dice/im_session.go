@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"sort"
 	"syscall"
 	"time"
@@ -90,6 +89,7 @@ type ServiceAtItem struct {
 
 	ValueMap     map[string]VMValue `yaml:"-"`
 	CocRuleIndex int                `yaml:"cocRuleIndex"`
+	HelpPackages []string           `yaml:"-"`
 
 	// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
 	//RuleCriticalSuccessValue *int64 // 大成功值，1默认
@@ -208,7 +208,12 @@ func (s *IMSession) Serve(index int) int {
 		disconnected <- 2
 	}
 
+	// {"channel_id":"3574366","guild_id":"51541481646552899","message":"说句话试试","message_id":"BAC3HLRYvXdDAAAAAAA2il4AAAAAAAAABA==","message_type":"guild","post_type":"mes
+	//sage","self_id":2589922907,"self_tiny_id":"144115218748146488","sender":{"nickname":"木落","tiny_id":"222","user_id":222},"sub_type":"channel",
+	//"time":1647386874,"user_id":"144115218731218202"}
+
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
+		//fmt.Println("!!!", message)
 		msg := new(Message)
 		err := json.Unmarshal([]byte(message), msg)
 
@@ -368,13 +373,13 @@ func (s *IMSession) Serve(index int) int {
 
 				if msgInfo != nil {
 					f := func() {
-						defer func() {
-							if r := recover(); r != nil {
-								//  + fmt.Sprintf("%s", r)
-								log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
-								ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
-							}
-						}()
+						//defer func() {
+						//	if r := recover(); r != nil {
+						//		//  + fmt.Sprintf("%s", r)
+						//		log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
+						//		ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
+						//	}
+						//}()
 						session.commandSolve(mctx, msg, msgInfo)
 					}
 					go f()

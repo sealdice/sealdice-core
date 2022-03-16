@@ -3,6 +3,7 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"regexp"
 	"sort"
 	"strconv"
@@ -45,12 +46,88 @@ func SetBotOnAtGroup(ctx *MsgContext, msg *Message) {
 
 /** 这几条指令不能移除 */
 func (d *Dice) registerCoreCommands() {
+	cmdSearch := &CmdItemInfo{
+		Name: "search",
+		Help: ".查询 // 寻找文档",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				var id string
+				if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {
+					_id := rand.Uint64()%d.Parent.Help.CurId + 1
+					id = strconv.FormatUint(_id, 10)
+				}
+
+				if id == "" {
+					if _id, exists := cmdArgs.GetArgN(1); exists {
+						_, err2 := strconv.ParseInt(_id, 10, 64)
+						if err2 == nil {
+							id = _id
+						}
+					}
+				}
+
+				if id != "" {
+					text, exists := d.Parent.Help.TextMap[id]
+					if exists {
+						ReplyToSender(ctx, msg, fmt.Sprintf("词条: %s:%s\n%s", text.PackageName, text.Title, text.Content))
+					} else {
+						ReplyToSender(ctx, msg, "未发现对应ID的词条")
+					}
+					return CmdExecuteResult{true}
+				}
+
+				if _, exists := cmdArgs.GetArgN(1); exists {
+					search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, false)
+					if err == nil {
+						if len(search.Hits) > 0 {
+							a := d.Parent.Help.TextMap[search.Hits[0].ID]
+							others := ""
+
+							for _, i := range search.Hits {
+								t := d.Parent.Help.TextMap[i.ID]
+								others += fmt.Sprintf("序号[%s] 词条[%s:%s] 匹配度 %.2f\n", i.ID, t.PackageName, t.Title, i.Score)
+							}
+
+							ReplyToSender(ctx, msg, fmt.Sprintf("最优先结果:\n词条: %s:%s\n%s\n\n全部结果:\n%s", a.PackageName, a.Title, a.Content, others))
+						} else {
+							ReplyToSender(ctx, msg, "未找到搜索结果")
+						}
+					} else {
+						ReplyToSender(ctx, msg, "搜索故障: "+err.Error())
+					}
+				} else {
+					ReplyToSender(ctx, msg, "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条")
+				}
+				return CmdExecuteResult{true}
+			}
+			return CmdExecuteResult{false}
+		},
+	}
+	d.CmdMap["查询"] = cmdSearch
+	d.CmdMap["search"] = cmdSearch
+
 	cmdHelp := &CmdItemInfo{
 		Name: "help",
 		Help: ".help // 查看本帮助",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn {
-				text := "SealDice " + VERSION + "\n"
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if _, exists := cmdArgs.GetArgN(1); exists {
+					search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true)
+					if err == nil {
+						if len(search.Hits) > 0 {
+							a := d.Parent.Help.TextMap[search.Hits[0].ID]
+							fmt.Println(a, search.Hits[0].ID)
+							ReplyToSender(ctx, msg, fmt.Sprintf("%s:%s\n%s", a.PackageName, a.Title, a.Content))
+						} else {
+							ReplyToSender(ctx, msg, "未找到搜索结果")
+						}
+					} else {
+						ReplyToSender(ctx, msg, "搜索故障: "+err.Error())
+					}
+					return CmdExecuteResult{true}
+				}
+
+				text := "海豹核心 " + VERSION + "\n"
 				text += "-----------------------------------------------\n"
 				text += "核心指令列表如下:\n"
 
@@ -83,8 +160,9 @@ func (d *Dice) registerCoreCommands() {
 				text += "-----------------------------------------------\n"
 				text += DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
 				ReplyToSender(ctx, msg, text)
+				return CmdExecuteResult{true}
 			}
-			return CmdExecuteResult{true}
+			return CmdExecuteResult{false}
 		},
 	}
 	d.CmdMap["help"] = cmdHelp

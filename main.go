@@ -68,6 +68,7 @@ func main() {
 	fmt.Println("工作路径: ", cwd)
 
 	diceManager := &dice.DiceManager{}
+	diceManager.InitHelp()
 
 	cleanUp := func() {
 		fmt.Println("程序即将退出，进行清理……")

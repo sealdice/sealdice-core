@@ -365,7 +365,7 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
 			conn.InPackGoCqHttpRunning = false
 			conn.InPackGoCqHttpQrcodeReady = false
 			conn.InPackGoCqHttpNeedQrCode = false
-			conn.InPackGoCqHttpLoginDeviceLockUrl = ""
+			//conn.InPackGoCqHttpLoginDeviceLockUrl = ""
 
 			// 注意这个会panic，因此recover捕获了
 			if conn.InPackGoCqHttpProcess != nil {
@@ -437,7 +437,7 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 	gocqhttpExePath = strings.Replace(gocqhttpExePath, "\\", "/", -1) // windows平台需要这个替换
 
 	dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
-	p := procs.NewProcess(gocqhttpExePath + " faststart")
+	p := procs.NewProcess(fmt.Sprintf(`"%s" faststart`, gocqhttpExePath))
 	p.Dir = workDir
 
 	chQrCode := make(chan int, 1)
@@ -453,6 +453,7 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 			conn.InPackGoCqHttpLoginSucceeded = true
 			conn.Enable = true
 			conn.State = 2
+			conn.InPackGoCqHttpLoginDeviceLockUrl = ""
 			dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%d)", conn.Nickname, conn.UserId)
 
 			go DiceServe(dice, conn)
@@ -483,6 +484,11 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 		if (strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
 			//群消息发送失败: 账号可能被风控
 			conn.InPackGoCqHttpLastRestrictedTime = time.Now().Unix()
+		}
+
+		if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
+			fmt.Println("!!!!!!!!!!!!!!!!!!!!")
+			//p.Cmds[0].Stdout.Write([]byte("3154"))
 		}
 
 		if conn.InPackGoCqHttpLoginSuccess == false || strings.Contains(line, "风控") || strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {

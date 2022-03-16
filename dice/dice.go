@@ -15,7 +15,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.3内测版 v20220315"
+var VERSION = "0.99.3内测版 v20220316"
 
 type CmdExecuteResult struct {
 	Success bool
@@ -77,6 +77,7 @@ type Dice struct {
 	InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 	TextMapRaw                 TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo            TextTemplateWithHelpDict   `yaml:"-"`
+	Parent                     *DiceManager               `yaml:"-"`
 }
 
 func (d *Dice) Init() {
