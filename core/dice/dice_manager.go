@@ -7,8 +7,10 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 	_ "github.com/leopku/bleve-gse-tokenizer/v2"
 	"gopkg.in/yaml.v3"
+	"io/fs"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -98,20 +100,25 @@ func (m *HelpManager) Load() {
 		PackageName: "核心指令",
 	})
 
-	pack, err := ioutil.ReadFile("data/蜜瓜包-怪物之锤查询.json")
-	if err == nil {
-		data := HelpDocFormat{}
-		err = json.Unmarshal(pack, &data)
-		if err == nil {
-			for k, v := range data.Helpdoc {
-				m.AddItem(HelpTextItem{
-					Title:       k,
-					Content:     v,
-					PackageName: data.Mod,
-				})
+	filepath.Walk("data/helpdoc", func(path string, info fs.FileInfo, err error) error {
+		if !info.IsDir() {
+			pack, err := ioutil.ReadFile(path)
+			if err == nil {
+				data := HelpDocFormat{}
+				err = json.Unmarshal(pack, &data)
+				if err == nil {
+					for k, v := range data.Helpdoc {
+						m.AddItem(HelpTextItem{
+							Title:       k,
+							Content:     v,
+							PackageName: data.Mod,
+						})
+					}
+				}
 			}
 		}
-	}
+		return nil
+	})
 }
 
 func (m *HelpManager) AddItem(item HelpTextItem) error {
@@ -174,6 +181,7 @@ type DiceConfigs struct {
 }
 
 func (dm *DiceManager) InitHelp() {
+	os.MkdirAll("./data/helpdoc", 0644)
 	dm.Help = new(HelpManager)
 	dm.Help.Load()
 }
