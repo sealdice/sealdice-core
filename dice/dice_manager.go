@@ -6,6 +6,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search/query"
 	_ "github.com/leopku/bleve-gse-tokenizer/v2"
+	"github.com/xuri/excelize/v2"
 	"gopkg.in/yaml.v3"
 	"io/fs"
 	"io/ioutil"
@@ -24,6 +25,7 @@ type HelpManager struct {
 	CurId   uint64
 	Index   bleve.Index
 	TextMap map[string]*HelpTextItem
+	Parent  *DiceManager
 }
 
 func (m *HelpManager) GetNextId() string {
@@ -46,25 +48,26 @@ func (m *HelpManager) Load() {
 	mapping := bleve.NewIndexMapping()
 	os.RemoveAll(INDEX_DIR)
 
-	if err := mapping.AddCustomTokenizer("gse", map[string]interface{}{
-		"type":       "gse",
-		"user_dicts": "zh", // <-- MUST specified, otherwise panic would occurred.
-	}); err != nil {
-		panic(err)
+	if m.Parent.UseDictForTokenizer {
+		if err := mapping.AddCustomTokenizer("gse", map[string]interface{}{
+			"type":       "gse",
+			"user_dicts": "./data/dict/zh/dict.txt", // <-- MUST specified, otherwise panic would occurred.
+		}); err != nil {
+			panic(err)
+		}
+		if err := mapping.AddCustomAnalyzer("gse", map[string]interface{}{
+			"type":      "gse",
+			"tokenizer": "gse",
+		}); err != nil {
+			panic(err)
+		}
+		mapping.DefaultAnalyzer = "gse"
 	}
-	if err := mapping.AddCustomAnalyzer("gse", map[string]interface{}{
-		"type":      "gse",
-		"tokenizer": "gse",
-	}); err != nil {
-		panic(err)
-	}
-	mapping.DefaultAnalyzer = "gse"
 
 	docMapping := bleve.NewDocumentMapping()
 	docMapping.AddFieldMappingsAt("title", bleve.NewTextFieldMapping())
 	docMapping.AddFieldMappingsAt("content", bleve.NewTextFieldMapping())
 	docMapping.AddFieldMappingsAt("package", bleve.NewTextFieldMapping())
-	docMapping.DefaultAnalyzer = "gse"
 
 	mapping.AddDocumentMapping("helpdoc", docMapping)
 	mapping.TypeField = "_type" // 此为默认值，可修改
@@ -100,19 +103,59 @@ func (m *HelpManager) Load() {
 		PackageName: "核心指令",
 	})
 
-	filepath.Walk("data/helpdoc", func(path string, info fs.FileInfo, err error) error {
-		if !info.IsDir() {
-			pack, err := ioutil.ReadFile(path)
-			if err == nil {
+	filepath.WalkDir("data/helpdoc", func(path string, d fs.DirEntry, err error) error {
+		if !d.IsDir() {
+			fileExt := filepath.Ext(path)
+
+			switch fileExt {
+			case ".json":
 				data := HelpDocFormat{}
-				err = json.Unmarshal(pack, &data)
+				pack, err := ioutil.ReadFile(path)
 				if err == nil {
-					for k, v := range data.Helpdoc {
-						m.AddItem(HelpTextItem{
-							Title:       k,
-							Content:     v,
-							PackageName: data.Mod,
-						})
+					err = json.Unmarshal(pack, &data)
+					if err == nil {
+						for k, v := range data.Helpdoc {
+							m.AddItem(HelpTextItem{
+								Title:       k,
+								Content:     v,
+								PackageName: data.Mod,
+							})
+						}
+					}
+				}
+			case ".xlsx":
+				// 梨骰帮助文件
+				f, err := excelize.OpenFile(path)
+				if err != nil {
+					fmt.Println(err)
+					break
+				}
+				defer func() {
+					// Close the spreadsheet.
+					if err := f.Close(); err != nil {
+						fmt.Println(err)
+					}
+				}()
+
+				for _, s := range f.GetSheetList() {
+					rows, err := f.GetRows(s)
+					if err == nil {
+						for _, row := range rows {
+							//Key Synonym Content Description Catalogue Tag
+							key := row[0]
+							synonym := row[1]
+							content := row[2]
+
+							if synonym != "" {
+								key += "/" + synonym
+							}
+
+							m.AddItem(HelpTextItem{
+								Title:       key,
+								Content:     content,
+								PackageName: s,
+							})
+						}
 					}
 				}
 			}
@@ -143,9 +186,11 @@ func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool) (*ble
 
 	// 在正文中查找
 	if !titleOnly {
-		queryContent := query.NewMatchPhraseQuery(text)
-		queryTitle.SetField("title")
-		titleOrContent.AddQuery(queryContent)
+		for _, i := range reSpace.Split(text, -1) {
+			queryContent := query.NewMatchPhraseQuery(i)
+			queryContent.SetField("content")
+			titleOrContent.AddQuery(queryContent)
+		}
 	}
 
 	//queryContent := query.NewQueryStringQuery("-AAAAAAAA +vaudevillian")
@@ -169,9 +214,10 @@ func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool) (*ble
 }
 
 type DiceManager struct {
-	Dice         []*Dice
-	ServeAddress string
-	Help         *HelpManager
+	Dice                []*Dice
+	ServeAddress        string
+	Help                *HelpManager
+	UseDictForTokenizer bool
 }
 
 type DiceConfigs struct {
@@ -183,6 +229,7 @@ type DiceConfigs struct {
 func (dm *DiceManager) InitHelp() {
 	os.MkdirAll("./data/helpdoc", 0644)
 	dm.Help = new(HelpManager)
+	dm.Help.Parent = dm
 	dm.Help.Load()
 }
 
