@@ -11,20 +11,21 @@ require (
 	github.com/fy0/systray v1.2.2
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959 // indirect
 	github.com/gen2brain/beeep v0.0.0-20210529141713-5586760f0cc1
-	github.com/go-ego/gse v0.70.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
+	github.com/golang/snappy v0.0.2 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/gopherjs/gopherjs v0.0.0-20220221023154-0b2280d3ff96 // indirect
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/kardianos/service v1.2.1
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/labstack/echo/v4 v4.1.16
-	github.com/leopku/bleve-gse-tokenizer/v2 v2.0.2
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mroth/weightedrand v0.4.1
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/poy/onpar v1.1.2 // indirect
 	github.com/sacOO7/gowebsocket v0.0.0-20210515122958-9396f1a71e23
+	github.com/sahilm/fuzzy v0.1.0
 	github.com/xuri/excelize/v2 v2.5.0
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/zap v1.21.0
