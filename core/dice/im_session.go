@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"sort"
 	"syscall"
 	"time"
@@ -369,17 +370,17 @@ func (s *IMSession) Serve(index int) int {
 					}
 				}
 
-				msgInfo := CommandParse(msg.Message, s.Parent.CommandCompatibleMode, cmdLst)
+				msgInfo := CommandParse(msg.Message, s.Parent.CommandCompatibleMode, cmdLst, s.Parent.CommandPrefix)
 
 				if msgInfo != nil {
 					f := func() {
-						//defer func() {
-						//	if r := recover(); r != nil {
-						//		//  + fmt.Sprintf("%s", r)
-						//		log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
-						//		ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
-						//	}
-						//}()
+						defer func() {
+							if r := recover(); r != nil {
+								//  + fmt.Sprintf("%s", r)
+								log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
+								ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
+							}
+						}()
 						session.commandSolve(mctx, msg, msgInfo)
 					}
 					go f()

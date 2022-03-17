@@ -61,27 +61,45 @@ func (a *CmdArgs) GetKwarg(s string) *Kwarg {
 	return nil
 }
 
-func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string) *CmdArgs {
+func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string, prefix []string) *CmdArgs {
 	specialExecuteTimes := 0
 	restText, atInfo := AtParse(rawCmd)
 	restText, specialExecuteTimes = SpecialExecuteTimesParse(restText)
 
+	// 先导符号检测
+	var prefixStr string
+	for _, i := range prefix {
+		if strings.HasPrefix(restText, i) {
+			prefixStr = i
+			break
+		}
+	}
+	if prefixStr == "" {
+		return nil
+	}
+	restText = restText[len(prefixStr):] // 排除先导符号
+
+	// 兼容模式，进行格式化
 	if commandCompatibleMode {
 		matched := ""
 		for _, i := range currentCmdLst {
-			if strings.HasPrefix(restText, "."+i) || strings.HasPrefix(restText, "。"+i) {
+			if len(i) > len(restText) {
+				continue
+			}
+
+			if strings.EqualFold(restText[:len(i)], i) {
 				matched = i
 				break
 			}
 		}
 		if matched != "" {
 			runes := []rune(restText)
-			restParams := runes[len([]rune(matched))+1:]
-			restText = "." + matched + " " + string(restParams)
+			restParams := runes[len([]rune(matched)):]
+			restText = matched + " " + string(restParams)
 		}
 	}
 
-	re := regexp.MustCompile(`^\s*[.。](\S+)\s*([^\n]*)`)
+	re := regexp.MustCompile(`^\s*(\S+)\s*([^\n]*)`)
 	m := re.FindStringSubmatch(restText)
 	if len(m) == 3 {
 		cmdInfo := new(CmdArgs)

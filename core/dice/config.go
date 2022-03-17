@@ -506,6 +506,21 @@ func (d *Dice) loads() {
 		if err2 == nil {
 			d.CommandCompatibleMode = dNew.CommandCompatibleMode
 			d.ImSession.Conns = dNew.ImSession.Conns
+			d.CommandPrefix = dNew.CommandPrefix
+			d.DiceMasters = dNew.DiceMasters
+
+			if len(d.CommandPrefix) == 0 {
+				d.CommandPrefix = []string{
+					".",
+					"。",
+				}
+			}
+
+			if len(d.DiceMasters) == 0 {
+				d.DiceMasters = []string{
+					"<平台,如QQ>:<帐号,如QQ号>",
+				}
+			}
 
 			m := map[string]*ExtInfo{}
 			for _, i := range d.ExtList {

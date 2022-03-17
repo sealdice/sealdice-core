@@ -63,6 +63,7 @@ func (m *HelpManager) loadSearchEngine() {
 	} else {
 		m.EngineType = 0 // 默认，bleve
 	}
+	m.EngineType = 1
 
 	m.TextMap = map[string]*HelpTextItem{}
 
