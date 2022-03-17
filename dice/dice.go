@@ -59,20 +59,22 @@ type DiceConfig struct {
 }
 
 type Dice struct {
-	ImSession             *IMSession             `yaml:"imSession"`
-	CmdMap                CmdMapCls              `yaml:"-"`
-	ExtList               []*ExtInfo             `yaml:"-"`
-	RollParser            *DiceRollParser        `yaml:"-"`
-	CommandCompatibleMode bool                   `yaml:"commandCompatibleMode"`
-	LastSavedTime         *time.Time             `yaml:"lastSavedTime"`
-	TextMap               map[string]*wr.Chooser `yaml:"-"`
-	BaseConfig            DiceConfig             `yaml:"-"`
-	DB                    *bbolt.DB              `yaml:"-"`             // 数据库对象
-	Logger                *zap.SugaredLogger     `yaml:"logger"`        // 日志
-	LogWriter             *logger.WriterX        `yaml:"-"`             // 用于api的log对象
-	DeckList              []*DeckInfo            `yaml:"deckList"`      // 牌堆信息
-	CommandPrefix         []string               `yaml:"commandPrefix"` // 指令前导
-	DiceMasters           []string               `yaml:"diceMasters"`   // 骰主设置，需要格式: 平台:帐号
+	ImSession               *IMSession             `yaml:"imSession"`
+	CmdMap                  CmdMapCls              `yaml:"-"`
+	ExtList                 []*ExtInfo             `yaml:"-"`
+	RollParser              *DiceRollParser        `yaml:"-"`
+	CommandCompatibleMode   bool                   `yaml:"commandCompatibleMode"`
+	LastSavedTime           *time.Time             `yaml:"lastSavedTime"`
+	TextMap                 map[string]*wr.Chooser `yaml:"-"`
+	BaseConfig              DiceConfig             `yaml:"-"`
+	DB                      *bbolt.DB              `yaml:"-"`                       // 数据库对象
+	Logger                  *zap.SugaredLogger     `yaml:"logger"`                  // 日志
+	LogWriter               *logger.WriterX        `yaml:"-"`                       // 用于api的log对象
+	DeckList                []*DeckInfo            `yaml:"deckList"`                // 牌堆信息
+	CommandPrefix           []string               `yaml:"commandPrefix"`           // 指令前导
+	DiceMasters             []string               `yaml:"diceMasters"`             // 骰主设置，需要格式: 平台:帐号
+	OnlyLogCommandInGroup   bool                   `yaml:"onlyLogCommandInGroup"`   // 日志中仅记录命令
+	OnlyLogCommandInPrivate bool                   `yaml:"onlyLogCommandInPrivate"` // 日志中仅记录命令
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	InPackGoCqHttpExists       bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
