@@ -80,15 +80,36 @@ func (d *Dice) registerCoreCommands() {
 					search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, false)
 					if err == nil {
 						if len(search.Hits) > 0 {
-							a := d.Parent.Help.TextMap[search.Hits[0].ID]
+							var bestResult string
+							hasSecond := len(search.Hits) >= 2
+							best := d.Parent.Help.TextMap[search.Hits[0].ID]
 							others := ""
 
 							for _, i := range search.Hits {
 								t := d.Parent.Help.TextMap[i.ID]
-								others += fmt.Sprintf("序号[%s] 词条[%s:%s] 匹配度 %.2f\n", i.ID, t.PackageName, t.Title, i.Score)
+								others += fmt.Sprintf("[序号%s]【%s:%s】 匹配度 %.2f\n", i.ID, t.PackageName, t.Title, i.Score)
 							}
 
-							ReplyToSender(ctx, msg, fmt.Sprintf("最优先结果:\n词条: %s:%s\n%s\n\n全部结果:\n%s", a.PackageName, a.Title, a.Content, others))
+							var showBest bool
+							if hasSecond {
+								offset := d.Parent.Help.GetShowBestOffset()
+								val := search.Hits[1].Score - search.Hits[0].Score
+								if val < 0 {
+									val = -val
+								}
+								if val > float64(offset) {
+									showBest = true
+								}
+							} else {
+								showBest = true
+							}
+
+							if showBest {
+								bestResult = fmt.Sprintf("最优先结果:\n词条: %s:%s\n%s\n\n", best.PackageName, best.Title, best.Content)
+							}
+
+							suffix := d.Parent.Help.GetSuffixText()
+							ReplyToSender(ctx, msg, fmt.Sprintf("%s全部结果:\n%s\n%s", bestResult, others, suffix))
 						} else {
 							ReplyToSender(ctx, msg, "未找到搜索结果")
 						}
@@ -116,7 +137,6 @@ func (d *Dice) registerCoreCommands() {
 					if err == nil {
 						if len(search.Hits) > 0 {
 							a := d.Parent.Help.TextMap[search.Hits[0].ID]
-							fmt.Println(a, search.Hits[0].ID)
 							ReplyToSender(ctx, msg, fmt.Sprintf("%s:%s\n%s", a.PackageName, a.Title, a.Content))
 						} else {
 							ReplyToSender(ctx, msg, "未找到搜索结果")
