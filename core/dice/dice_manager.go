@@ -315,6 +315,7 @@ type DiceManager struct {
 	ServeAddress        string
 	Help                *HelpManager
 	UseDictForTokenizer bool
+	OnlyLogForCommand   bool
 }
 
 type DiceConfigs struct {

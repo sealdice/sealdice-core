@@ -181,6 +181,14 @@ type MsgContext struct {
 	Socket          *gowebsocket.Socket
 	conn            *ConnectInfoItem
 	IsPrivate       bool
+	CommandId       uint64
+}
+
+var curCommandId uint64 = 0
+
+func getNextCommandId() uint64 {
+	curCommandId += 1
+	return curCommandId
 }
 
 func (s *IMSession) Serve(index int) int {
@@ -354,14 +362,6 @@ func (s *IMSession) Serve(index int) int {
 				mctx.Player = GetPlayerInfoBySender(session, msg)
 				mctx.IsCurGroupBotOn = IsCurGroupBotOn(session, msg)
 
-				// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
-				if msg.MessageType == "group" {
-					log.Infof("收到群(%d)内<%s>(%d)的消息: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-				}
-				if msg.MessageType == "private" {
-					log.Infof("收到<%s>(%d)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-				}
-
 				if sa != nil && sa.Active {
 					for _, i := range sa.ActivatedExtList {
 						if i.OnMessageReceived != nil {
@@ -371,6 +371,30 @@ func (s *IMSession) Serve(index int) int {
 				}
 
 				msgInfo := CommandParse(msg.Message, s.Parent.CommandCompatibleMode, cmdLst, s.Parent.CommandPrefix)
+				if msgInfo != nil {
+					mctx.CommandId = getNextCommandId()
+				}
+
+				// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
+				if msg.MessageType == "group" {
+					if mctx.CommandId != 0 {
+						log.Infof("收到群(%d)内<%s>(%d)的指令: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+					} else {
+						if !s.Parent.OnlyLogCommandInGroup {
+							log.Infof("收到群(%d)内<%s>(%d)的消息: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+						}
+					}
+				}
+
+				if msg.MessageType == "private" {
+					if mctx.CommandId != 0 {
+						log.Infof("收到群(%d)内<%s>(%d)的指令: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+					} else {
+						if !s.Parent.OnlyLogCommandInPrivate {
+							log.Infof("收到<%s>(%d)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+						}
+					}
+				}
 
 				if msgInfo != nil {
 					f := func() {
@@ -382,6 +406,8 @@ func (s *IMSession) Serve(index int) int {
 							}
 						}()
 						session.commandSolve(mctx, msg, msgInfo)
+						conn.CmdExecutedNum += 1
+						conn.CmdExecutedLastTime = time.Now().Unix()
 					}
 					go f()
 				} else {
