@@ -104,14 +104,20 @@ func (code *ByteCode) CodeString() string {
 	return ""
 }
 
-type RollExpression struct {
-	Code               []ByteCode
-	Top                int
+type RollExtraFlags struct {
 	BigFailDiceOn      bool
-	DisableLoadVarname bool
-	CocVarNumberMode   bool   // 特殊的变量模式，此时这种类型的变量“力量50”被读取为50，而解析的文本被算作“力量”，如果没有后面的数字则正常进行
-	CocFlagVarPrefix   string // 解析过程中出现，当VarNumber开启时有效，可以是困难极难常规大成功
-	Error              error
+	DisableLoadVarname bool // 不允许加载变量，这是为了防止遇到 .r XXX 被当做属性读取，而不是“由于XXX，骰出了”
+	CocVarNumberMode   bool // 特殊的变量模式，此时这种类型的变量“力量50”被读取为50，而解析的文本被算作“力量”，如果没有后面的数字则正常进行
+	CocDefaultAttrOn   bool // 启用COC的默认属性值，如攀爬20等
+}
+
+type RollExpression struct {
+	Code             []ByteCode
+	Top              int
+	CocFlagVarPrefix string // 解析过程中出现，当VarNumber开启时有效，可以是困难极难常规大成功
+
+	flags RollExtraFlags
+	Error error
 }
 
 func (e *RollExpression) Init(stackLength int) {
@@ -321,11 +327,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 			varname := code.ValueStr
 
-			if e.DisableLoadVarname {
+			if e.flags.DisableLoadVarname {
 				return nil, calcDetail, errors.New("解析失败")
 			}
 
-			if e.CocVarNumberMode {
+			if e.flags.CocVarNumberMode {
 				re := regexp.MustCompile(`^(困难|极难|大成功|常规|失败)?([^\d]+)(\d+)?$`)
 				m := re.FindStringSubmatch(code.ValueStr)
 				if len(m) > 0 {
@@ -349,24 +355,23 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 					vType = v2.TypeId
 					v = v2.Value
 				} else {
-					//if ctx.Player != nil {
-					//	v, exists = ctx.Player.GetValueInt64(code.ValueStr, nil)
-					//	if !exists {
-					//		// TODO: 找不到时的处理
-					//	}
-					//}
-
-					textTmpl := ctx.Dice.TextMap[varname]
-					if textTmpl != nil {
-						vType = VMTypeString
-						v = DiceFormat(ctx, textTmpl.Pick().(string))
+					v2, exists := Coc7DefaultAttrs[varname]
+					if exists {
+						vType = VMTypeInt64
+						v = v2
 					} else {
-						if strings.Contains(varname, ":") {
+						textTmpl := ctx.Dice.TextMap[varname]
+						if textTmpl != nil {
 							vType = VMTypeString
-							v = "<%未定义值-" + varname + "%>"
+							v = DiceFormat(ctx, textTmpl.Pick().(string))
 						} else {
-							vType = VMTypeInt64 // 这个方案不好，更多类型的时候就出事了
-							v = int64(0)
+							if strings.Contains(varname, ":") {
+								vType = VMTypeString
+								v = "<%未定义值-" + varname + "%>"
+							} else {
+								vType = VMTypeInt64 // 这个方案不好，更多类型的时候就出事了
+								v = int64(0)
+							}
 						}
 					}
 				}
@@ -483,7 +488,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			if registerDiceK != nil {
 				var nums []int64
 				for i := int64(0); i < aInt; i += 1 {
-					if e.BigFailDiceOn {
+					if e.flags.BigFailDiceOn {
 						nums = append(nums, bInt)
 					} else {
 						nums = append(nums, DiceRoll64(bInt))
@@ -517,7 +522,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				text := ""
 				for i := int64(0); i < aInt; i += 1 {
 					var curNum int64
-					if e.BigFailDiceOn {
+					if e.flags.BigFailDiceOn {
 						curNum = bInt
 					} else {
 						curNum = DiceRoll64(bInt)

@@ -225,6 +225,60 @@ var difficultPrefixMap = map[string]int{
 	"大成功": 4,
 }
 
+var Coc7DefaultAttrs = map[string]int64{}
+var cocDefaultAttrText = `
+会计			5
+人类学			1
+估价			5
+考古学			1
+魅惑			15
+攀爬			20
+计算机使用			5
+信用评级			0
+克苏鲁神话			0
+乔装			5
+闪避			0
+汽车驾驶			20
+电气维修			10
+电子学			1
+话术			5
+斗殴		25
+剑		20
+手枪		20
+步枪		25
+霰弹枪 25
+急救			30
+历史			5
+恐吓			15
+跳跃			20
+法律		5
+图书馆使用		20
+聆听		20
+锁匠		1
+机械维修		10
+医学		1
+博物学		10
+领航		10
+神秘学		5
+操作重型机械		1
+说服		10
+精神分析		1
+心理学		10
+骑术		5
+妙手		10
+侦查		25
+潜行		20
+游泳		20
+投掷		20
+追踪		10
+驯兽		5
+潜水		1
+爆破		1
+读唇		1
+催眠		1
+炮术		1
+`
+
 func RegisterBuiltinExtCoc7(self *Dice) {
 	// 初始化疯狂列表
 	reFear := regexp.MustCompile(`(\d+)\)\s+([^\n]+)`)
@@ -240,6 +294,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	for _, i := range m {
 		n, _ := strconv.Atoi(i[1])
 		maniaMap[n] = i[2]
+	}
+
+	// 默认属性值
+	reCocDefaultAttr := regexp.MustCompile(`(\S+)\s+(\d+)`)
+	m = reCocDefaultAttr.FindAllStringSubmatch(cocDefaultAttrText, -1)
+	for _, i := range m {
+		n, _ := strconv.ParseInt(i[2], 10, 64)
+		Coc7DefaultAttrs[i[1]] = n
 	}
 
 	// 初始化配置（读取同义词）
@@ -264,7 +326,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						difficultRequire := 0
 						// 试图读取检定表达式
 						swap := false
-						r1, detail1, err := ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, mctx, false, false, true)
+						r1, detail1, err := ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, mctx, RollExtraFlags{
+							CocVarNumberMode: true,
+							CocDefaultAttrOn: true,
+						})
 
 						if err != nil {
 							ReplyToSender(ctx, msg, "解析出错: "+cmdArgs.CleanArgs)
@@ -284,7 +349,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							swap = true
 						}
 
-						r2, detail2, err := ctx.Dice.ExprEvalBase(expr2Text, mctx, false, false, true)
+						r2, detail2, err := ctx.Dice.ExprEvalBase(expr2Text, mctx, RollExtraFlags{
+							CocVarNumberMode: true,
+							CocDefaultAttrOn: true,
+						})
 						if err != nil {
 							ReplyToSender(ctx, msg, "解析出错: "+expr2Text)
 							return &CmdExecuteResult{Success: true}
@@ -394,6 +462,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Brief:      "第七版克苏鲁的呼唤TRPG跑团指令集",
 		AutoActive: true,
 		Author:     "木落",
+		ConflictWith: []string{
+			"dnd5e",
+		},
 		OnLoad: func() {
 
 		},
@@ -674,7 +745,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									san = _san
 								}
 
-								r, _, err = ctx.Dice.ExprEvalBase(successExpr, ctx, false, false, false)
+								r, _, err = ctx.Dice.ExprEvalBase(successExpr, ctx, RollExtraFlags{})
 								if err == nil {
 									reduceSuccess = r.Value.(int64)
 								}
@@ -689,7 +760,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, suffix})
 								VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, san})
 
-								r, _, err = ctx.Dice.ExprEvalBase(failedExpr, ctx, successRank == -2, false, false)
+								r, _, err = ctx.Dice.ExprEvalBase(failedExpr, ctx, RollExtraFlags{BigFailDiceOn: successRank == -2})
 								if err == nil {
 									reduceFail = r.Value.(int64)
 								}
