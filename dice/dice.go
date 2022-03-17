@@ -40,7 +40,8 @@ type ExtInfo struct {
 	Brief           string    `yaml:"-"`
 	ActiveOnPrivate bool      `yaml:"-"`
 
-	Author string `yaml:"-"`
+	Author       string   `yaml:"-"`
+	ConflictWith []string `yaml:"-"`
 	//activeInSession bool; // 在当前会话中开启
 
 	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)                             `yaml:"-"`
@@ -66,10 +67,12 @@ type Dice struct {
 	LastSavedTime         *time.Time             `yaml:"lastSavedTime"`
 	TextMap               map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig            DiceConfig             `yaml:"-"`
-	DB                    *bbolt.DB              `yaml:"-"`        // 数据库对象
-	Logger                *zap.SugaredLogger     `yaml:"logger"`   // 日志
-	LogWriter             *logger.WriterX        `yaml:"-"`        // 用于api的log对象
-	DeckList              []*DeckInfo            `yaml:"deckList"` // 牌堆信息
+	DB                    *bbolt.DB              `yaml:"-"`             // 数据库对象
+	Logger                *zap.SugaredLogger     `yaml:"logger"`        // 日志
+	LogWriter             *logger.WriterX        `yaml:"-"`             // 用于api的log对象
+	DeckList              []*DeckInfo            `yaml:"deckList"`      // 牌堆信息
+	CommandPrefix         []string               `yaml:"commandPrefix"` // 指令前导
+	DiceMasters           []string               `yaml:"diceMasters"`   // 骰主设置，需要格式: 平台:帐号
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	InPackGoCqHttpExists       bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
