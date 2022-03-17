@@ -63,6 +63,8 @@ func main() {
 		return
 	}
 
+	aaa()
+
 	cwd, _ := os.Getwd()
 	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
 	fmt.Println("工作路径: ", cwd)
@@ -131,7 +133,6 @@ func main() {
 		go diceServe(d)
 	}
 
-	aaa()
 	uiServe(diceManager)
 
 	//if checkCqHttpExists() {
