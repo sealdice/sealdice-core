@@ -51,7 +51,7 @@ func TestRunning() bool {
 	s1, _ := syscall.UTF16PtrFromString("SealDice 海豹已经在运作")
 	s2, _ := syscall.UTF16PtrFromString("你看到这个是因为SealDice应该已经在运行了，如果你是想打开UI界面，请在任务栏右下角的系统托盘区域找到SealDice图标并右键。")
 	win.MessageBox(0, s2, s1, win.MB_OK)
-	return false
+	return true
 }
 
 func onReady() {

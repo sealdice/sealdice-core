@@ -25,9 +25,9 @@ e4 <- minus e5 { p.AddOperator(TypeNegation) }
 e5 <- add eDice
     / eDice
 
-eDice <- eDice2 ( ('d'/'D') { p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) } )? { p.AddOperator(TypeDice) }
+eDice <- eDice2 ( ('d'/'D') { p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) } )? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? { p.AddOperator(TypeDice) }
          )*
-         / ( ('d'/'D') { p.AddValue("1"); p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? { p.AddOperator(TypeDice) } )+
+         / ( ('d'/'D') { p.AddValue("1"); p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? { p.AddOperator(TypeDice) } )+
 
 // 这里故意弄成number，因为出现了 .rab射击 读取了射击的值，结果成为 .rab60 这样子的情况
 eDice2 <- ('p' / 'P') number { p.AddOperator(TypeDicePenalty) }

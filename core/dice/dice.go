@@ -15,7 +15,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.3内测版 v20220316"
+var VERSION = "0.99.4内测版 v20220318"
 
 type CmdExecuteResult struct {
 	Success bool
@@ -200,8 +200,19 @@ func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VmResult, string, erro
 	return d.ExprEvalBase(buffer, ctx, RollExtraFlags{})
 }
 
-func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) {
+func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext) (*VmResult, string, error) {
+	buffer = strings.ReplaceAll(buffer, "`", "")
 	val, detail, err := d.ExprEval("`"+buffer+"`", ctx)
+
+	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
+		return val, detail, err
+	}
+
+	return nil, "", errors.New("错误的表达式")
+}
+
+func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) {
+	val, detail, err := d.ExprTextBase(buffer, ctx)
 
 	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
 		return val.Value.(string), detail, err
