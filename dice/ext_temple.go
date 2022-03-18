@@ -5,6 +5,7 @@ func RegisterBuiltinExtTemple(self *Dice) {
 		Name:       "name", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
 		Brief:      "一行字简介",
+		Author:     "",
 		AutoActive: true, // 是否自动开启
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 			//p := getPlayerInfoBySender(session, msg)

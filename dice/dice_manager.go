@@ -59,11 +59,8 @@ type HelpDocFormat struct {
 
 func (m *HelpManager) loadSearchEngine() {
 	if runtime.GOARCH == "arm64" {
-		m.EngineType = 1
-	} else {
-		m.EngineType = 0 // 默认，bleve
+		m.EngineType = 1 // 默认0，bleve
 	}
-	m.EngineType = 1
 
 	m.TextMap = map[string]*HelpTextItem{}
 
@@ -315,13 +312,14 @@ type DiceManager struct {
 	ServeAddress        string
 	Help                *HelpManager
 	UseDictForTokenizer bool
-	OnlyLogForCommand   bool
+	HelpDocEngineType   int
 }
 
 type DiceConfigs struct {
-	DiceConfigs  []DiceConfig `yaml:"diceConfigs"`
-	ServeAddress string       `yaml:"serveAddress"`
-	WebUIAddress string       `yaml:"webUIAddress"`
+	DiceConfigs       []DiceConfig `yaml:"diceConfigs"`
+	ServeAddress      string       `yaml:"serveAddress"`
+	WebUIAddress      string       `yaml:"webUIAddress"`
+	HelpDocEngineType int          `yaml:"helpDocEngineType"`
 }
 
 func (dm *DiceManager) InitHelp() {
@@ -349,6 +347,8 @@ func (dm *DiceManager) LoadDice() {
 	}
 
 	dm.ServeAddress = dc.ServeAddress
+	dm.HelpDocEngineType = dc.HelpDocEngineType
+
 	for _, i := range dc.DiceConfigs {
 		newDice := new(Dice)
 		newDice.BaseConfig = i

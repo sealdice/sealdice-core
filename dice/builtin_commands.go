@@ -533,10 +533,17 @@ func (d *Dice) registerCoreCommands() {
 		Help:  ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.MessageType == "private" {
-				val, _, err := d.ExprText(cmdArgs.RawArgs, ctx)
+				r, _, err := d.ExprTextBase(cmdArgs.RawArgs, ctx)
 
-				if err == nil {
-					ReplyToSender(ctx, msg, val)
+				if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
+					text := r.Value.(string)
+
+					if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
+						asm := r.Parser.GetAsmText()
+						text += "\n" + asm
+					}
+
+					ReplyToSender(ctx, msg, text)
 				} else {
 					ReplyToSender(ctx, msg, "格式错误")
 				}

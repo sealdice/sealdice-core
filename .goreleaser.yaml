@@ -34,7 +34,6 @@ archives:
       - goos: windows
         format: zip
     files:
-      - data/dict
       - "SealDice 指令手册.pdf"
       - src: frontend
         dst: .

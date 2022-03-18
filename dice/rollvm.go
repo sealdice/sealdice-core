@@ -33,6 +33,7 @@ const (
 	TypeSwap
 	TypeLeftValueMark
 	TypeDiceSetK
+	TypeDiceSetQ
 )
 
 type ByteCode struct {
@@ -79,13 +80,15 @@ func (code *ByteCode) CodeString() string {
 	case TypeExponentiation:
 		return "pow"
 	case TypeDice:
-		return "Dice"
+		return "dice"
 	case TypeDicePenalty:
-		return "Dice.penalty"
+		return "dice.penalty"
 	case TypeDiceBonus:
-		return "Dice.bonus"
+		return "dice.bonus"
 	case TypeDiceSetK:
-		return "Dice.setk"
+		return "dice.setk"
+	case TypeDiceSetQ:
+		return "dice.setq"
 	case TypeDiceUnary:
 		return "dice1"
 	case TypeLoadVarname:
@@ -227,6 +230,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	calcDetail := ""
 
 	var registerDiceK *VMValue
+	var registerDiceQ *VMValue
 
 	for _, code := range e.Code[0:e.Top] {
 		//fmt.Println(code.CodeString())
@@ -244,7 +248,12 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			str := code.ValueStr
 
 			for index, i := range parts {
-				val := stack[top-len(parts)+index]
+				var val vmStack
+				if top-len(parts)+index < 0 {
+					val = vmStack{VMTypeString, ""}
+				} else {
+					val = stack[top-len(parts)+index]
+				}
 				str = strings.Replace(str, i, val.ToString(), 1)
 			}
 
@@ -261,6 +270,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 		case TypeDiceSetK:
 			t := stack[top-1]
 			registerDiceK = &VMValue{t.TypeId, t.Value}
+			top--
+			continue
+		case TypeDiceSetQ:
+			t := stack[top-1]
+			registerDiceQ = &VMValue{t.TypeId, t.Value}
 			top--
 			continue
 		case TypeDicePenalty, TypeDiceBonus:
@@ -351,27 +365,48 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			if v == nil && ctx != nil {
 				var exists bool
 				v2, exists := VarGetValue(ctx, varname)
+
+				if !exists {
+					if varname == "母语" {
+						v2, exists = VarGetValue(ctx, "edu")
+					}
+				}
+
+				if !exists {
+					if varname == "闪避" {
+						// 闪避默认值为敏捷的一半
+						v2, exists = VarGetValue(ctx, "敏捷")
+						if exists {
+							if v2.TypeId == VMTypeInt64 {
+								v2.Value = v2.Value.(int64) / 2
+							}
+						}
+					}
+				}
+
+				if !exists {
+					var val int64
+					val, exists = Coc7DefaultAttrs[varname]
+					if exists {
+						v2 = &VMValue{VMTypeInt64, val}
+					}
+				}
+
 				if exists {
 					vType = v2.TypeId
 					v = v2.Value
 				} else {
-					v2, exists := Coc7DefaultAttrs[varname]
-					if exists {
-						vType = VMTypeInt64
-						v = v2
+					textTmpl := ctx.Dice.TextMap[varname]
+					if textTmpl != nil {
+						vType = VMTypeString
+						v = DiceFormat(ctx, textTmpl.Pick().(string))
 					} else {
-						textTmpl := ctx.Dice.TextMap[varname]
-						if textTmpl != nil {
+						if strings.Contains(varname, ":") {
 							vType = VMTypeString
-							v = DiceFormat(ctx, textTmpl.Pick().(string))
+							v = "<%未定义值-" + varname + "%>"
 						} else {
-							if strings.Contains(varname, ":") {
-								vType = VMTypeString
-								v = "<%未定义值-" + varname + "%>"
-							} else {
-								vType = VMTypeInt64 // 这个方案不好，更多类型的时候就出事了
-								v = int64(0)
-							}
+							vType = VMTypeInt64 // 这个方案不好，更多类型的时候就出事了
+							v = int64(0)
 						}
 					}
 				}
@@ -485,7 +520,16 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 		case TypeDice:
 			checkDice(&code)
-			if registerDiceK != nil {
+			if registerDiceK != nil || registerDiceQ != nil {
+				var diceKQ int64
+				isDiceK := registerDiceK != nil
+
+				if isDiceK {
+					diceKQ = registerDiceK.Value.(int64)
+				} else {
+					diceKQ = registerDiceQ.Value.(int64)
+				}
+
 				var nums []int64
 				for i := int64(0); i < aInt; i += 1 {
 					if e.flags.BigFailDiceOn {
@@ -495,16 +539,20 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 					}
 				}
 
-				sort.Slice(nums, func(i, j int) bool { return nums[i] > nums[j] })
+				if isDiceK {
+					sort.Slice(nums, func(i, j int) bool { return nums[i] > nums[j] })
+				} else {
+					sort.Slice(nums, func(i, j int) bool { return nums[i] < nums[j] })
+				}
 
 				num := int64(0)
-				for i := int64(0); i < registerDiceK.Value.(int64); i++ {
+				for i := int64(0); i < diceKQ; i++ {
 					num += nums[i]
 				}
 
 				text := "{"
 				for i := int64(0); i < int64(len(nums)); i++ {
-					if i == registerDiceK.Value.(int64) {
+					if i == diceKQ {
 						text += "| "
 					}
 					text += fmt.Sprintf("%d ", nums[i])
@@ -516,6 +564,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				a.Value = num
 
 				registerDiceK = nil
+				registerDiceQ = nil
 			} else {
 				// XXX Dice YYY, 如 3d100
 				var num int64
