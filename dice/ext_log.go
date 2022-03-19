@@ -15,12 +15,13 @@ import (
 )
 
 type LogOneItem struct {
-	Id       uint64 `json:"id"`
-	Nickname string `jsno:"nickname"`
-	IMUserId int64  `json:"IMUserId"`
-	Time     int64  `json:"time"`
-	Message  string `json:"message"`
-	IsDice   bool   `json:"isDice"`
+	Id        uint64 `json:"id"`
+	Nickname  string `jsno:"nickname"`
+	IMUserId  int64  `json:"IMUserId"`
+	Time      int64  `json:"time"`
+	Message   string `json:"message"`
+	IsDice    bool   `json:"isDice"`
+	CommandId uint64 `json:"commandId"`
 }
 
 // {"data":null,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
@@ -50,11 +51,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					a := LogOneItem{
-						Nickname: ctx.conn.Nickname,
-						IMUserId: ctx.conn.UserId,
-						Time:     time.Now().Unix(),
-						Message:  text,
-						IsDice:   true,
+						Nickname:  ctx.conn.Nickname,
+						IMUserId:  ctx.conn.UserId,
+						Time:      time.Now().Unix(),
+						Message:   text,
+						IsDice:    true,
+						CommandId: ctx.CommandId,
 					}
 					LogAppend(ctx, group, &a)
 				}
@@ -66,11 +68,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if ctx.Group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					a := LogOneItem{
-						Nickname: ctx.Player.Name,
-						IMUserId: ctx.Player.UserId,
-						Time:     msg.Time,
-						Message:  msg.Message,
-						IsDice:   false,
+						Nickname:  ctx.Player.Name,
+						IMUserId:  ctx.Player.UserId,
+						Time:      msg.Time,
+						Message:   msg.Message,
+						IsDice:    false,
+						CommandId: ctx.CommandId,
 					}
 
 					LogAppend(ctx, ctx.Group, &a)
@@ -112,14 +115,19 @@ func RegisterBuiltinExtLog(self *Dice) {
 							ReplyToSender(ctx, msg, text)
 						} else {
 							if cmdArgs.IsArgEqual(1, "on") {
-								group.LogOn = true
-								text := fmt.Sprintf("记录已经继续开启，当前已记录文本%d条", LogLinesGet(ctx, group))
-								ReplyToSender(ctx, msg, text)
+								if group.LogCurName != "" {
+									group.LogOn = true
+									text := fmt.Sprintf("记录已经继续开启，当前已记录文本%d条", LogLinesGet(ctx, group))
+									ReplyToSender(ctx, msg, text)
+								} else {
+									text := fmt.Sprintf("旅程尚未开始，请使用.log new开始")
+									ReplyToSender(ctx, msg, text)
+								}
 							} else if cmdArgs.IsArgEqual(1, "off") {
 								group.LogOn = false
-								text := fmt.Sprintf("记录已经暂时关闭，当前已记录文本%d条", LogLinesGet(ctx, group))
+								text := fmt.Sprintf("记录已经暂时关闭，当前已记录文本%d条\n结束故事请用.log end", LogLinesGet(ctx, group))
 								ReplyToSender(ctx, msg, text)
-							} else if cmdArgs.IsArgEqual(1, "save") {
+							} else if cmdArgs.IsArgEqual(1, "get") {
 								fn := LogSaveToZip(ctx, group)
 								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色服务正在开发中，目前请使用公开的着色网站进行着色。", fn), "skip")
 							} else if cmdArgs.IsArgEqual(1, "end") {
@@ -167,7 +175,7 @@ func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
 
 		text := ""
 		for _, i := range lines {
-			timeTxt := time.Now().Format("2006-01-02 15:04:05")
+			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
 			if i.IsDice {
 				text += fmt.Sprintf("[%s] %s(骰子): %s\n", timeTxt, i.Nickname, i.Message)
 			} else {
@@ -185,7 +193,7 @@ func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
 		// 第二份，QQ格式
 		text = ""
 		for _, i := range lines {
-			timeTxt := time.Now().Format("2006-01-02 15:04:05")
+			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
 			text += fmt.Sprintf("%s(%d) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
 		}
 
