@@ -25,28 +25,31 @@ e4 <- minus e5 { p.AddOperator(TypeNegation) }
 e5 <- add eDice
     / eDice
 
-eDice <- eDice2 ( ('d'/'D') { p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) } )? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? { p.AddOperator(TypeDice) }
+eDice <- ( &( [dD] (number / '(') ) [dD] { p.AddValue("1"); p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? { p.AddOperator(TypeDice) } )+
+         / eDice2 ( [dD] { p.AddLeftValueMark() } &(number / '(') eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) } )? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? { p.AddOperator(TypeDice) }
          )*
-         / ( ('d'/'D') { p.AddValue("1"); p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? { p.AddOperator(TypeDice) } )+
+
+laNumberOrLeftParen <- &(number / '(')
 
 // 这里故意弄成number，因为出现了 .rab射击 读取了射击的值，结果成为 .rab60 这样子的情况
-eDice2 <- ('p' / 'P') number { p.AddOperator(TypeDicePenalty) }
-         / ('p' / 'P')  { p.AddValue("1"); p.AddOperator(TypeDicePenalty) }
+eDice2 <- [pP] laNumberOrLeftParen eDice3 { p.AddOperator(TypeDicePenalty) }
+         / [pP]  { p.AddValue("1"); p.AddOperator(TypeDicePenalty) }
          / eDice3
 
-eDice3 <- ('b' / 'B') number { p.AddOperator(TypeDiceBonus) }
-         / ('b' / 'B')  { p.AddValue("1"); p.AddOperator(TypeDiceBonus) }
+eDice3 <- [bB] laNumberOrLeftParen value { p.AddOperator(TypeDiceBonus) }
+         / [bB] { p.AddValue("1"); p.AddOperator(TypeDiceBonus) }
          / value
 
 value <- number
        / assign_expr
        / identifier { p.AddLoadVarname(string(text)) }
        / sub
+
 number <- < [0-9]+ > sp { p.AddValue(string(text)) }
 
 assign_expr <- identifier { p.AddValueStr(string(text)) } '=' e1 { p.AddStore() }
 
-identifier <- !'d' < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^`{|}~0-9 \t\n\r][^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]* > sp // not (punctuation+number)
+identifier <- < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^`{|}~0-9 \t\n\r][^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]* > sp // not (punctuation+number)
 // identifier2 <- !'d' ![0-9] < (universalCharacter / [a-zA-Z_])+ > sp // not (punctuation+number)
 sub <- open e1 close
 add <- '+' sp

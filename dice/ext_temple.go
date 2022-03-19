@@ -29,7 +29,7 @@ func RegisterBuiltinExtTemple(self *Dice) {
 					if ctx.IsCurGroupBotOn {
 						// do something
 					}
-					return CmdExecuteResult{Success: true}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 		},

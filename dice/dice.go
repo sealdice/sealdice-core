@@ -18,7 +18,8 @@ var APPNAME = "SealDice"
 var VERSION = "0.99.4内测版 v20220318"
 
 type CmdExecuteResult struct {
-	Success bool
+	Matched bool // 是否是指令
+	Solved  bool // 是否走到结尾
 }
 
 type CmdItemInfo struct {

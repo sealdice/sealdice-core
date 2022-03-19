@@ -289,7 +289,7 @@ func (s *IMSession) Serve(index int) int {
 				//{"group_id":111,"notice_type":"group_increase","operator_id":0,"post_type":"notice","self_id":333,"sub_type":"approve","time":1646782012,"user_id":333}
 				if msg.UserId == msg.SelfId {
 					// 判断进群的人是自己，自动启动
-					ctx := &MsgContext{Session: session, Dice: session.Parent, Socket: conn.Socket}
+					ctx := &MsgContext{Session: session, Dice: session.Parent, Socket: conn.Socket, conn: conn}
 					SetBotOnAtGroup(ctx, msg)
 					// 立即获取群信息
 					GetGroupInfo(conn.Socket, msg.GroupId)
@@ -504,7 +504,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	tryItemSolve := func(item *CmdItemInfo) bool {
 		if item != nil {
 			ret := item.Solve(ctx, msg, cmdArgs)
-			if ret.Success {
+			if ret.Solved {
 				return true
 			}
 		}

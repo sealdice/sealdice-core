@@ -253,7 +253,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 							showHelp()
 						}
 					}
-					return CmdExecuteResult{Success: true}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 		},

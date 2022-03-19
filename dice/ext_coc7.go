@@ -395,7 +395,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 						if err != nil {
 							ReplyToSender(ctx, msg, "解析出错: "+cmdArgs.CleanArgs)
-							return &CmdExecuteResult{Success: true}
+							return &CmdExecuteResult{Matched: true, Solved: false}
 						}
 
 						difficultRequire2 := difficultPrefixMap[r1.Parser.CocFlagVarPrefix]
@@ -417,7 +417,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						})
 						if err != nil {
 							ReplyToSender(ctx, msg, "解析出错: "+expr2Text)
-							return &CmdExecuteResult{Success: true}
+							return &CmdExecuteResult{Matched: true, Solved: false}
 						}
 						difficultRequire2 = difficultPrefixMap[r2.Parser.CocFlagVarPrefix]
 						if difficultRequire2 > difficultRequire {
@@ -431,7 +431,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 						if r1.TypeId != VMTypeInt64 || r2.TypeId != VMTypeInt64 {
 							ReplyToSender(ctx, msg, "你输入的表达式并非文本类型")
-							return &CmdExecuteResult{Success: true}
+							return &CmdExecuteResult{Matched: true, Solved: false}
 						}
 
 						var checkVal = r1.Value.(int64)
@@ -483,7 +483,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						VarSetValueInt64(ctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
 						if cmdArgs.SpecialExecuteTimes > 12 {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_轮数过多警告"))
-							return CmdExecuteResult{Success: true}
+							return CmdExecuteResult{Matched: true, Solved: false}
 						}
 						texts := []string{}
 						for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
@@ -510,11 +510,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					} else {
 						ReplyGroup(ctx, msg.GroupId, text)
 					}
-					return CmdExecuteResult{Success: true}
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
 			}
-			return CmdExecuteResult{Success: true}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 
@@ -563,11 +563,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								val, exists := VarGetValue(ctx, varName)
 								if !exists {
 									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长_属性未录入"))
-									return CmdExecuteResult{Success: true}
+									return CmdExecuteResult{Matched: true, Solved: false}
 								}
 								if val.TypeId != VMTypeInt64 {
 									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长_错误的属性类型"))
-									return CmdExecuteResult{Success: true}
+									return CmdExecuteResult{Matched: true, Solved: false}
 								}
 								varValue = val.Value.(int64)
 							}
@@ -596,7 +596,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								VarSetValue(ctx, "$t表达式文本", &VMValue{VMTypeString, successExpr})
 								if err != nil {
 									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长_错误的成功成长值"))
-									return CmdExecuteResult{Success: true}
+									return CmdExecuteResult{Matched: true, Solved: false}
 								}
 
 								VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, varValue})
@@ -616,7 +616,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									VarSetValue(ctx, "$t表达式文本", &VMValue{VMTypeString, failExpr})
 									if err != nil {
 										ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长_错误的失败成长值"))
-										return CmdExecuteResult{Success: true}
+										return CmdExecuteResult{Matched: true, Solved: false}
 									}
 
 									VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, varValue})
@@ -632,12 +632,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							}
 
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长"))
-							return CmdExecuteResult{Success: true}
+							return CmdExecuteResult{Matched: true, Solved: true}
 						} else {
 							ReplyToSender(ctx, msg, "指令格式不匹配")
 						}
 					}
-					return CmdExecuteResult{Success: false}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 			"setcoc": &CmdItemInfo{
@@ -669,7 +669,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
 					}
 
-					return CmdExecuteResult{Success: true}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 			"ti": &CmdItemInfo{
@@ -716,8 +716,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						}
 
 						ReplyGroup(ctx, msg.GroupId, text)
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-					return CmdExecuteResult{Success: true}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 			"li": &CmdItemInfo{
@@ -764,8 +765,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						}
 
 						ReplyGroup(ctx, msg.GroupId, text)
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-					return CmdExecuteResult{Success: true}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 			"ra":  cmdRc,
@@ -774,110 +776,220 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			"rah": cmdRc,
 			"sc": &CmdItemInfo{
 				Name: "sc",
-				Help: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智",
+				Help: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
+					".sc <失败时掉san>\n" +
+					".sc (<检定表达式，默认d100>) (<成功时掉san>/)<失败时掉san>",
+				//".sc <成功掉san>/<失败掉san> (,<成功掉san>/<失败掉san>)+",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 1 {
+					if ctx.IsCurGroupBotOn {
 						// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
 						// v2: (worst) FAIL — REGULAR SUCCESS — HARD SUCCESS — EXTREME SUCCESS (best)
 
-						if len(cmdArgs.Args) >= 1 {
+						if len(cmdArgs.Args) == 0 {
+							return CmdExecuteResult{true, false}
+						}
+
+						mctx := &*ctx // 复制一个ctx，用于其他用途
+						if len(cmdArgs.At) > 0 {
+							p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
+							if exists {
+								mctx.Player = p
+							}
+						}
+
+						// 首先读取一个值
+						// 试图读取 /: 读到了，当前是成功值，转入读取单项流程，试图读取失败值
+						// 试图读取 ,: 读到了，当前是失败值，试图转入下一项
+						// 试图读取表达式: 读到了，当前是判定值
+
+						defaultSuccessExpr := "0"
+						argText := cmdArgs.CleanArgs
+
+						splitDiv := func(text string) (int, string, string) {
+							ret := strings.SplitN(text, "/", 2)
+							if len(ret) == 1 {
+								return 1, ret[0], ""
+							}
+							return 2, ret[0], ret[1]
+						}
+
+						getOnePiece := func() (string, string, string, int) {
+							expr1 := "d100" // 先假设为常见情况，也就是D100
+							expr2 := ""
+							expr3 := ""
+
+							innerGetOnePiece := func() int {
+								var err error
+								r, _, err := ctx.Dice.ExprEvalBase(argText, mctx, RollExtraFlags{})
+								if err != nil {
+									// 情况1，完全不能解析
+									return 1
+								}
+
+								num, t1, t2 := splitDiv(r.Matched)
+								if num == 2 {
+									expr2 = t1
+									expr3 = t2
+									argText = r.restInput
+									return 0
+								}
+
+								// 现在可以肯定并非是 .sc 1/1 形式，那么判断一下
+								// .sc 1 或 .sc 1 1/1 或 .sc 1 1
+								if strings.HasPrefix(r.restInput, ",") || r.restInput == "" {
+									// 结束了，所以这是 .sc 1
+									expr2 = defaultSuccessExpr
+									expr3 = r.Matched
+									argText = r.restInput
+									return 0
+								}
+
+								// 可能是 .sc 1 1 或 .sc 1 1/1
+								expr1 = r.Matched
+								r2, _, err := ctx.Dice.ExprEvalBase(r.restInput, mctx, RollExtraFlags{})
+								if err != nil {
+									return 2
+								}
+								num, t1, t2 = splitDiv(r2.Matched)
+								if num == 2 {
+									// sc 1 1
+									expr2 = t1
+									expr3 = t2
+									argText = r2.restInput
+									return 0
+								}
+
+								// sc 1/1
+								expr2 = defaultSuccessExpr
+								expr3 = t1
+								argText = r2.restInput
+								return 0
+							}
+
+							return expr1, expr2, expr3, innerGetOnePiece()
+						}
+
+						expr1, expr2, expr3, code := getOnePiece()
+						//fmt.Println("???", expr1, "|", expr2, "|", expr3, "x", code)
+
+						switch code {
+						case 1:
+							// 这输入的是啥啊，完全不能解析
+							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(mctx, "COC:理智检定_格式错误"))
+						case 2:
+							// 已经匹配了/，失败扣除血量不正确
+							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(mctx, "COC:理智检定_格式错误"))
+						case 3:
+							// 第一个式子对了，第二个是啥东西？
+							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(mctx, "COC:理智检定_格式错误"))
+
+						case 0:
+							// 完全正确
+							var d100 int64
 							var san int64
-							var reduceSuccess int64
-							var reduceFail int64
-							var text1 string
+
+							// 获取判定值
+							rCond, detailCond, err := ctx.Dice.ExprEval(expr1, mctx)
+							if err == nil && rCond.TypeId == VMTypeInt64 {
+								d100 = rCond.Value.(int64)
+							}
+							detailWrap := ""
+							if detailCond != "" {
+								detailWrap = ", (" + detailCond + ")"
+							}
 
 							// 读取san值
-							r, _, err := ctx.Dice.ExprEval("san", ctx)
+							r, _, err := ctx.Dice.ExprEval("san", mctx)
 							if err == nil && r.TypeId == VMTypeInt64 {
 								san = r.Value.(int64)
 							}
-
-							// roll
-							d100 := DiceRoll64(100)
-
-							// 计算成功或失败
-							re := regexp.MustCompile(`(.+?)/(.+?)(\s+(\d+))?$`)
-							m := re.FindStringSubmatch(cmdArgs.RawArgs)
-							if len(m) > 0 {
-								successExpr := m[1]
-								failedExpr := m[2]
-								text1 = successExpr + "/" + failedExpr
-								_san, err := strconv.ParseInt(m[4], 10, 64)
-								if err == nil {
-									san = _san
-								}
-
-								r, _, err = ctx.Dice.ExprEvalBase(successExpr, ctx, RollExtraFlags{})
-								if err == nil {
-									reduceSuccess = r.Value.(int64)
-								}
-
-								var sanNew int64
-								var suffix string
-
-								successRank, _ := ResultCheck(ctx.Group.CocRuleIndex, d100, san)
-								suffix = GetResultText(ctx, successRank)
-								VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, d100})
-								VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, san})
-								VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, suffix})
-								VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, san})
-
-								r, _, err = ctx.Dice.ExprEvalBase(failedExpr, ctx, RollExtraFlags{BigFailDiceOn: successRank == -2})
-								if err == nil {
-									reduceFail = r.Value.(int64)
-								}
-
-								if successRank > 0 {
-									sanNew = san - reduceSuccess
-									text1 = successExpr
-								} else {
-									sanNew = san - reduceFail
-									text1 = failedExpr
-								}
-
-								if sanNew < 0 {
-									sanNew = 0
-								}
-
-								ctx.Player.SetValueInt64("理智", sanNew, ac.Alias)
-
-								//输出结果
-								offset := san - sanNew
-								VarSetValue(ctx, "$t新值", &VMValue{VMTypeInt64, sanNew})
-								VarSetValueStr(ctx, "$t表达式文本", text1)
-								VarSetValue(ctx, "$t表达式值", &VMValue{VMTypeInt64, offset})
-								//text := fmt.Sprintf("<%s>的理智检定:\nD100=%d/%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", ctx.Player.Name, d100, san, suffix, san, sanNew, text1, offset)
-
-								var crazyTip string
-								if sanNew == 0 {
-									crazyTip += DiceFormatTmpl(ctx, "COC:提示_永久疯狂") + "\n"
-								} else {
-									if offset >= 5 {
-										crazyTip += DiceFormatTmpl(ctx, "COC:提示_临时疯狂") + "\n"
-									}
-								}
-								VarSetValueStr(ctx, "$t提示_角色疯狂", crazyTip)
-
-								switch successRank {
-								case -2:
-									VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_大失败"))
-								case -1:
-									VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_失败"))
-								case 1, 2, 3:
-									VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_成功"))
-								case 4:
-									VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_大成功"))
-								default:
-									VarSetValueStr(ctx, "$t附加语", "")
-								}
-
-								ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:理智检定"))
-							} else {
-								ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:理智检定_格式错误"))
+							_san, err := strconv.ParseInt(argText, 10, 64)
+							if err == nil {
+								san = _san
 							}
+
+							// 进行检定
+							successRank, _ := ResultCheck(ctx.Group.CocRuleIndex, d100, san)
+							suffix := GetResultText(ctx, successRank)
+
+							VarSetValueStr(ctx, "$t检定表达式文本", expr1)
+							VarSetValueStr(ctx, "$t检定计算过程", detailWrap)
+
+							VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, d100})
+							VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, san})
+							VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, suffix})
+							VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, san})
+
+							SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
+							VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:理智检定_单项结果文本"))
+
+							// 计算扣血
+							var reduceSuccess int64
+							var reduceFail int64
+							var text1 string
+							var sanNew int64
+
+							text1 = expr2 + "/" + expr3
+
+							r, _, err = ctx.Dice.ExprEvalBase(expr2, mctx, RollExtraFlags{})
+							if err == nil {
+								reduceSuccess = r.Value.(int64)
+							}
+
+							r, _, err = ctx.Dice.ExprEvalBase(expr3, mctx, RollExtraFlags{BigFailDiceOn: successRank == -2})
+							if err == nil {
+								reduceFail = r.Value.(int64)
+							}
+
+							if successRank > 0 {
+								sanNew = san - reduceSuccess
+								text1 = expr2
+							} else {
+								sanNew = san - reduceFail
+								text1 = expr3
+							}
+
+							if sanNew < 0 {
+								sanNew = 0
+							}
+
+							mctx.Player.SetValueInt64("理智", sanNew, ac.Alias)
+
+							//输出结果
+							offset := san - sanNew
+							VarSetValue(ctx, "$t新值", &VMValue{VMTypeInt64, sanNew})
+							VarSetValueStr(ctx, "$t表达式文本", text1)
+							VarSetValue(ctx, "$t表达式值", &VMValue{VMTypeInt64, offset})
+							//text := fmt.Sprintf("<%s>的理智检定:\nD100=%d/%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", ctx.Player.Name, d100, san, suffix, san, sanNew, text1, offset)
+
+							var crazyTip string
+							if sanNew == 0 {
+								crazyTip += DiceFormatTmpl(ctx, "COC:提示_永久疯狂") + "\n"
+							} else {
+								if offset >= 5 {
+									crazyTip += DiceFormatTmpl(ctx, "COC:提示_临时疯狂") + "\n"
+								}
+							}
+							VarSetValueStr(ctx, "$t提示_角色疯狂", crazyTip)
+
+							switch successRank {
+							case -2:
+								VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_大失败"))
+							case -1:
+								VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_失败"))
+							case 1, 2, 3:
+								VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_成功"))
+							case 4:
+								VarSetValueStr(ctx, "$t附加语", DiceFormatTmpl(ctx, "COC:理智检定_附加语_大成功"))
+							default:
+								VarSetValueStr(ctx, "$t附加语", "")
+							}
+
+							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:理智检定"))
+							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 					}
-					return CmdExecuteResult{Success: true}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 
@@ -907,8 +1019,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						}
 						info := strings.Join(ss, "\n")
 						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的七版COC人物作成:\n%s", ctx.Player.Name, info))
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-					return CmdExecuteResult{true}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 
@@ -1157,10 +1270,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								text := DiceFormatTmpl(ctx, "COC:属性设置")
 								//text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据 (其中%d条为同义词)", p.Name, len(valueMap), synonymsCount)
 								ReplyGroup(ctx, msg.GroupId, text)
+								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 						}
 					}
-					return CmdExecuteResult{Success: true}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 		},
@@ -1401,3 +1515,48 @@ func setupConfig(d *Dice) AttributeConfigs {
 		return defaultVals
 	}
 }
+
+// 一个sc的废案，当时没考虑到除号问题
+//	read2n3 := func(r0 *VmResult) int {
+//		if strings.HasPrefix(r0.restInput, "/") {
+//			// 当前值为成功值
+//			expr2 = r0.Matched
+//
+//			// 匹配失败值，必须匹配
+//			r, _, err := ctx.Dice.ExprEvalBase(r0.restInput[1:], mctx, RollExtraFlags{})
+//			if err != nil {
+//				return 2
+//			}
+//
+//			expr3 = r.Matched
+//			argText = r.restInput
+//			return 0
+//		}
+//
+//		fmt.Println("333 rest", r0.restInput, len(r0.restInput), r0.restInput == "")
+//		if strings.HasPrefix(r0.restInput, ",") || r0.restInput == "" {
+//			expr2 = defaultSuccessExpr
+//			expr3 = r.Matched
+//			argText = r.restInput
+//			return 0
+//		}
+//
+//		return -1
+//	}
+//
+//	code := read2n3(r)
+//	if code == -1 {
+//		// 读取到表达式，所以r是判定值
+//		r2, _, err := ctx.Dice.ExprEvalBase(r.restInput, mctx, RollExtraFlags{})
+//		if err != nil {
+//			// 情况3，格式错误
+//			return 3
+//		}
+//		expr1 = r.Matched
+//
+//		// 读取剩下两个值
+//		return read2n3(r2)
+//	}
+//
+//	return code
+//}
