@@ -30,7 +30,7 @@ func RegisterBuiltinExtReply(self *Dice) {
 						// do something
 						ReplyToSender(ctx, msg, "并不存在的指令，或许敬请期待？")
 					}
-					return CmdExecuteResult{Success: true}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 		},

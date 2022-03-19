@@ -94,7 +94,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
 				ReplyToSender(ctx, msg, "🕊️: "+guguRandomPool.Pick().(string))
 			}
-			return CmdExecuteResult{Success: true}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 
@@ -120,7 +120,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "娱乐:今日人品"))
 				}
 			}
-			return CmdExecuteResult{Success: true}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 

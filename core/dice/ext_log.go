@@ -147,7 +147,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 							}
 						}
 					}
-					return CmdExecuteResult{Success: true}
+					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
 		},

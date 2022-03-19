@@ -498,6 +498,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			a.Value = aInt * bInt
 		case TypeDivide:
 			checkDice(&code)
+			if bInt == 0 {
+				return nil, "", errors.New("E2:被除数为0")
+			}
 			a.Value = aInt / bInt
 		case TypeModulus:
 			checkDice(&code)

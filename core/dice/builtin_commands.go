@@ -47,7 +47,7 @@ func SetBotOnAtGroup(ctx *MsgContext, msg *Message) {
 /** 这几条指令不能移除 */
 func (d *Dice) registerCoreCommands() {
 	cmdSearch := &CmdItemInfo{
-		Name: "search",
+		Name: "find",
 		Help: ".查询 // 寻找文档",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
@@ -73,7 +73,7 @@ func (d *Dice) registerCoreCommands() {
 					} else {
 						ReplyToSender(ctx, msg, "未发现对应ID的词条")
 					}
-					return CmdExecuteResult{true}
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
 				if _, exists := cmdArgs.GetArgN(1); exists {
@@ -119,13 +119,13 @@ func (d *Dice) registerCoreCommands() {
 				} else {
 					ReplyToSender(ctx, msg, "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条")
 				}
-				return CmdExecuteResult{true}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			return CmdExecuteResult{false}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 	d.CmdMap["查询"] = cmdSearch
-	d.CmdMap["search"] = cmdSearch
+	d.CmdMap["find"] = cmdSearch
 
 	cmdHelp := &CmdItemInfo{
 		Name: "help",
@@ -144,7 +144,7 @@ func (d *Dice) registerCoreCommands() {
 					} else {
 						ReplyToSender(ctx, msg, "搜索故障: "+err.Error())
 					}
-					return CmdExecuteResult{true}
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
 				text := "海豹核心 " + VERSION + "\n"
@@ -180,9 +180,9 @@ func (d *Dice) registerCoreCommands() {
 				text += "-----------------------------------------------\n"
 				text += DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
 				ReplyToSender(ctx, msg, text)
-				return CmdExecuteResult{true}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			return CmdExecuteResult{false}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 	d.CmdMap["help"] = cmdHelp
@@ -197,7 +197,7 @@ func (d *Dice) registerCoreCommands() {
 
 			if len(cmdArgs.Args) == 0 || cmdArgs.IsArgEqual(1, "about") {
 				if AtSomebodyButNotMe {
-					return CmdExecuteResult{true}
+					return CmdExecuteResult{Matched: false, Solved: false}
 				}
 				count := 0
 				serveCount := 0
@@ -235,6 +235,7 @@ func (d *Dice) registerCoreCommands() {
 							ctx.IsCurGroupBotOn = true
 							// "SealDice 已启用(开发中) " + VERSION
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子开启"))
+							return CmdExecuteResult{Matched: true, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "off") {
 							//if len(ctx.Group.ActivatedExtList) == 0 {
 							//	delete(ctx.Session.ServiceAt, msg.GroupId)
@@ -243,6 +244,7 @@ func (d *Dice) registerCoreCommands() {
 							//}
 							// 停止服务
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子关闭"))
+							return CmdExecuteResult{Matched: false, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
 							// 收到指令，5s后将退出当前群组
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
@@ -250,16 +252,18 @@ func (d *Dice) registerCoreCommands() {
 							ctx.Group.Active = false
 							time.Sleep(6 * time.Second)
 							QuitGroup(ctx, msg.GroupId)
+							return CmdExecuteResult{Matched: true, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "save") {
 							d.Save(false)
 							// 数据已保存
 							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子保存设置"))
+							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 					}
 				}
 			}
 
-			return CmdExecuteResult{true}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 	d.CmdMap["bot"] = cmdBot
@@ -281,8 +285,6 @@ func (d *Dice) registerCoreCommands() {
 							cmdArgs.CleanArgs = "d" + cmdArgs.CleanArgs
 						}
 					}
-				} else {
-					return CmdExecuteResult{false}
 				}
 
 				var r *VmResult
@@ -307,7 +309,7 @@ func (d *Dice) registerCoreCommands() {
 							if strings.HasPrefix(errs, "E1:") {
 								ReplyToSender(ctx, msg, errs)
 								//ReplyGroup(ctx, msg.GroupId, errs)
-								return &CmdExecuteResult{true}
+								return &CmdExecuteResult{Matched: true, Solved: false}
 							}
 							forWhat = cmdArgs.CleanArgs
 						}
@@ -350,7 +352,7 @@ func (d *Dice) registerCoreCommands() {
 					VarSetValueInt64(ctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
 					if cmdArgs.SpecialExecuteTimes > 12 {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_轮数过多警告"))
-						return CmdExecuteResult{Success: true}
+						return CmdExecuteResult{Matched: true, Solved: false}
 					}
 					texts := []string{}
 					for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
@@ -385,11 +387,13 @@ func (d *Dice) registerCoreCommands() {
 					} else {
 						ReplyToSender(ctx, msg, text)
 					}
+					return CmdExecuteResult{Matched: true, Solved: true}
 				} else {
 					ReplyToSender(ctx, msg, text)
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 			}
-			return CmdExecuteResult{true}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 	d.CmdMap["r"] = cmdRoll
@@ -466,7 +470,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 			}
-			return CmdExecuteResult{true}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 	d.CmdMap["ext"] = cmdExt
@@ -495,7 +499,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 			}
-			return CmdExecuteResult{true}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 	d.CmdMap["nn"] = cmdNN
@@ -522,7 +526,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
 				}
 			}
-			return CmdExecuteResult{true}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 	d.CmdMap["set"] = cmdSet
@@ -548,7 +552,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "格式错误")
 				}
 			}
-			return CmdExecuteResult{true}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 	d.CmdMap["text"] = cmdText
@@ -644,7 +648,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, help)
 				}
 			}
-			return CmdExecuteResult{true}
+			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 	d.CmdMap["角色"] = cmdChar
