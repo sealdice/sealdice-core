@@ -1011,13 +1011,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 						var ss []string
 						for i = 0; i < val; i++ {
-							result, _, err := self.ExprText(`力量:{$t1=3d6*5} 敏捷:{$t2=3d6*5} 意志:{$t3=3d6*5} 体质:{$t4=3d6*5} 外貌:{$t5=3d6*5} 教育:{$t6=(2d6+6)*5} 体型:{$t7=(2d6+6)*5} 智力:{$t8=(2d6+6)*5} 幸运:{$t9=3d6*5} 生命值:{($t4+$t7)/10} 总数:{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8}/{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8+$t9}`, ctx)
+							result, _, err := self.ExprText(`力量:{$t1=3d6*5} 敏捷:{$t2=3d6*5} 意志:{$t3=3d6*5}\n体质:{$t4=3d6*5} 外貌:{$t5=3d6*5} 教育:{$t6=(2d6+6)*5}\n体型:{$t7=(2d6+6)*5} 智力:{$t8=(2d6+6)*5}\nHP:{($t4+$t7)/10} 幸运:{$t9=3d6*5} [{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8}/{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8+$t9}]`, ctx)
 							if err != nil {
 								break
 							}
+							result = strings.ReplaceAll(result, `\n`, "\n")
 							ss = append(ss, result)
 						}
-						info := strings.Join(ss, "\n")
+						info := strings.Join(ss, "\n\n")
 						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的七版COC人物作成:\n%s", ctx.Player.Name, info))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -1249,16 +1250,15 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									}
 								}
 
-								count := 0
+								nameMap := map[string]bool{}
 								synonymsCount := 0
 								p := ctx.Player
 
 								for k, v := range valueMap {
 									name := p.GetValueNameByAlias(k, ac.Alias)
+									nameMap[name] = true
 									if k != name {
 										synonymsCount += 1
-									} else {
-										count += 1
 									}
 									p.SetValueInt64(name, v, ac.Alias)
 								}
@@ -1266,6 +1266,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								p.LastUpdateTime = time.Now().Unix()
 								//s, _ := json.Marshal(valueMap)
 								VarSetValueInt64(ctx, "$t数量", int64(len(valueMap)))
+								VarSetValueInt64(ctx, "$t有效数量", int64(len(nameMap)))
 								VarSetValueInt64(ctx, "$t同义词数量", int64(synonymsCount))
 								text := DiceFormatTmpl(ctx, "COC:属性设置")
 								//text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据 (其中%d条为同义词)", p.Name, len(valueMap), synonymsCount)
