@@ -50,7 +50,6 @@ func (dm *DiceManager) LoadDice() {
 	dm.ServeAddress = dc.ServeAddress
 	dm.HelpDocEngineType = dc.HelpDocEngineType
 
-	fmt.Println("????", dm.HelpDocEngineType)
 	dm.InitHelp()
 
 	for _, i := range dc.DiceConfigs {
