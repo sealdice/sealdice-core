@@ -64,6 +64,7 @@ func (a *CmdArgs) GetKwarg(s string) *Kwarg {
 func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string, prefix []string) *CmdArgs {
 	specialExecuteTimes := 0
 	restText, atInfo := AtParse(rawCmd)
+	restText = strings.TrimSpace(restText)
 	restText, specialExecuteTimes = SpecialExecuteTimesParse(restText)
 
 	// 先导符号检测

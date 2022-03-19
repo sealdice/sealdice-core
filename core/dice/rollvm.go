@@ -250,7 +250,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			for index, i := range parts {
 				var val vmStack
 				if top-len(parts)+index < 0 {
-					val = vmStack{VMTypeString, ""}
+					return nil, "", errors.New("E3: 无效的表达式")
+					//val = vmStack{VMTypeString, ""}
 				} else {
 					val = stack[top-len(parts)+index]
 				}
