@@ -18,15 +18,18 @@ var APPNAME = "SealDice"
 var VERSION = "0.99.5内测版 v20220319"
 
 type CmdExecuteResult struct {
-	Matched bool // 是否是指令
-	Solved  bool // 是否走到结尾
+	Matched       bool // 是否是指令
+	Solved        bool // 是否走到结尾
+	ShowShortHelp bool
+	ShowLongHelp  bool
 }
 
 type CmdItemInfo struct {
-	Name  string
-	Solve func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult
-	Brief string
-	Help  string
+	Name     string
+	Solve    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult
+	Brief    string
+	Help     string // 短帮助，格式是 .xxx a b // 说明
+	LongHelp string // 长帮助，带换行的较详细说明
 }
 
 type CmdMapCls map[string]*CmdItemInfo

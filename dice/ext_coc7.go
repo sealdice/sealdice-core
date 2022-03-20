@@ -501,14 +501,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					}
 
 					if cmdArgs.Command == "rah" || cmdArgs.Command == "rch" {
-						ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
-						ReplyPerson(ctx, msg.Sender.UserId, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
+						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
+						ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
 					} else {
-						ReplyGroup(ctx, msg.GroupId, text)
+						ReplyGroup(ctx, msg, text)
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
+				ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},
@@ -711,7 +711,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							text += maniaMap[num2]
 						}
 
-						ReplyGroup(ctx, msg.GroupId, text)
+						ReplyToSender(ctx, msg, text)
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					return CmdExecuteResult{Matched: true, Solved: false}
@@ -760,7 +760,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							text += maniaMap[num2]
 						}
 
-						ReplyGroup(ctx, msg.GroupId, text)
+						ReplyGroup(ctx, msg, text)
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					return CmdExecuteResult{Matched: true, Solved: false}
@@ -777,12 +777,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					".sc (<检定表达式，默认d100>) (<成功时掉san>/)<失败时掉san>",
 				//".sc <成功掉san>/<失败掉san> (,<成功掉san>/<失败掉san>)+",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					if ctx.IsCurGroupBotOn {
+					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
 						// v2: (worst) FAIL — REGULAR SUCCESS — HARD SUCCESS — EXTREME SUCCESS (best)
 
 						if len(cmdArgs.Args) == 0 {
-							return CmdExecuteResult{true, false}
+							return CmdExecuteResult{Matched: true, Solved: true, ShowShortHelp: true}
 						}
 
 						mctx := &*ctx // 复制一个ctx，用于其他用途
@@ -871,13 +871,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						switch code {
 						case 1:
 							// 这输入的是啥啊，完全不能解析
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(mctx, "COC:理智检定_格式错误"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "COC:理智检定_格式错误"))
 						case 2:
 							// 已经匹配了/，失败扣除血量不正确
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(mctx, "COC:理智检定_格式错误"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "COC:理智检定_格式错误"))
 						case 3:
 							// 第一个式子对了，第二个是啥东西？
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(mctx, "COC:理智检定_格式错误"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "COC:理智检定_格式错误"))
 
 						case 0:
 							// 完全正确
@@ -981,7 +981,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								VarSetValueStr(ctx, "$t附加语", "")
 							}
 
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:理智检定"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:理智检定"))
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 					}
@@ -1047,7 +1047,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							text += ".st help // 帮助\n"
 							text += ".st <属性名><值> // 例：.st 敏捷50"
 							text += ".st <属性名>±<表达式> // 例：.st 敏捷+1d50"
-							ReplyGroup(ctx, msg.GroupId, text)
+							ReplyToSender(ctx, msg, text)
 
 						case "del", "rm":
 							var nums []string
@@ -1066,7 +1066,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							//text := fmt.Sprintf("<%s>的如下属性被成功删除:%s，失败%d项\n", p.Name, nums, len(failed))
 							VarSetValueStr(ctx, "$t属性列表", strings.Join(nums, " "))
 							VarSetValueInt64(ctx, "$t失败数量", int64(len(failed)))
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:属性设置_删除"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:属性设置_删除"))
 
 						case "clr", "clear":
 							p := ctx.Player
@@ -1180,7 +1180,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							}
 
 							VarSetValueStr(ctx, "$t属性信息", info)
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "COC:属性设置_列出"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:属性设置_列出"))
 
 						default:
 							re1, _ := regexp.Compile(`([^\d]+?)([+-])=?(.+)$`)
@@ -1190,7 +1190,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								val, exists := p.GetValueInt64(m[1], ac.Alias)
 								if !exists {
 									text := fmt.Sprintf("<%s>: 无法找到名下属性 %s，不能作出修改", p.Name, m[1])
-									ReplyGroup(ctx, msg.GroupId, text)
+									ReplyToSender(ctx, msg, text)
 								} else {
 									v, _, err := self.ExprEval(m[3], ctx)
 									if err == nil && v.TypeId == 0 {
@@ -1215,12 +1215,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 										VarSetValueStr(ctx, "$t表达式文本", m[3])
 										VarSetValueInt64(ctx, "$t变化量", rightVal)
 										text := DiceFormatTmpl(ctx, "COC:属性设置_增减")
-										ReplyGroup(ctx, msg.GroupId, text)
+										ReplyToSender(ctx, msg, text)
 									} else {
 										VarSetValueStr(ctx, "$t表达式文本", m[3])
 										//text := fmt.Sprintf("<%s>: 错误的增减值: %s", p.Name, m[3])
 										text := DiceFormatTmpl(ctx, "COC:属性设置_增减_错误的值")
-										ReplyGroup(ctx, msg.GroupId, text)
+										ReplyToSender(ctx, msg, text)
 									}
 								}
 							} else {
@@ -1266,7 +1266,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								VarSetValueInt64(ctx, "$t同义词数量", int64(synonymsCount))
 								text := DiceFormatTmpl(ctx, "COC:属性设置")
 								//text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据 (其中%d条为同义词)", p.Name, len(valueMap), synonymsCount)
-								ReplyGroup(ctx, msg.GroupId, text)
+								ReplyToSender(ctx, msg, text)
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 						}

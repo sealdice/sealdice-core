@@ -57,15 +57,14 @@ type Message struct {
 	Echo int `json:"echo"`
 }
 
+// PlayerInfo 群内玩家信息
 type PlayerInfo struct {
 	UserId int64  `yaml:"userId"`
 	Name   string // 玩家昵称
 	//ValueNumMap    map[string]int64  `yaml:"valueNumMap"`
 	//ValueStrMap    map[string]string `yaml:"valueStrMap"`
-	RpToday        int    `yaml:"rpToday"`
-	RpTime         string `yaml:"rpTime"`
-	LastUpdateTime int64  `yaml:"lastUpdateTime"`
-	InGroup        bool   `yaml:"inGroup"`
+	LastUpdateTime int64 `yaml:"lastUpdateTime"`
+	InGroup        bool  `yaml:"inGroup"`
 
 	// level int 权限
 	DiceSideNum    int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
@@ -324,6 +323,15 @@ func (s *IMSession) Serve(index int) int {
 
 			// 处理命令
 			if msg.MessageType == "group" || msg.MessageType == "private" {
+				if msg.Sender.UserId == conn.UserId {
+					// 以免私聊时自己发的信息被记录
+					// 这里的私聊消息可能是自己发送的
+					// XXXX {"font":0,"message":"\u003c木落\u003e的今日人品为83","message_id":-358748624,"message_type":"private","post_type":"message_sent","raw_message":"\u003c木落\u003e的今日人
+					//品为83","self_id":2589922907,"sender":{"age":0,"nickname":"海豹一号机","sex":"unknown","user_id":2589922907},"sub_type":"friend","target_id":222,"time":1647760835,"use
+					//r_id":2589922907}
+					return
+				}
+
 				mctx := &MsgContext{}
 				mctx.Dice = session.Parent
 				mctx.MessageType = msg.MessageType
@@ -388,7 +396,7 @@ func (s *IMSession) Serve(index int) int {
 
 				if msg.MessageType == "private" {
 					if mctx.CommandId != 0 {
-						log.Infof("收到群(%d)内<%s>(%d)的指令: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+						log.Infof("收到<%s>(%d)的私聊指令: %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 					} else {
 						if !s.Parent.OnlyLogCommandInPrivate {
 							log.Infof("收到<%s>(%d)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
@@ -504,7 +512,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	tryItemSolve := func(item *CmdItemInfo) bool {
 		if item != nil {
 			ret := item.Solve(ctx, msg, cmdArgs)
-			if ret.Solved {
+			if ret.Matched {
 				return true
 			}
 		}
@@ -512,7 +520,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	}
 
 	sa := ctx.Group
-	if sa != nil && sa.Active {
+	if !ctx.IsPrivate && sa != nil && sa.Active {
 		for _, i := range sa.ActivatedExtList {
 			if i.OnCommandReceived != nil {
 				i.OnCommandReceived(ctx, msg, cmdArgs)
