@@ -554,7 +554,7 @@ func (d *Dice) loads() {
 					d.Logger.Error(err)
 				}
 				if g.ValueMap == nil {
-					g.ValueMap = map[string]VMValue{}
+					g.ValueMap = map[string]*VMValue{}
 				}
 				if g.DiceIds == nil {
 					g.DiceIds = map[string]bool{}
@@ -563,10 +563,10 @@ func (d *Dice) loads() {
 				// 个人群组数据
 				for _, p := range g.Players {
 					if p.ValueMap == nil {
-						p.ValueMap = map[string]VMValue{}
+						p.ValueMap = map[string]*VMValue{}
 					}
 					if p.ValueMapTemp == nil {
-						p.ValueMapTemp = map[string]VMValue{}
+						p.ValueMapTemp = map[string]*VMValue{}
 					}
 
 					data := model.AttrGroupUserGetAll(d.DB, g.GroupId, p.UserId)

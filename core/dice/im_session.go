@@ -70,8 +70,8 @@ type PlayerInfo struct {
 	DiceSideNum    int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
 	TempValueAlias *map[string][]string `yaml:"-"`
 
-	ValueMap     map[string]VMValue `yaml:"-"`
-	ValueMapTemp map[string]VMValue `yaml:"-"`
+	ValueMap     map[string]*VMValue `yaml:"-"`
+	ValueMapTemp map[string]*VMValue `yaml:"-"`
 }
 
 type ServiceAtItem struct {
@@ -88,9 +88,9 @@ type ServiceAtItem struct {
 	DiceIds     map[string]bool `yaml:"diceIds"`  // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
 	DiceSideNum int64           `yaml:"diceSideNum"`
 
-	ValueMap     map[string]VMValue `yaml:"-"`
-	CocRuleIndex int                `yaml:"cocRuleIndex"`
-	HelpPackages []string           `yaml:"-"`
+	ValueMap     map[string]*VMValue `yaml:"-"`
+	CocRuleIndex int                 `yaml:"cocRuleIndex"`
+	HelpPackages []string            `yaml:"-"`
 
 	// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
 	//RuleCriticalSuccessValue *int64 // 大成功值，1默认
@@ -98,10 +98,10 @@ type ServiceAtItem struct {
 }
 
 type PlayerVariablesItem struct {
-	Loaded              bool               `yaml:"-"`
-	ValueMap            map[string]VMValue `yaml:"-"`
-	LastSyncToCloudTime int64              `yaml:"lastSyncToCloudTime"`
-	LastUsedTime        int64              `yaml:"lastUsedTime"`
+	Loaded              bool                `yaml:"-"`
+	ValueMap            map[string]*VMValue `yaml:"-"`
+	LastSyncToCloudTime int64               `yaml:"lastSyncToCloudTime"`
+	LastUsedTime        int64               `yaml:"lastUsedTime"`
 }
 
 type ConnectInfoItem struct {
@@ -563,4 +563,15 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			}
 		}
 	}
+}
+
+func setupMCtx(ctx *MsgContext, cmdArgs *CmdArgs, pos int) *MsgContext {
+	mctx := &*ctx // 复制一个ctx，用于其他用途
+	if len(cmdArgs.At) > 0 {
+		p, exists := ctx.Group.Players[cmdArgs.At[pos].UserId]
+		if exists {
+			mctx.Player = p
+		}
+	}
+	return mctx
 }

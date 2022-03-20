@@ -31,16 +31,16 @@ func GetPlayerInfoBySender(session *IMSession, msg *Message) *PlayerInfo {
 			p = &PlayerInfo{
 				Name:         msg.Sender.Nickname,
 				UserId:       msg.Sender.UserId,
-				ValueMap:     map[string]VMValue{},
-				ValueMapTemp: map[string]VMValue{},
+				ValueMap:     map[string]*VMValue{},
+				ValueMapTemp: map[string]*VMValue{},
 			}
 			players[msg.Sender.UserId] = p
 		}
 		if p.ValueMap == nil {
-			p.ValueMap = map[string]VMValue{}
+			p.ValueMap = map[string]*VMValue{}
 		}
 		if p.ValueMapTemp == nil {
-			p.ValueMapTemp = map[string]VMValue{}
+			p.ValueMapTemp = map[string]*VMValue{}
 		}
 		if p.InGroup == false {
 			p.InGroup = true
@@ -52,8 +52,8 @@ func GetPlayerInfoBySender(session *IMSession, msg *Message) *PlayerInfo {
 	return &PlayerInfo{
 		Name:         msg.Sender.Nickname,
 		UserId:       msg.Sender.UserId,
-		ValueMap:     map[string]VMValue{},
-		ValueMapTemp: map[string]VMValue{},
+		ValueMap:     map[string]*VMValue{},
+		ValueMapTemp: map[string]*VMValue{},
 	}
 }
 
