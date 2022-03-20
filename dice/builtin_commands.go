@@ -294,6 +294,7 @@ func (d *Dice) registerCoreCommands() {
 						var err error
 						r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{
 							DisableLoadVarname: disableLoadVarname,
+							DefaultDiceSideNum: getDefaultDicePoints(ctx),
 						})
 
 						if r != nil && r.TypeId == 0 {
@@ -521,25 +522,29 @@ func (d *Dice) registerCoreCommands() {
 							ctx.Group.DiceSideNum = num
 							VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
 							VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
-							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认群组骰子面数"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认群组骰子面数"))
 						} else {
 							p.DiceSideNum = int(num)
 							VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
 							VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
-							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数"))
 							//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num))
 						}
 					} else {
 						switch arg1 {
 						case "clr":
-							p.DiceSideNum = 0
-							//replyGroup(ctx, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"))
-							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
+							if isSetGroup {
+								ctx.Group.DiceSideNum = 0
+							} else {
+								p.DiceSideNum = 0
+								//replyGroup(ctx, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"))
+							}
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
 						case "help":
 							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 						default:
 							//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"))
-							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_错误"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_错误"))
 						}
 					}
 				} else {

@@ -26,6 +26,7 @@ e5 <- add eDice
     / eDice
 
 eDice <- ( &( [dD] (number / '(') ) [dD] { p.AddValue("1"); p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? { p.AddOperator(TypeDice) } )+
+         / [dD] { p.AddValue("1"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
          / eDice2 ( [dD] { p.AddLeftValueMark() } &(number / '(') eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) } )? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? { p.AddOperator(TypeDice) }
          )*
 
