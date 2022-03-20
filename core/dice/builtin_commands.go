@@ -334,10 +334,7 @@ func (d *Dice) registerCoreCommands() {
 						VarSetValueInt64(ctx, "$t计算结果", diceResult)
 						//text = fmt.Sprintf("%s<%s>掷出了 %s%s=%d", prefix, ctx.Player.Name, cmdArgs.Args[0], detailWrap, diceResult)
 					} else {
-						dicePoints := ctx.Player.DiceSideNum
-						if dicePoints <= 0 {
-							dicePoints = 100
-						}
+						dicePoints := getDefaultDicePoints(ctx)
 						val := DiceRoll64(int64(dicePoints))
 
 						VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("D%d", dicePoints))
@@ -505,26 +502,51 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["nn"] = cmdNN
 
 	cmdSet := &CmdItemInfo{
-		Name:  "set <面数>",
-		Brief: "设置默认骰子面数，只对自己有效",
+		Name: "set",
+		Help: ".set <面数> // 设置默认骰子面数",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				p := ctx.Player
-				if len(cmdArgs.Args) >= 1 {
-					num, err := strconv.Atoi(cmdArgs.Args[0])
+				isSetGroup := true
+				my := cmdArgs.GetKwarg("my")
+				if my != nil {
+					isSetGroup = false
+				}
+
+				arg1, exists := cmdArgs.GetArgN(1)
+				if exists {
+					num, err := strconv.ParseInt(cmdArgs.Args[0], 10, 64)
 					if err == nil {
-						p.DiceSideNum = num
-						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数"))
-						//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num))
+						if isSetGroup {
+							ctx.Group.DiceSideNum = num
+							VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
+							VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认群组骰子面数"))
+						} else {
+							p.DiceSideNum = int(num)
+							VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
+							VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数"))
+							//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num))
+						}
 					} else {
-						//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"))
-						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_错误"))
+						switch arg1 {
+						case "clr":
+							p.DiceSideNum = 0
+							//replyGroup(ctx, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"))
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
+						case "help":
+							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						default:
+							//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"))
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_错误"))
+						}
 					}
 				} else {
-					p.DiceSideNum = 0
-					//replyGroup(ctx, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"))
-					ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
+					ReplyToSender(ctx, msg, DiceFormat(ctx, `个人骰子面数: {$t个人骰子面数}\n`+
+						`群组骰子面数: {$t群组骰子面数}\n当前骰子面数: {$t当前骰子面数}`))
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},
@@ -656,4 +678,15 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["char"] = cmdChar
 	d.CmdMap["character"] = cmdChar
 	d.CmdMap["pc"] = cmdChar
+}
+
+func getDefaultDicePoints(ctx *MsgContext) int64 {
+	diceSides := int64(ctx.Player.DiceSideNum)
+	if diceSides == 0 {
+		diceSides = ctx.Group.DiceSideNum
+	}
+	if diceSides <= 0 {
+		diceSides = 100
+	}
+	return diceSides
 }

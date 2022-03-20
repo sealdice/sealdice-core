@@ -80,12 +80,13 @@ type ServiceAtItem struct {
 	Players          map[int64]*PlayerInfo // 群员角色数据
 	NotInGroup       bool                  // 是否已经离开群
 
-	LogCurName string          `yaml:"logCurFile"`
-	LogOn      bool            `yaml:"logOn"`
-	GroupId    int64           `yaml:"groupId"`
-	GroupName  string          `yaml:"groupName"`
-	Platform   string          `yaml:"platform"` // 默认为QQ（为空）
-	DiceIds    map[string]bool `yaml:"diceIds"`  // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	LogCurName  string          `yaml:"logCurFile"`
+	LogOn       bool            `yaml:"logOn"`
+	GroupId     int64           `yaml:"groupId"`
+	GroupName   string          `yaml:"groupName"`
+	Platform    string          `yaml:"platform"` // 默认为QQ（为空）
+	DiceIds     map[string]bool `yaml:"diceIds"`  // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	DiceSideNum int64           `yaml:"diceSideNum"`
 
 	ValueMap     map[string]VMValue `yaml:"-"`
 	CocRuleIndex int                `yaml:"cocRuleIndex"`
@@ -482,7 +483,9 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 	if ctx.Player != nil {
 		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
 		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
-		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, ctx.Player.DiceSideNum})
+		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
+		VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
+		VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
 		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})
 		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeInt64, ctx.conn.UserId})
 		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeInt64, ctx.conn.Nickname})
@@ -512,7 +515,15 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	tryItemSolve := func(item *CmdItemInfo) bool {
 		if item != nil {
 			ret := item.Solve(ctx, msg, cmdArgs)
-			if ret.Matched {
+			if ret.Solved {
+				if ret.ShowLongHelp {
+					help := item.LongHelp
+					if help == "" {
+						help = item.Help
+					}
+					ReplyToSender(ctx, msg, help)
+				}
+
 				return true
 			}
 		}
