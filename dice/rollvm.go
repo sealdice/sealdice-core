@@ -525,6 +525,13 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 		case TypeDice:
 			checkDice(&code)
+			if bInt == 0 {
+				bInt = e.flags.DefaultDiceSideNum
+				if bInt == 0 {
+					bInt = 100
+				}
+			}
+
 			if registerDiceK != nil || registerDiceQ != nil {
 				var diceKQ int64
 				isDiceK := registerDiceK != nil
@@ -572,13 +579,6 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				registerDiceQ = nil
 			} else {
 				// XXX Dice YYY, 如 3d100
-				if bInt == 0 {
-					bInt = e.flags.DefaultDiceSideNum
-					if bInt == 0 {
-						bInt = 100
-					}
-				}
-
 				var num int64
 				text := ""
 				for i := int64(0); i < aInt; i += 1 {

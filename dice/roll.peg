@@ -25,9 +25,18 @@ e4 <- minus e5 { p.AddOperator(TypeNegation) }
 e5 <- add eDice
     / eDice
 
-eDice <- ( &( [dD] (number / '(') ) [dD] { p.AddValue("1"); p.AddLeftValueMark() } eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? { p.AddOperator(TypeDice) } )+
+dndDiceSuffix <- ('优势' {p.AddValue("1"); p.AddOperator(TypeDiceSetK)} sp / '劣势' {p.AddValue("1"); p.AddOperator(TypeDiceSetQ)} sp )
+kqDiceOp <- ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )?
+
+_dnumber <- &( [dD] (number / '(') )  // 独立出来是因为括号会影响IDEA的自动高亮
+
+eDice <- ( _dnumber [dD] { p.AddValue("2"); p.AddLeftValueMark() } eDice2 dndDiceSuffix { p.AddOperator(TypeDice) } )
+         / ( _dnumber [dD] { p.AddValue("1"); p.AddLeftValueMark() } eDice2 kqDiceOp { p.AddOperator(TypeDice) } )
+
+         / [dD] dndDiceSuffix { p.AddValue("2"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
          / [dD] { p.AddValue("1"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
-         / eDice2 ( [dD] { p.AddLeftValueMark() } &(number / '(') eDice2 ('k' eDice2 { p.AddOperator(TypeDiceSetK) } )? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? { p.AddOperator(TypeDice) }
+
+         / eDice2 ( [dD] { p.AddLeftValueMark() } &(number / '(') eDice2 kqDiceOp { p.AddOperator(TypeDice) }
          )*
 
 laNumberOrLeftParen <- &(number / '(')
