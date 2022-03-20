@@ -222,9 +222,9 @@ func (d *Dice) registerCoreCommands() {
 						activeText = "关闭"
 					}
 					text += "\n群内工作状态: " + activeText
-					ReplyGroup(ctx, msg.GroupId, text)
+					ReplyGroup(ctx, msg, text)
 				} else {
-					ReplyPerson(ctx, msg.Sender.UserId, text)
+					ReplyPerson(ctx, msg, text)
 				}
 			} else {
 				if inGroup && !AtSomebodyButNotMe {
@@ -234,7 +234,7 @@ func (d *Dice) registerCoreCommands() {
 							ctx.Group = ctx.Session.ServiceAt[msg.GroupId]
 							ctx.IsCurGroupBotOn = true
 							// "SealDice 已启用(开发中) " + VERSION
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子开启"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子开启"))
 							return CmdExecuteResult{Matched: true, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "off") {
 							//if len(ctx.Group.ActivatedExtList) == 0 {
@@ -243,11 +243,11 @@ func (d *Dice) registerCoreCommands() {
 							ctx.Group.Active = false
 							//}
 							// 停止服务
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子关闭"))
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
 							return CmdExecuteResult{Matched: false, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
 							// 收到指令，5s后将退出当前群组
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
 							d.Logger.Infof("指令退群: 于群组(%d)中告别，操作者:(%d)", msg.GroupId, msg.UserId)
 							ctx.Group.Active = false
 							time.Sleep(6 * time.Second)
@@ -256,7 +256,7 @@ func (d *Dice) registerCoreCommands() {
 						} else if cmdArgs.IsArgEqual(1, "save") {
 							d.Save(false)
 							// 数据已保存
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子保存设置"))
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子保存设置"))
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 					}
@@ -382,8 +382,8 @@ func (d *Dice) registerCoreCommands() {
 					if ctx.Group != nil {
 						//prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", ctx.Group.GroupName, msg.GroupId)
 						prefix := DiceFormatTmpl(ctx, "核心:暗骰_私聊_前缀")
-						ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:暗骰_群内"))
-						ReplyPerson(ctx, msg.Sender.UserId, prefix+text)
+						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:暗骰_群内"))
+						ReplyPerson(ctx, msg, prefix+text)
 					} else {
 						ReplyToSender(ctx, msg, text)
 					}
@@ -431,7 +431,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 					text += "使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n"
 					text += "命令: .ext <扩展名> 可以查看扩展介绍及帮助"
-					ReplyGroup(ctx, msg.GroupId, text)
+					ReplyGroup(ctx, msg, text)
 				}
 
 				if len(cmdArgs.Args) == 0 {
@@ -446,7 +446,7 @@ func (d *Dice) registerCoreCommands() {
 						for _, i := range d.ExtList {
 							if i.Name == extName {
 								ctx.Group.ActivatedExtList = append(ctx.Group.ActivatedExtList, i)
-								ReplyGroup(ctx, msg.GroupId, fmt.Sprintf("打开扩展 %s", extName))
+								ReplyGroup(ctx, msg, fmt.Sprintf("打开扩展 %s", extName))
 								break
 							}
 						}
@@ -455,7 +455,7 @@ func (d *Dice) registerCoreCommands() {
 						for index, i := range ctx.Group.ActivatedExtList {
 							if i.Name == extName {
 								ctx.Group.ActivatedExtList = append(ctx.Group.ActivatedExtList[:index], ctx.Group.ActivatedExtList[index+1:]...)
-								ReplyGroup(ctx, msg.GroupId, fmt.Sprintf("关闭扩展 %s", extName))
+								ReplyGroup(ctx, msg, fmt.Sprintf("关闭扩展 %s", extName))
 							}
 						}
 					} else {
@@ -486,7 +486,7 @@ func (d *Dice) registerCoreCommands() {
 						p.Name = msg.Sender.Nickname
 						VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
 
-						ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:昵称_重置"))
+						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_重置"))
 						//replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称已重置为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
 					}
 					if len(cmdArgs.Args) >= 1 {
@@ -494,7 +494,7 @@ func (d *Dice) registerCoreCommands() {
 						p.Name = cmdArgs.Args[0]
 						VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
 
-						ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:昵称_改名"))
+						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_改名"))
 						//replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
 					}
 				}
@@ -514,16 +514,16 @@ func (d *Dice) registerCoreCommands() {
 					num, err := strconv.Atoi(cmdArgs.Args[0])
 					if err == nil {
 						p.DiceSideNum = num
-						ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:设定默认骰子面数"))
+						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数"))
 						//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num))
 					} else {
 						//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"))
-						ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_错误"))
+						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_错误"))
 					}
 				} else {
 					p.DiceSideNum = 0
 					//replyGroup(ctx, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"))
-					ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
+					ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
 				}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -597,7 +597,7 @@ func (d *Dice) registerCoreCommands() {
 							VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
 
 							//replyToSender(ctx, msg, fmt.Sprintf("角色<%s>加载成功，欢迎回来。", Name))
-							ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
 						} else {
 							//replyToSender(ctx, msg, "无法加载角色：序列化失败")
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))

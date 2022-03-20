@@ -17,6 +17,10 @@ builds:
       - linux
       - windows
       - darwin
+    goarch:
+      - 386
+      - arm64
+      - amd64
     flags:
       - -trimpath
     ignore:

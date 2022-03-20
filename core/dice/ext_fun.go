@@ -102,23 +102,15 @@ func RegisterBuiltinExtFun(self *Dice) {
 		Name:  "jrrp",
 		Brief: "获得一个D100随机值，一天内不会变化",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if msg.MessageType == "group" {
-				if ctx.IsCurGroupBotOn {
-					p := ctx.Player
-					todayTime := time.Now().Format("2006-01-02")
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
+				rpSeed += ctx.Player.UserId
+				rand.Seed(rpSeed)
+				rp := rand.Int63()%100 + 1
 
-					rp := 0
-					if p.RpTime == todayTime {
-						rp = p.RpToday
-					} else {
-						rp = DiceRoll(100)
-						p.RpTime = todayTime
-						p.RpToday = rp
-					}
-
-					VarSetValue(ctx, "$t人品", &VMValue{VMTypeInt64, int64(rp)})
-					ReplyGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "娱乐:今日人品"))
-				}
+				VarSetValue(ctx, "$t人品", &VMValue{VMTypeInt64, int64(rp)})
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "娱乐:今日人品"))
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},

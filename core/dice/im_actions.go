@@ -23,8 +23,8 @@ func socketSendText(socket *gowebsocket.Socket, s string) {
 	}
 }
 
-func ReplyPerson(ctx *MsgContext, userId int64, text string) {
-	replyPersonRaw(ctx, userId, text, "")
+func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
+	replyPersonRaw(ctx, msg.Sender.UserId, text, "")
 }
 
 func replyPersonRaw(ctx *MsgContext, userId int64, text string, flag string) {
@@ -125,8 +125,8 @@ func QuitGroup(ctx *MsgContext, groupId int64) {
 	//s.Socket.SendText(string(a))
 }
 
-func ReplyGroup(ctx *MsgContext, groupId int64, text string) {
-	replyGroupRaw(ctx, groupId, text, "")
+func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
+	replyGroupRaw(ctx, msg.GroupId, text, "")
 }
 
 func replyGroupRaw(ctx *MsgContext, groupId int64, text string, flag string) {
