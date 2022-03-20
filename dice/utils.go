@@ -116,7 +116,7 @@ func JsonNumberUnmarshal(data []byte, v interface{}) error {
 	return d.Decode(v)
 }
 
-func JsonValueMapUnmarshal(data []byte, v *map[string]VMValue) error {
+func JsonValueMapUnmarshal(data []byte, v *map[string]*VMValue) error {
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
 	err := d.Decode(v)
@@ -128,7 +128,7 @@ func JsonValueMapUnmarshal(data []byte, v *map[string]VMValue) error {
 					continue
 				}
 				if i, err := n.Int64(); err == nil {
-					(*v)[key] = VMValue{VMTypeInt64, i}
+					(*v)[key] = &VMValue{VMTypeInt64, i}
 					continue
 				}
 			}

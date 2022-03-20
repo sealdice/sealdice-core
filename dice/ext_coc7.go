@@ -1071,7 +1071,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						case "clr", "clear":
 							p := ctx.Player
 							num := len(p.ValueMap)
-							p.ValueMap = map[string]VMValue{}
+							p.ValueMap = map[string]*VMValue{}
 							VarSetValueInt64(ctx, "$t数量", int64(num))
 							//text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:属性设置_清除"))
@@ -1143,7 +1143,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									v, exists := p.ValueMap[k]
 									if !exists {
 										// 不存在的值，强行补0
-										v.Value = int64(0)
+										v = &VMValue{VMTypeInt64, int64(0)}
 									}
 
 									if index >= topNum {

@@ -125,7 +125,7 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 }
 
 func SpecialExecuteTimesParse(cmd string) (string, int) {
-	re := regexp.MustCompile(`\d+?#`)
+	re := regexp.MustCompile(`\d+?[#＃]`)
 	m := re.FindAllStringIndex(cmd, 1)
 	var times int64
 	if m != nil {

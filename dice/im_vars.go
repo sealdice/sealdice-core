@@ -15,6 +15,13 @@ func (ctx *MsgContext) LoadPlayerVars() *PlayerVariablesItem {
 	return nil
 }
 
+func (ctx *MsgContext) LoadGroupVars() {
+	g := ctx.Group
+	if g.ValueMap == nil {
+		g.ValueMap = map[string]*VMValue{}
+	}
+}
+
 func VarSetValueStr(ctx *MsgContext, s string, v string) {
 	VarSetValue(ctx, s, &VMValue{VMTypeString, v})
 }
@@ -59,7 +66,7 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
-		ctx.Player.ValueMapTemp[s] = *v
+		ctx.Player.ValueMapTemp[s] = v
 		return
 	}
 
@@ -67,24 +74,19 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	if strings.HasPrefix(s, "$m") {
 		if ctx.Session != nil && ctx.Player != nil {
 			playerVars := ctx.LoadPlayerVars()
-			playerVars.ValueMap[s] = *v
+			playerVars.ValueMap[s] = v
 		}
 		return
 	}
 
 	// 群变量
 	if ctx.Group != nil && strings.HasPrefix(s, "$g") {
-		// 这里不知道原因，但是有时候 ValueMap 不会被创建
-		g := ctx.Group
-		if g.ValueMap == nil {
-			g.ValueMap = map[string]VMValue{}
-		}
-
-		ctx.Group.ValueMap[s] = *v
+		ctx.LoadGroupVars()
+		ctx.Group.ValueMap[s] = v
 		return
 	}
 
-	ctx.Player.ValueMap[name] = *v
+	ctx.Player.ValueMap[name] = v
 }
 
 func VarDelValue(ctx *MsgContext, s string) {
@@ -108,7 +110,7 @@ func VarDelValue(ctx *MsgContext, s string) {
 	if ctx.Group != nil && strings.HasPrefix(s, "$g") {
 		g := ctx.Group
 		if g.ValueMap == nil {
-			g.ValueMap = map[string]VMValue{}
+			g.ValueMap = map[string]*VMValue{}
 		}
 
 		delete(ctx.Group.ValueMap, s)
@@ -124,7 +126,7 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
 		v, exists := ctx.Player.ValueMapTemp[s]
-		return &v, exists
+		return v, exists
 	}
 
 	// 个人全局变量
@@ -132,7 +134,7 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 		if ctx.Session != nil && ctx.Player != nil {
 			playerVars := ctx.LoadPlayerVars()
 			a, b := playerVars.ValueMap[s]
-			return &a, b
+			return a, b
 		}
 	}
 
@@ -140,17 +142,17 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 	if ctx.Group != nil && strings.HasPrefix(s, "$g") {
 		g := ctx.Group
 		if g.ValueMap == nil {
-			g.ValueMap = map[string]VMValue{}
+			g.ValueMap = map[string]*VMValue{}
 		}
 
 		v, exists := ctx.Group.ValueMap[s]
-		return &v, exists
+		return v, exists
 	}
 
 	// 个人群变量
 	if ctx.Player != nil {
 		v, e := ctx.Player.ValueMap[name]
-		return &v, e
+		return v, e
 	}
 	return nil, false
 }
@@ -209,7 +211,7 @@ func LoadPlayerVars(s *IMSession, id int64) *PlayerVariablesItem {
 
 	vd, _ := s.PlayerVarsData[id]
 	if vd.ValueMap == nil {
-		vd.ValueMap = map[string]VMValue{}
+		vd.ValueMap = map[string]*VMValue{}
 	}
 
 	if vd.Loaded == false {

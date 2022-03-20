@@ -32,7 +32,7 @@ func SetBotOnAtGroup(ctx *MsgContext, msg *Message) {
 			ActivatedExtList: extLst,
 			Players:          map[int64]*PlayerInfo{},
 			GroupId:          msg.GroupId,
-			ValueMap:         map[string]VMValue{},
+			ValueMap:         map[string]*VMValue{},
 			DiceIds:          map[string]bool{},
 		}
 		group = session.ServiceAt[msg.GroupId]
@@ -517,6 +517,9 @@ func (d *Dice) registerCoreCommands() {
 				arg1, exists := cmdArgs.GetArgN(1)
 				if exists {
 					num, err := strconv.ParseInt(cmdArgs.Args[0], 10, 64)
+					if num < 0 {
+						num = 0
+					}
 					if err == nil {
 						if isSetGroup {
 							ctx.Group.DiceSideNum = num
@@ -617,7 +620,7 @@ func (d *Dice) registerCoreCommands() {
 					data, exists := vars.ValueMap["$ch:"+name]
 
 					if exists {
-						ctx.Player.ValueMap = make(map[string]VMValue)
+						ctx.Player.ValueMap = make(map[string]*VMValue)
 						err := JsonValueMapUnmarshal([]byte(data.Value.(string)), &ctx.Player.ValueMap)
 						if err == nil {
 							ctx.Player.Name = name
@@ -639,7 +642,7 @@ func (d *Dice) registerCoreCommands() {
 					v, err := json.Marshal(ctx.Player.ValueMap)
 
 					if err == nil {
-						vars.ValueMap["$ch:"+name] = VMValue{
+						vars.ValueMap["$ch:"+name] = &VMValue{
 							VMTypeString,
 							string(v),
 						}
