@@ -132,6 +132,22 @@ func JsonValueMapUnmarshal(data []byte, v *map[string]*VMValue) error {
 					continue
 				}
 			}
+			if val.TypeId == -1 {
+				// 先攻列表
+				m := val.Value.(map[string]interface{})
+				m2 := map[string]int64{}
+				for k, v := range m {
+					n, ok := v.(json.Number)
+					if !ok {
+						continue
+					}
+					if i, err := n.Int64(); err == nil {
+						m2[k] = i
+						continue
+					}
+				}
+				(*v)[key] = &VMValue{-1, m2}
+			}
 		}
 	}
 	return err
