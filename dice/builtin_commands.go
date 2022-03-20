@@ -3,6 +3,7 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/juliangruber/go-intersect"
 	"math/rand"
 	"regexp"
 	"sort"
@@ -441,10 +442,33 @@ func (d *Dice) registerCoreCommands() {
 						showList()
 					} else if cmdArgs.IsArgEqual(2, "on") {
 						extName := cmdArgs.Args[0]
+						checkConflict := func(ext *ExtInfo) []string {
+							actived := []string{}
+							for _, i := range ctx.Group.ActivatedExtList {
+								actived = append(actived, i.Name)
+							}
+
+							if ext.ConflictWith != nil {
+								ret := []string{}
+								for _, i := range intersect.Simple(actived, ext.ConflictWith) {
+									ret = append(ret, i.(string))
+								}
+								return ret
+							}
+							return []string{}
+						}
+
 						for _, i := range d.ExtList {
 							if i.Name == extName {
+								text := fmt.Sprintf("打开扩展 %s", extName)
+
+								conflicts := checkConflict(i)
+								if len(conflicts) > 0 {
+									text += "\n检测到可能冲突的扩展，建议关闭: " + strings.Join(conflicts, ",")
+								}
+
 								ctx.Group.ActivatedExtList = append(ctx.Group.ActivatedExtList, i)
-								ReplyGroup(ctx, msg, fmt.Sprintf("打开扩展 %s", extName))
+								ReplyGroup(ctx, msg, text)
 								break
 							}
 						}
