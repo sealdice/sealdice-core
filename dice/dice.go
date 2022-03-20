@@ -19,7 +19,7 @@ var VERSION = "0.99.5内测版 v20220319"
 
 type CmdExecuteResult struct {
 	Matched       bool // 是否是指令
-	Solved        bool // 是否走到结尾
+	Solved        bool // 是否响应此指令
 	ShowShortHelp bool
 	ShowLongHelp  bool
 }
