@@ -50,12 +50,9 @@ func (dm *DiceManager) LoadDice() {
 	dm.ServeAddress = dc.ServeAddress
 	dm.HelpDocEngineType = dc.HelpDocEngineType
 
-	dm.InitHelp()
-
 	for _, i := range dc.DiceConfigs {
 		newDice := new(Dice)
 		newDice.BaseConfig = i
-		newDice.Parent = dm
 		dm.Dice = append(dm.Dice, newDice)
 	}
 }
@@ -75,7 +72,10 @@ func (dm *DiceManager) Save() {
 }
 
 func (dm *DiceManager) InitDice() {
+	dm.InitHelp()
+
 	for _, i := range dm.Dice {
+		i.Parent = dm
 		i.Init()
 	}
 }
