@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gopherjs/gopherjs v0.0.0-20220221023154-0b2280d3ff96 // indirect
 	github.com/jessevdk/go-flags v1.5.0
-	github.com/juliangruber/go-intersect v1.1.0 // indirect
+	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.1
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/labstack/echo/v4 v4.1.16

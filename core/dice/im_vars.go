@@ -63,10 +63,11 @@ func VarSetValueAuto(ctx *MsgContext, s string, v interface{}) {
 
 func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	name := ctx.Player.GetValueNameByAlias(s, nil)
+	vClone := *v
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
-		ctx.Player.ValueMapTemp[s] = v
+		ctx.Player.ValueMapTemp[s] = &vClone
 		return
 	}
 
@@ -74,7 +75,7 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	if strings.HasPrefix(s, "$m") {
 		if ctx.Session != nil && ctx.Player != nil {
 			playerVars := ctx.LoadPlayerVars()
-			playerVars.ValueMap[s] = v
+			playerVars.ValueMap[s] = &vClone
 		}
 		return
 	}
@@ -82,11 +83,11 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	// 群变量
 	if ctx.Group != nil && strings.HasPrefix(s, "$g") {
 		ctx.LoadGroupVars()
-		ctx.Group.ValueMap[s] = v
+		ctx.Group.ValueMap[s] = &vClone
 		return
 	}
 
-	ctx.Player.ValueMap[name] = v
+	ctx.Player.ValueMap[name] = &vClone
 }
 
 func VarDelValue(ctx *MsgContext, s string) {

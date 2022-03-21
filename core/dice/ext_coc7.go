@@ -1421,6 +1421,11 @@ func ResultCheck(cocRule int, d100 int64, checkValue int64) (successRank int, cr
 		}
 	}
 
+	// 默认规则改判，为100必然是大失败
+	if cocRule == 0 {
+		successRank = -2
+	}
+
 	// 规则3的改判，强行大成功或大失败
 	if cocRule == 3 {
 		if d100 <= criticalSuccessValue {
