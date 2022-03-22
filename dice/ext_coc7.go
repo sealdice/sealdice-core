@@ -380,17 +380,41 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						}
 					}
 
+					restText := cmdArgs.CleanArgs
+
+					reBP := regexp.MustCompile(`^[bBpP]`)
+					re2 := regexp.MustCompile(`([^\d])\s+([\d])|([\d])\s+([^\d])`)
+
+					if !reBP.MatchString(restText) {
+						restText = re2.ReplaceAllString(restText, "$1$3$2$4")
+						restText = "D100 " + restText
+					} else {
+						replaced := true
+						if len(restText) > 1 {
+							// 为了避免一种分支情况: .ra  b 50 测试，b和50中间的空格被消除
+							ch2 := restText[1]
+							if ch2 == ' ' {
+								replaced = true
+								restText = restText[:2] + re2.ReplaceAllString(restText[2:], "$1$3$2$4")
+							}
+						}
+
+						if !replaced {
+							restText = re2.ReplaceAllString(restText, "$1$3$2$4")
+						}
+					}
+
 					rollOne := func(manyTimes bool) *CmdExecuteResult {
 						difficultRequire := 0
 						// 试图读取检定表达式
 						swap := false
-						r1, detail1, err := ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, mctx, RollExtraFlags{
+						r1, detail1, err := ctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
 							CocVarNumberMode: true,
 							CocDefaultAttrOn: true,
 						})
 
 						if err != nil {
-							ReplyToSender(ctx, msg, "解析出错: "+cmdArgs.CleanArgs)
+							ReplyToSender(ctx, msg, "解析出错: "+restText)
 							return &CmdExecuteResult{Matched: true, Solved: false}
 						}
 
@@ -428,6 +452,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						if r1.TypeId != VMTypeInt64 || r2.TypeId != VMTypeInt64 {
 							ReplyToSender(ctx, msg, "你输入的表达式并非文本类型")
 							return &CmdExecuteResult{Matched: true, Solved: false}
+						}
+
+						if r1.Matched == "d100" || r1.Matched == "D100" {
+							// 此时没有必要
+							detail1 = ""
 						}
 
 						var checkVal = r1.Value.(int64)
