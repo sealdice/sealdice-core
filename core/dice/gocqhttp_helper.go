@@ -529,7 +529,17 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 
 		conn.InPackGoCqHttpRunning = true
 		conn.InPackGoCqHttpProcess = p
-		err := p.Run()
+		err := p.Start()
+
+		if err == nil {
+			if dice.Parent.progressExitGroupWin != 0 && len(p.Cmds) > 0 && p.Cmds[0] != nil {
+				err := dice.Parent.progressExitGroupWin.AddProcess(p.Cmds[0].Process)
+				if err != nil {
+					dice.Logger.Warn("添加到进程组失败，若主进程崩溃，gocqhttp进程可能需要手动结束")
+				}
+			}
+			p.Wait()
+		}
 
 		GoCqHttpServeProcessKill(dice, conn)
 		conn.InPackGoCqHttpRunning = false
