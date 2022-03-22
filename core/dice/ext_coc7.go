@@ -380,7 +380,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						}
 					}
 
-					rollOne := func() *CmdExecuteResult {
+					rollOne := func(manyTimes bool) *CmdExecuteResult {
 						difficultRequire := 0
 						// 试图读取检定表达式
 						swap := false
@@ -441,7 +441,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 						successRank, criticalSuccessValue := ResultCheck(cocRule, checkVal, attrVal)
 						var suffix string
-						suffix = GetResultTextWithRequire(ctx, successRank, difficultRequire)
+						suffix = GetResultTextWithRequire(ctx, successRank, difficultRequire, manyTimes)
 
 						// 根据难度需求，修改判定值
 						switch difficultRequire {
@@ -483,7 +483,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						}
 						texts := []string{}
 						for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
-							ret := rollOne()
+							ret := rollOne(true)
 							if ret != nil {
 								return *ret
 							}
@@ -492,7 +492,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						VarSetValueStr(ctx, "$t结果文本", strings.Join(texts, `\n`))
 						text = DiceFormatTmpl(ctx, "COC:检定_多轮")
 					} else {
-						ret := rollOne()
+						ret := rollOne(false)
 						if ret != nil {
 							return *ret
 						}
@@ -908,7 +908,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 							// 进行检定
 							successRank, _ := ResultCheck(ctx.Group.CocRuleIndex, d100, san)
-							suffix := GetResultText(ctx, successRank)
+							suffix := GetResultText(ctx, successRank, false)
 
 							VarSetValueStr(ctx, "$t检定表达式文本", expr1)
 							VarSetValueStr(ctx, "$t检定计算过程", detailWrap)
@@ -1281,7 +1281,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	self.RegisterExtension(theExt)
 }
 
-func GetResultTextWithRequire(ctx *MsgContext, successRank int, difficultRequire int) string {
+func GetResultTextWithRequire(ctx *MsgContext, successRank int, difficultRequire int, userShortVersion bool) string {
 	if difficultRequire > 1 {
 		isSuccess := successRank >= difficultRequire
 		var suffix string
@@ -1307,25 +1307,42 @@ func GetResultTextWithRequire(ctx *MsgContext, successRank int, difficultRequire
 		}
 		return suffix
 	} else {
-		return GetResultText(ctx, successRank)
+		return GetResultText(ctx, successRank, userShortVersion)
 	}
 }
 
-func GetResultText(ctx *MsgContext, successRank int) string {
+func GetResultText(ctx *MsgContext, successRank int, userShortVersion bool) string {
 	var suffix string
-	switch successRank {
-	case -2:
-		suffix = DiceFormatTmpl(ctx, "COC:判定_大失败")
-	case -1:
-		suffix = DiceFormatTmpl(ctx, "COC:判定_失败")
-	case +1:
-		suffix = DiceFormatTmpl(ctx, "COC:判定_成功_普通")
-	case +2:
-		suffix = DiceFormatTmpl(ctx, "COC:判定_成功_困难")
-	case +3:
-		suffix = DiceFormatTmpl(ctx, "COC:判定_成功_极难")
-	case +4:
-		suffix = DiceFormatTmpl(ctx, "COC:判定_大成功")
+	if userShortVersion {
+		switch successRank {
+		case -2:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_简短_大失败")
+		case -1:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_简短_失败")
+		case +1:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_简短_成功_普通")
+		case +2:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_简短_成功_困难")
+		case +3:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_简短_成功_极难")
+		case +4:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_简短_大成功")
+		}
+	} else {
+		switch successRank {
+		case -2:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_大失败")
+		case -1:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_失败")
+		case +1:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_成功_普通")
+		case +2:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_成功_困难")
+		case +3:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_成功_极难")
+		case +4:
+			suffix = DiceFormatTmpl(ctx, "COC:判定_大成功")
+		}
 	}
 	return suffix
 }
