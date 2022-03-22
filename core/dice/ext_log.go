@@ -16,12 +16,14 @@ import (
 
 type LogOneItem struct {
 	Id        uint64 `json:"id"`
-	Nickname  string `jsno:"nickname"`
+	Nickname  string `json:"nickname"`
 	IMUserId  int64  `json:"IMUserId"`
 	Time      int64  `json:"time"`
 	Message   string `json:"message"`
 	IsDice    bool   `json:"isDice"`
 	CommandId uint64 `json:"commandId"`
+
+	OldNickname string `json:"Nickname"`
 }
 
 // {"data":null,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
@@ -175,6 +177,10 @@ func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
 
 		text := ""
 		for _, i := range lines {
+			if i.Nickname == "" && i.OldNickname != "" {
+				i.Nickname = i.OldNickname
+			}
+
 			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
 			if i.IsDice {
 				text += fmt.Sprintf("[%s] %s(骰子): %s\n", timeTxt, i.Nickname, i.Message)
@@ -187,10 +193,17 @@ func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
 		//f.WriteString(text)
 		//defer f.Close()
 
-		fileWriter, _ := writer.Create("跑团日志(标准格式).txt")
+		fileWriter, _ := writer.Create("跑团日志(IRC风格).txt")
 		fileWriter.Write([]byte(text))
 
-		// 第二份，QQ格式
+		// 第二份
+		data, err := json.Marshal(lines)
+		if err == nil {
+			fileWriter, _ = writer.Create("跑团日志(标准格式-着色专用-网站开发中).txt")
+			fileWriter.Write(data)
+		}
+
+		// 第三份，QQ格式
 		text = ""
 		for _, i := range lines {
 			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")

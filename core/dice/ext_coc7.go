@@ -661,6 +661,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						ctx.Group.CocRuleIndex = 5
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_5"))
 					default:
+						text := DiceFormatTmpl(ctx, fmt.Sprintf("COC:设置房规_%d", ctx.Group.CocRuleIndex))
+						VarSetValueStr(ctx, "$t房规文本", text)
 						VarSetValue(ctx, "$t房规", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
 					}
@@ -1422,7 +1424,7 @@ func ResultCheck(cocRule int, d100 int64, checkValue int64) (successRank int, cr
 	}
 
 	// 默认规则改判，为100必然是大失败
-	if cocRule == 0 {
+	if d100 == 100 && cocRule == 0 {
 		successRank = -2
 	}
 
