@@ -8,11 +8,12 @@ import (
 )
 
 type DiceManager struct {
-	Dice                []*Dice
-	ServeAddress        string
-	Help                *HelpManager
-	UseDictForTokenizer bool
-	HelpDocEngineType   int
+	Dice                 []*Dice
+	ServeAddress         string
+	Help                 *HelpManager
+	UseDictForTokenizer  bool
+	HelpDocEngineType    int
+	progressExitGroupWin ProcessExitGroup
 }
 
 type DiceConfigs struct {
@@ -73,6 +74,13 @@ func (dm *DiceManager) Save() {
 
 func (dm *DiceManager) InitDice() {
 	dm.InitHelp()
+
+	g, err := NewProcessExitGroup()
+	if err != nil {
+		fmt.Println("进程组创建失败，若进程崩溃，gocqhttp进程可能需要手动结束。")
+	} else {
+		dm.progressExitGroupWin = g
+	}
 
 	for _, i := range dm.Dice {
 		i.Parent = dm
