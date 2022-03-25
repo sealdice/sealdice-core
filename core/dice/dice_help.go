@@ -44,6 +44,7 @@ type HelpManager struct {
 	Parent     *DiceManager
 	EngineType int
 	batch      *bleve.Batch
+	batchNum   int
 }
 
 func (m *HelpManager) GetNextId() string {
@@ -233,6 +234,13 @@ func (m *HelpManager) AddItem(item HelpTextItem) error {
 		if m.batch == nil {
 			m.batch = m.Index.NewBatch()
 		}
+		if m.batchNum >= 50 {
+			m.Index.Batch(m.batch)
+			m.batch.Reset()
+			m.batchNum = 0
+		}
+
+		m.batchNum += 1
 		return m.batch.Index(id, data)
 		//return m.Index.Index(id, data)
 	} else {
@@ -242,7 +250,10 @@ func (m *HelpManager) AddItem(item HelpTextItem) error {
 
 func (m *HelpManager) AddItemApply() error {
 	if m.batch != nil {
-		return m.Index.Batch(m.batch)
+		err := m.Index.Batch(m.batch)
+		m.batch.Reset()
+		m.batch = nil
+		return err
 	}
 	return nil
 }
