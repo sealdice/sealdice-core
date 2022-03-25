@@ -847,7 +847,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 							innerGetOnePiece := func() int {
 								var err error
-								r, _, err := ctx.Dice.ExprEvalBase(argText, mctx, RollExtraFlags{})
+								r, _, err := ctx.Dice.ExprEvalBase(argText, mctx, RollExtraFlags{IgnoreDiv0: true})
 								if err != nil {
 									// 情况1，完全不能解析
 									return 1
