@@ -79,6 +79,7 @@ type Dice struct {
 	DiceMasters             []string               `yaml:"diceMasters"`             // 骰主设置，需要格式: 平台:帐号
 	OnlyLogCommandInGroup   bool                   `yaml:"onlyLogCommandInGroup"`   // 日志中仅记录命令
 	OnlyLogCommandInPrivate bool                   `yaml:"onlyLogCommandInPrivate"` // 日志中仅记录命令
+	VersionCode             int                    `json:"versionCode"`             // 版本ID
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	InPackGoCqHttpExists       bool                       `yaml:"-"` // 是否存在同目录的gocqhttp

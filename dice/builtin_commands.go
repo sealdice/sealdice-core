@@ -525,28 +525,30 @@ func (d *Dice) registerCoreCommands() {
 								conflicts := checkConflict(i)
 								if len(conflicts) > 0 {
 									text += "\n检测到可能冲突的扩展，建议关闭: " + strings.Join(conflicts, ",")
+									text += "\n若扩展中存在同名指令，则越晚开启的扩展，优先级越高。"
 								}
 
-								ctx.Group.ActivatedExtList = append(ctx.Group.ActivatedExtList, i)
+								ctx.Group.ExtActive(i)
 								ReplyGroup(ctx, msg, text)
 								break
 							}
 						}
 					} else if cmdArgs.IsArgEqual(2, "off") {
 						extName := cmdArgs.Args[0]
-						for index, i := range ctx.Group.ActivatedExtList {
-							if i.Name == extName {
-								ctx.Group.ActivatedExtList = append(ctx.Group.ActivatedExtList[:index], ctx.Group.ActivatedExtList[index+1:]...)
-								ReplyGroup(ctx, msg, fmt.Sprintf("关闭扩展 %s", extName))
-							}
+						ei := ctx.Group.ExtInactive(extName)
+						if ei != nil {
+							ReplyGroup(ctx, msg, fmt.Sprintf("关闭扩展 %s", extName))
+						} else {
+							ReplyGroup(ctx, msg, fmt.Sprintf("未找到此扩展，可能已经关闭: %s", extName))
 						}
+						return CmdExecuteResult{Matched: true, Solved: true}
 					} else {
 						extName := cmdArgs.Args[0]
 						for _, i := range d.ExtList {
 							if i.Name == extName {
 								text := fmt.Sprintf("> [%s] 版本%s 作者%s\n", i.Name, i.Version, i.Author)
 								ReplyToSender(ctx, msg, text+i.GetDescText(i))
-								break
+								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 						}
 					}
