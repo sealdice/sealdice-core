@@ -43,6 +43,7 @@ type HelpManager struct {
 	TextMap    map[string]*HelpTextItem
 	Parent     *DiceManager
 	EngineType int
+	batch      *bleve.Batch
 }
 
 func (m *HelpManager) GetNextId() string {
@@ -186,6 +187,7 @@ func (m *HelpManager) Load() {
 		}
 		return nil
 	})
+	m.AddItemApply()
 }
 
 func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
@@ -213,6 +215,7 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 	for _, i := range dice.ExtList {
 		addCmdMap(i.Name, i.CmdMap)
 	}
+	m.AddItemApply()
 }
 
 func (m *HelpManager) AddItem(item HelpTextItem) error {
@@ -227,10 +230,21 @@ func (m *HelpManager) AddItem(item HelpTextItem) error {
 	m.TextMap[id] = &item
 
 	if m.EngineType == 0 {
-		return m.Index.Index(id, data)
+		if m.batch == nil {
+			m.batch = m.Index.NewBatch()
+		}
+		return m.batch.Index(id, data)
+		//return m.Index.Index(id, data)
 	} else {
 		return nil
 	}
+}
+
+func (m *HelpManager) AddItemApply() error {
+	if m.batch != nil {
+		return m.Index.Batch(m.batch)
+	}
+	return nil
 }
 
 func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool) (*bleve.SearchResult, error) {
