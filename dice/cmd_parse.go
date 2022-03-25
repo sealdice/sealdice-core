@@ -21,14 +21,16 @@ type AtInfo struct {
 }
 
 type CmdArgs struct {
-	Command             string    `json:"command"`
-	Args                []string  `json:"args"`
-	Kwargs              []*Kwarg  `json:"kwargs"`
-	At                  []*AtInfo `json:"atInfo"`
-	RawArgs             string    `json:"rawArgs"`
-	AmIBeMentioned      bool      `json:"amIBeMentioned"`
-	CleanArgs           string
-	SpecialExecuteTimes int // 特殊的执行次数，对应 3# 这种
+	Command                    string    `json:"command"`
+	Args                       []string  `json:"args"`
+	Kwargs                     []*Kwarg  `json:"kwargs"`
+	At                         []*AtInfo `json:"atInfo"`
+	RawArgs                    string    `json:"rawArgs"`
+	AmIBeMentioned             bool      `json:"amIBeMentioned"`
+	SomeoneBeMentionedButNotMe bool      `json:"someoneBeMentionedButNotMe"`
+	MentionedOtherDice         bool      `json:"mentionedOtherDice"`
+	CleanArgs                  string
+	SpecialExecuteTimes        int // 特殊的执行次数，对应 3# 这种
 }
 
 /** 检查第N项参数是否为某个字符串，n从1开始，若没有第n项参数也视为失败 */

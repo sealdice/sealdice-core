@@ -42,6 +42,10 @@ func SetBotOnAtGroup(ctx *MsgContext, msg *Message) {
 	if group.DiceIds == nil {
 		group.DiceIds = map[string]bool{}
 	}
+	if group.BotList == nil {
+		group.BotList = map[string]bool{}
+	}
+
 	group.DiceIds[FormatDiceIdQQ(ctx.conn.UserId)] = true
 }
 
@@ -269,11 +273,67 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["bot"] = cmdBot
 
+	cmdBotList := &CmdItemInfo{
+		Name: "botlist",
+		Help: ".botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话\n" +
+			".botlist del @A @B @C // 去除机器人标记\n" +
+			".botlist list // 查看当前列表",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn {
+				subCmd, _ := cmdArgs.GetArgN(1)
+				switch subCmd {
+				case "add":
+					existsCount := 0
+					newCount := 0
+					for _, i := range cmdArgs.At {
+						uid := FormatDiceIdQQ(i.UserId)
+						if ctx.Group.BotList[uid] {
+							existsCount += 1
+						} else {
+							ctx.Group.BotList[uid] = true
+							newCount += 1
+						}
+					}
+					ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d个帐号，这些账号将被视为机器人。\n因此别人@他们时，海豹将不会回复。\n他们的指令也会被海豹忽略，避免发生循环回复事故", newCount))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				case "del", "rm":
+					existsCount := 0
+					for _, i := range cmdArgs.At {
+						uid := FormatDiceIdQQ(i.UserId)
+						if ctx.Group.BotList[uid] {
+							existsCount += 1
+							delete(ctx.Group.BotList, uid)
+						}
+					}
+					ReplyToSender(ctx, msg, fmt.Sprintf("删除标记了%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				case "list":
+					text := ""
+					for i, _ := range ctx.Group.BotList {
+						// uid := FormatDiceIdQQ(i)
+						text += "- " + i
+					}
+					ReplyToSender(ctx, msg, fmt.Sprintf("群内其他机器人列表:\n%s", text))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				default:
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+			}
+
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+	d.CmdMap["botlist"] = cmdBotList
+
 	cmdRoll := &CmdItemInfo{
-		Name: "r <表达式> <原因>",
+		Name: "roll",
 		Help: ".r <表达式> <原因> // 骰点指令\n.rh <表达式> <原因> // 暗骰",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				var text string
 				var diceResult int64
 				var diceResultExists bool
