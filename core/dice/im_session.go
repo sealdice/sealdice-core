@@ -217,6 +217,7 @@ type MsgContext struct {
 	conn            *ConnectInfoItem
 	IsPrivate       bool
 	CommandId       uint64
+	CommandHideFlag int64 // 暗骰标记
 }
 
 var curCommandId uint64 = 0
