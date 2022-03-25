@@ -537,6 +537,7 @@ func (d *Dice) loads() {
 			d.ImSession.Conns = dNew.ImSession.Conns
 			d.CommandPrefix = dNew.CommandPrefix
 			d.DiceMasters = dNew.DiceMasters
+			d.VersionCode = dNew.VersionCode
 
 			if len(d.CommandPrefix) == 0 {
 				d.CommandPrefix = []string{
@@ -600,6 +601,13 @@ func (d *Dice) loads() {
 						d.Logger.Error(err)
 					}
 				}
+
+				if d.VersionCode < 9909 {
+					ei := d.ExtFind("story")
+					g.ExtActive(ei)
+					ei = d.ExtFind("dnd5e")
+					g.ExtActive(ei)
+				}
 			}
 
 			d.Logger.Info("serve.yaml loaded")
@@ -612,6 +620,8 @@ func (d *Dice) loads() {
 	} else {
 		d.Logger.Info("serve.yaml not found")
 	}
+
+	d.VersionCode = 9909
 
 	// 读取文本模板
 	setupTextTemplate(d)
