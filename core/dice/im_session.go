@@ -39,6 +39,7 @@ type Message struct {
 	UserId        int64  `json:"user_id"`
 	SelfId        int64  `json:"self_id"`
 	Duration      int64  `json:"duration"`
+	Comment       string `json:"comment"`
 
 	Data *struct {
 		// 个人信息
@@ -315,6 +316,19 @@ func (s *IMSession) Serve(index int) int {
 				log.Infof("收到加群邀请: 群组(%d) 邀请人:%d", msg.GroupId, msg.UserId)
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 				SetGroupAddRequest(conn.Socket, msg.Flag, msg.SubType, true, "")
+				return
+			}
+
+			// 好友请求
+			if msg.PostType == "request" && msg.RequestType == "friend" && msg.SubType == "invite" {
+				// {"comment":"123","flag":"1647619872000000","post_type":"request","request_type":"friend","self_id":222,"time":1647619871,"user_id":111}
+				comment := "(无)"
+				if msg.Comment != "" {
+					comment = msg.Comment
+				}
+				log.Infof("收到好友邀请: 邀请人:%d, 附言: %s", msg.UserId, comment)
+				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
+				SetFriendAddRequest(conn.Socket, msg.Flag, true, "")
 				return
 			}
 
