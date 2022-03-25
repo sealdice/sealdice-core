@@ -530,6 +530,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					}
 
 					if cmdArgs.Command == "rah" || cmdArgs.Command == "rch" {
+						ctx.CommandHideFlag = ctx.Group.GroupId
 						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
 						ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
 					} else {

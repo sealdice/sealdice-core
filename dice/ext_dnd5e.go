@@ -31,7 +31,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Version:    "1.0.0",
 		Brief:      "正在努力完成的DND模块",
 		Author:     "木落",
-		AutoActive: false, // 是否自动开启
+		AutoActive: true, // 是否自动开启
 		ConflictWith: []string{
 			"coc7",
 		},

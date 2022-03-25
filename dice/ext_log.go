@@ -29,6 +29,20 @@ type LogOneItem struct {
 // {"data":null,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
 
 func RegisterBuiltinExtLog(self *Dice) {
+	privateCommandListen := map[uint64]int64{}
+
+	privateCommandListenCheck := func() {
+		now := time.Now().Unix()
+		newMap := map[uint64]int64{}
+		for k, v := range privateCommandListen {
+			// 30s间隔以上清除
+			if now-v < 30 {
+				newMap[k] = v
+			}
+		}
+		privateCommandListen = newMap
+	}
+
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:       "log",
 		Version:    "1.0.0",
@@ -47,11 +61,34 @@ func RegisterBuiltinExtLog(self *Dice) {
 			if flag == "skip" {
 				return
 			}
+			privateCommandListenCheck()
+
+			if messageType == "private" && ctx.CommandHideFlag != 0 {
+				if _, exists := privateCommandListen[ctx.CommandId]; exists {
+					session := ctx.Session
+					group := session.ServiceAt[ctx.CommandHideFlag]
+
+					a := LogOneItem{
+						Nickname:  ctx.conn.Nickname,
+						IMUserId:  ctx.conn.UserId,
+						Time:      time.Now().Unix(),
+						Message:   text,
+						IsDice:    true,
+						CommandId: ctx.CommandId,
+					}
+					LogAppend(ctx, group, &a)
+				}
+			}
 			if IsCurGroupBotOnById(ctx.Session, messageType, userId) {
 				session := ctx.Session
 				group := session.ServiceAt[userId]
 				if group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
+					if ctx.CommandHideFlag != 0 {
+						// 记录当前指令和时间
+						privateCommandListen[ctx.CommandId] = time.Now().Unix()
+					}
+
 					a := LogOneItem{
 						Nickname:  ctx.conn.Nickname,
 						IMUserId:  ctx.conn.UserId,
@@ -131,14 +168,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 								ReplyToSender(ctx, msg, text)
 							} else if cmdArgs.IsArgEqual(1, "get") {
 								fn := LogSaveToZip(ctx, group)
-								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色服务正在开发中，目前请使用公开的着色网站进行着色。", fn), "skip")
+								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色网站链接: https://log.weizaima.com 暂时还不能自动上传log，正在开发中……", fn), "skip")
 							} else if cmdArgs.IsArgEqual(1, "end") {
 								ReplyToSender(ctx, msg, "故事落下了帷幕。\n记录已经关闭。")
 								group.LogOn = false
 
 								time.Sleep(time.Duration(0.5 * float64(time.Second)))
 								fn := LogSaveToZip(ctx, group)
-								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色服务正在开发中，目前请使用公开的着色网站进行着色。", fn), "skip")
+								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色网站链接: https://log.weizaima.com 暂时还不能自动上传log，正在开发中……", fn), "skip")
 								group.LogCurName = ""
 							} else if cmdArgs.IsArgEqual(1, "new") {
 								if group.LogCurName != "" {
@@ -176,30 +213,30 @@ func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
 		defer writer.Close()
 
 		text := ""
-		for _, i := range lines {
-			if i.Nickname == "" && i.OldNickname != "" {
-				i.Nickname = i.OldNickname
-			}
-
-			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-			if i.IsDice {
-				text += fmt.Sprintf("[%s] %s(骰子): %s\n", timeTxt, i.Nickname, i.Message)
-			} else {
-				text += fmt.Sprintf("[%s] <%s>: %s\n", timeTxt, i.Nickname, i.Message)
-			}
-		}
-
-		//f, _ := ioutil.TempFile("./temp", "log.*.txt")
-		//f.WriteString(text)
-		//defer f.Close()
-
-		fileWriter, _ := writer.Create("跑团日志(IRC风格).txt")
-		fileWriter.Write([]byte(text))
+		//for _, i := range lines {
+		//	if i.Nickname == "" && i.OldNickname != "" {
+		//		i.Nickname = i.OldNickname
+		//	}
+		//
+		//	timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
+		//	if i.IsDice {
+		//		text += fmt.Sprintf("[%s] %s(骰子): %s\n", timeTxt, i.Nickname, i.Message)
+		//	} else {
+		//		text += fmt.Sprintf("[%s] <%s>: %s\n", timeTxt, i.Nickname, i.Message)
+		//	}
+		//}
+		//
+		////f, _ := ioutil.TempFile("./temp", "log.*.txt")
+		////f.WriteString(text)
+		////defer f.Close()
+		//
+		//fileWriter, _ := writer.Create("跑团日志(IRC风格).txt")
+		//fileWriter.Write([]byte(text))
 
 		// 第二份
 		data, err := json.Marshal(lines)
 		if err == nil {
-			fileWriter, _ = writer.Create("跑团日志(标准格式-着色专用-网站开发中).txt")
+			fileWriter, _ := writer.Create("跑团日志(标准格式-着色专用格式).txt")
 			fileWriter.Write(data)
 		}
 
@@ -210,7 +247,7 @@ func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
 			text += fmt.Sprintf("%s(%d) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
 		}
 
-		fileWriter, _ = writer.Create("跑团日志(类QQ格式).txt")
+		fileWriter, _ := writer.Create("跑团日志(类QQ格式).txt")
 		fileWriter.Write([]byte(text))
 		writer.Close()
 
