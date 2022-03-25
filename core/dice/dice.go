@@ -226,6 +226,15 @@ func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) 
 	return "", "", errors.New("错误的表达式")
 }
 
+func (d *Dice) ExtFind(s string) *ExtInfo {
+	for _, i := range d.ExtList {
+		if i.Name == s {
+			return i
+		}
+	}
+	return nil
+}
+
 func DiceRoll(dicePoints int) int {
 	if dicePoints <= 0 {
 		return 0

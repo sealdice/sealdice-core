@@ -214,6 +214,11 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 
 	addCmdMap("核心指令", dice.CmdMap)
 	for _, i := range dice.ExtList {
+		m.AddItem(HelpTextItem{
+			Title:       i.Name,
+			Content:     i.GetDescText(i),
+			PackageName: "扩展模块",
+		})
 		addCmdMap(i.Name, i.CmdMap)
 	}
 	m.AddItemApply()

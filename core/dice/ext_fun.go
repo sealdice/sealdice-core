@@ -119,7 +119,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:            "fun", // 扩展的名称，需要用于指令中，写简短点
 		Version:         "1.0.0",
-		Brief:           "娱乐扩展，主打抽牌功能、智能鸽子",
+		Brief:           "娱乐扩展，目前提供今日人品和智能鸽子",
 		AutoActive:      true, // 是否自动开启
 		ActiveOnPrivate: true,
 		Author:          "木落",
