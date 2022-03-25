@@ -256,6 +256,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"骰子进群": {
 				{`<{核心:骰子名字}> 已经就绪。可通过.help查看指令列表\n[图:data/images/sealdice.png]`, 1},
 			},
+			"骰子成为好友": {
+				{`<{核心:骰子名字}> 已经就绪。可通过.help查看指令列表，请拉群测试，大部分指令只有群内起效。\n[图:data/images/sealdice.png]`, 1},
+			},
 			"骰子退群预告": {
 				{"收到指令，5s后将退出当前群组", 1},
 			},
