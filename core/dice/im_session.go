@@ -320,7 +320,7 @@ func (s *IMSession) Serve(index int) int {
 			}
 
 			// 好友请求
-			if msg.PostType == "request" && msg.RequestType == "friend" && msg.SubType == "invite" {
+			if msg.PostType == "request" && msg.RequestType == "friend" {
 				// {"comment":"123","flag":"1647619872000000","post_type":"request","request_type":"friend","self_id":222,"time":1647619871,"user_id":111}
 				comment := "(无)"
 				if msg.Comment != "" {
@@ -329,6 +329,18 @@ func (s *IMSession) Serve(index int) int {
 				log.Infof("收到好友邀请: 邀请人:%d, 附言: %s", msg.UserId, comment)
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 				SetFriendAddRequest(conn.Socket, msg.Flag, true, "")
+				return
+			}
+
+			// 好友通过后
+			if msg.NoticeType == "friend_add" && msg.PostType == "post_type" {
+				// {"notice_type":"friend_add","post_type":"notice","self_id":222,"time":1648239248,"user_id":111}
+				ctx := &MsgContext{Session: session, Dice: session.Parent, Socket: conn.Socket, conn: conn}
+				go func() {
+					// 稍作等待后发送入群致词
+					time.Sleep(2 * time.Second)
+					replyPersonRaw(ctx, msg.UserId, DiceFormatTmpl(ctx, "核心:骰子成为好友"), "")
+				}()
 				return
 			}
 
