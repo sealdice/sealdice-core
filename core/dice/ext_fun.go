@@ -86,8 +86,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 	guguRandomPool, _ := wr.NewChooser(choices...)
 
 	cmdGugu := CmdItemInfo{
-		Name:  "gugu",
-		Brief: "获取一个随机的咕咕理由",
+		Name: "gugu",
+		Help: ".gugu 获取一个随机的咕咕理由",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				//p := getPlayerInfoBySender(session, msg)
@@ -99,8 +99,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 
 	cmdJrrp := CmdItemInfo{
-		Name:  "jrrp",
-		Brief: "获得一个D100随机值，一天内不会变化",
+		Name: "jrrp",
+		Help: ".jrrp 获得一个D100随机值，一天内不会变化",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)

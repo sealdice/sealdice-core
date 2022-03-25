@@ -218,6 +218,7 @@ type MsgContext struct {
 	IsPrivate       bool
 	CommandId       uint64
 	CommandHideFlag int64 // 暗骰标记
+	PrivilegeLevel  int64 // 权限等级
 }
 
 var curCommandId uint64 = 0

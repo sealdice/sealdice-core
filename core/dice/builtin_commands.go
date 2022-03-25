@@ -6,7 +6,6 @@ import (
 	"github.com/juliangruber/go-intersect"
 	"math/rand"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -154,33 +153,6 @@ func (d *Dice) registerCoreCommands() {
 
 				text := "海豹核心 " + VERSION + "\n"
 				text += "-----------------------------------------------\n"
-				text += "核心指令列表如下:\n"
-
-				used := map[*CmdItemInfo]bool{}
-				keys := make([]string, 0, len(d.CmdMap))
-				for k, v := range d.CmdMap {
-					if used[v] {
-						continue
-					}
-					keys = append(keys, k)
-					used[v] = true
-				}
-				sort.Strings(keys)
-
-				for _, i := range keys {
-					i := d.CmdMap[i]
-					if i.Help != "" {
-						text += i.Help + "\n"
-					} else {
-						brief := i.Brief
-						if brief != "" {
-							brief = "   // " + brief
-						}
-						text += "." + i.Name + brief + "\n"
-					}
-				}
-
-				text += "注意：由于篇幅此处仅列出核心指令。\n"
 				text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
 				text += "-----------------------------------------------\n"
 				text += DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
@@ -193,9 +165,8 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["help"] = cmdHelp
 
 	cmdBot := &CmdItemInfo{
-		Name:  "bot on/off/about/bye",
-		Brief: "开启、关闭、查看信息、退群",
-		Help:  ".bot on/off/about/bye // 开启、关闭、查看信息、退群",
+		Name: "bot on/off/about/bye",
+		Help: ".bot on/off/about/bye // 开启、关闭、查看信息、退群",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			inGroup := msg.MessageType == "group"
 			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
@@ -465,9 +436,8 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["rhx"] = cmdRoll
 
 	cmdExt := &CmdItemInfo{
-		Name:  "ext",
-		Brief: "查看扩展列表",
-		Help:  ".ext // 查看扩展列表",
+		Name: "ext",
+		Help: ".ext // 查看扩展列表",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsPrivate {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
@@ -649,9 +619,8 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["set"] = cmdSet
 
 	cmdText := &CmdItemInfo{
-		Name:  "text",
-		Brief: "文本指令(测试)，举例: .text 1D16={ 1d16 }，属性计算: 攻击 - 防御 = {攻击} - {防御} = {攻击 - 防御}",
-		Help:  ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}",
+		Name: "text",
+		Help: ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.MessageType == "private" {
 				r, _, err := d.ExprTextBase(cmdArgs.RawArgs, ctx)

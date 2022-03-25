@@ -121,17 +121,11 @@ func (m *HelpManager) Load() {
 		PackageName: "测试",
 	})
 
-	m.AddItem(HelpTextItem{
-		Title:       "help",
-		Content:     "帮助指令，但是还完全没有写任何内容。这仅仅是一条测试。",
-		PackageName: "核心指令",
-	})
-
-	m.AddItem(HelpTextItem{
-		Title:       "查询/find",
-		Content:     "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条",
-		PackageName: "核心指令",
-	})
+	//m.AddItem(HelpTextItem{
+	//	Title:       "查询/find",
+	//	Content:     "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条",
+	//	PackageName: "核心指令",
+	//})
 
 	filepath.WalkDir("data/helpdoc", func(path string, d fs.DirEntry, err error) error {
 		if !d.IsDir() {
@@ -192,6 +186,33 @@ func (m *HelpManager) Load() {
 		}
 		return nil
 	})
+}
+
+func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
+	//lst := map[*CmdItemInfo]bool{}
+	//for _, v := range dice.CmdMap {
+	//	lst[v] = true
+	//}
+	m := dm.Help
+
+	addCmdMap := func(packageName string, cmdMap CmdMapCls) {
+		for k, v := range cmdMap {
+			content := v.LongHelp
+			if content == "" {
+				content = v.Help
+			}
+			m.AddItem(HelpTextItem{
+				Title:       k,
+				Content:     content,
+				PackageName: packageName,
+			})
+		}
+	}
+
+	addCmdMap("核心指令", dice.CmdMap)
+	for _, i := range dice.ExtList {
+		addCmdMap(i.Name, i.CmdMap)
+	}
 }
 
 func (m *HelpManager) AddItem(item HelpTextItem) error {

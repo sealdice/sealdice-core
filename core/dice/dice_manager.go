@@ -86,6 +86,10 @@ func (dm *DiceManager) InitDice() {
 		i.Parent = dm
 		i.Init()
 	}
+
+	if len(dm.Dice) >= 1 {
+		dm.AddHelpWithDice(dm.Dice[0])
+	}
 }
 
 func (dm *DiceManager) TryCreateDefault() {
