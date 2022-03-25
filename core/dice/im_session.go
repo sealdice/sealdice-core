@@ -87,6 +87,7 @@ type ServiceAtItem struct {
 	Platform    string          `yaml:"platform"` // 默认为QQ（为空）
 	DiceIds     map[string]bool `yaml:"diceIds"`  // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
 	DiceSideNum int64           `yaml:"diceSideNum"`
+	BotList     map[string]bool `yaml:"botList"` // 其他骰子列表
 
 	ValueMap     map[string]*VMValue `yaml:"-"`
 	CocRuleIndex int                 `yaml:"cocRuleIndex"`
@@ -504,6 +505,32 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		if i.UserId == ctx.conn.UserId {
 			cmdArgs.AmIBeMentioned = true
 			break
+		}
+	}
+
+	cmdArgs.SomeoneBeMentionedButNotMe = len(cmdArgs.At) > 0 && (!cmdArgs.AmIBeMentioned)
+	if cmdArgs.MentionedOtherDice {
+		return
+	}
+
+	myuid := FormatDiceIdQQ(ctx.conn.UserId)
+	uid := FormatDiceIdQQ(msg.Sender.UserId)
+
+	if cmdArgs.Command != "botlist" && !cmdArgs.AmIBeMentioned {
+		// 屏蔽机器人发送的消息
+		if ctx.Group.BotList[uid] {
+			return
+		}
+		// 当其他机器人被@，不回应
+		for _, i := range cmdArgs.At {
+			uid := FormatDiceIdQQ(i.UserId)
+			if uid == myuid {
+				// 忽略自己
+				continue
+			}
+			if ctx.Group.BotList[uid] {
+				return
+			}
 		}
 	}
 

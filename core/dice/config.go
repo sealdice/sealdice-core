@@ -578,6 +578,9 @@ func (d *Dice) loads() {
 				if g.DiceIds == nil {
 					g.DiceIds = map[string]bool{}
 				}
+				if g.BotList == nil {
+					g.BotList = map[string]bool{}
+				}
 
 				// 个人群组数据
 				for _, p := range g.Players {
