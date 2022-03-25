@@ -106,6 +106,76 @@ func SetGroupAddRequest(socket *gowebsocket.Socket, flag string, subType string,
 	//socket.SendText(string(a))
 }
 
+// GetGroupMemberInfo 获取群成员信息
+func GetGroupMemberInfo(socket *gowebsocket.Socket, GroupId int64, UserId int64) {
+	type DetailParams struct {
+		GroupId int64 `json:"group_id"`
+		UserId  int64 `json:"user_id"`
+		NoCache bool  `json:"no_cache"`
+	}
+
+	a, _ := json.Marshal(struct {
+		Action string       `json:"action"`
+		Params DetailParams `json:"params"`
+		Echo   int64        `json:"echo"`
+	}{
+		"get_group_member_info",
+		DetailParams{
+			GroupId: GroupId,
+			UserId:  UserId,
+		},
+		-3,
+	})
+
+	socketSendText(socket, string(a))
+}
+
+// SetGroupCard 设置群名片
+func SetGroupCard(socket *gowebsocket.Socket, GroupId int64, UserId int64, Card string) {
+	type DetailParams struct {
+		GroupId int64  `json:"group_id"`
+		UserId  int64  `json:"user_id"`
+		Card    string `json:"card"`
+	}
+
+	a, _ := json.Marshal(struct {
+		Action string       `json:"action"`
+		Params DetailParams `json:"params"`
+	}{
+		"set_group_card",
+		DetailParams{
+			GroupId: GroupId,
+			UserId:  UserId,
+			Card:    Card,
+		},
+	})
+
+	socketSendText(socket, string(a))
+}
+
+func SetFriendAddRequest(socket *gowebsocket.Socket, flag string, approve bool, remark string) {
+	type DetailParams struct {
+		Flag    string `json:"flag"`
+		Remark  string `json:"remark"` // 备注名
+		Approve bool   `json:"approve"`
+		//Reason  string `json:"reason"`
+	}
+
+	a, _ := json.Marshal(struct {
+		Action string       `json:"action"`
+		Params DetailParams `json:"params"`
+	}{
+		"set_friend_add_request",
+		DetailParams{
+			Flag:    flag,
+			Approve: approve,
+			Remark:  remark,
+		},
+	})
+
+	socketSendText(socket, string(a))
+}
+
 func QuitGroup(ctx *MsgContext, groupId int64) {
 	type GroupMessageParams struct {
 		GroupId int64 `json:"group_id"`
