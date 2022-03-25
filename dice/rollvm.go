@@ -113,6 +113,7 @@ type RollExtraFlags struct {
 	CocVarNumberMode   bool // 特殊的变量模式，此时这种类型的变量“力量50”被读取为50，而解析的文本被算作“力量”，如果没有后面的数字则正常进行
 	CocDefaultAttrOn   bool // 启用COC的默认属性值，如攀爬20等
 	DefaultDiceSideNum int64
+	IgnoreDiv0         bool // 当div0时暂不报错
 }
 
 type RollExpression struct {
@@ -500,8 +501,14 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			a.Value = aInt * bInt
 		case TypeDivide:
 			checkDice(&code)
-			if bInt == 0 {
-				return nil, "", errors.New("E2:被除数为0")
+			if e.flags.IgnoreDiv0 {
+				if bInt == 0 {
+					bInt = 1 // 这种情况是为了读取 sc 1/0 的值，不是真的做运算，注意！！
+				}
+			} else {
+				if bInt == 0 {
+					return nil, "", errors.New("E2:被除数为0")
+				}
 			}
 			a.Value = aInt / bInt
 		case TypeModulus:
