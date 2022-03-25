@@ -12,15 +12,7 @@ func RegisterBuiltinExtReply(self *Dice) {
 			//p.TempValueAlias = &ac.Alias;
 		},
 		GetDescText: func(i *ExtInfo) string {
-			text := "> " + i.Brief + "\n" + "提供命令:\n"
-			for _, i := range i.CmdMap {
-				brief := i.Brief
-				if brief != "" {
-					brief = " // " + brief
-				}
-				text += "." + i.Name + brief + "\n"
-			}
-			return text
+			return GetExtensionDesc(i)
 		},
 		CmdMap: CmdMapCls{
 			"reply": &CmdItemInfo{

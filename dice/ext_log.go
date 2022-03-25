@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"time"
 )
@@ -120,23 +119,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			}
 		},
 		GetDescText: func(ei *ExtInfo) string {
-			text := "> " + ei.Brief + "\n" + "提供命令:\n"
-			keys := make([]string, 0, len(ei.CmdMap))
-			for k := range ei.CmdMap {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-
-			for _, i := range keys {
-				i := ei.CmdMap[i]
-				brief := i.Brief
-				if brief != "" {
-					brief = " // " + brief
-				}
-				text += i.Name + brief + "\n"
-			}
-
-			return text
+			return GetExtensionDesc(ei)
 		},
 		CmdMap: CmdMapCls{
 			"log": &CmdItemInfo{
@@ -168,14 +151,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 								ReplyToSender(ctx, msg, text)
 							} else if cmdArgs.IsArgEqual(1, "get") {
 								fn := LogSaveToZip(ctx, group)
-								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色网站链接: https://log.weizaima.com 暂时还不能自动上传log，正在开发中……", fn), "skip")
+								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色网站链接: https://log.weizaima.com 暂时还不能自动上传log，开发中……", fn), "skip")
 							} else if cmdArgs.IsArgEqual(1, "end") {
 								ReplyToSender(ctx, msg, "故事落下了帷幕。\n记录已经关闭。")
 								group.LogOn = false
 
 								time.Sleep(time.Duration(0.5 * float64(time.Second)))
 								fn := LogSaveToZip(ctx, group)
-								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色网站链接: https://log.weizaima.com 暂时还不能自动上传log，正在开发中……", fn), "skip")
+								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色网站链接: https://log.weizaima.com 暂时还不能自动上传log，开发中……", fn), "skip")
 								group.LogCurName = ""
 							} else if cmdArgs.IsArgEqual(1, "new") {
 								if group.LogCurName != "" {

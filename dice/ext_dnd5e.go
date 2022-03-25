@@ -40,7 +40,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			//p.TempValueAlias = &ac.Alias;
 		},
 		GetDescText: func(i *ExtInfo) string {
-			return ""
+			return GetExtensionDesc(i)
 		},
 		CmdMap: CmdMapCls{
 			"dnd": &CmdItemInfo{
