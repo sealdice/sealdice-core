@@ -61,6 +61,7 @@ type Message struct {
 // PlayerInfo 群内玩家信息
 type PlayerInfo struct {
 	UserId int64  `yaml:"userId"`
+	UID    string `yaml:"UID"`
 	Name   string // 玩家昵称
 	//ValueNumMap    map[string]int64  `yaml:"valueNumMap"`
 	//ValueStrMap    map[string]string `yaml:"valueStrMap"`
@@ -125,10 +126,10 @@ func (group *ServiceAtItem) ExtInactive(name string) *ExtInfo {
 	for index, i := range group.ActivatedExtList {
 		if i.Name == name {
 			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
+			group.ExtClear()
 			return i
 		}
 	}
-	group.ExtClear()
 	return nil
 }
 
@@ -218,7 +219,7 @@ type MsgContext struct {
 	IsPrivate       bool
 	CommandId       uint64
 	CommandHideFlag int64 // 暗骰标记
-	PrivilegeLevel  int64 // 权限等级
+	PrivilegeLevel  int   // 权限等级
 }
 
 var curCommandId uint64 = 0
@@ -432,6 +433,9 @@ func (s *IMSession) Serve(index int) int {
 				mctx.Group = sa
 				mctx.Player = GetPlayerInfoBySender(session, msg)
 				mctx.IsCurGroupBotOn = IsCurGroupBotOn(session, msg)
+				if session.Parent.MasterCheck(mctx.Player.UID) {
+					mctx.PrivilegeLevel = 100
+				}
 
 				if sa != nil && sa.Active {
 					for _, i := range sa.ActivatedExtList {

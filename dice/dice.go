@@ -235,6 +235,42 @@ func (d *Dice) ExtFind(s string) *ExtInfo {
 	return nil
 }
 
+func (d *Dice) MasterClear() {
+	m := map[string]bool{}
+	var lst []string
+
+	for _, i := range d.DiceMasters {
+		if !m[i] {
+			m[i] = true
+			lst = append(lst, i)
+		}
+	}
+	d.DiceMasters = lst
+}
+
+func (d *Dice) MasterAdd(uid string) {
+	d.DiceMasters = append(d.DiceMasters, uid)
+}
+
+func (d *Dice) MasterCheck(uid string) bool {
+	for _, i := range d.DiceMasters {
+		if i == uid {
+			return true
+		}
+	}
+	return false
+}
+
+func (d *Dice) MasterRemove(uid string) bool {
+	for index, i := range d.DiceMasters {
+		if i == uid {
+			d.DiceMasters = append(d.DiceMasters[:index], d.DiceMasters[index+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 func DiceRoll(dicePoints int) int {
 	if dicePoints <= 0 {
 		return 0
