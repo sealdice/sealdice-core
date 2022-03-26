@@ -50,9 +50,13 @@ func SetBotOnAtGroup(ctx *MsgContext, msg *Message) {
 
 /** 这几条指令不能移除 */
 func (d *Dice) registerCoreCommands() {
+	HelpForFind := ".find <关键字> // 查找文档。关键字可以多个，用空格分割\n" +
+		".find <数字ID> // 显示该ID的词条\n" +
+		".find --rand // 显示随机词条"
 	cmdSearch := &CmdItemInfo{
-		Name: "find",
-		Help: ".查询 // 寻找文档",
+		Name:     "find",
+		Help:     HelpForFind,
+		LongHelp: "查询指令，通常使用全文搜索(x86版)或快速查询(arm, 移动版)\n" + HelpForFind + "\n注: 默认搭载的《怪物之锤查询》文档来自蜜瓜包、October整理\n默认搭载的DND系列文档来自DicePP项目",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				var id string
@@ -131,9 +135,14 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["查询"] = cmdSearch
 	d.CmdMap["find"] = cmdSearch
 
+	HelpForHelp := ".help // 查看本帮助\n" +
+		".help 指令 // 查看某指令信息\n" +
+		".help 扩展模块 // 查看扩展信息，如.help coc7\n" +
+		".help 关键字 // 查看任意帮助，同.find"
 	cmdHelp := &CmdItemInfo{
-		Name: "help",
-		Help: ".help // 查看本帮助",
+		Name:     "help",
+		Help:     HelpForHelp,
+		LongHelp: "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if _, exists := cmdArgs.GetArgN(1); exists {
@@ -153,7 +162,17 @@ func (d *Dice) registerCoreCommands() {
 
 				text := "海豹核心 " + VERSION + "\n"
 				text += "-----------------------------------------------\n"
-				text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
+				text += ".help 骰点" + "\n"
+				text += ".help 娱乐" + "\n"
+				text += ".help 扩展" + "\n"
+				text += ".help 跑团" + "\n"
+				text += ".help 设置" + "\n"
+				text += ".help 日志" + "\n"
+				text += ".help 其他" + "\n"
+				text += "官网(建设中): https://sealdice.com/" + "\n"
+				text += "日志着色器: http://log.weizaima.com/" + "\n"
+				text += "测试群: 524364253" + "\n"
+				//text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
 				text += "-----------------------------------------------\n"
 				text += DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
 				ReplyToSender(ctx, msg, text)
@@ -267,11 +286,13 @@ func (d *Dice) registerCoreCommands() {
 		return uidLst
 	}
 
+	botListHelp := ".botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话\n" +
+		".botlist del @A @B @C // 去除机器人标记\n" +
+		".botlist list // 查看当前列表"
 	cmdBotList := &CmdItemInfo{
-		Name: "botlist",
-		Help: ".botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话\n" +
-			".botlist del @A @B @C // 去除机器人标记\n" +
-			".botlist list // 查看当前列表",
+		Name:     "botlist",
+		Help:     botListHelp,
+		LongHelp: "机器人列表:\n" + botListHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn {
 				subCmd, _ := cmdArgs.GetArgN(1)

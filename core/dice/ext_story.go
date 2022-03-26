@@ -14,6 +14,9 @@ func RegisterBuiltinStory(self *Dice) {
 		GetDescText: func(i *ExtInfo) string {
 			return GetExtensionDesc(i)
 		},
+		OnLoad: func() {
+
+		},
 		CmdMap: CmdMapCls{
 			"name": &CmdItemInfo{
 				Name: "name",
