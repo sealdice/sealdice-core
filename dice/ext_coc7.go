@@ -370,7 +370,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Help: ".rc/ra (<检定表达式，默认d100>) <属性表达式> (@某人) // 属性检定指令，当前者小于后者，检定通过。当@某人时，对此人做检定\n" +
 			".rch/rah // 暗中检定，和鉴定指令用法相同",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 1 {
+			if ctx.IsCurGroupBotOn {
 				if len(cmdArgs.Args) >= 1 {
 					mctx := &*ctx // 复制一个ctx，用于其他用途
 					if len(cmdArgs.At) > 0 {

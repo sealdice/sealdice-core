@@ -39,7 +39,9 @@ archives:
         format: zip
     files:
       - "SealDice 指令手册.pdf"
-      - src: data/helpdoc/蜜瓜包-怪物之锤查询.json
+      - src: data/helpdoc/COC
+        dst: .
+      - src: data/helpdoc/DND
         dst: .
       - src: data/names
         dst: .
