@@ -123,6 +123,81 @@ func (m *HelpManager) Load() {
 		PackageName: "测试",
 	})
 
+	m.AddItem(HelpTextItem{
+		Title: "骰点",
+		Content: `.help 骰点：
+ .r  //丢一个100面骰
+.r d10 //丢一个10面骰(数字可改)
+.r 3d6 //丢3个6面骰(数字可改)
+.ra 侦查 //侦查技能检定
+.ra 侦查+10 //技能临时加值检定
+.ra 3#p 射击 // 连续射击三次`,
+		PackageName: "帮助",
+	})
+
+	m.AddItem(HelpTextItem{
+		Title: "娱乐",
+		Content: `.gugu // 随机召唤一只鸽子
+.jrrp 今日人品
+`,
+		PackageName: "帮助",
+	})
+
+	m.AddItem(HelpTextItem{
+		Title: "扩展",
+		Content: `.help 扩展：
+.ext coc7 // 打开coc7版扩展
+.ext dnd5e // 打开dnd5版扩展
+`,
+		PackageName: "帮助",
+	})
+
+	m.AddItem(HelpTextItem{
+		Title: "日志",
+		Content: `.help 日志：
+.log new //新建记录
+.log on //开始记录
+.log off //暂停纪录
+.log end //结束记录并导出
+`,
+		PackageName: "帮助",
+	})
+
+	m.AddItem(HelpTextItem{
+		Title: "跑团",
+		Content: `.help 跑团：
+.st 力量50 //载入技能/属性
+.coc // coc7版人物做成
+.dnd // dnd5版任务做成
+.ch save <角色名> //保存角色，无角色名则为当前
+.ch load <角色名> //加载角色，无角色名则为当前
+.ch list //列出当前角色
+.ch del <角色名> //删除角色
+.setcoc 2 //设置为coc2版房规
+.nn 张三 //将自己的角色名设置为张三
+`,
+		PackageName: "帮助",
+	})
+
+	m.AddItem(HelpTextItem{
+		Title: "骰主",
+		Content: `.botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话
+.botlist del @A @B @C // 去除机器人标记
+.botlist list // 查看当前列表
+.master add me @A @B // 标记骰主
+.send <留言> // 给骰主留言
+`,
+		PackageName: "帮助",
+	})
+
+	m.AddItem(HelpTextItem{
+		Title: "其他",
+		Content: `.find 克苏鲁星之眷族 //查找对应怪物资料
+.find 70尺 法术 // 查找关联资料（仅在全文搜索开启时可用）
+`,
+		PackageName: "帮助",
+	})
+
 	//m.AddItem(HelpTextItem{
 	//	Title:       "查询/find",
 	//	Content:     "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条",
