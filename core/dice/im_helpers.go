@@ -36,6 +36,7 @@ func GetPlayerInfoBySender(session *IMSession, msg *Message) *PlayerInfo {
 			}
 			players[msg.Sender.UserId] = p
 		}
+		p.UID = FormatDiceIdQQ(p.UserId) // TODO: 记得改
 		if p.ValueMap == nil {
 			p.ValueMap = map[string]*VMValue{}
 		}
@@ -52,6 +53,7 @@ func GetPlayerInfoBySender(session *IMSession, msg *Message) *PlayerInfo {
 	return &PlayerInfo{
 		Name:         msg.Sender.Nickname,
 		UserId:       msg.Sender.UserId,
+		UID:          FormatDiceIdQQ(msg.Sender.UserId),
 		ValueMap:     map[string]*VMValue{},
 		ValueMapTemp: map[string]*VMValue{},
 	}

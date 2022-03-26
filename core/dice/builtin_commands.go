@@ -244,6 +244,29 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["bot"] = cmdBot
 
+	readIdList := func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) []string {
+		uidLst := []string{}
+		for _, i := range cmdArgs.At {
+			uidLst = append(uidLst, i.UID)
+		}
+
+		if len(cmdArgs.Args) > 1 {
+			for _, i := range cmdArgs.Args[1:] {
+				if i == "me" {
+					uid := FormatDiceIdQQ(ctx.Player.UserId)
+					uidLst = append(uidLst, uid)
+					continue
+				}
+				qq, err := strconv.ParseInt(i, 10, 64)
+				if err == nil {
+					uid := FormatDiceIdQQ(qq)
+					uidLst = append(uidLst, uid)
+				}
+			}
+		}
+		return uidLst
+	}
+
 	cmdBotList := &CmdItemInfo{
 		Name: "botlist",
 		Help: ".botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话\n" +
@@ -256,8 +279,7 @@ func (d *Dice) registerCoreCommands() {
 				case "add":
 					existsCount := 0
 					newCount := 0
-					for _, i := range cmdArgs.At {
-						uid := FormatDiceIdQQ(i.UserId)
+					for _, uid := range readIdList(ctx, msg, cmdArgs) {
 						if ctx.Group.BotList[uid] {
 							existsCount += 1
 						} else {
@@ -269,8 +291,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "del", "rm":
 					existsCount := 0
-					for _, i := range cmdArgs.At {
-						uid := FormatDiceIdQQ(i.UserId)
+					for _, uid := range readIdList(ctx, msg, cmdArgs) {
 						if ctx.Group.BotList[uid] {
 							existsCount += 1
 							delete(ctx.Group.BotList, uid)
@@ -282,7 +303,10 @@ func (d *Dice) registerCoreCommands() {
 					text := ""
 					for i, _ := range ctx.Group.BotList {
 						// uid := FormatDiceIdQQ(i)
-						text += "- " + i
+						text += "- " + i + "\n"
+					}
+					if text == "" {
+						text = "无"
 					}
 					ReplyToSender(ctx, msg, fmt.Sprintf("群内其他机器人列表:\n%s", text))
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -295,6 +319,106 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["botlist"] = cmdBotList
+
+	cmdMaster := &CmdItemInfo{
+		Name: "master",
+		Help: ".master // 骰主指令",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
+				if ctx.IsCurGroupBotOn && cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				pRequired := 0
+				if len(ctx.Dice.DiceMasters) >= 1 {
+					pRequired = 100
+				}
+				if ctx.PrivilegeLevel < pRequired {
+					subCmd, _ := cmdArgs.GetArgN(1)
+					if subCmd == "unlock" {
+						// 特殊解锁指令
+					}
+
+					ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				subCmd, _ := cmdArgs.GetArgN(1)
+				switch subCmd {
+				case "add":
+					newCount := 0
+					for _, uid := range readIdList(ctx, msg, cmdArgs) {
+						ctx.Dice.MasterAdd(uid)
+						newCount += 1
+					}
+					ctx.Dice.Save(false)
+					ReplyToSender(ctx, msg, fmt.Sprintf("海豹将新增%d位master", newCount))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				case "del", "rm":
+					existsCount := 0
+					for _, uid := range readIdList(ctx, msg, cmdArgs) {
+						if ctx.Dice.MasterRemove(uid) {
+							existsCount += 1
+						}
+					}
+					ctx.Dice.Save(false)
+					ReplyToSender(ctx, msg, fmt.Sprintf("海豹移除了%d名master", existsCount))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				case "list":
+					text := ""
+					for _, i := range ctx.Dice.DiceMasters {
+						// uid := FormatDiceIdQQ(i)
+						text += "- " + i + "\n"
+					}
+					if text == "" {
+						text = "无"
+					}
+					ReplyToSender(ctx, msg, fmt.Sprintf("Master列表:\n%s", text))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				default:
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+	d.CmdMap["master"] = cmdMaster
+
+	cmdSend := &CmdItemInfo{
+		Name: "send",
+		Help: ".send // 私聊发送",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
+				if ctx.IsCurGroupBotOn && cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				if _, exists := cmdArgs.GetArgN(1); exists {
+					for _, i := range ctx.Dice.DiceMasters {
+						lst := strings.SplitN(i, ":", 2)
+						if lst[0] == "QQ" {
+							val, _ := strconv.ParseInt(lst[1], 10, 64)
+							text := ""
+
+							if ctx.IsCurGroupBotOn {
+								text += fmt.Sprintf("一条来自群组<%s>(%d)，作者<%s>(%d)的留言:\n", ctx.Group.GroupName, ctx.Group.GroupId, ctx.Player.Name, ctx.Player.UserId)
+							} else {
+								text += fmt.Sprintf("一条来自私聊，作者<%s>(%d)的留言:\n", ctx.Player.Name, ctx.Player.UserId)
+							}
+
+							text += cmdArgs.CleanArgs
+							replyPersonRaw(ctx, val, text, "")
+						}
+					}
+					ReplyToSender(ctx, msg, "您的留言已被记录，另外注意不要滥用此功能，祝您生活愉快，再会。")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+	d.CmdMap["send"] = cmdSend
 
 	cmdRoll := &CmdItemInfo{
 		Name: "roll",

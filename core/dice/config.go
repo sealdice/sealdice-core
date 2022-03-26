@@ -602,6 +602,13 @@ func (d *Dice) loads() {
 					}
 				}
 
+				if g.GroupId == 0 {
+					// 如果是个人私聊，那么拉满
+					for _, i := range d.ExtList {
+						g.ExtActive(i)
+					}
+				}
+
 				if d.VersionCode < 9909 {
 					ei := d.ExtFind("story")
 					g.ExtActive(ei)
