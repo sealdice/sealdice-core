@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sealdice-core/dice/model"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -33,6 +34,13 @@ type TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
 //const CONFIG_TEXT_TEMPLATE_FILE = "./data/configs/text-template.yaml"
 
 func setupBaseTextTemplate(d *Dice) {
+	reGugu := regexp.MustCompile(`[\r\n]+`)
+	var guguReason []TextTemplateItem
+
+	for _, i := range reGugu.Split(strings.TrimSpace(guguText), -1) {
+		guguReason = append(guguReason, []interface{}{i, 1})
+	}
+
 	texts := TextTemplateWithWeightDict{
 		"COC": {
 			"设置房规_0": {
@@ -343,6 +351,7 @@ func setupBaseTextTemplate(d *Dice) {
 			"今日人品": {
 				{"{$t玩家}的今日人品为{$t人品}", 1},
 			},
+			"鸽子理由": guguReason,
 		},
 		"牌堆": {
 			"抽牌_列表_没有牌组": {
