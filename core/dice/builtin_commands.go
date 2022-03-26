@@ -287,6 +287,7 @@ func (d *Dice) registerCoreCommands() {
 	}
 
 	botListHelp := ".botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话\n" +
+		".botlist add @A @B --s  // 同上，不过骰子不会做出回复\n" +
 		".botlist del @A @B @C // 去除机器人标记\n" +
 		".botlist list // 查看当前列表"
 	cmdBotList := &CmdItemInfo{
@@ -308,7 +309,10 @@ func (d *Dice) registerCoreCommands() {
 							newCount += 1
 						}
 					}
-					ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d个帐号，这些账号将被视为机器人。\n因此别人@他们时，海豹将不会回复。\n他们的指令也会被海豹忽略，避免发生循环回复事故", newCount))
+
+					if cmdArgs.GetKwarg("s") == nil || cmdArgs.GetKwarg("slience") == nil {
+						ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d个帐号，这些账号将被视为机器人。\n因此别人@他们时，海豹将不会回复。\n他们的指令也会被海豹忽略，避免发生循环回复事故", newCount))
+					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "del", "rm":
 					existsCount := 0
@@ -334,6 +338,8 @@ func (d *Dice) registerCoreCommands() {
 				default:
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				}
+			} else if ctx.IsPrivate {
+				ReplyToSender(ctx, msg, fmt.Sprintf("私聊中不支持这个指令"))
 			}
 
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -341,9 +347,15 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["botlist"] = cmdBotList
 
+	masterListHelp := `.master add me // 将自己标记为骰主
+.master add @A @B // 将别人标记为骰主
+.master del @A @B @C // 去除骰主标记
+.master unlock <密码> // 清空骰主列表，并使自己成为骰主
+.master list // 查看当前骰主列表`
 	cmdMaster := &CmdItemInfo{
-		Name: "master",
-		Help: ".master // 骰主指令",
+		Name:     "master",
+		Help:     masterListHelp,
+		LongHelp: "骰主指令:\n" + masterListHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				if ctx.IsCurGroupBotOn && cmdArgs.SomeoneBeMentionedButNotMe {
@@ -406,8 +418,9 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["master"] = cmdMaster
 
 	cmdSend := &CmdItemInfo{
-		Name: "send",
-		Help: ".send // 私聊发送",
+		Name:     "send",
+		Help:     ".send // 向骰主留言",
+		LongHelp: "留言指令:\n.send // 向骰主留言",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				if ctx.IsCurGroupBotOn && cmdArgs.SomeoneBeMentionedButNotMe {
