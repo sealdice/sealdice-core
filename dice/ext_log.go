@@ -123,7 +123,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 		},
 		CmdMap: CmdMapCls{
 			"log": &CmdItemInfo{
-				Name: ".log",
+				Name: "log",
+				Help: "",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn {
 						group := ctx.Group
