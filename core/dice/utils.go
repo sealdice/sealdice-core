@@ -3,14 +3,16 @@ package dice
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"mime/multipart"
 	"net"
 	"net/http"
 	"regexp"
+	"strings"
+	"time"
 )
 
 func RemoveSpace(s string) string {
@@ -60,7 +62,6 @@ func UploadFileToWeizaima(log *zap.SugaredLogger, name string, uniformId string,
 		log.Fatal(err)
 	}
 
-	fmt.Println("???", string(bodyText))
 	var ret struct {
 		Url string `json:"url"`
 	}
@@ -159,6 +160,34 @@ func UploadFileToFileIo(log *zap.SugaredLogger, filename string, data io.Reader)
 	//size: 1359
 	//status: 200
 	//Success: true
+}
+
+const letterBytes = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ123456789"
+const (
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
+
+var randSrc = rand.NewSource(time.Now().UnixNano())
+
+func RandStringBytesMaskImprSrcSB(n int) string {
+	sb := strings.Builder{}
+	sb.Grow(n)
+	// A randSrc.Int63() generates 63 random bits, enough for letterIdxMax characters!
+	for i, cache, remain := n-1, randSrc.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = randSrc.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			sb.WriteByte(letterBytes[idx])
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+
+	return sb.String()
 }
 
 func JsonNumberUnmarshal(data []byte, v interface{}) error {

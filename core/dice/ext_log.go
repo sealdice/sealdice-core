@@ -1,16 +1,17 @@
 package dice
 
 import (
-	"archive/zip"
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/alexmullins/zip"
 	"go.etcd.io/bbolt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -43,6 +44,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 		}
 		privateCommandListen = newMap
 	}
+
+	helpLog := `.log new (<日志名>) // 新建日志并开始记录
+.log on (<日志名>)  // 开始记录，不写日志名则开启最近一次日志
+.log off // 暂停记录
+.log end // 完成记录并发送日志文件
+.log list // 查看当前群的日志列表`
 
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:       "log",
@@ -125,8 +132,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 		},
 		CmdMap: CmdMapCls{
 			"log": &CmdItemInfo{
-				Name: "log",
-				Help: "",
+				Name:     "log",
+				Help:     helpLog,
+				LongHelp: "日志指令:\n" + helpLog,
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn {
 						group := ctx.Group
@@ -136,44 +144,94 @@ func RegisterBuiltinExtLog(self *Dice) {
 							if group.LogOn {
 								onText = "开启"
 							}
-							text := fmt.Sprintf("记录，当前状态: %s\n已记录文本%d条", onText, LogLinesGet(ctx, group))
+							lines, _ := LogLinesGet(ctx, group, group.LogCurName)
+							text := fmt.Sprintf("当前故事: %s\n当前状态: %s\n已记录文本%d条", group.LogCurName, onText, lines)
 							ReplyToSender(ctx, msg, text)
+							return CmdExecuteResult{Matched: true, Solved: true}
 						} else {
 							if cmdArgs.IsArgEqual(1, "on") {
-								if group.LogCurName != "" {
-									group.LogOn = true
-									text := fmt.Sprintf("记录已经继续开启，当前已记录文本%d条", LogLinesGet(ctx, group))
-									ReplyToSender(ctx, msg, text)
-								} else {
-									text := fmt.Sprintf("旅程尚未开始，请使用.log new开始")
-									ReplyToSender(ctx, msg, text)
+								name, _ := cmdArgs.GetArgN(2)
+								if name == "" {
+									name = group.LogCurName
 								}
+
+								if name != "" {
+									lines, exists := LogLinesGet(ctx, group, name)
+
+									if exists {
+										group.LogOn = true
+										group.LogCurName = name
+
+										VarSetValueStr(ctx, "$t记录名称", name)
+										VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
+										ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_成功"))
+									} else {
+										VarSetValueStr(ctx, "$t记录名称", name)
+										ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_无此记录"))
+									}
+								} else {
+									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_尚未新建"))
+								}
+								return CmdExecuteResult{Matched: true, Solved: true}
 							} else if cmdArgs.IsArgEqual(1, "off") {
-								group.LogOn = false
-								text := fmt.Sprintf("记录已经暂时关闭，当前已记录文本%d条\n结束故事请用.log end", LogLinesGet(ctx, group))
-								ReplyToSender(ctx, msg, text)
-							} else if cmdArgs.IsArgEqual(1, "get") {
-								fn := LogSendToBackend(ctx, group)
-								if fn == "" {
-									ReplyToSenderRaw(ctx, msg, "跑团日志上传失败，可联系骰主在data/default/logs路径下取出", "skip")
+								if group.LogCurName != "" {
+									group.LogOn = false
+									lines, _ := LogLinesGet(ctx, group, group.LogCurName)
+									VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
+									VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
+									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_成功"))
 								} else {
-									ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
+									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
 								}
+								return CmdExecuteResult{Matched: true, Solved: true}
+							} else if cmdArgs.IsArgEqual(1, "get") {
+								if ctx.Group.LogCurName != "" {
+									fn, password := LogSendToBackend(ctx, group)
+									if fn == "" {
+										text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+										ReplyToSenderRaw(ctx, msg, text, "skip")
+									} else {
+										time.Sleep(time.Duration(0.3 * float64(time.Second)))
+										text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+										ReplyToSenderRaw(ctx, msg, text, "skip")
+									}
+								}
+								return CmdExecuteResult{Matched: true, Solved: true}
 							} else if cmdArgs.IsArgEqual(1, "end") {
-								ReplyToSender(ctx, msg, "故事落下了帷幕。\n记录已经关闭。")
+								text := DiceFormatTmpl(ctx, "日志:记录_结束")
+								ReplyToSender(ctx, msg, text)
 								group.LogOn = false
 
 								time.Sleep(time.Duration(0.3 * float64(time.Second)))
-								fn := LogSendToBackend(ctx, group)
+								fn, password := LogSendToBackend(ctx, group)
 								if fn == "" {
-									ReplyToSenderRaw(ctx, msg, "跑团日志上传失败，可联系骰主在data/default/logs路径下取出", "skip")
+									ReplyToSenderRaw(ctx, msg, "跑团日志上传失败，可联系骰主在data/default/logs路径下取出\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: "+password+" (密钥中不含ilo0字符)", "skip")
 								} else {
 									ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
+									time.Sleep(time.Duration(0.3 * float64(time.Second)))
+									text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s (密钥中不含ilo0字符)", password)
+									ReplyToSenderRaw(ctx, msg, text, "skip")
 								}
 								group.LogCurName = ""
+								return CmdExecuteResult{Matched: true, Solved: true}
+							} else if cmdArgs.IsArgEqual(1, "list") {
+								text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
+								lst, err := LogGetList(ctx, group)
+								if err == nil {
+									for _, i := range lst {
+										text += "- " + i + "\n"
+									}
+									if len(lst) == 0 {
+										text += "暂无记录"
+									}
+								} else {
+									text += "获取记录出错，请联系骰主查看服务日志"
+								}
+								ReplyToSender(ctx, msg, text)
+								return CmdExecuteResult{Matched: true, Solved: true}
 							} else if cmdArgs.IsArgEqual(1, "new") {
 								if group.LogCurName != "" {
-									ReplyToSender(ctx, msg, "上一段旅程还未结束，请先使用.log end结束故事")
+									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
 								} else {
 									name, _ := cmdArgs.GetArgN(2)
 									if name == "" {
@@ -182,15 +240,17 @@ func RegisterBuiltinExtLog(self *Dice) {
 									}
 									group.LogCurName = name
 									group.LogOn = true
-									ReplyToSender(ctx, msg, "新的故事开始了，祝旅途愉快！\n记录已经开启。")
-									//replyToSender(ctx, msg, "log new")
-									//fmt.Println("新的故事开始了，祝旅途愉快！\n记录已经开启。")
-									//fmt.Println("!!!", err)
-									//err := b.Put([]byte("answer"), []byte("42"))
-									//replyToSender(ctx, msg, "似乎出了一点问题，与数据库的连接失败了")
+									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
 								}
+								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 						}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					}
+
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, "这个指令在私聊中暂不可用")
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					return CmdExecuteResult{Matched: true, Solved: false}
 				},
@@ -199,15 +259,22 @@ func RegisterBuiltinExtLog(self *Dice) {
 	})
 }
 
-func LogSendToBackend(ctx *MsgContext, group *ServiceAtItem) string {
+func filenameReplace(name string) string {
+	re := regexp.MustCompile(`/:\*\?"<>\|\\`)
+	return re.ReplaceAllString(name, "")
+}
+
+func LogSendToBackend(ctx *MsgContext, group *ServiceAtItem) (string, string) {
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "logs")
 	os.MkdirAll(dirpath, 0644)
 
 	lines, err := LogGetAllLines(ctx, group)
+
+	zipPassword := RandStringBytesMaskImprSrcSB(12)
 	if err == nil {
-		// 本地进行一个zip留档
+		// 本地进行一个zip留档，以防万一
 		gid := strconv.FormatInt(group.GroupId, 10)
-		fzip, _ := ioutil.TempFile(dirpath, gid+"_"+group.LogCurName+".*.zip")
+		fzip, _ := ioutil.TempFile(dirpath, filenameReplace(gid+"_"+group.LogCurName+".*.zip"))
 		writer := zip.NewWriter(fzip)
 		defer writer.Close()
 
@@ -217,7 +284,7 @@ func LogSendToBackend(ctx *MsgContext, group *ServiceAtItem) string {
 			text += fmt.Sprintf("%s(%d) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
 		}
 
-		fileWriter, _ := writer.Create("跑团日志(类QQ格式).txt")
+		fileWriter, _ := writer.Encrypt("log.txt", zipPassword)
 		fileWriter.Write([]byte(text))
 		writer.Close()
 	}
@@ -234,10 +301,10 @@ func LogSendToBackend(ctx *MsgContext, group *ServiceAtItem) string {
 			w.Write(data)
 			w.Close()
 
-			return UploadFileToWeizaima(ctx.Dice.Logger, group.LogCurName, ctx.conn.UniformID, &zlibBuffer)
+			return UploadFileToWeizaima(ctx.Dice.Logger, group.LogCurName, ctx.conn.UniformID, &zlibBuffer), zipPassword
 		}
 	}
-	return ""
+	return "", zipPassword
 }
 
 func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
@@ -300,8 +367,9 @@ func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
 	return ""
 }
 
-func LogLinesGet(ctx *MsgContext, group *ServiceAtItem) int {
+func LogLinesGet(ctx *MsgContext, group *ServiceAtItem, name string) (int, bool) {
 	var size int
+	var exists bool
 	ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
 		// Retrieve the users bucket.
 		// This should be created when the DB is first opened.
@@ -313,14 +381,35 @@ func LogLinesGet(ctx *MsgContext, group *ServiceAtItem) int {
 		if b1 == nil {
 			return nil
 		}
-		b := b1.Bucket([]byte(group.LogCurName))
+		b := b1.Bucket([]byte(name))
 		if b == nil {
 			return nil
 		}
+		exists = true
 		size = b.Stats().KeyN
 		return nil
 	})
-	return size
+	return size, exists
+}
+
+// LogGetList 获取列表
+func LogGetList(ctx *MsgContext, group *ServiceAtItem) ([]string, error) {
+	ret := []string{}
+	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
+		b0 := tx.Bucket([]byte("logs"))
+		if b0 == nil {
+			return nil
+		}
+		b1 := b0.Bucket([]byte(strconv.FormatInt(group.GroupId, 10)))
+		if b1 == nil {
+			return nil
+		}
+
+		return b1.ForEach(func(k, v []byte) error {
+			ret = append(ret, string(k))
+			return nil
+		})
+	})
 }
 
 func LogGetAllLines(ctx *MsgContext, group *ServiceAtItem) ([]*LogOneItem, error) {
