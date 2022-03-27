@@ -61,7 +61,7 @@ type Message struct {
 // PlayerInfo 群内玩家信息
 type PlayerInfo struct {
 	UserId int64  `yaml:"userId"`
-	UID    string `yaml:"UID"`
+	UID    string `yaml:"uid"`
 	Name   string // 玩家昵称
 	//ValueNumMap    map[string]int64  `yaml:"valueNumMap"`
 	//ValueStrMap    map[string]string `yaml:"valueStrMap"`
@@ -147,6 +147,7 @@ type ConnectInfoItem struct {
 	Nickname            string              `yaml:"nickname" json:"nickname"`
 	State               int                 `yaml:"state" json:"state"` // 状态 0 断开 1已连接 2连接中
 	UserId              int64               `yaml:"userId" json:"userId"`
+	UniformID           string              `yaml:"uid" json:"uid"`
 	GroupNum            int64               `yaml:"groupNum" json:"groupNum"`                       // 拥有群数
 	CmdExecutedNum      int64               `yaml:"cmdExecutedNum" json:"cmdExecutedNum"`           // 指令执行次数
 	CmdExecutedLastTime int64               `yaml:"cmdExecutedLastTime" json:"cmdExecutedLastTime"` // 指令执行次数
@@ -281,6 +282,7 @@ func (s *IMSession) Serve(index int) int {
 			if msg.Echo == -1 {
 				conn.UserId = msg.Data.UserId
 				conn.Nickname = msg.Data.Nickname
+				conn.UniformID = FormatDiceIdQQ(conn.UserId)
 
 				log.Debug("骰子信息已刷新")
 				return

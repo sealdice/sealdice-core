@@ -3,6 +3,7 @@ package dice
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,56 @@ import (
 func RemoveSpace(s string) string {
 	re := regexp.MustCompile(`\s+`)
 	return re.ReplaceAllString(s, "")
+}
+
+func UploadFileToWeizaima(log *zap.SugaredLogger, name string, uniformId string, data io.Reader) string {
+	client := &http.Client{}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	field, err := writer.CreateFormField("name")
+	if err == nil {
+		_, _ = field.Write([]byte(name))
+	}
+
+	field, err = writer.CreateFormField("uniform_id")
+	if err == nil {
+		_, _ = field.Write([]byte(uniformId))
+	}
+
+	field, err = writer.CreateFormField("client")
+	if err == nil {
+		_, _ = field.Write([]byte("SealDice"))
+	}
+
+	part, _ := writer.CreateFormFile("file", "log-zlib-compressed")
+	io.Copy(part, data)
+	writer.Close()
+
+	req, err := http.NewRequest("PUT", "https://weizaima.com/dice/api/log", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//req.Header.Set("authority", "transfer.sh")
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer resp.Body.Close()
+	bodyText, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("???", string(bodyText))
+	var ret struct {
+		Url string `json:"url"`
+	}
+	_ = json.Unmarshal(bodyText, &ret)
+	return ret.Url
 }
 
 func UploadFileToTransferSh(log *zap.SugaredLogger, filename string, data io.Reader) string {

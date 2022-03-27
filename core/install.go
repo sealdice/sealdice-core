@@ -30,7 +30,7 @@ func serviceInstall(isInstall bool) {
 	wd, _ := filepath.Abs(cwd)
 
 	svcConfig := &service.Config{
-		Name:             "seal-dice",
+		Name:             "sealdice",
 		DisplayName:      "SealDice Service",
 		Description:      "SealDice: A TRPG Dice Bot Service.",
 		WorkingDirectory: wd,
