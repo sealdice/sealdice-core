@@ -2,6 +2,8 @@ package dice
 
 import (
 	"archive/zip"
+	"bytes"
+	"compress/zlib"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -151,22 +153,34 @@ func RegisterBuiltinExtLog(self *Dice) {
 								text := fmt.Sprintf("记录已经暂时关闭，当前已记录文本%d条\n结束故事请用.log end", LogLinesGet(ctx, group))
 								ReplyToSender(ctx, msg, text)
 							} else if cmdArgs.IsArgEqual(1, "get") {
-								fn := LogSaveToZip(ctx, group)
-								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色网站链接: https://log.weizaima.com 暂时还不能自动上传log，开发中……", fn), "skip")
+								fn := LogSendToBackend(ctx, group)
+								if fn == "" {
+									ReplyToSenderRaw(ctx, msg, "跑团日志上传失败，可联系骰主在data/default/logs路径下取出", "skip")
+								} else {
+									ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
+								}
 							} else if cmdArgs.IsArgEqual(1, "end") {
 								ReplyToSender(ctx, msg, "故事落下了帷幕。\n记录已经关闭。")
 								group.LogOn = false
 
-								time.Sleep(time.Duration(0.5 * float64(time.Second)))
-								fn := LogSaveToZip(ctx, group)
-								ReplyToSenderRaw(ctx, msg, fmt.Sprintf("已经生成跑团日志，链接如下：\n%s\n着色网站链接: https://log.weizaima.com 暂时还不能自动上传log，开发中……", fn), "skip")
+								time.Sleep(time.Duration(0.3 * float64(time.Second)))
+								fn := LogSendToBackend(ctx, group)
+								if fn == "" {
+									ReplyToSenderRaw(ctx, msg, "跑团日志上传失败，可联系骰主在data/default/logs路径下取出", "skip")
+								} else {
+									ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
+								}
 								group.LogCurName = ""
 							} else if cmdArgs.IsArgEqual(1, "new") {
 								if group.LogCurName != "" {
 									ReplyToSender(ctx, msg, "上一段旅程还未结束，请先使用.log end结束故事")
 								} else {
-									todayTime := time.Now().Format("2006_01_02_15_04_05")
-									group.LogCurName = todayTime
+									name, _ := cmdArgs.GetArgN(2)
+									if name == "" {
+										todayTime := time.Now().Format("2006_01_02_15_04_05")
+										name = todayTime
+									}
+									group.LogCurName = name
 									group.LogOn = true
 									ReplyToSender(ctx, msg, "新的故事开始了，祝旅途愉快！\n记录已经开启。")
 									//replyToSender(ctx, msg, "log new")
@@ -183,6 +197,47 @@ func RegisterBuiltinExtLog(self *Dice) {
 			},
 		},
 	})
+}
+
+func LogSendToBackend(ctx *MsgContext, group *ServiceAtItem) string {
+	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "logs")
+	os.MkdirAll(dirpath, 0644)
+
+	lines, err := LogGetAllLines(ctx, group)
+	if err == nil {
+		// 本地进行一个zip留档
+		gid := strconv.FormatInt(group.GroupId, 10)
+		fzip, _ := ioutil.TempFile(dirpath, gid+"_"+group.LogCurName+".*.zip")
+		writer := zip.NewWriter(fzip)
+		defer writer.Close()
+
+		text := ""
+		for _, i := range lines {
+			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
+			text += fmt.Sprintf("%s(%d) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
+		}
+
+		fileWriter, _ := writer.Create("跑团日志(类QQ格式).txt")
+		fileWriter.Write([]byte(text))
+		writer.Close()
+	}
+
+	if err == nil {
+		// 压缩log，发往后端
+		data, err := json.Marshal(map[string]interface{}{
+			"items": lines,
+		})
+
+		if err == nil {
+			var zlibBuffer bytes.Buffer
+			w := zlib.NewWriter(&zlibBuffer)
+			w.Write(data)
+			w.Close()
+
+			return UploadFileToWeizaima(ctx.Dice.Logger, group.LogCurName, ctx.conn.UniformID, &zlibBuffer)
+		}
+	}
+	return ""
 }
 
 func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {

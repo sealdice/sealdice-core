@@ -173,7 +173,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				reasonInfo := strings.SplitN(reason, "|", 2)
 
 				text := "🕊️: " + reasonInfo[0]
-				if isShowFrom {
+				if isShowFrom && len(reasonInfo) == 2 {
 					text += "\n    ——" + reasonInfo[1]
 				}
 				ReplyToSender(ctx, msg, text)
