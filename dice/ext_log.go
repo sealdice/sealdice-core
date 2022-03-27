@@ -249,7 +249,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					}
 
 					if ctx.IsPrivate {
-						ReplyToSender(ctx, msg, "这个指令在私聊中暂不可用")
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					return CmdExecuteResult{Matched: true, Solved: false}
