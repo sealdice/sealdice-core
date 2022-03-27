@@ -717,9 +717,11 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["nn"] = cmdNN
 
+	helpSet := ".set <面数> // 设置默认骰子面数"
 	cmdSet := &CmdItemInfo{
-		Name: "set",
-		Help: ".set <面数> // 设置默认骰子面数",
+		Name:     "set",
+		Help:     helpSet,
+		LongHelp: "设定骰子面数:\n" + helpSet,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				p := ctx.Player
@@ -776,24 +778,32 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["set"] = cmdSet
 
+	textHelp := ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}"
 	cmdText := &CmdItemInfo{
-		Name: "text",
-		Help: ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}",
+		Name:     "text",
+		Help:     textHelp,
+		LongHelp: "文本模板指令:\n" + textHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.MessageType == "private" {
-				r, _, err := d.ExprTextBase(cmdArgs.RawArgs, ctx)
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				_, exists := cmdArgs.GetArgN(1)
+				if exists {
+					r, _, err := d.ExprTextBase(cmdArgs.RawArgs, ctx)
 
-				if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
-					text := r.Value.(string)
+					if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
+						text := r.Value.(string)
 
-					if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
-						asm := r.Parser.GetAsmText()
-						text += "\n" + asm
+						if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
+							asm := r.Parser.GetAsmText()
+							text += "\n" + asm
+						}
+
+						ReplyToSender(ctx, msg, text)
+					} else {
+						ReplyToSender(ctx, msg, "格式错误")
 					}
-
-					ReplyToSender(ctx, msg, text)
+					return CmdExecuteResult{Matched: true, Solved: true}
 				} else {
-					ReplyToSender(ctx, msg, "格式错误")
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -891,6 +901,11 @@ func (d *Dice) registerCoreCommands() {
 					help += ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色，角色名省略则为当前昵称\n.ch list // 列出当前角色\n.ch del <角色名> // 删除角色"
 					ReplyToSender(ctx, msg, help)
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if ctx.IsPrivate {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},

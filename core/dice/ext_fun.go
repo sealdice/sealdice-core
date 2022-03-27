@@ -177,6 +177,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					text += "\n    ——" + reasonInfo[1]
 				}
 				ReplyToSender(ctx, msg, text)
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},

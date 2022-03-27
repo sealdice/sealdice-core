@@ -365,10 +365,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	// 初始化配置（读取同义词）
 	ac := setupConfig(self)
 
+	helpRc := ".rc/ra (<检定表达式，默认d100>) <属性表达式> (@某人) // 属性检定指令，当前者小于后者，检定通过。当@某人时，对此人做检定\n" +
+		".rch/rah // 暗中检定，和鉴定指令用法相同"
 	cmdRc := &CmdItemInfo{
-		Name: "ra/rc",
-		Help: ".rc/ra (<检定表达式，默认d100>) <属性表达式> (@某人) // 属性检定指令，当前者小于后者，检定通过。当@某人时，对此人做检定\n" +
-			".rch/rah // 暗中检定，和鉴定指令用法相同",
+		Name:     "rc/ra",
+		Help:     helpRc,
+		LongHelp: "检定指令:\n" + helpRc,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn {
 				if len(cmdArgs.Args) >= 1 {
@@ -539,6 +541,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if ctx.IsPrivate {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},
@@ -663,6 +670,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							ReplyToSender(ctx, msg, "指令格式不匹配")
 						}
 					}
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
 					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
@@ -705,7 +716,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				Help: ".ti // 抽取一个临时性疯狂症状",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// 临时性疯狂
-					if ctx.IsCurGroupBotOn {
+					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						foo := func(tmpl string) string {
 							val, _, _ := self.ExprText(tmpl, ctx)
 							return val
