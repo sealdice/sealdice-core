@@ -1,6 +1,7 @@
 
 import { defineStore } from 'pinia'
 import { EditorView } from '@codemirror/view';
+import axios from 'axios';
 
 export interface CharItem {
   name: string,
@@ -50,6 +51,12 @@ export const useStore = defineStore('main', {
       return this.paletteStack.shift() as string
     },
     async customTextSave(category: string) {
+    },
+    async tryFetchLog(key: string, password: string) {
+      const resp = await axios.get('https://weizaima.com/dice/api/log', {
+        params: { key, password }
+      })
+      return resp.data
     },
     async tryAddPcList2(name: string) {
       let isExists = false

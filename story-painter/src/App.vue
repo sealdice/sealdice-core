@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器测试版 V1.01</h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器测试版 V1.02</h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253</div>
     <div style="text-align: center;">新骰系内测中，快来提需求！</div>
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
@@ -118,8 +118,10 @@ import { UserFilled } from '@element-plus/icons-vue'
 import CodeMirror from './components/CodeMirror.vue'
 import { reNameLine, reNameLine2 } from "./utils/highlight";
 import { EditorState, StateEffect } from '@codemirror/state';
-import { debounce } from 'lodash-es'
+import { debounce, delay } from 'lodash-es'
 import { convertToLogItems, exportFileRaw, exportFileQQ, exportFileIRC, exportFileDocx } from "./utils/exporter";
+import { ElLoading, ElNotification } from "element-plus";
+import { strFromU8, unzlibSync } from 'fflate';
 
 const nicknameSolve = (i: LogItem) => {
   let userid = '(' + i.IMUserId + ')'
@@ -142,7 +144,50 @@ const timeSolve = (i: LogItem) => {
   return timeText
 }
 
-onMounted(() => {
+onMounted(async () => {
+  const params = new Proxy(new URLSearchParams(window.location.search), {
+    get: (searchParams, prop) => searchParams.get(prop as any)
+  })
+  const key = (params as any).key
+  const password = location.hash.slice(1)
+
+  if (key && password) {
+    const loading = ElLoading.service({
+      lock: true,
+      text: '正在试图加载远程记录 ...',
+      fullscreen: true,
+      background: 'rgba(0, 0, 0, 0.7)',
+    })
+
+    try {
+      const record = await store.tryFetchLog(key, password)
+      // await new Promise<void>((resolve) => {
+      //   new setTimeout(() => { resolve() }, 1000)
+      // })
+
+      const log = unzlibSync(Uint8Array.from(atob(record.data), c => c.charCodeAt(0)))
+      
+      nextTick(() => {
+        const text = strFromU8(log)
+        store.pcList.length = 0
+        store.editor.dispatch({
+          changes: { from: 0, to: store.editor.state.doc.length, insert: text }
+        })
+      })
+
+      onChange()
+      loading.close()
+    } catch (e) {
+      ElNotification({
+        title: 'Error',
+        message: '加载日志失败，可能是序号或密码不正确',
+        type: 'error',
+      })
+      loading.close()
+      return true
+    }
+  }
+
   // cminstance.value = cmRefDom.value?.cminstance;
   // cminstance.value?.focus();
 
@@ -241,7 +286,7 @@ const nameChanged = (i: CharItem) => {
         rightSafe = true
       }
 
-      console.log(222, leftSafe, rightSafe, inLeft, inRight)
+      // console.log(222, leftSafe, rightSafe, inLeft, inRight)
       if (leftSafe && rightSafe) {
         changes.push({ from: next, to: next + lastPCName.length, insert: i.name })
       }
@@ -293,14 +338,14 @@ const trySinaNyaLog = (text: string) => {
 const trySealDice = (text: string) => {
   let isTrpgLog = false;
   try {
-    const items = JSON.parse(text)
-    if (items.length > 0) {
-      const keys = Object.keys(items[0])
+    const sealFormat = JSON.parse(text)
+    if (sealFormat.items && sealFormat.items.length > 0) {
+      const keys = Object.keys(sealFormat.items[0])
       isTrpgLog = keys.includes('isDice') && keys.includes('message')
     }
 
     if (isTrpgLog) {
-      loadLog(items)
+      loadLog(sealFormat.items)
       return true
     }
   } catch (e) {
