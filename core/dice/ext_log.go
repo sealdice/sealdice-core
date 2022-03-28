@@ -230,10 +230,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 								ReplyToSender(ctx, msg, text)
 								return CmdExecuteResult{Matched: true, Solved: true}
 							} else if cmdArgs.IsArgEqual(1, "new") {
-								if group.LogCurName != "" {
+								name, _ := cmdArgs.GetArgN(2)
+
+								if group.LogCurName != "" && name == "" {
 									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
 								} else {
-									name, _ := cmdArgs.GetArgN(2)
 									if name == "" {
 										todayTime := time.Now().Format("2006_01_02_15_04_05")
 										name = todayTime

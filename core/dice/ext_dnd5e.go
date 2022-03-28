@@ -2,6 +2,9 @@ package dice
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -25,7 +28,347 @@ func (s ByRIListValue) Less(i, j int) bool {
 	return s[i].val > s[j].val
 }
 
+var dndAttrParent = map[string]string{
+	"运动": "力量",
+
+	"特技": "敏捷",
+	"巧手": "敏捷",
+	"隐匿": "敏捷",
+
+	"调查": "智力",
+	"奥秘": "智力",
+	"历史": "智力",
+	"自然": "智力",
+	"宗教": "智力",
+
+	"察觉": "感知",
+	"洞悉": "感知",
+	"驯养": "感知",
+	"医疗": "感知",
+	"生存": "感知",
+
+	"说服": "魅力",
+	"欺诈": "魅力",
+	"威吓": "魅力",
+	"表演": "魅力",
+}
+
+func setupConfigDND(d *Dice) AttributeConfigs {
+	attrConfigFn := d.GetExtConfigFilePath("dnd5e", "attribute.yaml")
+
+	if _, err := os.Stat(attrConfigFn); err == nil && false {
+		// 如果文件存在，那么读取
+		ac := AttributeConfigs{}
+		af, err := ioutil.ReadFile(attrConfigFn)
+		if err == nil {
+			err = yaml.Unmarshal(af, &ac)
+			if err != nil {
+				panic(err)
+			}
+		}
+		return ac
+	} else {
+		// 如果不存在，新建
+
+		defaultVals := AttributeConfigs{
+			Alias: map[string][]string{},
+			Order: AttributeOrder{
+				Top:    []string{"力量", "敏捷", "体质", "智力", "感知", "魅力", "HP", "HPMax", "EXP"},
+				Others: AttributeOrderOthers{SortBy: "Name"},
+			},
+		}
+
+		buf, err := yaml.Marshal(defaultVals)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			ioutil.WriteFile(attrConfigFn, buf, 0644)
+		}
+		return defaultVals
+	}
+}
+
 func RegisterBuiltinExtDnd5e(self *Dice) {
+	ac := setupConfigDND(self)
+
+	helpSt := ""
+	helpSt += ".st show // 展示个人属性\n"
+	helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
+	helpSt += ".st show <数字> // 展示高于<数字>的属性，如.st show 30\n"
+	helpSt += ".st clr/clear // 清除属性\n"
+	helpSt += ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"
+	helpSt += ".st help // 帮助\n"
+	helpSt += ".st <属性>:<值> // 设置属性，技能加值会自动计算。例：.st 感知:20 洞悉:3\n"
+	helpSt += ".st <属性>±<表达式> // 例：.st 生命+1d4"
+
+	cmdSt := &CmdItemInfo{
+		Name:     "st",
+		Help:     helpSt,
+		LongHelp: "DND5E 人物属性设置:\n" + helpSt,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				val, _ := cmdArgs.GetArgN(1)
+				mctx := &*ctx // 复制一个ctx，用于其他用途
+				if len(cmdArgs.At) > 0 {
+					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
+					if exists {
+						mctx.Player = p
+					}
+				}
+
+				switch val {
+				case "模板":
+					text := "人物卡模板(第二行文本):\n"
+					text += ".dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 HP:10 HPMax: 10 熟练:2 运动:0 特技:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯养:0 医疗:0 生存:0 说服:0 欺诈:0 威吓:0 表演:0\n"
+					text += "注意: 技能只填写修正值即可，属性调整值会自动计算。熟练写为“运动*:0”"
+					ReplyToSender(ctx, msg, text)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				case "del", "rm":
+					var nums []string
+					var failed []string
+
+					for _, varname := range cmdArgs.Args[1:] {
+						_, ok := mctx.Player.ValueMap[varname]
+						if ok {
+							nums = append(nums, varname)
+							delete(mctx.Player.ValueMap, varname)
+						} else {
+							failed = append(failed, varname)
+						}
+					}
+
+					VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
+					VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_删除"))
+
+				case "clr", "clear":
+					p := ctx.Player
+					num := len(p.ValueMap)
+					p.ValueMap = map[string]*VMValue{}
+					VarSetValueInt64(ctx, "$t数量", int64(num))
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_清除"))
+
+				case "show", "list":
+					info := ""
+					p := mctx.Player
+
+					useLimit := false
+					usePickItem := false
+					limktSkipCount := 0
+					var limit int64
+
+					if len(cmdArgs.Args) >= 2 {
+						arg2, _ := cmdArgs.GetArgN(2)
+						_limit, err := strconv.ParseInt(arg2, 10, 64)
+						if err == nil {
+							limit = _limit
+							useLimit = true
+						} else {
+							usePickItem = true
+						}
+					}
+
+					pickItems := map[string]int{}
+
+					if usePickItem {
+						for _, i := range cmdArgs.Args[1:] {
+							key := p.GetValueNameByAlias(i, ac.Alias)
+							pickItems[key] = 1
+						}
+					}
+
+					tick := 0
+					if len(p.ValueMap) == 0 {
+						info = DiceFormatTmpl(ctx, "DND:属性设置_列出_未发现记录")
+					} else {
+						// 按照配置文件排序
+						attrKeys := []string{}
+						used := map[string]bool{}
+						for _, i := range ac.Order.Top {
+							key := p.GetValueNameByAlias(i, ac.Alias)
+							if used[key] {
+								continue
+							}
+							attrKeys = append(attrKeys, key)
+							used[key] = true
+						}
+
+						// 其余按字典序
+						topNum := len(attrKeys)
+						attrKeys2 := []string{}
+						for k := range p.ValueMap {
+							attrKeys2 = append(attrKeys2, k)
+						}
+						sort.Strings(attrKeys2)
+						for _, key := range attrKeys2 {
+							if used[key] {
+								continue
+							}
+							attrKeys = append(attrKeys, key)
+						}
+
+						// 遍历输出
+						for index, k := range attrKeys {
+							//if strings.HasPrefix(k, "$") {
+							//	continue
+							//}
+							v, exists := p.ValueMap[k]
+							if !exists {
+								// 不存在的值，强行补0
+								v = &VMValue{VMTypeInt64, int64(0)}
+							}
+
+							if index >= topNum {
+								if useLimit && v.TypeId == VMTypeInt64 && v.Value.(int64) < limit {
+									limktSkipCount += 1
+									continue
+								}
+							}
+
+							if usePickItem {
+								_, ok := pickItems[k]
+								if !ok {
+									continue
+								}
+							}
+
+							tick += 1
+							vText := ""
+							if v.TypeId == VMTypeComputedValue {
+								vd := v.Value.(*VMComputedValueData)
+								val, _, _ := ctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
+								vText = fmt.Sprintf("%s[修正值%s]", val.ToString(), vd.BaseValue.ToString())
+							} else {
+								vText = v.ToString()
+							}
+							info += fmt.Sprintf("%s: %s\t", k, vText)
+							if tick%4 == 0 {
+								info += fmt.Sprintf("\n")
+							}
+						}
+
+						if info == "" {
+							info = DiceFormatTmpl(ctx, "DND:属性设置_列出_未发现记录")
+						}
+					}
+
+					if useLimit {
+						VarSetValueInt64(ctx, "$t数量", int64(limktSkipCount))
+						VarSetValueInt64(ctx, "$t判定值", int64(limit))
+						info += DiceFormatTmpl(ctx, "DND:属性设置_列出_隐藏提示")
+					}
+
+					VarSetValueStr(ctx, "$t属性信息", info)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:属性设置_列出"))
+
+				case "help", "":
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				default:
+					text := cmdArgs.CleanArgs
+					re := regexp.MustCompile(`(([^\s:0-9*][^\s:0-9*]*)\*?)\s*([:+\-])`)
+					attrSeted := []string{}
+					attrChanged := []string{}
+
+					for {
+						m := re.FindStringSubmatch(text)
+						if len(m) == 0 {
+							break
+						}
+						text = text[len(m[0]):]
+
+						attrName := m[2]
+						isSkilled := strings.HasSuffix(m[1], "*")
+						r, _, err := ctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
+						if err != nil {
+							ReplyToSender(ctx, msg, "无法解析属性: "+attrName)
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						text = r.restInput
+
+						if r.TypeId != VMTypeInt64 {
+							ReplyToSender(ctx, msg, "这个属性的值并非数字: "+attrName)
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
+						if m[3] == ":" {
+							exprTmpl := "$tVal + %s/2 - 5"
+							if isSkilled {
+								exprTmpl += " + 熟练"
+							}
+
+							parent, _ := dndAttrParent[attrName]
+							aText := attrName
+							if parent != "" {
+								if isSkilled {
+									aText += "[技能, 熟练]"
+								} else {
+									aText += "[技能]"
+								}
+								VarSetValueDNDComputed(ctx, attrName, r.Value.(int64), fmt.Sprintf(exprTmpl, parent))
+							} else {
+								VarSetValueInt64(ctx, attrName, r.Value.(int64))
+							}
+							attrSeted = append(attrSeted, aText)
+						}
+						if m[3] == "+" || m[3] == "-" {
+							v, exists := VarGetValue(ctx, attrName)
+							if !exists {
+								ReplyToSender(ctx, msg, "不存在的属性: "+attrName)
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
+							if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeComputedValue {
+								ReplyToSender(ctx, msg, "这个属性的值并非数字: "+attrName)
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
+
+							var newVal int64
+							var leftValue *VMValue
+							if v.TypeId == VMTypeComputedValue {
+								leftValue = &v.Value.(*VMComputedValueData).BaseValue
+							} else {
+								leftValue = v
+							}
+
+							if m[3] == "+" {
+								newVal = leftValue.Value.(int64) + r.Value.(int64)
+							} else {
+								newVal = leftValue.Value.(int64) - r.Value.(int64)
+							}
+
+							vOld, _, _ := ctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
+							theOldValue := vOld.Value.(int64)
+
+							leftValue.Value = newVal
+
+							vNew, _, _ := ctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
+							theNewValue := vNew.Value.(int64)
+
+							baseValue := ""
+							if v.TypeId == VMTypeComputedValue {
+								baseValue = fmt.Sprintf("[%d]", newVal)
+							}
+							attrChanged = append(attrChanged, fmt.Sprintf("%s%s(%d ➯ %d)", attrName, baseValue, theOldValue, theNewValue))
+						}
+					}
+
+					retText := "人物属性设置如下:\n"
+					if len(attrSeted) > 0 {
+						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
+					}
+					if len(attrChanged) > 0 {
+						retText += "修改: " + strings.Join(attrChanged, ", ") + "\n"
+					}
+					if text != "" {
+						retText += "解析失败: " + text
+					}
+					ReplyToSender(ctx, msg, retText)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	theExt := &ExtInfo{
 		Name:       "dnd5e", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
@@ -285,6 +628,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
+			"dst": cmdSt,
+			"st":  cmdSt,
+			"属性":  cmdSt,
 		},
 	}
 

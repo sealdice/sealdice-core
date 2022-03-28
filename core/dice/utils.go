@@ -196,38 +196,68 @@ func JsonNumberUnmarshal(data []byte, v interface{}) error {
 	return d.Decode(v)
 }
 
+func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
+	if val.TypeId == VMTypeInt64 {
+		n, ok := val.Value.(json.Number)
+		if !ok {
+			return nil
+		}
+		if i, err := n.Int64(); err == nil {
+			if v != nil {
+				(*v)[key] = &VMValue{VMTypeInt64, i}
+			}
+			return &VMValue{VMTypeInt64, i}
+		}
+	}
+	if val.TypeId == -1 {
+		// 先攻列表
+		m := val.Value.(map[string]interface{})
+		m2 := map[string]int64{}
+		for k, v := range m {
+			n, ok := v.(json.Number)
+			if !ok {
+				continue
+			}
+			if i, err := n.Int64(); err == nil {
+				m2[k] = i
+				continue
+			}
+		}
+		if v != nil {
+			(*v)[key] = &VMValue{-1, m2}
+		}
+		return &VMValue{-1, m2}
+	}
+	if val.TypeId == VMTypeComputedValue {
+		tmp := val.Value.(map[string]interface{})
+		baseValue := tmp["base_value"].(map[string]interface{})
+
+		val, _ := baseValue["typeId"].(json.Number).Int64()
+		bv := VMValueConvert(&VMValue{
+			VMValueType(val),
+			baseValue["value"],
+		}, nil, "")
+
+		vd := &VMComputedValueData{
+			BaseValue: *bv,
+			Expr:      tmp["expr"].(string),
+		}
+
+		if v != nil {
+			(*v)[key] = &VMValue{VMTypeComputedValue, vd}
+		}
+		//val.Value.(map)
+	}
+	return nil
+}
+
 func JsonValueMapUnmarshal(data []byte, v *map[string]*VMValue) error {
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
 	err := d.Decode(v)
 	if err == nil {
 		for key, val := range *v {
-			if val.TypeId == VMTypeInt64 {
-				n, ok := val.Value.(json.Number)
-				if !ok {
-					continue
-				}
-				if i, err := n.Int64(); err == nil {
-					(*v)[key] = &VMValue{VMTypeInt64, i}
-					continue
-				}
-			}
-			if val.TypeId == -1 {
-				// 先攻列表
-				m := val.Value.(map[string]interface{})
-				m2 := map[string]int64{}
-				for k, v := range m {
-					n, ok := v.(json.Number)
-					if !ok {
-						continue
-					}
-					if i, err := n.Int64(); err == nil {
-						m2[k] = i
-						continue
-					}
-				}
-				(*v)[key] = &VMValue{-1, m2}
-			}
+			VMValueConvert(val, v, key)
 		}
 	}
 	return err

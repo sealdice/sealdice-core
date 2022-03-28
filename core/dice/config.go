@@ -245,6 +245,23 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			// -------------------- en end --------------------------
 		},
+		"DND": {
+			"属性设置_删除": {
+				{`{$t玩家}的如下属性被成功删除:{$t属性列表}，失败{$t失败数量}项`, 1},
+			},
+			"属性设置_清除": {
+				{`{$t玩家}的属性数据已经清除，共计{$t数量}条`, 1},
+			},
+			"属性设置_列出": {
+				{`{$t玩家}的个人属性为:\n{$t属性信息}`, 1},
+			},
+			"属性设置_列出_未发现记录": {
+				{`未发现属性记录`, 1},
+			},
+			"属性设置_列出_隐藏提示": {
+				{`\n注：{$t数量}条属性因<{$t判定值}被隐藏`, 1},
+			},
+		},
 		"核心": {
 			"骰子名字": {
 				{"海豹", 1},
@@ -253,7 +270,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{"一只海豹罢了", 1},
 			},
 			"骰子崩溃": {
-				{"已从核心崩溃中恢复，请带指令联系开发者，群号524364253，非常感谢。", 1},
+				{"指令执行异常，请联系开发者，群号524364253，非常感谢。", 1},
 			},
 			"骰子开启": {
 				{"{常量:APPNAME} 已启用(开发中) {常量:VERSION}", 1},
@@ -387,7 +404,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`故事落下了帷幕。\n记录已经关闭:`, 1},
 			},
 			"记录_新建_失败_未结束的记录": {
-				{`上一段旅程还未结束，请先使用.log end结束故事`, 1},
+				{`上一段旅程还未结束，请先使用.log end结束故事。或使用.log new <名称>，强行建立新日志`, 1},
 			},
 		},
 	}
@@ -430,11 +447,15 @@ func SetupTextHelpInfo(d *Dice, helpInfo TextTemplateWithHelpDict, texts TextTem
 				v1[keyName] = helpInfoItem
 
 				vars := []string{}
+				existsMap := map[string]bool{}
 				for _, i := range v2 {
 					re := regexp.MustCompile(`{(\S+?)}`)
 					m := re.FindAllStringSubmatch(i[0].(string), -1)
 					for _, j := range m {
-						vars = append(vars, j[1])
+						if !existsMap[j[1]] {
+							existsMap[j[1]] = true
+							vars = append(vars, j[1])
+						}
 					}
 				}
 				helpInfoItem.Vars = vars
@@ -585,10 +606,15 @@ func (d *Dice) loads() {
 			}
 
 			if len(d.DiceMasters) == 0 {
-				d.DiceMasters = []string{
-					"<平台,如QQ>:<帐号,如QQ号>",
+				d.DiceMasters = []string{}
+			}
+			newDiceMasters := []string{}
+			for _, i := range d.DiceMasters {
+				if i != "<平台,如QQ>:<帐号,如QQ号>" {
+					newDiceMasters = append(newDiceMasters, i)
 				}
 			}
+			d.DiceMasters = newDiceMasters
 
 			m := map[string]*ExtInfo{}
 			for _, i := range d.ExtList {

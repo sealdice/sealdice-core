@@ -367,6 +367,17 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	helpRc := ".rc/ra (<检定表达式，默认d100>) <属性表达式> (@某人) // 属性检定指令，当前者小于后者，检定通过。当@某人时，对此人做检定\n" +
 		".rch/rah // 暗中检定，和鉴定指令用法相同"
+
+	helpSt := ""
+	helpSt += ".st show // 展示个人属性\n"
+	helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
+	helpSt += ".st show <数字> // 展示高于<数字>的属性，如.st show 30\n"
+	helpSt += ".st clr/clear // 清除属性\n"
+	helpSt += ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"
+	helpSt += ".st help // 帮助\n"
+	helpSt += ".st <属性><值> // 例：.st 敏捷50\n"
+	helpSt += ".st <属性>±<表达式> // 例：.st 敏捷+1d50，请注意目前+或-要跟在属性后面，不得空格"
+
 	cmdRc := &CmdItemInfo{
 		Name:     "rc/ra",
 		Help:     helpRc,
@@ -1066,8 +1077,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			},
 
 			"st": &CmdItemInfo{
-				Name: "st show <最小数值> / <属性><数值> / <属性>±<表达式>",
-				Help: ".st <属性><数值>\n.st <属性>±<表达式>",
+				Name:     "st",
+				Help:     helpSt,
+				LongHelp: "COC属性设置指令，支持分支指令如下:\n" + helpSt,
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// .st show
 					// .st help
@@ -1083,15 +1095,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						}
 						switch param1 {
 						case "help", "":
-							text := "属性设置指令，支持分支指令如下：\n"
-							text += ".st show/list <数值> // 展示个人属性，若加<数值>则不显示小于该数值的属性\n"
-							text += ".st clr/clear // 清除属性\n"
-							text += ".st del <属性名1> <属性名2> ... // 删除属性，可多项，以空格间隔\n"
-							text += ".st help // 帮助\n"
-							text += ".st <属性名><值> // 例：.st 敏捷50"
-							text += ".st <属性名>±<表达式> // 例：.st 敏捷+1d50"
-							ReplyToSender(ctx, msg, text)
-
+							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 						case "del", "rm":
 							var nums []string
 							var failed []string
@@ -1310,9 +1314,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								text := DiceFormatTmpl(ctx, "COC:属性设置")
 								//text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据 (其中%d条为同义词)", p.Name, len(valueMap), synonymsCount)
 								ReplyToSender(ctx, msg, text)
-								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 						}
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					return CmdExecuteResult{Matched: true, Solved: false}
 				},

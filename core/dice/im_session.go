@@ -613,7 +613,8 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				if ret.ShowLongHelp {
 					help := item.LongHelp
 					if help == "" {
-						help = item.Help
+						// 这是为了防止别的骰子误触发
+						help = item.Name + ":\n" + item.Help
 					}
 					ReplyToSender(ctx, msg, help)
 				}

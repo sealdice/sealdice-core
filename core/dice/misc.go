@@ -5,12 +5,22 @@ import "strconv"
 type VMValueType int
 
 const (
-	VMTypeInt64      VMValueType = 0
-	VMTypeString     VMValueType = 1
-	VMTypeBool       VMValueType = 2
-	VMTypeExpression VMValueType = 3
-	VMTypeNone       VMValueType = 4
+	VMTypeInt64         VMValueType = 0
+	VMTypeString        VMValueType = 1
+	VMTypeBool          VMValueType = 2
+	VMTypeExpression    VMValueType = 3
+	VMTypeNone          VMValueType = 4
+	VMTypeComputedValue VMValueType = 5
 )
+
+type VMComputedValueData struct {
+	BaseValue VMValue `json:"base_value"`
+	Expr      string  `json:"expr"`
+}
+
+func (cv *VMComputedValueData) SetValue(v *VMValue) {
+	cv.BaseValue = *v
+}
 
 type VMValue struct {
 	TypeId VMValueType `json:"typeId"`
@@ -25,6 +35,9 @@ func (v *VMValue) ToString() string {
 		return v.Value.(string)
 	case VMTypeNone:
 		return v.Value.(string)
+	case VMTypeComputedValue:
+		vd := v.Value.(*VMComputedValueData)
+		return vd.BaseValue.ToString() + "=> (" + vd.Expr + ")"
 	default:
 		return "a value"
 	}

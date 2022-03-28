@@ -369,29 +369,31 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				var exists bool
 				v2, exists := VarGetValue(ctx, varname)
 
-				if !exists {
-					if varname == "母语" {
-						v2, exists = VarGetValue(ctx, "edu")
+				if e.flags.CocDefaultAttrOn {
+					if !exists {
+						if varname == "母语" {
+							v2, exists = VarGetValue(ctx, "edu")
+						}
 					}
-				}
 
-				if !exists {
-					if varname == "闪避" {
-						// 闪避默认值为敏捷的一半
-						v2, exists = VarGetValue(ctx, "敏捷")
-						if exists {
-							if v2.TypeId == VMTypeInt64 {
-								v2.Value = v2.Value.(int64) / 2
+					if !exists {
+						if varname == "闪避" {
+							// 闪避默认值为敏捷的一半
+							v2, exists = VarGetValue(ctx, "敏捷")
+							if exists {
+								if v2.TypeId == VMTypeInt64 {
+									v2.Value = v2.Value.(int64) / 2
+								}
 							}
 						}
 					}
-				}
 
-				if !exists {
-					var val int64
-					val, exists = Coc7DefaultAttrs[varname]
-					if exists {
-						v2 = &VMValue{VMTypeInt64, val}
+					if !exists {
+						var val int64
+						val, exists = Coc7DefaultAttrs[varname]
+						if exists {
+							v2 = &VMValue{VMTypeInt64, val}
+						}
 					}
 				}
 
@@ -413,6 +415,18 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 						}
 					}
 				}
+			}
+
+			if vType == VMTypeComputedValue {
+				// 解包计算属性
+				vd := v.(*VMComputedValueData)
+				VarSetValue(ctx, "$tVal", &vd.BaseValue)
+				realV, _, err := ctx.Dice.ExprEvalBase(vd.Expr, ctx, RollExtraFlags{})
+				if err != nil {
+					return nil, "", errors.New("E3: 获取计算属性异常: " + vd.Expr)
+				}
+				vType = realV.TypeId
+				v = realV.Value
 			}
 
 			stack[top].TypeId = vType
