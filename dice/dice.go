@@ -15,7 +15,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.9内测版 v20220327"
+var VERSION = "0.99.9f1内测版 v20220327"
 
 type CmdExecuteResult struct {
 	Matched       bool // 是否是指令
@@ -250,6 +250,7 @@ func (d *Dice) MasterClear() {
 
 func (d *Dice) MasterAdd(uid string) {
 	d.DiceMasters = append(d.DiceMasters, uid)
+	d.MasterClear()
 }
 
 func (d *Dice) MasterCheck(uid string) bool {
