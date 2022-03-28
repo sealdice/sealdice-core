@@ -369,6 +369,18 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 	}
 
+	cmdRc := &CmdItemInfo{
+		Name:     "st",
+		Help:     helpSt,
+		LongHelp: "DND5E 检定:\n" + helpSt,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				return CmdExecuteResult{Matched: true, Solved: false}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	theExt := &ExtInfo{
 		Name:       "dnd5e", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
@@ -631,6 +643,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"dst": cmdSt,
 			"st":  cmdSt,
 			"属性":  cmdSt,
+			"drc": cmdRc,
+			"rc":  cmdRc,
 		},
 	}
 
