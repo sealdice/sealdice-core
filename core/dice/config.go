@@ -598,13 +598,6 @@ func (d *Dice) loads() {
 			d.DiceMasters = dNew.DiceMasters
 			d.VersionCode = dNew.VersionCode
 
-			if len(d.CommandPrefix) == 0 {
-				d.CommandPrefix = []string{
-					".",
-					"。",
-				}
-			}
-
 			if len(d.DiceMasters) == 0 {
 				d.DiceMasters = []string{}
 			}
@@ -690,6 +683,13 @@ func (d *Dice) loads() {
 		}
 	} else {
 		d.Logger.Info("serve.yaml not found")
+	}
+
+	if len(d.CommandPrefix) == 0 {
+		d.CommandPrefix = []string{
+			".",
+			"。",
+		}
 	}
 
 	d.VersionCode = 9909
