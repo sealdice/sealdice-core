@@ -447,8 +447,8 @@ func (s *IMSession) Serve(index int) int {
 					}
 				}
 
-				msgInfo := CommandParse(msg.Message, s.Parent.CommandCompatibleMode, cmdLst, s.Parent.CommandPrefix)
-				if msgInfo != nil {
+				cmdArgs := CommandParse(msg.Message, s.Parent.CommandCompatibleMode, cmdLst, s.Parent.CommandPrefix)
+				if cmdArgs != nil {
 					mctx.CommandId = getNextCommandId()
 				}
 
@@ -473,7 +473,7 @@ func (s *IMSession) Serve(index int) int {
 					}
 				}
 
-				if msgInfo != nil {
+				if cmdArgs != nil {
 					f := func() {
 						defer func() {
 							if r := recover(); r != nil {
@@ -482,9 +482,19 @@ func (s *IMSession) Serve(index int) int {
 								ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
 							}
 						}()
-						session.commandSolve(mctx, msg, msgInfo)
-						conn.CmdExecutedNum += 1
-						conn.CmdExecutedLastTime = time.Now().Unix()
+						ret := session.commandSolve(mctx, msg, cmdArgs)
+						if ret {
+							conn.CmdExecutedNum += 1
+							conn.CmdExecutedLastTime = time.Now().Unix()
+						} else {
+							if msg.MessageType == "group" {
+								log.Infof("无效指令: 来自群(%d)内<%s>(%d): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+							}
+
+							if msg.MessageType == "private" {
+								log.Infof("无效指令: 来自<%s>(%d)的私聊: %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+							}
+						}
 					}
 					go f()
 				} else {
@@ -565,7 +575,7 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 	}
 }
 
-func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
+func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool {
 	// 设置AmIBeMentioned
 	cmdArgs.AmIBeMentioned = false
 	for _, i := range cmdArgs.At {
@@ -577,7 +587,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 	cmdArgs.SomeoneBeMentionedButNotMe = len(cmdArgs.At) > 0 && (!cmdArgs.AmIBeMentioned)
 	if cmdArgs.MentionedOtherDice {
-		return
+		return true
 	}
 
 	myuid := FormatDiceIdQQ(ctx.conn.UserId)
@@ -586,7 +596,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	if cmdArgs.Command != "botlist" && !cmdArgs.AmIBeMentioned {
 		// 屏蔽机器人发送的消息
 		if ctx.Group.BotList[uid] {
-			return
+			return true
 		}
 		// 当其他机器人被@，不回应
 		for _, i := range cmdArgs.At {
@@ -596,7 +606,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				continue
 			}
 			if ctx.Group.BotList[uid] {
-				return
+				return true
 			}
 		}
 	}
@@ -636,28 +646,31 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 	item := ctx.Session.Parent.CmdMap[cmdArgs.Command]
 	if tryItemSolve(item) {
-		return
-	}
-
-	if sa != nil && sa.Active {
-		for _, i := range sa.ActivatedExtList {
-			item := i.CmdMap[cmdArgs.Command]
-			if tryItemSolve(item) {
-				return
-			}
-		}
+		return true
 	}
 
 	if msg.MessageType == "private" {
+		// 个人消息
 		for _, i := range ctx.Dice.ExtList {
 			if i.ActiveOnPrivate {
 				item := i.CmdMap[cmdArgs.Command]
 				if tryItemSolve(item) {
-					return
+					return true
+				}
+			}
+		}
+	} else {
+		// 群消息
+		if sa != nil && sa.Active {
+			for _, i := range sa.ActivatedExtList {
+				item := i.CmdMap[cmdArgs.Command]
+				if tryItemSolve(item) {
+					return true
 				}
 			}
 		}
 	}
+	return false
 }
 
 func setupMCtx(ctx *MsgContext, cmdArgs *CmdArgs, pos int) *MsgContext {

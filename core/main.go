@@ -63,7 +63,7 @@ func main() {
 		return
 	}
 
-	aaa()
+	go aaa()
 
 	cwd, _ := os.Getwd()
 	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
