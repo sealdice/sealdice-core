@@ -375,7 +375,13 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		LongHelp: "DND5E 检定:\n" + helpSt,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				return CmdExecuteResult{Matched: true, Solved: false}
+				val, _ := cmdArgs.GetArgN(1)
+				switch val {
+				case "", "help":
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},

@@ -740,9 +740,15 @@ func (d *Dice) registerCoreCommands() {
 					if err == nil {
 						if isSetGroup {
 							ctx.Group.DiceSideNum = num
+							var text string
+							if num == 20 {
+								text = "\n提示: 20面骰。如果要进行DND游戏，建议先执行.ext dnd5e on和.ext coc7 off以避免指令冲突"
+							} else if num == 100 {
+								text = "\n提示: 100面骰。如果要进行COC游戏，建议先执行.ext coc7 on和.ext dnd5e off以避免指令冲突"
+							}
 							VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
 							VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认群组骰子面数"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认群组骰子面数")+text)
 						} else {
 							p.DiceSideNum = int(num)
 							VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
