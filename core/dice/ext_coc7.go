@@ -1227,7 +1227,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							}
 
 							VarSetValueStr(ctx, "$t属性信息", info)
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:属性设置_列出"))
+							extra := ReadCardType(ctx, "dnd5e")
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:属性设置_列出")+extra)
 
 						default:
 							re1, _ := regexp.Compile(`([^\d]+?)([+-])=?(.+)$`)
@@ -1312,6 +1313,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								VarSetValueInt64(ctx, "$t有效数量", int64(len(nameMap)))
 								VarSetValueInt64(ctx, "$t同义词数量", int64(synonymsCount))
 								text := DiceFormatTmpl(ctx, "COC:属性设置")
+								SetCardType(ctx, "coc7")
 								//text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据 (其中%d条为同义词)", p.Name, len(valueMap), synonymsCount)
 								ReplyToSender(ctx, msg, text)
 							}

@@ -146,8 +146,11 @@ func (m *HelpManager) Load() {
 	m.AddItem(HelpTextItem{
 		Title: "扩展",
 		Content: `.help 扩展：
-.ext coc7 // 打开coc7版扩展
-.ext dnd5e // 打开dnd5版扩展
+.ext coc7 on // 打开coc7版扩展
+.ext dnd5e off // 关闭dnd5版扩展
+
+.ext dnd5e on // 打开dnd5版扩展
+.ext coc7 off // 关闭coc7版扩展
 `,
 		PackageName: "帮助",
 	})
