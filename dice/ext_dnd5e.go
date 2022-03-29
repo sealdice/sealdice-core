@@ -91,7 +91,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 func RegisterBuiltinExtDnd5e(self *Dice) {
 	ac := setupConfigDND(self)
 
-	helpSt := ""
+	helpSt := ".st 模板 // 录卡模板"
 	helpSt += ".st show // 展示个人属性\n"
 	helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
 	helpSt += ".st show <数字> // 展示高于<数字>的属性，如.st show 30\n"
@@ -99,7 +99,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	helpSt += ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"
 	helpSt += ".st help // 帮助\n"
 	helpSt += ".st <属性>:<值> // 设置属性，技能加值会自动计算。例：.st 感知:20 洞悉:3\n"
-	helpSt += ".st <属性>±<表达式> // 例：.st 生命+1d4"
+	helpSt += ".st <属性>±<表达式> // 修改属性，例：.st 生命+1d4"
+	helpSt += ".st <属性>±<表达式> @某人 // 修改他人属性，例：.st 生命+1d4"
 
 	cmdSt := &CmdItemInfo{
 		Name:     "st",
@@ -209,9 +210,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						// 遍历输出
 						for index, k := range attrKeys {
-							//if strings.HasPrefix(k, "$") {
-							//	continue
-							//}
+							if strings.HasPrefix(k, "$") {
+								continue
+							}
 							v, exists := p.ValueMap[k]
 							if !exists {
 								// 不存在的值，强行补0
@@ -237,7 +238,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							if v.TypeId == VMTypeComputedValue {
 								vd := v.Value.(*VMComputedValueData)
 								val, _, _ := ctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
-								vText = fmt.Sprintf("%s[修正值%s]", val.ToString(), vd.BaseValue.ToString())
+								vText = fmt.Sprintf("%s[基础值%s]", val.ToString(), vd.BaseValue.ToString())
 							} else {
 								vText = v.ToString()
 							}
@@ -259,7 +260,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 
 					VarSetValueStr(ctx, "$t属性信息", info)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:属性设置_列出"))
+					extra := ReadCardType(mctx, "dnd5e")
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:属性设置_列出")+extra)
 
 				case "help", "":
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
@@ -353,6 +355,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					retText := "人物属性设置如下:\n"
 					if len(attrSeted) > 0 {
+						SetCardType(mctx, "dnd5e")
 						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
 					}
 					if len(attrChanged) > 0 {
@@ -369,16 +372,51 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 	}
 
+	helpRc := "" +
+		".rc <属性> // .rc 力量\n" +
+		".rc <表达式> // .rc 力量+3\n" +
+		".rc 优势 <表达式> // .rc 优势 力量+4\n" +
+		".rc 劣势 <表达式> (原因) // .rc 劣势 力量+4 推一下试试\n" +
+		".rc <表达式> @某人 // 对某人做检定"
+
 	cmdRc := &CmdItemInfo{
-		Name:     "st",
-		Help:     helpSt,
-		LongHelp: "DND5E 检定:\n" + helpSt,
+		Name:     "rc",
+		Help:     helpRc,
+		LongHelp: "DND5E 检定:\n" + helpRc,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				mctx := &*ctx // 复制一个ctx，用于其他用途
+				if len(cmdArgs.At) > 0 {
+					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
+					if exists {
+						mctx.Player = p
+					}
+				}
+
 				val, _ := cmdArgs.GetArgN(1)
 				switch val {
 				case "", "help":
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				default:
+					restText := cmdArgs.CleanArgs
+					re := regexp.MustCompile(`^优势|劣势`)
+					m := re.FindString(restText)
+					if m != "" {
+						restText = strings.TrimSpace(restText[len(m):])
+					}
+					expr := fmt.Sprintf("d20%s + %s", m, restText)
+					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{})
+					if err != nil {
+						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					reason := r.restInput
+					if reason == "" {
+						reason = restText
+					}
+
+					text := fmt.Sprintf("<%s>的“%s”检定结果为:\n%s = %s", mctx.Player.Name, reason, detail, r.ToString())
+					ReplyToSender(mctx, msg, text)
 				}
 
 				return CmdExecuteResult{Matched: true, Solved: true}
