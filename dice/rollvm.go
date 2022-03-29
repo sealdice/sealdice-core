@@ -109,11 +109,12 @@ func (code *ByteCode) CodeString() string {
 
 type RollExtraFlags struct {
 	BigFailDiceOn      bool
-	DisableLoadVarname bool // 不允许加载变量，这是为了防止遇到 .r XXX 被当做属性读取，而不是“由于XXX，骰出了”
-	CocVarNumberMode   bool // 特殊的变量模式，此时这种类型的变量“力量50”被读取为50，而解析的文本被算作“力量”，如果没有后面的数字则正常进行
-	CocDefaultAttrOn   bool // 启用COC的默认属性值，如攀爬20等
-	DefaultDiceSideNum int64
-	IgnoreDiv0         bool // 当div0时暂不报错
+	DisableLoadVarname bool  // 不允许加载变量，这是为了防止遇到 .r XXX 被当做属性读取，而不是“由于XXX，骰出了”
+	CocVarNumberMode   bool  // 特殊的变量模式，此时这种类型的变量“力量50”被读取为50，而解析的文本被算作“力量”，如果没有后面的数字则正常进行
+	CocDefaultAttrOn   bool  // 启用COC的默认属性值，如攀爬20等
+	IgnoreDiv0         bool  // 当div0时暂不报错
+	DisableValueBuff   bool  // 不计算buff值
+	DefaultDiceSideNum int64 // 默认骰子面数
 }
 
 type RollExpression struct {
@@ -429,12 +430,27 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				v = realV.Value
 			}
 
+			if !e.flags.DisableValueBuff {
+				_, exists := VarGetValue(ctx, "$buff_"+varname)
+				if exists {
+					if vType == VMTypeInt64 {
+						buffV, _, err := ctx.Dice.ExprEvalBase("$buff_"+varname, ctx, RollExtraFlags{})
+						if err == nil {
+							if buffV.TypeId == VMTypeInt64 {
+								v = v.(int64) + buffV.Value.(int64)
+							}
+						}
+					}
+				}
+
+			}
+
 			stack[top].TypeId = vType
 			stack[top].Value = v
 			top++
 
 			if vType == VMTypeInt64 {
-				lastDetail := fmt.Sprintf("%s=%d", varname, v)
+				lastDetail := fmt.Sprintf("%s=%s", varname, v)
 				lastDetails = append(lastDetails, lastDetail)
 			}
 			continue
