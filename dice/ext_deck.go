@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	wr "github.com/mroth/weightedrand"
+	"github.com/sahilm/fuzzy"
 	"gopkg.in/yaml.v3"
 	"io/fs"
 	"io/ioutil"
@@ -50,6 +51,16 @@ type DeckInfo struct {
 	Desc          string               `yaml:"-"`
 	Info          []string             `yaml:"-"`
 	rawData       *map[string][]string `yaml:"-"`
+}
+
+type DeckInfoCommandList []string
+
+func (e DeckInfoCommandList) String(i int) string {
+	return e[i]
+}
+
+func (e DeckInfoCommandList) Len() int {
+	return len(e)
 }
 
 func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
@@ -176,6 +187,94 @@ func DecksDetect(d *Dice) {
 }
 
 func RegisterBuiltinExtDeck(d *Dice) {
+	helpDraw := "" +
+		".deck help // 显示本帮助\n" +
+		".deck list // 查看载入的牌堆文件\n" +
+		".deck keys // 查看可抽取的牌组列表\n" +
+		".deck search <牌组名称> // 搜索相关牌组\n" +
+		".deck <牌组名称> // 进行抽牌"
+
+	cmdDraw := &CmdItemInfo{
+		Name:     "deck",
+		Help:     helpDraw,
+		LongHelp: "抽牌命令: \n" + helpDraw,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				deckName, exists := cmdArgs.GetArgN(1)
+
+				if exists {
+					if strings.EqualFold(deckName, "list") {
+						text := "载入并开启的牌堆:\n"
+						for _, i := range ctx.Dice.DeckList {
+							text += fmt.Sprintf("- %s 格式: %s 作者:%s 版本:%s 牌组数量: %d\n", i.Name, i.Format, i.Author, i.Version, len(i.Command))
+						}
+						ReplyToSender(ctx, msg, text)
+					} else if strings.EqualFold(deckName, "help") {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					} else if strings.EqualFold(deckName, "keys") {
+						text := "牌组关键字列表:\n"
+						keys := ""
+						for _, i := range ctx.Dice.DeckList {
+							for j := range i.Command {
+								keys += j + "/"
+							}
+						}
+						if keys == "" {
+							text += DiceFormatTmpl(ctx, "牌堆:抽牌_列表_没有牌组")
+						} else {
+							text += keys[:len(keys)-1]
+						}
+						ReplyToSender(ctx, msg, text)
+					} else if strings.EqualFold(deckName, "search") {
+						text, exists := cmdArgs.GetArgN(2)
+						if exists {
+							var lst DeckInfoCommandList
+							for _, i := range ctx.Dice.DeckList {
+								if i.Enable {
+									for j, _ := range i.Command {
+										lst = append(lst, j)
+									}
+								}
+							}
+							matches := fuzzy.FindFrom(text, lst)
+
+							right := len(matches)
+							if right > 10 {
+								right = 3
+							}
+
+							text := "找到以下牌堆:\n"
+							for _, i := range matches[:right] {
+								text += "- " + i.Str + "\n"
+							}
+							ReplyToSender(ctx, msg, text)
+						} else {
+							ReplyToSender(ctx, msg, "请给出要搜索的关键字")
+						}
+					} else {
+						isDrew := false
+						for _, i := range d.DeckList {
+							deckExists := i.Command[deckName]
+							if deckExists {
+								deck := i.DeckItems[deckName]
+								result, _ := executeDeck(ctx, i, deck)
+								ReplyToSender(ctx, msg, result)
+								isDrew = true
+							}
+						}
+						if !isDrew {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "牌堆:抽牌_找不到牌组"))
+						}
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	theExt := &ExtInfo{
 		Name:       "deck", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
@@ -194,68 +293,8 @@ func RegisterBuiltinExtDeck(d *Dice) {
 			return GetExtensionDesc(i)
 		},
 		CmdMap: CmdMapCls{
-			"deck": &CmdItemInfo{
-				Name: "deck",
-				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-						deckName, exists := cmdArgs.GetArgN(1)
-						showHelp := func() {
-							text := "抽牌命令: \n" +
-								".deck help // 显示本帮助\n" +
-								".deck list // 查看载入的牌堆文件\n" +
-								".deck keys // 查看可抽取的牌组列表\n" +
-								".deck search <牌组名称> // 搜索相关牌组\n" +
-								".deck <牌组名称> // 进行抽牌"
-							ReplyToSender(ctx, msg, text)
-						}
-
-						if exists {
-							if strings.EqualFold(deckName, "list") {
-								text := "载入并开启的牌堆:\n"
-								for _, i := range ctx.Dice.DeckList {
-									text += fmt.Sprintf("- %s 格式: %s 作者:%s 版本:%s 牌组数量: %d\n", i.Name, i.Format, i.Author, i.Version, len(i.Command))
-								}
-								ReplyToSender(ctx, msg, text)
-							} else if strings.EqualFold(deckName, "help") {
-								showHelp()
-							} else if strings.EqualFold(deckName, "keys") {
-								text := "牌组关键字列表:\n"
-								keys := ""
-								for _, i := range ctx.Dice.DeckList {
-									for j := range i.Command {
-										keys += j + "/"
-									}
-								}
-								if keys == "" {
-									text += DiceFormatTmpl(ctx, "牌堆:抽牌_列表_没有牌组")
-								} else {
-									text += keys[:len(keys)-1]
-								}
-								ReplyToSender(ctx, msg, text)
-							} else if strings.EqualFold(deckName, "search") {
-								ReplyToSender(ctx, msg, "搜索功能将在后续版本，与关键字模糊匹配回复一起实现")
-							} else {
-								isDrew := false
-								for _, i := range d.DeckList {
-									deckExists := i.Command[deckName]
-									if deckExists {
-										deck := i.DeckItems[deckName]
-										result, _ := executeDeck(ctx, i, deck)
-										ReplyToSender(ctx, msg, result)
-										isDrew = true
-									}
-								}
-								if !isDrew {
-									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "牌堆:抽牌_找不到牌组"))
-								}
-							}
-						} else {
-							showHelp()
-						}
-					}
-					return CmdExecuteResult{Matched: true, Solved: false}
-				},
-			},
+			"draw": cmdDraw,
+			"deck": cmdDraw,
 		},
 	}
 
