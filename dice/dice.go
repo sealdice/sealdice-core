@@ -15,7 +15,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.9f1内测版 v20220327"
+var VERSION = "0.99.10内测版 v20220329"
 
 type CmdExecuteResult struct {
 	Matched       bool // 是否是指令
