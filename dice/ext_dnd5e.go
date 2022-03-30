@@ -467,7 +467,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						reason = restText
 					}
 
-					text := fmt.Sprintf("<%s>的“%s”检定结果为:\n%s = %s", mctx.Player.Name, reason, detail, r.ToString())
+					text := fmt.Sprintf("<%s>的“%s”检定(dnd5e)结果为:\n%s = %s", mctx.Player.Name, reason, detail, r.ToString())
 					ReplyToSender(mctx, msg, text)
 				}
 

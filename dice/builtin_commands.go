@@ -471,7 +471,7 @@ func (d *Dice) registerCoreCommands() {
 
 				if ctx.Dice.CommandCompatibleMode {
 					if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd") && len(cmdArgs.Args) >= 1 {
-						if m, _ := regexp.MatchString(`^\d`, cmdArgs.CleanArgs); m {
+						if m, _ := regexp.MatchString(`^\d|优势|劣势`, cmdArgs.CleanArgs); m {
 							cmdArgs.CleanArgs = "d" + cmdArgs.CleanArgs
 						}
 					}
