@@ -457,7 +457,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						restText = strings.TrimSpace(restText[len(m):])
 					}
 					expr := fmt.Sprintf("d20%s + %s", m, restText)
-					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{})
+					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrWithMod: true})
 					if err != nil {
 						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
 						return CmdExecuteResult{Matched: true, Solved: true}

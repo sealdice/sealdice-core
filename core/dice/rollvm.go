@@ -114,6 +114,7 @@ type RollExtraFlags struct {
 	CocDefaultAttrOn   bool  // 启用COC的默认属性值，如攀爬20等
 	IgnoreDiv0         bool  // 当div0时暂不报错
 	DisableValueBuff   bool  // 不计算buff值
+	DNDAttrWithMod     bool  // 基础属性额外加调整值
 	DefaultDiceSideNum int64 // 默认骰子面数
 }
 
@@ -342,6 +343,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 		case TypeLoadVarname:
 			var v interface{}
 			var vType VMValueType
+			var lastDetail string
 
 			varname := code.ValueStr
 
@@ -430,6 +432,24 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				v = realV.Value
 			}
 
+			if vType == VMTypeInt64 {
+				lastDetail = fmt.Sprintf("%s=%d", varname, v)
+			}
+
+			if e.flags.DNDAttrWithMod {
+				// 额外调整值补正，用于检定
+				if v != nil {
+					switch varname {
+					case "力量", "敏捷", "体质", "智力", "感知", "魅力":
+						if vType == VMTypeInt64 {
+							mod := v.(int64)/2 - 5
+							v = v.(int64) + mod
+							lastDetail += fmt.Sprintf("+%d", mod)
+						}
+					}
+				}
+			}
+
 			if !e.flags.DisableValueBuff {
 				_, exists := VarGetValue(ctx, "$buff_"+varname)
 				if exists {
@@ -437,12 +457,12 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 						buffV, _, err := ctx.Dice.ExprEvalBase("$buff_"+varname, ctx, RollExtraFlags{})
 						if err == nil {
 							if buffV.TypeId == VMTypeInt64 {
+								lastDetail += fmt.Sprintf("+%d", buffV.Value.(int64))
 								v = v.(int64) + buffV.Value.(int64)
 							}
 						}
 					}
 				}
-
 			}
 
 			stack[top].TypeId = vType
@@ -450,7 +470,6 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			top++
 
 			if vType == VMTypeInt64 {
-				lastDetail := fmt.Sprintf("%s=%s", varname, v)
 				lastDetails = append(lastDetails, lastDetail)
 			}
 			continue
