@@ -329,6 +329,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								VarSetValueDNDComputed(ctx, attrName, r.Value.(int64), fmt.Sprintf(exprTmpl, parent))
 							} else {
 								VarSetValueInt64(ctx, attrName, r.Value.(int64))
+								VarSetValueDNDComputed(ctx, fmt.Sprintf("$豁免_%s", attrName), int64(0), fmt.Sprintf(exprTmpl, attrName))
 							}
 							attrSeted = append(attrSeted, aText)
 						}
@@ -387,7 +388,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 										newVal = vHpMax.Value.(int64)
 									}
 								}
-
 							}
 
 							vOld, _, _ := ctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
@@ -458,7 +458,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						restText = strings.TrimSpace(restText[len(m):])
 					}
 					expr := fmt.Sprintf("d20%s + %s", m, restText)
-					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true})
+					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
 					if err != nil {
 						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
 						return CmdExecuteResult{Matched: true, Solved: true}
