@@ -433,21 +433,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			}
 
 			if vType == VMTypeInt64 {
-				lastDetail = fmt.Sprintf("%s=%d", varname, v)
-			}
-
-			if e.flags.DNDAttrWithMod {
-				// 额外调整值补正，用于检定
-				if v != nil {
-					switch varname {
-					case "力量", "敏捷", "体质", "智力", "感知", "魅力":
-						if vType == VMTypeInt64 {
-							mod := v.(int64)/2 - 5
-							v = v.(int64) + mod
-							lastDetail += fmt.Sprintf("+%d", mod)
-						}
-					}
-				}
+				lastDetail = fmt.Sprintf("%d", v)
 			}
 
 			if !e.flags.DisableValueBuff {
@@ -463,6 +449,27 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 						}
 					}
 				}
+			}
+
+			detailFlag := false
+			if e.flags.DNDAttrWithMod {
+				// 额外调整值补正，用于检定
+				if v != nil {
+					switch varname {
+					case "力量", "敏捷", "体质", "智力", "感知", "魅力":
+						if vType == VMTypeInt64 {
+							detailFlag = true
+							mod := v.(int64)/2 - 5
+							v = mod
+							lastDetail = fmt.Sprintf("%s调整值%d", varname, mod)
+							//lastDetail = varname + lastDetail
+						}
+					}
+				}
+			}
+
+			if !detailFlag {
+				lastDetail = fmt.Sprintf("%s=%s", varname, lastDetail)
 			}
 
 			stack[top].TypeId = vType
