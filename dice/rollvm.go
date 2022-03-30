@@ -114,7 +114,8 @@ type RollExtraFlags struct {
 	CocDefaultAttrOn   bool  // 启用COC的默认属性值，如攀爬20等
 	IgnoreDiv0         bool  // 当div0时暂不报错
 	DisableValueBuff   bool  // 不计算buff值
-	DNDAttrReadMod     bool  // 基础属性额外加调整值
+	DNDAttrReadMod     bool  // 基础属性被读取为调整值，仅在检定时使用
+	DNDAttrReadDC      bool  // 将力量豁免读取为力量再计算豁免值
 	DefaultDiceSideNum int64 // 默认骰子面数
 }
 
@@ -349,6 +350,21 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 			if e.flags.DisableLoadVarname {
 				return nil, calcDetail, errors.New("解析失败")
+			}
+
+			if e.flags.DNDAttrReadDC {
+				// 额外调整值补正，用于检定
+				switch varname {
+				case "力量豁免", "敏捷豁免", "体质豁免", "智力豁免", "感知豁免", "魅力豁免":
+					vName := strings.ReplaceAll(varname, "豁免", "")
+					realV, _, err := ctx.Dice.ExprEvalBase(fmt.Sprintf("$豁免_%s", vName), ctx, RollExtraFlags{})
+					if err == nil {
+						vType = realV.TypeId
+						v = realV.Value
+					}
+					//lastDetail = fmt.Sprintf("%s调整值%d", varname, mod)
+					//lastDetail = varname + lastDetail
+				}
 			}
 
 			if e.flags.CocVarNumberMode {
