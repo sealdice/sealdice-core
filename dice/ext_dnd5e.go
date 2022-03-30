@@ -125,6 +125,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					text += "注意: 技能只填写修正值即可，属性调整值会自动计算。熟练写为“运动*:0”"
 					ReplyToSender(ctx, msg, text)
 					return CmdExecuteResult{Matched: true, Solved: true}
+
 				case "del", "rm":
 					var nums []string
 					var failed []string
@@ -457,7 +458,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						restText = strings.TrimSpace(restText[len(m):])
 					}
 					expr := fmt.Sprintf("d20%s + %s", m, restText)
-					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrWithMod: true})
+					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true})
 					if err != nil {
 						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -732,10 +733,266 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 	}
 
+	spellSlotsRenew := func(mctx *MsgContext, msg *Message) int {
+		num := 0
+		for i := 1; i < 10; i += 1 {
+			//_, _ := VarGetValueInt64(mctx, fmt.Sprintf("$法术位_%d", i))
+			spellLevelMax, exists := VarGetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", i))
+			if exists {
+				num += 1
+				VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", i), spellLevelMax)
+			}
+		}
+		return num
+	}
+
+	spellSlotsChange := func(mctx *MsgContext, msg *Message, spellLevel int64, num int64) *CmdExecuteResult {
+		spellLevelCur, _ := VarGetValueInt64(mctx, fmt.Sprintf("$法术位_%d", spellLevel))
+		spellLevelMax, _ := VarGetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", spellLevel))
+
+		newLevel := spellLevelCur + num
+		if newLevel < 0 {
+			ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>无法消耗%d个%d环法术位，当前%d个`, mctx.Player.Name, -num, spellLevel, spellLevelCur))
+			return &CmdExecuteResult{Matched: true, Solved: true}
+		}
+		if newLevel > spellLevelMax {
+			newLevel = spellLevelMax
+		}
+		VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", spellLevel), newLevel)
+		if num < 0 {
+			ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的%d环法术位消耗至%d个，上限%d个`, mctx.Player.Name, spellLevel, newLevel, spellLevelMax))
+		} else {
+			ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的%d环法术位恢复至%d个，上限%d个`, mctx.Player.Name, spellLevel, newLevel, spellLevelMax))
+		}
+		return nil
+	}
+
+	helpSS := "" +
+		".ss // 查看当前法术位状况\n" +
+		".ss init 4 3 2 // 设置1 2 3环的法术位上限，以此类推到9环\n" +
+		".ss set 2环 4 // 单独设置某一环的法术位上限，可连写多组，逗号分隔\n" +
+		".ss rest // 恢复所有法术位(不回复hp)\n" +
+		".ss 3环 +1 // 增加一个3环法术位（不会超过上限）\n" +
+		".ss lv3 +1 // 增加一个3环法术位 - 另一种写法\n" +
+		".ss 3环 -1 // 消耗一个3环法术位，也可以用.cast 3"
+
+	cmdSpellSlot := &CmdItemInfo{
+		Name:     "ss",
+		Help:     helpSS,
+		LongHelp: "DND5E 法术位(.ss .法术位):\n" + helpSS,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				val, _ := cmdArgs.GetArgN(1)
+				mctx := &*ctx // 复制一个ctx，用于其他用途
+				if len(cmdArgs.At) > 0 {
+					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
+					if exists {
+						mctx.Player = p
+					}
+				}
+
+				switch val {
+				case "init":
+					reSlot := regexp.MustCompile(`\d+`)
+					slots := reSlot.FindAllString(cmdArgs.CleanArgs, -1)
+					if len(slots) > 0 {
+						texts := []string{}
+						for index, levelVal := range slots {
+							val, _ := strconv.ParseInt(levelVal, 10, 64)
+							VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", index+1), val)
+							VarSetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", index+1), val)
+							texts = append(texts, fmt.Sprintf("%d环%d个", index+1, val))
+						}
+						ReplyToSender(mctx, msg, "为<"+mctx.Player.Name+">设置法术位: "+strings.Join(texts, ", "))
+					} else {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					}
+				case "rest":
+					n := spellSlotsRenew(mctx, msg)
+					if n > 0 {
+						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的法术位已经完全恢复`, mctx.Player.Name))
+					} else {
+						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>并没有设置过法术位`, mctx.Player.Name))
+					}
+				case "set":
+					reSlot := regexp.MustCompile(`(\d+)[环cC]\s*(\d+)|[lL][vV](\d+)\s+(\d+)`)
+					slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
+					if len(slots) > 0 {
+						texts := []string{}
+						for _, oneSlot := range slots {
+							level := oneSlot[1]
+							if level == "" {
+								level = oneSlot[3]
+							}
+							levelVal := oneSlot[2]
+							if levelVal == "" {
+								levelVal = oneSlot[4]
+							}
+							iLevel, _ := strconv.ParseInt(level, 10, 64)
+							iLevelVal, _ := strconv.ParseInt(levelVal, 10, 64)
+
+							VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", iLevel), iLevelVal)
+							VarSetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", iLevel), iLevelVal)
+							texts = append(texts, fmt.Sprintf("%d环%d个", iLevel, iLevelVal))
+						}
+						ReplyToSender(mctx, msg, "为<"+mctx.Player.Name+">设置法术位: "+strings.Join(texts, ", "))
+					} else {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					}
+				case "":
+					texts := []string{}
+					for i := 1; i < 10; i += 1 {
+						spellLevelCur, _ := VarGetValueInt64(mctx, fmt.Sprintf("$法术位_%d", i))
+						spellLevelMax, exists := VarGetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", i))
+						if exists {
+							texts = append(texts, fmt.Sprintf("%d环:%d/%d", i, spellLevelCur, spellLevelMax))
+						}
+					}
+					summary := strings.Join(texts, ", ")
+					if summary == "" {
+						summary = "没有设置过法术位"
+					}
+					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的法术位状况: %s`, mctx.Player.Name, summary))
+				case "help":
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				default:
+					reSlot := regexp.MustCompile(`(\d+)[环cC]\s*([+-])(\d+)|[lL][vV](\d+)\s*([+-])(\d+)`)
+					slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
+					if len(slots) > 0 {
+						for _, oneSlot := range slots {
+							level := oneSlot[1]
+							if level == "" {
+								level = oneSlot[4]
+							}
+							op := oneSlot[2]
+							if op == "" {
+								op = oneSlot[5]
+							}
+							levelVal := oneSlot[3]
+							if levelVal == "" {
+								levelVal = oneSlot[6]
+							}
+							iLevel, _ := strconv.ParseInt(level, 10, 64)
+							iLevelVal, _ := strconv.ParseInt(levelVal, 10, 64)
+							if op == "-" {
+								iLevelVal = -iLevelVal
+							}
+
+							ret := spellSlotsChange(mctx, msg, iLevel, iLevelVal)
+							if ret != nil {
+								return *ret
+							}
+						}
+					} else {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					}
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
+	helpCast := "" +
+		".cast 1 // 消耗1个1环法术位\n" +
+		".cast 1 2 // 消耗2个1环法术位"
+
+	cmdCast := &CmdItemInfo{
+		Name:     "cast",
+		Help:     helpCast,
+		LongHelp: "DND5E 法术位使用(.cast):\n" + helpCast,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				val, _ := cmdArgs.GetArgN(1)
+				mctx := &*ctx // 复制一个ctx，用于其他用途
+				if len(cmdArgs.At) > 0 {
+					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
+					if exists {
+						mctx.Player = p
+					}
+				}
+
+				switch val {
+				default:
+					// 该正则匹配: 2 1, 2环1, 2环 1, 2c1, lv2 1
+					reSlot := regexp.MustCompile(`(\d+)(?:[环cC]?|\s)\s*(\d+)?|[lL][vV](\d+)(?:\s+(\d+))?`)
+
+					slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
+					if len(slots) > 0 {
+						for _, oneSlot := range slots {
+							level := oneSlot[1]
+							if level == "" {
+								level = oneSlot[3]
+							}
+							levelVal := oneSlot[2]
+							if levelVal == "" {
+								levelVal = oneSlot[4]
+							}
+							if levelVal == "" {
+								levelVal = "1"
+							}
+							iLevel, _ := strconv.ParseInt(level, 10, 64)
+							iLevelVal, _ := strconv.ParseInt(levelVal, 10, 64)
+
+							ret := spellSlotsChange(mctx, msg, iLevel, -iLevelVal)
+							if ret != nil {
+								return *ret
+							}
+						}
+					} else {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					}
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
+	helpLongRest := "" +
+		".长休 // 恢复生命值(必须设置hpmax且hp>0)和法术位 \n" +
+		".longrest // 另一种写法"
+
+	cmdLongRest := &CmdItemInfo{
+		Name:     "长休",
+		Help:     helpLongRest,
+		LongHelp: "DND5E 长休:\n" + helpLongRest,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				val, _ := cmdArgs.GetArgN(1)
+				mctx := &*ctx // 复制一个ctx，用于其他用途
+				if len(cmdArgs.At) > 0 {
+					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
+					if exists {
+						mctx.Player = p
+					}
+				}
+
+				switch val {
+				case "":
+					hpText := "没有设置hpmax，无法回复hp"
+					hpMax, exists := VarGetValueInt64(mctx, "hpmax")
+					if exists {
+						hpText = fmt.Sprintf("hp得到了恢复，现为%d ", hpMax)
+						VarSetValueInt64(mctx, "hp", hpMax)
+					}
+
+					n := spellSlotsRenew(mctx, msg)
+					ssText := ""
+					if n > 0 {
+						ssText = "法术位得到了恢复"
+					}
+					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的长休: `+hpText+ssText, mctx.Player.Name))
+				default:
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	theExt := &ExtInfo{
 		Name:       "dnd5e", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
-		Brief:      "正在努力完成的DND模块",
+		Brief:      "提供DND5E规则TRPG支持",
 		Author:     "木落",
 		AutoActive: true, // 是否自动开启
 		ConflictWith: []string{
@@ -992,12 +1249,21 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				},
 			},
 			//"属性":    cmdSt,
-			"st":    cmdSt,
-			"dst":   cmdSt,
-			"rc":    cmdRc,
-			"drc":   cmdRc,
-			"buff":  cmdBuff,
-			"dbuff": cmdBuff,
+			"st":         cmdSt,
+			"dst":        cmdSt,
+			"rc":         cmdRc,
+			"drc":        cmdRc,
+			"buff":       cmdBuff,
+			"dbuff":      cmdBuff,
+			"spellslots": cmdSpellSlot,
+			"ss":         cmdSpellSlot,
+			"dss":        cmdSpellSlot,
+			"法术位":        cmdSpellSlot,
+			"cast":       cmdCast,
+			"dcast":      cmdCast,
+			"长休":         cmdLongRest,
+			"longrest":   cmdLongRest,
+			"dlongrest":  cmdLongRest,
 		},
 	}
 

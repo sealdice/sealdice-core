@@ -132,6 +132,14 @@ func VarDelValue(ctx *MsgContext, s string) {
 	delete(ctx.Player.ValueMap, name)
 }
 
+func VarGetValueInt64(ctx *MsgContext, s string) (int64, bool) {
+	v, exists := VarGetValue(ctx, s)
+	if exists && v.TypeId == VMTypeInt64 {
+		return v.Value.(int64), true
+	}
+	return 0, false
+}
+
 func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 	name := ctx.Player.GetValueNameByAlias(s, nil)
 
