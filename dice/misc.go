@@ -22,6 +22,13 @@ func (cv *VMComputedValueData) SetValue(v *VMValue) {
 	cv.BaseValue = *v
 }
 
+func (vd *VMComputedValueData) ReadBaseInt64() (int64, bool) {
+	if vd.BaseValue.TypeId == VMTypeInt64 {
+		return vd.BaseValue.Value.(int64), true
+	}
+	return 0, false
+}
+
 type VMValue struct {
 	TypeId VMValueType `json:"typeId"`
 	Value  interface{} `json:"value"`

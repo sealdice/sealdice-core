@@ -88,6 +88,40 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 	}
 }
 
+func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Regexp) map[string]string {
+	exportMap := map[string]string{}
+	for k, v := range mctx.Player.ValueMap {
+		doIt := whiteList[k]
+		if !doIt && regexps != nil {
+			for _, i := range regexps {
+				if i.MatchString(k) {
+					doIt = true
+					break
+				}
+			}
+		}
+
+		if doIt {
+			switch v.TypeId {
+			case VMTypeInt64:
+				exportMap[k] = strconv.FormatInt(v.Value.(int64), 10)
+			case VMTypeString:
+				exportMap[k] = v.Value.(string)
+			case VMTypeComputedValue:
+				vd := v.Value.(*VMComputedValueData)
+				if strings.Index(vd.Expr, "熟练") != -1 {
+					k = k + "*"
+				}
+				val, ok := vd.ReadBaseInt64()
+				if ok {
+					exportMap[k] = strconv.FormatInt(val, 10)
+				}
+			}
+		}
+	}
+	return exportMap
+}
+
 func RegisterBuiltinExtDnd5e(self *Dice) {
 	ac := setupConfigDND(self)
 
@@ -97,6 +131,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	helpSt += ".st show <数字> // 展示高于<数字>的属性，如.st show 30\n"
 	helpSt += ".st clr/clear // 清除属性\n"
 	helpSt += ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"
+	helpSt += ".st export // 导出，包括属性和法术位\n"
 	helpSt += ".st help // 帮助\n"
 	helpSt += ".st <属性>:<值> // 设置属性，技能加值会自动计算。例：.st 感知:20 洞悉:3\n"
 	helpSt += ".st <属性>±<表达式> // 修改属性，例：.st hp+1d4\n"
@@ -143,6 +178,29 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
 					VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_删除"))
+
+				case "export":
+					m := stExport(mctx, map[string]bool{
+						"力量": true, "敏捷": true, "体质": true, "智力": true, "感知": true, "魅力": true,
+						"运动": true,
+						"特技": true, "巧手": true, "隐匿": true,
+						"调查": true, "奥秘": true, "历史": true, "自然": true, "宗教": true,
+						"察觉": true, "洞悉": true, "驯养": true, "医疗": true, "生存": true,
+						"说服": true, "欺诈": true, "威吓": true, "表演": true,
+
+						"hd": true, "hp": true, "hpmax": true,
+						//"$cardType": true,
+					}, []*regexp.Regexp{
+						regexp.MustCompile(`^\$法术位_[1-9]$`),
+						regexp.MustCompile(`^\$法术位上限_[1-9]$`),
+					})
+
+					texts := []string{}
+					for k, v := range m {
+						texts = append(texts, fmt.Sprintf("%s:%s", k, v))
+					}
+					sort.Strings(texts)
+					ReplyToSender(mctx, msg, "属性导出(注意，人物基础属性的熟练还不能支持):\n"+strings.Join(texts, " "))
 
 				case "clr", "clear":
 					p := mctx.Player
@@ -427,6 +485,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 	helpRc := "" +
 		".rc <属性> // .rc 力量\n" +
+		".rc <属性>豁免 // .rc 力量豁免\n" +
 		".rc <表达式> // .rc 力量+3\n" +
 		".rc 优势 <表达式> // .rc 优势 力量+4\n" +
 		".rc 劣势 <表达式> (原因) // .rc 劣势 力量+4 推一下试试\n" +
@@ -771,6 +830,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".ss // 查看当前法术位状况\n" +
 		".ss init 4 3 2 // 设置1 2 3环的法术位上限，以此类推到9环\n" +
 		".ss set 2环 4 // 单独设置某一环的法术位上限，可连写多组，逗号分隔\n" +
+		".ss clr // 清除法术位设置\n" +
 		".ss rest // 恢复所有法术位(不回复hp)\n" +
 		".ss 3环 +1 // 增加一个3环法术位（不会超过上限）\n" +
 		".ss lv3 +1 // 增加一个3环法术位 - 另一种写法\n" +
@@ -807,6 +867,15 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					} else {
 						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 					}
+
+				case "clr":
+					vm := mctx.Player.ValueMap
+					for i := 1; i < 10; i += 1 {
+						delete(vm, fmt.Sprintf("$法术位_%d", i))
+						delete(vm, fmt.Sprintf("$法术位上限_%d", i))
+					}
+					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>法术位数据已清除`, mctx.Player.Name))
+
 				case "rest":
 					n := spellSlotsRenew(mctx, msg)
 					if n > 0 {
@@ -814,6 +883,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					} else {
 						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>并没有设置过法术位`, mctx.Player.Name))
 					}
+
 				case "set":
 					reSlot := regexp.MustCompile(`(\d+)[环cC]\s*(\d+)|[lL][vV](\d+)\s+(\d+)`)
 					slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
