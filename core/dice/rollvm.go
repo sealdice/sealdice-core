@@ -114,7 +114,7 @@ type RollExtraFlags struct {
 	CocDefaultAttrOn   bool  // 启用COC的默认属性值，如攀爬20等
 	IgnoreDiv0         bool  // 当div0时暂不报错
 	DisableValueBuff   bool  // 不计算buff值
-	DNDAttrWithMod     bool  // 基础属性额外加调整值
+	DNDAttrReadMod     bool  // 基础属性额外加调整值
 	DefaultDiceSideNum int64 // 默认骰子面数
 }
 
@@ -452,7 +452,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			}
 
 			detailFlag := false
-			if e.flags.DNDAttrWithMod {
+			if e.flags.DNDAttrReadMod {
 				// 额外调整值补正，用于检定
 				if v != nil {
 					switch varname {
