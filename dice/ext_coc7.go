@@ -568,6 +568,52 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		},
 	}
 
+	helpSetCOC := ".setcoc 0-5 // 设置常见的0-5房规\n" +
+		".setcoc dg // delta green 扩展规则"
+	cmdSetCOC := &CmdItemInfo{
+		Name:     "setcoc",
+		Help:     helpSetCOC,
+		LongHelp: "设置房规:\n" + helpSetCOC,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				n, _ := cmdArgs.GetArgN(1)
+				switch n {
+				case "0":
+					ctx.Group.CocRuleIndex = 0
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_0"))
+				case "1":
+					ctx.Group.CocRuleIndex = 1
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_1"))
+				case "2":
+					ctx.Group.CocRuleIndex = 2
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_2"))
+				case "3":
+					ctx.Group.CocRuleIndex = 3
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_3"))
+				case "4":
+					ctx.Group.CocRuleIndex = 4
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_4"))
+				case "5":
+					ctx.Group.CocRuleIndex = 5
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_5"))
+				case "dg":
+					ctx.Group.CocRuleIndex = 11
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_DeltaGreen"))
+				case "":
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				default:
+					text := DiceFormatTmpl(ctx, fmt.Sprintf("COC:设置房规_%d", ctx.Group.CocRuleIndex))
+					VarSetValueStr(ctx, "$t房规文本", text)
+					VarSetValue(ctx, "$t房规", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	theExt := &ExtInfo{
 		Name:       "coc7",
 		Version:    "1.0.0",
@@ -694,40 +740,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
-			"setcoc": &CmdItemInfo{
-				Name: "setcoc",
-				Help: ".setcoc 0-5 // 设置房规",
-				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					n, _ := cmdArgs.GetArgN(1)
-					switch n {
-					case "0":
-						ctx.Group.CocRuleIndex = 0
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_0"))
-					case "1":
-						ctx.Group.CocRuleIndex = 1
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_1"))
-					case "2":
-						ctx.Group.CocRuleIndex = 2
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_2"))
-					case "3":
-						ctx.Group.CocRuleIndex = 3
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_3"))
-					case "4":
-						ctx.Group.CocRuleIndex = 4
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_4"))
-					case "5":
-						ctx.Group.CocRuleIndex = 5
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_5"))
-					default:
-						text := DiceFormatTmpl(ctx, fmt.Sprintf("COC:设置房规_%d", ctx.Group.CocRuleIndex))
-						VarSetValueStr(ctx, "$t房规文本", text)
-						VarSetValue(ctx, "$t房规", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
-					}
-
-					return CmdExecuteResult{Matched: true, Solved: false}
-				},
-			},
+			"setcoc": cmdSetCOC,
 			"ti": &CmdItemInfo{
 				Name: "ti",
 				Help: ".ti // 抽取一个临时性疯狂症状",
@@ -1418,7 +1431,7 @@ func ResultCheck(cocRule int, d100 int64, checkValue int64) (successRank int, cr
 	criticalSuccessValue = int64(1) // 大成功阈值
 	fumbleValue := int64(100)       // 大失败阈值
 
-	// 村规设定
+	// 分支规则设定
 	switch cocRule {
 	case 0:
 		// 规则书规则
@@ -1469,6 +1482,9 @@ func ResultCheck(cocRule int, d100 int64, checkValue int64) (successRank int, cr
 		} else {
 			fumbleValue = 99
 		}
+	case 11: //dg
+		criticalSuccessValue = 1
+		fumbleValue = 100
 	}
 
 	// 成功判定
@@ -1507,6 +1523,28 @@ func ResultCheck(cocRule int, d100 int64, checkValue int64) (successRank int, cr
 		if d100 >= fumbleValue {
 			//suffix = "大失败！"
 			successRank = -2
+		}
+	}
+
+	// 规则DG改判，检定成功基础上，个位十位相同大成功
+	// 检定失败基础上，个位十位相同大失败
+	if cocRule == 11 {
+		numUnits := d100 % 10
+		numTens := d100 % 100 / 10
+		dgCheck := numUnits == numTens
+
+		if successRank > 0 {
+			if dgCheck {
+				successRank = 4
+			} else {
+				successRank = 1 // 抹除困难极难成功
+			}
+		} else {
+			if dgCheck {
+				successRank = -2
+			} else {
+				successRank = -1
+			}
 		}
 	}
 

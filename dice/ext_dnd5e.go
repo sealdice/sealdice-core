@@ -1041,14 +1041,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					hpText := "没有设置hpmax，无法回复hp"
 					hpMax, exists := VarGetValueInt64(mctx, "hpmax")
 					if exists {
-						hpText = fmt.Sprintf("hp得到了恢复，现为%d ", hpMax)
+						hpText = fmt.Sprintf("hp得到了恢复，现为%d", hpMax)
 						VarSetValueInt64(mctx, "hp", hpMax)
 					}
 
 					n := spellSlotsRenew(mctx, msg)
 					ssText := ""
 					if n > 0 {
-						ssText = "法术位得到了恢复"
+						ssText = "。法术位得到了恢复"
 					}
 					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的长休: `+hpText+ssText, mctx.Player.Name))
 				default:

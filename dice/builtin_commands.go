@@ -733,6 +733,14 @@ func (d *Dice) registerCoreCommands() {
 
 				arg1, exists := cmdArgs.GetArgN(1)
 				if exists {
+					tipText := "\n提示: "
+					if strings.EqualFold(arg1, "coc") {
+						cmdArgs.Args[0] = "100"
+						tipText += "如果你执行的是.setcoc(无空格)，可能说明此时coc7扩展并未打开，请运行.ext coc7 on\n"
+					}
+					if strings.EqualFold(arg1, "dnd") {
+						cmdArgs.Args[0] = "20"
+					}
 					num, err := strconv.ParseInt(cmdArgs.Args[0], 10, 64)
 					if num < 0 {
 						num = 0
@@ -740,15 +748,14 @@ func (d *Dice) registerCoreCommands() {
 					if err == nil {
 						if isSetGroup {
 							ctx.Group.DiceSideNum = num
-							var text string
 							if num == 20 {
-								text = "\n提示: 20面骰。如果要进行DND游戏，建议先执行.ext dnd5e on和.ext coc7 off以避免指令冲突"
+								tipText += "20面骰。如果要进行DND游戏，建议先执行.ext dnd5e on和.ext coc7 off以避免指令冲突"
 							} else if num == 100 {
-								text = "\n提示: 100面骰。如果要进行COC游戏，建议先执行.ext coc7 on和.ext dnd5e off以避免指令冲突"
+								tipText += "100面骰。如果要进行COC游戏，建议先执行.ext coc7 on和.ext dnd5e off以避免指令冲突"
 							}
 							VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
 							VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认群组骰子面数")+text)
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认群组骰子面数")+tipText)
 						} else {
 							p.DiceSideNum = int(num)
 							VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
