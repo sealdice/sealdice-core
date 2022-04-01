@@ -49,3 +49,10 @@ func (v *VMValue) ToString() string {
 		return "a value"
 	}
 }
+
+func (v *VMValue) ReadInt64() (int64, bool) {
+	if v.TypeId == VMTypeInt64 {
+		return v.Value.(int64), true
+	}
+	return 0, false
+}

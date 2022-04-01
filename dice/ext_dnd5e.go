@@ -476,8 +476,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						retText += "解析失败: " + text
 					}
 					ReplyToSender(ctx, msg, retText)
-					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},
@@ -1054,6 +1054,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				default:
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},
@@ -1093,7 +1094,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						var ss []string
 						for i = 0; i < val; i++ {
-							result, _, err := self.ExprText(`力量:{$t1=3+1d17} 体质:{$t2=3+1d17} 敏捷:{$t3=3+1d17} 智力:{$t4=3+1d17} 感知:{$t5=3+1d17} 魅力:{$t6=3+1d17} 共计:{$t1+$t2+$t3+$t4+$t5+$t6}`, ctx)
+							result, _, err := self.ExprText(`力量:{$t1=4d6k3} 体质:{$t2=4d6k3} 敏捷:{$t3=4d6k3} 智力:{$t4=4d6k3} 感知:{$t5=4d6k3} 魅力:{$t6=4d6k3} 共计:{$t1+$t2+$t3+$t4+$t5+$t6}`, ctx)
 							if err != nil {
 								break
 							}
