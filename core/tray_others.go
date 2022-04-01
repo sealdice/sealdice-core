@@ -3,7 +3,7 @@
 
 package main
 
-func aaa() {
+func trayInit() {
 
 }
 

@@ -26,22 +26,14 @@ extensions/
 
 func main() {
 	var opts struct {
-		GoCqhttpClear bool `long:"gclr" description:"清除go-cqhttp登录信息"`
-		Install       bool `short:"i" long:"install" description:"安装为系统服务"`
-		Uninstall     bool `long:"uninstall" description:"删除系统服务"`
-		ShowConsole   bool `long:"show-console" description:"Windows上显示控制台界面"`
+		Install                bool `short:"i" long:"install" description:"安装为系统服务"`
+		Uninstall              bool `long:"uninstall" description:"删除系统服务"`
+		ShowConsole            bool `long:"show-console" description:"Windows上显示控制台界面"`
+		MultiInstanceOnWindows bool `short:"m" long:"multi-instance" description:"允许在Windows上运行多个海豹"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
-		return
-	}
-
-	if opts.GoCqhttpClear {
-		fmt.Println("清除go-cqhttp登录信息……")
-		os.Remove("./go-cqhttp/config.yml")
-		os.Remove("./go-cqhttp/device.json")
-		os.Remove("./go-cqhttp/session.token")
 		return
 	}
 
@@ -55,15 +47,15 @@ func main() {
 		return
 	}
 
-	if !opts.ShowConsole {
+	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 		hideWindow()
 	}
 
-	if TestRunning() {
+	if !opts.MultiInstanceOnWindows && TestRunning() {
 		return
 	}
 
-	go aaa()
+	go trayInit()
 
 	cwd, _ := os.Getwd()
 	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
@@ -81,8 +73,6 @@ func main() {
 	defer cleanUp()
 
 	// 初始化核心
-	//myDice := &dice.Dice{}
-	//myDice.Init()
 	diceManager.LoadDice()
 	diceManager.TryCreateDefault()
 	diceManager.InitDice()
@@ -122,34 +112,11 @@ func main() {
 		}
 	})()
 
-	//for _, v := range myDice.ImSession.Conns {
-	//	if v.UseInPackGoCqhttp {
-	//		go dice.goCqHttpServe(myDice)
-	//	}
-	//}
-
 	for _, d := range diceManager.Dice {
 		go diceServe(d)
 	}
 
 	uiServe(diceManager)
-
-	//if checkCqHttpExists() {
-	//	myDice.InPackGoCqHttpExists = true
-	//	go goCqHttpServe(myDice)
-	//	// 等待登录成功
-	//	for {
-	//		if myDice.InPackGoCqHttpLoginSuccess {
-	//			diceIMServe(myDice)
-	//			break
-	//		}
-	//		time.Sleep(1 * time.Second)
-	//	}
-	//} else {
-	//	myDice.InPackGoCqHttpExists = false
-	//	// 假设已经有一个onebot服务存在
-	//	diceIMServe(myDice)
-	//}
 }
 
 func diceServe(d *dice.Dice) {
