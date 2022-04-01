@@ -219,6 +219,7 @@ var ManiaListText = `
 `
 
 var difficultPrefixMap = map[string]int{
+	"":    1,
 	"常规":  1,
 	"困难":  2,
 	"极难":  3,
@@ -614,6 +615,172 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		},
 	}
 
+	helpRcv := ".rav/.rcv 技能 @某人 // 自己和某人进行对抗检定\n" +
+		".rav 技能,b1 @某人 // 同上，我方有一个奖励骰 \n" +
+		".rav 困难技能60 @某人 // 同上，但是困难等级，技能值60。\n" +
+		".rav 困难技能+10 @某人 // 同上，但是有10的加成。\n" +
+		".rav 技能 @某A @某B // 对A和B两人做对抗检定\n" +
+		".rav 技能 技能 @某A @某B // 对A和B两人做对抗检定，分别使用输入的两个技能数值\n" +
+		".rav 技能 困难技能 @某A @某B // 同上，带难度\n" +
+		".rav 技能,b1 困难技能 @某A @某B // 同上，A带一个奖励骰\n" +
+		".rav 60 40 @某A @某B // 最简化版本，A的60点对抗B的40点"
+	cmdRcv := &CmdItemInfo{
+		Name:     "rcv/rav",
+		Help:     helpRcv,
+		LongHelp: "对抗检定:\n" + helpRcv,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				val, _ := cmdArgs.GetArgN(1)
+
+				switch val {
+				case "help", "":
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				default:
+					// 至少@一人，检定才成立
+					if len(cmdArgs.At) == 0 {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					}
+					ctx1 := ctx
+					ctx2 := ctx
+					if len(cmdArgs.At) == 1 {
+						// 单人
+						ctx2, _ = cmdArgs.At[0].CopyCtx(ctx)
+					}
+					if len(cmdArgs.At) == 2 {
+						ctx1, _ = cmdArgs.At[0].CopyCtx(ctx)
+						ctx2, _ = cmdArgs.At[1].CopyCtx(ctx)
+					}
+
+					restText := cmdArgs.CleanArgs
+					var lastMatched string
+					readOneVal := func(mctx *MsgContext) (*CmdExecuteResult, int64, string, string) {
+						r, _, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
+							CocVarNumberMode: true,
+							CocDefaultAttrOn: true,
+						})
+
+						if err != nil {
+							ReplyToSender(ctx, msg, "解析出错: "+restText)
+							return &CmdExecuteResult{Matched: true, Solved: true}, 0, "", ""
+						}
+						val, ok := r.ReadInt64()
+						if !ok {
+							ReplyToSender(ctx, msg, "类型不是数字: "+r.Matched)
+							return &CmdExecuteResult{Matched: true, Solved: true}, 0, "", ""
+						}
+						lastMatched = r.Matched
+						restText = r.restInput
+						return nil, val, r.Parser.CocFlagVarPrefix, r.Matched
+					}
+
+					readOneCheckVal := func(mctx *MsgContext) (*CmdExecuteResult, int64, string) {
+						restText = strings.TrimSpace(restText)
+						if strings.HasPrefix(restText, ",") || strings.HasPrefix(restText, "，") {
+							re := regexp.MustCompile(`[,，](.*)`)
+							m := re.FindStringSubmatch(restText)
+							restText = m[1]
+							r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{})
+							if err != nil {
+								ReplyToSender(ctx, msg, "解析出错: "+restText)
+								return &CmdExecuteResult{Matched: true, Solved: true}, 0, ""
+							}
+							val, ok := r.ReadInt64()
+							if !ok {
+								ReplyToSender(ctx, msg, "类型不是数字: "+r.Matched)
+								return &CmdExecuteResult{Matched: true, Solved: true}, 0, ""
+							}
+							restText = r.restInput
+							return nil, val, "[" + detail + "]"
+						}
+						return nil, DiceRoll64(100), ""
+					}
+
+					ret, val1, difficult1, expr1 := readOneVal(ctx1)
+					if ret != nil {
+						return *ret
+					}
+					ret, checkVal1, rollDetail1 := readOneCheckVal(ctx1)
+					if ret != nil {
+						return *ret
+					}
+
+					if restText == "" {
+						restText = lastMatched
+					}
+
+					// lastMatched
+					ret, val2, difficult2, expr2 := readOneVal(ctx2)
+					if ret != nil {
+						return *ret
+					}
+					ret, checkVal2, rollDetail2 := readOneCheckVal(ctx2)
+					if ret != nil {
+						return *ret
+					}
+
+					cocRule := ctx.Group.CocRuleIndex
+					if cmdArgs.Command == "rcv" {
+						// 强制规则书
+						cocRule = 0
+					}
+
+					successRank1, _ := ResultCheck(cocRule, checkVal1, val1)
+					difficultRequire1 := difficultPrefixMap[difficult1]
+					checkPass1 := successRank1 >= difficultRequire1 // A是否通过检定
+
+					successRank2, _ := ResultCheck(cocRule, checkVal2, val2)
+					difficultRequire2 := difficultPrefixMap[difficult2]
+					checkPass2 := successRank2 >= difficultRequire2 // B是否通过检定
+
+					winNum := 0
+					if checkPass1 && checkPass2 {
+						if successRank1 > successRank2 {
+							// A 胜出
+							winNum = -1
+						} else if successRank1 < successRank2 {
+							// B 胜出
+							winNum = 1
+						} else {
+							// 这里状况复杂，属性检定时，属性高的人胜出
+							// 攻击时，成功等级相同，视为被攻击者胜出(目标选择闪避)
+							// 攻击时，成功等级相同，视为攻击者胜出(目标选择反击)
+							// 技能高的人胜出
+						}
+					} else {
+						if !checkPass1 && !checkPass2 {
+							// 双方都失败，无事发生
+						} else if checkPass1 && !checkPass2 {
+							winNum = -1 // A胜
+						} else if checkPass1 && !checkPass2 {
+							winNum = 1 // B胜
+						}
+					}
+
+					resultText := ""
+					suffix1 := GetResultTextWithRequire(ctx1, successRank1, difficultRequire1, true)
+					suffix2 := GetResultTextWithRequire(ctx2, successRank2, difficultRequire2, true)
+
+					switch winNum {
+					case -1:
+						resultText = fmt.Sprintf("<%s>胜出！", ctx1.Player.Name)
+					case +1:
+						resultText = fmt.Sprintf("<%s>胜出！", ctx2.Player.Name)
+					case 0:
+						resultText = "平手！(请自行根据场景，如属性比较、攻击对反击，攻击对闪避)做出判断"
+					}
+
+					ReplyToSender(ctx, msg, fmt.Sprintf("对抗检定:\n"+
+						"<%s> %s-> 属性值:%d 判定值:%d%s %s\n"+
+						"<%s> %s-> 属性值:%d 判定值:%d%s %s\n%s",
+						ctx1.Player.Name, expr1, val1, checkVal1, rollDetail1, suffix1,
+						ctx2.Player.Name, expr2, val2, checkVal2, rollDetail2, suffix2,
+						resultText))
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	theExt := &ExtInfo{
 		Name:       "coc7",
 		Version:    "1.0.0",
@@ -839,10 +1006,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
-			"ra":  cmdRc,
-			"rc":  cmdRc,
-			"rch": cmdRc,
-			"rah": cmdRc,
+			"ra":   cmdRc,
+			"rc":   cmdRc,
+			"rch":  cmdRc,
+			"rah":  cmdRc,
+			"rav":  cmdRcv,
+			"rcv":  cmdRcv,
+			"drav": cmdRcv,
+			"drcv": cmdRcv,
 			"sc": &CmdItemInfo{
 				Name: "sc",
 				Help: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
