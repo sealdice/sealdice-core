@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"regexp"
 	"sort"
 	"strconv"
@@ -26,6 +27,7 @@ const (
 	TypeDice
 	TypeDicePenalty
 	TypeDiceBonus
+	TypeDiceFate
 	TypeLoadVarname
 	TypeLoadFormatString
 	TypeStore
@@ -57,6 +59,8 @@ func (code *ByteCode) String() string {
 		return "%"
 	case TypeExponentiation:
 		return "**"
+	case TypeDiceFate:
+		return "df"
 	}
 	return ""
 }
@@ -85,6 +89,8 @@ func (code *ByteCode) CodeString() string {
 		return "dice.penalty"
 	case TypeDiceBonus:
 		return "dice.bonus"
+	case TypeDiceFate:
+		return "dice.fate"
 	case TypeDiceSetK:
 		return "dice.setk"
 	case TypeDiceSetQ:
@@ -539,7 +545,12 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 			if t.T != TypeDice && top == 1 {
 				if times == 1 {
-					calcDetail += fmt.Sprintf("%d %s %d", a.Value.(int64), t.String(), b.Value.(int64))
+					if t.T == TypeDiceFate {
+						// 如果什么都不输出，反而正常了……不然会这样：
+						// <木落>掷出了 f + 1=0 df 0[0-++] + 1=2
+					} else {
+						calcDetail += fmt.Sprintf("%d %s %d", a.Value.(int64), t.String(), b.Value.(int64))
+					}
 				} else {
 					checkLeft()
 					calcDetail += fmt.Sprintf(" %s %d", t.String(), b.Value.(int64))
@@ -602,6 +613,29 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			stack[top].Value = b.Value
 			top++
 			continue
+		case TypeDiceFate:
+			checkDice(&code)
+			text := ""
+			sum := int64(0)
+			for i := 0; i < 4; i++ {
+				n := rand.Int63()%3 - 1
+				sum += n
+				switch n {
+				case -1:
+					text += "-"
+				case 0:
+					text += "0"
+				case +1:
+					text += "+"
+				}
+			}
+			lastDetail := text
+			lastDetails = append(lastDetails, lastDetail)
+			//a := &stack[top]
+			a.TypeId = VMTypeInt64
+			a.Value = sum
+			//top++
+			//continue
 		case TypeDice:
 			checkDice(&code)
 			if bInt == 0 {
