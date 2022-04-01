@@ -179,7 +179,7 @@ func (c *ConnectInfoItem) SetEnable(d *Dice, enable bool) {
 	if c.Enable != enable {
 		if enable {
 			c.Enable = true
-			c.DiceServing = true
+			c.DiceServing = false
 
 			if c.UseInPackGoCqhttp {
 				GoCqHttpServeProcessKill(d, c)
