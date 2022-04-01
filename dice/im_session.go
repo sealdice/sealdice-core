@@ -595,18 +595,20 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 	if cmdArgs.Command != "botlist" && !cmdArgs.AmIBeMentioned {
 		// 屏蔽机器人发送的消息
-		if ctx.Group.BotList[uid] {
-			return true
-		}
-		// 当其他机器人被@，不回应
-		for _, i := range cmdArgs.At {
-			uid := FormatDiceIdQQ(i.UserId)
-			if uid == myuid {
-				// 忽略自己
-				continue
-			}
+		if ctx.Group != nil {
 			if ctx.Group.BotList[uid] {
 				return true
+			}
+			// 当其他机器人被@，不回应
+			for _, i := range cmdArgs.At {
+				uid := FormatDiceIdQQ(i.UserId)
+				if uid == myuid {
+					// 忽略自己
+					continue
+				}
+				if ctx.Group.BotList[uid] {
+					return true
+				}
 			}
 		}
 	}
