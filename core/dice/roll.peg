@@ -48,6 +48,9 @@ eDice2 <- [pP] laNumberOrLeftParen eDice3 { p.AddOperator(TypeDicePenalty) }
 
 eDice3 <- [bB] laNumberOrLeftParen value { p.AddOperator(TypeDiceBonus) }
          / [bB] { p.AddValue("1"); p.AddOperator(TypeDiceBonus) }
+         / eDice4
+
+eDice4 <- [fF] sp { p.AddValue("0"); p.AddValue("0"); p.AddOperator(TypeDiceFate) } // 塞两个垃圾参数，使其不成为unary
          / value
 
 value <- number

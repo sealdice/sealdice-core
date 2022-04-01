@@ -191,6 +191,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 										text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
 										ReplyToSenderRaw(ctx, msg, text, "skip")
 									} else {
+										ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
 										time.Sleep(time.Duration(0.3 * float64(time.Second)))
 										text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
 										ReplyToSenderRaw(ctx, msg, text, "skip")
