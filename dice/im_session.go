@@ -204,6 +204,10 @@ type IMSession struct {
 	Parent         *Dice                          `yaml:"-"`
 	ServiceAt      map[int64]*ServiceAtItem       `json:"serviceAt" yaml:"serviceAt"`
 	PlayerVarsData map[int64]*PlayerVariablesItem `yaml:"PlayerVarsData"`
+
+	//ServiceAtNew      map[string]*ServiceAtItem       `json:"servicesAt" yaml:"servicesAt"`
+	//PlayerVarsDataNew map[string]*PlayerVariablesItem `yaml:"PlayerVarsDataInfo"`
+
 	//CommandIndex int64                    `yaml:"-"`
 	//GroupId int64 `json:"group_id"`
 }
@@ -395,6 +399,7 @@ func (s *IMSession) Serve(index int) int {
 					// XXXX {"font":0,"message":"\u003c木落\u003e的今日人品为83","message_id":-358748624,"message_type":"private","post_type":"message_sent","raw_message":"\u003c木落\u003e的今日人
 					//品为83","self_id":2589922907,"sender":{"age":0,"nickname":"海豹一号机","sex":"unknown","user_id":2589922907},"sub_type":"friend","target_id":222,"time":1647760835,"use
 					//r_id":2589922907}
+					fmt.Println("???", message)
 					return
 				}
 
@@ -562,8 +567,6 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
 		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
 		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
-		VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
-		VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
 		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})
 		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeInt64, ctx.conn.UserId})
 		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeInt64, ctx.conn.Nickname})
@@ -572,6 +575,8 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		// 注: 未来将私聊视为空群吧
 		VarSetValue(ctx, "$t群号", &VMValue{VMTypeInt64, ctx.Group.GroupId})
 		VarSetValue(ctx, "$t群名", &VMValue{VMTypeString, ctx.Group.GroupName})
+		VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
+		VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
 	}
 }
 

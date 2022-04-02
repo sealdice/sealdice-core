@@ -209,6 +209,11 @@ func logFetchAndClear(c echo.Context) error {
 	return info
 }
 
+func DiceExec(context echo.Context) error {
+	myDice.RawExecute()
+	return nil
+}
+
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
@@ -225,4 +230,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST("/im_connections/del", ImConnectionsDel)
 	e.POST("/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST("/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
+
+	e.POST("/_dice/exec", DiceExec)
 }
