@@ -393,7 +393,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			if ctx.IsCurGroupBotOn {
 				if len(cmdArgs.Args) >= 1 {
 					mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
-
 					restText := cmdArgs.CleanArgs
 
 					reBP := regexp.MustCompile(`^[bBpP]`)
@@ -1017,6 +1016,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							return CmdExecuteResult{Matched: true, Solved: true, ShowShortHelp: true}
 						}
 						mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+						mctx.Player.TempValueAlias = &ac.Alias
 
 						// 首先读取一个值
 						// 试图读取 /: 读到了，当前是成功值，转入读取单项流程，试图读取失败值

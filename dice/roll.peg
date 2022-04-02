@@ -34,7 +34,7 @@ eDice <- ( _dnumber [dD] { p.AddValue("2"); p.AddLeftValueMark() } eDice2 dndDic
          / ( _dnumber [dD] { p.AddValue("1"); p.AddLeftValueMark() } eDice2 kqDiceOp { p.AddOperator(TypeDice) } )
 
          / [dD] dndDiceSuffix { p.AddValue("2"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
-         / [dD] { p.AddValue("1"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
+         / [dD] !([^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]) sp { p.AddValue("1"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
 
          / eDice2 ( [dD] { p.AddLeftValueMark() } &(number / '(') eDice2 kqDiceOp { p.AddOperator(TypeDice) }
          )*
