@@ -14,6 +14,7 @@ import "~/styles/index.scss";
 // If you want to use ElMessage, import it.
 import "element-plus/theme-chalk/src/message.scss"
 import "element-plus/es/components/message-box/style/css"
+import "element-plus/es/components/dialog/style/css"
 import 'element-plus/theme-chalk/display.css'
 
 import { createPinia } from 'pinia'

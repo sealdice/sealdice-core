@@ -117,6 +117,12 @@ import {
   CirclePlusFilled,
   CircleClose
 } from '@element-plus/icons-vue'
+
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
+
+dayjs.locale('zh-cn')
+
 const store = useStore()
 
 onBeforeMount(async () => {

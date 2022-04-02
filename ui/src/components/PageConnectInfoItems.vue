@@ -52,11 +52,16 @@
           </el-form-item>
 
           <el-form-item label="群组数量">
-            <div>{{i.groupNum}} 未实现</div>
+            <div>{{i.groupNum}}</div>
           </el-form-item>
 
           <el-form-item label="累计响应指令">
             <div>{{i.cmdExecutedNum}}</div>
+          </el-form-item>
+
+          <el-form-item label="上次执行指令">
+            <div v-if="i.cmdExecutedLastTime">{{dayjs.unix(i.cmdExecutedLastTime).fromNow()}}</div>
+            <div v-else>从未</div>
           </el-form-item>
 
           <el-form-item label="连接地址">
@@ -197,9 +202,9 @@ import type { DiceConnection } from '~/store';
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { sleep } from '~/utils'
-import { delay } from 'lodash-es';
+import { delay } from 'lodash-es'
 import * as dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime';
+import relativeTime from 'dayjs/plugin/relativeTime'
 
 dayjs.extend(relativeTime)
 
