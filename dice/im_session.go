@@ -298,6 +298,7 @@ func (s *IMSession) Serve(index int) int {
 				conn.UniformID = FormatDiceIdQQ(conn.UserId)
 
 				log.Debug("骰子信息已刷新")
+				conn.GroupNum = int64(len(session.ServiceAt))
 				return
 			}
 
@@ -331,9 +332,11 @@ func (s *IMSession) Serve(index int) int {
 			// 处理加群请求
 			if msg.PostType == "request" && msg.RequestType == "group" && msg.SubType == "invite" {
 				// {"comment":"","flag":"111","group_id":222,"post_type":"request","request_type":"group","self_id":333,"sub_type":"invite","time":1646782195,"user_id":444}
+				conn.GroupNum = int64(len(session.ServiceAt))
 				log.Infof("收到加群邀请: 群组(%d) 邀请人:%d", msg.GroupId, msg.UserId)
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 				SetGroupAddRequest(conn.Socket, msg.Flag, msg.SubType, true, "")
+				conn.GroupNum = int64(len(session.ServiceAt))
 				return
 			}
 

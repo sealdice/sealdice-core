@@ -26,6 +26,8 @@ type LogOneItem struct {
 	CommandId uint64 `json:"commandId"`
 
 	OldNickname string `json:"Nickname"`
+	UniformId   string `json:"uniformId"`
+	Channel     string `json:"channel"` // 用于秘密团
 }
 
 // {"data":null,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
@@ -45,11 +47,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 		privateCommandListen = newMap
 	}
 
-	helpLog := `.log new (<日志名>) // 新建日志并开始记录
-.log on (<日志名>)  // 开始记录，不写日志名则开启最近一次日志
+	helpLog := `.log new (<日志名>) // 新建日志并开始记录，注意new后跟空格！
+.log on (<日志名>)  // 开始记录，不写日志名则开启最近一次日志，注意on后跟空格！
 .log off // 暂停记录
 .log end // 完成记录并发送日志文件
-.log list // 查看当前群的日志列表`
+.log list // 查看当前群的日志列表
+.log del <日志名> // 删除一份日志`
 
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:       "log",
@@ -79,6 +82,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					a := LogOneItem{
 						Nickname:  ctx.conn.Nickname,
 						IMUserId:  ctx.conn.UserId,
+						UniformId: ctx.conn.UniformID,
 						Time:      time.Now().Unix(),
 						Message:   text,
 						IsDice:    true,
@@ -100,6 +104,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					a := LogOneItem{
 						Nickname:  ctx.conn.Nickname,
 						IMUserId:  ctx.conn.UserId,
+						UniformId: ctx.conn.UniformID,
 						Time:      time.Now().Unix(),
 						Message:   text,
 						IsDice:    true,
@@ -117,6 +122,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					a := LogOneItem{
 						Nickname:  ctx.Player.Name,
 						IMUserId:  ctx.Player.UserId,
+						UniformId: ctx.Player.UID,
 						Time:      msg.Time,
 						Message:   msg.Message,
 						IsDice:    false,
@@ -184,16 +190,33 @@ func RegisterBuiltinExtLog(self *Dice) {
 									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
 								}
 								return CmdExecuteResult{Matched: true, Solved: true}
+							} else if cmdArgs.IsArgEqual(1, "del", "rm") {
+								name, _ := cmdArgs.GetArgN(2)
+								if name != "" {
+									if name == group.LogCurName {
+										ReplyToSender(ctx, msg, "不能删除正在进行的log，请用log new开启新的，或log end结束后再行删除")
+									} else {
+										ok := LogDelete(ctx, group, name)
+										if ok {
+											ReplyToSender(ctx, msg, "删除log成功")
+										} else {
+											ReplyToSender(ctx, msg, "删除log失败，可能是名字不对？")
+										}
+									}
+								} else {
+									return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+								}
+								return CmdExecuteResult{Matched: true, Solved: true}
 							} else if cmdArgs.IsArgEqual(1, "get") {
 								if ctx.Group.LogCurName != "" {
 									fn, password := LogSendToBackend(ctx, group)
 									if fn == "" {
-										text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+										text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
 										ReplyToSenderRaw(ctx, msg, text, "skip")
 									} else {
 										ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
 										time.Sleep(time.Duration(0.3 * float64(time.Second)))
-										text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+										text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
 										ReplyToSenderRaw(ctx, msg, text, "skip")
 									}
 								}
@@ -394,6 +417,35 @@ func LogLinesGet(ctx *MsgContext, group *ServiceAtItem, name string) (int, bool)
 	return size, exists
 }
 
+func LogDelete(ctx *MsgContext, group *ServiceAtItem, name string) bool {
+	var exists bool
+	ctx.Dice.DB.Update(func(tx *bbolt.Tx) error {
+		// Retrieve the users bucket.
+		// This should be created when the DB is first opened.
+		b0 := tx.Bucket([]byte("logs"))
+		if b0 == nil {
+			return nil
+		}
+		b1 := b0.Bucket([]byte(strconv.FormatInt(group.GroupId, 10)))
+		if b1 == nil {
+			return nil
+		}
+
+		err := b1.DeleteBucket([]byte(name))
+		if err != nil {
+			return err
+		}
+		exists = true
+
+		err = b1.Delete([]byte(name))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return exists
+}
+
 // LogGetList 获取列表
 func LogGetList(ctx *MsgContext, group *ServiceAtItem) ([]string, error) {
 	ret := []string{}
@@ -408,6 +460,7 @@ func LogGetList(ctx *MsgContext, group *ServiceAtItem) ([]string, error) {
 		}
 
 		return b1.ForEach(func(k, v []byte) error {
+			fmt.Println("???", string(k))
 			ret = append(ret, string(k))
 			return nil
 		})
