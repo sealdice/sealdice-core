@@ -74,6 +74,9 @@ func main() {
 			logger.Errorf("异常: %v 堆栈: %v", err, string(debug.Stack()))
 		}
 
+		for _, i := range diceManager.Dice {
+			i.Save(true)
+		}
 		diceManager.Save()
 		for _, i := range diceManager.Dice {
 			i.DB.Close()

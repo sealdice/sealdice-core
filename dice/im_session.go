@@ -679,14 +679,3 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	}
 	return false
 }
-
-func setupMCtx(ctx *MsgContext, cmdArgs *CmdArgs, pos int) *MsgContext {
-	mctx := &*ctx // 复制一个ctx，用于其他用途
-	if len(cmdArgs.At) > 0 {
-		p, exists := ctx.Group.Players[cmdArgs.At[pos].UserId]
-		if exists {
-			mctx.Player = p
-		}
-	}
-	return mctx
-}

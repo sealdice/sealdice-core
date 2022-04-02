@@ -24,11 +24,14 @@ type AtInfo struct {
 func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 	c1 := *ctx
 	mctx := &c1 // 复制一个ctx，用于其他用途
-	p, exists := ctx.Group.Players[i.UserId]
-	if exists {
-		mctx.Player = p
+	if ctx.Group != nil {
+		p, exists := ctx.Group.Players[i.UserId]
+		if exists {
+			mctx.Player = p
+		}
+		return mctx, exists
 	}
-	return mctx, exists
+	return mctx, false
 }
 
 type CmdArgs struct {
