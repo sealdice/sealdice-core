@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>SealDice 海豹骰子</title>
+    <title>SealDice 海豹核心</title>
     <link rel="icon" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- element css cdn, if you use custom theme, remove it. -->
@@ -12,8 +12,6 @@
     /> -->
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
     <div id="ie-warn" style="display: none;">
       <p>如果你看到这里的文本，那么说明你可能在使用旧版IE浏览器。</p>
       <p>这意味着在升级浏览器前，你将无法访问此页面。</p>
@@ -24,6 +22,9 @@
       <p>2. 在自己电脑上完成配置，然后将配置好的目录打包，上传到服务器运行</p>
       <p>3. 在自己电脑上，通过 http://IP地址:3211 来访问海豹。如果服务器运营商有防火墙(如腾讯云轻量服务器)，自行登录操作放行。</p>
     </div>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+
     <script>
       var ua = window.navigator.userAgent;
       var old_ie = ua.indexOf('MSIE ');

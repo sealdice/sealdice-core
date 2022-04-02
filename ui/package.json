@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vitejs/plugin-legacy": "^1.8.0",
     "axios": "^0.26.0",
     "axios-retry": "^3.2.4",
     "dayjs": "^1.10.8",
