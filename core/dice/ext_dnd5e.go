@@ -464,7 +464,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 					}
 
-					retText := "人物属性设置如下:\n"
+					retText := "dnd5e人物属性设置如下:\n"
 					if len(attrSeted) > 0 {
 						SetCardType(mctx, "dnd5e")
 						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime/debug"
 	"sealdice-core/api"
 	"sealdice-core/dice"
 	"syscall"
@@ -55,16 +56,25 @@ func main() {
 		return
 	}
 
-	go trayInit()
-
 	cwd, _ := os.Getwd()
 	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
 	fmt.Println("工作路径: ", cwd)
 
 	diceManager := &dice.DiceManager{}
 
+	go trayInit()
+
+	os.MkdirAll("./data", 0644)
+	MainLoggerInit("./data/main.log", true)
+
 	cleanUp := func() {
-		fmt.Println("程序即将退出，进行清理……")
+		logger.Info("程序即将退出，进行清理……")
+		err := recover()
+		if err != nil {
+			logger.Errorf("异常: %v 堆栈: %v", err, string(debug.Stack()))
+		}
+
+		diceManager.Save()
 		for _, i := range diceManager.Dice {
 			i.DB.Close()
 		}
@@ -106,8 +116,9 @@ func main() {
 		select {
 		case <-interrupt:
 			time.Sleep(time.Duration(5 * time.Second))
-			fmt.Println("仍未关闭，强制退出")
+			logger.Info("5s仍未关闭，稍后强制退出……")
 			cleanUp()
+			time.Sleep(time.Duration(3 * time.Second))
 			os.Exit(0)
 		}
 	})()
@@ -175,7 +186,7 @@ func diceIMServe(myDice *dice.Dice) {
 }
 
 func uiServe(myDice *dice.DiceManager) {
-	fmt.Println("即将启动webui")
+	logger.Info("即将启动webui")
 	// Echo instance
 	e := echo.New()
 

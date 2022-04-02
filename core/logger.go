@@ -1,45 +1,13 @@
-package logger
+package main
 
 import (
-	"encoding/json"
 	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"os"
 )
 
-type LogItem struct {
-	Level  string  `json:"level"`
-	Ts     float64 `json:"ts"`
-	Caller string  `json:"caller"`
-	Msg    string  `json:"msg"`
-}
-
-type WriterX struct {
-	Items []*LogItem
-}
-
-type LogInfo struct {
-	LoggerRaw *zap.Logger
-	Logger    *zap.SugaredLogger
-	WX        *WriterX
-}
-
-var logLimit = 100
-
-func (w *WriterX) Write(p []byte) (n int, err error) {
-	var a LogItem
-	err2 := json.Unmarshal(p, &a)
-	if err2 == nil {
-		w.Items = append(w.Items, &a)
-		if len(w.Items) > logLimit {
-			w.Items = w.Items[1:]
-		}
-	}
-	return len(p), nil
-}
-
-func LoggerInit(path string, name string, enableConsoleLog bool) *LogInfo {
+func MainLoggerInit(path string, enableConsoleLog bool) {
 	lumlog := &lumberjack.Logger{
 		Filename:   path,
 		MaxSize:    10, // megabytes
@@ -48,13 +16,8 @@ func LoggerInit(path string, name string, enableConsoleLog bool) *LogInfo {
 	}
 
 	encoder := getEncoder()
-
-	pe := zap.NewProductionEncoderConfig()
-	wx := &WriterX{}
-
 	cores := []zapcore.Core{
 		zapcore.NewCore(encoder, zapcore.AddSync(lumlog), zapcore.DebugLevel),
-		zapcore.NewCore(zapcore.NewJSONEncoder(pe), zapcore.AddSync(wx), zapcore.InfoLevel),
 	}
 
 	if enableConsoleLog {
@@ -62,7 +25,6 @@ func LoggerInit(path string, name string, enableConsoleLog bool) *LogInfo {
 		pe2.EncodeTime = zapcore.ISO8601TimeEncoder
 
 		consoleEncoder := zapcore.NewConsoleEncoder(pe2)
-		consoleEncoder.AddString("dice", name)
 		cores = append(cores, zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), zapcore.InfoLevel))
 	}
 
@@ -71,15 +33,11 @@ func LoggerInit(path string, name string, enableConsoleLog bool) *LogInfo {
 	loggerRaw := zap.New(core, zap.AddCaller())
 	defer loggerRaw.Sync() // flushes buffer, if any
 
-	logger := loggerRaw.Sugar()
-	logger.Infow("Dice日志开始记录")
-
-	return &LogInfo{
-		LoggerRaw: loggerRaw,
-		Logger:    logger,
-		WX:        wx,
-	}
+	logger = loggerRaw.Sugar()
+	logger.Infow("核心日志开始记录")
 }
+
+var logger *zap.SugaredLogger
 
 func getEncoder() zapcore.Encoder {
 	encoderConfig := zap.NewProductionEncoderConfig()
