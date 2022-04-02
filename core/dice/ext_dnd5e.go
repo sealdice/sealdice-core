@@ -145,20 +145,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
-				mctx := &*ctx // 复制一个ctx，用于其他用途
-				if len(cmdArgs.At) > 0 {
-					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
-					if exists {
-						mctx.Player = p
-					}
-				}
+				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
 
 				switch val {
 				case "模板":
 					text := "人物卡模板(第二行文本):\n"
 					text += ".dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax: 10 熟练:2 运动:0 特技:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯养:0 医疗:0 生存:0 说服:0 欺诈:0 威吓:0 表演:0\n"
 					text += "注意: 技能只填写修正值即可，属性调整值会自动计算。熟练写为“运动*:0”"
-					ReplyToSender(ctx, msg, text)
+					ReplyToSender(mctx, msg, text)
 					return CmdExecuteResult{Matched: true, Solved: true}
 
 				case "del", "rm":
@@ -206,7 +200,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					p := mctx.Player
 					num := len(p.ValueMap)
 					p.ValueMap = map[string]*VMValue{}
-					VarSetValueInt64(ctx, "$t数量", int64(num))
+					VarSetValueInt64(mctx, "$t数量", int64(num))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_清除"))
 
 				case "show", "list":
@@ -240,7 +234,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					tick := 0
 					if len(p.ValueMap) == 0 {
-						info = DiceFormatTmpl(ctx, "DND:属性设置_列出_未发现记录")
+						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 					} else {
 						// 按照配置文件排序
 						attrKeys := []string{}
@@ -288,7 +282,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								v = &VMValue{VMTypeInt64, int64(0)}
 								vRaw = v
 							} else {
-								v2, _, _ := ctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
+								v2, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
 								v = &v2.VMValue
 							}
 
@@ -327,19 +321,19 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 
 						if info == "" {
-							info = DiceFormatTmpl(ctx, "DND:属性设置_列出_未发现记录")
+							info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 						}
 					}
 
 					if useLimit {
-						VarSetValueInt64(ctx, "$t数量", int64(limktSkipCount))
-						VarSetValueInt64(ctx, "$t判定值", int64(limit))
-						info += DiceFormatTmpl(ctx, "DND:属性设置_列出_隐藏提示")
+						VarSetValueInt64(mctx, "$t数量", int64(limktSkipCount))
+						VarSetValueInt64(mctx, "$t判定值", int64(limit))
+						info += DiceFormatTmpl(mctx, "DND:属性设置_列出_隐藏提示")
 					}
 
-					VarSetValueStr(ctx, "$t属性信息", info)
+					VarSetValueStr(mctx, "$t属性信息", info)
 					extra := ReadCardType(mctx, "dnd5e")
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:属性设置_列出")+extra)
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_列出")+extra)
 
 				case "help", "":
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
@@ -358,15 +352,15 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						attrName := m[2]
 						isSkilled := strings.HasSuffix(m[1], "*")
-						r, _, err := ctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
+						r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
 						if err != nil {
-							ReplyToSender(ctx, msg, "无法解析属性: "+attrName)
+							ReplyToSender(mctx, msg, "无法解析属性: "+attrName)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 						text = r.restInput
 
 						if r.TypeId != VMTypeInt64 {
-							ReplyToSender(ctx, msg, "这个属性的值并非数字: "+attrName)
+							ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrName)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
@@ -378,27 +372,28 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 							parent, _ := dndAttrParent[attrName]
 							aText := attrName
+							aText += fmt.Sprintf(":%d", r.Value.(int64))
 							if parent != "" {
 								if isSkilled {
 									aText += "[技能, 熟练]"
 								} else {
 									aText += "[技能]"
 								}
-								VarSetValueDNDComputed(ctx, attrName, r.Value.(int64), fmt.Sprintf(exprTmpl, parent))
+								VarSetValueDNDComputed(mctx, attrName, r.Value.(int64), fmt.Sprintf(exprTmpl, parent))
 							} else {
-								VarSetValueInt64(ctx, attrName, r.Value.(int64))
-								VarSetValueDNDComputed(ctx, fmt.Sprintf("$豁免_%s", attrName), int64(0), fmt.Sprintf(exprTmpl, attrName))
+								VarSetValueInt64(mctx, attrName, r.Value.(int64))
+								VarSetValueDNDComputed(mctx, fmt.Sprintf("$豁免_%s", attrName), int64(0), fmt.Sprintf(exprTmpl, attrName))
 							}
 							attrSeted = append(attrSeted, aText)
 						}
 						if m[3] == "+" || m[3] == "-" {
-							v, exists := VarGetValue(ctx, attrName)
+							v, exists := VarGetValue(mctx, attrName)
 							if !exists {
-								ReplyToSender(ctx, msg, "不存在的属性: "+attrName)
+								ReplyToSender(mctx, msg, "不存在的属性: "+attrName)
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 							if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeComputedValue {
-								ReplyToSender(ctx, msg, "这个属性的值并非数字: "+attrName)
+								ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrName)
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -409,7 +404,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							if attrName == "hp" {
 								// 当扣血时，特别处理
 								if r.Value.(int64) < 0 {
-									vHpBuff, exists := VarGetValue(ctx, "$buff_hp")
+									vHpBuff, exists := VarGetValue(mctx, "$buff_hp")
 									if exists {
 										vHpBuffVal := vHpBuff.Value.(int64)
 										// 正盾才做反馈
@@ -439,7 +434,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 							newVal = leftValue.Value.(int64) + r.Value.(int64)
 							if attrName == "hp" {
-								vHpMax, exists := VarGetValue(ctx, "hpmax")
+								vHpMax, exists := VarGetValue(mctx, "hpmax")
 								if exists {
 									// 生命值上限限制
 									if newVal > vHpMax.Value.(int64) {
@@ -448,12 +443,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								}
 							}
 
-							vOld, _, _ := ctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
+							vOld, _, _ := mctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
 							theOldValue := vOld.Value.(int64)
 
 							leftValue.Value = newVal
 
-							vNew, _, _ := ctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
+							vNew, _, _ := mctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
 							theNewValue := vNew.Value.(int64)
 
 							baseValue := ""
@@ -464,7 +459,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 					}
 
-					retText := "dnd5e人物属性设置如下:\n"
+					retText := fmt.Sprintf("<%s>的dnd5e人物属性设置如下:\n", mctx.Player.Name)
 					if len(attrSeted) > 0 {
 						SetCardType(mctx, "dnd5e")
 						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
@@ -475,7 +470,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if text != "" {
 						retText += "解析失败: " + text
 					}
-					ReplyToSender(ctx, msg, retText)
+					ReplyToSender(mctx, msg, retText)
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -497,13 +492,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		LongHelp: "DND5E 检定:\n" + helpRc,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				mctx := &*ctx // 复制一个ctx，用于其他用途
-				if len(cmdArgs.At) > 0 {
-					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
-					if exists {
-						mctx.Player = p
-					}
-				}
+				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
 
 				val, _ := cmdArgs.GetArgN(1)
 				switch val {
@@ -553,13 +542,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
-				mctx := &*ctx // 复制一个ctx，用于其他用途
-				if len(cmdArgs.At) > 0 {
-					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
-					if exists {
-						mctx.Player = p
-					}
-				}
+				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
 
 				switch val {
 				case "del", "rm":
@@ -595,7 +578,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					for _, varname := range toDelete {
 						delete(p.ValueMap, varname)
 					}
-					VarSetValueInt64(ctx, "$t数量", int64(num))
+					VarSetValueInt64(mctx, "$t数量", int64(num))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:BUFF设置_清除"))
 
 				case "show", "list", "":
@@ -612,7 +595,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					tick := 0
 					if len(p.ValueMap) == 0 {
-						info = DiceFormatTmpl(ctx, "DND:属性设置_列出_未发现记录")
+						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 					} else {
 						// 按照配置文件排序
 						attrKeys := []string{}
@@ -654,7 +637,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							vText := ""
 							if v.TypeId == VMTypeComputedValue {
 								vd := v.Value.(*VMComputedValueData)
-								val, _, _ := ctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
+								val, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
 								a := val.ToString()
 								b := vd.BaseValue.ToString()
 								if a != b {
@@ -673,13 +656,13 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 
 						if info == "" {
-							info = DiceFormatTmpl(ctx, "DND:属性设置_列出_未发现记录")
+							info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 						}
 					}
 
-					VarSetValueStr(ctx, "$t属性信息", info)
+					VarSetValueStr(mctx, "$t属性信息", info)
 					extra := ReadCardType(mctx, "dnd5e")
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:属性设置_列出")+extra)
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_列出")+extra)
 
 				case "help":
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
@@ -699,15 +682,15 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						attrNameRaw := m[2]
 						attrNameBuff := "$buff_" + attrNameRaw
 						isSkilled := strings.HasSuffix(m[1], "*")
-						r, _, err := ctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
+						r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
 						if err != nil {
-							ReplyToSender(ctx, msg, "无法解析属性: "+attrNameRaw)
+							ReplyToSender(mctx, msg, "无法解析属性: "+attrNameRaw)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 						text = r.restInput
 
 						if r.TypeId != VMTypeInt64 {
-							ReplyToSender(ctx, msg, "这个属性的值并非数字: "+attrNameRaw)
+							ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrNameRaw)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
@@ -726,20 +709,20 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								} else {
 									aText += "[技能]"
 								}
-								VarSetValueDNDComputed(ctx, attrNameBuff, r.Value.(int64), fmt.Sprintf(exprTmpl, parent))
+								VarSetValueDNDComputed(mctx, attrNameBuff, r.Value.(int64), fmt.Sprintf(exprTmpl, parent))
 							} else {
-								VarSetValueInt64(ctx, attrNameBuff, r.Value.(int64))
+								VarSetValueInt64(mctx, attrNameBuff, r.Value.(int64))
 							}
 							attrSeted = append(attrSeted, aText)
 						}
 						if m[3] == "+" || m[3] == "-" {
-							v, exists := VarGetValue(ctx, attrNameBuff)
+							v, exists := VarGetValue(mctx, attrNameBuff)
 							if !exists {
-								ReplyToSender(ctx, msg, "不存在的BUFF属性: "+attrNameRaw)
+								ReplyToSender(mctx, msg, "不存在的BUFF属性: "+attrNameRaw)
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 							if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeComputedValue {
-								ReplyToSender(ctx, msg, "这个属性的值并非数字: "+attrNameRaw)
+								ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrNameRaw)
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -757,12 +740,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								newVal = leftValue.Value.(int64) - r.Value.(int64)
 							}
 
-							vOld, _, _ := ctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
+							vOld, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
 							theOldValue := vOld.Value.(int64)
 
 							leftValue.Value = newVal
 
-							vNew, _, _ := ctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
+							vNew, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
 							theNewValue := vNew.Value.(int64)
 
 							baseValue := ""
@@ -773,7 +756,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 					}
 
-					retText := "人物Buff属性设置如下:\n"
+					retText := fmt.Sprintf("<%s>的dnd5e人物Buff属性设置如下:\n", mctx.Player.Name)
 					if len(attrSeted) > 0 {
 						SetCardType(mctx, "dnd5e")
 						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
@@ -784,7 +767,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if text != "" {
 						retText += "解析失败: " + text
 					}
-					ReplyToSender(ctx, msg, retText)
+					ReplyToSender(mctx, msg, retText)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 			}
@@ -843,13 +826,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
-				mctx := &*ctx // 复制一个ctx，用于其他用途
-				if len(cmdArgs.At) > 0 {
-					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
-					if exists {
-						mctx.Player = p
-					}
-				}
+				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
 
 				switch val {
 				case "init":
@@ -973,13 +950,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
-				mctx := &*ctx // 复制一个ctx，用于其他用途
-				if len(cmdArgs.At) > 0 {
-					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
-					if exists {
-						mctx.Player = p
-					}
-				}
+				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
 
 				switch val {
 				default:
@@ -1028,13 +999,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
-				mctx := &*ctx // 复制一个ctx，用于其他用途
-				if len(cmdArgs.At) > 0 {
-					p, exists := ctx.Group.Players[cmdArgs.At[0].UserId]
-					if exists {
-						mctx.Player = p
-					}
-				}
+				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
 
 				switch val {
 				case "":
@@ -1118,7 +1083,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						text := cmdArgs.CleanArgs
-						mctx := setupMCtx(ctx, cmdArgs, 0)
+						mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
 
 						readOne := func() (int, string, int64, string) {
 							text = strings.TrimSpace(text)
