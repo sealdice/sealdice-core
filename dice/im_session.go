@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -23,7 +24,7 @@ type Sender struct {
 }
 
 type Message struct {
-	MessageId     int64  `json:"message_id"`
+	MessageId     int64  `json:"message_id"`   // QQ信息此类型为int64，频道中为string
 	MessageType   string `json:"message_type"` // Group
 	Sender        Sender `json:"sender"`       // 发送者
 	RawMessage    string `json:"raw_message"`
@@ -264,8 +265,16 @@ func (s *IMSession) Serve(index int) int {
 	//sage","self_id":2589922907,"self_tiny_id":"144115218748146488","sender":{"nickname":"木落","tiny_id":"222","user_id":222},"sub_type":"channel",
 	//"time":1647386874,"user_id":"144115218731218202"}
 
+	// 疑似消息发送成功？等等 是不是可以用来取一下log
+	// {"data":{"message_id":-1541043078},"retcode":0,"status":"ok"}
+
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		//fmt.Println("!!!", message)
+		if strings.Contains(message, `"channel_id"`) {
+			// 暂时忽略频道消息
+			return
+		}
+
 		msg := new(Message)
 		err := json.Unmarshal([]byte(message), msg)
 
@@ -396,10 +405,10 @@ func (s *IMSession) Serve(index int) int {
 				if msg.Sender.UserId == conn.UserId {
 					// 以免私聊时自己发的信息被记录
 					// 这里的私聊消息可能是自己发送的
+					// 要是群发也可以被记录就好了
 					// XXXX {"font":0,"message":"\u003c木落\u003e的今日人品为83","message_id":-358748624,"message_type":"private","post_type":"message_sent","raw_message":"\u003c木落\u003e的今日人
 					//品为83","self_id":2589922907,"sender":{"age":0,"nickname":"海豹一号机","sex":"unknown","user_id":2589922907},"sub_type":"friend","target_id":222,"time":1647760835,"use
 					//r_id":2589922907}
-					fmt.Println("???", message)
 					return
 				}
 
