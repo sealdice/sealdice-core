@@ -69,11 +69,25 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 		return ac
 	} else {
 		// 如果不存在，新建
-
 		defaultVals := AttributeConfigs{
-			Alias: map[string][]string{},
+			Alias: map[string][]string{
+				"力量": {"str", "Strength"},
+				"敏捷": {"dex", "Dexterity"},
+				"体质": {"con", "Constitution"},
+				"智力": {"int", "Intelligence"},
+				"感知": {"wis", "Wisdom"},
+				"魅力": {"cha", "Charisma"},
+
+				// 因为hp是小写，统一风格用了小写
+				"ac":    {"护甲等级", "护甲值", "护甲"},
+				"hp":    {"生命值", "生命", "血量"},
+				"hpmax": {"生命值上限", "生命上限", "血量上限"},
+				"dc":    {"难度等级", "法术豁免"},
+				"hd":    {"生命骰"},
+				"pw":    {"被动察觉", "被动感知"},
+			},
 			Order: AttributeOrder{
-				Top:    []string{"力量", "敏捷", "体质", "智力", "感知", "魅力", "HP", "HPMax", "EXP", "熟练"},
+				Top:    []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
 				Others: AttributeOrderOthers{SortBy: "Name"},
 			},
 		}
@@ -146,6 +160,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
 				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+				mctx.Player.TempValueAlias = &ac.Alias
 
 				switch val {
 				case "模板":
@@ -183,6 +198,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						"说服": true, "欺诈": true, "威吓": true, "表演": true,
 
 						"hd": true, "hp": true, "hpmax": true,
+						"ac": true, "dc": true,
 						//"$cardType": true,
 					}, []*regexp.Regexp{
 						regexp.MustCompile(`^\$法术位_[1-9]$`),
@@ -364,6 +380,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
+						attrName = ctx.Player.GetValueNameByAlias(attrName, ac.Alias)
 						if m[3] == ":" {
 							exprTmpl := "$tVal + %s/2 - 5"
 							if isSkilled {
@@ -493,6 +510,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+				mctx.Player.TempValueAlias = &ac.Alias
 
 				val, _ := cmdArgs.GetArgN(1)
 				switch val {
@@ -1036,7 +1054,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 			//p := getPlayerInfoBySender(session, msg)
-			//p.TempValueAlias = &ac.Alias;
+			//ctx.Player.TempValueAlias = &ac.Alias // 因为换mctx，这句话似乎没用了
 		},
 		GetDescText: func(i *ExtInfo) string {
 			return GetExtensionDesc(i)
