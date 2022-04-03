@@ -347,11 +347,15 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["botlist"] = cmdBotList
 
+	reloginFlag := false
+	reloginLastTime := int64(0)
+
 	masterListHelp := `.master add me // 将自己标记为骰主
 .master add @A @B // 将别人标记为骰主
 .master del @A @B @C // 去除骰主标记
 .master unlock <密码> // 清空骰主列表，并使自己成为骰主
-.master list // 查看当前骰主列表`
+.master list // 查看当前骰主列表
+.master relogin // 30s后重新登录，有机会清掉风控(仅master可用)`
 	cmdMaster := &CmdItemInfo{
 		Name:     "master",
 		Help:     masterListHelp,
@@ -381,8 +385,10 @@ func (d *Dice) registerCoreCommands() {
 				case "add":
 					newCount := 0
 					for _, uid := range readIdList(ctx, msg, cmdArgs) {
-						ctx.Dice.MasterAdd(uid)
-						newCount += 1
+						if uid != ctx.conn.UniformID {
+							ctx.Dice.MasterAdd(uid)
+							newCount += 1
+						}
 					}
 					ctx.Dice.Save(false)
 					ReplyToSender(ctx, msg, fmt.Sprintf("海豹将新增%d位master", newCount))
@@ -396,6 +402,47 @@ func (d *Dice) registerCoreCommands() {
 					}
 					ctx.Dice.Save(false)
 					ReplyToSender(ctx, msg, fmt.Sprintf("海豹移除了%d名master", existsCount))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				case "relogin":
+					if kw := cmdArgs.GetKwarg("cancel"); kw != nil {
+						if reloginFlag == true {
+							reloginFlag = false
+							ReplyToSender(ctx, msg, fmt.Sprintf("已取消重登录"))
+						} else {
+							ReplyToSender(ctx, msg, fmt.Sprintf("错误: 不存在能够取消的重新登录行为"))
+						}
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					doRelogin := func() {
+						reloginLastTime = time.Now().Unix()
+						ReplyToSender(ctx, msg, fmt.Sprintf("开始执行重新登录"))
+						reloginFlag = false
+						time.Sleep(1 * time.Second)
+						ctx.conn.DoRelogin(ctx.Dice)
+					}
+
+					if time.Now().Unix()-reloginLastTime < 5*60 {
+						ReplyToSender(ctx, msg, fmt.Sprintf("执行过不久，指令将在%d秒后可以使用", 5*60-(time.Now().Unix()-reloginLastTime)))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					if kw := cmdArgs.GetKwarg("now"); kw != nil {
+						doRelogin()
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					reloginFlag = true
+					ReplyToSender(ctx, msg, fmt.Sprintf("将在30s后重新登录，期间可以输入.master relogin --cancel解除\n若遭遇风控，可能会没有任何输出。静等或输入.master relogin --now立即执行\n此指令每5分钟只能执行一次，可能解除风控，也可能使骰子失联。后果自负"))
+					go func() {
+						time.Sleep(30 * time.Second)
+						if reloginFlag {
+							doRelogin()
+						}
+					}()
+					return CmdExecuteResult{Matched: true, Solved: true}
+				case "checkupdate":
+					ReplyToSender(ctx, msg, fmt.Sprintf("检查新版本，输入.master checkupdate 1234 确认进行升级\n升级将花费约2分钟，升级失败可能导致进程关闭，建议在接触服务器情况下操作。"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "list":
 					text := ""

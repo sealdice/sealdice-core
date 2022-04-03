@@ -142,7 +142,7 @@ type PlayerVariablesItem struct {
 }
 
 type ConnectInfoItem struct {
-	//Password            string              `yaml:"password" json:"password"`
+	//InPackGoCqHttpPassword            string              `yaml:"password" json:"password"`
 	Socket              *gowebsocket.Socket `yaml:"-" json:"-"`
 	Id                  string              `yaml:"id" json:"id"` // uuid
 	Nickname            string              `yaml:"nickname" json:"nickname"`
@@ -171,6 +171,7 @@ type ConnectInfoItem struct {
 	InPackGoCqHttpLoginDeviceLockUrl string         `yaml:"-" json:"inPackGoCqHttpLoginDeviceLockUrl"`
 	InPackGoCqHttpLastRestrictedTime int64          `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
 	InPackGoCqHttpProtocol           int            `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
+	InPackGoCqHttpPassword           string         `yaml:"inPackGoCqHttpPassword" json:"-"`
 	DiceServing                      bool           `yaml:"-"` // 是否正在连接中
 }
 
@@ -185,7 +186,7 @@ func (c *ConnectInfoItem) SetEnable(d *Dice, enable bool) {
 			if c.UseInPackGoCqhttp {
 				GoCqHttpServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
-				GoCqHttpServe(d, c, "", c.InPackGoCqHttpProtocol, true)
+				GoCqHttpServe(d, c, c.InPackGoCqHttpPassword, c.InPackGoCqHttpProtocol, true)
 				go DiceServe(d, c)
 			} else {
 				go DiceServe(d, c)
@@ -198,6 +199,19 @@ func (c *ConnectInfoItem) SetEnable(d *Dice, enable bool) {
 			}
 		}
 	}
+}
+
+func (c *ConnectInfoItem) DoRelogin(myDice *Dice) bool {
+	myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%d)", c.Nickname, c.UserId)
+	if c.UseInPackGoCqhttp {
+		GoCqHttpServeProcessKill(myDice, c)
+		time.Sleep(1 * time.Second)
+		GoCqHttpServeRemoveSessionToken(myDice, c) // 删除session.token
+		c.InPackGoCqHttpLastRestrictedTime = 0     // 重置风控时间
+		GoCqHttpServe(myDice, c, c.InPackGoCqHttpPassword, c.InPackGoCqHttpProtocol, true)
+		return true
+	}
+	return false
 }
 
 type IMSession struct {

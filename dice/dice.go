@@ -84,12 +84,12 @@ type Dice struct {
 	VersionCode             int                    `json:"versionCode"`             // 版本ID
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
-	InPackGoCqHttpExists       bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
-	InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
-	InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
-	TextMapRaw                 TextTemplateWithWeightDict `yaml:"-"`
-	TextMapHelpInfo            TextTemplateWithHelpDict   `yaml:"-"`
-	Parent                     *DiceManager               `yaml:"-"`
+	InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
+	TextMapRaw           TextTemplateWithWeightDict `yaml:"-"`
+	TextMapHelpInfo      TextTemplateWithHelpDict   `yaml:"-"`
+	Parent               *DiceManager               `yaml:"-"`
+	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
+	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 }
 
 func (d *Dice) Init() {
