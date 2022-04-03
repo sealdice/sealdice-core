@@ -16,6 +16,12 @@ import (
 	"time"
 )
 
+type Int64SliceDesc []int64
+
+func (x Int64SliceDesc) Len() int           { return len(x) }
+func (x Int64SliceDesc) Less(i, j int) bool { return x[i] > x[j] }
+func (x Int64SliceDesc) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+
 func RemoveSpace(s string) string {
 	re := regexp.MustCompile(`\s+`)
 	return re.ReplaceAllString(s, "")

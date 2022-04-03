@@ -139,6 +139,53 @@ func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Reg
 func RegisterBuiltinExtDnd5e(self *Dice) {
 	ac := setupConfigDND(self)
 
+	deathSavingStable := func(ctx *MsgContext) {
+		VarDelValue(ctx, "DSS")
+		VarDelValue(ctx, "DSF")
+	}
+
+	deathSaving := func(ctx *MsgContext, successPlus int64, failurePlus int64) (int64, int64) {
+		readAndAssign := func(name string) int64 {
+			var val int64
+			v, exists := VarGetValue(ctx, name)
+
+			if !exists {
+				VarSetValueInt64(ctx, name, int64(0))
+			} else {
+				val, _ = v.ReadInt64()
+			}
+			return val
+		}
+
+		val1 := readAndAssign("DSS")
+		val2 := readAndAssign("DSF")
+
+		if successPlus > 0 {
+			val1 += successPlus
+			VarSetValueInt64(ctx, "DSS", val1)
+		}
+
+		if failurePlus > 0 {
+			val2 += failurePlus
+			VarSetValueInt64(ctx, "DSF", val2)
+		}
+
+		return val1, val2
+	}
+
+	deathSavingResultCheck := func(ctx *MsgContext, a int64, b int64) string {
+		text := ""
+		if a >= 3 {
+			text = "你获得了3次死亡豁免检定成功，伤势稳定了！"
+			deathSavingStable(ctx)
+		}
+		if b >= 3 {
+			text += "\n你获得了3次死亡豁免检定失败，不幸去世了！"
+			deathSavingStable(ctx)
+		}
+		return text
+	}
+
 	helpSt := ".st 模板 // 录卡模板"
 	helpSt += ".st show // 展示个人属性\n"
 	helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
@@ -358,6 +405,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					re := regexp.MustCompile(`(([^\s:0-9*][^\s:0-9*]*)\*?)\s*([:+\-])`)
 					attrSeted := []string{}
 					attrChanged := []string{}
+					var extraText string
 
 					for {
 						m := re.FindStringSubmatch(text)
@@ -449,14 +497,39 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								leftValue = v
 							}
 
+							oldValue := leftValue.Value.(int64)
 							newVal = leftValue.Value.(int64) + r.Value.(int64)
 							if attrName == "hp" {
 								vHpMax, exists := VarGetValue(mctx, "hpmax")
+								var vHpMaxInt64 int64
 								if exists {
 									// 生命值上限限制
 									if newVal > vHpMax.Value.(int64) {
 										newVal = vHpMax.Value.(int64)
 									}
+									vHpMaxInt64 = vHpMax.Value.(int64)
+								}
+								if newVal < 0 {
+									if exists && (-newVal) >= vHpMaxInt64 {
+										deathSavingStable(mctx)
+										extraText += fmt.Sprintf("\n<%s>遭受了%d点过量伤害，超过了他的承受能力，一命呜呼了！", ctx.Player.Name, -newVal)
+									} else {
+										if oldValue == 0 {
+											extraText += fmt.Sprintf("\n<%s>在昏迷状态下遭受了%d点过量伤害，死亡豁免失败+1！", ctx.Player.Name, -newVal)
+											a, b := deathSaving(mctx, 0, 1)
+											exText := deathSavingResultCheck(mctx, a, b)
+											if exText != "" {
+												text += "\n" + exText
+											}
+										} else {
+											extraText += fmt.Sprintf("\n<%s>遭受了%d点过量伤害，生命值降至0，陷入了昏迷！", ctx.Player.Name, -newVal)
+										}
+									}
+									newVal = 0
+								}
+								if newVal > 0 {
+									// 移除死亡豁免标记
+									deathSavingStable(mctx)
 								}
 							}
 
@@ -487,7 +560,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if text != "" {
 						retText += "解析失败: " + text
 					}
-					ReplyToSender(mctx, msg, retText)
+					ReplyToSender(mctx, msg, strings.TrimSpace(retText)+extraText)
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -523,7 +596,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if m != "" {
 						restText = strings.TrimSpace(restText[len(m):])
 					}
-					expr := fmt.Sprintf("d20%s + %s", m, restText)
+					expr := fmt.Sprintf("D20%s + %s", m, restText)
 					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
 					if err != nil {
 						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
@@ -1043,6 +1116,199 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 	}
 
+	helpDeathSavingThrow := "" +
+		".死亡豁免 // 进行死亡豁免检定 \n" +
+		".ds // 另一种写法\n" +
+		".ds +1d4 // 检定时添加1d4的加值\n" +
+		".ds 成功±1 // 死亡豁免成功±1，可简写为.ds s±1\n" +
+		".ds 失败±1 // 死亡豁免失败±1，可简写为.ds f±1\n" +
+		".ds stat // 查看当前死亡豁免情况\n" +
+		".ds help // 查看帮助"
+
+	cmdDeathSavingThrow := &CmdItemInfo{
+		Name:     "死亡豁免",
+		Help:     helpDeathSavingThrow,
+		LongHelp: "DND5E 死亡豁免:\n" + helpDeathSavingThrow,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+				mctx.Player.TempValueAlias = &ac.Alias
+
+				restText := cmdArgs.CleanArgs
+				re := regexp.MustCompile(`^(s|S|成功|f|F|失败)[+-]`)
+				m := re.FindStringSubmatch(restText)
+				if len(m) > 0 {
+					restText = strings.TrimSpace(restText[len(m[0]):])
+					isNeg := m[2] == "-"
+					r, _, err := ctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{})
+					if err != nil {
+						ReplyToSender(mctx, msg, "错误: 无法解析表达式: "+restText)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					v, _ := r.ReadInt64()
+					if isNeg {
+						v = -v
+					}
+
+					var a, b int64
+					switch m[1] {
+					case "s", "S", "成功":
+						a, b = deathSaving(mctx, v, 0)
+					case "f", "F", "失败":
+						a, b = deathSaving(mctx, 0, v)
+					}
+					text := fmt.Sprintf("<%s>当前的死亡豁免情况: 成功%d 失败%d", mctx.Player.Name, a, b)
+					exText := deathSavingResultCheck(mctx, a, b)
+					if exText != "" {
+						text += "\n" + exText
+					}
+
+					ReplyToSender(mctx, msg, text)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				val, _ := cmdArgs.GetArgN(1)
+				switch val {
+				case "stat":
+					a, b := deathSaving(mctx, 0, 0)
+					text := fmt.Sprintf("<%s>当前的死亡豁免情况: 成功%d 失败%d", mctx.Player.Name, a, b)
+					ReplyToSender(mctx, msg, text)
+				case "help":
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				case "":
+					fallthrough
+				default:
+					hp, exists := VarGetValueInt64(mctx, "hp")
+					if !exists {
+						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>未设置生命值，无法进行死亡豁免判定。`, mctx.Player.Name))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					if hp > 0 {
+						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>生命值大于0(当前为%d)，无法进行死亡豁免判定。`, mctx.Player.Name, hp))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					restText := cmdArgs.CleanArgs
+					re := regexp.MustCompile(`^优势|劣势`)
+					m := re.FindString(restText)
+					if m != "" {
+						restText = strings.TrimSpace(restText[len(m):])
+					}
+					expr := fmt.Sprintf("D20%s%s", m, restText)
+					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
+					if err != nil {
+						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					d20, ok := r.ReadInt64()
+					if !ok {
+						ReplyToSender(mctx, msg, "并非数值类型: "+r.Matched)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					if d20 == 20 {
+						deathSavingStable(mctx)
+						VarSetValueInt64(mctx, "hp", 1)
+						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d 你觉得你还可以抢救一下！HP回复1点！`, mctx.Player.Name, detail, d20))
+					} else if d20 == 1 {
+						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d 伤势莫名加重了！死亡豁免失败+2`, mctx.Player.Name, detail, d20)
+						a, b := deathSaving(mctx, 0, 2)
+						exText := deathSavingResultCheck(mctx, a, b)
+						if exText != "" {
+							text += "\n" + exText
+						}
+						ReplyToSender(mctx, msg, text)
+					} else if d20 >= 10 {
+						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d 伤势暂时得到控制！死亡豁免成功+1`, mctx.Player.Name, detail, d20)
+						a, b := deathSaving(mctx, 1, 0)
+						exText := deathSavingResultCheck(mctx, a, b)
+						if exText != "" {
+							text += "\n" + exText
+						}
+						ReplyToSender(mctx, msg, text)
+					} else {
+						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d 有些不妙！死亡豁免失败+1`, mctx.Player.Name, detail, d20)
+						a, b := deathSaving(mctx, 0, 1)
+						exText := deathSavingResultCheck(mctx, a, b)
+						if exText != "" {
+							text += "\n" + exText
+						}
+						ReplyToSender(mctx, msg, text)
+					}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
+	helpDnd := ".dnd (<数量>) // 制卡指令，返回<数量>组人物属性，最高为10次\n" +
+		".dndx (<数量>) // 制卡指令，但带有属性名，最高为10次"
+
+	cmdDnd := &CmdItemInfo{
+		Name:     "dnd",
+		Help:     helpDnd,
+		LongHelp: "DND5E制卡指令:\n" + helpDnd,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				isMode2 := cmdArgs.Command == "dndx"
+				n, _ := cmdArgs.GetArgN(1)
+				val, err := strconv.ParseInt(n, 10, 64)
+				if err != nil {
+					// 数量不存在时，视为1次
+					val = 1
+				}
+				if val > 10 {
+					val = 10
+				}
+				var i int64
+
+				var ss []string
+				for i = 0; i < val; i++ {
+					if isMode2 {
+						result, _, err := self.ExprText(`力量:{$t1=4d6k3} 体质:{$t2=4d6k3} 敏捷:{$t3=4d6k3} 智力:{$t4=4d6k3} 感知:{$t5=4d6k3} 魅力:{$t6=4d6k3} 共计:{$tT=$t1+$t2+$t3+$t4+$t5+$t6}`, ctx)
+						if err != nil {
+							break
+						}
+						result = strings.ReplaceAll(result, `\n`, "\n")
+						ss = append(ss, result)
+					} else {
+						result, _, err := self.ExprText(`{4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}`, ctx)
+						if err != nil {
+							break
+						}
+
+						var nums Int64SliceDesc
+						total := int64(0)
+						for _, i := range strings.Split(result, ", ") {
+							val, _ := strconv.ParseInt(i, 10, 64)
+							nums = append(nums, val)
+							total += val
+						}
+						sort.Sort(nums)
+
+						items := []string{}
+						for _, i := range nums {
+							items = append(items, strconv.FormatInt(i, 10))
+						}
+
+						ret := fmt.Sprintf("[%s] = %d", strings.Join(items, ", "), total)
+						ss = append(ss, ret)
+					}
+				}
+				info := strings.Join(ss, "\n")
+				if isMode2 {
+					ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的DnD5e人物作成(预设模式):\n%s\n自由分配模式请用.dnd", ctx.Player.Name, info))
+				} else {
+					ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的DnD5e人物作成(自由分配模式):\n%s\n获取带属性名的预设请用.dndx", ctx.Player.Name, info))
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	theExt := &ExtInfo{
 		Name:       "dnd5e", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
@@ -1060,37 +1326,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			return GetExtensionDesc(i)
 		},
 		CmdMap: CmdMapCls{
-			"dnd": &CmdItemInfo{
-				Name: "dnd",
-				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-						n, _ := cmdArgs.GetArgN(1)
-						val, err := strconv.ParseInt(n, 10, 64)
-						if err != nil {
-							// 数量不存在时，视为1次
-							val = 1
-						}
-						if val > 10 {
-							val = 10
-						}
-						var i int64
-
-						var ss []string
-						for i = 0; i < val; i++ {
-							result, _, err := self.ExprText(`力量:{$t1=4d6k3} 体质:{$t2=4d6k3} 敏捷:{$t3=4d6k3} 智力:{$t4=4d6k3} 感知:{$t5=4d6k3} 魅力:{$t6=4d6k3} 共计:{$t1+$t2+$t3+$t4+$t5+$t6}`, ctx)
-							if err != nil {
-								break
-							}
-							result = strings.ReplaceAll(result, `\n`, "\n")
-							ss = append(ss, result)
-						}
-						info := strings.Join(ss, "\n")
-						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的DnD5e人物作成:\n%s", ctx.Player.Name, info))
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-					return CmdExecuteResult{Matched: true, Solved: false}
-				},
-			},
+			"dnd":  cmdDnd,
+			"dndx": cmdDnd,
 			"ri": &CmdItemInfo{
 				Name: "ri",
 				Help: `.ri <先攻值> <角色名> // 角色名省略为当前角色
@@ -1318,6 +1555,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"长休":         cmdLongRest,
 			"longrest":   cmdLongRest,
 			"dlongrest":  cmdLongRest,
+			"ds":         cmdDeathSavingThrow,
+			"死亡豁免":       cmdDeathSavingThrow,
 		},
 	}
 
