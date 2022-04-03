@@ -160,12 +160,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		val1 := readAndAssign("DSS")
 		val2 := readAndAssign("DSF")
 
-		if successPlus > 0 {
+		if successPlus != 0 {
 			val1 += successPlus
 			VarSetValueInt64(ctx, "DSS", val1)
 		}
 
-		if failurePlus > 0 {
+		if failurePlus != 0 {
 			val2 += failurePlus
 			VarSetValueInt64(ctx, "DSF", val2)
 		}
@@ -180,7 +180,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			deathSavingStable(ctx)
 		}
 		if b >= 3 {
-			text += "\n你获得了3次死亡豁免检定失败，不幸去世了！"
+			text += "你获得了3次死亡豁免检定失败，不幸去世了！"
 			deathSavingStable(ctx)
 		}
 		return text
@@ -1135,7 +1135,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				mctx.Player.TempValueAlias = &ac.Alias
 
 				restText := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`^(s|S|成功|f|F|失败)[+-]`)
+				re := regexp.MustCompile(`^(s|S|成功|f|F|失败)([+-])`)
 				m := re.FindStringSubmatch(restText)
 				if len(m) > 0 {
 					restText = strings.TrimSpace(restText[len(m[0]):])
