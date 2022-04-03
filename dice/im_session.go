@@ -481,11 +481,25 @@ func (s *IMSession) Serve(index int) int {
 				cmdArgs := CommandParse(msg.Message, s.Parent.CommandCompatibleMode, cmdLst, s.Parent.CommandPrefix)
 				if cmdArgs != nil {
 					mctx.CommandId = getNextCommandId()
+
+					// 设置AmIBeMentioned
+					cmdArgs.AmIBeMentioned = false
+					for _, i := range cmdArgs.At {
+						if i.UID == mctx.conn.UniformID {
+							cmdArgs.AmIBeMentioned = true
+							break
+						}
+					}
 				}
 
 				// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
 				if msg.MessageType == "group" {
 					if mctx.CommandId != 0 {
+						// 关闭状态下，如果被@那么视为开启
+						if !mctx.IsCurGroupBotOn && cmdArgs.AmIBeMentioned {
+							mctx.IsCurGroupBotOn = true
+						}
+
 						log.Infof("收到群(%d)内<%s>(%d)的指令: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 					} else {
 						if !s.Parent.OnlyLogCommandInGroup {
@@ -607,15 +621,6 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 }
 
 func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool {
-	// 设置AmIBeMentioned
-	cmdArgs.AmIBeMentioned = false
-	for _, i := range cmdArgs.At {
-		if i.UserId == ctx.conn.UserId {
-			cmdArgs.AmIBeMentioned = true
-			break
-		}
-	}
-
 	cmdArgs.SomeoneBeMentionedButNotMe = len(cmdArgs.At) > 0 && (!cmdArgs.AmIBeMentioned)
 	if cmdArgs.MentionedOtherDice {
 		return true
@@ -669,7 +674,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	}
 
 	sa := ctx.Group
-	if !ctx.IsPrivate && sa != nil && sa.Active {
+	if !ctx.IsPrivate && sa != nil && (sa.Active || ctx.IsCurGroupBotOn) {
 		for _, i := range sa.ActivatedExtList {
 			if i.OnCommandReceived != nil {
 				i.OnCommandReceived(ctx, msg, cmdArgs)
@@ -694,7 +699,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		}
 	} else {
 		// 群消息
-		if sa != nil && sa.Active {
+		if sa != nil && (sa.Active || ctx.IsCurGroupBotOn) {
 			for _, i := range sa.ActivatedExtList {
 				item := i.CmdMap[cmdArgs.Command]
 				if tryItemSolve(item) {
