@@ -197,6 +197,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	helpSt += ".st <属性>:<值> // 设置属性，技能加值会自动计算。例：.st 感知:20 洞悉:3\n"
 	helpSt += ".st <属性>±<表达式> // 修改属性，例：.st hp+1d4\n"
 	helpSt += ".st <属性>±<表达式> @某人 // 修改他人属性，例：.st hp+1d4"
+	helpSt += ".st hp-1d6 --over // 不计算临时生命扣血"
 	helpSt += "特别的，扣除hp时，会先将其buff值扣除到0。以及增加hp时，hp的值不会超过hpmax"
 
 	cmdSt := &CmdItemInfo{
@@ -246,6 +247,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						"hd": true, "hp": true, "hpmax": true,
 						"ac": true, "dc": true,
+						"DSS": true, "DSF": true,
 						//"$cardType": true,
 					}, []*regexp.Regexp{
 						regexp.MustCompile(`^\$法术位_[1-9]$`),
@@ -469,8 +471,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							if attrName == "hp" {
 								// 当扣血时，特别处理
 								if r.Value.(int64) < 0 {
+									over := cmdArgs.GetKwarg("over")
 									vHpBuff, exists := VarGetValue(mctx, "$buff_hp")
-									if exists {
+									if exists && over == nil {
 										vHpBuffVal := vHpBuff.Value.(int64)
 										// 正盾才做反馈
 										if vHpBuffVal > 0 {
@@ -509,7 +512,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 									}
 									vHpMaxInt64 = vHpMax.Value.(int64)
 								}
-								if newVal < 0 {
+								if newVal <= 0 {
 									if exists && (-newVal) >= vHpMaxInt64 {
 										deathSavingStable(mctx)
 										extraText += fmt.Sprintf("\n<%s>遭受了%d点过量伤害，超过了他的承受能力，一命呜呼了！", ctx.Player.Name, -newVal)
