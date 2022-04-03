@@ -154,12 +154,7 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 	if err == nil {
 		for _, i := range myDice.ImSession.Conns {
 			if i.Id == v.Id {
-				myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%d)", i.Nickname, i.UserId)
-				dice.GoCqHttpServeProcessKill(myDice, i)
-				time.Sleep(1 * time.Second)
-				dice.GoCqHttpServeRemoveSessionToken(myDice, i) // 删除session.token
-				i.InPackGoCqHttpLastRestrictedTime = 0          // 重置风控时间
-				dice.GoCqHttpServe(myDice, i, "", i.InPackGoCqHttpProtocol, true)
+				i.DoRelogin(myDice)
 				return c.JSON(http.StatusOK, nil)
 			}
 		}
@@ -195,6 +190,7 @@ func ImConnectionsAdd(c echo.Context) error {
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
 		conn.UserId = uid
 		conn.InPackGoCqHttpProtocol = v.Protocol
+		conn.InPackGoCqHttpPassword = v.Password
 		myDice.ImSession.Conns = append(myDice.ImSession.Conns, conn)
 		dice.GoCqHttpServe(myDice, conn, v.Password, v.Protocol, true)
 		myDice.Save(false)
