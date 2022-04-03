@@ -146,7 +146,7 @@ export function generateLang(pcList: CharItem[], options: any = undefined) {
           const skipOffSite = (state.pc && state.pc.role === '骰子')
           if (!skipOffSite) {
             // 塔骰会有这种: [xxxx]进行了xxx操作
-            m = stream.match(/^[\[【(（].+$/) as RegExpMatchArray
+            m = stream.match(/^[【(（].+$/) as RegExpMatchArray
             if (m && m[0] === stream.string) {
               return `offsite-${state.name}`
             }

@@ -83,11 +83,6 @@ export function convertToLogItems(doc: string, pcList: CharItem[], options: any 
     i.color = pc?.color
     i.isDice = pc?.role === '骰子'
 
-    // 替换场外发言
-    if (options.offSiteHide && (!i.isDice)) {
-      msg = msg.replaceAll(/^[\[【(（].+?$/gm, '')
-    }
-
     // 替换图片、表情
     if (options.imageHide) {
       msg = msg.replaceAll(/\[CQ:(image|face),[^\]]+\]/g, '')
@@ -113,15 +108,20 @@ export function convertToLogItems(doc: string, pcList: CharItem[], options: any 
       }
     }
 
-    // 替换指令
-    if (options.commandHide) {
-      msg = msg.replaceAll(/^[\.。]\S+.*$/gm, '')
-    }
-
     // 过滤其他任何CQ码
     msg = msg.replaceAll(/\[CQ:.+?,[^\]]+\]/g, '')
     // 过滤mirai
     msg = msg.replaceAll(/\[mirai:.+?:[^\]]+\]/g, '')
+
+    // 替换场外发言
+    if (options.offSiteHide && (!i.isDice)) {
+      msg = msg.replaceAll(/^[【(（].+?$/gm, '')
+    }
+
+    // 替换指令
+    if (options.commandHide) {
+      msg = msg.replaceAll(/^[\.。]\S+.*$/gm, '')
+    }
 
     // 替换残留QQ号
     if (options.userIdHide) {
@@ -140,7 +140,7 @@ export function convertToLogItems(doc: string, pcList: CharItem[], options: any 
     }
   }
 
-  console.log(finalResults)
+  // console.log(finalResults)
   return finalResults
 }
 

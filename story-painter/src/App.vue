@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器测试版 V1.02</h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器测试版 V1.03</h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253</div>
     <div style="text-align: center;">新骰系内测中，快来提需求！</div>
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">

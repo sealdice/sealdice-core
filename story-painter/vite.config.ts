@@ -1,6 +1,7 @@
 import path from 'path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import legacy from '@vitejs/plugin-legacy'
 
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
@@ -35,5 +36,11 @@ export default defineConfig({
       ],
       dts: 'src/components.d.ts',
     }),
+    legacy({
+      targets: ['defaults', 'not IE 11']
+    })
   ],
+  build: {
+    target: "es6"
+  }
 })
