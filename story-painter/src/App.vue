@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器测试版 V1.03</h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器测试版 V1.04</h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253</div>
     <div style="text-align: center;">新骰系内测中，快来提需求！</div>
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
@@ -120,8 +120,52 @@ import { reNameLine, reNameLine2 } from "./utils/highlight";
 import { EditorState, StateEffect } from '@codemirror/state';
 import { debounce, delay } from 'lodash-es'
 import { convertToLogItems, exportFileRaw, exportFileQQ, exportFileIRC, exportFileDocx } from "./utils/exporter";
-import { ElLoading, ElNotification } from "element-plus";
+import { ElLoading, ElMessageBox, ElNotification } from "element-plus";
 import { strFromU8, unzlibSync } from 'fflate';
+import uaParser from 'ua-parser-js'
+
+const isMobile = ref(false)
+const downloadUsableRank = ref(0)
+
+function setupUA() {
+  const parser = new uaParser.UAParser()
+  parser.setUA(navigator.userAgent)
+  const deviceType = parser.getDevice()
+
+  const browser = parser.getBrowser().name
+  downloadUsableRank.value = 1
+
+  isMobile.value = deviceType.type === 'mobile'
+  if (deviceType.type === 'mobile') {
+    // 经测可以使用的
+    switch (browser) {
+      // case '360 Browser': // 手机360 但是手机360无特征，自己是Chrome WebView
+      // 手机:X浏览器 Chrome WebView无特征
+      case 'Edge':
+      case 'Chrome':
+      case 'Chromium':
+      case 'Firefox':
+      case 'MIUI Browser':
+      case 'Opera':
+        downloadUsableRank.value = 2
+    }
+
+  // 经测无法使用的
+    switch (browser) {
+      case 'baiduboxapp': // 手机:百度浏览器
+      case 'QQBrowser': // 手机:搜狗浏览器极速版，手机:QQ浏览器
+      // 手机:万能浏览器，Chrome WebView无特征，会直接崩溃
+      case 'UCBrowser': // 手机:UC浏览器
+      case 'Quark': // 手机:夸克
+      // 手机:Via浏览器，Chrome WebView无特征，会直接崩溃    
+      case 'QQ': // 手机:QQ
+      case 'WeChat':
+        downloadUsableRank.value = 0
+    }
+  }
+}
+
+setupUA()
 
 const nicknameSolve = (i: LogItem) => {
   let userid = '(' + i.IMUserId + ')'
@@ -144,6 +188,22 @@ const timeSolve = (i: LogItem) => {
   return timeText
 }
 
+const browserAlert = () => {
+  if (downloadUsableRank.value === 0) {
+    ElMessageBox.alert('你目前所使用的浏览器无法下载文件，请更换对标准支持较好的浏览器。建议使用Chrome/Firefox/Edge', '注意！', {
+      type: 'error',
+    })
+  }
+  if (downloadUsableRank.value === 1) {
+      if (isMobile.value) {
+        ElMessageBox.alert('你目前所使用的浏览器可能在下载文件时遇到乱码，或无法下载文件，最好更换对标准支持较好的浏览器。建议使用Chrome/Firefox/Edge', '提醒！', {
+        type: 'warning',
+      })
+    }
+  }
+  // 2 不做提示 因为兼容良好
+}
+
 onMounted(async () => {
   const params = new Proxy(new URLSearchParams(window.location.search), {
     get: (searchParams, prop) => searchParams.get(prop as any)
@@ -164,9 +224,8 @@ onMounted(async () => {
       // await new Promise<void>((resolve) => {
       //   new setTimeout(() => { resolve() }, 1000)
       // })
-
       const log = unzlibSync(Uint8Array.from(atob(record.data), c => c.charCodeAt(0)))
-      
+
       nextTick(() => {
         const text = strFromU8(log)
         store.pcList.length = 0
@@ -184,6 +243,7 @@ onMounted(async () => {
         type: 'error',
       })
       loading.close()
+      browserAlert()
       return true
     }
   }
@@ -192,19 +252,23 @@ onMounted(async () => {
   // cminstance.value?.focus();
 
   // console.log(cminstance.value)
+  browserAlert()
   onChange()
 });
 
 function exportRecordRaw() {
+  browserAlert()
   exportFileRaw(store.editor.state.doc.toString())
 }
 
 function exportRecordQQ() {
+  browserAlert()
   const results = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions)
   exportFileQQ(results, store.exportOptions)
 }
 
 function exportRecordIRC() {
+  browserAlert()
   const results = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions)
   exportFileIRC(results, store.exportOptions)
 }
@@ -214,6 +278,13 @@ const preview = ref(null)
 const isShowPreview = ref(false)
 
 function exportRecordDOCX() {
+  browserAlert()
+  if (isMobile.value) {
+    ElMessageBox.alert('你当前处于移动端环境，已知只有WPS能够查看生成的Word文件，且无法看图！使用PC打开可以查看图片。', '提醒！', {
+      type: 'warning',
+    })
+  }
+
   // 其实是伪doc
   previewItems.value = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions, true)
   isShowPreview.value = true // 强制切换

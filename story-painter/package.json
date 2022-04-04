@@ -16,6 +16,7 @@
     "@codemirror/history": "^0.19.2",
     "@codemirror/language": "^0.19.8",
     "@codemirror/stream-parser": "^0.19.7",
+    "@types/ua-parser-js": "^0.7.36",
     "@vitejs/plugin-legacy": "^1.8.0",
     "axios": "^0.26.1",
     "cm-tarnation": "^0.4.0",
@@ -26,6 +27,7 @@
     "format-email": "^0.1.0",
     "lodash-es": "^4.17.21",
     "pinia": "^2.0.12",
+    "ua-parser-js": "^1.0.2",
     "vue": "^3.2.31"
   },
   "devDependencies": {
