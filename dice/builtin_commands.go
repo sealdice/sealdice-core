@@ -310,7 +310,7 @@ func (d *Dice) registerCoreCommands() {
 						}
 					}
 
-					if cmdArgs.GetKwarg("s") == nil || cmdArgs.GetKwarg("slience") == nil {
+					if cmdArgs.GetKwarg("s") == nil && cmdArgs.GetKwarg("slience") == nil {
 						ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d个帐号，这些账号将被视为机器人。\n因此别人@他们时，海豹将不会回复。\n他们的指令也会被海豹忽略，避免发生循环回复事故", newCount))
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
