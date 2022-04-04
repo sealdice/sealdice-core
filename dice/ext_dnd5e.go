@@ -997,7 +997,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				case "help":
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				default:
-					reSlot := regexp.MustCompile(`(\d+)[环cC]\s*([+-])(\d+)|[lL][vV](\d+)\s*([+-])(\d+)`)
+					reSlot := regexp.MustCompile(`(\d+)[环cC]\s*([+-＋－])(\d+)|[lL][vV](\d+)\s*([+-＋－])(\d+)`)
 					slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
 					if len(slots) > 0 {
 						for _, oneSlot := range slots {
@@ -1015,7 +1015,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							}
 							iLevel, _ := strconv.ParseInt(level, 10, 64)
 							iLevelVal, _ := strconv.ParseInt(levelVal, 10, 64)
-							if op == "-" {
+							if op == "-" || op == "－" {
 								iLevelVal = -iLevelVal
 							}
 
@@ -1138,11 +1138,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				mctx.Player.TempValueAlias = &ac.Alias
 
 				restText := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`^(s|S|成功|f|F|失败)([+-])`)
+				re := regexp.MustCompile(`^(s|S|成功|f|F|失败)([+-＋－])`)
 				m := re.FindStringSubmatch(restText)
 				if len(m) > 0 {
 					restText = strings.TrimSpace(restText[len(m[0]):])
-					isNeg := m[2] == "-"
+					isNeg := m[2] == "-" || m[2] == "－"
 					r, _, err := ctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{})
 					if err != nil {
 						ReplyToSender(mctx, msg, "错误: 无法解析表达式: "+restText)

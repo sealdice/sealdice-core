@@ -43,7 +43,7 @@ laNumberOrLeftParen <- &(number / '(')
 
 // 这里故意弄成number，因为出现了 .rab射击 读取了射击的值，结果成为 .rab60 这样子的情况
 eDice2 <- [pP] laNumberOrLeftParen eDice3 { p.AddOperator(TypeDicePenalty) }
-         / [pP]  { p.AddValue("1"); p.AddOperator(TypeDicePenalty) }
+         / [pP] { p.AddValue("1"); p.AddOperator(TypeDicePenalty) }
          / eDice3
 
 eDice3 <- [bB] laNumberOrLeftParen value { p.AddOperator(TypeDiceBonus) }
@@ -65,10 +65,10 @@ assign_expr <- identifier { p.AddValueStr(string(text)) } '=' e1 { p.AddStore() 
 identifier <- < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^`{|}~0-9 \t\n\r][^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]* > sp // not (punctuation+number)
 // identifier2 <- !'d' ![0-9] < (universalCharacter / [a-zA-Z_])+ > sp // not (punctuation+number)
 sub <- open e1 close
-add <- '+' sp
-minus <- '-' sp
-multiply <- '*' sp
-divide <- '/' sp
+add <- ('+'/'＋') sp
+minus <- ('-' / '－') sp
+multiply <- ('*' / '＊') sp
+divide <- ('/' / '／') sp
 modulus <- '%' sp
 exponentiation <- '^' sp / '**' sp
 open <- '(' sp
