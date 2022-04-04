@@ -167,6 +167,16 @@ func (e *RollExpression) AddOperator(operator Type) {
 	code[top].T = operator
 }
 
+func (e *RollExpression) AddOperatorWithInt64(operator Type, val int64) {
+	code, top := e.Code, e.Top
+	if e.checkStackOverflow() {
+		return
+	}
+	e.Top++
+	code[top].T = operator
+	code[top].Value = val
+}
+
 func (e *RollExpression) AddLoadVarname(value string) {
 	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
@@ -242,6 +252,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 	var registerDiceK *VMValue
 	var registerDiceQ *VMValue
+	var kqFlag int64
 
 	for _, code := range e.Code[0:e.Top] {
 		//fmt.Println(code.CodeString())
@@ -282,11 +293,13 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 		case TypeDiceSetK:
 			t := stack[top-1]
 			registerDiceK = &VMValue{t.TypeId, t.Value}
+			kqFlag = code.Value
 			top--
 			continue
 		case TypeDiceSetQ:
 			t := stack[top-1]
 			registerDiceQ = &VMValue{t.TypeId, t.Value}
+			kqFlag = code.Value
 			top--
 			continue
 		case TypeDicePenalty, TypeDiceBonus:
@@ -653,6 +666,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 					diceKQ = registerDiceK.Value.(int64)
 				} else {
 					diceKQ = registerDiceQ.Value.(int64)
+				}
+				if kqFlag == 1 {
+					diceKQ = aInt - diceKQ
 				}
 
 				var nums []int64
