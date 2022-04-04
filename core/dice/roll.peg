@@ -25,8 +25,8 @@ e4 <- minus e5 { p.AddOperator(TypeNegation) }
 e5 <- add eDice
     / eDice
 
-dndDiceSuffix <- ('优势' {p.AddValue("1"); p.AddOperator(TypeDiceSetK)} sp / '劣势' {p.AddValue("1"); p.AddOperator(TypeDiceSetQ)} sp )
-kqDiceOp <- ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )?
+dndDiceSuffix <- (('优势' / 'kh') {p.AddValue("1"); p.AddOperator(TypeDiceSetK)} sp / ('劣势' / 'kl') {p.AddValue("1"); p.AddOperator(TypeDiceSetQ)} sp )
+kqDiceOp <- ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? ('dl' eDice2 { p.AddOperatorWithInt64(TypeDiceSetK, 1) } )? ('dh' eDice2 { p.AddOperatorWithInt64(TypeDiceSetQ, 1) } )?
 
 _dnumber <- &( [dD] (number / '(') )  // 独立出来是因为括号会影响IDEA的自动高亮
 
