@@ -94,11 +94,11 @@ type Dice struct {
 
 func (d *Dice) Init() {
 	d.BaseConfig.DataDir = filepath.Join("./data", d.BaseConfig.Name)
-	os.MkdirAll(d.BaseConfig.DataDir, 0644)
-	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0644)
-	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0644)
-	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "logs"), 0644)
-	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0644)
+	os.MkdirAll(d.BaseConfig.DataDir, 0755)
+	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0755)
+	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0755)
+	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "logs"), 0755)
+	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
 
 	d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
