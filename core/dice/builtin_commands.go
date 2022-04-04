@@ -701,7 +701,7 @@ func (d *Dice) registerCoreCommands() {
 								conflicts := checkConflict(i)
 								if len(conflicts) > 0 {
 									text += "\n检测到可能冲突的扩展，建议关闭: " + strings.Join(conflicts, ",")
-									text += "\n若扩展中存在同名指令，则越晚开启的扩展，优先级越高。"
+									text += "\n对于扩展中存在的同名指令，则越晚开启的扩展，优先级越高。"
 								}
 
 								ctx.Group.ExtActive(i)
