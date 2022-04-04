@@ -393,7 +393,7 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 	conn.InPackGoCqHttpRunning = true
 
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
-	os.MkdirAll(workDir, 0644)
+	os.MkdirAll(workDir, 0755)
 
 	qrcodeFile := filepath.Join(workDir, "qrcode.png")
 	deviceFilePath := filepath.Join(workDir, "device.json")

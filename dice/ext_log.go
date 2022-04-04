@@ -61,7 +61,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Author:     "木落",
 		AutoActive: true,
 		OnLoad: func() {
-			os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "logs"), 0644)
+			os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "logs"), 0755)
 			self.DB.Update(func(tx *bbolt.Tx) error {
 				_, err := tx.CreateBucketIfNotExists([]byte("logs"))
 				return err
@@ -291,7 +291,7 @@ func filenameReplace(name string) string {
 
 func LogSendToBackend(ctx *MsgContext, group *ServiceAtItem) (string, string) {
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "logs")
-	os.MkdirAll(dirpath, 0644)
+	os.MkdirAll(dirpath, 0755)
 
 	lines, err := LogGetAllLines(ctx, group)
 
@@ -338,7 +338,7 @@ func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
 	lines, err := LogGetAllLines(ctx, group)
 	if err == nil {
 
-		os.MkdirAll(dirpath, 0644)
+		os.MkdirAll(dirpath, 0755)
 		fzip, _ := ioutil.TempFile(dirpath, group.LogCurName+".*.zip")
 		writer := zip.NewWriter(fzip)
 		defer writer.Close()

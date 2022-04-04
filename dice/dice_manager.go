@@ -24,7 +24,7 @@ type DiceConfigs struct {
 }
 
 func (dm *DiceManager) InitHelp() {
-	os.MkdirAll("./data/helpdoc", 0644)
+	os.MkdirAll("./data/helpdoc", 0755)
 	dm.Help = new(HelpManager)
 	dm.Help.Parent = dm
 	dm.Help.EngineType = dm.HelpDocEngineType
@@ -32,9 +32,9 @@ func (dm *DiceManager) InitHelp() {
 }
 
 func (dm *DiceManager) LoadDice() {
-	os.MkdirAll("./data/images", 0644)
-	os.MkdirAll("./data/decks", 0644)
-	os.MkdirAll("./data/names", 0644)
+	os.MkdirAll("./data/images", 0755)
+	os.MkdirAll("./data/decks", 0755)
+	os.MkdirAll("./data/names", 0755)
 	ioutil.WriteFile("./data/images/sealdice.png", ICON_PNG, 0644)
 
 	data, err := ioutil.ReadFile("./data/dice.yaml")

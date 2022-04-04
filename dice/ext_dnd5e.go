@@ -1183,11 +1183,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				default:
 					hp, exists := VarGetValueInt64(mctx, "hp")
 					if !exists {
-						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>未设置生命值，无法进行死亡豁免判定。`, mctx.Player.Name))
+						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>未设置生命值，无法进行死亡豁免检定。`, mctx.Player.Name))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					if hp > 0 {
-						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>生命值大于0(当前为%d)，无法进行死亡豁免判定。`, mctx.Player.Name, hp))
+						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>生命值大于0(当前为%d)，无法进行死亡豁免检定。`, mctx.Player.Name, hp))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
