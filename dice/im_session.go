@@ -48,39 +48,6 @@ type ServiceAtItem struct {
 	//RuleFumbleValue *int64 // 大失败值 96默认
 }
 
-// ExtActive 开启扩展
-func (group *ServiceAtItem) ExtActive(ei *ExtInfo) {
-	lst := []*ExtInfo{ei}
-	oldLst := group.ActivatedExtList
-	group.ActivatedExtList = append(lst, oldLst...)
-	group.ExtClear()
-}
-
-// ExtClear 清除多余的扩展项
-func (group *ServiceAtItem) ExtClear() {
-	m := map[string]bool{}
-	var lst []*ExtInfo
-
-	for _, i := range group.ActivatedExtList {
-		if !m[i.Name] {
-			m[i.Name] = true
-			lst = append(lst, i)
-		}
-	}
-	group.ActivatedExtList = lst
-}
-
-func (group *ServiceAtItem) ExtInactive(name string) *ExtInfo {
-	for index, i := range group.ActivatedExtList {
-		if i.Name == name {
-			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
-			group.ExtClear()
-			return i
-		}
-	}
-	return nil
-}
-
 type PlayerVariablesItem struct {
 	Loaded              bool                `yaml:"-"`
 	ValueMap            map[string]*VMValue `yaml:"-"`

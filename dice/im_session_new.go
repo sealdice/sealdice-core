@@ -26,7 +26,7 @@ type Message struct {
 }
 
 // GroupPlayerInfo 群内玩家信息
-type GroupPlayerInfo struct {
+type GroupPlayerInfoBase struct {
 	Name            string `yaml:"name"` // 玩家昵称
 	UserId          string `yaml:"userId"`
 	InGroup         bool   `yaml:"inGroup"`         // 是否在群内，有时一个人走了，信息还暂时残留
@@ -34,24 +34,28 @@ type GroupPlayerInfo struct {
 
 	// level int 权限
 	DiceSideNum  int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
-	Vars         *PlayerVariablesItem `yaml:"-"`           // 群内的玩家变量
-	ValueMapTemp map[string]*VMValue  `yaml:"-"`           // 群内临时变量
-	//ValueMap     map[string]*VMValue  `yaml:"-"`           // 群内变量
+	Vars         *PlayerVariablesItem `yaml:"-"`           // 玩家的群内变量
+	ValueMapTemp map[string]*VMValue  `yaml:"-"`           // 玩家的群内临时变量
 
-	TempValueAlias *map[string][]string `yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的
+	TempValueAlias *map[string][]string `yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的，为什么在这里？
+}
+
+// GroupPlayerInfo 这是一个YamlWrapper，没有实际作用
+// 原因见 https://github.com/go-yaml/yaml/issues/712
+type GroupPlayerInfo struct {
+	GroupPlayerInfoBase `yaml:",inline,flow"`
 }
 
 type GroupInfo struct {
-	Active           bool                        `json:"active" yaml:"active"` // 是否在群内开启
-	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList"`     // 当前群开启的扩展列表
-	Players          map[string]*GroupPlayerInfo // 群员角色数据
-	NotInGroup       bool                        `yaml:"notInGroup"` // 是否已经离开群
+	Active           bool                        `json:"active" yaml:"active"`  // 是否在群内开启
+	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList,flow"` // 当前群开启的扩展列表
+	Players          map[string]*GroupPlayerInfo `yaml:"players"`               // 群员角色数据
+	NotInGroup       bool                        `yaml:"notInGroup"`            // 是否已经离开群
 
 	GroupId     string          `yaml:"groupId"`
 	GroupName   string          `yaml:"groupName"`
-	Platform    string          `yaml:"platform"` // 默认为QQ（为空）
-	DiceIds     map[string]bool `yaml:"diceIds"`  // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
-	BotList     map[string]bool `yaml:"botList"`  // 其他骰子列表
+	DiceIds     map[string]bool `yaml:"diceIds,flow"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	BotList     map[string]bool `yaml:"botList,flow"` // 其他骰子列表
 	DiceSideNum int64           `yaml:"diceSideNum"`
 
 	ValueMap     map[string]*VMValue `yaml:"-"`
@@ -152,7 +156,7 @@ type IMSession struct {
 	EndPoints []*EndPointInfo `yaml:"endPoints"`
 
 	ServiceAtNew   map[string]*GroupInfo           `json:"servicesAt" yaml:"servicesAt"`
-	PlayerVarsData map[string]*PlayerVariablesItem `yaml:"PlayerVarsDataInfo"`
+	PlayerVarsData map[string]*PlayerVariablesItem `yaml:"playerVarsData"`
 
 	// 注意，旧数据！
 	LegacyConns          []*ConnectInfoItem             `yaml:"connections"` // 仅为
@@ -198,12 +202,6 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message) {
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 		}
 
-		mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
-		mctx.IsCurGroupBotOn = IsCurGroupBotOn(s, msg)
-		if d.MasterCheck(mctx.Player.UserId) {
-			mctx.PrivilegeLevel = 100
-		}
-
 		if group != nil && group.Active {
 			for _, i := range group.ActivatedExtList {
 				if i.OnMessageReceived != nil {
@@ -212,22 +210,31 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message) {
 			}
 		}
 
-		// 兼容模式检查
-		if d.CommandCompatibleMode {
-			for k := range d.CmdMap {
-				cmdLst = append(cmdLst, k)
+		maybeCommand := CommandCheckPrefix(msg.Message, d.CommandPrefix)
+		if maybeCommand {
+			mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+			mctx.IsCurGroupBotOn = IsCurGroupBotOn(s, msg)
+			if d.MasterCheck(mctx.Player.UserId) {
+				mctx.PrivilegeLevel = 100
 			}
 
-			// 这里不用group是为了私聊
-			g := mctx.Group
-			if g != nil && g.Active {
-				for _, i := range g.ActivatedExtList {
-					for k := range i.CmdMap {
-						cmdLst = append(cmdLst, k)
+			// 兼容模式检查
+			if d.CommandCompatibleMode {
+				for k := range d.CmdMap {
+					cmdLst = append(cmdLst, k)
+				}
+
+				// 这里不用group是为了私聊
+				g := mctx.Group
+				if g != nil && g.Active {
+					for _, i := range g.ActivatedExtList {
+						for k := range i.CmdMap {
+							cmdLst = append(cmdLst, k)
+						}
 					}
 				}
+				sort.Sort(ByLength(cmdLst))
 			}
-			sort.Sort(ByLength(cmdLst))
 		}
 
 		cmdArgs := CommandParse(msg.Message, d.CommandCompatibleMode, cmdLst, d.CommandPrefix)

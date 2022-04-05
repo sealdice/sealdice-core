@@ -678,6 +678,83 @@ func (d *Dice) loads() {
 					ei = d.ExtFind("coc7")
 					g.ExtActive(ei)
 				}
+
+				if d.VersionCode < 13 {
+					// 进行配置文件的升级
+
+					// connections
+					for _, i := range d.ImSession.LegacyConns {
+						platform := i.Platform
+						if platform == "" {
+							platform = "QQ"
+						}
+						ep := &EndPointInfo{
+							EndPointInfoBase{
+								Id:                  i.Id,
+								Nickname:            i.Nickname,
+								State:               i.State,
+								UserId:              FormatDiceIdQQ(i.UserId),
+								GroupNum:            i.GroupNum,
+								CmdExecutedNum:      i.CmdExecutedNum,
+								CmdExecutedLastTime: i.CmdExecutedLastTime,
+								OnlineTotalTime:     i.OnlineTotalTime,
+
+								Platform:     platform,
+								RelWorkDir:   i.RelWorkDir,
+								Enable:       i.Enable,
+								ProtocolType: i.Type,
+							},
+							&PlatformAdapterQQOnebot{
+								ConnectUrl:                       i.ConnectUrl,
+								UseInPackGoCqhttp:                i.UseInPackGoCqhttp,
+								InPackGoCqHttpLoginSucceeded:     i.InPackGoCqHttpLoginSucceeded,
+								InPackGoCqHttpLastRestrictedTime: i.InPackGoCqHttpLastRestrictedTime,
+								InPackGoCqHttpProtocol:           i.InPackGoCqHttpProtocol,
+								InPackGoCqHttpPassword:           i.InPackGoCqHttpPassword,
+							},
+						}
+						d.ImSession.EndPoints = append(d.ImSession.EndPoints, ep)
+					}
+
+					// 这个似乎不用转换
+					//for _, i := range d.ImSession.LegacyPlayerVarsData {
+					//}
+
+					// 群数据迁移
+					for oldId, i := range d.ImSession.LegacyServiceAt {
+						group := GroupInfo{
+							Active:           i.Active,
+							ActivatedExtList: i.ActivatedExtList,
+							NotInGroup:       i.NotInGroup,
+
+							GroupId:     FormatDiceIdQQGroup(i.GroupId),
+							GroupName:   i.GroupName,
+							DiceIds:     i.DiceIds,
+							BotList:     i.BotList,
+							DiceSideNum: i.DiceSideNum,
+
+							CocRuleIndex: i.CocRuleIndex,
+							LogCurName:   i.LogCurName,
+							LogOn:        i.LogOn,
+						}
+
+						players := map[string]*GroupPlayerInfo{}
+						for _, j := range i.Players {
+							uid := FormatDiceIdQQ(j.UserId)
+							players[uid] = &GroupPlayerInfo{
+								GroupPlayerInfoBase{
+									Name:            j.Name,
+									UserId:          uid,
+									InGroup:         j.InGroup,
+									LastCommandTime: j.LastUpdateTime,
+									DiceSideNum:     j.DiceSideNum,
+								},
+							}
+						}
+
+						d.ImSession.ServiceAtNew[FormatDiceIdQQGroup(oldId)] = &group
+					}
+				}
 			}
 
 			d.Logger.Info("serve.yaml loaded")
