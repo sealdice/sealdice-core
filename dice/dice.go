@@ -8,10 +8,8 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
-	"sort"
 	"strings"
 	"time"
 )
@@ -50,12 +48,12 @@ type ExtInfo struct {
 	ConflictWith []string `yaml:"-"`
 	//activeInSession bool; // 在当前会话中开启
 
-	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)                             `yaml:"-"`
-	OnMessageReceived func(ctx *MsgContext, msg *Message)                                               `yaml:"-"`
-	OnMessageSend     func(ctx *MsgContext, messageType string, userId int64, text string, flag string) `yaml:"-"`
-	GetDescText       func(i *ExtInfo) string                                                           `yaml:"-"`
-	IsLoaded          bool                                                                              `yaml:"-"`
-	OnLoad            func()                                                                            `yaml:"-"`
+	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)                              `yaml:"-"`
+	OnMessageReceived func(ctx *MsgContext, msg *Message)                                                `yaml:"-"`
+	OnMessageSend     func(ctx *MsgContext, messageType string, userId string, text string, flag string) `yaml:"-"`
+	GetDescText       func(i *ExtInfo) string                                                            `yaml:"-"`
+	IsLoaded          bool                                                                               `yaml:"-"`
+	OnLoad            func()                                                                             `yaml:"-"`
 }
 
 type DiceConfig struct {
@@ -108,7 +106,7 @@ func (d *Dice) Init() {
 	d.CommandCompatibleMode = true
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
-	d.ImSession.ServiceAt = make(map[int64]*ServiceAtItem)
+	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
 	d.CmdMap = CmdMapCls{}
 
 	d.registerCoreCommands()
@@ -143,16 +141,16 @@ func (d *Dice) Init() {
 			<-t
 
 			// 自动更新群信息
-			for _, i := range d.ImSession.Conns {
-				if i.Enable && i.DiceServing {
-					for k, v := range d.ImSession.ServiceAt {
-						if v.Active {
-							diceId := FormatDiceIdQQ(i.UserId)
+			for _, i := range d.ImSession.EndPoints {
+				if i.Enable {
+					for k, v := range d.ImSession.ServiceAtNew {
+						if !strings.HasPrefix(k, "PG-") && v.Active {
+							diceId := i.UserId
 							if len(v.DiceIds) == 0 {
 								v.DiceIds[diceId] = true
 							}
 							if v.DiceIds[diceId] {
-								GetGroupInfo(i.Socket, k)
+								i.Adapter.GetGroupInfoAsync(k)
 							}
 						}
 					}
@@ -275,116 +273,6 @@ func (d *Dice) MasterRemove(uid string) bool {
 }
 
 func (d *Dice) RawExecute() {
-	msg := new(Message)
-	conn := &ConnectInfoItem{}
-
-	mctx := &MsgContext{}
-	mctx.Dice = d
-	mctx.MessageType = msg.MessageType
-	mctx.IsPrivate = mctx.MessageType == "private"
-	mctx.Session = d.ImSession
-	mctx.conn = conn
-	log := d.Logger
-
-	// 处理命令
-	if msg.MessageType == "group" || msg.MessageType == "private" {
-		var cmdLst []string
-
-		// 兼容模式检查
-		if d.CommandCompatibleMode {
-			for k := range d.CmdMap {
-				cmdLst = append(cmdLst, k)
-			}
-
-			sa := d.ImSession.ServiceAt[msg.GroupId]
-			if sa != nil && sa.Active {
-				for _, i := range sa.ActivatedExtList {
-					for k := range i.CmdMap {
-						cmdLst = append(cmdLst, k)
-					}
-				}
-			}
-			sort.Sort(ByLength(cmdLst))
-		}
-
-		// 收到信息回调
-		sa := d.ImSession.ServiceAt[msg.GroupId]
-		if sa == nil {
-			log.Infof("自动激活: 发现无记录群组(%d)，因为已是群成员，所以自动激活", msg.GroupId)
-			SetBotOnAtGroup(mctx, msg)
-			GetGroupInfo(conn.Socket, msg.GroupId)
-		}
-
-		mctx.Group = sa
-		mctx.Player = GetPlayerInfoBySender(d.ImSession, msg)
-		mctx.IsCurGroupBotOn = IsCurGroupBotOn(d.ImSession, msg)
-		if d.MasterCheck(mctx.Player.UID) {
-			mctx.PrivilegeLevel = 100
-		}
-
-		if sa != nil && sa.Active {
-			for _, i := range sa.ActivatedExtList {
-				if i.OnMessageReceived != nil {
-					i.OnMessageReceived(mctx, msg)
-				}
-			}
-		}
-
-		cmdArgs := CommandParse(msg.Message, d.CommandCompatibleMode, cmdLst, d.CommandPrefix)
-		if cmdArgs != nil {
-			mctx.CommandId = getNextCommandId()
-		}
-
-		// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
-		if msg.MessageType == "group" {
-			if mctx.CommandId != 0 {
-				log.Infof("收到群(%d)内<%s>(%d)的指令: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-			} else {
-				if !d.OnlyLogCommandInGroup {
-					log.Infof("收到群(%d)内<%s>(%d)的消息: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-				}
-			}
-		}
-
-		if msg.MessageType == "private" {
-			if mctx.CommandId != 0 {
-				log.Infof("收到<%s>(%d)的私聊指令: %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-			} else {
-				if !d.OnlyLogCommandInPrivate {
-					log.Infof("收到<%s>(%d)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-				}
-			}
-		}
-
-		if cmdArgs != nil {
-			f := func() {
-				defer func() {
-					if r := recover(); r != nil {
-						//  + fmt.Sprintf("%s", r)
-						log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
-						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
-					}
-				}()
-				ret := d.ImSession.commandSolve(mctx, msg, cmdArgs)
-				if ret {
-					conn.CmdExecutedNum += 1
-					conn.CmdExecutedLastTime = time.Now().Unix()
-				} else {
-					if msg.MessageType == "group" {
-						log.Infof("无效指令: 来自群(%d)内<%s>(%d): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-					}
-
-					if msg.MessageType == "private" {
-						log.Infof("无效指令: 来自<%s>(%d)的私聊: %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-					}
-				}
-			}
-			go f()
-		} else {
-			//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
-			//replyGroup(Socket, 22, text)
-		}
-	}
 }
 
 func DiceRoll(dicePoints int) int {

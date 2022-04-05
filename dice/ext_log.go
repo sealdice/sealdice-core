@@ -19,7 +19,7 @@ import (
 type LogOneItem struct {
 	Id        uint64 `json:"id"`
 	Nickname  string `json:"nickname"`
-	IMUserId  int64  `json:"IMUserId"`
+	IMUserId  string `json:"IMUserId"`
 	Time      int64  `json:"time"`
 	Message   string `json:"message"`
 	IsDice    bool   `json:"isDice"`
@@ -67,22 +67,22 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return err
 			})
 		},
-		OnMessageSend: func(ctx *MsgContext, messageType string, userId int64, text string, flag string) {
+		OnMessageSend: func(ctx *MsgContext, messageType string, userId string, text string, flag string) {
 			// 记录骰子发言
 			if flag == "skip" {
 				return
 			}
 			privateCommandListenCheck()
 
-			if messageType == "private" && ctx.CommandHideFlag != 0 {
+			if messageType == "private" && ctx.CommandHideFlag != "" {
 				if _, exists := privateCommandListen[ctx.CommandId]; exists {
 					session := ctx.Session
-					group := session.ServiceAt[ctx.CommandHideFlag]
+					group := session.ServiceAtNew[ctx.CommandHideFlag]
 
 					a := LogOneItem{
-						Nickname:  ctx.conn.Nickname,
-						IMUserId:  ctx.conn.UserId,
-						UniformId: ctx.conn.UniformID,
+						Nickname:  ctx.EndPoint.Nickname,
+						IMUserId:  UserIdExtract(ctx.EndPoint.UserId),
+						UniformId: ctx.EndPoint.UserId,
 						Time:      time.Now().Unix(),
 						Message:   text,
 						IsDice:    true,
@@ -93,18 +93,18 @@ func RegisterBuiltinExtLog(self *Dice) {
 			}
 			if IsCurGroupBotOnById(ctx.Session, messageType, userId) {
 				session := ctx.Session
-				group := session.ServiceAt[userId]
+				group := session.ServiceAtNew[userId]
 				if group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
-					if ctx.CommandHideFlag != 0 {
+					if ctx.CommandHideFlag != "" {
 						// 记录当前指令和时间
 						privateCommandListen[ctx.CommandId] = time.Now().Unix()
 					}
 
 					a := LogOneItem{
-						Nickname:  ctx.conn.Nickname,
-						IMUserId:  ctx.conn.UserId,
-						UniformId: ctx.conn.UniformID,
+						Nickname:  ctx.EndPoint.Nickname,
+						IMUserId:  UserIdExtract(ctx.EndPoint.UserId),
+						UniformId: ctx.EndPoint.UserId,
 						Time:      time.Now().Unix(),
 						Message:   text,
 						IsDice:    true,
@@ -121,8 +121,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					a := LogOneItem{
 						Nickname:  ctx.Player.Name,
-						IMUserId:  ctx.Player.UserId,
-						UniformId: ctx.Player.UID,
+						IMUserId:  UserIdExtract(ctx.Player.UserId),
+						UniformId: ctx.Player.UserId,
 						Time:      msg.Time,
 						Message:   msg.Message,
 						IsDice:    false,
@@ -289,7 +289,7 @@ func filenameReplace(name string) string {
 	return re.ReplaceAllString(name, "")
 }
 
-func LogSendToBackend(ctx *MsgContext, group *ServiceAtItem) (string, string) {
+func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "logs")
 	os.MkdirAll(dirpath, 0755)
 
@@ -298,7 +298,7 @@ func LogSendToBackend(ctx *MsgContext, group *ServiceAtItem) (string, string) {
 	zipPassword := RandStringBytesMaskImprSrcSB(12)
 	if err == nil {
 		// 本地进行一个zip留档，以防万一
-		gid := strconv.FormatInt(group.GroupId, 10)
+		gid := group.GroupId
 		fzip, _ := ioutil.TempFile(dirpath, filenameReplace(gid+"_"+group.LogCurName+".*.zip"))
 		writer := zip.NewWriter(fzip)
 		defer writer.Close()
@@ -326,73 +326,13 @@ func LogSendToBackend(ctx *MsgContext, group *ServiceAtItem) (string, string) {
 			w.Write(data)
 			w.Close()
 
-			return UploadFileToWeizaima(ctx.Dice.Logger, group.LogCurName, ctx.conn.UniformID, &zlibBuffer), zipPassword
+			return UploadFileToWeizaima(ctx.Dice.Logger, group.LogCurName, ctx.EndPoint.UserId, &zlibBuffer), zipPassword
 		}
 	}
 	return "", zipPassword
 }
 
-func LogSaveToZip(ctx *MsgContext, group *ServiceAtItem) string {
-	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "logs")
-
-	lines, err := LogGetAllLines(ctx, group)
-	if err == nil {
-
-		os.MkdirAll(dirpath, 0755)
-		fzip, _ := ioutil.TempFile(dirpath, group.LogCurName+".*.zip")
-		writer := zip.NewWriter(fzip)
-		defer writer.Close()
-
-		text := ""
-		//for _, i := range lines {
-		//	if i.Nickname == "" && i.OldNickname != "" {
-		//		i.Nickname = i.OldNickname
-		//	}
-		//
-		//	timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-		//	if i.IsDice {
-		//		text += fmt.Sprintf("[%s] %s(骰子): %s\n", timeTxt, i.Nickname, i.Message)
-		//	} else {
-		//		text += fmt.Sprintf("[%s] <%s>: %s\n", timeTxt, i.Nickname, i.Message)
-		//	}
-		//}
-		//
-		////f, _ := ioutil.TempFile("./temp", "log.*.txt")
-		////f.WriteString(text)
-		////defer f.Close()
-		//
-		//fileWriter, _ := writer.Create("跑团日志(IRC风格).txt")
-		//fileWriter.Write([]byte(text))
-
-		// 第二份
-		data, err := json.Marshal(lines)
-		if err == nil {
-			fileWriter, _ := writer.Create("跑团日志(标准格式-着色专用格式).txt")
-			fileWriter.Write(data)
-		}
-
-		// 第三份，QQ格式
-		text = ""
-		for _, i := range lines {
-			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-			text += fmt.Sprintf("%s(%d) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
-		}
-
-		fileWriter, _ := writer.Create("跑团日志(类QQ格式).txt")
-		fileWriter.Write([]byte(text))
-		writer.Close()
-
-		// 回到开头上传
-		fzip.Seek(0, 0)
-		fn := UploadFileToTransferSh(ctx.Dice.Logger, group.LogCurName+".zip", fzip)
-		//fn := UploadFileToFileIo(group.LogCurName + ".zip", fzip)
-
-		return fn
-	}
-	return ""
-}
-
-func LogLinesGet(ctx *MsgContext, group *ServiceAtItem, name string) (int, bool) {
+func LogLinesGet(ctx *MsgContext, group *GroupInfo, name string) (int, bool) {
 	var size int
 	var exists bool
 	ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
@@ -402,7 +342,7 @@ func LogLinesGet(ctx *MsgContext, group *ServiceAtItem, name string) (int, bool)
 		if b0 == nil {
 			return nil
 		}
-		b1 := b0.Bucket([]byte(strconv.FormatInt(group.GroupId, 10)))
+		b1 := b0.Bucket([]byte(group.GroupId))
 		if b1 == nil {
 			return nil
 		}
@@ -417,7 +357,36 @@ func LogLinesGet(ctx *MsgContext, group *ServiceAtItem, name string) (int, bool)
 	return size, exists
 }
 
-func LogDelete(ctx *MsgContext, group *ServiceAtItem, name string) bool {
+func LogDelete(ctx *MsgContext, group *GroupInfo, name string) bool {
+	var exists bool
+	ctx.Dice.DB.Update(func(tx *bbolt.Tx) error {
+		// Retrieve the users bucket.
+		// This should be created when the DB is first opened.
+		b0 := tx.Bucket([]byte("logs"))
+		if b0 == nil {
+			return nil
+		}
+		b1 := b0.Bucket([]byte(group.GroupId))
+		if b1 == nil {
+			return nil
+		}
+
+		err := b1.DeleteBucket([]byte(name))
+		if err != nil {
+			return err
+		}
+		exists = true
+
+		err = b1.Delete([]byte(name))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return exists
+}
+
+func LogDeleteLegacy(ctx *MsgContext, group *ServiceAtItem, name string) bool {
 	var exists bool
 	ctx.Dice.DB.Update(func(tx *bbolt.Tx) error {
 		// Retrieve the users bucket.
@@ -447,7 +416,27 @@ func LogDelete(ctx *MsgContext, group *ServiceAtItem, name string) bool {
 }
 
 // LogGetList 获取列表
-func LogGetList(ctx *MsgContext, group *ServiceAtItem) ([]string, error) {
+func LogGetList(ctx *MsgContext, group *GroupInfo) ([]string, error) {
+	ret := []string{}
+	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
+		b0 := tx.Bucket([]byte("logs"))
+		if b0 == nil {
+			return nil
+		}
+		b1 := b0.Bucket([]byte(group.GroupId))
+		if b1 == nil {
+			return nil
+		}
+
+		return b1.ForEach(func(k, v []byte) error {
+			ret = append(ret, string(k))
+			return nil
+		})
+	})
+}
+
+// LogGetList 获取列表
+func LogGetListLegacy(ctx *MsgContext, group *ServiceAtItem) ([]string, error) {
 	ret := []string{}
 	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
 		b0 := tx.Bucket([]byte("logs"))
@@ -460,14 +449,42 @@ func LogGetList(ctx *MsgContext, group *ServiceAtItem) ([]string, error) {
 		}
 
 		return b1.ForEach(func(k, v []byte) error {
-			fmt.Println("???", string(k))
 			ret = append(ret, string(k))
 			return nil
 		})
 	})
 }
 
-func LogGetAllLines(ctx *MsgContext, group *ServiceAtItem) ([]*LogOneItem, error) {
+func LogGetAllLines(ctx *MsgContext, group *GroupInfo) ([]*LogOneItem, error) {
+	ret := []*LogOneItem{}
+	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
+		b0 := tx.Bucket([]byte("logs"))
+		if b0 == nil {
+			return nil
+		}
+		b1 := b0.Bucket([]byte(group.GroupId))
+		if b1 == nil {
+			return nil
+		}
+
+		b := b1.Bucket([]byte(group.LogCurName))
+		if b == nil {
+			return nil
+		}
+
+		return b.ForEach(func(k, v []byte) error {
+			logItem := LogOneItem{}
+			err := json.Unmarshal(v, &logItem)
+			if err == nil {
+				ret = append(ret, &logItem)
+			}
+
+			return nil
+		})
+	})
+}
+
+func LogGetAllLinesLegacy(ctx *MsgContext, group *ServiceAtItem) ([]*LogOneItem, error) {
 	ret := []*LogOneItem{}
 	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
 		b0 := tx.Bucket([]byte("logs"))
@@ -496,12 +513,12 @@ func LogGetAllLines(ctx *MsgContext, group *ServiceAtItem) ([]*LogOneItem, error
 	})
 }
 
-func LogAppend(ctx *MsgContext, group *ServiceAtItem, l *LogOneItem) error {
+func LogAppend(ctx *MsgContext, group *GroupInfo, l *LogOneItem) error {
 	return ctx.Dice.DB.Update(func(tx *bbolt.Tx) error {
 		// Retrieve the users bucket.
 		// This should be created when the DB is first opened.
 		b0 := tx.Bucket([]byte("logs"))
-		b1, err := b0.CreateBucketIfNotExists([]byte(strconv.FormatInt(group.GroupId, 10)))
+		b1, err := b0.CreateBucketIfNotExists([]byte(group.GroupId))
 		if err != nil {
 			return err
 		}

@@ -602,7 +602,8 @@ func (d *Dice) loads() {
 		err2 := yaml.Unmarshal(data, &dNew)
 		if err2 == nil {
 			d.CommandCompatibleMode = dNew.CommandCompatibleMode
-			d.ImSession.Conns = dNew.ImSession.Conns
+			d.ImSession.LegacyConns = dNew.ImSession.LegacyConns
+			d.ImSession.EndPoints = dNew.ImSession.EndPoints
 			d.CommandPrefix = dNew.CommandPrefix
 			d.DiceMasters = dNew.DiceMasters
 			d.VersionCode = dNew.VersionCode
@@ -623,8 +624,9 @@ func (d *Dice) loads() {
 				m[i.Name] = i
 			}
 
-			session.ServiceAt = dNew.ImSession.ServiceAt
-			for _, v := range dNew.ImSession.ServiceAt {
+			session.ServiceAtNew = dNew.ImSession.ServiceAtNew
+			for k, v := range dNew.ImSession.ServiceAtNew {
+				fmt.Println(k)
 				tmp := []*ExtInfo{}
 				for _, i := range v.ActivatedExtList {
 					if m[i.Name] != nil {
@@ -635,7 +637,7 @@ func (d *Dice) loads() {
 			}
 
 			// 读取新版数据
-			for _, g := range d.ImSession.ServiceAt {
+			for _, g := range d.ImSession.ServiceAtNew {
 				// 群组数据
 				data := model.AttrGroupGetAll(d.DB, g.GroupId)
 				err := JsonValueMapUnmarshal(data, &g.ValueMap)
@@ -653,32 +655,27 @@ func (d *Dice) loads() {
 				}
 
 				// 个人群组数据
-				for _, p := range g.Players {
-					if p.ValueMap == nil {
-						p.ValueMap = map[string]*VMValue{}
-					}
-					if p.ValueMapTemp == nil {
-						p.ValueMapTemp = map[string]*VMValue{}
-					}
-
-					data := model.AttrGroupUserGetAll(d.DB, g.GroupId, p.UserId)
-					err := JsonValueMapUnmarshal(data, &p.ValueMap)
-					if err != nil {
-						d.Logger.Error(err)
-					}
-				}
-
-				if g.GroupId == 0 {
-					// 如果是个人私聊，那么拉满
-					for _, i := range d.ExtList {
-						g.ExtActive(i)
-					}
-				}
+				//for _, p := range g.Players {
+				//	if p.ValueMap == nil {
+				//		p.ValueMap = map[string]*VMValue{}
+				//	}
+				//	if p.ValueMapTemp == nil {
+				//		p.ValueMapTemp = map[string]*VMValue{}
+				//	}
+				//
+				//	data := model.AttrGroupUserGetAll(d.DB, g.GroupId, p.UserId)
+				//	err := JsonValueMapUnmarshal(data, &p.ValueMap)
+				//	if err != nil {
+				//		d.Logger.Error(err)
+				//	}
+				//}
 
 				if d.VersionCode < 9909 {
 					ei := d.ExtFind("story")
 					g.ExtActive(ei)
 					ei = d.ExtFind("dnd5e")
+					g.ExtActive(ei)
+					ei = d.ExtFind("coc7")
 					g.ExtActive(ei)
 				}
 			}
@@ -692,6 +689,11 @@ func (d *Dice) loads() {
 		}
 	} else {
 		d.Logger.Info("serve.yaml not found")
+	}
+
+	for _, i := range d.ImSession.EndPoints {
+		i.Session = d.ImSession
+		i.AdapterSetup()
 	}
 
 	if len(d.CommandPrefix) == 0 {
@@ -729,20 +731,22 @@ func (d *Dice) Save(isAuto bool) {
 				d.Logger.Info("保存数据")
 			}
 
-			for _, i := range d.ImSession.Conns {
-				if i.UserId == 0 {
-					i.GetLoginInfo()
-				}
-			}
+			//for _, i := range d.ImSession.EndPoints {
+			//	if i.UserId == 0 {
+			//		i.GetLoginInfo()
+			//	}
+			//}
 		}
 	}
 
-	userIds := map[int64]bool{}
-	for _, g := range d.ImSession.ServiceAt {
+	userIds := map[string]bool{}
+	for _, g := range d.ImSession.ServiceAtNew {
 		for _, b := range g.Players {
 			userIds[b.UserId] = true
-			data, _ := json.Marshal(b.ValueMap)
-			model.AttrGroupUserSave(d.DB, g.GroupId, b.UserId, data)
+			if b.Vars != nil && b.Vars.Loaded {
+				data, _ := json.Marshal(b.Vars.ValueMap)
+				model.AttrGroupUserSave(d.DB, g.GroupId, b.UserId, data)
+			}
 		}
 
 		data, _ := json.Marshal(g.ValueMap)

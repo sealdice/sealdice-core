@@ -338,18 +338,22 @@ func GenerateConfig(qq int64, password string, port int) string {
 	return ret
 }
 
-func NewGoCqhttpConnectInfoItem(account string) *ConnectInfoItem {
-	conn := new(ConnectInfoItem)
+func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
+	conn := new(EndPointInfo)
 	conn.Id = uuid.New().String()
 	conn.Platform = "QQ"
-	conn.UseInPackGoCqhttp = true
-	conn.Type = "onebot"
+	conn.ProtocolType = "onebot"
 	conn.Enable = false
 	conn.RelWorkDir = "extra/go-cqhttp-qq" + account
+
+	conn.Adapter = &PlatformAdapterQQOnebot{
+		EndPoint:          conn,
+		UseInPackGoCqhttp: true,
+	}
 	return conn
 }
 
-func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
+func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 	defer func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -358,19 +362,20 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
 			}
 		}()
 
-		if conn.UseInPackGoCqhttp {
+		pa := conn.Adapter.(*PlatformAdapterQQOnebot)
+		if pa.UseInPackGoCqhttp {
 			conn.State = 0
-			conn.InPackGoCqHttpLoginSuccess = false
-			conn.InPackGoCqHttpQrcodeData = nil
-			conn.InPackGoCqHttpRunning = false
-			conn.InPackGoCqHttpQrcodeReady = false
-			conn.InPackGoCqHttpNeedQrCode = false
+			pa.InPackGoCqHttpLoginSuccess = false
+			pa.InPackGoCqHttpQrcodeData = nil
+			pa.InPackGoCqHttpRunning = false
+			pa.InPackGoCqHttpQrcodeReady = false
+			pa.InPackGoCqHttpNeedQrCode = false
 			//conn.InPackGoCqHttpLoginDeviceLockUrl = ""
 
 			// 注意这个会panic，因此recover捕获了
-			if conn.InPackGoCqHttpProcess != nil {
-				p := conn.InPackGoCqHttpProcess
-				conn.InPackGoCqHttpProcess = nil
+			if pa.InPackGoCqHttpProcess != nil {
+				p := pa.InPackGoCqHttpProcess
+				pa.InPackGoCqHttpProcess = nil
 				//sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
 				p.Stop()
 				p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
@@ -379,18 +384,19 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *ConnectInfoItem) {
 	}()
 }
 
-func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *ConnectInfoItem) {
+func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 	if _, err := os.Stat(filepath.Join(workDir, "session.token")); err == nil {
 		os.Remove(filepath.Join(workDir, "session.token"))
 	}
 }
 
-func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol int, isAsyncRun bool) {
-	if conn.InPackGoCqHttpRunning {
+func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int, isAsyncRun bool) {
+	pa := conn.Adapter.(*PlatformAdapterQQOnebot)
+	if pa.InPackGoCqHttpRunning {
 		return
 	}
-	conn.InPackGoCqHttpRunning = true
+	pa.InPackGoCqHttpRunning = true
 
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 	os.MkdirAll(workDir, 0755)
@@ -405,7 +411,7 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 	}
 
 	//if _, err := os.Stat(filepath.Join(workDir, "session.token")); errors.Is(err, os.ErrNotExist) {
-	if !conn.InPackGoCqHttpLoginSucceeded {
+	if !pa.InPackGoCqHttpLoginSucceeded {
 		// 并未登录成功，删除记录文件
 		dice.Logger.Info("onebot: 之前并未登录成功，删除设备文件和配置文件")
 		os.Remove(configFilePath)
@@ -426,8 +432,8 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 		// 如果不存在 config.yml 那么启动一次，让它自动生成
 		// 改为：如果不存在，帮他创建
 		p, _ := GetRandomFreePort()
-		conn.ConnectUrl = fmt.Sprintf("ws://localhost:%d", p)
-		c := GenerateConfig(conn.UserId, password, p)
+		pa.ConnectUrl = fmt.Sprintf("ws://localhost:%d", p)
+		c := GenerateConfig(pa.mustExtractId(conn.UserId), password, p)
 		ioutil.WriteFile(configFilePath, []byte(c), 0644)
 	}
 
@@ -449,12 +455,12 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 		if strings.Contains(line, "CQ WebSocket 服务器已启动") {
 			// CQ WebSocket 服务器已启动
 			// 登录成功 欢迎使用
-			conn.InPackGoCqHttpLoginSuccess = true
-			conn.InPackGoCqHttpLoginSucceeded = true
+			pa.InPackGoCqHttpLoginSuccess = true
+			pa.InPackGoCqHttpLoginSucceeded = true
 			conn.Enable = true
 			conn.State = 2
-			conn.InPackGoCqHttpLoginDeviceLockUrl = ""
-			dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%d)", conn.Nickname, conn.UserId)
+			pa.InPackGoCqHttpLoginDeviceLockUrl = ""
+			dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserId)
 
 			go DiceServe(dice, conn)
 		}
@@ -469,8 +475,8 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 			dice.Logger.Info("触发设备锁流程: ", len(m))
 			if len(m) > 0 {
 				// 设备锁流程，因为需要重新登录，进行一个“已成功登录过”的标记，这样配置文件不会被删除
-				conn.InPackGoCqHttpLoginSucceeded = true
-				conn.InPackGoCqHttpLoginDeviceLockUrl = m[1]
+				pa.InPackGoCqHttpLoginSucceeded = true
+				pa.InPackGoCqHttpLoginDeviceLockUrl = m[1]
 			}
 		}
 
@@ -478,12 +484,12 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 		}
 
 		if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
-			conn.InPackGoCqHttpNeedQrCode = true
+			pa.InPackGoCqHttpNeedQrCode = true
 		}
 
 		if (strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
 			//群消息发送失败: 账号可能被风控
-			conn.InPackGoCqHttpLastRestrictedTime = time.Now().Unix()
+			pa.InPackGoCqHttpLastRestrictedTime = time.Now().Unix()
 		}
 
 		if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
@@ -491,9 +497,9 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 			//p.Cmds[0].Stdout.Write([]byte("3154"))
 		}
 
-		if conn.InPackGoCqHttpLoginSuccess == false || strings.Contains(line, "风控") || strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
+		if pa.InPackGoCqHttpLoginSuccess == false || strings.Contains(line, "风控") || strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
 			//  [WARNING]: 登录需要滑条验证码, 请使用手机QQ扫描二维码以继续登录
-			if conn.InPackGoCqHttpLoginSuccess {
+			if pa.InPackGoCqHttpLoginSuccess {
 				dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
 			} else {
 				fmt.Printf("onebot | %s\n", line)
@@ -514,9 +520,9 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 			fmt.Println("如控制台二维码不好扫描，可以手动打开go-cqhttp目录下qrcode.png")
 			qrdata, err := ioutil.ReadFile(qrcodeFile)
 			if err == nil {
-				conn.InPackGoCqHttpQrcodeData = qrdata
+				pa.InPackGoCqHttpQrcodeData = qrdata
 			}
-			conn.InPackGoCqHttpQrcodeReady = true
+			pa.InPackGoCqHttpQrcodeReady = true
 		}
 	}()
 
@@ -527,8 +533,8 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 			}
 		}()
 
-		conn.InPackGoCqHttpRunning = true
-		conn.InPackGoCqHttpProcess = p
+		pa.InPackGoCqHttpRunning = true
+		pa.InPackGoCqHttpProcess = p
 		err := p.Start()
 
 		if err == nil {
@@ -542,7 +548,7 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 		}
 
 		GoCqHttpServeProcessKill(dice, conn)
-		conn.InPackGoCqHttpRunning = false
+		pa.InPackGoCqHttpRunning = false
 		if err != nil {
 			dice.Logger.Info("go-cqhttp 进程退出: ", err)
 		} else {
@@ -557,61 +563,66 @@ func GoCqHttpServe(dice *Dice, conn *ConnectInfoItem, password string, protocol 
 	}
 }
 
-func DiceServe(d *Dice, conn *ConnectInfoItem) {
-	if !conn.DiceServing {
-		conn.DiceServing = true
-	} else {
-		return
-	}
+// 注意：放在这里并不科学，记得重构
+func DiceServe(d *Dice, ep *EndPointInfo) {
+	if ep.Platform == "QQ" {
+		conn := ep.Adapter.(*PlatformAdapterQQOnebot)
 
-	var _index int
-	for index, a := range d.ImSession.Conns {
-		if a == conn {
-			_index = index
-		}
-	}
-
-	checkQuit := func() bool {
 		if !conn.DiceServing {
-			// 退出连接
-			d.Logger.Infof("检测到连接关闭，不再进行此onebot服务的重连: <%s>(%d)", conn.Nickname, conn.UserId)
-			return true
-		}
-		return false
-	}
-
-	lastRetryTime := time.Now().Unix()
-	waitTimes := 0
-	for {
-		if checkQuit() {
-			break
+			conn.DiceServing = true
+		} else {
+			return
 		}
 
-		// 骰子开始连接
-		d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
-		ret := d.ImSession.Serve(_index)
-
-		if time.Now().Unix()-lastRetryTime > 8*60 {
-			lastRetryTime = 0
-		}
-		lastRetryTime = time.Now().Unix()
-
-		if ret == 0 {
-			break
+		var _index int
+		for index, a := range d.ImSession.EndPoints {
+			if a == ep {
+				_index = index
+			}
 		}
 
-		if checkQuit() {
-			break
+		checkQuit := func() bool {
+			if !conn.DiceServing {
+				// 退出连接
+				d.Logger.Infof("检测到连接关闭，不再进行此onebot服务的重连: <%s>(%s)", ep.Nickname, ep.UserId)
+				return true
+			}
+			return false
 		}
 
-		waitTimes += 1
-		if waitTimes > 5 {
-			d.Logger.Infof("onebot 连接重试次数过多，先行中断: <%s>(%d)", conn.Nickname, conn.UserId)
-			conn.DiceServing = false
-			break
-		}
+		lastRetryTime := time.Now().Unix()
+		waitTimes := 0
+		for {
+			if checkQuit() {
+				break
+			}
 
-		d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
-		time.Sleep(time.Duration(15 * time.Second))
+			// 骰子开始连接
+			d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)", ep.Nickname, ep.UserId)
+			ret := d.ImSession.Serve(_index)
+
+			if time.Now().Unix()-lastRetryTime > 8*60 {
+				lastRetryTime = 0
+			}
+			lastRetryTime = time.Now().Unix()
+
+			if ret == 0 {
+				break
+			}
+
+			if checkQuit() {
+				break
+			}
+
+			waitTimes += 1
+			if waitTimes > 5 {
+				d.Logger.Infof("onebot 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserId)
+				conn.DiceServing = false
+				break
+			}
+
+			d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%s)", ep.Nickname, ep.UserId)
+			time.Sleep(time.Duration(15 * time.Second))
+		}
 	}
 }

@@ -104,7 +104,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 
 func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Regexp) map[string]string {
 	exportMap := map[string]string{}
-	for k, v := range mctx.Player.ValueMap {
+	for k, v := range mctx.Player.Vars.ValueMap {
 		doIt := whiteList[k]
 		if !doIt && regexps != nil {
 			for _, i := range regexps {
@@ -207,7 +207,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
-				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 				mctx.Player.TempValueAlias = &ac.Alias
 
 				switch val {
@@ -223,10 +223,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					var failed []string
 
 					for _, varname := range cmdArgs.Args[1:] {
-						_, ok := mctx.Player.ValueMap[varname]
+						_, ok := mctx.Player.Vars.ValueMap[varname]
 						if ok {
 							nums = append(nums, varname)
-							delete(mctx.Player.ValueMap, varname)
+							delete(mctx.Player.Vars.ValueMap, varname)
 						} else {
 							failed = append(failed, varname)
 						}
@@ -263,8 +263,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				case "clr", "clear":
 					p := mctx.Player
-					num := len(p.ValueMap)
-					p.ValueMap = map[string]*VMValue{}
+					num := len(p.Vars.ValueMap)
+					p.Vars.ValueMap = map[string]*VMValue{}
 					VarSetValueInt64(mctx, "$t数量", int64(num))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_清除"))
 
@@ -298,7 +298,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 
 					tick := 0
-					if len(p.ValueMap) == 0 {
+					if len(p.Vars.ValueMap) == 0 {
 						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 					} else {
 						// 按照配置文件排序
@@ -316,7 +316,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						// 其余按字典序
 						topNum := len(attrKeys)
 						attrKeys2 := []string{}
-						for k := range p.ValueMap {
+						for k := range p.Vars.ValueMap {
 							attrKeys2 = append(attrKeys2, k)
 						}
 						sort.Strings(attrKeys2)
@@ -341,7 +341,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							}
 
 							var v *VMValue
-							vRaw, exists := p.ValueMap[k]
+							vRaw, exists := p.Vars.ValueMap[k]
 							if !exists {
 								// 不存在的值，强行补0
 								v = &VMValue{VMTypeInt64, int64(0)}
@@ -585,7 +585,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		LongHelp: "DND5E 检定:\n" + helpRc,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 				mctx.Player.TempValueAlias = &ac.Alias
 
 				val, _ := cmdArgs.GetArgN(1)
@@ -636,7 +636,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
-				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 				switch val {
 				case "del", "rm":
@@ -645,10 +645,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					for _, rawVarname := range cmdArgs.Args[1:] {
 						varname := "$buff_" + rawVarname
-						_, ok := mctx.Player.ValueMap[varname]
+						_, ok := mctx.Player.Vars.ValueMap[varname]
 						if ok {
 							nums = append(nums, rawVarname)
-							delete(mctx.Player.ValueMap, varname)
+							delete(mctx.Player.Vars.ValueMap, varname)
 						} else {
 							failed = append(failed, varname)
 						}
@@ -661,16 +661,16 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				case "clr", "clear":
 					p := mctx.Player
 					toDelete := []string{}
-					for varname, _ := range p.ValueMap {
+					for varname, _ := range p.Vars.ValueMap {
 						varname = "$buff_" + varname
-						if _, exists := p.ValueMap[varname]; exists {
+						if _, exists := p.Vars.ValueMap[varname]; exists {
 							toDelete = append(toDelete, varname)
 						}
 					}
 
 					num := len(toDelete)
 					for _, varname := range toDelete {
-						delete(p.ValueMap, varname)
+						delete(p.Vars.ValueMap, varname)
 					}
 					VarSetValueInt64(mctx, "$t数量", int64(num))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:BUFF设置_清除"))
@@ -680,7 +680,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					var info string
 
 					attrKeys2 := []string{}
-					for k := range p.ValueMap {
+					for k := range p.Vars.ValueMap {
 						if strings.HasPrefix(k, "$buff_") {
 							attrKeys2 = append(attrKeys2, k)
 						}
@@ -688,7 +688,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					sort.Strings(attrKeys2)
 
 					tick := 0
-					if len(p.ValueMap) == 0 {
+					if len(p.Vars.ValueMap) == 0 {
 						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 					} else {
 						// 按照配置文件排序
@@ -705,7 +705,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						// 其余按字典序
 						attrKeys2 := []string{}
-						for k := range p.ValueMap {
+						for k := range p.Vars.ValueMap {
 							attrKeys2 = append(attrKeys2, k)
 						}
 						sort.Strings(attrKeys2)
@@ -721,7 +721,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							if !strings.HasPrefix(k, "$buff_") {
 								continue
 							}
-							v, exists := p.ValueMap[k]
+							v, exists := p.Vars.ValueMap[k]
 							if !exists {
 								// 不存在的值，强行补0
 								v = &VMValue{VMTypeInt64, int64(0)}
@@ -920,7 +920,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
-				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 				switch val {
 				case "init":
@@ -940,7 +940,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 
 				case "clr":
-					vm := mctx.Player.ValueMap
+					vm := mctx.Player.Vars.ValueMap
 					for i := 1; i < 10; i += 1 {
 						delete(vm, fmt.Sprintf("$法术位_%d", i))
 						delete(vm, fmt.Sprintf("$法术位上限_%d", i))
@@ -1044,7 +1044,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
-				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 				switch val {
 				default:
@@ -1093,7 +1093,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
-				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 				switch val {
 				case "":
@@ -1134,7 +1134,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		LongHelp: "DND5E 死亡豁免:\n" + helpDeathSavingThrow,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 				mctx.Player.TempValueAlias = &ac.Alias
 
 				restText := cmdArgs.CleanArgs
@@ -1341,7 +1341,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						text := cmdArgs.CleanArgs
-						mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+						mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 						readOne := func() (int, string, int64, string) {
 							text = strings.TrimSpace(text)
