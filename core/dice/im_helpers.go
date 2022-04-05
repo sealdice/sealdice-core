@@ -73,9 +73,11 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	p := players[msg.Sender.UserId]
 	if p == nil {
 		p = &GroupPlayerInfo{
-			Name:         msg.Sender.Nickname,
-			UserId:       msg.Sender.UserId,
-			ValueMapTemp: map[string]*VMValue{},
+			GroupPlayerInfoBase{
+				Name:         msg.Sender.Nickname,
+				UserId:       msg.Sender.UserId,
+				ValueMapTemp: map[string]*VMValue{},
+			},
 		}
 		players[msg.Sender.UserId] = p
 	}

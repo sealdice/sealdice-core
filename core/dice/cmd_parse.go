@@ -77,6 +77,25 @@ func (a *CmdArgs) GetKwarg(s string) *Kwarg {
 	return nil
 }
 
+func CommandCheckPrefix(rawCmd string, prefix []string) bool {
+	restText, _ := AtParse(rawCmd)
+	restText = strings.TrimSpace(restText)
+	restText, _ = SpecialExecuteTimesParse(restText)
+
+	// 先导符号检测
+	var prefixStr string
+	for _, i := range prefix {
+		if strings.HasPrefix(restText, i) {
+			prefixStr = i
+			break
+		}
+	}
+	if prefixStr == "" {
+		return false
+	}
+	return true
+}
+
 func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string, prefix []string) *CmdArgs {
 	specialExecuteTimes := 0
 	restText, atInfo := AtParse(rawCmd)
