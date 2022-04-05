@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 var fearListText = `
@@ -390,9 +389,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Help:     helpRc,
 		LongHelp: "检定指令:\n" + helpRc,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if len(cmdArgs.Args) >= 1 {
-					mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+					mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 					restText := cmdArgs.CleanArgs
 
 					reBP := regexp.MustCompile(`^[bBpP]`)
@@ -547,15 +546,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
 						ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
 					} else {
-						ReplyGroup(ctx, msg, text)
+						ReplyToSender(ctx, msg, text)
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
-				return CmdExecuteResult{Matched: true, Solved: true}
-			}
-			if ctx.IsPrivate {
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -791,7 +786,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				Name: "en",
 				Help: ".en // 成长",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					if ctx.IsCurGroupBotOn {
+					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						// 首先处理单参数形式
 						// .en [技能名称]([技能值])+(([失败成长值]/)[成功成长值])
 						re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+(([^/]+)/)?\s*(.+))?`)
@@ -949,7 +944,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				Help: ".li // 抽取一个总结性疯狂症状",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// 总结性疯狂
-					if ctx.IsCurGroupBotOn {
+					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						foo := func(tmpl string) string {
 							val, _, _ := self.ExprText(tmpl, ctx)
 							return val
@@ -987,7 +982,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							text += maniaMap[num2]
 						}
 
-						ReplyGroup(ctx, msg, text)
+						ReplyToSender(ctx, msg, text)
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					return CmdExecuteResult{Matched: true, Solved: false}
@@ -1015,7 +1010,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						if len(cmdArgs.Args) == 0 {
 							return CmdExecuteResult{Matched: true, Solved: true, ShowShortHelp: true}
 						}
-						mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+						mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 						mctx.Player.TempValueAlias = &ac.Alias
 
 						// 首先读取一个值
@@ -1257,8 +1252,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					// .st (<Name>[0-9]+)+
 					// .st (<Name>)
 					// .st (<Name>)+-<表达式>
-					if ctx.IsCurGroupBotOn && len(cmdArgs.Args) >= 0 {
-						mctx, _ := GetCtxStandInFirst(ctx, cmdArgs, true)
+					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+						mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 						var param1 string
 						if len(cmdArgs.Args) == 0 {
@@ -1274,10 +1269,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							var failed []string
 
 							for _, varname := range cmdArgs.Args[1:] {
-								_, ok := mctx.Player.ValueMap[varname]
+								_, ok := mctx.Player.Vars.ValueMap[varname]
 								if ok {
 									nums = append(nums, varname)
-									delete(mctx.Player.ValueMap, varname)
+									delete(mctx.Player.Vars.ValueMap, varname)
 								} else {
 									failed = append(failed, varname)
 								}
@@ -1290,8 +1285,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 						case "clr", "clear":
 							p := mctx.Player
-							num := len(p.ValueMap)
-							p.ValueMap = map[string]*VMValue{}
+							num := len(p.Vars.ValueMap)
+							p.Vars.ValueMap = map[string]*VMValue{}
 							VarSetValueInt64(mctx, "$t数量", int64(num))
 							//text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
 							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_清除"))
@@ -1326,7 +1321,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							}
 
 							tick := 0
-							if len(p.ValueMap) == 0 {
+							if len(p.Vars.ValueMap) == 0 {
 								info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
 							} else {
 								// 按照配置文件排序
@@ -1344,7 +1339,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								// 其余按字典序
 								topNum := len(attrKeys)
 								attrKeys2 := []string{}
-								for k := range p.ValueMap {
+								for k := range p.Vars.ValueMap {
 									attrKeys2 = append(attrKeys2, k)
 								}
 								sort.Strings(attrKeys2)
@@ -1360,7 +1355,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									if strings.HasPrefix(k, "$") {
 										continue
 									}
-									v, exists := p.ValueMap[k]
+									v, exists := p.Vars.ValueMap[k]
 									if !exists {
 										// 不存在的值，强行补0
 										v = &VMValue{VMTypeInt64, int64(0)}
@@ -1485,7 +1480,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									return CmdExecuteResult{Matched: true, Solved: true}
 								}
 
-								p.LastUpdateTime = time.Now().Unix()
 								//s, _ := json.Marshal(valueMap)
 								VarSetValueInt64(mctx, "$t数量", int64(len(valueMap)))
 								VarSetValueInt64(mctx, "$t有效数量", int64(len(nameMap)))

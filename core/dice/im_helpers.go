@@ -11,52 +11,98 @@ import (
 )
 
 func IsCurGroupBotOn(session *IMSession, msg *Message) bool {
-	return msg.MessageType == "group" && session.ServiceAt[msg.GroupId] != nil && session.ServiceAt[msg.GroupId].Active
+	return msg.MessageType == "group" && session.ServiceAtNew[msg.GroupId] != nil && session.ServiceAtNew[msg.GroupId].Active
 }
 
-func IsCurGroupBotOnById(session *IMSession, messageType string, groupId int64) bool {
-	return messageType == "group" && session.ServiceAt[groupId] != nil && session.ServiceAt[groupId].Active
+func IsCurGroupBotOnById(session *IMSession, messageType string, groupId string) bool {
+	return messageType == "group" && session.ServiceAtNew[groupId] != nil && session.ServiceAtNew[groupId].Active
+}
+
+func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
+	session := ctx.Session
+	group := session.ServiceAtNew[groupId]
+	if group != nil {
+		group.Active = true
+	} else {
+		extLst := []*ExtInfo{}
+		for _, i := range session.Parent.ExtList {
+			if i.AutoActive {
+				extLst = append(extLst, i)
+			}
+		}
+		session.ServiceAtNew[groupId] = &GroupInfo{
+			Active:           true,
+			ActivatedExtList: extLst,
+			Players:          map[string]*GroupPlayerInfo{},
+			GroupId:          groupId,
+			ValueMap:         map[string]*VMValue{},
+			DiceIds:          map[string]bool{},
+		}
+		group = session.ServiceAtNew[groupId]
+	}
+
+	if group.DiceIds == nil {
+		group.DiceIds = map[string]bool{}
+	}
+	if group.BotList == nil {
+		group.BotList = map[string]bool{}
+	}
+
+	group.DiceIds[ctx.EndPoint.UserId] = true
+	return group
 }
 
 /* 获取玩家群内信息，没有就创建 */
-func GetPlayerInfoBySender(session *IMSession, msg *Message) *PlayerInfo {
+func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPlayerInfo) {
+	session := ctx.Session
+	var groupId string
 	if msg.MessageType == "group" {
-		g := session.ServiceAt[msg.GroupId]
-		if g == nil {
-			return nil
-		}
-		players := g.Players
-		p := players[msg.Sender.UserId]
-		if p == nil {
-			p = &PlayerInfo{
-				Name:         msg.Sender.Nickname,
-				UserId:       msg.Sender.UserId,
-				ValueMap:     map[string]*VMValue{},
-				ValueMapTemp: map[string]*VMValue{},
-			}
-			players[msg.Sender.UserId] = p
-		}
-		p.UID = FormatDiceIdQQ(p.UserId) // TODO: 记得改
-		if p.ValueMap == nil {
-			p.ValueMap = map[string]*VMValue{}
-		}
-		if p.ValueMapTemp == nil {
-			p.ValueMapTemp = map[string]*VMValue{}
-		}
-		if p.InGroup == false {
-			p.InGroup = true
-		}
-		return p
+		// 群信息
+		groupId = msg.GroupId
+	} else {
+		// 私聊信息 PrivateGroup
+		groupId = "PG-" + msg.Sender.UserId
+		SetBotOnAtGroup(ctx, groupId)
 	}
 
-	// 私聊信息
-	return &PlayerInfo{
-		Name:         msg.Sender.Nickname,
-		UserId:       msg.Sender.UserId,
-		UID:          FormatDiceIdQQ(msg.Sender.UserId),
-		ValueMap:     map[string]*VMValue{},
-		ValueMapTemp: map[string]*VMValue{},
+	group := session.ServiceAtNew[groupId]
+	if group == nil {
+		return nil, nil
 	}
+	players := group.Players
+	p := players[msg.Sender.UserId]
+	if p == nil {
+		p = &GroupPlayerInfo{
+			Name:         msg.Sender.Nickname,
+			UserId:       msg.Sender.UserId,
+			ValueMapTemp: map[string]*VMValue{},
+		}
+		players[msg.Sender.UserId] = p
+	}
+	if p.ValueMapTemp == nil {
+		p.ValueMapTemp = map[string]*VMValue{}
+	}
+	if p.InGroup == false {
+		p.InGroup = true
+	}
+	ctx.LoadPlayerGroupVars(p)
+	return group, p
+}
+
+func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
+	ctx.EndPoint.Adapter.ReplyToSender(ctx, msg, text)
+}
+
+func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
+	ctx.EndPoint.Adapter.ReplyGroup(ctx, msg, text)
+}
+
+func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
+	ctx.EndPoint.Adapter.ReplyPerson(ctx, msg, text)
+}
+
+func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
+	ctx.EndPoint.Adapter.ReplyToSenderRaw(ctx, msg, text, flag)
 }
 
 type ByLength []string

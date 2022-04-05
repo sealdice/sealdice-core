@@ -188,11 +188,11 @@ func DecksDetect(d *Dice) {
 
 func RegisterBuiltinExtDeck(d *Dice) {
 	helpDraw := "" +
-		".deck help // 显示本帮助\n" +
-		".deck list // 查看载入的牌堆文件\n" +
-		".deck keys // 查看可抽取的牌组列表\n" +
-		".deck search <牌组名称> // 搜索相关牌组\n" +
-		".deck <牌组名称> // 进行抽牌"
+		".draw help // 显示本帮助\n" +
+		".draw list // 查看载入的牌堆文件\n" +
+		".draw keys // 查看可抽取的牌组列表\n" +
+		".draw search <牌组名称> // 搜索相关牌组\n" +
+		".draw <牌组名称> // 进行抽牌"
 
 	cmdDraw := &CmdItemInfo{
 		Name:     "deck",

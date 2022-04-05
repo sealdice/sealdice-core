@@ -134,14 +134,15 @@ func main() {
 }
 
 func diceServe(d *dice.Dice) {
-	if len(d.ImSession.Conns) == 0 {
+	if len(d.ImSession.EndPoints) == 0 {
 		d.Logger.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
 	}
 
-	for _, conn := range d.ImSession.Conns {
+	for _, conn := range d.ImSession.EndPoints {
 		if conn.Enable {
-			if conn.UseInPackGoCqhttp {
-				dice.GoCqHttpServe(d, conn, "", 1, true)
+			if conn.Platform == "QQ" {
+				pa := conn.Adapter.(*dice.PlatformAdapterQQOnebot)
+				dice.GoCqHttpServe(d, conn, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
 				time.Sleep(10 * time.Second) // 稍作等待再连接
 			}
 
@@ -160,31 +161,6 @@ func diceServe(d *dice.Dice) {
 			//	time.Sleep(time.Duration(15 * time.Second))
 			//}
 		}
-	}
-}
-
-func diceIMServe(myDice *dice.Dice) {
-	if len(myDice.ImSession.Conns) == 0 {
-		myDice.ImSession.Conns = append(myDice.ImSession.Conns, &dice.ConnectInfoItem{
-			ConnectUrl:        "ws://127.0.0.1:6700",
-			Platform:          "qq",
-			Type:              "onebot",
-			UseInPackGoCqhttp: myDice.InPackGoCqHttpExists,
-			Enable:            true,
-		})
-	}
-
-	for {
-		// 骰子开始连接
-		fmt.Println("开始连接 onebot 服务")
-		ret := myDice.ImSession.Serve(0)
-
-		if ret == 0 {
-			break
-		}
-
-		fmt.Println("onebot 连接中断，将在15秒后重新连接")
-		time.Sleep(time.Duration(15 * time.Second))
 	}
 }
 

@@ -8,9 +8,18 @@ import (
 	"strings"
 )
 
-func (ctx *MsgContext) LoadPlayerVars() *PlayerVariablesItem {
+// LoadPlayerGlobalVars 加载个人全局数据
+func (ctx *MsgContext) LoadPlayerGlobalVars() *PlayerVariablesItem {
 	if ctx.Player != nil {
-		return LoadPlayerVars(ctx.Session, ctx.Player.UserId)
+		return LoadPlayerGlobalVars(ctx.Session, ctx.Player.UserId)
+	}
+	return nil
+}
+
+// LoadPlayerGroupVars 加载个人群内数据
+func (ctx *MsgContext) LoadPlayerGroupVars(player *GroupPlayerInfo) *PlayerVariablesItem {
+	if ctx.Dice != nil {
+		return LoadPlayerGroupVars(ctx.Dice, player)
 	}
 	return nil
 }
@@ -85,7 +94,7 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	// 个人变量
 	if strings.HasPrefix(s, "$m") {
 		if ctx.Session != nil && ctx.Player != nil {
-			playerVars := ctx.LoadPlayerVars()
+			playerVars := ctx.LoadPlayerGlobalVars()
 			playerVars.ValueMap[s] = &vClone
 		}
 		return
@@ -98,7 +107,7 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 		return
 	}
 
-	ctx.Player.ValueMap[name] = &vClone
+	ctx.Player.Vars.ValueMap[name] = &vClone
 }
 
 func VarDelValue(ctx *MsgContext, s string) {
@@ -113,7 +122,7 @@ func VarDelValue(ctx *MsgContext, s string) {
 	// 个人变量
 	if strings.HasPrefix(s, "$m") {
 		if ctx.Session != nil && ctx.Player != nil {
-			playerVars := ctx.LoadPlayerVars()
+			playerVars := ctx.LoadPlayerGlobalVars()
 			delete(playerVars.ValueMap, s)
 		}
 	}
@@ -129,7 +138,7 @@ func VarDelValue(ctx *MsgContext, s string) {
 		return
 	}
 
-	delete(ctx.Player.ValueMap, name)
+	delete(ctx.Player.Vars.ValueMap, name)
 }
 
 func VarGetValueInt64(ctx *MsgContext, s string) (int64, bool) {
@@ -152,7 +161,7 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 	// 个人全局变量
 	if strings.HasPrefix(s, "$m") {
 		if ctx.Session != nil && ctx.Player != nil {
-			playerVars := ctx.LoadPlayerVars()
+			playerVars := ctx.LoadPlayerGlobalVars()
 			a, b := playerVars.ValueMap[s]
 			return a, b
 		}
@@ -171,13 +180,15 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 
 	// 个人群变量
 	if ctx.Player != nil {
-		v, e := ctx.Player.ValueMap[name]
-		return v, e
+		if ctx.Player.Vars != nil && ctx.Player.Vars.Loaded {
+			v, e := ctx.Player.Vars.ValueMap[name]
+			return v, e
+		}
 	}
 	return nil, false
 }
 
-func (i *PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) string {
+func (i *GroupPlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) string {
 	name := s
 
 	if alias == nil {
@@ -202,12 +213,12 @@ func (i *PlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) st
 	return name
 }
 
-func (i *PlayerInfo) SetValueInt64(s string, value int64, alias map[string][]string) {
+func (i *GroupPlayerInfo) SetValueInt64(s string, value int64, alias map[string][]string) {
 	name := i.GetValueNameByAlias(s, alias)
 	VarSetValue(&MsgContext{Player: i}, name, &VMValue{VMTypeInt64, value})
 }
 
-func (i *PlayerInfo) GetValueInt64(s string, alias map[string][]string) (int64, bool) {
+func (i *GroupPlayerInfo) GetValueInt64(s string, alias map[string][]string) (int64, bool) {
 	var ret int64
 	name := i.GetValueNameByAlias(s, alias)
 	v, exists := VarGetValue(&MsgContext{Player: i}, name)
@@ -218,9 +229,37 @@ func (i *PlayerInfo) GetValueInt64(s string, alias map[string][]string) (int64, 
 	return ret, exists
 }
 
-func LoadPlayerVars(s *IMSession, id int64) *PlayerVariablesItem {
+func LoadPlayerVarsLegacy(s *IMSessionLegacy, id int64) *PlayerVariablesItem {
 	if s.PlayerVarsData == nil {
 		s.PlayerVarsData = map[int64]*PlayerVariablesItem{}
+	}
+
+	if _, exists := s.PlayerVarsData[id]; !exists {
+		s.PlayerVarsData[id] = &PlayerVariablesItem{
+			Loaded: false,
+		}
+	}
+
+	vd, _ := s.PlayerVarsData[id]
+	if vd.ValueMap == nil {
+		vd.ValueMap = map[string]*VMValue{}
+	}
+
+	if vd.Loaded == false {
+		vd.Loaded = true
+		data := model.AttrUserGetAllLegacy(s.Parent.DB, id)
+		err := JsonValueMapUnmarshal(data, &vd.ValueMap)
+		if err != nil {
+			s.Parent.Logger.Error(err)
+		}
+	}
+
+	return vd
+}
+
+func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
+	if s.PlayerVarsData == nil {
+		s.PlayerVarsData = map[string]*PlayerVariablesItem{}
 	}
 
 	if _, exists := s.PlayerVarsData[id]; !exists {
@@ -240,6 +279,30 @@ func LoadPlayerVars(s *IMSession, id int64) *PlayerVariablesItem {
 		err := JsonValueMapUnmarshal(data, &vd.ValueMap)
 		if err != nil {
 			s.Parent.Logger.Error(err)
+		}
+	}
+
+	return vd
+}
+
+func LoadPlayerGroupVars(dice *Dice, player *GroupPlayerInfo) *PlayerVariablesItem {
+	if player.Vars == nil {
+		player.Vars = &PlayerVariablesItem{
+			Loaded: false,
+		}
+	}
+
+	vd := player.Vars
+	if vd.ValueMap == nil {
+		vd.ValueMap = map[string]*VMValue{}
+	}
+
+	if vd.Loaded == false {
+		vd.Loaded = true
+		data := model.AttrUserGetAll(dice.DB, player.UserId)
+		err := JsonValueMapUnmarshal(data, &vd.ValueMap)
+		if err != nil {
+			dice.Logger.Error(err)
 		}
 	}
 

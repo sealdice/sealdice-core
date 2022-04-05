@@ -17,8 +17,8 @@ type Kwarg struct {
 
 // [CQ:at,qq=22]
 type AtInfo struct {
-	UserId int64  `json:"user_id"`
-	UID    string `json:"uid"`
+	UserId string `json:"user_id"`
+	//UID    string `json:"uid"`
 }
 
 func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
@@ -234,14 +234,13 @@ func AtParse(cmd string) (string, []*AtInfo) {
 	for _, i := range m {
 		if len(i) == 2 {
 			at := new(AtInfo)
-			at.UserId, _ = strconv.ParseInt(i[1], 10, 64)
-			at.UID = FormatDiceIdQQ(at.UserId)
+			//at.UserId, _ = strconv.ParseInt(i[1], 10, 64)
+			at.UserId = "QQ:" + i[1]
 			ret = append(ret, at)
 		}
 	}
 
 	replaced := re.ReplaceAllString(cmd, "")
-
 	return replaced, ret
 }
 

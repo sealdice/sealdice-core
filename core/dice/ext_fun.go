@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"hash/fnv"
 	"math/rand"
 	"strings"
 	"time"
@@ -189,7 +190,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
-				rpSeed += ctx.Player.UserId
+				//rpSeed += int64(fingerprint(ctx.EndPoint.UserId))
+				rpSeed += int64(fingerprint(ctx.Player.UserId))
 				rand.Seed(rpSeed)
 				rp := rand.Int63()%100 + 1
 
@@ -223,4 +225,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"jrrp": &cmdJrrp,
 		},
 	})
+}
+
+func fingerprint(b string) uint64 {
+	hash := fnv.New64a()
+	hash.Write([]byte(b))
+	return hash.Sum64()
 }

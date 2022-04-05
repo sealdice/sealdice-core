@@ -73,7 +73,7 @@ func customTextSave(c echo.Context) error {
 }
 
 func ImConnections(c echo.Context) error {
-	return c.JSON(http.StatusOK, myDice.ImSession.Conns)
+	return c.JSON(http.StatusOK, myDice.ImSession.EndPoints)
 }
 
 func ImConnectionsGet(c echo.Context) error {
@@ -82,7 +82,7 @@ func ImConnectionsGet(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		for _, i := range myDice.ImSession.Conns {
+		for _, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
 				return c.JSON(http.StatusOK, i)
 			}
@@ -98,7 +98,7 @@ func ImConnectionsSetEnable(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		for _, i := range myDice.ImSession.Conns {
+		for _, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
 				i.SetEnable(myDice, v.Enable)
 				return c.JSON(http.StatusOK, i)
@@ -114,11 +114,12 @@ func ImConnectionsDel(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		for index, i := range myDice.ImSession.Conns {
+		for index, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
-				i.DiceServing = false
+				// TODO: 注意 这个好像很不科学
+				//i.DiceServing = false
 				dice.GoCqHttpServeProcessKill(myDice, i)
-				myDice.ImSession.Conns = append(myDice.ImSession.Conns[:index], myDice.ImSession.Conns[index+1:]...)
+				myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 				return c.JSON(http.StatusOK, i)
 			}
 		}
@@ -132,11 +133,12 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		for _, i := range myDice.ImSession.Conns {
+		for _, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
-				if i.InPackGoCqHttpQrcodeReady {
+				pa := i.Adapter.(*dice.PlatformAdapterQQOnebot)
+				if pa.InPackGoCqHttpQrcodeReady {
 					return c.JSON(http.StatusOK, map[string]string{
-						"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(i.InPackGoCqHttpQrcodeData),
+						"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.InPackGoCqHttpQrcodeData),
 					})
 				}
 				return c.JSON(http.StatusOK, i)
@@ -152,9 +154,9 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		for _, i := range myDice.ImSession.Conns {
+		for _, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
-				i.DoRelogin(myDice)
+				i.Adapter.DoRelogin()
 				return c.JSON(http.StatusOK, nil)
 			}
 		}
@@ -181,17 +183,18 @@ func ImConnectionsAdd(c echo.Context) error {
 			return c.String(430, "")
 		}
 
-		for _, i := range myDice.ImSession.Conns {
-			if i.UserId == uid {
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.UserId == dice.FormatDiceIdQQ(uid) {
 				return c.JSON(CODE_ALREADY_EXISTS, i)
 			}
 		}
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
-		conn.UserId = uid
-		conn.InPackGoCqHttpProtocol = v.Protocol
-		conn.InPackGoCqHttpPassword = v.Password
-		myDice.ImSession.Conns = append(myDice.ImSession.Conns, conn)
+		conn.UserId = dice.FormatDiceIdQQ(uid)
+		pa := conn.Adapter.(*dice.PlatformAdapterQQOnebot)
+		pa.InPackGoCqHttpProtocol = v.Protocol
+		pa.InPackGoCqHttpPassword = v.Password
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		dice.GoCqHttpServe(myDice, conn, v.Password, v.Protocol, true)
 		myDice.Save(false)
 		return c.JSON(200, conn)
