@@ -106,10 +106,6 @@ func getNextCommandId() uint64 {
 	return curCommandId
 }
 
-func (s *IMSession) Serve(index int) int {
-	return s.EndPoints[index].Adapter.Serve()
-}
-
 func SetTempVars(ctx *MsgContext, qqNickname string) {
 	// 设置临时变量
 	if ctx.Player != nil {

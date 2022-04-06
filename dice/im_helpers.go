@@ -30,6 +30,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 				extLst = append(extLst, i)
 			}
 		}
+
 		session.ServiceAtNew[groupId] = &GroupInfo{
 			Active:           true,
 			ActivatedExtList: extLst,
@@ -87,7 +88,7 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	if p.InGroup == false {
 		p.InGroup = true
 	}
-	ctx.LoadPlayerGroupVars(p)
+	ctx.LoadPlayerGroupVars(group, p)
 	return group, p
 }
 

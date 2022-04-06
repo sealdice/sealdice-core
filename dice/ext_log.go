@@ -25,9 +25,8 @@ type LogOneItem struct {
 	IsDice    bool   `json:"isDice"`
 	CommandId uint64 `json:"commandId"`
 
-	OldNickname string `json:"Nickname"`
-	UniformId   string `json:"uniformId"`
-	Channel     string `json:"channel"` // 用于秘密团
+	UniformId string `json:"uniformId"`
+	Channel   string `json:"channel"` // 用于秘密团
 }
 
 // {"data":null,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}

@@ -3,6 +3,7 @@ package dice
 // 用户变量相关
 
 import (
+	"encoding/json"
 	"reflect"
 	"sealdice-core/dice/model"
 	"strings"
@@ -17,9 +18,9 @@ func (ctx *MsgContext) LoadPlayerGlobalVars() *PlayerVariablesItem {
 }
 
 // LoadPlayerGroupVars 加载个人群内数据
-func (ctx *MsgContext) LoadPlayerGroupVars(player *GroupPlayerInfo) *PlayerVariablesItem {
+func (ctx *MsgContext) LoadPlayerGroupVars(group *GroupInfo, player *GroupPlayerInfo) *PlayerVariablesItem {
 	if ctx.Dice != nil {
-		return LoadPlayerGroupVars(ctx.Dice, player)
+		return LoadPlayerGroupVars(ctx.Dice, group, player)
 	}
 	return nil
 }
@@ -28,6 +29,11 @@ func (ctx *MsgContext) LoadGroupVars() {
 	g := ctx.Group
 	if g.ValueMap == nil {
 		g.ValueMap = map[string]*VMValue{}
+	}
+	data := model.AttrGroupGetAll(ctx.Dice.DB, g.GroupId)
+	err := json.Unmarshal(data, &g.ValueMap)
+	if err != nil {
+		return
 	}
 }
 
@@ -285,7 +291,7 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 	return vd
 }
 
-func LoadPlayerGroupVars(dice *Dice, player *GroupPlayerInfo) *PlayerVariablesItem {
+func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) *PlayerVariablesItem {
 	if player.Vars == nil {
 		player.Vars = &PlayerVariablesItem{
 			Loaded: false,
@@ -299,7 +305,7 @@ func LoadPlayerGroupVars(dice *Dice, player *GroupPlayerInfo) *PlayerVariablesIt
 
 	if vd.Loaded == false {
 		vd.Loaded = true
-		data := model.AttrUserGetAll(dice.DB, player.UserId)
+		data := model.AttrGroupUserGetAll(dice.DB, group.GroupId, player.UserId)
 		err := JsonValueMapUnmarshal(data, &vd.ValueMap)
 		if err != nil {
 			dice.Logger.Error(err)

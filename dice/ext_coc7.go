@@ -1399,7 +1399,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
 
 						default:
-							re1, _ := regexp.Compile(`([^\d]+?)\s*([+-＋－])=?(.+)$`)
+							re1, _ := regexp.Compile(`([^\d\s]+)\s*([+\-＋－])=?(.+)$`)
 							m := re1.FindStringSubmatch(cmdArgs.CleanArgs)
 							if len(m) > 0 {
 								p := mctx.Player

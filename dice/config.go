@@ -597,12 +597,10 @@ func (d *Dice) loads() {
 	data, err := ioutil.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
 
 	if err == nil {
-		session := d.ImSession
 		dNew := Dice{}
 		err2 := yaml.Unmarshal(data, &dNew)
 		if err2 == nil {
 			d.CommandCompatibleMode = dNew.CommandCompatibleMode
-			d.ImSession.LegacyConns = dNew.ImSession.LegacyConns
 			d.ImSession.EndPoints = dNew.ImSession.EndPoints
 			d.CommandPrefix = dNew.CommandPrefix
 			d.DiceMasters = dNew.DiceMasters
@@ -618,15 +616,98 @@ func (d *Dice) loads() {
 				}
 			}
 			d.DiceMasters = newDiceMasters
+			d.ImSession.ServiceAtNew = dNew.ImSession.ServiceAtNew
 
 			m := map[string]*ExtInfo{}
 			for _, i := range d.ExtList {
 				m[i.Name] = i
 			}
 
-			session.ServiceAtNew = dNew.ImSession.ServiceAtNew
-			for k, v := range dNew.ImSession.ServiceAtNew {
-				fmt.Println(k)
+			if d.VersionCode < 9913 {
+				// 进行配置文件的升级
+				d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 9913)
+
+				// connections
+				for _, i := range dNew.ImSession.LegacyConns {
+					fmt.Println("连接信息转换: ", i.Nickname, i.UserId)
+					platform := i.Platform
+					if platform == "" {
+						platform = "QQ"
+					}
+					ep := &EndPointInfo{
+						EndPointInfoBase{
+							Id:                  i.Id,
+							Nickname:            i.Nickname,
+							State:               i.State,
+							UserId:              FormatDiceIdQQ(i.UserId),
+							GroupNum:            i.GroupNum,
+							CmdExecutedNum:      i.CmdExecutedNum,
+							CmdExecutedLastTime: i.CmdExecutedLastTime,
+							OnlineTotalTime:     i.OnlineTotalTime,
+
+							Platform:     platform,
+							RelWorkDir:   i.RelWorkDir,
+							Enable:       i.Enable,
+							ProtocolType: i.Type,
+						},
+						&PlatformAdapterQQOnebot{
+							ConnectUrl:                       i.ConnectUrl,
+							UseInPackGoCqhttp:                i.UseInPackGoCqhttp,
+							InPackGoCqHttpLoginSucceeded:     i.InPackGoCqHttpLoginSucceeded,
+							InPackGoCqHttpLastRestrictedTime: i.InPackGoCqHttpLastRestrictedTime,
+							InPackGoCqHttpProtocol:           i.InPackGoCqHttpProtocol,
+							InPackGoCqHttpPassword:           i.InPackGoCqHttpPassword,
+						},
+					}
+					d.ImSession.EndPoints = append(d.ImSession.EndPoints, ep)
+				}
+
+				// 这个似乎不用转换
+				//for _, i := range d.ImSession.LegacyPlayerVarsData {
+				//}
+
+				// 群数据迁移
+				d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
+				for oldId, i := range dNew.ImSession.LegacyServiceAt {
+					fmt.Println("群数据迁移: ", i.GroupName, i.GroupId)
+					group := GroupInfo{
+						Active:           i.Active,
+						ActivatedExtList: i.ActivatedExtList,
+						NotInGroup:       i.NotInGroup,
+
+						GroupId:     FormatDiceIdQQGroup(i.GroupId),
+						GroupName:   i.GroupName,
+						DiceIds:     i.DiceIds,
+						BotList:     i.BotList,
+						DiceSideNum: i.DiceSideNum,
+
+						CocRuleIndex: i.CocRuleIndex,
+						LogCurName:   i.LogCurName,
+						LogOn:        i.LogOn,
+					}
+
+					players := map[string]*GroupPlayerInfo{}
+					for _, j := range i.Players {
+						uid := FormatDiceIdQQ(j.UserId)
+						players[uid] = &GroupPlayerInfo{
+							GroupPlayerInfoBase{
+								Name:            j.Name,
+								UserId:          uid,
+								InGroup:         j.InGroup,
+								LastCommandTime: j.LastUpdateTime,
+								DiceSideNum:     j.DiceSideNum,
+							},
+						}
+					}
+					group.Players = players
+
+					d.ImSession.ServiceAtNew[FormatDiceIdQQGroup(oldId)] = &group
+				}
+				model.AttrTryUpdate(d.DB)
+			}
+
+			// 设置群扩展
+			for _, v := range d.ImSession.ServiceAtNew {
 				tmp := []*ExtInfo{}
 				for _, i := range v.ActivatedExtList {
 					if m[i.Name] != nil {
@@ -636,13 +717,15 @@ func (d *Dice) loads() {
 				v.ActivatedExtList = tmp
 			}
 
-			// 读取新版数据
+			// 读取群变量
 			for _, g := range d.ImSession.ServiceAtNew {
 				// 群组数据
 				data := model.AttrGroupGetAll(d.DB, g.GroupId)
-				err := JsonValueMapUnmarshal(data, &g.ValueMap)
-				if err != nil {
-					d.Logger.Error(err)
+				if len(data) != 0 {
+					err := JsonValueMapUnmarshal(data, &g.ValueMap)
+					if err != nil {
+						d.Logger.Error("读取群变量失败: ", err)
+					}
 				}
 				if g.ValueMap == nil {
 					g.ValueMap = map[string]*VMValue{}
@@ -652,6 +735,15 @@ func (d *Dice) loads() {
 				}
 				if g.BotList == nil {
 					g.BotList = map[string]bool{}
+				}
+
+				if d.VersionCode < 9909 {
+					ei := d.ExtFind("story")
+					g.ExtActive(ei)
+					ei = d.ExtFind("dnd5e")
+					g.ExtActive(ei)
+					ei = d.ExtFind("coc7")
+					g.ExtActive(ei)
 				}
 
 				// 个人群组数据
@@ -669,92 +761,6 @@ func (d *Dice) loads() {
 				//		d.Logger.Error(err)
 				//	}
 				//}
-
-				if d.VersionCode < 9909 {
-					ei := d.ExtFind("story")
-					g.ExtActive(ei)
-					ei = d.ExtFind("dnd5e")
-					g.ExtActive(ei)
-					ei = d.ExtFind("coc7")
-					g.ExtActive(ei)
-				}
-
-				if d.VersionCode < 13 {
-					// 进行配置文件的升级
-
-					// connections
-					for _, i := range d.ImSession.LegacyConns {
-						platform := i.Platform
-						if platform == "" {
-							platform = "QQ"
-						}
-						ep := &EndPointInfo{
-							EndPointInfoBase{
-								Id:                  i.Id,
-								Nickname:            i.Nickname,
-								State:               i.State,
-								UserId:              FormatDiceIdQQ(i.UserId),
-								GroupNum:            i.GroupNum,
-								CmdExecutedNum:      i.CmdExecutedNum,
-								CmdExecutedLastTime: i.CmdExecutedLastTime,
-								OnlineTotalTime:     i.OnlineTotalTime,
-
-								Platform:     platform,
-								RelWorkDir:   i.RelWorkDir,
-								Enable:       i.Enable,
-								ProtocolType: i.Type,
-							},
-							&PlatformAdapterQQOnebot{
-								ConnectUrl:                       i.ConnectUrl,
-								UseInPackGoCqhttp:                i.UseInPackGoCqhttp,
-								InPackGoCqHttpLoginSucceeded:     i.InPackGoCqHttpLoginSucceeded,
-								InPackGoCqHttpLastRestrictedTime: i.InPackGoCqHttpLastRestrictedTime,
-								InPackGoCqHttpProtocol:           i.InPackGoCqHttpProtocol,
-								InPackGoCqHttpPassword:           i.InPackGoCqHttpPassword,
-							},
-						}
-						d.ImSession.EndPoints = append(d.ImSession.EndPoints, ep)
-					}
-
-					// 这个似乎不用转换
-					//for _, i := range d.ImSession.LegacyPlayerVarsData {
-					//}
-
-					// 群数据迁移
-					for oldId, i := range d.ImSession.LegacyServiceAt {
-						group := GroupInfo{
-							Active:           i.Active,
-							ActivatedExtList: i.ActivatedExtList,
-							NotInGroup:       i.NotInGroup,
-
-							GroupId:     FormatDiceIdQQGroup(i.GroupId),
-							GroupName:   i.GroupName,
-							DiceIds:     i.DiceIds,
-							BotList:     i.BotList,
-							DiceSideNum: i.DiceSideNum,
-
-							CocRuleIndex: i.CocRuleIndex,
-							LogCurName:   i.LogCurName,
-							LogOn:        i.LogOn,
-						}
-
-						players := map[string]*GroupPlayerInfo{}
-						for _, j := range i.Players {
-							uid := FormatDiceIdQQ(j.UserId)
-							players[uid] = &GroupPlayerInfo{
-								GroupPlayerInfoBase{
-									Name:            j.Name,
-									UserId:          uid,
-									InGroup:         j.InGroup,
-									LastCommandTime: j.LastUpdateTime,
-									DiceSideNum:     j.DiceSideNum,
-								},
-							}
-						}
-
-						d.ImSession.ServiceAtNew[FormatDiceIdQQGroup(oldId)] = &group
-					}
-				}
 			}
 
 			d.Logger.Info("serve.yaml loaded")
@@ -780,7 +786,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.VersionCode = 9909
+	d.VersionCode = 9913
 
 	// 读取文本模板
 	setupTextTemplate(d)
