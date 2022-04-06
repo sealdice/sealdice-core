@@ -319,7 +319,7 @@ func (d *Dice) registerCoreCommands() {
 	masterListHelp := `.master add me // 将自己标记为骰主
 .master add @A @B // 将别人标记为骰主
 .master del @A @B @C // 去除骰主标记
-.master unlock <密码> // 清空骰主列表，并使自己成为骰主
+.master unlock <密码(在UI中查看)> // (当Master被人抢占时)清空骰主列表，并使自己成为骰主
 .master list // 查看当前骰主列表
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)`
 	cmdMaster := &CmdItemInfo{
@@ -609,7 +609,7 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				showList := func() {
-					text := "检测到以下扩展：\n"
+					text := "检测到以下扩展(名称-版本-作者)：\n"
 					for index, i := range ctx.Dice.ExtList {
 						state := "关"
 						for _, j := range ctx.Group.ActivatedExtList {
@@ -622,7 +622,7 @@ func (d *Dice) registerCoreCommands() {
 						if author == "" {
 							author = "<未注明>"
 						}
-						text += fmt.Sprintf("%d. [%s]%s - 版本:%s 作者:%s\n", index+1, state, i.Name, i.Version, author)
+						text += fmt.Sprintf("%d. [%s]%s - %s - %s\n", index+1, state, i.Name, i.Version, author)
 					}
 					text += "使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n"
 					text += "命令: .ext <扩展名> 可以查看扩展介绍及帮助"

@@ -334,7 +334,7 @@ func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs, setTempVar bool) (*MsgC
 		mctx, exists := i.CopyCtx(ctx)
 		if exists {
 			if mctx.Player != ctx.Player {
-				mctx.LoadPlayerGroupVars(nil, mctx.Player)
+				mctx.LoadPlayerGroupVars(mctx.Group, mctx.Player)
 				SetTempVars(mctx, "???")
 			}
 		}

@@ -25,7 +25,7 @@ type Message struct {
 	Message     string     `json:"message"`     // 消息内容
 }
 
-// GroupPlayerInfo 群内玩家信息
+// GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
 	Name            string `yaml:"name"` // 玩家昵称
 	UserId          string `yaml:"userId"`
@@ -180,7 +180,7 @@ type MsgContext struct {
 	PrivilegeLevel  int    // 权限等级
 }
 
-func (s *IMSession) Execute(ep *EndPointInfo, msg *Message) {
+func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	d := s.Parent
 
 	mctx := &MsgContext{}
@@ -254,6 +254,11 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message) {
 		// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
 		if msg.MessageType == "group" {
 			if mctx.CommandId != 0 {
+				// 关闭状态下，如果被@那么视为开启
+				if !mctx.IsCurGroupBotOn && cmdArgs.AmIBeMentioned {
+					mctx.IsCurGroupBotOn = true
+				}
+
 				log.Infof("收到群(%s)内<%s>(%s)的指令: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 			} else {
 				if !d.OnlyLogCommandInGroup {
@@ -326,7 +331,11 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message) {
 					}
 				}
 			}
-			go f()
+			if runInSync {
+				f()
+			} else {
+				go f()
+			}
 		} else {
 			//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
 			//replyGroup(Socket, 22, text)

@@ -295,7 +295,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					return
 				}
 
-				session.Execute(ep, msg)
+				session.Execute(ep, msg, false)
 			} else {
 				fmt.Println("Recieved message " + message)
 			}
