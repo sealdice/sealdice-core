@@ -93,6 +93,9 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
+		if ctx.Player.ValueMapTemp == nil {
+			ctx.Player.ValueMapTemp = map[string]*VMValue{}
+		}
 		ctx.Player.ValueMapTemp[s] = &vClone
 		return
 	}

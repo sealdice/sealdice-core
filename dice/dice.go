@@ -15,7 +15,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.12内测版 v20220403"
+var VERSION = "0.99.13内测版 v20220406dev"
 
 type CmdExecuteResult struct {
 	Matched       bool // 是否是指令
@@ -80,6 +80,11 @@ type Dice struct {
 	OnlyLogCommandInGroup   bool                   `yaml:"onlyLogCommandInGroup"`   // 日志中仅记录命令
 	OnlyLogCommandInPrivate bool                   `yaml:"onlyLogCommandInPrivate"` // 日志中仅记录命令
 	VersionCode             int                    `json:"versionCode"`             // 版本ID
+	VersionCodeOnline       int                    `yaml:"versionCodeOnline"`       // 版本ID - 线上
+	MessageDelayRangeStart  float64                `yaml:"messageDelayRangeStart"`  // 指令延迟区间
+	MessageDelayRangeEnd    float64                `yaml:"messageDelayRangeEnd"`
+	UIPassword              string                 `yaml:"uiPassword"`
+	MasterUnlockCode        string                 `yaml:"-"` // 解锁码，每20分钟变化一次，使用后立即变化
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp

@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sealdice-core/dice"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -208,9 +209,86 @@ func logFetchAndClear(c echo.Context) error {
 	return info
 }
 
-func DiceExec(context echo.Context) error {
-	myDice.RawExecute()
-	return nil
+var lastExecTime int64
+
+func DiceExec(c echo.Context) error {
+	v := struct {
+		Id      string `form:"id" json:"id"`
+		Message string `form:"message"`
+	}{}
+	err := c.Bind(&v)
+	if err != nil {
+		return c.JSON(400, "格式错误")
+	}
+	if v.Message == "" {
+		return c.JSON(400, "格式错误")
+	}
+	now := time.Now().Unix()
+	if now-lastExecTime < 3 {
+		return c.JSON(400, "过于频繁")
+	}
+	lastExecTime = now
+
+	pa := dice.PlatformAdapterHttp{}
+	tmpEp := &dice.EndPointInfo{
+		EndPointInfoBase: dice.EndPointInfoBase{
+			Id:       "1",
+			Nickname: "海豹核心",
+			State:    2,
+			UserId:   "UI:1000",
+			Platform: "UI",
+			Enable:   true,
+		},
+		Adapter: &pa,
+	}
+	msg := &dice.Message{
+		MessageType: "private",
+		Message:     v.Message,
+		Sender: dice.SenderBase{
+			Nickname: "User",
+			UserId:   "UI:1001",
+		},
+	}
+	myDice.ImSession.Execute(tmpEp, msg, true)
+	return c.JSON(200, pa.RecentMessage)
+}
+
+type DiceConfigInfo struct {
+	CommandPrefix           []string `json:"commandPrefix"`           // 指令前导
+	DiceMasters             []string `json:"diceMasters"`             // 骰主设置，需要格式: 平台:帐号
+	OnlyLogCommandInGroup   bool     `json:"onlyLogCommandInGroup"`   // 日志中仅记录命令
+	OnlyLogCommandInPrivate bool     `json:"onlyLogCommandInPrivate"` // 日志中仅记录命令
+	MessageDelayRangeStart  float64  `json:"messageDelayRangeStart"`  // 指令延迟区间
+	MessageDelayRangeEnd    float64  `json:"messageDelayRangeEnd"`
+	UIPassword              string   `json:"uiPassword"`
+	MasterUnlockCode        string   `json:"masterUnlockCode"`
+}
+
+func DiceConfig(c echo.Context) error {
+	password := myDice.UIPassword
+	p2 := []string{}
+	if len(password) > 0 {
+		for _ = range password {
+			p2 = append(p2, "*")
+		}
+		password = strings.Join(p2, "")
+	}
+
+	info := DiceConfigInfo{
+		CommandPrefix:           myDice.CommandPrefix,
+		DiceMasters:             myDice.DiceMasters,
+		OnlyLogCommandInPrivate: myDice.OnlyLogCommandInPrivate,
+		OnlyLogCommandInGroup:   myDice.OnlyLogCommandInGroup,
+		MessageDelayRangeStart:  myDice.MessageDelayRangeStart,
+		MessageDelayRangeEnd:    myDice.MessageDelayRangeEnd,
+		UIPassword:              password,
+		MasterUnlockCode:        myDice.MasterUnlockCode,
+	}
+	return c.JSON(http.StatusOK, info)
+}
+
+func DiceConfigSet(c echo.Context) error {
+	return c.JSON(http.StatusOK, nil)
 }
 
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
@@ -230,5 +308,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST("/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST("/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
 
-	e.POST("/_dice/exec", DiceExec)
+	e.GET("/dice/config/get", DiceConfig)
+	e.POST("/dice/config/set", DiceConfigSet)
+	e.POST("/dice/exec", DiceExec)
 }

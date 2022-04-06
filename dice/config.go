@@ -626,6 +626,8 @@ func (d *Dice) loads() {
 			if d.VersionCode < 9913 {
 				// 进行配置文件的升级
 				d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 9913)
+				d.MessageDelayRangeStart = 0.4
+				d.MessageDelayRangeEnd = 0.9
 
 				// connections
 				for _, i := range dNew.ImSession.LegacyConns {
