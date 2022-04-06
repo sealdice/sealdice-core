@@ -574,13 +574,6 @@ func DiceServe(d *Dice, ep *EndPointInfo) {
 			return
 		}
 
-		var _index int
-		for index, a := range d.ImSession.EndPoints {
-			if a == ep {
-				_index = index
-			}
-		}
-
 		checkQuit := func() bool {
 			if !conn.DiceServing {
 				// 退出连接
@@ -599,7 +592,7 @@ func DiceServe(d *Dice, ep *EndPointInfo) {
 
 			// 骰子开始连接
 			d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)", ep.Nickname, ep.UserId)
-			ret := d.ImSession.Serve(_index)
+			ret := ep.Adapter.Serve()
 
 			if time.Now().Unix()-lastRetryTime > 8*60 {
 				lastRetryTime = 0

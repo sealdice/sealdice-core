@@ -118,8 +118,8 @@ func main() {
 		signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		select {
 		case <-interrupt:
-			time.Sleep(time.Duration(5 * time.Second))
-			logger.Info("5s仍未关闭，稍后强制退出……")
+			time.Sleep(time.Duration(7 * time.Second))
+			logger.Info("7s仍未关闭，稍后强制退出……")
 			cleanUp()
 			time.Sleep(time.Duration(3 * time.Second))
 			os.Exit(0)

@@ -230,6 +230,13 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 				continue
 			}
 		}
+		for k, v := range m {
+			n, ok := v.(float64)
+			if !ok {
+				continue
+			}
+			m2[k] = int64(n)
+		}
 		if v != nil {
 			(*v)[key] = &VMValue{-1, m2}
 		}
@@ -327,7 +334,7 @@ func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs, setTempVar bool) (*MsgC
 		mctx, exists := i.CopyCtx(ctx)
 		if exists {
 			if mctx.Player != ctx.Player {
-				mctx.LoadPlayerGroupVars(mctx.Player)
+				mctx.LoadPlayerGroupVars(nil, mctx.Player)
 				SetTempVars(mctx, "???")
 			}
 		}

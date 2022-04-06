@@ -1572,7 +1572,10 @@ func dndGetRiMapList(ctx *MsgContext) map[string]int64 {
 	_, exists := ctx.Group.ValueMap[mapName]
 	if !exists {
 		ctx.Group.ValueMap[mapName] = &VMValue{-1, map[string]int64{}}
+	} else {
+		ctx.Group.ValueMap[mapName] = VMValueConvert(ctx.Group.ValueMap[mapName], nil, "")
 	}
+
 	riList := ctx.Group.ValueMap[mapName].Value
 	return riList.(map[string]int64)
 }
