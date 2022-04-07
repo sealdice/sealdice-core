@@ -433,7 +433,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				default:
 					text := cmdArgs.CleanArgs
-					re := regexp.MustCompile(`(([^\s:0-9*][^\s:0-9*]*)\*?)\s*([:+\-])`)
+					re := regexp.MustCompile(`(([^\s:0-9*][^\s:0-9*]*)\*?)\s*([:+\-＋－：])`)
 					attrSeted := []string{}
 					attrChanged := []string{}
 					var extraText string
@@ -460,7 +460,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 
 						attrName = ctx.Player.GetValueNameByAlias(attrName, ac.Alias)
-						if m[3] == ":" {
+						if m[3] == ":" || m[3] == "：" {
 							exprTmpl := "$tVal + %s/2 - 5"
 							if isSkilled {
 								exprTmpl += " + 熟练"
@@ -482,7 +482,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							}
 							attrSeted = append(attrSeted, aText)
 						}
-						if m[3] == "+" || m[3] == "-" {
+						if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
 							v, exists := VarGetValue(mctx, attrName)
 							if !exists {
 								ReplyToSender(mctx, msg, "不存在的属性: "+attrName)
@@ -493,7 +493,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
-							if m[3] == "-" {
+							if m[3] == "-" || m[3] == "－" {
 								r.Value = -r.Value.(int64)
 							}
 
