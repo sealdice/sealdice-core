@@ -108,6 +108,12 @@ func (m *HelpManager) loadSearchEngine() {
 	}
 }
 
+func (m *HelpManager) Close() {
+	if m.EngineType == 0 {
+		m.Index.Close()
+	}
+}
+
 func (m *HelpManager) Load() {
 	m.loadSearchEngine()
 

@@ -223,13 +223,15 @@ func DiceExec(c echo.Context) error {
 	if v.Message == "" {
 		return c.JSON(400, "格式错误")
 	}
-	now := time.Now().Unix()
-	if now-lastExecTime < 3 {
+	now := time.Now().UnixMicro()
+	if now-lastExecTime < 500 {
 		return c.JSON(400, "过于频繁")
 	}
 	lastExecTime = now
 
-	pa := dice.PlatformAdapterHttp{}
+	pa := dice.PlatformAdapterHttp{
+		RecentMessage: []dice.HttpSimpleMessage{},
+	}
 	tmpEp := &dice.EndPointInfo{
 		EndPointInfoBase: dice.EndPointInfoBase{
 			Id:       "1",

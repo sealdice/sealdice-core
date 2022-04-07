@@ -11,6 +11,7 @@ type DiceManager struct {
 	Dice                 []*Dice
 	ServeAddress         string
 	Help                 *HelpManager
+	IsHelpReloading      bool
 	UseDictForTokenizer  bool
 	HelpDocEngineType    int
 	progressExitGroupWin ProcessExitGroup

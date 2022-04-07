@@ -219,24 +219,29 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 	}
 	if val.TypeId == -1 {
 		// 先攻列表
-		m := val.Value.(map[string]interface{})
 		m2 := map[string]int64{}
-		for k, v := range m {
-			n, ok := v.(json.Number)
-			if !ok {
-				continue
+
+		m, ok := val.Value.(map[string]interface{})
+		if ok {
+			for k, v := range m {
+				n, ok := v.(json.Number)
+				if !ok {
+					continue
+				}
+				if i, err := n.Int64(); err == nil {
+					m2[k] = i
+					continue
+				}
 			}
-			if i, err := n.Int64(); err == nil {
-				m2[k] = i
-				continue
+			for k, v := range m {
+				n, ok := v.(float64)
+				if !ok {
+					continue
+				}
+				m2[k] = int64(n)
 			}
-		}
-		for k, v := range m {
-			n, ok := v.(float64)
-			if !ok {
-				continue
-			}
-			m2[k] = int64(n)
+		} else {
+			m2, _ = val.Value.(map[string]int64)
 		}
 		if v != nil {
 			(*v)[key] = &VMValue{-1, m2}

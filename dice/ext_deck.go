@@ -173,6 +173,10 @@ func DeckTryParse(d *Dice, fn string) {
 		}
 	}
 
+	if deckInfo.Name == "" {
+		deckInfo.Name = filepath.Base(fn)
+	}
+
 	d.DeckList = append(d.DeckList, deckInfo)
 }
 
@@ -187,11 +191,21 @@ func DecksDetect(d *Dice) {
 }
 
 func RegisterBuiltinExtDeck(d *Dice) {
+	reloadDecks := func() {
+		d.IsDeckLoading = true
+		d.DeckList = d.DeckList[:0]
+		d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
+		DecksDetect(d)
+		d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
+		d.IsDeckLoading = false
+	}
+
 	helpDraw := "" +
 		".draw help // 显示本帮助\n" +
 		".draw list // 查看载入的牌堆文件\n" +
 		".draw keys // 查看可抽取的牌组列表\n" +
 		".draw search <牌组名称> // 搜索相关牌组\n" +
+		".draw reload // 从硬盘重新装载牌堆，仅Master可用\n" +
 		".draw <牌组名称> // 进行抽牌"
 
 	cmdDraw := &CmdItemInfo{
@@ -201,6 +215,10 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				deckName, exists := cmdArgs.GetArgN(1)
+				if d.IsDeckLoading {
+					ReplyToSender(ctx, msg, "牌堆尚未就绪，可能正在重新装载")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 
 				if exists {
 					if strings.EqualFold(deckName, "list") {
@@ -225,6 +243,13 @@ func RegisterBuiltinExtDeck(d *Dice) {
 							text += keys[:len(keys)-1]
 						}
 						ReplyToSender(ctx, msg, text)
+					} else if strings.EqualFold(deckName, "reload") {
+						if ctx.PrivilegeLevel < 100 {
+							ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+						} else {
+							reloadDecks()
+							ReplyToSender(ctx, msg, "牌堆已经重新装载")
+						}
 					} else if strings.EqualFold(deckName, "search") {
 						text, exists := cmdArgs.GetArgN(2)
 						if exists {
@@ -284,10 +309,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 		},
 		OnLoad: func() {
-			d.DeckList = d.DeckList[:0]
-			d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
-			DecksDetect(d)
-			d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
+			reloadDecks()
 		},
 		GetDescText: func(i *ExtInfo) string {
 			return GetExtensionDesc(i)
@@ -305,7 +327,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 	//  ***n***
 	// 参考: https://sinanya.com/#/MakeFile
 	// 1. 提取 {}
-	re := regexp.MustCompile(`{[$%].+?}`)
+	re := regexp.MustCompile(`{[$%]?.+?}`)
 	m := re.FindAllStringIndex(s, -1)
 
 	for _i := len(m) - 1; _i >= 0; _i-- {
