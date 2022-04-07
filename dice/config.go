@@ -3,6 +3,7 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/fy0/lockfree"
 	wr "github.com/mroth/weightedrand"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -332,10 +333,10 @@ func setupBaseTextTemplate(d *Dice) {
 				{`来自群<{$t群名}>({$t群号})的暗骰:\n`, 1},
 			},
 			"昵称_重置": {
-				{"{$tQQ昵称}({$tQQ})的昵称已重置为{$t玩家}", 1},
+				{"{$t帐号昵称}({$t骰子帐号})的昵称已重置为{$t玩家}", 1},
 			},
 			"昵称_改名": {
-				{"{$tQQ昵称}({$tQQ})的昵称被设定为{$t玩家}", 1},
+				{"{$t帐号昵称}({$t骰子帐号})的昵称被设定为{$t玩家}", 1},
 			},
 			"设定默认骰子面数": {
 				{"设定个人默认骰子面数为 {$t个人骰子面数}", 1},
@@ -722,15 +723,20 @@ func (d *Dice) loads() {
 			// 读取群变量
 			for _, g := range d.ImSession.ServiceAtNew {
 				// 群组数据
+				if g.ValueMap == nil {
+					g.ValueMap = lockfree.NewHashMap()
+				}
+
 				data := model.AttrGroupGetAll(d.DB, g.GroupId)
 				if len(data) != 0 {
-					err := JsonValueMapUnmarshal(data, &g.ValueMap)
+					mapData := make(map[string]*VMValue)
+					err := JsonValueMapUnmarshal(data, &mapData)
 					if err != nil {
 						d.Logger.Error("读取群变量失败: ", err)
 					}
-				}
-				if g.ValueMap == nil {
-					g.ValueMap = map[string]*VMValue{}
+					for k, v := range mapData {
+						g.ValueMap.Set(k, v)
+					}
 				}
 				if g.DiceIds == nil {
 					g.DiceIds = map[string]bool{}
@@ -829,20 +835,26 @@ func (d *Dice) Save(isAuto bool) {
 		for _, b := range g.Players {
 			userIds[b.UserId] = true
 			if b.Vars != nil && b.Vars.Loaded {
-				data, _ := json.Marshal(b.Vars.ValueMap)
-				model.AttrGroupUserSave(d.DB, g.GroupId, b.UserId, data)
+				if b.Vars.LastWriteTime != 0 {
+					data, _ := json.Marshal(LockFreeMapToMap(b.Vars.ValueMap))
+					model.AttrGroupUserSave(d.DB, g.GroupId, b.UserId, data)
+					b.Vars.LastWriteTime = 0
+				}
 			}
 		}
 
-		data, _ := json.Marshal(g.ValueMap)
+		data, _ := json.Marshal(LockFreeMapToMap(g.ValueMap))
 		model.AttrGroupSave(d.DB, g.GroupId, data)
 	}
 
 	// 保存玩家个人全局数据
 	for k, v := range d.ImSession.PlayerVarsData {
 		if v.Loaded {
-			data, _ := json.Marshal(v.ValueMap)
-			model.AttrUserSave(d.DB, k, data)
+			if v.LastWriteTime != 0 {
+				data, _ := json.Marshal(LockFreeMapToMap(v.ValueMap))
+				model.AttrUserSave(d.DB, k, data)
+				v.LastWriteTime = 0
+			}
 		}
 	}
 }

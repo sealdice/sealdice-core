@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var fearListText = `
@@ -1269,13 +1271,16 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							var failed []string
 
 							for _, varname := range cmdArgs.Args[1:] {
-								_, ok := mctx.Player.Vars.ValueMap[varname]
+								_, ok := mctx.Player.Vars.ValueMap.Get(varname)
 								if ok {
 									nums = append(nums, varname)
-									delete(mctx.Player.Vars.ValueMap, varname)
+									mctx.Player.Vars.ValueMap.Del(varname)
 								} else {
 									failed = append(failed, varname)
 								}
+							}
+							if len(nums) > 0 {
+								mctx.Player.Vars.LastWriteTime = time.Now().Unix()
 							}
 
 							//text := fmt.Sprintf("<%s>的如下属性被成功删除:%s，失败%d项\n", p.Name, nums, len(failed))
@@ -1285,8 +1290,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 						case "clr", "clear":
 							p := mctx.Player
-							num := len(p.Vars.ValueMap)
-							p.Vars.ValueMap = map[string]*VMValue{}
+							num := p.Vars.ValueMap.Len()
+							p.Vars.ValueMap = lockfree.NewHashMap()
+							p.Vars.LastWriteTime = time.Now().Unix()
 							VarSetValueInt64(mctx, "$t数量", int64(num))
 							//text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
 							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_清除"))
@@ -1321,7 +1327,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							}
 
 							tick := 0
-							if len(p.Vars.ValueMap) == 0 {
+							if p.Vars.ValueMap.Len() == 0 {
 								info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
 							} else {
 								// 按照配置文件排序
@@ -1339,9 +1345,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								// 其余按字典序
 								topNum := len(attrKeys)
 								attrKeys2 := []string{}
-								for k := range p.Vars.ValueMap {
-									attrKeys2 = append(attrKeys2, k)
-								}
+
+								_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+									attrKeys2 = append(attrKeys2, _k.(string))
+									return nil
+								})
+
 								sort.Strings(attrKeys2)
 								for _, key := range attrKeys2 {
 									if used[key] {
@@ -1355,10 +1364,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									if strings.HasPrefix(k, "$") {
 										continue
 									}
-									v, exists := p.Vars.ValueMap[k]
+									var v *VMValue
+									_v, exists := p.Vars.ValueMap.Get(k)
 									if !exists {
 										// 不存在的值，强行补0
 										v = &VMValue{VMTypeInt64, int64(0)}
+									} else {
+										v = _v.(*VMValue)
 									}
 
 									if index >= topNum {

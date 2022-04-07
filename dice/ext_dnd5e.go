@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type RIListItem struct {
@@ -104,7 +106,11 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 
 func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Regexp) map[string]string {
 	exportMap := map[string]string{}
-	for k, v := range mctx.Player.Vars.ValueMap {
+	m := mctx.Player.Vars.ValueMap
+
+	f := func(_k interface{}, _v interface{}) error {
+		k := _k.(string)
+		v := _v.(*VMValue)
 		doIt := whiteList[k]
 		if !doIt && regexps != nil {
 			for _, i := range regexps {
@@ -132,7 +138,19 @@ func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Reg
 				}
 			}
 		}
+		return nil
 	}
+
+	m.Lock()
+	for k, v, ok := m.Next(); ok; k, v, ok = m.Next() {
+		if err := f(k, v); err != nil {
+			// unlock the map before return, otherwise it will deadlock
+			m.Unlock()
+			return exportMap
+		}
+	}
+	m.Unlock()
+
 	return exportMap
 }
 
@@ -196,8 +214,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	helpSt += ".st help // 帮助\n"
 	helpSt += ".st <属性>:<值> // 设置属性，技能加值会自动计算。例：.st 感知:20 洞悉:3\n"
 	helpSt += ".st <属性>±<表达式> // 修改属性，例：.st hp+1d4\n"
-	helpSt += ".st <属性>±<表达式> @某人 // 修改他人属性，例：.st hp+1d4"
-	helpSt += ".st hp-1d6 --over // 不计算临时生命扣血"
+	helpSt += ".st <属性>±<表达式> @某人 // 修改他人属性，例：.st hp+1d4\n"
+	helpSt += ".st hp-1d6 --over // 不计算临时生命扣血\n"
 	helpSt += "特别的，扣除hp时，会先将其buff值扣除到0。以及增加hp时，hp的值不会超过hpmax"
 
 	cmdSt := &CmdItemInfo{
@@ -223,13 +241,18 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					var failed []string
 
 					for _, varname := range cmdArgs.Args[1:] {
-						_, ok := mctx.Player.Vars.ValueMap[varname]
+						_, ok := mctx.Player.Vars.ValueMap.Get(varname)
 						if ok {
 							nums = append(nums, varname)
-							delete(mctx.Player.Vars.ValueMap, varname)
+							mctx.Player.Vars.ValueMap.Del(varname)
+							mctx.Player.Vars.LastWriteTime = 0
 						} else {
 							failed = append(failed, varname)
 						}
+					}
+
+					if len(nums) > 0 {
+						mctx.Player.Vars.LastWriteTime = time.Now().Unix()
 					}
 
 					VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
@@ -263,8 +286,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				case "clr", "clear":
 					p := mctx.Player
-					num := len(p.Vars.ValueMap)
-					p.Vars.ValueMap = map[string]*VMValue{}
+					num := p.Vars.ValueMap.Len()
+					p.Vars.ValueMap = lockfree.NewHashMap()
+					p.Vars.LastWriteTime = time.Now().Unix()
 					VarSetValueInt64(mctx, "$t数量", int64(num))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_清除"))
 
@@ -298,7 +322,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 
 					tick := 0
-					if len(p.Vars.ValueMap) == 0 {
+					if p.Vars.ValueMap.Len() == 0 {
 						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 					} else {
 						// 按照配置文件排序
@@ -316,9 +340,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						// 其余按字典序
 						topNum := len(attrKeys)
 						attrKeys2 := []string{}
-						for k := range p.Vars.ValueMap {
+
+						_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+							k := _k.(string)
 							attrKeys2 = append(attrKeys2, k)
-						}
+							return nil
+						})
 						sort.Strings(attrKeys2)
 						for _, key := range attrKeys2 {
 							if used[key] {
@@ -341,12 +368,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							}
 
 							var v *VMValue
-							vRaw, exists := p.Vars.ValueMap[k]
+							var vRaw *VMValue
+							_vRaw, exists := p.Vars.ValueMap.Get(k)
 							if !exists {
 								// 不存在的值，强行补0
 								v = &VMValue{VMTypeInt64, int64(0)}
 								vRaw = v
 							} else {
+								vRaw = _vRaw.(*VMValue)
 								v2, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
 								v = &v2.VMValue
 							}
@@ -645,13 +674,17 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					for _, rawVarname := range cmdArgs.Args[1:] {
 						varname := "$buff_" + rawVarname
-						_, ok := mctx.Player.Vars.ValueMap[varname]
+						_, ok := mctx.Player.Vars.ValueMap.Get(varname)
 						if ok {
 							nums = append(nums, rawVarname)
-							delete(mctx.Player.Vars.ValueMap, varname)
+							mctx.Player.Vars.ValueMap.Del(varname)
 						} else {
 							failed = append(failed, varname)
 						}
+					}
+
+					if len(nums) > 0 {
+						mctx.Player.Vars.LastWriteTime = time.Now().Unix()
 					}
 
 					VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
@@ -661,17 +694,24 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				case "clr", "clear":
 					p := mctx.Player
 					toDelete := []string{}
-					for varname, _ := range p.Vars.ValueMap {
+					_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+						varname := _k.(string)
 						varname = "$buff_" + varname
-						if _, exists := p.Vars.ValueMap[varname]; exists {
+						if _, exists := p.Vars.ValueMap.Get(varname); exists {
 							toDelete = append(toDelete, varname)
 						}
-					}
+						return nil
+					})
 
 					num := len(toDelete)
 					for _, varname := range toDelete {
-						delete(p.Vars.ValueMap, varname)
+						p.Vars.ValueMap.Del(varname)
 					}
+
+					if num > 0 {
+						p.Vars.LastWriteTime = time.Now().Unix()
+					}
+
 					VarSetValueInt64(mctx, "$t数量", int64(num))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:BUFF设置_清除"))
 
@@ -680,15 +720,17 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					var info string
 
 					attrKeys2 := []string{}
-					for k := range p.Vars.ValueMap {
+					_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+						k := _k.(string)
 						if strings.HasPrefix(k, "$buff_") {
 							attrKeys2 = append(attrKeys2, k)
 						}
-					}
+						return nil
+					})
 					sort.Strings(attrKeys2)
 
 					tick := 0
-					if len(p.Vars.ValueMap) == 0 {
+					if p.Vars.ValueMap.Len() == 0 {
 						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 					} else {
 						// 按照配置文件排序
@@ -705,9 +747,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						// 其余按字典序
 						attrKeys2 := []string{}
-						for k := range p.Vars.ValueMap {
+						_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+							k := _k.(string)
 							attrKeys2 = append(attrKeys2, k)
-						}
+							return nil
+						})
 						sort.Strings(attrKeys2)
 						for _, key := range attrKeys2 {
 							if used[key] {
@@ -721,10 +765,13 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							if !strings.HasPrefix(k, "$buff_") {
 								continue
 							}
-							v, exists := p.Vars.ValueMap[k]
+							var v *VMValue
+							_v, exists := p.Vars.ValueMap.Get(k)
 							if !exists {
 								// 不存在的值，强行补0
 								v = &VMValue{VMTypeInt64, int64(0)}
+							} else {
+								v = _v.(*VMValue)
 							}
 
 							tick += 1
@@ -942,9 +989,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				case "clr":
 					vm := mctx.Player.Vars.ValueMap
 					for i := 1; i < 10; i += 1 {
-						delete(vm, fmt.Sprintf("$法术位_%d", i))
-						delete(vm, fmt.Sprintf("$法术位上限_%d", i))
+						vm.Del(fmt.Sprintf("$法术位_%d", i))
+						vm.Del(fmt.Sprintf("$法术位上限_%d", i))
 					}
+					mctx.Player.Vars.LastWriteTime = time.Now().Unix()
 					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>法术位数据已清除`, mctx.Player.Name))
 
 				case "rest":
@@ -1569,19 +1617,24 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 func dndGetRiMapList(ctx *MsgContext) map[string]int64 {
 	ctx.LoadGroupVars()
 	mapName := "riMapList"
-	_, exists := ctx.Group.ValueMap[mapName]
+	_, exists := ctx.Group.ValueMap.Get(mapName)
 	if !exists {
-		ctx.Group.ValueMap[mapName] = &VMValue{-1, map[string]int64{}}
+		ctx.Group.ValueMap.Set(mapName, &VMValue{-1, map[string]int64{}})
 	} else {
-		ctx.Group.ValueMap[mapName] = VMValueConvert(ctx.Group.ValueMap[mapName], nil, "")
+		a, _ := ctx.Group.ValueMap.Get(mapName)
+		ctx.Group.ValueMap.Set(mapName, VMValueConvert(a.(*VMValue), nil, ""))
 	}
 
-	riList := ctx.Group.ValueMap[mapName].Value
-	return riList.(map[string]int64)
+	var riList *VMValue
+	v, e := ctx.Group.ValueMap.Get(mapName)
+	if e {
+		riList = v.(*VMValue)
+	}
+	return riList.Value.(map[string]int64)
 }
 
 func dndClearRiMapList(ctx *MsgContext) {
 	ctx.LoadGroupVars()
 	mapName := "riMapList"
-	ctx.Group.ValueMap[mapName] = &VMValue{-1, map[string]int64{}}
+	ctx.Group.ValueMap.Set(mapName, &VMValue{-1, map[string]int64{}})
 }

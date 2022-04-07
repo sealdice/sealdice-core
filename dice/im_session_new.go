@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
 	"runtime/debug"
 	"sort"
@@ -35,7 +36,8 @@ type GroupPlayerInfoBase struct {
 	// level int 权限
 	DiceSideNum  int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
 	Vars         *PlayerVariablesItem `yaml:"-"`           // 玩家的群内变量
-	ValueMapTemp map[string]*VMValue  `yaml:"-"`           // 玩家的群内临时变量
+	ValueMapTemp lockfree.HashMap     `yaml:"-"`           // 玩家的群内临时变量
+	//ValueMapTemp map[string]*VMValue  `yaml:"-"`           // 玩家的群内临时变量
 
 	TempValueAlias *map[string][]string `yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的，为什么在这里？
 }
@@ -58,11 +60,12 @@ type GroupInfo struct {
 	BotList     map[string]bool `yaml:"botList,flow"` // 其他骰子列表
 	DiceSideNum int64           `yaml:"diceSideNum"`
 
-	ValueMap     map[string]*VMValue `yaml:"-"`
-	HelpPackages []string            `yaml:"-"`
-	CocRuleIndex int                 `yaml:"cocRuleIndex"`
-	LogCurName   string              `yaml:"logCurFile"`
-	LogOn        bool                `yaml:"logOn"`
+	//ValueMap     map[string]*VMValue `yaml:"-"`
+	ValueMap     lockfree.HashMap `yaml:"-"`
+	HelpPackages []string         `yaml:"-"`
+	CocRuleIndex int              `yaml:"cocRuleIndex"`
+	LogCurName   string           `yaml:"logCurFile"`
+	LogOn        bool             `yaml:"logOn"`
 }
 
 // ExtActive 开启扩展
@@ -156,12 +159,12 @@ type IMSession struct {
 	EndPoints []*EndPointInfo `yaml:"endPoints"`
 
 	ServiceAtNew   map[string]*GroupInfo           `json:"servicesAt" yaml:"servicesAt"`
-	PlayerVarsData map[string]*PlayerVariablesItem `yaml:"playerVarsData"`
+	PlayerVarsData map[string]*PlayerVariablesItem `yaml:"-"` // 感觉似乎没有什么存本地的必要
 
 	// 注意，旧数据！
-	LegacyConns          []*ConnectInfoItem             `yaml:"connections"` // 仅为
-	LegacyServiceAt      map[int64]*ServiceAtItem       `json:"serviceAt" yaml:"serviceAt"`
-	LegacyPlayerVarsData map[int64]*PlayerVariablesItem `yaml:"PlayerVarsData"`
+	LegacyConns     []*ConnectInfoItem       `yaml:"connections"` // 仅为
+	LegacyServiceAt map[int64]*ServiceAtItem `json:"serviceAt" yaml:"serviceAt"`
+	//LegacyPlayerVarsData map[int64]*PlayerVariablesItem `yaml:"PlayerVarsData"`
 }
 
 type MsgContext struct {
@@ -202,6 +205,23 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 		}
 
+		var mustLoadUser bool
+		if group != nil && group.Active {
+			if group.LogOn {
+				mustLoadUser = true
+			}
+		}
+
+		maybeCommand := CommandCheckPrefix(msg.Message, d.CommandPrefix)
+		if maybeCommand {
+			mustLoadUser = true
+		}
+
+		if mustLoadUser {
+			mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+			mctx.IsCurGroupBotOn = IsCurGroupBotOn(s, msg)
+		}
+
 		if group != nil && group.Active {
 			for _, i := range group.ActivatedExtList {
 				if i.OnMessageReceived != nil {
@@ -210,10 +230,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
-		maybeCommand := CommandCheckPrefix(msg.Message, d.CommandPrefix)
 		if maybeCommand {
-			mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
-			mctx.IsCurGroupBotOn = IsCurGroupBotOn(s, msg)
 			if d.MasterCheck(mctx.Player.UserId) {
 				mctx.PrivilegeLevel = 100
 			}

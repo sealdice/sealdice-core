@@ -8,6 +8,7 @@ require (
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
 	github.com/blevesearch/bleve/v2 v2.3.1
+	github.com/fy0/lockfree v0.0.0-20220407095241-e3799de5fa34
 	github.com/fy0/procs v0.0.0-20220314124159-7f38d32746c3
 	github.com/fy0/systray v1.2.2
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959 // indirect

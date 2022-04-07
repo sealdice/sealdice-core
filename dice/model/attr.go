@@ -25,7 +25,7 @@ func attrGetAllBase(db *bbolt.DB, bucket []byte, key []byte) []byte {
 }
 
 func attrSave(db *bbolt.DB, bucket []byte, key []byte, data []byte) {
-	db.Update(func(tx *bbolt.Tx) error {
+	_ = db.Update(func(tx *bbolt.Tx) error {
 		// Retrieve the users bucket.
 		// This should be created when the DB is first opened.
 		b0 := tx.Bucket(bucket)
@@ -54,10 +54,6 @@ func AttrGroupGetAll(db *bbolt.DB, groupId string) []byte {
 
 func AttrGroupSave(db *bbolt.DB, groupId string, data []byte) {
 	attrSave(db, []byte("attrs_group"), []byte(groupId), data)
-}
-
-func AttrUserGetAllLegacy(db *bbolt.DB, userId int64) []byte {
-	return attrGetAllBase(db, []byte("attrs_user"), []byte(fmt.Sprintf("%d", userId)))
 }
 
 func AttrUserGetAll(db *bbolt.DB, userId string) []byte {

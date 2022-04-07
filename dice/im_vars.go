@@ -4,9 +4,12 @@ package dice
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/fy0/lockfree"
 	"reflect"
 	"sealdice-core/dice/model"
 	"strings"
+	"time"
 )
 
 // LoadPlayerGlobalVars 加载个人全局数据
@@ -28,12 +31,16 @@ func (ctx *MsgContext) LoadPlayerGroupVars(group *GroupInfo, player *GroupPlayer
 func (ctx *MsgContext) LoadGroupVars() {
 	g := ctx.Group
 	if g.ValueMap == nil {
-		g.ValueMap = map[string]*VMValue{}
+		g.ValueMap = lockfree.NewHashMap()
 	}
 	data := model.AttrGroupGetAll(ctx.Dice.DB, g.GroupId)
-	err := json.Unmarshal(data, &g.ValueMap)
+	rawData := map[string]*VMValue{}
+	err := json.Unmarshal(data, &rawData)
 	if err != nil {
 		return
+	}
+	for k, v := range rawData {
+		g.ValueMap.Set(k, v)
 	}
 }
 
@@ -94,9 +101,9 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
 		if ctx.Player.ValueMapTemp == nil {
-			ctx.Player.ValueMapTemp = map[string]*VMValue{}
+			ctx.Player.ValueMapTemp = lockfree.NewHashMap()
 		}
-		ctx.Player.ValueMapTemp[s] = &vClone
+		ctx.Player.ValueMapTemp.Set(s, &vClone)
 		return
 	}
 
@@ -104,7 +111,8 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	if strings.HasPrefix(s, "$m") {
 		if ctx.Session != nil && ctx.Player != nil {
 			playerVars := ctx.LoadPlayerGlobalVars()
-			playerVars.ValueMap[s] = &vClone
+			playerVars.ValueMap.Set(s, &vClone)
+			playerVars.LastWriteTime = time.Now().Unix()
 		}
 		return
 	}
@@ -112,11 +120,15 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	// 群变量
 	if ctx.Group != nil && strings.HasPrefix(s, "$g") {
 		ctx.LoadGroupVars()
-		ctx.Group.ValueMap[s] = &vClone
+		ctx.Group.ValueMap.Set(s, &vClone)
 		return
 	}
 
-	ctx.Player.Vars.ValueMap[name] = &vClone
+	// 个人属性
+	if ctx.Player.Vars.ValueMap != nil && ctx.Player.Vars.Loaded {
+		ctx.Player.Vars.ValueMap.Set(name, &vClone)
+		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+	}
 }
 
 func VarDelValue(ctx *MsgContext, s string) {
@@ -124,7 +136,7 @@ func VarDelValue(ctx *MsgContext, s string) {
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
-		delete(ctx.Player.ValueMapTemp, s)
+		ctx.Player.ValueMapTemp.Del(s)
 		return
 	}
 
@@ -132,7 +144,8 @@ func VarDelValue(ctx *MsgContext, s string) {
 	if strings.HasPrefix(s, "$m") {
 		if ctx.Session != nil && ctx.Player != nil {
 			playerVars := ctx.LoadPlayerGlobalVars()
-			delete(playerVars.ValueMap, s)
+			playerVars.ValueMap.Del(s)
+			playerVars.LastWriteTime = time.Now().Unix()
 		}
 	}
 
@@ -140,14 +153,17 @@ func VarDelValue(ctx *MsgContext, s string) {
 	if ctx.Group != nil && strings.HasPrefix(s, "$g") {
 		g := ctx.Group
 		if g.ValueMap == nil {
-			g.ValueMap = map[string]*VMValue{}
+			g.ValueMap = lockfree.NewHashMap()
 		}
 
-		delete(ctx.Group.ValueMap, s)
+		g.ValueMap.Del(s)
 		return
 	}
 
-	delete(ctx.Player.Vars.ValueMap, name)
+	if ctx.Player.Vars.ValueMap != nil && ctx.Player.Vars.Loaded {
+		ctx.Player.Vars.ValueMap.Del(name)
+		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+	}
 }
 
 func VarGetValueInt64(ctx *MsgContext, s string) (int64, bool) {
@@ -163,16 +179,26 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
-		v, exists := ctx.Player.ValueMapTemp[s]
+		var v *VMValue
+		_v, exists := ctx.Player.ValueMapTemp.Get(s)
+		//v, exists := ctx.Player.ValueMapTemp[s]
+		if exists {
+			v = _v.(*VMValue)
+		}
 		return v, exists
 	}
 
 	// 个人全局变量
 	if strings.HasPrefix(s, "$m") {
 		if ctx.Session != nil && ctx.Player != nil {
+			var v *VMValue
 			playerVars := ctx.LoadPlayerGlobalVars()
-			a, b := playerVars.ValueMap[s]
-			return a, b
+			_v, e := playerVars.ValueMap.Get(s)
+			if e {
+				v = _v.(*VMValue)
+			}
+
+			return v, e
 		}
 	}
 
@@ -180,17 +206,25 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 	if ctx.Group != nil && strings.HasPrefix(s, "$g") {
 		g := ctx.Group
 		if g.ValueMap == nil {
-			g.ValueMap = map[string]*VMValue{}
+			g.ValueMap = lockfree.NewHashMap()
 		}
 
-		v, exists := ctx.Group.ValueMap[s]
+		var v *VMValue
+		_v, exists := ctx.Group.ValueMap.Get(s)
+		if exists {
+			v = _v.(*VMValue)
+		}
 		return v, exists
 	}
 
 	// 个人群变量
 	if ctx.Player != nil {
 		if ctx.Player.Vars != nil && ctx.Player.Vars.Loaded {
-			v, e := ctx.Player.Vars.ValueMap[name]
+			var v *VMValue
+			_v, e := ctx.Player.Vars.ValueMap.Get(name)
+			if e {
+				v = _v.(*VMValue)
+			}
 			return v, e
 		}
 	}
@@ -238,34 +272,6 @@ func (i *GroupPlayerInfo) GetValueInt64(s string, alias map[string][]string) (in
 	return ret, exists
 }
 
-func LoadPlayerVarsLegacy(s *IMSessionLegacy, id int64) *PlayerVariablesItem {
-	if s.PlayerVarsData == nil {
-		s.PlayerVarsData = map[int64]*PlayerVariablesItem{}
-	}
-
-	if _, exists := s.PlayerVarsData[id]; !exists {
-		s.PlayerVarsData[id] = &PlayerVariablesItem{
-			Loaded: false,
-		}
-	}
-
-	vd, _ := s.PlayerVarsData[id]
-	if vd.ValueMap == nil {
-		vd.ValueMap = map[string]*VMValue{}
-	}
-
-	if vd.Loaded == false {
-		vd.Loaded = true
-		data := model.AttrUserGetAllLegacy(s.Parent.DB, id)
-		err := JsonValueMapUnmarshal(data, &vd.ValueMap)
-		if err != nil {
-			s.Parent.Logger.Error(err)
-		}
-	}
-
-	return vd
-}
-
 func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 	if s.PlayerVarsData == nil {
 		s.PlayerVarsData = map[string]*PlayerVariablesItem{}
@@ -279,13 +285,23 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 
 	vd, _ := s.PlayerVarsData[id]
 	if vd.ValueMap == nil {
-		vd.ValueMap = map[string]*VMValue{}
+		vd.ValueMap = lockfree.NewHashMap()
 	}
 
 	if vd.Loaded == false {
+		vd.ValueMap = lockfree.NewHashMap()
 		vd.Loaded = true
 		data := model.AttrUserGetAll(s.Parent.DB, id)
-		err := JsonValueMapUnmarshal(data, &vd.ValueMap)
+
+		mapData := make(map[string]*VMValue)
+		err := JsonValueMapUnmarshal(data, &mapData)
+
+		for k, v := range mapData {
+			vd.ValueMap.Set(k, v)
+		}
+		// 保险起见？应该不用
+		//vd.LastWriteTime = time.Now().Unix()
+
 		if err != nil {
 			s.Parent.Logger.Error(err)
 		}
@@ -302,18 +318,44 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 	}
 
 	vd := player.Vars
-	if vd.ValueMap == nil {
-		vd.ValueMap = map[string]*VMValue{}
-	}
-
 	if vd.Loaded == false {
+		vd.ValueMap = lockfree.NewHashMap()
 		vd.Loaded = true
+
+		// QQ-Group:131687852-QQ:303451945
 		data := model.AttrGroupUserGetAll(dice.DB, group.GroupId, player.UserId)
-		err := JsonValueMapUnmarshal(data, &vd.ValueMap)
+		mapData := make(map[string]*VMValue)
+		err := JsonValueMapUnmarshal(data, &mapData)
+
+		for k, v := range mapData {
+			vd.ValueMap.Set(k, v)
+		}
 		if err != nil {
 			dice.Logger.Error(err)
 		}
 	}
 
 	return vd
+}
+
+func SetTempVars(ctx *MsgContext, qqNickname string) {
+	// 设置临时变量
+	if ctx.Player != nil {
+		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
+		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
+		VarSetValue(ctx, "$t帐号昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
+		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
+		//VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})
+		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeString, ctx.EndPoint.UserId})
+		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeString, ctx.EndPoint.UserId})
+		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeString, ctx.EndPoint.Nickname})
+	}
+	if ctx.Group != nil {
+		if ctx.MessageType == "group" {
+			VarSetValue(ctx, "$t群号", &VMValue{VMTypeString, ctx.Group.GroupId})
+			VarSetValue(ctx, "$t群名", &VMValue{VMTypeString, ctx.Group.GroupName})
+		}
+		VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
+		VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
+	}
 }
