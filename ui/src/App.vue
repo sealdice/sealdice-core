@@ -8,7 +8,7 @@
       style="color: #f8ffff; text-align: left; padding-left: 2em; font-weight: normal;"
     >SealDice</h3>
 
-    <div style="height: calc(100vh - 60px); ">
+    <div style="height: calc(100% - 60px);">
       <div style="position: relative; float: left; height: 100%;">
         <el-menu
           :collapse="sideCollapse"
@@ -69,9 +69,23 @@
             <span>黑名单</span>
           </el-menu-item> -->
 
-          <el-menu-item index="8" @click="switchTo('about')">
+          <el-menu-item index="7" @click="switchTo('overview')">
             <el-icon>
-              <setting />
+              <ship />
+            </el-icon>
+            <span>其他设置</span>
+          </el-menu-item>
+  
+          <el-menu-item index="8" @click="switchTo('test')">
+            <el-icon>
+              <chat-line-round />
+            </el-icon>
+            <span>指令测试</span>
+          </el-menu-item>
+
+          <el-menu-item index="9" @click="switchTo('about')">
+            <el-icon>
+              <star />
             </el-icon>
             <span>关于</span>
           </el-menu-item>
@@ -90,6 +104,7 @@
             <page-log v-if="tabName === 'log'" />
             <page-connect-info-items v-if="tabName === 'imConns'" />
             <page-custom-text v-if="tabName === 'customText'" :category="textCategory" />
+            <page-test v-if="tabName === 'test'" />
             <page-about v-if="tabName === 'about'" />
           </div>
         </div>
@@ -106,6 +121,7 @@ import PageConnectInfoItems from "./components/PageConnectInfoItems.vue";
 import PageOverview from "./components/PageOverView.vue"
 import PageLog from "./components/PageLog.vue";
 import PageAbout from "./components/PageAbout.vue"
+import PageTest from "./components/PageTest.vue"
 import { onBeforeMount, ref } from 'vue'
 import { useStore } from './store'
 
@@ -115,7 +131,10 @@ import {
   Menu as IconMenu,
   Setting,
   CirclePlusFilled,
-  CircleClose
+  CircleClose,
+  Ship,
+  Star,
+  ChatLineRound
 } from '@element-plus/icons-vue'
 
 import dayjs from 'dayjs'
@@ -159,7 +178,7 @@ const sideCollapse = ref(false)
 let tabName = ref("log");
 let textCategory = ref("");
 
-const switchTo = (tab: 'overview' | 'log' | 'customText' | 'imConns' | 'banList' | 'about', name: string = '') => {
+const switchTo = (tab: 'overview' | 'log' | 'customText' | 'imConns' | 'banList' | 'test' | 'about', name: string = '') => {
   tabName.value = tab
   textCategory.value = name
 }

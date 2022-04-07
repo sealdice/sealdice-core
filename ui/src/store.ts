@@ -1,26 +1,37 @@
 import { backend } from './backend'
 
-export interface DiceConnection {
-  id: string;
-  state: number;
+export interface AdapterQQ {
   connectUrl: string;
-  platform: string;
-  workDir: string;
-  enable: boolean;
-  type: string;
   useInPackGoCqhttp: boolean;
-  nickname: string;
-  userId: number;
-  groupNum: number;
-  cmdExecutedNum: number;
-  cmdExecutedLastTime: number;
-  onlineTotalTime: number;
   inPackGoCqHttpLoginSuccess: boolean;
   inPackGoCqHttpRunning: boolean;
   inPackGoCqHttpQrcodeReady: boolean;
   inPackGoCqHttpNeedQrCode: boolean;
   inPackGoCqHttpLastRestricted: number;
   inPackGoCqHttpLoginDeviceLockUrl: string;
+}
+
+interface TalkLogItem {
+  name?: string
+  content: string
+  isSeal?: boolean
+}
+
+export interface DiceConnection {
+  id: string;
+  state: number;
+  platform: string;
+  workDir: string;
+  enable: boolean;
+  protocolType: string;
+  nickname: string;
+  userId: number;
+  groupNum: number;
+  cmdExecutedNum: number;
+  cmdExecutedLastTime: number;
+  onlineTotalTime: number;
+
+  adapter: AdapterQQ;
 }
 
 interface DiceServer {
@@ -52,7 +63,18 @@ export const useStore = defineStore('main', {
   state: () => {
     return {
       index: 0,
-      diceServers: [] as DiceServer[]
+      diceServers: [] as DiceServer[],
+
+      talkLogs: [
+        {
+          content: '海豹，正在等待。',
+          isSeal: true
+        },
+        {
+          content: '（请注意，当前会话记录在刷新页面后会自动消失）',
+          isSeal: true
+        },
+      ] as TalkLogItem[]
     }
   },
   getters: {
@@ -126,7 +148,11 @@ export const useStore = defineStore('main', {
     async logFetchAndClear() {
       const info = await backend.get('/log/fetchAndClear')
       this.curDice.logs = info as any;
-    }
+    },
 
+    async diceExec(text: string) {
+      const info = await backend.post('/dice/exec', { message: text })
+      return info as any
+    }
   }
 })

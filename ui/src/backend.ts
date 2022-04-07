@@ -29,5 +29,5 @@ export function newRequestClient(baseURL: string) {
   return client;
 }
 
-export const backend = newRequestClient('//'+window.location.hostname+":"+location.port)
-// export const backend = newRequestClient('//'+window.location.hostname+":"+3211)
+// export const backend = newRequestClient('//'+window.location.hostname+":"+location.port)
+export const backend = newRequestClient('//'+window.location.hostname+":"+3211)
