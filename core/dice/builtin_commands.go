@@ -102,14 +102,40 @@ func (d *Dice) registerCoreCommands() {
 	HelpForHelp := ".help // 查看本帮助\n" +
 		".help 指令 // 查看某指令信息\n" +
 		".help 扩展模块 // 查看扩展信息，如.help coc7\n" +
-		".help 关键字 // 查看任意帮助，同.find"
+		".help 关键字 // 查看任意帮助，同.find\n" +
+		".help reload // 重新加载帮助文档，需要Master权限"
 	cmdHelp := &CmdItemInfo{
 		Name:     "help",
 		Help:     HelpForHelp,
 		LongHelp: "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if _, exists := cmdArgs.GetArgN(1); exists {
+				if arg, exists := cmdArgs.GetArgN(1); exists {
+					if strings.EqualFold(arg, "reload") {
+						if ctx.PrivilegeLevel < 100 {
+							ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+						} else {
+							dm := d.Parent
+							if !dm.IsHelpReloading {
+								dm.IsHelpReloading = true
+								dm.Help.Close()
+
+								dm.InitHelp()
+								dm.AddHelpWithDice(dm.Dice[0])
+								ReplyToSender(ctx, msg, "帮助文档已经重新装载")
+								dm.IsHelpReloading = false
+							} else {
+								ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
+							}
+						}
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					if d.Parent.IsHelpReloading {
+						ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true)
 					if err == nil {
 						if len(search.Hits) > 0 {

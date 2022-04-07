@@ -332,6 +332,7 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 		}
 		if err != nil {
 			dice.Logger.Error(err)
+			dice.Logger.Error(group.GroupId, player.UserId, string(data))
 		}
 	}
 

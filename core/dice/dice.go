@@ -74,6 +74,7 @@ type Dice struct {
 	DB                      *bbolt.DB              `yaml:"-"`                       // 数据库对象
 	Logger                  *zap.SugaredLogger     `yaml:"logger"`                  // 日志
 	LogWriter               *logger.WriterX        `yaml:"-"`                       // 用于api的log对象
+	IsDeckLoading           bool                   `yaml:"-"`                       // 正在加载中
 	DeckList                []*DeckInfo            `yaml:"deckList"`                // 牌堆信息
 	CommandPrefix           []string               `yaml:"commandPrefix"`           // 指令前导
 	DiceMasters             []string               `yaml:"diceMasters"`             // 骰主设置，需要格式: 平台:帐号
