@@ -1,7 +1,7 @@
 package dice
 
 import (
-	"fmt"
+	"github.com/fy0/lockfree"
 	"github.com/fy0/procs"
 	"github.com/sacOO7/gowebsocket"
 )
@@ -49,10 +49,10 @@ type ServiceAtItem struct {
 }
 
 type PlayerVariablesItem struct {
-	Loaded              bool                `yaml:"-"`
-	ValueMap            map[string]*VMValue `yaml:"-"`
-	LastSyncToCloudTime int64               `yaml:"lastSyncToCloudTime"`
-	LastUsedTime        int64               `yaml:"lastUsedTime"`
+	Loaded        bool             `yaml:"-"`
+	ValueMap      lockfree.HashMap `yaml:"-"`
+	LastWriteTime int64            `yaml:"lastUsedTime"`
+	//ValueMap            map[string]*VMValue `yaml:"-"`
 }
 
 type ConnectInfoItem struct {
@@ -104,24 +104,4 @@ var curCommandId uint64 = 0
 func getNextCommandId() uint64 {
 	curCommandId += 1
 	return curCommandId
-}
-
-func SetTempVars(ctx *MsgContext, qqNickname string) {
-	// 设置临时变量
-	if ctx.Player != nil {
-		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
-		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
-		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
-		//VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})
-		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeString, ctx.EndPoint.UserId})
-		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeString, ctx.EndPoint.Nickname})
-	}
-	if ctx.Group != nil {
-		if ctx.MessageType == "group" {
-			VarSetValue(ctx, "$t群号", &VMValue{VMTypeString, ctx.Group.GroupId})
-			VarSetValue(ctx, "$t群名", &VMValue{VMTypeString, ctx.Group.GroupName})
-		}
-		VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
-		VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
-	}
 }

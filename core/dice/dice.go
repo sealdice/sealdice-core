@@ -277,9 +277,6 @@ func (d *Dice) MasterRemove(uid string) bool {
 	return false
 }
 
-func (d *Dice) RawExecute() {
-}
-
 func DiceRoll(dicePoints int) int {
 	if dicePoints <= 0 {
 		return 0

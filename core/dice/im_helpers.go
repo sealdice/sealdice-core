@@ -2,6 +2,7 @@ package dice
 
 import (
 	"errors"
+	"github.com/fy0/lockfree"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 			ActivatedExtList: extLst,
 			Players:          map[string]*GroupPlayerInfo{},
 			GroupId:          groupId,
-			ValueMap:         map[string]*VMValue{},
+			ValueMap:         lockfree.NewHashMap(),
 			DiceIds:          map[string]bool{},
 		}
 		group = session.ServiceAtNew[groupId]
@@ -77,13 +78,13 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 			GroupPlayerInfoBase{
 				Name:         msg.Sender.Nickname,
 				UserId:       msg.Sender.UserId,
-				ValueMapTemp: map[string]*VMValue{},
+				ValueMapTemp: lockfree.NewHashMap(),
 			},
 		}
 		players[msg.Sender.UserId] = p
 	}
 	if p.ValueMapTemp == nil {
-		p.ValueMapTemp = map[string]*VMValue{}
+		p.ValueMapTemp = lockfree.NewHashMap()
 	}
 	if p.InGroup == false {
 		p.InGroup = true

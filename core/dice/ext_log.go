@@ -115,7 +115,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		},
 		OnMessageReceived: func(ctx *MsgContext, msg *Message) {
 			// 处理日志
-			if ctx.IsCurGroupBotOn {
+			if ctx.Group != nil {
 				if ctx.Group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					a := LogOneItem{

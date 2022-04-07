@@ -3,6 +3,7 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/fy0/lockfree"
 	"github.com/juliangruber/go-intersect"
 	"math/rand"
 	"regexp"
@@ -134,7 +135,7 @@ func (d *Dice) registerCoreCommands() {
 				text += ".help 其他" + "\n"
 				text += "官网(建设中): https://sealdice.com/" + "\n"
 				text += "日志着色器: http://log.weizaima.com/" + "\n"
-				text += "测试群: 524364253" + "\n"
+				text += "海豹群: 524364253" + "\n"
 				//text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
 				text += "-----------------------------------------------\n"
 				text += DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
@@ -848,11 +849,14 @@ func (d *Dice) registerCoreCommands() {
 				if cmdArgs.IsArgEqual(1, "list") {
 					vars := ctx.LoadPlayerGlobalVars()
 					characters := []string{}
-					for k, _ := range vars.ValueMap {
+
+					_ = vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+						k := _k.(string)
 						if strings.HasPrefix(k, "$ch:") {
 							characters = append(characters, k[4:])
 						}
-					}
+						return nil
+					})
 					if len(characters) == 0 {
 						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>当前还没有角色列表", ctx.Player.Name))
 					} else {
@@ -861,11 +865,18 @@ func (d *Dice) registerCoreCommands() {
 				} else if cmdArgs.IsArgEqual(1, "load") {
 					name := getNickname()
 					vars := ctx.LoadPlayerGlobalVars()
-					data, exists := vars.ValueMap["$ch:"+name]
-
+					_data, exists := vars.ValueMap.Get("$ch:" + name)
 					if exists {
-						ctx.Player.Vars.ValueMap = make(map[string]*VMValue)
-						err := JsonValueMapUnmarshal([]byte(data.Value.(string)), &ctx.Player.Vars.ValueMap)
+						data := _data.(*VMValue)
+						mapData := make(map[string]*VMValue)
+						err := JsonValueMapUnmarshal([]byte(data.Value.(string)), &mapData)
+
+						ctx.Player.Vars.ValueMap = lockfree.NewHashMap()
+						for k, v := range mapData {
+							ctx.Player.Vars.ValueMap.Set(k, v)
+						}
+						ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+
 						if err == nil {
 							ctx.Player.Name = name
 							VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
@@ -880,16 +891,18 @@ func (d *Dice) registerCoreCommands() {
 						//replyToSender(ctx, msg, "无法加载角色：你所指定的角色不存在")
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 					}
-				} else if cmdArgs.IsArgEqual(1, "Save") {
+				} else if cmdArgs.IsArgEqual(1, "save") {
 					name := getNickname()
 					vars := ctx.LoadPlayerGlobalVars()
-					v, err := json.Marshal(ctx.Player.Vars.ValueMap)
+					v, err := json.Marshal(LockFreeMapToMap(ctx.Player.Vars.ValueMap))
 
 					if err == nil {
-						vars.ValueMap["$ch:"+name] = &VMValue{
+						vars.ValueMap.Set("$ch:"+name, &VMValue{
 							VMTypeString,
 							string(v),
-						}
+						})
+						vars.LastWriteTime = time.Now().Unix()
+
 						VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
 						//replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", Name))
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
@@ -902,9 +915,10 @@ func (d *Dice) registerCoreCommands() {
 					vars := ctx.LoadPlayerGlobalVars()
 
 					VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
-					_, exists := vars.ValueMap["$ch:"+name]
+					_, exists := vars.ValueMap.Get("$ch:" + name)
 					if exists {
-						delete(vars.ValueMap, "$ch:"+name)
+						vars.ValueMap.Del("$ch:" + name)
+						vars.LastWriteTime = time.Now().Unix()
 
 						text := DiceFormatTmpl(ctx, "核心:角色管理_删除成功")
 						if name == ctx.Player.Name {
