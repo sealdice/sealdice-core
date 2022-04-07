@@ -1453,7 +1453,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								}
 							} else {
 								valueMap := map[string]int64{}
-								re, _ := regexp.Compile(`([^\d]+?)[:=]?(\d+)`)
+								re, _ := regexp.Compile(`([^\d]+?)[:=：＝]?(\d+)`)
 
 								// 读取所有参数中的值
 								stText := cmdArgs.CleanArgs
