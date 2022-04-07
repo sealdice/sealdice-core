@@ -544,17 +544,17 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								if newVal <= 0 {
 									if exists && (-newVal) >= vHpMaxInt64 {
 										deathSavingStable(mctx)
-										extraText += fmt.Sprintf("\n<%s>遭受了%d点过量伤害，超过了他的承受能力，一命呜呼了！", ctx.Player.Name, -newVal)
+										extraText += fmt.Sprintf("\n<%s>遭受了%d点过量伤害，超过了他的承受能力，一命呜呼了！", mctx.Player.Name, -newVal)
 									} else {
 										if oldValue == 0 {
-											extraText += fmt.Sprintf("\n<%s>在昏迷状态下遭受了%d点过量伤害，死亡豁免失败+1！", ctx.Player.Name, -newVal)
+											extraText += fmt.Sprintf("\n<%s>在昏迷状态下遭受了%d点过量伤害，死亡豁免失败+1！", mctx.Player.Name, -newVal)
 											a, b := deathSaving(mctx, 0, 1)
 											exText := deathSavingResultCheck(mctx, a, b)
 											if exText != "" {
 												text += "\n" + exText
 											}
 										} else {
-											extraText += fmt.Sprintf("\n<%s>遭受了%d点过量伤害，生命值降至0，陷入了昏迷！", ctx.Player.Name, -newVal)
+											extraText += fmt.Sprintf("\n<%s>遭受了%d点过量伤害，生命值降至0，陷入了昏迷！", mctx.Player.Name, -newVal)
 										}
 									}
 									newVal = 0
@@ -809,7 +809,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				default:
 					text := cmdArgs.CleanArgs
-					re := regexp.MustCompile(`(([^\s:0-9*][^\s:0-9*]*)\*?)\s*([:+\-])`)
+					re := regexp.MustCompile(`(([^\s:0-9*][^\s:0-9*]*)\*?)\s*([:+\-＋－：])`)
 					attrSeted := []string{}
 					attrChanged := []string{}
 
@@ -835,7 +835,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
-						if m[3] == ":" {
+						if m[3] == ":" || m[3] == "：" {
 							exprTmpl := "$tVal"
 							if isSkilled {
 								exprTmpl += " + 熟练"
@@ -856,7 +856,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							}
 							attrSeted = append(attrSeted, aText)
 						}
-						if m[3] == "+" || m[3] == "-" {
+						if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
 							v, exists := VarGetValue(mctx, attrNameBuff)
 							if !exists {
 								ReplyToSender(mctx, msg, "不存在的BUFF属性: "+attrNameRaw)
@@ -875,7 +875,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								leftValue = v
 							}
 
-							if m[3] == "+" {
+							if m[3] == "+" || m[3] == "＋" {
 								newVal = leftValue.Value.(int64) + r.Value.(int64)
 							} else {
 								newVal = leftValue.Value.(int64) - r.Value.(int64)
