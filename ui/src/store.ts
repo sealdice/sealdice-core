@@ -63,6 +63,7 @@ import { defineStore } from 'pinia'
 export const useStore = defineStore('main', {
   state: () => {
     return {
+      salt: '',
       token: '',
       index: 0,
       diceServers: [] as DiceServer[],
@@ -159,8 +160,8 @@ export const useStore = defineStore('main', {
     },
 
     async diceConfigSet(data: any) {
-      const info = await backend.get('/dice/config/set')
-      this.curDice.logs = info as any;
+      await backend.post('/dice/config/set', data)
+      await this.diceConfigGet()
     },
 
     async diceExec(text: string) {
@@ -180,6 +181,7 @@ export const useStore = defineStore('main', {
     },
 
     async trySignIn(): Promise<boolean> {
+      this.salt = (await backend.get('/signin/salt') as any).salt
       let token = localStorage.getItem('t')
       try {
         await backend.get('/hello', {

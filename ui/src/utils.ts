@@ -1,4 +1,4 @@
-import { delay } from 'lodash-es'
+import { delay, transform, isEqual, isObject } from 'lodash-es'
 
 export function sleep(duration: number) {
   return new Promise<void>((resolve, reject) => {
@@ -51,4 +51,15 @@ export async function passwordHash (salt: string, password: string): Promise<str
   } else {
     return passwordHashAsmCrypto(salt, password)
   }
+}
+
+export function objDiff (object: any, base: any) {
+  const changes = function (object: any, base: any) {
+    return transform(object, (result: any, value, key) => {
+      if (!isEqual(value, base[key])) {
+        result[key] = (isObject(value) && isObject(base[key])) ? changes(value, base[key]) : value
+      }
+    })
+  }
+  return changes(object, base)
 }
