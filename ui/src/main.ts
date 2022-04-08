@@ -18,8 +18,15 @@ import "element-plus/es/components/dialog/style/css"
 import 'element-plus/theme-chalk/display.css'
 
 import { createPinia } from 'pinia'
+import { useStore } from "./store";
 
 const app = createApp(App);
 app.use(createPinia())
+
+const store = useStore()
+
+store.trySignIn().then(() => {
+  app.mount("#app")
+})
+
 // app.use(ElementPlus);
-app.mount("#app");

@@ -35,6 +35,7 @@ export interface DiceConnection {
 }
 
 interface DiceServer {
+  config: any
   customTextsHelpInfo: { [k: string]: {
     [k: string]: {
       filename: string[],
@@ -62,6 +63,7 @@ import { defineStore } from 'pinia'
 export const useStore = defineStore('main', {
   state: () => {
     return {
+      token: '',
       index: 0,
       diceServers: [] as DiceServer[],
 
@@ -71,7 +73,7 @@ export const useStore = defineStore('main', {
           isSeal: true
         },
         {
-          content: '（请注意，当前会话记录在刷新页面后会自动消失）',
+          content: '（请注意，当前会话记录在刷新页面后会消失）',
           isSeal: true
         },
       ] as TalkLogItem[]
@@ -86,7 +88,8 @@ export const useStore = defineStore('main', {
           customTextsHelpInfo: {},
           logs: [],
           conns: [],
-          qrcodes: {}
+          qrcodes: {},
+          config: {}
         })
       }
 
@@ -150,9 +153,45 @@ export const useStore = defineStore('main', {
       this.curDice.logs = info as any;
     },
 
+    async diceConfigGet() {
+      const info = await backend.get('/dice/config/get')
+      this.curDice.config = info as any;
+    },
+
+    async diceConfigSet(data: any) {
+      const info = await backend.get('/dice/config/set')
+      this.curDice.logs = info as any;
+    },
+
     async diceExec(text: string) {
       const info = await backend.post('/dice/exec', { message: text })
       return info as any
+    },
+
+    async signIn(password: string) {
+      try {
+        const ret = await backend.post('/signin', { password })
+        const token = (ret as any).token
+        this.token = token
+        backend.defaults.headers.common['token'] = token
+        localStorage.setItem('t', token)
+      } catch {
+      }
+    },
+
+    async trySignIn(): Promise<boolean> {
+      let token = localStorage.getItem('t')
+      try {
+        await backend.get('/hello', {
+          headers: {token: token as string}
+        })
+        this.token = token as string
+        backend.defaults.headers.common['token'] = this.token
+      } catch (e) {
+        // 试图做一次登录，以获取token
+        await this.signIn('defaultSignin')
+      }
+      return this.token != ''
     }
   }
 })

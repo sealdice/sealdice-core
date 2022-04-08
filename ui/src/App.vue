@@ -71,9 +71,9 @@
 
           <el-menu-item index="7" @click="switchTo('overview')">
             <el-icon>
-              <ship />
+              <operation />
             </el-icon>
-            <span>其他设置</span>
+            <span>综合设置</span>
           </el-menu-item>
   
           <el-menu-item index="8" @click="switchTo('test')">
@@ -118,11 +118,11 @@ import BaseHeader from "./components/layouts/BaseHeader.vue";
 import HelloWorld from "./components/HelloWorld.vue";
 import PageCustomText from "./components/PageCustomText.vue";
 import PageConnectInfoItems from "./components/PageConnectInfoItems.vue";
-import PageOverview from "./components/PageOverView.vue"
+import PageOverview from "./components/PageOverview.vue"
 import PageLog from "./components/PageLog.vue";
 import PageAbout from "./components/PageAbout.vue"
 import PageTest from "./components/PageTest.vue"
-import { onBeforeMount, ref } from 'vue'
+import { onBeforeMount, ref, onCrea } from 'vue'
 import { useStore } from './store'
 
 import {
@@ -134,6 +134,7 @@ import {
   CircleClose,
   Ship,
   Star,
+  Operation,
   ChatLineRound
 } from '@element-plus/icons-vue'
 
@@ -146,6 +147,8 @@ const store = useStore()
 
 onBeforeMount(async () => {
   resetCollapse()
+  // const canAccess = await store.trySignIn()
+
   store.getBaseInfo()
   store.getCustomText()
 

@@ -1,57 +1,33 @@
 <template>
-  <el-form :model="form" label-width="120px">
-    <el-form-item label="Activity name">
-      <el-input v-model="form.name" />
+  <el-form label-width="120px">
+    未完成界面
+
+    <el-form-item label="UI界面地址">
+      <el-input v-model="config.serveAddress" />
     </el-form-item>
-    <el-form-item label="Activity zone">
-      <el-select v-model="form.region" placeholder="please select your zone">
-        <el-option label="Zone one" value="shanghai" />
-        <el-option label="Zone two" value="beijing" />
-      </el-select>
+
+    <el-form-item label="Master解锁码">
+      <div>{{config.masterUnlockCode}}</div>
     </el-form-item>
-    <el-form-item label="Activity time">
-      <el-col :span="11">
-        <el-date-picker
-          v-model="form.date1"
-          type="date"
-          placeholder="Pick a date"
-          style="width: 100%"
-        />
-      </el-col>
-      <el-col :span="2" class="text-center">
-        <span class="text-gray-500">-</span>
-      </el-col>
-      <el-col :span="11">
-        <el-time-picker
-          v-model="form.date2"
-          placeholder="Pick a time"
-          style="width: 100%"
-        />
-      </el-col>
+
+    <el-form-item label="UI界面密码">
+      <el-input type="password" v-model="config.uiPassword" />
     </el-form-item>
-    <el-form-item label="Instant delivery">
-      <el-switch v-model="form.delivery" />
+
+    <el-form-item label="QQ回复延迟(秒)">
+      <el-input v-model="config.messageDelayRangeStart" type="number" style="width: 6rem;" />
+      <span style="margin: 0 1rem">-</span>
+      <el-input v-model="config.messageDelayRangeEnd" type="number" style="width: 6rem;" />
     </el-form-item>
-    <el-form-item label="Activity type">
-      <el-checkbox-group v-model="form.type">
-        <el-checkbox label="Online activities" name="type" />
-        <el-checkbox label="Promotion activities" name="type" />
-        <el-checkbox label="Offline activities" name="type" />
-        <el-checkbox label="Simple brand exposure" name="type" />
-      </el-checkbox-group>
+
+    <el-form-item label="指令前缀">
+      <div style="width: 100%; margin-bottom: .5rem;">
+      </div>
     </el-form-item>
-    <el-form-item label="Resources">
-      <el-radio-group v-model="form.resource">
-        <el-radio label="Sponsor" />
-        <el-radio label="Venue" />
-      </el-radio-group>
-    </el-form-item>
-    <el-form-item label="Activity form">
-      <el-input v-model="form.desc" type="textarea" />
-    </el-form-item>
-    <el-form-item>
-      <el-button type="primary" @click="onSubmit">Create</el-button>
-      <el-button>Cancel</el-button>
+
+    <el-form-item label="日志仅记录指令">
+        <el-checkbox label="群信息" v-model="config.onlyLogCommandInGroup"/>
+        <el-checkbox label="私聊" v-model="config.onlyLogCommandInPrivate"/>
     </el-form-item>
   </el-form>
 
@@ -63,25 +39,16 @@ import { useStore } from '~/store';
 const store = useStore()
 
 onBeforeMount(async () => {
-  await store.logFetchAndClear()
+  await store.diceConfigGet()
+  // await store.logFetchAndClear()
 })
 
 onBeforeUnmount(() => {
   // clearInterval(timerId)
 })
 
-import { reactive } from 'vue'
-
-// do not use same name with ref
-const form = reactive({
-  name: '',
-  region: '',
-  date1: '',
-  date2: '',
-  delivery: false,
-  type: [],
-  resource: '',
-  desc: '',
+const config = computed(() => {
+  return store.curDice.config
 })
 
 const onSubmit = () => {

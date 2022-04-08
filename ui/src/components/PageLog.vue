@@ -33,7 +33,7 @@
 
 <script lang="ts" setup>
 import { Timer } from '@element-plus/icons-vue'
-import { computed, onBeforeMount, onBeforeUnmount } from 'vue';
+import { computed, onBeforeMount, onBeforeUnmount, onMounted } from 'vue';
 import { useStore } from '~/store';
 import * as dayjs from 'dayjs'
 import filesize from 'filesize'
@@ -47,7 +47,6 @@ onBeforeMount(async () => {
   await store.logFetchAndClear()
 
   timerId = setInterval(() => {
-    console.log('fetch log')
     store.logFetchAndClear()
   }, 5000) as any
 })

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@vitejs/plugin-legacy": "^1.8.0",
+    "asmcrypto.js": "^2.3.2",
     "axios": "^0.26.0",
     "axios-retry": "^3.2.4",
     "dayjs": "^1.10.8",

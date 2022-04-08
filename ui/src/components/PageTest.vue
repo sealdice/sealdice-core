@@ -7,7 +7,7 @@
           <el-avatar
             :shape="i.isSeal ? 'circle' : 'square'"
             :size="60"
-            :src="i.isSeal ? 'src/assets/seal.png':'src/assets/me.jpg'"
+            :src="i.isSeal ? imgSeal:imgMe"
           />
         </div>
         <div class="right">
@@ -28,6 +28,9 @@
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeMount, onBeforeUnmount, ref } from 'vue';
 import { useStore } from '~/store';
+import imgSeal from '~/assets/seal.png'
+import imgMe from '~/assets/seal.png'
+
 const store = useStore()
 
 onBeforeMount(async () => {

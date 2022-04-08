@@ -376,6 +376,10 @@ let timerId: number
 
 onBeforeMount(async () => {
   await store.getImConnections()
+  for (let i of store.curDice.conns || []) {
+    delete store.curDice.qrcodes[i.id]
+  }
+
   timerId = setInterval(async () => {
     console.log('refresh')
     await store.getImConnections()
