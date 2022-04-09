@@ -29,7 +29,7 @@
 import { computed, nextTick, onBeforeMount, onBeforeUnmount, ref } from 'vue';
 import { useStore } from '~/store';
 import imgSeal from '~/assets/seal.png'
-import imgMe from '~/assets/seal.png'
+import imgMe from '~/assets/me.jpg'
 
 const store = useStore()
 

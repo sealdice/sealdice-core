@@ -1,5 +1,5 @@
 <template>
-  <el-form label-width="120px" style="padding-bottom: 3rem">
+  <el-form label-width="120px">
     <h2>Master管理</h2>
     <el-form-item label="">
       <template #label>
@@ -12,7 +12,7 @@
       </template>
       <div>
         <el-button v-if="!isShowUnlockCode" @click="isShowUnlockCode = true">查看</el-button>
-        <div v-else>.master unlock {{config.masterUnlockCode}}</div>
+        <div v-else style="font-weight: bold;">.master unlock {{config.masterUnlockCode}}</div>
       </div>
     </el-form-item>
 
@@ -46,7 +46,7 @@
           </el-tooltip>
         </div>
       </template>
-      <el-autocomplete v-model="config.serveAddress" name="setting" :fetch-suggestions="querySearch">
+      <el-autocomplete v-model="config.serveAddress" clearable name="setting" :fetch-suggestions="querySearch">
         <template #default="{ item }">
           <div class="value">{{ item.link }}</div>
         </template>
@@ -67,6 +67,19 @@
     </el-form-item>
 
     <h2>其他</h2>
+    <el-form-item label="加好友验证信息">
+      <template #label>
+        <div>
+          <span>加好友验证</span>
+          <el-tooltip content="加好友时必须输入正确的验证信息才能通过">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+
+      <el-input v-model="config.friendAddComment" type="text" clearable style="width: auto;" />
+    </el-form-item>
+
     <el-form-item label="QQ回复延迟(秒)">
       <el-input v-model="config.messageDelayRangeStart" type="number" style="width: 6rem;" />
       <span style="margin: 0 1rem">-</span>
@@ -188,7 +201,7 @@ interface LinkItem {
 const state = ref('')
 const links = ref<LinkItem[]>([
   { link: '外网: 0.0.0.0:3211', value: '0.0.0.0:3211' },
-  { link: '内网: 127.0.0.1:3211', value: '127.0.0.1:3211' },
+  { link: '本机: 127.0.0.1:3211', value: '127.0.0.1:3211' },
 ])
 
 const querySearch = (queryString: string, cb: any) => {

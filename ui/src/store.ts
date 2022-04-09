@@ -66,6 +66,7 @@ export const useStore = defineStore('main', {
       salt: '',
       token: '',
       index: 0,
+      canAccess: false,
       diceServers: [] as DiceServer[],
 
       talkLogs: [
@@ -176,8 +177,14 @@ export const useStore = defineStore('main', {
         this.token = token
         backend.defaults.headers.common['token'] = token
         localStorage.setItem('t', token)
+        this.canAccess = true
       } catch {
+        this.canAccess = false
       }
+    },
+
+    async checkSecurity(): Promise<boolean> {
+      return (await backend.get('/checkSecurity') as any).isOk
     },
 
     async trySignIn(): Promise<boolean> {
@@ -189,7 +196,9 @@ export const useStore = defineStore('main', {
         })
         this.token = token as string
         backend.defaults.headers.common['token'] = this.token
+        this.canAccess = true
       } catch (e) {
+        this.canAccess = false
         // 试图做一次登录，以获取token
         await this.signIn('defaultSignin')
       }

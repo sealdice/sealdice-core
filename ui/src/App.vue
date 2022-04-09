@@ -5,10 +5,10 @@
   <div style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 900px; width: 100%; margin: 0 auto; position: relative;">
     <h3
       class="mb-2"
-      style="color: #f8ffff; text-align: left; padding-left: 2em; font-weight: normal;"
-    >SealDice</h3>
+      style="color: #f8ffff; text-align: left; padding-left: 2em; font-weight: normal;max-height:60px; height: 60px;"
+    ><span :v-show="store.canAccess">SealDice</span></h3>
 
-    <div style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small;">{{ store.curDice.baseInfo.version }}</div>
+    <div :v-show="store.canAccess" style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small;">{{ store.curDice.baseInfo.version }}</div>
 
     <div style="display: flex;">
       <div style="position: relative;">
@@ -110,9 +110,9 @@
       </div>
 
       <!-- #545c64 -->
-      <div style="background-color: #f3f5f7; flex: 1; text-align: left; height: calc(100vh - 60px); overflow-y: auto;">
+      <div style="background-color: #f3f5f7; flex: 1; text-align: left; height: calc(100vh - 4rem); overflow-y: auto;">
         <!-- <div style="background-color: #f3f5f7; text-align: left; height: 100%;"> -->
-        <div class="main-container" style="" ref="rightbox">
+        <div class="main-container" :class="[needh100 ? 'h100' : '']" style="" ref="rightbox">
           <page-overview v-if="tabName === 'overview'" />
           <page-log v-if="tabName === 'log'" />
           <page-connect-info-items v-if="tabName === 'imConns'" />
@@ -124,6 +124,12 @@
       </div>
     </div>
   </div>
+
+  <el-dialog v-model="showDialog" title="" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
+    <h3>输入密码解锁</h3>
+    <el-input v-model="password" type="password"></el-input>
+    <el-button type="primary" style="padding: 0px 50px; margin-top: 1rem;" @click="doUnlock">确认</el-button>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -135,8 +141,9 @@ import PageOverview from "./components/PageOverview.vue"
 import PageLog from "./components/PageLog.vue";
 import PageAbout from "./components/PageAbout.vue"
 import PageTest from "./components/PageTest.vue"
-import { onBeforeMount, ref } from 'vue'
+import { onBeforeMount, ref, watch, computed } from 'vue'
 import { useStore } from './store'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 import {
   Location,
@@ -153,17 +160,45 @@ import {
 
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
+import { passwordHash } from "./utils";
+import { delay } from "lodash-es";
 
 dayjs.locale('zh-cn')
 
 const store = useStore()
+const password = ref('')
+
+const showDialog = computed(() => {
+  return !store.canAccess
+})
+
+const doUnlock = async () => {
+  const hash = await passwordHash(store.salt, password.value)
+  await store.signIn(hash)
+  if (store.canAccess) {
+    ElMessageBox.alert('欢迎回来，请开始使用。', '登录成功')
+    password.value = ''
+    checkPassword()
+  } else {
+    ElMessageBox.alert('错误的密码', '登录失败')
+    password.value = ''
+  }
+}
+
+const checkPassword = async () => {
+  if (!await store.checkSecurity()) {
+    ElMessageBox.alert('欢迎使用海豹核心。<br/>如果您的服务开启在公网，为了保证您的安全性，请前往<b>“综合设置->基本设置”</b>界面，设置<b>UI界面密码</b>。<br/>或切换为只有本机可访问。<br><b>如果您不了解上面在说什么，请务必设置一个密码</b>', '提示', {dangerouslyUseHTMLString: true})
+  }
+}
 
 onBeforeMount(async () => {
   resetCollapse()
-  // const canAccess = await store.trySignIn()
-
   store.getBaseInfo()
   store.getCustomText()
+
+  if (store.canAccess) {
+    checkPassword()
+  }
 
   timerId = setInterval(() => {
     store.getBaseInfo()
@@ -203,9 +238,12 @@ const sideCollapse = ref(false)
 let tabName = ref("log");
 let textCategory = ref("");
 
+const needh100 = ref(false)
+
 const switchTo = (tab: 'overview' | 'log' | 'customText' | 'imConns' | 'banList' | 'test' | 'about', name: string = '') => {
   tabName.value = tab
   textCategory.value = name
+  needh100.value = ['test'].includes(tab)
 }
 
 let configCustom = {}
@@ -220,6 +258,10 @@ html, body {
   padding: 2rem;
   position: relative;
   box-sizing: border-box;
+  min-height: 100%;
+}
+
+.h100 {
   height: 100%;
 }
 
@@ -231,9 +273,8 @@ html, body {
 
 
 #app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: "PingFang SC","Helvetica Neue","Hiragino Sans GB","Segoe UI","Microsoft YaHei",'微软雅黑',sans-serif;
+  /* font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif; */
   text-align: center;
   color: #2c3e50;
   height: 100%;
