@@ -15,6 +15,10 @@ type DiceManager struct {
 	UseDictForTokenizer  bool
 	HelpDocEngineType    int
 	progressExitGroupWin ProcessExitGroup
+
+	UIPasswordHash string
+	UIPasswordSalt string
+	AccessTokens   map[string]bool
 }
 
 type DiceConfigs struct {
@@ -22,6 +26,10 @@ type DiceConfigs struct {
 	ServeAddress      string       `yaml:"serveAddress"`
 	WebUIAddress      string       `yaml:"webUIAddress"`
 	HelpDocEngineType int          `yaml:"helpDocEngineType"`
+
+	UIPasswordSalt string   `yaml:"UIPasswordFrontendSalt"`
+	UIPasswordHash string   `yaml:"uiPasswordHash"`
+	AccessTokens   []string `yaml:"accessTokens"`
 }
 
 func (dm *DiceManager) InitHelp() {
@@ -50,8 +58,19 @@ func (dm *DiceManager) LoadDice() {
 		panic(err)
 	}
 
+	if dc.UIPasswordSalt == "" {
+		dc.UIPasswordSalt = RandStringBytesMaskImprSrcSB2(32)
+	}
+
 	dm.ServeAddress = dc.ServeAddress
 	dm.HelpDocEngineType = dc.HelpDocEngineType
+	dm.UIPasswordHash = dc.UIPasswordHash
+	dm.UIPasswordSalt = dc.UIPasswordSalt
+	dm.AccessTokens = map[string]bool{}
+
+	for _, i := range dc.AccessTokens {
+		dm.AccessTokens[i] = true
+	}
 
 	for _, i := range dc.DiceConfigs {
 		newDice := new(Dice)
@@ -64,6 +83,14 @@ func (dm *DiceManager) Save() {
 	var dc DiceConfigs
 	dc.ServeAddress = dm.ServeAddress
 	dc.HelpDocEngineType = dm.HelpDocEngineType
+	dc.UIPasswordSalt = dm.UIPasswordSalt
+	dc.UIPasswordHash = dm.UIPasswordHash
+	dc.AccessTokens = []string{}
+
+	for k, _ := range dm.AccessTokens {
+		dc.AccessTokens = append(dc.AccessTokens, k)
+	}
+
 	for _, i := range dm.Dice {
 		dc.DiceConfigs = append(dc.DiceConfigs, i.BaseConfig)
 	}

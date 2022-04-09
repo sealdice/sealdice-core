@@ -77,10 +77,10 @@ func main() {
 		for _, i := range diceManager.Dice {
 			i.Save(true)
 		}
-		diceManager.Save()
 		for _, i := range diceManager.Dice {
 			i.DB.Close()
 		}
+		diceManager.Help.Close()
 		diceManager.Save()
 	}
 	defer cleanUp()
@@ -174,18 +174,18 @@ func uiServe(myDice *dice.DiceManager) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		Skipper:      middleware.DefaultSkipper,
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, "token"},
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
 	}))
 
-	//e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
-	//	XSSProtection:      "1; mode=block",
-	//	ContentTypeNosniff: "nosniff",
-	//	XFrameOptions:      "SAMEORIGIN",
-	//	HSTSMaxAge:         3600,
-	//	//ContentSecurityPolicy: "default-src 'self'",
-	//}))
+	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
+		XSSProtection:         "1; mode=block",
+		ContentTypeNosniff:    "nosniff",
+		XFrameOptions:         "SAMEORIGIN",
+		HSTSMaxAge:            3600,
+		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data:;",
+	}))
 	// X-Content-Type-Options: nosniff
 	e.Static("/", "./frontend")
 
