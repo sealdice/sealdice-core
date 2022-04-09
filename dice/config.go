@@ -613,6 +613,7 @@ func (d *Dice) loads() {
 			d.MessageDelayRangeEnd = dNew.MessageDelayRangeEnd
 			d.WorkInQQChannel = dNew.WorkInQQChannel
 			d.UILogLimit = dNew.UILogLimit
+			d.FriendAddComment = dNew.FriendAddComment
 
 			if len(d.DiceMasters) == 0 {
 				d.DiceMasters = []string{}
