@@ -282,6 +282,7 @@ func doSignIn(c echo.Context) error {
 		now := time.Now().Unix()
 		head := hex.EncodeToString(Int64ToBytes(now))
 		token := dice.RandStringBytesMaskImprSrcSB2(64) + ":" + head
+
 		myDice.Parent.AccessTokens[token] = true
 		myDice.Parent.Save()
 		return c.JSON(http.StatusOK, map[string]string{
@@ -424,7 +425,10 @@ func DiceConfigSet(c echo.Context) error {
 	stringConvert := func(val interface{}) []string {
 		var lst []string
 		for _, i := range val.([]interface{}) {
-			lst = append(lst, i.(string))
+			t := i.(string)
+			if t != "" {
+				lst = append(lst, t)
+			}
 		}
 		return lst
 	}
