@@ -606,6 +606,10 @@ func (d *Dice) loads() {
 			d.CommandPrefix = dNew.CommandPrefix
 			d.DiceMasters = dNew.DiceMasters
 			d.VersionCode = dNew.VersionCode
+			d.MessageDelayRangeStart = dNew.MessageDelayRangeStart
+			d.MessageDelayRangeEnd = dNew.MessageDelayRangeEnd
+			d.WorkInQQChannel = dNew.WorkInQQChannel
+			d.UILogLimit = dNew.UILogLimit
 
 			if len(d.DiceMasters) == 0 {
 				d.DiceMasters = []string{}
@@ -795,6 +799,7 @@ func (d *Dice) loads() {
 	}
 
 	d.VersionCode = 9913
+	d.LogWriter.LogLimit = d.UILogLimit
 
 	// 读取文本模板
 	setupTextTemplate(d)

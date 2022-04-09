@@ -15,7 +15,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.13内测版 v20220406dev"
+var VERSION = "0.99.13内测版 v20220407dev"
 
 type CmdExecuteResult struct {
 	Matched       bool // 是否是指令
@@ -84,14 +84,18 @@ type Dice struct {
 	VersionCodeOnline       int                    `yaml:"versionCodeOnline"`       // 版本ID - 线上
 	MessageDelayRangeStart  float64                `yaml:"messageDelayRangeStart"`  // 指令延迟区间
 	MessageDelayRangeEnd    float64                `yaml:"messageDelayRangeEnd"`
-	UIPassword              string                 `yaml:"uiPassword"`
-	MasterUnlockCode        string                 `yaml:"-"` // 解锁码，每20分钟变化一次，使用后立即变化
+	WorkInQQChannel         bool                   `yaml:"workInQQChannel"`
+	UILogLimit              int64                  `yaml:"UILogLimit"`
+	ShowGroupWelcome        bool                   `yaml:"showGroupWelcome"` // 入群欢迎词
+	MasterUnlockCode        string                 `yaml:"-"`                // 解锁码，每20分钟变化一次，使用后立即变化
+	MasterUnlockCodeTime    int64                  `yaml:"-"`
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
 	TextMapRaw           TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo      TextTemplateWithHelpDict   `yaml:"-"`
 	Parent               *DiceManager               `yaml:"-"`
+
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 }
@@ -276,6 +280,23 @@ func (d *Dice) MasterRemove(uid string) bool {
 		}
 	}
 	return false
+}
+
+func (d *Dice) UnlockCodeUpdate() {
+	now := time.Now().Unix()
+	// 大于20分钟重置
+	if now-d.MasterUnlockCodeTime > 20*60 {
+		d.MasterUnlockCode = ""
+	}
+	if d.MasterUnlockCode == "" {
+		d.MasterUnlockCode = RandStringBytesMaskImprSrcSB(8)
+		d.MasterUnlockCodeTime = now
+	}
+}
+
+func (d *Dice) UnlockCodeVerify(code string) bool {
+	d.UnlockCodeUpdate()
+	return code == d.MasterUnlockCode
 }
 
 func DiceRoll(dicePoints int) int {

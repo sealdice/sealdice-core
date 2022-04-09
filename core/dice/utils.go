@@ -171,6 +171,8 @@ func UploadFileToFileIo(log *zap.SugaredLogger, filename string, data io.Reader)
 }
 
 const letterBytes = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ123456789"
+const letterBytes2 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+=-"
+
 const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
@@ -189,6 +191,25 @@ func RandStringBytesMaskImprSrcSB(n int) string {
 		}
 		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
 			sb.WriteByte(letterBytes[idx])
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+
+	return sb.String()
+}
+
+func RandStringBytesMaskImprSrcSB2(n int) string {
+	sb := strings.Builder{}
+	sb.Grow(n)
+	// A randSrc.Int63() generates 63 random bits, enough for letterIdxMax characters!
+	for i, cache, remain := n-1, randSrc.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = randSrc.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes2) {
+			sb.WriteByte(letterBytes2[idx])
 			i--
 		}
 		cache >>= letterIdxBits

@@ -94,19 +94,19 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 }
 
 func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
-	ctx.EndPoint.Adapter.ReplyToSender(ctx, msg, text)
+	ctx.EndPoint.Adapter.ReplyToSender(ctx, msg, strings.TrimSpace(text))
 }
 
 func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
-	ctx.EndPoint.Adapter.ReplyGroup(ctx, msg, text)
+	ctx.EndPoint.Adapter.ReplyGroup(ctx, msg, strings.TrimSpace(text))
 }
 
 func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
-	ctx.EndPoint.Adapter.ReplyPerson(ctx, msg, text)
+	ctx.EndPoint.Adapter.ReplyPerson(ctx, msg, strings.TrimSpace(text))
 }
 
 func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
-	ctx.EndPoint.Adapter.ReplyToSenderRaw(ctx, msg, text, flag)
+	ctx.EndPoint.Adapter.ReplyToSenderRaw(ctx, msg, strings.TrimSpace(text), flag)
 }
 
 type ByLength []string
