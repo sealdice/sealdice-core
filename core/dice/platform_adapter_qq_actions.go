@@ -243,12 +243,12 @@ func (pa *PlatformAdapterQQOnebot) SetGroupCard(GroupId int64, UserId int64, Car
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterQQOnebot) SetFriendAddRequest(flag string, approve bool, remark string) {
+func (pa *PlatformAdapterQQOnebot) SetFriendAddRequest(flag string, approve bool, remark string, reaseon string) {
 	type DetailParams struct {
 		Flag    string `json:"flag"`
 		Remark  string `json:"remark"` // 备注名
 		Approve bool   `json:"approve"`
-		//Reason  string `json:"reason"`
+		Reason  string `json:"reason"`
 	}
 
 	a, _ := json.Marshal(struct {
@@ -260,6 +260,7 @@ func (pa *PlatformAdapterQQOnebot) SetFriendAddRequest(flag string, approve bool
 			Flag:    flag,
 			Approve: approve,
 			Remark:  remark,
+			Reason:  reaseon,
 		},
 	})
 

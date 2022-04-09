@@ -225,13 +225,22 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			// 好友请求
 			if msgQQ.PostType == "request" && msgQQ.RequestType == "friend" {
 				// {"comment":"123","flag":"1647619872000000","post_type":"request","request_type":"friend","self_id":222,"time":1647619871,"user_id":111}
-				comment := "(无)"
+				var comment string
 				if msgQQ.Comment != "" {
-					comment = msgQQ.Comment
+					comment = strings.TrimSpace(msgQQ.Comment)
 				}
-				log.Infof("收到好友邀请: 邀请人:%d, 附言: %s", msgQQ.UserId, comment)
+
+				willAccept := comment == session.Parent.FriendAddComment
+
+				comment = "(无)"
+				log.Infof("收到好友邀请: 邀请人:%d, 验证信息: %s, 是否通过: %t", msgQQ.UserId, comment, willAccept)
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
-				pa.SetFriendAddRequest(msgQQ.Flag, true, "")
+
+				if willAccept {
+					pa.SetFriendAddRequest(msgQQ.Flag, true, "", "")
+				} else {
+					pa.SetFriendAddRequest(msgQQ.Flag, false, "", "验证信息不符")
+				}
 				return
 			}
 

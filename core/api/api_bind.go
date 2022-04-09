@@ -358,6 +358,7 @@ type DiceConfigInfo struct {
 	ServeAddress            string   `json:"serveAddress" form:"serveAddress"`
 	MasterUnlockCodeTime    int64    `json:"masterUnlockCodeTime"`
 	LogPageItemLimit        int64    `json:"logPageItemLimit"`
+	FriendAddComment        string   `json:"friendAddComment"`
 }
 
 func DiceConfig(c echo.Context) error {
@@ -388,6 +389,7 @@ func DiceConfig(c echo.Context) error {
 		MasterUnlockCodeTime:    myDice.MasterUnlockCodeTime,
 		WorkInQQChannel:         myDice.WorkInQQChannel,
 		LogPageItemLimit:        limit,
+		FriendAddComment:        myDice.FriendAddComment,
 
 		ServeAddress:      myDice.Parent.ServeAddress,
 		HelpDocEngineType: myDice.Parent.HelpDocEngineType,
@@ -465,6 +467,10 @@ func DiceConfigSet(c echo.Context) error {
 					myDice.MessageDelayRangeEnd = f
 				}
 			}
+		}
+
+		if val, ok := jsonMap["friendAddComment"]; ok {
+			myDice.FriendAddComment = val.(string)
 		}
 
 		if val, ok := jsonMap["uiPassword"]; ok {
