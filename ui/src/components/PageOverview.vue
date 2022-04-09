@@ -166,7 +166,14 @@ const removeItem = (v: any[], index: number) => {
 
 onBeforeMount(async () => {
   await store.diceConfigGet()
-  config.value = cloneDeep(store.curDice.config)
+  const val = cloneDeep(store.curDice.config)
+  if ((!val.diceMasters) || val.diceMasters.length === 0) {
+    val.diceMasters = ['']
+  }
+  if ((!val.commandPrefix) || val.commandPrefix.length === 0) {
+    val.commandPrefix = ['']
+  }
+  config.value = val
   nextTick(() => {
     modified.value = false
   })
@@ -189,6 +196,15 @@ const submit = async () => {
   if (mod.uiPassword) {
     mod.uiPassword = await passwordHash(store.salt, mod.uiPassword)
   }
+
+  if (mod.diceMasters) {
+    mod.diceMasters = cloneDeep(config.value.diceMasters)
+  }
+
+  if (mod.commandPrefix) {
+    mod.commandPrefix = cloneDeep(config.value.commandPrefix)
+  }
+
   await store.diceConfigSet(mod)
   submitGiveup()
 }

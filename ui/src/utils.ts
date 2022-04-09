@@ -22,7 +22,7 @@ const _passwordResultToText = function (keyBuffer: ArrayBuffer, saltUint8: Array
   return compositeBase64 // return composite key
 }
 
-export async function passwordHashAsmCrypto (salt: string, password: string, iterations = 1e5): Promise<string> {
+export async function passwordHashAsmCrypto (salt: string, password: string, iterations = 1e3): Promise<string> {
   const asmCryptoLoader = () => import(/* webpackChunkName: "hash-polyfill" */ 'asmcrypto.js/dist_es8/pbkdf2/pbkdf2-hmac-sha512.js')
   const asmCrypto = await asmCryptoLoader()
   const enc = new TextEncoder()
@@ -32,7 +32,7 @@ export async function passwordHashAsmCrypto (salt: string, password: string, ite
   return _passwordResultToText(keyBuffer, saltUint8, iterations)
 }
 
-export async function passwordHashNative (salt: string, password: string, iterations = 1e5): Promise<string> {
+export async function passwordHashNative (salt: string, password: string, iterations = 1e3): Promise<string> {
   const crypto = window.crypto
   const enc = new TextEncoder()
   const pwUtf8 = enc.encode(password) // encode pw as UTF-8
