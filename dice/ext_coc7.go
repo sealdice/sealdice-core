@@ -765,6 +765,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		},
 	}
 
+	helpEn := `.en <技能名称>(技能点数) (+(<失败成长值>/)<成功成长值>) // 整体格式，可以直接看下面几个分解格式
+.en <技能名称> // 骰D100，若点数大于当前值，属性成长1d10
+.en <技能名称>(技能点数) // 骰D100，若点数大于技能点数，属性=技能点数+1d10
+.en <技能名称>(技能点数) +<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点
+.en <技能名称>(技能点数) +<失败成长值>/<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点，否则增加失败`
+
 	theExt := &ExtInfo{
 		Name:       "coc7",
 		Version:    "1.0.0",
@@ -785,8 +791,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		},
 		CmdMap: CmdMapCls{
 			"en": &CmdItemInfo{
-				Name: "en",
-				Help: ".en // 成长",
+				Name:     "en",
+				Help:     helpEn,
+				LongHelp: "成长指令:\n" + helpEn,
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						// 首先处理单参数形式
@@ -990,14 +997,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
-			"ra":   cmdRc,
-			"rc":   cmdRc,
-			"rch":  cmdRc,
-			"rah":  cmdRc,
-			"rav":  cmdRcv,
-			"rcv":  cmdRcv,
-			"drav": cmdRcv,
-			"drcv": cmdRcv,
+			"ra":  cmdRc,
+			"rc":  cmdRc,
+			"rch": cmdRc,
+			"rah": cmdRc,
+			"rav": cmdRcv,
+			"rcv": cmdRcv,
 			"sc": &CmdItemInfo{
 				Name: "sc",
 				Help: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
@@ -1256,21 +1261,15 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					// .st (<Name>)+-<表达式>
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+						cmdArgs.ChopPrefixToArgsWith("help", "del", "rm", "show", "list")
 
-						var param1 string
-						if len(cmdArgs.Args) == 0 {
-							param1 = ""
-						} else {
-							param1 = cmdArgs.Args[0]
-						}
-						switch param1 {
-						case "help", "":
+						if len(cmdArgs.Args) == 0 || cmdArgs.IsArgEqual(1, "help") {
 							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
-						case "del", "rm":
+						} else if cmdArgs.IsArgEqual(1, "del", "rm") {
 							var nums []string
 							var failed []string
 
-							for _, varname := range cmdArgs.Args[1:] {
+							doDelete := func(varname string) {
 								_, ok := mctx.Player.Vars.ValueMap.Get(varname)
 								if ok {
 									nums = append(nums, varname)
@@ -1278,6 +1277,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								} else {
 									failed = append(failed, varname)
 								}
+							}
+
+							for _, varname := range cmdArgs.Args[1:] {
+								doDelete(varname)
 							}
 							if len(nums) > 0 {
 								mctx.Player.Vars.LastWriteTime = time.Now().Unix()
@@ -1287,8 +1290,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
 							VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
 							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_删除"))
-
-						case "clr", "clear":
+						} else if cmdArgs.IsArgEqual(1, "clr", "clear") {
 							p := mctx.Player
 							num := p.Vars.ValueMap.Len()
 							p.Vars.ValueMap = lockfree.NewHashMap()
@@ -1296,8 +1298,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							VarSetValueInt64(mctx, "$t数量", int64(num))
 							//text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
 							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_清除"))
-
-						case "show", "list":
+						} else if cmdArgs.IsArgEqual(1, "show", "list") {
 							info := ""
 							p := mctx.Player
 
@@ -1409,8 +1410,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							VarSetValueStr(mctx, "$t属性信息", info)
 							extra := ReadCardType(mctx, "coc7")
 							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
-
-						default:
+						} else {
 							re1, _ := regexp.Compile(`([^\d\s]+)\s*([+\-＋－])=?(.+)$`)
 							m := re1.FindStringSubmatch(cmdArgs.CleanArgs)
 							if len(m) > 0 {

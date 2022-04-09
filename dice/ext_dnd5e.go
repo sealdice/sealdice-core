@@ -224,6 +224,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		LongHelp: "DND5E 人物属性设置:\n" + helpSt,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
 				val, _ := cmdArgs.GetArgN(1)
 				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 				mctx.Player.TempValueAlias = &ac.Alias
@@ -664,6 +665,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		LongHelp: "属性临时加值:\n" + helpBuff,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
 				val, _ := cmdArgs.GetArgN(1)
 				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
@@ -966,6 +968,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		LongHelp: "DND5E 法术位(.ss .法术位):\n" + helpSS,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				cmdArgs.ChopPrefixToArgsWith("init", "set")
+
 				val, _ := cmdArgs.GetArgN(1)
 				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
@@ -1451,6 +1455,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							if len(m) > 0 {
 								name = m[1]
 								text = text[len(m[0]):]
+								if val == 0 {
+									val = DiceRoll64(20)
+								}
 							} else {
 								// 不知道是啥，报错
 								return 2, name, val, detail
@@ -1514,6 +1521,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					".init help // 显示本帮助",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+						cmdArgs.ChopPrefixToArgsWith("del", "set", "rm")
 						n, _ := cmdArgs.GetArgN(1)
 						switch n {
 						case "", "list":

@@ -50,6 +50,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log on (<日志名>)  // 开始记录，不写日志名则开启最近一次日志，注意on后跟空格！
 .log off // 暂停记录
 .log end // 完成记录并发送日志文件
+.log halt // 强行关闭当前log，不上传日志
 .log list // 查看当前群的日志列表
 .log del <日志名> // 删除一份日志`
 
@@ -143,6 +144,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn {
 						group := ctx.Group
+						cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
 
 						if len(cmdArgs.Args) == 0 {
 							onText := "关闭"
@@ -235,6 +237,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 									text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s (密钥中不含ilo0字符)", password)
 									ReplyToSenderRaw(ctx, msg, text, "skip")
 								}
+								group.LogCurName = ""
+								return CmdExecuteResult{Matched: true, Solved: true}
+							} else if cmdArgs.IsArgEqual(1, "halt") {
+								text := DiceFormatTmpl(ctx, "日志:记录_结束")
+								ReplyToSender(ctx, msg, text)
+								group.LogOn = false
 								group.LogCurName = ""
 								return CmdExecuteResult{Matched: true, Solved: true}
 							} else if cmdArgs.IsArgEqual(1, "list") {
