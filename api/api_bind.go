@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sealdice-core/dice"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -19,6 +20,10 @@ const CODE_ALREADY_EXISTS = 602
 var startTime = time.Now().Unix()
 
 func baseInfo(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -249,6 +254,17 @@ func ImConnectionsAdd(c echo.Context) error {
 func doSignInGetSalt(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"salt": myDice.Parent.UIPasswordSalt,
+	})
+}
+
+func checkSecurity(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	isPublicService := strings.HasPrefix(myDice.Parent.ServeAddress, "0.0.0.0") || myDice.Parent.ServeAddress == ":3211"
+	isEmptyPassword := myDice.Parent.UIPasswordHash == ""
+	return c.JSON(200, map[string]bool{
+		"isOk": !(isEmptyPassword && isPublicService),
 	})
 }
 
@@ -510,4 +526,5 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST("/dice/exec", DiceExec)
 	e.POST("/signin", doSignIn)
 	e.GET("/signin/salt", doSignInGetSalt)
+	e.GET("/checkSecurity", checkSecurity)
 }
