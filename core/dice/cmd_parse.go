@@ -45,6 +45,7 @@ type CmdArgs struct {
 	MentionedOtherDice         bool      `json:"mentionedOtherDice"`
 	CleanArgs                  string
 	SpecialExecuteTimes        int // 特殊的执行次数，对应 3# 这种
+	CleanArgsChopRest          string
 }
 
 /** 检查第N项参数是否为某个字符串，n从1开始，若没有第n项参数也视为失败 */
@@ -60,17 +61,47 @@ func (a *CmdArgs) IsArgEqual(n int, ss ...string) bool {
 	return false
 }
 
-func (a *CmdArgs) IsPrefixWith(ss ...string) (string, bool) {
+func (a *CmdArgs) EatPrefixWith(ss ...string) (string, bool) {
 	text := a.CleanArgs
 	if len(text) > 0 {
 		for _, i := range ss {
+			if len(text) < len(i) {
+				continue
+			}
 			if strings.EqualFold(text[:len(i)], i) {
-				return text[len(i):], true
+				return strings.TrimSpace(text[len(i):]), true
 			}
 		}
 	}
 
 	return "", false
+}
+
+func (a *CmdArgs) ChopPrefixToArgsWith(ss ...string) bool {
+	if len(a.Args) > 0 {
+		text := a.Args[0]
+		for _, i := range ss {
+			if len(text) < len(i) {
+				continue
+			}
+			if strings.EqualFold(text[:len(i)], i) {
+				base := []string{i} // 要不要 toLower ?
+				t := strings.TrimSpace(text[len(i):])
+				if t != "" {
+					base = append(base, t)
+				}
+
+				a.Args = append(
+					base,
+					a.Args[1:]...,
+				)
+				a.CleanArgsChopRest = strings.TrimSpace(a.CleanArgs[len(i):])
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (a *CmdArgs) GetArgN(n int) (string, bool) {

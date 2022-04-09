@@ -214,11 +214,13 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		LongHelp: "抽牌命令: \n" + helpDraw,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				deckName, exists := cmdArgs.GetArgN(1)
 				if d.IsDeckLoading {
 					ReplyToSender(ctx, msg, "牌堆尚未就绪，可能正在重新装载")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
+				cmdArgs.ChopPrefixToArgsWith("list", "help", "reload", "search")
+				deckName, exists := cmdArgs.GetArgN(1)
 
 				if exists {
 					if strings.EqualFold(deckName, "list") {
@@ -268,7 +270,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 								right = 3
 							}
 
-							text := "找到以下牌堆:\n"
+							text := "找到以下牌组:\n"
 							for _, i := range matches[:right] {
 								text += "- " + i.Str + "\n"
 							}

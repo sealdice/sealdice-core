@@ -160,6 +160,7 @@ func (d *Dice) registerCoreCommands() {
 				text += ".help 骰主" + "\n"
 				text += ".help 其他" + "\n"
 				text += "官网(建设中): https://sealdice.com/" + "\n"
+				text += "手册: https://weizaima.com/manual/" + "\n"
 				text += "日志着色器: http://log.weizaima.com/" + "\n"
 				text += "海豹群: 524364253" + "\n"
 				//text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
@@ -174,8 +175,9 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["help"] = cmdHelp
 
 	cmdBot := &CmdItemInfo{
-		Name: "bot on/off/about/bye",
-		Help: ".bot on/off/about/bye // 开启、关闭、查看信息、退群",
+		Name:     "bot",
+		Help:     ".bot on/off/about/bye // 开启、关闭、查看信息、退群",
+		LongHelp: "骰子管理:\n.bot on/off/about/bye // 开启、关闭、查看信息、退群",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			inGroup := msg.MessageType == "group"
 			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
@@ -492,9 +494,11 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["send"] = cmdSend
 
+	HelpRoll := ".r <表达式> <原因> // 骰点指令\n.rh <表达式> <原因> // 暗骰"
 	cmdRoll := &CmdItemInfo{
-		Name: "roll",
-		Help: ".r <表达式> <原因> // 骰点指令\n.rh <表达式> <原因> // 暗骰",
+		Name:     "roll",
+		Help:     HelpRoll,
+		LongHelp: "骰点:\n" + HelpRoll,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -631,9 +635,11 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["rx"] = cmdRoll
 	d.CmdMap["rhx"] = cmdRoll
 
+	helpExt := ".ext // 查看扩展列表"
 	cmdExt := &CmdItemInfo{
-		Name: "ext",
-		Help: ".ext // 查看扩展列表",
+		Name:     "ext",
+		Help:     helpExt,
+		LongHelp: "群扩展模块管理:\n" + helpExt,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				showList := func() {
@@ -723,9 +729,11 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["ext"] = cmdExt
 
+	helpNN := ".nn <角色名> // 跟角色名则改为指定角色名，不带则重置角色名"
 	cmdNN := &CmdItemInfo{
-		Name: "nn <角色名>",
-		Help: ".nn <角色名> // 跟角色名则改为指定角色名，不带则重置角色名",
+		Name:     "nn",
+		Help:     helpNN,
+		LongHelp: "角色名设置:\n" + helpNN,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if len(cmdArgs.Args) == 0 {
@@ -751,7 +759,11 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["nn"] = cmdNN
 
-	helpSet := ".set <面数> // 设置默认骰子面数"
+	helpSet := ".set // 查看当前面数设置\n" +
+		".set <面数> // 设置群内骰子面数\n" +
+		".set <面数> --my // 设定个人专属骰子面数\n" +
+		".set clr // 清除群内骰子面数设置\n" +
+		".set clr --my // 清除个人骰子面数设置\n"
 	cmdSet := &CmdItemInfo{
 		Name:     "set",
 		Help:     helpSet,
@@ -865,6 +877,8 @@ func (d *Dice) registerCoreCommands() {
 		LongHelp: "角色管理:\n" + helpCh,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm")
+
 				getNickname := func() string {
 					name, _ := cmdArgs.GetArgN(2)
 					if name == "" {
@@ -1001,7 +1015,7 @@ func (d *Dice) registerCoreCommands() {
 						info = "\n状态: 关闭"
 					}
 					ReplyToSender(ctx, msg, "当前欢迎语: "+welcome+info)
-				} else if text, ok := cmdArgs.IsPrefixWith("set"); ok {
+				} else if text, ok := cmdArgs.EatPrefixWith("set"); ok {
 					ctx.Group.GroupWelcomeMessage = text
 					ReplyToSender(ctx, msg, "当前欢迎语设定为: "+text)
 				} else {

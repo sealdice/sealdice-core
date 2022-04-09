@@ -162,8 +162,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 	// guguRandomPool.Pick().(string)
 
 	cmdGugu := CmdItemInfo{
-		Name: "gugu",
-		Help: ".gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
+		Name:     "gugu",
+		Help:     ".gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
+		LongHelp: "人工智能鸽子:\n.gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				//p := getPlayerInfoBySender(session, msg)
@@ -185,12 +186,13 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 
 	cmdJrrp := CmdItemInfo{
-		Name: "jrrp",
-		Help: ".jrrp 获得一个D100随机值，一天内不会变化",
+		Name:     "jrrp",
+		Help:     ".jrrp 获得一个D100随机值，一天内不会变化",
+		LongHelp: "今日人品:\n.jrrp 获得一个D100随机值，一天内不会变化",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
-				//rpSeed += int64(fingerprint(ctx.EndPoint.UserId))
+				rpSeed += int64(fingerprint(ctx.EndPoint.UserId))
 				rpSeed += int64(fingerprint(ctx.Player.UserId))
 				rand.Seed(rpSeed)
 				rp := rand.Int63()%100 + 1
