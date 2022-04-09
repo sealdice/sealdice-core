@@ -19,6 +19,7 @@ type DiceManager struct {
 	UIPasswordHash string
 	UIPasswordSalt string
 	AccessTokens   map[string]bool
+	IsReady        bool
 }
 
 type DiceConfigs struct {
@@ -46,8 +47,15 @@ func (dm *DiceManager) LoadDice() {
 	os.MkdirAll("./data/names", 0755)
 	ioutil.WriteFile("./data/images/sealdice.png", ICON_PNG, 0644)
 
+	dm.AccessTokens = map[string]bool{}
+	if dm.UIPasswordSalt == "" {
+		// 旧版本升级，或新用户
+		dm.UIPasswordSalt = RandStringBytesMaskImprSrcSB2(32)
+	}
+
 	data, err := ioutil.ReadFile("./data/dice.yaml")
 	if err != nil {
+		// 注意！！！！ 这里会退出，所以下面的都可能不执行！
 		return
 	}
 
@@ -59,14 +67,14 @@ func (dm *DiceManager) LoadDice() {
 	}
 
 	if dc.UIPasswordSalt == "" {
-		dc.UIPasswordSalt = RandStringBytesMaskImprSrcSB2(32)
+		// 旧版本升级
+		dc.UIPasswordSalt = dm.UIPasswordSalt
 	}
 
 	dm.ServeAddress = dc.ServeAddress
 	dm.HelpDocEngineType = dc.HelpDocEngineType
 	dm.UIPasswordHash = dc.UIPasswordHash
 	dm.UIPasswordSalt = dc.UIPasswordSalt
-	dm.AccessTokens = map[string]bool{}
 
 	for _, i := range dc.AccessTokens {
 		dm.AccessTokens[i] = true

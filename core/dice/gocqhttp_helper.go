@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
@@ -441,6 +442,9 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	wd, _ := os.Getwd()
 	gocqhttpExePath, _ := filepath.Abs(filepath.Join(wd, "go-cqhttp/go-cqhttp"))
 	gocqhttpExePath = strings.Replace(gocqhttpExePath, "\\", "/", -1) // windows平台需要这个替换
+
+	// 随手执行一下
+	_ = exec.Command("chmod+x " + gocqhttpExePath).Run()
 
 	dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
 	p := procs.NewProcess(fmt.Sprintf(`"%s" faststart`, gocqhttpExePath))

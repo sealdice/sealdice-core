@@ -15,7 +15,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.13内测版 v20220409"
+var VERSION = "0.99.13.fix2内测版 v20220409"
 
 type CmdExecuteResult struct {
 	Matched       bool // 是否是指令
@@ -91,10 +91,10 @@ type Dice struct {
 	MasterUnlockCodeTime    int64                  `yaml:"-"`
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
-	InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
-	TextMapRaw           TextTemplateWithWeightDict `yaml:"-"`
-	TextMapHelpInfo      TextTemplateWithHelpDict   `yaml:"-"`
-	Parent               *DiceManager               `yaml:"-"`
+	//InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
+	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
+	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
+	Parent          *DiceManager               `yaml:"-"`
 
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
@@ -107,6 +107,7 @@ func (d *Dice) Init() {
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0755)
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "logs"), 0755)
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
+	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "baks"), 0755)
 
 	d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)

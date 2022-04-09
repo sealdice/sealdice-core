@@ -209,9 +209,10 @@ func uiServe(myDice *dice.DiceManager) {
 	//}
 }
 
-func checkCqHttpExists() bool {
-	if _, err := os.Stat("./go-cqhttp"); err == nil {
-		return true
-	}
-	return false
-}
+//
+//func checkCqHttpExists() bool {
+//	if _, err := os.Stat("./go-cqhttp"); err == nil {
+//		return true
+//	}
+//	return false
+//}
