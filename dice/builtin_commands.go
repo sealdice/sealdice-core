@@ -194,11 +194,11 @@ func (d *Dice) registerCoreCommands() {
 						serveCount += 1
 					}
 				}
-				lastSavedTimeText := "从未"
-				if d.LastSavedTime != nil {
-					lastSavedTimeText = d.LastSavedTime.Format("2006-01-02 15:04:05") + " UTC"
-				}
-				text := fmt.Sprintf("SealDice %s\n供职于%d个群，其中%d个处于开启状态\n上次自动保存时间: %s", VERSION, serveCount, count, lastSavedTimeText)
+				//lastSavedTimeText := "从未"
+				//if d.LastSavedTime != nil {
+				//	lastSavedTimeText = d.LastSavedTime.Format("2006-01-02 15:04:05") + " UTC"
+				//}
+				text := fmt.Sprintf("SealDice %s\n供职于%d个群，其中%d个处于开启状态", VERSION, serveCount, count)
 
 				if inGroup {
 					isActive := ctx.Group != nil && ctx.Group.Active
@@ -229,7 +229,7 @@ func (d *Dice) registerCoreCommands() {
 							//}
 							// 停止服务
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
-							return CmdExecuteResult{Matched: false, Solved: true}
+							return CmdExecuteResult{Matched: true, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
 							// 收到指令，5s后将退出当前群组
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
@@ -279,6 +279,7 @@ func (d *Dice) registerCoreCommands() {
 		".botlist add @A @B --s  // 同上，不过骰子不会做出回复\n" +
 		".botlist del @A @B @C // 去除机器人标记\n" +
 		".botlist list // 查看当前列表"
+
 	cmdBotList := &CmdItemInfo{
 		Name:     "botlist",
 		Help:     botListHelp,
@@ -969,6 +970,49 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["char"] = cmdChar
 	d.CmdMap["character"] = cmdChar
 	d.CmdMap["pc"] = cmdChar
+
+	botWelcomeHelp := ".welcome on // 开启\n" +
+		".welcome off // 关闭\n" +
+		".welcome show // 查看当前欢迎语\n" +
+		".welcome set <欢迎语> // 设定欢迎语"
+	cmdWelcome := &CmdItemInfo{
+		Name:     "welcome",
+		Help:     botWelcomeHelp,
+		LongHelp: "新人入群自动发言设定:\n" + botWelcomeHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsPrivate {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if ctx.IsCurGroupBotOn {
+				if cmdArgs.IsArgEqual(1, "on") {
+					ctx.Group.ShowGroupWelcome = true
+					ReplyToSender(ctx, msg, "入群欢迎语已打开")
+				} else if cmdArgs.IsArgEqual(1, "off") {
+					ctx.Group.ShowGroupWelcome = false
+					ReplyToSender(ctx, msg, "入群欢迎语已关闭")
+				} else if cmdArgs.IsArgEqual(1, "show") {
+					welcome := "<无内容>"
+					welcome = ctx.Group.GroupWelcomeMessage
+					var info string
+					if ctx.Group.ShowGroupWelcome {
+						info = "\n状态: 开启"
+					} else {
+						info = "\n状态: 关闭"
+					}
+					ReplyToSender(ctx, msg, "当前欢迎语: "+welcome+info)
+				} else if text, ok := cmdArgs.IsPrefixWith("set"); ok {
+					ctx.Group.GroupWelcomeMessage = text
+					ReplyToSender(ctx, msg, "当前欢迎语设定为: "+text)
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+	d.CmdMap["welcome"] = cmdWelcome
 }
 
 func getDefaultDicePoints(ctx *MsgContext) int64 {

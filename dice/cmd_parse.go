@@ -60,6 +60,19 @@ func (a *CmdArgs) IsArgEqual(n int, ss ...string) bool {
 	return false
 }
 
+func (a *CmdArgs) IsPrefixWith(ss ...string) (string, bool) {
+	text := a.CleanArgs
+	if len(text) > 0 {
+		for _, i := range ss {
+			if strings.EqualFold(text[:len(i)], i) {
+				return text[len(i):], true
+			}
+		}
+	}
+
+	return "", false
+}
+
 func (a *CmdArgs) GetArgN(n int) (string, bool) {
 	if len(a.Args) >= n {
 		return a.Args[n-1], true

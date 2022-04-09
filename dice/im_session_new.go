@@ -66,6 +66,12 @@ type GroupInfo struct {
 	CocRuleIndex int              `yaml:"cocRuleIndex"`
 	LogCurName   string           `yaml:"logCurFile"`
 	LogOn        bool             `yaml:"logOn"`
+
+	QuitMarkAutoClean   bool   `yaml:"-"`                 // 自动清群 - 播报，即将自动退出群组
+	QuitMarkMaster      bool   `yaml:"-"`                 // 骰主命令退群 - 播报，即将自动退出群组
+	RecentCommandTime   int64  `yaml:"recentCommandTime"` // 最近一次发送有效指令的时间
+	ShowGroupWelcome    bool   `yaml:"showGroupWelcome"`
+	GroupWelcomeMessage string `yaml:"groupWelcomeMessage"`
 }
 
 // ExtActive 开启扩展
@@ -338,6 +344,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					ep.CmdExecutedNum += 1
 					ep.CmdExecutedLastTime = time.Now().Unix()
 					mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
+					if mctx.Group != nil {
+						mctx.Group.RecentCommandTime = ep.CmdExecutedLastTime
+					}
 				} else {
 					if msg.MessageType == "group" {
 						log.Infof("忽略指令(骰子关闭/扩展关闭/未知指令): 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)

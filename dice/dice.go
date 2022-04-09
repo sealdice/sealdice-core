@@ -86,8 +86,7 @@ type Dice struct {
 	MessageDelayRangeEnd    float64                `yaml:"messageDelayRangeEnd"`
 	WorkInQQChannel         bool                   `yaml:"workInQQChannel"`
 	UILogLimit              int64                  `yaml:"UILogLimit"`
-	ShowGroupWelcome        bool                   `yaml:"showGroupWelcome"` // 入群欢迎词
-	MasterUnlockCode        string                 `yaml:"-"`                // 解锁码，每20分钟变化一次，使用后立即变化
+	MasterUnlockCode        string                 `yaml:"-"` // 解锁码，每20分钟变化一次，使用后立即变化
 	MasterUnlockCodeTime    int64                  `yaml:"-"`
 
 	//ConfigVersion         int                    `yaml:"configVersion"`

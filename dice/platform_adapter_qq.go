@@ -261,6 +261,13 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 						pa.ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子进群"))
 					}()
 					log.Infof("加入群组: (%d)", msgQQ.GroupId)
+				} else {
+					group := session.ServiceAtNew[msg.GroupId]
+					// 进群的是别人，是否迎新？
+					if group != nil && group.ShowGroupWelcome {
+						//VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
+						pa.ReplyGroup(ctx, msg, DiceFormat(ctx, group.GroupWelcomeMessage))
+					}
 				}
 				return
 			}
