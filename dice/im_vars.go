@@ -324,15 +324,17 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 
 		// QQ-Group:131687852-QQ:303451945
 		data := model.AttrGroupUserGetAll(dice.DB, group.GroupId, player.UserId)
-		mapData := make(map[string]*VMValue)
-		err := JsonValueMapUnmarshal(data, &mapData)
+		if len(data) > 0 {
+			mapData := make(map[string]*VMValue)
+			err := JsonValueMapUnmarshal(data, &mapData)
 
-		for k, v := range mapData {
-			vd.ValueMap.Set(k, v)
-		}
-		if err != nil {
-			dice.Logger.Error(err)
-			dice.Logger.Error(group.GroupId, player.UserId, string(data))
+			for k, v := range mapData {
+				vd.ValueMap.Set(k, v)
+			}
+			if err != nil {
+				dice.Logger.Errorf("加载玩家数据失败%s-%s: %s", group.GroupId, player.UserId, string(err.Error()))
+				//dice.Logger.Error(group.GroupId, player.UserId, string(data))
+			}
 		}
 	}
 
