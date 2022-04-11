@@ -80,6 +80,12 @@ type MessageQQ struct {
 	Echo int `json:"echo"`
 }
 
+type LastWelcomeInfo struct {
+	UserId  int64
+	GroupId int64
+	Time    int64
+}
+
 func (msgQQ *MessageQQ) toStdMessage() *Message {
 	msg := new(Message)
 	msg.Time = msgQQ.Time
@@ -142,6 +148,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 	// 疑似消息发送成功？等等 是不是可以用来取一下log
 	// {"data":{"message_id":-1541043078},"retcode":0,"status":"ok"}
+	var lastWelcome *LastWelcomeInfo
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		//fmt.Println("!!!", message)
@@ -273,10 +280,25 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				} else {
 					group := session.ServiceAtNew[msg.GroupId]
 					// 进群的是别人，是否迎新？
-					//fmt.Println(message)
+					// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
+					// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
 					if group != nil && group.ShowGroupWelcome {
-						//VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
-						pa.SendToGroup(ctx, msg.GroupId, DiceFormat(ctx, group.GroupWelcomeMessage), "")
+						isDouble := false
+						if lastWelcome != nil {
+							isDouble = msgQQ.GroupId == lastWelcome.GroupId &&
+								msgQQ.UserId == lastWelcome.UserId &&
+								msgQQ.Time == lastWelcome.Time
+						}
+						lastWelcome = &LastWelcomeInfo{
+							GroupId: msgQQ.GroupId,
+							UserId:  msgQQ.UserId,
+							Time:    msgQQ.Time,
+						}
+
+						if !isDouble {
+							//VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
+							pa.SendToGroup(ctx, msg.GroupId, DiceFormat(ctx, group.GroupWelcomeMessage), "")
+						}
 					}
 				}
 				return
