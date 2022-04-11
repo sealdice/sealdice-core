@@ -250,7 +250,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				go func() {
 					// 稍作等待后发送入群致词
 					time.Sleep(2 * time.Second)
-					pa.ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子成为好友"))
+					pa.SendToPerson(ctx, msg.Sender.UserId, DiceFormatTmpl(ctx, "核心:骰子成为好友"), "")
 				}()
 				return
 			}
@@ -267,15 +267,16 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					go func() {
 						// 稍作等待后发送入群致词
 						time.Sleep(2 * time.Second)
-						pa.ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子进群"))
+						pa.SendToGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
 					}()
 					log.Infof("加入群组: (%d)", msgQQ.GroupId)
 				} else {
 					group := session.ServiceAtNew[msg.GroupId]
 					// 进群的是别人，是否迎新？
+					//fmt.Println(message)
 					if group != nil && group.ShowGroupWelcome {
 						//VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
-						pa.ReplyGroup(ctx, msg, DiceFormat(ctx, group.GroupWelcomeMessage))
+						pa.SendToGroup(ctx, msg.GroupId, DiceFormat(ctx, group.GroupWelcomeMessage), "")
 					}
 				}
 				return

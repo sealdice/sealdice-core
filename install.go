@@ -25,7 +25,7 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
-func serviceInstall(isInstall bool) {
+func serviceInstall(isInstall bool, user string) {
 	cwd, _ := os.Getwd()
 	wd, _ := filepath.Abs(cwd)
 
@@ -34,6 +34,10 @@ func serviceInstall(isInstall bool) {
 		DisplayName:      "SealDice Service",
 		Description:      "SealDice: A TRPG Dice Bot Service.",
 		WorkingDirectory: wd,
+	}
+
+	if user != "" {
+		svcConfig.UserName = user
 	}
 
 	prg := &program{}
