@@ -93,20 +93,25 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	return group, p
 }
 
+func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
+	inGroup := msg.MessageType == "group"
+	if inGroup {
+		ctx.EndPoint.Adapter.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(text), flag)
+	} else {
+		ctx.EndPoint.Adapter.SendToPerson(ctx, msg.Sender.UserId, strings.TrimSpace(text), flag)
+	}
+}
+
 func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
-	ctx.EndPoint.Adapter.ReplyToSender(ctx, msg, strings.TrimSpace(text))
+	ReplyToSenderRaw(ctx, msg, text, "")
 }
 
 func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
-	ctx.EndPoint.Adapter.ReplyGroup(ctx, msg, strings.TrimSpace(text))
+	ctx.EndPoint.Adapter.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(text), "")
 }
 
 func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
-	ctx.EndPoint.Adapter.ReplyPerson(ctx, msg, strings.TrimSpace(text))
-}
-
-func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
-	ctx.EndPoint.Adapter.ReplyToSenderRaw(ctx, msg, strings.TrimSpace(text), flag)
+	ctx.EndPoint.Adapter.SendToPerson(ctx, msg.Sender.UserId, strings.TrimSpace(text), "")
 }
 
 type ByLength []string

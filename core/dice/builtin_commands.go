@@ -481,7 +481,7 @@ func (d *Dice) registerCoreCommands() {
 						}
 
 						text += cmdArgs.CleanArgs
-						ctx.EndPoint.Adapter.SendTo(ctx, uid, text)
+						ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")
 						//replyPersonRaw(ctx, val, text, "")
 					}
 					ReplyToSender(ctx, msg, "您的留言已被记录，另外注意不要滥用此功能，祝您生活愉快，再会。")

@@ -434,7 +434,8 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		// 改为：如果不存在，帮他创建
 		p, _ := GetRandomFreePort()
 		pa.ConnectUrl = fmt.Sprintf("ws://localhost:%d", p)
-		c := GenerateConfig(pa.mustExtractId(conn.UserId), password, p)
+		qqid, _ := pa.mustExtractId(conn.UserId)
+		c := GenerateConfig(qqid, password, p)
 		ioutil.WriteFile(configFilePath, []byte(c), 0644)
 	}
 
@@ -444,7 +445,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	gocqhttpExePath = strings.Replace(gocqhttpExePath, "\\", "/", -1) // windows平台需要这个替换
 
 	// 随手执行一下
-	_ = exec.Command("chmod+x " + gocqhttpExePath).Run()
+	_ = exec.Command("chmod +x " + gocqhttpExePath).Run()
 
 	dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
 	p := procs.NewProcess(fmt.Sprintf(`"%s" faststart`, gocqhttpExePath))

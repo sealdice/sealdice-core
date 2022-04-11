@@ -27,10 +27,11 @@ extensions/
 
 func main() {
 	var opts struct {
-		Install                bool `short:"i" long:"install" description:"安装为系统服务"`
-		Uninstall              bool `long:"uninstall" description:"删除系统服务"`
-		ShowConsole            bool `long:"show-console" description:"Windows上显示控制台界面"`
-		MultiInstanceOnWindows bool `short:"m" long:"multi-instance" description:"允许在Windows上运行多个海豹"`
+		Install                bool   `short:"i" long:"install" description:"安装为系统服务"`
+		Uninstall              bool   `long:"uninstall" description:"删除系统服务"`
+		ShowConsole            bool   `long:"show-console" description:"Windows上显示控制台界面"`
+		ServiceUser            string `long:"service-user" description:"用于启动服务的用户"`
+		MultiInstanceOnWindows bool   `short:"m" long:"multi-instance" description:"允许在Windows上运行多个海豹"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -39,12 +40,12 @@ func main() {
 	}
 
 	if opts.Install {
-		serviceInstall(true)
+		serviceInstall(true, opts.ServiceUser)
 		return
 	}
 
 	if opts.Uninstall {
-		serviceInstall(false)
+		serviceInstall(false, "")
 		return
 	}
 

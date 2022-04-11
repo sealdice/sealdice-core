@@ -15,20 +15,28 @@ type oneBotCommand struct {
 	Echo   int64       `json:"echo"`
 }
 
-func (pa *PlatformAdapterQQOnebot) mustExtractId(id string) int64 {
+type QQUidType int
+
+const (
+	QQUidPerson QQUidType = 0
+	QQUidGroup  QQUidType = 1
+	//QQUidPerson QQUidType = 0
+)
+
+func (pa *PlatformAdapterQQOnebot) mustExtractId(id string) (int64, QQUidType) {
 	if strings.HasPrefix(id, "QQ:") {
 		num, _ := strconv.ParseInt(id[len("QQ:"):], 10, 64)
-		return num
+		return num, QQUidPerson
 	}
 	if strings.HasPrefix(id, "QQ-Group:") {
 		num, _ := strconv.ParseInt(id[len("QQ-Group:"):], 10, 64)
-		return num
+		return num, QQUidGroup
 	}
 	if strings.HasPrefix(id, "PG-QQ:") {
 		num, _ := strconv.ParseInt(id[len("PG-QQ:"):], 10, 64)
-		return num
+		return num, QQUidPerson
 	}
-	return 0
+	return 0, QQUidPerson
 }
 
 func (pa *PlatformAdapterQQOnebot) mustExtractChannelId(id string) string {
@@ -46,7 +54,7 @@ func (pa *PlatformAdapterQQOnebot) GetGroupInfoAsync(groupId string) {
 	type GroupMessageParams struct {
 		GroupId int64 `json:"group_id"`
 	}
-	realGroupId := pa.mustExtractId(groupId)
+	realGroupId, _ := pa.mustExtractId(groupId)
 
 	a, _ := json.Marshal(oneBotCommand{
 		"get_group_info",
@@ -71,30 +79,8 @@ func socketSendText(socket *gowebsocket.Socket, s string) {
 	}
 }
 
-func (pa *PlatformAdapterQQOnebot) ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
-	inGroup := msg.MessageType == "group"
-	if inGroup {
-		pa.ReplyGroupWithFlag(ctx, msg, text, flag)
-	} else {
-		pa.ReplyPersonWithFlag(ctx, msg, text, flag)
-	}
-}
-
-func (pa *PlatformAdapterQQOnebot) ReplyToSender(ctx *MsgContext, msg *Message, text string) {
-	pa.ReplyToSenderRaw(ctx, msg, text, "")
-}
-
-// ReplyPerson 私聊回复
-func (pa *PlatformAdapterQQOnebot) ReplyPerson(ctx *MsgContext, msg *Message, text string) {
-	pa.ReplyPersonWithFlag(ctx, msg, text, "")
-}
-
-func (pa *PlatformAdapterQQOnebot) ReplyPersonWithFlag(ctx *MsgContext, msg *Message, text string, flag string) {
-	pa.replyPersonRaw(ctx, msg.Sender.UserId, text, flag)
-}
-
-func (pa *PlatformAdapterQQOnebot) replyPersonRaw(ctx *MsgContext, userId string, text string, flag string) {
-	rawId := pa.mustExtractId(userId)
+func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
+	rawId, _ := pa.mustExtractId(userId)
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
 			i.OnMessageSend(ctx, "private", userId, text, flag)
@@ -128,25 +114,8 @@ func (pa *PlatformAdapterQQOnebot) replyPersonRaw(ctx *MsgContext, userId string
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterQQOnebot) SendTo(ctx *MsgContext, uid string, text string) {
-	if strings.HasPrefix(uid, "QQ:") {
-		pa.replyPersonRaw(ctx, uid, text, "")
-	}
-	if strings.HasPrefix(uid, "QQ-Group:") {
-		pa.replyGroupRaw(ctx, uid, text, "")
-	}
-}
-
-func (pa *PlatformAdapterQQOnebot) ReplyGroup(ctx *MsgContext, msg *Message, text string) {
-	pa.ReplyGroupWithFlag(ctx, msg, text, "")
-}
-
-func (pa *PlatformAdapterQQOnebot) ReplyGroupWithFlag(ctx *MsgContext, msg *Message, text string, flag string) {
-	pa.replyGroupRaw(ctx, msg.GroupId, text, flag)
-}
-
-func (pa *PlatformAdapterQQOnebot) replyGroupRaw(ctx *MsgContext, groupId string, text string, flag string) {
-	rawId := pa.mustExtractId(groupId)
+func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
+	rawId, _ := pa.mustExtractId(groupId)
 
 	if ctx.Session.ServiceAtNew[groupId] != nil {
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
@@ -268,7 +237,7 @@ func (pa *PlatformAdapterQQOnebot) SetFriendAddRequest(flag string, approve bool
 }
 
 func (pa *PlatformAdapterQQOnebot) QuitGroup(ctx *MsgContext, id string) {
-	groupId := pa.mustExtractId(id)
+	groupId, _ := pa.mustExtractId(id)
 	type GroupMessageParams struct {
 		GroupId int64 `json:"group_id"`
 	}
