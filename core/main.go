@@ -32,6 +32,7 @@ func main() {
 		ShowConsole            bool   `long:"show-console" description:"Windows上显示控制台界面"`
 		ServiceUser            string `long:"service-user" description:"用于启动服务的用户"`
 		MultiInstanceOnWindows bool   `short:"m" long:"multi-instance" description:"允许在Windows上运行多个海豹"`
+		Address                string `long:"address" description:"将UI的http服务地址改为此值，例: 0.0.0.0:3221"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -119,8 +120,8 @@ func main() {
 		signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		select {
 		case <-interrupt:
-			time.Sleep(time.Duration(7 * time.Second))
-			logger.Info("7s仍未关闭，稍后强制退出……")
+			time.Sleep(time.Duration(5 * time.Second))
+			logger.Info("5s仍未关闭，稍后强制退出……")
 			cleanUp()
 			time.Sleep(time.Duration(3 * time.Second))
 			os.Exit(0)
@@ -129,6 +130,11 @@ func main() {
 
 	for _, d := range diceManager.Dice {
 		go diceServe(d)
+	}
+
+	if opts.Address != "" {
+		fmt.Println("由参数输入了服务地址:", opts.Address)
+		diceManager.ServeAddress = opts.Address
 	}
 
 	uiServe(diceManager)
