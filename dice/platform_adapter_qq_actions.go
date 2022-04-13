@@ -89,7 +89,6 @@ func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, 
 
 	if ctx.Dice != nil {
 		d := ctx.Dice
-		ctx.Dice.Logger.Infof("发给(帐号%s): %s", userId, text)
 		offset := d.MessageDelayRangeEnd - d.MessageDelayRangeStart
 		time.Sleep(time.Duration((d.MessageDelayRangeStart + rand.Float64()*offset) * float64(time.Second)))
 	} else {
@@ -126,9 +125,12 @@ func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, 
 	}
 
 	if ctx.Dice != nil {
-		ctx.Dice.Logger.Infof("发给(群%s): %s", groupId, text)
+		d := ctx.Dice
+		offset := d.MessageDelayRangeEnd - d.MessageDelayRangeStart
+		time.Sleep(time.Duration((d.MessageDelayRangeStart + rand.Float64()*offset) * float64(time.Second)))
+	} else {
+		time.Sleep(time.Duration((0.4 + rand.Float64()/2) * float64(time.Second)))
 	}
-	time.Sleep(time.Duration((0.4 + rand.Float64()/2) * float64(time.Second)))
 
 	type GroupMessageParams struct {
 		GroupId int64  `json:"group_id"`

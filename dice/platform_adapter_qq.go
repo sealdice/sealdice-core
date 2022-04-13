@@ -159,7 +159,6 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 		msgQQ := new(MessageQQ)
 		err := json.Unmarshal([]byte(message), msgQQ)
-		//fmt.Println("???", message)
 
 		if err == nil {
 			// 心跳包，忽略
@@ -214,7 +213,8 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 						// TODO: 这玩意的创建是个专业活，等下来弄
 						//session.ServiceAtNew[groupId] = GroupInfo{}
 					}
-					log.Debug("群信息刷新: ", msgQQ.Data.GroupName)
+					// 这句话太吵了
+					//log.Debug("群信息刷新: ", msgQQ.Data.GroupName)
 				}
 				return
 			}

@@ -32,7 +32,7 @@ func main() {
 		ShowConsole            bool   `long:"show-console" description:"Windows上显示控制台界面"`
 		ServiceUser            string `long:"service-user" description:"用于启动服务的用户"`
 		MultiInstanceOnWindows bool   `short:"m" long:"multi-instance" description:"允许在Windows上运行多个海豹"`
-		Address                string `long:"address" description:"将UI的http服务地址改为此值，例: 0.0.0.0:3221"`
+		Address                string `long:"address" description:"将UI的http服务地址改为此值，例: 0.0.0.0:3211"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
