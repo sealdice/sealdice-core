@@ -525,6 +525,8 @@ func loadTextTemplate(d *Dice, fn string) {
 		}
 
 		SetupTextHelpInfo(d, d.TextMapHelpInfo, texts, fn)
+	} else {
+		d.Logger.Info("未检测到自定义文本文件，即将进行创建。")
 	}
 }
 
