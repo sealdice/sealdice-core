@@ -289,7 +289,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{"<{核心:骰子名字}> 停止服务", 1},
 			},
 			"骰子进群": {
-				{`<{核心:骰子名字}> 已经就绪。可通过.help查看指令列表\n[图:data/images/sealdice.png]`, 1},
+				{`<{核心:骰子名字}> 已经就绪。可通过.help查看手册和指令列表\n[图:data/images/sealdice.png]\nDND玩家可以使用.ext dnd5e on开启特化指令支持`, 1},
 			},
 			//"骰子群内迎新": {
 			//	{`欢迎，{$新人昵称}，祝你在这里过得愉快`, 1},
@@ -634,7 +634,7 @@ func (d *Dice) loads() {
 				m[i.Name] = i
 			}
 
-			if d.VersionCode < 9913 {
+			if d.VersionCode != 0 && d.VersionCode < 9913 {
 				// 进行配置文件的升级
 				d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 9913)
 				d.MessageDelayRangeStart = 0.4
@@ -755,7 +755,7 @@ func (d *Dice) loads() {
 					g.BotList = map[string]bool{}
 				}
 
-				if d.VersionCode < 9909 {
+				if d.VersionCode != 0 && d.VersionCode < 9909 {
 					ei := d.ExtFind("story")
 					g.ExtActive(ei)
 					ei = d.ExtFind("dnd5e")
@@ -801,6 +801,7 @@ func (d *Dice) loads() {
 		d.CommandPrefix = []string{
 			".",
 			"。",
+			"/",
 		}
 	}
 
