@@ -152,6 +152,11 @@ func (m *HelpManager) Load() {
 	m.AddItem(HelpTextItem{
 		Title: "扩展",
 		Content: `.help 扩展：
+扩展功能可以让你开关部分指令。
+例如你希望你的骰子是纯TRPG骰，那么可以通过.ext xxx off关闭一系列娱乐模块。
+或者目前正在进行dnd5e游戏，你可以通过如下指令开关dnd特化扩展。COC亦然。
+注意一点，不同扩展允许存在同名指令，例如dnd和coc都有st和rc，但他们本质上不是同一个指令，并不通用，还请注意。
+
 .ext coc7 on // 打开coc7版扩展
 .ext dnd5e off // 关闭dnd5版扩展
 

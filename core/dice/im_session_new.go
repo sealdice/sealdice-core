@@ -122,7 +122,8 @@ type EndPointInfoBase struct {
 	Enable       bool   `yaml:"enable" json:"enable"`         // 是否启用
 	ProtocolType string `yaml:"protocolType"`                 // 协议类型，如onebot、koishi等
 
-	Session *IMSession `yaml:"-" json:"-"`
+	IsPublic bool       `yaml:"isPublic"`
+	Session  *IMSession `yaml:"-" json:"-"`
 }
 
 type EndPointInfo struct {

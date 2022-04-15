@@ -324,7 +324,7 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 	if err == nil {
 		// 压缩log，发往后端
 		data, err := json.Marshal(map[string]interface{}{
-			"items": lines,
+			"Items": lines,
 		})
 
 		if err == nil {

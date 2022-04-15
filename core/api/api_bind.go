@@ -56,42 +56,6 @@ func hello2(c echo.Context) error {
 var myDice *dice.Dice
 var dm *dice.DiceManager
 
-func customText(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"texts":    myDice.TextMapRaw,
-		"helpInfo": myDice.TextMapHelpInfo,
-	})
-}
-
-func customTextSave(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-
-	v := struct {
-		Category string                      `form:"category" json:"category"`
-		Data     dice.TextTemplateWithWeight `form:"data" json:"data"`
-	}{}
-	err := c.Bind(&v)
-	if err == nil {
-		for _, v1 := range v.Data {
-			for _, v2 := range v1 {
-				v2[1] = int(v2[1].(float64))
-			}
-		}
-		myDice.TextMapRaw[v.Category] = v.Data
-		dice.SetupTextHelpInfo(myDice, myDice.TextMapHelpInfo, myDice.TextMapRaw, "configs/text-template.yaml")
-		myDice.GenerateTextMap()
-		myDice.SaveText()
-		return c.String(http.StatusOK, "")
-	}
-	return c.String(430, "")
-}
-
 func ImConnections(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -514,16 +478,20 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET("/baseInfo", baseInfo)
 	e.GET("/hello", hello2)
 	e.GET("/log/fetchAndClear", logFetchAndClear)
-	e.GET("/configs/customText", customText)
 	e.GET("/im_connections/list", ImConnections)
 	e.GET("/im_connections/get", ImConnectionsGet)
 
 	e.POST("/im_connections/qrcode", ImConnectionsQrcodeGet)
-	e.POST("/configs/customText/save", customTextSave)
 	e.POST("/im_connections/add", ImConnectionsAdd)
 	e.POST("/im_connections/del", ImConnectionsDel)
 	e.POST("/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST("/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
+
+	e.GET("/configs/customText", customText)
+	e.POST("/configs/customText/save", customTextSave)
+
+	e.GET("/configs/customReply", customReply)
+	e.POST("/configs/customReply/save", customReplySave)
 
 	e.GET("/dice/config/get", DiceConfig)
 	e.POST("/dice/config/set", DiceConfigSet)
