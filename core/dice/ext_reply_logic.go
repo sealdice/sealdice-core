@@ -229,7 +229,6 @@ func (ri *ReplyItem) UnmarshalYAML(value *yaml.Node) error {
 				if err != nil {
 					return err
 				}
-				fmt.Println("xxx", tmp)
 				ri.Condition = tmp.(ReplyConditionBase)
 			}
 		}

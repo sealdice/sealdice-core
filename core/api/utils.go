@@ -16,6 +16,9 @@ func Int64ToBytes(i int64) []byte {
 
 func doAuth(c echo.Context) bool {
 	token := c.Request().Header.Get("token")
+	if token == "" {
+		token = c.QueryParam("token")
+	}
 	if myDice.Parent.AccessTokens[token] {
 		return true
 	}

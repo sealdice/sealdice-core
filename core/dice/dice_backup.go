@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/json"
 	"github.com/alexmullins/zip"
 	"io/fs"
 	"io/ioutil"
@@ -106,6 +107,17 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) error {
 		}
 	}
 
+	// 写入文件信息
+	data, _ := json.Marshal(map[string]interface{}{
+		"config":      cfg,
+		"version":     VERSION,
+		"versionCode": VERSION_CODE,
+	})
+
+	h := &zip.FileHeader{Name: "backup_info.json", Method: zip.Deflate, Flags: 0x800}
+	fileWriter, _ := writer.CreateHeader(h)
+	fileWriter.Write(data)
+
 	writer.Close()
 	fzip.Close()
 	return nil
@@ -124,7 +136,7 @@ func (dm *DiceManager) BackupAuto() error {
 				Accounts:    true,
 			},
 		},
-	}, "data-bak-"+time.Now().Format("2006_01_02_15_04_05")+"_auto_"+"*.zip")
+	}, "bak-"+time.Now().Format("060102_150405")+"_auto_"+"*.zip")
 }
 
 func (dm *DiceManager) BackupSimple() error {
@@ -140,5 +152,5 @@ func (dm *DiceManager) BackupSimple() error {
 				Accounts:    true,
 			},
 		},
-	}, "data-bak-"+time.Now().Format("2006_01_02_15_04_05")+"_"+"*.zip")
+	}, "bak-"+time.Now().Format("060102_150405")+"_"+"*.zip")
 }
