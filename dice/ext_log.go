@@ -538,6 +538,13 @@ func LogAppend(ctx *MsgContext, group *GroupInfo, l *LogOneItem) error {
 				return err
 			}
 
+			// 每记录1000条发出提示
+			size := b.Stats().KeyN
+			if size > 0 && size%500 == 0 {
+				text := fmt.Sprintf("提示: 当前故事的文本已经记录了 %d 条", size)
+				ReplyToSenderRaw(ctx, &Message{MessageType: "group", GroupId: group.GroupId}, text, "skip")
+			}
+
 			return b.Put(itob(l.Id), buf)
 		}
 		return err
