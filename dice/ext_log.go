@@ -146,6 +146,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 						group := ctx.Group
 						cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
 
+						groupNotActiveCheck := func() bool {
+							if !group.Active {
+								ReplyToSender(ctx, msg, "未开启时不会记录日志，请先.bot on")
+								return true
+							}
+							return false
+						}
+
 						if len(cmdArgs.Args) == 0 {
 							onText := "关闭"
 							if group.LogOn {
@@ -166,6 +174,10 @@ func RegisterBuiltinExtLog(self *Dice) {
 									lines, exists := LogLinesGet(ctx, group, name)
 
 									if exists {
+										if groupNotActiveCheck() {
+											return CmdExecuteResult{Matched: true, Solved: true}
+										}
+
 										group.LogOn = true
 										group.LogCurName = name
 
@@ -266,6 +278,10 @@ func RegisterBuiltinExtLog(self *Dice) {
 								if group.LogCurName != "" && name == "" {
 									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
 								} else {
+									if groupNotActiveCheck() {
+										return CmdExecuteResult{Matched: true, Solved: true}
+									}
+
 									if name == "" {
 										todayTime := time.Now().Format("2006_01_02_15_04_05")
 										name = todayTime
