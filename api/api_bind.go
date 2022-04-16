@@ -504,4 +504,5 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST("/backup/do_backup", backupSimple)
 	e.GET("/backup/config_get", backupConfigGet)
 	e.POST("/backup/config_set", backupConfigSave)
+	e.GET("/backup/download", backupDownload)
 }

@@ -16,6 +16,7 @@ import (
 
 var APPNAME = "SealDice"
 var VERSION = "0.99.14 v20220415dev"
+var VERSION_CODE = 991400
 
 type CmdExecuteResult struct {
 	Matched       bool // 是否是指令
@@ -83,8 +84,7 @@ type Dice struct {
 	DiceMasters             []string               `yaml:"diceMasters"`             // 骰主设置，需要格式: 平台:帐号
 	OnlyLogCommandInGroup   bool                   `yaml:"onlyLogCommandInGroup"`   // 日志中仅记录命令
 	OnlyLogCommandInPrivate bool                   `yaml:"onlyLogCommandInPrivate"` // 日志中仅记录命令
-	VersionCode             int                    `json:"versionCode"`             // 版本ID
-	VersionCodeOnline       int                    `yaml:"versionCodeOnline"`       // 版本ID - 线上
+	VersionCode             int                    `json:"versionCode"`             // 版本ID(配置文件)
 	MessageDelayRangeStart  float64                `yaml:"messageDelayRangeStart"`  // 指令延迟区间
 	MessageDelayRangeEnd    float64                `yaml:"messageDelayRangeEnd"`
 	WorkInQQChannel         bool                   `yaml:"workInQQChannel"`

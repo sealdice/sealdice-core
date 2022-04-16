@@ -151,6 +151,7 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 }
 
 func DiceFormat(ctx *MsgContext, s string) string {
+	s = strings.ReplaceAll(s, "\n", `\n`)
 	r, _, _ := ctx.Dice.ExprText(s, ctx)
 
 	convert := func(s string) string {

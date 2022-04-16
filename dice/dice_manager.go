@@ -24,7 +24,11 @@ type DiceManager struct {
 
 	AutoBackupEnable bool
 	AutoBackupTime   string
-	Cron             *cron.Cron
+
+	AppVersionCode       int
+	AppVersionCodeOnline int // 版本ID - 线上
+
+	Cron *cron.Cron
 }
 
 type DiceConfigs struct {
@@ -50,6 +54,8 @@ func (dm *DiceManager) InitHelp() {
 }
 
 func (dm *DiceManager) LoadDice() {
+	dm.AppVersionCode = VERSION_CODE
+
 	os.MkdirAll("./backups", 0755)
 	os.MkdirAll("./data/images", 0755)
 	os.MkdirAll("./data/decks", 0755)
