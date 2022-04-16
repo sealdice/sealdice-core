@@ -28,6 +28,7 @@ require (
 	github.com/mroth/weightedrand v0.4.1
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/poy/onpar v1.1.2 // indirect
+	github.com/robfig/cron/v3 v3.0.0 // indirect
 	github.com/sacOO7/gowebsocket v0.0.0-20210515122958-9396f1a71e23
 	github.com/sahilm/fuzzy v0.1.0
 	github.com/xuri/excelize/v2 v2.5.0

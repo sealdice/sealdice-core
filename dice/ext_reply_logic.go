@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"reflect"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -22,7 +23,7 @@ type ReplyResultBase interface {
 // ReplyConditionMatch 文本匹配 // match
 type ReplyConditionMatch struct {
 	CondType  string `yaml:"condType" json:"condType"`
-	MatchType string `yaml:"matchType" json:"matchType"` // match_exact 精确 match_regex 正则 match_fuzzy 模糊
+	MatchType string `yaml:"matchType" json:"matchType"` // matchExact 精确 matchRegex 正则 matchFuzzy 模糊
 	Value     string `yaml:"value" json:"value"`
 }
 
@@ -36,15 +37,18 @@ func strCompare(a string, b string) float64 {
 func (m *ReplyConditionMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool {
 	var ret bool
 	switch m.MatchType {
-	case "match_exact":
+	case "matchExact":
 		ret = msg.Message == m.Value
-		fmt.Println("???", msg.Message, m.Value, ret)
-	case "match_regex":
+	case "matchPrefix":
+		ret = strings.HasPrefix(msg.Message, m.Value)
+	case "matchSuffix":
+		ret = strings.HasSuffix(msg.Message, m.Value)
+	case "matchRegex":
 		re, err := regexp.Compile(m.Value)
 		if err == nil {
 			ret = re.MatchString(msg.Message)
 		}
-	case "match_fuzzy":
+	case "matchFuzzy":
 		return strCompare(m.Value, msg.Message) > 0.7
 	}
 	return ret
@@ -113,8 +117,9 @@ type ReplyItem struct {
 }
 
 type ReplyConfig struct {
-	Enable bool         `yaml:"enable" json:"enable"`
-	Items  []*ReplyItem `yaml:"items" json:"items"`
+	Enable   bool         `yaml:"enable" json:"enable"`
+	Interval float64      `yaml:"interval" json:"interval"` // 响应间隔，最少为5
+	Items    []*ReplyItem `yaml:"items" json:"items"`
 }
 
 func (c *ReplyConfig) Save(dice *Dice) {

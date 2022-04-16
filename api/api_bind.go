@@ -499,4 +499,9 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST("/signin", doSignIn)
 	e.GET("/signin/salt", doSignInGetSalt)
 	e.GET("/checkSecurity", checkSecurity)
+
+	e.GET("/backup/list", backupGetList)
+	e.POST("/backup/do_backup", backupSimple)
+	e.GET("/backup/config_get", backupConfigGet)
+	e.POST("/backup/config_set", backupConfigSave)
 }
