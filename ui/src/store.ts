@@ -170,6 +170,16 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    async getCustomReply() {
+      const info = await backend.get('/configs/custom_reply')
+      return info
+    },
+
+    async setCustomReply(data: any) {
+      const info = await backend.post('/configs/custom_reply/save', data)
+      return info
+    },
+
     async signIn(password: string) {
       try {
         const ret = await backend.post('/signin', { password })

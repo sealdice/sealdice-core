@@ -2,16 +2,23 @@
   <!-- <BaseHeader /> -->
   <!-- <HelloWorld msg="Hello Vue 3.0 + Element Plus + Vite" /> -->
 
-  <div style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 900px; width: 100%; margin: 0 auto; position: relative;">
+  <div
+    style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 900px; width: 100%; margin: 0 auto; position: relative;"
+  >
     <h3
       class="mb-2"
       style="color: #f8ffff; text-align: left; padding-left: 2em; font-weight: normal;max-height:60px; height: 60px;"
-    ><span :v-show="store.canAccess">SealDice</span></h3>
+    >
+      <span :v-show="store.canAccess">SealDice</span>
+    </h3>
 
-    <div :v-show="store.canAccess" style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small;">{{ store.curDice.baseInfo.version }}</div>
+    <div
+      :v-show="store.canAccess"
+      style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small;"
+    >{{ store.curDice.baseInfo.version }}</div>
 
     <div style="display: flex;">
-      <div style="position: relative;">
+      <div style="position: relative; background: #545c64">
         <el-menu
           :collapse="sideCollapse"
           style="border-right: 0;"
@@ -28,7 +35,7 @@
               <setting />
             </el-icon>
             <span>总览</span>
-          </el-menu-item> -->
+          </el-menu-item>-->
 
           <el-menu-item index="2" @click="switchTo('log')">
             <el-icon>
@@ -52,11 +59,23 @@
               <span>自定义文案</span>
             </template>
 
-            <el-menu-item :index="`5-${k}`" @click="switchTo('customText', k.toString())"  v-for="_, k in store.curDice.customTexts">
+            <el-menu-item
+              :index="`5-${k}`"
+              @click="switchTo('customText', k.toString())"
+              v-for="_, k in store.curDice.customTexts"
+            >
               <span>{{ k }}</span>
             </el-menu-item>
           </el-sub-menu>
-  <!-- 
+
+          <el-menu-item index="5" @click="switchTo('customReply')">
+            <el-icon>
+              <setting />
+            </el-icon>
+            <span>自定义回复</span>
+          </el-menu-item>
+
+          <!-- 
           <el-menu-item index="4">
             <el-icon>
               <setting />
@@ -69,7 +88,7 @@
               <setting />
             </el-icon>
             <span>黑名单</span>
-          </el-menu-item> -->
+          </el-menu-item>-->
 
           <el-sub-menu index="7">
             <template #title>
@@ -83,12 +102,12 @@
             </el-menu-item>
             <!-- <el-menu-item :index="`7-group`" @click="switchTo('overview', 'group')">
               <span>群组信息</span>
-            </el-menu-item> -->
+            </el-menu-item>-->
             <!-- <el-menu-item :index="`7-backup`" @click="switchTo('overview', 'backup')">
               <span>备份</span>
-            </el-menu-item> -->
+            </el-menu-item>-->
           </el-sub-menu>
-  
+
           <el-menu-item index="8" @click="switchTo('test')">
             <el-icon>
               <chat-line-round />
@@ -104,19 +123,25 @@
           </el-menu-item>
         </el-menu>
 
-        <div class="hidden-sm-and-up" style="position: absolute; bottom: 60px; color: #fff; font-size: small; margin-left: 1rem;">
+        <div
+          class="hidden-sm-and-up"
+          style="position: absolute; bottom: 60px; color: #fff; font-size: small; margin-left: 1rem;"
+        >
           <el-button @click="sideCollapse = !sideCollapse"></el-button>
-        </div>        
+        </div>
       </div>
 
       <!-- #545c64 -->
-      <div style="background-color: #f3f5f7; flex: 1; text-align: left; height: calc(100vh - 4rem); overflow-y: auto;">
+      <div
+        style="background-color: #f3f5f7; flex: 1; text-align: left; height: calc(100vh - 4rem); overflow-y: auto;"
+      >
         <!-- <div style="background-color: #f3f5f7; text-align: left; height: 100%;"> -->
-        <div class="main-container" :class="[needh100 ? 'h100' : '']" style="" ref="rightbox">
+        <div class="main-container" :class="[needh100 ? 'h100' : '']" style ref="rightbox">
           <page-overview v-if="tabName === 'overview'" />
           <page-log v-if="tabName === 'log'" />
           <page-connect-info-items v-if="tabName === 'imConns'" />
           <page-custom-text v-if="tabName === 'customText'" :category="textCategory" />
+          <page-custom-reply v-if="tabName === 'customReply'" />
           <page-test v-if="tabName === 'test'" />
           <page-about v-if="tabName === 'about'" />
         </div>
@@ -125,7 +150,14 @@
     </div>
   </div>
 
-  <el-dialog v-model="showDialog" title="" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
+  <el-dialog
+    v-model="showDialog"
+    title
+    :close-on-click-modal="false"
+    :close-on-press-escape="false"
+    :show-close="false"
+    custom-class="the-dialog"
+  >
     <h3>输入密码解锁</h3>
     <el-input v-model="password" type="password"></el-input>
     <el-button type="primary" style="padding: 0px 50px; margin-top: 1rem;" @click="doUnlock">确认</el-button>
@@ -138,6 +170,7 @@ import HelloWorld from "./components/HelloWorld.vue";
 import PageCustomText from "./components/PageCustomText.vue";
 import PageConnectInfoItems from "./components/PageConnectInfoItems.vue";
 import PageOverview from "./components/PageOverview.vue"
+import PageCustomReply from "./components/PageCustomReply.vue"
 import PageLog from "./components/PageLog.vue";
 import PageAbout from "./components/PageAbout.vue"
 import PageTest from "./components/PageTest.vue"
@@ -187,7 +220,7 @@ const doUnlock = async () => {
 
 const checkPassword = async () => {
   if (!await store.checkSecurity()) {
-    ElMessageBox.alert('欢迎使用海豹核心。<br/>如果您的服务开启在公网，为了保证您的安全性，请前往<b>“综合设置->基本设置”</b>界面，设置<b>UI界面密码</b>。<br/>或切换为只有本机可访问。<br><b>如果您不了解上面在说什么，请务必设置一个密码</b>', '提示', {dangerouslyUseHTMLString: true})
+    ElMessageBox.alert('欢迎使用海豹核心。<br/>如果您的服务开启在公网，为了保证您的安全性，请前往<b>“综合设置->基本设置”</b>界面，设置<b>UI界面密码</b>。<br/>或切换为只有本机可访问。<br><b>如果您不了解上面在说什么，请务必设置一个密码</b>', '提示', { dangerouslyUseHTMLString: true })
   }
 }
 
@@ -240,7 +273,7 @@ let textCategory = ref("");
 
 const needh100 = ref(false)
 
-const switchTo = (tab: 'overview' | 'log' | 'customText' | 'imConns' | 'banList' | 'test' | 'about', name: string = '') => {
+const switchTo = (tab: 'overview' | 'log' | 'customText' | 'customReply' | 'imConns' | 'banList' | 'test' | 'about', name: string = '') => {
   tabName.value = tab
   textCategory.value = name
   needh100.value = ['test'].includes(tab)
@@ -250,8 +283,34 @@ let configCustom = {}
 </script>
 
 <style>
-html, body {
+html,
+body {
   height: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track-piece {
+  background: #fafafa;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #bdbdbd;
+}
+
+::-webkit-scrollbar-corner {
+  background: #fafafa;
+}
+
+::-webkit-scrollbar-thumb:window-inactive {
+  background: #e0e0e0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9e9e9e;
 }
 
 .main-container {
@@ -271,9 +330,9 @@ html, body {
   }
 }
 
-
 #app {
-  font-family: "PingFang SC","Helvetica Neue","Hiragino Sans GB","Segoe UI","Microsoft YaHei",'微软雅黑',sans-serif;
+  font-family: "PingFang SC", "Helvetica Neue", "Hiragino Sans GB", "Segoe UI",
+    "Microsoft YaHei", "微软雅黑", sans-serif;
   /* font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif; */
   text-align: center;
   color: #2c3e50;

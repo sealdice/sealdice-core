@@ -165,6 +165,7 @@ const loadAll = () => {
       padding: .7rem;
       border-radius: 9px;
       white-space: pre-wrap;
+      overflow-wrap: anywhere;
     }
   }
 }
