@@ -490,8 +490,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET("/configs/customText", customText)
 	e.POST("/configs/customText/save", customTextSave)
 
-	e.GET("/configs/customReply", customReply)
-	e.POST("/configs/customReply/save", customReplySave)
+	e.GET("/configs/custom_reply", customReply)
+	e.POST("/configs/custom_reply/save", customReplySave)
 
 	e.GET("/dice/config/get", DiceConfig)
 	e.POST("/dice/config/set", DiceConfigSet)
