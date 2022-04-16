@@ -48,6 +48,9 @@ type ExtInfo struct {
 	ConflictWith []string `yaml:"-"`
 	//activeInSession bool; // 在当前会话中开启
 
+	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-"` // 指令过滤后剩下的
+	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-"` // 覆盖指令行为
+
 	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)                              `yaml:"-"`
 	OnMessageReceived func(ctx *MsgContext, msg *Message)                                                `yaml:"-"`
 	OnMessageSend     func(ctx *MsgContext, messageType string, userId string, text string, flag string) `yaml:"-"`
@@ -89,6 +92,7 @@ type Dice struct {
 	FriendAddComment        string                 `yaml:"friendAddComment"` // 加好友验证信息
 	MasterUnlockCode        string                 `yaml:"-"`                // 解锁码，每20分钟变化一次，使用后立即变化
 	MasterUnlockCodeTime    int64                  `yaml:"-"`
+	CustomReplyConfig       *ReplyConfig           `yaml:"-"`
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	//InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp

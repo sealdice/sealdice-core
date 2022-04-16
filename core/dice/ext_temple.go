@@ -1,6 +1,6 @@
 package dice
 
-func RegisterBuiltinExtTemple(self *Dice) {
+func RegisterBuiltinExtTemple(dice *Dice) {
 	theExt := &ExtInfo{
 		Name:       "name", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
@@ -27,5 +27,5 @@ func RegisterBuiltinExtTemple(self *Dice) {
 		},
 	}
 
-	self.RegisterExtension(theExt)
+	dice.RegisterExtension(theExt)
 }

@@ -13,10 +13,12 @@ func customReplySave(c echo.Context) error {
 
 	v := dice.ReplyConfig{}
 	err := c.Bind(&v)
-	if err == nil {
-		return c.String(430, "")
+	if err != nil {
+		return c.String(430, err.Error())
 	}
 
+	v.Save(myDice)
+	myDice.CustomReplyConfig = &v
 	return c.JSON(http.StatusOK, nil)
 }
 

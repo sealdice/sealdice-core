@@ -31,6 +31,7 @@ func CustomReplyConfigRead(dice *Dice) *ReplyConfig {
 func RegisterBuiltinExtReply(dice *Dice) {
 	rc := CustomReplyConfigRead(dice)
 	rc.Save(dice)
+	dice.CustomReplyConfig = rc
 
 	//a := ReplyItem{}
 	//a.Enable = true
@@ -45,6 +46,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 
 	//txt, _ := yaml.Marshal(a)
 	//fmt.Println(string(txt))
+	//{"enable":true,"condition":{"condType":"match","matchType":"match_exact","value":"asd"},"results":[{"resultType":"replyToSender","delay":0.3,"message":"text"}]}
 	////{"enable":false,"condition":{"condType":"match","matchType":"match_exact","value":"asd"},"results":null}
 	//
 	//ri := ReplyItem{}
@@ -64,10 +66,12 @@ func RegisterBuiltinExtReply(dice *Dice) {
 		Brief:      "[尚未实现]智能回复模块，支持关键字精确匹配和模糊匹配",
 		Author:     "木落",
 		AutoActive: true, // 是否自动开启
-		OnMessageReceived: func(ctx *MsgContext, msg *Message) {
-			// 后面换个位置
+		OnNotCommandReceived: func(ctx *MsgContext, msg *Message) {
+			// 当前，只有非指令才会匹配
+			rc := ctx.Dice.CustomReplyConfig
 			if rc.Enable {
 				for _, i := range rc.Items {
+					//fmt.Println("???", i.Enable, i)
 					if i.Enable {
 						if i.Condition.Check(ctx, msg, nil) {
 							for _, j := range i.Results {
@@ -78,10 +82,6 @@ func RegisterBuiltinExtReply(dice *Dice) {
 					}
 				}
 			}
-		},
-		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			//p := getPlayerInfoBySender(session, msg)
-			//p.TempValueAlias = &ac.Alias;
 		},
 		GetDescText: func(i *ExtInfo) string {
 			return GetExtensionDesc(i)

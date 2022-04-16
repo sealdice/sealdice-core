@@ -38,6 +38,7 @@ func (m *ReplyConditionMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdA
 	switch m.MatchType {
 	case "match_exact":
 		ret = msg.Message == m.Value
+		fmt.Println("???", msg.Message, m.Value, ret)
 	case "match_regex":
 		re, err := regexp.Compile(m.Value)
 		if err == nil {
@@ -57,10 +58,10 @@ type ReplyResultReplyToSender struct {
 }
 
 func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-	go func() {
-		time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-		ReplyToSender(ctx, msg, DiceFormat(ctx, m.Message))
-	}()
+	//go func() {
+	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
+	ReplyToSender(ctx, msg, DiceFormat(ctx, m.Message))
+	//}()
 }
 
 // ReplyResultReplyPrivate 回复到私人 replyPrivate
@@ -71,10 +72,10 @@ type ReplyResultReplyPrivate struct {
 }
 
 func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-	go func() {
-		time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-		ReplyPerson(ctx, msg, DiceFormat(ctx, m.Message))
-	}()
+	//go func() {
+	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
+	ReplyPerson(ctx, msg, DiceFormat(ctx, m.Message))
+	//}()
 }
 
 // ReplyResultReplyGroup 回复到群组 replyGroup
@@ -85,10 +86,10 @@ type ReplyResultReplyGroup struct {
 }
 
 func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-	go func() {
-		time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-		ReplyGroup(ctx, msg, DiceFormat(ctx, m.Message))
-	}()
+	//go func() {
+	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
+	ReplyGroup(ctx, msg, DiceFormat(ctx, m.Message))
+	//}()
 }
 
 // ReplyResultRunText 同.text，但无输出  runText
@@ -99,10 +100,10 @@ type ReplyResultRunText struct {
 }
 
 func (m *ReplyResultRunText) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-	go func() {
-		time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-		_, _, _ = ctx.Dice.ExprTextBase(m.Message, ctx)
-	}()
+	//go func() {
+	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
+	_, _, _ = ctx.Dice.ExprTextBase(m.Message, ctx)
+	//}()
 }
 
 type ReplyItem struct {

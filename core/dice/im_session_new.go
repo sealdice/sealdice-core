@@ -107,6 +107,15 @@ func (group *GroupInfo) ExtInactive(name string) *ExtInfo {
 	return nil
 }
 
+func (group *GroupInfo) ExtGetActive(name string) *ExtInfo {
+	for _, i := range group.ActivatedExtList {
+		if i.Name == name {
+			return i
+		}
+	}
+	return nil
+}
+
 type EndPointInfoBase struct {
 	Id                  string `yaml:"id" json:"id"` // uuid
 	Nickname            string `yaml:"nickname" json:"nickname"`
@@ -214,13 +223,25 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		var mustLoadUser bool
 		if group != nil && group.Active {
+			// 开启log时必须加载用户信息
 			if group.LogOn {
+				mustLoadUser = true
+			}
+			// 开启reply时，必须加载信息
+			if d.CustomReplyConfig.Enable && group.ExtGetActive("reply") != nil {
 				mustLoadUser = true
 			}
 		}
 
+		// 可能是发命令时，必须加载信息
 		maybeCommand := CommandCheckPrefix(msg.Message, d.CommandPrefix)
 		if maybeCommand {
+			mustLoadUser = true
+		}
+
+		// 私聊时，必须加载信息
+		if msg.MessageType == "private" {
+			// 这会使得私聊者的发言能触发自定义回复
 			mustLoadUser = true
 		}
 
@@ -229,8 +250,8 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			mctx.IsCurGroupBotOn = IsCurGroupBotOn(s, msg)
 		}
 
-		if group != nil && group.Active {
-			for _, i := range group.ActivatedExtList {
+		if mctx.Group != nil && mctx.Group.Active {
+			for _, i := range mctx.Group.ActivatedExtList {
 				if i.OnMessageReceived != nil {
 					i.OnMessageReceived(mctx, msg)
 				}
@@ -340,7 +361,24 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					}
 				}
 
-				ret := s.commandSolve(mctx, msg, cmdArgs)
+				var ret bool
+
+				// 试图匹配自定义指令
+				if mctx.Group != nil && mctx.Group.Active {
+					for _, i := range mctx.Group.ActivatedExtList {
+						if i.OnCommandOverride != nil {
+							ret = i.OnCommandOverride(mctx, msg, cmdArgs)
+							if ret {
+								break
+							}
+						}
+					}
+				}
+
+				if !ret {
+					// 若自定义指令未匹配，匹配标准指令
+					ret = s.commandSolve(mctx, msg, cmdArgs)
+				}
 				if ret {
 					ep.CmdExecutedNum += 1
 					ep.CmdExecutedLastTime = time.Now().Unix()
@@ -364,6 +402,15 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				go f()
 			}
 		} else {
+			// 试图匹配自定义回复
+			if mctx.Group != nil && mctx.Group.Active {
+				for _, i := range mctx.Group.ActivatedExtList {
+					if i.OnNotCommandReceived != nil {
+						i.OnNotCommandReceived(mctx, msg)
+					}
+				}
+			}
+
 			//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
 			//replyGroup(Socket, 22, text)
 		}
