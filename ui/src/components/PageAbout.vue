@@ -22,7 +22,7 @@
     </div>
   </div>
 
-  <div style="text-align: center; font-weight: bold; font-size: 1.3rem; margin-top: 3rem;">感谢 ♪(･ω･)ﾉ</div>
+  <div style="text-align: center; font-weight: bold; font-size: 1.3rem; margin-top: 4rem;">感谢 ♪(･ω･)ﾉ</div>
   <div style="text-align: center; font-size: small; margin-bottom: 2rem; font-family: sans-serif;">特别鸣谢参与测试、反馈问题，帮助完善海豹指令的各位！以下列出感谢名单（排名不分先后）</div>
   <div class="about">
     <div></div>

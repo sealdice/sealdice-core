@@ -48,10 +48,14 @@
             <div v-if="['replyToSender', 'replyPrivate', 'replyGroup'].includes(i.resultType)" style="display: flex;">
               <div style="flex: 1; padding-right: 1rem;">
                 <div>回复文本:</div>
-                <el-input v-model="i.message"></el-input>
+                <el-input type="textarea" autosize v-model="i.message"></el-input>
               </div>
               <div>
-                <div>延迟:</div>
+                <div>延迟
+                  <el-tooltip raw-content content="文本将在此延迟后发送，单位秒，可小数。<br />注意随机延迟仍会被加入，如果你希望保证发言顺序，记得考虑这点。">
+                    <el-icon><question-filled /></el-icon>
+                  </el-tooltip>
+                </div>
                 <el-input type="number" v-model="i.delay" style="width: 4rem"></el-input>
               </div>
             </div>
@@ -64,30 +68,31 @@
   </draggable>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
+import {
+  Location,
+  Document,
+  Menu as IconMenu,
+  Setting,
+  CirclePlusFilled,
+  CircleClose,
+  QuestionFilled,
+  BrushFilled
+} from '@element-plus/icons-vue'
 import draggable from "vuedraggable";
-export default {
-  props: {
-    tasks: {
-      required: true,
-      type: Array
-    }
-  },
-  components: {
-    draggable
-  },
-  methods: {
-    addResult(i: any) {
-      i.push({"resultType":"replyToSender","delay":0,"message":"说点什么"})
-    }
-  },
-  name: "nested-draggable"
-};
+
+const props = defineProps<{ tasks: Array<any>}>();
+
+const addResult = (i: any) => {
+  i.push({"resultType":"replyToSender","delay":0,"message":"说点什么"})
+}
 </script>
 
 <style scoped>
 .dragArea {
   min-height: 50px;
   outline: 1px dashed;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 }
 </style>

@@ -38,12 +38,13 @@ declare module 'vue' {
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
     Nested: typeof import('./components/nested.vue')['default']
     PageAbout: typeof import('./components/PageAbout.vue')['default']
-    'PageAbout copy': typeof import('./components/PageAbout copy.vue')['default']
     PageConnectInfoItems: typeof import('./components/PageConnectInfoItems.vue')['default']
     PageCustomReply: typeof import('./components/PageCustomReply.vue')['default']
     PageCustomText: typeof import('./components/PageCustomText.vue')['default']
     PageLog: typeof import('./components/PageLog.vue')['default']
-    PageOverview: typeof import('./components/PageOverview.vue')['default']
+    PageMisc: typeof import('./components/PageMisc.vue')['default']
+    PageMiscBackup: typeof import('./components/PageMiscBackup.vue')['default']
+    PageMiscSettings: typeof import('./components/PageMiscSettings.vue')['default']
     PageTest: typeof import('./components/PageTest.vue')['default']
   }
 }

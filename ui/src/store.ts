@@ -175,6 +175,26 @@ export const useStore = defineStore('main', {
       return info
     },
 
+    async backupList() {
+      const info = await backend.get('/backup/list')
+      return info as any
+    },
+
+    async backupConfigGet() {
+      const info = await backend.get('/backup/config_get')
+      return info as any
+    },
+
+    async backupConfigSave(data: any) {
+      const info = await backend.post('/backup/config_set', data)
+      return info as any
+    },
+
+    async backupDoSimple() {
+      const info = await backend.post('/backup/do_backup')
+      return info as any
+    },
+
     async setCustomReply(data: any) {
       const info = await backend.post('/configs/custom_reply/save', data)
       return info

@@ -29,5 +29,11 @@ export function newRequestClient(baseURL: string) {
   return client;
 }
 
-// export const backend = newRequestClient('//'+window.location.hostname+":"+location.port)
-export const backend = newRequestClient('//'+window.location.hostname+":"+3211)
+
+export const urlBase = process.env.NODE_ENV == 'development' ?
+  '//'+window.location.hostname+":"+3211 :
+  '//'+window.location.hostname+":"+location.port
+
+// export const urlBase = '//'+window.location.hostname+":"+location.port
+
+export const backend = newRequestClient(urlBase)

@@ -97,15 +97,15 @@
               </el-icon>
               <span>综合设置</span>
             </template>
-            <el-menu-item :index="`7-base`" @click="switchTo('overview', 'base')">
+            <el-menu-item :index="`7-base`" @click="switchTo('miscSettings', 'base')">
               <span>基本设置</span>
             </el-menu-item>
             <!-- <el-menu-item :index="`7-group`" @click="switchTo('overview', 'group')">
               <span>群组信息</span>
             </el-menu-item>-->
-            <!-- <el-menu-item :index="`7-backup`" @click="switchTo('overview', 'backup')">
+            <el-menu-item :index="`7-backup`" @click="switchTo('miscSettings', 'backup')">
               <span>备份</span>
-            </el-menu-item>-->
+            </el-menu-item>
           </el-sub-menu>
 
           <el-menu-item index="8" @click="switchTo('test')">
@@ -136,8 +136,8 @@
         style="background-color: #f3f5f7; flex: 1; text-align: left; height: calc(100vh - 4rem); overflow-y: auto;"
       >
         <!-- <div style="background-color: #f3f5f7; text-align: left; height: 100%;"> -->
-        <div class="main-container" :class="[needh100 ? 'h100' : '']" style ref="rightbox">
-          <page-overview v-if="tabName === 'overview'" />
+        <div class="main-container" :class="[needh100 ? 'h100' : '']" ref="rightbox">
+          <page-misc v-if="tabName === 'miscSettings'" :category="miscSettingsCategory" />
           <page-log v-if="tabName === 'log'" />
           <page-connect-info-items v-if="tabName === 'imConns'" />
           <page-custom-text v-if="tabName === 'customText'" :category="textCategory" />
@@ -152,7 +152,7 @@
 
   <el-dialog
     v-model="showDialog"
-    title
+    title=""
     :close-on-click-modal="false"
     :close-on-press-escape="false"
     :show-close="false"
@@ -169,7 +169,7 @@ import BaseHeader from "./components/layouts/BaseHeader.vue";
 import HelloWorld from "./components/HelloWorld.vue";
 import PageCustomText from "./components/PageCustomText.vue";
 import PageConnectInfoItems from "./components/PageConnectInfoItems.vue";
-import PageOverview from "./components/PageOverview.vue"
+import PageMisc from "./components/PageMisc.vue"
 import PageCustomReply from "./components/PageCustomReply.vue"
 import PageLog from "./components/PageLog.vue";
 import PageAbout from "./components/PageAbout.vue"
@@ -268,14 +268,20 @@ const resetCollapse = () => {
 window.addEventListener("resize", resetCollapse)
 
 const sideCollapse = ref(false)
-let tabName = ref("log");
-let textCategory = ref("");
+let tabName = ref("log")
+let textCategory = ref("")
+let miscSettingsCategory = ref("")
 
 const needh100 = ref(false)
 
-const switchTo = (tab: 'overview' | 'log' | 'customText' | 'customReply' | 'imConns' | 'banList' | 'test' | 'about', name: string = '') => {
+const switchTo = (tab: 'overview' | 'miscSettings' | 'log' | 'customText' | 'customReply' | 'imConns' | 'banList' | 'test' | 'about', name: string = '') => {
   tabName.value = tab
-  textCategory.value = name
+  if (tab === 'customText') {
+    textCategory.value = name
+  }
+  if (tab === 'miscSettings') {
+    miscSettingsCategory.value = name
+  }
   needh100.value = ['test'].includes(tab)
 }
 
