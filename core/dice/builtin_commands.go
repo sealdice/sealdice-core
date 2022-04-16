@@ -221,7 +221,11 @@ func (d *Dice) registerCoreCommands() {
 							ctx.Group = ctx.Session.ServiceAtNew[msg.GroupId]
 							ctx.IsCurGroupBotOn = true
 							// "SealDice 已启用(开发中) " + VERSION
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子开启"))
+							text := DiceFormatTmpl(ctx, "核心:骰子开启")
+							if ctx.Group.LogOn {
+								text += "\n请特别注意: 日志记录处于开启状态"
+							}
+							ReplyToSender(ctx, msg, text)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "off") {
 							//if len(ctx.Group.ActivatedExtList) == 0 {
