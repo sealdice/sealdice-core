@@ -111,7 +111,6 @@ func (d *Dice) Init() {
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0755)
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "logs"), 0755)
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
-	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "baks"), 0755)
 
 	d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)

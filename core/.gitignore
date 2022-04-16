@@ -28,3 +28,4 @@ temp/
 dist/
 go-cqhttp/
 frontend/
+backups/

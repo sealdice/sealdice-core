@@ -84,6 +84,9 @@ func main() {
 		}
 		diceManager.Help.Close()
 		diceManager.Save()
+		if diceManager.Cron != nil {
+			diceManager.Cron.Stop()
+		}
 	}
 	defer cleanUp()
 

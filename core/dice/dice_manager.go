@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
@@ -20,6 +21,10 @@ type DiceManager struct {
 	UIPasswordSalt string
 	AccessTokens   map[string]bool
 	IsReady        bool
+
+	AutoBackupEnable bool
+	AutoBackupTime   string
+	Cron             *cron.Cron
 }
 
 type DiceConfigs struct {
@@ -31,6 +36,9 @@ type DiceConfigs struct {
 	UIPasswordSalt string   `yaml:"UIPasswordFrontendSalt"`
 	UIPasswordHash string   `yaml:"uiPasswordHash"`
 	AccessTokens   []string `yaml:"accessTokens"`
+
+	AutoBackupEnable bool   `yaml:"autoBackupEnable"`
+	AutoBackupTime   string `yaml:"autoBackupTime"`
 }
 
 func (dm *DiceManager) InitHelp() {
@@ -42,6 +50,7 @@ func (dm *DiceManager) InitHelp() {
 }
 
 func (dm *DiceManager) LoadDice() {
+	os.MkdirAll("./backups", 0755)
 	os.MkdirAll("./data/images", 0755)
 	os.MkdirAll("./data/decks", 0755)
 	os.MkdirAll("./data/names", 0755)
@@ -75,6 +84,14 @@ func (dm *DiceManager) LoadDice() {
 	dm.HelpDocEngineType = dc.HelpDocEngineType
 	dm.UIPasswordHash = dc.UIPasswordHash
 	dm.UIPasswordSalt = dc.UIPasswordSalt
+	dm.AutoBackupTime = dc.AutoBackupTime
+	dm.AutoBackupEnable = dc.AutoBackupEnable
+
+	if dc.AutoBackupTime == "" {
+		// 从旧版升级
+		dm.AutoBackupEnable = true
+		dm.AutoBackupTime = "@every 12h" // 每12小时一次
+	}
 
 	for _, i := range dc.AccessTokens {
 		dm.AccessTokens[i] = true
@@ -94,6 +111,8 @@ func (dm *DiceManager) Save() {
 	dc.UIPasswordSalt = dm.UIPasswordSalt
 	dc.UIPasswordHash = dm.UIPasswordHash
 	dc.AccessTokens = []string{}
+	dc.AutoBackupTime = dm.AutoBackupTime
+	dc.AutoBackupEnable = dm.AutoBackupEnable
 
 	for k, _ := range dm.AccessTokens {
 		dc.AccessTokens = append(dc.AccessTokens, k)
@@ -126,6 +145,25 @@ func (dm *DiceManager) InitDice() {
 
 	if len(dm.Dice) >= 1 {
 		dm.AddHelpWithDice(dm.Dice[0])
+	}
+
+	dm.ResetAutoBackup()
+}
+
+func (dm *DiceManager) ResetAutoBackup() {
+	if dm.Cron != nil {
+		dm.Cron.Stop()
+		dm.Cron = nil
+	}
+	if dm.AutoBackupEnable {
+		dm.Cron = cron.New()
+		dm.Cron.AddFunc(dm.AutoBackupTime, func() {
+			err := dm.BackupAuto()
+			if err != nil {
+				fmt.Println("自动备份失败: ", err.Error())
+			}
+		})
+		dm.Cron.Start()
 	}
 }
 
