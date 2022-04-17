@@ -17,14 +17,17 @@ e0m <- (e0 ';' sp { p.AddOperator(TypeClearDetail) })* e0
 e0 <- eTernary
 
 // 没有特别搞懂为啥第一个e1不支持括号
-eTernary <- eComp '?' sp { p.AddOperator(TypeJne); p.PushForOffset() } eComp ':' sp { p.AddOperator(TypeJmp); p.PopAndSetOffset(); p.PushForOffset() } eComp { p.PopAndSetOffset() }
-        / eComp
+eTernary <- eBitwise '?' sp { p.AddOperator(TypeJne); p.PushForOffset() } eBitwise ':' sp { p.AddOperator(TypeJmp); p.PopAndSetOffset(); p.PushForOffset() } eBitwise { p.PopAndSetOffset() }
+        / eBitwise
 
 // push 1
 // jne 2
 // push "ret1"
 // jmp 1
 // push "ret2"
+
+eBitwise <- eComp ((logicOr / bitwiseOr) { p.AddLeftValueMark() } eComp { p.AddOperator(TypeBitwiseOr) }
+                 / (logicAnd / bitwiseAnd) { p.AddLeftValueMark() } eComp { p.AddOperator(TypeBitwiseAnd) } )*
 
 eComp <- e1 ( lt { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompLT) }
             / le { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompLE) }
@@ -96,7 +99,12 @@ modulus <- '%' sp
 exponentiation <- '^' sp / '**' sp
 open <- '(' sp
 close <- ')' sp
-sp <- ( ' ' / '\t' )*
+
+bitwiseOr <- '|' sp
+logicOr <- '||' sp
+bitwiseAnd <- ('&' / '&amp;') sp
+logicAnd <- ('&&' / '&amp;&amp;') sp
+sp <- ( ' ' / '\t' / '\n' / '\r' )*
 lt <- ('<' / '＜') sp
 gt <- ('>' / '＞') sp
 le <- ('<=' / '＜＝') sp
