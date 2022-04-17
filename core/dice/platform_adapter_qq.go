@@ -22,6 +22,7 @@ type PlatformAdapterQQOnebot struct {
 	ConnectUrl string              `yaml:"connectUrl" json:"connectUrl"` // 连接地址
 
 	UseInPackGoCqhttp                bool           `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
+	InPackGoCqLastAutoLoginTime      int64          `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`       // 上次自动重新登录的时间
 	InPackGoCqHttpProcess            *procs.Process `yaml:"-" json:"-"`
 	InPackGoCqHttpLoginSuccess       bool           `yaml:"-" json:"inPackGoCqHttpLoginSuccess"`   // 是否登录成功
 	InPackGoCqHttpLoginSucceeded     bool           `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"` // 是否登录成功过
@@ -404,10 +405,10 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 func (pa *PlatformAdapterQQOnebot) DoRelogin() bool {
 	myDice := pa.Session.Parent
 	ep := pa.EndPoint
-	myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%d)", ep.Nickname, ep.UserId)
 	if pa.UseInPackGoCqhttp {
-		GoCqHttpServeProcessKill(myDice, ep)
-		time.Sleep(1 * time.Second)
+		myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserId)
+		go GoCqHttpServeProcessKill(myDice, ep)
+		time.Sleep(5 * time.Second)                 // 上面那个清理有概率卡住，具体不懂，改成等5s
 		GoCqHttpServeRemoveSessionToken(myDice, ep) // 删除session.token
 		pa.InPackGoCqHttpLastRestrictedTime = 0     // 重置风控时间
 		GoCqHttpServe(myDice, ep, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)

@@ -93,6 +93,7 @@ type Dice struct {
 	MasterUnlockCode        string                 `yaml:"-"`                // 解锁码，每20分钟变化一次，使用后立即变化
 	MasterUnlockCodeTime    int64                  `yaml:"-"`
 	CustomReplyConfig       *ReplyConfig           `yaml:"-"`
+	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"` // 启用自动重新登录
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	//InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
