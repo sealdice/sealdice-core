@@ -509,7 +509,11 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 					// 大于5分钟触发
 					if now-pa.InPackGoCqLastAutoLoginTime > 5*60 {
 						dice.Logger.Warnf("自动重启: 达到风控重启阈值 <%s>(%s)", conn.Nickname, conn.UserId)
-						pa.DoRelogin()
+						if pa.InPackGoCqHttpPassword != "" {
+							pa.DoRelogin()
+						} else {
+							dice.Logger.Warnf("自动重启: 未输入密码，放弃")
+						}
 					}
 				}
 			}
