@@ -19,11 +19,12 @@ type SenderBase struct {
 // 人物(是谁发的)
 // 内容
 type Message struct {
-	Time        int64      `json:"time"`        // 发送时间
-	MessageType string     `json:"messageType"` // group private
-	GroupId     string     `json:"groupId"`     // 群号，如果是群聊消息
-	Sender      SenderBase `json:"sender"`      // 发送者
-	Message     string     `json:"message"`     // 消息内容
+	Time        int64       `json:"time"`        // 发送时间
+	MessageType string      `json:"messageType"` // group private
+	GroupId     string      `json:"groupId"`     // 群号，如果是群聊消息
+	Sender      SenderBase  `json:"sender"`      // 发送者
+	Message     string      `json:"message"`     // 消息内容
+	RawId       interface{} `json:"rawId"`       // 原始信息ID，用于处理撤回等
 }
 
 // GroupPlayerInfoBase 群内玩家信息
