@@ -91,6 +91,7 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 	msg.Time = msgQQ.Time
 	msg.MessageType = msgQQ.MessageType
 	msg.Message = msgQQ.Message
+	msg.RawId = msgQQ.MessageId
 
 	if msgQQ.Data != nil && msgQQ.Data.GroupId != 0 {
 		msg.GroupId = FormatDiceIdQQGroup(msgQQ.Data.GroupId)
@@ -322,6 +323,17 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				return
 			}
 
+			// 消息撤回
+			if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_recall" {
+				group := s.ServiceAtNew[msg.GroupId]
+				if group != nil {
+					if group.LogOn {
+						LogMarkDeleteByMsgId(ctx, group, msgQQ.MessageId)
+					}
+				}
+				return
+			}
+
 			// 处理命令
 			if msgQQ.MessageType == "group" || msgQQ.MessageType == "private" {
 				if msg.Sender.UserId == ep.UserId {
@@ -334,6 +346,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					return
 				}
 
+				//fmt.Println("Recieved message1 " + message)
 				session.Execute(ep, msg, false)
 			} else {
 				fmt.Println("Recieved message " + message)

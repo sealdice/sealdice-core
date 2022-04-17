@@ -12,18 +12,19 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"time"
 )
 
 type LogOneItem struct {
-	Id        uint64 `json:"id"`
-	Nickname  string `json:"nickname"`
-	IMUserId  string `json:"IMUserId"`
-	Time      int64  `json:"time"`
-	Message   string `json:"message"`
-	IsDice    bool   `json:"isDice"`
-	CommandId uint64 `json:"commandId"`
+	Id          uint64      `json:"id"`
+	Nickname    string      `json:"nickname"`
+	IMUserId    string      `json:"IMUserId"`
+	Time        int64       `json:"time"`
+	Message     string      `json:"message"`
+	IsDice      bool        `json:"isDice"`
+	CommandId   uint64      `json:"commandId"`
+	CommandInfo interface{} `json:"commandInfo"`
+	RawMsgId    interface{} `json:"rawMsgId"`
 
 	UniformId string `json:"uniformId"`
 	Channel   string `json:"channel"` // 用于秘密团
@@ -127,6 +128,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						Message:   msg.Message,
 						IsDice:    false,
 						CommandId: ctx.CommandId,
+						RawMsgId:  msg.RawId,
 					}
 
 					LogAppend(ctx, ctx.Group, &a)
@@ -317,9 +319,21 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 	os.MkdirAll(dirpath, 0755)
 
 	lines, err := LogGetAllLines(ctx, group)
+	badRawIds, err2 := LogGetAllDeleted(ctx, group)
 
 	zipPassword := RandStringBytesMaskImprSrcSB(12)
 	if err == nil {
+		// 洗掉撤回的消息
+		if err2 == nil {
+			var linesNew []*LogOneItem
+			for _, i := range lines {
+				if !badRawIds[i.RawMsgId] {
+					linesNew = append(linesNew, i)
+				}
+			}
+			lines = linesNew
+		}
+
 		// 本地进行一个zip留档，以防万一
 		gid := group.GroupId
 		fzip, _ := ioutil.TempFile(dirpath, filenameReplace(gid+"_"+group.LogCurName+".*.zip"))
@@ -340,7 +354,7 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 	if err == nil {
 		// 压缩log，发往后端
 		data, err := json.Marshal(map[string]interface{}{
-			"Items": lines,
+			"items": lines,
 		})
 
 		if err == nil {
@@ -400,34 +414,7 @@ func LogDelete(ctx *MsgContext, group *GroupInfo, name string) bool {
 		}
 		exists = true
 
-		err = b1.Delete([]byte(name))
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	return exists
-}
-
-func LogDeleteLegacy(ctx *MsgContext, group *ServiceAtItem, name string) bool {
-	var exists bool
-	ctx.Dice.DB.Update(func(tx *bbolt.Tx) error {
-		// Retrieve the users bucket.
-		// This should be created when the DB is first opened.
-		b0 := tx.Bucket([]byte("logs"))
-		if b0 == nil {
-			return nil
-		}
-		b1 := b0.Bucket([]byte(strconv.FormatInt(group.GroupId, 10)))
-		if b1 == nil {
-			return nil
-		}
-
-		err := b1.DeleteBucket([]byte(name))
-		if err != nil {
-			return err
-		}
-		exists = true
+		_ = b1.DeleteBucket([]byte(name + "-delMark"))
 
 		err = b1.Delete([]byte(name))
 		if err != nil {
@@ -458,26 +445,6 @@ func LogGetList(ctx *MsgContext, group *GroupInfo) ([]string, error) {
 	})
 }
 
-// LogGetList 获取列表
-func LogGetListLegacy(ctx *MsgContext, group *ServiceAtItem) ([]string, error) {
-	ret := []string{}
-	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
-		b0 := tx.Bucket([]byte("logs"))
-		if b0 == nil {
-			return nil
-		}
-		b1 := b0.Bucket([]byte(strconv.FormatInt(group.GroupId, 10)))
-		if b1 == nil {
-			return nil
-		}
-
-		return b1.ForEach(func(k, v []byte) error {
-			ret = append(ret, string(k))
-			return nil
-		})
-	})
-}
-
 func LogGetAllLines(ctx *MsgContext, group *GroupInfo) ([]*LogOneItem, error) {
 	ret := []*LogOneItem{}
 	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
@@ -486,35 +453,6 @@ func LogGetAllLines(ctx *MsgContext, group *GroupInfo) ([]*LogOneItem, error) {
 			return nil
 		}
 		b1 := b0.Bucket([]byte(group.GroupId))
-		if b1 == nil {
-			return nil
-		}
-
-		b := b1.Bucket([]byte(group.LogCurName))
-		if b == nil {
-			return nil
-		}
-
-		return b.ForEach(func(k, v []byte) error {
-			logItem := LogOneItem{}
-			err := json.Unmarshal(v, &logItem)
-			if err == nil {
-				ret = append(ret, &logItem)
-			}
-
-			return nil
-		})
-	})
-}
-
-func LogGetAllLinesLegacy(ctx *MsgContext, group *ServiceAtItem) ([]*LogOneItem, error) {
-	ret := []*LogOneItem{}
-	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
-		b0 := tx.Bucket([]byte("logs"))
-		if b0 == nil {
-			return nil
-		}
-		b1 := b0.Bucket([]byte(strconv.FormatInt(group.GroupId, 10)))
 		if b1 == nil {
 			return nil
 		}
@@ -564,6 +502,59 @@ func LogAppend(ctx *MsgContext, group *GroupInfo, l *LogOneItem) error {
 			return b.Put(itob(l.Id), buf)
 		}
 		return err
+	})
+}
+
+func LogMarkDeleteByMsgId(ctx *MsgContext, group *GroupInfo, rawId interface{}) error {
+	if rawId == nil {
+		return nil
+	}
+	return ctx.Dice.DB.Update(func(tx *bbolt.Tx) error {
+		b0 := tx.Bucket([]byte("logs"))
+		b1, err := b0.CreateBucketIfNotExists([]byte(group.GroupId))
+		if err != nil {
+			return err
+		}
+
+		b, err := b1.CreateBucketIfNotExists([]byte(group.LogCurName + "-delMark"))
+		if err == nil {
+			id, _ := b.NextSequence()
+			buf, err := json.Marshal(rawId)
+			if err != nil {
+				return err
+			}
+
+			return b.Put(itob(id), buf)
+		}
+		return err
+	})
+}
+
+func LogGetAllDeleted(ctx *MsgContext, group *GroupInfo) (map[interface{}]bool, error) {
+	ret := map[interface{}]bool{}
+	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
+		b0 := tx.Bucket([]byte("logs"))
+		if b0 == nil {
+			return nil
+		}
+		b1 := b0.Bucket([]byte(group.GroupId))
+		if b1 == nil {
+			return nil
+		}
+
+		b := b1.Bucket([]byte(group.LogCurName + "-delMark"))
+		if b == nil {
+			return nil
+		}
+
+		return b.ForEach(func(k, v []byte) error {
+			var val interface{}
+			err := json.Unmarshal(v, &val)
+			if err == nil {
+				ret[val] = true
+			}
+			return nil
+		})
 	})
 }
 
