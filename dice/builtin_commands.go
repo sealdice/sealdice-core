@@ -215,8 +215,25 @@ func (d *Dice) registerCoreCommands() {
 				}
 			} else {
 				if inGroup && !AtSomebodyButNotMe {
+					cmdArgs.ChopPrefixToArgsWith("on", "off")
+					matchNumber := func() (bool, bool) {
+						txt, exists := cmdArgs.GetArgN(2)
+						if len(txt) >= 4 {
+							if strings.HasSuffix(ctx.EndPoint.UserId, txt) {
+								return true, exists
+							}
+						}
+						return false, exists
+					}
+
 					if len(cmdArgs.Args) >= 1 {
 						if cmdArgs.IsArgEqual(1, "on") {
+							isMe, exists := matchNumber()
+							if exists && !isMe {
+								// 找的不是我
+								return CmdExecuteResult{Matched: false, Solved: false}
+							}
+
 							SetBotOnAtGroup(ctx, msg.GroupId)
 							ctx.Group = ctx.Session.ServiceAtNew[msg.GroupId]
 							ctx.IsCurGroupBotOn = true
@@ -228,6 +245,12 @@ func (d *Dice) registerCoreCommands() {
 							ReplyToSender(ctx, msg, text)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "off") {
+							isMe, exists := matchNumber()
+							if exists && !isMe {
+								// 找的不是我
+								return CmdExecuteResult{Matched: false, Solved: false}
+							}
+
 							//if len(ctx.Group.ActivatedExtList) == 0 {
 							//	delete(ctx.Session.ServiceAt, msg.GroupId)
 							//} else {
@@ -237,6 +260,12 @@ func (d *Dice) registerCoreCommands() {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
 							return CmdExecuteResult{Matched: true, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
+							isMe, exists := matchNumber()
+							if exists && !isMe {
+								// 找的不是我
+								return CmdExecuteResult{Matched: false, Solved: false}
+							}
+
 							// 收到指令，5s后将退出当前群组
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
 							d.Logger.Infof("指令退群: 于群组(%s)中告别，操作者:(%s)", msg.GroupId, msg.Sender.UserId)
