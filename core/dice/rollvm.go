@@ -48,6 +48,11 @@ const (
 	TypeJmp
 	TypeJe
 	TypeJne
+
+	TypeBitwiseAnd
+	TypeBitwiseOr
+	TypeLogicAnd
+	TypeLogicOr
 )
 
 type ByteCode struct {
@@ -65,6 +70,14 @@ func (code *ByteCode) String() string {
 		return "->"
 	case TypeJmp:
 		return "->"
+	case TypeBitwiseAnd:
+		return "&"
+	case TypeBitwiseOr:
+		return "|"
+	case TypeLogicAnd:
+		return "&&"
+	case TypeLogicOr:
+		return "||"
 	case TypeCompLT:
 		return "<"
 	case TypeCompLE:
@@ -700,6 +713,12 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 		case TypeCompGE:
 			checkDice(&code)
 			a.Value = boolToInt64(aInt >= bInt)
+		case TypeBitwiseAnd:
+			checkDice(&code)
+			a.Value = aInt & bInt
+		case TypeBitwiseOr:
+			checkDice(&code)
+			a.Value = aInt | bInt
 		case TypeAdd:
 			checkDice(&code)
 			a.Value = aInt + bInt
