@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type oneBotCommand struct {
@@ -79,6 +80,19 @@ func socketSendText(socket *gowebsocket.Socket, s string) {
 	}
 }
 
+// 不知道为什么，使用这个时候发不出话
+func socketSendBinary(socket *gowebsocket.Socket, data []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			//core.GetLogger().Error(r)
+		}
+	}()
+
+	if socket != nil {
+		socket.SendBinary(data)
+	}
+}
+
 func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
 	rawId, _ := pa.mustExtractId(userId)
 	for _, i := range ctx.Dice.ExtList {
@@ -101,16 +115,18 @@ func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, 
 		Message     string `json:"message"`
 	}
 
-	a, _ := json.Marshal(oneBotCommand{
-		Action: "send_msg",
-		Params: GroupMessageParams{
-			MessageType: "private",
-			UserId:      rawId,
-			Message:     text,
-		},
-	})
-
-	socketSendText(pa.Socket, string(a))
+	texts := textSplit(text)
+	for _, subText := range texts {
+		a, _ := json.Marshal(oneBotCommand{
+			Action: "send_msg",
+			Params: GroupMessageParams{
+				MessageType: "private",
+				UserId:      rawId,
+				Message:     subText,
+			},
+		})
+		socketSendText(pa.Socket, string(a))
+	}
 }
 
 func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
@@ -137,16 +153,19 @@ func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, 
 		Message string `json:"message"`
 	}
 
-	a, _ := json.Marshal(oneBotCommand{
-		Action: "send_group_msg",
-		Params: GroupMessageParams{
-			rawId,
-			text, // "golang client test",
-		},
-	})
+	texts := textSplit(text)
 
-	socketSendText(pa.Socket, string(a))
-	//ctx.Session.Socket.SendText(string(a))
+	for _, subText := range texts {
+		a, _ := json.Marshal(oneBotCommand{
+			Action: "send_group_msg",
+			Params: GroupMessageParams{
+				rawId,
+				subText, // "golang client test",
+			},
+		})
+
+		socketSendText(pa.Socket, string(a))
+	}
 }
 
 // SetGroupAddRequest 同意加群
@@ -267,4 +286,19 @@ func (pa *PlatformAdapterQQOnebot) GetLoginInfo() {
 	socketSendText(pa.Socket, string(a))
 	//s.Socket.SendText(string(a))
 	//}
+}
+
+func textSplit(input string) []string {
+	maxLen := 5000 // 以utf-8计算，1666个汉字
+	var splits []string
+
+	var l, r int
+	for l, r = 0, maxLen; r < len(input); l, r = r, r+maxLen {
+		for !utf8.RuneStart(input[r]) {
+			r--
+		}
+		splits = append(splits, input[l:r])
+	}
+	splits = append(splits, input[l:])
+	return splits
 }
