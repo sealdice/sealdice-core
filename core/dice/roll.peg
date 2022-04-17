@@ -7,7 +7,32 @@ type DiceRollParser Peg {
 }
 
 // 实际操作中发现，不匹配句尾比较好 (没有!.)
-e <- sp (fstring / e1) { p.AddOperator(TypeHalt) }
+eBase <- e { p.AddOperator(TypeHalt) }
+e <- ( eOne ';' sp { p.AddOperator(TypeClearDetail) } )* eOne
+eOne <- sp (fstring / e0)
+
+assign_expr <- identifier { p.AddValueStr(string(text)) } '=' e0 { p.AddStore() }
+
+e0m <- (e0 ';' sp { p.AddOperator(TypeClearDetail) })* e0
+e0 <- eTernary
+
+// 没有特别搞懂为啥第一个e1不支持括号
+eTernary <- eComp '?' sp { p.AddOperator(TypeJne); p.PushForOffset() } eComp ':' sp { p.AddOperator(TypeJmp); p.PopAndSetOffset(); p.PushForOffset() } eComp { p.PopAndSetOffset() }
+        / eComp
+
+// push 1
+// jne 2
+// push "ret1"
+// jmp 1
+// push "ret2"
+
+eComp <- e1 ( lt { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompLT) }
+            / le { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompLE) }
+            / eq { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompEQ) }
+            / ne { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompNE) }
+            / ge { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompGE) }
+            / gt { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompGT) })*
+
 e1 <- e2 ( add { p.AddLeftValueMark() } e2 { p.AddOperator(TypeAdd) }
          / minus { p.AddLeftValueMark() } e2 { p.AddOperator(TypeSubtract) }
          )*
@@ -60,11 +85,9 @@ value <- number
 
 number <- < [0-9]+ > sp { p.AddValue(string(text)) }
 
-assign_expr <- identifier { p.AddValueStr(string(text)) } '=' e1 { p.AddStore() }
-
 identifier <- < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^`{|}~0-9 \t\n\r][^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]* > sp // not (punctuation+number)
 // identifier2 <- !'d' ![0-9] < (universalCharacter / [a-zA-Z_])+ > sp // not (punctuation+number)
-sub <- open e1 close
+sub <- open e0 close
 add <- ('+'/'＋') sp
 minus <- ('-' / '－') sp
 multiply <- ('*' / '＊') sp
@@ -74,6 +97,12 @@ exponentiation <- '^' sp / '**' sp
 open <- '(' sp
 close <- ')' sp
 sp <- ( ' ' / '\t' )*
+lt <- ('<' / '＜') sp
+gt <- ('>' / '＞') sp
+le <- ('<=' / '＜＝') sp
+ge <- ('>=' / '＞＝') sp
+eq <- ('==' / '＝＝') sp
+ne <- ('!=' / '！＝') sp
 
-fstring <- '`' < ( ('{' sp e1 sp '}') / escape / ![`\\\n\r] .)* > '`' sp { p.AddFormatString(string(text)) }
+fstring <- '`' < ( ('{' sp e0m sp '}') / escape / ![`\\\n\r] .)* > '`' sp { p.AddFormatString(string(text)) }
 escape <- '\\' ([btnfr"'\\])  //  / OctalEscape / UnicodeEscape

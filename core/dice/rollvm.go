@@ -36,6 +36,18 @@ const (
 	TypeLeftValueMark
 	TypeDiceSetK
 	TypeDiceSetQ
+	TypeClearDetail
+
+	TypeCompLT
+	TypeCompLE
+	TypeCompEQ
+	TypeCompNE
+	TypeCompGE
+	TypeCompGT
+
+	TypeJmp
+	TypeJe
+	TypeJne
 )
 
 type ByteCode struct {
@@ -47,6 +59,24 @@ type ByteCode struct {
 
 func (code *ByteCode) String() string {
 	switch code.T {
+	case TypeJne:
+		return "->"
+	case TypeJe:
+		return "->"
+	case TypeJmp:
+		return "->"
+	case TypeCompLT:
+		return "<"
+	case TypeCompLE:
+		return "<="
+	case TypeCompGT:
+		return ">"
+	case TypeCompGE:
+		return ">="
+	case TypeCompEQ:
+		return "=="
+	case TypeCompNE:
+		return "!="
 	case TypeAdd:
 		return "+"
 	case TypeNegation, TypeSubtract:
@@ -109,6 +139,24 @@ func (code *ByteCode) CodeString() string {
 		return "swap"
 	case TypeLeftValueMark:
 		return "mark.left"
+	case TypeJmp:
+		return fmt.Sprintf("jmp %d", code.Value)
+	case TypeJe:
+		return fmt.Sprintf("je %d", code.Value)
+	case TypeJne:
+		return fmt.Sprintf("jne %d", code.Value)
+	case TypeCompLT:
+		return "comp.lt"
+	case TypeCompLE:
+		return "comp.le"
+	case TypeCompEQ:
+		return "comp.eq"
+	case TypeCompNE:
+		return "comp.ne"
+	case TypeCompGE:
+		return "comp.ge"
+	case TypeCompGT:
+		return "comp.gt"
 	}
 	return ""
 }
@@ -130,12 +178,14 @@ type RollExpression struct {
 	Top              int
 	CocFlagVarPrefix string // 解析过程中出现，当VarNumber开启时有效，可以是困难极难常规大成功
 
-	flags RollExtraFlags
-	Error error
+	JmpStack []int
+	flags    RollExtraFlags
+	Error    error
 }
 
 func (e *RollExpression) Init(stackLength int) {
 	e.Code = make([]ByteCode, stackLength)
+	e.JmpStack = []int{}
 }
 
 func (e *RollExpression) checkStackOverflow() bool {
@@ -158,13 +208,26 @@ func (e *RollExpression) AddLeftValueMark() {
 	code[top].T = TypeLeftValueMark
 }
 
-func (e *RollExpression) AddOperator(operator Type) {
+func (e *RollExpression) AddOperator(operator Type) int {
 	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
-		return
+		return -1
 	}
 	e.Top++
 	code[top].T = operator
+	return e.Top
+}
+
+func (e *RollExpression) PushForOffset() {
+	e.JmpStack = append(e.JmpStack, e.Top-1)
+}
+
+func (e *RollExpression) PopAndSetOffset() {
+	last := len(e.JmpStack) - 1
+	codeIndex := e.JmpStack[last]
+	e.JmpStack = e.JmpStack[:last]
+	e.Code[codeIndex].Value = int64(e.Top - codeIndex - 1)
+	//fmt.Println("XXXX", e.Code[codeIndex], "|", e.Top, codeIndex)
 }
 
 func (e *RollExpression) AddOperatorWithInt64(operator Type, val int64) {
@@ -254,8 +317,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	var registerDiceQ *VMValue
 	var kqFlag int64
 
-	for _, code := range e.Code[0:e.Top] {
-		//fmt.Println(code.CodeString())
+	codes := e.Code[0:e.Top]
+	for opIndex := 0; opIndex < len(codes); opIndex += 1 {
+		code := codes[opIndex]
+		//fmt.Println("!!!", code.CodeString())
+
 		// 单目运算符
 		switch code.T {
 		case TypeLeftValueMark:
@@ -295,6 +361,29 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			registerDiceK = &VMValue{t.TypeId, t.Value}
 			kqFlag = code.Value
 			top--
+			continue
+		case TypeJe:
+			t := stack[top-1]
+			top--
+
+			if t.Value != int64(0) {
+				opIndex += int(code.Value)
+			}
+		case TypeJne:
+			t := stack[top-1]
+			top--
+
+			if t.Value == int64(0) {
+				opIndex += int(code.Value)
+			}
+			continue
+		case TypeJmp:
+			opIndex += int(code.Value)
+			continue
+		case TypeClearDetail:
+			calcDetail = ""
+			lastDetails = lastDetails[:0]
+			top = 0
 			continue
 		case TypeDiceSetQ:
 			t := stack[top-1]
@@ -584,8 +673,33 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			bInt = b.Value.(int64)
 		}
 
+		boolToInt64 := func(val bool) int64 {
+			if val {
+				return 1
+			}
+			return 0
+		}
+
 		// 二目运算符
 		switch code.T {
+		case TypeCompLT:
+			checkDice(&code)
+			a.Value = boolToInt64(aInt < bInt)
+		case TypeCompLE:
+			checkDice(&code)
+			a.Value = boolToInt64(aInt <= bInt)
+		case TypeCompEQ:
+			checkDice(&code)
+			a.Value = boolToInt64(aInt == bInt)
+		case TypeCompNE:
+			checkDice(&code)
+			a.Value = boolToInt64(aInt != bInt)
+		case TypeCompGT:
+			checkDice(&code)
+			a.Value = boolToInt64(aInt > bInt)
+		case TypeCompGE:
+			checkDice(&code)
+			a.Value = boolToInt64(aInt >= bInt)
 		case TypeAdd:
 			checkDice(&code)
 			a.Value = aInt + bInt
