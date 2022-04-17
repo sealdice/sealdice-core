@@ -445,13 +445,16 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	gocqhttpExePath = strings.Replace(gocqhttpExePath, "\\", "/", -1) // windows平台需要这个替换
 
 	// 随手执行一下
+	fmt.Println("!!!!!!!!")
 	_ = exec.Command("chmod +x " + gocqhttpExePath).Run()
+	fmt.Println("!!!!!!!! xxxxxx")
 
 	dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
 	p := procs.NewProcess(fmt.Sprintf(`"%s" faststart`, gocqhttpExePath))
 	p.Dir = workDir
 
 	chQrCode := make(chan int, 1)
+	riskCount := 0
 	p.OutputHandler = func(line string) string {
 		// 请使用手机QQ扫描二维码 (qrcode.png) :
 		if strings.Contains(line, "qrcode.png") {
@@ -492,9 +495,24 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			pa.InPackGoCqHttpNeedQrCode = true
 		}
 
-		if (strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
+		if (pa.InPackGoCqHttpLoginSuccess && strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
 			//群消息发送失败: 账号可能被风控
-			pa.InPackGoCqHttpLastRestrictedTime = time.Now().Unix()
+			now := time.Now().Unix()
+			if now-pa.InPackGoCqHttpLastRestrictedTime < 5*60 {
+				// 阈值是5分钟内2次
+				riskCount += 1
+			}
+			pa.InPackGoCqHttpLastRestrictedTime = now
+			if riskCount >= 2 {
+				riskCount = 0
+				if dice.AutoReloginEnable {
+					// 大于5分钟触发
+					if now-pa.InPackGoCqLastAutoLoginTime > 5*60 {
+						dice.Logger.Warnf("自动重启: 达到风控重启阈值 <%s>(%s)", conn.Nickname, conn.UserId)
+						pa.DoRelogin()
+					}
+				}
+			}
 		}
 
 		if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {

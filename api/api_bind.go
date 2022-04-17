@@ -340,6 +340,7 @@ type DiceConfigInfo struct {
 	MasterUnlockCodeTime    int64    `json:"masterUnlockCodeTime"`
 	LogPageItemLimit        int64    `json:"logPageItemLimit"`
 	FriendAddComment        string   `json:"friendAddComment"`
+	AutoReloginEnable       bool     `json:"autoReloginEnable"`
 }
 
 func DiceConfig(c echo.Context) error {
@@ -371,6 +372,7 @@ func DiceConfig(c echo.Context) error {
 		WorkInQQChannel:         myDice.WorkInQQChannel,
 		LogPageItemLimit:        limit,
 		FriendAddComment:        myDice.FriendAddComment,
+		AutoReloginEnable:       myDice.AutoReloginEnable,
 
 		ServeAddress:      myDice.Parent.ServeAddress,
 		HelpDocEngineType: myDice.Parent.HelpDocEngineType,
@@ -416,6 +418,10 @@ func DiceConfigSet(c echo.Context) error {
 
 		if val, ok := jsonMap["workInQQChannel"]; ok {
 			myDice.WorkInQQChannel = val.(bool)
+		}
+
+		if val, ok := jsonMap["autoReloginEnable"]; ok {
+			myDice.AutoReloginEnable = val.(bool)
 		}
 
 		if val, ok := jsonMap["UILogLimit"]; ok {

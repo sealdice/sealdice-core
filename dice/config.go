@@ -289,7 +289,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{"<{核心:骰子名字}> 停止服务", 1},
 			},
 			"骰子进群": {
-				{`<{核心:骰子名字}> 已经就绪。可通过.help查看手册和指令列表\n[图:data/images/sealdice.png]\nDND玩家可以使用.ext dnd5e on开启特化指令支持`, 1},
+				{`<{核心:骰子名字}> 已经就绪。可通过.help查看手册\n[图:data/images/sealdice.png]\nDND玩家可以使用.ext dnd5e on开启特化指令支持\n已搭载自动重连，如遇风控不回可稍作等待`, 1},
 			},
 			//"骰子群内迎新": {
 			//	{`欢迎，{$新人昵称}，祝你在这里过得愉快`, 1},
@@ -616,6 +616,7 @@ func (d *Dice) loads() {
 			d.WorkInQQChannel = dNew.WorkInQQChannel
 			d.UILogLimit = dNew.UILogLimit
 			d.FriendAddComment = dNew.FriendAddComment
+			d.AutoReloginEnable = dNew.AutoReloginEnable
 
 			if len(d.DiceMasters) == 0 {
 				d.DiceMasters = []string{}
@@ -781,6 +782,11 @@ func (d *Dice) loads() {
 				//}
 			}
 
+			if d.VersionCode != 0 && d.VersionCode < 9914 {
+				fmt.Println("?????!!!!")
+				d.AutoReloginEnable = true
+			}
+
 			d.Logger.Info("serve.yaml loaded")
 			//info, _ := yaml.Marshal(Session.ServiceAt)
 			//replyGroup(ctx, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
@@ -789,6 +795,7 @@ func (d *Dice) loads() {
 			panic(err2)
 		}
 	} else {
+		d.AutoReloginEnable = true
 		d.Logger.Info("serve.yaml not found")
 	}
 
