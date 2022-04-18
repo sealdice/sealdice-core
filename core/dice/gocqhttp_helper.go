@@ -445,9 +445,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	gocqhttpExePath = strings.Replace(gocqhttpExePath, "\\", "/", -1) // windows平台需要这个替换
 
 	// 随手执行一下
-	fmt.Println("!!!!!!!!")
 	_ = exec.Command("chmod +x " + gocqhttpExePath).Run()
-	fmt.Println("!!!!!!!! xxxxxx")
 
 	dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
 	p := procs.NewProcess(fmt.Sprintf(`"%s" faststart`, gocqhttpExePath))
@@ -520,7 +518,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		}
 
 		if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
-			fmt.Println("!!!!!!!!!!!!!!!!!!!!")
+			fmt.Println("!!!!!!!!!!!!!!!!!!!! 短信验证码")
 			//p.Cmds[0].Stdout.Write([]byte("3154"))
 		}
 

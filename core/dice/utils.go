@@ -52,7 +52,7 @@ func UploadFileToWeizaima(log *zap.SugaredLogger, name string, uniformId string,
 	io.Copy(part, data)
 	writer.Close()
 
-	req, err := http.NewRequest("PUT", "https://weizaima.com/dice/api/log", body)
+	req, err := http.NewRequest("PUT", "https://dice.weizaima.com/dice/api/log", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	if err != nil {
 		log.Fatal(err)
