@@ -887,7 +887,7 @@ func (d *Dice) registerCoreCommands() {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				_, exists := cmdArgs.GetArgN(1)
 				if exists {
-					r, _, err := d.ExprTextBase(cmdArgs.RawArgs, ctx)
+					r, _, err := d.ExprTextBase(cmdArgs.CleanArgs, ctx)
 
 					if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
 						text := r.Value.(string)

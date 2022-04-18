@@ -29,3 +29,4 @@ dist/
 go-cqhttp/
 frontend/
 backups/
+update/

@@ -143,7 +143,7 @@ func (code *ByteCode) CodeString() string {
 	case TypeLoadVarname:
 		return "ld.v " + code.ValueStr
 	case TypeLoadFormatString:
-		return fmt.Sprintf("ld.fs %s", code.ValueAny.([]string))
+		return fmt.Sprintf("ld.fs %d, %s", code.Value, code.ValueStr)
 	case TypeStore:
 		return "store"
 	case TypeHalt:
@@ -191,14 +191,16 @@ type RollExpression struct {
 	Top              int
 	CocFlagVarPrefix string // 解析过程中出现，当VarNumber开启时有效，可以是困难极难常规大成功
 
-	JmpStack []int
-	flags    RollExtraFlags
-	Error    error
+	JmpStack     []int
+	CounterStack []int64
+	flags        RollExtraFlags
+	Error        error
 }
 
 func (e *RollExpression) Init(stackLength int) {
 	e.Code = make([]ByteCode, stackLength)
 	e.JmpStack = []int{}
+	e.CounterStack = []int64{}
 }
 
 func (e *RollExpression) checkStackOverflow() bool {
@@ -241,6 +243,24 @@ func (e *RollExpression) PopAndSetOffset() {
 	e.JmpStack = e.JmpStack[:last]
 	e.Code[codeIndex].Value = int64(e.Top - codeIndex - 1)
 	//fmt.Println("XXXX", e.Code[codeIndex], "|", e.Top, codeIndex)
+}
+
+func (e *RollExpression) CounterPush() {
+	e.CounterStack = append(e.CounterStack, 0)
+}
+
+func (e *RollExpression) CounterAdd(offset int64) {
+	last := len(e.CounterStack) - 1
+	if last != -1 {
+		e.CounterStack[last] += offset
+	}
+}
+
+func (e *RollExpression) CounterPop() int64 {
+	last := len(e.CounterStack) - 1
+	num := e.CounterStack[last]
+	e.CounterStack = e.CounterStack[:last]
+	return num
 }
 
 func (e *RollExpression) AddOperatorWithInt64(operator Type, val int64) {
@@ -293,7 +313,7 @@ func (e *RollExpression) AddValueStr(value string) {
 	code[top].ValueStr = value
 }
 
-func (e *RollExpression) AddFormatString(value string) {
+func (e *RollExpression) AddFormatString(value string, num int64) {
 	// 载入一个字符串并格式化
 	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
@@ -301,11 +321,8 @@ func (e *RollExpression) AddFormatString(value string) {
 	}
 	e.Top++
 	code[top].T = TypeLoadFormatString
-	code[top].Value = 1
-
-	re := regexp.MustCompile(`\{[^}]*?\}`)
-	code[top].ValueStr = value
-	code[top].ValueAny = re.FindAllString(value, -1)
+	code[top].Value = num      // 需要合并的字符串数量
+	code[top].ValueStr = value // 仅象征性意义
 }
 
 type vmStack = VMValue
@@ -345,23 +362,34 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			}
 			continue
 		case TypeLoadFormatString:
-			parts := code.ValueAny.([]string)
-			str := code.ValueStr
+			num := int(code.Value)
 
-			for index, i := range parts {
+			outStr := ""
+			for index := 0; index < num; index++ {
 				var val vmStack
-				if top-len(parts)+index < 0 {
+				if top-num+index < 0 {
 					return nil, "", errors.New("E3: 无效的表达式")
 					//val = vmStack{VMTypeString, ""}
 				} else {
-					val = stack[top-len(parts)+index]
+					val = stack[top-num+index]
 				}
-				str = strings.Replace(str, i, val.ToString(), 1)
+				outStr += val.ToString()
 			}
 
-			top -= len(parts)
+			//for index, i := range parts {
+			//	var val vmStack
+			//	if top-len(parts)+index < 0 {
+			//		return nil, "", errors.New("E3: 无效的表达式")
+			//		//val = vmStack{VMTypeString, ""}
+			//	} else {
+			//		val = stack[top-len(parts)+index]
+			//	}
+			//	str = strings.Replace(str, i, val.ToString(), 1)
+			//}
+
+			top -= num
 			stack[top].TypeId = VMTypeString
-			stack[top].Value = str
+			stack[top].Value = outStr
 			top++
 			continue
 		case TypeNumber:
