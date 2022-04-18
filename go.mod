@@ -9,6 +9,7 @@ require (
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
 	github.com/antlabs/strsim v0.0.2
 	github.com/blevesearch/bleve/v2 v2.3.1
+	github.com/dop251/goja v0.0.0-20220408131256-ffe77e20c6f1
 	github.com/fy0/lockfree v0.0.0-20220407095241-e3799de5fa34
 	github.com/fy0/procs v0.0.0-20220314124159-7f38d32746c3
 	github.com/fy0/systray v1.2.2

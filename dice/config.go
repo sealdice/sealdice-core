@@ -783,7 +783,6 @@ func (d *Dice) loads() {
 			}
 
 			if d.VersionCode != 0 && d.VersionCode < 9914 {
-				fmt.Println("?????!!!!")
 				d.AutoReloginEnable = true
 			}
 

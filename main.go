@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/dop251/goja"
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -31,6 +32,7 @@ func main() {
 		Uninstall              bool   `long:"uninstall" description:"删除系统服务"`
 		ShowConsole            bool   `long:"show-console" description:"Windows上显示控制台界面"`
 		ServiceUser            string `long:"service-user" description:"用于启动服务的用户"`
+		ServiceName            string `long:"service-name" description:"自定义服务名，默认为sealdice"`
 		MultiInstanceOnWindows bool   `short:"m" long:"multi-instance" description:"允许在Windows上运行多个海豹"`
 		Address                string `long:"address" description:"将UI的http服务地址改为此值，例: 0.0.0.0:3211"`
 	}
@@ -40,13 +42,29 @@ func main() {
 		return
 	}
 
+	// 提早初始化是为了读取ServiceName
+	diceManager := &dice.DiceManager{}
+	diceManager.LoadDice()
+
 	if opts.Install {
-		serviceInstall(true, opts.ServiceUser)
+		serviceName := opts.ServiceName
+		if serviceName == "" {
+			serviceName = diceManager.ServiceName
+		}
+		if serviceName == "" {
+			serviceName = "sealdice"
+		}
+		if serviceName != diceManager.ServiceName {
+			diceManager.ServiceName = serviceName
+			diceManager.Save()
+		}
+		serviceInstall(true, serviceName, opts.ServiceUser)
 		return
 	}
 
 	if opts.Uninstall {
-		serviceInstall(false, "")
+		serviceName := diceManager.ServiceName
+		serviceInstall(false, serviceName, "")
 		return
 	}
 
@@ -61,8 +79,6 @@ func main() {
 	cwd, _ := os.Getwd()
 	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
 	fmt.Println("工作路径: ", cwd)
-
-	diceManager := &dice.DiceManager{}
 
 	go trayInit()
 
@@ -91,9 +107,33 @@ func main() {
 	defer cleanUp()
 
 	// 初始化核心
-	diceManager.LoadDice()
 	diceManager.TryCreateDefault()
 	diceManager.InitDice()
+
+	// goja 大概占据5MB空间，压缩后1MB，还行
+	// 按tengo和他自己的benchmark来看，还是比较出色的（当然和v8啥的不能比）
+	// 一些想法:
+	// 1. 脚本调用独立加锁，因为他线程不安全
+	// 2. 将部分函数注册进去，如SetVar等
+	// 3. 模拟一个LocalStorage给js用
+	// 4. 提供一个自定义条件(js脚本)，返回true即为成功
+	// 5. 所有条目(如helpdoc、牌堆、自定义回复)都带上一个mod字段，以mod名字为标记，可以一键装卸
+	// 6. 可以向骰子注册varname solver，以指定的正则去实现自定义语法（例如我定义一个算符c，匹配c5e2这样的变量名）
+	// 7. 可以向骰子注册自定义指令，指令必须存在模块归属，以便于关闭
+	// 8. 存在一个tick()或update()函数，每隔一段时间必定会调用一次
+	vm := goja.New()
+	v, err := vm.RunString("2 + 2")
+	if err != nil {
+		panic(err)
+	}
+	if num := v.Export().(int64); num != 4 {
+		panic(num)
+	}
+
+	diceManager.Cron.AddFunc("@every 15min", func() {
+		go checkVersion(diceManager)
+	})
+	go checkVersion(diceManager)
 
 	//a, d, err := myDice.ExprEval("7d12k4", nil)
 	//if err == nil {

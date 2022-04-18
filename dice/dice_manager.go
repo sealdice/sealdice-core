@@ -8,6 +8,12 @@ import (
 	"os"
 )
 
+type VersionInfo struct {
+	VersionLatest           string `yaml:"versionLatest" json:"versionLatest"`
+	VersionLatestCode       int64  `yaml:"versionLatestCode" json:"versionLatestCode"`
+	MinUpdateSupportVersion int64  `yaml:"minUpdateSupportVersion" json:"minUpdateSupportVersion"`
+}
+
 type DiceManager struct {
 	Dice                 []*Dice
 	ServeAddress         string
@@ -25,10 +31,11 @@ type DiceManager struct {
 	AutoBackupEnable bool
 	AutoBackupTime   string
 
-	AppVersionCode       int
-	AppVersionCodeOnline int // 版本ID - 线上
+	AppVersionCode   int64
+	AppVersionOnline *VersionInfo
 
-	Cron *cron.Cron
+	Cron        *cron.Cron
+	ServiceName string
 }
 
 type DiceConfigs struct {
@@ -43,6 +50,7 @@ type DiceConfigs struct {
 
 	AutoBackupEnable bool   `yaml:"autoBackupEnable"`
 	AutoBackupTime   string `yaml:"autoBackupTime"`
+	ServiceName      string `yaml:"serviceName"`
 }
 
 func (dm *DiceManager) InitHelp() {
@@ -119,6 +127,7 @@ func (dm *DiceManager) Save() {
 	dc.AccessTokens = []string{}
 	dc.AutoBackupTime = dm.AutoBackupTime
 	dc.AutoBackupEnable = dm.AutoBackupEnable
+	dc.ServiceName = dm.ServiceName
 
 	for k, _ := range dm.AccessTokens {
 		dc.AccessTokens = append(dc.AccessTokens, k)

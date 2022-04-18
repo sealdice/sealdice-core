@@ -200,7 +200,15 @@ func (d *Dice) registerCoreCommands() {
 				//if d.LastSavedTime != nil {
 				//	lastSavedTimeText = d.LastSavedTime.Format("2006-01-02 15:04:05") + " UTC"
 				//}
-				text := fmt.Sprintf("SealDice %s\n供职于%d个群，其中%d个处于开启状态", VERSION, serveCount, count)
+				onlineVer := ""
+				if d.Parent.AppVersionOnline != nil {
+					ver := d.Parent.AppVersionOnline
+					// 如果当前不是最新版，那么提示
+					if ver.VersionLatestCode != VERSION_CODE {
+						onlineVer = "最新版本: " + ver.VersionLatest + "\n"
+					}
+				}
+				text := fmt.Sprintf("SealDice %s\n%s供职于%d个群，其中%d个处于开启状态", VERSION, onlineVer, serveCount, count)
 
 				if inGroup {
 					isActive := ctx.Group != nil && ctx.Group.Active

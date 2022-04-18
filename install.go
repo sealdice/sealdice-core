@@ -25,12 +25,15 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
-func serviceInstall(isInstall bool, user string) {
+func serviceInstall(isInstall bool, serviceName string, user string) {
 	cwd, _ := os.Getwd()
 	wd, _ := filepath.Abs(cwd)
 
+	if serviceName == "" {
+		serviceName = "sealdice"
+	}
 	svcConfig := &service.Config{
-		Name:             "sealdice",
+		Name:             serviceName,
 		DisplayName:      "SealDice Service",
 		Description:      "SealDice: A TRPG Dice Bot Service.",
 		WorkingDirectory: wd,
