@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
@@ -439,6 +440,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					attrChanged := []string{}
 					var extraText string
 
+					var commandInfoItems []interface{}
 					for {
 						m := re.FindStringSubmatch(text)
 						if len(m) == 0 {
@@ -453,6 +455,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							ReplyToSender(mctx, msg, "无法解析属性: "+attrName)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
+						textRight := r.Matched
 						text = r.restInput
 
 						if r.TypeId != VMTypeInt64 {
@@ -579,6 +582,17 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								baseValue = fmt.Sprintf("[%d]", newVal)
 							}
 							attrChanged = append(attrChanged, fmt.Sprintf("%s%s(%d ➯ %d)", attrName, baseValue, theOldValue, theNewValue))
+
+							// 指令信息标记
+							infoItem := map[string]interface{}{
+								"type":    "mod",
+								"attr":    attrName,
+								"modExpr": textRight,
+								"valOld":  theOldValue,
+								"valNew":  theNewValue,
+								"isInc":   m[3] == "+" || m[3] == "＋", // 增加还是扣除
+							}
+							commandInfoItems = append(commandInfoItems, infoItem)
 						}
 					}
 
@@ -593,6 +607,25 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if text != "" {
 						retText += "解析失败: " + text
 					}
+
+					// 指令信息
+					commandInfo := map[string]interface{}{
+						"cmd":    "st",
+						"rule":   "dnd5e",
+						"pcName": mctx.Player.Name,
+						"items":  commandInfoItems,
+					}
+					ctx.CommandInfo = commandInfo
+
+					if kw := cmdArgs.GetKwarg("ci"); kw != nil {
+						info, err := json.Marshal(ctx.CommandInfo)
+						if err == nil {
+							extraText += "\n" + string(info)
+						} else {
+							extraText += "\n" + "指令信息无法序列化"
+						}
+					}
+
 					ReplyToSender(mctx, msg, strings.TrimSpace(retText)+extraText)
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -641,6 +674,30 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 
 					text := fmt.Sprintf("<%s>的“%s”检定(dnd5e)结果为:\n%s = %s", mctx.Player.Name, reason, detail, r.ToString())
+
+					// 指令信息
+					commandInfo := map[string]interface{}{
+						"cmd":    "rc",
+						"rule":   "dnd5e",
+						"pcName": mctx.Player.Name,
+						"items": []interface{}{
+							map[string]interface{}{
+								"expr":   expr,
+								"reason": reason,
+								"result": r.Value,
+							},
+						},
+					}
+					ctx.CommandInfo = commandInfo
+
+					if kw := cmdArgs.GetKwarg("ci"); kw != nil {
+						info, err := json.Marshal(ctx.CommandInfo)
+						if err == nil {
+							text += "\n" + string(info)
+						} else {
+							text += "\n" + "指令信息无法序列化"
+						}
+					}
 					ReplyToSender(mctx, msg, text)
 				}
 

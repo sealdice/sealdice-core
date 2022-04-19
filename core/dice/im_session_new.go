@@ -197,8 +197,9 @@ type MsgContext struct {
 
 	IsPrivate       bool
 	CommandId       uint64
-	CommandHideFlag string // 暗骰标记
-	PrivilegeLevel  int    // 权限等级
+	CommandHideFlag string      // 暗骰标记
+	CommandInfo     interface{} // 命令信息
+	PrivilegeLevel  int         // 权限等级
 }
 
 func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
@@ -273,7 +274,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 				// 这里不用group是为了私聊
 				g := mctx.Group
-				if g != nil && g.Active {
+				if g != nil {
 					for _, i := range g.ActivatedExtList {
 						for k := range i.CmdMap {
 							cmdLst = append(cmdLst, k)

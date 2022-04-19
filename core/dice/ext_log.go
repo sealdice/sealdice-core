@@ -81,13 +81,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 					group := session.ServiceAtNew[ctx.CommandHideFlag]
 
 					a := LogOneItem{
-						Nickname:  ctx.EndPoint.Nickname,
-						IMUserId:  UserIdExtract(ctx.EndPoint.UserId),
-						UniformId: ctx.EndPoint.UserId,
-						Time:      time.Now().Unix(),
-						Message:   text,
-						IsDice:    true,
-						CommandId: ctx.CommandId,
+						Nickname:    ctx.EndPoint.Nickname,
+						IMUserId:    UserIdExtract(ctx.EndPoint.UserId),
+						UniformId:   ctx.EndPoint.UserId,
+						Time:        time.Now().Unix(),
+						Message:     text,
+						IsDice:      true,
+						CommandId:   ctx.CommandId,
+						CommandInfo: ctx.CommandInfo,
 					}
 					LogAppend(ctx, group, &a)
 				}
@@ -103,13 +104,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 					}
 
 					a := LogOneItem{
-						Nickname:  ctx.EndPoint.Nickname,
-						IMUserId:  UserIdExtract(ctx.EndPoint.UserId),
-						UniformId: ctx.EndPoint.UserId,
-						Time:      time.Now().Unix(),
-						Message:   text,
-						IsDice:    true,
-						CommandId: ctx.CommandId,
+						Nickname:    ctx.EndPoint.Nickname,
+						IMUserId:    UserIdExtract(ctx.EndPoint.UserId),
+						UniformId:   ctx.EndPoint.UserId,
+						Time:        time.Now().Unix(),
+						Message:     text,
+						IsDice:      true,
+						CommandId:   ctx.CommandId,
+						CommandInfo: ctx.CommandInfo,
 					}
 					LogAppend(ctx, group, &a)
 				}
@@ -310,7 +312,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 }
 
 func filenameReplace(name string) string {
-	re := regexp.MustCompile(`/:\*\?"<>\|\\`)
+	re := regexp.MustCompile(`[/:\*\?"<>\|\\]`)
 	return re.ReplaceAllString(name, "")
 }
 
@@ -336,9 +338,10 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 
 		// 本地进行一个zip留档，以防万一
 		gid := group.GroupId
-		fzip, _ := ioutil.TempFile(dirpath, filenameReplace(gid+"_"+group.LogCurName+".*.zip"))
+		fzip, _ := ioutil.TempFile(dirpath, filenameReplace(gid+"_"+group.LogCurName)+".*.zip")
 		writer := zip.NewWriter(fzip)
 		defer writer.Close()
+		defer fzip.Close()
 
 		text := ""
 		for _, i := range lines {
@@ -348,13 +351,22 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 
 		fileWriter, _ := writer.Encrypt("log.txt", zipPassword)
 		fileWriter.Write([]byte(text))
-		writer.Close()
+
+		data, err := json.Marshal(map[string]interface{}{
+			"version": 100,
+			"items":   lines,
+		})
+		if err == nil {
+			fileWriter2, _ := writer.Encrypt("log.json", zipPassword)
+			fileWriter2.Write(data)
+		}
 	}
 
 	if err == nil {
 		// 压缩log，发往后端
 		data, err := json.Marshal(map[string]interface{}{
-			"items": lines,
+			"version": 100,
+			"items":   lines,
 		})
 
 		if err == nil {
