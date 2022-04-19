@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"strconv"
@@ -19,9 +20,10 @@ type oneBotCommand struct {
 type QQUidType int
 
 const (
-	QQUidPerson QQUidType = 0
-	QQUidGroup  QQUidType = 1
-	//QQUidPerson QQUidType = 0
+	QQUidPerson        QQUidType = 1
+	QQUidGroup         QQUidType = 2
+	QQUidChannelPerson QQUidType = 3
+	QQUidChannelGroup  QQUidType = 4
 )
 
 func (pa *PlatformAdapterQQOnebot) mustExtractId(id string) (int64, QQUidType) {
@@ -40,14 +42,14 @@ func (pa *PlatformAdapterQQOnebot) mustExtractId(id string) (int64, QQUidType) {
 	return 0, QQUidPerson
 }
 
-func (pa *PlatformAdapterQQOnebot) mustExtractChannelId(id string) string {
-	if strings.HasPrefix(id, "QQ-Channel:") {
-		return id[len("QQ-Channel:"):]
+func (pa *PlatformAdapterQQOnebot) mustExtractChannelId(id string) (string, QQUidType) {
+	if strings.HasPrefix(id, "QQ-CH:") {
+		return id[len("QQ-CH:"):], QQUidChannelPerson
 	}
-	if strings.HasPrefix(id, "QQ-Channel-Group:") {
-		return id[len("QQ-Channel-Group:"):]
+	if strings.HasPrefix(id, "QQ-CH-Group:") {
+		return id[len("QQ-CH-Group:"):], QQUidChannelGroup
 	}
-	return ""
+	return "", 0
 }
 
 // GetGroupInfoAsync 异步获取群聊信息
@@ -55,7 +57,10 @@ func (pa *PlatformAdapterQQOnebot) GetGroupInfoAsync(groupId string) {
 	type GroupMessageParams struct {
 		GroupId int64 `json:"group_id"`
 	}
-	realGroupId, _ := pa.mustExtractId(groupId)
+	realGroupId, type_ := pa.mustExtractId(groupId)
+	if type_ != QQUidGroup {
+		return
+	}
 
 	a, _ := json.Marshal(oneBotCommand{
 		"get_group_info",
@@ -104,7 +109,12 @@ func doSleepQQ(ctx *MsgContext) {
 }
 
 func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
-	rawId, _ := pa.mustExtractId(userId)
+	rawId, type_ := pa.mustExtractId(userId)
+
+	if type_ != QQUidPerson {
+		return
+	}
+
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
 			i.OnMessageSend(ctx, "private", userId, text, flag)
@@ -133,7 +143,12 @@ func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, 
 }
 
 func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
-	rawId, _ := pa.mustExtractId(groupId)
+	rawId, type_ := pa.mustExtractId(groupId)
+	fmt.Println("!!!!", type_, type_ != QQUidGroup, groupId)
+	if type_ != QQUidGroup {
+		pa.SendToChannelGroup(ctx, groupId, text, flag)
+		return
+	}
 
 	if ctx.Session.ServiceAtNew[groupId] != nil {
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
@@ -254,7 +269,10 @@ func (pa *PlatformAdapterQQOnebot) SetFriendAddRequest(flag string, approve bool
 }
 
 func (pa *PlatformAdapterQQOnebot) QuitGroup(ctx *MsgContext, id string) {
-	groupId, _ := pa.mustExtractId(id)
+	groupId, type_ := pa.mustExtractId(id)
+	if type_ != QQUidGroup {
+		return
+	}
 	type GroupMessageParams struct {
 		GroupId int64 `json:"group_id"`
 	}
