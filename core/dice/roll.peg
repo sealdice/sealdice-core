@@ -8,10 +8,16 @@ type DiceRollParser Peg {
 
 // 实际操作中发现，不匹配句尾比较好 (没有!.)
 eBase <- e { p.AddOperator(TypeHalt) }
-e <- ( eOne ';' sp { p.AddOperator(TypeClearDetail) } )* eOne
-eOne <- sp (fstring / e0)
+e <- eOne (';' sp { p.AddOperator(TypeClearDetail) } eOne?)*
+eOne <- sp (fstring / s0 / e0 / assign_expr)
 
 assign_expr <- identifier { p.AddValueStr(string(text)) } '=' sp e0 { p.AddStore() }
+
+s0 <- stmtIf
+
+block <- ( '{' sp '}' / '{' sp e {p.AddOperator(TypePop)} '}' ) sp
+stmtElse <- 'else' sp block
+stmtIf <- 'if' sp e0 { p.AddOperator(TypeJne); p.PushForOffset() } block { p.AddOperator(TypeJmp); p.PopAndSetOffset(); p.PushForOffset(); } stmtElse? { p.PopAndSetOffset() } { p.AddValueStr(""); }
 
 // e0m <- (e0 ';' sp { p.AddOperator(TypeClearDetail) })* e0
 e0 <- eTernary
@@ -134,7 +140,7 @@ strPart3 <- < (escape / (![{\'\\\n\r].))+ > { p.AddValueStr(string(text)); p.Cou
 
 fstring <- (
           ('`' { p.CounterPush() } < ( ('{' sp e {p.CounterAdd(1)} '}') / ('{{' sp e {p.CounterAdd(1)} '}}') / strPart )* > '`' { p.AddFormatString(string(text), p.CounterPop()) })
-        / ('\36' { p.CounterPush() } < ( ('{' sp e {p.CounterAdd(1)} '}') / ('{{' sp e {p.CounterAdd(1)} '}}') / strPart1 )* > '\36' { p.AddFormatString(string(text), p.CounterPop()) }) // 特殊标记 0x1E
+        / ('\36' { p.CounterPush() } < ( ('{' sp e {p.CounterAdd(1)} '}') / ('{%' sp e {p.CounterAdd(1)} '%}') / strPart1 )* > '\36' { p.AddFormatString(string(text), p.CounterPop()) }) // 特殊标记 0x1E
         / ('"' { p.CounterPush() } < ( strPart2 )* > '"' { p.AddFormatString(string(text), p.CounterPop()) })
         / ('\'' { p.CounterPush() } < ( strPart3 )* > '\'' { p.AddFormatString(string(text), p.CounterPop()) })
     ) sp
