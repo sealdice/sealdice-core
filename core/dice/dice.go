@@ -88,6 +88,8 @@ type Dice struct {
 	MessageDelayRangeStart  float64                `yaml:"messageDelayRangeStart"`  // 指令延迟区间
 	MessageDelayRangeEnd    float64                `yaml:"messageDelayRangeEnd"`
 	WorkInQQChannel         bool                   `yaml:"workInQQChannel"`
+	QQChannelAutoOn         bool                   `yaml:"QQChannelAutoOn"`     // QQ频道中自动开启(默认不开)
+	QQChannelLogMessage     bool                   `yaml:"QQChannelLogMessage"` // QQ频道中记录消息(默认不开)
 	UILogLimit              int64                  `yaml:"UILogLimit"`
 	FriendAddComment        string                 `yaml:"friendAddComment"` // 加好友验证信息
 	MasterUnlockCode        string                 `yaml:"-"`                // 解锁码，每20分钟变化一次，使用后立即变化
