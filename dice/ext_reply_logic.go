@@ -38,18 +38,18 @@ func (m *ReplyConditionMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdA
 	var ret bool
 	switch m.MatchType {
 	case "matchExact":
-		ret = msg.Message == m.Value
+		ret = strings.ToLower(msg.Message) == strings.ToLower(m.Value)
 	case "matchPrefix":
-		ret = strings.HasPrefix(msg.Message, m.Value)
+		ret = strings.HasPrefix(strings.ToLower(msg.Message), strings.ToLower(m.Value))
 	case "matchSuffix":
-		ret = strings.HasSuffix(msg.Message, m.Value)
+		ret = strings.HasSuffix(strings.ToLower(msg.Message), strings.ToLower(m.Value))
 	case "matchRegex":
 		re, err := regexp.Compile(m.Value)
 		if err == nil {
 			ret = re.MatchString(msg.Message)
 		}
 	case "matchFuzzy":
-		return strCompare(m.Value, msg.Message) > 0.7
+		return strCompare(strings.ToLower(m.Value), strings.ToLower(msg.Message)) > 0.7
 	}
 	return ret
 }

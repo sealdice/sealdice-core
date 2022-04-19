@@ -486,8 +486,12 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			stack[top-1].TypeId = VMTypeInt64
 			continue
 		case TypePushString:
+			unquote, err := strconv.Unquote(`"` + strings.ReplaceAll(code.ValueStr, `"`, `\"`) + `"`)
+			if err != nil {
+				unquote = code.ValueStr
+			}
 			stack[top].TypeId = VMTypeString
-			stack[top].Value = code.ValueStr
+			stack[top].Value = unquote
 			top++
 			continue
 		case TypeLoadVarname:

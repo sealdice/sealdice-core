@@ -15,7 +15,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.14 v20220415dev"
+var VERSION = "0.99.14 v20220419dev"
 var VERSION_CODE = int64(991400)
 
 type CmdExecuteResult struct {
@@ -221,8 +221,10 @@ func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VmResult, string, erro
 }
 
 func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext) (*VmResult, string, error) {
-	buffer = strings.ReplaceAll(buffer, "`", "")
-	val, detail, err := d.ExprEval("`"+buffer+"`", ctx)
+	// 隐藏的内置字符串符号 \x1e
+	val, detail, err := d.ExprEval("\x1e"+buffer+"\x1e", ctx)
+	//val, detail, err := d.ExprEval("`"+buffer+"`", ctx)
+	//fmt.Println("???", buffer, val, detail, err, "'"+buffer+"'")
 
 	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
 		return val, detail, err
@@ -233,6 +235,7 @@ func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext) (*VmResult, string, 
 
 func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) {
 	val, detail, err := d.ExprTextBase(buffer, ctx)
+	//fmt.Println("!XX", buffer, val, detail, err)
 
 	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
 		return val.Value.(string), detail, err
