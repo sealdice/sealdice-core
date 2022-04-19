@@ -118,6 +118,14 @@ func FormatDiceIdQQGroup(diceQQ int64) string {
 	return fmt.Sprintf("QQ-Group:%s", strconv.FormatInt(diceQQ, 10))
 }
 
+func FormatDiceIdQQCh(userId string) string {
+	return fmt.Sprintf("QQ-CH:%s", userId)
+}
+
+func FormatDiceIdQQChGroup(GuildId, ChannelId string) string {
+	return fmt.Sprintf("QQ-CH-Group:%s-%s", GuildId, ChannelId)
+}
+
 func (pa *PlatformAdapterQQOnebot) Serve() int {
 	ep := pa.EndPoint
 	s := pa.Session
@@ -158,6 +166,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 		//fmt.Println("!!!", message)
 		if strings.Contains(message, `"channel_id"`) {
 			// 暂时忽略频道消息
+			pa.QQChannelTrySolve(message)
 			return
 		}
 
