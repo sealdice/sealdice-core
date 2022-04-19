@@ -71,8 +71,9 @@ type GroupInfo struct {
 	QuitMarkAutoClean   bool   `yaml:"-"`                 // 自动清群 - 播报，即将自动退出群组
 	QuitMarkMaster      bool   `yaml:"-"`                 // 骰主命令退群 - 播报，即将自动退出群组
 	RecentCommandTime   int64  `yaml:"recentCommandTime"` // 最近一次发送有效指令的时间
-	ShowGroupWelcome    bool   `yaml:"showGroupWelcome"`
+	ShowGroupWelcome    bool   `yaml:"showGroupWelcome"`  // 是否迎新
 	GroupWelcomeMessage string `yaml:"groupWelcomeMessage"`
+	//FirstSpeechMade     bool   `yaml:"firstSpeechMade"` // 是否做过进群发言
 }
 
 // ExtActive 开启扩展

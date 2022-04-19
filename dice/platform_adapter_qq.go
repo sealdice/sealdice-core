@@ -152,6 +152,8 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 	// {"data":{"message_id":-1541043078},"retcode":0,"status":"ok"}
 	var lastWelcome *LastWelcomeInfo
 
+	tempInviteMap := map[string]int64{}
+
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		//fmt.Println("!!!", message)
 		if strings.Contains(message, `"channel_id"`) {
@@ -226,6 +228,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				// {"comment":"","flag":"111","group_id":222,"post_type":"request","request_type":"group","self_id":333,"sub_type":"invite","time":1646782195,"user_id":444}
 				ep.GroupNum = int64(len(session.ServiceAtNew))
 				log.Infof("收到加群邀请: 群组(%d) 邀请人:%d", msgQQ.GroupId, msgQQ.UserId)
+				tempInviteMap[msg.GroupId] = time.Now().Unix()
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 				pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, true, "")
 				return
@@ -264,21 +267,36 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				return
 			}
 
+			groupEntered := func() {
+				// 判断进群的人是自己，自动启动
+				SetBotOnAtGroup(ctx, msg.GroupId)
+				// 立即获取群信息
+				pa.GetGroupInfoAsync(msg.GroupId)
+				// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname)
+				go func() {
+					// 稍作等待后发送入群致词
+					time.Sleep(2 * time.Second)
+					pa.SendToGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
+				}()
+				log.Infof("加入群组: (%d)", msgQQ.GroupId)
+			}
+
+			// 入群的另一种情况: 管理员审核
+			group := s.ServiceAtNew[msg.GroupId]
+			if group == nil && msg.GroupId != "" {
+				now := time.Now().Unix()
+				if tempInviteMap[msg.GroupId] != 0 && now > tempInviteMap[msg.GroupId] {
+					delete(tempInviteMap, msg.GroupId)
+					groupEntered()
+				}
+				//log.Infof("自动激活: 发现无记录群组(%s)，因为已是群成员，所以自动激活", group.GroupId)
+			}
+
 			// 入群后自动开启
 			if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_increase" {
 				//{"group_id":111,"notice_type":"group_increase","operator_id":0,"post_type":"notice","self_id":333,"sub_type":"approve","time":1646782012,"user_id":333}
 				if msgQQ.UserId == msgQQ.SelfId {
-					// 判断进群的人是自己，自动启动
-					SetBotOnAtGroup(ctx, msg.GroupId)
-					// 立即获取群信息
-					pa.GetGroupInfoAsync(msg.GroupId)
-					// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname)
-					go func() {
-						// 稍作等待后发送入群致词
-						time.Sleep(2 * time.Second)
-						pa.SendToGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
-					}()
-					log.Infof("加入群组: (%d)", msgQQ.GroupId)
+					groupEntered()
 				} else {
 					group := session.ServiceAtNew[msg.GroupId]
 					// 进群的是别人，是否迎新？
