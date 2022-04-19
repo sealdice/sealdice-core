@@ -14,7 +14,7 @@ import (
 type Type uint8
 
 const (
-	TypeNumber Type = iota
+	TypePushNumber Type = iota
 	TypePushString
 	TypeNegation
 	TypeAdd
@@ -37,6 +37,8 @@ const (
 	TypeDiceSetK
 	TypeDiceSetQ
 	TypeClearDetail
+
+	TypePop
 
 	TypeCompLT
 	TypeCompLE
@@ -110,7 +112,7 @@ func (code *ByteCode) String() string {
 
 func (code *ByteCode) CodeString() string {
 	switch code.T {
-	case TypeNumber:
+	case TypePushNumber:
 		return "push " + strconv.FormatInt(code.Value, 10)
 	case TypePushString:
 		return "push.str " + code.ValueStr
@@ -170,6 +172,10 @@ func (code *ByteCode) CodeString() string {
 		return "comp.ge"
 	case TypeCompGT:
 		return "comp.gt"
+	case TypePop:
+		return "pop"
+	case TypeClearDetail:
+		return "reset"
 	}
 	return ""
 }
@@ -361,6 +367,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				lastDetails = lastDetails[:0]
 			}
 			continue
+		case TypePop:
+			top -= 1
+			continue
 		case TypeLoadFormatString:
 			num := int(code.Value)
 
@@ -392,7 +401,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			stack[top].Value = outStr
 			top++
 			continue
-		case TypeNumber:
+		case TypePushNumber:
 			stack[top].TypeId = VMTypeInt64
 			stack[top].Value = code.Value
 			top++
@@ -913,7 +922,7 @@ func (e *RollExpression) GetAsmText() string {
 		if s != "" {
 			ret += s + "\n"
 		} else {
-			ret += "@raw: " + string(i.T) + "\n"
+			ret += "@raw: " + strconv.FormatInt(int64(i.T), 10) + "\n"
 		}
 	}
 	ret += "=== VM Code End===\n"
