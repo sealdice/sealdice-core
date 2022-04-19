@@ -566,6 +566,8 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				var r *VmResult
+				var commandInfoItems []interface{}
+
 				rollOne := func() *CmdExecuteResult {
 					forWhat := ""
 					if len(cmdArgs.Args) >= 1 {
@@ -608,6 +610,17 @@ func (d *Dice) registerCoreCommands() {
 							detailWrap = "=" + detail
 						}
 
+						// 指令信息标记
+						item := map[string]interface{}{
+							"expr":   r.Matched,
+							"result": diceResult,
+							"reason": forWhat,
+						}
+						if forWhat == "" {
+							delete(item, "reason")
+						}
+						commandInfoItems = append(commandInfoItems, item)
+
 						VarSetValueStr(ctx, "$t表达式文本", r.Matched)
 						VarSetValueStr(ctx, "$t计算过程", detailWrap)
 						VarSetValueInt64(ctx, "$t计算结果", diceResult)
@@ -615,6 +628,17 @@ func (d *Dice) registerCoreCommands() {
 					} else {
 						dicePoints := getDefaultDicePoints(ctx)
 						val := DiceRoll64(int64(dicePoints))
+
+						// 指令信息标记
+						item := map[string]interface{}{
+							"expr":       fmt.Sprintf("D%d", dicePoints),
+							"reason":     forWhat,
+							"dicePoints": dicePoints,
+						}
+						if forWhat == "" {
+							delete(item, "reason")
+						}
+						commandInfoItems = append(commandInfoItems, item)
 
 						VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("D%d", dicePoints))
 						VarSetValueStr(ctx, "$t计算过程", "")
@@ -627,7 +651,7 @@ func (d *Dice) registerCoreCommands() {
 				if cmdArgs.SpecialExecuteTimes > 1 {
 					VarSetValueInt64(ctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
 					if cmdArgs.SpecialExecuteTimes > 12 {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_轮数过多警告"))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 						return CmdExecuteResult{Matched: true, Solved: false}
 					}
 					texts := []string{}
@@ -649,12 +673,34 @@ func (d *Dice) registerCoreCommands() {
 					text = DiceFormatTmpl(ctx, "核心:骰点")
 				}
 
+				isHide := cmdArgs.Command == "rh" || cmdArgs.Command == "rhd"
+
+				// 指令信息
+				commandInfo := map[string]interface{}{
+					"cmd":    "roll",
+					"pcName": ctx.Player.Name,
+					"items":  commandInfoItems,
+				}
+				if isHide {
+					commandInfo["hide"] = isHide
+				}
+				ctx.CommandInfo = commandInfo
+
 				if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
 					asm := r.Parser.GetAsmText()
 					text += "\n" + asm
 				}
 
-				if cmdArgs.Command == "rh" || cmdArgs.Command == "rhd" {
+				if kw := cmdArgs.GetKwarg("ci"); kw != nil {
+					info, err := json.Marshal(ctx.CommandInfo)
+					if err == nil {
+						text += "\n" + string(info)
+					} else {
+						text += "\n" + "指令信息无法序列化"
+					}
+				}
+
+				if isHide {
 					if ctx.Group != nil {
 						ctx.CommandHideFlag = ctx.Group.GroupId
 						//prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", ctx.Group.GroupName, msg.GroupId)

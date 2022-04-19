@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
@@ -418,6 +419,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						}
 					}
 
+					cocRule := mctx.Group.CocRuleIndex
+					if cmdArgs.Command == "rc" {
+						// 强制规则书
+						cocRule = 0
+					}
+
+					var commandInfoItems []interface{}
 					rollOne := func(manyTimes bool) *CmdExecuteResult {
 						difficultRequire := 0
 						// 试图读取检定表达式
@@ -441,7 +449,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 						// 如果读取完了，那么说明刚才读取的实际上是属性表达式
 						if expr2Text == "" {
-							expr2Text = "d100"
+							expr2Text = "D100"
 							swap = true
 						}
 
@@ -476,12 +484,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						var checkVal = r1.Value.(int64)
 						var attrVal = r2.Value.(int64)
 
-						cocRule := mctx.Group.CocRuleIndex
-						if cmdArgs.Command == "rc" {
-							// 强制规则书
-							cocRule = 0
-						}
-
 						successRank, criticalSuccessValue := ResultCheck(cocRule, checkVal, attrVal)
 						var suffix string
 						suffix = GetResultTextWithRequire(mctx, successRank, difficultRequire, manyTimes)
@@ -504,6 +506,16 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							if detail1 != "" {
 								detailWrap = ", (" + detail1 + ")"
 							}
+
+							// 指令信息标记
+							infoItem := map[string]interface{}{
+								"expr1":    expr1Text,
+								"expr2":    expr2Text,
+								"checkVal": checkVal,
+								"attrVal":  attrVal,
+								"rank":     successRank,
+							}
+							commandInfoItems = append(commandInfoItems, infoItem)
 
 							VarSetValueStr(mctx, "$t检定表达式文本", expr1Text)
 							VarSetValueStr(mctx, "$t属性表达式文本", expr2Text)
@@ -543,7 +555,31 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						text = DiceFormatTmpl(mctx, "COC:检定")
 					}
 
-					if cmdArgs.Command == "rah" || cmdArgs.Command == "rch" {
+					isHide := cmdArgs.Command == "rah" || cmdArgs.Command == "rch"
+
+					// 指令信息
+					commandInfo := map[string]interface{}{
+						"cmd":     "ra",
+						"rule":    "coc7",
+						"pcName":  mctx.Player.Name,
+						"cocRule": cocRule,
+						"items":   commandInfoItems,
+					}
+					if isHide {
+						commandInfo["hide"] = isHide
+					}
+					ctx.CommandInfo = commandInfo
+
+					if kw := cmdArgs.GetKwarg("ci"); kw != nil {
+						info, err := json.Marshal(ctx.CommandInfo)
+						if err == nil {
+							text += "\n" + string(info)
+						} else {
+							text += "\n" + "指令信息无法序列化"
+						}
+					}
+
+					if isHide {
 						ctx.CommandHideFlag = ctx.Group.GroupId
 						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
 						ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
@@ -1208,7 +1244,35 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								VarSetValueStr(mctx, "$t附加语", "")
 							}
 
-							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:理智检定"))
+							// 指令信息
+							commandInfo := map[string]interface{}{
+								"cmd":     "sc",
+								"rule":    "coc7",
+								"pcName":  mctx.Player.Name,
+								"cocRule": mctx.Group.CocRuleIndex,
+								"items": []interface{}{
+									map[string]interface{}{
+										"checkVal": d100,
+										"exprs":    []string{expr1, expr2, expr3},
+										"rank":     successRank,
+										"sanOld":   san,
+										"sanNew":   sanNew,
+									},
+								},
+							}
+							ctx.CommandInfo = commandInfo
+
+							text := DiceFormatTmpl(mctx, "COC:理智检定")
+							if kw := cmdArgs.GetKwarg("ci"); kw != nil {
+								info, err := json.Marshal(ctx.CommandInfo)
+								if err == nil {
+									text += "\n" + string(info)
+								} else {
+									text += "\n" + "指令信息无法序列化"
+								}
+							}
+
+							ReplyToSender(mctx, msg, text)
 						}
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -1440,9 +1504,37 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 										VarSetValueInt64(mctx, "$t旧值", val)
 										VarSetValueInt64(mctx, "$t新值", newVal)
 										VarSetValueStr(mctx, "$t增加或扣除", signText)
-										VarSetValueStr(mctx, "$t表达式文本", m[3])
+										VarSetValueStr(mctx, "$t表达式文本", v.Matched)
 										VarSetValueInt64(mctx, "$t变化量", rightVal)
 										text := DiceFormatTmpl(mctx, "COC:属性设置_增减")
+
+										// 指令信息
+										commandInfo := map[string]interface{}{
+											"cmd":    "st",
+											"rule":   "coc7",
+											"pcName": mctx.Player.Name,
+											"items": []interface{}{
+												map[string]interface{}{
+													"type":    "mod",
+													"attr":    m[1],
+													"modExpr": v.Matched,
+													"valOld":  val,
+													"valNew":  newVal,
+													"isInc":   signText == "增加", // 增加还是扣除
+												},
+											},
+										}
+										ctx.CommandInfo = commandInfo
+
+										if kw := cmdArgs.GetKwarg("ci"); kw != nil {
+											info, err := json.Marshal(ctx.CommandInfo)
+											if err == nil {
+												text += "\n" + string(info)
+											} else {
+												text += "\n" + "指令信息无法序列化"
+											}
+										}
+
 										ReplyToSender(mctx, msg, text)
 									} else {
 										VarSetValueStr(mctx, "$t表达式文本", m[3])
