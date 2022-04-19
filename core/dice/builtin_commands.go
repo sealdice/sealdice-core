@@ -22,6 +22,11 @@ func (d *Dice) registerCoreCommands() {
 		Help:     HelpForFind,
 		LongHelp: "查询指令，通常使用全文搜索(x86版)或快速查询(arm, 移动版)\n" + HelpForFind + "\n注: 默认搭载的《怪物之锤查询》文档来自蜜瓜包、October整理\n默认搭载的DND系列文档来自DicePP项目",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
+			if AtSomebodyButNotMe {
+				return CmdExecuteResult{Matched: false, Solved: false}
+			}
+
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				var id string
 				if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {

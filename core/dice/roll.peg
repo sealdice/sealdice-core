@@ -103,7 +103,7 @@ value <- number
 
 number <- < [0-9]+ > sp { p.AddValue(string(text)) }
 
-identifier <- < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^`{|}~0-9 \t\n\r][^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]* > sp // not (punctuation+number)
+identifier <- < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^`{|}~0-9 \t\n\r\36] [^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r\36]* > sp // not (punctuation+number)
 // identifier2 <- !'d' ![0-9] < (universalCharacter / [a-zA-Z_])+ > sp // not (punctuation+number)
 sub <- open e0 close
 add <- ('+'/'＋') sp
@@ -127,12 +127,14 @@ ge <- ('>=' / '＞＝') sp
 eq <- ('==' / '＝＝') sp
 ne <- ('!=' / '！＝') sp
 
-strPart <- < (escape / (![{`\\\n\r].))+ > { p.AddValueStr(string(text)); p.CounterAdd(1) }
+strPart <- < (escape / (![{`\\].))+ > { p.AddValueStr(string(text)); p.CounterAdd(1) }
+strPart1 <- < (escape / (![{\36\\].))+ > { p.AddValueStr(string(text)); p.CounterAdd(1) }
 strPart2 <- < (escape / (![{"\\\n\r].))+ > { p.AddValueStr(string(text)); p.CounterAdd(1) }
 strPart3 <- < (escape / (![{\'\\\n\r].))+ > { p.AddValueStr(string(text)); p.CounterAdd(1) }
 
 fstring <- (
           ('`' { p.CounterPush() } < ( ('{' sp e {p.CounterAdd(1)} '}') / ('{{' sp e {p.CounterAdd(1)} '}}') / strPart )* > '`' { p.AddFormatString(string(text), p.CounterPop()) })
+        / ('\36' { p.CounterPush() } < ( ('{' sp e {p.CounterAdd(1)} '}') / ('{{' sp e {p.CounterAdd(1)} '}}') / strPart1 )* > '\36' { p.AddFormatString(string(text), p.CounterPop()) }) // 特殊标记 0x1E
         / ('"' { p.CounterPush() } < ( strPart2 )* > '"' { p.AddFormatString(string(text), p.CounterPop()) })
         / ('\'' { p.CounterPush() } < ( strPart3 )* > '\'' { p.AddFormatString(string(text), p.CounterPop()) })
     ) sp
