@@ -122,7 +122,7 @@ func (a *CmdArgs) GetKwarg(s string) *Kwarg {
 }
 
 func CommandCheckPrefix(rawCmd string, prefix []string) bool {
-	restText, _ := AtParse(rawCmd)
+	restText, _ := AtParse(rawCmd, "")
 	restText = strings.TrimSpace(restText)
 	restText, _ = SpecialExecuteTimesParse(restText)
 
@@ -140,9 +140,9 @@ func CommandCheckPrefix(rawCmd string, prefix []string) bool {
 	return true
 }
 
-func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string, prefix []string) *CmdArgs {
+func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string, prefix []string, platformPrefix string) *CmdArgs {
 	specialExecuteTimes := 0
-	restText, atInfo := AtParse(rawCmd)
+	restText, atInfo := AtParse(rawCmd, platformPrefix)
 	restText = strings.TrimSpace(restText)
 	restText, specialExecuteTimes = SpecialExecuteTimesParse(restText)
 
@@ -288,7 +288,7 @@ func CQParse(cmd string) *CQCommand {
 	}
 }
 
-func AtParse(cmd string) (string, []*AtInfo) {
+func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	//[CQ:at,qq=3604749540]
 	ret := make([]*AtInfo, 0)
 	re := regexp.MustCompile(`\[CQ:at,qq=(\d+?)]`)
@@ -298,7 +298,7 @@ func AtParse(cmd string) (string, []*AtInfo) {
 		if len(i) == 2 {
 			at := new(AtInfo)
 			//at.UserId, _ = strconv.ParseInt(i[1], 10, 64)
-			at.UserId = "QQ:" + i[1]
+			at.UserId = prefix + ":" + i[1]
 			ret = append(ret, at)
 		}
 	}

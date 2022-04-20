@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"fmt"
 	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
 	"runtime/debug"
@@ -25,6 +26,8 @@ type Message struct {
 	Sender      SenderBase  `json:"sender"`      // 发送者
 	Message     string      `json:"message"`     // 消息内容
 	RawId       interface{} `json:"rawId"`       // 原始信息ID，用于处理撤回等
+	Platform    string      `json:"platform"`    // 当前平台
+	TmpUid      string      `json:"-" yaml:"-"`
 }
 
 // GroupPlayerInfoBase 群内玩家信息
@@ -219,9 +222,17 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		group := s.ServiceAtNew[msg.GroupId]
 		if group == nil && msg.GroupId != "" {
+			// 注意: 此处必须开启，不然下面mctx.player取不到
+			autoOn := true
+			if msg.Platform == "QQ-CH" {
+				autoOn = d.QQChannelAutoOn
+			}
 			group = SetBotOnAtGroup(mctx, msg.GroupId)
-			log.Infof("自动激活: 发现无记录群组(%s)，因为已是群成员，所以自动激活", group.GroupId)
+			group.Active = autoOn
+			txt := fmt.Sprintf("自动激活: 发现无记录群组(%s)，因为已是群成员，所以自动激活，开启状态: %t", group.GroupId, autoOn)
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
+			log.Info(txt)
+			ep.Notice(txt)
 		}
 
 		var mustLoadUser bool
@@ -285,14 +296,19 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
-		cmdArgs := CommandParse(msg.Message, d.CommandCompatibleMode, cmdLst, d.CommandPrefix)
+		PlatformPrefix := msg.Platform
+		cmdArgs := CommandParse(msg.Message, d.CommandCompatibleMode, cmdLst, d.CommandPrefix, PlatformPrefix)
 		if cmdArgs != nil {
 			mctx.CommandId = getNextCommandId()
 
 			// 设置AmIBeMentioned
 			cmdArgs.AmIBeMentioned = false
+			tmpUid := ep.UserId
+			if msg.TmpUid != "" {
+				tmpUid = msg.TmpUid
+			}
 			for _, i := range cmdArgs.At {
-				if i.UserId == ep.UserId {
+				if i.UserId == tmpUid {
 					cmdArgs.AmIBeMentioned = true
 					break
 				}
@@ -309,7 +325,18 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 				log.Infof("收到群(%s)内<%s>(%s)的指令: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 			} else {
+				doLog := true
 				if !d.OnlyLogCommandInGroup {
+					// 检查上级选项
+					doLog = false
+				}
+				if !doLog {
+					// 检查QQ频道的独立选项
+					if msg.Platform == "QQ-CH" && d.QQChannelLogMessage {
+						doLog = false
+					}
+				}
+				if doLog {
 					log.Infof("收到群(%s)内<%s>(%s)的消息: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 				}
 			}
@@ -497,4 +524,8 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
+}
+
+func (ep *EndPointInfo) Notice(txt string) {
+
 }

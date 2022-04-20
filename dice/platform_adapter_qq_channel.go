@@ -27,8 +27,10 @@ type MessageQQChannel struct {
 	Message   string `json:"message"`    // 消息内容
 	Time      int64  `json:"time"`       // 发送时间 文档上没有实际有
 	PostType  string `json:"post_type"`  // 目前只见到message
-	// seld_id 2589922907
-	// seld_tiny_id 频道号
+	// self_id 2589922907 QQ号
+	// self_tiny_id 个人频道ID
+	SelfTinyId string `json:"self_tiny_id"` // 文档上没有，个人频道ID
+	NoticeType string `json:"notice_type"`  // 文档上没有，但实际有。撤回有信息
 
 	Sender *SenderChannel `json:"sender"` // 发送者
 	Echo   int            `json:"echo"`
@@ -40,6 +42,8 @@ func (msgQQ *MessageQQChannel) toStdMessage() *Message {
 	msg.MessageType = "group"
 	msg.Message = msgQQ.Message
 	msg.RawId = msgQQ.MessageId
+	msg.Platform = "QQ-CH"
+	msg.TmpUid = FormatDiceIdQQCh(msgQQ.SelfTinyId)
 
 	msg.GroupId = FormatDiceIdQQChGroup(msgQQ.GuildId, msgQQ.ChannelId)
 	if msgQQ.Sender != nil {
@@ -59,18 +63,18 @@ func (pa *PlatformAdapterQQOnebot) QQChannelTrySolve(message string) {
 		session := pa.Session
 
 		msg := msgQQ.toStdMessage()
-		//ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.Session, Dice: pa.Session.Parent}
+		ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.Session, Dice: pa.Session.Parent}
 
 		// 消息撤回
-		//if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_recall" {
-		//	group := s.ServiceAtNew[msg.GroupId]
-		//	if group != nil {
-		//		if group.LogOn {
-		//			LogMarkDeleteByMsgId(ctx, group, msgQQ.MessageId)
-		//		}
-		//	}
-		//	return
-		//}
+		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "guild_channel_recall" {
+			group := session.ServiceAtNew[msg.GroupId]
+			if group != nil {
+				if group.LogOn {
+					_ = LogMarkDeleteByMsgId(ctx, group, msgQQ.MessageId)
+				}
+			}
+			return
+		}
 
 		// 处理命令
 		if msgQQ.MessageType == "guild" || msgQQ.MessageType == "private" {
@@ -81,7 +85,7 @@ func (pa *PlatformAdapterQQOnebot) QQChannelTrySolve(message string) {
 			//fmt.Println("Recieved message1 " + message)
 			session.Execute(ep, msg, false)
 		} else {
-			fmt.Println("Recieved message " + message)
+			fmt.Println("CH Recieved message " + message)
 		}
 	}
 	//pa.SendToChannelGroup(ctx, msg.GroupId, msg.Message+"asdasd", "")

@@ -2,7 +2,6 @@ package dice
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"strconv"
@@ -144,7 +143,6 @@ func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, 
 
 func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
 	rawId, type_ := pa.mustExtractId(groupId)
-	fmt.Println("!!!!", type_, type_ != QQUidGroup, groupId)
 	if type_ != QQUidGroup {
 		pa.SendToChannelGroup(ctx, groupId, text, flag)
 		return
