@@ -23,6 +23,10 @@ type DiceManager struct {
 	HelpDocEngineType    int
 	progressExitGroupWin ProcessExitGroup
 
+	IsNamesReloading bool
+	NamesGenerator   *NamesGenerator
+	NamesInfo        map[string]map[string][]string
+
 	UIPasswordHash string
 	UIPasswordSalt string
 	AccessTokens   map[string]bool
@@ -145,6 +149,7 @@ func (dm *DiceManager) Save() {
 
 func (dm *DiceManager) InitDice() {
 	dm.InitHelp()
+	dm.LoadNames()
 
 	g, err := NewProcessExitGroup()
 	if err != nil {
@@ -195,4 +200,11 @@ func (dm *DiceManager) TryCreateDefault() {
 		defaultDice.MessageDelayRangeEnd = 0.9
 		dm.Dice = append(dm.Dice, defaultDice)
 	}
+}
+
+func (dm *DiceManager) LoadNames() {
+	dm.IsNamesReloading = true
+	dm.NamesGenerator = &NamesGenerator{}
+	dm.NamesGenerator.Load()
+	dm.IsNamesReloading = false
 }
