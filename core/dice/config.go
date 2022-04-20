@@ -19,6 +19,8 @@ import (
 
 //type TextTemplateWithWeight = map[string]map[string]uint
 type TextTemplateItem = []interface{} // 实际上是 [](string | int) 类型
+type TextTemplateItemList []TextTemplateItem
+
 type TextTemplateWithWeight = map[string][]TextTemplateItem
 type TextTemplateWithWeightDict = map[string]TextTemplateWithWeight
 
@@ -33,6 +35,22 @@ type TextTemplateHelpGroup = map[string]*TextTemplateHelpItem
 type TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
 
 //const CONFIG_TEXT_TEMPLATE_FILE = "./data/configs/text-template.yaml"
+
+func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
+	var choices []wr.Choice
+	for _, i := range *i {
+		//weight, text := extractWeight(i)
+		if w, ok := i[1].(int); ok {
+			choices = append(choices, wr.Choice{Item: i[0].(string), Weight: uint(w)})
+		}
+
+		if w, ok := i[1].(float64); ok {
+			choices = append(choices, wr.Choice{Item: i[0].(string), Weight: uint(w)})
+		}
+	}
+	randomPool, _ := wr.NewChooser(choices...)
+	return randomPool
+}
 
 func setupBaseTextTemplate(d *Dice) {
 	reGugu := regexp.MustCompile(`[\r\n]+`)
@@ -614,11 +632,14 @@ func (d *Dice) loads() {
 			d.MessageDelayRangeStart = dNew.MessageDelayRangeStart
 			d.MessageDelayRangeEnd = dNew.MessageDelayRangeEnd
 			d.WorkInQQChannel = dNew.WorkInQQChannel
+			d.QQChannelLogMessage = dNew.QQChannelLogMessage
+			d.QQChannelAutoOn = dNew.QQChannelAutoOn
 			d.UILogLimit = dNew.UILogLimit
 			d.FriendAddComment = dNew.FriendAddComment
 			d.AutoReloginEnable = dNew.AutoReloginEnable
+			d.NoticeIds = dNew.NoticeIds
 
-			if len(d.DiceMasters) == 0 {
+			if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
 				d.DiceMasters = []string{}
 			}
 			newDiceMasters := []string{}
@@ -803,6 +824,10 @@ func (d *Dice) loads() {
 	for _, i := range d.ImSession.EndPoints {
 		i.Session = d.ImSession
 		i.AdapterSetup()
+	}
+
+	if d.NoticeIds == nil {
+		d.NoticeIds = []string{}
 	}
 
 	if len(d.CommandPrefix) == 0 {

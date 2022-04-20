@@ -4,6 +4,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 func CustomReplyConfigRead(dice *Dice) *ReplyConfig {
@@ -16,6 +17,7 @@ func CustomReplyConfigRead(dice *Dice) *ReplyConfig {
 		if err == nil {
 			err = yaml.Unmarshal(af, rc)
 			if err != nil {
+				dice.Logger.Error("读取自定义回复配置文件发生异常，请检查格式是否正确")
 				panic(err)
 			}
 		}
@@ -35,7 +37,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 
 	//a := ReplyItem{}
 	//a.Enable = true
-	//a.Condition = &ReplyConditionMatch{"match", "match_exact", "asd"}
+	//a.Condition = &ReplyConditionTextMatch{"match", "match_exact", "asd"}
 	//a.Results = []ReplyResultBase{
 	//	&ReplyResultReplyToSender{
 	//		"replyToSender",
@@ -51,7 +53,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 	//
 	//ri := ReplyItem{}
 	//fmt.Println(yaml.Unmarshal(txt, &ri))
-	//fmt.Println(333, ri.Condition, ri.Condition.(*ReplyConditionMatch))
+	//fmt.Println(333, ri.Condition, ri.Condition.(*ReplyConditionTextMatch))
 	//
 	//rc := ReplyConfig{
 	//	Enable: true,
@@ -70,10 +72,19 @@ func RegisterBuiltinExtReply(dice *Dice) {
 			// 当前，只有非指令才会匹配
 			rc := ctx.Dice.CustomReplyConfig
 			if rc.Enable {
+				cleanText, _ := AtParse(msg.Message, "")
+				cleanText = strings.TrimSpace(cleanText)
 				for _, i := range rc.Items {
 					//fmt.Println("???", i.Enable, i)
 					if i.Enable {
-						if i.Condition.Check(ctx, msg, nil) {
+						checkTrue := true
+						for _, i := range i.Conditions {
+							if !i.Check(ctx, msg, nil, cleanText) {
+								checkTrue = false
+								break
+							}
+						}
+						if len(i.Conditions) > 0 && checkTrue {
 							for _, j := range i.Results {
 								j.Execute(ctx, msg, nil)
 							}

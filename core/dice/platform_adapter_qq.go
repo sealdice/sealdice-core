@@ -242,7 +242,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 				txt := fmt.Sprintf("收到QQ加群邀请: 群组(%d) 邀请人:%d", msgQQ.GroupId, msgQQ.UserId)
 				log.Info(txt)
-				ep.Notice(txt)
+				ctx.Notice(txt)
 				tempInviteMap[msg.GroupId] = time.Now().Unix()
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 				pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, true, "")
@@ -262,7 +262,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				comment = "(无)"
 				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%d, 验证信息: %s, 是否通过: %t", msgQQ.UserId, comment, willAccept)
 				log.Info(txt)
-				ep.Notice(txt)
+				ctx.Notice(txt)
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 
 				if willAccept {
@@ -297,7 +297,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				}()
 				txt := fmt.Sprintf("加入QQ群组: (%d)", msgQQ.GroupId)
 				log.Info(txt)
-				ep.Notice(txt)
+				ctx.Notice(txt)
 			}
 
 			// 入群的另一种情况: 管理员审核
@@ -349,7 +349,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				if msgQQ.UserId == msgQQ.SelfId {
 					txt := fmt.Sprintf("被踢出群: 在QQ群组(%d)中被踢出，操作者:(%d)", msgQQ.GroupId, msgQQ.UserId)
 					log.Info(txt)
-					ep.Notice(txt)
+					ctx.Notice(txt)
 				}
 				return
 			}
@@ -360,7 +360,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				if msgQQ.UserId == msgQQ.SelfId {
 					txt := fmt.Sprintf("被禁言: 在群组(%d)中被禁言，时长%d秒，操作者:(%d)", msgQQ.GroupId, msgQQ.Duration, msgQQ.UserId)
 					log.Info(txt)
-					ep.Notice(txt)
+					ctx.Notice(txt)
 				}
 				return
 			}

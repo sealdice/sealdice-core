@@ -82,6 +82,7 @@ type Dice struct {
 	DeckList                []*DeckInfo            `yaml:"deckList"`                // 牌堆信息
 	CommandPrefix           []string               `yaml:"commandPrefix"`           // 指令前导
 	DiceMasters             []string               `yaml:"diceMasters"`             // 骰主设置，需要格式: 平台:帐号
+	NoticeIds               []string               `yaml:"noticeIds"`               // 通知ID
 	OnlyLogCommandInGroup   bool                   `yaml:"onlyLogCommandInGroup"`   // 日志中仅记录命令
 	OnlyLogCommandInPrivate bool                   `yaml:"onlyLogCommandInPrivate"` // 日志中仅记录命令
 	VersionCode             int                    `json:"versionCode"`             // 版本ID(配置文件)
