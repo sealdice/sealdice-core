@@ -93,6 +93,7 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 	msg.MessageType = msgQQ.MessageType
 	msg.Message = msgQQ.Message
 	msg.RawId = msgQQ.MessageId
+	msg.Platform = "QQ"
 
 	if msgQQ.Data != nil && msgQQ.Data.GroupId != 0 {
 		msg.GroupId = FormatDiceIdQQGroup(msgQQ.Data.GroupId)
@@ -166,7 +167,9 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 		//fmt.Println("!!!", message)
 		if strings.Contains(message, `"channel_id"`) {
 			// 暂时忽略频道消息
-			pa.QQChannelTrySolve(message)
+			if s.Parent.WorkInQQChannel {
+				pa.QQChannelTrySolve(message)
+			}
 			return
 		}
 
@@ -236,7 +239,10 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			if msgQQ.PostType == "request" && msgQQ.RequestType == "group" && msgQQ.SubType == "invite" {
 				// {"comment":"","flag":"111","group_id":222,"post_type":"request","request_type":"group","self_id":333,"sub_type":"invite","time":1646782195,"user_id":444}
 				ep.GroupNum = int64(len(session.ServiceAtNew))
-				log.Infof("收到加群邀请: 群组(%d) 邀请人:%d", msgQQ.GroupId, msgQQ.UserId)
+
+				txt := fmt.Sprintf("收到QQ加群邀请: 群组(%d) 邀请人:%d", msgQQ.GroupId, msgQQ.UserId)
+				log.Info(txt)
+				ep.Notice(txt)
 				tempInviteMap[msg.GroupId] = time.Now().Unix()
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 				pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, true, "")
@@ -254,7 +260,9 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				willAccept := comment == session.Parent.FriendAddComment
 
 				comment = "(无)"
-				log.Infof("收到好友邀请: 邀请人:%d, 验证信息: %s, 是否通过: %t", msgQQ.UserId, comment, willAccept)
+				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%d, 验证信息: %s, 是否通过: %t", msgQQ.UserId, comment, willAccept)
+				log.Info(txt)
+				ep.Notice(txt)
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 
 				if willAccept {
@@ -287,7 +295,9 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					time.Sleep(2 * time.Second)
 					pa.SendToGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
 				}()
-				log.Infof("加入群组: (%d)", msgQQ.GroupId)
+				txt := fmt.Sprintf("加入QQ群组: (%d)", msgQQ.GroupId)
+				log.Info(txt)
+				ep.Notice(txt)
 			}
 
 			// 入群的另一种情况: 管理员审核
@@ -337,7 +347,9 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				// 被踢
 				//  {"group_id":111,"notice_type":"group_decrease","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"kick_me","time":1646689414 ,"user_id":333}
 				if msgQQ.UserId == msgQQ.SelfId {
-					log.Infof("被踢出群: 在群组(%d)中被踢出，操作者:(%d)", msgQQ.GroupId, msgQQ.UserId)
+					txt := fmt.Sprintf("被踢出群: 在QQ群组(%d)中被踢出，操作者:(%d)", msgQQ.GroupId, msgQQ.UserId)
+					log.Info(txt)
+					ep.Notice(txt)
 				}
 				return
 			}
@@ -346,7 +358,9 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				// 禁言
 				// {"duration":600,"group_id":111,"notice_type":"group_ban","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"ban","time":1646689567,"user_id":333}
 				if msgQQ.UserId == msgQQ.SelfId {
-					log.Infof("被禁言: 在群组(%d)中被禁言，时长%d秒，操作者:(%d)", msgQQ.GroupId, msgQQ.Duration, msgQQ.UserId)
+					txt := fmt.Sprintf("被禁言: 在群组(%d)中被禁言，时长%d秒，操作者:(%d)", msgQQ.GroupId, msgQQ.Duration, msgQQ.UserId)
+					log.Info(txt)
+					ep.Notice(txt)
 				}
 				return
 			}
@@ -356,7 +370,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				group := s.ServiceAtNew[msg.GroupId]
 				if group != nil {
 					if group.LogOn {
-						LogMarkDeleteByMsgId(ctx, group, msgQQ.MessageId)
+						_ = LogMarkDeleteByMsgId(ctx, group, msgQQ.MessageId)
 					}
 				}
 				return

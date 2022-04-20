@@ -784,6 +784,7 @@ func (d *Dice) loads() {
 
 			if d.VersionCode != 0 && d.VersionCode < 9914 {
 				d.AutoReloginEnable = true
+				d.WorkInQQChannel = true
 			}
 
 			d.Logger.Info("serve.yaml loaded")
@@ -795,6 +796,7 @@ func (d *Dice) loads() {
 		}
 	} else {
 		d.AutoReloginEnable = true
+		d.WorkInQQChannel = true
 		d.Logger.Info("serve.yaml not found")
 	}
 
