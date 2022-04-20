@@ -336,6 +336,12 @@ body {
   }
 }
 
+.sd-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;  
+}
+
 #app {
   font-family: "PingFang SC", "Helvetica Neue", "Hiragino Sans GB", "Segoe UI",
     "Microsoft YaHei", "微软雅黑", sans-serif;

@@ -17,23 +17,66 @@
     </el-form-item>
 
     <el-form-item label="Master列表">
-      <div v-for="k2, index in config.diceMasters" style="width: 100%; margin-bottom: .5rem;">
-        <!-- 这里面是单条修改项 -->
-        <div style="display: flex;">
-          <div>
-            <!-- :suffix-icon="Management" -->
-            <el-input v-model="config.diceMasters[index]" :autosize="true"></el-input> 
-          </div>
-          <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
-            <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项'" placement="bottom-start">
-              <el-icon>
-                <circle-plus-filled v-if="index == 0" @click="addItem(config.diceMasters)" />
-                <circle-close v-else @click="removeItem(config.diceMasters, index)" />
-              </el-icon>
-            </el-tooltip>
+      <template v-if="config.diceMasters && config.diceMasters.length">
+        <div v-for="k2, index in config.diceMasters" style="width: 100%; margin-bottom: .5rem;">
+          <!-- 这里面是单条修改项 -->
+          <div style="display: flex;">
+            <div>
+              <!-- :suffix-icon="Management" -->
+              <el-input v-model="config.diceMasters[index]" :autosize="true"></el-input> 
+            </div>
+            <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
+              <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项'" placement="bottom-start">
+                <el-icon>
+                  <circle-plus-filled v-if="index == 0" @click="addItem(config.diceMasters)" />
+                  <circle-close v-else @click="removeItem(config.diceMasters, index)" />
+                </el-icon>
+              </el-tooltip>
+            </div>
           </div>
         </div>
-      </div>
+      </template>
+      <template v-else>
+        <el-icon>
+          <circle-plus-filled @click="addItem(config.diceMasters)" />
+        </el-icon>
+      </template>
+    </el-form-item>
+
+    <el-form-item label="消息通知列表">
+      <template #label>
+        <div>
+          <span>消息通知列表</span>
+          <el-tooltip raw-content content="会对以下消息进行通知:<br>加群邀请、好友邀请、进入群组、被踢出群、被禁言、自动激活、指令退群<br>单行格式: QQ:12345 QQ-Group:12345">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+
+      <template v-if="config.noticeIds && config.noticeIds.length">
+        <div v-for="k2, index in config.noticeIds" style="width: 100%; margin-bottom: .5rem;">
+          <!-- 这里面是单条修改项 -->
+          <div style="display: flex;">
+            <div>
+              <!-- :suffix-icon="Management" -->
+              <el-input v-model="config.noticeIds[index]" :autosize="true"></el-input> 
+            </div>
+            <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
+              <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项'" placement="bottom-start">
+                <el-icon>
+                  <circle-plus-filled v-if="index == 0" @click="addItem(config.noticeIds)" />
+                  <circle-close v-else @click="removeItem(config.noticeIds, index)" />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <el-icon>
+          <circle-plus-filled @click="addItem(config.noticeIds)" />
+        </el-icon>
+      </template>
     </el-form-item>
 
     <h2>访问控制</h2>
@@ -66,6 +109,43 @@
       <el-input type="password" show-password v-model="config.uiPassword" style="width: auto;" />
     </el-form-item>
 
+    <h2>QQ频道设置</h2>
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>总开关</span>
+          <el-tooltip raw-content content="如果关闭，将忽略任何频道消息">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.workInQQChannel"/>
+    </el-form-item>
+  
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>自动bot on</span>
+          <el-tooltip raw-content content="如果开启，需要在每一个子频道手动bot off，推荐关闭">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.QQChannelAutoOn"/>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>记录消息日志</span>
+          <el-tooltip raw-content content="是否记录频道消息到日志，如果频道较多，可能造成严重刷屏。<br>若关闭则仅在日志记录指令，推荐关闭">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.QQChannelLogMessage"/>
+    </el-form-item>
+
     <h2>其他</h2>
     <el-form-item label="加好友验证信息">
       <template #label>
@@ -87,8 +167,20 @@
     </el-form-item>
 
     <el-form-item label="日志仅记录指令">
-        <el-checkbox label="在群聊中" v-model="config.onlyLogCommandInGroup"/>
-        <el-checkbox label="在私聊中" v-model="config.onlyLogCommandInPrivate"/>
+      <el-checkbox label="在群聊中" v-model="config.onlyLogCommandInGroup"/>
+      <el-checkbox label="在私聊中" v-model="config.onlyLogCommandInPrivate"/>
+    </el-form-item>
+
+    <el-form-item label="自动重登录">
+      <template #label>
+        <div>
+          <span>自动重登录</span>
+          <el-tooltip content="当5分钟内连续有两次风控信息，进行重登录(每5分钟最多一次)。">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="遭遇风控时自动重登录" v-model="config.autoReloginEnable"/>
     </el-form-item>
 
     <el-form-item label="指令前缀">
@@ -101,23 +193,30 @@
         </div>
       </template>
 
-      <div v-for="k2, index in config.commandPrefix" style="width: 100%; margin-bottom: .5rem;">
-        <!-- 这里面是单条修改项 -->
-        <div style="display: flex;">
-          <div>
-            <!-- :suffix-icon="Management" -->
-            <el-input v-model="config.commandPrefix[index]" :autosize="true"></el-input> 
-          </div>
-          <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
-            <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项目'" placement="bottom-start">
-              <el-icon>
-                <circle-plus-filled v-if="index == 0" @click="addItem(config.commandPrefix)" />
-                <circle-close v-else @click="removeItem(config.commandPrefix, index)" />
-              </el-icon>
-            </el-tooltip>
+      <template v-if="config.commandPrefix && config.commandPrefix.length">
+        <div v-for="k2, index in config.commandPrefix" style="width: 100%; margin-bottom: .5rem;">
+          <!-- 这里面是单条修改项 -->
+          <div style="display: flex;">
+            <div>
+              <!-- :suffix-icon="Management" -->
+              <el-input v-model="config.commandPrefix[index]" :autosize="true"></el-input> 
+            </div>
+            <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
+              <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项目'" placement="bottom-start">
+                <el-icon>
+                  <circle-plus-filled v-if="index == 0" @click="addItem(config.commandPrefix)" />
+                  <circle-close v-else @click="removeItem(config.commandPrefix, index)" />
+                </el-icon>
+              </el-tooltip>
+            </div>
           </div>
         </div>
-      </div>
+      </template>
+      <template v-else>
+        <el-icon>
+          <circle-plus-filled @click="addItem(config.commandPrefix)" />
+        </el-icon>
+      </template>
     </el-form-item>
 
     <el-form-item label="" style="margin-top: 3rem;" v-if="modified">
@@ -150,15 +249,15 @@ const config = ref<any>({})
 const isShowUnlockCode = ref(false)
 const modified = ref(false)
 
-const addItem = (k: any) => {
-  k.push('')
-}
-
 watch(() => config, (newValue, oldValue) => { //直接监听
   modified.value = true
 }, {
   deep: true
 });
+
+const addItem = (k: any) => {
+  k.push('')
+}
 
 const removeItem = (v: any[], index: number) => {
   v.splice(index, 1)
@@ -203,6 +302,10 @@ const submit = async () => {
 
   if (mod.commandPrefix) {
     mod.commandPrefix = cloneDeep(config.value.commandPrefix)
+  }
+
+  if (mod.noticeIds) {
+    mod.noticeIds = cloneDeep(config.value.noticeIds)
   }
 
   await store.diceConfigSet(mod)

@@ -1,83 +1,3 @@
-<script setup lang="ts">
-import { ref, reactive, onBeforeMount, onDeactivated, watch } from "vue";
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { useStore } from '~/store'
-import { Management } from '@element-plus/icons-vue'
-
-import {
-  Location,
-  Document,
-  Menu as IconMenu,
-  Setting,
-  CirclePlusFilled,
-  CircleClose,
-  QuestionFilled,
-  BrushFilled
-} from '@element-plus/icons-vue'
-import { cloneDeep } from "lodash-es";
-
-const store = useStore()
-const props = defineProps<{ category: string }>();
-
-watch(() => props.category, (newValue, oldValue) => { //直接监听
-  modified.value = false
-});
-
-const addItem = (k: any) => {
-  store.curDice.customTexts[props.category][k].push(['', 1 as any])
-  modified.value = true
-}
-
-const doChanged = (category: string, keyName: string) => {
-  modified.value = true
-  const helpInfo = store.curDice.customTextsHelpInfo[category][keyName]
-  helpInfo.modified = true
-}
-
-const removeItem = (v: any[], index: number) => {
-  v.splice(index, 1)
-  modified.value = true
-}
-
-const save = async () => {
-  modified.value = false
-  await store.customTextSave(props.category)
-  await store.getCustomText()
-  ElMessage.success('已保存')
-}
-
-const resetValue = async (category: string, keyName: string) => {
-  const helpInfo = store.curDice.customTextsHelpInfo[category][keyName]
-  store.curDice.customTexts[category][keyName] = cloneDeep(helpInfo.origin)
-  helpInfo.modified = false
-  modified.value = true
-}
-
-const askResetValue = async (category: string, keyName: string) => {
-  ElMessageBox.confirm(
-    '重置这条文本回默认状态，确定吗？',
-    '警告',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  ).then(async () => {
-    resetValue(category, keyName)
-    ElMessage({
-      type: 'success',
-      message: '成功!',
-    })
-  })
-}
-
-const modified = ref(false)
-
-onBeforeMount(async () => {
-  modified.value = false
-})
-</script>
-
 <template>
   <el-affix :offset="60" v-if="modified">
     <div class="tip">
@@ -163,7 +83,7 @@ onBeforeMount(async () => {
               </el-col>
               <el-col :span="22">
                 <!-- :suffix-icon="Management" -->
-                <el-input v-model="k2[0]" :autosize="true" @change="doChanged(category, k.toString())"></el-input> 
+                <el-input type="textarea" autosize v-model="k2[0]" @change="doChanged(category, k.toString())"></el-input> 
               </el-col>
             </el-row>
           </div>
@@ -176,3 +96,83 @@ onBeforeMount(async () => {
     </el-col>
   </el-row>
 </template>
+
+<script setup lang="ts">
+import { ref, reactive, onBeforeMount, onDeactivated, watch } from "vue";
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useStore } from '~/store'
+import { Management } from '@element-plus/icons-vue'
+
+import {
+  Location,
+  Document,
+  Menu as IconMenu,
+  Setting,
+  CirclePlusFilled,
+  CircleClose,
+  QuestionFilled,
+  BrushFilled
+} from '@element-plus/icons-vue'
+import { cloneDeep } from "lodash-es";
+
+const store = useStore()
+const props = defineProps<{ category: string }>();
+
+watch(() => props.category, (newValue, oldValue) => { //直接监听
+  modified.value = false
+});
+
+const addItem = (k: any) => {
+  store.curDice.customTexts[props.category][k].push(['', 1 as any])
+  modified.value = true
+}
+
+const doChanged = (category: string, keyName: string) => {
+  modified.value = true
+  const helpInfo = store.curDice.customTextsHelpInfo[category][keyName]
+  helpInfo.modified = true
+}
+
+const removeItem = (v: any[], index: number) => {
+  v.splice(index, 1)
+  modified.value = true
+}
+
+const save = async () => {
+  modified.value = false
+  await store.customTextSave(props.category)
+  await store.getCustomText()
+  ElMessage.success('已保存')
+}
+
+const resetValue = async (category: string, keyName: string) => {
+  const helpInfo = store.curDice.customTextsHelpInfo[category][keyName]
+  store.curDice.customTexts[category][keyName] = cloneDeep(helpInfo.origin)
+  helpInfo.modified = false
+  modified.value = true
+}
+
+const askResetValue = async (category: string, keyName: string) => {
+  ElMessageBox.confirm(
+    '重置这条文本回默认状态，确定吗？',
+    '警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(async () => {
+    resetValue(category, keyName)
+    ElMessage({
+      type: 'success',
+      message: '成功!',
+    })
+  })
+}
+
+const modified = ref(false)
+
+onBeforeMount(async () => {
+  modified.value = false
+})
+</script>

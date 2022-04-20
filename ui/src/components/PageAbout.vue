@@ -6,8 +6,8 @@
     <div style="text-align: left; line-height: 2rem; font-size: .8rem;">
       <div class="top-item"><span style="font-weight: 600;">当前版本: {{ store.curDice.baseInfo.version }}</span></div>
       <!-- <div class="top-item"><span style="font-weight: 600;">最新版本: {{ store.curDice.baseInfo.version }}</span></div> -->
-      <div class="top-item" style="font-family: sans-serif;margin-top: 1rem;">官方网站: <el-link type="primary" src="https://www.sealdice.com">https://www.sealdice.com</el-link></div>
-      <div class="top-item" style="font-family: sans-serif;">使用手册: <el-link type="primary" src="https://weizaima.com/manual/">https://weizaima.com/manual/</el-link></div>
+      <div class="top-item" style="font-family: sans-serif;margin-top: 1rem;">官方网站: <el-link type="primary" target="_blank" href="https://www.sealdice.com">https://www.sealdice.com</el-link></div>
+      <div class="top-item" style="font-family: sans-serif;">使用手册: <el-link type="primary" target="_blank" href="https://dice.weizaima.com/manual/">https://dice.weizaima.com/manual/</el-link></div>
       <div class="top-item">
         <div style="margin-top: 1rem; font-family: sans-serif;">
           <div>海洋馆工作人员: </div>
@@ -32,7 +32,7 @@
     <div>kuma - 早期测试参与者，海豹的第一次全指令全流程测试</div>
     <div>卟啵 - 早期测试参与者，回报了中文路径和空格路径问题，协助解决了登录流程问题</div>
     <div>蜜瓜包 - 早期测试参与者，默认文档中“怪物之锤查询”的编纂者之一</div>
-    <div>月森优姬 - 早期测试参与者，提出了大量各种各样建议和BUG反馈，纠正了一些违背规则书的问题，COC同义词和默认技能点数的编纂者</div>
+    <div>月森优姬 - 早期测试参与者，提出了大量各种各样建议和BUG反馈，纠正了一些与规则书不统一的问题，COC同义词和默认技能点数的编纂者</div>
     <div>清茶 - 在4月7日的可靠性测试中，参与构造了让旧版海豹进程崩溃的指令</div>
     <div>脑 - 在4月7日的可靠性测试中，参与构造了让旧版海豹进程崩溃的指令</div>
     <div>Greed锦鲤 - 在4月7日的可靠性测试中，参与构造了让旧版海豹进程崩溃的指令</div>

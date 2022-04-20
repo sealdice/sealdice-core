@@ -6,58 +6,100 @@
     :group="{ name: 'g1' }"
     item-key="name"
   >
-    <template #item="{ element: el }">
+    <template #item="{ element: el, index }">
       <li style="padding-right: 1rem;">
-        <el-checkbox v-model="el.enable">开启此项</el-checkbox>
-        <div>条件: </div>
-        <div style="padding-left: 1rem; border-left: .2rem solid orange;">
-          <el-select v-model="el.condition.condType">
-              <el-option
-                v-for="item in [{'label': '文本匹配', value: 'match'}]"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-
-          <div v-if="el.condition.condType === 'match'" style="display: flex;">
-            <el-select v-model="el.condition.matchType" placeholder="Select">
-              <el-option
-                v-for="item in [{'label': '精确匹配', value: 'matchExact'}, {'label': '模糊匹配', value: 'matchFuzzy'}, {'label': '正则匹配', value: 'matchRegex'}, {'label': '前缀匹配', value: 'matchPrefix'}, {'label': '后缀匹配', value: 'matchSuffix'}]"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-            <el-input v-model="el.condition.value" />
-          </div>
+        <div style="display: flex; justify-content: space-between;">
+          <el-checkbox v-model="el.enable">开启此项</el-checkbox>
+          <el-button @click="deleteItem(index)">删除此项</el-button>
         </div>
+        <div>条件(需同时满足，即and): </div>
+        <div style="padding-left: 1rem; border-left: .2rem solid orange;">
+          <div v-for="cond in el.conditions" style="border-left: .1rem solid #008; padding-left: .3rem; margin-bottom: .8rem;">
+            <div style="display: flex; justify-content: space-between;">
+              <el-select v-model="cond.condType">
+                <el-option
+                  v-for="item in [{'label': '文本匹配', value: 'textMatch'}]"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+              <el-button @click="deleteAnyItem(el.conditions, index)">删除条件</el-button>
+            </div>
 
-        <div>结果：</div>
-        <div style="padding-left: 1rem; border-left: .2rem solid skyblue;">
-          <div v-for="i in el.results" style="border-left: .1rem solid #008; padding-left: .3rem; margin-bottom: .8rem;">
-            <el-select v-model="i.resultType">
-              <el-option
-                v-for="item in [{'label': '回复', value: 'replyToSender'}, {'label': '私聊回复', value: 'replyPrivate'}, {'label': '群内回复', value: 'replyGroup'}]"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-
-            <div v-if="['replyToSender', 'replyPrivate', 'replyGroup'].includes(i.resultType)" style="display: flex;">
-              <div style="flex: 1; padding-right: 1rem;">
-                <div>回复文本:</div>
-                <el-input type="textarea" autosize v-model="i.message"></el-input>
-              </div>
-              <div>
-                <div>延迟
-                  <el-tooltip raw-content content="文本将在此延迟后发送，单位秒，可小数。<br />注意随机延迟仍会被加入，如果你希望保证发言顺序，记得考虑这点。">
+            <div v-if="cond.condType === 'textMatch'" style="display: flex;" class="mobile-changeline">
+              <div style="width: 7rem; margin-right: 0.5rem;">
+                <div>方式:
+                  <el-tooltip raw-content content="匹配方式一览:<br/>精确匹配: 完全相同时触发。<br/>模糊匹配: 文本相似时触发<br/>正则匹配: 正则表达式匹配，语法请自行查阅<br/>前缀匹配: 文本以内容为开头<br/>后缀匹配: 文本以此内容为结尾">
                     <el-icon><question-filled /></el-icon>
                   </el-tooltip>
                 </div>
-                <el-input type="number" v-model="i.delay" style="width: 4rem"></el-input>
+                <el-select v-model="cond.matchType" placeholder="Select">
+                  <el-option
+                    v-for="item in [{'label': '精确匹配', value: 'matchExact'}, {'label': '模糊匹配', value: 'matchFuzzy'}, {'label': '正则匹配', value: 'matchRegex'}, {'label': '前缀匹配', value: 'matchPrefix'}, {'label': '后缀匹配', value: 'matchSuffix'}]"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </el-select>
               </div>
+              <div style="flex: 1">
+                <div>内容:</div>
+                <el-input v-model="cond.value" />
+              </div>
+            </div>
+          </div>
+          <el-button @click="addCond(el.conditions)">增加</el-button>
+        </div>
+
+        <div>结果(顺序执行)：</div>
+        <div style="padding-left: 1rem; border-left: .2rem solid skyblue;">
+          <div v-for="i in el.results" style="border-left: .1rem solid #008; padding-left: .3rem; margin-bottom: .8rem;">
+            <div style="display: flex; justify-content: space-between;">
+              <el-select v-model="i.resultType">
+                <el-option
+                  v-for="item in [{'label': '回复', value: 'replyToSender'}, {'label': '私聊回复', value: 'replyPrivate'}, {'label': '群内回复', value: 'replyGroup'}]"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+              <el-button @click="deleteAnyItem(el.results, index)">删除结果</el-button>
+            </div>
+
+            <div v-if="['replyToSender', 'replyPrivate', 'replyGroup'].includes(i.resultType)">
+              <div style="display: flex; justify-content: space-between;" class="mobile-changeline">
+                <div style="display: flex; align-items: center;">
+                  <div>回复文本(随机选择):</div>
+                </div>
+                <div>
+                  <div style="display: inline-block">延迟
+                    <el-tooltip raw-content content="文本将在此延迟后发送，单位秒，可小数。<br />注意随机延迟仍会被加入，如果你希望保证发言顺序，记得考虑这点。">
+                      <el-icon><question-filled /></el-icon>
+                    </el-tooltip>
+                  </div>
+                  <el-input type="number" v-model="i.delay" style="width: 4rem"></el-input>
+                </div>
+              </div>
+
+              <div v-for="k2, index in i.message" style="width: 100%; margin-bottom: .5rem;">
+                <!-- 这里面是单条修改项 -->
+                <div style="display: flex;">
+                  <div style="display: flex; align-items: center; width: 1.3rem; margin-left: .2rem;">
+                    <el-tooltip :content="index === 0 ? '点击添加一个回复语，海豹将会随机抽取一个回复' : '点击删除你不想要的回复语'" placement="bottom-start">
+                      <el-icon>
+                        <circle-plus-filled v-if="index == 0" @click="addItem(i.message)" />
+                        <circle-close v-else @click="removeItem(i.message, index)" />
+                      </el-icon>
+                    </el-tooltip>
+                  </div>
+                  <div style="flex:1">
+                    <!-- :suffix-icon="Management" -->
+                    <el-input type="textarea" autosize v-model="k2[0]"></el-input> 
+                  </div>
+                </div>
+              </div>
+                <!-- <el-input type="textarea" autosize v-model="i.message"></el-input> -->
             </div>
           </div>
           <el-button @click="addResult(el.results)">增加</el-button>
@@ -83,8 +125,28 @@ import draggable from "vuedraggable";
 
 const props = defineProps<{ tasks: Array<any>}>();
 
+const deleteItem = (index: number) => {
+  props.tasks.splice(index, 1);
+}
+
+const deleteAnyItem = (lst: any[], index: number) => {
+  lst.splice(index, 1);
+}
+
+const addCond = (i: any) => {
+  i.push({"condType":"textMatch","matchType":"matchExact","value":"要匹配的文本"})
+}
+
 const addResult = (i: any) => {
-  i.push({"resultType":"replyToSender","delay":0,"message":"说点什么"})
+  i.push({"resultType":"replyToSender","delay":0,"message":[ ["说点什么", 1] ]})
+}
+
+const addItem = (k: any) => {
+  k.push(['怎么辉石呢', 1])
+}
+
+const removeItem = (v: any[], index: number | any) => {
+  v.splice(index, 1)
 }
 </script>
 
@@ -94,5 +156,11 @@ const addResult = (i: any) => {
   outline: 1px dashed;
   padding-top: 1rem;
   padding-bottom: 1rem;
+}
+
+@media screen and (max-width: 700px) {
+  .mobile-changeline {
+    flex-direction: column;
+  }
 }
 </style>

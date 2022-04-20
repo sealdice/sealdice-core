@@ -1,5 +1,11 @@
 <template>
-  <p>内存占用: {{filesize(store.curDice.baseInfo.memoryUsedSys || 0)}}</p>
+  <p>
+    <span>内存占用: </span>
+    <span>{{filesize(store.curDice.baseInfo.memoryUsedSys || 0)}}</span>
+    <el-tooltip raw-content content="内存主要为全文搜索功能所占用，如果不需要“.查询”功能，删除data/helpdoc目录，内存占用将显著降低">
+      <el-icon><question-filled /></el-icon>
+    </el-tooltip>
+  </p>
   <el-table :data="store.curDice.logs" style="width: 100%;" class="hidden-xs-only">
     <el-table-column label="时间" width="130" >
       <template #default="scope">
@@ -37,6 +43,16 @@ import { computed, onBeforeMount, onBeforeUnmount, onMounted } from 'vue';
 import { useStore } from '~/store';
 import * as dayjs from 'dayjs'
 import filesize from 'filesize'
+import {
+  Location,
+  Document,
+  Menu as IconMenu,
+  Setting,
+  CirclePlusFilled,
+  CircleClose,
+  QuestionFilled,
+  BrushFilled
+} from '@element-plus/icons-vue'
 
 const store = useStore()
 
