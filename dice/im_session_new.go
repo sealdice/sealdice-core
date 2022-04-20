@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"runtime/debug"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -232,7 +233,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			txt := fmt.Sprintf("自动激活: 发现无记录群组(%s)，因为已是群成员，所以自动激活，开启状态: %t", group.GroupId, autoOn)
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 			log.Info(txt)
-			ep.Notice(txt)
+			mctx.Notice(txt)
 		}
 
 		var mustLoadUser bool
@@ -526,6 +527,25 @@ func (ep *EndPointInfo) AdapterSetup() {
 	}
 }
 
-func (ep *EndPointInfo) Notice(txt string) {
+func (ctx *MsgContext) Notice(txt string) {
+	foo := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				ctx.Dice.Logger.Errorf("发送通知异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
 
+		for _, i := range ctx.Dice.NoticeIds {
+			n := strings.Split(i, ":")
+			if len(n) >= 2 {
+				if strings.HasSuffix(n[0], "-Group") {
+					ReplyGroup(ctx, &Message{GroupId: i}, txt)
+				} else {
+					ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
+				}
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}
+	go foo()
 }
