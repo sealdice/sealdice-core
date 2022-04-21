@@ -377,7 +377,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			for index := 0; index < num; index++ {
 				var val vmStack
 				if top-num+index < 0 {
-					return nil, "", errors.New("E3: 无效的表达式")
+					return nil, "", errors.New("E3:无效的表达式")
 					//val = vmStack{VMTypeString, ""}
 				} else {
 					val = stack[top-num+index]
@@ -683,6 +683,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			// 第一次 左然后右
 			// 后 一直右
 			times += 1
+			if a.TypeId != VMTypeInt64 || b.TypeId != VMTypeInt64 {
+				return
+			}
 
 			checkLeft := func() {
 				if calcDetail == "" {
@@ -734,12 +737,25 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			return 0
 		}
 
+		e4check := func() error {
+			if a.TypeId != b.TypeId {
+				return errors.New("E4:符号运算类型不匹配")
+			}
+			return nil
+		}
+
 		// 二目运算符
 		switch code.T {
 		case TypeCompLT:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
 			a.Value = boolToInt64(aInt < bInt)
 		case TypeCompLE:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
 			a.Value = boolToInt64(aInt <= bInt)
 		case TypeCompEQ:
@@ -758,31 +774,55 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			}
 			//a.Value = boolToInt64(aInt != bInt)
 		case TypeCompGT:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
 			a.Value = boolToInt64(aInt > bInt)
 		case TypeCompGE:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
 			a.Value = boolToInt64(aInt >= bInt)
 		case TypeBitwiseAnd:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
 			a.Value = aInt & bInt
 		case TypeBitwiseOr:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
 			a.Value = aInt | bInt
 		case TypeAdd:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
-			if a.TypeId == b.TypeId && a.TypeId == VMTypeString {
+			if a.TypeId == VMTypeString {
 				a.Value = a.Value.(string) + b.Value.(string)
 			} else {
 				a.Value = aInt + bInt
 			}
 		case TypeSubtract:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
 			a.Value = aInt - bInt
 		case TypeMultiply:
+			if a.TypeId != b.TypeId {
+				return nil, "", errors.New("E4:符号运算类型不匹配")
+			}
 			checkDice(&code)
 			a.Value = aInt * bInt
 		case TypeDivide:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
 			if e.flags.IgnoreDiv0 {
 				if bInt == 0 {
@@ -795,9 +835,15 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			}
 			a.Value = aInt / bInt
 		case TypeModulus:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
 			a.Value = aInt % bInt
 		case TypeExponentiation:
+			if err := e4check(); err != nil {
+				return nil, "", err
+			}
 			checkDice(&code)
 			a.Value = int64(math.Pow(float64(aInt), float64(bInt)))
 		case TypeSwap:

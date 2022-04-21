@@ -23,7 +23,7 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 		num, _ = strconv.ParseInt(numText, 10, 64)
 	}
 	if num == 0 {
-		num = 10
+		num = 5
 	}
 
 	var rules []string
