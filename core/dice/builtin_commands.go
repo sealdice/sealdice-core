@@ -394,11 +394,14 @@ func (d *Dice) registerCoreCommands() {
 	reloginFlag := false
 	reloginLastTime := int64(0)
 
+	updateCode := "0000"
 	masterListHelp := `.master add me // 将自己标记为骰主
 .master add @A @B // 将别人标记为骰主
 .master del @A @B @C // 去除骰主标记
 .master unlock <密码(在UI中查看)> // (当Master被人抢占时)清空骰主列表，并使自己成为骰主
 .master list // 查看当前骰主列表
+.master reboot // 重新启动(需要二次确认)
+.master checkupdate // 检查更新(需要二次确认)
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)`
 	cmdMaster := &CmdItemInfo{
 		Name:     "master",
@@ -410,6 +413,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
+				cmdArgs.ChopPrefixToArgsWith("unlock", "rm", "del", "add", "checkupdate", "reboot")
 				pRequired := 0
 				if len(ctx.Dice.DiceMasters) >= 1 {
 					pRequired = 100
@@ -486,7 +490,53 @@ func (d *Dice) registerCoreCommands() {
 					}()
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "checkupdate":
-					ReplyToSender(ctx, msg, fmt.Sprintf("检查新版本，输入.master checkupdate 1234 确认进行升级\n升级将花费约2分钟，升级失败可能导致进程关闭，建议在接触服务器情况下操作。"))
+					dm := ctx.Dice.Parent
+					code, exists := cmdArgs.GetArgN(2)
+					if exists {
+						if code == updateCode && updateCode != "0000" {
+							ReplyToSender(ctx, msg, "开始下载新版本")
+							go func() {
+								ret := <-dm.UpdateDownloadedChan
+								if ret == "" {
+									ReplyToSender(ctx, msg, "准备开始升级，服务即将离线")
+								} else {
+									ReplyToSender(ctx, msg, "升级失败，原因: "+ret)
+								}
+							}()
+							dm.UpdateRequestChan <- 1
+						} else {
+							ReplyToSender(ctx, msg, "无效的升级指令码")
+						}
+					} else {
+						var text string
+						if dm.AppVersionOnline != nil {
+							text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION, dm.AppVersionOnline.VersionLatest)
+							if dm.AppVersionCode != dm.AppVersionOnline.VersionLatestCode {
+								updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
+								text += fmt.Sprintf("\n如需升级，请输入.master checkupdate %s 确认进行升级\n升级将花费约2分钟，升级失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
+							}
+						} else {
+							text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION, "未知")
+						}
+						ReplyToSender(ctx, msg, text)
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				case "reboot":
+					dm := ctx.Dice.Parent
+					code, exists := cmdArgs.GetArgN(2)
+					if exists {
+						if code == updateCode && updateCode != "0000" {
+							ReplyToSender(ctx, msg, "3秒后开始重启")
+							time.Sleep(3 * time.Second)
+							dm.RebootRequestChan <- 1
+						} else {
+							ReplyToSender(ctx, msg, "无效的升级指令码")
+						}
+					} else {
+						updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
+						text := fmt.Sprintf("进程重启:\n如需重启，请输入.master reboot %s 确认进行重启\n重启将花费约2分钟，失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
+						ReplyToSender(ctx, msg, text)
+					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "list":
 					text := ""

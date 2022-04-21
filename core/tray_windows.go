@@ -19,6 +19,10 @@ func hideWindow() {
 	win.ShowWindow(win.GetConsoleWindow(), win.SW_HIDE)
 }
 
+func showWindow() {
+	win.ShowWindow(win.GetConsoleWindow(), win.SW_SHOW)
+}
+
 func trayInit() {
 	go systray.Run(onReady, onExit)
 }

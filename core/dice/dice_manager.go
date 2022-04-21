@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
+	"time"
 )
 
 type VersionInfo struct {
@@ -35,8 +36,13 @@ type DiceManager struct {
 	AutoBackupEnable bool
 	AutoBackupTime   string
 
+	AppBootTime      int64
 	AppVersionCode   int64
 	AppVersionOnline *VersionInfo
+
+	UpdateRequestChan    chan int
+	UpdateDownloadedChan chan string
+	RebootRequestChan    chan int
 
 	Cron        *cron.Cron
 	ServiceName string
@@ -55,6 +61,8 @@ type DiceConfigs struct {
 	AutoBackupEnable bool   `yaml:"autoBackupEnable"`
 	AutoBackupTime   string `yaml:"autoBackupTime"`
 	ServiceName      string `yaml:"serviceName"`
+
+	ConfigVersion int `yaml:"configVersion"`
 }
 
 func (dm *DiceManager) InitHelp() {
@@ -67,6 +75,7 @@ func (dm *DiceManager) InitHelp() {
 
 func (dm *DiceManager) LoadDice() {
 	dm.AppVersionCode = VERSION_CODE
+	dm.AppBootTime = time.Now().Unix()
 
 	os.MkdirAll("./backups", 0755)
 	os.MkdirAll("./data/images", 0755)
@@ -79,6 +88,8 @@ func (dm *DiceManager) LoadDice() {
 		// 旧版本升级，或新用户
 		dm.UIPasswordSalt = RandStringBytesMaskImprSrcSB2(32)
 	}
+	dm.AutoBackupEnable = true
+	dm.AutoBackupTime = "@every 12h" // 每12小时一次
 
 	data, err := ioutil.ReadFile("./data/dice.yaml")
 	if err != nil {
@@ -132,6 +143,7 @@ func (dm *DiceManager) Save() {
 	dc.AutoBackupTime = dm.AutoBackupTime
 	dc.AutoBackupEnable = dm.AutoBackupEnable
 	dc.ServiceName = dm.ServiceName
+	dc.ConfigVersion = 9914
 
 	for k, _ := range dm.AccessTokens {
 		dc.AccessTokens = append(dc.AccessTokens, k)
@@ -148,6 +160,10 @@ func (dm *DiceManager) Save() {
 }
 
 func (dm *DiceManager) InitDice() {
+	dm.UpdateRequestChan = make(chan int, 1)
+	dm.RebootRequestChan = make(chan int, 1)
+	dm.UpdateDownloadedChan = make(chan string, 1)
+
 	dm.InitHelp()
 	dm.LoadNames()
 
@@ -175,15 +191,15 @@ func (dm *DiceManager) ResetAutoBackup() {
 		dm.Cron.Stop()
 		dm.Cron = nil
 	}
+	dm.Cron = cron.New()
+	dm.Cron.Start()
 	if dm.AutoBackupEnable {
-		dm.Cron = cron.New()
 		dm.Cron.AddFunc(dm.AutoBackupTime, func() {
 			err := dm.BackupAuto()
 			if err != nil {
 				fmt.Println("自动备份失败: ", err.Error())
 			}
 		})
-		dm.Cron.Start()
 	}
 }
 

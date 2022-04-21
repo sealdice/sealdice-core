@@ -28,6 +28,7 @@ require (
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mroth/weightedrand v0.4.1
 	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/otiai10/copy v1.7.0
 	github.com/poy/onpar v1.1.2 // indirect
 	github.com/robfig/cron/v3 v3.0.0
 	github.com/sacOO7/gowebsocket v0.0.0-20210515122958-9396f1a71e23
