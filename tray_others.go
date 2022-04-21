@@ -10,6 +10,9 @@ func trayInit() {
 func hideWindow() {
 }
 
+func showWindow() {
+}
+
 func TestRunning() bool {
 	return false
 }

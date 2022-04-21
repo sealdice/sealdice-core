@@ -10,7 +10,7 @@ import (
 
 func CustomReplyConfigRead(dice *Dice) *ReplyConfig {
 	attrConfigFn := dice.GetExtConfigFilePath("reply", "reply.yaml")
-	rc := &ReplyConfig{Enable: true}
+	rc := &ReplyConfig{Enable: false}
 
 	if _, err := os.Stat(attrConfigFn); err == nil {
 		// 如果文件存在，那么读取

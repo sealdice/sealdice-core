@@ -16,6 +16,7 @@ type AllBackupConfig struct {
 	Decks   bool                        `json:"decks"`
 	HelpDoc bool                        `json:"helpDoc"`
 	Dices   map[string]*OneBackupConfig `json:"dices"`
+	Global  bool                        `json:"global"`
 }
 
 type OneBackupConfig struct {
@@ -65,6 +66,10 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) error {
 			}
 			return nil
 		})
+	}
+
+	if cfg.Global {
+		backup(nil, "data/dice.yaml")
 	}
 
 	for k, cfg2 := range cfg.Dices {
@@ -125,6 +130,7 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) error {
 
 func (dm *DiceManager) BackupAuto() error {
 	return dm.Backup(AllBackupConfig{
+		Global:  true,
 		Decks:   false,
 		HelpDoc: false,
 		Dices: map[string]*OneBackupConfig{
@@ -141,6 +147,7 @@ func (dm *DiceManager) BackupAuto() error {
 
 func (dm *DiceManager) BackupSimple() error {
 	return dm.Backup(AllBackupConfig{
+		Global:  true,
 		Decks:   false,
 		HelpDoc: false,
 		Dices: map[string]*OneBackupConfig{

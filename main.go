@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/dop251/goja"
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	cp "github.com/otiai10/copy"
+	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,6 +17,7 @@ import (
 	"runtime/debug"
 	"sealdice-core/api"
 	"sealdice-core/dice"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -26,6 +31,37 @@ data/logs
 extensions/
 */
 
+func cleanUpCreate(diceManager *dice.DiceManager) func() {
+	return func() {
+		logger.Info("程序即将退出，进行清理……")
+		err := recover()
+		if err != nil {
+			showWindow()
+			logger.Errorf("异常: %v 堆栈: %v", err, string(debug.Stack()))
+		}
+
+		for _, i := range diceManager.Dice {
+			i.Save(true)
+		}
+		for _, i := range diceManager.Dice {
+			i.DB.Close()
+		}
+		// 清理gocqhttp
+		for _, i := range diceManager.Dice {
+			for _, j := range i.ImSession.EndPoints {
+				dice.GoCqHttpServeProcessKill(i, j)
+			}
+		}
+
+		diceManager.Help.Close()
+		diceManager.Save()
+		if diceManager.Cron != nil {
+			diceManager.Cron.Stop()
+		}
+	}
+
+}
+
 func main() {
 	var opts struct {
 		Install                bool   `short:"i" long:"install" description:"安装为系统服务"`
@@ -35,12 +71,23 @@ func main() {
 		ServiceName            string `long:"service-name" description:"自定义服务名，默认为sealdice"`
 		MultiInstanceOnWindows bool   `short:"m" long:"multi-instance" description:"允许在Windows上运行多个海豹"`
 		Address                string `long:"address" description:"将UI的http服务地址改为此值，例: 0.0.0.0:3211"`
+		DoUpdateWin            bool   `long:"do-update-win" description:"windows自动升级用，不要在任何情况下主动调用"`
+		Delay                  int64  `long:"delay"`
+		//DoUpdateOthers         bool   `long:"do-update-others" description:"linux/mac自动升级用，不要在任何情况下主动调用"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
 		return
 	}
+
+	if opts.Delay != 0 {
+		time.Sleep(time.Duration(opts.Delay) * time.Second)
+	}
+	dnsHack()
+
+	os.MkdirAll("./data", 0644)
+	MainLoggerInit("./data/main.log", true)
 
 	// 提早初始化是为了读取ServiceName
 	diceManager := &dice.DiceManager{}
@@ -68,6 +115,65 @@ func main() {
 		return
 	}
 
+	if opts.DoUpdateWin {
+		err := cp.Copy("./update/new", "./", cp.Options{
+			Skip: func(src string) (bool, error) {
+				if strings.HasPrefix(src, "sealdice-core") {
+					// 跳过主程序
+					return true, nil
+				}
+				return false, nil
+			},
+		})
+		if err != nil {
+			logger.Warn("升级失败")
+			return
+		}
+		ioutil.WriteFile("./auto_update_ok", []byte(""), 0644)
+		logger.Warn("升级完成，即将重启主进程")
+		exec.Command("./sealdice-core.exe").Start()
+		return
+	}
+
+	_, err1 := os.Stat("./auto_update.exe")
+	if err1 == nil {
+		_, err = os.Stat("./auto_update_ok")
+		if err == nil {
+			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
+			os.Remove("./auto_update_ok")
+			os.Remove("./auto_update.exe")
+			os.RemoveAll("./update")
+		} else {
+			logger.Warn("检测到 auto_update.exe，即将进行升级")
+			// 这5s延迟是保险，其实并不必要
+			name := "./auto_update.exe"
+			err := exec.Command(name, "--delay=5", "--do-update-others").Start()
+			if err != nil {
+				logger.Warn("升级发生错误: ", err.Error())
+				return
+			}
+			return
+		}
+	}
+	_, err2 := os.Stat("./auto_update")
+	if err2 == nil {
+		_, err = os.Stat("./auto_update_ok")
+		if err == nil {
+			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
+			os.Remove("./auto_update_ok")
+			os.Remove("./auto_update")
+			os.RemoveAll("./update")
+		} else {
+			logger.Warn("检测到 auto_update.exe，即将进行升级")
+			err := cp.Copy("./update/new", "./")
+			if err != nil {
+				logger.Errorf("更新: 复制文件失败: %s", err.Error())
+			}
+			_ = os.Chmod("./sealdice-core", 0755)
+			_ = os.Chmod("./go-cqhttp/go-cqhttp", 0755)
+		}
+	}
+
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 		hideWindow()
 	}
@@ -82,28 +188,7 @@ func main() {
 
 	go trayInit()
 
-	os.MkdirAll("./data", 0644)
-	MainLoggerInit("./data/main.log", true)
-
-	cleanUp := func() {
-		logger.Info("程序即将退出，进行清理……")
-		err := recover()
-		if err != nil {
-			logger.Errorf("异常: %v 堆栈: %v", err, string(debug.Stack()))
-		}
-
-		for _, i := range diceManager.Dice {
-			i.Save(true)
-		}
-		for _, i := range diceManager.Dice {
-			i.DB.Close()
-		}
-		diceManager.Help.Close()
-		diceManager.Save()
-		if diceManager.Cron != nil {
-			diceManager.Cron.Stop()
-		}
-	}
+	cleanUp := cleanUpCreate(diceManager)
 	defer cleanUp()
 
 	// 初始化核心
@@ -131,9 +216,11 @@ func main() {
 	}
 
 	diceManager.Cron.AddFunc("@every 15min", func() {
-		go checkVersion(diceManager)
+		go CheckVersion(diceManager)
 	})
-	go checkVersion(diceManager)
+	go CheckVersion(diceManager)
+	go RebootRequestListen(diceManager)
+	go UpdateRequestListen(diceManager)
 
 	//a, d, err := myDice.ExprEval("7d12k4", nil)
 	//if err == nil {
@@ -171,13 +258,13 @@ func main() {
 		}
 	})()
 
-	for _, d := range diceManager.Dice {
-		go diceServe(d)
-	}
-
 	if opts.Address != "" {
 		fmt.Println("由参数输入了服务地址:", opts.Address)
 		diceManager.ServeAddress = opts.Address
+	}
+
+	for _, d := range diceManager.Dice {
+		go diceServe(d)
 	}
 
 	uiServe(diceManager)
@@ -214,7 +301,7 @@ func diceServe(d *dice.Dice) {
 	}
 }
 
-func uiServe(myDice *dice.DiceManager) {
+func uiServe(dm *dice.DiceManager) {
 	logger.Info("即将启动webui")
 	// Echo instance
 	e := echo.New()
@@ -239,13 +326,17 @@ func uiServe(myDice *dice.DiceManager) {
 	// X-Content-Type-Options: nosniff
 	e.Static("/", "./frontend")
 
-	api.Bind(e, myDice)
+	api.Bind(e, dm)
 	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置
 
 	exec.Command(`cmd`, `/c`, `start`, `http://localhost:3211`).Start()
 	fmt.Println("如果浏览器没有自动打开，请手动访问:")
-	fmt.Println("http://localhost:3211")
-	e.Start(myDice.ServeAddress) // 默认:3211
+	fmt.Println("http://localhost:3211") // 默认:3211
+	err := e.Start(dm.ServeAddress)
+	if err != nil {
+		logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
+		return
+	}
 
 	//interrupt := make(chan os.Signal, 1)
 	//signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -266,3 +357,29 @@ func uiServe(myDice *dice.DiceManager) {
 //	}
 //	return false
 //}
+
+func dnsHack() {
+	var (
+		dnsResolverIP        = "114.114.114.114:53" // Google DNS resolver.
+		dnsResolverProto     = "udp"                // Protocol to use for the DNS resolver
+		dnsResolverTimeoutMs = 5000                 // Timeout (ms) for the DNS resolver (optional)
+	)
+
+	dialer := &net.Dialer{
+		Resolver: &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				d := net.Dialer{
+					Timeout: time.Duration(dnsResolverTimeoutMs) * time.Millisecond,
+				}
+				return d.DialContext(ctx, dnsResolverProto, dnsResolverIP)
+			},
+		},
+	}
+
+	dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return dialer.DialContext(ctx, network, addr)
+	}
+
+	http.DefaultTransport.(*http.Transport).DialContext = dialContext
+}

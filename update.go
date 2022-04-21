@@ -4,21 +4,26 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/alexmullins/zip"
+	cp "github.com/otiai10/copy"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sealdice-core/dice"
 	"strconv"
 	"strings"
+	"syscall"
+	"time"
 )
 
 var binPrefix = "https://sealdice.coding.net/p/sealdice/d/sealdice-binaries/git/raw/master"
 
-func downloadUpdate(dm *dice.DiceManager) {
+func downloadUpdate(dm *dice.DiceManager) error {
 	if dm.AppVersionOnline != nil {
 		ver := dm.AppVersionOnline
 		if ver.VersionLatestCode != dm.AppVersionCode {
@@ -43,32 +48,111 @@ func downloadUpdate(dm *dice.DiceManager) {
 			fileUrl := binPrefix + "/" + fn
 
 			logger.Infof("准备下载更新: %s", fn)
-			//fmt.Println("!!!", fn, fileUrl)
+			err := os.RemoveAll("./update")
+			if err != nil {
+				return errors.New("更新: 删除缓存目录(update)失败")
+			}
+
 			os.MkdirAll("./update", 0755)
 			os.MkdirAll("./update/new", 0755)
 			fn2 := "./update/update." + ext
-			err := DownloadFile(fn2, fileUrl)
+			err = DownloadFile(fn2, fileUrl)
 			if err != nil {
 				fmt.Println("！！！", err)
-				return
+				return errors.New("更新: 下载更新文件失败")
 			}
 			logger.Infof("更新下载完成，保存于: %s", fn2)
 
 			if ext == "zip" {
 				err = unzipSource(fn2, "./update/new")
 				if err != nil {
-					fmt.Println("!!!!!!!", err)
+					return errors.New("更新: 更新文件解压失败")
 				}
 			} else {
-				ExtractTarGz(fn2, "./update/new")
+				err = ExtractTarGz(fn2, "./update/new")
+				if err != nil {
+					return errors.New("更新: 更新文件解压失败")
+				}
 			}
 		}
 	}
+	return nil
 }
 
-func checkVersion(dm *dice.DiceManager) *dice.VersionInfo {
+func RebootRequestListen(dm *dice.DiceManager) {
+	<-dm.RebootRequestChan
+	doReboot(dm)
+}
+
+func UpdateRequestListen(dm *dice.DiceManager) {
+	<-dm.UpdateRequestChan
+	err := downloadUpdate(dm)
+	if err == nil {
+		dm.UpdateDownloadedChan <- ""
+		time.Sleep(2 * time.Second)
+		doUpdate(dm)
+		doReboot(dm)
+	} else {
+		dm.UpdateDownloadedChan <- err.Error()
+	}
+}
+
+func doReboot(dm *dice.DiceManager) {
+	executablePath, err := filepath.Abs(os.Args[0])
+	if err != nil {
+		return
+	}
+
+	binary, err := exec.LookPath(executablePath)
+	if err != nil {
+		logger.Errorf("Restart Error: %s", err)
+		return
+	}
+	platform := runtime.GOOS
+	if platform == "windows" {
+		_ = exec.Command(binary, "--delay=10").Start()
+	} else {
+		// 手动cleanup
+		cleanUpCreate(dm)()
+		// os.Args[1:]...
+		execErr := syscall.Exec(binary, []string{os.Args[0], "--delay=10"}, os.Environ())
+		if execErr != nil {
+			logger.Errorf("Restart error: %s %v", binary, execErr)
+		}
+	}
+	os.Exit(0)
+}
+
+func doUpdate(dm *dice.DiceManager) {
+	platform := runtime.GOOS
+	if platform == "windows" {
+		exe, err := filepath.Abs(os.Args[0])
+		if err == nil {
+			cp.Copy(exe, "./auto_update.exe")
+		}
+	} else {
+		// 好像gocq那边有点问题，也采取和windows一样的模式好了
+		// 放置标记物（实际没有用，带参数重启）
+		exe, err := filepath.Abs(os.Args[0])
+		if err == nil {
+			os.Rename(exe, "./auto_update")
+			cp.Copy("./update/new/sealdice-core", exe)
+			_ = os.Chmod(exe, 0755)
+		}
+
+		//err := cp.Copy("./update/new", "./")
+		//if err != nil {
+		//	logger.Errorf("更新: 复制文件失败: %s", err.Error())
+		//}
+		//_ = os.Chmod("./sealdice-core", 0755)
+		//_ = os.Chmod("./go-cqhttp/go-cqhttp", 0755)
+	}
+}
+
+func CheckVersion(dm *dice.DiceManager) *dice.VersionInfo {
 	resp, err := http.Get("https://dice.weizaima.com/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 10))
 	if err != nil {
+		logger.Errorf("获取新版本失败: %s", err.Error())
 		return nil
 	}
 	defer resp.Body.Close()
@@ -168,11 +252,11 @@ func unzipFile(f *zip.File, destination string) error {
 	return nil
 }
 
-func ExtractTarGz(fn, dest string) {
+func ExtractTarGz(fn, dest string) error {
 	gzipStream, err := os.Open(fn)
 	if err != nil {
-		fmt.Println("error")
-		return
+		fmt.Println("error", err.Error())
+		return err
 	}
 	defer gzipStream.Close()
 
@@ -180,6 +264,7 @@ func ExtractTarGz(fn, dest string) {
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
 		log.Fatal("ExtractTarGz: NewReader failed")
+		return err
 	}
 	defer uncompressedStream.Close()
 
@@ -194,6 +279,7 @@ func ExtractTarGz(fn, dest string) {
 
 		if err != nil {
 			log.Fatalf("ExtractTarGz: Next() failed: %s", err.Error())
+			return err
 		}
 
 		switch header.Typeflag {
@@ -206,9 +292,11 @@ func ExtractTarGz(fn, dest string) {
 			outFile, err := os.Create(filepath.Join(dest, header.Name))
 			if err != nil {
 				log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
+				return err
 			}
 			if _, err := io.Copy(outFile, tarReader); err != nil {
 				log.Fatalf("ExtractTarGz: Copy() failed: %s", err.Error())
+				return err
 			}
 			outFile.Close()
 
@@ -217,7 +305,8 @@ func ExtractTarGz(fn, dest string) {
 				"ExtractTarGz: uknown type: %s in %s",
 				header.Typeflag,
 				header.Name)
+			return err
 		}
-
 	}
+	return nil
 }
