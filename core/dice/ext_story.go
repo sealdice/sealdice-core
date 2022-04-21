@@ -83,23 +83,55 @@ func RegisterBuiltinStory(self *Dice) {
 
 	cmdNameDnd := &CmdItemInfo{
 		Name:     "namednd",
-		Help:     ".namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族",
-		LongHelp: "生成随机DND名字:\n.namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族",
+		Help:     ".namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族/地精",
+		LongHelp: "生成随机DND名字:\n.namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族/地精",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				return cmdRandomName(ctx, msg, cmdArgs, [][]string{
 					{"达马拉人"},
-					//{"卡林珊人"},
-					//{"莱瑟曼人"},
-					//{"受国人"},
-					//{"精灵"},
-					//{"矮人"},
-					//{"兽人"},
-					//{"海族"},
+					{"卡林珊人"},
+					{"莱瑟曼人"},
+					{"受国人"},
+					{"精灵"},
+					{"矮人"},
+					{"兽人"},
+					{"海族"},
+					{"地精"},
 				}, [][]string{
 					{
 						"{DND达马拉人:男性英文名} {DND达马拉人:英文姓氏} ({DND达马拉人:男性中文名#DND达马拉人:男性英文名.index}·{DND达马拉人:中文姓氏#DND达马拉人:英文姓氏.index})",
 						"{DND达马拉人:女性英文名} {DND达马拉人:英文姓氏} ({DND达马拉人:女性中文名#DND达马拉人:女性英文名.index}·{DND达马拉人:中文姓氏#DND达马拉人:英文姓氏.index})",
+					},
+					{
+						"{DND卡林珊人:Calashite_名_男} {DND卡林珊人:Calashite_姓} ({DND卡林珊人:Calashite_名_男_中文#DND卡林珊人:Calashite_名_男.index}·{DND卡林珊人:Calashite_姓_中文#DND卡林珊人:Calashite_姓.index})",
+						"{DND卡林珊人:Calashite_名_女} {DND卡林珊人:Calashite_姓} ({DND卡林珊人:Calashite_名_女_中文#DND卡林珊人:Calashite_名_女.index}·{DND卡林珊人:Calashite_姓_中文#DND卡林珊人:Calashite_姓.index})",
+					},
+					{
+						"{DND莱瑟曼人:Rashemi_名_男} {DND莱瑟曼人:Rashemi_姓} ({DND莱瑟曼人:Rashemi_名_男_中文#DND莱瑟曼人:Rashemi_名_男.index}·{DND莱瑟曼人:Rashemi_姓_中文#DND莱瑟曼人:Rashemi_姓.index})",
+						"{DND莱瑟曼人:Rashemi_名_女} {DND莱瑟曼人:Rashemi_姓} ({DND莱瑟曼人:Rashemi_名_女_中文#DND莱瑟曼人:Rashemi_名_女.index}·{DND莱瑟曼人:Rashemi_姓_中文#DND莱瑟曼人:Rashemi_姓.index})",
+					},
+					{
+						"{DND受国人:男性中文名}·{DND受国人:中文姓氏} ({DND受国人:男性英文名#DND受国人:男性中文名.index} {DND受国人:英文姓氏#DND受国人:中文姓氏.index})",
+						"{DND受国人:女性中文名}·{DND受国人:中文姓氏} ({DND受国人:女性英文名#DND受国人:女性中文名.index} {DND受国人:英文姓氏#DND受国人:中文姓氏.index})",
+					},
+					{
+						"{DND精灵:精灵_名_男} {DND精灵:精灵_姓} ({DND精灵:精灵_名_男_中文#DND精灵:精灵_名_男.index}·{DND精灵:精灵_姓_中文#DND精灵:精灵_姓.index})",
+						"{DND精灵:精灵_名_女} {DND精灵:精灵_姓} ({DND精灵:精灵_名_女_中文#DND精灵:精灵_名_女.index}·{DND精灵:精灵_姓_中文#DND精灵:精灵_姓.index})",
+					},
+					{
+						"{DND矮人:矮人_名_男} {DND矮人:矮人_姓} ({DND矮人:矮人_名_男_中文#DND矮人:矮人_名_男.index}·{DND矮人:矮人_姓_中文#DND矮人:矮人_姓.index})",
+						"{DND矮人:矮人_名_女} {DND矮人:矮人_姓} ({DND矮人:矮人_名_女_中文#DND矮人:矮人_名_女.index}·{DND矮人:矮人_姓_中文#DND矮人:矮人_姓.index})",
+					},
+					{
+						"{DND兽人:兽人_名_男} \"{DND兽人:兽人_绰号}\" (“{DND兽人:兽人_绰号_中文#DND兽人:兽人_绰号.index}”{DND兽人:兽人_名_男_中文#DND兽人:兽人_名_男.index})",
+						"{DND兽人:兽人_名_女} \"{DND兽人:兽人_绰号}\" (“{DND兽人:兽人_绰号_中文#DND兽人:兽人_绰号.index}”{DND兽人:兽人_名_女_中文#DND兽人:兽人_名_女.index})",
+					},
+					{
+						"{DND海族:海族_名_男} ({DND海族:海族_名_男_中文#DND海族:海族_名_男.index})",
+					},
+					{
+						"{DND地精:地精_名_男} ({DND地精:地精_名_男_中文#DND地精:地精_名_男.index})",
+						"{DND地精:地精_名_女} ({DND地精:地精_名_女_中文#DND地精:地精_名_女.index})",
 					},
 				}, -1)
 			}

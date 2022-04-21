@@ -16,7 +16,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.14 v20220419dev"
+var VERSION = "0.99.14 v20220421dev"
 var VERSION_CODE = int64(991400)
 
 type CmdExecuteResult struct {
