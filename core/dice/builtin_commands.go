@@ -950,7 +950,19 @@ func (d *Dice) registerCoreCommands() {
 							text += "\n" + asm
 						}
 
-						ReplyToSender(ctx, msg, text)
+						seemsCommand := false
+						if strings.HasPrefix(text, ".") || strings.HasPrefix(text, "。") || strings.HasPrefix(text, "!") {
+							seemsCommand = true
+							if strings.HasPrefix(text, "..") || strings.HasPrefix(text, "。。") || strings.HasPrefix(text, "!!") {
+								seemsCommand = false
+							}
+						}
+
+						if seemsCommand {
+							ReplyToSender(ctx, msg, "你可能在利用text让骰子发出指令文本，这被视为恶意行为并已经记录")
+						} else {
+							ReplyToSender(ctx, msg, text)
+						}
 					} else {
 						ReplyToSender(ctx, msg, "格式错误")
 					}

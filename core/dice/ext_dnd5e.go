@@ -195,11 +195,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	deathSavingResultCheck := func(ctx *MsgContext, a int64, b int64) string {
 		text := ""
 		if a >= 3 {
-			text = "你获得了3次死亡豁免检定成功，伤势稳定了！"
+			text = DiceFormatTmpl(ctx, "DND:死亡豁免_结局_伤势稳定")
 			deathSavingStable(ctx)
 		}
 		if b >= 3 {
-			text += "你获得了3次死亡豁免检定失败，不幸去世了！"
+			text = DiceFormatTmpl(ctx, "DND:死亡豁免_结局_角色死亡")
 			deathSavingStable(ctx)
 		}
 		return text
@@ -548,17 +548,20 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								if newVal <= 0 {
 									if exists && (-newVal) >= vHpMaxInt64 {
 										deathSavingStable(mctx)
-										extraText += fmt.Sprintf("\n<%s>遭受了%d点过量伤害，超过了他的承受能力，一命呜呼了！", mctx.Player.Name, -newVal)
+										VarSetValueInt64(mctx, "$t伤害点数", -newVal)
+										extraText += DiceFormatTmpl(mctx, "DND:受到伤害_超过HP上限_附加语")
 									} else {
 										if oldValue == 0 {
-											extraText += fmt.Sprintf("\n<%s>在昏迷状态下遭受了%d点过量伤害，死亡豁免失败+1！", mctx.Player.Name, -newVal)
+											VarSetValueInt64(mctx, "$t伤害点数", -newVal)
+											extraText += DiceFormatTmpl(mctx, "DND:受到伤害_昏迷中_附加语")
 											a, b := deathSaving(mctx, 0, 1)
 											exText := deathSavingResultCheck(mctx, a, b)
 											if exText != "" {
 												text += "\n" + exText
 											}
 										} else {
-											extraText += fmt.Sprintf("\n<%s>遭受了%d点过量伤害，生命值降至0，陷入了昏迷！", mctx.Player.Name, -newVal)
+											VarSetValueInt64(mctx, "$t伤害点数", -newVal)
+											extraText += DiceFormatTmpl(mctx, "DND:受到伤害_进入昏迷_附加语")
 										}
 									}
 									newVal = 0
@@ -1322,9 +1325,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if d20 == 20 {
 						deathSavingStable(mctx)
 						VarSetValueInt64(mctx, "hp", 1)
-						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d 你觉得你还可以抢救一下！HP回复1点！`, mctx.Player.Name, detail, d20))
+						suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_D20_附加语")
+						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix))
 					} else if d20 == 1 {
-						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d 伤势莫名加重了！死亡豁免失败+2`, mctx.Player.Name, detail, d20)
+						suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_D1_附加语")
+						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
 						a, b := deathSaving(mctx, 0, 2)
 						exText := deathSavingResultCheck(mctx, a, b)
 						if exText != "" {
@@ -1332,7 +1337,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 						ReplyToSender(mctx, msg, text)
 					} else if d20 >= 10 {
-						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d 伤势暂时得到控制！死亡豁免成功+1`, mctx.Player.Name, detail, d20)
+						suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_成功_附加语")
+						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
 						a, b := deathSaving(mctx, 1, 0)
 						exText := deathSavingResultCheck(mctx, a, b)
 						if exText != "" {
@@ -1340,7 +1346,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 						ReplyToSender(mctx, msg, text)
 					} else {
-						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d 有些不妙！死亡豁免失败+1`, mctx.Player.Name, detail, d20)
+						suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_失败_附加语")
+						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
 						a, b := deathSaving(mctx, 0, 1)
 						exText := deathSavingResultCheck(mctx, a, b)
 						if exText != "" {
@@ -1548,7 +1555,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						if solved {
 							riMap := dndGetRiMapList(ctx)
-							textOut := "先攻点数设置: \n"
+							textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
 
 							for order, i := range items {
 								var detail string
@@ -1561,7 +1568,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 							ReplyToSender(ctx, msg, textOut)
 						} else {
-							ReplyToSender(ctx, msg, "ri 格式不正确!")
+							ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "DND:先攻_设置_格式错误"))
 						}
 						return CmdExecuteResult{Matched: true, Solved: solved}
 					}
@@ -1582,7 +1589,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						n, _ := cmdArgs.GetArgN(1)
 						switch n {
 						case "", "list":
-							textOut := "当前先攻列表为:\n"
+							textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
 							riMap := dndGetRiMapList(ctx)
 
 							var lst ByRIListValue
@@ -1611,7 +1618,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 									delete(riMap, i)
 								}
 							}
-							textOut := "以下单位从先攻列表中移除:\n"
+							textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
 							for order, i := range deleted {
 								textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i)
 							}
@@ -1636,16 +1643,17 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 							riMap := dndGetRiMapList(ctx)
 							riMap[name] = r.Value.(int64)
-							var detail string
-							if _detail != "" {
-								detail = _detail + "="
-							}
-							textOut := fmt.Sprintf("已设置 %s 的先攻点为 %s%s", name, detail, r.Value.(int64))
+
+							VarSetValueStr(ctx, "$t表达式", fmt.Sprintf("%s", expr))
+							VarSetValueStr(ctx, "$t目标", fmt.Sprintf("%s", name))
+							VarSetValueStr(ctx, "$t计算过程", fmt.Sprintf("%s", _detail))
+							VarSetValue(ctx, "$t点数", &r.VMValue)
+							textOut := DiceFormatTmpl(ctx, "DND:先攻_设置_指定单位")
 
 							ReplyToSender(ctx, msg, textOut)
 						case "clr", "clear":
 							dndClearRiMapList(ctx)
-							ReplyToSender(ctx, msg, "先攻列表已清除")
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
 						case "help":
 							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 						}

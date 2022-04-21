@@ -416,14 +416,14 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			t := stack[top-1]
 			top--
 
-			if t.Value != int64(0) {
+			if t.AsBool() {
 				opIndex += int(code.Value)
 			}
 		case TypeJne:
 			t := stack[top-1]
 			top--
 
-			if t.Value == int64(0) {
+			if !t.AsBool() {
 				opIndex += int(code.Value)
 			}
 			continue
@@ -744,10 +744,19 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			a.Value = boolToInt64(aInt <= bInt)
 		case TypeCompEQ:
 			checkDice(&code)
-			a.Value = boolToInt64(aInt == bInt)
+			if a.TypeId != b.TypeId {
+				a.Value = 0
+			} else {
+				a.Value = boolToInt64(a.Value == b.Value)
+			}
 		case TypeCompNE:
 			checkDice(&code)
-			a.Value = boolToInt64(aInt != bInt)
+			if a.TypeId != b.TypeId {
+				a.Value = 1
+			} else {
+				a.Value = boolToInt64(a.Value != b.Value)
+			}
+			//a.Value = boolToInt64(aInt != bInt)
 		case TypeCompGT:
 			checkDice(&code)
 			a.Value = boolToInt64(aInt > bInt)
@@ -762,7 +771,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			a.Value = aInt | bInt
 		case TypeAdd:
 			checkDice(&code)
-			a.Value = aInt + bInt
+			if a.TypeId == b.TypeId && a.TypeId == VMTypeString {
+				a.Value = a.Value.(string) + b.Value.(string)
+			} else {
+				a.Value = aInt + bInt
+			}
 		case TypeSubtract:
 			checkDice(&code)
 			a.Value = aInt - bInt

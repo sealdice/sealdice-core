@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 )
 
 func CustomReplyConfigRead(dice *Dice) *ReplyConfig {
@@ -65,13 +66,25 @@ func RegisterBuiltinExtReply(dice *Dice) {
 	theExt := &ExtInfo{
 		Name:       "reply", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
-		Brief:      "自定义回复模块，支持关键字精确匹配和模糊匹配",
+		Brief:      "自定义回复模块，支持各种文本匹配和简易脚本",
 		Author:     "木落",
 		AutoActive: true, // 是否自动开启
 		OnNotCommandReceived: func(ctx *MsgContext, msg *Message) {
 			// 当前，只有非指令才会匹配
 			rc := ctx.Dice.CustomReplyConfig
 			if rc.Enable {
+				lastTime := ctx.Group.LastCustomReplyTime
+				now := float64(time.Now().UnixMilli()) / 1000
+				interval := rc.Interval
+				if interval < 5 {
+					interval = 5
+				}
+
+				if now-lastTime < interval {
+					return // 未达到冷却，退出
+				}
+				ctx.Group.LastCustomReplyTime = now
+
 				cleanText, _ := AtParse(msg.Message, "")
 				cleanText = strings.TrimSpace(cleanText)
 				for _, i := range rc.Items {
