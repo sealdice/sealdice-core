@@ -47,6 +47,9 @@
               <div>同样的，可以使用CQ码插入图片和其他内容，关于CQ码，请参阅onebot项目文档</div>
             </div>
 
+            <div style="margin-top: 1rem;">
+              <b>进行调整后，可以在左侧面板“指令测试”中进行测试！</b>
+            </div>
           </div>
         </el-collapse-item>
     </el-collapse>
@@ -142,6 +145,7 @@ const save = async () => {
   modified.value = false
   await store.customTextSave(props.category)
   await store.getCustomText()
+  modified.value = false
   ElMessage.success('已保存')
 }
 

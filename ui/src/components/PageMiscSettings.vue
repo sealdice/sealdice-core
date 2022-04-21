@@ -1,4 +1,14 @@
 <template>
+  <el-affix :offset="60" v-if="modified">
+    <div class="tip">
+      <!-- <p class="title">TIP</p> -->
+      <div style="display: flex; justify-content: space-between; align-content: center; align-items: center">
+        <span>内容已修改，不要忘记保存</span>
+        <!-- <el-button class="button" type="primary" @click="save" :disabled="!modified">点我保存</el-button> -->
+      </div>
+    </div>
+  </el-affix>
+
   <el-form label-width="120px">
     <h2>Master管理</h2>
     <el-form-item label="">
