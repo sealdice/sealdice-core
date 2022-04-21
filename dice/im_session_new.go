@@ -78,6 +78,7 @@ type GroupInfo struct {
 	ShowGroupWelcome    bool   `yaml:"showGroupWelcome"`  // 是否迎新
 	GroupWelcomeMessage string `yaml:"groupWelcomeMessage"`
 	//FirstSpeechMade     bool   `yaml:"firstSpeechMade"` // 是否做过进群发言
+	LastCustomReplyTime float64 `yaml:"-"` // 上次自定义回复时间
 }
 
 // ExtActive 开启扩展
@@ -219,8 +220,6 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 	// 处理命令
 	if msg.MessageType == "group" || msg.MessageType == "private" {
-		var cmdLst []string
-
 		group := s.ServiceAtNew[msg.GroupId]
 		if group == nil && msg.GroupId != "" {
 			// 注意: 此处必须开启，不然下面mctx.player取不到
@@ -273,6 +272,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
+		var cmdLst []string
 		if maybeCommand {
 			if d.MasterCheck(mctx.Player.UserId) {
 				mctx.PrivilegeLevel = 100

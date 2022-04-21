@@ -2,6 +2,7 @@ package dice
 
 import (
 	"errors"
+	"fmt"
 	wr "github.com/mroth/weightedrand"
 	"go.etcd.io/bbolt"
 	"go.uber.org/zap"
@@ -228,6 +229,10 @@ func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext) (*VmResult, string, 
 	val, detail, err := d.ExprEval("\x1e"+buffer+"\x1e", ctx)
 	//val, detail, err := d.ExprEval("`"+buffer+"`", ctx)
 	//fmt.Println("???", buffer, val, detail, err, "'"+buffer+"'")
+
+	if err != nil {
+		fmt.Println("脚本执行出错: ", buffer, "->", err)
+	}
 
 	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
 		return val, detail, err

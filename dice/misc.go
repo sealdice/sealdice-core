@@ -34,6 +34,23 @@ type VMValue struct {
 	Value  interface{} `json:"value"`
 }
 
+func (v *VMValue) AsBool() bool {
+	switch v.TypeId {
+	case VMTypeInt64:
+		return v.Value != int64(0)
+	case VMTypeString:
+		return v.Value != ""
+	case VMTypeNone:
+		return false
+	case VMTypeComputedValue:
+		vd := v.Value.(*VMComputedValueData)
+		return vd.BaseValue.AsBool()
+	default:
+		return false
+	}
+	return false
+}
+
 func (v *VMValue) ToString() string {
 	switch v.TypeId {
 	case VMTypeInt64:

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"runtime"
 	"sealdice-core/dice"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -322,6 +323,25 @@ func DiceExec(c echo.Context) error {
 	return c.JSON(200, pa.RecentMessage)
 }
 
+func DiceAllCommand(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	var cmdLst []string
+	for k := range myDice.CmdMap {
+		cmdLst = append(cmdLst, k)
+	}
+
+	for _, i := range myDice.ExtList {
+		for k := range i.CmdMap {
+			cmdLst = append(cmdLst, k)
+		}
+	}
+	sort.Sort(dice.ByLength(cmdLst))
+	return c.JSON(200, cmdLst)
+}
+
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
@@ -346,6 +366,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET("/dice/config/get", DiceConfig)
 	e.POST("/dice/config/set", DiceConfigSet)
 	e.POST("/dice/exec", DiceExec)
+	e.GET("/dice/cmdList", DiceAllCommand)
+
 	e.POST("/signin", doSignIn)
 	e.GET("/signin/salt", doSignInGetSalt)
 	e.GET("/checkSecurity", checkSecurity)
