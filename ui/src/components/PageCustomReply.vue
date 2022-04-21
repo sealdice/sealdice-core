@@ -37,7 +37,7 @@
   </el-dialog>
 
   <el-dialog v-model="dialogLicenseVisible" title="许可协议" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
-    <pre style="white-space: break-spaces;">尊敬的用户，欢迎您选择由木落等研发的海豹骰点核心（SealDice），在您使用自定义功能前，请务必仔细阅读使用须知，当您使用我们提供的服务时，即代表您已同意使用须知的内容。
+  <pre style="white-space: pre-wrap;">尊敬的用户，欢迎您选择由木落等研发的海豹骰点核心（SealDice），在您使用自定义功能前，请务必仔细阅读使用须知，当您使用我们提供的服务时，即代表您已同意使用须知的内容。
 
 您清楚并明白您对通过骰子提供的全部内容负责，包括自定义回复、非自带的插件、牌堆。海豹骰不对非自身提供以外的内容合法性负责。您不得在使用海豹骰服务时，导入包括但不限于以下情形的内容:
 (1) 反对中华人民共和国宪法所确定的基本原则的；
@@ -119,6 +119,7 @@ const addOne = (lst: any) => {
 const doSave = () => {
   store.setCustomReply(cr.value)
   ElMessage.success('已保存')
+  modified.value = false
 }
 
 const doImport = () => {
