@@ -9,7 +9,7 @@ type DiceRollParser Peg {
 // 实际操作中发现，不匹配句尾比较好 (没有!.)
 eBase <- e { p.AddOperator(TypeHalt) }
 e <- eOne (';' sp { p.AddOperator(TypeClearDetail) } eOne?)*
-eOne <- sp (fstring / s0 / e0 / assign_expr)
+eOne <- sp (s0 / e0 / assign_expr)
 
 assign_expr <- identifier { p.AddValueStr(string(text)) } '=' sp e0 { p.AddStore() }
 
@@ -70,6 +70,7 @@ e3 <- e4 ( exponentiation { p.AddLeftValueMark() } e4 { p.AddOperator(TypeExpone
 e4 <- minus e5 { p.AddOperator(TypeNegation) }
     / e5
 
+// e5 <- eDice
 e5 <- add eDice
     / eDice
 
