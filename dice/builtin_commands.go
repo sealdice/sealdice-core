@@ -402,7 +402,8 @@ func (d *Dice) registerCoreCommands() {
 .master list // 查看当前骰主列表
 .master reboot // 重新启动(需要二次确认)
 .master checkupdate // 检查更新(需要二次确认)
-.master relogin // 30s后重新登录，有机会清掉风控(仅master可用)`
+.master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
+.master backup // 做一次备份`
 	cmdMaster := &CmdItemInfo{
 		Name:     "master",
 		Help:     masterListHelp,
@@ -413,7 +414,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				cmdArgs.ChopPrefixToArgsWith("unlock", "rm", "del", "add", "checkupdate", "reboot")
+				cmdArgs.ChopPrefixToArgsWith("unlock", "rm", "del", "add", "checkupdate", "reboot", "backup")
 				pRequired := 0
 				if len(ctx.Dice.DiceMasters) >= 1 {
 					pRequired = 100
@@ -489,6 +490,15 @@ func (d *Dice) registerCoreCommands() {
 						}
 					}()
 					return CmdExecuteResult{Matched: true, Solved: true}
+				case "backup":
+					ReplyToSender(ctx, msg, "开始备份数据")
+					err := ctx.Dice.Parent.BackupSimple()
+					if err == nil {
+						ReplyToSender(ctx, msg, "备份成功！请到UI界面(综合设置-备份)处下载备份，或在骰子backup目录下读取")
+					} else {
+						d.Logger.Error("骰子备份:", err)
+						ReplyToSender(ctx, msg, "备份失败！错误已写入日志。可能是磁盘已满所致，建议立即进行处理！")
+					}
 				case "checkupdate":
 					dm := ctx.Dice.Parent
 					code, exists := cmdArgs.GetArgN(2)
@@ -686,6 +696,7 @@ func (d *Dice) registerCoreCommands() {
 							"expr":       fmt.Sprintf("D%d", dicePoints),
 							"reason":     forWhat,
 							"dicePoints": dicePoints,
+							"result":     val,
 						}
 						if forWhat == "" {
 							delete(item, "reason")
@@ -1183,6 +1194,39 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["welcome"] = cmdWelcome
+
+	cmdReply := &CmdItemInfo{
+		Name:     "reply",
+		Help:     ".reply on/off",
+		LongHelp: "打开或关闭自定义回复:\n.reply on/off",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				val, _ := cmdArgs.GetArgN(1)
+				switch val {
+				case "on":
+					onText := "开"
+					if ctx.Group.ExtGetActive("reply") == nil {
+						onText = "关"
+					}
+					extReply := ctx.Dice.ExtFind("reply")
+					ctx.Group.ExtActive(extReply)
+					ReplyToSender(ctx, msg, fmt.Sprintf("已在当前群开启自定义回复(%s➯开)。\n此指令等价于.ext reply on", onText))
+				case "off":
+					onText := "开"
+					if ctx.Group.ExtGetActive("reply") == nil {
+						onText = "关"
+					}
+					ctx.Group.ExtInactive("reply")
+					ReplyToSender(ctx, msg, fmt.Sprintf("已在当前群关闭自定义回复(%s➯关)。\n此指令等价于.ext reply off", onText))
+				default:
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+	d.CmdMap["reply"] = cmdReply
 }
 
 func getDefaultDicePoints(ctx *MsgContext) int64 {

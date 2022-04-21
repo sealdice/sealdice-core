@@ -76,8 +76,8 @@ func RegisterBuiltinExtReply(dice *Dice) {
 				lastTime := ctx.Group.LastCustomReplyTime
 				now := float64(time.Now().UnixMilli()) / 1000
 				interval := rc.Interval
-				if interval < 5 {
-					interval = 5
+				if interval < 3 {
+					interval = 3
 				}
 
 				if now-lastTime < interval {
@@ -98,6 +98,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 							}
 						}
 						if len(i.Conditions) > 0 && checkTrue {
+							SetTempVars(ctx, ctx.Player.Name)
 							for _, j := range i.Results {
 								j.Execute(ctx, msg, nil)
 							}
@@ -110,32 +111,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 		GetDescText: func(i *ExtInfo) string {
 			return GetExtensionDesc(i)
 		},
-		CmdMap: CmdMapCls{
-			"reply": &CmdItemInfo{
-				Name: "reply",
-				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					dice.Parent.Backup(AllBackupConfig{
-						Decks:   true,
-						HelpDoc: true,
-						Dices: map[string]*OneBackupConfig{
-							"default": &OneBackupConfig{
-								MiscConfig:  true,
-								PlayerData:  true,
-								CustomReply: true,
-								CustomText:  true,
-								Accounts:    true,
-							},
-						},
-					}, "bak.zip")
-
-					if ctx.IsCurGroupBotOn {
-						// do something
-						ReplyToSender(ctx, msg, "并不存在的指令，或许敬请期待？")
-					}
-					return CmdExecuteResult{Matched: true, Solved: false}
-				},
-			},
-		},
+		CmdMap: CmdMapCls{},
 	}
 
 	dice.RegisterExtension(theExt)

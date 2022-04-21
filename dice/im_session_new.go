@@ -259,6 +259,26 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			mustLoadUser = true
 		}
 
+		amIBeMentioned := false
+		if true {
+			// 被@时，必须加载信息
+			// 这段代码重复了，以后重构
+			_, ats := AtParse(msg.Message, msg.Platform)
+			tmpUid := ep.UserId
+			if msg.TmpUid != "" {
+				tmpUid = msg.TmpUid
+			}
+			for _, i := range ats {
+				if i.UserId == tmpUid {
+					amIBeMentioned = true
+					break
+				}
+			}
+			if amIBeMentioned {
+				mustLoadUser = true
+			}
+		}
+
 		if mustLoadUser {
 			mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
 			mctx.IsCurGroupBotOn = IsCurGroupBotOn(s, msg)
@@ -327,7 +347,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				log.Infof("收到群(%s)内<%s>(%s)的指令: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 			} else {
 				doLog := true
-				if !d.OnlyLogCommandInGroup {
+				if d.OnlyLogCommandInGroup {
 					// 检查上级选项
 					doLog = false
 				}
@@ -434,7 +454,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		} else {
 			// 试图匹配自定义回复
-			if mctx.Group != nil && mctx.Group.Active {
+			if mctx.Group != nil && (mctx.Group.Active || amIBeMentioned) {
 				for _, i := range mctx.Group.ActivatedExtList {
 					if i.OnNotCommandReceived != nil {
 						i.OnNotCommandReceived(mctx, msg)
