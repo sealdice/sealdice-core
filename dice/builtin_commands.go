@@ -797,6 +797,10 @@ func (d *Dice) registerCoreCommands() {
 		LongHelp: "群扩展模块管理:\n" + helpExt,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				showList := func() {
 					text := "检测到以下扩展(名称-版本-作者)：\n"
 					for index, i := range ctx.Dice.ExtList {
@@ -891,6 +895,10 @@ func (d *Dice) registerCoreCommands() {
 		LongHelp: "角色名设置:\n" + helpNN,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				if len(cmdArgs.Args) == 0 {
 					p := ctx.Player
 					p.Name = msg.Sender.Nickname
@@ -925,6 +933,10 @@ func (d *Dice) registerCoreCommands() {
 		LongHelp: "设定骰子面数:\n" + helpSet,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				p := ctx.Player
 				isSetGroup := true
 				my := cmdArgs.GetKwarg("my")
@@ -999,6 +1011,10 @@ func (d *Dice) registerCoreCommands() {
 		LongHelp: "文本模板指令:\n" + textHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				_, exists := cmdArgs.GetArgN(1)
 				if exists {
 					r, _, err := d.ExprTextBase(cmdArgs.CleanArgs, ctx)
@@ -1044,6 +1060,10 @@ func (d *Dice) registerCoreCommands() {
 		LongHelp: "角色管理:\n" + helpCh,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm")
 
 				getNickname := func() string {
@@ -1201,6 +1221,10 @@ func (d *Dice) registerCoreCommands() {
 		LongHelp: "打开或关闭自定义回复:\n.reply on/off",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				val, _ := cmdArgs.GetArgN(1)
 				switch val {
 				case "on":

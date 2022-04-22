@@ -106,6 +106,7 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 		if msgQQ.Sender.Card != "" {
 			msg.Sender.Nickname = msgQQ.Sender.Card
 		}
+		msg.Sender.GroupRole = msgQQ.Sender.Role
 		msg.Sender.UserId = FormatDiceIdQQ(msgQQ.Sender.UserId)
 	}
 	return msg
@@ -255,12 +256,18 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				var comment string
 				if msgQQ.Comment != "" {
 					comment = strings.TrimSpace(msgQQ.Comment)
+					comment = strings.ReplaceAll(comment, "\u00a0", "")
 				}
 
-				willAccept := comment == session.Parent.FriendAddComment
+				willAccept := comment == DiceFormat(ctx, strings.TrimSpace(session.Parent.FriendAddComment))
 
-				comment = "(无)"
-				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%d, 验证信息: %s, 是否通过: %t", msgQQ.UserId, comment, willAccept)
+				if comment == "" {
+					comment = "(无)"
+				} else {
+					comment = strconv.Quote(comment)
+				}
+
+				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%d, 验证信息: %s, 是否自动同意: %t", msgQQ.UserId, comment, willAccept)
 				log.Info(txt)
 				ctx.Notice(txt)
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))

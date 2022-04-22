@@ -11,8 +11,9 @@ import (
 )
 
 type SenderBase struct {
-	Nickname string `json:"nickname"`
-	UserId   string `json:"userId"`
+	Nickname  string `json:"nickname"`
+	UserId    string `json:"userId"`
+	GroupRole string `json:"-"` // 群内角色 admin管理员 owner群主
 }
 
 // Message 消息的重要信息
@@ -294,6 +295,13 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		var cmdLst []string
 		if maybeCommand {
+			if msg.Sender.GroupRole == "admin" {
+				mctx.PrivilegeLevel = 50 // 群管理
+			}
+			if msg.Sender.GroupRole == "owner" {
+				mctx.PrivilegeLevel = 60 // 群主
+			}
+
 			if d.MasterCheck(mctx.Player.UserId) {
 				mctx.PrivilegeLevel = 100
 			}
