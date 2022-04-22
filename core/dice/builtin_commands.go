@@ -156,21 +156,18 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				text := "海豹核心 " + VERSION + "\n"
-				text += "-----------------------------------------------\n"
-				text += ".help 骰点" + "\n"
-				text += ".help 娱乐" + "\n"
-				text += ".help 扩展" + "\n"
-				text += ".help 跑团" + "\n"
-				text += ".help 日志" + "\n"
-				text += ".help 骰主" + "\n"
-				text += ".help 其他" + "\n"
+				text += "==========================\n"
+				text += ".help 骰点/娱乐/跑团/日志" + "\n"
+				text += ".help 骰主/扩展/其他" + "\n"
 				text += "官网: https://sealdice.com/" + "\n"
-				text += "手册: https://dice.weizaima.com/manual/" + "\n"
-				text += "日志着色器: http://log.weizaima.com/" + "\n"
+				text += "手册(荐): https://dice.weizaima.com/manual/" + "\n"
 				text += "海豹群: 524364253" + "\n"
 				//text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
-				text += "-----------------------------------------------\n"
-				text += DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
+				extra := DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
+				if extra != "" {
+					text += "--------------------------\n"
+					text += extra
+				}
 				ReplyToSender(ctx, msg, text)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -355,7 +352,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					if cmdArgs.GetKwarg("s") == nil && cmdArgs.GetKwarg("slience") == nil {
-						ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d个帐号，这些账号将被视为机器人。\n因此别人@他们时，海豹将不会回复。\n他们的指令也会被海豹忽略，避免发生循环回复事故", newCount))
+						ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d个帐号，这些账号将被视为机器人。\n因此别人@他们时，海豹将不会回复。\n他们的指令也会被海豹忽略，避免发生循环回复事故。后续使用此指令时在末尾加参数 --s 骰子将保持静默", newCount))
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "del", "rm":
@@ -366,12 +363,18 @@ func (d *Dice) registerCoreCommands() {
 							delete(ctx.Group.BotList, uid)
 						}
 					}
-					ReplyToSender(ctx, msg, fmt.Sprintf("删除标记了%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount))
+
+					if cmdArgs.GetKwarg("s") == nil && cmdArgs.GetKwarg("slience") == nil {
+						ReplyToSender(ctx, msg, fmt.Sprintf("删除标记了%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount))
+					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "list":
+					if cmdArgs.SomeoneBeMentionedButNotMe {
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					text := ""
 					for i, _ := range ctx.Group.BotList {
-						// uid := FormatDiceIdQQ(i)
 						text += "- " + i + "\n"
 					}
 					if text == "" {
@@ -423,9 +426,17 @@ func (d *Dice) registerCoreCommands() {
 					subCmd, _ := cmdArgs.GetArgN(1)
 					if subCmd == "unlock" {
 						// 特殊解锁指令
+						code, _ := cmdArgs.GetArgN(2)
+						if ctx.Dice.UnlockCodeVerify(code) {
+							ctx.Dice.MasterClear()
+							ctx.Dice.MasterAdd(ctx.Player.UserId)
+							ctx.Dice.UnlockCodeUpdate(true) // 强制刷新解锁码
+							ReplyToSender(ctx, msg, fmt.Sprintf("你已成为唯一Master"))
+						} else {
+							ReplyToSender(ctx, msg, fmt.Sprintf("错误的解锁码"))
+						}
 					}
 
-					ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
@@ -441,6 +452,9 @@ func (d *Dice) registerCoreCommands() {
 					}
 					ctx.Dice.Save(false)
 					ReplyToSender(ctx, msg, fmt.Sprintf("海豹将新增%d位master", newCount))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				case "unlock":
+					ReplyToSender(ctx, msg, fmt.Sprintf("Master，你找我有什么事吗？"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "del", "rm":
 					existsCount := 0
@@ -1185,7 +1199,18 @@ func (d *Dice) registerCoreCommands() {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
+
 			if ctx.IsCurGroupBotOn {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				pRequired := 50 // 50管理 60群主 100master
+				if ctx.PrivilegeLevel < pRequired {
+					ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员或master"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				if cmdArgs.IsArgEqual(1, "on") {
 					ctx.Group.ShowGroupWelcome = true
 					ReplyToSender(ctx, msg, "入群欢迎语已打开")
@@ -1204,7 +1229,8 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "当前欢迎语: "+welcome+info)
 				} else if text, ok := cmdArgs.EatPrefixWith("set"); ok {
 					ctx.Group.GroupWelcomeMessage = text
-					ReplyToSender(ctx, msg, "当前欢迎语设定为: "+text)
+					ctx.Group.ShowGroupWelcome = true
+					ReplyToSender(ctx, msg, "当前欢迎语设定为: "+text+"\n入群欢迎语已自动打开(注意，会在bot off时起效)")
 				} else {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				}
