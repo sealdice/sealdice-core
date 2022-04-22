@@ -45,7 +45,7 @@ func DiceConfig(c echo.Context) error {
 	if limit == 0 {
 		limit = 100
 	}
-	myDice.UnlockCodeUpdate()
+	myDice.UnlockCodeUpdate(false)
 
 	info := DiceConfigInfo{
 		CommandPrefix:           myDice.CommandPrefix,

@@ -16,8 +16,8 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.14 v20220422"
-var VERSION_CODE = int64(991400)
+var VERSION = "0.99.14fix1 v20220423"
+var VERSION_CODE = int64(991401)
 
 type CmdExecuteResult struct {
 	Matched       bool // 是否是指令
@@ -298,10 +298,10 @@ func (d *Dice) MasterRemove(uid string) bool {
 	return false
 }
 
-func (d *Dice) UnlockCodeUpdate() {
+func (d *Dice) UnlockCodeUpdate(force bool) {
 	now := time.Now().Unix()
 	// 大于20分钟重置
-	if now-d.MasterUnlockCodeTime > 20*60 {
+	if now-d.MasterUnlockCodeTime > 20*60 || force {
 		d.MasterUnlockCode = ""
 	}
 	if d.MasterUnlockCode == "" {
@@ -311,7 +311,7 @@ func (d *Dice) UnlockCodeUpdate() {
 }
 
 func (d *Dice) UnlockCodeVerify(code string) bool {
-	d.UnlockCodeUpdate()
+	d.UnlockCodeUpdate(false)
 	return code == d.MasterUnlockCode
 }
 
