@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	cp "github.com/otiai10/copy"
 	"io/ioutil"
+	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -316,6 +317,7 @@ func uiServe(dm *dice.DiceManager) {
 		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
 	}))
 
+	mimePatch()
 	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
 		XSSProtection:         "1; mode=block",
 		ContentTypeNosniff:    "nosniff",
@@ -382,4 +384,24 @@ func dnsHack() {
 	}
 
 	http.DefaultTransport.(*http.Transport).DialContext = dialContext
+}
+
+func mimePatch() {
+	builtinMimeTypesLower := map[string]string{
+		".css":  "text/css; charset=utf-8",
+		".gif":  "image/gif",
+		".htm":  "text/html; charset=utf-8",
+		".html": "text/html; charset=utf-8",
+		".jpg":  "image/jpeg",
+		".js":   "application/javascript",
+		".wasm": "application/wasm",
+		".pdf":  "application/pdf",
+		".png":  "image/png",
+		".svg":  "image/svg+xml",
+		".xml":  "text/xml; charset=utf-8",
+	}
+
+	for k, v := range builtinMimeTypesLower {
+		_ = mime.AddExtensionType(k, v)
+	}
 }
