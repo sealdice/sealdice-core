@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type DiceConfigInfo struct {
@@ -162,7 +163,7 @@ func DiceConfigSet(c echo.Context) error {
 		}
 
 		if val, ok := jsonMap["friendAddComment"]; ok {
-			myDice.FriendAddComment = val.(string)
+			myDice.FriendAddComment = strings.TrimSpace(val.(string))
 		}
 
 		if val, ok := jsonMap["uiPassword"]; ok {
