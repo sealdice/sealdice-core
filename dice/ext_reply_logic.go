@@ -52,10 +52,21 @@ func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *
 	case "matchRegex":
 		re, err := regexp.Compile(m.Value)
 		if err == nil {
-			ret = re.MatchString(cleanText)
+			lst := re.FindStringSubmatch(cleanText)
+			gName := re.SubexpNames()
+			for index, s := range lst {
+				VarSetValueStr(ctx, fmt.Sprintf("$t%d", index), s)
+				if gName[index] != "" {
+					VarSetValueStr(ctx, fmt.Sprintf("$t%s", gName[index]), s)
+				}
+			}
+			ret = len(lst) != 0
 		}
 	case "matchFuzzy":
 		return strCompare(strings.ToLower(m.Value), strings.ToLower(cleanText)) > 0.7
+	}
+	if ret {
+		VarSetValueStr(ctx, "$t0", cleanText)
 	}
 	return ret
 }
