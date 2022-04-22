@@ -351,9 +351,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					// 检查上级选项
 					doLog = false
 				}
-				if !doLog {
+				if doLog {
 					// 检查QQ频道的独立选项
-					if msg.Platform == "QQ-CH" && d.QQChannelLogMessage {
+					if msg.Platform == "QQ-CH" && (!d.QQChannelLogMessage) {
 						doLog = false
 					}
 				}

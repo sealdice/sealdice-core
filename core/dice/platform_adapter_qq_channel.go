@@ -76,6 +76,11 @@ func (pa *PlatformAdapterQQOnebot) QQChannelTrySolve(message string) {
 			return
 		}
 
+		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "message_reactions_updated" {
+			// 一大段的表情设置信息，我也搞不懂是什么
+			return
+		}
+
 		// 处理命令
 		if msgQQ.MessageType == "guild" || msgQQ.MessageType == "private" {
 			if msg.Sender.UserId == ep.UserId {
