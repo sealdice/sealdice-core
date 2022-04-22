@@ -205,7 +205,7 @@ type MsgContext struct {
 	CommandId       uint64
 	CommandHideFlag string      // 暗骰标记
 	CommandInfo     interface{} // 命令信息
-	PrivilegeLevel  int         // 权限等级
+	PrivilegeLevel  int         // 权限等级 50管理 60群主 100master 加一级邀请者？
 }
 
 func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {

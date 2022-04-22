@@ -276,6 +276,27 @@ func (d *Dice) registerCoreCommands() {
 								return CmdExecuteResult{Matched: false, Solved: false}
 							}
 
+							// 感觉似乎不太必要
+							pRequired := 40 // 40邀请者 50管理 60群主 100master
+							if ctx.PrivilegeLevel < pRequired {
+								ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员或master"))
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
+							//code, exists := cmdArgs.GetArgN(2)
+							//if exists {
+							//	if code == updateCode && updateCode != "0000" {
+							//		ReplyToSender(ctx, msg, "3秒后开始重启")
+							//		time.Sleep(3 * time.Second)
+							//		dm.RebootRequestChan <- 1
+							//	} else {
+							//		ReplyToSender(ctx, msg, "无效的升级指令码")
+							//	}
+							//} else {
+							//	updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
+							//	text := fmt.Sprintf("进程重启:\n如需重启，请输入.master reboot %s 确认进行重启\n重启将花费约2分钟，失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
+							//	ReplyToSender(ctx, msg, text)
+							//}
+
 							// 收到指令，5s后将退出当前群组
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
 							_txt := fmt.Sprintf("指令退群: 于群组(%s)中告别，操作者:(%s)", msg.GroupId, msg.Sender.UserId)
