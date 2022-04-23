@@ -18,7 +18,6 @@ import (
 	"runtime/debug"
 	"sealdice-core/api"
 	"sealdice-core/dice"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -73,8 +72,8 @@ func main() {
 		MultiInstanceOnWindows bool   `short:"m" long:"multi-instance" description:"允许在Windows上运行多个海豹"`
 		Address                string `long:"address" description:"将UI的http服务地址改为此值，例: 0.0.0.0:3211"`
 		DoUpdateWin            bool   `long:"do-update-win" description:"windows自动升级用，不要在任何情况下主动调用"`
+		DoUpdateOthers         bool   `long:"do-update-others" description:"linux/mac自动升级用，不要在任何情况下主动调用"`
 		Delay                  int64  `long:"delay"`
-		//DoUpdateOthers         bool   `long:"do-update-others" description:"linux/mac自动升级用，不要在任何情况下主动调用"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -116,16 +115,8 @@ func main() {
 		return
 	}
 
-	if opts.DoUpdateWin {
-		err := cp.Copy("./update/new", "./", cp.Options{
-			Skip: func(src string) (bool, error) {
-				if strings.HasPrefix(src, "sealdice-core") {
-					// 跳过主程序
-					return true, nil
-				}
-				return false, nil
-			},
-		})
+	if opts.DoUpdateWin || opts.DoUpdateOthers {
+		err := cp.Copy("./update/new", "./")
 		if err != nil {
 			logger.Warn("升级失败")
 			return
@@ -148,7 +139,7 @@ func main() {
 			logger.Warn("检测到 auto_update.exe，即将进行升级")
 			// 这5s延迟是保险，其实并不必要
 			name := "./auto_update.exe"
-			err := exec.Command(name, "--delay=5", "--do-update-others").Start()
+			err := exec.Command(name, "--delay=5", "--do-update-win").Start()
 			if err != nil {
 				logger.Warn("升级发生错误: ", err.Error())
 				return
@@ -222,6 +213,7 @@ func main() {
 	go CheckVersion(diceManager)
 	go RebootRequestListen(diceManager)
 	go UpdateRequestListen(diceManager)
+	go UpdateCheckRequestListen(diceManager)
 
 	//a, d, err := myDice.ExprEval("7d12k4", nil)
 	//if err == nil {

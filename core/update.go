@@ -84,6 +84,13 @@ func RebootRequestListen(dm *dice.DiceManager) {
 	doReboot(dm)
 }
 
+func UpdateCheckRequestListen(dm *dice.DiceManager) {
+	for {
+		<-dm.UpdateCheckRequestChan
+		CheckVersion(dm)
+	}
+}
+
 func UpdateRequestListen(dm *dice.DiceManager) {
 	<-dm.UpdateRequestChan
 	err := downloadUpdate(dm)
