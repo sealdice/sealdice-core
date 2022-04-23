@@ -761,15 +761,19 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 		case TypeCompEQ:
 			checkDice(&code)
 			if a.TypeId != b.TypeId {
-				a.Value = 0
+				a.TypeId = VMTypeInt64
+				a.Value = int64(0)
 			} else {
+				a.TypeId = VMTypeInt64
 				a.Value = boolToInt64(a.Value == b.Value)
 			}
 		case TypeCompNE:
 			checkDice(&code)
 			if a.TypeId != b.TypeId {
-				a.Value = 1
+				a.TypeId = VMTypeInt64
+				a.Value = int64(1)
 			} else {
+				a.TypeId = VMTypeInt64
 				a.Value = boolToInt64(a.Value != b.Value)
 			}
 			//a.Value = boolToInt64(aInt != bInt)
@@ -778,24 +782,28 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				return nil, "", err
 			}
 			checkDice(&code)
+			a.TypeId = VMTypeInt64
 			a.Value = boolToInt64(aInt > bInt)
 		case TypeCompGE:
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
 			checkDice(&code)
+			a.TypeId = VMTypeInt64
 			a.Value = boolToInt64(aInt >= bInt)
 		case TypeBitwiseAnd:
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
 			checkDice(&code)
+			a.TypeId = VMTypeInt64
 			a.Value = aInt & bInt
 		case TypeBitwiseOr:
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
 			checkDice(&code)
+			a.TypeId = VMTypeInt64
 			a.Value = aInt | bInt
 		case TypeAdd:
 			if err := e4check(); err != nil {

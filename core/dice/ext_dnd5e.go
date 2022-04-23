@@ -1371,6 +1371,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		LongHelp: "DND5E制卡指令:\n" + helpDnd,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				isMode2 := cmdArgs.Command == "dndx"
 				n, _ := cmdArgs.GetArgN(1)
 				val, err := strconv.ParseInt(n, 10, 64)
@@ -1585,6 +1589,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					".init help // 显示本帮助",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+						if cmdArgs.SomeoneBeMentionedButNotMe {
+							return CmdExecuteResult{Matched: false, Solved: false}
+						}
+
 						cmdArgs.ChopPrefixToArgsWith("del", "set", "rm")
 						n, _ := cmdArgs.GetArgN(1)
 						switch n {

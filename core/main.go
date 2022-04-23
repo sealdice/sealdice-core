@@ -326,6 +326,19 @@ func uiServe(dm *dice.DiceManager) {
 		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data:;",
 	}))
 	// X-Content-Type-Options: nosniff
+
+	groupStatic := func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if c.Request().URL.Path == "/" {
+				responseWriter := c.Response()
+				responseWriter.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				responseWriter.Header().Set("Pragma", "no-cache")
+				responseWriter.Header().Set("Expires", "0")
+			}
+			return next(c)
+		}
+	}
+	e.Use(groupStatic)
 	e.Static("/", "./frontend")
 
 	api.Bind(e, dm)

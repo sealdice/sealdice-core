@@ -799,6 +799,11 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				if isHide {
+					if msg.Platform == "QQ-CH" {
+						ReplyToSender(ctx, msg, "QQ频道内尚不支持暗骰")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					if ctx.Group != nil {
 						ctx.CommandHideFlag = ctx.Group.GroupId
 						//prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", ctx.Group.GroupName, msg.GroupId)
