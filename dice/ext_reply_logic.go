@@ -71,6 +71,21 @@ func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *
 	return ret
 }
 
+func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string) bool {
+	r, _, err := ctx.Dice.ExprEval(m.Value, ctx)
+	if err != nil {
+		ctx.Dice.Logger.Infof("自定义回复表达式执行失败: %s", m.Value)
+		return false
+	}
+
+	if r.restInput != "" {
+		ctx.Dice.Logger.Infof("自定义回复表达式执行失败(后半部分不能识别 %s): %s", r.restInput, m.Value)
+		return false
+	}
+	//fmt.Println("???", r, err, r.AsBool(), r.Value == int64(0), r.Value != int64(0))
+	return r.AsBool()
+}
+
 // ReplyResultReplyToSender replyToSender
 type ReplyResultReplyToSender struct {
 	ResultType string               `yaml:"resultType" json:"resultType"`

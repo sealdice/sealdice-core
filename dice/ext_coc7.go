@@ -580,6 +580,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					}
 
 					if isHide {
+						if msg.Platform == "QQ-CH" {
+							ReplyToSender(ctx, msg, "QQ频道内尚不支持暗骰")
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
 						ctx.CommandHideFlag = ctx.Group.GroupId
 						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
 						ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
@@ -603,6 +608,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		LongHelp: "设置房规:\n" + helpSetCOC,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				n, _ := cmdArgs.GetArgN(1)
 				switch n {
 				case "0":
@@ -941,6 +950,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// 临时性疯狂
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+						if cmdArgs.SomeoneBeMentionedButNotMe {
+							return CmdExecuteResult{Matched: false, Solved: false}
+						}
+
 						foo := func(tmpl string) string {
 							val, _, _ := self.ExprText(tmpl, ctx)
 							return val
@@ -990,6 +1003,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// 总结性疯狂
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+						if cmdArgs.SomeoneBeMentionedButNotMe {
+							return CmdExecuteResult{Matched: false, Solved: false}
+						}
+
 						foo := func(tmpl string) string {
 							val, _, _ := self.ExprText(tmpl, ctx)
 							return val
@@ -1285,6 +1302,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				Help: ".coc (<数量>) // 制卡指令，返回<数量>组人物属性",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+						if cmdArgs.SomeoneBeMentionedButNotMe {
+							return CmdExecuteResult{Matched: false, Solved: false}
+						}
+
 						n, _ := cmdArgs.GetArgN(1)
 						val, err := strconv.ParseInt(n, 10, 64)
 						if err != nil {
