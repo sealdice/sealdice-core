@@ -291,7 +291,12 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				return
 			}
 
+			groupEnterFired := false
 			groupEntered := func() {
+				if groupEnterFired {
+					return
+				}
+				groupEnterFired = true
 				// 判断进群的人是自己，自动启动
 				SetBotOnAtGroup(ctx, msg.GroupId)
 				// 立即获取群信息
