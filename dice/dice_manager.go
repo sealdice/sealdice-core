@@ -11,6 +11,7 @@ import (
 
 type VersionInfo struct {
 	VersionLatest           string `yaml:"versionLatest" json:"versionLatest"`
+	VersionLatestDetail     string `yaml:"versionLatestDetail" json:"versionLatestDetail"`
 	VersionLatestCode       int64  `yaml:"versionLatestCode" json:"versionLatestCode"`
 	MinUpdateSupportVersion int64  `yaml:"minUpdateSupportVersion" json:"minUpdateSupportVersion"`
 }
@@ -40,9 +41,10 @@ type DiceManager struct {
 	AppVersionCode   int64
 	AppVersionOnline *VersionInfo
 
-	UpdateRequestChan    chan int
-	UpdateDownloadedChan chan string
-	RebootRequestChan    chan int
+	UpdateRequestChan      chan int
+	UpdateDownloadedChan   chan string
+	RebootRequestChan      chan int
+	UpdateCheckRequestChan chan int
 
 	Cron        *cron.Cron
 	ServiceName string
@@ -162,6 +164,7 @@ func (dm *DiceManager) Save() {
 func (dm *DiceManager) InitDice() {
 	dm.UpdateRequestChan = make(chan int, 1)
 	dm.RebootRequestChan = make(chan int, 1)
+	dm.UpdateCheckRequestChan = make(chan int, 1)
 	dm.UpdateDownloadedChan = make(chan string, 1)
 
 	dm.InitHelp()
