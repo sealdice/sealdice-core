@@ -16,6 +16,8 @@
     <div>一旦一个“条件”被满足，将立即停止匹配，并执行“结果”</div>
     <div>越靠前的项具有越高的优先级，可以拖动来调整优先顺序！</div>
     <div>为了避免滥用和无限互答，自定义回复的响应间隔最低为5s</div>
+    <div>匹配到的文本将被存入变量$t0，正则匹配的组将被存入$t1 $t2 ....</div>
+    <div>若存在组名，如(?P&lt;A&gt;cc)，将额外存入$tA</div>
     <nested-draggable :tasks="list" />
     <div>
       <el-button @click="addOne(list)">添加一项</el-button>
@@ -39,6 +41,7 @@
   <el-dialog v-model="dialogLicenseVisible" title="许可协议" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
   <pre style="white-space: pre-wrap;">尊敬的用户，欢迎您选择由木落等研发的海豹骰点核心（SealDice），在您使用自定义功能前，请务必仔细阅读使用须知，当您使用我们提供的服务时，即代表您已同意使用须知的内容。
 
+您需了解，海豹核心官方版只支持TRPG功能，娱乐功能定制化请自便，和海豹无关。
 您清楚并明白您对通过骰子提供的全部内容负责，包括自定义回复、非自带的插件、牌堆。海豹骰不对非自身提供以外的内容合法性负责。您不得在使用海豹骰服务时，导入包括但不限于以下情形的内容:
 (1) 反对中华人民共和国宪法所确定的基本原则的；
 (2) 危害国家安全，泄露国家秘密，颠覆国家政权，破坏国家统一的;
@@ -116,10 +119,14 @@ const addOne = (lst: any) => {
   lst.push({"enable":true,"conditions":[{"condType":"textMatch","matchType":"matchExact","value":"要匹配的文本"}],"results":[{"resultType":"replyToSender","delay":0,"message":[ ["说点什么", 1] ]}]},)
 }
 
-const doSave = () => {
-  store.setCustomReply(cr.value)
-  ElMessage.success('已保存')
-  modified.value = false
+const doSave = async () => {
+  try {
+    await store.setCustomReply(cr.value)
+    ElMessage.success('已保存')
+    modified.value = false
+  } catch (e) {
+    ElMessage.error('保存失败！！')
+  }
 }
 
 const doImport = () => {

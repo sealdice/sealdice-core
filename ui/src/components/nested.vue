@@ -18,7 +18,7 @@
             <div style="display: flex; justify-content: space-between;">
               <el-select v-model="cond.condType">
                 <el-option
-                  v-for="item in [{'label': '文本匹配', value: 'textMatch'}]"
+                  v-for="item in [{'label': '文本匹配', value: 'textMatch'}, {'label': '表达式为真', value: 'exprTrue'}]"
                   :key="item.value"
                   :label="item.label"
                   :value="item.value"
@@ -43,12 +43,24 @@
                   />
                 </el-select>
               </div>
+
               <div style="flex: 1">
                 <div>内容:</div>
                 <el-input v-model="cond.value" />
               </div>
             </div>
+            <div v-else-if="cond.condType === 'exprTrue'" style="display: flex;" class="mobile-changeline">
+              <div style="flex: 1">
+                <div>表达式:
+                  <el-tooltip raw-content content="举例：<br>$t1 == '张三' // 正则匹配的第一个组内容是张三<br>$m个人计数器 >= 10<br>友情提醒，匹配失败时无提示，请先自行在“指令测试”测好">
+                    <el-icon><question-filled /></el-icon>
+                  </el-tooltip>
+                </div>
+                <el-input type="textarea" :autosize="{ minRows: 1, maxRows: 10 }" v-model="cond.value" />
+              </div>
+            </div>
           </div>
+    
           <el-button @click="addCond(el.conditions)">增加</el-button>
         </div>
 
