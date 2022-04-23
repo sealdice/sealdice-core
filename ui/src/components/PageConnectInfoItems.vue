@@ -21,7 +21,7 @@
           </div>
         </template>
 
-        <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="i.adapter.inPackGoCqHttpQrcodeReady && store.curDice.qrcodes[i.id]">
+        <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="i.adapter?.inPackGoCqHttpQrcodeReady && store.curDice.qrcodes[i.id]">
           <div style="margin-left: 2rem">需要同账号的手机QQ扫码登录:</div>
           <img style="width: 10rem; height:10rem; margin-left: 3.5rem; margin-top: 2rem;" :src="store.curDice.qrcodes[i.id]" />
         </div>
@@ -41,7 +41,7 @@
               <div v-if="i.state === 0"><el-tag type="danger">断开</el-tag></div>
               <div v-if="i.state === 2"><el-tag type="warning">连接中</el-tag></div>
               <div v-if="i.state === 1"><el-tag type="success">已连接</el-tag></div>
-              <el-tooltip :content="`看到这个标签是因为最近20分钟内有风控警告，将在重新登录后临时消除。触发时间: ` + dayjs.unix(i.adapter.inPackGoCqHttpLastRestricted).fromNow()" v-if="Math.round(new Date().getTime()/1000) - i.adapter.inPackGoCqHttpLastRestricted < 30 * 60">
+              <el-tooltip :content="`看到这个标签是因为最近20分钟内有风控警告，将在重新登录后临时消除。触发时间: ` + dayjs.unix(i.adapter?.inPackGoCqHttpLastRestricted).fromNow()" v-if="Math.round(new Date().getTime()/1000) - i.adapter?.inPackGoCqHttpLastRestricted < 30 * 60">
                 <el-tag type="warning">风控</el-tag>
               </el-tooltip>
             </el-space>
@@ -66,7 +66,7 @@
 
           <el-form-item label="连接地址">
             <!-- <el-input v-model="i.connectUrl"></el-input> -->
-            <div>{{i.adapter.connectUrl}}</div>
+            <div>{{i.adapter?.connectUrl}}</div>
           </el-form-item>
 
           <!-- <el-form-item label="密码">
@@ -138,14 +138,14 @@
           :hollow="activity.hollow"
         >
           <div>{{ activity.content }}</div>
-          <div v-if="index === 2 && curConn.adapter.inPackGoCqHttpQrcodeReady">
+          <div v-if="index === 2 && curConn.adapter?.inPackGoCqHttpQrcodeReady">
             <div>登录需要滑条验证码, 请使用登录此账号的手机QQ扫描二维码以继续登录:</div>
             <img :src="store.curDice.qrcodes[curConn.id]" style="width: 12rem; height: 12rem" />
           </div>
-          <div v-if="index === 2 && curConn.adapter.inPackGoCqHttpLoginDeviceLockUrl">
+          <div v-if="index === 2 && curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl">
             <div>账号已开启设备锁，请访问此链接进行验证：</div>
             <div>
-              <el-link :href="curConn.adapter.inPackGoCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter.inPackGoCqHttpLoginDeviceLockUrl}}</el-link>
+              <el-link :href="curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl}}</el-link>
             </div>
             <div>
               <div>确认验证完成后，点击此按钮：</div>
@@ -154,7 +154,7 @@
               </div>
             </div>
           </div>
-          <div v-if="index === 2 && (!curConn.adapter.inPackGoCqHttpRunning && !curConn.adapter.inPackGoCqHttpLoginDeviceLockUrl) && (!isRecentLogin)">
+          <div v-if="index === 2 && (!curConn.adapter?.inPackGoCqHttpRunning && !curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl) && (!isRecentLogin)">
             <div>
               <div>登录失败!可能是以下原因：</div>
               <ul>
@@ -385,24 +385,24 @@ onBeforeMount(async () => {
     await store.getImConnections()
 
     for (let i of store.curDice.conns || []) {
-      if (i.adapter.inPackGoCqHttpQrcodeReady && !store.curDice.qrcodes[i.id] && !i.adapter.inPackGoCqHttpLoginSuccess) {
+      if (i.adapter?.inPackGoCqHttpQrcodeReady && !store.curDice.qrcodes[i.id] && !i.adapter?.inPackGoCqHttpLoginSuccess) {
         store.curDice.qrcodes[i.id] = (await store.getImConnectionsQrCode(i)).img
       }
 
-      if (i.adapter.inPackGoCqHttpLoginSuccess) {
+      if (i.adapter?.inPackGoCqHttpLoginSuccess) {
         store.curDice.qrcodes[i.id] = ''
       }
 
       if (i.id === curConnId.value) {
         curConn.value = i;
 
-        if (i.adapter.inPackGoCqHttpLoginDeviceLockUrl === "") {
-          if (!i.adapter.inPackGoCqHttpRunning) {
+        if (i.adapter?.inPackGoCqHttpLoginDeviceLockUrl === "") {
+          if (!i.adapter?.inPackGoCqHttpRunning) {
             form.isEnd = true;
           }
         }
 
-        if (i.adapter.inPackGoCqHttpLoginSuccess) {
+        if (i.adapter?.inPackGoCqHttpLoginSuccess) {
           activities.value.push(fullActivities[3])
           await sleep(1000)
           form.step = 3
