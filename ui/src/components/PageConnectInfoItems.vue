@@ -121,7 +121,8 @@
           <small>
             <div>提示: 新设备首次登录多半需要手机版扫码，建议先准备好</div>
             <div>能够进行扫码登录（不填写密码即可），但注意扫码登录不支持自动重连。</div>
-            <div v-if="form.protocol != 1" style="color: #aa4422;">提示: iPad或者Android手表协议非常容易出问题，建议第一遍安卓登录，成功后删除掉再用iPad/手表登录一遍就可以了！</div>
+            <div>如果出现“要求同一WIFI扫码”可以本地登录后备份，复制到服务器上。</div>
+            <div v-if="form.protocol != 1" style="color: #aa4422;">提示: iPad或者Android手表协议非常容易出问题，如果失败，可以删掉重登多试几次！</div>
           </small>
         </el-form-item>
 
