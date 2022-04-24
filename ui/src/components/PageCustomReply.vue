@@ -121,6 +121,17 @@ const addOne = (lst: any) => {
 
 const doSave = async () => {
   try {
+    for (let i of cr.value.items) {
+      for (let j of i.results) {
+        if (j.delay) {
+          j.delay = parseFloat(j.delay)
+          if (j.delay < 0) {
+            j.delay = 0
+          }
+        }
+        if (!j.delay) j.delay = 0
+      }
+    }
     await store.setCustomReply(cr.value)
     ElMessage.success('已保存')
     modified.value = false
