@@ -14,7 +14,7 @@
         </div>
         <div>条件(需同时满足，即and): </div>
         <div style="padding-left: 1rem; border-left: .2rem solid orange;">
-          <div v-for="cond in el.conditions" style="border-left: .1rem solid #008; padding-left: .3rem; margin-bottom: .8rem;">
+          <div v-for="(cond, index2) in (el.conditions || [])" style="border-left: .1rem solid #008; padding-left: .3rem; margin-bottom: .8rem;">
             <div style="display: flex; justify-content: space-between;">
               <el-select v-model="cond.condType">
                 <el-option
@@ -24,7 +24,7 @@
                   :value="item.value"
                 />
               </el-select>
-              <el-button @click="deleteAnyItem(el.conditions, index)">删除条件</el-button>
+              <el-button @click="deleteAnyItem(el.conditions, index2)">删除条件</el-button>
             </div>
 
             <div v-if="cond.condType === 'textMatch'" style="display: flex;" class="mobile-changeline">
@@ -66,7 +66,7 @@
 
         <div>结果(顺序执行)：</div>
         <div style="padding-left: 1rem; border-left: .2rem solid skyblue;">
-          <div v-for="i in el.results" style="border-left: .1rem solid #008; padding-left: .3rem; margin-bottom: .8rem;">
+          <div v-for="(i, index) in (el.results || [])" style="border-left: .1rem solid #008; padding-left: .3rem; margin-bottom: .8rem;">
             <div style="display: flex; justify-content: space-between;">
               <el-select v-model="i.resultType">
                 <el-option

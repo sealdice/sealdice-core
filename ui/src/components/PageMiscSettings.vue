@@ -27,6 +27,14 @@
     </el-form-item>
 
     <el-form-item label="Master列表">
+      <template #label>
+        <div>
+          <span>Master列表</span>
+          <el-tooltip raw-content content="单行格式: QQ:12345">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
       <template v-if="config.diceMasters && config.diceMasters.length">
         <div v-for="k2, index in config.diceMasters" style="width: 100%; margin-bottom: .5rem;">
           <!-- 这里面是单条修改项 -->
@@ -167,7 +175,7 @@
         </div>
       </template>
 
-      <el-input v-model="config.friendAddComment" type="text" clearable style="width: auto;" />
+      <el-input v-model="config.friendAddComment" type="text" clearable style="width: auto;" :placeholder="'为空则填写任意均可通过'" />
     </el-form-item>
 
     <el-form-item label="QQ回复延迟(秒)">
