@@ -61,10 +61,14 @@ func RegisterBuiltinStory(self *Dice) {
 		LongHelp: "生成随机名字:\n.name cn/en/jp (<数量>)",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				return cmdRandomName(ctx, msg, cmdArgs, [][]string{
-					{"cn", "中文"},
-					{"en", "英文"},
-					{"jp", "日文"},
+					{"cn", "中文", "zh", "中国"},
+					{"en", "英文", "英国", "美国", "us"},
+					{"jp", "日文", "日本"},
 				}, [][]string{
 					{
 						"{中文:姓氏}{中文:男性名}",
@@ -87,6 +91,10 @@ func RegisterBuiltinStory(self *Dice) {
 		LongHelp: "生成随机DND名字:\n.namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族/地精",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				return cmdRandomName(ctx, msg, cmdArgs, [][]string{
 					{"达马拉人"},
 					{"卡林珊人"},

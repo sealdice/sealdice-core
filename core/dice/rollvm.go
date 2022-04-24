@@ -197,6 +197,8 @@ type RollExpression struct {
 	Top              int
 	CocFlagVarPrefix string // 解析过程中出现，当VarNumber开启时有效，可以是困难极难常规大成功
 
+	NumOpCount int64 // 算力计数
+
 	JmpStack     []int
 	CounterStack []int64
 	flags        RollExtraFlags
@@ -353,10 +355,22 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	var registerDiceQ *VMValue
 	var kqFlag int64
 
+	numOpCountAdd := func(count int64) bool {
+		e.NumOpCount += count
+		if e.NumOpCount > 10000 {
+			return true
+		}
+		return false
+	}
+
+	getE5 := func() error {
+		return errors.New("E5: 超出单指令允许算力，不予计算")
+	}
+
 	codes := e.Code[0:e.Top]
 	for opIndex := 0; opIndex < len(codes); opIndex += 1 {
 		code := codes[opIndex]
-		//fmt.Println("!!!", code.CodeString())
+		//fmt.Println("!!!", code.CodeString(), time.Now().UnixMilli())
 
 		// 单目运算符
 		switch code.T {
@@ -451,6 +465,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			diceMin := diceTens
 			diceMax := diceTens
 			num10Exists := false
+
+			if numOpCountAdd(t.Value.(int64)) {
+				return nil, "", getE5()
+			}
+
 			for i := int64(0); i < t.Value.(int64); i++ {
 				n := DiceRoll64(10)
 
@@ -899,6 +918,10 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				}
 			}
 
+			if numOpCountAdd(aInt) {
+				return nil, "", getE5()
+			}
+
 			if registerDiceK != nil || registerDiceQ != nil {
 				var diceKQ int64
 				isDiceK := registerDiceK != nil
@@ -973,6 +996,10 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				a.Value = num
 			}
 		}
+	}
+
+	if len(calcDetail) > 500 {
+		calcDetail = "[略]"
 	}
 
 	return &stack[0], calcDetail, nil

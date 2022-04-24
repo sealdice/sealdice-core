@@ -51,6 +51,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log on (<日志名>)  // 开始记录，不写日志名则开启最近一次日志，注意on后跟空格！
 .log off // 暂停记录
 .log end // 完成记录并发送日志文件
+.log get // 重新上传日志，并获取链接
 .log halt // 强行关闭当前log，不上传日志
 .log list // 查看当前群的日志列表
 .log del <日志名> // 删除一份日志`
@@ -147,6 +148,10 @@ func RegisterBuiltinExtLog(self *Dice) {
 				LongHelp: "日志指令:\n" + helpLog,
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn {
+						if cmdArgs.SomeoneBeMentionedButNotMe {
+							return CmdExecuteResult{Matched: false, Solved: false}
+						}
+
 						group := ctx.Group
 						cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
 

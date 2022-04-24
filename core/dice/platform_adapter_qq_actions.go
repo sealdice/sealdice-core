@@ -38,7 +38,7 @@ func (pa *PlatformAdapterQQOnebot) mustExtractId(id string) (int64, QQUidType) {
 		num, _ := strconv.ParseInt(id[len("PG-QQ:"):], 10, 64)
 		return num, QQUidPerson
 	}
-	return 0, QQUidPerson
+	return 0, 0
 }
 
 func (pa *PlatformAdapterQQOnebot) mustExtractChannelId(id string) (string, QQUidType) {
@@ -142,8 +142,11 @@ func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, 
 }
 
 func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
+	if groupId == "" {
+		return
+	}
 	rawId, type_ := pa.mustExtractId(groupId)
-	if type_ != QQUidGroup {
+	if type_ == 0 {
 		pa.SendToChannelGroup(ctx, groupId, text, flag)
 		return
 	}
