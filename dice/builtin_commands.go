@@ -207,7 +207,7 @@ func (d *Dice) registerCoreCommands() {
 					ver := d.Parent.AppVersionOnline
 					// 如果当前不是最新版，那么提示
 					if ver.VersionLatestCode != VERSION_CODE {
-						onlineVer = "最新版本: " + ver.VersionLatest + "\n"
+						onlineVer = "最新版本: " + ver.VersionLatestDetail + "\n"
 					}
 				}
 				text := fmt.Sprintf("SealDice %s\n%s供职于%d个群，其中%d个处于开启状态", VERSION, onlineVer, serveCount, count)
@@ -576,7 +576,7 @@ func (d *Dice) registerCoreCommands() {
 							time.Sleep(3 * time.Second)
 							dm.RebootRequestChan <- 1
 						} else {
-							ReplyToSender(ctx, msg, "无效的升级指令码")
+							ReplyToSender(ctx, msg, "无效的重启指令码")
 						}
 					} else {
 						updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
