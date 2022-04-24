@@ -685,10 +685,10 @@ func (d *Dice) registerCoreCommands() {
 							forWhat = r.restInput
 						} else {
 							errs := string(err.Error())
-							if strings.HasPrefix(errs, "E1:") {
+							if strings.HasPrefix(errs, "E1:") || strings.HasPrefix(errs, "E5:") {
 								ReplyToSender(ctx, msg, errs)
 								//ReplyGroup(ctx, msg.GroupId, errs)
-								return &CmdExecuteResult{Matched: true, Solved: false}
+								return &CmdExecuteResult{Matched: true, Solved: true}
 							}
 							forWhat = cmdArgs.CleanArgs
 						}
@@ -1193,6 +1193,10 @@ func (d *Dice) registerCoreCommands() {
 						if name == ctx.Player.Name {
 							VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", msg.Sender.Nickname)})
 							text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
+							p := ctx.Player
+							p.Name = msg.Sender.Nickname
+							p.Vars.ValueMap = lockfree.NewHashMap()
+							p.Vars.LastWriteTime = time.Now().Unix()
 						}
 
 						ReplyToSender(ctx, msg, text)

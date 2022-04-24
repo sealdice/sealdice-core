@@ -209,11 +209,15 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		".draw <牌组名称> // 进行抽牌"
 
 	cmdDraw := &CmdItemInfo{
-		Name:     "deck",
+		Name:     "draw",
 		Help:     helpDraw,
 		LongHelp: "抽牌命令: \n" + helpDraw,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				if d.IsDeckLoading {
 					ReplyToSender(ctx, msg, "牌堆尚未就绪，可能正在重新装载")
 					return CmdExecuteResult{Matched: true, Solved: true}

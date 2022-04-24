@@ -96,16 +96,9 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	inGroup := msg.MessageType == "group"
 	if inGroup {
-		// TODO: 这里有个狗屎设计，导致同样的的log内容写了两遍
-		if ctx.Dice != nil {
-			ctx.Dice.Logger.Infof("发给(群%s): %s", msg.GroupId, text)
-		}
-		ctx.EndPoint.Adapter.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(text), flag)
+		ReplyGroupRaw(ctx, msg, text, flag)
 	} else {
-		if ctx.Dice != nil {
-			ctx.Dice.Logger.Infof("发给(帐号%s): %s", msg.Sender.UserId, text)
-		}
-		ctx.EndPoint.Adapter.SendToPerson(ctx, msg.Sender.UserId, strings.TrimSpace(text), flag)
+		ReplyPersonRaw(ctx, msg, text, flag)
 	}
 }
 
@@ -113,18 +106,32 @@ func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
 	ReplyToSenderRaw(ctx, msg, text, "")
 }
 
-func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
+func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
+	if len(text) > 15000 {
+		text = "要发送的文本过长"
+	}
 	if ctx.Dice != nil {
 		ctx.Dice.Logger.Infof("发给(群%s): %s", msg.GroupId, text)
 	}
-	ctx.EndPoint.Adapter.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(text), "")
+	ctx.EndPoint.Adapter.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(text), flag)
 }
 
-func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
+func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
+	ReplyGroupRaw(ctx, msg, text, "")
+}
+
+func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
+	if len(text) > 15000 {
+		text = "要发送的文本过长"
+	}
 	if ctx.Dice != nil {
 		ctx.Dice.Logger.Infof("发给(帐号%s): %s", msg.Sender.UserId, text)
 	}
-	ctx.EndPoint.Adapter.SendToPerson(ctx, msg.Sender.UserId, strings.TrimSpace(text), "")
+	ctx.EndPoint.Adapter.SendToPerson(ctx, msg.Sender.UserId, strings.TrimSpace(text), flag)
+}
+
+func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
+	ReplyPersonRaw(ctx, msg, text, "")
 }
 
 type ByLength []string

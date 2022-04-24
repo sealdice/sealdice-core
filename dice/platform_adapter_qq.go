@@ -165,8 +165,11 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 	tempInviteMap := map[string]int64{}
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
-		//fmt.Println("!!!", message)
+		//if strings.Contains(message, `.`) {
+		//	log.Info("...", message)
+		//}
 		if strings.Contains(message, `"guild_id"`) {
+			//log.Info("!!!", message, s.Parent.WorkInQQChannel)
 			// 暂时忽略频道消息
 			if s.Parent.WorkInQQChannel {
 				pa.QQChannelTrySolve(message)

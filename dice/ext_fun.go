@@ -167,6 +167,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 		LongHelp: "人工智能鸽子:\n.gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				//p := getPlayerInfoBySender(session, msg)
 				isShowFrom := cmdArgs.IsArgEqual(1, "from", "showfrom", "来源", "作者")
 				rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
@@ -191,6 +195,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 		LongHelp: "今日人品:\n.jrrp 获得一个D100随机值，一天内不会变化",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
 				rpSeed += int64(fingerprint(ctx.EndPoint.UserId))
 				rpSeed += int64(fingerprint(ctx.Player.UserId))

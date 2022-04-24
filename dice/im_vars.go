@@ -347,9 +347,10 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
 		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
 		VarSetValue(ctx, "$t帐号昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
+		VarSetValue(ctx, "$t帐号ID", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.UserId)})
 		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
 		//VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})
-		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeString, ctx.EndPoint.UserId})
+		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeString, ctx.Player.UserId})
 		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeString, ctx.EndPoint.UserId})
 		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeString, ctx.EndPoint.Nickname})
 	}
