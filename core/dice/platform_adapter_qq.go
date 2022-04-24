@@ -166,7 +166,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		//fmt.Println("!!!", message)
-		if strings.Contains(message, `"channel_id"`) {
+		if strings.Contains(message, `"guild_id"`) {
 			// 暂时忽略频道消息
 			if s.Parent.WorkInQQChannel {
 				pa.QQChannelTrySolve(message)
@@ -259,7 +259,11 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					comment = strings.ReplaceAll(comment, "\u00a0", "")
 				}
 
-				willAccept := comment == DiceFormat(ctx, strings.TrimSpace(session.Parent.FriendAddComment))
+				toMatch := strings.TrimSpace(session.Parent.FriendAddComment)
+				willAccept := comment == DiceFormat(ctx, toMatch)
+				if toMatch == "" {
+					willAccept = true
+				}
 
 				if comment == "" {
 					comment = "(无)"

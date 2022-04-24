@@ -166,12 +166,12 @@ func main() {
 		}
 	}
 
-	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
-		hideWindow()
-	}
-
 	if !opts.MultiInstanceOnWindows && TestRunning() {
 		return
+	}
+
+	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
+		hideWindow()
 	}
 
 	cwd, _ := os.Getwd()
