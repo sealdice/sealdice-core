@@ -584,10 +584,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							ReplyToSender(ctx, msg, "QQ频道内尚不支持暗骰")
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-
-						ctx.CommandHideFlag = ctx.Group.GroupId
-						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
-						ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
+						if ctx.IsPrivate {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						} else {
+							ctx.CommandHideFlag = ctx.Group.GroupId
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
+							ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
+						}
 					} else {
 						ReplyToSender(ctx, msg, text)
 					}
