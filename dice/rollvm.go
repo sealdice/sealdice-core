@@ -216,26 +216,33 @@ func (e *RollExpression) checkStackOverflow() bool {
 		return true
 	}
 	if e.Top >= len(e.Code) {
-		e.Error = errors.New("E1:指令虚拟机栈溢出，请不要发送过于离谱的指令")
-		return true
+		need := len(e.Code) * 2
+		if need <= 8192 {
+			newCode := make([]ByteCode, need)
+			copy(newCode, e.Code)
+			e.Code = newCode
+		} else {
+			e.Error = errors.New("E1:指令虚拟机栈溢出，请不要发送过于离谱的指令")
+			return true
+		}
 	}
 	return false
 }
 
 func (e *RollExpression) AddLeftValueMark() {
-	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
 		return
 	}
+	code, top := e.Code, e.Top
 	e.Top++
 	code[top].T = TypeLeftValueMark
 }
 
 func (e *RollExpression) AddOperator(operator Type) int {
-	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
 		return -1
 	}
+	code, top := e.Code, e.Top
 	e.Top++
 	code[top].T = operator
 	return e.Top
@@ -272,50 +279,50 @@ func (e *RollExpression) CounterPop() int64 {
 }
 
 func (e *RollExpression) AddOperatorWithInt64(operator Type, val int64) {
-	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
 		return
 	}
+	code, top := e.Code, e.Top
 	e.Top++
 	code[top].T = operator
 	code[top].Value = val
 }
 
 func (e *RollExpression) AddLoadVarname(value string) {
-	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
 		return
 	}
+	code, top := e.Code, e.Top
 	e.Top++
 	code[top].T = TypeLoadVarname
 	code[top].ValueStr = value
 }
 
 func (e *RollExpression) AddStore() {
-	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
 		return
 	}
+	code, top := e.Code, e.Top
 	e.Top++
 	code[top].T = TypeStore
 }
 
 func (e *RollExpression) AddValue(value string) {
 	// 实质上的压栈命令
-	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
 		return
 	}
+	code, top := e.Code, e.Top
 	e.Top++
 	code[top].Value, _ = strconv.ParseInt(value, 10, 64)
 }
 
 func (e *RollExpression) AddValueStr(value string) {
 	// 实质上的压栈命令
-	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
 		return
 	}
+	code, top := e.Code, e.Top
 	e.Top++
 	code[top].T = TypePushString
 	code[top].ValueStr = value
@@ -323,10 +330,10 @@ func (e *RollExpression) AddValueStr(value string) {
 
 func (e *RollExpression) AddFormatString(value string, num int64) {
 	// 载入一个字符串并格式化
-	code, top := e.Code, e.Top
 	if e.checkStackOverflow() {
 		return
 	}
+	code, top := e.Code, e.Top
 	e.Top++
 	code[top].T = TypeLoadFormatString
 	code[top].Value = num      // 需要合并的字符串数量

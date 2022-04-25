@@ -138,11 +138,19 @@ func doUpdate(dm *dice.DiceManager) {
 			cp.Copy(exe, "./auto_update.exe")
 		}
 	} else {
-		// 好像gocq那边有点问题，也采取和windows一样的模式好了
-		// 放置标记物（实际没有用，带参数重启）
+		// Linux / Mac
 		exe, err := filepath.Abs(os.Args[0])
 		if err == nil {
-			os.Rename(exe, "./auto_update")
+			// 如果已经有一个auto_update
+			if _, err := os.Stat("./auto_update"); err == nil {
+				tmpName := "/tmp/auto_update_old_" + dice.RandStringBytesMaskImprSrcSB(16)
+				os.Rename("./auto_update", tmpName)
+			}
+
+			tmpName := "/tmp/auto_update_" + dice.RandStringBytesMaskImprSrcSB(16)
+			os.Rename(exe, tmpName)
+
+			cp.Copy("./update/new/sealdice-core", "./auto_update") // 仅作为标记
 			cp.Copy("./update/new/sealdice-core", exe)
 			_ = os.Chmod(exe, 0755)
 		}
