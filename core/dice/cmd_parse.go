@@ -142,6 +142,7 @@ func CommandCheckPrefix(rawCmd string, prefix []string) bool {
 
 func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string, prefix []string, platformPrefix string) *CmdArgs {
 	specialExecuteTimes := 0
+	rawCmd = strings.ReplaceAll(rawCmd, "\r\n", "\n") // 替换\r\n为\n
 	restText, atInfo := AtParse(rawCmd, platformPrefix)
 	restText = strings.TrimSpace(restText)
 	restText, specialExecuteTimes = SpecialExecuteTimesParse(restText)
@@ -179,7 +180,8 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		}
 	}
 
-	re := regexp.MustCompile(`^\s*(\S+)\s*([^\n]*)`)
+	re := regexp.MustCompile(`^\s*(\S+)\s*([\S\s]*)`)
+	//fmt.Println("!!!", restText)
 	m := re.FindStringSubmatch(restText)
 	if len(m) == 3 {
 		cmdInfo := new(CmdArgs)
@@ -196,6 +198,7 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		stText := strings.Join(cmdInfo.Args, " ")
 		cmdInfo.CleanArgs = strings.TrimSpace(stText)
 		cmdInfo.SpecialExecuteTimes = specialExecuteTimes
+		//fmt.Println("?????", cmdInfo.CleanArgs)
 
 		return cmdInfo
 	}

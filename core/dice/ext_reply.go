@@ -116,6 +116,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 						condIndex = index
 						if len(i.Conditions) > 0 && checkTrue {
 							SetTempVars(ctx, ctx.Player.Name)
+							VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))
 							for _, j := range i.Results {
 								j.Execute(ctx, msg, nil)
 							}

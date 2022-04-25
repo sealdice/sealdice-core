@@ -16,8 +16,8 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "0.99.14fix2 v20220424"
-var VERSION_CODE = int64(991402)
+var VERSION = "0.99.14fix3 v20220425"
+var VERSION_CODE = int64(991403)
 
 type CmdExecuteResult struct {
 	Matched       bool // 是否是指令
@@ -183,7 +183,7 @@ func (d *Dice) Init() {
 func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
 	p := &DiceRollParser{Buffer: buffer}
 	_ = p.Init()
-	p.RollExpression.Init(255)
+	p.RollExpression.Init(512)
 	//d.RollParser = p;
 	return p
 }

@@ -353,11 +353,14 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeString, ctx.Player.UserId})
 		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeString, ctx.EndPoint.UserId})
 		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeString, ctx.EndPoint.Nickname})
+
+		VarSetValue(ctx, "$t帐号ID_RAW", &VMValue{VMTypeString, UserIdExtract(ctx.Player.UserId)})
 	}
 	if ctx.Group != nil {
 		if ctx.MessageType == "group" {
 			VarSetValue(ctx, "$t群号", &VMValue{VMTypeString, ctx.Group.GroupId})
 			VarSetValue(ctx, "$t群名", &VMValue{VMTypeString, ctx.Group.GroupName})
+			VarSetValue(ctx, "$t群号_RAW", &VMValue{VMTypeString, UserIdExtract(ctx.Group.GroupId)})
 		}
 		VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
 		VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
