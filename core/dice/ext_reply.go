@@ -1,9 +1,11 @@
 package dice
 
 import (
+	"fmt"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -73,6 +75,20 @@ func RegisterBuiltinExtReply(dice *Dice) {
 			// 当前，只有非指令才会匹配
 			rc := ctx.Dice.CustomReplyConfig
 			if rc.Enable {
+				log := ctx.Dice.Logger
+				condIndex := -1
+				defer func() {
+					if r := recover(); r != nil {
+						//  + fmt.Sprintf("%s", r)
+						log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
+						if condIndex != -1 {
+							ReplyToSender(ctx, msg, fmt.Sprintf(
+								"自定义回复匹配成功(序号%d)，但回复内容触发异常，请联系骰主修改:\n%s",
+								condIndex, DiceFormatTmpl(ctx, "核心:骰子执行异常")))
+						}
+					}
+				}()
+
 				lastTime := ctx.Group.LastCustomReplyTime
 				now := float64(time.Now().UnixMilli()) / 1000
 				interval := rc.Interval
@@ -87,7 +103,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 
 				cleanText, _ := AtParse(msg.Message, "")
 				cleanText = strings.TrimSpace(cleanText)
-				for _, i := range rc.Items {
+				for index, i := range rc.Items {
 					//fmt.Println("???", i.Enable, i)
 					if i.Enable {
 						checkTrue := true
@@ -97,6 +113,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 								break
 							}
 						}
+						condIndex = index
 						if len(i.Conditions) > 0 && checkTrue {
 							SetTempVars(ctx, ctx.Player.Name)
 							for _, j := range i.Results {

@@ -555,6 +555,7 @@ func (d *Dice) registerCoreCommands() {
 					} else {
 						var text string
 						dm.UpdateCheckRequestChan <- 1
+						time.Sleep(time.Second) // 等待1s，应该能够取得新版本了。如果获取失败也不至于卡住
 						if dm.AppVersionOnline != nil {
 							text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION, dm.AppVersionOnline.VersionLatestDetail)
 							if dm.AppVersionCode != dm.AppVersionOnline.VersionLatestCode {

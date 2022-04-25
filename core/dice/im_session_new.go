@@ -388,7 +388,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					if r := recover(); r != nil {
 						//  + fmt.Sprintf("%s", r)
 						log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
-						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子崩溃"))
+						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子执行异常"))
 					}
 				}()
 
