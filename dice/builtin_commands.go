@@ -806,11 +806,15 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					if ctx.Group != nil {
-						ctx.CommandHideFlag = ctx.Group.GroupId
-						//prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", ctx.Group.GroupName, msg.GroupId)
-						prefix := DiceFormatTmpl(ctx, "核心:暗骰_私聊_前缀")
-						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:暗骰_群内"))
-						ReplyPerson(ctx, msg, prefix+text)
+						if ctx.IsPrivate {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						} else {
+							ctx.CommandHideFlag = ctx.Group.GroupId
+							//prefix := fmt.Sprintf("来自群<%s>(%d)的暗骰，", ctx.Group.GroupName, msg.GroupId)
+							prefix := DiceFormatTmpl(ctx, "核心:暗骰_私聊_前缀")
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:暗骰_群内"))
+							ReplyPerson(ctx, msg, prefix+text)
+						}
 					} else {
 						ReplyToSender(ctx, msg, text)
 					}
