@@ -163,6 +163,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 	var lastWelcome *LastWelcomeInfo
 
 	tempInviteMap := map[string]int64{}
+	tempGroupEnterSpeechSent := map[string]int64{} // 记录入群致辞的发送时间 避免短时间重复
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		//if strings.Contains(message, `.`) {
@@ -288,12 +289,15 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			}
 
 			// 好友通过后
-			if msgQQ.NoticeType == "friend_add" && msgQQ.PostType == "post_type" {
+			if msgQQ.NoticeType == "friend_add" && msgQQ.PostType == "notice" {
 				// {"notice_type":"friend_add","post_type":"notice","self_id":222,"time":1648239248,"user_id":111}
 				go func() {
 					// 稍作等待后发送入群致词
 					time.Sleep(2 * time.Second)
-					pa.SendToPerson(ctx, msg.Sender.UserId, DiceFormatTmpl(ctx, "核心:骰子成为好友"), "")
+					uid := FormatDiceIdQQ(msgQQ.UserId)
+					welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
+					log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
+					pa.SendToPerson(ctx, uid, welcome, "")
 				}()
 				return
 			}
@@ -304,6 +308,15 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					return
 				}
 				groupEnterFired = true
+				lastTime := tempGroupEnterSpeechSent[msg.GroupId]
+				nowTime := time.Now().Unix()
+
+				if nowTime-lastTime < 10 {
+					// 10s内只发一次
+					return
+				}
+				tempGroupEnterSpeechSent[msg.GroupId] = nowTime
+
 				// 判断进群的人是自己，自动启动
 				SetBotOnAtGroup(ctx, msg.GroupId)
 				// 立即获取群信息
@@ -312,6 +325,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				go func() {
 					// 稍作等待后发送入群致词
 					time.Sleep(2 * time.Second)
+					log.Info("发送入群致辞，群号: %s", msg.GroupId)
 					pa.SendToGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
 				}()
 				txt := fmt.Sprintf("加入QQ群组: (%d)", msgQQ.GroupId)
