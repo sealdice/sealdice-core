@@ -58,12 +58,18 @@ export function convertToLogItems(doc: string, pcList: CharItem[], options: any 
     pos += 1
   }
 
+  let _pcDict: { [key: string]: any } = {}
+  for (let i of pcList) {
+    if (!_pcDict[i.name]) _pcDict[i.name] = i
+  }
+
   let findPC = (name: string) => {
-    for (let i of pcList) {
-      if (i.name === name) {
-        return i
-      }
-    }
+    return _pcDict[name]
+    // for (let i of pcList) {
+    //   if (i.name === name) {
+    //     return i
+    //   }
+    // }
   }
 
   let allUserIds = []
@@ -131,8 +137,9 @@ export function convertToLogItems(doc: string, pcList: CharItem[], options: any 
     }
 
     if (msg) {
+      // 换行处理
       if (msg.includes('\n')) {
-        msg = '\n' + msg
+        msg = msg
       }
       msg = msg.replaceAll('\n', '<br />')
       i.message = msg

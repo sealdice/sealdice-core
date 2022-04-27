@@ -86,10 +86,15 @@
       <el-button @click="exportRecordIRC">下载IRC风格记录</el-button>
       <el-button @click="exportRecordDOCX">下载Word</el-button>
       <!-- <el-button @click="showPreview">预览</el-button> -->
-      <el-checkbox v-model="isShowPreview" label="预览" :border="true" style="margin-left: 1rem;" />
+      <div style="margin-left: 1rem;">
+        <el-checkbox label="预览" v-model="isShowPreview" :border="true" @click="previewClick('preview')" />
+        <el-checkbox label="论坛代码" v-model="isShowPreviewBBS" :border="true" @click="previewClick('bbs')" />
+        <el-checkbox label="回声工坊" v-model="isShowPreviewTRG" :border="true" @click="previewClick('trg')" />
+      </div>
     </div>
 
-    <code-mirror v-show="!isShowPreview" ref="editor" @change="onChange" />
+    <code-mirror v-show="!(isShowPreview || isShowPreviewBBS || isShowPreviewTRG)" ref="editor" @change="onChange" />
+
     <!-- <monaco-editor @change="onChange"/> -->
     <div class="preview" ref="preview" v-show="isShowPreview">
       <div v-for="i in previewItems">
@@ -99,7 +104,29 @@
           v-if="!store.exportOptions.timeHide"
         >{{ timeSolve(i) }}</span>
         <span :style="{ 'color': i.color }" class="_nickname">{{ nicknameSolve(i) }}</span>
+        <span :style="{ 'color': i.color }" v-html="previewMessageSolve(i)"></span>
+      </div>
+    </div>
+
+    <div class="preview" ref="previewBBS" v-show="isShowPreviewBBS">
+      <div v-for="i in previewItems">
+        <span
+          style="color: #aaa"
+          class="_time"
+          v-if="!store.exportOptions.timeHide"
+        >[color=#silver]{{ timeSolve(i) }}[/color]</span>
+        <span :style="{ 'color': i.color }">[color={{i.color}}]
+          <span class="_nickname">{{ nicknameSolve(i, 'bbs') }}</span>
+          <span v-html="bbsMessageSolve(i)"></span>
+        [/color]</span>
+      </div>
+    </div>
+
+    <div class="preview" ref="previewTRG" v-show="isShowPreviewTRG">
+      <div v-for="i in previewItems">
+        <span :style="{ 'color': i.color }" class="_nickname">{{ nicknameSolve(i, 'trg') }}</span>
         <span :style="{ 'color': i.color }" v-html="i.message.replace('\n', '<br />')"></span>
+        <span v-if="!i.isDice"> {*}</span>
       </div>
     </div>
   </div>
@@ -123,9 +150,73 @@ import { convertToLogItems, exportFileRaw, exportFileQQ, exportFileIRC, exportFi
 import { ElLoading, ElMessageBox, ElNotification } from "element-plus";
 import { strFromU8, unzlibSync } from 'fflate';
 import uaParser from 'ua-parser-js'
+import { getTextWidth, getCanvasFontSize } from './utils'
 
 const isMobile = ref(false)
 const downloadUsableRank = ref(0)
+
+const preview = ref(null)
+
+const isShowPreview = ref(false)
+const isShowPreviewBBS = ref(false)
+const isShowPreviewTRG = ref(false)
+
+const previewMessageSolve = (i: LogItem) => {
+  let msg = i.message
+  const prefix = (!store.exportOptions.timeHide ? `${timeSolve(i)}` : '') + nicknameSolve(i)
+  if (i.isDice) {
+    msg = nameReplace(msg)
+  }
+
+  const length = getTextWidth(prefix, getCanvasFontSize(preview.value as any))
+  // return msg.replaceAll('<br />', '\n').replaceAll('\n', '<br /> ' + `<span style="color:white">${prefix}</span>`)
+  return msg.replaceAll('<br />', '\n').replaceAll(/\n([^\n]+)/g, '<br /> ' + `<p style="margin-left: ${length}px; margin-top: 0; margin-bottom: 0">$1</p>`)
+}
+
+const nameReplace = (msg: string) => {
+  for (let i of store.pcList) {
+    msg = msg.replaceAll(`<${i.name}>`, `${i.name}`)
+  }
+  return msg
+}
+
+const bbsMessageSolve = (i: LogItem) => {
+  let msg = i.message
+  if (i.isDice) {
+    msg = nameReplace(msg)
+  }
+  return msg.replaceAll('<br />', '\n').replaceAll('\n', '[/color]<br /> ' + (!store.exportOptions.timeHide ? `<span style='color:#aaa'>[color=#silver]${timeSolve(i)}[/color]</span>` : '') + `[color=${i.color}] ` + nicknameSolve(i, 'bbs'))
+}
+
+const previewClick = (mode: 'preview' | 'bbs' | 'trg') => {
+  switch (mode) {
+    case 'preview':
+      isShowPreviewBBS.value = false
+      isShowPreviewTRG.value = false
+      break;
+    case 'bbs':
+      isShowPreview.value = false
+      isShowPreviewTRG.value = false
+      break;
+    case 'trg':
+      isShowPreview.value = false
+      isShowPreviewBBS.value = false
+      break;
+  }
+}
+
+watch(() => isShowPreviewBBS.value, (val: any) => {
+  if (isShowPreviewBBS.value) {
+    exportOptions.imageHide = true
+  }
+})
+
+watch(() => isShowPreviewTRG.value, (val: any) => {
+  if (isShowPreviewTRG.value) {
+    exportOptions.imageHide = true
+  }
+})
+
 
 function setupUA() {
   const parser = new uaParser.UAParser()
@@ -167,12 +258,32 @@ function setupUA() {
 
 setupUA()
 
-const nicknameSolve = (i: LogItem) => {
+
+let findPC = (name: string) => {
+    // return _pcDict[name]
+    for (let i of store.pcList) {
+      if (i.name === name) {
+        return i
+      }
+    }
+}
+
+const nicknameSolve = (i: LogItem, mode: 'bbs' | 'trg' | undefined = undefined) => {
   let userid = '(' + i.IMUserId + ')'
   const options = store.exportOptions
   if (options.userIdHide) {
     userid = ''
   }
+  if (mode === 'bbs') {
+    return `<${i.nickname}${userid}>`
+  }
+  if (mode === 'trg') {
+    const u = findPC(i.nickname)
+    let kpFlag = u?.role === '主持人' ? ',KP' : ''
+    return `[${i.nickname}${kpFlag}]:`
+  }
+  // [张安翔]:最基本的对话行
+
   return `<${i.nickname}${userid}>:`
 }
 
@@ -273,10 +384,6 @@ function exportRecordIRC() {
   exportFileIRC(results, store.exportOptions)
 }
 
-const preview = ref(null)
-
-const isShowPreview = ref(false)
-
 function exportRecordDOCX() {
   browserAlert()
   if (isMobile.value) {
@@ -286,6 +393,7 @@ function exportRecordDOCX() {
   }
 
   // 其实是伪doc
+  previewClick('preview')
   previewItems.value = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions, true)
   isShowPreview.value = true // 强制切换
   nextTick(() => {
@@ -415,11 +523,14 @@ const trySealDice = (text: string) => {
       isTrpgLog = keys.includes('isDice') && keys.includes('message')
     }
 
+    // console.log(3333, isTrpgLog, sealFormat.items, sealFormat.items.length > 0)
     if (isTrpgLog) {
       loadLog(sealFormat.items)
       return true
     }
   } catch (e) {
+    console.log('格式检查失败，应该不是seal格式log', e)
+    // console.log('??????', e)
   }
   return false
 }

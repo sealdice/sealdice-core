@@ -7,6 +7,8 @@ declare module 'vue' {
     BaseHeader: typeof import('./components/layouts/BaseHeader.vue')['default']
     BaseSide: typeof import('./components/layouts/BaseSide.vue')['default']
     CodeMirror: typeof import('./components/CodeMirror.vue')['default']
+    'CodeMirror copy': typeof import('./components/CodeMirror copy.vue')['default']
+    CodeMirrorTRG: typeof import('./components/CodeMirrorTRG.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
     ElColorPicker: typeof import('element-plus/es')['ElColorPicker']
