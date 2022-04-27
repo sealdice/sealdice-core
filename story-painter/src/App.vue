@@ -1,8 +1,8 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器测试版 V1.04</h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器测试版 V1.05</h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253</div>
-    <div style="text-align: center;">新骰系内测中，快来提需求！</div>
+    <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div>
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
       <div>
         <div class="switch">
@@ -79,7 +79,7 @@
     </div>
 
     <div
-      style="margin-bottom: 2rem; display: flex; justify-content: center; align-items: center; flex-wrap: wrap;"
+      style="margin-bottom: 0rem; display: flex; justify-content: center; align-items: center; flex-wrap: wrap;"
     >
       <el-button @click="exportRecordRaw">下载原始文件</el-button>
       <el-button @click="exportRecordQQ">下载QQ风格记录</el-button>
@@ -93,6 +93,10 @@
       </div>
     </div>
 
+    <div style="text-align: center; margin-bottom: 2rem; margin-top: 0.5rem;">
+      <div>提示: 海豹骰与回声工坊达成了合作，<el-link type="primary" target="_blank" href="https://github.com/DanDDXuanX/TRPG-Replay-Generator">回声工坊</el-link>可以将海豹的log一键转视频哦！</div>
+      <div>回声工坊的介绍和视频教程看这里：<el-link type="primary" target="_blank" href="https://www.bilibili.com/video/BV1GY4y1H7wK/">B站传送门</el-link></div>
+    </div>
     <code-mirror v-show="!(isShowPreview || isShowPreviewBBS || isShowPreviewTRG)" ref="editor" @change="onChange" />
 
     <!-- <monaco-editor @change="onChange"/> -->
@@ -108,7 +112,8 @@
       </div>
     </div>
 
-    <div class="preview" ref="previewBBS" v-show="isShowPreviewBBS">
+    <div class="preview" ref="previewBBS" id="previewBBS" v-if="isShowPreviewBBS">
+      <el-button id="btnCopyPreviewBBS" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewBBS">一键复制</el-button>
       <div v-for="i in previewItems">
         <span
           style="color: #aaa"
@@ -122,10 +127,12 @@
       </div>
     </div>
 
-    <div class="preview" ref="previewTRG" v-show="isShowPreviewTRG">
-      <div v-for="i in previewItems">
+    <div class="preview" ref="previewTRG" id="previewTRG" v-if="isShowPreviewTRG">
+      <el-button id="btnCopyPreviewBBS" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewTRG">一键复制</el-button>
+      <div v-for="i in previewItems" :style="i.isDice ? 'margin-top: 16px; margin-bottom: 16px' : ''">
         <span :style="{ 'color': i.color }" class="_nickname">{{ nicknameSolve(i, 'trg') }}</span>
-        <span :style="{ 'color': i.color }" v-html="i.message.replace('\n', '<br />')"></span>
+        <span :style="{ 'color': i.color }" v-html="trgMessageSolve(i)"></span>
+        <div v-if="store.itemById[i.id.toString()]">{{ trgCommandSolve(store.itemById[i.id.toString()]) }}</div>
         <span v-if="!i.isDice"> {*}</span>
       </div>
     </div>
@@ -151,6 +158,7 @@ import { ElLoading, ElMessageBox, ElNotification } from "element-plus";
 import { strFromU8, unzlibSync } from 'fflate';
 import uaParser from 'ua-parser-js'
 import { getTextWidth, getCanvasFontSize } from './utils'
+import ClipboardJS from 'clipboard'
 
 const isMobile = ref(false)
 const downloadUsableRank = ref(0)
@@ -161,6 +169,72 @@ const isShowPreview = ref(false)
 const isShowPreviewBBS = ref(false)
 const isShowPreviewTRG = ref(false)
 
+
+const readDiceNum = (expr: string) => {
+  let diceNum = 100 // 如果读不到，当作100处理
+  const m = /[dD](\d+)/.exec(expr)
+  if (m) {
+    let diceNum = parseInt(m[1])
+  }
+  return diceNum
+}
+
+const trgCommandSolve = (item: LogItem) => {
+  if (item.commandInfo) {
+    const ci = item.commandInfo
+    if (ci.rule === 'coc7') {
+      switch (ci.cmd) {
+        case 'ra': {        
+          let items = []
+          for (let i of ci.items) {
+            let diceNum = readDiceNum(i.expr1)
+            items.push(`(${ci.pcName}的${i.expr2},${diceNum},${i.checkVal},${i.attrVal})`)
+          }
+          return `<dice>:${items.join(',')}`
+          break
+        }
+        case 'st': {
+          // { "cmd": "st", "items": [ { "attr": "hp", "isInc": false, "modExpr": "1d4", "type": "mod", "valNew": 63, "valOld": 65 } ], "pcName": "木落", "rule": "coc7" }
+          let items = []
+          for (let i of ci.items) {
+            if (i.attr == 'hp') {
+              items.push(`<hitpoint>:(${ci.pcName},100,${i.valOld},${i.valNew})`)
+            }
+            // let diceNum = readDiceNum(i.exprs[0])
+            // items.push(`(${ci.pcName}的${i.exprs[0]},${diceNum},${i.sanOld},${i.checkVal})`)
+          }
+          return `${items.join('<br />')}`
+          break
+        }
+        case 'sc': {
+          // { "cmd": "sc", "cocRule": 11, "items": [ { "checkVal": 55, "exprs": [ "d100", "0", "1" ], "rank": -2, "sanNew": 0, "sanOld": 0 } ], "pcName": "木落", "rule": "coc7" }
+          let items = []
+          for (let i of ci.items) {
+            let diceNum = readDiceNum(i.exprs[0])
+            items.push(`(${ci.pcName}的${i.exprs[0]},${diceNum},${i.sanOld},${i.checkVal})`)
+          }
+          return `<dice>:${items.join(',')}`
+          break
+        }
+      }
+    }
+    
+    switch (ci.cmd) {
+      case 'roll': {
+          // { "cmd": "roll", "items": [ { "dicePoints": 100, "expr": "D100", "result": 30 } ], "pcName": "木落" }
+          let items = []
+          for (let i of ci.items) {
+            let diceNum = readDiceNum(i.expr)
+            items.push(`(${ci.pcName}的${i.expr},${diceNum},NA,${i.result})`)
+          }
+          return `<dice>:${items.join(',')}`
+          break
+        }
+    }
+    return ci
+  }
+}
+
 const previewMessageSolve = (i: LogItem) => {
   let msg = i.message
   const prefix = (!store.exportOptions.timeHide ? `${timeSolve(i)}` : '') + nicknameSolve(i)
@@ -170,7 +244,7 @@ const previewMessageSolve = (i: LogItem) => {
 
   const length = getTextWidth(prefix, getCanvasFontSize(preview.value as any))
   // return msg.replaceAll('<br />', '\n').replaceAll('\n', '<br /> ' + `<span style="color:white">${prefix}</span>`)
-  return msg.replaceAll('<br />', '\n').replaceAll(/\n([^\n]+)/g, '<br /> ' + `<p style="margin-left: ${length}px; margin-top: 0; margin-bottom: 0">$1</p>`)
+  return msg.replaceAll('<br />', '\n').replaceAll(/\n([^\n]+)/g, `<p style="margin-left: ${length}px; margin-top: 0; margin-bottom: 0">$1</p>`)
 }
 
 const nameReplace = (msg: string) => {
@@ -178,6 +252,14 @@ const nameReplace = (msg: string) => {
     msg = msg.replaceAll(`<${i.name}>`, `${i.name}`)
   }
   return msg
+}
+
+const trgMessageSolve = (i: LogItem) => {
+  let msg = i.message
+  if (i.isDice) {
+    msg = nameReplace(msg)
+  }
+  return msg.replaceAll('<br />', '\n').replaceAll('\n', '<br /> ' + nicknameSolve(i, 'trg'))
 }
 
 const bbsMessageSolve = (i: LogItem) => {
@@ -208,12 +290,22 @@ const previewClick = (mode: 'preview' | 'bbs' | 'trg') => {
 watch(() => isShowPreviewBBS.value, (val: any) => {
   if (isShowPreviewBBS.value) {
     exportOptions.imageHide = true
+
+    nextTick(() => {
+      new ClipboardJS('#btnCopyPreviewBBS')
+    })
+    showPreview()
   }
 })
 
 watch(() => isShowPreviewTRG.value, (val: any) => {
   if (isShowPreviewTRG.value) {
+    exportOptions.commandHide = true
     exportOptions.imageHide = true
+    showPreview()
+    nextTick(() => {
+      new ClipboardJS('#btnCopyPreviewTRG')
+    })
   }
 })
 
@@ -417,6 +509,7 @@ const store = useStore()
 const color2 = ref('#409EFF')
 
 async function loadLog(items: LogItem[]) {
+  // console.log("222", items)
   let text = ""
   let changed = false
   for (let i of items) {
@@ -424,8 +517,18 @@ async function loadLog(items: LogItem[]) {
       changed = true
     }
 
+    if (i.commandInfo) {
+      store.itemById[i.id] = i
+      console.log(222, store.itemById[i.id])
+    }
+
+    let idSuffix = ''
+    if (i.isDice) {
+      idSuffix = ` #${i.id}`
+    }
+
     const timeText = dayjs.unix(i.time).format('YYYY/MM/DD HH:mm:ss')
-    text += `${i.nickname}(${i.IMUserId}) ${timeText}\n${i.message}\n\n`
+    text += `${i.nickname}(${i.IMUserId}) ${timeText}${idSuffix}\n${i.message}\n\n`
   }
 
   store.editor.dispatch({
@@ -511,6 +614,7 @@ const trySinaNyaLog = (text: string) => {
     return true
   }
 
+  // console.log('log解析: 并非塔骰格式，尝试下一种')
   return false
 }
 
@@ -529,21 +633,32 @@ const trySealDice = (text: string) => {
       return true
     }
   } catch (e) {
-    console.log('格式检查失败，应该不是seal格式log', e)
+    // console.log('log解析: 并非seal格式，尝试下一种')
     // console.log('??????', e)
   }
   return false
 }
 
+let preventNext = false
 const onChange = debounce(() => {
+  if (preventNext) {
+    preventNext = false
+    return
+  }
   const payloadText = store.editor.state.doc.toString()
   let isLog = false
 
   isLog = trySealDice(payloadText)
-  if (isLog) return
+  if (isLog) {
+    preventNext = true
+    return
+  }
 
   isLog = trySinaNyaLog(payloadText)
-  if (isLog) return
+  if (isLog) {
+    preventNext = true
+    return
+  }
 
   let ret = (payloadText as string).matchAll(reNameLine2)
   for (let i of ret) {
@@ -616,5 +731,6 @@ html {
   background: #fff;
   padding: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
+  position: relative;
 }
 </style>

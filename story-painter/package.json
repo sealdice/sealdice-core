@@ -19,6 +19,7 @@
     "@types/ua-parser-js": "^0.7.36",
     "@vitejs/plugin-legacy": "^1.8.0",
     "axios": "^0.26.1",
+    "clipboard": "^2.0.10",
     "cm-tarnation": "^0.4.0",
     "dayjs": "^1.11.0",
     "element-plus": "^2.1.4",

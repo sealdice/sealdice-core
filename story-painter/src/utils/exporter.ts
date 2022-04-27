@@ -3,7 +3,8 @@ import { saveAs } from 'file-saver';
 import { CharItem, LogItem } from "~/store";
 
 // 注意，秒钟数一定要是2个，不然会出事
-export const reNameLine = /^([^(\n]+)(\(\d+\))?(\s+)((\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2}))/m
+// 另外，底下实际上是一个不lookahead的Parser，因此后面加\n作为区分
+export const reNameLine = /^([^(\n]+)(\(\d+\))?(\s+)((\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2}))( #(\d+))?\n/m
 
 export function convertToLogItems(doc: string, pcList: CharItem[], options: any = undefined, htmlText: boolean = false) {
   let pos = 0
@@ -34,6 +35,11 @@ export function convertToLogItems(doc: string, pcList: CharItem[], options: any 
           }
           text = ''
           state = 1
+
+          curItem.id = parseInt(m[8])
+          if (!curItem.id) {
+            curItem.id = 0
+          }
         }
         break
       }
@@ -126,7 +132,7 @@ export function convertToLogItems(doc: string, pcList: CharItem[], options: any 
 
     // 替换指令
     if (options.commandHide) {
-      msg = msg.replaceAll(/^[\.。]\S+.*$/gm, '')
+      msg = msg.replaceAll(/^[\.。]\S+.*$/g, '')
     }
 
     // 替换残留QQ号

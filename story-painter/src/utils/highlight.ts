@@ -2,8 +2,8 @@ import { styleTags, tags as t, Tag } from "@codemirror/highlight"
 import { LanguageSupport } from "@codemirror/language"
 import { StreamLanguage } from "@codemirror/stream-parser"
 
-export const reNameLine = /^([^(\n]+)(\(\d+\))?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})/
-export const reNameLine2 = /([^(\n]+)(\(\d+\))?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})/g
+export const reNameLine = /^([^(\n]+)(\(\d+\))?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?/
+export const reNameLine2 = /([^(\n]+)(\(\d+\))?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?/g
 
 import { HighlightStyle, TagStyle } from "@codemirror/highlight"
 import { completeFromList } from "@codemirror/autocomplete"

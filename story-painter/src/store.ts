@@ -18,6 +18,7 @@ export interface LogItem {
   isDice: boolean;
   commandId: number;
   color?: string;
+  commandInfo?: any;
 }
 
 export const useStore = defineStore('main', {
@@ -28,6 +29,7 @@ export const useStore = defineStore('main', {
       pcList: [] as CharItem[],
       palette: ['#cb4d68', '#f99252', '#f48cb6', '#9278b9', '#3e80cc', '#84a59d', '#5b5e71'],
       paletteStack: [] as string[],
+      itemById: {} as {[key: string]: LogItem},
 
       reloadEditor: null as any as () => void,
       reloadEditor2: null as any as () => void,
