@@ -97,6 +97,7 @@
       <div>提示: 海豹骰与回声工坊达成了合作，<el-link type="primary" target="_blank" href="https://github.com/DanDDXuanX/TRPG-Replay-Generator">回声工坊</el-link>可以将海豹的log一键转视频哦！</div>
       <div>回声工坊的介绍和视频教程看这里：<el-link type="primary" target="_blank" href="https://www.bilibili.com/video/BV1GY4y1H7wK/">B站传送门</el-link></div>
     </div>
+
     <code-mirror v-show="!(isShowPreview || isShowPreviewBBS || isShowPreviewTRG)" ref="editor" @change="onChange" />
 
     <!-- <monaco-editor @change="onChange"/> -->
@@ -127,13 +128,19 @@
       </div>
     </div>
 
+    <div style="margin-bottom: .5rem" v-if="isShowPreviewTRG">
+      <el-checkbox :border="true" label="添加语音合成标记" v-model="isAddVoiceMark" />
+      <!-- <el-checkbox label="回声工坊" v-model="isShowPreviewTRG2" /> -->
+    </div>
+
     <div class="preview" ref="previewTRG" id="previewTRG" v-if="isShowPreviewTRG">
       <el-button id="btnCopyPreviewBBS" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewTRG">一键复制</el-button>
       <div v-for="i in previewItems" :style="i.isDice ? 'margin-top: 16px; margin-bottom: 16px' : ''">
+        <span :style="{ 'color': i.color }" v-if="i.isDice"># </span>
         <span :style="{ 'color': i.color }" class="_nickname">{{ nicknameSolve(i, 'trg') }}</span>
         <span :style="{ 'color': i.color }" v-html="trgMessageSolve(i)"></span>
-        <div v-if="store.itemById[i.id.toString()]">{{ trgCommandSolve(store.itemById[i.id.toString()]) }}</div>
-        <span v-if="!i.isDice"> {*}</span>
+        <div v-if="store.itemById[i.id.toString()]" style="white-space: pre-wrap;">{{ trgCommandSolve(store.itemById[i.id.toString()]) }}</div>
+        <span v-if="isAddVoiceMark && (!i.isDice)"> {*}</span>
       </div>
     </div>
   </div>
@@ -169,6 +176,7 @@ const isShowPreview = ref(false)
 const isShowPreviewBBS = ref(false)
 const isShowPreviewTRG = ref(false)
 
+const isAddVoiceMark = ref(true)
 
 const readDiceNum = (expr: string) => {
   let diceNum = 100 // 如果读不到，当作100处理
@@ -198,12 +206,14 @@ const trgCommandSolve = (item: LogItem) => {
           let items = []
           for (let i of ci.items) {
             if (i.attr == 'hp') {
-              items.push(`<hitpoint>:(${ci.pcName},100,${i.valOld},${i.valNew})`)
+              let maxNow = Math.max(i.valOld, i.valNew)
+              items.push(`<hitpoint>:(${ci.pcName},${maxNow},${i.valOld},${i.valNew})`)
             }
             // let diceNum = readDiceNum(i.exprs[0])
             // items.push(`(${ci.pcName}的${i.exprs[0]},${diceNum},${i.sanOld},${i.checkVal})`)
           }
-          return `${items.join('<br />')}`
+          const tip = '# 请注意，当前版本需要手动调整下方最大生命值(第二项)\n'
+          return tip + `${items.join('\n')}`
           break
         }
         case 'sc': {
@@ -256,10 +266,13 @@ const nameReplace = (msg: string) => {
 
 const trgMessageSolve = (i: LogItem) => {
   let msg = i.message
+  let extra = ''
   if (i.isDice) {
     msg = nameReplace(msg)
+    extra = '# '
   }
-  return msg.replaceAll('<br />', '\n').replaceAll('\n', '<br /> ' + nicknameSolve(i, 'trg'))
+  msg = msg.replaceAll('"', '').replaceAll('\\', '') // 移除反斜杠和双引号
+  return msg.replaceAll('<br />', '\n').replaceAll('\n', '<br /> ' + extra + nicknameSolve(i, 'trg'))
 }
 
 const bbsMessageSolve = (i: LogItem) => {
@@ -512,6 +525,7 @@ async function loadLog(items: LogItem[]) {
   // console.log("222", items)
   let text = ""
   let changed = false
+  store.itemById = {}
   for (let i of items) {
     if (await store.tryAddPcList(i)) {
       changed = true
@@ -519,7 +533,7 @@ async function loadLog(items: LogItem[]) {
 
     if (i.commandInfo) {
       store.itemById[i.id] = i
-      console.log(222, store.itemById[i.id])
+      // console.log(222, store.itemById[i.id])
     }
 
     let idSuffix = ''
