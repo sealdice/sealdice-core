@@ -487,6 +487,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						successRank, criticalSuccessValue := ResultCheck(cocRule, checkVal, attrVal)
 						var suffix string
 						suffix = GetResultTextWithRequire(mctx, successRank, difficultRequire, manyTimes)
+						suffixFull := GetResultTextWithRequire(mctx, successRank, difficultRequire, false)
+						suffixShort := GetResultTextWithRequire(mctx, successRank, difficultRequire, true)
 
 						// 根据难度需求，修改判定值
 						switch difficultRequire {
@@ -500,6 +502,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						VarSetValue(mctx, "$tD100", &VMValue{VMTypeInt64, checkVal})
 						VarSetValue(mctx, "$t判定值", &VMValue{VMTypeInt64, attrVal})
 						VarSetValue(mctx, "$t判定结果", &VMValue{VMTypeString, suffix})
+						VarSetValue(ctx, "$tSuccessRank", &VMValue{VMTypeInt64, int64(successRank)})
+						VarSetValue(mctx, "$t判定结果_详细", &VMValue{VMTypeString, suffixFull})
+						VarSetValue(mctx, "$t判定结果_简短", &VMValue{VMTypeString, suffixShort})
 
 						if err == nil {
 							detailWrap := ""
@@ -887,6 +892,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, d100})
 							VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, varValue})
 							VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, resultText})
+							VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, resultText})
+							VarSetValue(ctx, "$tSuccessRank", &VMValue{VMTypeInt64, int64(successRank)})
 
 							if successRank < 0 {
 								// 如果成功
@@ -1174,7 +1181,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							}
 							detailWrap := ""
 							if detailCond != "" {
-								detailWrap = ", (" + detailCond + ")"
+								if expr1 != "d100" {
+									detailWrap = ", (" + detailCond + ")"
+								}
 							}
 
 							// 读取san值
@@ -1190,6 +1199,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							// 进行检定
 							successRank, _ := ResultCheck(mctx.Group.CocRuleIndex, d100, san)
 							suffix := GetResultText(ctx, successRank, false)
+							suffixShort := GetResultText(ctx, successRank, true)
 
 							VarSetValueStr(mctx, "$t检定表达式文本", expr1)
 							VarSetValueStr(mctx, "$t检定计算过程", detailWrap)
@@ -1197,6 +1207,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							VarSetValue(mctx, "$tD100", &VMValue{VMTypeInt64, d100})
 							VarSetValue(mctx, "$t判定值", &VMValue{VMTypeInt64, san})
 							VarSetValue(mctx, "$t判定结果", &VMValue{VMTypeString, suffix})
+							VarSetValue(mctx, "$t判定结果_详细", &VMValue{VMTypeString, suffix})
+							VarSetValue(mctx, "$t判定结果_简短", &VMValue{VMTypeString, suffixShort})
+							VarSetValue(ctx, "$tSuccessRank", &VMValue{VMTypeInt64, int64(successRank)})
 							VarSetValue(mctx, "$t旧值", &VMValue{VMTypeInt64, san})
 
 							SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
@@ -1479,6 +1492,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									tick += 1
 									info += fmt.Sprintf("%s: %s\t", k, v.ToString())
 									if tick%4 == 0 {
+										info = strings.TrimSpace(info) // 去除末尾空格
 										info += fmt.Sprintf("\n")
 									}
 								}
@@ -1917,7 +1931,7 @@ func setupConfig(d *Dice) AttributeConfigs {
 				"潜行":     {"躲藏"},
 				"投掷":     {"投擲"},
 				"追踪":     {"跟踪", "追蹤", "跟蹤"},
-				"驯兽":     {"动物驯养", "馴獸", "動物馴養"},
+				"驯兽":     {"驯养", "动物驯养", "馴獸", "動物馴養"},
 				"读唇":     {"唇语", "讀唇", "唇語"},
 				"炮术":     {"炮術"},
 				"学识":     {"学问", "學識", "學問"},

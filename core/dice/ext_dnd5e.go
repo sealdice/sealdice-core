@@ -34,7 +34,7 @@ func (s ByRIListValue) Less(i, j int) bool {
 var dndAttrParent = map[string]string{
 	"运动": "力量",
 
-	"特技": "敏捷",
+	"体操": "敏捷",
 	"巧手": "敏捷",
 	"隐匿": "敏捷",
 
@@ -46,12 +46,12 @@ var dndAttrParent = map[string]string{
 
 	"察觉": "感知",
 	"洞悉": "感知",
-	"驯养": "感知",
-	"医疗": "感知",
-	"生存": "感知",
+	"驯兽": "感知",
+	"医药": "感知",
+	"求生": "感知",
 
-	"说服": "魅力",
-	"欺诈": "魅力",
+	"游说": "魅力",
+	"欺瞒": "魅力",
 	"威吓": "魅力",
 	"表演": "魅力",
 }
@@ -76,18 +76,45 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 			Alias: map[string][]string{
 				"力量": {"str", "Strength"},
 				"敏捷": {"dex", "Dexterity"},
-				"体质": {"con", "Constitution"},
+				"体质": {"con", "Constitution", "體質"},
 				"智力": {"int", "Intelligence"},
 				"感知": {"wis", "Wisdom"},
 				"魅力": {"cha", "Charisma"},
 
 				// 因为hp是小写，统一风格用了小写
-				"ac":    {"护甲等级", "护甲值", "护甲"},
-				"hp":    {"生命值", "生命", "血量"},
-				"hpmax": {"生命值上限", "生命上限", "血量上限"},
-				"dc":    {"难度等级", "法术豁免"},
-				"hd":    {"生命骰"},
-				"pw":    {"被动察觉", "被动感知"},
+				"ac":    {"AC", "护甲等级", "护甲值", "护甲", "護甲等級", "護甲值", "護甲", "装甲", "裝甲"},
+				"hp":    {"HP", "生命值", "生命", "血量", "体力", "體力", "耐久值"},
+				"hpmax": {"HPMAX", "生命值上限", "生命上限", "血量上限", "耐久上限"},
+				"dc":    {"DC", "难度等级", "法术豁免", "難度等級", "法術豁免"},
+				"hd":    {"HD", "生命骰"},
+				"pw":    {"PW", "被动察觉", "被动感知", "被動察覺", "被动感知"},
+
+				"熟练": {"熟练加值", "熟練", "熟練加值"},
+				"体型": {"siz", "size", "體型", "体型", "体形", "體形"},
+
+				// 技能
+				"运动": {"Athletics", "運動"},
+
+				"体操": {"Acrobatics", "杂技", "特技", "體操", "雜技"},
+				"巧手": {"Sleight of Hand"},
+				"隐匿": {"Stealth", "隱匿", "潜行", "潛行"},
+
+				"调查": {"Investigation", "調查"},
+				"奥秘": {"Arcana", "奧秘"},
+				"历史": {"History", "歷史"},
+				"自然": {"Nature"},
+				"宗教": {"Religion"},
+
+				"察觉": {"Perception", "察覺"},
+				"洞悉": {"Insight", "洞察"},
+				"驯兽": {"Animal Handling", "馴獸", "驯养", "馴養"},
+				"医药": {"Medicine", "醫藥", "医疗", "醫療"},
+				"求生": {"Survival", " 生存"},
+
+				"游说": {"Persuasion", "说服", "话术", "遊說", "說服", "話術"},
+				"欺瞒": {"Deception", "唬骗", "欺诈", "欺骗", "诈骗", "欺瞞", "唬騙", "欺詐", "欺騙", "詐騙"},
+				"威吓": {"Intimidation", "恐吓", "威嚇", "恐嚇"},
+				"表演": {"Performance"},
 			},
 			Order: AttributeOrder{
 				Top:    []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
@@ -233,7 +260,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				switch val {
 				case "模板":
 					text := "人物卡模板(第二行文本):\n"
-					text += ".dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax: 10 熟练:2 运动:0 特技:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯养:0 医疗:0 生存:0 说服:0 欺诈:0 威吓:0 表演:0\n"
+					text += ".dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax: 10 熟练:2 运动:0 体操:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯兽:0 医药:0 求生:0 游说:0 欺瞒:0 威吓:0 表演:0\n"
 					text += "注意: 技能只填写修正值即可，属性调整值会自动计算。熟练写为“运动*:0”"
 					ReplyToSender(mctx, msg, text)
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -265,10 +292,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					m := stExport(mctx, map[string]bool{
 						"力量": true, "敏捷": true, "体质": true, "智力": true, "感知": true, "魅力": true,
 						"运动": true,
-						"特技": true, "巧手": true, "隐匿": true,
+						"体操": true, "巧手": true, "隐匿": true,
 						"调查": true, "奥秘": true, "历史": true, "自然": true, "宗教": true,
-						"察觉": true, "洞悉": true, "驯养": true, "医疗": true, "生存": true,
-						"说服": true, "欺诈": true, "威吓": true, "表演": true,
+						"察觉": true, "洞悉": true, "驯兽": true, "医药": true, "求生": true,
+						"游说": true, "欺瞒": true, "威吓": true, "表演": true,
 
 						"hd": true, "hp": true, "hpmax": true,
 						"ac": true, "dc": true,
@@ -312,6 +339,23 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						} else {
 							usePickItem = true
 						}
+					}
+
+					if ReadCardType(mctx, "dnd5e") == "" {
+						// 旧版本升级
+						valRename := func(oldName, newName string) {
+							_vRaw, exists := p.Vars.ValueMap.Get(oldName)
+							if exists {
+								p.Vars.ValueMap.Set(newName, _vRaw)
+								p.Vars.ValueMap.Del(oldName)
+							}
+						}
+						valRename("特技", "体操")
+						valRename("驯养", "驯兽")
+						valRename("医疗", "医药")
+						valRename("生存", "求生")
+						valRename("说服", "游说")
+						valRename("欺诈", "欺瞒")
 					}
 
 					pickItems := map[string]int{}
@@ -412,6 +456,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							}
 							info += fmt.Sprintf("%s: %s\t", k, vText)
 							if tick%4 == 0 {
+								info = strings.TrimSpace(info) // 去除末尾空格
 								info += fmt.Sprintf("\n")
 							}
 						}
