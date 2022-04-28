@@ -471,7 +471,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		}
 
 		if strings.Contains(line, "fetch qrcode error: Packet timed out ") {
-			dice.Logger.Infof("从QQ服务器获取二维码错误（超时），帐号: <%s>(%d)", conn.Nickname, conn.UserId)
+			dice.Logger.Infof("从QQ服务器获取二维码错误（超时），帐号: <%s>(%s)", conn.Nickname, conn.UserId)
 		}
 
 		if strings.Contains(line, "WARNING") && strings.Contains(line, "账号已开启设备锁，请前往") {
