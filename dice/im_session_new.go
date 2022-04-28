@@ -480,6 +480,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	// 设置临时变量
 	if ctx.Player != nil {
 		SetTempVars(ctx, msg.Sender.Nickname)
+		VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))
 	}
 
 	tryItemSolve := func(item *CmdItemInfo) bool {

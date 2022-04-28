@@ -1502,11 +1502,13 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							// 清理读取了第一项文本之后的空格
 							text = strings.TrimSpace(text)
 
-							//|| strings.HasPrefix(text, "，")
-							if strings.HasPrefix(text, ",") || text == "" {
+							if strings.HasPrefix(text, ",") || strings.HasPrefix(text, "，") || text == "" {
 								if strings.HasPrefix(text, ",") {
 									// 句末有,的话，吃掉
 									text = text[1:]
+								}
+								if strings.HasPrefix(text, "，") {
+									text = text[len("，"):]
 								}
 								// 情况1，名字是自己
 								name = mctx.Player.Name
@@ -1518,7 +1520,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							}
 
 							// 情况3: 是名字
-							reName := regexp.MustCompile(`^([^\s\d,，][^\s,，]*)\s*,?`)
+							reName := regexp.MustCompile(`^([^\s\d,，][^\s,，]*)\s*[,，]?`)
 							m := reName.FindStringSubmatch(text)
 							if len(m) > 0 {
 								name = m[1]
@@ -1570,6 +1572,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								textOut += fmt.Sprintf("%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
 							}
 
+							dndSetRiMapList(mctx, riMap)
 							ReplyToSender(ctx, msg, textOut)
 						} else {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "DND:先攻_设置_格式错误"))
@@ -1633,6 +1636,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							if len(deleted) == 0 {
 								textOut += "- 没有找到任何单位"
 							}
+
+							dndSetRiMapList(ctx, riMap)
 							ReplyToSender(ctx, msg, textOut)
 						case "set":
 							name, exists := cmdArgs.GetArgN(2)
@@ -1658,6 +1663,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							VarSetValue(ctx, "$t点数", &r.VMValue)
 							textOut := DiceFormatTmpl(ctx, "DND:先攻_设置_指定单位")
 
+							dndSetRiMapList(ctx, riMap)
 							ReplyToSender(ctx, msg, textOut)
 						case "clr", "clear":
 							dndClearRiMapList(ctx)
@@ -1714,8 +1720,17 @@ func dndGetRiMapList(ctx *MsgContext) map[string]int64 {
 	return riList.Value.(map[string]int64)
 }
 
-func dndClearRiMapList(ctx *MsgContext) {
+func dndSetRiMapList(ctx *MsgContext, riMap map[string]int64) {
 	ctx.LoadGroupVars()
 	mapName := "riMapList"
-	ctx.Group.ValueMap.Set(mapName, &VMValue{-1, map[string]int64{}})
+	ctx.Group.ValueMap.Set(mapName, &VMValue{-1, riMap})
+
+	// 这里出现了丢数据的情况，但其实
+	// 二次save其实并不科学 // 确实不科学 看起来不用了
+	//data, _ := json.Marshal(LockFreeMapToMap(ctx.Group.ValueMap))
+	//model.AttrGroupSave(ctx.Dice.DB, ctx.Group.GroupId, data)
+}
+
+func dndClearRiMapList(ctx *MsgContext) {
+	dndSetRiMapList(ctx, map[string]int64{})
 }
