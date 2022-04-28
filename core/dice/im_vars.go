@@ -32,15 +32,16 @@ func (ctx *MsgContext) LoadGroupVars() {
 	g := ctx.Group
 	if g.ValueMap == nil {
 		g.ValueMap = lockfree.NewHashMap()
-	}
-	data := model.AttrGroupGetAll(ctx.Dice.DB, g.GroupId)
-	rawData := map[string]*VMValue{}
-	err := json.Unmarshal(data, &rawData)
-	if err != nil {
-		return
-	}
-	for k, v := range rawData {
-		g.ValueMap.Set(k, v)
+
+		data := model.AttrGroupGetAll(ctx.Dice.DB, g.GroupId)
+		rawData := map[string]*VMValue{}
+		err := json.Unmarshal(data, &rawData)
+		if err != nil {
+			return
+		}
+		for k, v := range rawData {
+			g.ValueMap.Set(k, v)
+		}
 	}
 }
 
