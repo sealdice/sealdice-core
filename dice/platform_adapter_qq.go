@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -53,6 +54,7 @@ type MessageQQ struct {
 	Message       string  `json:"message"` // 消息内容
 	Time          int64   `json:"time"`    // 发送时间
 	MetaEventType string  `json:"meta_event_type"`
+	OperatorId    int64   `json:"operator_id"`  // 操作者帐号
 	GroupId       int64   `json:"group_id"`     // 群号
 	PostType      string  `json:"post_type"`    // 上报类型，如group、notice
 	RequestType   string  `json:"request_type"` // 请求类型，如group
@@ -164,6 +166,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 	tempInviteMap := map[string]int64{}
 	tempGroupEnterSpeechSent := map[string]int64{} // 记录入群致辞的发送时间 避免短时间重复
+	tempFriendInviteSent := map[string]int64{}     // gocq会重新发送已经发过的邀请
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		//if strings.Contains(message, `.`) {
@@ -256,6 +259,15 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 			// 好友请求
 			if msgQQ.PostType == "request" && msgQQ.RequestType == "friend" {
+				// 有一个来自gocq的重发问题
+				lastTime := tempFriendInviteSent[msgQQ.Flag]
+				nowTime := time.Now().Unix()
+				if nowTime-lastTime < 20*60 {
+					// 保留20s
+					return
+				}
+				tempFriendInviteSent[msgQQ.Flag] = nowTime
+
 				// {"comment":"123","flag":"1647619872000000","post_type":"request","request_type":"friend","self_id":222,"time":1647619871,"user_id":111}
 				var comment string
 				if msgQQ.Comment != "" {
@@ -267,6 +279,31 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				willAccept := comment == DiceFormat(ctx, toMatch)
 				if toMatch == "" {
 					willAccept = true
+				}
+
+				if !willAccept {
+					// 如果是问题校验，只填写回答即可
+					re := regexp.MustCompile(`\n回答:([^\n]+)`)
+					m := re.FindAllStringSubmatch(comment, -1)
+
+					items := []string{}
+					for _, i := range m {
+						items = append(items, i[1])
+					}
+
+					re2 := regexp.MustCompile(`\s+`)
+					m2 := re2.Split(toMatch, -1)
+
+					if len(m2) == len(items) {
+						ok := true
+						for i := 0; i < len(m2); i++ {
+							if m2[i] != items[i] {
+								ok = false
+								break
+							}
+						}
+						willAccept = ok
+					}
 				}
 
 				if comment == "" {
@@ -325,7 +362,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				go func() {
 					// 稍作等待后发送入群致词
 					time.Sleep(2 * time.Second)
-					log.Info("发送入群致辞，群号: %s", msg.GroupId)
+					log.Infof("发送入群致辞，群号: %s", msg.GroupId)
 					pa.SendToGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
 				}()
 				txt := fmt.Sprintf("加入QQ群组: (%d)", msgQQ.GroupId)
@@ -380,7 +417,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				// 被踢
 				//  {"group_id":111,"notice_type":"group_decrease","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"kick_me","time":1646689414 ,"user_id":333}
 				if msgQQ.UserId == msgQQ.SelfId {
-					txt := fmt.Sprintf("被踢出群: 在QQ群组(%d)中被踢出，操作者:(%d)", msgQQ.GroupId, msgQQ.UserId)
+					txt := fmt.Sprintf("被踢出群: 在QQ群组(%d)中被踢出，操作者:(%d)", msgQQ.GroupId, msgQQ.OperatorId)
 					log.Info(txt)
 					ctx.Notice(txt)
 				}
