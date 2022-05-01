@@ -169,7 +169,7 @@
       <template #label>
         <div>
           <span>加好友验证</span>
-          <el-tooltip content="加好友时必须输入正确的验证信息才能通过">
+          <el-tooltip raw-content content="加好友时必须输入正确的验证信息才能通过<br>注意：若使用“回答问题并由我确认”，只写问题答案，有多个答案用空格隔开：<br>问题1答案 问题2答案<br>注意问题答案中本身不能有空格">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
         </div>

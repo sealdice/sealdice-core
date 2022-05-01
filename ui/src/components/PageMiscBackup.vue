@@ -67,9 +67,13 @@ const configGet = async () => {
 }
 
 const doBackup = async () => {
-  await store.backupDoSimple()
+  const ret = await store.backupDoSimple()
   await refreshList()
-  ElMessage.success('已进行备份')
+  if (ret.testMode) {
+    ElMessage.success('展示模式无法备份')
+  } else {
+    ElMessage.success('已进行备份')
+  }
 }
 
 const doSave = async () => {

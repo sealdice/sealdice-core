@@ -139,11 +139,18 @@
           :hollow="activity.hollow"
         >
           <div>{{ activity.content }}</div>
-          <div v-if="index === 2 && curConn.adapter?.inPackGoCqHttpQrcodeReady">
+          <div v-if="index === 2 && isTestMode">
+            <div>欢迎体验海豹骰点核心，展示模式下不提供登录功能，请谅解。</div>
+            <div>如需测试指令，请移步“指令测试”界面。</div>
+            <div>此外，数据会定期自动重置。</div>
+            <div>展示版本未必是最新版，建议您下载体验。</div>
+            <el-button style="margin-top: 1rem;" @click="location.reload()">再会</el-button>
+          </div>
+          <div v-else-if="index === 2 && curConn.adapter?.inPackGoCqHttpQrcodeReady">
             <div>登录需要滑条验证码, 请使用登录此账号的手机QQ扫描二维码以继续登录:</div>
             <img :src="store.curDice.qrcodes[curConn.id]" style="width: 12rem; height: 12rem" />
           </div>
-          <div v-if="index === 2 && curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl">
+          <div v-else-if="index === 2 && curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl">
             <div>账号已开启设备锁，请访问此链接进行验证：</div>
             <div>
               <el-link :href="curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl}}</el-link>
@@ -155,7 +162,7 @@
               </div>
             </div>
           </div>
-          <div v-if="index === 2 && (!curConn.adapter?.inPackGoCqHttpRunning && !curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl) && (!isRecentLogin)">
+          <div v-else-if="index === 2 && (!curConn.adapter?.inPackGoCqHttpRunning && !curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl) && (!isRecentLogin)">
             <div>
               <div>登录失败!可能是以下原因：</div>
               <ul>
@@ -252,6 +259,7 @@ const isRecentLogin = ref(false)
 const duringRelogin = ref(false)
 const dialogFormVisible = ref(false)
 const formLabelWidth = '100px'
+const isTestMode = ref(false)
 
 const curConn = ref({} as DiceConnection);
 const curConnId = ref('');
@@ -269,7 +277,11 @@ const goStepTwo = async () => {
   setRecentLogin()
 
   store.addImConnection(form).then((conn) => {
-    curConnId.value = conn.id;
+    if ((conn as any).testMode) {
+      isTestMode.value = true
+    } else {
+      curConnId.value = conn.id;
+    }
   }).catch(e => {
     console.log(e)
     ElMessageBox.alert('似乎已经添加了这个账号！', '添加失败')

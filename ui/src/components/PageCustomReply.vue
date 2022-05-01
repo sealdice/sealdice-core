@@ -32,8 +32,8 @@
 
     <template #footer>
       <span class="dialog-footer">
-          <el-button @click="dialogFormVisible = false">取消</el-button>
-          <el-button type="primary" @click="doImport" :disabled="configForImport === ''">下一步</el-button>
+        <el-button @click="dialogFormVisible = false">取消</el-button>
+        <el-button type="primary" @click="doImport" :disabled="configForImport === ''">下一步</el-button>
       </span>
     </template>
   </el-dialog>
