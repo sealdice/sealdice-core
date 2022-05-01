@@ -32,6 +32,8 @@ type CmdItemInfo struct {
 	Help     string // 短帮助，格式是 .xxx a b // 说明
 	LongHelp string // 长帮助，带换行的较详细说明
 	//Keywords []string // 其他帮助关键字
+	ChopWords []string
+	Disabled  bool
 }
 
 type CmdMapCls map[string]*CmdItemInfo

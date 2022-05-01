@@ -167,11 +167,15 @@ func DiceConfigSet(c echo.Context) error {
 		}
 
 		if val, ok := jsonMap["uiPassword"]; ok {
-			myDice.Parent.UIPasswordHash = val.(string)
+			if !dm.JustForTest {
+				myDice.Parent.UIPasswordHash = val.(string)
+			}
 		}
 
 		if val, ok := jsonMap["serveAddress"]; ok {
-			myDice.Parent.ServeAddress = val.(string)
+			if !dm.JustForTest {
+				myDice.Parent.ServeAddress = val.(string)
+			}
 		}
 
 		myDice.Parent.Save()

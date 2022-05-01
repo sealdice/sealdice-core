@@ -485,6 +485,11 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 	tryItemSolve := func(item *CmdItemInfo) bool {
 		if item != nil {
+			if item.Disabled {
+				ReplyToSender(ctx, msg, "此指令已被骰主禁用")
+				return true
+			}
+
 			ret := item.Solve(ctx, msg, cmdArgs)
 			if ret.Solved {
 				if ret.ShowLongHelp {

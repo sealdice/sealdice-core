@@ -887,10 +887,14 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				if len(cmdArgs.Args) >= 1 {
+					var last int
+					if len(cmdArgs.Args) >= 2 {
+						last = len(cmdArgs.Args)
+					}
+
 					if cmdArgs.IsArgEqual(1, "list") {
 						showList()
-					} else if cmdArgs.IsArgEqual(2, "on") {
-						extName := cmdArgs.Args[0]
+					} else if cmdArgs.IsArgEqual(last, "on") {
 						checkConflict := func(ext *ExtInfo) []string {
 							actived := []string{}
 							for _, i := range ctx.Group.ActivatedExtList {
@@ -907,29 +911,51 @@ func (d *Dice) registerCoreCommands() {
 							return []string{}
 						}
 
-						for _, i := range d.ExtList {
-							if i.Name == extName {
-								text := fmt.Sprintf("打开扩展 %s", extName)
+						extNames := []string{}
+						conflictsAll := []string{}
+						for index := 0; index < len(cmdArgs.Args); index++ {
+							for _, i := range d.ExtList {
+								extName := strings.ToLower(cmdArgs.Args[index])
 
-								conflicts := checkConflict(i)
-								if len(conflicts) > 0 {
-									text += "\n检测到可能冲突的扩展，建议关闭: " + strings.Join(conflicts, ",")
-									text += "\n对于扩展中存在的同名指令，则越晚开启的扩展，优先级越高。"
+								if i.Name == extName {
+									extNames = append(extNames, extName)
+									conflictsAll = append(conflictsAll, checkConflict(i)...)
+									ctx.Group.ExtActive(i)
 								}
-
-								ctx.Group.ExtActive(i)
-								ReplyToSender(ctx, msg, text)
-								break
 							}
 						}
-					} else if cmdArgs.IsArgEqual(2, "off") {
-						extName := cmdArgs.Args[0]
-						ei := ctx.Group.ExtInactive(extName)
-						if ei != nil {
-							ReplyToSender(ctx, msg, fmt.Sprintf("关闭扩展 %s", extName))
+
+						if len(extNames) == 0 {
+							ReplyToSender(ctx, msg, "输入的扩展类别名无效")
 						} else {
-							ReplyToSender(ctx, msg, fmt.Sprintf("未找到此扩展，可能已经关闭: %s", extName))
+							text := fmt.Sprintf("打开扩展 %s", strings.Join(extNames, ","))
+							if len(conflictsAll) > 0 {
+								text += "\n检测到可能冲突的扩展，建议关闭: " + strings.Join(conflictsAll, ",")
+								text += "\n对于扩展中存在的同名指令，则越晚开启的扩展，优先级越高。"
+							}
+							ReplyToSender(ctx, msg, text)
 						}
+					} else if cmdArgs.IsArgEqual(last, "off") {
+						closed := []string{}
+						notfound := []string{}
+						for index := 0; index < len(cmdArgs.Args); index++ {
+							extName := strings.ToLower(cmdArgs.Args[index])
+							ei := ctx.Group.ExtInactive(extName)
+							if ei != nil {
+								closed = append(closed, ei.Name)
+							} else {
+								notfound = append(notfound, extName)
+							}
+						}
+
+						var text string
+
+						if len(closed) > 0 {
+							text += fmt.Sprintf("关闭扩展: %s", strings.Join(closed, ","))
+						} else {
+							text += fmt.Sprintf(" 已关闭或未找到: %s", strings.Join(notfound, ","))
+						}
+						ReplyToSender(ctx, msg, text)
 						return CmdExecuteResult{Matched: true, Solved: true}
 					} else {
 						extName := cmdArgs.Args[0]
@@ -1063,55 +1089,6 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["set"] = cmdSet
-
-	textHelp := ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}"
-	cmdText := &CmdItemInfo{
-		Name:     "text",
-		Help:     textHelp,
-		LongHelp: "文本模板指令:\n" + textHelp,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
-
-				_, exists := cmdArgs.GetArgN(1)
-				if exists {
-					r, _, err := d.ExprTextBase(cmdArgs.CleanArgs, ctx)
-
-					if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
-						text := r.Value.(string)
-
-						if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
-							asm := r.Parser.GetAsmText()
-							text += "\n" + asm
-						}
-
-						seemsCommand := false
-						if strings.HasPrefix(text, ".") || strings.HasPrefix(text, "。") || strings.HasPrefix(text, "!") {
-							seemsCommand = true
-							if strings.HasPrefix(text, "..") || strings.HasPrefix(text, "。。") || strings.HasPrefix(text, "!!") {
-								seemsCommand = false
-							}
-						}
-
-						if seemsCommand {
-							ReplyToSender(ctx, msg, "你可能在利用text让骰子发出指令文本，这被视为恶意行为并已经记录")
-						} else {
-							ReplyToSender(ctx, msg, text)
-						}
-					} else {
-						ReplyToSender(ctx, msg, "格式错误")
-					}
-					return CmdExecuteResult{Matched: true, Solved: true}
-				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
-				}
-			}
-			return CmdExecuteResult{Matched: true, Solved: false}
-		},
-	}
-	d.CmdMap["text"] = cmdText
 
 	helpCh := ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色，角色名省略则为当前昵称\n.ch list // 列出当前角色\n.ch del <角色名> // 删除角色"
 	cmdChar := &CmdItemInfo{

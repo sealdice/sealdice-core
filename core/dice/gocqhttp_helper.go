@@ -362,7 +362,10 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			}
 		}()
 
-		pa := conn.Adapter.(*PlatformAdapterQQOnebot)
+		pa, ok := conn.Adapter.(*PlatformAdapterQQOnebot)
+		if !ok {
+			return
+		}
 		if pa.UseInPackGoCqhttp {
 			conn.State = 0
 			pa.InPackGoCqHttpLoginSuccess = false
