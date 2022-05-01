@@ -147,6 +147,37 @@ func RegisterBuiltinStory(self *Dice) {
 		},
 	}
 
+	cmdWho := &CmdItemInfo{
+		Name:     "who",
+		Help:     ".who a b c",
+		LongHelp: "顺序重排:\n.who a b c",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+				if cmdArgs.IsArgEqual(1, "help") {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+
+				if len(cmdArgs.Args) < 2 {
+					ReplyToSender(ctx, msg, "who 的对象必须多于2项")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				items := make([]string, len(cmdArgs.Args))
+				copy(items, cmdArgs.Args)
+				rand.Shuffle(len(items), func(i, j int) {
+					items[i], items[j] = items[j], items[i]
+				})
+
+				ReplyToSender(ctx, msg, fmt.Sprintf("打乱顺序: %s", strings.Join(items, ", ")))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	theExt := &ExtInfo{
 		Name:       "story", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
@@ -166,6 +197,7 @@ func RegisterBuiltinStory(self *Dice) {
 		CmdMap: CmdMapCls{
 			"name":    cmdName,
 			"namednd": cmdNameDnd,
+			"who":     cmdWho,
 		},
 	}
 
