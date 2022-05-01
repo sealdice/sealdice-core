@@ -25,6 +25,12 @@ func baseInfo(c echo.Context) error {
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
+	//fmt.Println("!!!!", m.Alloc-m.Frees, m.HeapReleased, m.HeapInuse)
+	//
+	//const meg = 1024 * 1024
+	//fmt.Printf("env: %v, sys: %4d MB, alloc: %4d MB, idel: %4d MB, released: %4d MB, inuse: %4d MB stack:%d\n",
+	//	os.Getenv("GODEBUG"), m.HeapSys/meg, m.HeapAlloc/meg, m.HeapIdle/meg, m.HeapReleased/meg, m.HeapInuse/meg,
+	//	m.StackSys/meg)
 
 	return c.JSON(http.StatusOK, struct {
 		AppName       string `json:"appName"`
@@ -175,6 +181,11 @@ func ImConnectionsAdd(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
 
 	v := struct {
 		Account  string `yaml:"account" json:"account"`
@@ -292,7 +303,11 @@ func DiceExec(c echo.Context) error {
 		return c.JSON(400, "格式错误")
 	}
 	now := time.Now().UnixMilli()
-	if now-lastExecTime < 500 {
+	timeNeed := int64(500)
+	if dm.JustForTest {
+		timeNeed = 80
+	}
+	if now-lastExecTime < timeNeed {
 		return c.JSON(400, "过于频繁")
 	}
 	lastExecTime = now
@@ -345,36 +360,42 @@ func DiceAllCommand(c echo.Context) error {
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
-	e.GET("/baseInfo", baseInfo)
-	e.GET("/hello", hello2)
-	e.GET("/log/fetchAndClear", logFetchAndClear)
-	e.GET("/im_connections/list", ImConnections)
-	e.GET("/im_connections/get", ImConnectionsGet)
 
-	e.POST("/im_connections/qrcode", ImConnectionsQrcodeGet)
-	e.POST("/im_connections/add", ImConnectionsAdd)
-	e.POST("/im_connections/del", ImConnectionsDel)
-	e.POST("/im_connections/set_enable", ImConnectionsSetEnable)
-	e.POST("/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
+	var prefix string
+	//if dm.JustForTest {
+	prefix = "/sd-api"
+	//}
 
-	e.GET("/configs/customText", customText)
-	e.POST("/configs/customText/save", customTextSave)
+	e.GET(prefix+"/baseInfo", baseInfo)
+	e.GET(prefix+"/hello", hello2)
+	e.GET(prefix+"/log/fetchAndClear", logFetchAndClear)
+	e.GET(prefix+"/im_connections/list", ImConnections)
+	e.GET(prefix+"/im_connections/get", ImConnectionsGet)
 
-	e.GET("/configs/custom_reply", customReply)
-	e.POST("/configs/custom_reply/save", customReplySave)
+	e.POST(prefix+"/im_connections/qrcode", ImConnectionsQrcodeGet)
+	e.POST(prefix+"/im_connections/add", ImConnectionsAdd)
+	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
+	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
+	e.POST(prefix+"/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
 
-	e.GET("/dice/config/get", DiceConfig)
-	e.POST("/dice/config/set", DiceConfigSet)
-	e.POST("/dice/exec", DiceExec)
-	e.GET("/dice/cmdList", DiceAllCommand)
+	e.GET(prefix+"/configs/customText", customText)
+	e.POST(prefix+"/configs/customText/save", customTextSave)
 
-	e.POST("/signin", doSignIn)
-	e.GET("/signin/salt", doSignInGetSalt)
-	e.GET("/checkSecurity", checkSecurity)
+	e.GET(prefix+"/configs/custom_reply", customReply)
+	e.POST(prefix+"/configs/custom_reply/save", customReplySave)
 
-	e.GET("/backup/list", backupGetList)
-	e.POST("/backup/do_backup", backupSimple)
-	e.GET("/backup/config_get", backupConfigGet)
-	e.POST("/backup/config_set", backupConfigSave)
-	e.GET("/backup/download", backupDownload)
+	e.GET(prefix+"/dice/config/get", DiceConfig)
+	e.POST(prefix+"/dice/config/set", DiceConfigSet)
+	e.POST(prefix+"/dice/exec", DiceExec)
+	e.GET(prefix+"/dice/cmdList", DiceAllCommand)
+
+	e.POST(prefix+"/signin", doSignIn)
+	e.GET(prefix+"/signin/salt", doSignInGetSalt)
+	e.GET(prefix+"/checkSecurity", checkSecurity)
+
+	e.GET(prefix+"/backup/list", backupGetList)
+	e.POST(prefix+"/backup/do_backup", backupSimple)
+	e.GET(prefix+"/backup/config_get", backupConfigGet)
+	e.POST(prefix+"/backup/config_set", backupConfigSave)
+	e.GET(prefix+"/backup/download", backupDownload)
 }

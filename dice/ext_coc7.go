@@ -1069,8 +1069,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			"sc": &CmdItemInfo{
 				Name: "sc",
 				Help: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
-					".sc <失败时掉san>\n" +
-					".sc (<检定表达式，默认d100>) (<成功时掉san>/)<失败时掉san>",
+					".sc <失败时掉san> //同上，简易写法 \n" +
+					".sc (b/p) (<成功时掉san>/)<失败时掉san> // 加上奖惩骰",
 				//".sc <成功掉san>/<失败掉san> (,<成功掉san>/<失败掉san>)+",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
@@ -1078,7 +1078,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						// v2: (worst) FAIL — REGULAR SUCCESS — HARD SUCCESS — EXTREME SUCCESS (best)
 
 						if len(cmdArgs.Args) == 0 {
-							return CmdExecuteResult{Matched: true, Solved: true, ShowShortHelp: true}
+							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 						}
 						mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 						mctx.Player.TempValueAlias = &ac.Alias

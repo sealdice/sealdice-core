@@ -121,6 +121,11 @@ func (d *Dice) registerCoreCommands() {
 							ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
 						} else {
 							dm := d.Parent
+							if dm.JustForTest {
+								ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
+
 							if !dm.IsHelpReloading {
 								dm.IsHelpReloading = true
 								dm.Help.Close()
@@ -536,6 +541,10 @@ func (d *Dice) registerCoreCommands() {
 					}
 				case "checkupdate":
 					dm := ctx.Dice.Parent
+					if dm.JustForTest {
+						ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
 					code, exists := cmdArgs.GetArgN(2)
 					if exists {
 						if code == updateCode && updateCode != "0000" {
@@ -570,6 +579,11 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "reboot":
 					dm := ctx.Dice.Parent
+					if dm.JustForTest {
+						ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					code, exists := cmdArgs.GetArgN(2)
 					if exists {
 						if code == updateCode && updateCode != "0000" {

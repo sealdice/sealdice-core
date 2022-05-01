@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -51,10 +52,234 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log on (<日志名>)  // 开始记录，不写日志名则开启最近一次日志，注意on后跟空格！
 .log off // 暂停记录
 .log end // 完成记录并发送日志文件
-.log get // 重新上传日志，并获取链接
+.log get (<日志名>) // 重新上传日志，并获取链接
 .log halt // 强行关闭当前log，不上传日志
 .log list // 查看当前群的日志列表
-.log del <日志名> // 删除一份日志`
+.log del <日志名> // 删除一份日志
+.log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)`
+
+	cmdLog := &CmdItemInfo{
+		Name:     "log",
+		Help:     helpLog,
+		LongHelp: "日志指令:\n" + helpLog,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				group := ctx.Group
+				cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
+
+				groupNotActiveCheck := func() bool {
+					if !group.Active {
+						ReplyToSender(ctx, msg, "未开启时不会记录日志，请先.bot on")
+						return true
+					}
+					return false
+				}
+
+				if len(cmdArgs.Args) == 0 {
+					onText := "关闭"
+					if group.LogOn {
+						onText = "开启"
+					}
+					lines, _ := LogLinesGet(ctx, group, group.LogCurName)
+					text := fmt.Sprintf("当前故事: %s\n当前状态: %s\n已记录文本%d条", group.LogCurName, onText, lines)
+					ReplyToSender(ctx, msg, text)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				if cmdArgs.IsArgEqual(1, "on") {
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					name, _ := cmdArgs.GetArgN(2)
+					if name == "" {
+						name = group.LogCurName
+					}
+
+					if name != "" {
+						lines, exists := LogLinesGet(ctx, group, name)
+
+						if exists {
+							if groupNotActiveCheck() {
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
+
+							group.LogOn = true
+							group.LogCurName = name
+
+							VarSetValueStr(ctx, "$t记录名称", name)
+							VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_成功"))
+						} else {
+							VarSetValueStr(ctx, "$t记录名称", name)
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_无此记录"))
+						}
+					} else {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_尚未新建"))
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "off") {
+					if group.LogCurName != "" {
+						group.LogOn = false
+						lines, _ := LogLinesGet(ctx, group, group.LogCurName)
+						VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
+						VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_成功"))
+					} else {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "del", "rm") {
+					name, _ := cmdArgs.GetArgN(2)
+					if name != "" {
+						if name == group.LogCurName {
+							ReplyToSender(ctx, msg, "不能删除正在进行的log，请用log new开启新的，或log end结束后再行删除")
+						} else {
+							ok := LogDelete(ctx, group, name)
+							if ok {
+								ReplyToSender(ctx, msg, "删除log成功")
+							} else {
+								ReplyToSender(ctx, msg, "删除log失败，可能是名字不对？")
+							}
+						}
+					} else {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "masterget") {
+					newGroup, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
+					if requestForAnotherGroup {
+						if newGroup == nil {
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						group = newGroup
+					}
+
+					bakLogCurName := group.LogCurName
+					if newName, exists := cmdArgs.GetArgN(3); exists {
+						if exists {
+							group.LogCurName = newName
+						}
+					}
+
+					if group.LogCurName != "" {
+						fn, password := LogSendToBackend(ctx, group)
+						if fn == "" {
+							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+							ReplyToSenderRaw(ctx, msg, text, "skip")
+						} else {
+							ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
+							time.Sleep(time.Duration(0.3 * float64(time.Second)))
+							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+							ReplyToSenderRaw(ctx, msg, text, "skip")
+						}
+					}
+					group.LogCurName = bakLogCurName
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "get") {
+					bakLogCurName := group.LogCurName
+					if newName, exists := cmdArgs.GetArgN(2); exists {
+						if exists {
+							group.LogCurName = newName
+						}
+					}
+
+					if group.LogCurName != "" {
+						fn, password := LogSendToBackend(ctx, group)
+						if fn == "" {
+							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+							ReplyToSenderRaw(ctx, msg, text, "skip")
+						} else {
+							ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
+							time.Sleep(time.Duration(0.3 * float64(time.Second)))
+							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+							ReplyToSenderRaw(ctx, msg, text, "skip")
+						}
+					}
+					group.LogCurName = bakLogCurName
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "end") {
+					text := DiceFormatTmpl(ctx, "日志:记录_结束")
+					ReplyToSender(ctx, msg, text)
+					group.LogOn = false
+
+					time.Sleep(time.Duration(0.3 * float64(time.Second)))
+					fn, password := LogSendToBackend(ctx, group)
+					if fn == "" {
+						ReplyToSenderRaw(ctx, msg, "跑团日志上传失败，可联系骰主在data/default/logs路径下取出\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: "+password+" (密钥中不含ilo0字符)", "skip")
+					} else {
+						ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
+						time.Sleep(time.Duration(0.3 * float64(time.Second)))
+						text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s (密钥中不含ilo0字符)", password)
+						ReplyToSenderRaw(ctx, msg, text, "skip")
+					}
+					group.LogCurName = ""
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "halt") {
+					text := DiceFormatTmpl(ctx, "日志:记录_结束")
+					ReplyToSender(ctx, msg, text)
+					group.LogOn = false
+					group.LogCurName = ""
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "list") {
+					newGroup, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
+					if requestForAnotherGroup {
+						if newGroup == nil {
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						group = newGroup
+					}
+
+					text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
+					lst, err := LogGetList(ctx, group)
+					if err == nil {
+						for _, i := range lst {
+							text += "- " + i + "\n"
+						}
+						if len(lst) == 0 {
+							text += "暂无记录"
+						}
+					} else {
+						text += "获取记录出错，请联系骰主查看服务日志"
+					}
+					ReplyToSender(ctx, msg, text)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "new") {
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					name, _ := cmdArgs.GetArgN(2)
+
+					if group.LogCurName != "" && name == "" {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
+					} else {
+						if groupNotActiveCheck() {
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
+						if name == "" {
+							todayTime := time.Now().Format("2006_01_02_15_04_05")
+							name = todayTime
+						}
+						group.LogCurName = name
+						group.LogOn = true
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
 
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:       "log",
@@ -142,178 +367,35 @@ func RegisterBuiltinExtLog(self *Dice) {
 			return GetExtensionDesc(ei)
 		},
 		CmdMap: CmdMapCls{
-			"log": &CmdItemInfo{
-				Name:     "log",
-				Help:     helpLog,
-				LongHelp: "日志指令:\n" + helpLog,
-				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					if ctx.IsCurGroupBotOn {
-						if cmdArgs.SomeoneBeMentionedButNotMe {
-							return CmdExecuteResult{Matched: false, Solved: false}
-						}
-
-						group := ctx.Group
-						cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
-
-						groupNotActiveCheck := func() bool {
-							if !group.Active {
-								ReplyToSender(ctx, msg, "未开启时不会记录日志，请先.bot on")
-								return true
-							}
-							return false
-						}
-
-						if len(cmdArgs.Args) == 0 {
-							onText := "关闭"
-							if group.LogOn {
-								onText = "开启"
-							}
-							lines, _ := LogLinesGet(ctx, group, group.LogCurName)
-							text := fmt.Sprintf("当前故事: %s\n当前状态: %s\n已记录文本%d条", group.LogCurName, onText, lines)
-							ReplyToSender(ctx, msg, text)
-							return CmdExecuteResult{Matched: true, Solved: true}
-						} else {
-							if cmdArgs.IsArgEqual(1, "on") {
-								name, _ := cmdArgs.GetArgN(2)
-								if name == "" {
-									name = group.LogCurName
-								}
-
-								if name != "" {
-									lines, exists := LogLinesGet(ctx, group, name)
-
-									if exists {
-										if groupNotActiveCheck() {
-											return CmdExecuteResult{Matched: true, Solved: true}
-										}
-
-										group.LogOn = true
-										group.LogCurName = name
-
-										VarSetValueStr(ctx, "$t记录名称", name)
-										VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
-										ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_成功"))
-									} else {
-										VarSetValueStr(ctx, "$t记录名称", name)
-										ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_无此记录"))
-									}
-								} else {
-									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_尚未新建"))
-								}
-								return CmdExecuteResult{Matched: true, Solved: true}
-							} else if cmdArgs.IsArgEqual(1, "off") {
-								if group.LogCurName != "" {
-									group.LogOn = false
-									lines, _ := LogLinesGet(ctx, group, group.LogCurName)
-									VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
-									VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
-									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_成功"))
-								} else {
-									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
-								}
-								return CmdExecuteResult{Matched: true, Solved: true}
-							} else if cmdArgs.IsArgEqual(1, "del", "rm") {
-								name, _ := cmdArgs.GetArgN(2)
-								if name != "" {
-									if name == group.LogCurName {
-										ReplyToSender(ctx, msg, "不能删除正在进行的log，请用log new开启新的，或log end结束后再行删除")
-									} else {
-										ok := LogDelete(ctx, group, name)
-										if ok {
-											ReplyToSender(ctx, msg, "删除log成功")
-										} else {
-											ReplyToSender(ctx, msg, "删除log失败，可能是名字不对？")
-										}
-									}
-								} else {
-									return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
-								}
-								return CmdExecuteResult{Matched: true, Solved: true}
-							} else if cmdArgs.IsArgEqual(1, "get") {
-								if ctx.Group.LogCurName != "" {
-									fn, password := LogSendToBackend(ctx, group)
-									if fn == "" {
-										text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
-										ReplyToSenderRaw(ctx, msg, text, "skip")
-									} else {
-										ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
-										time.Sleep(time.Duration(0.3 * float64(time.Second)))
-										text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
-										ReplyToSenderRaw(ctx, msg, text, "skip")
-									}
-								}
-								return CmdExecuteResult{Matched: true, Solved: true}
-							} else if cmdArgs.IsArgEqual(1, "end") {
-								text := DiceFormatTmpl(ctx, "日志:记录_结束")
-								ReplyToSender(ctx, msg, text)
-								group.LogOn = false
-
-								time.Sleep(time.Duration(0.3 * float64(time.Second)))
-								fn, password := LogSendToBackend(ctx, group)
-								if fn == "" {
-									ReplyToSenderRaw(ctx, msg, "跑团日志上传失败，可联系骰主在data/default/logs路径下取出\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: "+password+" (密钥中不含ilo0字符)", "skip")
-								} else {
-									ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
-									time.Sleep(time.Duration(0.3 * float64(time.Second)))
-									text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s (密钥中不含ilo0字符)", password)
-									ReplyToSenderRaw(ctx, msg, text, "skip")
-								}
-								group.LogCurName = ""
-								return CmdExecuteResult{Matched: true, Solved: true}
-							} else if cmdArgs.IsArgEqual(1, "halt") {
-								text := DiceFormatTmpl(ctx, "日志:记录_结束")
-								ReplyToSender(ctx, msg, text)
-								group.LogOn = false
-								group.LogCurName = ""
-								return CmdExecuteResult{Matched: true, Solved: true}
-							} else if cmdArgs.IsArgEqual(1, "list") {
-								text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
-								lst, err := LogGetList(ctx, group)
-								if err == nil {
-									for _, i := range lst {
-										text += "- " + i + "\n"
-									}
-									if len(lst) == 0 {
-										text += "暂无记录"
-									}
-								} else {
-									text += "获取记录出错，请联系骰主查看服务日志"
-								}
-								ReplyToSender(ctx, msg, text)
-								return CmdExecuteResult{Matched: true, Solved: true}
-							} else if cmdArgs.IsArgEqual(1, "new") {
-								name, _ := cmdArgs.GetArgN(2)
-
-								if group.LogCurName != "" && name == "" {
-									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
-								} else {
-									if groupNotActiveCheck() {
-										return CmdExecuteResult{Matched: true, Solved: true}
-									}
-
-									if name == "" {
-										todayTime := time.Now().Format("2006_01_02_15_04_05")
-										name = todayTime
-									}
-									group.LogCurName = name
-									group.LogOn = true
-									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
-								}
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
-						}
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
-					}
-
-					if ctx.IsPrivate {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-					return CmdExecuteResult{Matched: true, Solved: false}
-				},
-			},
+			"log": cmdLog,
 		},
 	})
+}
+
+func getSpecifiedGroupIfMaster(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) (*GroupInfo, bool) {
+	if data, exists := cmdArgs.GetArgN(2); exists {
+		if ctx.PrivilegeLevel < 100 {
+			ReplyToSender(ctx, msg, "你并非Master，请检查指令输入是否正确")
+			return nil, true
+		}
+
+		var prefix string
+		if ctx.EndPoint.Platform == "QQ" {
+			prefix = "QQ-Group"
+		}
+		if !strings.HasPrefix(data, prefix) {
+			data = prefix + ":" + data
+		}
+
+		_newGroup := ctx.Session.ServiceAtNew[data]
+		if _newGroup == nil {
+			ReplyToSender(ctx, msg, "找不到指定的群组，请输入正确群号。如在非QQ平台取log，群号请写 QQ-Group:12345")
+			return nil, true
+		}
+		return _newGroup, true
+	}
+	// 对应的组，是否存在第二个参数
+	return nil, false
 }
 
 func filenameReplace(name string) string {
@@ -345,8 +427,6 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 		gid := group.GroupId
 		fzip, _ := ioutil.TempFile(dirpath, filenameReplace(gid+"_"+group.LogCurName)+".*.zip")
 		writer := zip.NewWriter(fzip)
-		defer writer.Close()
-		defer fzip.Close()
 
 		text := ""
 		for _, i := range lines {
@@ -365,6 +445,9 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 			fileWriter2, _ := writer.Encrypt("log.json", zipPassword)
 			fileWriter2.Write(data)
 		}
+
+		_ = writer.Close()
+		_ = fzip.Close()
 	}
 
 	if err == nil {

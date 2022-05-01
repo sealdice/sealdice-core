@@ -1508,6 +1508,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						text := cmdArgs.CleanArgs
 						mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
+						if cmdArgs.IsArgEqual(1, "help") {
+							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						}
+
 						readOne := func() (int, string, int64, string) {
 							text = strings.TrimSpace(text)
 							var name string
