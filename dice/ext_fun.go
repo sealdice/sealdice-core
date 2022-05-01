@@ -164,7 +164,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 	cmdGugu := CmdItemInfo{
 		Name:     "gugu",
 		Help:     ".gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
-		LongHelp: "人工智能鸽子:\n.gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
+		LongHelp: "人工智能鸽子:\n.gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者\n.text // 文本指令",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -213,6 +213,54 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
+	textHelp := ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}"
+	cmdText := CmdItemInfo{
+		Name:     "text",
+		Help:     textHelp,
+		LongHelp: "文本模板指令:\n" + textHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				_, exists := cmdArgs.GetArgN(1)
+				if exists {
+					r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx)
+
+					if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
+						text := r.Value.(string)
+
+						if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
+							asm := r.Parser.GetAsmText()
+							text += "\n" + asm
+						}
+
+						seemsCommand := false
+						if strings.HasPrefix(text, ".") || strings.HasPrefix(text, "。") || strings.HasPrefix(text, "!") {
+							seemsCommand = true
+							if strings.HasPrefix(text, "..") || strings.HasPrefix(text, "。。") || strings.HasPrefix(text, "!!") {
+								seemsCommand = false
+							}
+						}
+
+						if seemsCommand {
+							ReplyToSender(ctx, msg, "你可能在利用text让骰子发出指令文本，这被视为恶意行为并已经记录")
+						} else {
+							ReplyToSender(ctx, msg, text)
+						}
+					} else {
+						ReplyToSender(ctx, msg, "格式错误")
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:            "fun", // 扩展的名称，需要用于指令中，写简短点
 		Version:         "1.0.0",
@@ -233,6 +281,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"gugu": &cmdGugu,
 			"咕咕":   &cmdGugu,
 			"jrrp": &cmdJrrp,
+			"text": &cmdText,
 		},
 	})
 }
