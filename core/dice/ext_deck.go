@@ -253,6 +253,11 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						if ctx.PrivilegeLevel < 100 {
 							ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
 						} else {
+							if ctx.Dice.Parent.JustForTest {
+								ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
+
 							reloadDecks()
 							ReplyToSender(ctx, msg, "牌堆已经重新装载")
 						}

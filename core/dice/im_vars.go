@@ -244,7 +244,8 @@ func (i *GroupPlayerInfo) GetValueNameByAlias(s string, alias map[string][]strin
 
 	for k, v := range alias {
 		if strings.EqualFold(s, k) {
-			break // 名字本身就是确定值，不用修改
+			name = k // 防止一手大小写不一致
+			break    // 名字本身就是确定值，不用修改
 		}
 		for _, i := range v {
 			if strings.EqualFold(s, i) {

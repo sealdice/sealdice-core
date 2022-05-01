@@ -74,6 +74,7 @@ func main() {
 		DoUpdateWin            bool   `long:"do-update-win" description:"windows自动升级用，不要在任何情况下主动调用"`
 		DoUpdateOthers         bool   `long:"do-update-others" description:"linux/mac自动升级用，不要在任何情况下主动调用"`
 		Delay                  int64  `long:"delay"`
+		JustForTest            bool   `long:"just-for-test"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -186,6 +187,10 @@ func main() {
 	// 初始化核心
 	diceManager.TryCreateDefault()
 	diceManager.InitDice()
+
+	if opts.JustForTest {
+		diceManager.JustForTest = true
+	}
 
 	// goja 大概占据5MB空间，压缩后1MB，还行
 	// 按tengo和他自己的benchmark来看，还是比较出色的（当然和v8啥的不能比）

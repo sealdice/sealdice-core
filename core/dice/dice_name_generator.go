@@ -26,18 +26,12 @@ func (ng *NamesGenerator) Load() {
 			continue
 		}
 
-		defer func() {
-			// Close the spreadsheet.
-			if err := f.Close(); err != nil {
-				fmt.Println(err)
-			}
-		}()
-
 		for _, sheetName := range f.GetSheetList() {
 			words := map[string][]string{}
-			columns, err := f.GetCols(sheetName)
+			columns, err := f.Cols(sheetName)
 			if err == nil {
-				for _, column := range columns {
+				for columns.Next() {
+					column, _ := columns.Rows()
 					if len(column) > 0 {
 						// 首行为标题，如“男性名” 其他行为内容，如”济民 珍祥“
 						name := column[0]
@@ -54,6 +48,10 @@ func (ng *NamesGenerator) Load() {
 				}
 			}
 			nameInfo[sheetName] = words
+		}
+
+		if err := f.Close(); err != nil {
+			fmt.Println(err)
 		}
 	}
 }

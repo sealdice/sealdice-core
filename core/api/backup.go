@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"github.com/labstack/echo/v4"
 	"io/fs"
 	"net/http"
@@ -80,6 +79,11 @@ func backupSimple(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
 
 	err := dm.BackupSimple()
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -103,6 +107,11 @@ func backupConfigSave(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
 
 	v := backupConfig{}
 	err := c.Bind(&v)
@@ -110,7 +119,6 @@ func backupConfigSave(c echo.Context) error {
 		dm.AutoBackupEnable = v.AutoBackupEnable
 		dm.AutoBackupTime = v.AutoBackupTime
 		dm.ResetAutoBackup()
-		fmt.Println("???", dm.AutoBackupTime)
 		return c.String(http.StatusOK, "")
 	}
 	return c.String(430, "")

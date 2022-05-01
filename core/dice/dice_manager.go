@@ -48,6 +48,7 @@ type DiceManager struct {
 
 	Cron        *cron.Cron
 	ServiceName string
+	JustForTest bool
 }
 
 type DiceConfigs struct {

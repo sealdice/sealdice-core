@@ -133,10 +133,12 @@ func doReboot(dm *dice.DiceManager) {
 func doUpdate(dm *dice.DiceManager) {
 	platform := runtime.GOOS
 	if platform == "windows" {
-		exe, err := filepath.Abs(os.Args[0])
-		if err == nil {
-			cp.Copy(exe, "./auto_update.exe")
-		}
+		//exe, err := filepath.Abs(os.Args[0])
+		//if err == nil {
+		//cp.Copy("./update/new/sealdice-core.exe", "./sealdice-core.exe") // 仅作为标记
+		cp.Copy("./update/new/sealdice-core.exe", "./auto_update.exe")
+		cp.Copy("./update/new/sealdice-core.exe", "./auto_updat3.exe")
+		//}
 	} else {
 		// Linux / Mac
 		exe, err := filepath.Abs(os.Args[0])
