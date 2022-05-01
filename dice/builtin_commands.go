@@ -1008,6 +1008,27 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["nn"] = cmdNN
 
+	d.CmdMap["userid"] = &CmdItemInfo{
+		Name: "userid",
+		Help: ".userid // 查看当前帐号和群组ID",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				text := fmt.Sprintf("个人账号ID为 %s", ctx.Player.UserId)
+				if !ctx.IsPrivate {
+					text += fmt.Sprintf("\n当前群组ID为 %s", ctx.Group.GroupId)
+				}
+
+				ReplyToSender(ctx, msg, text)
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	helpSet := ".set // 查看当前面数设置\n" +
 		".set <面数> // 设置群内骰子面数\n" +
 		".set <面数> --my // 设定个人专属骰子面数\n" +
