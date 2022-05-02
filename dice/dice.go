@@ -33,7 +33,6 @@ type CmdItemInfo struct {
 	LongHelp string // 长帮助，带换行的较详细说明
 	//Keywords []string // 其他帮助关键字
 	ChopWords []string
-	Disabled  bool
 }
 
 type CmdMapCls map[string]*CmdItemInfo
@@ -47,6 +46,8 @@ type ExtInfo struct {
 	CmdMap          CmdMapCls `yaml:"-"` // 指令集合
 	Brief           string    `yaml:"-"`
 	ActiveOnPrivate bool      `yaml:"-"`
+
+	defaultSetting *ExtDefaultSettingItem `yaml:"-"` // 默认配置
 
 	Author       string   `yaml:"-"`
 	ConflictWith []string `yaml:"-"`
@@ -67,6 +68,13 @@ type DiceConfig struct {
 	Name       string `yaml:"name"`       // 名称，默认为default
 	DataDir    string `yaml:"dataDir"`    // 数据路径，为./data/{name}，例如data/default
 	IsLogPrint bool   `yaml:"isLogPrint"` // 是否在控制台打印log
+}
+
+type ExtDefaultSettingItem struct {
+	Name            string          `yaml:"name" json:"name"`
+	AutoActive      bool            `yaml:"autoActive" json:"autoActive"`                // 是否自动开启
+	DisabledCommand map[string]bool `yaml:"disabledCommand,flow" json:"disabledCommand"` // 实际为set
+	ExtItem         *ExtInfo        `yaml:"-" json:"-"`
 }
 
 type Dice struct {
@@ -100,6 +108,11 @@ type Dice struct {
 	MasterUnlockCodeTime    int64                  `yaml:"-"`
 	CustomReplyConfig       *ReplyConfig           `yaml:"-"`
 	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"` // 启用自动重新登录
+
+	HelpMasterInfo    string `yaml:"helpMasterInfo"`    // help中骰主信息
+	HelpMasterLicense string `yaml:"helpMasterLicense"` // help中使用协议
+
+	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	//InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp

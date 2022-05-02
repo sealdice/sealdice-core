@@ -248,7 +248,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
-		// 可能是发命令时，必须加载信息
+		// 当文本可能是在发送命令时，必须加载信息
 		maybeCommand := CommandCheckPrefix(msg.Message, d.CommandPrefix)
 		if maybeCommand {
 			mustLoadUser = true
@@ -483,11 +483,15 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))
 	}
 
-	tryItemSolve := func(item *CmdItemInfo) bool {
+	tryItemSolve := func(ext *ExtInfo, item *CmdItemInfo) bool {
 		if item != nil {
-			if item.Disabled {
-				ReplyToSender(ctx, msg, "此指令已被骰主禁用")
+			if ext != nil && ext.defaultSetting.DisabledCommand[item.Name] {
+				ReplyToSender(ctx, msg, fmt.Sprintf("此指令已被骰主禁用: %s:%s", ext.Name, item.Name))
 				return true
+			}
+
+			if ext != nil {
+				ext.defaultSetting.DisabledCommand[item.Name] = true
 			}
 
 			ret := item.Solve(ctx, msg, cmdArgs)
@@ -517,26 +521,14 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	}
 
 	item := ctx.Session.Parent.CmdMap[cmdArgs.Command]
-	if tryItemSolve(item) {
+	if tryItemSolve(nil, item) {
 		return true
 	}
 
-	//if msg.MessageType == "private" {
-	//	// 个人消息
-	//	for _, i := range ctx.Dice.ExtList {
-	//		if i.ActiveOnPrivate {
-	//			item := i.CmdMap[cmdArgs.Command]
-	//			if tryItemSolve(item) {
-	//				return true
-	//			}
-	//		}
-	//	}
-	//} else {
-	// 群消息
 	if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
 		for _, i := range group.ActivatedExtList {
 			item := i.CmdMap[cmdArgs.Command]
-			if tryItemSolve(item) {
+			if tryItemSolve(i, item) {
 				return true
 			}
 		}

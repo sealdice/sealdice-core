@@ -362,9 +362,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	myDice = _myDice.Dice[0]
 
 	var prefix string
-	//if dm.JustForTest {
 	prefix = "/sd-api"
-	//}
 
 	e.GET(prefix+"/baseInfo", baseInfo)
 	e.GET(prefix+"/hello", hello2)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"net/http"
+	"sealdice-core/dice"
 	"strconv"
 	"strings"
 )
@@ -29,6 +30,10 @@ type DiceConfigInfo struct {
 	AutoReloginEnable       bool     `json:"autoReloginEnable"`
 	QQChannelAutoOn         bool     `json:"QQChannelAutoOn"`
 	QQChannelLogMessage     bool     `json:"QQChannelLogMessage"`
+
+	HelpMasterInfo     string                        `json:"helpMasterInfo"`                               // help中骰主信息
+	HelpMasterLicense  string                        `json:"helpMasterLicense"`                            // help中使用协议
+	ExtDefaultSettings []*dice.ExtDefaultSettingItem `yaml:"extDefaultSettings" json:"extDefaultSettings"` // 新群扩展按此顺序加载
 }
 
 func DiceConfig(c echo.Context) error {
@@ -64,6 +69,10 @@ func DiceConfig(c echo.Context) error {
 		AutoReloginEnable:       myDice.AutoReloginEnable,
 		QQChannelAutoOn:         myDice.QQChannelAutoOn,
 		QQChannelLogMessage:     myDice.QQChannelLogMessage,
+
+		HelpMasterInfo:     myDice.HelpMasterInfo,
+		HelpMasterLicense:  myDice.HelpMasterLicense,
+		ExtDefaultSettings: myDice.ExtDefaultSettings,
 
 		ServeAddress:      myDice.Parent.ServeAddress,
 		HelpDocEngineType: myDice.Parent.HelpDocEngineType,
@@ -169,6 +178,26 @@ func DiceConfigSet(c echo.Context) error {
 		if val, ok := jsonMap["uiPassword"]; ok {
 			if !dm.JustForTest {
 				myDice.Parent.UIPasswordHash = val.(string)
+			}
+		}
+
+		if val, ok := jsonMap["helpMasterInfo"]; ok {
+			myDice.HelpMasterInfo = strings.TrimSpace(val.(string))
+		}
+
+		if val, ok := jsonMap["helpMasterLicense"]; ok {
+			myDice.HelpMasterLicense = strings.TrimSpace(val.(string))
+		}
+
+		if val, ok := jsonMap["extDefaultSettings"]; ok {
+			data, err := json.Marshal(val)
+			if err == nil {
+				items := []*dice.ExtDefaultSettingItem{}
+				err := json.Unmarshal(data, &items)
+				if err == nil {
+					myDice.ExtDefaultSettings = items
+					myDice.ApplyExtDefaultSettings()
+				}
 			}
 		}
 
