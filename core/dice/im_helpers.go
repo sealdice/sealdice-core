@@ -19,16 +19,20 @@ func IsCurGroupBotOnById(session *IMSession, messageType string, groupId string)
 	return messageType == "group" && session.ServiceAtNew[groupId] != nil && session.ServiceAtNew[groupId].Active
 }
 
+// SetBotOnAtGroup 在群内开启
 func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 	session := ctx.Session
 	group := session.ServiceAtNew[groupId]
 	if group != nil {
 		group.Active = true
 	} else {
+		// 设定扩展情况
 		extLst := []*ExtInfo{}
-		for _, i := range session.Parent.ExtList {
-			if i.AutoActive {
-				extLst = append(extLst, i)
+		for _, i := range session.Parent.ExtDefaultSettings {
+			if i.ExtItem != nil {
+				if i.AutoActive {
+					extLst = append(extLst, i.ExtItem)
+				}
 			}
 		}
 

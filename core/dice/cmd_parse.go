@@ -130,6 +130,13 @@ func CommandCheckPrefix(rawCmd string, prefix []string) bool {
 	var prefixStr string
 	for _, i := range prefix {
 		if strings.HasPrefix(restText, i) {
+			// 忽略两种非常容易误判的情况
+			if i == "。" && strings.HasPrefix(restText, "。。") {
+				continue
+			}
+			if i == "." && strings.HasPrefix(restText, "..") {
+				continue
+			}
 			prefixStr = i
 			break
 		}

@@ -683,6 +683,9 @@ func (d *Dice) loads() {
 			d.FriendAddComment = dNew.FriendAddComment
 			d.AutoReloginEnable = dNew.AutoReloginEnable
 			d.NoticeIds = dNew.NoticeIds
+			d.HelpMasterInfo = dNew.HelpMasterInfo
+			d.HelpMasterLicense = dNew.HelpMasterLicense
+			d.ExtDefaultSettings = dNew.ExtDefaultSettings
 
 			if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
 				d.DiceMasters = []string{}
@@ -853,6 +856,12 @@ func (d *Dice) loads() {
 				d.WorkInQQChannel = true
 			}
 
+			if d.VersionCode != 0 && d.VersionCode < 10000 {
+				d.HelpMasterInfo = HelpMasterInfoDefault
+				d.HelpMasterLicense = HelpMasterLicenseDefault
+				d.ExtDefaultSettings = []*ExtDefaultSettingItem{}
+			}
+
 			d.Logger.Info("serve.yaml loaded")
 			//info, _ := yaml.Marshal(Session.ServiceAt)
 			//replyGroup(ctx, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
@@ -861,8 +870,12 @@ func (d *Dice) loads() {
 			panic(err2)
 		}
 	} else {
+		// 这里是没有加载到配置文件，所以写默认设置项
 		d.AutoReloginEnable = true
 		d.WorkInQQChannel = true
+		d.HelpMasterInfo = HelpMasterInfoDefault
+		d.HelpMasterLicense = HelpMasterLicenseDefault
+		d.ExtDefaultSettings = []*ExtDefaultSettingItem{}
 		d.Logger.Info("serve.yaml not found")
 	}
 
@@ -886,6 +899,9 @@ func (d *Dice) loads() {
 	d.VersionCode = 9914
 	d.LogWriter.LogLimit = d.UILogLimit
 
+	// 设置扩展选项
+	d.ApplyExtDefaultSettings()
+
 	// 读取文本模板
 	setupTextTemplate(d)
 }
@@ -896,6 +912,60 @@ func (d *Dice) SaveText() {
 		fmt.Println(err)
 	} else {
 		ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
+	}
+}
+
+// ApplyExtDefaultSettings 应用扩展默认配置
+func (d *Dice) ApplyExtDefaultSettings() {
+	// 遍历两个列表
+	exts1 := map[string]*ExtDefaultSettingItem{}
+	for _, i := range d.ExtDefaultSettings {
+		exts1[i.Name] = i
+	}
+
+	exts2 := map[string]*ExtInfo{}
+	for _, i := range d.ExtList {
+		exts2[i.Name] = i
+	}
+
+	// 如果存在于扩展列表，但不存在于默认列表中的，那么放入末尾
+	for k, v := range exts2 {
+		if _, exists := exts1[k]; !exists {
+			item := &ExtDefaultSettingItem{Name: k, AutoActive: v.AutoActive, DisabledCommand: map[string]bool{}}
+			d.ExtDefaultSettings = append(d.ExtDefaultSettings, item)
+			exts1[k] = item
+		}
+	}
+
+	// 遍历设置表，将其插入扩展信息
+	for k, v := range exts1 {
+		extInfo, exists := exts2[k]
+		if exists {
+			v.ExtItem = extInfo
+			extInfo.defaultSetting = v
+
+			// 为了避免锁问题，这里做一个新的map
+			m := map[string]bool{}
+
+			// 将改扩展拥有的指令，塞入DisabledCommand
+			names := map[string]bool{}
+			for _, v := range extInfo.CmdMap {
+				names[v.Name] = true
+			}
+			// 去掉无效指令
+			for k, v := range v.DisabledCommand {
+				if names[k] {
+					m[k] = v
+				}
+			}
+			// 塞入之前没有的指令
+			for k, _ := range names {
+				if _, exists := m[k]; !exists {
+					m[k] = false // false 因为默认不禁用
+				}
+			}
+			v.DisabledCommand = m
+		}
 	}
 }
 
