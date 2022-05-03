@@ -12,6 +12,8 @@ declare module 'vue' {
     ElButtonGroup: typeof import('element-plus/es')['ElButtonGroup']
     ElCard: typeof import('element-plus/es')['ElCard']
     ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
+    ElCheckboxButton: typeof import('element-plus/es')['ElCheckboxButton']
+    ElCheckboxGroup: typeof import('element-plus/es')['ElCheckboxGroup']
     ElCol: typeof import('element-plus/es')['ElCol']
     ElCollapse: typeof import('element-plus/es')['ElCollapse']
     ElCollapseItem: typeof import('element-plus/es')['ElCollapseItem']
@@ -44,6 +46,8 @@ declare module 'vue' {
     PageLog: typeof import('./components/PageLog.vue')['default']
     PageMisc: typeof import('./components/PageMisc.vue')['default']
     PageMiscBackup: typeof import('./components/PageMiscBackup.vue')['default']
+    'PageMiscBackup copy': typeof import('./components/PageMiscBackup copy.vue')['default']
+    PageMiscGroup: typeof import('./components/PageMiscGroup.vue')['default']
     PageMiscSettings: typeof import('./components/PageMiscSettings.vue')['default']
     PageTest: typeof import('./components/PageTest.vue')['default']
   }

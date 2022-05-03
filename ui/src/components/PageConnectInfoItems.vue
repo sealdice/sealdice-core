@@ -144,7 +144,7 @@
             <div>如需测试指令，请移步“指令测试”界面。</div>
             <div>此外，数据会定期自动重置。</div>
             <div>展示版本未必是最新版，建议您下载体验。</div>
-            <el-button style="margin-top: 1rem;" @click="location.reload()">再会</el-button>
+            <el-button style="margin-top: 1rem;" @click="formClose">再会</el-button>
           </div>
           <div v-else-if="index === 2 && curConn.adapter?.inPackGoCqHttpQrcodeReady">
             <div>登录需要滑条验证码, 请使用登录此账号的手机QQ扫描二维码以继续登录:</div>
@@ -162,7 +162,7 @@
               </div>
             </div>
           </div>
-          <div v-else-if="index === 2 && (!curConn.adapter?.inPackGoCqHttpRunning && !curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl) && (!isRecentLogin)">
+          <div v-else-if="index === 2 && (curConn.state !== 1 && !curConn.adapter?.inPackGoCqHttpRunning && !curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl) && (!isRecentLogin)">
             <div>
               <div>登录失败!可能是以下原因：</div>
               <ul>
@@ -415,7 +415,7 @@ onBeforeMount(async () => {
           }
         }
 
-        if (i.adapter?.inPackGoCqHttpLoginSuccess) {
+        if (i.state === 1 || i.adapter?.inPackGoCqHttpLoginSuccess) {
           activities.value.push(fullActivities[3])
           await sleep(1000)
           form.step = 3

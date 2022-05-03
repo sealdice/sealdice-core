@@ -100,9 +100,9 @@
             <el-menu-item :index="`7-base`" @click="switchTo('miscSettings', 'base')">
               <span>基本设置</span>
             </el-menu-item>
-            <!-- <el-menu-item :index="`7-group`" @click="switchTo('overview', 'group')">
-              <span>群组信息</span>
-            </el-menu-item>-->
+            <el-menu-item :index="`7-group`" @click="switchTo('miscSettings', 'group')">
+              <span>群组管理</span>
+            </el-menu-item>
             <el-menu-item :index="`7-backup`" @click="switchTo('miscSettings', 'backup')">
               <span>备份</span>
             </el-menu-item>

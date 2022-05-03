@@ -12,7 +12,7 @@ axiosRetry(axios, {
 export function newRequestClient(baseURL: string) {
   const client = axios.create({
     baseURL: baseURL,
-    timeout: 5000,
+    timeout: 35000,
     withCredentials: false,
     headers: {
       Accept: 'application/json',

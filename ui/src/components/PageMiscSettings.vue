@@ -97,6 +97,24 @@
       </template>
     </el-form-item>
 
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>.help 骰主</span>
+        </div>
+      </template>
+      <el-input v-model="config.helpMasterInfo" type="textarea" clearable style="width: auto;" />
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>.help 协议</span>
+        </div>
+      </template>
+      <el-input v-model="config.helpMasterLicense" type="textarea" autosize clearable style="width: auto;" />
+    </el-form-item>
+
     <h2>访问控制</h2>
     <el-form-item label="UI界面地址">
       <template #label>
@@ -237,6 +255,19 @@
       </template>
     </el-form-item>
 
+    <h2>扩展及扩展指令</h2>
+    <div style="padding-left: 1rem;">
+      <div v-for="i in config.extDefaultSettings" style="margin-top: 1rem">
+        <span>扩展: {{ i.name }}</span>
+        <div>
+          禁用指令
+          <el-button style="margin-left: 0;" :type="v ? 'danger' : ''" size="small" v-for="v,k in i.disabledCommand" @click="i.disabledCommand[k]=!v">{{k}}</el-button>
+        </div>
+        <div><el-checkbox v-model="i.autoActive">入群自动开启</el-checkbox></div>
+      </div>
+      <!-- <el-input v-model="config.helpMasterLicense" type="textarea" autosize clearable style="width: auto;" /> -->
+    </div>
+  
     <el-form-item label="" style="margin-top: 3rem;" v-if="modified">
       <el-button type="danger" @click="submitGiveup">放弃改动</el-button>
       <el-button type="success" @click="submit">保存设置</el-button>
@@ -324,6 +355,10 @@ const submit = async () => {
 
   if (mod.noticeIds) {
     mod.noticeIds = cloneDeep(config.value.noticeIds)
+  }
+
+  if (mod.extDefaultSettings) {
+    mod.extDefaultSettings = cloneDeep(config.value.extDefaultSettings)
   }
 
   await store.diceConfigSet(mod)
