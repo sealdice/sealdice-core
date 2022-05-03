@@ -55,31 +55,37 @@ type GroupPlayerInfo struct {
 }
 
 type GroupInfo struct {
-	Active           bool                        `json:"active" yaml:"active"`  // 是否在群内开启
-	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList,flow"` // 当前群开启的扩展列表
-	Players          map[string]*GroupPlayerInfo `yaml:"players"`               // 群员角色数据
-	NotInGroup       bool                        `yaml:"notInGroup"`            // 是否已经离开群
+	Active           bool                        `json:"active" yaml:"active"`           // 是否在群内开启
+	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList,flow" json:"-"` // 当前群开启的扩展列表
+	Players          map[string]*GroupPlayerInfo `yaml:"players" json:"-"`               // 群员角色数据
+	NotInGroup       bool                        `yaml:"notInGroup" json:"notInGroup"`   // 是否已经离开群
 
-	GroupId     string          `yaml:"groupId"`
-	GroupName   string          `yaml:"groupName"`
-	DiceIds     map[string]bool `yaml:"diceIds,flow"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
-	BotList     map[string]bool `yaml:"botList,flow"` // 其他骰子列表
-	DiceSideNum int64           `yaml:"diceSideNum"`
+	GroupId     string          `yaml:"groupId" json:"groupId"`
+	GroupName   string          `yaml:"groupName" json:"groupName"`
+	DiceIds     map[string]bool `yaml:"diceIds,flow" json:"diceIds"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	BotList     map[string]bool `yaml:"botList,flow" json:"botList"` // 其他骰子列表
+	DiceSideNum int64           `yaml:"diceSideNum" json:"diceSideNum"`
 
 	//ValueMap     map[string]*VMValue `yaml:"-"`
-	ValueMap     lockfree.HashMap `yaml:"-"`
-	HelpPackages []string         `yaml:"-"`
-	CocRuleIndex int              `yaml:"cocRuleIndex"`
-	LogCurName   string           `yaml:"logCurFile"`
-	LogOn        bool             `yaml:"logOn"`
+	ValueMap     lockfree.HashMap `yaml:"-" json:"-"`
+	HelpPackages []string         `yaml:"-" json:"helpPackages"`
+	CocRuleIndex int              `yaml:"cocRuleIndex" json:"cocRuleIndex"`
+	LogCurName   string           `yaml:"logCurFile" json:"logCurName"`
+	LogOn        bool             `yaml:"logOn" json:"logOn"`
 
-	QuitMarkAutoClean   bool   `yaml:"-"`                 // 自动清群 - 播报，即将自动退出群组
-	QuitMarkMaster      bool   `yaml:"-"`                 // 骰主命令退群 - 播报，即将自动退出群组
-	RecentCommandTime   int64  `yaml:"recentCommandTime"` // 最近一次发送有效指令的时间
-	ShowGroupWelcome    bool   `yaml:"showGroupWelcome"`  // 是否迎新
-	GroupWelcomeMessage string `yaml:"groupWelcomeMessage"`
+	QuitMarkAutoClean   bool   `yaml:"-" json:"-"`                                 // 自动清群 - 播报，即将自动退出群组
+	QuitMarkMaster      bool   `yaml:"-" json:"-"`                                 // 骰主命令退群 - 播报，即将自动退出群组
+	RecentCommandTime   int64  `yaml:"recentCommandTime" json:"recentCommandTime"` // 最近一次发送有效指令的时间
+	ShowGroupWelcome    bool   `yaml:"showGroupWelcome" json:"showGroupWelcome"`   // 是否迎新
+	GroupWelcomeMessage string `yaml:"groupWelcomeMessage" json:"groupWelcomeMessage"`
 	//FirstSpeechMade     bool   `yaml:"firstSpeechMade"` // 是否做过进群发言
-	LastCustomReplyTime float64 `yaml:"-"` // 上次自定义回复时间
+	LastCustomReplyTime float64 `yaml:"-" json:"-"` // 上次自定义回复时间
+
+	EnteredTime  int64  `yaml:"enteredTime" json:"enteredTime"`   // 入群时间
+	InviteUserId string `yaml:"inviteUserId" json:"inviteUserId"` // 邀请人
+	// 仅用于http接口
+	TmpPlayerNum int64    `yaml:"-" json:"tmpPlayerNum"`
+	TmpExtList   []string `yaml:"-" json:"tmpExtList"`
 }
 
 // ExtActive 开启扩展

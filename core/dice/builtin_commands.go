@@ -315,11 +315,13 @@ func (d *Dice) registerCoreCommands() {
 
 							// 收到指令，5s后将退出当前群组
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
-							_txt := fmt.Sprintf("指令退群: 于群组(%s)中告别，操作者:(%s)", msg.GroupId, msg.Sender.UserId)
+
+							_txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:(%s)", ctx.Group.GroupName, msg.GroupId, msg.Sender.UserId)
 							d.Logger.Info(_txt)
 							ctx.Notice(_txt)
 							ctx.Group.Active = false
 							time.Sleep(6 * time.Second)
+							ctx.Group.NotInGroup = true
 							ctx.EndPoint.Adapter.QuitGroup(ctx, msg.GroupId)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "save") {
