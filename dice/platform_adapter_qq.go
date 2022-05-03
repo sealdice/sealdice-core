@@ -35,7 +35,8 @@ type PlatformAdapterQQOnebot struct {
 	InPackGoCqHttpLastRestrictedTime int64          `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
 	InPackGoCqHttpProtocol           int            `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
 	InPackGoCqHttpPassword           string         `yaml:"inPackGoCqHttpPassword" json:"-"`
-	DiceServing                      bool           `yaml:"-"` // 是否正在连接中
+	DiceServing                      bool           `yaml:"-"`          // 是否正在连接中
+	InPackGoCqHttpDisconnectedCH     chan int       `yaml:"-" json:"-"` // 信号量，用于关闭连接
 }
 
 type Sender struct {
@@ -137,7 +138,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	disconnected := make(chan int, 1)
+	pa.InPackGoCqHttpDisconnectedCH = make(chan int, 1)
 	session := s
 
 	socket := gowebsocket.New(pa.ConnectUrl)
@@ -153,7 +154,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
 		log.Info("Recieved connect error: ", err)
 		fmt.Println("连接失败")
-		disconnected <- 2
+		pa.InPackGoCqHttpDisconnectedCH <- 2
 	}
 
 	// {"channel_id":"3574366","guild_id":"51541481646552899","message":"说句话试试","message_id":"BAC3HLRYvXdDAAAAAAA2il4AAAAAAAAABA==","message_type":"guild","post_type":"mes
@@ -164,7 +165,9 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 	// {"data":{"message_id":-1541043078},"retcode":0,"status":"ok"}
 	var lastWelcome *LastWelcomeInfo
 
+	// 注意这几个不能轻易delete，最好整个替换
 	tempInviteMap := map[string]int64{}
+	tempInviteMap2 := map[string]string{}
 	tempGroupEnterSpeechSent := map[string]int64{} // 记录入群致辞的发送时间 避免短时间重复
 	tempFriendInviteSent := map[string]int64{}     // gocq会重新发送已经发过的邀请
 
@@ -194,7 +197,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			}
 
 			if !ep.Enable {
-				disconnected <- 3
+				pa.InPackGoCqHttpDisconnectedCH <- 3
 			}
 
 			msg := msgQQ.toStdMessage()
@@ -225,7 +228,9 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 								if len(group.DiceIds) == 0 {
 									// 如果该群所有账号都被删除了，那么也删掉整条记录
+									// 这似乎是个危险操作
 									// TODO: 该群下的用户信息实际没有被删除
+									group.NotInGroup = true
 									delete(session.ServiceAtNew, msg.GroupId)
 								}
 							}
@@ -252,6 +257,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				log.Info(txt)
 				ctx.Notice(txt)
 				tempInviteMap[msg.GroupId] = time.Now().Unix()
+				tempInviteMap2[msg.GroupId] = FormatDiceIdQQ(msgQQ.UserId)
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 				pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, true, "")
 				return
@@ -355,7 +361,12 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				tempGroupEnterSpeechSent[msg.GroupId] = nowTime
 
 				// 判断进群的人是自己，自动启动
-				SetBotOnAtGroup(ctx, msg.GroupId)
+				gi := SetBotOnAtGroup(ctx, msg.GroupId)
+				if tempInviteMap2[msg.GroupId] != "" {
+					// 设置邀请人
+					gi.InviteUserId = tempInviteMap2[msg.GroupId]
+				}
+				gi.EnteredTime = nowTime // 设置入群时间
 				// 立即获取群信息
 				pa.GetGroupInfoAsync(msg.GroupId)
 				// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname)
@@ -482,7 +493,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
 		log.Info("onebot 服务的连接被对方关闭 ")
-		disconnected <- 1
+		pa.InPackGoCqHttpDisconnectedCH <- 1
 	}
 
 	socket.Connect()
@@ -505,9 +516,9 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 		select {
 		case <-interrupt:
 			log.Info("interrupt")
-			disconnected <- 0
+			pa.InPackGoCqHttpDisconnectedCH <- 0
 			return 0
-		case val := <-disconnected:
+		case val := <-pa.InPackGoCqHttpDisconnectedCH:
 			return val
 		}
 	}
@@ -516,7 +527,13 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 func (pa *PlatformAdapterQQOnebot) DoRelogin() bool {
 	myDice := pa.Session.Parent
 	ep := pa.EndPoint
+	if pa.Socket != nil {
+		go pa.Socket.Close()
+	}
 	if pa.UseInPackGoCqhttp {
+		if pa.InPackGoCqHttpDisconnectedCH != nil {
+			pa.InPackGoCqHttpDisconnectedCH <- -1
+		}
 		myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserId)
 		go GoCqHttpServeProcessKill(myDice, ep)
 		time.Sleep(5 * time.Second)                 // 上面那个清理有概率卡住，具体不懂，改成等5s
