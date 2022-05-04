@@ -156,6 +156,8 @@ type ReplyConfig struct {
 	Enable   bool         `yaml:"enable" json:"enable"`
 	Interval float64      `yaml:"interval" json:"interval"` // 响应间隔，最少为5
 	Items    []*ReplyItem `yaml:"items" json:"items"`
+	// web专用
+	FileName string `yaml:"-" json:"fileName"`
 }
 
 func (c *ReplyConfig) Save(dice *Dice) {

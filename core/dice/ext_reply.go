@@ -36,7 +36,7 @@ func CustomReplyConfigRead(dice *Dice) *ReplyConfig {
 func RegisterBuiltinExtReply(dice *Dice) {
 	rc := CustomReplyConfigRead(dice)
 	rc.Save(dice)
-	dice.CustomReplyConfig = rc
+	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
 
 	//a := ReplyItem{}
 	//a.Enable = true
@@ -67,60 +67,62 @@ func RegisterBuiltinExtReply(dice *Dice) {
 
 	theExt := &ExtInfo{
 		Name:       "reply", // 扩展的名称，需要用于开启和关闭指令中，写简短点
-		Version:    "1.0.0",
+		Version:    "1.1.0",
 		Brief:      "自定义回复模块，支持各种文本匹配和简易脚本",
 		Author:     "木落",
 		AutoActive: true, // 是否自动开启
 		OnNotCommandReceived: func(ctx *MsgContext, msg *Message) {
 			// 当前，只有非指令才会匹配
-			rc := ctx.Dice.CustomReplyConfig
-			if rc.Enable {
-				log := ctx.Dice.Logger
-				condIndex := -1
-				defer func() {
-					if r := recover(); r != nil {
-						//  + fmt.Sprintf("%s", r)
-						log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
-						if condIndex != -1 {
-							ReplyToSender(ctx, msg, fmt.Sprintf(
-								"自定义回复匹配成功(序号%d)，但回复内容触发异常，请联系骰主修改:\n%s",
-								condIndex, DiceFormatTmpl(ctx, "核心:骰子执行异常")))
+			rcs := ctx.Dice.CustomReplyConfig
+			for _, rc := range rcs {
+				if rc.Enable {
+					log := ctx.Dice.Logger
+					condIndex := -1
+					defer func() {
+						if r := recover(); r != nil {
+							//  + fmt.Sprintf("%s", r)
+							log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
+							if condIndex != -1 {
+								ReplyToSender(ctx, msg, fmt.Sprintf(
+									"自定义回复匹配成功(序号%d)，但回复内容触发异常，请联系骰主修改:\n%s",
+									condIndex, DiceFormatTmpl(ctx, "核心:骰子执行异常")))
+							}
 						}
+					}()
+
+					lastTime := ctx.Group.LastCustomReplyTime
+					now := float64(time.Now().UnixMilli()) / 1000
+					interval := rc.Interval
+					if interval < 3 {
+						interval = 3
 					}
-				}()
 
-				lastTime := ctx.Group.LastCustomReplyTime
-				now := float64(time.Now().UnixMilli()) / 1000
-				interval := rc.Interval
-				if interval < 3 {
-					interval = 3
-				}
+					if now-lastTime < interval {
+						return // 未达到冷却，退出
+					}
+					ctx.Group.LastCustomReplyTime = now
 
-				if now-lastTime < interval {
-					return // 未达到冷却，退出
-				}
-				ctx.Group.LastCustomReplyTime = now
-
-				cleanText, _ := AtParse(msg.Message, "")
-				cleanText = strings.TrimSpace(cleanText)
-				for index, i := range rc.Items {
-					//fmt.Println("???", i.Enable, i)
-					if i.Enable {
-						checkTrue := true
-						for _, i := range i.Conditions {
-							if !i.Check(ctx, msg, nil, cleanText) {
-								checkTrue = false
+					cleanText, _ := AtParse(msg.Message, "")
+					cleanText = strings.TrimSpace(cleanText)
+					for index, i := range rc.Items {
+						//fmt.Println("???", i.Enable, i)
+						if i.Enable {
+							checkTrue := true
+							for _, i := range i.Conditions {
+								if !i.Check(ctx, msg, nil, cleanText) {
+									checkTrue = false
+									break
+								}
+							}
+							condIndex = index
+							if len(i.Conditions) > 0 && checkTrue {
+								SetTempVars(ctx, ctx.Player.Name)
+								VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))
+								for _, j := range i.Results {
+									j.Execute(ctx, msg, nil)
+								}
 								break
 							}
-						}
-						condIndex = index
-						if len(i.Conditions) > 0 && checkTrue {
-							SetTempVars(ctx, ctx.Player.Name)
-							VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))
-							for _, j := range i.Results {
-								j.Execute(ctx, msg, nil)
-							}
-							break
 						}
 					}
 				}

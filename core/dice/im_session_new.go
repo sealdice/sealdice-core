@@ -236,7 +236,11 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 			group = SetBotOnAtGroup(mctx, msg.GroupId)
 			group.Active = autoOn
-			txt := fmt.Sprintf("自动激活: 发现无记录群组(%s)，因为已是群成员，所以自动激活，开启状态: %t", group.GroupId, autoOn)
+
+			dm := d.Parent
+			groupName := dm.TryGetGroupName(group.GroupId)
+
+			txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, group.GroupId, autoOn)
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 			log.Info(txt)
 			mctx.Notice(txt)
@@ -249,7 +253,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				mustLoadUser = true
 			}
 			// 开启reply时，必须加载信息
-			if d.CustomReplyConfig.Enable && group.ExtGetActive("reply") != nil {
+			if d.CustomReplyConfigEnable && group.ExtGetActive("reply") != nil {
 				mustLoadUser = true
 			}
 		}
@@ -494,10 +498,6 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			if ext != nil && ext.defaultSetting.DisabledCommand[item.Name] {
 				ReplyToSender(ctx, msg, fmt.Sprintf("此指令已被骰主禁用: %s:%s", ext.Name, item.Name))
 				return true
-			}
-
-			if ext != nil {
-				ext.defaultSetting.DisabledCommand[item.Name] = true
 			}
 
 			ret := item.Solve(ctx, msg, cmdArgs)
