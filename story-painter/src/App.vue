@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器测试版 V1.05</h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V1.06</h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253</div>
     <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div>
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
@@ -56,9 +56,10 @@
     <div class="pc-list">
       <div v-for="i, index in store.pcList">
         <div style="display: flex; align-items: center; width: 20rem;">
-          <el-button style="padding: 0 1rem " @click="store.pcList.splice(index, 1)">删除</el-button>
+          <el-button style="padding: 0 1rem " @click="store.pcList.splice(index, 1)" :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG">删除</el-button>
 
           <el-input
+            :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG"
             v-model="i.name"
             class="w-50 m-2"
             :prefix-icon="UserFilled"
@@ -114,14 +115,14 @@
     </div>
 
     <div class="preview" ref="previewBBS" id="previewBBS" v-if="isShowPreviewBBS">
-      <el-button id="btnCopyPreviewBBS" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewBBS">一键复制</el-button>
+      <el-button @click="copied" id="btnCopyPreviewBBS" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewBBS">一键复制</el-button>
       <div v-for="i in previewItems">
         <span
           style="color: #aaa"
           class="_time"
           v-if="!store.exportOptions.timeHide"
         >[color=#silver]{{ timeSolve(i) }}[/color]</span>
-        <span :style="{ 'color': i.color }">[color={{i.color}}]
+        <span :style="{ 'color': i.color }">[color={{i.color ? i.color : '#fff'}}]
           <span class="_nickname">{{ nicknameSolve(i, 'bbs') }}</span>
           <span v-html="bbsMessageSolve(i)"></span>
         [/color]</span>
@@ -134,13 +135,13 @@
     </div>
 
     <div class="preview" ref="previewTRG" id="previewTRG" v-if="isShowPreviewTRG">
-      <el-button id="btnCopyPreviewBBS" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewTRG">一键复制</el-button>
+      <el-button @click="copied" id="btnCopyPreviewTRG" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewTRG">一键复制</el-button>
       <div v-for="i in previewItems" :style="i.isDice ? 'margin-top: 16px; margin-bottom: 16px' : ''">
         <span :style="{ 'color': i.color }" v-if="i.isDice"># </span>
         <span :style="{ 'color': i.color }" class="_nickname">{{ nicknameSolve(i, 'trg') }}</span>
         <span :style="{ 'color': i.color }" v-html="trgMessageSolve(i)"></span>
         <div v-if="store.itemById[i.id.toString()]" style="white-space: pre-wrap;">{{ trgCommandSolve(store.itemById[i.id.toString()]) }}</div>
-        <span v-if="isAddVoiceMark && (!i.isDice)"> {*}</span>
+        <span v-if="isAddVoiceMark && (!i.isDice)">{*}</span>
       </div>
     </div>
   </div>
@@ -161,7 +162,7 @@ import { reNameLine, reNameLine2 } from "./utils/highlight";
 import { EditorState, StateEffect } from '@codemirror/state';
 import { debounce, delay } from 'lodash-es'
 import { convertToLogItems, exportFileRaw, exportFileQQ, exportFileIRC, exportFileDocx } from "./utils/exporter";
-import { ElLoading, ElMessageBox, ElNotification } from "element-plus";
+import { ElLoading, ElMessageBox, ElNotification, ElMessage } from "element-plus";
 import { strFromU8, unzlibSync } from 'fflate';
 import uaParser from 'ua-parser-js'
 import { getTextWidth, getCanvasFontSize } from './utils'
@@ -178,11 +179,15 @@ const isShowPreviewTRG = ref(false)
 
 const isAddVoiceMark = ref(true)
 
-const readDiceNum = (expr: string) => {
-  let diceNum = 100 // 如果读不到，当作100处理
+const copied = () => {
+  ElMessage.success('进行了复制！')
+}
+
+const readDiceNum = (expr: string, defaultVal = 100) => {
+  let diceNum = defaultVal // 如果读不到，当作100处理
   const m = /[dD](\d+)/.exec(expr)
   if (m) {
-    let diceNum = parseInt(m[1])
+    diceNum = parseInt(m[1])
   }
   return diceNum
 }
@@ -228,7 +233,42 @@ const trgCommandSolve = (item: LogItem) => {
         }
       }
     }
-    
+    if (ci.rule === 'dnd5e') {
+      switch (ci.cmd) {
+        case 'st': {
+          // {"cmd":"st","items":[{"attr":"hp","isInc":false,"modExpr":"3","type":"mod","valNew":7,"valOld":10}],"pcName":"海岸线","rule":"dnd5e"}
+          let items = []
+          let hasHp = false
+          for (let i of ci.items || []) {
+            if (i.attr == 'hp') {
+              let maxNow = Math.max(i.valOld, i.valNew)
+              items.push(`<hitpoint>:(${ci.pcName},${maxNow},${i.valOld},${i.valNew})`)
+              hasHp = true
+            }
+          }
+          let tip = ''
+          if (hasHp) {
+            let tip = '# 请注意，当前版本需要手动调整下方最大生命值(第二项)\n'
+          }
+          return tip + `${items.join('\n')}`
+          break
+        }
+        case 'rc': {
+          // {"cmd":"rc","items":[{"expr":"D20 + 体质豁免","reason":"体质豁免","result":15}],"pcName":"阿拉密尔•利亚顿","rule":"dnd5e"}
+          let items = []
+
+          let tip = ''
+          for (let i of ci.items) {
+            let diceNum = readDiceNum(i.expr, 20)
+            items.push(`(${ci.pcName}的${i.reason}检定,${diceNum},NA,${Math.max(i.result, 20)})`)
+            tip = '# 请注意，DND的最大面数可能为 D20+各种加值，需要手动二次调整\n'
+          }
+          return tip + `<dice>:${items.join(',')}`
+          break
+        }
+      }
+    }
+
     switch (ci.cmd) {
       case 'roll': {
           // { "cmd": "roll", "items": [ { "dicePoints": 100, "expr": "D100", "result": 30 } ], "pcName": "木落" }
@@ -280,7 +320,7 @@ const bbsMessageSolve = (i: LogItem) => {
   if (i.isDice) {
     msg = nameReplace(msg)
   }
-  return msg.replaceAll('<br />', '\n').replaceAll('\n', '[/color]<br /> ' + (!store.exportOptions.timeHide ? `<span style='color:#aaa'>[color=#silver]${timeSolve(i)}[/color]</span>` : '') + `[color=${i.color}] ` + nicknameSolve(i, 'bbs'))
+  return msg.replaceAll('<br />', '\n').replaceAll('\n', '[/color]<br /> ' + (!store.exportOptions.timeHide ? `<span style='color:#aaa'>[color=#silver]${timeSolve(i)}[/color]</span>` : '') + `[color=${i.color||'#fff'}] ` + nicknameSolve(i, 'bbs'))
 }
 
 const previewClick = (mode: 'preview' | 'bbs' | 'trg') => {
@@ -675,8 +715,27 @@ const onChange = debounce(() => {
   }
 
   let ret = (payloadText as string).matchAll(reNameLine2)
+  const names = new Set();
+  const namesAll = new Set();
+  const namesToDelete = new Set();
+
+  for (let i of store.pcList) {
+    namesAll.add(i.name)
+  }
+
   for (let i of ret) {
     store.tryAddPcList2(i[1])
+    names.add(i[1])
+  }
+
+  for (let i of namesAll) {
+    if (!names.has(i)) {
+      namesToDelete.add(i)
+    }
+  }
+
+  for (let i of namesToDelete) {
+    store.tryRemovePC(i as any)
   }
 }, 500)
 

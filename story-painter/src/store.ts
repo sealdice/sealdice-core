@@ -60,6 +60,16 @@ export const useStore = defineStore('main', {
       })
       return resp.data
     },
+    async tryRemovePC(name: string) {
+      let index = 0
+      for (let i of this.pcList) {
+        if (i.name === name) {
+          this.pcList.splice(index, 1)
+          break
+        }
+        index += 1
+      }
+    },
     async tryAddPcList2(name: string) {
       let isExists = false
       for (let i of this.pcList) {
