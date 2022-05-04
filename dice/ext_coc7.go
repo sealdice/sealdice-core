@@ -643,7 +643,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				case "dg":
 					ctx.Group.CocRuleIndex = 11
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_DeltaGreen"))
-				case "":
+				case "help":
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				default:
 					text := DiceFormatTmpl(ctx, fmt.Sprintf("COC:设置房规_%d", ctx.Group.CocRuleIndex))

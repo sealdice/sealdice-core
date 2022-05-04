@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	"github.com/fy0/lockfree"
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -14,6 +15,11 @@ type VersionInfo struct {
 	VersionLatestDetail     string `yaml:"versionLatestDetail" json:"versionLatestDetail"`
 	VersionLatestCode       int64  `yaml:"versionLatestCode" json:"versionLatestCode"`
 	MinUpdateSupportVersion int64  `yaml:"minUpdateSupportVersion" json:"minUpdateSupportVersion"`
+}
+
+type GroupNameCacheItem struct {
+	Name string
+	time int64
 }
 
 type DiceManager struct {
@@ -46,6 +52,9 @@ type DiceManager struct {
 	RebootRequestChan      chan int
 	UpdateCheckRequestChan chan int
 
+	GroupNameCache lockfree.HashMap // 群名缓存，全局共享, key string value *GroupNameCacheItem
+	UserNameCache  lockfree.HashMap // 用户缓存，全局共享, key string value *GroupNameCacheItem
+
 	Cron        *cron.Cron
 	ServiceName string
 	JustForTest bool
@@ -76,9 +85,12 @@ func (dm *DiceManager) InitHelp() {
 	dm.Help.Load()
 }
 
+// LoadDice 初始化函数
 func (dm *DiceManager) LoadDice() {
 	dm.AppVersionCode = VERSION_CODE
 	dm.AppBootTime = time.Now().Unix()
+	dm.GroupNameCache = lockfree.NewHashMap()
+	dm.UserNameCache = lockfree.NewHashMap()
 
 	os.MkdirAll("./backups", 0755)
 	os.MkdirAll("./data/images", 0755)
@@ -227,4 +239,26 @@ func (dm *DiceManager) LoadNames() {
 	dm.NamesGenerator = &NamesGenerator{}
 	dm.NamesGenerator.Load()
 	dm.IsNamesReloading = false
+}
+
+func (dm *DiceManager) TryGetGroupName(id string) string {
+	item, exists := dm.GroupNameCache.Get(id)
+	if exists {
+		realItem, ok := item.(*GroupNameCacheItem)
+		if ok {
+			return "<" + realItem.Name + ">"
+		}
+	}
+	return "%未知群名%"
+}
+
+func (dm *DiceManager) TryGetUserName(id string) string {
+	item, exists := dm.UserNameCache.Get(id)
+	if exists {
+		realItem, ok := item.(*GroupNameCacheItem)
+		if ok {
+			return "<" + realItem.Name + ">"
+		}
+	}
+	return "%未知用户%"
 }

@@ -26,10 +26,14 @@ type TextTemplateWithWeightDict = map[string]TextTemplateWithWeight
 
 // TextTemplateHelpItem 辅助信息，用于UI中，大部分自动生成
 type TextTemplateHelpItem = struct {
-	Filename []string           `json:"filename"` // 文件名
-	Origin   []TextTemplateItem `json:"origin"`   // 初始文本
-	Vars     []string           `json:"vars"`     // 可用变量
-	Modified bool               `json:"modified"` // 跟初始相比是否有修改
+	Filename        []string           `json:"filename"` // 文件名
+	Origin          []TextTemplateItem `json:"origin"`   // 初始文本
+	Vars            []string           `json:"vars"`     // 可用变量
+	Commands        []string           `json:"commands"` // 所属指令
+	Modified        bool               `json:"modified"` // 跟初始相比是否有修改
+	SubType         string             `json:"subType"`
+	ExtraText       string             `json:"extraText"`       // 额外解说
+	ExampleCommands []string           `json:"exampleCommands"` // 案例命令
 }
 type TextTemplateHelpGroup = map[string]*TextTemplateHelpItem
 type TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
@@ -174,6 +178,8 @@ func setupBaseTextTemplate(d *Dice) {
 			"通用_D100判定_带过程": {
 				{"D100={$tD100}/{$t判定值}{$t计算过程} {$t判定结果}", 1},
 			},
+
+			// -------------------- sc --------------------------
 			"提示_永久疯狂": {
 				{`提示：理智归零，已永久疯狂(可用.ti或.li抽取症状)`, 1},
 			},
@@ -181,7 +187,6 @@ func setupBaseTextTemplate(d *Dice) {
 				{`提示：单次损失理智超过5点，若智力检定(.ra 智力)通过，将进入临时性疯狂(可用.ti或.li抽取症状)`, 1},
 			},
 
-			// -------------------- sc --------------------------
 			"理智检定_单项结果文本": {
 				{`{$t检定表达式文本}={$tD100}/{$t判定值}{$t检定计算过程} {$t判定结果}`, 1},
 			},
@@ -230,7 +235,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`\n注：{$t数量}条属性因<{$t判定值}被隐藏`, 1},
 			},
 			"属性设置": {
-				{`{$t玩家}的属性录入完成，本次录入了{$t有效数量}条数据(共读入{$t数量}条，同义词{$t同义词数量}条)`, 1},
+				{`{$t玩家}的属性录入完成，本次录入了{$t有效数量}条数据`, 1},
 			},
 			"属性设置_保存提醒": {
 				{`角色信息已经变更，别忘了使用.ch save来进行保存！`, 1},
@@ -485,7 +490,425 @@ func setupBaseTextTemplate(d *Dice) {
 		},
 	}
 
-	helpInfo := TextTemplateWithHelpDict{}
+	helpInfo := TextTemplateWithHelpDict{
+		"COC": {
+			"设置房规_0": {
+				SubType: ".setcoc 0",
+			},
+			"设置房规_1": {
+				SubType: ".setcoc 1",
+			},
+			"设置房规_2": {
+				SubType: ".setcoc 2",
+			},
+			"设置房规_3": {
+				SubType: ".setcoc 3",
+			},
+			"设置房规_4": {
+				SubType: ".setcoc 4",
+			},
+			"设置房规_5": {
+				SubType: ".setcoc 5",
+			},
+			"设置房规_DeltaGreen": {
+				SubType: ".setcoc dg",
+			},
+			"设置房规_当前": {
+				SubType: ".setcoc",
+			},
+			"判定_大失败": {
+				SubType: "判定-长文本",
+			},
+			"判定_失败": {
+				SubType: "判定-长文本",
+			},
+			"判定_成功_普通": {
+				SubType: "判定-长文本",
+			},
+			"判定_成功_困难": {
+				SubType: "判定-长文本",
+			},
+			"判定_成功_极难": {
+				SubType: "判定-长文本",
+			},
+			"判定_大成功": {
+				SubType: "判定-长文本",
+			},
+
+			"判定_必须_困难_成功": {
+				SubType: "判定-长文本",
+			},
+			"判定_必须_困难_失败": {
+				SubType: "判定-长文本",
+			},
+			"判定_必须_极难_成功": {
+				SubType: "判定-长文本",
+			},
+			"判定_必须_极难_失败": {
+				SubType: "判定-长文本",
+			},
+			"判定_必须_大成功_成功": {
+				SubType: "判定-长文本",
+			},
+			"判定_必须_大成功_失败": {
+				SubType: "判定-长文本",
+			},
+
+			"判定_简短_大失败": {
+				SubType: "判定-短文本",
+			},
+			"判定_简短_失败": {
+				SubType: "判定-短文本",
+			},
+			"判定_简短_成功_普通": {
+				SubType: "判定-短文本",
+			},
+			"判定_简短_成功_困难": {
+				SubType: "判定-短文本",
+			},
+			"判定_简短_成功_极难": {
+				SubType: "判定-短文本",
+			},
+			"判定_简短_大成功": {
+				SubType: "判定-短文本",
+			},
+
+			"检定_单项结果文本": {
+				SubType: ".ra/rc",
+				Vars:    []string{"$t检定表达式文本", "$tD100", "$t判定值", "$t检定计算过程", "$t判定结果", "$t判定结果_详细", "$t判定结果_简短", "$tSuccessRank"},
+			},
+			"检定": {
+				SubType: ".ra/rc 射击",
+			},
+			"检定_多轮": {
+				SubType: ".ra/rc 3#射击",
+			},
+			"检定_轮数过多警告": {
+				SubType: ".ra/rc 30#",
+			},
+
+			"检定_暗中_私聊_前缀": {
+				SubType: ".rah/rch",
+			},
+			"检定_暗中_群内": {
+				SubType: ".rah/rch",
+			},
+			"检定_格式错误": {
+				SubType: ".ra/rc",
+			},
+			"通用_D100判定": {
+				SubType: ".ra/rc",
+			},
+			"通用_D100判定_带过程": {
+				SubType: ".ra/rc",
+			},
+
+			// -------------------- sc --------------------------
+			"提示_永久疯狂": {
+				SubType: ".sc 100/200",
+			},
+			"提示_临时疯狂": {
+				SubType: ".sc 5/5",
+			},
+
+			"理智检定_单项结果文本": {
+				SubType: "sc",
+				Vars:    []string{"$t检定表达式文本", "$tD100", "$t判定值", "$t检定计算过程", "$t判定结果", "$t判定结果_详细", "$t判定结果_简短", "$tSuccessRank"},
+			},
+			"理智检定": {
+				SubType: ".sc",
+			},
+
+			"理智检定_附加语_成功": {
+				SubType: ".sc",
+			},
+			"理智检定_附加语_失败": {
+				SubType: ".sc",
+			},
+			"理智检定_附加语_大成功": {
+				SubType: ".sc",
+			},
+			"理智检定_附加语_大失败": {
+				SubType: ".sc",
+			},
+			"理智检定_格式错误": {
+				SubType: ".sc ???",
+			},
+			// -------------------- sc end --------------------------
+
+			// -------------------- st --------------------------
+			"属性设置_删除": {
+				SubType: ".st rm A B C",
+			},
+			"属性设置_清除": {
+				SubType: ".st clr",
+			},
+			"属性设置_增减": {
+				SubType: ".st hp+1",
+			},
+			"属性设置_增减_错误的值": {
+				SubType: ".st hp+?",
+			},
+			"属性设置_列出": {
+				SubType: ".st show",
+			},
+			"属性设置_列出_未发现记录": {
+				SubType: ".st show",
+			},
+			"属性设置_列出_隐藏提示": {
+				SubType: ".st show 30",
+			},
+			"属性设置": {
+				SubType:         ".st 力量70",
+				Vars:            []string{"$t玩家", "$t有效数量", "$t数量", "$t同义词数量"},
+				ExampleCommands: []string{".st 力量70"},
+			},
+			"属性设置_保存提醒": {
+				SubType:         ".st hp+1",
+				ExampleCommands: []string{".st hp70", ".st hp+1"},
+			},
+			// -------------------- st end --------------------------
+
+			// -------------------- en --------------------------
+			"技能成长_导入语": {
+				SubType: ".en",
+			},
+			"技能成长_错误的属性类型": {
+				SubType: ".en $t玩家",
+			},
+			"技能成长_错误的失败成长值": {
+				SubType: ".en 斗殴 +?/1",
+			},
+			"技能成长_错误的成功成长值": {
+				SubType: ".en 斗殴 +?",
+			},
+			"技能成长_属性未录入": {
+				SubType: ".en 斗殴",
+			},
+			"技能成长_结果_成功": {
+				SubType: ".en 斗殴",
+			},
+			"技能成长_结果_失败": {
+				SubType: ".en 斗殴",
+			},
+			"技能成长_结果_失败变更": {
+				SubType: ".en 斗殴 +1/1d4",
+			},
+			"技能成长": {
+				SubType: ".en",
+			},
+			// -------------------- en end --------------------------
+		},
+		"娱乐": {
+			"今日人品": {
+				Vars:     []string{"$t玩家", "$t人品"},
+				Commands: []string{"jrrp"},
+				SubType:  ".jrrp",
+			},
+			"鸽子理由": {
+				SubType: ".gugu",
+			},
+		},
+		"DND": {
+			"属性设置_删除": {
+				SubType: ".st rm",
+			},
+			"属性设置_清除": {
+				SubType: ".st clr",
+			},
+			"属性设置_列出": {
+				SubType: ".st show",
+			},
+			"属性设置_列出_未发现记录": {
+				SubType: ".st show",
+			},
+			"属性设置_列出_隐藏提示": {
+				SubType: ".st show 10",
+			},
+			"BUFF设置_删除": {
+				SubType: ".buff rm",
+			},
+			"BUFF设置_清除": {
+				SubType: ".buff clr",
+			},
+			"先攻_查看_前缀": {
+				SubType: ".init",
+			},
+			"先攻_移除_前缀": {
+				SubType: ".init rm",
+			},
+			"先攻_清除列表": {
+				SubType: ".init clr",
+			},
+			"先攻_设置_指定单位": {
+				SubType: ".init set",
+			},
+			"先攻_设置_前缀": {
+				SubType: ".ri",
+			},
+			"先攻_设置_格式错误": {
+				SubType: ".ri",
+			},
+			"死亡豁免_D20_附加语": {
+				SubType: ".ds/死亡豁免",
+			},
+			"死亡豁免_D1_附加语": {
+				SubType: ".ds/死亡豁免",
+			},
+			"死亡豁免_成功_附加语": {
+				SubType: ".ds/死亡豁免",
+			},
+			"死亡豁免_失败_附加语": {
+				SubType: ".ds/死亡豁免",
+			},
+			"死亡豁免_结局_伤势稳定": {
+				SubType: ".ds/死亡豁免",
+			},
+			"死亡豁免_结局_角色死亡": {
+				SubType: ".ds/死亡豁免",
+			},
+		},
+		"核心": {
+			"骰子名字": {
+				SubType: "通用",
+			},
+			"骰子帮助文本_附加说明": {
+				SubType: "help",
+			},
+			"骰子执行异常": {
+				SubType: "通用",
+			},
+			"骰子开启": {
+				SubType: ".bot on",
+			},
+			"骰子关闭": {
+				SubType: ".bot off",
+			},
+			"骰子进群": {
+				SubType: "通用",
+			},
+			//"骰子群内迎新": {
+			//	{`欢迎，{$新人昵称}，祝你在这里过得愉快`, 1},
+			//},
+			"骰子成为好友": {
+				SubType: "通用",
+			},
+			"骰子退群预告": {
+				SubType: ".bot bye",
+			},
+			"骰子保存设置": {
+				SubType: ".bot save",
+			},
+			//"roll前缀":{
+			//	"为了{$t原因}", 1},
+			//},
+			//"roll": {
+			//	"{$t原因}{$t玩家} 掷出了 {$t骰点参数}{$t计算过程}={$t结果}${tASM}", 1},
+			//},
+			// -------------------- roll --------------------------
+			"骰点_原因": {
+				SubType: ".r 去睡觉",
+			},
+			"骰点_单项结果文本": {
+				SubType: ".r",
+			},
+			"骰点": {
+				SubType: ".r",
+			},
+			"骰点_多轮": {
+				SubType: ".r 3#",
+			},
+			"骰点_轮数过多警告": {
+				SubType: ".r 30#",
+			},
+			// -------------------- roll end --------------------------
+			"暗骰_群内": {
+				SubType: ".rh",
+			},
+			"暗骰_私聊_前缀": {
+				SubType: ".rh",
+			},
+			"昵称_重置": {
+				SubType: ".nn",
+			},
+			"昵称_改名": {
+				SubType: ".nn 新名字",
+			},
+			"设定默认骰子面数": {
+				SubType: ".set 30 --my",
+			},
+			"设定默认群组骰子面数": {
+				SubType: ".set 100",
+			},
+			"设定默认骰子面数_错误": {
+				SubType: ".set ???",
+			},
+			"设定默认骰子面数_重置": {
+				SubType: ".set clr",
+			},
+			// -------------------- ch --------------------------
+			"角色管理_加载成功": {
+				SubType: ".ch load",
+			},
+			"角色管理_角色不存在": {
+				SubType: ".ch load",
+			},
+			"角色管理_序列化失败": {
+				SubType: ".ch load/save",
+			},
+			"角色管理_储存成功": {
+				SubType: ".ch save",
+			},
+			"角色管理_删除成功": {
+				SubType: ".ch rm",
+			},
+			"角色管理_删除成功_当前卡": {
+				SubType: ".ch rm",
+			},
+			// -------------------- pc end --------------------------
+			"提示_私聊不可用": {
+				SubType: "通用",
+			},
+		},
+		"牌堆": {
+			"抽牌_列表_没有牌组": {
+				SubType: ".draw keys",
+			},
+			"抽牌_找不到牌组": {
+				SubType: ".draw 不存在的某个牌组",
+			},
+		},
+		"日志": {
+			"记录_新建": {
+				SubType: ".log new 故事",
+			},
+			"记录_开启_成功": {
+				SubType: ".log on 故事",
+			},
+			"记录_开启_失败_无此记录": {
+				SubType: ".log on 记录名",
+			},
+			"记录_开启_失败_尚未新建": {
+				SubType:   ".log on",
+				ExtraText: "当 log new 之后，会有一个默认的记录名。此时可以直接log on和log off而不加参数。\n一旦log end之后，默认记录名没有了，就会出这个提示。",
+			},
+			"记录_关闭_成功": {
+				SubType: ".log off",
+			},
+			"记录_关闭_失败": {
+				SubType: ".log off",
+			},
+			"记录_列出_导入语": {
+				SubType: ".log list",
+			},
+			"记录_结束": {
+				SubType: ".log end",
+			},
+			"记录_新建_失败_未结束的记录": {
+				SubType: ".log new",
+			},
+		},
+	}
 	d.TextMapRaw = texts
 	d.TextMapHelpInfo = helpInfo
 
@@ -522,23 +945,28 @@ func SetupTextHelpInfo(d *Dice, helpInfo TextTemplateWithHelpDict, texts TextTem
 				helpInfoItem.Filename = []string{fn}
 				v1[keyName] = helpInfoItem
 
-				vars := []string{}
-				existsMap := map[string]bool{}
-				for _, i := range v2 {
-					re := regexp.MustCompile(`{(\S+?)}`)
-					m := re.FindAllStringSubmatch(i[0].(string), -1)
-					for _, j := range m {
-						if !existsMap[j[1]] {
-							existsMap[j[1]] = true
-							vars = append(vars, j[1])
-						}
-					}
-				}
-				helpInfoItem.Vars = vars
+				//vars := []string{}
+				//existsMap := map[string]bool{}
+				//for _, i := range v2 {
+				//	re := regexp.MustCompile(`{(\S+?)}`)
+				//	m := re.FindAllStringSubmatch(i[0].(string), -1)
+				//	for _, j := range m {
+				//		if !existsMap[j[1]] {
+				//			existsMap[j[1]] = true
+				//			vars = append(vars, j[1])
+				//		}
+				//	}
+				//}
+				//helpInfoItem.Vars = vars
 			} else {
 				//d.Logger.Debugf("词条覆盖: %s, %s", keyName, fn)
 				// 如果和最初有变化，标记为修改
 				var modified bool
+
+				if len(helpInfoItem.Origin) == 0 {
+					// 判断为初次
+					helpInfoItem.Origin = append([]TextTemplateItem{}, v2...)
+				}
 
 				if len(v2) != len(helpInfoItem.Origin) {
 					modified = true
@@ -568,6 +996,22 @@ func SetupTextHelpInfo(d *Dice, helpInfo TextTemplateWithHelpDict, texts TextTem
 				if !filenameExists {
 					helpInfoItem.Filename = append(helpInfoItem.Filename, fn)
 				}
+			}
+
+			if len(helpInfoItem.Vars) == 0 {
+				vars := []string{}
+				existsMap := map[string]bool{}
+				for _, i := range v2 {
+					re := regexp.MustCompile(`{(\S+?)}`)
+					m := re.FindAllStringSubmatch(i[0].(string), -1)
+					for _, j := range m {
+						if !existsMap[j[1]] {
+							existsMap[j[1]] = true
+							vars = append(vars, j[1])
+						}
+					}
+				}
+				helpInfoItem.Vars = vars
 			}
 		}
 	}
@@ -686,6 +1130,7 @@ func (d *Dice) loads() {
 			d.HelpMasterInfo = dNew.HelpMasterInfo
 			d.HelpMasterLicense = dNew.HelpMasterLicense
 			d.ExtDefaultSettings = dNew.ExtDefaultSettings
+			d.CustomReplyConfigEnable = dNew.CustomReplyConfigEnable
 
 			if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
 				d.DiceMasters = []string{}
@@ -833,22 +1278,6 @@ func (d *Dice) loads() {
 					ei = d.ExtFind("coc7")
 					g.ExtActive(ei)
 				}
-
-				// 个人群组数据
-				//for _, p := range g.Players {
-				//	if p.ValueMap == nil {
-				//		p.ValueMap = map[string]*VMValue{}
-				//	}
-				//	if p.ValueMapTemp == nil {
-				//		p.ValueMapTemp = map[string]*VMValue{}
-				//	}
-				//
-				//	data := model.AttrGroupUserGetAll(d.DB, g.GroupId, p.UserId)
-				//	err := JsonValueMapUnmarshal(data, &p.ValueMap)
-				//	if err != nil {
-				//		d.Logger.Error(err)
-				//	}
-				//}
 			}
 
 			if d.VersionCode != 0 && d.VersionCode < 9914 {
@@ -859,7 +1288,17 @@ func (d *Dice) loads() {
 			if d.VersionCode != 0 && d.VersionCode < 10000 {
 				d.HelpMasterInfo = HelpMasterInfoDefault
 				d.HelpMasterLicense = HelpMasterLicenseDefault
-				d.ExtDefaultSettings = []*ExtDefaultSettingItem{}
+				d.CustomReplyConfigEnable = true
+			}
+
+			// 设置全局群名缓存和用户名缓存
+			dm := d.Parent
+			now := time.Now().Unix()
+			for k, v := range d.ImSession.ServiceAtNew {
+				dm.GroupNameCache.Set(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
+				for k2, v2 := range v.Players {
+					dm.UserNameCache.Set(k2, &GroupNameCacheItem{Name: v2.Name, time: now})
+				}
 			}
 
 			d.Logger.Info("serve.yaml loaded")
@@ -875,7 +1314,6 @@ func (d *Dice) loads() {
 		d.WorkInQQChannel = true
 		d.HelpMasterInfo = HelpMasterInfoDefault
 		d.HelpMasterLicense = HelpMasterLicenseDefault
-		d.ExtDefaultSettings = []*ExtDefaultSettingItem{}
 		d.Logger.Info("serve.yaml not found")
 	}
 
@@ -967,6 +1405,9 @@ func (d *Dice) ApplyExtDefaultSettings() {
 			v.DisabledCommand = m
 		}
 	}
+
+	a, _ := json.Marshal(d.ExtDefaultSettings)
+	fmt.Println("!!!!", string(a))
 }
 
 func (d *Dice) Save(isAuto bool) {

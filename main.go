@@ -128,18 +128,24 @@ func main() {
 		return
 	}
 
+	updateFileName := "./auto_update.exe"
 	_, err1 := os.Stat("./auto_update.exe")
+	if err1 != nil {
+		_, err1 = os.Stat("./auto_updat3.exe")
+		updateFileName = "./auto_updat3.exe"
+	}
 	if err1 == nil {
 		_, err = os.Stat("./auto_update_ok")
 		if err == nil {
 			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
 			os.Remove("./auto_update_ok")
 			os.Remove("./auto_update.exe")
+			os.Remove("./auto_updat3.exe")
 			os.RemoveAll("./update")
 		} else {
 			logger.Warn("检测到 auto_update.exe，即将进行升级")
 			// 这5s延迟是保险，其实并不必要
-			name := "./auto_update.exe"
+			name := updateFileName
 			err := exec.Command(name, "--delay=5", "--do-update-win").Start()
 			if err != nil {
 				logger.Warn("升级发生错误: ", err.Error())
