@@ -2,6 +2,7 @@ package dice
 
 import (
 	"errors"
+	"fmt"
 	"github.com/fy0/lockfree"
 	"net/url"
 	"os"
@@ -263,4 +264,12 @@ func DiceFormat(ctx *MsgContext, s string) string {
 	}
 
 	return convert(r)
+}
+
+func FormatDiceId(ctx *MsgContext, Id interface{}, isGroup bool) string {
+	prefix := ctx.EndPoint.Platform
+	if isGroup {
+		prefix += "-Group"
+	}
+	return fmt.Sprintf("%s:%v", prefix, Id)
 }

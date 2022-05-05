@@ -305,6 +305,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		var cmdLst []string
 		if maybeCommand {
+			if mctx.Group != nil {
+				if msg.Sender.UserId == mctx.Group.InviteUserId {
+					mctx.PrivilegeLevel = 40 // 邀请者
+				}
+			}
+
 			if msg.Sender.GroupRole == "admin" {
 				mctx.PrivilegeLevel = 50 // 群管理
 			}
@@ -312,6 +318,17 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				mctx.PrivilegeLevel = 60 // 群主
 			}
 
+			// 加入黑名单相关权限
+			if _val, exists := d.BanList.Map.Get(mctx.Player.UserId); exists {
+				val, ok := _val.(*BanListInfoItem)
+				if ok {
+					if val.Rank == BanRankBanned {
+						mctx.PrivilegeLevel = -30
+					}
+				}
+			}
+
+			// master 权限大于黑名单权限
 			if d.MasterCheck(mctx.Player.UserId) {
 				mctx.PrivilegeLevel = 100
 			}
@@ -409,6 +426,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					return
 				}
 
+				if mctx.PrivilegeLevel == -30 {
+					// 黑名单用户
+					log.Infof("忽略黑名单用户指令: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+					return
+				}
+
 				if cmdArgs.Command != "botlist" && !cmdArgs.AmIBeMentioned {
 					myuid := ep.UserId
 					// 屏蔽机器人发送的消息
@@ -471,6 +494,11 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				go f()
 			}
 		} else {
+			if mctx.PrivilegeLevel == -30 {
+				// 黑名单用户
+				return
+			}
+
 			// 试图匹配自定义回复
 			if mctx.Group != nil && (mctx.Group.Active || amIBeMentioned) {
 				for _, i := range mctx.Group.ActivatedExtList {

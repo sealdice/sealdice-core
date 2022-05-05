@@ -14,6 +14,122 @@ import (
 
 /** 这几条指令不能移除 */
 func (d *Dice) registerCoreCommands() {
+	HelpForBlack := ".ban add user <帐号> (<原因>) //添加个人\n" +
+		".ban add group <群号> (<原因>) //添加群组\n" +
+		".ban add <统一ID>\n" +
+		".ban rm user <帐号> //解黑/移出信任\n" +
+		".ban rm group <群号>\n" +
+		".ban rm <统一ID> //同上\n" +
+		".ban list // 展示列表\n" +
+		".ban list ban/warn/trust //只显示被禁用/被警告/信任用户\n" +
+		".ban trust <统一ID> //添加信任\n" +
+		".ban help //查看帮助\n" +
+		"// 统一ID示例: QQ:12345、QQ-Group:12345"
+	cmdBlack := &CmdItemInfo{
+		Name: "ban",
+		Help: HelpForBlack,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
+			if AtSomebodyButNotMe {
+				return CmdExecuteResult{Matched: false, Solved: false}
+			}
+
+			cmdArgs.ChopPrefixToArgsWith("add", "rm", "del", "list", "show", "find", "trust")
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if ctx.PrivilegeLevel < 100 {
+					ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				val, _ := cmdArgs.GetArgN(1)
+				getId := func() string {
+					if cmdArgs.IsArgEqual(2, "user") {
+						val, exists := cmdArgs.GetArgN(3)
+						if !exists {
+							return ""
+						}
+						return FormatDiceId(ctx, val, false)
+					} else if cmdArgs.IsArgEqual(2, "group") {
+						val, exists := cmdArgs.GetArgN(3)
+						if !exists {
+							return ""
+						}
+						return FormatDiceId(ctx, val, true)
+					}
+					ret, _ := cmdArgs.GetArgN(2)
+					if !strings.Contains(ret, ":") {
+						// 如果不是这种格式，那么放弃
+						ret = ""
+					}
+					return ret
+				}
+
+				switch strings.ToLower(val) {
+				case "add":
+					uid := getId()
+					if uid == "" {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					}
+					reason, _ := cmdArgs.GetArgN(4)
+					if reason == "" {
+						reason = "骰主指令"
+					}
+					d.BanList.AddScoreBase(uid, d.BanList.ThresholdBan, "骰主指令", reason, ctx)
+					ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入黑名单，原因: %s", uid, reason))
+				case "rm", "del":
+					uid := getId()
+					if uid == "" {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					}
+					item := d.BanList.GetById(uid)
+					if item.Rank == BanRankBanned || item.Rank == BanRankTrusted || item.Rank == BanRankWarn {
+						ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 移出%s列表", uid, BanRankText[item.Rank]))
+						item.Score = 0
+						item.Rank = BanRankNormal
+					} else {
+						ReplyToSender(ctx, msg, fmt.Sprintf("找不到用户/群组"))
+					}
+				case "trust":
+					uid, _ := cmdArgs.GetArgN(2)
+					if !strings.Contains(uid, ":") {
+						// 如果不是这种格式，那么放弃
+						uid = ""
+					}
+					if uid == "" {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					}
+
+					d.BanList.SetTrustById(uid)
+					ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入信任列表", uid))
+				case "list", "show":
+					text := ""
+					_ = d.BanList.Map.Iterate(func(_k interface{}, _v interface{}) error {
+						v, ok := _v.(*BanListInfoItem)
+						if ok {
+							if v.Rank != BanRankNormal {
+								text += v.toText(d) + "\n"
+							}
+						}
+						return nil
+					})
+					if text == "" {
+						text = "当前名单:\n<无内容>"
+					} else {
+						text = "当前名单:\n" + text
+					}
+					ReplyToSender(ctx, msg, text)
+					break
+				default:
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+	d.CmdMap["black"] = cmdBlack
+	d.CmdMap["ban"] = cmdBlack
+
 	HelpForFind := ".find <关键字> // 查找文档。关键字可以多个，用空格分割\n" +
 		".find <数字ID> // 显示该ID的词条\n" +
 		".find --rand // 显示随机词条"
@@ -376,6 +492,8 @@ func (d *Dice) registerCoreCommands() {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
+			cmdArgs.ChopPrefixToArgsWith("add", "rm", "del", "show", "list")
+
 			if ctx.IsCurGroupBotOn {
 				subCmd, _ := cmdArgs.GetArgN(1)
 				switch subCmd {
@@ -408,7 +526,7 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, fmt.Sprintf("删除标记了%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount))
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
-				case "list":
+				case "list", "show":
 					if cmdArgs.SomeoneBeMentionedButNotMe {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
