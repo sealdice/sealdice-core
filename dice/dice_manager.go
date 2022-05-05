@@ -55,9 +55,10 @@ type DiceManager struct {
 	GroupNameCache lockfree.HashMap // 群名缓存，全局共享, key string value *GroupNameCacheItem
 	UserNameCache  lockfree.HashMap // 用户缓存，全局共享, key string value *GroupNameCacheItem
 
-	Cron        *cron.Cron
-	ServiceName string
-	JustForTest bool
+	Cron          *cron.Cron
+	ServiceName   string
+	JustForTest   bool
+	backupEntryId cron.EntryID
 }
 
 type DiceConfigs struct {
@@ -97,6 +98,9 @@ func (dm *DiceManager) LoadDice() {
 	os.MkdirAll("./data/decks", 0755)
 	os.MkdirAll("./data/names", 0755)
 	ioutil.WriteFile("./data/images/sealdice.png", ICON_PNG, 0644)
+
+	dm.Cron = cron.New()
+	dm.Cron.Start()
 
 	dm.AccessTokens = map[string]bool{}
 	if dm.UIPasswordSalt == "" {
@@ -203,19 +207,24 @@ func (dm *DiceManager) InitDice() {
 }
 
 func (dm *DiceManager) ResetAutoBackup() {
-	if dm.Cron != nil {
-		dm.Cron.Stop()
-		dm.Cron = nil
+	if dm.backupEntryId != 0 {
+		dm.Cron.Remove(dm.backupEntryId)
+		dm.backupEntryId = 0
 	}
-	dm.Cron = cron.New()
-	dm.Cron.Start()
 	if dm.AutoBackupEnable {
-		dm.Cron.AddFunc(dm.AutoBackupTime, func() {
+		var err error
+		dm.backupEntryId, err = dm.Cron.AddFunc(dm.AutoBackupTime, func() {
 			err := dm.BackupAuto()
 			if err != nil {
 				fmt.Println("自动备份失败: ", err.Error())
 			}
 		})
+		if err != nil {
+			if len(dm.Dice) > 0 {
+				dm.Dice[0].Logger.Errorf("设定的自动备份间隔有误: %v", err.Error())
+			}
+			return
+		}
 	}
 }
 

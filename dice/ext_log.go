@@ -539,6 +539,10 @@ func LogGetList(ctx *MsgContext, group *GroupInfo) ([]string, error) {
 		}
 
 		return b1.ForEach(func(k, v []byte) error {
+			if strings.HasSuffix(string(k), "-delMark") {
+				// 跳过撤回记录
+				return nil
+			}
 			ret = append(ret, string(k))
 			return nil
 		})

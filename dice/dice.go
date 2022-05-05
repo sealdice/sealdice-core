@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -115,6 +116,8 @@ type Dice struct {
 
 	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
 
+	BanList *BanListInfo `yaml:"banList"`
+
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	//InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
 	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
@@ -137,6 +140,8 @@ func (d *Dice) Init() {
 	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
 	d.Logger = log.Logger
 	d.LogWriter = log.WX
+	d.BanList = &BanListInfo{Parent: d}
+	d.BanList.Init()
 
 	d.CommandCompatibleMode = true
 	d.ImSession = &IMSession{}
@@ -147,6 +152,7 @@ func (d *Dice) Init() {
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
 	d.loads()
+	d.BanList.AfterLoads()
 
 	for _, i := range d.ExtList {
 		if i.OnLoad != nil {
@@ -265,7 +271,7 @@ func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) 
 		return val.Value.(string), detail, err
 	}
 
-	return "", "", errors.New("错误的表达式")
+	return "格式化错误:" + strconv.Quote(buffer), "", errors.New("错误的表达式")
 }
 
 func (d *Dice) ExtFind(s string) *ExtInfo {
