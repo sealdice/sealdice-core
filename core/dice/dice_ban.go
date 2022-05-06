@@ -26,6 +26,7 @@ type BanListInfoItem struct {
 	Times   []int64     `json:"times"`   // 事发时间
 	Reasons []string    `json:"reasons"` // 拉黑原因
 	Places  []string    `json:"places"`  // 发生地点
+	BanTime int64       `json:"banTime"` // 上黑名单时间
 }
 
 var BanRankText = map[BanRankType]string{
@@ -95,7 +96,7 @@ func (i *BanListInfo) AfterLoads() {
 			v, ok := _v.(*BanListInfoItem)
 			if ok {
 				if v.Rank == BanRankNormal || v.Rank == BanRankWarn {
-					v.Score -= 1
+					v.Score -= i.ScoreReducePerMinute
 					if v.Score <= 0 {
 						// 小于0之后就移除掉
 						toDelete = append(toDelete, _k)
@@ -146,6 +147,7 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 		}
 		if v.Score >= i.ThresholdBan {
 			v.Rank = BanRankBanned
+			v.BanTime = time.Now().Unix()
 		}
 	}
 
@@ -198,6 +200,7 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 		if oldRank != curRank && (curRank == BanRankWarn || curRank == BanRankBanned) {
 			txt := fmt.Sprintf("黑名单等级提升: %v", item.toText(i.Parent))
 			log.Info(txt)
+
 			if ctx != nil {
 				// 做出通知
 				ctx.Notice(txt)
@@ -213,8 +216,18 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 				time.Sleep(1 * time.Second)
 				group := i.Parent.ImSession.ServiceAtNew[place]
 				if group != nil && group.InviteUserId != "" {
-					text := fmt.Sprintf("提醒: 你邀请的骰子在群组<%s>(%s)中遭遇黑名单事件:\n %v", group.GroupName, group.GroupId, txt)
+					text := fmt.Sprintf("提醒: 你邀请的骰子在群组<%s>(%s)中遭遇黑名单事件:\n%v", group.GroupName, group.GroupId, txt)
 					ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserId: group.InviteUserId}}, text, "")
+				}
+			}
+
+			if curRank == BanRankBanned {
+				if i.BanBehaviorQuitLastPlace {
+					if ctx != nil {
+						ReplyGroupRaw(ctx, &Message{GroupId: place}, "因拉黑惩罚选项中有“退出事发群”，即将自动退群。", "")
+						time.Sleep(1 * time.Second)
+						ctx.EndPoint.Adapter.QuitGroup(ctx, place)
+					}
 				}
 			}
 		}
@@ -228,6 +241,20 @@ func (i *BanListInfo) AddScoreByGroupMuted(uid string, place string, ctx *MsgCon
 
 	i.AddScoreBase(uid, i.ScoreGroupMuted, place, "禁言骰子", ctx)
 	inviterId, inviterRank := i.addJointScore(uid, place, "连带责任:禁言骰子", ctx)
+
+	i.NoticeCheck(uid, place, rank, ctx)
+	if inviterId != "" && inviterId != uid {
+		// 如果连带责任人与操作者不是同一人，进行单独计算
+		i.NoticeCheck(inviterId, place, inviterRank, ctx)
+	}
+}
+
+// AddScoreByGroupKicked 群组踢出
+func (i *BanListInfo) AddScoreByGroupKicked(uid string, place string, ctx *MsgContext) {
+	rank := i.NoticeCheckPrepare(uid)
+
+	i.AddScoreBase(uid, i.ScoreGroupKicked, place, "踢出骰子", ctx)
+	inviterId, inviterRank := i.addJointScore(uid, place, "连带责任:踢出骰子", ctx)
 
 	i.NoticeCheck(uid, place, rank, ctx)
 	if inviterId != "" && inviterId != uid {

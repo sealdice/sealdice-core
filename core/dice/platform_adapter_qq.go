@@ -249,6 +249,38 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 							// 更新群名
 							group.GroupName = msgQQ.Data.GroupName
 						}
+
+						// 处理被强制拉群的情况
+						uid := group.InviteUserId
+						banInfo := ctx.Dice.BanList.GetById(uid)
+						if banInfo != nil {
+							if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
+								// 如果是被ban之后拉群，判定为强制拉群
+								if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
+									text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", group.InviteUserId)
+									ReplyGroupRaw(ctx, &Message{GroupId: groupId}, text, "")
+									time.Sleep(1 * time.Second)
+									pa.QuitGroup(ctx, groupId)
+								}
+								return
+							}
+						}
+
+						// 强制拉群情况2
+						banInfo = ctx.Dice.BanList.GetById(groupId)
+						if banInfo != nil {
+							if banInfo.Rank == BanRankBanned {
+								// 如果是被ban之后拉群，判定为强制拉群
+								if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
+									text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
+									ReplyGroupRaw(ctx, &Message{GroupId: groupId}, text, "")
+									time.Sleep(1 * time.Second)
+									pa.QuitGroup(ctx, groupId)
+								}
+								return
+							}
+						}
+
 					} else {
 						// TODO: 这玩意的创建是个专业活，等下来弄
 						//session.ServiceAtNew[groupId] = GroupInfo{}
@@ -266,13 +298,33 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				pa.GetGroupInfoAsync(msg.GroupId)
 				time.Sleep(time.Duration((1.8 + rand.Float64()) * float64(time.Second))) // 稍作等待，也许能拿到群名
 
+				uid := FormatDiceIdQQ(msgQQ.UserId)
 				groupName := dm.TryGetGroupName(msg.GroupId)
-				userName := dm.TryGetUserName(FormatDiceIdQQ(msgQQ.UserId))
+				userName := dm.TryGetUserName(uid)
 				txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%d) 邀请人:<%s>(%d)", groupName, msgQQ.GroupId, userName, msgQQ.UserId)
 				log.Info(txt)
 				ctx.Notice(txt)
 				tempInviteMap[msg.GroupId] = time.Now().Unix()
-				tempInviteMap2[msg.GroupId] = FormatDiceIdQQ(msgQQ.UserId)
+				tempInviteMap2[msg.GroupId] = uid
+
+				// 邀请人在黑名单上
+				banInfo := ctx.Dice.BanList.GetById(uid)
+				if banInfo != nil {
+					if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
+						pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "黑名单")
+						return
+					}
+				}
+
+				// 群在黑名单上
+				banInfo = ctx.Dice.BanList.GetById(msg.GroupId)
+				if banInfo != nil {
+					if banInfo.Rank == BanRankBanned {
+						pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "群黑名单")
+						return
+					}
+				}
+
 				//time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 				pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, true, "")
 				return
@@ -337,6 +389,16 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				log.Info(txt)
 				ctx.Notice(txt)
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
+
+				// 黑名单
+				uid := FormatDiceIdQQ(msgQQ.UserId)
+				banInfo := ctx.Dice.BanList.GetById(uid)
+				if banInfo != nil {
+					if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
+						pa.SetFriendAddRequest(msgQQ.Flag, false, "", "黑名单用户")
+						return
+					}
+				}
 
 				if willAccept {
 					pa.SetFriendAddRequest(msgQQ.Flag, true, "", "")
@@ -446,9 +508,11 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				// 被踢
 				//  {"group_id":111,"notice_type":"group_decrease","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"kick_me","time":1646689414 ,"user_id":333}
 				if msgQQ.UserId == msgQQ.SelfId {
-					//VarSetValueStr()
+					opUid := FormatDiceIdQQ(msgQQ.OperatorId)
 					groupName := dm.TryGetGroupName(msg.GroupId)
-					userName := dm.TryGetUserName(FormatDiceIdQQ(msgQQ.OperatorId))
+					userName := dm.TryGetUserName(opUid)
+
+					ctx.Dice.BanList.AddScoreByGroupKicked(opUid, msg.GroupId, ctx)
 					txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%d)中被踢出，操作者:<%s>(%d)", groupName, msgQQ.GroupId, userName, msgQQ.OperatorId)
 					log.Info(txt)
 					ctx.Notice(txt)

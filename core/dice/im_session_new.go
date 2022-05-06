@@ -427,9 +427,11 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				}
 
 				if mctx.PrivilegeLevel == -30 {
-					// 黑名单用户
-					log.Infof("忽略黑名单用户指令: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-					return
+					// 黑名单用户 - 拒绝回复
+					if d.BanList.BanBehaviorRefuseReply {
+						log.Infof("忽略黑名单用户指令: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+						return
+					}
 				}
 
 				if cmdArgs.Command != "botlist" && !cmdArgs.AmIBeMentioned {
