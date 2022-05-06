@@ -495,6 +495,12 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			pa.InPackGoCqHttpNeedQrCode = true
 		}
 
+		if (pa.InPackGoCqHttpLoginSuccess && strings.Contains(line, "[ERROR]:") && strings.Contains(line, "Protocol -> sendPacket msg error: 120")) || strings.Contains(line, "账号可能被风控####2测试触发语句") {
+			// 这种情况应该是被禁言，提前减去以免出事
+			riskCount -= 1
+			dice.Logger.Infof("因禁言无法发言: 下方可能会提示遭遇风控")
+		}
+
 		if (pa.InPackGoCqHttpLoginSuccess && strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
 			//群消息发送失败: 账号可能被风控
 			now := time.Now().Unix()

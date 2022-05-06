@@ -268,7 +268,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 				groupName := dm.TryGetGroupName(msg.GroupId)
 				userName := dm.TryGetUserName(FormatDiceIdQQ(msgQQ.UserId))
-				txt := fmt.Sprintf("收到QQ加群邀请: 群组%s(%d) 邀请人:%s(%d)", groupName, msgQQ.GroupId, userName, msgQQ.UserId)
+				txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%d) 邀请人:<%s>(%d)", groupName, msgQQ.GroupId, userName, msgQQ.UserId)
 				log.Info(txt)
 				ctx.Notice(txt)
 				tempInviteMap[msg.GroupId] = time.Now().Unix()
@@ -391,10 +391,10 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				go func() {
 					// 稍作等待后发送入群致词
 					time.Sleep(1 * time.Second)
-					log.Infof("发送入群致辞，群: %s(%d)", groupName, msgQQ.GroupId)
+					log.Infof("发送入群致辞，群: <%s>(%d)", groupName, msgQQ.GroupId)
 					pa.SendToGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
 				}()
-				txt := fmt.Sprintf("加入QQ群组: %s(%d)", groupName, msgQQ.GroupId)
+				txt := fmt.Sprintf("加入QQ群组: <%s>(%d)", groupName, msgQQ.GroupId)
 				log.Info(txt)
 				ctx.Notice(txt)
 			}
@@ -449,18 +449,18 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					//VarSetValueStr()
 					groupName := dm.TryGetGroupName(msg.GroupId)
 					userName := dm.TryGetUserName(FormatDiceIdQQ(msgQQ.OperatorId))
-					txt := fmt.Sprintf("被踢出群: 在QQ群组%s(%d)中被踢出，操作者:%s(%d)", groupName, msgQQ.GroupId, userName, msgQQ.OperatorId)
+					txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%d)中被踢出，操作者:<%s>(%d)", groupName, msgQQ.GroupId, userName, msgQQ.OperatorId)
 					log.Info(txt)
 					ctx.Notice(txt)
 				}
 				return
 			}
 
-			if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_decrease" && msgQQ.SubType == "leave" {
+			if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_decrease" && msgQQ.SubType == "leave" && msgQQ.OperatorId == msgQQ.SelfId {
 				// 群解散
 				// {"group_id":564808710,"notice_type":"group_decrease","operator_id":2589922907,"post_type":"notice","self_id":2589922907,"sub_type":"leave","time":1651584460,"user_id":2589922907}
 				groupName := dm.TryGetGroupName(msg.GroupId)
-				txt := fmt.Sprintf("离开群组或群解散: %s(%d)", groupName, msgQQ.GroupId)
+				txt := fmt.Sprintf("离开群组或群解散: <%s>(%d)", groupName, msgQQ.GroupId)
 				log.Info(txt)
 				ctx.Notice(txt)
 				return
@@ -470,10 +470,12 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				// 禁言
 				// {"duration":600,"group_id":111,"notice_type":"group_ban","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"ban","time":1646689567,"user_id":333}
 				if msgQQ.UserId == msgQQ.SelfId {
+					opUid := FormatDiceIdQQ(msgQQ.OperatorId)
 					groupName := dm.TryGetGroupName(msg.GroupId)
-					userName := dm.TryGetUserName(FormatDiceIdQQ(msgQQ.OperatorId))
+					userName := dm.TryGetUserName(opUid)
 
-					txt := fmt.Sprintf("被禁言: 在群组%s(%d)中被禁言，时长%d秒，操作者:%s(%d)", groupName, msgQQ.GroupId, msgQQ.Duration, userName, msgQQ.OperatorId)
+					ctx.Dice.BanList.AddScoreByGroupMuted(opUid, msg.GroupId, ctx)
+					txt := fmt.Sprintf("被禁言: 在群组<%s>(%d)中被禁言，时长%d秒，操作者:<%s>(%d)", groupName, msgQQ.GroupId, msgQQ.Duration, userName, msgQQ.OperatorId)
 					log.Info(txt)
 					ctx.Notice(txt)
 				}
