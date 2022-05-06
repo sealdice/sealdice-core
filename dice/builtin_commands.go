@@ -99,7 +99,7 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 					}
 
-					d.BanList.SetTrustById(uid)
+					d.BanList.SetTrustById(uid, "骰主指令", "骰主指令")
 					ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入信任列表", uid))
 				case "list", "show":
 					text := ""
@@ -433,7 +433,7 @@ func (d *Dice) registerCoreCommands() {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
 
 							userName := ctx.Dice.Parent.TryGetUserName(msg.Sender.UserId)
-							_txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:%s(%s)", ctx.Group.GroupName, msg.GroupId, userName, msg.Sender.UserId)
+							_txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)", ctx.Group.GroupName, msg.GroupId, userName, msg.Sender.UserId)
 							d.Logger.Info(_txt)
 							ctx.Notice(_txt)
 							ctx.Group.Active = false

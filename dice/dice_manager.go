@@ -255,7 +255,7 @@ func (dm *DiceManager) TryGetGroupName(id string) string {
 	if exists {
 		realItem, ok := item.(*GroupNameCacheItem)
 		if ok {
-			return "<" + realItem.Name + ">"
+			return realItem.Name
 		}
 	}
 	return "%未知群名%"
@@ -266,7 +266,7 @@ func (dm *DiceManager) TryGetUserName(id string) string {
 	if exists {
 		realItem, ok := item.(*GroupNameCacheItem)
 		if ok {
-			return "<" + realItem.Name + ">"
+			return realItem.Name
 		}
 	}
 	return "%未知用户%"

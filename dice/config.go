@@ -1135,7 +1135,16 @@ func (d *Dice) loads() {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
 				d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite
 				d.BanList.BanBehaviorQuitLastPlace = dNew.BanList.BanBehaviorQuitLastPlace
-				d.BanList.ReducePerMinute = dNew.BanList.ReducePerMinute
+				d.BanList.ScoreReducePerMinute = dNew.BanList.ScoreReducePerMinute
+
+				d.BanList.ThresholdWarn = dNew.BanList.ThresholdWarn
+				d.BanList.ThresholdBan = dNew.BanList.ThresholdBan
+				d.BanList.ScoreGroupMuted = dNew.BanList.ScoreGroupMuted
+				d.BanList.ScoreGroupKicked = dNew.BanList.ScoreGroupKicked
+				d.BanList.ScoreTooManyCommand = dNew.BanList.ScoreTooManyCommand
+
+				d.BanList.JointScorePercentOfGroup = dNew.BanList.JointScorePercentOfGroup
+				d.BanList.JointScorePercentOfInviter = dNew.BanList.JointScorePercentOfInviter
 			}
 
 			if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
@@ -1323,7 +1332,7 @@ func (d *Dice) loads() {
 		d.Logger.Info("serve.yaml not found")
 	}
 
-	d.BanList.loadMapFromJSON(model.BanMapGet(d.DB))
+	d.BanList.LoadMapFromJSON(model.BanMapGet(d.DB))
 
 	for _, i := range d.ImSession.EndPoints {
 		i.Session = d.ImSession
@@ -1469,5 +1478,5 @@ func (d *Dice) Save(isAuto bool) {
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测
-	model.BanMapSet(d.DB, d.BanList.mapToJSON())
+	model.BanMapSet(d.DB, d.BanList.MapToJSON())
 }
