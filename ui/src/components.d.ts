@@ -47,7 +47,9 @@ declare module 'vue' {
     PageMisc: typeof import('./components/PageMisc.vue')['default']
     PageMiscBackup: typeof import('./components/PageMiscBackup.vue')['default']
     'PageMiscBackup copy': typeof import('./components/PageMiscBackup copy.vue')['default']
+    PageMiscBanList: typeof import('./components/PageMiscBanList.vue')['default']
     PageMiscGroup: typeof import('./components/PageMiscGroup.vue')['default']
+    'PageMiscGroup copy': typeof import('./components/PageMiscGroup copy.vue')['default']
     PageMiscSettings: typeof import('./components/PageMiscSettings.vue')['default']
     PageTest: typeof import('./components/PageTest.vue')['default']
   }

@@ -11,13 +11,41 @@
 
   <div>
     <el-checkbox @click="switchClick" v-model="cr.enable">总开关</el-checkbox>
-    <el-button style="float: right" @click="dialogFormVisible = true">导入</el-button>
+    <el-button style="float: right" @click="dialogFormVisible = true">导入/导出</el-button>
     <div>每项自定义回复由一个“条件”触发，产生一系列“结果”</div>
     <div>一旦一个“条件”被满足，将立即停止匹配，并执行“结果”</div>
-    <div>越靠前的项具有越高的优先级，可以拖动来调整优先顺序！</div>
-    <div>为了避免滥用和无限互答，自定义回复的响应间隔最低为5s</div>
-    <div>匹配到的文本将被存入变量$t0，正则匹配的组将被存入$t1 $t2 ....</div>
-    <div>若存在组名，如(?P&lt;A&gt;cc)，将额外存入$tA</div>
+    <el-collapse>
+      <el-collapse-item name="1">
+        <template #title>
+          <div style="padding: 0 1rem">进阶内容</div>
+        </template>
+
+        <div style="padding: 0 1rem;">
+          <div>越靠前的项具有越高的优先级，可以拖动来调整优先顺序！</div>
+          <div>为了避免滥用和无限互答，自定义回复的响应间隔最低为5s</div>
+          <div>匹配到的文本将被存入变量$t0，正则匹配的组将被存入$t1 $t2 ....</div>
+          <div>若存在组名，如(?P&lt;A&gt;cc)，将额外存入$tA</div>
+        </div>
+      </el-collapse-item>
+    </el-collapse>
+
+    <div style="margin-top: 1rem;">
+      <div>当前文件</div>
+      <el-select>
+        <el-option
+          v-for="item in [{'label': 'reply.yaml', value: 'replyToSender'}, {'label': '私聊回复', value: 'replyPrivate'}, {'label': '群内回复', value: 'replyGroup'}]"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        />
+      </el-select>
+      <div style="margin-top: .5rem;">
+        <el-button>新增</el-button>
+        <el-button>改名</el-button>
+        <el-checkbox style="margin-left: 1rem;">启用</el-checkbox>
+      </div>
+    </div>
+
     <nested-draggable :tasks="list" />
     <div>
       <el-button @click="addOne(list)">添加一项</el-button>
@@ -27,7 +55,7 @@
 
   <el-dialog v-model="dialogFormVisible" title="导入配置" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
     <!-- <template > -->
-    <el-input placeholder="支持格式: 关键字/回复语" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" v-model="configForImport"></el-input>
+    <el-input placeholder="支持格式: 关键字/回复语" class="reply-text" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" v-model="configForImport"></el-input>
     <!-- </template> -->
 
     <template #footer>
@@ -180,6 +208,12 @@ onBeforeUnmount(() => {
   // clearInterval(timerId)
 })
 </script>
+
+<style>
+.reply-text  > textarea {
+  max-height: 65vh;
+}
+</style>
 
 <style scoped lang="scss">
 .img-box {

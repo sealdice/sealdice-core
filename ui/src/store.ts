@@ -197,8 +197,45 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    // ban list相关
+    async banConfigGet() {
+      const info = await backend.get(urlPrefix+'/banconfig/get')
+      return info as any
+    },
+
+    async banConfigSet(data: any) {
+      const info = await backend.post(urlPrefix+'/banconfig/set', data)
+      return info as any
+    },
+
+    async banConfigMapGet() {
+      const info = await backend.get(urlPrefix+'/banconfig/map_get')
+      return info as any
+    },
+
+    async banConfigMapDeleteOne(data: any) {
+      const info = await backend.post(urlPrefix+'/banconfig/map_delete_one', data)
+      return info as any
+    },
+
+    async banConfigMapAddOne(id: string, rank: number, name: string, reason: string) {
+      const info = await backend.post(urlPrefix+'/banconfig/map_add_one', {
+        ID: id,
+        rank,
+        name,
+        reasons: reason ? [reason] : []
+      })
+      return info as any
+    },
+
+    // 群组列表
     async groupList() {
       const info = await backend.get(urlPrefix+'/group/list')
+      return info as any
+    },
+
+    async groupSetOne(data: any) {
+      const info = await backend.post(urlPrefix+'/group/set_one', data)
       return info as any
     },
 

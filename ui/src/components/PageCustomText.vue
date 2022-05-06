@@ -10,6 +10,8 @@
   </el-affix>
 
   <div style="margin-bottom: 2rem;">
+    <el-button style="float: right; height: 3rem; margin-left: .5rem;" @click="dialogImportVisible = true">导入/导出</el-button>
+
     <el-collapse>
         <el-collapse-item name="1">
           <template #title>
@@ -61,15 +63,18 @@
         <el-form-item>
           <template #label>
             <div>
-              {{ k.toString() }}
+              <el-tag effect="dark" type="info" style="margin-right: .5rem;">{{(store.curDice.customTextsHelpInfo[category][k.toString()]).subType || '其它' }}</el-tag>{{ k.toString() }}
 
               <template v-if="store.curDice.customTextsHelpInfo[category][k.toString()].modified">
                 <el-tooltip content="重置为初始值" placement="bottom-end">
-                  <el-icon style="float: right;" @click="askResetValue(category, k.toString())">
+                  <el-icon style="float: right; margin-left: 1rem;" @click="askResetValue(category, k.toString())">
                     <brush-filled />
                   </el-icon>
                 </el-tooltip>
               </template>
+              <!-- <el-tooltip content="效果预览" placement="bottom-end">
+                <el-icon @click="askResetValue(category, k.toString())" style="float: right;"><video-play /></el-icon>
+              </el-tooltip> -->
             </div>
           </template>
           
@@ -98,10 +103,29 @@
       </el-form>
     </el-col>
   </el-row>
+
+  <el-dialog v-model="dialogImportVisible" title="导入导出" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" :fullscreen="true" custom-class="the-dialog">
+    <el-checkbox v-model="importOnlyCurrent">仅当前页面(勾选)/全部自定义文案</el-checkbox>
+    <el-checkbox v-model="importImpact">紧凑</el-checkbox>
+
+    <!-- <template > -->
+    <div>以下为导出内容，可以复制给别人:</div>
+    <el-input placeholder="填入数据" type="textarea" :autosize="{ minRows: 4 }" class="import-edit" id="import-edit" v-model="configForImport"></el-input>
+    <!-- </template> -->
+
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="dialogImportVisible = false">取消</el-button>
+        <el-button data-clipboard-target="#import-edit" @click="copied" id="btnCopy1">一键复制</el-button>
+        <el-button type="primary" @click="doImport" :disabled="configForImport === ''">导入并保存</el-button>
+      </span>
+    </template>
+  </el-dialog>
+
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onBeforeMount, onDeactivated, watch } from "vue";
+import { ref, reactive, onBeforeMount, onDeactivated, watch, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useStore } from '~/store'
 import { Management } from '@element-plus/icons-vue'
@@ -114,12 +138,67 @@ import {
   CirclePlusFilled,
   CircleClose,
   QuestionFilled,
-  BrushFilled
+  BrushFilled,
+  VideoPlay
 } from '@element-plus/icons-vue'
 import { cloneDeep } from "lodash-es";
+import ClipboardJS from 'clipboard'
 
 const store = useStore()
 const props = defineProps<{ category: string }>();
+
+const configForImport = ref('')
+const importOnlyCurrent = ref(true)
+const importImpact = ref(true)
+const dialogImportVisible = ref(false)
+
+const copied = () => {
+  ElMessage.success('进行了复制！')
+}
+
+const importRefresh = () => {
+  const indent = !importImpact.value ? 2 : 0
+  if (importOnlyCurrent.value) {
+    configForImport.value = JSON.stringify({
+      [props.category]: store.curDice.customTexts[props.category]
+    }, null, indent)
+  } else {
+    configForImport.value = JSON.stringify(store.curDice.customTexts, null, indent)
+  }
+}
+
+const doImport = async () => {
+  try {
+    const data = JSON.parse(configForImport.value)
+
+    for (let [k, v] of Object.entries(data)) {
+      if (store.curDice.customTexts[k]) {
+        store.curDice.customTexts[k] = v as any
+      }
+      await store.customTextSave(k)
+    }
+    await store.getCustomText()
+    modified.value = false
+    ElMessage.success('已保存')
+    dialogImportVisible.value = false
+  } catch (e) {
+    ElMessage.error('格式不正确')
+  }
+}
+
+watch(() => dialogImportVisible.value, (newValue, oldValue) => {
+  if (newValue) {
+    importRefresh()
+    nextTick(() => {
+      new ClipboardJS(document.getElementById('btnCopy1') as any)
+    })
+  }
+})
+
+watch(() => [importImpact.value, importOnlyCurrent.value], (newValue) => {
+  importRefresh()
+})
+
 
 watch(() => props.category, (newValue, oldValue) => { //直接监听
   modified.value = false
@@ -180,3 +259,9 @@ onBeforeMount(async () => {
   modified.value = false
 })
 </script>
+
+<style>
+.import-edit > textarea {
+  max-height: 65vh;
+}
+</style>

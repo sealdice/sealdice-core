@@ -103,6 +103,9 @@
             <el-menu-item :index="`7-group`" @click="switchTo('miscSettings', 'group')">
               <span>群组管理</span>
             </el-menu-item>
+            <el-menu-item :index="`7-ban`" @click="switchTo('miscSettings', 'ban')">
+              <span>黑名单</span>
+            </el-menu-item>
             <el-menu-item :index="`7-backup`" @click="switchTo('miscSettings', 'backup')">
               <span>备份</span>
             </el-menu-item>
