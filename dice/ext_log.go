@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -36,6 +37,7 @@ type LogOneItem struct {
 func RegisterBuiltinExtLog(self *Dice) {
 	privateCommandListen := map[uint64]int64{}
 
+	// 这个机制作用是记录私聊指令？？忘记了
 	privateCommandListenCheck := func() {
 		now := time.Now().Unix()
 		newMap := map[uint64]int64{}
@@ -48,6 +50,17 @@ func RegisterBuiltinExtLog(self *Dice) {
 		privateCommandListen = newMap
 	}
 
+	// 获取logname，第一项是默认名字
+	getLogName := func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, index int) (string, string) {
+		bakLogCurName := ctx.Group.LogCurName
+		if newName, exists := cmdArgs.GetArgN(index); exists {
+			if exists {
+				return bakLogCurName, newName
+			}
+		}
+		return bakLogCurName, bakLogCurName
+	}
+
 	helpLog := `.log new (<日志名>) // 新建日志并开始记录，注意new后跟空格！
 .log on (<日志名>)  // 开始记录，不写日志名则开启最近一次日志，注意on后跟空格！
 .log off // 暂停记录
@@ -56,6 +69,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log halt // 强行关闭当前log，不上传日志
 .log list // 查看当前群的日志列表
 .log del <日志名> // 删除一份日志
+.log stat (<日志名>) // 查看统计
+.log stat (<日志名>) --all // 查看统计(全团)
 .log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)`
 
 	cmdLog := &CmdItemInfo{
@@ -273,6 +288,42 @@ func RegisterBuiltinExtLog(self *Dice) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "stat") {
+					group := ctx.Group
+					_, name := getLogName(ctx, msg, cmdArgs, 2)
+					items, err := LogGetAllLinesWithoutDeleted(ctx, group, name)
+					if err == nil && len(items) > 0 {
+						//showDetail := cmdArgs.GetKwarg("detail")
+						var showDetail *Kwarg
+						showAll := cmdArgs.GetKwarg("all")
+
+						if showDetail != nil {
+							results := LogRollBriefDetail(items)
+
+							if len(results) > 0 {
+								ReplyToSender(ctx, msg, "统计结果如下:\n"+strings.Join(results, "\n"))
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
+						} else {
+							isShowAll := showAll != nil
+							text := LogRollBriefByPC(items, isShowAll, ctx.Player.Name)
+							if text == "" {
+								if isShowAll {
+									ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
+								} else {
+									ReplyToSender(ctx, msg, fmt.Sprintf("没有找到角色<%s>的任何记录\n若需查看全团，请在指令后加 --all", ctx.Player.Name))
+								}
+							} else {
+								if !isShowAll {
+									text += "\n\n若需查看全团，请在指令后加 --all"
+								}
+								ReplyToSender(ctx, msg, text)
+							}
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+					}
+					ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
+					return CmdExecuteResult{Matched: true, Solved: true}
 				} else {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				}
@@ -281,9 +332,71 @@ func RegisterBuiltinExtLog(self *Dice) {
 		},
 	}
 
+	helpStat := `.stat log (<日志名>) // 查看当前或指定日志的骰点统计
+.stat log (<日志名>) --all // 查看全团
+.stat help // 帮助
+`
+	cmdStat := &CmdItemInfo{
+		Name:     "stat",
+		Help:     helpStat,
+		LongHelp: "查看统计:\n" + helpStat,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				val, _ := cmdArgs.GetArgN(1)
+				switch strings.ToLower(val) {
+				case "log":
+					group := ctx.Group
+					_, name := getLogName(ctx, msg, cmdArgs, 2)
+					items, err := LogGetAllLinesWithoutDeleted(ctx, group, name)
+					if err == nil && len(items) > 0 {
+						//showDetail := cmdArgs.GetKwarg("detail")
+						var showDetail *Kwarg
+						showAll := cmdArgs.GetKwarg("all")
+
+						if showDetail != nil {
+							results := LogRollBriefDetail(items)
+
+							if len(results) > 0 {
+								ReplyToSender(ctx, msg, "统计结果如下:\n"+strings.Join(results, "\n"))
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
+						} else {
+							isShowAll := showAll != nil
+							text := LogRollBriefByPC(items, isShowAll, ctx.Player.Name)
+							if text == "" {
+								if isShowAll {
+									ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
+								} else {
+									ReplyToSender(ctx, msg, fmt.Sprintf("没有找到角色<%s>的任何记录\n若需查看全团，请在指令后加 --all", ctx.Player.Name))
+								}
+							} else {
+								if !isShowAll {
+									text += "\n\n若需查看全团，请在指令后加 --all"
+								}
+								ReplyToSender(ctx, msg, text)
+							}
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+					}
+					if err != nil || len(items) == 0 {
+						ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
+					}
+				default:
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:       "log",
-		Version:    "1.0.0",
+		Version:    "1.0.1",
 		Brief:      "跑团辅助扩展，提供日志、染色等功能",
 		Author:     "木落",
 		AutoActive: true,
@@ -367,7 +480,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 			return GetExtensionDesc(ei)
 		},
 		CmdMap: CmdMapCls{
-			"log": cmdLog,
+			"log":  cmdLog,
+			"stat": cmdStat,
 		},
 	})
 }
@@ -431,7 +545,7 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 		text := ""
 		for _, i := range lines {
 			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-			text += fmt.Sprintf("%s(%d) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
+			text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
 		}
 
 		fileWriter, _ := writer.Encrypt("log.txt", zipPassword)
@@ -467,6 +581,358 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 		}
 	}
 	return "", zipPassword
+}
+
+// LogRollBriefByPC 根据log生成骰点简报
+func LogRollBriefByPC(items []*LogOneItem, showAll bool, name string) string {
+	pcInfo := map[string]map[string]int{}
+	for _, i := range items {
+		if i.CommandInfo != nil {
+			info, _ := i.CommandInfo.(map[string]interface{})
+			//t := time.Unix(i.Time, 0).Format("[04:05]")
+
+			setupName := func(name string) {
+				if _, exists := pcInfo[name]; !exists {
+					pcInfo[name] = map[string]int{}
+				}
+			}
+
+			if info["rule"] == nil {
+				switch info["cmd"] {
+				case "roll":
+					items, ok2 := info["items"].([]interface{})
+					if !ok2 {
+						continue
+					}
+					nickname := fmt.Sprintf("%v", info["pcName"])
+					setupName(nickname)
+					pcInfo[nickname]["骰点"] += len(items)
+				}
+				continue
+			}
+			if info["rule"] == "coc7" {
+				switch info["cmd"] {
+				case "ra":
+					items, ok2 := info["items"].([]interface{})
+					if !ok2 {
+						continue
+					}
+					nickname := fmt.Sprintf("%v", info["pcName"])
+					setupName(nickname)
+
+					for _, _j := range items {
+						j, ok2 := _j.(map[string]interface{})
+						if !ok2 {
+							continue
+						}
+
+						getName := func(s string) string {
+							re := regexp.MustCompile(`^([^\d+])\d+$`)
+							m := re.FindStringSubmatch(s)
+							if len(m) > 0 {
+								return m[1]
+							}
+							return s
+						}
+
+						rank := int(j["rank"].(float64))
+						attr := getName(fmt.Sprintf("%v", j["expr2"]))
+						if rank > 0 {
+							key := fmt.Sprintf("%v:%v", attr, "成功")
+							pcInfo[nickname][key] += 1
+						} else if rank < 0 {
+							key := fmt.Sprintf("%v:%v", attr, "失败")
+							pcInfo[nickname][key] += 1
+						}
+					}
+					continue
+				case "sc":
+					items, ok2 := info["items"].([]interface{})
+					if !ok2 {
+						continue
+					}
+					nickname := fmt.Sprintf("%v", info["pcName"])
+					setupName(nickname)
+
+					for _, _j := range items {
+						j, ok2 := _j.(map[string]interface{})
+						if !ok2 {
+							continue
+						}
+
+						rank := int(j["rank"].(float64))
+						if rank > 0 {
+							key := fmt.Sprintf("%v:%v", "理智", "成功")
+							pcInfo[nickname][key] += 1
+						} else if rank < 0 {
+							key := fmt.Sprintf("%v:%v", "理智", "失败")
+							pcInfo[nickname][key] += 1
+						}
+
+						// 如果没有旧值，弄一个
+						key := fmt.Sprintf("理智:旧值")
+						if pcInfo[nickname][key] == 0 {
+							pcInfo[nickname][key] = int(j["sanOld"].(float64))
+						}
+
+						key2 := fmt.Sprintf("理智:新值")
+						if pcInfo[nickname][key2] == 0 {
+							pcInfo[nickname][key2] = int(j["sanNew"].(float64))
+						}
+					}
+					continue
+				case "st":
+					items, ok2 := info["items"].([]interface{})
+					if !ok2 {
+						continue
+					}
+					for _, _j := range items {
+						j, ok2 := _j.(map[string]interface{})
+						if !ok2 {
+							continue
+						}
+						nickname := fmt.Sprintf("%v", info["pcName"])
+						setupName(nickname)
+
+						if j["type"] == "mod" {
+							// 如果没有旧值，弄一个
+							key := fmt.Sprintf("%v:旧值", j["attr"])
+							if pcInfo[nickname][key] == 0 {
+								pcInfo[nickname][key] = int(j["valOld"].(float64))
+							}
+
+							key2 := fmt.Sprintf("%v:新值", j["attr"])
+							if pcInfo[nickname][key2] == 0 {
+								pcInfo[nickname][key2] = int(j["valNew"].(float64))
+							}
+						}
+					}
+					continue
+				}
+			}
+		}
+	}
+
+	if !showAll {
+		pcInfo2 := map[string]map[string]int{}
+		if pcInfo[name] != nil {
+			pcInfo2[name] = pcInfo[name]
+		}
+		pcInfo = pcInfo2
+	}
+
+	texts := ""
+	for k, v := range pcInfo {
+		if len(v) == 0 {
+			continue
+		}
+		texts += fmt.Sprintf("<%v>当前团内检定情况:\n", k)
+		success := map[string]int{}
+		failed := map[string]int{}
+		others := []string{}
+
+		oldVal := map[string]int{}
+		newVal := map[string]int{}
+
+		for k2, v2 := range v {
+			if strings.HasSuffix(k2, ":成功") {
+				success[k2] = v2
+			} else if strings.HasSuffix(k2, ":失败") {
+				failed[k2] = v2
+			} else if strings.HasSuffix(k2, ":旧值") {
+				oldVal[k2[:len(k2)-len(":旧值")]] = v2
+			} else if strings.HasSuffix(k2, ":新值") {
+				newVal[k2[:len(k2)-len(":新值")]] = v2
+			} else {
+				others = append(others, k2)
+			}
+		}
+
+		// 排序: 一次挑选一个最大的，直到结束
+		doSort := func(m map[string]int) []string {
+			ret := []string{}
+			for len(m) > 0 {
+				val := -1
+				theKey := ""
+				for k2, v2 := range m {
+					if v2 > val {
+						theKey = k2
+						val = v2
+					}
+				}
+				ret = append(ret, theKey)
+				delete(m, theKey)
+			}
+			return ret
+		}
+		successList := doSort(success)
+		failedList := doSort(failed)
+
+		if len(successList) > 0 {
+			text := "成功: "
+			for _, j := range successList {
+				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":成功")], v[j])
+			}
+			texts += strings.TrimSpace(text) + "\n"
+		}
+
+		if len(failedList) > 0 {
+			text := "失败: "
+			for _, j := range failedList {
+				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":失败")], v[j])
+			}
+			texts += strings.TrimSpace(text) + "\n"
+		}
+
+		if len(oldVal) > 0 {
+			text := ""
+			for k2, v2 := range oldVal {
+				text += fmt.Sprintf("%v[%v➯%v] ", k2, v2, newVal[k2])
+			}
+			texts += "属性: " + strings.TrimSpace(text) + "\n"
+		}
+
+		if len(others) > 0 {
+			text := "其他: "
+			for _, j := range others {
+				text += fmt.Sprintf("%v%d ", j, v[j])
+			}
+			texts += strings.TrimSpace(text) + "\n"
+		}
+		texts += "\n"
+	}
+	return strings.TrimSpace(texts)
+}
+
+// LogRollBriefDetail 根据log生成骰点简报
+func LogRollBriefDetail(items []*LogOneItem) []string {
+	var texts []string
+	for _, i := range items {
+		if i.CommandInfo != nil {
+			info, _ := i.CommandInfo.(map[string]interface{})
+			t := time.Unix(i.Time, 0).Format("[04:05]")
+
+			if info["rule"] == nil {
+				switch info["cmd"] {
+				case "roll":
+					// [03分20秒] 木落 骰点d100，出目15
+					items, ok2 := info["items"].([]interface{})
+					if !ok2 {
+						continue
+					}
+					for _, _j := range items {
+						j, ok2 := _j.(map[string]interface{})
+						if !ok2 {
+							continue
+						}
+
+						reasonText := ""
+						if j["reason"] != nil {
+							reasonText = fmt.Sprintf(" 原因:%v", j["reason"])
+						}
+
+						texts = append(texts, fmt.Sprintf("%v %s 骰点%v 出目%v%v", t, info["pcName"], j["expr"], j["result"], reasonText))
+					}
+				}
+				continue
+			}
+			if info["rule"] == "coc7" {
+				switch info["cmd"] {
+				case "ra":
+					items, ok2 := info["items"].([]interface{})
+					if !ok2 {
+						continue
+					}
+					for _, _j := range items {
+						j, ok2 := _j.(map[string]interface{})
+						if !ok2 {
+							continue
+						}
+
+						// [18分60秒] 木落 "力量50"检定，出目39/50，成功
+						texts = append(texts, fmt.Sprintf("%v %s \"%s\"检定 出目%v/%v，%v", t, info["pcName"], j["expr2"], j["checkVal"], j["attrVal"], SimpleCocSuccessRankToText[int(j["rank"].(float64))]))
+					}
+					continue
+				case "sc":
+					items, ok2 := info["items"].([]interface{})
+					if !ok2 {
+						continue
+					}
+					for _, _j := range items {
+						j, ok2 := _j.(map[string]interface{})
+						if !ok2 {
+							continue
+						}
+
+						// [18分60秒] 木落 理智检定[d100 1 2]，出目15/60，失败。理智39➯38
+						texts = append(texts, fmt.Sprintf("%v %s 理智检定%v 出目%v/%v，%v。理智%v➯%v",
+							t, info["pcName"], j["exprs"], j["checkVal"], j["sanOld"],
+							SimpleCocSuccessRankToText[int(j["rank"].(float64))], j["sanOld"], j["sanNew"]))
+					}
+					continue
+				case "st":
+					items, ok2 := info["items"].([]interface{})
+					if !ok2 {
+						continue
+					}
+					for _, _j := range items {
+						j, ok2 := _j.(map[string]interface{})
+						if !ok2 {
+							continue
+						}
+
+						if j["type"] == "mod" {
+							// [18分60秒] 木落 hp变更1d4，39➯38
+							texts = append(texts, fmt.Sprintf("%v %s %v变更%v，%v➯%v",
+								t, info["pcName"], j["attr"], j["modExpr"], j["valOld"], j["valNew"]))
+						}
+					}
+					continue
+				}
+			}
+
+			if info["rule"] == "dnd5e" {
+				switch info["cmd"] {
+				case "rc":
+					items, ok2 := info["items"].([]interface{})
+					if !ok2 {
+						continue
+					}
+					for _, _j := range items {
+						j, ok2 := _j.(map[string]interface{})
+						if !ok2 {
+							continue
+						}
+
+						// [18分60秒] 木落 力量检定，出目24
+						texts = append(texts, fmt.Sprintf("%v %s %s检定 出目%v", t, info["pcName"], j["reason"], j["result"]))
+					}
+					continue
+				case "st":
+					items, ok2 := info["items"].([]interface{})
+					if !ok2 {
+						continue
+					}
+					for _, _j := range items {
+						j, ok2 := _j.(map[string]interface{})
+						if !ok2 {
+							continue
+						}
+
+						if j["type"] == "mod" {
+							// [18分60秒] 木落 hp变更1d4，39➯38
+							texts = append(texts, fmt.Sprintf("%v %s %v变更%v，%v➯%v",
+								t, info["pcName"], j["attr"], j["modExpr"], j["valOld"], j["valNew"]))
+						}
+					}
+					continue
+				}
+			}
+
+			texts = append(texts, fmt.Sprintf("%v\n", i.CommandInfo))
+		}
+	}
+	return texts
 }
 
 func LogLinesGet(ctx *MsgContext, group *GroupInfo, name string) (int, bool) {
@@ -578,6 +1044,44 @@ func LogGetAllLines(ctx *MsgContext, group *GroupInfo) ([]*LogOneItem, error) {
 	})
 }
 
+func LogGetAllLinesWithoutDeleted(ctx *MsgContext, group *GroupInfo, logName string) ([]*LogOneItem, error) {
+	badRawIds, err2 := LogGetAllDeleted(ctx, group)
+
+	ret := []*LogOneItem{}
+	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
+		b0 := tx.Bucket([]byte("logs"))
+		if b0 == nil {
+			return nil
+		}
+		b1 := b0.Bucket([]byte(group.GroupId))
+		if b1 == nil {
+			return nil
+		}
+
+		b := b1.Bucket([]byte(logName))
+		if b == nil {
+			return nil
+		}
+
+		return b.ForEach(func(k, v []byte) error {
+			logItem := LogOneItem{}
+			err := json.Unmarshal(v, &logItem)
+			if err == nil {
+				// 跳过撤回
+				if err2 == nil {
+					if badRawIds[logItem.RawMsgId] {
+						return nil
+					}
+				}
+				// 正常添加
+				ret = append(ret, &logItem)
+			}
+
+			return nil
+		})
+	})
+}
+
 func LogAppend(ctx *MsgContext, group *GroupInfo, l *LogOneItem) error {
 	return ctx.Dice.DB.Update(func(tx *bbolt.Tx) error {
 		// Retrieve the users bucket.
@@ -589,6 +1093,7 @@ func LogAppend(ctx *MsgContext, group *GroupInfo, l *LogOneItem) error {
 		}
 
 		b, err := b1.CreateBucketIfNotExists([]byte(group.LogCurName))
+		_ = b.Put([]byte("modified"), []byte(strconv.FormatInt(time.Now().Unix(), 10)))
 		if err == nil {
 			l.Id, _ = b.NextSequence()
 			buf, err := json.Marshal(l)

@@ -541,6 +541,17 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 					ReplyToSender(ctx, msg, help)
 				}
 
+				//// 进行指令统计
+				//vPlayer := ctx.LoadPlayerGlobalVars()
+				//key := "#" + item.Name
+				//_v, ok := vPlayer.ValueMap.Get(key)
+				//if ok {
+				//	v, ok := _v.(int64)
+				//	if ok {
+				//		vPlayer.ValueMap.Set(key, v+1)
+				//	}
+				//}
+
 				return true
 			}
 		}

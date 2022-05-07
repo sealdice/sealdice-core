@@ -399,6 +399,16 @@ var HelpMasterInfoDefault = "骰主很神秘，什么都没有说——"
 var HelpMasterLicenseDefault = "请在遵守以下规则前提下使用:\n" +
 	"1. 遵守国家法律法规\n" +
 	"2. 在跑团相关群进行使用\n" +
-	"3. 不要随意踢出、禁言\n" +
+	"3. 不要随意踢出、禁言、刷屏\n" +
+	"4. 务必信任骰主，有事留言\n" +
 	"如不同意使用.bot bye使其退群，谢谢。\n" +
 	"祝玩得愉快。"
+
+var SimpleCocSuccessRankToText = map[int]string{
+	-2: "大失败",
+	-1: "失败",
+	1:  "成功",
+	2:  "困难成功",
+	3:  "极难成功",
+	4:  "大成功",
+}
