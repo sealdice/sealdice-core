@@ -432,7 +432,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{"无法加载/保存角色：序列化失败", 1},
 			},
 			"角色管理_储存成功": {
-				{"角色{$t新角色名}储存成功", 1},
+				{"角色{$t新角色名}储存成功\n注:人物属性改变不会影响角色卡，除非使用ch save", 1},
 			},
 			"角色管理_删除成功": {
 				{"角色{$t新角色名}删除成功", 1},
@@ -1422,9 +1422,6 @@ func (d *Dice) ApplyExtDefaultSettings() {
 			v.DisabledCommand = m
 		}
 	}
-
-	a, _ := json.Marshal(d.ExtDefaultSettings)
-	fmt.Println("!!!!", string(a))
 }
 
 func (d *Dice) Save(isAuto bool) {

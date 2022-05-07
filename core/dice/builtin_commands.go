@@ -1246,7 +1246,10 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["set"] = cmdSet
 
-	helpCh := ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n.ch load <角色名> // 加载角色，角色名省略则为当前昵称\n.ch list // 列出当前角色\n.ch del/rm <角色名> // 删除角色"
+	helpCh := ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n" +
+		".ch load <角色名> // 加载角色，角色名省略则为当前昵称\n" +
+		".ch list // 列出当前角色\n" +
+		".ch del/rm <角色名> // 删除角色"
 	cmdChar := &CmdItemInfo{
 		Name:     "ch",
 		Help:     helpCh,
