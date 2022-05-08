@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 )
 
@@ -55,6 +56,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 		group.BotList = map[string]bool{}
 	}
 
+	sort.Sort(ExtDefaultSettingItemSlice(session.Parent.ExtDefaultSettings))
 	group.DiceIds[ctx.EndPoint.UserId] = true
 	return group
 }

@@ -1165,7 +1165,8 @@ func (d *Dice) registerCoreCommands() {
 		".set <面数> // 设置群内骰子面数\n" +
 		".set <面数> --my // 设定个人专属骰子面数\n" +
 		".set clr // 清除群内骰子面数设置\n" +
-		".set clr --my // 清除个人骰子面数设置\n"
+		".set clr --my // 清除个人骰子面数设置\n" +
+		".set dnd/coc // 设置群内骰子面数为20/100，并自动开启对应扩展 \n"
 	cmdSet := &CmdItemInfo{
 		Name:     "set",
 		Help:     helpSet,
@@ -1184,14 +1185,21 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				arg1, exists := cmdArgs.GetArgN(1)
+				modSwitch := false
 				if exists {
 					tipText := "\n提示:"
 					if strings.EqualFold(arg1, "coc") {
 						cmdArgs.Args[0] = "100"
-						tipText += "如果你执行的是.setcoc(无空格)，可能说明此时coc7扩展并未打开，请运行.ext coc7 on\n"
+						ctx.Group.ExtActive(d.ExtFind("coc7"))
+						//tipText += "如果你执行的是.setcoc(无空格)，可能说明此时coc7扩展并未打开，请运行.ext coc7 on\n"
+						tipText += "已切换至100面骰，并自动开启coc7扩展"
+						modSwitch = true
 					}
 					if strings.EqualFold(arg1, "dnd") {
 						cmdArgs.Args[0] = "20"
+						ctx.Group.ExtActive(d.ExtFind("dnd5e"))
+						tipText += "已切换至20面骰，并自动开启dnd5e扩展。若不希望，请执行.ext dnd5e off"
+						modSwitch = true
 					}
 					num, err := strconv.ParseInt(cmdArgs.Args[0], 10, 64)
 					if num < 0 {
@@ -1200,10 +1208,12 @@ func (d *Dice) registerCoreCommands() {
 					if err == nil {
 						if isSetGroup {
 							ctx.Group.DiceSideNum = num
-							if num == 20 {
-								tipText += "20面骰。如果要进行DND游戏，建议先执行.ext dnd5e on和.ext coc7 off以避免指令冲突"
-							} else if num == 100 {
-								tipText += "100面骰。如果要进行COC游戏，建议先执行.ext coc7 on和.ext dnd5e off以避免指令冲突"
+							if !modSwitch {
+								if num == 20 {
+									tipText += "20面骰。如果要进行DND游戏，建议执行.set dnd以确保开启dnd5e指令"
+								} else if num == 100 {
+									tipText += "100面骰。如果要进行COC游戏，建议执行.set coc以确保开启coc7指令"
+								}
 							}
 							if tipText == "\n提示:" {
 								tipText = ""
