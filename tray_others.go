@@ -16,3 +16,6 @@ func showWindow() {
 func TestRunning() bool {
 	return false
 }
+
+func PortExistsWarn() {
+}

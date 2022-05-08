@@ -324,6 +324,9 @@ func (d *Dice) registerCoreCommands() {
 				serveCount := 0
 				for _, i := range d.ImSession.ServiceAtNew {
 					if !i.NotInGroup && i.GroupId != "" {
+						if strings.HasPrefix(i.GroupId, "PG-") {
+							continue
+						}
 						if i.Active {
 							count += 1
 						}

@@ -58,6 +58,13 @@ func TestRunning() bool {
 	return true
 }
 
+func PortExistsWarn() {
+	s1, _ := syscall.UTF16PtrFromString("SealDice 启动失败")
+	s2, _ := syscall.UTF16PtrFromString("端口已被占用，建议换用其他端口")
+	win.MessageBox(0, s2, s1, win.MB_OK)
+	return
+}
+
 func onReady() {
 	systray.SetIcon(icon.Data)
 
