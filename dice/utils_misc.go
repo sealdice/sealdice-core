@@ -48,7 +48,6 @@ func (v *VMValue) AsBool() bool {
 	default:
 		return false
 	}
-	return false
 }
 
 func (v *VMValue) ToString() string {
