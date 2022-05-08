@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"regexp"
 	"runtime/debug"
 	"sealdice-core/api"
 	"sealdice-core/dice"
@@ -347,12 +348,20 @@ func uiServe(dm *dice.DiceManager) {
 	api.Bind(e, dm)
 	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置
 
-	exec.Command(`cmd`, `/c`, `start`, `http://localhost:3211`).Start()
+	portStr := "3211"
+	rePort := regexp.MustCompile(`:(\d+)$`)
+	m := rePort.FindStringSubmatch(dm.ServeAddress)
+	if len(m) > 0 {
+		portStr = m[1]
+	}
+
+	exec.Command(`cmd`, `/c`, `start`, fmt.Sprintf(`http://localhost:%s`, portStr)).Start()
 	fmt.Println("如果浏览器没有自动打开，请手动访问:")
-	fmt.Println("http://localhost:3211") // 默认:3211
+	fmt.Println(fmt.Sprintf(`http://localhost:%s`, portStr)) // 默认:3211
 	err := e.Start(dm.ServeAddress)
 	if err != nil {
 		logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
+		PortExistsWarn()
 		return
 	}
 
