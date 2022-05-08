@@ -624,31 +624,39 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				switch n {
 				case "0":
 					ctx.Group.CocRuleIndex = 0
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_0"))
+					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+					ReplyToSender(ctx, msg, text)
 				case "1":
 					ctx.Group.CocRuleIndex = 1
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_1"))
+					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+					ReplyToSender(ctx, msg, text)
 				case "2":
 					ctx.Group.CocRuleIndex = 2
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_2"))
+					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+					ReplyToSender(ctx, msg, text)
 				case "3":
 					ctx.Group.CocRuleIndex = 3
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_3"))
+					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+					ReplyToSender(ctx, msg, text)
 				case "4":
 					ctx.Group.CocRuleIndex = 4
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_4"))
+					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+					ReplyToSender(ctx, msg, text)
 				case "5":
 					ctx.Group.CocRuleIndex = 5
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_5"))
+					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+					ReplyToSender(ctx, msg, text)
 				case "dg":
 					ctx.Group.CocRuleIndex = 11
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_DeltaGreen"))
+					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+					ReplyToSender(ctx, msg, text)
 				case "help":
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				default:
-					text := DiceFormatTmpl(ctx, fmt.Sprintf("COC:设置房规_%d", ctx.Group.CocRuleIndex))
+					text := SetCocRuleText[ctx.Group.CocRuleIndex]
 					VarSetValueStr(ctx, "$t房规文本", text)
-					VarSetValue(ctx, "$t房规", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
+					VarSetValue(ctx, "$t房规", &VMValue{VMTypeString, SetCocRulePrefixText[ctx.Group.CocRuleIndex]})
+					VarSetValue(ctx, "$t房规序号", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}

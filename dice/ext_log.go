@@ -469,8 +469,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 					// 玩家 HP10/10 AC15 DC15 PW10
 					ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text)
 				case "none":
-					setByTmpl("{$t玩家}")
-					ReplyToSender(ctx, msg, "已自动设置名片为空白格式: 玩家")
+					text, _ := setByTmpl("{$t玩家}")
+					ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text)
 				default:
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				}

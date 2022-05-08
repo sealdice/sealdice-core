@@ -242,10 +242,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	helpSt += ".st export // 导出，包括属性和法术位\n"
 	helpSt += ".st help // 帮助\n"
 	helpSt += ".st <属性>:<值> // 设置属性，技能加值会自动计算。例：.st 感知:20 洞悉:3\n"
+	helpSt += ".st <属性>=<值> // 设置属性，等号效果完全相同\n"
 	helpSt += ".st <属性>±<表达式> // 修改属性，例：.st hp+1d4\n"
 	helpSt += ".st <属性>±<表达式> @某人 // 修改他人属性，例：.st hp+1d4\n"
 	helpSt += ".st hp-1d6 --over // 不计算临时生命扣血\n"
-	helpSt += "特别的，扣除hp时，会先将其buff值扣除到0。以及增加hp时，hp的值不会超过hpmax"
+	helpSt += "特别的，扣除hp时，会先将其buff值扣除到0。以及增加hp时，hp的值不会超过hpmax\n"
+	helpSt += "需要使用coc版本st，请执行.set coc"
 
 	cmdSt := &CmdItemInfo{
 		Name:     "st",

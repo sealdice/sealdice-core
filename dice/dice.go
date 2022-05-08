@@ -78,6 +78,14 @@ type ExtDefaultSettingItem struct {
 	ExtItem         *ExtInfo        `yaml:"-" json:"-"`
 }
 
+type ExtDefaultSettingItemSlice []*ExtDefaultSettingItem
+
+// 强制coc7排序在较前位置
+
+func (x ExtDefaultSettingItemSlice) Len() int           { return len(x) }
+func (x ExtDefaultSettingItemSlice) Less(i, j int) bool { return x[i].Name == "coc7" }
+func (x ExtDefaultSettingItemSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+
 type Dice struct {
 	ImSession               *IMSession             `yaml:"imSession"`
 	CmdMap                  CmdMapCls              `yaml:"-"`
