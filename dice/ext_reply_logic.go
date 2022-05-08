@@ -97,6 +97,7 @@ func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, cmdArg
 	//go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
+	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 	ReplyToSender(ctx, msg, DiceFormat(ctx, p.Pick().(string)))
 	//}()
 }

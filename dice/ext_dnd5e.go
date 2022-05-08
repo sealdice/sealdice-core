@@ -6,6 +6,7 @@ import (
 	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"math"
 	"os"
 	"regexp"
 	"sort"
@@ -260,7 +261,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				switch val {
 				case "模板":
 					text := "人物卡模板(第二行文本):\n"
-					text += ".dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax: 10 熟练:2 运动:0 体操:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯兽:0 医药:0 求生:0 游说:0 欺瞒:0 威吓:0 表演:0\n"
+					text += ".dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax:10 熟练:2 运动:0 体操:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯兽:0 医药:0 求生:0 游说:0 欺瞒:0 威吓:0 表演:0\n"
 					text += "注意: 技能只填写修正值即可，属性调整值会自动计算。熟练写为“运动*:0”"
 					ReplyToSender(mctx, msg, text)
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -454,7 +455,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 									vText = v.ToString()
 								}
 							}
-							info += fmt.Sprintf("%s: %s\t", k, vText)
+							info += fmt.Sprintf("%s:%s\t", k, vText) // 单个文本
 							if tick%4 == 0 {
 								info = strings.TrimSpace(info) // 去除末尾空格
 								info += fmt.Sprintf("\n")
@@ -480,7 +481,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				default:
 					text := cmdArgs.CleanArgs
-					re := regexp.MustCompile(`(([^\s:0-9*][^\s:0-9*]*)\*?)\s*([:+\-＋－：])`)
+					// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
+					re := regexp.MustCompile(`(?:([^\s:0-9*][^\s:0-9*]*)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
 					attrSeted := []string{}
 					attrChanged := []string{}
 					var extraText string
@@ -493,8 +495,15 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 						text = text[len(m[0]):]
 
-						attrName := m[2]
-						isSkilled := strings.HasSuffix(m[1], "*")
+						attrName := m[1]
+						isSkilled := strings.HasPrefix(m[2], "*")
+						var skilledFactor float64 = 1
+						if isSkilled {
+							val, err := strconv.ParseFloat(m[2][len("*"):], 64)
+							if err == nil {
+								skilledFactor = val
+							}
+						}
 						r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
 						if err != nil {
 							ReplyToSender(mctx, msg, "无法解析属性: "+attrName)
@@ -509,10 +518,17 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 
 						attrName = ctx.Player.GetValueNameByAlias(attrName, ac.Alias)
-						if m[3] == ":" || m[3] == "：" {
+						if m[3] == ":" || m[3] == "：" || m[3] == "=" || m[3] == "＝" {
 							exprTmpl := "$tVal + %s/2 - 5"
 							if isSkilled {
-								exprTmpl += " + 熟练"
+								factorText := "熟练"
+								if skilledFactor != math.Trunc(skilledFactor) {
+									n := int64(skilledFactor * 100)
+									factorText = fmt.Sprintf("熟练*%d/100", n)
+								} else {
+									factorText = "熟练*" + strconv.FormatInt(int64(skilledFactor), 10)
+								}
+								exprTmpl += " + " + factorText
 							}
 
 							parent, _ := dndAttrParent[attrName]
@@ -520,7 +536,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							aText += fmt.Sprintf(":%d", r.Value.(int64))
 							if parent != "" {
 								if isSkilled {
-									aText += "[技能, 熟练]"
+									aText += fmt.Sprintf("[技能, 熟练%s]", m[2])
 								} else {
 									aText += "[技能]"
 								}
@@ -644,7 +660,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 					}
 
-					retText := fmt.Sprintf("<%s>的dnd5e人物属性设置如下:\n", mctx.Player.Name)
+					retText := fmt.Sprintf("[dnd5e]<%s>的人物属性设置如下:\n", mctx.Player.Name)
 					if len(attrSeted) > 0 {
 						SetCardType(mctx, "dnd5e")
 						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
@@ -897,7 +913,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								vText = v.ToString()
 							}
 							k = k[len("$buff_"):]
-							info += fmt.Sprintf("%s: %s\t", k, vText)
+							info += fmt.Sprintf("%s:%s\t", k, vText) // 单个文本
 							if tick%4 == 0 {
 								info += fmt.Sprintf("\n")
 							}
@@ -916,7 +932,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				default:
 					text := cmdArgs.CleanArgs
-					re := regexp.MustCompile(`(([^\s:0-9*][^\s:0-9*]*)\*?)\s*([:+\-＋－：])`)
+					// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
+					re := regexp.MustCompile(`(?:([^\s:0-9*][^\s:0-9*]*)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
 					attrSeted := []string{}
 					attrChanged := []string{}
 
@@ -927,9 +944,17 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 						text = text[len(m[0]):]
 
-						attrNameRaw := m[2]
+						attrNameRaw := m[1]
 						attrNameBuff := "$buff_" + attrNameRaw
-						isSkilled := strings.HasSuffix(m[1], "*")
+						isSkilled := strings.HasPrefix(m[2], "*")
+						var skilledFactor float64 = 1
+						if isSkilled {
+							val, err := strconv.ParseFloat(m[2][len("*"):], 64)
+							if err == nil {
+								skilledFactor = val
+							}
+						}
+
 						r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
 						if err != nil {
 							ReplyToSender(mctx, msg, "无法解析属性: "+attrNameRaw)
@@ -942,10 +967,18 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
-						if m[3] == ":" || m[3] == "：" {
+						attrNameRaw = ctx.Player.GetValueNameByAlias(attrNameRaw, ac.Alias)
+						if m[3] == ":" || m[3] == "：" || m[3] == "=" || m[3] == "＝" {
 							exprTmpl := "$tVal"
 							if isSkilled {
-								exprTmpl += " + 熟练"
+								factorText := "熟练"
+								if skilledFactor != math.Trunc(skilledFactor) {
+									n := int64(skilledFactor * 100)
+									factorText = fmt.Sprintf("熟练*%d/100", n)
+								} else {
+									factorText = "熟练*" + strconv.FormatInt(int64(skilledFactor), 10)
+								}
+								exprTmpl += " + " + factorText
 							}
 
 							parent, _ := dndAttrParent[attrNameRaw]
@@ -953,7 +986,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							aText += fmt.Sprintf(":%d", r.Value.(int64))
 							if parent != "" {
 								if isSkilled {
-									aText += "[技能, 熟练]"
+									aText += fmt.Sprintf("[技能, 熟练%s]", m[2])
 								} else {
 									aText += "[技能]"
 								}
@@ -1004,7 +1037,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 					}
 
-					retText := fmt.Sprintf("<%s>的dnd5e人物Buff属性设置如下:\n", mctx.Player.Name)
+					retText := fmt.Sprintf("[dnd5e]<%s>的人物Buff属性设置如下:\n", mctx.Player.Name)
 					if len(attrSeted) > 0 {
 						SetCardType(mctx, "dnd5e")
 						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"

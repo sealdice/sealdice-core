@@ -30,3 +30,5 @@ func (pa *PlatformAdapterHttp) SendToGroup(ctx *MsgContext, uid string, text str
 }
 
 func (pa *PlatformAdapterHttp) QuitGroup(ctx *MsgContext, id string) {}
+
+func (pa *PlatformAdapterHttp) SetGroupCardName(groupId string, userId string, name string) {}

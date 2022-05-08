@@ -226,6 +226,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 				_, exists := cmdArgs.GetArgN(1)
 				if exists {
+					ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 					r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx)
 
 					if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {

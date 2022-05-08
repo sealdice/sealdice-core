@@ -347,6 +347,7 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 	// 设置临时变量
 	if ctx.Player != nil {
 		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
+		VarSetValue(ctx, "$t玩家_RAW", &VMValue{VMTypeString, fmt.Sprintf("%s", ctx.Player.Name)})
 		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
 		VarSetValue(ctx, "$t帐号昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
 		VarSetValue(ctx, "$t帐号ID", &VMValue{VMTypeString, fmt.Sprintf("%s", ctx.Player.UserId)})
