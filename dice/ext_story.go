@@ -178,6 +178,133 @@ func RegisterBuiltinStory(self *Dice) {
 		},
 	}
 
+	helpCnmods := ".modu search <关键字> (<页码>) // 搜索关键字\n" +
+		".modu rec <关键字> (<页码>) // 搜索编辑推荐\n" +
+		".modu author <关键字> (<页码>) // 搜索指定作者\n" +
+		".modu luck (<页码>) // 查看编辑推荐\n" +
+		".modu get <编号> // 查看指定详情\n" +
+		".modu roll // 随机抽取\n" +
+		".modu help // 显示帮助"
+	cmdCnmods := &CmdItemInfo{
+		Name:     "modu",
+		Help:     helpCnmods,
+		LongHelp: "魔都查询:\n" + helpCnmods,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+				cmdArgs.ChopPrefixToArgsWith("help", "search", "find", "rec", "luck", "get", "author", "roll")
+
+				if cmdArgs.IsArgEqual(1, "help") {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+
+				getDetail := func(keyId string) string {
+					ret := CnmodsDetail(keyId)
+					if ret != nil {
+						item := ret.Data.Module
+
+						opinion := item.Opinion
+						//opinion := html.UnescapeString(item.Opinion)
+						//opinion = strip.StripTags(opinion)
+						ori := "是"
+						if !item.Original {
+							ori = "否"
+						}
+
+						var recInfo string
+						//if len(ret.Data.RecommendList) > 0 {
+						//	rec := ret.Data.RecommendList[0]
+						//	recInfo = fmt.Sprintf("推荐语: %s - by %s\n", rec.Content, rec.LoginUser.NickName)
+						//}
+
+						text := fmt.Sprintf("[%d]%s\n作者: %s\n背景: %s,%s\n规模: %d-%d人，%d-%d时\n原创: %v\n简介: %s\n%s链接: %s",
+							item.KeyId, item.Title,
+							item.Article,
+							item.ModuleAge, item.OccurrencePlace,
+							item.MinAmount, item.MaxAmount,
+							item.MinDuration, item.MaxDuration,
+							ori,
+							opinion,
+							recInfo,
+							"https://www.cnmods.net/#/moduleDetail/index?keyId="+strconv.Itoa(item.KeyId))
+						return text
+					}
+					return ""
+				}
+
+				_val, _ := cmdArgs.GetArgN(1)
+				val := strings.ToLower(_val)
+				switch val {
+				case "search", "find", "rec", "luck", "author":
+					keyword, _ := cmdArgs.GetArgN(2)
+					page, _ := cmdArgs.GetArgN(3)
+					isRec := false
+					if val == "luck" {
+						keyword = ""
+						page, _ = cmdArgs.GetArgN(2)
+						isRec = true
+					}
+					if val == "rec" {
+						isRec = true
+					}
+					var author = ""
+					if val == "author" {
+						author, _ = cmdArgs.GetArgN(2)
+					}
+
+					thePage, _ := strconv.ParseInt(page, 10, 64)
+					if thePage <= 0 {
+						thePage = 1
+					}
+
+					ret := CnmodsSearch(keyword, int(thePage), 7, isRec, author)
+					if ret != nil {
+						text := fmt.Sprintf("来自cnmods的搜索结果 - %d/%d页%d项:\n", thePage, ret.Data.TotalPages, ret.Data.TotalElements)
+						for _, item := range ret.Data.List {
+							ver := ""
+							if item.ModuleVersion == "coc6th" {
+								ver = "[coc6]"
+							}
+							// 魔都现在只有coc本
+							//if item.ModuleVersion == "coc7th" {
+							//	ver = "[coc7]"
+							//}
+							text += fmt.Sprintf("[%d]%s%s %s%s - by %s\n", item.KeyId, ver, item.Title, item.ModuleAge, item.OccurrencePlace, item.Article)
+						}
+						if len(ret.Data.List) == 0 {
+							text += "什么也没发现"
+						}
+						ReplyToSender(ctx, msg, text)
+					}
+				case "roll":
+					ret := CnmodsSearch("", 1, 1, false, "")
+					id := rand.Int()%ret.Data.TotalElements + 1
+					text := getDetail(strconv.Itoa(id))
+					if text != "" {
+						ReplyToSender(ctx, msg, text)
+					} else {
+						ReplyToSender(ctx, msg, "什么也没发现")
+					}
+
+				case "get":
+					page, _ := cmdArgs.GetArgN(2)
+					text := getDetail(page)
+					if text != "" {
+						ReplyToSender(ctx, msg, text)
+					} else {
+						ReplyToSender(ctx, msg, "什么也没发现")
+					}
+				default:
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	theExt := &ExtInfo{
 		Name:       "story", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.1",
@@ -198,6 +325,9 @@ func RegisterBuiltinStory(self *Dice) {
 			"name":    cmdName,
 			"namednd": cmdNameDnd,
 			"who":     cmdWho,
+			"cnmods":  cmdCnmods,
+			"modu":    cmdCnmods,
+			"魔都":      cmdCnmods,
 		},
 	}
 
