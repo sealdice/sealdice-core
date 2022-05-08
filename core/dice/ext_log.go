@@ -394,6 +394,91 @@ func RegisterBuiltinExtLog(self *Dice) {
 		},
 	}
 
+	helpOb := `.ob // 进入ob模式
+.ob exit // 退出ob
+.stat help // 帮助
+`
+	cmdOb := &CmdItemInfo{
+		Name:     "ob",
+		Help:     helpOb,
+		LongHelp: "观众指令:\n" + helpOb,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				val, _ := cmdArgs.GetArgN(1)
+				switch strings.ToLower(val) {
+				case "help":
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				case "exit":
+					if strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
+						ctx.Player.Name = ctx.Player.Name[len("ob"):]
+					}
+					ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
+					ReplyToSender(ctx, msg, "你不再是观众了（自动修改昵称和群名片[如有权限]）。")
+				default:
+					if !strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
+						ctx.Player.Name = "ob" + ctx.Player.Name
+					}
+					ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
+					ReplyToSender(ctx, msg, "你将成为观众（自动修改昵称和群名片[如有权限]，并不会给观众发送暗骰结果）。")
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
+	helpSn := `.sn coc // coc名片: 
+.sn dnd // dnd名片
+.sn none // 空名片
+`
+	cmdSn := &CmdItemInfo{
+		Name:     "sn",
+		Help:     helpSn,
+		LongHelp: "跑团名片:\n" + helpSn,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				setByTmpl := func(tmpl string) (string, error) {
+					ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
+					text, _, err := ctx.Dice.ExprText(tmpl, ctx)
+					if err != nil {
+						ctx.Dice.Logger.Infof("SN指令模板错误: %v", err.Error())
+						return "", err
+					}
+					ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, text)
+					return text, nil
+				}
+
+				val, _ := cmdArgs.GetArgN(1)
+				switch strings.ToLower(val) {
+				case "help":
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				case "coc", "coc7":
+					text, _ := setByTmpl("{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}")
+					// 玩家 SAN60 HP10/10 DEX65
+					ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text)
+				case "dnd", "dnd5e":
+					// PW{pw}
+					text, _ := setByTmpl("{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc}")
+					// 玩家 HP10/10 AC15 DC15 PW10
+					ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text)
+				case "none":
+					setByTmpl("{$t玩家}")
+					ReplyToSender(ctx, msg, "已自动设置名片为空白格式: 玩家")
+				default:
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:       "log",
 		Version:    "1.0.1",
@@ -482,6 +567,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 		CmdMap: CmdMapCls{
 			"log":  cmdLog,
 			"stat": cmdStat,
+			"hiy":  cmdStat,
+			"ob":   cmdOb,
+			"sn":   cmdSn,
 		},
 	})
 }

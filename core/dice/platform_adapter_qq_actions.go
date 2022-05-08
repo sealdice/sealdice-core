@@ -222,8 +222,21 @@ func (pa *PlatformAdapterQQOnebot) GetGroupMemberInfo(GroupId int64, UserId int6
 	socketSendText(pa.Socket, string(a))
 }
 
-// SetGroupCard 设置群名片
-func (pa *PlatformAdapterQQOnebot) SetGroupCard(GroupId int64, UserId int64, Card string) {
+func (pa *PlatformAdapterQQOnebot) SetGroupCardName(groupId string, userId string, name string) {
+	groupIdRaw, type_ := pa.mustExtractId(groupId)
+	if type_ != QQUidGroup {
+		return
+	}
+	userIdRaw, type_ := pa.mustExtractId(userId)
+	if type_ != QQUidPerson {
+		return
+	}
+
+	pa.SetGroupCardNameBase(groupIdRaw, userIdRaw, name)
+}
+
+// SetGroupCardNameBase 设置群名片
+func (pa *PlatformAdapterQQOnebot) SetGroupCardNameBase(GroupId int64, UserId int64, Card string) {
 	type DetailParams struct {
 		GroupId int64  `json:"group_id"`
 		UserId  int64  `json:"user_id"`

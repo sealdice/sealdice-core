@@ -1412,11 +1412,12 @@ func (d *Dice) registerCoreCommands() {
 					} else {
 						info = "\n状态: 关闭"
 					}
-					ReplyToSender(ctx, msg, "当前欢迎语: "+welcome+info)
-				} else if text, ok := cmdArgs.EatPrefixWith("set"); ok {
-					ctx.Group.GroupWelcomeMessage = text
+					ReplyToSender(ctx, msg, "当前欢迎语:\n"+welcome+info)
+				} else if _, ok := cmdArgs.EatPrefixWith("set"); ok {
+					text2 := strings.TrimSpace(cmdArgs.RawArgs[len("set"):])
+					ctx.Group.GroupWelcomeMessage = text2
 					ctx.Group.ShowGroupWelcome = true
-					ReplyToSender(ctx, msg, "当前欢迎语设定为: "+text+"\n入群欢迎语已自动打开(注意，会在bot off时起效)")
+					ReplyToSender(ctx, msg, "当前欢迎语设定为:\n"+text2+"\n入群欢迎语已自动打开(注意，会在bot off时起效)")
 				} else {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				}

@@ -1490,7 +1490,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									}
 
 									tick += 1
-									info += fmt.Sprintf("%s: %s\t", k, v.ToString())
+									info += fmt.Sprintf("%s:%s\t", k, v.ToString())
 									if tick%4 == 0 {
 										info = strings.TrimSpace(info) // 去除末尾空格
 										info += fmt.Sprintf("\n")
@@ -1891,6 +1891,7 @@ func setupConfig(d *Dice) AttributeConfigs {
 
 				"幸运":     {"luck", "幸运值", "运气", "幸運", "運氣", "幸運值"},
 				"生命值":    {"hp", "生命", "体力", "體力", "血量", "耐久值"},
+				"生命值上限":  {"hpmax", "生命上限", "体力上限", "體力上限", "血量上限", "耐久值上限"},
 				"魔法值":    {"mp", "魔法", "魔力", "魔力值"},
 				"护甲":     {"装甲", "護甲", "裝甲"},
 				"枪械":     {"火器", "射击", "槍械", "射擊"},
