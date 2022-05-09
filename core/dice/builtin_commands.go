@@ -1181,12 +1181,12 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 
-	helpSet := ".set // 查看当前面数设置\n" +
+	helpSet := ".set info// 查看当前面数设置\n" +
+		".set dnd/coc // 设置群内骰子面数为20/100，并自动开启对应扩展 \n" +
 		".set <面数> // 设置群内骰子面数\n" +
 		".set <面数> --my // 设定个人专属骰子面数\n" +
 		".set clr // 清除群内骰子面数设置\n" +
-		".set clr --my // 清除个人骰子面数设置\n" +
-		".set dnd/coc // 设置群内骰子面数为20/100，并自动开启对应扩展 \n"
+		".set clr --my // 清除个人骰子面数设置"
 	cmdSet := &CmdItemInfo{
 		Name:     "set",
 		Help:     helpSet,
@@ -1260,14 +1260,16 @@ func (d *Dice) registerCoreCommands() {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
 						case "help":
 							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						case "info":
+							ReplyToSender(ctx, msg, DiceFormat(ctx, `个人骰子面数: {$t个人骰子面数}\n`+
+								`群组骰子面数: {$t群组骰子面数}\n当前骰子面数: {$t当前骰子面数}`))
 						default:
 							//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数: 格式错误"))
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_错误"))
 						}
 					}
 				} else {
-					ReplyToSender(ctx, msg, DiceFormat(ctx, `个人骰子面数: {$t个人骰子面数}\n`+
-						`群组骰子面数: {$t群组骰子面数}\n当前骰子面数: {$t当前骰子面数}`))
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}

@@ -67,6 +67,8 @@ func PortExistsWarn() {
 
 func onReady() {
 	systray.SetIcon(icon.Data)
+	systray.SetTitle("海豹TRPG骰点核心")
+	systray.SetTooltip("海豹TRPG骰点核心")
 
 	mOpen := systray.AddMenuItem("打开界面", "开启WebUI")
 	mShowHide := systray.AddMenuItemCheckbox("显示终端窗口", "显示终端窗口", false)
