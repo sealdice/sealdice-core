@@ -162,7 +162,8 @@ func (d *Dice) registerCoreCommands() {
 				if id != "" {
 					text, exists := d.Parent.Help.TextMap[id]
 					if exists {
-						ReplyToSender(ctx, msg, fmt.Sprintf("词条: %s:%s\n%s", text.PackageName, text.Title, text.Content))
+						content := d.Parent.Help.GetContent(text, 0)
+						ReplyToSender(ctx, msg, fmt.Sprintf("词条: %s:%s\n%s", text.PackageName, text.Title, content))
 					} else {
 						ReplyToSender(ctx, msg, "未发现对应ID的词条")
 					}
@@ -198,7 +199,8 @@ func (d *Dice) registerCoreCommands() {
 							}
 
 							if showBest {
-								bestResult = fmt.Sprintf("最优先结果:\n词条: %s:%s\n%s\n\n", best.PackageName, best.Title, best.Content)
+								content := d.Parent.Help.GetContent(best, 0)
+								bestResult = fmt.Sprintf("最优先结果:\n词条: %s:%s\n%s\n\n", best.PackageName, best.Title, content)
 							}
 
 							suffix := d.Parent.Help.GetSuffixText()
@@ -275,8 +277,10 @@ func (d *Dice) registerCoreCommands() {
 					search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true)
 					if err == nil {
 						if len(search.Hits) > 0 {
+							//a := d.Parent.Help.GetContent(search.Hits[0].ID)
 							a := d.Parent.Help.TextMap[search.Hits[0].ID]
-							ReplyToSender(ctx, msg, fmt.Sprintf("%s:%s\n%s", a.PackageName, a.Title, a.Content))
+							content := d.Parent.Help.GetContent(a, 0)
+							ReplyToSender(ctx, msg, fmt.Sprintf("%s:%s\n%s", a.PackageName, a.Title, content))
 						} else {
 							ReplyToSender(ctx, msg, "未找到搜索结果")
 						}
@@ -462,6 +466,10 @@ func (d *Dice) registerCoreCommands() {
 	readIdList := func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) []string {
 		uidLst := []string{}
 		for _, i := range cmdArgs.At {
+			if i.UserId == ctx.EndPoint.UserId {
+				// 不许添加自己
+				continue
+			}
 			uidLst = append(uidLst, i.UserId)
 		}
 
@@ -484,7 +492,7 @@ func (d *Dice) registerCoreCommands() {
 	botListHelp := ".botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话\n" +
 		".botlist add @A @B --s  // 同上，不过骰子不会做出回复\n" +
 		".botlist del @A @B @C // 去除机器人标记\n" +
-		".botlist list // 查看当前列表"
+		".botlist list/show // 查看当前列表"
 
 	cmdBotList := &CmdItemInfo{
 		Name:     "botlist",
@@ -498,6 +506,12 @@ func (d *Dice) registerCoreCommands() {
 			cmdArgs.ChopPrefixToArgsWith("add", "rm", "del", "show", "list")
 
 			if ctx.IsCurGroupBotOn {
+				notMe := cmdArgs.SomeoneBeMentionedButNotMe
+				checkSlience := func() bool {
+					return notMe || cmdArgs.GetKwarg("s") != nil ||
+						cmdArgs.GetKwarg("slience") != nil
+				}
+
 				subCmd, _ := cmdArgs.GetArgN(1)
 				switch subCmd {
 				case "add":
@@ -512,8 +526,8 @@ func (d *Dice) registerCoreCommands() {
 						}
 					}
 
-					if cmdArgs.GetKwarg("s") == nil && cmdArgs.GetKwarg("slience") == nil {
-						ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d个帐号，这些账号将被视为机器人。\n因此别人@他们时，海豹将不会回复。\n他们的指令也会被海豹忽略，避免发生循环回复事故。后续使用此指令时在末尾加参数 --s 骰子将保持静默", newCount))
+					if !checkSlience() {
+						ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d个帐号，这些账号将被视为机器人。\n因此他们被人@，或主动发出指令时，海豹将不会回复。\n另外对于botlist add/rm，如果群里有多个海豹，只有第一个被@的会回复，其余的执行指令但不回应", newCount))
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "del", "rm":
@@ -525,12 +539,12 @@ func (d *Dice) registerCoreCommands() {
 						}
 					}
 
-					if cmdArgs.GetKwarg("s") == nil && cmdArgs.GetKwarg("slience") == nil {
+					if !checkSlience() {
 						ReplyToSender(ctx, msg, fmt.Sprintf("删除标记了%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount))
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				case "list", "show":
-					if cmdArgs.SomeoneBeMentionedButNotMe {
+					if cmdArgs.SomeoneBeMentionedButNotMeStrict {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
@@ -544,6 +558,9 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, fmt.Sprintf("群内其他机器人列表:\n%s", text))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				default:
+					if cmdArgs.SomeoneBeMentionedButNotMeStrict {
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				}
 			} else if ctx.IsPrivate {
