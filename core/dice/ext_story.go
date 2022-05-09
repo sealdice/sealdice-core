@@ -2,6 +2,8 @@ package dice
 
 import (
 	"fmt"
+	strip "github.com/grokify/html-strip-tags-go"
+	"html"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -206,8 +208,8 @@ func RegisterBuiltinStory(self *Dice) {
 						item := ret.Data.Module
 
 						opinion := item.Opinion
-						//opinion := html.UnescapeString(item.Opinion)
-						//opinion = strip.StripTags(opinion)
+						opinion = html.UnescapeString(item.Opinion) // 确实仍然存在一些 有标签的，如2488
+						opinion = strip.StripTags(opinion)
 						ori := "是"
 						if !item.Original {
 							ori = "否"

@@ -9,6 +9,7 @@ import (
 	"github.com/lxn/win"
 	"os"
 	"os/exec"
+	"runtime"
 	"sealdice-core/icon"
 	"syscall"
 	"time"
@@ -24,7 +25,9 @@ func showWindow() {
 }
 
 func trayInit() {
-	go systray.Run(onReady, onExit)
+	// 确保能收到系统消息，从而避免不能弹出菜单
+	runtime.LockOSThread()
+	systray.Run(onReady, onExit)
 }
 
 var (
