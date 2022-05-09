@@ -662,7 +662,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 					}
 
-					retText := fmt.Sprintf("[dnd5e]<%s>的人物属性设置如下:\n", mctx.Player.Name)
+					retText := fmt.Sprintf("<%s>的dnd5e人物属性设置如下:\n", mctx.Player.Name)
 					if len(attrSeted) > 0 {
 						SetCardType(mctx, "dnd5e")
 						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
@@ -1039,7 +1039,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 					}
 
-					retText := fmt.Sprintf("[dnd5e]<%s>的人物Buff属性设置如下:\n", mctx.Player.Name)
+					retText := fmt.Sprintf("<%s>的dnd5e人物Buff属性设置如下:\n", mctx.Player.Name)
 					if len(attrSeted) > 0 {
 						SetCardType(mctx, "dnd5e")
 						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"

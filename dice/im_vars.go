@@ -356,8 +356,10 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeString, ctx.Player.UserId})
 		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeString, ctx.EndPoint.UserId})
 		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeString, ctx.EndPoint.Nickname})
-
 		VarSetValue(ctx, "$t帐号ID_RAW", &VMValue{VMTypeString, UserIdExtract(ctx.Player.UserId)})
+
+		time.Now().Format("")
+		VarSetValue(ctx, "$tDay", &VMValue{VMTypeInt64, fmt.Sprintf("<%s>", ctx.Player.Name)})
 	}
 	if ctx.Group != nil {
 		if ctx.MessageType == "group" {

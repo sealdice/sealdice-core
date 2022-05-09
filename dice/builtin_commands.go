@@ -953,8 +953,10 @@ func (d *Dice) registerCoreCommands() {
 				ctx.CommandInfo = commandInfo
 
 				if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
-					asm := r.Parser.GetAsmText()
-					text += "\n" + asm
+					if ctx.PrivilegeLevel >= 40 {
+						asm := r.Parser.GetAsmText()
+						text += "\n" + asm
+					}
 				}
 
 				if kw := cmdArgs.GetKwarg("ci"); kw != nil {
