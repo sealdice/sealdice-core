@@ -465,7 +465,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text)
 				case "dnd", "dnd5e":
 					// PW{pw}
-					text, _ := setByTmpl("{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc}")
+					text, _ := setByTmpl("{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PW{_pw}")
 					// 玩家 HP10/10 AC15 DC15 PW10
 					ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text)
 				case "none":

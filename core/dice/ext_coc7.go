@@ -826,6 +826,294 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		},
 	}
 
+	cmdSt := &CmdItemInfo{
+		Name:     "st",
+		Help:     helpSt,
+		LongHelp: "COC属性设置指令，支持分支指令如下:\n" + helpSt,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			// .st show
+			// .st help
+			// .st (<Name>[0-9]+)+
+			// .st (<Name>)
+			// .st (<Name>)+-<表达式>
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+				cmdArgs.ChopPrefixToArgsWith("help", "del", "rm", "show", "list")
+
+				if len(cmdArgs.Args) == 0 || cmdArgs.IsArgEqual(1, "help") {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				} else if cmdArgs.IsArgEqual(1, "del", "rm") {
+					var nums []string
+					var failed []string
+
+					doDelete := func(varname string) {
+						_, ok := mctx.Player.Vars.ValueMap.Get(varname)
+						if ok {
+							nums = append(nums, varname)
+							mctx.Player.Vars.ValueMap.Del(varname)
+						} else {
+							failed = append(failed, varname)
+						}
+					}
+
+					for _, varname := range cmdArgs.Args[1:] {
+						doDelete(varname)
+					}
+					if len(nums) > 0 {
+						mctx.Player.Vars.LastWriteTime = time.Now().Unix()
+					}
+
+					//text := fmt.Sprintf("<%s>的如下属性被成功删除:%s，失败%d项\n", p.Name, nums, len(failed))
+					VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
+					VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_删除"))
+				} else if cmdArgs.IsArgEqual(1, "clr", "clear") {
+					p := mctx.Player
+					num := p.Vars.ValueMap.Len()
+					p.Vars.ValueMap = lockfree.NewHashMap()
+					p.Vars.LastWriteTime = time.Now().Unix()
+					VarSetValueInt64(mctx, "$t数量", int64(num))
+					//text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_清除"))
+				} else if cmdArgs.IsArgEqual(1, "show", "list") {
+					info := ""
+					p := mctx.Player
+
+					useLimit := false
+					usePickItem := false
+					limktSkipCount := 0
+					var limit int64
+
+					if len(cmdArgs.Args) >= 2 {
+						arg2, _ := cmdArgs.GetArgN(2)
+						_limit, err := strconv.ParseInt(arg2, 10, 64)
+						if err == nil {
+							limit = _limit
+							useLimit = true
+						} else {
+							usePickItem = true
+						}
+					}
+
+					pickItems := map[string]int{}
+
+					if usePickItem {
+						for _, i := range cmdArgs.Args[1:] {
+							key := p.GetValueNameByAlias(i, ac.Alias)
+							pickItems[key] = 1
+						}
+					}
+
+					tick := 0
+					if p.Vars.ValueMap.Len() == 0 {
+						info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
+					} else {
+						// 按照配置文件排序
+						attrKeys := []string{}
+						used := map[string]bool{}
+						for _, i := range ac.Order.Top {
+							key := p.GetValueNameByAlias(i, ac.Alias)
+							if used[key] {
+								continue
+							}
+							attrKeys = append(attrKeys, key)
+							used[key] = true
+						}
+
+						// 其余按字典序
+						topNum := len(attrKeys)
+						attrKeys2 := []string{}
+
+						_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+							attrKeys2 = append(attrKeys2, _k.(string))
+							return nil
+						})
+
+						sort.Strings(attrKeys2)
+						for _, key := range attrKeys2 {
+							if used[key] {
+								continue
+							}
+							attrKeys = append(attrKeys, key)
+						}
+
+						// 遍历输出
+						for index, k := range attrKeys {
+							if strings.HasPrefix(k, "$") {
+								continue
+							}
+							var v *VMValue
+							_v, exists := p.Vars.ValueMap.Get(k)
+							if !exists {
+								// 不存在的值，强行补0
+								v = &VMValue{VMTypeInt64, int64(0)}
+							} else {
+								v = _v.(*VMValue)
+							}
+
+							if index >= topNum {
+								if useLimit && v.TypeId == VMTypeInt64 && v.Value.(int64) < limit {
+									limktSkipCount += 1
+									continue
+								}
+							}
+
+							if usePickItem {
+								_, ok := pickItems[k]
+								if !ok {
+									continue
+								}
+							}
+
+							tick += 1
+							info += fmt.Sprintf("%s:%s\t", k, v.ToString())
+							if tick%4 == 0 {
+								info = strings.TrimSpace(info) // 去除末尾空格
+								info += fmt.Sprintf("\n")
+							}
+						}
+
+						if info == "" {
+							info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
+						}
+					}
+
+					if useLimit {
+						VarSetValueInt64(mctx, "$t数量", int64(limktSkipCount))
+						VarSetValueInt64(mctx, "$t判定值", int64(limit))
+						info += DiceFormatTmpl(mctx, "COC:属性设置_列出_隐藏提示")
+						//info += fmt.Sprintf("\n注：%d条属性因≤%d被隐藏", limktSkipCount, limit)
+					}
+
+					VarSetValueStr(mctx, "$t属性信息", info)
+					extra := ReadCardType(mctx, "coc7")
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
+				} else {
+					re1, _ := regexp.Compile(`([^\d\s]+)\s*([+\-＋－])=?(.+)$`)
+					m := re1.FindStringSubmatch(cmdArgs.CleanArgs)
+					if len(m) > 0 {
+						p := mctx.Player
+						val, exists := p.GetValueInt64(m[1], ac.Alias)
+						if !exists {
+							text := fmt.Sprintf("<%s>: 无法找到名下属性 %s，不能作出修改", p.Name, m[1])
+							ReplyToSender(mctx, msg, text)
+						} else {
+							v, _, err := self.ExprEval(m[3], mctx)
+							if err == nil && v.TypeId == 0 {
+								var newVal int64
+								rightVal := v.Value.(int64)
+								signText := ""
+
+								if m[2] == "+" || m[2] == "＋" {
+									signText = "增加"
+									newVal = val + rightVal
+								} else {
+									signText = "扣除"
+									newVal = val - rightVal
+								}
+								p.SetValueInt64(m[1], newVal, ac.Alias)
+
+								//text := fmt.Sprintf("<%s>的“%s”变化: %d ➯ %d (%s%s=%d)\n", p.Name, m[1], val, newVal, signText, m[3], rightVal)
+								VarSetValueStr(mctx, "$t属性", m[1])
+								VarSetValueInt64(mctx, "$t旧值", val)
+								VarSetValueInt64(mctx, "$t新值", newVal)
+								VarSetValueStr(mctx, "$t增加或扣除", signText)
+								VarSetValueStr(mctx, "$t表达式文本", v.Matched)
+								VarSetValueInt64(mctx, "$t变化量", rightVal)
+								text := DiceFormatTmpl(mctx, "COC:属性设置_增减")
+
+								// 指令信息
+								commandInfo := map[string]interface{}{
+									"cmd":    "st",
+									"rule":   "coc7",
+									"pcName": mctx.Player.Name,
+									"items": []interface{}{
+										map[string]interface{}{
+											"type":    "mod",
+											"attr":    m[1],
+											"modExpr": v.Matched,
+											"valOld":  val,
+											"valNew":  newVal,
+											"isInc":   signText == "增加", // 增加还是扣除
+										},
+									},
+								}
+								ctx.CommandInfo = commandInfo
+
+								if kw := cmdArgs.GetKwarg("ci"); kw != nil {
+									info, err := json.Marshal(ctx.CommandInfo)
+									if err == nil {
+										text += "\n" + string(info)
+									} else {
+										text += "\n" + "指令信息无法序列化"
+									}
+								}
+
+								ReplyToSender(mctx, msg, text)
+							} else {
+								VarSetValueStr(mctx, "$t表达式文本", m[3])
+								//text := fmt.Sprintf("<%s>: 错误的增减值: %s", p.Name, m[3])
+								text := DiceFormatTmpl(mctx, "COC:属性设置_增减_错误的值")
+								ReplyToSender(mctx, msg, text)
+							}
+						}
+					} else {
+						valueMap := map[string]int64{}
+						re, _ := regexp.Compile(`([^\d]+?)[:=：＝]?(\d+)`)
+
+						// 读取所有参数中的值
+						stText := cmdArgs.CleanArgs
+
+						m := re.FindAllStringSubmatch(RemoveSpace(stText), -1)
+
+						for _, i := range m {
+							num, err := strconv.ParseInt(i[2], 10, 64)
+							if err == nil {
+								valueMap[i[1]] = num
+							}
+						}
+
+						for _, v := range cmdArgs.Kwargs {
+							vint, err := strconv.ParseInt(v.Value, 10, 64)
+							if err == nil {
+								valueMap[v.Name] = vint
+							}
+						}
+
+						nameMap := map[string]bool{}
+						synonymsCount := 0
+						p := mctx.Player
+
+						for k, v := range valueMap {
+							name := p.GetValueNameByAlias(k, ac.Alias)
+							nameMap[name] = true
+							if k != name {
+								synonymsCount += 1
+							}
+							p.SetValueInt64(name, v, ac.Alias)
+						}
+
+						if len(m) == 0 {
+							ReplyToSender(mctx, msg, "无法识别的属性: "+stText)
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
+						//s, _ := json.Marshal(valueMap)
+						VarSetValueInt64(mctx, "$t数量", int64(len(valueMap)))
+						VarSetValueInt64(mctx, "$t有效数量", int64(len(nameMap)))
+						VarSetValueInt64(mctx, "$t同义词数量", int64(synonymsCount))
+						text := DiceFormatTmpl(mctx, "COC:属性设置")
+						SetCardType(mctx, "coc7")
+						//text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据 (其中%d条为同义词)", p.Name, len(valueMap), synonymsCount)
+						ReplyToSender(mctx, msg, text)
+					}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	helpEn := `.en <技能名称>(技能点数) (+(<失败成长值>/)<成功成长值>) // 整体格式，可以直接看下面几个分解格式
 .en <技能名称> // 骰D100，若点数大于当前值，属性成长1d10
 .en <技能名称>(技能点数) // 骰D100，若点数大于技能点数，属性=技能点数+1d10
@@ -1068,12 +1356,16 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
-			"ra":  cmdRc,
-			"rc":  cmdRc,
-			"rch": cmdRc,
-			"rah": cmdRc,
-			"rav": cmdRcv,
-			"rcv": cmdRcv,
+			"ra":   cmdRc,
+			"rc":   cmdRc,
+			"rch":  cmdRc,
+			"rah":  cmdRc,
+			"cra":  cmdRc,
+			"crc":  cmdRc,
+			"crch": cmdRc,
+			"crah": cmdRc,
+			"rav":  cmdRcv,
+			"rcv":  cmdRcv,
 			"sc": &CmdItemInfo{
 				Name: "sc",
 				Help: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
@@ -1358,293 +1650,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				},
 			},
 
-			"st": &CmdItemInfo{
-				Name:     "st",
-				Help:     helpSt,
-				LongHelp: "COC属性设置指令，支持分支指令如下:\n" + helpSt,
-				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					// .st show
-					// .st help
-					// .st (<Name>[0-9]+)+
-					// .st (<Name>)
-					// .st (<Name>)+-<表达式>
-					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-						mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
-						cmdArgs.ChopPrefixToArgsWith("help", "del", "rm", "show", "list")
-
-						if len(cmdArgs.Args) == 0 || cmdArgs.IsArgEqual(1, "help") {
-							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
-						} else if cmdArgs.IsArgEqual(1, "del", "rm") {
-							var nums []string
-							var failed []string
-
-							doDelete := func(varname string) {
-								_, ok := mctx.Player.Vars.ValueMap.Get(varname)
-								if ok {
-									nums = append(nums, varname)
-									mctx.Player.Vars.ValueMap.Del(varname)
-								} else {
-									failed = append(failed, varname)
-								}
-							}
-
-							for _, varname := range cmdArgs.Args[1:] {
-								doDelete(varname)
-							}
-							if len(nums) > 0 {
-								mctx.Player.Vars.LastWriteTime = time.Now().Unix()
-							}
-
-							//text := fmt.Sprintf("<%s>的如下属性被成功删除:%s，失败%d项\n", p.Name, nums, len(failed))
-							VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
-							VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
-							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_删除"))
-						} else if cmdArgs.IsArgEqual(1, "clr", "clear") {
-							p := mctx.Player
-							num := p.Vars.ValueMap.Len()
-							p.Vars.ValueMap = lockfree.NewHashMap()
-							p.Vars.LastWriteTime = time.Now().Unix()
-							VarSetValueInt64(mctx, "$t数量", int64(num))
-							//text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
-							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_清除"))
-						} else if cmdArgs.IsArgEqual(1, "show", "list") {
-							info := ""
-							p := mctx.Player
-
-							useLimit := false
-							usePickItem := false
-							limktSkipCount := 0
-							var limit int64
-
-							if len(cmdArgs.Args) >= 2 {
-								arg2, _ := cmdArgs.GetArgN(2)
-								_limit, err := strconv.ParseInt(arg2, 10, 64)
-								if err == nil {
-									limit = _limit
-									useLimit = true
-								} else {
-									usePickItem = true
-								}
-							}
-
-							pickItems := map[string]int{}
-
-							if usePickItem {
-								for _, i := range cmdArgs.Args[1:] {
-									key := p.GetValueNameByAlias(i, ac.Alias)
-									pickItems[key] = 1
-								}
-							}
-
-							tick := 0
-							if p.Vars.ValueMap.Len() == 0 {
-								info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
-							} else {
-								// 按照配置文件排序
-								attrKeys := []string{}
-								used := map[string]bool{}
-								for _, i := range ac.Order.Top {
-									key := p.GetValueNameByAlias(i, ac.Alias)
-									if used[key] {
-										continue
-									}
-									attrKeys = append(attrKeys, key)
-									used[key] = true
-								}
-
-								// 其余按字典序
-								topNum := len(attrKeys)
-								attrKeys2 := []string{}
-
-								_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
-									attrKeys2 = append(attrKeys2, _k.(string))
-									return nil
-								})
-
-								sort.Strings(attrKeys2)
-								for _, key := range attrKeys2 {
-									if used[key] {
-										continue
-									}
-									attrKeys = append(attrKeys, key)
-								}
-
-								// 遍历输出
-								for index, k := range attrKeys {
-									if strings.HasPrefix(k, "$") {
-										continue
-									}
-									var v *VMValue
-									_v, exists := p.Vars.ValueMap.Get(k)
-									if !exists {
-										// 不存在的值，强行补0
-										v = &VMValue{VMTypeInt64, int64(0)}
-									} else {
-										v = _v.(*VMValue)
-									}
-
-									if index >= topNum {
-										if useLimit && v.TypeId == VMTypeInt64 && v.Value.(int64) < limit {
-											limktSkipCount += 1
-											continue
-										}
-									}
-
-									if usePickItem {
-										_, ok := pickItems[k]
-										if !ok {
-											continue
-										}
-									}
-
-									tick += 1
-									info += fmt.Sprintf("%s:%s\t", k, v.ToString())
-									if tick%4 == 0 {
-										info = strings.TrimSpace(info) // 去除末尾空格
-										info += fmt.Sprintf("\n")
-									}
-								}
-
-								if info == "" {
-									info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
-								}
-							}
-
-							if useLimit {
-								VarSetValueInt64(mctx, "$t数量", int64(limktSkipCount))
-								VarSetValueInt64(mctx, "$t判定值", int64(limit))
-								info += DiceFormatTmpl(mctx, "COC:属性设置_列出_隐藏提示")
-								//info += fmt.Sprintf("\n注：%d条属性因≤%d被隐藏", limktSkipCount, limit)
-							}
-
-							VarSetValueStr(mctx, "$t属性信息", info)
-							extra := ReadCardType(mctx, "coc7")
-							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
-						} else {
-							re1, _ := regexp.Compile(`([^\d\s]+)\s*([+\-＋－])=?(.+)$`)
-							m := re1.FindStringSubmatch(cmdArgs.CleanArgs)
-							if len(m) > 0 {
-								p := mctx.Player
-								val, exists := p.GetValueInt64(m[1], ac.Alias)
-								if !exists {
-									text := fmt.Sprintf("<%s>: 无法找到名下属性 %s，不能作出修改", p.Name, m[1])
-									ReplyToSender(mctx, msg, text)
-								} else {
-									v, _, err := self.ExprEval(m[3], mctx)
-									if err == nil && v.TypeId == 0 {
-										var newVal int64
-										rightVal := v.Value.(int64)
-										signText := ""
-
-										if m[2] == "+" || m[2] == "＋" {
-											signText = "增加"
-											newVal = val + rightVal
-										} else {
-											signText = "扣除"
-											newVal = val - rightVal
-										}
-										p.SetValueInt64(m[1], newVal, ac.Alias)
-
-										//text := fmt.Sprintf("<%s>的“%s”变化: %d ➯ %d (%s%s=%d)\n", p.Name, m[1], val, newVal, signText, m[3], rightVal)
-										VarSetValueStr(mctx, "$t属性", m[1])
-										VarSetValueInt64(mctx, "$t旧值", val)
-										VarSetValueInt64(mctx, "$t新值", newVal)
-										VarSetValueStr(mctx, "$t增加或扣除", signText)
-										VarSetValueStr(mctx, "$t表达式文本", v.Matched)
-										VarSetValueInt64(mctx, "$t变化量", rightVal)
-										text := DiceFormatTmpl(mctx, "COC:属性设置_增减")
-
-										// 指令信息
-										commandInfo := map[string]interface{}{
-											"cmd":    "st",
-											"rule":   "coc7",
-											"pcName": mctx.Player.Name,
-											"items": []interface{}{
-												map[string]interface{}{
-													"type":    "mod",
-													"attr":    m[1],
-													"modExpr": v.Matched,
-													"valOld":  val,
-													"valNew":  newVal,
-													"isInc":   signText == "增加", // 增加还是扣除
-												},
-											},
-										}
-										ctx.CommandInfo = commandInfo
-
-										if kw := cmdArgs.GetKwarg("ci"); kw != nil {
-											info, err := json.Marshal(ctx.CommandInfo)
-											if err == nil {
-												text += "\n" + string(info)
-											} else {
-												text += "\n" + "指令信息无法序列化"
-											}
-										}
-
-										ReplyToSender(mctx, msg, text)
-									} else {
-										VarSetValueStr(mctx, "$t表达式文本", m[3])
-										//text := fmt.Sprintf("<%s>: 错误的增减值: %s", p.Name, m[3])
-										text := DiceFormatTmpl(mctx, "COC:属性设置_增减_错误的值")
-										ReplyToSender(mctx, msg, text)
-									}
-								}
-							} else {
-								valueMap := map[string]int64{}
-								re, _ := regexp.Compile(`([^\d]+?)[:=：＝]?(\d+)`)
-
-								// 读取所有参数中的值
-								stText := cmdArgs.CleanArgs
-
-								m := re.FindAllStringSubmatch(RemoveSpace(stText), -1)
-
-								for _, i := range m {
-									num, err := strconv.ParseInt(i[2], 10, 64)
-									if err == nil {
-										valueMap[i[1]] = num
-									}
-								}
-
-								for _, v := range cmdArgs.Kwargs {
-									vint, err := strconv.ParseInt(v.Value, 10, 64)
-									if err == nil {
-										valueMap[v.Name] = vint
-									}
-								}
-
-								nameMap := map[string]bool{}
-								synonymsCount := 0
-								p := mctx.Player
-
-								for k, v := range valueMap {
-									name := p.GetValueNameByAlias(k, ac.Alias)
-									nameMap[name] = true
-									if k != name {
-										synonymsCount += 1
-									}
-									p.SetValueInt64(name, v, ac.Alias)
-								}
-
-								if len(m) == 0 {
-									ReplyToSender(mctx, msg, "无法识别的属性: "+stText)
-									return CmdExecuteResult{Matched: true, Solved: true}
-								}
-
-								//s, _ := json.Marshal(valueMap)
-								VarSetValueInt64(mctx, "$t数量", int64(len(valueMap)))
-								VarSetValueInt64(mctx, "$t有效数量", int64(len(nameMap)))
-								VarSetValueInt64(mctx, "$t同义词数量", int64(synonymsCount))
-								text := DiceFormatTmpl(mctx, "COC:属性设置")
-								SetCardType(mctx, "coc7")
-								//text := fmt.Sprintf("<%s>的属性录入完成，本次共记录了%d条数据 (其中%d条为同义词)", p.Name, len(valueMap), synonymsCount)
-								ReplyToSender(mctx, msg, text)
-							}
-						}
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-					return CmdExecuteResult{Matched: true, Solved: false}
-				},
-			},
+			"st":  cmdSt,
+			"cst": cmdSt,
 		},
 	}
 	self.RegisterExtension(theExt)

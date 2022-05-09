@@ -233,8 +233,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 						text := r.Value.(string)
 
 						if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
-							asm := r.Parser.GetAsmText()
-							text += "\n" + asm
+							if ctx.PrivilegeLevel >= 40 {
+								asm := r.Parser.GetAsmText()
+								text += "\n" + asm
+							}
 						}
 
 						seemsCommand := false

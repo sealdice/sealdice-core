@@ -535,6 +535,14 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			var lastDetail string
 
 			varname := code.ValueStr
+			// 如果变量名以_开头，那么忽略所有的_
+			for {
+				if strings.HasPrefix(varname, "_") {
+					varname = varname[len("_"):]
+				} else {
+					break
+				}
+			}
 
 			if e.flags.DisableLoadVarname {
 				return nil, calcDetail, errors.New("解析失败")
