@@ -359,6 +359,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 			// 设置AmIBeMentioned
 			cmdArgs.AmIBeMentioned = false
+			cmdArgs.AmIBeMentionedFirst = false
 			tmpUid := ep.UserId
 			if msg.TmpUid != "" {
 				tmpUid = msg.TmpUid
@@ -367,6 +368,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				if i.UserId == tmpUid {
 					cmdArgs.AmIBeMentioned = true
 					break
+				}
+			}
+			if cmdArgs.AmIBeMentioned {
+				// 检查是不是第一个被AT的
+				if cmdArgs.At[0].UserId == tmpUid {
+					cmdArgs.AmIBeMentionedFirst = true
 				}
 			}
 		}
@@ -421,6 +428,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 				// 跳过@其他骰子而不@自己的
 				cmdArgs.SomeoneBeMentionedButNotMe = len(cmdArgs.At) > 0 && (!cmdArgs.AmIBeMentioned)
+				cmdArgs.SomeoneBeMentionedButNotMeStrict = len(cmdArgs.At) > 0 && (!cmdArgs.AmIBeMentionedFirst)
 				if cmdArgs.MentionedOtherDice {
 					// @其他骰子
 					return
