@@ -386,6 +386,9 @@ func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, 
 	res, err := index.Search(req)
 
 	if err == nil {
+		if num > len(res.Hits) {
+			num = len(res.Hits)
+		}
 		res.Hits = res.Hits[:num]
 	}
 

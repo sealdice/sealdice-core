@@ -447,6 +447,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					// 屏蔽机器人发送的消息
 					if mctx.MessageType == "group" {
 						if mctx.Group.BotList[msg.Sender.UserId] {
+							log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 							return
 						}
 						// 当其他机器人被@，不回应

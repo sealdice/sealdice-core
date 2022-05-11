@@ -18,8 +18,9 @@ func customReplySave(c echo.Context) error {
 		return c.String(430, err.Error())
 	}
 
-	v.Save(myDice)
+	v.Clean()
 	myDice.CustomReplyConfig[0] = &v
+	v.Save(myDice)
 	return c.JSON(http.StatusOK, nil)
 }
 
