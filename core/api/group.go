@@ -1,10 +1,12 @@
 package api
 
 import (
+	"fmt"
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"sealdice-core/dice"
 	"strings"
+	"time"
 )
 
 func groupList(c echo.Context) error {
@@ -63,21 +65,32 @@ func groupQuit(c echo.Context) error {
 			"testMode": true,
 		})
 	}
-	v := dice.GroupInfo{}
+	v := struct {
+		GroupId string `yaml:"groupId" json:"groupId"`
+		DiceId  string `yaml:"diceId" json:"diceId"`
+	}{}
 	err := c.Bind(&v)
 
 	if err == nil {
 		// 不太好弄，主要会出现多个帐号在群的情况
-		//	group, exists := myDice.ImSession.ServiceAtNew[v.GroupId]
-		//	if exists {
-		//		_txt := fmt.Sprintf("Master后台操作退群: 于群组<%s>(%s)中告别", group.GroupName, group.GroupId)
-		//		myDice.Logger.Info(_txt)
-		//		ctx.Notice(_txt)
-		//		group.Active = false
-		//		time.Sleep(6 * time.Second)
-		//		group.NotInGroup = true
-		//		myDice.Parent.Adapter.QuitGroup(ctx, msg.GroupId)
-		//	}
+		group, exists := myDice.ImSession.ServiceAtNew[v.GroupId]
+		if exists {
+			for _, ep := range myDice.ImSession.EndPoints {
+				if ep.UserId == v.DiceId {
+					// 就是这个
+					_txt := fmt.Sprintf("Master后台操作退群: 于群组<%s>(%s)中告别", group.GroupName, group.GroupId)
+					myDice.Logger.Info(_txt)
+
+					ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep}
+					ctx.Notice(_txt)
+					group.Active = false
+					time.Sleep(6 * time.Second)
+					group.NotInGroup = true
+					ep.Adapter.QuitGroup(ctx, v.GroupId)
+					break
+				}
+			}
+		}
 	}
 
 	return c.String(430, "")
