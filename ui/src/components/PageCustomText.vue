@@ -65,10 +65,10 @@
           <template #label>
             <div>
               <el-tag effect="dark" type="info" style="margin-right: .5rem;">
-                {{(store.curDice.customTextsHelpInfo[category][k.toString()]).subType || ((store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin ? '旧版文本' : '其它') }}
+                {{((store.curDice.customTextsHelpInfo[category][k.toString()]) as any).subType || (((store.curDice.customTextsHelpInfo[category][k.toString()]) as any).notBuiltin ? '旧版文本' : '其它') }}
               </el-tag>{{ k.toString() }}
 
-              <template v-if="(store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin">
+              <template v-if="((store.curDice.customTextsHelpInfo[category][k.toString()]) as any).notBuiltin">
                 <el-tooltip content="移除 - 这个文本在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除" raw-content placement="bottom-end">
                   <el-icon style="float: right; margin-left: 1rem;" @click="askDeleteValue(category, k.toString())">
                     <delete-filled />
