@@ -90,22 +90,24 @@ func RegisterBuiltinExtReply(dice *Dice) {
 						}
 					}()
 
-					lastTime := ctx.Group.LastCustomReplyTime
-					now := float64(time.Now().UnixMilli()) / 1000
-					interval := rc.Interval
-					if interval < 3 {
-						interval = 3
-					}
+					checkInCoolDown := func() bool {
+						lastTime := ctx.Group.LastCustomReplyTime
+						now := float64(time.Now().UnixMilli()) / 1000
+						interval := rc.Interval
+						if interval < 2 {
+							interval = 2
+						}
 
-					if now-lastTime < interval {
-						return // 未达到冷却，退出
+						if now-lastTime < interval {
+							return true // 未达到冷却，退出
+						}
+						ctx.Group.LastCustomReplyTime = now
+						return false
 					}
-					ctx.Group.LastCustomReplyTime = now
 
 					cleanText, _ := AtParse(msg.Message, "")
 					cleanText = strings.TrimSpace(cleanText)
 					for index, i := range rc.Items {
-						//fmt.Println("???", i.Enable, i)
 						if i.Enable {
 							checkTrue := true
 							for _, i := range i.Conditions {
@@ -115,6 +117,15 @@ func RegisterBuiltinExtReply(dice *Dice) {
 								}
 							}
 							condIndex = index
+							if len(i.Conditions) > 0 && checkTrue {
+								inCoolDown := checkInCoolDown()
+								if inCoolDown {
+									// 仍在冷却，拒绝回复
+									log.Infof("自定义回复: 条件满足，但正处于冷却")
+									return
+								}
+							}
+
 							if len(i.Conditions) > 0 && checkTrue {
 								SetTempVars(ctx, ctx.Player.Name)
 								VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))

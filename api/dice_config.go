@@ -30,6 +30,7 @@ type DiceConfigInfo struct {
 	AutoReloginEnable       bool     `json:"autoReloginEnable"`
 	QQChannelAutoOn         bool     `json:"QQChannelAutoOn"`
 	QQChannelLogMessage     bool     `json:"QQChannelLogMessage"`
+	RefuseGroupInvite       bool     `json:"refuseGroupInvite"` // 拒绝群组邀请
 
 	HelpMasterInfo     string                        `json:"helpMasterInfo"`                               // help中骰主信息
 	HelpMasterLicense  string                        `json:"helpMasterLicense"`                            // help中使用协议
@@ -69,6 +70,7 @@ func DiceConfig(c echo.Context) error {
 		AutoReloginEnable:       myDice.AutoReloginEnable,
 		QQChannelAutoOn:         myDice.QQChannelAutoOn,
 		QQChannelLogMessage:     myDice.QQChannelLogMessage,
+		RefuseGroupInvite:       myDice.RefuseGroupInvite,
 
 		HelpMasterInfo:     myDice.HelpMasterInfo,
 		HelpMasterLicense:  myDice.HelpMasterLicense,
@@ -122,6 +124,10 @@ func DiceConfigSet(c echo.Context) error {
 
 		if val, ok := jsonMap["autoReloginEnable"]; ok {
 			myDice.AutoReloginEnable = val.(bool)
+		}
+
+		if val, ok := jsonMap["refuseGroupInvite"]; ok {
+			myDice.RefuseGroupInvite = val.(bool)
 		}
 
 		if val, ok := jsonMap["workInQQChannel"]; ok {

@@ -331,7 +331,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{"<{核心:骰子名字}> 停止服务", 1},
 			},
 			"骰子进群": {
-				{`<{核心:骰子名字}> 已经就绪。可通过.help查看手册\n[图:data/images/sealdice.png]\nDND玩家可以使用.ext dnd5e on开启特化指令支持\n已搭载自动重连，如遇风控不回可稍作等待`, 1},
+				{`<{核心:骰子名字}> 已经就绪。可通过.help查看手册\n[图:data/images/sealdice.png]\nCOC/DND玩家可以使用.set coc/dnd在两种模式中切换\n已搭载自动重连，如遇风控不回可稍作等待`, 1},
 			},
 			//"骰子群内迎新": {
 			//	{`欢迎，{$新人昵称}，祝你在这里过得愉快`, 1},
@@ -377,11 +377,14 @@ func setupBaseTextTemplate(d *Dice) {
 			"暗骰_私聊_前缀": {
 				{`来自群<{$t群名}>({$t群号})的暗骰:\n`, 1},
 			},
+			"昵称_当前": {
+				{"玩家的当前昵称为: {$t玩家}", 1},
+			},
 			"昵称_重置": {
 				{"{$t帐号昵称}({$t帐号ID})的昵称已重置为{$t玩家}", 1},
 			},
 			"昵称_改名": {
-				{"{$t帐号昵称}({$t帐号ID})的昵称被设定为{$t玩家}", 1},
+				{"{$t旧昵称}({$t帐号ID})的昵称被设定为{$t玩家}", 1},
 			},
 			"设定默认骰子面数": {
 				{"设定个人默认骰子面数为 {$t个人骰子面数}", 1},
@@ -406,7 +409,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{"无法加载/保存角色：序列化失败", 1},
 			},
 			"角色管理_储存成功": {
-				{"角色{$t新角色名}储存成功\n注:人物属性改变不会影响角色卡，除非使用ch save", 1},
+				{"角色{$t新角色名}储存成功\n注: 群内属性改变不影响角色卡，跑团后请根据情况再次save。录卡应先st再ch save", 1},
 			},
 			"角色管理_删除成功": {
 				{"角色{$t新角色名}删除成功", 1},
@@ -775,11 +778,15 @@ func setupBaseTextTemplate(d *Dice) {
 			"暗骰_私聊_前缀": {
 				SubType: ".rh",
 			},
-			"昵称_重置": {
+			"昵称_当前": {
 				SubType: ".nn",
+			},
+			"昵称_重置": {
+				SubType: ".nn clr",
 			},
 			"昵称_改名": {
 				SubType: ".nn 新名字",
+				Vars:    []string{"$t旧昵称", "$t帐号ID", "$t玩家"},
 			},
 			"设定默认骰子面数": {
 				SubType: ".set 30 --my",
@@ -1079,6 +1086,8 @@ func (d *Dice) loads() {
 			d.HelpMasterLicense = dNew.HelpMasterLicense
 			d.ExtDefaultSettings = dNew.ExtDefaultSettings
 			d.CustomReplyConfigEnable = dNew.CustomReplyConfigEnable
+			d.RefuseGroupInvite = dNew.RefuseGroupInvite
+
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
 				d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite

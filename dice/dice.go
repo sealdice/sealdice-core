@@ -118,6 +118,7 @@ type Dice struct {
 	CustomReplyConfigEnable bool                   `yaml:"customReplyConfigEnable"`
 	CustomReplyConfig       []*ReplyConfig         `yaml:"-"`
 	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"` // 启用自动重新登录
+	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"` // 拒绝加入新群
 
 	HelpMasterInfo    string `yaml:"helpMasterInfo"`    // help中骰主信息
 	HelpMasterLicense string `yaml:"helpMasterLicense"` // help中使用协议

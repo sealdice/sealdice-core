@@ -66,8 +66,10 @@ func groupQuit(c echo.Context) error {
 		})
 	}
 	v := struct {
-		GroupId string `yaml:"groupId" json:"groupId"`
-		DiceId  string `yaml:"diceId" json:"diceId"`
+		GroupId   string `yaml:"groupId" json:"groupId"`
+		DiceId    string `yaml:"diceId" json:"diceId"`
+		Silence   bool   `yaml:"silence" json:"silence"`
+		ExtraText string `yaml:"extraText" json:"extraText"`
 	}{}
 	err := c.Bind(&v)
 
@@ -81,13 +83,23 @@ func groupQuit(c echo.Context) error {
 					_txt := fmt.Sprintf("Master后台操作退群: 于群组<%s>(%s)中告别", group.GroupName, group.GroupId)
 					myDice.Logger.Info(_txt)
 
-					ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep}
+					ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep, Session: myDice.ImSession}
 					ctx.Notice(_txt)
 					group.Active = false
+
+					if !v.Silence {
+						txtPost := "因长期不使用等原因，骰主后台操作退群"
+						if v.ExtraText != "" {
+							txtPost += "\n骰主留言: " + v.ExtraText
+						}
+						dice.ReplyGroup(ctx, &dice.Message{GroupId: v.GroupId}, txtPost)
+					}
+
 					time.Sleep(6 * time.Second)
 					group.NotInGroup = true
+
 					ep.Adapter.QuitGroup(ctx, v.GroupId)
-					break
+					return c.String(http.StatusOK, "")
 				}
 			}
 		}

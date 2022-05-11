@@ -128,11 +128,11 @@ func main() {
 		return
 	}
 
-	updateFileName := "./auto_update.exe"
-	_, err1 := os.Stat("./auto_update.exe")
+	updateFileName := "./auto_updat3.exe"
+	_, err1 := os.Stat("./auto_updat3.exe")
 	if err1 != nil {
-		_, err1 = os.Stat("./auto_updat3.exe")
-		updateFileName = "./auto_updat3.exe"
+		_, err1 = os.Stat("./auto_update.exe")
+		updateFileName = "./auto_update.exe"
 	}
 	if err1 == nil {
 		_, err = os.Stat("./auto_update_ok")
