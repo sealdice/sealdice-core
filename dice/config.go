@@ -34,6 +34,7 @@ type TextTemplateHelpItem = struct {
 	SubType         string             `json:"subType"`
 	ExtraText       string             `json:"extraText"`       // 额外解说
 	ExampleCommands []string           `json:"exampleCommands"` // 案例命令
+	NotBuiltin      bool               `json:"notBuiltin"`      // 非内置
 }
 type TextTemplateHelpGroup = map[string]*TextTemplateHelpItem
 type TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
@@ -465,85 +466,64 @@ func setupBaseTextTemplate(d *Dice) {
 
 	helpInfo := TextTemplateWithHelpDict{
 		"COC": {
-			"设置房规_0": {
-				SubType: ".setcoc 0",
-			},
-			"设置房规_1": {
-				SubType: ".setcoc 1",
-			},
-			"设置房规_2": {
-				SubType: ".setcoc 2",
-			},
-			"设置房规_3": {
-				SubType: ".setcoc 3",
-			},
-			"设置房规_4": {
-				SubType: ".setcoc 4",
-			},
-			"设置房规_5": {
-				SubType: ".setcoc 5",
-			},
-			"设置房规_DeltaGreen": {
-				SubType: ".setcoc dg",
-			},
 			"设置房规_当前": {
 				SubType: ".setcoc",
 			},
 			"判定_大失败": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 			"判定_失败": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 			"判定_成功_普通": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 			"判定_成功_困难": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 			"判定_成功_极难": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 			"判定_大成功": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 
 			"判定_必须_困难_成功": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 			"判定_必须_困难_失败": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 			"判定_必须_极难_成功": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 			"判定_必须_极难_失败": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 			"判定_必须_大成功_成功": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 			"判定_必须_大成功_失败": {
-				SubType: "判定-长文本",
+				SubType: "判定-常规",
 			},
 
 			"判定_简短_大失败": {
-				SubType: "判定-短文本",
+				SubType: "判定-简短",
 			},
 			"判定_简短_失败": {
-				SubType: "判定-短文本",
+				SubType: "判定-简短",
 			},
 			"判定_简短_成功_普通": {
-				SubType: "判定-短文本",
+				SubType: "判定-简短",
 			},
 			"判定_简短_成功_困难": {
-				SubType: "判定-短文本",
+				SubType: "判定-简短",
 			},
 			"判定_简短_成功_极难": {
-				SubType: "判定-短文本",
+				SubType: "判定-简短",
 			},
 			"判定_简短_大成功": {
-				SubType: "判定-短文本",
+				SubType: "判定-简短",
 			},
 
 			"检定_单项结果文本": {
@@ -910,6 +890,7 @@ func SetupTextHelpInfo(d *Dice, helpInfo TextTemplateWithHelpDict, texts TextTem
 				helpInfoItem.Origin = v2
 				helpInfoItem.Modified = false
 				helpInfoItem.Filename = []string{fn}
+				helpInfoItem.NotBuiltin = true
 				v1[keyName] = helpInfoItem
 
 				//vars := []string{}

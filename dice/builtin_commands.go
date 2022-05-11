@@ -130,13 +130,16 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["black"] = cmdBlack
 	d.CmdMap["ban"] = cmdBlack
 
-	HelpForFind := ".find <关键字> // 查找文档。关键字可以多个，用空格分割\n" +
+	HelpForFind := ".find/查询 <关键字> // 查找文档。关键字可以多个，用空格分割\n" +
 		".find <数字ID> // 显示该ID的词条\n" +
-		".find --rand // 显示随机词条"
+		".find --rand // 显示随机词条\n" +
+		".find <关键字> --num=10 // 需要更多结果"
 	cmdSearch := &CmdItemInfo{
 		Name:     "find",
 		Help:     HelpForFind,
-		LongHelp: "查询指令，通常使用全文搜索(x86版)或快速查询(arm, 移动版)\n" + HelpForFind + "\n注: 默认搭载的《怪物之锤查询》文档来自蜜瓜包、October整理\n默认搭载的DND系列文档来自DicePP项目",
+		LongHelp: "查询指令，通常使用全文搜索(x86版)或快速查询(arm, 移动版)\n" + HelpForFind,
+		// 写不下了
+		// + "\n注: 默认搭载的《怪物之锤查询》来自蜜瓜包、October整理\n默认搭载的COC《魔法大典》来自魔骨，NULL，Dr.Amber整理\n默认搭载的DND系列文档来自DicePP项目"
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
 			if AtSomebodyButNotMe {
@@ -171,7 +174,16 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				if _, exists := cmdArgs.GetArgN(1); exists {
-					search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, false)
+					numLimit := 4
+					numParam := cmdArgs.GetKwarg("num")
+					if numParam != nil {
+						_num, err := strconv.ParseInt(numParam.Value, 10, 64)
+						if err == nil {
+							numLimit = int(_num)
+						}
+					}
+
+					search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, false, numLimit)
 					if err == nil {
 						if len(search.Hits) > 0 {
 							var bestResult string
@@ -181,7 +193,7 @@ func (d *Dice) registerCoreCommands() {
 
 							for _, i := range search.Hits {
 								t := d.Parent.Help.TextMap[i.ID]
-								others += fmt.Sprintf("[序号%s]【%s:%s】 匹配度 %.2f\n", i.ID, t.PackageName, t.Title, i.Score)
+								others += fmt.Sprintf("[%s]【%s:%s】 匹配度%.2f\n", i.ID, t.PackageName, t.Title, i.Score)
 							}
 
 							var showBest bool
@@ -194,6 +206,9 @@ func (d *Dice) registerCoreCommands() {
 								if val > float64(offset) {
 									showBest = true
 								}
+								if best.Title == cmdArgs.CleanArgs {
+									showBest = true
+								}
 							} else {
 								showBest = true
 							}
@@ -203,8 +218,8 @@ func (d *Dice) registerCoreCommands() {
 								bestResult = fmt.Sprintf("最优先结果:\n词条: %s:%s\n%s\n\n", best.PackageName, best.Title, content)
 							}
 
-							suffix := d.Parent.Help.GetSuffixText()
-							ReplyToSender(ctx, msg, fmt.Sprintf("%s全部结果:\n%s\n%s", bestResult, others, suffix))
+							suffix := d.Parent.Help.GetSuffixText2()
+							ReplyToSender(ctx, msg, fmt.Sprintf("%s%s全部结果:\n%s\n使用\".find <序号>\"可查看明细，如.find 123", suffix, bestResult, others))
 						} else {
 							ReplyToSender(ctx, msg, "未找到搜索结果")
 						}
@@ -212,7 +227,8 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, "搜索故障: "+err.Error())
 					}
 				} else {
-					ReplyToSender(ctx, msg, "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条")
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					//ReplyToSender(ctx, msg, "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条")
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -274,7 +290,7 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true)
+					search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true, 1)
 					if err == nil {
 						if len(search.Hits) > 0 {
 							//a := d.Parent.Help.GetContent(search.Hits[0].ID)

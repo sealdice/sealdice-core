@@ -4,13 +4,20 @@
 package main
 
 import (
+	"fmt"
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
+	"github.com/labstack/echo/v4"
 	"github.com/lxn/win"
+	"math/rand"
+	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
+	"sealdice-core/dice"
 	"sealdice-core/icon"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -56,8 +63,11 @@ func TestRunning() bool {
 	}
 
 	s1, _ := syscall.UTF16PtrFromString("SealDice 海豹已经在运作")
-	s2, _ := syscall.UTF16PtrFromString("你看到这个是因为SealDice应该已经在运行了，如果你是想打开UI界面，请在任务栏右下角的系统托盘区域找到SealDice图标并右键。\n如果你想在Windows上打开多个海豹(请确保你知道方式)，请加参数-m启动")
-	win.MessageBox(0, s2, s1, win.MB_OK)
+	s2, _ := syscall.UTF16PtrFromString("如果你想在Windows上打开多个海豹，请点“确定”，或加参数-m启动。\n如果只是打开UI界面，请在任务栏右下角的系统托盘区域找到海豹图标并右键，点“取消")
+	ret := win.MessageBox(0, s2, s1, win.MB_YESNO|win.MB_ICONWARNING|win.MB_DEFBUTTON2)
+	if ret == win.IDYES {
+		return false
+	}
 	return true
 }
 
@@ -102,4 +112,58 @@ func onReady() {
 
 func onExit() {
 	// clean up here
+}
+
+func httpServe(e *echo.Echo, dm *dice.DiceManager) {
+	portStr := "3211"
+
+	go func() {
+		runtime.LockOSThread()
+		for {
+			time.Sleep(10 * time.Second)
+			systray.SetTooltip("海豹TRPG骰点核心 #" + portStr)
+		}
+	}()
+
+	var theFunc func()
+	subFunc := func() {
+		rePort := regexp.MustCompile(`:(\d+)$`)
+		m := rePort.FindStringSubmatch(dm.ServeAddress)
+		if len(m) > 0 {
+			portStr = m[1]
+		}
+
+		ln, err := net.Listen("tcp", ":"+portStr)
+		if err != nil {
+			s1, _ := syscall.UTF16PtrFromString("海豹TRPG骰点核心")
+			s2, _ := syscall.UTF16PtrFromString(fmt.Sprintf("端口 %s 已被占用，点“是”随机换一个端口，点“否”退出\n注意，此端口将被自动写入配置，后续可用启动参数改回", portStr))
+			ret := win.MessageBox(0, s2, s1, win.MB_YESNO|win.MB_ICONWARNING|win.MB_DEFBUTTON2)
+			if ret == win.IDYES {
+				newPort := 3000 + rand.Int()%4000
+				dm.ServeAddress = strings.Replace(dm.ServeAddress, portStr, fmt.Sprintf("%d", newPort), 1)
+				theFunc()
+				return
+			} else {
+				logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
+				os.Exit(1)
+			}
+		}
+		_ = ln.Close()
+
+		go func() {
+			time.Sleep(5 * time.Second) // 先不玩花活，等5s即可
+			exec.Command(`cmd`, `/c`, `start`, fmt.Sprintf(`http://localhost:%s`, portStr)).Start()
+		}()
+
+		fmt.Println("如果浏览器没有自动打开，请手动访问:")
+		fmt.Println(fmt.Sprintf(`http://localhost:%s`, portStr)) // 默认:3211
+		err = e.Start(dm.ServeAddress)
+		if err != nil {
+			logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
+			return
+		}
+	}
+
+	theFunc = subFunc
+	subFunc()
 }

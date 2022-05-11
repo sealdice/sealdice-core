@@ -8,6 +8,7 @@ import (
 	"github.com/fy0/lockfree"
 	"reflect"
 	"sealdice-core/dice/model"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -358,8 +359,8 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeString, ctx.EndPoint.Nickname})
 		VarSetValue(ctx, "$t帐号ID_RAW", &VMValue{VMTypeString, UserIdExtract(ctx.Player.UserId)})
 
-		time.Now().Format("")
-		VarSetValue(ctx, "$tDay", &VMValue{VMTypeInt64, fmt.Sprintf("<%s>", ctx.Player.Name)})
+		t, _ := strconv.ParseInt(time.Now().Format("20060102"), 10, 64)
+		VarSetValue(ctx, "$tDay", &VMValue{VMTypeInt64, t})
 	}
 	if ctx.Group != nil {
 		if ctx.MessageType == "group" {

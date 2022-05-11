@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"sealdice-core/dice"
+	"strings"
 )
 
 func customReplySave(c echo.Context) error {
@@ -55,6 +56,7 @@ func customTextSave(c echo.Context) error {
 	if err == nil {
 		for _, v1 := range v.Data {
 			for _, v2 := range v1 {
+				v2[0] = strings.TrimSpace(v2[0].(string))
 				v2[1] = int(v2[1].(float64))
 			}
 		}

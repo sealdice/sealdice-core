@@ -353,7 +353,7 @@ func (m *HelpManager) AddItemApply() error {
 	return nil
 }
 
-func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool) (*bleve.SearchResult, error) {
+func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, num int) (*bleve.SearchResult, error) {
 	// 在标题中查找
 	queryTitle := query.NewMatchPhraseQuery(text)
 	queryTitle.SetField("title")
@@ -385,13 +385,24 @@ func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool) 
 	index := m.Index
 	res, err := index.Search(req)
 
+	if err == nil {
+		res.Hits = res.Hits[:num]
+	}
+
 	return res, err
 	//index.Close()
 }
 
-func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool) (*bleve.SearchResult, error) {
+func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, num int) (*bleve.SearchResult, error) {
+	if num < 1 {
+		num = 1
+	}
+	if num > 10 {
+		num = 10
+	}
+
 	if m.EngineType == 0 {
-		return m.searchBleve(ctx, text, titleOnly)
+		return m.searchBleve(ctx, text, titleOnly, num)
 	} else {
 		//for _, i := range ctx.Group.HelpPackages {
 		//	//queryPack := query.NewMatchPhraseQuery(i)
@@ -412,8 +423,9 @@ func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool) (*ble
 		matches := fuzzy.FindFrom(text, items)
 
 		right := len(matches)
-		if right > 10 {
-			right = 10
+
+		if right > num {
+			right = num
 		}
 		for _, i := range matches[:right] {
 			hits = append(hits, &search.DocumentMatch{
@@ -437,6 +449,15 @@ func (m *HelpManager) GetSuffixText() string {
 		return "(本次搜索由全文搜索完成)"
 	default:
 		return "(本次搜索由快速文档查找完成)"
+	}
+}
+
+func (m *HelpManager) GetSuffixText2() string {
+	switch m.EngineType {
+	case 0:
+		return "[全文搜索]"
+	default:
+		return "[快速文档查找]"
 	}
 }
 
