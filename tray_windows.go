@@ -9,6 +9,7 @@ import (
 	"github.com/gen2brain/beeep"
 	"github.com/labstack/echo/v4"
 	"github.com/lxn/win"
+	"github.com/monaco-io/request"
 	"math/rand"
 	"net"
 	"os"
@@ -93,7 +94,7 @@ func onReady() {
 	for {
 		select {
 		case <-mOpen.ClickedCh:
-			exec.Command(`cmd`, `/c`, `start`, `http://localhost:3211`).Start()
+			exec.Command(`cmd`, `/c`, `start`, `http://localhost:`+_trayPortStr).Start()
 		case <-mQuit.ClickedCh:
 			systray.Quit()
 			time.Sleep(1 * time.Second)
@@ -114,8 +115,11 @@ func onExit() {
 	// clean up here
 }
 
+var _trayPortStr = "3211"
+
 func httpServe(e *echo.Echo, dm *dice.DiceManager) {
 	portStr := "3211"
+	runtime.LockOSThread()
 
 	go func() {
 		runtime.LockOSThread()
@@ -131,9 +135,12 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager) {
 		m := rePort.FindStringSubmatch(dm.ServeAddress)
 		if len(m) > 0 {
 			portStr = m[1]
+			_trayPortStr = portStr
 		}
 
+		fmt.Println("端口占用检测 - 开始")
 		ln, err := net.Listen("tcp", ":"+portStr)
+		fmt.Println("端口占用检测 - 结果", err)
 		if err != nil {
 			s1, _ := syscall.UTF16PtrFromString("海豹TRPG骰点核心")
 			s2, _ := syscall.UTF16PtrFromString(fmt.Sprintf("端口 %s 已被占用，点“是”随机换一个端口，点“否”退出\n注意，此端口将被自动写入配置，后续可用启动参数改回", portStr))
@@ -151,8 +158,22 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager) {
 		_ = ln.Close()
 
 		go func() {
-			time.Sleep(5 * time.Second) // 先不玩花活，等5s即可
-			exec.Command(`cmd`, `/c`, `start`, fmt.Sprintf(`http://localhost:%s`, portStr)).Start()
+			for {
+				time.Sleep(5 * time.Second)
+				url := fmt.Sprintf(`http://localhost:%s`, portStr)
+				url2 := fmt.Sprintf(`http://127.0.0.1:%s`, portStr)
+				c := request.Client{
+					URL:     url2,
+					Method:  "GET",
+					Timeout: 5,
+				}
+				resp := c.Send()
+				if resp.OK() {
+					time.Sleep(1 * time.Second)
+					exec.Command(`cmd`, `/c`, `start`, url).Start()
+					break
+				}
+			}
 		}()
 
 		fmt.Println("如果浏览器没有自动打开，请手动访问:")

@@ -57,6 +57,12 @@ func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
 	return randomPool
 }
 
+func (i *TextTemplateItemList) Clean() {
+	for _, i := range *i {
+		i[0] = strings.TrimSpace(i[0].(string))
+	}
+}
+
 func setupBaseTextTemplate(d *Dice) {
 	reGugu := regexp.MustCompile(`[\r\n]+`)
 	var guguReason []TextTemplateItem
@@ -1308,7 +1314,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.VersionCode = 9914
+	d.VersionCode = 10000
 	d.LogWriter.LogLimit = d.UILogLimit
 
 	// 设置扩展选项

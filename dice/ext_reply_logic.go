@@ -14,10 +14,12 @@ import (
 
 type ReplyConditionBase interface {
 	Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string) bool
+	Clean()
 }
 
 type ReplyResultBase interface {
 	Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)
+	Clean()
 }
 
 // ReplyConditionTextMatch 文本匹配 // textMatch
@@ -38,6 +40,10 @@ func strCompare(a string, b string) float64 {
 	va := strsim.Compare(a, b, strsim.Jaro())
 	vb := strsim.Compare(a, b, strsim.Hamming())
 	return (va + vb) / 2
+}
+
+func (m *ReplyConditionTextMatch) Clean() {
+	m.Value = strings.TrimSpace(m.Value)
 }
 
 func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string) bool {
@@ -71,6 +77,10 @@ func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *
 	return ret
 }
 
+func (m *ReplyConditionExprTrue) Clean() {
+	m.Value = strings.TrimSpace(m.Value)
+}
+
 func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string) bool {
 	r, _, err := ctx.Dice.ExprEval(m.Value, ctx)
 	if err != nil {
@@ -93,6 +103,10 @@ type ReplyResultReplyToSender struct {
 	Message    TextTemplateItemList `yaml:"message" json:"message"`
 }
 
+func (m *ReplyResultReplyToSender) Clean() {
+	m.Message.Clean()
+}
+
 func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 	//go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
@@ -109,6 +123,10 @@ type ReplyResultReplyPrivate struct {
 	Message    TextTemplateItemList `yaml:"message" json:"message"`
 }
 
+func (m *ReplyResultReplyPrivate) Clean() {
+	m.Message.Clean()
+}
+
 func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 	//go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
@@ -123,6 +141,10 @@ type ReplyResultReplyGroup struct {
 	ResultType string                `yaml:"resultType" json:"resultType"`
 	Delay      float64               `yaml:"delay" json:"delay"`
 	Message    *TextTemplateItemList `yaml:"message" json:"message"`
+}
+
+func (m *ReplyResultReplyGroup) Clean() {
+	m.Message.Clean()
 }
 
 func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
@@ -327,4 +349,15 @@ func (ri *ReplyItem) UnmarshalYAML(value *yaml.Node) error {
 		}
 	}
 	return nil
+}
+
+func (c *ReplyConfig) Clean() {
+	for _, i := range c.Items {
+		for _, j := range i.Conditions {
+			j.Clean()
+		}
+		for _, j := range i.Results {
+			j.Clean()
+		}
+	}
 }

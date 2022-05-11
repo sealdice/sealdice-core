@@ -58,6 +58,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		if diceManager.Cron != nil {
 			diceManager.Cron.Stop()
 		}
+		exec.Command("pause") // windows专属
 	}
 
 }

@@ -52,6 +52,9 @@ type CmdArgs struct {
 
 /** 检查第N项参数是否为某个字符串，n从1开始，若没有第n项参数也视为失败 */
 func (a *CmdArgs) IsArgEqual(n int, ss ...string) bool {
+	if n <= 0 {
+		return false
+	}
 	if len(a.Args) >= n {
 		for _, i := range ss {
 			if strings.EqualFold(a.Args[n-1], i) {

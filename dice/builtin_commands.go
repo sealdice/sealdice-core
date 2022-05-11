@@ -293,6 +293,7 @@ func (d *Dice) registerCoreCommands() {
 					search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true, 1)
 					if err == nil {
 						if len(search.Hits) > 0 {
+							// 居然会出现 hits[0] 为nil的情况？？
 							//a := d.Parent.Help.GetContent(search.Hits[0].ID)
 							a := d.Parent.Help.TextMap[search.Hits[0].ID]
 							content := d.Parent.Help.GetContent(a, 0)
