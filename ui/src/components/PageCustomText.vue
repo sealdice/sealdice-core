@@ -50,6 +50,7 @@
             </div>
 
             <div style="margin-top: 1rem;">
+              <b>COC的“判定-常规”和“判定-简短”主要区别是，多重检定会默认使用简短版本(.ra 3#射击)</b>
               <b>进行调整后，可以在左侧面板“指令测试”中进行测试！</b>
             </div>
           </div>
@@ -63,7 +64,17 @@
         <el-form-item>
           <template #label>
             <div>
-              <el-tag effect="dark" type="info" style="margin-right: .5rem;">{{(store.curDice.customTextsHelpInfo[category][k.toString()]).subType || '其它' }}</el-tag>{{ k.toString() }}
+              <el-tag effect="dark" type="info" style="margin-right: .5rem;">
+                {{(store.curDice.customTextsHelpInfo[category][k.toString()]).subType || ((store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin ? '旧版文本' : '其它') }}
+              </el-tag>{{ k.toString() }}
+
+              <template v-if="(store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin">
+                <el-tooltip content="移除 - 这个文本在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除" raw-content placement="bottom-end">
+                  <el-icon style="float: right; margin-left: 1rem;" @click="askDeleteValue(category, k.toString())">
+                    <delete-filled />
+                  </el-icon>
+                </el-tooltip>
+              </template>
 
               <template v-if="store.curDice.customTextsHelpInfo[category][k.toString()].modified">
                 <el-tooltip content="重置为初始值" placement="bottom-end">
@@ -104,7 +115,7 @@
     </el-col>
   </el-row>
 
-  <el-dialog v-model="dialogImportVisible" title="导入导出" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" :fullscreen="true" custom-class="the-dialog">
+  <el-dialog v-model="dialogImportVisible" title="导入导出" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="true" :fullscreen="true" custom-class="the-dialog">
     <el-checkbox v-model="importOnlyCurrent">仅当前页面(勾选)/全部自定义文案</el-checkbox>
     <el-checkbox v-model="importImpact">紧凑</el-checkbox>
 
@@ -115,8 +126,9 @@
 
     <template #footer>
       <span class="dialog-footer">
-        <el-button @click="dialogImportVisible = false">取消</el-button>
-        <el-button data-clipboard-target="#import-edit" @click="copied" id="btnCopy1">一键复制</el-button>
+        <!-- <el-button @click="dialogImportVisible = false">取消</el-button> -->
+        <el-button @click="configForImport = ''">清空</el-button>
+        <el-button data-clipboard-target="#import-edit" @click="copied" id="btnCopy1">复制</el-button>
         <el-button type="primary" @click="doImport" :disabled="configForImport === ''">导入并保存</el-button>
       </span>
     </template>
@@ -128,7 +140,7 @@
 import { ref, reactive, onBeforeMount, onDeactivated, watch, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useStore } from '~/store'
-import { Management } from '@element-plus/icons-vue'
+import { Management, DeleteFilled } from '@element-plus/icons-vue'
 
 import {
   Location,
@@ -226,6 +238,31 @@ const save = async () => {
   await store.getCustomText()
   modified.value = false
   ElMessage.success('已保存')
+}
+
+const deleteValue = async (category: string, keyName: string) => {
+  const helpInfo = store.curDice.customTextsHelpInfo[category][keyName]
+  delete store.curDice.customTexts[category][keyName]
+  modified.value = true
+}
+
+
+const askDeleteValue = async (category: string, keyName: string) => {
+  ElMessageBox.confirm(
+    '删除这条文本，确定吗？',
+    '警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(async () => {
+    deleteValue(category, keyName)
+    ElMessage({
+      type: 'success',
+      message: '成功!',
+    })
+  })
 }
 
 const resetValue = async (category: string, keyName: string) => {

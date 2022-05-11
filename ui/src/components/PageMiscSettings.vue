@@ -103,7 +103,7 @@
           <span>.help 骰主</span>
         </div>
       </template>
-      <el-input v-model="config.helpMasterInfo" type="textarea" clearable style="width: auto;" />
+      <el-input v-model="config.helpMasterInfo" type="textarea" clearable style="width: 14rem;" />
     </el-form-item>
 
     <el-form-item>
@@ -112,7 +112,7 @@
           <span>.help 协议</span>
         </div>
       </template>
-      <el-input v-model="config.helpMasterLicense" type="textarea" autosize clearable style="width: auto;" />
+      <el-input v-model="config.helpMasterLicense" type="textarea" autosize clearable style="width: 14rem;" />
     </el-form-item>
 
     <h2>访问控制</h2>

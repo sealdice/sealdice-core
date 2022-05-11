@@ -61,6 +61,7 @@
     <el-checkbox v-model="showBanned">拉黑</el-checkbox>
     <el-checkbox v-model="showWarn">警告</el-checkbox>
     <el-checkbox v-model="showTrusted">信任</el-checkbox>
+    <el-checkbox v-model="showOthers">其它</el-checkbox>
   </div>
   <!-- <div>
     <span style="margin-right: 1rem;">其他:</span>
@@ -79,11 +80,11 @@
       <div><span class="left">怒气值:</span> {{ i.score }}</div>
       <div>
         <span class="left">原因:</span>
-        <span>
+        <div style="margin-left: 2rem">
           <div v-for="j, index in i.reasons">
             {{ dayjs.unix(i.times[index]).fromNow() }}，地点“{{ i.places[index] }}”，具体原因: {{j}}
           </div>
-        </span>
+        </div>
       </div>
       <el-button @click="deleteOne(i, index)">删除</el-button>
     </div>
@@ -153,6 +154,7 @@ const groupList = ref<any>({})
 const showBanned = ref(true)
 const showWarn = ref(true)
 const showTrusted = ref(true)
+const showOthers = ref(true)
 const dialogAddShow = ref(false)
 
 const banRankText = new Map<number, string>()
@@ -195,6 +197,9 @@ const groupItems = computed<any[]>(() => {
       if (v.rank === 30 && showTrusted.value) {
         ok = true
       }
+      if (v.rank === 0 && showOthers.value) {
+        ok = true
+      }
 
       if (ok && searchBy.value !== '') {
         let a = false
@@ -221,6 +226,12 @@ const groupItems = computed<any[]>(() => {
 })
 
 const banConfigSave = async () => {
+  for (let [k, v] of Object.entries(banConfig.value)) {
+    let vVal = parseFloat(v as any)
+    if (!isNaN(vVal)) {
+      banConfig.value[k] = vVal
+    }
+  }
   await store.banConfigSet(banConfig.value)
   await configGet()
   ElMessage.success('已保存')

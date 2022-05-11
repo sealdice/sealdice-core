@@ -1,16 +1,19 @@
 <template>
   <draggable
     class="dragArea"
-    tag="ul"
+    tag="div"
     :list="tasks"
+    handle=".handle"
     :group="{ name: 'g1' }"
     item-key="name"
   >
     <template #item="{ element: el, index }">
-      <li style="padding-right: 1rem;">
+      <li style="padding-right: .5rem; list-style: none; margin-bottom: 0.5rem;">
         <div style="display: flex; justify-content: space-between;">
           <el-checkbox v-model="el.enable">开启</el-checkbox>
-          <div>
+          <div style="display: flex; align-items: center;">
+            <el-icon v-if="!el.notCollapse" class="handle" style="padding: 0.2rem 0.7rem; font-size: 1.3rem; color: #999"><rank /></el-icon>
+            <i class="fa fa-align-justify handle"></i>
             <el-button @click="el.notCollapse = !el.notCollapse">{{ el.notCollapse ? '收缩' : '展开'}}</el-button>
             <el-button @click="deleteItem(index)">删除</el-button>
           </div>
@@ -151,6 +154,7 @@ import {
   CirclePlusFilled,
   CircleClose,
   QuestionFilled,
+  Rank,
   BrushFilled
 } from '@element-plus/icons-vue'
 import draggable from "vuedraggable";
@@ -196,7 +200,7 @@ const removeItem = (v: any[], index: number | any) => {
 <style scoped>
 .dragArea {
   min-height: 50px;
-  outline: 1px dashed;
+  /* outline: 1px dashed; */
   padding-top: 1rem;
   padding-bottom: 1rem;
 }

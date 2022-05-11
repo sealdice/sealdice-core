@@ -130,7 +130,7 @@
           class="hidden-sm-and-up"
           style="position: absolute; bottom: 60px; color: #fff; font-size: small; margin-left: 1rem;"
         >
-          <el-button @click="sideCollapse = !sideCollapse"></el-button>
+          <el-button circle type="info" :icon="sideCollapse ? DArrowRight : DArrowLeft" @click="sideCollapse = !sideCollapse"></el-button>
         </div>
       </div>
 
@@ -191,7 +191,9 @@ import {
   Ship,
   Star,
   Operation,
-  ChatLineRound
+  ChatLineRound,
+  DArrowLeft,
+  DArrowRight
 } from '@element-plus/icons-vue'
 
 import dayjs from 'dayjs'

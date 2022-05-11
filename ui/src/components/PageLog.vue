@@ -20,11 +20,11 @@
   </el-table>
 
   <el-table :data="store.curDice.logs" style="width: 100%;" class="hidden-sm-and-up">
-    <el-table-column label="时间" width="90" >
+    <el-table-column label="时间" width="65" >
       <template #default="scope">
         <div style="display: flex; align-items: center">
           <!-- <el-icon><timer /></el-icon> -->
-          <span>{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
+          <span>{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span>
         </div>
       </template>
     </el-table-column>

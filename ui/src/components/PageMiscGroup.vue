@@ -29,7 +29,10 @@
       <!-- <div>欢迎语: <el-input type="textarea" v-model="i.groupWelcomeMessage" autosize /> </div> -->
       <!-- <div>{{i}}</div> -->
       <el-button :disabled="!i.changed" @click="saveOne(i, index)">保存</el-button>
-      <el-button @click="quitGroup(i, index)">退群</el-button>
+
+      <el-tooltip v-for="_,j in i.diceIds" raw-content :content="j.toString() + '<br>有二次确认'">
+        <el-button  @click="quitGroup(i, index, j.toString())">退群 {{j.toString().slice(-4)}}</el-button>
+      </el-tooltip>
     </div>
   </div>
 </template>
@@ -121,7 +124,7 @@ const saveOne = async (i: any, index: number) => {
   ElMessage.success('已保存')
 }
 
-const quitGroup = async (i: any, index: number) => {
+const quitGroup = async (i: any, index: number, diceId: string) => {
   // await store.backupConfigSave(cfg.value)
   // console.log(222, i, index)
   ElMessage.success('已保存')
