@@ -788,16 +788,40 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["master"] = cmdMaster
 
 	cmdSend := &CmdItemInfo{
-		Name:     "send",
-		Help:     ".send // 向骰主留言",
-		LongHelp: "留言指令:\n.send // 向骰主留言",
+		Name: "send",
+		Help: ".send // 向骰主留言",
+		LongHelp: "留言指令:\n.send // 向骰主留言\n" +
+			".send to <对方ID> 要说的话 // 骰主回复，举例. send to QQ:12345 感谢留言",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				if ctx.IsCurGroupBotOn && cmdArgs.SomeoneBeMentionedButNotMe {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				if _, exists := cmdArgs.GetArgN(1); exists {
+				val, _ := cmdArgs.GetArgN(1)
+				if val == "to" {
+					if ctx.PrivilegeLevel >= 100 {
+						uid, exists := cmdArgs.GetArgN(2)
+						txt := cmdArgs.GetRestArgsFrom(3)
+						if exists && strings.HasPrefix(uid, ctx.EndPoint.Platform) && txt != "" {
+							isGroup := strings.Contains(uid, "-Group:")
+							txt = fmt.Sprintf("本消息由骰主<%s>通过指令发送:\n", ctx.Player.Name) + txt
+							if isGroup {
+								ReplyGroup(ctx, &Message{GroupId: uid}, txt)
+							} else {
+								ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: uid}}, txt)
+							}
+							ReplyToSender(ctx, msg, "信息已经发送至"+uid)
+							return CmdExecuteResult{Matched: true, Solved: true}
+						} else {
+							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						}
+					} else {
+						ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+					}
+				} else if val == "help" {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				} else {
 					for _, uid := range ctx.Dice.DiceMasters {
 						text := ""
 
@@ -814,6 +838,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "您的留言已被记录，另外注意不要滥用此功能，祝您生活愉快，再会。")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
 				return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}

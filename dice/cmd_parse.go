@@ -123,6 +123,19 @@ func (a *CmdArgs) GetKwarg(s string) *Kwarg {
 	return nil
 }
 
+func (a *CmdArgs) GetRestArgsFrom(index int) string {
+	txt := []string{}
+	for i := index; i < len(a.Args)+1; i++ {
+		info, exists := a.GetArgN(i)
+		if exists {
+			txt = append(txt, info)
+		} else {
+			break
+		}
+	}
+	return strings.Join(txt, " ")
+}
+
 func CommandCheckPrefix(rawCmd string, prefix []string) bool {
 	restText, _ := AtParse(rawCmd, "")
 	restText = strings.TrimSpace(restText)
