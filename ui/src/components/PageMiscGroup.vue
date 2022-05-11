@@ -125,9 +125,29 @@ const saveOne = async (i: any, index: number) => {
 }
 
 const quitGroup = async (i: any, index: number, diceId: string) => {
-  // await store.backupConfigSave(cfg.value)
-  // console.log(222, i, index)
-  ElMessage.success('已保存')
+  ElMessageBox.prompt(
+    '会进行退群留言“因长期不使用等原因，骰主后台操作退群”，输入英文大写NO则静默退群，写别的则为附加留言',
+    '退出此群？',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(async (data) => {
+    await store.setGroupQuit({
+      groupId: i.groupId,
+      diceId,
+      silence: data.value === 'NO',
+      extraText: data.value
+    })
+    await refreshList()
+    ElMessage.success('退群完成')
+
+    ElMessage({
+      type: 'success',
+      message: '成功!',
+    })
+  })
 }
 
 onBeforeMount(async () => {

@@ -239,6 +239,11 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    async setGroupQuit(data: any) {
+      const info = await backend.post(urlPrefix+'/group/quit_one', data)
+      return info
+    },
+
     async setCustomReply(data: any) {
       const info = await backend.post(urlPrefix+'/configs/custom_reply/save', data)
       return info

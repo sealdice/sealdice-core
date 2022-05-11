@@ -207,6 +207,10 @@
       <el-checkbox label="在私聊中" v-model="config.onlyLogCommandInPrivate"/>
     </el-form-item>
 
+    <el-form-item label="拒绝加入新群">
+      <el-checkbox label="非强制拉入时拒绝加群" v-model="config.refuseGroupInvite"/>
+    </el-form-item>
+
     <el-form-item label="自动重登录">
       <template #label>
         <div>

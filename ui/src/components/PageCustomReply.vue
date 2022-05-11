@@ -11,7 +11,7 @@
 
   <div>
     <el-checkbox @click="switchClick" v-model="cr.enable">总开关</el-checkbox>
-    <el-button style="float: right" @click="dialogFormVisible = true">导入/导出</el-button>
+    <el-button style="float: right" @click="dialogFormVisible = true">导入</el-button>
     <div>每项自定义回复由一个“条件”触发，产生一系列“结果”</div>
     <div>一旦一个“条件”被满足，将立即停止匹配，并执行“结果”</div>
     <el-collapse>
@@ -29,7 +29,7 @@
       </el-collapse-item>
     </el-collapse>
 
-    <div style="margin-top: 1rem;">
+    <!-- <div style="margin-top: 1rem;">
       <div>当前文件</div>
       <el-select>
         <el-option
@@ -44,7 +44,7 @@
         <el-button>改名</el-button>
         <el-checkbox style="margin-left: 1rem;">启用</el-checkbox>
       </div>
-    </div>
+    </div> -->
 
     <nested-draggable :tasks="list" />
     <div>

@@ -34,7 +34,7 @@
           <div style="margin: .2rem 0;margin-top:1rem">禁言增加: <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreGroupMuted">50</el-input></div>
           <div style="margin: .2rem 0;">踢出增加: <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreGroupKicked">50</el-input></div>
           <!-- <div>短时间多次拉群: <el-input>50</el-input></div> -->
-          <div style="margin: .2rem 0;">连续指令(≥10/分钟): <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreTooManyCommand"></el-input></div>
+          <!-- <div style="margin: .2rem 0;">连续指令(≥10/分钟): <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreTooManyCommand"></el-input></div> -->
 
           <div style="margin: .2rem 0;margin-top:1rem"><span style="display: inline-block;min-width: 6rem">每分钟下降:</span> <el-input style="max-width: 5rem;" v-model="banConfig.scoreReducePerMinute"></el-input></div>
           <div style="margin: .2rem 0;"><span style="display: inline-block;min-width: 6rem">群组连带责任:</span> <el-input style="max-width: 5rem;" type="number" v-model="banConfig.jointScorePercentOfGroup"></el-input></div>
