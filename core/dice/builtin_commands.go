@@ -1169,7 +1169,9 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["ext"] = cmdExt
 
-	helpNN := ".nn <角色名> // 跟角色名则改为指定角色名，不带则重置角色名"
+	helpNN := ".nn // 查看当前角色名\n" +
+		".nn <角色名> // 改为指定角色名，若有卡片不会连带修改\n" +
+		".nn clr // 重置回群名片"
 	cmdNN := &CmdItemInfo{
 		Name:     "nn",
 		Help:     helpNN,
@@ -1180,22 +1182,29 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: false, Solved: false}
 				}
 
-				if len(cmdArgs.Args) == 0 {
+				val, _ := cmdArgs.GetArgN(1)
+				switch val {
+				case "":
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_当前"))
+				case "clr", "reset":
 					p := ctx.Player
 					p.Name = msg.Sender.Nickname
 					VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
-
+					VarSetValue(ctx, "$t玩家_RAW", &VMValue{VMTypeString, fmt.Sprintf("%s", ctx.Player.Name)})
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_重置"))
-					//replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称已重置为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
-				}
-				if len(cmdArgs.Args) >= 1 {
+				default:
 					p := ctx.Player
+					VarSetValue(ctx, "$t旧昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
+					VarSetValue(ctx, "$t旧昵称_RAW", &VMValue{VMTypeString, fmt.Sprintf("%s", ctx.Player.Name)})
+
 					p.Name = cmdArgs.Args[0]
 					VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
+					VarSetValue(ctx, "$t玩家_RAW", &VMValue{VMTypeString, fmt.Sprintf("%s", ctx.Player.Name)})
 
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_改名"))
 					//replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
 				}
+
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}

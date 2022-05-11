@@ -58,6 +58,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 
 	sort.Sort(ExtDefaultSettingItemSlice(session.Parent.ExtDefaultSettings))
 	group.DiceIds[ctx.EndPoint.UserId] = true
+	group.NotInGroup = false
 	return group
 }
 

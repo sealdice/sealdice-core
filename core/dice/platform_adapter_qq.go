@@ -325,6 +325,11 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					}
 				}
 
+				if ctx.Dice.RefuseGroupInvite {
+					pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "设置拒绝加群")
+					return
+				}
+
 				//time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 				pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, true, "")
 				return
