@@ -204,7 +204,8 @@ func RegisterBuiltinExtDeck(d *Dice) {
 	helpDraw := "" +
 		".draw help // 显示本帮助\n" +
 		".draw list // 查看载入的牌堆文件\n" +
-		".draw keys // 查看可抽取的牌组列表\n" +
+		".draw keys // 查看可抽取的牌组列表(容易很长，不建议用)\n" +
+		".draw keys <牌堆> // 查看特定牌堆可抽取的牌组列表\n" +
 		".draw search <牌组名称> // 搜索相关牌组\n" +
 		".draw reload // 从硬盘重新装载牌堆，仅Master可用\n" +
 		".draw <牌组名称> // 进行抽牌"
@@ -224,24 +225,29 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				cmdArgs.ChopPrefixToArgsWith("list", "help", "reload", "search")
+				cmdArgs.ChopPrefixToArgsWith("list", "help", "reload", "search", "keys")
 				deckName, exists := cmdArgs.GetArgN(1)
 
 				if exists {
 					if strings.EqualFold(deckName, "list") {
 						text := "载入并开启的牌堆:\n"
 						for _, i := range ctx.Dice.DeckList {
-							text += fmt.Sprintf("- %s 格式: %s 作者:%s 版本:%s 牌组数量: %d\n", i.Name, i.Format, i.Author, i.Version, len(i.Command))
+							author := fmt.Sprintf(" 作者:%s", i.Author)
+							version := fmt.Sprintf(" 版本:%s", i.Version)
+							text += fmt.Sprintf("- %s 格式: %s%s%s 牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
 						}
 						ReplyToSender(ctx, msg, text)
 					} else if strings.EqualFold(deckName, "help") {
 						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 					} else if strings.EqualFold(deckName, "keys") {
+						specified, _ := cmdArgs.GetArgN(2)
 						text := "牌组关键字列表:\n"
 						keys := ""
 						for _, i := range ctx.Dice.DeckList {
-							for j := range i.Command {
-								keys += j + "/"
+							if strings.Contains(i.Name, specified) {
+								for j := range i.Command {
+									keys += j + "/"
+								}
 							}
 						}
 						if keys == "" {
@@ -349,7 +355,14 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 		var err error
 
 		deckName := s[i[0]:i[1]]
-		deckName = deckName[2 : len(deckName)-1]
+		sign := deckName[1]
+		signLength := 0
+		hasSign := sign == '$' || sign == '%'
+		if hasSign {
+			signLength += 1
+		}
+
+		deckName = deckName[1+signLength : len(deckName)-1]
 
 		deck := deckInfo.DeckItems[deckName]
 		if deck == nil {

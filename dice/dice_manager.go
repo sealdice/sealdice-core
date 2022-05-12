@@ -79,11 +79,13 @@ type DiceConfigs struct {
 }
 
 func (dm *DiceManager) InitHelp() {
+	dm.IsHelpReloading = true
 	os.MkdirAll("./data/helpdoc", 0755)
 	dm.Help = new(HelpManager)
 	dm.Help.Parent = dm
 	dm.Help.EngineType = dm.HelpDocEngineType
 	dm.Help.Load()
+	dm.IsHelpReloading = false
 }
 
 // LoadDice 初始化函数
@@ -184,7 +186,6 @@ func (dm *DiceManager) InitDice() {
 	dm.UpdateCheckRequestChan = make(chan int, 1)
 	dm.UpdateDownloadedChan = make(chan string, 1)
 
-	dm.InitHelp()
 	dm.LoadNames()
 
 	g, err := NewProcessExitGroup()
@@ -199,9 +200,13 @@ func (dm *DiceManager) InitDice() {
 		i.Init()
 	}
 
-	if len(dm.Dice) >= 1 {
-		dm.AddHelpWithDice(dm.Dice[0])
-	}
+	go func() {
+		// 加载帮助
+		dm.InitHelp()
+		if len(dm.Dice) >= 1 {
+			dm.AddHelpWithDice(dm.Dice[0])
+		}
+	}()
 
 	dm.ResetAutoBackup()
 }

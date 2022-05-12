@@ -159,13 +159,13 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager) {
 
 		go func() {
 			for {
-				time.Sleep(5 * time.Second)
+				time.Sleep(2 * time.Second)
 				url := fmt.Sprintf(`http://localhost:%s`, portStr)
 				url2 := fmt.Sprintf(`http://127.0.0.1:%s`, portStr)
 				c := request.Client{
 					URL:     url2,
 					Method:  "GET",
-					Timeout: 5,
+					Timeout: 1,
 				}
 				resp := c.Send()
 				if resp.OK() {

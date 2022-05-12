@@ -147,6 +147,11 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if d.Parent.IsHelpReloading {
+					ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				var id string
 				if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {
 					_id := rand.Uint64()%d.Parent.Help.CurId + 1
@@ -267,7 +272,6 @@ func (d *Dice) registerCoreCommands() {
 								dm.InitHelp()
 								dm.AddHelpWithDice(dm.Dice[0])
 								ReplyToSender(ctx, msg, "帮助文档已经重新装载")
-								dm.IsHelpReloading = false
 							} else {
 								ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
 							}
