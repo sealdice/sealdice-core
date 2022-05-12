@@ -18,6 +18,7 @@ import (
 	"runtime/debug"
 	"sealdice-core/api"
 	"sealdice-core/dice"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -94,6 +95,11 @@ func main() {
 	// 提早初始化是为了读取ServiceName
 	diceManager := &dice.DiceManager{}
 	diceManager.LoadDice()
+
+	if opts.Address != "" {
+		fmt.Println("由参数输入了服务地址:", opts.Address)
+		diceManager.ServeAddress = opts.Address
+	}
 
 	if opts.Install {
 		serviceName := opts.ServiceName
@@ -186,6 +192,13 @@ func main() {
 	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
 	fmt.Println("工作路径: ", cwd)
 
+	if strings.HasPrefix(cwd, os.TempDir()) {
+		// C:\Users\XXX\AppData\Local\Temp
+		// C:\Users\XXX\AppData\Local\Temp\BNZ.627d774316768935
+		tempDirWarn()
+		return
+	}
+
 	go trayInit()
 
 	cleanUp := cleanUpCreate(diceManager)
@@ -265,7 +278,6 @@ func main() {
 
 	if opts.Address != "" {
 		fmt.Println("由参数输入了服务地址:", opts.Address)
-		diceManager.ServeAddress = opts.Address
 	}
 
 	for _, d := range diceManager.Dice {
