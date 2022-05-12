@@ -345,7 +345,7 @@ func (d *Dice) registerCoreCommands() {
 				if AtSomebodyButNotMe {
 					return CmdExecuteResult{Matched: false, Solved: false}
 				}
-				count := 0
+				activeCount := 0
 				serveCount := 0
 				for _, i := range d.ImSession.ServiceAtNew {
 					if !i.NotInGroup && i.GroupId != "" {
@@ -353,7 +353,7 @@ func (d *Dice) registerCoreCommands() {
 							continue
 						}
 						if i.Active {
-							count += 1
+							activeCount += 1
 						}
 						serveCount += 1
 					}
@@ -370,7 +370,7 @@ func (d *Dice) registerCoreCommands() {
 						onlineVer = "最新版本: " + ver.VersionLatestDetail + "\n"
 					}
 				}
-				text := fmt.Sprintf("SealDice %s\n%s供职于%d个群，其中%d个处于开启状态", VERSION, onlineVer, serveCount, count)
+				text := fmt.Sprintf("SealDice %s\n%s供职于%d个群，其中%d个处于开启状态", VERSION, onlineVer, serveCount, activeCount)
 
 				if inGroup {
 					isActive := ctx.Group != nil && ctx.Group.Active

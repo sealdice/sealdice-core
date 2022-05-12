@@ -29,6 +29,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 		group.Active = true
 	} else {
 		// 设定扩展情况
+		sort.Sort(ExtDefaultSettingItemSlice(session.Parent.ExtDefaultSettings))
 		extLst := []*ExtInfo{}
 		for _, i := range session.Parent.ExtDefaultSettings {
 			if i.ExtItem != nil {
@@ -56,7 +57,6 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 		group.BotList = map[string]bool{}
 	}
 
-	sort.Sort(ExtDefaultSettingItemSlice(session.Parent.ExtDefaultSettings))
 	group.DiceIds[ctx.EndPoint.UserId] = true
 	group.NotInGroup = false
 	return group

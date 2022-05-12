@@ -215,7 +215,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				ep.UserId = FormatDiceIdQQ(msgQQ.Data.UserId)
 
 				log.Debug("骰子信息已刷新")
-				ep.GroupNum = int64(len(session.ServiceAtNew))
+				ep.RefreshGroupNum()
 				return
 			}
 
@@ -294,7 +294,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			// 处理加群请求
 			if msgQQ.PostType == "request" && msgQQ.RequestType == "group" && msgQQ.SubType == "invite" {
 				// {"comment":"","flag":"111","group_id":222,"post_type":"request","request_type":"group","self_id":333,"sub_type":"invite","time":1646782195,"user_id":444}
-				ep.GroupNum = int64(len(session.ServiceAtNew))
+				ep.RefreshGroupNum()
 				pa.GetGroupInfoAsync(msg.GroupId)
 				time.Sleep(time.Duration((1.8 + rand.Float64()) * float64(time.Second))) // 稍作等待，也许能拿到群名
 
