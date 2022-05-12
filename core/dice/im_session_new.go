@@ -617,6 +617,20 @@ func (ep *EndPointInfo) AdapterSetup() {
 	}
 }
 
+func (ep *EndPointInfo) RefreshGroupNum() {
+	serveCount := 0
+	session := ep.Session
+	for _, i := range session.ServiceAtNew {
+		if !i.NotInGroup && i.GroupId != "" {
+			if strings.HasPrefix(i.GroupId, "PG-") {
+				continue
+			}
+			serveCount += 1
+		}
+	}
+	ep.GroupNum = int64(serveCount)
+}
+
 func (ctx *MsgContext) Notice(txt string) {
 	foo := func() {
 		defer func() {
