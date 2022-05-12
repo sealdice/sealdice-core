@@ -122,7 +122,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log list // 查看当前群的日志列表
 .log del <日志名> // 删除一份日志
 .log stat (<日志名>) // 查看统计
-.log stat (<日志名>) --all // 查看统计(全团)
+.log stat (<日志名>) --all // 查看统计(全团)，--all前必须有空格
 .log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)`
 
 	cmdLog := &CmdItemInfo{
