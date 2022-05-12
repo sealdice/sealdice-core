@@ -45,6 +45,11 @@ func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
 	var choices []wr.Choice
 	for _, i := range *i {
 		//weight, text := extractWeight(i)
+		if len(i) == 1 {
+			// 一种奇怪的情况，没有第二个值，见过一例，不知道怎么触发的
+			i = append(i, 1)
+		}
+
 		if w, ok := i[1].(int); ok {
 			choices = append(choices, wr.Choice{Item: i[0].(string), Weight: uint(w)})
 		}
@@ -841,6 +846,7 @@ func setupBaseTextTemplate(d *Dice) {
 		"日志": {
 			"记录_新建": {
 				SubType: ".log new 故事",
+				Vars:    []string{"$t记录名称"},
 			},
 			"记录_开启_成功": {
 				SubType: ".log on 故事",
@@ -1292,6 +1298,7 @@ func (d *Dice) loads() {
 		d.WorkInQQChannel = true
 		d.HelpMasterInfo = HelpMasterInfoDefault
 		d.HelpMasterLicense = HelpMasterLicenseDefault
+		d.CustomReplyConfigEnable = true
 		d.Logger.Info("serve.yaml not found")
 	}
 

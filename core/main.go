@@ -38,6 +38,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		if err != nil {
 			showWindow()
 			logger.Errorf("异常: %v 堆栈: %v", err, string(debug.Stack()))
+			exec.Command("pause") // windows专属
 		}
 
 		for _, i := range diceManager.Dice {
@@ -58,7 +59,6 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		if diceManager.Cron != nil {
 			diceManager.Cron.Stop()
 		}
-		exec.Command("pause") // windows专属
 	}
 
 }

@@ -818,15 +818,22 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				case "clr", "clear":
 					p := mctx.Player
-					toDelete := []string{}
+
+					varNames := []string{}
 					_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
 						varname := _k.(string)
 						varname = "$buff_" + varname
+						varNames = append(varNames, varname)
+						// 嵌套中不能再调用自己 会死锁，所以分开两步
+						return nil
+					})
+
+					toDelete := []string{}
+					for _, varname := range varNames {
 						if _, exists := p.Vars.ValueMap.Get(varname); exists {
 							toDelete = append(toDelete, varname)
 						}
-						return nil
-					})
+					}
 
 					num := len(toDelete)
 					for _, varname := range toDelete {
@@ -1053,6 +1060,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, retText)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},

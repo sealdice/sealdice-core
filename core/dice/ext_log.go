@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/alexmullins/zip"
+	"github.com/fy0/lockfree"
 	"go.etcd.io/bbolt"
 	"io/ioutil"
 	"os"
@@ -48,6 +49,57 @@ func RegisterBuiltinExtLog(self *Dice) {
 			}
 		}
 		privateCommandListen = newMap
+	}
+
+	// 避免群信息重复记录
+	groupMsgInfo := lockfree.NewHashMap()
+	groupMsgInfoLastClean := int64(0)
+	groupMsgInfoClean := func() {
+		// 清理过久的消息
+		now := time.Now().Unix()
+
+		if now-groupMsgInfoLastClean < 60 {
+			// 60s清理一次
+			return
+		}
+
+		groupMsgInfoLastClean = now
+		toDelete := []interface{}{}
+		_ = groupMsgInfo.Iterate(func(_k interface{}, _v interface{}) error {
+			t, ok := _v.(int64)
+			if ok {
+				if now-t > 5 { // 5秒内如果有此消息，那么不记录
+					toDelete = append(toDelete, _k)
+				}
+			} else {
+				toDelete = append(toDelete, _k)
+			}
+			return nil
+		})
+
+		for _, i := range toDelete {
+			groupMsgInfo.Del(i)
+		}
+	}
+
+	// 检查是否已经记录过 如果记录过则跳过
+	groupMsgInfoCheckOk := func(_k interface{}) bool {
+		groupMsgInfoClean()
+		_val, exists := groupMsgInfo.Get(_k)
+		if exists {
+			t, ok := _val.(int64)
+			if ok {
+				now := time.Now().Unix()
+				return now-t > 5 // 5秒内如果有此消息，那么不记录
+			}
+		}
+		return true
+	}
+
+	groupMsgInfoSet := func(_k interface{}) {
+		if _k != nil {
+			groupMsgInfo.Set(_k, time.Now().Unix())
+		}
 	}
 
 	// 获取logname，第一项是默认名字
@@ -283,6 +335,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 							todayTime := time.Now().Format("2006_01_02_15_04_05")
 							name = todayTime
 						}
+						VarSetValueStr(ctx, "$t记录名称", name)
+
 						group.LogCurName = name
 						group.LogOn = true
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
@@ -545,6 +599,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 			// 处理日志
 			if ctx.Group != nil {
 				if ctx.Group.LogOn {
+					// 去重，用于同群多骰情况
+					if !groupMsgInfoCheckOk(msg.RawId) {
+						return
+					}
+					groupMsgInfoSet(msg.RawId)
+
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					a := LogOneItem{
 						Nickname:  ctx.Player.Name,

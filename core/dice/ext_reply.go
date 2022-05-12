@@ -126,6 +126,11 @@ func RegisterBuiltinExtReply(dice *Dice) {
 								}
 							}
 
+							//fmt.Println("!!!!", cleanText, checkTrue, len(i.Conditions), len(i.Results))
+							//if checkTrue {
+							//	fmt.Println("!!xx", cleanText)
+							//}
+
 							if len(i.Conditions) > 0 && checkTrue {
 								SetTempVars(ctx, ctx.Player.Name)
 								VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))
