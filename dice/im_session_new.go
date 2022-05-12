@@ -253,8 +253,15 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				mustLoadUser = true
 			}
 			// 开启reply时，必须加载信息
-			if d.CustomReplyConfigEnable && group.ExtGetActive("reply") != nil {
-				mustLoadUser = true
+			// d.CustomReplyConfigEnable
+			extReply := group.ExtGetActive("reply")
+			if extReply != nil {
+				for _, i := range d.CustomReplyConfig {
+					if i.Enable {
+						mustLoadUser = true
+						break
+					}
+				}
 			}
 		}
 
@@ -401,6 +408,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				}
 				if doLog {
 					log.Infof("收到群(%s)内<%s>(%s)的消息: %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+					//fmt.Printf("消息长度 %v 内容 %v \n", len(msg.Message), []byte(msg.Message))
 				}
 			}
 		}
