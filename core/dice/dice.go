@@ -120,8 +120,9 @@ type Dice struct {
 	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"` // 启用自动重新登录
 	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"` // 拒绝加入新群
 
-	HelpMasterInfo    string `yaml:"helpMasterInfo"`    // help中骰主信息
-	HelpMasterLicense string `yaml:"helpMasterLicense"` // help中使用协议
+	HelpMasterInfo      string `yaml:"helpMasterInfo"`      // help中骰主信息
+	HelpMasterLicense   string `yaml:"helpMasterLicense"`   // help中使用协议
+	DefaultCocRuleIndex int64  `yaml:"defaultCocRuleIndex"` // 默认coc index
 
 	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
 

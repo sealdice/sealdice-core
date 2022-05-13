@@ -32,15 +32,22 @@ func baseInfo(c echo.Context) error {
 	//	os.Getenv("GODEBUG"), m.HeapSys/meg, m.HeapAlloc/meg, m.HeapIdle/meg, m.HeapReleased/meg, m.HeapInuse/meg,
 	//	m.StackSys/meg)
 
+	var versionNew string
+	if dm.AppVersionOnline != nil {
+		versionNew = dm.AppVersionOnline.VersionLatestDetail
+	}
+
 	return c.JSON(http.StatusOK, struct {
 		AppName       string `json:"appName"`
 		Version       string `json:"version"`
+		VersionNew    string `json:"versionNew"`
 		MemoryAlloc   uint64 `json:"memoryAlloc"`
 		Uptime        int64  `json:"uptime"`
 		MemoryUsedSys uint64 `json:"memoryUsedSys"`
 	}{
 		AppName:       dice.APPNAME,
 		Version:       dice.VERSION,
+		VersionNew:    versionNew,
 		MemoryAlloc:   m.Alloc,
 		MemoryUsedSys: m.Sys,
 		Uptime:        time.Now().Unix() - startTime,

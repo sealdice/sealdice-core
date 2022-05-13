@@ -1099,6 +1099,7 @@ func (d *Dice) loads() {
 			d.ExtDefaultSettings = dNew.ExtDefaultSettings
 			d.CustomReplyConfigEnable = dNew.CustomReplyConfigEnable
 			d.RefuseGroupInvite = dNew.RefuseGroupInvite
+			d.DefaultCocRuleIndex = dNew.DefaultCocRuleIndex
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply

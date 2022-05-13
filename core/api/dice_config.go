@@ -32,8 +32,10 @@ type DiceConfigInfo struct {
 	QQChannelLogMessage     bool     `json:"QQChannelLogMessage"`
 	RefuseGroupInvite       bool     `json:"refuseGroupInvite"` // 拒绝群组邀请
 
-	HelpMasterInfo     string                        `json:"helpMasterInfo"`                               // help中骰主信息
-	HelpMasterLicense  string                        `json:"helpMasterLicense"`                            // help中使用协议
+	HelpMasterInfo      string `json:"helpMasterInfo"`      // help中骰主信息
+	HelpMasterLicense   string `json:"helpMasterLicense"`   // help中使用协议
+	DefaultCocRuleIndex string `json:"defaultCocRuleIndex"` // 默认coc index
+
 	ExtDefaultSettings []*dice.ExtDefaultSettingItem `yaml:"extDefaultSettings" json:"extDefaultSettings"` // 新群扩展按此顺序加载
 }
 
@@ -52,6 +54,13 @@ func DiceConfig(c echo.Context) error {
 		limit = 100
 	}
 	myDice.UnlockCodeUpdate(false)
+
+	cocRule := "0"
+	if myDice.DefaultCocRuleIndex == 11 {
+		cocRule = "dg"
+	} else {
+		cocRule = strconv.FormatInt(myDice.DefaultCocRuleIndex, 10)
+	}
 
 	info := DiceConfigInfo{
 		CommandPrefix:           myDice.CommandPrefix,
@@ -72,9 +81,10 @@ func DiceConfig(c echo.Context) error {
 		QQChannelLogMessage:     myDice.QQChannelLogMessage,
 		RefuseGroupInvite:       myDice.RefuseGroupInvite,
 
-		HelpMasterInfo:     myDice.HelpMasterInfo,
-		HelpMasterLicense:  myDice.HelpMasterLicense,
-		ExtDefaultSettings: myDice.ExtDefaultSettings,
+		HelpMasterInfo:      myDice.HelpMasterInfo,
+		HelpMasterLicense:   myDice.HelpMasterLicense,
+		ExtDefaultSettings:  myDice.ExtDefaultSettings,
+		DefaultCocRuleIndex: cocRule,
 
 		ServeAddress:      myDice.Parent.ServeAddress,
 		HelpDocEngineType: myDice.Parent.HelpDocEngineType,
@@ -107,11 +117,41 @@ func DiceConfigSet(c echo.Context) error {
 		}
 
 		if val, ok := jsonMap["diceMasters"]; ok {
-			myDice.DiceMasters = stringConvert(val)
+			data := stringConvert(val)
+			var masters []string
+			// 自动修复部分不正确的格式
+			for _, i := range data {
+				i = strings.ReplaceAll(i, "qq：", "QQ:")
+				i = strings.ReplaceAll(i, "QQ：", "QQ:")
+
+				if _, err := strconv.Atoi(i); err == nil {
+					i = "QQ:" + i
+				}
+
+				masters = append(masters, i)
+			}
+			myDice.DiceMasters = masters
 		}
 
 		if val, ok := jsonMap["noticeIds"]; ok {
 			myDice.NoticeIds = stringConvert(val)
+		}
+
+		if val, ok := jsonMap["defaultCocRuleIndex"]; ok {
+			valStr, ok := val.(string)
+			if ok {
+				valStr = strings.TrimSpace(valStr)
+				if strings.EqualFold(valStr, "dg") {
+					myDice.DefaultCocRuleIndex = 11
+				} else {
+					myDice.DefaultCocRuleIndex, err = strconv.ParseInt(valStr, 10, 64)
+					if err == nil {
+						if myDice.DefaultCocRuleIndex > 5 || myDice.DefaultCocRuleIndex < 0 {
+							myDice.DefaultCocRuleIndex = 0
+						}
+					}
+				}
+			}
 		}
 
 		if val, ok := jsonMap["onlyLogCommandInGroup"]; ok {
