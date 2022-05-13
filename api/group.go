@@ -49,6 +49,7 @@ func groupSetOne(c echo.Context) error {
 	if err == nil {
 		item, exists := myDice.ImSession.ServiceAtNew[v.GroupId]
 		if exists {
+			// TODO: 要改 但暂时不好改
 			item.Active = !item.Active
 		}
 		return c.String(http.StatusOK, "")
@@ -85,7 +86,7 @@ func groupQuit(c echo.Context) error {
 
 					ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep, Session: myDice.ImSession}
 					ctx.Notice(_txt)
-					group.Active = false
+					dice.SetBotOffAtGroup(ctx, group.GroupId)
 
 					if !v.Silence {
 						txtPost := "因长期不使用等原因，骰主后台操作退群"

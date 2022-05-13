@@ -140,7 +140,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
 
 				groupNotActiveCheck := func() bool {
-					if !group.Active {
+					if !group.IsActive(ctx) {
 						ReplyToSender(ctx, msg, "未开启时不会记录日志，请先.bot on")
 						return true
 					}
@@ -573,7 +573,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 					LogAppend(ctx, group, &a)
 				}
 			}
-			if IsCurGroupBotOnById(ctx.Session, messageType, userId) {
+
+			if IsCurGroupBotOnById(ctx.Session, ctx.EndPoint, messageType, userId) {
 				session := ctx.Session
 				group := session.ServiceAtNew[userId]
 				if group.LogOn {

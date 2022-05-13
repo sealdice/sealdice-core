@@ -352,7 +352,7 @@ func (d *Dice) registerCoreCommands() {
 						if strings.HasPrefix(i.GroupId, "PG-") {
 							continue
 						}
-						if i.Active {
+						if len(i.ActiveDiceIds) >= 1 {
 							activeCount += 1
 						}
 						serveCount += 1
@@ -373,7 +373,7 @@ func (d *Dice) registerCoreCommands() {
 				text := fmt.Sprintf("SealDice %s\n%s供职于%d个群，其中%d个处于开启状态", VERSION, onlineVer, serveCount, activeCount)
 
 				if inGroup {
-					isActive := ctx.Group != nil && ctx.Group.Active
+					isActive := ctx.Group.IsActive(ctx)
 					activeText := "开启"
 					if !isActive {
 						activeText = "关闭"
@@ -424,7 +424,9 @@ func (d *Dice) registerCoreCommands() {
 							//if len(ctx.Group.ActivatedExtList) == 0 {
 							//	delete(ctx.Session.ServiceAt, msg.GroupId)
 							//} else {
-							ctx.Group.Active = false
+
+							SetBotOffAtGroup(ctx, ctx.Group.GroupId)
+
 							//}
 							// 停止服务
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
@@ -464,7 +466,7 @@ func (d *Dice) registerCoreCommands() {
 							_txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)", ctx.Group.GroupName, msg.GroupId, userName, msg.Sender.UserId)
 							d.Logger.Info(_txt)
 							ctx.Notice(_txt)
-							ctx.Group.Active = false
+							SetBotOffAtGroup(ctx, ctx.Group.GroupId)
 							time.Sleep(6 * time.Second)
 							ctx.Group.NotInGroup = true
 							ctx.EndPoint.Adapter.QuitGroup(ctx, msg.GroupId)

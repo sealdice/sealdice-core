@@ -13,12 +13,24 @@ import (
 	"strings"
 )
 
-func IsCurGroupBotOn(session *IMSession, msg *Message) bool {
-	return msg.MessageType == "group" && session.ServiceAtNew[msg.GroupId] != nil && session.ServiceAtNew[msg.GroupId].Active
+func IsCurGroupBotOnById(session *IMSession, ep *EndPointInfo, messageType string, groupId string) bool {
+	return messageType == "group" &&
+		session.ServiceAtNew[groupId] != nil &&
+		session.ServiceAtNew[groupId].ActiveDiceIds[ep.UserId]
 }
 
-func IsCurGroupBotOnById(session *IMSession, messageType string, groupId string) bool {
-	return messageType == "group" && session.ServiceAtNew[groupId] != nil && session.ServiceAtNew[groupId].Active
+func SetBotOffAtGroup(ctx *MsgContext, groupId string) {
+	session := ctx.Session
+	group := session.ServiceAtNew[groupId]
+	if group != nil {
+		if group.ActiveDiceIds == nil {
+			group.ActiveDiceIds = map[string]bool{}
+		}
+		delete(group.ActiveDiceIds, ctx.EndPoint.UserId)
+		if len(group.ActiveDiceIds) == 0 {
+			group.Active = false
+		}
+	}
 }
 
 // SetBotOnAtGroup 在群内开启
@@ -26,6 +38,10 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 	session := ctx.Session
 	group := session.ServiceAtNew[groupId]
 	if group != nil {
+		if group.ActiveDiceIds == nil {
+			group.ActiveDiceIds = map[string]bool{}
+		}
+		group.ActiveDiceIds[ctx.EndPoint.UserId] = true
 		group.Active = true
 	} else {
 		// 设定扩展情况
@@ -45,20 +61,20 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 			Players:          map[string]*GroupPlayerInfo{},
 			GroupId:          groupId,
 			ValueMap:         lockfree.NewHashMap(),
-			DiceIds:          map[string]bool{},
+			ActiveDiceIds:    map[string]bool{},
 			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
 		}
 		group = session.ServiceAtNew[groupId]
 	}
 
-	if group.DiceIds == nil {
-		group.DiceIds = map[string]bool{}
+	if group.ActiveDiceIds == nil {
+		group.ActiveDiceIds = map[string]bool{}
 	}
 	if group.BotList == nil {
 		group.BotList = map[string]bool{}
 	}
 
-	group.DiceIds[ctx.EndPoint.UserId] = true
+	group.ActiveDiceIds[ctx.EndPoint.UserId] = true
 	group.NotInGroup = false
 	return group
 }

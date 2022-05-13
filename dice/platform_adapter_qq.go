@@ -233,11 +233,11 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 						if msgQQ.Data.MaxMemberCount == 0 {
 							// 试图删除自己
 							diceId := ep.UserId
-							if _, exists := group.DiceIds[diceId]; exists {
+							if _, exists := group.ActiveDiceIds[diceId]; exists {
 								// 删除自己的登记信息
-								delete(group.DiceIds, diceId)
+								delete(group.ActiveDiceIds, diceId)
 
-								if len(group.DiceIds) == 0 {
+								if len(group.ActiveDiceIds) == 0 {
 									// 如果该群所有账号都被删除了，那么也删掉整条记录
 									// 这似乎是个危险操作
 									// TODO: 该群下的用户信息实际没有被删除
