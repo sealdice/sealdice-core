@@ -55,16 +55,16 @@ type GroupPlayerInfo struct {
 }
 
 type GroupInfo struct {
-	Active           bool                        `json:"active" yaml:"active"`           // 是否在群内开启
+	Active           bool                        `json:"active" yaml:"active"`           // 是否在群内开启 - 过渡为象征意义
 	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList,flow" json:"-"` // 当前群开启的扩展列表
 	Players          map[string]*GroupPlayerInfo `yaml:"players" json:"-"`               // 群员角色数据
-	NotInGroup       bool                        `yaml:"notInGroup" json:"notInGroup"`   // 是否已经离开群
+	NotInGroup       bool                        `yaml:"notInGroup" json:"notInGroup"`   // 是否已经离开群 - 准备处理单骰多号情况
 
-	GroupId     string          `yaml:"groupId" json:"groupId"`
-	GroupName   string          `yaml:"groupName" json:"groupName"`
-	DiceIds     map[string]bool `yaml:"diceIds,flow" json:"diceIds"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
-	BotList     map[string]bool `yaml:"botList,flow" json:"botList"` // 其他骰子列表
-	DiceSideNum int64           `yaml:"diceSideNum" json:"diceSideNum"`
+	GroupId       string          `yaml:"groupId" json:"groupId"`
+	GroupName     string          `yaml:"groupName" json:"groupName"`
+	ActiveDiceIds map[string]bool `yaml:"diceIds,flow" json:"diceIds"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	BotList       map[string]bool `yaml:"botList,flow" json:"botList"` // 其他骰子列表
+	DiceSideNum   int64           `yaml:"diceSideNum" json:"diceSideNum"`
 
 	//ValueMap     map[string]*VMValue `yaml:"-"`
 	ValueMap     lockfree.HashMap `yaml:"-" json:"-"`
@@ -128,6 +128,14 @@ func (group *GroupInfo) ExtGetActive(name string) *ExtInfo {
 		}
 	}
 	return nil
+}
+
+func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
+	firstCheck := group.Active && len(group.ActiveDiceIds) >= 1
+	if firstCheck {
+		return group.ActiveDiceIds[ctx.EndPoint.UserId]
+	}
+	return false
 }
 
 type EndPointInfoBase struct {
@@ -299,10 +307,10 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		if mustLoadUser {
 			mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
-			mctx.IsCurGroupBotOn = IsCurGroupBotOn(s, msg)
+			mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
 		}
 
-		if mctx.Group != nil && mctx.Group.Active {
+		if mctx.Group != nil && mctx.Group.IsActive(mctx) {
 			for _, i := range mctx.Group.ActivatedExtList {
 				if i.OnMessageReceived != nil {
 					i.OnMessageReceived(mctx, msg)
@@ -475,7 +483,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				var ret bool
 
 				// 试图匹配自定义指令
-				if mctx.Group != nil && mctx.Group.Active {
+				if mctx.Group != nil && mctx.Group.IsActive(mctx) {
 					for _, i := range mctx.Group.ActivatedExtList {
 						if i.OnCommandOverride != nil {
 							ret = i.OnCommandOverride(mctx, msg, cmdArgs)
@@ -519,7 +527,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 
 			// 试图匹配自定义回复
-			if mctx.Group != nil && (mctx.Group.Active || amIBeMentioned) {
+			if mctx.Group != nil && (mctx.Group.IsActive(mctx) || amIBeMentioned) {
 				for _, i := range mctx.Group.ActivatedExtList {
 					if i.OnNotCommandReceived != nil {
 						i.OnNotCommandReceived(mctx, msg)

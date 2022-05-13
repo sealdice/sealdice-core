@@ -195,12 +195,13 @@ func (d *Dice) Init() {
 			for _, i := range d.ImSession.EndPoints {
 				if i.Enable {
 					for k, v := range d.ImSession.ServiceAtNew {
+						// TODO: 注意这里的Active可能不需要改
 						if !strings.HasPrefix(k, "PG-") && v.Active {
 							diceId := i.UserId
-							if len(v.DiceIds) == 0 {
-								v.DiceIds[diceId] = true
+							if len(v.ActiveDiceIds) == 0 {
+								v.ActiveDiceIds[diceId] = true
 							}
-							if v.DiceIds[diceId] {
+							if v.ActiveDiceIds[diceId] {
 								i.Adapter.GetGroupInfoAsync(k)
 							}
 						}

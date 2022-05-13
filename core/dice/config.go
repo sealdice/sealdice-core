@@ -1188,11 +1188,11 @@ func (d *Dice) loads() {
 						ActivatedExtList: i.ActivatedExtList,
 						NotInGroup:       i.NotInGroup,
 
-						GroupId:     FormatDiceIdQQGroup(i.GroupId),
-						GroupName:   i.GroupName,
-						DiceIds:     i.DiceIds,
-						BotList:     i.BotList,
-						DiceSideNum: i.DiceSideNum,
+						GroupId:       FormatDiceIdQQGroup(i.GroupId),
+						GroupName:     i.GroupName,
+						ActiveDiceIds: i.DiceIds,
+						BotList:       i.BotList,
+						DiceSideNum:   i.DiceSideNum,
 
 						CocRuleIndex: i.CocRuleIndex,
 						LogCurName:   i.LogCurName,
@@ -1248,8 +1248,8 @@ func (d *Dice) loads() {
 						g.ValueMap.Set(k, v)
 					}
 				}
-				if g.DiceIds == nil {
-					g.DiceIds = map[string]bool{}
+				if g.ActiveDiceIds == nil {
+					g.ActiveDiceIds = map[string]bool{}
 				}
 				if g.BotList == nil {
 					g.BotList = map[string]bool{}
