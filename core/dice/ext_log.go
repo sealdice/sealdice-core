@@ -1,12 +1,12 @@
 package dice
 
 import (
+	"archive/zip"
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/alexmullins/zip"
 	"github.com/fy0/lockfree"
 	"go.etcd.io/bbolt"
 	"io/ioutil"
@@ -123,6 +123,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log del <日志名> // 删除一份日志
 .log stat (<日志名>) // 查看统计
 .log stat (<日志名>) --all // 查看统计(全团)，--all前必须有空格
+.log list <群号> // 查看指定群的日志列表(无法取得日志时，找骰主做这个操作)
 .log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)`
 
 	cmdLog := &CmdItemInfo{
@@ -235,14 +236,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 					}
 
 					if group.LogCurName != "" {
-						fn, password := LogSendToBackend(ctx, group)
+						fn := LogSendToBackend(ctx, group)
 						if fn == "" {
-							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
 							ReplyToSenderRaw(ctx, msg, text, "skip")
 						} else {
 							ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
 							time.Sleep(time.Duration(0.3 * float64(time.Second)))
-							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
 							ReplyToSenderRaw(ctx, msg, text, "skip")
 						}
 					}
@@ -257,14 +258,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 					}
 
 					if group.LogCurName != "" {
-						fn, password := LogSendToBackend(ctx, group)
+						fn := LogSendToBackend(ctx, group)
 						if fn == "" {
-							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
 							ReplyToSenderRaw(ctx, msg, text, "skip")
 						} else {
 							ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
 							time.Sleep(time.Duration(0.3 * float64(time.Second)))
-							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s（密钥中不含ilo0字符）", password)
+							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
 							ReplyToSenderRaw(ctx, msg, text, "skip")
 						}
 					}
@@ -276,13 +277,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 					group.LogOn = false
 
 					time.Sleep(time.Duration(0.3 * float64(time.Second)))
-					fn, password := LogSendToBackend(ctx, group)
+					fn := LogSendToBackend(ctx, group)
 					if fn == "" {
-						ReplyToSenderRaw(ctx, msg, "跑团日志上传失败，可联系骰主在data/default/logs路径下取出\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: "+password+" (密钥中不含ilo0字符)", "skip")
+						text := fmt.Sprintf("跑团日志上传失败，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
+						ReplyToSenderRaw(ctx, msg, text, "skip")
 					} else {
 						ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
 						time.Sleep(time.Duration(0.3 * float64(time.Second)))
-						text := fmt.Sprintf("若线上日志出现问题，可联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n解压缩密钥: %s (密钥中不含ilo0字符)", password)
+						text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
 						ReplyToSenderRaw(ctx, msg, text, "skip")
 					}
 					group.LogCurName = ""
@@ -665,14 +667,13 @@ func filenameReplace(name string) string {
 	return re.ReplaceAllString(name, "")
 }
 
-func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
+func LogSendToBackend(ctx *MsgContext, group *GroupInfo) string {
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "logs")
 	os.MkdirAll(dirpath, 0755)
 
 	lines, err := LogGetAllLines(ctx, group)
 	badRawIds, err2 := LogGetAllDeleted(ctx, group)
 
-	zipPassword := RandStringBytesMaskImprSrcSB(12)
 	if err == nil {
 		// 洗掉撤回的消息
 		if err2 == nil {
@@ -696,7 +697,7 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 			text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
 		}
 
-		fileWriter, _ := writer.Encrypt("log.txt", zipPassword)
+		fileWriter, _ := writer.Create("文本log.txt")
 		fileWriter.Write([]byte(text))
 
 		data, err := json.Marshal(map[string]interface{}{
@@ -704,7 +705,7 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 			"items":   lines,
 		})
 		if err == nil {
-			fileWriter2, _ := writer.Encrypt("log.json", zipPassword)
+			fileWriter2, _ := writer.Create("海豹标准log-粘贴到染色器可格式化.txt")
 			fileWriter2.Write(data)
 		}
 
@@ -725,10 +726,10 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) (string, string) {
 			w.Write(data)
 			w.Close()
 
-			return UploadFileToWeizaima(ctx.Dice.Logger, group.LogCurName, ctx.EndPoint.UserId, &zlibBuffer), zipPassword
+			return UploadFileToWeizaima(ctx.Dice.Logger, group.LogCurName, ctx.EndPoint.UserId, &zlibBuffer)
 		}
 	}
-	return "", zipPassword
+	return ""
 }
 
 // LogRollBriefByPC 根据log生成骰点简报
