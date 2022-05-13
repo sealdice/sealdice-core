@@ -46,6 +46,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 			GroupId:          groupId,
 			ValueMap:         lockfree.NewHashMap(),
 			DiceIds:          map[string]bool{},
+			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
 		}
 		group = session.ServiceAtNew[groupId]
 	}
