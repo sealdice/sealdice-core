@@ -50,7 +50,10 @@ func groupSetOne(c echo.Context) error {
 		item, exists := myDice.ImSession.ServiceAtNew[v.GroupId]
 		if exists {
 			// TODO: 要改 但暂时不好改
-			item.Active = !item.Active
+			item.Active = v.Active
+			//for _, i := range myDice.ImSession.EndPoints {
+			//	dice.SetBotOnAtGroup()
+			//}
 		}
 		return c.String(http.StatusOK, "")
 	}

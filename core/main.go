@@ -69,6 +69,7 @@ func main() {
 		Install                bool   `short:"i" long:"install" description:"安装为系统服务"`
 		Uninstall              bool   `long:"uninstall" description:"删除系统服务"`
 		ShowConsole            bool   `long:"show-console" description:"Windows上显示控制台界面"`
+		HideUIWhenBoot         bool   `long:"hide-ui" description:"启动时不弹出UI"`
 		ServiceUser            string `long:"service-user" description:"用于启动服务的用户"`
 		ServiceName            string `long:"service-name" description:"自定义服务名，默认为sealdice"`
 		MultiInstanceOnWindows bool   `short:"m" long:"multi-instance" description:"允许在Windows上运行多个海豹"`
@@ -284,7 +285,7 @@ func main() {
 		go diceServe(d)
 	}
 
-	uiServe(diceManager)
+	uiServe(diceManager, opts.HideUIWhenBoot)
 }
 
 func diceServe(d *dice.Dice) {
@@ -318,7 +319,7 @@ func diceServe(d *dice.Dice) {
 	}
 }
 
-func uiServe(dm *dice.DiceManager) {
+func uiServe(dm *dice.DiceManager, hideUI bool) {
 	logger.Info("即将启动webui")
 	// Echo instance
 	e := echo.New()
@@ -360,7 +361,7 @@ func uiServe(dm *dice.DiceManager) {
 	api.Bind(e, dm)
 	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置
 
-	httpServe(e, dm)
+	httpServe(e, dm, hideUI)
 
 	//interrupt := make(chan os.Signal, 1)
 	//signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

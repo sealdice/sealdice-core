@@ -30,7 +30,7 @@ func tempDirWarn() {
 	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
 }
 
-func httpServe(e *echo.Echo, dm *dice.DiceManager) {
+func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	portStr := "3211"
 	rePort := regexp.MustCompile(`:(\d+)$`)
 	m := rePort.FindStringSubmatch(dm.ServeAddress)

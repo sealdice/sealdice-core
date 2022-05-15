@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/fy0/go-autostart"
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
 	"github.com/labstack/echo/v4"
@@ -14,6 +15,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sealdice-core/dice"
@@ -79,6 +81,23 @@ func PortExistsWarn() {
 	return
 }
 
+func getAutoStart() *autostart.App {
+	exePath, err := filepath.Abs(os.Args[0])
+	if err == nil {
+		pathName := filepath.Dir(exePath)
+		pathName = filepath.Base(pathName)
+		autostartName := fmt.Sprintf("SealDice_%s", pathName)
+
+		appStart := &autostart.App{
+			Name:        autostartName,
+			DisplayName: "海豹骰点核心 - 目录: " + pathName,
+			Exec:        []string{exePath, "-m --hide-ui"}, // 分开写会有问题
+		}
+		return appStart
+	}
+	return nil
+}
+
 func onReady() {
 	systray.SetIcon(icon.Data)
 	systray.SetTitle("海豹TRPG骰点核心")
@@ -86,10 +105,28 @@ func onReady() {
 
 	mOpen := systray.AddMenuItem("打开界面", "开启WebUI")
 	mShowHide := systray.AddMenuItemCheckbox("显示终端窗口", "显示终端窗口", false)
+	mAutoBoot := systray.AddMenuItemCheckbox("开机自启动", "开机自启动", false)
 	mQuit := systray.AddMenuItem("退出", "退出程序")
 	mOpen.SetIcon(icon.Data)
 
 	go beeep.Notify("SealDice", "我藏在托盘区域了，点我的小图标可以快速打开UI", "assets/information.png")
+
+	// 自启动检查
+	go func() {
+		runtime.LockOSThread()
+		for {
+			time.Sleep(10 * time.Second)
+			if getAutoStart().IsEnabled() {
+				mAutoBoot.Check()
+			} else {
+				mAutoBoot.Uncheck()
+			}
+		}
+	}()
+
+	if getAutoStart().IsEnabled() {
+		mAutoBoot.Check()
+	}
 
 	for {
 		select {
@@ -99,6 +136,26 @@ func onReady() {
 			systray.Quit()
 			time.Sleep(1 * time.Second)
 			os.Exit(0)
+		case <-mAutoBoot.ClickedCh:
+			if mAutoBoot.Checked() {
+				err := getAutoStart().Disable()
+				if err != nil {
+					s1, _ := syscall.UTF16PtrFromString("SealDice 临时目录错误")
+					s2, _ := syscall.UTF16PtrFromString("自启动失败设置失败，原因: " + err.Error())
+					win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONERROR)
+					fmt.Println("自启动设置失败: ", err.Error())
+				}
+				mAutoBoot.Uncheck()
+			} else {
+				err := getAutoStart().Enable()
+				if err != nil {
+					s1, _ := syscall.UTF16PtrFromString("SealDice 临时目录错误")
+					s2, _ := syscall.UTF16PtrFromString("自启动失败设置失败，原因: " + err.Error())
+					win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONERROR)
+					fmt.Println("自启动设置失败: ", err.Error())
+				}
+				mAutoBoot.Check()
+			}
 		case <-mShowHide.ClickedCh:
 			if mShowHide.Checked() {
 				win.ShowWindow(win.GetConsoleWindow(), win.SW_HIDE)
@@ -117,7 +174,7 @@ func onExit() {
 
 var _trayPortStr = "3211"
 
-func httpServe(e *echo.Echo, dm *dice.DiceManager) {
+func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	portStr := "3211"
 	runtime.LockOSThread()
 
@@ -139,6 +196,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager) {
 		}
 
 		fmt.Println("端口占用检测 - 开始")
+		//net.DialTCP()
 		ln, err := net.Listen("tcp", ":"+portStr)
 		fmt.Println("端口占用检测 - 结果", err)
 		if err != nil {
@@ -157,24 +215,26 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager) {
 		}
 		_ = ln.Close()
 
-		go func() {
-			for {
-				time.Sleep(2 * time.Second)
-				url := fmt.Sprintf(`http://localhost:%s`, portStr)
-				url2 := fmt.Sprintf(`http://127.0.0.1:%s`, portStr)
-				c := request.Client{
-					URL:     url2,
-					Method:  "GET",
-					Timeout: 1,
+		if !hideUI {
+			go func() {
+				for {
+					time.Sleep(2 * time.Second)
+					url := fmt.Sprintf(`http://localhost:%s`, portStr)
+					url2 := fmt.Sprintf(`http://127.0.0.1:%s`, portStr) // 因为dns被换了，localhost不能解析
+					c := request.Client{
+						URL:     url2,
+						Method:  "GET",
+						Timeout: 1,
+					}
+					resp := c.Send()
+					if resp.OK() {
+						time.Sleep(1 * time.Second)
+						exec.Command(`cmd`, `/c`, `start`, url).Start()
+						break
+					}
 				}
-				resp := c.Send()
-				if resp.OK() {
-					time.Sleep(1 * time.Second)
-					exec.Command(`cmd`, `/c`, `start`, url).Start()
-					break
-				}
-			}
-		}()
+			}()
+		}
 
 		fmt.Println("如果浏览器没有自动打开，请手动访问:")
 		fmt.Println(fmt.Sprintf(`http://localhost:%s`, portStr)) // 默认:3211
