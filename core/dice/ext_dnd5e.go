@@ -1571,6 +1571,16 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								detail = _detail
 								val = r.Value.(int64)
 								text = r.restInput
+							} else if strings.HasPrefix(text, "-") {
+								// 加值情况1.1，D20-
+								r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
+								if err != nil {
+									// 情况1，加值输入错误
+									return 1, name, val, detail
+								}
+								detail = _detail
+								val = r.Value.(int64)
+								text = r.restInput
 							} else if strings.HasPrefix(text, "=") {
 								// 加值情况1，=表达式
 								r, _, err := ctx.Dice.ExprEvalBase(text[1:], mctx, RollExtraFlags{})
