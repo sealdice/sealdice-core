@@ -126,6 +126,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log list <群号> // 查看指定群的日志列表(无法取得日志时，找骰主做这个操作)
 .log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)`
 
+	txtLogTip := "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
+
 	cmdLog := &CmdItemInfo{
 		Name:     "log",
 		Help:     helpLog,
@@ -238,13 +240,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 					if group.LogCurName != "" {
 						fn := LogSendToBackend(ctx, group)
 						if fn == "" {
-							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
-							ReplyToSenderRaw(ctx, msg, text, "skip")
+							ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 						} else {
 							ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
 							time.Sleep(time.Duration(0.3 * float64(time.Second)))
-							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
-							ReplyToSenderRaw(ctx, msg, text, "skip")
+							ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 						}
 					}
 					group.LogCurName = bakLogCurName
@@ -260,13 +260,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 					if group.LogCurName != "" {
 						fn := LogSendToBackend(ctx, group)
 						if fn == "" {
-							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
-							ReplyToSenderRaw(ctx, msg, text, "skip")
+							ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 						} else {
 							ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
 							time.Sleep(time.Duration(0.3 * float64(time.Second)))
-							text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
-							ReplyToSenderRaw(ctx, msg, text, "skip")
+							ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 						}
 					}
 					group.LogCurName = bakLogCurName
@@ -284,8 +282,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					} else {
 						ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
 						time.Sleep(time.Duration(0.3 * float64(time.Second)))
-						text := fmt.Sprintf("若线上日志出现问题，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
-						ReplyToSenderRaw(ctx, msg, text, "skip")
+						ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 					}
 					group.LogCurName = ""
 					return CmdExecuteResult{Matched: true, Solved: true}

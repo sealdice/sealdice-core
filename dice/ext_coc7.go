@@ -796,7 +796,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							// 双方都失败，无事发生
 						} else if checkPass1 && !checkPass2 {
 							winNum = -1 // A胜
-						} else if checkPass1 && !checkPass2 {
+						} else if !checkPass1 && checkPass2 {
 							winNum = 1 // B胜
 						}
 					}
