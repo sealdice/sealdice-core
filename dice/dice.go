@@ -258,6 +258,10 @@ func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VmResult, string, erro
 }
 
 func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext) (*VmResult, string, error) {
+	buffer = strings.ReplaceAll(buffer, "#{SPLIT}", "###SPLIT###")
+	buffer = strings.ReplaceAll(buffer, "{FormFeed}", "###SPLIT###")
+	buffer = strings.ReplaceAll(buffer, "{formfeed}", "###SPLIT###")
+
 	// 隐藏的内置字符串符号 \x1e
 	val, detail, err := d.ExprEval("\x1e"+buffer+"\x1e", ctx)
 	//val, detail, err := d.ExprEval("`"+buffer+"`", ctx)
