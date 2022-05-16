@@ -44,16 +44,26 @@ func groupSetOne(c echo.Context) error {
 		})
 	}
 
-	v := dice.GroupInfo{}
+	v := struct {
+		Active  bool   `yaml:"active" json:"active"`
+		GroupId string `yaml:"groupId" json:"groupId"`
+		DiceId  string `yaml:"diceId" json:"diceId"`
+	}{}
 	err := c.Bind(&v)
+
 	if err == nil {
-		item, exists := myDice.ImSession.ServiceAtNew[v.GroupId]
+		_, exists := myDice.ImSession.ServiceAtNew[v.GroupId]
 		if exists {
-			// TODO: 要改 但暂时不好改
-			item.Active = v.Active
-			//for _, i := range myDice.ImSession.EndPoints {
-			//	dice.SetBotOnAtGroup()
-			//}
+			for _, ep := range myDice.ImSession.EndPoints {
+				if ep.UserId == v.DiceId {
+					ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep, Session: myDice.ImSession}
+					if v.Active {
+						dice.SetBotOnAtGroup(ctx, v.GroupId)
+					} else {
+						dice.SetBotOffAtGroup(ctx, v.GroupId)
+					}
+				}
+			}
 		}
 		return c.String(http.StatusOK, "")
 	}

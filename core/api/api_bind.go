@@ -415,4 +415,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/banconfig/map_delete_one", banMapDeleteOne)
 	e.POST(prefix+"/banconfig/map_add_one", banMapAddOne)
 	//e.POST(prefix+"/banconfig/map_set", banMapSet)
+
+	e.POST(prefix+"/dice/upgrade", upgrade)
 }
