@@ -54,3 +54,6 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 		return
 	}
 }
+
+func showWarn(title string, msg string) {
+}

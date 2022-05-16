@@ -109,7 +109,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 				"洞悉": {"Insight", "洞察"},
 				"驯兽": {"Animal Handling", "馴獸", "驯养", "馴養"},
 				"医药": {"Medicine", "醫藥", "医疗", "醫療"},
-				"求生": {"Survival", " 生存"},
+				"求生": {"Survival", "生存"},
 
 				"游说": {"Persuasion", "说服", "话术", "遊說", "說服", "話術"},
 				"欺瞒": {"Deception", "唬骗", "欺诈", "欺骗", "诈骗", "欺瞞", "唬騙", "欺詐", "欺騙", "詐騙"},

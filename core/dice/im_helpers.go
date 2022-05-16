@@ -79,7 +79,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 	return group
 }
 
-/* 获取玩家群内信息，没有就创建 */
+// GetPlayerInfoBySender 获取玩家群内信息，没有就创建
 func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPlayerInfo) {
 	session := ctx.Session
 	var groupId string
@@ -138,7 +138,13 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	if ctx.Dice != nil {
 		ctx.Dice.Logger.Infof("发给(群%s): %s", msg.GroupId, text)
 	}
-	ctx.EndPoint.Adapter.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(text), flag)
+	text = strings.TrimSpace(text)
+	for _, i := range strings.Split(text, "###SPLIT###") {
+		if ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+			doSleepQQ(ctx)
+		}
+		ctx.EndPoint.Adapter.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), flag)
+	}
 }
 
 func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
@@ -152,7 +158,13 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	if ctx.Dice != nil {
 		ctx.Dice.Logger.Infof("发给(帐号%s): %s", msg.Sender.UserId, text)
 	}
-	ctx.EndPoint.Adapter.SendToPerson(ctx, msg.Sender.UserId, strings.TrimSpace(text), flag)
+	text = strings.TrimSpace(text)
+	for _, i := range strings.Split(text, "###SPLIT###") {
+		if ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+			doSleepQQ(ctx)
+		}
+		ctx.EndPoint.Adapter.SendToPerson(ctx, msg.Sender.UserId, strings.TrimSpace(i), flag)
+	}
 }
 
 func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
@@ -185,6 +197,11 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 func DiceFormat(ctx *MsgContext, s string) string {
 	//s = strings.ReplaceAll(s, "\n", `\n`)
 	//fmt.Println("???", s)
+
+	s = strings.ReplaceAll(s, "#{SPLIT}", "###SPLIT###")
+	s = strings.ReplaceAll(s, "{FormFeed}", "###SPLIT###")
+	s = strings.ReplaceAll(s, "{formfeed}", "###SPLIT###")
+
 	r, _, _ := ctx.Dice.ExprText(s, ctx)
 
 	convert := func(s string) string {

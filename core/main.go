@@ -200,6 +200,26 @@ func main() {
 		return
 	}
 
+	checkFrontendExists := func() bool {
+		stat, err := os.Stat("./frontend")
+		return err == nil && stat.IsDir()
+	}
+
+	// 检查目录是否正确
+	if !checkFrontendExists() {
+		// 给一次修正机会吗？
+		//exe, err := filepath.Abs(os.Args[0])
+		//if err == nil {
+		//	ret := filepath.Dir(exe)
+		//}
+	}
+
+	if !checkFrontendExists() {
+		showWarn("SealDice 文件不完整", "未检查到UI文件目录，程序不完整，将自动退出。\n也可能是当前工作路径错误。")
+		logger.Error("因缺少frontend目录而自动退出")
+		return
+	}
+
 	go trayInit()
 	go dice.TryGetBackendUrl()
 

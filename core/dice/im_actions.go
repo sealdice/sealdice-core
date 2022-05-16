@@ -1,5 +1,0 @@
-package dice
-
-// 2022/02/03 11:47:42 Recieved message {"font":0,"message":"test","message_id":-487913662,"message_type":"private","post_type":"message","raw_message":"test","self_id":1001,"sender":{"age":0,"nickname":"鏈ㄨ惤","sex":"unknown","user_id":1002},"sub_type":"friend","target_id":1001,"time":1643860062,"user_id":1002}
-// {"anonymous":null,"font":0,"group_id":111,"message":"qqq","message_id":884917177,"message_seq":1434,"message_type":"group","post_type":"message","raw_message":"qqq","self_id":1001,"sender":{"age":0,"area":"","card":"","level":"","nickname":"鏈ㄨ惤","role":"member","sex":"unknown","title":"","user_id":1002},"sub_type":"normal","time":1643863961,"user_id":1002}
-// {"anonymous":null,"font":0,"group_id":111,"message":"[CQ:at,qq=1001]   .r test","message_id":888971055,"message_seq":1669,"message_type":"group","post_type":"message","raw_message":"[CQ:at,qq=1001]   .r test","self_id":1001,"sender":{"age":0,"area":"","card":"","level":"","nickname":"鏈ㄨ惤","role":"member","sex":"unknown","title":"","user_id":1002},"sub_type":"normal","time":1644127751,"user_id":1002}

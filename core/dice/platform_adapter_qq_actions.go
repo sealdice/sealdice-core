@@ -166,7 +166,7 @@ func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, 
 
 	texts := textSplit(text)
 
-	for _, subText := range texts {
+	for index, subText := range texts {
 		a, _ := json.Marshal(oneBotCommand{
 			Action: "send_group_msg",
 			Params: GroupMessageParams{
@@ -175,7 +175,9 @@ func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, 
 			},
 		})
 
-		doSleepQQ(ctx)
+		if len(texts) > 1 && index != 0 {
+			doSleepQQ(ctx)
+		}
 		socketSendText(pa.Socket, string(a))
 	}
 }
