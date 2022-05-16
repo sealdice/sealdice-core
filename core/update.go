@@ -166,8 +166,8 @@ func doUpdate(dm *dice.DiceManager) {
 	}
 }
 
-func CheckVersion(dm *dice.DiceManager) *dice.VersionInfo {
-	resp, err := http.Get("https://dice.weizaima.com/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 10))
+func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo {
+	resp, err := http.Get(backendUrl + "/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 10))
 	if err != nil {
 		logger.Errorf("获取新版本失败: %s", err.Error())
 		return nil
@@ -183,6 +183,17 @@ func CheckVersion(dm *dice.DiceManager) *dice.VersionInfo {
 	dm.AppVersionOnline = &ver
 	//downloadUpdate(dm)
 	return &ver
+}
+
+func CheckVersion(dm *dice.DiceManager) *dice.VersionInfo {
+	// 逐个尝试所有后端地址
+	for _, i := range dice.BackendUrls {
+		ret := checkVersionBase(i, dm)
+		if ret != nil {
+			return ret
+		}
+	}
+	return nil
 }
 
 func DownloadFile(filepath string, url string) error {
@@ -280,7 +291,7 @@ func ExtractTarGz(fn, dest string) error {
 	log := logger
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
-		log.Fatal("ExtractTarGz: NewReader failed")
+		log.Error("ExtractTarGz: NewReader failed")
 		return err
 	}
 	defer uncompressedStream.Close()
@@ -295,30 +306,30 @@ func ExtractTarGz(fn, dest string) error {
 		}
 
 		if err != nil {
-			log.Fatalf("ExtractTarGz: Next() failed: %s", err.Error())
+			log.Errorf("ExtractTarGz: Next() failed: %s", err.Error())
 			return err
 		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.Mkdir(filepath.Join(dest, header.Name), 0755); err != nil {
-				log.Fatalf("ExtractTarGz: Mkdir() failed: %s", err.Error())
+				log.Errorf("ExtractTarGz: Mkdir() failed: %s", err.Error())
 			}
 		case tar.TypeReg:
 			os.MkdirAll(filepath.Dir(filepath.Join(dest, header.Name)), 0755) // 进行一个目录的创
 			outFile, err := os.Create(filepath.Join(dest, header.Name))
 			if err != nil {
-				log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
+				log.Errorf("ExtractTarGz: Create() failed: %s", err.Error())
 				return err
 			}
 			if _, err := io.Copy(outFile, tarReader); err != nil {
-				log.Fatalf("ExtractTarGz: Copy() failed: %s", err.Error())
+				log.Errorf("ExtractTarGz: Copy() failed: %s", err.Error())
 				return err
 			}
 			outFile.Close()
 
 		default:
-			log.Fatalf(
+			log.Error(
 				"ExtractTarGz: uknown type: %s in %s",
 				header.Typeflag,
 				header.Name)

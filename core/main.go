@@ -201,6 +201,7 @@ func main() {
 	}
 
 	go trayInit()
+	go dice.TryGetBackendUrl()
 
 	cleanUp := cleanUpCreate(diceManager)
 	defer cleanUp()
