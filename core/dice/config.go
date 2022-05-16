@@ -256,7 +256,14 @@ func setupBaseTextTemplate(d *Dice) {
 				{"{COC:技能成长_导入语}\nD100={$tD100}/{$t判定值} {$t判定结果}\n{$t结果文本}", 1},
 			},
 			// -------------------- en end --------------------------
+			"制卡": {
+				{"{$t玩家}的七版COC人物作成:\n{$t制卡结果文本}", 1},
+			},
+			"制卡_分隔符": {
+				{"#{SPLIT}", 1},
+			},
 		},
+
 		"DND": {
 			"属性设置_删除": {
 				{`{$t玩家}的如下属性被成功删除:{$t属性列表}，失败{$t失败数量}项`, 1},
@@ -439,12 +446,18 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"鸽子理由": guguReason,
 		},
-		"牌堆": {
+		"其它": {
 			"抽牌_列表_没有牌组": {
 				{`呃，没有发现任何牌组`, 1},
 			},
 			"抽牌_找不到牌组": {
 				{"找不到这个牌组", 1},
+			},
+			"随机名字": {
+				{"为{$t玩家}生成以下名字：\n{$t随机名字文本}", 1},
+			},
+			"随机名字_分隔符": {
+				{"、", 1},
 			},
 		},
 		"日志": {
@@ -573,7 +586,7 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 
 			"理智检定_单项结果文本": {
-				SubType: "sc",
+				SubType: ".sc",
 				Vars:    []string{"$t检定表达式文本", "$tD100", "$t判定值", "$t检定计算过程", "$t判定结果", "$t判定结果_详细", "$t判定结果_简短", "$tSuccessRank"},
 			},
 			"理智检定": {
@@ -659,6 +672,12 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".en",
 			},
 			// -------------------- en end --------------------------
+			"制卡": {
+				SubType: ".coc 2",
+			},
+			"制卡_分隔符": {
+				SubType: ".coc 2 旧版为\\n\\n",
+			},
 		},
 		"娱乐": {
 			"今日人品": {
@@ -835,12 +854,18 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: "通用",
 			},
 		},
-		"牌堆": {
+		"其它": {
 			"抽牌_列表_没有牌组": {
 				SubType: ".draw keys",
 			},
 			"抽牌_找不到牌组": {
 				SubType: ".draw 不存在的某个牌组",
+			},
+			"随机名字": {
+				SubType: ".name/.namednd",
+			},
+			"随机名字_分隔符": {
+				SubType: ".name/.namednd",
 			},
 		},
 		"日志": {
@@ -996,6 +1021,11 @@ func loadTextTemplate(d *Dice, fn string) {
 		err = yaml.Unmarshal(data, &texts)
 		if err != nil {
 			panic(err)
+		}
+
+		if texts["牌堆"] != nil {
+			texts["其它"] = texts["牌堆"]
+			delete(texts, "牌堆")
 		}
 
 		SetupTextHelpInfo(d, d.TextMapHelpInfo, texts, fn)

@@ -251,7 +251,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 							}
 						}
 						if keys == "" {
-							text += DiceFormatTmpl(ctx, "牌堆:抽牌_列表_没有牌组")
+							text += DiceFormatTmpl(ctx, "其它:抽牌_列表_没有牌组")
 						} else {
 							text += keys[:len(keys)-1]
 						}
@@ -306,7 +306,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 							}
 						}
 						if !isDrew {
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "牌堆:抽牌_找不到牌组"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组"))
 						}
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}

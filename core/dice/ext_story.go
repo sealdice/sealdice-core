@@ -52,7 +52,11 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 		names = append(names, ctx.Dice.Parent.NamesGenerator.NameGenerate(rule))
 	}
 
-	ReplyToSender(ctx, msg, fmt.Sprintf("为<%s>生成以下名字：\n%s", ctx.Player.Name, strings.Join(names, "、")))
+	sep := DiceFormatTmpl(ctx, "其它:随机名字_分隔符")
+	namesTxt := strings.Join(names, sep)
+	VarSetValueStr(ctx, "$t随机名字文本", namesTxt)
+	text := DiceFormatTmpl(ctx, "其它:随机名字")
+	ReplyToSender(ctx, msg, text)
 	return CmdExecuteResult{Matched: true, Solved: true}
 }
 
