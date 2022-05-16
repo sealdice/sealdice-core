@@ -474,7 +474,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`旅程尚未开始，请使用.log new新建记录`, 1},
 			},
 			"记录_关闭_成功": {
-				{`当前故事"{$t记录名称}"的记录已经暂停，当前已记录文本{$t当前记录条数}条\n结束故事并上传日志请用.log end`, 1},
+				{`当前故事"{$t记录名称}"的记录已经暂停，当前已记录文本{$t当前记录条数}条\n结束故事并传送日志请用.log end`, 1},
 			},
 			"记录_关闭_失败": {
 				{`旅途甚至尚未开始，又谈何停下来呢？`, 1},
@@ -1110,7 +1110,8 @@ func (d *Dice) loads() {
 		dNew := Dice{}
 		err2 := yaml.Unmarshal(data, &dNew)
 		if err2 == nil {
-			d.CommandCompatibleMode = dNew.CommandCompatibleMode
+			//d.CommandCompatibleMode = dNew.CommandCompatibleMode
+			d.CommandCompatibleMode = true // 一直为true即可
 			d.ImSession.EndPoints = dNew.ImSession.EndPoints
 			d.CommandPrefix = dNew.CommandPrefix
 			d.DiceMasters = dNew.DiceMasters
