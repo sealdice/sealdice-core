@@ -355,6 +355,18 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 		var err error
 
 		deckName := s[i[0]:i[1]]
+
+		// 特殊变量检查
+		if deckName == "{player}" || deckName == "{self}" {
+			if ctx.Player != nil {
+				text = ctx.Player.Name
+			} else {
+				text = "%未知用户%"
+			}
+			s = s[:i[0]] + text + s[i[1]:]
+			continue
+		}
+
 		sign := deckName[1]
 		signLength := 0
 		hasSign := sign == '$' || sign == '%'
