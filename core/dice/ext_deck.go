@@ -184,6 +184,13 @@ func DeckTryParse(d *Dice, fn string) {
 // DecksDetect 检查牌堆
 func DecksDetect(d *Dice) {
 	filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+		if strings.EqualFold(info.Name(), "assets") {
+			return fs.SkipDir
+		}
+		if strings.EqualFold(info.Name(), "images") {
+			return fs.SkipDir
+		}
+
 		if !info.IsDir() {
 			DeckTryParse(d, path)
 		}
@@ -390,6 +397,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 	}
 
 	s = strings.ReplaceAll(s, "【name】", "{$t玩家}")
+	s = strings.ReplaceAll(s, "[name]", "{$t玩家}")
 
 	re = regexp.MustCompile(`\[.+?]`)
 	m = re.FindAllStringIndex(s, -1)
@@ -399,6 +407,15 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 
 		text := s[i[0]:i[1]]
 		if strings.HasPrefix(text, "[CQ:") {
+			continue
+		}
+		if strings.HasPrefix(text, "[图:") {
+			continue
+		}
+		if strings.HasPrefix(text, "[文本:") {
+			continue
+		}
+		if strings.HasPrefix(text, "[语音:") {
 			continue
 		}
 		text = "{" + text[1:len(text)-1] + "}"

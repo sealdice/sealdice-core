@@ -116,6 +116,7 @@ func (pa *PlatformAdapterQQOnebot) SendToChannelGroup(ctx *MsgContext, userId st
 	text = strings.ReplaceAll(text, ".net", "_net")
 	text = strings.ReplaceAll(text, ".com", "_com")
 	text = strings.ReplaceAll(text, "www.", "www_")
+	text = strings.ReplaceAll(text, "log.sealdice", "log_sealdice")
 	text = strings.ReplaceAll(text, "dice.weizaima", "dice_weizaima")
 	text = strings.ReplaceAll(text, "log.weizaima", "log_weizaima")
 	text = strings.ReplaceAll(text, "://", "_//")
