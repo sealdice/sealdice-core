@@ -1,8 +1,10 @@
 package dice
 
 import (
+	"fmt"
 	"hash/fnv"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -213,6 +215,75 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
+	cmdRsr := CmdItemInfo{
+		Name: "rsr",
+		Help: ".rsr <骰数> // 暗影狂奔",
+		LongHelp: "暗影狂奔骰点:\n.rsr <骰数>\n" +
+			"> 每个被骰出的五或六就称之为一个成功度\n" +
+			"> 如果超过半数的骰子投出了一被称之为失误\n" +
+			"> 在投出失误的同时没能骰出至少一个成功度被称之为严重失误",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				val, _ := cmdArgs.GetArgN(1)
+				num, err := strconv.ParseInt(val, 10, 64)
+
+				if err == nil && num > 0 {
+					successDegrees := int64(0)
+					failedCount := int64(0)
+					results := []string{}
+					for i := int64(0); i < num; i++ {
+						v := DiceRoll64(6)
+						if v >= 5 {
+							successDegrees += 1
+						} else if v == 1 {
+							failedCount += 1
+						}
+						// 过大的骰池不显示
+						if num < 10 {
+							results = append(results, strconv.FormatInt(v, 10))
+						}
+					}
+
+					var detail string
+					if len(results) > 0 {
+						detail = "{" + strings.Join(results, "+") + "}\n"
+					}
+
+					text := fmt.Sprintf("<%s>骰点%dD6:\n", ctx.Player.Name, num)
+					text += detail
+					text += fmt.Sprintf("成功度:%d/%d\n", successDegrees, failedCount)
+
+					successRank := int64(0) // 默认
+					if failedCount > (num / 2) {
+						// 半数失误
+						successRank = -1
+
+						if successDegrees == 0 {
+							successRank = -2
+						}
+					}
+
+					switch successRank {
+					case -1:
+						text += "失误"
+					case -2:
+						text += "严重失误"
+					}
+					ReplyToSender(ctx, msg, text)
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	textHelp := ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}"
 	cmdText := CmdItemInfo{
 		Name:     "text",
@@ -285,6 +356,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"咕咕":   &cmdGugu,
 			"jrrp": &cmdJrrp,
 			"text": &cmdText,
+			"rsr":  &cmdRsr,
 		},
 	})
 }
