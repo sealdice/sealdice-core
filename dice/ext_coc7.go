@@ -1642,8 +1642,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							result = strings.ReplaceAll(result, `\n`, "\n")
 							ss = append(ss, result)
 						}
-						info := strings.Join(ss, "\n\n")
-						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的七版COC人物作成:\n%s", ctx.Player.Name, info))
+						sep := DiceFormatTmpl(ctx, "COC:制卡_分隔符")
+						info := strings.Join(ss, sep)
+						VarSetValueStr(ctx, "$t制卡结果文本", info)
+						text := DiceFormatTmpl(ctx, "COC:制卡")
+						// fmt.Sprintf("<%s>的七版COC人物作成:\n%s", ctx.Player.Name, info)
+						ReplyToSender(ctx, msg, text)
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					return CmdExecuteResult{Matched: true, Solved: false}
