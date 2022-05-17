@@ -33,6 +33,10 @@ const (
 	TypeWodSetPool      // 设置骰池(骰数)
 	TypeWodSetPoints    // 面数
 	TypeWodSetThreshold // 阈值
+	TypeDiceDC
+	TypeDCSetInit
+	TypeDCSetPool   // 骰池
+	TypeDCSetPoints // 面数
 	TypeLoadVarname
 	TypeLoadFormatString
 	TypeStore
@@ -389,6 +393,16 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 		wodState.threshold = &VMValue{VMTypeInt64, int64(8)} // 成功线，默认9
 	}
 
+	var dcState struct {
+		pool   *VMValue
+		points *VMValue
+	}
+
+	dcInit := func() {
+		dcState.pool = &VMValue{VMTypeInt64, int64(1)}    // 骰数，默认1
+		dcState.points = &VMValue{VMTypeInt64, int64(10)} // 面数，默认d10
+	}
+
 	numOpCountAdd := func(count int64) bool {
 		e.NumOpCount += count
 		if e.NumOpCount > 30000 {
@@ -524,6 +538,40 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			}
 			lastDetail := fmt.Sprintf("成功%d 骰数%d 轮数%d%s", ret.Value, nums, rounds, detailText)
 			lastDetails = append(lastDetails, lastDetail)
+			continue
+		case TypeDCSetPool:
+			t := stack[top-1]
+			dcState.pool = &VMValue{t.TypeId, t.Value}
+			top--
+			continue
+		case TypeDCSetPoints:
+			t := stack[top-1]
+			dcState.points = &VMValue{t.TypeId, t.Value}
+			top--
+			continue
+		case TypeDCSetInit:
+			dcInit()
+			continue
+		case TypeDiceDC:
+			t := &stack[top-1] // 暴击值 / 也可以理解为加骰线
+			ret, nums, rounds, details := DiceDCRollVM(e, t, dcState.pool, dcState.points)
+			if e.Error != nil {
+				return nil, "", e.Error
+			}
+			stack[top-1].Value = ret.Value
+			stack[top-1].TypeId = ret.TypeId
+
+			detailText := ""
+			if len(details) > 0 {
+				detailText = " " + strings.Join(details, ",")
+			}
+			if ret.Value == 1 {
+				lastDetail := fmt.Sprintf("大失败 出目%d 骰数%d 轮数%d%s", ret.Value, nums, rounds, detailText)
+				lastDetails = append(lastDetails, lastDetail)
+			} else {
+				lastDetail := fmt.Sprintf("出目%d 骰数%d 轮数%d%s", ret.Value, nums, rounds, detailText)
+				lastDetails = append(lastDetails, lastDetail)
+			}
 			continue
 		case TypeDicePenalty, TypeDiceBonus:
 			t := stack[top-1]
@@ -1081,6 +1129,98 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	}
 
 	return &stack[0], calcDetail, nil
+}
+
+func DiceDCRollVM(e *RollExpression, addLine *VMValue, pool *VMValue, points *VMValue) (*VMValue, int64, int64, []string) {
+	makeE6 := func() {
+		e.Error = errors.New("E6: 类型错误")
+	}
+
+	if addLine.TypeId != VMTypeInt64 {
+		makeE6()
+	}
+	if pool.TypeId != VMTypeInt64 {
+		makeE6()
+	}
+	if points.TypeId != VMTypeInt64 {
+		makeE6()
+	}
+	if e.Error != nil {
+		return nil, 0, 0, nil
+	}
+
+	var valPool, valAddLine, valPoints int64
+	if valPool, _ = pool.ReadInt64(); valPool < 1 || valPool > 20000 {
+		e.Error = errors.New("E7: 非法数值, 骰池范围是1到20000")
+		return nil, 0, 0, nil
+	}
+
+	if valAddLine, _ = addLine.ReadInt64(); valAddLine < 2 {
+		e.Error = errors.New("E7: 非法数值, 加骰线必须大于等于2")
+		return nil, 0, 0, nil
+	}
+
+	if valPoints, _ = points.ReadInt64(); valPoints < 1 {
+		e.Error = errors.New("E7: 非法数值, 面数至少为1")
+		return nil, 0, 0, nil
+	}
+
+	ret1, ret2, ret3, details := DiceDCRoll(valAddLine, valPool, valPoints)
+	return &VMValue{VMTypeInt64, ret1}, ret2, ret3, details
+}
+
+func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, []string) {
+	details := []string{}
+	addTimes := 1
+
+	isShowDetails := pool < 15
+	allRollCount := pool
+	maxDice := int64(0)
+
+	for times := 0; times < addTimes; times++ {
+		addCount := int64(0)
+		detailsOne := []string{}
+
+		for i := int64(0); i < pool; i++ {
+			one := DiceRoll64(points)
+			if one > maxDice {
+				maxDice = one
+			}
+			reachAddRound := one >= addLine
+
+			if reachAddRound {
+				addCount += 1
+			}
+
+			if isShowDetails {
+				baseText := strconv.FormatInt(one, 10)
+				if reachAddRound {
+					baseText = "<" + baseText + ">"
+				}
+				detailsOne = append(detailsOne, baseText)
+			}
+		}
+
+		allRollCount += addCount
+		// 有加骰，再骰一次
+		if addCount > 0 {
+			addTimes += 1
+			pool = addCount
+		}
+
+		if allRollCount > 100 {
+			// 多于100，清空
+			isShowDetails = false
+			details = details[:0]
+		}
+
+		if isShowDetails {
+			details = append(details, "{"+strings.Join(detailsOne, ",")+"}")
+		}
+	}
+
+	// 成功数，总骰数，轮数，细节
+	return maxDice, allRollCount, int64(addTimes), details
 }
 
 func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64) (int64, int64, int64, []string) {
