@@ -900,7 +900,7 @@ func (d *Dice) registerCoreCommands() {
 							forWhat = r.restInput
 						} else {
 							errs := string(err.Error())
-							if strings.HasPrefix(errs, "E1:") || strings.HasPrefix(errs, "E5:") {
+							if strings.HasPrefix(errs, "E1:") || strings.HasPrefix(errs, "E5:") || strings.HasPrefix(errs, "E6:") || strings.HasPrefix(errs, "E7:") {
 								ReplyToSender(ctx, msg, errs)
 								//ReplyGroup(ctx, msg.GroupId, errs)
 								return &CmdExecuteResult{Matched: true, Solved: true}
@@ -1337,8 +1337,10 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["set"] = cmdSet
 
-	helpCh := ".ch save <角色名> // 保存角色，角色名省略则为当前昵称\n" +
-		".ch load <角色名> // 加载角色，角色名省略则为当前昵称\n" +
+	helpCh := ".ch save <角色名> // 保存角色，角色名可省略[不绑卡]\n" +
+		".ch load <角色名> // 加载角色\n" +
+		//".ch new <角色名> // 新建角色并绑卡\n" +
+		//".ch tag <角色名> // 新建角色并绑卡\n" +
 		".ch list // 列出当前角色\n" +
 		".ch del/rm <角色名> // 删除角色"
 	cmdChar := &CmdItemInfo{

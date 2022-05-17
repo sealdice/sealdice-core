@@ -78,6 +78,11 @@ dndDiceSuffix <- (('优势' / 'kh') {p.AddValue("1"); p.AddOperator(TypeDiceSetK
 kqDiceOp <- ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? ('dl' eDice2 { p.AddOperatorWithInt64(TypeDiceSetK, 1) } )? ('dh' eDice2 { p.AddOperatorWithInt64(TypeDiceSetQ, 1) } )?
 
 _dnumber <- &( [dD] (number / '(') )  // 独立出来是因为括号会影响IDEA的自动高亮
+// _anumber <- &( [aA] (number / '(') )
+
+simpleDice2 <- &(number / '(') eDice2
+wodDicePool <- { p.AddOperator(TypeWodSetInit) } (simpleDice2 { p.AddOperator(TypeWodSetPool) } )?
+doubleCrossDicePool <- { p.AddOperator(TypeDCSetInit) } (simpleDice2 { p.AddOperator(TypeDCSetInit) } )?
 
 eDice <- ( _dnumber [dD] { p.AddValue("2"); p.AddLeftValueMark() } eDice2 dndDiceSuffix { p.AddOperator(TypeDice) } )
          / ( _dnumber [dD] { p.AddValue("1"); p.AddLeftValueMark() } eDice2 kqDiceOp { p.AddOperator(TypeDice) } )
@@ -85,7 +90,13 @@ eDice <- ( _dnumber [dD] { p.AddValue("2"); p.AddLeftValueMark() } eDice2 dndDic
          / [dD] dndDiceSuffix { p.AddValue("2"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
          / [dD] !([^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]) sp { p.AddValue("1"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
 
-         / eDice2 ( [dD] { p.AddLeftValueMark() } &(number / '(') eDice2 kqDiceOp { p.AddOperator(TypeDice) }
+         // WOD规则，左侧个数，a加骰线，m面数，k阈值
+         / wodDicePool [aA] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeWodSetPoints) }) / ([kK] simpleDice2 { p.AddOperator(TypeWodSetThreshold) }) )* { p.AddOperator(TypeDiceWod) }
+
+         // 双十字
+         / wodDicePool [aA] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeWodSetPoints) }) / ([kK] simpleDice2 { p.AddOperator(TypeWodSetThreshold) }) )* { p.AddOperator(TypeDiceWod) }
+
+         / eDice2 ( [dD] { p.AddLeftValueMark() } simpleDice2 kqDiceOp { p.AddOperator(TypeDice) }
          )*
 
 laNumberOrLeftParen <- &(number / '(')

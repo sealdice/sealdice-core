@@ -28,6 +28,11 @@ const (
 	TypeDicePenalty
 	TypeDiceBonus
 	TypeDiceFate
+	TypeDiceWod
+	TypeWodSetInit      // 重置参数
+	TypeWodSetPool      // 设置骰池(骰数)
+	TypeWodSetPoints    // 面数
+	TypeWodSetThreshold // 阈值
 	TypeLoadVarname
 	TypeLoadFormatString
 	TypeStore
@@ -134,14 +139,24 @@ func (code *ByteCode) CodeString() string {
 		return "dice.penalty"
 	case TypeDiceBonus:
 		return "dice.bonus"
-	case TypeDiceFate:
-		return "dice.fate"
 	case TypeDiceSetK:
 		return "dice.setk"
 	case TypeDiceSetQ:
 		return "dice.setq"
 	case TypeDiceUnary:
 		return "dice1"
+	case TypeDiceFate:
+		return "dice.fate"
+	case TypeWodSetInit:
+		return "wod.init"
+	case TypeWodSetPool:
+		return "wod.pool"
+	case TypeWodSetPoints:
+		return "wod.points"
+	case TypeWodSetThreshold:
+		return "wod.threshold"
+	case TypeDiceWod:
+		return "dice.wod"
 	case TypeLoadVarname:
 		return "ld.v " + code.ValueStr
 	case TypeLoadFormatString:
@@ -362,9 +377,21 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	var registerDiceQ *VMValue
 	var kqFlag int64
 
+	var wodState struct {
+		pool      *VMValue
+		points    *VMValue
+		threshold *VMValue
+	}
+
+	wodInit := func() {
+		wodState.pool = &VMValue{VMTypeInt64, int64(1)}
+		wodState.points = &VMValue{VMTypeInt64, int64(10)}   // 面数，默认d10
+		wodState.threshold = &VMValue{VMTypeInt64, int64(8)} // 成功线，默认9
+	}
+
 	numOpCountAdd := func(count int64) bool {
 		e.NumOpCount += count
-		if e.NumOpCount > 10000 {
+		if e.NumOpCount > 30000 {
 			return true
 		}
 		return false
@@ -375,6 +402,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	}
 
 	codes := e.Code[0:e.Top]
+	fmt.Println("!!!!!", e.GetAsmText())
+
 	for opIndex := 0; opIndex < len(codes); opIndex += 1 {
 		code := codes[opIndex]
 		//fmt.Println("!!!", code.CodeString(), time.Now().UnixMilli())
@@ -461,6 +490,40 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			registerDiceQ = &VMValue{t.TypeId, t.Value}
 			kqFlag = code.Value
 			top--
+			continue
+		case TypeWodSetInit:
+			wodInit()
+			continue
+		case TypeWodSetPoints:
+			t := stack[top-1]
+			wodState.points = &VMValue{t.TypeId, t.Value}
+			top--
+			continue
+		case TypeWodSetThreshold:
+			t := stack[top-1]
+			wodState.threshold = &VMValue{t.TypeId, t.Value}
+			top--
+			continue
+		case TypeWodSetPool:
+			t := stack[top-1]
+			wodState.pool = &VMValue{t.TypeId, t.Value}
+			top--
+			continue
+		case TypeDiceWod:
+			t := &stack[top-1] // 加骰线
+			ret, nums, rounds, details := DiceWodRollVM(e, t, wodState.pool, wodState.points, wodState.threshold)
+			if e.Error != nil {
+				return nil, "", e.Error
+			}
+			stack[top-1].Value = ret.Value
+			stack[top-1].TypeId = ret.TypeId
+
+			detailText := ""
+			if len(details) > 0 {
+				detailText = " " + strings.Join(details, ",")
+			}
+			lastDetail := fmt.Sprintf("成功%d 骰数%d 轮数%d%s", ret.Value, nums, rounds, detailText)
+			lastDetails = append(lastDetails, lastDetail)
 			continue
 		case TypeDicePenalty, TypeDiceBonus:
 			t := stack[top-1]
@@ -1018,6 +1081,110 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	}
 
 	return &stack[0], calcDetail, nil
+}
+
+func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64) (int64, int64, int64, []string) {
+	details := []string{}
+	addTimes := 1
+
+	isShowDetails := pool < 15
+	allRollCount := pool
+	successCount := int64(0)
+
+	for times := 0; times < addTimes; times++ {
+		addCount := int64(0)
+		detailsOne := []string{}
+
+		for i := int64(0); i < pool; i++ {
+			one := DiceRoll64(points)
+			reachSuccess := one >= threshold
+			reachAddRound := one >= addLine
+
+			if reachSuccess {
+				successCount += 1
+			}
+			if reachAddRound {
+				addCount += 1
+			}
+
+			if isShowDetails {
+				baseText := strconv.FormatInt(one, 10)
+				if reachSuccess {
+					baseText += "*"
+				}
+				if reachAddRound {
+					baseText = "<" + baseText + ">"
+				}
+				detailsOne = append(detailsOne, baseText)
+			}
+		}
+
+		allRollCount += addCount
+		// 有加骰，再骰一次
+		if addCount > 0 {
+			addTimes += 1
+			pool = addCount
+		}
+
+		if allRollCount > 100 {
+			// 多于100，清空
+			isShowDetails = false
+			details = details[:0]
+		}
+
+		if isShowDetails {
+			details = append(details, "{"+strings.Join(detailsOne, ",")+"}")
+		}
+	}
+
+	// 成功数，总骰数，轮数，细节
+	return successCount, allRollCount, int64(addTimes), details
+}
+
+func DiceWodRollVM(e *RollExpression, addLine *vmStack, pool *VMValue, points *VMValue, threshold *VMValue) (*VMValue, int64, int64, []string) {
+	makeE6 := func() {
+		e.Error = errors.New("E6: 类型错误")
+	}
+
+	if addLine.TypeId != VMTypeInt64 {
+		makeE6()
+	}
+	if pool.TypeId != VMTypeInt64 {
+		makeE6()
+	}
+	if points.TypeId != VMTypeInt64 {
+		makeE6()
+	}
+	if threshold.TypeId != VMTypeInt64 {
+		makeE6()
+	}
+	if e.Error != nil {
+		return nil, 0, 0, nil
+	}
+
+	var valPool, valAddLine, valPoints, valThreshold int64
+	if valPool, _ = pool.ReadInt64(); valPool < 1 || valPool > 20000 {
+		e.Error = errors.New("E7: 非法数值, 骰池范围是1到20000")
+		return nil, 0, 0, nil
+	}
+
+	if valAddLine, _ = addLine.ReadInt64(); valAddLine < 2 {
+		e.Error = errors.New("E7: 非法数值, 加骰线必须大于等于2")
+		return nil, 0, 0, nil
+	}
+
+	if valPoints, _ = points.ReadInt64(); valPoints < 1 {
+		e.Error = errors.New("E7: 非法数值, 面数至少为1")
+		return nil, 0, 0, nil
+	}
+
+	if valThreshold, _ = threshold.ReadInt64(); valThreshold < 1 {
+		e.Error = errors.New("E7: 非法数值, 成功线至少为1")
+		return nil, 0, 0, nil
+	}
+
+	ret1, ret2, ret3, details := DiceWodRoll(valAddLine, valPool, valPoints, valThreshold)
+	return &VMValue{VMTypeInt64, ret1}, ret2, ret3, details
 }
 
 func (e *RollExpression) GetAsmText() string {
