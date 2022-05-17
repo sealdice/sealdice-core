@@ -82,7 +82,9 @@ _dnumber <- &( [dD] (number / '(') )  // 独立出来是因为括号会影响IDE
 
 simpleDice2 <- &(number / '(') eDice2
 wodDicePool <- { p.AddOperator(TypeWodSetInit) } (simpleDice2 { p.AddOperator(TypeWodSetPool) } )?
-doubleCrossDicePool <- { p.AddOperator(TypeDCSetInit) } (simpleDice2 { p.AddOperator(TypeDCSetPool) } )?
+// doubleCrossDicePool <- { p.AddOperator(TypeDCSetInit) } (simpleDice2 { p.AddOperator(TypeDCSetPool) } )?
+doubleCrossDicePool <- { p.AddOperator(TypeDCSetInit) } (simpleDice2 { p.AddOperator(TypeDCSetPool) } ) // 还是不允许为空了
+
 
 eDice <- ( _dnumber [dD] { p.AddValue("2"); p.AddLeftValueMark() } eDice2 dndDiceSuffix { p.AddOperator(TypeDice) } )
          / ( _dnumber [dD] { p.AddValue("1"); p.AddLeftValueMark() } eDice2 kqDiceOp { p.AddOperator(TypeDice) } )
