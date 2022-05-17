@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math/rand"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -155,6 +157,63 @@ var gugu = []string{
 	"说咕就咕怎么能算是咕咕了呢！",
 }
 
+var emokloreAttrParent = map[string][]string{
+	"检索":   []string{"知力"},
+	"洞察":   []string{"知力"},
+	"识路":   []string{"灵巧", "五感"},
+	"直觉":   []string{"精神", "运势"},
+	"鉴定":   []string{"五感", "知力"},
+	"观察":   []string{"五感"},
+	"聆听":   []string{"五感"},
+	"鉴毒":   []string{"五感"},
+	"危机察觉": []string{"五感", "运势"},
+	"灵感":   []string{"精神", "运势"},
+	"社交术":  []string{"社会"},
+	"辩论":   []string{"知力"},
+	"心理":   []string{"精神", "知力"},
+	"魅惑":   []string{"魅力"},
+	"专业知识": []string{"知力"},
+	"万事通":  []string{"五感", "社会"},
+	"业界":   []string{"社会", "魅力"},
+	"速度":   []string{"身体"},
+	"力量":   []string{"身体"},
+	"特技动作": []string{"身体", "灵巧"},
+	"潜泳":   []string{"身体"},
+	"武术":   []string{"身体"},
+	"奥义":   []string{"身体", "精神", "灵巧"},
+	"射击":   []string{"灵巧", "五感"},
+	"耐久":   []string{"身体"},
+	"毅力":   []string{"精神"},
+	"医学":   []string{"灵巧", "知力"},
+	"技巧":   []string{"灵巧"},
+	"艺术":   []string{"灵巧", "精神", "五感"},
+	"操纵":   []string{"灵巧", "五感", "知力"},
+	"暗号":   []string{"知力"},
+	"电脑":   []string{"知力"},
+	"隐匿":   []string{"灵巧", "社会", "运势"},
+	"强运":   []string{"运势"},
+}
+
+var emokloreAttrParent2 = map[string][]string{
+	"治疗": []string{"知力"},
+	"复苏": []string{"知力", "精神"},
+}
+
+var emokloreAttrParent3 = map[string][]string{
+	"调查": []string{"灵巧"},
+	"知觉": []string{"五感"},
+	"交涉": []string{"魅力"},
+	"知识": []string{"知力"},
+	"信息": []string{"社会"},
+	"运动": []string{"身体"},
+	"格斗": []string{"身体"},
+	"投掷": []string{"灵巧"},
+	"生存": []string{"身体"},
+	"自我": []string{"精神"},
+	"手工": []string{"灵巧"},
+	"幸运": []string{"运势"},
+}
+
 func RegisterBuiltinExtFun(self *Dice) {
 	//choices := []wr.Choice{}
 	//for _, i := range gugu {
@@ -284,6 +343,235 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
+	// Emoklore(共鸣性怪异)规则支持
+	helpEk := ".ek <技能名称>(+<奖励骰>) 判定值\n" +
+		".ek 检索 // 骰“检索”等级个d10，计算成功数\n" +
+		".ek 检索+2 // 在上一条基础上加骰2个d10\n" +
+		".ek 检索 6  // 骰“检索”等级个d10，计算小于6的骰个数\n" +
+		".ek 检索 知力+检索 // 骰”检索“，判定线为”知力+检索“\n" +
+		".ek 5 4 // 骰5个d10，判定值4\n" +
+		".ek 检索2 // 未录卡情况下判定2级检索\n" +
+		".ek 共鸣 6 // 共鸣判定，成功后手动st共鸣+N\n"
+	cmdEk := CmdItemInfo{
+		Name:     "ek",
+		Help:     helpEk,
+		LongHelp: "共鸣性怪异骰点:\n" + helpEk,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+				mctx := ctx
+
+				if cmdArgs.IsArgEqual(1, "help") {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+
+				txt := cmdArgs.CleanArgs
+				re := regexp.MustCompile(`(?:([^+\-\s\d]+)\s*(\d+)?|(\d+))\s*(?:([+\-])\s*(\d+))?`)
+				m := re.FindStringSubmatch(txt)
+				if len(m) > 0 {
+					// 读取技能名字和等级
+					mustHaveCheckVal := false
+					name := m[1]         // .ek 摸鱼
+					nameLevelStr := m[2] // .ek 摸鱼3
+					if name == "" && nameLevelStr == "" {
+						// .ek 3 4
+						nameLevelStr = m[3]
+						mustHaveCheckVal = true
+					}
+
+					var nameLevel int64
+					if nameLevelStr != "" {
+						nameLevel, _ = strconv.ParseInt(nameLevelStr, 10, 64)
+					} else {
+						nameLevel, _ = VarGetValueInt64(mctx, name)
+					}
+
+					// 附加值 .ek 技能+1
+					extraOp := m[4]
+					extraValStr := m[5]
+					extraVal := int64(0)
+					if extraValStr != "" {
+						extraVal, _ = strconv.ParseInt(extraValStr, 10, 64)
+						if extraOp == "-" {
+							extraVal = -extraVal
+						}
+					}
+
+					restText := txt[len(m[0]):]
+					restText = strings.TrimSpace(restText)
+
+					if restText == "" && mustHaveCheckVal {
+						ReplyToSender(ctx, msg, "必须填入判定值")
+					} else {
+						// 填充补充部分
+						if restText == "" {
+							restText = fmt.Sprintf("%s%s", name, nameLevelStr)
+							mode := 1
+							v := emokloreAttrParent[name]
+							if v == nil {
+								v = emokloreAttrParent2[name]
+								mode = 2
+							}
+							if v == nil {
+								v = emokloreAttrParent3[name]
+								mode = 3
+							}
+
+							if v != nil {
+								maxName := ""
+								maxVal := int64(0)
+								for _, i := range v {
+									val, _ := VarGetValueInt64(mctx, i)
+									if val >= maxVal {
+										maxVal = val
+										maxName = i
+									}
+								}
+								if maxName != "" {
+									switch mode {
+									case 1:
+										// 种类1: 技能+属性
+										restText += " + " + maxName
+									case 2:
+										// 种类2: 技能+属性/2[向上取整]
+										restText += fmt.Sprintf(" + (%s+1)/2", maxName)
+									case 3:
+										// 种类3: 属性
+										restText = maxName
+									}
+								}
+							}
+						}
+
+						r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
+							CocVarNumberMode: true,
+						})
+						if err == nil {
+							checkVal, _ := r.ReadInt64()
+							nameLevel += extraVal
+
+							successDegrees := int64(0)
+							results := []string{}
+							for i := int64(0); i < nameLevel; i++ {
+								v := DiceRoll64(6)
+								if v <= checkVal {
+									successDegrees += 1
+								}
+								if v == 1 {
+									successDegrees += 1
+								}
+								if v == 10 {
+									successDegrees -= 1
+								}
+								// 过大的骰池不显示
+								if nameLevel < 15 {
+									results = append(results, strconv.FormatInt(v, 10))
+								}
+							}
+
+							var detailPool string
+							if len(results) > 0 {
+								detailPool = "{" + strings.Join(results, "+") + "}\n"
+							}
+
+							// 检定原因
+							showName := name
+							if showName == "" {
+								showName = nameLevelStr
+							}
+							if nameLevelStr != "" {
+								showName += nameLevelStr
+							}
+							if extraVal > 0 {
+								showName += extraOp + extraValStr
+							}
+
+							if detail != "" {
+								detail = "{" + detail + "}"
+							}
+
+							text := fmt.Sprintf("<%s>的“%s”共鸣性怪异规则检定:\n", ctx.Player.Name, showName)
+							text += detailPool
+							text += fmt.Sprintf("判定值: %d%s\n", checkVal, detail)
+							text += fmt.Sprintf("成功数: %d\n", successDegrees)
+
+							ReplyToSender(ctx, msg, text)
+						}
+					}
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				}
+
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
+	helpEkGen := ".ekgen (<数量>) // 制卡指令，生成<数量>组人物属性，最高为10次"
+
+	cmdEkgen := CmdItemInfo{
+		Name:     "ekgen",
+		Help:     helpEkGen,
+		LongHelp: "共鸣性怪异制卡指令:\n" + helpEkGen,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				n, _ := cmdArgs.GetArgN(1)
+				val, err := strconv.ParseInt(n, 10, 64)
+				if err != nil {
+					// 数量不存在时，视为1次
+					val = 1
+				}
+				if val > 10 {
+					val = 10
+				}
+				var i int64
+
+				var ss []string
+				for i = 0; i < val; i++ {
+					randMap := map[int64]bool{}
+					for j := 0; j < 7; j++ {
+						n := DiceRoll64(25)
+						if randMap[n] {
+							j-- // 如果已经存在，重新roll
+						} else {
+							randMap[n] = true
+						}
+					}
+
+					var nums Int64SliceDesc
+					for k, _ := range randMap {
+						nums = append(nums, k)
+					}
+					sort.Sort(nums)
+
+					last := int64(25)
+					nums2 := []interface{}{}
+					for _, j := range nums {
+						val := last - j + 1
+						last = j
+						nums2 = append(nums2, val)
+					}
+
+					text := fmt.Sprintf("身体:%d 灵巧:%d 精神:%d 五感:%d 知力:%d 魅力:%d 社会:%d", nums2...)
+					text += fmt.Sprintf(" 运势:%d", DiceRoll64(6))
+
+					ss = append(ss, text)
+				}
+				info := strings.Join(ss, "\n")
+				ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的共鸣性怪异人物做成:\n%s", ctx.Player.Name, info))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: false}
+		},
+	}
+
 	textHelp := ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}"
 	cmdText := CmdItemInfo{
 		Name:     "text",
@@ -352,11 +640,13 @@ func RegisterBuiltinExtFun(self *Dice) {
 			return "> " + i.Brief + "\n" + "提供命令:\n.gugu / .咕咕  // 获取一个随机的咕咕理由, .gugu来源可以看到作者\n.jrrp 今日人品"
 		},
 		CmdMap: CmdMapCls{
-			"gugu": &cmdGugu,
-			"咕咕":   &cmdGugu,
-			"jrrp": &cmdJrrp,
-			"text": &cmdText,
-			"rsr":  &cmdRsr,
+			"gugu":  &cmdGugu,
+			"咕咕":    &cmdGugu,
+			"jrrp":  &cmdJrrp,
+			"text":  &cmdText,
+			"rsr":   &cmdRsr,
+			"ek":    &cmdEk,
+			"ekgen": &cmdEkgen,
 		},
 	})
 }
