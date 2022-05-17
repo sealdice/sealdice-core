@@ -93,7 +93,7 @@ eDice <- ( _dnumber [dD] { p.AddValue("2"); p.AddLeftValueMark() } eDice2 dndDic
          / [dD] !([^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]) sp { p.AddValue("1"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
 
          // WOD规则，左侧个数，a加骰线，m面数，k阈值
-         / wodDicePool [aA] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeWodSetPoints) }) / ([kK] simpleDice2 { p.AddOperator(TypeWodSetThreshold) }) )* { p.AddOperator(TypeDiceWod) }
+         / wodDicePool [aA] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeWodSetPoints) }) / ([kK] simpleDice2 { p.AddOperator(TypeWodSetThreshold) }) / ([qQ] simpleDice2 { p.AddOperator(TypeWodSetThresholdQ) }) )* { p.AddOperator(TypeDiceWod) }
 
          // 双十字
          / doubleCrossDicePool [cC] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeDCSetPoints) }) )* { p.AddOperator(TypeDiceDC) }

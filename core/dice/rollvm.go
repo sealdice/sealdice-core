@@ -29,10 +29,11 @@ const (
 	TypeDiceBonus
 	TypeDiceFate
 	TypeDiceWod
-	TypeWodSetInit      // 重置参数
-	TypeWodSetPool      // 设置骰池(骰数)
-	TypeWodSetPoints    // 面数
-	TypeWodSetThreshold // 阈值
+	TypeWodSetInit       // 重置参数
+	TypeWodSetPool       // 设置骰池(骰数)
+	TypeWodSetPoints     // 面数
+	TypeWodSetThreshold  // 阈值 >=
+	TypeWodSetThresholdQ // 阈值 <=
 	TypeDiceDC
 	TypeDCSetInit
 	TypeDCSetPool   // 骰池
@@ -159,6 +160,8 @@ func (code *ByteCode) CodeString() string {
 		return "wod.points"
 	case TypeWodSetThreshold:
 		return "wod.threshold"
+	case TypeWodSetThresholdQ:
+		return "wod.thresholdQ"
 	case TypeDiceWod:
 		return "dice.wod"
 	case TypeLoadVarname:
@@ -385,12 +388,14 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 		pool      *VMValue
 		points    *VMValue
 		threshold *VMValue
+		isGE      bool
 	}
 
 	wodInit := func() {
 		wodState.pool = &VMValue{VMTypeInt64, int64(1)}
 		wodState.points = &VMValue{VMTypeInt64, int64(10)}   // 面数，默认d10
 		wodState.threshold = &VMValue{VMTypeInt64, int64(8)} // 成功线，默认9
+		wodState.isGE = true
 	}
 
 	var dcState struct {
@@ -516,6 +521,13 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 		case TypeWodSetThreshold:
 			t := stack[top-1]
 			wodState.threshold = &VMValue{t.TypeId, t.Value}
+			wodState.isGE = true
+			top--
+			continue
+		case TypeWodSetThresholdQ:
+			t := stack[top-1]
+			wodState.threshold = &VMValue{t.TypeId, t.Value}
+			wodState.isGE = false
 			top--
 			continue
 		case TypeWodSetPool:
@@ -525,18 +537,23 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 		case TypeDiceWod:
 			t := &stack[top-1] // 加骰线
-			ret, nums, rounds, details := DiceWodRollVM(e, t, wodState.pool, wodState.points, wodState.threshold)
+			ret, nums, rounds, details := DiceWodRollVM(e, t, wodState.pool, wodState.points, wodState.threshold, wodState.isGE)
 			if e.Error != nil {
 				return nil, "", e.Error
 			}
 			stack[top-1].Value = ret.Value
 			stack[top-1].TypeId = ret.TypeId
 
+			roundsText := ""
+			if rounds > 1 {
+				roundsText = fmt.Sprintf(" 轮数:%d", rounds)
+			}
+
 			detailText := ""
 			if len(details) > 0 {
 				detailText = " " + strings.Join(details, ",")
 			}
-			lastDetail := fmt.Sprintf("成功%d 骰数%d 轮数%d%s", ret.Value, nums, rounds, detailText)
+			lastDetail := fmt.Sprintf("成功%d/%d%s%s", ret.Value, nums, roundsText, detailText)
 			lastDetails = append(lastDetails, lastDetail)
 			continue
 		case TypeDCSetPool:
@@ -565,11 +582,17 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			if len(details) > 0 {
 				detailText = " " + strings.Join(details, ",")
 			}
+
+			roundsText := ""
+			if rounds > 1 {
+				roundsText = fmt.Sprintf(" 轮数:%d", rounds)
+			}
+
 			if ret.Value == 1 {
-				lastDetail := fmt.Sprintf("大失败 出目%d 骰数%d 轮数%d%s", ret.Value, nums, rounds, detailText)
+				lastDetail := fmt.Sprintf("大失败 出目%d/%d%s%s", ret.Value, nums, roundsText, detailText)
 				lastDetails = append(lastDetails, lastDetail)
 			} else {
-				lastDetail := fmt.Sprintf("出目%d 骰数%d 轮数%d%s", ret.Value, nums, rounds, detailText)
+				lastDetail := fmt.Sprintf("出目%d/%d%s%s", ret.Value, nums, roundsText, detailText)
 				lastDetails = append(lastDetails, lastDetail)
 			}
 			continue
@@ -1175,11 +1198,12 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 
 	isShowDetails := pool < 15
 	allRollCount := pool
-	maxDice := int64(0)
+	resultDice := int64(0)
 
 	for times := 0; times < addTimes; times++ {
 		addCount := int64(0)
 		detailsOne := []string{}
+		maxDice := int64(0)
 
 		for i := int64(0); i < pool; i++ {
 			one := DiceRoll64(points)
@@ -1190,6 +1214,7 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 
 			if reachAddRound {
 				addCount += 1
+				maxDice = 10
 			}
 
 			if isShowDetails {
@@ -1201,7 +1226,9 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 			}
 		}
 
+		resultDice += maxDice
 		allRollCount += addCount
+
 		// 有加骰，再骰一次
 		if addCount > 0 {
 			addTimes += 1
@@ -1220,10 +1247,10 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 	}
 
 	// 成功数，总骰数，轮数，细节
-	return maxDice, allRollCount, int64(addTimes), details
+	return resultDice, allRollCount, int64(addTimes), details
 }
 
-func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64) (int64, int64, int64, []string) {
+func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE bool) (int64, int64, int64, []string) {
 	details := []string{}
 	addTimes := 1
 
@@ -1236,9 +1263,19 @@ func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64) (int6
 		detailsOne := []string{}
 
 		for i := int64(0); i < pool; i++ {
+			var reachSuccess bool
+			var reachAddRound bool
 			one := DiceRoll64(points)
-			reachSuccess := one >= threshold
-			reachAddRound := one >= addLine
+
+			if addLine != 0 {
+				reachAddRound = one >= addLine
+			}
+
+			if isGE {
+				reachSuccess = one >= threshold
+			} else {
+				reachSuccess = one <= threshold
+			}
 
 			if reachSuccess {
 				successCount += 1
@@ -1281,7 +1318,7 @@ func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64) (int6
 	return successCount, allRollCount, int64(addTimes), details
 }
 
-func DiceWodRollVM(e *RollExpression, addLine *vmStack, pool *VMValue, points *VMValue, threshold *VMValue) (*VMValue, int64, int64, []string) {
+func DiceWodRollVM(e *RollExpression, addLine *vmStack, pool *VMValue, points *VMValue, threshold *VMValue, isGE bool) (*VMValue, int64, int64, []string) {
 	makeE6 := func() {
 		e.Error = errors.New("E6: 类型错误")
 	}
@@ -1308,8 +1345,8 @@ func DiceWodRollVM(e *RollExpression, addLine *vmStack, pool *VMValue, points *V
 		return nil, 0, 0, nil
 	}
 
-	if valAddLine, _ = addLine.ReadInt64(); valAddLine < 2 {
-		e.Error = errors.New("E7: 非法数值, 加骰线必须大于等于2")
+	if valAddLine, _ = addLine.ReadInt64(); valAddLine != 0 && valAddLine < 2 {
+		e.Error = errors.New("E7: 非法数值, 加骰线必须为0[不加骰]，或≥2")
 		return nil, 0, 0, nil
 	}
 
@@ -1323,7 +1360,7 @@ func DiceWodRollVM(e *RollExpression, addLine *vmStack, pool *VMValue, points *V
 		return nil, 0, 0, nil
 	}
 
-	ret1, ret2, ret3, details := DiceWodRoll(valAddLine, valPool, valPoints, valThreshold)
+	ret1, ret2, ret3, details := DiceWodRoll(valAddLine, valPool, valPoints, valThreshold, isGE)
 	return &VMValue{VMTypeInt64, ret1}, ret2, ret3, details
 }
 
