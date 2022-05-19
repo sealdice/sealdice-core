@@ -237,6 +237,16 @@ func LockFreeMapToMap(m lockfree.HashMap) map[string]interface{} {
 	ret := map[string]interface{}{}
 	_ = m.Iterate(func(_k interface{}, _v interface{}) error {
 		k, ok := _k.(string)
+		if strings.HasPrefix(k, "$:ch-bind-mtime:") {
+			return nil
+		}
+		if strings.HasPrefix(k, "$:ch-bind-data:") {
+			return nil
+		}
+		if k == "$:card" {
+			// 不序列化当前绑定的卡
+			return nil
+		}
 		if ok {
 			ret[k] = _v
 		}

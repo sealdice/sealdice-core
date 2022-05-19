@@ -127,9 +127,10 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 	}
 
 	// 个人属性
-	if ctx.Player.Vars.ValueMap != nil && ctx.Player.Vars.Loaded {
-		ctx.Player.Vars.ValueMap.Set(name, &vClone)
-		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+	if ctx.Session != nil && ctx.Player != nil {
+		vars, _ := ctx.ChVarsGet()
+		vars.Set(name, &vClone)
+		ctx.ChVarsUpdateTime()
 	}
 }
 
@@ -163,8 +164,9 @@ func VarDelValue(ctx *MsgContext, s string) {
 	}
 
 	if ctx.Player.Vars.ValueMap != nil && ctx.Player.Vars.Loaded {
-		ctx.Player.Vars.ValueMap.Del(name)
-		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+		vars, _ := ctx.ChVarsGet()
+		vars.Del(name)
+		ctx.ChVarsUpdateTime()
 	}
 }
 
@@ -222,8 +224,9 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 	// 个人群变量
 	if ctx.Player != nil {
 		if ctx.Player.Vars != nil && ctx.Player.Vars.Loaded {
+			vars, _ := ctx.ChVarsGet()
 			var v *VMValue
-			_v, e := ctx.Player.Vars.ValueMap.Get(name)
+			_v, e := vars.Get(name)
 			if e {
 				v = _v.(*VMValue)
 			}
@@ -259,22 +262,6 @@ func (i *GroupPlayerInfo) GetValueNameByAlias(s string, alias map[string][]strin
 	return name
 }
 
-func (i *GroupPlayerInfo) SetValueInt64(s string, value int64, alias map[string][]string) {
-	name := i.GetValueNameByAlias(s, alias)
-	VarSetValue(&MsgContext{Player: i}, name, &VMValue{VMTypeInt64, value})
-}
-
-func (i *GroupPlayerInfo) GetValueInt64(s string, alias map[string][]string) (int64, bool) {
-	var ret int64
-	name := i.GetValueNameByAlias(s, alias)
-	v, exists := VarGetValue(&MsgContext{Player: i}, name)
-
-	if exists {
-		ret = v.Value.(int64)
-	}
-	return ret, exists
-}
-
 func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 	if s.PlayerVarsData == nil {
 		s.PlayerVarsData = map[string]*PlayerVariablesItem{}
@@ -293,21 +280,47 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 
 	if vd.Loaded == false {
 		vd.ValueMap = lockfree.NewHashMap()
-		vd.Loaded = true
 		data := model.AttrUserGetAll(s.Parent.DB, id)
 
 		mapData := make(map[string]*VMValue)
 		err := JsonValueMapUnmarshal(data, &mapData)
 
+		needToLoad := map[string]bool{}
 		for k, v := range mapData {
 			vd.ValueMap.Set(k, v)
+			if strings.HasPrefix(k, "$:group-bind:") {
+				//needToLoad[k[len("$:group-bind:"):]] = true
+				name, _ := v.ReadString()
+				if name != "" {
+					needToLoad[name] = true
+				}
+			}
 		}
 		// 保险起见？应该不用
 		//vd.LastWriteTime = time.Now().Unix()
 
+		// 进行绑定角色的设置
+		for name, _ := range needToLoad {
+			_data := mapData["$ch:"+name]
+			if _data != nil {
+				chData := make(map[string]*VMValue)
+				err := JsonValueMapUnmarshal([]byte(_data.Value.(string)), &chData)
+
+				if err == nil {
+					m := lockfree.NewHashMap()
+					for k, v := range chData {
+						m.Set(k, v)
+					}
+					// $:ch-bind-data:角色
+					vd.ValueMap.Set("$:ch-bind-data:"+name, m)
+				}
+			}
+		}
+
 		if err != nil {
 			s.Parent.Logger.Error(err)
 		}
+		vd.Loaded = true
 	}
 
 	return vd
@@ -334,6 +347,30 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 			for k, v := range mapData {
 				vd.ValueMap.Set(k, v)
 			}
+
+			if _, exists := mapData["$:cardBindMark"]; exists {
+				vars := LoadPlayerGlobalVars(dice.ImSession, player.UserId)
+
+				if _data, exists := vars.ValueMap.Get("$:group-bind:" + group.GroupId); exists {
+					if data, ok := _data.(*VMValue); ok {
+						name, ok := data.ReadString()
+
+						if ok {
+							_m, ok := vars.ValueMap.Get("$:ch-bind-data:" + name)
+							if ok {
+								m := _m.(lockfree.HashMap)
+								//fmt.Println("!!!!5", name, m)
+								//m.Iterate(func(_k interface{}, _v interface{}) error {
+								//	fmt.Println("XXXXXX", _k, _v)
+								//	return nil
+								//})
+								player.Vars.ValueMap.Set("$:card", m)
+							}
+						}
+					}
+				}
+			}
+
 			if err != nil {
 				dice.Logger.Errorf("加载玩家数据失败%s-%s: %s", group.GroupId, player.UserId, string(err.Error()))
 				//dice.Logger.Error(group.GroupId, player.UserId, string(data))

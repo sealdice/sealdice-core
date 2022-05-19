@@ -421,7 +421,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	}
 
 	codes := e.Code[0:e.Top]
-	fmt.Println("!!!!!", e.GetAsmText())
+	//fmt.Println("!!!!!", e.GetAsmText())
 
 	for opIndex := 0; opIndex < len(codes); opIndex += 1 {
 		code := codes[opIndex]

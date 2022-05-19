@@ -798,7 +798,9 @@ func (d *Dice) registerCoreCommands() {
 		Name: "send",
 		Help: ".send // 向骰主留言",
 		LongHelp: "留言指令:\n.send // 向骰主留言\n" +
-			".send to <对方ID> 要说的话 // 骰主回复，举例. send to QQ:12345 感谢留言",
+			".send to <对方ID> 要说的话 // 骰主回复，举例. send to QQ:12345 感谢留言\n" +
+			".send to <群组ID> 要说的话 // 举例. send to QQ-Group:12345 感谢留言\n" +
+			"> 指令.userid可以查看当前群的ID",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				if ctx.IsCurGroupBotOn && cmdArgs.SomeoneBeMentionedButNotMe {
@@ -1337,12 +1339,15 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["set"] = cmdSet
 
-	helpCh := ".ch save <角色名> // 保存角色，角色名可省略[不绑卡]\n" +
-		".ch load <角色名> // 加载角色\n" +
-		//".ch new <角色名> // 新建角色并绑卡\n" +
-		//".ch tag <角色名> // 新建角色并绑卡\n" +
-		".ch list // 列出当前角色\n" +
-		".ch del/rm <角色名> // 删除角色"
+	helpCh := ".pc new <角色名> // 新建角色并绑卡\n" +
+		".pc tag <角色名> // 当前群绑卡/解除绑卡(不填角色名)\n" +
+		".pc untag <角色名> // 全部群解绑\n" +
+		".pc list // 列出当前角色\n" +
+		//".ch group // 列出各群当前绑卡\n" +
+		".pc save <角色名> // [不绑卡]保存角色，角色名可省略\n" +
+		".pc load <角色名> // [不绑卡]加载角色\n" +
+		".pc del/rm <角色名> // 删除角色\n" +
+		"> 注: 海豹设定是每个群各一张空白卡，而非全局只有一张空白卡。" // > 普通模组执行nn, st后直接跑即可。跑完若想保存角色用pc save存卡。
 	cmdChar := &CmdItemInfo{
 		Name:     "ch",
 		Help:     helpCh,
@@ -1353,7 +1358,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: false, Solved: false}
 				}
 
-				cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm")
+				cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untag", "group", "grp")
 
 				getNickname := func() string {
 					name, _ := cmdArgs.GetArgN(2)
@@ -1366,69 +1371,121 @@ func (d *Dice) registerCoreCommands() {
 				if cmdArgs.IsArgEqual(1, "list") {
 					vars := ctx.LoadPlayerGlobalVars()
 					characters := []string{}
+					curBind := ctx.ChBindCurGet()
 
 					_ = vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
 						k := _k.(string)
 						if strings.HasPrefix(k, "$ch:") {
-							characters = append(characters, k[4:])
+							name := k[4:]
+							characters = append(characters, name)
 						}
 						return nil
 					})
+
+					// 分两次防止死锁
+					newChars := []string{}
+					for _, name := range characters {
+						prefix := "[×] "
+						if ctx.ChBindGet(name) != nil {
+							prefix = "[★] "
+						}
+						if curBind == name {
+							prefix = "[√] "
+						}
+
+						newChars = append(newChars, prefix+name)
+					}
+
 					if len(characters) == 0 {
 						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>当前还没有角色列表", ctx.Player.Name))
 					} else {
-						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的角色列表为:\n%s", ctx.Player.Name, strings.Join(characters, "\n")))
+						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的角色列表为:\n%s\n[√]已绑定 [×]未绑定 [★]其他群绑定", ctx.Player.Name, strings.Join(newChars, "\n")))
+					}
+				} else if cmdArgs.IsArgEqual(1, "new") {
+					name := getNickname()
+					if ctx.ChNew(name) {
+						ctx.ChBindCur(name)
+						VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
+						ReplyToSender(ctx, msg, "新建角色且自动绑定:"+name)
+					} else {
+						ReplyToSender(ctx, msg, "已存在同名角色")
 					}
 				} else if cmdArgs.IsArgEqual(1, "load") {
-					name := getNickname()
-					vars := ctx.LoadPlayerGlobalVars()
-					_data, exists := vars.ValueMap.Get("$ch:" + name)
-					if exists {
-						data := _data.(*VMValue)
-						mapData := make(map[string]*VMValue)
-						err := JsonValueMapUnmarshal([]byte(data.Value.(string)), &mapData)
-
-						ctx.Player.Vars.ValueMap = lockfree.NewHashMap()
-						for k, v := range mapData {
-							ctx.Player.Vars.ValueMap.Set(k, v)
-						}
-						ctx.Player.Vars.LastWriteTime = time.Now().Unix()
-
-						if err == nil {
-							ctx.Player.Name = name
+					cur := ctx.ChBindCurGet()
+					if cur == "" {
+						name := getNickname()
+						ret := ctx.ChLoad(name)
+						if ret != nil {
 							VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
-
-							//replyToSender(ctx, msg, fmt.Sprintf("角色<%s>加载成功，欢迎回来。", Name))
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
+							//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
 						} else {
-							//replyToSender(ctx, msg, "无法加载角色：序列化失败")
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 						}
 					} else {
-						//replyToSender(ctx, msg, "无法加载角色：你所指定的角色不存在")
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
+						ReplyToSender(ctx, msg, "当前是绑卡状态，load会将你的当前卡覆盖！请解除绑卡后进行此操作。")
+					}
+				} else if cmdArgs.IsArgEqual(1, "tag") {
+					name, _ := cmdArgs.GetArgN(2)
+					if name != "" {
+						ok := ctx.ChBindCur(name)
+						if ok {
+							ReplyToSender(ctx, msg, "绑定成功")
+						} else {
+							ReplyToSender(ctx, msg, "绑定失败")
+						}
+					} else {
+						if ctx.ChUnbindCur() {
+							ReplyToSender(ctx, msg, "绑定已解除")
+						} else {
+							ReplyToSender(ctx, msg, "当前群并未绑定")
+						}
+					}
+				} else if cmdArgs.IsArgEqual(1, "group1", "grp1") {
+					name, _ := cmdArgs.GetArgN(2)
+					lst := ctx.ChBindGetList(name)
+					ReplyToSender(ctx, msg, "卡片绑定: "+strings.Join(lst, " "))
+				} else if cmdArgs.IsArgEqual(1, "untag") {
+					name, _ := cmdArgs.GetArgN(2)
+					lst := ctx.ChUnbind(name)
+
+					if len(lst) > 0 {
+						ReplyToSender(ctx, msg, "绑定已解除: "+strings.Join(lst, " "))
+					} else {
+						ReplyToSender(ctx, msg, "这张卡片并未绑定到任何群")
 					}
 				} else if cmdArgs.IsArgEqual(1, "save") {
 					name := getNickname()
-					vars := ctx.LoadPlayerGlobalVars()
-					v, err := json.Marshal(LockFreeMapToMap(ctx.Player.Vars.ValueMap))
+					card := ctx.ChBindGet(name)
+					if card == nil {
+						// TODO: 改到ctx里
+						vars := ctx.LoadPlayerGlobalVars()
+						v, err := json.Marshal(LockFreeMapToMap(ctx.Player.Vars.ValueMap))
 
-					if err == nil {
-						vars.ValueMap.Set("$ch:"+name, &VMValue{
-							VMTypeString,
-							string(v),
-						})
-						vars.LastWriteTime = time.Now().Unix()
+						if err == nil {
+							vars.ValueMap.Set("$ch:"+name, &VMValue{
+								VMTypeString,
+								string(v),
+							})
+							vars.LastWriteTime = time.Now().Unix()
 
-						VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
-						//replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", Name))
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
+							VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
+							//replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", Name))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
+						} else {
+							//replyToSender(ctx, msg, "无法储存角色：序列化失败")
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
+						}
 					} else {
-						//replyToSender(ctx, msg, "无法储存角色：序列化失败")
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
+						ReplyToSender(ctx, msg, "指定卡片是绑定状态，无法进行save操作")
 					}
 				} else if cmdArgs.IsArgEqual(1, "del", "rm") {
 					name := getNickname()
+					if ctx.ChBindGet(name) != nil {
+						ReplyToSender(ctx, msg, "指定卡片是绑定状态，untag解除绑卡后再操作吧")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					vars := ctx.LoadPlayerGlobalVars()
 
 					VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
