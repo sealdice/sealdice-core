@@ -364,12 +364,19 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 		deckName := s[i[0]:i[1]]
 
 		// 特殊变量检查
-		if deckName == "{player}" || deckName == "{self}" {
+		if deckName == "{player}" {
+			var text string
 			if ctx.Player != nil {
 				text = ctx.Player.Name
 			} else {
 				text = "%未知用户%"
 			}
+			s = s[:i[0]] + text + s[i[1]:]
+			continue
+		}
+		if deckName == "{self}" {
+			var text string
+			text = DiceFormatTmpl(ctx, "核心:骰子名字")
 			s = s[:i[0]] + text + s[i[1]:]
 			continue
 		}

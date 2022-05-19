@@ -1341,7 +1341,7 @@ func (d *Dice) registerCoreCommands() {
 
 	helpCh := ".pc new <角色名> // 新建角色并绑卡\n" +
 		".pc tag <角色名> // 当前群绑卡/解除绑卡(不填角色名)\n" +
-		".pc untag <角色名> // 全部群解绑\n" +
+		".pc untagAll <角色名> // 全部群解绑\n" +
 		".pc list // 列出当前角色\n" +
 		//".ch group // 列出各群当前绑卡\n" +
 		".pc save <角色名> // [不绑卡]保存角色，角色名可省略\n" +
@@ -1357,8 +1357,7 @@ func (d *Dice) registerCoreCommands() {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
 					return CmdExecuteResult{Matched: false, Solved: false}
 				}
-
-				cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untag", "group", "grp")
+				cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "group", "grp")
 
 				getNickname := func() string {
 					name, _ := cmdArgs.GetArgN(2)
@@ -1399,7 +1398,7 @@ func (d *Dice) registerCoreCommands() {
 					if len(characters) == 0 {
 						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>当前还没有角色列表", ctx.Player.Name))
 					} else {
-						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的角色列表为:\n%s\n[√]已绑定 [×]未绑定 [★]其他群绑定", ctx.Player.Name, strings.Join(newChars, "\n")))
+						ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的角色列表为:\n%s\n[√]已绑 [×]未绑 [★]其他群绑定", ctx.Player.Name, strings.Join(newChars, "\n")))
 					}
 				} else if cmdArgs.IsArgEqual(1, "new") {
 					name := getNickname()
@@ -1436,6 +1435,7 @@ func (d *Dice) registerCoreCommands() {
 						}
 					} else {
 						if ctx.ChUnbindCur() {
+							ctx.Player.Name = msg.Sender.Nickname
 							ReplyToSender(ctx, msg, "绑定已解除")
 						} else {
 							ReplyToSender(ctx, msg, "当前群并未绑定")
@@ -1445,12 +1445,18 @@ func (d *Dice) registerCoreCommands() {
 					name, _ := cmdArgs.GetArgN(2)
 					lst := ctx.ChBindGetList(name)
 					ReplyToSender(ctx, msg, "卡片绑定: "+strings.Join(lst, " "))
-				} else if cmdArgs.IsArgEqual(1, "untag") {
+				} else if cmdArgs.IsArgEqual(1, "untagAll") {
 					name, _ := cmdArgs.GetArgN(2)
 					lst := ctx.ChUnbind(name)
 
+					for _, i := range lst {
+						if i == ctx.Group.GroupId {
+							ctx.Player.Name = msg.Sender.Nickname
+						}
+					}
+
 					if len(lst) > 0 {
-						ReplyToSender(ctx, msg, "绑定已解除: "+strings.Join(lst, " "))
+						ReplyToSender(ctx, msg, "绑定已解除:\n"+strings.Join(lst, "\n"))
 					} else {
 						ReplyToSender(ctx, msg, "这张卡片并未绑定到任何群")
 					}
@@ -1482,7 +1488,7 @@ func (d *Dice) registerCoreCommands() {
 				} else if cmdArgs.IsArgEqual(1, "del", "rm") {
 					name := getNickname()
 					if ctx.ChBindGet(name) != nil {
-						ReplyToSender(ctx, msg, "指定卡片是绑定状态，untag解除绑卡后再操作吧")
+						ReplyToSender(ctx, msg, "指定卡片是绑定状态，untagAll解除绑卡后再操作吧")
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 

@@ -341,11 +341,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					if ReadCardType(mctx, "dnd5e") == "" {
 						// 旧版本升级
+						_vars, _ := mctx.ChVarsGet()
 						valRename := func(oldName, newName string) {
-							_vRaw, exists := p.Vars.ValueMap.Get(oldName)
-							if exists {
-								p.Vars.ValueMap.Set(newName, _vRaw)
-								p.Vars.ValueMap.Del(oldName)
+							if _vars != nil {
+								_vRaw, exists := _vars.Get(oldName)
+								if exists {
+									_vars.Set(newName, _vRaw)
+									_vars.Del(oldName)
+								}
 							}
 						}
 						valRename("特技", "体操")

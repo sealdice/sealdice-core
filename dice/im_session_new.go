@@ -717,6 +717,9 @@ func (ctx *MsgContext) ChVarsClear() int {
 			if card, ok := _card.(lockfree.HashMap); ok {
 				items := []interface{}{}
 				_ = card.Iterate(func(_k interface{}, _v interface{}) error {
+					if _k == "$:cardName" {
+						return nil
+					}
 					items = append(items, _k)
 					return nil
 				})
@@ -849,6 +852,17 @@ func (ctx *MsgContext) ChUnbindCur() bool {
 		ctx.Player.Vars.ValueMap.Del("$:card")
 		ctx.Player.Vars.ValueMap.Del("$:cardBindMark")
 		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+
+		name := ctx.ChBindCurGet()
+		lst := ctx.ChBindGetList(name)
+
+		if len(lst) == 0 {
+			// 没有群绑这个卡了，释放内存
+			vars := ctx.LoadPlayerGlobalVars()
+			key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
+			vars.ValueMap.Del(key2)
+		}
+
 		return true
 	}
 	return false
@@ -889,16 +903,25 @@ func (ctx *MsgContext) ChBindGet(name string) lockfree.HashMap {
 // ChUnbind 解除某个角色的绑定
 func (ctx *MsgContext) ChUnbind(name string) []string {
 	lst := ctx.ChBindGetList(name)
+	fmt.Println("????", lst)
 	for _, groupId := range lst {
 		g := ctx.Session.ServiceAtNew[groupId]
 		p := g.Players[ctx.Player.UserId]
-		if !p.Vars.Loaded {
+		if p.Vars == nil || !p.Vars.Loaded {
 			LoadPlayerGroupVars(ctx.Dice, g, p)
 		}
 		p.Vars.ValueMap.Del("$:card")
 		p.Vars.ValueMap.Del("$:cardBindMark")
 		p.Vars.LastWriteTime = time.Now().Unix()
 	}
+
+	if len(lst) > 0 {
+		// 没有群绑这个卡了，释放内存
+		vars := ctx.LoadPlayerGlobalVars()
+		key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
+		vars.ValueMap.Del(key2)
+	}
+
 	return lst
 }
 
