@@ -181,9 +181,9 @@ func main() {
 		}
 	}
 
-	if !opts.MultiInstanceOnWindows && TestRunning() {
-		return
-	}
+	//if !opts.MultiInstanceOnWindows && TestRunning() {
+	//	return
+	//}
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 		hideWindow()
