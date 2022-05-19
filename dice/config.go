@@ -1464,6 +1464,55 @@ func (d *Dice) Save(isAuto bool) {
 		model.AttrGroupSave(d.DB, g.GroupId, data)
 	}
 
+	// 同步绑定的角色卡数据
+	chPrefix := "$:ch-bind-mtime:"
+	chPrefixData := "$:ch-bind-data:"
+	for _, v := range d.ImSession.PlayerVarsData {
+		if v.Loaded {
+			if v.LastWriteTime != 0 {
+				toDelete := []string{}
+				syncMap := map[string]bool{}
+				allCh := map[string]lockfree.HashMap{}
+
+				v.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+					if k, ok := _k.(string); ok {
+						if strings.HasPrefix(k, chPrefixData) {
+							v := _v.(lockfree.HashMap)
+							allCh[k[len(chPrefixData):]] = v
+						}
+						if strings.HasPrefix(k, chPrefix) {
+							// 只要存在，就是修改过，数值多少不重要
+							syncMap[k[len(chPrefix):]] = true
+							toDelete = append(toDelete, k)
+						}
+					}
+					return nil
+				})
+
+				for _, i := range toDelete {
+					v.ValueMap.Del(i)
+				}
+
+				//fmt.Println("!!!!!!!!", toDelete, syncMap, allCh)
+				// 这里面的角色是需要同步的
+				for name, _ := range syncMap {
+					chData := allCh[name]
+					if chData != nil {
+						val, err := json.Marshal(LockFreeMapToMap(chData))
+						if err == nil {
+							varName := "$ch:" + name
+							v.ValueMap.Set(varName, &VMValue{
+								VMTypeString,
+								string(val),
+							})
+							//fmt.Println("XXXXXXX", varName, string(val))
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// 保存玩家个人全局数据
 	for k, v := range d.ImSession.PlayerVarsData {
 		if v.Loaded {

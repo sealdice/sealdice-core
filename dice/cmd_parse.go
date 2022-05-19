@@ -187,6 +187,10 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 
 	// 兼容模式，进行格式化
 	if commandCompatibleMode {
+		if strings.HasPrefix(restText, "bot list") {
+			restText = "botlist" + restText[len("bot list"):]
+		}
+
 		matched := ""
 		for _, i := range currentCmdLst {
 			if len(i) > len(restText) {

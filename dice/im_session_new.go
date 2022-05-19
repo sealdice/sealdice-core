@@ -349,7 +349,8 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 
 			// 兼容模式检查
-			if d.CommandCompatibleMode {
+			// 是的，永远使用兼容模式
+			if true || d.CommandCompatibleMode {
 				for k := range d.CmdMap {
 					cmdLst = append(cmdLst, k)
 				}
@@ -662,4 +663,262 @@ func (ctx *MsgContext) Notice(txt string) {
 		}
 	}
 	go foo()
+}
+
+// ChVarsGet 获取当前的角色变量
+func (ctx *MsgContext) ChVarsGet() (lockfree.HashMap, bool) {
+	//gvar := ctx.LoadPlayerGlobalVars()
+	_card, exists := ctx.Player.Vars.ValueMap.Get("$:card")
+	if exists {
+		card, ok := _card.(lockfree.HashMap)
+		if ok {
+			// 绑卡
+			card.Iterate(func(_k interface{}, _v interface{}) error {
+				fmt.Println("????", _k, _v)
+				return nil
+			})
+			return card, true
+		}
+	}
+	// 不绑卡
+	return ctx.Player.Vars.ValueMap, false
+}
+
+func (ctx *MsgContext) ChVarsUpdateTime() {
+	_card, exists := ctx.Player.Vars.ValueMap.Get("$:card")
+	if exists {
+		// 绑卡情况
+		if card, ok := _card.(lockfree.HashMap); ok {
+			if _v, ok := card.Get("$:cardName"); ok {
+				if v, ok := _v.(*VMValue); ok {
+					name, _ := v.ReadString()
+
+					if name != "" {
+						vars := ctx.LoadPlayerGlobalVars()
+						key := fmt.Sprintf("$:ch-bind-mtime:%s", name)
+						vars.ValueMap.Set(key, time.Now().Unix())
+					}
+				}
+			}
+		}
+	} else {
+		// 不绑卡情况
+		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+	}
+}
+
+func (ctx *MsgContext) ChVarsClear() int {
+	vars, isBind := ctx.ChVarsGet()
+	num := vars.Len()
+	if isBind {
+		gvar := ctx.LoadPlayerGlobalVars()
+		if _card, ok := gvar.ValueMap.Get("$:card"); ok {
+			// 因为card可能在多个群关联，所以只有通过这种方式清空
+			if card, ok := _card.(lockfree.HashMap); ok {
+				items := []interface{}{}
+				_ = card.Iterate(func(_k interface{}, _v interface{}) error {
+					items = append(items, _k)
+					return nil
+				})
+
+				for _, i := range items {
+					card.Del(i)
+				}
+			}
+		}
+		gvar.LastWriteTime = time.Now().Unix()
+	} else {
+		p := ctx.Player
+		p.Vars.ValueMap = lockfree.NewHashMap()
+		p.Vars.LastWriteTime = time.Now().Unix()
+	}
+	return num
+}
+
+func (ctx *MsgContext) ChVarsNumGet() int {
+	vars, _ := ctx.ChVarsGet()
+	num := vars.Len()
+	return num
+}
+
+func (ctx *MsgContext) ChExists(name string) bool {
+	vars := ctx.LoadPlayerGlobalVars()
+	varName := "$ch:" + name
+
+	if _, exists := vars.ValueMap.Get(varName); exists {
+		return true
+	}
+	return false
+}
+
+func (ctx *MsgContext) ChGet(name string) lockfree.HashMap {
+	vars := ctx.LoadPlayerGlobalVars()
+	varName := "$ch:" + name
+
+	if _data, exists := vars.ValueMap.Get(varName); exists {
+		data := _data.(*VMValue)
+		mapData := make(map[string]*VMValue)
+		err := JsonValueMapUnmarshal([]byte(data.Value.(string)), &mapData)
+
+		if err == nil {
+			m := lockfree.NewHashMap()
+			for k, v := range mapData {
+				m.Set(k, v)
+			}
+			return m
+		}
+	}
+	return nil
+}
+
+// ChLoad 加载角色，成功返回角色表，失败返回nil
+func (ctx *MsgContext) ChLoad(name string) lockfree.HashMap {
+	m := ctx.ChGet(name)
+	if m != nil {
+		ctx.Player.Name = name
+		ctx.Player.Vars.ValueMap = m
+		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+		return m
+	}
+	return nil
+}
+
+// ChNew 新建角色
+func (ctx *MsgContext) ChNew(name string) bool {
+	vars := ctx.LoadPlayerGlobalVars()
+	varName := "$ch:" + name
+
+	if _, exists := vars.ValueMap.Get(varName); exists {
+		return false
+	}
+
+	vars.ValueMap.Set(varName, &VMValue{
+		VMTypeString,
+		"{}",
+	})
+
+	vars.LastWriteTime = time.Now().Unix()
+	return true
+}
+
+func (ctx *MsgContext) ChBindCur(name string) bool {
+	// 绑卡过程:
+	// 全局变量 $:group-bind:群号  = 卡片名 // 至少需要保留一个，用于序列化，VMValue
+	// 全局变量 $:ch-bind-data:角色  = 卡片数据 // 不序列化
+	// 全局变量 $:ch-bind-mtime:角色 = 时间 // 卡片被修改时，不序列化
+	// 个人群内 $:card = 卡片数据 // 不序列化
+	// 个人群内 $:cardBindMark = 1 // 标记
+	// 卡片数据中存放卡片名称，不序列化的部分，在加载个人全局变量时临时生成
+	vars := ctx.LoadPlayerGlobalVars()
+	key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
+
+	// 如果已经绑定过，继续用
+	var m lockfree.HashMap
+	_m, exists := vars.ValueMap.Get(key2)
+	if exists {
+		m, _ = _m.(lockfree.HashMap)
+	} else {
+		// 如果不存在，整一份新的
+		m = ctx.ChGet(name)
+	}
+
+	if m != nil {
+		m.Set("$:cardName", &VMValue{VMTypeString, name}) // 防止出事，覆盖一次
+		vars.ValueMap.Set(key2, m)                        // 同上，$:ch-bind-data:角色 = 数据
+
+		// $:group-bind:群号  = 卡片名
+		key := fmt.Sprintf("$:group-bind:%s", ctx.Group.GroupId)
+		vars.ValueMap.Set(key, &VMValue{VMTypeString, name})
+
+		// $:card = 卡片数据
+		ctx.Player.Vars.ValueMap.Set("$:card", m)
+		ctx.Player.Vars.ValueMap.Set("$:cardBindMark", &VMValue{VMTypeInt64, 1})
+		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+		ctx.Player.Name = name
+		return true
+	}
+	return false
+}
+
+func (ctx *MsgContext) ChUnbindCur() bool {
+	if _, exists := ctx.Player.Vars.ValueMap.Get("$:card"); exists {
+		vars := ctx.LoadPlayerGlobalVars()
+		key := fmt.Sprintf("$:group-bind:%s", ctx.Group.GroupId)
+		vars.ValueMap.Del(key)
+
+		ctx.Player.Vars.ValueMap.Del("$:card")
+		ctx.Player.Vars.ValueMap.Del("$:cardBindMark")
+		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+		return true
+	}
+	return false
+}
+
+// ChBindCurGet 获取当前群绑定角色
+func (ctx *MsgContext) ChBindCurGet() string {
+	if _card, exists := ctx.Player.Vars.ValueMap.Get("$:card"); exists {
+		if card, ok := _card.(lockfree.HashMap); ok {
+			if _v, ok := card.Get("$:cardName"); ok {
+				if v, ok := _v.(*VMValue); ok {
+					name, _ := v.ReadString()
+					return name
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// ChBindGet 获取一个正在绑定状态的卡，可用于是否绑卡检测
+func (ctx *MsgContext) ChBindGet(name string) lockfree.HashMap {
+	vars := ctx.LoadPlayerGlobalVars()
+	key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
+
+	var m lockfree.HashMap
+	_m, exists := vars.ValueMap.Get(key2)
+	if exists {
+		m, _ = _m.(lockfree.HashMap)
+		if m != nil {
+			return m
+		}
+	}
+
+	return nil
+}
+
+// ChUnbind 解除某个角色的绑定
+func (ctx *MsgContext) ChUnbind(name string) []string {
+	lst := ctx.ChBindGetList(name)
+	for _, groupId := range lst {
+		g := ctx.Session.ServiceAtNew[groupId]
+		p := g.Players[ctx.Player.UserId]
+		if !p.Vars.Loaded {
+			LoadPlayerGroupVars(ctx.Dice, g, p)
+		}
+		p.Vars.ValueMap.Del("$:card")
+		p.Vars.ValueMap.Del("$:cardBindMark")
+		p.Vars.LastWriteTime = time.Now().Unix()
+	}
+	return lst
+}
+
+func (ctx *MsgContext) ChBindGetList(name string) []string {
+	vars := ctx.LoadPlayerGlobalVars()
+	groups := map[string]bool{}
+	_ = vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+		k := _k.(string)
+		if v, ok := _v.(*VMValue); ok {
+			if strings.HasPrefix(k, "$:group-bind:") {
+				if val, _ := v.ReadString(); val == name {
+					groups[k[len("$:group-bind:"):]] = true
+				}
+			}
+		}
+		return nil
+	})
+	grps := []string{}
+	for k, _ := range groups {
+		grps = append(grps, k)
+	}
+	return grps
 }

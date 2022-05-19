@@ -184,7 +184,7 @@ var emokloreAttrParent = map[string][]string{
 	"射击":   []string{"灵巧", "五感"},
 	"耐久":   []string{"身体"},
 	"毅力":   []string{"精神"},
-	"医学":   []string{"灵巧", "知力"},
+	"医术":   []string{"灵巧", "知力"},
 	"技巧":   []string{"灵巧"},
 	"艺术":   []string{"灵巧", "精神", "五感"},
 	"操纵":   []string{"灵巧", "五感", "知力"},
@@ -368,7 +368,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 
 				txt := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`(?:([^+\-\s\d]+)\s*(\d+)?|(\d+))\s*(?:([+\-])\s*(\d+))?`)
+				re := regexp.MustCompile(`(?:([^+\-\s\d]+)(\d+)?|(\d+))\s*(?:([+\-])\s*(\d+))?`)
 				m := re.FindStringSubmatch(txt)
 				if len(m) > 0 {
 					// 读取技能名字和等级
@@ -435,8 +435,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 										// 种类1: 技能+属性
 										restText += " + " + maxName
 									case 2:
-										// 种类2: 技能+属性/2[向上取整]
-										restText += fmt.Sprintf(" + (%s+1)/2", maxName)
+										// 种类2: 属性/2[向上取整]
+										restText = fmt.Sprintf("(%s+1)/2", maxName)
 									case 3:
 										// 种类3: 属性
 										restText = maxName
@@ -492,10 +492,28 @@ func RegisterBuiltinExtFun(self *Dice) {
 								detail = "{" + detail + "}"
 							}
 
+							checkText := ""
+							switch {
+							case successDegrees < 0:
+								checkText = "大失败"
+							case successDegrees == 0:
+								checkText = "失败"
+							case successDegrees == 1:
+								checkText = "通常成功"
+							case successDegrees == 2:
+								checkText = "有效成功"
+							case successDegrees == 3:
+								checkText = "极限成功"
+							case successDegrees >= 10:
+								checkText = "灾难成功"
+							case successDegrees >= 4:
+								checkText = "奇迹成功"
+							}
+
 							text := fmt.Sprintf("<%s>的“%s”共鸣性怪异规则检定:\n", ctx.Player.Name, showName)
 							text += detailPool
 							text += fmt.Sprintf("判定值: %d%s\n", checkVal, detail)
-							text += fmt.Sprintf("成功数: %d\n", successDegrees)
+							text += fmt.Sprintf("成功数: %d[%s]\n", successDegrees, checkText)
 
 							ReplyToSender(ctx, msg, text)
 						}
@@ -536,8 +554,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 				var ss []string
 				for i = 0; i < val; i++ {
 					randMap := map[int64]bool{}
-					for j := 0; j < 7; j++ {
-						n := DiceRoll64(25)
+					for j := 0; j < 6; j++ {
+						n := DiceRoll64(24)
 						if randMap[n] {
 							j-- // 如果已经存在，重新roll
 						} else {
@@ -554,13 +572,45 @@ func RegisterBuiltinExtFun(self *Dice) {
 					last := int64(25)
 					nums2 := []interface{}{}
 					for _, j := range nums {
-						val := last - j + 1
+						val := last - j
 						last = j
 						nums2 = append(nums2, val)
 					}
+					nums2 = append(nums2, last)
+
+					// 过滤大于6的
+					for {
+						// 遍历找出一个大于6的
+						isGT6 := false
+						var rest int64
+						for index, _j := range nums2 {
+							j := _j.(int64)
+							if j > 6 {
+								isGT6 = true
+								rest = j - 6
+								nums2[index] = int64(6)
+								break
+							}
+						}
+
+						if isGT6 {
+							for index, _j := range nums2 {
+								j := _j.(int64)
+								if j < 6 {
+									nums2[index] = j + rest
+									break
+								}
+							}
+						} else {
+							break
+						}
+					}
+					rand.Shuffle(len(nums2), func(i, j int) {
+						nums2[i], nums2[j] = nums2[j], nums2[i]
+					})
 
 					text := fmt.Sprintf("身体:%d 灵巧:%d 精神:%d 五感:%d 知力:%d 魅力:%d 社会:%d", nums2...)
-					text += fmt.Sprintf(" 运势:%d", DiceRoll64(6))
+					text += fmt.Sprintf(" 运势:%d hp:%d mp:%d", DiceRoll64(6), nums2[0].(int64)+10, nums2[2].(int64)+nums2[4].(int64))
 
 					ss = append(ss, text)
 				}
@@ -625,8 +675,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:            "fun", // 扩展的名称，需要用于指令中，写简短点
-		Version:         "1.0.0",
-		Brief:           "娱乐扩展，目前提供今日人品和智能鸽子",
+		Version:         "1.1.0",
+		Brief:           "娱乐扩展，主要提供今日人品、智能鸽子和text指令，以及暂时用于放置小众规则指令",
 		AutoActive:      true, // 是否自动开启
 		ActiveOnPrivate: true,
 		Author:          "木落",
@@ -636,8 +686,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 		OnLoad: func() {
 		},
-		GetDescText: func(i *ExtInfo) string {
-			return "> " + i.Brief + "\n" + "提供命令:\n.gugu / .咕咕  // 获取一个随机的咕咕理由, .gugu来源可以看到作者\n.jrrp 今日人品"
+		GetDescText: func(ei *ExtInfo) string {
+			return GetExtensionDesc(ei)
 		},
 		CmdMap: CmdMapCls{
 			"gugu":  &cmdGugu,

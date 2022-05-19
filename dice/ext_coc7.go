@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 var fearListText = `
@@ -847,10 +845,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					var failed []string
 
 					doDelete := func(varname string) {
-						_, ok := mctx.Player.Vars.ValueMap.Get(varname)
+						vars, _ := mctx.ChVarsGet()
+						_, ok := vars.Get(varname)
 						if ok {
 							nums = append(nums, varname)
-							mctx.Player.Vars.ValueMap.Del(varname)
+							vars.Del(varname)
 						} else {
 							failed = append(failed, varname)
 						}
@@ -860,7 +859,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						doDelete(varname)
 					}
 					if len(nums) > 0 {
-						mctx.Player.Vars.LastWriteTime = time.Now().Unix()
+						mctx.ChVarsUpdateTime()
 					}
 
 					//text := fmt.Sprintf("<%s>的如下属性被成功删除:%s，失败%d项\n", p.Name, nums, len(failed))
@@ -868,10 +867,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_删除"))
 				} else if cmdArgs.IsArgEqual(1, "clr", "clear") {
-					p := mctx.Player
-					num := p.Vars.ValueMap.Len()
-					p.Vars.ValueMap = lockfree.NewHashMap()
-					p.Vars.LastWriteTime = time.Now().Unix()
+					num := mctx.ChVarsClear()
 					VarSetValueInt64(mctx, "$t数量", int64(num))
 					//text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_清除"))
@@ -905,7 +901,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					}
 
 					tick := 0
-					if p.Vars.ValueMap.Len() == 0 {
+					if ctx.ChVarsNumGet() == 0 {
 						info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
 					} else {
 						// 按照配置文件排序
@@ -924,7 +920,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						topNum := len(attrKeys)
 						attrKeys2 := []string{}
 
-						_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+						vars, _ := ctx.ChVarsGet()
+						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
 							attrKeys2 = append(attrKeys2, _k.(string))
 							return nil
 						})
@@ -943,7 +940,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								continue
 							}
 							var v *VMValue
-							_v, exists := p.Vars.ValueMap.Get(k)
+							_v, exists := vars.Get(k)
 							if !exists {
 								// 不存在的值，强行补0
 								v = &VMValue{VMTypeInt64, int64(0)}
@@ -993,7 +990,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					m := re1.FindStringSubmatch(cmdArgs.CleanArgs)
 					if len(m) > 0 {
 						p := mctx.Player
-						val, exists := p.GetValueInt64(m[1], ac.Alias)
+
+						name := p.GetValueNameByAlias(m[1], ac.Alias)
+						val, exists := VarGetValueInt64(ctx, name)
 						if !exists {
 							text := fmt.Sprintf("<%s>: 无法找到名下属性 %s，不能作出修改", p.Name, m[1])
 							ReplyToSender(mctx, msg, text)
@@ -1011,7 +1010,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									signText = "扣除"
 									newVal = val - rightVal
 								}
-								p.SetValueInt64(m[1], newVal, ac.Alias)
+								name := p.GetValueNameByAlias(m[1], ac.Alias)
+								VarSetValueInt64(ctx, name, newVal)
 
 								//text := fmt.Sprintf("<%s>的“%s”变化: %d ➯ %d (%s%s=%d)\n", p.Name, m[1], val, newVal, signText, m[3], rightVal)
 								VarSetValueStr(mctx, "$t属性", m[1])
@@ -1090,7 +1090,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							if k != name {
 								synonymsCount += 1
 							}
-							p.SetValueInt64(name, v, ac.Alias)
+
+							VarSetValueInt64(ctx, name, v)
 						}
 
 						if len(m) == 0 {
@@ -1545,7 +1546,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								sanNew = 0
 							}
 
-							mctx.Player.SetValueInt64("理智", sanNew, ac.Alias)
+							name := ctx.Player.GetValueNameByAlias("理智", ac.Alias)
+							VarSetValueInt64(ctx, name, sanNew)
 
 							//输出结果
 							offset := san - sanNew

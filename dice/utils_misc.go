@@ -72,3 +72,10 @@ func (v *VMValue) ReadInt64() (int64, bool) {
 	}
 	return 0, false
 }
+
+func (v *VMValue) ReadString() (string, bool) {
+	if v.TypeId == VMTypeString {
+		return v.Value.(string), true
+	}
+	return "", false
+}

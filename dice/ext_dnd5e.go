@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"math"
@@ -316,10 +315,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, "属性导出(注意，人物基础属性的熟练还不能支持):\n"+strings.Join(texts, " "))
 
 				case "clr", "clear":
-					p := mctx.Player
-					num := p.Vars.ValueMap.Len()
-					p.Vars.ValueMap = lockfree.NewHashMap()
-					p.Vars.LastWriteTime = time.Now().Unix()
+					num := mctx.ChVarsClear()
 					VarSetValueInt64(mctx, "$t数量", int64(num))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_清除"))
 
