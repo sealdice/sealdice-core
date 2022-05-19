@@ -726,6 +726,13 @@ func (d *Dice) registerCoreCommands() {
 							ReplyToSender(ctx, msg, "开始下载新版本")
 							go func() {
 								ret := <-dm.UpdateDownloadedChan
+
+								if ctx.IsPrivate {
+									ctx.Dice.UpgradeWindowId = msg.Sender.UserId
+								} else {
+									ctx.Dice.UpgradeWindowId = ctx.Group.GroupId
+								}
+
 								if ret == "" {
 									ReplyToSender(ctx, msg, "准备开始升级，服务即将离线")
 								} else {
@@ -989,7 +996,8 @@ func (d *Dice) registerCoreCommands() {
 					text = DiceFormatTmpl(ctx, "核心:骰点")
 				}
 
-				isHide := cmdArgs.Command == "rh" || cmdArgs.Command == "rhd"
+				//isHide := cmdArgs.Command == "rh" || cmdArgs.Command == "rhd"
+				isHide := cmdArgs.Command[len(cmdArgs.Command)-1] == 'h'
 
 				// 指令信息
 				commandInfo := map[string]interface{}{
@@ -1347,7 +1355,7 @@ func (d *Dice) registerCoreCommands() {
 		".pc save <角色名> // [不绑卡]保存角色，角色名可省略\n" +
 		".pc load <角色名> // [不绑卡]加载角色\n" +
 		".pc del/rm <角色名> // 删除角色\n" +
-		"> 注: 海豹设定是每个群各一张空白卡，而非全局只有一张空白卡。" // > 普通模组执行nn, st后直接跑即可。跑完若想保存角色用pc save存卡。
+		"> 注: 海豹各群数据独立(多张空白卡)，单群游戏不需要存角色。" // > 普通模组执行nn, st后直接跑即可。跑完若想保存角色用pc save存卡。
 	cmdChar := &CmdItemInfo{
 		Name:     "ch",
 		Help:     helpCh,
@@ -1357,7 +1365,7 @@ func (d *Dice) registerCoreCommands() {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
 					return CmdExecuteResult{Matched: false, Solved: false}
 				}
-				cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "group", "grp")
+				cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "group1", "grp1")
 
 				getNickname := func() string {
 					name, _ := cmdArgs.GetArgN(2)

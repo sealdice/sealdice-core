@@ -291,6 +291,7 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 			if strings.HasPrefix(k, "$:group-bind:") {
 				//needToLoad[k[len("$:group-bind:"):]] = true
 				name, _ := v.ReadString()
+				//fmt.Println("@@@@@@@@", k, name, v)
 				if name != "" {
 					needToLoad[name] = true
 				}
@@ -311,7 +312,9 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 					for k, v := range chData {
 						m.Set(k, v)
 					}
+
 					// $:ch-bind-data:角色
+					m.Set("$:cardName", &VMValue{VMTypeString, name}) // 防止出事，覆盖一次
 					vd.ValueMap.Set("$:ch-bind-data:"+name, m)
 				}
 			}
@@ -340,6 +343,7 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 
 		// QQ-Group:131687852-QQ:303451945
 		data := model.AttrGroupUserGetAll(dice.DB, group.GroupId, player.UserId)
+		//fmt.Println("???", group.GroupId, string(data))
 		if len(data) > 0 {
 			mapData := make(map[string]*VMValue)
 			err := JsonValueMapUnmarshal(data, &mapData)
@@ -364,6 +368,8 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 								//	fmt.Println("XXXXXX", _k, _v)
 								//	return nil
 								//})
+
+								m.Set("$:cardName", &VMValue{VMTypeString, name}) // 防止出事，覆盖一次
 								player.Vars.ValueMap.Set("$:card", m)
 							}
 						}

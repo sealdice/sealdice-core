@@ -1020,6 +1020,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								VarSetValueStr(mctx, "$t增加或扣除", signText)
 								VarSetValueStr(mctx, "$t表达式文本", v.Matched)
 								VarSetValueInt64(mctx, "$t变化量", rightVal)
+
+								tip := DiceFormatTmpl(mctx, "COC:属性设置_保存提醒")
+								if mctx.ChBindCurGet() == "" {
+									VarSetValueStr(mctx, "$t保存提醒", tip)
+								} else {
+									VarSetValueStr(mctx, "$t保存提醒", "")
+								}
+
 								text := DiceFormatTmpl(mctx, "COC:属性设置_增减")
 
 								// 指令信息
@@ -1212,6 +1220,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								VarSetValue(ctx, "$t增量", &r.VMValue)
 								VarSetValue(ctx, "$t新值", nv)
 								VarSetValue(ctx, varName, nv)
+
+								tip := DiceFormatTmpl(ctx, "COC:属性设置_保存提醒")
+								if ctx.ChBindCurGet() == "" {
+									VarSetValueStr(ctx, "$t保存提醒", tip)
+								} else {
+									VarSetValueStr(ctx, "$t保存提醒", "")
+								}
+
 								VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "COC:技能成长_结果_成功"))
 							} else {
 								// 如果失败
@@ -1232,6 +1248,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									VarSetValue(ctx, "$t增量", &r.VMValue)
 									VarSetValue(ctx, "$t新值", nv)
 									VarSetValue(ctx, varName, nv)
+
+									tip := DiceFormatTmpl(ctx, "COC:属性设置_保存提醒")
+									if ctx.ChBindCurGet() == "" {
+										VarSetValueStr(ctx, "$t保存提醒", tip)
+									} else {
+										VarSetValueStr(ctx, "$t保存提醒", "")
+									}
+
 									VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "COC:技能成长_结果_失败变更"))
 								}
 

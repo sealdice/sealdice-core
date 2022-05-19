@@ -673,10 +673,10 @@ func (ctx *MsgContext) ChVarsGet() (lockfree.HashMap, bool) {
 		card, ok := _card.(lockfree.HashMap)
 		if ok {
 			// 绑卡
-			card.Iterate(func(_k interface{}, _v interface{}) error {
-				fmt.Println("????", _k, _v)
-				return nil
-			})
+			//card.Iterate(func(_k interface{}, _v interface{}) error {
+			//	fmt.Println("????", _k, _v)
+			//	return nil
+			//})
 			return card, true
 		}
 	}
@@ -697,6 +697,7 @@ func (ctx *MsgContext) ChVarsUpdateTime() {
 						vars := ctx.LoadPlayerGlobalVars()
 						key := fmt.Sprintf("$:ch-bind-mtime:%s", name)
 						vars.ValueMap.Set(key, time.Now().Unix())
+						vars.LastWriteTime = time.Now().Unix()
 					}
 				}
 			}
@@ -832,6 +833,8 @@ func (ctx *MsgContext) ChBindCur(name string) bool {
 		// $:group-bind:群号  = 卡片名
 		key := fmt.Sprintf("$:group-bind:%s", ctx.Group.GroupId)
 		vars.ValueMap.Set(key, &VMValue{VMTypeString, name})
+		//fmt.Println("$$$$$$$$$$$$$$", key)
+		vars.LastWriteTime = time.Now().Unix()
 
 		// $:card = 卡片数据
 		ctx.Player.Vars.ValueMap.Set("$:card", m)
@@ -861,6 +864,7 @@ func (ctx *MsgContext) ChUnbindCur() bool {
 			vars := ctx.LoadPlayerGlobalVars()
 			key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
 			vars.ValueMap.Del(key2)
+			vars.LastWriteTime = time.Now().Unix()
 		}
 
 		return true
@@ -883,7 +887,7 @@ func (ctx *MsgContext) ChBindCurGet() string {
 	return ""
 }
 
-// ChBindGet 获取一个正在绑定状态的卡，可用于是否绑卡检测
+// ChBindGet 获取一个正在绑定状态的卡，可用于该卡片是否绑卡检测
 func (ctx *MsgContext) ChBindGet(name string) lockfree.HashMap {
 	vars := ctx.LoadPlayerGlobalVars()
 	key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
@@ -903,7 +907,6 @@ func (ctx *MsgContext) ChBindGet(name string) lockfree.HashMap {
 // ChUnbind 解除某个角色的绑定
 func (ctx *MsgContext) ChUnbind(name string) []string {
 	lst := ctx.ChBindGetList(name)
-	fmt.Println("????", lst)
 	for _, groupId := range lst {
 		g := ctx.Session.ServiceAtNew[groupId]
 		p := g.Players[ctx.Player.UserId]
@@ -920,6 +923,7 @@ func (ctx *MsgContext) ChUnbind(name string) []string {
 		vars := ctx.LoadPlayerGlobalVars()
 		key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
 		vars.ValueMap.Del(key2)
+		vars.LastWriteTime = time.Now().Unix()
 	}
 
 	return lst

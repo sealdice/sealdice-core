@@ -14,6 +14,7 @@ type VersionInfo struct {
 	VersionLatest           string `yaml:"versionLatest" json:"versionLatest"`
 	VersionLatestDetail     string `yaml:"versionLatestDetail" json:"versionLatestDetail"`
 	VersionLatestCode       int64  `yaml:"versionLatestCode" json:"versionLatestCode"`
+	VersionLatestNote       string `yaml:"versionLatestNote" json:"versionLatestNote"`
 	MinUpdateSupportVersion int64  `yaml:"minUpdateSupportVersion" json:"minUpdateSupportVersion"`
 }
 

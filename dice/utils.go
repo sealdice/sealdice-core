@@ -182,10 +182,12 @@ func ReadCardType(mctx *MsgContext, curType string) string {
 	if exists {
 		cardType = vCardType.ToString()
 	} else {
-		cardType = "coc7"
+		cardType = ""
 	}
-	if cardType != curType {
-		extra = fmt.Sprintf("\n这似乎是一张 %s 人物卡，请确认当前游戏类型", cardType)
+	if cardType != "" {
+		if cardType != curType {
+			extra = fmt.Sprintf("\n这似乎是一张 %s 人物卡，请确认当前游戏类型", cardType)
+		}
 	}
 	return extra
 }

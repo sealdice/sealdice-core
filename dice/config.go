@@ -205,7 +205,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`{$t玩家}的属性数据已经清除，共计{$t数量}条`, 1},
 			},
 			"属性设置_增减": {
-				{"{$t玩家}的“{$t属性}”变化: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})\n{COC:属性设置_保存提醒}", 1},
+				{"{$t玩家}的“{$t属性}”变化: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})\n{$t保存提醒}", 1},
 			},
 			"属性设置_增减_错误的值": {
 				{`"{$t玩家}: 错误的增减值: {$t表达式文本}"`, 1},
@@ -244,13 +244,13 @@ func setupBaseTextTemplate(d *Dice) {
 				{"{COC:技能成长_导入语}\n你没有使用st录入这个属性，或在en指令中指定属性的值", 1},
 			},
 			"技能成长_结果_成功": {
-				{"“{$t技能}”增加了{$t表达式文本}={$t增量}点，当前为{$t新值}点\n{COC:属性设置_保存提醒}", 1},
+				{"“{$t技能}”增加了{$t表达式文本}={$t增量}点，当前为{$t新值}点\n{$t保存提醒}", 1},
 			},
 			"技能成长_结果_失败": {
 				{"“{$t技能}”成长失败了！", 1},
 			},
 			"技能成长_结果_失败变更": {
-				{"“{$t技能}”变化{$t表达式文本}={$t增量}点，当前为{$t新值}点\n{COC:属性设置_保存提醒}", 1},
+				{"“{$t技能}”变化{$t表达式文本}={$t增量}点，当前为{$t新值}点\n{$t保存提醒}", 1},
 			},
 			"技能成长": {
 				{"{COC:技能成长_导入语}\nD100={$tD100}/{$t判定值} {$t判定结果}\n{$t结果文本}", 1},
@@ -1131,6 +1131,7 @@ func (d *Dice) loads() {
 			d.CustomReplyConfigEnable = dNew.CustomReplyConfigEnable
 			d.RefuseGroupInvite = dNew.RefuseGroupInvite
 			d.DefaultCocRuleIndex = dNew.DefaultCocRuleIndex
+			d.UpgradeWindowId = dNew.UpgradeWindowId
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
@@ -1507,6 +1508,9 @@ func (d *Dice) Save(isAuto bool) {
 							})
 							//fmt.Println("XXXXXXX", varName, string(val))
 						}
+					} else {
+						// 过期了，可能该角色已经被删除
+						v.ValueMap.Del("$:ch-bind-data:" + name)
 					}
 				}
 			}

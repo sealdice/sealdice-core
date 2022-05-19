@@ -18,7 +18,7 @@ import (
 
 var APPNAME = "SealDice"
 var VERSION = "1.0.0rc2dev v20220519"
-var VERSION_CODE = int64(1000001) // 991404
+var VERSION_CODE = int64(1000002) // 991404
 
 type CmdExecuteResult struct {
 	Matched       bool // 是否是指令
@@ -119,6 +119,7 @@ type Dice struct {
 	CustomReplyConfig       []*ReplyConfig         `yaml:"-"`
 	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"` // 启用自动重新登录
 	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"` // 拒绝加入新群
+	UpgradeWindowId         string                 `yaml:"upgradeWindowId"`   // 执行升级指令的窗口
 
 	HelpMasterInfo      string `yaml:"helpMasterInfo"`      // help中骰主信息
 	HelpMasterLicense   string `yaml:"helpMasterLicense"`   // help中使用协议
