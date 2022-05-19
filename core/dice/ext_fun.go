@@ -622,6 +622,75 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
+	readNumber := func(text string, extra string) string {
+		if text == "" {
+			return ""
+		}
+		re0 := regexp.MustCompile(`^((\d+)[dDcCaA]|[bBpPfF])(.*)`)
+		if re0.MatchString(text) {
+			// 这种不需要管，是合法的表达式
+			return text
+		}
+
+		re := regexp.MustCompile(`^(\d+)(.*)`)
+		m := re.FindStringSubmatch(text)
+		if len(m) > 0 {
+			var rest string
+			if len(m) > 2 {
+				rest = m[2]
+			}
+			// 数字 a10 剩下部分
+			return fmt.Sprintf("%s%s%s", m[1], extra, rest)
+		}
+
+		return text
+	}
+
+	cmdDX := CmdItemInfo{
+		Name:     "dx",
+		Help:     ".dx 3c4",
+		LongHelp: "双重十字规则骰点:\n.dx 3c4 // 推荐使用.r 3c4替代",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				txt := readNumber(cmdArgs.CleanArgs, "c10")
+				if txt == "" {
+					txt = "1c10"
+					cmdArgs.Args = []string{txt}
+				}
+				cmdArgs.CleanArgs = txt
+			}
+			roll := ctx.Dice.CmdMap["roll"]
+			return roll.Solve(ctx, msg, cmdArgs)
+		},
+	}
+
+	cmdWW := CmdItemInfo{
+		Name:     "ww",
+		Help:     ".ww 10a5\n.ww 10",
+		LongHelp: "WOD/无限规则骰点:\n.ww 10a5 // 推荐使用.r 10a5替代\n.ww 10",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
+				txt := readNumber(cmdArgs.CleanArgs, "a10")
+				if txt == "" {
+					txt = "10a10"
+					cmdArgs.Args = []string{txt}
+				}
+				cmdArgs.CleanArgs = txt
+			}
+
+			roll := ctx.Dice.CmdMap["roll"]
+			return roll.Solve(ctx, msg, cmdArgs)
+		},
+	}
+
 	textHelp := ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}"
 	cmdText := CmdItemInfo{
 		Name:     "text",
@@ -697,6 +766,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"rsr":   &cmdRsr,
 			"ek":    &cmdEk,
 			"ekgen": &cmdEkgen,
+			"dx":    &cmdDX,
+			"w":     &cmdWW,
+			"ww":    &cmdWW,
+			"dxh":   &cmdDX,
+			"wh":    &cmdWW,
+			"wwh":   &cmdWW,
 		},
 	})
 }

@@ -3,15 +3,20 @@ package api
 import (
 	"github.com/labstack/echo/v4"
 	"net/http"
+	"time"
 )
 
 func upgrade(c echo.Context) error {
 	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
+		return c.JSON(http.StatusForbidden, "auth")
 	}
+
+	dm.UpdateCheckRequestChan <- 1
+	time.Sleep(3 * time.Second) // 等待1s，应该能够取得新版本了。如果获取失败也不至于卡住
 
 	if dm.AppVersionOnline != nil {
 		if dm.AppVersionOnline.VersionLatestCode != dm.AppVersionCode {
+			dm.UpdateRequestChan <- 1
 			ret := <-dm.UpdateDownloadedChan
 			if ret == "" {
 				dm.UpdateRequestChan <- 1

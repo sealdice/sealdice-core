@@ -55,14 +55,14 @@ func groupSetOne(c echo.Context) error {
 		_, exists := myDice.ImSession.ServiceAtNew[v.GroupId]
 		if exists {
 			for _, ep := range myDice.ImSession.EndPoints {
-				if ep.UserId == v.DiceId {
-					ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep, Session: myDice.ImSession}
-					if v.Active {
-						dice.SetBotOnAtGroup(ctx, v.GroupId)
-					} else {
-						dice.SetBotOffAtGroup(ctx, v.GroupId)
-					}
+				//if ep.UserId == v.DiceId {
+				ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep, Session: myDice.ImSession}
+				if v.Active {
+					dice.SetBotOnAtGroup(ctx, v.GroupId)
+				} else {
+					dice.SetBotOffAtGroup(ctx, v.GroupId)
 				}
+				//}
 			}
 		}
 		return c.String(http.StatusOK, "")

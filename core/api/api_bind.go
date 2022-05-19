@@ -33,24 +33,28 @@ func baseInfo(c echo.Context) error {
 	//	m.StackSys/meg)
 
 	var versionNew string
+	var versionNewNote string
 	if dm.AppVersionOnline != nil {
 		versionNew = dm.AppVersionOnline.VersionLatestDetail
+		versionNewNote = dm.AppVersionOnline.VersionLatestNote
 	}
 
 	return c.JSON(http.StatusOK, struct {
-		AppName       string `json:"appName"`
-		Version       string `json:"version"`
-		VersionNew    string `json:"versionNew"`
-		MemoryAlloc   uint64 `json:"memoryAlloc"`
-		Uptime        int64  `json:"uptime"`
-		MemoryUsedSys uint64 `json:"memoryUsedSys"`
+		AppName        string `json:"appName"`
+		Version        string `json:"version"`
+		VersionNew     string `json:"versionNew"`
+		versionNewNote string `json:"versionNewNote"`
+		MemoryAlloc    uint64 `json:"memoryAlloc"`
+		Uptime         int64  `json:"uptime"`
+		MemoryUsedSys  uint64 `json:"memoryUsedSys"`
 	}{
-		AppName:       dice.APPNAME,
-		Version:       dice.VERSION,
-		VersionNew:    versionNew,
-		MemoryAlloc:   m.Alloc,
-		MemoryUsedSys: m.Sys,
-		Uptime:        time.Now().Unix() - startTime,
+		AppName:        dice.APPNAME,
+		Version:        dice.VERSION,
+		VersionNew:     versionNew,
+		versionNewNote: versionNewNote,
+		MemoryAlloc:    m.Alloc,
+		MemoryUsedSys:  m.Sys,
+		Uptime:         time.Now().Unix() - startTime,
 	})
 }
 
