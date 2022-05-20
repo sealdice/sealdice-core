@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type RIListItem struct {
@@ -133,7 +132,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 
 func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Regexp) map[string]string {
 	exportMap := map[string]string{}
-	m := mctx.Player.Vars.ValueMap
+	m, _ := mctx.ChVarsGet()
 
 	f := func(_k interface{}, _v interface{}) error {
 		k := _k.(string)
@@ -257,6 +256,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				val, _ := cmdArgs.GetArgN(1)
 				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 				mctx.Player.TempValueAlias = &ac.Alias
+				chVars, _ := mctx.ChVarsGet()
 
 				switch val {
 				case "模板":
@@ -271,18 +271,18 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					var failed []string
 
 					for _, varname := range cmdArgs.Args[1:] {
-						_, ok := mctx.Player.Vars.ValueMap.Get(varname)
+						_, ok := chVars.Get(varname)
 						if ok {
 							nums = append(nums, varname)
-							mctx.Player.Vars.ValueMap.Del(varname)
-							mctx.Player.Vars.LastWriteTime = 0
+							chVars.Del(varname)
+							mctx.ChVarsUpdateTime()
 						} else {
 							failed = append(failed, varname)
 						}
 					}
 
 					if len(nums) > 0 {
-						mctx.Player.Vars.LastWriteTime = time.Now().Unix()
+						mctx.ChVarsUpdateTime()
 					}
 
 					VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
@@ -369,7 +369,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 
 					tick := 0
-					if p.Vars.ValueMap.Len() == 0 {
+					if chVars.Len() == 0 {
 						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 					} else {
 						// 按照配置文件排序
@@ -388,7 +388,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						topNum := len(attrKeys)
 						attrKeys2 := []string{}
 
-						_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+						_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
 							k := _k.(string)
 							attrKeys2 = append(attrKeys2, k)
 							return nil
@@ -416,7 +416,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 							var v *VMValue
 							var vRaw *VMValue
-							_vRaw, exists := p.Vars.ValueMap.Get(k)
+							_vRaw, exists := chVars.Get(k)
 							if !exists {
 								// 不存在的值，强行补0
 								v = &VMValue{VMTypeInt64, int64(0)}
@@ -790,6 +790,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				val, _ := cmdArgs.GetArgN(1)
 				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
+				chVars, _ := mctx.ChVarsGet()
+
 				switch val {
 				case "del", "rm":
 					var nums []string
@@ -797,17 +799,17 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					for _, rawVarname := range cmdArgs.Args[1:] {
 						varname := "$buff_" + rawVarname
-						_, ok := mctx.Player.Vars.ValueMap.Get(varname)
+						_, ok := chVars.Get(varname)
 						if ok {
 							nums = append(nums, rawVarname)
-							mctx.Player.Vars.ValueMap.Del(varname)
+							chVars.Del(varname)
 						} else {
 							failed = append(failed, varname)
 						}
 					}
 
 					if len(nums) > 0 {
-						mctx.Player.Vars.LastWriteTime = time.Now().Unix()
+						mctx.ChVarsUpdateTime()
 					}
 
 					VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
@@ -815,10 +817,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:BUFF设置_删除"))
 
 				case "clr", "clear":
-					p := mctx.Player
 
 					varNames := []string{}
-					_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+					_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
 						varname := _k.(string)
 						varname = "$buff_" + varname
 						varNames = append(varNames, varname)
@@ -828,18 +829,18 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					toDelete := []string{}
 					for _, varname := range varNames {
-						if _, exists := p.Vars.ValueMap.Get(varname); exists {
+						if _, exists := chVars.Get(varname); exists {
 							toDelete = append(toDelete, varname)
 						}
 					}
 
 					num := len(toDelete)
 					for _, varname := range toDelete {
-						p.Vars.ValueMap.Del(varname)
+						chVars.Del(varname)
 					}
 
 					if num > 0 {
-						p.Vars.LastWriteTime = time.Now().Unix()
+						mctx.ChVarsUpdateTime()
 					}
 
 					VarSetValueInt64(mctx, "$t数量", int64(num))
@@ -850,7 +851,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					var info string
 
 					attrKeys2 := []string{}
-					_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+					_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
 						k := _k.(string)
 						if strings.HasPrefix(k, "$buff_") {
 							attrKeys2 = append(attrKeys2, k)
@@ -860,7 +861,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					sort.Strings(attrKeys2)
 
 					tick := 0
-					if p.Vars.ValueMap.Len() == 0 {
+					if chVars.Len() == 0 {
 						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 					} else {
 						// 按照配置文件排序
@@ -877,7 +878,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						// 其余按字典序
 						attrKeys2 := []string{}
-						_ = p.Vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+						_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
 							k := _k.(string)
 							attrKeys2 = append(attrKeys2, k)
 							return nil
@@ -896,7 +897,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								continue
 							}
 							var v *VMValue
-							_v, exists := p.Vars.ValueMap.Get(k)
+							_v, exists := chVars.Get(k)
 							if !exists {
 								// 不存在的值，强行补0
 								v = &VMValue{VMTypeInt64, int64(0)}
@@ -1137,12 +1138,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 
 				case "clr":
-					vm := mctx.Player.Vars.ValueMap
+					chVars, _ := mctx.ChVarsGet()
 					for i := 1; i < 10; i += 1 {
-						vm.Del(fmt.Sprintf("$法术位_%d", i))
-						vm.Del(fmt.Sprintf("$法术位上限_%d", i))
+						chVars.Del(fmt.Sprintf("$法术位_%d", i))
+						chVars.Del(fmt.Sprintf("$法术位上限_%d", i))
 					}
-					mctx.Player.Vars.LastWriteTime = time.Now().Unix()
+					mctx.ChVarsUpdateTime()
 					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>法术位数据已清除`, mctx.Player.Name))
 
 				case "rest":
