@@ -846,8 +846,9 @@ func (ctx *MsgContext) ChBindCur(name string) bool {
 	return false
 }
 
-func (ctx *MsgContext) ChUnbindCur() bool {
+func (ctx *MsgContext) ChUnbindCur() (string, bool) {
 	if _, exists := ctx.Player.Vars.ValueMap.Get("$:card"); exists {
+		name := ctx.ChBindCurGet()
 		vars := ctx.LoadPlayerGlobalVars()
 		key := fmt.Sprintf("$:group-bind:%s", ctx.Group.GroupId)
 		vars.ValueMap.Del(key)
@@ -856,7 +857,6 @@ func (ctx *MsgContext) ChUnbindCur() bool {
 		ctx.Player.Vars.ValueMap.Del("$:cardBindMark")
 		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
 
-		name := ctx.ChBindCurGet()
 		lst := ctx.ChBindGetList(name)
 
 		if len(lst) == 0 {
@@ -867,9 +867,9 @@ func (ctx *MsgContext) ChUnbindCur() bool {
 			vars.LastWriteTime = time.Now().Unix()
 		}
 
-		return true
+		return name, true
 	}
-	return false
+	return "", false
 }
 
 // ChBindCurGet 获取当前群绑定角色
