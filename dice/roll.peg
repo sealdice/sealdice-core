@@ -139,7 +139,7 @@ bitwiseOr <- '|' sp
 logicOr <- '||' sp
 bitwiseAnd <- ('&' / '&amp;') sp
 logicAnd <- ('&&' / '&amp;&amp;') sp
-sp <- ( ' ' / '\t' / '\n' / '\r' )*
+sp <- ( ' ' / '\t' / '\n' / '\r' / ('//' [^\n]*) )*
 lt <- ('<' / '＜') sp
 gt <- ('>' / '＞') sp
 le <- ('<=' / '＜＝') sp
