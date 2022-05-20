@@ -5,7 +5,7 @@
     </div>
     <div style="text-align: left; line-height: 2rem; font-size: .8rem;">
       <div class="top-item"><span style="font-weight: 600;">当前版本: {{ store.curDice.baseInfo.version }}</span></div>
-      <!-- <div class="top-item"><span style="font-weight: 600;">最新版本: {{ store.curDice.baseInfo.version }}</span></div> -->
+      <div class="top-item"><span style="font-weight: 600;">最新版本: {{ store.curDice.baseInfo.versionNew }}</span></div>
       <div class="top-item" style="font-family: sans-serif;margin-top: 1rem;">官方网站: <el-link type="primary" target="_blank" href="https://www.sealdice.com">https://www.sealdice.com</el-link></div>
       <div class="top-item" style="font-family: sans-serif;">使用手册: <el-link type="primary" target="_blank" href="https://dice.weizaima.com/manual/">https://dice.weizaima.com/manual/</el-link></div>
       <div class="top-item">

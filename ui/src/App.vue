@@ -14,8 +14,11 @@
 
     <div
       :v-show="store.canAccess"
-      style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small;"
-    >{{ store.curDice.baseInfo.version }}</div>
+      style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small; text-align: right;"
+    >
+      <div>{{ store.curDice.baseInfo.version }}</div>
+      <div v-if="store.curDice.baseInfo.version !== store.curDice.baseInfo.versionNew">🆕{{store.curDice.baseInfo.versionNew}}</div>
+    </div>
 
     <div style="display: flex;">
       <div style="position: relative; background: #545c64">

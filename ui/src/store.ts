@@ -55,6 +55,8 @@ interface DiceServer {
 
 interface DiceBaseInfo {
   version: string
+  versionNew: string
+  versionNewNote: string
   memoryAlloc: number
   memoryUsedSys: number
   uptime: number
@@ -73,7 +75,7 @@ export const useStore = defineStore('main', {
 
       talkLogs: [
         {
-          content: '海豹，正在等待。',
+          content: '海豹，正在等待。\n设置中添加Master名为UI:1001\n即可在此界面使用master命令!',
           isSeal: true
         },
         {
@@ -87,7 +89,7 @@ export const useStore = defineStore('main', {
     curDice(): DiceServer {
       if (this.diceServers.length === 0) {
         this.diceServers.push({
-          baseInfo: { version: '0.0', memoryUsedSys: 0, memoryAlloc: 0, uptime: 0 },
+          baseInfo: { version: '0.0', versionNew: '0.0', memoryUsedSys: 0, memoryAlloc: 0, uptime: 0, versionNewNote: '' },
           customTexts: {},
           customTextsHelpInfo: {},
           logs: [],
@@ -246,6 +248,11 @@ export const useStore = defineStore('main', {
 
     async setCustomReply(data: any) {
       const info = await backend.post(urlPrefix+'/configs/custom_reply/save', data)
+      return info
+    },
+
+    async upgrade() {
+      const info = await backend.post(urlPrefix+'/dice/upgrade')
       return info
     },
 

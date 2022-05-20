@@ -182,6 +182,19 @@
       <el-checkbox label="开启" v-model="config.QQChannelLogMessage"/>
     </el-form-item>
 
+    <h2>游戏</h2>
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>COC默认房规</span>
+          <el-tooltip raw-content content="可设置为0-5，以及dg（DeltaGreen）">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-input v-model="config.defaultCocRuleIndex" clearable style="width: 14rem;" />
+    </el-form-item>
+
     <h2>其他</h2>
     <el-form-item label="加好友验证信息">
       <template #label>

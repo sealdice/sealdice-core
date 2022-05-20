@@ -172,7 +172,10 @@ const importRefresh = () => {
   const indent = !importImpact.value ? 2 : 0
   if (importOnlyCurrent.value) {
     configForImport.value = JSON.stringify({
-      [props.category]: store.curDice.customTexts[props.category]
+      title: '某人的自定义配置',
+      items: {
+        [props.category]: store.curDice.customTexts[props.category]
+      }
     }, null, indent)
   } else {
     configForImport.value = JSON.stringify(store.curDice.customTexts, null, indent)
@@ -182,8 +185,12 @@ const importRefresh = () => {
 const doImport = async () => {
   try {
     const data = JSON.parse(configForImport.value)
+    if (!(data.title && data.items)) {
+      ElMessage.error('格式不正确')
+      return
+    }
 
-    for (let [k, v] of Object.entries(data)) {
+    for (let [k, v] of Object.entries(data.items)) {
       if (store.curDice.customTexts[k]) {
         store.curDice.customTexts[k] = v as any
       }

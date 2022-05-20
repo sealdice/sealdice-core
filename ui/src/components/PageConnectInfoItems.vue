@@ -15,7 +15,7 @@
       <el-card class="box-card" style="margin-right: 1rem; margin-bottom: 1rem; position: relative">
         <template #header>
           <div class="card-header">
-            <span>{{i.nickname || '<未知>'}}({{i.userId}})</span>
+            <span style="word-break: break-all;">{{i.nickname || '<未知>'}}({{i.userId}})</span>
             <!-- <el-button class="button" type="text"  @click="doModify(i, index)">修改</el-button> -->
             <el-button class="button" type="text"  @click="doRemove(i)">删除</el-button>
           </div>

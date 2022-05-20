@@ -23,7 +23,7 @@
   <h2>已备份文件</h2>
   <div v-for="i in data.items" style="display: flex;" class="bak-item">
     <span style="flex: 1">{{ i.name }}</span>
-    <a :href="`${urlBase}/backup/download?name=${encodeURIComponent(i.name)}&token=${encodeURIComponent(store.token)}`" style="text-decoration: none">
+    <a :href="`${urlBase}/sd-api/backup/download?name=${encodeURIComponent(i.name)}&token=${encodeURIComponent(store.token)}`" style="text-decoration: none">
       <el-button style="width: 9rem;">下载 - {{ filesize(i.fileSize) }}</el-button>
     </a>
   </div>
