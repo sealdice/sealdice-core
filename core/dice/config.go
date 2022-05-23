@@ -1193,6 +1193,10 @@ func (d *Dice) loads() {
 			d.RefuseGroupInvite = dNew.RefuseGroupInvite
 			d.DefaultCocRuleIndex = dNew.DefaultCocRuleIndex
 			d.UpgradeWindowId = dNew.UpgradeWindowId
+			d.BotExtFreeSwitch = dNew.BotExtFreeSwitch
+			d.TrustOnlyMode = dNew.TrustOnlyMode
+			d.TimingNoticeEnable = dNew.TimingNoticeEnable
+			d.TimingNoticeValue = dNew.TimingNoticeValue
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
@@ -1369,6 +1373,10 @@ func (d *Dice) loads() {
 				d.CustomReplyConfigEnable = true
 			}
 
+			if d.VersionCode != 0 && d.VersionCode < 10001 {
+				d.TimingNoticeValue = "@every 3h"
+			}
+
 			// 设置全局群名缓存和用户名缓存
 			dm := d.Parent
 			now := time.Now().Unix()
@@ -1393,6 +1401,7 @@ func (d *Dice) loads() {
 		d.HelpMasterInfo = HelpMasterInfoDefault
 		d.HelpMasterLicense = HelpMasterLicenseDefault
 		d.CustomReplyConfigEnable = true
+		d.TimingNoticeValue = "@every 3h"
 		d.Logger.Info("serve.yaml not found")
 	}
 

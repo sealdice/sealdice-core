@@ -117,9 +117,13 @@ type Dice struct {
 	MasterUnlockCodeTime    int64                  `yaml:"-"`
 	CustomReplyConfigEnable bool                   `yaml:"customReplyConfigEnable"`
 	CustomReplyConfig       []*ReplyConfig         `yaml:"-"`
-	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"` // 启用自动重新登录
-	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"` // 拒绝加入新群
-	UpgradeWindowId         string                 `yaml:"upgradeWindowId"`   // 执行升级指令的窗口
+	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"`  // 启用自动重新登录
+	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"`  // 拒绝加入新群
+	UpgradeWindowId         string                 `yaml:"upgradeWindowId"`    // 执行升级指令的窗口
+	BotExtFreeSwitch        bool                   `yaml:"botExtFreeSwitch"`   // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
+	TrustOnlyMode           bool                   `yaml:"trustOnlyMode"`      // 只有信任的用户/master可以拉群和使用
+	TimingNoticeEnable      bool                   `yaml:"timingNoticeEnable"` // 定时通知
+	TimingNoticeValue       string                 `yaml:"timingNoticeValue"`  // 定时通知间隔
 
 	HelpMasterInfo      string `yaml:"helpMasterInfo"`      // help中骰主信息
 	HelpMasterLicense   string `yaml:"helpMasterLicense"`   // help中使用协议

@@ -132,7 +132,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 							//}
 
 							if len(i.Conditions) > 0 && checkTrue {
-								SetTempVars(ctx, ctx.Player.Name)
+								SetTempVars(ctx, msg.Sender.Nickname)
 								VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))
 								for _, j := range i.Results {
 									j.Execute(ctx, msg, nil)
