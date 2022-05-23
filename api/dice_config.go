@@ -191,6 +191,22 @@ func DiceConfigSet(c echo.Context) error {
 			myDice.QQChannelAutoOn = val.(bool)
 		}
 
+		if val, ok := jsonMap["botExtFreeSwitch"]; ok {
+			myDice.BotExtFreeSwitch = val.(bool)
+		}
+
+		if val, ok := jsonMap["trustOnlyMode"]; ok {
+			myDice.TrustOnlyMode = val.(bool)
+		}
+
+		if val, ok := jsonMap["timingNoticeEnable"]; ok {
+			myDice.TimingNoticeEnable = val.(bool)
+		}
+
+		if val, ok := jsonMap["timingNoticeValue"]; ok {
+			myDice.TimingNoticeValue = val.(string)
+		}
+
 		if val, ok := jsonMap["UILogLimit"]; ok {
 			val, err := strconv.ParseInt(val.(string), 10, 64)
 			if err == nil {

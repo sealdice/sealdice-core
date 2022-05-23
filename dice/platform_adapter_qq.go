@@ -266,7 +266,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 							}
 						}
 
-						// 强制拉群情况2
+						// 强制拉群情况2 - 群在黑名单
 						banInfo = ctx.Dice.BanList.GetById(groupId)
 						if banInfo != nil {
 							if banInfo.Rank == BanRankBanned {
@@ -314,6 +314,13 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 						pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "黑名单")
 						return
 					}
+				}
+
+				// 信任模式，如果不是信任，又不是master则拒绝拉群邀请
+				isMaster := ctx.Dice.IsMaster(uid)
+				if ctx.Dice.TrustOnlyMode && (banInfo.Rank != BanRankTrusted && !isMaster) {
+					pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "只允许骰主设置信任的人拉群")
+					return
 				}
 
 				// 群在黑名单上
