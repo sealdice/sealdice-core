@@ -404,7 +404,13 @@ func (d *Dice) registerCoreCommands() {
 								return CmdExecuteResult{Matched: false, Solved: false}
 							}
 
-							SetBotOnAtGroup(ctx, msg.GroupId)
+							if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel >= 40 {
+								SetBotOnAtGroup(ctx, msg.GroupId)
+							} else {
+								ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员、邀请者或master"))
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
+
 							ctx.Group = ctx.Session.ServiceAtNew[msg.GroupId]
 							ctx.IsCurGroupBotOn = true
 							// "SealDice 已启用(开发中) " + VERSION
@@ -425,7 +431,12 @@ func (d *Dice) registerCoreCommands() {
 							//	delete(ctx.Session.ServiceAt, msg.GroupId)
 							//} else {
 
-							SetBotOffAtGroup(ctx, ctx.Group.GroupId)
+							if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel >= 40 {
+								SetBotOffAtGroup(ctx, ctx.Group.GroupId)
+							} else {
+								ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员、邀请者或master"))
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
 
 							//}
 							// 停止服务
@@ -1107,6 +1118,11 @@ func (d *Dice) registerCoreCommands() {
 					if cmdArgs.IsArgEqual(1, "list") {
 						showList()
 					} else if cmdArgs.IsArgEqual(last, "on") {
+						if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
+							ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员、邀请者或master"))
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
 						checkConflict := func(ext *ExtInfo) []string {
 							actived := []string{}
 							for _, i := range ctx.Group.ActivatedExtList {
@@ -1148,6 +1164,11 @@ func (d *Dice) registerCoreCommands() {
 							ReplyToSender(ctx, msg, text)
 						}
 					} else if cmdArgs.IsArgEqual(last, "off") {
+						if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
+							ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员、邀请者或master"))
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
 						closed := []string{}
 						notfound := []string{}
 						for index := 0; index < len(cmdArgs.Args); index++ {

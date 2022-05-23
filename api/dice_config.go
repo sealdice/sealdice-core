@@ -37,6 +37,10 @@ type DiceConfigInfo struct {
 	DefaultCocRuleIndex string `json:"defaultCocRuleIndex"` // 默认coc index
 
 	ExtDefaultSettings []*dice.ExtDefaultSettingItem `yaml:"extDefaultSettings" json:"extDefaultSettings"` // 新群扩展按此顺序加载
+	BotExtFreeSwitch   bool                          `json:"botExtFreeSwitch"`
+	TrustOnlyMode      bool                          `json:"trustOnlyMode"`
+	TimingNoticeEnable bool                          `json:"timingNoticeEnable"`
+	TimingNoticeValue  string                        `json:"timingNoticeValue"`
 }
 
 func DiceConfig(c echo.Context) error {
@@ -85,6 +89,11 @@ func DiceConfig(c echo.Context) error {
 		HelpMasterLicense:   myDice.HelpMasterLicense,
 		ExtDefaultSettings:  myDice.ExtDefaultSettings,
 		DefaultCocRuleIndex: cocRule,
+
+		BotExtFreeSwitch:   myDice.BotExtFreeSwitch,
+		TrustOnlyMode:      myDice.TrustOnlyMode,
+		TimingNoticeEnable: myDice.TimingNoticeEnable,
+		TimingNoticeValue:  myDice.TimingNoticeValue,
 
 		ServeAddress:      myDice.Parent.ServeAddress,
 		HelpDocEngineType: myDice.Parent.HelpDocEngineType,
