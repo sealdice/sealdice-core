@@ -357,6 +357,15 @@ func (d *Dice) UnlockCodeVerify(code string) bool {
 	return code == d.MasterUnlockCode
 }
 
+func (d *Dice) IsMaster(uid string) bool {
+	for _, i := range d.DiceMasters {
+		if i == uid {
+			return true
+		}
+	}
+	return false
+}
+
 func DiceRoll(dicePoints int) int {
 	if dicePoints <= 0 {
 		return 0

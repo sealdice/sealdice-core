@@ -1422,6 +1422,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						if exText != "" {
 							text += "\n" + exText
 						}
+						text += fmt.Sprintf("\n当前情况: 成功%d 失败%d", a, b)
 						ReplyToSender(mctx, msg, text)
 					} else if d20 >= 10 {
 						suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_成功_附加语")
@@ -1431,6 +1432,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						if exText != "" {
 							text += "\n" + exText
 						}
+						text += fmt.Sprintf("\n当前情况: 成功%d 失败%d", a, b)
 						ReplyToSender(mctx, msg, text)
 					} else {
 						suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_失败_附加语")
@@ -1440,6 +1442,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						if exText != "" {
 							text += "\n" + exText
 						}
+						text += fmt.Sprintf("\n当前情况: 成功%d 失败%d", a, b)
 						ReplyToSender(mctx, msg, text)
 					}
 				}
