@@ -163,17 +163,17 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 }
 
 // 返回连带责任人
-func (i *BanListInfo) addJointScore(uid string, place string, reason string, ctx *MsgContext) (string, BanRankType) {
+func (i *BanListInfo) addJointScore(uid string, score int64, place string, reason string, ctx *MsgContext) (string, BanRankType) {
 	d := i.Parent
 	if i.JointScorePercentOfGroup > 0 {
-		score := i.JointScorePercentOfGroup * float64(i.ScoreGroupMuted)
+		score := i.JointScorePercentOfGroup * float64(score)
 		i.AddScoreBase(place, int64(score), place, reason, ctx)
 	}
 	if i.JointScorePercentOfInviter > 0 {
 		group := d.ImSession.ServiceAtNew[place]
 		if group != nil && group.InviteUserId != "" {
 			rank := i.NoticeCheckPrepare(group.InviteUserId)
-			score := i.JointScorePercentOfInviter * float64(i.ScoreGroupMuted)
+			score := i.JointScorePercentOfInviter * float64(score)
 			i.AddScoreBase(group.InviteUserId, int64(score), place, reason, ctx)
 
 			//text := fmt.Sprintf("提醒: 你邀请的骰子在群组<%s>中被禁言/踢出/指令刷屏了", group.GroupName)
@@ -240,7 +240,7 @@ func (i *BanListInfo) AddScoreByGroupMuted(uid string, place string, ctx *MsgCon
 	rank := i.NoticeCheckPrepare(uid)
 
 	i.AddScoreBase(uid, i.ScoreGroupMuted, place, "禁言骰子", ctx)
-	inviterId, inviterRank := i.addJointScore(uid, place, "连带责任:禁言骰子", ctx)
+	inviterId, inviterRank := i.addJointScore(uid, i.ScoreGroupMuted, place, "连带责任:禁言骰子", ctx)
 
 	i.NoticeCheck(uid, place, rank, ctx)
 	if inviterId != "" && inviterId != uid {
@@ -254,7 +254,7 @@ func (i *BanListInfo) AddScoreByGroupKicked(uid string, place string, ctx *MsgCo
 	rank := i.NoticeCheckPrepare(uid)
 
 	i.AddScoreBase(uid, i.ScoreGroupKicked, place, "踢出骰子", ctx)
-	inviterId, inviterRank := i.addJointScore(uid, place, "连带责任:踢出骰子", ctx)
+	inviterId, inviterRank := i.addJointScore(uid, i.ScoreGroupKicked, place, "连带责任:踢出骰子", ctx)
 
 	i.NoticeCheck(uid, place, rank, ctx)
 	if inviterId != "" && inviterId != uid {
