@@ -46,11 +46,11 @@ type DeckInfo struct {
 	Version       string               `json:"version" yaml:"-"`
 	Author        string               `json:"author" yaml:"-"`
 	Command       map[string]bool      `json:"command" yaml:"-"` // 牌堆命令名
-	DeckItems     map[string][]string  `yaml:"-"`
+	DeckItems     map[string][]string  `yaml:"-" json:"-"`
 	Date          string               `json:"date" yaml:"-" `
-	Desc          string               `yaml:"-"`
-	Info          []string             `yaml:"-"`
-	rawData       *map[string][]string `yaml:"-"`
+	Desc          string               `yaml:"-" json:"desc"`
+	Info          []string             `yaml:"-" json:"-"`
+	rawData       *map[string][]string `yaml:"-" json:"-"`
 }
 
 type DeckInfoCommandList []string
@@ -353,6 +353,9 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 	// 参考: https://sinanya.com/#/MakeFile
 	// 1. 提取 {}
 	re := regexp.MustCompile(`{[$%]?.+?}`)
+	s = strings.ReplaceAll(s, "#{SPLIT}", "###SPLIT###")
+	s = strings.ReplaceAll(s, "{FormFeed}", "###SPLIT###")
+	s = strings.ReplaceAll(s, "{formfeed}", "###SPLIT###")
 	m := re.FindAllStringIndex(s, -1)
 
 	for _i := len(m) - 1; _i >= 0; _i-- {

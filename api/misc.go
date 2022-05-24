@@ -10,6 +10,11 @@ func upgrade(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, "auth")
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
 
 	dm.UpdateCheckRequestChan <- 1
 	time.Sleep(3 * time.Second) // 等待1s，应该能够取得新版本了。如果获取失败也不至于卡住

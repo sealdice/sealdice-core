@@ -68,6 +68,12 @@ func banMapDeleteOne(c echo.Context) error {
 }
 
 func banMapAddOne(c echo.Context) error {
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
 	v := dice.BanListInfoItem{}
 	err := c.Bind(&v)
 	if err != nil {

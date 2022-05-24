@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	wr "github.com/mroth/weightedrand"
+	"github.com/robfig/cron/v3"
 	"go.etcd.io/bbolt"
 	"go.uber.org/zap"
 	"math/rand"
@@ -117,13 +118,13 @@ type Dice struct {
 	MasterUnlockCodeTime    int64                  `yaml:"-"`
 	CustomReplyConfigEnable bool                   `yaml:"customReplyConfigEnable"`
 	CustomReplyConfig       []*ReplyConfig         `yaml:"-"`
-	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"`  // 启用自动重新登录
-	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"`  // 拒绝加入新群
-	UpgradeWindowId         string                 `yaml:"upgradeWindowId"`    // 执行升级指令的窗口
-	BotExtFreeSwitch        bool                   `yaml:"botExtFreeSwitch"`   // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
-	TrustOnlyMode           bool                   `yaml:"trustOnlyMode"`      // 只有信任的用户/master可以拉群和使用
-	TimingNoticeEnable      bool                   `yaml:"timingNoticeEnable"` // 定时通知
-	TimingNoticeValue       string                 `yaml:"timingNoticeValue"`  // 定时通知间隔
+	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"` // 启用自动重新登录
+	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"` // 拒绝加入新群
+	UpgradeWindowId         string                 `yaml:"upgradeWindowId"`   // 执行升级指令的窗口
+	BotExtFreeSwitch        bool                   `yaml:"botExtFreeSwitch"`  // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
+	TrustOnlyMode           bool                   `yaml:"trustOnlyMode"`     // 只有信任的用户/master可以拉群和使用
+	AliveNoticeEnable       bool                   `yaml:"aliveNoticeEnable"` // 定时通知
+	AliveNoticeValue        string                 `yaml:"aliveNoticeValue"`  // 定时通知间隔
 
 	HelpMasterInfo      string `yaml:"helpMasterInfo"`      // help中骰主信息
 	HelpMasterLicense   string `yaml:"helpMasterLicense"`   // help中使用协议
@@ -139,6 +140,8 @@ type Dice struct {
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
 	Parent          *DiceManager               `yaml:"-"`
 
+	Cron             *cron.Cron
+	aliveNoticeEntry cron.EntryID `yaml:"-"`
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 }
@@ -150,6 +153,9 @@ func (d *Dice) Init() {
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0755)
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "logs"), 0755)
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
+
+	d.Cron = cron.New()
+	d.Cron.Start()
 
 	d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
@@ -216,6 +222,8 @@ func (d *Dice) Init() {
 		}
 	}
 	go refreshGroupInfo()
+
+	d.ApplyAliveNotice()
 }
 
 func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
@@ -364,6 +372,27 @@ func (d *Dice) IsMaster(uid string) bool {
 		}
 	}
 	return false
+}
+
+// ApplyAliveNotice 存活消息(骰狗)
+func (d *Dice) ApplyAliveNotice() {
+	if d.AliveNoticeEnable {
+		if d.aliveNoticeEntry != 0 {
+			d.Cron.Remove(d.aliveNoticeEntry)
+		}
+		entry, err := d.Cron.AddFunc(d.AliveNoticeValue, func() {
+			for _, ep := range d.ImSession.EndPoints {
+				ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
+				ctx.Notice(fmt.Sprintf("OK, D100=%d", DiceRoll64(100)))
+			}
+		})
+		if err == nil {
+			d.aliveNoticeEntry = entry
+			d.Logger.Infof("创建存活确认消息成功")
+		} else {
+			d.Logger.Error("创建存活确认消息发生错误，可能是间隔设置有误:", err)
+		}
+	}
 }
 
 func DiceRoll(dicePoints int) int {

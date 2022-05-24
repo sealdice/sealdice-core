@@ -39,8 +39,8 @@ type DiceConfigInfo struct {
 	ExtDefaultSettings []*dice.ExtDefaultSettingItem `yaml:"extDefaultSettings" json:"extDefaultSettings"` // 新群扩展按此顺序加载
 	BotExtFreeSwitch   bool                          `json:"botExtFreeSwitch"`
 	TrustOnlyMode      bool                          `json:"trustOnlyMode"`
-	TimingNoticeEnable bool                          `json:"timingNoticeEnable"`
-	TimingNoticeValue  string                        `json:"timingNoticeValue"`
+	AliveNoticeEnable  bool                          `json:"aliveNoticeEnable"`
+	AliveNoticeValue   string                        `json:"aliveNoticeValue"`
 }
 
 func DiceConfig(c echo.Context) error {
@@ -90,10 +90,10 @@ func DiceConfig(c echo.Context) error {
 		ExtDefaultSettings:  myDice.ExtDefaultSettings,
 		DefaultCocRuleIndex: cocRule,
 
-		BotExtFreeSwitch:   myDice.BotExtFreeSwitch,
-		TrustOnlyMode:      myDice.TrustOnlyMode,
-		TimingNoticeEnable: myDice.TimingNoticeEnable,
-		TimingNoticeValue:  myDice.TimingNoticeValue,
+		BotExtFreeSwitch:  myDice.BotExtFreeSwitch,
+		TrustOnlyMode:     myDice.TrustOnlyMode,
+		AliveNoticeEnable: myDice.AliveNoticeEnable,
+		AliveNoticeValue:  myDice.AliveNoticeValue,
 
 		ServeAddress:      myDice.Parent.ServeAddress,
 		HelpDocEngineType: myDice.Parent.HelpDocEngineType,
@@ -199,12 +199,18 @@ func DiceConfigSet(c echo.Context) error {
 			myDice.TrustOnlyMode = val.(bool)
 		}
 
-		if val, ok := jsonMap["timingNoticeEnable"]; ok {
-			myDice.TimingNoticeEnable = val.(bool)
+		aliveNoticeMod := false
+		if val, ok := jsonMap["aliveNoticeEnable"]; ok {
+			myDice.AliveNoticeEnable = val.(bool)
+			aliveNoticeMod = true
 		}
 
-		if val, ok := jsonMap["timingNoticeValue"]; ok {
-			myDice.TimingNoticeValue = val.(string)
+		if val, ok := jsonMap["aliveNoticeValue"]; ok {
+			myDice.AliveNoticeValue = val.(string)
+			aliveNoticeMod = true
+		}
+		if aliveNoticeMod {
+			myDice.ApplyAliveNotice()
 		}
 
 		if val, ok := jsonMap["UILogLimit"]; ok {
