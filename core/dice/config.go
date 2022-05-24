@@ -1195,8 +1195,8 @@ func (d *Dice) loads() {
 			d.UpgradeWindowId = dNew.UpgradeWindowId
 			d.BotExtFreeSwitch = dNew.BotExtFreeSwitch
 			d.TrustOnlyMode = dNew.TrustOnlyMode
-			d.TimingNoticeEnable = dNew.TimingNoticeEnable
-			d.TimingNoticeValue = dNew.TimingNoticeValue
+			d.AliveNoticeEnable = dNew.AliveNoticeEnable
+			d.AliveNoticeValue = dNew.AliveNoticeValue
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
@@ -1374,7 +1374,7 @@ func (d *Dice) loads() {
 			}
 
 			if d.VersionCode != 0 && d.VersionCode < 10001 {
-				d.TimingNoticeValue = "@every 3h"
+				d.AliveNoticeValue = "@every 3h"
 			}
 
 			// 设置全局群名缓存和用户名缓存
@@ -1401,7 +1401,7 @@ func (d *Dice) loads() {
 		d.HelpMasterInfo = HelpMasterInfoDefault
 		d.HelpMasterLicense = HelpMasterLicenseDefault
 		d.CustomReplyConfigEnable = true
-		d.TimingNoticeValue = "@every 3h"
+		d.AliveNoticeValue = "@every 3h"
 		d.Logger.Info("serve.yaml not found")
 	}
 

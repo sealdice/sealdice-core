@@ -201,6 +201,8 @@ func DiceFormat(ctx *MsgContext, s string) string {
 	s = strings.ReplaceAll(s, "#{SPLIT}", "###SPLIT###")
 	s = strings.ReplaceAll(s, "{FormFeed}", "###SPLIT###")
 	s = strings.ReplaceAll(s, "{formfeed}", "###SPLIT###")
+	s = strings.ReplaceAll(s, "\f", "###SPLIT###")
+	s = strings.ReplaceAll(s, "\\f", "###SPLIT###")
 
 	r, _, _ := ctx.Dice.ExprText(s, ctx)
 
