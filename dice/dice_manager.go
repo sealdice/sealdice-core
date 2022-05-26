@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	"github.com/dop251/goja_nodejs/require"
 	"github.com/fy0/lockfree"
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
@@ -60,6 +61,7 @@ type DiceManager struct {
 	ServiceName   string
 	JustForTest   bool
 	backupEntryId cron.EntryID
+	JsRegistry    *require.Registry
 }
 
 type DiceConfigs struct {
@@ -101,6 +103,9 @@ func (dm *DiceManager) LoadDice() {
 	os.MkdirAll("./data/decks", 0755)
 	os.MkdirAll("./data/names", 0755)
 	ioutil.WriteFile("./data/images/sealdice.png", ICON_PNG, 0644)
+
+	// this can be shared by multiple runtimes
+	dm.JsRegistry = new(require.Registry)
 
 	dm.Cron = cron.New()
 	dm.Cron.Start()

@@ -488,7 +488,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 		fn, exists := cq.Args["file"]
 		if exists {
 			if strings.HasPrefix(fn, "./") {
-				pathPrefix, err := filepath.Rel(".", deckInfo.Filename)
+				pathPrefix, err := filepath.Rel(".", filepath.Dir(deckInfo.Filename))
 				if err == nil {
 					fn = filepath.Join(pathPrefix, fn[2:])
 					fn = strings.ReplaceAll(fn, `\`, "/")
