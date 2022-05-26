@@ -3,6 +3,8 @@ package dice
 import (
 	"errors"
 	"fmt"
+	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/require"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
 	"go.etcd.io/bbolt"
@@ -14,11 +16,12 @@ import (
 	"sealdice-core/dice/model"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.0.0rc2 v20220520"
+var VERSION = "1.0.0stable v20220526dev"
 var VERSION_CODE = int64(1000002) // 991404
 
 type CmdExecuteResult struct {
@@ -140,8 +143,12 @@ type Dice struct {
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
 	Parent          *DiceManager               `yaml:"-"`
 
-	Cron             *cron.Cron
-	aliveNoticeEntry cron.EntryID `yaml:"-"`
+	Cron             *cron.Cron             `yaml:"-" json:"-"`
+	aliveNoticeEntry cron.EntryID           `yaml:"-" json:"-"`
+	JsVM             *goja.Runtime          `yaml:"-" json:"-"`
+	JsLock           sync.Mutex             `yaml:"-" json:"-"`
+	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
+
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 }
@@ -153,9 +160,13 @@ func (d *Dice) Init() {
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0755)
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "logs"), 0755)
 	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
+	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0755)
 
 	d.Cron = cron.New()
 	d.Cron.Start()
+
+	// 创建js运行时
+	d.JsInit()
 
 	d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
@@ -224,6 +235,7 @@ func (d *Dice) Init() {
 	go refreshGroupInfo()
 
 	d.ApplyAliveNotice()
+	d.JsLoadScripts()
 }
 
 func (d *Dice) rebuildParser(buffer string) *DiceRollParser {

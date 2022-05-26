@@ -95,6 +95,8 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 	msg.Time = msgQQ.Time
 	msg.MessageType = msgQQ.MessageType
 	msg.Message = msgQQ.Message
+	msg.Message = strings.ReplaceAll(msg.Message, "&#91;", "[")
+	msg.Message = strings.ReplaceAll(msg.Message, "&#93;", "]")
 	msg.RawId = msgQQ.MessageId
 	msg.Platform = "QQ"
 
