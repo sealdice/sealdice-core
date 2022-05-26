@@ -2,11 +2,11 @@ package main
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/alexmullins/zip"
 	cp "github.com/otiai10/copy"
 	"io"
 	"net/http"
@@ -242,6 +242,7 @@ func unzipSource(source, destination string) error {
 }
 
 func unzipFile(f *zip.File, destination string) error {
+	// 注: 用这个zip包的原因是解压utf-8不乱码
 	// 4. Check if file paths are not vulnerable to Zip Slip
 	filePath := filepath.Join(destination, f.Name)
 	if !strings.HasPrefix(filePath, filepath.Clean(destination)+string(os.PathSeparator)) {

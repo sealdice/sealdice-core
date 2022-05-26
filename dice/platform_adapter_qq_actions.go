@@ -2,8 +2,14 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
+	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -126,6 +132,7 @@ func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, 
 		Message     string `json:"message"`
 	}
 
+	text = textAssetsConvert(text)
 	texts := textSplit(text)
 	for _, subText := range texts {
 		a, _ := json.Marshal(oneBotCommand{
@@ -164,6 +171,7 @@ func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, 
 		Message string `json:"message"`
 	}
 
+	text = textAssetsConvert(text)
 	texts := textSplit(text)
 
 	for index, subText := range texts {
@@ -331,4 +339,102 @@ func textSplit(input string) []string {
 	}
 	splits = append(splits, input[l:])
 	return splits
+}
+
+// 以下都是CQ码处理
+// 相对路径不能在这里实现，不然遇到嵌套调用无法展开
+func textAssetsConvert(s string) string {
+	//var s2 string
+	//raw := []byte(`"` + strings.Replace(s, `"`, `\"`, -1) + `"`)
+	//err := json.Unmarshal(raw, &s2)
+	//if err != nil {
+	//	ctx.Dice.Logger.Info(err)
+	//	return s
+	//}
+
+	solve2 := func(text string) string {
+		re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice):(.+?)]`) // [img:] 或 [图:]
+		m := re.FindStringSubmatch(text)
+		if m != nil {
+			fn := m[2]
+			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
+				u, err := url.Parse(fn)
+				if err != nil {
+					return text
+				}
+				cq := CQCommand{
+					Type: "image",
+					Args: map[string]string{"file": u.String()},
+				}
+				return cq.Compile()
+			}
+
+			afn, err := filepath.Abs(fn)
+			if err != nil {
+				return text // 不是文件路径，不管
+			}
+			cwd, _ := os.Getwd()
+			if strings.HasPrefix(afn, cwd) {
+				if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
+					return "[找不到图片]"
+				} else {
+					// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
+					if runtime.GOOS == `windows` {
+						afn = "/" + afn
+					}
+					u := url.URL{
+						Scheme: "file",
+						Path:   afn,
+					}
+					cq := CQCommand{
+						Type: "image",
+						Args: map[string]string{"file": u.String()},
+					}
+					return cq.Compile()
+				}
+			} else {
+				return "[图片指向非当前程序目录，已禁止]"
+			}
+		}
+		return text
+	}
+
+	solve := func(cq *CQCommand) {
+		//if cq.Type == "image" || cq.Type == "voice" {
+		fn, exists := cq.Args["file"]
+		if exists {
+			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
+				return
+			}
+
+			afn, err := filepath.Abs(fn)
+			if err != nil {
+				return // 不是文件路径，不管
+			}
+			cwd, _ := os.Getwd()
+
+			if strings.HasPrefix(afn, cwd) {
+				if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
+					cq.Overwrite = "[CQ码找不到文件]"
+				} else {
+					// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
+					if runtime.GOOS == `windows` {
+						afn = "/" + afn
+					}
+					u := url.URL{
+						Scheme: "file",
+						Path:   afn,
+					}
+					cq.Args["file"] = u.String()
+				}
+			} else {
+				cq.Overwrite = "[CQ码读取非当前目录文件，可能是恶意行为，已禁止]"
+			}
+		}
+		//}
+	}
+
+	text := strings.Replace(s, `\n`, "\n", -1)
+	text = ImageRewrite(text, solve2)
+	return CQRewrite(text, solve)
 }

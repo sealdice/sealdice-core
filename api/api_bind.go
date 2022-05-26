@@ -424,6 +424,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/deck/reload", deckReload)
 	e.POST(prefix+"/deck/upload", deckUpload)
 	e.POST(prefix+"/deck/enable", deckEnable)
+	e.POST(prefix+"/deck/delete", deckDelete)
 
 	e.POST(prefix+"/dice/upgrade", upgrade)
 }
