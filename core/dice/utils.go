@@ -1,12 +1,19 @@
 package dice
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/fy0/lockfree"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
+	"io"
+	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -296,4 +303,100 @@ var SetCocRuleText = map[int]string{
 	4:  "出1-5且≤(成功率/10)为大成功\n不满50出>=96+(成功率/10)为大失败，满50出100大失败",
 	5:  "出1-2且≤(成功率/5)为大成功\n不满50出96-100大失败，满50出99-100大失败",
 	11: "出1或检定成功基础上个位十位相同为大成功\n出100或检定失败基础上个位十位相同为大失败\n此规则无困难成功或极难成功",
+}
+
+func isDeckFile(source string) bool {
+	// 1. Open the zip file
+	reader, err := zip.OpenReader(source)
+	defer reader.Close()
+	if err != nil {
+		return false
+	}
+
+	// 3. Iterate over zip files inside the archive and unzip each of them
+	for _, f := range reader.File {
+		if f.Name == "info.yaml" {
+			return true
+		}
+		if err != nil {
+			return false
+		}
+	}
+
+	return false
+}
+
+func unzipSource(source, destination string) error {
+	// 1. Open the zip file
+	reader, err := zip.OpenReader(source)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	// 2. Get the absolute destination path
+	destination, err = filepath.Abs(destination)
+	if err != nil {
+		return err
+	}
+
+	// 3. Iterate over zip files inside the archive and unzip each of them
+	for _, f := range reader.File {
+		if f.Flags&(1<<11) != 0 {
+			// 如果标志为是 1 << 11也就是 2048  则是utf-8编码
+			// 其它都认为是gbk
+		} else {
+			i := bytes.NewReader([]byte(f.Name))
+			decoder := transform.NewReader(i, simplifiedchinese.GB18030.NewDecoder())
+			content, _ := ioutil.ReadAll(decoder)
+			f.Name = string(content)
+		}
+
+		err := unzipFile(f, destination)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func unzipFile(f *zip.File, destination string) error {
+	// 4. Check if file paths are not vulnerable to Zip Slip
+	filePath := filepath.Join(destination, f.Name)
+
+	if !strings.HasPrefix(filePath, filepath.Clean(destination)+string(os.PathSeparator)) {
+		return fmt.Errorf("invalid file path: %s", filePath)
+	}
+
+	// 5. Create directory tree
+	if f.FileInfo().IsDir() {
+		if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+		return err
+	}
+
+	// 6. Create a destination file for unzipped content
+	destinationFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+
+	// 7. Unzip the content of a file and copy it to the destination file
+	zippedFile, err := f.Open()
+	if err != nil {
+		return err
+	}
+	defer zippedFile.Close()
+
+	if _, err := io.Copy(destinationFile, zippedFile); err != nil {
+		return err
+	}
+	return nil
 }

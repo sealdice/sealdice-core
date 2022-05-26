@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/fs"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -22,6 +23,7 @@ type DeckDiceEFormat struct {
 	Author  []string `json:"_author"`
 	Date    []string `json:"_date"`
 	Version []string `json:"_version"`
+	//Export  []string `json:"_export"` // 导出项，类似command
 	//一组牌        []string `json:"一组牌"`
 }
 
@@ -76,11 +78,22 @@ func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 		return false
 	}
 
+	// 存在 _export
+	exports, exists := jsonData["_export"]
+	if exists {
+		for _, i := range exports {
+			deckInfo.Command[i] = true
+		}
+	}
+
 	for k, v := range jsonData {
 		deckInfo.DeckItems[k] = v
 
-		if !strings.HasPrefix(k, "_") {
-			deckInfo.Command[k] = true
+		// 不存在 _export
+		if !exists {
+			if !strings.HasPrefix(k, "_") {
+				deckInfo.Command[k] = true
+			}
 		}
 	}
 
@@ -173,6 +186,7 @@ func DeckTryParse(d *Dice, fn string) {
 			return
 		}
 	}
+	deckInfo.Filename = fn
 
 	if deckInfo.Name == "" {
 		deckInfo.Name = filepath.Base(fn)
@@ -183,31 +197,83 @@ func DeckTryParse(d *Dice, fn string) {
 
 // DecksDetect 检查牌堆
 func DecksDetect(d *Dice) {
+	// 先进行zip解压
 	filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
-		if strings.EqualFold(info.Name(), "assets") {
+		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
 			return fs.SkipDir
 		}
-		if strings.EqualFold(info.Name(), "images") {
+		if info.IsDir() && strings.EqualFold(info.Name(), "images") {
 			return fs.SkipDir
 		}
 
 		if !info.IsDir() {
-			DeckTryParse(d, path)
+			if strings.HasSuffix(info.Name(), ".zip") {
+				dest := filepath.Join(filepath.Dir(path), "_"+info.Name())
+				if _, err := os.Stat(dest); err != nil {
+					d.Logger.Info("检测到可能是新的压缩牌堆文件，准备自动解压:", info.Name())
+					if isDeckFile(path) {
+						_ = unzipSource(path, dest)
+					} else {
+						d.Logger.Info("目标并非压缩牌堆文件:", info.Name())
+					}
+				}
+			}
+		}
+
+		return nil
+	})
+
+	filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
+			return fs.SkipDir
+		}
+		if info.IsDir() && strings.EqualFold(info.Name(), "images") {
+			return fs.SkipDir
+		}
+		if !info.IsDir() && strings.HasPrefix(info.Name(), ".zip") {
+			return nil
+		}
+		if info.Name() == "info.yaml" {
+			return nil
+		}
+
+		if !info.IsDir() {
+			ext := filepath.Ext(path)
+			if ext == ".json" || ext == ".yaml" || ext == "" {
+				DeckTryParse(d, path)
+			}
 		}
 		return nil
 	})
 }
 
-func RegisterBuiltinExtDeck(d *Dice) {
-	reloadDecks := func() {
-		d.IsDeckLoading = true
-		d.DeckList = d.DeckList[:0]
-		d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
-		DecksDetect(d)
-		d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
-		d.IsDeckLoading = false
-	}
+func DeckDelete(d *Dice, deck *DeckInfo) {
+	dirpath := filepath.Dir(deck.Filename)
+	dirname := filepath.Base(dirpath)
 
+	if strings.HasPrefix(dirname, "_") && strings.HasSuffix(dirname, ".zip") {
+		// 可能是zip解压出来的，那么删除目录和压缩包
+		_ = os.RemoveAll(dirpath)
+		zipFilename := filepath.Join(filepath.Dir(dirpath), dirname[1:])
+		_ = os.Remove(zipFilename)
+	} else {
+		_ = os.Remove(deck.Filename)
+	}
+}
+
+func DeckReload(d *Dice) {
+	if d.IsDeckLoading {
+		return
+	}
+	d.IsDeckLoading = true
+	d.DeckList = d.DeckList[:0]
+	d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
+	DecksDetect(d)
+	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
+	d.IsDeckLoading = false
+}
+
+func RegisterBuiltinExtDeck(d *Dice) {
 	helpDraw := "" +
 		".draw help // 显示本帮助\n" +
 		".draw list // 查看载入的牌堆文件\n" +
@@ -239,9 +305,11 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					if strings.EqualFold(deckName, "list") {
 						text := "载入并开启的牌堆:\n"
 						for _, i := range ctx.Dice.DeckList {
-							author := fmt.Sprintf(" 作者:%s", i.Author)
-							version := fmt.Sprintf(" 版本:%s", i.Version)
-							text += fmt.Sprintf("- %s 格式: %s%s%s 牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
+							if i.Enable {
+								author := fmt.Sprintf(" 作者:%s", i.Author)
+								version := fmt.Sprintf(" 版本:%s", i.Version)
+								text += fmt.Sprintf("- %s 格式: %s%s%s 牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
+							}
 						}
 						ReplyToSender(ctx, msg, text)
 					} else if strings.EqualFold(deckName, "help") {
@@ -251,9 +319,11 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						text := "牌组关键字列表:\n"
 						keys := ""
 						for _, i := range ctx.Dice.DeckList {
-							if strings.Contains(i.Name, specified) {
-								for j := range i.Command {
-									keys += j + "/"
+							if i.Enable {
+								if strings.Contains(i.Name, specified) {
+									for j := range i.Command {
+										keys += j + "/"
+									}
 								}
 							}
 						}
@@ -272,7 +342,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
-							reloadDecks()
+							DeckReload(d)
 							ReplyToSender(ctx, msg, "牌堆已经重新装载")
 						}
 					} else if strings.EqualFold(deckName, "search") {
@@ -304,12 +374,14 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					} else {
 						isDrew := false
 						for _, i := range d.DeckList {
-							deckExists := i.Command[deckName]
-							if deckExists {
-								deck := i.DeckItems[deckName]
-								result, _ := executeDeck(ctx, i, deck)
-								ReplyToSender(ctx, msg, result)
-								isDrew = true
+							if i.Enable {
+								deckExists := i.Command[deckName]
+								if deckExists {
+									deck := i.DeckItems[deckName]
+									result, _ := executeDeck(ctx, i, deck)
+									ReplyToSender(ctx, msg, result)
+									isDrew = true
+								}
 							}
 						}
 						if !isDrew {
@@ -334,7 +406,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 		},
 		OnLoad: func() {
-			reloadDecks()
+			DeckReload(d)
 		},
 		GetDescText: func(i *ExtInfo) string {
 			return GetExtensionDesc(i)
@@ -412,6 +484,37 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 	re = regexp.MustCompile(`\[.+?]`)
 	m = re.FindAllStringIndex(s, -1)
 
+	cqSolve := func(cq *CQCommand) {
+		fn, exists := cq.Args["file"]
+		if exists {
+			if strings.HasPrefix(fn, "./") {
+				pathPrefix, err := filepath.Rel(".", deckInfo.Filename)
+				if err == nil {
+					fn = filepath.Join(pathPrefix, fn[2:])
+					fn = strings.ReplaceAll(fn, `\`, "/")
+					cq.Args["file"] = fn
+				}
+			}
+		}
+	}
+
+	imgSolve := func(text string) string {
+		re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice):(.+?)]`) // [img:] 或 [图:]
+		m := re.FindStringSubmatch(text)
+		if m != nil {
+			fn := m[2]
+			if strings.HasPrefix(fn, "./") {
+				pathPrefix, err := filepath.Rel(".", filepath.Dir(deckInfo.Filename))
+				if err == nil {
+					fn = filepath.Join(pathPrefix, fn[2:])
+					fn = strings.ReplaceAll(fn, `\`, "/")
+					return "[" + m[1] + ":" + fn + "]"
+				}
+			}
+		}
+		return text
+	}
+
 	for _i := len(m) - 1; _i >= 0; _i-- {
 		i := m[_i]
 
@@ -419,18 +522,20 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 		if strings.HasPrefix(text, "[CQ:") {
 			continue
 		}
-		if strings.HasPrefix(text, "[图:") {
+
+		if strings.HasPrefix(text, "[图:") ||
+			strings.HasPrefix(text, "[img:") ||
+			strings.HasPrefix(text, "[文本:") ||
+			strings.HasPrefix(text, "[语音:") {
 			continue
 		}
-		if strings.HasPrefix(text, "[文本:") {
-			continue
-		}
-		if strings.HasPrefix(text, "[语音:") {
-			continue
-		}
+
 		text = "{" + text[1:len(text)-1] + "}"
 		s = s[:i[0]] + text + s[i[1]:]
 	}
+
+	s = CQRewrite(s, cqSolve)
+	s = ImageRewrite(s, imgSolve)
 
 	s = strings.ReplaceAll(s, "\n", `\n`)
 	return DiceFormat(ctx, s)

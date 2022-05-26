@@ -376,10 +376,10 @@ func (d *Dice) IsMaster(uid string) bool {
 
 // ApplyAliveNotice 存活消息(骰狗)
 func (d *Dice) ApplyAliveNotice() {
+	if d.Cron != nil && d.aliveNoticeEntry != 0 {
+		d.Cron.Remove(d.aliveNoticeEntry)
+	}
 	if d.AliveNoticeEnable {
-		if d.aliveNoticeEntry != 0 {
-			d.Cron.Remove(d.aliveNoticeEntry)
-		}
 		entry, err := d.Cron.AddFunc(d.AliveNoticeValue, func() {
 			for _, ep := range d.ImSession.EndPoints {
 				ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}

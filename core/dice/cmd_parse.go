@@ -2,7 +2,6 @@ package dice
 
 import (
 	"fmt"
-	"github.com/jessevdk/go-flags"
 	"regexp"
 	"strconv"
 	"strings"
@@ -267,7 +266,7 @@ func (c *CQCommand) Compile() string {
 }
 
 func ImageRewrite(longText string, solve func(text string) string) string {
-	re := regexp.MustCompile(`\[(img|图):.+?]`) // [img:] 或 [图:]
+	re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice):(.+?)]`) // [img:] 或 [图:]
 	m := re.FindAllStringIndex(longText, -1)
 
 	newText := longText
@@ -370,40 +369,4 @@ func ArgsParse2(rawCmd string) *CmdArgs {
 
 	cmd.Args = newArgs
 	return &cmd
-}
-
-func ArgsParse(rawCmd string) *CmdArgs {
-	re := regexp.MustCompile(`\s+`)
-	args := re.Split(rawCmd, -1)
-
-	// 处理一种特殊情况：当rawCmd为空，会Split出长度为1的数组
-	if len(rawCmd) == 0 {
-		args = []string{}
-	}
-
-	cmdArgs := new(CmdArgs)
-	cmdArgs.Kwargs = make([]*Kwarg, 0)
-
-	p := flags.NewParser(&struct{}{}, flags.Default)
-	p.UnknownOptionHandler = func(option string, arg flags.SplitArgument, args []string) ([]string, error) {
-		kwInfo := new(Kwarg)
-		kwInfo.Name = option
-		kwInfo.ValueExists = false
-		if arg != nil {
-			kwInfo.ValueExists = true
-			a, b := arg.Value()
-			kwInfo.AsBool = b
-			kwInfo.Value = a
-		}
-		cmdArgs.Kwargs = append(cmdArgs.Kwargs, kwInfo)
-		return args, nil
-	}
-
-	cmds, _ := p.ParseArgs(args)
-	cmdArgs.Args = cmds
-
-	//log.Println(cmdArgs)
-	//a, _ := json.Marshal(cmdArgs)
-	//log.Println(string((a)))
-	return cmdArgs
 }

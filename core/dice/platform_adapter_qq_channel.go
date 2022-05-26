@@ -120,6 +120,7 @@ func (pa *PlatformAdapterQQOnebot) SendToChannelGroup(ctx *MsgContext, userId st
 	text = strings.ReplaceAll(text, "dice.weizaima", "dice_weizaima")
 	text = strings.ReplaceAll(text, "log.weizaima", "log_weizaima")
 	text = strings.ReplaceAll(text, "://", "_//")
+	text = textAssetsConvert(text)
 	texts := textSplit(text)
 	for _, subText := range texts {
 		a, _ := json.Marshal(oneBotCommand{

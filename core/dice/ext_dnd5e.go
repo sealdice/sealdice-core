@@ -1543,11 +1543,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"dndx": cmdDnd,
 			"ri": &CmdItemInfo{
 				Name: "ri",
-				Help: `.ri <先攻值> <角色名> // 角色名省略为当前角色
-.ri +2 <角色名> // 先攻值格式1，解析为D20+2
-.ri =D20+3 <角色名> // 先攻值格式2，解析为D20+3
-.ri 12 <角色名> // 先攻值格式3，解析为12
-.ri <单项>, <单项>, ... // 允许连写，逗号分隔`,
+				Help: `.ri 小明 // 格式1，值为D20
+.ri 12 张三 // 格式2，值12(只能写数字)
+.ri +2 李四 // 格式3，值为D20+2
+.ri =D10+3 王五 // 格式4，值为D10+3
+.ri 张三, +2 李四, =D10+3 王五 // 设置全部`,
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						text := cmdArgs.CleanArgs
