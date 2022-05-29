@@ -12,7 +12,7 @@ export interface CharItem {
 export interface LogItem {
   id: number;
   nickname: string;
-  IMUserId: number;
+  IMUserId: number | string;
   time: number;
   message: string;
   isDice: boolean;
@@ -30,8 +30,10 @@ export const useStore = defineStore('main', {
       palette: ['#cb4d68', '#f99252', '#f48cb6', '#9278b9', '#3e80cc', '#84a59d', '#5b5e71'],
       paletteStack: [] as string[],
       itemById: {} as {[key: string]: LogItem},
+      items: [] as LogItem[],
+      doEditorHighlight: false,
 
-      reloadEditor: null as any as () => void,
+      _reloadEditor: null as any as (highlight: boolean) => void,
       reloadEditor2: null as any as () => void,
       exportOptions: {
         commandHide: false,
@@ -46,6 +48,10 @@ export const useStore = defineStore('main', {
   getters: {
   },
   actions: {
+    reloadEditor () {
+      this._reloadEditor(this.doEditorHighlight)
+    },
+
     getColor(): string {
       if (this.paletteStack.length === 0) {
         this.paletteStack = [...this.palette]
@@ -59,6 +65,29 @@ export const useStore = defineStore('main', {
         params: { key, password }
       })
       return resp.data
+    },
+    async pcNameRefresh() {
+      const names = new Set();
+      const namesAll = new Set();
+      const namesToDelete = new Set();
+    
+      for (let i of this.pcList) {
+        namesAll.add(i.name)
+      }
+    
+      for (let i of this.items) {
+        names.add(i.nickname)
+      }
+    
+      for (let i of namesAll) {
+        if (!names.has(i)) {
+          namesToDelete.add(i)
+        }
+      }
+    
+      for (let i of namesToDelete) {
+        this.tryRemovePC(i as any)
+      }
     },
     async tryRemovePC(name: string) {
       let index = 0

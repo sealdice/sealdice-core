@@ -4,7 +4,7 @@ import { CharItem, LogItem } from "~/store";
 
 // 注意，秒钟数一定要是2个，不然会出事
 // 另外，底下实际上是一个不lookahead的Parser，因此后面加\n作为区分
-export const reNameLine = /^([^(<\n]+)(\(\d+\)|\<[^(\n]+\>)?(\s+)((\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2}))( #(\d+))?\n/m
+export const reNameLine = /^([^(<\n]+)(\([^\)]+\)|\<[^(\n]+\>)?(\s+)((\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2}))( #(\d+))? *\n/m
 
 export function convertToLogItems(doc: string, pcList: CharItem[], options: any = undefined, htmlText: boolean = false) {
   let pos = 0
@@ -127,7 +127,7 @@ export function convertToLogItems(doc: string, pcList: CharItem[], options: any 
 
     // 替换场外发言
     if (options.offSiteHide && (!i.isDice)) {
-      msg = msg.replaceAll(/^[【(（].+?$/gm, '')
+      msg = msg.replaceAll(/^[(（].+?$/gm, '') // 【
     }
 
     // 替换指令

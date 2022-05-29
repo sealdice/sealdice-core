@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V1.06</h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V1.07</h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253</div>
     <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div>
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
@@ -9,7 +9,7 @@
           <el-switch v-model="exportOptions.commandHide" />
           <h4>骰子指令过滤</h4>
         </div>
-        <div>开启后，不显示pc骰点指令，正常显示骰点结果</div>
+        <div>开启后，不显示pc指令，正常显示指令结果</div>
       </div>
 
       <div>
@@ -25,7 +25,7 @@
           <el-switch v-model="exportOptions.offSiteHide" />
           <h4>场外发言过滤</h4>
         </div>
-        <div>开启后，所有以(和【为开头的发言将被豹豹吃掉不显示</div>
+        <div>开启后，所有以(和（为开头的发言将被豹豹吃掉不显示</div>
       </div>
 
       <div>
@@ -99,10 +99,22 @@
       <div>回声工坊的介绍和视频教程看这里：<el-link type="primary" target="_blank" href="https://www.bilibili.com/video/BV1GY4y1H7wK/">B站传送门</el-link></div>
     </div>
 
-    <code-mirror v-show="!(isShowPreview || isShowPreviewBBS || isShowPreviewTRG)" ref="editor" @change="onChange" />
+    <code-mirror v-show="!(isShowPreview || isShowPreviewBBS || isShowPreviewTRG)" ref="editor" @change="onChange">
+      <div style="z-index: 1000; position: absolute; right: 1rem">
+        <div>
+          <el-button @click="clearText" id="btnCopyPreviewBBS" style="" size="large" type="primary">清空内容</el-button>
+        </div>
+        <el-checkbox label="编辑器染色" v-model="store.doEditorHighlight" :border="false" @click.native="doEditorHighlightClick($event)" />
+      </div>
+    </code-mirror>
 
     <!-- <monaco-editor @change="onChange"/> -->
     <div class="preview" ref="preview" v-show="isShowPreview">
+      <div v-if="previewItems.length === 0">
+        <div>染色失败，内容为空或无法识别此格式。</div>
+        <div>已知支持的格式有: 海豹Log(json)、赵/Dice!原始文件、塔原始文件</div>
+        <div>请先清空编辑框，再行复制</div>
+      </div>
       <div v-for="i in previewItems">
         <span
           style="color: #aaa"
@@ -116,6 +128,11 @@
 
     <div class="preview" ref="previewBBS" id="previewBBS" v-if="isShowPreviewBBS">
       <el-button @click="copied" id="btnCopyPreviewBBS" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewBBS">一键复制</el-button>
+      <div v-if="previewItems.length === 0">
+        <div>染色失败，内容为空或无法识别此格式。</div>
+        <div>已知支持的格式有: 海豹Log(json)、赵/Dice!原始文件、塔原始文件</div>
+        <div>请先清空编辑框，再行复制</div>
+      </div>
       <div v-for="i in previewItems">
         <span
           style="color: #aaa"
@@ -136,6 +153,11 @@
 
     <div class="preview" ref="previewTRG" id="previewTRG" v-if="isShowPreviewTRG">
       <el-button @click="copied" id="btnCopyPreviewTRG" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewTRG">一键复制</el-button>
+      <div v-if="previewItems.length === 0">
+        <div>染色失败，内容为空或无法识别此格式。</div>
+        <div>已知支持的格式有: 海豹Log(json)、赵/Dice!原始文件、塔原始文件</div>
+        <div>请先清空编辑框，再行复制</div>
+      </div>
       <div v-for="i in previewItems" :style="i.isDice ? 'margin-top: 16px; margin-bottom: 16px' : ''">
         <span :style="{ 'color': i.color }" v-if="i.isDice"># </span>
         <span :style="{ 'color': i.color }" class="_nickname">{{ nicknameSolve(i, 'trg') }}</span>
@@ -181,6 +203,13 @@ const isAddVoiceMark = ref(true)
 
 const copied = () => {
   ElMessage.success('进行了复制！')
+}
+
+// 清空文本
+const clearText = () => {
+  store.editor.dispatch({
+    changes: { from: 0, to: store.editor.state.doc.length, insert: '' }
+  })
 }
 
 const readDiceNum = (expr: string, defaultVal = 100) => {
@@ -312,7 +341,8 @@ const trgMessageSolve = (i: LogItem) => {
     extra = '# '
   }
   msg = msg.replaceAll('"', '').replaceAll('\\', '') // 移除反斜杠和双引号
-  return msg.replaceAll('<br />', '\n').replaceAll('\n', '<br /> ' + extra + nicknameSolve(i, 'trg'))
+  const prefix = isAddVoiceMark.value ? '{*}' : ''
+  return msg.replaceAll('<br />', '\n').replaceAll('\n', prefix + '<br /> ' + extra + nicknameSolve(i, 'trg'))
 }
 
 const bbsMessageSolve = (i: LogItem) => {
@@ -403,7 +433,6 @@ function setupUA() {
 
 setupUA()
 
-
 let findPC = (name: string) => {
     // return _pcDict[name]
     for (let i of store.pcList) {
@@ -467,6 +496,16 @@ onMounted(async () => {
   const key = (params as any).key
   const password = location.hash.slice(1)
 
+  const showHl = () => {
+    setTimeout(() => {
+      if (!isMobile.value) {
+        store.doEditorHighlight = true
+        store.reloadEditor()
+        store.reloadEditor2()      
+      }
+    }, 1000)
+  }
+
   if (key && password) {
     const loading = ElLoading.service({
       lock: true,
@@ -492,6 +531,7 @@ onMounted(async () => {
 
       onChange()
       loading.close()
+      showHl()
     } catch (e) {
       ElNotification({
         title: 'Error',
@@ -502,6 +542,8 @@ onMounted(async () => {
       browserAlert()
       return true
     }
+  } else {
+    showHl()
   }
 
   // cminstance.value = cmRefDom.value?.cminstance;
@@ -588,6 +630,7 @@ async function loadLog(items: LogItem[]) {
   store.editor.dispatch({
     changes: { from: 0, to: store.editor.state.doc.length, insert: text }
   })
+  store.items = items
   return changed
 }
 
@@ -652,8 +695,12 @@ const trySinaNyaLog = (text: string) => {
 
   if (isSinaNyaLog) {
     const items = [] as LogItem[]
+    let lastItem = null as any as LogItem
     for (let i of text.split('\n')) {
-      const m = reSinaNyaLine.exec(i)
+      // 遇到了这个问题，见：
+      // https://blog.csdn.net/Jioho_chen/article/details/122510522
+      const m = /^<(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d)>\s+\[?([^\]]+)\]?:\s+([^\n]+)$/g.exec(i)
+
       if (m) {
         const item = {} as LogItem
         nicknames.add(m[2])
@@ -662,9 +709,71 @@ const trySinaNyaLog = (text: string) => {
         item.message = m[3]
         item.IMUserId = startLength + nicknames.size
         items.push(item)
+        lastItem = item
+      } else {
+        if (lastItem) {
+          lastItem.message += '\n'+i
+        }
       }
     }
+    // console.log(222222, items)
     loadLog(items)
+    store.pcNameRefresh()
+    return true
+  }
+
+  // console.log('log解析: 并非塔骰格式，尝试下一种')
+  return false
+}
+
+// 2022-05-10 11:28:25 名字(12345)
+const reQQExportLine = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(.+?)(\([^)]+\)|\<[^>]+\>)$/gm
+const tryQQExportLog = (text: string) => {
+  let isQQExportLog = false
+  let testText = text
+  if (text.length > 2000) {
+    testText = text.slice(0, 2000)
+  }
+
+  if (reQQExportLine.test(testText)) {
+    isQQExportLog = true
+  }
+
+  const nicknames = new Set<string>()
+
+  if (isQQExportLog) {
+    const items = [] as LogItem[]
+    let lastItem = null as any as LogItem
+    for (let i of text.split('\n')) {
+      // 遇到了这个问题，见：
+      // https://blog.csdn.net/Jioho_chen/article/details/122510522
+      const m = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(.+?)(\([^)]+\)|\<[^>]+\>)$/g.exec(i)
+
+      if (m) {
+        if (lastItem) {
+          if (lastItem.message.endsWith('\n')) {
+            // 消除最后一个\n，避免从文件复制出来多一行的问题
+            lastItem.message = lastItem.message.slice(0, -1)
+          }
+        }
+        const item = {} as LogItem
+        nicknames.add(m[2])
+        item.nickname = m[2]
+        item.time = dayjs(m[1]).unix()
+        item.message = ''
+        item.IMUserId = 'QQ:' + m[3].slice(1, -1)
+        items.push(item)
+        lastItem = item
+      } else {
+        if (lastItem) {
+          if (lastItem.message === '') lastItem.message += i
+          else lastItem.message += '\n'+i
+        }
+      }
+    }
+    // console.log(222222, items)
+    loadLog(items)
+    store.pcNameRefresh()
     return true
   }
 
@@ -684,6 +793,7 @@ const trySealDice = (text: string) => {
     // console.log(3333, isTrpgLog, sealFormat.items, sealFormat.items.length > 0)
     if (isTrpgLog) {
       loadLog(sealFormat.items)
+      store.pcNameRefresh()
       return true
     }
   } catch (e) {
@@ -709,6 +819,12 @@ const onChange = debounce(() => {
   }
 
   isLog = trySinaNyaLog(payloadText)
+  if (isLog) {
+    preventNext = true
+    return
+  }
+
+  isLog = tryQQExportLog(payloadText)
   if (isLog) {
     preventNext = true
     return
@@ -744,6 +860,45 @@ const reloadFunc = debounce(() => {
   store.reloadEditor2()
   showPreview()
 }, 500)
+
+const doEditorHighlightClick = (e: any) => {
+  // 因为原生click事件会执行两次，第一次在label标签上，第二次在input标签上，故此处理
+  if (e.target.tagName === 'INPUT') return;
+
+  const doHl = () => {
+    // 编辑器染色
+    setTimeout(() => {
+      store.reloadEditor()
+      store.reloadEditor2()
+    }, 500)    
+  }
+
+  if (!store.doEditorHighlight) {
+    // 如果要开启
+    if (isMobile.value) {
+      ElMessageBox.confirm(
+        '部分移动设备上的特定浏览器可能会因为兼容性问题而卡死，继续吗？',
+        '开启编辑器染色？',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning',
+        }
+      ).then(async () => {
+        doHl()
+      }).catch(() => {
+        // 重新关闭
+        setTimeout(() => {
+          store.doEditorHighlight = false
+          store.reloadEditor()
+        }, 500)    
+      })
+      return
+    }
+  }
+
+  doHl()
+}
 
 watch(store.pcList, reloadFunc, { deep: true })
 watch(store.exportOptions, reloadFunc, { deep: true })
@@ -801,6 +956,7 @@ html {
 }
 
 .preview {
+  word-break: break-all;
   background: #fff;
   padding: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);

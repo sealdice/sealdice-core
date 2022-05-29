@@ -1,5 +1,7 @@
 <template>
-  <div id="e" ref="editor" class="codemirror"></div>
+  <div id="e" ref="editor" class="codemirror" style="position: relative;">
+    <slot></slot>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -24,15 +26,15 @@ const store = useStore()
 
 const emit = defineEmits<(e: 'change') => void>();
 
-const reloadEditor = () => {
+const reloadEditor = (highlight = false) => {
   store.editor.dispatch({
-    effects: StateEffect.reconfigure.of(getExts())
+    effects: StateEffect.reconfigure.of(getExts(highlight))
   })
 }
 
-store.reloadEditor = reloadEditor
+store._reloadEditor = reloadEditor
 
-function getExts() {
+function getExts(highlight = false) {
   return [
     basicSetup,
     history(),
@@ -49,7 +51,7 @@ function getExts() {
     ]),
     checkboxPlugin,
 
-    ...generateLang(store.pcList, store.exportOptions),
+    ...highlight ? generateLang(store.pcList, store.exportOptions) : [],
     EditorView.updateListener.of((v: ViewUpdate) => {
       if (v.docChanged) {
         emit('change');
