@@ -178,6 +178,14 @@ func VarGetValueInt64(ctx *MsgContext, s string) (int64, bool) {
 	return 0, false
 }
 
+func VarGetValueStr(ctx *MsgContext, s string) (string, bool) {
+	v, exists := VarGetValue(ctx, s)
+	if exists && v.TypeId == VMTypeString {
+		return v.Value.(string), true
+	}
+	return "", false
+}
+
 func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 	name := ctx.Player.GetValueNameByAlias(s, nil)
 

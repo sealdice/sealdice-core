@@ -312,7 +312,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				text := "海豹核心 " + VERSION + "\n"
-				text += "==========================\n"
+				text += "=======================\n"
 				text += ".help 骰点/娱乐/跑团/日志" + "\n"
 				text += ".help 扩展/其他/关于" + "\n"
 				text += ".help 骰主/协议" + "\n"
