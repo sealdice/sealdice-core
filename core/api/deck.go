@@ -1,8 +1,12 @@
 package api
 
 import (
+	"fmt"
 	"github.com/labstack/echo/v4"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sealdice-core/dice"
 )
 
@@ -39,7 +43,35 @@ func deckUpload(c echo.Context) error {
 		})
 	}
 
-	return c.JSON(http.StatusOK, myDice.BanList)
+	//-----------
+	// Read file
+	//-----------
+
+	// Source
+	file, err := c.FormFile("file")
+	if err != nil {
+		return err
+	}
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	// Destination
+	fmt.Println("????", filepath.Join("./data/decks", file.Filename))
+	dst, err := os.Create(filepath.Join("./data/decks", file.Filename))
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	// Copy
+	if _, err = io.Copy(dst, src); err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, nil)
 }
 
 func deckEnable(c echo.Context) error {

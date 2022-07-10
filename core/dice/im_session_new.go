@@ -207,16 +207,16 @@ type IMSession struct {
 
 type MsgContext struct {
 	MessageType string
-	Group       *GroupInfo
-	Player      *GroupPlayerInfo
+	Group       *GroupInfo       // 当前群信息
+	Player      *GroupPlayerInfo // 当前群的玩家数据
 
-	EndPoint        *EndPointInfo
-	Session         *IMSession
-	Dice            *Dice
-	IsCurGroupBotOn bool
+	EndPoint        *EndPointInfo // 对应的Endpoint
+	Session         *IMSession    // 对应的IMSession
+	Dice            *Dice         // 对应的 Dice
+	IsCurGroupBotOn bool          // 在群内是否bot on
 
-	IsPrivate       bool
-	CommandId       uint64
+	IsPrivate       bool        // 是否私聊
+	CommandId       uint64      // 指令ID
 	CommandHideFlag string      // 暗骰标记
 	CommandInfo     interface{} // 命令信息
 	PrivilegeLevel  int         // 权限等级 40邀请者 50管理 60群主 100master

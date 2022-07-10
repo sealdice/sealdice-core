@@ -16,11 +16,22 @@ func (d *Dice) JsInit() {
 	console.Enable(d.JsVM)
 
 	dice := d.JsVM.NewObject()
-	dice.Set("setVarInt", VarSetValueInt64)
-	dice.Set("setVarStr", VarSetValueStr)
+	//dice.Set("setVarInt", VarSetValueInt64)
+	//dice.Set("setVarStr", VarSetValueStr)
+
+	dice.Set("varGet", VarGetValue)
+	dice.Set("varSet", VarSetValue)
+
+	dice.Set("varGetInt", VarGetValueInt64)
+	dice.Set("varSetInt", VarSetValueInt64)
+	dice.Set("varGetStr", VarGetValueStr)
+	dice.Set("varSetStr", VarSetValueStr)
+
 	dice.Set("replyGroup", ReplyGroup)
 	dice.Set("replyPerson", ReplyPerson)
 	dice.Set("replyToSender", ReplyToSender)
+	dice.Set("format", DiceFormat)
+	dice.Set("formatTmpl", DiceFormatTmpl)
 
 	dice.Set("newCmdItemInfo", func() *CmdItemInfo {
 		return &CmdItemInfo{}
@@ -36,6 +47,14 @@ func (d *Dice) JsInit() {
 
 	dice.Set("newExt", func() *ExtInfo {
 		return &ExtInfo{}
+	})
+
+	dice.Set("newCocRuleInfo", func() *CocRuleInfo {
+		return &CocRuleInfo{}
+	})
+
+	dice.Set("newCocRuleCheckRet", func() *CocRuleCheckRet {
+		return &CocRuleCheckRet{}
 	})
 
 	dice.Set("instance", d)

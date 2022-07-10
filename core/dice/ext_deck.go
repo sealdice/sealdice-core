@@ -207,7 +207,7 @@ func DecksDetect(d *Dice) {
 		}
 
 		if !info.IsDir() {
-			if strings.HasSuffix(info.Name(), ".zip") {
+			if strings.HasSuffix(info.Name(), ".deck") {
 				dest := filepath.Join(filepath.Dir(path), "_"+info.Name())
 				if _, err := os.Stat(dest); err != nil {
 					d.Logger.Info("检测到可能是新的压缩牌堆文件，准备自动解压:", info.Name())
@@ -230,7 +230,7 @@ func DecksDetect(d *Dice) {
 		if info.IsDir() && strings.EqualFold(info.Name(), "images") {
 			return fs.SkipDir
 		}
-		if !info.IsDir() && strings.HasPrefix(info.Name(), ".zip") {
+		if !info.IsDir() && strings.HasPrefix(info.Name(), ".deck") {
 			return nil
 		}
 		if info.Name() == "info.yaml" {
@@ -251,7 +251,7 @@ func DeckDelete(d *Dice, deck *DeckInfo) {
 	dirpath := filepath.Dir(deck.Filename)
 	dirname := filepath.Base(dirpath)
 
-	if strings.HasPrefix(dirname, "_") && strings.HasSuffix(dirname, ".zip") {
+	if strings.HasPrefix(dirname, "_") && strings.HasSuffix(dirname, ".deck") {
 		// 可能是zip解压出来的，那么删除目录和压缩包
 		_ = os.RemoveAll(dirpath)
 		zipFilename := filepath.Join(filepath.Dir(dirpath), dirname[1:])

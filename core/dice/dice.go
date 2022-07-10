@@ -21,7 +21,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.0.0stable v20220526dev"
+var VERSION = "1.0.0 v20220529dev"
 var VERSION_CODE = int64(1000002) // 991404
 
 type CmdExecuteResult struct {
@@ -143,6 +143,7 @@ type Dice struct {
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
 	Parent          *DiceManager               `yaml:"-"`
 
+	CocExtraRules    map[int]*CocRuleInfo   `yaml:"-" json:"cocExtraRules"`
 	Cron             *cron.Cron             `yaml:"-" json:"-"`
 	aliveNoticeEntry cron.EntryID           `yaml:"-" json:"-"`
 	JsVM             *goja.Runtime          `yaml:"-" json:"-"`
@@ -151,6 +152,18 @@ type Dice struct {
 
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
+}
+
+func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
+	//d.JsLock.Lock()
+
+	if _, ok := d.CocExtraRules[ruleInfo.Index]; ok {
+		//d.JsLock.Unlock()
+		return false
+	}
+	d.CocExtraRules[ruleInfo.Index] = ruleInfo
+	//d.JsLock.Unlock()
+	return true
 }
 
 func (d *Dice) Init() {
@@ -168,6 +181,7 @@ func (d *Dice) Init() {
 	// 创建js运行时
 	d.JsInit()
 
+	d.CocExtraRules = map[int]*CocRuleInfo{}
 	d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
 	d.Logger = log.Logger

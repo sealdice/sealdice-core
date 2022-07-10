@@ -482,7 +482,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						var checkVal = r1.Value.(int64)
 						var attrVal = r2.Value.(int64)
 
-						successRank, criticalSuccessValue := ResultCheck(cocRule, checkVal, attrVal)
+						successRank, criticalSuccessValue := ResultCheck(ctx, cocRule, checkVal, attrVal)
 						var suffix string
 						suffix = GetResultTextWithRequire(mctx, successRank, difficultRequire, manyTimes)
 						suffixFull := GetResultTextWithRequire(mctx, successRank, difficultRequire, false)
@@ -651,6 +651,16 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				case "help":
 					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
 				default:
+					nInt, _ := strconv.ParseInt(n, 10, 64)
+					for _, i := range ctx.Dice.CocExtraRules {
+						if i.Key == n || nInt == int64(i.Index) {
+							ctx.Group.CocRuleIndex = i.Index
+							text := fmt.Sprintf("已切换房规为%s:\n%s", i.Name, i.Desc)
+							ReplyToSender(ctx, msg, text)
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+					}
+
 					text := SetCocRuleText[ctx.Group.CocRuleIndex]
 					VarSetValueStr(ctx, "$t房规文本", text)
 					VarSetValue(ctx, "$t房规", &VMValue{VMTypeString, SetCocRulePrefixText[ctx.Group.CocRuleIndex]})
@@ -767,11 +777,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						cocRule = 0
 					}
 
-					successRank1, _ := ResultCheck(cocRule, checkVal1, val1)
+					successRank1, _ := ResultCheck(ctx, cocRule, checkVal1, val1)
 					difficultRequire1 := difficultPrefixMap[difficult1]
 					checkPass1 := successRank1 >= difficultRequire1 // A是否通过检定
 
-					successRank2, _ := ResultCheck(cocRule, checkVal2, val2)
+					successRank2, _ := ResultCheck(ctx, cocRule, checkVal2, val2)
 					difficultRequire2 := difficultPrefixMap[difficult2]
 					checkPass2 := successRank2 >= difficultRequire2 // B是否通过检定
 
@@ -1180,7 +1190,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 							d100 := DiceRoll64(100)
 							// 注意一下，这里其实是，小于失败 大于成功
-							successRank, _ := ResultCheck(ctx.Group.CocRuleIndex, d100, varValue)
+							successRank, _ := ResultCheck(ctx, ctx.Group.CocRuleIndex, d100, varValue)
 							var resultText string
 							if successRank > 0 {
 								resultText = "失败"
@@ -1504,7 +1514,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							}
 
 							// 进行检定
-							successRank, _ := ResultCheck(mctx.Group.CocRuleIndex, d100, san)
+							successRank, _ := ResultCheck(ctx, mctx.Group.CocRuleIndex, d100, san)
 							suffix := GetResultText(ctx, successRank, false)
 							suffixShort := GetResultText(ctx, successRank, true)
 
@@ -1735,6 +1745,33 @@ func GetResultText(ctx *MsgContext, successRank int, userShortVersion bool) stri
 	return suffix
 }
 
+type CocRuleCheckRet struct {
+	SuccessRank          int   // 成功级别
+	CriticalSuccessValue int64 // 大成功数值
+}
+
+type CocRuleInfo struct {
+	Index int    //序号
+	Key   string // .setcoc key
+	Name  string // 已切换至规则 Name: Desc
+	Desc  string // 规则描述
+	Check func(ctx *MsgContext, d100 int64, checkValue int64) CocRuleCheckRet
+}
+
+func ResultCheck(ctx *MsgContext, cocRule int, d100 int64, checkValue int64) (successRank int, criticalSuccessValue int64) {
+	if cocRule >= 20 {
+		d := ctx.Dice
+		val, exists := d.CocExtraRules[cocRule]
+		if !exists {
+			cocRule = 0
+		} else {
+			ret := val.Check(ctx, d100, checkValue)
+			return ret.SuccessRank, ret.CriticalSuccessValue
+		}
+	}
+	return ResultCheckBase(cocRule, d100, checkValue)
+}
+
 /*
 大失败：骰出 100。若成功需要的值低于 50，大于等于 96 的结果都是大失败 -> -2
 失败：骰出大于角色技能或属性值（但不是大失败） -> -1
@@ -1743,7 +1780,7 @@ func GetResultText(ctx *MsgContext, successRank int, userShortVersion bool) stri
 极难成功：骰出小于等于角色技能或属性值的五分之一 -> 3
 大成功：骰出1 -> 4
 */
-func ResultCheck(cocRule int, d100 int64, checkValue int64) (successRank int, criticalSuccessValue int64) {
+func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int, criticalSuccessValue int64) {
 	if d100 <= checkValue {
 		successRank = 1
 	} else {
