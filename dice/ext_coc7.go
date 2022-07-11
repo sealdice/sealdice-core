@@ -616,34 +616,38 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		CheckMentionOthers: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n, _ := cmdArgs.GetArgN(1)
+			suffix := ""
+			ctx.Group.ExtActive(ctx.Group.ExtGetActive("coc7"))
+			suffix = "\nCOC7规则扩展已自动开启"
+
 			switch n {
 			case "0":
 				ctx.Group.CocRuleIndex = 0
-				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
 			case "1":
 				ctx.Group.CocRuleIndex = 1
-				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
 			case "2":
 				ctx.Group.CocRuleIndex = 2
-				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
 			case "3":
 				ctx.Group.CocRuleIndex = 3
-				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
 			case "4":
 				ctx.Group.CocRuleIndex = 4
-				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
 			case "5":
 				ctx.Group.CocRuleIndex = 5
-				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
 			case "dg":
 				ctx.Group.CocRuleIndex = 11
-				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
@@ -652,13 +656,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				for _, i := range ctx.Dice.CocExtraRules {
 					if i.Key == n || nInt == int64(i.Index) {
 						ctx.Group.CocRuleIndex = i.Index
-						text := fmt.Sprintf("已切换房规为%s:\n%s", i.Name, i.Desc)
+						text := fmt.Sprintf("已切换房规为%s:\n%s%s", i.Name, i.Desc, suffix)
 						ReplyToSender(ctx, msg, text)
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 				}
 
-				ctx.Group.ExtActive(ctx.Dice.ExtFind("coc7"))
 				text := SetCocRuleText[ctx.Group.CocRuleIndex]
 				VarSetValueStr(ctx, "$t房规文本", text)
 				VarSetValue(ctx, "$t房规", &VMValue{VMTypeString, SetCocRulePrefixText[ctx.Group.CocRuleIndex]})
