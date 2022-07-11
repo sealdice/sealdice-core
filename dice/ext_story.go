@@ -43,7 +43,7 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 
 	// 没匹配到，显示帮助
 	if len(rules) == 0 {
-		return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+		return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 	}
 
 	// 开始抽取
@@ -163,7 +163,7 @@ func RegisterBuiltinStory(self *Dice) {
 					return CmdExecuteResult{Matched: false, Solved: false}
 				}
 				if cmdArgs.IsArgEqual(1, "help") {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
 				if len(cmdArgs.Args) < 2 {
@@ -203,7 +203,7 @@ func RegisterBuiltinStory(self *Dice) {
 				cmdArgs.ChopPrefixToArgsWith("help", "search", "find", "rec", "luck", "get", "author", "roll")
 
 				if cmdArgs.IsArgEqual(1, "help") {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
 				getDetail := func(keyId string) string {
@@ -303,7 +303,7 @@ func RegisterBuiltinStory(self *Dice) {
 						ReplyToSender(ctx, msg, "什么也没发现")
 					}
 				default:
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}

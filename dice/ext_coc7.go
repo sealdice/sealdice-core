@@ -650,7 +650,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
 			case "help":
-				return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
 				nInt, _ := strconv.ParseInt(n, 10, 64)
 				for _, i := range ctx.Dice.CocExtraRules {
@@ -687,11 +687,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				switch val {
 				case "help", "":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				default:
 					// 至少@一人，检定才成立
 					if len(cmdArgs.At) == 0 {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 					ctx1 := ctx
 					ctx2 := ctx
@@ -849,7 +849,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				cmdArgs.ChopPrefixToArgsWith("help", "del", "rm", "show", "list")
 
 				if len(cmdArgs.Args) == 0 || cmdArgs.IsArgEqual(1, "help") {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				} else if cmdArgs.IsArgEqual(1, "del", "rm") {
 					var nums []string
 					var failed []string
@@ -1395,7 +1395,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						// v2: (worst) FAIL — REGULAR SUCCESS — HARD SUCCESS — EXTREME SUCCESS (best)
 
 						if len(cmdArgs.Args) == 0 {
-							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+							return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 						}
 						mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 						mctx.Player.TempValueAlias = &ac.Alias

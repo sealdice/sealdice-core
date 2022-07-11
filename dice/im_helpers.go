@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"github.com/fy0/lockfree"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -188,15 +189,37 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 	return DiceFormat(ctx, text)
 }
 
-func DiceFormat(ctx *MsgContext, s string) string {
-	//s = strings.ReplaceAll(s, "\n", `\n`)
-	//fmt.Println("???", s)
-
+func CompatibleReplace(ctx *MsgContext, s string) string {
 	s = strings.ReplaceAll(s, "#{SPLIT}", "###SPLIT###")
 	s = strings.ReplaceAll(s, "{FormFeed}", "###SPLIT###")
 	s = strings.ReplaceAll(s, "{formfeed}", "###SPLIT###")
 	s = strings.ReplaceAll(s, "\f", "###SPLIT###")
 	s = strings.ReplaceAll(s, "\\f", "###SPLIT###")
+
+	re := regexp.MustCompile(`#\{DRAW-(\S+?)\}`)
+	s = re.ReplaceAllString(s, "###DRAW-$1###")
+
+	if ctx != nil {
+		s = DeckRewrite(s, func(deckName string) string {
+			exists, result, err := deckDraw(ctx, deckName)
+			if exists {
+				if err != nil {
+					return "<%抽取错误-" + deckName + "%>"
+				} else {
+					return result
+				}
+			} else {
+				return "<%未知牌组-" + deckName + "%>"
+			}
+		})
+	}
+	return s
+}
+
+func DiceFormat(ctx *MsgContext, s string) string {
+	//s = strings.ReplaceAll(s, "\n", `\n`)
+	//fmt.Println("???", s)
+	s = CompatibleReplace(ctx, s)
 
 	r, _, _ := ctx.Dice.ExprText(s, ctx)
 	return r

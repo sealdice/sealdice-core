@@ -279,6 +279,20 @@ func ImageRewrite(longText string, solve func(text string) string) string {
 	return newText
 }
 
+func DeckRewrite(longText string, solve func(text string) string) string {
+	re := regexp.MustCompile(`###DRAW-(\S+?)###`)
+	m := re.FindAllStringIndex(longText, -1)
+
+	newText := longText
+	for i := len(m) - 1; i >= 0; i-- {
+		p := m[i]
+		text := solve(longText[p[0]+len("###DRAW-") : p[1]-len("###")])
+		newText = newText[:p[0]] + text + newText[p[1]:]
+	}
+
+	return newText
+}
+
 func CQRewrite(longText string, solve func(cq *CQCommand)) string {
 	re := regexp.MustCompile(`\[CQ:.+?]`)
 	m := re.FindAllStringIndex(longText, -1)

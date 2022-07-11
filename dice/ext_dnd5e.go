@@ -478,7 +478,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_列出")+extra)
 
 				case "help", "":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				default:
 					text := cmdArgs.CleanArgs
 					// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
@@ -718,7 +718,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				val, _ := cmdArgs.GetArgN(1)
 				switch val {
 				case "", "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				default:
 					restText := cmdArgs.CleanArgs
 					re := regexp.MustCompile(`^优势|劣势`)
@@ -937,7 +937,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_列出")+extra)
 
 				case "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				default:
 					text := cmdArgs.CleanArgs
 					// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
@@ -1134,7 +1134,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 						ReplyToSender(mctx, msg, "为<"+mctx.Player.Name+">设置法术位: "+strings.Join(texts, ", "))
 					} else {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 
 				case "clr":
@@ -1177,7 +1177,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 						ReplyToSender(mctx, msg, "为<"+mctx.Player.Name+">设置法术位: "+strings.Join(texts, ", "))
 					} else {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 				case "":
 					texts := []string{}
@@ -1194,7 +1194,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的法术位状况: %s`, mctx.Player.Name, summary))
 				case "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				default:
 					reSlot := regexp.MustCompile(`(\d+)[环cC]\s*([+-＋－])(\d+)|[lL][vV](\d+)\s*([+-＋－])(\d+)`)
 					slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
@@ -1224,7 +1224,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							}
 						}
 					} else {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 				}
 			}
@@ -1273,7 +1273,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							}
 						}
 					} else {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 				}
 			}
@@ -1310,7 +1310,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的长休: `+hpText+ssText, mctx.Player.Name))
 				default:
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -1376,7 +1376,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					text := fmt.Sprintf("<%s>当前的死亡豁免情况: 成功%d 失败%d", mctx.Player.Name, a, b)
 					ReplyToSender(mctx, msg, text)
 				case "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				case "":
 					fallthrough
 				default:
@@ -1554,7 +1554,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 						if cmdArgs.IsArgEqual(1, "help") {
-							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+							return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 						}
 
 						readOne := func() (int, string, int64, string) {
@@ -1773,7 +1773,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							dndClearRiMapList(ctx)
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
 						case "help":
-							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+							return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 						}
 
 						return CmdExecuteResult{Matched: true, Solved: true}
