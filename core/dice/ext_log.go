@@ -218,7 +218,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 							}
 						}
 					} else {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else if cmdArgs.IsArgEqual(1, "masterget") {
@@ -378,7 +378,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -439,7 +439,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
 					}
 				default:
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -464,7 +464,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				val, _ := cmdArgs.GetArgN(1)
 				switch strings.ToLower(val) {
 				case "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				case "exit":
 					if strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
 						ctx.Player.Name = ctx.Player.Name[len("ob"):]
@@ -511,7 +511,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				val, _ := cmdArgs.GetArgN(1)
 				switch strings.ToLower(val) {
 				case "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				case "coc", "coc7":
 					text, _ := setByTmpl("{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}")
 					// 玩家 SAN60 HP10/10 DEX65
@@ -525,7 +525,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					text, _ := setByTmpl("{$t玩家}")
 					ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text)
 				default:
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}

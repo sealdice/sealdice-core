@@ -68,7 +68,7 @@ func (d *Dice) registerCoreCommands() {
 				case "add":
 					uid := getId()
 					if uid == "" {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 					reason, _ := cmdArgs.GetArgN(4)
 					if reason == "" {
@@ -79,7 +79,7 @@ func (d *Dice) registerCoreCommands() {
 				case "rm", "del":
 					uid := getId()
 					if uid == "" {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 					item := d.BanList.GetById(uid)
 					if item.Rank == BanRankBanned || item.Rank == BanRankTrusted || item.Rank == BanRankWarn {
@@ -96,7 +96,7 @@ func (d *Dice) registerCoreCommands() {
 						uid = ""
 					}
 					if uid == "" {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 
 					d.BanList.SetTrustById(uid, "骰主指令", "骰主指令")
@@ -120,7 +120,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, text)
 					break
 				default:
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -232,7 +232,7 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, "搜索故障: "+err.Error())
 					}
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					//ReplyToSender(ctx, msg, "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条")
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -600,7 +600,7 @@ func (d *Dice) registerCoreCommands() {
 					if cmdArgs.SomeoneBeMentionedButNotMeStrict {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 			} else if ctx.IsPrivate {
 				ReplyToSender(ctx, msg, fmt.Sprintf("私聊中不支持这个指令"))
@@ -811,7 +811,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, fmt.Sprintf("Master列表:\n%s", text))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				default:
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -848,13 +848,13 @@ func (d *Dice) registerCoreCommands() {
 							ReplyToSender(ctx, msg, "信息已经发送至"+uid)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						} else {
-							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+							return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 						}
 					} else {
 						ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
 					}
 				} else if val == "help" {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				} else {
 					for _, uid := range ctx.Dice.DiceMasters {
 						text := ""
@@ -873,7 +873,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
 		},
@@ -1356,7 +1356,7 @@ func (d *Dice) registerCoreCommands() {
 							}
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
 						case "help":
-							return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+							return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 						case "info":
 							ReplyToSender(ctx, msg, DiceFormat(ctx, `个人骰子面数: {$t个人骰子面数}\n`+
 								`群组骰子面数: {$t群组骰子面数}\n当前骰子面数: {$t当前骰子面数}`))
@@ -1366,7 +1366,7 @@ func (d *Dice) registerCoreCommands() {
 						}
 					}
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -1563,7 +1563,7 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 					}
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -1623,7 +1623,7 @@ func (d *Dice) registerCoreCommands() {
 					ctx.Group.ShowGroupWelcome = true
 					ReplyToSender(ctx, msg, "当前欢迎语设定为:\n"+text2+"\n入群欢迎语已自动打开(注意，会在bot off时起效)")
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -1660,7 +1660,7 @@ func (d *Dice) registerCoreCommands() {
 					ctx.Group.ExtInactive("reply")
 					ReplyToSender(ctx, msg, fmt.Sprintf("已在当前群关闭自定义回复(%s➯关)。\n此指令等价于.ext reply off", onText))
 				default:
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}

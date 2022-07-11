@@ -334,7 +334,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					}
 					ReplyToSender(ctx, msg, text)
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -364,7 +364,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				mctx := ctx
 
 				if cmdArgs.IsArgEqual(1, "help") {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
 				txt := cmdArgs.CleanArgs
@@ -519,7 +519,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 						}
 					}
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -735,7 +735,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}

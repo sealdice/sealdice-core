@@ -571,7 +571,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 			ret := item.Solve(ctx, msg, cmdArgs)
 			if ret.Solved {
-				if ret.ShowLongHelp {
+				if ret.ShowHelp {
 					help := item.LongHelp
 					if help == "" {
 						// 这是为了防止别的骰子误触发

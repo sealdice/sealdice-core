@@ -273,6 +273,20 @@ func DeckReload(d *Dice) {
 	d.IsDeckLoading = false
 }
 
+func deckDraw(ctx *MsgContext, deckName string) (bool, string, error) {
+	for _, i := range ctx.Dice.DeckList {
+		if i.Enable {
+			deckExists := i.Command[deckName]
+			if deckExists {
+				deck := i.DeckItems[deckName]
+				a, b := executeDeck(ctx, i, deck)
+				return true, a, b
+			}
+		}
+	}
+	return false, "", nil
+}
+
 func RegisterBuiltinExtDeck(d *Dice) {
 	helpDraw := "" +
 		".draw help // 显示本帮助\n" +
@@ -313,7 +327,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						}
 						ReplyToSender(ctx, msg, text)
 					} else if strings.EqualFold(deckName, "help") {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					} else if strings.EqualFold(deckName, "keys") {
 						specified, _ := cmdArgs.GetArgN(2)
 						text := "牌组关键字列表:\n"
@@ -372,25 +386,16 @@ func RegisterBuiltinExtDeck(d *Dice) {
 							ReplyToSender(ctx, msg, "请给出要搜索的关键字")
 						}
 					} else {
-						isDrew := false
-						for _, i := range d.DeckList {
-							if i.Enable {
-								deckExists := i.Command[deckName]
-								if deckExists {
-									deck := i.DeckItems[deckName]
-									result, _ := executeDeck(ctx, i, deck)
-									ReplyToSender(ctx, msg, result)
-									isDrew = true
-								}
-							}
-						}
-						if !isDrew {
+						exists, result, _ := deckDraw(ctx, deckName)
+						if exists {
+							ReplyToSender(ctx, msg, result)
+						} else {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组"))
 						}
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -425,9 +430,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 	// 参考: https://sinanya.com/#/MakeFile
 	// 1. 提取 {}
 	re := regexp.MustCompile(`{[$%]?.+?}`)
-	s = strings.ReplaceAll(s, "#{SPLIT}", "###SPLIT###")
-	s = strings.ReplaceAll(s, "{FormFeed}", "###SPLIT###")
-	s = strings.ReplaceAll(s, "{formfeed}", "###SPLIT###")
+	s = CompatibleReplace(ctx, s)
 	m := re.FindAllStringIndex(s, -1)
 
 	for _i := len(m) - 1; _i >= 0; _i-- {

@@ -25,10 +25,9 @@ var VERSION = "1.0.0 v20220529dev"
 var VERSION_CODE = int64(1000002) // 991404
 
 type CmdExecuteResult struct {
-	Matched       bool // 是否是指令
-	Solved        bool // 是否响应此指令
-	ShowShortHelp bool
-	ShowLongHelp  bool
+	Matched  bool // 是否是指令
+	Solved   bool // 是否响应此指令
+	ShowHelp bool
 }
 
 type CmdItemInfo struct {
@@ -300,9 +299,7 @@ func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VmResult, string, erro
 }
 
 func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext) (*VmResult, string, error) {
-	buffer = strings.ReplaceAll(buffer, "#{SPLIT}", "###SPLIT###")
-	buffer = strings.ReplaceAll(buffer, "{FormFeed}", "###SPLIT###")
-	buffer = strings.ReplaceAll(buffer, "{formfeed}", "###SPLIT###")
+	buffer = CompatibleReplace(ctx, buffer)
 
 	// 隐藏的内置字符串符号 \x1e
 	val, detail, err := d.ExprEval("\x1e"+buffer+"\x1e", ctx)
