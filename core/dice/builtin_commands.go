@@ -652,12 +652,9 @@ func (d *Dice) registerCoreCommands() {
 						} else {
 							ReplyToSender(ctx, msg, fmt.Sprintf("错误的解锁码"))
 						}
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				if ctx.PrivilegeLevel < pRequired {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
