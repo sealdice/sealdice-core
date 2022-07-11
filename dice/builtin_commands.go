@@ -254,6 +254,11 @@ func (d *Dice) registerCoreCommands() {
 		LongHelp: "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
+				AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
+				if AtSomebodyButNotMe {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+
 				if arg, exists := cmdArgs.GetArgN(1); exists {
 					if strings.EqualFold(arg, "reload") {
 						if ctx.PrivilegeLevel < 100 {
@@ -649,6 +654,11 @@ func (d *Dice) registerCoreCommands() {
 						}
 					}
 
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				if ctx.PrivilegeLevel < pRequired {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
