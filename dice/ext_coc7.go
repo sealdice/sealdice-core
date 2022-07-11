@@ -609,68 +609,65 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	helpSetCOC := ".setcoc 0-5 // 设置常见的0-5房规\n" +
 		".setcoc dg // delta green 扩展规则"
 	cmdSetCOC := &CmdItemInfo{
-		Name:     "setcoc",
-		Help:     helpSetCOC,
-		LongHelp: "设置房规:\n" + helpSetCOC,
+		Name:               "setcoc",
+		Help:               helpSetCOC,
+		LongHelp:           "设置房规:\n" + helpSetCOC,
+		CheckCurrentBotOn:  true,
+		CheckMentionOthers: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
-
-				n, _ := cmdArgs.GetArgN(1)
-				switch n {
-				case "0":
-					ctx.Group.CocRuleIndex = 0
-					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
-					ReplyToSender(ctx, msg, text)
-				case "1":
-					ctx.Group.CocRuleIndex = 1
-					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
-					ReplyToSender(ctx, msg, text)
-				case "2":
-					ctx.Group.CocRuleIndex = 2
-					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
-					ReplyToSender(ctx, msg, text)
-				case "3":
-					ctx.Group.CocRuleIndex = 3
-					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
-					ReplyToSender(ctx, msg, text)
-				case "4":
-					ctx.Group.CocRuleIndex = 4
-					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
-					ReplyToSender(ctx, msg, text)
-				case "5":
-					ctx.Group.CocRuleIndex = 5
-					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
-					ReplyToSender(ctx, msg, text)
-				case "dg":
-					ctx.Group.CocRuleIndex = 11
-					text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
-					ReplyToSender(ctx, msg, text)
-				case "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
-				default:
-					nInt, _ := strconv.ParseInt(n, 10, 64)
-					for _, i := range ctx.Dice.CocExtraRules {
-						if i.Key == n || nInt == int64(i.Index) {
-							ctx.Group.CocRuleIndex = i.Index
-							text := fmt.Sprintf("已切换房规为%s:\n%s", i.Name, i.Desc)
-							ReplyToSender(ctx, msg, text)
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
+			n, _ := cmdArgs.GetArgN(1)
+			switch n {
+			case "0":
+				ctx.Group.CocRuleIndex = 0
+				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				ReplyToSender(ctx, msg, text)
+			case "1":
+				ctx.Group.CocRuleIndex = 1
+				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				ReplyToSender(ctx, msg, text)
+			case "2":
+				ctx.Group.CocRuleIndex = 2
+				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				ReplyToSender(ctx, msg, text)
+			case "3":
+				ctx.Group.CocRuleIndex = 3
+				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				ReplyToSender(ctx, msg, text)
+			case "4":
+				ctx.Group.CocRuleIndex = 4
+				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				ReplyToSender(ctx, msg, text)
+			case "5":
+				ctx.Group.CocRuleIndex = 5
+				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				ReplyToSender(ctx, msg, text)
+			case "dg":
+				ctx.Group.CocRuleIndex = 11
+				text := fmt.Sprintf("已切换房规为%s:\n%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex])
+				ReplyToSender(ctx, msg, text)
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowLongHelp: true}
+			default:
+				nInt, _ := strconv.ParseInt(n, 10, 64)
+				for _, i := range ctx.Dice.CocExtraRules {
+					if i.Key == n || nInt == int64(i.Index) {
+						ctx.Group.CocRuleIndex = i.Index
+						text := fmt.Sprintf("已切换房规为%s:\n%s", i.Name, i.Desc)
+						ReplyToSender(ctx, msg, text)
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-
-					text := SetCocRuleText[ctx.Group.CocRuleIndex]
-					VarSetValueStr(ctx, "$t房规文本", text)
-					VarSetValue(ctx, "$t房规", &VMValue{VMTypeString, SetCocRulePrefixText[ctx.Group.CocRuleIndex]})
-					VarSetValue(ctx, "$t房规序号", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
 				}
-				return CmdExecuteResult{Matched: true, Solved: true}
+
+				ctx.Group.ExtActive(ctx.Dice.ExtFind("coc7"))
+				text := SetCocRuleText[ctx.Group.CocRuleIndex]
+				VarSetValueStr(ctx, "$t房规文本", text)
+				VarSetValue(ctx, "$t房规", &VMValue{VMTypeString, SetCocRulePrefixText[ctx.Group.CocRuleIndex]})
+				VarSetValue(ctx, "$t房规序号", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
 			}
 
-			return CmdExecuteResult{Matched: true, Solved: false}
+			ctx.Group.ExtActive(ctx.Dice.ExtFind("coc7"))
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 

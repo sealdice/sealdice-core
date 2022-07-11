@@ -556,6 +556,19 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				return true
 			}
 
+			if item.CheckCurrentBotOn {
+				passed := ctx.IsCurGroupBotOn || ctx.IsPrivate
+				if !passed {
+					return false
+				}
+			}
+
+			if item.CheckMentionOthers {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return false
+				}
+			}
+
 			ret := item.Solve(ctx, msg, cmdArgs)
 			if ret.Solved {
 				if ret.ShowLongHelp {
