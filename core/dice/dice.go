@@ -38,6 +38,9 @@ type CmdItemInfo struct {
 	LongHelp string // 长帮助，带换行的较详细说明
 	//Keywords []string // 其他帮助关键字
 	ChopWords []string
+
+	CheckCurrentBotOn  bool // 是否检查当前可用状况，包括群内可用和是私聊两种方式，如失败不进入solve
+	CheckMentionOthers bool // 是否检查@了别的骰子，如失败不进入solve。只在
 }
 
 type CmdMapCls map[string]*CmdItemInfo
