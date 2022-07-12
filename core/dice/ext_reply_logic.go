@@ -25,7 +25,7 @@ type ReplyResultBase interface {
 // ReplyConditionTextMatch 文本匹配 // textMatch
 type ReplyConditionTextMatch struct {
 	CondType  string `yaml:"condType" json:"condType"`
-	MatchType string `yaml:"matchType" json:"matchType"` // matchExact 精确 matchRegex 正则 matchFuzzy 模糊
+	MatchType string `yaml:"matchType" json:"matchType"` // matchExact 精确 matchRegex 正则 matchFuzzy 模糊 matchContains 包含
 	Value     string `yaml:"value" json:"value"`
 }
 
@@ -33,6 +33,13 @@ type ReplyConditionTextMatch struct {
 type ReplyConditionExprTrue struct {
 	CondType string `yaml:"condType" json:"condType"`
 	Value    string `yaml:"value" json:"value"`
+}
+
+// ReplyConditionTextLenLimit 文本长度限制 // textLenLimit
+type ReplyConditionTextLenLimit struct {
+	CondType string `yaml:"condType" json:"condType"`
+	MatchOp  string `yaml:"matchOp" json:"matchOp"` // 其实是ge或le
+	Value    int    `yaml:"value" json:"value"`
 }
 
 // Jaro 和 hamming 平均，阈值设为0.7，别问我为啥，玄学决策的
@@ -70,11 +77,30 @@ func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *
 		}
 	case "matchFuzzy":
 		return strCompare(strings.ToLower(m.Value), strings.ToLower(cleanText)) > 0.7
+	case "matchContains":
+		return strings.Contains(strings.ToLower(cleanText), strings.ToLower(m.Value))
+	case "matchNotContains":
+		return !strings.Contains(strings.ToLower(cleanText), strings.ToLower(m.Value))
 	}
 	if ret {
 		VarSetValueStr(ctx, "$t0", cleanText)
 	}
 	return ret
+}
+
+func (m *ReplyConditionTextLenLimit) Clean() {
+	if m.MatchOp != "ge" && m.MatchOp != "le" {
+		m.MatchOp = "ge"
+	}
+}
+
+func (m *ReplyConditionTextLenLimit) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string) bool {
+	textLen := len(cleanText)
+	if m.MatchOp == "le" {
+		return textLen <= m.Value
+	} else {
+		return textLen >= m.Value
+	}
 }
 
 func (m *ReplyConditionExprTrue) Clean() {
@@ -221,8 +247,9 @@ func (ri *ReplyItem) UnmarshalJSON(data []byte) error {
 		cs, ok := m["conditions"].([]interface{})
 		if ok {
 			typeMap := map[string]reflect.Type{
-				"textMatch": reflect.TypeOf(ReplyConditionTextMatch{}),
-				"exprTrue":  reflect.TypeOf(ReplyConditionExprTrue{}),
+				"textMatch":    reflect.TypeOf(ReplyConditionTextMatch{}),
+				"exprTrue":     reflect.TypeOf(ReplyConditionExprTrue{}),
+				"textLenLimit": reflect.TypeOf(ReplyConditionTextLenLimit{}),
 			}
 
 			for _, i := range cs {
@@ -300,8 +327,9 @@ func (ri *ReplyItem) UnmarshalYAML(value *yaml.Node) error {
 		cs, ok := m["conditions"].([]interface{})
 		if ok {
 			typeMap := map[string]reflect.Type{
-				"textMatch": reflect.TypeOf(ReplyConditionTextMatch{}),
-				"exprTrue":  reflect.TypeOf(ReplyConditionExprTrue{}),
+				"textMatch":    reflect.TypeOf(ReplyConditionTextMatch{}),
+				"exprTrue":     reflect.TypeOf(ReplyConditionExprTrue{}),
+				"textLenLimit": reflect.TypeOf(ReplyConditionTextLenLimit{}),
 			}
 
 			for _, i := range cs {
