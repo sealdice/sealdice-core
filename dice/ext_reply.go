@@ -107,6 +107,8 @@ func RegisterBuiltinExtReply(dice *Dice) {
 
 					cleanText, _ := AtParse(msg.Message, "")
 					cleanText = strings.TrimSpace(cleanText)
+					VarSetValueInt64(ctx, "$t文本长度", int64(len(cleanText)))
+
 					for index, i := range rc.Items {
 						if i.Enable {
 							checkTrue := true
