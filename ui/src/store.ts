@@ -109,7 +109,7 @@ export const useStore = defineStore('main', {
     },
 
     async getBaseInfo() {
-      const info = await backend.get(urlPrefix+'/baseInfo')
+      const info = await backend.get(urlPrefix+'/baseInfo', { timeout: 5000 })
       this.curDice.baseInfo = info as any;
       return info
     },
@@ -244,6 +244,37 @@ export const useStore = defineStore('main', {
     async setGroupQuit(data: any) {
       const info = await backend.post(urlPrefix+'/group/quit_one', data)
       return info
+    },
+
+    // 牌堆
+    async deckList() {
+      const info = await backend.get(urlPrefix+'/deck/list')
+      return info as any
+    },
+
+    async deckReload() {
+      const info = await backend.post(urlPrefix+'/deck/reload')
+      return info as any
+    },
+
+    async deckSetEnable({ index, enable }: any) {
+      const info = await backend.post(urlPrefix+'/deck/enable', { index, enable })
+      return info as any
+    },
+
+    async deckDelete({ index }: any) {
+      const info = await backend.post(urlPrefix+'/deck/delete', { index })
+      return info as any
+    },
+
+    async deckUpload({ form }: any) {
+      const info = await backend.post(urlPrefix+'/deck/upload', form)
+      return info as any
+    },
+
+    async scriptReload() {
+      const info = await backend.post(urlPrefix+'/script/reload')
+      return info as any
     },
 
     async setCustomReply(data: any) {

@@ -103,6 +103,9 @@
             <el-menu-item :index="`7-base`" @click="switchTo('miscSettings', 'base')">
               <span>基本设置</span>
             </el-menu-item>
+            <el-menu-item :index="`7-deck`" @click="switchTo('miscSettings', 'deck')">
+              <span>牌堆管理</span>
+            </el-menu-item>
             <el-menu-item :index="`7-group`" @click="switchTo('miscSettings', 'group')">
               <span>群组管理</span>
             </el-menu-item>
@@ -168,6 +171,12 @@
     <el-input v-model="password" type="password"></el-input>
     <el-button type="primary" style="padding: 0px 50px; margin-top: 1rem;" @click="doUnlock">确认</el-button>
   </el-dialog>
+
+  <el-dialog v-model="dialogLostConnectionVisible" title="主程序离线" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
+    <div>与主程序断开连接，请耐心等待连接恢复</div>
+    <div>如果失去响应过久，请登录服务器处理</div>
+  </el-dialog>
+
 </template>
 
 <script setup lang="ts">
@@ -213,6 +222,8 @@ const showDialog = computed(() => {
   return !store.canAccess
 })
 
+const dialogLostConnectionVisible = ref(false)
+
 const doUnlock = async () => {
   const hash = await passwordHash(store.salt, password.value)
   await store.signIn(hash)
@@ -241,8 +252,16 @@ onBeforeMount(async () => {
     checkPassword()
   }
 
-  timerId = setInterval(() => {
-    store.getBaseInfo()
+  timerId = setInterval(async () => {
+    try {
+      await store.getBaseInfo()
+      if (dialogLostConnectionVisible.value) {
+        dialogLostConnectionVisible.value = false
+        
+      }
+    } catch (e) {
+      dialogLostConnectionVisible.value = true
+    }
   }, 5000) as any
 })
 

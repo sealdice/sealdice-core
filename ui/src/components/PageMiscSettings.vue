@@ -14,6 +14,20 @@
     <el-form-item label="">
       <template #label>
         <div>
+          <span>重载脚本(临时)</span>
+          <el-tooltip content="用于误操作或被抢占master。执行这条指令可以直接获取master权限并踢掉其他所有人，指令有效期20分钟">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <div>
+        <el-button @click="store.scriptReload()">重载脚本</el-button>
+      </div>
+    </el-form-item>
+
+    <el-form-item label="">
+      <template #label>
+        <div>
           <span>Master解锁码</span>
           <el-tooltip content="用于误操作或被抢占master。执行这条指令可以直接获取master权限并踢掉其他所有人，指令有效期20分钟">
             <el-icon><question-filled /></el-icon>
@@ -95,6 +109,54 @@
           <circle-plus-filled @click="addItem(config.noticeIds)" />
         </el-icon>
       </template>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>私骰模式</span>
+          <el-tooltip raw-content content="只允许信任用户拉入群聊">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.trustOnlyMode"/>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>允许自由开关</span>
+          <el-tooltip raw-content content="只允许任何人执行bot on/off和ext on/off，否则只有邀请者、管理员和master进行操作">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.botExtFreeSwitch"/>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>存活确认(骰狗)</span>
+          <el-tooltip raw-content content="定期向通知列表发送消息，以便于骰主知晓存活状态">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.aliveNoticeEnable"/>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>存活消息间隔</span>
+          <el-tooltip raw-content content="间隔写法请参阅 <a href='https://pkg.go.dev/github.com/robfig/cron' target='_blank'>cron文档</a>。注意:重启骰子后重新计时。">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-input v-model="config.aliveNoticeValue" style="width: 12rem"></el-input>
     </el-form-item>
 
     <el-form-item>

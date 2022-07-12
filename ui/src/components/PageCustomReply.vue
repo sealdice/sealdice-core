@@ -29,7 +29,7 @@
       </el-collapse-item>
     </el-collapse>
 
-    <!-- <div style="margin-top: 1rem;">
+    <div style="margin-top: 1rem;">
       <div>当前文件</div>
       <el-select>
         <el-option
@@ -44,7 +44,7 @@
         <el-button>改名</el-button>
         <el-checkbox style="margin-left: 1rem;">启用</el-checkbox>
       </div>
-    </div> -->
+    </div>
 
     <nested-draggable :tasks="list" />
     <div>
@@ -150,6 +150,12 @@ const addOne = (lst: any) => {
 const doSave = async () => {
   try {
     for (let i of cr.value.items) {
+      for (let j of i.conditions) {
+        if (j.condType === 'textLenLimit') {
+          j.value = parseInt(j.value) || 0;
+        }
+      }
+
       for (let j of i.results) {
         if (j.delay) {
           j.delay = parseFloat(j.delay)

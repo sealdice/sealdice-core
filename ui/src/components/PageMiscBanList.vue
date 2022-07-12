@@ -82,7 +82,10 @@
         <span class="left">原因:</span>
         <div style="margin-left: 2rem">
           <div v-for="j, index in i.reasons">
-            {{ dayjs.unix(i.times[index]).fromNow() }}，地点“{{ i.places[index] }}”，具体原因: {{j}}
+            <el-tooltip raw-content :content="dayjs.unix(i.times[index]).format('YYYY-MM-DD HH:mm:ssZ[Z]')">
+              <span>{{ dayjs.unix(i.times[index]).fromNow() }}</span>
+            </el-tooltip>
+            <span>，地点“{{ i.places[index] }}”，具体原因: {{j}}</span>
           </div>
         </div>
       </div>
