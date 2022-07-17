@@ -823,9 +823,9 @@ func LogRollBriefByPC(items []*LogOneItem, showAll bool, name string) string {
 						}
 
 						key2 := fmt.Sprintf("理智:新值")
-						if pcInfo[nickname][key2] == 0 {
-							pcInfo[nickname][key2] = int(j["sanNew"].(float64))
-						}
+						//if pcInfo[nickname][key2] == 0 {
+						pcInfo[nickname][key2] = int(j["sanNew"].(float64))
+						//}
 					}
 					continue
 				case "st":
@@ -849,9 +849,9 @@ func LogRollBriefByPC(items []*LogOneItem, showAll bool, name string) string {
 							}
 
 							key2 := fmt.Sprintf("%v:新值", j["attr"])
-							if pcInfo[nickname][key2] == 0 {
-								pcInfo[nickname][key2] = int(j["valNew"].(float64))
-							}
+							//if pcInfo[nickname][key2] == 0 {
+							pcInfo[nickname][key2] = int(j["valNew"].(float64))
+							//}
 						}
 					}
 					continue

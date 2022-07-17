@@ -410,8 +410,23 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeString, ctx.EndPoint.Nickname})
 		VarSetValue(ctx, "$t帐号ID_RAW", &VMValue{VMTypeString, UserIdExtract(ctx.Player.UserId)})
 
-		t, _ := strconv.ParseInt(time.Now().Format("20060102"), 10, 64)
+		now := time.Now()
+		t, _ := strconv.ParseInt(now.Format("20060102"), 10, 64)
+		VarSetValue(ctx, "$tDate", &VMValue{VMTypeInt64, t})
+
+		t, _ = strconv.ParseInt(now.Format("2006"), 10, 64)
+		VarSetValue(ctx, "$tYear", &VMValue{VMTypeInt64, t})
+		t, _ = strconv.ParseInt(now.Format("01"), 10, 64)
+		VarSetValue(ctx, "$tMonth", &VMValue{VMTypeInt64, t})
+		t, _ = strconv.ParseInt(now.Format("02"), 10, 64)
 		VarSetValue(ctx, "$tDay", &VMValue{VMTypeInt64, t})
+		t, _ = strconv.ParseInt(now.Format("15"), 10, 64)
+		VarSetValue(ctx, "$tHour", &VMValue{VMTypeInt64, t})
+		t, _ = strconv.ParseInt(now.Format("04"), 10, 64)
+		VarSetValue(ctx, "$tMinute", &VMValue{VMTypeInt64, t})
+		t, _ = strconv.ParseInt(now.Format("05"), 10, 64)
+		VarSetValue(ctx, "$tSecond", &VMValue{VMTypeInt64, t})
+		VarSetValue(ctx, "$tTimestamp", &VMValue{VMTypeInt64, now.Unix()})
 	}
 	if ctx.Group != nil {
 		if ctx.MessageType == "group" {
