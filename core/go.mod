@@ -8,8 +8,8 @@ require (
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
 	github.com/antlabs/strsim v0.0.2
-	github.com/blevesearch/bleve/v2 v2.3.1
-	github.com/dop251/goja v0.0.0-20220408131256-ffe77e20c6f1
+	github.com/blevesearch/bleve/v2 v2.3.3
+	github.com/dop251/goja v0.0.0-20220714114325-87952593a54c
 	github.com/dop251/goja_nodejs v0.0.0-20211022123610-8dd9abb0616d
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/lockfree v0.0.0-20220407095241-e3799de5fa34
@@ -26,7 +26,7 @@ require (
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.1
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/labstack/echo/v4 v4.1.16
+	github.com/labstack/echo/v4 v4.7.2
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/monaco-io/request v1.0.15
@@ -34,16 +34,15 @@ require (
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/otiai10/copy v1.7.0
 	github.com/poy/onpar v1.1.2 // indirect
-	github.com/robfig/cron/v3 v3.0.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/sacOO7/gowebsocket v0.0.0-20210515122958-9396f1a71e23
 	github.com/sahilm/fuzzy v0.1.0
-	github.com/xuri/excelize/v2 v2.5.0
+	github.com/stretchr/testify v1.8.0 // indirect
+	github.com/xuri/excelize/v2 v2.6.0
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/zap v1.21.0
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
-	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
-	golang.org/x/sys v0.0.0-20220307203707-22a9840ba4d7
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 	golang.org/x/text v0.3.7
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	gopkg.in/yaml.v3 v3.0.1
 )
