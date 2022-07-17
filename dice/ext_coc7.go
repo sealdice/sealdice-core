@@ -435,7 +435,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							CocVarNumberMode: true,
 							CocDefaultAttrOn: true,
 						})
-						fmt.Println("XXX", restText, "DDD", r1.Matched, "YYY", r1.restInput)
 
 						if err != nil {
 							ReplyToSender(mctx, msg, "解析出错: "+restText)
@@ -922,7 +921,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					}
 
 					tick := 0
-					if ctx.ChVarsNumGet() == 0 {
+					if mctx.ChVarsNumGet() == 0 {
 						info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
 					} else {
 						// 按照配置文件排序
@@ -941,7 +940,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						topNum := len(attrKeys)
 						attrKeys2 := []string{}
 
-						vars, _ := ctx.ChVarsGet()
+						vars, _ := mctx.ChVarsGet()
 						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
 							attrKeys2 = append(attrKeys2, _k.(string))
 							return nil
@@ -1013,7 +1012,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						p := mctx.Player
 
 						name := p.GetValueNameByAlias(m[1], ac.Alias)
-						val, exists := VarGetValueInt64(ctx, name)
+						val, exists := VarGetValueInt64(mctx, name)
 						if !exists {
 							text := fmt.Sprintf("<%s>: 无法找到名下属性 %s，不能作出修改", p.Name, m[1])
 							ReplyToSender(mctx, msg, text)
@@ -1032,7 +1031,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									newVal = val - rightVal
 								}
 								name := p.GetValueNameByAlias(m[1], ac.Alias)
-								VarSetValueInt64(ctx, name, newVal)
+								VarSetValueInt64(mctx, name, newVal)
 
 								//text := fmt.Sprintf("<%s>的“%s”变化: %d ➯ %d (%s%s=%d)\n", p.Name, m[1], val, newVal, signText, m[3], rightVal)
 								VarSetValueStr(mctx, "$t属性", m[1])
@@ -1114,7 +1113,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								synonymsCount += 1
 							}
 
-							VarSetValueInt64(ctx, name, v)
+							VarSetValueInt64(mctx, name, v)
 						}
 
 						if len(m) == 0 {
