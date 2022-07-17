@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 var fearListText = `
@@ -396,24 +397,25 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					restText := cmdArgs.CleanArgs
 
 					reBP := regexp.MustCompile(`^[bBpP]`)
-					re2 := regexp.MustCompile(`([^\d])\s+([\d])|([\d])\s+([^\d])`)
+					re2 := regexp.MustCompile(`([^\d]+)\s+([\d]+)`)
+					//re2 := regexp.MustCompile(`([^\d])\s+([\d])|([\d])\s+([^\d])`)
 
 					if !reBP.MatchString(restText) {
-						restText = re2.ReplaceAllString(restText, "$1$3$2$4")
+						restText = re2.ReplaceAllString(restText, "$1$2")
 						restText = "D100 " + restText
 					} else {
 						replaced := true
 						if len(restText) > 1 {
 							// 为了避免一种分支情况: .ra  b 50 测试，b和50中间的空格被消除
 							ch2 := restText[1]
-							if ch2 == ' ' {
+							if unicode.IsSpace(rune(ch2)) { // 暂不考虑太过奇葩的空格
 								replaced = true
-								restText = restText[:2] + re2.ReplaceAllString(restText[2:], "$1$3$2$4")
+								restText = restText[:1] + " " + re2.ReplaceAllString(restText[2:], "$1$2")
 							}
 						}
 
 						if !replaced {
-							restText = re2.ReplaceAllString(restText, "$1$3$2$4")
+							restText = re2.ReplaceAllString(restText, "$1$2")
 						}
 					}
 
@@ -423,6 +425,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						cocRule = 0
 					}
 
+					var reason string
 					var commandInfoItems []interface{}
 					rollOne := func(manyTimes bool) *CmdExecuteResult {
 						difficultRequire := 0
@@ -432,6 +435,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							CocVarNumberMode: true,
 							CocDefaultAttrOn: true,
 						})
+						fmt.Println("XXX", restText, "DDD", r1.Matched, "YYY", r1.restInput)
 
 						if err != nil {
 							ReplyToSender(mctx, msg, "解析出错: "+restText)
@@ -455,10 +459,15 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							CocVarNumberMode: true,
 							CocDefaultAttrOn: true,
 						})
+
 						if err != nil {
 							ReplyToSender(mctx, msg, "解析出错: "+expr2Text)
 							return &CmdExecuteResult{Matched: true, Solved: true}
 						}
+
+						expr2Text = r2.Matched
+						reason = r2.restInput
+
 						difficultRequire2 = difficultPrefixMap[r2.Parser.CocFlagVarPrefix]
 						if difficultRequire2 > difficultRequire {
 							difficultRequire = difficultRequire2
@@ -547,6 +556,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							}
 							texts = append(texts, DiceFormatTmpl(ctx, "COC:检定_单项结果文本"))
 						}
+						VarSetValueStr(mctx, "$t原因", reason)
 						VarSetValueStr(ctx, "$t结果文本", strings.Join(texts, `\n`))
 						text = DiceFormatTmpl(ctx, "COC:检定_多轮")
 					} else {
@@ -554,6 +564,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						if ret != nil {
 							return *ret
 						}
+						VarSetValueStr(mctx, "$t原因", reason)
 						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
 						text = DiceFormatTmpl(mctx, "COC:检定")
 					}
