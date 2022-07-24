@@ -531,7 +531,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			if mctx.Group != nil && (mctx.Group.IsActive(mctx) || amIBeMentioned) {
 				for _, i := range mctx.Group.ActivatedExtList {
 					if i.OnNotCommandReceived != nil {
-						i.OnNotCommandReceived(mctx, msg)
+						go i.OnNotCommandReceived(mctx, msg)
 					}
 				}
 			}
