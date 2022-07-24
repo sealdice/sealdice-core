@@ -1307,11 +1307,12 @@ func (d *Dice) loads() {
 						uid := FormatDiceIdQQ(j.UserId)
 						players[uid] = &GroupPlayerInfo{
 							GroupPlayerInfoBase{
-								Name:            j.Name,
-								UserId:          uid,
-								InGroup:         j.InGroup,
-								LastCommandTime: j.LastUpdateTime,
-								DiceSideNum:     j.DiceSideNum,
+								Name:                j.Name,
+								UserId:              uid,
+								InGroup:             j.InGroup,
+								LastCommandTime:     j.LastUpdateTime,
+								DiceSideNum:         j.DiceSideNum,
+								AutoSetNameTemplate: "",
 							},
 						}
 					}
@@ -1506,6 +1507,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 
 func (d *Dice) Save(isAuto bool) {
 	a, err := yaml.Marshal(d)
+
 	if err == nil {
 		err := ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0644)
 		if err == nil {

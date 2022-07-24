@@ -26,8 +26,8 @@ func (d *Dice) registerCoreCommands() {
 		".ban help //查看帮助\n" +
 		"// 统一ID示例: QQ:12345、QQ-Group:12345"
 	cmdBlack := &CmdItemInfo{
-		Name: "ban",
-		Help: HelpForBlack,
+		Name:      "ban",
+		ShortHelp: HelpForBlack,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
 			if AtSomebodyButNotMe {
@@ -135,9 +135,9 @@ func (d *Dice) registerCoreCommands() {
 		".find --rand // 显示随机词条\n" +
 		".find <关键字> --num=10 // 需要更多结果"
 	cmdSearch := &CmdItemInfo{
-		Name:     "find",
-		Help:     HelpForFind,
-		LongHelp: "查询指令，通常使用全文搜索(x86版)或快速查询(arm, 移动版)\n" + HelpForFind,
+		Name:      "find",
+		ShortHelp: HelpForFind,
+		Help:      "查询指令，通常使用全文搜索(x86版)或快速查询(arm, 移动版)\n" + HelpForFind,
 		// 写不下了
 		// + "\n注: 默认搭载的《怪物之锤查询》来自蜜瓜包、October整理\n默认搭载的COC《魔法大典》来自魔骨，NULL，Dr.Amber整理\n默认搭载的DND系列文档来自DicePP项目"
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
@@ -249,9 +249,9 @@ func (d *Dice) registerCoreCommands() {
 		".help 关键字 // 查看任意帮助，同.find\n" +
 		".help reload // 重新加载帮助文档，需要Master权限"
 	cmdHelp := &CmdItemInfo{
-		Name:     "help",
-		Help:     HelpForHelp,
-		LongHelp: "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
+		Name:      "help",
+		ShortHelp: HelpForHelp,
+		Help:      "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
@@ -303,7 +303,7 @@ func (d *Dice) registerCoreCommands() {
 					if err == nil {
 						if len(search.Hits) > 0 {
 							// 居然会出现 hits[0] 为nil的情况？？
-							//a := d.Parent.Help.GetContent(search.Hits[0].ID)
+							//a := d.Parent.ShortHelp.GetContent(search.Hits[0].ID)
 							a := d.Parent.Help.TextMap[search.Hits[0].ID]
 							content := d.Parent.Help.GetContent(a, 0)
 							ReplyToSender(ctx, msg, fmt.Sprintf("%s:%s\n%s", a.PackageName, a.Title, content))
@@ -339,9 +339,9 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["help"] = cmdHelp
 
 	cmdBot := &CmdItemInfo{
-		Name:     "bot",
-		Help:     ".bot on/off/about/bye // 开启、关闭、查看信息、退群",
-		LongHelp: "骰子管理:\n.bot on/off/about/bye[exit, quit] // 开启、关闭、查看信息、退群",
+		Name:      "bot",
+		ShortHelp: ".bot on/off/about/bye // 开启、关闭、查看信息、退群",
+		Help:      "骰子管理:\n.bot on/off/about/bye[exit, quit] // 开启、关闭、查看信息、退群",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			inGroup := msg.MessageType == "group"
 			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
@@ -534,9 +534,9 @@ func (d *Dice) registerCoreCommands() {
 		".botlist list/show // 查看当前列表"
 
 	cmdBotList := &CmdItemInfo{
-		Name:     "botlist",
-		Help:     botListHelp,
-		LongHelp: "机器人列表:\n" + botListHelp,
+		Name:      "botlist",
+		ShortHelp: botListHelp,
+		Help:      "机器人列表:\n" + botListHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsPrivate {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
@@ -625,9 +625,9 @@ func (d *Dice) registerCoreCommands() {
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
 .master backup // 做一次备份`
 	cmdMaster := &CmdItemInfo{
-		Name:     "master",
-		Help:     masterListHelp,
-		LongHelp: "骰主指令:\n" + masterListHelp,
+		Name:      "master",
+		ShortHelp: masterListHelp,
+		Help:      "骰主指令:\n" + masterListHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				if ctx.IsCurGroupBotOn && cmdArgs.SomeoneBeMentionedButNotMe {
@@ -820,9 +820,9 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["master"] = cmdMaster
 
 	cmdSend := &CmdItemInfo{
-		Name: "send",
-		Help: ".send // 向骰主留言",
-		LongHelp: "留言指令:\n.send // 向骰主留言\n" +
+		Name:      "send",
+		ShortHelp: ".send // 向骰主留言",
+		Help: "留言指令:\n.send // 向骰主留言\n" +
 			".send to <对方ID> 要说的话 // 骰主回复，举例. send to QQ:12345 感谢留言\n" +
 			".send to <群组ID> 要说的话 // 举例. send to QQ-Group:12345 感谢留言\n" +
 			"> 指令.userid可以查看当前群的ID",
@@ -882,9 +882,9 @@ func (d *Dice) registerCoreCommands() {
 
 	HelpRoll := ".r <表达式> <原因> // 骰点指令\n.rh <表达式> <原因> // 暗骰"
 	cmdRoll := &CmdItemInfo{
-		Name:     "roll",
-		Help:     HelpRoll,
-		LongHelp: "骰点:\n" + HelpRoll,
+		Name:      "roll",
+		ShortHelp: HelpRoll,
+		Help:      "骰点:\n" + HelpRoll,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -898,7 +898,7 @@ func (d *Dice) registerCoreCommands() {
 				disableLoadVarname := !(cmdArgs.Command == "rx" || cmdArgs.Command == "rhx")
 
 				if ctx.Dice.CommandCompatibleMode {
-					if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd") && len(cmdArgs.Args) >= 1 {
+					if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd" || cmdArgs.Command == "rdh") && len(cmdArgs.Args) >= 1 {
 						if m, _ := regexp.MatchString(`^\d|优势|劣势|\+|-`, cmdArgs.CleanArgs); m {
 							cmdArgs.CleanArgs = "d" + cmdArgs.CleanArgs
 						}
@@ -1077,14 +1077,15 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["roll"] = cmdRoll
 	d.CmdMap["rh"] = cmdRoll
 	d.CmdMap["rhd"] = cmdRoll
+	d.CmdMap["rdh"] = cmdRoll
 	d.CmdMap["rx"] = cmdRoll
 	d.CmdMap["rhx"] = cmdRoll
 
 	helpExt := ".ext // 查看扩展列表"
 	cmdExt := &CmdItemInfo{
-		Name:     "ext",
-		Help:     helpExt,
-		LongHelp: "群扩展模块管理:\n" + helpExt,
+		Name:      "ext",
+		ShortHelp: helpExt,
+		Help:      "群扩展模块管理:\n" + helpExt,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -1218,9 +1219,9 @@ func (d *Dice) registerCoreCommands() {
 		".nn <角色名> // 改为指定角色名，若有卡片不会连带修改\n" +
 		".nn clr // 重置回群名片"
 	cmdNN := &CmdItemInfo{
-		Name:     "nn",
-		Help:     helpNN,
-		LongHelp: "角色名设置:\n" + helpNN,
+		Name:      "nn",
+		ShortHelp: helpNN,
+		Help:      "角色名设置:\n" + helpNN,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -1237,6 +1238,9 @@ func (d *Dice) registerCoreCommands() {
 					VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
 					VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_重置"))
+					if ctx.Player.AutoSetNameTemplate != "" {
+						_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+					}
 				default:
 					p := ctx.Player
 					VarSetValueStr(ctx, "$t旧昵称", fmt.Sprintf("<%s>", ctx.Player.Name))
@@ -1248,6 +1252,9 @@ func (d *Dice) registerCoreCommands() {
 
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_改名"))
 					//replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
+					if ctx.Player.AutoSetNameTemplate != "" {
+						_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+					}
 				}
 
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -1258,8 +1265,8 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["nn"] = cmdNN
 
 	d.CmdMap["userid"] = &CmdItemInfo{
-		Name: "userid",
-		Help: ".userid // 查看当前帐号和群组ID",
+		Name:      "userid",
+		ShortHelp: ".userid // 查看当前帐号和群组ID",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -1285,9 +1292,9 @@ func (d *Dice) registerCoreCommands() {
 		".set clr // 清除群内骰子面数设置\n" +
 		".set clr --my // 清除个人骰子面数设置"
 	cmdSet := &CmdItemInfo{
-		Name:     "set",
-		Help:     helpSet,
-		LongHelp: "设定骰子面数:\n" + helpSet,
+		Name:      "set",
+		ShortHelp: helpSet,
+		Help:      "设定骰子面数:\n" + helpSet,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -1386,9 +1393,9 @@ func (d *Dice) registerCoreCommands() {
 		".pc del/rm <角色名> // 删除角色\n" +
 		"> 注: 海豹各群数据独立(多张空白卡)，单群游戏不需要存角色。" // > 普通模组执行nn, st后直接跑即可。跑完若想保存角色用pc save存卡。
 	cmdChar := &CmdItemInfo{
-		Name:     "ch",
-		Help:     helpCh,
-		LongHelp: "角色管理:\n" + helpCh,
+		Name:      "ch",
+		ShortHelp: helpCh,
+		Help:      "角色管理:\n" + helpCh,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -1448,6 +1455,9 @@ func (d *Dice) registerCoreCommands() {
 						VarSetValueStr(ctx, "$t角色名", name)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_新建_已存在"))
 					}
+					if ctx.Player.AutoSetNameTemplate != "" {
+						_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+					}
 				} else if cmdArgs.IsArgEqual(1, "load") {
 					cur := ctx.ChBindCurGet()
 					if cur == "" {
@@ -1458,6 +1468,9 @@ func (d *Dice) registerCoreCommands() {
 							VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
 							//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
+							if ctx.Player.AutoSetNameTemplate != "" {
+								_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+							}
 						} else {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 						}
@@ -1484,6 +1497,9 @@ func (d *Dice) registerCoreCommands() {
 						} else {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_并未绑定"))
 						}
+					}
+					if ctx.Player.AutoSetNameTemplate != "" {
+						_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 					}
 				} else if cmdArgs.IsArgEqual(1, "group1", "grp1") {
 					name, _ := cmdArgs.GetArgN(2)
@@ -1582,9 +1598,9 @@ func (d *Dice) registerCoreCommands() {
 		".welcome show // 查看当前欢迎语\n" +
 		".welcome set <欢迎语> // 设定欢迎语"
 	cmdWelcome := &CmdItemInfo{
-		Name:     "welcome",
-		Help:     botWelcomeHelp,
-		LongHelp: "新人入群自动发言设定:\n" + botWelcomeHelp,
+		Name:      "welcome",
+		ShortHelp: botWelcomeHelp,
+		Help:      "新人入群自动发言设定:\n" + botWelcomeHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsPrivate {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
@@ -1634,9 +1650,9 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["welcome"] = cmdWelcome
 
 	cmdReply := &CmdItemInfo{
-		Name:     "reply",
-		Help:     ".reply on/off",
-		LongHelp: "打开或关闭自定义回复:\n.reply on/off",
+		Name:      "reply",
+		ShortHelp: ".reply on/off",
+		Help:      "打开或关闭自定义回复:\n.reply on/off",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {

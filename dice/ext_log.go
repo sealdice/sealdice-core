@@ -33,6 +33,17 @@ type LogOneItem struct {
 	Channel   string `json:"channel"` // 用于秘密团
 }
 
+func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
+	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
+	text, _, err := ctx.Dice.ExprText(tmpl, ctx)
+	if err != nil {
+		ctx.Dice.Logger.Infof("SN指令模板错误: %v", err.Error())
+		return "", err
+	}
+	ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, text)
+	return text, nil
+}
+
 // {"data":null,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
 
 func RegisterBuiltinExtLog(self *Dice) {
@@ -129,9 +140,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 	txtLogTip := "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
 
 	cmdLog := &CmdItemInfo{
-		Name:     "log",
-		Help:     helpLog,
-		LongHelp: "日志指令:\n" + helpLog,
+		Name:      "log",
+		ShortHelp: helpLog,
+		Help:      "日志指令:\n" + helpLog,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -390,9 +401,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 .stat help // 帮助
 `
 	cmdStat := &CmdItemInfo{
-		Name:     "stat",
-		Help:     helpStat,
-		LongHelp: "查看统计:\n" + helpStat,
+		Name:      "stat",
+		ShortHelp: helpStat,
+		Help:      "查看统计:\n" + helpStat,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -452,9 +463,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 .stat help // 帮助
 `
 	cmdOb := &CmdItemInfo{
-		Name:     "ob",
-		Help:     helpOb,
-		LongHelp: "观众指令:\n" + helpOb,
+		Name:      "ob",
+		ShortHelp: helpOb,
+		Help:      "观众指令:\n" + helpOb,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -483,50 +494,42 @@ func RegisterBuiltinExtLog(self *Dice) {
 		},
 	}
 
-	helpSn := `.sn coc // coc名片: 
-.sn dnd // dnd名片
-.sn none // 空名片
+	helpSn := `.sn coc // 自动设置coc名片
+.sn dnd // 自动设置dnd名片
+.sn none // 设置为空白格式
+.sn off // 取消自动设置
 `
 	cmdSn := &CmdItemInfo{
-		Name:     "sn",
-		Help:     helpSn,
-		LongHelp: "跑团名片:\n" + helpSn,
+		Name:               "sn",
+		ShortHelp:          helpSn,
+		Help:               "跑团名片:\n" + helpSn,
+		CheckCurrentBotOn:  true,
+		CheckMentionOthers: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
-
-				setByTmpl := func(tmpl string) (string, error) {
-					ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-					text, _, err := ctx.Dice.ExprText(tmpl, ctx)
-					if err != nil {
-						ctx.Dice.Logger.Infof("SN指令模板错误: %v", err.Error())
-						return "", err
-					}
-					ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, text)
-					return text, nil
-				}
-
-				val, _ := cmdArgs.GetArgN(1)
-				switch strings.ToLower(val) {
-				case "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				case "coc", "coc7":
-					text, _ := setByTmpl("{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}")
-					// 玩家 SAN60 HP10/10 DEX65
-					ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text)
-				case "dnd", "dnd5e":
-					// PW{pw}
-					text, _ := setByTmpl("{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PW{_pw}")
-					// 玩家 HP10/10 AC15 DC15 PW10
-					ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text)
-				case "none":
-					text, _ := setByTmpl("{$t玩家}")
-					ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text)
-				default:
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				}
+			val, _ := cmdArgs.GetArgN(1)
+			switch strings.ToLower(val) {
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			case "coc", "coc7":
+				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}"
+				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				// 玩家 SAN60 HP10/10 DEX65
+				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text)
+			case "dnd", "dnd5e":
+				// PW{pw}
+				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PW{_pw}"
+				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				// 玩家 HP10/10 AC15 DC15 PW10
+				ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text)
+			case "none":
+				ctx.Player.AutoSetNameTemplate = "{$t玩家}"
+				text, _ := SetPlayerGroupCardByTemplate(ctx, "{$t玩家}")
+				ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text)
+			case "off", "cancel":
+				ctx.Player.AutoSetNameTemplate = ""
+				ReplyToSender(ctx, msg, "已关闭自动设置名片功能")
+			default:
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},

@@ -387,9 +387,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	helpSt += ".st <属性>±<表达式> // 例：.st 敏捷+1d50，请注意目前+或-要跟在属性后面，不得空格"
 
 	cmdRc := &CmdItemInfo{
-		Name:     "rc/ra",
-		Help:     helpRc,
-		LongHelp: "检定指令:\n" + helpRc,
+		Name:      "rc/ra",
+		ShortHelp: helpRc,
+		Help:      "检定指令:\n" + helpRc,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if len(cmdArgs.Args) >= 1 {
@@ -620,8 +620,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		".setcoc dg // delta green 扩展规则"
 	cmdSetCOC := &CmdItemInfo{
 		Name:               "setcoc",
-		Help:               helpSetCOC,
-		LongHelp:           "设置房规:\n" + helpSetCOC,
+		ShortHelp:          helpSetCOC,
+		Help:               "设置房规:\n" + helpSetCOC,
 		CheckCurrentBotOn:  true,
 		CheckMentionOthers: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
@@ -688,9 +688,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		".rav <技能1> <技能2> @某A @某B // 对A和B两人做对抗检定，分别使用输入的两个技能数值\n" +
 		"// 注: <技能>写法举例: 侦查、侦查40、困难侦查、40、侦查+10"
 	cmdRcv := &CmdItemInfo{
-		Name:     "rcv/rav",
-		Help:     helpRcv,
-		LongHelp: "对抗检定:\n" + helpRcv,
+		Name:      "rcv/rav",
+		ShortHelp: helpRcv,
+		Help:      "对抗检定:\n" + helpRcv,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
@@ -845,9 +845,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	}
 
 	cmdSt := &CmdItemInfo{
-		Name:     "st",
-		Help:     helpSt,
-		LongHelp: "COC属性设置指令，支持分支指令如下:\n" + helpSt,
+		Name:      "st",
+		ShortHelp: helpSt,
+		Help:      "COC属性设置指令，支持分支指令如下:\n" + helpSt,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// .st show
 			// .st help
@@ -1131,6 +1131,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						ReplyToSender(mctx, msg, text)
 					}
 				}
+
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -1163,9 +1167,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		},
 		CmdMap: CmdMapCls{
 			"en": &CmdItemInfo{
-				Name:     "en",
-				Help:     helpEn,
-				LongHelp: "成长指令:\n" + helpEn,
+				Name:      "en",
+				ShortHelp: helpEn,
+				Help:      "成长指令:\n" + helpEn,
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						// 首先处理单参数形式
@@ -1278,8 +1282,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			},
 			"setcoc": cmdSetCOC,
 			"ti": &CmdItemInfo{
-				Name: "ti",
-				Help: ".ti // 抽取一个临时性疯狂症状",
+				Name:      "ti",
+				ShortHelp: ".ti // 抽取一个临时性疯狂症状",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// 临时性疯狂
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
@@ -1331,8 +1335,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				},
 			},
 			"li": &CmdItemInfo{
-				Name: "li",
-				Help: ".li // 抽取一个总结性疯狂症状",
+				Name:      "li",
+				ShortHelp: ".li // 抽取一个总结性疯狂症状",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					// 总结性疯狂
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
@@ -1395,7 +1399,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			"rcv":  cmdRcv,
 			"sc": &CmdItemInfo{
 				Name: "sc",
-				Help: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
+				ShortHelp: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
 					".sc <失败时掉san> //同上，简易写法 \n" +
 					".sc (b/p) (<成功时掉san>/)<失败时掉san> // 加上奖惩骰",
 				//".sc <成功掉san>/<失败掉san> (,<成功掉san>/<失败掉san>)+",
@@ -1642,8 +1646,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			},
 
 			"coc": &CmdItemInfo{
-				Name: "coc",
-				Help: ".coc (<数量>) // 制卡指令，返回<数量>组人物属性",
+				Name:      "coc",
+				ShortHelp: ".coc (<数量>) // 制卡指令，返回<数量>组人物属性",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 						if cmdArgs.SomeoneBeMentionedButNotMe {

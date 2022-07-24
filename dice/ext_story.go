@@ -62,9 +62,9 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 
 func RegisterBuiltinStory(self *Dice) {
 	cmdName := &CmdItemInfo{
-		Name:     "name",
-		Help:     ".name cn/en/jp (<数量>)",
-		LongHelp: "生成随机名字:\n.name cn/en/jp (<数量>)",
+		Name:      "name",
+		ShortHelp: ".name cn/en/jp (<数量>)",
+		Help:      "生成随机名字:\n.name cn/en/jp (<数量>)",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -92,9 +92,9 @@ func RegisterBuiltinStory(self *Dice) {
 	}
 
 	cmdNameDnd := &CmdItemInfo{
-		Name:     "namednd",
-		Help:     ".namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族/地精",
-		LongHelp: "生成随机DND名字:\n.namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族/地精",
+		Name:      "namednd",
+		ShortHelp: ".namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族/地精",
+		Help:      "生成随机DND名字:\n.namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族/地精",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -154,9 +154,9 @@ func RegisterBuiltinStory(self *Dice) {
 	}
 
 	cmdWho := &CmdItemInfo{
-		Name:     "who",
-		Help:     ".who a b c",
-		LongHelp: "顺序重排:\n.who a b c",
+		Name:      "who",
+		ShortHelp: ".who a b c",
+		Help:      "顺序重排:\n.who a b c",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -192,9 +192,9 @@ func RegisterBuiltinStory(self *Dice) {
 		".modu roll // 随机抽取\n" +
 		".modu help // 显示帮助"
 	cmdCnmods := &CmdItemInfo{
-		Name:     "modu",
-		Help:     helpCnmods,
-		LongHelp: "魔都查询:\n" + helpCnmods,
+		Name:      "modu",
+		ShortHelp: helpCnmods,
+		Help:      "魔都查询:\n" + helpCnmods,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
