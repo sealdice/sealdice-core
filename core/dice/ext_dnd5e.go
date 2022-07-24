@@ -247,9 +247,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	helpSt += "需要使用coc版本st，请执行.set coc"
 
 	cmdSt := &CmdItemInfo{
-		Name:     "st",
-		Help:     helpSt,
-		LongHelp: "DND5E 人物属性设置:\n" + helpSt,
+		Name:      "st",
+		ShortHelp: helpSt,
+		Help:      "DND5E 人物属性设置:\n" + helpSt,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
@@ -692,6 +692,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					ReplyToSender(mctx, msg, strings.TrimSpace(retText)+extraText)
 				}
+
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -707,9 +711,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".rc <表达式> @某人 // 对某人做检定"
 
 	cmdRc := &CmdItemInfo{
-		Name:     "rc",
-		Help:     helpRc,
-		LongHelp: "DND5E 检定:\n" + helpRc,
+		Name:      "rc",
+		ShortHelp: helpRc,
+		Help:      "DND5E 检定:\n" + helpRc,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
@@ -781,9 +785,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".buff <属性>±<表达式> @某人 // 修改他人buff属性，例：.buff hp+1d4"
 
 	cmdBuff := &CmdItemInfo{
-		Name:     "buff",
-		Help:     helpBuff,
-		LongHelp: "属性临时加值:\n" + helpBuff,
+		Name:      "buff",
+		ShortHelp: helpBuff,
+		Help:      "属性临时加值:\n" + helpBuff,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
@@ -1059,6 +1063,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, retText)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -1110,9 +1118,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".ss 3环 -1 // 消耗一个3环法术位，也可以用.cast 3"
 
 	cmdSpellSlot := &CmdItemInfo{
-		Name:     "ss",
-		Help:     helpSS,
-		LongHelp: "DND5E 法术位(.ss .法术位):\n" + helpSS,
+		Name:      "ss",
+		ShortHelp: helpSS,
+		Help:      "DND5E 法术位(.ss .法术位):\n" + helpSS,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				cmdArgs.ChopPrefixToArgsWith("init", "set")
@@ -1237,9 +1245,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".cast 1 2 // 消耗2个1环法术位"
 
 	cmdCast := &CmdItemInfo{
-		Name:     "cast",
-		Help:     helpCast,
-		LongHelp: "DND5E 法术位使用(.cast):\n" + helpCast,
+		Name:      "cast",
+		ShortHelp: helpCast,
+		Help:      "DND5E 法术位使用(.cast):\n" + helpCast,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
@@ -1286,9 +1294,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".longrest // 另一种写法"
 
 	cmdLongRest := &CmdItemInfo{
-		Name:     "长休",
-		Help:     helpLongRest,
-		LongHelp: "DND5E 长休:\n" + helpLongRest,
+		Name:      "长休",
+		ShortHelp: helpLongRest,
+		Help:      "DND5E 长休:\n" + helpLongRest,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				val, _ := cmdArgs.GetArgN(1)
@@ -1328,9 +1336,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".ds help // 查看帮助"
 
 	cmdDeathSavingThrow := &CmdItemInfo{
-		Name:     "死亡豁免",
-		Help:     helpDeathSavingThrow,
-		LongHelp: "DND5E 死亡豁免:\n" + helpDeathSavingThrow,
+		Name:      "死亡豁免",
+		ShortHelp: helpDeathSavingThrow,
+		Help:      "DND5E 死亡豁免:\n" + helpDeathSavingThrow,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
@@ -1456,9 +1464,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".dndx (<数量>) // 制卡指令，但带有属性名，最高为10次"
 
 	cmdDnd := &CmdItemInfo{
-		Name:     "dnd",
-		Help:     helpDnd,
-		LongHelp: "DND5E制卡指令:\n" + helpDnd,
+		Name:      "dnd",
+		ShortHelp: helpDnd,
+		Help:      "DND5E制卡指令:\n" + helpDnd,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -1543,7 +1551,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"dndx": cmdDnd,
 			"ri": &CmdItemInfo{
 				Name: "ri",
-				Help: `.ri 小明 // 格式1，值为D20
+				ShortHelp: `.ri 小明 // 格式1，值为D20
 .ri 12 张三 // 格式2，值12(只能写数字)
 .ri +2 李四 // 格式3，值为D20+2
 .ri =D10+3 王五 // 格式4，值为D10+3
@@ -1689,7 +1697,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			},
 			"init": &CmdItemInfo{
 				Name: "init",
-				Help: ".init // 查看先攻列表\n" +
+				ShortHelp: ".init // 查看先攻列表\n" +
 					".init del <单位1> <单位2> ... // 从先攻列表中删除\n" +
 					".init set <单位名称> <先攻表达式> // 设置单位的先攻\n" +
 					".init clr // 清除先攻列表\n" +

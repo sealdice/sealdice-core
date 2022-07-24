@@ -298,9 +298,9 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		".draw <牌组名称> // 进行抽牌"
 
 	cmdDraw := &CmdItemInfo{
-		Name:     "draw",
-		Help:     helpDraw,
-		LongHelp: "抽牌命令: \n" + helpDraw,
+		Name:      "draw",
+		ShortHelp: helpDraw,
+		Help:      "抽牌命令: \n" + helpDraw,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {

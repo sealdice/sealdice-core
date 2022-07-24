@@ -47,10 +47,10 @@ func GetExtensionDesc(ei *ExtInfo) string {
 			continue
 		}
 		valueMap[i] = true
-		if i.Help == "" {
+		if i.ShortHelp == "" {
 			text += "." + i.Name + "\n"
 		} else {
-			text += i.Help + "\n"
+			text += i.ShortHelp + "\n"
 		}
 	}
 

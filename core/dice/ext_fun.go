@@ -223,9 +223,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 	// guguRandomPool.Pick().(string)
 
 	cmdGugu := CmdItemInfo{
-		Name:     "gugu",
-		Help:     ".gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
-		LongHelp: "人工智能鸽子:\n.gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者\n.text // 文本指令",
+		Name:      "gugu",
+		ShortHelp: ".gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
+		Help:      "人工智能鸽子:\n.gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者\n.text // 文本指令",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -251,9 +251,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 
 	cmdJrrp := CmdItemInfo{
-		Name:     "jrrp",
-		Help:     ".jrrp 获得一个D100随机值，一天内不会变化",
-		LongHelp: "今日人品:\n.jrrp 获得一个D100随机值，一天内不会变化",
+		Name:      "jrrp",
+		ShortHelp: ".jrrp 获得一个D100随机值，一天内不会变化",
+		Help:      "今日人品:\n.jrrp 获得一个D100随机值，一天内不会变化",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -275,9 +275,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 
 	cmdRsr := CmdItemInfo{
-		Name: "rsr",
-		Help: ".rsr <骰数> // 暗影狂奔",
-		LongHelp: "暗影狂奔骰点:\n.rsr <骰数>\n" +
+		Name:      "rsr",
+		ShortHelp: ".rsr <骰数> // 暗影狂奔",
+		Help: "暗影狂奔骰点:\n.rsr <骰数>\n" +
 			"> 每个被骰出的五或六就称之为一个成功度\n" +
 			"> 如果超过半数的骰子投出了一被称之为失误\n" +
 			"> 在投出失误的同时没能骰出至少一个成功度被称之为严重失误",
@@ -353,9 +353,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 		".ek 检索2 // 未录卡情况下判定2级检索\n" +
 		".ek 共鸣 6 // 共鸣判定，成功后手动st共鸣+N\n"
 	cmdEk := CmdItemInfo{
-		Name:     "ek",
-		Help:     helpEk,
-		LongHelp: "共鸣性怪异骰点:\n" + helpEk,
+		Name:      "ek",
+		ShortHelp: helpEk,
+		Help:      "共鸣性怪异骰点:\n" + helpEk,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -531,9 +531,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 	helpEkGen := ".ekgen (<数量>) // 制卡指令，生成<数量>组人物属性，最高为10次"
 
 	cmdEkgen := CmdItemInfo{
-		Name:     "ekgen",
-		Help:     helpEkGen,
-		LongHelp: "共鸣性怪异制卡指令:\n" + helpEkGen,
+		Name:      "ekgen",
+		ShortHelp: helpEkGen,
+		Help:      "共鸣性怪异制卡指令:\n" + helpEkGen,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -647,9 +647,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 
 	cmdDX := CmdItemInfo{
-		Name:     "dx",
-		Help:     ".dx 3c4",
-		LongHelp: "双重十字规则骰点:\n.dx 3c4 // 推荐使用.r 3c4替代",
+		Name:      "dx",
+		ShortHelp: ".dx 3c4",
+		Help:      "双重十字规则骰点:\n.dx 3c4 // 推荐使用.r 3c4替代",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -669,9 +669,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 
 	cmdWW := CmdItemInfo{
-		Name:     "ww",
-		Help:     ".ww 10a5\n.ww 10",
-		LongHelp: "WOD/无限规则骰点:\n.ww 10a5 // 推荐使用.r 10a5替代\n.ww 10",
+		Name:      "ww",
+		ShortHelp: ".ww 10a5\n.ww 10",
+		Help:      "WOD/无限规则骰点:\n.ww 10a5 // 推荐使用.r 10a5替代\n.ww 10",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
@@ -693,9 +693,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 	textHelp := ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}"
 	cmdText := CmdItemInfo{
-		Name:     "text",
-		Help:     textHelp,
-		LongHelp: "文本模板指令:\n" + textHelp,
+		Name:      "text",
+		ShortHelp: textHelp,
+		Help:      "文本模板指令:\n" + textHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
 				if cmdArgs.SomeoneBeMentionedButNotMe {

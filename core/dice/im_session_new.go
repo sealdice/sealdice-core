@@ -34,10 +34,11 @@ type Message struct {
 
 // GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
-	Name            string `yaml:"name"` // 玩家昵称
-	UserId          string `yaml:"userId"`
-	InGroup         bool   `yaml:"inGroup"`         // 是否在群内，有时一个人走了，信息还暂时残留
-	LastCommandTime int64  `yaml:"lastCommandTime"` // 上次发送指令时间
+	Name                string `yaml:"name"` // 玩家昵称
+	UserId              string `yaml:"userId"`
+	InGroup             bool   `yaml:"inGroup"`             // 是否在群内，有时一个人走了，信息还暂时残留
+	LastCommandTime     int64  `yaml:"lastCommandTime"`     // 上次发送指令时间
+	AutoSetNameTemplate string `yaml:"autoSetNameTemplate"` // 名片模板
 
 	// level int 权限
 	DiceSideNum  int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
@@ -572,10 +573,10 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			ret := item.Solve(ctx, msg, cmdArgs)
 			if ret.Solved {
 				if ret.ShowHelp {
-					help := item.LongHelp
+					help := item.Help
 					if help == "" {
 						// 这是为了防止别的骰子误触发
-						help = item.Name + ":\n" + item.Help
+						help = item.Name + ":\n" + item.ShortHelp
 					}
 					ReplyToSender(ctx, msg, help)
 				}

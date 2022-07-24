@@ -290,9 +290,9 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 
 	addCmdMap := func(packageName string, cmdMap CmdMapCls) {
 		for k, v := range cmdMap {
-			content := v.LongHelp
+			content := v.Help
 			if content == "" {
-				content = v.Help
+				content = v.ShortHelp
 			}
 			m.AddItem(HelpTextItem{
 				Title:       k,
