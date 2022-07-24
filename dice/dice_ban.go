@@ -148,6 +148,10 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 		if v.Score >= i.ThresholdBan {
 			v.Rank = BanRankBanned
 			v.BanTime = time.Now().Unix()
+
+			if ctx.EndPoint.Platform == "QQ" {
+				ctx.EndPoint.Adapter.(*PlatformAdapterQQOnebot).DeleteFriend(ctx, place)
+			}
 		}
 	}
 
