@@ -341,7 +341,7 @@ func (d *Dice) registerCoreCommands() {
 	cmdBot := &CmdItemInfo{
 		Name:     "bot",
 		Help:     ".bot on/off/about/bye // 开启、关闭、查看信息、退群",
-		LongHelp: "骰子管理:\n.bot on/off/about/bye // 开启、关闭、查看信息、退群",
+		LongHelp: "骰子管理:\n.bot on/off/about/bye[exit, quit] // 开启、关闭、查看信息、退群",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			inGroup := msg.MessageType == "group"
 			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
