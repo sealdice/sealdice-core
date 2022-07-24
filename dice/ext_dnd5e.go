@@ -419,7 +419,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							_vRaw, exists := chVars.Get(k)
 							if !exists {
 								// 不存在的值，强行补0
-								v = &VMValue{VMTypeInt64, int64(0)}
+								v = &VMValue{TypeId: VMTypeInt64, Value: int64(0)}
 								vRaw = v
 							} else {
 								vRaw = _vRaw.(*VMValue)
@@ -900,7 +900,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							_v, exists := chVars.Get(k)
 							if !exists {
 								// 不存在的值，强行补0
-								v = &VMValue{VMTypeInt64, int64(0)}
+								v = &VMValue{TypeId: VMTypeInt64, Value: int64(0)}
 							} else {
 								v = _v.(*VMValue)
 							}
@@ -1810,7 +1810,7 @@ func dndGetRiMapList(ctx *MsgContext) map[string]int64 {
 	mapName := "riMapList"
 	_, exists := ctx.Group.ValueMap.Get(mapName)
 	if !exists {
-		ctx.Group.ValueMap.Set(mapName, &VMValue{-1, map[string]int64{}})
+		ctx.Group.ValueMap.Set(mapName, &VMValue{TypeId: -1, Value: map[string]int64{}})
 	} else {
 		a, _ := ctx.Group.ValueMap.Get(mapName)
 		ctx.Group.ValueMap.Set(mapName, VMValueConvert(a.(*VMValue), nil, ""))
@@ -1827,7 +1827,7 @@ func dndGetRiMapList(ctx *MsgContext) map[string]int64 {
 func dndSetRiMapList(ctx *MsgContext, riMap map[string]int64) {
 	ctx.LoadGroupVars()
 	mapName := "riMapList"
-	ctx.Group.ValueMap.Set(mapName, &VMValue{-1, riMap})
+	ctx.Group.ValueMap.Set(mapName, &VMValue{TypeId: -1, Value: riMap})
 
 	// 这里出现了丢数据的情况，但其实
 	// 二次save其实并不科学 // 确实不科学 看起来不用了

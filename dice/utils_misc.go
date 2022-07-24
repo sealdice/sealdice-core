@@ -30,8 +30,16 @@ func (vd *VMComputedValueData) ReadBaseInt64() (int64, bool) {
 }
 
 type VMValue struct {
-	TypeId VMValueType `json:"typeId"`
-	Value  interface{} `json:"value"`
+	TypeId      VMValueType `json:"typeId"`
+	Value       interface{} `json:"value"`
+	ExpiredTime int64       `json:"expiredTime"`
+}
+
+func VMValueNew(typeId VMValueType, val interface{}) *VMValue {
+	return &VMValue{
+		TypeId: typeId,
+		Value:  val,
+	}
 }
 
 func (v *VMValue) AsBool() bool {

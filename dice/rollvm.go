@@ -392,9 +392,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	}
 
 	wodInit := func() {
-		wodState.pool = &VMValue{VMTypeInt64, int64(1)}
-		wodState.points = &VMValue{VMTypeInt64, int64(10)}   // 面数，默认d10
-		wodState.threshold = &VMValue{VMTypeInt64, int64(8)} // 成功线，默认9
+		wodState.pool = &VMValue{TypeId: VMTypeInt64, Value: int64(1)}
+		wodState.points = &VMValue{TypeId: VMTypeInt64, Value: int64(10)}   // 面数，默认d10
+		wodState.threshold = &VMValue{TypeId: VMTypeInt64, Value: int64(8)} // 成功线，默认9
 		wodState.isGE = true
 	}
 
@@ -404,8 +404,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 	}
 
 	dcInit := func() {
-		dcState.pool = &VMValue{VMTypeInt64, int64(1)}    // 骰数，默认1
-		dcState.points = &VMValue{VMTypeInt64, int64(10)} // 面数，默认d10
+		dcState.pool = &VMValue{TypeId: VMTypeInt64, Value: int64(1)}    // 骰数，默认1
+		dcState.points = &VMValue{TypeId: VMTypeInt64, Value: int64(10)} // 面数，默认d10
 	}
 
 	numOpCountAdd := func(count int64) bool {
@@ -477,7 +477,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 		case TypeDiceSetK:
 			t := stack[top-1]
-			registerDiceK = &VMValue{t.TypeId, t.Value}
+			registerDiceK = &VMValue{TypeId: t.TypeId, Value: t.Value}
 			kqFlag = code.Value
 			top--
 			continue
@@ -506,7 +506,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 		case TypeDiceSetQ:
 			t := stack[top-1]
-			registerDiceQ = &VMValue{t.TypeId, t.Value}
+			registerDiceQ = &VMValue{TypeId: t.TypeId, Value: t.Value}
 			kqFlag = code.Value
 			top--
 			continue
@@ -515,24 +515,24 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 		case TypeWodSetPoints:
 			t := stack[top-1]
-			wodState.points = &VMValue{t.TypeId, t.Value}
+			wodState.points = &VMValue{TypeId: t.TypeId, Value: t.Value}
 			top--
 			continue
 		case TypeWodSetThreshold:
 			t := stack[top-1]
-			wodState.threshold = &VMValue{t.TypeId, t.Value}
+			wodState.threshold = &VMValue{TypeId: t.TypeId, Value: t.Value}
 			wodState.isGE = true
 			top--
 			continue
 		case TypeWodSetThresholdQ:
 			t := stack[top-1]
-			wodState.threshold = &VMValue{t.TypeId, t.Value}
+			wodState.threshold = &VMValue{TypeId: t.TypeId, Value: t.Value}
 			wodState.isGE = false
 			top--
 			continue
 		case TypeWodSetPool:
 			t := stack[top-1]
-			wodState.pool = &VMValue{t.TypeId, t.Value}
+			wodState.pool = &VMValue{TypeId: t.TypeId, Value: t.Value}
 			top--
 			continue
 		case TypeDiceWod:
@@ -558,12 +558,12 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 		case TypeDCSetPool:
 			t := stack[top-1]
-			dcState.pool = &VMValue{t.TypeId, t.Value}
+			dcState.pool = &VMValue{TypeId: t.TypeId, Value: t.Value}
 			top--
 			continue
 		case TypeDCSetPoints:
 			t := stack[top-1]
-			dcState.points = &VMValue{t.TypeId, t.Value}
+			dcState.points = &VMValue{TypeId: t.TypeId, Value: t.Value}
 			top--
 			continue
 		case TypeDCSetInit:
@@ -741,7 +741,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 						var val int64
 						val, exists = Coc7DefaultAttrs[varname]
 						if exists {
-							v2 = &VMValue{VMTypeInt64, val}
+							v2 = &VMValue{TypeId: VMTypeInt64, Value: val}
 						}
 					}
 				}
@@ -1189,7 +1189,7 @@ func DiceDCRollVM(e *RollExpression, addLine *VMValue, pool *VMValue, points *VM
 	}
 
 	ret1, ret2, ret3, details := DiceDCRoll(valAddLine, valPool, valPoints)
-	return &VMValue{VMTypeInt64, ret1}, ret2, ret3, details
+	return &VMValue{TypeId: VMTypeInt64, Value: ret1}, ret2, ret3, details
 }
 
 func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, []string) {
@@ -1361,7 +1361,7 @@ func DiceWodRollVM(e *RollExpression, addLine *vmStack, pool *VMValue, points *V
 	}
 
 	ret1, ret2, ret3, details := DiceWodRoll(valAddLine, valPool, valPoints, valThreshold, isGE)
-	return &VMValue{VMTypeInt64, ret1}, ret2, ret3, details
+	return &VMValue{TypeId: VMTypeInt64, Value: ret1}, ret2, ret3, details
 }
 
 func (e *RollExpression) GetAsmText() string {

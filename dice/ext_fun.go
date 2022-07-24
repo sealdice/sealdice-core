@@ -266,7 +266,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				rand.Seed(rpSeed)
 				rp := rand.Int63()%100 + 1
 
-				VarSetValue(ctx, "$t人品", &VMValue{VMTypeInt64, int64(rp)})
+				VarSetValueInt64(ctx, "$t人品", int64(rp))
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "娱乐:今日人品"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
