@@ -1234,17 +1234,17 @@ func (d *Dice) registerCoreCommands() {
 				case "clr", "reset":
 					p := ctx.Player
 					p.Name = msg.Sender.Nickname
-					VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
-					VarSetValue(ctx, "$t玩家_RAW", &VMValue{VMTypeString, fmt.Sprintf("%s", ctx.Player.Name)})
+					VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
+					VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_重置"))
 				default:
 					p := ctx.Player
-					VarSetValue(ctx, "$t旧昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
-					VarSetValue(ctx, "$t旧昵称_RAW", &VMValue{VMTypeString, fmt.Sprintf("%s", ctx.Player.Name)})
+					VarSetValueStr(ctx, "$t旧昵称", fmt.Sprintf("<%s>", ctx.Player.Name))
+					VarSetValueStr(ctx, "$t旧昵称_RAW", fmt.Sprintf("%s", ctx.Player.Name))
 
 					p.Name = cmdArgs.Args[0]
-					VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
-					VarSetValue(ctx, "$t玩家_RAW", &VMValue{VMTypeString, fmt.Sprintf("%s", ctx.Player.Name)})
+					VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
+					VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
 
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_改名"))
 					//replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
@@ -1335,13 +1335,14 @@ func (d *Dice) registerCoreCommands() {
 							if tipText == "\n提示:" {
 								tipText = ""
 							}
-							VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
-							VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
+
+							VarSetValueInt64(ctx, "$t群组骰子面数", ctx.Group.DiceSideNum)
+							VarSetValueInt64(ctx, "$t当前骰子面数", getDefaultDicePoints(ctx))
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认群组骰子面数")+tipText)
 						} else {
 							p.DiceSideNum = int(num)
-							VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
-							VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
+							VarSetValueInt64(ctx, "$t个人骰子面数", int64(ctx.Player.DiceSideNum))
+							VarSetValueInt64(ctx, "$t当前骰子面数", getDefaultDicePoints(ctx))
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数"))
 							//replyGroup(ctx, msg.GroupId, fmt.Sprintf("设定默认骰子面数为 %d", num))
 						}
@@ -1441,10 +1442,10 @@ func (d *Dice) registerCoreCommands() {
 					if ctx.ChNew(name) {
 						ctx.ChUnbindCur() // 先移除绑定
 						ctx.ChBindCur(name)
-						VarSetValue(ctx, "$t角色名", &VMValue{VMTypeString, name})
+						VarSetValueStr(ctx, "$t角色名", name)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_新建"))
 					} else {
-						VarSetValue(ctx, "$t角色名", &VMValue{VMTypeString, name})
+						VarSetValueStr(ctx, "$t角色名", name)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_新建_已存在"))
 					}
 				} else if cmdArgs.IsArgEqual(1, "load") {
@@ -1452,21 +1453,21 @@ func (d *Dice) registerCoreCommands() {
 					if cur == "" {
 						name := getNickname()
 						ret := ctx.ChLoad(name)
-						VarSetValue(ctx, "$t角色名", &VMValue{VMTypeString, name})
+						VarSetValueStr(ctx, "$t角色名", name)
 						if ret != nil {
-							VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
+							VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
 							//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
 						} else {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 						}
 					} else {
-						VarSetValue(ctx, "$t角色名", &VMValue{VMTypeString, cur})
+						VarSetValueStr(ctx, "$t角色名", cur)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载失败_已绑定"))
 					}
 				} else if cmdArgs.IsArgEqual(1, "tag") {
 					name, _ := cmdArgs.GetArgN(2)
-					VarSetValue(ctx, "$t角色名", &VMValue{VMTypeString, name})
+					VarSetValueStr(ctx, "$t角色名", name)
 					if name != "" {
 						ctx.ChUnbindCur() // 先移除绑定
 						ok := ctx.ChBindCur(name)
@@ -1478,7 +1479,7 @@ func (d *Dice) registerCoreCommands() {
 					} else {
 						if name, success := ctx.ChUnbindCur(); success {
 							ctx.Player.Name = msg.Sender.Nickname
-							VarSetValue(ctx, "$t角色名", &VMValue{VMTypeString, name})
+							VarSetValueStr(ctx, "$t角色名", name)
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_解除"))
 						} else {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_并未绑定"))
@@ -1514,13 +1515,13 @@ func (d *Dice) registerCoreCommands() {
 						if err == nil {
 							vars := ctx.LoadPlayerGlobalVars()
 							vars.ValueMap.Set("$ch:"+name, &VMValue{
-								VMTypeString,
-								string(v),
+								TypeId: VMTypeString,
+								Value:  string(v),
 							})
 							vars.LastWriteTime = time.Now().Unix()
 
-							VarSetValue(ctx, "$t角色名", &VMValue{VMTypeString, name})
-							VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
+							VarSetValueStr(ctx, "$t角色名", name)
+							VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
 							//replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", Name))
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
 						} else {
@@ -1528,21 +1529,21 @@ func (d *Dice) registerCoreCommands() {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
 						}
 					} else {
-						VarSetValue(ctx, "$t角色名", &VMValue{VMTypeString, name})
+						VarSetValueStr(ctx, "$t角色名", name)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_删除失败_已绑定"))
 					}
 				} else if cmdArgs.IsArgEqual(1, "del", "rm") {
 					name := getNickname()
 					if ctx.ChBindGet(name) != nil {
-						VarSetValue(ctx, "$t角色名", &VMValue{VMTypeString, name})
+						VarSetValueStr(ctx, "$t角色名", name)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_删除失败_已绑定"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
 					vars := ctx.LoadPlayerGlobalVars()
 
-					VarSetValue(ctx, "$t角色名", &VMValue{VMTypeString, name})
-					VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", name)})
+					VarSetValueStr(ctx, "$t角色名", name)
+					VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
 					_, exists := vars.ValueMap.Get("$ch:" + name)
 					if exists {
 						vars.ValueMap.Del("$ch:" + name)
@@ -1550,7 +1551,7 @@ func (d *Dice) registerCoreCommands() {
 
 						text := DiceFormatTmpl(ctx, "核心:角色管理_删除成功")
 						if name == ctx.Player.Name {
-							VarSetValue(ctx, "$t新角色名", &VMValue{VMTypeString, fmt.Sprintf("<%s>", msg.Sender.Nickname)})
+							VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", msg.Sender.Nickname))
 							text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
 							p := ctx.Player
 							p.Name = msg.Sender.Nickname

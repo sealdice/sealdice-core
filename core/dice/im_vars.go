@@ -47,52 +47,52 @@ func (ctx *MsgContext) LoadGroupVars() {
 }
 
 func VarSetValueStr(ctx *MsgContext, s string, v string) {
-	VarSetValue(ctx, s, &VMValue{VMTypeString, v})
+	VarSetValue(ctx, s, &VMValue{TypeId: VMTypeString, Value: v})
 }
 
 func VarSetValueDNDComputed(ctx *MsgContext, s string, val int64, expr string) {
 	vd := &VMComputedValueData{
 		BaseValue: VMValue{
-			VMTypeInt64,
-			val,
+			TypeId: VMTypeInt64,
+			Value:  val,
 		},
 		Expr: expr,
 	}
-	VarSetValue(ctx, s, &VMValue{VMTypeComputedValue, vd})
+	VarSetValue(ctx, s, &VMValue{TypeId: VMTypeComputedValue, Value: vd})
 }
 
 func VarSetValueInt64(ctx *MsgContext, s string, v int64) {
-	VarSetValue(ctx, s, &VMValue{VMTypeInt64, v})
+	VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: v})
 }
 
 func VarSetValueAuto(ctx *MsgContext, s string, v interface{}) {
 	switch reflect.TypeOf(v).Kind() {
 	case reflect.Int:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(int))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(int))})
 	case reflect.Int8:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(int8))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(int8))})
 	case reflect.Int16:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(int16))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(int16))})
 	case reflect.Int32:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(int32))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(int32))})
 	case reflect.Int64:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(int64))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(int64))})
 	case reflect.Uint:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint))})
 	case reflect.Uint8:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint8))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint8))})
 	case reflect.Uint16:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint16))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint16))})
 	case reflect.Uint32:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint32))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint32))})
 	case reflect.Uint64:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint64))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint64))})
 	case reflect.Float32:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(uint64))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint64))})
 	case reflect.Float64:
-		VarSetValue(ctx, s, &VMValue{VMTypeInt64, int64(v.(float64))})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(float64))})
 	case reflect.String:
-		VarSetValue(ctx, s, &VMValue{VMTypeString, v.(string)})
+		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeString, Value: v.(string)})
 	}
 }
 
@@ -322,7 +322,7 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 					}
 
 					// $:ch-bind-data:角色
-					m.Set("$:cardName", &VMValue{VMTypeString, name}) // 防止出事，覆盖一次
+					m.Set("$:cardName", &VMValue{TypeId: VMTypeString, Value: name}) // 防止出事，覆盖一次
 					vd.ValueMap.Set("$:ch-bind-data:"+name, m)
 				}
 			}
@@ -377,7 +377,7 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 								//	return nil
 								//})
 
-								m.Set("$:cardName", &VMValue{VMTypeString, name}) // 防止出事，覆盖一次
+								m.Set("$:cardName", &VMValue{TypeId: VMTypeString, Value: name}) // 防止出事，覆盖一次
 								player.Vars.ValueMap.Set("$:card", m)
 							}
 						}
@@ -398,43 +398,43 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 func SetTempVars(ctx *MsgContext, qqNickname string) {
 	// 设置临时变量
 	if ctx.Player != nil {
-		VarSetValue(ctx, "$t玩家", &VMValue{VMTypeString, fmt.Sprintf("<%s>", ctx.Player.Name)})
-		VarSetValue(ctx, "$t玩家_RAW", &VMValue{VMTypeString, fmt.Sprintf("%s", ctx.Player.Name)})
-		VarSetValue(ctx, "$tQQ昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
-		VarSetValue(ctx, "$t帐号昵称", &VMValue{VMTypeString, fmt.Sprintf("<%s>", qqNickname)})
-		VarSetValue(ctx, "$t帐号ID", &VMValue{VMTypeString, fmt.Sprintf("%s", ctx.Player.UserId)})
-		VarSetValue(ctx, "$t个人骰子面数", &VMValue{VMTypeInt64, int64(ctx.Player.DiceSideNum)})
+		VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
+		VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
+		VarSetValueStr(ctx, "$tQQ昵称", fmt.Sprintf("<%s>", qqNickname))
+		VarSetValueStr(ctx, "$t帐号昵称", fmt.Sprintf("<%s>", qqNickname))
+		VarSetValueStr(ctx, "$t帐号ID", fmt.Sprintf("%s", ctx.Player.UserId))
+		VarSetValueInt64(ctx, "$t个人骰子面数", int64(ctx.Player.DiceSideNum))
 		//VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})
-		VarSetValue(ctx, "$tQQ", &VMValue{VMTypeString, ctx.Player.UserId})
-		VarSetValue(ctx, "$t骰子帐号", &VMValue{VMTypeString, ctx.EndPoint.UserId})
-		VarSetValue(ctx, "$t骰子昵称", &VMValue{VMTypeString, ctx.EndPoint.Nickname})
-		VarSetValue(ctx, "$t帐号ID_RAW", &VMValue{VMTypeString, UserIdExtract(ctx.Player.UserId)})
+		VarSetValueStr(ctx, "$tQQ", ctx.Player.UserId)
+		VarSetValueStr(ctx, "$t骰子帐号", ctx.EndPoint.UserId)
+		VarSetValueStr(ctx, "$t骰子昵称", ctx.EndPoint.Nickname)
+		VarSetValueStr(ctx, "$t帐号ID_RAW", UserIdExtract(ctx.Player.UserId))
 
 		now := time.Now()
 		t, _ := strconv.ParseInt(now.Format("20060102"), 10, 64)
-		VarSetValue(ctx, "$tDate", &VMValue{VMTypeInt64, t})
+		VarSetValueInt64(ctx, "$tDate", t)
 
 		t, _ = strconv.ParseInt(now.Format("2006"), 10, 64)
-		VarSetValue(ctx, "$tYear", &VMValue{VMTypeInt64, t})
+		VarSetValueInt64(ctx, "$tYear", t)
 		t, _ = strconv.ParseInt(now.Format("01"), 10, 64)
-		VarSetValue(ctx, "$tMonth", &VMValue{VMTypeInt64, t})
+		VarSetValueInt64(ctx, "$tMonth", t)
 		t, _ = strconv.ParseInt(now.Format("02"), 10, 64)
-		VarSetValue(ctx, "$tDay", &VMValue{VMTypeInt64, t})
+		VarSetValueInt64(ctx, "$tDay", t)
 		t, _ = strconv.ParseInt(now.Format("15"), 10, 64)
-		VarSetValue(ctx, "$tHour", &VMValue{VMTypeInt64, t})
+		VarSetValueInt64(ctx, "$tHour", t)
 		t, _ = strconv.ParseInt(now.Format("04"), 10, 64)
-		VarSetValue(ctx, "$tMinute", &VMValue{VMTypeInt64, t})
+		VarSetValueInt64(ctx, "$tMinute", t)
 		t, _ = strconv.ParseInt(now.Format("05"), 10, 64)
-		VarSetValue(ctx, "$tSecond", &VMValue{VMTypeInt64, t})
-		VarSetValue(ctx, "$tTimestamp", &VMValue{VMTypeInt64, now.Unix()})
+		VarSetValueInt64(ctx, "$tSecond", t)
+		VarSetValueInt64(ctx, "$tTimestamp", now.Unix())
 	}
 	if ctx.Group != nil {
 		if ctx.MessageType == "group" {
-			VarSetValue(ctx, "$t群号", &VMValue{VMTypeString, ctx.Group.GroupId})
-			VarSetValue(ctx, "$t群名", &VMValue{VMTypeString, ctx.Group.GroupName})
-			VarSetValue(ctx, "$t群号_RAW", &VMValue{VMTypeString, UserIdExtract(ctx.Group.GroupId)})
+			VarSetValueStr(ctx, "$t群号", ctx.Group.GroupId)
+			VarSetValueStr(ctx, "$t群名", ctx.Group.GroupName)
+			VarSetValueStr(ctx, "$t群号_RAW", UserIdExtract(ctx.Group.GroupId))
 		}
-		VarSetValue(ctx, "$t群组骰子面数", &VMValue{VMTypeInt64, ctx.Group.DiceSideNum})
-		VarSetValue(ctx, "$t当前骰子面数", &VMValue{VMTypeInt64, getDefaultDicePoints(ctx)})
+		VarSetValueInt64(ctx, "$t群组骰子面数", ctx.Group.DiceSideNum)
+		VarSetValueInt64(ctx, "$t当前骰子面数", getDefaultDicePoints(ctx))
 	}
 }

@@ -810,8 +810,8 @@ func (ctx *MsgContext) ChNew(name string) bool {
 	}
 
 	vars.ValueMap.Set(varName, &VMValue{
-		VMTypeString,
-		"{}",
+		TypeId: VMTypeString,
+		Value:  "{}",
 	})
 
 	vars.LastWriteTime = time.Now().Unix()
@@ -840,18 +840,18 @@ func (ctx *MsgContext) ChBindCur(name string) bool {
 	}
 
 	if m != nil {
-		m.Set("$:cardName", &VMValue{VMTypeString, name}) // 防止出事，覆盖一次
-		vars.ValueMap.Set(key2, m)                        // 同上，$:ch-bind-data:角色 = 数据
+		m.Set("$:cardName", &VMValue{TypeId: VMTypeString, Value: name}) // 防止出事，覆盖一次
+		vars.ValueMap.Set(key2, m)                                       // 同上，$:ch-bind-data:角色 = 数据
 
 		// $:group-bind:群号  = 卡片名
 		key := fmt.Sprintf("$:group-bind:%s", ctx.Group.GroupId)
-		vars.ValueMap.Set(key, &VMValue{VMTypeString, name})
+		vars.ValueMap.Set(key, &VMValue{TypeId: VMTypeString, Value: name})
 		//fmt.Println("$$$$$$$$$$$$$$", key)
 		vars.LastWriteTime = time.Now().Unix()
 
 		// $:card = 卡片数据
 		ctx.Player.Vars.ValueMap.Set("$:card", m)
-		ctx.Player.Vars.ValueMap.Set("$:cardBindMark", &VMValue{VMTypeInt64, 1})
+		ctx.Player.Vars.ValueMap.Set("$:cardBindMark", &VMValue{TypeId: VMTypeInt64, Value: 1})
 		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
 		ctx.Player.Name = name
 		return true

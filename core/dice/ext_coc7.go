@@ -505,12 +505,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						case 4:
 							attrVal = criticalSuccessValue
 						}
-						VarSetValue(mctx, "$tD100", &VMValue{VMTypeInt64, checkVal})
-						VarSetValue(mctx, "$t判定值", &VMValue{VMTypeInt64, attrVal})
-						VarSetValue(mctx, "$t判定结果", &VMValue{VMTypeString, suffix})
-						VarSetValue(ctx, "$tSuccessRank", &VMValue{VMTypeInt64, int64(successRank)})
-						VarSetValue(mctx, "$t判定结果_详细", &VMValue{VMTypeString, suffixFull})
-						VarSetValue(mctx, "$t判定结果_简短", &VMValue{VMTypeString, suffixShort})
+						VarSetValueInt64(mctx, "$tD100", checkVal)
+						VarSetValueInt64(mctx, "$t判定值", attrVal)
+						VarSetValueStr(mctx, "$t判定结果", suffix)
+						VarSetValueInt64(ctx, "$tSuccessRank", int64(successRank))
+						VarSetValueStr(mctx, "$t判定结果_详细", suffixFull)
+						VarSetValueStr(mctx, "$t判定结果_简短", suffixShort)
 
 						if err == nil {
 							detailWrap := ""
@@ -674,8 +674,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				text := SetCocRuleText[ctx.Group.CocRuleIndex]
 				VarSetValueStr(ctx, "$t房规文本", text)
-				VarSetValue(ctx, "$t房规", &VMValue{VMTypeString, SetCocRulePrefixText[ctx.Group.CocRuleIndex]})
-				VarSetValue(ctx, "$t房规序号", &VMValue{VMTypeInt64, int64(ctx.Group.CocRuleIndex)})
+				VarSetValueStr(ctx, "$t房规", SetCocRulePrefixText[ctx.Group.CocRuleIndex])
+				VarSetValueInt64(ctx, "$t房规序号", int64(ctx.Group.CocRuleIndex))
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
 			}
 
@@ -963,7 +963,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							_v, exists := vars.Get(k)
 							if !exists {
 								// 不存在的值，强行补0
-								v = &VMValue{VMTypeInt64, int64(0)}
+								v = &VMValue{TypeId: VMTypeInt64, Value: int64(0)}
 							} else {
 								v = _v.(*VMValue)
 							}
@@ -1180,7 +1180,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							failExpr := m[5]    // 失败的加值表达式
 
 							var varValue int64
-							VarSetValue(ctx, "$t技能", &VMValue{VMTypeString, varName})
+							VarSetValueStr(ctx, "$t技能", varName)
 
 							// 首先，试图读取技能的值
 							if varValueStr != "" {
@@ -1208,11 +1208,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								resultText = "成功"
 							}
 
-							VarSetValue(ctx, "$tD100", &VMValue{VMTypeInt64, d100})
-							VarSetValue(ctx, "$t判定值", &VMValue{VMTypeInt64, varValue})
-							VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, resultText})
-							VarSetValue(ctx, "$t判定结果", &VMValue{VMTypeString, resultText})
-							VarSetValue(ctx, "$tSuccessRank", &VMValue{VMTypeInt64, int64(successRank)})
+							VarSetValueInt64(ctx, "$tD100", d100)
+							VarSetValueInt64(ctx, "$t判定值", varValue)
+							VarSetValueStr(ctx, "$t判定结果", resultText)
+							VarSetValueStr(ctx, "$t判定结果", resultText)
+							VarSetValueInt64(ctx, "$tSuccessRank", int64(successRank))
 
 							if successRank < 0 {
 								// 如果成功
@@ -1221,15 +1221,15 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								}
 
 								r, _, err := ctx.Dice.ExprEval(successExpr, ctx)
-								VarSetValue(ctx, "$t表达式文本", &VMValue{VMTypeString, successExpr})
+								VarSetValueStr(ctx, "$t表达式文本", successExpr)
 								if err != nil {
 									ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长_错误的成功成长值"))
 									return CmdExecuteResult{Matched: true, Solved: false}
 								}
 
-								VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, varValue})
+								VarSetValueInt64(ctx, "$t旧值", varValue)
 								varValue += r.VMValue.Value.(int64)
-								nv := &VMValue{VMTypeInt64, varValue}
+								nv := &VMValue{TypeId: VMTypeInt64, Value: varValue}
 
 								VarSetValue(ctx, "$t增量", &r.VMValue)
 								VarSetValue(ctx, "$t新值", nv)
@@ -1243,15 +1243,15 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "COC:技能成长_结果_失败"))
 								} else {
 									r, _, err := ctx.Dice.ExprEval(failExpr, ctx)
-									VarSetValue(ctx, "$t表达式文本", &VMValue{VMTypeString, failExpr})
+									VarSetValueStr(ctx, "$t表达式文本", failExpr)
 									if err != nil {
 										ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长_错误的失败成长值"))
 										return CmdExecuteResult{Matched: true, Solved: false}
 									}
 
-									VarSetValue(ctx, "$t旧值", &VMValue{VMTypeInt64, varValue})
+									VarSetValueInt64(ctx, "$t旧值", varValue)
 									varValue += r.VMValue.Value.(int64)
-									nv := &VMValue{VMTypeInt64, varValue}
+									nv := &VMValue{TypeId: VMTypeInt64, Value: varValue}
 
 									VarSetValue(ctx, "$t增量", &r.VMValue)
 									VarSetValue(ctx, "$t新值", nv)
@@ -1531,13 +1531,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							VarSetValueStr(mctx, "$t检定表达式文本", expr1)
 							VarSetValueStr(mctx, "$t检定计算过程", detailWrap)
 
-							VarSetValue(mctx, "$tD100", &VMValue{VMTypeInt64, d100})
-							VarSetValue(mctx, "$t判定值", &VMValue{VMTypeInt64, san})
-							VarSetValue(mctx, "$t判定结果", &VMValue{VMTypeString, suffix})
-							VarSetValue(mctx, "$t判定结果_详细", &VMValue{VMTypeString, suffix})
-							VarSetValue(mctx, "$t判定结果_简短", &VMValue{VMTypeString, suffixShort})
-							VarSetValue(ctx, "$tSuccessRank", &VMValue{VMTypeInt64, int64(successRank)})
-							VarSetValue(mctx, "$t旧值", &VMValue{VMTypeInt64, san})
+							VarSetValueInt64(mctx, "$tD100", d100)
+							VarSetValueInt64(mctx, "$t判定值", san)
+							VarSetValueStr(mctx, "$t判定结果", suffix)
+							VarSetValueStr(mctx, "$t判定结果_详细", suffix)
+							VarSetValueStr(mctx, "$t判定结果_简短", suffixShort)
+							VarSetValueInt64(ctx, "$tSuccessRank", int64(successRank))
+							VarSetValueInt64(mctx, "$t旧值", san)
 
 							SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
 							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:理智检定_单项结果文本"))
@@ -1577,9 +1577,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 							//输出结果
 							offset := san - sanNew
-							VarSetValue(mctx, "$t新值", &VMValue{VMTypeInt64, sanNew})
+							VarSetValueInt64(mctx, "$t新值", sanNew)
 							VarSetValueStr(mctx, "$t表达式文本", text1)
-							VarSetValue(mctx, "$t表达式值", &VMValue{VMTypeInt64, offset})
+							VarSetValueInt64(mctx, "$t表达式值", offset)
 							//text := fmt.Sprintf("<%s>的理智检定:\nD100=%d/%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", ctx.Player.Name, d100, san, suffix, san, sanNew, text1, offset)
 
 							var crazyTip string
@@ -1918,20 +1918,6 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 	}
 
 	return successRank, criticalSuccessValue
-}
-
-type AttributeOrderOthers struct {
-	SortBy string `yaml:"sortBy"` // time | Name | value desc
-}
-
-type AttributeOrder struct {
-	Top    []string             `yaml:"top,flow"`
-	Others AttributeOrderOthers `yaml:"others"`
-}
-
-type AttributeConfigs struct {
-	Alias map[string][]string `yaml:"alias"`
-	Order AttributeOrder      `yaml:"order"`
 }
 
 func setupConfig(d *Dice) AttributeConfigs {

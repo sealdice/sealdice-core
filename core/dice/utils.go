@@ -93,9 +93,9 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 		}
 		if i, err := n.Int64(); err == nil {
 			if v != nil {
-				(*v)[key] = &VMValue{VMTypeInt64, i}
+				(*v)[key] = &VMValue{TypeId: VMTypeInt64, Value: i}
 			}
-			return &VMValue{VMTypeInt64, i}
+			return &VMValue{TypeId: VMTypeInt64, Value: i}
 		}
 	}
 	if val.TypeId == -1 {
@@ -125,9 +125,9 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 			m2, _ = val.Value.(map[string]int64)
 		}
 		if v != nil {
-			(*v)[key] = &VMValue{-1, m2}
+			(*v)[key] = &VMValue{TypeId: -1, Value: m2}
 		}
-		return &VMValue{-1, m2}
+		return &VMValue{TypeId: -1, Value: m2}
 	}
 	if val.TypeId == VMTypeComputedValue {
 		tmp := val.Value.(map[string]interface{})
@@ -135,8 +135,8 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 
 		val, _ := baseValue["typeId"].(json.Number).Int64()
 		bv := VMValueConvert(&VMValue{
-			VMValueType(val),
-			baseValue["value"],
+			TypeId: VMValueType(val),
+			Value:  baseValue["value"],
 		}, nil, "")
 
 		vd := &VMComputedValueData{
@@ -145,7 +145,7 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 		}
 
 		if v != nil {
-			(*v)[key] = &VMValue{VMTypeComputedValue, vd}
+			(*v)[key] = &VMValue{TypeId: VMTypeComputedValue, Value: vd}
 		}
 		//val.Value.(map)
 	}

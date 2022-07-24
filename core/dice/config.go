@@ -1580,8 +1580,8 @@ func (d *Dice) Save(isAuto bool) {
 						if err == nil {
 							varName := "$ch:" + name
 							v.ValueMap.Set(varName, &VMValue{
-								VMTypeString,
-								string(val),
+								TypeId: VMTypeString,
+								Value:  string(val),
 							})
 							//fmt.Println("XXXXXXX", varName, string(val))
 						}
