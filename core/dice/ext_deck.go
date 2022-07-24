@@ -312,7 +312,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				cmdArgs.ChopPrefixToArgsWith("list", "help", "reload", "search", "keys")
+				cmdArgs.ChopPrefixToArgsWith("list", "help", "reload", "search", "keys", "desc")
 				deckName, exists := cmdArgs.GetArgN(1)
 
 				if exists {
@@ -326,6 +326,33 @@ func RegisterBuiltinExtDeck(d *Dice) {
 							}
 						}
 						ReplyToSender(ctx, msg, text)
+					} else if strings.EqualFold(deckName, "desc") {
+						// 查看详情
+						text, _ := cmdArgs.GetArgN(2)
+						var lst DeckInfoCommandList
+						for _, i := range ctx.Dice.DeckList {
+							if i.Enable {
+								lst = append(lst, i.Name)
+							}
+						}
+
+						matches := fuzzy.FindFrom(text, lst)
+						if len(matches) > 0 {
+							text := "牌堆信息:\n"
+							i := ctx.Dice.DeckList[matches[0].Index]
+							author := fmt.Sprintf("作者:%s", i.Author)
+							version := fmt.Sprintf("版本:%s", i.Version)
+							text += fmt.Sprintf("牌堆: %s\n格式: %s\n%s\n%s\n牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
+
+							cmds := []string{}
+							for j, _ := range i.Command {
+								cmds = append(cmds, j)
+							}
+							text += "牌组: " + strings.Join(cmds, "/")
+							ReplyToSender(ctx, msg, text)
+						} else {
+							ReplyToSender(ctx, msg, "此关键字未找到牌堆")
+						}
 					} else if strings.EqualFold(deckName, "help") {
 						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					} else if strings.EqualFold(deckName, "keys") {
