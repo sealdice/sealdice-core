@@ -325,12 +325,14 @@ servers:
       host: 127.0.0.1
       # 正向WS服务器监听端口
       port: {WS端口}
+      # rc3
+      # address: 127.0.0.1:{WS端口}
       middlewares:
         <<: *default # 引用默认中间件
 `
 
 func GenerateConfig(qq int64, password string, port int) string {
-	ret := strings.Replace(defaultConfig, "{WS端口}", fmt.Sprintf("%d", port), 1)
+	ret := strings.ReplaceAll(defaultConfig, "{WS端口}", fmt.Sprintf("%d", port))
 	ret = strings.Replace(ret, "{QQ帐号}", fmt.Sprintf("%d", qq), 1)
 
 	password2, _ := json.Marshal(password)

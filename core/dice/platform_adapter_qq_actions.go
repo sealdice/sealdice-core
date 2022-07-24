@@ -292,19 +292,40 @@ func (pa *PlatformAdapterQQOnebot) SetFriendAddRequest(flag string, approve bool
 	socketSendText(pa.Socket, string(a))
 }
 
+func (pa *PlatformAdapterQQOnebot) DeleteFriend(ctx *MsgContext, id string) {
+	friendId, type_ := pa.mustExtractId(id)
+	if type_ != QQUidPerson {
+		return
+	}
+	type GroupMessageParams struct {
+		FriendId int64 `json:"friend_id"`
+	}
+
+	a, _ := json.Marshal(oneBotCommand{
+		Action: "friend_id",
+		Params: GroupMessageParams{
+			friendId,
+		},
+	})
+
+	socketSendText(pa.Socket, string(a))
+}
+
 func (pa *PlatformAdapterQQOnebot) QuitGroup(ctx *MsgContext, id string) {
 	groupId, type_ := pa.mustExtractId(id)
 	if type_ != QQUidGroup {
 		return
 	}
 	type GroupMessageParams struct {
-		GroupId int64 `json:"group_id"`
+		GroupId   int64 `json:"group_id"`
+		IsDismiss bool  `json:"is_dismiss"`
 	}
 
 	a, _ := json.Marshal(oneBotCommand{
 		Action: "set_group_leave",
 		Params: GroupMessageParams{
 			groupId,
+			false,
 		},
 	})
 
