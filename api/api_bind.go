@@ -392,6 +392,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.GET(prefix+"/configs/custom_reply", customReply)
 	e.POST(prefix+"/configs/custom_reply/save", customReplySave)
+	e.GET(prefix+"/configs/custom_reply/file_list", customReplyFileList)
+	e.POST(prefix+"/configs/custom_reply/file_new", customReplyFileNew)
 
 	e.GET(prefix+"/dice/config/get", DiceConfig)
 	e.POST(prefix+"/dice/config/set", DiceConfigSet)

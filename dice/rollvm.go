@@ -1101,6 +1101,10 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 				num := int64(0)
 				for i := int64(0); i < diceKQ; i++ {
+					// 当取数大于上限 跳过
+					if i >= int64(len(nums)) {
+						continue
+					}
 					num += nums[i]
 				}
 

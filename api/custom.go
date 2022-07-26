@@ -7,32 +7,6 @@ import (
 	"strings"
 )
 
-func customReplySave(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-
-	v := dice.ReplyConfig{}
-	err := c.Bind(&v)
-	if err != nil {
-		return c.String(430, err.Error())
-	}
-
-	v.Clean()
-	myDice.CustomReplyConfig[0] = &v
-	v.Save(myDice)
-	return c.JSON(http.StatusOK, nil)
-}
-
-func customReply(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-
-	rc := dice.CustomReplyConfigRead(myDice)
-	return c.JSON(http.StatusOK, rc)
-}
-
 func customText(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
