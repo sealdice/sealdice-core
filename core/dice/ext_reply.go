@@ -33,6 +33,18 @@ func CustomReplyConfigRead(dice *Dice) *ReplyConfig {
 	return rc
 }
 
+func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
+	for _, i := range dice.CustomReplyConfig {
+		if strings.ToLower(i.FileName) == strings.ToLower(filename) {
+			return nil
+		}
+	}
+
+	rc := &ReplyConfig{Enable: false, FileName: filename, Items: []*ReplyItem{}}
+	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
+	return rc
+}
+
 func RegisterBuiltinExtReply(dice *Dice) {
 	rc := CustomReplyConfigRead(dice)
 	rc.Save(dice)
