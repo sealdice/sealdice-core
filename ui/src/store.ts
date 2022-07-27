@@ -174,8 +174,18 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async getCustomReply() {
-      const info = await backend.get(urlPrefix+'/configs/custom_reply')
+    async setCustomReply(data: any) {
+      const info = await backend.post(urlPrefix+'/configs/custom_reply/save', data)
+      return info
+    },
+
+    async getCustomReply(filename: string) {
+      const info = await backend.get(urlPrefix+'/configs/custom_reply', { params: { filename } })
+      return info
+    },
+
+    async customReplyFileList() {
+      const info = await backend.get(urlPrefix+'/configs/custom_reply/file_list')
       return info
     },
 
@@ -275,11 +285,6 @@ export const useStore = defineStore('main', {
     async scriptReload() {
       const info = await backend.post(urlPrefix+'/script/reload')
       return info as any
-    },
-
-    async setCustomReply(data: any) {
-      const info = await backend.post(urlPrefix+'/configs/custom_reply/save', data)
-      return info
     },
 
     async upgrade() {

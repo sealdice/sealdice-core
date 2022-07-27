@@ -31,18 +31,18 @@
 
     <div style="margin-top: 1rem;">
       <div>当前文件</div>
-      <el-select>
+      <el-select v-model="curFilename">
         <el-option
-          v-for="item in [{'label': 'reply.yaml', value: 'replyToSender'}, {'label': '私聊回复', value: 'replyPrivate'}, {'label': '群内回复', value: 'replyGroup'}]"
-          :key="item.value"
-          :label="item.label"
-          :value="item.value"
+          v-for="item in fileItems"
+          :key="item.filename"
+          :label="item.filename"
+          :value="item.filename"
         />
       </el-select>
       <div style="margin-top: .5rem;">
-        <el-button>新增</el-button>
+        <!-- <el-button>新增</el-button>
         <el-button>改名</el-button>
-        <el-checkbox style="margin-left: 1rem;">启用</el-checkbox>
+        <el-checkbox style="margin-left: 1rem;">启用</el-checkbox> -->
       </div>
     </div>
 
@@ -119,7 +119,14 @@ const dialogFormVisible = ref(false)
 const dialogLicenseVisible = ref(false)
 const configForImport = ref('')
 
+const curFilename = ref('reply.yaml')
+
 const list = ref<any>([
+  // {"enable":true,"condition":{"condType":"match","matchType":"match_exact","value":"asd"},"results":[{"resultType":"replyToSender","delay":0.3,"message":"text"}]},
+  // {"enable":true,"condition":{"condType":"match","matchType":"match_fuzzy","value":"ccc"},"results":[{"resultType":"replyToSender","delay":0.3,"message":"text"}]},
+])
+
+const fileItems = ref<any>([
   // {"enable":true,"condition":{"condType":"match","matchType":"match_exact","value":"asd"},"results":[{"resultType":"replyToSender","delay":0.3,"message":"text"}]},
   // {"enable":true,"condition":{"condType":"match","matchType":"match_fuzzy","value":"ccc"},"results":[{"resultType":"replyToSender","delay":0.3,"message":"text"}]},
 ])
@@ -142,6 +149,13 @@ const modified = ref(false)
 watch(() => cr.value, (newValue, oldValue) => { //直接监听
   modified.value = true
 }, {deep: true});
+
+watch(() => curFilename.value, (newValue, oldValue) => { //直接监听
+  console.log(222222, newValue);
+  nextTick(() => {
+    refreshCurrent();
+  });
+});
 
 const addOne = (lst: any) => {
   lst.push({"enable":true,"notCollapse":true,"conditions":[{"condType":"textMatch","matchType":"matchExact","value":"要匹配的文本"}],"results":[{"resultType":"replyToSender","delay":0,"message":[ ["说点什么", 1] ]}]},)
@@ -166,6 +180,7 @@ const doSave = async () => {
         if (!j.delay) j.delay = 0
       }
     }
+    cr.value.filename = curFilename.value;
     await store.setCustomReply(cr.value)
     ElMessage.success('已保存')
     modified.value = false
@@ -202,13 +217,20 @@ const doImport = () => {
 }
 
 onBeforeMount(async () => {
-  const ret = await store.getCustomReply() as any
+  let ret = await store.customReplyFileList() as any;
+  fileItems.value = ret.items;
+  refreshCurrent();
+})
+
+const refreshCurrent = async () => {
+  console.log('load', curFilename.value);
+  const ret = await store.getCustomReply(curFilename.value) as any
   cr.value = ret
   list.value = ret.items
   nextTick(() => {
     modified.value = false
   })
-})
+}
 
 onBeforeUnmount(() => {
   // clearInterval(timerId)
