@@ -3,16 +3,18 @@ package dice
 import (
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"io/fs"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"time"
 )
 
-func CustomReplyConfigRead(dice *Dice) *ReplyConfig {
-	attrConfigFn := dice.GetExtConfigFilePath("reply", "reply.yaml")
-	rc := &ReplyConfig{Enable: false}
+func CustomReplyConfigRead(dice *Dice, filename string) *ReplyConfig {
+	attrConfigFn := dice.GetExtConfigFilePath("reply", filename)
+	rc := &ReplyConfig{Enable: false, Filename: filename}
 
 	if _, err := os.Stat(attrConfigFn); err == nil {
 		// 如果文件存在，那么读取
@@ -35,20 +37,53 @@ func CustomReplyConfigRead(dice *Dice) *ReplyConfig {
 
 func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 	for _, i := range dice.CustomReplyConfig {
-		if strings.ToLower(i.FileName) == strings.ToLower(filename) {
+		if strings.ToLower(i.Filename) == strings.ToLower(filename) {
 			return nil
 		}
 	}
 
-	rc := &ReplyConfig{Enable: false, FileName: filename, Items: []*ReplyItem{}}
+	rc := &ReplyConfig{Enable: false, Filename: filename, Items: []*ReplyItem{}}
 	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
 	return rc
 }
 
 func RegisterBuiltinExtReply(dice *Dice) {
-	rc := CustomReplyConfigRead(dice)
-	rc.Save(dice)
-	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
+	//rc := CustomReplyConfigRead(dice, "reply.yaml")
+	//rc.Save(dice)
+	//dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
+
+	filenames := []string{"reply.yaml"}
+	filepath.Walk(dice.GetExtDataDir("reply"), func(path string, info fs.FileInfo, err error) error {
+		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
+			return fs.SkipDir
+		}
+		if info.IsDir() && strings.EqualFold(info.Name(), "images") {
+			return fs.SkipDir
+		}
+		if !info.IsDir() && strings.HasPrefix(info.Name(), ".reply") {
+			return nil
+		}
+		if info.Name() == "info.yaml" {
+			return nil
+		}
+
+		if !info.IsDir() {
+			ext := filepath.Ext(path)
+			if ext == ".yaml" || ext == "" {
+				if info.Name() != "reply.yaml" {
+					filenames = append(filenames, info.Name())
+				}
+			}
+		}
+		return nil
+	})
+
+	for _, i := range filenames {
+		dice.Logger.Info("读取自定义回复配置:", i)
+		rc := CustomReplyConfigRead(dice, i)
+		rc.Save(dice)
+		dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
+	}
 
 	//a := ReplyItem{}
 	//a.Enable = true

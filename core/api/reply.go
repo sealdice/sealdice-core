@@ -18,23 +18,38 @@ func customReplySave(c echo.Context) error {
 	}
 
 	v.Clean()
-	myDice.CustomReplyConfig[0] = &v
+	for index, i := range myDice.CustomReplyConfig {
+		if i.Filename == v.Filename {
+			myDice.CustomReplyConfig[index].Enable = v.Enable
+			myDice.CustomReplyConfig[index].Items = v.Items
+			break
+		}
+	}
 	v.Save(myDice)
 	return c.JSON(http.StatusOK, nil)
 }
 
-func customReply(c echo.Context) error {
+func customReplyGet(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	rc := dice.CustomReplyConfigRead(myDice)
+	//v := struct {
+	//	Filename string `json:"filename" form:"filename"`
+	//}{}
+	//
+	//err := c.Bind(&v)
+	//if err != nil {
+	//	return c.String(430, err.Error())
+	//}
+
+	rc := dice.CustomReplyConfigRead(myDice, c.QueryParam("filename"))
 	return c.JSON(http.StatusOK, rc)
 }
 
 type ReplyConfigInfo struct {
 	Enable   bool   `yaml:"enable" json:"enable"`
-	FileName string `yaml:"-" json:"fileName"`
+	Filename string `yaml:"-" json:"filename"`
 }
 
 func customReplyFileList(c echo.Context) error {
@@ -46,7 +61,7 @@ func customReplyFileList(c echo.Context) error {
 	for _, i := range myDice.CustomReplyConfig {
 		items = append(items, &ReplyConfigInfo{
 			Enable:   i.Enable,
-			FileName: i.FileName,
+			Filename: i.Filename,
 		})
 	}
 
