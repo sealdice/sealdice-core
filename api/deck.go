@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"github.com/labstack/echo/v4"
 	"io"
 	"net/http"
@@ -59,7 +58,7 @@ func deckUpload(c echo.Context) error {
 	defer src.Close()
 
 	// Destination
-	fmt.Println("????", filepath.Join("./data/decks", file.Filename))
+	//fmt.Println("????", filepath.Join("./data/decks", file.Filename))
 	dst, err := os.Create(filepath.Join("./data/decks", file.Filename))
 	if err != nil {
 		return err

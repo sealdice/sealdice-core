@@ -206,11 +206,11 @@ type ReplyConfig struct {
 	Interval float64      `yaml:"interval" json:"interval"` // 响应间隔，最少为5
 	Items    []*ReplyItem `yaml:"items" json:"items"`
 	// web专用
-	FileName string `yaml:"-" json:"fileName"`
+	Filename string `yaml:"-" json:"filename"`
 }
 
 func (c *ReplyConfig) Save(dice *Dice) {
-	attrConfigFn := dice.GetExtConfigFilePath("reply", "reply.yaml")
+	attrConfigFn := dice.GetExtConfigFilePath("reply", c.Filename)
 	buf, err := yaml.Marshal(c)
 	if err != nil {
 		fmt.Println(err)
