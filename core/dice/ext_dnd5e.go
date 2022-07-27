@@ -1570,6 +1570,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							var name string
 							var val int64
 							var detail string
+							var exprExists bool
 
 							// 遇到加值
 							if strings.HasPrefix(text, "+") {
@@ -1582,6 +1583,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								detail = _detail
 								val = r.Value.(int64)
 								text = r.restInput
+								exprExists = true
 							} else if strings.HasPrefix(text, "-") {
 								// 加值情况1.1，D20-
 								r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
@@ -1592,6 +1594,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								detail = _detail
 								val = r.Value.(int64)
 								text = r.restInput
+								exprExists = true
 							} else if strings.HasPrefix(text, "=") {
 								// 加值情况1，=表达式
 								r, _, err := ctx.Dice.ExprEvalBase(text[1:], mctx, RollExtraFlags{})
@@ -1601,6 +1604,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								}
 								val = r.Value.(int64)
 								text = r.restInput
+								exprExists = true
 							} else {
 								// 加值情况3，数字
 								reNum := regexp.MustCompile(`^(\d+)`)
@@ -1608,6 +1612,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								if len(m) > 0 {
 									val, _ = strconv.ParseInt(m[0], 10, 64)
 									text = text[len(m[0]):]
+									exprExists = true
 								}
 							}
 
@@ -1625,7 +1630,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 								// 情况1，名字是自己
 								name = mctx.Player.Name
 								// 情况2，名字是自己，没有加值
-								if val == 0 {
+								if !exprExists {
 									val = DiceRoll64(20)
 								}
 								return 0, name, val, detail
@@ -1637,7 +1642,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							if len(m) > 0 {
 								name = m[1]
 								text = text[len(m[0]):]
-								if val == 0 {
+								if !exprExists {
 									val = DiceRoll64(20)
 								}
 							} else {
