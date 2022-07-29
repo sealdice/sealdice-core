@@ -398,8 +398,8 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
 		if msg.MessageType == "group" {
 			if mctx.CommandId != 0 {
-				// 关闭状态下，如果被@那么视为开启
-				if !mctx.IsCurGroupBotOn && cmdArgs.AmIBeMentioned {
+				// 关闭状态下，如果被@，且是第一个被@的，那么视为开启
+				if !mctx.IsCurGroupBotOn && cmdArgs.AmIBeMentionedFirst {
 					mctx.IsCurGroupBotOn = true
 				}
 
@@ -444,13 +444,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					}
 				}()
 
-				// 跳过@其他骰子而不@自己的
+				// 有人被@了，但不是我
+				// 后面的代码保证了如果@的名单中有任何已知骰子，不会进入下一步操作
+				// 所以不用考虑其他骰子被@的情况
 				cmdArgs.SomeoneBeMentionedButNotMe = len(cmdArgs.At) > 0 && (!cmdArgs.AmIBeMentioned)
-				cmdArgs.SomeoneBeMentionedButNotMeStrict = len(cmdArgs.At) > 0 && (!cmdArgs.AmIBeMentionedFirst)
-				if cmdArgs.MentionedOtherDice {
-					// @其他骰子
-					return
-				}
+				//if cmdArgs.MentionedOtherDice {
+				//	// @其他骰子
+				//	return
+				//}
 
 				if mctx.PrivilegeLevel == -30 {
 					// 黑名单用户 - 拒绝回复
@@ -557,16 +558,37 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				return true
 			}
 
-			if item.CheckCurrentBotOn {
-				passed := ctx.IsCurGroupBotOn || ctx.IsPrivate
-				if !passed {
+			if item.Raw {
+				if item.CheckCurrentBotOn {
+					if !(ctx.IsCurGroupBotOn || ctx.IsPrivate) {
+						return false
+					}
+				}
+
+				if item.CheckMentionOthers {
+					if cmdArgs.SomeoneBeMentionedButNotMe {
+						return false
+					}
+				}
+			} else {
+				// 默认模式行为：需要在当前群/私聊开启，或@自己时生效(需要为第一个@目标)
+				if !(ctx.IsCurGroupBotOn || ctx.IsPrivate) {
 					return false
 				}
-			}
 
-			if item.CheckMentionOthers {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
+				if item.DisabledInPrivate && ctx.IsPrivate {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 					return false
+				}
+
+				if item.AllowDelegate {
+					// 允许代骰时，啥都不做就行
+				} else {
+					// 如果其他人被@了就不管
+					// 注: 如果被@的对象在botlist列表，那么不会走到这一步
+					if cmdArgs.SomeoneBeMentionedButNotMe {
+						return false
+					}
 				}
 			}
 

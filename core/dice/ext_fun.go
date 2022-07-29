@@ -227,26 +227,19 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: ".gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
 		Help:      "人工智能鸽子:\n.gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者\n.text // 文本指令",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || msg.MessageType == "private" {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
+			//p := getPlayerInfoBySender(session, msg)
+			isShowFrom := cmdArgs.IsArgEqual(1, "from", "showfrom", "来源", "作者")
+			rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
 
-				//p := getPlayerInfoBySender(session, msg)
-				isShowFrom := cmdArgs.IsArgEqual(1, "from", "showfrom", "来源", "作者")
-				rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
+			reason := DiceFormatTmpl(ctx, "娱乐:鸽子理由")
+			reasonInfo := strings.SplitN(reason, "|", 2)
 
-				reason := DiceFormatTmpl(ctx, "娱乐:鸽子理由")
-				reasonInfo := strings.SplitN(reason, "|", 2)
-
-				text := "🕊️: " + reasonInfo[0]
-				if isShowFrom && len(reasonInfo) == 2 {
-					text += "\n    ——" + reasonInfo[1]
-				}
-				ReplyToSender(ctx, msg, text)
-				return CmdExecuteResult{Matched: true, Solved: true}
+			text := "🕊️: " + reasonInfo[0]
+			if isShowFrom && len(reasonInfo) == 2 {
+				text += "\n    ——" + reasonInfo[1]
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			ReplyToSender(ctx, msg, text)
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -255,22 +248,15 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: ".jrrp 获得一个D100随机值，一天内不会变化",
 		Help:      "今日人品:\n.jrrp 获得一个D100随机值，一天内不会变化",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
+			rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
+			rpSeed += int64(fingerprint(ctx.EndPoint.UserId))
+			rpSeed += int64(fingerprint(ctx.Player.UserId))
+			rand.Seed(rpSeed)
+			rp := rand.Int63()%100 + 1
 
-				rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
-				rpSeed += int64(fingerprint(ctx.EndPoint.UserId))
-				rpSeed += int64(fingerprint(ctx.Player.UserId))
-				rand.Seed(rpSeed)
-				rp := rand.Int63()%100 + 1
-
-				VarSetValueInt64(ctx, "$t人品", int64(rp))
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "娱乐:今日人品"))
-				return CmdExecuteResult{Matched: true, Solved: true}
-			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			VarSetValueInt64(ctx, "$t人品", int64(rp))
+			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "娱乐:今日人品"))
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -282,64 +268,57 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"> 如果超过半数的骰子投出了一被称之为失误\n" +
 			"> 在投出失误的同时没能骰出至少一个成功度被称之为严重失误",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
+			val, _ := cmdArgs.GetArgN(1)
+			num, err := strconv.ParseInt(val, 10, 64)
+
+			if err == nil && num > 0 {
+				successDegrees := int64(0)
+				failedCount := int64(0)
+				results := []string{}
+				for i := int64(0); i < num; i++ {
+					v := DiceRoll64(6)
+					if v >= 5 {
+						successDegrees += 1
+					} else if v == 1 {
+						failedCount += 1
+					}
+					// 过大的骰池不显示
+					if num < 10 {
+						results = append(results, strconv.FormatInt(v, 10))
+					}
 				}
 
-				val, _ := cmdArgs.GetArgN(1)
-				num, err := strconv.ParseInt(val, 10, 64)
-
-				if err == nil && num > 0 {
-					successDegrees := int64(0)
-					failedCount := int64(0)
-					results := []string{}
-					for i := int64(0); i < num; i++ {
-						v := DiceRoll64(6)
-						if v >= 5 {
-							successDegrees += 1
-						} else if v == 1 {
-							failedCount += 1
-						}
-						// 过大的骰池不显示
-						if num < 10 {
-							results = append(results, strconv.FormatInt(v, 10))
-						}
-					}
-
-					var detail string
-					if len(results) > 0 {
-						detail = "{" + strings.Join(results, "+") + "}\n"
-					}
-
-					text := fmt.Sprintf("<%s>骰点%dD6:\n", ctx.Player.Name, num)
-					text += detail
-					text += fmt.Sprintf("成功度:%d/%d\n", successDegrees, failedCount)
-
-					successRank := int64(0) // 默认
-					if failedCount > (num / 2) {
-						// 半数失误
-						successRank = -1
-
-						if successDegrees == 0 {
-							successRank = -2
-						}
-					}
-
-					switch successRank {
-					case -1:
-						text += "失误"
-					case -2:
-						text += "严重失误"
-					}
-					ReplyToSender(ctx, msg, text)
-				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				var detail string
+				if len(results) > 0 {
+					detail = "{" + strings.Join(results, "+") + "}\n"
 				}
 
-				return CmdExecuteResult{Matched: true, Solved: true}
+				text := fmt.Sprintf("<%s>骰点%dD6:\n", ctx.Player.Name, num)
+				text += detail
+				text += fmt.Sprintf("成功度:%d/%d\n", successDegrees, failedCount)
+
+				successRank := int64(0) // 默认
+				if failedCount > (num / 2) {
+					// 半数失误
+					successRank = -1
+
+					if successDegrees == 0 {
+						successRank = -2
+					}
+				}
+
+				switch successRank {
+				case -1:
+					text += "失误"
+				case -2:
+					text += "严重失误"
+				}
+				ReplyToSender(ctx, msg, text)
+			} else {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -357,174 +336,168 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: helpEk,
 		Help:      "共鸣性怪异骰点:\n" + helpEk,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
-				mctx := ctx
+			mctx := ctx
 
-				if cmdArgs.IsArgEqual(1, "help") {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				}
-
-				txt := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`(?:([^+\-\s\d]+)(\d+)?|(\d+))\s*(?:([+\-])\s*(\d+))?`)
-				m := re.FindStringSubmatch(txt)
-				if len(m) > 0 {
-					// 读取技能名字和等级
-					mustHaveCheckVal := false
-					name := m[1]         // .ek 摸鱼
-					nameLevelStr := m[2] // .ek 摸鱼3
-					if name == "" && nameLevelStr == "" {
-						// .ek 3 4
-						nameLevelStr = m[3]
-						mustHaveCheckVal = true
-					}
-
-					var nameLevel int64
-					if nameLevelStr != "" {
-						nameLevel, _ = strconv.ParseInt(nameLevelStr, 10, 64)
-					} else {
-						nameLevel, _ = VarGetValueInt64(mctx, name)
-					}
-
-					// 附加值 .ek 技能+1
-					extraOp := m[4]
-					extraValStr := m[5]
-					extraVal := int64(0)
-					if extraValStr != "" {
-						extraVal, _ = strconv.ParseInt(extraValStr, 10, 64)
-						if extraOp == "-" {
-							extraVal = -extraVal
-						}
-					}
-
-					restText := txt[len(m[0]):]
-					restText = strings.TrimSpace(restText)
-
-					if restText == "" && mustHaveCheckVal {
-						ReplyToSender(ctx, msg, "必须填入判定值")
-					} else {
-						// 填充补充部分
-						if restText == "" {
-							restText = fmt.Sprintf("%s%s", name, nameLevelStr)
-							mode := 1
-							v := emokloreAttrParent[name]
-							if v == nil {
-								v = emokloreAttrParent2[name]
-								mode = 2
-							}
-							if v == nil {
-								v = emokloreAttrParent3[name]
-								mode = 3
-							}
-
-							if v != nil {
-								maxName := ""
-								maxVal := int64(0)
-								for _, i := range v {
-									val, _ := VarGetValueInt64(mctx, i)
-									if val >= maxVal {
-										maxVal = val
-										maxName = i
-									}
-								}
-								if maxName != "" {
-									switch mode {
-									case 1:
-										// 种类1: 技能+属性
-										restText += " + " + maxName
-									case 2:
-										// 种类2: 属性/2[向上取整]
-										restText = fmt.Sprintf("(%s+1)/2", maxName)
-									case 3:
-										// 种类3: 属性
-										restText = maxName
-									}
-								}
-							}
-						}
-
-						r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
-							CocVarNumberMode: true,
-						})
-						if err == nil {
-							checkVal, _ := r.ReadInt64()
-							nameLevel += extraVal
-
-							successDegrees := int64(0)
-							results := []string{}
-							for i := int64(0); i < nameLevel; i++ {
-								v := DiceRoll64(6)
-								if v <= checkVal {
-									successDegrees += 1
-								}
-								if v == 1 {
-									successDegrees += 1
-								}
-								if v == 10 {
-									successDegrees -= 1
-								}
-								// 过大的骰池不显示
-								if nameLevel < 15 {
-									results = append(results, strconv.FormatInt(v, 10))
-								}
-							}
-
-							var detailPool string
-							if len(results) > 0 {
-								detailPool = "{" + strings.Join(results, "+") + "}\n"
-							}
-
-							// 检定原因
-							showName := name
-							if showName == "" {
-								showName = nameLevelStr
-							}
-							if nameLevelStr != "" {
-								showName += nameLevelStr
-							}
-							if extraVal > 0 {
-								showName += extraOp + extraValStr
-							}
-
-							if detail != "" {
-								detail = "{" + detail + "}"
-							}
-
-							checkText := ""
-							switch {
-							case successDegrees < 0:
-								checkText = "大失败"
-							case successDegrees == 0:
-								checkText = "失败"
-							case successDegrees == 1:
-								checkText = "通常成功"
-							case successDegrees == 2:
-								checkText = "有效成功"
-							case successDegrees == 3:
-								checkText = "极限成功"
-							case successDegrees >= 10:
-								checkText = "灾难成功"
-							case successDegrees >= 4:
-								checkText = "奇迹成功"
-							}
-
-							text := fmt.Sprintf("<%s>的“%s”共鸣性怪异规则检定:\n", ctx.Player.Name, showName)
-							text += detailPool
-							text += fmt.Sprintf("判定值: %d%s\n", checkVal, detail)
-							text += fmt.Sprintf("成功数: %d[%s]\n", successDegrees, checkText)
-
-							ReplyToSender(ctx, msg, text)
-						}
-					}
-				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				}
-
-				return CmdExecuteResult{Matched: true, Solved: true}
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+
+			txt := cmdArgs.CleanArgs
+			re := regexp.MustCompile(`(?:([^+\-\s\d]+)(\d+)?|(\d+))\s*(?:([+\-])\s*(\d+))?`)
+			m := re.FindStringSubmatch(txt)
+			if len(m) > 0 {
+				// 读取技能名字和等级
+				mustHaveCheckVal := false
+				name := m[1]         // .ek 摸鱼
+				nameLevelStr := m[2] // .ek 摸鱼3
+				if name == "" && nameLevelStr == "" {
+					// .ek 3 4
+					nameLevelStr = m[3]
+					mustHaveCheckVal = true
+				}
+
+				var nameLevel int64
+				if nameLevelStr != "" {
+					nameLevel, _ = strconv.ParseInt(nameLevelStr, 10, 64)
+				} else {
+					nameLevel, _ = VarGetValueInt64(mctx, name)
+				}
+
+				// 附加值 .ek 技能+1
+				extraOp := m[4]
+				extraValStr := m[5]
+				extraVal := int64(0)
+				if extraValStr != "" {
+					extraVal, _ = strconv.ParseInt(extraValStr, 10, 64)
+					if extraOp == "-" {
+						extraVal = -extraVal
+					}
+				}
+
+				restText := txt[len(m[0]):]
+				restText = strings.TrimSpace(restText)
+
+				if restText == "" && mustHaveCheckVal {
+					ReplyToSender(ctx, msg, "必须填入判定值")
+				} else {
+					// 填充补充部分
+					if restText == "" {
+						restText = fmt.Sprintf("%s%s", name, nameLevelStr)
+						mode := 1
+						v := emokloreAttrParent[name]
+						if v == nil {
+							v = emokloreAttrParent2[name]
+							mode = 2
+						}
+						if v == nil {
+							v = emokloreAttrParent3[name]
+							mode = 3
+						}
+
+						if v != nil {
+							maxName := ""
+							maxVal := int64(0)
+							for _, i := range v {
+								val, _ := VarGetValueInt64(mctx, i)
+								if val >= maxVal {
+									maxVal = val
+									maxName = i
+								}
+							}
+							if maxName != "" {
+								switch mode {
+								case 1:
+									// 种类1: 技能+属性
+									restText += " + " + maxName
+								case 2:
+									// 种类2: 属性/2[向上取整]
+									restText = fmt.Sprintf("(%s+1)/2", maxName)
+								case 3:
+									// 种类3: 属性
+									restText = maxName
+								}
+							}
+						}
+					}
+
+					r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
+						CocVarNumberMode: true,
+					})
+					if err == nil {
+						checkVal, _ := r.ReadInt64()
+						nameLevel += extraVal
+
+						successDegrees := int64(0)
+						results := []string{}
+						for i := int64(0); i < nameLevel; i++ {
+							v := DiceRoll64(6)
+							if v <= checkVal {
+								successDegrees += 1
+							}
+							if v == 1 {
+								successDegrees += 1
+							}
+							if v == 10 {
+								successDegrees -= 1
+							}
+							// 过大的骰池不显示
+							if nameLevel < 15 {
+								results = append(results, strconv.FormatInt(v, 10))
+							}
+						}
+
+						var detailPool string
+						if len(results) > 0 {
+							detailPool = "{" + strings.Join(results, "+") + "}\n"
+						}
+
+						// 检定原因
+						showName := name
+						if showName == "" {
+							showName = nameLevelStr
+						}
+						if nameLevelStr != "" {
+							showName += nameLevelStr
+						}
+						if extraVal > 0 {
+							showName += extraOp + extraValStr
+						}
+
+						if detail != "" {
+							detail = "{" + detail + "}"
+						}
+
+						checkText := ""
+						switch {
+						case successDegrees < 0:
+							checkText = "大失败"
+						case successDegrees == 0:
+							checkText = "失败"
+						case successDegrees == 1:
+							checkText = "通常成功"
+						case successDegrees == 2:
+							checkText = "有效成功"
+						case successDegrees == 3:
+							checkText = "极限成功"
+						case successDegrees >= 10:
+							checkText = "灾难成功"
+						case successDegrees >= 4:
+							checkText = "奇迹成功"
+						}
+
+						text := fmt.Sprintf("<%s>的“%s”共鸣性怪异规则检定:\n", ctx.Player.Name, showName)
+						text += detailPool
+						text += fmt.Sprintf("判定值: %d%s\n", checkVal, detail)
+						text += fmt.Sprintf("成功数: %d[%s]\n", successDegrees, checkText)
+
+						ReplyToSender(ctx, msg, text)
+					}
+				}
+			} else {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -535,90 +508,84 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: helpEkGen,
 		Help:      "共鸣性怪异制卡指令:\n" + helpEkGen,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
+
+			n, _ := cmdArgs.GetArgN(1)
+			val, err := strconv.ParseInt(n, 10, 64)
+			if err != nil {
+				// 数量不存在时，视为1次
+				val = 1
+			}
+			if val > 10 {
+				val = 10
+			}
+			var i int64
+
+			var ss []string
+			for i = 0; i < val; i++ {
+				randMap := map[int64]bool{}
+				for j := 0; j < 6; j++ {
+					n := DiceRoll64(24)
+					if randMap[n] {
+						j-- // 如果已经存在，重新roll
+					} else {
+						randMap[n] = true
+					}
 				}
 
-				n, _ := cmdArgs.GetArgN(1)
-				val, err := strconv.ParseInt(n, 10, 64)
-				if err != nil {
-					// 数量不存在时，视为1次
-					val = 1
+				var nums Int64SliceDesc
+				for k, _ := range randMap {
+					nums = append(nums, k)
 				}
-				if val > 10 {
-					val = 10
+				sort.Sort(nums)
+
+				last := int64(25)
+				nums2 := []interface{}{}
+				for _, j := range nums {
+					val := last - j
+					last = j
+					nums2 = append(nums2, val)
 				}
-				var i int64
+				nums2 = append(nums2, last)
 
-				var ss []string
-				for i = 0; i < val; i++ {
-					randMap := map[int64]bool{}
-					for j := 0; j < 6; j++ {
-						n := DiceRoll64(24)
-						if randMap[n] {
-							j-- // 如果已经存在，重新roll
-						} else {
-							randMap[n] = true
-						}
-					}
-
-					var nums Int64SliceDesc
-					for k, _ := range randMap {
-						nums = append(nums, k)
-					}
-					sort.Sort(nums)
-
-					last := int64(25)
-					nums2 := []interface{}{}
-					for _, j := range nums {
-						val := last - j
-						last = j
-						nums2 = append(nums2, val)
-					}
-					nums2 = append(nums2, last)
-
-					// 过滤大于6的
-					for {
-						// 遍历找出一个大于6的
-						isGT6 := false
-						var rest int64
-						for index, _j := range nums2 {
-							j := _j.(int64)
-							if j > 6 {
-								isGT6 = true
-								rest = j - 6
-								nums2[index] = int64(6)
-								break
-							}
-						}
-
-						if isGT6 {
-							for index, _j := range nums2 {
-								j := _j.(int64)
-								if j < 6 {
-									nums2[index] = j + rest
-									break
-								}
-							}
-						} else {
+				// 过滤大于6的
+				for {
+					// 遍历找出一个大于6的
+					isGT6 := false
+					var rest int64
+					for index, _j := range nums2 {
+						j := _j.(int64)
+						if j > 6 {
+							isGT6 = true
+							rest = j - 6
+							nums2[index] = int64(6)
 							break
 						}
 					}
-					rand.Shuffle(len(nums2), func(i, j int) {
-						nums2[i], nums2[j] = nums2[j], nums2[i]
-					})
 
-					text := fmt.Sprintf("身体:%d 灵巧:%d 精神:%d 五感:%d 知力:%d 魅力:%d 社会:%d", nums2...)
-					text += fmt.Sprintf(" 运势:%d hp:%d mp:%d", DiceRoll64(6), nums2[0].(int64)+10, nums2[2].(int64)+nums2[4].(int64))
-
-					ss = append(ss, text)
+					if isGT6 {
+						for index, _j := range nums2 {
+							j := _j.(int64)
+							if j < 6 {
+								nums2[index] = j + rest
+								break
+							}
+						}
+					} else {
+						break
+					}
 				}
-				info := strings.Join(ss, "\n")
-				ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的共鸣性怪异人物做成:\n%s", ctx.Player.Name, info))
-				return CmdExecuteResult{Matched: true, Solved: true}
+				rand.Shuffle(len(nums2), func(i, j int) {
+					nums2[i], nums2[j] = nums2[j], nums2[i]
+				})
+
+				text := fmt.Sprintf("身体:%d 灵巧:%d 精神:%d 五感:%d 知力:%d 魅力:%d 社会:%d", nums2...)
+				text += fmt.Sprintf(" 运势:%d hp:%d mp:%d", DiceRoll64(6), nums2[0].(int64)+10, nums2[2].(int64)+nums2[4].(int64))
+
+				ss = append(ss, text)
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			info := strings.Join(ss, "\n")
+			ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的共鸣性怪异人物做成:\n%s", ctx.Player.Name, info))
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -651,18 +618,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: ".dx 3c4",
 		Help:      "双重十字规则骰点:\n.dx 3c4 // 推荐使用.r 3c4替代",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
-
-				txt := readNumber(cmdArgs.CleanArgs, "c10")
-				if txt == "" {
-					txt = "1c10"
-					cmdArgs.Args = []string{txt}
-				}
-				cmdArgs.CleanArgs = txt
+			txt := readNumber(cmdArgs.CleanArgs, "c10")
+			if txt == "" {
+				txt = "1c10"
+				cmdArgs.Args = []string{txt}
 			}
+			cmdArgs.CleanArgs = txt
 			roll := ctx.Dice.CmdMap["roll"]
 			return roll.Solve(ctx, msg, cmdArgs)
 		},
@@ -673,18 +634,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: ".ww 10a5\n.ww 10",
 		Help:      "WOD/无限规则骰点:\n.ww 10a5 // 推荐使用.r 10a5替代\n.ww 10",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
-
-				txt := readNumber(cmdArgs.CleanArgs, "a10")
-				if txt == "" {
-					txt = "10a10"
-					cmdArgs.Args = []string{txt}
-				}
-				cmdArgs.CleanArgs = txt
+			txt := readNumber(cmdArgs.CleanArgs, "a10")
+			if txt == "" {
+				txt = "10a10"
+				cmdArgs.Args = []string{txt}
 			}
+			cmdArgs.CleanArgs = txt
 
 			roll := ctx.Dice.CmdMap["roll"]
 			return roll.Solve(ctx, msg, cmdArgs)
@@ -697,48 +652,41 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: textHelp,
 		Help:      "文本模板指令:\n" + textHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
+			_, exists := cmdArgs.GetArgN(1)
+			if exists {
+				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
+				r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx)
 
-				_, exists := cmdArgs.GetArgN(1)
-				if exists {
-					ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-					r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx)
+				if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
+					text := r.Value.(string)
 
-					if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
-						text := r.Value.(string)
-
-						if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
-							if ctx.PrivilegeLevel >= 40 {
-								asm := r.Parser.GetAsmText()
-								text += "\n" + asm
-							}
+					if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
+						if ctx.PrivilegeLevel >= 40 {
+							asm := r.Parser.GetAsmText()
+							text += "\n" + asm
 						}
-
-						seemsCommand := false
-						if strings.HasPrefix(text, ".") || strings.HasPrefix(text, "。") || strings.HasPrefix(text, "!") {
-							seemsCommand = true
-							if strings.HasPrefix(text, "..") || strings.HasPrefix(text, "。。") || strings.HasPrefix(text, "!!") {
-								seemsCommand = false
-							}
-						}
-
-						if seemsCommand {
-							ReplyToSender(ctx, msg, "你可能在利用text让骰子发出指令文本，这被视为恶意行为并已经记录")
-						} else {
-							ReplyToSender(ctx, msg, text)
-						}
-					} else {
-						ReplyToSender(ctx, msg, "格式错误")
 					}
-					return CmdExecuteResult{Matched: true, Solved: true}
+
+					seemsCommand := false
+					if strings.HasPrefix(text, ".") || strings.HasPrefix(text, "。") || strings.HasPrefix(text, "!") {
+						seemsCommand = true
+						if strings.HasPrefix(text, "..") || strings.HasPrefix(text, "。。") || strings.HasPrefix(text, "!!") {
+							seemsCommand = false
+						}
+					}
+
+					if seemsCommand {
+						ReplyToSender(ctx, msg, "你可能在利用text让骰子发出指令文本，这被视为恶意行为并已经记录")
+					} else {
+						ReplyToSender(ctx, msg, text)
+					}
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+					ReplyToSender(ctx, msg, "格式错误")
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 

@@ -302,130 +302,124 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		ShortHelp: helpDraw,
 		Help:      "抽牌命令: \n" + helpDraw,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
 
-				if d.IsDeckLoading {
-					ReplyToSender(ctx, msg, "牌堆尚未就绪，可能正在重新装载")
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
+			if d.IsDeckLoading {
+				ReplyToSender(ctx, msg, "牌堆尚未就绪，可能正在重新装载")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
 
-				cmdArgs.ChopPrefixToArgsWith("list", "help", "reload", "search", "keys", "desc")
-				deckName, exists := cmdArgs.GetArgN(1)
+			cmdArgs.ChopPrefixToArgsWith("list", "help", "reload", "search", "keys", "desc")
+			deckName, exists := cmdArgs.GetArgN(1)
 
-				if exists {
-					if strings.EqualFold(deckName, "list") {
-						text := "载入并开启的牌堆:\n"
-						for _, i := range ctx.Dice.DeckList {
-							if i.Enable {
-								author := fmt.Sprintf(" 作者:%s", i.Author)
-								version := fmt.Sprintf(" 版本:%s", i.Version)
-								text += fmt.Sprintf("- %s 格式: %s%s%s 牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
+			if exists {
+				if strings.EqualFold(deckName, "list") {
+					text := "载入并开启的牌堆:\n"
+					for _, i := range ctx.Dice.DeckList {
+						if i.Enable {
+							author := fmt.Sprintf(" 作者:%s", i.Author)
+							version := fmt.Sprintf(" 版本:%s", i.Version)
+							text += fmt.Sprintf("- %s 格式: %s%s%s 牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
+						}
+					}
+					ReplyToSender(ctx, msg, text)
+				} else if strings.EqualFold(deckName, "desc") {
+					// 查看详情
+					text, _ := cmdArgs.GetArgN(2)
+					var lst DeckInfoCommandList
+					for _, i := range ctx.Dice.DeckList {
+						if i.Enable {
+							lst = append(lst, i.Name)
+						}
+					}
+
+					matches := fuzzy.FindFrom(text, lst)
+					if len(matches) > 0 {
+						text := "牌堆信息:\n"
+						i := ctx.Dice.DeckList[matches[0].Index]
+						author := fmt.Sprintf("作者:%s", i.Author)
+						version := fmt.Sprintf("版本:%s", i.Version)
+						text += fmt.Sprintf("牌堆: %s\n格式: %s\n%s\n%s\n牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
+
+						cmds := []string{}
+						for j, _ := range i.Command {
+							cmds = append(cmds, j)
+						}
+						text += "牌组: " + strings.Join(cmds, "/")
+						ReplyToSender(ctx, msg, text)
+					} else {
+						ReplyToSender(ctx, msg, "此关键字未找到牌堆")
+					}
+				} else if strings.EqualFold(deckName, "help") {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				} else if strings.EqualFold(deckName, "keys") {
+					specified, _ := cmdArgs.GetArgN(2)
+					text := "牌组关键字列表:\n"
+					keys := ""
+					for _, i := range ctx.Dice.DeckList {
+						if i.Enable {
+							if strings.Contains(i.Name, specified) {
+								for j := range i.Command {
+									keys += j + "/"
+								}
 							}
 						}
-						ReplyToSender(ctx, msg, text)
-					} else if strings.EqualFold(deckName, "desc") {
-						// 查看详情
-						text, _ := cmdArgs.GetArgN(2)
+					}
+					if keys == "" {
+						text += DiceFormatTmpl(ctx, "其它:抽牌_列表_没有牌组")
+					} else {
+						text += keys[:len(keys)-1]
+					}
+					ReplyToSender(ctx, msg, text)
+				} else if strings.EqualFold(deckName, "reload") {
+					if ctx.PrivilegeLevel < 100 {
+						ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+					} else {
+						if ctx.Dice.Parent.JustForTest {
+							ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
+						DeckReload(d)
+						ReplyToSender(ctx, msg, "牌堆已经重新装载")
+					}
+				} else if strings.EqualFold(deckName, "search") {
+					text, exists := cmdArgs.GetArgN(2)
+					if exists {
 						var lst DeckInfoCommandList
 						for _, i := range ctx.Dice.DeckList {
 							if i.Enable {
-								lst = append(lst, i.Name)
-							}
-						}
-
-						matches := fuzzy.FindFrom(text, lst)
-						if len(matches) > 0 {
-							text := "牌堆信息:\n"
-							i := ctx.Dice.DeckList[matches[0].Index]
-							author := fmt.Sprintf("作者:%s", i.Author)
-							version := fmt.Sprintf("版本:%s", i.Version)
-							text += fmt.Sprintf("牌堆: %s\n格式: %s\n%s\n%s\n牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
-
-							cmds := []string{}
-							for j, _ := range i.Command {
-								cmds = append(cmds, j)
-							}
-							text += "牌组: " + strings.Join(cmds, "/")
-							ReplyToSender(ctx, msg, text)
-						} else {
-							ReplyToSender(ctx, msg, "此关键字未找到牌堆")
-						}
-					} else if strings.EqualFold(deckName, "help") {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-					} else if strings.EqualFold(deckName, "keys") {
-						specified, _ := cmdArgs.GetArgN(2)
-						text := "牌组关键字列表:\n"
-						keys := ""
-						for _, i := range ctx.Dice.DeckList {
-							if i.Enable {
-								if strings.Contains(i.Name, specified) {
-									for j := range i.Command {
-										keys += j + "/"
-									}
+								for j, _ := range i.Command {
+									lst = append(lst, j)
 								}
 							}
 						}
-						if keys == "" {
-							text += DiceFormatTmpl(ctx, "其它:抽牌_列表_没有牌组")
-						} else {
-							text += keys[:len(keys)-1]
+						matches := fuzzy.FindFrom(text, lst)
+
+						right := len(matches)
+						if right > 10 {
+							right = 3
+						}
+
+						text := "找到以下牌组:\n"
+						for _, i := range matches[:right] {
+							text += "- " + i.Str + "\n"
 						}
 						ReplyToSender(ctx, msg, text)
-					} else if strings.EqualFold(deckName, "reload") {
-						if ctx.PrivilegeLevel < 100 {
-							ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
-						} else {
-							if ctx.Dice.Parent.JustForTest {
-								ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
-
-							DeckReload(d)
-							ReplyToSender(ctx, msg, "牌堆已经重新装载")
-						}
-					} else if strings.EqualFold(deckName, "search") {
-						text, exists := cmdArgs.GetArgN(2)
-						if exists {
-							var lst DeckInfoCommandList
-							for _, i := range ctx.Dice.DeckList {
-								if i.Enable {
-									for j, _ := range i.Command {
-										lst = append(lst, j)
-									}
-								}
-							}
-							matches := fuzzy.FindFrom(text, lst)
-
-							right := len(matches)
-							if right > 10 {
-								right = 3
-							}
-
-							text := "找到以下牌组:\n"
-							for _, i := range matches[:right] {
-								text += "- " + i.Str + "\n"
-							}
-							ReplyToSender(ctx, msg, text)
-						} else {
-							ReplyToSender(ctx, msg, "请给出要搜索的关键字")
-						}
 					} else {
-						exists, result, _ := deckDraw(ctx, deckName)
-						if exists {
-							ReplyToSender(ctx, msg, result)
-						} else {
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组"))
-						}
+						ReplyToSender(ctx, msg, "请给出要搜索的关键字")
 					}
-					return CmdExecuteResult{Matched: true, Solved: true}
 				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+					exists, result, _ := deckDraw(ctx, deckName)
+					if exists {
+						ReplyToSender(ctx, msg, result)
+					} else {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组"))
+					}
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 

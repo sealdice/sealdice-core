@@ -206,6 +206,7 @@ func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs, setTempVar bool) (*MsgC
 			continue
 		}
 
+		// 这个其实无用，因为有@其他bot的指令不会进入到solve阶段
 		if ctx.Group != nil {
 			isBot := false
 			for botUid, _ := range ctx.Group.BotList {

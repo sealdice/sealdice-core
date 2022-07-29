@@ -247,458 +247,456 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	helpSt += "需要使用coc版本st，请执行.set coc"
 
 	cmdSt := &CmdItemInfo{
-		Name:      "st",
-		ShortHelp: helpSt,
-		Help:      "DND5E 人物属性设置:\n" + helpSt,
+		Name:          "st",
+		ShortHelp:     helpSt,
+		Help:          "DND5E 人物属性设置:\n" + helpSt,
+		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
-				val, _ := cmdArgs.GetArgN(1)
-				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
-				mctx.Player.TempValueAlias = &ac.Alias
-				chVars, _ := mctx.ChVarsGet()
+			cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
+			val, _ := cmdArgs.GetArgN(1)
+			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx.Player.TempValueAlias = &ac.Alias
+			chVars, _ := mctx.ChVarsGet()
 
-				switch val {
-				case "模板":
-					text := "人物卡模板(第二行文本):\n"
-					text += ".dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax:10 熟练:2 运动:0 体操:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯兽:0 医药:0 求生:0 游说:0 欺瞒:0 威吓:0 表演:0\n"
-					text += "注意: 技能只写修正值，调整值会自动计算。\n熟练写为“运动*:0”，半个熟练“运动*0.5:0”，录卡也可写为.dst 力量=10"
-					ReplyToSender(mctx, msg, text)
-					return CmdExecuteResult{Matched: true, Solved: true}
+			switch val {
+			case "模板":
+				text := "人物卡模板(第二行文本):\n"
+				text += ".dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax:10 熟练:2 运动:0 体操:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯兽:0 医药:0 求生:0 游说:0 欺瞒:0 威吓:0 表演:0\n"
+				text += "注意: 技能只写修正值，调整值会自动计算。\n熟练写为“运动*:0”，半个熟练“运动*0.5:0”，录卡也可写为.dst 力量=10"
+				ReplyToSender(mctx, msg, text)
+				return CmdExecuteResult{Matched: true, Solved: true}
 
-				case "del", "rm":
-					var nums []string
-					var failed []string
+			case "del", "rm":
+				var nums []string
+				var failed []string
 
-					for _, varname := range cmdArgs.Args[1:] {
-						_, ok := chVars.Get(varname)
-						if ok {
-							nums = append(nums, varname)
-							chVars.Del(varname)
-							mctx.ChVarsUpdateTime()
-						} else {
-							failed = append(failed, varname)
-						}
-					}
-
-					if len(nums) > 0 {
+				for _, varname := range cmdArgs.Args[1:] {
+					_, ok := chVars.Get(varname)
+					if ok {
+						nums = append(nums, varname)
+						chVars.Del(varname)
 						mctx.ChVarsUpdateTime()
-					}
-
-					VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
-					VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
-					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_删除"))
-
-				case "export":
-					m := stExport(mctx, map[string]bool{
-						"力量": true, "敏捷": true, "体质": true, "智力": true, "感知": true, "魅力": true,
-						"运动": true,
-						"体操": true, "巧手": true, "隐匿": true,
-						"调查": true, "奥秘": true, "历史": true, "自然": true, "宗教": true,
-						"察觉": true, "洞悉": true, "驯兽": true, "医药": true, "求生": true,
-						"游说": true, "欺瞒": true, "威吓": true, "表演": true,
-
-						"hd": true, "hp": true, "hpmax": true,
-						"ac": true, "dc": true,
-						"DSS": true, "DSF": true,
-						//"$cardType": true,
-					}, []*regexp.Regexp{
-						regexp.MustCompile(`^\$法术位_[1-9]$`),
-						regexp.MustCompile(`^\$法术位上限_[1-9]$`),
-					})
-
-					texts := []string{}
-					for k, v := range m {
-						texts = append(texts, fmt.Sprintf("%s:%s", k, v))
-					}
-					sort.Strings(texts)
-					ReplyToSender(mctx, msg, "属性导出(注意，人物基础属性的熟练还不能支持):\n"+strings.Join(texts, " "))
-
-				case "clr", "clear":
-					num := mctx.ChVarsClear()
-					VarSetValueInt64(mctx, "$t数量", int64(num))
-					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_清除"))
-
-				case "show", "list":
-					info := ""
-					p := mctx.Player
-
-					useLimit := false
-					usePickItem := false
-					limktSkipCount := 0
-					var limit int64
-
-					if len(cmdArgs.Args) >= 2 {
-						arg2, _ := cmdArgs.GetArgN(2)
-						_limit, err := strconv.ParseInt(arg2, 10, 64)
-						if err == nil {
-							limit = _limit
-							useLimit = true
-						} else {
-							usePickItem = true
-						}
-					}
-
-					if ReadCardType(mctx, "dnd5e") == "" {
-						// 旧版本升级
-						_vars, _ := mctx.ChVarsGet()
-						valRename := func(oldName, newName string) {
-							if _vars != nil {
-								_vRaw, exists := _vars.Get(oldName)
-								if exists {
-									_vars.Set(newName, _vRaw)
-									_vars.Del(oldName)
-								}
-							}
-						}
-						valRename("特技", "体操")
-						valRename("驯养", "驯兽")
-						valRename("医疗", "医药")
-						valRename("生存", "求生")
-						valRename("说服", "游说")
-						valRename("欺诈", "欺瞒")
-					}
-
-					pickItems := map[string]int{}
-
-					if usePickItem {
-						for _, i := range cmdArgs.Args[1:] {
-							key := p.GetValueNameByAlias(i, ac.Alias)
-							pickItems[key] = 1
-						}
-					}
-
-					tick := 0
-					if chVars.Len() == 0 {
-						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 					} else {
-						// 按照配置文件排序
-						attrKeys := []string{}
-						used := map[string]bool{}
-						for _, i := range ac.Order.Top {
-							key := p.GetValueNameByAlias(i, ac.Alias)
-							if used[key] {
-								continue
+						failed = append(failed, varname)
+					}
+				}
+
+				if len(nums) > 0 {
+					mctx.ChVarsUpdateTime()
+				}
+
+				VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
+				VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
+				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_删除"))
+
+			case "export":
+				m := stExport(mctx, map[string]bool{
+					"力量": true, "敏捷": true, "体质": true, "智力": true, "感知": true, "魅力": true,
+					"运动": true,
+					"体操": true, "巧手": true, "隐匿": true,
+					"调查": true, "奥秘": true, "历史": true, "自然": true, "宗教": true,
+					"察觉": true, "洞悉": true, "驯兽": true, "医药": true, "求生": true,
+					"游说": true, "欺瞒": true, "威吓": true, "表演": true,
+
+					"hd": true, "hp": true, "hpmax": true,
+					"ac": true, "dc": true,
+					"DSS": true, "DSF": true,
+					//"$cardType": true,
+				}, []*regexp.Regexp{
+					regexp.MustCompile(`^\$法术位_[1-9]$`),
+					regexp.MustCompile(`^\$法术位上限_[1-9]$`),
+				})
+
+				texts := []string{}
+				for k, v := range m {
+					texts = append(texts, fmt.Sprintf("%s:%s", k, v))
+				}
+				sort.Strings(texts)
+				ReplyToSender(mctx, msg, "属性导出(注意，人物基础属性的熟练还不能支持):\n"+strings.Join(texts, " "))
+
+			case "clr", "clear":
+				num := mctx.ChVarsClear()
+				VarSetValueInt64(mctx, "$t数量", int64(num))
+				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_清除"))
+
+			case "show", "list":
+				info := ""
+				p := mctx.Player
+
+				useLimit := false
+				usePickItem := false
+				limktSkipCount := 0
+				var limit int64
+
+				if len(cmdArgs.Args) >= 2 {
+					arg2, _ := cmdArgs.GetArgN(2)
+					_limit, err := strconv.ParseInt(arg2, 10, 64)
+					if err == nil {
+						limit = _limit
+						useLimit = true
+					} else {
+						usePickItem = true
+					}
+				}
+
+				if ReadCardType(mctx, "dnd5e") == "" {
+					// 旧版本升级
+					_vars, _ := mctx.ChVarsGet()
+					valRename := func(oldName, newName string) {
+						if _vars != nil {
+							_vRaw, exists := _vars.Get(oldName)
+							if exists {
+								_vars.Set(newName, _vRaw)
+								_vars.Del(oldName)
 							}
-							attrKeys = append(attrKeys, key)
-							used[key] = true
+						}
+					}
+					valRename("特技", "体操")
+					valRename("驯养", "驯兽")
+					valRename("医疗", "医药")
+					valRename("生存", "求生")
+					valRename("说服", "游说")
+					valRename("欺诈", "欺瞒")
+				}
+
+				pickItems := map[string]int{}
+
+				if usePickItem {
+					for _, i := range cmdArgs.Args[1:] {
+						key := p.GetValueNameByAlias(i, ac.Alias)
+						pickItems[key] = 1
+					}
+				}
+
+				tick := 0
+				if chVars.Len() == 0 {
+					info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
+				} else {
+					// 按照配置文件排序
+					attrKeys := []string{}
+					used := map[string]bool{}
+					for _, i := range ac.Order.Top {
+						key := p.GetValueNameByAlias(i, ac.Alias)
+						if used[key] {
+							continue
+						}
+						attrKeys = append(attrKeys, key)
+						used[key] = true
+					}
+
+					// 其余按字典序
+					topNum := len(attrKeys)
+					attrKeys2 := []string{}
+
+					_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
+						k := _k.(string)
+						attrKeys2 = append(attrKeys2, k)
+						return nil
+					})
+					sort.Strings(attrKeys2)
+					for _, key := range attrKeys2 {
+						if used[key] {
+							continue
+						}
+						attrKeys = append(attrKeys, key)
+					}
+
+					// 遍历输出
+					for index, k := range attrKeys {
+						if strings.HasPrefix(k, "$") {
+							continue
 						}
 
-						// 其余按字典序
-						topNum := len(attrKeys)
-						attrKeys2 := []string{}
-
-						_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
-							k := _k.(string)
-							attrKeys2 = append(attrKeys2, k)
-							return nil
-						})
-						sort.Strings(attrKeys2)
-						for _, key := range attrKeys2 {
-							if used[key] {
+						if usePickItem {
+							_, ok := pickItems[k]
+							if !ok {
 								continue
 							}
-							attrKeys = append(attrKeys, key)
 						}
 
-						// 遍历输出
-						for index, k := range attrKeys {
-							if strings.HasPrefix(k, "$") {
+						var v *VMValue
+						var vRaw *VMValue
+						_vRaw, exists := chVars.Get(k)
+						if !exists {
+							// 不存在的值，强行补0
+							v = &VMValue{TypeId: VMTypeInt64, Value: int64(0)}
+							vRaw = v
+						} else {
+							vRaw = _vRaw.(*VMValue)
+							v2, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
+							v = &v2.VMValue
+						}
+
+						if index >= topNum {
+							if useLimit && v.TypeId == VMTypeInt64 && v.Value.(int64) < limit {
+								limktSkipCount += 1
 								continue
 							}
+						}
 
-							if usePickItem {
-								_, ok := pickItems[k]
-								if !ok {
-									continue
-								}
-							}
+						tick += 1
 
-							var v *VMValue
-							var vRaw *VMValue
-							_vRaw, exists := chVars.Get(k)
-							if !exists {
-								// 不存在的值，强行补0
-								v = &VMValue{TypeId: VMTypeInt64, Value: int64(0)}
-								vRaw = v
+						vRawStr := vRaw.ToString()
+						vStr := v.ToString()
+
+						vText := ""
+						if vRaw.TypeId == VMTypeComputedValue {
+							vd := vRaw.Value.(*VMComputedValueData)
+							b := vd.BaseValue.ToString()
+							if vStr != b {
+								vText = fmt.Sprintf("%s[%s]", vStr, b)
 							} else {
-								vRaw = _vRaw.(*VMValue)
-								v2, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
-								v = &v2.VMValue
+								vText = vStr
 							}
-
-							if index >= topNum {
-								if useLimit && v.TypeId == VMTypeInt64 && v.Value.(int64) < limit {
-									limktSkipCount += 1
-									continue
-								}
-							}
-
-							tick += 1
-
-							vRawStr := vRaw.ToString()
-							vStr := v.ToString()
-
-							vText := ""
-							if vRaw.TypeId == VMTypeComputedValue {
-								vd := vRaw.Value.(*VMComputedValueData)
-								b := vd.BaseValue.ToString()
-								if vStr != b {
-									vText = fmt.Sprintf("%s[%s]", vStr, b)
-								} else {
-									vText = vStr
-								}
+						} else {
+							if vRawStr != vStr {
+								vText = fmt.Sprintf("%s[%s]", vStr, vRawStr)
 							} else {
-								if vRawStr != vStr {
-									vText = fmt.Sprintf("%s[%s]", vStr, vRawStr)
-								} else {
-									vText = v.ToString()
-								}
-							}
-							info += fmt.Sprintf("%s:%s\t", k, vText) // 单个文本
-							if tick%4 == 0 {
-								info = strings.TrimSpace(info) // 去除末尾空格
-								info += fmt.Sprintf("\n")
+								vText = v.ToString()
 							}
 						}
-
-						if info == "" {
-							info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
+						info += fmt.Sprintf("%s:%s\t", k, vText) // 单个文本
+						if tick%4 == 0 {
+							info = strings.TrimSpace(info) // 去除末尾空格
+							info += fmt.Sprintf("\n")
 						}
 					}
 
-					if useLimit {
-						VarSetValueInt64(mctx, "$t数量", int64(limktSkipCount))
-						VarSetValueInt64(mctx, "$t判定值", int64(limit))
-						info += DiceFormatTmpl(mctx, "DND:属性设置_列出_隐藏提示")
+					if info == "" {
+						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
+					}
+				}
+
+				if useLimit {
+					VarSetValueInt64(mctx, "$t数量", int64(limktSkipCount))
+					VarSetValueInt64(mctx, "$t判定值", int64(limit))
+					info += DiceFormatTmpl(mctx, "DND:属性设置_列出_隐藏提示")
+				}
+
+				VarSetValueStr(mctx, "$t属性信息", info)
+				extra := ReadCardType(mctx, "dnd5e")
+				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_列出")+extra)
+
+			case "help", "":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			default:
+				text := cmdArgs.CleanArgs
+				// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
+				re := regexp.MustCompile(`(?:([^\s:0-9*][^\s:0-9*]*)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
+				attrSeted := []string{}
+				attrChanged := []string{}
+				var extraText string
+
+				var commandInfoItems []interface{}
+				for {
+					m := re.FindStringSubmatch(text)
+					if len(m) == 0 {
+						break
+					}
+					text = text[len(m[0]):]
+
+					attrName := m[1]
+					isSkilled := strings.HasPrefix(m[2], "*")
+					var skilledFactor float64 = 1
+					if isSkilled {
+						val, err := strconv.ParseFloat(m[2][len("*"):], 64)
+						if err == nil {
+							skilledFactor = val
+						}
+					}
+					r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
+					if err != nil {
+						ReplyToSender(mctx, msg, "无法解析属性: "+attrName)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					textRight := r.Matched
+					text = r.restInput
+
+					if r.TypeId != VMTypeInt64 {
+						ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrName)
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					VarSetValueStr(mctx, "$t属性信息", info)
-					extra := ReadCardType(mctx, "dnd5e")
-					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_列出")+extra)
-
-				case "help", "":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				default:
-					text := cmdArgs.CleanArgs
-					// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
-					re := regexp.MustCompile(`(?:([^\s:0-9*][^\s:0-9*]*)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
-					attrSeted := []string{}
-					attrChanged := []string{}
-					var extraText string
-
-					var commandInfoItems []interface{}
-					for {
-						m := re.FindStringSubmatch(text)
-						if len(m) == 0 {
-							break
-						}
-						text = text[len(m[0]):]
-
-						attrName := m[1]
-						isSkilled := strings.HasPrefix(m[2], "*")
-						var skilledFactor float64 = 1
+					attrName = ctx.Player.GetValueNameByAlias(attrName, ac.Alias)
+					if m[3] == ":" || m[3] == "：" || m[3] == "=" || m[3] == "＝" {
+						exprTmpl := "$tVal + %s/2 - 5"
 						if isSkilled {
-							val, err := strconv.ParseFloat(m[2][len("*"):], 64)
-							if err == nil {
-								skilledFactor = val
+							factorText := "熟练"
+							if skilledFactor != math.Trunc(skilledFactor) {
+								n := int64(skilledFactor * 100)
+								factorText = fmt.Sprintf("熟练*%d/100", n)
+							} else {
+								factorText = "熟练*" + strconv.FormatInt(int64(skilledFactor), 10)
 							}
+							exprTmpl += " + " + factorText
 						}
-						r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
-						if err != nil {
-							ReplyToSender(mctx, msg, "无法解析属性: "+attrName)
+
+						parent, _ := dndAttrParent[attrName]
+						aText := attrName
+						aText += fmt.Sprintf(":%d", r.Value.(int64))
+						if parent != "" {
+							if isSkilled {
+								aText += fmt.Sprintf("[技能, 熟练%s]", m[2])
+							} else {
+								aText += "[技能]"
+							}
+							VarSetValueDNDComputed(mctx, attrName, r.Value.(int64), fmt.Sprintf(exprTmpl, parent))
+						} else {
+							VarSetValueInt64(mctx, attrName, r.Value.(int64))
+							VarSetValueDNDComputed(mctx, fmt.Sprintf("$豁免_%s", attrName), int64(0), fmt.Sprintf(exprTmpl, attrName))
+						}
+						attrSeted = append(attrSeted, aText)
+					}
+					if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
+						v, exists := VarGetValue(mctx, attrName)
+						if !exists {
+							ReplyToSender(mctx, msg, "不存在的属性: "+attrName)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-						textRight := r.Matched
-						text = r.restInput
-
-						if r.TypeId != VMTypeInt64 {
+						if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeComputedValue {
 							ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrName)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
-						attrName = ctx.Player.GetValueNameByAlias(attrName, ac.Alias)
-						if m[3] == ":" || m[3] == "：" || m[3] == "=" || m[3] == "＝" {
-							exprTmpl := "$tVal + %s/2 - 5"
-							if isSkilled {
-								factorText := "熟练"
-								if skilledFactor != math.Trunc(skilledFactor) {
-									n := int64(skilledFactor * 100)
-									factorText = fmt.Sprintf("熟练*%d/100", n)
-								} else {
-									factorText = "熟练*" + strconv.FormatInt(int64(skilledFactor), 10)
-								}
-								exprTmpl += " + " + factorText
-							}
-
-							parent, _ := dndAttrParent[attrName]
-							aText := attrName
-							aText += fmt.Sprintf(":%d", r.Value.(int64))
-							if parent != "" {
-								if isSkilled {
-									aText += fmt.Sprintf("[技能, 熟练%s]", m[2])
-								} else {
-									aText += "[技能]"
-								}
-								VarSetValueDNDComputed(mctx, attrName, r.Value.(int64), fmt.Sprintf(exprTmpl, parent))
-							} else {
-								VarSetValueInt64(mctx, attrName, r.Value.(int64))
-								VarSetValueDNDComputed(mctx, fmt.Sprintf("$豁免_%s", attrName), int64(0), fmt.Sprintf(exprTmpl, attrName))
-							}
-							attrSeted = append(attrSeted, aText)
+						if m[3] == "-" || m[3] == "－" {
+							r.Value = -r.Value.(int64)
 						}
-						if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
-							v, exists := VarGetValue(mctx, attrName)
-							if !exists {
-								ReplyToSender(mctx, msg, "不存在的属性: "+attrName)
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
-							if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeComputedValue {
-								ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrName)
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
 
-							if m[3] == "-" || m[3] == "－" {
-								r.Value = -r.Value.(int64)
-							}
-
-							if attrName == "hp" {
-								// 当扣血时，特别处理
-								if r.Value.(int64) < 0 {
-									over := cmdArgs.GetKwarg("over")
-									vHpBuff, exists := VarGetValue(mctx, "$buff_hp")
-									if exists && over == nil {
-										vHpBuffVal := vHpBuff.Value.(int64)
-										// 正盾才做反馈
-										if vHpBuffVal > 0 {
-											val := vHpBuffVal + r.Value.(int64)
-											if val >= 0 {
-												// 有充足的盾，扣掉
-												vHpBuff.Value = val
-												r.Value = int64(0)
-											} else {
-												// 没有充足的盾，盾扣到0
-												r.Value = val
-												vHpBuff.Value = int64(0)
-											}
-										}
-									}
-								}
-							}
-
-							var newVal int64
-							var leftValue *VMValue
-							if v.TypeId == VMTypeComputedValue {
-								leftValue = &v.Value.(*VMComputedValueData).BaseValue
-							} else {
-								leftValue = v
-							}
-
-							oldValue := leftValue.Value.(int64)
-							newVal = leftValue.Value.(int64) + r.Value.(int64)
-							if attrName == "hp" {
-								vHpMax, exists := VarGetValue(mctx, "hpmax")
-								var vHpMaxInt64 int64
-								if exists {
-									// 生命值上限限制
-									if newVal > vHpMax.Value.(int64) {
-										newVal = vHpMax.Value.(int64)
-									}
-									vHpMaxInt64 = vHpMax.Value.(int64)
-								}
-								if newVal <= 0 {
-									if exists && (-newVal) >= vHpMaxInt64 {
-										deathSavingStable(mctx)
-										VarSetValueInt64(mctx, "$t伤害点数", -newVal)
-										extraText += DiceFormatTmpl(mctx, "DND:受到伤害_超过HP上限_附加语")
-									} else {
-										if oldValue == 0 {
-											VarSetValueInt64(mctx, "$t伤害点数", -newVal)
-											extraText += DiceFormatTmpl(mctx, "DND:受到伤害_昏迷中_附加语")
-											a, b := deathSaving(mctx, 0, 1)
-											exText := deathSavingResultCheck(mctx, a, b)
-											if exText != "" {
-												text += "\n" + exText
-											}
+						if attrName == "hp" {
+							// 当扣血时，特别处理
+							if r.Value.(int64) < 0 {
+								over := cmdArgs.GetKwarg("over")
+								vHpBuff, exists := VarGetValue(mctx, "$buff_hp")
+								if exists && over == nil {
+									vHpBuffVal := vHpBuff.Value.(int64)
+									// 正盾才做反馈
+									if vHpBuffVal > 0 {
+										val := vHpBuffVal + r.Value.(int64)
+										if val >= 0 {
+											// 有充足的盾，扣掉
+											vHpBuff.Value = val
+											r.Value = int64(0)
 										} else {
-											VarSetValueInt64(mctx, "$t伤害点数", -newVal)
-											extraText += DiceFormatTmpl(mctx, "DND:受到伤害_进入昏迷_附加语")
+											// 没有充足的盾，盾扣到0
+											r.Value = val
+											vHpBuff.Value = int64(0)
 										}
 									}
-									newVal = 0
-								}
-								if newVal > 0 {
-									// 移除死亡豁免标记
-									deathSavingStable(mctx)
 								}
 							}
-
-							vOld, _, _ := mctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
-							theOldValue := vOld.Value.(int64)
-
-							leftValue.Value = newVal
-
-							vNew, _, _ := mctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
-							theNewValue := vNew.Value.(int64)
-
-							baseValue := ""
-							if v.TypeId == VMTypeComputedValue {
-								baseValue = fmt.Sprintf("[%d]", newVal)
-							}
-							attrChanged = append(attrChanged, fmt.Sprintf("%s%s(%d ➯ %d)", attrName, baseValue, theOldValue, theNewValue))
-
-							// 指令信息标记
-							infoItem := map[string]interface{}{
-								"type":    "mod",
-								"attr":    attrName,
-								"modExpr": textRight,
-								"valOld":  theOldValue,
-								"valNew":  theNewValue,
-								"isInc":   m[3] == "+" || m[3] == "＋", // 增加还是扣除
-							}
-							commandInfoItems = append(commandInfoItems, infoItem)
 						}
-					}
 
-					retText := fmt.Sprintf("<%s>的dnd5e人物属性设置如下:\n", mctx.Player.Name)
-					if len(attrSeted) > 0 {
-						SetCardType(mctx, "dnd5e")
-						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
-					}
-					if len(attrChanged) > 0 {
-						retText += "修改: " + strings.Join(attrChanged, ", ") + "\n"
-					}
-					if text != "" {
-						retText += "解析失败: " + text
-					}
-
-					// 指令信息
-					commandInfo := map[string]interface{}{
-						"cmd":    "st",
-						"rule":   "dnd5e",
-						"pcName": mctx.Player.Name,
-						"items":  commandInfoItems,
-					}
-					ctx.CommandInfo = commandInfo
-
-					if kw := cmdArgs.GetKwarg("ci"); kw != nil {
-						info, err := json.Marshal(ctx.CommandInfo)
-						if err == nil {
-							extraText += "\n" + string(info)
+						var newVal int64
+						var leftValue *VMValue
+						if v.TypeId == VMTypeComputedValue {
+							leftValue = &v.Value.(*VMComputedValueData).BaseValue
 						} else {
-							extraText += "\n" + "指令信息无法序列化"
+							leftValue = v
 						}
+
+						oldValue := leftValue.Value.(int64)
+						newVal = leftValue.Value.(int64) + r.Value.(int64)
+						if attrName == "hp" {
+							vHpMax, exists := VarGetValue(mctx, "hpmax")
+							var vHpMaxInt64 int64
+							if exists {
+								// 生命值上限限制
+								if newVal > vHpMax.Value.(int64) {
+									newVal = vHpMax.Value.(int64)
+								}
+								vHpMaxInt64 = vHpMax.Value.(int64)
+							}
+							if newVal <= 0 {
+								if exists && (-newVal) >= vHpMaxInt64 {
+									deathSavingStable(mctx)
+									VarSetValueInt64(mctx, "$t伤害点数", -newVal)
+									extraText += DiceFormatTmpl(mctx, "DND:受到伤害_超过HP上限_附加语")
+								} else {
+									if oldValue == 0 {
+										VarSetValueInt64(mctx, "$t伤害点数", -newVal)
+										extraText += DiceFormatTmpl(mctx, "DND:受到伤害_昏迷中_附加语")
+										a, b := deathSaving(mctx, 0, 1)
+										exText := deathSavingResultCheck(mctx, a, b)
+										if exText != "" {
+											text += "\n" + exText
+										}
+									} else {
+										VarSetValueInt64(mctx, "$t伤害点数", -newVal)
+										extraText += DiceFormatTmpl(mctx, "DND:受到伤害_进入昏迷_附加语")
+									}
+								}
+								newVal = 0
+							}
+							if newVal > 0 {
+								// 移除死亡豁免标记
+								deathSavingStable(mctx)
+							}
+						}
+
+						vOld, _, _ := mctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
+						theOldValue := vOld.Value.(int64)
+
+						leftValue.Value = newVal
+
+						vNew, _, _ := mctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
+						theNewValue := vNew.Value.(int64)
+
+						baseValue := ""
+						if v.TypeId == VMTypeComputedValue {
+							baseValue = fmt.Sprintf("[%d]", newVal)
+						}
+						attrChanged = append(attrChanged, fmt.Sprintf("%s%s(%d ➯ %d)", attrName, baseValue, theOldValue, theNewValue))
+
+						// 指令信息标记
+						infoItem := map[string]interface{}{
+							"type":    "mod",
+							"attr":    attrName,
+							"modExpr": textRight,
+							"valOld":  theOldValue,
+							"valNew":  theNewValue,
+							"isInc":   m[3] == "+" || m[3] == "＋", // 增加还是扣除
+						}
+						commandInfoItems = append(commandInfoItems, infoItem)
 					}
-
-					ReplyToSender(mctx, msg, strings.TrimSpace(retText)+extraText)
 				}
 
-				if ctx.Player.AutoSetNameTemplate != "" {
-					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				retText := fmt.Sprintf("<%s>的dnd5e人物属性设置如下:\n", mctx.Player.Name)
+				if len(attrSeted) > 0 {
+					SetCardType(mctx, "dnd5e")
+					retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
 				}
-				return CmdExecuteResult{Matched: true, Solved: true}
+				if len(attrChanged) > 0 {
+					retText += "修改: " + strings.Join(attrChanged, ", ") + "\n"
+				}
+				if text != "" {
+					retText += "解析失败: " + text
+				}
+
+				// 指令信息
+				commandInfo := map[string]interface{}{
+					"cmd":    "st",
+					"rule":   "dnd5e",
+					"pcName": mctx.Player.Name,
+					"items":  commandInfoItems,
+				}
+				ctx.CommandInfo = commandInfo
+
+				if kw := cmdArgs.GetKwarg("ci"); kw != nil {
+					info, err := json.Marshal(ctx.CommandInfo)
+					if err == nil {
+						extraText += "\n" + string(info)
+					} else {
+						extraText += "\n" + "指令信息无法序列化"
+					}
+				}
+
+				ReplyToSender(mctx, msg, strings.TrimSpace(retText)+extraText)
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+
+			if ctx.Player.AutoSetNameTemplate != "" {
+				_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -711,67 +709,65 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".rc <表达式> @某人 // 对某人做检定"
 
 	cmdRc := &CmdItemInfo{
-		Name:      "rc",
-		ShortHelp: helpRc,
-		Help:      "DND5E 检定:\n" + helpRc,
+		Name:          "rc",
+		ShortHelp:     helpRc,
+		Help:          "DND5E 检定:\n" + helpRc,
+		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
-				mctx.Player.TempValueAlias = &ac.Alias
+			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx.Player.TempValueAlias = &ac.Alias
 
-				val, _ := cmdArgs.GetArgN(1)
-				switch val {
-				case "", "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				default:
-					restText := cmdArgs.CleanArgs
-					re := regexp.MustCompile(`^优势|劣势`)
-					m := re.FindString(restText)
-					if m != "" {
-						restText = strings.TrimSpace(restText[len(m):])
-					}
-					expr := fmt.Sprintf("D20%s + %s", m, restText)
-					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
-					if err != nil {
-						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-					reason := r.restInput
-					if reason == "" {
-						reason = restText
-					}
-
-					text := fmt.Sprintf("<%s>的“%s”检定(dnd5e)结果为:\n%s = %s", mctx.Player.Name, reason, detail, r.ToString())
-
-					// 指令信息
-					commandInfo := map[string]interface{}{
-						"cmd":    "rc",
-						"rule":   "dnd5e",
-						"pcName": mctx.Player.Name,
-						"items": []interface{}{
-							map[string]interface{}{
-								"expr":   expr,
-								"reason": reason,
-								"result": r.Value,
-							},
-						},
-					}
-					ctx.CommandInfo = commandInfo
-
-					if kw := cmdArgs.GetKwarg("ci"); kw != nil {
-						info, err := json.Marshal(ctx.CommandInfo)
-						if err == nil {
-							text += "\n" + string(info)
-						} else {
-							text += "\n" + "指令信息无法序列化"
-						}
-					}
-					ReplyToSender(mctx, msg, text)
+			val, _ := cmdArgs.GetArgN(1)
+			switch val {
+			case "", "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			default:
+				restText := cmdArgs.CleanArgs
+				re := regexp.MustCompile(`^优势|劣势`)
+				m := re.FindString(restText)
+				if m != "" {
+					restText = strings.TrimSpace(restText[len(m):])
+				}
+				expr := fmt.Sprintf("D20%s + %s", m, restText)
+				r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
+				if err != nil {
+					ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				reason := r.restInput
+				if reason == "" {
+					reason = restText
 				}
 
-				return CmdExecuteResult{Matched: true, Solved: true}
+				text := fmt.Sprintf("<%s>的“%s”检定(dnd5e)结果为:\n%s = %s", mctx.Player.Name, reason, detail, r.ToString())
+
+				// 指令信息
+				commandInfo := map[string]interface{}{
+					"cmd":    "rc",
+					"rule":   "dnd5e",
+					"pcName": mctx.Player.Name,
+					"items": []interface{}{
+						map[string]interface{}{
+							"expr":   expr,
+							"reason": reason,
+							"result": r.Value,
+						},
+					},
+				}
+				ctx.CommandInfo = commandInfo
+
+				if kw := cmdArgs.GetKwarg("ci"); kw != nil {
+					info, err := json.Marshal(ctx.CommandInfo)
+					if err == nil {
+						text += "\n" + string(info)
+					} else {
+						text += "\n" + "指令信息无法序列化"
+					}
+				}
+				ReplyToSender(mctx, msg, text)
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -785,291 +781,289 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".buff <属性>±<表达式> @某人 // 修改他人buff属性，例：.buff hp+1d4"
 
 	cmdBuff := &CmdItemInfo{
-		Name:      "buff",
-		ShortHelp: helpBuff,
-		Help:      "属性临时加值:\n" + helpBuff,
+		Name:          "buff",
+		ShortHelp:     helpBuff,
+		Help:          "属性临时加值:\n" + helpBuff,
+		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
-				val, _ := cmdArgs.GetArgN(1)
-				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+			cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
+			val, _ := cmdArgs.GetArgN(1)
+			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
-				chVars, _ := mctx.ChVarsGet()
+			chVars, _ := mctx.ChVarsGet()
 
-				switch val {
-				case "del", "rm":
-					var nums []string
-					var failed []string
+			switch val {
+			case "del", "rm":
+				var nums []string
+				var failed []string
 
-					for _, rawVarname := range cmdArgs.Args[1:] {
-						varname := "$buff_" + rawVarname
-						_, ok := chVars.Get(varname)
-						if ok {
-							nums = append(nums, rawVarname)
-							chVars.Del(varname)
-						} else {
-							failed = append(failed, varname)
-						}
-					}
-
-					if len(nums) > 0 {
-						mctx.ChVarsUpdateTime()
-					}
-
-					VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
-					VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
-					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:BUFF设置_删除"))
-
-				case "clr", "clear":
-
-					varNames := []string{}
-					_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
-						varname := _k.(string)
-						varname = "$buff_" + varname
-						varNames = append(varNames, varname)
-						// 嵌套中不能再调用自己 会死锁，所以分开两步
-						return nil
-					})
-
-					toDelete := []string{}
-					for _, varname := range varNames {
-						if _, exists := chVars.Get(varname); exists {
-							toDelete = append(toDelete, varname)
-						}
-					}
-
-					num := len(toDelete)
-					for _, varname := range toDelete {
+				for _, rawVarname := range cmdArgs.Args[1:] {
+					varname := "$buff_" + rawVarname
+					_, ok := chVars.Get(varname)
+					if ok {
+						nums = append(nums, rawVarname)
 						chVars.Del(varname)
+					} else {
+						failed = append(failed, varname)
+					}
+				}
+
+				if len(nums) > 0 {
+					mctx.ChVarsUpdateTime()
+				}
+
+				VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
+				VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
+				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:BUFF设置_删除"))
+
+			case "clr", "clear":
+
+				varNames := []string{}
+				_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
+					varname := _k.(string)
+					varname = "$buff_" + varname
+					varNames = append(varNames, varname)
+					// 嵌套中不能再调用自己 会死锁，所以分开两步
+					return nil
+				})
+
+				toDelete := []string{}
+				for _, varname := range varNames {
+					if _, exists := chVars.Get(varname); exists {
+						toDelete = append(toDelete, varname)
+					}
+				}
+
+				num := len(toDelete)
+				for _, varname := range toDelete {
+					chVars.Del(varname)
+				}
+
+				if num > 0 {
+					mctx.ChVarsUpdateTime()
+				}
+
+				VarSetValueInt64(mctx, "$t数量", int64(num))
+				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:BUFF设置_清除"))
+
+			case "show", "list", "":
+				p := mctx.Player
+				var info string
+
+				attrKeys2 := []string{}
+				_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
+					k := _k.(string)
+					if strings.HasPrefix(k, "$buff_") {
+						attrKeys2 = append(attrKeys2, k)
+					}
+					return nil
+				})
+				sort.Strings(attrKeys2)
+
+				tick := 0
+				if chVars.Len() == 0 {
+					info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
+				} else {
+					// 按照配置文件排序
+					attrKeys := []string{}
+					used := map[string]bool{}
+					for _, i := range ac.Order.Top {
+						key := p.GetValueNameByAlias(i, ac.Alias)
+						if used[key] {
+							continue
+						}
+						attrKeys = append(attrKeys, key)
+						used[key] = true
 					}
 
-					if num > 0 {
-						mctx.ChVarsUpdateTime()
-					}
-
-					VarSetValueInt64(mctx, "$t数量", int64(num))
-					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:BUFF设置_清除"))
-
-				case "show", "list", "":
-					p := mctx.Player
-					var info string
-
+					// 其余按字典序
 					attrKeys2 := []string{}
 					_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
 						k := _k.(string)
-						if strings.HasPrefix(k, "$buff_") {
-							attrKeys2 = append(attrKeys2, k)
-						}
+						attrKeys2 = append(attrKeys2, k)
 						return nil
 					})
 					sort.Strings(attrKeys2)
+					for _, key := range attrKeys2 {
+						if used[key] {
+							continue
+						}
+						attrKeys = append(attrKeys, key)
+					}
 
-					tick := 0
-					if chVars.Len() == 0 {
-						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
-					} else {
-						// 按照配置文件排序
-						attrKeys := []string{}
-						used := map[string]bool{}
-						for _, i := range ac.Order.Top {
-							key := p.GetValueNameByAlias(i, ac.Alias)
-							if used[key] {
-								continue
-							}
-							attrKeys = append(attrKeys, key)
-							used[key] = true
+					// 遍历输出
+					for _, k := range attrKeys {
+						if !strings.HasPrefix(k, "$buff_") {
+							continue
+						}
+						var v *VMValue
+						_v, exists := chVars.Get(k)
+						if !exists {
+							// 不存在的值，强行补0
+							v = &VMValue{TypeId: VMTypeInt64, Value: int64(0)}
+						} else {
+							v = _v.(*VMValue)
 						}
 
-						// 其余按字典序
-						attrKeys2 := []string{}
-						_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
-							k := _k.(string)
-							attrKeys2 = append(attrKeys2, k)
-							return nil
-						})
-						sort.Strings(attrKeys2)
-						for _, key := range attrKeys2 {
-							if used[key] {
-								continue
-							}
-							attrKeys = append(attrKeys, key)
-						}
-
-						// 遍历输出
-						for _, k := range attrKeys {
-							if !strings.HasPrefix(k, "$buff_") {
-								continue
-							}
-							var v *VMValue
-							_v, exists := chVars.Get(k)
-							if !exists {
-								// 不存在的值，强行补0
-								v = &VMValue{TypeId: VMTypeInt64, Value: int64(0)}
+						tick += 1
+						vText := ""
+						if v.TypeId == VMTypeComputedValue {
+							vd := v.Value.(*VMComputedValueData)
+							val, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
+							a := val.ToString()
+							b := vd.BaseValue.ToString()
+							if a != b {
+								vText = fmt.Sprintf("%s[%s]", a, b)
 							} else {
-								v = _v.(*VMValue)
+								vText = a
 							}
-
-							tick += 1
-							vText := ""
-							if v.TypeId == VMTypeComputedValue {
-								vd := v.Value.(*VMComputedValueData)
-								val, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
-								a := val.ToString()
-								b := vd.BaseValue.ToString()
-								if a != b {
-									vText = fmt.Sprintf("%s[%s]", a, b)
-								} else {
-									vText = a
-								}
-							} else {
-								vText = v.ToString()
-							}
-							k = k[len("$buff_"):]
-							info += fmt.Sprintf("%s:%s\t", k, vText) // 单个文本
-							if tick%4 == 0 {
-								info += fmt.Sprintf("\n")
-							}
+						} else {
+							vText = v.ToString()
 						}
-
-						if info == "" {
-							info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
+						k = k[len("$buff_"):]
+						info += fmt.Sprintf("%s:%s\t", k, vText) // 单个文本
+						if tick%4 == 0 {
+							info += fmt.Sprintf("\n")
 						}
 					}
 
-					VarSetValueStr(mctx, "$t属性信息", info)
-					extra := ReadCardType(mctx, "dnd5e")
-					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_列出")+extra)
+					if info == "" {
+						info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
+					}
+				}
 
-				case "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				default:
-					text := cmdArgs.CleanArgs
-					// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
-					re := regexp.MustCompile(`(?:([^\s:0-9*][^\s:0-9*]*)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
-					attrSeted := []string{}
-					attrChanged := []string{}
+				VarSetValueStr(mctx, "$t属性信息", info)
+				extra := ReadCardType(mctx, "dnd5e")
+				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_列出")+extra)
 
-					for {
-						m := re.FindStringSubmatch(text)
-						if len(m) == 0 {
-							break
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			default:
+				text := cmdArgs.CleanArgs
+				// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
+				re := regexp.MustCompile(`(?:([^\s:0-9*][^\s:0-9*]*)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
+				attrSeted := []string{}
+				attrChanged := []string{}
+
+				for {
+					m := re.FindStringSubmatch(text)
+					if len(m) == 0 {
+						break
+					}
+					text = text[len(m[0]):]
+
+					attrNameRaw := m[1]
+					attrNameBuff := "$buff_" + attrNameRaw
+					isSkilled := strings.HasPrefix(m[2], "*")
+					var skilledFactor float64 = 1
+					if isSkilled {
+						val, err := strconv.ParseFloat(m[2][len("*"):], 64)
+						if err == nil {
+							skilledFactor = val
 						}
-						text = text[len(m[0]):]
+					}
 
-						attrNameRaw := m[1]
-						attrNameBuff := "$buff_" + attrNameRaw
-						isSkilled := strings.HasPrefix(m[2], "*")
-						var skilledFactor float64 = 1
+					r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
+					if err != nil {
+						ReplyToSender(mctx, msg, "无法解析属性: "+attrNameRaw)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					text = r.restInput
+
+					if r.TypeId != VMTypeInt64 {
+						ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrNameRaw)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					attrNameRaw = ctx.Player.GetValueNameByAlias(attrNameRaw, ac.Alias)
+					if m[3] == ":" || m[3] == "：" || m[3] == "=" || m[3] == "＝" {
+						exprTmpl := "$tVal"
 						if isSkilled {
-							val, err := strconv.ParseFloat(m[2][len("*"):], 64)
-							if err == nil {
-								skilledFactor = val
+							factorText := "熟练"
+							if skilledFactor != math.Trunc(skilledFactor) {
+								n := int64(skilledFactor * 100)
+								factorText = fmt.Sprintf("熟练*%d/100", n)
+							} else {
+								factorText = "熟练*" + strconv.FormatInt(int64(skilledFactor), 10)
 							}
+							exprTmpl += " + " + factorText
 						}
 
-						r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
-						if err != nil {
-							ReplyToSender(mctx, msg, "无法解析属性: "+attrNameRaw)
+						parent, _ := dndAttrParent[attrNameRaw]
+						aText := attrNameRaw
+						aText += fmt.Sprintf(":%d", r.Value.(int64))
+						if parent != "" {
+							if isSkilled {
+								aText += fmt.Sprintf("[技能, 熟练%s]", m[2])
+							} else {
+								aText += "[技能]"
+							}
+							VarSetValueDNDComputed(mctx, attrNameBuff, r.Value.(int64), fmt.Sprintf(exprTmpl, parent))
+						} else {
+							VarSetValueInt64(mctx, attrNameBuff, r.Value.(int64))
+						}
+						attrSeted = append(attrSeted, aText)
+					}
+					if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
+						v, exists := VarGetValue(mctx, attrNameBuff)
+						if !exists {
+							ReplyToSender(mctx, msg, "不存在的BUFF属性: "+attrNameRaw)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-						text = r.restInput
-
-						if r.TypeId != VMTypeInt64 {
+						if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeComputedValue {
 							ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrNameRaw)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
-						attrNameRaw = ctx.Player.GetValueNameByAlias(attrNameRaw, ac.Alias)
-						if m[3] == ":" || m[3] == "：" || m[3] == "=" || m[3] == "＝" {
-							exprTmpl := "$tVal"
-							if isSkilled {
-								factorText := "熟练"
-								if skilledFactor != math.Trunc(skilledFactor) {
-									n := int64(skilledFactor * 100)
-									factorText = fmt.Sprintf("熟练*%d/100", n)
-								} else {
-									factorText = "熟练*" + strconv.FormatInt(int64(skilledFactor), 10)
-								}
-								exprTmpl += " + " + factorText
-							}
-
-							parent, _ := dndAttrParent[attrNameRaw]
-							aText := attrNameRaw
-							aText += fmt.Sprintf(":%d", r.Value.(int64))
-							if parent != "" {
-								if isSkilled {
-									aText += fmt.Sprintf("[技能, 熟练%s]", m[2])
-								} else {
-									aText += "[技能]"
-								}
-								VarSetValueDNDComputed(mctx, attrNameBuff, r.Value.(int64), fmt.Sprintf(exprTmpl, parent))
-							} else {
-								VarSetValueInt64(mctx, attrNameBuff, r.Value.(int64))
-							}
-							attrSeted = append(attrSeted, aText)
+						var newVal int64
+						var leftValue *VMValue
+						if v.TypeId == VMTypeComputedValue {
+							leftValue = &v.Value.(*VMComputedValueData).BaseValue
+						} else {
+							leftValue = v
 						}
-						if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
-							v, exists := VarGetValue(mctx, attrNameBuff)
-							if !exists {
-								ReplyToSender(mctx, msg, "不存在的BUFF属性: "+attrNameRaw)
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
-							if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeComputedValue {
-								ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrNameRaw)
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
 
-							var newVal int64
-							var leftValue *VMValue
-							if v.TypeId == VMTypeComputedValue {
-								leftValue = &v.Value.(*VMComputedValueData).BaseValue
-							} else {
-								leftValue = v
-							}
-
-							if m[3] == "+" || m[3] == "＋" {
-								newVal = leftValue.Value.(int64) + r.Value.(int64)
-							} else {
-								newVal = leftValue.Value.(int64) - r.Value.(int64)
-							}
-
-							vOld, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
-							theOldValue := vOld.Value.(int64)
-
-							leftValue.Value = newVal
-
-							vNew, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
-							theNewValue := vNew.Value.(int64)
-
-							baseValue := ""
-							if v.TypeId == VMTypeComputedValue {
-								baseValue = fmt.Sprintf("[%d]", newVal)
-							}
-							attrChanged = append(attrChanged, fmt.Sprintf("%s%s(%d ➯ %d)", attrNameRaw, baseValue, theOldValue, theNewValue))
+						if m[3] == "+" || m[3] == "＋" {
+							newVal = leftValue.Value.(int64) + r.Value.(int64)
+						} else {
+							newVal = leftValue.Value.(int64) - r.Value.(int64)
 						}
-					}
 
-					retText := fmt.Sprintf("<%s>的dnd5e人物Buff属性设置如下:\n", mctx.Player.Name)
-					if len(attrSeted) > 0 {
-						SetCardType(mctx, "dnd5e")
-						retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
+						vOld, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
+						theOldValue := vOld.Value.(int64)
+
+						leftValue.Value = newVal
+
+						vNew, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
+						theNewValue := vNew.Value.(int64)
+
+						baseValue := ""
+						if v.TypeId == VMTypeComputedValue {
+							baseValue = fmt.Sprintf("[%d]", newVal)
+						}
+						attrChanged = append(attrChanged, fmt.Sprintf("%s%s(%d ➯ %d)", attrNameRaw, baseValue, theOldValue, theNewValue))
 					}
-					if len(attrChanged) > 0 {
-						retText += "修改: " + strings.Join(attrChanged, ", ") + "\n"
-					}
-					if text != "" {
-						retText += "解析失败: " + text
-					}
-					ReplyToSender(mctx, msg, retText)
-					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				if ctx.Player.AutoSetNameTemplate != "" {
-					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				retText := fmt.Sprintf("<%s>的dnd5e人物Buff属性设置如下:\n", mctx.Player.Name)
+				if len(attrSeted) > 0 {
+					SetCardType(mctx, "dnd5e")
+					retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
 				}
+				if len(attrChanged) > 0 {
+					retText += "修改: " + strings.Join(attrChanged, ", ") + "\n"
+				}
+				if text != "" {
+					retText += "解析失败: " + text
+				}
+				ReplyToSender(mctx, msg, retText)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+
+			if ctx.Player.AutoSetNameTemplate != "" {
+				_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -1118,122 +1112,121 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".ss 3环 -1 // 消耗一个3环法术位，也可以用.cast 3"
 
 	cmdSpellSlot := &CmdItemInfo{
-		Name:      "ss",
-		ShortHelp: helpSS,
-		Help:      "DND5E 法术位(.ss .法术位):\n" + helpSS,
+		Name:          "ss",
+		ShortHelp:     helpSS,
+		Help:          "DND5E 法术位(.ss .法术位):\n" + helpSS,
+		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				cmdArgs.ChopPrefixToArgsWith("init", "set")
+			cmdArgs.ChopPrefixToArgsWith("init", "set")
 
-				val, _ := cmdArgs.GetArgN(1)
-				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+			val, _ := cmdArgs.GetArgN(1)
+			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
-				switch val {
-				case "init":
-					reSlot := regexp.MustCompile(`\d+`)
-					slots := reSlot.FindAllString(cmdArgs.CleanArgs, -1)
-					if len(slots) > 0 {
-						texts := []string{}
-						for index, levelVal := range slots {
-							val, _ := strconv.ParseInt(levelVal, 10, 64)
-							VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", index+1), val)
-							VarSetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", index+1), val)
-							texts = append(texts, fmt.Sprintf("%d环%d个", index+1, val))
-						}
-						ReplyToSender(mctx, msg, "为<"+mctx.Player.Name+">设置法术位: "+strings.Join(texts, ", "))
-					} else {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-					}
-
-				case "clr":
-					chVars, _ := mctx.ChVarsGet()
-					for i := 1; i < 10; i += 1 {
-						chVars.Del(fmt.Sprintf("$法术位_%d", i))
-						chVars.Del(fmt.Sprintf("$法术位上限_%d", i))
-					}
-					mctx.ChVarsUpdateTime()
-					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>法术位数据已清除`, mctx.Player.Name))
-
-				case "rest":
-					n := spellSlotsRenew(mctx, msg)
-					if n > 0 {
-						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的法术位已经完全恢复`, mctx.Player.Name))
-					} else {
-						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>并没有设置过法术位`, mctx.Player.Name))
-					}
-
-				case "set":
-					reSlot := regexp.MustCompile(`(\d+)[环cC]\s*(\d+)|[lL][vV](\d+)\s+(\d+)`)
-					slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
-					if len(slots) > 0 {
-						texts := []string{}
-						for _, oneSlot := range slots {
-							level := oneSlot[1]
-							if level == "" {
-								level = oneSlot[3]
-							}
-							levelVal := oneSlot[2]
-							if levelVal == "" {
-								levelVal = oneSlot[4]
-							}
-							iLevel, _ := strconv.ParseInt(level, 10, 64)
-							iLevelVal, _ := strconv.ParseInt(levelVal, 10, 64)
-
-							VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", iLevel), iLevelVal)
-							VarSetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", iLevel), iLevelVal)
-							texts = append(texts, fmt.Sprintf("%d环%d个", iLevel, iLevelVal))
-						}
-						ReplyToSender(mctx, msg, "为<"+mctx.Player.Name+">设置法术位: "+strings.Join(texts, ", "))
-					} else {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-					}
-				case "":
+			switch val {
+			case "init":
+				reSlot := regexp.MustCompile(`\d+`)
+				slots := reSlot.FindAllString(cmdArgs.CleanArgs, -1)
+				if len(slots) > 0 {
 					texts := []string{}
-					for i := 1; i < 10; i += 1 {
-						spellLevelCur, _ := VarGetValueInt64(mctx, fmt.Sprintf("$法术位_%d", i))
-						spellLevelMax, exists := VarGetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", i))
-						if exists {
-							texts = append(texts, fmt.Sprintf("%d环:%d/%d", i, spellLevelCur, spellLevelMax))
-						}
+					for index, levelVal := range slots {
+						val, _ := strconv.ParseInt(levelVal, 10, 64)
+						VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", index+1), val)
+						VarSetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", index+1), val)
+						texts = append(texts, fmt.Sprintf("%d环%d个", index+1, val))
 					}
-					summary := strings.Join(texts, ", ")
-					if summary == "" {
-						summary = "没有设置过法术位"
-					}
-					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的法术位状况: %s`, mctx.Player.Name, summary))
-				case "help":
+					ReplyToSender(mctx, msg, "为<"+mctx.Player.Name+">设置法术位: "+strings.Join(texts, ", "))
+				} else {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				default:
-					reSlot := regexp.MustCompile(`(\d+)[环cC]\s*([+-＋－])(\d+)|[lL][vV](\d+)\s*([+-＋－])(\d+)`)
-					slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
-					if len(slots) > 0 {
-						for _, oneSlot := range slots {
-							level := oneSlot[1]
-							if level == "" {
-								level = oneSlot[4]
-							}
-							op := oneSlot[2]
-							if op == "" {
-								op = oneSlot[5]
-							}
-							levelVal := oneSlot[3]
-							if levelVal == "" {
-								levelVal = oneSlot[6]
-							}
-							iLevel, _ := strconv.ParseInt(level, 10, 64)
-							iLevelVal, _ := strconv.ParseInt(levelVal, 10, 64)
-							if op == "-" || op == "－" {
-								iLevelVal = -iLevelVal
-							}
+				}
 
-							ret := spellSlotsChange(mctx, msg, iLevel, iLevelVal)
-							if ret != nil {
-								return *ret
-							}
+			case "clr":
+				chVars, _ := mctx.ChVarsGet()
+				for i := 1; i < 10; i += 1 {
+					chVars.Del(fmt.Sprintf("$法术位_%d", i))
+					chVars.Del(fmt.Sprintf("$法术位上限_%d", i))
+				}
+				mctx.ChVarsUpdateTime()
+				ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>法术位数据已清除`, mctx.Player.Name))
+
+			case "rest":
+				n := spellSlotsRenew(mctx, msg)
+				if n > 0 {
+					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的法术位已经完全恢复`, mctx.Player.Name))
+				} else {
+					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>并没有设置过法术位`, mctx.Player.Name))
+				}
+
+			case "set":
+				reSlot := regexp.MustCompile(`(\d+)[环cC]\s*(\d+)|[lL][vV](\d+)\s+(\d+)`)
+				slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
+				if len(slots) > 0 {
+					texts := []string{}
+					for _, oneSlot := range slots {
+						level := oneSlot[1]
+						if level == "" {
+							level = oneSlot[3]
 						}
-					} else {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+						levelVal := oneSlot[2]
+						if levelVal == "" {
+							levelVal = oneSlot[4]
+						}
+						iLevel, _ := strconv.ParseInt(level, 10, 64)
+						iLevelVal, _ := strconv.ParseInt(levelVal, 10, 64)
+
+						VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", iLevel), iLevelVal)
+						VarSetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", iLevel), iLevelVal)
+						texts = append(texts, fmt.Sprintf("%d环%d个", iLevel, iLevelVal))
 					}
+					ReplyToSender(mctx, msg, "为<"+mctx.Player.Name+">设置法术位: "+strings.Join(texts, ", "))
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
+			case "":
+				texts := []string{}
+				for i := 1; i < 10; i += 1 {
+					spellLevelCur, _ := VarGetValueInt64(mctx, fmt.Sprintf("$法术位_%d", i))
+					spellLevelMax, exists := VarGetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", i))
+					if exists {
+						texts = append(texts, fmt.Sprintf("%d环:%d/%d", i, spellLevelCur, spellLevelMax))
+					}
+				}
+				summary := strings.Join(texts, ", ")
+				if summary == "" {
+					summary = "没有设置过法术位"
+				}
+				ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的法术位状况: %s`, mctx.Player.Name, summary))
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			default:
+				reSlot := regexp.MustCompile(`(\d+)[环cC]\s*([+-＋－])(\d+)|[lL][vV](\d+)\s*([+-＋－])(\d+)`)
+				slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
+				if len(slots) > 0 {
+					for _, oneSlot := range slots {
+						level := oneSlot[1]
+						if level == "" {
+							level = oneSlot[4]
+						}
+						op := oneSlot[2]
+						if op == "" {
+							op = oneSlot[5]
+						}
+						levelVal := oneSlot[3]
+						if levelVal == "" {
+							levelVal = oneSlot[6]
+						}
+						iLevel, _ := strconv.ParseInt(level, 10, 64)
+						iLevelVal, _ := strconv.ParseInt(levelVal, 10, 64)
+						if op == "-" || op == "－" {
+							iLevelVal = -iLevelVal
+						}
+
+						ret := spellSlotsChange(mctx, msg, iLevel, iLevelVal)
+						if ret != nil {
+							return *ret
+						}
+					}
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 			}
 			return CmdExecuteResult{Matched: true, Solved: false}
@@ -1245,47 +1238,46 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".cast 1 2 // 消耗2个1环法术位"
 
 	cmdCast := &CmdItemInfo{
-		Name:      "cast",
-		ShortHelp: helpCast,
-		Help:      "DND5E 法术位使用(.cast):\n" + helpCast,
+		Name:          "cast",
+		ShortHelp:     helpCast,
+		Help:          "DND5E 法术位使用(.cast):\n" + helpCast,
+		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				val, _ := cmdArgs.GetArgN(1)
-				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+			val, _ := cmdArgs.GetArgN(1)
+			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
-				switch val {
-				default:
-					// 该正则匹配: 2 1, 2环1, 2环 1, 2c1, lv2 1
-					reSlot := regexp.MustCompile(`(\d+)(?:[环cC]?|\s)\s*(\d+)?|[lL][vV](\d+)(?:\s+(\d+))?`)
+			switch val {
+			default:
+				// 该正则匹配: 2 1, 2环1, 2环 1, 2c1, lv2 1
+				reSlot := regexp.MustCompile(`(\d+)(?:[环cC]?|\s)\s*(\d+)?|[lL][vV](\d+)(?:\s+(\d+))?`)
 
-					slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
-					if len(slots) > 0 {
-						for _, oneSlot := range slots {
-							level := oneSlot[1]
-							if level == "" {
-								level = oneSlot[3]
-							}
-							levelVal := oneSlot[2]
-							if levelVal == "" {
-								levelVal = oneSlot[4]
-							}
-							if levelVal == "" {
-								levelVal = "1"
-							}
-							iLevel, _ := strconv.ParseInt(level, 10, 64)
-							iLevelVal, _ := strconv.ParseInt(levelVal, 10, 64)
-
-							ret := spellSlotsChange(mctx, msg, iLevel, -iLevelVal)
-							if ret != nil {
-								return *ret
-							}
+				slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
+				if len(slots) > 0 {
+					for _, oneSlot := range slots {
+						level := oneSlot[1]
+						if level == "" {
+							level = oneSlot[3]
 						}
-					} else {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+						levelVal := oneSlot[2]
+						if levelVal == "" {
+							levelVal = oneSlot[4]
+						}
+						if levelVal == "" {
+							levelVal = "1"
+						}
+						iLevel, _ := strconv.ParseInt(level, 10, 64)
+						iLevelVal, _ := strconv.ParseInt(levelVal, 10, 64)
+
+						ret := spellSlotsChange(mctx, msg, iLevel, -iLevelVal)
+						if ret != nil {
+							return *ret
+						}
 					}
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -1294,35 +1286,33 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".longrest // 另一种写法"
 
 	cmdLongRest := &CmdItemInfo{
-		Name:      "长休",
-		ShortHelp: helpLongRest,
-		Help:      "DND5E 长休:\n" + helpLongRest,
+		Name:          "长休",
+		ShortHelp:     helpLongRest,
+		Help:          "DND5E 长休:\n" + helpLongRest,
+		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				val, _ := cmdArgs.GetArgN(1)
-				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+			val, _ := cmdArgs.GetArgN(1)
+			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
-				switch val {
-				case "":
-					hpText := "没有设置hpmax，无法回复hp"
-					hpMax, exists := VarGetValueInt64(mctx, "hpmax")
-					if exists {
-						hpText = fmt.Sprintf("hp得到了恢复，现为%d", hpMax)
-						VarSetValueInt64(mctx, "hp", hpMax)
-					}
-
-					n := spellSlotsRenew(mctx, msg)
-					ssText := ""
-					if n > 0 {
-						ssText = "。法术位得到了恢复"
-					}
-					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的长休: `+hpText+ssText, mctx.Player.Name))
-				default:
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			switch val {
+			case "":
+				hpText := "没有设置hpmax，无法回复hp"
+				hpMax, exists := VarGetValueInt64(mctx, "hpmax")
+				if exists {
+					hpText = fmt.Sprintf("hp得到了恢复，现为%d", hpMax)
+					VarSetValueInt64(mctx, "hp", hpMax)
 				}
-				return CmdExecuteResult{Matched: true, Solved: true}
+
+				n := spellSlotsRenew(mctx, msg)
+				ssText := ""
+				if n > 0 {
+					ssText = "。法术位得到了恢复"
+				}
+				ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的长休: `+hpText+ssText, mctx.Player.Name))
+			default:
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -1336,127 +1326,125 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".ds help // 查看帮助"
 
 	cmdDeathSavingThrow := &CmdItemInfo{
-		Name:      "死亡豁免",
-		ShortHelp: helpDeathSavingThrow,
-		Help:      "DND5E 死亡豁免:\n" + helpDeathSavingThrow,
+		Name:          "死亡豁免",
+		ShortHelp:     helpDeathSavingThrow,
+		Help:          "DND5E 死亡豁免:\n" + helpDeathSavingThrow,
+		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
-				mctx.Player.TempValueAlias = &ac.Alias
+			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx.Player.TempValueAlias = &ac.Alias
+
+			restText := cmdArgs.CleanArgs
+			re := regexp.MustCompile(`^(s|S|成功|f|F|失败)([+-＋－])`)
+			m := re.FindStringSubmatch(restText)
+			if len(m) > 0 {
+				restText = strings.TrimSpace(restText[len(m[0]):])
+				isNeg := m[2] == "-" || m[2] == "－"
+				r, _, err := ctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{})
+				if err != nil {
+					ReplyToSender(mctx, msg, "错误: 无法解析表达式: "+restText)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				v, _ := r.ReadInt64()
+				if isNeg {
+					v = -v
+				}
+
+				var a, b int64
+				switch m[1] {
+				case "s", "S", "成功":
+					a, b = deathSaving(mctx, v, 0)
+				case "f", "F", "失败":
+					a, b = deathSaving(mctx, 0, v)
+				}
+				text := fmt.Sprintf("<%s>当前的死亡豁免情况: 成功%d 失败%d", mctx.Player.Name, a, b)
+				exText := deathSavingResultCheck(mctx, a, b)
+				if exText != "" {
+					text += "\n" + exText
+				}
+
+				ReplyToSender(mctx, msg, text)
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			val, _ := cmdArgs.GetArgN(1)
+			switch val {
+			case "stat":
+				a, b := deathSaving(mctx, 0, 0)
+				text := fmt.Sprintf("<%s>当前的死亡豁免情况: 成功%d 失败%d", mctx.Player.Name, a, b)
+				ReplyToSender(mctx, msg, text)
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			case "":
+				fallthrough
+			default:
+				hp, exists := VarGetValueInt64(mctx, "hp")
+				if !exists {
+					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>未设置生命值，无法进行死亡豁免检定。`, mctx.Player.Name))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				if hp > 0 {
+					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>生命值大于0(当前为%d)，无法进行死亡豁免检定。`, mctx.Player.Name, hp))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 
 				restText := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`^(s|S|成功|f|F|失败)([+-＋－])`)
-				m := re.FindStringSubmatch(restText)
-				if len(m) > 0 {
-					restText = strings.TrimSpace(restText[len(m[0]):])
-					isNeg := m[2] == "-" || m[2] == "－"
-					r, _, err := ctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{})
-					if err != nil {
-						ReplyToSender(mctx, msg, "错误: 无法解析表达式: "+restText)
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-					v, _ := r.ReadInt64()
-					if isNeg {
-						v = -v
-					}
+				re := regexp.MustCompile(`^优势|劣势`)
+				m := re.FindString(restText)
+				if m != "" {
+					restText = strings.TrimSpace(restText[len(m):])
+				}
+				expr := fmt.Sprintf("D20%s%s", m, restText)
+				r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
+				if err != nil {
+					ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 
-					var a, b int64
-					switch m[1] {
-					case "s", "S", "成功":
-						a, b = deathSaving(mctx, v, 0)
-					case "f", "F", "失败":
-						a, b = deathSaving(mctx, 0, v)
-					}
-					text := fmt.Sprintf("<%s>当前的死亡豁免情况: 成功%d 失败%d", mctx.Player.Name, a, b)
+				d20, ok := r.ReadInt64()
+				if !ok {
+					ReplyToSender(mctx, msg, "并非数值类型: "+r.Matched)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				if d20 == 20 {
+					deathSavingStable(mctx)
+					VarSetValueInt64(mctx, "hp", 1)
+					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_D20_附加语")
+					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix))
+				} else if d20 == 1 {
+					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_D1_附加语")
+					text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
+					a, b := deathSaving(mctx, 0, 2)
 					exText := deathSavingResultCheck(mctx, a, b)
 					if exText != "" {
 						text += "\n" + exText
 					}
-
+					text += fmt.Sprintf("\n当前情况: 成功%d 失败%d", a, b)
 					ReplyToSender(mctx, msg, text)
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				val, _ := cmdArgs.GetArgN(1)
-				switch val {
-				case "stat":
-					a, b := deathSaving(mctx, 0, 0)
-					text := fmt.Sprintf("<%s>当前的死亡豁免情况: 成功%d 失败%d", mctx.Player.Name, a, b)
+				} else if d20 >= 10 {
+					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_成功_附加语")
+					text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
+					a, b := deathSaving(mctx, 1, 0)
+					exText := deathSavingResultCheck(mctx, a, b)
+					if exText != "" {
+						text += "\n" + exText
+					}
+					text += fmt.Sprintf("\n当前情况: 成功%d 失败%d", a, b)
 					ReplyToSender(mctx, msg, text)
-				case "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				case "":
-					fallthrough
-				default:
-					hp, exists := VarGetValueInt64(mctx, "hp")
-					if !exists {
-						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>未设置生命值，无法进行死亡豁免检定。`, mctx.Player.Name))
-						return CmdExecuteResult{Matched: true, Solved: true}
+				} else {
+					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_失败_附加语")
+					text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
+					a, b := deathSaving(mctx, 0, 1)
+					exText := deathSavingResultCheck(mctx, a, b)
+					if exText != "" {
+						text += "\n" + exText
 					}
-					if hp > 0 {
-						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>生命值大于0(当前为%d)，无法进行死亡豁免检定。`, mctx.Player.Name, hp))
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					restText := cmdArgs.CleanArgs
-					re := regexp.MustCompile(`^优势|劣势`)
-					m := re.FindString(restText)
-					if m != "" {
-						restText = strings.TrimSpace(restText[len(m):])
-					}
-					expr := fmt.Sprintf("D20%s%s", m, restText)
-					r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
-					if err != nil {
-						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					d20, ok := r.ReadInt64()
-					if !ok {
-						ReplyToSender(mctx, msg, "并非数值类型: "+r.Matched)
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					if d20 == 20 {
-						deathSavingStable(mctx)
-						VarSetValueInt64(mctx, "hp", 1)
-						suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_D20_附加语")
-						ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix))
-					} else if d20 == 1 {
-						suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_D1_附加语")
-						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
-						a, b := deathSaving(mctx, 0, 2)
-						exText := deathSavingResultCheck(mctx, a, b)
-						if exText != "" {
-							text += "\n" + exText
-						}
-						text += fmt.Sprintf("\n当前情况: 成功%d 失败%d", a, b)
-						ReplyToSender(mctx, msg, text)
-					} else if d20 >= 10 {
-						suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_成功_附加语")
-						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
-						a, b := deathSaving(mctx, 1, 0)
-						exText := deathSavingResultCheck(mctx, a, b)
-						if exText != "" {
-							text += "\n" + exText
-						}
-						text += fmt.Sprintf("\n当前情况: 成功%d 失败%d", a, b)
-						ReplyToSender(mctx, msg, text)
-					} else {
-						suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_失败_附加语")
-						text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
-						a, b := deathSaving(mctx, 0, 1)
-						exText := deathSavingResultCheck(mctx, a, b)
-						if exText != "" {
-							text += "\n" + exText
-						}
-						text += fmt.Sprintf("\n当前情况: 成功%d 失败%d", a, b)
-						ReplyToSender(mctx, msg, text)
-					}
+					text += fmt.Sprintf("\n当前情况: 成功%d 失败%d", a, b)
+					ReplyToSender(mctx, msg, text)
 				}
-				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -1468,65 +1456,58 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		ShortHelp: helpDnd,
 		Help:      "DND5E制卡指令:\n" + helpDnd,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
-
-				isMode2 := cmdArgs.Command == "dndx"
-				n, _ := cmdArgs.GetArgN(1)
-				val, err := strconv.ParseInt(n, 10, 64)
-				if err != nil {
-					// 数量不存在时，视为1次
-					val = 1
-				}
-				if val > 10 {
-					val = 10
-				}
-				var i int64
-
-				var ss []string
-				for i = 0; i < val; i++ {
-					if isMode2 {
-						result, _, err := self.ExprText(`力量:{$t1=4d6k3} 体质:{$t2=4d6k3} 敏捷:{$t3=4d6k3} 智力:{$t4=4d6k3} 感知:{$t5=4d6k3} 魅力:{$t6=4d6k3} 共计:{$tT=$t1+$t2+$t3+$t4+$t5+$t6}`, ctx)
-						if err != nil {
-							break
-						}
-						result = strings.ReplaceAll(result, `\n`, "\n")
-						ss = append(ss, result)
-					} else {
-						result, _, err := self.ExprText(`{4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}`, ctx)
-						if err != nil {
-							break
-						}
-
-						var nums Int64SliceDesc
-						total := int64(0)
-						for _, i := range strings.Split(result, ", ") {
-							val, _ := strconv.ParseInt(i, 10, 64)
-							nums = append(nums, val)
-							total += val
-						}
-						sort.Sort(nums)
-
-						items := []string{}
-						for _, i := range nums {
-							items = append(items, strconv.FormatInt(i, 10))
-						}
-
-						ret := fmt.Sprintf("[%s] = %d", strings.Join(items, ", "), total)
-						ss = append(ss, ret)
-					}
-				}
-				info := strings.Join(ss, "\n")
-				if isMode2 {
-					ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的DnD5e人物作成(预设模式):\n%s\n自由分配模式请用.dnd", ctx.Player.Name, info))
-				} else {
-					ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的DnD5e人物作成(自由分配模式):\n%s\n获取带属性名的预设请用.dndx", ctx.Player.Name, info))
-				}
-				return CmdExecuteResult{Matched: true, Solved: true}
+			isMode2 := cmdArgs.Command == "dndx"
+			n, _ := cmdArgs.GetArgN(1)
+			val, err := strconv.ParseInt(n, 10, 64)
+			if err != nil {
+				// 数量不存在时，视为1次
+				val = 1
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			if val > 10 {
+				val = 10
+			}
+			var i int64
+
+			var ss []string
+			for i = 0; i < val; i++ {
+				if isMode2 {
+					result, _, err := self.ExprText(`力量:{$t1=4d6k3} 体质:{$t2=4d6k3} 敏捷:{$t3=4d6k3} 智力:{$t4=4d6k3} 感知:{$t5=4d6k3} 魅力:{$t6=4d6k3} 共计:{$tT=$t1+$t2+$t3+$t4+$t5+$t6}`, ctx)
+					if err != nil {
+						break
+					}
+					result = strings.ReplaceAll(result, `\n`, "\n")
+					ss = append(ss, result)
+				} else {
+					result, _, err := self.ExprText(`{4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}`, ctx)
+					if err != nil {
+						break
+					}
+
+					var nums Int64SliceDesc
+					total := int64(0)
+					for _, i := range strings.Split(result, ", ") {
+						val, _ := strconv.ParseInt(i, 10, 64)
+						nums = append(nums, val)
+						total += val
+					}
+					sort.Sort(nums)
+
+					items := []string{}
+					for _, i := range nums {
+						items = append(items, strconv.FormatInt(i, 10))
+					}
+
+					ret := fmt.Sprintf("[%s] = %d", strings.Join(items, ", "), total)
+					ss = append(ss, ret)
+				}
+			}
+			info := strings.Join(ss, "\n")
+			if isMode2 {
+				ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的DnD5e人物作成(预设模式):\n%s\n自由分配模式请用.dnd", ctx.Player.Name, info))
+			} else {
+				ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的DnD5e人物作成(自由分配模式):\n%s\n获取带属性名的预设请用.dndx", ctx.Player.Name, info))
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -1556,148 +1537,145 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 .ri +2 李四 // 格式3，值为D20+2
 .ri =D10+3 王五 // 格式4，值为D10+3
 .ri 张三, +2 李四, =D10+3 王五 // 设置全部`,
+				AllowDelegate: true,
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-						text := cmdArgs.CleanArgs
-						mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+					text := cmdArgs.CleanArgs
+					mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
-						if cmdArgs.IsArgEqual(1, "help") {
-							return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+					if cmdArgs.IsArgEqual(1, "help") {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+					}
+
+					readOne := func() (int, string, int64, string) {
+						text = strings.TrimSpace(text)
+						var name string
+						var val int64
+						var detail string
+						var exprExists bool
+
+						// 遇到加值
+						if strings.HasPrefix(text, "+") {
+							// 加值情况1，D20+
+							r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
+							if err != nil {
+								// 情况1，加值输入错误
+								return 1, name, val, detail
+							}
+							detail = _detail
+							val = r.Value.(int64)
+							text = r.restInput
+							exprExists = true
+						} else if strings.HasPrefix(text, "-") {
+							// 加值情况1.1，D20-
+							r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
+							if err != nil {
+								// 情况1，加值输入错误
+								return 1, name, val, detail
+							}
+							detail = _detail
+							val = r.Value.(int64)
+							text = r.restInput
+							exprExists = true
+						} else if strings.HasPrefix(text, "=") {
+							// 加值情况1，=表达式
+							r, _, err := ctx.Dice.ExprEvalBase(text[1:], mctx, RollExtraFlags{})
+							if err != nil {
+								// 情况1，加值输入错误
+								return 1, name, val, detail
+							}
+							val = r.Value.(int64)
+							text = r.restInput
+							exprExists = true
+						} else {
+							// 加值情况3，数字
+							reNum := regexp.MustCompile(`^(\d+)`)
+							m := reNum.FindStringSubmatch(text)
+							if len(m) > 0 {
+								val, _ = strconv.ParseInt(m[0], 10, 64)
+								text = text[len(m[0]):]
+								exprExists = true
+							}
 						}
 
-						readOne := func() (int, string, int64, string) {
-							text = strings.TrimSpace(text)
-							var name string
-							var val int64
-							var detail string
-							var exprExists bool
+						// 清理读取了第一项文本之后的空格
+						text = strings.TrimSpace(text)
 
-							// 遇到加值
-							if strings.HasPrefix(text, "+") {
-								// 加值情况1，D20+
-								r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
-								if err != nil {
-									// 情况1，加值输入错误
-									return 1, name, val, detail
-								}
-								detail = _detail
-								val = r.Value.(int64)
-								text = r.restInput
-								exprExists = true
-							} else if strings.HasPrefix(text, "-") {
-								// 加值情况1.1，D20-
-								r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
-								if err != nil {
-									// 情况1，加值输入错误
-									return 1, name, val, detail
-								}
-								detail = _detail
-								val = r.Value.(int64)
-								text = r.restInput
-								exprExists = true
-							} else if strings.HasPrefix(text, "=") {
-								// 加值情况1，=表达式
-								r, _, err := ctx.Dice.ExprEvalBase(text[1:], mctx, RollExtraFlags{})
-								if err != nil {
-									// 情况1，加值输入错误
-									return 1, name, val, detail
-								}
-								val = r.Value.(int64)
-								text = r.restInput
-								exprExists = true
-							} else {
-								// 加值情况3，数字
-								reNum := regexp.MustCompile(`^(\d+)`)
-								m := reNum.FindStringSubmatch(text)
-								if len(m) > 0 {
-									val, _ = strconv.ParseInt(m[0], 10, 64)
-									text = text[len(m[0]):]
-									exprExists = true
-								}
+						if strings.HasPrefix(text, ",") || strings.HasPrefix(text, "，") || text == "" {
+							if strings.HasPrefix(text, ",") {
+								// 句末有,的话，吃掉
+								text = text[1:]
 							}
-
-							// 清理读取了第一项文本之后的空格
-							text = strings.TrimSpace(text)
-
-							if strings.HasPrefix(text, ",") || strings.HasPrefix(text, "，") || text == "" {
-								if strings.HasPrefix(text, ",") {
-									// 句末有,的话，吃掉
-									text = text[1:]
-								}
-								if strings.HasPrefix(text, "，") {
-									text = text[len("，"):]
-								}
-								// 情况1，名字是自己
-								name = mctx.Player.Name
-								// 情况2，名字是自己，没有加值
-								if !exprExists {
-									val = DiceRoll64(20)
-								}
-								return 0, name, val, detail
+							if strings.HasPrefix(text, "，") {
+								text = text[len("，"):]
 							}
-
-							// 情况3: 是名字
-							reName := regexp.MustCompile(`^([^\s\d,，][^\s,，]*)\s*[,，]?`)
-							m := reName.FindStringSubmatch(text)
-							if len(m) > 0 {
-								name = m[1]
-								text = text[len(m[0]):]
-								if !exprExists {
-									val = DiceRoll64(20)
-								}
-							} else {
-								// 不知道是啥，报错
-								return 2, name, val, detail
+							// 情况1，名字是自己
+							name = mctx.Player.Name
+							// 情况2，名字是自己，没有加值
+							if !exprExists {
+								val = DiceRoll64(20)
 							}
-
 							return 0, name, val, detail
 						}
 
-						solved := true
-						tryOnce := true
-						var items []struct {
+						// 情况3: 是名字
+						reName := regexp.MustCompile(`^([^\s\d,，][^\s,，]*)\s*[,，]?`)
+						m := reName.FindStringSubmatch(text)
+						if len(m) > 0 {
+							name = m[1]
+							text = text[len(m[0]):]
+							if !exprExists {
+								val = DiceRoll64(20)
+							}
+						} else {
+							// 不知道是啥，报错
+							return 2, name, val, detail
+						}
+
+						return 0, name, val, detail
+					}
+
+					solved := true
+					tryOnce := true
+					var items []struct {
+						name   string
+						val    int64
+						detail string
+					}
+
+					for tryOnce || text != "" {
+						code, name, val, detail := readOne()
+						items = append(items, struct {
 							name   string
 							val    int64
 							detail string
+						}{name, val, detail})
+
+						if code != 0 {
+							solved = false
+							break
 						}
-
-						for tryOnce || text != "" {
-							code, name, val, detail := readOne()
-							items = append(items, struct {
-								name   string
-								val    int64
-								detail string
-							}{name, val, detail})
-
-							if code != 0 {
-								solved = false
-								break
-							}
-							tryOnce = false
-						}
-
-						if solved {
-							riMap := dndGetRiMapList(ctx)
-							textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
-
-							for order, i := range items {
-								var detail string
-								riMap[i.name] = i.val
-								if i.detail != "" {
-									detail = i.detail + "="
-								}
-								textOut += fmt.Sprintf("%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
-							}
-
-							dndSetRiMapList(mctx, riMap)
-							ReplyToSender(ctx, msg, textOut)
-						} else {
-							ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "DND:先攻_设置_格式错误"))
-						}
-						return CmdExecuteResult{Matched: true, Solved: solved}
+						tryOnce = false
 					}
 
-					return CmdExecuteResult{Matched: true, Solved: false}
+					if solved {
+						riMap := dndGetRiMapList(ctx)
+						textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
+
+						for order, i := range items {
+							var detail string
+							riMap[i.name] = i.val
+							if i.detail != "" {
+								detail = i.detail + "="
+							}
+							textOut += fmt.Sprintf("%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
+						}
+
+						dndSetRiMapList(mctx, riMap)
+						ReplyToSender(ctx, msg, textOut)
+					} else {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "DND:先攻_设置_格式错误"))
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
 				},
 			},
 			"init": &CmdItemInfo{
@@ -1708,90 +1686,83 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					".init clr // 清除先攻列表\n" +
 					".init help // 显示本帮助",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-						if cmdArgs.SomeoneBeMentionedButNotMe {
-							return CmdExecuteResult{Matched: false, Solved: false}
+					cmdArgs.ChopPrefixToArgsWith("del", "set", "rm")
+					n, _ := cmdArgs.GetArgN(1)
+					switch n {
+					case "", "list":
+						textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
+						riMap := dndGetRiMapList(ctx)
+
+						var lst ByRIListValue
+						for k, v := range riMap {
+							lst = append(lst, &RIListItem{k, v})
 						}
 
-						cmdArgs.ChopPrefixToArgsWith("del", "set", "rm")
-						n, _ := cmdArgs.GetArgN(1)
-						switch n {
-						case "", "list":
-							textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
-							riMap := dndGetRiMapList(ctx)
-
-							var lst ByRIListValue
-							for k, v := range riMap {
-								lst = append(lst, &RIListItem{k, v})
-							}
-
-							sort.Sort(lst)
-							for order, i := range lst {
-								textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i.name, i.val)
-							}
-
-							if len(lst) == 0 {
-								textOut += "- 没有找到任何单位"
-							}
-
-							ReplyToSender(ctx, msg, textOut)
-						case "del", "rm":
-							names := cmdArgs.Args[1:]
-							riMap := dndGetRiMapList(ctx)
-							deleted := []string{}
-							for _, i := range names {
-								_, exists := riMap[i]
-								if exists {
-									deleted = append(deleted, i)
-									delete(riMap, i)
-								}
-							}
-							textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
-							for order, i := range deleted {
-								textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i)
-							}
-							if len(deleted) == 0 {
-								textOut += "- 没有找到任何单位"
-							}
-
-							dndSetRiMapList(ctx, riMap)
-							ReplyToSender(ctx, msg, textOut)
-						case "set":
-							name, exists := cmdArgs.GetArgN(2)
-							_, exists2 := cmdArgs.GetArgN(3)
-							if !exists || !exists2 {
-								ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
-
-							expr := strings.Join(cmdArgs.Args[2:], "")
-							r, _detail, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{})
-							if err != nil || r.TypeId != VMTypeInt64 {
-								ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
-
-							riMap := dndGetRiMapList(ctx)
-							riMap[name] = r.Value.(int64)
-
-							VarSetValueStr(ctx, "$t表达式", fmt.Sprintf("%s", expr))
-							VarSetValueStr(ctx, "$t目标", fmt.Sprintf("%s", name))
-							VarSetValueStr(ctx, "$t计算过程", fmt.Sprintf("%s", _detail))
-							VarSetValue(ctx, "$t点数", &r.VMValue)
-							textOut := DiceFormatTmpl(ctx, "DND:先攻_设置_指定单位")
-
-							dndSetRiMapList(ctx, riMap)
-							ReplyToSender(ctx, msg, textOut)
-						case "clr", "clear":
-							dndClearRiMapList(ctx)
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
-						case "help":
-							return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+						sort.Sort(lst)
+						for order, i := range lst {
+							textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i.name, i.val)
 						}
 
-						return CmdExecuteResult{Matched: true, Solved: true}
+						if len(lst) == 0 {
+							textOut += "- 没有找到任何单位"
+						}
+
+						ReplyToSender(ctx, msg, textOut)
+					case "del", "rm":
+						names := cmdArgs.Args[1:]
+						riMap := dndGetRiMapList(ctx)
+						deleted := []string{}
+						for _, i := range names {
+							_, exists := riMap[i]
+							if exists {
+								deleted = append(deleted, i)
+								delete(riMap, i)
+							}
+						}
+						textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
+						for order, i := range deleted {
+							textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i)
+						}
+						if len(deleted) == 0 {
+							textOut += "- 没有找到任何单位"
+						}
+
+						dndSetRiMapList(ctx, riMap)
+						ReplyToSender(ctx, msg, textOut)
+					case "set":
+						name, exists := cmdArgs.GetArgN(2)
+						_, exists2 := cmdArgs.GetArgN(3)
+						if !exists || !exists2 {
+							ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
+						expr := strings.Join(cmdArgs.Args[2:], "")
+						r, _detail, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{})
+						if err != nil || r.TypeId != VMTypeInt64 {
+							ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
+						riMap := dndGetRiMapList(ctx)
+						riMap[name] = r.Value.(int64)
+
+						VarSetValueStr(ctx, "$t表达式", fmt.Sprintf("%s", expr))
+						VarSetValueStr(ctx, "$t目标", fmt.Sprintf("%s", name))
+						VarSetValueStr(ctx, "$t计算过程", fmt.Sprintf("%s", _detail))
+						VarSetValue(ctx, "$t点数", &r.VMValue)
+						textOut := DiceFormatTmpl(ctx, "DND:先攻_设置_指定单位")
+
+						dndSetRiMapList(ctx, riMap)
+						ReplyToSender(ctx, msg, textOut)
+					case "clr", "clear":
+						dndClearRiMapList(ctx)
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
+					case "help":
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
-					return CmdExecuteResult{Matched: true, Solved: false}
+
+					return CmdExecuteResult{Matched: true, Solved: true}
 				},
 			},
 			//"属性":    cmdSt,
