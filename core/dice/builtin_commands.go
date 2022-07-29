@@ -141,8 +141,7 @@ func (d *Dice) registerCoreCommands() {
 		// 写不下了
 		// + "\n注: 默认搭载的《怪物之锤查询》来自蜜瓜包、October整理\n默认搭载的COC《魔法大典》来自魔骨，NULL，Dr.Amber整理\n默认搭载的DND系列文档来自DicePP项目"
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
-			if AtSomebodyButNotMe {
+			if cmdArgs.SomeoneBeMentionedButNotMeStrict {
 				return CmdExecuteResult{Matched: false, Solved: false}
 			}
 
@@ -544,69 +543,66 @@ func (d *Dice) registerCoreCommands() {
 			}
 			cmdArgs.ChopPrefixToArgsWith("add", "rm", "del", "show", "list")
 
-			if ctx.IsCurGroupBotOn {
-				notMe := cmdArgs.SomeoneBeMentionedButNotMe
-				checkSlience := func() bool {
-					return notMe || cmdArgs.GetKwarg("s") != nil ||
-						cmdArgs.GetKwarg("slience") != nil
-				}
-
-				subCmd, _ := cmdArgs.GetArgN(1)
-				switch subCmd {
-				case "add":
-					existsCount := 0
-					newCount := 0
-					for _, uid := range readIdList(ctx, msg, cmdArgs) {
-						if ctx.Group.BotList[uid] {
-							existsCount += 1
-						} else {
-							ctx.Group.BotList[uid] = true
-							newCount += 1
-						}
-					}
-
-					if !checkSlience() {
-						ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d个帐号，这些账号将被视为机器人。\n因此他们被人@，或主动发出指令时，海豹将不会回复。\n另外对于botlist add/rm，如果群里有多个海豹，只有第一个被@的会回复，其余的执行指令但不回应", newCount))
-					}
-					return CmdExecuteResult{Matched: true, Solved: true}
-				case "del", "rm":
-					existsCount := 0
-					for _, uid := range readIdList(ctx, msg, cmdArgs) {
-						if ctx.Group.BotList[uid] {
-							existsCount += 1
-							delete(ctx.Group.BotList, uid)
-						}
-					}
-
-					if !checkSlience() {
-						ReplyToSender(ctx, msg, fmt.Sprintf("删除标记了%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount))
-					}
-					return CmdExecuteResult{Matched: true, Solved: true}
-				case "list", "show":
-					if cmdArgs.SomeoneBeMentionedButNotMeStrict {
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					text := ""
-					for i, _ := range ctx.Group.BotList {
-						text += "- " + i + "\n"
-					}
-					if text == "" {
-						text = "无"
-					}
-					ReplyToSender(ctx, msg, fmt.Sprintf("群内其他机器人列表:\n%s", text))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				default:
-					if cmdArgs.SomeoneBeMentionedButNotMeStrict {
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				}
-			} else if ctx.IsPrivate {
-				ReplyToSender(ctx, msg, fmt.Sprintf("私聊中不支持这个指令"))
+			checkSlience := func() bool {
+				return cmdArgs.SomeoneBeMentionedButNotMeStrict || cmdArgs.GetKwarg("s") != nil ||
+					cmdArgs.GetKwarg("slience") != nil
 			}
 
-			return CmdExecuteResult{Matched: true, Solved: false}
+			subCmd, _ := cmdArgs.GetArgN(1)
+			switch subCmd {
+			case "add":
+				allCount := 0
+				existsCount := 0
+				newCount := 0
+				for _, uid := range readIdList(ctx, msg, cmdArgs) {
+					allCount += 1
+					if ctx.Group.BotList[uid] {
+						existsCount += 1
+					} else {
+						ctx.Group.BotList[uid] = true
+						newCount += 1
+					}
+				}
+
+				if !checkSlience() {
+					ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d/%d个帐号，这些账号将被视为机器人。\n因此他们被人@，或主动发出指令时，海豹将不会回复。\n另外对于botlist add/rm，如果群里有多个海豹，只有第一个被@的会回复，其余的执行指令但不回应", newCount, allCount))
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			case "del", "rm":
+				allCount := 0
+				existsCount := 0
+				for _, uid := range readIdList(ctx, msg, cmdArgs) {
+					allCount += 1
+					if ctx.Group.BotList[uid] {
+						existsCount += 1
+						delete(ctx.Group.BotList, uid)
+					}
+				}
+
+				if !checkSlience() {
+					ReplyToSender(ctx, msg, fmt.Sprintf("删除标记了%d/%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount, allCount))
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			case "list", "show":
+				if cmdArgs.SomeoneBeMentionedButNotMeStrict {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				text := ""
+				for i, _ := range ctx.Group.BotList {
+					text += "- " + i + "\n"
+				}
+				if text == "" {
+					text = "无"
+				}
+				ReplyToSender(ctx, msg, fmt.Sprintf("群内其他机器人列表:\n%s", text))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			default:
+				if cmdArgs.SomeoneBeMentionedButNotMeStrict {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 		},
 	}
 	d.CmdMap["botlist"] = cmdBotList
@@ -1015,7 +1011,8 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				//isHide := cmdArgs.Command == "rh" || cmdArgs.Command == "rhd"
-				isHide := cmdArgs.Command[len(cmdArgs.Command)-1] == 'h'
+				//isHide := cmdArgs.Command[len(cmdArgs.Command)-1] == 'h'
+				isHide := strings.Contains(cmdArgs.Command, "h")
 
 				// 指令信息
 				commandInfo := map[string]interface{}{
