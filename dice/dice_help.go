@@ -111,7 +111,10 @@ func (m *HelpManager) loadSearchEngine() {
 
 func (m *HelpManager) Close() {
 	if m.EngineType == 0 {
-		m.Index.Close()
+		if m.Index != nil {
+			m.Index.Close()
+			m.Index = nil
+		}
 	}
 }
 

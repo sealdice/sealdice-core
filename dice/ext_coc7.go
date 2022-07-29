@@ -1267,6 +1267,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 							}
 
+							if ctx.Player.AutoSetNameTemplate != "" {
+								_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+							}
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:技能成长"))
 							return CmdExecuteResult{Matched: true, Solved: true}
 						} else {
@@ -1638,6 +1641,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							}
 
 							ReplyToSender(mctx, msg, text)
+						}
+
+						if ctx.Player.AutoSetNameTemplate != "" {
+							_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 						}
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
