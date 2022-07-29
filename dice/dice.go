@@ -31,13 +31,16 @@ type CmdExecuteResult struct {
 }
 
 type CmdItemInfo struct {
-	Name      string
-	Solve     func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult
-	ShortHelp string // 短帮助，格式是 .xxx a b // 说明
-	Help      string // 长帮助，带换行的较详细说明
+	Name              string
+	Solve             func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult
+	ShortHelp         string // 短帮助，格式是 .xxx a b // 说明
+	Help              string // 长帮助，带换行的较详细说明
+	AllowDelegate     bool   // 允许代骰
+	DisabledInPrivate bool   // 私聊不可用
 	//Keywords []string // 其他帮助关键字
-	ChopWords []string
+	//ChopWords     []string
 
+	Raw                bool // 高级模式。默认模式下行为是：需要在当前群/私聊开启，或@自己时生效(需要为第一个@目标)
 	CheckCurrentBotOn  bool // 是否检查当前可用状况，包括群内可用和是私聊两种方式，如失败不进入solve
 	CheckMentionOthers bool // 是否检查@了别的骰子，如失败不进入solve
 	// 允许代骰选项

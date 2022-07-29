@@ -144,255 +144,248 @@ func RegisterBuiltinExtLog(self *Dice) {
 		ShortHelp: helpLog,
 		Help:      "日志指令:\n" + helpLog,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
+			group := ctx.Group
+			cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
+
+			groupNotActiveCheck := func() bool {
+				if !group.IsActive(ctx) {
+					ReplyToSender(ctx, msg, "未开启时不会记录日志，请先.bot on")
+					return true
+				}
+				return false
+			}
+
+			if len(cmdArgs.Args) == 0 {
+				onText := "关闭"
+				if group.LogOn {
+					onText = "开启"
+				}
+				lines, _ := LogLinesGet(ctx, group, group.LogCurName)
+				text := fmt.Sprintf("当前故事: %s\n当前状态: %s\n已记录文本%d条", group.LogCurName, onText, lines)
+				ReplyToSender(ctx, msg, text)
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			if cmdArgs.IsArgEqual(1, "on") {
+				if ctx.IsPrivate {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				group := ctx.Group
-				cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
-
-				groupNotActiveCheck := func() bool {
-					if !group.IsActive(ctx) {
-						ReplyToSender(ctx, msg, "未开启时不会记录日志，请先.bot on")
-						return true
-					}
-					return false
+				name, _ := cmdArgs.GetArgN(2)
+				if name == "" {
+					name = group.LogCurName
 				}
 
-				if len(cmdArgs.Args) == 0 {
-					onText := "关闭"
-					if group.LogOn {
-						onText = "开启"
-					}
-					lines, _ := LogLinesGet(ctx, group, group.LogCurName)
-					text := fmt.Sprintf("当前故事: %s\n当前状态: %s\n已记录文本%d条", group.LogCurName, onText, lines)
-					ReplyToSender(ctx, msg, text)
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
+				if name != "" {
+					lines, exists := LogLinesGet(ctx, group, name)
 
-				if cmdArgs.IsArgEqual(1, "on") {
-					if ctx.IsPrivate {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					name, _ := cmdArgs.GetArgN(2)
-					if name == "" {
-						name = group.LogCurName
-					}
-
-					if name != "" {
-						lines, exists := LogLinesGet(ctx, group, name)
-
-						if exists {
-							if groupNotActiveCheck() {
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
-
-							group.LogOn = true
-							group.LogCurName = name
-
-							VarSetValueStr(ctx, "$t记录名称", name)
-							VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_成功"))
-						} else {
-							VarSetValueStr(ctx, "$t记录名称", name)
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_无此记录"))
-						}
-					} else {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_尚未新建"))
-					}
-					return CmdExecuteResult{Matched: true, Solved: true}
-				} else if cmdArgs.IsArgEqual(1, "off") {
-					if group.LogCurName != "" {
-						group.LogOn = false
-						lines, _ := LogLinesGet(ctx, group, group.LogCurName)
-						VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
-						VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_成功"))
-					} else {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
-					}
-					return CmdExecuteResult{Matched: true, Solved: true}
-				} else if cmdArgs.IsArgEqual(1, "del", "rm") {
-					name, _ := cmdArgs.GetArgN(2)
-					if name != "" {
-						if name == group.LogCurName {
-							ReplyToSender(ctx, msg, "不能删除正在进行的log，请用log new开启新的，或log end结束后再行删除")
-						} else {
-							ok := LogDelete(ctx, group, name)
-							if ok {
-								ReplyToSender(ctx, msg, "删除log成功")
-							} else {
-								ReplyToSender(ctx, msg, "删除log失败，可能是名字不对？")
-							}
-						}
-					} else {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-					}
-					return CmdExecuteResult{Matched: true, Solved: true}
-				} else if cmdArgs.IsArgEqual(1, "masterget") {
-					newGroup, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
-					if requestForAnotherGroup {
-						if newGroup == nil {
+					if exists {
+						if groupNotActiveCheck() {
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-						group = newGroup
-					}
 
-					bakLogCurName := group.LogCurName
-					if newName, exists := cmdArgs.GetArgN(3); exists {
-						if exists {
-							group.LogCurName = newName
-						}
-					}
+						group.LogOn = true
+						group.LogCurName = name
 
-					if group.LogCurName != "" {
-						fn := LogSendToBackend(ctx, group)
-						if fn == "" {
-							ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
-						} else {
-							ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
-							time.Sleep(time.Duration(0.3 * float64(time.Second)))
-							ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
-						}
+						VarSetValueStr(ctx, "$t记录名称", name)
+						VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_成功"))
+					} else {
+						VarSetValueStr(ctx, "$t记录名称", name)
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_无此记录"))
 					}
-					group.LogCurName = bakLogCurName
-					return CmdExecuteResult{Matched: true, Solved: true}
-				} else if cmdArgs.IsArgEqual(1, "get") {
-					bakLogCurName := group.LogCurName
-					if newName, exists := cmdArgs.GetArgN(2); exists {
-						if exists {
-							group.LogCurName = newName
-						}
-					}
-
-					if group.LogCurName != "" {
-						fn := LogSendToBackend(ctx, group)
-						if fn == "" {
-							ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
-						} else {
-							ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
-							time.Sleep(time.Duration(0.3 * float64(time.Second)))
-							ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
-						}
-					}
-					group.LogCurName = bakLogCurName
-					return CmdExecuteResult{Matched: true, Solved: true}
-				} else if cmdArgs.IsArgEqual(1, "end") {
-					text := DiceFormatTmpl(ctx, "日志:记录_结束")
-					ReplyToSender(ctx, msg, text)
+				} else {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_尚未新建"))
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "off") {
+				if group.LogCurName != "" {
 					group.LogOn = false
+					lines, _ := LogLinesGet(ctx, group, group.LogCurName)
+					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
+					VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_成功"))
+				} else {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
+				name, _ := cmdArgs.GetArgN(2)
+				if name != "" {
+					if name == group.LogCurName {
+						ReplyToSender(ctx, msg, "不能删除正在进行的log，请用log new开启新的，或log end结束后再行删除")
+					} else {
+						ok := LogDelete(ctx, group, name)
+						if ok {
+							ReplyToSender(ctx, msg, "删除log成功")
+						} else {
+							ReplyToSender(ctx, msg, "删除log失败，可能是名字不对？")
+						}
+					}
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "masterget") {
+				newGroup, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
+				if requestForAnotherGroup {
+					if newGroup == nil {
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					group = newGroup
+				}
 
-					time.Sleep(time.Duration(0.3 * float64(time.Second)))
+				bakLogCurName := group.LogCurName
+				if newName, exists := cmdArgs.GetArgN(3); exists {
+					if exists {
+						group.LogCurName = newName
+					}
+				}
+
+				if group.LogCurName != "" {
 					fn := LogSendToBackend(ctx, group)
 					if fn == "" {
-						text := fmt.Sprintf("跑团日志上传失败，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
-						ReplyToSenderRaw(ctx, msg, text, "skip")
+						ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 					} else {
 						ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
 						time.Sleep(time.Duration(0.3 * float64(time.Second)))
 						ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 					}
-					group.LogCurName = ""
-					return CmdExecuteResult{Matched: true, Solved: true}
-				} else if cmdArgs.IsArgEqual(1, "halt") {
-					text := DiceFormatTmpl(ctx, "日志:记录_结束")
-					ReplyToSender(ctx, msg, text)
-					group.LogOn = false
-					group.LogCurName = ""
-					return CmdExecuteResult{Matched: true, Solved: true}
-				} else if cmdArgs.IsArgEqual(1, "list") {
-					newGroup, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
-					if requestForAnotherGroup {
-						if newGroup == nil {
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-						group = newGroup
+				}
+				group.LogCurName = bakLogCurName
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "get") {
+				bakLogCurName := group.LogCurName
+				if newName, exists := cmdArgs.GetArgN(2); exists {
+					if exists {
+						group.LogCurName = newName
 					}
+				}
 
-					text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
-					lst, err := LogGetList(ctx, group)
-					if err == nil {
-						for _, i := range lst {
-							text += "- " + i + "\n"
-						}
-						if len(lst) == 0 {
-							text += "暂无记录"
-						}
+				if group.LogCurName != "" {
+					fn := LogSendToBackend(ctx, group)
+					if fn == "" {
+						ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 					} else {
-						text += "获取记录出错，请联系骰主查看服务日志"
+						ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
+						time.Sleep(time.Duration(0.3 * float64(time.Second)))
+						ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 					}
-					ReplyToSender(ctx, msg, text)
+				}
+				group.LogCurName = bakLogCurName
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "end") {
+				text := DiceFormatTmpl(ctx, "日志:记录_结束")
+				ReplyToSender(ctx, msg, text)
+				group.LogOn = false
+
+				time.Sleep(time.Duration(0.3 * float64(time.Second)))
+				fn := LogSendToBackend(ctx, group)
+				if fn == "" {
+					text := fmt.Sprintf("跑团日志上传失败，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成")
+					ReplyToSenderRaw(ctx, msg, text, "skip")
+				} else {
+					ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
+					time.Sleep(time.Duration(0.3 * float64(time.Second)))
+					ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
+				}
+				group.LogCurName = ""
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "halt") {
+				text := DiceFormatTmpl(ctx, "日志:记录_结束")
+				ReplyToSender(ctx, msg, text)
+				group.LogOn = false
+				group.LogCurName = ""
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "list") {
+				newGroup, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
+				if requestForAnotherGroup {
+					if newGroup == nil {
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					group = newGroup
+				}
+
+				text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
+				lst, err := LogGetList(ctx, group)
+				if err == nil {
+					for _, i := range lst {
+						text += "- " + i + "\n"
+					}
+					if len(lst) == 0 {
+						text += "暂无记录"
+					}
+				} else {
+					text += "获取记录出错，请联系骰主查看服务日志"
+				}
+				ReplyToSender(ctx, msg, text)
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "new") {
+				if ctx.IsPrivate {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 					return CmdExecuteResult{Matched: true, Solved: true}
-				} else if cmdArgs.IsArgEqual(1, "new") {
-					if ctx.IsPrivate {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				}
+
+				name, _ := cmdArgs.GetArgN(2)
+
+				if group.LogCurName != "" && name == "" {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
+				} else {
+					if groupNotActiveCheck() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					name, _ := cmdArgs.GetArgN(2)
+					if name == "" {
+						todayTime := time.Now().Format("2006_01_02_15_04_05")
+						name = todayTime
+					}
+					VarSetValueStr(ctx, "$t记录名称", name)
 
-					if group.LogCurName != "" && name == "" {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
-					} else {
-						if groupNotActiveCheck() {
+					group.LogCurName = name
+					group.LogOn = true
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "stat") {
+				group := ctx.Group
+				_, name := getLogName(ctx, msg, cmdArgs, 2)
+				items, err := LogGetAllLinesWithoutDeleted(ctx, group, name)
+				if err == nil && len(items) > 0 {
+					//showDetail := cmdArgs.GetKwarg("detail")
+					var showDetail *Kwarg
+					showAll := cmdArgs.GetKwarg("all")
+
+					if showDetail != nil {
+						results := LogRollBriefDetail(items)
+
+						if len(results) > 0 {
+							ReplyToSender(ctx, msg, "统计结果如下:\n"+strings.Join(results, "\n"))
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-
-						if name == "" {
-							todayTime := time.Now().Format("2006_01_02_15_04_05")
-							name = todayTime
-						}
-						VarSetValueStr(ctx, "$t记录名称", name)
-
-						group.LogCurName = name
-						group.LogOn = true
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
-					}
-					return CmdExecuteResult{Matched: true, Solved: true}
-				} else if cmdArgs.IsArgEqual(1, "stat") {
-					group := ctx.Group
-					_, name := getLogName(ctx, msg, cmdArgs, 2)
-					items, err := LogGetAllLinesWithoutDeleted(ctx, group, name)
-					if err == nil && len(items) > 0 {
-						//showDetail := cmdArgs.GetKwarg("detail")
-						var showDetail *Kwarg
-						showAll := cmdArgs.GetKwarg("all")
-
-						if showDetail != nil {
-							results := LogRollBriefDetail(items)
-
-							if len(results) > 0 {
-								ReplyToSender(ctx, msg, "统计结果如下:\n"+strings.Join(results, "\n"))
-								return CmdExecuteResult{Matched: true, Solved: true}
+					} else {
+						isShowAll := showAll != nil
+						text := LogRollBriefByPC(items, isShowAll, ctx.Player.Name)
+						if text == "" {
+							if isShowAll {
+								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
+							} else {
+								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到角色<%s>的任何记录\n若需查看全团，请在指令后加 --all", ctx.Player.Name))
 							}
 						} else {
-							isShowAll := showAll != nil
-							text := LogRollBriefByPC(items, isShowAll, ctx.Player.Name)
-							if text == "" {
-								if isShowAll {
-									ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
-								} else {
-									ReplyToSender(ctx, msg, fmt.Sprintf("没有找到角色<%s>的任何记录\n若需查看全团，请在指令后加 --all", ctx.Player.Name))
-								}
-							} else {
-								if !isShowAll {
-									text += "\n\n若需查看全团，请在指令后加 --all"
-								}
-								ReplyToSender(ctx, msg, text)
+							if !isShowAll {
+								text += "\n\n若需查看全团，请在指令后加 --all"
 							}
-							return CmdExecuteResult{Matched: true, Solved: true}
+							ReplyToSender(ctx, msg, text)
 						}
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-					ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
-					return CmdExecuteResult{Matched: true, Solved: true}
-				} else {
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
+				ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
 		},
 	}
 
@@ -405,56 +398,49 @@ func RegisterBuiltinExtLog(self *Dice) {
 		ShortHelp: helpStat,
 		Help:      "查看统计:\n" + helpStat,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
-				}
+			val, _ := cmdArgs.GetArgN(1)
+			switch strings.ToLower(val) {
+			case "log":
+				group := ctx.Group
+				_, name := getLogName(ctx, msg, cmdArgs, 2)
+				items, err := LogGetAllLinesWithoutDeleted(ctx, group, name)
+				if err == nil && len(items) > 0 {
+					//showDetail := cmdArgs.GetKwarg("detail")
+					var showDetail *Kwarg
+					showAll := cmdArgs.GetKwarg("all")
 
-				val, _ := cmdArgs.GetArgN(1)
-				switch strings.ToLower(val) {
-				case "log":
-					group := ctx.Group
-					_, name := getLogName(ctx, msg, cmdArgs, 2)
-					items, err := LogGetAllLinesWithoutDeleted(ctx, group, name)
-					if err == nil && len(items) > 0 {
-						//showDetail := cmdArgs.GetKwarg("detail")
-						var showDetail *Kwarg
-						showAll := cmdArgs.GetKwarg("all")
+					if showDetail != nil {
+						results := LogRollBriefDetail(items)
 
-						if showDetail != nil {
-							results := LogRollBriefDetail(items)
-
-							if len(results) > 0 {
-								ReplyToSender(ctx, msg, "统计结果如下:\n"+strings.Join(results, "\n"))
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
-						} else {
-							isShowAll := showAll != nil
-							text := LogRollBriefByPC(items, isShowAll, ctx.Player.Name)
-							if text == "" {
-								if isShowAll {
-									ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
-								} else {
-									ReplyToSender(ctx, msg, fmt.Sprintf("没有找到角色<%s>的任何记录\n若需查看全团，请在指令后加 --all", ctx.Player.Name))
-								}
-							} else {
-								if !isShowAll {
-									text += "\n\n若需查看全团，请在指令后加 --all"
-								}
-								ReplyToSender(ctx, msg, text)
-							}
+						if len(results) > 0 {
+							ReplyToSender(ctx, msg, "统计结果如下:\n"+strings.Join(results, "\n"))
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
+					} else {
+						isShowAll := showAll != nil
+						text := LogRollBriefByPC(items, isShowAll, ctx.Player.Name)
+						if text == "" {
+							if isShowAll {
+								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
+							} else {
+								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到角色<%s>的任何记录\n若需查看全团，请在指令后加 --all", ctx.Player.Name))
+							}
+						} else {
+							if !isShowAll {
+								text += "\n\n若需查看全团，请在指令后加 --all"
+							}
+							ReplyToSender(ctx, msg, text)
+						}
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-					if err != nil || len(items) == 0 {
-						ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
-					}
-				default:
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
-				return CmdExecuteResult{Matched: true, Solved: true}
+				if err != nil || len(items) == 0 {
+					ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
+				}
+			default:
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -467,28 +453,22 @@ func RegisterBuiltinExtLog(self *Dice) {
 		ShortHelp: helpOb,
 		Help:      "观众指令:\n" + helpOb,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.IsCurGroupBotOn || ctx.IsPrivate {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
+			val, _ := cmdArgs.GetArgN(1)
+			switch strings.ToLower(val) {
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			case "exit":
+				if strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
+					ctx.Player.Name = ctx.Player.Name[len("ob"):]
 				}
-
-				val, _ := cmdArgs.GetArgN(1)
-				switch strings.ToLower(val) {
-				case "help":
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				case "exit":
-					if strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
-						ctx.Player.Name = ctx.Player.Name[len("ob"):]
-					}
-					ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
-					ReplyToSender(ctx, msg, "你不再是观众了（自动修改昵称和群名片[如有权限]）。")
-				default:
-					if !strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
-						ctx.Player.Name = "ob" + ctx.Player.Name
-					}
-					ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
-					ReplyToSender(ctx, msg, "你将成为观众（自动修改昵称和群名片[如有权限]，并不会给观众发送暗骰结果）。")
+				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
+				ReplyToSender(ctx, msg, "你不再是观众了（自动修改昵称和群名片[如有权限]）。")
+			default:
+				if !strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
+					ctx.Player.Name = "ob" + ctx.Player.Name
 				}
+				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
+				ReplyToSender(ctx, msg, "你将成为观众（自动修改昵称和群名片[如有权限]，并不会给观众发送暗骰结果）。")
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
@@ -514,17 +494,17 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}"
 				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				// 玩家 SAN60 HP10/10 DEX65
-				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text)
+				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text+"\n使用.sn off可关闭")
 			case "dnd", "dnd5e":
 				// PW{pw}
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PW{_pw}"
 				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				// 玩家 HP10/10 AC15 DC15 PW10
-				ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text)
+				ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text+"\n使用.sn off可关闭")
 			case "none":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家}"
 				text, _ := SetPlayerGroupCardByTemplate(ctx, "{$t玩家}")
-				ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text)
+				ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text+"\n使用.sn off可关闭")
 			case "off", "cancel":
 				ctx.Player.AutoSetNameTemplate = ""
 				ReplyToSender(ctx, msg, "已关闭自动设置名片功能")

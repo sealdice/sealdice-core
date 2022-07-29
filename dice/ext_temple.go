@@ -18,9 +18,7 @@ func RegisterBuiltinExtTemple(dice *Dice) {
 			"command": &CmdItemInfo{
 				Name: "command",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					if ctx.IsCurGroupBotOn {
-						// do something
-					}
+					// do something
 					return CmdExecuteResult{Matched: true, Solved: false}
 				},
 			},
