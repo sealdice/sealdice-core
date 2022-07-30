@@ -21,7 +21,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.0.0 v20220728dev"
+var VERSION = "1.0.0 v20220730dev"
 var VERSION_CODE = int64(1000002) // 991404
 
 type CmdExecuteResult struct {
@@ -302,11 +302,11 @@ func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VmResult, string, erro
 	return d.ExprEvalBase(buffer, ctx, RollExtraFlags{})
 }
 
-func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext) (*VmResult, string, error) {
+func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VmResult, string, error) {
 	buffer = CompatibleReplace(ctx, buffer)
 
 	// 隐藏的内置字符串符号 \x1e
-	val, detail, err := d.ExprEval("\x1e"+buffer+"\x1e", ctx)
+	val, detail, err := d.ExprEvalBase("\x1e"+buffer+"\x1e", ctx, flags)
 	//val, detail, err := d.ExprEval("`"+buffer+"`", ctx)
 	//fmt.Println("???", buffer, val, detail, err, "'"+buffer+"'")
 
@@ -322,7 +322,7 @@ func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext) (*VmResult, string, 
 }
 
 func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) {
-	val, detail, err := d.ExprTextBase(buffer, ctx)
+	val, detail, err := d.ExprTextBase(buffer, ctx, RollExtraFlags{})
 	//fmt.Println("!XX", buffer, val, detail, err)
 
 	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {

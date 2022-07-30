@@ -37,8 +37,11 @@ func (d *Dice) JsInit() {
 		return &CmdItemInfo{}
 	})
 
-	dice.Set("newCmdExecuteResult", func() CmdExecuteResult {
-		return CmdExecuteResult{}
+	dice.Set("newCmdExecuteResult", func(solved bool) CmdExecuteResult {
+		return CmdExecuteResult{
+			Matched: true,
+			Solved:  solved,
+		}
 	})
 
 	dice.Set("newHttpRequest", func() *request.Client {
