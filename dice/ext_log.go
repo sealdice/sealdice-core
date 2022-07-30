@@ -35,11 +35,19 @@ type LogOneItem struct {
 
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-	text, _, err := ctx.Dice.ExprText(tmpl, ctx)
+	val, _, err := ctx.Dice.ExprTextBase(tmpl, ctx, RollExtraFlags{
+		CocDefaultAttrOn: true,
+	})
 	if err != nil {
 		ctx.Dice.Logger.Infof("SN指令模板错误: %v", err.Error())
 		return "", err
 	}
+
+	var text string
+	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
+		text = val.Value.(string)
+	}
+
 	ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, text)
 	return text, nil
 }
@@ -482,7 +490,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 	cmdSn := &CmdItemInfo{
 		Name:               "sn",
 		ShortHelp:          helpSn,
-		Help:               "跑团名片:\n" + helpSn,
+		Help:               "跑团名片(需要管理权限):\n" + helpSn,
 		CheckCurrentBotOn:  true,
 		CheckMentionOthers: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {

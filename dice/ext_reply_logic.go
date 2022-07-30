@@ -191,7 +191,7 @@ type ReplyResultRunText struct {
 func (m *ReplyResultRunText) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 	//go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-	_, _, _ = ctx.Dice.ExprTextBase(m.Message, ctx)
+	_, _, _ = ctx.Dice.ExprTextBase(m.Message, ctx, RollExtraFlags{})
 	//}()
 }
 

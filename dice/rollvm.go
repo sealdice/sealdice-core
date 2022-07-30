@@ -720,6 +720,17 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 				if e.flags.CocDefaultAttrOn {
 					if !exists {
+						if varname == "生命值上限" {
+							vCon, _ := VarGetValue(ctx, "体质")
+							vSiz, _ := VarGetValue(ctx, "体型")
+							vConI, _ := vCon.ReadInt64()
+							vSizI, _ := vSiz.ReadInt64()
+							v2 = &VMValue{TypeId: VMTypeInt64, Value: int64((vConI + vSizI) / 10)}
+							exists = true
+						}
+					}
+
+					if !exists {
 						if varname == "母语" {
 							v2, exists = VarGetValue(ctx, "edu")
 						}
