@@ -32,6 +32,7 @@ func (d *Dice) JsInit() {
 	dice.Set("replyToSender", ReplyToSender)
 	dice.Set("format", DiceFormat)
 	dice.Set("formatTmpl", DiceFormatTmpl)
+	dice.Set("getCtxProxyFirst", GetCtxProxyFirst)
 
 	dice.Set("newCmdItemInfo", func() *CmdItemInfo {
 		return &CmdItemInfo{}

@@ -1447,7 +1447,15 @@ func (d *Dice) SaveText() {
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
+		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
+		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
+		//ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
+		current, err := os.ReadFile(newFn)
+		if err != nil {
+			os.WriteFile(bakFn, current, 0644)
+		}
+
+		os.WriteFile(newFn, buf, 0644)
 	}
 }
 

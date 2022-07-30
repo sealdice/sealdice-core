@@ -127,6 +127,10 @@ func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
 }
 
 func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
+	if ctx.delegateText != "" {
+		text = ctx.delegateText + text
+		ctx.delegateText = ""
+	}
 	if len(text) > 15000 {
 		text = "要发送的文本过长"
 	}
@@ -147,6 +151,11 @@ func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
 }
 
 func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
+	if ctx.delegateText != "" {
+		text = ctx.delegateText + text
+		ctx.delegateText = ""
+	}
+
 	if len(text) > 15000 {
 		text = "要发送的文本过长"
 	}
