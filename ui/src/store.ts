@@ -184,6 +184,16 @@ export const useStore = defineStore('main', {
       return info
     },
 
+    async customReplyFileNew(filename: string) {
+      const info = await backend.post(urlPrefix+'/configs/custom_reply/file_new', { filename });
+      return info
+    },
+
+    async customReplyFileDelete(filename: string) {
+      const info = await backend.post(urlPrefix+'/configs/custom_reply/file_delete', { filename });
+      return info
+    },
+
     async customReplyFileList() {
       const info = await backend.get(urlPrefix+'/configs/custom_reply/file_list')
       return info

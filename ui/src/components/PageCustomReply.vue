@@ -39,11 +39,12 @@
           :value="item.filename"
         />
       </el-select>
-      <div style="margin-top: .5rem;">
-        <!-- <el-button>新增</el-button>
-        <el-button>改名</el-button>
-        <el-checkbox style="margin-left: 1rem;">启用</el-checkbox> -->
+      <div style="margin-top: .5rem; margin-bottom: 0.5rem">
+        <el-button @click="customReplyFileNew">新文件</el-button>
+        <el-button @click="customReplyFileDelete">删除</el-button>
+        <!-- <el-checkbox style="margin-left: 1rem;">启用</el-checkbox> -->
       </div>
+      <el-divider></el-divider>
     </div>
 
     <nested-draggable :tasks="list" />
@@ -151,11 +152,63 @@ watch(() => cr.value, (newValue, oldValue) => { //直接监听
 }, {deep: true});
 
 watch(() => curFilename.value, (newValue, oldValue) => { //直接监听
-  console.log(222222, newValue);
   nextTick(() => {
     refreshCurrent();
   });
 });
+
+const customReplyFileNew = () => {
+  ElMessageBox.prompt(
+    '创建一个新的回复文件',
+    '',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'info',
+      inputPlaceholder: 'reply2.yaml',
+      inputValue: `reply${Math.ceil(Math.random() * 10000)}.yaml`,
+    }
+  ).then(async (data) => {
+    if (!data.value) {
+      data.value = `reply${Math.ceil(Math.random() * 10000)}.yaml`;
+    }
+    const ret = await store.customReplyFileNew(data.value);
+    let ret2 = await store.customReplyFileList() as any;
+    fileItems.value = ret2.items;
+    curFilename.value = ret2.items[0].filename;
+
+    ElMessage({
+      type: 'success',
+      message: (ret as any).success ? '成功!' : '失败',
+    })
+  })
+}
+
+const customReplyFileDelete = () => {
+  ElMessageBox.confirm(
+    '是否删除此文件？',
+    '',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(async () => {
+    const ret = await store.customReplyFileDelete(curFilename.value);
+
+    if ((ret as any).success) {
+      let ret = await store.customReplyFileList() as any;
+      fileItems.value = ret.items;
+      curFilename.value = ret.items[0].filename;
+      await refreshCurrent();
+    }
+
+    ElMessage({
+      type: 'success',
+      message: '',
+    })
+  })
+}
 
 const addOne = (lst: any) => {
   lst.push({"enable":true,"notCollapse":true,"conditions":[{"condType":"textMatch","matchType":"matchExact","value":"要匹配的文本"}],"results":[{"resultType":"replyToSender","delay":0,"message":[ ["说点什么", 1] ]}]},)
@@ -219,6 +272,7 @@ const doImport = () => {
 onBeforeMount(async () => {
   let ret = await store.customReplyFileList() as any;
   fileItems.value = ret.items;
+  curFilename.value = ret.items[0].filename;
   refreshCurrent();
 })
 

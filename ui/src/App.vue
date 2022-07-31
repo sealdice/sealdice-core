@@ -257,10 +257,13 @@ onBeforeMount(async () => {
       await store.getBaseInfo()
       if (dialogLostConnectionVisible.value) {
         dialogLostConnectionVisible.value = false
-        
       }
-    } catch (e) {
-      dialogLostConnectionVisible.value = true
+    } catch (e: any) {
+      if (!e.response) {
+        // 此时是连接不上，404
+        // e.response.status 有可能为403
+        dialogLostConnectionVisible.value = true
+      }
     }
   }, 5000) as any
 })
