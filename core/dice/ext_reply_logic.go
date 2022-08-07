@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/antlabs/strsim"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"regexp"
 	"strings"
@@ -215,7 +215,7 @@ func (c *ReplyConfig) Save(dice *Dice) {
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		ioutil.WriteFile(attrConfigFn, buf, 0644)
+		os.WriteFile(attrConfigFn, buf, 0644)
 	}
 }
 

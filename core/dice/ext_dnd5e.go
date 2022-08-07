@@ -1769,6 +1769,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"st":         cmdSt,
 			"dst":        cmdSt,
 			"rc":         cmdRc,
+			"ra":         cmdRc,
 			"drc":        cmdRc,
 			"buff":       cmdBuff,
 			"dbuff":      cmdBuff,

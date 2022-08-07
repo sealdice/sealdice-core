@@ -41,6 +41,13 @@ type DiceConfigInfo struct {
 	TrustOnlyMode      bool                          `json:"trustOnlyMode"`
 	AliveNoticeEnable  bool                          `json:"aliveNoticeEnable"`
 	AliveNoticeValue   string                        `json:"aliveNoticeValue"`
+
+	CustomBotExtraText       string `json:"customBotExtraText"`       // bot自定义文本
+	CustomDrawKeysText       string `json:"customDrawKeysText"`       // draw keys自定义文本
+	CustomDrawKeysTextEnable bool   `json:"customDrawKeysTextEnable"` // 应用draw keys自定义文本
+
+	LogSizeNoticeEnable bool `json:"logSizeNoticeEnable"` // 开启日志数量提示
+	LogSizeNoticeCount  int  `json:"logSizeNoticeCount"`  // 日志数量提示阈值，默认500
 }
 
 func DiceConfig(c echo.Context) error {
@@ -97,6 +104,13 @@ func DiceConfig(c echo.Context) error {
 
 		ServeAddress:      myDice.Parent.ServeAddress,
 		HelpDocEngineType: myDice.Parent.HelpDocEngineType,
+
+		// 1.0 正式
+		CustomBotExtraText:       myDice.CustomBotExtraText,
+		CustomDrawKeysText:       myDice.CustomDrawKeysText,
+		CustomDrawKeysTextEnable: myDice.CustomDrawKeysTextEnable,
+		LogSizeNoticeEnable:      myDice.LogSizeNoticeEnable,
+		LogSizeNoticeCount:       myDice.LogSizeNoticeCount,
 	}
 	return c.JSON(http.StatusOK, info)
 }
@@ -281,6 +295,30 @@ func DiceConfigSet(c echo.Context) error {
 		if val, ok := jsonMap["serveAddress"]; ok {
 			if !dm.JustForTest {
 				myDice.Parent.ServeAddress = val.(string)
+			}
+		}
+
+		if val, ok := jsonMap["customBotExtraText"]; ok {
+			myDice.CustomBotExtraText = val.(string)
+		}
+
+		if val, ok := jsonMap["customDrawKeysText"]; ok {
+			myDice.CustomDrawKeysText = val.(string)
+		}
+
+		if val, ok := jsonMap["customDrawKeysTextEnable"]; ok {
+			myDice.CustomDrawKeysTextEnable = val.(bool)
+		}
+
+		if val, ok := jsonMap["logSizeNoticeEnable"]; ok {
+			myDice.LogSizeNoticeEnable = val.(bool)
+		}
+
+		if val, ok := jsonMap["logSizeNoticeCount"]; ok {
+			myDice.LogSizeNoticeCount = val.(int)
+			if myDice.LogSizeNoticeCount == 0 {
+				// 不能为零
+				myDice.LogSizeNoticeCount = 500
 			}
 		}
 

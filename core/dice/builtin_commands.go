@@ -351,22 +351,28 @@ func (d *Dice) registerCoreCommands() {
 					ver := d.Parent.AppVersionOnline
 					// 如果当前不是最新版，那么提示
 					if ver.VersionLatestCode != VERSION_CODE {
-						onlineVer = "最新版本: " + ver.VersionLatestDetail + "\n"
+						onlineVer = "\n最新版本: " + ver.VersionLatestDetail + "\n"
 					}
 				}
-				text := fmt.Sprintf("SealDice %s\n%s供职于%d个群，其中%d个处于开启状态", VERSION, onlineVer, serveCount, activeCount)
 
+				groupWorkInfo := ""
 				if inGroup {
 					isActive := ctx.Group.IsActive(ctx)
 					activeText := "开启"
 					if !isActive {
 						activeText = "关闭"
 					}
-					text += "\n群内工作状态: " + activeText
-					ReplyToSender(ctx, msg, text)
-				} else {
-					ReplyToSender(ctx, msg, text)
+					groupWorkInfo = "\n群内工作状态: " + activeText
 				}
+
+				VarSetValueInt64(ctx, "$t供职群数", int64(serveCount))
+				VarSetValueInt64(ctx, "$t启用群数", int64(activeCount))
+				VarSetValueStr(ctx, "$t群内工作状态", groupWorkInfo)
+				baseText := fmt.Sprintf("SealDice %s%s", VERSION, onlineVer)
+				extText := DiceFormat(ctx, ctx.Dice.CustomBotExtraText)
+				text := baseText + extText
+
+				ReplyToSender(ctx, msg, text)
 			} else {
 				if inGroup && !AtSomebodyButNotMe {
 					cmdArgs.ChopPrefixToArgsWith("on", "off")

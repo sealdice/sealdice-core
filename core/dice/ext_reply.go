@@ -35,6 +35,14 @@ func CustomReplyConfigRead(dice *Dice, filename string) *ReplyConfig {
 	return rc
 }
 
+func CustomReplyConfigCheckExists(dice *Dice, filename string) bool {
+	attrConfigFn := dice.GetExtConfigFilePath("reply", filename)
+	if _, err := os.Stat(attrConfigFn); err == nil {
+		return true
+	}
+	return false
+}
+
 func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 	for _, i := range dice.CustomReplyConfig {
 		if strings.ToLower(i.Filename) == strings.ToLower(filename) {
@@ -42,9 +50,28 @@ func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 		}
 	}
 
-	rc := &ReplyConfig{Enable: false, Filename: filename, Items: []*ReplyItem{}}
+	rc := &ReplyConfig{Enable: true, Filename: filename, Items: []*ReplyItem{}}
 	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
+	rc.Save(dice)
 	return rc
+}
+
+func CustomReplyConfigDelete(dice *Dice, filename string) bool {
+	attrConfigFn := dice.GetExtConfigFilePath("reply", filename)
+	if _, err := os.Stat(attrConfigFn); err == nil {
+		err := os.Remove(attrConfigFn)
+		if err == nil {
+			rcs := []*ReplyConfig{}
+			for _, i := range dice.CustomReplyConfig {
+				if i.Filename != filename {
+					rcs = append(rcs, i)
+				}
+			}
+			dice.CustomReplyConfig = rcs
+		}
+		return true
+	}
+	return false
 }
 
 func RegisterBuiltinExtReply(dice *Dice) {
