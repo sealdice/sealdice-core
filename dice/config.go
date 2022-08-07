@@ -1203,6 +1203,11 @@ func (d *Dice) loads() {
 			d.TrustOnlyMode = dNew.TrustOnlyMode
 			d.AliveNoticeEnable = dNew.AliveNoticeEnable
 			d.AliveNoticeValue = dNew.AliveNoticeValue
+			d.LogSizeNoticeCount = dNew.LogSizeNoticeCount
+			d.LogSizeNoticeEnable = dNew.LogSizeNoticeEnable
+			d.CustomBotExtraText = dNew.CustomBotExtraText
+			d.CustomDrawKeysText = dNew.CustomDrawKeysText
+			d.CustomDrawKeysTextEnable = dNew.CustomDrawKeysTextEnable
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
@@ -1384,6 +1389,14 @@ func (d *Dice) loads() {
 				d.AliveNoticeValue = "@every 3h"
 			}
 
+			if d.VersionCode != 0 && d.VersionCode < 10003 {
+				d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 10003)
+				d.LogSizeNoticeCount = 500
+				d.LogSizeNoticeEnable = true
+				d.CustomDrawKeysText = "牌组1/牌组2/牌组3"
+				d.CustomBotExtraText = "供职于{$t供职群数}个群，其中{$t启用群数}个处于开启状态。{$t群内工作状态}"
+			}
+
 			// 设置全局群名缓存和用户名缓存
 			dm := d.Parent
 			now := time.Now().Unix()
@@ -1410,6 +1423,11 @@ func (d *Dice) loads() {
 		d.CustomReplyConfigEnable = true
 		d.AliveNoticeValue = "@every 3h"
 		d.Logger.Info("serve.yaml not found")
+
+		d.LogSizeNoticeCount = 500
+		d.LogSizeNoticeEnable = true
+		d.CustomBotExtraText = "供职于{$t供职群数}个群，其中{$启用群数}个处于开启状态。{$t群内工作状态}"
+		d.CustomDrawKeysText = "牌组1/牌组2/牌组3"
 	}
 
 	d.BanList.LoadMapFromJSON(model.BanMapGet(d.DB))
@@ -1432,7 +1450,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.VersionCode = 10000
+	d.VersionCode = 10000 // TODO: 记得修改！！！
 	d.LogWriter.LogLimit = d.UILogLimit
 
 	// 设置扩展选项

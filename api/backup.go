@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"reflect"
+	"strings"
 )
 
 type backupFileItem struct {
@@ -48,18 +49,10 @@ func backupDownload(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	v := backupFileItem{}
-	err := c.Bind(&v)
-
-	if err == nil {
-		return c.Attachment("./backups/"+v.Name, v.Name)
-		//f, err := os.Open("./backups/" + v.Name)
-		//defer f.Close()
-		//if err == nil {
-		//	return c.Stream(http.StatusOK, "application/x-zip-compressed", f)
-		//}
+	name := c.QueryParam("name")
+	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
+		return c.Attachment("./backups/"+name, name)
 	}
-
 	return c.JSON(http.StatusOK, nil)
 }
 

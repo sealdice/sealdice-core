@@ -21,7 +21,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.0.0 v20220730dev"
+var VERSION = "1.0.0 v20220731dev"
 var VERSION_CODE = int64(1000002) // 991404
 
 type CmdExecuteResult struct {
@@ -139,9 +139,13 @@ type Dice struct {
 	HelpMasterLicense   string `yaml:"helpMasterLicense"`   // help中使用协议
 	DefaultCocRuleIndex int64  `yaml:"defaultCocRuleIndex"` // 默认coc index
 
+	CustomBotExtraText       string `yaml:"customBotExtraText"`       // bot自定义文本
+	CustomDrawKeysText       string `yaml:"customDrawKeysText"`       // draw keys自定义文本
+	CustomDrawKeysTextEnable bool   `yaml:"customDrawKeysTextEnable"` // 应用draw keys自定义文本
+
 	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
 
-	BanList *BanListInfo `yaml:"banList"`
+	BanList *BanListInfo `yaml:"banList"` //
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	//InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
@@ -155,6 +159,9 @@ type Dice struct {
 	JsVM             *goja.Runtime          `yaml:"-" json:"-"`
 	JsLock           sync.Mutex             `yaml:"-" json:"-"`
 	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
+
+	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable"` // 开启日志数量提示
+	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount"`  // 日志数量提示阈值，默认500
 
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行

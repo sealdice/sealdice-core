@@ -83,10 +83,14 @@ func customReplyFileNew(c echo.Context) error {
 		return c.String(430, err.Error())
 	}
 
-	rc := dice.CustomReplyConfigNew(myDice, v.Filename)
-
+	if v.Filename != "" && !dice.CustomReplyConfigCheckExists(myDice, v.Filename) {
+		rc := dice.CustomReplyConfigNew(myDice, v.Filename)
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"success": rc != nil,
+		})
+	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"success": rc != nil,
+		"success": false,
 	})
 }
 
@@ -103,5 +107,15 @@ func customReplyFileDelete(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{})
+	v := struct {
+		Filename string `json:"filename"`
+	}{}
+	err := c.Bind(&v)
+	if err != nil {
+		return c.String(430, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": dice.CustomReplyConfigDelete(myDice, v.Filename),
+	})
 }

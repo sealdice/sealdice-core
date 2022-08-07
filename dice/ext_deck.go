@@ -352,18 +352,24 @@ func RegisterBuiltinExtDeck(d *Dice) {
 				} else if strings.EqualFold(deckName, "help") {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				} else if strings.EqualFold(deckName, "keys") {
-					specified, _ := cmdArgs.GetArgN(2)
+					specified, specifiedExists := cmdArgs.GetArgN(2)
 					text := "牌组关键字列表:\n"
 					keys := ""
-					for _, i := range ctx.Dice.DeckList {
-						if i.Enable {
-							if strings.Contains(i.Name, specified) {
-								for j := range i.Command {
-									keys += j + "/"
+
+					if !specifiedExists && ctx.Dice.CustomDrawKeysTextEnable {
+						keys += ctx.Dice.CustomDrawKeysText
+					} else {
+						for _, i := range ctx.Dice.DeckList {
+							if i.Enable {
+								if strings.Contains(i.Name, specified) {
+									for j := range i.Command {
+										keys += j + "/"
+									}
 								}
 							}
 						}
 					}
+
 					if keys == "" {
 						text += DiceFormatTmpl(ctx, "其它:抽牌_列表_没有牌组")
 					} else {
