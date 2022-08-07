@@ -177,6 +177,49 @@
       <el-input v-model="config.helpMasterLicense" type="textarea" autosize clearable style="width: 14rem;" />
     </el-form-item>
 
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>.draw keys自定义</span>
+        </div>
+      </template>
+      <div>
+        <div>
+          <el-checkbox label="开启" v-model="config.customDrawKeysTextEnable"/>
+          <el-tooltip raw-content content="启用后替代原本的.draw keys牌组关键字文本">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+        <el-input v-model="config.customDrawKeysText" type="textarea" autosize clearable style="width: 14rem;" />
+      </div>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>日志记录提示</span>
+        </div>
+      </template>
+      <div>
+        <div>
+          <el-checkbox label="开启" v-model="config.logSizeNoticeEnable"/>
+          <el-tooltip raw-content content="每记录N条文本后，主动发送一条提醒信息，避免忘记log off">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+        <el-input v-model="config.logSizeNoticeCount" type="number" autosize clearable style="width: 14rem;" />
+      </div>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>.bot 附加文本</span>
+        </div>
+      </template>
+      <el-input v-model="config.customBotExtraText" type="textarea" autosize clearable style="width: 14rem;" />
+    </el-form-item>
+
     <h2>访问控制</h2>
     <el-form-item label="UI界面地址">
       <template #label>
