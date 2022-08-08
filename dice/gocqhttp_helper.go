@@ -375,7 +375,15 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			pa.InPackGoCqHttpRunning = false
 			pa.InPackGoCqHttpQrcodeReady = false
 			pa.InPackGoCqHttpNeedQrCode = false
-			//conn.InPackGoCqHttpLoginDeviceLockUrl = ""
+			pa.InPackGoCqHttpLoginDeviceLockUrl = ""
+			pa.DiceServing = false
+			workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
+			qrcodeFile := filepath.Join(workDir, "qrcode.png")
+			if _, err := os.Stat(qrcodeFile); err == nil {
+				// 如果已经存在二维码文件，将其删除
+				os.Remove(qrcodeFile)
+				dice.Logger.Info("onebot: 删除已存在的二维码文件")
+			}
 
 			// 注意这个会panic，因此recover捕获了
 			if pa.InPackGoCqHttpProcess != nil {
@@ -553,11 +561,16 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		if _, err := os.Stat(qrcodeFile); err == nil {
 			dice.Logger.Info("onebot: 二维码已经就绪")
 			fmt.Println("如控制台二维码不好扫描，可以手动打开go-cqhttp目录下qrcode.png")
-			qrdata, err := ioutil.ReadFile(qrcodeFile)
+			qrdata, err := os.ReadFile(qrcodeFile)
 			if err == nil {
 				pa.InPackGoCqHttpQrcodeData = qrdata
+				pa.InPackGoCqHttpQrcodeReady = true
+				dice.Logger.Info("获取二维码成功")
+			} else {
+				pa.InPackGoCqHttpQrcodeData = []byte{}
+				pa.InPackGoCqHttpQrcodeReady = false
+				dice.Logger.Info("获取二维码失败，错误为: ", err.Error())
 			}
-			pa.InPackGoCqHttpQrcodeReady = true
 		}
 	}()
 
