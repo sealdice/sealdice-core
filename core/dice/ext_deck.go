@@ -357,7 +357,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					keys := ""
 
 					if !specifiedExists && ctx.Dice.CustomDrawKeysTextEnable {
-						keys += ctx.Dice.CustomDrawKeysText
+						keys += ctx.Dice.CustomDrawKeysText + "/" // 注: 最后一个字符会被剔除，故额外添加一个
 					} else {
 						for _, i := range ctx.Dice.DeckList {
 							if i.Enable {

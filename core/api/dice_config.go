@@ -45,6 +45,7 @@ type DiceConfigInfo struct {
 	CustomBotExtraText       string `json:"customBotExtraText"`       // bot自定义文本
 	CustomDrawKeysText       string `json:"customDrawKeysText"`       // draw keys自定义文本
 	CustomDrawKeysTextEnable bool   `json:"customDrawKeysTextEnable"` // 应用draw keys自定义文本
+	CustomReplyConfigEnable  bool   `json:"customReplyConfigEnable"`  // 是否开启reply
 
 	LogSizeNoticeEnable bool `json:"logSizeNoticeEnable"` // 开启日志数量提示
 	LogSizeNoticeCount  int  `json:"logSizeNoticeCount"`  // 日志数量提示阈值，默认500
@@ -111,6 +112,7 @@ func DiceConfig(c echo.Context) error {
 		CustomDrawKeysTextEnable: myDice.CustomDrawKeysTextEnable,
 		LogSizeNoticeEnable:      myDice.LogSizeNoticeEnable,
 		LogSizeNoticeCount:       myDice.LogSizeNoticeCount,
+		CustomReplyConfigEnable:  myDice.CustomReplyConfigEnable,
 	}
 	return c.JSON(http.StatusOK, info)
 }
@@ -320,6 +322,10 @@ func DiceConfigSet(c echo.Context) error {
 				// 不能为零
 				myDice.LogSizeNoticeCount = 500
 			}
+		}
+
+		if val, ok := jsonMap["customReplyConfigEnable"]; ok {
+			myDice.CustomReplyConfigEnable = val.(bool)
 		}
 
 		myDice.Parent.Save()

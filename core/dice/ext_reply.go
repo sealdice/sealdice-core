@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func CustomReplyConfigRead(dice *Dice, filename string) *ReplyConfig {
+func CustomReplyConfigRead(dice *Dice, filename string) (*ReplyConfig, error) {
 	attrConfigFn := dice.GetExtConfigFilePath("reply", filename)
 	rc := &ReplyConfig{Enable: false, Filename: filename}
 
@@ -23,7 +23,7 @@ func CustomReplyConfigRead(dice *Dice, filename string) *ReplyConfig {
 			err = yaml.Unmarshal(af, rc)
 			if err != nil {
 				dice.Logger.Error("读取自定义回复配置文件发生异常，请检查格式是否正确")
-				panic(err)
+				return nil, err
 			}
 		}
 	}
@@ -32,7 +32,7 @@ func CustomReplyConfigRead(dice *Dice, filename string) *ReplyConfig {
 		rc.Items = []*ReplyItem{}
 	}
 
-	return rc
+	return rc, nil
 }
 
 func CustomReplyConfigCheckExists(dice *Dice, filename string) bool {
@@ -74,11 +74,8 @@ func CustomReplyConfigDelete(dice *Dice, filename string) bool {
 	return false
 }
 
-func RegisterBuiltinExtReply(dice *Dice) {
-	//rc := CustomReplyConfigRead(dice, "reply.yaml")
-	//rc.Save(dice)
-	//dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
-
+func ReplyReload(dice *Dice) {
+	rcs := []*ReplyConfig{}
 	filenames := []string{"reply.yaml"}
 	filepath.Walk(dice.GetExtDataDir("reply"), func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
@@ -106,11 +103,25 @@ func RegisterBuiltinExtReply(dice *Dice) {
 	})
 
 	for _, i := range filenames {
-		dice.Logger.Info("读取自定义回复配置:", i)
-		rc := CustomReplyConfigRead(dice, i)
-		rc.Save(dice)
-		dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
+		rc, err := CustomReplyConfigRead(dice, i)
+		if err == nil {
+			dice.Logger.Info("读取自定义回复配置:", i)
+			rc.Save(dice)
+			rcs = append(rcs, rc)
+		} else {
+			dice.Logger.Info("读取自定义回复配置 - 失败:", i)
+			dice.Logger.Error(err)
+		}
 	}
+
+	dice.CustomReplyConfig = rcs
+}
+
+func RegisterBuiltinExtReply(dice *Dice) {
+	//rc := CustomReplyConfigRead(dice, "reply.yaml")
+	//rc.Save(dice)
+	//dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
+	ReplyReload(dice)
 
 	//a := ReplyItem{}
 	//a.Enable = true
@@ -148,7 +159,14 @@ func RegisterBuiltinExtReply(dice *Dice) {
 		OnNotCommandReceived: func(ctx *MsgContext, msg *Message) {
 			// 当前，只有非指令才会匹配
 			rcs := ctx.Dice.CustomReplyConfig
+			if !ctx.Dice.CustomReplyConfigEnable {
+				return
+			}
+			executed := false
 			for _, rc := range rcs {
+				if executed {
+					break
+				}
 				if rc.Enable {
 					log := ctx.Dice.Logger
 					condIndex := -1
@@ -197,7 +215,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 								inCoolDown := checkInCoolDown()
 								if inCoolDown {
 									// 仍在冷却，拒绝回复
-									log.Infof("自定义回复: 条件满足，但正处于冷却")
+									log.Infof("自定义回复[%s]: 条件满足，但正处于冷却", rc.Filename)
 									return
 								}
 							}
@@ -208,11 +226,14 @@ func RegisterBuiltinExtReply(dice *Dice) {
 							//}
 
 							if len(i.Conditions) > 0 && checkTrue {
+								log.Infof("自定义回复[%s]: 条件满足", rc.Filename)
+
 								SetTempVars(ctx, msg.Sender.Nickname)
 								VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))
 								for _, j := range i.Results {
 									j.Execute(ctx, msg, nil)
 								}
+								executed = true
 								break
 							}
 						}
