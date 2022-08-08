@@ -10,7 +10,7 @@
   </el-affix>
 
   <div>
-    <el-checkbox @click="switchClick" v-model="cr.enable">总开关</el-checkbox>
+    <el-checkbox @click="switchClick" v-model="store.curDice.config.customReplyConfigEnable">总开关</el-checkbox>
     <el-button style="float: right" @click="dialogFormVisible = true">导入</el-button>
     <div>每项自定义回复由一个“条件”触发，产生一系列“结果”</div>
     <div>一旦一个“条件”被满足，将立即停止匹配，并执行“结果”</div>
@@ -31,18 +31,39 @@
 
     <div style="margin-top: 1rem;">
       <div>当前文件</div>
-      <el-select v-model="curFilename">
-        <el-option
-          v-for="item in fileItems"
-          :key="item.filename"
-          :label="item.filename"
-          :value="item.filename"
-        />
-      </el-select>
-      <div style="margin-top: .5rem; margin-bottom: 0.5rem">
+      <div>
+        <el-select v-model="curFilename">
+          <el-option
+            v-for="item in fileItems"
+            :key="item.filename"
+            :label="item.filename"
+            :value="item.filename"
+          />
+        </el-select>
+        <el-checkbox style="margin-left: 1rem;" v-model="cr.enable">启用</el-checkbox>
+      </div>
+      <div style="margin-top: .5rem; margin-bottom: 0.5rem; display: flex;">
         <el-button @click="customReplyFileNew">新文件</el-button>
         <el-button @click="customReplyFileDelete">删除</el-button>
-        <!-- <el-checkbox style="margin-left: 1rem;">启用</el-checkbox> -->
+        <el-button>
+          <a :href="`${urlBase}/sd-api/configs/custom_reply/file_download?name=${encodeURIComponent(curFilename)}&token=${encodeURIComponent(store.token)}`" style="text-decoration: none">下载</a>
+        </el-button>
+
+        <el-upload
+          style="margin-left: 12px;"
+          class="upload-demo"
+          action=""
+          multiple
+          accept=".yaml"
+          :before-upload="beforeUpload"
+          :file-list="uploadFileList"
+        >
+          <el-button type="">上传</el-button>
+          <template #tip>
+            <div class="el-upload__tip">
+            </div>
+          </template>
+        </el-upload>
       </div>
       <el-divider></el-divider>
     </div>
@@ -100,9 +121,9 @@
 <script lang="ts" setup>
 import { computed, onBeforeMount, onBeforeUnmount, ref, watch, nextTick } from 'vue';
 import { useStore } from '~/store';
-import imgHaibao from '~/assets/haibao1.png'
+import { urlBase } from '~/backend'
 import nestedDraggable from "./nested.vue";
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, UploadRawFile } from 'element-plus'
 import {
   Location,
   Document,
@@ -132,17 +153,22 @@ const fileItems = ref<any>([
   // {"enable":true,"condition":{"condType":"match","matchType":"match_fuzzy","value":"ccc"},"results":[{"resultType":"replyToSender","delay":0.3,"message":"text"}]},
 ])
 
+const uploadFileList = ref<any[]>([])
+
 const cr = ref<any>({})
 
 const switchClick = () => {
-  if (!cr.value.enable) {
+  if (!store.curDice.config.customReplyConfigEnable) {
     dialogLicenseVisible.value = true
   }
+
+  store.diceConfigSet({ customReplyConfigEnable: !store.curDice.config.customReplyConfigEnable })
 }
 
 const licenseRefuse = () => {
   dialogLicenseVisible.value = false
-  cr.value.enable = false
+  store.curDice.config.customReplyConfigEnable = false
+  store.diceConfigSet({ customReplyConfigEnable: false })
 }
 
 const modified = ref(false)
@@ -205,9 +231,20 @@ const customReplyFileDelete = () => {
 
     ElMessage({
       type: 'success',
-      message: '',
+      message: '完成',
     })
   })
+}
+
+const beforeUpload = async (file: UploadRawFile) => {
+  let fd = new FormData()
+  fd.append('file', file)
+  try {
+    const resp = await store.customReplyFileUpload({ form: fd });
+    ElMessage.success('上传完成')
+  } catch (e) {
+    ElMessage.error('上传失败，可能有同名文件！')
+  }
 }
 
 const addOne = (lst: any) => {
@@ -273,6 +310,7 @@ onBeforeMount(async () => {
   let ret = await store.customReplyFileList() as any;
   fileItems.value = ret.items;
   curFilename.value = ret.items[0].filename;
+  await store.diceConfigGet()
   refreshCurrent();
 })
 

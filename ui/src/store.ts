@@ -194,6 +194,16 @@ export const useStore = defineStore('main', {
       return info
     },
 
+    async customReplyFileDownload(filename: string) {
+      const info = await backend.post(urlPrefix+'/configs/custom_reply/file_download', { filename });
+      return info
+    },
+
+    async customReplyFileUpload({ form }: any) {
+      const info = await backend.post(urlPrefix+'/configs/custom_reply/file_upload', form)
+      return info as any
+    },
+
     async customReplyFileList() {
       const info = await backend.get(urlPrefix+'/configs/custom_reply/file_list')
       return info

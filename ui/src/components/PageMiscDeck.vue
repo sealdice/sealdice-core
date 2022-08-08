@@ -64,6 +64,7 @@ import {
   QuestionFilled,
   BrushFilled
 } from '@element-plus/icons-vue'
+import { UploadRawFile } from 'element-plus/lib/components/upload/src/upload';
 
 const store = useStore()
 
@@ -125,7 +126,7 @@ const doSave = async () => {
   ElMessage.success('已保存')
 }
 
-const beforeUpload = async (file: any, id: any) => {
+const beforeUpload = async (file: UploadRawFile) => {
   let fd = new FormData()
   fd.append('file', file)
   await store.deckUpload({ form: fd })
