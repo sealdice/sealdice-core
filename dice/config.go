@@ -1382,19 +1382,20 @@ func (d *Dice) loads() {
 			if d.VersionCode != 0 && d.VersionCode < 10000 {
 				d.HelpMasterInfo = HelpMasterInfoDefault
 				d.HelpMasterLicense = HelpMasterLicenseDefault
-				d.CustomReplyConfigEnable = true
+				d.CustomReplyConfigEnable = false
 			}
 
 			if d.VersionCode != 0 && d.VersionCode < 10001 {
 				d.AliveNoticeValue = "@every 3h"
 			}
 
-			if d.VersionCode != 0 && d.VersionCode < 10003 {
+			if d.VersionCode != 0 && d.VersionCode < 10002 {
 				d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 10003)
 				d.LogSizeNoticeCount = 500
 				d.LogSizeNoticeEnable = true
 				d.CustomDrawKeysText = "牌组1/牌组2/牌组3"
 				d.CustomBotExtraText = "供职于{$t供职群数}个群，其中{$t启用群数}个处于开启状态。{$t群内工作状态}"
+				d.CustomReplyConfigEnable = true
 			}
 
 			// 设置全局群名缓存和用户名缓存
@@ -1420,7 +1421,7 @@ func (d *Dice) loads() {
 		d.WorkInQQChannel = true
 		d.HelpMasterInfo = HelpMasterInfoDefault
 		d.HelpMasterLicense = HelpMasterLicenseDefault
-		d.CustomReplyConfigEnable = true
+		d.CustomReplyConfigEnable = false
 		d.AliveNoticeValue = "@every 3h"
 		d.Logger.Info("serve.yaml not found")
 
@@ -1450,7 +1451,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.VersionCode = 10000 // TODO: 记得修改！！！
+	d.VersionCode = 10002 // TODO: 记得修改！！！
 	d.LogWriter.LogLimit = d.UILogLimit
 
 	// 设置扩展选项

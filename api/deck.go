@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sealdice-core/dice"
+	"strings"
 )
 
 func deckList(c echo.Context) error {
@@ -59,6 +60,8 @@ func deckUpload(c echo.Context) error {
 
 	// Destination
 	//fmt.Println("????", filepath.Join("./data/decks", file.Filename))
+	file.Filename = strings.ReplaceAll(file.Filename, "/", "_")
+	file.Filename = strings.ReplaceAll(file.Filename, "\\", "_")
 	dst, err := os.Create(filepath.Join("./data/decks", file.Filename))
 	if err != nil {
 		return err
