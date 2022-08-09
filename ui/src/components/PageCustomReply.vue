@@ -123,7 +123,7 @@ import { computed, onBeforeMount, onBeforeUnmount, ref, watch, nextTick } from '
 import { useStore } from '~/store';
 import { urlBase } from '~/backend'
 import nestedDraggable from "./nested.vue";
-import { ElMessage, ElMessageBox, UploadRawFile } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Location,
   Document,
@@ -236,7 +236,7 @@ const customReplyFileDelete = () => {
   })
 }
 
-const beforeUpload = async (file: UploadRawFile) => {
+const beforeUpload = async (file: any) => { // UploadRawFile
   let fd = new FormData()
   fd.append('file', file)
   try {
