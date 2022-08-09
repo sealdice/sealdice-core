@@ -241,7 +241,11 @@ const beforeUpload = async (file: UploadRawFile) => {
   fd.append('file', file)
   try {
     const resp = await store.customReplyFileUpload({ form: fd });
-    ElMessage.success('上传完成')
+    ElMessage.success('上传完成');
+    let ret = await store.customReplyFileList() as any;
+    fileItems.value = ret.items;
+    curFilename.value = ret.items[0].filename;
+    await refreshCurrent();
   } catch (e) {
     ElMessage.error('上传失败，可能有同名文件！')
   }

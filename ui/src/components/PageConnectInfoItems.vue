@@ -69,6 +69,13 @@
             <div>{{i.adapter?.connectUrl}}</div>
           </el-form-item>
 
+          <el-form-item label="协议">
+            <!-- <el-input v-model="i.connectUrl"></el-input> -->
+            <div v-if="i.adapter?.inPackGoCqHttpProtocol === 0">iPad</div>
+            <div v-if="i.adapter?.inPackGoCqHttpProtocol === 1">Android</div>
+            <div v-if="i.adapter?.inPackGoCqHttpProtocol === 2">Android 手表</div>
+          </el-form-item>
+
           <!-- <el-form-item label="密码">
             <el-input type="password" v-model="i.password"></el-input>
           </el-form-item> -->

@@ -12,6 +12,10 @@
           :file-list="fileList"
         >
           <el-button type="">上传牌堆(json/yaml/deck)</el-button>
+          <el-tooltip raw-content content="deck牌堆: 一种单文件带图的牌堆格式<br>在牌堆文件中使用./images/xxx.png的相对路径引用图片。并连同图片目录一起打包成zip，修改扩展名为deck即可制作">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+
           <template #tip>
             <div class="el-upload__tip">
             </div>

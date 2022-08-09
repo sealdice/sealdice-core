@@ -9,6 +9,7 @@ export interface AdapterQQ {
   inPackGoCqHttpNeedQrCode: boolean;
   inPackGoCqHttpLastRestricted: number;
   inPackGoCqHttpLoginDeviceLockUrl: string;
+  inPackGoCqHttpProtocol: number;
 }
 
 interface TalkLogItem {
