@@ -162,6 +162,14 @@ func (code *ByteCode) CodeString() string {
 		return "wod.threshold"
 	case TypeWodSetThresholdQ:
 		return "wod.thresholdQ"
+	case TypeDiceDC:
+		return "dice.dc"
+	case TypeDCSetInit:
+		return "dice.setInit"
+	case TypeDCSetPool:
+		return "dice.setPool"
+	case TypeDCSetPoints:
+		return "dice.setPoints"
 	case TypeDiceWod:
 		return "dice.wod"
 	case TypeLoadVarname:
@@ -887,7 +895,14 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 						// 如果什么都不输出，反而正常了……不然会这样：
 						// <木落>掷出了 f + 1=0 df 0[0-++] + 1=2
 					} else {
-						calcDetail += fmt.Sprintf("%d %s %d", a.Value.(int64), t.String(), b.Value.(int64))
+						if len(lastDetailsLeft) > 0 {
+							// .r 3c2+1
+							// .r b2+1
+							vLeft := "[" + strings.Join(lastDetailsLeft, ",") + "]"
+							calcDetail += fmt.Sprintf("%d%s %s %d", a.Value.(int64), vLeft, t.String(), b.Value.(int64))
+						} else {
+							calcDetail += fmt.Sprintf("%d %s %d", a.Value.(int64), t.String(), b.Value.(int64))
+						}
 					}
 				} else {
 					checkLeft()
