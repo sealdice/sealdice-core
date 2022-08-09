@@ -97,12 +97,26 @@ func (d *Dice) registerCoreCommands() {
 				d.BanList.SetTrustById(uid, "骰主指令", "骰主指令")
 				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入信任列表", uid))
 			case "list", "show":
+				// ban/warn/trust
+				extra, exists := cmdArgs.GetArgN(2)
 				text := ""
 				_ = d.BanList.Map.Iterate(func(_k interface{}, _v interface{}) error {
 					v, ok := _v.(*BanListInfoItem)
 					if ok {
 						if v.Rank != BanRankNormal {
-							text += v.toText(d) + "\n"
+							if exists {
+								if extra == "trust" && v.Rank == BanRankTrusted {
+									text += v.toText(d) + "\n"
+								}
+								if extra == "ban" && v.Rank == BanRankBanned {
+									text += v.toText(d) + "\n"
+								}
+								if extra == "warn" && v.Rank == BanRankWarn {
+									text += v.toText(d) + "\n"
+								}
+							} else {
+								text += v.toText(d) + "\n"
+							}
 						}
 					}
 					return nil
@@ -297,7 +311,7 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			text := "海豹核心 " + VERSION + "\n"
-			text += "=======================\n"
+			text += "===============\n"
 			text += ".help 骰点/娱乐/跑团/日志" + "\n"
 			text += ".help 扩展/其他/关于" + "\n"
 			text += ".help 骰主/协议" + "\n"
@@ -307,7 +321,7 @@ func (d *Dice) registerCoreCommands() {
 			//text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
 			extra := DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
 			if extra != "" {
-				text += "--------------------------\n"
+				text += "------------------\n"
 				text += extra
 			}
 			ReplyToSender(ctx, msg, text)
