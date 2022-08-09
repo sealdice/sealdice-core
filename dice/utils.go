@@ -330,7 +330,9 @@ func isDeckFile(source string) bool {
 		}
 	}
 
-	return false
+	// 一定返回true
+	return true
+	//return false
 }
 
 func unzipSource(source, destination string) error {

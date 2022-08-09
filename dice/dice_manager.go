@@ -17,6 +17,7 @@ type VersionInfo struct {
 	VersionLatestCode       int64  `yaml:"versionLatestCode" json:"versionLatestCode"`
 	VersionLatestNote       string `yaml:"versionLatestNote" json:"versionLatestNote"`
 	MinUpdateSupportVersion int64  `yaml:"minUpdateSupportVersion" json:"minUpdateSupportVersion"`
+	NewVersionUrlPrefix     string `yaml:"newVersionUrlPrefix" json:"newVersionUrlPrefix"`
 }
 
 type GroupNameCacheItem struct {
