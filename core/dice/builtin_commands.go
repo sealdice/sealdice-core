@@ -317,7 +317,7 @@ func (d *Dice) registerCoreCommands() {
 			text += ".help 骰主/协议" + "\n"
 			text += "官网: sealdice.com" + "\n"
 			//text += "手册(荐): https://dice.weizaima.com/manual/" + "\n"
-			text += "海豹群: 524364253" + "\n"
+			text += "海豹群: 524364253/562897832" + "\n"
 			//text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
 			extra := DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
 			if extra != "" {
