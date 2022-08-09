@@ -47,6 +47,10 @@ func downloadUpdate(dm *dice.DiceManager) error {
 			fn := fmt.Sprintf("sealdice-core_%s_%s_%s.%s", version, platform, arch, ext)
 			fileUrl := binPrefix + "/" + fn
 
+			if ver.NewVersionUrlPrefix != "" {
+				fileUrl = ver.NewVersionUrlPrefix + "/" + fn
+			}
+
 			logger.Infof("准备下载更新: %s", fn)
 			err := os.RemoveAll("./update")
 			if err != nil {
