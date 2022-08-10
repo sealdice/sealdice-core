@@ -222,6 +222,8 @@ type MsgContext struct {
 	CommandInfo     interface{} // 命令信息
 	PrivilegeLevel  int         // 权限等级 40邀请者 50管理 60群主 100master
 	delegateText    string      // 代骰附加文本
+
+	DeckPools map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
 }
 
 func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {

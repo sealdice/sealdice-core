@@ -210,7 +210,7 @@ func CompatibleReplace(ctx *MsgContext, s string) string {
 
 	if ctx != nil {
 		s = DeckRewrite(s, func(deckName string) string {
-			exists, result, err := deckDraw(ctx, deckName)
+			exists, result, err := deckDraw(ctx, deckName, false)
 			if exists {
 				if err != nil {
 					return "<%抽取错误-" + deckName + "%>"

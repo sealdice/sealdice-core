@@ -5,15 +5,18 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	wr "github.com/mroth/weightedrand"
 	"github.com/sahilm/fuzzy"
 	"gopkg.in/yaml.v3"
 	"io/fs"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -273,13 +276,13 @@ func DeckReload(d *Dice) {
 	d.IsDeckLoading = false
 }
 
-func deckDraw(ctx *MsgContext, deckName string) (bool, string, error) {
+func deckDraw(ctx *MsgContext, deckName string, shufflePool bool) (bool, string, error) {
 	for _, i := range ctx.Dice.DeckList {
 		if i.Enable {
 			deckExists := i.Command[deckName]
 			if deckExists {
-				deck := i.DeckItems[deckName]
-				a, b := executeDeck(ctx, i, deck)
+				//deck := i.DeckItems[deckName]
+				a, b := executeDeck(ctx, i, deckName, shufflePool)
 				return true, a, b
 			}
 		}
@@ -415,7 +418,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						ReplyToSender(ctx, msg, "请给出要搜索的关键字")
 					}
 				} else {
-					exists, result, _ := deckDraw(ctx, deckName)
+					exists, result, _ := deckDraw(ctx, deckName, false)
 					if exists {
 						ReplyToSender(ctx, msg, result)
 					} else {
@@ -499,7 +502,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 		if deck == nil {
 			text = "<%未知牌组-" + deckName + "%>"
 		} else {
-			text, err = executeDeck(ctx, deckInfo, deck)
+			text, err = executeDeck(ctx, deckInfo, deckName, sign == '$')
 			if err != nil {
 				text = "<%抽取错误-" + deckName + "%>"
 			}
@@ -571,9 +574,37 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 	return DiceFormat(ctx, s)
 }
 
-func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckGroup []string) (string, error) {
-	pool := DeckToRandomPool(deckGroup)
-	cmd := deckStringFormat(ctx, deckInfo, pool.Pick().(string))
+func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePool bool) (string, error) {
+	var key string
+	if shufflePool {
+		var pool *ShuffleRandomPool
+		if ctx.DeckPools == nil {
+			ctx.DeckPools = map[*DeckInfo]map[string]*ShuffleRandomPool{}
+		}
+
+		if ctx.DeckPools[deckInfo] == nil {
+			ctx.DeckPools[deckInfo] = map[string]*ShuffleRandomPool{}
+		}
+
+		deckGroup := deckInfo.DeckItems[deckName]
+		if ctx.DeckPools[deckInfo][deckName] == nil {
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
+		}
+
+		if len(ctx.DeckPools[deckInfo][deckName].data) == 0 {
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
+		}
+
+		pool = ctx.DeckPools[deckInfo][deckName]
+		//fmt.Println("@!!!!!", pool.data, deckName, key)
+		key = pool.Pick().(string)
+		//fmt.Println("!!!!!!", pool.data, deckName, key)
+	} else {
+		deckGroup := deckInfo.DeckItems[deckName]
+		pool := DeckToRandomPool(deckGroup)
+		key = pool.Pick().(string)
+	}
+	cmd := deckStringFormat(ctx, deckInfo, key)
 	return cmd, nil
 }
 
@@ -595,5 +626,74 @@ func DeckToRandomPool(deck []string) *wr.Chooser {
 		choices = append(choices, wr.Choice{Item: text, Weight: weight})
 	}
 	randomPool, _ := wr.NewChooser(choices...)
+	return randomPool
+}
+
+// 临时乱写的
+type ShuffleRandomPool struct {
+	data   []wr.Choice
+	totals []int
+	max    int
+}
+
+func NewChooser(choices ...wr.Choice) (*ShuffleRandomPool, error) {
+	sort.Slice(choices, func(i, j int) bool {
+		return choices[i].Weight < choices[j].Weight
+	})
+
+	totals := make([]int, len(choices))
+	runningTotal := 0
+	for i, c := range choices {
+		weight := int(c.Weight)
+		//if (maxInt - runningTotal) <= weight {
+		//	return nil, errWeightOverflow
+		//}
+		runningTotal += weight
+		totals[i] = runningTotal
+	}
+
+	if runningTotal < 1 {
+		return nil, errors.New("zero Choices with Weight >= 1")
+	}
+
+	return &ShuffleRandomPool{data: choices, totals: totals, max: runningTotal}, nil
+}
+
+// Pick returns a single weighted random Choice.Item from the Chooser.
+//
+// Utilizes global rand as the source of randomness.
+func (c *ShuffleRandomPool) Pick() interface{} {
+	r := rand.Intn(c.max) + 1
+	i := searchInts(c.totals, r)
+
+	theOne := c.data[i]
+	c.max -= int(theOne.Weight)
+	c.totals = append(c.totals[:i], c.totals[i+1:]...)
+	c.data = append(c.data[:i], c.data[i+1:]...)
+	return theOne.Item
+}
+
+func searchInts(a []int, x int) int {
+	// Possible further future optimization for searchInts via SIMD if we want
+	// to write some Go assembly code: http://0x80.pl/articles/simd-search.html
+	i, j := 0, len(a)
+	for i < j {
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		if a[h] < x {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i
+}
+
+func DeckToShuffleRandomPool(deck []string) *ShuffleRandomPool {
+	choices := []wr.Choice{}
+	for _, i := range deck {
+		weight, text := extractWeight(i)
+		choices = append(choices, wr.Choice{Item: text, Weight: weight})
+	}
+	randomPool, _ := NewChooser(choices...)
 	return randomPool
 }
