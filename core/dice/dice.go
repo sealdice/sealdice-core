@@ -21,7 +21,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.0.0 v20220810dev"
+var VERSION = "1.0.0 v20220811"
 var VERSION_CODE = int64(1000002) // 991404
 
 type CmdExecuteResult struct {
@@ -98,7 +98,7 @@ func (x ExtDefaultSettingItemSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i
 
 type Dice struct {
 	ImSession               *IMSession             `yaml:"imSession"`
-	CmdMap                  CmdMapCls              `yaml:"-"`
+	CmdMap                  CmdMapCls              `yaml:"-" json:"-"`
 	ExtList                 []*ExtInfo             `yaml:"-"`
 	RollParser              *DiceRollParser        `yaml:"-"`
 	CommandCompatibleMode   bool                   `yaml:"commandCompatibleMode"`
@@ -262,7 +262,7 @@ func (d *Dice) Init() {
 	go refreshGroupInfo()
 
 	d.ApplyAliveNotice()
-	d.JsLoadScripts()
+	//d.JsLoadScripts()
 }
 
 func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
