@@ -92,7 +92,7 @@ export const useStore = defineStore('main', {
     curDice(): DiceServer {
       if (this.diceServers.length === 0) {
         this.diceServers.push({
-          baseInfo: { version: '0.0', versionNew: '0.0', memoryUsedSys: 0, memoryAlloc: 0, uptime: 0, versionNewNote: '' },
+          baseInfo: { version: '0.0', versionNew: '0.0', memoryUsedSys: 0, memoryAlloc: 0, uptime: 0, versionNewNote: '', versionCode: 0, versionNewCode: 0 },
           customTexts: {},
           customTextsHelpInfo: {},
           logs: [],
