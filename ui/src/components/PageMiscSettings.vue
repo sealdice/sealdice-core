@@ -11,7 +11,7 @@
 
   <el-form label-width="120px">
     <h2>Master管理</h2>
-    <el-form-item label="">
+    <!-- <el-form-item label="">
       <template #label>
         <div>
           <span>重载脚本(临时)</span>
@@ -23,7 +23,7 @@
       <div>
         <el-button @click="store.scriptReload()">重载脚本</el-button>
       </div>
-    </el-form-item>
+    </el-form-item> -->
 
     <el-form-item label="">
       <template #label>
