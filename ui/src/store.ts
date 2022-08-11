@@ -58,6 +58,8 @@ interface DiceBaseInfo {
   version: string
   versionNew: string
   versionNewNote: string
+  versionCode: number
+  versionNewCode: number
   memoryAlloc: number
   memoryUsedSys: number
   uptime: number

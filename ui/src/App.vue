@@ -17,7 +17,7 @@
       style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small; text-align: right;"
     >
       <div>{{ store.curDice.baseInfo.version }}</div>
-      <div v-if="store.curDice.baseInfo.version !== store.curDice.baseInfo.versionNew">🆕{{store.curDice.baseInfo.versionNew}}</div>
+      <div v-if="store.curDice.baseInfo.versionCode !== store.curDice.baseInfo.versionNewCode">🆕{{store.curDice.baseInfo.versionNew}}</div>
     </div>
 
     <div style="display: flex;">
