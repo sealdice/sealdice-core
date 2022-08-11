@@ -16,6 +16,6 @@ func scriptReload(c echo.Context) error {
 	//defer myDice.JsLock.Unlock()
 	myDice.JsInit()
 	myDice.CocExtraRules = map[int]*dice.CocRuleInfo{}
-	myDice.JsLoadScripts()
+	//myDice.JsLoadScripts()
 	return c.JSON(200, nil)
 }

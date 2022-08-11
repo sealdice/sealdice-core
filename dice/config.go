@@ -144,7 +144,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`{$t检定表达式文本}={$tD100}/{$t判定值}{$t检定计算过程} {$t判定结果}`, 1},
 			},
 			"检定": {
-				{`{$t玩家}的"{$t属性表达式文本}"检定结果为: {$t结果文本}`, 1},
+				{`{$t原因 ? '由于' + $t原因 + '，'}{$t玩家}的"{$t属性表达式文本}"检定结果为: {$t结果文本}`, 1},
 			},
 			"检定_多轮": {
 				{`对{$t玩家}的"{$t属性表达式文本}"进行了{$t次数}次检定，结果为:\n{$t结果文本}`, 1},
@@ -468,6 +468,9 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"提示_无权限": {
 				{"你没有权限这样做", 1},
+			},
+			"留言_已记录": {
+				{"您的留言已被记录，另外注意不要滥用此功能，祝您生活愉快，再会。", 1},
 			},
 		},
 		"娱乐": {
@@ -919,6 +922,9 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"提示_无权限": {
 				SubType: "通用",
+			},
+			"留言_已记录": {
+				SubType: ".send",
 			},
 		},
 		"其它": {
@@ -1389,7 +1395,7 @@ func (d *Dice) loads() {
 				d.AliveNoticeValue = "@every 3h"
 			}
 
-			if d.VersionCode != 0 && d.VersionCode < 10002 {
+			if d.VersionCode != 0 && d.VersionCode < 10003 {
 				d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 10003)
 				d.LogSizeNoticeCount = 500
 				d.LogSizeNoticeEnable = true
@@ -1451,7 +1457,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.VersionCode = 10002 // TODO: 记得修改！！！
+	d.VersionCode = 10003 // TODO: 记得修改！！！
 	d.LogWriter.LogLimit = d.UILogLimit
 
 	// 设置扩展选项

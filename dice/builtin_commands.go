@@ -848,7 +848,7 @@ func (d *Dice) registerCoreCommands() {
 					ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")
 					//replyPersonRaw(ctx, val, text, "")
 				}
-				ReplyToSender(ctx, msg, "您的留言已被记录，另外注意不要滥用此功能，祝您生活愉快，再会。")
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
