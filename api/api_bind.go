@@ -34,9 +34,11 @@ func baseInfo(c echo.Context) error {
 
 	var versionNew string
 	var versionNewNote string
+	var versionNewCode int64
 	if dm.AppVersionOnline != nil {
 		versionNew = dm.AppVersionOnline.VersionLatestDetail
 		versionNewNote = dm.AppVersionOnline.VersionLatestNote
+		versionNewCode = dm.AppVersionOnline.VersionLatestCode
 	}
 
 	return c.JSON(http.StatusOK, struct {
@@ -44,6 +46,8 @@ func baseInfo(c echo.Context) error {
 		Version        string `json:"version"`
 		VersionNew     string `json:"versionNew"`
 		versionNewNote string `json:"versionNewNote"`
+		VersionCode    int64  `json:"versionCode"`
+		VersionNewCode int64  `json:"versionNewCode"`
 		MemoryAlloc    uint64 `json:"memoryAlloc"`
 		Uptime         int64  `json:"uptime"`
 		MemoryUsedSys  uint64 `json:"memoryUsedSys"`
@@ -52,6 +56,8 @@ func baseInfo(c echo.Context) error {
 		Version:        dice.VERSION,
 		VersionNew:     versionNew,
 		versionNewNote: versionNewNote,
+		VersionCode:    dice.VERSION_CODE,
+		VersionNewCode: versionNewCode,
 		MemoryAlloc:    m.Alloc,
 		MemoryUsedSys:  m.Sys,
 		Uptime:         time.Now().Unix() - startTime,
