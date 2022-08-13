@@ -384,6 +384,9 @@ func (d *Dice) registerCoreCommands() {
 				VarSetValueStr(ctx, "$t群内工作状态", groupWorkInfo)
 				baseText := fmt.Sprintf("SealDice %s%s", VERSION, onlineVer)
 				extText := DiceFormat(ctx, ctx.Dice.CustomBotExtraText)
+				if extText != "" {
+					extText = "\n" + extText
+				}
 				text := baseText + extText
 
 				ReplyToSender(ctx, msg, text)
