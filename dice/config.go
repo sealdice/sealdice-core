@@ -592,6 +592,7 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"检定": {
 				SubType: ".ra/rc 射击",
+				Vars:    []string{"$t原因", "$t玩家", "$t属性表达式文本", "$t结果文本"},
 			},
 			"检定_多轮": {
 				SubType: ".ra/rc 3#射击",

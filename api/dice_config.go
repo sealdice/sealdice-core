@@ -317,7 +317,16 @@ func DiceConfigSet(c echo.Context) error {
 		}
 
 		if val, ok := jsonMap["logSizeNoticeCount"]; ok {
-			myDice.LogSizeNoticeCount = val.(int)
+			count, ok := val.(float64)
+			if ok {
+				myDice.LogSizeNoticeCount = int(count)
+			}
+			if !ok {
+				if v, ok := val.(string); ok {
+					v2, _ := strconv.ParseInt(v, 10, 64)
+					myDice.LogSizeNoticeCount = int(v2)
+				}
+			}
 			if myDice.LogSizeNoticeCount == 0 {
 				// 不能为零
 				myDice.LogSizeNoticeCount = 500

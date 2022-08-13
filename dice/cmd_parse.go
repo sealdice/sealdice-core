@@ -265,7 +265,7 @@ func (c *CQCommand) Compile() string {
 }
 
 func ImageRewrite(longText string, solve func(text string) string) string {
-	re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice):(.+?)]`) // [img:] 或 [图:]
+	re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
 	m := re.FindAllStringIndex(longText, -1)
 
 	newText := longText
