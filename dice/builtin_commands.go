@@ -438,7 +438,7 @@ func (d *Dice) registerCoreCommands() {
 							//	delete(ctx.Session.ServiceAt, msg.GroupId)
 							//} else {
 
-							if msg.Platform == "QQ-CH" || !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel >= 40 {
+							if msg.Platform == "QQ-CH" || !ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
 								SetBotOffAtGroup(ctx, ctx.Group.GroupId)
 							} else {
 								ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员、邀请者或master"))
