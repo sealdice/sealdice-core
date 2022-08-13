@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -22,11 +23,13 @@ import (
 )
 
 type DeckDiceEFormat struct {
-	Title   []string `json:"_title"`
-	Author  []string `json:"_author"`
-	Date    []string `json:"_date"`
-	Version []string `json:"_version"`
+	Title      []string `json:"_title"`
+	Author     []string `json:"_author"`
+	Date       []string `json:"_date"`
+	UpdateDate []string `json:"_updateDate"`
+	Version    []string `json:"_version"`
 	//Export  []string `json:"_export"` // 导出项，类似command
+	//Keys  []string `json:"_keys"` // 导出项，类似command
 	//一组牌        []string `json:"一组牌"`
 }
 
@@ -53,6 +56,7 @@ type DeckInfo struct {
 	Command       map[string]bool      `json:"command" yaml:"-"` // 牌堆命令名
 	DeckItems     map[string][]string  `yaml:"-" json:"-"`
 	Date          string               `json:"date" yaml:"-" `
+	UpdateDate    string               `json:"date" yaml:"-" `
 	Desc          string               `yaml:"-" json:"desc"`
 	Info          []string             `yaml:"-" json:"-"`
 	rawData       *map[string][]string `yaml:"-" json:"-"`
@@ -72,7 +76,7 @@ func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	jsonData := map[string][]string{}
 	err := json.Unmarshal(content, &jsonData)
 	if err != nil {
-		//fmt.Println("牌堆解析:",  err)
+		fmt.Println("牌堆解析错误:", err)
 		return false
 	}
 	jsonData2 := DeckDiceEFormat{}
@@ -82,20 +86,46 @@ func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	}
 
 	// 存在 _export
-	exports, exists := jsonData["_export"]
-	if exists {
+	exports, exportsExists := jsonData["_export"]
+	if !exportsExists {
+		exports, exportsExists = jsonData["_exports"]
+	}
+	if exportsExists {
 		for _, i := range exports {
 			deckInfo.Command[i] = true
 		}
 	}
 
-	for k, v := range jsonData {
-		deckInfo.DeckItems[k] = v
+	// 存在 _keys，仅显示keys但都能抽
+	keysInfo, keysExists := jsonData["_keys"]
+	if keysExists {
+		for _, i := range keysInfo {
+			deckInfo.Command[i] = true
+		}
 
-		// 不存在 _export
-		if !exists {
-			if !strings.HasPrefix(k, "_") {
-				deckInfo.Command[k] = true
+		for k, v := range jsonData {
+			deckInfo.DeckItems[k] = v
+
+			// 不存在 _export
+			if !exportsExists {
+				if !strings.HasPrefix(k, "_") {
+					_, exists := deckInfo.Command[k]
+					if !exists {
+						deckInfo.Command[k] = false
+					}
+				}
+			}
+		}
+	} else {
+		// 不存在 _keys 默认为全部显示
+		for k, v := range jsonData {
+			deckInfo.DeckItems[k] = v
+
+			// 不存在 _export
+			if !exportsExists {
+				if !strings.HasPrefix(k, "_") {
+					deckInfo.Command[k] = true
+				}
 			}
 		}
 	}
@@ -104,6 +134,7 @@ func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.Author = strings.Join(jsonData2.Author, " / ")
 	deckInfo.Version = strings.Join(jsonData2.Version, " / ")
 	deckInfo.Date = strings.Join(jsonData2.Date, " / ")
+	deckInfo.UpdateDate = strings.Join(jsonData2.UpdateDate, " / ")
 	deckInfo.Format = "Dice!"
 	deckInfo.FormatVersion = 1
 	deckInfo.Enable = true
@@ -184,9 +215,13 @@ func DeckTryParse(d *Dice, fn string) {
 	}
 
 	if !tryParseDiceE(d, content, deckInfo) {
-		if !tryParseSinaNya(d, content, deckInfo) {
+		if path.Ext(fn) != ".json" {
+			if !tryParseSinaNya(d, content, deckInfo) {
+				d.Logger.Infof("牌堆文件“%s”解析失败", fn)
+				return
+			}
+		} else {
 			d.Logger.Infof("牌堆文件“%s”解析失败", fn)
-			return
 		}
 	}
 	deckInfo.Filename = fn
@@ -279,7 +314,7 @@ func DeckReload(d *Dice) {
 func deckDraw(ctx *MsgContext, deckName string, shufflePool bool) (bool, string, error) {
 	for _, i := range ctx.Dice.DeckList {
 		if i.Enable {
-			deckExists := i.Command[deckName]
+			_, deckExists := i.Command[deckName]
 			if deckExists {
 				//deck := i.DeckItems[deckName]
 				a, b := executeDeck(ctx, i, deckName, shufflePool)
@@ -339,9 +374,17 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					if len(matches) > 0 {
 						text := "牌堆信息:\n"
 						i := ctx.Dice.DeckList[matches[0].Index]
-						author := fmt.Sprintf("作者:%s", i.Author)
-						version := fmt.Sprintf("版本:%s", i.Version)
+						author := fmt.Sprintf("作者: %s", i.Author)
+						version := fmt.Sprintf("版本: %s", i.Version)
 						text += fmt.Sprintf("牌堆: %s\n格式: %s\n%s\n%s\n牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
+						if i.Date != "" {
+							time := fmt.Sprintf("时间: %s\n", i.Date)
+							text += time
+						}
+						if i.UpdateDate != "" {
+							time := fmt.Sprintf("更新时间: %s\n", i.UpdateDate)
+							text += time
+						}
 
 						cmds := []string{}
 						for j, _ := range i.Command {
@@ -365,8 +408,10 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						for _, i := range ctx.Dice.DeckList {
 							if i.Enable {
 								if strings.Contains(i.Name, specified) {
-									for j := range i.Command {
-										keys += j + "/"
+									for j, isShow := range i.Command {
+										if isShow {
+											keys += j + "/"
+										}
 									}
 								}
 							}
@@ -502,7 +547,12 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 		if deck == nil {
 			text = "<%未知牌组-" + deckName + "%>"
 		} else {
-			text, err = executeDeck(ctx, deckInfo, deckName, sign == '$')
+			useShufflePool := sign != '%'
+			if deckInfo.Format == "SinaNya" {
+				useShufflePool = !useShufflePool
+			}
+
+			text, err = executeDeck(ctx, deckInfo, deckName, useShufflePool)
 			if err != nil {
 				text = "<%抽取错误-" + deckName + "%>"
 			}
