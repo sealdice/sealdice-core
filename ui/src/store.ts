@@ -113,6 +113,9 @@ export const useStore = defineStore('main', {
 
     async getBaseInfo() {
       const info = await backend.get(urlPrefix+'/baseInfo', { timeout: 5000 })
+      if (!document.title.includes('-')) {
+        document.title = `${(info as any).extraTitle} - ${document.title}`;
+      }
       this.curDice.baseInfo = info as any;
       return info
     },

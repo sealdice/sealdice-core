@@ -409,7 +409,7 @@ import {
   QuestionFilled,
   BrushFilled
 } from '@element-plus/icons-vue'
-import { cloneDeep } from 'lodash-es';
+import { cloneDeep, toNumber } from 'lodash-es';
 import { computed, nextTick, onBeforeMount, onBeforeUnmount, ref, watch } from 'vue';
 import { useStore } from '~/store';
 import { objDiff, passwordHash } from '~/utils';
@@ -481,6 +481,10 @@ const submit = async () => {
 
   if (mod.extDefaultSettings) {
     mod.extDefaultSettings = cloneDeep(config.value.extDefaultSettings)
+  }
+
+  if (mod.logSizeNoticeCount) {
+    mod.logSizeNoticeCount = toNumber(mod.logSizeNoticeCount)
   }
 
   await store.diceConfigSet(mod)
