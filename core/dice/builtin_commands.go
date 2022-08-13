@@ -1350,10 +1350,13 @@ func (d *Dice) registerCoreCommands() {
 			cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "group1", "grp1")
 
 			getNickname := func() string {
-				name, _ := cmdArgs.GetArgN(2)
+				//name, _ := cmdArgs.GetArgN(2)
+				name := cmdArgs.CleanArgsChopRest
 				if name == "" {
 					name = ctx.Player.Name
 				}
+				name = strings.ReplaceAll(name, "\n", "")
+				name = strings.ReplaceAll(name, "\r", "")
 				return name
 			}
 
