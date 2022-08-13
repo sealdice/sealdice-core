@@ -326,7 +326,7 @@ servers:
       # 正向WS服务器监听端口
       port: {WS端口}
       # rc3
-      # address: 127.0.0.1:{WS端口}
+      address: 127.0.0.1:{WS端口}
       middlewares:
         <<: *default # 引用默认中间件
 `

@@ -582,7 +582,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 	}
 
 	imgSolve := func(text string) string {
-		re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice):(.+?)]`) // [img:] 或 [图:]
+		re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
 		m := re.FindStringSubmatch(text)
 		if m != nil {
 			fn := m[2]

@@ -374,17 +374,25 @@ func textAssetsConvert(s string) string {
 	//}
 
 	solve2 := func(text string) string {
-		re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice):(.+?)]`) // [img:] 或 [图:]
+		re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
 		m := re.FindStringSubmatch(text)
 		if m != nil {
 			fn := m[2]
+			cqType := "image"
+			if m[1] == "voice" || m[1] == "语音" {
+				cqType = "record"
+			}
+			if m[1] == "video" || m[1] == "视频" {
+				cqType = "video"
+			}
+
 			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
 				u, err := url.Parse(fn)
 				if err != nil {
 					return text
 				}
 				cq := CQCommand{
-					Type: "image",
+					Type: cqType,
 					Args: map[string]string{"file": u.String()},
 				}
 				return cq.Compile()
@@ -397,7 +405,7 @@ func textAssetsConvert(s string) string {
 			cwd, _ := os.Getwd()
 			if strings.HasPrefix(afn, cwd) {
 				if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
-					return "[找不到图片]"
+					return "[找不到图片/文件]"
 				} else {
 					// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
 					if runtime.GOOS == `windows` {
@@ -408,13 +416,13 @@ func textAssetsConvert(s string) string {
 						Path:   afn,
 					}
 					cq := CQCommand{
-						Type: "image",
+						Type: cqType,
 						Args: map[string]string{"file": u.String()},
 					}
 					return cq.Compile()
 				}
 			} else {
-				return "[图片指向非当前程序目录，已禁止]"
+				return "[图片/文件指向非当前程序目录，已禁止]"
 			}
 		}
 		return text
