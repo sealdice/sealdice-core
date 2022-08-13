@@ -411,7 +411,7 @@ func (d *Dice) registerCoreCommands() {
 								return CmdExecuteResult{Matched: false, Solved: false}
 							}
 
-							if msg.Platform == "QQ-CH" || !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel >= 40 {
+							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
 								SetBotOnAtGroup(ctx, msg.GroupId)
 							} else {
 								ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员、邀请者或master"))
