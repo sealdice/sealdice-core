@@ -98,7 +98,7 @@ func (a *CmdArgs) ChopPrefixToArgsWith(ss ...string) bool {
 					base,
 					a.Args[1:]...,
 				)
-				a.CleanArgsChopRest = strings.TrimSpace(a.CleanArgs[len(i):])
+				a.CleanArgsChopRest = strings.TrimSpace(a.RawArgs[len(i):])
 				return true
 			}
 		}

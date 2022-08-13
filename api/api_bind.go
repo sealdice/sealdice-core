@@ -41,26 +41,32 @@ func baseInfo(c echo.Context) error {
 		versionNewCode = dm.AppVersionOnline.VersionLatestCode
 	}
 
+	extraTitle := ""
+	ctx := &dice.MsgContext{Dice: myDice, EndPoint: nil, Session: myDice.ImSession}
+	extraTitle = dice.DiceFormatTmpl(ctx, "核心:骰子名字")
+
 	return c.JSON(http.StatusOK, struct {
 		AppName        string `json:"appName"`
 		Version        string `json:"version"`
 		VersionNew     string `json:"versionNew"`
-		versionNewNote string `json:"versionNewNote"`
+		VersionNewNote string `json:"versionNewNote"`
 		VersionCode    int64  `json:"versionCode"`
 		VersionNewCode int64  `json:"versionNewCode"`
 		MemoryAlloc    uint64 `json:"memoryAlloc"`
 		Uptime         int64  `json:"uptime"`
 		MemoryUsedSys  uint64 `json:"memoryUsedSys"`
+		ExtraTitle     string `json:"extraTitle"`
 	}{
 		AppName:        dice.APPNAME,
 		Version:        dice.VERSION,
 		VersionNew:     versionNew,
-		versionNewNote: versionNewNote,
+		VersionNewNote: versionNewNote,
 		VersionCode:    dice.VERSION_CODE,
 		VersionNewCode: versionNewCode,
 		MemoryAlloc:    m.Alloc,
 		MemoryUsedSys:  m.Sys,
 		Uptime:         time.Now().Unix() - startTime,
+		ExtraTitle:     extraTitle,
 	})
 }
 
