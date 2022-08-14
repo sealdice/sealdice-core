@@ -21,8 +21,8 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.0.0 v20220813dev"
-var VERSION_CODE = int64(1000003) // 991404
+var VERSION = "1.0.1 v20220814"
+var VERSION_CODE = int64(1000100) // 991404
 
 type CmdExecuteResult struct {
 	Matched  bool // 是否是指令
@@ -291,6 +291,7 @@ func (d *Dice) Init() {
 
 				d.Logger.Infof("升级完成，当前版本: %s", VERSION)
 				d.UpgradeWindowId = ""
+				break
 			}
 		}()
 	}
