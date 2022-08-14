@@ -741,6 +741,7 @@ func (d *Dice) registerCoreCommands() {
 							} else {
 								ctx.Dice.UpgradeWindowId = ctx.Group.GroupId
 							}
+							ctx.Dice.Save(true)
 
 							if ret == "" {
 								ReplyToSender(ctx, msg, "准备开始升级，服务即将离线")
