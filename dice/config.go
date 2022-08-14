@@ -1404,6 +1404,9 @@ func (d *Dice) loads() {
 				d.CustomBotExtraText = "供职于{$t供职群数}个群，其中{$t启用群数}个处于开启状态。{$t群内工作状态}"
 				d.CustomReplyConfigEnable = true
 			}
+			if d.VersionCode != 0 && d.VersionCode < 10004 {
+
+			}
 
 			// 设置全局群名缓存和用户名缓存
 			dm := d.Parent

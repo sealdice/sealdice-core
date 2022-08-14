@@ -263,6 +263,37 @@ func (d *Dice) Init() {
 
 	d.ApplyAliveNotice()
 	//d.JsLoadScripts()
+
+	if d.UpgradeWindowId != "" {
+		go func() {
+			for {
+				time.Sleep(30 * time.Second)
+				text := fmt.Sprintf("升级完成，当前版本: %s", VERSION)
+
+				isGroup := strings.Contains(d.UpgradeWindowId, "-Group:")
+				waitNext := false
+				for _, ep := range d.ImSession.EndPoints {
+					if ep.State == 2 {
+						waitNext = true
+						break
+					}
+					ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
+					if isGroup {
+						ReplyGroup(ctx, &Message{GroupId: d.UpgradeWindowId}, text)
+					} else {
+						ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: d.UpgradeWindowId}}, text)
+					}
+				}
+
+				if waitNext {
+					continue
+				}
+
+				d.Logger.Infof("升级完成，当前版本: %s", VERSION)
+				d.UpgradeWindowId = ""
+			}
+		}()
+	}
 }
 
 func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
