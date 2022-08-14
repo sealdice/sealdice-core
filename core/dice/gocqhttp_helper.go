@@ -547,9 +547,16 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			} else {
 				fmt.Printf("onebot | %s\n", line)
 
+				skip := false
+				if strings.Contains(line, "WARNING") && strings.Contains(line, "使用了过时的配置格式，请更新配置文件") {
+					skip = true
+				}
+
 				// error 之类错误无条件警告
-				if strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
-					dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+				if !skip {
+					if strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
+						dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+					}
 				}
 			}
 		}
