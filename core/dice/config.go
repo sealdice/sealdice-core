@@ -1382,7 +1382,7 @@ func (d *Dice) loads() {
 			}
 
 			if d.VersionCode != 0 && d.VersionCode < 9914 {
-				d.AutoReloginEnable = true
+				d.AutoReloginEnable = false
 				d.WorkInQQChannel = true
 			}
 
@@ -1404,8 +1404,9 @@ func (d *Dice) loads() {
 				d.CustomBotExtraText = "供职于{$t供职群数}个群，其中{$t启用群数}个处于开启状态。{$t群内工作状态}"
 				d.CustomReplyConfigEnable = true
 			}
-			if d.VersionCode != 0 && d.VersionCode < 10004 {
 
+			if d.VersionCode != 0 && d.VersionCode < 10004 {
+				d.AutoReloginEnable = false
 			}
 
 			// 设置全局群名缓存和用户名缓存
@@ -1427,7 +1428,7 @@ func (d *Dice) loads() {
 		}
 	} else {
 		// 这里是没有加载到配置文件，所以写默认设置项
-		d.AutoReloginEnable = true
+		d.AutoReloginEnable = false
 		d.WorkInQQChannel = true
 		d.HelpMasterInfo = HelpMasterInfoDefault
 		d.HelpMasterLicense = HelpMasterLicenseDefault
@@ -1461,7 +1462,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.VersionCode = 10003 // TODO: 记得修改！！！
+	d.VersionCode = 10004 // TODO: 记得修改！！！
 	d.LogWriter.LogLimit = d.UILogLimit
 
 	// 设置扩展选项
