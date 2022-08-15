@@ -756,8 +756,8 @@ func (ctx *MsgContext) ChVarsClear() int {
 	vars, isBind := ctx.ChVarsGet()
 	num := vars.Len()
 	if isBind {
-		gvar := ctx.LoadPlayerGlobalVars()
-		if _card, ok := gvar.ValueMap.Get("$:card"); ok {
+		//gvar := ctx.LoadPlayerGlobalVars()
+		if _card, ok := ctx.Player.Vars.ValueMap.Get("$:card"); ok {
 			// 因为card可能在多个群关联，所以只有通过这种方式清空
 			if card, ok := _card.(lockfree.HashMap); ok {
 				items := []interface{}{}
@@ -774,11 +774,14 @@ func (ctx *MsgContext) ChVarsClear() int {
 				}
 			}
 		}
-		gvar.LastWriteTime = time.Now().Unix()
+
+		ctx.ChVarsUpdateTime()
+		//gvar.LastWriteTime = time.Now().Unix()
 	} else {
 		p := ctx.Player
 		p.Vars.ValueMap = lockfree.NewHashMap()
 		p.Vars.LastWriteTime = time.Now().Unix()
+		ctx.ChVarsUpdateTime()
 	}
 	return num
 }
