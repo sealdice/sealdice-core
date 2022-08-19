@@ -111,6 +111,8 @@ func (i *BanListInfo) AfterLoads() {
 	})
 }
 
+// AddScoreBase
+// 这一份ctx有endpoint就行
 func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason string, ctx *MsgContext) *BanListInfoItem {
 	var v *BanListInfoItem
 	_v, exists := i.Map.Get(uid)

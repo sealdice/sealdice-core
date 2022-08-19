@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"sealdice-core/dice"
+	"strings"
 )
 
 func banConfigGet(c echo.Context) error {
@@ -85,10 +86,17 @@ func banMapAddOne(c echo.Context) error {
 		if len(v.Reasons) > 0 {
 			reason = v.Reasons[0]
 		}
-		v2 := myDice.BanList.AddScoreBase(v.ID, score, "海豹后台", reason, nil)
-		if v2 != nil {
-			if v.Name != "" {
-				v2.Name = v.Name
+
+		prefix := strings.Split(v.ID, ":")[0]
+		platform := strings.Replace(prefix, "-Group", "", 1)
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.Platform == platform && i.Enable {
+				v2 := myDice.BanList.AddScoreBase(v.ID, score, "海豹后台", reason, &dice.MsgContext{Dice: myDice, EndPoint: i})
+				if v2 != nil {
+					if v.Name != "" {
+						v2.Name = v.Name
+					}
+				}
 			}
 		}
 	}
