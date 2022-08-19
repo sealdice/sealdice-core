@@ -133,7 +133,9 @@ const beforeUpload = async (file: any) => { // UploadRawFile
   let fd = new FormData()
   fd.append('file', file)
   await store.deckUpload({ form: fd })
-  ElMessage.success('上传完成')
+  ElMessage.success('上传完成，即将自动重载牌堆')
+  await store.deckReload()
+  await refreshList()
 }
 
 onBeforeMount(async () => {
