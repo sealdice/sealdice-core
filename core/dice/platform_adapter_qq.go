@@ -321,7 +321,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 				// 信任模式，如果不是信任，又不是master则拒绝拉群邀请
 				isMaster := ctx.Dice.IsMaster(uid)
-				if ctx.Dice.TrustOnlyMode && (banInfo.Rank != BanRankTrusted && !isMaster) {
+				if ctx.Dice.TrustOnlyMode && ((banInfo != nil && banInfo.Rank != BanRankTrusted) && !isMaster) {
 					pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "只允许骰主设置信任的人拉群")
 					return
 				}
