@@ -1501,7 +1501,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ss = append(ss, ret)
 				}
 			}
-			info := strings.Join(ss, "\n")
+			sep := DiceFormatTmpl(ctx, "DND:制卡_分隔符")
+			info := strings.Join(ss, sep)
 			if isMode2 {
 				ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的DnD5e人物作成(预设模式):\n%s\n自由分配模式请用.dnd", ctx.Player.Name, info))
 			} else {
