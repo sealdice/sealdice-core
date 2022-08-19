@@ -533,13 +533,22 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 
 			// 试图匹配自定义回复
-			if mctx.Group != nil && (mctx.Group.IsActive(mctx) || amIBeMentioned) {
-				for _, i := range mctx.Group.ActivatedExtList {
-					if i.OnNotCommandReceived != nil {
-						if runInSync {
-							i.OnNotCommandReceived(mctx, msg)
-						} else {
-							go i.OnNotCommandReceived(mctx, msg)
+			isSenderBot := false
+			if mctx.MessageType == "group" {
+				if mctx.Group.BotList[msg.Sender.UserId] {
+					isSenderBot = true
+				}
+			}
+
+			if !isSenderBot {
+				if mctx.Group != nil && (mctx.Group.IsActive(mctx) || amIBeMentioned) {
+					for _, i := range mctx.Group.ActivatedExtList {
+						if i.OnNotCommandReceived != nil {
+							if runInSync {
+								i.OnNotCommandReceived(mctx, msg)
+							} else {
+								go i.OnNotCommandReceived(mctx, msg)
+							}
 						}
 					}
 				}
