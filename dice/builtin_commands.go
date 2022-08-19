@@ -548,7 +548,7 @@ func (d *Dice) registerCoreCommands() {
 			cmdArgs.ChopPrefixToArgsWith("add", "rm", "del", "show", "list")
 
 			checkSlience := func() bool {
-				return cmdArgs.SomeoneBeMentionedButNotMe || cmdArgs.GetKwarg("s") != nil ||
+				return (!cmdArgs.AmIBeMentionedFirst) || cmdArgs.GetKwarg("s") != nil ||
 					cmdArgs.GetKwarg("slience") != nil
 			}
 
@@ -568,8 +568,11 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 
+				text := fmt.Sprintf("新增标记了%d/%d个帐号，这些账号将被视为机器人。\n因此他们被人@，或主动发出指令时，海豹将不会回复。\n另外对于botlist add/rm，如果群里有多个海豹，只有第一个被@的会回复，其余的执行指令但不回应", newCount, allCount)
 				if !checkSlience() {
-					ReplyToSender(ctx, msg, fmt.Sprintf("新增标记了%d/%d个帐号，这些账号将被视为机器人。\n因此他们被人@，或主动发出指令时，海豹将不会回复。\n另外对于botlist add/rm，如果群里有多个海豹，只有第一个被@的会回复，其余的执行指令但不回应", newCount, allCount))
+					ReplyToSender(ctx, msg, text)
+				} else {
+					d.Logger.Infof("静默执行: " + text)
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			case "del", "rm":
@@ -583,8 +586,11 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 
+				text := fmt.Sprintf("删除标记了%d/%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount, allCount)
 				if !checkSlience() {
-					ReplyToSender(ctx, msg, fmt.Sprintf("删除标记了%d/%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount, allCount))
+					ReplyToSender(ctx, msg, text)
+				} else {
+					d.Logger.Infof("静默执行: " + text)
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			case "list", "show":

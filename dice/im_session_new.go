@@ -535,7 +535,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// 试图匹配自定义回复
 			isSenderBot := false
 			if mctx.MessageType == "group" {
-				if mctx.Group.BotList[msg.Sender.UserId] {
+				if mctx.Group != nil && mctx.Group.BotList[msg.Sender.UserId] {
 					isSenderBot = true
 				}
 			}
