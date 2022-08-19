@@ -196,10 +196,19 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 		}
 
 		fmt.Println("端口占用检测 - 开始")
-		//net.DialTCP()
-		ln, err := net.Listen("tcp", ":"+portStr)
-		fmt.Println("端口占用检测 - 结果", err)
+		c, err := net.Dial("tcp", "127.0.0.1:"+portStr)
+		fmt.Println("端口占用检测 - ", err == nil)
+
+		isPortOk := false
 		if err != nil {
+			if strings.Contains(err.Error(), "the target machine actively refused it") {
+				// 正确
+				isPortOk = true
+			}
+		}
+
+		if !isPortOk {
+			_ = c.Close()
 			s1, _ := syscall.UTF16PtrFromString("海豹TRPG骰点核心")
 			s2, _ := syscall.UTF16PtrFromString(fmt.Sprintf("端口 %s 已被占用，点“是”随机换一个端口，点“否”退出\n注意，此端口将被自动写入配置，后续可用启动参数改回", portStr))
 			ret := win.MessageBox(0, s2, s1, win.MB_YESNO|win.MB_ICONWARNING|win.MB_DEFBUTTON2)
@@ -212,9 +221,8 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 				logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
 				os.Exit(1)
 			}
+		} else {
 		}
-		_ = ln.Close()
-
 		if !hideUI {
 			go func() {
 				for {
