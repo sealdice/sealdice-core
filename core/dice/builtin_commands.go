@@ -337,7 +337,7 @@ func (d *Dice) registerCoreCommands() {
 		Raw:       true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			inGroup := msg.MessageType == "group"
-			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentioned // 喊的不是当前骰子
+			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentionedFirst // 喊的不是当前骰子
 
 			if len(cmdArgs.Args) == 0 || cmdArgs.IsArgEqual(1, "about") {
 				if AtSomebodyButNotMe {
@@ -462,20 +462,6 @@ func (d *Dice) registerCoreCommands() {
 								ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员或master"))
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
-							//code, exists := cmdArgs.GetArgN(2)
-							//if exists {
-							//	if code == updateCode && updateCode != "0000" {
-							//		ReplyToSender(ctx, msg, "3秒后开始重启")
-							//		time.Sleep(3 * time.Second)
-							//		dm.RebootRequestChan <- 1
-							//	} else {
-							//		ReplyToSender(ctx, msg, "无效的升级指令码")
-							//	}
-							//} else {
-							//	updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
-							//	text := fmt.Sprintf("进程重启:\n如需重启，请输入.master reboot %s 确认进行重启\n重启将花费约2分钟，失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
-							//	ReplyToSender(ctx, msg, text)
-							//}
 
 							// 收到指令，5s后将退出当前群组
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
@@ -503,6 +489,25 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["bot"] = cmdBot
+
+	helpForDismiss := ".dismiss // 退群" +
+		".dismiss 1234 // 指定尾号退群"
+	cmdDismiss := &CmdItemInfo{
+		Name:      "dismiss",
+		ShortHelp: helpForDismiss,
+		Help:      "退群(映射到bot off):\n" + helpForDismiss,
+		Raw:       true,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			rest, exists := cmdArgs.GetArgN(1)
+			cmdArgs.Args = []string{"bye"}
+			cmdArgs.RawArgs = "bye " + cmdArgs.RawArgs
+			if exists {
+				cmdArgs.Args = append(cmdArgs.Args, rest)
+			}
+			return cmdBot.Solve(ctx, msg, cmdArgs)
+		},
+	}
+	d.CmdMap["dismiss"] = cmdDismiss
 
 	readIdList := func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) []string {
 		uidLst := []string{}
