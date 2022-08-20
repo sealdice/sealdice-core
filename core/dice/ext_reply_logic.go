@@ -205,6 +205,15 @@ type ReplyConfig struct {
 	Enable   bool         `yaml:"enable" json:"enable"`
 	Interval float64      `yaml:"interval" json:"interval"` // 响应间隔，最少为5
 	Items    []*ReplyItem `yaml:"items" json:"items"`
+
+	// 作者信息
+	Name            string   `yaml:"name" json:"name"`
+	Author          []string `yaml:"author" json:"author"`
+	Version         string   `yaml:"version" json:"version"`
+	CreateTimestamp int64    `yaml:"createTimestamp" json:"createTimestamp"`
+	UpdateTimestamp int64    `yaml:"updateTimestamp" json:"updateTimestamp"`
+	Desc            string   `yaml:"desc" json:"desc"`
+
 	// web专用
 	Filename string `yaml:"-" json:"filename"`
 }

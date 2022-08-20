@@ -145,7 +145,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 	pa.InPackGoCqHttpDisconnectedCH = make(chan int, 1)
 	session := s
 
-	socket := gowebsocket.New(strings.ReplaceAll(pa.ConnectUrl, "56617", "56611"))
+	socket := gowebsocket.New(pa.ConnectUrl)
 	pa.Socket = &socket
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {

@@ -1204,7 +1204,6 @@ func (d *Dice) registerCoreCommands() {
 		ShortHelp: helpNN,
 		Help:      "角色名设置:\n" + helpNN,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-
 			val, _ := cmdArgs.GetArgN(1)
 			switch val {
 			case "":
