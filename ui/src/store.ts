@@ -1,15 +1,28 @@
 import { backend } from './backend'
 
+export enum goCqHttpStateCode {
+  Init              = 0,
+	InLogin           = 1,
+	InLoginQrCode     = 2,
+	InLoginBar        = 3,
+	InLoginVerifyCode = 6,
+	InLoginDeviceLock = 7,
+	LoginSuccessed    = 10,
+	LoginFailed       = 11,
+	Closed            = 20
+}
+
 export interface AdapterQQ {
+  DiceServing: boolean
   connectUrl: string;
+  curLoginFailedReason: string
+  curLoginIndex: number
+  goCqHttpState: goCqHttpStateCode
+  inPackGoCqHttpLastRestricted: number
+  inPackGoCqHttpProtocol: number
   useInPackGoCqhttp: boolean;
-  inPackGoCqHttpLoginSuccess: boolean;
-  inPackGoCqHttpRunning: boolean;
-  inPackGoCqHttpQrcodeReady: boolean;
-  inPackGoCqHttpNeedQrCode: boolean;
-  inPackGoCqHttpLastRestricted: number;
-  inPackGoCqHttpLoginDeviceLockUrl: string;
-  inPackGoCqHttpProtocol: number;
+  goCqHttpLoginVerifyCode: string;
+  goCqHttpLoginDeviceLockUrl: string
 }
 
 interface TalkLogItem {
@@ -114,7 +127,9 @@ export const useStore = defineStore('main', {
     async getBaseInfo() {
       const info = await backend.get(urlPrefix+'/baseInfo', { timeout: 5000 })
       if (!document.title.includes('-')) {
-        document.title = `${(info as any).extraTitle} - ${document.title}`;
+        if ((info as any).extraTitle) {
+          document.title = `${(info as any).extraTitle} - ${document.title}`;
+        }
       }
       this.curDice.baseInfo = info as any;
       return info
@@ -135,13 +150,13 @@ export const useStore = defineStore('main', {
     },
 
     async gocqhttpReloginImConnection(i: DiceConnection) {
-      const info = await backend.post(urlPrefix+'/im_connections/gocqhttpRelogin', { id: i.id })
+      const info = await backend.post(urlPrefix+'/im_connections/gocqhttpRelogin', { id: i.id }, { timeout: 65000 })
       return info as any as DiceConnection
     },
 
     async addImConnection(form: { account: string, password: string, protocol: number }) {
       const { account, password, protocol } = form
-      const info = await backend.post(urlPrefix+'/im_connections/add', { account, password, protocol })
+      const info = await backend.post(urlPrefix+'/im_connections/add', { account, password, protocol }, { timeout: 65000 })
       return info as any as DiceConnection
     },
 
@@ -157,6 +172,11 @@ export const useStore = defineStore('main', {
 
     async getImConnectionsSetEnable(i: DiceConnection, enable: boolean) {
       const info = await backend.post(urlPrefix+'/im_connections/set_enable', { id: i.id, enable })
+      return info as any as DiceConnection
+    },
+
+    async getImConnectionsSetData(i: DiceConnection, { protocol }: { protocol: number }) {
+      const info = await backend.post(urlPrefix+'/im_connections/set_data', { id: i.id, protocol })
       return info as any as DiceConnection
     },
 

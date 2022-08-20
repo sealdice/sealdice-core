@@ -21,7 +21,7 @@
           </div>
         </template>
 
-        <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="i.adapter?.inPackGoCqHttpQrcodeReady && store.curDice.qrcodes[i.id]">
+        <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="i.adapter?.goCqHttpState === goCqHttpStateCode.InLoginQrCode && store.curDice.qrcodes[i.id]">
           <div style="margin-left: 2rem">需要同账号的手机QQ扫码登录:</div>
           <img style="width: 10rem; height:10rem; margin-left: 3.5rem; margin-top: 2rem;" :src="store.curDice.qrcodes[i.id]" />
         </div>
@@ -41,6 +41,7 @@
               <div v-if="i.state === 0"><el-tag type="danger">断开</el-tag></div>
               <div v-if="i.state === 2"><el-tag type="warning">连接中</el-tag></div>
               <div v-if="i.state === 1"><el-tag type="success">已连接</el-tag></div>
+              <div v-if="i.state === 3"><el-tag type="danger">失败</el-tag></div>
               <el-tooltip :content="`看到这个标签是因为最近20分钟内有风控警告，将在重新登录后临时消除。触发时间: ` + dayjs.unix(i.adapter?.inPackGoCqHttpLastRestricted).fromNow()" v-if="Math.round(new Date().getTime()/1000) - i.adapter?.inPackGoCqHttpLastRestricted < 30 * 60">
                 <el-tag type="warning">风控</el-tag>
               </el-tooltip>
@@ -74,6 +75,8 @@
             <div v-if="i.adapter?.inPackGoCqHttpProtocol === 0">iPad</div>
             <div v-if="i.adapter?.inPackGoCqHttpProtocol === 1">Android</div>
             <div v-if="i.adapter?.inPackGoCqHttpProtocol === 2">Android 手表</div>
+            <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
+            <el-button size="small" type="primary" style="margin-left: 1rem" @click="askSetData(i)" :icon="Edit"></el-button>
           </el-form-item>
 
           <!-- <el-form-item label="密码">
@@ -102,6 +105,35 @@
       </el-card>
     </div>
   </div>
+
+  
+  <el-dialog v-model="dialogSetDataFormVisible" title="属性修改" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
+    <el-form :model="form">
+      <el-form-item label="类型" :label-width="formLabelWidth">
+        <div>QQ账号</div>
+      </el-form-item>
+
+      <el-form-item label="协议" :label-width="formLabelWidth" required>
+        <el-select v-model="form.protocol">
+          <el-option label="iPad 协议" :value="0"></el-option>
+          <el-option label="Android 协议 - 稳定协议，建议！" :value="1"></el-option>
+          <el-option label="Android 手表协议 - 可以和手机QQ共存" :value="2"></el-option>
+          <!-- <el-option label="MacOS" :value="3"></el-option> -->
+        </el-select>
+        <small>
+            <div>提示: 切换协议后，需要点击重新登录，或.master reboot重启骰子以应用设置</div>
+          </small>
+      </el-form-item>
+
+    </el-form>
+
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="dialogSetDataFormVisible = false">取消</el-button>
+        <el-button type="primary" @click="doSetData">确定</el-button>
+      </span>
+    </template>
+  </el-dialog>
 
   <el-dialog v-model="dialogFormVisible" title="帐号登录" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
     <template v-if="form.step === 1">
@@ -153,14 +185,14 @@
             <div>展示版本未必是最新版，建议您下载体验。</div>
             <el-button style="margin-top: 1rem;" @click="formClose">再会</el-button>
           </div>
-          <div v-else-if="index === 2 && curConn.adapter?.inPackGoCqHttpQrcodeReady">
+          <div v-else-if="index === 2 && curConn.adapter?.goCqHttpState === goCqHttpStateCode.InLoginQrCode">
             <div>登录需要滑条验证码, 请使用登录此账号的手机QQ扫描二维码以继续登录:</div>
             <img :src="store.curDice.qrcodes[curConn.id]" style="width: 12rem; height: 12rem" />
           </div>
-          <div v-else-if="index === 2 && curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl">
+          <div v-else-if="index === 2 && curConn.adapter?.goCqHttpState === goCqHttpStateCode.InLoginDeviceLock && curConn.adapter?.goCqHttpLoginDeviceLockUrl">
             <div>账号已开启设备锁，请访问此链接进行验证：</div>
             <div>
-              <el-link :href="curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl}}</el-link>
+              <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.goCqHttpLoginDeviceLockUrl}}</el-link>
             </div>
             <div>
               <div>确认验证完成后，点击此按钮：</div>
@@ -169,7 +201,7 @@
               </div>
             </div>
           </div>
-          <div v-else-if="index === 2 && (curConn.state !== 1 && !curConn.adapter?.inPackGoCqHttpRunning && !curConn.adapter?.inPackGoCqHttpLoginDeviceLockUrl) && (!isRecentLogin)">
+          <div v-else-if="index === 2 && (curConn.adapter?.goCqHttpState === goCqHttpStateCode.LoginFailed)">
             <div>
               <div>登录失败!可能是以下原因：</div>
               <ul>
@@ -212,10 +244,10 @@
 
 <script lang="ts" setup>
 import { reactive, onBeforeMount, onBeforeUnmount, ref, nextTick } from 'vue';
-import { useStore } from '~/store';
+import { useStore, goCqHttpStateCode } from '~/store';
 import type { DiceConnection } from '~/store';
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Edit } from '@element-plus/icons-vue'
 import { sleep } from '~/utils'
 import { delay } from 'lodash-es'
 import * as dayjs from 'dayjs'
@@ -265,6 +297,7 @@ const store = useStore()
 const isRecentLogin = ref(false)
 const duringRelogin = ref(false)
 const dialogFormVisible = ref(false)
+const dialogSetDataFormVisible = ref(false)
 const formLabelWidth = '100px'
 const isTestMode = ref(false)
 
@@ -273,6 +306,9 @@ const curConnId = ref('');
 
 const setRecentLogin = () => {
   isRecentLogin.value = true
+  // 无用
+  // curConn.value.adapter.inPackGoCqHttpRunning = false;
+  // curConn.value.adapter.inPackGoCqHttpLoginDeviceLockUrl = '';
   setTimeout(() => {
     isRecentLogin.value = false
   }, 3000)
@@ -282,6 +318,7 @@ const goStepTwo = async () => {
   form.step = 2
   curConnId.value = '';
   setRecentLogin()
+  duringRelogin.value = false;
 
   store.addImConnection(form).then((conn) => {
     if ((conn as any).testMode) {
@@ -336,6 +373,22 @@ const setEnable = async (i: DiceConnection, val: boolean) => {
   }
 }
 
+const askSetData = async (i: DiceConnection) => {
+  form.protocol = i.adapter?.inPackGoCqHttpProtocol;
+  dialogSetDataFormVisible.value = true;
+  form.endpoint = i;
+}
+
+const doSetData = async () => {
+  const ret = await store.getImConnectionsSetData(form.endpoint, { protocol: form.protocol });
+  if (form.endpoint.adapter) {
+    form.endpoint.adapter.inPackGoCqHttpProtocol = form.protocol;
+  }
+  ElMessage.success('修改完成，请手动重新登录');
+  dialogSetDataFormVisible.value = false;
+}
+
+
 const askSetEnable = async (i: DiceConnection, val: boolean) => {
   ElMessageBox.confirm(
     '确认修改此账号的在线状态吗？',
@@ -350,7 +403,9 @@ const askSetEnable = async (i: DiceConnection, val: boolean) => {
   })
 }
 
+
 const askGocqhttpReLogin = async (i: DiceConnection) => {
+  duringRelogin.value = false;
   ElMessageBox.confirm(
     '重新登录吗？有可能要再次扫描二维码',
     '警告',
@@ -366,7 +421,11 @@ const askGocqhttpReLogin = async (i: DiceConnection) => {
 
 const gocqhttpReLogin = async (i: DiceConnection) => {
   setRecentLogin()
+  duringRelogin.value = true;
   curConnId.value = ''; // 先改掉这个，以免和当前连接一致，导致被瞬间重置
+  if (curConn.value && curConn.value.adapter) {
+    curConn.value.adapter.goCqHttpState = goCqHttpStateCode.Init;
+  }
   store.gocqhttpReloginImConnection(i).then(theConn => {
     curConnId.value = i.id;
   })
@@ -385,11 +444,14 @@ const form = reactive({
   isEnd: false,
   account: '',
   password: '',
-  protocol: 1
+  protocol: 1,
+  id: '',
+  endpoint: null as any as DiceConnection
 })
 
 const addOne = () => {
   dialogFormVisible.value = true
+  form.protocol = 1
 }
 
 let timerId: number
@@ -400,34 +462,41 @@ onBeforeMount(async () => {
     delete store.curDice.qrcodes[i.id]
   }
 
+  const lastIndex = {}
   timerId = setInterval(async () => {
     console.log('refresh')
     await store.getImConnections()
 
     for (let i of store.curDice.conns || []) {
-      if (i.adapter?.inPackGoCqHttpQrcodeReady && !store.curDice.qrcodes[i.id] && !i.adapter?.inPackGoCqHttpLoginSuccess) {
-        store.curDice.qrcodes[i.id] = (await store.getImConnectionsQrCode(i)).img
-      }
+      // 下一轮登录检查，移除二维码
+      // if (!lastIndex[i.id]) lastIndex[i.id] = i.adapter?.curLoginIndex;
+      // else {
+      //   if (lastIndex[i.id] != i.adapter?.curLoginIndex) {
+      //     ;
+      //   }
+      // }
 
-      if (i.adapter?.inPackGoCqHttpLoginSuccess) {
-        store.curDice.qrcodes[i.id] = ''
+      // 获取二维码
+      if (i.adapter?.goCqHttpState === goCqHttpStateCode.InLoginQrCode) {
+        store.curDice.qrcodes[i.id] = (await store.getImConnectionsQrCode(i)).img
       }
 
       if (i.id === curConnId.value) {
         curConn.value = i;
 
-        if (i.adapter?.inPackGoCqHttpLoginDeviceLockUrl === "") {
-          if (!i.adapter?.inPackGoCqHttpRunning) {
-            form.isEnd = true;
-          }
+        // 登录失败
+        if (i.state !== 1 && i.adapter?.goCqHttpState === goCqHttpStateCode.LoginFailed) {
+          form.isEnd = true;
         }
 
-        if (i.state === 1 || i.adapter?.inPackGoCqHttpLoginSuccess) {
+        // 登录成功
+        if (i.state === 1 && i.adapter?.goCqHttpState === goCqHttpStateCode.LoginSuccessed) {
           activities.value.push(fullActivities[3])
           await sleep(1000)
           form.step = 3
           form.isEnd = true
         }
+
         break;
       }
     }
