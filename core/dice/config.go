@@ -1426,6 +1426,12 @@ func (d *Dice) loads() {
 						d.TextMapRaw["核心"]["昵称_重置"][index][0] = srcText
 					}
 
+					for index, text := range d.TextMapRaw["核心"]["角色管理_删除成功"] {
+						srcText := text[0].(string)
+						srcText = strings.ReplaceAll(srcText, "{$t新角色名}", "{$t角色名}")
+						d.TextMapRaw["核心"]["角色管理_删除成功"][index][0] = srcText
+					}
+
 					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 					d.GenerateTextMap()
 					d.SaveText()
@@ -1485,7 +1491,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.VersionCode = 10004 // TODO: 记得修改！！！
+	d.VersionCode = 10005 // TODO: 记得修改！！！
 	d.LogWriter.LogLimit = d.UILogLimit
 
 	// 设置扩展选项
