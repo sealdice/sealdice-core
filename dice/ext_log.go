@@ -373,7 +373,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						}
 					} else {
 						isShowAll := showAll != nil
-						text := LogRollBriefByPC(items, isShowAll, ctx.Player.Name)
+						text := LogRollBriefByPC(ctx.Dice, items, isShowAll, ctx.Player.Name)
 						if text == "" {
 							if isShowAll {
 								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
@@ -426,7 +426,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						}
 					} else {
 						isShowAll := showAll != nil
-						text := LogRollBriefByPC(items, isShowAll, ctx.Player.Name)
+						text := LogRollBriefByPC(ctx.Dice, items, isShowAll, ctx.Player.Name)
 						if text == "" {
 							if isShowAll {
 								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
@@ -722,8 +722,21 @@ func LogSendToBackend(ctx *MsgContext, group *GroupInfo) string {
 }
 
 // LogRollBriefByPC 根据log生成骰点简报
-func LogRollBriefByPC(items []*LogOneItem, showAll bool, name string) string {
+func LogRollBriefByPC(dice *Dice, items []*LogOneItem, showAll bool, name string) string {
 	pcInfo := map[string]map[string]int{}
+	// coc 同义词
+	acCoc7 := setupConfig(dice)
+
+	getName := func(s string) string {
+		re := regexp.MustCompile(`^([^\d\s]+)(\d+)?$`)
+		m := re.FindStringSubmatch(s)
+		if len(m) > 0 {
+			s = m[1]
+		}
+
+		return GetValueNameByAlias(s, acCoc7.Alias)
+	}
+
 	for _, i := range items {
 		if i.CommandInfo != nil {
 			info, _ := i.CommandInfo.(map[string]interface{})
@@ -762,15 +775,6 @@ func LogRollBriefByPC(items []*LogOneItem, showAll bool, name string) string {
 						j, ok2 := _j.(map[string]interface{})
 						if !ok2 {
 							continue
-						}
-
-						getName := func(s string) string {
-							re := regexp.MustCompile(`^([^\d+])\d+$`)
-							m := re.FindStringSubmatch(s)
-							if len(m) > 0 {
-								return m[1]
-							}
-							return s
 						}
 
 						rank := int(j["rank"].(float64))
@@ -833,13 +837,14 @@ func LogRollBriefByPC(items []*LogOneItem, showAll bool, name string) string {
 						setupName(nickname)
 
 						if j["type"] == "mod" {
+							attr := getName(j["attr"].(string))
 							// 如果没有旧值，弄一个
-							key := fmt.Sprintf("%v:旧值", j["attr"])
+							key := fmt.Sprintf("%v:旧值", attr)
 							if pcInfo[nickname][key] == 0 {
 								pcInfo[nickname][key] = int(j["valOld"].(float64))
 							}
 
-							key2 := fmt.Sprintf("%v:新值", j["attr"])
+							key2 := fmt.Sprintf("%v:新值", attr)
 							//if pcInfo[nickname][key2] == 0 {
 							pcInfo[nickname][key2] = int(j["valNew"].(float64))
 							//}

@@ -270,6 +270,25 @@ func (i *GroupPlayerInfo) GetValueNameByAlias(s string, alias map[string][]strin
 	return name
 }
 
+func GetValueNameByAlias(s string, alias map[string][]string) string {
+	name := s
+
+	for k, v := range alias {
+		if strings.EqualFold(s, k) {
+			name = k // 防止一手大小写不一致
+			break    // 名字本身就是确定值，不用修改
+		}
+		for _, i := range v {
+			if strings.EqualFold(s, i) {
+				name = k
+				break
+			}
+		}
+	}
+
+	return name
+}
+
 func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 	if s.PlayerVarsData == nil {
 		s.PlayerVarsData = map[string]*PlayerVariablesItem{}
