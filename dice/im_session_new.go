@@ -766,6 +766,7 @@ func (ctx *MsgContext) ChVarsClear() int {
 	num := vars.Len()
 	if isBind {
 		//gvar := ctx.LoadPlayerGlobalVars()
+		num = 0
 		if _card, ok := ctx.Player.Vars.ValueMap.Get("$:card"); ok {
 			// 因为card可能在多个群关联，所以只有通过这种方式清空
 			if card, ok := _card.(lockfree.HashMap); ok {
@@ -774,10 +775,14 @@ func (ctx *MsgContext) ChVarsClear() int {
 					if _k == "$:cardName" {
 						return nil
 					}
+					if _k == "$cardType" {
+						return nil
+					}
 					items = append(items, _k)
 					return nil
 				})
 
+				num = len(items)
 				for _, i := range items {
 					card.Del(i)
 				}
