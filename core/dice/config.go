@@ -1420,10 +1420,10 @@ func (d *Dice) loads() {
 				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 					d.Logger.Info("正在自动升级自定义文案文件")
 					for index, text := range d.TextMapRaw["核心"]["昵称_重置"] {
-						srcText := text[1].(string)
+						srcText := text[0].(string)
 						srcText = strings.ReplaceAll(srcText, "{$tQQ昵称}", "{$t旧昵称}")
 						srcText = strings.ReplaceAll(srcText, "{$t帐号昵称}", "{$t旧昵称}")
-						d.TextMapRaw["核心"]["昵称_重置"][index][1] = srcText
+						d.TextMapRaw["核心"]["昵称_重置"][index][0] = srcText
 					}
 
 					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")

@@ -225,7 +225,7 @@ func (d *Dice) Init() {
 		defer func() {
 			// 防止报错
 			if r := recover(); r != nil {
-				d.Logger.Error("RunAfterLoaded", r)
+				d.Logger.Error("RunAfterLoaded 报错: ", r)
 			}
 		}()
 		i()

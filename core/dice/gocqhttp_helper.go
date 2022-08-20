@@ -646,7 +646,7 @@ func DiceServe(d *Dice, ep *EndPointInfo) {
 			}
 
 			// 骰子开始连接
-			d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)", ep.Nickname, ep.UserId)
+			d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserId, waitTimes, 5)
 			ret := ep.Adapter.Serve()
 
 			if time.Now().Unix()-lastRetryTime > 8*60 {
@@ -669,7 +669,7 @@ func DiceServe(d *Dice, ep *EndPointInfo) {
 				break
 			}
 
-			d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%s)", ep.Nickname, ep.UserId)
+			//d.Logger.Infof("onebot 连接失败[%d/%d]，将在15秒后重新连接，帐号 <%s>(%s)", waitTimes, 5, ep.Nickname, ep.UserId)
 			time.Sleep(time.Duration(15 * time.Second))
 		}
 	}
