@@ -142,7 +142,7 @@ func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
 type EndPointInfoBase struct {
 	Id                  string `yaml:"id" json:"id"` // uuid
 	Nickname            string `yaml:"nickname" json:"nickname"`
-	State               int    `yaml:"state" json:"state"` // 状态 0 断开 1已连接 2连接中
+	State               int    `yaml:"state" json:"state"` // 状态 0 断开 1已连接 2连接中 3连接失败
 	UserId              string `yaml:"userId" json:"userId"`
 	GroupNum            int64  `yaml:"groupNum" json:"groupNum"`                       // 拥有群数
 	CmdExecutedNum      int64  `yaml:"cmdExecutedNum" json:"cmdExecutedNum"`           // 指令执行次数
@@ -202,7 +202,7 @@ type IMSession struct {
 
 	// 注意，旧数据！
 	LegacyConns     []*ConnectInfoItem       `yaml:"connections"` // 仅为
-	LegacyServiceAt map[int64]*ServiceAtItem `json:"serviceAt" yaml:"serviceAt"`
+	LegacyServiceAt map[int64]*ServiceAtItem `json:"-" yaml:"serviceAt"`
 	//LegacyPlayerVarsData map[int64]*PlayerVariablesItem `yaml:"PlayerVarsData"`
 }
 

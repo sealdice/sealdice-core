@@ -8,11 +8,26 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+)
+
+// 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
+
+const (
+	GoCqHttpStateCodeInit              = 0
+	GoCqHttpStateCodeInLogin           = 1
+	GoCqHttpStateCodeInLoginQrCode     = 2
+	GoCqHttpStateCodeInLoginBar        = 3
+	GoCqHttpStateCodeInLoginVerifyCode = 6
+	GoCqHttpStateCodeInLoginDeviceLock = 7
+	GoCqHttpStateCodeLoginSuccessed    = 10
+	GoCqHttpStateCodeLoginFailed       = 11
+	GoCqHttpStateCodeClosed            = 20
 )
 
 type PlatformAdapterQQOnebot struct {
@@ -22,21 +37,25 @@ type PlatformAdapterQQOnebot struct {
 	Socket     *gowebsocket.Socket `yaml:"-" json:"-"`
 	ConnectUrl string              `yaml:"connectUrl" json:"connectUrl"` // 连接地址
 
-	UseInPackGoCqhttp                bool           `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
-	InPackGoCqLastAutoLoginTime      int64          `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`       // 上次自动重新登录的时间
-	InPackGoCqHttpProcess            *procs.Process `yaml:"-" json:"-"`
-	InPackGoCqHttpLoginSuccess       bool           `yaml:"-" json:"inPackGoCqHttpLoginSuccess"`   // 是否登录成功
-	InPackGoCqHttpLoginSucceeded     bool           `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"` // 是否登录成功过
-	InPackGoCqHttpRunning            bool           `yaml:"-" json:"inPackGoCqHttpRunning"`        // 是否仍在运行
-	InPackGoCqHttpQrcodeReady        bool           `yaml:"-" json:"inPackGoCqHttpQrcodeReady"`    // 二维码已就绪
-	InPackGoCqHttpNeedQrCode         bool           `yaml:"-" json:"inPackGoCqHttpNeedQrCode"`     // 是否需要二维码
-	InPackGoCqHttpQrcodeData         []byte         `yaml:"-" json:"-"`                            // 二维码数据
-	InPackGoCqHttpLoginDeviceLockUrl string         `yaml:"-" json:"inPackGoCqHttpLoginDeviceLockUrl"`
-	InPackGoCqHttpLastRestrictedTime int64          `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
-	InPackGoCqHttpProtocol           int            `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
-	InPackGoCqHttpPassword           string         `yaml:"inPackGoCqHttpPassword" json:"-"`
-	DiceServing                      bool           `yaml:"-"`          // 是否正在连接中
-	InPackGoCqHttpDisconnectedCH     chan int       `yaml:"-" json:"-"` // 信号量，用于关闭连接
+	UseInPackGoCqhttp bool `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
+	GoCqHttpState     int  `yaml:"-" json:"goCqHttpState"`                     // 当前状态
+	CurLoginIndex     int  `yaml:"-" json:"curLoginIndex"`                     // 当前登录序号，如果正在进行的登录不是该Index，证明过时
+
+	GoCqHttpProcess           *procs.Process `yaml:"-" json:"-"`
+	GocqhttpLoginFailedReason string         `yaml:"-" json:"curLoginFailedReason"` // 当前登录失败原因
+
+	GoCqHttpLoginVerifyCode    string `yaml:"-" json:"goCqHttpLoginVerifyCode"`
+	GoCqHttpLoginDeviceLockUrl string `yaml:"-" json:"goCqHttpLoginDeviceLockUrl"`
+	GoCqHttpQrcodeData         []byte `yaml:"-" json:"-"` // 二维码数据
+
+	GoCqLastAutoLoginTime      int64 `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`                             // 上次自动重新登录的时间
+	GoCqHttpLoginSucceeded     bool  `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"`                            // 是否登录成功过
+	GoCqHttpLastRestrictedTime int64 `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
+
+	InPackGoCqHttpProtocol       int      `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
+	InPackGoCqHttpPassword       string   `yaml:"inPackGoCqHttpPassword" json:"-"`
+	DiceServing                  bool     `yaml:"-"`          // 是否正在连接中
+	InPackGoCqHttpDisconnectedCH chan int `yaml:"-" json:"-"` // 信号量，用于关闭连接
 }
 
 type Sender struct {
@@ -647,6 +666,7 @@ func (pa *PlatformAdapterQQOnebot) DoRelogin() bool {
 	ep := pa.EndPoint
 	if pa.Socket != nil {
 		go pa.Socket.Close()
+		pa.Socket = nil
 	}
 	if pa.UseInPackGoCqhttp {
 		if pa.InPackGoCqHttpDisconnectedCH != nil {
@@ -656,7 +676,7 @@ func (pa *PlatformAdapterQQOnebot) DoRelogin() bool {
 		go GoCqHttpServeProcessKill(myDice, ep)
 		time.Sleep(20 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 20s 超过一次重试间隔
 		GoCqHttpServeRemoveSessionToken(myDice, ep) // 删除session.token
-		pa.InPackGoCqHttpLastRestrictedTime = 0     // 重置风控时间
+		pa.GoCqHttpLastRestrictedTime = 0           // 重置风控时间
 		GoCqHttpServe(myDice, ep, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
 		return true
 	}
@@ -685,4 +705,36 @@ func (pa *PlatformAdapterQQOnebot) SetEnable(enable bool) {
 			GoCqHttpServeProcessKill(d, c)
 		}
 	}
+}
+
+func (pa *PlatformAdapterQQOnebot) SetQQProtocol(protocol int) bool {
+	//oldProtocol := pa.InPackGoCqHttpProtocol
+	pa.InPackGoCqHttpProtocol = protocol
+	ep := pa.EndPoint
+
+	workDir := filepath.Join(ep.Session.Parent.BaseConfig.DataDir, ep.RelWorkDir)
+	deviceFilePath := filepath.Join(workDir, "device.json")
+	if _, err := os.Stat(deviceFilePath); err == nil {
+		configFile, err := os.ReadFile(deviceFilePath)
+		info := map[string]interface{}{}
+		err = json.Unmarshal(configFile, &info)
+
+		if err == nil {
+			info["protocol"] = protocol
+			data, err := json.Marshal(info)
+			if err == nil {
+				os.WriteFile(deviceFilePath, data, 0644)
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (pa *PlatformAdapterQQOnebot) IsInLogin() bool {
+	return pa.GoCqHttpState < GoCqHttpStateCodeLoginSuccessed
+}
+
+func (pa *PlatformAdapterQQOnebot) IsLoginSuccessed() bool {
+	return pa.GoCqHttpState == GoCqHttpStateCodeLoginSuccessed
 }
