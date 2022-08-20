@@ -405,9 +405,9 @@ func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 
 func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int, isAsyncRun bool) {
 	pa := conn.Adapter.(*PlatformAdapterQQOnebot)
-	if pa.GoCqHttpState != GoCqHttpStateCodeInit {
-		return
-	}
+	//if pa.GoCqHttpState != GoCqHttpStateCodeInit {
+	//	return
+	//}
 
 	pa.CurLoginIndex += 1
 	loginIndex := pa.CurLoginIndex
@@ -515,7 +515,12 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 
 			if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
 				fmt.Println("!!!!!!!!!!!!!!!!!!!! 短信验证码")
-				p.Cmds[0].Stdout.Write([]byte("3154\n"))
+				p.Cmds[0].Stdout.Write([]byte("\n"))
+			}
+
+			if strings.Contains(line, "发送验证码失败，可能是请求过于频繁.") {
+				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
+				pa.GocqhttpLoginFailedReason = "发送验证码失败，可能是请求过于频繁"
 			}
 
 			// 登录成功
@@ -590,7 +595,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		<-chQrCode
 		if _, err := os.Stat(qrcodeFile); err == nil {
 			dice.Logger.Info("onebot: 二维码已经就绪")
-			fmt.Println("如控制台二维码不好扫描，可以手动打开go-cqhttp目录下qrcode.png")
+			fmt.Println("如控制台二维码不好扫描，可以手动打开 ./data/default/extra/go-cqhttp-qqXXXXX 目录下qrcode.png")
 			qrdata, err := os.ReadFile(qrcodeFile)
 			if err == nil {
 				pa.GoCqHttpState = GoCqHttpStateCodeInLoginQrCode

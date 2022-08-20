@@ -673,8 +673,10 @@ func (pa *PlatformAdapterQQOnebot) DoRelogin() bool {
 			pa.InPackGoCqHttpDisconnectedCH <- -1
 		}
 		myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserId)
+		pa.CurLoginIndex += 1
+		pa.GoCqHttpState = GoCqHttpStateCodeInit
 		go GoCqHttpServeProcessKill(myDice, ep)
-		time.Sleep(20 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 20s 超过一次重试间隔
+		time.Sleep(10 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
 		GoCqHttpServeRemoveSessionToken(myDice, ep) // 删除session.token
 		pa.GoCqHttpLastRestrictedTime = 0           // 重置风控时间
 		GoCqHttpServe(myDice, ep, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
