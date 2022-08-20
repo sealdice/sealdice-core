@@ -8,7 +8,6 @@ import (
 	"github.com/acarl005/stripansi"
 	"github.com/fy0/procs"
 	"github.com/google/uuid"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -369,14 +368,14 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			return
 		}
 		if pa.UseInPackGoCqhttp {
+			// 重置状态
 			conn.State = 0
-			pa.InPackGoCqHttpLoginSuccess = false
-			pa.InPackGoCqHttpQrcodeData = nil
-			pa.InPackGoCqHttpRunning = false
-			pa.InPackGoCqHttpQrcodeReady = false
-			pa.InPackGoCqHttpNeedQrCode = false
-			pa.InPackGoCqHttpLoginDeviceLockUrl = ""
+			pa.GoCqHttpState = 0
+
 			pa.DiceServing = false
+			pa.GoCqHttpQrcodeData = nil
+			pa.GoCqHttpLoginDeviceLockUrl = ""
+
 			workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 			qrcodeFile := filepath.Join(workDir, "qrcode.png")
 			if _, err := os.Stat(qrcodeFile); err == nil {
@@ -386,9 +385,9 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			}
 
 			// 注意这个会panic，因此recover捕获了
-			if pa.InPackGoCqHttpProcess != nil {
-				p := pa.InPackGoCqHttpProcess
-				pa.InPackGoCqHttpProcess = nil
+			if pa.GoCqHttpProcess != nil {
+				p := pa.GoCqHttpProcess
+				pa.GoCqHttpProcess = nil
 				//sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
 				p.Stop()
 				p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
@@ -406,11 +405,15 @@ func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 
 func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int, isAsyncRun bool) {
 	pa := conn.Adapter.(*PlatformAdapterQQOnebot)
-	if pa.InPackGoCqHttpRunning {
+	if pa.GoCqHttpState != GoCqHttpStateCodeInit {
 		return
 	}
-	pa.InPackGoCqHttpRunning = true
 
+	pa.CurLoginIndex += 1
+	loginIndex := pa.CurLoginIndex
+	pa.GoCqHttpState = GoCqHttpStateCodeInLogin
+
+	fmt.Println("GoCqHttpServe begin")
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 	os.MkdirAll(workDir, 0755)
 
@@ -424,7 +427,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	}
 
 	//if _, err := os.Stat(filepath.Join(workDir, "session.token")); errors.Is(err, os.ErrNotExist) {
-	if !pa.InPackGoCqHttpLoginSucceeded {
+	if !pa.GoCqHttpLoginSucceeded {
 		// 并未登录成功，删除记录文件
 		dice.Logger.Info("onebot: 之前并未登录成功，删除设备文件和配置文件")
 		os.Remove(configFilePath)
@@ -435,7 +438,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	if _, err := os.Stat(deviceFilePath); errors.Is(err, os.ErrNotExist) {
 		deviceInfo, err := GenerateDeviceJson(protocol)
 		if err == nil {
-			ioutil.WriteFile(deviceFilePath, deviceInfo, 0644)
+			os.WriteFile(deviceFilePath, deviceInfo, 0644)
 			dice.Logger.Info("onebot: 成功创建设备文件")
 		}
 	}
@@ -448,7 +451,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		pa.ConnectUrl = fmt.Sprintf("ws://localhost:%d", p)
 		qqid, _ := pa.mustExtractId(conn.UserId)
 		c := GenerateConfig(qqid, password, p)
-		ioutil.WriteFile(configFilePath, []byte(c), 0644)
+		os.WriteFile(configFilePath, []byte(c), 0644)
 	}
 
 	// 启动客户端
@@ -465,65 +468,90 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 
 	chQrCode := make(chan int, 1)
 	riskCount := 0
+	isSeldKilling := false
 	p.OutputHandler = func(line string) string {
-		// 请使用手机QQ扫描二维码 (qrcode.png) :
-		if strings.Contains(line, "qrcode.png") {
-			chQrCode <- 1
-		}
-		if strings.Contains(line, "CQ WebSocket 服务器已启动") {
-			// CQ WebSocket 服务器已启动
-			// 登录成功 欢迎使用
-			pa.InPackGoCqHttpLoginSuccess = true
-			pa.InPackGoCqHttpLoginSucceeded = true
-			conn.Enable = true
-			conn.State = 2
-			pa.InPackGoCqHttpLoginDeviceLockUrl = ""
-			dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserId)
-
-			go DiceServe(dice, conn)
+		if loginIndex != pa.CurLoginIndex {
+			// 当前连接已经无用，进程自杀
+			if !isSeldKilling {
+				dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
+				// 注: 这里不要调用kill
+				isSeldKilling = true
+				p.Stop()
+			}
+			return ""
 		}
 
-		if strings.Contains(line, "fetch qrcode error: Packet timed out ") {
-			dice.Logger.Infof("从QQ服务器获取二维码错误（超时），帐号: <%s>(%s)", conn.Nickname, conn.UserId)
-		}
+		// 登录中
+		if pa.IsInLogin() {
+			// 请使用手机QQ扫描二维码 (qrcode.png) :
+			if strings.Contains(line, "qrcode.png") {
+				chQrCode <- 1
+			}
 
-		if strings.Contains(line, "WARNING") && strings.Contains(line, "账号已开启设备锁，请前往") {
-			re := regexp.MustCompile(`-> (.+?) <-`)
-			m := re.FindStringSubmatch(line)
-			dice.Logger.Info("触发设备锁流程: ", len(m))
-			if len(m) > 0 {
-				// 设备锁流程，因为需要重新登录，进行一个“已成功登录过”的标记，这样配置文件不会被删除
-				pa.InPackGoCqHttpLoginSucceeded = true
-				pa.InPackGoCqHttpLoginDeviceLockUrl = m[1]
+			// 获取二维码失败，登录失败
+			if strings.Contains(line, "fetch qrcode error: Packet timed out ") {
+				dice.Logger.Infof("从QQ服务器获取二维码错误（超时），帐号: <%s>(%s)", conn.Nickname, conn.UserId)
+				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
+			}
+
+			// 未知错误，gocqhttp崩溃
+			if strings.Contains(line, "Packet failed to sendPacket: connection closed") {
+				dice.Logger.Infof("登录异常，gocqhttp崩溃")
+				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
+			}
+
+			if strings.Contains(line, "WARNING") && strings.Contains(line, "账号已开启设备锁，请前往") {
+				re := regexp.MustCompile(`-> (.+?) <-`)
+				m := re.FindStringSubmatch(line)
+				dice.Logger.Info("触发设备锁流程: ", len(m) > 0)
+				if len(m) > 0 {
+					// 设备锁流程，因为需要重新登录，进行一个“已成功登录过”的标记，这样配置文件不会被删除
+					pa.GoCqHttpState = GoCqHttpStateCodeInLoginDeviceLock
+					pa.GoCqHttpLoginSucceeded = true
+					pa.GoCqHttpLoginDeviceLockUrl = m[1]
+					fmt.Println("??????????????????? why")
+				}
+			}
+
+			if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
+				fmt.Println("!!!!!!!!!!!!!!!!!!!! 短信验证码")
+				p.Cmds[0].Stdout.Write([]byte("3154\n"))
+			}
+
+			// 登录成功
+			if strings.Contains(line, "CQ WebSocket 服务器已启动") {
+				// CQ WebSocket 服务器已启动
+				// 登录成功 欢迎使用
+				pa.GoCqHttpState = GoCqHttpStateCodeLoginSuccessed
+				pa.GoCqHttpLoginSucceeded = true
+				dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserId)
+
+				go DiceServe(dice, conn)
 			}
 		}
 
-		if strings.Contains(line, "open backend error: open leveldb error:") {
-		}
-
 		if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
-			pa.InPackGoCqHttpNeedQrCode = true
 		}
 
-		if (pa.InPackGoCqHttpLoginSuccess && strings.Contains(line, "[ERROR]:") && strings.Contains(line, "Protocol -> sendPacket msg error: 120")) || strings.Contains(line, "账号可能被风控####2测试触发语句") {
+		if (pa.IsLoginSuccessed() && strings.Contains(line, "[ERROR]:") && strings.Contains(line, "Protocol -> sendPacket msg error: 120")) || strings.Contains(line, "账号可能被风控####2测试触发语句") {
 			// 这种情况应该是被禁言，提前减去以免出事
 			riskCount -= 1
 			dice.Logger.Infof("因禁言无法发言: 下方可能会提示遭遇风控")
 		}
 
-		if (pa.InPackGoCqHttpLoginSuccess && strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
+		if (pa.IsLoginSuccessed() && strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
 			//群消息发送失败: 账号可能被风控
 			now := time.Now().Unix()
-			if now-pa.InPackGoCqHttpLastRestrictedTime < 5*60 {
+			if now-pa.GoCqHttpLastRestrictedTime < 5*60 {
 				// 阈值是5分钟内2次
 				riskCount += 1
 			}
-			pa.InPackGoCqHttpLastRestrictedTime = now
+			pa.GoCqHttpLastRestrictedTime = now
 			if riskCount >= 2 {
 				riskCount = 0
 				if dice.AutoReloginEnable {
 					// 大于5分钟触发
-					if now-pa.InPackGoCqLastAutoLoginTime > 5*60 {
+					if now-pa.GoCqLastAutoLoginTime > 5*60 {
 						dice.Logger.Warnf("自动重启: 达到风控重启阈值 <%s>(%s)", conn.Nickname, conn.UserId)
 						if pa.InPackGoCqHttpPassword != "" {
 							pa.DoRelogin()
@@ -535,14 +563,9 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			}
 		}
 
-		if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
-			fmt.Println("!!!!!!!!!!!!!!!!!!!! 短信验证码")
-			//p.Cmds[0].Stdout.Write([]byte("3154"))
-		}
-
-		if pa.InPackGoCqHttpLoginSuccess == false || strings.Contains(line, "风控") || strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
+		if pa.IsInLogin() || strings.Contains(line, "风控") || strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
 			//  [WARNING]: 登录需要滑条验证码, 请使用手机QQ扫描二维码以继续登录
-			if pa.InPackGoCqHttpLoginSuccess {
+			if pa.IsLoginSuccessed() {
 				dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
 			} else {
 				fmt.Printf("onebot | %s\n", line)
@@ -570,12 +593,14 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			fmt.Println("如控制台二维码不好扫描，可以手动打开go-cqhttp目录下qrcode.png")
 			qrdata, err := os.ReadFile(qrcodeFile)
 			if err == nil {
-				pa.InPackGoCqHttpQrcodeData = qrdata
-				pa.InPackGoCqHttpQrcodeReady = true
+				pa.GoCqHttpState = GoCqHttpStateCodeInLoginQrCode
+				pa.GoCqHttpQrcodeData = qrdata
 				dice.Logger.Info("获取二维码成功")
+				os.Rename(qrcodeFile, qrcodeFile+".bak.png")
 			} else {
-				pa.InPackGoCqHttpQrcodeData = []byte{}
-				pa.InPackGoCqHttpQrcodeReady = false
+				pa.GoCqHttpQrcodeData = nil
+				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
+				pa.GocqhttpLoginFailedReason = "获取二维码失败"
 				dice.Logger.Info("获取二维码失败，错误为: ", err.Error())
 			}
 		}
@@ -588,8 +613,8 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			}
 		}()
 
-		pa.InPackGoCqHttpRunning = true
-		pa.InPackGoCqHttpProcess = p
+		// 启动gocqhttp，开始登录
+		pa.GoCqHttpProcess = p
 		err := p.Start()
 
 		if err == nil {
@@ -602,8 +627,18 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			p.Wait()
 		}
 
-		GoCqHttpServeProcessKill(dice, conn)
-		pa.InPackGoCqHttpRunning = false
+		isInLogin := pa.IsInLogin()
+		isDeviceLockLogin := pa.GoCqHttpState == GoCqHttpStateCodeInLoginDeviceLock
+		if !isDeviceLockLogin {
+			// 如果在设备锁流程中，不清空数据
+			GoCqHttpServeProcessKill(dice, conn)
+
+			if isInLogin {
+				conn.State = 3
+				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
+			}
+		}
+
 		if err != nil {
 			dice.Logger.Info("go-cqhttp 进程退出: ", err)
 		} else {
@@ -629,7 +664,15 @@ func DiceServe(d *Dice, ep *EndPointInfo) {
 			return
 		}
 
+		ep.Enable = true
+		ep.State = 2 // 连接中
+
 		checkQuit := func() bool {
+			if conn.GoCqHttpState == GoCqHttpStateCodeInLoginDeviceLock {
+				d.Logger.Infof("检测到设备锁流程，暂时不再连接")
+				ep.State = 0
+				return true
+			}
 			if !conn.DiceServing {
 				// 退出连接
 				d.Logger.Infof("检测到连接关闭，不再进行此onebot服务的重连: <%s>(%s)", ep.Nickname, ep.UserId)

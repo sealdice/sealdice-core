@@ -132,6 +132,28 @@ func ImConnectionsSetEnable(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
+func ImConnectionsSetData(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := struct {
+		Id       string `form:"id" json:"id"`
+		Protocol int    `form:"protocol" json:"protocol"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.Id == v.Id {
+				ad := i.Adapter.(*dice.PlatformAdapterQQOnebot)
+				ad.SetQQProtocol(v.Protocol)
+				return c.JSON(http.StatusOK, i)
+			}
+		}
+	}
+	return c.JSON(http.StatusNotFound, nil)
+}
+
 func ImConnectionsDel(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -168,9 +190,9 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
 				pa := i.Adapter.(*dice.PlatformAdapterQQOnebot)
-				if pa.InPackGoCqHttpQrcodeReady {
+				if pa.GoCqHttpState == dice.GoCqHttpStateCodeInLoginQrCode {
 					return c.JSON(http.StatusOK, map[string]string{
-						"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.InPackGoCqHttpQrcodeData),
+						"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.GoCqHttpQrcodeData),
 					})
 				}
 				return c.JSON(http.StatusOK, i)
@@ -397,6 +419,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/add", ImConnectionsAdd)
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
+	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)
 	e.POST(prefix+"/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
 
 	e.GET(prefix+"/configs/customText", customText)

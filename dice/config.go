@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-//type TextTemplateWithWeight = map[string]map[string]uint
+// type TextTemplateWithWeight = map[string]map[string]uint
 type TextTemplateItem = []interface{} // 实际上是 [](string | int) 类型
 type TextTemplateItemList []TextTemplateItem
 
@@ -1286,12 +1286,12 @@ func (d *Dice) loads() {
 							ProtocolType: i.Type,
 						},
 						&PlatformAdapterQQOnebot{
-							ConnectUrl:                       i.ConnectUrl,
-							UseInPackGoCqhttp:                i.UseInPackGoCqhttp,
-							InPackGoCqHttpLoginSucceeded:     i.InPackGoCqHttpLoginSucceeded,
-							InPackGoCqHttpLastRestrictedTime: i.InPackGoCqHttpLastRestrictedTime,
-							InPackGoCqHttpProtocol:           i.InPackGoCqHttpProtocol,
-							InPackGoCqHttpPassword:           i.InPackGoCqHttpPassword,
+							ConnectUrl:                 i.ConnectUrl,
+							UseInPackGoCqhttp:          i.UseInPackGoCqhttp,
+							GoCqHttpLoginSucceeded:     i.InPackGoCqHttpLoginSucceeded,
+							GoCqHttpLastRestrictedTime: i.InPackGoCqHttpLastRestrictedTime,
+							InPackGoCqHttpProtocol:     i.InPackGoCqHttpProtocol,
+							InPackGoCqHttpPassword:     i.InPackGoCqHttpPassword,
 						},
 					}
 					d.ImSession.EndPoints = append(d.ImSession.EndPoints, ep)

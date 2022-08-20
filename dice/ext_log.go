@@ -502,7 +502,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}"
 				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				// 玩家 SAN60 HP10/10 DEX65
-				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text+"\n使用.sn off可关闭")
+				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "dnd", "dnd5e":
 				// PW{pw}
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PW{_pw}"
@@ -510,8 +510,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				// 玩家 HP10/10 AC15 DC15 PW10
 				ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text+"\n使用.sn off可关闭")
 			case "none":
-				ctx.Player.AutoSetNameTemplate = "{$t玩家}"
-				text, _ := SetPlayerGroupCardByTemplate(ctx, "{$t玩家}")
+				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW}"
+				text, _ := SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text+"\n使用.sn off可关闭")
 			case "off", "cancel":
 				ctx.Player.AutoSetNameTemplate = ""
