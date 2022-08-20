@@ -197,11 +197,11 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 
 		fmt.Println("端口占用检测 - 开始")
 		c, err := net.Dial("tcp", "127.0.0.1:"+portStr)
-		fmt.Println("端口占用检测 - ", err == nil)
+		fmt.Println("端口占用检测 -", err == nil)
 
 		isPortOk := false
 		if err != nil {
-			if strings.Contains(err.Error(), "the target machine actively refused it") {
+			if dice.CheckDialErr(err) == syscall.ECONNREFUSED {
 				// 正确
 				isPortOk = true
 			}

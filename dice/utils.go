@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -408,4 +409,30 @@ func unzipFile(f *zip.File, destination string) error {
 		return err
 	}
 	return nil
+}
+
+func CheckDialErr(err error) syscall.Errno {
+	if err == nil {
+		return 0
+	} else if netError, ok := err.(net.Error); ok && netError.Timeout() {
+		return syscall.ETIMEDOUT
+	}
+
+	switch t := err.(type) {
+	case *net.OpError:
+		if t.Op == "dial" {
+			// 但好像也可能是 unknown host 之类
+			if strings.Contains(err.Error(), "the target machine actively refused it") {
+				return syscall.ECONNREFUSED
+			}
+			return 1
+		} else if t.Op == "read" {
+			return syscall.ECONNREFUSED
+		}
+
+	case syscall.Errno:
+		return t
+	}
+
+	return 1 // 失败 但是原因不明
 }

@@ -145,7 +145,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 	pa.InPackGoCqHttpDisconnectedCH = make(chan int, 1)
 	session := s
 
-	socket := gowebsocket.New(pa.ConnectUrl)
+	socket := gowebsocket.New(strings.ReplaceAll(pa.ConnectUrl, "56617", "56611"))
 	pa.Socket = &socket
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
@@ -156,8 +156,10 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
-		log.Info("Recieved connect error: ", err)
-		fmt.Println("连接失败")
+		if CheckDialErr(err) != syscall.ECONNREFUSED {
+			// refused 不算大事
+			log.Info("Recieved connect error: ", err)
+		}
 		pa.InPackGoCqHttpDisconnectedCH <- 2
 	}
 
@@ -613,11 +615,12 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 	socket.Connect()
 	defer func() {
-		fmt.Println("socket close")
+		//fmt.Println("socket close")
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					fmt.Println("关闭连接时遭遇异常")
+					// 太频繁了 不输出了
+					//fmt.Println("关闭连接时遭遇异常")
 					//core.GetLogger().Error(r)
 				}
 			}()
@@ -651,7 +654,7 @@ func (pa *PlatformAdapterQQOnebot) DoRelogin() bool {
 		}
 		myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserId)
 		go GoCqHttpServeProcessKill(myDice, ep)
-		time.Sleep(5 * time.Second)                 // 上面那个清理有概率卡住，具体不懂，改成等5s
+		time.Sleep(20 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 20s 超过一次重试间隔
 		GoCqHttpServeRemoveSessionToken(myDice, ep) // 删除session.token
 		pa.InPackGoCqHttpLastRestrictedTime = 0     // 重置风控时间
 		GoCqHttpServe(myDice, ep, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
