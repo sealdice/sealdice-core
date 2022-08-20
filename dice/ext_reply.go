@@ -50,7 +50,8 @@ func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 		}
 	}
 
-	rc := &ReplyConfig{Enable: true, Filename: filename, Items: []*ReplyItem{}}
+	nowTime := time.Now().Unix()
+	rc := &ReplyConfig{Enable: true, Filename: filename, Name: filename, Items: []*ReplyItem{}, UpdateTimestamp: nowTime, CreateTimestamp: nowTime, Author: []string{"无名海豹"}}
 	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
 	rc.Save(dice)
 	return rc
