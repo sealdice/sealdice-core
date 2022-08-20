@@ -402,7 +402,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{"玩家的当前昵称为: {$t玩家}", 1},
 			},
 			"昵称_重置": {
-				{"{$t帐号昵称}({$t帐号ID})的昵称已重置为{$t玩家}", 1},
+				{"{$t旧昵称}({$t帐号ID})的昵称已重置为{$t玩家}", 1},
 			},
 			"昵称_改名": {
 				{"{$t旧昵称}({$t帐号ID})的昵称被设定为{$t玩家}", 1},
@@ -853,6 +853,7 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"昵称_重置": {
 				SubType: ".nn clr",
+				Vars:    []string{"$t旧昵称", "$t帐号昵称", "$t帐号ID", "$t玩家"},
 			},
 			"昵称_改名": {
 				SubType: ".nn 新名字",
@@ -1413,6 +1414,22 @@ func (d *Dice) loads() {
 
 			if d.VersionCode != 0 && d.VersionCode < 10004 {
 				d.AutoReloginEnable = false
+			}
+
+			if d.VersionCode != 0 && d.VersionCode < 10005 {
+				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+					d.Logger.Info("正在自动升级自定义文案文件")
+					for index, text := range d.TextMapRaw["核心"]["昵称_重置"] {
+						srcText := text[1].(string)
+						srcText = strings.ReplaceAll(srcText, "{$tQQ昵称}", "{$t旧昵称}")
+						srcText = strings.ReplaceAll(srcText, "{$t帐号昵称}", "{$t旧昵称}")
+						d.TextMapRaw["核心"]["昵称_重置"][index][1] = srcText
+					}
+
+					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+					d.GenerateTextMap()
+					d.SaveText()
+				})
 			}
 
 			// 设置全局群名缓存和用户名缓存

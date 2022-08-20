@@ -160,6 +160,7 @@ type Dice struct {
 	JsVM             *goja.Runtime          `yaml:"-" json:"-"`
 	JsLock           sync.Mutex             `yaml:"-" json:"-"`
 	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
+	RunAfterLoaded   []func()               `yaml:"-" json:"-"`
 
 	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable"` // 开启日志数量提示
 	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount"`  // 日志数量提示阈值，默认500
@@ -219,6 +220,17 @@ func (d *Dice) Init() {
 			i.OnLoad()
 		}
 	}
+
+	for _, i := range d.RunAfterLoaded {
+		defer func() {
+			// 防止报错
+			if r := recover(); r != nil {
+				d.Logger.Error("RunAfterLoaded", r)
+			}
+		}()
+		i()
+	}
+	d.RunAfterLoaded = []func(){}
 
 	autoSave := func() {
 		t := time.Tick(30 * time.Second)

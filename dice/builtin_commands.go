@@ -1211,6 +1211,8 @@ func (d *Dice) registerCoreCommands() {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_当前"))
 			case "clr", "reset":
 				p := ctx.Player
+				VarSetValueStr(ctx, "$t旧昵称", fmt.Sprintf("<%s>", ctx.Player.Name))
+				VarSetValueStr(ctx, "$t旧昵称_RAW", fmt.Sprintf("%s", ctx.Player.Name))
 				p.Name = msg.Sender.Nickname
 				VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
 				VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
