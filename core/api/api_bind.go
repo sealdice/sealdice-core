@@ -42,8 +42,18 @@ func baseInfo(c echo.Context) error {
 	}
 
 	extraTitle := ""
-	ctx := &dice.MsgContext{Dice: myDice, EndPoint: nil, Session: myDice.ImSession}
-	extraTitle = dice.DiceFormatTmpl(ctx, "核心:骰子名字")
+	getName := func() string {
+		defer func() {
+			// 防止报错
+			if r := recover(); r != nil {
+			}
+		}()
+
+		ctx := &dice.MsgContext{Dice: myDice, EndPoint: nil, Session: myDice.ImSession}
+		return dice.DiceFormatTmpl(ctx, "核心:骰子名字")
+	}
+
+	extraTitle = getName()
 
 	return c.JSON(http.StatusOK, struct {
 		AppName        string `json:"appName"`
