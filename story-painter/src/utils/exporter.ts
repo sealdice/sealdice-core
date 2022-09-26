@@ -181,7 +181,7 @@ export function exportFileQQ(results: LogItem[], options: any = undefined) {
     if (options.userIdHide) {
       userid = ''
     }
-    text += `${i.nickname}${userid} ${timeText}\n${i.message}\n\n`
+    text += `${i.nickname}${userid} ${timeText}\n${i.message.replaceAll('<br />', '\n')}\n\n`
   }
 
   saveAs(new Blob([text],  {type: "text/plain;charset=utf-8"}), '跑团记录(QQ风格).txt')
@@ -202,7 +202,7 @@ export function exportFileIRC(results: LogItem[], options: any = undefined) {
     if (options.userIdHide) {
       userid = ''
     }
-    text += `${timeText}<${i.nickname}${userid}>:${i.message}\n\n`
+    text += `${timeText}<${i.nickname}${userid}>:${i.message.replaceAll('<br />', '\n')}\n\n`
   }
 
   saveAs(new Blob([text],  {type: "text/plain;charset=utf-8"}), '跑团记录(主流风格).txt')

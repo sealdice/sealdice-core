@@ -9,6 +9,9 @@ import { HighlightStyle, TagStyle } from "@codemirror/highlight"
 import { completeFromList } from "@codemirror/autocomplete"
 import type { CharItem } from "~/store"
 
+let nameReplace = (n: string) => {
+  return n.replaceAll('.', '·').replaceAll(' ', '_').replaceAll(`/`, '_') //.replaceAll('(', '（').replaceAll(')', '）')
+}
 
 export function generateLang(pcList: CharItem[], options: any = undefined) {
   let tagNameLine = Tag.define()
@@ -33,7 +36,8 @@ export function generateLang(pcList: CharItem[], options: any = undefined) {
   const pcMap: { [name:string]: CharItem } = {}
 
   for (let i of pcList) {
-    const theName = i.name.replaceAll('.', '·')
+    i.name = i.name.replaceAll('(', '（').replaceAll(')', '）');
+    const theName = nameReplace(i.name)
     const tag = Tag.define()
     const tag2 = Tag.define()
     const tag3 = Tag.define()
@@ -90,7 +94,7 @@ export function generateLang(pcList: CharItem[], options: any = undefined) {
           const m = stream.match(reNameLine) as RegExpMatchArray
           if (m) {
             const mName = m[1]
-            state.name = m[1].replaceAll('.', '·')
+            state.name = nameReplace(m[1])
             state.mode = 1
             const pc = pcMap[mName]
             state.pc = pc

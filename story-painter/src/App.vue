@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V1.07</h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V1.08</h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253</div>
     <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div>
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
@@ -727,7 +727,7 @@ const trySinaNyaLog = (text: string) => {
 }
 
 // 2022-05-10 11:28:25 名字(12345)
-const reQQExportLine = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(.+?)(\([^)]+\)|\<[^>]+\>)$/gm
+const reQQExportLine = /^(\d{4}-\d{2}-\d{2} \d{1,2}:\d{1,2}:\d{1,2})\s+(.+?)(\([^)]+\)|\<[^>]+\>)$/gm
 const tryQQExportLog = (text: string) => {
   let isQQExportLog = false
   let testText = text
@@ -747,7 +747,7 @@ const tryQQExportLog = (text: string) => {
     for (let i of text.split('\n')) {
       // 遇到了这个问题，见：
       // https://blog.csdn.net/Jioho_chen/article/details/122510522
-      const m = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(.+?)(\([^)]+\)|\<[^>]+\>)$/g.exec(i)
+      const m = /^(\d{4}-\d{2}-\d{2} \d{1,2}:\d{1,2}:\d{1,2})\s+(.+?)(\([^)]+\)|\<[^>]+\>)$/g.exec(i)
 
       if (m) {
         if (lastItem) {
