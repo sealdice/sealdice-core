@@ -230,7 +230,7 @@ const trgCommandSolve = (item: LogItem) => {
           let items = []
           for (let i of ci.items) {
             let diceNum = readDiceNum(i.expr1)
-            items.push(`(${ci.pcName}的${i.expr2},${diceNum},${i.checkVal},${i.attrVal})`)
+            items.push(`(${ci.pcName}的${i.expr2},${diceNum},${i.attrVal},${i.checkVal})`)
           }
           return `<dice>:${items.join(',')}`
           break
@@ -289,7 +289,7 @@ const trgCommandSolve = (item: LogItem) => {
           let tip = ''
           for (let i of ci.items) {
             let diceNum = readDiceNum(i.expr, 20)
-            items.push(`(${ci.pcName}的${i.reason}检定,${diceNum},NA,${Math.max(i.result, 20)})`)
+            items.push(`(${ci.pcName}的${i.reason}检定,${diceNum},NA,${i.result})`)
             tip = '# 请注意，DND的最大面数可能为 D20+各种加值，需要手动二次调整\n'
           }
           return tip + `<dice>:${items.join(',')}`
