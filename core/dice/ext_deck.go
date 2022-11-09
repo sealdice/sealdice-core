@@ -500,9 +500,9 @@ func RegisterBuiltinExtDeck(d *Dice) {
 	d.RegisterExtension(theExt)
 }
 
-func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
+func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, error) {
 	//  ***n***
-	// 参考: https://sinanya.com/#/MakeFile
+	// 规则参考: https://sinanya.com/#/MakeFile
 	// 1. 提取 {}
 	re := regexp.MustCompile(`{[$%]?.+?}`)
 	s = CompatibleReplace(ctx, s)
@@ -544,6 +544,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 		deckName = deckName[1+signLength : len(deckName)-1]
 
 		deck := deckInfo.DeckItems[deckName]
+
 		if deck == nil {
 			text = "<%未知牌组-" + deckName + "%>"
 		} else {
@@ -554,7 +555,14 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 
 			text, err = executeDeck(ctx, deckInfo, deckName, useShufflePool)
 			if err != nil {
-				text = "<%抽取错误-" + deckName + "%>"
+				if err.Error() == "超出遍历次数" {
+					text = "<%抽取错误-可能死循环-" + deckName + "%>"
+					// 触发错误，回滚文本。避免出现:
+					//  draw keys能看到我 draw keys能看到我 draw keys能看到我 draw keys能看到我 <%抽取错误-超出遍历次数-导出牌组%>
+					return text, err
+				} else {
+					text = "<%抽取错误-" + deckName + "%>"
+				}
 			}
 		}
 
@@ -621,11 +629,16 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) string {
 	s = ImageRewrite(s, imgSolve)
 
 	s = strings.ReplaceAll(s, "\n", `\n`)
-	return DiceFormat(ctx, s)
+	return DiceFormat(ctx, s), nil
 }
 
 func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePool bool) (string, error) {
 	var key string
+	ctx.deckDepth += 1
+	if ctx.deckDepth > 20000 {
+		return "", errors.New("超出遍历次数")
+	}
+
 	if shufflePool {
 		var pool *ShuffleRandomPool
 		if ctx.DeckPools == nil {
@@ -654,8 +667,8 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		pool := DeckToRandomPool(deckGroup)
 		key = pool.Pick().(string)
 	}
-	cmd := deckStringFormat(ctx, deckInfo, key)
-	return cmd, nil
+	cmd, err := deckStringFormat(ctx, deckInfo, key)
+	return cmd, err
 }
 
 func extractWeight(s string) (uint, string) {

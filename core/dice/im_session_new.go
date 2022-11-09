@@ -223,6 +223,7 @@ type MsgContext struct {
 	PrivilegeLevel  int         // 权限等级 40邀请者 50管理 60群主 100master
 	delegateText    string      // 代骰附加文本
 
+	deckDepth int                                         // 抽牌递归深度
 	DeckPools map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
 }
 
