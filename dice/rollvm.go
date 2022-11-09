@@ -706,7 +706,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			}
 
 			if e.flags.CocVarNumberMode {
-				re := regexp.MustCompile(`^(困难|极难|大成功|常规|失败)?([^\d]+)(\d+)?$`)
+				re := regexp.MustCompile(`^(困难|极难|大成功|常规|失败|困難|極難|常規|失敗)?([^\d]+)(\d+)?$`)
 				m := re.FindStringSubmatch(code.ValueStr)
 				if len(m) > 0 {
 					if m[1] != "" {
