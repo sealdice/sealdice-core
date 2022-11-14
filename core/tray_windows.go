@@ -203,7 +203,9 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 		if err != nil {
 			if dice.CheckDialErr(err) == syscall.ECONNREFUSED {
 				// 正确
-				isPortOk = true
+				if c != nil {
+					isPortOk = true
+				}
 			}
 		}
 
