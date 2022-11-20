@@ -203,14 +203,14 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 		if err != nil {
 			if dice.CheckDialErr(err) == syscall.ECONNREFUSED {
 				// 正确
-				if c != nil {
-					isPortOk = true
-				}
+				isPortOk = true
 			}
 		}
 
 		if !isPortOk {
-			_ = c.Close()
+			if c != nil {
+				_ = c.Close()
+			}
 			s1, _ := syscall.UTF16PtrFromString("海豹TRPG骰点核心")
 			s2, _ := syscall.UTF16PtrFromString(fmt.Sprintf("端口 %s 已被占用，点“是”随机换一个端口，点“否”退出\n注意，此端口将被自动写入配置，后续可用启动参数改回", portStr))
 			ret := win.MessageBox(0, s2, s1, win.MB_YESNO|win.MB_ICONWARNING|win.MB_DEFBUTTON2)

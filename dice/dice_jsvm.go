@@ -15,6 +15,8 @@ func (d *Dice) JsInit() {
 	d.JsRequire = new(require.Registry).Enable(d.JsVM)
 	console.Enable(d.JsVM)
 
+	d.JsVM.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", false))
+
 	dice := d.JsVM.NewObject()
 	//dice.Set("setVarInt", VarSetValueInt64)
 	//dice.Set("setVarStr", VarSetValueStr)

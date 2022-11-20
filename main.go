@@ -38,7 +38,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		err := recover()
 		if err != nil {
 			showWindow()
-			logger.Errorf("异常: %v 堆栈: %v", err, string(debug.Stack()))
+			logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
 			exec.Command("pause") // windows专属
 		}
 
