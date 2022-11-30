@@ -7,11 +7,11 @@ import (
 )
 
 type PlatformAdapterDiscord struct {
-	DiceServing   bool
-	Session       *IMSession
-	Token         string        `yaml:"token" json:"token"`
-	EndPoint      *EndPointInfo `yaml:"-" json:"-"`
-	IntentSession *discordgo.Session
+	DiceServing   bool               `yaml:"-" json:"-"`
+	Session       *IMSession         `yaml:"-" json:"-"`
+	Token         string             `yaml:"-" json:"token"`
+	EndPoint      *EndPointInfo      `yaml:"-" json:"-"`
+	IntentSession *discordgo.Session `yaml:"-" json:"-"`
 }
 
 func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupId string) {
@@ -21,7 +21,7 @@ func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupId string) {
 func (pa *PlatformAdapterDiscord) Serve() int {
 	dg, err := discordgo.New("Bot " + pa.Token)
 	if err != nil {
-		fmt.Println("error creating Discord session,", err)
+		fmt.Println("创建DiscordSession时出错:", err)
 		return 1
 	}
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -29,7 +29,6 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		if m.Author.ID == s.State.User.ID {
 			return
 		}
-		pa.Session.Parent.Logger.Infof("收到消息")
 		pa.Session.Execute(pa.EndPoint, toStdMessage(m), true)
 	})
 
