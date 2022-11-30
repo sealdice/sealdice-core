@@ -9,7 +9,7 @@ func NewDiscordConnItem(token string) *EndPointInfo {
 	conn.Platform = "Discord"
 	conn.ProtocolType = ""
 	conn.Enable = false
-	conn.RelWorkDir = "/extend"
+	conn.RelWorkDir = "extra"
 	conn.Adapter = &PlatformAdapterDiscord{
 		EndPoint: conn,
 		Token:    token,
@@ -17,14 +17,16 @@ func NewDiscordConnItem(token string) *EndPointInfo {
 	return conn
 }
 
-// ServeDiscord gocqhttp_helper 中有一个相同的待重构方法，为了避免阻碍重构，先不写在一起了
-func ServeDiscord(d *Dice, ep *EndPointInfo) {
+// DiceServeDiscord gocqhttp_helper 中有一个相同的待重构方法，为了避免阻碍重构，先不写在一起了
+func DiceServeDiscord(d *Dice, ep *EndPointInfo) {
 	if ep.Platform == "Discord" {
 		conn := ep.Adapter.(*PlatformAdapterDiscord)
-		d.Logger.Infof("Discord 尝试连接")
+		d.Logger.Infof("DiscordGo 尝试连接")
 		if conn.Serve() == 0 {
-			conn.DiceServing = true
+			ep.Enable = true
 			d.Logger.Infof("Discord 服务连接成功")
+		} else {
+			d.Logger.Errorf("连接Discord服务失败")
 		}
 	}
 }

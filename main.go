@@ -307,7 +307,7 @@ func main() {
 		go diceServe(d)
 	}
 
-	go uiServe(diceManager, opts.HideUIWhenBoot)
+	uiServe(diceManager, opts.HideUIWhenBoot)
 	//OOM分析工具
 	//err = nil
 	//err = http.ListenAndServe(":9090", nil)
@@ -327,9 +327,11 @@ func diceServe(d *dice.Dice) {
 				pa := conn.Adapter.(*dice.PlatformAdapterQQOnebot)
 				dice.GoCqHttpServe(d, conn, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
 				time.Sleep(10 * time.Second) // 稍作等待再连接
+				go dice.DiceServeQQ(d, conn)
+			} else if conn.Platform == "Discord" {
+				go dice.DiceServeDiscord(d, conn)
 			}
 
-			go dice.DiceServe(d, conn)
 			//for {
 			//	conn.DiceServing = true
 			//	// 骰子开始连接
