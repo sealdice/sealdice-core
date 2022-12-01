@@ -9,7 +9,7 @@ func NewDiscordConnItem(token string) *EndPointInfo {
 	conn.Platform = "Discord"
 	conn.ProtocolType = ""
 	conn.Enable = false
-	conn.RelWorkDir = "extra"
+	conn.RelWorkDir = "extra/discord-" + conn.Id
 	conn.Adapter = &PlatformAdapterDiscord{
 		EndPoint: conn,
 		Token:    token,
@@ -23,10 +23,10 @@ func DiceServeDiscord(d *Dice, ep *EndPointInfo) {
 		conn := ep.Adapter.(*PlatformAdapterDiscord)
 		d.Logger.Infof("DiscordGo 尝试连接")
 		if conn.Serve() == 0 {
-			ep.Enable = true
 			d.Logger.Infof("Discord 服务连接成功")
 		} else {
 			d.Logger.Errorf("连接Discord服务失败")
+			ep.State = 3
 		}
 	}
 }
