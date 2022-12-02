@@ -6,7 +6,7 @@ import "github.com/google/uuid"
 func NewDiscordConnItem(token string) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.Id = uuid.New().String()
-	conn.Platform = "Discord"
+	conn.Platform = "DISCORD"
 	conn.ProtocolType = ""
 	conn.Enable = false
 	conn.RelWorkDir = "extra/discord-" + conn.Id
@@ -19,7 +19,7 @@ func NewDiscordConnItem(token string) *EndPointInfo {
 
 // DiceServeDiscord gocqhttp_helper 中有一个相同的待重构方法，为了避免阻碍重构，先不写在一起了
 func DiceServeDiscord(d *Dice, ep *EndPointInfo) {
-	if ep.Platform == "Discord" {
+	if ep.Platform == "DISCORD" {
 		conn := ep.Adapter.(*PlatformAdapterDiscord)
 		d.Logger.Infof("DiscordGo 尝试连接")
 		if conn.Serve() == 0 {
