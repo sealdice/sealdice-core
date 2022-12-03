@@ -211,11 +211,16 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 	msg.RawId = m.ID
 	msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
 	msg.Platform = "DISCORD"
-	msg.MessageType = "group"
+	ch, _ := pa.IntentSession.Channel(m.ChannelID)
+	if ch != nil && ch.Type == discordgo.ChannelTypeDM {
+		msg.MessageType = "private"
+	} else {
+		msg.MessageType = "group"
+	}
 	send := new(SenderBase)
 	send.UserId = FormatDiceIdDiscord(m.Author.ID)
 	send.Nickname = m.Author.Username
-	if pa.checkIfGuildAdmin(m.Message) {
+	if msg.MessageType == "group" && pa.checkIfGuildAdmin(m.Message) {
 		send.GroupRole = "admin"
 	}
 	msg.Sender = *send
@@ -224,7 +229,7 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 
 func (pa *PlatformAdapterDiscord) checkIfGuildAdmin(m *discordgo.Message) bool {
 	p, err := pa.IntentSession.State.MessagePermissions(m)
-	pa.Session.Parent.Logger.Info(m.Author.Username, p)
+	//pa.Session.Parent.Logger.Info(m.Author.Username, p)
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("鉴权时出现错误:%s", err.Error())
 	}
