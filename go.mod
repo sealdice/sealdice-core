@@ -9,6 +9,7 @@ require (
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
 	github.com/antlabs/strsim v0.0.2
 	github.com/blevesearch/bleve/v2 v2.3.3
+	github.com/bwmarrin/discordgo v0.26.1
 	github.com/dop251/goja v0.0.0-20220714114325-87952593a54c
 	github.com/dop251/goja_nodejs v0.0.0-20211022123610-8dd9abb0616d
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
