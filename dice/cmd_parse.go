@@ -333,9 +333,19 @@ func CQParse(cmd string) *CQCommand {
 }
 
 func AtParse(cmd string, prefix string) (string, []*AtInfo) {
-	//[CQ:at,qq=3604749540]
+	//gocq的@:		[CQ:at,qq=3604749540]
+	//discordGo的@:	<@1048209604938563736>
 	ret := make([]*AtInfo, 0)
-	re := regexp.MustCompile(`\[CQ:at,qq=(\d+?)]`)
+	re, _ := regexp.Compile("")
+	switch prefix {
+	case "QQ":
+		re = regexp.MustCompile(`\[CQ:at,qq=(\d+?)]`)
+		break
+	case "DISCORD":
+		re = regexp.MustCompile(`<@(\d+?)>`)
+		break
+	}
+
 	m := re.FindAllStringSubmatch(cmd, -1)
 
 	for _, i := range m {

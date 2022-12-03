@@ -189,6 +189,15 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		}
 
 		d.Adapter = val.Adapter
+	} else if val.Platform == "DISCORD" {
+		var val struct {
+			Adapter *PlatformAdapterDiscord `yaml:"adapter"`
+		}
+		err := value.Decode(&val)
+		if err != nil {
+			return err
+		}
+		d.Adapter = val.Adapter
 	}
 	return err
 }
@@ -675,6 +684,11 @@ func (c *EndPointInfo) SetEnable(d *Dice, enable bool) {
 func (ep *EndPointInfo) AdapterSetup() {
 	if ep.Platform == "QQ" {
 		pa := ep.Adapter.(*PlatformAdapterQQOnebot)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
+	}
+	if ep.Platform == "DISCORD" {
+		pa := ep.Adapter.(*PlatformAdapterDiscord)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
