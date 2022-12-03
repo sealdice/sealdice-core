@@ -686,11 +686,6 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
-	if ep.Platform == "Discord" {
-		pa := ep.Adapter.(*PlatformAdapterDiscord)
-		pa.Session = ep.Session
-		pa.EndPoint = ep
-	}
 }
 
 func (ep *EndPointInfo) RefreshGroupNum() {
