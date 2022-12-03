@@ -3,8 +3,7 @@ package dice
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"strings"
-	"time"
+	"strconv"
 )
 
 type PlatformAdapterDiscord struct {
@@ -16,32 +15,7 @@ type PlatformAdapterDiscord struct {
 }
 
 func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupId string) {
-	pa.updateChannelNum()
-	logger := pa.Session.Parent.Logger
-	dm := pa.Session.Parent.Parent
-	channel, err := pa.IntentSession.Channel(ExtractDiscordChannelId(groupId))
-	if err != nil {
-		logger.Errorf("获取Discord频道信息#{%s}时出错:{%s}", groupId, err.Error())
-		return
-	}
-	dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
-		channel.Name,
-		time.Now().Unix(),
-	})
-	group := pa.Session.ServiceAtNew[groupId]
-	if group != nil {
-		group.GroupName = channel.Name
-	}
-}
-
-func (pa *PlatformAdapterDiscord) updateChannelNum() {
-	guilds := pa.IntentSession.State.Guilds
-	GroupNum := 0
-	for _, guild := range guilds {
-		channels, _ := pa.IntentSession.GuildChannels(guild.ID)
-		GroupNum += len(channels)
-	}
-	pa.EndPoint.GroupNum = int64(GroupNum)
+	return
 }
 
 func (pa *PlatformAdapterDiscord) Serve() int {
@@ -64,7 +38,7 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		pa.Session.Parent.Logger.Error("与Discord服务进行连接时出错:", err)
 		return 1
 	}
-	pa.EndPoint.UserId = FormatDiceIdDiscord(pa.IntentSession.State.User.ID)
+	pa.EndPoint.UserId = pa.IntentSession.State.User.ID
 	pa.EndPoint.Nickname = pa.IntentSession.State.User.Username
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
@@ -106,16 +80,15 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 
 func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	is := pa.IntentSession
-	ch, _ := is.UserChannelCreate(ExtractDiscordUserId(uid))
+	ch, _ := is.UserChannelCreate(uid)
 	_, err := is.ChannelMessageSend(ch.ID, text)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("向Discord用户#{%s}发送消息时出错:{%s}", uid, err)
 		return
 	}
 }
 
 func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
-	_, err := pa.IntentSession.ChannelMessageSend(ExtractDiscordChannelId(uid), text)
+	_, err := pa.IntentSession.ChannelMessageSend(uid, text)
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("向Discord频道#{%s}发送消息时出错:{%s}", uid, err)
 		return
@@ -123,7 +96,7 @@ func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, uid string, text 
 }
 
 func (pa *PlatformAdapterDiscord) QuitGroup(ctx *MsgContext, id string) {
-	ch, _ := pa.IntentSession.Channel(ExtractDiscordUserId(id))
+	ch, _ := pa.IntentSession.Channel(id)
 	group := ch.GuildID
 	err := pa.IntentSession.GuildLeave(group)
 	if err != nil {
@@ -133,26 +106,16 @@ func (pa *PlatformAdapterDiscord) QuitGroup(ctx *MsgContext, id string) {
 
 func (pa *PlatformAdapterDiscord) SetGroupCardName(groupId string, userId string, name string) {}
 
-func FormatDiceIdDiscord(diceDiscord string) string {
-	return fmt.Sprintf("DISCORD:%s", diceDiscord)
+func FormatDiceIdDiscord(diceDiscord int64) string {
+	return fmt.Sprintf("Discord:%s", strconv.FormatInt(diceDiscord, 10))
 }
 
-func FormatDiceIdDiscordChannel(diceDiscord string) string {
-	return fmt.Sprintf("DISCORD-CH-Group:%s", diceDiscord)
+func FormatDiceIdDiscordCh(userId string) string {
+	return fmt.Sprintf("Discord-CH:%s", userId)
 }
 
-func ExtractDiscordUserId(id string) string {
-	if strings.HasPrefix(id, "DISCORD:") {
-		return id[len("DISCORD:"):]
-	}
-	return id
-}
-
-func ExtractDiscordChannelId(id string) string {
-	if strings.HasPrefix(id, "DISCORD-CH-Group:") {
-		return id[len("DISCORD-CH-Group:"):]
-	}
-	return id
+func FormatDiceIdDiscordChGroup(GuildId, ChannelId string) string {
+	return fmt.Sprintf("Discord-CH-Channel:%s-%s", GuildId, ChannelId)
 }
 
 func toStdMessage(m *discordgo.MessageCreate) *Message {
@@ -160,11 +123,13 @@ func toStdMessage(m *discordgo.MessageCreate) *Message {
 	msg.Time = m.Timestamp.Unix()
 	msg.Message = m.Content
 	msg.RawId = m.ID
-	msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
+	msg.GroupId = m.ChannelID
 	msg.Platform = "Discord"
 	msg.MessageType = "group"
 	send := new(SenderBase)
-	send.UserId = FormatDiceIdDiscord(m.Author.ID)
+	//TODO:身份鉴权
+	//send.GroupRole = "admin"
+	send.UserId = m.Author.ID
 	send.Nickname = m.Author.Username
 	msg.Sender = *send
 	return msg
