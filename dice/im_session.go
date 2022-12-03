@@ -197,7 +197,6 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		if err != nil {
 			return err
 		}
-		d.Adapter = val.Adapter
 	}
 	return err
 }

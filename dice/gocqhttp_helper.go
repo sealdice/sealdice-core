@@ -531,7 +531,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				pa.GoCqHttpLoginSucceeded = true
 				dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserId)
 
-				go DiceServeQQ(dice, conn)
+				go DiceServe(dice, conn)
 			}
 		}
 
@@ -659,7 +659,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 }
 
 // 注意：放在这里并不科学，记得重构
-func DiceServeQQ(d *Dice, ep *EndPointInfo) {
+func DiceServe(d *Dice, ep *EndPointInfo) {
 	if ep.Platform == "QQ" {
 		conn := ep.Adapter.(*PlatformAdapterQQOnebot)
 

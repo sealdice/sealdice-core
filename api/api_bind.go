@@ -236,20 +236,20 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	//myDice.Logger.Infof("后端add调用")
+	myDice.Logger.Infof("后端add调用")
 	v := struct {
 		Token string `yaml:"token" json:"token"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		//myDice.Logger.Infof("bind无异常")
+		myDice.Logger.Infof("bind无异常")
 		conn := dice.NewDiscordConnItem(v.Token)
-		//myDice.Logger.Infof("成功创建endpoint")
+		myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterDiscord)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
-		myDice.Save(false)
-		dice.DiceServeDiscord(myDice, conn)
+		//myDice.Save(false)
+		dice.ServeDiscord(myDice, conn)
 		return c.JSON(200, conn)
 	}
 	return c.String(430, "")

@@ -9,7 +9,7 @@ import (
 type PlatformAdapterDiscord struct {
 	DiceServing   bool               `yaml:"-" json:"-"`
 	Session       *IMSession         `yaml:"-" json:"-"`
-	Token         string             `yaml:"token" json:"token"`
+	Token         string             `yaml:"-" json:"token"`
 	EndPoint      *EndPointInfo      `yaml:"-" json:"-"`
 	IntentSession *discordgo.Session `yaml:"-" json:"-"`
 }
@@ -21,7 +21,7 @@ func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupId string) {
 func (pa *PlatformAdapterDiscord) Serve() int {
 	dg, err := discordgo.New("Bot " + pa.Token)
 	if err != nil {
-		pa.Session.Parent.Logger.Error("创建DiscordSession时出错:", err)
+		fmt.Println("创建DiscordSession时出错:", err)
 		return 1
 	}
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -29,13 +29,15 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		if m.Author.ID == s.State.User.ID {
 			return
 		}
-		pa.Session.Execute(pa.EndPoint, toStdMessage(m), false)
+		pa.Session.Execute(pa.EndPoint, toStdMessage(m), true)
 	})
+
+	// In this example, we only care about receiving message events.
 	dg.Identify.Intents = discordgo.IntentsGuildMessages
 	pa.IntentSession = dg
 	err = dg.Open()
 	if err != nil {
-		pa.Session.Parent.Logger.Error("与Discord服务进行连接时出错:", err)
+		fmt.Println("error opening connection,", err)
 		return 1
 	}
 	return 0
@@ -51,9 +53,9 @@ func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, uid string, text
 }
 
 func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
+	//pa.EndPoint.Session.Parent.Logger.Infof("发送消息")
 	_, err := pa.IntentSession.ChannelMessageSend(uid, text)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("向Discord频道#{%s}发送消息时出错:{%s}", uid, err)
 		return
 	}
 }
@@ -87,8 +89,8 @@ func toStdMessage(m *discordgo.MessageCreate) *Message {
 	msg.Platform = "Discord"
 	msg.MessageType = "group"
 	send := new(SenderBase)
-	//TODO:身份鉴权
-	//send.GroupRole = "admin"
+	//DEBUG:记得删掉下面这行
+	send.GroupRole = "admin"
 	send.UserId = m.Author.ID
 	send.Nickname = m.Author.Username
 	msg.Sender = *send
