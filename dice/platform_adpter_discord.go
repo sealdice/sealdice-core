@@ -63,7 +63,7 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		pa.Session.Execute(pa.EndPoint, pa.toStdMessage(m), false)
 	})
 	//这里只处理消息，未来根据需要再改这里
-	dg.Identify.Intents = discordgo.IntentsGuildMessages
+	dg.Identify.Intents = discordgo.IntentsAll
 	pa.IntentSession = dg
 	err = dg.Open()
 	//这里出错要么没连上，要么连接被阻止了（懂得都懂）
@@ -203,15 +203,16 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 	send := new(SenderBase)
 	send.UserId = FormatDiceIdDiscord(m.Author.ID)
 	send.Nickname = m.Author.Username
-	if pa.checkIfGuildAdmin(m.Author, m.ChannelID) {
+	if pa.checkIfGuildAdmin(m.Message) {
 		send.GroupRole = "admin"
 	}
 	msg.Sender = *send
 	return msg
 }
 
-func (pa *PlatformAdapterDiscord) checkIfGuildAdmin(user *discordgo.User, channelId string) bool {
-	p, err := pa.IntentSession.UserChannelPermissions(user.ID, channelId)
+func (pa *PlatformAdapterDiscord) checkIfGuildAdmin(m *discordgo.Message) bool {
+	p, err := pa.IntentSession.State.MessagePermissions(m)
+	pa.Session.Parent.Logger.Info(m.Author.Username, p)
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("鉴权时出现错误:%s", err.Error())
 	}
@@ -219,5 +220,5 @@ func (pa *PlatformAdapterDiscord) checkIfGuildAdmin(user *discordgo.User, channe
 	//KICK_MEMBERS *	0x0000000000000002 (1 << 1)
 	//BAN_MEMBERS *	0x0000000000000004 (1 << 2)	Allows banning members
 	//ADMINISTRATOR *	0x0000000000000008 (1 << 3)	Allows all permissions and bypasses channel permission overwrites
-	return p&(1<<1|1<<2|1<<3) > 0
+	return p&(1<<1|1<<2|1<<3) > 0 || p == discordgo.PermissionAll
 }
