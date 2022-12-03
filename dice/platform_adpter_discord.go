@@ -94,7 +94,6 @@ func (pa *PlatformAdapterDiscord) DoRelogin() bool {
 		pa.EndPoint.State = 0
 		return false
 	}
-	_ = pa.IntentSession.UpdateGameStatus(0, "SealDice")
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
 	return true
@@ -115,7 +114,6 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 			pa.EndPoint.Enable = false
 			return
 		}
-		_ = pa.IntentSession.UpdateGameStatus(0, "SealDice")
 		pa.EndPoint.State = 1
 		pa.EndPoint.Enable = true
 	} else {
