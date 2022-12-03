@@ -328,7 +328,7 @@ func diceServe(d *dice.Dice) {
 				dice.GoCqHttpServe(d, conn, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
 				time.Sleep(10 * time.Second) // 稍作等待再连接
 				go dice.DiceServeQQ(d, conn)
-			} else if conn.Platform == "DISCORD" {
+			} else if conn.Platform == "Discord" {
 				go dice.DiceServeDiscord(d, conn)
 			}
 

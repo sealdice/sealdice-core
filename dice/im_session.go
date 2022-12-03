@@ -189,7 +189,7 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		}
 
 		d.Adapter = val.Adapter
-	} else if val.Platform == "DISCORD" {
+	} else if val.Platform == "Discord" {
 		var val struct {
 			Adapter *PlatformAdapterDiscord `yaml:"adapter"`
 		}
@@ -687,7 +687,7 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
-	if ep.Platform == "DISCORD" {
+	if ep.Platform == "Discord" {
 		pa := ep.Adapter.(*PlatformAdapterDiscord)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
