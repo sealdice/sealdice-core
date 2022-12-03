@@ -189,14 +189,6 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		}
 
 		d.Adapter = val.Adapter
-	} else if val.Platform == "Discord" {
-		var val struct {
-			Adapter *PlatformAdapterDiscord `yaml:"adapter"`
-		}
-		err := value.Decode(&val)
-		if err != nil {
-			return err
-		}
 	}
 	return err
 }
