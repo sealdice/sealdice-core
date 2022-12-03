@@ -12,7 +12,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	//_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -307,13 +306,7 @@ func main() {
 		go diceServe(d)
 	}
 
-	go uiServe(diceManager, opts.HideUIWhenBoot)
-	//OOM分析工具
-	//err = nil
-	//err = http.ListenAndServe(":9090", nil)
-	//if err != nil {
-	//	fmt.Printf("ListenAndServe: %s", err)
-	//}
+	uiServe(diceManager, opts.HideUIWhenBoot)
 }
 
 func diceServe(d *dice.Dice) {
