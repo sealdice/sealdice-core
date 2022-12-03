@@ -38,53 +38,16 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		pa.Session.Parent.Logger.Error("与Discord服务进行连接时出错:", err)
 		return 1
 	}
-	pa.EndPoint.UserId = pa.IntentSession.State.User.ID
-	pa.EndPoint.Nickname = pa.IntentSession.State.User.Username
-	pa.EndPoint.State = 1
-	pa.EndPoint.Enable = true
 	return 0
 }
 
 func (pa *PlatformAdapterDiscord) DoRelogin() bool {
-	if pa.IntentSession == nil {
-		success := pa.Serve()
-		return success == 0
-	}
-	_ = pa.IntentSession.Close()
-	success := pa.IntentSession.Open()
-	return success == nil
+	return false
 }
 
-func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
-	if enable {
-		pa.Session.Parent.Logger.Infof("正在启用Discord服务……")
-		if pa.IntentSession == nil {
-			pa.Serve()
-			return
-		}
-		err := pa.IntentSession.Open()
-		if err != nil {
-			pa.Session.Parent.Logger.Error("与Discord服务进行连接时出错:", err)
-			pa.EndPoint.State = 0
-			pa.EndPoint.Enable = false
-			return
-		}
-		pa.EndPoint.State = 1
-		pa.EndPoint.Enable = true
-	} else {
-		pa.EndPoint.State = 0
-		pa.EndPoint.Enable = false
-		_ = pa.IntentSession.Close()
-	}
-}
+func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {}
 
 func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	is := pa.IntentSession
-	ch, _ := is.UserChannelCreate(uid)
-	_, err := is.ChannelMessageSend(ch.ID, text)
-	if err != nil {
-		return
-	}
 }
 
 func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
@@ -95,19 +58,16 @@ func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, uid string, text 
 	}
 }
 
-func (pa *PlatformAdapterDiscord) QuitGroup(ctx *MsgContext, id string) {
-	ch, _ := pa.IntentSession.Channel(id)
-	group := ch.GuildID
-	err := pa.IntentSession.GuildLeave(group)
-	if err != nil {
-		return
-	}
-}
+func (pa *PlatformAdapterDiscord) QuitGroup(ctx *MsgContext, id string) {}
 
 func (pa *PlatformAdapterDiscord) SetGroupCardName(groupId string, userId string, name string) {}
 
 func FormatDiceIdDiscord(diceDiscord int64) string {
 	return fmt.Sprintf("Discord:%s", strconv.FormatInt(diceDiscord, 10))
+}
+
+func FormatDiceIdDiscordGroup(diceDiscord string) string {
+	return fmt.Sprintf("Discord-Channel:%s", diceDiscord)
 }
 
 func FormatDiceIdDiscordCh(userId string) string {
