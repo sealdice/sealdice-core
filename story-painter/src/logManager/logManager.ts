@@ -229,7 +229,9 @@ export class LogManager {
         console.log('changedText', [changedText], rInfo);
         const offset = r2[1] - r2[0] - (r1[1] - r1[0]);
   
-        needFlush = rInfo?.exporter != 'editLog';
+        if (rInfo) {
+          needFlush = rInfo?.exporter != 'editLog';
+        }
         // console.log("C2", left, 'R', right, 'O', offset)
 
         if (rInfo) {

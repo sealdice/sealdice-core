@@ -104,6 +104,9 @@
         <div>
           <el-button @click="clearText" id="btnCopyPreviewBBS" style="" size="large" type="primary">清空内容</el-button>
         </div>
+        <div>
+          <el-button @click="doFlush" style="" size="large" type="primary">调试:Flush</el-button>
+        </div>
         <el-checkbox label="编辑器染色" v-model="store.doEditorHighlight" :border="false" @click.native="doEditorHighlightClick($event)" />
       </div>
     </code-mirror>
@@ -190,7 +193,7 @@ import uaParser from 'ua-parser-js'
 import { getTextWidth, getCanvasFontSize } from './utils'
 import ClipboardJS from 'clipboard'
 
-import { logMan } from './logManager/logManager'
+import { logMan, trgCommandSolve } from './logManager/logManager'
 import { ViewUpdate } from "@codemirror/view";
 
 const isMobile = ref(false)
@@ -213,6 +216,10 @@ const clearText = () => {
   store.editor.dispatch({
     changes: { from: 0, to: store.editor.state.doc.length, insert: '' }
   })
+}
+
+const doFlush = () => {
+  logMan.flush();
 }
 
 const previewMessageSolve = (i: LogItem) => {
