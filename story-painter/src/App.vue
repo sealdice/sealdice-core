@@ -599,13 +599,15 @@ const onChange = (v: ViewUpdate) => {
     if (v.docChanged) {
       const ranges = (v as any).changedRanges
       if (ranges.length) {
-        const payloadText = store.editor.state.doc.toString()
+        for (let i = ranges.length-1; i >= 0; i--) {
+          const payloadText = store.editor.state.doc.toString()
 
-        const r1 = [ranges[0].fromA, ranges[0].toA];
-        const r2 = [ranges[0].fromB, ranges[0].toB];
+          const r1 = [ranges[i].fromA, ranges[i].toA];
+          const r2 = [ranges[i].fromB, ranges[i].toB];
 
-        console.log('XXX', v);
-        logMan.syncChange(payloadText, r1, r2);
+          console.log('XXX', v);
+          logMan.syncChange(payloadText, r1, r2);
+        }
       }
     }
   }
