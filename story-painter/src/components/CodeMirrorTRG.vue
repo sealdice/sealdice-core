@@ -1,7 +1,5 @@
 <template>
-  <div id="e" ref="editor" class="codemirror" style="position: relative;">
-    <slot></slot>
-  </div>
+  <div id="e" ref="editor" class="codemirror"></div>
 </template>
 
 <script setup lang="ts">
@@ -24,17 +22,17 @@ import type { DecorationSet } from "@codemirror/view"
 const editor = ref(null)
 const store = useStore()
 
-const emit = defineEmits<(e: 'change', v: ViewUpdate) => void>();
+const emit = defineEmits<(e: 'change') => void>();
 
-const reloadEditor = (highlight = false) => {
+const reloadEditor = () => {
   store.editor.dispatch({
-    effects: StateEffect.reconfigure.of(getExts(highlight))
+    effects: StateEffect.reconfigure.of(getExts())
   })
 }
 
-store._reloadEditor = reloadEditor
+store.reloadEditor = reloadEditor
 
-function getExts(highlight = false) {
+function getExts() {
   return [
     basicSetup,
     history(),
@@ -51,10 +49,10 @@ function getExts(highlight = false) {
     ]),
     checkboxPlugin,
 
-    ...highlight ? generateLang(store.pcList, store.exportOptions) : [],
+    ...generateLang(store.pcList, store.exportOptions),
     EditorView.updateListener.of((v: ViewUpdate) => {
       if (v.docChanged) {
-        emit('change', v);
+        emit('change');
         // temp1.view.state.doc.toString()
       }
     })
@@ -172,12 +170,12 @@ const createEditor = (editorContainer: any, doc: any) => {
   let startState = EditorState.create({
     //doc为编辑器内容
     doc: `
-海豹一号机(2589922907) 2022/03/21 19:05:05
+海豹一号机(2589922907) 19:05:05
 新的故事开始了，祝旅途愉快！
 记录已经开启。
 
 木落(303451945) 2022/03/21 19:06:01
-（好的测试开始了）
+【好的测试开始了
 
 木落(303451945) 2022/03/21 19:06:21
 [mirai:image:{829E3684-0489-D929-ABCE-674F2992FDC4}.jpg]
@@ -211,16 +209,19 @@ const createEditor = (editorContainer: any, doc: any) => {
 .ra 灵感60
 
 海豹一号机(2589922907) 2022/03/21 19:07:55
-<木落>的灵感60检定结果为: d100=1/60, ([1d100=1]) 大成功！
+<木落>的灵感60检定结果为: d100=9/60, ([1d100=9]) 大失败！
 
 木落(303451945) 2022/03/21 19:08:21
-（？？？？？）
+（这是什么奇怪的房规？）
 
 木落(303451945) 2022/03/21 19:08:23
 .setcoc
 
 海豹一号机(2589922907) 2022/03/21 19:08:23
 当前房规: 0
+
+木落(303451945) 2022/03/21 19:13:41
+坏了 是bug】
 
 木落(303451945) 2022/03/21 19:13:44
 .r

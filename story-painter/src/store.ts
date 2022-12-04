@@ -14,11 +14,15 @@ export interface LogItem {
   nickname: string;
   IMUserId: number | string;
   time: number;
+  timeText?: string;
   message: string;
   isDice: boolean;
   commandId: number;
   color?: string;
   commandInfo?: any;
+
+  // 如果为真，那么只有message有意义，且当作纯文本处理
+  isRaw?: boolean;
 }
 
 export const useStore = defineStore('main', {

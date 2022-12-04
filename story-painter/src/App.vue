@@ -1,8 +1,8 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V1.08</h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2 dev</h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253</div>
-    <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div>
+    <!-- <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div> -->
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
       <div>
         <div class="switch">
@@ -190,6 +190,9 @@ import uaParser from 'ua-parser-js'
 import { getTextWidth, getCanvasFontSize } from './utils'
 import ClipboardJS from 'clipboard'
 
+import { logMan } from './logManager/logManager'
+import { ViewUpdate } from "@codemirror/view";
+
 const isMobile = ref(false)
 const downloadUsableRank = ref(0)
 
@@ -210,108 +213,6 @@ const clearText = () => {
   store.editor.dispatch({
     changes: { from: 0, to: store.editor.state.doc.length, insert: '' }
   })
-}
-
-const readDiceNum = (expr: string, defaultVal = 100) => {
-  let diceNum = defaultVal // 如果读不到，当作100处理
-  const m = /[dD](\d+)/.exec(expr)
-  if (m) {
-    diceNum = parseInt(m[1])
-  }
-  return diceNum
-}
-
-const trgCommandSolve = (item: LogItem) => {
-  if (item.commandInfo) {
-    const ci = item.commandInfo
-    if (ci.rule === 'coc7') {
-      switch (ci.cmd) {
-        case 'ra': {        
-          let items = []
-          for (let i of ci.items) {
-            let diceNum = readDiceNum(i.expr1)
-            items.push(`(${ci.pcName}的${i.expr2},${diceNum},${i.attrVal},${i.checkVal})`)
-          }
-          return `<dice>:${items.join(',')}`
-          break
-        }
-        case 'st': {
-          // { "cmd": "st", "items": [ { "attr": "hp", "isInc": false, "modExpr": "1d4", "type": "mod", "valNew": 63, "valOld": 65 } ], "pcName": "木落", "rule": "coc7" }
-          let items = []
-          for (let i of ci.items) {
-            if (i.attr == 'hp') {
-              let maxNow = Math.max(i.valOld, i.valNew)
-              items.push(`<hitpoint>:(${ci.pcName},${maxNow},${i.valOld},${i.valNew})`)
-            }
-            // let diceNum = readDiceNum(i.exprs[0])
-            // items.push(`(${ci.pcName}的${i.exprs[0]},${diceNum},${i.sanOld},${i.checkVal})`)
-          }
-          const tip = '# 请注意，当前版本需要手动调整下方最大生命值(第二项)\n'
-          return tip + `${items.join('\n')}`
-          break
-        }
-        case 'sc': {
-          // { "cmd": "sc", "cocRule": 11, "items": [ { "checkVal": 55, "exprs": [ "d100", "0", "1" ], "rank": -2, "sanNew": 0, "sanOld": 0 } ], "pcName": "木落", "rule": "coc7" }
-          let items = []
-          for (let i of ci.items) {
-            let diceNum = readDiceNum(i.exprs[0])
-            items.push(`(${ci.pcName}的${i.exprs[0]},${diceNum},${i.sanOld},${i.checkVal})`)
-          }
-          return `<dice>:${items.join(',')}`
-          break
-        }
-      }
-    }
-    if (ci.rule === 'dnd5e') {
-      switch (ci.cmd) {
-        case 'st': {
-          // {"cmd":"st","items":[{"attr":"hp","isInc":false,"modExpr":"3","type":"mod","valNew":7,"valOld":10}],"pcName":"海岸线","rule":"dnd5e"}
-          let items = []
-          let hasHp = false
-          for (let i of ci.items || []) {
-            if (i.attr == 'hp') {
-              let maxNow = Math.max(i.valOld, i.valNew)
-              items.push(`<hitpoint>:(${ci.pcName},${maxNow},${i.valOld},${i.valNew})`)
-              hasHp = true
-            }
-          }
-          let tip = ''
-          if (hasHp) {
-            let tip = '# 请注意，当前版本需要手动调整下方最大生命值(第二项)\n'
-          }
-          return tip + `${items.join('\n')}`
-          break
-        }
-        case 'rc': {
-          // {"cmd":"rc","items":[{"expr":"D20 + 体质豁免","reason":"体质豁免","result":15}],"pcName":"阿拉密尔•利亚顿","rule":"dnd5e"}
-          let items = []
-
-          let tip = ''
-          for (let i of ci.items) {
-            let diceNum = readDiceNum(i.expr, 20)
-            items.push(`(${ci.pcName}的${i.reason}检定,${diceNum},NA,${i.result})`)
-            tip = '# 请注意，DND的最大面数可能为 D20+各种加值，需要手动二次调整\n'
-          }
-          return tip + `<dice>:${items.join(',')}`
-          break
-        }
-      }
-    }
-
-    switch (ci.cmd) {
-      case 'roll': {
-          // { "cmd": "roll", "items": [ { "dicePoints": 100, "expr": "D100", "result": 30 } ], "pcName": "木落" }
-          let items = []
-          for (let i of ci.items) {
-            let diceNum = readDiceNum(i.expr)
-            items.push(`(${ci.pcName}的${i.expr},${diceNum},NA,${i.result})`)
-          }
-          return `<dice>:${items.join(',')}`
-          break
-        }
-    }
-    return ci
-  }
 }
 
 const previewMessageSolve = (i: LogItem) => {
@@ -501,7 +402,7 @@ onMounted(async () => {
       if (!isMobile.value) {
         store.doEditorHighlight = true
         store.reloadEditor()
-        store.reloadEditor2()      
+        store.reloadEditor2()
       }
     }, 1000)
   }
@@ -529,7 +430,6 @@ onMounted(async () => {
         })
       })
 
-      onChange()
       loading.close()
       showHl()
     } catch (e) {
@@ -543,6 +443,9 @@ onMounted(async () => {
       return true
     }
   } else {
+    store.editor.dispatch({
+      changes: { from: 0, to: store.editor.state.doc.length, insert: store.editor.state.doc.toString() }
+    })
     showHl()
   }
 
@@ -551,7 +454,6 @@ onMounted(async () => {
 
   // console.log(cminstance.value)
   browserAlert()
-  onChange()
 });
 
 function exportRecordRaw() {
@@ -676,184 +578,34 @@ const nameChanged = (i: CharItem) => {
   }
 }
 
-const reSinaNyaLine = /^<(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d)>\s+\[([^\]]+)\]:\s+([^\n]+)$/gm
-const trySinaNyaLog = (text: string) => {
-  let isSinaNyaLog = false
-  let testText = text
-  if (text.length > 2000) {
-    testText = text.slice(0, 2000)
-  }
+logMan.ev.on('textSet', (text) => {
+  store.editor.dispatch({
+    changes: { from: 0, to: store.editor.state.doc.length, insert: text }
+  })
+});
 
-  if (reSinaNyaLine.test(testText)) {
-    isSinaNyaLog = true
-  }
-
-  // <2022-03-15 20:02:30.0>	[月歌]:	“锁上了么...”扭头看了看周围，看到了个在看假草的牧野，偷偷掏出螺丝刀尝试撬锁
-
-  const startLength = store.pcList.length + 1001
-  const nicknames = new Set<string>()
-
-  if (isSinaNyaLog) {
-    const items = [] as LogItem[]
-    let lastItem = null as any as LogItem
-    for (let i of text.split('\n')) {
-      // 遇到了这个问题，见：
-      // https://blog.csdn.net/Jioho_chen/article/details/122510522
-      const m = /^<(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d)>\s+\[?([^\]]+)\]?:\s+([^\n]+)$/g.exec(i)
-
-      if (m) {
-        const item = {} as LogItem
-        nicknames.add(m[2])
-        item.nickname = m[2]
-        item.time = dayjs(m[1]).unix()
-        item.message = m[3]
-        item.IMUserId = startLength + nicknames.size
-        items.push(item)
-        lastItem = item
-      } else {
-        if (lastItem) {
-          lastItem.message += '\n'+i
-        }
-      }
-    }
-    // console.log(222222, items)
-    loadLog(items)
-    store.pcNameRefresh()
-    return true
-  }
-
-  // console.log('log解析: 并非塔骰格式，尝试下一种')
-  return false
-}
-
-// 2022-05-10 11:28:25 名字(12345)
-const reQQExportLine = /^(\d{4}-\d{2}-\d{2} \d{1,2}:\d{1,2}:\d{1,2})\s+(.+?)(\([^)]+\)|\<[^>]+\>)$/gm
-const tryQQExportLog = (text: string) => {
-  let isQQExportLog = false
-  let testText = text
-  if (text.length > 2000) {
-    testText = text.slice(0, 2000)
-  }
-
-  if (reQQExportLine.test(testText)) {
-    isQQExportLog = true
-  }
-
-  const nicknames = new Set<string>()
-
-  if (isQQExportLog) {
-    const items = [] as LogItem[]
-    let lastItem = null as any as LogItem
-    for (let i of text.split('\n')) {
-      // 遇到了这个问题，见：
-      // https://blog.csdn.net/Jioho_chen/article/details/122510522
-      const m = /^(\d{4}-\d{2}-\d{2} \d{1,2}:\d{1,2}:\d{1,2})\s+(.+?)(\([^)]+\)|\<[^>]+\>)$/g.exec(i)
-
-      if (m) {
-        if (lastItem) {
-          if (lastItem.message.endsWith('\n')) {
-            // 消除最后一个\n，避免从文件复制出来多一行的问题
-            lastItem.message = lastItem.message.slice(0, -1)
-          }
-        }
-        const item = {} as LogItem
-        nicknames.add(m[2])
-        item.nickname = m[2]
-        item.time = dayjs(m[1]).unix()
-        item.message = ''
-        item.IMUserId = 'QQ:' + m[3].slice(1, -1)
-        items.push(item)
-        lastItem = item
-      } else {
-        if (lastItem) {
-          if (lastItem.message === '') lastItem.message += i
-          else lastItem.message += '\n'+i
-        }
-      }
-    }
-    // console.log(222222, items)
-    loadLog(items)
-    store.pcNameRefresh()
-    return true
-  }
-
-  // console.log('log解析: 并非塔骰格式，尝试下一种')
-  return false
-}
-
-const trySealDice = (text: string) => {
-  let isTrpgLog = false;
-  try {
-    const sealFormat = JSON.parse(text)
-    if (sealFormat.items && sealFormat.items.length > 0) {
-      const keys = Object.keys(sealFormat.items[0])
-      isTrpgLog = keys.includes('isDice') && keys.includes('message')
-    }
-
-    // console.log(3333, isTrpgLog, sealFormat.items, sealFormat.items.length > 0)
-    if (isTrpgLog) {
-      loadLog(sealFormat.items)
-      store.pcNameRefresh()
-      return true
-    }
-  } catch (e) {
-    // console.log('log解析: 并非seal格式，尝试下一种')
-    // console.log('??????', e)
-  }
-  return false
-}
 
 let preventNext = false
-const onChange = debounce(() => {
-  if (preventNext) {
-    preventNext = false
-    return
-  }
-  const payloadText = store.editor.state.doc.toString()
-  let isLog = false
+const onChange = (v: ViewUpdate) => {
+  let payloadText = '';
+  if (v) {
+    if (v.docChanged) {
+      const ranges = (v as any).changedRanges
+      if (ranges.length) {
+        const payloadText = store.editor.state.doc.toString()
 
-  isLog = trySealDice(payloadText)
-  if (isLog) {
-    preventNext = true
-    return
-  }
+        const r1 = [ranges[0].fromA, ranges[0].toA];
+        const r2 = [ranges[0].fromB, ranges[0].toB];
 
-  isLog = trySinaNyaLog(payloadText)
-  if (isLog) {
-    preventNext = true
-    return
-  }
-
-  isLog = tryQQExportLog(payloadText)
-  if (isLog) {
-    preventNext = true
-    return
-  }
-
-  let ret = (payloadText as string).matchAll(reNameLine2)
-  const names = new Set();
-  const namesAll = new Set();
-  const namesToDelete = new Set();
-
-  for (let i of store.pcList) {
-    namesAll.add(i.name)
-  }
-
-  for (let i of ret) {
-    store.tryAddPcList2(i[1])
-    names.add(i[1])
-  }
-
-  for (let i of namesAll) {
-    if (!names.has(i)) {
-      namesToDelete.add(i)
+        console.log('XXX', v);
+        logMan.syncChange(payloadText, r1, r2);
+      }
     }
   }
 
-  for (let i of namesToDelete) {
-    store.tryRemovePC(i as any)
-  }
-}, 500)
+  // payloadText = store.editor.state.doc.toString()
+  // let isLog = false
+}
 
 const reloadFunc = debounce(() => {
   store.reloadEditor()
