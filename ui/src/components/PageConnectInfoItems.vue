@@ -360,6 +360,11 @@ const goStepTwo = async () => {
     ElMessageBox.alert('似乎已经添加了这个账号！', '添加失败')
     formClose()
   })
+  if (form.accountType > 0) {
+    dialogFormVisible.value = false
+    form.step = 3
+    return
+  }
   activities.value = []
   await sleep(500)
   activities.value.push(fullActivities[0])
