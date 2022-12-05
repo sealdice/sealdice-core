@@ -128,8 +128,11 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 // SendToPerson 这里发送的是私聊（dm）消息，私信对于discord来说也被视为一个频道
 func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
 	is := pa.IntentSession
-	ch, _ := is.UserChannelCreate(ExtractDiscordUserId(userId))
-	_, err := is.ChannelMessageSend(ch.ID, text)
+	ch, err := is.UserChannelCreate(ExtractDiscordUserId(userId))
+	if err != nil {
+		return
+	}
+	_, err = is.ChannelMessageSend(ch.ID, text)
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("向Discord用户#{%s}发送消息时出错:{%s}", userId, err)
 		return

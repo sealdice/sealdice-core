@@ -21,7 +21,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.0.2 v20220820"
+var VERSION = "1.0.2 v20221205-dev+disocrd+kook"
 var VERSION_CODE = int64(1000200) // 991404
 var APP_BRANCH = ""
 
