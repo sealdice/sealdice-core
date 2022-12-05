@@ -1,6 +1,7 @@
 <template>
   <!-- <div style="position: relative;"> -->
   <div style="position: absolute; right: 40px; bottom: 60px; z-index: 10">
+<!--    <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>-->
     <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>
   </div>
   <!-- </div> -->
@@ -15,7 +16,7 @@
       <el-card class="box-card" style="margin-right: 1rem; margin-bottom: 1rem; position: relative">
         <template #header>
           <div class="card-header">
-            <span style="word-break: break-all;">{{i.nickname || '<未知>'}}({{i.userId}})</span>
+            <span style="word-break: break-all;">{{i.nickname || '<"未知">'}}({{i.userId}})</span>
             <!-- <el-button class="button" type="text"  @click="doModify(i, index)">修改</el-button> -->
             <el-button class="button" type="text"  @click="doRemove(i)">删除</el-button>
           </div>
@@ -138,11 +139,16 @@
   <el-dialog v-model="dialogFormVisible" title="帐号登录" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
     <template v-if="form.step === 1">
       <el-form :model="form">
-        <el-form-item label="类型" :label-width="formLabelWidth">
-          <div>QQ账号</div>
+        <el-form-item label="账号类型" :label-width="formLabelWidth">
+          <el-select v-model="form.accountType">
+            <el-option label="QQ账号" :value="0"></el-option>
+            <el-option label="Discord账号" :value="1"></el-option>
+            <el-option label="KOOK(开黑啦)账号" :value="2"></el-option>
+            <!-- <el-option label="MacOS" :value="3"></el-option> -->
+          </el-select>
         </el-form-item>
 
-        <el-form-item label="设备" :label-width="formLabelWidth" required>
+        <el-form-item v-if="form.accountType < 1" label="设备" :label-width="formLabelWidth" required>
           <el-select v-model="form.protocol">
             <el-option label="iPad 协议" :value="0"></el-option>
             <el-option label="Android 协议 - 稳定协议，建议！" :value="1"></el-option>
@@ -151,17 +157,37 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="账号" :label-width="formLabelWidth" required>
+        <el-form-item v-if="form.accountType < 1" label="账号" :label-width="formLabelWidth" required>
           <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
         </el-form-item>
 
-        <el-form-item label="密码" :label-width="formLabelWidth">
+        <el-form-item v-if="form.accountType < 1" label="密码" :label-width="formLabelWidth">
           <el-input v-model="form.password" type="password" autocomplete="off"></el-input>
           <small>
             <div>提示: 新设备首次登录多半需要手机版扫码，建议先准备好</div>
             <div>能够进行扫码登录（不填写密码即可），但注意扫码登录不支持自动重连。</div>
             <div>如果出现“要求同一WIFI扫码”可以本地登录后备份，复制到服务器上。</div>
             <div v-if="form.protocol != 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div>
+          </small>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 1" label="Token" :label-width="formLabelWidth" required>
+          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+          <small>
+            <div>提示: 首先去discord开发者平台创建一个新的Application</div>
+            <div>https://discord.com/developers/applications</div>
+            <div>点击New Application 创建之后进入应用，然后点bot，Add bot</div>
+            <div>最后把bot的token复制下来粘贴进来</div>
+          </small>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 2" label="Token" :label-width="formLabelWidth" required>
+          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+          <small>
+            <div>提示: 进入KOOK开发者平台创建一个新的应用</div>
+            <div>https://developer.kookapp.cn/app/index</div>
+            <div>点击新建应用 创建之后进入应用，然后点机器人</div>
+            <div>把机器人的token复制下来粘贴进来</div>
           </small>
         </el-form-item>
 
@@ -231,7 +257,10 @@
       <span class="dialog-footer">
         <template v-if="form.step === 1">
           <el-button @click="dialogFormVisible = false">取消</el-button>
-          <el-button type="primary" @click="goStepTwo" :disabled="form.account==''">下一步</el-button>
+          <el-button type="primary" @click="goStepTwo"
+                     :disabled="form.accountType == 0 && form.account=='' ||
+                     (form.accountType == 1 || form.accountType == 2)&& form.token==''">
+            下一步</el-button>
         </template>
         <template v-if="form.isEnd">
           <el-button @click="formClose">确定</el-button>
@@ -440,12 +469,14 @@ const gocqhttpReLogin = async (i: DiceConnection) => {
 }
 
 const form = reactive({
+  accountType: 0,
   step: 1,
   isEnd: false,
   account: '',
   password: '',
   protocol: 1,
   id: '',
+  token: '',
   endpoint: null as any as DiceConnection
 })
 
