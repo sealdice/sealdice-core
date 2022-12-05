@@ -28,12 +28,15 @@ require (
 	github.com/kardianos/service v1.2.1
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/labstack/echo/v4 v4.7.2
+	github.com/lonelyevil/kook v0.0.31
+	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/monaco-io/request v1.0.15
 	github.com/mroth/weightedrand v0.4.1
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/otiai10/copy v1.7.0
+	github.com/phuslu/log v1.0.83
 	github.com/poy/onpar v1.1.2 // indirect
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sacOO7/gowebsocket v0.0.0-20210515122958-9396f1a71e23
