@@ -20,7 +20,7 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupId string) {
 	logger := pa.Session.Parent.Logger
 	dm := pa.Session.Parent.Parent
 	go pa.updateChannelNum()
-	channel, err := pa.IntentSession.ChannelView(groupId)
+	channel, err := pa.IntentSession.ChannelView(ExtractKookChannelId(groupId))
 	if err != nil {
 		logger.Errorf("获取Kook频道信息#{%s}时出错:{%s}", groupId, err.Error())
 		return
@@ -46,6 +46,20 @@ func (pa *PlatformAdapterKook) updateChannelNum() {
 	pa.EndPoint.GroupNum = int64(GroupNum)
 }
 
+func (pa *PlatformAdapterKook) updateGameStatus() {
+	logger := pa.Session.Parent.Logger
+	//gameupdate := new(kook.GameUpdate)
+	//gameupdate.ID = int64(768222)
+	//gameupdate.Icon = "https://img.kookapp.cn/assets/2022-12/DfYli1buyO0e80c0.png"
+	//gameupdate.Name = "SealDice"
+	//_, _ = pa.IntentSession.GameUpdate(gameupdate)
+	err := pa.IntentSession.GameActivity(int64(768222))
+	if err != nil {
+		logger.Errorf("更新游戏状态时出错{%s}", err.Error())
+		return
+	}
+}
+
 func (pa *PlatformAdapterKook) Serve() int {
 	//TODO: 写个子类继承他这个logger，太吵了
 	l := log.Logger{
@@ -66,6 +80,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 	}
 	pa.Session.Parent.Logger.Infof("KOOK 连接成功")
 	pa.IntentSession = s
+	go pa.updateGameStatus()
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
 	self, _ := s.UserMe()
