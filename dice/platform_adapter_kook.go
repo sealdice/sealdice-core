@@ -6,6 +6,7 @@ import (
 	"github.com/lonelyevil/kook/log_adapter/plog"
 	"github.com/phuslu/log"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -21,6 +22,67 @@ func (c *ConsoleWriterShutUp) format(out io.Writer, args *log.FormatterArgs) (n 
 }
 func (c *ConsoleWriterShutUp) WriteEntry(e *log.Entry) (int, error)              { return 0, nil }
 func (c *ConsoleWriterShutUp) writew(out io.Writer, p []byte) (n int, err error) { return 0, nil }
+
+const (
+	RolePermissionAdmin                  kook.RolePermission = 1 << iota
+	RolePermissionManageGuild            kook.RolePermission = 1 << 1
+	RolePermissionViewAuditLog           kook.RolePermission = 1 << 2
+	RolePermissionCreateInvite           kook.RolePermission = 1 << 3
+	RolePermissionManageInvite           kook.RolePermission = 1 << 4
+	RolePermissionManageChannel          kook.RolePermission = 1 << 5
+	RolePermissionKickUser               kook.RolePermission = 1 << 6
+	RolePermissionBanUser                kook.RolePermission = 1 << 7
+	RolePermissionManageGuildEmoji       kook.RolePermission = 1 << 8
+	RolePermissionChangeNickname         kook.RolePermission = 1 << 9
+	RolePermissionManageRolePermission   kook.RolePermission = 1 << 10
+	RolePermissionViewChannel            kook.RolePermission = 1 << 11
+	RolePermissionSendMessage            kook.RolePermission = 1 << 12
+	RolePermissionManageMessage          kook.RolePermission = 1 << 13
+	RolePermissionUploadFile             kook.RolePermission = 1 << 14
+	RolePermissionConnectVoice           kook.RolePermission = 1 << 15
+	RolePermissionManageVoice            kook.RolePermission = 1 << 16
+	RolePermissionMentionEveryone        kook.RolePermission = 1 << 17
+	RolePermissionCreateReaction         kook.RolePermission = 1 << 18
+	RolePermissionFollowReaction         kook.RolePermission = 1 << 19
+	RolePermissionInvitedToVoice         kook.RolePermission = 1 << 20
+	RolePermissionForceManualVoice       kook.RolePermission = 1 << 21
+	RolePermissionFreeVoice              kook.RolePermission = 1 << 22
+	RolePermissionVoice                  kook.RolePermission = 1 << 23
+	RolePermissionManageUserVoiceReceive kook.RolePermission = 1 << 24
+	RolePermissionManageUserVoiceCreate  kook.RolePermission = 1 << 25
+	RolePermissionManageNickname         kook.RolePermission = 1 << 26
+	RolePermissionPlayMusic              kook.RolePermission = 1 << 27
+)
+const (
+	RolePermissionAll kook.RolePermission = RolePermissionAdmin |
+		RolePermissionManageGuild |
+		RolePermissionViewAuditLog |
+		RolePermissionCreateInvite |
+		RolePermissionManageInvite |
+		RolePermissionManageChannel |
+		RolePermissionKickUser |
+		RolePermissionBanUser |
+		RolePermissionManageGuildEmoji |
+		RolePermissionChangeNickname |
+		RolePermissionManageRolePermission |
+		RolePermissionViewChannel |
+		RolePermissionSendMessage |
+		RolePermissionManageMessage |
+		RolePermissionUploadFile |
+		RolePermissionConnectVoice |
+		RolePermissionManageVoice |
+		RolePermissionMentionEveryone |
+		RolePermissionCreateReaction |
+		RolePermissionFollowReaction |
+		RolePermissionInvitedToVoice |
+		RolePermissionForceManualVoice |
+		RolePermissionFreeVoice |
+		RolePermissionVoice |
+		RolePermissionManageUserVoiceReceive |
+		RolePermissionManageUserVoiceCreate |
+		RolePermissionManageNickname |
+		RolePermissionPlayMusic
+)
 
 type PlatformAdapterKook struct {
 	Session       *IMSession    `yaml:"-" json:"-"`
@@ -243,15 +305,86 @@ func (pa *PlatformAdapterKook) toStdMessage(ctx *kook.KmarkdownMessageContext) *
 	msg.Message = ctx.Common.Content
 	msg.GroupId = FormatDiceIdKookChannel(ctx.Common.TargetID)
 	msg.Platform = "KOOK"
+	send := new(SenderBase)
+	send.UserId = FormatDiceIdKook(ctx.Common.AuthorID)
+	send.Nickname = ctx.Extra.Author.Nickname
 	if ctx.Common.ChannelType == "PERSON" {
 		msg.MessageType = "private"
 	} else {
 		msg.MessageType = "group"
+		if pa.checkIfGuildAdmin(ctx) {
+			send.GroupRole = "admin"
+		}
 	}
-	send := new(SenderBase)
-	send.UserId = FormatDiceIdKook(ctx.Common.AuthorID)
-	send.Nickname = ctx.Extra.Author.Nickname
-	send.GroupRole = ctx.Common.ChannelType
 	msg.Sender = *send
 	return msg
+}
+
+func (pa *PlatformAdapterKook) checkIfGuildAdmin(ctx *kook.KmarkdownMessageContext) bool {
+	user, err := pa.IntentSession.UserView(ctx.Common.AuthorID)
+	if err != nil {
+		return false
+	}
+	perm := pa.memberPermissions(&ctx.Extra.GuildID, &ctx.Common.TargetID, ctx.Common.AuthorID, user.Roles)
+	return perm&int64(RolePermissionAdmin|RolePermissionBanUser|RolePermissionKickUser) > 0 || perm == int64(RolePermissionAll)
+}
+
+func (pa *PlatformAdapterKook) memberPermissions(guildId *string, channelId *string, userID string, roles []int64) (apermissions int64) {
+	guild, err := pa.IntentSession.GuildView(*guildId)
+	if userID == guild.MasterID {
+		apermissions = int64(RolePermissionAll)
+		return
+	}
+	if err != nil {
+		return 0
+	}
+	for _, role := range roles {
+		if strconv.FormatInt(role, 10) == guild.ID {
+			apermissions |= role
+			break
+		}
+	}
+
+	for _, role := range guild.Roles {
+		for _, roleID := range roles {
+			if role.RoleID == roleID {
+				apermissions |= int64(role.Permissions)
+				break
+			}
+		}
+	}
+
+	if apermissions&int64(RolePermissionAdmin) == int64(RolePermissionAdmin) {
+		apermissions |= int64(RolePermissionAll)
+	}
+
+	//var denies, allows int64
+	// Member overwrites can override role overrides, so do two passes
+	// fuck the Overwrite 打死我也不信有人会把管理员权限写在频道的权限覆盖里，这不就相当于给所有人管理员了么，反正我这个方法只是区分是否为管理员的，没必要浪费性能在这
+	//for _, overwrite := range channel.PermissionOverwrites {
+	//	for _, roleID := range roles {
+	//		if overwrite.Type == PermissionOverwriteTypeRole && roleID == overwrite.ID {
+	//			denies |= overwrite.Deny
+	//			allows |= overwrite.Allow
+	//			break
+	//		}
+	//	}
+	//}
+
+	//apermissions &= ^denies
+	//apermissions |= allows
+
+	//for _, overwrite := range channel.PermissionOverwrites {
+	//	if overwrite.Type == PermissionOverwriteTypeMember && overwrite.ID == userID {
+	//		apermissions &= ^overwrite.Deny
+	//		apermissions |= overwrite.Allow
+	//		break
+	//	}
+	//}
+
+	if apermissions&int64(RolePermissionAdmin) == int64(RolePermissionAdmin) {
+		apermissions |= int64(RolePermissionAll)
+	}
+
+	return apermissions
 }
