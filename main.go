@@ -323,13 +323,16 @@ func diceServe(d *dice.Dice) {
 
 	for _, conn := range d.ImSession.EndPoints {
 		if conn.Enable {
-			if conn.Platform == "QQ" {
+			switch conn.Platform {
+			case "QQ":
 				pa := conn.Adapter.(*dice.PlatformAdapterQQOnebot)
 				dice.GoCqHttpServe(d, conn, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
 				time.Sleep(10 * time.Second) // 稍作等待再连接
 				go dice.DiceServeQQ(d, conn)
-			} else if conn.Platform == "DISCORD" {
+			case "DISCORD":
 				go dice.DiceServeDiscord(d, conn)
+			case "KOOK":
+				go dice.DiceServeKook(d, conn)
 			}
 
 			//for {

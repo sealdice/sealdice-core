@@ -178,7 +178,8 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 	}
 	d.EndPointInfoBase = val.EndPointInfoBase
 
-	if val.Platform == "QQ" {
+	switch val.Platform {
+	case "QQ":
 		var val struct {
 			Adapter *PlatformAdapterQQOnebot `yaml:"adapter"`
 		}
@@ -189,9 +190,18 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		}
 
 		d.Adapter = val.Adapter
-	} else if val.Platform == "DISCORD" {
+	case "DISCORD":
 		var val struct {
 			Adapter *PlatformAdapterDiscord `yaml:"adapter"`
+		}
+		err := value.Decode(&val)
+		if err != nil {
+			return err
+		}
+		d.Adapter = val.Adapter
+	case "KOOK":
+		var val struct {
+			Adapter *PlatformAdapterKook `yaml:"adapter"`
 		}
 		err := value.Decode(&val)
 		if err != nil {
@@ -682,13 +692,17 @@ func (c *EndPointInfo) SetEnable(d *Dice, enable bool) {
 }
 
 func (ep *EndPointInfo) AdapterSetup() {
-	if ep.Platform == "QQ" {
+	switch ep.Platform {
+	case "QQ":
 		pa := ep.Adapter.(*PlatformAdapterQQOnebot)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
-	}
-	if ep.Platform == "DISCORD" {
+	case "DISCORD":
 		pa := ep.Adapter.(*PlatformAdapterDiscord)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
+	case "KOOK":
+		pa := ep.Adapter.(*PlatformAdapterKook)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
