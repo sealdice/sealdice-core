@@ -22,11 +22,10 @@ func DiceServeDiscord(d *Dice, ep *EndPointInfo) {
 	if ep.Platform == "DISCORD" {
 		conn := ep.Adapter.(*PlatformAdapterDiscord)
 		d.Logger.Infof("DiscordGo 尝试连接")
-		if conn.Serve() == 0 {
-			d.Logger.Infof("Discord 服务连接成功")
-		} else {
+		if conn.Serve() != 0 {
 			d.Logger.Errorf("连接Discord服务失败")
 			ep.State = 3
+			ep.Enable = false
 		}
 	}
 }

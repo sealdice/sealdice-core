@@ -5,9 +5,22 @@ import (
 	"github.com/lonelyevil/kook"
 	"github.com/lonelyevil/kook/log_adapter/plog"
 	"github.com/phuslu/log"
+	"io"
 	"strings"
 	"time"
 )
+
+type ConsoleWriterShutUp struct {
+	*log.ConsoleWriter
+}
+
+func (c *ConsoleWriterShutUp) Close() (err error)                         { return nil }
+func (c *ConsoleWriterShutUp) write(out io.Writer, p []byte) (int, error) { return 0, nil }
+func (c *ConsoleWriterShutUp) format(out io.Writer, args *log.FormatterArgs) (n int, err error) {
+	return 0, nil
+}
+func (c *ConsoleWriterShutUp) WriteEntry(e *log.Entry) (int, error)              { return 0, nil }
+func (c *ConsoleWriterShutUp) writew(out io.Writer, p []byte) (n int, err error) { return 0, nil }
 
 type PlatformAdapterKook struct {
 	Session       *IMSession    `yaml:"-" json:"-"`
@@ -22,7 +35,7 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupId string) {
 	go pa.updateChannelNum()
 	channel, err := pa.IntentSession.ChannelView(ExtractKookChannelId(groupId))
 	if err != nil {
-		logger.Errorf("获取Kook频道信息#{%s}时出错:{%s}", groupId, err.Error())
+		logger.Errorf("获取Kook频道信息#%s时出错:%s", groupId, err.Error())
 		return
 	}
 	dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
@@ -55,16 +68,16 @@ func (pa *PlatformAdapterKook) updateGameStatus() {
 	//_, _ = pa.IntentSession.GameUpdate(gameupdate)
 	err := pa.IntentSession.GameActivity(int64(768222))
 	if err != nil {
-		logger.Errorf("更新游戏状态时出错{%s}", err.Error())
+		logger.Errorf("更新游戏状态时出错:%s", err.Error())
 		return
 	}
 }
 
 func (pa *PlatformAdapterKook) Serve() int {
-	//TODO: 写个子类继承他这个logger，太吵了
+	//不喜欢太安静的控制台可以把ConsoleWriterShutUp换成log.ConsoleWriter
 	l := log.Logger{
 		Level:  log.TraceLevel,
-		Writer: &log.ConsoleWriter{},
+		Writer: &ConsoleWriterShutUp{},
 	}
 	s := kook.New(pa.Token, plog.NewLogger(&l))
 	s.AddHandler(func(ctx *kook.KmarkdownMessageContext) {
@@ -75,10 +88,9 @@ func (pa *PlatformAdapterKook) Serve() int {
 	})
 	err := s.Open()
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("与KOOK服务建立连接时出错")
+		pa.Session.Parent.Logger.Errorf("与KOOK服务建立连接时出错:%s", err.Error())
 		return 1
 	}
-	pa.Session.Parent.Logger.Infof("KOOK 连接成功")
 	pa.IntentSession = s
 	go pa.updateGameStatus()
 	pa.EndPoint.State = 1
@@ -86,11 +98,17 @@ func (pa *PlatformAdapterKook) Serve() int {
 	self, _ := s.UserMe()
 	pa.EndPoint.Nickname = self.Nickname
 	pa.EndPoint.UserId = FormatDiceIdKook(self.ID)
+	pa.Session.Parent.Logger.Infof("KOOK 连接成功，账号<%s>(%s)", pa.EndPoint.Nickname, pa.EndPoint.UserId)
 	return 0
 }
 
 func (pa *PlatformAdapterKook) DoRelogin() bool {
-	return false
+	pa.Session.Parent.Logger.Infof("正在重新登录KOOK服务……")
+	pa.EndPoint.State = 0
+	pa.EndPoint.Enable = false
+	_ = pa.IntentSession.Close()
+	pa.IntentSession = nil
+	return pa.Serve() == 0
 }
 
 func (pa *PlatformAdapterKook) SetEnable(enable bool) {
@@ -102,23 +120,30 @@ func (pa *PlatformAdapterKook) SetEnable(enable bool) {
 		}
 		err := pa.IntentSession.Open()
 		if err != nil {
-			pa.Session.Parent.Logger.Error("与KOOK服务进行连接时出错:", err)
+			pa.Session.Parent.Logger.Errorf("与KOOK服务进行连接时出错:%s", err)
 			pa.EndPoint.State = 0
 			pa.EndPoint.Enable = false
 			return
 		}
+		pa.updateGameStatus()
 		pa.EndPoint.State = 1
 		pa.EndPoint.Enable = true
+		pa.Session.Parent.Logger.Infof("KOOK 连接成功，账号<%s>(%s)", pa.EndPoint.Nickname, pa.EndPoint.UserId)
 	} else {
+		if pa.IntentSession == nil {
+			return
+		}
 		pa.EndPoint.State = 0
 		pa.EndPoint.Enable = false
 		_ = pa.IntentSession.Close()
+		pa.IntentSession = nil
 	}
 }
 
 func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
 	channel, err := pa.IntentSession.UserChatCreate(ExtractKookUserId(userId))
 	if err != nil {
+		pa.Session.Parent.Logger.Errorf("创建Kook用户#%s的私聊频道时出错:%s", userId, err)
 		return
 	}
 	dmc := &kook.DirectMessageCreate{
@@ -128,6 +153,10 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userId string, text
 		},
 	}
 	_, err = pa.IntentSession.DirectMessageCreate(dmc)
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("向Kook用户#%s发送消息时出错:%s", userId, err)
+		return
+	}
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
 			i.OnMessageSend(ctx, "private", userId, text, flag)
@@ -177,9 +206,35 @@ func ExtractKookChannelId(id string) string {
 	return id
 }
 
-func (pa *PlatformAdapterKook) QuitGroup(ctx *MsgContext, id string) {}
+func (pa *PlatformAdapterKook) QuitGroup(ctx *MsgContext, groupId string) {
+	channel, err := pa.IntentSession.ChannelView(ExtractKookChannelId(groupId))
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("获取Kook频道信息#%s时出错:%s", groupId, err.Error())
+		return
+	}
+	err = pa.IntentSession.GuildLeave(channel.GuildID)
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("退出Kook服务器#%s时出错:%s", channel.GuildID, err.Error())
+		return
+	}
+}
 
-func (pa *PlatformAdapterKook) SetGroupCardName(groupId string, userId string, name string) {}
+func (pa *PlatformAdapterKook) SetGroupCardName(groupId string, userId string, name string) {
+	nick := &kook.GuildNickname{}
+	channel, err := pa.IntentSession.ChannelView(ExtractKookChannelId(groupId))
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("获取Kook频道信息#%s时出错:%s", groupId, err.Error())
+		return
+	}
+	nick.GuildID = channel.GuildID
+	nick.Nickname = name
+	nick.UserID = ExtractKookUserId(userId)
+	err = pa.IntentSession.GuildNickname(nick)
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("修改Kook用户#%s在服务器#%s(来源频道#%s)的昵称时出错:%s", userId, channel.GuildID, groupId, err.Error())
+		return
+	}
+}
 
 func (pa *PlatformAdapterKook) toStdMessage(ctx *kook.KmarkdownMessageContext) *Message {
 	msg := new(Message)
