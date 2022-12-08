@@ -178,9 +178,20 @@ func ImConnectionsDel(c echo.Context) error {
 			if i.Id == v.Id {
 				// TODO: 注意 这个好像很不科学
 				//i.DiceServing = false
-				dice.GoCqHttpServeProcessKill(myDice, i)
-				myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
-				return c.JSON(http.StatusOK, i)
+				switch i.Platform {
+				case "QQ":
+					dice.GoCqHttpServeProcessKill(myDice, i)
+					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
+					return c.JSON(http.StatusOK, i)
+				case "DISCORD":
+					i.Adapter.SetEnable(false)
+					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
+					return c.JSON(http.StatusOK, i)
+				case "KOOK":
+					i.Adapter.SetEnable(false)
+					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
+					return c.JSON(http.StatusOK, i)
+				}
 			}
 		}
 	}
@@ -230,6 +241,52 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusNotFound, nil)
+}
+
+func ImConnectionsAddDiscord(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	//myDice.Logger.Infof("后端add调用")
+	v := struct {
+		Token string `yaml:"token" json:"token"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		//myDice.Logger.Infof("bind无异常")
+		conn := dice.NewDiscordConnItem(v.Token)
+		//myDice.Logger.Infof("成功创建endpoint")
+		pa := conn.Adapter.(*dice.PlatformAdapterDiscord)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.Save(false)
+		dice.DiceServeDiscord(myDice, conn)
+		return c.JSON(200, conn)
+	}
+	return c.String(430, "")
+}
+
+func ImConnectionsAddKook(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	//myDice.Logger.Infof("后端add调用")
+	v := struct {
+		Token string `yaml:"token" json:"token"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		//myDice.Logger.Infof("bind无异常")
+		conn := dice.NewKookConnItem(v.Token)
+		//myDice.Logger.Infof("成功创建endpoint")
+		pa := conn.Adapter.(*dice.PlatformAdapterKook)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.Save(false)
+		dice.DiceServeKook(myDice, conn)
+		return c.JSON(200, conn)
+	}
+	return c.String(430, "")
 }
 
 func ImConnectionsAdd(c echo.Context) error {
@@ -427,6 +484,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.POST(prefix+"/im_connections/qrcode", ImConnectionsQrcodeGet)
 	e.POST(prefix+"/im_connections/add", ImConnectionsAdd)
+	e.POST(prefix+"/im_connections/addDiscord", ImConnectionsAddDiscord)
+	e.POST(prefix+"/im_connections/addKook", ImConnectionsAddKook)
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)
