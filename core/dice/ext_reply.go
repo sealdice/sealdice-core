@@ -201,6 +201,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 					cleanText, _ := AtParse(msg.Message, "")
 					cleanText = strings.TrimSpace(cleanText)
 					VarSetValueInt64(ctx, "$t文本长度", int64(len(cleanText)))
+					// 在判定条件前，先设置一轮变量，以免条件中的变量出问题
 					SetTempVars(ctx, msg.Sender.Nickname)
 
 					for index, i := range rc.Items {
