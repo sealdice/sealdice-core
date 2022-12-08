@@ -717,9 +717,9 @@ func (pa *PlatformAdapterQQOnebot) SetEnable(enable bool) {
 			GoCqHttpServeProcessKill(d, c)
 			time.Sleep(1 * time.Second)
 			GoCqHttpServe(d, c, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
-			go DiceServe(d, c)
+			go DiceServeQQ(d, c)
 		} else {
-			go DiceServe(d, c)
+			go DiceServeQQ(d, c)
 		}
 	} else {
 		c.Enable = false
