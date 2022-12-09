@@ -246,6 +246,16 @@ export const useStore = defineStore('main', {
       return info
     },
 
+    async customReplyDebugModeGet() {
+      const info = await backend.get(urlPrefix+'/configs/custom_reply/debug_mode')
+      return info
+    },
+
+    async customReplyDebugModeSet(value: boolean) {
+      const info = await backend.post(urlPrefix+'/configs/custom_reply/debug_mode', { value })
+      return info
+    },
+
     async backupList() {
       const info = await backend.get(urlPrefix+'/backup/list')
       return info as any
