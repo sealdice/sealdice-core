@@ -127,7 +127,7 @@ export const useStore = defineStore('main', {
     async getBaseInfo() {
       const info = await backend.get(urlPrefix+'/baseInfo', { timeout: 5000 })
       if (!document.title.includes('-')) {
-        if ((info as any).extraTitle) {
+        if ((info as any).extraTitle && (info as any).extraTitle !== '') {
           document.title = `${(info as any).extraTitle} - ${document.title}`;
         }
       }
@@ -154,9 +154,20 @@ export const useStore = defineStore('main', {
       return info as any as DiceConnection
     },
 
-    async addImConnection(form: { account: string, password: string, protocol: number }) {
-      const { account, password, protocol } = form
-      const info = await backend.post(urlPrefix+'/im_connections/add', { account, password, protocol }, { timeout: 65000 })
+    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string }) {
+      const {accountType, account, password, protocol, token } = form
+      let info = null
+      switch (accountType) {
+        //QQ
+        case 0:
+          info = await backend.post(urlPrefix+'/im_connections/add', { account, password, protocol }, { timeout: 65000 })
+          break
+        case 1:
+          info = await backend.post(urlPrefix+'/im_connections/addDiscord', {token}, { timeout: 65000 })
+          break
+        case 2:
+          info = await backend.post(urlPrefix+'/im_connections/addKook', {token}, { timeout: 65000 })
+      }
       return info as any as DiceConnection
     },
 

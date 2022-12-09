@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "build2": "vue-tsc --noEmit && node --max_old_space_size=2048 ./node_modules/vite/bin/vite.js build",
+    "build3": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {

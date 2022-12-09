@@ -25,10 +25,15 @@ const app = createApp(App);
 app.use(createPinia())
 
 const store = useStore();
-(globalThis as any).store = store;
 
 store.trySignIn().then(() => {
   app.mount("#app")
 })
+
+try {
+  (window as any).store = store;
+  (globalThis as any).store = store;
+} catch (e) {
+}
 
 // app.use(ElementPlus);
