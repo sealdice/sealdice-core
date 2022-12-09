@@ -193,3 +193,32 @@ func customReplyFileUpload(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, nil)
 }
+
+func customReplyDebugModeGet(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"value": myDice.ReplyDebugMode,
+	})
+}
+
+func customReplyDebugModeSet(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := struct {
+		Value bool `json:"value"`
+	}{}
+	err := c.Bind(&v)
+	if err != nil {
+		return c.String(430, err.Error())
+	}
+
+	myDice.ReplyDebugMode = v.Value
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"value": myDice.ReplyDebugMode,
+	})
+}
