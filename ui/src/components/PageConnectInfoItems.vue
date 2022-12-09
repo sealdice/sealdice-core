@@ -198,9 +198,9 @@
         <el-timeline-item
           v-for="(activity, index) in activities"
           :key="index"
-          :type="activity.type"
+          :type="(activity.type as any)"
           :color="activity.color"
-          :size="activity.size"
+          :size="(activity.size as any)"
           :hollow="activity.hollow"
         >
           <div>{{ activity.content }}</div>
