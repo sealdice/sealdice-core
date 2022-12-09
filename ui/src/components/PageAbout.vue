@@ -26,7 +26,19 @@
   <div style="text-align: center; font-size: small; margin-bottom: 2rem; font-family: sans-serif;">特别鸣谢参与测试、反馈问题，帮助完善海豹指令的各位！以下列出感谢名单（排名不分先后）</div>
   <div class="about">
     <div></div>
-    <div class="subtitle">V1.0版本</div>
+    <div class="subtitle">社区协力</div>
+    <div class="developers">
+      <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/54656633?v=4"/>Szzrain</el-link>
+      <el-link :underline="false" href="https://github.com/yuyannuo" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/95773654?v=4"/>于言诺</el-link>
+    </div>
+
+    <div style="margin-top: 2rem;" class="subtitle">V1.1版本</div>
+    <div>Szzrain - 实现了Discord和Kook(开黑啦)两个平台的海豹接入</div>
+    <div>于言诺 - 制作了很多海豹扩展和牌堆，如养猫、踢海豹、赛博功德、风味月饼、万圣节糖果等等……协助撰写了一些海豹的文档和教程，并找出了众多海豹的bug</div>
+    <div>云陌 - 海豹文档教程协力，同时也找了很多海豹的bug</div>
+    <div><el-link href="https://github.com/kagangtuya-star" target="_blank">星尘</el-link> - 编写了海豹同网络登录的教程，友情提供了用于指令参考的fvtt。以及一些建议和bug反馈</div>
+
+    <div style="margin-top: 2rem;" class="subtitle">V1.0版本</div>
     <div>Ariel船长 - 早期测试参与者，协助解决登录流程问题</div>
     <div>Raycel - 早期测试参与者，协助解决登录流程问题</div>
     <div>kuma - 早期测试参与者，海豹的第一次全指令全流程测试</div>
@@ -43,6 +55,7 @@
     <div>赵喵喵 - ZhaoDice作者，主要指令参考之一</div>
     <div>Dice!核心的开发者们 - 同样的，在骰点格式和输出表现方面进行了参考</div>
     <div>斯塔尼亚 - 塔系核心作者，指令实现过程中部分参考了塔系核心的指令表现</div>
+    <div>FVTT - 经典的DND跑团平台，指令参考之一</div>
   </div>
 
   <!-- <div class="tip">
@@ -89,5 +102,9 @@ onBeforeUnmount(() => {
 .subtitle {
   margin-bottom: 1rem;
   font-weight: bold;
+}
+
+.developers > * {
+  margin-right: 2rem;
 }
 </style>
