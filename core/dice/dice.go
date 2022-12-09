@@ -135,6 +135,7 @@ type Dice struct {
 	TrustOnlyMode           bool                   `yaml:"trustOnlyMode"`     // 只有信任的用户/master可以拉群和使用
 	AliveNoticeEnable       bool                   `yaml:"aliveNoticeEnable"` // 定时通知
 	AliveNoticeValue        string                 `yaml:"aliveNoticeValue"`  // 定时通知间隔
+	ReplyDebugMode          bool                   `yaml:"replyDebugMode"`    // 回复调试
 
 	HelpMasterInfo      string `yaml:"helpMasterInfo"`      // help中骰主信息
 	HelpMasterLicense   string `yaml:"helpMasterLicense"`   // help中使用协议
@@ -465,7 +466,7 @@ func (d *Dice) ApplyAliveNotice() {
 		entry, err := d.Cron.AddFunc(d.AliveNoticeValue, func() {
 			for _, ep := range d.ImSession.EndPoints {
 				ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
-				ctx.Notice(fmt.Sprintf("OK, D100=%d", DiceRoll64(100)))
+				ctx.Notice(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)))
 			}
 		})
 		if err == nil {

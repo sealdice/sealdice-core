@@ -41,6 +41,7 @@ type DiceConfigInfo struct {
 	TrustOnlyMode      bool                          `json:"trustOnlyMode"`
 	AliveNoticeEnable  bool                          `json:"aliveNoticeEnable"`
 	AliveNoticeValue   string                        `json:"aliveNoticeValue"`
+	ReplyDebugMode     bool                          `json:"replyDebugMode"`
 
 	CustomBotExtraText       string `json:"customBotExtraText"`       // bot自定义文本
 	CustomDrawKeysText       string `json:"customDrawKeysText"`       // draw keys自定义文本
@@ -102,6 +103,7 @@ func DiceConfig(c echo.Context) error {
 		TrustOnlyMode:     myDice.TrustOnlyMode,
 		AliveNoticeEnable: myDice.AliveNoticeEnable,
 		AliveNoticeValue:  myDice.AliveNoticeValue,
+		ReplyDebugMode:    myDice.ReplyDebugMode,
 
 		ServeAddress:      myDice.Parent.ServeAddress,
 		HelpDocEngineType: myDice.Parent.HelpDocEngineType,

@@ -153,7 +153,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 
 	theExt := &ExtInfo{
 		Name:       "reply", // 扩展的名称，需要用于开启和关闭指令中，写简短点
-		Version:    "1.1.0",
+		Version:    "1.2.0",
 		Brief:      "自定义回复模块，支持各种文本匹配和简易脚本",
 		Author:     "木落",
 		AutoActive: true, // 是否自动开启
@@ -164,12 +164,24 @@ func RegisterBuiltinExtReply(dice *Dice) {
 				return
 			}
 			executed := false
+			log := ctx.Dice.Logger
+
+			cleanText, _ := AtParse(msg.Message, "")
+			cleanText = strings.TrimSpace(cleanText)
+			VarSetValueInt64(ctx, "$t文本长度", int64(len(cleanText)))
+
+			if dice.ReplyDebugMode {
+				log.Infof("[回复调试]当前文本:“%s” hex: %x 字节形式: %v", cleanText, cleanText, []byte(cleanText))
+			}
+
+			// 在判定条件前，先设置一轮变量，以免条件中的变量出问题
+			SetTempVars(ctx, msg.Sender.Nickname)
+
 			for _, rc := range rcs {
 				if executed {
 					break
 				}
 				if rc.Enable {
-					log := ctx.Dice.Logger
 					condIndex := -1
 					defer func() {
 						if r := recover(); r != nil {
@@ -197,12 +209,6 @@ func RegisterBuiltinExtReply(dice *Dice) {
 						ctx.Group.LastCustomReplyTime = now
 						return false
 					}
-
-					cleanText, _ := AtParse(msg.Message, "")
-					cleanText = strings.TrimSpace(cleanText)
-					VarSetValueInt64(ctx, "$t文本长度", int64(len(cleanText)))
-					// 在判定条件前，先设置一轮变量，以免条件中的变量出问题
-					SetTempVars(ctx, msg.Sender.Nickname)
 
 					for index, i := range rc.Items {
 						if i.Enable {
