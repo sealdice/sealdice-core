@@ -1217,6 +1217,7 @@ func (d *Dice) loads() {
 			d.TrustOnlyMode = dNew.TrustOnlyMode
 			d.AliveNoticeEnable = dNew.AliveNoticeEnable
 			d.AliveNoticeValue = dNew.AliveNoticeValue
+			d.ReplyDebugMode = dNew.ReplyDebugMode
 			d.LogSizeNoticeCount = dNew.LogSizeNoticeCount
 			d.LogSizeNoticeEnable = dNew.LogSizeNoticeEnable
 			d.CustomBotExtraText = dNew.CustomBotExtraText

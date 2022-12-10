@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -448,6 +449,12 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			if msgQQ.NoticeType == "friend_add" && msgQQ.PostType == "notice" {
 				// {"notice_type":"friend_add","post_type":"notice","self_id":222,"time":1648239248,"user_id":111}
 				go func() {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Errorf("好友致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+						}
+					}()
+
 					// 稍作等待后发送入群致词
 					time.Sleep(2 * time.Second)
 					uid := FormatDiceIdQQ(msgQQ.UserId)
@@ -487,6 +494,12 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				time.Sleep(2 * time.Second)
 				groupName := dm.TryGetGroupName(msg.GroupId)
 				go func() {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+						}
+					}()
+
 					// 稍作等待后发送入群致词
 					time.Sleep(1 * time.Second)
 					log.Infof("发送入群致辞，群: <%s>(%d)", groupName, msgQQ.GroupId)
@@ -532,8 +545,16 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 						}
 
 						if !isDouble {
-							//VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
-							pa.SendToGroup(ctx, msg.GroupId, DiceFormat(ctx, group.GroupWelcomeMessage), "")
+							func() {
+								defer func() {
+									if r := recover(); r != nil {
+										log.Errorf("迎新致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+									}
+								}()
+
+								//VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
+								pa.SendToGroup(ctx, msg.GroupId, DiceFormat(ctx, group.GroupWelcomeMessage), "")
+							}()
 						}
 					}
 				}
