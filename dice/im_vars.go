@@ -422,16 +422,22 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueStr(ctx, "$tQQ昵称", fmt.Sprintf("<%s>", qqNickname))
 		VarSetValueStr(ctx, "$t帐号昵称", fmt.Sprintf("<%s>", qqNickname))
 		VarSetValueStr(ctx, "$t帐号ID", fmt.Sprintf("%s", ctx.Player.UserId))
+		VarSetValueStr(ctx, "$t账号昵称", fmt.Sprintf("<%s>", qqNickname))
+		VarSetValueStr(ctx, "$t账号ID", fmt.Sprintf("%s", ctx.Player.UserId))
 		VarSetValueInt64(ctx, "$t个人骰子面数", int64(ctx.Player.DiceSideNum))
 		//VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})
 		VarSetValueStr(ctx, "$tQQ", ctx.Player.UserId)
 		VarSetValueStr(ctx, "$t骰子帐号", ctx.EndPoint.UserId)
+		VarSetValueStr(ctx, "$t骰子账号", ctx.EndPoint.UserId)
 		VarSetValueStr(ctx, "$t骰子昵称", ctx.EndPoint.Nickname)
 		VarSetValueStr(ctx, "$t帐号ID_RAW", UserIdExtract(ctx.Player.UserId))
+		VarSetValueStr(ctx, "$t账号ID_RAW", UserIdExtract(ctx.Player.UserId))
+		VarSetValueStr(ctx, "$t平台", ctx.EndPoint.Platform)
 
 		now := time.Now()
 		t, _ := strconv.ParseInt(now.Format("20060102"), 10, 64)
 		VarSetValueInt64(ctx, "$tDate", t)
+		VarSetValueInt64(ctx, "$tWeekday", int64(now.Weekday()))
 
 		t, _ = strconv.ParseInt(now.Format("2006"), 10, 64)
 		VarSetValueInt64(ctx, "$tYear", t)
@@ -447,6 +453,7 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueInt64(ctx, "$tSecond", t)
 		VarSetValueInt64(ctx, "$tTimestamp", now.Unix())
 	}
+
 	if ctx.Group != nil {
 		if ctx.MessageType == "group" {
 			VarSetValueStr(ctx, "$t群号", ctx.Group.GroupId)
