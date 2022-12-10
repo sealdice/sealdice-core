@@ -27,6 +27,7 @@
         <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: #DB7E44">{{ scope.row.msg }}</span>
         <!-- <span v-else-if="scope.row.msg.startsWith('收到') && scope.row.msg.includes('的指令')" style="color: #445ddb">{{ scope.row.msg }}</span> -->
         <span v-else-if="scope.row.msg.startsWith('发给')" style="color: #445ddb">{{ scope.row.msg }}</span>
+        <span v-else-if="scope.row.level === 'error'" style="color: #c00000">{{ scope.row.msg }}</span>
         <span v-else>{{ scope.row.msg }}</span>
       </template>
     </el-table-column>
