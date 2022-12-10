@@ -112,7 +112,7 @@ eDice3 <- [bB] laNumberOrLeftParen value { p.AddOperator(TypeDiceBonus) }
          / [bB] { p.AddValue("1"); p.AddOperator(TypeDiceBonus) }
          / eDice4
 
-eDice4 <- [fF] { p.AddValue("0"); p.AddValue("0"); p.AddOperator(TypeDiceFate) } // 塞两个垃圾参数，使其不成为unary
+eDice4 <- [fF] sp { p.AddValue("0"); p.AddValue("0"); p.AddOperator(TypeDiceFate) } // 塞两个垃圾参数，使其不成为unary
          / value
 
 value <- number
@@ -121,7 +121,7 @@ value <- number
        / sub
        / fstring
 
-number <- < [0-9]+ > { p.AddValue(string(text)) }
+number <- < [0-9]+ > sp { p.AddValue(string(text)) }
 
 identifier <- < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^`{|}~0-9 \t\n\r\36] [^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r\36]* > sp // not (punctuation+number)
 // identifier2 <- !'d' ![0-9] < (universalCharacter / [a-zA-Z_])+ > sp // not (punctuation+number)
@@ -133,7 +133,7 @@ divide <- ('/' / '／') sp
 modulus <- '%' sp
 exponentiation <- '^' sp / '**' sp
 open <- '(' sp
-close <- ')'
+close <- ')' sp
 
 bitwiseOr <- '|' sp
 logicOr <- '||' sp
