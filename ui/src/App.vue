@@ -23,6 +23,7 @@
     <div style="display: flex;">
       <div style="position: relative; background: #545c64">
         <el-menu
+          :unique-opened="true"
           :collapse="sideCollapse"
           style="border-right: 0;"
           active-text-color="#ffd04b"

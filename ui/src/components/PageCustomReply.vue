@@ -65,6 +65,8 @@
           </template>
         </el-upload>
       </div>
+
+      <el-checkbox v-model="replyDebugMode">开启回复调试日志(打印字符细节)</el-checkbox>
       <el-divider></el-divider>
     </div>
 
@@ -156,6 +158,7 @@ const fileItems = ref<any>([
 const uploadFileList = ref<any[]>([])
 
 const cr = ref<any>({})
+const replyDebugMode = ref(false);
 
 const switchClick = () => {
   if (!store.curDice.config.customReplyConfigEnable) {
@@ -176,6 +179,11 @@ const modified = ref(false)
 watch(() => cr.value, (newValue, oldValue) => { //直接监听
   modified.value = true
 }, {deep: true});
+
+watch(() => replyDebugMode.value, (newValue, oldValue) => {
+  store.customReplyDebugModeSet(newValue);
+}, {deep: true});
+
 
 watch(() => curFilename.value, (newValue, oldValue) => { //直接监听
   nextTick(() => {
@@ -314,7 +322,10 @@ onBeforeMount(async () => {
   let ret = await store.customReplyFileList() as any;
   fileItems.value = ret.items;
   curFilename.value = ret.items[0].filename;
-  await store.diceConfigGet()
+  await store.diceConfigGet();
+  // 设置调试日志选项
+  ret = await store.customReplyDebugModeGet();
+  replyDebugMode.value = ret.value;
   refreshCurrent();
 })
 
