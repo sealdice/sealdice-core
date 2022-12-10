@@ -303,7 +303,6 @@ func (pa *PlatformAdapterKook) toStdMessage(ctx *kook.KmarkdownMessageContext) *
 	msg.Time = ctx.Common.MsgTimestamp
 	msg.RawId = ctx.Common.MsgID
 	msg.Message = ctx.Common.Content
-	msg.GroupId = FormatDiceIdKookChannel(ctx.Common.TargetID)
 	msg.Platform = "KOOK"
 	send := new(SenderBase)
 	send.UserId = FormatDiceIdKook(ctx.Common.AuthorID)
@@ -312,6 +311,7 @@ func (pa *PlatformAdapterKook) toStdMessage(ctx *kook.KmarkdownMessageContext) *
 		msg.MessageType = "private"
 	} else {
 		msg.MessageType = "group"
+		msg.GroupId = FormatDiceIdKookChannel(ctx.Common.TargetID)
 		if pa.checkIfGuildAdmin(ctx) {
 			send.GroupRole = "admin"
 		}
