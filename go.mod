@@ -10,8 +10,8 @@ require (
 	github.com/antlabs/strsim v0.0.2
 	github.com/blevesearch/bleve/v2 v2.3.3
 	github.com/bwmarrin/discordgo v0.26.1
-	github.com/dop251/goja v0.0.0-20220714114325-87952593a54c
-	github.com/dop251/goja_nodejs v0.0.0-20211022123610-8dd9abb0616d
+	github.com/dop251/goja v0.0.0-20221118162653-d4bf6fde1b86
+	github.com/dop251/goja_nodejs v0.0.0-20221009164102-3aa5028e57f6
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/lockfree v0.0.0-20220407095241-e3799de5fa34
 	github.com/fy0/procs v0.0.0-20220314124159-7f38d32746c3
@@ -35,6 +35,7 @@ require (
 	github.com/monaco-io/request v1.0.15
 	github.com/mroth/weightedrand v0.4.1
 	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/olebedev/gojax v0.0.0-20170318114811-bb153be84336 // indirect
 	github.com/otiai10/copy v1.7.0
 	github.com/phuslu/log v1.0.83
 	github.com/poy/onpar v1.1.2 // indirect
@@ -47,6 +48,7 @@ require (
 	go.uber.org/zap v1.21.0
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 	golang.org/x/text v0.3.7
+	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1
 )
