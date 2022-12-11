@@ -30,6 +30,16 @@ func (d *Dice) GetExtConfigFilePath(extName string, filename string) string {
 	return path.Join(d.GetExtDataDir(extName), filename)
 }
 
+func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
+	if i.IsJsExt {
+		d.JsLock.Lock()
+		defer func() {
+			d.JsLock.Unlock()
+		}()
+	}
+	f()
+}
+
 func GetExtensionDesc(ei *ExtInfo) string {
 	text := "> " + ei.Brief + "\n" + "提供命令:\n"
 	keys := make([]string, 0, len(ei.CmdMap))

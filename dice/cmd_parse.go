@@ -137,8 +137,8 @@ func (a *CmdArgs) GetRestArgsFrom(index int) string {
 	return strings.Join(txt, " ")
 }
 
-func CommandCheckPrefix(rawCmd string, prefix []string) bool {
-	restText, _ := AtParse(rawCmd, "")
+func CommandCheckPrefix(rawCmd string, prefix []string, platform string) bool {
+	restText, _ := AtParse(rawCmd, platform)
 	restText = strings.TrimSpace(restText)
 	restText, _ = SpecialExecuteTimesParse(restText)
 

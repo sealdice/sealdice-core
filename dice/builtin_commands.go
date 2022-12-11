@@ -1163,7 +1163,7 @@ func (d *Dice) registerCoreCommands() {
 					notfound := []string{}
 					for index := 0; index < len(cmdArgs.Args); index++ {
 						extName := strings.ToLower(cmdArgs.Args[index])
-						ei := ctx.Group.ExtInactive(extName)
+						ei := ctx.Group.ExtInactiveByName(extName)
 						if ei != nil {
 							closed = append(closed, ei.Name)
 						} else {
@@ -1185,7 +1185,15 @@ func (d *Dice) registerCoreCommands() {
 					for _, i := range d.ExtList {
 						if i.Name == extName {
 							text := fmt.Sprintf("> [%s] 版本%s 作者%s\n", i.Name, i.Version, i.Author)
-							ReplyToSender(ctx, msg, text+i.GetDescText(i))
+							(func() {
+								if i.IsJsExt {
+									ctx.Dice.JsLock.Lock()
+									defer func() {
+										ctx.Dice.JsLock.Unlock()
+									}()
+								}
+								ReplyToSender(ctx, msg, text+i.GetDescText(i))
+							})()
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 					}
@@ -1619,7 +1627,7 @@ func (d *Dice) registerCoreCommands() {
 				if ctx.Group.ExtGetActive("reply") == nil {
 					onText = "关"
 				}
-				ctx.Group.ExtInactive("reply")
+				ctx.Group.ExtInactiveByName("reply")
 				ReplyToSender(ctx, msg, fmt.Sprintf("已在当前群关闭自定义回复(%s➯关)。\n此指令等价于.ext reply off", onText))
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}

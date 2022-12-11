@@ -111,7 +111,18 @@ func (group *GroupInfo) ExtClear() {
 	group.ActivatedExtList = lst
 }
 
-func (group *GroupInfo) ExtInactive(name string) *ExtInfo {
+func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
+	for index, i := range group.ActivatedExtList {
+		if ei == i {
+			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
+			group.ExtClear()
+			return i
+		}
+	}
+	return nil
+}
+
+func (group *GroupInfo) ExtInactiveByName(name string) *ExtInfo {
 	for index, i := range group.ActivatedExtList {
 		if i.Name == name {
 			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
@@ -298,7 +309,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		}
 
 		// 当文本可能是在发送命令时，必须加载信息
-		maybeCommand := CommandCheckPrefix(msg.Message, d.CommandPrefix)
+		maybeCommand := CommandCheckPrefix(msg.Message, d.CommandPrefix, msg.Platform)
 		if maybeCommand {
 			mustLoadUser = true
 		}
@@ -337,7 +348,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		if mctx.Group != nil && mctx.Group.IsActive(mctx) {
 			for _, i := range mctx.Group.ActivatedExtList {
 				if i.OnMessageReceived != nil {
-					i.OnMessageReceived(mctx, msg)
+					i.callWithJsCheck(mctx.Dice, func() {
+						i.OnMessageReceived(mctx, msg)
+					})
 				}
 			}
 		}
@@ -488,6 +501,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					myuid := ep.UserId
 					// 屏蔽机器人发送的消息
 					if mctx.MessageType == "group" {
+						fmt.Println("YYYYYYYYY", myuid, mctx.Group != nil)
 						if mctx.Group.BotList[msg.Sender.UserId] {
 							log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 							return
@@ -629,6 +643,14 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				}
 			}
 
+			// 如果是js命令，那么加锁
+			if item.IsJsSolveFunc {
+				ctx.Dice.JsLock.Lock()
+				defer func() {
+					ctx.Dice.JsLock.Unlock()
+				}()
+			}
+
 			ret := item.Solve(ctx, msg, cmdArgs)
 			if ret.Solved {
 				if ret.ShowHelp {
@@ -661,7 +683,9 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	if group.Active || ctx.IsCurGroupBotOn {
 		for _, i := range group.ActivatedExtList {
 			if i.OnCommandReceived != nil {
-				i.OnCommandReceived(ctx, msg, cmdArgs)
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnCommandReceived(ctx, msg, cmdArgs)
+				})
 			}
 		}
 	}

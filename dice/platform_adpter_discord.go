@@ -142,7 +142,9 @@ func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userId string, t
 	}
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
-			i.OnMessageSend(ctx, "private", userId, text, flag)
+			i.callWithJsCheck(ctx.Dice, func() {
+				i.OnMessageSend(ctx, "private", userId, text, flag)
+			})
 		}
 	}
 }
@@ -157,7 +159,9 @@ func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupId string, t
 	if ctx.Session.ServiceAtNew[groupId] != nil {
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
 			if i.OnMessageSend != nil {
-				i.OnMessageSend(ctx, "group", groupId, text, flag)
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnMessageSend(ctx, "group", groupId, text, flag)
+				})
 			}
 		}
 	}

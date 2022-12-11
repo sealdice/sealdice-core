@@ -122,7 +122,9 @@ func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, 
 
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
-			i.OnMessageSend(ctx, "private", userId, text, flag)
+			i.callWithJsCheck(ctx.Dice, func() {
+				i.OnMessageSend(ctx, "private", userId, text, flag)
+			})
 		}
 	}
 
@@ -161,7 +163,9 @@ func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, 
 	if ctx.Session.ServiceAtNew[groupId] != nil {
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
 			if i.OnMessageSend != nil {
-				i.OnMessageSend(ctx, "group", groupId, text, flag)
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnMessageSend(ctx, "group", groupId, text, flag)
+				})
 			}
 		}
 	}
