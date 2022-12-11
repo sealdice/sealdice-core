@@ -671,11 +671,28 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					}
 				}
 
-				text := SetCocRuleText[ctx.Group.CocRuleIndex]
-				VarSetValueStr(ctx, "$t房规文本", text)
-				VarSetValueStr(ctx, "$t房规", SetCocRulePrefixText[ctx.Group.CocRuleIndex])
-				VarSetValueInt64(ctx, "$t房规序号", int64(ctx.Group.CocRuleIndex))
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
+				if text, ok := SetCocRuleText[ctx.Group.CocRuleIndex]; ok {
+					VarSetValueStr(ctx, "$t房规文本", text)
+					VarSetValueStr(ctx, "$t房规", SetCocRulePrefixText[ctx.Group.CocRuleIndex])
+					VarSetValueInt64(ctx, "$t房规序号", int64(ctx.Group.CocRuleIndex))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
+				} else {
+					// TODO: 修改这种找规则的方式
+					var rule *CocRuleInfo
+					nInt64 := ctx.Group.CocRuleIndex
+					for _, i := range ctx.Dice.CocExtraRules {
+						if nInt64 == i.Index {
+							rule = i
+							//text := fmt.Sprintf("已切换房规为%s:\n%s%s", i.Name, i.Desc, suffix)
+							break
+						}
+					}
+
+					VarSetValueStr(ctx, "$t房规文本", rule.Desc)
+					VarSetValueStr(ctx, "$t房规", rule.Name)
+					VarSetValueInt64(ctx, "$t房规序号", int64(rule.Index))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:设置房规_当前"))
+				}
 			}
 
 			ctx.Group.ExtActive(ctx.Dice.ExtFind("coc7"))
@@ -1745,16 +1762,17 @@ func GetResultText(ctx *MsgContext, successRank int, userShortVersion bool) stri
 }
 
 type CocRuleCheckRet struct {
-	SuccessRank          int   // 成功级别
-	CriticalSuccessValue int64 // 大成功数值
+	SuccessRank          int   `jsbind:"successRank"`          // 成功级别
+	CriticalSuccessValue int64 `jsbind:"criticalSuccessValue"` // 大成功数值
 }
 
 type CocRuleInfo struct {
-	Index int    //序号
-	Key   string // .setcoc key
-	Name  string // 已切换至规则 Name: Desc
-	Desc  string // 规则描述
-	Check func(ctx *MsgContext, d100 int64, checkValue int64) CocRuleCheckRet
+	Index int    `jsbind:"index"` // 序号
+	Key   string `jsbind:"key"`   // .setcoc key
+	Name  string `jsbind:"name"`  // 已切换至规则 Name: Desc
+	Desc  string `jsbind:"desc"`  // 规则描述
+
+	Check func(ctx *MsgContext, d100 int64, checkValue int64) CocRuleCheckRet `jsbind:"check"`
 }
 
 func ResultCheck(ctx *MsgContext, cocRule int, d100 int64, checkValue int64) (successRank int, criticalSuccessValue int64) {

@@ -553,6 +553,12 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 								}()
 
 								//VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
+								uidRaw := strconv.FormatInt(msgQQ.UserId, 10)
+								VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
+								VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
+								stdId := FormatDiceIdQQ(msgQQ.UserId)
+								VarSetValueStr(ctx, "$t帐号ID", stdId)
+								VarSetValueStr(ctx, "$t账号ID", stdId)
 								pa.SendToGroup(ctx, msg.GroupId, DiceFormat(ctx, group.GroupWelcomeMessage), "")
 							}()
 						}

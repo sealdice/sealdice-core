@@ -240,7 +240,9 @@ func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupId string, text
 	if ctx.Session.ServiceAtNew[groupId] != nil {
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
 			if i.OnMessageSend != nil {
-				i.OnMessageSend(ctx, "group", groupId, text, flag)
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnMessageSend(ctx, "group", groupId, text, flag)
+				})
 			}
 		}
 	}
