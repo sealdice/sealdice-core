@@ -1,4 +1,4 @@
-import { backend } from './backend'
+import { apiFetch, backend } from './backend'
 
 export enum goCqHttpStateCode {
   Init              = 0,
@@ -349,9 +349,15 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async scriptReload() {
-      const info = await backend.post(urlPrefix+'/script/reload')
-      return info as any
+    async jsReload() {
+      return await apiFetch(urlPrefix+'/js/reload')
+    },
+    async jsExec(code: string) {
+      return await apiFetch(urlPrefix+'/js/execute', {body: { value: code }}) as {
+        ret: any,
+        outputs: string[],
+        err: string,
+      }
     },
 
     async upgrade() {

@@ -72,12 +72,27 @@
             </el-menu-item>
           </el-sub-menu>
 
-          <el-menu-item index="5" @click="switchTo('customReply')">
-            <el-icon>
-              <setting />
-            </el-icon>
-            <span>自定义回复</span>
-          </el-menu-item>
+          <el-sub-menu index="5">
+            <template #title>
+              <el-icon>
+                <edit-pen />
+              </el-icon>
+              <span>扩展功能</span>
+            </template>
+            <el-menu-item index="5-reply" @click="switchTo('mod', 'reply')">
+              <!-- <el-icon><setting /></el-icon> -->
+              <span>自定义回复</span>
+            </el-menu-item>
+
+            <el-menu-item :index="`5-deck`" @click="switchTo('mod', 'deck')">
+              <span>牌堆管理</span>
+            </el-menu-item>
+
+            <el-menu-item :index="`5-js`" @click="switchTo('mod', 'js')">
+              <span>JS扩展</span>
+            </el-menu-item>
+
+          </el-sub-menu>
 
           <!-- 
           <el-menu-item index="4">
@@ -104,14 +119,11 @@
             <el-menu-item :index="`7-base`" @click="switchTo('miscSettings', 'base')">
               <span>基本设置</span>
             </el-menu-item>
-            <el-menu-item :index="`7-deck`" @click="switchTo('miscSettings', 'deck')">
-              <span>牌堆管理</span>
-            </el-menu-item>
             <el-menu-item :index="`7-group`" @click="switchTo('miscSettings', 'group')">
               <span>群组管理</span>
             </el-menu-item>
             <el-menu-item :index="`7-ban`" @click="switchTo('miscSettings', 'ban')">
-              <span>黑名单</span>
+              <span>黑白名单</span>
             </el-menu-item>
             <el-menu-item :index="`7-backup`" @click="switchTo('miscSettings', 'backup')">
               <span>备份</span>
@@ -152,6 +164,7 @@
           <page-connect-info-items v-if="tabName === 'imConns'" />
           <page-custom-text v-if="tabName === 'customText'" :category="textCategory" />
           <page-custom-reply v-if="tabName === 'customReply'" />
+          <page-mod v-if="tabName === 'mod'" :category="textCategory" />
           <page-test v-if="tabName === 'test'" />
           <page-about v-if="tabName === 'about'" />
         </div>
@@ -186,7 +199,8 @@ import HelloWorld from "./components/HelloWorld.vue";
 import PageCustomText from "./components/PageCustomText.vue";
 import PageConnectInfoItems from "./components/PageConnectInfoItems.vue";
 import PageMisc from "./components/PageMisc.vue"
-import PageCustomReply from "./components/PageCustomReply.vue"
+import PageMod from "./components/PageMod.vue"
+import PageCustomReply from "./components/mod/PageCustomReply.vue"
 import PageLog from "./components/PageLog.vue";
 import PageAbout from "./components/PageAbout.vue"
 import PageTest from "./components/PageTest.vue"
@@ -206,7 +220,8 @@ import {
   Operation,
   ChatLineRound,
   DArrowLeft,
-  DArrowRight
+  DArrowRight,
+  EditPen
 } from '@element-plus/icons-vue'
 
 import dayjs from 'dayjs'
@@ -305,9 +320,13 @@ let miscSettingsCategory = ref("")
 
 const needh100 = ref(false)
 
-const switchTo = (tab: 'overview' | 'miscSettings' | 'log' | 'customText' | 'customReply' | 'imConns' | 'banList' | 'test' | 'about', name: string = '') => {
+const switchTo = (tab: 'overview' | 'miscSettings' | 'log' | 'customText' | 'mod' | 'customReply' | 'imConns' | 'banList' | 'test' | 'about', name: string = '') => {
   tabName.value = tab
+  textCategory.value = ''
   if (tab === 'customText') {
+    textCategory.value = name
+  }
+  if (tab === 'mod') {
     textCategory.value = name
   }
   if (tab === 'miscSettings') {

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import axiosRetry from 'axios-retry'
+import { ofetch } from 'ofetch'
 
 
 axiosRetry(axios, {
@@ -34,6 +35,12 @@ export const urlBase = process.env.NODE_ENV == 'development' ?
   '//'+window.location.hostname+":"+3211 :
   '//'+window.location.hostname+":"+location.port
 
-// export const urlBase = '//'+window.location.hostname+":"+location.port
+
+// 逐渐使用ofetch替换axios
+export const apiFetch = ofetch.create({
+  baseURL: urlBase,
+  retry: 3,
+  method: 'POST'
+})
 
 export const backend = newRequestClient(urlBase)
