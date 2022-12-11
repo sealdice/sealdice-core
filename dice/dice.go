@@ -27,53 +27,57 @@ var APP_BRANCH = ""
 
 type CmdExecuteResult struct {
 	Matched  bool // 是否是指令
-	Solved   bool // 是否响应此指令
-	ShowHelp bool
+	Solved   bool `jsbind:"solved"` // 是否响应此指令
+	ShowHelp bool `jsbind:"showHelp"`
 }
 
 type CmdItemInfo struct {
-	Name              string
-	Solve             func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult
+	Name              string `jsbind:"name"`
 	ShortHelp         string // 短帮助，格式是 .xxx a b // 说明
-	Help              string // 长帮助，带换行的较详细说明
-	AllowDelegate     bool   // 允许代骰
-	DisabledInPrivate bool   // 私聊不可用
+	Help              string `jsbind:"help"`              // 长帮助，带换行的较详细说明
+	AllowDelegate     bool   `jsbind:"allowDelegate"`     // 允许代骰
+	DisabledInPrivate bool   `jsbind:"disabledInPrivate"` // 私聊不可用
+
+	IsJsSolveFunc bool
+	Solve         func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult `jsbind:"solve"`
 	//Keywords []string // 其他帮助关键字
 	//ChopWords     []string
 
-	Raw                bool // 高级模式。默认模式下行为是：需要在当前群/私聊开启，或@自己时生效(需要为第一个@目标)
-	CheckCurrentBotOn  bool // 是否检查当前可用状况，包括群内可用和是私聊两种方式，如失败不进入solve
-	CheckMentionOthers bool // 是否检查@了别的骰子，如失败不进入solve
+	Raw                bool `jsbind:"raw"`                // 高级模式。默认模式下行为是：需要在当前群/私聊开启，或@自己时生效(需要为第一个@目标)
+	CheckCurrentBotOn  bool `jsbind:"checkCurrentBotOn"`  // 是否检查当前可用状况，包括群内可用和是私聊两种方式，如失败不进入solve
+	CheckMentionOthers bool `jsbind:"checkMentionOthers"` // 是否检查@了别的骰子，如失败不进入solve
 	// 允许代骰选项
 }
 
 type CmdMapCls map[string]*CmdItemInfo
 
 type ExtInfo struct {
-	Name    string `yaml:"name"` // 名字
-	Version string `yaml:"-"`    // 版本
+	Name    string `yaml:"name" jsbind:"name"` // 名字
+	Version string `yaml:"-" jsbind:"version"` // 版本
 	// 作者
 	// 更新时间
-	AutoActive      bool      `yaml:"-"` // 是否自动开启
-	CmdMap          CmdMapCls `yaml:"-"` // 指令集合
+	AutoActive      bool      `yaml:"-"`                 // 是否自动开启
+	CmdMap          CmdMapCls `yaml:"-" jsbind:"cmdMap"` // 指令集合
 	Brief           string    `yaml:"-"`
 	ActiveOnPrivate bool      `yaml:"-"`
 
 	defaultSetting *ExtDefaultSettingItem `yaml:"-"` // 默认配置
 
-	Author       string   `yaml:"-"`
+	Author       string   `yaml:"-" jsbind:"author"`
 	ConflictWith []string `yaml:"-"`
 	//activeInSession bool; // 在当前会话中开启
 
-	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-"` // 指令过滤后剩下的
-	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-"` // 覆盖指令行为
+	IsJsExt bool
 
-	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)                              `yaml:"-"`
-	OnMessageReceived func(ctx *MsgContext, msg *Message)                                                `yaml:"-"`
-	OnMessageSend     func(ctx *MsgContext, messageType string, userId string, text string, flag string) `yaml:"-"`
-	GetDescText       func(i *ExtInfo) string                                                            `yaml:"-"`
-	IsLoaded          bool                                                                               `yaml:"-"`
-	OnLoad            func()                                                                             `yaml:"-"`
+	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
+	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" jsbind:"onCommandOverride"`    // 覆盖指令行为
+
+	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)                              `yaml:"-" jsbind:"onCommandReceived"`
+	OnMessageReceived func(ctx *MsgContext, msg *Message)                                                `yaml:"-" jsbind:"onMessageReceived"`
+	OnMessageSend     func(ctx *MsgContext, messageType string, userId string, text string, flag string) `yaml:"-" jsbind:"onMessageSend"`
+	GetDescText       func(i *ExtInfo) string                                                            `yaml:"-" jsbind:"getDescText"`
+	IsLoaded          bool                                                                               `yaml:"-" jsbind:"isLoaded"`
+	OnLoad            func()                                                                             `yaml:"-" jsbind:"onLoad"`
 }
 
 type DiceConfig struct {
@@ -98,7 +102,7 @@ func (x ExtDefaultSettingItemSlice) Less(i, j int) bool { return x[i].Name == "c
 func (x ExtDefaultSettingItemSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 type Dice struct {
-	ImSession               *IMSession             `yaml:"imSession"`
+	ImSession               *IMSession             `yaml:"imSession" jsbind:"imSession"`
 	CmdMap                  CmdMapCls              `yaml:"-" json:"-"`
 	ExtList                 []*ExtInfo             `yaml:"-"`
 	RollParser              *DiceRollParser        `yaml:"-"`
@@ -106,18 +110,18 @@ type Dice struct {
 	LastSavedTime           *time.Time             `yaml:"lastSavedTime"`
 	TextMap                 map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig              DiceConfig             `yaml:"-"`
-	DB                      *bbolt.DB              `yaml:"-"`                       // 数据库对象
-	Logger                  *zap.SugaredLogger     `yaml:"logger"`                  // 日志
-	LogWriter               *logger.WriterX        `yaml:"-"`                       // 用于api的log对象
-	IsDeckLoading           bool                   `yaml:"-"`                       // 正在加载中
-	DeckList                []*DeckInfo            `yaml:"deckList"`                // 牌堆信息
-	CommandPrefix           []string               `yaml:"commandPrefix"`           // 指令前导
-	DiceMasters             []string               `yaml:"diceMasters"`             // 骰主设置，需要格式: 平台:帐号
-	NoticeIds               []string               `yaml:"noticeIds"`               // 通知ID
-	OnlyLogCommandInGroup   bool                   `yaml:"onlyLogCommandInGroup"`   // 日志中仅记录命令
-	OnlyLogCommandInPrivate bool                   `yaml:"onlyLogCommandInPrivate"` // 日志中仅记录命令
-	VersionCode             int                    `json:"versionCode"`             // 版本ID(配置文件)
-	MessageDelayRangeStart  float64                `yaml:"messageDelayRangeStart"`  // 指令延迟区间
+	DB                      *bbolt.DB              `yaml:"-"`                                    // 数据库对象
+	Logger                  *zap.SugaredLogger     `yaml:"logger"`                               // 日志
+	LogWriter               *logger.WriterX        `yaml:"-"`                                    // 用于api的log对象
+	IsDeckLoading           bool                   `yaml:"-"`                                    // 正在加载中
+	DeckList                []*DeckInfo            `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
+	CommandPrefix           []string               `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
+	DiceMasters             []string               `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
+	NoticeIds               []string               `yaml:"noticeIds"`                            // 通知ID
+	OnlyLogCommandInGroup   bool                   `yaml:"onlyLogCommandInGroup"`                // 日志中仅记录命令
+	OnlyLogCommandInPrivate bool                   `yaml:"onlyLogCommandInPrivate"`              // 日志中仅记录命令
+	VersionCode             int                    `json:"versionCode"`                          // 版本ID(配置文件)
+	MessageDelayRangeStart  float64                `yaml:"messageDelayRangeStart"`               // 指令延迟区间
 	MessageDelayRangeEnd    float64                `yaml:"messageDelayRangeEnd"`
 	WorkInQQChannel         bool                   `yaml:"workInQQChannel"`
 	QQChannelAutoOn         bool                   `yaml:"QQChannelAutoOn"`     // QQ频道中自动开启(默认不开)
@@ -137,9 +141,9 @@ type Dice struct {
 	AliveNoticeValue        string                 `yaml:"aliveNoticeValue"`  // 定时通知间隔
 	ReplyDebugMode          bool                   `yaml:"replyDebugMode"`    // 回复调试
 
-	HelpMasterInfo      string `yaml:"helpMasterInfo"`      // help中骰主信息
-	HelpMasterLicense   string `yaml:"helpMasterLicense"`   // help中使用协议
-	DefaultCocRuleIndex int64  `yaml:"defaultCocRuleIndex"` // 默认coc index
+	HelpMasterInfo      string `yaml:"helpMasterInfo" jsbind:"helpMasterInfo"`           // help中骰主信息
+	HelpMasterLicense   string `yaml:"helpMasterLicense" jsbind:"helpMasterLicense"`     // help中使用协议
+	DefaultCocRuleIndex int64  `yaml:"defaultCocRuleIndex" jsbind:"defaultCocRuleIndex"` // 默认coc index
 
 	CustomBotExtraText       string `yaml:"customBotExtraText"`       // bot自定义文本
 	CustomDrawKeysText       string `yaml:"customDrawKeysText"`       // draw keys自定义文本
@@ -160,6 +164,7 @@ type Dice struct {
 	aliveNoticeEntry cron.EntryID           `yaml:"-" json:"-"`
 	JsVM             *goja.Runtime          `yaml:"-" json:"-"`
 	JsLock           sync.Mutex             `yaml:"-" json:"-"`
+	JsPrinter        *PrinterFunc           `yaml:"-" json:"-"`
 	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
 	RunAfterLoaded   []func()               `yaml:"-" json:"-"`
 
@@ -218,7 +223,9 @@ func (d *Dice) Init() {
 
 	for _, i := range d.ExtList {
 		if i.OnLoad != nil {
-			i.OnLoad()
+			i.callWithJsCheck(d, func() {
+				i.OnLoad()
+			})
 		}
 	}
 
@@ -392,6 +399,21 @@ func (d *Dice) ExtFind(s string) *ExtInfo {
 		}
 	}
 	return nil
+}
+
+func (d *Dice) ExtRemove(ei *ExtInfo) bool {
+	for _, i := range d.ImSession.ServiceAtNew {
+		i.ExtInactive(ei)
+	}
+
+	for index, i := range d.ExtList {
+		if i == ei {
+			d.ExtList = append(d.ExtList[:index], d.ExtList[index+1:]...)
+			return true
+		}
+	}
+
+	return false
 }
 
 func (d *Dice) MasterClear() {

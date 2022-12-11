@@ -311,6 +311,9 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 
 		mapData := make(map[string]*VMValue)
 		err := JsonValueMapUnmarshal(data, &mapData)
+		if err != nil {
+			s.Parent.Logger.Errorf("读取玩家数据失败！错误 %v 原数据 %v", err, data)
+		}
 
 		needToLoad := map[string]bool{}
 		for k, v := range mapData {
@@ -347,9 +350,6 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 			}
 		}
 
-		if err != nil {
-			s.Parent.Logger.Error(err)
-		}
 		vd.Loaded = true
 	}
 
@@ -421,8 +421,8 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
 		VarSetValueStr(ctx, "$tQQ昵称", fmt.Sprintf("<%s>", qqNickname))
 		VarSetValueStr(ctx, "$t帐号昵称", fmt.Sprintf("<%s>", qqNickname))
-		VarSetValueStr(ctx, "$t帐号ID", fmt.Sprintf("%s", ctx.Player.UserId))
 		VarSetValueStr(ctx, "$t账号昵称", fmt.Sprintf("<%s>", qqNickname))
+		VarSetValueStr(ctx, "$t帐号ID", fmt.Sprintf("%s", ctx.Player.UserId))
 		VarSetValueStr(ctx, "$t账号ID", fmt.Sprintf("%s", ctx.Player.UserId))
 		VarSetValueInt64(ctx, "$t个人骰子面数", int64(ctx.Player.DiceSideNum))
 		//VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})

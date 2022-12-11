@@ -100,7 +100,9 @@ func (pa *PlatformAdapterQQOnebot) SendToChannelGroup(ctx *MsgContext, userId st
 	rawId, _ := pa.mustExtractChannelId(userId)
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
-			i.OnMessageSend(ctx, "group", userId, text, flag)
+			i.callWithJsCheck(ctx.Dice, func() {
+				i.OnMessageSend(ctx, "group", userId, text, flag)
+			})
 		}
 	}
 
