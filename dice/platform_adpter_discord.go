@@ -228,7 +228,6 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 	msg.Time = m.Timestamp.Unix()
 	msg.Message = m.Content
 	msg.RawId = m.ID
-	msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
 	msg.Platform = "DISCORD"
 	ch, err := pa.IntentSession.Channel(m.ChannelID)
 	if err != nil {
@@ -238,6 +237,7 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 		msg.MessageType = "private"
 	} else {
 		msg.MessageType = "group"
+		msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
 	}
 	send := new(SenderBase)
 	send.UserId = FormatDiceIdDiscord(m.Author.ID)
