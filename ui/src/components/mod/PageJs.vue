@@ -54,6 +54,7 @@ const defaultText = [
     "console.log('可以这样来查看变量详情：');",
     "console.log(Object.keys(seal));",
     "console.log('更多内容正在制作中...')",
+    "console.log('注意: 测试版！API仍然可能发生重大变化！')",
     "",
     "// 写在这里的所有变量都是临时变量，如果你希望全局变量，使用 globalThis",
     "// 但是注意，全局变量在进程关闭后失效，想保存状态请存入硬盘。",
