@@ -25,13 +25,13 @@ func jsExec(c echo.Context) error {
 		myDice.JsLock.Unlock()
 	}()
 
-	myDice.JsPrinter.RecordStart()
 	source := "(function(exports, require, module) {" + v.Value + "\n})()"
 
 	var ret goja.Value
-	//myDice.JsLoop.Run(func(vm *goja.Runtime) {
-	ret, err = myDice.JsVM.RunString(source)
-	//})
+	myDice.JsPrinter.RecordStart()
+	myDice.JsLoop.Run(func(vm *goja.Runtime) {
+		ret, err = vm.RunString(source)
+	})
 	outputs := myDice.JsPrinter.RecordEnd()
 
 	var retFinal interface{}
