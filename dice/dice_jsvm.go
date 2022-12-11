@@ -3,8 +3,10 @@ package dice
 import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
+	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/monaco-io/request"
+	"github.com/olebedev/gojax/fetch"
+	"gopkg.in/elazarl/goproxy.v1"
 	"io/fs"
 	"path/filepath"
 )
@@ -49,123 +51,102 @@ func (d *Dice) JsInit() {
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 
 	// 重建js vm
-	d.JsVM = goja.New()
-	//d.JsRequire = d.Parent.JsRegistry.Enable(d.JsVM)
-
+	if d.JsLoop != nil {
+		d.JsLoop.Stop()
+	}
 	reg := new(require.Registry)
-	reg.Enable(d.JsVM)
-	d.JsRequire = reg.Enable(d.JsVM) // 有点忘了为啥保留这个引用
+
+	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false), eventloop.WithRegistry(reg))
+	fetch.Enable(loop, goproxy.NewProxyHttpServer())
+	d.JsLoop = loop
 
 	printer := &PrinterFunc{d, false, []string{}}
 	d.JsPrinter = printer
+	reg.RegisterNativeModule("node:console", console.RequireWithPrinter(printer))
 
-	reg.RegisterNativeModule("console", console.RequireWithPrinter(printer))
-	console.Enable(d.JsVM)
+	// 初始化
+	loop.Run(func(vm *goja.Runtime) {
+		vm.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
 
-	d.JsVM.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
+		// console 模块
+		console.Enable(vm)
 
-	seal := d.JsVM.NewObject()
-	//seal.Set("setVarInt", VarSetValueInt64)
-	//seal.Set("setVarStr", VarSetValueStr)
+		// require 模块
+		d.JsRequire = reg.Enable(vm)
 
-	vars := d.JsVM.NewObject()
-	seal.Set("vars", vars)
-	//vars.Set("varGet", VarGetValue)
-	//vars.Set("varSet", VarSetValue)
-	vars.Set("intGet", VarGetValueInt64)
-	vars.Set("intSet", VarSetValueInt64)
-	vars.Set("strGet", VarGetValueStr)
-	vars.Set("strSet", VarSetValueStr)
+		seal := vm.NewObject()
+		//seal.Set("setVarInt", VarSetValueInt64)
+		//seal.Set("setVarStr", VarSetValueStr)
 
-	ext := d.JsVM.NewObject()
-	seal.Set("ext", ext)
-	ext.Set("newCmdItemInfo", func() *CmdItemInfo {
-		return &CmdItemInfo{IsJsSolveFunc: true}
+		vars := vm.NewObject()
+		seal.Set("vars", vars)
+		//vars.Set("varGet", VarGetValue)
+		//vars.Set("varSet", VarSetValue)
+		vars.Set("intGet", VarGetValueInt64)
+		vars.Set("intSet", VarSetValueInt64)
+		vars.Set("strGet", VarGetValueStr)
+		vars.Set("strSet", VarSetValueStr)
+
+		ext := vm.NewObject()
+		seal.Set("ext", ext)
+		ext.Set("newCmdItemInfo", func() *CmdItemInfo {
+			return &CmdItemInfo{IsJsSolveFunc: true}
+		})
+		ext.Set("newCmdExecuteResult", func(solved bool) CmdExecuteResult {
+			return CmdExecuteResult{
+				Matched: true,
+				Solved:  solved,
+			}
+		})
+		ext.Set("new", func(name, author, version string) *ExtInfo {
+			return &ExtInfo{Name: name, Author: author, Version: version,
+				GetDescText: func(i *ExtInfo) string {
+					return GetExtensionDesc(i)
+				},
+				AutoActive: true,
+				IsJsExt:    true,
+				Brief:      "一个JS自定义扩展",
+				CmdMap:     CmdMapCls{},
+			}
+		})
+		ext.Set("find", func(name string) *ExtInfo {
+			return d.ExtFind(name)
+		})
+		ext.Set("register", func(ei *ExtInfo) {
+			d.RegisterExtension(ei)
+			if ei.OnLoad != nil {
+				ei.OnLoad()
+			}
+			d.ApplyExtDefaultSettings()
+			for _, i := range d.ImSession.ServiceAtNew {
+				i.ExtActive(ei)
+			}
+		})
+
+		// COC规则自定义
+		coc := vm.NewObject()
+		coc.Set("newRule", func() *CocRuleInfo {
+			return &CocRuleInfo{}
+		})
+		coc.Set("newRuleCheckResult", func() *CocRuleCheckRet {
+			return &CocRuleCheckRet{}
+		})
+		coc.Set("registerRule", func(rule *CocRuleInfo) bool {
+			return d.CocExtraRulesAdd(rule)
+		})
+		seal.Set("coc", coc)
+
+		seal.Set("replyGroup", ReplyGroup)
+		seal.Set("replyPerson", ReplyPerson)
+		seal.Set("replyToSender", ReplyToSender)
+		seal.Set("format", DiceFormat)
+		seal.Set("formatTmpl", DiceFormatTmpl)
+		seal.Set("getCtxProxyFirst", GetCtxProxyFirst)
+
+		seal.Set("inst", d)
+		vm.Set("__dirname", "")
+		vm.Set("seal", seal)
 	})
-	ext.Set("newCmdExecuteResult", func(solved bool) CmdExecuteResult {
-		return CmdExecuteResult{
-			Matched: true,
-			Solved:  solved,
-		}
-	})
-	ext.Set("new", func(name, author, version string) *ExtInfo {
-		return &ExtInfo{Name: name, Author: author, Version: version,
-			GetDescText: func(i *ExtInfo) string {
-				return GetExtensionDesc(i)
-			},
-			AutoActive: true,
-			IsJsExt:    true,
-			Brief:      "一个JS自定义扩展",
-			CmdMap:     CmdMapCls{},
-		}
-	})
-	ext.Set("find", func(name string) *ExtInfo {
-		return d.ExtFind(name)
-	})
-	ext.Set("register", func(ei *ExtInfo) {
-		d.RegisterExtension(ei)
-		if ei.OnLoad != nil {
-			ei.OnLoad()
-		}
-		d.ApplyExtDefaultSettings()
-		for _, i := range d.ImSession.ServiceAtNew {
-			i.ExtActive(ei)
-		}
-	})
-
-	// COC规则自定义
-	coc := d.JsVM.NewObject()
-	coc.Set("newRule", func() *CocRuleInfo {
-		return &CocRuleInfo{}
-	})
-	coc.Set("newRuleCheckResult", func() *CocRuleCheckRet {
-		return &CocRuleCheckRet{}
-	})
-	coc.Set("registerRule", func(rule *CocRuleInfo) bool {
-		return d.CocExtraRulesAdd(rule)
-	})
-	seal.Set("coc", coc)
-
-	seal.Set("replyGroup", ReplyGroup)
-	seal.Set("replyPerson", ReplyPerson)
-	seal.Set("replyToSender", ReplyToSender)
-	seal.Set("format", DiceFormat)
-	seal.Set("formatTmpl", DiceFormatTmpl)
-	seal.Set("getCtxProxyFirst", GetCtxProxyFirst)
-
-	seal.Set("newHttpRequest", func() *request.Client {
-		return &request.Client{}
-	})
-
-	seal.Set("inst", d)
-	d.JsVM.Set("__dirname", "")
-	d.JsVM.Set("seal", seal)
-	//})
-
-	//d.JsVM.Set("dice", d)
-
-	//fmt.Println(d.JsVM.RunString(`
-	//console.log(333, seal.newExt())
-	//	seal.newExt()
-	//`))
-	//
-	//	val, err := d.JsVM.RunString(`
-	//ext = seal.newExt()
-	//console.log(222, ext)
-	//
-	//ext.OnLoad = function() {
-	//	console.log(1111111111)
-	//}
-	//
-	//ext
-	//
-	//`)
-	//	if err == nil {
-	//		fmt.Println(val.Export(), val.ExportType())
-	//		e := val.Export().(*ExtInfo)
-	//		e.OnLoad()
-	//		return
-	//	}
 }
 
 func (d *Dice) JsLoadScripts() {
