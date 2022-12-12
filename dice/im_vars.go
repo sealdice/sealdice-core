@@ -192,6 +192,11 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
 		var v *VMValue
+		// 跟入群致辞闪退的一个bug有关，当时是报 _v, exists := ctx.Player.ValueMapTemp.Get(s) 这一行 nil pointer
+		if ctx.Player.ValueMapTemp == nil {
+			ctx.Player.ValueMapTemp = lockfree.NewHashMap()
+			return nil, false
+		}
 		_v, exists := ctx.Player.ValueMapTemp.Get(s)
 		//v, exists := ctx.Player.ValueMapTemp[s]
 		if exists {
