@@ -27,9 +27,9 @@ require (
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/juliangruber/go-intersect v1.1.0
-	github.com/kardianos/service v1.2.1
+	github.com/kardianos/service v1.2.2
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/labstack/echo/v4 v4.7.2
+	github.com/labstack/echo/v4 v4.9.1
 	github.com/lonelyevil/kook v0.0.31
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
