@@ -136,6 +136,24 @@ func (d *Dice) JsInit() {
 		})
 		seal.Set("coc", coc)
 
+		deck := vm.NewObject()
+		deck.Set("draw", func(ctx *MsgContext, deckName string, isShuffle bool) map[string]interface{} {
+			exists, result, err := deckDraw(ctx, deckName, isShuffle)
+			var errText string
+			if err != nil {
+				errText = err.Error()
+			}
+			return map[string]interface{}{
+				"exists": exists,
+				"err":    errText,
+				"result": result,
+			}
+		})
+		deck.Set("reload", func() {
+			DeckReload(d)
+		})
+		seal.Set("deck", deck)
+
 		seal.Set("replyGroup", ReplyGroup)
 		seal.Set("replyPerson", ReplyPerson)
 		seal.Set("replyToSender", ReplyToSender)
