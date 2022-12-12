@@ -715,6 +715,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx.delegateText = ctx.delegateText
 			mctx.Player.TempValueAlias = &ac.Alias
 
 			val, _ := cmdArgs.GetArgN(1)
@@ -754,10 +755,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						},
 					},
 				}
-				ctx.CommandInfo = commandInfo
+				mctx.CommandInfo = commandInfo
 
 				if kw := cmdArgs.GetKwarg("ci"); kw != nil {
-					info, err := json.Marshal(ctx.CommandInfo)
+					info, err := json.Marshal(mctx.CommandInfo)
 					if err == nil {
 						text += "\n" + string(info)
 					} else {

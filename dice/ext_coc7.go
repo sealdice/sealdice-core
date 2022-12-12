@@ -397,6 +397,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if len(cmdArgs.Args) >= 1 {
 				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
+				mctx.delegateText = ctx.delegateText
 				restText := cmdArgs.CleanArgs
 
 				reBP := regexp.MustCompile(`^[bBpP]`)
@@ -493,7 +494,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					var checkVal = r1.Value.(int64)
 					var attrVal = r2.Value.(int64)
 
-					successRank, criticalSuccessValue := ResultCheck(ctx, cocRule, checkVal, attrVal)
+					successRank, criticalSuccessValue := ResultCheck(mctx, cocRule, checkVal, attrVal)
 					var suffix string
 					suffix = GetResultTextWithRequire(mctx, successRank, difficultRequire, manyTimes)
 					suffixFull := GetResultTextWithRequire(mctx, successRank, difficultRequire, false)
@@ -511,7 +512,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					VarSetValueInt64(mctx, "$tD100", checkVal)
 					VarSetValueInt64(mctx, "$t判定值", attrVal)
 					VarSetValueStr(mctx, "$t判定结果", suffix)
-					VarSetValueInt64(ctx, "$tSuccessRank", int64(successRank))
+					VarSetValueInt64(mctx, "$tSuccessRank", int64(successRank))
 					VarSetValueStr(mctx, "$t判定结果_详细", suffixFull)
 					VarSetValueStr(mctx, "$t判定结果_简短", suffixShort)
 
@@ -538,16 +539,16 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 						//text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.Player.Name, cmdArgs.CleanArgs, d100, cond, detailWrap, suffix)
 						SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
-						VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "COC:检定_单项结果文本"))
+						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
 					}
 					return nil
 				}
 
 				var text string
 				if cmdArgs.SpecialExecuteTimes > 1 {
-					VarSetValueInt64(ctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
+					VarSetValueInt64(mctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
 					if cmdArgs.SpecialExecuteTimes > 12 {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_轮数过多警告"))
+						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_轮数过多警告"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					texts := []string{}
@@ -556,11 +557,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						if ret != nil {
 							return *ret
 						}
-						texts = append(texts, DiceFormatTmpl(ctx, "COC:检定_单项结果文本"))
+						texts = append(texts, DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
 					}
+
 					VarSetValueStr(mctx, "$t原因", reason)
-					VarSetValueStr(ctx, "$t结果文本", strings.Join(texts, `\n`))
-					text = DiceFormatTmpl(ctx, "COC:检定_多轮")
+					VarSetValueStr(mctx, "$t结果文本", strings.Join(texts, `\n`))
+					text = DiceFormatTmpl(mctx, "COC:检定_多轮")
 				} else {
 					ret := rollOne(false)
 					if ret != nil {
@@ -584,10 +586,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				if isHide {
 					commandInfo["hide"] = isHide
 				}
-				ctx.CommandInfo = commandInfo
+				mctx.CommandInfo = commandInfo
 
 				if kw := cmdArgs.GetKwarg("ci"); kw != nil {
-					info, err := json.Marshal(ctx.CommandInfo)
+					info, err := json.Marshal(mctx.CommandInfo)
 					if err == nil {
 						text += "\n" + string(info)
 					} else {
@@ -597,21 +599,22 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				if isHide {
 					if msg.Platform == "QQ-CH" {
-						ReplyToSender(ctx, msg, "QQ频道内尚不支持暗骰")
+						ReplyToSender(mctx, msg, "QQ频道内尚不支持暗骰")
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-					if ctx.IsPrivate {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+					if mctx.IsPrivate {
+						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:提示_私聊不可用"))
 					} else {
-						ctx.CommandHideFlag = ctx.Group.GroupId
-						ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_群内"))
-						ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_暗中_私聊_前缀")+text)
+						mctx.CommandHideFlag = mctx.Group.GroupId
+						ReplyGroup(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_暗中_群内"))
+						ReplyPerson(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_暗中_私聊_前缀")+text)
 					}
 				} else {
-					ReplyToSender(ctx, msg, text)
+					ReplyToSender(mctx, msg, text)
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
+			ctx.delegateText = ""
 			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
