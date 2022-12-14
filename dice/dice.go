@@ -284,7 +284,7 @@ func (d *Dice) Init() {
 	go refreshGroupInfo()
 
 	d.ApplyAliveNotice()
-	//d.JsLoadScripts()
+	d.JsLoadScripts()
 
 	if d.UpgradeWindowId != "" {
 		go func() {

@@ -648,6 +648,10 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				ctx.Dice.JsLock.Lock()
 				defer func() {
 					ctx.Dice.JsLock.Unlock()
+					if r := recover(); r != nil {
+						//log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
+						ReplyToSender(ctx, msg, fmt.Sprintf("JS执行异常，请反馈给对应的扩展作者：\n%v", r))
+					}
 				}()
 			}
 
