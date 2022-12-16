@@ -234,11 +234,11 @@ func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs, setTempVar bool) (*MsgC
 
 		if mctx.Player.UserId == ctx.Player.UserId {
 			// 并非代骰
-			ctx.delegateText = ""
+			ctx.DelegateText = ""
 		}
 		return mctx, exists
 	}
-	ctx.delegateText = ""
+	ctx.DelegateText = ""
 	return ctx, false
 }
 

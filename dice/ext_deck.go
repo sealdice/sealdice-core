@@ -634,8 +634,8 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 
 func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePool bool) (string, error) {
 	var key string
-	ctx.deckDepth += 1
-	if ctx.deckDepth > 20000 {
+	ctx.DeckDepth += 1
+	if ctx.DeckDepth > 20000 {
 		return "", errors.New("超出遍历次数")
 	}
 

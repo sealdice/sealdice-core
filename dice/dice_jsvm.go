@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/json"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
@@ -160,6 +161,7 @@ func (d *Dice) JsInit() {
 		seal.Set("format", DiceFormat)
 		seal.Set("formatTmpl", DiceFormatTmpl)
 		seal.Set("getCtxProxyFirst", GetCtxProxyFirst)
+		seal.Set("marshalJson", json.Marshal)
 
 		seal.Set("inst", d)
 		vm.Set("__dirname", "")

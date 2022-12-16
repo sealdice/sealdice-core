@@ -715,7 +715,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
-			mctx.delegateText = ctx.delegateText
+			mctx.DelegateText = ctx.DelegateText
 			mctx.Player.TempValueAlias = &ac.Alias
 
 			val, _ := cmdArgs.GetArgN(1)

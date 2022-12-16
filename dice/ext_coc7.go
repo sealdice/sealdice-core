@@ -397,7 +397,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if len(cmdArgs.Args) >= 1 {
 				mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
-				mctx.delegateText = ctx.delegateText
+				mctx.DelegateText = ctx.DelegateText
 				restText := cmdArgs.CleanArgs
 
 				reBP := regexp.MustCompile(`^[bBpP]`)
@@ -614,7 +614,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			ctx.delegateText = ""
+			ctx.DelegateText = ""
 			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},

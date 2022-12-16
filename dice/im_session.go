@@ -238,23 +238,23 @@ type IMSession struct {
 
 type MsgContext struct {
 	MessageType string
-	Group       *GroupInfo       // 当前群信息
-	Player      *GroupPlayerInfo // 当前群的玩家数据
+	Group       *GroupInfo       `json:"group"`  // 当前群信息
+	Player      *GroupPlayerInfo `json:"player"` // 当前群的玩家数据
 
-	EndPoint        *EndPointInfo // 对应的Endpoint
-	Session         *IMSession    // 对应的IMSession
-	Dice            *Dice         // 对应的 Dice
-	IsCurGroupBotOn bool          // 在群内是否bot on
+	EndPoint        *EndPointInfo `json:"-"`               // 对应的Endpoint
+	Session         *IMSession    `json:"-"`               // 对应的IMSession
+	Dice            *Dice         `json:"-"`               // 对应的 Dice
+	IsCurGroupBotOn bool          `json:"isCurGroupBotOn"` // 在群内是否bot on
 
-	IsPrivate       bool        // 是否私聊
-	CommandId       uint64      // 指令ID
-	CommandHideFlag string      // 暗骰标记
-	CommandInfo     interface{} // 命令信息
-	PrivilegeLevel  int         // 权限等级 40邀请者 50管理 60群主 100master
-	delegateText    string      // 代骰附加文本
+	IsPrivate       bool        `json:"isPrivate"`       // 是否私聊
+	CommandId       uint64      `json:"commandId"`       // 指令ID
+	CommandHideFlag string      `json:"commandHideFlag"` // 暗骰标记
+	CommandInfo     interface{} `json:"-"`               // 命令信息
+	PrivilegeLevel  int         `json:"privilegeLevel"`  // 权限等级 40邀请者 50管理 60群主 100master
+	DelegateText    string      `json:"delegateText"`    // 代骰附加文本
 
-	deckDepth int                                         // 抽牌递归深度
-	DeckPools map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
+	DeckDepth int                                         `json:"-"` // 抽牌递归深度
+	DeckPools map[*DeckInfo]map[string]*ShuffleRandomPool `json:"-"` // 不放回抽取的缓存
 }
 
 func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
@@ -633,7 +633,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 				if item.AllowDelegate {
 					// 允许代骰时，发一句话
-					ctx.delegateText = fmt.Sprintf("由<%s>代骰:\n", ctx.Player.Name)
+					ctx.DelegateText = fmt.Sprintf("由<%s>代骰:\n", ctx.Player.Name)
 				} else {
 					// 如果其他人被@了就不管
 					// 注: 如果被@的对象在botlist列表，那么不会走到这一步
