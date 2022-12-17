@@ -16,7 +16,7 @@ type Kwarg struct {
 
 // [CQ:at,qq=22]
 type AtInfo struct {
-	UserId string `json:"user_id"`
+	UserId string `json:"user_id" jsbind:"userId"` // 忘了第一个为啥用user_id，但是目前没查清楚不敢改
 	//UID    string `json:"uid"`
 }
 
@@ -34,18 +34,18 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 }
 
 type CmdArgs struct {
-	Command                    string    `json:"command"`
-	Args                       []string  `json:"args"`
-	Kwargs                     []*Kwarg  `json:"kwargs"`
-	At                         []*AtInfo `json:"atInfo"`
-	RawArgs                    string    `json:"rawArgs"`
-	AmIBeMentioned             bool      `json:"amIBeMentioned"`
-	AmIBeMentionedFirst        bool      `json:"amIBeMentionedFirst"` // 同上，但要求是第一个被@的
+	Command                    string    `json:"command" jsbind:"command"`
+	Args                       []string  `json:"args" jsbind:"args"`
+	Kwargs                     []*Kwarg  `json:"kwargs" jsbind:"kwargs"`
+	At                         []*AtInfo `json:"atInfo" jsbind:"at"`
+	RawArgs                    string    `json:"rawArgs" jsbind:"rawArgs"`
+	AmIBeMentioned             bool      `json:"amIBeMentioned" jsbind:"amIBeMentioned"`
+	AmIBeMentionedFirst        bool      `json:"amIBeMentionedFirst" jsbind:"amIBeMentionedFirst"` // 同上，但要求是第一个被@的
 	SomeoneBeMentionedButNotMe bool      `json:"someoneBeMentionedButNotMe"`
 	MentionedOtherDice         bool      `json:"mentionedOtherDice"`
-	CleanArgs                  string
-	SpecialExecuteTimes        int // 特殊的执行次数，对应 3# 这种
-	CleanArgsChopRest          string
+	CleanArgs                  string    `jsbind:"cleanArgs"`           // 一种格式化后的参数，也就是中间所有分隔符都用一个空格替代
+	SpecialExecuteTimes        int       `jsbind:"specialExecuteTimes"` // 特殊的执行次数，对应 3# 这种
+	CleanArgsChopRest          string    // 未来可能移除
 }
 
 /** 检查第N项参数是否为某个字符串，n从1开始，若没有第n项参数也视为失败 */
@@ -181,7 +181,8 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 	if prefixStr == "" {
 		return nil
 	}
-	restText = restText[len(prefixStr):] // 排除先导符号
+	restText = restText[len(prefixStr):]   // 排除先导符号
+	restText = strings.TrimSpace(restText) // 清除剩余文本的空格，以兼容. rd20 形式
 
 	// 兼容模式，进行格式化
 	if commandCompatibleMode {
