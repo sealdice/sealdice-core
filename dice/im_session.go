@@ -11,8 +11,8 @@ import (
 )
 
 type SenderBase struct {
-	Nickname  string `json:"nickname"`
-	UserId    string `json:"userId"`
+	Nickname  string `json:"nickname" jsbind:"nickname"`
+	UserId    string `json:"userId" jsbind:"userId"`
 	GroupRole string `json:"-"` // 群内角色 admin管理员 owner群主
 }
 
@@ -22,23 +22,23 @@ type SenderBase struct {
 // 人物(是谁发的)
 // 内容
 type Message struct {
-	Time        int64       `json:"time"`        // 发送时间
-	MessageType string      `json:"messageType"` // group private
-	GroupId     string      `json:"groupId"`     // 群号，如果是群聊消息
-	Sender      SenderBase  `json:"sender"`      // 发送者
-	Message     string      `json:"message"`     // 消息内容
-	RawId       interface{} `json:"rawId"`       // 原始信息ID，用于处理撤回等
-	Platform    string      `json:"platform"`    // 当前平台
+	Time        int64       `json:"time" jsbind:"time"`               // 发送时间
+	MessageType string      `json:"messageType" jsbind:"messageType"` // group private
+	GroupId     string      `json:"groupId" jsbind:"groupId"`         // 群号，如果是群聊消息
+	Sender      SenderBase  `json:"sender" jsbind:"sender"`           // 发送者
+	Message     string      `json:"message" jsbind:"message"`         // 消息内容
+	RawId       interface{} `json:"rawId" jsbind:"rawId"`             // 原始信息ID，用于处理撤回等
+	Platform    string      `json:"platform" jsbind:"platform"`       // 当前平台
 	TmpUid      string      `json:"-" yaml:"-"`
 }
 
 // GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
-	Name                string `yaml:"name"` // 玩家昵称
-	UserId              string `yaml:"userId"`
-	InGroup             bool   `yaml:"inGroup"`             // 是否在群内，有时一个人走了，信息还暂时残留
-	LastCommandTime     int64  `yaml:"lastCommandTime"`     // 上次发送指令时间
-	AutoSetNameTemplate string `yaml:"autoSetNameTemplate"` // 名片模板
+	Name                string `yaml:"name" jsbind:"name"` // 玩家昵称
+	UserId              string `yaml:"userId" jsbind:"userId"`
+	InGroup             bool   `yaml:"inGroup"`                                          // 是否在群内，有时一个人走了，信息还暂时残留
+	LastCommandTime     int64  `yaml:"lastCommandTime" jsbind:"lastCommandTime"`         // 上次发送指令时间
+	AutoSetNameTemplate string `yaml:"autoSetNameTemplate" jsbind:"autoSetNameTemplate"` // 名片模板
 
 	// level int 权限
 	DiceSideNum  int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
@@ -56,34 +56,34 @@ type GroupPlayerInfo struct {
 }
 
 type GroupInfo struct {
-	Active           bool                        `json:"active" yaml:"active"`           // 是否在群内开启 - 过渡为象征意义
-	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList,flow" json:"-"` // 当前群开启的扩展列表
-	Players          map[string]*GroupPlayerInfo `yaml:"players" json:"-"`               // 群员角色数据
-	NotInGroup       bool                        `yaml:"notInGroup" json:"notInGroup"`   // 是否已经离开群 - 准备处理单骰多号情况
+	Active           bool                        `json:"active" yaml:"active" jsbind:"active"` // 是否在群内开启 - 过渡为象征意义
+	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList,flow" json:"-"`       // 当前群开启的扩展列表
+	Players          map[string]*GroupPlayerInfo `yaml:"players" json:"-"`                     // 群员角色数据
+	NotInGroup       bool                        `yaml:"notInGroup" json:"notInGroup"`         // 是否已经离开群 - 准备处理单骰多号情况
 
-	GroupId       string          `yaml:"groupId" json:"groupId"`
-	GroupName     string          `yaml:"groupName" json:"groupName"`
-	ActiveDiceIds map[string]bool `yaml:"diceIds,flow" json:"diceIds"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
-	BotList       map[string]bool `yaml:"botList,flow" json:"botList"` // 其他骰子列表
-	DiceSideNum   int64           `yaml:"diceSideNum" json:"diceSideNum"`
+	GroupId       string          `yaml:"groupId" json:"groupId" jsbind:"groupId"`
+	GroupName     string          `yaml:"groupName" json:"groupName" jsbind:"groupName"`
+	ActiveDiceIds map[string]bool `yaml:"diceIds,flow" json:"diceIds"`    // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	BotList       map[string]bool `yaml:"botList,flow" json:"botList"`    // 其他骰子列表
+	DiceSideNum   int64           `yaml:"diceSideNum" json:"diceSideNum"` // 以后可能会支持 1d4 这种默认面数，暂不开放给js
 
 	//ValueMap     map[string]*VMValue `yaml:"-"`
 	ValueMap     lockfree.HashMap `yaml:"-" json:"-"`
 	HelpPackages []string         `yaml:"-" json:"helpPackages"`
-	CocRuleIndex int              `yaml:"cocRuleIndex" json:"cocRuleIndex"`
-	LogCurName   string           `yaml:"logCurFile" json:"logCurName"`
-	LogOn        bool             `yaml:"logOn" json:"logOn"`
+	CocRuleIndex int              `yaml:"cocRuleIndex" json:"cocRuleIndex" jsbind:"cocRuleIndex"`
+	LogCurName   string           `yaml:"logCurFile" json:"logCurName" jsbind:"logCurName"`
+	LogOn        bool             `yaml:"logOn" json:"logOn" jsbind:"logOn"`
 
-	QuitMarkAutoClean   bool   `yaml:"-" json:"-"`                                 // 自动清群 - 播报，即将自动退出群组
-	QuitMarkMaster      bool   `yaml:"-" json:"-"`                                 // 骰主命令退群 - 播报，即将自动退出群组
-	RecentCommandTime   int64  `yaml:"recentCommandTime" json:"recentCommandTime"` // 最近一次发送有效指令的时间
-	ShowGroupWelcome    bool   `yaml:"showGroupWelcome" json:"showGroupWelcome"`   // 是否迎新
-	GroupWelcomeMessage string `yaml:"groupWelcomeMessage" json:"groupWelcomeMessage"`
+	QuitMarkAutoClean   bool   `yaml:"-" json:"-"`                                                            // 自动清群 - 播报，即将自动退出群组
+	QuitMarkMaster      bool   `yaml:"-" json:"-"`                                                            // 骰主命令退群 - 播报，即将自动退出群组
+	RecentCommandTime   int64  `yaml:"recentCommandTime" json:"recentCommandTime" jsbind:"recentCommandTime"` // 最近一次发送有效指令的时间
+	ShowGroupWelcome    bool   `yaml:"showGroupWelcome" json:"showGroupWelcome" jsbind:"showGroupWelcome"`    // 是否迎新
+	GroupWelcomeMessage string `yaml:"groupWelcomeMessage" json:"groupWelcomeMessage" jsbind:"showGroupWelcome"`
 	//FirstSpeechMade     bool   `yaml:"firstSpeechMade"` // 是否做过进群发言
 	LastCustomReplyTime float64 `yaml:"-" json:"-"` // 上次自定义回复时间
 
-	EnteredTime  int64  `yaml:"enteredTime" json:"enteredTime"`   // 入群时间
-	InviteUserId string `yaml:"inviteUserId" json:"inviteUserId"` // 邀请人
+	EnteredTime  int64  `yaml:"enteredTime" json:"enteredTime" jsbind:"enteredTime"`    // 入群时间
+	InviteUserId string `yaml:"inviteUserId" json:"inviteUserId" jsbind:"inviteUserId"` // 邀请人
 	// 仅用于http接口
 	TmpPlayerNum int64    `yaml:"-" json:"tmpPlayerNum"`
 	TmpExtList   []string `yaml:"-" json:"tmpExtList"`
@@ -238,19 +238,19 @@ type IMSession struct {
 
 type MsgContext struct {
 	MessageType string
-	Group       *GroupInfo       // 当前群信息
-	Player      *GroupPlayerInfo // 当前群的玩家数据
+	Group       *GroupInfo       `jsbind:"group"`  // 当前群信息
+	Player      *GroupPlayerInfo `jsbind:"player"` // 当前群的玩家数据
 
 	EndPoint        *EndPointInfo // 对应的Endpoint
 	Session         *IMSession    // 对应的IMSession
 	Dice            *Dice         // 对应的 Dice
-	IsCurGroupBotOn bool          // 在群内是否bot on
+	IsCurGroupBotOn bool          `jsbind:"isCurGroupBotOn"` // 在群内是否bot on
 
-	IsPrivate       bool        // 是否私聊
+	IsPrivate       bool        `jsbind:"isCurGroupBotOn"` // 是否私聊
 	CommandId       uint64      // 指令ID
 	CommandHideFlag string      // 暗骰标记
 	CommandInfo     interface{} // 命令信息
-	PrivilegeLevel  int         // 权限等级 40邀请者 50管理 60群主 100master
+	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 40邀请者 50管理 60群主 100master
 	delegateText    string      // 代骰附加文本
 
 	deckDepth int                                         // 抽牌递归深度
