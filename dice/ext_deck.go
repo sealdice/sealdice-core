@@ -347,9 +347,9 @@ func RegisterBuiltinExtDeck(d *Dice) {
 			}
 
 			cmdArgs.ChopPrefixToArgsWith("list", "help", "reload", "search", "keys", "desc")
-			deckName, exists := cmdArgs.GetArgN(1)
+			deckName := cmdArgs.GetArgN(1)
 
-			if exists {
+			if deckName != "" {
 				if strings.EqualFold(deckName, "list") {
 					text := "载入并开启的牌堆:\n"
 					for _, i := range ctx.Dice.DeckList {
@@ -362,7 +362,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					ReplyToSender(ctx, msg, text)
 				} else if strings.EqualFold(deckName, "desc") {
 					// 查看详情
-					text, _ := cmdArgs.GetArgN(2)
+					text := cmdArgs.GetArgN(2)
 					var lst DeckInfoCommandList
 					for _, i := range ctx.Dice.DeckList {
 						if i.Enable {
@@ -398,11 +398,11 @@ func RegisterBuiltinExtDeck(d *Dice) {
 				} else if strings.EqualFold(deckName, "help") {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				} else if strings.EqualFold(deckName, "keys") {
-					specified, specifiedExists := cmdArgs.GetArgN(2)
+					specified := cmdArgs.GetArgN(2)
 					text := "牌组关键字列表:\n"
 					keys := ""
 
-					if !specifiedExists && ctx.Dice.CustomDrawKeysTextEnable {
+					if specified == "" && ctx.Dice.CustomDrawKeysTextEnable {
 						keys += ctx.Dice.CustomDrawKeysText + "/" // 注: 最后一个字符会被剔除，故额外添加一个
 					} else {
 						for _, i := range ctx.Dice.DeckList {
@@ -437,8 +437,8 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						ReplyToSender(ctx, msg, "牌堆已经重新装载")
 					}
 				} else if strings.EqualFold(deckName, "search") {
-					text, exists := cmdArgs.GetArgN(2)
-					if exists {
+					text := cmdArgs.GetArgN(2)
+					if text != "" {
 						var lst DeckInfoCommandList
 						for _, i := range ctx.Dice.DeckList {
 							if i.Enable {

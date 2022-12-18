@@ -124,10 +124,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 	// 获取logname，第一项是默认名字
 	getLogName := func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, index int) (string, string) {
 		bakLogCurName := ctx.Group.LogCurName
-		if newName, exists := cmdArgs.GetArgN(index); exists {
-			if exists {
-				return bakLogCurName, newName
-			}
+		if newName := cmdArgs.GetArgN(index); newName != "" {
+			return bakLogCurName, newName
 		}
 		return bakLogCurName, bakLogCurName
 	}
@@ -180,7 +178,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				name, _ := cmdArgs.GetArgN(2)
+				name := cmdArgs.GetArgN(2)
 				if name == "" {
 					name = group.LogCurName
 				}
@@ -219,7 +217,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
-				name, _ := cmdArgs.GetArgN(2)
+				name := cmdArgs.GetArgN(2)
 				if name != "" {
 					if name == group.LogCurName {
 						ReplyToSender(ctx, msg, "不能删除正在进行的log，请用log new开启新的，或log end结束后再行删除")
@@ -245,10 +243,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 
 				bakLogCurName := group.LogCurName
-				if newName, exists := cmdArgs.GetArgN(3); exists {
-					if exists {
-						group.LogCurName = newName
-					}
+				if newName := cmdArgs.GetArgN(3); newName != "" {
+					group.LogCurName = newName
 				}
 
 				if group.LogCurName != "" {
@@ -265,10 +261,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "get") {
 				bakLogCurName := group.LogCurName
-				if newName, exists := cmdArgs.GetArgN(2); exists {
-					if exists {
-						group.LogCurName = newName
-					}
+				if newName := cmdArgs.GetArgN(2); newName != "" {
+					group.LogCurName = newName
 				}
 
 				if group.LogCurName != "" {
@@ -335,7 +329,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				name, _ := cmdArgs.GetArgN(2)
+				name := cmdArgs.GetArgN(2)
 
 				if group.LogCurName != "" && name == "" {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
@@ -406,7 +400,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		ShortHelp: helpStat,
 		Help:      "查看统计:\n" + helpStat,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			switch strings.ToLower(val) {
 			case "log":
 				group := ctx.Group
@@ -461,7 +455,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		ShortHelp: helpOb,
 		Help:      "观众指令:\n" + helpOb,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			switch strings.ToLower(val) {
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -494,7 +488,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		CheckCurrentBotOn:  true,
 		CheckMentionOthers: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			switch strings.ToLower(val) {
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -626,7 +620,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 }
 
 func getSpecifiedGroupIfMaster(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) (*GroupInfo, bool) {
-	if data, exists := cmdArgs.GetArgN(2); exists {
+	if data := cmdArgs.GetArgN(2); data != "" {
 		if ctx.PrivilegeLevel < 100 {
 			ReplyToSender(ctx, msg, "你并非Master，请检查指令输入是否正确")
 			return nil, true

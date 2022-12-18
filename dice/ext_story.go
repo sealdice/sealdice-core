@@ -19,9 +19,9 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 	}
 	cmdArgs.ChopPrefixToArgsWith(chops...)
 
-	numText, exists := cmdArgs.GetArgN(2)
+	numText := cmdArgs.GetArgN(2)
 	var num int64
-	if exists {
+	if numText != "" {
 		num, _ = strconv.ParseInt(numText, 10, 64)
 	}
 	if num == 0 {
@@ -217,16 +217,16 @@ func RegisterBuiltinStory(self *Dice) {
 				return ""
 			}
 
-			_val, _ := cmdArgs.GetArgN(1)
+			_val := cmdArgs.GetArgN(1)
 			val := strings.ToLower(_val)
 			switch val {
 			case "search", "find", "rec", "luck", "author":
-				keyword, _ := cmdArgs.GetArgN(2)
-				page, _ := cmdArgs.GetArgN(3)
+				keyword := cmdArgs.GetArgN(2)
+				page := cmdArgs.GetArgN(3)
 				isRec := false
 				if val == "luck" {
 					keyword = ""
-					page, _ = cmdArgs.GetArgN(2)
+					page = cmdArgs.GetArgN(2)
 					isRec = true
 				}
 				if val == "rec" {
@@ -234,7 +234,7 @@ func RegisterBuiltinStory(self *Dice) {
 				}
 				var author = ""
 				if val == "author" {
-					author, _ = cmdArgs.GetArgN(2)
+					author = cmdArgs.GetArgN(2)
 				}
 
 				thePage, _ := strconv.ParseInt(page, 10, 64)
@@ -272,7 +272,7 @@ func RegisterBuiltinStory(self *Dice) {
 				}
 
 			case "get":
-				page, _ := cmdArgs.GetArgN(2)
+				page := cmdArgs.GetArgN(2)
 				text := getDetail(page)
 				if text != "" {
 					ReplyToSender(ctx, msg, text)

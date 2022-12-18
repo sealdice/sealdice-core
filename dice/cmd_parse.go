@@ -8,15 +8,15 @@ import (
 )
 
 type Kwarg struct {
-	Name        string `json:"Name"`
-	ValueExists bool   `json:"valueExists"`
-	Value       string `json:"value"`
-	AsBool      bool   `json:"asBool"`
+	Name        string `json:"name" jsbind:"name"`
+	ValueExists bool   `json:"valueExists" jsbind:"valueExists"`
+	Value       string `json:"value" jsbind:"value"`
+	AsBool      bool   `json:"asBool" jsbind:"asBool"`
 }
 
 // [CQ:at,qq=22]
 type AtInfo struct {
-	UserId string `json:"user_id" jsbind:"userId"` // 忘了第一个为啥用user_id，但是目前没查清楚不敢改
+	UserId string `json:"userId" jsbind:"userId"`
 	//UID    string `json:"uid"`
 }
 
@@ -107,12 +107,12 @@ func (a *CmdArgs) ChopPrefixToArgsWith(ss ...string) bool {
 	return false
 }
 
-func (a *CmdArgs) GetArgN(n int) (string, bool) {
+func (a *CmdArgs) GetArgN(n int) string {
 	if len(a.Args) >= n {
-		return a.Args[n-1], true
+		return a.Args[n-1]
 	}
 
-	return "", false
+	return ""
 }
 
 func (a *CmdArgs) GetKwarg(s string) *Kwarg {
@@ -127,8 +127,8 @@ func (a *CmdArgs) GetKwarg(s string) *Kwarg {
 func (a *CmdArgs) GetRestArgsFrom(index int) string {
 	txt := []string{}
 	for i := index; i < len(a.Args)+1; i++ {
-		info, exists := a.GetArgN(i)
-		if exists {
+		info := a.GetArgN(i)
+		if info != "" {
 			txt = append(txt, info)
 		} else {
 			break
