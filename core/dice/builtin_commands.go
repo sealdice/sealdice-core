@@ -36,22 +36,22 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			getId := func() string {
 				if cmdArgs.IsArgEqual(2, "user") {
-					val, exists := cmdArgs.GetArgN(3)
-					if !exists {
+					val := cmdArgs.GetArgN(3)
+					if val == "" {
 						return ""
 					}
 					return FormatDiceId(ctx, val, false)
 				} else if cmdArgs.IsArgEqual(2, "group") {
-					val, exists := cmdArgs.GetArgN(3)
-					if !exists {
+					val := cmdArgs.GetArgN(3)
+					if val == "" {
 						return ""
 					}
 					return FormatDiceId(ctx, val, true)
 				}
-				ret, _ := cmdArgs.GetArgN(2)
+				ret := cmdArgs.GetArgN(2)
 				if !strings.Contains(ret, ":") {
 					// 如果不是这种格式，那么放弃
 					ret = ""
@@ -65,7 +65,7 @@ func (d *Dice) registerCoreCommands() {
 				if uid == "" {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
-				reason, _ := cmdArgs.GetArgN(4)
+				reason := cmdArgs.GetArgN(4)
 				if reason == "" {
 					reason = "骰主指令"
 				}
@@ -85,7 +85,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, fmt.Sprintf("找不到用户/群组"))
 				}
 			case "trust":
-				uid, _ := cmdArgs.GetArgN(2)
+				uid := cmdArgs.GetArgN(2)
 				if !strings.Contains(uid, ":") {
 					// 如果不是这种格式，那么放弃
 					uid = ""
@@ -98,13 +98,13 @@ func (d *Dice) registerCoreCommands() {
 				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入信任列表", uid))
 			case "list", "show":
 				// ban/warn/trust
-				extra, exists := cmdArgs.GetArgN(2)
+				extra := cmdArgs.GetArgN(2)
 				text := ""
 				_ = d.BanList.Map.Iterate(func(_k interface{}, _v interface{}) error {
 					v, ok := _v.(*BanListInfoItem)
 					if ok {
 						if v.Rank != BanRankNormal {
-							if exists {
+							if extra != "" {
 								if extra == "trust" && v.Rank == BanRankTrusted {
 									text += v.toText(d) + "\n"
 								}
@@ -160,7 +160,7 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			if id == "" {
-				if _id, exists := cmdArgs.GetArgN(1); exists {
+				if _id := cmdArgs.GetArgN(1); _id != "" {
 					_, err2 := strconv.ParseInt(_id, 10, 64)
 					if err2 == nil {
 						id = _id
@@ -179,7 +179,7 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			if _, exists := cmdArgs.GetArgN(1); exists {
+			if val := cmdArgs.GetArgN(1); val != "" {
 				numLimit := 4
 				numParam := cmdArgs.GetKwarg("num")
 				if numParam != nil {
@@ -253,7 +253,7 @@ func (d *Dice) registerCoreCommands() {
 		Help:      "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 
-			if arg, exists := cmdArgs.GetArgN(1); exists {
+			if arg := cmdArgs.GetArgN(1); arg != "" {
 				if strings.EqualFold(arg, "reload") {
 					if ctx.PrivilegeLevel < 100 {
 						ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
@@ -394,13 +394,13 @@ func (d *Dice) registerCoreCommands() {
 				if inGroup && !AtSomebodyButNotMe {
 					cmdArgs.ChopPrefixToArgsWith("on", "off")
 					matchNumber := func() (bool, bool) {
-						txt, exists := cmdArgs.GetArgN(2)
+						txt := cmdArgs.GetArgN(2)
 						if len(txt) >= 4 {
 							if strings.HasSuffix(ctx.EndPoint.UserId, txt) {
-								return true, exists
+								return true, txt != ""
 							}
 						}
-						return false, exists
+						return false, txt != ""
 					}
 
 					if len(cmdArgs.Args) >= 1 {
@@ -498,10 +498,10 @@ func (d *Dice) registerCoreCommands() {
 		Help:      "退群(映射到bot off):\n" + helpForDismiss,
 		Raw:       true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			rest, exists := cmdArgs.GetArgN(1)
+			rest := cmdArgs.GetArgN(1)
 			cmdArgs.Args = []string{"bye"}
 			cmdArgs.RawArgs = "bye " + cmdArgs.RawArgs
-			if exists {
+			if rest != "" {
 				cmdArgs.Args = append(cmdArgs.Args, rest)
 			}
 			return cmdBot.Solve(ctx, msg, cmdArgs)
@@ -557,7 +557,7 @@ func (d *Dice) registerCoreCommands() {
 					cmdArgs.GetKwarg("slience") != nil
 			}
 
-			subCmd, _ := cmdArgs.GetArgN(1)
+			subCmd := cmdArgs.GetArgN(1)
 			switch subCmd {
 			case "add":
 				allCount := 0
@@ -646,10 +646,10 @@ func (d *Dice) registerCoreCommands() {
 				pRequired = 100
 			}
 			if ctx.PrivilegeLevel < pRequired {
-				subCmd, _ := cmdArgs.GetArgN(1)
+				subCmd := cmdArgs.GetArgN(1)
 				if subCmd == "unlock" {
 					// 特殊解锁指令
-					code, _ := cmdArgs.GetArgN(2)
+					code := cmdArgs.GetArgN(2)
 					if ctx.Dice.UnlockCodeVerify(code) {
 						ctx.Dice.MasterClear()
 						ctx.Dice.MasterAdd(ctx.Player.UserId)
@@ -665,7 +665,7 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			subCmd, _ := cmdArgs.GetArgN(1)
+			subCmd := cmdArgs.GetArgN(1)
 			switch subCmd {
 			case "add":
 				newCount := 0
@@ -740,8 +740,8 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				code, exists := cmdArgs.GetArgN(2)
-				if exists {
+				code := cmdArgs.GetArgN(2)
+				if code != "" {
 					if code == updateCode && updateCode != "0000" {
 						ReplyToSender(ctx, msg, "开始下载新版本")
 						go func() {
@@ -786,8 +786,8 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				code, exists := cmdArgs.GetArgN(2)
-				if exists {
+				code := cmdArgs.GetArgN(2)
+				if code != "" {
 					if code == updateCode && updateCode != "0000" {
 						ReplyToSender(ctx, msg, "3秒后开始重启")
 						time.Sleep(3 * time.Second)
@@ -826,12 +826,12 @@ func (d *Dice) registerCoreCommands() {
 			".send to <群组ID> 要说的话 // 举例. send to QQ-Group:12345 感谢留言\n" +
 			"> 指令.userid可以查看当前群的ID",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			if val == "to" {
 				if ctx.PrivilegeLevel >= 100 {
-					uid, exists := cmdArgs.GetArgN(2)
+					uid := cmdArgs.GetArgN(2)
 					txt := cmdArgs.GetRestArgsFrom(3)
-					if exists && strings.HasPrefix(uid, ctx.EndPoint.Platform) && txt != "" {
+					if uid != "" && strings.HasPrefix(uid, ctx.EndPoint.Platform) && txt != "" {
 						isGroup := strings.Contains(uid, "-Group:")
 						txt = fmt.Sprintf("本消息由骰主<%s>通过指令发送:\n", ctx.Player.Name) + txt
 						if isGroup {
@@ -1212,7 +1212,7 @@ func (d *Dice) registerCoreCommands() {
 		ShortHelp: helpNN,
 		Help:      "角色名设置:\n" + helpNN,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			switch val {
 			case "":
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_当前"))
@@ -1281,9 +1281,9 @@ func (d *Dice) registerCoreCommands() {
 				isSetGroup = false
 			}
 
-			arg1, exists := cmdArgs.GetArgN(1)
+			arg1 := cmdArgs.GetArgN(1)
 			modSwitch := false
-			if exists {
+			if arg1 != "" {
 				tipText := "\n提示:"
 				if strings.EqualFold(arg1, "coc") {
 					cmdArgs.Args[0] = "100"
@@ -1371,7 +1371,7 @@ func (d *Dice) registerCoreCommands() {
 			cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "group1", "grp1")
 
 			getNickname := func() string {
-				//name, _ := cmdArgs.GetArgN(2)
+				//name := cmdArgs.GetArgN(2)
 				name := cmdArgs.CleanArgsChopRest
 				if name == "" {
 					name = ctx.Player.Name
@@ -1449,7 +1449,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载失败_已绑定"))
 				}
 			} else if cmdArgs.IsArgEqual(1, "tag") {
-				name, _ := cmdArgs.GetArgN(2)
+				name := cmdArgs.GetArgN(2)
 				VarSetValueStr(ctx, "$t角色名", name)
 				if name != "" {
 					ctx.ChUnbindCur() // 先移除绑定
@@ -1472,11 +1472,11 @@ func (d *Dice) registerCoreCommands() {
 					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				}
 			} else if cmdArgs.IsArgEqual(1, "group1", "grp1") {
-				name, _ := cmdArgs.GetArgN(2)
+				name := cmdArgs.GetArgN(2)
 				lst := ctx.ChBindGetList(name)
 				ReplyToSender(ctx, msg, "卡片绑定: "+strings.Join(lst, " "))
 			} else if cmdArgs.IsArgEqual(1, "untagAll") {
-				name, _ := cmdArgs.GetArgN(2)
+				name := cmdArgs.GetArgN(2)
 				lst := ctx.ChUnbind(name)
 
 				for _, i := range lst {
@@ -1612,7 +1612,7 @@ func (d *Dice) registerCoreCommands() {
 		Help:      "打开或关闭自定义回复:\n.reply on/off",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			switch val {
 			case "on":
 				onText := "开"

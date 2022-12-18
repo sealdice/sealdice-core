@@ -158,40 +158,40 @@ var gugu = []string{
 }
 
 var emokloreAttrParent = map[string][]string{
-	"检索":   []string{"知力"},
-	"洞察":   []string{"知力"},
-	"识路":   []string{"灵巧", "五感"},
-	"直觉":   []string{"精神", "运势"},
-	"鉴定":   []string{"五感", "知力"},
-	"观察":   []string{"五感"},
-	"聆听":   []string{"五感"},
-	"鉴毒":   []string{"五感"},
+	"检索":     []string{"知力"},
+	"洞察":     []string{"知力"},
+	"识路":     []string{"灵巧", "五感"},
+	"直觉":     []string{"精神", "运势"},
+	"鉴定":     []string{"五感", "知力"},
+	"观察":     []string{"五感"},
+	"聆听":     []string{"五感"},
+	"鉴毒":     []string{"五感"},
 	"危机察觉": []string{"五感", "运势"},
-	"灵感":   []string{"精神", "运势"},
-	"社交术":  []string{"社会"},
-	"辩论":   []string{"知力"},
-	"心理":   []string{"精神", "知力"},
-	"魅惑":   []string{"魅力"},
+	"灵感":     []string{"精神", "运势"},
+	"社交术":   []string{"社会"},
+	"辩论":     []string{"知力"},
+	"心理":     []string{"精神", "知力"},
+	"魅惑":     []string{"魅力"},
 	"专业知识": []string{"知力"},
-	"万事通":  []string{"五感", "社会"},
-	"业界":   []string{"社会", "魅力"},
-	"速度":   []string{"身体"},
-	"力量":   []string{"身体"},
+	"万事通":   []string{"五感", "社会"},
+	"业界":     []string{"社会", "魅力"},
+	"速度":     []string{"身体"},
+	"力量":     []string{"身体"},
 	"特技动作": []string{"身体", "灵巧"},
-	"潜泳":   []string{"身体"},
-	"武术":   []string{"身体"},
-	"奥义":   []string{"身体", "精神", "灵巧"},
-	"射击":   []string{"灵巧", "五感"},
-	"耐久":   []string{"身体"},
-	"毅力":   []string{"精神"},
-	"医术":   []string{"灵巧", "知力"},
-	"技巧":   []string{"灵巧"},
-	"艺术":   []string{"灵巧", "精神", "五感"},
-	"操纵":   []string{"灵巧", "五感", "知力"},
-	"暗号":   []string{"知力"},
-	"电脑":   []string{"知力"},
-	"隐匿":   []string{"灵巧", "社会", "运势"},
-	"强运":   []string{"运势"},
+	"潜泳":     []string{"身体"},
+	"武术":     []string{"身体"},
+	"奥义":     []string{"身体", "精神", "灵巧"},
+	"射击":     []string{"灵巧", "五感"},
+	"耐久":     []string{"身体"},
+	"毅力":     []string{"精神"},
+	"医术":     []string{"灵巧", "知力"},
+	"技巧":     []string{"灵巧"},
+	"艺术":     []string{"灵巧", "精神", "五感"},
+	"操纵":     []string{"灵巧", "五感", "知力"},
+	"暗号":     []string{"知力"},
+	"电脑":     []string{"知力"},
+	"隐匿":     []string{"灵巧", "社会", "运势"},
+	"强运":     []string{"运势"},
 }
 
 var emokloreAttrParent2 = map[string][]string{
@@ -268,7 +268,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"> 如果超过半数的骰子投出了一被称之为失误\n" +
 			"> 在投出失误的同时没能骰出至少一个成功度被称之为严重失误",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			num, err := strconv.ParseInt(val, 10, 64)
 
 			if err == nil && num > 0 {
@@ -509,7 +509,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		Help:      "共鸣性怪异制卡指令:\n" + helpEkGen,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 
-			n, _ := cmdArgs.GetArgN(1)
+			n := cmdArgs.GetArgN(1)
 			val, err := strconv.ParseInt(n, 10, 64)
 			if err != nil {
 				// 数量不存在时，视为1次
@@ -652,8 +652,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: textHelp,
 		Help:      "文本模板指令:\n" + textHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			_, exists := cmdArgs.GetArgN(1)
-			if exists {
+			val := cmdArgs.GetArgN(1)
+			if val != "" {
 				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 				r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{})
 
@@ -708,7 +708,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 		CmdMap: CmdMapCls{
 			"gugu":  &cmdGugu,
-			"咕咕":    &cmdGugu,
+			"咕咕":  &cmdGugu,
 			"jrrp":  &cmdJrrp,
 			"text":  &cmdText,
 			"rsr":   &cmdRsr,
