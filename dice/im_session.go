@@ -78,7 +78,7 @@ type GroupInfo struct {
 	QuitMarkMaster      bool   `yaml:"-" json:"-"`                                                            // 骰主命令退群 - 播报，即将自动退出群组
 	RecentCommandTime   int64  `yaml:"recentCommandTime" json:"recentCommandTime" jsbind:"recentCommandTime"` // 最近一次发送有效指令的时间
 	ShowGroupWelcome    bool   `yaml:"showGroupWelcome" json:"showGroupWelcome" jsbind:"showGroupWelcome"`    // 是否迎新
-	GroupWelcomeMessage string `yaml:"groupWelcomeMessage" json:"groupWelcomeMessage" jsbind:"showGroupWelcome"`
+	GroupWelcomeMessage string `yaml:"groupWelcomeMessage" json:"groupWelcomeMessage" jsbind:"groupWelcomeMessage"`
 	//FirstSpeechMade     bool   `yaml:"firstSpeechMade"` // 是否做过进群发言
 	LastCustomReplyTime float64 `yaml:"-" json:"-"` // 上次自定义回复时间
 
@@ -246,7 +246,7 @@ type MsgContext struct {
 	Dice            *Dice         // 对应的 Dice
 	IsCurGroupBotOn bool          `jsbind:"isCurGroupBotOn"` // 在群内是否bot on
 
-	IsPrivate       bool        `jsbind:"isCurGroupBotOn"` // 是否私聊
+	IsPrivate       bool        `jsbind:"isPrivate"` // 是否私聊
 	CommandId       uint64      // 指令ID
 	CommandHideFlag string      // 暗骰标记
 	CommandInfo     interface{} // 命令信息

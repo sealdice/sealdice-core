@@ -253,7 +253,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 			mctx.Player.TempValueAlias = &ac.Alias
 			chVars, _ := mctx.ChVarsGet()
@@ -329,7 +329,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				var limit int64
 
 				if len(cmdArgs.Args) >= 2 {
-					arg2, _ := cmdArgs.GetArgN(2)
+					arg2 := cmdArgs.GetArgN(2)
 					_limit, err := strconv.ParseInt(arg2, 10, 64)
 					if err == nil {
 						limit = _limit
@@ -718,7 +718,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			mctx.delegateText = ctx.delegateText
 			mctx.Player.TempValueAlias = &ac.Alias
 
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			switch val {
 			case "", "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -788,7 +788,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 			chVars, _ := mctx.ChVarsGet()
@@ -1120,7 +1120,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("init", "set")
 
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 			switch val {
@@ -1244,7 +1244,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Help:          "DND5E 法术位使用(.cast):\n" + helpCast,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 			switch val {
@@ -1292,7 +1292,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Help:          "DND5E 长休:\n" + helpLongRest,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			mctx, _ := GetCtxProxyFirst(ctx, cmdArgs, true)
 
 			switch val {
@@ -1368,7 +1368,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			val, _ := cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			switch val {
 			case "stat":
 				a, b := deathSaving(mctx, 0, 0)
@@ -1458,7 +1458,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Help:      "DND5E制卡指令:\n" + helpDnd,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			isMode2 := cmdArgs.Command == "dndx"
-			n, _ := cmdArgs.GetArgN(1)
+			n := cmdArgs.GetArgN(1)
 			val, err := strconv.ParseInt(n, 10, 64)
 			if err != nil {
 				// 数量不存在时，视为1次
@@ -1689,7 +1689,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					".init help // 显示本帮助",
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					cmdArgs.ChopPrefixToArgsWith("del", "set", "rm")
-					n, _ := cmdArgs.GetArgN(1)
+					n := cmdArgs.GetArgN(1)
 					switch n {
 					case "", "list":
 						textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
@@ -1732,8 +1732,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						dndSetRiMapList(ctx, riMap)
 						ReplyToSender(ctx, msg, textOut)
 					case "set":
-						name, exists := cmdArgs.GetArgN(2)
-						_, exists2 := cmdArgs.GetArgN(3)
+						name := cmdArgs.GetArgN(2)
+						exists := name != ""
+						arg3 := cmdArgs.GetArgN(3)
+						exists2 := arg3 != ""
 						if !exists || !exists2 {
 							ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
 							return CmdExecuteResult{Matched: true, Solved: true}
@@ -1778,14 +1780,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"spellslots": cmdSpellSlot,
 			"ss":         cmdSpellSlot,
 			"dss":        cmdSpellSlot,
-			"法术位":        cmdSpellSlot,
+			"法术位":     cmdSpellSlot,
 			"cast":       cmdCast,
 			"dcast":      cmdCast,
-			"长休":         cmdLongRest,
+			"长休":       cmdLongRest,
 			"longrest":   cmdLongRest,
 			"dlongrest":  cmdLongRest,
 			"ds":         cmdDeathSavingThrow,
-			"死亡豁免":       cmdDeathSavingThrow,
+			"死亡豁免":   cmdDeathSavingThrow,
 		},
 	}
 
