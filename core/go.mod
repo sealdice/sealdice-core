@@ -21,7 +21,7 @@ require (
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959 // indirect
 	github.com/gen2brain/beeep v0.0.0-20210529141713-5586760f0cc1
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
-	github.com/golang/snappy v0.0.2 // indirect
+	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/gopherjs/gopherjs v0.0.0-20220221023154-0b2280d3ff96 // indirect
 	github.com/grokify/html-strip-tags-go v0.0.1
@@ -40,6 +40,7 @@ require (
 	github.com/olebedev/gojax v0.0.0-20170318114811-bb153be84336
 	github.com/otiai10/copy v1.7.0
 	github.com/phuslu/log v1.0.83
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/poy/onpar v1.1.2 // indirect
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sacOO7/gowebsocket v0.0.0-20210515122958-9396f1a71e23
@@ -48,7 +49,7 @@ require (
 	github.com/xuri/excelize/v2 v2.6.0
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/zap v1.21.0
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
+	golang.org/x/sys v0.0.0-20221010170243-090e33056c14
 	golang.org/x/text v0.3.7
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
