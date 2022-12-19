@@ -21,7 +21,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.0.2 v20221212-dev+discord+kook+js"
+var VERSION = "1.0.2 v20221220-dev+discord+kook+js"
 var VERSION_CODE = int64(1000200) // 991404
 var APP_BRANCH = ""
 
@@ -162,11 +162,13 @@ type Dice struct {
 	Cron             *cron.Cron           `yaml:"-" json:"-"`
 	aliveNoticeEntry cron.EntryID         `yaml:"-" json:"-"`
 	//JsVM             *goja.Runtime          `yaml:"-" json:"-"`
-	JsLock         sync.Mutex             `yaml:"-" json:"-"`
-	JsPrinter      *PrinterFunc           `yaml:"-" json:"-"`
-	JsRequire      *require.RequireModule `yaml:"-" json:"-"`
-	JsLoop         *eventloop.EventLoop   `yaml:"-" json:"-"`
-	RunAfterLoaded []func()               `yaml:"-" json:"-"`
+	JsLock       sync.Mutex             `yaml:"-" json:"-"`
+	JsPrinter    *PrinterFunc           `yaml:"-" json:"-"`
+	JsRequire    *require.RequireModule `yaml:"-" json:"-"`
+	JsLoop       *eventloop.EventLoop   `yaml:"-" json:"-"`
+	JsScriptList []*JsScriptInfo        `yaml:"-" json:"-"`
+
+	RunAfterLoaded []func() `yaml:"-" json:"-"`
 
 	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable"` // 开启日志数量提示
 	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount"`  // 日志数量提示阈值，默认500
