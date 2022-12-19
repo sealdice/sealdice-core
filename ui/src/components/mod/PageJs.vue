@@ -69,7 +69,7 @@ const defaultText = [
     "  cmdSeal.name = 'seal';",
     "  cmdSeal.help = '召唤一只海豹，可用.seal <名字> 命名';",
     "  cmdSeal.solve = (ctx, msg, cmdArgs) => {",
-    "    let [val, _] = cmdArgs.getArgN(1)",
+    "    let val = cmdArgs.getArgN(1);",
     "    switch (val) {",
     "      case 'help': {",
     "        const ret = seal.ext.newCmdExecuteResult(true);",
@@ -138,11 +138,25 @@ const defaultText = [
     "",
     "// 返回值为bool，代表成功或失败，失败一般是name或index重复",
     "seal.coc.registerRule(rule)",
+    "",
+    "",
+    "// 不支持 async/await 但支持promise",
+    "// 推荐使用ts编译到js使用",
+    "console.log('\\n发送网络请求:')",
+    "fetch('https://jsonplaceholder.typicode.com/users').then((resp) => {",
+    "  resp.json().then((users) => {",
+    "    for (let i of users.slice(0, 3)) {",
+    "      console.log(i.name);",
+    "    }",
+    "  });",
+    "})",
+    "console.log('网络请求文本可能延迟出现，会在日志界面显示。');",
     ""
 ]
 
 /** 执行指令 */
 const doExecute = async () => {
+  jsLines.value = [];
   const txt = editor.state.doc.toString();
   const data = await store.jsExec(txt);
 
