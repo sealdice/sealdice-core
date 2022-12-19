@@ -49,6 +49,8 @@ func (d *Dice) JsInit() {
 	}
 	// 清理coc扩展规则
 	d.CocExtraRules = map[int]*CocRuleInfo{}
+	// 清理脚本列表
+	d.JsScriptList = []*JsScriptInfo{}
 
 	// 重建js vm
 	if d.JsLoop != nil {
@@ -172,11 +174,43 @@ func (d *Dice) JsLoadScripts() {
 	filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
 		if filepath.Ext(path) == ".js" {
 			d.Logger.Info("正在读取脚本: ", path)
-			_, err := d.JsRequire.Require("./" + path)
-			if err != nil {
-				d.Logger.Info("读取脚本失败: ", err.Error())
-			}
+			d.JsLoadScriptRaw("./"+path, info)
 		}
 		return nil
 	})
+}
+
+type JsScriptInfo struct {
+	/** 名称 */
+	Name string
+	/** 版本 */
+	Version string
+	/** 作者 */
+	Author string
+	/** 许可协议 */
+	License string
+	/** 网址 */
+	Website string
+	/** 详细描述 */
+	Desc string
+	/** 所需权限 */
+	Grant []string
+	/** 更新时间 */
+	UpdateTime int64
+
+	/** 安装时间 - 文件创建时间 */
+	InstallTime int64
+}
+
+func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
+	// TODO: 读取文件内容填空，类似油猴脚本那种形式
+	jsInfo := &JsScriptInfo{
+		Name:        info.Name(),
+		InstallTime: info.ModTime().UnixMicro(),
+	}
+	d.JsScriptList = append(d.JsScriptList, jsInfo)
+	_, err := d.JsRequire.Require(s)
+	if err != nil {
+		d.Logger.Info("读取脚本失败: ", err.Error())
+	}
 }
