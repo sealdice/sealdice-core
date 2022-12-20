@@ -201,7 +201,7 @@ func ReadCardType(mctx *MsgContext, curType string) string {
 }
 
 // GetCtxProxyFirst 等着后续再加 @名字 版本，以及 @team 版本 // pos int
-func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs, setTempVar bool) (*MsgContext, bool) {
+func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs, setTempVar bool) *MsgContext {
 	for _, i := range cmdArgs.At {
 		if i.UserId == ctx.EndPoint.UserId {
 			continue
@@ -234,12 +234,12 @@ func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs, setTempVar bool) (*MsgC
 
 		if mctx.Player.UserId == ctx.Player.UserId {
 			// 并非代骰
-			ctx.delegateText = ""
+			ctx.DelegateText = ""
 		}
-		return mctx, exists
+		return mctx
 	}
-	ctx.delegateText = ""
-	return ctx, false
+	ctx.DelegateText = ""
+	return ctx
 }
 
 func UserIdExtract(uid string) string {

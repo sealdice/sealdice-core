@@ -251,7 +251,7 @@ type MsgContext struct {
 	CommandHideFlag string      // 暗骰标记
 	CommandInfo     interface{} // 命令信息
 	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 40邀请者 50管理 60群主 100master
-	delegateText    string      // 代骰附加文本
+	DelegateText    string      `jsbind:"delegateText"`   // 代骰附加文本
 
 	deckDepth int                                         // 抽牌递归深度
 	DeckPools map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
@@ -633,7 +633,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 				if item.AllowDelegate {
 					// 允许代骰时，发一句话
-					ctx.delegateText = fmt.Sprintf("由<%s>代骰:\n", ctx.Player.Name)
+					ctx.DelegateText = fmt.Sprintf("由<%s>代骰:\n", ctx.Player.Name)
 				} else {
 					// 如果其他人被@了就不管
 					// 注: 如果被@的对象在botlist列表，那么不会走到这一步
