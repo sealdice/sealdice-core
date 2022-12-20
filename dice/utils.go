@@ -200,8 +200,13 @@ func ReadCardType(mctx *MsgContext, curType string) string {
 	return extra
 }
 
-// GetCtxProxyFirst 等着后续再加 @名字 版本，以及 @team 版本 // pos int
-func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs, setTempVar bool) *MsgContext {
+// GetCtxProxyFirst 第三个参数是否取消再观察一下
+func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs) *MsgContext {
+	return GetCtxProxyFirstRaw(ctx, cmdArgs, true)
+}
+
+// GetCtxProxyFirstRaw 等着后续再加 @名字 版本，以及 @team 版本 // pos int
+func GetCtxProxyFirstRaw(ctx *MsgContext, cmdArgs *CmdArgs, setTempVar bool) *MsgContext {
 	for _, i := range cmdArgs.At {
 		if i.UserId == ctx.EndPoint.UserId {
 			continue
