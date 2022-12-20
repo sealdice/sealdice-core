@@ -396,7 +396,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if len(cmdArgs.Args) >= 1 {
-				mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+				mctx := GetCtxProxyFirst(ctx, cmdArgs)
 				mctx.DelegateText = ctx.DelegateText
 				restText := cmdArgs.CleanArgs
 
@@ -874,7 +874,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			// .st (<Name>)
 			// .st (<Name>)+-<表达式>
 			if true { // 这里就不改结构了，慌
-				mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+				mctx := GetCtxProxyFirst(ctx, cmdArgs)
 				cmdArgs.ChopPrefixToArgsWith("help", "del", "rm", "show", "list")
 
 				if len(cmdArgs.Args) == 0 || cmdArgs.IsArgEqual(1, "help") {
@@ -1386,7 +1386,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			if len(cmdArgs.Args) == 0 {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			mctx.Player.TempValueAlias = &ac.Alias
 
 			// 首先读取一个值

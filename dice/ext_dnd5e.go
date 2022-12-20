@@ -254,7 +254,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
 			val := cmdArgs.GetArgN(1)
-			mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			mctx.Player.TempValueAlias = &ac.Alias
 			chVars, _ := mctx.ChVarsGet()
 
@@ -714,7 +714,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Help:          "DND5E 检定:\n" + helpRc,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			mctx.DelegateText = ctx.DelegateText
 			mctx.Player.TempValueAlias = &ac.Alias
 
@@ -789,7 +789,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
 			val := cmdArgs.GetArgN(1)
-			mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 
 			chVars, _ := mctx.ChVarsGet()
 
@@ -1121,7 +1121,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			cmdArgs.ChopPrefixToArgsWith("init", "set")
 
 			val := cmdArgs.GetArgN(1)
-			mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 
 			switch val {
 			case "init":
@@ -1245,7 +1245,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
-			mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 
 			switch val {
 			default:
@@ -1293,7 +1293,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
-			mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 
 			switch val {
 			case "":
@@ -1332,7 +1332,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Help:          "DND5E 死亡豁免:\n" + helpDeathSavingThrow,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			mctx.Player.TempValueAlias = &ac.Alias
 
 			restText := cmdArgs.CleanArgs
@@ -1542,7 +1542,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				AllowDelegate: true,
 				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 					text := cmdArgs.CleanArgs
-					mctx := GetCtxProxyFirst(ctx, cmdArgs, true)
+					mctx := GetCtxProxyFirst(ctx, cmdArgs)
 
 					if cmdArgs.IsArgEqual(1, "help") {
 						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -1780,14 +1780,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"spellslots": cmdSpellSlot,
 			"ss":         cmdSpellSlot,
 			"dss":        cmdSpellSlot,
-			"法术位":        cmdSpellSlot,
+			"法术位":     cmdSpellSlot,
 			"cast":       cmdCast,
 			"dcast":      cmdCast,
-			"长休":         cmdLongRest,
+			"长休":       cmdLongRest,
 			"longrest":   cmdLongRest,
 			"dlongrest":  cmdLongRest,
 			"ds":         cmdDeathSavingThrow,
-			"死亡豁免":       cmdDeathSavingThrow,
+			"死亡豁免":   cmdDeathSavingThrow,
 		},
 	}
 
