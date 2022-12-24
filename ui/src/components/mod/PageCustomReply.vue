@@ -77,7 +77,7 @@
     </div>
   </div>
 
-  <el-dialog v-model="dialogFormVisible" title="导入配置" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
+  <el-dialog v-model="dialogFormVisible" title="导入配置" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
     <!-- <template > -->
     <el-input placeholder="支持格式: 关键字/回复语" class="reply-text" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" v-model="configForImport"></el-input>
     <!-- </template> -->
@@ -90,7 +90,7 @@
     </template>
   </el-dialog>
 
-  <el-dialog v-model="dialogLicenseVisible" title="许可协议" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
+  <el-dialog v-model="dialogLicenseVisible" title="许可协议" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
   <pre style="white-space: pre-wrap;">尊敬的用户，欢迎您选择由木落等研发的海豹骰点核心（SealDice），在您使用自定义功能前，请务必仔细阅读使用须知，当您使用我们提供的服务时，即代表您已同意使用须知的内容。
 
 您需了解，海豹核心官方版只支持TRPG功能，娱乐功能定制化请自便，和海豹无关。

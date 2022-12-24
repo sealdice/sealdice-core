@@ -179,14 +179,14 @@
     :close-on-click-modal="false"
     :close-on-press-escape="false"
     :show-close="false"
-    custom-class="the-dialog"
+    class="the-dialog"
   >
     <h3>输入密码解锁</h3>
     <el-input v-model="password" type="password"></el-input>
     <el-button type="primary" style="padding: 0px 50px; margin-top: 1rem;" @click="doUnlock">确认</el-button>
   </el-dialog>
 
-  <el-dialog v-model="dialogLostConnectionVisible" title="主程序离线" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
+  <el-dialog v-model="dialogLostConnectionVisible" title="主程序离线" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
     <div>与主程序断开连接，请耐心等待连接恢复</div>
     <div>如果失去响应过久，请登录服务器处理</div>
   </el-dialog>
@@ -226,10 +226,13 @@ import {
 
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
-import { passwordHash } from "./utils";
-import { delay } from "lodash-es";
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+import { passwordHash } from "./utils"
+import { delay } from "lodash-es"
 
 dayjs.locale('zh-cn')
+dayjs.extend(relativeTime);
 
 const store = useStore()
 const password = ref('')

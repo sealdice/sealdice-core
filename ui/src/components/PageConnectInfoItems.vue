@@ -108,7 +108,7 @@
   </div>
 
   
-  <el-dialog v-model="dialogSetDataFormVisible" title="属性修改" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
+  <el-dialog v-model="dialogSetDataFormVisible" title="属性修改" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
     <el-form :model="form">
       <el-form-item label="类型" :label-width="formLabelWidth">
         <div>QQ账号</div>
@@ -136,7 +136,7 @@
     </template>
   </el-dialog>
 
-  <el-dialog v-model="dialogFormVisible" title="帐号登录" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
+  <el-dialog v-model="dialogFormVisible" title="帐号登录" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
     <template v-if="form.step === 1">
       <el-form :model="form">
         <el-form-item label="账号类型" :label-width="formLabelWidth">

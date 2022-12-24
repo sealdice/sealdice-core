@@ -115,7 +115,7 @@
     </el-col>
   </el-row>
 
-  <el-dialog v-model="dialogImportVisible" title="导入导出" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="true" :fullscreen="true" custom-class="the-dialog">
+  <el-dialog v-model="dialogImportVisible" title="导入导出" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="true" :fullscreen="true" class="the-dialog">
     <el-checkbox v-model="importOnlyCurrent">仅当前页面(勾选)/全部自定义文案</el-checkbox>
     <el-checkbox v-model="importImpact">紧凑</el-checkbox>
 

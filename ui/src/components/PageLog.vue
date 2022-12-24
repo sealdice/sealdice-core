@@ -52,7 +52,7 @@
     </el-table-column>
   </el-table>
 
-  <el-dialog v-model="upgradeDialogVisible" title="升级新版本" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="true" custom-class="the-dialog">
+  <el-dialog v-model="upgradeDialogVisible" title="升级新版本" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="true" class="the-dialog">
     <!-- <el-checkbox v-model="importOnlyCurrent">仅当前页面(勾选)/全部自定义文案</el-checkbox> -->
     <!-- <el-checkbox v-model="importImpact">紧凑</el-checkbox> -->
 

@@ -4,7 +4,7 @@
     <div>
       <div style="margin-top: 1rem">
         <el-upload
-          class="upload-demo"
+          class="upload"
           action=""
           multiple
           accept="application/json, .yaml, .yml, .deck"
@@ -24,6 +24,7 @@
 
         <!-- <el-button @click="doSave">上传牌堆(json/yaml/zip)</el-button> -->
         <el-button @click="doBackup">重新加载</el-button>
+        <el-button><el-link href="https://github.com/sealdice/draw" target="_blank">获取牌堆</el-link></el-button>
       </div>
     </div>
   </div>
@@ -85,8 +86,7 @@ const configGet = async () => {
   cfg.value = data
 }
 
-const fileList = ref<any[]>([
-])
+const fileList = ref<any[]>([])
 
 const doBackup = async () => {
   const ret = await store.deckReload()
@@ -163,6 +163,12 @@ onBeforeMount(async () => {
   & > span {
     margin-right: 1rem;
     // width: fit-content;
+  }
+}
+
+.upload {
+  > ul {
+    display: none;
   }
 }
 </style>

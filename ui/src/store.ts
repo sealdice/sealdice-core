@@ -349,8 +349,25 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    async jsList(): Promise<JsScriptInfo[]> {
+      return await apiFetch(urlPrefix+'/js/list', { method: 'GET', headers: {
+        token: this.token
+      }})
+    },
+    async jsUpload({ form }: any) {
+      const info = await backend.post(urlPrefix+'/js/upload', form)
+      return info as any
+    },
+    async jsDelete({ index }: any) {
+      const info = await backend.post(urlPrefix+'/js/delete', { index })
+      return info as any
+    },
     async jsReload() {
-      return await apiFetch(urlPrefix+'/js/reload')
+      return await apiFetch(urlPrefix+'/js/reload', {
+        headers: {
+          token: this.token
+        }
+      })
     },
     async jsExec(code: string) {
       return await apiFetch(urlPrefix+'/js/execute', {body: { value: code }}) as {

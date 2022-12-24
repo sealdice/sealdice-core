@@ -94,7 +94,7 @@
   </div>
   <el-button @click="dialogAddShow = true">添加</el-button>
 
-  <el-dialog v-model="dialogAddShow" title="添加用户/群组" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" custom-class="the-dialog">
+  <el-dialog v-model="dialogAddShow" title="添加用户/群组" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
     <div>
       <span>用户ID(必填):</span>
       <el-input v-model="addData.id" placeholder="必须为 QQ:12345 或 QQ-Group:12345 格式"></el-input>
