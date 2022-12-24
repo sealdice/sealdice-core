@@ -45,8 +45,13 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) error {
 		}
 
 		h := &zip.FileHeader{Name: fn, Method: zip.Deflate, Flags: 0x800}
-		fileWriter, _ := writer.CreateHeader(h)
-		//fileWriter, _ := writer.Create(fn)
+		fileWriter, err := writer.CreateHeader(h)
+		if err != nil {
+			if d != nil {
+				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+			}
+			return
+		}
 		fileWriter.Write(data)
 	}
 

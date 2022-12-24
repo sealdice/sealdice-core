@@ -599,6 +599,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	if ctx.Player != nil {
 		SetTempVars(ctx, msg.Sender.Nickname)
 		VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))
+		VarSetValueInt64(ctx, "$t轮数", int64(cmdArgs.SpecialExecuteTimes))
 	}
 
 	tryItemSolve := func(ext *ExtInfo, item *CmdItemInfo) bool {

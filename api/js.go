@@ -1,12 +1,14 @@
 package api
 
 import (
+	"fmt"
 	"github.com/dop251/goja"
 	"github.com/labstack/echo/v4"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sealdice-core/dice"
 	"strings"
 )
 
@@ -24,11 +26,6 @@ func jsExec(c echo.Context) error {
 	if err != nil {
 		return c.String(430, err.Error())
 	}
-
-	//myDice.JsLock.Lock()
-	//defer func() {
-	//	myDice.JsLock.Unlock()
-	//}()
 
 	source := "(function(exports, require, module) {" + v.Value + "\n})()"
 
@@ -60,6 +57,25 @@ func jsExec(c echo.Context) error {
 	})
 
 	return resp
+}
+
+func jsDelete(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := struct {
+		Index int `json:"index"`
+	}{}
+	err := c.Bind(&v)
+
+	if err == nil {
+		if v.Index >= 0 && v.Index < len(myDice.JsScriptList) {
+			dice.JsDelete(myDice, myDice.JsScriptList[v.Index])
+		}
+	}
+
+	return c.JSON(http.StatusOK, nil)
 }
 
 func jsReload(c echo.Context) error {
@@ -106,6 +122,7 @@ func jsUpload(c echo.Context) error {
 	//fmt.Println("????", filepath.Join("./data/decks", file.Filename))
 	file.Filename = strings.ReplaceAll(file.Filename, "/", "_")
 	file.Filename = strings.ReplaceAll(file.Filename, "\\", "_")
+	fmt.Println("XXXX", filepath.Join(myDice.BaseConfig.DataDir, "scripts", file.Filename))
 	dst, err := os.Create(filepath.Join(myDice.BaseConfig.DataDir, "scripts", file.Filename))
 	if err != nil {
 		return err
@@ -118,4 +135,12 @@ func jsUpload(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, nil)
+}
+
+func jsList(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	return c.JSON(http.StatusOK, myDice.JsScriptList)
 }
