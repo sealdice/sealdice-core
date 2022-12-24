@@ -1221,6 +1221,12 @@ func LogGetAllLinesWithoutDeleted(ctx *MsgContext, group *GroupInfo, logName str
 
 func LogAppend(ctx *MsgContext, group *GroupInfo, l *LogOneItem) error {
 	return ctx.Dice.DB.Update(func(tx *bbolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("logs"))
+		if err != nil {
+			ctx.Dice.Logger.Error("日志写入问题", err.Error())
+			return err
+		}
+
 		// Retrieve the users bucket.
 		// This should be created when the DB is first opened.
 		b0 := tx.Bucket([]byte("logs"))
