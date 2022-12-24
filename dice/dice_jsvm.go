@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"fmt"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
@@ -8,7 +9,9 @@ import (
 	"github.com/olebedev/gojax/fetch"
 	"gopkg.in/elazarl/goproxy.v1"
 	"io/fs"
+	"os"
 	"path/filepath"
+	"strings"
 )
 
 type PrinterFunc struct {
@@ -171,6 +174,7 @@ func (d *Dice) JsInit() {
 }
 
 func (d *Dice) JsLoadScripts() {
+	d.JsScriptList = []*JsScriptInfo{}
 	path := filepath.Join(d.BaseConfig.DataDir, "scripts")
 	filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
 		if filepath.Ext(path) == ".js" {
@@ -183,35 +187,59 @@ func (d *Dice) JsLoadScripts() {
 
 type JsScriptInfo struct {
 	/** 名称 */
-	Name string
+	Name string `json:"name"`
 	/** 版本 */
-	Version string
+	Version string `json:"version"`
 	/** 作者 */
-	Author string
+	Author string `json:"author"`
 	/** 许可协议 */
-	License string
+	License string `json:"license"`
 	/** 网址 */
-	Website string
+	Website string `json:"website"`
 	/** 详细描述 */
-	Desc string
+	Desc string `json:"desc"`
 	/** 所需权限 */
-	Grant []string
+	Grant []string `json:"grant"`
 	/** 更新时间 */
-	UpdateTime int64
+	UpdateTime int64 `json:"updateTime"`
 
+	/** 是否启用 未来再加这个功能吧，现在所有的都默认启用 */
+	//Enable bool `json:"enable"`
 	/** 安装时间 - 文件创建时间 */
-	InstallTime int64
+	InstallTime int64 `json:"installTime"`
+	/** 最近一条错误文本 */
+	ErrText string `json:"errText"`
+	/** 实际文件名 */
+	Filename string
 }
 
 func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 	// TODO: 读取文件内容填空，类似油猴脚本那种形式
 	jsInfo := &JsScriptInfo{
 		Name:        info.Name(),
-		InstallTime: info.ModTime().UnixMicro(),
+		Filename:    s,
+		InstallTime: info.ModTime().Unix(),
 	}
 	d.JsScriptList = append(d.JsScriptList, jsInfo)
 	_, err := d.JsRequire.Require(s)
 	if err != nil {
-		d.Logger.Info("读取脚本失败: ", err.Error())
+		errText := err.Error()
+		jsInfo.ErrText = errText
+		d.Logger.Error("读取脚本失败: ", errText)
+	}
+}
+
+func JsDelete(d *Dice, jsInfo *JsScriptInfo) {
+	dirpath := filepath.Dir(jsInfo.Filename)
+	dirname := filepath.Base(dirpath)
+
+	if strings.HasPrefix(dirname, "_") && strings.HasSuffix(dirname, ".deck") {
+		// 可能是zip解压出来的，那么删除目录和压缩包
+		_ = os.RemoveAll(dirpath)
+		zipFilename := filepath.Join(filepath.Dir(dirpath), dirname[1:])
+		_ = os.Remove(zipFilename)
+	} else {
+		fmt.Println("???", jsInfo.Filename)
+		_ = os.Remove(jsInfo.Filename)
 	}
 }
