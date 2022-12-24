@@ -25,18 +25,22 @@ func jsExec(c echo.Context) error {
 		return c.String(430, err.Error())
 	}
 
-	myDice.JsLock.Lock()
-	defer func() {
-		myDice.JsLock.Unlock()
-	}()
+	//myDice.JsLock.Lock()
+	//defer func() {
+	//	myDice.JsLock.Unlock()
+	//}()
 
 	source := "(function(exports, require, module) {" + v.Value + "\n})()"
 
+	waitRun := make(chan int, 1)
+
 	var ret goja.Value
 	myDice.JsPrinter.RecordStart()
-	myDice.JsLoop.Run(func(vm *goja.Runtime) {
+	myDice.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
 		ret, err = vm.RunString(source)
+		waitRun <- 1
 	})
+	<-waitRun
 	outputs := myDice.JsPrinter.RecordEnd()
 
 	var retFinal interface{}

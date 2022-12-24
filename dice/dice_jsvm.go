@@ -23,7 +23,7 @@ func (p *PrinterFunc) doRecord(_type string, s string) {
 	}
 }
 
-func (p *PrinterFunc) RecordStart() { p.isRecord = true }
+func (p *PrinterFunc) RecordStart() { p.recorder = []string{}; p.isRecord = true }
 func (p *PrinterFunc) RecordEnd() []string {
 	r := p.recorder
 	p.recorder = []string{}
@@ -167,6 +167,7 @@ func (d *Dice) JsInit() {
 		vm.Set("__dirname", "")
 		vm.Set("seal", seal)
 	})
+	loop.Start()
 }
 
 func (d *Dice) JsLoadScripts() {
