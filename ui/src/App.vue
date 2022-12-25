@@ -249,7 +249,8 @@ const doUnlock = async () => {
   if (store.canAccess) {
     ElMessageBox.alert('欢迎回来，请开始使用。', '登录成功')
     password.value = ''
-    checkPassword()
+    checkPassword();
+    window.location.reload();
   } else {
     ElMessageBox.alert('错误的密码', '登录失败')
     password.value = ''

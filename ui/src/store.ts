@@ -354,6 +354,13 @@ export const useStore = defineStore('main', {
         token: this.token
       }})
     },
+    async jsGetRecord() {
+      return await apiFetch(urlPrefix+'/js/get_record', { method: 'GET', headers: {
+        token: this.token
+      }}) as {
+        outputs: string[]
+      }
+    },
     async jsUpload({ form }: any) {
       const info = await backend.post(urlPrefix+'/js/upload', form)
       return info as any

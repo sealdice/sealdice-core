@@ -5,7 +5,7 @@
   </el-tabs>
 
   <div v-show="mode == 'console'">
-    <p style="color: #999"><small>注意: 延迟执行的代码，其输出只会出现在日志界面</small></p>
+    <p style="color: #999"><small>注意: 延迟执行的代码，其输出不会立即出现</small></p>
     <div>
       <div style="word-break: break-all; margin-bottom: 1rem; white-space: pre-line;">
         <div v-for="i in jsLines">{{ i }}</div>
@@ -26,8 +26,8 @@
 
   <div v-show="mode == 'list'">
     <el-space style="margin-bottom: 2rem;">
-      <el-upload action="" multiple accept="application/javascript, .js" class="upload"
-        :before-upload="beforeUpload" :file-list="uploadFileList">
+      <el-upload action="" multiple accept="application/javascript, .js" class="upload" :before-upload="beforeUpload"
+        :file-list="uploadFileList">
         <el-button type="">上传插件</el-button>
       </el-upload>
 
@@ -93,7 +93,9 @@ const defaultText = [
   "console.log(Object.keys(seal));",
   "console.log('更多内容正在制作中...')",
   "console.log('注意: 测试版！API仍然可能发生重大变化！')",
-  "// 下载和制作插件可以看这里: https://github.com/sealdice/javascript",
+  "// 想要制作可以看这里：https://github.com/sealdice/javascript/tree/main/examples",
+  "// 下载插件可以看这里: https://github.com/sealdice/javascript/tree/main/scripts",
+  "// 使用TypeScript，编写更容易 https://github.com/sealdice/javascript/tree/main/examples_ts",
   "",
   "// 写在这里的所有变量都是临时变量，如果你希望全局变量，使用 globalThis",
   "// 但是注意，全局变量在进程关闭后失效，想保存状态请存入硬盘。",
@@ -218,6 +220,8 @@ const doExecute = async () => {
 }
 
 
+let timerId: number
+
 onMounted(async () => {
   const el = editorBox.value as any as HTMLElement;
   editor = new EditorView({
@@ -232,11 +236,23 @@ onMounted(async () => {
     (globalThis as any).editor = editor;
   } catch (e) { }
 
-  
   await refreshList();
   if (jsList.value.length > 0) {
     mode.value = 'list'
   }
+
+  timerId = setInterval(async () => {
+    console.log('refresh')
+    const data = await store.jsGetRecord();
+
+    if (data.outputs) {
+      jsLines.value.push(...data.outputs)
+    }
+  }, 3000) as any;
+})
+
+onBeforeUnmount(() => {
+  clearInterval(timerId)
 })
 
 
@@ -325,7 +341,7 @@ const doDelete = async (data: any, index: number) => {
 }
 
 .upload {
-  > ul {
+  >ul {
     display: none;
   }
 }

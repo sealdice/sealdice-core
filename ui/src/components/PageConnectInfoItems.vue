@@ -223,7 +223,8 @@
             <div>
               <div>确认验证完成后，点击此按钮：</div>
               <div>
-                <el-button type="warning" @click="gocqhttpReLogin(curConn)" :disabled="duringRelogin">下一步</el-button>
+                <!-- :disabled="duringRelogin" -->
+                <el-button type="warning" @click="gocqhttpReLogin(curConn)">下一步</el-button>
               </div>
             </div>
           </div>
