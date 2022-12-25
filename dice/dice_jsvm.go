@@ -6,7 +6,7 @@ import (
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/olebedev/gojax/fetch"
+	fetch "github.com/fy0/gojax/fetch"
 	"gopkg.in/elazarl/goproxy.v1"
 	"io/fs"
 	"os"
