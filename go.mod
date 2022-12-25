@@ -15,6 +15,7 @@ require (
 	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819 // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20221015165544-a0805db90819 // indirect
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
+	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd // indirect
 	github.com/fy0/lockfree v0.0.0-20220407095241-e3799de5fa34
 	github.com/fy0/procs v0.0.0-20220314124159-7f38d32746c3
 	github.com/fy0/systray v1.2.2
@@ -37,7 +38,7 @@ require (
 	github.com/monaco-io/request v1.0.15
 	github.com/mroth/weightedrand v0.4.1
 	github.com/natefinch/lumberjack v2.0.0+incompatible
-	github.com/olebedev/gojax v0.0.0-20170318114811-bb153be84336
+	github.com/olebedev/gojax v0.0.0-20170318114811-bb153be84336 // indirect
 	github.com/otiai10/copy v1.7.0
 	github.com/phuslu/log v1.0.83
 	github.com/pkg/errors v0.9.1 // indirect

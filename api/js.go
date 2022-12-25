@@ -59,6 +59,18 @@ func jsExec(c echo.Context) error {
 	return resp
 }
 
+func jsGetRecord(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	outputs := myDice.JsPrinter.RecordEnd()
+	resp := c.JSON(200, map[string]interface{}{
+		"outputs": outputs,
+	})
+	return resp
+}
+
 func jsDelete(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)

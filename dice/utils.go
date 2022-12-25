@@ -347,7 +347,11 @@ func unzipSource(source, destination string) error {
 	if err != nil {
 		return err
 	}
-	defer reader.Close()
+	defer func() {
+		if reader != nil {
+			reader.Close()
+		}
+	}()
 
 	// 2. Get the absolute destination path
 	destination, err = filepath.Abs(destination)
