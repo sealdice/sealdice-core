@@ -47,8 +47,8 @@
           <el-descriptions-item label="版本">{{ i.version || '<未定义>' }}</el-descriptions-item>
           <el-descriptions-item label="安装时间">{{ dayjs.unix(i.installTime).fromNow() }}</el-descriptions-item>
           <el-descriptions-item label="许可协议">{{ i.license || '<暂无>' }}</el-descriptions-item>
-          <el-descriptions-item label="网站">{{ i.website || '<暂无>' }}</el-descriptions-item>
-          <el-descriptions-item label="更新时间">{{ i.updateTime || '<暂无>' }}</el-descriptions-item>
+          <el-descriptions-item label="主页">{{ i.homepage || '<暂无>' }}</el-descriptions-item>
+          <el-descriptions-item label="更新时间">{{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || '<暂无>' }}</el-descriptions-item>
           <el-descriptions-item label="介绍" :span="3">{{ i.desc || '<暂无>' }}</el-descriptions-item>
           <el-descriptions-item label="报错信息" :span="3" v-if="i.errText">{{ i.errText }}</el-descriptions-item>
         </el-descriptions>

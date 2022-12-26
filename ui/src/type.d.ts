@@ -3,7 +3,7 @@ interface JsScriptInfo {
   version: string;
   author: string;
   license: string;
-  website: string;
+  homepage: string;
   desc: string;
   grant?: any;
   updateTime: number;
