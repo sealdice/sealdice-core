@@ -11,6 +11,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -195,7 +197,7 @@ type JsScriptInfo struct {
 	/** 许可协议 */
 	License string `json:"license"`
 	/** 网址 */
-	Website string `json:"website"`
+	HomePage string `json:"homepage"`
 	/** 详细描述 */
 	Desc string `json:"desc"`
 	/** 所需权限 */
@@ -220,12 +222,50 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 		Filename:    s,
 		InstallTime: info.ModTime().Unix(),
 	}
+
+	fileTextRaw, err := os.ReadFile(s)
+	if err != nil {
+		d.Logger.Error("读取脚本失败(无法访问): ", err.Error())
+		return
+	}
+
+	// 解析信息
+	fileText := string(fileTextRaw)
+	re := regexp.MustCompile(`(?s)//[ \t]*==UserScript==[ \t]*\r?\n(.*)//[ \t]*==/UserScript==`)
+	m := re.FindStringSubmatch(fileText)
+	if len(m) > 0 {
+		text := m[0]
+		re2 := regexp.MustCompile(`//[ \t]*@(\S+)\s+([^\r\n]+)`)
+		data := re2.FindAllStringSubmatch(text, -1)
+		for _, item := range data {
+			switch item[1] {
+			case "name":
+				jsInfo.Name = item[2]
+			case "homepageURL":
+				jsInfo.HomePage = item[2]
+			case "license":
+				jsInfo.License = item[2]
+			case "author":
+				jsInfo.Author = item[2]
+			case "version":
+				jsInfo.Version = item[2]
+			case "description":
+				jsInfo.Desc = item[2]
+			case "timestamp":
+				v, err := strconv.ParseInt(item[2], 10, 64)
+				if err == nil {
+					jsInfo.UpdateTime = v
+				}
+			}
+		}
+	}
+
 	d.JsScriptList = append(d.JsScriptList, jsInfo)
-	_, err := d.JsRequire.Require(s)
+	_, err = d.JsRequire.Require(s)
 	if err != nil {
 		errText := err.Error()
 		jsInfo.ErrText = errText
-		d.Logger.Error("读取脚本失败: ", errText)
+		d.Logger.Error("读取脚本失败(解析失败): ", errText)
 	}
 }
 
