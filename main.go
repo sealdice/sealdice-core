@@ -44,10 +44,20 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		}
 
 		for _, i := range diceManager.Dice {
-			i.Save(true)
+			if i.IsAlreadyLoadConfig {
+				i.Save(true)
+				for _, j := range i.ExtList {
+					if j.Storage != nil {
+						j.Storage.Close()
+					}
+				}
+			}
 		}
+
 		for _, i := range diceManager.Dice {
-			i.DB.Close()
+			if i.DB != nil {
+				i.DB.Close()
+			}
 		}
 		// 清理gocqhttp
 		for _, i := range diceManager.Dice {

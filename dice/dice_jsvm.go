@@ -42,6 +42,7 @@ func (p *PrinterFunc) Warn(s string) { p.doRecord("warn", s); p.d.Logger.Warn(s)
 func (p *PrinterFunc) Error(s string) { p.doRecord("error", s); p.d.Logger.Error(s) }
 
 func (d *Dice) JsInit() {
+	// 装载数据库(如果是初次运行)
 	// 清理js扩展
 	prepareRemove := []*ExtInfo{}
 	for _, i := range d.ExtList {
@@ -171,6 +172,26 @@ func (d *Dice) JsInit() {
 		seal.Set("inst", d)
 		vm.Set("__dirname", "")
 		vm.Set("seal", seal)
+
+		vm.RunString(`
+let e = seal.ext.new('_', '', '');
+e.__proto__.storageSet = function(k, v) {
+  try {
+    // 这里goja会强行抛出异常
+    this.storageSetRaw(k, v)
+  } catch (error) {
+    throw error;
+  }
+}
+e.__proto__.storageGet = function(k, v) {
+  try {
+    return this.storageGetRaw(k, v);
+  } catch (error) {
+    throw error;
+  }
+}
+`)
+		vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
 	loop.Start()
 }
