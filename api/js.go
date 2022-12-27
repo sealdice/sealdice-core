@@ -34,6 +34,13 @@ func jsExec(c echo.Context) error {
 	var ret goja.Value
 	myDice.JsPrinter.RecordStart()
 	myDice.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
+		defer func() {
+			// 防止崩掉进程
+			if r := recover(); r != nil {
+				//fmt.Println("xx", r.(goja.Exception))
+				myDice.JsPrinter.Error(fmt.Sprintf("JS脚本报错: %v", r))
+			}
+		}()
 		ret, err = vm.RunString(source)
 		waitRun <- 1
 	})

@@ -46,6 +46,7 @@ require (
 	github.com/sacOO7/gowebsocket v0.0.0-20210515122958-9396f1a71e23
 	github.com/sahilm/fuzzy v0.1.0
 	github.com/stretchr/testify v1.8.0 // indirect
+	github.com/tidwall/buntdb v1.2.10 // indirect
 	github.com/xuri/excelize/v2 v2.6.0
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/zap v1.21.0
