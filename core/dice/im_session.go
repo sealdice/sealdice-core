@@ -112,6 +112,10 @@ func (group *GroupInfo) ExtClear() {
 }
 
 func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
+	if ei.Storage != nil {
+		_ = ei.Storage.Close()
+		ei.Storage = nil
+	}
 	for index, i := range group.ActivatedExtList {
 		if ei == i {
 			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)

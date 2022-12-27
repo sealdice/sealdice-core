@@ -7,6 +7,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
+	"github.com/tidwall/buntdb"
 	"go.etcd.io/bbolt"
 	"go.uber.org/zap"
 	"math/rand"
@@ -50,6 +51,10 @@ type CmdItemInfo struct {
 
 type CmdMapCls map[string]*CmdItemInfo
 
+//type ExtInfoStorage interface {
+//
+//}
+
 type ExtInfo struct {
 	Name    string `yaml:"name" jsbind:"name"` // 名字
 	Version string `yaml:"-" jsbind:"version"` // 版本
@@ -66,7 +71,10 @@ type ExtInfo struct {
 	ConflictWith []string `yaml:"-"`
 	//activeInSession bool; // 在当前会话中开启
 
+	dice    *Dice
 	IsJsExt bool
+	Storage *buntdb.DB `yaml:"-"`
+	//Storage ExtInfoStorage `yaml:"-" jsbind:"storage"`
 
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
 	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" jsbind:"onCommandOverride"`    // 覆盖指令行为
@@ -173,6 +181,8 @@ type Dice struct {
 	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable"` // 开启日志数量提示
 	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount"`  // 日志数量提示阈值，默认500
 
+	IsAlreadyLoadConfig bool `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
+
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 }
@@ -201,9 +211,6 @@ func (d *Dice) Init() {
 	d.Cron = cron.New()
 	d.Cron.Start()
 
-	// 创建js运行时
-	d.JsInit()
-
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 	d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
@@ -222,6 +229,10 @@ func (d *Dice) Init() {
 	d.RegisterBuiltinExt()
 	d.loads()
 	d.BanList.AfterLoads()
+	d.IsAlreadyLoadConfig = true
+
+	// 创建js运行时
+	d.JsInit()
 
 	for _, i := range d.ExtList {
 		if i.OnLoad != nil {
@@ -246,7 +257,9 @@ func (d *Dice) Init() {
 		t := time.Tick(30 * time.Second)
 		for {
 			<-t
-			d.Save(true)
+			if d.IsAlreadyLoadConfig {
+				d.Save(true)
+			}
 		}
 	}
 	go autoSave()
