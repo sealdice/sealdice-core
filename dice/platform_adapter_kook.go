@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// ConsoleWriterShutUp Kook go的作者要求必须使用他们自己的logger用于构造Intent Session，并且该logger不可缺省，因此这里重新实现一个不干活的logger以保证控制台log的干净整洁
 type ConsoleWriterShutUp struct {
 	*log.ConsoleWriter
 }
@@ -23,6 +24,7 @@ func (c *ConsoleWriterShutUp) format(out io.Writer, args *log.FormatterArgs) (n 
 func (c *ConsoleWriterShutUp) WriteEntry(e *log.Entry) (int, error)              { return 0, nil }
 func (c *ConsoleWriterShutUp) writew(out io.Writer, p []byte) (n int, err error) { return 0, nil }
 
+// kook go的鉴权目前并不好用，这里重写一遍
 const (
 	RolePermissionAdmin                  kook.RolePermission = 1 << iota
 	RolePermissionManageGuild            kook.RolePermission = 1 << 1
@@ -53,8 +55,12 @@ const (
 	RolePermissionManageNickname         kook.RolePermission = 1 << 26
 	RolePermissionPlayMusic              kook.RolePermission = 1 << 27
 )
+
+// RolePermissionAll 有两种情况会使一个用户拥有一个服务器内的所有权限，第一种是作为服务器创建者的用户，即Owner，第二种是被授予了Admin权限的用户
+// 但是尽管他们可以bypass所有的权限检查，但是他们自身并不一定拥有所有的权限，这导致检查时会出现问题，因此这里创建一个permissionAll权限，
+// 并把Admin和Owner当作拥有该权限的用户进行处理
 const (
-	RolePermissionAll kook.RolePermission = RolePermissionAdmin |
+	RolePermissionAll = RolePermissionAdmin |
 		RolePermissionManageGuild |
 		RolePermissionViewAuditLog |
 		RolePermissionCreateInvite |
@@ -84,6 +90,7 @@ const (
 		RolePermissionPlayMusic
 )
 
+// PlatformAdapterKook 与 PlatformAdapterDiscord 基本相同的实现，因此不详细写注释了，可以去参考隔壁的实现
 type PlatformAdapterKook struct {
 	Session       *IMSession    `yaml:"-" json:"-"`
 	Token         string        `yaml:"token" json:"token"`
@@ -92,6 +99,10 @@ type PlatformAdapterKook struct {
 }
 
 func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupId string) {
+	//极罕见情况下，未连接成功或被禁用的Endpoint也会去call GetGroupInfoAsync，并且由于IntentSession并未被实例化而抛出nil错误，因此这里做一个检查
+	if pa.IntentSession == nil {
+		return
+	}
 	logger := pa.Session.Parent.Logger
 	dm := pa.Session.Parent.Parent
 	go pa.updateChannelNum()
@@ -123,6 +134,7 @@ func (pa *PlatformAdapterKook) updateChannelNum() {
 
 func (pa *PlatformAdapterKook) updateGameStatus() {
 	logger := pa.Session.Parent.Logger
+	//注释掉的部分是遗留代码，用于在kook中注册一个叫做SealDice的GameStatus，只需要执行一次因此注释掉
 	//gameupdate := new(kook.GameUpdate)
 	//gameupdate.ID = int64(768222)
 	//gameupdate.Icon = "https://img.kookapp.cn/assets/2022-12/DfYli1buyO0e80c0.png"
@@ -168,7 +180,9 @@ func (pa *PlatformAdapterKook) DoRelogin() bool {
 	pa.Session.Parent.Logger.Infof("正在重新登录KOOK服务……")
 	pa.EndPoint.State = 0
 	pa.EndPoint.Enable = false
-	_ = pa.IntentSession.Close()
+	if pa.IntentSession != nil {
+		_ = pa.IntentSession.Close()
+	}
 	pa.IntentSession = nil
 	return pa.Serve() == 0
 }
@@ -221,7 +235,9 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userId string, text
 	}
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
-			i.OnMessageSend(ctx, "private", userId, text, flag)
+			i.callWithJsCheck(ctx.Dice, func() {
+				i.OnMessageSend(ctx, "private", userId, text, flag)
+			})
 		}
 	}
 }
@@ -360,9 +376,11 @@ func (pa *PlatformAdapterKook) memberPermissions(guildId *string, channelId *str
 		apermissions |= int64(RolePermissionAll)
 	}
 
+	//下面两部分用于判断频道权限覆写，由于该函数的目的并不是用于完整鉴权而是用于判断用户是否为管理员，而一般不考虑频道覆写中给予用户管理员的情况，
+	//因为这种操作并不合理也会产生安全性问题，同时在省略了这两段循环之后也可以提升性能
+
 	//var denies, allows int64
 	// Member overwrites can override role overrides, so do two passes
-	// fuck the Overwrite 打死我也不信有人会把管理员权限写在频道的权限覆盖里，这不就相当于给所有人管理员了么，反正我这个方法只是区分是否为管理员的，没必要浪费性能在这
 	//for _, overwrite := range channel.PermissionOverwrites {
 	//	for _, roleID := range roles {
 	//		if overwrite.Type == PermissionOverwriteTypeRole && roleID == overwrite.ID {

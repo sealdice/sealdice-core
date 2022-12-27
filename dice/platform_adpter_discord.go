@@ -18,7 +18,11 @@ type PlatformAdapterDiscord struct {
 
 // GetGroupInfoAsync 同步一下群组信息
 func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupId string) {
-	pa.updateChannelNum()
+	//极罕见情况下，未连接成功或被禁用的Endpoint也会去call GetGroupInfoAsync，并且由于IntentSession并未被实例化而抛出nil错误，因此这里做一个检查
+	if pa.IntentSession == nil {
+		return
+	}
+	go pa.updateChannelNum()
 	logger := pa.Session.Parent.Logger
 	dm := pa.Session.Parent.Parent
 	channel, err := pa.IntentSession.Channel(ExtractDiscordChannelId(groupId))
@@ -261,6 +265,7 @@ func (pa *PlatformAdapterDiscord) checkIfGuildAdmin(m *discordgo.Message) bool {
 			strconv.FormatInt(m.Timestamp.Unix(), 10),
 			m.Content,
 			err.Error())
+		return false
 	}
 	//https://discord.com/developers/docs/topics/permissions
 	//KICK_MEMBERS *	0x0000000000000002 (1 << 1)
