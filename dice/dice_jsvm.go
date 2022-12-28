@@ -1,7 +1,6 @@
 package dice
 
 import (
-	"fmt"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
@@ -243,7 +242,7 @@ type JsScriptInfo struct {
 }
 
 func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
-	// TODO: 读取文件内容填空，类似油猴脚本那种形式
+	// 读取文件内容填空，类似油猴脚本那种形式
 	jsInfo := &JsScriptInfo{
 		Name:        info.Name(),
 		Filename:    s,
@@ -306,7 +305,6 @@ func JsDelete(d *Dice, jsInfo *JsScriptInfo) {
 		zipFilename := filepath.Join(filepath.Dir(dirpath), dirname[1:])
 		_ = os.Remove(zipFilename)
 	} else {
-		fmt.Println("???", jsInfo.Filename)
 		_ = os.Remove(jsInfo.Filename)
 	}
 }
