@@ -739,9 +739,9 @@ func (pa *PlatformAdapterQQOnebot) SetEnable(enable bool) {
 func (pa *PlatformAdapterQQOnebot) SetQQProtocol(protocol int) bool {
 	//oldProtocol := pa.InPackGoCqHttpProtocol
 	pa.InPackGoCqHttpProtocol = protocol
-	ep := pa.EndPoint
 
-	workDir := filepath.Join(ep.Session.Parent.BaseConfig.DataDir, ep.RelWorkDir)
+	//ep.Session.Parent.GetDiceDataPath(ep.RelWorkDir)
+	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
 	deviceFilePath := filepath.Join(workDir, "device.json")
 	if _, err := os.Stat(deviceFilePath); err == nil {
 		configFile, err := os.ReadFile(deviceFilePath)
