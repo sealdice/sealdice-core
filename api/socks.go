@@ -108,8 +108,6 @@ func socksOpen(d *dice.Dice, port int64) (string, error) {
 	//port := flag.Int64("port", 13325, "端口号")
 	//flag.Parse()
 
-	d.Logger.Infof("onebot辅助: 将在服务器上开启一个临时socks5服务，端口%d，默认持续时长为20分钟\n", port)
-
 	ip, err := getClientIp()
 	if err != nil {
 		return "", err
@@ -121,6 +119,8 @@ func socksOpen(d *dice.Dice, port int64) (string, error) {
 	}
 
 	publicIP := strings.Join(ip, ", ")
+
+	d.Logger.Infof("onebot辅助: 将在服务器上开启一个临时socks5服务，端口%d，默认持续时长为20分钟\n", port)
 	if publicIP == "" {
 		d.Logger.Info("onebot辅助: 未检测到公网IP")
 	} else {
