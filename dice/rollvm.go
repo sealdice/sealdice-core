@@ -748,7 +748,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 							v2, exists = VarGetValue(ctx, "敏捷")
 							if exists {
 								if v2.TypeId == VMTypeInt64 {
-									v2.Value = v2.Value.(int64) / 2
+									v2 = VMValueNew(VMTypeInt64, v2.Value.(int64)/2)
+									//v2.Value = v2.Value.(int64) / 2
 								}
 							}
 						}
