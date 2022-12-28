@@ -329,6 +329,7 @@ func ImConnectionsAdd(c echo.Context) error {
 		pa.InPackGoCqHttpProtocol = v.Protocol
 		pa.InPackGoCqHttpPassword = v.Password
 		pa.Session = myDice.ImSession
+
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		dice.GoCqHttpServe(myDice, conn, v.Password, v.Protocol, true)
 		myDice.Save(false)
@@ -469,6 +470,36 @@ func DiceAllCommand(c echo.Context) error {
 	return c.JSON(200, cmdLst)
 }
 
+func onebotTool(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := struct {
+		Port int64 `form:"port" json:"port"`
+	}{}
+	err := c.Bind(&v)
+
+	port := int64(13325)
+	if v.Port != 0 {
+		port = v.Port
+	}
+
+	errText := ""
+	var ip string
+	ip, err = socksOpen(myDice, port)
+	if err != nil {
+		errText = err.Error()
+	}
+
+	resp := c.JSON(200, map[string]interface{}{
+		"ok":      err == nil,
+		"ip":      ip,
+		"errText": errText,
+	})
+	return resp
+}
+
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
@@ -545,4 +576,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/js/list", jsList)
 	e.POST(prefix+"/js/delete", jsDelete)
 	e.GET(prefix+"/js/get_record", jsGetRecord)
+
+	e.POST(prefix+"/tool/onebot", onebotTool)
 }
