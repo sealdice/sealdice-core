@@ -91,7 +91,7 @@ const defaultText = [
   "// 学习制作可以看这里：https://github.com/sealdice/javascript/tree/main/examples",
   "// 下载插件可以看这里: https://github.com/sealdice/javascript/tree/main/scripts",
   "// 使用TypeScript，编写更容易 https://github.com/sealdice/javascript/tree/main/examples_ts",
-  "// 目前可用于: 创建自定义指令，自定义COC房规，发送网络请求",
+  "// 目前可用于: 创建自定义指令，自定义COC房规，发送网络请求，读写本地数据",
   "",
   "console.log('这是测试控制台');",
   "console.log('可以这样来查看变量详情：');",
@@ -102,7 +102,11 @@ const defaultText = [
   "// 但是注意，全局变量在进程关闭后失效，想保存状态请存入硬盘。",
   "globalThis._test = 123;",
   "",
-  ""
+  "let ext = seal.ext.find('test');",
+  "if (!ext) {",
+  "  ext = seal.ext.new('test', '木落', '1.0.0');",
+  "  seal.ext.register(ext);",
+  "}",
 ]
 
 /** 执行指令 */
