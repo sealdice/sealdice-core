@@ -384,6 +384,18 @@ export const useStore = defineStore('main', {
       }
     },
 
+    async toolOnebot() {
+      return await apiFetch(urlPrefix+'/tool/onebot', {
+        headers: {
+          token: this.token
+        }
+      }) as {
+        ok: boolean,
+        ip: string,
+        errText: string
+      }
+    },
+
     async upgrade() {
       const info = await backend.post(urlPrefix+'/dice/upgrade')
       return info

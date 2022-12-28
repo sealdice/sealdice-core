@@ -137,6 +137,7 @@
   </el-dialog>
 
   <el-dialog v-model="dialogFormVisible" title="帐号登录" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
+    <el-button style="float: right; margin-top: -4rem;" @click="openSocks">辅助工具-13325端口</el-button>
     <template v-if="form.step === 1">
       <el-form :model="form">
         <el-form-item label="账号类型" :label-width="formLabelWidth">
@@ -273,7 +274,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, onBeforeMount, onBeforeUnmount, ref, nextTick } from 'vue';
+import { h, reactive, onBeforeMount, onBeforeUnmount, ref, nextTick } from 'vue';
 import { useStore, goCqHttpStateCode } from '~/store';
 import type { DiceConnection } from '~/store';
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -342,6 +343,33 @@ const setRecentLogin = () => {
   setTimeout(() => {
     isRecentLogin.value = false
   }, 3000)
+}
+
+const openSocks = async () => {
+  const ret = await store.toolOnebot()
+  if (ret.ok) {
+    const msg = h('p', null, [
+      h('div', null, '将在服务器上开启临时socks5服务，端口13325'),
+      h('div', null, '默认持续时长为20分钟'),
+      h('div', null, [h('span', null, `可能的公网IP: `), h('span', { style: 'color: teal' }, `${ret.ip}`)]),
+      h('div', null, '注: ip不一定对仅供参考'),
+      h('div', { style: 'min-height: 1rem' }, ''),
+      h('div', null, '请于服务器管理面板放行13325端口，协议TCP'),
+      h('div', null, '如果为Windows Server系统，请再额外关闭系统防火墙或设置放行规则.')
+    ]);
+    ElMessageBox.alert(msg, '开启辅助工具')
+  } else {
+    const msg = h('p', null, [
+      h('div', null, '启动服务失败，或已经启动'),
+      h('div', null, [h('span', null, `报错信息: `), h('span', { style: 'color: #9b0d0d' }, `${ret.errText}`)]),
+      h('div', null, [h('span', null, `可能的公网IP: `), h('span', { style: 'color: teal' }, `${ret.ip}`)]),
+      h('div', null, '注: ip不一定对仅供参考'),
+      h('div', { style: 'min-height: 1rem' }, ''),
+      h('div', null, '请于服务器管理面板放行13325端口，协议TCP'),
+      h('div', null, '如果为Windows Server系统，请再额外关闭系统防火墙或设置放行规则。')
+    ]);
+    ElMessageBox.alert(msg, '开启辅助工具')
+  }
 }
 
 const goStepTwo = async () => {
