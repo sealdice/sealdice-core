@@ -121,6 +121,10 @@ func (d *Dice) JsInit() {
 			return d.ExtFind(name)
 		})
 		ext.Set("register", func(ei *ExtInfo) {
+			if d.ExtFind(ei.Name) == nil {
+				panic("扩展<" + ei.Name + ">已被注册")
+			}
+
 			d.RegisterExtension(ei)
 			if ei.OnLoad != nil {
 				ei.OnLoad()
