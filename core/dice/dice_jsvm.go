@@ -121,7 +121,7 @@ func (d *Dice) JsInit() {
 			return d.ExtFind(name)
 		})
 		ext.Set("register", func(ei *ExtInfo) {
-			if d.ExtFind(ei.Name) == nil {
+			if d.ExtFind(ei.Name) != nil {
 				panic("扩展<" + ei.Name + ">已被注册")
 			}
 
@@ -181,7 +181,7 @@ func (d *Dice) JsInit() {
 let e = seal.ext.new('_', '', '');
 e.__proto__.storageSet = function(k, v) {
   try {
-    // 这里goja会强行抛出异常
+    // 这里goja会强行抛出异常，等于是将返回error的函数转写成throw形式
     this.storageSetRaw(k, v)
   } catch (error) {
     throw error;
@@ -191,7 +191,9 @@ e.__proto__.storageGet = function(k, v) {
   try {
     return this.storageGetRaw(k, v);
   } catch (error) {
-    throw error;
+    if (error.value.toString() !== 'not found') {
+      throw error;
+    }
   }
 }
 `)
