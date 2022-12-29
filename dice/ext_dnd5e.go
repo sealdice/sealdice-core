@@ -967,6 +967,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 					}
 
+					if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
+						text = m[3] + text
+					}
 					r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
 					if err != nil {
 						ReplyToSender(mctx, msg, "无法解析属性: "+attrNameRaw)
@@ -1027,11 +1030,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							leftValue = v
 						}
 
-						if m[3] == "+" || m[3] == "＋" {
-							newVal = leftValue.Value.(int64) + r.Value.(int64)
-						} else {
-							newVal = leftValue.Value.(int64) - r.Value.(int64)
-						}
+						newVal = leftValue.Value.(int64) + r.Value.(int64)
 
 						vOld, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
 						theOldValue := vOld.Value.(int64)
