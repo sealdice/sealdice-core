@@ -504,6 +504,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							skilledFactor = val
 						}
 					}
+					if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
+						text = m[3] + text
+					}
 					r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
 					if err != nil {
 						ReplyToSender(mctx, msg, "无法解析属性: "+attrName)
@@ -558,9 +561,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
-						if m[3] == "-" || m[3] == "－" {
-							r.Value = -r.Value.(int64)
-						}
+						//if m[3] == "-" || m[3] == "－" {
+						//	r.Value = -r.Value.(int64)
+						//}
 
 						if attrName == "hp" {
 							// 当扣血时，特别处理
@@ -1780,14 +1783,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"spellslots": cmdSpellSlot,
 			"ss":         cmdSpellSlot,
 			"dss":        cmdSpellSlot,
-			"法术位":     cmdSpellSlot,
+			"法术位":        cmdSpellSlot,
 			"cast":       cmdCast,
 			"dcast":      cmdCast,
-			"长休":       cmdLongRest,
+			"长休":         cmdLongRest,
 			"longrest":   cmdLongRest,
 			"dlongrest":  cmdLongRest,
 			"ds":         cmdDeathSavingThrow,
-			"死亡豁免":   cmdDeathSavingThrow,
+			"死亡豁免":       cmdDeathSavingThrow,
 		},
 	}
 
