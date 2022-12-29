@@ -40,9 +40,9 @@ func jsExec(c echo.Context) error {
 				//fmt.Println("xx", r.(goja.Exception))
 				myDice.JsPrinter.Error(fmt.Sprintf("JS脚本报错: %v", r))
 			}
+			waitRun <- 1
 		}()
 		ret, err = vm.RunString(source)
-		waitRun <- 1
 	})
 	<-waitRun
 	outputs := myDice.JsPrinter.RecordEnd()

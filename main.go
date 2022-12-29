@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/dop251/goja"
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -235,6 +234,7 @@ func main() {
 	go dice.TryGetBackendUrl()
 
 	cleanUp := cleanUpCreate(diceManager)
+	defer dice.CrashLog()
 	defer cleanUp()
 
 	// 初始化核心
@@ -256,14 +256,14 @@ func main() {
 	// 6. 可以向骰子注册varname solver，以指定的正则去实现自定义语法（例如我定义一个算符c，匹配c5e2这样的变量名）
 	// 7. 可以向骰子注册自定义指令，指令必须存在模块归属，以便于关闭
 	// 8. 存在一个tick()或update()函数，每隔一段时间必定会调用一次
-	vm := goja.New()
-	v, err := vm.RunString("2 + 2")
-	if err != nil {
-		panic(err)
-	}
-	if num := v.Export().(int64); num != 4 {
-		panic(num)
-	}
+	//vm := goja.New()
+	//v, err := vm.RunString("2 + 2")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//if num := v.Export().(int64); num != 4 {
+	//	panic(num)
+	//}
 
 	diceManager.Cron.AddFunc("@every 15min", func() {
 		go CheckVersion(diceManager)
@@ -272,28 +272,6 @@ func main() {
 	go RebootRequestListen(diceManager)
 	go UpdateRequestListen(diceManager)
 	go UpdateCheckRequestListen(diceManager)
-
-	//a, d, err := myDice.ExprEval("7d12k4", nil)
-	//if err == nil {
-	//	fmt.Println(a.Parser.GetAsmText())
-	//	fmt.Println(d)
-	//	fmt.Println("DDD"+"#{a}", a.TypeId, a.Value, d, err)
-	//} else {
-	//	fmt.Println("DDD2", err)
-	//}
-
-	//runtime := quickjs.NewRuntime()
-	//defer runtime.Free()
-	//
-	//context := runtime.NewContext()
-	//defer context.Free()
-
-	//globals := context.Globals()
-
-	// Test evaluating template strings.
-
-	//result, err := context.Eval("`Hello world! 2 ** 8 = ${2 ** 8}.`")
-	//fmt.Println("XXXXXXX", result, err)
 
 	// 强制清理机制
 	go (func() {
@@ -327,6 +305,7 @@ func main() {
 }
 
 func diceServe(d *dice.Dice) {
+	defer dice.CrashLog()
 	if len(d.ImSession.EndPoints) == 0 {
 		d.Logger.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
 	}

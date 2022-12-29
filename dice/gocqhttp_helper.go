@@ -660,6 +660,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 
 // 注意：放在这里并不科学，记得重构
 func DiceServeQQ(d *Dice, ep *EndPointInfo) {
+	defer CrashLog()
 	if ep.Platform == "QQ" {
 		conn := ep.Adapter.(*PlatformAdapterQQOnebot)
 
