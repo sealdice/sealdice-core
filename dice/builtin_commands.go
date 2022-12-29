@@ -1185,15 +1185,9 @@ func (d *Dice) registerCoreCommands() {
 					for _, i := range d.ExtList {
 						if i.Name == extName {
 							text := fmt.Sprintf("> [%s] 版本%s 作者%s\n", i.Name, i.Version, i.Author)
-							(func() {
-								if i.IsJsExt {
-									ctx.Dice.JsLock.Lock()
-									defer func() {
-										ctx.Dice.JsLock.Unlock()
-									}()
-								}
+							i.callWithJsCheck(d, func() {
 								ReplyToSender(ctx, msg, text+i.GetDescText(i))
-							})()
+							})
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 					}

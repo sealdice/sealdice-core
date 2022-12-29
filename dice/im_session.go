@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	"github.com/dop251/goja"
 	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
 	"runtime/debug"
@@ -582,10 +583,29 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				if mctx.Group != nil && (mctx.Group.IsActive(mctx) || amIBeMentioned) {
 					for _, i := range mctx.Group.ActivatedExtList {
 						if i.OnNotCommandReceived != nil {
+							notCommandReceiveCall := func() {
+								if i.IsJsExt {
+									waitRun := make(chan int, 1)
+									d.JsLoop.RunOnLoop(func(runtime *goja.Runtime) {
+										defer func() {
+											if r := recover(); r != nil {
+												mctx.Dice.Logger.Errorf("扩展<%s>处理非指令消息异常: %v 堆栈: %v", i.Name, r, string(debug.Stack()))
+											}
+											waitRun <- 1
+										}()
+
+										i.OnNotCommandReceived(mctx, msg)
+									})
+									<-waitRun
+								} else {
+									i.OnNotCommandReceived(mctx, msg)
+								}
+							}
+
 							if runInSync {
-								i.OnNotCommandReceived(mctx, msg)
+								notCommandReceiveCall()
 							} else {
-								go i.OnNotCommandReceived(mctx, msg)
+								go notCommandReceiveCall()
 							}
 						}
 					}
@@ -648,19 +668,26 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				}
 			}
 
+			var ret CmdExecuteResult
 			// 如果是js命令，那么加锁
 			if item.IsJsSolveFunc {
-				ctx.Dice.JsLock.Lock()
-				defer func() {
-					ctx.Dice.JsLock.Unlock()
-					if r := recover(); r != nil {
-						//log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
-						ReplyToSender(ctx, msg, fmt.Sprintf("JS执行异常，请反馈给对应的扩展作者：\n%v", r))
-					}
-				}()
+				waitRun := make(chan int, 1)
+				s.Parent.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
+					defer func() {
+						if r := recover(); r != nil {
+							//log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
+							ReplyToSender(ctx, msg, fmt.Sprintf("JS执行异常，请反馈给该扩展的作者：\n%v", r))
+						}
+						waitRun <- 1
+					}()
+
+					ret = item.Solve(ctx, msg, cmdArgs)
+				})
+				<-waitRun
+			} else {
+				ret = item.Solve(ctx, msg, cmdArgs)
 			}
 
-			ret := item.Solve(ctx, msg, cmdArgs)
 			if ret.Solved {
 				if ret.ShowHelp {
 					help := item.Help

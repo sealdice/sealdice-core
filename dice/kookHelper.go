@@ -17,6 +17,7 @@ func NewKookConnItem(token string) *EndPointInfo {
 }
 
 func DiceServeKook(d *Dice, ep *EndPointInfo) {
+	defer CrashLog()
 	if ep.Platform == "KOOK" {
 		conn := ep.Adapter.(*PlatformAdapterKook)
 		d.Logger.Infof("KOOK 尝试连接")

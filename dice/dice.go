@@ -13,11 +13,11 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -170,7 +170,6 @@ type Dice struct {
 	Cron             *cron.Cron           `yaml:"-" json:"-"`
 	aliveNoticeEntry cron.EntryID         `yaml:"-" json:"-"`
 	//JsVM             *goja.Runtime          `yaml:"-" json:"-"`
-	JsLock       sync.Mutex             `yaml:"-" json:"-"`
 	JsPrinter    *PrinterFunc           `yaml:"-" json:"-"`
 	JsRequire    *require.RequireModule `yaml:"-" json:"-"`
 	JsLoop       *eventloop.EventLoop   `yaml:"-" json:"-"`
@@ -529,4 +528,13 @@ func DiceRoll64(dicePoints int64) int64 {
 	}
 	val := rand.Int63()%dicePoints + 1
 	return val
+}
+
+func CrashLog() {
+	if r := recover(); r != nil {
+		text := fmt.Sprintf("报错: %v\n堆栈: %v", r, string(debug.Stack()))
+		now := time.Now()
+		_ = os.WriteFile(fmt.Sprintf("崩溃日志_%s.txt", now.Format("20060201_150405")), []byte(text), 0644)
+		panic(r)
+	}
 }
