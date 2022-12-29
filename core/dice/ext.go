@@ -67,20 +67,19 @@ func GetExtensionDesc(ei *ExtInfo) string {
 
 func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 	if i.IsJsExt {
-		defer func() {
-			// 防止崩掉进程
-			if r := recover(); r != nil {
-				d.Logger.Error("JS脚本报错:", r)
-			}
-		}()
-
+		waitRun := make(chan int, 1)
 		d.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
+			defer func() {
+				// 防止崩掉进程
+				if r := recover(); r != nil {
+					d.Logger.Error("JS脚本报错:", r)
+				}
+				waitRun <- 1
+			}()
+
 			f()
 		})
-		//d.JsLock.Lock()
-		//defer func() {
-		//	d.JsLock.Unlock()
-		//}()
+		<-waitRun
 	} else {
 		f()
 	}

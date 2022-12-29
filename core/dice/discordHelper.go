@@ -19,6 +19,7 @@ func NewDiscordConnItem(token string) *EndPointInfo {
 
 // DiceServeDiscord gocqhttp_helper 中有一个相同的待重构方法，为了避免阻碍重构，先不写在一起了
 func DiceServeDiscord(d *Dice, ep *EndPointInfo) {
+	defer CrashLog()
 	if ep.Platform == "DISCORD" {
 		conn := ep.Adapter.(*PlatformAdapterDiscord)
 		d.Logger.Infof("DiscordGo 尝试连接")
