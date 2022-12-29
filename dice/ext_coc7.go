@@ -1036,7 +1036,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							text := fmt.Sprintf("<%s>: 无法找到名下属性 %s，不能作出修改", p.Name, m[1])
 							ReplyToSender(mctx, msg, text)
 						} else {
-							v, _, err := self.ExprEval(m[3], mctx)
+							v, _, err := self.ExprEval(m[2]+m[3], mctx)
 							if err == nil && v.TypeId == 0 {
 								var newVal int64
 								rightVal := v.Value.(int64)
@@ -1047,7 +1047,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									newVal = val + rightVal
 								} else {
 									signText = "扣除"
-									newVal = val - rightVal
+									newVal = val + rightVal
 								}
 								name := p.GetValueNameByAlias(m[1], ac.Alias)
 								VarSetValueInt64(mctx, name, newVal)
