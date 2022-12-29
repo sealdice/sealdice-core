@@ -22,7 +22,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.0.2 v20221229-dev+discord+kook+js"
+var VERSION = "1.0.2 v20221230-dev+discord+kook+js"
 var VERSION_CODE = int64(1000200) // 991404
 var APP_BRANCH = ""
 
