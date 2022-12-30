@@ -93,12 +93,18 @@ func uploadFileToWeizaimaBase(backendUrl string, log *zap.SugaredLogger, name st
 		Url string `json:"url"`
 	}
 	_ = json.Unmarshal(bodyText, &ret)
+	if ret.Url == "" {
+		log.Error("日志上传的返回结果异常:", string(bodyText))
+	}
 	return ret.Url
 }
 
 func UploadFileToWeizaima(log *zap.SugaredLogger, name string, uniformId string, data io.Reader) string {
 	// 逐个尝试所有后端地址
 	for _, i := range BackendUrls {
+		if i == "" {
+			continue
+		}
 		ret := uploadFileToWeizaimaBase(i, log, name, uniformId, data)
 		if ret != "" {
 			return ret

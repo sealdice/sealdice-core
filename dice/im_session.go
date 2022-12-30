@@ -581,7 +581,8 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 			if !isSenderBot {
 				if mctx.Group != nil && (mctx.Group.IsActive(mctx) || amIBeMentioned) {
-					for _, i := range mctx.Group.ActivatedExtList {
+					for _, _i := range mctx.Group.ActivatedExtList {
+						i := _i // 保留引用
 						if i.OnNotCommandReceived != nil {
 							notCommandReceiveCall := func() {
 								if i.IsJsExt {
