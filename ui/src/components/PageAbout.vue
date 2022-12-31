@@ -28,6 +28,7 @@
     <div></div>
     <div class="subtitle">社区协力</div>
     <div class="developers">
+      <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
       <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/54656633?v=4"/>Szzrain</el-link>
       <el-link :underline="false" href="https://github.com/yuyannuo" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/95773654?v=4"/>于言诺</el-link>
     </div>
