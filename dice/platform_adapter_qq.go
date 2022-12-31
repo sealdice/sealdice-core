@@ -86,6 +86,7 @@ type MessageQQ struct {
 	SelfId        int64   `json:"self_id"`
 	Duration      int64   `json:"duration"`
 	Comment       string  `json:"comment"`
+	TargetId      int64   `json:"target_id"`
 
 	Data *struct {
 		// 个人信息
@@ -632,6 +633,23 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				if group != nil {
 					if group.LogOn {
 						_ = LogMarkDeleteByMsgId(ctx, group, msgQQ.MessageId)
+					}
+				}
+				return
+			}
+
+			// 戳一戳
+			if msgQQ.PostType == "notice" && msgQQ.SubType == "poke" {
+				// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
+				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+				SetTempVars(ctx, "???")
+
+				if msgQQ.TargetId == msgQQ.SelfId {
+					// 如果在戳自己
+					text := DiceFormatTmpl(ctx, "其它:戳一戳")
+					for _, i := range strings.Split(text, "###SPLIT###") {
+						doSleepQQ(ctx)
+						pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
 					}
 				}
 				return
