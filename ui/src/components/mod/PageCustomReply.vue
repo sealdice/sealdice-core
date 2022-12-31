@@ -157,7 +157,7 @@ const fileItems = ref<any>([
 
 const uploadFileList = ref<any[]>([])
 
-const cr = ref<any>({})
+const cr = ref<any>({ enable: true })
 const replyDebugMode = ref(false);
 
 const switchClick = () => {

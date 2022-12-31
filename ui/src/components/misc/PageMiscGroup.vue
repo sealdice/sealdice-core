@@ -8,6 +8,7 @@
   <div>
     <span style="margin-right: 1rem;">其他:</span>
     <el-checkbox v-model="orderByTimeDesc">按最后使用时间降序</el-checkbox>    
+    <el-checkbox v-model="filter30daysUnused">30天未使用</el-checkbox>    
   </div>
   <div>
     <span style="margin-right: 1rem;">搜索:</span>
@@ -38,11 +39,11 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref, h } from 'vue';
 import { useStore } from '~/store'
 import { urlBase } from '~/backend'
 import filesize from 'filesize'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElSwitch } from 'element-plus'
 import {
   Location,
   Document,
@@ -55,7 +56,7 @@ import {
 } from '@element-plus/icons-vue'
 import * as dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { cloneDeep, sortBy } from 'lodash-es'
+import { cloneDeep, now, sortBy } from 'lodash-es'
 
 dayjs.extend(relativeTime)
 
@@ -72,6 +73,7 @@ const groupList = ref<any>({})
 const showPlatformQQ = ref(true)
 const showPlatformQQCH = ref(false)
 const orderByTimeDesc = ref(true)
+const filter30daysUnused = ref(false);
 const searchBy = ref('')
 
 const groupItems = computed<any[]>(() => {
@@ -99,6 +101,15 @@ const groupItems = computed<any[]>(() => {
         ok = a || b
       }
 
+      if (ok) {
+        const t = Math.max(i.enteredTime, i.recentCommandTime)
+        if (filter30daysUnused.value) {
+          if (now() / 1000 - t < 30 * 24 * 60 * 60) {
+            ok = false;
+          }
+        }
+      }
+
       if (ok) items.push(i)
     }
     
@@ -116,6 +127,8 @@ const refreshList = async () => {
   groupList.value = data
 }
 
+const quitTextSave = ref(false);
+
 const saveOne = async (i: any, index: number) => {
   // await store.backupConfigSave(cfg.value)
   // console.log(222, i, index)
@@ -125,6 +138,7 @@ const saveOne = async (i: any, index: number) => {
 }
 
 const quitGroup = async (i: any, index: number, diceId: string) => {
+  const quitGroupText = localStorage.getItem('quitGroupText') || '因长期不使用等原因，骰主后台操作退群';
   ElMessageBox.prompt(
     '会进行退群留言“因长期不使用等原因，骰主后台操作退群”，输入英文大写NO则静默退群，写别的则为附加留言',
     '退出此群？',
@@ -132,6 +146,21 @@ const quitGroup = async (i: any, index: number, diceId: string) => {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
+      inputValue: quitGroupText,
+      message: h('div', null, [
+        h('p', null, '会进行退群留言“因长期不使用等原因，骰主后台操作退群”，输入英文大写NO则静默退群，写别的则为附加留言'),
+        h('label', {
+          onInput: (e: any) => {
+            quitTextSave.value = e.target.checked;
+          }
+        }, [
+          h('input', {
+            value: quitTextSave.value,
+            type: 'checkbox',
+          }),
+          h('span', null, '设为默认'),
+        ])
+      ])
     }
   ).then(async (data) => {
     await store.setGroupQuit({
@@ -140,6 +169,10 @@ const quitGroup = async (i: any, index: number, diceId: string) => {
       silence: data.value === 'NO',
       extraText: data.value
     })
+    if (quitTextSave.value) {
+      localStorage.setItem('quitGroupText', data.value);
+    }
+
     await refreshList()
     ElMessage.success('退群完成')
 
