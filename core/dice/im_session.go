@@ -262,6 +262,9 @@ type MsgContext struct {
 	DeckPools map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
 }
 
+//func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {
+//}
+
 func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	d := s.Parent
 
@@ -275,6 +278,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 	// 处理命令
 	if msg.MessageType == "group" || msg.MessageType == "private" {
+		// GroupEnableCheck TODO: 后续看看是否需要
 		group := s.ServiceAtNew[msg.GroupId]
 		if group == nil && msg.GroupId != "" {
 			// 注意: 此处必须开启，不然下面mctx.player取不到
