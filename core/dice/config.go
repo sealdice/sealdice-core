@@ -489,6 +489,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"抽牌_找不到牌组": {
 				{"找不到这个牌组", 1},
 			},
+			"抽牌_结果前缀": {
+				{`你从牌堆抽出:\n`, 1},
+			},
 			"随机名字": {
 				{"为{$t玩家}生成以下名字：\n{$t随机名字文本}", 1},
 			},
@@ -945,11 +948,17 @@ func setupBaseTextTemplate(d *Dice) {
 			"抽牌_找不到牌组": {
 				SubType: ".draw 不存在的某个牌组",
 			},
+			"抽牌_结果前缀": {
+				SubType: ".draw XXX",
+			},
 			"随机名字": {
 				SubType: ".name/.namednd",
 			},
 			"随机名字_分隔符": {
 				SubType: ".name/.namednd",
+			},
+			"戳一戳": {
+				SubType: "手机QQ功能",
 			},
 		},
 		"日志": {

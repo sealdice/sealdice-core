@@ -1285,12 +1285,14 @@ func (d *Dice) registerCoreCommands() {
 					//tipText += "如果你执行的是.setcoc(无空格)，可能说明此时coc7扩展并未打开，请运行.ext coc7 on\n"
 					tipText += "已切换至100面骰，并自动开启coc7扩展"
 					modSwitch = true
+					ctx.Group.System = "coc7"
 				}
 				if strings.EqualFold(arg1, "dnd") {
 					cmdArgs.Args[0] = "20"
 					ctx.Group.ExtActive(d.ExtFind("dnd5e"))
 					tipText += "已切换至20面骰，并自动开启dnd5e扩展。若不希望，请执行.ext dnd5e off"
 					modSwitch = true
+					ctx.Group.System = "dnd5e"
 				}
 				num, err := strconv.ParseInt(cmdArgs.Args[0], 10, 64)
 				if num < 0 {
