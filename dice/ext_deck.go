@@ -465,7 +465,8 @@ func RegisterBuiltinExtDeck(d *Dice) {
 				} else {
 					exists, result, _ := deckDraw(ctx, deckName, false)
 					if exists {
-						ReplyToSender(ctx, msg, result)
+						prefix := DiceFormatTmpl(ctx, "其它:抽牌_结果前缀")
+						ReplyToSender(ctx, msg, prefix+result)
 					} else {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组"))
 					}

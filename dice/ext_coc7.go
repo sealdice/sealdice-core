@@ -631,6 +631,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			suffix := ""
 			ctx.Group.ExtActive(ctx.Group.ExtGetActive("coc7"))
 			suffix = "\nCOC7规则扩展已自动开启"
+			ctx.Group.System = "coc7"
 
 			switch n {
 			case "0":

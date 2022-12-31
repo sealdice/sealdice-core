@@ -467,5 +467,10 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		}
 		VarSetValueInt64(ctx, "$t群组骰子面数", ctx.Group.DiceSideNum)
 		VarSetValueInt64(ctx, "$t当前骰子面数", getDefaultDicePoints(ctx))
+		if ctx.Group.System == "" {
+			ctx.Group.System = "coc7"
+		}
+		VarSetValueStr(ctx, "$t游戏模式", ctx.Group.System)
+		VarSetValueStr(ctx, "$t当前记录", ctx.Group.LogCurName)
 	}
 }
