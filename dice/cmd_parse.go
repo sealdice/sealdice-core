@@ -346,7 +346,8 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 		re = regexp.MustCompile(`<@(\d+?)>`)
 		break
 	case "KOOK":
-		re = regexp.MustCompile(`\(met\)\d+?\(met\)`)
+		re = regexp.MustCompile(`\(met\)(\d+?)\(met\)`)
+		break
 	}
 
 	m := re.FindAllStringSubmatch(cmd, -1)

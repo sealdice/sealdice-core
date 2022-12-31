@@ -321,6 +321,8 @@ func (pa *PlatformAdapterKook) toStdMessage(ctx *kook.KmarkdownMessageContext) *
 	msg.Time = ctx.Common.MsgTimestamp
 	msg.RawId = ctx.Common.MsgID
 	msg.Message = ctx.Common.Content
+	msg.Message = strings.ReplaceAll(msg.Message, `\[`, "[")
+	msg.Message = strings.ReplaceAll(msg.Message, `\]`, "]")
 	msg.Platform = "KOOK"
 	send := new(SenderBase)
 	send.UserId = FormatDiceIdKook(ctx.Common.AuthorID)
