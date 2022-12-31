@@ -457,10 +457,16 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 					// 稍作等待后发送入群致词
 					time.Sleep(2 * time.Second)
+
+					ctx.Player = &GroupPlayerInfo{}
 					uid := FormatDiceIdQQ(msgQQ.UserId)
 					welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 					log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
-					pa.SendToPerson(ctx, uid, welcome, "")
+
+					for _, i := range strings.Split(welcome, "###SPLIT###") {
+						doSleepQQ(ctx)
+						pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+					}
 				}()
 				return
 			}
@@ -502,8 +508,14 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 
 					// 稍作等待后发送入群致词
 					time.Sleep(1 * time.Second)
+
+					ctx.Player = &GroupPlayerInfo{}
 					log.Infof("发送入群致辞，群: <%s>(%d)", groupName, msgQQ.GroupId)
-					pa.SendToGroup(ctx, msg.GroupId, DiceFormatTmpl(ctx, "核心:骰子进群"), "")
+					text := DiceFormatTmpl(ctx, "核心:骰子进群")
+					for _, i := range strings.Split(text, "###SPLIT###") {
+						doSleepQQ(ctx)
+						pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+					}
 				}()
 				txt := fmt.Sprintf("加入QQ群组: <%s>(%d)", groupName, msgQQ.GroupId)
 				log.Info(txt)
@@ -552,6 +564,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 									}
 								}()
 
+								ctx.Player = &GroupPlayerInfo{}
 								//VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
 								uidRaw := strconv.FormatInt(msgQQ.UserId, 10)
 								VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
@@ -559,7 +572,11 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 								stdId := FormatDiceIdQQ(msgQQ.UserId)
 								VarSetValueStr(ctx, "$t帐号ID", stdId)
 								VarSetValueStr(ctx, "$t账号ID", stdId)
-								pa.SendToGroup(ctx, msg.GroupId, DiceFormat(ctx, group.GroupWelcomeMessage), "")
+								text := DiceFormat(ctx, group.GroupWelcomeMessage)
+								for _, i := range strings.Split(text, "###SPLIT###") {
+									doSleepQQ(ctx)
+									pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+								}
 							}()
 						}
 					}
