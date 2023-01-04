@@ -42,7 +42,7 @@ archives:
       - goos: windows
         format: zip
     files:
-      - "SealDice 指令手册.pdf"
+      - "SealDice指令手册.html"
       - src: data/helpdoc/COC
         dst: .
       - src: data/helpdoc/DND
