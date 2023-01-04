@@ -311,6 +311,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				groupId, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
 				if requestForAnotherGroup && groupId == "" {
 					return CmdExecuteResult{Matched: true, Solved: true}
+				} else {
+					groupId = ctx.Group.GroupId
 				}
 
 				text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
