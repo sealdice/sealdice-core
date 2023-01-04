@@ -641,6 +641,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			// 戳一戳
 			if msgQQ.PostType == "notice" && msgQQ.SubType == "poke" {
 				// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
+				msg.Sender.UserId = FormatDiceIdQQ(msgQQ.UserId)
 				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 				SetTempVars(ctx, "???")
 
