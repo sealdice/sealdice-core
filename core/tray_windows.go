@@ -12,7 +12,6 @@ import (
 	"github.com/lxn/win"
 	"github.com/monaco-io/request"
 	"math/rand"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -186,77 +185,52 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 		}
 	}()
 
-	var theFunc func()
-	subFunc := func() {
-		rePort := regexp.MustCompile(`:(\d+)$`)
-		m := rePort.FindStringSubmatch(dm.ServeAddress)
-		if len(m) > 0 {
-			portStr = m[1]
-			_trayPortStr = portStr
+	showUI := func() {
+		if !hideUI {
+			time.Sleep(2 * time.Second)
+			url := fmt.Sprintf(`http://localhost:%s`, portStr)
+			url2 := fmt.Sprintf(`http://127.0.0.1:%s`, portStr) // 因为dns被换了，localhost不能解析
+			c := request.Client{
+				URL:     url2,
+				Method:  "GET",
+				Timeout: 1,
+			}
+			resp := c.Send()
+			if resp.OK() {
+				time.Sleep(1 * time.Second)
+				exec.Command(`cmd`, `/c`, `start`, url).Start()
+			}
 		}
+	}
 
-		fmt.Println("端口占用检测 - 开始")
-		c, err := net.Dial("tcp", "127.0.0.1:"+portStr)
-		fmt.Println("端口占用检测 -", err == nil)
+	for {
+		err := e.Start(dm.ServeAddress)
 
-		isPortOk := false
 		if err != nil {
-			if dice.CheckDialErr(err) == syscall.ECONNREFUSED {
-				// 正确
-				isPortOk = true
-			}
-		}
-
-		if !isPortOk {
-			if c != nil {
-				_ = c.Close()
-			}
 			s1, _ := syscall.UTF16PtrFromString("海豹TRPG骰点核心")
 			s2, _ := syscall.UTF16PtrFromString(fmt.Sprintf("端口 %s 已被占用，点“是”随机换一个端口，点“否”退出\n注意，此端口将被自动写入配置，后续可用启动参数改回", portStr))
 			ret := win.MessageBox(0, s2, s1, win.MB_YESNO|win.MB_ICONWARNING|win.MB_DEFBUTTON2)
 			if ret == win.IDYES {
 				newPort := 3000 + rand.Int()%4000
 				dm.ServeAddress = strings.Replace(dm.ServeAddress, portStr, fmt.Sprintf("%d", newPort), 1)
-				theFunc()
-				return
+				rePort := regexp.MustCompile(`:(\d+)$`)
+				m := rePort.FindStringSubmatch(dm.ServeAddress)
+				if len(m) > 0 {
+					portStr = m[1]
+					_trayPortStr = portStr
+				}
+				continue
 			} else {
 				logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
 				os.Exit(1)
 			}
 		} else {
-		}
-		if !hideUI {
-			go func() {
-				for {
-					time.Sleep(2 * time.Second)
-					url := fmt.Sprintf(`http://localhost:%s`, portStr)
-					url2 := fmt.Sprintf(`http://127.0.0.1:%s`, portStr) // 因为dns被换了，localhost不能解析
-					c := request.Client{
-						URL:     url2,
-						Method:  "GET",
-						Timeout: 1,
-					}
-					resp := c.Send()
-					if resp.OK() {
-						time.Sleep(1 * time.Second)
-						exec.Command(`cmd`, `/c`, `start`, url).Start()
-						break
-					}
-				}
-			}()
-		}
-
-		fmt.Println("如果浏览器没有自动打开，请手动访问:")
-		fmt.Println(fmt.Sprintf(`http://localhost:%s`, portStr)) // 默认:3211
-		err = e.Start(dm.ServeAddress)
-		if err != nil {
-			logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
-			return
+			fmt.Println("如果浏览器没有自动打开，请手动访问:")
+			fmt.Println(fmt.Sprintf(`http://localhost:%s`, portStr)) // 默认:3211
+			go showUI()
+			break
 		}
 	}
-
-	theFunc = subFunc
-	subFunc()
 }
 
 func tempDirWarn() {
