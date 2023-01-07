@@ -103,6 +103,10 @@ type MessageQQ struct {
 	Retcode int64 `json:"retcode"`
 	//Status string `json:"status"`
 	Echo int `json:"echo"`
+
+	Msg string `json:"msg"`
+	//Status  interface{} `json:"status"`
+	Wording string `json:"wording"`
 }
 
 type LastWelcomeInfo struct {
@@ -449,24 +453,26 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			// 好友通过后
 			if msgQQ.NoticeType == "friend_add" && msgQQ.PostType == "notice" {
 				// {"notice_type":"friend_add","post_type":"notice","self_id":222,"time":1648239248,"user_id":111}
-				go func() {
+				func() {
 					defer func() {
 						if r := recover(); r != nil {
 							log.Errorf("好友致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
 						}
 					}()
 
-					// 稍作等待后发送入群致词
+					// 稍作等待后发好友致辞
 					time.Sleep(2 * time.Second)
 
-					ctx.Player = &GroupPlayerInfo{}
+					msg.Sender.UserId = FormatDiceIdQQ(msgQQ.UserId)
+					ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 					uid := FormatDiceIdQQ(msgQQ.UserId)
+
 					welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 					log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
 
 					for _, i := range strings.Split(welcome, "###SPLIT###") {
 						doSleepQQ(ctx)
-						pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 					}
 				}()
 				return
@@ -636,6 +642,12 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					}
 				}
 				return
+			}
+
+			if msgQQ.PostType == "" && msgQQ.Msg == "SEND_MSG_API_ERROR" && msgQQ.Retcode == 100 {
+				// 群消息发送失败: 账号可能被风控，戳对方一下
+				// {"data":null,"echo":0,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
+				// 但是这里没QQ号也没有消息ID，很麻烦
 			}
 
 			// 戳一戳
