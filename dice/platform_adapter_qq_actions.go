@@ -352,6 +352,19 @@ func (pa *PlatformAdapterQQOnebot) GetLoginInfo() {
 }
 
 func textSplit(input string) []string {
+	re := regexp.MustCompile(`\[CQ:poke,(.+?)]`) // [img:] 或 [图:]
+	m := re.FindAllStringIndex(input, -1)
+
+	// 注: 临时方案，后期对CQ码在消息转换时进行统一处理
+	poke := []string{}
+	if m != nil {
+		for i := len(m) - 1; i >= 0; i-- {
+			span := m[i]
+			poke = append(poke, input[span[0]:span[1]])
+			input = input[0:span[0]] + input[span[1]:]
+		}
+	}
+
 	maxLen := 5000 // 以utf-8计算，1666个汉字
 	var splits []string
 
@@ -363,6 +376,11 @@ func textSplit(input string) []string {
 		splits = append(splits, input[l:r])
 	}
 	splits = append(splits, input[l:])
+
+	for _, i := range poke {
+		splits = append(splits, i)
+	}
+
 	return splits
 }
 
