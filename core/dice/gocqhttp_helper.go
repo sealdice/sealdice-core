@@ -583,7 +583,9 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				// error 之类错误无条件警告
 				if !skip {
 					if strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
-						dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+						if !strings.Contains(line, "检查更新失败！") {
+							dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+						}
 					}
 				}
 			}
