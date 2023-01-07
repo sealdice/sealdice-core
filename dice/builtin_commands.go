@@ -1366,7 +1366,7 @@ func (d *Dice) registerCoreCommands() {
 		".pc del/rm <角色名> // 删除角色\n" +
 		"> 注: 海豹各群数据独立(多张空白卡)，单群游戏不需要存角色。" // > 普通模组执行nn, st后直接跑即可。跑完若想保存角色用pc save存卡。
 	cmdChar := &CmdItemInfo{
-		Name:      "ch",
+		Name:      "pc",
 		ShortHelp: helpCh,
 		Help:      "角色管理:\n" + helpCh,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
@@ -1451,15 +1451,21 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载失败_已绑定"))
 				}
 			} else if cmdArgs.IsArgEqual(1, "tag") {
-				name := cmdArgs.GetArgN(2)
+				name := getNickname()
 				VarSetValueStr(ctx, "$t角色名", name)
 				if name != "" {
-					ctx.ChUnbindCur() // 先移除绑定
-					ok := ctx.ChBindCur(name)
-					if ok {
+					curBind := ctx.ChBindCurGet()
+					if curBind == name {
+						// 已经绑定，直接成功
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_成功"))
 					} else {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_失败"))
+						ctx.ChUnbindCur() // 先移除绑定
+						ok := ctx.ChBindCur(name)
+						if ok {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_成功"))
+						} else {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_失败"))
+						}
 					}
 				} else {
 					if name, success := ctx.ChUnbindCur(); success {
@@ -1474,11 +1480,11 @@ func (d *Dice) registerCoreCommands() {
 					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				}
 			} else if cmdArgs.IsArgEqual(1, "group1", "grp1") {
-				name := cmdArgs.GetArgN(2)
+				name := getNickname()
 				lst := ctx.ChBindGetList(name)
 				ReplyToSender(ctx, msg, "卡片绑定: "+strings.Join(lst, " "))
 			} else if cmdArgs.IsArgEqual(1, "untagAll") {
-				name := cmdArgs.GetArgN(2)
+				name := getNickname()
 				lst := ctx.ChUnbind(name)
 
 				for _, i := range lst {

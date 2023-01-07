@@ -442,7 +442,11 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		now := time.Now()
 		t, _ := strconv.ParseInt(now.Format("20060102"), 10, 64)
 		VarSetValueInt64(ctx, "$tDate", t)
-		VarSetValueInt64(ctx, "$tWeekday", int64(now.Weekday()))
+		wd := int64(now.Weekday())
+		if wd == 0 {
+			wd = 7
+		}
+		VarSetValueInt64(ctx, "$tWeekday", wd)
 
 		t, _ = strconv.ParseInt(now.Format("2006"), 10, 64)
 		VarSetValueInt64(ctx, "$tYear", t)
@@ -473,4 +477,11 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueStr(ctx, "$t游戏模式", ctx.Group.System)
 		VarSetValueStr(ctx, "$t当前记录", ctx.Group.LogCurName)
 	}
+
+	if ctx.MessageType == "group" {
+		VarSetValueStr(ctx, "$t消息类型", "group")
+	} else {
+		VarSetValueStr(ctx, "$t消息类型", "private")
+	}
+
 }
