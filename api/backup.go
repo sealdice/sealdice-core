@@ -78,7 +78,7 @@ func backupSimple(c echo.Context) error {
 		})
 	}
 
-	err := dm.BackupSimple()
+	_, err := dm.BackupSimple()
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success": err == nil,
 	})

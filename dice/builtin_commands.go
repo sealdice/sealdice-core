@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"github.com/fy0/lockfree"
 	"github.com/juliangruber/go-intersect"
+	cp "github.com/otiai10/copy"
 	"math/rand"
+	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -727,7 +730,7 @@ func (d *Dice) registerCoreCommands() {
 				}()
 			case "backup":
 				ReplyToSender(ctx, msg, "开始备份数据")
-				err := ctx.Dice.Parent.BackupSimple()
+				_, err := ctx.Dice.Parent.BackupSimple()
 				if err == nil {
 					ReplyToSender(ctx, msg, "备份成功！请到UI界面(综合设置-备份)处下载备份，或在骰子backup目录下读取")
 				} else {
@@ -743,7 +746,7 @@ func (d *Dice) registerCoreCommands() {
 				code := cmdArgs.GetArgN(2)
 				if code != "" {
 					if code == updateCode && updateCode != "0000" {
-						ReplyToSender(ctx, msg, "开始下载新版本")
+						ReplyToSender(ctx, msg, "开始下载新版本，完成后将自动进行一次备份")
 						go func() {
 							ret := <-dm.UpdateDownloadedChan
 
@@ -752,7 +755,10 @@ func (d *Dice) registerCoreCommands() {
 							} else {
 								ctx.Dice.UpgradeWindowId = ctx.Group.GroupId
 							}
+
 							ctx.Dice.Save(true)
+							bakFn, _ := ctx.Dice.Parent.BackupSimple()
+							_ = cp.Copy(path.Join("./backups", bakFn), path.Join(os.TempDir(), bakFn))
 
 							if ret == "" {
 								ReplyToSender(ctx, msg, "准备开始升级，服务即将离线")

@@ -150,8 +150,9 @@ func (dm *DiceManager) BackupAuto() error {
 	}, "bak-"+time.Now().Format("060102_150405")+"_auto_"+"*.zip")
 }
 
-func (dm *DiceManager) BackupSimple() error {
-	return dm.Backup(AllBackupConfig{
+func (dm *DiceManager) BackupSimple() (string, error) {
+	fn := "bak-" + time.Now().Format("060102_150405") + "_" + "*.zip"
+	return fn, dm.Backup(AllBackupConfig{
 		Global:  true,
 		Decks:   false,
 		HelpDoc: false,
@@ -164,5 +165,5 @@ func (dm *DiceManager) BackupSimple() error {
 				Accounts:    true,
 			},
 		},
-	}, "bak-"+time.Now().Format("060102_150405")+"_"+"*.zip")
+	}, fn)
 }

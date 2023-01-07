@@ -1462,11 +1462,11 @@ func (d *Dice) loads() {
 				}
 			}
 
-			d.Logger.Info("serve.yaml loaded")
+			d.Logger.Error("serve.yaml loaded")
 			//info, _ := yaml.Marshal(Session.ServiceAt)
 			//replyGroup(ctx, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
 		} else {
-			d.Logger.Info("serve.yaml parse failed")
+			d.Logger.Error("serve.yaml parse failed")
 			panic(err2)
 		}
 	} else {

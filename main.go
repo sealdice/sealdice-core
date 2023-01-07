@@ -65,8 +65,12 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 			}
 		}
 
-		diceManager.Help.Close()
-		diceManager.Save()
+		if diceManager.Help != nil {
+			diceManager.Help.Close()
+		}
+		if diceManager.IsReady {
+			diceManager.Save()
+		}
 		if diceManager.Cron != nil {
 			diceManager.Cron.Stop()
 		}
@@ -106,6 +110,7 @@ func main() {
 	// 提早初始化是为了读取ServiceName
 	diceManager := &dice.DiceManager{}
 	diceManager.LoadDice()
+	diceManager.IsReady = true
 
 	if opts.Address != "" {
 		fmt.Println("由参数输入了服务地址:", opts.Address)
@@ -146,12 +151,9 @@ func main() {
 		return
 	}
 
-	updateFileName := "./auto_updat3.exe"
-	_, err1 := os.Stat("./auto_updat3.exe")
-	if err1 != nil {
-		_, err1 = os.Stat("./auto_update.exe")
-		updateFileName = "./auto_update.exe"
-	}
+	updateFileName := "./auto_update.exe"
+	_, err1 := os.Stat("./auto_update.exe")
+
 	if err1 == nil {
 		_, err = os.Stat("./auto_update_ok")
 		if err == nil {
@@ -161,6 +163,7 @@ func main() {
 			os.Remove("./auto_updat3.exe")
 			os.RemoveAll("./update")
 		} else {
+			ioutil.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
 			logger.Warn("检测到 auto_update.exe，即将进行升级")
 			// 这5s延迟是保险，其实并不必要
 			name := updateFileName
