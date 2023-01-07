@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fy0/procs"
+	"github.com/puzpuzpuz/xsync"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"os"
@@ -57,6 +58,9 @@ type PlatformAdapterQQOnebot struct {
 	InPackGoCqHttpPassword       string   `yaml:"inPackGoCqHttpPassword" json:"-"`
 	DiceServing                  bool     `yaml:"-"`          // 是否正在连接中
 	InPackGoCqHttpDisconnectedCH chan int `yaml:"-" json:"-"` // 信号量，用于关闭连接
+
+	customEcho int64                                `yaml:"-"` // 自定义返回标记
+	echoMap    *xsync.MapOf[int64, chan *MessageQQ] `yaml:"-"`
 }
 
 type Sender struct {
@@ -65,6 +69,20 @@ type Sender struct {
 	Nickname string `json:"nickname"`
 	Role     string `json:"role"` // owner 群主
 	UserId   int64  `json:"user_id"`
+}
+
+type OnebotUserInfo struct {
+	// 个人信息
+	Nickname string `json:"nickname"`
+	UserId   int64  `json:"user_id"`
+
+	// 群信息
+	GroupId         int64  `json:"group_id"`          // 群号
+	GroupCreateTime uint32 `json:"group_create_time"` // 群号
+	MemberCount     int64  `json:"member_count"`
+	GroupName       string `json:"group_name"`
+	MaxMemberCount  int32  `json:"max_member_count"`
+	Card            string `json:"card"`
 }
 
 type MessageQQ struct {
@@ -99,10 +117,13 @@ type MessageQQ struct {
 		MemberCount     int64  `json:"member_count"`
 		GroupName       string `json:"group_name"`
 		MaxMemberCount  int32  `json:"max_member_count"`
+
+		// 群成员信息
+		Card string `json:"card"`
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	//Status string `json:"status"`
-	Echo int `json:"echo"`
+	Echo int64 `json:"echo"` //声明类型而不是interface的原因是interface下数字不能正确转换
 
 	Msg string `json:"msg"`
 	//Status  interface{} `json:"status"`
@@ -319,6 +340,14 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					//log.Debug("群信息刷新: ", msgQQ.Data.GroupName)
 				}
 				return
+			}
+
+			// 自定义信息
+			if pa.echoMap != nil {
+				if v, ok := pa.echoMap.Load(msgQQ.Echo); ok {
+					v <- msgQQ
+					return
+				}
 			}
 
 			// 处理加群请求
@@ -653,18 +682,18 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			// 戳一戳
 			if msgQQ.PostType == "notice" && msgQQ.SubType == "poke" {
 				// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
-				msg.Sender.UserId = FormatDiceIdQQ(msgQQ.UserId)
-				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
-				SetTempVars(ctx, "???")
+				go func() {
+					ctx := pa.packTempCtx(msgQQ, msg)
 
-				if msgQQ.TargetId == msgQQ.SelfId {
-					// 如果在戳自己
-					text := DiceFormatTmpl(ctx, "其它:戳一戳")
-					for _, i := range strings.Split(text, "###SPLIT###") {
-						doSleepQQ(ctx)
-						pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+					if msgQQ.TargetId == msgQQ.SelfId {
+						// 如果在戳自己
+						text := DiceFormatTmpl(ctx, "其它:戳一戳")
+						for _, i := range strings.Split(text, "###SPLIT###") {
+							doSleepQQ(ctx)
+							pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+						}
 					}
-				}
+				}()
 				return
 			}
 
@@ -814,4 +843,17 @@ func (pa *PlatformAdapterQQOnebot) IsInLogin() bool {
 
 func (pa *PlatformAdapterQQOnebot) IsLoginSuccessed() bool {
 	return pa.GoCqHttpState == GoCqHttpStateCodeLoginSuccessed
+}
+
+func (pa *PlatformAdapterQQOnebot) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgContext {
+	ep := pa.EndPoint
+	session := pa.Session
+
+	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: session, Dice: session.Parent}
+	d := pa.GetGroupMemberInfo(msgQQ.GroupId, msgQQ.UserId) // 先获取个人信息，避免不存在id
+	msg.Sender.UserId = FormatDiceIdQQ(msgQQ.UserId)
+	ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+	ctx.Player.Name = d.Card
+	SetTempVars(ctx, d.Nickname)
+	return ctx
 }
