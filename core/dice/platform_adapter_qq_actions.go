@@ -3,6 +3,7 @@ package dice
 import (
 	"encoding/json"
 	"errors"
+	"github.com/puzpuzpuz/xsync"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"net/url"
@@ -216,24 +217,64 @@ func (pa *PlatformAdapterQQOnebot) SetGroupAddRequest(flag string, subType strin
 	socketSendText(pa.Socket, string(a))
 }
 
+func (pa *PlatformAdapterQQOnebot) getCustomEcho() int64 {
+	if pa.customEcho > -10 {
+		pa.customEcho = -10
+	}
+	pa.customEcho -= 1
+	return pa.customEcho
+}
+
+func (pa *PlatformAdapterQQOnebot) waitEcho(echo int64, beforeWait func()) *MessageQQ {
+	//pa.echoList = append(pa.echoList, )
+	ch := make(chan *MessageQQ, 1)
+	type Point struct {
+		x int32
+		y int32
+	}
+
+	if pa.echoMap == nil {
+		pa.echoMap = xsync.NewTypedMapOf[int64, chan *MessageQQ](func(p int64) uint64 {
+			return uint64(p)
+		})
+	}
+	pa.echoMap.Store(echo, ch)
+
+	beforeWait()
+	return <-ch
+}
+
 // GetGroupMemberInfo 获取群成员信息
-func (pa *PlatformAdapterQQOnebot) GetGroupMemberInfo(GroupId int64, UserId int64) {
+func (pa *PlatformAdapterQQOnebot) GetGroupMemberInfo(GroupId int64, UserId int64) *OnebotUserInfo {
 	type DetailParams struct {
 		GroupId int64 `json:"group_id"`
 		UserId  int64 `json:"user_id"`
 		NoCache bool  `json:"no_cache"`
 	}
 
+	echo := pa.getCustomEcho()
+
 	a, _ := json.Marshal(oneBotCommand{
-		"get_group_member_info",
-		DetailParams{
+		Action: "get_group_member_info",
+		Params: DetailParams{
 			GroupId: GroupId,
 			UserId:  UserId,
+			NoCache: true,
 		},
-		-3,
+		Echo: echo,
 	})
 
-	socketSendText(pa.Socket, string(a))
+	msg := pa.waitEcho(echo, func() {
+		socketSendText(pa.Socket, string(a))
+	})
+
+	d := msg.Data
+	return &OnebotUserInfo{
+		Nickname: d.Nickname,
+		UserId:   d.UserId,
+		GroupId:  d.GroupId,
+		Card:     d.Card,
+	}
 }
 
 func (pa *PlatformAdapterQQOnebot) SetGroupCardName(groupId string, userId string, name string) {
