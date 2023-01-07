@@ -571,7 +571,28 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		if pa.IsInLogin() || strings.Contains(line, "风控") || strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
 			//  [WARNING]: 登录需要滑条验证码, 请使用手机QQ扫描二维码以继续登录
 			if pa.IsLoginSuccessed() {
-				dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+				skip := false
+
+				if strings.Contains(line, "WARNING") {
+					if strings.Contains(line, "检查更新失败") || strings.Contains(line, "Protocol -> device lock is disable.") {
+						skip = true
+					}
+					if strings.Contains(line, "语音文件") && strings.Contains(line, "下载失败") {
+						skip = true
+					}
+				}
+
+				if strings.Contains(line, "ERROR") {
+					if strings.Contains(line, "panic on decoder MsgPush.PushGroupProMsg") {
+						skip = true
+					}
+				}
+
+				if !skip {
+					dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+				} else {
+					fmt.Printf("onebot | %s\n", line)
+				}
 			} else {
 				fmt.Printf("onebot | %s\n", line)
 
@@ -580,12 +601,16 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 					skip = true
 				}
 
+				if strings.Contains(line, "WARNING") {
+					if strings.Contains(line, "检查更新失败") || strings.Contains(line, "Protocol -> device lock is disable.") {
+						skip = true
+					}
+				}
+
 				// error 之类错误无条件警告
 				if !skip {
 					if strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
-						if !strings.Contains(line, "检查更新失败！") {
-							dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
-						}
+						dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
 					}
 				}
 			}
