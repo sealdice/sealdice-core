@@ -56,6 +56,8 @@
     <!-- <el-checkbox v-model="importOnlyCurrent">仅当前页面(勾选)/全部自定义文案</el-checkbox> -->
     <!-- <el-checkbox v-model="importImpact">紧凑</el-checkbox> -->
 
+    <el-link style="font-size: 16px; font-weight: bolder;" type="primary" href="https://dice.weizaima.com/changelog" target="_blank">查看更新日志</el-link>
+
     <div>请及时更新海豹到最新版本，这意味着功能增加和BUG修复。</div>
     <div>在操作之前，最好能确保你目前可以接触到服务器，以防万一需要人工干预。</div>
     <div><b>如果升级后无法启动，请删除海豹目录中的"update"、"auto_update.exe"并手动进行升级</b></div>
