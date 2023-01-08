@@ -758,7 +758,10 @@ func (d *Dice) registerCoreCommands() {
 
 							ctx.Dice.Save(true)
 							bakFn, _ := ctx.Dice.Parent.BackupSimple()
-							_ = cp.Copy(path.Join("./backups", bakFn), path.Join(os.TempDir(), bakFn))
+							tmpPath := path.Join(os.TempDir(), bakFn)
+							_ = os.MkdirAll(tmpPath, 0644)
+							ctx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
+							_ = cp.Copy(path.Join("./backups", bakFn), tmpPath)
 
 							if ret == "" {
 								ReplyToSender(ctx, msg, "准备开始升级，服务即将离线")
