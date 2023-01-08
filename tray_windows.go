@@ -175,13 +175,14 @@ var _trayPortStr = "3211"
 
 func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	portStr := "3211"
-	runtime.LockOSThread()
+	//runtime.LockOSThread()
 
 	go func() {
-		runtime.LockOSThread()
 		for {
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
+			runtime.LockOSThread()
 			systray.SetTooltip("海豹TRPG骰点核心 #" + portStr)
+			runtime.UnlockOSThread()
 		}
 	}()
 
