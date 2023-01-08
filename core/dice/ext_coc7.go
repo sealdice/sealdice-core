@@ -496,8 +496,18 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 					successRank, criticalSuccessValue := ResultCheck(mctx, cocRule, checkVal, attrVal)
 					var suffix string
-					suffixFull := GetResultTextWithRequire(mctx, successRank, difficultRequire, false)
-					suffixShort := GetResultTextWithRequire(mctx, successRank, difficultRequire, true)
+					var suffixFull string
+					var suffixShort string
+
+					if difficultRequire > 1 {
+						// 此时两者内容相同这样做是为了避免失败文本被计算两次
+						suffixFull = GetResultTextWithRequire(mctx, successRank, difficultRequire, false)
+						suffixShort = suffixFull
+					} else {
+						suffixFull = GetResultTextWithRequire(mctx, successRank, difficultRequire, false)
+						suffixShort = GetResultTextWithRequire(mctx, successRank, difficultRequire, true)
+					}
+
 					if manyTimes {
 						suffix = suffixShort
 					} else {
