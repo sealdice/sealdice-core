@@ -205,6 +205,13 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	}
 
 	for {
+		rePort := regexp.MustCompile(`:(\d+)$`)
+		m := rePort.FindStringSubmatch(dm.ServeAddress)
+		if len(m) > 0 {
+			portStr = m[1]
+			_trayPortStr = portStr
+		}
+
 		err := e.Start(dm.ServeAddress)
 
 		if err != nil {
@@ -214,12 +221,6 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 			if ret == win.IDYES {
 				newPort := 3000 + rand.Int()%4000
 				dm.ServeAddress = strings.Replace(dm.ServeAddress, portStr, fmt.Sprintf("%d", newPort), 1)
-				rePort := regexp.MustCompile(`:(\d+)$`)
-				m := rePort.FindStringSubmatch(dm.ServeAddress)
-				if len(m) > 0 {
-					portStr = m[1]
-					_trayPortStr = portStr
-				}
 				continue
 			} else {
 				logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
