@@ -27,9 +27,9 @@ type OneBackupConfig struct {
 	Accounts    bool `json:"accounts"`    // 帐号
 }
 
-func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) error {
+func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, error) {
 	dirpath := "./backups"
-	os.MkdirAll(dirpath, 0755)
+	_ = os.MkdirAll(dirpath, 0755)
 
 	fzip, _ := ioutil.TempFile(dirpath, bakFilename)
 	writer := zip.NewWriter(fzip)
@@ -56,7 +56,7 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) error {
 	}
 
 	if cfg.Decks {
-		filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+		_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
 			if !info.IsDir() {
 				backup(nil, path)
 			}
@@ -65,7 +65,7 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) error {
 	}
 
 	if cfg.HelpDoc {
-		filepath.Walk("data/helpdoc", func(path string, info fs.FileInfo, err error) error {
+		_ = filepath.Walk("data/helpdoc", func(path string, info fs.FileInfo, err error) error {
 			if !info.IsDir() {
 				backup(nil, path)
 			}
@@ -128,13 +128,13 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) error {
 	fileWriter, _ := writer.CreateHeader(h)
 	fileWriter.Write(data)
 
-	writer.Close()
-	fzip.Close()
-	return nil
+	_ = writer.Close()
+	_ = fzip.Close()
+	return fzip.Name(), nil
 }
 
 func (dm *DiceManager) BackupAuto() error {
-	return dm.Backup(AllBackupConfig{
+	_, err := dm.Backup(AllBackupConfig{
 		Global:  true,
 		Decks:   false,
 		HelpDoc: false,
@@ -148,11 +148,12 @@ func (dm *DiceManager) BackupAuto() error {
 			},
 		},
 	}, "bak-"+time.Now().Format("060102_150405")+"_auto_"+"*.zip")
+	return err
 }
 
 func (dm *DiceManager) BackupSimple() (string, error) {
 	fn := "bak-" + time.Now().Format("060102_150405") + "_" + "*.zip"
-	return fn, dm.Backup(AllBackupConfig{
+	return dm.Backup(AllBackupConfig{
 		Global:  true,
 		Decks:   false,
 		HelpDoc: false,
