@@ -118,7 +118,7 @@
         <el-select v-model="form.protocol">
           <el-option label="iPad 协议" :value="0"></el-option>
           <el-option label="Android 协议 - 稳定协议，建议！" :value="1"></el-option>
-          <el-option label="Android 手表协议 - 可以和手机QQ共存" :value="2"></el-option>
+          <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
           <!-- <el-option label="MacOS" :value="3"></el-option> -->
         </el-select>
         <small>
@@ -153,7 +153,7 @@
           <el-select v-model="form.protocol">
             <el-option label="iPad 协议" :value="0"></el-option>
             <el-option label="Android 协议 - 稳定协议，建议！" :value="1"></el-option>
-            <el-option label="Android 手表协议 - 可以和手机QQ共存" :value="2"></el-option>
+            <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
             <!-- <el-option label="MacOS" :value="3"></el-option> -->
           </el-select>
         </el-form-item>

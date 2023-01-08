@@ -58,12 +58,12 @@
 
     <div>请及时更新海豹到最新版本，这意味着功能增加和BUG修复。</div>
     <div>在操作之前，最好能确保你目前可以接触到服务器，以防万一需要人工干预。</div>
-    <div>不过即使出了问题，多数也可以通过.master reboot进行解决，这个操作可以在“指令测试”界面完成</div>
+    <div><b>如果升级后无法启动，请删除海豹目录中的"update"、"auto_update.exe"并手动进行升级</b></div>
 
     <el-button style="margin: 1rem 0" type="primary" @click="doUpgrade">确认升级到 {{store.curDice.baseInfo.versionNew}} </el-button>
     
     <div>{{store.curDice.baseInfo.versionNewNote}}</div>
-    <div>注意: 升级成功后界面不会自动刷新，请等待2分钟后手动刷新</div>
+    <div>注意: 升级成功后界面不会自动刷新，请在重连完成后手动刷新</div>
     <div>不要连续多次执行</div>
 
     <template #footer>
@@ -107,10 +107,10 @@ let timerId: number
 
 const doUpgrade = async () => {
   upgradeDialogVisible.value = false
-  ElMessageBox.alert('开始操作，请等待……', '升级')
+  ElMessageBox.alert('开始下载更新，请等待……<br>完成后将自动重启海豹，并进入更新流程', '升级', { dangerouslyUseHTMLString: true })
   try {
     const ret = await store.upgrade()
-    ElMessageBox.alert((ret as any).text, '升级')
+    ElMessageBox.alert((ret as any).text + '<br>如果几分钟后服务没有恢复，检查一下海豹目录', '升级', { dangerouslyUseHTMLString: true })
   } catch (e) {
     ElMessageBox.alert('升级失败', '升级')
   }
