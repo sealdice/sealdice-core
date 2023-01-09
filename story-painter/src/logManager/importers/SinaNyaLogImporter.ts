@@ -20,7 +20,7 @@ export class SinaNyaLogImporter extends LogImporter {
 
     reSinaNya.lastIndex = 0; // 注: 默认值即为0 并非-1
     const startLength = store.pcList.length + 1001;
-    const nicknames = new Set<string>();
+    const nicknames = new Map<string, string>();
     const items = [] as LogItem[];
     let lastItem: LogItem = null as any;
     let lastIndex = 0;
@@ -37,7 +37,7 @@ export class SinaNyaLogImporter extends LogImporter {
         }
 
         const item = {} as LogItem;
-        nicknames.add(m[2]);
+        nicknames.set(m[2], null);
         item.nickname = m[2];
         item.time = dayjs(m[1]).unix();
         item.message = m[3];

@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { EditorView } from '@codemirror/view';
 import axios from 'axios';
+import { TextInfo } from './logManager/importers/_logImpoter';
 
 export interface CharItem {
   name: string,
@@ -19,6 +20,7 @@ export interface LogItem {
   isDice: boolean;
   commandId: number;
   color?: string;
+  role?: string;
   commandInfo?: any;
 
   // 如果为真，那么只有message有意义，且当作纯文本处理
@@ -38,7 +40,7 @@ export const useStore = defineStore('main', {
       doEditorHighlight: false,
 
       _reloadEditor: null as any as (highlight: boolean) => void,
-      reloadEditor2: null as any as () => void,
+
       exportOptions: {
         commandHide: false,
         imageHide: false,
@@ -62,14 +64,18 @@ export const useStore = defineStore('main', {
       }
       return this.paletteStack.shift() as string
     },
+
     async customTextSave(category: string) {
     },
+
     async tryFetchLog(key: string, password: string) {
       const resp = await axios.get('https://weizaima.com/dice/api/log', {
         params: { key, password }
       })
       return resp.data
     },
+
+    /** 移除不使用的pc名字 */
     async pcNameRefresh() {
       const names = new Set();
       const namesAll = new Set();
@@ -93,6 +99,26 @@ export const useStore = defineStore('main', {
         this.tryRemovePC(i as any)
       }
     },
+
+    /** 更新pc列表 */
+    async updatePcList(ti: TextInfo) {
+      const exists = new Set();
+      for (let i of this.pcList) {
+        exists.add(i.name);
+      }
+    
+      for (let [k, v] of ti.nicknames) {
+        if (!exists.has(k)) {
+          this.pcList.push({
+            name: k,
+            role: v as any || '角色',
+            color: this.getColor()
+          });
+          exists.add(k);
+        }
+      }
+    },
+
     async tryRemovePC(name: string) {
       let index = 0
       for (let i of this.pcList) {
@@ -103,51 +129,5 @@ export const useStore = defineStore('main', {
         index += 1
       }
     },
-    async tryAddPcList2(name: string) {
-      let isExists = false
-      for (let i of this.pcList) {
-        if (i.name === name) {
-          isExists = true
-          break
-        }
-      }
-      if (!isExists) {
-        let role = '角色'
-        if (name.toLowerCase().startsWith('ob')) {
-          role = '隐藏'
-        }
-        this.pcList.push({
-          name: name,
-          role: role as any,
-          color: this.getColor() // '#000000'
-        })
-      }
-      return !isExists // changed
-    },
-    async tryAddPcList(item: LogItem) {
-      let isExists = false
-      for (let i of this.pcList) {
-        if (i.name === item.nickname) {
-          isExists = true
-          break
-        }
-      }
-      if (!isExists) {
-        let role = '角色'
-        if (item.nickname.toLowerCase().startsWith('ob')) {
-          role = '隐藏'
-        }
-        if (item.isDice) {
-          role = '骰子'
-        }
-
-        this.pcList.push({
-          name: item.nickname,
-          role: role as any,
-          color: this.getColor()
-        })
-      }
-      return !isExists // changed
-    }
   }
 })

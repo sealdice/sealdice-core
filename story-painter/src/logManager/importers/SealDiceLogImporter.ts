@@ -1,4 +1,5 @@
-import { LogImporter } from "./_logImpoter";
+import { LogItem } from "~/store";
+import { LogImporter, TextInfo } from "./_logImpoter";
 
 
 
@@ -17,5 +18,22 @@ export class SealDiceLogImporter extends LogImporter {
     } catch (e) { }
 
     return isTrpgLog;
+  }
+
+  parse(text: string): TextInfo {
+    const nicknames = new Map<string, string>();
+    const items = this.latestData as LogItem[];
+    let startText = '';
+    for (let i of items) {
+      let role = '角色'
+      if (i.nickname.toLowerCase().startsWith('ob')) {
+        role = '隐藏'
+      }
+      if (i.isDice) {
+        role = '骰子'
+      }
+      nicknames.set(i.nickname, role);
+    }
+    return { items, nicknames, startText };
   }
 }

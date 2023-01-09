@@ -1,5 +1,5 @@
 import { LogItem } from "~/store"
-import { LogImporter  } from "./importers/_logImpoter"
+import { LogImporter, TextInfo  } from "./importers/_logImpoter"
 import { SealDiceLogImporter } from "./importers/SealDiceLogImporter";
 import { QQExportLogImporter } from "./importers/QQExportLogImporter";
 import { SinaNyaLogImporter } from "./importers/SinaNyaLogImporter";
@@ -115,6 +115,7 @@ export const trgCommandSolve = (item: LogItem) => {
 export class LogManager {
   ev = new Emitter<{
     'textSet': (text: string) => void,
+    'parsed': (ti: TextInfo) => void;
   }>(this);
 
   importers = [
@@ -148,6 +149,8 @@ export class LogManager {
           item.message = ret.startText
           ret.items = [item, ...ret.items];
         }
+
+        this.ev.emit('parsed', ret);
         return ret;
       }
     }

@@ -4,7 +4,7 @@ import type { LogManager } from "../logManager";
 
 export interface TextInfo {
   items: LogItem[];
-  nicknames: Set<string>;
+  nicknames: Map<string, string>;
   startText: string;
   exporter?: string;
 }

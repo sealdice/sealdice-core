@@ -195,6 +195,7 @@ import ClipboardJS from 'clipboard'
 
 import { logMan, trgCommandSolve } from './logManager/logManager'
 import { ViewUpdate } from "@codemirror/view";
+import { TextInfo } from "./logManager/importers/_logImpoter";
 
 const isMobile = ref(false)
 const downloadUsableRank = ref(0)
@@ -409,7 +410,6 @@ onMounted(async () => {
       if (!isMobile.value) {
         store.doEditorHighlight = true
         store.reloadEditor()
-        store.reloadEditor2()
       }
     }, 1000)
   }
@@ -551,37 +551,6 @@ const nameFocus = (i: CharItem) => {
 
 const nameChanged = (i: CharItem) => {
   if (lastPCName && i.name) {
-    const editor = store.editor
-
-    let text = editor.state.doc.toString(), pos = 0
-    let changes = []
-    for (let next; (next = text.indexOf(lastPCName, pos)) > -1;) {
-      const inLeft = next === 0
-      const inRight = next + lastPCName.length === text.length
-
-      let leftSafe = false
-      let rightSafe = false
-      if (!inLeft) {
-        leftSafe = text[next - 1] === '\n' || text[next - 1] === '<'
-      } else {
-        leftSafe = true
-      }
-
-      if (!inRight) {
-        const pos = next + lastPCName.length
-        rightSafe = text[pos] === '(' || text[pos] === '>'
-      } else {
-        rightSafe = true
-      }
-
-      // console.log(222, leftSafe, rightSafe, inLeft, inRight)
-      if (leftSafe && rightSafe) {
-        changes.push({ from: next, to: next + lastPCName.length, insert: i.name })
-      }
-      pos = next + i.name.length
-      // console.log(11111, next)
-    }
-    editor.dispatch({ changes })
   }
 }
 
@@ -590,6 +559,10 @@ logMan.ev.on('textSet', (text) => {
     changes: { from: 0, to: store.editor.state.doc.length, insert: text }
   })
 });
+
+logMan.ev.on('parsed', (ti: TextInfo) => {
+  store.updatePcList(ti);
+})
 
 
 let preventNext = false
@@ -618,7 +591,6 @@ const onChange = (v: ViewUpdate) => {
 
 const reloadFunc = debounce(() => {
   store.reloadEditor()
-  store.reloadEditor2()
   showPreview()
 }, 500)
 
@@ -630,7 +602,6 @@ const doEditorHighlightClick = (e: any) => {
     // 编辑器染色
     setTimeout(() => {
       store.reloadEditor()
-      store.reloadEditor2()
     }, 500)    
   }
 

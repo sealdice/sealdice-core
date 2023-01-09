@@ -20,7 +20,7 @@ export class EditLogImporter extends LogImporter {
 
     reEditLog.lastIndex = 0; // 注: 默认值即为0 并非-1
     const startLength = store.pcList.length + 1001;
-    const nicknames = new Set<string>();
+    const nicknames = new Map<string, string>();
     const items = [] as LogItem[];
     let lastItem: LogItem = null as any;
     let lastIndex = 0;
@@ -39,7 +39,7 @@ export class EditLogImporter extends LogImporter {
         }
 
         const item = {} as LogItem;
-        nicknames.add(m[1]);
+        nicknames.set(m[1], null);
         item.nickname = m[1];
         [item.time, item.timeText] = this.parseTime((m[5] || '') + m[6]);
         item.message = '';
