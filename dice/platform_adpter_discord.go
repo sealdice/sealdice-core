@@ -133,16 +133,36 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 
 // SendToPerson 这里发送的是私聊（dm）消息，私信对于discord来说也被视为一个频道
 func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
+	dice := pa.Session.Parent
 	is := pa.IntentSession
 	ch, err := is.UserChannelCreate(ExtractDiscordUserId(userId))
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userId, err)
 		return
 	}
-	_, err = is.ChannelMessageSend(ch.ID, text)
-	if err != nil {
-		pa.Session.Parent.Logger.Errorf("向Discord用户#%s发送消息时出错:%s", userId, err)
-		return
+	elem := dice.ConvertStringMessage(text)
+	//var err error
+	for _, element := range elem {
+		switch e := element.(type) {
+		case *TextElement:
+			_, err = pa.IntentSession.ChannelMessageSendComplex(ExtractDiscordChannelId(ch.ID), &discordgo.MessageSend{
+				Content: e.Content,
+			})
+		case *ImageElement:
+			var files []*discordgo.File
+			files = append(files, &discordgo.File{
+				Name:        e.File,
+				ContentType: e.ContentType,
+				Reader:      e.Stream,
+			})
+			_, err = pa.IntentSession.ChannelMessageSendComplex(ExtractDiscordChannelId(ch.ID), &discordgo.MessageSend{
+				Files: files,
+			})
+		}
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("向Discord用户#%s发送消息时出错:%s", userId, err)
+			return
+		}
 	}
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
@@ -155,10 +175,31 @@ func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userId string, t
 
 // SendToGroup 发送群聊（实际上是频道）消息
 func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
-	_, err := pa.IntentSession.ChannelMessageSend(ExtractDiscordChannelId(groupId), text)
-	if err != nil {
-		pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", groupId, err)
-		return
+	//_, err := pa.IntentSession.ChannelMessageSend(ExtractDiscordChannelId(groupId), text)
+	dice := pa.Session.Parent
+	elem := dice.ConvertStringMessage(text)
+	var err error
+	for _, element := range elem {
+		switch e := element.(type) {
+		case *TextElement:
+			_, err = pa.IntentSession.ChannelMessageSendComplex(ExtractDiscordChannelId(groupId), &discordgo.MessageSend{
+				Content: e.Content,
+			})
+		case *ImageElement:
+			var files []*discordgo.File
+			files = append(files, &discordgo.File{
+				Name:        e.File,
+				ContentType: e.ContentType,
+				Reader:      e.Stream,
+			})
+			_, err = pa.IntentSession.ChannelMessageSendComplex(ExtractDiscordChannelId(groupId), &discordgo.MessageSend{
+				Files: files,
+			})
+		}
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", groupId, err)
+			return
+		}
 	}
 	if ctx.Session.ServiceAtNew[groupId] != nil {
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
