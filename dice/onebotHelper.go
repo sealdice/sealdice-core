@@ -5,7 +5,9 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
+	"strings"
 )
 
 type (
@@ -59,39 +61,48 @@ func CQToText(t string, d map[string]string) MessageElement {
 
 func (d *Dice) toElement(t string, dMap map[string]string) MessageElement {
 	if t == "image" {
-		resp, err := http.Get(dMap["file"])
-		if err != nil {
-			//TODO: logger
-			fmt.Println(err)
-			return CQToText(t, dMap)
+		url := dMap["file"]
+		if strings.HasPrefix(url, "http") {
+			resp, err := http.Get(url)
+			if err != nil {
+				//TODO: logger
+				fmt.Println(err)
+				return CQToText(t, dMap)
+			}
+			content, err := io.ReadAll(resp.Body)
+			//fmt.Println(string(body))
+			//fmt.Println(resp.StatusCode)
+			defer func(Body io.ReadCloser) {
+				_ = Body.Close()
+			}(resp.Body)
+			if resp.StatusCode == 200 {
+				//fmt.Println("ok")
+			} else {
+				return CQToText(t, dMap)
+			}
+			Sha1Inst := sha1.New()
+			filetype, _ := mime.ExtensionsByType(resp.Header.Get("Content-Type"))
+			var postfix string
+			if filetype != nil {
+				postfix = filetype[len(filetype)-1]
+			}
+			fmt.Println(filetype)
+			if err != nil {
+				//TODO: logger
+				fmt.Println(err)
+				return CQToText(t, dMap)
+			}
+			//fmt.Println("img size", len(content))
+			Sha1Inst.Write(content)
+			Result := Sha1Inst.Sum([]byte(""))
+			//fmt.Printf("%x\n\n", Result)
+			r := &ImageElement{
+				Stream:      bytes.NewReader(content),
+				ContentType: resp.Header.Get("Content-Type"),
+				File:        fmt.Sprintf("%x%s", Result, postfix),
+			}
+			return r
 		}
-		content, err := io.ReadAll(resp.Body)
-		//fmt.Println(string(body))
-		//fmt.Println(resp.StatusCode)
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(resp.Body)
-		if resp.StatusCode == 200 {
-			//fmt.Println("ok")
-		} else {
-			return CQToText(t, dMap)
-		}
-		Sha1Inst := sha1.New()
-		if err != nil {
-			//TODO: logger
-			fmt.Println(err)
-			return CQToText(t, dMap)
-		}
-		//fmt.Println("img size", len(content))
-		Sha1Inst.Write(content)
-		Result := Sha1Inst.Sum([]byte(""))
-		//fmt.Printf("%x\n\n", Result)
-		r := &ImageElement{
-			Stream:      bytes.NewReader(content),
-			ContentType: resp.Header.Get("Content-Type"),
-			File:        fmt.Sprintf("%x.jpg", Result),
-		}
-		return r
 	}
 	return CQToText(t, dMap)
 }
