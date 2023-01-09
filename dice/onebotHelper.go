@@ -18,14 +18,11 @@ type (
 	ElementType int
 )
 
-//go:generate stringer -type ElementType -linecomment
 const (
-	Text  ElementType = iota // 文本
-	Image                    // 图片
-	At                       // 艾特
-	File                     // 文件
-	Voice                    // 语音
-	Video                    // 视频
+	Text ElementType = iota // 文本
+	At                      // 艾特
+	File                    // 文件
+	TTS                     // 文字转语音
 )
 
 type TextElement struct {
@@ -36,14 +33,30 @@ func (t *TextElement) Type() ElementType {
 	return Text
 }
 
-type ImageElement struct {
+type AtElement struct {
+	Target string
+}
+
+func (t *AtElement) Type() ElementType {
+	return At
+}
+
+type TTSElement struct {
+	Content string
+}
+
+func (t *TTSElement) Type() ElementType {
+	return TTS
+}
+
+type FileElement struct {
 	ContentType string
 	Stream      io.Reader
 	File        string
 }
 
-func (l *ImageElement) Type() ElementType {
-	return Image
+func (l *FileElement) Type() ElementType {
+	return File
 }
 
 func newText(s string) *TextElement {
@@ -60,7 +73,8 @@ func CQToText(t string, d map[string]string) MessageElement {
 }
 
 func (d *Dice) toElement(t string, dMap map[string]string) MessageElement {
-	if t == "image" {
+	switch t {
+	case "file":
 		url := dMap["file"]
 		if strings.HasPrefix(url, "http") {
 			resp, err := http.Get(url)
@@ -96,13 +110,22 @@ func (d *Dice) toElement(t string, dMap map[string]string) MessageElement {
 			Sha1Inst.Write(content)
 			Result := Sha1Inst.Sum([]byte(""))
 			//fmt.Printf("%x\n\n", Result)
-			r := &ImageElement{
+			r := &FileElement{
 				Stream:      bytes.NewReader(content),
 				ContentType: resp.Header.Get("Content-Type"),
 				File:        fmt.Sprintf("%x%s", Result, postfix),
 			}
 			return r
 		}
+	case "at":
+		target := dMap["qq"]
+		return &AtElement{Target: target}
+	case "image":
+		t = "file"
+		return d.toElement(t, dMap)
+	case "tts":
+		content := dMap["text"]
+		return &TTSElement{Content: content}
 	}
 	return CQToText(t, dMap)
 }
@@ -122,19 +145,12 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 		}
 		if i > 0 {
 			r = append(r, newText(raw[:i]))
-			//if base.SplitURL {
-			//	for _, txt := range param.SplitURL(cqcode.UnescapeText(raw[:i])) {
-			//		r = append(r, message.newText(txt))
-			//	}
-			//} else {
-			//	r = append(r, message.newText(cqcode.UnescapeText(raw[:i])))
-			//}
 		}
 
 		if i+4 > len(raw) {
 			return
 		}
-		raw = raw[i+4:] // skip "[CQ:"
+		raw = raw[i+4:]
 		i = 0
 		for i < len(raw) && raw[i] != ',' && raw[i] != ']' {
 			i++
@@ -143,7 +159,7 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 			return
 		}
 		arg = raw[:i]
-		for k := range dMap { // clear the map, reuse it
+		for k := range dMap {
 			delete(dMap, k)
 		}
 		raw = raw[i:]
@@ -163,7 +179,7 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 				return
 			}
 			key = raw[:i]
-			raw = raw[i+1:] // skip "="
+			raw = raw[i+1:]
 			i = 0
 			for i < len(raw) && raw[i] != ',' && raw[i] != ']' {
 				i++
