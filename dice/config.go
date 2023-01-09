@@ -1462,7 +1462,7 @@ func (d *Dice) loads() {
 				}
 			}
 
-			d.Logger.Error("serve.yaml loaded")
+			d.Logger.Info("serve.yaml loaded")
 			//info, _ := yaml.Marshal(Session.ServiceAt)
 			//replyGroup(ctx, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
 		} else {

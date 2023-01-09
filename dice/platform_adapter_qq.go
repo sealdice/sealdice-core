@@ -147,10 +147,17 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 	msg.RawId = msgQQ.MessageId
 	msg.Platform = "QQ"
 
+	if msg.MessageType == "" {
+		msg.MessageType = "private"
+	}
+
 	if msgQQ.Data != nil && msgQQ.Data.GroupId != 0 {
 		msg.GroupId = FormatDiceIdQQGroup(msgQQ.Data.GroupId)
 	}
 	if msgQQ.GroupId != 0 {
+		if msg.MessageType == "private" {
+			msg.MessageType = "group"
+		}
 		msg.GroupId = FormatDiceIdQQGroup(msgQQ.GroupId)
 	}
 	if msgQQ.Sender != nil {
@@ -683,6 +690,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			if msgQQ.PostType == "notice" && msgQQ.SubType == "poke" {
 				// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
 				go func() {
+					defer ErrorLogAndContinue(pa.Session.Parent)
 					ctx := pa.packTempCtx(msgQQ, msg)
 
 					if msgQQ.TargetId == msgQQ.SelfId {
@@ -690,7 +698,12 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 						text := DiceFormatTmpl(ctx, "其它:戳一戳")
 						for _, i := range strings.Split(text, "###SPLIT###") {
 							doSleepQQ(ctx)
-							pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+							switch msg.MessageType {
+							case "group":
+								pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+							case "private":
+								pa.SendToPerson(ctx, msg.Sender.UserId, strings.TrimSpace(i), "")
+							}
 						}
 					}
 				}()
@@ -850,10 +863,25 @@ func (pa *PlatformAdapterQQOnebot) packTempCtx(msgQQ *MessageQQ, msg *Message) *
 	session := pa.Session
 
 	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: session, Dice: session.Parent}
-	d := pa.GetGroupMemberInfo(msgQQ.GroupId, msgQQ.UserId) // 先获取个人信息，避免不存在id
-	msg.Sender.UserId = FormatDiceIdQQ(msgQQ.UserId)
-	ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
-	ctx.Player.Name = d.Card
-	SetTempVars(ctx, d.Nickname)
+
+	switch msg.MessageType {
+	case "private":
+		d := pa.GetStrangerInfo(msgQQ.UserId) // 先获取个人信息，避免不存在id
+		msg.Sender.UserId = FormatDiceIdQQ(msgQQ.UserId)
+		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		if ctx.Player.Name == "" {
+			ctx.Player.Name = d.Nickname
+		}
+		SetTempVars(ctx, ctx.Player.Name)
+	case "group":
+		d := pa.GetGroupMemberInfo(msgQQ.GroupId, msgQQ.UserId) // 先获取个人信息，避免不存在id
+		msg.Sender.UserId = FormatDiceIdQQ(msgQQ.UserId)
+		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		if ctx.Player.Name == "" {
+			ctx.Player.Name = d.Card
+		}
+		SetTempVars(ctx, ctx.Player.Name)
+	}
+
 	return ctx
 }

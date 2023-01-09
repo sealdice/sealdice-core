@@ -22,7 +22,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.1.2 v20230108"
+var VERSION = "1.1.2fix v20230109"
 
 //var VERSION_CODE = int64(1001000) // 991404
 var VERSION_CODE = int64(1001002) // 坏了，1.1的版本号标错了，标成了1.10.0
@@ -538,5 +538,12 @@ func CrashLog() {
 		now := time.Now()
 		_ = os.WriteFile(fmt.Sprintf("崩溃日志_%s.txt", now.Format("20060201_150405")), []byte(text), 0644)
 		panic(r)
+	}
+}
+
+func ErrorLogAndContinue(d *Dice) {
+	if r := recover(); r != nil {
+		d.Logger.Errorf("报错: %v 堆栈: %v", r, string(debug.Stack()))
+		d.Logger.Infof("已从报错中恢复，建议将此错误回报给开发者")
 	}
 }

@@ -259,7 +259,7 @@ func (pa *PlatformAdapterQQOnebot) GetGroupMemberInfo(GroupId int64, UserId int6
 		Params: DetailParams{
 			GroupId: GroupId,
 			UserId:  UserId,
-			NoCache: true,
+			NoCache: false,
 		},
 		Echo: echo,
 	})
@@ -269,11 +269,48 @@ func (pa *PlatformAdapterQQOnebot) GetGroupMemberInfo(GroupId int64, UserId int6
 	})
 
 	d := msg.Data
+	if msg.Data == nil {
+		return &OnebotUserInfo{}
+	}
+
 	return &OnebotUserInfo{
 		Nickname: d.Nickname,
 		UserId:   d.UserId,
 		GroupId:  d.GroupId,
 		Card:     d.Card,
+	}
+}
+
+// GetStrangerInfo 获取陌生人信息
+func (pa *PlatformAdapterQQOnebot) GetStrangerInfo(UserId int64) *OnebotUserInfo {
+	type DetailParams struct {
+		UserId  int64 `json:"user_id"`
+		NoCache bool  `json:"no_cache"`
+	}
+
+	echo := pa.getCustomEcho()
+
+	a, _ := json.Marshal(oneBotCommand{
+		Action: "get_stranger_info",
+		Params: DetailParams{
+			UserId:  UserId,
+			NoCache: false,
+		},
+		Echo: echo,
+	})
+
+	msg := pa.waitEcho(echo, func() {
+		socketSendText(pa.Socket, string(a))
+	})
+
+	d := msg.Data
+	if msg.Data == nil {
+		return &OnebotUserInfo{}
+	}
+
+	return &OnebotUserInfo{
+		Nickname: d.Nickname,
+		UserId:   d.UserId,
 	}
 }
 
