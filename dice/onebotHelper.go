@@ -3,10 +3,16 @@ package dice
 import (
 	"bytes"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
+	"os"
+	"path"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -24,6 +30,8 @@ const (
 	File                    // 文件
 	TTS                     // 文字转语音
 )
+
+const maxFileSize = 1024 * 1024 * 50 // 50MB
 
 type TextElement struct {
 	Content string
@@ -72,16 +80,14 @@ func CQToText(t string, d map[string]string) MessageElement {
 	return newText(org)
 }
 
-func (d *Dice) toElement(t string, dMap map[string]string) MessageElement {
+func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, error) {
 	switch t {
 	case "file":
-		url := dMap["file"]
-		if strings.HasPrefix(url, "http") {
-			resp, err := http.Get(url)
+		p := dMap["file"]
+		if strings.HasPrefix(p, "http") {
+			resp, err := http.Get(p)
 			if err != nil {
-				//TODO: logger
-				fmt.Println(err)
-				return CQToText(t, dMap)
+				return nil, err
 			}
 			content, err := io.ReadAll(resp.Body)
 			//fmt.Println(string(body))
@@ -92,19 +98,17 @@ func (d *Dice) toElement(t string, dMap map[string]string) MessageElement {
 			if resp.StatusCode == 200 {
 				//fmt.Println("ok")
 			} else {
-				return CQToText(t, dMap)
+				return nil, errors.New("http get failed")
 			}
 			Sha1Inst := sha1.New()
 			filetype, _ := mime.ExtensionsByType(resp.Header.Get("Content-Type"))
-			var postfix string
+			var suffix string
 			if filetype != nil {
-				postfix = filetype[len(filetype)-1]
+				suffix = filetype[len(filetype)-1]
 			}
-			fmt.Println(filetype)
+			//fmt.Println(filetype)
 			if err != nil {
-				//TODO: logger
-				fmt.Println(err)
-				return CQToText(t, dMap)
+				return nil, err
 			}
 			//fmt.Println("img size", len(content))
 			Sha1Inst.Write(content)
@@ -113,21 +117,62 @@ func (d *Dice) toElement(t string, dMap map[string]string) MessageElement {
 			r := &FileElement{
 				Stream:      bytes.NewReader(content),
 				ContentType: resp.Header.Get("Content-Type"),
-				File:        fmt.Sprintf("%x%s", Result, postfix),
+				File:        fmt.Sprintf("%x%s", Result, suffix),
 			}
-			return r
+			return r, nil
+		} else {
+			fu, err := url.Parse(p)
+			if err != nil {
+				return nil, err
+			}
+			if runtime.GOOS == `windows` && strings.HasPrefix(fu.Path, "/") {
+				fu.Path = fu.Path[1:]
+			}
+			info, err := os.Stat(fu.Path)
+			if err != nil {
+				return nil, err
+			}
+			if info.Size() == 0 || info.Size() >= maxFileSize {
+				return nil, errors.New("invalid file size")
+			}
+			afn, err := filepath.Abs(fu.Path)
+			if err != nil {
+				return nil, err // 不是文件路径，不管
+			}
+			cwd, _ := os.Getwd()
+			if !strings.HasPrefix(afn, cwd) {
+				return nil, errors.New("restricted file path")
+			}
+			filesuffix := path.Ext(fu.Path)
+			content, err := os.ReadFile(fu.Path)
+			if err != nil {
+				return nil, err
+			}
+			Sha1Inst := sha1.New()
+			Sha1Inst.Write(content)
+			Result := Sha1Inst.Sum([]byte(""))
+			contenttype := mime.TypeByExtension(filesuffix)
+			if len(contenttype) == 0 {
+				contenttype = "application/octet-stream"
+			}
+			r := &FileElement{
+				Stream:      bytes.NewReader(content),
+				ContentType: contenttype,
+				File:        fmt.Sprintf("%x%s", Result, filesuffix),
+			}
+			return r, nil
 		}
 	case "at":
 		target := dMap["qq"]
-		return &AtElement{Target: target}
+		return &AtElement{Target: target}, nil
 	case "image":
 		t = "file"
 		return d.toElement(t, dMap)
 	case "tts":
 		content := dMap["text"]
-		return &TTSElement{Content: content}
+		return &TTSElement{Content: content}, nil
 	}
-	return CQToText(t, dMap)
+	return CQToText(t, dMap), nil
 }
 
 func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
@@ -135,7 +180,12 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 	dMap := map[string]string{}
 
 	saveCQCode := func() {
-		r = append(r, d.toElement(arg, dMap))
+		elem, err := d.toElement(arg, dMap)
+		if err != nil {
+			d.Logger.Errorf("转换CQ码时出现错误，将原样发送 <%s>", err.Error())
+			r = append(r, CQToText(arg, dMap))
+		}
+		r = append(r, elem)
 	}
 
 	for raw != "" {
