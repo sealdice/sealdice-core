@@ -225,6 +225,15 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 			return err
 		}
 		d.Adapter = val.Adapter
+	case "TELEGRAM":
+		var val struct {
+			Adapter *PlatformAdapterTelegram `yaml:"adapter"`
+		}
+		err := value.Decode(&val)
+		if err != nil {
+			return err
+		}
+		d.Adapter = val.Adapter
 	}
 	return err
 }
@@ -769,6 +778,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa.EndPoint = ep
 	case "KOOK":
 		pa := ep.Adapter.(*PlatformAdapterKook)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
+	case "TELEGRAM":
+		pa := ep.Adapter.(*PlatformAdapterTelegram)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
