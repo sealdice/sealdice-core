@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -25,10 +26,11 @@ type (
 )
 
 const (
-	Text ElementType = iota // 文本
-	At                      // 艾特
-	File                    // 文件
-	TTS                     // 文字转语音
+	Text  ElementType = iota // 文本
+	At                       // 艾特
+	File                     // 文件
+	Image                    // 图片
+	TTS                      // 文字转语音
 )
 
 const maxFileSize = 1024 * 1024 * 50 // 50MB
@@ -65,6 +67,14 @@ type FileElement struct {
 
 func (l *FileElement) Type() ElementType {
 	return File
+}
+
+type ImageElement struct {
+	file FileElement
+}
+
+func (l *ImageElement) Type() ElementType {
+	return Image
 }
 
 func newText(s string) *TextElement {
@@ -164,6 +174,9 @@ func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, erro
 		}
 	case "at":
 		target := dMap["qq"]
+		if dMap["id"] != "" {
+			target = dMap["id"]
+		}
 		return &AtElement{Target: target}, nil
 	case "image":
 		t = "file"
@@ -179,6 +192,63 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 	var arg, key string
 	dMap := map[string]string{}
 
+	solve2 := func(text string) string {
+		re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
+		m := re.FindStringSubmatch(text)
+		if m != nil {
+			fn := m[2]
+			cqType := "image"
+			if m[1] == "voice" || m[1] == "语音" {
+				cqType = "record"
+			}
+			if m[1] == "video" || m[1] == "视频" {
+				cqType = "video"
+			}
+
+			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
+				u, err := url.Parse(fn)
+				if err != nil {
+					return text
+				}
+				cq := CQCommand{
+					Type: cqType,
+					Args: map[string]string{"file": u.String()},
+				}
+				return cq.Compile()
+			}
+
+			afn, err := filepath.Abs(fn)
+			if err != nil {
+				return text // 不是文件路径，不管
+			}
+			cwd, _ := os.Getwd()
+			if strings.HasPrefix(afn, cwd) {
+				if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
+					return "[找不到图片/文件]"
+				} else {
+					// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
+					if runtime.GOOS == `windows` {
+						afn = "/" + afn
+					}
+					u := url.URL{
+						Scheme: "file",
+						Path:   afn,
+					}
+					cq := CQCommand{
+						Type: cqType,
+						Args: map[string]string{"file": u.String()},
+					}
+					return cq.Compile()
+				}
+			} else {
+				return "[图片/文件指向非当前程序目录，已禁止]"
+			}
+		}
+		return text
+	}
+
+	text := ImageRewrite(raw, solve2)
+
 	saveCQCode := func() {
 		elem, err := d.toElement(arg, dMap)
 		if err != nil {
@@ -188,58 +258,58 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 		r = append(r, elem)
 	}
 
-	for raw != "" {
+	for text != "" {
 		i := 0
-		for i < len(raw) && !(raw[i] == '[' && i+4 < len(raw) && raw[i:i+4] == "[CQ:") {
+		for i < len(text) && !(text[i] == '[' && i+4 < len(text) && text[i:i+4] == "[CQ:") {
 			i++
 		}
 		if i > 0 {
-			r = append(r, newText(raw[:i]))
+			r = append(r, newText(text[:i]))
 		}
 
-		if i+4 > len(raw) {
+		if i+4 > len(text) {
 			return
 		}
-		raw = raw[i+4:]
+		text = text[i+4:]
 		i = 0
-		for i < len(raw) && raw[i] != ',' && raw[i] != ']' {
+		for i < len(text) && text[i] != ',' && text[i] != ']' {
 			i++
 		}
-		if i+1 > len(raw) {
+		if i+1 > len(text) {
 			return
 		}
-		arg = raw[:i]
+		arg = text[:i]
 		for k := range dMap {
 			delete(dMap, k)
 		}
-		raw = raw[i:]
+		text = text[i:]
 		i = 0
 		for {
-			if raw[0] == ']' {
+			if text[0] == ']' {
 				saveCQCode()
-				raw = raw[1:]
+				text = text[1:]
 				break
 			}
-			raw = raw[1:]
+			text = text[1:]
 
-			for i < len(raw) && raw[i] != '=' {
+			for i < len(text) && text[i] != '=' {
 				i++
 			}
-			if i+1 > len(raw) {
+			if i+1 > len(text) {
 				return
 			}
-			key = raw[:i]
-			raw = raw[i+1:]
+			key = text[:i]
+			text = text[i+1:]
 			i = 0
-			for i < len(raw) && raw[i] != ',' && raw[i] != ']' {
+			for i < len(text) && text[i] != ',' && text[i] != ']' {
 				i++
 			}
 
-			if i+1 > len(raw) {
+			if i+1 > len(text) {
 				return
 			}
-			dMap[key] = raw[:i]
-			raw = raw[i:]
+			dMap[key] = text[:i]
+			text = text[i:]
 			i = 0
 		}
 	}

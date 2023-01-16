@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -41,9 +42,9 @@ func (pa *PlatformAdapterTelegram) GetGroupInfoAsync(groupId string) {
 
 func (pa *PlatformAdapterTelegram) Serve() int {
 	logger := pa.Session.Parent.Logger
+	ep := pa.EndPoint
 	logger.Info("尝试连接Telegram服务……")
 	bot, err := tgbotapi.NewBotAPI(pa.Token)
-	ep := pa.EndPoint
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("与Telegram服务进行连接时出错:%s", err.Error())
 		ep.State = 3
@@ -69,20 +70,26 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 			msgRaw := update.Message
 			msg := pa.toStdMessage(msgRaw)
 			if msgRaw.IsCommand() && msgRaw.Text == "/start" && msg.MessageType == "private" {
-				ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.Session, Dice: pa.Session.Parent}
-				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
-				uid := msg.Sender.UserId
-				welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
-				logger.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
-				for _, i := range strings.Split(welcome, "###SPLIT###") {
-					pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
-				}
+				go pa.friendAdded(msg)
 				continue
 			}
 			pa.Session.Execute(pa.EndPoint, msg, false)
 		}
 	}()
 	return 0
+}
+
+func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
+	logger := pa.Session.Parent.Logger
+	ep := pa.EndPoint
+	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.Session, Dice: pa.Session.Parent}
+	ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+	uid := msg.Sender.UserId
+	welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
+	logger.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
+	for _, i := range strings.Split(welcome, "###SPLIT###") {
+		pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
+	}
 }
 
 func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
@@ -162,41 +169,103 @@ func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	bot := pa.IntentSession
-	id, _ := strconv.ParseInt(ExtractTelegramUserId(uid), 10, 64)
-	msg := tgbotapi.NewMessage(id, text)
-	if _, err := bot.Send(msg); err != nil {
-		fmt.Println(err.Error())
-	}
-	for _, i := range ctx.Dice.ExtList {
-		if i.OnMessageSend != nil {
-			i.callWithJsCheck(ctx.Dice, func() {
-				i.OnMessageSend(ctx, "private", uid, text, flag)
-			})
-		}
-	}
+	pa.SendToChatRaw(ExtractTelegramUserId(uid), text)
+	pa.Session.OnMessageSend(ctx, "private", uid, text, flag)
 }
 
 func (pa *PlatformAdapterTelegram) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
+	pa.SendToChatRaw(ExtractTelegramGroupId(uid), text)
+	pa.Session.OnMessageSend(ctx, "group", uid, text, flag)
+}
+
+type RequestFileDataImpl struct {
+	Reader io.Reader
+	File   string
+}
+
+func (r *RequestFileDataImpl) NeedsUpload() bool {
+	return true
+}
+func (r *RequestFileDataImpl) UploadData() (string, io.Reader, error) {
+	return r.File, r.Reader, nil
+}
+func (r *RequestFileDataImpl) SendData() string {
+	return r.File
+}
+func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 	bot := pa.IntentSession
-	id, _ := strconv.ParseInt(ExtractTelegramGroupId(uid), 10, 64)
-	msg := tgbotapi.NewMessage(id, text)
-	if _, err := bot.Send(msg); err != nil {
-		fmt.Println(err.Error())
-	}
-	if ctx.Session.ServiceAtNew[uid] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[uid].ActivatedExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, "group", uid, text, flag)
-				})
+	dice := pa.Session.Parent
+	id, _ := strconv.ParseInt(uid, 10, 64)
+	elem := dice.ConvertStringMessage(text)
+	msg := tgbotapi.NewMessage(id, "")
+	var err error
+	for _, element := range elem {
+		switch e := element.(type) {
+		case *TextElement:
+			msg.Text += e.Content
+		case *AtElement:
+			leng := len(msg.Text)
+			uid, _ := strconv.ParseInt(e.Target, 10, 64)
+			user := &tgbotapi.User{ID: uid}
+			data := fmt.Sprintf("@%s ", e.Target)
+			msg.Text += data
+			entity := tgbotapi.MessageEntity{Type: "text_mention", Offset: leng, Length: len(data), User: user}
+			msg.Entities = append(msg.Entities, entity)
+		case *FileElement:
+			if msg.Text != "" {
+				_, err = bot.Send(msg)
 			}
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%s发送消息时出错:%s", id, err)
+				return
+			}
+			msg = tgbotapi.NewMessage(id, "")
+			data := &RequestFileDataImpl{File: e.File, Reader: e.Stream}
+			f := tgbotapi.NewDocument(id, data)
+			_, err = bot.Send(f)
+		case *ImageElement:
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%s发送消息时出错:%s", id, err)
+				return
+			}
+			fi := e.file
+			data := &RequestFileDataImpl{File: fi.File, Reader: fi.Stream}
+			f := tgbotapi.NewPhoto(id, data)
+			if msg.Text != "" {
+				f.Caption = msg.Text
+				f.CaptionEntities = msg.Entities
+			}
+			msg = tgbotapi.NewMessage(id, "")
+			f.Thumb = data
+			_, err = bot.Send(f)
+		case *TTSElement:
+			msg.Text += e.Content
 		}
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("向Telegram聊天#%s发送消息时出错:%s", id, err)
+			return
+		}
+	}
+	if msg.Text != "" {
+		_, err = bot.Send(msg)
+	}
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("向Telegram聊天#%s发送消息时出错:%s", id, err)
+		return
 	}
 }
 
-// 没有这两个接口捏，不实现
+func (pa *PlatformAdapterTelegram) QuitGroup(ctx *MsgContext, id string) {
+	parseInt, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return
+	}
+	msg := &tgbotapi.LeaveChatConfig{ChatID: parseInt}
+	_, err = pa.IntentSession.Send(msg)
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("退出Telegram群组%s时出错:%s", id, err.Error())
+	}
+}
 
-func (pa *PlatformAdapterTelegram) QuitGroup(ctx *MsgContext, id string) {}
-
+// SetGroupCardName 没有这个接口 不实现
 func (pa *PlatformAdapterTelegram) SetGroupCardName(groupId string, userId string, name string) {}
