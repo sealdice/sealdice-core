@@ -225,6 +225,15 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 			return err
 		}
 		d.Adapter = val.Adapter
+	case "TG":
+		var val struct {
+			Adapter *PlatformAdapterTelegram `yaml:"adapter"`
+		}
+		err := value.Decode(&val)
+		if err != nil {
+			return err
+		}
+		d.Adapter = val.Adapter
 	}
 	return err
 }
@@ -749,6 +758,18 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	return false
 }
 
+func (s *IMSession) OnMessageSend(ctx *MsgContext, messageType string, groupId string, text string, flag string) {
+	if s.ServiceAtNew[groupId] != nil {
+		for _, i := range s.Parent.ExtList {
+			if i.OnMessageSend != nil {
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnMessageSend(ctx, messageType, groupId, text, flag)
+				})
+			}
+		}
+	}
+}
+
 // SetEnable
 /* 如果已连接，将断开连接，如果开着GCQ将自动结束。如果启用的话，则反过来  */
 func (c *EndPointInfo) SetEnable(d *Dice, enable bool) {
@@ -769,6 +790,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa.EndPoint = ep
 	case "KOOK":
 		pa := ep.Adapter.(*PlatformAdapterKook)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
+	case "TG":
+		pa := ep.Adapter.(*PlatformAdapterTelegram)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
