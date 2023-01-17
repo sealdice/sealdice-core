@@ -318,31 +318,39 @@ func diceServe(d *dice.Dice) {
 
 	for _, conn := range d.ImSession.EndPoints {
 		if conn.Enable {
-			switch conn.Platform {
-			case "QQ":
-				pa := conn.Adapter.(*dice.PlatformAdapterQQOnebot)
-				dice.GoCqHttpServe(d, conn, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
-				time.Sleep(10 * time.Second) // 稍作等待再连接
-				go dice.DiceServeQQ(d, conn)
-			case "DISCORD":
-				go dice.DiceServeDiscord(d, conn)
-			case "KOOK":
-				go dice.DiceServeKook(d, conn)
-			}
+			go func(con *dice.EndPointInfo) {
+				switch con.Platform {
+				case "QQ":
+					pa := con.Adapter.(*dice.PlatformAdapterQQOnebot)
+					dice.GoCqHttpServe(d, con, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+					time.Sleep(10 * time.Second) // 稍作等待再连接
+					dice.DiceServeQQ(d, con)
+					break
+				case "DISCORD":
+					dice.DiceServeDiscord(d, con)
+					break
+				case "KOOK":
+					dice.DiceServeKook(d, con)
+					break
+				case "TG":
+					dice.DiceServeTelegram(d, con)
+					break
+				}
 
-			//for {
-			//	conn.DiceServing = true
-			//	// 骰子开始连接
-			//	d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
-			//	ret := d.ImSession.Serve(index)
-			//
-			//	if ret == 0 {
-			//		break
-			//	}
-			//
-			//	d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
-			//	time.Sleep(time.Duration(15 * time.Second))
-			//}
+				//for {
+				//	conn.DiceServing = true
+				//	// 骰子开始连接
+				//	d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
+				//	ret := d.ImSession.Serve(index)
+				//
+				//	if ret == 0 {
+				//		break
+				//	}
+				//
+				//	d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
+				//	time.Sleep(time.Duration(15 * time.Second))
+				//}
+			}(conn)
 		}
 	}
 }
