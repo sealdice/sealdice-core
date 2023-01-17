@@ -332,7 +332,7 @@ func diceServe(d *dice.Dice) {
 				case "KOOK":
 					dice.DiceServeKook(d, con)
 					break
-				case "TELEGRAM":
+				case "TG":
 					dice.DiceServeTelegram(d, con)
 					break
 				}
