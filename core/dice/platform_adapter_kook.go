@@ -112,8 +112,8 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupId string) {
 		return
 	}
 	dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
-		channel.Name,
-		time.Now().Unix(),
+		Name: channel.Name,
+		time: time.Now().Unix(),
 	})
 	group := pa.Session.ServiceAtNew[groupId]
 	if group != nil {

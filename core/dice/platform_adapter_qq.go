@@ -282,8 +282,8 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				if msgQQ.Data != nil {
 					groupId := FormatDiceIdQQGroup(msgQQ.Data.GroupId)
 					dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
-						msgQQ.Data.GroupName,
-						time.Now().Unix(),
+						Name: msgQQ.Data.GroupName,
+						time: time.Now().Unix(),
 					}) // 不论如何，先试图取一下群名
 
 					group := session.ServiceAtNew[groupId]
