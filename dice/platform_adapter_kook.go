@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/lonelyevil/kook"
 	"github.com/lonelyevil/kook/log_adapter/plog"
@@ -226,6 +227,7 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userId string, text
 		ChatCode: channel.Code,
 		MessageCreateBase: kook.MessageCreateBase{
 			Content: text,
+			Type:    kook.MessageTypeKMarkdown,
 		},
 	}
 	_, err = pa.IntentSession.DirectMessageCreate(dmc)
@@ -243,16 +245,7 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userId string, text
 }
 
 func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
-	_, err := pa.IntentSession.MessageCreate(&kook.MessageCreate{
-		MessageCreateBase: kook.MessageCreateBase{
-			TargetID: ExtractKookChannelId(groupId),
-			Content:  text,
-			Type:     kook.MessageTypeText,
-		},
-	})
-	if err != nil {
-		return
-	}
+	pa.SendToGroupRaw(groupId, text)
 	if ctx.Session.ServiceAtNew[groupId] != nil {
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
 			if i.OnMessageSend != nil {
@@ -264,12 +257,106 @@ func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupId string, text
 	}
 }
 
+func (pa *PlatformAdapterKook) SendToGroupRaw(id string, text string) {
+	bot := pa.IntentSession
+	dice := pa.Session.Parent
+	elem := dice.ConvertStringMessage(text)
+	var err error
+	StreamToByte := func(stream io.Reader) []byte {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(stream)
+		if err != nil {
+			return nil
+		}
+		return buf.Bytes()
+	}
+	msgb := kook.MessageCreateBase{
+		TargetID: ExtractKookChannelId(id),
+		Content:  "",
+		Type:     kook.MessageTypeKMarkdown,
+	}
+	for _, element := range elem {
+		switch e := element.(type) {
+		case *TextElement:
+			msgb.Content += e.Content
+		case *ImageElement:
+			if msgb.Content != "" {
+				_, err = bot.MessageCreate(&kook.MessageCreate{MessageCreateBase: msgb})
+				if err != nil {
+					pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
+					break
+				}
+			}
+			msgb = kook.MessageCreateBase{
+				TargetID: ExtractKookChannelId(id),
+				Content:  "",
+				Type:     kook.MessageTypeImage,
+			}
+			assert, err := bot.AssetCreate(e.file.File, StreamToByte(e.file.Stream))
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("Kook创建asserts时出错:%s", err)
+				break
+			}
+			msgb.Content = assert
+			_, err = bot.MessageCreate(&kook.MessageCreate{MessageCreateBase: msgb})
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
+				break
+			}
+			msgb = kook.MessageCreateBase{
+				TargetID: ExtractKookChannelId(id),
+				Content:  "",
+				Type:     kook.MessageTypeKMarkdown,
+			}
+		case *FileElement:
+			if msgb.Content != "" {
+				_, err = bot.MessageCreate(&kook.MessageCreate{MessageCreateBase: msgb})
+				if err != nil {
+					pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
+					break
+				}
+			}
+			msgb = kook.MessageCreateBase{
+				TargetID: ExtractKookChannelId(id),
+				Content:  "",
+				Type:     kook.MessageTypeFile,
+			}
+			assert, err := bot.AssetCreate(e.File, StreamToByte(e.Stream))
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("Kook创建asserts时出错:%s", err)
+				break
+			}
+			msgb.Content = assert
+			_, err = bot.MessageCreate(&kook.MessageCreate{MessageCreateBase: msgb})
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
+				break
+			}
+			msgb = kook.MessageCreateBase{
+				TargetID: ExtractKookChannelId(id),
+				Content:  "",
+				Type:     kook.MessageTypeKMarkdown,
+			}
+		case *AtElement:
+			msgb.Content = msgb.Content + fmt.Sprintf("(met)%s(met)", e.Target)
+		case *TTSElement:
+			msgb.Content += e.Content
+		}
+	}
+	if msgb.Content != "" {
+		_, err = bot.MessageCreate(&kook.MessageCreate{MessageCreateBase: msgb})
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
+		}
+	}
+}
+
 func FormatDiceIdKook(diceKook string) string {
 	return fmt.Sprintf("KOOK:%s", diceKook)
 }
 
-func FormatDiceIdKookChannel(diceDiscord string) string {
-	return fmt.Sprintf("KOOK-CH-Group:%s", diceDiscord)
+func FormatDiceIdKookChannel(diceKook string) string {
+	return fmt.Sprintf("KOOK-CH-Group:%s", diceKook)
 }
 
 func ExtractKookUserId(id string) string {
