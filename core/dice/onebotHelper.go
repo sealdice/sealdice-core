@@ -70,7 +70,7 @@ func (l *FileElement) Type() ElementType {
 }
 
 type ImageElement struct {
-	file FileElement
+	file *FileElement
 }
 
 func (l *ImageElement) Type() ElementType {
@@ -158,9 +158,6 @@ func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, erro
 			if err != nil {
 				return nil, err
 			}
-			Sha1Inst := sha1.New()
-			Sha1Inst.Write(content)
-			Result := Sha1Inst.Sum([]byte(""))
 			contenttype := mime.TypeByExtension(filesuffix)
 			if len(contenttype) == 0 {
 				contenttype = "application/octet-stream"
@@ -168,7 +165,7 @@ func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, erro
 			r := &FileElement{
 				Stream:      bytes.NewReader(content),
 				ContentType: contenttype,
-				File:        fmt.Sprintf("%x%s", Result, filesuffix),
+				File:        info.Name(),
 			}
 			return r, nil
 		}
@@ -180,7 +177,12 @@ func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, erro
 		return &AtElement{Target: target}, nil
 	case "image":
 		t = "file"
-		return d.toElement(t, dMap)
+		f, err := d.toElement(t, dMap)
+		if err != nil {
+			return nil, err
+		}
+		file := f.(*FileElement)
+		return &ImageElement{file: file}, nil
 	case "tts":
 		content := dMap["text"]
 		return &TTSElement{Content: content}, nil
