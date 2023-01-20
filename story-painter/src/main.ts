@@ -5,7 +5,7 @@ import App from "./App.vue";
 
 // import ElementPlus from "element-plus";
 // import all element css, uncommented next line
-// import "element-plus/dist/index.css";
+import "element-plus/dist/index.css";
 
 // or use cdn, uncomment cdn link in `index.html`
 

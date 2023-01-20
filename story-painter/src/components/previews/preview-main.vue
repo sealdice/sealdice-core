@@ -33,7 +33,9 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
-import { useStore, LogItem } from '~/store';
+import { useStore } from '~/store';
+import { LogItem, packNameId } from '~/logManager/types';
+// @ts-ignore
 import VirtualList from 'vue3-virtual-scroll-list';
 import Item from './preview-main-item.vue'
 

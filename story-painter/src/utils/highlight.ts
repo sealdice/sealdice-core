@@ -7,7 +7,7 @@ export const reNameLine2 = /([^(<\n]+)(\([^(\n]+\)|\<[^(\n]+\>)?(\s+)(\d{4}\/\d{
 
 import { HighlightStyle, TagStyle } from "@codemirror/highlight"
 import { completeFromList } from "@codemirror/autocomplete"
-import type { CharItem } from "~/store"
+import { CharItem } from "~/logManager/types"
 
 let nameReplace = (n: string) => {
   return n.replaceAll('.', '·').replaceAll(' ', '_').replaceAll(`/`, '_') //.replaceAll('(', '（').replaceAll(')', '）')

@@ -1,4 +1,3 @@
-import { LogItem } from "~/store"
 import { LogImporter, TextInfo  } from "./importers/_logImpoter"
 import { SealDiceLogImporter } from "./importers/SealDiceLogImporter";
 import { QQExportLogImporter } from "./importers/QQExportLogImporter";
@@ -7,6 +6,7 @@ import { EditLogExporter } from "./exporters/EditLogExporter";
 import { Emitter } from "./event";
 import { indexInfoListItem } from "./exporters/logExporter";
 import { EditLogImporter } from "./importers/EditLogImporter";
+import { CharItem, LogItem } from "./types";
 
 
 export class LogManager {
@@ -27,6 +27,30 @@ export class LogManager {
   }
 
   constructor() {
+  }
+
+  rename(item: CharItem, lastPCName: string, name: string) {
+    const a = `<${lastPCName}>`;
+    const b = `<${name}>`;
+    for (let i of this.curItems) {
+      if (item.IMUserId === i.IMUserId && lastPCName == i.nickname) {
+        i.nickname = name;
+      }
+
+      i.message = i.message.replaceAll(a, b);
+    }
+    this.flush();
+  }
+
+  deleteByCharItem(item: CharItem) {
+    const newItems = [];
+    for (let i of this.curItems) {
+      if (!(item.IMUserId === i.IMUserId && item.name == i.nickname)) {
+        newItems.push(i);
+      }
+    }
+    this.curItems = newItems;
+    this.flush();
   }
 
   /**

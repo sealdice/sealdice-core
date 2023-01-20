@@ -4,21 +4,11 @@
 
 declare module 'vue' {
   export interface GlobalComponents {
-    Aa: typeof import('./components/previews/aa.vue')['default']
     BaseHeader: typeof import('./components/layouts/BaseHeader.vue')['default']
     BaseSide: typeof import('./components/layouts/BaseSide.vue')['default']
     CodeMirror: typeof import('./components/CodeMirror.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
-    ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
-    ElColorPicker: typeof import('element-plus/es')['ElColorPicker']
-    ElInput: typeof import('element-plus/es')['ElInput']
-    ElLink: typeof import('element-plus/es')['ElLink']
-    ElOption: typeof import('element-plus/es')['ElOption']
-    ElSelect: typeof import('element-plus/es')['ElSelect']
-    ElSwitch: typeof import('element-plus/es')['ElSwitch']
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
-    Item: typeof import('./components/previews/Item.vue')['default']
-    MyDynamicScrollerItem: typeof import('./components/previews/MyDynamicScrollerItem.vue')['default']
     PreviewBbs: typeof import('./components/previews/preview-bbs.vue')['default']
     PreviewBbsItem: typeof import('./components/previews/preview-bbs-item.vue')['default']
     PreviewMain: typeof import('./components/previews/preview-main.vue')['default']

@@ -1,4 +1,4 @@
-import { LogItem } from "~/store";
+import { CharItem, LogItem } from "../types";
 import { LogImporter, TextInfo } from "./_logImpoter";
 
 
@@ -21,20 +21,13 @@ export class SealDiceLogImporter extends LogImporter {
 
   parse(text: string): TextInfo {
     // if (!this.latestData) this.check(text);
-    const nicknames = new Map<string, string>();
+    const charInfo = new Map<string, CharItem>();
     const data = this.latestData as { items: LogItem[] };
     let startText = '';
     for (let i of data.items) {
-      let role = '角色'
-      if (i.nickname.toLowerCase().startsWith('ob')) {
-        role = '隐藏'
-      }
-      if (i.isDice) {
-        role = '骰子'
-      }
-      nicknames.set(i.nickname, `${i.IMUserId}`);
+      this.setCharInfo(charInfo, i);
       i.message += '\n\n';
     }
-    return { items: data.items, nicknames, startText };
+    return { items: data.items, charInfo, startText };
   }
 }

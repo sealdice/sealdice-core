@@ -1,5 +1,5 @@
-import dayjs from "dayjs";
-import { LogItem, useStore } from "~/store";
+import { useStore } from "~/store";
+import { CharItem, LogItem, packNameId } from "../types";
 import { LogImporter, TextInfo } from "./_logImpoter";
 
 export const reEditLogTest = /^([^(<\n]+)(\(([^(\n]+)\)|\<[^(\n]+\>)?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?$/m
@@ -19,8 +19,7 @@ export class EditLogImporter extends LogImporter {
     const store = useStore();
 
     reEditLog.lastIndex = 0; // 注: 默认值即为0 并非-1
-    const startLength = store.pcList.length + 1001;
-    const nicknames = new Map<string, string>();
+    const charInfo = new Map<string, CharItem>();
     const items = [] as LogItem[];
     let lastItem: LogItem = null as any;
     let lastIndex = 0;
@@ -44,10 +43,10 @@ export class EditLogImporter extends LogImporter {
         item.message = '';
         if (m[2]) {
           item.IMUserId = m[2].slice(1, -1);
-          nicknames.set(m[1], item.IMUserId);
         } else {
-          nicknames.set(m[1], '');
+          item.IMUserId = this.getAutoIMUserId(store.pcList.length, item.nickname);
         }
+        this.setCharInfo(charInfo, item);
         items.push(item);
 
         lastItem = item;
@@ -71,6 +70,6 @@ export class EditLogImporter extends LogImporter {
       // }
     }
 
-    return { items, nicknames, startText, exporter: 'editLog' };
+    return { items, charInfo, startText, exporter: 'editLog' };
   }
 }

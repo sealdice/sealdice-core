@@ -1,6 +1,6 @@
 import { indexInfoListItem, LogExporter, LogExportInfo } from "./logExporter";
-import { LogItem } from "~/store";
 import dayjs from "dayjs";
+import { LogItem } from "../types";
 
 // 编辑页面
 export class EditLogExporter extends LogExporter {

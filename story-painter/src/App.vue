@@ -1,7 +1,7 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
     <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2 dev</h2>
-    <div style="text-align: center;">SealDice骰QQ群 524364253</div>
+    <div style="text-align: center;">SealDice骰QQ群 524364253 / 562897832</div>
     <!-- <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div> -->
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
       <div>
@@ -56,22 +56,13 @@
     <div class="pc-list">
       <div v-for="i, index in store.pcList">
         <div style="display: flex; align-items: center; width: 30rem;">
-          <el-button style="padding: 0 1rem " @click="store.pcList.splice(index, 1)" :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG">删除</el-button>
+          <el-button style="padding: 0 1rem " @click="deletePc(index, i)"
+            :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG">删除</el-button>
 
-          <el-input
-            :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG"
-            v-model="i.name"
-            class="w-50 m-2"
-            :prefix-icon="UserFilled"
-            @focus="nameFocus(i)"
-            @change="nameChanged(i)"
-          />
+          <el-input :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG" v-model="i.name" class="w-50 m-2"
+            :prefix-icon="UserFilled" @focus="nameFocus(i)" @change="nameChanged(i)" />
 
-          <el-input
-            :disabled="true"
-            v-model="i.IMUserId"
-            style="width: 24rem"
-          />
+          <el-input :disabled="true" v-model="i.IMUserId" style="width: 24rem" />
 
           <el-select v-model="i.role" class="m-2 w-60" style="width: 18rem">
             <el-option value="主持人" />
@@ -86,15 +77,14 @@
     </div>
 
     <div
-      style="margin-bottom: 1rem; margin-top: 1rem; display: flex; justify-content: center; align-items: center; flex-wrap: wrap;"
-    >
+      style="margin-bottom: 1rem; margin-top: 1rem; display: flex; justify-content: center; align-items: center; flex-wrap: wrap;">
       <div>
         <el-button @click="exportRecordRaw">下载原始文件</el-button>
         <el-button @click="exportRecordQQ">下载QQ风格记录</el-button>
         <el-button @click="exportRecordIRC">下载IRC风格记录</el-button>
         <el-button @click="exportRecordDOCX">下载Word</el-button>
       </div>
-        <!-- <el-button @click="showPreview">预览</el-button> -->
+      <!-- <el-button @click="showPreview">预览</el-button> -->
       <div style="margin-left: 1rem; ">
         <el-checkbox label="预览" v-model="isShowPreview" :border="true" @click="previewClick('preview')" />
         <el-checkbox label="论坛代码" v-model="isShowPreviewBBS" :border="true" @click="previewClick('bbs')" />
@@ -111,7 +101,8 @@
         <div>
           <el-button @click="doFlush" style="" size="large" type="primary">调试:Flush</el-button>
         </div>
-        <el-checkbox label="编辑器染色" v-model="store.doEditorHighlight" :border="false" @click.native="doEditorHighlightClick($event)" />
+        <el-checkbox label="编辑器染色" v-model="store.doEditorHighlight" :border="false"
+          @click.native="doEditorHighlightClick($event)" />
       </div>
     </code-mirror>
 
@@ -126,15 +117,13 @@
 <script setup lang="ts">
 import { nextTick, ref, onMounted, watch, h, render, renderList } from "vue";
 import { useStore } from './store'
-import type { LogItem, CharItem } from './store'
-import dayjs from 'dayjs'
 import { UserFilled } from '@element-plus/icons-vue'
 import CodeMirror from './components/CodeMirror.vue'
 import { reNameLine, reNameLine2 } from "./utils/highlight";
 import { EditorState, StateEffect } from '@codemirror/state';
 import { debounce, delay } from 'lodash-es'
-import { exportFileRaw, exportFileQQ, exportFileIRC, exportFileDocx } from "./utils/exporter";
-import { ElLoading, ElMessageBox, ElNotification, ElMessage } from "element-plus";
+import { exportFileRaw, exportFileQQ, exportFileIRC, exportFileDoc } from "./utils/exporter";
+import { ElLoading, ElMessageBox, ElNotification, ElMessage, ElButton, ElCheckbox, ElColorPicker, ElInput, ElOption, ElSelect, ElSwitch } from "element-plus";
 import { strFromU8, unzlibSync } from 'fflate';
 import uaParser from 'ua-parser-js'
 
@@ -145,6 +134,7 @@ import previewMain from "./components/previews/preview-main.vue";
 import previewBbs from "./components/previews/preview-bbs.vue";
 import previewTrg from "./components/previews/preview-trg.vue";
 import PreviewItem from './components/previews/preview-main-item.vue'
+import { LogItem, CharItem, packNameId } from "./logManager/types";
 
 const isMobile = ref(false)
 const downloadUsableRank = ref(0)
@@ -207,7 +197,7 @@ function setupUA() {
         downloadUsableRank.value = 2
     }
 
-  // 经测无法使用的
+    // 经测无法使用的
     switch (browser) {
       case 'baiduboxapp': // 手机:百度浏览器
       case 'QQBrowser': // 手机:搜狗浏览器极速版，手机:QQ浏览器
@@ -231,8 +221,8 @@ const browserAlert = () => {
     })
   }
   if (downloadUsableRank.value === 1) {
-      if (isMobile.value) {
-        ElMessageBox.alert('你目前所使用的浏览器可能在下载文件时遇到乱码，或无法下载文件，最好更换对标准支持较好的浏览器。建议使用Chrome/Firefox/Edge', '提醒！', {
+    if (isMobile.value) {
+      ElMessageBox.alert('你目前所使用的浏览器可能在下载文件时遇到乱码，或无法下载文件，最好更换对标准支持较好的浏览器。建议使用Chrome/Firefox/Edge', '提醒！', {
         type: 'warning',
       })
     }
@@ -274,16 +264,13 @@ onMounted(async () => {
       nextTick(() => {
         const text = strFromU8(log)
         store.pcList.length = 0
-        // store.editor.dispatch({
-        //   changes: { from: 0, to: store.editor.state.doc.length, insert: '' }
-        // })
 
         logMan.lastText = '';
         logMan.syncChange(text, [0, 0], [0, 0])
         // store.editor.dispatch({
         //   changes: { from: 0, to: store.editor.state.doc.length, insert: text }
         // })
-      })
+      });
 
       loading.close()
       showHl()
@@ -317,13 +304,11 @@ function exportRecordRaw() {
 
 function exportRecordQQ() {
   browserAlert()
-  // const results = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions)
   exportFileQQ(logMan.curItems, store.exportOptions)
 }
 
 function exportRecordIRC() {
   browserAlert()
-  // const results = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions)
   exportFileIRC(logMan.curItems, store.exportOptions)
 }
 
@@ -351,11 +336,15 @@ function exportRecordDOCX() {
     }
   }
 
+  const map = store.pcMap;
   const el = document.createElement('span');
   const elRoot = document.createElement('div');
   const items = [];
   for (let i of logMan.curItems) {
     if (i.isRaw) continue;
+    const id = packNameId(i);
+    if (map.get(id)?.role === '隐藏') continue;
+
     const html = h(PreviewItem, { source: i });
     render(html, el);
 
@@ -364,7 +353,7 @@ function exportRecordDOCX() {
     items.push(c.innerHTML);
   }
 
-  exportFileDocx(items.join('\n'));
+  exportFileDoc(items.join('\n'));
 }
 
 const previewItems = ref<LogItem[]>([])
@@ -387,6 +376,24 @@ function showPreview() {
 const store = useStore()
 const color2 = ref('#409EFF')
 
+const deletePc = (index: number, i: CharItem) => {
+  ElMessageBox.confirm(
+    `即将删除角色 <b>${i.name}</b> 及其全部发言，确定吗？`,
+    '操作确认',
+    {
+      dangerouslyUseHTMLString: true,
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(async () => {
+  store.pcList.splice(index, 1);
+    logMan.deleteByCharItem(i);
+  }).catch(() => {
+    i.name = lastPCName;
+  })
+}
+
 let lastPCName = ''
 
 const nameFocus = (i: CharItem) => {
@@ -395,6 +402,20 @@ const nameFocus = (i: CharItem) => {
 
 const nameChanged = (i: CharItem) => {
   if (lastPCName && i.name) {
+    ElMessageBox.confirm(
+      `即将进行名字变更 <b>${lastPCName} -> ${i.name}</b><br />将修改信息行，并在文本中进行批量替换(<${lastPCName}>替换为<${i.name}>)，确定吗？`,
+      '操作确认',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    ).then(async () => {
+      logMan.rename(i, lastPCName, i.name)
+    }).catch(() => {
+      i.name = lastPCName;
+    })
   }
 }
 
@@ -414,7 +435,7 @@ const onChange = (v: ViewUpdate) => {
     if (v.docChanged) {
       const ranges = (v as any).changedRanges
       if (ranges.length) {
-        for (let i = ranges.length-1; i >= 0; i--) {
+        for (let i = ranges.length - 1; i >= 0; i--) {
           const payloadText = store.editor.state.doc.toString()
 
           const r1 = [ranges[i].fromA, ranges[i].toA];
@@ -439,7 +460,7 @@ const doEditorHighlightClick = (e: any) => {
     // 编辑器染色
     setTimeout(() => {
       store.reloadEditor()
-    }, 500)    
+    }, 500)
   }
 
   if (!store.doEditorHighlight) {
@@ -460,7 +481,7 @@ const doEditorHighlightClick = (e: any) => {
         setTimeout(() => {
           store.doEditorHighlight = false
           store.reloadEditor()
-        }, 500)    
+        }, 500)
       })
       return
     }
@@ -492,18 +513,18 @@ html {
   width: 50%;
 }
 
-.options > div {
+.options>div {
   width: 30rem;
   max-width: 30rem;
   margin-bottom: 2rem;
 }
 
-.options > div > .switch {
+.options>div>.switch {
   display: flex;
   align-items: center;
   justify-content: center;
 
-  & > h4 {
+  &>h4 {
     margin-left: 1rem;
   }
 }
@@ -544,10 +565,10 @@ html {
 }
 
 .list-item-dynamic {
-	// display: flex;
-	// align-items: center;
-	padding: 0.5em 0;
-	border-color: lightgray;
+  // display: flex;
+  // align-items: center;
+  padding: 0.5em 0;
+  border-color: lightgray;
 }
 
 .scroller {

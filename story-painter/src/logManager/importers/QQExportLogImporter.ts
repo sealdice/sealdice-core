@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
-import { LogItem, useStore } from "~/store";
+import { useStore } from "~/store";
+import { CharItem, LogItem } from "../types";
 import { LogImporter } from "./_logImpoter";
 
 export const reQQExportLineTest = /^(\d{4}-\d{2}-\d{2} \d{1,2}:\d{1,2}:\d{1,2})\s+(.+?)(\([^)]+\)|\<[^>]+\>)$/m
@@ -19,8 +20,7 @@ export class QQExportLogImporter extends LogImporter {
     const store = useStore();
 
     reQQExport.lastIndex = 0; // 注: 默认值即为0 并非-1
-    const startLength = store.pcList.length + 1001;
-    const nicknames = new Map<string, string>();
+    const charInfo = new Map<string, CharItem>();
     const items = [] as LogItem[];
     let lastItem: LogItem = null as any;
     let lastIndex = 0;
@@ -39,7 +39,7 @@ export class QQExportLogImporter extends LogImporter {
         const item = {} as LogItem;
         item.IMUserId = 'QQ:' + m[3].slice(1, -1);
         item.nickname = m[2];
-        nicknames.set(item.nickname, item.IMUserId);
+        this.setCharInfo(charInfo, item);
         item.time = dayjs(m[1]).unix();
         item.message = '';
         items.push(item);
@@ -55,6 +55,6 @@ export class QQExportLogImporter extends LogImporter {
       }
     }
 
-    return { items, nicknames, startText };
+    return { items, charInfo, startText };
   }
 }

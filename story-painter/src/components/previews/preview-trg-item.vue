@@ -13,7 +13,8 @@
 </template>
 
 <script setup lang="ts">
-import { LogItem, useStore } from '~/store';
+import { LogItem, packNameId } from '~/logManager/types';
+import { useStore } from '~/store';
 import { msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat } from '~/utils';
 
 const store = useStore();
@@ -27,7 +28,7 @@ const props = defineProps({
 
 const colorByName = (i: LogItem) => {
   // const info = store.pcMap.get(`${i.nickname}-`);
-  const info = store.pcMap.get(`${i.nickname}-${i.IMUserId}`);
+  const info = store.pcMap.get(packNameId(i));
   return info?.color || '#fff';
 }
 
@@ -55,6 +56,9 @@ const nameReplace = (msg: string) => {
 }
 
 const trgMessageSolve = (i: LogItem) => {
+  const id = packNameId(i);
+  if (store.pcMap.get(id)?.role === '隐藏') return '';
+
   let msg = msgImageFormat(i.message, store.exportOptions, true);
   msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
   msg = msgCommandFormat(msg, store.exportOptions);

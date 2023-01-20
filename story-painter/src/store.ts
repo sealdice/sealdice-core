@@ -3,31 +3,7 @@ import { defineStore } from 'pinia'
 import { EditorView } from '@codemirror/view';
 import axios from 'axios';
 import { TextInfo } from './logManager/importers/_logImpoter';
-
-export interface CharItem {
-  name: string,
-  IMUserId: number | string,
-  role: '主持人' | '角色' | '骰子' | '隐藏',
-  color: string
-}
-
-export interface LogItem {
-  id: number;
-  nickname: string;
-  IMUserId: number | string;
-  time: number;
-  timeText?: string;
-  message: string;
-  isDice: boolean;
-  commandId: number;
-  color?: string;
-  role?: string;
-  commandInfo?: any;
-
-  // 如果为真，那么只有message有意义，且当作纯文本处理
-  isRaw?: boolean;
-  index?: number;
-}
+import { CharItem, LogItem, packNameId } from './logManager/types';
 
 export const useStore = defineStore('main', {
   state: () => {
@@ -59,7 +35,7 @@ export const useStore = defineStore('main', {
     pcMap() {
       let m = new Map<string, CharItem>();
       for (let i of this.pcList) {
-        m.set(`${i.name}-${i.IMUserId}`, i);
+        m.set(packNameId(i), i);
       }
       return m;
     }
@@ -112,18 +88,15 @@ export const useStore = defineStore('main', {
     async updatePcList(ti: TextInfo) {
       const exists = new Set();
       for (let i of this.pcList) {
-        exists.add(i.name);
+        exists.add(packNameId(i));
       }
     
-      for (let [k, v] of ti.nicknames) {
-        if (!exists.has(k)) {
-          this.pcList.push({
-            name: k,
-            role: '角色',
-            color: this.getColor(),
-            IMUserId: v,
-          });
-          exists.add(k);
+      for (let [k, v] of ti.charInfo) {
+        const id = packNameId(v);
+        if (!exists.has(id)) {
+          v.color = this.getColor(); 
+          this.pcList.push(v);
+          exists.add(id);
         }
       }
     },

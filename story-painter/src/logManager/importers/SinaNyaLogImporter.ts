@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
-import { LogItem, useStore } from "~/store";
+import { useStore } from "~/store";
+import { CharItem, LogItem } from "../types";
 import { LogImporter, TextInfo } from "./_logImpoter";
 
 export const reSinaNyaLineTest = /^<(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d)>\s+\[?([^\]]+)\]?:\s+([^\n]+)$/m
@@ -19,8 +20,7 @@ export class SinaNyaLogImporter extends LogImporter {
     const store = useStore();
 
     reSinaNya.lastIndex = 0; // 注: 默认值即为0 并非-1
-    const startLength = store.pcList.length + 1001;
-    const nicknames = new Map<string, string>();
+    const charInfo = new Map<string, CharItem>();
     const items = [] as LogItem[];
     let lastItem: LogItem = null as any;
     let lastIndex = 0;
@@ -38,8 +38,8 @@ export class SinaNyaLogImporter extends LogImporter {
 
         const item = {} as LogItem;
         item.nickname = m[2];
-        item.IMUserId = this.getAutoIMUserId(1001+store.pcList.length, item.nickname);
-        nicknames.set(item.nickname, item.IMUserId);
+        item.IMUserId = this.getAutoIMUserId(store.pcList.length, item.nickname);
+        this.setCharInfo(charInfo, item);
         item.time = dayjs(m[1]).unix();
         item.message = m[3];
         items.push(item);
@@ -59,6 +59,6 @@ export class SinaNyaLogImporter extends LogImporter {
       i.message += '\n';
     }
 
-    return { items, nicknames, startText };
+    return { items, charInfo, startText };
   }
 }

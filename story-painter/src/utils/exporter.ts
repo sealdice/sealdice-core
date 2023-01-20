@@ -1,12 +1,19 @@
 import dayjs from "dayjs";
 import { saveAs } from 'file-saver';
-import { CharItem, LogItem } from "~/store";
+import { CharItem, LogItem, packNameId } from "~/logManager/types";
+import { useStore } from "~/store";
 
 // TODO: 移植到logMan/exporters
 export function exportFileQQ(results: LogItem[], options: any = undefined) {
+  const store = useStore();
+  const map = store.pcMap;
+
   let text = ''
   for (let i of results) {
     if (i.isRaw) continue;
+    const id = packNameId(i);
+    if (map.get(id)?.role === '隐藏') continue;
+
     let timeText = i.time.toString()
     if (typeof i.time === 'number') {
       timeText = dayjs.unix(i.time).format(options.yearHide ? 'HH:mm:ss' : 'YYYY/MM/DD HH:mm:ss')
@@ -18,7 +25,7 @@ export function exportFileQQ(results: LogItem[], options: any = undefined) {
     if (options.userIdHide) {
       userid = ''
     }
-    text += `${i.nickname}${userid} ${timeText}\n${i.message.replaceAll('<br />', '\n')}\n\n`
+    text += `${i.nickname}${userid} ${timeText}\n${i.message.replaceAll('<br />', '\n')}`
   }
 
   saveAs(new Blob([text],  {type: "text/plain;charset=utf-8"}), '跑团记录(QQ风格).txt')
@@ -26,9 +33,15 @@ export function exportFileQQ(results: LogItem[], options: any = undefined) {
 }
 
 export function exportFileIRC(results: LogItem[], options: any = undefined) {
+  const store = useStore();
+  const map = store.pcMap;
+
   let text = ''
   for (let i of results) {
     if (i.isRaw) continue;
+    const id = packNameId(i);
+    if (map.get(id)?.role === '隐藏') continue;
+
     let timeText = i.time.toString()
     if (typeof i.time === 'number') {
       timeText = dayjs.unix(i.time).format(options.yearHide ? 'HH:mm:ss' : 'YYYY/MM/DD HH:mm:ss')
@@ -40,7 +53,7 @@ export function exportFileIRC(results: LogItem[], options: any = undefined) {
     if (options.userIdHide) {
       userid = ''
     }
-    text += `${timeText}<${i.nickname}${userid}>:${i.message.replaceAll('<br />', '\n')}\n\n`
+    text += `${timeText}<${i.nickname}${userid}>:${i.message.replaceAll('<br />', '\n')}`
   }
 
   saveAs(new Blob([text],  {type: "text/plain;charset=utf-8"}), '跑团记录(主流风格).txt')
@@ -51,7 +64,7 @@ export function exportFileRaw(doc: string) {
   saveAs(new Blob([doc],  {type: "text/plain;charset=utf-8"}), '跑团记录(未处理).txt')
 }
 
-export function exportFileDocx(html: string, options: any = undefined) {
+export function exportFileDoc(html: string, options: any = undefined) {
   const text = `MIME-Version: 1.0
 Content-Type: multipart/related; boundary="----=_NextPart_WritingBug"
 
