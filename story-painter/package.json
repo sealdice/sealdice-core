@@ -30,7 +30,8 @@
     "lodash-es": "^4.17.21",
     "pinia": "^2.0.12",
     "ua-parser-js": "^1.0.2",
-    "vue": "^3.2.31"
+    "vue": "^3.2.31",
+    "vue3-virtual-scroll-list": "^0.2.1"
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.5",

@@ -22,7 +22,7 @@
 
       <div>
         <div class="switch">
-          <el-switch v-model="exportOptions.offSiteHide" />
+          <el-switch v-model="exportOptions.offTopicHide" />
           <h4>场外发言过滤</h4>
         </div>
         <div>开启后，所有以(和（为开头的发言将被豹豹吃掉不显示</div>
@@ -55,7 +55,7 @@
 
     <div class="pc-list">
       <div v-for="i, index in store.pcList">
-        <div style="display: flex; align-items: center; width: 20rem;">
+        <div style="display: flex; align-items: center; width: 30rem;">
           <el-button style="padding: 0 1rem " @click="store.pcList.splice(index, 1)" :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG">删除</el-button>
 
           <el-input
@@ -67,7 +67,13 @@
             @change="nameChanged(i)"
           />
 
-          <el-select v-model="i.role" class="m-2">
+          <el-input
+            :disabled="true"
+            v-model="i.IMUserId"
+            style="width: 24rem"
+          />
+
+          <el-select v-model="i.role" class="m-2 w-60" style="width: 18rem">
             <el-option value="主持人" />
             <el-option value="角色" />
             <el-option value="骰子" />
@@ -80,23 +86,21 @@
     </div>
 
     <div
-      style="margin-bottom: 0rem; display: flex; justify-content: center; align-items: center; flex-wrap: wrap;"
+      style="margin-bottom: 1rem; margin-top: 1rem; display: flex; justify-content: center; align-items: center; flex-wrap: wrap;"
     >
-      <el-button @click="exportRecordRaw">下载原始文件</el-button>
-      <el-button @click="exportRecordQQ">下载QQ风格记录</el-button>
-      <el-button @click="exportRecordIRC">下载IRC风格记录</el-button>
-      <el-button @click="exportRecordDOCX">下载Word</el-button>
-      <!-- <el-button @click="showPreview">预览</el-button> -->
-      <div style="margin-left: 1rem;">
+      <div>
+        <el-button @click="exportRecordRaw">下载原始文件</el-button>
+        <el-button @click="exportRecordQQ">下载QQ风格记录</el-button>
+        <el-button @click="exportRecordIRC">下载IRC风格记录</el-button>
+        <el-button @click="exportRecordDOCX">下载Word</el-button>
+      </div>
+        <!-- <el-button @click="showPreview">预览</el-button> -->
+      <div style="margin-left: 1rem; ">
         <el-checkbox label="预览" v-model="isShowPreview" :border="true" @click="previewClick('preview')" />
         <el-checkbox label="论坛代码" v-model="isShowPreviewBBS" :border="true" @click="previewClick('bbs')" />
         <el-checkbox label="回声工坊" v-model="isShowPreviewTRG" :border="true" @click="previewClick('trg')" />
+        <!-- <el-checkbox label="回声工坊" v-model="isShowPreviewTRG" :border="true" @click="previewClick('trg')" /> -->
       </div>
-    </div>
-
-    <div style="text-align: center; margin-bottom: 2rem; margin-top: 0.5rem;">
-      <div>提示: 海豹骰与回声工坊达成了合作，<el-link type="primary" target="_blank" href="https://github.com/DanDDXuanX/TRPG-Replay-Generator">回声工坊</el-link>可以将海豹的log一键转视频哦！</div>
-      <div>回声工坊的介绍和视频教程看这里：<el-link type="primary" target="_blank" href="https://www.bilibili.com/video/BV1GY4y1H7wK/">B站传送门</el-link></div>
     </div>
 
     <code-mirror v-show="!(isShowPreview || isShowPreviewBBS || isShowPreviewTRG)" ref="editor" @change="onChange">
@@ -111,91 +115,36 @@
       </div>
     </code-mirror>
 
-    <!-- <monaco-editor @change="onChange"/> -->
-    <div class="preview" ref="preview" v-show="isShowPreview">
-      <div v-if="previewItems.length === 0">
-        <div>染色失败，内容为空或无法识别此格式。</div>
-        <div>已知支持的格式有: 海豹Log(json)、赵/Dice!原始文件、塔原始文件</div>
-        <div>请先清空编辑框，再行复制</div>
-      </div>
-      <div v-for="i in previewItems">
-        <span
-          style="color: #aaa"
-          class="_time"
-          v-if="!store.exportOptions.timeHide"
-        >{{ timeSolve(i) }}</span>
-        <span :style="{ 'color': i.color }" class="_nickname">{{ nicknameSolve(i) }}</span>
-        <span :style="{ 'color': i.color }" v-html="previewMessageSolve(i)"></span>
-      </div>
-    </div>
-
-    <div class="preview" ref="previewBBS" id="previewBBS" v-if="isShowPreviewBBS">
-      <el-button @click="copied" id="btnCopyPreviewBBS" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewBBS">一键复制</el-button>
-      <div v-if="previewItems.length === 0">
-        <div>染色失败，内容为空或无法识别此格式。</div>
-        <div>已知支持的格式有: 海豹Log(json)、赵/Dice!原始文件、塔原始文件</div>
-        <div>请先清空编辑框，再行复制</div>
-      </div>
-      <div v-for="i in previewItems">
-        <span
-          style="color: #aaa"
-          class="_time"
-          v-if="!store.exportOptions.timeHide"
-        >[color=#silver]{{ timeSolve(i) }}[/color]</span>
-        <span :style="{ 'color': i.color }">[color={{i.color ? i.color : '#fff'}}]
-          <span class="_nickname">{{ nicknameSolve(i, 'bbs') }}</span>
-          <span v-html="bbsMessageSolve(i)"></span>
-        [/color]</span>
-      </div>
-    </div>
-
-    <div style="margin-bottom: .5rem" v-if="isShowPreviewTRG">
-      <el-checkbox :border="true" label="添加语音合成标记" v-model="isAddVoiceMark" />
-      <!-- <el-checkbox label="回声工坊" v-model="isShowPreviewTRG2" /> -->
-    </div>
-
-    <div class="preview" ref="previewTRG" id="previewTRG" v-if="isShowPreviewTRG">
-      <el-button @click="copied" id="btnCopyPreviewTRG" style="position: absolute; right: 1rem" size="large" data-clipboard-target="#previewTRG">一键复制</el-button>
-      <div v-if="previewItems.length === 0">
-        <div>染色失败，内容为空或无法识别此格式。</div>
-        <div>已知支持的格式有: 海豹Log(json)、赵/Dice!原始文件、塔原始文件</div>
-        <div>请先清空编辑框，再行复制</div>
-      </div>
-      <div v-for="i in previewItems" :style="i.isDice ? 'margin-top: 16px; margin-bottom: 16px' : ''">
-        <span :style="{ 'color': i.color }" v-if="i.isDice"># </span>
-        <span :style="{ 'color': i.color }" class="_nickname">{{ nicknameSolve(i, 'trg') }}</span>
-        <span :style="{ 'color': i.color }" v-html="trgMessageSolve(i)"></span>
-        <div v-if="store.itemById[i.id.toString()]" style="white-space: pre-wrap;">{{ trgCommandSolve(store.itemById[i.id.toString()]) }}</div>
-        <span v-if="isAddVoiceMark && (!i.isDice)">{*}</span>
-      </div>
-    </div>
+    <preview-main :is-show="isShowPreview" :preview-items="previewItems"></preview-main>
+    <preview-bbs :is-show="isShowPreviewBBS" :preview-items="previewItems"></preview-bbs>
+    <preview-trg :is-show="isShowPreviewTRG" :preview-items="previewItems"></preview-trg>
   </div>
 
   <div style="margin-bottom: 3rem"></div>
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, onMounted, watch } from "vue";
-// import MonacoEditor from './components/MonacoEditor.vue'
+import { nextTick, ref, onMounted, watch, h, render, renderList } from "vue";
 import { useStore } from './store'
 import type { LogItem, CharItem } from './store'
 import dayjs from 'dayjs'
 import { UserFilled } from '@element-plus/icons-vue'
-// import { resetTheme } from "./components/highlight";
 import CodeMirror from './components/CodeMirror.vue'
 import { reNameLine, reNameLine2 } from "./utils/highlight";
 import { EditorState, StateEffect } from '@codemirror/state';
 import { debounce, delay } from 'lodash-es'
-import { convertToLogItems, exportFileRaw, exportFileQQ, exportFileIRC, exportFileDocx } from "./utils/exporter";
+import { exportFileRaw, exportFileQQ, exportFileIRC, exportFileDocx } from "./utils/exporter";
 import { ElLoading, ElMessageBox, ElNotification, ElMessage } from "element-plus";
 import { strFromU8, unzlibSync } from 'fflate';
 import uaParser from 'ua-parser-js'
-import { getTextWidth, getCanvasFontSize } from './utils'
-import ClipboardJS from 'clipboard'
 
-import { logMan, trgCommandSolve } from './logManager/logManager'
+import { logMan } from './logManager/logManager'
 import { ViewUpdate } from "@codemirror/view";
 import { TextInfo } from "./logManager/importers/_logImpoter";
+import previewMain from "./components/previews/preview-main.vue";
+import previewBbs from "./components/previews/preview-bbs.vue";
+import previewTrg from "./components/previews/preview-trg.vue";
+import PreviewItem from './components/previews/preview-main-item.vue'
 
 const isMobile = ref(false)
 const downloadUsableRank = ref(0)
@@ -206,12 +155,6 @@ const isShowPreview = ref(false)
 const isShowPreviewBBS = ref(false)
 const isShowPreviewTRG = ref(false)
 
-const isAddVoiceMark = ref(true)
-
-const copied = () => {
-  ElMessage.success('进行了复制！')
-}
-
 // 清空文本
 const clearText = () => {
   store.editor.dispatch({
@@ -221,45 +164,6 @@ const clearText = () => {
 
 const doFlush = () => {
   logMan.flush();
-}
-
-const previewMessageSolve = (i: LogItem) => {
-  let msg = i.message
-  const prefix = (!store.exportOptions.timeHide ? `${timeSolve(i)}` : '') + nicknameSolve(i)
-  if (i.isDice) {
-    msg = nameReplace(msg)
-  }
-
-  const length = getTextWidth(prefix, getCanvasFontSize(preview.value as any))
-  // return msg.replaceAll('<br />', '\n').replaceAll('\n', '<br /> ' + `<span style="color:white">${prefix}</span>`)
-  return msg.replaceAll('<br />', '\n').replaceAll(/\n([^\n]+)/g, `<p style="margin-left: ${length}px; margin-top: 0; margin-bottom: 0">$1</p>`)
-}
-
-const nameReplace = (msg: string) => {
-  for (let i of store.pcList) {
-    msg = msg.replaceAll(`<${i.name}>`, `${i.name}`)
-  }
-  return msg
-}
-
-const trgMessageSolve = (i: LogItem) => {
-  let msg = i.message
-  let extra = ''
-  if (i.isDice) {
-    msg = nameReplace(msg)
-    extra = '# '
-  }
-  msg = msg.replaceAll('"', '').replaceAll('\\', '') // 移除反斜杠和双引号
-  const prefix = isAddVoiceMark.value ? '{*}' : ''
-  return msg.replaceAll('<br />', '\n').replaceAll('\n', prefix + '<br /> ' + extra + nicknameSolve(i, 'trg'))
-}
-
-const bbsMessageSolve = (i: LogItem) => {
-  let msg = i.message
-  if (i.isDice) {
-    msg = nameReplace(msg)
-  }
-  return msg.replaceAll('<br />', '\n').replaceAll('\n', '[/color]<br /> ' + (!store.exportOptions.timeHide ? `<span style='color:#aaa'>[color=#silver]${timeSolve(i)}[/color]</span>` : '') + `[color=${i.color||'#fff'}] ` + nicknameSolve(i, 'bbs'))
 }
 
 const previewClick = (mode: 'preview' | 'bbs' | 'trg') => {
@@ -277,30 +181,8 @@ const previewClick = (mode: 'preview' | 'bbs' | 'trg') => {
       isShowPreviewBBS.value = false
       break;
   }
+  showPreview();
 }
-
-watch(() => isShowPreviewBBS.value, (val: any) => {
-  if (isShowPreviewBBS.value) {
-    exportOptions.imageHide = true
-
-    nextTick(() => {
-      new ClipboardJS('#btnCopyPreviewBBS')
-    })
-    showPreview()
-  }
-})
-
-watch(() => isShowPreviewTRG.value, (val: any) => {
-  if (isShowPreviewTRG.value) {
-    exportOptions.commandHide = true
-    exportOptions.imageHide = true
-    showPreview()
-    nextTick(() => {
-      new ClipboardJS('#btnCopyPreviewTRG')
-    })
-  }
-})
-
 
 function setupUA() {
   const parser = new uaParser.UAParser()
@@ -341,46 +223,6 @@ function setupUA() {
 }
 
 setupUA()
-
-let findPC = (name: string) => {
-    // return _pcDict[name]
-    for (let i of store.pcList) {
-      if (i.name === name) {
-        return i
-      }
-    }
-}
-
-const nicknameSolve = (i: LogItem, mode: 'bbs' | 'trg' | undefined = undefined) => {
-  let userid = '(' + i.IMUserId + ')'
-  const options = store.exportOptions
-  if (options.userIdHide) {
-    userid = ''
-  }
-  if (mode === 'bbs') {
-    return `<${i.nickname}${userid}>`
-  }
-  if (mode === 'trg') {
-    const u = findPC(i.nickname)
-    let kpFlag = u?.role === '主持人' ? ',KP' : ''
-    return `[${i.nickname}${kpFlag}]:`
-  }
-  // [张安翔]:最基本的对话行
-
-  return `<${i.nickname}${userid}>:`
-}
-
-const timeSolve = (i: LogItem) => {
-  let timeText = i.time.toString()
-  const options = store.exportOptions
-  if (typeof i.time === 'number') {
-    timeText = dayjs.unix(i.time).format(options.yearHide ? 'HH:mm:ss' : 'YYYY/MM/DD HH:mm:ss')
-  }
-  if (options.timeHide) {
-    timeText = ''
-  }
-  return timeText
-}
 
 const browserAlert = () => {
   if (downloadUsableRank.value === 0) {
@@ -432,9 +274,15 @@ onMounted(async () => {
       nextTick(() => {
         const text = strFromU8(log)
         store.pcList.length = 0
-        store.editor.dispatch({
-          changes: { from: 0, to: store.editor.state.doc.length, insert: text }
-        })
+        // store.editor.dispatch({
+        //   changes: { from: 0, to: store.editor.state.doc.length, insert: '' }
+        // })
+
+        logMan.lastText = '';
+        logMan.syncChange(text, [0, 0], [0, 0])
+        // store.editor.dispatch({
+        //   changes: { from: 0, to: store.editor.state.doc.length, insert: text }
+        // })
       })
 
       loading.close()
@@ -458,7 +306,6 @@ onMounted(async () => {
 
   // cminstance.value = cmRefDom.value?.cminstance;
   // cminstance.value?.focus();
-
   // console.log(cminstance.value)
   browserAlert()
 });
@@ -470,14 +317,14 @@ function exportRecordRaw() {
 
 function exportRecordQQ() {
   browserAlert()
-  const results = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions)
-  exportFileQQ(results, store.exportOptions)
+  // const results = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions)
+  exportFileQQ(logMan.curItems, store.exportOptions)
 }
 
 function exportRecordIRC() {
   browserAlert()
-  const results = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions)
-  exportFileIRC(results, store.exportOptions)
+  // const results = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions)
+  exportFileIRC(logMan.curItems, store.exportOptions)
 }
 
 function exportRecordDOCX() {
@@ -488,60 +335,57 @@ function exportRecordDOCX() {
     })
   }
 
-  // 其实是伪doc
-  previewClick('preview')
-  previewItems.value = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions, true)
-  isShowPreview.value = true // 强制切换
-  nextTick(() => {
-    const el = preview.value
-    if (el) {
-      // 注意有个等待图片加载的时间，暂时没做
-      setTimeout(() => {
-        exportFileDocx(el as any)
-      }, 500)
+  const solveImg = (el: Element) => {
+    if (el.tagName === 'IMG') {
+      let width = el.clientWidth;
+      let height = el.clientHeight;
+      if (width === 0) {
+        width = 300;
+        height = 300;
+      }
+      el.setAttribute('width', `${width}`)
+      el.setAttribute('height', `${height}`)
     }
-  })
+    for (let i = 0; i < el.children.length; i += 1) {
+      solveImg(el.children[i])
+    }
+  }
+
+  const el = document.createElement('span');
+  const elRoot = document.createElement('div');
+  const items = [];
+  for (let i of logMan.curItems) {
+    if (i.isRaw) continue;
+    const html = h(PreviewItem, { source: i });
+    render(html, el);
+
+    const c = el;
+    solveImg(c);
+    items.push(c.innerHTML);
+  }
+
+  exportFileDocx(items.join('\n'));
 }
 
 const previewItems = ref<LogItem[]>([])
 
 function showPreview() {
-  previewItems.value = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions, true)
+  let tmp = []
+  let index = 0;
+  for (let i of logMan.curItems) {
+    if (!i.isRaw) {
+      i.index = index;
+      tmp.push(i);
+      index += 1;
+    }
+  }
+  previewItems.value = tmp;
+  // previewItems.value = logMan.curItems;
+  // previewItems.value = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions, true)
 }
 
 const store = useStore()
 const color2 = ref('#409EFF')
-
-async function loadLog(items: LogItem[]) {
-  // console.log("222", items)
-  let text = ""
-  let changed = false
-  store.itemById = {}
-  for (let i of items) {
-    if (await store.tryAddPcList(i)) {
-      changed = true
-    }
-
-    if (i.commandInfo) {
-      store.itemById[i.id] = i
-      // console.log(222, store.itemById[i.id])
-    }
-
-    let idSuffix = ''
-    if (i.isDice) {
-      idSuffix = ` #${i.id}`
-    }
-
-    const timeText = dayjs.unix(i.time).format('YYYY/MM/DD HH:mm:ss')
-    text += `${i.nickname}(${i.IMUserId}) ${timeText}${idSuffix}\n${i.message}\n\n`
-  }
-
-  store.editor.dispatch({
-    changes: { from: 0, to: store.editor.state.doc.length, insert: text }
-  })
-  store.items = items
-  return changed
-}
 
 let lastPCName = ''
 
@@ -564,8 +408,6 @@ logMan.ev.on('parsed', (ti: TextInfo) => {
   store.updatePcList(ti);
 })
 
-
-let preventNext = false
 const onChange = (v: ViewUpdate) => {
   let payloadText = '';
   if (v) {
@@ -588,11 +430,6 @@ const onChange = (v: ViewUpdate) => {
   // payloadText = store.editor.state.doc.toString()
   // let isLog = false
 }
-
-const reloadFunc = debounce(() => {
-  store.reloadEditor()
-  showPreview()
-}, 500)
 
 const doEditorHighlightClick = (e: any) => {
   // 因为原生click事件会执行两次，第一次在label标签上，第二次在input标签上，故此处理
@@ -632,9 +469,13 @@ const doEditorHighlightClick = (e: any) => {
   doHl()
 }
 
+
+const reloadFunc = debounce(() => {
+  store.reloadEditor()
+}, 500)
+
 watch(store.pcList, reloadFunc, { deep: true })
 watch(store.exportOptions, reloadFunc, { deep: true })
-watch(isShowPreview, showPreview, { deep: true })
 
 const exportOptions = store.exportOptions
 
@@ -693,5 +534,23 @@ html {
   padding: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
   position: relative;
+}
+
+
+.list-dynamic {
+  width: 100%;
+  height: 500px;
+  overflow-y: auto;
+}
+
+.list-item-dynamic {
+	// display: flex;
+	// align-items: center;
+	padding: 0.5em 0;
+	border-color: lightgray;
+}
+
+.scroller {
+  height: 95vh;
 }
 </style>

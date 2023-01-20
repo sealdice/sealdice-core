@@ -11,9 +11,19 @@ export interface TextInfo {
 
 export class LogImporter {
   parent: LogManager;
+  tmpIMUserId = new Map<string, string>();
 
   constructor(man: LogManager) {
     this.parent = man;
+  }
+
+  getAutoIMUserId(start: number, name: string) {
+    let data = this.tmpIMUserId.get(name);
+    if (!data) {
+      data = `${start + this.tmpIMUserId.size}`;
+      this.tmpIMUserId.set(name, data);
+    }
+    return data;
   }
 
   parseTime(arg0: string): [number, string | undefined] {

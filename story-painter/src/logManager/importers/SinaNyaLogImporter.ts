@@ -37,11 +37,11 @@ export class SinaNyaLogImporter extends LogImporter {
         }
 
         const item = {} as LogItem;
-        nicknames.set(m[2], null);
         item.nickname = m[2];
+        item.IMUserId = this.getAutoIMUserId(1001+store.pcList.length, item.nickname);
+        nicknames.set(item.nickname, item.IMUserId);
         item.time = dayjs(m[1]).unix();
         item.message = m[3];
-        item.IMUserId = startLength + nicknames.size;
         items.push(item);
         lastItem = item;
         lastIndex = m.index + m[0].length;

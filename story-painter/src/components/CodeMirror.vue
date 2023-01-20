@@ -128,9 +128,9 @@ const checkboxPlugin = ViewPlugin.fromClass(class {
   constructor(view: EditorView) {
     this.decorations = checkboxes(view)
 
-    store.reloadEditor2 = () => {
-      this.decorations = checkboxes(view)
-    }
+    // store.reloadEditor2 = () => {
+    //   this.decorations = checkboxes(view)
+    // }
   }
 
   update(update: ViewUpdate) {

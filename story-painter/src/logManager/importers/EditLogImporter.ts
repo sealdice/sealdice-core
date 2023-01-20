@@ -39,12 +39,14 @@ export class EditLogImporter extends LogImporter {
         }
 
         const item = {} as LogItem;
-        nicknames.set(m[1], null);
         item.nickname = m[1];
         [item.time, item.timeText] = this.parseTime((m[5] || '') + m[6]);
         item.message = '';
         if (m[2]) {
           item.IMUserId = m[2].slice(1, -1);
+          nicknames.set(m[1], item.IMUserId);
+        } else {
+          nicknames.set(m[1], '');
         }
         items.push(item);
 

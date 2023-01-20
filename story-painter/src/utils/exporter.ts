@@ -2,174 +2,11 @@ import dayjs from "dayjs";
 import { saveAs } from 'file-saver';
 import { CharItem, LogItem } from "~/store";
 
-// 注意，秒钟数一定要是2个，不然会出事
-// 另外，底下实际上是一个不lookahead的Parser，因此后面加\n作为区分
-export const reNameLine = /^([^(<\n]+)(\([^\)]+\)|\<[^(\n]+\>)?(\s+)((\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2}))( #(\d+))? *\n/m
-
-export function convertToLogItems(doc: string, pcList: CharItem[], options: any = undefined, htmlText: boolean = false) {
-  let pos = 0
-  let text = ''
-  // console.log(doc)
-  let results: LogItem[] = []
-
-  let state = 0
-  let curItem = {} as LogItem
-
-  while (pos < doc.length) {
-    const isLast = pos == doc.length - 1
-    text += doc[pos]
-
-    if (text.length > 2000) text = ''
-
-    switch (state) {
-      case 0: {
-        let m = reNameLine.exec(text)
-        if (m) {
-          curItem.nickname = m[1]
-          if (m[2] && m[2].length) {
-            curItem.IMUserId = m[2].slice(1, m[2].length-1) as any
-          }
-          curItem.time = dayjs(m[4]).unix()
-          if (isNaN(curItem.time)) {
-            curItem.time = m[4] as any
-          }
-          text = ''
-          state = 1
-
-          curItem.id = parseInt(m[8])
-          if (!curItem.id) {
-            curItem.id = 0
-          }
-        }
-        break
-      }
-      case 1: {
-        const m = reNameLine.exec(text)
-        if (m) {
-          state = 0
-          text = text.slice(0, text.length - m[0].length)
-          pos -= (m[0].length + 1)
-        }
-
-        if (m || isLast) {
-          curItem.message = text.trim()
-          text = ''
-          results.push(curItem)
-          curItem = {} as LogItem
-        }
-        break
-      }
-    }
-
-    pos += 1
-  }
-
-  let _pcDict: { [key: string]: any } = {}
-  for (let i of pcList) {
-    if (!_pcDict[i.name]) _pcDict[i.name] = i
-  }
-
-  let findPC = (name: string) => {
-    return _pcDict[name]
-    // for (let i of pcList) {
-    //   if (i.name === name) {
-    //     return i
-    //   }
-    // }
-  }
-
-  let allUserIds = []
-  for (let i of results) {
-    allUserIds.push(i.IMUserId)
-  }
-
-  let finalResults = []
-  for (let i of results) {
-    let msg = i.message
-
-    const pc = findPC(i.nickname)
-    if (pc?.role === '隐藏') {
-      continue
-    }
-
-    i.color = pc?.color
-    i.isDice = pc?.role === '骰子'
-
-    // 替换图片、表情
-    if (options.imageHide) {
-      msg = msg.replaceAll(/\[CQ:(image|face),[^\]]+\]/g, '')
-    } else {
-      if (htmlText) {
-        msg = msg.replaceAll(/\[CQ:image,[^\]]+?url=([^\]]+)\]/g, '<img style="max-width: 300px" src="$1" />')
-      }
-    }
-
-    if (options.imageHide) {
-      msg = msg.replaceAll(/\[mirai:(image|marketface):[^\]]+\]/g, '')
-    } else {
-      if (htmlText) {
-        msg = msg.replaceAll(/\[mirai:image:\{([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)}([^\]]+?)\]/g, '<img style="max-width: 300px" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$1$2$3$4$5/0?term=2" />')
-      }
-    }
-
-    if (options.imageHide) {
-      msg = msg.replaceAll(/\[(image|图):[^\]]+\]/g, '')
-    } else {
-      if (htmlText) {
-        msg = msg.replaceAll(/\[(?:image|图):([^\]]+)?([^\]]+)\]/g, '<img style="max-width: 300px" src="$1" />')
-      }
-    }
-
-    // 过滤其他任何CQ码
-    msg = msg.replaceAll(/\[CQ:.+?,[^\]]+\]/g, '')
-    // 过滤mirai
-    msg = msg.replaceAll(/\[mirai:.+?:[^\]]+\]/g, '')
-
-    // 替换场外发言
-    if (options.offSiteHide && (!i.isDice)) {
-      msg = msg.replaceAll(/^[(（].+?$/gm, '') // 【
-    }
-
-    // 替换指令
-    if (options.commandHide) {
-      msg = msg.replaceAll(/^[\.。]\S+.*$/g, '')
-    }
-
-    // 替换残留QQ号
-    if (options.userIdHide) {
-      for (let i of allUserIds) {
-        msg = msg.replaceAll(`(${i})`, '')
-      }
-    }
-
-    if (i.isDice) {
-      // 替换角色的<>
-      msg = msg.replaceAll('<', '')
-      msg = msg.replaceAll('>', '')
-    }
-
-    if (msg) {
-      // 换行处理
-      if (msg.includes('\n')) {
-        msg = msg
-      }
-      msg = msg.replaceAll('\n', '<br />')
-      i.message = msg
-      finalResults.push(i)
-    }
-  }
-
-  // console.log(finalResults)
-  return finalResults
-}
-
-export function timeConvert(str: string) {
-
-}
-
+// TODO: 移植到logMan/exporters
 export function exportFileQQ(results: LogItem[], options: any = undefined) {
   let text = ''
   for (let i of results) {
+    if (i.isRaw) continue;
     let timeText = i.time.toString()
     if (typeof i.time === 'number') {
       timeText = dayjs.unix(i.time).format(options.yearHide ? 'HH:mm:ss' : 'YYYY/MM/DD HH:mm:ss')
@@ -191,6 +28,7 @@ export function exportFileQQ(results: LogItem[], options: any = undefined) {
 export function exportFileIRC(results: LogItem[], options: any = undefined) {
   let text = ''
   for (let i of results) {
+    if (i.isRaw) continue;
     let timeText = i.time.toString()
     if (typeof i.time === 'number') {
       timeText = dayjs.unix(i.time).format(options.yearHide ? 'HH:mm:ss' : 'YYYY/MM/DD HH:mm:ss')
@@ -213,18 +51,7 @@ export function exportFileRaw(doc: string) {
   saveAs(new Blob([doc],  {type: "text/plain;charset=utf-8"}), '跑团记录(未处理).txt')
 }
 
-export function exportFileDocx(el: HTMLDivElement, options: any = undefined) {
-  const solveImg = (el: Element) => {
-    if (el.tagName === 'IMG') {
-      el.setAttribute('width', `${el.clientWidth}`)
-      el.setAttribute('height', `${el.clientHeight}`)
-    }
-    for (let i = 0; i < el.children.length; i += 1) {
-      solveImg(el.children[i])
-    }
-  }
-  solveImg(el)
-
+export function exportFileDocx(html: string, options: any = undefined) {
   const text = `MIME-Version: 1.0
 Content-Type: multipart/related; boundary="----=_NextPart_WritingBug"
 
@@ -237,7 +64,7 @@ Content-Type: text/html; charset="utf-8"
 <html>
 <head><meta charset="utf-8"></head>
 <body>
-` + el.innerHTML +
+` + html +
 `
 </body>
 </html>

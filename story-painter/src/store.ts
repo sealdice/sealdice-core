@@ -6,6 +6,7 @@ import { TextInfo } from './logManager/importers/_logImpoter';
 
 export interface CharItem {
   name: string,
+  IMUserId: number | string,
   role: '主持人' | '角色' | '骰子' | '隐藏',
   color: string
 }
@@ -25,6 +26,7 @@ export interface LogItem {
 
   // 如果为真，那么只有message有意义，且当作纯文本处理
   isRaw?: boolean;
+  index?: number;
 }
 
 export const useStore = defineStore('main', {
@@ -35,16 +37,18 @@ export const useStore = defineStore('main', {
       pcList: [] as CharItem[],
       palette: ['#cb4d68', '#f99252', '#f48cb6', '#9278b9', '#3e80cc', '#84a59d', '#5b5e71'],
       paletteStack: [] as string[],
-      itemById: {} as {[key: string]: LogItem},
       items: [] as LogItem[],
       doEditorHighlight: false,
 
+      trgIsAddVoiceMark: false,
+
+      previewElement: HTMLElement,
       _reloadEditor: null as any as (highlight: boolean) => void,
 
       exportOptions: {
         commandHide: false,
         imageHide: false,
-        offSiteHide: false,
+        offTopicHide: false,
         timeHide: false,
         userIdHide: true,
         yearHide: true
@@ -52,6 +56,13 @@ export const useStore = defineStore('main', {
     }
   },
   getters: {
+    pcMap() {
+      let m = new Map<string, CharItem>();
+      for (let i of this.pcList) {
+        m.set(`${i.name}-${i.IMUserId}`, i);
+      }
+      return m;
+    }
   },
   actions: {
     reloadEditor () {
@@ -63,9 +74,6 @@ export const useStore = defineStore('main', {
         this.paletteStack = [...this.palette]
       }
       return this.paletteStack.shift() as string
-    },
-
-    async customTextSave(category: string) {
     },
 
     async tryFetchLog(key: string, password: string) {
@@ -111,8 +119,9 @@ export const useStore = defineStore('main', {
         if (!exists.has(k)) {
           this.pcList.push({
             name: k,
-            role: v as any || '角色',
-            color: this.getColor()
+            role: '角色',
+            color: this.getColor(),
+            IMUserId: v,
           });
           exists.add(k);
         }

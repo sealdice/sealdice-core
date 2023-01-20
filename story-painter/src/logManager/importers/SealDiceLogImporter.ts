@@ -2,7 +2,6 @@ import { LogItem } from "~/store";
 import { LogImporter, TextInfo } from "./_logImpoter";
 
 
-
 export class SealDiceLogImporter extends LogImporter {
   latestData: any;
 
@@ -21,10 +20,11 @@ export class SealDiceLogImporter extends LogImporter {
   }
 
   parse(text: string): TextInfo {
+    // if (!this.latestData) this.check(text);
     const nicknames = new Map<string, string>();
-    const items = this.latestData as LogItem[];
+    const data = this.latestData as { items: LogItem[] };
     let startText = '';
-    for (let i of items) {
+    for (let i of data.items) {
       let role = '角色'
       if (i.nickname.toLowerCase().startsWith('ob')) {
         role = '隐藏'
@@ -32,8 +32,9 @@ export class SealDiceLogImporter extends LogImporter {
       if (i.isDice) {
         role = '骰子'
       }
-      nicknames.set(i.nickname, role);
+      nicknames.set(i.nickname, `${i.IMUserId}`);
+      i.message += '\n\n';
     }
-    return { items, nicknames, startText };
+    return { items: data.items, nicknames, startText };
   }
 }

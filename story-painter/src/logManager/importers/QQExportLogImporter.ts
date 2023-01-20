@@ -15,7 +15,6 @@ export class QQExportLogImporter extends LogImporter {
     return false;
   }
 
-
   parse(text: string) {
     const store = useStore();
 
@@ -38,11 +37,11 @@ export class QQExportLogImporter extends LogImporter {
         }
 
         const item = {} as LogItem;
-        nicknames.set(m[2], null);
+        item.IMUserId = 'QQ:' + m[3].slice(1, -1);
         item.nickname = m[2];
+        nicknames.set(item.nickname, item.IMUserId);
         item.time = dayjs(m[1]).unix();
         item.message = '';
-        item.IMUserId = 'QQ:' + m[3].slice(1, -1);
         items.push(item);
 
         lastItem = item;
