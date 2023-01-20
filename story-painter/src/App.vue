@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2 dev</h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2 <el-button type="primary" @click="backV1">返回V1</el-button></h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253 / 562897832</div>
     <!-- <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div> -->
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
@@ -139,11 +139,14 @@ import { LogItem, CharItem, packNameId } from "./logManager/types";
 const isMobile = ref(false)
 const downloadUsableRank = ref(0)
 
-const preview = ref(null)
-
 const isShowPreview = ref(false)
 const isShowPreviewBBS = ref(false)
 const isShowPreviewTRG = ref(false)
+
+const backV1 = () => {
+  // location.href = location.origin + '/v1/' + location.search + location.hash;
+  location.href = 'https://log.weizaima.com' + '/v1/' + location.search + location.hash;
+}
 
 // 清空文本
 const clearText = () => {
