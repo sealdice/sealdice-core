@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/lonelyevil/kook"
 	"github.com/lonelyevil/kook/log_adapter/plog"
@@ -222,17 +223,7 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userId string, text
 		pa.Session.Parent.Logger.Errorf("创建Kook用户#%s的私聊频道时出错:%s", userId, err)
 		return
 	}
-	dmc := &kook.DirectMessageCreate{
-		ChatCode: channel.Code,
-		MessageCreateBase: kook.MessageCreateBase{
-			Content: text,
-		},
-	}
-	_, err = pa.IntentSession.DirectMessageCreate(dmc)
-	if err != nil {
-		pa.Session.Parent.Logger.Errorf("向Kook用户#%s发送消息时出错:%s", userId, err)
-		return
-	}
+	pa.SendToChannelRaw(channel.Code, text, true)
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
 			i.callWithJsCheck(ctx.Dice, func() {
@@ -243,16 +234,7 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userId string, text
 }
 
 func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
-	_, err := pa.IntentSession.MessageCreate(&kook.MessageCreate{
-		MessageCreateBase: kook.MessageCreateBase{
-			TargetID: ExtractKookChannelId(groupId),
-			Content:  text,
-			Type:     kook.MessageTypeText,
-		},
-	})
-	if err != nil {
-		return
-	}
+	pa.SendToChannelRaw(ExtractKookChannelId(groupId), text, false)
 	if ctx.Session.ServiceAtNew[groupId] != nil {
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
 			if i.OnMessageSend != nil {
@@ -264,12 +246,113 @@ func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupId string, text
 	}
 }
 
+func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private bool) {
+	bot := pa.IntentSession
+	dice := pa.Session.Parent
+	elem := dice.ConvertStringMessage(text)
+	var err error
+	StreamToByte := func(stream io.Reader) []byte {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(stream)
+		if err != nil {
+			return nil
+		}
+		return buf.Bytes()
+	}
+	msgb := kook.MessageCreateBase{
+		Content: "",
+		Type:    kook.MessageTypeKMarkdown,
+	}
+	for _, element := range elem {
+		switch e := element.(type) {
+		case *TextElement:
+			msgb.Content += e.Content
+		case *ImageElement:
+			if msgb.Content != "" {
+				err = pa.MessageCreateRaw(msgb, id, private)
+				if err != nil {
+					pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
+					break
+				}
+			}
+			msgb = kook.MessageCreateBase{
+				Content: "",
+				Type:    kook.MessageTypeImage,
+			}
+			assert, err := bot.AssetCreate(e.file.File, StreamToByte(e.file.Stream))
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("Kook创建asserts时出错:%s", err)
+				break
+			}
+			msgb.Content = assert
+			err = pa.MessageCreateRaw(msgb, id, private)
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
+				break
+			}
+			msgb = kook.MessageCreateBase{
+				Content: "",
+				Type:    kook.MessageTypeKMarkdown,
+			}
+		case *FileElement:
+			if msgb.Content != "" {
+				err = pa.MessageCreateRaw(msgb, id, private)
+				if err != nil {
+					pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
+					break
+				}
+			}
+			msgb = kook.MessageCreateBase{
+				Content: "",
+				Type:    kook.MessageTypeFile,
+			}
+			assert, err := bot.AssetCreate(e.File, StreamToByte(e.Stream))
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("Kook创建asserts时出错:%s", err)
+				break
+			}
+			msgb.Content = assert
+			err = pa.MessageCreateRaw(msgb, id, private)
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
+				break
+			}
+			msgb = kook.MessageCreateBase{
+				Content: "",
+				Type:    kook.MessageTypeKMarkdown,
+			}
+		case *AtElement:
+			msgb.Content = msgb.Content + fmt.Sprintf("(met)%s(met)", e.Target)
+		case *TTSElement:
+			msgb.Content += e.Content
+		}
+	}
+	if msgb.Content != "" {
+		err = pa.MessageCreateRaw(msgb, id, private)
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
+		}
+	}
+}
+
+func (pa *PlatformAdapterKook) MessageCreateRaw(base kook.MessageCreateBase, id string, isPrivate bool) error {
+	bot := pa.IntentSession
+	var err error
+	if isPrivate {
+		_, err = bot.DirectMessageCreate(&kook.DirectMessageCreate{ChatCode: id, MessageCreateBase: base})
+	} else {
+		base.TargetID = id
+		_, err = bot.MessageCreate(&kook.MessageCreate{MessageCreateBase: base})
+	}
+	return err
+}
+
 func FormatDiceIdKook(diceKook string) string {
 	return fmt.Sprintf("KOOK:%s", diceKook)
 }
 
-func FormatDiceIdKookChannel(diceDiscord string) string {
-	return fmt.Sprintf("KOOK-CH-Group:%s", diceDiscord)
+func FormatDiceIdKookChannel(diceKook string) string {
+	return fmt.Sprintf("KOOK-CH-Group:%s", diceKook)
 }
 
 func ExtractKookUserId(id string) string {
