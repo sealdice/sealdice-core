@@ -48,6 +48,7 @@ export class EditLogImporter extends LogImporter {
         if (m[2]) {
           item.IMUserId = m[2].slice(1, -1);
         } else {
+          // console.log('???', item, m);
           item.IMUserId = this.getAutoIMUserId(store.pcList.length, item.nickname);
         }
         this.setCharInfo(charInfo, item);

@@ -30,6 +30,8 @@ export class SealDiceLogImporter extends LogImporter {
     let startText = '';
     for (let i of data.items) {
       this.setCharInfo(charInfo, i);
+      // 这个\r\n替换是为了防止logman因为新旧文本不同，导致重新格式化
+      i.message = i.message.replaceAll('\r\n', '\n');
       i.message += '\n\n';
     }
     console.log(data);

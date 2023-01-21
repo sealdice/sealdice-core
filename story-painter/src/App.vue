@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2.0.1 <el-button type="primary" @click="backV1">返回V1</el-button></h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2.0.2 <el-button type="primary" @click="backV1">返回V1</el-button></h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253 / 562897832</div>
     <!-- <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div> -->
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
@@ -270,7 +270,7 @@ onMounted(async () => {
         store.pcList.length = 0
 
         logMan.lastText = '';
-        logMan.syncChange(text, [0, 0], [0, 0])
+        logMan.syncChange(text, [0, store.editor.state.doc.length], [0, text.length])
         // store.editor.dispatch({
         //   changes: { from: 0, to: store.editor.state.doc.length, insert: text }
         // })
@@ -422,6 +422,7 @@ const nameChanged = (i: CharItem) => {
     })
   }
 }
+
 
 logMan.ev.on('textSet', (text) => {
   store.editor.dispatch({

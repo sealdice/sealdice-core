@@ -5,11 +5,12 @@ import { LogItem } from "../types";
 // 编辑页面
 export class EditLogExporter extends LogExporter {
   doExport(items: LogItem[], indexOffset = 0): LogExportInfo | undefined {
-    let text = ""
+    let textAll = ""
     let index = 0 + indexOffset
     const indexInfoList = []
 
     for (let i of items) {
+      let text = ''
       if (i.isRaw) {
         let indexStart = index
         let indexContent = index
@@ -18,6 +19,7 @@ export class EditLogExporter extends LogExporter {
         index = indexEnd;
         const indexInfo = { indexStart, indexContent, indexEnd, item: i };
         indexInfoList.push(indexInfo);
+        textAll += text
         continue
       }
 
@@ -43,8 +45,9 @@ export class EditLogExporter extends LogExporter {
 
       const indexInfo = { indexStart, indexContent, indexEnd, item: i };
       indexInfoList.push(indexInfo);
+      textAll += text
     }
 
-    return { text, indexInfoList }
+    return { text: textAll, indexInfoList }
   }
 }
