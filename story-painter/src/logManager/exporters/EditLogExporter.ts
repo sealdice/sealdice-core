@@ -23,7 +23,8 @@ export class EditLogExporter extends LogExporter {
 
       let idSuffix = ''
       if (i.isDice) {
-        idSuffix = ` #${i.id}`
+        // 与其匹配的机制暂时移除了，因此先屏蔽
+        // idSuffix = ` #${i.id}`
       }
   
       let indexStart = index

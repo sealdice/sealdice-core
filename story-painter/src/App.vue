@@ -55,14 +55,14 @@
 
     <div class="pc-list">
       <div v-for="i, index in store.pcList">
-        <div style="display: flex; align-items: center; width: 30rem;">
+        <div style="display: flex; align-items: center; width: 26rem;">
           <el-button style="padding: 0 1rem " @click="deletePc(index, i)"
             :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG">删除</el-button>
 
           <el-input :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG" v-model="i.name" class="w-50 m-2"
             :prefix-icon="UserFilled" @focus="nameFocus(i)" @change="nameChanged(i)" />
 
-          <el-input :disabled="true" v-model="i.IMUserId" style="width: 24rem" />
+          <el-input :disabled="true" v-model="i.IMUserId" style="width: 18rem" />
 
           <el-select v-model="i.role" class="m-2 w-60" style="width: 18rem">
             <el-option value="主持人" />
