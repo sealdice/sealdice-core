@@ -16,6 +16,10 @@ export class QQExportLogImporter extends LogImporter {
     return false;
   }
 
+  get name() {
+    return 'QQ导出格式'
+  }
+
   parse(text: string) {
     const store = useStore();
 

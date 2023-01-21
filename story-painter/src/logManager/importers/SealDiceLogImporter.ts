@@ -5,6 +5,10 @@ import { LogImporter, TextInfo } from "./_logImpoter";
 export class SealDiceLogImporter extends LogImporter {
   latestData: any;
 
+  get name() {
+    return '海豹JSON格式'
+  }
+
   check(text: string): boolean {
     let isTrpgLog = false;
     try {
@@ -28,6 +32,7 @@ export class SealDiceLogImporter extends LogImporter {
       this.setCharInfo(charInfo, i);
       i.message += '\n\n';
     }
+    console.log(data);
     return { items: data.items, charInfo, startText };
   }
 }

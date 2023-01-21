@@ -16,6 +16,10 @@ export class SinaNyaLogImporter extends LogImporter {
     return false;
   }
 
+  get name() {
+    return 'SinaNya格式'
+  }
+
   parse(text: string): TextInfo {
     const store = useStore();
 

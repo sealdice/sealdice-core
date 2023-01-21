@@ -7,6 +7,7 @@ import { Emitter } from "./event";
 import { indexInfoListItem } from "./exporters/logExporter";
 import { EditLogImporter } from "./importers/EditLogImporter";
 import { CharItem, LogItem } from "./types";
+import { DiceKokonaLogImporter } from "./importers/DiceKokonaLogImporter";
 
 
 export class LogManager {
@@ -20,6 +21,7 @@ export class LogManager {
     ['editLog', new EditLogImporter(this)],
     ['qqExport', new QQExportLogImporter(this)],
     ['sinaNya', new SinaNyaLogImporter(this)],
+    ['dice!', new DiceKokonaLogImporter(this)],
   ]
 
   exporters = {
@@ -64,6 +66,7 @@ export class LogManager {
       const importer = _importer as LogImporter;
       if (importer.check(text)) {
         const ret = importer.parse(text);
+        console.log(`初步识别log为 ${importer.name} 格式，解析为:`, ret)
         if (genFakeHeadItem) {
           const item = {} as LogItem;
           item.isRaw = true;
@@ -75,6 +78,7 @@ export class LogManager {
         return ret;
       }
     }
+    console.log(`解析log格式失败，可能是纯文本或未知格式`);
   }
 
   flush() {

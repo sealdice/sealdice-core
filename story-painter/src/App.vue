@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2 <el-button type="primary" @click="backV1">返回V1</el-button></h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2.0.1 <el-button type="primary" @click="backV1">返回V1</el-button></h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253 / 562897832</div>
     <!-- <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div> -->
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
@@ -135,6 +135,7 @@ import previewBbs from "./components/previews/preview-bbs.vue";
 import previewTrg from "./components/previews/preview-trg.vue";
 import PreviewItem from './components/previews/preview-main-item.vue'
 import { LogItem, CharItem, packNameId } from "./logManager/types";
+import { setCharInfo } from './logManager/importers/_logImpoter'
 
 const isMobile = ref(false)
 const downloadUsableRank = ref(0)
@@ -425,18 +426,32 @@ const nameChanged = (i: CharItem) => {
 logMan.ev.on('textSet', (text) => {
   store.editor.dispatch({
     changes: { from: 0, to: store.editor.state.doc.length, insert: text }
-  })
+  });
+
+  let m = new Map<string, CharItem>();
+  for (let i of logMan.curItems) {
+    if (i.isRaw) continue;
+    setCharInfo(m, i);
+  }
+  store.updatePcList(m);
 });
 
 logMan.ev.on('parsed', (ti: TextInfo) => {
-  store.updatePcList(ti);
+  store.updatePcList(ti.charInfo);
 })
 
 const onChange = (v: ViewUpdate) => {
   let payloadText = '';
   if (v) {
     if (v.docChanged) {
-      const ranges = (v as any).changedRanges
+      // 有一种我不太清楚的特殊情况会导致二次调用，从而使得pclist清零
+      // 看不出明显变化，只是一个隐藏参数flags为0
+      // 破案了，是flush
+      if (!v.viewportChanged && (v as any).flags === 0) {
+        return;
+      }
+
+      const ranges = (v as any).changedRanges;
       if (ranges.length) {
         for (let i = ranges.length - 1; i >= 0; i--) {
           const payloadText = store.editor.state.doc.toString()
@@ -444,7 +459,11 @@ const onChange = (v: ViewUpdate) => {
           const r1 = [ranges[i].fromA, ranges[i].toA];
           const r2 = [ranges[i].fromB, ranges[i].toB];
 
-          console.log('XXX', v);
+          console.log('XXX', v, r1, r2);
+          if (r1[0] === 0 && r1[1] === logMan.lastText.length) {
+            console.log('全部文本被删除，清除pc列表');
+            store.pcList = [];
+          }
           logMan.syncChange(payloadText, r1, r2);
         }
       }

@@ -15,6 +15,10 @@ export class LogImporter {
   parent: LogManager;
   tmpIMUserId = new Map<string, string>();
 
+  get name() {
+    return '未知格式'
+  }
+
   constructor(man: LogManager) {
     this.parent = man;
   }
@@ -29,26 +33,7 @@ export class LogImporter {
   }
 
   setCharInfo(charInfo: Map<string, CharItem>, item: LogItem) {
-    const id = packNameId(item);
-    if (!charInfo.get(id)) {
-      let role = item.role
-      if (!role) {
-        role = '角色'
-        if (item.nickname.toLowerCase().startsWith('ob')) {
-          role = '隐藏'
-        }
-        if (item.isDice) {
-          role = '骰子'
-        }
-      }
-
-      charInfo.set(id, {
-        name: item.nickname,
-        IMUserId: item.IMUserId,
-        role: role as any,
-        color: '',
-      })
-    }
+    return setCharInfo(charInfo, item);
   }
 
   parseTime(arg0: string): [number, string | undefined] {
@@ -62,4 +47,27 @@ export class LogImporter {
 
   check(text: string): boolean { return false }
   parse(text: string): TextInfo { return null as any }
+}
+
+export function setCharInfo(charInfo: Map<string, CharItem>, item: LogItem) {
+  const id = packNameId(item);
+  if (!charInfo.get(id)) {
+    let role = item.role
+    if (!role) {
+      role = '角色'
+      if (item.nickname.toLowerCase().startsWith('ob')) {
+        role = '隐藏'
+      }
+      if (item.isDice) {
+        role = '骰子'
+      }
+    }
+
+    charInfo.set(id, {
+      name: item.nickname,
+      IMUserId: item.IMUserId,
+      role: role as any,
+      color: '',
+    })
+  }
 }

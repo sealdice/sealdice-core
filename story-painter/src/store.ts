@@ -11,6 +11,7 @@ export const useStore = defineStore('main', {
       index: 0,
       editor: null as any as EditorView,
       pcList: [] as CharItem[],
+      pcNameColorMap: new Map<string, string>(), // 只以名字记录
       palette: ['#cb4d68', '#f99252', '#f48cb6', '#9278b9', '#3e80cc', '#84a59d', '#5b5e71'],
       paletteStack: [] as string[],
       items: [] as LogItem[],
@@ -85,16 +86,21 @@ export const useStore = defineStore('main', {
     },
 
     /** 更新pc列表 */
-    async updatePcList(ti: TextInfo) {
+    async updatePcList(charInfo: Map<string, CharItem>) {
       const exists = new Set();
       for (let i of this.pcList) {
         exists.add(packNameId(i));
       }
     
-      for (let [k, v] of ti.charInfo) {
+      for (let [k, v] of charInfo) {
         const id = packNameId(v);
         if (!exists.has(id)) {
-          v.color = this.getColor(); 
+          let c = this.pcNameColorMap.get(v.name);
+          if (!c) {
+            c = this.getColor();
+            this.pcNameColorMap.set(v.name, c);
+          }
+          v.color = c;
           this.pcList.push(v);
           exists.add(id);
         }

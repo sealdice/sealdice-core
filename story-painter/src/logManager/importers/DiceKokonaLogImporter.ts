@@ -2,12 +2,13 @@ import { useStore } from "~/store";
 import { CharItem, LogItem, packNameId } from "../types";
 import { LogImporter, TextInfo } from "./_logImpoter";
 
-export const reEditLogTest = /^([^(<\n]+)(\(([^(\n]+)\)|\<[^(\n]+\>)?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?$/m
+export const reEditLogTest = /^([^(<\n]+)(\(([^(\n]+)\)|\<[^(\n]+\>)?(\s+)(\d{4}-\d{1,2}-\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?$/m
 export const reEditLog = new RegExp(reEditLogTest, 'gm')
 
 
-export class EditLogImporter extends LogImporter {
-  // 2022-05-10 11:28:25 名字(12345)
+export class DiceKokonaLogImporter extends LogImporter {
+  // ？？(1111) 2022-10-18 16:59:42
+  // 战斗轮
   check(text: string): boolean {
     if (reEditLogTest.test(text)) {
       return true;
@@ -16,7 +17,7 @@ export class EditLogImporter extends LogImporter {
   }
 
   get name() {
-    return '海豹编辑器格式'
+    return 'Dice!编辑器默认格式'
   }
 
   parse(text: string): TextInfo {
@@ -74,6 +75,6 @@ export class EditLogImporter extends LogImporter {
       // }
     }
 
-    return { items, charInfo, startText, exporter: 'editLog' };
+    return { items, charInfo, startText, exporter: 'dice!' };
   }
 }
