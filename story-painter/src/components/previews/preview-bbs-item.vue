@@ -1,5 +1,5 @@
 <template>
-  <div class="" v-if="bbsMessageSolve(source).trim() !== ''">
+  <div class="">
     <span style="color: #aaa" class="_time" v-if="!store.exportOptions.timeHide">[color=#silver]{{ timeSolve(source) }}[/color]</span>
     <span :style="{ 'color': colorByName(source) }">[color={{ colorByName(source) }}]
       <span class="_nickname">{{ nicknameSolve(source) }}</span>

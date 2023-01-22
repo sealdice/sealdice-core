@@ -1,6 +1,6 @@
 <template>
   <!-- 这句是为了防止空元素占行 -->
-  <div class="list-item-dynamic" v-if="previewMessageSolve(source).trim() !== ''">
+  <div class="list-item-dynamic">
     <!-- {{  source  }} -->
     <span style="color: #aaa" class="_time" v-if="!store.exportOptions.timeHide">{{ timeSolve(source) }}</span>
     <span :style="{ 'color': colorByName(source) }" class="_nickname">{{ nicknameSolve(source) }}</span>

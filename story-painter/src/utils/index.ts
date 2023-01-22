@@ -95,5 +95,8 @@ export function msgIMUseridFormat(msg: string, options: any, isDice = false) {
   // 过滤mirai
   msg = msg.replaceAll(/\[mirai:.+?:[^\]]+\]/g, '')
 
+  // 这个trim是消灭单行空白，例如“@xxxx\nXXXX”虽然还是会造成中间断行，但先不管
+  msg = msg.trim();
+
   return msg;
 }

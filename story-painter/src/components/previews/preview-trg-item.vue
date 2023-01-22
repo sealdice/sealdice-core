@@ -1,5 +1,5 @@
 <template>
-  <div class="" v-if="trgMessageSolve(source).trim() !== ''">
+  <div class="">
     <div :style="source.isDice ? 'margin-top: 16px; margin-bottom: 16px' : ''">
       <span :style="{ 'color': colorByName(source) }" v-if="source.isDice"># </span>
       <span :style="{ 'color': colorByName(source) }" class="_nickname">{{ nicknameSolve(source) }}</span>

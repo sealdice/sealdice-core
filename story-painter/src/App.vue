@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2.0.3 <el-button type="primary" @click="backV1">返回V1</el-button></h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2.0.4 <el-button type="primary" @click="backV1">返回V1</el-button></h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253 / 562897832</div>
     <!-- <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div> -->
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
@@ -82,7 +82,7 @@
         <el-button @click="exportRecordRaw">下载原始文件</el-button>
         <el-button @click="exportRecordQQ">下载QQ风格记录</el-button>
         <el-button @click="exportRecordIRC">下载IRC风格记录</el-button>
-        <el-button @click="exportRecordDOCX">下载Word</el-button>
+        <el-button @click="exportRecordDOC">下载Word</el-button>
       </div>
       <!-- <el-button @click="showPreview">预览</el-button> -->
       <div style="margin-left: 1rem; ">
@@ -119,7 +119,6 @@ import { nextTick, ref, onMounted, watch, h, render, renderList } from "vue";
 import { useStore } from './store'
 import { UserFilled } from '@element-plus/icons-vue'
 import CodeMirror from './components/CodeMirror.vue'
-import { reNameLine, reNameLine2 } from "./utils/highlight";
 import { EditorState, StateEffect } from '@codemirror/state';
 import { debounce, delay } from 'lodash-es'
 import { exportFileRaw, exportFileQQ, exportFileIRC, exportFileDoc } from "./utils/exporter";
@@ -136,6 +135,7 @@ import previewTrg from "./components/previews/preview-trg.vue";
 import PreviewItem from './components/previews/preview-main-item.vue'
 import { LogItem, CharItem, packNameId } from "./logManager/types";
 import { setCharInfo } from './logManager/importers/_logImpoter'
+import { msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat } from "./utils";
 
 const isMobile = ref(false)
 const downloadUsableRank = ref(0)
@@ -169,10 +169,12 @@ const previewClick = (mode: 'preview' | 'bbs' | 'trg') => {
     case 'bbs':
       isShowPreview.value = false
       isShowPreviewTRG.value = false
+      store.exportOptions.imageHide = true
       break;
     case 'trg':
       isShowPreview.value = false
       isShowPreviewBBS.value = false
+      store.exportOptions.imageHide = true
       break;
   }
   showPreview();
@@ -308,15 +310,17 @@ function exportRecordRaw() {
 
 function exportRecordQQ() {
   browserAlert()
-  exportFileQQ(logMan.curItems, store.exportOptions)
+  showPreview()
+  exportFileQQ(previewItems.value, store.exportOptions)
 }
 
 function exportRecordIRC() {
   browserAlert()
-  exportFileIRC(logMan.curItems, store.exportOptions)
+  showPreview()
+  exportFileIRC(previewItems.value, store.exportOptions)
 }
 
-function exportRecordDOCX() {
+function exportRecordDOC() {
   browserAlert()
   if (isMobile.value) {
     ElMessageBox.alert('你当前处于移动端环境，已知只有WPS能够查看生成的Word文件，且无法看图！使用PC打开可以查看图片。', '提醒！', {
@@ -344,7 +348,9 @@ function exportRecordDOCX() {
   const el = document.createElement('span');
   const elRoot = document.createElement('div');
   const items = [];
-  for (let i of logMan.curItems) {
+
+  showPreview()
+  for (let i of previewItems.value) {
     if (i.isRaw) continue;
     const id = packNameId(i);
     if (map.get(id)?.role === '隐藏') continue;
@@ -365,22 +371,40 @@ const previewItems = ref<LogItem[]>([])
 function showPreview() {
   let tmp = []
   let index = 0;
+  const offTopicHide = store.exportOptions.offTopicHide;
+
   for (let i of logMan.curItems) {
-    if (!i.isRaw) {
-      i.index = index;
-      tmp.push(i);
-      index += 1;
-    }
+    if (i.isRaw) continue;
+
+    // // 处理ot
+    // if (offTopicHide && !i.isDice) {
+    //   const msg = i.message.replaceAll(/^[(（].+?$/gm, '') // 【
+    //   if (msg.trim() === '') continue;
+    // }
+    let msg = msgImageFormat(i.message, store.exportOptions);
+    msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
+    msg = msgCommandFormat(msg, store.exportOptions);
+    msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);
+    if (msg.trim() === '') continue;
+
+    i.index = index;
+    tmp.push(i);
+    index += 1;
   }
   previewItems.value = tmp;
-  // previewItems.value = logMan.curItems;
-  // previewItems.value = convertToLogItems(store.editor.state.doc.toString(), store.pcList, store.exportOptions, true)
 }
 
 const store = useStore()
 const color2 = ref('#409EFF')
 
+// 修改ot选项后重建items
+watch(() => store.exportOptions.offTopicHide, showPreview)
+
 const deletePc = (index: number, i: CharItem) => {
+  const now = Date.now();
+  if (now - lastNameChange < 100) return;
+  lastNameChange = now;
+
   ElMessageBox.confirm(
     `即将删除角色 <b>${i.name}</b> 及其全部发言，确定吗？`,
     '操作确认',
@@ -404,7 +428,12 @@ const nameFocus = (i: CharItem) => {
   lastPCName = i.name
 }
 
+let lastNameChange = 0;
 const nameChanged = (i: CharItem) => {
+  const now = Date.now();
+  if (now - lastNameChange < 100) return;
+  lastNameChange = now;
+
   const oldName = lastPCName; // 这样做的原因是，如果按回车确认，那么 nameFocus 会在promise触发前触发一遍导致无效
   const newName = i.name;
   if (oldName && newName) {
