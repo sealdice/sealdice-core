@@ -1,6 +1,6 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
-    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2.0.2 <el-button type="primary" @click="backV1">返回V1</el-button></h2>
+    <h2 style="text-align: center;">海豹TRPG跑团Log着色器 V2.0.3 <el-button type="primary" @click="backV1">返回V1</el-button></h2>
     <div style="text-align: center;">SealDice骰QQ群 524364253 / 562897832</div>
     <!-- <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div> -->
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
@@ -405,9 +405,25 @@ const nameFocus = (i: CharItem) => {
 }
 
 const nameChanged = (i: CharItem) => {
-  if (lastPCName && i.name) {
+  const oldName = lastPCName; // 这样做的原因是，如果按回车确认，那么 nameFocus 会在promise触发前触发一遍导致无效
+  const newName = i.name;
+  if (oldName && newName) {
+    const el = document.createElement('span');
+
+    render(h('span', `${oldName}`), el);
+    const name1 = el.innerHTML;
+
+    render(h('span', `${newName}`), el);
+    const name2 = el.innerHTML;
+
+    render(h('span', `<${oldName}>`), el);
+    const name1w = el.innerHTML;
+
+    render(h('span', `<${newName}>`), el);
+    const name2w = el.innerHTML;
+
     ElMessageBox.confirm(
-      `即将进行名字变更 <b>${lastPCName} -> ${i.name}</b><br />将修改信息行，并在文本中进行批量替换(<${lastPCName}>替换为<${i.name}>)，确定吗？`,
+      `即将进行名字变更 <b>${name1} -> ${name2}</b><br />将修改信息行，并在文本中进行批量替换( ${name1w} 替换为 ${name2w} )，确定吗？`,
       '操作确认',
       {
         dangerouslyUseHTMLString: true,
@@ -416,9 +432,9 @@ const nameChanged = (i: CharItem) => {
         type: 'warning',
       }
     ).then(async () => {
-      logMan.rename(i, lastPCName, i.name)
+      logMan.rename(i, oldName, newName)
     }).catch(() => {
-      i.name = lastPCName;
+      i.name = oldName;
     })
   }
 }

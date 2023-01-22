@@ -75,6 +75,7 @@ export function msgCommandFormat(msg: string, options: any) {
   return msg;
 }
 
+// TODO: 名字不贴切，这个是一个收尾替换
 export function msgIMUseridFormat(msg: string, options: any, isDice = false) {
   // 替换残留QQ号
   if (options.userIdHide) {
@@ -88,6 +89,11 @@ export function msgIMUseridFormat(msg: string, options: any, isDice = false) {
     msg = msg.replaceAll('<', '')
     msg = msg.replaceAll('>', '')
   }
+
+  // 过滤其他任何CQ码
+  msg = msg.replaceAll(/\[CQ:.+?,[^\]]+\]/g, '')
+  // 过滤mirai
+  msg = msg.replaceAll(/\[mirai:.+?:[^\]]+\]/g, '')
 
   return msg;
 }
