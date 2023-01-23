@@ -224,26 +224,12 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userId string, text
 		return
 	}
 	pa.SendToChannelRaw(channel.Code, text, true)
-	for _, i := range ctx.Dice.ExtList {
-		if i.OnMessageSend != nil {
-			i.callWithJsCheck(ctx.Dice, func() {
-				i.OnMessageSend(ctx, "private", userId, text, flag)
-			})
-		}
-	}
+	pa.Session.OnMessageSend(ctx, "private", userId, text, flag)
 }
 
 func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
 	pa.SendToChannelRaw(ExtractKookChannelId(groupId), text, false)
-	if ctx.Session.ServiceAtNew[groupId] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, "group", groupId, text, flag)
-				})
-			}
-		}
-	}
+	pa.Session.OnMessageSend(ctx, "group", groupId, text, flag)
 }
 
 func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private bool) {
