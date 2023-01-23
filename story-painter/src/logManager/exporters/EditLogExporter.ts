@@ -37,10 +37,10 @@ export class EditLogExporter extends LogExporter {
       }
 
       text += `${i.nickname}${imuid} ${timeText}${idSuffix}\n`
-      index = indexOffset + text.length
+      index = indexOffset + textAll.length + text.length
       let indexContent = index
       text += `${i.message}`
-      index = indexOffset + text.length
+      index = indexOffset + textAll.length + text.length
       let indexEnd = index
 
       const indexInfo = { indexStart, indexContent, indexEnd, item: i };
