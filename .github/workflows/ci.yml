@@ -41,6 +41,7 @@ jobs:
           go-version: 1.18
       - name: Code
         uses: actions/checkout@v3
+      - run: go get
       - name: Go vet
         run: go vet -x ./...
 
