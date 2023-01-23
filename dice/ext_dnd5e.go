@@ -1725,7 +1725,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 						textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
 						for order, i := range deleted {
-							textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i)
+							textOut += fmt.Sprintf("%2d. %s\n", order+1, i)
 						}
 						if len(deleted) == 0 {
 							textOut += "- 没有找到任何单位"
