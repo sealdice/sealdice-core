@@ -150,9 +150,11 @@ func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupId string, t
 	pa.Session.OnMessageSend(ctx, "group", groupId, text, flag)
 }
 
-func (pa *PlatformAdapterDiscord) sendToChannelRaw(id string, text string) {
+func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string) {
 	dice := pa.Session.Parent
+	logger := pa.Session.Parent.Logger
 	elem := dice.ConvertStringMessage(text)
+	id := ExtractDiscordChannelId(channelId)
 	var err error
 	msgSend := &discordgo.MessageSend{Content: ""}
 	for _, element := range elem {
@@ -173,7 +175,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(id string, text string) {
 				Reader:      e.Stream,
 			})
 			msgSend.Files = files
-			_, err = pa.IntentSession.ChannelMessageSendComplex(ExtractDiscordChannelId(id), msgSend)
+			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			msgSend = &discordgo.MessageSend{Content: ""}
 		case *ImageElement:
 			var files []*discordgo.File
@@ -184,21 +186,29 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(id string, text string) {
 				Reader:      f.Stream,
 			})
 			msgSend.Files = files
-			_, err = pa.IntentSession.ChannelMessageSendComplex(ExtractDiscordChannelId(id), msgSend)
+			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			msgSend = &discordgo.MessageSend{Content: ""}
 		case *TTSElement:
 			if msgSend.Content != "" || msgSend.Files != nil {
-				_, err = pa.IntentSession.ChannelMessageSendComplex(ExtractDiscordChannelId(id), msgSend)
+				_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			}
 			if err != nil {
 				pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
 				break
 			}
 			msgSend = &discordgo.MessageSend{Content: ""}
-			_, err = pa.IntentSession.ChannelMessageSendComplex(ExtractDiscordChannelId(id), &discordgo.MessageSend{
+			_, err = pa.IntentSession.ChannelMessageSendComplex(id, &discordgo.MessageSend{
 				Content: e.Content,
 				TTS:     true,
 			})
+		case *ReplyElement:
+			channel, err := pa.IntentSession.Channel(id)
+			if err != nil {
+				logger.Errorf("获取Discord频道信息#%s时出错:%s", id, err.Error())
+				break
+			}
+			ref := &discordgo.MessageReference{MessageID: e.Target, ChannelID: id, GuildID: channel.GuildID}
+			msgSend.Reference = ref
 		}
 		if err != nil {
 			pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
@@ -206,7 +216,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(id string, text string) {
 		}
 	}
 	if msgSend.Content != "" || msgSend.Files != nil {
-		_, err = pa.IntentSession.ChannelMessageSendComplex(ExtractDiscordChannelId(id), msgSend)
+		_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 	}
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
