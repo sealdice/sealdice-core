@@ -311,6 +311,8 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 			msgb.Content = msgb.Content + fmt.Sprintf("(met)%s(met)", e.Target)
 		case *TTSElement:
 			msgb.Content += e.Content
+		case *ReplyElement:
+			msgb.Quote = e.Target
 		}
 	}
 	if msgb.Content != "" {

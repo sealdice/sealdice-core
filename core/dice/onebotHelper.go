@@ -31,6 +31,7 @@ const (
 	File                     // 文件
 	Image                    // 图片
 	TTS                      // 文字转语音
+	Reply                    // 回复
 )
 
 const maxFileSize = 1024 * 1024 * 50 // 50MB
@@ -49,6 +50,14 @@ type AtElement struct {
 
 func (t *AtElement) Type() ElementType {
 	return At
+}
+
+type ReplyElement struct {
+	Target string
+}
+
+func (t *ReplyElement) Type() ElementType {
+	return Reply
 }
 
 type TTSElement struct {
@@ -186,6 +195,9 @@ func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, erro
 	case "tts":
 		content := dMap["text"]
 		return &TTSElement{Content: content}, nil
+	case "reply":
+		target := dMap["id"]
+		return &ReplyElement{Target: target}, nil
 	}
 	return CQToText(t, dMap), nil
 }

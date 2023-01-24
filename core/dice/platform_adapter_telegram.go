@@ -331,6 +331,13 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 			_, err = bot.Send(f)
 		case *TTSElement:
 			msg.Text += e.Content
+		case *ReplyElement:
+			parseInt, err := strconv.ParseInt(e.Target, 10, 64)
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
+				break
+			}
+			msg.BaseChat.ReplyToMessageID = int(parseInt)
 		}
 		if err != nil {
 			pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
