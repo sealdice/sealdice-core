@@ -1145,7 +1145,7 @@ func (d *Dice) GenerateTextMap() {
 
 	for category, item := range d.TextMapRaw {
 		for k, v := range item {
-			choices := []wr.Choice{}
+			var choices []wr.Choice
 			for _, textItem := range v {
 				choices = append(choices, wr.Choice{Item: textItem[0].(string), Weight: getNumVal(textItem[1])})
 			}
@@ -1155,10 +1155,10 @@ func (d *Dice) GenerateTextMap() {
 		}
 	}
 
-	picker, _ := wr.NewChooser(wr.Choice{APPNAME, 1})
+	picker, _ := wr.NewChooser(wr.Choice{Item: APPNAME, Weight: 1})
 	d.TextMap["常量:APPNAME"] = picker
 
-	picker, _ = wr.NewChooser(wr.Choice{VERSION, 1})
+	picker, _ = wr.NewChooser(wr.Choice{Item: VERSION, Weight: 1})
 	d.TextMap["常量:VERSION"] = picker
 }
 
