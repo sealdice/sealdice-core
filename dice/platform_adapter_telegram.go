@@ -95,9 +95,16 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 }
 
 func (pa *PlatformAdapterTelegram) groupNewMember(msg *Message, msgRaw *tgbotapi.Message, member *tgbotapi.User) {
+	ucache := pa.Session.Parent.Parent.UserIdCache
 	logger := pa.Session.Parent.Logger
 	ep := pa.EndPoint
 	group := pa.Session.ServiceAtNew[msg.GroupId]
+	if member.UserName != "" {
+		_, cacheExist := ucache.Get(member.UserName)
+		if !cacheExist {
+			ucache.Set(member.UserName, member.ID)
+		}
+	}
 	if group != nil && group.ShowGroupWelcome {
 		ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.Session, Dice: pa.Session.Parent}
 		ctx.Player = &GroupPlayerInfo{}
@@ -147,26 +154,38 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 }
 
 func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
+	ucache := pa.Session.Parent.Parent.UserIdCache
 	logger := pa.Session.Parent.Logger
-	bot := pa.IntentSession.Self
+	self := pa.IntentSession.Self
 	msg := new(Message)
 	msg.Time = int64(m.Date)
 	if m.Entities != nil {
 		replacedText := ""
 		index := 0
 		for _, entity := range m.Entities {
+			// 是否包含@信息
 			if entity.IsMention() || entity.Type == "text_mention" {
+				// text mention时User不为nil
 				if entity.User != nil {
 					replacedText += string([]rune(m.Text)[index:entity.Offset]) + fmt.Sprintf("tg://user?id=%d", entity.User.ID)
 				} else {
-					//config := tgbotapi.ChatInfoConfig{ChatConfig: tgbotapi.ChatConfig{SuperGroupUsername: m.Text[entity.Offset+1 : entity.Offset+entity.Length]}}
-					if bot.UserName == string([]rune(m.Text)[index+1:entity.Offset+entity.Length]) {
-						replacedText += string([]rune(m.Text)[index:entity.Offset]) + fmt.Sprintf("tg://user?id=%d", bot.ID)
+					// 这里处理最烦人的username mention 首先判断是不是@了机器人自己
+					if self.UserName == string([]rune(m.Text)[entity.Offset+1:entity.Offset+entity.Length]) {
+						replacedText += string([]rune(m.Text)[index:entity.Offset]) + fmt.Sprintf("tg://user?id=%d", self.ID)
 					} else {
-						replacedText += string([]rune(m.Text)[index : entity.Offset+entity.Length])
+						//@的不是自己，查看是否能从用户名缓存中找到username
+						name := string([]rune(m.Text)[entity.Offset+1 : entity.Offset+entity.Length])
+						v, exist := ucache.Get(name)
+						if exist {
+							replacedText += string([]rune(m.Text)[index:entity.Offset]) + fmt.Sprintf("tg://user?id=%d", v)
+						} else {
+							//找不到，没有办法了，现阶段没有通过username获取userid的api
+							replacedText += string([]rune(m.Text)[index : entity.Offset+entity.Length])
+						}
 					}
 				}
 			} else {
+				//不是mention 忽略
 				replacedText += string([]rune(m.Text)[index : entity.Offset+entity.Length])
 			}
 			index = entity.Offset + entity.Length
@@ -180,14 +199,20 @@ func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
 	send := new(SenderBase)
 	msg.MessageType = "group"
 	msg.GroupId = FormatDiceIdTelegramGroup(strconv.FormatInt(m.Chat.ID, 10))
-	var null string
 	if m.From != nil {
 		send.UserId = FormatDiceIdTelegram(strconv.FormatInt(m.From.ID, 10))
-		send.Nickname = m.From.UserName
+		if m.From.UserName == "" {
+			send.Nickname = m.From.FirstName
+		} else {
+			send.Nickname = m.From.UserName
+			_, cacheExist := ucache.Get(m.From.UserName)
+			if !cacheExist {
+				ucache.Set(m.From.UserName, m.From.ID)
+			}
+		}
 		if m.From.ID == m.Chat.ID {
 			msg.MessageType = "private"
-			//GroupId不变成nil会出问题
-			msg.GroupId = null
+			msg.GroupId = ""
 		} else {
 			info := tgbotapi.GetChatMemberConfig{ChatConfigWithUser: tgbotapi.ChatConfigWithUser{ChatID: m.Chat.ID, UserID: m.From.ID}}
 			member, err := pa.IntentSession.GetChatMember(info)
@@ -203,7 +228,6 @@ func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
 		}
 	}
 	msg.Sender = *send
-
 	return msg
 }
 
