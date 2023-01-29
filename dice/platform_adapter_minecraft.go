@@ -177,7 +177,9 @@ func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
 		}
 	} else {
 		pa.Reconnecting = true
-		pa.Socket.Close()
+		if pa.Socket != nil {
+			pa.Socket.Close()
+		}
 		pa.Reconnecting = false
 	}
 }
