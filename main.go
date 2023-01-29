@@ -335,6 +335,9 @@ func diceServe(d *dice.Dice) {
 				case "TG":
 					dice.DiceServeTelegram(d, con)
 					break
+				case "MC":
+					dice.DiceServeMinecraft(d, con)
+					break
 				}
 
 				//for {
