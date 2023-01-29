@@ -146,6 +146,7 @@
             <el-option label="Discord账号" :value="1"></el-option>
             <el-option label="KOOK(开黑啦)账号" :value="2"></el-option>
              <el-option label="Telegram帐号" :value="3"></el-option>
+             <el-option label="Minecraft服务器(Paper)" :value="4"></el-option>
           </el-select>
         </el-form-item>
 
@@ -200,6 +201,17 @@
             <div>使用/newbot申请一个新的机器人</div>
             <div>按照指示创建机器人之后,在Bot setting里面把Group privacy里面privacy mode关掉</div>
             <div>把机器人的token复制下来粘贴进来</div>
+
+          </small>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 4" label="Url" :label-width="formLabelWidth" required>
+          <el-input v-model="form.url" type="string" autocomplete="off"></el-input>
+          <small>
+            <div>提示: 前往 https://github.com/sealdice/sealdice-minecraft/releases/latest </div>
+            <div>下载最新的mc插件然后安装在mc服务器中</div>
+            <div>按照 ip:端口 的格式写在框里，默认端口8887</div>
+            <div>详细的使用说明请阅读Readme (https://github.com/sealdice/sealdice-minecraft#readme)</div>
           </small>
         </el-form-item>
 
@@ -272,7 +284,7 @@
           <el-button @click="dialogFormVisible = false">取消</el-button>
           <el-button type="primary" @click="goStepTwo"
                      :disabled="form.accountType === 0 && form.account === '' ||
-                     (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === ''">
+                     (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === '' || form.accountType === 4 && form.url === ''">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">
@@ -522,6 +534,7 @@ const form = reactive({
   protocol: 1,
   id: '',
   token: '',
+  url:'',
   endpoint: null as any as DiceConnection
 })
 
