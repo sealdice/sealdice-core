@@ -191,6 +191,14 @@ func ImConnectionsDel(c echo.Context) error {
 					i.Adapter.SetEnable(false)
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					return c.JSON(http.StatusOK, i)
+				case "TG":
+					i.Adapter.SetEnable(false)
+					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
+					return c.JSON(http.StatusOK, i)
+				case "MC":
+					i.Adapter.SetEnable(false)
+					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
+					return c.JSON(http.StatusOK, i)
 				}
 			}
 		}
@@ -307,6 +315,28 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.Save(false)
 		go dice.DiceServeTelegram(myDice, conn)
+		return c.JSON(200, conn)
+	}
+	return c.String(430, "")
+}
+
+func ImConnectionsAddMinecraft(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	v := struct {
+		Url string `yaml:"url" json:"url"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		//myDice.Logger.Infof("bind无异常")
+		conn := dice.NewMinecraftConnItem(v.Url)
+		//myDice.Logger.Infof("成功创建endpoint")
+		pa := conn.Adapter.(*dice.PlatformAdapterMinecraft)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.Save(false)
+		go dice.DiceServeMinecraft(myDice, conn)
 		return c.JSON(200, conn)
 	}
 	return c.String(430, "")
@@ -541,6 +571,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/addDiscord", ImConnectionsAddDiscord)
 	e.POST(prefix+"/im_connections/addKook", ImConnectionsAddKook)
 	e.POST(prefix+"/im_connections/addTelegram", ImConnectionsAddTelegram)
+	e.POST(prefix+"/im_connections/addMinecraft", ImConnectionsAddMinecraft)
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)
