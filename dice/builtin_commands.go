@@ -476,6 +476,7 @@ func (d *Dice) registerCoreCommands() {
 							SetBotOffAtGroup(ctx, ctx.Group.GroupId)
 							time.Sleep(6 * time.Second)
 							ctx.Group.NotInGroup = true
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
 							ctx.EndPoint.Adapter.QuitGroup(ctx, msg.GroupId)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						} else if cmdArgs.IsArgEqual(1, "save") {
@@ -1224,6 +1225,7 @@ func (d *Dice) registerCoreCommands() {
 				VarSetValueStr(ctx, "$t旧昵称", fmt.Sprintf("<%s>", ctx.Player.Name))
 				VarSetValueStr(ctx, "$t旧昵称_RAW", fmt.Sprintf("%s", ctx.Player.Name))
 				p.Name = msg.Sender.Nickname
+				p.UpdatedAtTime = time.Now().Unix()
 				VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
 				VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_重置"))
@@ -1236,6 +1238,7 @@ func (d *Dice) registerCoreCommands() {
 				VarSetValueStr(ctx, "$t旧昵称_RAW", fmt.Sprintf("%s", ctx.Player.Name))
 
 				p.Name = cmdArgs.Args[0]
+				p.UpdatedAtTime = time.Now().Unix()
 				VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
 				VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
 
@@ -1295,6 +1298,7 @@ func (d *Dice) registerCoreCommands() {
 					tipText += "已切换至100面骰，并自动开启coc7扩展"
 					modSwitch = true
 					ctx.Group.System = "coc7"
+					ctx.Group.UpdatedAtTime = time.Now().Unix()
 				}
 				if strings.EqualFold(arg1, "dnd") {
 					cmdArgs.Args[0] = "20"
@@ -1302,6 +1306,7 @@ func (d *Dice) registerCoreCommands() {
 					tipText += "已切换至20面骰，并自动开启dnd5e扩展。若不希望，请执行.ext dnd5e off"
 					modSwitch = true
 					ctx.Group.System = "dnd5e"
+					ctx.Group.UpdatedAtTime = time.Now().Unix()
 				}
 				num, err := strconv.ParseInt(cmdArgs.Args[0], 10, 64)
 				if num < 0 {
@@ -1326,6 +1331,7 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认群组骰子面数")+tipText)
 					} else {
 						p.DiceSideNum = int(num)
+						p.UpdatedAtTime = time.Now().Unix()
 						VarSetValueInt64(ctx, "$t个人骰子面数", int64(ctx.Player.DiceSideNum))
 						VarSetValueInt64(ctx, "$t当前骰子面数", getDefaultDicePoints(ctx))
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数"))
@@ -1336,8 +1342,10 @@ func (d *Dice) registerCoreCommands() {
 					case "clr":
 						if isSetGroup {
 							ctx.Group.DiceSideNum = 0
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
 						} else {
 							p.DiceSideNum = 0
+							p.UpdatedAtTime = time.Now().Unix()
 							//replyGroup(ctx, msg.GroupId, fmt.Sprintf("重设默认骰子面数为初始"))
 						}
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
@@ -1473,6 +1481,7 @@ func (d *Dice) registerCoreCommands() {
 				} else {
 					if name, success := ctx.ChUnbindCur(); success {
 						ctx.Player.Name = msg.Sender.Nickname
+						ctx.Player.UpdatedAtTime = time.Now().Unix()
 						VarSetValueStr(ctx, "$t角色名", name)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_解除"))
 					} else {
@@ -1493,6 +1502,7 @@ func (d *Dice) registerCoreCommands() {
 				for _, i := range lst {
 					if i == ctx.Group.GroupId {
 						ctx.Player.Name = msg.Sender.Nickname
+						ctx.Player.UpdatedAtTime = time.Now().Unix()
 					}
 				}
 
@@ -1552,6 +1562,7 @@ func (d *Dice) registerCoreCommands() {
 						text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
 						p := ctx.Player
 						p.Name = msg.Sender.Nickname
+						p.UpdatedAtTime = time.Now().Unix()
 						p.Vars.ValueMap = lockfree.NewHashMap()
 						p.Vars.LastWriteTime = time.Now().Unix()
 					}
@@ -1590,9 +1601,11 @@ func (d *Dice) registerCoreCommands() {
 
 			if cmdArgs.IsArgEqual(1, "on") {
 				ctx.Group.ShowGroupWelcome = true
+				ctx.Group.UpdatedAtTime = time.Now().Unix()
 				ReplyToSender(ctx, msg, "入群欢迎语已打开")
 			} else if cmdArgs.IsArgEqual(1, "off") {
 				ctx.Group.ShowGroupWelcome = false
+				ctx.Group.UpdatedAtTime = time.Now().Unix()
 				ReplyToSender(ctx, msg, "入群欢迎语已关闭")
 			} else if cmdArgs.IsArgEqual(1, "show") {
 				welcome := "<无内容>"
@@ -1608,6 +1621,7 @@ func (d *Dice) registerCoreCommands() {
 				text2 := strings.TrimSpace(cmdArgs.RawArgs[len("set"):])
 				ctx.Group.GroupWelcomeMessage = text2
 				ctx.Group.ShowGroupWelcome = true
+				ctx.Group.UpdatedAtTime = time.Now().Unix()
 				ReplyToSender(ctx, msg, "当前欢迎语设定为:\n"+text2+"\n入群欢迎语已自动打开(注意，会在bot off时起效)")
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}

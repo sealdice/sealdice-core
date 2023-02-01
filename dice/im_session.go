@@ -48,6 +48,8 @@ type GroupPlayerInfoBase struct {
 	//ValueMapTemp map[string]*VMValue  `yaml:"-"`           // 玩家的群内临时变量
 
 	TempValueAlias *map[string][]string `yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的，为什么在这里？
+
+	UpdatedAtTime int64 `yaml:"-" json:"-"`
 }
 
 // GroupPlayerInfo 这是一个YamlWrapper，没有实际作用
@@ -57,10 +59,10 @@ type GroupPlayerInfo struct {
 }
 
 type GroupInfo struct {
-	Active           bool                        `json:"active" yaml:"active" jsbind:"active"` // 是否在群内开启 - 过渡为象征意义
-	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList,flow" json:"-"`       // 当前群开启的扩展列表
-	Players          map[string]*GroupPlayerInfo `yaml:"players" json:"-"`                     // 群员角色数据
-	NotInGroup       bool                        `yaml:"notInGroup" json:"notInGroup"`         // 是否已经离开群 - 准备处理单骰多号情况
+	Active           bool                        `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
+	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
+	Players          map[string]*GroupPlayerInfo `yaml:"players" json:"-"`                              // 群员角色数据
+	NotInGroup       bool                        `yaml:"notInGroup" json:"notInGroup"`                  // 是否已经离开群 - 准备处理单骰多号情况
 
 	GroupId       string          `yaml:"groupId" json:"groupId" jsbind:"groupId"`
 	GroupName     string          `yaml:"groupName" json:"groupName" jsbind:"groupName"`
@@ -89,6 +91,8 @@ type GroupInfo struct {
 	// 仅用于http接口
 	TmpPlayerNum int64    `yaml:"-" json:"tmpPlayerNum"`
 	TmpExtList   []string `yaml:"-" json:"tmpExtList"`
+
+	UpdatedAtTime int64 `yaml:"-" json:"-"`
 }
 
 // ExtActive 开启扩展
@@ -289,6 +293,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 			group = SetBotOnAtGroup(mctx, msg.GroupId)
 			group.Active = autoOn
+			group.UpdatedAtTime = time.Now().Unix()
 
 			dm := d.Parent
 			groupName := dm.TryGetGroupName(group.GroupId)
@@ -511,7 +516,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					myuid := ep.UserId
 					// 屏蔽机器人发送的消息
 					if mctx.MessageType == "group" {
-						fmt.Println("YYYYYYYYY", myuid, mctx.Group != nil)
+						//fmt.Println("YYYYYYYYY", myuid, mctx.Group != nil)
 						if mctx.Group.BotList[msg.Sender.UserId] {
 							log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 							return
@@ -552,8 +557,10 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					ep.CmdExecutedNum += 1
 					ep.CmdExecutedLastTime = time.Now().Unix()
 					mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
+					mctx.Player.UpdatedAtTime = time.Now().Unix()
 					if mctx.Group != nil {
 						mctx.Group.RecentCommandTime = ep.CmdExecutedLastTime
+						mctx.Group.UpdatedAtTime = time.Now().Unix()
 					}
 				} else {
 					if msg.MessageType == "group" {
@@ -938,6 +945,7 @@ func (ctx *MsgContext) ChLoad(name string) lockfree.HashMap {
 		ctx.Player.Name = name
 		ctx.Player.Vars.ValueMap = m
 		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
+		ctx.Player.UpdatedAtTime = time.Now().Unix()
 		return m
 	}
 	return nil
@@ -997,6 +1005,7 @@ func (ctx *MsgContext) ChBindCur(name string) bool {
 		ctx.Player.Vars.ValueMap.Set("$:cardBindMark", &VMValue{TypeId: VMTypeInt64, Value: 1})
 		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
 		ctx.Player.Name = name
+		ctx.Player.UpdatedAtTime = time.Now().Unix()
 		return true
 	}
 	return false

@@ -225,6 +225,9 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		// 将所有args连接起来，存入一个cleanArgs变量。主要用于兼容非标准参数
 		stText := strings.Join(cmdInfo.Args, " ")
 		cmdInfo.CleanArgs = strings.TrimSpace(stText)
+		if specialExecuteTimes > 25 {
+			specialExecuteTimes = 25
+		}
 		cmdInfo.SpecialExecuteTimes = specialExecuteTimes
 		//fmt.Println("?????", cmdInfo.CleanArgs)
 

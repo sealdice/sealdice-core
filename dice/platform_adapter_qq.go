@@ -300,12 +300,14 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 									// 这似乎是个危险操作
 									// TODO: 该群下的用户信息实际没有被删除
 									group.NotInGroup = true
+									group.UpdatedAtTime = time.Now().Unix()
 									delete(session.ServiceAtNew, msg.GroupId)
 								}
 							}
 						} else {
 							// 更新群名
 							group.GroupName = msgQQ.Data.GroupName
+							group.UpdatedAtTime = time.Now().Unix()
 						}
 
 						// 处理被强制拉群的情况
@@ -536,6 +538,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					gi.InviteUserId = tempInviteMap2[msg.GroupId]
 				}
 				gi.EnteredTime = nowTime // 设置入群时间
+				gi.UpdatedAtTime = time.Now().Unix()
 				// 立即获取群信息
 				pa.GetGroupInfoAsync(msg.GroupId)
 				// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname)
@@ -871,6 +874,7 @@ func (pa *PlatformAdapterQQOnebot) packTempCtx(msgQQ *MessageQQ, msg *Message) *
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 		if ctx.Player.Name == "" {
 			ctx.Player.Name = d.Nickname
+			ctx.Player.UpdatedAtTime = time.Now().Unix()
 		}
 		SetTempVars(ctx, ctx.Player.Name)
 	case "group":
@@ -879,6 +883,7 @@ func (pa *PlatformAdapterQQOnebot) packTempCtx(msgQQ *MessageQQ, msg *Message) *
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 		if ctx.Player.Name == "" {
 			ctx.Player.Name = d.Card
+			ctx.Player.UpdatedAtTime = time.Now().Unix()
 		}
 		SetTempVars(ctx, ctx.Player.Name)
 	}

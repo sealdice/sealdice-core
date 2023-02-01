@@ -301,6 +301,11 @@ func main() {
 		go diceServe(d)
 	}
 
+	// pprof
+	//go func() {
+	//	http.ListenAndServe("0.0.0.0:8899", nil)
+	//}()
+
 	uiServe(diceManager, opts.HideUIWhenBoot)
 	//OOM分析工具
 	//err = nil

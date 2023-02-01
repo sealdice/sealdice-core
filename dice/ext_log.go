@@ -194,6 +194,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 						group.LogOn = true
 						group.LogCurName = name
+						group.UpdatedAtTime = time.Now().Unix()
 
 						VarSetValueStr(ctx, "$t记录名称", name)
 						VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
@@ -209,6 +210,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			} else if cmdArgs.IsArgEqual(1, "off") {
 				if group.LogCurName != "" {
 					group.LogOn = false
+					group.UpdatedAtTime = time.Now().Unix()
 					lines, _ := LogLinesGet(ctx, group.GroupId, group.LogCurName)
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 					VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
@@ -265,7 +267,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					logName = newName
 				}
 
-				if group.LogCurName != "" {
+				if logName != "" {
 					fn, err := LogSendToBackend(ctx, group.GroupId, logName)
 					if fn == "" {
 						text := txtLogTip
@@ -284,6 +286,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
+				group.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
 				fn, err := LogSendToBackend(ctx, group.GroupId, group.LogCurName)
@@ -300,12 +303,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 				}
 				group.LogCurName = ""
+				group.UpdatedAtTime = time.Now().Unix()
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "halt") {
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
 				group.LogCurName = ""
+				group.UpdatedAtTime = time.Now().Unix()
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "list") {
 				groupId, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
@@ -352,6 +357,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 					group.LogCurName = name
 					group.LogOn = true
+					group.UpdatedAtTime = time.Now().Unix()
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -468,12 +474,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 			case "exit":
 				if strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
 					ctx.Player.Name = ctx.Player.Name[len("ob"):]
+					ctx.Player.UpdatedAtTime = time.Now().Unix()
 				}
 				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
 				ReplyToSender(ctx, msg, "你不再是观众了（自动修改昵称和群名片[如有权限]）。")
 			default:
 				if !strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
 					ctx.Player.Name = "ob" + ctx.Player.Name
+					ctx.Player.UpdatedAtTime = time.Now().Unix()
 				}
 				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
 				ReplyToSender(ctx, msg, "你将成为观众（自动修改昵称和群名片[如有权限]，并不会给观众发送暗骰结果）。")
@@ -500,21 +508,25 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			case "coc", "coc7":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}"
+				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				// 玩家 SAN60 HP10/10 DEX65
 				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "dnd", "dnd5e":
 				// PW{pw}
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PW{_pw}"
+				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				// 玩家 HP10/10 AC15 DC15 PW10
 				ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "none":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW}"
+				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				text, _ := SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "off", "cancel":
 				ctx.Player.AutoSetNameTemplate = ""
+				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				ReplyToSender(ctx, msg, "已关闭自动设置名片功能")
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
