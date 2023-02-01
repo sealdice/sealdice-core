@@ -473,6 +473,7 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueInt64(ctx, "$t当前骰子面数", getDefaultDicePoints(ctx))
 		if ctx.Group.System == "" {
 			ctx.Group.System = "coc7"
+			ctx.Group.UpdatedAtTime = time.Now().Unix()
 		}
 		VarSetValueStr(ctx, "$t游戏模式", ctx.Group.System)
 		VarSetValueStr(ctx, "$t当前记录", ctx.Group.LogCurName)

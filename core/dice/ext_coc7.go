@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -646,6 +647,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			ctx.Group.ExtActive(ctx.Group.ExtGetActive("coc7"))
 			suffix = "\nCOC7规则扩展已自动开启"
 			ctx.Group.System = "coc7"
+			ctx.Group.UpdatedAtTime = time.Now().Unix()
 
 			switch n {
 			case "0":
@@ -714,6 +716,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			}
 
 			ctx.Group.ExtActive(ctx.Dice.ExtFind("coc7"))
+			ctx.Group.UpdatedAtTime = time.Now().Unix()
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
