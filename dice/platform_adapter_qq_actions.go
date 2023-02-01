@@ -493,7 +493,7 @@ func textAssetsConvert(s string) string {
 				}
 				cq := CQCommand{
 					Type: cqType,
-					Args: map[string]string{"file": u.String()},
+					Args: map[string]string{"file": u.String(), "cache": "0"},
 				}
 				return cq.Compile()
 			}

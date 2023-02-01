@@ -351,6 +351,9 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	case "KOOK":
 		re = regexp.MustCompile(`\(met\)(\d+?)\(met\)`)
 		break
+	case "TG":
+		re = regexp.MustCompile(`tg:\/\/user\?id=(\d+)`)
+		break
 	}
 
 	m := re.FindAllStringSubmatch(cmd, -1)
@@ -360,6 +363,7 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 			at := new(AtInfo)
 			//at.UserId, _ = strconv.ParseInt(i[1], 10, 64)
 			at.UserId = prefix + ":" + i[1]
+			//fmt.Println(at.UserId)
 			ret = append(ret, at)
 		}
 	}

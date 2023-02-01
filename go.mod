@@ -18,6 +18,9 @@ require (
 	github.com/fy0/procs v0.0.0-20220314124159-7f38d32746c3
 	github.com/fy0/systray v1.2.2
 	github.com/gen2brain/beeep v0.0.0-20210529141713-5586760f0cc1
+	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
+	github.com/godbus/dbus/v5 v5.1.0 // indirect
+	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jessevdk/go-flags v1.5.0
@@ -81,11 +84,9 @@ require (
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/go-toast/toast v0.0.0-20190211030409-01e6764cf0a4 // indirect
-	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/geo v0.0.0-20210211234256-740aa86cb551 // indirect
 	github.com/golang/protobuf v1.5.0 // indirect
-	github.com/golang/snappy v0.0.3 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20220221023154-0b2280d3ff96 // indirect
 	github.com/gopherjs/gopherwasm v1.1.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
