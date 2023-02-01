@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 func IsCurGroupBotOnById(session *IMSession, ep *EndPointInfo, messageType string, groupId string) bool {
@@ -25,6 +26,7 @@ func SetBotOffAtGroup(ctx *MsgContext, groupId string) {
 		if len(group.ActiveDiceIds) == 0 {
 			group.Active = false
 		}
+		group.UpdatedAtTime = time.Now().Unix()
 	}
 }
 
@@ -58,6 +60,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 			ValueMap:         lockfree.NewHashMap(),
 			ActiveDiceIds:    map[string]bool{},
 			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
+			UpdatedAtTime:    time.Now().Unix(),
 		}
 		group = session.ServiceAtNew[groupId]
 	}
@@ -71,6 +74,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 
 	group.ActiveDiceIds[ctx.EndPoint.UserId] = true
 	group.NotInGroup = false
+	group.UpdatedAtTime = time.Now().Unix()
 	return group
 }
 
@@ -96,9 +100,10 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	if p == nil {
 		p = &GroupPlayerInfo{
 			GroupPlayerInfoBase{
-				Name:         msg.Sender.Nickname,
-				UserId:       msg.Sender.UserId,
-				ValueMapTemp: lockfree.NewHashMap(),
+				Name:          msg.Sender.Nickname,
+				UserId:        msg.Sender.UserId,
+				ValueMapTemp:  lockfree.NewHashMap(),
+				UpdatedAtTime: time.Now().Unix(),
 			},
 		}
 		players[msg.Sender.UserId] = p

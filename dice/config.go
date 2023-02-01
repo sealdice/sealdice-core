@@ -1198,7 +1198,7 @@ func getNumVal(i interface{}) uint {
 }
 
 func (d *Dice) loads() {
-	data, err := ioutil.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
+	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
 
 	if err == nil {
 		dNew := Dice{}
@@ -1590,7 +1590,7 @@ func (d *Dice) Save(isAuto bool) {
 	a, err := yaml.Marshal(d)
 
 	if err == nil {
-		err := ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0644)
+		err := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0644)
 		if err == nil {
 			now := time.Now()
 			d.LastSavedTime = &now

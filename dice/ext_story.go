@@ -27,6 +27,9 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 	if num == 0 {
 		num = 5
 	}
+	if num > 10 {
+		num = 10
+	}
 
 	var rules []string
 	// 如果没有参数，采用默认

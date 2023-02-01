@@ -58,8 +58,8 @@ type CmdMapCls map[string]*CmdItemInfo
 //}
 
 type ExtInfo struct {
-	Name    string `yaml:"name" jsbind:"name"` // 名字
-	Version string `yaml:"-" jsbind:"version"` // 版本
+	Name    string `yaml:"name" json:"name" jsbind:"name"` // 名字
+	Version string `yaml:"-" jsbind:"version"`             // 版本
 	// 作者
 	// 更新时间
 	AutoActive      bool      `yaml:"-"`                 // 是否自动开启
@@ -117,6 +117,7 @@ type Dice struct {
 	RollParser              *DiceRollParser        `yaml:"-"`
 	CommandCompatibleMode   bool                   `yaml:"commandCompatibleMode"`
 	LastSavedTime           *time.Time             `yaml:"lastSavedTime"`
+	LastUpdatedTime         *time.Time             `yaml:"-"`
 	TextMap                 map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig              DiceConfig             `yaml:"-"`
 	DB                      *bbolt.DB              `yaml:"-"`                                    // 数据库对象

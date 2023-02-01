@@ -111,6 +111,7 @@ func groupQuit(c echo.Context) error {
 
 					time.Sleep(6 * time.Second)
 					group.NotInGroup = true
+					group.UpdatedAtTime = time.Now().Unix()
 
 					ep.Adapter.QuitGroup(ctx, v.GroupId)
 					return c.String(http.StatusOK, "")
