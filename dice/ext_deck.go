@@ -56,10 +56,10 @@ type DeckInfo struct {
 	Command       map[string]bool      `json:"command" yaml:"-"` // 牌堆命令名
 	DeckItems     map[string][]string  `yaml:"-" json:"-"`
 	Date          string               `json:"date" yaml:"-" `
-	UpdateDate    string               `json:"date" yaml:"-" `
+	UpdateDate    string               `json:"updateDate" yaml:"-" `
 	Desc          string               `yaml:"-" json:"desc"`
 	Info          []string             `yaml:"-" json:"-"`
-	rawData       *map[string][]string `yaml:"-" json:"-"`
+	RawData       *map[string][]string `yaml:"-" json:"-"`
 }
 
 type DeckInfoCommandList []string
@@ -138,7 +138,7 @@ func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.Format = "Dice!"
 	deckInfo.FormatVersion = 1
 	deckInfo.Enable = true
-	deckInfo.rawData = &jsonData
+	deckInfo.RawData = &jsonData
 	return true
 }
 
@@ -185,7 +185,7 @@ func tryParseSinaNya(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.Version = strconv.Itoa(jsonData2.Version)
 	deckInfo.Desc = jsonData2.Desc
 	deckInfo.Info = jsonData2.Info
-	deckInfo.rawData = &jsonDataFix
+	deckInfo.RawData = &jsonDataFix
 	deckInfo.Format = "SinaNya"
 	deckInfo.FormatVersion = 1
 	deckInfo.Enable = true

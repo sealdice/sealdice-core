@@ -31,8 +31,8 @@ func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupId string) {
 		return
 	}
 	dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
-		channel.Name,
-		time.Now().Unix(),
+		Name: channel.Name,
+		time: time.Now().Unix(),
 	})
 	group := pa.Session.ServiceAtNew[groupId]
 	if group != nil {
@@ -142,35 +142,87 @@ func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userId string, t
 		pa.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userId, err)
 		return
 	}
-	_, err = is.ChannelMessageSend(ch.ID, text)
-	if err != nil {
-		pa.Session.Parent.Logger.Errorf("向Discord用户#%s发送消息时出错:%s", userId, err)
-		return
-	}
-	for _, i := range ctx.Dice.ExtList {
-		if i.OnMessageSend != nil {
-			i.callWithJsCheck(ctx.Dice, func() {
-				i.OnMessageSend(ctx, "private", userId, text, flag)
-			})
-		}
-	}
+	pa.sendToChannelRaw(ch.ID, text)
+	pa.Session.OnMessageSend(ctx, "private", userId, text, flag)
 }
 
 // SendToGroup 发送群聊（实际上是频道）消息
 func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
-	_, err := pa.IntentSession.ChannelMessageSend(ExtractDiscordChannelId(groupId), text)
-	if err != nil {
-		pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", groupId, err)
-		return
-	}
-	if ctx.Session.ServiceAtNew[groupId] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, "group", groupId, text, flag)
-				})
+	//_, err := pa.IntentSession.ChannelMessageSend(ExtractDiscordChannelId(groupId), text)
+	pa.sendToChannelRaw(groupId, text)
+	pa.Session.OnMessageSend(ctx, "group", groupId, text, flag)
+}
+
+func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string) {
+	dice := pa.Session.Parent
+	logger := pa.Session.Parent.Logger
+	elem := dice.ConvertStringMessage(text)
+	id := ExtractDiscordChannelId(channelId)
+	var err error
+	msgSend := &discordgo.MessageSend{Content: ""}
+	for _, element := range elem {
+		switch e := element.(type) {
+		case *TextElement:
+			msgSend.Content = msgSend.Content + e.Content
+		case *AtElement:
+			if e.Target == "all" {
+				msgSend.Content = msgSend.Content + fmt.Sprintf("@everyone ")
+				break
 			}
+			msgSend.Content = msgSend.Content + fmt.Sprintf("<@%s>", e.Target)
+		case *FileElement:
+			var files []*discordgo.File
+			files = append(files, &discordgo.File{
+				Name:        e.File,
+				ContentType: e.ContentType,
+				Reader:      e.Stream,
+			})
+			msgSend.Files = files
+			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+			msgSend = &discordgo.MessageSend{Content: ""}
+		case *ImageElement:
+			var files []*discordgo.File
+			f := e.file
+			files = append(files, &discordgo.File{
+				Name:        f.File,
+				ContentType: f.ContentType,
+				Reader:      f.Stream,
+			})
+			msgSend.Files = files
+			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+			msgSend = &discordgo.MessageSend{Content: ""}
+		case *TTSElement:
+			if msgSend.Content != "" || msgSend.Files != nil {
+				_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+			}
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
+				break
+			}
+			msgSend = &discordgo.MessageSend{Content: ""}
+			_, err = pa.IntentSession.ChannelMessageSendComplex(id, &discordgo.MessageSend{
+				Content: e.Content,
+				TTS:     true,
+			})
+		case *ReplyElement:
+			channel, err := pa.IntentSession.Channel(id)
+			if err != nil {
+				logger.Errorf("获取Discord频道信息#%s时出错:%s", id, err.Error())
+				break
+			}
+			ref := &discordgo.MessageReference{MessageID: e.Target, ChannelID: id, GuildID: channel.GuildID}
+			msgSend.Reference = ref
 		}
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
+			return
+		}
+	}
+	if msgSend.Content != "" || msgSend.Files != nil {
+		_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+	}
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
 	}
 }
 
