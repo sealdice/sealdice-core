@@ -57,6 +57,7 @@ type DiceManager struct {
 
 	GroupNameCache lockfree.HashMap // 群名缓存，全局共享, key string value *GroupNameCacheItem
 	UserNameCache  lockfree.HashMap // 用户缓存，全局共享, key string value *GroupNameCacheItem
+	UserIdCache    lockfree.HashMap // 用户id缓存 key username (string) value int64 目前仅Telegram adapter使用
 
 	Cron          *cron.Cron
 	ServiceName   string
@@ -98,6 +99,7 @@ func (dm *DiceManager) LoadDice() {
 	dm.AppBootTime = time.Now().Unix()
 	dm.GroupNameCache = lockfree.NewHashMap()
 	dm.UserNameCache = lockfree.NewHashMap()
+	dm.UserIdCache = lockfree.NewHashMap()
 
 	os.MkdirAll("./backups", 0755)
 	os.MkdirAll("./data/images", 0755)
