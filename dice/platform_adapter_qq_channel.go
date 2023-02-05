@@ -3,6 +3,7 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"sealdice-core/dice/model"
 	"strings"
 )
 
@@ -70,7 +71,7 @@ func (pa *PlatformAdapterQQOnebot) QQChannelTrySolve(message string) {
 			group := session.ServiceAtNew[msg.GroupId]
 			if group != nil {
 				if group.LogOn {
-					_ = LogMarkDeleteByMsgId(ctx, group, msgQQ.MessageId)
+					_ = model.LogMarkDeleteByMsgId(ctx.Dice.DBLogs, group.GroupId, group.LogCurName, msgQQ.MessageId)
 				}
 			}
 			return

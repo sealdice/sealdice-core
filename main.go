@@ -54,10 +54,33 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		}
 
 		for _, i := range diceManager.Dice {
-			if i.DB != nil {
-				i.DB.Close()
-			}
+			d := i
+			(func() {
+				defer func() {
+					recover()
+				}()
+				var dbData = d.DBData
+				if dbData != nil {
+					d.DBData = nil
+					dbData.Close()
+				}
+			})()
+
+			(func() {
+				defer func() {
+					recover()
+				}()
+				var dbLogs = d.DBLogs
+				if dbLogs != nil {
+					d.DBLogs = nil
+					dbLogs.Close()
+				}
+			})()
+			//if i.DB != nil {
+			//	i.DB.Close()
+			//}
 		}
+
 		// 清理gocqhttp
 		for _, i := range diceManager.Dice {
 			for _, j := range i.ImSession.EndPoints {

@@ -8,7 +8,6 @@ import (
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
 	"github.com/tidwall/buntdb"
-	"go.etcd.io/bbolt"
 	"go.uber.org/zap"
 	"math/rand"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"zombiezen.com/go/sqlite/sqlitex"
 )
 
 var APPNAME = "SealDice"
@@ -58,35 +58,35 @@ type CmdMapCls map[string]*CmdItemInfo
 //}
 
 type ExtInfo struct {
-	Name    string `yaml:"name" json:"name" jsbind:"name"` // 名字
-	Version string `yaml:"-" jsbind:"version"`             // 版本
+	Name    string `yaml:"name" json:"name" jsbind:"name"`    // 名字
+	Version string `yaml:"-" json:"version" jsbind:"version"` // 版本
 	// 作者
 	// 更新时间
-	AutoActive      bool      `yaml:"-"`                 // 是否自动开启
-	CmdMap          CmdMapCls `yaml:"-" jsbind:"cmdMap"` // 指令集合
-	Brief           string    `yaml:"-"`
-	ActiveOnPrivate bool      `yaml:"-"`
+	AutoActive      bool      `yaml:"-" json:"-"`                 // 是否自动开启
+	CmdMap          CmdMapCls `yaml:"-" json:"-" jsbind:"cmdMap"` // 指令集合
+	Brief           string    `yaml:"-" json:"-"`
+	ActiveOnPrivate bool      `yaml:"-" json:"-"`
 
-	defaultSetting *ExtDefaultSettingItem `yaml:"-"` // 默认配置
+	defaultSetting *ExtDefaultSettingItem `yaml:"-" json:"-"` // 默认配置
 
-	Author       string   `yaml:"-" jsbind:"author"`
-	ConflictWith []string `yaml:"-"`
+	Author       string   `yaml:"-" json:"-" jsbind:"author"`
+	ConflictWith []string `yaml:"-" json:"-"`
 	//activeInSession bool; // 在当前会话中开启
 
 	dice    *Dice
-	IsJsExt bool
-	Storage *buntdb.DB `yaml:"-"`
+	IsJsExt bool       `json:"-"`
+	Storage *buntdb.DB `yaml:"-"  json:"-"`
 	//Storage ExtInfoStorage `yaml:"-" jsbind:"storage"`
 
-	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
-	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" jsbind:"onCommandOverride"`    // 覆盖指令行为
+	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
+	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-" jsbind:"onCommandOverride"`    // 覆盖指令行为
 
-	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)                              `yaml:"-" jsbind:"onCommandReceived"`
-	OnMessageReceived func(ctx *MsgContext, msg *Message)                                                `yaml:"-" jsbind:"onMessageReceived"`
-	OnMessageSend     func(ctx *MsgContext, messageType string, userId string, text string, flag string) `yaml:"-" jsbind:"onMessageSend"`
-	GetDescText       func(i *ExtInfo) string                                                            `yaml:"-" jsbind:"getDescText"`
-	IsLoaded          bool                                                                               `yaml:"-" jsbind:"isLoaded"`
-	OnLoad            func()                                                                             `yaml:"-" jsbind:"onLoad"`
+	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)                              `yaml:"-" json:"-" jsbind:"onCommandReceived"`
+	OnMessageReceived func(ctx *MsgContext, msg *Message)                                                `yaml:"-" json:"-" jsbind:"onMessageReceived"`
+	OnMessageSend     func(ctx *MsgContext, messageType string, userId string, text string, flag string) `yaml:"-" json:"-" jsbind:"onMessageSend"`
+	GetDescText       func(i *ExtInfo) string                                                            `yaml:"-" json:"-" jsbind:"getDescText"`
+	IsLoaded          bool                                                                               `yaml:"-" json:"-" jsbind:"isLoaded"`
+	OnLoad            func()                                                                             `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
 type DiceConfig struct {
@@ -120,7 +120,8 @@ type Dice struct {
 	LastUpdatedTime         *time.Time             `yaml:"-"`
 	TextMap                 map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig              DiceConfig             `yaml:"-"`
-	DB                      *bbolt.DB              `yaml:"-"`                                    // 数据库对象
+	DBData                  *sqlitex.Pool          `yaml:"-"`                                    // 数据库对象
+	DBLogs                  *sqlitex.Pool          `yaml:"-"`                                    // 数据库对象
 	Logger                  *zap.SugaredLogger     `yaml:"logger"`                               // 日志
 	LogWriter               *logger.WriterX        `yaml:"-"`                                    // 用于api的log对象
 	IsDeckLoading           bool                   `yaml:"-"`                                    // 正在加载中
@@ -214,7 +215,14 @@ func (d *Dice) Init() {
 	d.Cron.Start()
 
 	d.CocExtraRules = map[int]*CocRuleInfo{}
-	d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
+
+	var err error
+	d.DBData, d.DBLogs, err = model.SQLiteDBInit(d.BaseConfig.DataDir)
+	if err != nil {
+		// TODO:
+	}
+
+	//d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
 	d.Logger = log.Logger
 	d.LogWriter = log.WX

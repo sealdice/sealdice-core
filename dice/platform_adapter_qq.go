@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
+	"sealdice-core/dice/model"
 	"strconv"
 	"strings"
 	"syscall"
@@ -306,8 +307,10 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 							}
 						} else {
 							// 更新群名
-							group.GroupName = msgQQ.Data.GroupName
-							group.UpdatedAtTime = time.Now().Unix()
+							if msgQQ.Data.GroupName != group.GroupName {
+								group.GroupName = msgQQ.Data.GroupName
+								group.UpdatedAtTime = time.Now().Unix()
+							}
 						}
 
 						// 处理被强制拉群的情况
@@ -677,7 +680,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				group := s.ServiceAtNew[msg.GroupId]
 				if group != nil {
 					if group.LogOn {
-						_ = LogMarkDeleteByMsgId(ctx, group, msgQQ.MessageId)
+						_ = model.LogMarkDeleteByMsgId(ctx.Dice.DBLogs, group.GroupId, group.LogCurName, msgQQ.MessageId)
 					}
 				}
 				return

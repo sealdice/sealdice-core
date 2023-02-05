@@ -34,7 +34,7 @@ func (ctx *MsgContext) LoadGroupVars() {
 	if g.ValueMap == nil {
 		g.ValueMap = lockfree.NewHashMap()
 
-		data := model.AttrGroupGetAll(ctx.Dice.DB, g.GroupId)
+		data := model.AttrGroupGetAll(ctx.Dice.DBData, g.GroupId)
 		rawData := map[string]*VMValue{}
 		err := json.Unmarshal(data, &rawData)
 		if err != nil {
@@ -312,7 +312,7 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 
 	if vd.Loaded == false {
 		vd.ValueMap = lockfree.NewHashMap()
-		data := model.AttrUserGetAll(s.Parent.DB, id)
+		data := model.AttrUserGetAll(s.Parent.DBData, id)
 
 		mapData := make(map[string]*VMValue)
 		err := JsonValueMapUnmarshal(data, &mapData)
@@ -363,7 +363,7 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 
 func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) *PlayerVariablesItem {
 	if player.Vars == nil {
-		player.Vars = &PlayerVariablesItem{
+		player.Vars = &model.PlayerVariablesItem{
 			Loaded: false,
 		}
 	}
@@ -374,7 +374,7 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 		vd.Loaded = true
 
 		// QQ-Group:131687852-QQ:303451945
-		data := model.AttrGroupUserGetAll(dice.DB, group.GroupId, player.UserId)
+		data := model.AttrGroupUserGetAll(dice.DBData, group.GroupId, player.UserId)
 		//fmt.Println("???", group.GroupId, string(data))
 		if len(data) > 0 {
 			mapData := make(map[string]*VMValue)
@@ -416,7 +416,7 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 		}
 	}
 
-	return vd
+	return (*PlayerVariablesItem)(vd)
 }
 
 func SetTempVars(ctx *MsgContext, qqNickname string) {

@@ -251,12 +251,6 @@ func (m *HelpManager) Load() {
 					fmt.Println(err)
 					break
 				}
-				defer func() {
-					// Close the spreadsheet.
-					if err := f.Close(); err != nil {
-						fmt.Println(err)
-					}
-				}()
 
 				for _, s := range f.GetSheetList() {
 					rows, err := f.GetRows(s)
@@ -278,6 +272,11 @@ func (m *HelpManager) Load() {
 							})
 						}
 					}
+				}
+
+				// Close the spreadsheet.
+				if err := f.Close(); err != nil {
+					fmt.Println(err)
 				}
 			}
 		}
