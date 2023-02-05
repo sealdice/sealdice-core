@@ -1263,97 +1263,23 @@ func (d *Dice) loads() {
 				}
 			}
 			d.DiceMasters = newDiceMasters
-			d.ImSession.ServiceAtNew = dNew.ImSession.ServiceAtNew
+			// 装载ServiceAt
+			d.ImSession.ServiceAtNew = map[string]*GroupInfo{}
+			//d.ImSession.ServiceAtNew = model.GroupInfoListGet(d.DBData)
+			model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
+				var groupInfo GroupInfo
+				err := json.Unmarshal(data, &groupInfo)
+				if err == nil {
+					groupInfo.UpdatedAtTime = updatedAt
+					d.ImSession.ServiceAtNew[id] = &groupInfo
+				} else {
+					d.Logger.Errorf("加载群信息失败: %s", id)
+				}
+			})
 
 			m := map[string]*ExtInfo{}
 			for _, i := range d.ExtList {
 				m[i.Name] = i
-			}
-
-			if d.VersionCode != 0 && d.VersionCode < 9913 {
-				// 进行配置文件的升级
-				d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 9913)
-				d.MessageDelayRangeStart = 0.4
-				d.MessageDelayRangeEnd = 0.9
-
-				// connections
-				for _, i := range dNew.ImSession.LegacyConns {
-					fmt.Println("连接信息转换: ", i.Nickname, i.UserId)
-					platform := i.Platform
-					if platform == "" {
-						platform = "QQ"
-					}
-					ep := &EndPointInfo{
-						EndPointInfoBase{
-							Id:                  i.Id,
-							Nickname:            i.Nickname,
-							State:               i.State,
-							UserId:              FormatDiceIdQQ(i.UserId),
-							GroupNum:            i.GroupNum,
-							CmdExecutedNum:      i.CmdExecutedNum,
-							CmdExecutedLastTime: i.CmdExecutedLastTime,
-							OnlineTotalTime:     i.OnlineTotalTime,
-
-							Platform:     platform,
-							RelWorkDir:   i.RelWorkDir,
-							Enable:       i.Enable,
-							ProtocolType: i.Type,
-						},
-						&PlatformAdapterQQOnebot{
-							ConnectUrl:                 i.ConnectUrl,
-							UseInPackGoCqhttp:          i.UseInPackGoCqhttp,
-							GoCqHttpLoginSucceeded:     i.InPackGoCqHttpLoginSucceeded,
-							GoCqHttpLastRestrictedTime: i.InPackGoCqHttpLastRestrictedTime,
-							InPackGoCqHttpProtocol:     i.InPackGoCqHttpProtocol,
-							InPackGoCqHttpPassword:     i.InPackGoCqHttpPassword,
-						},
-					}
-					d.ImSession.EndPoints = append(d.ImSession.EndPoints, ep)
-				}
-
-				// 这个似乎不用转换
-				//for _, i := range d.ImSession.LegacyPlayerVarsData {
-				//}
-
-				// 群数据迁移
-				d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
-				for oldId, i := range dNew.ImSession.LegacyServiceAt {
-					fmt.Println("群数据迁移: ", i.GroupName, i.GroupId)
-					group := GroupInfo{
-						Active:           i.Active,
-						ActivatedExtList: i.ActivatedExtList,
-						NotInGroup:       i.NotInGroup,
-
-						GroupId:       FormatDiceIdQQGroup(i.GroupId),
-						GroupName:     i.GroupName,
-						ActiveDiceIds: i.DiceIds,
-						BotList:       i.BotList,
-						DiceSideNum:   i.DiceSideNum,
-
-						CocRuleIndex: i.CocRuleIndex,
-						LogCurName:   i.LogCurName,
-						LogOn:        i.LogOn,
-					}
-
-					players := map[string]*GroupPlayerInfo{}
-					for _, j := range i.Players {
-						uid := FormatDiceIdQQ(j.UserId)
-						players[uid] = &GroupPlayerInfo{
-							GroupPlayerInfoBase{
-								Name:                j.Name,
-								UserId:              uid,
-								InGroup:             j.InGroup,
-								LastCommandTime:     j.LastUpdateTime,
-								DiceSideNum:         j.DiceSideNum,
-								AutoSetNameTemplate: "",
-							},
-						}
-					}
-					group.Players = players
-
-					d.ImSession.ServiceAtNew[FormatDiceIdQQGroup(oldId)] = &group
-				}
-				model.AttrTryUpdate(d.DB)
 			}
 
 			// 设置群扩展
@@ -1374,7 +1300,7 @@ func (d *Dice) loads() {
 					g.ValueMap = lockfree.NewHashMap()
 				}
 
-				data := model.AttrGroupGetAll(d.DB, g.GroupId)
+				data := model.AttrGroupGetAll(d.DBData, g.GroupId)
 				if len(data) != 0 {
 					mapData := make(map[string]*VMValue)
 					err := JsonValueMapUnmarshal(data, &mapData)
@@ -1391,20 +1317,6 @@ func (d *Dice) loads() {
 				if g.BotList == nil {
 					g.BotList = map[string]bool{}
 				}
-
-				if d.VersionCode != 0 && d.VersionCode < 9909 {
-					ei := d.ExtFind("story")
-					g.ExtActive(ei)
-					ei = d.ExtFind("dnd5e")
-					g.ExtActive(ei)
-					ei = d.ExtFind("coc7")
-					g.ExtActive(ei)
-				}
-			}
-
-			if d.VersionCode != 0 && d.VersionCode < 9914 {
-				d.AutoReloginEnable = false
-				d.WorkInQQChannel = true
 			}
 
 			if d.VersionCode != 0 && d.VersionCode < 10000 {
@@ -1457,9 +1369,10 @@ func (d *Dice) loads() {
 			now := time.Now().Unix()
 			for k, v := range d.ImSession.ServiceAtNew {
 				dm.GroupNameCache.Set(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
-				for k2, v2 := range v.Players {
-					dm.UserNameCache.Set(k2, &GroupNameCacheItem{Name: v2.Name, time: now})
-				}
+				// 这块暂时不存在了
+				//for k2, v2 := range v.Players {
+				//	dm.UserNameCache.Set(k2, &GroupNameCacheItem{Name: v2.Name, time: now})
+				//}
 			}
 
 			d.Logger.Info("serve.yaml loaded")
@@ -1485,7 +1398,8 @@ func (d *Dice) loads() {
 		d.CustomDrawKeysText = "牌组1/牌组2/牌组3"
 	}
 
-	d.BanList.LoadMapFromJSON(model.BanMapGet(d.DB))
+	//d.BanList.LoadMapFromJSON(model.BanMapGet(d.DB))
+	d.BanList.LoadMapFromJSON([]byte{})
 
 	for _, i := range d.ImSession.EndPoints {
 		i.Session = d.ImSession
@@ -1608,21 +1522,29 @@ func (d *Dice) Save(isAuto bool) {
 		}
 	}
 
-	userIds := map[string]bool{}
 	for _, g := range d.ImSession.ServiceAtNew {
-		for _, b := range g.Players {
-			userIds[b.UserId] = true
-			if b.Vars != nil && b.Vars.Loaded {
-				if b.Vars.LastWriteTime != 0 {
-					data, _ := json.Marshal(LockFreeMapToMap(b.Vars.ValueMap))
-					model.AttrGroupUserSave(d.DB, g.GroupId, b.UserId, data)
-					b.Vars.LastWriteTime = 0
+		// 保存群内玩家信息
+		if g.Players != nil {
+			g.Players.Range(func(key string, value *GroupPlayerInfo) bool {
+				if value.UpdatedAtTime != 0 {
+					model.GroupPlayerInfoSave(d.DBData, g.GroupId, key, (*model.GroupPlayerInfoBase)(value))
+					value.UpdatedAtTime = 0
 				}
+				return true
+			})
+		}
+
+		if g.UpdatedAtTime != 0 {
+			data, err := json.Marshal(g)
+			if err == nil {
+				model.GroupInfoSave(d.DBData, g.GroupId, g.UpdatedAtTime, data)
+				g.UpdatedAtTime = 0
 			}
 		}
 
+		// TODO: 这里其实还能优化
 		data, _ := json.Marshal(LockFreeMapToMap(g.ValueMap))
-		model.AttrGroupSave(d.DB, g.GroupId, data)
+		model.AttrGroupSave(d.DBData, g.GroupId, data)
 	}
 
 	// 同步绑定的角色卡数据
@@ -1682,7 +1604,7 @@ func (d *Dice) Save(isAuto bool) {
 		if v.Loaded {
 			if v.LastWriteTime != 0 {
 				data, _ := json.Marshal(LockFreeMapToMap(v.ValueMap))
-				model.AttrUserSave(d.DB, k, data)
+				model.AttrUserSave(d.DBData, k, data)
 				v.LastWriteTime = 0
 			}
 		}
@@ -1690,5 +1612,5 @@ func (d *Dice) Save(isAuto bool) {
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测
-	model.BanMapSet(d.DB, d.BanList.MapToJSON())
+	//model.BanMapSet(d.DBData, d.BanList.MapToJSON())
 }

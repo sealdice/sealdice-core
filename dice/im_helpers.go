@@ -55,7 +55,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 		session.ServiceAtNew[groupId] = &GroupInfo{
 			Active:           true,
 			ActivatedExtList: extLst,
-			Players:          map[string]*GroupPlayerInfo{},
+			Players:          new(SyncMap[string, *GroupPlayerInfo]),
 			GroupId:          groupId,
 			ValueMap:         lockfree.NewHashMap(),
 			ActiveDiceIds:    map[string]bool{},
@@ -95,18 +95,16 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	if group == nil {
 		return nil, nil
 	}
-	players := group.Players
-	p := players[msg.Sender.UserId]
+
+	p := group.PlayerGet(ctx.Dice.DBData, msg.Sender.UserId)
 	if p == nil {
 		p = &GroupPlayerInfo{
-			GroupPlayerInfoBase{
-				Name:          msg.Sender.Nickname,
-				UserId:        msg.Sender.UserId,
-				ValueMapTemp:  lockfree.NewHashMap(),
-				UpdatedAtTime: time.Now().Unix(),
-			},
+			Name:          msg.Sender.Nickname,
+			UserId:        msg.Sender.UserId,
+			ValueMapTemp:  lockfree.NewHashMap(),
+			UpdatedAtTime: 0, // 新创建时不赋值，这样不会入库保存，减轻数据库负担
 		}
-		players[msg.Sender.UserId] = p
+		group.Players.Store(msg.Sender.UserId, p)
 	}
 	if p.ValueMapTemp == nil {
 		p.ValueMapTemp = lockfree.NewHashMap()
