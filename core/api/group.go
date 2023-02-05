@@ -5,6 +5,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"sealdice-core/dice"
+	"sealdice-core/dice/model"
 	"strings"
 	"time"
 )
@@ -19,7 +20,8 @@ func groupList(c echo.Context) error {
 					continue
 				}
 				exts := []string{}
-				item.TmpPlayerNum = int64(len(i.Players))
+				item.TmpPlayerNum = model.GroupPlayerNumGet(myDice.DBData, item.GroupId)
+				//item.TmpPlayerNum = int64(len(i.Players))
 				for _, i := range item.ActivatedExtList {
 					exts = append(exts, i.Name)
 				}
