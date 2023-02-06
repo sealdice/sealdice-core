@@ -145,11 +145,12 @@
             <el-option label="QQ账号" :value="0"></el-option>
             <el-option label="Discord账号" :value="1"></el-option>
             <el-option label="KOOK(开黑啦)账号" :value="2"></el-option>
-            <!-- <el-option label="MacOS" :value="3"></el-option> -->
+             <el-option label="Telegram帐号" :value="3"></el-option>
+             <el-option label="Minecraft服务器(Paper)" :value="4"></el-option>
           </el-select>
         </el-form-item>
 
-        <el-form-item v-if="form.accountType < 1" label="设备" :label-width="formLabelWidth" required>
+        <el-form-item v-if="form.accountType === 0" label="设备" :label-width="formLabelWidth" required>
           <el-select v-model="form.protocol">
             <el-option label="iPad 协议" :value="0"></el-option>
             <el-option label="Android 协议 - 稳定协议，建议！" :value="1"></el-option>
@@ -158,17 +159,17 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item v-if="form.accountType < 1" label="账号" :label-width="formLabelWidth" required>
+        <el-form-item v-if="form.accountType === 0" label="账号" :label-width="formLabelWidth" required>
           <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
         </el-form-item>
 
-        <el-form-item v-if="form.accountType < 1" label="密码" :label-width="formLabelWidth">
+        <el-form-item v-if="form.accountType === 0" label="密码" :label-width="formLabelWidth">
           <el-input v-model="form.password" type="password" autocomplete="off"></el-input>
           <small>
             <div>提示: 新设备首次登录多半需要手机版扫码，建议先准备好</div>
             <div>能够进行扫码登录（不填写密码即可），但注意扫码登录不支持自动重连。</div>
             <div>如果出现“要求同一WIFI扫码”可以本地登录后备份，复制到服务器上。</div>
-            <div v-if="form.protocol != 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div>
+            <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div>
           </small>
         </el-form-item>
 
@@ -178,6 +179,7 @@
             <div>提示: 首先去discord开发者平台创建一个新的Application</div>
             <div>https://discord.com/developers/applications</div>
             <div>点击New Application 创建之后进入应用，然后点bot，Add bot</div>
+            <div>然后把Privileged Gateway Intents下面的三个开关打开</div>
             <div>最后把bot的token复制下来粘贴进来</div>
           </small>
         </el-form-item>
@@ -189,6 +191,27 @@
             <div>https://developer.kookapp.cn/app/index</div>
             <div>点击新建应用 创建之后进入应用，然后点机器人</div>
             <div>把机器人的token复制下来粘贴进来</div>
+          </small>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 3" label="Token" :label-width="formLabelWidth" required>
+          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+          <small>
+            <div>提示: 私聊BotFather(https://t.me/BotFather)</div>
+            <div>使用/newbot申请一个新的机器人</div>
+            <div>按照指示创建机器人之后,在Bot setting里面把Group privacy里面privacy mode关掉</div>
+            <div>把机器人的token复制下来粘贴进来</div>
+
+          </small>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 4" label="Url" :label-width="formLabelWidth" required>
+          <el-input v-model="form.url" type="string" autocomplete="off"></el-input>
+          <small>
+            <div>提示: 前往 https://github.com/sealdice/sealdice-minecraft/releases/latest </div>
+            <div>下载最新的mc插件然后安装在mc服务器中</div>
+            <div>按照 ip:端口 的格式写在框里，默认端口8887</div>
+            <div>详细的使用说明请阅读Readme (https://github.com/sealdice/sealdice-minecraft#readme)</div>
           </small>
         </el-form-item>
 
@@ -260,8 +283,8 @@
         <template v-if="form.step === 1">
           <el-button @click="dialogFormVisible = false">取消</el-button>
           <el-button type="primary" @click="goStepTwo"
-                     :disabled="form.accountType == 0 && form.account=='' ||
-                     (form.accountType == 1 || form.accountType == 2)&& form.token==''">
+                     :disabled="form.accountType === 0 && form.account === '' ||
+                     (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === '' || form.accountType === 4 && form.url === ''">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">
@@ -511,6 +534,7 @@ const form = reactive({
   protocol: 1,
   id: '',
   token: '',
+  url:'',
   endpoint: null as any as DiceConnection
 })
 
