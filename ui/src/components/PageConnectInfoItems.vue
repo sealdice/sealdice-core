@@ -121,10 +121,10 @@
           <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
           <!-- <el-option label="MacOS" :value="3"></el-option> -->
         </el-select>
-        <small>
-            <div>提示: 切换协议后，需要点击重新登录，或.master reboot重启骰子以应用设置</div>
-          </small>
       </el-form-item>
+      <small>
+        <div>提示: 切换协议后，需要点击重新登录，或.master reboot重启骰子以应用设置</div>
+      </small>
 
     </el-form>
 
