@@ -339,6 +339,8 @@ func DiceConfigSet(c echo.Context) error {
 			myDice.CustomReplyConfigEnable = val.(bool)
 		}
 
+		// 统一标记为修改
+		myDice.MarkModified()
 		myDice.Parent.Save()
 	} else {
 		fmt.Println(err)

@@ -231,6 +231,7 @@ func DeckTryParse(d *Dice, fn string) {
 	}
 
 	d.DeckList = append(d.DeckList, deckInfo)
+	d.MarkModified()
 }
 
 // DecksDetect 检查牌堆
@@ -309,6 +310,7 @@ func DeckReload(d *Dice) {
 	DecksDetect(d)
 	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
 	d.IsDeckLoading = false
+	d.MarkModified()
 }
 
 func deckDraw(ctx *MsgContext, deckName string, shufflePool bool) (bool, string, error) {
