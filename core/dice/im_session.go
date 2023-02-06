@@ -417,12 +417,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 
 			// 加入黑名单相关权限
-			if _val, exists := d.BanList.Map.Get(mctx.Player.UserId); exists {
-				val, ok := _val.(*BanListInfoItem)
-				if ok {
-					if val.Rank == BanRankBanned {
-						mctx.PrivilegeLevel = -30
-					}
+			if val, exists := d.BanList.Map.Load(mctx.Player.UserId); exists {
+				if val.Rank == BanRankBanned {
+					mctx.PrivilegeLevel = -30
 				}
 			}
 

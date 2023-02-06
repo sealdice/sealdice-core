@@ -95,7 +95,10 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 		}
 
 		if cfg2.PlayerData {
-			backup(d, filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
+			//bakTestPath, _ := filepath.Abs("./data-logs-bak.db")
+			//model.Backup(d.DBData)
+
+			//backup(d, filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 		}
 		if cfg2.CustomReply {
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"))

@@ -94,6 +94,17 @@ create table if not exists attrs_group
     data       BLOB
 );`,
 		`create index if not exists idx_attrs_user_updated_at on attrs_user (updated_at);`,
+
+		`
+create table if not exists ban_info
+(
+    id         TEXT primary key,
+    ban_updated_at INTEGER,
+    updated_at INTEGER,
+    data       BLOB
+);`,
+		`create index if not exists idx_ban_info_updated_at on ban_info (updated_at);`,
+		`create index if not exists idx_ban_info_ban_updated_at on ban_info (ban_updated_at);`,
 	}
 	for _, i := range texts {
 		_ = sqlitex.ExecuteTransient(conn, i, nil)
