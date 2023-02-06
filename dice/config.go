@@ -1398,8 +1398,14 @@ func (d *Dice) loads() {
 		d.CustomDrawKeysText = "牌组1/牌组2/牌组3"
 	}
 
-	//d.BanList.LoadMapFromJSON(model.BanMapGet(d.DB))
-	d.BanList.LoadMapFromJSON([]byte{})
+	model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
+		var v BanListInfoItem
+		err := json.Unmarshal(data, &v)
+		if err != nil {
+			v.BanUpdatedAt = banUpdatedAt
+			d.BanList.Map.Store(id, &v)
+		}
+	})
 
 	for _, i := range d.ImSession.EndPoints {
 		i.Session = d.ImSession
@@ -1419,6 +1425,7 @@ func (d *Dice) loads() {
 		}
 	}
 
+	//d.VersionCode = 10200 // TODO: 记得修改！！！
 	d.VersionCode = 10005 // TODO: 记得修改！！！
 	d.LogWriter.LogLimit = d.UILogLimit
 
@@ -1427,6 +1434,7 @@ func (d *Dice) loads() {
 
 	// 读取文本模板
 	setupTextTemplate(d)
+	d.MarkModified()
 }
 
 func (d *Dice) SaveText() {
@@ -1498,27 +1506,29 @@ func (d *Dice) ApplyExtDefaultSettings() {
 			v.DisabledCommand = m
 		}
 	}
+
+	// 不好分辨，直接标记
+	d.MarkModified()
 }
 
 func (d *Dice) Save(isAuto bool) {
-	a, err := yaml.Marshal(d)
+	if d.LastUpdatedTime != 0 {
+		a, err := yaml.Marshal(d)
 
-	if err == nil {
-		err := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0644)
 		if err == nil {
-			now := time.Now()
-			d.LastSavedTime = &now
-			if isAuto {
-				d.Logger.Debug("自动保存")
+			err := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0644)
+			if err == nil {
+				now := time.Now()
+				d.LastSavedTime = &now
+				if isAuto {
+					d.Logger.Info("自动保存")
+				} else {
+					d.Logger.Info("保存数据")
+				}
+				d.LastUpdatedTime = 0
 			} else {
-				d.Logger.Info("保存数据")
+				d.Logger.Errorln("保存serve.yaml出错", err)
 			}
-
-			//for _, i := range d.ImSession.EndPoints {
-			//	if i.UserId == 0 {
-			//		i.GetLoginInfo()
-			//	}
-			//}
 		}
 	}
 

@@ -90,6 +90,7 @@ func deckEnable(c echo.Context) error {
 	if err == nil {
 		if v.Index >= 0 && v.Index < len(myDice.DeckList) {
 			myDice.DeckList[v.Index].Enable = v.Enable
+			myDice.MarkModified()
 		}
 	}
 
@@ -109,6 +110,7 @@ func deckDelete(c echo.Context) error {
 	if err == nil {
 		if v.Index >= 0 && v.Index < len(myDice.DeckList) {
 			dice.DeckDelete(myDice, myDice.DeckList[v.Index])
+			myDice.MarkModified()
 		}
 	}
 

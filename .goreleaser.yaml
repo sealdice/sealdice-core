@@ -18,7 +18,7 @@ builds:
       - windows
       - darwin
     goarch:
-      - 386
+      #- 386
       - arm64
       - amd64
     flags:

@@ -22,7 +22,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.1.3dev+TG v20230116"
+var VERSION = "1.2.0dev+TG v20230206"
 
 // var VERSION_CODE = int64(1001000) // 991404
 var VERSION_CODE = int64(1001002) // 坏了，1.1的版本号标错了，标成了1.10.0
@@ -117,12 +117,12 @@ type Dice struct {
 	RollParser              *DiceRollParser        `yaml:"-"`
 	CommandCompatibleMode   bool                   `yaml:"commandCompatibleMode"`
 	LastSavedTime           *time.Time             `yaml:"lastSavedTime"`
-	LastUpdatedTime         *time.Time             `yaml:"-"`
+	LastUpdatedTime         int64                  `yaml:"-"`
 	TextMap                 map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig              DiceConfig             `yaml:"-"`
 	DBData                  *sqlitex.Pool          `yaml:"-"`                                    // 数据库对象
 	DBLogs                  *sqlitex.Pool          `yaml:"-"`                                    // 数据库对象
-	Logger                  *zap.SugaredLogger     `yaml:"logger"`                               // 日志
+	Logger                  *zap.SugaredLogger     `yaml:"-"`                                    // 日志
 	LogWriter               *logger.WriterX        `yaml:"-"`                                    // 用于api的log对象
 	IsDeckLoading           bool                   `yaml:"-"`                                    // 正在加载中
 	DeckList                []*DeckInfo            `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
@@ -188,6 +188,10 @@ type Dice struct {
 
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
+}
+
+func (d *Dice) MarkModified() {
+	d.LastUpdatedTime = time.Now().Unix()
 }
 
 func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
@@ -337,10 +341,14 @@ func (d *Dice) Init() {
 
 				d.Logger.Infof("升级完成，当前版本: %s", VERSION)
 				d.UpgradeWindowId = ""
+				d.MarkModified()
+				d.Save(false)
 				break
 			}
 		}()
 	}
+
+	d.MarkModified()
 }
 
 func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
@@ -441,7 +449,7 @@ func (d *Dice) ExtRemove(ei *ExtInfo) bool {
 	return false
 }
 
-func (d *Dice) MasterClear() {
+func (d *Dice) MasterRefresh() {
 	m := map[string]bool{}
 	var lst []string
 
@@ -452,11 +460,12 @@ func (d *Dice) MasterClear() {
 		}
 	}
 	d.DiceMasters = lst
+	d.MarkModified()
 }
 
 func (d *Dice) MasterAdd(uid string) {
 	d.DiceMasters = append(d.DiceMasters, uid)
-	d.MasterClear()
+	d.MasterRefresh()
 }
 
 func (d *Dice) MasterCheck(uid string) bool {
@@ -472,6 +481,7 @@ func (d *Dice) MasterRemove(uid string) bool {
 	for index, i := range d.DiceMasters {
 		if i == uid {
 			d.DiceMasters = append(d.DiceMasters[:index], d.DiceMasters[index+1:]...)
+			d.MarkModified()
 			return true
 		}
 	}

@@ -3,8 +3,8 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fy0/lockfree"
 	"github.com/robfig/cron/v3"
+	"sealdice-core/dice/model"
 	"strings"
 	"time"
 )
@@ -27,6 +27,9 @@ type BanListInfoItem struct {
 	Reasons []string    `json:"reasons"` // 拉黑原因
 	Places  []string    `json:"places"`  // 发生地点
 	BanTime int64       `json:"banTime"` // 上黑名单时间
+
+	BanUpdatedAt int64 `json:"-"` // 排序依据，不过可能和bantime重复？
+	UpdatedAt    int64 `json:"-"` // 数据更新时间
 }
 
 var BanRankText = map[BanRankType]string{
@@ -48,14 +51,14 @@ func (i *BanListInfoItem) toText(d *Dice) string {
 }
 
 type BanListInfo struct {
-	Parent                   *Dice            `yaml:"-" json:"-"`
-	Map                      lockfree.HashMap `yaml:"-" json:"-"`
-	BanBehaviorRefuseReply   bool             `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`     //拉黑行为: 拒绝回复
-	BanBehaviorRefuseInvite  bool             `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`   // 拉黑行为: 拒绝邀请
-	BanBehaviorQuitLastPlace bool             `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"` // 拉黑行为: 退出事发群
-	ThresholdWarn            int64            `yaml:"thresholdWarn" json:"thresholdWarn"`                       // 警告阈值
-	ThresholdBan             int64            `yaml:"thresholdBan" json:"thresholdBan"`                         // 错误阈值
-	AutoBanMinutes           int64            `yaml:"autoBanMinutes" json:"autoBanMinutes"`                     // 自动禁止时长
+	Parent                   *Dice                              `yaml:"-" json:"-"`
+	Map                      *SyncMap[string, *BanListInfoItem] `yaml:"-" json:"-"`
+	BanBehaviorRefuseReply   bool                               `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`     //拉黑行为: 拒绝回复
+	BanBehaviorRefuseInvite  bool                               `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`   // 拉黑行为: 拒绝邀请
+	BanBehaviorQuitLastPlace bool                               `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"` // 拉黑行为: 退出事发群
+	ThresholdWarn            int64                              `yaml:"thresholdWarn" json:"thresholdWarn"`                       // 警告阈值
+	ThresholdBan             int64                              `yaml:"thresholdBan" json:"thresholdBan"`                         // 错误阈值
+	AutoBanMinutes           int64                              `yaml:"autoBanMinutes" json:"autoBanMinutes"`                     // 自动禁止时长
 
 	ScoreReducePerMinute int64 `yaml:"scoreReducePerMinute" json:"scoreReducePerMinute"` // 每分钟下降
 	ScoreGroupMuted      int64 `yaml:"scoreGroupMuted" json:"scoreGroupMuted"`           // 群组禁言
@@ -84,41 +87,41 @@ func (i *BanListInfo) Init() {
 
 	i.JointScorePercentOfGroup = 0.5
 	i.JointScorePercentOfInviter = 0.3
-	i.Map = lockfree.NewHashMap()
+	i.Map = new(SyncMap[string, *BanListInfoItem])
 }
 
 func (i *BanListInfo) AfterLoads() {
 	// 加载完成了
 	d := i.Parent
 	i.cronId, _ = d.Parent.Cron.AddFunc("@every 1m", func() {
-		toDelete := []interface{}{}
-		_ = i.Map.Iterate(func(_k interface{}, _v interface{}) error {
-			v, ok := _v.(*BanListInfoItem)
-			if ok {
-				if v.Rank == BanRankNormal || v.Rank == BanRankWarn {
-					v.Score -= i.ScoreReducePerMinute
-					if v.Score <= 0 {
-						// 小于0之后就移除掉
-						toDelete = append(toDelete, _k)
-					}
+		if d.DBData == nil {
+			return
+		}
+		toDelete := []string{}
+		d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
+			if v.Rank == BanRankNormal || v.Rank == BanRankWarn {
+				v.Score -= i.ScoreReducePerMinute
+				if v.Score <= 0 {
+					// 小于0之后就移除掉
+					toDelete = append(toDelete, k)
 				}
+				v.UpdatedAt = time.Now().Unix()
 			}
-			return nil
+			return true
 		})
 		for _, j := range toDelete {
-			i.Map.Del(j)
+			i.Map.Delete(j)
+			model.BanItemDel(d.DBData, j)
 		}
+
+		d.BanList.SaveChanged(d)
 	})
 }
 
 // AddScoreBase
 // 这一份ctx有endpoint就行
 func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason string, ctx *MsgContext) *BanListInfoItem {
-	var v *BanListInfoItem
-	_v, exists := i.Map.Get(uid)
-	if exists {
-		v, _ = _v.(*BanListInfoItem)
-	}
+	v, _ := i.Map.Load(uid)
 	if v == nil {
 		v = &BanListInfoItem{
 			ID:      uid,
@@ -135,6 +138,7 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 	v.Places = append(v.Places, place)
 	v.Reasons = append(v.Reasons, reason)
 	v.Times = append(v.Times, time.Now().Unix())
+	oldRank := v.Rank
 
 	switch v.Rank {
 	case BanRankTrusted:
@@ -155,9 +159,14 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 				ctx.EndPoint.Adapter.(*PlatformAdapterQQOnebot).DeleteFriend(ctx, place)
 			}
 		}
+
+		if oldRank != v.Rank {
+			v.BanUpdatedAt = time.Now().Unix()
+		}
 	}
 
-	i.Map.Set(uid, v)
+	v.UpdatedAt = time.Now().Unix()
+	i.Map.Store(uid, v)
 
 	// 发送通知
 	if ctx != nil {
@@ -269,83 +278,12 @@ func (i *BanListInfo) AddScoreByGroupKicked(uid string, place string, ctx *MsgCo
 	}
 }
 
-func (i *BanListInfo) toJSON() []byte {
-	data, err := json.Marshal(i)
-	if err != nil {
-		return nil
-	}
-
-	tmp := map[string]interface{}{}
-	err = json.Unmarshal(data, &tmp)
-	if err != nil {
-		return nil
-	}
-
-	dict := map[string]*BanListInfoItem{}
-	err = i.Map.Iterate(func(_k interface{}, _v interface{}) error {
-		k, ok1 := _k.(string)
-		v, ok2 := _v.(*BanListInfoItem)
-		if ok1 && ok2 {
-			dict[k] = v
-		}
-		return nil
-	})
-	if err != nil {
-		return nil
-	}
-
-	tmp["map"] = dict
-	marshal, err := json.Marshal(tmp)
-	if err != nil {
-		return nil
-	}
-	return marshal
-}
-
-func (i *BanListInfo) loadJSON(data []byte) {
-	tmp := map[string]interface{}{}
-	err := json.Unmarshal(data, &tmp)
-	if err != nil {
-		return
-	}
-
-	// 进行常规转换
-	err = json.Unmarshal(data, &i)
-	if err != nil {
-		return
-	}
-
-	// 如果存在map进行转换
-	if val, ok := tmp["map"]; ok {
-		data2, err := json.Marshal(val)
-		if err != nil {
-			return
-		}
-		dict := map[string]*BanListInfoItem{}
-		err = json.Unmarshal(data2, &dict)
-		if err != nil {
-			return
-		}
-		realDict := lockfree.NewHashMap()
-		for k, v := range dict {
-			realDict.Set(k, v)
-		}
-	}
-}
-
 func (i *BanListInfo) MapToJSON() []byte {
 	dict := map[string]*BanListInfoItem{}
-	err := i.Map.Iterate(func(_k interface{}, _v interface{}) error {
-		k, ok1 := _k.(string)
-		v, ok2 := _v.(*BanListInfoItem)
-		if ok1 && ok2 {
-			dict[k] = v
-		}
-		return nil
+	i.Map.Range(func(k string, v *BanListInfoItem) bool {
+		dict[k] = v
+		return true
 	})
-	if err != nil {
-		return nil
-	}
 
 	marshal, err := json.Marshal(dict)
 	if err != nil {
@@ -354,26 +292,8 @@ func (i *BanListInfo) MapToJSON() []byte {
 	return marshal
 }
 
-func (i *BanListInfo) LoadMapFromJSON(data []byte) {
-	// 如果存在map进行转换
-	dict := map[string]*BanListInfoItem{}
-	err := json.Unmarshal(data, &dict)
-	if err != nil {
-		return
-	}
-	realDict := lockfree.NewHashMap()
-	for k, v := range dict {
-		realDict.Set(k, v)
-	}
-	i.Map = realDict
-}
-
 func (i *BanListInfo) GetById(uid string) *BanListInfoItem {
-	var v *BanListInfoItem
-	_v, exists := i.Map.Get(uid)
-	if exists {
-		v, _ = _v.(*BanListInfoItem)
-	}
+	v, _ := i.Map.Load(uid)
 	return v
 }
 
@@ -394,5 +314,25 @@ func (i *BanListInfo) SetTrustById(uid string, place string, reason string) {
 	v.Places = append(v.Places, place)
 	v.Reasons = append(v.Reasons, reason)
 	v.Times = append(v.Times, time.Now().Unix())
-	i.Map.Set(uid, v)
+
+	v.UpdatedAt = time.Now().Unix()
+	i.Map.Store(uid, v)
+}
+
+func (i *BanListInfo) SaveChanged(d *Dice) {
+	d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
+		if v.UpdatedAt != 0 {
+			data, err := json.Marshal(v)
+			if err == nil {
+				model.BanItemSave(d.DBData, k, v.UpdatedAt, v.BanUpdatedAt, data)
+				v.UpdatedAt = 0
+			}
+		}
+		return true
+	})
+}
+
+func (i *BanListInfo) DeleteById(d *Dice, id string) {
+	i.Map.Delete(id)
+	model.BanItemDel(d.DBData, id)
 }

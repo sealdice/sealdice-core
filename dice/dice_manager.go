@@ -253,6 +253,7 @@ func (dm *DiceManager) TryCreateDefault() {
 		defaultDice.BaseConfig.IsLogPrint = true
 		defaultDice.MessageDelayRangeStart = 0.4
 		defaultDice.MessageDelayRangeEnd = 0.9
+		defaultDice.MarkModified()
 		dm.Dice = append(dm.Dice, defaultDice)
 	}
 }

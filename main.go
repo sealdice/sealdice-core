@@ -11,6 +11,8 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"sealdice-core/migrate"
+
 	//_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -44,6 +46,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
+				i.BanList.SaveChanged(i)
 				i.Save(true)
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
@@ -224,10 +227,6 @@ func main() {
 	//	return
 	//}
 
-	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
-		hideWindow()
-	}
-
 	cwd, _ := os.Getwd()
 	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
 	fmt.Println("工作路径: ", cwd)
@@ -257,6 +256,13 @@ func main() {
 		showWarn("SealDice 文件不完整", "未检查到UI文件目录，程序不完整，将自动退出。\n也可能是当前工作路径错误。")
 		logger.Error("因缺少frontend目录而自动退出")
 		return
+	}
+
+	// 尝试进行升级
+	migrate.TryMigrateToV12()
+
+	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
+		hideWindow()
 	}
 
 	go trayInit()
