@@ -15,14 +15,13 @@ require (
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd
 	github.com/fy0/lockfree v0.0.0-20220407095241-e3799de5fa34
-	github.com/fy0/procs v0.0.0-20220314124159-7f38d32746c3
+	github.com/fy0/procs v0.0.0-20230206181916-5b403d147d38
 	github.com/fy0/systray v1.2.2
 	github.com/gen2brain/beeep v0.0.0-20210529141713-5586760f0cc1
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/uuid v1.3.0
-	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.2
@@ -49,6 +48,7 @@ require (
 )
 
 require (
+	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	zombiezen.com/go/sqlite v0.11.0
 )
@@ -107,7 +107,6 @@ require (
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/poy/onpar v1.1.2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
