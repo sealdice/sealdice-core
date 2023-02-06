@@ -247,6 +247,15 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 			return err
 		}
 		d.Adapter = val.Adapter
+	case "DODO":
+		var val struct {
+			Adapter *PlatformAdapterDodo `yaml:"adapter"`
+		}
+		err := value.Decode(&val)
+		if err != nil {
+			return err
+		}
+		d.Adapter = val.Adapter
 	}
 	return err
 }
@@ -814,6 +823,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa.EndPoint = ep
 	case "MC":
 		pa := ep.Adapter.(*PlatformAdapterMinecraft)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
+	case "DODO":
+		pa := ep.Adapter.(*PlatformAdapterDodo)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}

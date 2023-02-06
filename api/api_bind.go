@@ -199,6 +199,10 @@ func ImConnectionsDel(c echo.Context) error {
 					i.Adapter.SetEnable(false)
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					return c.JSON(http.StatusOK, i)
+				case "DODO":
+					i.Adapter.SetEnable(false)
+					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
+					return c.JSON(http.StatusOK, i)
 				}
 			}
 		}
@@ -337,6 +341,29 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.Save(false)
 		go dice.DiceServeMinecraft(myDice, conn)
+		return c.JSON(200, conn)
+	}
+	return c.String(430, "")
+}
+
+func ImConnectionsAddDodo(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	v := struct {
+		ClientID string `yaml:"clientID" json:"clientID"`
+		Token    string `yaml:"token" json:"token"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		//myDice.Logger.Infof("bind无异常")
+		conn := dice.NewDodoConnItem(v.ClientID, v.Token)
+		//myDice.Logger.Infof("成功创建endpoint")
+		pa := conn.Adapter.(*dice.PlatformAdapterDodo)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.Save(false)
+		go dice.DiceServeDodo(myDice, conn)
 		return c.JSON(200, conn)
 	}
 	return c.String(430, "")
@@ -572,6 +599,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/addKook", ImConnectionsAddKook)
 	e.POST(prefix+"/im_connections/addTelegram", ImConnectionsAddTelegram)
 	e.POST(prefix+"/im_connections/addMinecraft", ImConnectionsAddMinecraft)
+	e.POST(prefix+"/im_connections/addDodo", ImConnectionsAddDodo)
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)

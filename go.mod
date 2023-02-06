@@ -49,6 +49,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require github.com/Szzrain/dodo-open-go v0.2.6
+
 require (
 	github.com/BurntSushi/toml v1.0.0 // indirect
 	github.com/RoaringBitmap/roaring v0.9.4 // indirect
@@ -81,6 +83,7 @@ require (
 	github.com/getlantern/hidden v0.0.0-20190325191715-f02dbb02be55 // indirect
 	github.com/getlantern/ops v0.0.0-20190325191751-d70cb0d6f85f // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
+	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/go-toast/toast v0.0.0-20190211030409-01e6764cf0a4 // indirect
