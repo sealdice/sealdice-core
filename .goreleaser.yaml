@@ -23,6 +23,10 @@ builds:
       - amd64
     flags:
       - -trimpath
+    ldflags:
+      - -s -w -X main.build={{.Version}}
+    gcflags:
+      - all="-l" # -B
     ignore:
       - goos: windows
         goarch: arm64
