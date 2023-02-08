@@ -95,7 +95,7 @@ func (m *ReplyConditionTextLenLimit) Clean() {
 }
 
 func (m *ReplyConditionTextLenLimit) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string) bool {
-	textLen := len(cleanText)
+	textLen := len([]rune(cleanText))
 	if m.MatchOp == "le" {
 		return textLen <= m.Value
 	} else {
