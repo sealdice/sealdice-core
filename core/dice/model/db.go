@@ -122,7 +122,9 @@ create table if not exists logs
     group_id   TEXT,
     extra      TEXT,
     created_at INTEGER,
-    updated_at INTEGER
+    updated_at INTEGER,
+    upload_url TEXT,
+    upload_time INTEGER
 );`,
 		`
 create index if not exists idx_logs_group
@@ -157,6 +159,9 @@ create index if not exists idx_log_items_group_id
 		`
 create index if not exists idx_log_items_log_id
     on log_items (log_id);`,
+
+		`alter table logs add upload_url text;`, // 测试版特供
+		`alter table logs add upload_time integer;`,
 	}
 
 	for _, i := range texts {

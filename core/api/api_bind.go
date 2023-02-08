@@ -495,6 +495,7 @@ func DiceExec(c echo.Context) error {
 	msg := &dice.Message{
 		MessageType: "private",
 		Message:     v.Message,
+		Platform:    "UI",
 		Sender: dice.SenderBase{
 			Nickname: "User",
 			UserId:   "UI:1001",
