@@ -252,7 +252,6 @@ func (d *Dice) registerCoreCommands() {
 		ShortHelp: HelpForHelp,
 		Help:      "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-
 			if arg := cmdArgs.GetArgN(1); arg != "" {
 				if strings.EqualFold(arg, "reload") {
 					if ctx.PrivilegeLevel < 100 {

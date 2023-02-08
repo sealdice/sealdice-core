@@ -265,7 +265,7 @@ func main() {
 		hideWindow()
 	}
 
-	go trayInit()
+	go trayInit(diceManager)
 	go dice.TryGetBackendUrl()
 
 	cleanUp := cleanUpCreate(diceManager)
@@ -314,8 +314,6 @@ func main() {
 		signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		select {
 		case <-interrupt:
-			time.Sleep(time.Duration(5 * time.Second))
-			logger.Info("5s仍未关闭，稍后强制退出……")
 			cleanUp()
 			time.Sleep(time.Duration(3 * time.Second))
 			os.Exit(0)
@@ -353,6 +351,8 @@ func diceServe(d *dice.Dice) {
 	for _, conn := range d.ImSession.EndPoints {
 		if conn.Enable {
 			go func(con *dice.EndPointInfo) {
+				defer dice.ErrorLogAndContinue(d)
+
 				switch con.Platform {
 				case "QQ":
 					pa := con.Adapter.(*dice.PlatformAdapterQQOnebot)
