@@ -210,6 +210,12 @@ func (dm *DiceManager) InitDice() {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("帮助文档加载失败。可能是由于退出程序过快，帮助文档还未加载完成所致")
+			}
+		}()
+
 		// 加载帮助
 		dm.InitHelp()
 		if len(dm.Dice) >= 1 {
