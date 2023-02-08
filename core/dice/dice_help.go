@@ -74,6 +74,8 @@ func (m *HelpManager) loadSearchEngine() {
 
 		mapping := bleve.NewIndexMapping()
 		os.RemoveAll(INDEX_DIR)
+		INDEX_DIR = "./_help_cache"
+		os.RemoveAll(INDEX_DIR)
 
 		if m.Parent.UseDictForTokenizer {
 			//这些代码封存，看起来不怎么需要
@@ -114,6 +116,9 @@ func (m *HelpManager) Close() {
 		if m.Index != nil {
 			m.Index.Close()
 			m.Index = nil
+
+			INDEX_DIR := "./_help_cache"
+			os.RemoveAll(INDEX_DIR)
 		}
 	}
 }

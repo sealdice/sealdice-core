@@ -33,7 +33,10 @@ func showWindow() {
 	win.ShowWindow(win.GetConsoleWindow(), win.SW_SHOW)
 }
 
-func trayInit() {
+var theDM *dice.DiceManager
+
+func trayInit(dm *dice.DiceManager) {
+	theDM = dm
 	// 确保能收到系统消息，从而避免不能弹出菜单
 	runtime.LockOSThread()
 	systray.Run(onReady, onExit)
@@ -97,6 +100,8 @@ func getAutoStart() *autostart.App {
 	return nil
 }
 
+var systrayQuited bool = false
+
 func onReady() {
 	systray.SetIcon(icon.Data)
 	systray.SetTitle("海豹TRPG骰点核心")
@@ -133,7 +138,9 @@ func onReady() {
 			exec.Command(`cmd`, `/c`, `start`, `http://localhost:`+_trayPortStr).Start()
 		case <-mQuit.ClickedCh:
 			systray.Quit()
-			time.Sleep(1 * time.Second)
+			systrayQuited = true
+			cleanUpCreate(theDM)()
+			time.Sleep(time.Duration(3 * time.Second))
 			os.Exit(0)
 		case <-mAutoBoot.ClickedCh:
 			if mAutoBoot.Checked() {
@@ -180,6 +187,9 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
+			if systrayQuited {
+				break
+			}
 			runtime.LockOSThread()
 			systray.SetTooltip("海豹TRPG骰点核心 #" + portStr)
 			runtime.UnlockOSThread()
@@ -224,7 +234,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 				continue
 			} else {
 				logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
-				os.Exit(1)
+				runtime.Goexit()
 			}
 		} else {
 			fmt.Println("如果浏览器没有自动打开，请手动访问:")

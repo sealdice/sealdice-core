@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"net"
-	"os"
 	"regexp"
+	"runtime"
 	"sealdice-core/dice"
 )
 
@@ -41,7 +41,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	ln, err := net.Listen("tcp", ":"+portStr)
 	if err != nil {
 		logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
-		os.Exit(1)
+		runtime.Goexit()
 	}
 	_ = ln.Close()
 
