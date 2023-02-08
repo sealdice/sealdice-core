@@ -321,7 +321,9 @@ create table if not exists logs
     group_id   TEXT,
     extra      TEXT,
     created_at INTEGER,
-    updated_at INTEGER
+    updated_at INTEGER,
+    upload_url TEXT,
+    upload_time INTEGER
 );`,
 		`
 create index if not exists idx_logs_group
