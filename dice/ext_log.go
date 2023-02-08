@@ -262,6 +262,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 						time.Sleep(time.Duration(0.3 * float64(time.Second)))
 						ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 					}
+				} else {
+					text := DiceFormatTmpl(ctx, "日志:记录_取出_未指定记录")
+					ReplyToSenderRaw(ctx, msg, text, "skip")
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "end") {
