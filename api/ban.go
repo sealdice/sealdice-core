@@ -46,6 +46,7 @@ func banConfigSet(c echo.Context) error {
 
 	myDice.BanList.JointScorePercentOfGroup = v.JointScorePercentOfGroup
 	myDice.BanList.JointScorePercentOfInviter = v.JointScorePercentOfInviter
+	myDice.MarkModified()
 
 	return c.JSON(http.StatusOK, myDice.BanList)
 }
@@ -64,7 +65,7 @@ func banMapDeleteOne(c echo.Context) error {
 	if err != nil {
 		return c.String(430, err.Error())
 	}
-	myDice.BanList.Map.Del(v.ID)
+	myDice.BanList.DeleteById(myDice, v.ID)
 	return c.JSON(http.StatusOK, nil)
 }
 

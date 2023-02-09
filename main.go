@@ -11,6 +11,8 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"sealdice-core/migrate"
+
 	//_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -44,6 +46,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
+				i.BanList.SaveChanged(i)
 				i.Save(true)
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
@@ -54,10 +57,33 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		}
 
 		for _, i := range diceManager.Dice {
-			if i.DB != nil {
-				i.DB.Close()
-			}
+			d := i
+			(func() {
+				defer func() {
+					recover()
+				}()
+				var dbData = d.DBData
+				if dbData != nil {
+					d.DBData = nil
+					dbData.Close()
+				}
+			})()
+
+			(func() {
+				defer func() {
+					recover()
+				}()
+				var dbLogs = d.DBLogs
+				if dbLogs != nil {
+					d.DBLogs = nil
+					dbLogs.Close()
+				}
+			})()
+			//if i.DB != nil {
+			//	i.DB.Close()
+			//}
 		}
+
 		// 清理gocqhttp
 		for _, i := range diceManager.Dice {
 			for _, j := range i.ImSession.EndPoints {
@@ -201,10 +227,6 @@ func main() {
 	//	return
 	//}
 
-	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
-		hideWindow()
-	}
-
 	cwd, _ := os.Getwd()
 	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
 	fmt.Println("工作路径: ", cwd)
@@ -236,7 +258,14 @@ func main() {
 		return
 	}
 
-	go trayInit()
+	// 尝试进行升级
+	migrate.TryMigrateToV12()
+
+	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
+		hideWindow()
+	}
+
+	go trayInit(diceManager)
 	go dice.TryGetBackendUrl()
 
 	cleanUp := cleanUpCreate(diceManager)
@@ -285,8 +314,6 @@ func main() {
 		signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		select {
 		case <-interrupt:
-			time.Sleep(time.Duration(5 * time.Second))
-			logger.Info("5s仍未关闭，稍后强制退出……")
 			cleanUp()
 			time.Sleep(time.Duration(3 * time.Second))
 			os.Exit(0)
@@ -324,6 +351,8 @@ func diceServe(d *dice.Dice) {
 	for _, conn := range d.ImSession.EndPoints {
 		if conn.Enable {
 			go func(con *dice.EndPointInfo) {
+				defer dice.ErrorLogAndContinue(d)
+
 				switch con.Platform {
 				case "QQ":
 					pa := con.Adapter.(*dice.PlatformAdapterQQOnebot)

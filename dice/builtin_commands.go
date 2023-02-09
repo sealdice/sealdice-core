@@ -103,26 +103,23 @@ func (d *Dice) registerCoreCommands() {
 				// ban/warn/trust
 				extra := cmdArgs.GetArgN(2)
 				text := ""
-				_ = d.BanList.Map.Iterate(func(_k interface{}, _v interface{}) error {
-					v, ok := _v.(*BanListInfoItem)
-					if ok {
-						if v.Rank != BanRankNormal {
-							if extra != "" {
-								if extra == "trust" && v.Rank == BanRankTrusted {
-									text += v.toText(d) + "\n"
-								}
-								if extra == "ban" && v.Rank == BanRankBanned {
-									text += v.toText(d) + "\n"
-								}
-								if extra == "warn" && v.Rank == BanRankWarn {
-									text += v.toText(d) + "\n"
-								}
-							} else {
+				d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
+					if v.Rank != BanRankNormal {
+						if extra != "" {
+							if extra == "trust" && v.Rank == BanRankTrusted {
 								text += v.toText(d) + "\n"
 							}
+							if extra == "ban" && v.Rank == BanRankBanned {
+								text += v.toText(d) + "\n"
+							}
+							if extra == "warn" && v.Rank == BanRankWarn {
+								text += v.toText(d) + "\n"
+							}
+						} else {
+							text += v.toText(d) + "\n"
 						}
 					}
-					return nil
+					return true
 				})
 				if text == "" {
 					text = "当前名单:\n<无内容>"
@@ -255,7 +252,6 @@ func (d *Dice) registerCoreCommands() {
 		ShortHelp: HelpForHelp,
 		Help:      "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-
 			if arg := cmdArgs.GetArgN(1); arg != "" {
 				if strings.EqualFold(arg, "reload") {
 					if ctx.PrivilegeLevel < 100 {
@@ -655,7 +651,7 @@ func (d *Dice) registerCoreCommands() {
 					// 特殊解锁指令
 					code := cmdArgs.GetArgN(2)
 					if ctx.Dice.UnlockCodeVerify(code) {
-						ctx.Dice.MasterClear()
+						ctx.Dice.MasterRefresh()
 						ctx.Dice.MasterAdd(ctx.Player.UserId)
 						ctx.Dice.UnlockCodeUpdate(true) // 强制刷新解锁码
 						ReplyToSender(ctx, msg, fmt.Sprintf("你已成为唯一Master"))

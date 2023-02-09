@@ -18,11 +18,15 @@ builds:
       - windows
       - darwin
     goarch:
-      - 386
+#      - 386
       - arm64
       - amd64
     flags:
       - -trimpath
+    ldflags:
+      - -s -w -X main.build={{.Version}}
+    gcflags:
+      - all="-l" # -B
     ignore:
       - goos: windows
         goarch: arm64

@@ -74,6 +74,8 @@ func (m *HelpManager) loadSearchEngine() {
 
 		mapping := bleve.NewIndexMapping()
 		os.RemoveAll(INDEX_DIR)
+		INDEX_DIR = "./_help_cache"
+		os.RemoveAll(INDEX_DIR)
 
 		if m.Parent.UseDictForTokenizer {
 			//这些代码封存，看起来不怎么需要
@@ -114,6 +116,9 @@ func (m *HelpManager) Close() {
 		if m.Index != nil {
 			m.Index.Close()
 			m.Index = nil
+
+			INDEX_DIR := "./_help_cache"
+			os.RemoveAll(INDEX_DIR)
 		}
 	}
 }
@@ -251,12 +256,6 @@ func (m *HelpManager) Load() {
 					fmt.Println(err)
 					break
 				}
-				defer func() {
-					// Close the spreadsheet.
-					if err := f.Close(); err != nil {
-						fmt.Println(err)
-					}
-				}()
 
 				for _, s := range f.GetSheetList() {
 					rows, err := f.GetRows(s)
@@ -278,6 +277,11 @@ func (m *HelpManager) Load() {
 							})
 						}
 					}
+				}
+
+				// Close the spreadsheet.
+				if err := f.Close(); err != nil {
+					fmt.Println(err)
 				}
 			}
 		}

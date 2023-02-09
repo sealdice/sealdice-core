@@ -6,9 +6,11 @@ import (
 	"github.com/fy0/lockfree"
 	"gopkg.in/yaml.v3"
 	"runtime/debug"
+	"sealdice-core/dice/model"
 	"sort"
 	"strings"
 	"time"
+	"zombiezen.com/go/sqlite/sqlitex"
 )
 
 type SenderBase struct {
@@ -54,15 +56,17 @@ type GroupPlayerInfoBase struct {
 
 // GroupPlayerInfo 这是一个YamlWrapper，没有实际作用
 // 原因见 https://github.com/go-yaml/yaml/issues/712
-type GroupPlayerInfo struct {
-	GroupPlayerInfoBase `yaml:",inline,flow"`
-}
+//type GroupPlayerInfo struct {
+//	GroupPlayerInfoBase `yaml:",inline,flow"`
+//}
+
+type GroupPlayerInfo model.GroupPlayerInfoBase
 
 type GroupInfo struct {
-	Active           bool                        `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
-	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
-	Players          map[string]*GroupPlayerInfo `yaml:"players" json:"-"`                              // 群员角色数据
-	NotInGroup       bool                        `yaml:"notInGroup" json:"notInGroup"`                  // 是否已经离开群 - 准备处理单骰多号情况
+	Active           bool                               `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
+	ActivatedExtList []*ExtInfo                         `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
+	Players          *SyncMap[string, *GroupPlayerInfo] `yaml:"-" json:"-"`                                    // 群员角色数据
+	NotInGroup       bool                               `yaml:"notInGroup" json:"-"`                           // 是否已经离开群 - 准备处理单骰多号情况
 
 	GroupId       string          `yaml:"groupId" json:"groupId" jsbind:"groupId"`
 	GroupName     string          `yaml:"groupName" json:"groupName" jsbind:"groupName"`
@@ -158,6 +162,18 @@ func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
 		return group.ActiveDiceIds[ctx.EndPoint.UserId]
 	}
 	return false
+}
+
+func (group *GroupInfo) PlayerGet(db *sqlitex.Pool, id string) *GroupPlayerInfo {
+	if group.Players == nil {
+		group.Players = new(SyncMap[string, *GroupPlayerInfo])
+	}
+	p, exists := group.Players.Load(id)
+	if !exists {
+		p = (*GroupPlayerInfo)(model.GroupPlayerInfoGet(db, group.GroupId, id))
+		group.Players.Store(id, p)
+	}
+	return (*GroupPlayerInfo)(p)
 }
 
 type EndPointInfoBase struct {
@@ -260,17 +276,14 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 	return err
 }
 
+type PlayerVariablesItem model.PlayerVariablesItem
+
 type IMSession struct {
 	Parent    *Dice           `yaml:"-"`
 	EndPoints []*EndPointInfo `yaml:"endPoints"`
 
-	ServiceAtNew   map[string]*GroupInfo           `json:"servicesAt" yaml:"servicesAt"`
+	ServiceAtNew   map[string]*GroupInfo           `json:"servicesAt" yaml:"-"`
 	PlayerVarsData map[string]*PlayerVariablesItem `yaml:"-"` // 感觉似乎没有什么存本地的必要
-
-	// 注意，旧数据！
-	LegacyConns     []*ConnectInfoItem       `yaml:"connections"` // 仅为
-	LegacyServiceAt map[int64]*ServiceAtItem `json:"-" yaml:"serviceAt"`
-	//LegacyPlayerVarsData map[int64]*PlayerVariablesItem `yaml:"PlayerVarsData"`
 }
 
 type MsgContext struct {
@@ -284,7 +297,7 @@ type MsgContext struct {
 	IsCurGroupBotOn bool          `jsbind:"isCurGroupBotOn"` // 在群内是否bot on
 
 	IsPrivate       bool        `jsbind:"isPrivate"` // 是否私聊
-	CommandId       uint64      // 指令ID
+	CommandId       int64       // 指令ID
 	CommandHideFlag string      // 暗骰标记
 	CommandInfo     interface{} // 命令信息
 	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 40邀请者 50管理 60群主 100master
@@ -413,12 +426,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 
 			// 加入黑名单相关权限
-			if _val, exists := d.BanList.Map.Get(mctx.Player.UserId); exists {
-				val, ok := _val.(*BanListInfoItem)
-				if ok {
-					if val.Rank == BanRankBanned {
-						mctx.PrivilegeLevel = -30
-					}
+			if val, exists := d.BanList.Map.Load(mctx.Player.UserId); exists {
+				if val.Rank == BanRankBanned {
+					mctx.PrivilegeLevel = -30
 				}
 			}
 
@@ -1125,7 +1135,7 @@ func (ctx *MsgContext) ChUnbind(name string) []string {
 	lst := ctx.ChBindGetList(name)
 	for _, groupId := range lst {
 		g := ctx.Session.ServiceAtNew[groupId]
-		p := g.Players[ctx.Player.UserId]
+		p := g.PlayerGet(ctx.Dice.DBData, ctx.Player.UserId)
 		if p.Vars == nil || !p.Vars.Loaded {
 			LoadPlayerGroupVars(ctx.Dice, g, p)
 		}
@@ -1164,4 +1174,11 @@ func (ctx *MsgContext) ChBindGetList(name string) []string {
 		grps = append(grps, k)
 	}
 	return grps
+}
+
+var curCommandId int64 = 0
+
+func getNextCommandId() int64 {
+	curCommandId += 1
+	return curCommandId
 }
