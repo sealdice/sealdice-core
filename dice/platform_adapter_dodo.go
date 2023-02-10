@@ -243,6 +243,11 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 			if err != nil {
 				return err
 			}
+		case *AtElement:
+			err := pa.SendMessageRaw(ctx, &model.TextMessage{Content: fmt.Sprintf("<@!%s>", e.Target)}, uid, isPrivate)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
