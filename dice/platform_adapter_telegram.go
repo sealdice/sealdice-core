@@ -253,6 +253,14 @@ func ExtractTelegramGroupId(id string) string {
 	return id
 }
 
+func (pa *PlatformAdapterTelegram) MemberBan(groupId string, userId string, duration int64) {
+
+}
+
+func (pa *PlatformAdapterTelegram) MemberKick(groupId string, userId string) {
+
+}
+
 func (pa *PlatformAdapterTelegram) DoRelogin() bool {
 	pa.Session.Parent.Logger.Infof("正在启用Telegram服务……")
 	if pa.IntentSession == nil {
@@ -339,10 +347,6 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 			f := tgbotapi.NewDocument(id, data)
 			_, err = bot.Send(f)
 		case *ImageElement:
-			if err != nil {
-				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
-				return
-			}
 			fi := e.file
 			data := &RequestFileDataImpl{File: fi.File, Reader: fi.Stream}
 			f := tgbotapi.NewPhoto(id, data)
@@ -353,6 +357,10 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 			msg = tgbotapi.NewMessage(id, "")
 			f.Thumb = data
 			_, err = bot.Send(f)
+			if err != nil {
+				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
+				return
+			}
 		case *TTSElement:
 			msg.Text += e.Content
 		case *ReplyElement:

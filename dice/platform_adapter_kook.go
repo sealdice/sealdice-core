@@ -235,6 +235,14 @@ func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupId string, text
 	pa.Session.OnMessageSend(ctx, "group", groupId, text, flag)
 }
 
+func (pa *PlatformAdapterKook) MemberBan(groupId string, userId string, last int64) {
+
+}
+
+func (pa *PlatformAdapterKook) MemberKick(groupId string, userId string) {
+
+}
+
 func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private bool) {
 	bot := pa.IntentSession
 	dice := pa.Session.Parent
