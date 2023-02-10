@@ -147,6 +147,7 @@
             <el-option label="KOOK(开黑啦)账号" :value="2"></el-option>
              <el-option label="Telegram帐号" :value="3"></el-option>
              <el-option label="Minecraft服务器(Paper)" :value="4"></el-option>
+             <el-option label="Dodo语音" :value="5"></el-option>
           </el-select>
         </el-form-item>
 
@@ -212,6 +213,20 @@
             <div>下载最新的mc插件然后安装在mc服务器中</div>
             <div>按照 ip:端口 的格式写在框里，默认端口8887</div>
             <div>详细的使用说明请阅读Readme (https://github.com/sealdice/sealdice-minecraft#readme)</div>
+          </small>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 5" label="ClientID" :label-width="formLabelWidth" required>
+          <el-input v-model="form.clientID" type="string" autocomplete="off"></el-input>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 5" label="Token" :label-width="formLabelWidth" required>
+          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+          <small>
+            <div>提示: 前往 Dodo 开发者平台 https://doker.imdodo.com/bot-list </div>
+            <div>如果需要提交审核可以写跑团机器人开发</div>
+            <div>你的帐号过审后，点击创建应用</div>
+            <div>创建完成之后将clientID和Token复制到这两个框中</div>
           </small>
         </el-form-item>
 
@@ -284,7 +299,8 @@
           <el-button @click="dialogFormVisible = false">取消</el-button>
           <el-button type="primary" @click="goStepTwo"
                      :disabled="form.accountType === 0 && form.account === '' ||
-                     (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === '' || form.accountType === 4 && form.url === ''">
+                     (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === '' ||
+                      form.accountType === 4 && form.url === '' || form.accountType === 5 && (form.clientID === '' || form.token === '')">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">
@@ -535,6 +551,7 @@ const form = reactive({
   id: '',
   token: '',
   url:'',
+  clientID:'',
   endpoint: null as any as DiceConnection
 })
 
