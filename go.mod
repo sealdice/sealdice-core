@@ -45,9 +45,8 @@ require (
 	golang.org/x/text v0.6.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/yaml.v3 v3.0.1
+	github.com/Szzrain/dodo-open-go v0.2.7
 )
-
-require github.com/Szzrain/dodo-open-go v0.2.6
 
 require (
 	github.com/grokify/html-strip-tags-go v0.0.1
