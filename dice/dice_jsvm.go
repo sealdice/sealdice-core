@@ -168,6 +168,8 @@ func (d *Dice) JsInit() {
 		seal.Set("replyGroup", ReplyGroup)
 		seal.Set("replyPerson", ReplyPerson)
 		seal.Set("replyToSender", ReplyToSender)
+		seal.Set("memberBan", MemberBan)
+		seal.Set("memberKick", MemberKick)
 		seal.Set("format", DiceFormat)
 		seal.Set("formatTmpl", DiceFormatTmpl)
 		seal.Set("getCtxProxyFirst", GetCtxProxyFirst)
