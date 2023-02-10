@@ -204,6 +204,14 @@ func (pa *PlatformAdapterMinecraft) SendToGroup(ctx *MsgContext, uid string, tex
 	pa.Session.OnMessageSend(ctx, "group", uid, text, flag)
 }
 
+func (pa *PlatformAdapterMinecraft) MemberBan(groupId string, userId string, duration int64) {
+
+}
+
+func (pa *PlatformAdapterMinecraft) MemberKick(groupId string, userId string) {
+
+}
+
 func (pa *PlatformAdapterMinecraft) QuitGroup(ctx *MsgContext, id string) {}
 
 func (pa *PlatformAdapterMinecraft) SetGroupCardName(groupId string, userId string, name string) {}

@@ -28,6 +28,7 @@ type Message struct {
 	Time        int64       `json:"time" jsbind:"time"`               // 发送时间
 	MessageType string      `json:"messageType" jsbind:"messageType"` // group private
 	GroupId     string      `json:"groupId" jsbind:"groupId"`         // 群号，如果是群聊消息
+	GuildId     string      `json:"guildId" jsbind:"guildId"`         // 服务器群组号，会在discord,kook,dodo等平台见到
 	Sender      SenderBase  `json:"sender" jsbind:"sender"`           // 发送者
 	Message     string      `json:"message" jsbind:"message"`         // 消息内容
 	RawId       interface{} `json:"rawId" jsbind:"rawId"`             // 原始信息ID，用于处理撤回等
@@ -69,6 +70,7 @@ type GroupInfo struct {
 	NotInGroup       bool                               `yaml:"notInGroup" json:"-"`                           // 是否已经离开群 - 准备处理单骰多号情况
 
 	GroupId       string          `yaml:"groupId" json:"groupId" jsbind:"groupId"`
+	GuildId       string          `yaml:"guildId" json:"guildId" jsbind:"guildId"`
 	GroupName     string          `yaml:"groupName" json:"groupName" jsbind:"groupName"`
 	ActiveDiceIds map[string]bool `yaml:"diceIds,flow" json:"diceIds"`    // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
 	BotList       map[string]bool `yaml:"botList,flow" json:"botList"`    // 其他骰子列表
@@ -201,9 +203,9 @@ type EndPointInfo struct {
 	Adapter PlatformAdapter `yaml:"adapter" json:"adapter"`
 }
 
-func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
-	if d.Adapter != nil {
-		return value.Decode(d)
+func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
+	if ep.Adapter != nil {
+		return value.Decode(ep)
 	}
 
 	var val struct {
@@ -213,7 +215,7 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 	if err != nil {
 		return err
 	}
-	d.EndPointInfoBase = val.EndPointInfoBase
+	ep.EndPointInfoBase = val.EndPointInfoBase
 
 	switch val.Platform {
 	case "QQ":
@@ -226,7 +228,7 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 			return err
 		}
 
-		d.Adapter = val.Adapter
+		ep.Adapter = val.Adapter
 	case "DISCORD":
 		var val struct {
 			Adapter *PlatformAdapterDiscord `yaml:"adapter"`
@@ -235,7 +237,7 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		if err != nil {
 			return err
 		}
-		d.Adapter = val.Adapter
+		ep.Adapter = val.Adapter
 	case "KOOK":
 		var val struct {
 			Adapter *PlatformAdapterKook `yaml:"adapter"`
@@ -244,7 +246,7 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		if err != nil {
 			return err
 		}
-		d.Adapter = val.Adapter
+		ep.Adapter = val.Adapter
 	case "TG":
 		var val struct {
 			Adapter *PlatformAdapterTelegram `yaml:"adapter"`
@@ -253,7 +255,7 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		if err != nil {
 			return err
 		}
-		d.Adapter = val.Adapter
+		ep.Adapter = val.Adapter
 	case "MC":
 		var val struct {
 			Adapter *PlatformAdapterMinecraft `yaml:"adapter"`
@@ -262,7 +264,16 @@ func (d *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		if err != nil {
 			return err
 		}
-		d.Adapter = val.Adapter
+		ep.Adapter = val.Adapter
+	case "DODO":
+		var val struct {
+			Adapter *PlatformAdapterDodo `yaml:"adapter"`
+		}
+		err := value.Decode(&val)
+		if err != nil {
+			return err
+		}
+		ep.Adapter = val.Adapter
 	}
 	return err
 }
@@ -798,9 +809,9 @@ func (s *IMSession) OnMessageSend(ctx *MsgContext, messageType string, groupId s
 
 // SetEnable
 /* 如果已连接，将断开连接，如果开着GCQ将自动结束。如果启用的话，则反过来  */
-func (c *EndPointInfo) SetEnable(d *Dice, enable bool) {
-	if c.Enable != enable {
-		c.Adapter.SetEnable(enable)
+func (ep *EndPointInfo) SetEnable(d *Dice, enable bool) {
+	if ep.Enable != enable {
+		ep.Adapter.SetEnable(enable)
 	}
 }
 
@@ -824,6 +835,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa.EndPoint = ep
 	case "MC":
 		pa := ep.Adapter.(*PlatformAdapterMinecraft)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
+	case "DODO":
+		pa := ep.Adapter.(*PlatformAdapterDodo)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
