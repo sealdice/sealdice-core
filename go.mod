@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a
+	github.com/Szzrain/dodo-open-go v0.2.7
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
 	github.com/antlabs/strsim v0.0.2
@@ -45,7 +46,6 @@ require (
 	golang.org/x/text v0.6.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/yaml.v3 v3.0.1
-	github.com/Szzrain/dodo-open-go v0.2.7
 )
 
 require (
