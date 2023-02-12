@@ -257,6 +257,14 @@ func (pa *PlatformAdapterDiscord) SetGroupCardName(groupId string, userId string
 	}
 }
 
+func (pa *PlatformAdapterDiscord) MemberBan(groupId string, userId string, duration int64) {
+
+}
+
+func (pa *PlatformAdapterDiscord) MemberKick(groupId string, userId string) {
+
+}
+
 //下面四个函数是格式化和反格式化的
 
 func FormatDiceIdDiscord(diceDiscord string) string {

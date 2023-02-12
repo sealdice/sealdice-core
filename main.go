@@ -372,6 +372,9 @@ func diceServe(d *dice.Dice) {
 				case "MC":
 					dice.DiceServeMinecraft(d, con)
 					break
+				case "DODO":
+					dice.DiceServeDodo(d, con)
+					break
 				}
 
 				//for {

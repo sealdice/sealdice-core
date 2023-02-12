@@ -414,6 +414,14 @@ func (pa *PlatformAdapterQQOnebot) QuitGroup(ctx *MsgContext, id string) {
 	socketSendText(pa.Socket, string(a))
 }
 
+func (pa *PlatformAdapterQQOnebot) MemberBan(groupId string, userId string, last int64) {
+
+}
+
+func (pa *PlatformAdapterQQOnebot) MemberKick(groupId string, userId string) {
+
+}
+
 func (pa *PlatformAdapterQQOnebot) GetLoginInfo() {
 	a, _ := json.Marshal(struct {
 		Action string `json:"action"`
