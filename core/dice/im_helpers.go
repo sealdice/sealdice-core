@@ -90,8 +90,10 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		groupId = "PG-" + msg.Sender.UserId
 		SetBotOnAtGroup(ctx, groupId)
 	}
-
 	group := session.ServiceAtNew[groupId]
+	if msg.GuildId != "" {
+		group.GuildId = msg.GuildId
+	}
 	if group == nil {
 		return nil, nil
 	}
@@ -176,6 +178,14 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 
 func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
 	ReplyPersonRaw(ctx, msg, text, "")
+}
+
+func MemberBan(ctx *MsgContext, groupId string, userId string, duration int64) {
+	ctx.EndPoint.Adapter.MemberBan(groupId, userId, duration)
+}
+
+func MemberKick(ctx *MsgContext, groupId string, userId string) {
+	ctx.EndPoint.Adapter.MemberKick(groupId, userId)
 }
 
 type ByLength []string

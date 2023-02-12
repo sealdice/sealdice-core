@@ -19,7 +19,6 @@ import (
 	"runtime"
 	"sealdice-core/dice"
 	"sealdice-core/icon"
-	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -230,7 +229,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 			ret := win.MessageBox(0, s2, s1, win.MB_YESNO|win.MB_ICONWARNING|win.MB_DEFBUTTON2)
 			if ret == win.IDYES {
 				newPort := 3000 + rand.Int()%4000
-				dm.ServeAddress = strings.Replace(dm.ServeAddress, portStr, fmt.Sprintf("%d", newPort), 1)
+				dm.ServeAddress = fmt.Sprintf("0.0.0.0:%d", newPort)
 				continue
 			} else {
 				logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)

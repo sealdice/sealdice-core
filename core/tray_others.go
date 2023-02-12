@@ -12,7 +12,7 @@ import (
 	"sealdice-core/dice"
 )
 
-func trayInit() {
+func trayInit(dm *dice.DiceManager) {
 
 }
 

@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a
+	github.com/Szzrain/dodo-open-go v0.2.7
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
 	github.com/antlabs/strsim v0.0.2
@@ -86,6 +87,7 @@ require (
 	github.com/getlantern/hidden v0.0.0-20190325191715-f02dbb02be55 // indirect
 	github.com/getlantern/ops v0.0.0-20190325191751-d70cb0d6f85f // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
+	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/go-toast/toast v0.0.0-20190211030409-01e6764cf0a4 // indirect
