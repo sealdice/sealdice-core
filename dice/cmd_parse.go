@@ -354,6 +354,8 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	case "TG":
 		re = regexp.MustCompile(`tg:\/\/user\?id=(\d+)`)
 		break
+	case "DODO":
+		re = regexp.MustCompile(`<@\!(\d+?)>`)
 	}
 
 	m := re.FindAllStringSubmatch(cmd, -1)
