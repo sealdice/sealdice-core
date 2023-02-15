@@ -889,7 +889,9 @@ func (d *Dice) registerCoreCommands() {
 			var diceResultExists bool
 			var detail string
 			disableLoadVarname := !(cmdArgs.Command == "rx" || cmdArgs.Command == "rhx")
+			disableLoadVarname = false
 
+			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
 			if ctx.Dice.CommandCompatibleMode {
 				if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd" || cmdArgs.Command == "rdh") && len(cmdArgs.Args) >= 1 {
 					if m, _ := regexp.MatchString(`^\d|优势|劣势|\+|-`, cmdArgs.CleanArgs); m {
