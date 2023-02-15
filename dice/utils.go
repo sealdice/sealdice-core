@@ -130,7 +130,7 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 		}
 		return &VMValue{TypeId: -1, Value: m2}
 	}
-	if val.TypeId == VMTypeComputedValue {
+	if val.TypeId == VMTypeDNDComputedValue {
 		tmp := val.Value.(map[string]interface{})
 		baseValue := tmp["base_value"].(map[string]interface{})
 
@@ -140,15 +140,26 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 			Value:  baseValue["value"],
 		}, nil, "")
 
-		vd := &VMComputedValueData{
+		vd := &VMDndComputedValueData{
 			BaseValue: *bv,
 			Expr:      tmp["expr"].(string),
 		}
 
 		if v != nil {
-			(*v)[key] = &VMValue{TypeId: VMTypeComputedValue, Value: vd}
+			(*v)[key] = &VMValue{TypeId: VMTypeDNDComputedValue, Value: vd}
 		}
 		//val.Value.(map)
+	}
+
+	if val.TypeId == VMTypeComputedValue {
+		tmp := val.Value.(map[string]interface{})
+		vd := &ComputedData{
+			Expr: tmp["expr"].(string),
+		}
+
+		if v != nil {
+			(*v)[key] = &VMValue{TypeId: VMTypeComputedValue, Value: vd}
+		}
 	}
 	return nil
 }
@@ -183,7 +194,18 @@ func SetCardType(mctx *MsgContext, curType string) {
 	VarSetValueStr(mctx, "$cardType", curType)
 }
 
-func ReadCardType(mctx *MsgContext, curType string) string {
+func ReadCardType(mctx *MsgContext) string {
+	var cardType string
+	vCardType, exists := VarGetValue(mctx, "$cardType")
+	if exists {
+		cardType = vCardType.ToString()
+	} else {
+		cardType = ""
+	}
+	return cardType
+}
+
+func ReadCardTypeEx(mctx *MsgContext, curType string) string {
 	var extra string
 	var cardType string
 	vCardType, exists := VarGetValue(mctx, "$cardType")

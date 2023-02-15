@@ -179,6 +179,9 @@ type Dice struct {
 	JsLoop       *eventloop.EventLoop   `yaml:"-" json:"-"`
 	JsScriptList []*JsScriptInfo        `yaml:"-" json:"-"`
 
+	// 角色卡模板
+	CharTemplateMap *SyncMap[string, *CharacterTemplate] `yaml:"-" json:"-"`
+
 	RunAfterLoaded []func() `yaml:"-" json:"-"`
 
 	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable"` // 开启日志数量提示
@@ -238,6 +241,7 @@ func (d *Dice) Init() {
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
 	d.CmdMap = CmdMapCls{}
+	d.CharTemplateMap = new(SyncMap[string, *CharacterTemplate])
 
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
@@ -531,6 +535,25 @@ func (d *Dice) ApplyAliveNotice() {
 			d.Logger.Infof("创建存活确认消息成功")
 		} else {
 			d.Logger.Error("创建存活确认消息发生错误，可能是间隔设置有误:", err)
+		}
+	}
+}
+
+// CharTemplateAdd 应用一个角色模板
+func (d *Dice) CharTemplateAdd(tmpl *CharacterTemplate) {
+	if _, exists := d.CharTemplateMap.Load(tmpl.KeyName); !exists {
+		d.CharTemplateMap.Store(tmpl.KeyName, tmpl)
+		// sn 从这里读取
+		// set 时从这里读取对应System名字的模板
+
+		// 同义词缓存
+		tmpl.AliasMap = new(SyncMap[string, string])
+		alias := tmpl.Alias
+		for k, v := range alias {
+			for _, i := range v {
+				tmpl.AliasMap.Store(strings.ToLower(i), k)
+			}
+			tmpl.AliasMap.Store(strings.ToLower(k), k)
 		}
 	}
 }

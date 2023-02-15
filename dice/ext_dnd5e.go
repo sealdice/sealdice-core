@@ -153,8 +153,8 @@ func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Reg
 				exportMap[k] = strconv.FormatInt(v.Value.(int64), 10)
 			case VMTypeString:
 				exportMap[k] = v.Value.(string)
-			case VMTypeComputedValue:
-				vd := v.Value.(*VMComputedValueData)
+			case VMTypeDNDComputedValue:
+				vd := v.Value.(*VMDndComputedValueData)
 				if strings.Index(vd.Expr, "熟练") != -1 {
 					k = k + "*"
 				}
@@ -339,7 +339,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 				}
 
-				if ReadCardType(mctx, "dnd5e") == "" {
+				if ReadCardTypeEx(mctx, "dnd5e") == "" {
 					// 旧版本升级
 					_vars, _ := mctx.ChVarsGet()
 					valRename := func(oldName, newName string) {
@@ -440,8 +440,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						vStr := v.ToString()
 
 						vText := ""
-						if vRaw.TypeId == VMTypeComputedValue {
-							vd := vRaw.Value.(*VMComputedValueData)
+						if vRaw.TypeId == VMTypeDNDComputedValue {
+							vd := vRaw.Value.(*VMDndComputedValueData)
 							b := vd.BaseValue.ToString()
 							if vStr != b {
 								vText = fmt.Sprintf("%s[%s]", vStr, b)
@@ -474,7 +474,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				VarSetValueStr(mctx, "$t属性信息", info)
-				extra := ReadCardType(mctx, "dnd5e")
+				extra := ReadCardTypeEx(mctx, "dnd5e")
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_列出")+extra)
 
 			case "help", "":
@@ -556,7 +556,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							ReplyToSender(mctx, msg, "不存在的属性: "+attrName)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-						if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeComputedValue {
+						if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeDNDComputedValue {
 							ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrName)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
@@ -591,8 +591,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						var newVal int64
 						var leftValue *VMValue
-						if v.TypeId == VMTypeComputedValue {
-							leftValue = &v.Value.(*VMComputedValueData).BaseValue
+						if v.TypeId == VMTypeDNDComputedValue {
+							leftValue = &v.Value.(*VMDndComputedValueData).BaseValue
 						} else {
 							leftValue = v
 						}
@@ -645,7 +645,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						theNewValue := vNew.Value.(int64)
 
 						baseValue := ""
-						if v.TypeId == VMTypeComputedValue {
+						if v.TypeId == VMTypeDNDComputedValue {
 							baseValue = fmt.Sprintf("[%d]", newVal)
 						}
 						attrChanged = append(attrChanged, fmt.Sprintf("%s%s(%d ➯ %d)", attrName, baseValue, theOldValue, theNewValue))
@@ -911,8 +911,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						tick += 1
 						vText := ""
-						if v.TypeId == VMTypeComputedValue {
-							vd := v.Value.(*VMComputedValueData)
+						if v.TypeId == VMTypeDNDComputedValue {
+							vd := v.Value.(*VMDndComputedValueData)
 							val, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
 							a := val.ToString()
 							b := vd.BaseValue.ToString()
@@ -937,7 +937,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				VarSetValueStr(mctx, "$t属性信息", info)
-				extra := ReadCardType(mctx, "dnd5e")
+				extra := ReadCardTypeEx(mctx, "dnd5e")
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_列出")+extra)
 
 			case "help":
@@ -1017,15 +1017,15 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							ReplyToSender(mctx, msg, "不存在的BUFF属性: "+attrNameRaw)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-						if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeComputedValue {
+						if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeDNDComputedValue {
 							ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrNameRaw)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
 						var newVal int64
 						var leftValue *VMValue
-						if v.TypeId == VMTypeComputedValue {
-							leftValue = &v.Value.(*VMComputedValueData).BaseValue
+						if v.TypeId == VMTypeDNDComputedValue {
+							leftValue = &v.Value.(*VMDndComputedValueData).BaseValue
 						} else {
 							leftValue = v
 						}
@@ -1041,7 +1041,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						theNewValue := vNew.Value.(int64)
 
 						baseValue := ""
-						if v.TypeId == VMTypeComputedValue {
+						if v.TypeId == VMTypeDNDComputedValue {
 							baseValue = fmt.Sprintf("[%d]", newVal)
 						}
 						attrChanged = append(attrChanged, fmt.Sprintf("%s%s(%d ➯ %d)", attrNameRaw, baseValue, theOldValue, theNewValue))
