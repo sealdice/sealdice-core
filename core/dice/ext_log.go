@@ -515,6 +515,22 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				ReplyToSender(ctx, msg, "已关闭自动设置名片功能")
 			default:
+				ok := false
+				ctx.Dice.CharTemplateMap.Range(func(key string, value *CharacterTemplate) bool {
+					name := strings.ToLower(val)
+					if t, exists := value.NameTemplate[name]; exists {
+						text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
+						ReplyToSender(ctx, msg, "已自动设置名片为"+name+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
+						ok = true
+						return false
+					}
+					return true
+				})
+
+				if ok {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}

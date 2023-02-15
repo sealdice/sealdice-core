@@ -1306,6 +1306,13 @@ func (d *Dice) registerCoreCommands() {
 					ctx.Group.System = "dnd5e"
 					ctx.Group.UpdatedAtTime = time.Now().Unix()
 				}
+				ctx.Dice.CharTemplateMap.Range(func(key string, value *CharacterTemplate) bool {
+					for k, v := range value.NameTemplate {
+						// TODO: 自动设置system
+						fmt.Println(k, v)
+					}
+					return true
+				})
 				num, err := strconv.ParseInt(cmdArgs.Args[0], 10, 64)
 				if num < 0 {
 					num = 0
