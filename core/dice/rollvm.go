@@ -259,6 +259,7 @@ type RollExpression struct {
 	flags        RollExtraFlags
 	Error        error
 	TmpCodeStack []int // 目前专用于computed，处理codepush
+	Calculated   bool  // 是否经过计算，如骰点和符号运算
 }
 
 func (e *RollExpression) Init(stackLength int) {
@@ -584,6 +585,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			if t.AsBool() {
 				opIndex += int(code.Value)
 			}
+			e.Calculated = true
 		case TypeJne:
 			t := stack[top-1]
 			top--
@@ -591,9 +593,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			if !t.AsBool() {
 				opIndex += int(code.Value)
 			}
+			e.Calculated = true
 			continue
 		case TypeJmp:
 			opIndex += int(code.Value)
+			e.Calculated = true
 			continue
 		case TypeClearDetail:
 			calcDetail = ""
@@ -653,6 +657,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			}
 			lastDetail := fmt.Sprintf("成功%d/%d%s%s", ret.Value, nums, roundsText, detailText)
 			lastDetails = append(lastDetails, lastDetail)
+			e.Calculated = true
 			continue
 		case TypeDCSetPool:
 			t := stack[top-1]
@@ -693,6 +698,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				lastDetail := fmt.Sprintf("出目%d/%d%s%s", ret.Value, nums, roundsText, detailText)
 				lastDetails = append(lastDetails, lastDetail)
 			}
+			e.Calculated = true
 			continue
 		case TypeDicePenalty, TypeDiceBonus:
 			t := stack[top-1]
@@ -751,6 +757,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 			stack[top-1].Value = newVal
 			stack[top-1].TypeId = VMTypeInt64
+			e.Calculated = true
 			continue
 		case TypePushString:
 			unquote, err := strconv.Unquote(`"` + strings.ReplaceAll(code.ValueStr, `"`, `\"`) + `"`)
@@ -791,6 +798,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			continue
 
 		case TypeConvertInt:
+			e.Calculated = true
 			val := stack[top-1]
 			if val.TypeId == VMTypeString {
 				v, _ := val.ReadString()
@@ -808,6 +816,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				return nil, "", errors.New("错误: int() 只能对字符串使用")
 			}
 		case TypeConvertStr:
+			e.Calculated = true
 			val := stack[top-1]
 			stack[top-1] = VMValue{VMTypeString, val.ToString(), 0}
 			continue
@@ -869,47 +878,51 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 				if !exists {
 					if ctx.SystemTemplate != nil {
-						v2 = ctx.SystemTemplate.GetDefaultValueEx(ctx, varname)
+						var calculated bool
+						v2, calculated = ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+						if calculated && !e.Calculated {
+							e.Calculated = calculated
+						}
 						exists = v2 != nil
 					}
 				}
 
 				if e.flags.CocDefaultAttrOn {
-					if !exists {
-						if varname == "生命值上限" {
-							vConI, _ := VarGetValueInt64(ctx, "体质")
-							vSizI, _ := VarGetValueInt64(ctx, "体型")
-							v2 = &VMValue{TypeId: VMTypeInt64, Value: int64((vConI + vSizI) / 10)}
-							exists = true
-						}
-					}
-
-					if !exists {
-						if varname == "母语" {
-							v2, exists = VarGetValue(ctx, "edu")
-						}
-					}
-
-					if !exists {
-						if varname == "闪避" {
-							// 闪避默认值为敏捷的一半
-							v2, exists = VarGetValue(ctx, "敏捷")
-							if exists {
-								if v2.TypeId == VMTypeInt64 {
-									v2 = VMValueNew(VMTypeInt64, v2.Value.(int64)/2)
-									//v2.Value = v2.Value.(int64) / 2
-								}
-							}
-						}
-					}
-
-					if !exists {
-						// 取默认值
-						tmpl, exists := ctx.Dice.CharTemplateMap.Load("coc7")
-						if exists {
-							v2 = tmpl.GetDefaultValueEx(ctx, varname)
-						}
-					}
+					//if !exists {
+					//	if varname == "生命值上限" {
+					//		vConI, _ := VarGetValueInt64(ctx, "体质")
+					//		vSizI, _ := VarGetValueInt64(ctx, "体型")
+					//		v2 = &VMValue{TypeId: VMTypeInt64, Value: int64((vConI + vSizI) / 10)}
+					//		exists = true
+					//	}
+					//}
+					//
+					//if !exists {
+					//	if varname == "母语" {
+					//		v2, exists = VarGetValue(ctx, "edu")
+					//	}
+					//}
+					//
+					//if !exists {
+					//	if varname == "闪避" {
+					//		// 闪避默认值为敏捷的一半
+					//		v2, exists = VarGetValue(ctx, "敏捷")
+					//		if exists {
+					//			if v2.TypeId == VMTypeInt64 {
+					//				v2 = VMValueNew(VMTypeInt64, v2.Value.(int64)/2)
+					//				//v2.Value = v2.Value.(int64) / 2
+					//			}
+					//		}
+					//	}
+					//}
+					//
+					//if !exists {
+					//	// 取默认值
+					//	tmpl, exists := ctx.Dice.CharTemplateMap.Load("coc7")
+					//	if exists {
+					//		v2 = tmpl.GetDefaultValueEx(ctx, varname)
+					//	}
+					//}
 				}
 
 				if exists {
@@ -952,6 +965,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 					cd, _ := v2.ReadComputed()
 					return nil, "", errors.New("E3: 获取计算属性异常: " + cd.Expr)
 				} else {
+					calculated := ret.Parser.Calculated
+					if calculated && !e.Calculated {
+						e.Calculated = calculated
+					}
+
 					vType = ret.TypeId
 					v = ret.Value
 				}
@@ -995,7 +1013,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 			if v == nil {
 				if ctx.SystemTemplate != nil {
-					v2 := ctx.SystemTemplate.GetDefaultValueEx(ctx, varname)
+					v2, calculated := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+					if calculated && !e.Calculated {
+						e.Calculated = calculated
+					}
+
 					if v2 != nil {
 						vType = v2.TypeId
 						v = v2.Value
@@ -1023,11 +1045,13 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 		case TypeNegation:
 			a := &stack[top-1]
 			a.Value = -a.Value.(int64)
+			e.Calculated = true
 			continue
 		case TypeDiceUnary:
 			a := &stack[top-1]
 			// Dice XXX, 如 d100
 			a.Value = DiceRoll64(a.Value.(int64))
+			e.Calculated = true
 			continue
 		case TypeHalt:
 			if len(lastDetails) > 0 {
@@ -1175,6 +1199,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			a.TypeId = VMTypeInt64
 			a.Value = aInt | bInt
 		case TypeAdd:
+			e.Calculated = true
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
@@ -1185,18 +1210,21 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				a.Value = aInt + bInt
 			}
 		case TypeSubtract:
+			e.Calculated = true
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
 			checkDice(&code)
 			a.Value = aInt - bInt
 		case TypeMultiply:
+			e.Calculated = true
 			if a.TypeId != b.TypeId {
 				return nil, "", errors.New("E4:符号运算类型不匹配")
 			}
 			checkDice(&code)
 			a.Value = aInt * bInt
 		case TypeDivide:
+			e.Calculated = true
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
@@ -1212,12 +1240,14 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			}
 			a.Value = aInt / bInt
 		case TypeModulus:
+			e.Calculated = true
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
 			checkDice(&code)
 			a.Value = aInt % bInt
 		case TypeExponentiation:
+			e.Calculated = true
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
@@ -1227,6 +1257,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			a.Value, b.Value = bInt, aInt
 			top++
 		case TypeStore:
+			e.Calculated = true
 			top--
 			if ctx != nil {
 				VarSetValue(ctx, a.Value.(string), b)
@@ -1237,6 +1268,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			top++
 			continue
 		case TypeDiceFate:
+			e.Calculated = true
 			checkDice(&code)
 			text := ""
 			sum := int64(0)
@@ -1260,6 +1292,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			//top++
 			//continue
 		case TypeDice:
+			e.Calculated = true
 			checkDice(&code)
 			if bInt == 0 {
 				bInt = e.flags.DefaultDiceSideNum

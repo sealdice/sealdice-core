@@ -423,6 +423,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		if mustLoadUser {
 			mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
 			mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
+
+			if mctx.Group != nil && mctx.Group.System != "" {
+				mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
+				//tmpl, _ := d.CharTemplateMap.Load(group.System)
+				//mctx.SystemTemplate = tmpl
+			}
 		}
 
 		if mctx.Group != nil && mctx.Group.IsActive(mctx) {
