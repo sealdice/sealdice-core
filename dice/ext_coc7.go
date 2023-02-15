@@ -280,6 +280,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			if len(cmdArgs.Args) >= 1 {
 				mctx := GetCtxProxyFirst(ctx, cmdArgs)
 				mctx.DelegateText = ctx.DelegateText
+				mctx.SystemTemplate = mctx.Group.GetCharTemplate(ctx.Dice)
 				restText := cmdArgs.CleanArgs
 
 				reBP := regexp.MustCompile(`^[bBpP]`)

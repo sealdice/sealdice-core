@@ -926,8 +926,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 							vType = VMTypeString
 							v = "<%未定义值-" + varname + "%>"
 						} else {
-							vType = VMTypeInt64 // 这个方案不好，更多类型的时候就出事了
-							v = int64(0)
+							//vType = VMTypeInt64 // 这个方案不好，更多类型的时候就出事了
+							//v = int64(0)
 						}
 					}
 				}
@@ -992,6 +992,21 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 						}
 					}
 				}
+			}
+
+			if v == nil {
+				if ctx.SystemTemplate != nil {
+					v2 := ctx.SystemTemplate.GetDefaultValueEx(ctx, varname)
+					if v2 != nil {
+						vType = v2.TypeId
+						v = v2.Value
+					}
+				}
+			}
+			if v == nil {
+				// 默认值为0
+				vType = VMTypeInt64
+				v = int64(0)
 			}
 
 			if !detailFlag {
