@@ -765,7 +765,16 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 			if ret.Solved {
 				if ret.ShowHelp {
-					help := item.Help
+					help := ""
+					// 优先考虑函数
+					if item.HelpFunc != nil {
+						help = item.HelpFunc(false)
+					}
+					// 其次考虑help
+					if help == "" {
+						help = item.Help
+					}
+					// 最后用短help拼
 					if help == "" {
 						// 这是为了防止别的骰子误触发
 						help = item.Name + ":\n" + item.ShortHelp
