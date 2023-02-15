@@ -883,13 +883,11 @@ func (d *Dice) registerCoreCommands() {
 		ShortHelp: HelpRoll,
 		Help:      "骰点:\n" + HelpRoll,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-
 			var text string
 			var diceResult int64
 			var diceResultExists bool
 			var detail string
-			disableLoadVarname := !(cmdArgs.Command == "rx" || cmdArgs.Command == "rhx")
-			disableLoadVarname = false
+			isRx := cmdArgs.Command == "rx" || cmdArgs.Command == "rhx"
 
 			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
 			if ctx.Dice.CommandCompatibleMode {
@@ -908,9 +906,17 @@ func (d *Dice) registerCoreCommands() {
 				if len(cmdArgs.Args) >= 1 {
 					var err error
 					r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{
-						DisableLoadVarname: disableLoadVarname,
 						DefaultDiceSideNum: getDefaultDicePoints(ctx),
 					})
+
+					if !isRx {
+						if !r.Parser.Calculated {
+							forWhat = cmdArgs.CleanArgs
+							r, detail, err = ctx.Dice.ExprEvalBase("d", ctx, RollExtraFlags{
+								DefaultDiceSideNum: getDefaultDicePoints(ctx),
+							})
+						}
+					}
 
 					if r != nil && r.TypeId == 0 {
 						diceResult = r.Value.(int64)
@@ -919,7 +925,9 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					if err == nil {
-						forWhat = r.restInput
+						if forWhat == "" {
+							forWhat = r.restInput
+						}
 					} else {
 						errs := string(err.Error())
 						if strings.HasPrefix(errs, "E1:") || strings.HasPrefix(errs, "E5:") || strings.HasPrefix(errs, "E6:") || strings.HasPrefix(errs, "E7:") {
