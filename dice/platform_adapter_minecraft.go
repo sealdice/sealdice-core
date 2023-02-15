@@ -156,6 +156,7 @@ func (pa *PlatformAdapterMinecraft) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
+	defer recover()
 	log := pa.Session.Parent.Logger
 	if enable {
 		log.Infof("MC server 连接中")
