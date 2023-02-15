@@ -231,118 +231,6 @@ var difficultPrefixMap = map[string]int{
 	"常規":  1,
 }
 
-var Coc7DefaultAttrs = map[string]int64{}
-var cocDefaultAttrText = `
-会计			5
-人类学			1
-估价			5
-考古学			1
-魅惑			15
-攀爬			20
-计算机使用			5
-信用评级			0
-克苏鲁神话			0
-乔装			5
-汽车驾驶			20
-电气维修			10
-电子学			1
-话术			5
-急救			30
-历史			5
-恐吓			15
-跳跃			20
-法律		5
-图书馆使用		20
-聆听		20
-锁匠		1
-机械维修		10
-医学		1
-博物学		10
-领航		10
-神秘学		5
-操作重型机械		1
-说服		10
-精神分析		1
-心理学		10
-骑术		5
-妙手		10
-侦查		25
-潜行		20
-游泳		20
-投掷		20
-追踪		10
-驯兽		5
-潜水		1
-爆破		1
-读唇		1
-催眠		1
-炮术		1
-学识		1
-艺术与手艺		5
-表演		5
-美术		5
-伪造		5
-摄影		5
-理发		5
-书法		5
-木匠		5
-厨艺		5
-舞蹈		5
-写作		5
-莫里斯舞蹈		5
-歌剧歌唱		5
-粉刷匠和油漆工		5
-制陶		5
-雕塑		5
-吹真空管		5
-技术制图		5
-裁缝		5
-声乐		5
-喜剧		5
-耕作		5
-器乐		5
-打字		5
-速记		5
-园艺		5
-斗殴		25
-剑		20
-日本刀		20
-斧		15
-链锯		10
-连枷		10
-绞索		15
-鞭		5
-手枪		20
-步枪		25
-弓		15
-火焰喷射器		10
-重武器		10
-机枪		10
-矛		20
-冲锋枪		15
-天文学		1
-生物学		1
-植物学		1
-化学		1
-密码学		1
-工程学		1
-司法科学		1
-地质学		1
-数学		10
-气象学		1
-药学		1
-物理学		1
-动物学		1
-船		1
-飞行器		1
-科学		1
-生存		10
-沙漠		10
-海洋		10
-极地		10
-语言		1
-`
-
 func RegisterBuiltinExtCoc7(self *Dice) {
 	// 初始化疯狂列表
 	reFear := regexp.MustCompile(`(\d+)\)\s+([^\n]+)`)
@@ -360,16 +248,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		maniaMap[n] = i[2]
 	}
 
-	// 默认属性值
-	reCocDefaultAttr := regexp.MustCompile(`(\S+)\s+(\d+)`)
-	m = reCocDefaultAttr.FindAllStringSubmatch(cocDefaultAttrText, -1)
-	for _, i := range m {
-		n, _ := strconv.ParseInt(i[2], 10, 64)
-		Coc7DefaultAttrs[i[1]] = n
-	}
-
-	// 初始化配置（读取同义词）
-	ac := setupConfig(self)
+	// 初始化规则模板
+	tmpl := getCoc7CharTemplate()
+	self.CharTemplateAdd(tmpl)
 
 	helpRc := "" +
 		".ra/rc <属性表达式> // 属性检定指令，当前者小于等于后者，检定通过\n" +
@@ -952,7 +833,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 					if usePickItem {
 						for _, i := range cmdArgs.Args[1:] {
-							key := p.GetValueNameByAlias(i, ac.Alias)
+							key := p.GetValueNameByAlias(i, tmpl.Alias)
 							pickItems[key] = 1
 						}
 					}
@@ -964,8 +845,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						// 按照配置文件排序
 						attrKeys := []string{}
 						used := map[string]bool{}
-						for _, i := range ac.Order.Top {
-							key := p.GetValueNameByAlias(i, ac.Alias)
+						for _, i := range tmpl.AttrSettings.Top {
+							key := p.GetValueNameByAlias(i, tmpl.Alias)
 							if used[key] {
 								continue
 							}
@@ -1040,7 +921,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					}
 
 					VarSetValueStr(mctx, "$t属性信息", info)
-					extra := ReadCardType(mctx, "coc7")
+					extra := ReadCardTypeEx(mctx, "coc7")
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
 				} else {
 					re1, _ := regexp.Compile(`([^\d\s]+)\s*([+\-＋－])=?(.+)$`)
@@ -1048,7 +929,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					if len(m) > 0 {
 						p := mctx.Player
 
-						name := p.GetValueNameByAlias(m[1], ac.Alias)
+						name := p.GetValueNameByAlias(m[1], tmpl.Alias)
 						val, exists := VarGetValueInt64(mctx, name)
 						if !exists {
 							text := fmt.Sprintf("<%s>: 无法找到名下属性 %s，不能作出修改", p.Name, m[1])
@@ -1067,7 +948,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 									signText = "扣除"
 									newVal = val + rightVal
 								}
-								name := p.GetValueNameByAlias(m[1], ac.Alias)
+								name := p.GetValueNameByAlias(m[1], tmpl.Alias)
 								VarSetValueInt64(mctx, name, newVal)
 
 								//text := fmt.Sprintf("<%s>的“%s”变化: %d ➯ %d (%s%s=%d)\n", p.Name, m[1], val, newVal, signText, m[3], rightVal)
@@ -1144,7 +1025,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						p := mctx.Player
 
 						for k, v := range valueMap {
-							name := p.GetValueNameByAlias(k, ac.Alias)
+							name := p.GetValueNameByAlias(k, tmpl.Alias)
 							nameMap[name] = true
 							if k != name {
 								synonymsCount += 1
@@ -1405,7 +1286,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			mctx.Player.TempValueAlias = &ac.Alias
+			mctx.Player.TempValueAlias = &tmpl.Alias
 
 			// 首先读取一个值
 			// 试图读取 /: 读到了，当前是成功值，转入读取单项流程，试图读取失败值
@@ -1569,7 +1450,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					sanNew = 0
 				}
 
-				name := ctx.Player.GetValueNameByAlias("理智", ac.Alias)
+				name := ctx.Player.GetValueNameByAlias("理智", tmpl.Alias)
 				VarSetValueInt64(ctx, name, sanNew)
 
 				//输出结果
@@ -1687,7 +1568,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			ctx.Player.TempValueAlias = &ac.Alias
+			ctx.Player.TempValueAlias = &tmpl.Alias
 		},
 		GetDescText: func(ei *ExtInfo) string {
 			return GetExtensionDesc(ei)

@@ -178,6 +178,28 @@ func (group *GroupInfo) PlayerGet(db *sqlitex.Pool, id string) *GroupPlayerInfo 
 	return (*GroupPlayerInfo)(p)
 }
 
+func (group *GroupInfo) GetCharTemplate(dice *Dice) *CharacterTemplate {
+	// 有system优先system
+	if group.System != "" {
+		v, _ := dice.CharTemplateMap.Load(group.System)
+		return v
+	}
+
+	// 没有system，查看扩展的启动情况
+	if group.ExtGetActive("coc7") != nil {
+		v, _ := dice.CharTemplateMap.Load("coc7")
+		return v
+	}
+
+	if group.ExtGetActive("dnd5e") != nil {
+		v, _ := dice.CharTemplateMap.Load("dnd5e")
+		return v
+	}
+
+	// 啥都没有，返回空，还是白卡？
+	return nil
+}
+
 type EndPointInfoBase struct {
 	Id                  string `yaml:"id" json:"id"` // uuid
 	Nickname            string `yaml:"nickname" json:"nickname"`
@@ -305,8 +327,9 @@ type MsgContext struct {
 	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 40邀请者 50管理 60群主 100master
 	DelegateText    string      `jsbind:"delegateText"`   // 代骰附加文本
 
-	deckDepth int                                         // 抽牌递归深度
-	DeckPools map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
+	deckDepth      int                                         // 抽牌递归深度
+	DeckPools      map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
+	SystemTemplate *CharacterTemplate
 }
 
 //func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {

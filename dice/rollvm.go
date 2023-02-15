@@ -16,6 +16,7 @@ type Type uint8
 const (
 	TypePushNumber Type = iota
 	TypePushString
+	TypePushComputed
 	TypeNegation
 	TypeAdd
 	TypeSubtract
@@ -65,6 +66,14 @@ const (
 	TypeBitwiseOr
 	TypeLogicAnd
 	TypeLogicOr
+
+	TypeStSetName
+	TypeStModify
+	TypeNop
+
+	TypeLoadVarnameForThis
+	TypeConvertInt
+	TypeConvertStr
 )
 
 type ByteCode struct {
@@ -206,6 +215,20 @@ func (code *ByteCode) CodeString() string {
 		return "pop"
 	case TypeClearDetail:
 		return "reset"
+	case TypeStSetName:
+		return "st.set"
+	case TypeStModify:
+		return "st.mod"
+	case TypePushComputed:
+		return "push.computed " + code.ValueStr
+	case TypeNop:
+		return "nop"
+	case TypeLoadVarnameForThis:
+		return "ld.v.this " + code.ValueStr
+	case TypeConvertInt:
+		return "tmp.conv.int"
+	case TypeConvertStr:
+		return "tmp.conv.str"
 	}
 	return ""
 }
@@ -220,6 +243,8 @@ type RollExtraFlags struct {
 	DNDAttrReadMod     bool  // 基础属性被读取为调整值，仅在检定时使用
 	DNDAttrReadDC      bool  // 将力量豁免读取为力量再计算豁免值
 	DefaultDiceSideNum int64 // 默认骰子面数
+
+	StCallback func(_type string, name string, val *VMValue, op string, detail string) // st回调
 }
 
 type RollExpression struct {
@@ -233,12 +258,14 @@ type RollExpression struct {
 	CounterStack []int64
 	flags        RollExtraFlags
 	Error        error
+	TmpCodeStack []int // 目前专用于computed，处理codepush
 }
 
 func (e *RollExpression) Init(stackLength int) {
 	e.Code = make([]ByteCode, stackLength)
 	e.JmpStack = []int{}
 	e.CounterStack = []int64{}
+	e.TmpCodeStack = []int{}
 }
 
 func (e *RollExpression) checkStackOverflow() bool {
@@ -328,6 +355,16 @@ func (e *RollExpression) AddLoadVarname(value string) {
 	code[top].ValueStr = value
 }
 
+func (e *RollExpression) AddLoadVarnameForThis(value string) {
+	if e.checkStackOverflow() {
+		return
+	}
+	code, top := e.Code, e.Top
+	e.Top++
+	code[top].T = TypeLoadVarnameForThis
+	code[top].ValueStr = value
+}
+
 func (e *RollExpression) AddStore() {
 	if e.checkStackOverflow() {
 		return
@@ -356,6 +393,58 @@ func (e *RollExpression) AddValueStr(value string) {
 	e.Top++
 	code[top].T = TypePushString
 	code[top].ValueStr = value
+}
+
+func (e *RollExpression) AddStName() {
+	if e.checkStackOverflow() {
+		return
+	}
+	code, top := e.Code, e.Top
+	e.Top++
+	code[top].T = TypeStSetName
+}
+
+func (e *RollExpression) AddStModify(op string, text string) {
+	if e.checkStackOverflow() {
+		return
+	}
+	code, top := e.Code, e.Top
+	e.Top++
+	code[top].T = TypeStModify
+	code[top].ValueAny = text
+	code[top].ValueStr = op
+}
+
+func (e *RollExpression) WriteCode(T Type, value int64, valueStr string) {
+	if e.checkStackOverflow() {
+		return
+	}
+
+	code, top := e.Code, e.Top
+	code[top].T = T
+	code[top].Value = value
+	code[top].ValueStr = valueStr
+	e.Top += 1
+}
+
+func (p *RollExpression) CodePush() {
+	p.TmpCodeStack = append(p.TmpCodeStack, p.Top)
+}
+
+func (p *RollExpression) CodePop() {
+	if len(p.TmpCodeStack) > 0 {
+		// 先这样凑合一下，因为好像删除中间的指令会引起别的问题
+		for i := p.TmpCodeStack[len(p.TmpCodeStack)-1]; i < p.Top; i++ {
+			p.Code[i].T = TypeNop
+		}
+		p.TmpCodeStack = p.TmpCodeStack[:len(p.TmpCodeStack)-1]
+	}
+	fmt.Println("!!!!", p.TmpCodeStack)
+}
+
+func (p *RollExpression) AddStoreComputed(text string) {
+	// 相比DiceScript被迫少了很多机制，创建对象的位置也变了
+	p.WriteCode(TypePushComputed, 0, text)
 }
 
 func (e *RollExpression) AddFormatString(value string, num int64) {
@@ -511,6 +600,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			calcDetail = ""
 			lastDetails = lastDetails[:0]
 			top = 0
+			continue
+		case TypeNop:
 			continue
 		case TypeDiceSetQ:
 			t := stack[top-1]
@@ -671,7 +762,58 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			stack[top].Value = unquote
 			top++
 			continue
-		case TypeLoadVarname:
+		case TypeStSetName:
+			stVal := stack[top-1]
+			stName := stack[top-2]
+
+			if e.flags.StCallback != nil {
+				name, _ := stName.ReadString()
+				e.flags.StCallback("set", name, &stVal, "", "")
+			}
+			// 这样子栈好像是对的，但是为啥我也不懂……
+			// 之前的栈管理实在是太神秘了
+			continue
+		case TypeStModify:
+			stVal := stack[top-1]
+			stName := stack[top-2]
+
+			if e.flags.StCallback != nil {
+				name, _ := stName.ReadString()
+				e.flags.StCallback("mod", name, &stVal, code.ValueStr, code.ValueAny.(string))
+			}
+			continue
+		case TypePushComputed:
+			val := VMValueNewComputedRaw(&ComputedData{
+				Expr: code.ValueStr,
+			})
+			stack[top].Value = val.Value
+			stack[top].TypeId = VMTypeComputedValue
+			top += 1
+			continue
+
+		case TypeConvertInt:
+			val := stack[top-1]
+			if val.TypeId == VMTypeString {
+				v, _ := val.ReadString()
+				r, err := strconv.ParseInt(v, 10, 64)
+				if err == nil {
+					stack[top-1] = VMValue{VMTypeInt64, r, 0}
+				} else {
+					return nil, "", errors.New("错误: int() 无法转换为数字: " + v)
+				}
+				continue
+			} else if val.TypeId == VMTypeInt64 {
+				// 啥都不做
+				continue
+			} else {
+				return nil, "", errors.New("错误: int() 只能对字符串使用")
+			}
+		case TypeConvertStr:
+			val := stack[top-1]
+			stack[top-1] = VMValue{VMTypeString, val.ToString(), 0}
+			continue
+
+		case TypeLoadVarname, TypeLoadVarnameForThis:
 			var v interface{}
 			var vType VMValueType
 			var lastDetail string
@@ -726,6 +868,13 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				var exists bool
 				v2, exists := VarGetValue(ctx, varname)
 
+				if !exists {
+					if ctx.SystemTemplate != nil {
+						v2 = ctx.SystemTemplate.GetDefaultValueEx(ctx, varname)
+						exists = v2 != nil
+					}
+				}
+
 				if e.flags.CocDefaultAttrOn {
 					if !exists {
 						if varname == "生命值上限" {
@@ -756,10 +905,10 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 					}
 
 					if !exists {
-						var val int64
-						val, exists = Coc7DefaultAttrs[varname]
+						// 取默认值
+						tmpl, exists := ctx.Dice.CharTemplateMap.Load("coc7")
 						if exists {
-							v2 = &VMValue{TypeId: VMTypeInt64, Value: val}
+							v2 = tmpl.GetDefaultValueEx(ctx, varname)
 						}
 					}
 				}
@@ -784,9 +933,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				}
 			}
 
-			if vType == VMTypeComputedValue {
+			if vType == VMTypeDNDComputedValue {
 				// 解包计算属性
-				vd := v.(*VMComputedValueData)
+				vd := v.(*VMDndComputedValueData)
 				VarSetValue(ctx, "$tVal", &vd.BaseValue)
 				realV, _, err := ctx.Dice.ExprEvalBase(vd.Expr, ctx, RollExtraFlags{})
 				if err != nil {
@@ -794,6 +943,19 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				}
 				vType = realV.TypeId
 				v = realV.Value
+			}
+
+			if vType == VMTypeComputedValue {
+				// 解包计算属性
+				v2 := VMValue{vType, v, 0}
+				ret := v2.ComputedExecute(ctx)
+				if ret == nil {
+					cd, _ := v2.ReadComputed()
+					return nil, "", errors.New("E3: 获取计算属性异常: " + cd.Expr)
+				} else {
+					vType = ret.TypeId
+					v = ret.Value
+				}
 			}
 
 			if vType == VMTypeInt64 {

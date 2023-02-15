@@ -8,7 +8,8 @@ type DiceRollParser Peg {
 
 // 实际操作中发现，不匹配句尾比较好 (没有!.)
 eBase <- e { p.AddOperator(TypeHalt) }
-e <- eOne (';' sp { p.AddOperator(TypeClearDetail) } eOne?)*
+e <- '^st' st_expr
+   / eOne (';' sp { p.AddOperator(TypeClearDetail) } eOne?)*
 eOne <- sp (s0 / e0 / assign_expr)
 
 assign_expr <- identifier { p.AddValueStr(string(text)) } '=' sp e0 { p.AddStore() }
@@ -116,6 +117,9 @@ eDice4 <- [fF] sp { p.AddValue("0"); p.AddValue("0"); p.AddOperator(TypeDiceFate
          / value
 
 value <- number
+       / 'this' sp '.' sp identifier sp { p.AddLoadVarnameForThis(text) }
+       / 'int(' sp e0 sp ')' sp { p.WriteCode(TypeConvertInt, 0, "") }
+       / 'str(' sp e0 sp ')' sp { p.WriteCode(TypeConvertStr, 0, "") }
        / assign_expr
        / identifier { p.AddLoadVarname(string(text)) }
        / sub
@@ -159,3 +163,40 @@ fstring <- (
         / ('\'' { p.CounterPush() } < ( strPart3 )* > '\'' { p.AddFormatString(string(text), p.CounterPop()) })
     ) sp
 escape <- '\\' ([btnfr"'\\])  //  / OctalEscape / UnicodeEscape
+
+// --------------------------
+
+// st 力量60敏捷70
+// st 力量60 敏捷70
+// st 智力:80
+// st 知识=90
+// st 力量+1
+// st 力量+1d4
+// st 力量+1d4+2
+// st 力量-1d4+2  => 力量 = 力量 - (1d4+2)
+// st &手枪=1d6
+// st &手枪=(1d6+2)
+
+st_expr <- st_modify_multi
+         / st_assign_multi
+
+est <- eDice / &'(' ? e0
+
+st_assign_multi <- (st_assign sp ','? sp)+
+
+st_assign <- st_name2 sp (':' / '=') sp est { p.AddStName() } // 属性2: 70
+           / st_name1 sp est { p.AddStName() } // 力量60
+           / '&' st_name2 sp (':' / '=') sp { p.CodePush() } < est > { p.CodePop(); p.AddStoreComputed(text); p.AddStName() } // &手枪 = 1d4
+
+st_modify_multi <- (st_modify sp ','? sp)+
+
+st_modify <- st_name2 sp (
+            '+' sp < e0 > {p.AddStModify("+", text)} /
+            '-' sp < e0 > {p.AddStModify("-", text)}
+           )
+
+st_name1 <- < id_ch0+ > { p.AddValueStr(text) } // 结尾不带数字
+st_name2 <- < id_ch0 id_ch* > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
+
+id_ch0 <- [^!"#$%&\'()*+,-./:;<=>?@\[\\\]^`{|}~ 0-9\t\n\r\36]
+id_ch <- id_ch0 / [0-9]

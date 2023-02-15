@@ -17,6 +17,7 @@ func (d *Dice) RegisterBuiltinExt() {
 	RegisterBuiltinExtReply(d)
 	RegisterBuiltinExtDnd5e(d)
 	RegisterBuiltinStory(d)
+	RegisterBuiltinExtExp(d)
 }
 
 func (d *Dice) RegisterExtension(extInfo *ExtInfo) {
