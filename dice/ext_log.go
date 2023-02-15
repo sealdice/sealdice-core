@@ -487,6 +487,22 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Help:               "跑团名片(需要管理权限):\n" + helpSn,
 		CheckCurrentBotOn:  true,
 		CheckMentionOthers: true,
+		HelpFunc: func(isShort bool) string {
+			text := ""
+			self.CharTemplateMap.Range(func(key string, value *CharacterTemplate) bool {
+				for k, v := range value.NameTemplate {
+					text += fmt.Sprintf(".sn %s // %s\n", k, v.HelpText)
+				}
+				return true
+			})
+			text += `.sn dnd // 自动设置dnd名片
+.sn none // 设置为空白格式
+.sn off // 取消自动设置`
+			if isShort {
+				return text
+			}
+			return "跑团名片(需要管理权限):\n" + text
+		},
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
 			switch strings.ToLower(val) {

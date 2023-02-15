@@ -21,9 +21,9 @@ var coc7TemplateData string = `
       "template": "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}",
       "helpText": "自动设置coc名片"
     },
-    "cocl": {
+    "cocL": {
       "template": "{$t玩家_RAW} san{理智} hp{生命值}/{生命值上限} dex{敏捷}",
-      "helpText": "自动设置coc名片"
+      "helpText": "自动设置coc名片，小写"
     }
   },
   "attrSettings": {
