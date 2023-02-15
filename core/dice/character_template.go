@@ -71,9 +71,11 @@ func (t *CharacterTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) *
 	}
 
 	if expr, exists := t.DefaultsComputed[name]; exists {
+		ctx.SystemTemplate = t
 		r, _, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{
 			DefaultDiceSideNum: getDefaultDicePoints(ctx),
 		})
+		fmt.Println("!!!!", r, name, expr)
 		if err == nil {
 			return &r.VMValue
 		}
@@ -96,12 +98,12 @@ func (t *CharacterTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, erro
 		return nil, err
 	}
 	// 显示本体
-	if ch, exists := ctx.ChVarsGet(); exists {
-		_v, exists := ch.Get(k)
-		if exists {
-			return _v.(*VMValue), nil
-		}
+	ch, _ := ctx.ChVarsGet()
+	_v, exists := ch.Get(k)
+	if exists {
+		return _v.(*VMValue), nil
 	}
+
 	// 默认值
 	v := t.GetDefaultValueEx(ctx, k)
 	if v != nil {

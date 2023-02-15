@@ -86,15 +86,28 @@ func RegisterBuiltinExtExp(dice *Dice) {
 						attrKeys = append(attrKeys, key)
 					}
 
+					if len(pickItems) > 0 {
+						attrKeys = []string{}
+						for k, _ := range pickItems {
+							attrKeys = append(attrKeys, k)
+						}
+					}
 					// 遍历输出
 					for index, k := range attrKeys {
 						if strings.HasPrefix(k, "$") {
 							continue
 						}
 
+						if usePickItem {
+							_, ok := pickItems[k]
+							if !ok {
+								continue
+							}
+						}
+
 						v, err := tmpl.GetShowAs(mctx, k)
 						if err != nil {
-							fmt.Println("xxx", err.Error())
+							//fmt.Println("xxx", err.Error())
 							ReplyToSender(mctx, msg, "模板卡异常, 属性: "+k)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
@@ -102,13 +115,6 @@ func RegisterBuiltinExtExp(dice *Dice) {
 						if index >= topNum {
 							if useLimit && v.TypeId == VMTypeInt64 && v.Value.(int64) < limit {
 								limktSkipCount += 1
-								continue
-							}
-						}
-
-						if usePickItem {
-							_, ok := pickItems[k]
-							if !ok {
 								continue
 							}
 						}
@@ -166,6 +172,9 @@ func RegisterBuiltinExtExp(dice *Dice) {
 				VarSetValueInt64(mctx, "$t数量", int64(num))
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_清除"))
 
+			case "convert":
+				SetCardType(mctx, ctx.Group.System)
+
 			default:
 				if cardType != mctx.Group.System {
 					ReplyToSender(mctx, msg, fmt.Sprintf("当前卡规则为 %s，群规则为 %s。\n为避免误操作，请先换卡、或.st convert强制转卡，或使用.st clr清除数据", cardType, mctx.Group.System))
@@ -184,6 +193,7 @@ func RegisterBuiltinExtExp(dice *Dice) {
 				}
 
 				//var texts []string
+				mctx.SystemTemplate = tmpl
 				r, _, err := mctx.Dice.ExprEvalBase("^st"+cmdArgs.CleanArgs, ctx, RollExtraFlags{
 					DefaultDiceSideNum: getDefaultDicePoints(mctx),
 					StCallback: func(_type string, name string, val *VMValue, op string, detail string) {
