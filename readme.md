@@ -1,10 +1,10 @@
 # SealDice
 
-![Software License](https://img.shields.io/badge/license-Apache2-brightgreen.svg?style=flat-square)
+![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)
 
 海豹TRPG骰点核心
 
-注: 如无特殊说明，所有代码文件均遵循Apache2开源协议
+注: 如无特殊说明，所有代码文件均遵循MIT开源协议
 
 ## 开发环境搭建
 
