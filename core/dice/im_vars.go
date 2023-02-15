@@ -51,14 +51,14 @@ func VarSetValueStr(ctx *MsgContext, s string, v string) {
 }
 
 func VarSetValueDNDComputed(ctx *MsgContext, s string, val int64, expr string) {
-	vd := &VMComputedValueData{
+	vd := &VMDndComputedValueData{
 		BaseValue: VMValue{
 			TypeId: VMTypeInt64,
 			Value:  val,
 		},
 		Expr: expr,
 	}
-	VarSetValue(ctx, s, &VMValue{TypeId: VMTypeComputedValue, Value: vd})
+	VarSetValue(ctx, s, &VMValue{TypeId: VMTypeDNDComputedValue, Value: vd})
 }
 
 func VarSetValueInt64(ctx *MsgContext, s string, v int64) {
