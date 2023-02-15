@@ -156,7 +156,6 @@ func (pa *PlatformAdapterMinecraft) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
-	defer recover()
 	log := pa.Session.Parent.Logger
 	if enable {
 		log.Infof("MC server 连接中")
@@ -178,7 +177,7 @@ func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
 		}
 	} else {
 		pa.Reconnecting = true
-		if pa.Socket != nil {
+		if pa.Socket != nil && pa.Socket.IsConnected {
 			pa.Socket.Close()
 		}
 		pa.Reconnecting = false
