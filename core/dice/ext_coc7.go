@@ -523,6 +523,28 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Name:      "setcoc",
 		ShortHelp: helpSetCOC,
 		Help:      "设置房规:\n" + helpSetCOC,
+		HelpFunc: func(isShort bool) string {
+			help := ""
+			for i := 0; i < 6; i++ {
+				n := strings.ReplaceAll(SetCocRuleText[i], "\n", " ")
+				help += fmt.Sprintf(".setcoc %d // %s\n", i, n)
+			}
+			// dg
+			n := strings.ReplaceAll(SetCocRuleText[11], "\n", " ")
+			help += fmt.Sprintf(".setcoc dg // %s\n", n)
+
+			// 自定义
+			for _, i := range self.CocExtraRules {
+				n := strings.ReplaceAll(i.Desc, "\n", " ")
+				help += fmt.Sprintf(".setcoc %d/%s // %s\n", i.Index, i.Key, n)
+			}
+
+			if isShort {
+				return help
+			} else {
+				return "设置房规:\n" + help
+			}
+		},
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n := cmdArgs.GetArgN(1)
 			suffix := ""
