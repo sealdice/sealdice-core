@@ -63,23 +63,31 @@ func (t *CharacterTemplate) GetAlias(varname string) string {
 	return varname
 }
 
-func (t *CharacterTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) *VMValue {
+func (t *CharacterTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*VMValue, bool) {
 	name := t.GetAlias(varname)
-	if val, exists := t.Defaults[name]; exists {
-		return VMValueNew(VMTypeInt64, val)
-	}
 
+	// 先计算computed
 	if expr, exists := t.DefaultsComputed[name]; exists {
 		ctx.SystemTemplate = t
 		r, _, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{
 			DefaultDiceSideNum: getDefaultDicePoints(ctx),
 		})
+
 		if err == nil {
-			return &r.VMValue
+			return &r.VMValue, r.Parser.Calculated
 		}
 	}
 
-	return VMValueNew(VMTypeInt64, int64(0))
+	if val, exists := t.Defaults[name]; exists {
+		return VMValueNew(VMTypeInt64, val), false
+	}
+
+	return VMValueNew(VMTypeInt64, int64(0)), false
+}
+
+func (t *CharacterTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) *VMValue {
+	a, _ := t.GetDefaultValueEx0(ctx, varname)
+	return a
 }
 
 func (t *CharacterTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, error) {
