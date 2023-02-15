@@ -1,7 +1,6 @@
 package dice
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -75,7 +74,6 @@ func (t *CharacterTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) *
 		r, _, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{
 			DefaultDiceSideNum: getDefaultDicePoints(ctx),
 		})
-		fmt.Println("!!!!", r, name, expr)
 		if err == nil {
 			return &r.VMValue
 		}
@@ -88,7 +86,6 @@ func (t *CharacterTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, erro
 	// 有showas的情况
 	if expr, exists := t.AttrSettings.ShowAs[k]; exists {
 		ctx.SystemTemplate = t
-		fmt.Println("!!!", expr)
 		r, _, err := ctx.Dice.ExprTextBase(expr, ctx, RollExtraFlags{
 			DefaultDiceSideNum: getDefaultDicePoints(ctx),
 		})

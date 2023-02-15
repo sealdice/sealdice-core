@@ -439,7 +439,6 @@ func (p *RollExpression) CodePop() {
 		}
 		p.TmpCodeStack = p.TmpCodeStack[:len(p.TmpCodeStack)-1]
 	}
-	fmt.Println("!!!!", p.TmpCodeStack)
 }
 
 func (p *RollExpression) AddStoreComputed(text string) {
