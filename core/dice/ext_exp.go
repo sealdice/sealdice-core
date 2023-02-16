@@ -76,6 +76,12 @@ func RegisterBuiltinExtExp(dice *Dice) {
 						if used[key] {
 							return nil
 						}
+						for _, n := range tmpl.AttrSettings.Ignores {
+							// 跳过忽略项
+							if n == key {
+								return nil
+							}
+						}
 						attrKeys2 = append(attrKeys2, key)
 						return nil
 					})
@@ -176,7 +182,7 @@ func RegisterBuiltinExtExp(dice *Dice) {
 				SetCardType(mctx, ctx.Group.System)
 
 			default:
-				if cardType != mctx.Group.System {
+				if cardType != "" && cardType != mctx.Group.System {
 					ReplyToSender(mctx, msg, fmt.Sprintf("当前卡规则为 %s，群规则为 %s。\n为避免误操作，请先换卡、或.st convert强制转卡，或使用.st clr清除数据", cardType, mctx.Group.System))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -200,14 +206,15 @@ func RegisterBuiltinExtExp(dice *Dice) {
 						//texts = append(texts, fmt.Sprintf("[%s]%s: %s %s [%s]", _type, name, val.ToString(), op, detail))
 						switch _type {
 						case "set":
-							def := tmpl.GetDefaultValueEx(mctx, name)
+							newname := tmpl.GetAlias(name)
+							def := tmpl.GetDefaultValueEx(mctx, newname)
 							if def.TypeId == val.TypeId && def.Value == val.Value {
 								// 与预设相同，放弃
 							} else {
 								toSetItems = append(toSetItems, struct {
 									name  string
 									value *VMValue
-								}{name: name, value: val})
+								}{name: newname, value: val})
 							}
 						case "mod":
 							newname := tmpl.GetAlias(name)
