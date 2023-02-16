@@ -1296,6 +1296,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
+			mctx.Player.TempValueAlias = &ac.Alias // 防止找不到hpmax
 
 			switch val {
 			case "":
