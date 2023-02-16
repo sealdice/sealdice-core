@@ -879,11 +879,13 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 				if !exists {
 					if ctx.SystemTemplate != nil {
 						var calculated bool
-						v2, calculated = ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+						var detail string
+						v2, detail, calculated = ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
 						if calculated && !e.Calculated {
 							e.Calculated = calculated
 						}
 						exists = v2 != nil
+						lastDetail = detail
 					}
 				}
 
@@ -960,7 +962,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 			if vType == VMTypeComputedValue {
 				// 解包计算属性
 				v2 := VMValue{vType, v, 0}
-				ret := v2.ComputedExecute(ctx)
+				ret, detail := v2.ComputedExecute(ctx)
 				if ret == nil {
 					cd, _ := v2.ReadComputed()
 					return nil, "", errors.New("E3: 获取计算属性异常: " + cd.Expr)
@@ -970,12 +972,13 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 						e.Calculated = calculated
 					}
 
+					lastDetail = detail
 					vType = ret.TypeId
 					v = ret.Value
 				}
 			}
 
-			if vType == VMTypeInt64 {
+			if vType == VMTypeInt64 && lastDetail == "" {
 				lastDetail = fmt.Sprintf("%d", v)
 			}
 
@@ -1013,10 +1016,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 			if v == nil {
 				if ctx.SystemTemplate != nil {
-					v2, calculated := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+					v2, detail, calculated := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
 					if calculated && !e.Calculated {
 						e.Calculated = calculated
 					}
+					lastDetail = detail
 
 					if v2 != nil {
 						vType = v2.TypeId
