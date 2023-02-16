@@ -431,18 +431,8 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
+		// 权限号设置
 		if mctx.Group != nil && mctx.Group.IsActive(mctx) {
-			for _, i := range mctx.Group.ActivatedExtList {
-				if i.OnMessageReceived != nil {
-					i.callWithJsCheck(mctx.Dice, func() {
-						i.OnMessageReceived(mctx, msg)
-					})
-				}
-			}
-		}
-
-		var cmdLst []string
-		if maybeCommand {
 			if mctx.Group != nil {
 				if msg.Sender.UserId == mctx.Group.InviteUserId {
 					mctx.PrivilegeLevel = 40 // 邀请者
@@ -467,7 +457,22 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			if d.MasterCheck(mctx.Player.UserId) {
 				mctx.PrivilegeLevel = 100
 			}
+		}
 
+		if mctx.Group != nil && mctx.Group.IsActive(mctx) {
+			if mctx.PrivilegeLevel != -30 {
+				for _, i := range mctx.Group.ActivatedExtList {
+					if i.OnMessageReceived != nil {
+						i.callWithJsCheck(mctx.Dice, func() {
+							i.OnMessageReceived(mctx, msg)
+						})
+					}
+				}
+			}
+		}
+
+		var cmdLst []string
+		if maybeCommand {
 			// 兼容模式检查
 			// 是的，永远使用兼容模式
 			if true || d.CommandCompatibleMode {
