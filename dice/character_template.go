@@ -63,34 +63,43 @@ func (t *CharacterTemplate) GetAlias(varname string) string {
 	return varname
 }
 
-func (t *CharacterTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*VMValue, bool) {
+func (t *CharacterTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*VMValue, string, bool) {
 	name := t.GetAlias(varname)
+	var detail string
 
 	// 先计算computed
 	if expr, exists := t.DefaultsComputed[name]; exists {
 		ctx.SystemTemplate = t
-		r, _, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{
+		r, detail2, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{
 			DefaultDiceSideNum: getDefaultDicePoints(ctx),
 		})
 
+		// 使用showAs的值覆盖detail
+		v, _ := t.GetShowAs0(ctx, name)
+		if v != nil {
+			detail = v.ToString()
+		}
+		if detail == "" {
+			detail = detail2
+		}
+
 		if err == nil {
-			return &r.VMValue, r.Parser.Calculated
+			return &r.VMValue, detail, r.Parser.Calculated
 		}
 	}
 
 	if val, exists := t.Defaults[name]; exists {
-		return VMValueNew(VMTypeInt64, val), false
+		return VMValueNew(VMTypeInt64, val), detail, false
 	}
 
-	return VMValueNew(VMTypeInt64, int64(0)), false
+	return VMValueNew(VMTypeInt64, int64(0)), detail, false
 }
 
 func (t *CharacterTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) *VMValue {
-	a, _ := t.GetDefaultValueEx0(ctx, varname)
+	a, _, _ := t.GetDefaultValueEx0(ctx, varname)
 	return a
 }
-
-func (t *CharacterTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, error) {
+func (t *CharacterTemplate) GetShowAs0(ctx *MsgContext, k string) (*VMValue, error) {
 	// 有showas的情况
 	if expr, exists := t.AttrSettings.ShowAs[k]; exists {
 		ctx.SystemTemplate = t
@@ -102,6 +111,16 @@ func (t *CharacterTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, erro
 		}
 		return nil, err
 	}
+	return nil, nil
+}
+
+func (t *CharacterTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, error) {
+	// 有showas的情况
+	v, err := t.GetShowAs0(ctx, k)
+	if v != nil || err != nil {
+		return v, err
+	}
+
 	// 显示本体
 	ch, _ := ctx.ChVarsGet()
 	_v, exists := ch.Get(k)
@@ -110,7 +129,7 @@ func (t *CharacterTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, erro
 	}
 
 	// 默认值
-	v := t.GetDefaultValueEx(ctx, k)
+	v = t.GetDefaultValueEx(ctx, k)
 	if v != nil {
 		return v, nil
 	}
