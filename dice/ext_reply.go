@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -18,7 +17,7 @@ func CustomReplyConfigRead(dice *Dice, filename string) (*ReplyConfig, error) {
 
 	if _, err := os.Stat(attrConfigFn); err == nil {
 		// 如果文件存在，那么读取
-		af, err := ioutil.ReadFile(attrConfigFn)
+		af, err := os.ReadFile(attrConfigFn)
 		if err == nil {
 			err = yaml.Unmarshal(af, rc)
 			if err != nil {
@@ -62,7 +61,7 @@ func CustomReplyConfigDelete(dice *Dice, filename string) bool {
 	if _, err := os.Stat(attrConfigFn); err == nil {
 		err := os.Remove(attrConfigFn)
 		if err == nil {
-			rcs := []*ReplyConfig{}
+			var rcs []*ReplyConfig
 			for _, i := range dice.CustomReplyConfig {
 				if i.Filename != filename {
 					rcs = append(rcs, i)
@@ -76,9 +75,9 @@ func CustomReplyConfigDelete(dice *Dice, filename string) bool {
 }
 
 func ReplyReload(dice *Dice) {
-	rcs := []*ReplyConfig{}
+	var rcs []*ReplyConfig
 	filenames := []string{"reply.yaml"}
-	filepath.Walk(dice.GetExtDataDir("reply"), func(path string, info fs.FileInfo, err error) error {
+	_ = filepath.Walk(dice.GetExtDataDir("reply"), func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
 			return fs.SkipDir
 		}

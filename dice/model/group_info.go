@@ -29,7 +29,9 @@ func GroupInfoSave(db *sqlitex.Pool, groupId string, updatedAt int64, data []byt
 	stmt := conn.Prep(`
 		replace into group_info (id, updated_at, data)
 		VALUES ($id, $updated_at, $data)`)
-	defer stmt.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt)
 
 	stmt.SetInt64("$updated_at", updatedAt)
 	stmt.SetBytes("$data", data)
@@ -49,7 +51,7 @@ func GroupPlayerNumGet(db *sqlitex.Pool, groupId string) int64 {
 	defer func() { db.Put(conn) }()
 
 	var ret int64
-	sqlitex.ExecuteTransient(conn, `select count(id) from group_player_info where group_id=$group_id`, &sqlitex.ExecOptions{
+	_ = sqlitex.ExecuteTransient(conn, `select count(id) from group_player_info where group_id=$group_id`, &sqlitex.ExecOptions{
 		Named: map[string]interface{}{
 			"$group_id": groupId,
 		},
@@ -95,7 +97,7 @@ func GroupPlayerInfoGet(db *sqlitex.Pool, groupId string, playerId string) *Grou
 	defer func() { db.Put(conn) }()
 
 	var ret *GroupPlayerInfoBase
-	sqlitex.ExecuteTransient(conn, `select name, updated_at, last_command_time, auto_set_name_template, dice_side_num from group_info where group_id=$group_id and user_id=$user_id`, &sqlitex.ExecOptions{
+	_ = sqlitex.ExecuteTransient(conn, `select name, updated_at, last_command_time, auto_set_name_template, dice_side_num from group_info where group_id=$group_id and user_id=$user_id`, &sqlitex.ExecOptions{
 		Named: map[string]interface{}{
 			"$group_id": groupId,
 			"$user_id":  playerId,
@@ -125,7 +127,9 @@ func GroupPlayerInfoSave(db *sqlitex.Pool, groupId string, playerId string, info
 	stmt := conn.Prep(`
 		replace into group_player_info (name, updated_at, last_command_time, auto_set_name_template, dice_side_num, group_id, user_id)
 		VALUES ($name, $updated_at, $last_command_time, $auto_set_name_template, $dice_side_num, $group_id, $user_id)`)
-	defer stmt.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt)
 
 	// $name, $updated_at, $last_command_time, $auto_set_name_template, $dice_side_num
 	stmt.SetText("$name", info.Name)

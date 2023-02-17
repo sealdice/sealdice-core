@@ -43,7 +43,7 @@ func GetHexData(c echo.Context, method string, name string) (value []byte, finis
 
 	value, err = hex.DecodeString(strValue)
 	if err != nil {
-		c.String(http.StatusBadRequest, "")
+		_ = c.String(http.StatusBadRequest, "")
 		return nil, true
 	}
 

@@ -442,7 +442,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					re := regexp.MustCompile(`\n回答:([^\n]+)`)
 					m := re.FindAllStringSubmatch(comment, -1)
 
-					items := []string{}
+					var items []string
 					for _, i := range m {
 						items = append(items, i[1])
 					}
@@ -819,9 +819,9 @@ func (pa *PlatformAdapterQQOnebot) SetEnable(enable bool) {
 			GoCqHttpServeProcessKill(d, c)
 			time.Sleep(1 * time.Second)
 			GoCqHttpServe(d, c, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
-			go DiceServeQQ(d, c)
+			go ServeQQ(d, c)
 		} else {
-			go DiceServeQQ(d, c)
+			go ServeQQ(d, c)
 		}
 	} else {
 		c.Enable = false
@@ -848,7 +848,7 @@ func (pa *PlatformAdapterQQOnebot) SetQQProtocol(protocol int) bool {
 			info["protocol"] = protocol
 			data, err := json.Marshal(info)
 			if err == nil {
-				os.WriteFile(deviceFilePath, data, 0644)
+				_ = os.WriteFile(deviceFilePath, data, 0644)
 				return true
 			}
 		}

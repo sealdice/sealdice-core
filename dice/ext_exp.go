@@ -55,7 +55,7 @@ func RegisterBuiltinExtExp(dice *Dice) {
 					info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
 				} else {
 					// 按照配置文件排序
-					attrKeys := []string{}
+					var attrKeys []string
 					used := map[string]bool{}
 					for _, key := range tmpl.AttrSettings.Top {
 						if used[key] {
@@ -67,7 +67,7 @@ func RegisterBuiltinExtExp(dice *Dice) {
 
 					// 其余按字典序
 					topNum := len(attrKeys)
-					attrKeys2 := []string{}
+					var attrKeys2 []string
 
 					vars, _ := mctx.ChVarsGet()
 					_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
@@ -140,7 +140,7 @@ func RegisterBuiltinExtExp(dice *Dice) {
 
 				if useLimit {
 					VarSetValueInt64(mctx, "$t数量", int64(limktSkipCount))
-					VarSetValueInt64(mctx, "$t判定值", int64(limit))
+					VarSetValueInt64(mctx, "$t判定值", limit)
 					info += DiceFormatTmpl(mctx, "COC:属性设置_列出_隐藏提示")
 					//info += fmt.Sprintf("\n注：%d条属性因≤%d被隐藏", limktSkipCount, limit)
 				}
