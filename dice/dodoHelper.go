@@ -17,7 +17,7 @@ func NewDodoConnItem(clientID string, token string) *EndPointInfo {
 	return conn
 }
 
-func DiceServeDodo(d *Dice, ep *EndPointInfo) {
+func ServeDodo(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "DODO" {
 		conn := ep.Adapter.(*PlatformAdapterDodo)

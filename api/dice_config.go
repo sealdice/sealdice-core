@@ -287,7 +287,7 @@ func DiceConfigSet(c echo.Context) error {
 		if val, ok := jsonMap["extDefaultSettings"]; ok {
 			data, err := json.Marshal(val)
 			if err == nil {
-				items := []*dice.ExtDefaultSettingItem{}
+				var items []*dice.ExtDefaultSettingItem
 				err := json.Unmarshal(data, &items)
 				if err == nil {
 					myDice.ExtDefaultSettings = items

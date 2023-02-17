@@ -6,7 +6,6 @@ import (
 	"github.com/fy0/lockfree"
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -85,7 +84,7 @@ type DiceConfigs struct {
 
 func (dm *DiceManager) InitHelp() {
 	dm.IsHelpReloading = true
-	os.MkdirAll("./data/helpdoc", 0755)
+	_ = os.MkdirAll("./data/helpdoc", 0755)
 	dm.Help = new(HelpManager)
 	dm.Help.Parent = dm
 	dm.Help.EngineType = dm.HelpDocEngineType
@@ -101,11 +100,11 @@ func (dm *DiceManager) LoadDice() {
 	dm.UserNameCache = lockfree.NewHashMap()
 	dm.UserIdCache = lockfree.NewHashMap()
 
-	os.MkdirAll("./backups", 0755)
-	os.MkdirAll("./data/images", 0755)
-	os.MkdirAll("./data/decks", 0755)
-	os.MkdirAll("./data/names", 0755)
-	ioutil.WriteFile("./data/images/sealdice.png", ICON_PNG, 0644)
+	_ = os.MkdirAll("./backups", 0755)
+	_ = os.MkdirAll("./data/images", 0755)
+	_ = os.MkdirAll("./data/decks", 0755)
+	_ = os.MkdirAll("./data/names", 0755)
+	_ = os.WriteFile("./data/images/sealdice.png", ICON_PNG, 0644)
 
 	// this can be shared by multiple runtimes
 	dm.JsRegistry = new(require.Registry)
@@ -121,7 +120,7 @@ func (dm *DiceManager) LoadDice() {
 	dm.AutoBackupEnable = true
 	dm.AutoBackupTime = "@every 12h" // 每12小时一次
 
-	data, err := ioutil.ReadFile("./data/dice.yaml")
+	data, err := os.ReadFile("./data/dice.yaml")
 	if err != nil {
 		// 注意！！！！ 这里会退出，所以下面的都可能不执行！
 		return
@@ -185,7 +184,7 @@ func (dm *DiceManager) Save() {
 
 	data, err := yaml.Marshal(dc)
 	if err == nil {
-		ioutil.WriteFile("./data/dice.yaml", data, 0644)
+		_ = os.WriteFile("./data/dice.yaml", data, 0644)
 	}
 }
 

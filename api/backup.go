@@ -27,7 +27,7 @@ func backupGetList(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	items := []*backupFileItem{}
+	var items []*backupFileItem
 	filepath.Walk("./backups", func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() {
 			items = append(items, &backupFileItem{
