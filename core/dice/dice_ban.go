@@ -97,7 +97,7 @@ func (i *BanListInfo) AfterLoads() {
 		if d.DBData == nil {
 			return
 		}
-		toDelete := []string{}
+		var toDelete []string
 		d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
 			if v.Rank == BanRankNormal || v.Rank == BanRankWarn {
 				v.Score -= i.ScoreReducePerMinute
@@ -111,7 +111,7 @@ func (i *BanListInfo) AfterLoads() {
 		})
 		for _, j := range toDelete {
 			i.Map.Delete(j)
-			model.BanItemDel(d.DBData, j)
+			_ = model.BanItemDel(d.DBData, j)
 		}
 
 		d.BanList.SaveChanged(d)
@@ -324,7 +324,7 @@ func (i *BanListInfo) SaveChanged(d *Dice) {
 		if v.UpdatedAt != 0 {
 			data, err := json.Marshal(v)
 			if err == nil {
-				model.BanItemSave(d.DBData, k, v.UpdatedAt, v.BanUpdatedAt, data)
+				_ = model.BanItemSave(d.DBData, k, v.UpdatedAt, v.BanUpdatedAt, data)
 				v.UpdatedAt = 0
 			}
 		}
@@ -334,5 +334,5 @@ func (i *BanListInfo) SaveChanged(d *Dice) {
 
 func (i *BanListInfo) DeleteById(d *Dice, id string) {
 	i.Map.Delete(id)
-	model.BanItemDel(d.DBData, id)
+	_ = model.BanItemDel(d.DBData, id)
 }

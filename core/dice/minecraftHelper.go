@@ -16,7 +16,7 @@ func NewMinecraftConnItem(url string) *EndPointInfo {
 	return conn
 }
 
-func DiceServeMinecraft(d *Dice, ep *EndPointInfo) {
+func ServeMinecraft(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "MC" {
 		conn := ep.Adapter.(*PlatformAdapterMinecraft)

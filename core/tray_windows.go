@@ -112,7 +112,9 @@ func onReady() {
 	mQuit := systray.AddMenuItem("退出", "退出程序")
 	mOpen.SetIcon(icon.Data)
 
-	go beeep.Notify("SealDice", "我藏在托盘区域了，点我的小图标可以快速打开UI", "assets/information.png")
+	go func() {
+		_ = beeep.Notify("SealDice", "我藏在托盘区域了，点我的小图标可以快速打开UI", "assets/information.png")
+	}()
 
 	// 自启动检查
 	go func() {
@@ -134,7 +136,7 @@ func onReady() {
 	for {
 		select {
 		case <-mOpen.ClickedCh:
-			exec.Command(`cmd`, `/c`, `start`, `http://localhost:`+_trayPortStr).Start()
+			_ = exec.Command(`cmd`, `/c`, `start`, `http://localhost:`+_trayPortStr).Start()
 		case <-mQuit.ClickedCh:
 			systray.Quit()
 			systrayQuited = true
@@ -208,7 +210,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 			resp := c.Send()
 			if resp.OK() {
 				time.Sleep(1 * time.Second)
-				exec.Command(`cmd`, `/c`, `start`, url).Start()
+				_ = exec.Command(`cmd`, `/c`, `start`, url).Start()
 			}
 		}
 	}

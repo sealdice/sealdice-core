@@ -19,8 +19,8 @@ type VMDndComputedValueData struct {
 	Expr      string  `json:"expr"`
 }
 
-func (cv *VMDndComputedValueData) SetValue(v *VMValue) {
-	cv.BaseValue = *v
+func (vd *VMDndComputedValueData) SetValue(v *VMValue) {
+	vd.BaseValue = *v
 }
 
 func (vd *VMDndComputedValueData) ReadBaseInt64() (int64, bool) {

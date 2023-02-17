@@ -31,7 +31,9 @@ func MainLoggerInit(path string, enableConsoleLog bool) {
 	core := zapcore.NewTee(cores...)
 
 	loggerRaw := zap.New(core, zap.AddCaller())
-	defer loggerRaw.Sync() // flushes buffer, if any
+	defer func(loggerRaw *zap.Logger) {
+		_ = loggerRaw.Sync()
+	}(loggerRaw) // flushes buffer, if any
 
 	logger = loggerRaw.Sugar()
 	logger.Infow("核心日志开始记录")

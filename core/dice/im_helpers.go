@@ -43,7 +43,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 	} else {
 		// 设定扩展情况
 		sort.Sort(ExtDefaultSettingItemSlice(session.Parent.ExtDefaultSettings))
-		extLst := []*ExtInfo{}
+		var extLst []*ExtInfo
 		for _, i := range session.Parent.ExtDefaultSettings {
 			if i.ExtItem != nil {
 				if i.AutoActive {
