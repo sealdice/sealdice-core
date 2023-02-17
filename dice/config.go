@@ -1487,7 +1487,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 		extInfo, exists := exts2[k]
 		if exists {
 			v.ExtItem = extInfo
-			extInfo.defaultSetting = v
+			extInfo.DefaultSetting = v
 
 			// 为了避免锁问题，这里做一个新的map
 			m := map[string]bool{}

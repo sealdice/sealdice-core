@@ -272,7 +272,7 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.Save(false)
-		go dice.DiceServeDiscord(myDice, conn)
+		go dice.ServeDiscord(myDice, conn)
 		return c.JSON(200, conn)
 	}
 	return c.String(430, "")
@@ -295,7 +295,7 @@ func ImConnectionsAddKook(c echo.Context) error {
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.Save(false)
-		go dice.DiceServeKook(myDice, conn)
+		go dice.ServeKook(myDice, conn)
 		return c.JSON(200, conn)
 	}
 	return c.String(430, "")
@@ -318,7 +318,7 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.Save(false)
-		go dice.DiceServeTelegram(myDice, conn)
+		go dice.ServeTelegram(myDice, conn)
 		return c.JSON(200, conn)
 	}
 	return c.String(430, "")
@@ -340,7 +340,7 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.Save(false)
-		go dice.DiceServeMinecraft(myDice, conn)
+		go dice.ServeMinecraft(myDice, conn)
 		return c.JSON(200, conn)
 	}
 	return c.String(430, "")
@@ -363,7 +363,7 @@ func ImConnectionsAddDodo(c echo.Context) error {
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.Save(false)
-		go dice.DiceServeDodo(myDice, conn)
+		go dice.ServeDodo(myDice, conn)
 		return c.JSON(200, conn)
 	}
 	return c.String(430, "")

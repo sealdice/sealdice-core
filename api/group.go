@@ -11,7 +11,7 @@ import (
 )
 
 func groupList(c echo.Context) error {
-	items := []*dice.GroupInfo{}
+	var items []*dice.GroupInfo
 	for index, i := range myDice.ImSession.ServiceAtNew {
 		if !strings.HasPrefix(i.GroupId, "PG-") {
 			item := myDice.ImSession.ServiceAtNew[index]
@@ -19,7 +19,7 @@ func groupList(c echo.Context) error {
 				if item.NotInGroup {
 					continue
 				}
-				exts := []string{}
+				var exts []string
 				item.TmpPlayerNum = model.GroupPlayerNumGet(myDice.DBData, item.GroupId)
 				//item.TmpPlayerNum = int64(len(i.Players))
 				for _, i := range item.ActivatedExtList {

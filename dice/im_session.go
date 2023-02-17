@@ -201,26 +201,26 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *CharacterTemplate {
 }
 
 type EndPointInfoBase struct {
-	Id                  string `yaml:"id" json:"id"` // uuid
-	Nickname            string `yaml:"nickname" json:"nickname"`
-	State               int    `yaml:"state" json:"state"` // 状态 0 断开 1已连接 2连接中 3连接失败
-	UserId              string `yaml:"userId" json:"userId"`
-	GroupNum            int64  `yaml:"groupNum" json:"groupNum"`                       // 拥有群数
-	CmdExecutedNum      int64  `yaml:"cmdExecutedNum" json:"cmdExecutedNum"`           // 指令执行次数
-	CmdExecutedLastTime int64  `yaml:"cmdExecutedLastTime" json:"cmdExecutedLastTime"` // 指令执行次数
-	OnlineTotalTime     int64  `yaml:"onlineTotalTime" json:"onlineTotalTime"`         // 在线时长
+	Id                  string `yaml:"id" json:"id" jsbind:"id"` // uuid
+	Nickname            string `yaml:"nickname" json:"nickname" jsbind:"nickname"`
+	State               int    `yaml:"state" json:"state" jsbind:"state"` // 状态 0 断开 1已连接 2连接中 3连接失败
+	UserId              string `yaml:"userId" json:"userId" jsbind:"userId"`
+	GroupNum            int64  `yaml:"groupNum" json:"groupNum" jsbind:"groupNum"`                                  // 拥有群数
+	CmdExecutedNum      int64  `yaml:"cmdExecutedNum" json:"cmdExecutedNum" jsbind:"cmdExecutedNum"`                // 指令执行次数
+	CmdExecutedLastTime int64  `yaml:"cmdExecutedLastTime" json:"cmdExecutedLastTime" jsbind:"cmdExecutedLastTime"` // 指令执行次数
+	OnlineTotalTime     int64  `yaml:"onlineTotalTime" json:"onlineTotalTime" jsbind:"onlineTotalTime"`             // 在线时长
 
-	Platform     string `yaml:"platform" json:"platform"`     // 平台，如QQ等
-	RelWorkDir   string `yaml:"relWorkDir" json:"relWorkDir"` // 工作目录
-	Enable       bool   `yaml:"enable" json:"enable"`         // 是否启用
-	ProtocolType string `yaml:"protocolType"`                 // 协议类型，如onebot、koishi等
+	Platform     string `yaml:"platform" json:"platform" jsbind:"platform"` // 平台，如QQ等
+	RelWorkDir   string `yaml:"relWorkDir" json:"relWorkDir"`               // 工作目录
+	Enable       bool   `yaml:"enable" json:"enable" jsbind:"enable"`       // 是否启用
+	ProtocolType string `yaml:"protocolType"`                               // 协议类型，如onebot、koishi等
 
 	IsPublic bool       `yaml:"isPublic"`
 	Session  *IMSession `yaml:"-" json:"-"`
 }
 
 type EndPointInfo struct {
-	EndPointInfoBase `yaml:"baseInfo"`
+	EndPointInfoBase `yaml:"baseInfo" jsbind:"baseInfo"`
 
 	Adapter PlatformAdapter `yaml:"adapter" json:"adapter"`
 }
@@ -315,7 +315,7 @@ type MsgContext struct {
 	Group       *GroupInfo       `jsbind:"group"`  // 当前群信息
 	Player      *GroupPlayerInfo `jsbind:"player"` // 当前群的玩家数据
 
-	EndPoint        *EndPointInfo // 对应的Endpoint
+	EndPoint        *EndPointInfo `jsbind:"endPoint"` // 对应的Endpoint
 	Session         *IMSession    // 对应的IMSession
 	Dice            *Dice         // 对应的 Dice
 	IsCurGroupBotOn bool          `jsbind:"isCurGroupBotOn"` // 在群内是否bot on
@@ -709,7 +709,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 	tryItemSolve := func(ext *ExtInfo, item *CmdItemInfo) bool {
 		if item != nil {
-			if ext != nil && ext.defaultSetting.DisabledCommand[item.Name] {
+			if ext != nil && ext.DefaultSetting.DisabledCommand[item.Name] {
 				ReplyToSender(ctx, msg, fmt.Sprintf("此指令已被骰主禁用: %s:%s", ext.Name, item.Name))
 				return true
 			}

@@ -16,7 +16,7 @@ func NewKookConnItem(token string) *EndPointInfo {
 	return conn
 }
 
-func DiceServeKook(d *Dice, ep *EndPointInfo) {
+func ServeKook(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "KOOK" {
 		conn := ep.Adapter.(*PlatformAdapterKook)

@@ -380,7 +380,7 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			qrcodeFile := filepath.Join(workDir, "qrcode.png")
 			if _, err := os.Stat(qrcodeFile); err == nil {
 				// 如果已经存在二维码文件，将其删除
-				os.Remove(qrcodeFile)
+				_ = os.Remove(qrcodeFile)
 				dice.Logger.Info("onebot: 删除已存在的二维码文件")
 			}
 
@@ -389,8 +389,8 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 				p := pa.GoCqHttpProcess
 				pa.GoCqHttpProcess = nil
 				//sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
-				p.Stop()
-				p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
+				_ = p.Stop()
+				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
 			}
 		}
 	}()
@@ -399,7 +399,7 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 	if _, err := os.Stat(filepath.Join(workDir, "session.token")); err == nil {
-		os.Remove(filepath.Join(workDir, "session.token"))
+		_ = os.Remove(filepath.Join(workDir, "session.token"))
 	}
 }
 
@@ -415,14 +415,14 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 
 	fmt.Println("GoCqHttpServe begin")
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
-	os.MkdirAll(workDir, 0755)
+	_ = os.MkdirAll(workDir, 0755)
 
 	qrcodeFile := filepath.Join(workDir, "qrcode.png")
 	deviceFilePath := filepath.Join(workDir, "device.json")
 	configFilePath := filepath.Join(workDir, "config.yml")
 	if _, err := os.Stat(qrcodeFile); err == nil {
 		// 如果已经存在二维码文件，将其删除
-		os.Remove(qrcodeFile)
+		_ = os.Remove(qrcodeFile)
 		dice.Logger.Info("onebot: 删除已存在的二维码文件")
 	}
 
@@ -430,15 +430,15 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	if !pa.GoCqHttpLoginSucceeded {
 		// 并未登录成功，删除记录文件
 		dice.Logger.Info("onebot: 之前并未登录成功，删除设备文件和配置文件")
-		os.Remove(configFilePath)
-		os.Remove(deviceFilePath)
+		_ = os.Remove(configFilePath)
+		_ = os.Remove(deviceFilePath)
 	}
 
 	// 创建设备配置文件
 	if _, err := os.Stat(deviceFilePath); errors.Is(err, os.ErrNotExist) {
 		deviceInfo, err := GenerateDeviceJson(protocol)
 		if err == nil {
-			os.WriteFile(deviceFilePath, deviceInfo, 0644)
+			_ = os.WriteFile(deviceFilePath, deviceInfo, 0644)
 			dice.Logger.Info("onebot: 成功创建设备文件")
 		}
 	}
@@ -451,7 +451,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		pa.ConnectUrl = fmt.Sprintf("ws://localhost:%d", p)
 		qqid, _ := pa.mustExtractId(conn.UserId)
 		c := GenerateConfig(qqid, password, p)
-		os.WriteFile(configFilePath, []byte(c), 0644)
+		_ = os.WriteFile(configFilePath, []byte(c), 0644)
 	}
 
 	// 启动客户端
@@ -476,7 +476,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
 				// 注: 这里不要调用kill
 				isSeldKilling = true
-				p.Stop()
+				_ = p.Stop()
 			}
 			return ""
 		}
@@ -515,7 +515,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 
 			if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
 				fmt.Println("!!!!!!!!!!!!!!!!!!!! 短信验证码")
-				p.Cmds[0].Stdout.Write([]byte("\n"))
+				_, _ = p.Cmds[0].Stdout.Write([]byte("\n"))
 			}
 
 			if strings.Contains(line, "发送验证码失败，可能是请求过于频繁.") {
@@ -531,7 +531,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				pa.GoCqHttpLoginSucceeded = true
 				dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserId)
 
-				go DiceServeQQ(dice, conn)
+				go ServeQQ(dice, conn)
 			}
 		}
 
@@ -628,7 +628,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				pa.GoCqHttpState = GoCqHttpStateCodeInLoginQrCode
 				pa.GoCqHttpQrcodeData = qrdata
 				dice.Logger.Info("获取二维码成功")
-				os.Rename(qrcodeFile, qrcodeFile+".bak.png")
+				_ = os.Rename(qrcodeFile, qrcodeFile+".bak.png")
 			} else {
 				pa.GoCqHttpQrcodeData = nil
 				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
@@ -656,7 +656,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 					dice.Logger.Warn("添加到进程组失败，若主进程崩溃，gocqhttp进程可能需要手动结束")
 				}
 			}
-			p.Wait()
+			_ = p.Wait()
 		}
 
 		isInLogin := pa.IsInLogin()
@@ -686,7 +686,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 }
 
 // 注意：放在这里并不科学，记得重构
-func DiceServeQQ(d *Dice, ep *EndPointInfo) {
+func ServeQQ(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "QQ" {
 		conn := ep.Adapter.(*PlatformAdapterQQOnebot)
@@ -746,7 +746,7 @@ func DiceServeQQ(d *Dice, ep *EndPointInfo) {
 			}
 
 			//d.Logger.Infof("onebot 连接失败[%d/%d]，将在15秒后重新连接，帐号 <%s>(%s)", waitTimes, 5, ep.Nickname, ep.UserId)
-			time.Sleep(time.Duration(15 * time.Second))
+			time.Sleep(15 * time.Second)
 		}
 	}
 }

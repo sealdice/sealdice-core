@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fy0/lockfree"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -66,7 +65,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		}
 
 		groupMsgInfoLastClean = now
-		toDelete := []interface{}{}
+		var toDelete []interface{}
 		_ = groupMsgInfo.Iterate(func(_k interface{}, _v interface{}) error {
 			t, ok := _v.(int64)
 			if ok {
@@ -179,7 +178,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						group.UpdatedAtTime = time.Now().Unix()
 
 						VarSetValueStr(ctx, "$t记录名称", name)
-						VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
+						VarSetValueInt64(ctx, "$t当前记录条数", lines)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_成功"))
 					} else {
 						VarSetValueStr(ctx, "$t记录名称", name)
@@ -195,7 +194,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					group.UpdatedAtTime = time.Now().Unix()
 					lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupId, group.LogCurName)
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
-					VarSetValueInt64(ctx, "$t当前记录条数", int64(lines))
+					VarSetValueInt64(ctx, "$t当前记录条数", lines)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_成功"))
 				} else {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
@@ -560,7 +559,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Author:     "木落",
 		AutoActive: true,
 		OnLoad: func() {
-			os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "logs"), 0755)
+			_ = os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "logs"), 0755)
 		},
 		OnMessageSend: func(ctx *MsgContext, messageType string, userId string, text string, flag string) {
 			// 记录骰子发言
@@ -686,7 +685,7 @@ func filenameReplace(name string) string {
 
 func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, error) {
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "logs")
-	os.MkdirAll(dirpath, 0755)
+	_ = os.MkdirAll(dirpath, 0755)
 
 	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupId, logName)
 
@@ -696,7 +695,7 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 
 	if err == nil {
 		// 本地进行一个zip留档，以防万一
-		fzip, _ := ioutil.TempFile(dirpath, filenameReplace(groupId+"_"+logName)+".*.zip")
+		fzip, _ := os.CreateTemp(dirpath, filenameReplace(groupId+"_"+logName)+".*.zip")
 		writer := zip.NewWriter(fzip)
 
 		text := ""
@@ -706,7 +705,7 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 		}
 
 		fileWriter, _ := writer.Create("文本log.txt")
-		fileWriter.Write([]byte(text))
+		_, _ = fileWriter.Write([]byte(text))
 
 		data, err := json.Marshal(map[string]interface{}{
 			"version": 100,
@@ -714,7 +713,7 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 		})
 		if err == nil {
 			fileWriter2, _ := writer.Create("海豹标准log-粘贴到染色器可格式化.txt")
-			fileWriter2.Write(data)
+			_, _ = fileWriter2.Write(data)
 		}
 
 		_ = writer.Close()
@@ -731,8 +730,8 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 		if err == nil {
 			var zlibBuffer bytes.Buffer
 			w := zlib.NewWriter(&zlibBuffer)
-			w.Write(data)
-			w.Close()
+			_, _ = w.Write(data)
+			_ = w.Close()
 
 			return UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserId, &zlibBuffer), nil
 		}
@@ -891,7 +890,7 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 		texts += fmt.Sprintf("<%v>当前团内检定情况:\n", k)
 		success := map[string]int{}
 		failed := map[string]int{}
-		others := []string{}
+		var others []string
 
 		oldVal := map[string]int{}
 		newVal := map[string]int{}
@@ -912,7 +911,7 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 
 		// 排序: 一次挑选一个最大的，直到结束
 		doSort := func(m map[string]int) []string {
-			ret := []string{}
+			var ret []string
 			for len(m) > 0 {
 				val := -1
 				theKey := ""

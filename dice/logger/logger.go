@@ -74,7 +74,9 @@ func LoggerInit(path string, name string, enableConsoleLog bool) *LogInfo {
 	core := zapcore.NewTee(cores...)
 
 	loggerRaw := zap.New(core, zap.AddCaller())
-	defer loggerRaw.Sync() // flushes buffer, if any
+	defer func(loggerRaw *zap.Logger) {
+		_ = loggerRaw.Sync()
+	}(loggerRaw) // flushes buffer, if any
 
 	logger := loggerRaw.Sugar()
 	logger.Infow("Dice日志开始记录")

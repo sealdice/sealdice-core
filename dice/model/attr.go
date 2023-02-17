@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"time"
+	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
 )
 
@@ -12,7 +13,9 @@ func attrGetAllBase(db *sqlitex.Pool, bucket string, key string) []byte {
 	defer func() { db.Put(conn) }()
 
 	stmt := conn.Prep(`select updated_at, data from ` + bucket + ` where id=$id`)
-	defer stmt.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt)
 	stmt.SetText("$id", key)
 
 	var buf []byte
@@ -36,7 +39,9 @@ func attrSave(db *sqlitex.Pool, bucket string, key string, data []byte) {
 	defer func() { db.Put(conn) }()
 
 	stmt := conn.Prep(`replace into ` + bucket + ` (id, updated_at, data) VALUES ($id, $updated_at, $data)`)
-	defer stmt.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt)
 
 	// $id, $updated_at, $data
 	now := time.Now()
@@ -82,6 +87,6 @@ func AttrUserSave(db *sqlitex.Pool, userId string, data []byte) {
 // itob returns an 8-byte big endian representation of v.
 func itob(v uint64) []byte {
 	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(v))
+	binary.BigEndian.PutUint64(b, v)
 	return b
 }

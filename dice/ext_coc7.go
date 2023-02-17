@@ -1989,7 +1989,7 @@ func setupConfig(d *Dice) AttributeConfigs {
 		if err != nil {
 			fmt.Println(err)
 		} else {
-			ioutil.WriteFile(attrConfigFn, buf, 0644)
+			_ = os.WriteFile(attrConfigFn, buf, 0644)
 		}
 		return defaultVals
 	}

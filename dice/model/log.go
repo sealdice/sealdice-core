@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"time"
+	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
 )
 
@@ -29,7 +30,9 @@ func LogGetList(db *sqlitex.Pool, groupId string) ([]string, error) {
 	lst := []string{}
 	stmt := conn.Prep(`select name from logs where group_id=$group_id order by updated_at desc`)
 	stmt.SetText("$group_id", groupId)
-	defer stmt.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt)
 
 	var err error
 	var hasRow bool
@@ -54,7 +57,9 @@ func LogGetIdByGroupIdAndName(db *sqlitex.Pool, groupId string, logName string) 
 	stmt := conn.Prep(`select id from logs where group_id=$group_id and name=$name`)
 	stmt.SetText("$group_id", groupId)
 	stmt.SetText("$name", logName)
-	defer stmt.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt)
 
 	var hasRow bool
 
@@ -90,7 +95,9 @@ func LogGetAllLines(db *sqlitex.Pool, groupId string, logName string) ([]*LogOne
 		select id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id, removed, parent_id
 		from log_items where log_id=$log_id order by time asc`)
 	stmt.SetInt64("$log_id", logId)
-	defer stmt.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt)
 
 	var hasRow bool
 	for {
@@ -147,7 +154,9 @@ func LogLinesCountGet(db *sqlitex.Pool, groupId string, logName string) (int64, 
 	// 注: 这样查询和二重查询花的时间是一样的，removed没有index
 	stmt := conn.Prep(`select count(id) from log_items where log_id=$log_id and removed is null`)
 	stmt.SetInt64("$log_id", logId)
-	defer stmt.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt)
 
 	var hasRow bool
 	var count int64
@@ -179,7 +188,9 @@ func LogDelete(db *sqlitex.Pool, groupId string, logName string) bool {
 
 	// 取得了id，获取列表
 	stmt := conn.Prep(`delete from log_items where log_id=$log_id`)
-	defer stmt.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt)
 	stmt.SetInt64("$log_id", logId)
 	for {
 		if hasRow, err := stmt.Step(); err != nil {
@@ -190,7 +201,9 @@ func LogDelete(db *sqlitex.Pool, groupId string, logName string) bool {
 	}
 
 	stmt2 := conn.Prep(`delete from logs where id=$log_id`)
-	defer stmt2.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt2)
 	stmt2.SetInt64("$log_id", logId)
 	for {
 		if hasRow, err := stmt2.Step(); err != nil {
@@ -220,7 +233,9 @@ func LogAppend(db *sqlitex.Pool, groupId string, logName string, logItem *LogOne
 	if logId == 0 {
 		// 创建
 		stmt := conn.Prep(`insert into logs (name, group_id, created_at, updated_at) VALUES ($name, $group_id, $created_at, $updated_at)`)
-		defer stmt.Finalize()
+		defer func(stmt *sqlite.Stmt) {
+			_ = stmt.Finalize()
+		}(stmt)
 		stmt.SetText("$name", logName)
 		stmt.SetText("$group_id", groupId)
 		stmt.SetInt64("$created_at", nowTimestamp)
@@ -237,7 +252,9 @@ func LogAppend(db *sqlitex.Pool, groupId string, logName string, logItem *LogOne
 
 	// 添加一条信息
 	stmt2 := conn.Prep(`insert into log_items (log_id, group_id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id) VALUES ($log_id, $group_id, $nickname, $im_userid, $time, $message, $is_dice, $command_id, $command_info, $raw_msg_id, $user_uniform_id)`)
-	defer stmt2.Finalize()
+	defer func(stmt *sqlite.Stmt) {
+		_ = stmt.Finalize()
+	}(stmt2)
 	stmt2.SetInt64("$log_id", logId)
 	stmt2.SetText("$group_id", groupId)
 	stmt2.SetText("$nickname", logItem.Nickname)

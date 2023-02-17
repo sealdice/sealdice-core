@@ -6,7 +6,6 @@ import (
 	"github.com/monaco-io/request"
 	"go.uber.org/zap"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"strings"
@@ -65,8 +64,8 @@ func uploadFileToWeizaimaBase(backendUrl string, log *zap.SugaredLogger, name st
 	}
 
 	part, _ := writer.CreateFormFile("file", "log-zlib-compressed")
-	io.Copy(part, data)
-	writer.Close()
+	_, _ = io.Copy(part, data)
+	_ = writer.Close()
 
 	req, err := http.NewRequest("PUT", backendUrl+"/dice/api/log", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -82,8 +81,10 @@ func uploadFileToWeizaimaBase(backendUrl string, log *zap.SugaredLogger, name st
 		return ""
 	}
 
-	defer resp.Body.Close()
-	bodyText, err := ioutil.ReadAll(resp.Body)
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Errorf(err.Error())
 		return ""

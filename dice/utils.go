@@ -9,7 +9,6 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -186,7 +185,9 @@ func GetRandomFreePort() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer l.Close()
+	defer func(l *net.TCPListener) {
+		_ = l.Close()
+	}(l)
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
@@ -343,7 +344,9 @@ var SetCocRuleText = map[int]string{
 func isDeckFile(source string) bool {
 	// 1. Open the zip file
 	reader, err := zip.OpenReader(source)
-	defer reader.Close()
+	defer func(reader *zip.ReadCloser) {
+		_ = reader.Close()
+	}(reader)
 	if err != nil {
 		return false
 	}
@@ -371,7 +374,7 @@ func unzipSource(source, destination string) error {
 	}
 	defer func() {
 		if reader != nil {
-			reader.Close()
+			_ = reader.Close()
 		}
 	}()
 
@@ -389,7 +392,7 @@ func unzipSource(source, destination string) error {
 		} else {
 			i := bytes.NewReader([]byte(f.Name))
 			decoder := transform.NewReader(i, simplifiedchinese.GB18030.NewDecoder())
-			content, _ := ioutil.ReadAll(decoder)
+			content, _ := io.ReadAll(decoder)
 			f.Name = string(content)
 		}
 
@@ -427,14 +430,18 @@ func unzipFile(f *zip.File, destination string) error {
 	if err != nil {
 		return err
 	}
-	defer destinationFile.Close()
+	defer func(destinationFile *os.File) {
+		_ = destinationFile.Close()
+	}(destinationFile)
 
 	// 7. Unzip the content of a file and copy it to the destination file
 	zippedFile, err := f.Open()
 	if err != nil {
 		return err
 	}
-	defer zippedFile.Close()
+	defer func(zippedFile io.ReadCloser) {
+		_ = zippedFile.Close()
+	}(zippedFile)
 
 	if _, err := io.Copy(destinationFile, zippedFile); err != nil {
 		return err

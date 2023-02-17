@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 )
 
-var coc7TemplateData string = `
+var coc7TemplateData = `
 {
   "keyName": "coc7",
   "fullName": "克苏鲁的呼唤第七版",
