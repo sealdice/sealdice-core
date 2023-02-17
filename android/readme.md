@@ -18,5 +18,5 @@
 
 # 致谢
 
-[sealdice](https://github.com/sealdice)
+[sealdice](https://github.com/sealdice) 海豹骰子
 

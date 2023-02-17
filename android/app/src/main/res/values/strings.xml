@@ -1,12 +1,12 @@
 <resources>
-    <string name="app_name">压缩毛巾</string>
-    <string name="action_settings">Settings</string>
+    <string name="app_name">セイウチ</string>
+    <string name="action_settings">开源地址</string>
     <!-- Strings used for fragments for navigation -->
-    <string name="first_fragment_label">这是骰子？</string>
+    <string name="first_fragment_label">骰子</string>
     <string name="second_fragment_label">Second Fragment</string>
     <string name="next">Next</string>
     <string name="previous">Previous</string>
 
-    <string name="hello_first_fragment">点击开始吧~</string>
+    <string name="hello_first_fragment">望周知\n此app非海豹官方app\n随时可能停止维护\n并且不兼容后续海豹官方app\n免费应用，禁止倒卖</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
 </resources>

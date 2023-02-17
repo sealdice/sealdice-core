@@ -1,5 +1,7 @@
-package com.logs404.mshell
+package com.logs404.walrus
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.support.design.widget.Snackbar
 import android.support.v7.app.AppCompatActivity
@@ -9,8 +11,7 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
-import com.logs404.mshell.common.ExtractAssets
-import com.logs404.mshell.databinding.ActivityMainBinding
+import com.logs404.walrus.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
@@ -28,12 +29,21 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
-
+//        binding.
         binding.fab.setOnClickListener { view ->
             Snackbar.make(view, "Design by 木末君(logs404)", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show()
 //            ExtractAssets(this).extractResources("sealdice")
         }
+
+//        val alertDialogBuilder = AlertDialog.Builder(this)
+//        alertDialogBuilder.setTitle("提示")
+//        alertDialogBuilder.setMessage("此app非海豹官方app，随时可能停止维护，并且不兼容后续海豹官方app")
+//        alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+////            finish()
+//        }
+//        val alertDialog = alertDialogBuilder.create().show()
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -47,7 +57,13 @@ class MainActivity : AppCompatActivity() {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
-            R.id.action_settings -> true
+            R.id.action_settings -> {
+                val intent = Intent()
+                intent.action = "android.intent.action.VIEW"
+                intent.data = Uri.parse("https://github.com/96368a/dice-android")
+                startActivity(intent)
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }

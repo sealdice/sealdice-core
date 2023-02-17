@@ -3,10 +3,9 @@ package com.omarea.common.shell
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.widget.Toast
-import com.logs404.mshell.common.ShellEvents
-import com.logs404.mshell.common.ShellExecutor
+import com.logs404.walrus.common.ShellEvents
+import com.logs404.walrus.common.ShellExecutor
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.IOException

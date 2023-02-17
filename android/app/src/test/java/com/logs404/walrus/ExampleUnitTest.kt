@@ -1,4 +1,4 @@
-package com.logs404.mshell
+package com.logs404.walrus
 
 import org.junit.Test
 

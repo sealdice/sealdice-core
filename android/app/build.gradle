@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.logs404.mshell'
+    namespace 'com.logs404.walrus'
     compileSdk 28
 
     defaultConfig {
-        applicationId "com.logs404.mshell"
+        applicationId "com.logs404.walrus"
         minSdk 26
         targetSdk 28
         versionCode 1

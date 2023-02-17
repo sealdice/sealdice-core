@@ -1,4 +1,4 @@
-package com.logs404.mshell
+package com.logs404.walrus
 
 import android.content.Intent
 import android.net.Uri
@@ -8,9 +8,9 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.logs404.mshell.common.ExtractAssets
-import com.logs404.mshell.common.KeepShell
-import com.logs404.mshell.databinding.FragmentFirstBinding
+import com.logs404.walrus.common.ExtractAssets
+import com.logs404.walrus.common.KeepShell
+import com.logs404.walrus.databinding.FragmentFirstBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch

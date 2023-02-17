@@ -1,4 +1,4 @@
-package com.logs404.mshell.common;
+package com.logs404.walrus.common;
 
 import java.io.IOException;
 import java.io.InputStream;

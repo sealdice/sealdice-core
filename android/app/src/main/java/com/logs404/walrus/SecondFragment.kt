@@ -1,4 +1,4 @@
-package com.logs404.mshell
+package com.logs404.walrus
 
 import android.os.Bundle
 import android.support.v4.app.Fragment
@@ -6,7 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
-import com.logs404.mshell.databinding.FragmentSecondBinding
+import com.logs404.walrus.databinding.FragmentSecondBinding
 
 /**
  * A simple [Fragment] subclass as the second destination in the navigation.
