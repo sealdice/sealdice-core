@@ -14,9 +14,9 @@ type NamesGenerator struct {
 }
 
 func (ng *NamesGenerator) Load() {
-	os.MkdirAll("./data/names", 0755)
+	_ = os.MkdirAll("./data/names", 0755)
 
-	nameInfo := map[string](map[string][]string){}
+	nameInfo := map[string]map[string][]string{}
 	ng.NamesInfo = nameInfo
 
 	for _, fn := range []string{"./data/names/姓名.xlsx", "./data/names/DND姓名大全.xlsx"} {

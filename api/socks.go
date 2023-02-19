@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/armon/go-socks5"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -85,7 +86,9 @@ func getip2() string {
 	if err != nil {
 		return ""
 	}
-	defer req.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(req.Body)
 
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -93,7 +96,7 @@ func getip2() string {
 	}
 
 	var ip IP
-	json.Unmarshal(body, &ip)
+	_ = json.Unmarshal(body, &ip)
 
 	return ip.Query
 }
@@ -162,10 +165,12 @@ func socksOpen(d *dice.Dice, port int64) (string, error) {
 		go func() {
 			time.Sleep(time.Second * time.Duration(ttl))
 			d.Logger.Info("onebot辅助: 自动停止")
-			l.Close()
+			_ = l.Close()
 		}()
 	}
-	go server.Serve(l)
+	go func() {
+		_ = server.Serve(l)
+	}()
 	return publicIP, nil
 
 	//if err := server.ListenAndServe("tcp", address); err != nil {

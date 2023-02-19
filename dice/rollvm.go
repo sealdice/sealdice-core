@@ -459,7 +459,7 @@ func (e *RollExpression) AddFormatString(value string, num int64) {
 	code[top].ValueStr = value // 仅象征性意义
 }
 
-type vmStack = VMValue
+type VmStack = VMValue
 
 type VmResult struct {
 	VMValue
@@ -468,8 +468,8 @@ type VmResult struct {
 	restInput string
 }
 
-func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, error) {
-	stack, top := make([]vmStack, len(e.Code)), 0
+func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, error) {
+	stack, top := make([]VmStack, len(e.Code)), 0
 	//lastIsDice := false
 	//var lastValIndex int
 	times := 0
@@ -541,7 +541,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*vmStack, string, e
 
 			outStr := ""
 			for index := 0; index < num; index++ {
-				var val vmStack
+				var val VmStack
 				if top-num+index < 0 {
 					return nil, "", errors.New("E3:无效的表达式")
 					//val = vmStack{VMTypeString, ""}
@@ -1435,7 +1435,7 @@ func DiceDCRollVM(e *RollExpression, addLine *VMValue, pool *VMValue, points *VM
 }
 
 func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, []string) {
-	details := []string{}
+	var details []string
 	addTimes := 1
 
 	isShowDetails := pool < 15
@@ -1444,7 +1444,7 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 
 	for times := 0; times < addTimes; times++ {
 		addCount := int64(0)
-		detailsOne := []string{}
+		var detailsOne []string
 		maxDice := int64(0)
 
 		for i := int64(0); i < pool; i++ {
@@ -1493,7 +1493,7 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 }
 
 func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE bool) (int64, int64, int64, []string) {
-	details := []string{}
+	var details []string
 	addTimes := 1
 
 	isShowDetails := pool < 15
@@ -1502,7 +1502,7 @@ func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE 
 
 	for times := 0; times < addTimes; times++ {
 		addCount := int64(0)
-		detailsOne := []string{}
+		var detailsOne []string
 
 		for i := int64(0); i < pool; i++ {
 			var reachSuccess bool
@@ -1560,7 +1560,7 @@ func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE 
 	return successCount, allRollCount, int64(addTimes), details
 }
 
-func DiceWodRollVM(e *RollExpression, addLine *vmStack, pool *VMValue, points *VMValue, threshold *VMValue, isGE bool) (*VMValue, int64, int64, []string) {
+func DiceWodRollVM(e *RollExpression, addLine *VmStack, pool *VMValue, points *VMValue, threshold *VMValue, isGE bool) (*VMValue, int64, int64, []string) {
 	makeE6 := func() {
 		e.Error = errors.New("E6: 类型错误")
 	}

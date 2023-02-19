@@ -17,8 +17,8 @@ func NewDiscordConnItem(token string) *EndPointInfo {
 	return conn
 }
 
-// DiceServeDiscord gocqhttp_helper 中有一个相同的待重构方法，为了避免阻碍重构，先不写在一起了
-func DiceServeDiscord(d *Dice, ep *EndPointInfo) {
+// ServeDiscord gocqhttp_helper 中有一个相同的待重构方法，为了避免阻碍重构，先不写在一起了
+func ServeDiscord(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "DISCORD" {
 		conn := ep.Adapter.(*PlatformAdapterDiscord)

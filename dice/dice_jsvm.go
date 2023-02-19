@@ -64,7 +64,7 @@ func (d *Dice) JsInit() {
 	reg := new(require.Registry)
 
 	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false), eventloop.WithRegistry(reg))
-	fetch.Enable(loop, goproxy.NewProxyHttpServer())
+	_ = fetch.Enable(loop, goproxy.NewProxyHttpServer())
 	d.JsLoop = loop
 
 	printer := &PrinterFunc{d, false, []string{}}
@@ -86,26 +86,26 @@ func (d *Dice) JsInit() {
 		//seal.Set("setVarStr", VarSetValueStr)
 
 		vars := vm.NewObject()
-		seal.Set("vars", vars)
+		_ = seal.Set("vars", vars)
 		//vars.Set("varGet", VarGetValue)
 		//vars.Set("varSet", VarSetValue)
-		vars.Set("intGet", VarGetValueInt64)
-		vars.Set("intSet", VarSetValueInt64)
-		vars.Set("strGet", VarGetValueStr)
-		vars.Set("strSet", VarSetValueStr)
+		_ = vars.Set("intGet", VarGetValueInt64)
+		_ = vars.Set("intSet", VarSetValueInt64)
+		_ = vars.Set("strGet", VarGetValueStr)
+		_ = vars.Set("strSet", VarSetValueStr)
 
 		ext := vm.NewObject()
-		seal.Set("ext", ext)
-		ext.Set("newCmdItemInfo", func() *CmdItemInfo {
+		_ = seal.Set("ext", ext)
+		_ = ext.Set("newCmdItemInfo", func() *CmdItemInfo {
 			return &CmdItemInfo{IsJsSolveFunc: true}
 		})
-		ext.Set("newCmdExecuteResult", func(solved bool) CmdExecuteResult {
+		_ = ext.Set("newCmdExecuteResult", func(solved bool) CmdExecuteResult {
 			return CmdExecuteResult{
 				Matched: true,
 				Solved:  solved,
 			}
 		})
-		ext.Set("new", func(name, author, version string) *ExtInfo {
+		_ = ext.Set("new", func(name, author, version string) *ExtInfo {
 			return &ExtInfo{Name: name, Author: author, Version: version,
 				GetDescText: func(i *ExtInfo) string {
 					return GetExtensionDesc(i)
@@ -116,10 +116,10 @@ func (d *Dice) JsInit() {
 				CmdMap:     CmdMapCls{},
 			}
 		})
-		ext.Set("find", func(name string) *ExtInfo {
+		_ = ext.Set("find", func(name string) *ExtInfo {
 			return d.ExtFind(name)
 		})
-		ext.Set("register", func(ei *ExtInfo) {
+		_ = ext.Set("register", func(ei *ExtInfo) {
 			if d.ExtFind(ei.Name) != nil {
 				panic("扩展<" + ei.Name + ">已被注册")
 			}
@@ -136,19 +136,19 @@ func (d *Dice) JsInit() {
 
 		// COC规则自定义
 		coc := vm.NewObject()
-		coc.Set("newRule", func() *CocRuleInfo {
+		_ = coc.Set("newRule", func() *CocRuleInfo {
 			return &CocRuleInfo{}
 		})
-		coc.Set("newRuleCheckResult", func() *CocRuleCheckRet {
+		_ = coc.Set("newRuleCheckResult", func() *CocRuleCheckRet {
 			return &CocRuleCheckRet{}
 		})
-		coc.Set("registerRule", func(rule *CocRuleInfo) bool {
+		_ = coc.Set("registerRule", func(rule *CocRuleInfo) bool {
 			return d.CocExtraRulesAdd(rule)
 		})
-		seal.Set("coc", coc)
+		_ = seal.Set("coc", coc)
 
 		deck := vm.NewObject()
-		deck.Set("draw", func(ctx *MsgContext, deckName string, isShuffle bool) map[string]interface{} {
+		_ = deck.Set("draw", func(ctx *MsgContext, deckName string, isShuffle bool) map[string]interface{} {
 			exists, result, err := deckDraw(ctx, deckName, isShuffle)
 			var errText string
 			if err != nil {
@@ -160,25 +160,25 @@ func (d *Dice) JsInit() {
 				"result": result,
 			}
 		})
-		deck.Set("reload", func() {
+		_ = deck.Set("reload", func() {
 			DeckReload(d)
 		})
-		seal.Set("deck", deck)
+		_ = seal.Set("deck", deck)
 
-		seal.Set("replyGroup", ReplyGroup)
-		seal.Set("replyPerson", ReplyPerson)
-		seal.Set("replyToSender", ReplyToSender)
-		seal.Set("memberBan", MemberBan)
-		seal.Set("memberKick", MemberKick)
-		seal.Set("format", DiceFormat)
-		seal.Set("formatTmpl", DiceFormatTmpl)
-		seal.Set("getCtxProxyFirst", GetCtxProxyFirst)
+		_ = seal.Set("replyGroup", ReplyGroup)
+		_ = seal.Set("replyPerson", ReplyPerson)
+		_ = seal.Set("replyToSender", ReplyToSender)
+		_ = seal.Set("memberBan", MemberBan)
+		_ = seal.Set("memberKick", MemberKick)
+		_ = seal.Set("format", DiceFormat)
+		_ = seal.Set("formatTmpl", DiceFormatTmpl)
+		_ = seal.Set("getCtxProxyFirst", GetCtxProxyFirst)
 
-		seal.Set("inst", d)
-		vm.Set("__dirname", "")
-		vm.Set("seal", seal)
+		_ = seal.Set("inst", d)
+		_ = vm.Set("__dirname", "")
+		_ = vm.Set("seal", seal)
 
-		vm.RunString(`
+		_, _ = vm.RunString(`
 let e = seal.ext.new('_', '', '');
 e.__proto__.storageSet = function(k, v) {
   try {
@@ -198,7 +198,7 @@ e.__proto__.storageGet = function(k, v) {
   }
 }
 `)
-		vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
+		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
 	loop.Start()
 }
@@ -206,7 +206,7 @@ e.__proto__.storageGet = function(k, v) {
 func (d *Dice) JsLoadScripts() {
 	d.JsScriptList = []*JsScriptInfo{}
 	path := filepath.Join(d.BaseConfig.DataDir, "scripts")
-	filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
+	_ = filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
 		if filepath.Ext(path) == ".js" {
 			d.Logger.Info("正在读取脚本: ", path)
 			d.JsLoadScriptRaw("./"+path, info)

@@ -11,7 +11,6 @@ import (
 	"github.com/sahilm/fuzzy"
 	"gopkg.in/yaml.v3"
 	"io/fs"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -197,7 +196,7 @@ func isPrefixWithUtf8Bom(buf []byte) bool {
 }
 
 func DeckTryParse(d *Dice, fn string) {
-	content, err := ioutil.ReadFile(fn)
+	content, err := os.ReadFile(fn)
 	if err != nil {
 		d.Logger.Infof("牌堆文件“%s”加载失败", fn)
 		return
@@ -237,7 +236,7 @@ func DeckTryParse(d *Dice, fn string) {
 // DecksDetect 检查牌堆
 func DecksDetect(d *Dice) {
 	// 先进行zip解压
-	filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+	_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
 			return fs.SkipDir
 		}
@@ -262,7 +261,7 @@ func DecksDetect(d *Dice) {
 		return nil
 	})
 
-	filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+	_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
 			return fs.SkipDir
 		}
@@ -388,7 +387,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 							text += time
 						}
 
-						cmds := []string{}
+						var cmds []string
 						for j, _ := range i.Command {
 							cmds = append(cmds, j)
 						}
@@ -755,7 +754,7 @@ func searchInts(a []int, x int) int {
 }
 
 func DeckToShuffleRandomPool(deck []string) *ShuffleRandomPool {
-	choices := []wr.Choice{}
+	var choices []wr.Choice
 	for _, i := range deck {
 		weight, text := extractWeight(i)
 		choices = append(choices, wr.Choice{Item: text, Weight: weight})
