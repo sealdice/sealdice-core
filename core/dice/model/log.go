@@ -1,172 +1,124 @@
 package model
 
 import (
+	"database/sql"
 	"encoding/json"
+	"github.com/jmoiron/sqlx"
 	"time"
-	"zombiezen.com/go/sqlite/sqlitex"
 )
 
 type LogOneItem struct {
-	Id          uint64      `json:"id"`
-	Nickname    string      `json:"nickname"`
-	IMUserId    string      `json:"IMUserId"`
-	Time        int64       `json:"time"`
-	Message     string      `json:"message"`
-	IsDice      bool        `json:"isDice"`
-	CommandId   int64       `json:"commandId"`
-	CommandInfo interface{} `json:"commandInfo"`
-	RawMsgId    interface{} `json:"rawMsgId"`
+	Id          uint64      `json:"id" db:"id"`
+	Nickname    string      `json:"nickname" db:"nickname"`
+	IMUserId    string      `json:"IMUserId" db:"im_userid"`
+	Time        int64       `json:"time" db:"time"`
+	Message     string      `json:"message" db:"message"`
+	IsDice      bool        `json:"isDice" db:"is_dice"`
+	CommandId   int64       `json:"commandId" db:"command_id"`
+	CommandInfo interface{} `json:"commandInfo" db:"command_info"`
+	RawMsgId    interface{} `json:"rawMsgId" db:"raw_msg_id"`
 
-	UniformId string `json:"uniformId"`
-	Channel   string `json:"channel"` // 用于秘密团
+	UniformId string `json:"uniformId" db:"user_uniform_id"`
+	Channel   string `json:"channel"`
 }
 
 // LogGetList 获取列表
-func LogGetList(db *sqlitex.Pool, groupId string) ([]string, error) {
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
-
-	lst := []string{}
-	stmt := conn.Prep(`select name from logs where group_id=$group_id order by updated_at desc`)
-	stmt.SetText("$group_id", groupId)
-	defer stmt.Finalize()
-
-	var err error
-	var hasRow bool
-
-	for {
-		if hasRow, err = stmt.Step(); err != nil {
-			break // error
-		} else if !hasRow {
-			break
-		}
-		lst = append(lst, stmt.ColumnText(0))
+func LogGetList(db *sqlx.DB, groupId string) ([]string, error) {
+	var lst []string
+	err := db.Select(&lst, "SELECT name FROM logs WHERE group_id = $1 ORDER BY updated_at DESC", groupId)
+	if err != nil {
+		return nil, err
 	}
-
-	return lst, err
+	return lst, nil
 }
 
 // LogGetIdByGroupIdAndName 获取ID
-func LogGetIdByGroupIdAndName(db *sqlitex.Pool, groupId string, logName string) (logId int64, err error) {
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
-
-	stmt := conn.Prep(`select id from logs where group_id=$group_id and name=$name`)
-	stmt.SetText("$group_id", groupId)
-	stmt.SetText("$name", logName)
-	defer stmt.Finalize()
-
-	var hasRow bool
-
-	for {
-		// 加for的原因是 panic: connection returned to pool has active statement
-		if hasRow, err = stmt.Step(); err != nil {
-			break
-		} else if !hasRow {
-			break
+func LogGetIdByGroupIdAndName(db *sqlx.DB, groupId string, logName string) (logId int64, err error) {
+	err = db.Get(&logId, "SELECT id FROM logs WHERE group_id = $1 AND name = $2", groupId, logName)
+	if err != nil {
+		// 如果出现错误，判断是否没有找到对应的记录
+		if err == sql.ErrNoRows {
+			return 0, nil
 		}
-
-		logId = stmt.ColumnInt64(0)
+		return 0, err
 	}
-
 	return logId, nil
 }
 
-// LogGetAllLines 获取log内容
-func LogGetAllLines(db *sqlitex.Pool, groupId string, logName string) ([]*LogOneItem, error) {
-	// 获取 log id
+// LogGetAllLines 获取log的所有行数据
+func LogGetAllLines(db *sqlx.DB, groupId string, logName string) ([]*LogOneItem, error) {
+	// 获取log的ID
 	logId, err := LogGetIdByGroupIdAndName(db, groupId, logName)
-	ret := []*LogOneItem{}
 	if err != nil {
-		return ret, err
+		return nil, err
 	}
 
-	// 获取文本
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
+	// 查询行数据
+	rows, err := db.Queryx(`SELECT id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id 
+	                        FROM log_items WHERE log_id=$1 ORDER BY time ASC`, logId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	// 取得了id，获取列表
-	stmt := conn.Prep(`
-		select id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id, removed, parent_id
-		from log_items where log_id=$log_id order by time asc`)
-	stmt.SetInt64("$log_id", logId)
-	defer stmt.Finalize()
+	ret := []*LogOneItem{}
+	for rows.Next() {
+		item := &LogOneItem{}
+		var commandInfoStr []byte
 
-	var hasRow bool
-	for {
-		if hasRow, err = stmt.Step(); err != nil {
-			// ... handle error
-			break
-		} else if !hasRow {
-			break
+		// 使用Scan方法将查询结果映射到结构体中
+		if err := rows.Scan(
+			&item.Id,
+			&item.Nickname,
+			&item.IMUserId,
+			&item.Time,
+			&item.Message,
+			&item.IsDice,
+			&item.CommandId,
+			&commandInfoStr,
+			&item.RawMsgId,
+			&item.UniformId,
+		); err != nil {
+			return nil, err
 		}
 
-		// 10,11 removed, parent_id
-		if stmt.ColumnInt64(10) == 1 {
-			continue
+		// 反序列化commandInfo
+		if commandInfoStr != nil {
+			_ = json.Unmarshal(commandInfoStr, &item.CommandInfo)
 		}
 
-		// 反序列化 commandInfo
-		buf := []byte(stmt.ColumnText(7))
-		commandInfo := map[string]interface{}{}
-		_ = json.Unmarshal(buf, &commandInfo)
-
-		item := LogOneItem{
-			Id:          uint64(stmt.ColumnInt64(0)),
-			Nickname:    stmt.ColumnText(1),
-			IMUserId:    stmt.ColumnText(2),
-			Time:        stmt.ColumnInt64(3),
-			Message:     stmt.ColumnText(4),
-			IsDice:      stmt.ColumnInt64(5) == 1,
-			CommandId:   stmt.ColumnInt64(6),
-			CommandInfo: commandInfo,
-			RawMsgId:    stmt.ColumnText(8),
-
-			UniformId: stmt.ColumnText(9),
-		}
-
-		ret = append(ret, &item)
+		ret = append(ret, item)
 	}
 
-	return ret, err
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return ret, nil
 }
 
-// LogLinesCountGet 获取行数
-func LogLinesCountGet(db *sqlitex.Pool, groupId string, logName string) (int64, bool) {
-	// 获取 log id
+// LogLinesCountGet 获取日志行数
+func LogLinesCountGet(db *sqlx.DB, groupId string, logName string) (int64, bool) {
+	// 获取日志 ID
 	logId, err := LogGetIdByGroupIdAndName(db, groupId, logName)
 	if err != nil || logId == 0 {
 		return 0, false
 	}
 
-	// 获取文本
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
-
-	// 取得了id，获取列表
-	// 注: 这样查询和二重查询花的时间是一样的，removed没有index
-	stmt := conn.Prep(`select count(id) from log_items where log_id=$log_id and removed is null`)
-	stmt.SetInt64("$log_id", logId)
-	defer stmt.Finalize()
-
-	var hasRow bool
+	// 获取日志行数
 	var count int64
-
-	for {
-		// 加for的原因是 panic: connection returned to pool has active statement
-		if hasRow, err = stmt.Step(); err != nil {
-			break
-		} else if !hasRow {
-			break
-		}
-		count = stmt.ColumnInt64(0)
+	err = db.Get(&count, `
+		SELECT COUNT(id) FROM log_items WHERE log_id=$1 AND removed IS NULL
+	`, logId)
+	if err != nil {
+		return 0, false
 	}
 
 	return count, true
 }
 
 // LogDelete 删除log
-func LogDelete(db *sqlitex.Pool, groupId string, logName string) bool {
+func LogDelete(db *sqlx.DB, groupId string, logName string) bool {
 	// 获取 log id
 	logId, err := LogGetIdByGroupIdAndName(db, groupId, logName)
 	if err != nil || logId == 0 {
@@ -174,36 +126,39 @@ func LogDelete(db *sqlitex.Pool, groupId string, logName string) bool {
 	}
 
 	// 获取文本
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
-
-	// 取得了id，获取列表
-	stmt := conn.Prep(`delete from log_items where log_id=$log_id`)
-	defer stmt.Finalize()
-	stmt.SetInt64("$log_id", logId)
-	for {
-		if hasRow, err := stmt.Step(); err != nil {
-			break // error
-		} else if !hasRow {
-			break
+	// 通过BeginTxx方法开启事务
+	tx, err := db.Beginx()
+	if err != nil {
+		return false
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
 		}
+	}()
+
+	// 删除log_id相关的log_items记录
+	_, err = tx.Exec("DELETE FROM log_items WHERE log_id = $1", logId)
+	if err != nil {
+		return false
 	}
 
-	stmt2 := conn.Prep(`delete from logs where id=$log_id`)
-	defer stmt2.Finalize()
-	stmt2.SetInt64("$log_id", logId)
-	for {
-		if hasRow, err := stmt2.Step(); err != nil {
-			break // error
-		} else if !hasRow {
-			break
-		}
+	// 删除log_id相关的logs记录
+	_, err = tx.Exec("DELETE FROM logs WHERE id = $1", logId)
+	if err != nil {
+		return false
+	}
+
+	// 提交事务
+	err = tx.Commit()
+	if err != nil {
+		return false
 	}
 	return true
 }
 
-// LogAppend 添加消息
-func LogAppend(db *sqlitex.Pool, groupId string, logName string, logItem *LogOneItem) bool {
+// LogAppend 向指定的log中添加一条信息
+func LogAppend(db *sqlx.DB, groupId string, logName string, logItem *LogOneItem) bool {
 	// 获取 log id
 	logId, err := LogGetIdByGroupIdAndName(db, groupId, logName)
 	if err != nil {
@@ -214,54 +169,61 @@ func LogAppend(db *sqlitex.Pool, groupId string, logName string, logItem *LogOne
 	now := time.Now()
 	nowTimestamp := now.Unix()
 
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
+	// 开始事务
+	tx, err := db.Beginx()
+	if err != nil {
+		return false
+	}
+	// 执行事务时发生错误时回滚
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
 
 	if logId == 0 {
-		// 创建
-		stmt := conn.Prep(`insert into logs (name, group_id, created_at, updated_at) VALUES ($name, $group_id, $created_at, $updated_at)`)
-		defer stmt.Finalize()
-		stmt.SetText("$name", logName)
-		stmt.SetText("$group_id", groupId)
-		stmt.SetInt64("$created_at", nowTimestamp)
-		stmt.SetInt64("$updated_at", nowTimestamp)
-		for {
-			if hasRow, err := stmt.Step(); err != nil {
-				break // error
-			} else if !hasRow {
-				break
-			}
+		// 创建一个新的log
+		query := "INSERT INTO logs (name, group_id, created_at, updated_at) VALUES (?, ?, ?, ?)"
+		rst, err := tx.Exec(query, logName, groupId, nowTimestamp, nowTimestamp)
+		if err != nil {
+			return false
 		}
-		logId = conn.LastInsertRowID()
+		// 获取新创建log的ID
+		logId, err = rst.LastInsertId()
+		if err != nil {
+			return false
+		}
 	}
 
-	// 添加一条信息
-	stmt2 := conn.Prep(`insert into log_items (log_id, group_id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id) VALUES ($log_id, $group_id, $nickname, $im_userid, $time, $message, $is_dice, $command_id, $command_info, $raw_msg_id, $user_uniform_id)`)
-	defer stmt2.Finalize()
-	stmt2.SetInt64("$log_id", logId)
-	stmt2.SetText("$group_id", groupId)
-	stmt2.SetText("$nickname", logItem.Nickname)
-	stmt2.SetText("$im_userid", logItem.IMUserId)
-	stmt2.SetInt64("$time", nowTimestamp)
-	stmt2.SetText("$message", logItem.Message)
-	stmt2.SetBool("$is_dice", logItem.IsDice)
-	stmt2.SetInt64("$command_id", int64(logItem.CommandId))
-	d, _ := json.Marshal(logItem.CommandInfo)
-	stmt2.SetBytes("$command_info", d)
-	d2, _ := json.Marshal(logItem.RawMsgId)
-	stmt2.SetBytes("$raw_msg_id", d2)
-	stmt2.SetText("$user_uniform_id", logItem.UniformId)
-	for {
-		if hasRow, err := stmt2.Step(); err != nil {
-			break // error
-		} else if !hasRow {
-			break
-		}
+	// 向log_items表中添加一条信息
+	data, err := json.Marshal(logItem.CommandInfo)
+	query := "INSERT INTO log_items (log_id, group_id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	_, err = tx.Exec(query, logId, groupId, logItem.Nickname, logItem.IMUserId, nowTimestamp, logItem.Message, logItem.IsDice, logItem.CommandId, data, logItem.RawMsgId, logItem.UniformId)
+	if err != nil {
+		return false
+	}
+
+	// 提交事务
+	err = tx.Commit()
+	if err != nil {
+		return false
 	}
 	return true
 }
 
 // LogMarkDeleteByMsgId 撤回删除
-func LogMarkDeleteByMsgId(db *sqlitex.Pool, groupId string, logName string, rawId interface{}) error {
+func LogMarkDeleteByMsgId(db *sqlx.DB, groupId string, logName string, rawId interface{}) error {
+	// 获取 log id
+	logId, err := LogGetIdByGroupIdAndName(db, groupId, logName)
+	if err != nil {
+		return err
+	}
+
+	// 删除记录
+	_, err = db.Exec("DELETE FROM log_items WHERE log_id=? AND raw_msg_id=?", logId, rawId)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
