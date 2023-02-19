@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"zombiezen.com/go/sqlite"
-	"zombiezen.com/go/sqlite/sqlitex"
 )
 
 type DeckInfo struct {
@@ -163,12 +161,17 @@ func ConvertServe() error {
 	data, err := os.ReadFile("./data/default/serve.yaml")
 
 	dbDataPath, _ := filepath.Abs("./data/default/data.db")
-	flags := sqlite.OpenReadWrite | sqlite.OpenCreate | sqlite.OpenWAL
-	dbpool, err := sqlitex.Open(dbDataPath, flags, 10)
+	dbSql, err := openDB(dbDataPath)
 	if err != nil {
 		return err
 	}
-	defer dbpool.Close()
+	defer dbSql.Close()
+	//flags := sqlite.OpenReadWrite | sqlite.OpenCreate | sqlite.OpenWAL
+	//dbpool, err := sqlitex.Open(dbDataPath, flags, 10)
+	//if err != nil {
+	//	return err
+	//}
+	//defer dbpool.Close()
 
 	texts := []string{
 		`
@@ -232,9 +235,8 @@ create table if not exists ban_info
 		`create index idx_ban_info_ban_updated_at on ban_info (ban_updated_at);`,
 	}
 
-	conn := dbpool.Get(nil)
 	for _, i := range texts {
-		err = sqlitex.ExecuteTransient(conn, i, nil)
+		dbSql.Exec(i)
 		//fmt.Println("xxx", err)
 	}
 	//fmt.Println(sqlitex.ExecuteTransient(conn, "VACUUM INTO bak", nil))
@@ -243,68 +245,63 @@ create table if not exists ban_info
 	nowTimestamp := now.Unix()
 
 	fmt.Println("处理serve.yaml")
+
+	times := 0
 	if err == nil {
 		dNew := &Dice{}
 		if yaml.Unmarshal(data, &dNew) == nil {
 			//conn := dbpool.Get(nil)
-			endFunc := sqlitex.Transaction(conn)
+			tx := dbSql.MustBegin()
 
 			for k, v := range dNew.ImSession.ServiceAtNew {
 				fmt.Println("群组", k)
+				times += len(v.Players)
 				for _, playerInfo := range v.Players {
-					stmt := conn.Prep(`insert into group_player_info (group_id, user_id, created_at, name, last_command_time, auto_set_name_template, dice_side_num) VALUES ($group_id, $user_id, $created_at, $name, $last_command_time, $auto_set_name_template, $dice_side_num)`)
-					// $group_id, $user_id, $created_at, $last_command_time, $auto_set_name_template, $dice_side_num
-					stmt.SetText("$group_id", k)
-					stmt.SetText("$user_id", playerInfo.UserId)
-					stmt.SetInt64("$created_at", nowTimestamp)
-					stmt.SetText("$name", playerInfo.Name)
-					stmt.SetInt64("$last_command_time", playerInfo.LastCommandTime)
-					stmt.SetText("$auto_set_name_template", playerInfo.AutoSetNameTemplate)
-					stmt.SetInt64("$dice_side_num", int64(playerInfo.DiceSideNum))
-					for {
-						if hasRow, err := stmt.Step(); err != nil {
-							fmt.Println("err", err)
-							break
-						} else if !hasRow {
-							break
-						}
+					args := map[string]interface{}{
+						"group_id":               k,
+						"user_id":                playerInfo.UserId,
+						"created_at":             nowTimestamp,
+						"name":                   playerInfo.Name,
+						"last_command_time":      playerInfo.LastCommandTime,
+						"auto_set_name_template": playerInfo.AutoSetNameTemplate,
+						"dice_side_num":          int64(playerInfo.DiceSideNum),
 					}
-					stmt.Finalize()
+					_, _ = tx.NamedExec(`insert into group_player_info (group_id, user_id, created_at, name, last_command_time, auto_set_name_template, dice_side_num) VALUES (:group_id, :user_id, :created_at, :name, :last_command_time, :auto_set_name_template, :dice_side_num)`, args)
+					// $group_id, $user_id, $created_at, $last_command_time, $auto_set_name_template, $dice_side_num
 				}
 
-				stmt2 := conn.Prep(`insert into group_info (id, created_at, data) VALUES ($group_id, $created_at, $data)`)
-				stmt2.SetText("$group_id", k)
-				stmt2.SetInt64("$created_at", nowTimestamp)
 				v.Players = nil
 				d, _ := json.Marshal(v)
-				stmt2.SetBytes("$data", d)
 
-				for {
-					if hasRow, err := stmt2.Step(); err != nil {
-						fmt.Println("err", err)
-						break
-					} else if !hasRow {
-						break
-					}
+				args := map[string]interface{}{
+					"group_id":   k,
+					"created_at": nowTimestamp,
+					"data":       d,
 				}
-				stmt2.Finalize()
+
+				_, err = tx.NamedExec(`insert into group_info (id, created_at, data) VALUES (:group_id, :created_at, :data)`, args)
 			}
 
-			endFunc(&err)
+			err := tx.Commit()
+			if err != nil {
+				fmt.Println("???", err)
+				tx.Rollback()
+			}
+
 			fmt.Println("群组信息处理完成")
+			fmt.Println("群数量", len(dNew.ImSession.ServiceAtNew))
+			fmt.Println("群成员数量", times)
 		}
 
 		data2 := DiceServe{}
 		if yaml.Unmarshal(data, &data2) == nil {
-			//delete(data2, "imSession")
-			d2, _ := yaml.Marshal(data2)
-			os.WriteFile("./data/default/serve.yaml", d2, 0644)
+			//d2, _ := yaml.Marshal(data2)
+			//os.WriteFile("./data/default/serve.yaml", d2, 0644)
 		}
 
 		os.WriteFile("./data/default/serve.yaml.old", data, 0644)
 		//os.WriteFile("./serve.yaml", d2, 0644)
 	}
-	dbpool.Put(conn)
 
 	// 处理attrs部分
 	ctx := CreateFakeCtx()
@@ -313,38 +310,42 @@ create table if not exists ban_info
 
 	fmt.Println("处理属性部分")
 	copyByName := func(table string) {
-		conn = dbpool.Get(nil)
+		times = 0
+		tx2 := dbSql.MustBegin()
+
 		db.View(func(tx *bbolt.Tx) error {
 			logs := tx.Bucket([]byte(table))
 
 			return logs.ForEach(func(k, v []byte) error {
-				stmt := conn.Prep(`insert into ` + table + ` (id, updated_at, data) VALUES ($id, $updated_at, $data)`)
-				// $id, $updated_at, $data
-				stmt.SetText("$id", string(k))
-				stmt.SetInt64("$updated_at", nowTimestamp)
-				stmt.SetBytes("$data", v)
-
-				for {
-					if hasRow, err := stmt.Step(); err != nil {
-						fmt.Println("err", err)
-						break
-					} else if !hasRow {
-						break
-					}
+				_, err := tx2.NamedExec(`INSERT INTO `+table+` (id, updated_at, data) VALUES (:id, :updated_at, :data)`, map[string]interface{}{
+					"id":         string(k),
+					"updated_at": nowTimestamp,
+					"data":       v,
+				})
+				times += 1
+				if err != nil {
+					return err
 				}
-				stmt.Finalize()
 				return nil
 			})
 		})
-		dbpool.Put(conn)
+
+		fmt.Println("条目数量"+table, times)
+
+		err := tx2.Commit()
+		if err != nil {
+			tx2.Rollback()
+			return
+		}
 	}
-	fmt.Println("完成")
 
 	copyByName("attrs_group")
 	copyByName("attrs_user")
 	copyByName("attrs_group_user")
+	fmt.Println("完成")
 
-	conn = dbpool.Get(nil)
+	times = 0
+	tx2 := dbSql.MustBegin()
 	db.View(func(tx *bbolt.Tx) error {
 		b0 := tx.Bucket([]byte("common"))
 		if b0 == nil {
@@ -359,28 +360,27 @@ create table if not exists ban_info
 		}
 
 		for k, v := range dict {
-			stmt := conn.Prep(`replace into ban_info(id, ban_updated_at, updated_at, data) VALUES ($id, $ban_updated_at, $updated_at, $data)`)
-			// $id, $updated_at, $data
-			stmt.SetText("$id", k)
-			stmt.SetInt64("$ban_updated_at", v.BanTime)
-			stmt.SetInt64("$updated_at", v.BanTime)
-
 			data, _ := json.Marshal(v)
-			stmt.SetBytes("$data", data)
 
-			for {
-				if hasRow, err := stmt.Step(); err != nil {
-					fmt.Println("err", err)
-					break
-				} else if !hasRow {
-					break
-				}
-			}
-			stmt.Finalize()
+			times += 1
+			_, err = tx2.NamedExec(`replace into ban_info (id, ban_updated_at, updated_at, data) VALUES (:id, :ban_updated_at, :updated_at, :data)`,
+				map[string]interface{}{
+					"id":             k,
+					"ban_updated_at": v.BanTime,
+					"updated_at":     v.BanTime,
+					"data":           data,
+				})
 		}
 		return nil
 	})
-	dbpool.Put(conn)
+
+	err = tx2.Commit()
+	if err != nil {
+		tx2.Rollback()
+	}
+
+	fmt.Println("黑名单条目数量", times)
+	fmt.Println("完成")
 
 	return nil
 }
