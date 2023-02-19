@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"github.com/dop251/goja"
 	"github.com/fy0/lockfree"
+	"github.com/jmoiron/sqlx"
 	"gopkg.in/yaml.v3"
 	"runtime/debug"
 	"sealdice-core/dice/model"
 	"sort"
 	"strings"
 	"time"
-	"zombiezen.com/go/sqlite/sqlitex"
 )
 
 type SenderBase struct {
@@ -166,7 +166,7 @@ func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
 	return false
 }
 
-func (group *GroupInfo) PlayerGet(db *sqlitex.Pool, id string) *GroupPlayerInfo {
+func (group *GroupInfo) PlayerGet(db *sqlx.DB, id string) *GroupPlayerInfo {
 	if group.Players == nil {
 		group.Players = new(SyncMap[string, *GroupPlayerInfo])
 	}

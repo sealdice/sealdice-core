@@ -20,7 +20,7 @@ func groupList(c echo.Context) error {
 					continue
 				}
 				exts := []string{}
-				item.TmpPlayerNum = model.GroupPlayerNumGet(myDice.DBData, item.GroupId)
+				item.TmpPlayerNum, _ = model.GroupPlayerNumGet(myDice.DBData, item.GroupId)
 				//item.TmpPlayerNum = int64(len(i.Players))
 				for _, i := range item.ActivatedExtList {
 					exts = append(exts, i.Name)

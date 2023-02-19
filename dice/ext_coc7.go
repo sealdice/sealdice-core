@@ -635,6 +635,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		AllowDelegate: true, // 特殊的代骰
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
+			ctx.DelegateText = "" // 消除代骰文本，避免单人代骰出问题
 
 			switch val {
 			case "help", "":

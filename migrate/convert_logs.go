@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"zombiezen.com/go/sqlite"
-	"zombiezen.com/go/sqlite/sqlitex"
 )
 
 type LogOneItem struct {
@@ -360,28 +358,24 @@ create index if not exists idx_log_items_log_id
     on log_items (log_id);`,
 	}
 
-	flags := sqlite.OpenReadWrite | sqlite.OpenCreate | sqlite.OpenWAL
-
+	//flags := sqlite.OpenReadWrite | sqlite.OpenCreate | sqlite.OpenWAL
 	dbDataLogsPath, _ := filepath.Abs("./data/default/data-logs.db")
 
-	dbpool, err := sqlitex.Open(dbDataLogsPath, flags, 10)
+	dbSql, err := openDB(dbDataLogsPath)
 	if err != nil {
+		fmt.Println("xxx", err)
 		return err
 	}
-	defer dbpool.Close()
-
-	conn := dbpool.Get(nil)
+	defer dbSql.Close()
 
 	for _, i := range texts {
-		err = sqlitex.ExecuteTransient(conn, i, nil)
-		//fmt.Println("xxx", err)
+		dbSql.Exec(i)
 	}
 
 	//bakTestPath, _ := filepath.Abs("./data-logs-bak.db")
 	//sqlitex.ExecuteTransient(conn, `vacuum into ?`, &sqlitex.ExecOptions{
 	//	Args: []interface{}{bakTestPath},
 	//})
-	dbpool.Put(conn)
 
 	// 加载数据
 	ctx := CreateFakeCtx()
@@ -404,8 +398,6 @@ create index if not exists idx_log_items_log_id
 	times := 0
 	itemNumber := 0
 
-	conn = dbpool.Get(nil)
-	endFunc := sqlitex.Transaction(conn)
 	now := time.Now()
 	nowTimestamp := now.Unix()
 
@@ -415,76 +407,82 @@ create index if not exists idx_log_items_log_id
 	//defer stmt1.Finalize()
 	//defer stmt2.Finalize()
 
+	num := 0
+	err = dbSql.Get(&num, "select count(id) from log_items")
+	if err != nil {
+		return err
+	}
+
 	for _, i := range groupIds {
 		lst, _ := LogGetList(ctx, i)
 		times += len(lst)
 
 		for _, j := range lst {
-			stmt1 := conn.Prep(`insert into logs (name, group_id, created_at, updated_at) VALUES ($name, $group_id, $created_at, $updated_at)`)
-			// $name, $group_id, $created_at, $updated_at
-			stmt1.SetText("$name", j)
-			stmt1.SetText("$group_id", i)
-			stmt1.SetInt64("$created_at", nowTimestamp)
-			stmt1.SetInt64("$updated_at", nowTimestamp)
-
-			var hasRow bool
-			for {
-				if hasRow, err = stmt1.Step(); err != nil {
-					fmt.Println("err", err)
-					break
-				} else if !hasRow {
-					break
-				}
+			args := map[string]interface{}{
+				"name":       j,
+				"group_id":   i,
+				"created_at": nowTimestamp,
+				"updated_at": nowTimestamp,
 			}
-			stmt1.Finalize()
+			exec, err := dbSql.NamedExec(`insert into logs (name, group_id, created_at, updated_at) VALUES (:name, :group_id, :created_at, :updated_at)`, args)
+			if err != nil {
+				return err
+			}
 
 			if err == nil {
-				logId := conn.LastInsertRowID()
+				logId, _ := exec.LastInsertId()
 				logNum += 1
-				fmt.Printf("进度: %d\n", logNum)
+				if logNum%10 == 0 {
+					fmt.Printf("进度: %d\n", logNum)
+				}
 
+				tx := dbSql.MustBegin()
 				items, _ := LogGetAllLines(ctx, i, j)
 				itemNumber += len(items)
 
 				for _, logItem := range items {
-					stmt2 := conn.Prep(`insert into log_items (log_id, group_id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id) VALUES ($log_id, $group_id, $nickname, $im_userid, $time, $message, $is_dice, $command_id, $command_info, $raw_msg_id, $user_uniform_id)`)
-					stmt2.SetInt64("$log_id", logId)
-					stmt2.SetText("$group_id", i)
-					stmt2.SetText("$nickname", logItem.Nickname)
-					stmt2.SetText("$im_userid", logItem.IMUserId)
-					stmt2.SetInt64("$time", nowTimestamp)
-					stmt2.SetText("$message", logItem.Message)
-					stmt2.SetBool("$is_dice", logItem.IsDice)
-					stmt2.SetInt64("$command_id", int64(logItem.CommandId))
 					d, _ := json.Marshal(logItem.CommandInfo)
-					stmt2.SetBytes("$command_info", d)
 					d2, _ := json.Marshal(logItem.RawMsgId)
-					stmt2.SetBytes("$raw_msg_id", d2)
-					stmt2.SetText("$user_uniform_id", logItem.UniformId)
 
-					for {
-						if hasRow, err := stmt2.Step(); err != nil {
-							fmt.Println("err", err)
-							break
-						} else if !hasRow {
-							break
-						}
+					args := map[string]interface{}{
+						"log_id":          logId,
+						"group_id":        i,
+						"nickname":        logItem.Nickname,
+						"im_userid":       logItem.IMUserId,
+						"time":            nowTimestamp,
+						"message":         logItem.Message,
+						"is_dice":         logItem.IsDice,
+						"command_id":      int64(logItem.CommandId),
+						"command_info":    d,
+						"raw_msg_id":      d2,
+						"user_uniform_id": logItem.UniformId,
 					}
 
-					stmt2.Finalize()
+					_, _ = tx.NamedExec(`insert into log_items (log_id, group_id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id) VALUES (:log_id, :group_id, :nickname, :im_userid, :time, :message, :is_dice, :command_id, :command_info, :raw_msg_id, :user_uniform_id)`, args)
+				}
+				err := tx.Commit()
+				if err != nil {
+					tx.Rollback()
 				}
 			} else {
 				fmt.Println("错误:", err, i, j)
 			}
 		}
 	}
-	endFunc(&err)
 
 	//_, err = conn.Prep(`VACUUM`).Step()
 	//fmt.Println("!!", err)
-	dbpool.Put(conn)
 
 	fmt.Println("群组数量", len(groupIds))
-	fmt.Println("完成", times)
+	fmt.Println("log完成", times)
+	fmt.Println("行数", itemNumber)
+
+	err = dbSql.Get(&num, "select count(id) from log_items")
+	if err != nil {
+		return err
+	}
+	fmt.Println("行数确认", num)
+
+	dbSql.Close()
 	return nil
 }

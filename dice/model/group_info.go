@@ -1,66 +1,67 @@
 package model
 
 import (
+	"fmt"
 	"github.com/fy0/lockfree"
-	"strconv"
-	"zombiezen.com/go/sqlite"
-	"zombiezen.com/go/sqlite/sqlitex"
+	"github.com/jmoiron/sqlx"
 )
 
-func GroupInfoListGet(db *sqlitex.Pool, callback func(id string, updatedAt int64, data []byte)) error {
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
+func GroupInfoListGet(db *sqlx.DB, callback func(id string, updatedAt int64, data []byte)) error {
+	rows, err := db.Queryx("SELECT id, updated_at, data FROM group_info")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
 
-	err := sqlitex.ExecuteTransient(conn, `select id, updated_at, data from group_info`, &sqlitex.ExecOptions{
-		//Named: map[string]interface{}{},
-		ResultFunc: func(stmt *sqlite.Stmt) error {
-			callback(stmt.ColumnText(0), stmt.ColumnInt64(1), []byte(stmt.ColumnText(2)))
-			return nil
-		},
-	})
+	for rows.Next() {
+		var id string
+		var updatedAt int64
+		var data []byte
 
+		var pUpdatedAt *int64
+
+		err = rows.Scan(&id, &pUpdatedAt, &data)
+		if err != nil {
+			fmt.Println("!!!", err.Error())
+			return err
+		}
+
+		if pUpdatedAt != nil {
+			updatedAt = *pUpdatedAt
+		}
+		callback(id, updatedAt, data)
+	}
+
+	if err = rows.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GroupInfoSave 保存群组信息
+func GroupInfoSave(db *sqlx.DB, groupId string, updatedAt int64, data []byte) error {
+	// INSERT OR REPLACE 语句可以根据是否已存在对应记录自动插入或更新记录
+	_, err := db.Exec("INSERT OR REPLACE INTO group_info (id, updated_at, data) VALUES (?, ?, ?)", groupId, updatedAt, data)
 	return err
 }
 
-func GroupInfoSave(db *sqlitex.Pool, groupId string, updatedAt int64, data []byte) {
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
+// GroupPlayerNumGet 查询指定群组中玩家数量
+func GroupPlayerNumGet(db *sqlx.DB, groupId string) (int64, error) {
+	var count int64
 
-	stmt := conn.Prep(`
-		replace into group_info (id, updated_at, data)
-		VALUES ($id, $updated_at, $data)`)
-	defer stmt.Finalize()
-
-	stmt.SetInt64("$updated_at", updatedAt)
-	stmt.SetBytes("$data", data)
-	stmt.SetText("$id", groupId)
-
-	for {
-		if hasRow, err := stmt.Step(); err != nil {
-			break
-		} else if !hasRow {
-			break
-		}
+	// 使用Named方法绑定命名参数
+	// 	sqlitex.ExecuteTransient(conn, `select count(id) from group_player_info where group_id=$group_id`, &sqlitex.ExecOptions{
+	query, args, err := sqlx.Named("SELECT COUNT(id) FROM group_player_info WHERE group_id = :group_id", map[string]interface{}{"group_id": groupId})
+	if err != nil {
+		return 0, err
 	}
-}
 
-func GroupPlayerNumGet(db *sqlitex.Pool, groupId string) int64 {
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
+	// 执行查询并将结果存储到 count 变量中
+	if err := db.QueryRowx(query, args...).Scan(&count); err != nil {
+		return 0, err
+	}
 
-	var ret int64
-	sqlitex.ExecuteTransient(conn, `select count(id) from group_player_info where group_id=$group_id`, &sqlitex.ExecOptions{
-		Named: map[string]interface{}{
-			"$group_id": groupId,
-		},
-		ResultFunc: func(stmt *sqlite.Stmt) error {
-			// 这玩意内部封装了for的过程
-			ret = stmt.ColumnInt64(0)
-			return nil
-		},
-	})
-
-	return ret
+	return count, nil
 }
 
 type PlayerVariablesItem struct {
@@ -90,58 +91,53 @@ type GroupPlayerInfoBase struct {
 	RecentUsedTime int64 `yaml:"-" json:"-"`
 }
 
-func GroupPlayerInfoGet(db *sqlitex.Pool, groupId string, playerId string) *GroupPlayerInfoBase {
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
+func GroupPlayerInfoGet(db *sqlx.DB, groupId string, playerId string) *GroupPlayerInfoBase {
+	var ret GroupPlayerInfoBase
 
-	var ret *GroupPlayerInfoBase
-	sqlitex.ExecuteTransient(conn, `select name, updated_at, last_command_time, auto_set_name_template, dice_side_num from group_info where group_id=$group_id and user_id=$user_id`, &sqlitex.ExecOptions{
-		Named: map[string]interface{}{
-			"$group_id": groupId,
-			"$user_id":  playerId,
-		},
-		ResultFunc: func(stmt *sqlite.Stmt) error {
-			// 这玩意内部封装了for的过程
-			// name, updated_at, last_command_time, auto_set_name_template, dice_side_num
-			ret = &GroupPlayerInfoBase{
-				Name:                stmt.ColumnText(0),
-				UserId:              playerId,
-				LastCommandTime:     stmt.ColumnInt64(2),
-				AutoSetNameTemplate: stmt.ColumnText(3),
-				DiceSideNum:         int(stmt.ColumnInt64(4)),
-				//ValueMapTemp:        lockfree.NewHashMap(),
-			}
-			return nil
-		},
+	rows, err := db.NamedQuery("SELECT name, last_command_time, auto_set_name_template, dice_side_num FROM group_player_info WHERE group_id=:group_id AND user_id=:user_id", map[string]interface{}{
+		"group_id": groupId,
+		"user_id":  playerId,
 	})
 
-	return ret
-}
+	if err != nil {
+		fmt.Printf("error getting group player info: %s", err.Error())
+		return nil
+	}
 
-func GroupPlayerInfoSave(db *sqlitex.Pool, groupId string, playerId string, info *GroupPlayerInfoBase) {
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
+	defer rows.Close()
 
-	stmt := conn.Prep(`
-		replace into group_player_info (name, updated_at, last_command_time, auto_set_name_template, dice_side_num, group_id, user_id)
-		VALUES ($name, $updated_at, $last_command_time, $auto_set_name_template, $dice_side_num, $group_id, $user_id)`)
-	defer stmt.Finalize()
+	//Name:                stmt.ColumnText(0),
+	//UserId:              playerId,
+	//LastCommandTime:     stmt.ColumnInt64(2),
+	//AutoSetNameTemplate: stmt.ColumnText(3),
+	//DiceSideNum:         int(stmt.ColumnInt64(4)),
 
-	// $name, $updated_at, $last_command_time, $auto_set_name_template, $dice_side_num
-	stmt.SetText("$name", info.Name)
-	stmt.SetInt64("$updated_at", info.UpdatedAtTime)
-	stmt.SetInt64("$last_command_time", info.LastCommandTime)
-	stmt.SetText("$auto_set_name_template", info.AutoSetNameTemplate)
-	stmt.SetText("$dice_side_num", strconv.Itoa(info.DiceSideNum))
-
-	stmt.SetText("$group_id", groupId)
-	stmt.SetText("$user_id", playerId)
-
-	for {
-		if hasRow, err := stmt.Step(); err != nil {
-			break
-		} else if !hasRow {
-			break
+	for rows.Next() {
+		// 使用Scan方法将查询结果映射到结构体中
+		if err := rows.Scan(
+			&ret.Name,
+			&ret.LastCommandTime,
+			&ret.AutoSetNameTemplate,
+			&ret.DiceSideNum,
+		); err != nil {
+			fmt.Printf("error getting group player info: %s", err.Error())
+			return nil
 		}
 	}
+
+	ret.UserId = playerId
+	return &ret
+}
+
+func GroupPlayerInfoSave(db *sqlx.DB, groupId string, playerId string, info *GroupPlayerInfoBase) error {
+	_, err := db.NamedExec("REPLACE INTO group_player_info (name, updated_at, last_command_time, auto_set_name_template, dice_side_num, group_id, user_id) VALUES (:name, :updated_at, :last_command_time, :auto_set_name_template, :dice_side_num, :group_id, :user_id)", map[string]interface{}{
+		"name":                   info.Name,
+		"updated_at":             info.UpdatedAtTime,
+		"last_command_time":      info.LastCommandTime,
+		"auto_set_name_template": info.AutoSetNameTemplate,
+		"dice_side_num":          info.DiceSideNum,
+		"group_id":               groupId,
+		"user_id":                playerId,
+	})
+	return err
 }

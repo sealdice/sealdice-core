@@ -1,12 +1,10 @@
 package model
 
-import "zombiezen.com/go/sqlite/sqlitex"
+import (
+	"github.com/jmoiron/sqlx"
+)
 
-func Backup(db *sqlitex.Pool, path string) {
-	conn := db.Get(nil)
-	defer func() { db.Put(conn) }()
-
-	sqlitex.ExecuteTransient(conn, `vacuum into ?`, &sqlitex.ExecOptions{
-		Args: []interface{}{path},
-	})
+func Backup(db *sqlx.DB, path string) error {
+	_, err := db.Exec("vacuum into $1", path)
+	return err
 }

@@ -11,14 +11,10 @@ builds:
       - GO111MODULE=on
       - CGO_ENABLED=0
       - CGO_FLAGS=-Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
-#    ldflags:
-#      -H windowsgui
     goos:
       - linux
-      - windows
       - darwin
     goarch:
-#      - 386
       - arm64
       - amd64
     flags:
@@ -28,12 +24,26 @@ builds:
     gcflags:
       - all="-l" # -B
     ignore:
-      - goos: windows
-        goarch: arm64
       - goos: linux
         goarch: 386
       - goos: darwin
         goarch: arm64
+
+  - id: sealdice-core-win64
+    env:
+      - GO111MODULE=on
+      - CGO_ENABLED=1
+      - CGO_FLAGS=-Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+    goos:
+      - windows
+    goarch:
+      - amd64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.build={{.Version}}
+    gcflags:
+      - all="-l" # -B
 
 archives:
   - replacements:

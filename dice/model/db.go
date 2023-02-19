@@ -1,50 +1,24 @@
 package model
 
 import (
-	"go.etcd.io/bbolt"
+	"github.com/jmoiron/sqlx"
 	"path/filepath"
-	"zombiezen.com/go/sqlite"
-	"zombiezen.com/go/sqlite/sqlitex"
 )
 
-func BoltDBInit(path string) *bbolt.DB {
-	db, err := bbolt.Open(path, 0644, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("attrs_group"))     // 组属性
-		_, err = tx.CreateBucketIfNotExists([]byte("attrs_user"))       // 用户属性
-		_, err = tx.CreateBucketIfNotExists([]byte("attrs_group_user")) // 组_用户_属性
-		return err
-	})
-
-	return db
-}
-
-func _SQLiteDBInit(path string, poolSize int) (*sqlitex.Pool, error) {
-	flags := sqlite.OpenReadWrite | sqlite.OpenCreate | sqlite.OpenWAL
-	return sqlitex.Open(path, flags, poolSize)
-	//dbpool, err := sqlitex.Open(path, flags, poolSize)
-	//return dbpool, err
-}
-
-func SQLiteDBInit(dataDir string) (dataDB *sqlitex.Pool, logsDB *sqlitex.Pool, err error) {
+func SQLiteDBInit(dataDir string) (dataDB *sqlx.DB, logsDB *sqlx.DB, err error) {
 	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
-	dataDB, err = _SQLiteDBInit(dbDataPath, 3)
+	dataDB, err = _SQLiteDBInit(dbDataPath)
 	if err != nil {
 		return
 	}
 
 	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
-	logsDB, err = _SQLiteDBInit(dbDataLogsPath, 10)
+	logsDB, err = _SQLiteDBInit(dbDataLogsPath)
 	if err != nil {
 		return
 	}
 
 	// data建表
-	conn := dataDB.Get(nil)
 	texts := []string{
 		`
 create table if not exists group_player_info
@@ -107,12 +81,10 @@ create table if not exists ban_info
 		`create index if not exists idx_ban_info_ban_updated_at on ban_info (ban_updated_at);`,
 	}
 	for _, i := range texts {
-		_ = sqlitex.ExecuteTransient(conn, i, nil)
+		_, _ = dataDB.Exec(i)
 	}
-	dataDB.Put(conn)
 
 	// logs建表
-	conn = logsDB.Get(nil)
 	texts = []string{
 		`
 create table if not exists logs
@@ -165,9 +137,8 @@ create index if not exists idx_log_items_log_id
 	}
 
 	for _, i := range texts {
-		_ = sqlitex.ExecuteTransient(conn, i, nil)
+		_, _ = logsDB.Exec(i)
 	}
-	logsDB.Put(conn)
 
 	return
 }

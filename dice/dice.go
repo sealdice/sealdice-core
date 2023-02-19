@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/jmoiron/sqlx"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
 	"github.com/tidwall/buntdb"
@@ -18,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"zombiezen.com/go/sqlite/sqlitex"
 )
 
 var APPNAME = "SealDice"
@@ -121,8 +121,8 @@ type Dice struct {
 	LastUpdatedTime         int64                  `yaml:"-"`
 	TextMap                 map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig              DiceConfig             `yaml:"-"`
-	DBData                  *sqlitex.Pool          `yaml:"-"`                                    // 数据库对象
-	DBLogs                  *sqlitex.Pool          `yaml:"-"`                                    // 数据库对象
+	DBData                  *sqlx.DB               `yaml:"-"`                                    // 数据库对象
+	DBLogs                  *sqlx.DB               `yaml:"-"`                                    // 数据库对象
 	Logger                  *zap.SugaredLogger     `yaml:"-"`                                    // 日志
 	LogWriter               *logger.WriterX        `yaml:"-"`                                    // 用于api的log对象
 	IsDeckLoading           bool                   `yaml:"-"`                                    // 正在加载中
