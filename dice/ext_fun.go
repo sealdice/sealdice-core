@@ -711,10 +711,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 					pool = append(pool, i)
 				}
 				thisRoulette := map[string]interface{}{
-					"Reason": allArgsClean,
-					"Time":   t,
-					"Max":    m,
-					"Pool":   pool,
+					"Reason":      allArgsClean,
+					"Time":        t,
+					"Max":         m,
+					"Pool":        pool,
+					"DrawCounter": 0,
 				}
 				_roulettes[ctx.Group.GroupId] = thisRoulette
 				ReplyToSender(ctx, msg, fmt.Sprintf("创建骰轮%s成功，骰子面数%d，可抽取%d次。", allArgsClean, m, t))
@@ -743,8 +744,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 				VarSetValueStr(ctx, "$t结果文本", result)
 				reply := DiceFormatTmpl(ctx, "核心:骰点")
+				_roulettes[ctx.Group.GroupId]["DrawCounter"] = _roulettes[ctx.Group.GroupId]["DrawCounter"].(int) + 1
 				_roulettes[ctx.Group.GroupId]["Pool"] = append(_roulettes[ctx.Group.GroupId]["Pool"].([]int)[:res], _roulettes[ctx.Group.GroupId]["Pool"].([]int)[res+1:]...)
-				if len(_roulettes[ctx.Group.GroupId]["Pool"].([]int)) <= 0 {
+				if _roulettes[ctx.Group.GroupId]["DrawCounter"].(int) >= _roulettes[ctx.Group.GroupId]["Time"].(int) {
 					reply += fmt.Sprintf("\n骰轮%s已经抽空，现在关闭。", _roulettes[ctx.Group.GroupId]["Reason"])
 					_roulettes[ctx.Group.GroupId] = nil
 				}
