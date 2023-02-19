@@ -7,7 +7,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	cp "github.com/otiai10/copy"
-	"io/ioutil"
 	"mime"
 	"net"
 	"net/http"
@@ -50,7 +49,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 				i.Save(true)
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
-						j.Storage.Close()
+						_ = j.Storage.Close()
 					}
 				}
 			}
@@ -65,7 +64,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 				var dbData = d.DBData
 				if dbData != nil {
 					d.DBData = nil
-					dbData.Close()
+					_ = dbData.Close()
 				}
 			})()
 
@@ -76,7 +75,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 				var dbLogs = d.DBLogs
 				if dbLogs != nil {
 					d.DBLogs = nil
-					dbLogs.Close()
+					_ = dbLogs.Close()
 				}
 			})()
 			//if i.DB != nil {
@@ -130,7 +129,7 @@ func main() {
 	}
 	dnsHack()
 
-	os.MkdirAll("./data", 0644)
+	_ = os.MkdirAll("./data", 0644)
 	MainLoggerInit("./data/main.log", true)
 
 	// 提早初始化是为了读取ServiceName
@@ -173,9 +172,9 @@ func main() {
 			logger.Warn("升级失败")
 			return
 		}
-		ioutil.WriteFile("./auto_update_ok", []byte(""), 0644)
+		_ = os.WriteFile("./auto_update_ok", []byte(""), 0644)
 		logger.Warn("升级完成，即将重启主进程")
-		exec.Command("./sealdice-core.exe").Start()
+		_ = exec.Command("./sealdice-core.exe").Start()
 		return
 	}
 
@@ -186,12 +185,12 @@ func main() {
 		_, err = os.Stat("./auto_update_ok")
 		if err == nil {
 			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
-			os.Remove("./auto_update_ok")
-			os.Remove("./auto_update.exe")
-			os.Remove("./auto_updat3.exe")
-			os.RemoveAll("./update")
+			_ = os.Remove("./auto_update_ok")
+			_ = os.Remove("./auto_update.exe")
+			_ = os.Remove("./auto_updat3.exe")
+			_ = os.RemoveAll("./update")
 		} else {
-			ioutil.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
+			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
 			logger.Warn("检测到 auto_update.exe，即将进行升级")
 			// 这5s延迟是保险，其实并不必要
 			// 2023/1/9: 还是必要的，在有些设备上还要更久时间，所以现在改成15s
@@ -209,9 +208,9 @@ func main() {
 		_, err = os.Stat("./auto_update_ok")
 		if err == nil {
 			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
-			os.Remove("./auto_update_ok")
-			os.Remove("./auto_update")
-			os.RemoveAll("./update")
+			_ = os.Remove("./auto_update_ok")
+			_ = os.Remove("./auto_update")
+			_ = os.RemoveAll("./update")
 		} else {
 			logger.Warn("检测到 auto_update.exe，即将进行升级")
 			err := cp.Copy("./update/new", "./")
@@ -300,7 +299,7 @@ func main() {
 	//	panic(num)
 	//}
 
-	diceManager.Cron.AddFunc("@every 15min", func() {
+	_, _ = diceManager.Cron.AddFunc("@every 15min", func() {
 		go CheckVersion(diceManager)
 	})
 	go CheckVersion(diceManager)
@@ -315,7 +314,7 @@ func main() {
 		select {
 		case <-interrupt:
 			cleanUp()
-			time.Sleep(time.Duration(3 * time.Second))
+			time.Sleep(3 * time.Second)
 			os.Exit(0)
 		}
 	})()
@@ -358,22 +357,22 @@ func diceServe(d *dice.Dice) {
 					pa := con.Adapter.(*dice.PlatformAdapterQQOnebot)
 					dice.GoCqHttpServe(d, con, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
 					time.Sleep(10 * time.Second) // 稍作等待再连接
-					dice.DiceServeQQ(d, con)
+					dice.ServeQQ(d, con)
 					break
 				case "DISCORD":
-					dice.DiceServeDiscord(d, con)
+					dice.ServeDiscord(d, con)
 					break
 				case "KOOK":
-					dice.DiceServeKook(d, con)
+					dice.ServeKook(d, con)
 					break
 				case "TG":
-					dice.DiceServeTelegram(d, con)
+					dice.ServeTelegram(d, con)
 					break
 				case "MC":
-					dice.DiceServeMinecraft(d, con)
+					dice.ServeMinecraft(d, con)
 					break
 				case "DODO":
-					dice.DiceServeDodo(d, con)
+					dice.ServeDodo(d, con)
 					break
 				}
 

@@ -442,7 +442,7 @@ func textSplit(input string) []string {
 	m := re.FindAllStringIndex(input, -1)
 
 	// 注: 临时方案，后期对CQ码在消息转换时进行统一处理
-	poke := []string{}
+	var poke []string
 	if m != nil {
 		for i := len(m) - 1; i >= 0; i-- {
 			span := m[i]

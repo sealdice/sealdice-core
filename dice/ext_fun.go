@@ -86,60 +86,60 @@ var guguText = `
 `
 
 var emokloreAttrParent = map[string][]string{
-	"检索":   []string{"知力"},
-	"洞察":   []string{"知力"},
-	"识路":   []string{"灵巧", "五感"},
-	"直觉":   []string{"精神", "运势"},
-	"鉴定":   []string{"五感", "知力"},
-	"观察":   []string{"五感"},
-	"聆听":   []string{"五感"},
-	"鉴毒":   []string{"五感"},
-	"危机察觉": []string{"五感", "运势"},
-	"灵感":   []string{"精神", "运势"},
-	"社交术":  []string{"社会"},
-	"辩论":   []string{"知力"},
-	"心理":   []string{"精神", "知力"},
-	"魅惑":   []string{"魅力"},
-	"专业知识": []string{"知力"},
-	"万事通":  []string{"五感", "社会"},
-	"业界":   []string{"社会", "魅力"},
-	"速度":   []string{"身体"},
-	"力量":   []string{"身体"},
-	"特技动作": []string{"身体", "灵巧"},
-	"潜泳":   []string{"身体"},
-	"武术":   []string{"身体"},
-	"奥义":   []string{"身体", "精神", "灵巧"},
-	"射击":   []string{"灵巧", "五感"},
-	"耐久":   []string{"身体"},
-	"毅力":   []string{"精神"},
-	"医术":   []string{"灵巧", "知力"},
-	"技巧":   []string{"灵巧"},
-	"艺术":   []string{"灵巧", "精神", "五感"},
-	"操纵":   []string{"灵巧", "五感", "知力"},
-	"暗号":   []string{"知力"},
-	"电脑":   []string{"知力"},
-	"隐匿":   []string{"灵巧", "社会", "运势"},
-	"强运":   []string{"运势"},
+	"检索":   {"知力"},
+	"洞察":   {"知力"},
+	"识路":   {"灵巧", "五感"},
+	"直觉":   {"精神", "运势"},
+	"鉴定":   {"五感", "知力"},
+	"观察":   {"五感"},
+	"聆听":   {"五感"},
+	"鉴毒":   {"五感"},
+	"危机察觉": {"五感", "运势"},
+	"灵感":   {"精神", "运势"},
+	"社交术":  {"社会"},
+	"辩论":   {"知力"},
+	"心理":   {"精神", "知力"},
+	"魅惑":   {"魅力"},
+	"专业知识": {"知力"},
+	"万事通":  {"五感", "社会"},
+	"业界":   {"社会", "魅力"},
+	"速度":   {"身体"},
+	"力量":   {"身体"},
+	"特技动作": {"身体", "灵巧"},
+	"潜泳":   {"身体"},
+	"武术":   {"身体"},
+	"奥义":   {"身体", "精神", "灵巧"},
+	"射击":   {"灵巧", "五感"},
+	"耐久":   {"身体"},
+	"毅力":   {"精神"},
+	"医术":   {"灵巧", "知力"},
+	"技巧":   {"灵巧"},
+	"艺术":   {"灵巧", "精神", "五感"},
+	"操纵":   {"灵巧", "五感", "知力"},
+	"暗号":   {"知力"},
+	"电脑":   {"知力"},
+	"隐匿":   {"灵巧", "社会", "运势"},
+	"强运":   {"运势"},
 }
 
 var emokloreAttrParent2 = map[string][]string{
-	"治疗": []string{"知力"},
-	"复苏": []string{"知力", "精神"},
+	"治疗": {"知力"},
+	"复苏": {"知力", "精神"},
 }
 
 var emokloreAttrParent3 = map[string][]string{
-	"调查": []string{"灵巧"},
-	"知觉": []string{"五感"},
-	"交涉": []string{"魅力"},
-	"知识": []string{"知力"},
-	"信息": []string{"社会"},
-	"运动": []string{"身体"},
-	"格斗": []string{"身体"},
-	"投掷": []string{"灵巧"},
-	"生存": []string{"身体"},
-	"自我": []string{"精神"},
-	"手工": []string{"灵巧"},
-	"幸运": []string{"运势"},
+	"调查": {"灵巧"},
+	"知觉": {"五感"},
+	"交涉": {"魅力"},
+	"知识": {"知力"},
+	"信息": {"社会"},
+	"运动": {"身体"},
+	"格斗": {"身体"},
+	"投掷": {"灵巧"},
+	"生存": {"身体"},
+	"自我": {"精神"},
+	"手工": {"灵巧"},
+	"幸运": {"运势"},
 }
 
 func RegisterBuiltinExtFun(self *Dice) {
@@ -182,7 +182,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			rand.Seed(rpSeed)
 			rp := rand.Int63()%100 + 1
 
-			VarSetValueInt64(ctx, "$t人品", int64(rp))
+			VarSetValueInt64(ctx, "$t人品", rp)
 			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "娱乐:今日人品"))
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
@@ -202,7 +202,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			if err == nil && num > 0 {
 				successDegrees := int64(0)
 				failedCount := int64(0)
-				results := []string{}
+				var results []string
 				for i := int64(0); i < num; i++ {
 					v := DiceRoll64(6)
 					if v >= 5 {
@@ -356,7 +356,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 						nameLevel += extraVal
 
 						successDegrees := int64(0)
-						results := []string{}
+						var results []string
 						for i := int64(0); i < nameLevel; i++ {
 							v := DiceRoll64(6)
 							if v <= checkVal {
@@ -467,7 +467,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				sort.Sort(nums)
 
 				last := int64(25)
-				nums2 := []interface{}{}
+				var nums2 []interface{}
 				for _, j := range nums {
 					val := last - j
 					last = j
@@ -658,6 +658,6 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 func fingerprint(b string) uint64 {
 	hash := fnv.New64a()
-	hash.Write([]byte(b))
+	_, _ = hash.Write([]byte(b))
 	return hash.Sum64()
 }

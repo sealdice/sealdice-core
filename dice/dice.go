@@ -68,7 +68,7 @@ type ExtInfo struct {
 	Brief           string    `yaml:"-" json:"-"`
 	ActiveOnPrivate bool      `yaml:"-" json:"-"`
 
-	defaultSetting *ExtDefaultSettingItem `yaml:"-" json:"-"` // 默认配置
+	DefaultSetting *ExtDefaultSettingItem `yaml:"-" json:"-"` // 默认配置
 
 	Author       string   `yaml:"-" json:"-" jsbind:"author"`
 	ConflictWith []string `yaml:"-" json:"-"`
@@ -80,7 +80,7 @@ type ExtInfo struct {
 	//Storage ExtInfoStorage `yaml:"-" jsbind:"storage"`
 
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
-	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-" jsbind:"onCommandOverride"`    // 覆盖指令行为
+	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
 
 	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)                              `yaml:"-" json:"-" jsbind:"onCommandReceived"`
 	OnMessageReceived func(ctx *MsgContext, msg *Message)                                                `yaml:"-" json:"-" jsbind:"onMessageReceived"`
@@ -173,7 +173,7 @@ type Dice struct {
 
 	CocExtraRules    map[int]*CocRuleInfo `yaml:"-" json:"cocExtraRules"`
 	Cron             *cron.Cron           `yaml:"-" json:"-"`
-	aliveNoticeEntry cron.EntryID         `yaml:"-" json:"-"`
+	AliveNoticeEntry cron.EntryID         `yaml:"-" json:"-"`
 	//JsVM             *goja.Runtime          `yaml:"-" json:"-"`
 	JsPrinter    *PrinterFunc           `yaml:"-" json:"-"`
 	JsRequire    *require.RequireModule `yaml:"-" json:"-"`
@@ -212,12 +212,12 @@ func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
 
 func (d *Dice) Init() {
 	d.BaseConfig.DataDir = filepath.Join("./data", d.BaseConfig.Name)
-	os.MkdirAll(d.BaseConfig.DataDir, 0755)
-	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0755)
-	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0755)
-	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "logs"), 0755)
-	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
-	os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0755)
+	_ = os.MkdirAll(d.BaseConfig.DataDir, 0755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "logs"), 0755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0755)
 
 	d.Cron = cron.New()
 	d.Cron.Start()
@@ -521,8 +521,8 @@ func (d *Dice) IsMaster(uid string) bool {
 
 // ApplyAliveNotice 存活消息(骰狗)
 func (d *Dice) ApplyAliveNotice() {
-	if d.Cron != nil && d.aliveNoticeEntry != 0 {
-		d.Cron.Remove(d.aliveNoticeEntry)
+	if d.Cron != nil && d.AliveNoticeEntry != 0 {
+		d.Cron.Remove(d.AliveNoticeEntry)
 	}
 	if d.AliveNoticeEnable {
 		entry, err := d.Cron.AddFunc(d.AliveNoticeValue, func() {
@@ -532,7 +532,7 @@ func (d *Dice) ApplyAliveNotice() {
 			}
 		})
 		if err == nil {
-			d.aliveNoticeEntry = entry
+			d.AliveNoticeEntry = entry
 			d.Logger.Infof("创建存活确认消息成功")
 		} else {
 			d.Logger.Error("创建存活确认消息发生错误，可能是间隔设置有误:", err)
