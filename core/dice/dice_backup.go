@@ -33,7 +33,9 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 
 	fzip, _ := ioutil.TempFile(dirpath, bakFilename)
 	writer := zip.NewWriter(fzip)
-	defer writer.Close()
+	defer func(writer *zip.Writer) {
+		_ = writer.Close()
+	}(writer)
 
 	backup := func(d *Dice, fn string) {
 		data, err := ioutil.ReadFile(fn)
@@ -52,7 +54,7 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 			}
 			return
 		}
-		fileWriter.Write(data)
+		_, _ = fileWriter.Write(data)
 	}
 
 	if cfg.Decks {
@@ -129,7 +131,7 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 
 	h := &zip.FileHeader{Name: "backup_info.json", Method: zip.Deflate, Flags: 0x800}
 	fileWriter, _ := writer.CreateHeader(h)
-	fileWriter.Write(data)
+	_, _ = fileWriter.Write(data)
 
 	_ = writer.Close()
 	_ = fzip.Close()
@@ -142,7 +144,7 @@ func (dm *DiceManager) BackupAuto() error {
 		Decks:   false,
 		HelpDoc: false,
 		Dices: map[string]*OneBackupConfig{
-			"default": &OneBackupConfig{
+			"default": {
 				MiscConfig:  true,
 				PlayerData:  true,
 				CustomReply: true,
@@ -161,7 +163,7 @@ func (dm *DiceManager) BackupSimple() (string, error) {
 		Decks:   false,
 		HelpDoc: false,
 		Dices: map[string]*OneBackupConfig{
-			"default": &OneBackupConfig{
+			"default": {
 				MiscConfig:  true,
 				PlayerData:  true,
 				CustomReply: true,

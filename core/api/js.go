@@ -5,6 +5,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/labstack/echo/v4"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -135,7 +136,9 @@ func jsUpload(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	defer src.Close()
+	defer func(src multipart.File) {
+		_ = src.Close()
+	}(src)
 
 	// Destination
 	//fmt.Println("????", filepath.Join("./data/decks", file.Filename))
@@ -146,7 +149,9 @@ func jsUpload(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	defer dst.Close()
+	defer func(dst *os.File) {
+		_ = dst.Close()
+	}(dst)
 
 	// Copy
 	if _, err = io.Copy(dst, src); err != nil {

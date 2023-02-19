@@ -10,8 +10,8 @@ import (
 )
 
 func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][]string, rulesList [][]string, defaultIndex int) CmdExecuteResult {
-	names := []string{}
-	chops := []string{}
+	var names []string
+	var chops []string
 	for _, i := range cmdsList {
 		for _, j := range i {
 			chops = append(chops, j)

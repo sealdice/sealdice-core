@@ -57,8 +57,8 @@ func downloadUpdate(dm *dice.DiceManager) error {
 				return errors.New("更新: 删除缓存目录(update)失败")
 			}
 
-			os.MkdirAll("./update", 0755)
-			os.MkdirAll("./update/new", 0755)
+			_ = os.MkdirAll("./update", 0755)
+			_ = os.MkdirAll("./update/new", 0755)
 			fn2 := "./update/update." + ext
 			err = DownloadFile(fn2, fileUrl)
 			if err != nil {
@@ -140,8 +140,8 @@ func doUpdate(dm *dice.DiceManager) {
 		//exe, err := filepath.Abs(os.Args[0])
 		//if err == nil {
 		//cp.Copy("./update/new/sealdice-core.exe", "./sealdice-core.exe") // 仅作为标记
-		cp.Copy("./update/new/sealdice-core.exe", "./auto_update.exe")
-		cp.Copy("./update/new/sealdice-core.exe", "./auto_updat3.exe")
+		_ = cp.Copy("./update/new/sealdice-core.exe", "./auto_update.exe")
+		_ = cp.Copy("./update/new/sealdice-core.exe", "./auto_updat3.exe")
 		//}
 	} else {
 		// Linux / Mac
@@ -150,14 +150,14 @@ func doUpdate(dm *dice.DiceManager) {
 			// 如果已经有一个auto_update
 			if _, err := os.Stat("./auto_update"); err == nil {
 				tmpName := "/tmp/auto_update_old_" + dice.RandStringBytesMaskImprSrcSB(16)
-				os.Rename("./auto_update", tmpName)
+				_ = os.Rename("./auto_update", tmpName)
 			}
 
 			tmpName := "/tmp/auto_update_" + dice.RandStringBytesMaskImprSrcSB(16)
-			os.Rename(exe, tmpName)
+			_ = os.Rename(exe, tmpName)
 
-			cp.Copy("./update/new/sealdice-core", "./auto_update") // 仅作为标记
-			cp.Copy("./update/new/sealdice-core", exe)
+			_ = cp.Copy("./update/new/sealdice-core", "./auto_update") // 仅作为标记
+			_ = cp.Copy("./update/new/sealdice-core", exe)
 			_ = os.Chmod(exe, 0755)
 		}
 
@@ -176,7 +176,9 @@ func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo
 		logger.Errorf("获取新版本失败: %s", err.Error())
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	var ver dice.VersionInfo
 	err = json.NewDecoder(resp.Body).Decode(&ver)
@@ -206,14 +208,18 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	// Create the file
 	out, err := os.Create(filepath)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func(out *os.File) {
+		_ = out.Close()
+	}(out)
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
@@ -226,7 +232,9 @@ func unzipSource(source, destination string) error {
 	if err != nil {
 		return err
 	}
-	defer reader.Close()
+	defer func(reader *zip.ReadCloser) {
+		_ = reader.Close()
+	}(reader)
 
 	// 2. Get the absolute destination path
 	destination, err = filepath.Abs(destination)
@@ -270,14 +278,18 @@ func unzipFile(f *zip.File, destination string) error {
 	if err != nil {
 		return err
 	}
-	defer destinationFile.Close()
+	defer func(destinationFile *os.File) {
+		_ = destinationFile.Close()
+	}(destinationFile)
 
 	// 7. Unzip the content of a file and copy it to the destination file
 	zippedFile, err := f.Open()
 	if err != nil {
 		return err
 	}
-	defer zippedFile.Close()
+	defer func(zippedFile io.ReadCloser) {
+		_ = zippedFile.Close()
+	}(zippedFile)
 
 	if _, err := io.Copy(destinationFile, zippedFile); err != nil {
 		return err
@@ -291,7 +303,9 @@ func ExtractTarGz(fn, dest string) error {
 		fmt.Println("error", err.Error())
 		return err
 	}
-	defer gzipStream.Close()
+	defer func(gzipStream *os.File) {
+		_ = gzipStream.Close()
+	}(gzipStream)
 
 	log := logger
 	uncompressedStream, err := gzip.NewReader(gzipStream)
@@ -299,7 +313,9 @@ func ExtractTarGz(fn, dest string) error {
 		log.Error("ExtractTarGz: NewReader failed")
 		return err
 	}
-	defer uncompressedStream.Close()
+	defer func(uncompressedStream *gzip.Reader) {
+		_ = uncompressedStream.Close()
+	}(uncompressedStream)
 
 	tarReader := tar.NewReader(uncompressedStream)
 
@@ -321,7 +337,7 @@ func ExtractTarGz(fn, dest string) error {
 				log.Errorf("ExtractTarGz: Mkdir() failed: %s", err.Error())
 			}
 		case tar.TypeReg:
-			os.MkdirAll(filepath.Dir(filepath.Join(dest, header.Name)), 0755) // 进行一个目录的创
+			_ = os.MkdirAll(filepath.Dir(filepath.Join(dest, header.Name)), 0755) // 进行一个目录的创
 			outFile, err := os.Create(filepath.Join(dest, header.Name))
 			if err != nil {
 				log.Errorf("ExtractTarGz: Create() failed: %s", err.Error())
@@ -331,7 +347,7 @@ func ExtractTarGz(fn, dest string) error {
 				log.Errorf("ExtractTarGz: Copy() failed: %s", err.Error())
 				return err
 			}
-			outFile.Close()
+			_ = outFile.Close()
 
 		default:
 			log.Error(

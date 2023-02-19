@@ -16,7 +16,7 @@ func NewTelegramConnItem(token string) *EndPointInfo {
 	return conn
 }
 
-func DiceServeTelegram(d *Dice, ep *EndPointInfo) {
+func ServeTelegram(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "TG" {
 		conn := ep.Adapter.(*PlatformAdapterTelegram)

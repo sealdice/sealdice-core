@@ -9,7 +9,6 @@ import (
 	"github.com/sahilm/fuzzy"
 	"github.com/xuri/excelize/v2"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -73,9 +72,9 @@ func (m *HelpManager) loadSearchEngine() {
 		INDEX_DIR := "./data/_index"
 
 		mapping := bleve.NewIndexMapping()
-		os.RemoveAll(INDEX_DIR)
+		_ = os.RemoveAll(INDEX_DIR)
 		INDEX_DIR = "./_help_cache"
-		os.RemoveAll(INDEX_DIR)
+		_ = os.RemoveAll(INDEX_DIR)
 
 		if m.Parent.UseDictForTokenizer {
 			//这些代码封存，看起来不怎么需要
@@ -114,11 +113,11 @@ func (m *HelpManager) loadSearchEngine() {
 func (m *HelpManager) Close() {
 	if m.EngineType == 0 {
 		if m.Index != nil {
-			m.Index.Close()
+			_ = m.Index.Close()
 			m.Index = nil
 
 			INDEX_DIR := "./_help_cache"
-			os.RemoveAll(INDEX_DIR)
+			_ = os.RemoveAll(INDEX_DIR)
 		}
 	}
 }
@@ -126,19 +125,19 @@ func (m *HelpManager) Close() {
 func (m *HelpManager) Load() {
 	m.loadSearchEngine()
 
-	m.AddItem(HelpTextItem{
+	_ = m.AddItem(HelpTextItem{
 		Title:       "First Text",
 		Content:     "In view, a humble vaudevillian veteran cast vicariously as both victim and villain vicissitudes of fate.",
 		PackageName: "测试",
 	})
 
-	m.AddItem(HelpTextItem{
+	_ = m.AddItem(HelpTextItem{
 		Title:       "测试词条",
 		Content:     "他在命运的沉浮中随波逐流, 扮演着受害与加害者的双重角色",
 		PackageName: "测试",
 	})
 
-	m.AddItem(HelpTextItem{
+	_ = m.AddItem(HelpTextItem{
 		Title: "骰点",
 		Content: `.help 骰点：
  .r  //丢一个100面骰
@@ -150,7 +149,7 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	m.AddItem(HelpTextItem{
+	_ = m.AddItem(HelpTextItem{
 		Title: "娱乐",
 		Content: `.gugu // 随机召唤一只鸽子
 .jrrp 今日人品
@@ -158,7 +157,7 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	m.AddItem(HelpTextItem{
+	_ = m.AddItem(HelpTextItem{
 		Title: "扩展",
 		Content: `.help 扩展：
 扩展功能可以让你开关部分指令。
@@ -175,7 +174,7 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	m.AddItem(HelpTextItem{
+	_ = m.AddItem(HelpTextItem{
 		Title: "日志",
 		Content: `.help 日志：
 .log new //新建记录
@@ -186,7 +185,7 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	m.AddItem(HelpTextItem{
+	_ = m.AddItem(HelpTextItem{
 		Title: "跑团",
 		Content: `.help 跑团：
 .st 力量50 //载入技能/属性
@@ -204,7 +203,7 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	m.AddItem(HelpTextItem{
+	_ = m.AddItem(HelpTextItem{
 		Title: "骰主",
 		Content: `.botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话
 .botlist del @A @B @C // 去除机器人标记
@@ -215,7 +214,7 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	m.AddItem(HelpTextItem{
+	_ = m.AddItem(HelpTextItem{
 		Title: "其他",
 		Content: `.find 克苏鲁星之眷族 //查找对应怪物资料
 .find 70尺 法术 // 查找关联资料（仅在全文搜索开启时可用）
@@ -229,19 +228,19 @@ func (m *HelpManager) Load() {
 	//	PackageName: "核心指令",
 	//})
 
-	filepath.WalkDir("data/helpdoc", func(path string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir("data/helpdoc", func(path string, d fs.DirEntry, err error) error {
 		if !d.IsDir() {
 			fileExt := filepath.Ext(path)
 
 			switch fileExt {
 			case ".json":
 				data := HelpDocFormat{}
-				pack, err := ioutil.ReadFile(path)
+				pack, err := os.ReadFile(path)
 				if err == nil {
 					err = json.Unmarshal(pack, &data)
 					if err == nil {
 						for k, v := range data.Helpdoc {
-							m.AddItem(HelpTextItem{
+							_ = m.AddItem(HelpTextItem{
 								Title:       k,
 								Content:     v,
 								PackageName: data.Mod,
@@ -270,7 +269,7 @@ func (m *HelpManager) Load() {
 								key += "/" + synonym
 							}
 
-							m.AddItem(HelpTextItem{
+							_ = m.AddItem(HelpTextItem{
 								Title:       key,
 								Content:     content,
 								PackageName: s,
@@ -287,7 +286,7 @@ func (m *HelpManager) Load() {
 		}
 		return nil
 	})
-	m.AddItemApply()
+	_ = m.AddItemApply()
 }
 
 func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
@@ -303,7 +302,7 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 			if content == "" {
 				content = v.ShortHelp
 			}
-			m.AddItem(HelpTextItem{
+			_ = m.AddItem(HelpTextItem{
 				Title:       k,
 				Content:     content,
 				PackageName: packageName,
@@ -313,14 +312,14 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 
 	addCmdMap("核心指令", dice.CmdMap)
 	for _, i := range dice.ExtList {
-		m.AddItem(HelpTextItem{
+		_ = m.AddItem(HelpTextItem{
 			Title:       i.Name,
 			Content:     i.GetDescText(i),
 			PackageName: "扩展模块",
 		})
 		addCmdMap(i.Name, i.CmdMap)
 	}
-	m.AddItemApply()
+	_ = m.AddItemApply()
 }
 
 func (m *HelpManager) AddItem(item HelpTextItem) error {
@@ -339,7 +338,7 @@ func (m *HelpManager) AddItem(item HelpTextItem) error {
 			m.batch = m.Index.NewBatch()
 		}
 		if m.batchNum >= 50 {
-			m.Index.Batch(m.batch)
+			_ = m.Index.Batch(m.batch)
 			m.batch.Reset()
 			m.batchNum = 0
 		}
@@ -423,7 +422,7 @@ func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, num i
 
 		// 不是很好的做法，待优化
 		items := HelpTextItems{}
-		idLst := []string{}
+		var idLst []string
 
 		for id, v := range m.TextMap {
 			items = append(items, v)

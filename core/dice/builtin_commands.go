@@ -510,7 +510,7 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["dismiss"] = cmdDismiss
 
 	readIdList := func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) []string {
-		uidLst := []string{}
+		var uidLst []string
 		for _, i := range cmdArgs.At {
 			if i.UserId == ctx.EndPoint.UserId {
 				// 不许添加自己
@@ -604,7 +604,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				text := ""
-				for i, _ := range ctx.Group.BotList {
+				for i := range ctx.Group.BotList {
 					text += "- " + i + "\n"
 				}
 				if text == "" {
@@ -929,7 +929,7 @@ func (d *Dice) registerCoreCommands() {
 							forWhat = r.restInput
 						}
 					} else {
-						errs := string(err.Error())
+						errs := err.Error()
 						if strings.HasPrefix(errs, "E1:") || strings.HasPrefix(errs, "E5:") || strings.HasPrefix(errs, "E6:") || strings.HasPrefix(errs, "E7:") {
 							ReplyToSender(ctx, msg, errs)
 							//ReplyGroup(ctx, msg.GroupId, errs)
@@ -970,7 +970,7 @@ func (d *Dice) registerCoreCommands() {
 					//text = fmt.Sprintf("%s<%s>掷出了 %s%s=%d", prefix, ctx.Player.Name, cmdArgs.Args[0], detailWrap, diceResult)
 				} else {
 					dicePoints := getDefaultDicePoints(ctx)
-					val := DiceRoll64(int64(dicePoints))
+					val := DiceRoll64(dicePoints)
 
 					// 指令信息标记
 					item := map[string]interface{}{
@@ -998,7 +998,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: false}
 				}
-				texts := []string{}
+				var texts []string
 				for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
 					ret := rollOne()
 					if ret != nil {
@@ -1130,13 +1130,13 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					checkConflict := func(ext *ExtInfo) []string {
-						actived := []string{}
+						var actived []string
 						for _, i := range ctx.Group.ActivatedExtList {
 							actived = append(actived, i.Name)
 						}
 
 						if ext.ConflictWith != nil {
-							ret := []string{}
+							var ret []string
 							for _, i := range intersect.Simple(actived, ext.ConflictWith) {
 								ret = append(ret, i.(string))
 							}
@@ -1145,8 +1145,8 @@ func (d *Dice) registerCoreCommands() {
 						return []string{}
 					}
 
-					extNames := []string{}
-					conflictsAll := []string{}
+					var extNames []string
+					var conflictsAll []string
 					for index := 0; index < len(cmdArgs.Args); index++ {
 						for _, i := range d.ExtList {
 							extName := strings.ToLower(cmdArgs.Args[index])
@@ -1175,8 +1175,8 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					closed := []string{}
-					notfound := []string{}
+					var closed []string
+					var notfound []string
 					for index := 0; index < len(cmdArgs.Args); index++ {
 						extName := strings.ToLower(cmdArgs.Args[index])
 						ei := ctx.Group.ExtInactiveByName(extName)
@@ -1409,7 +1409,7 @@ func (d *Dice) registerCoreCommands() {
 
 			if cmdArgs.IsArgEqual(1, "list") {
 				vars := ctx.LoadPlayerGlobalVars()
-				characters := []string{}
+				var characters []string
 				curBind := ctx.ChBindCurGet()
 
 				_ = vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
@@ -1422,7 +1422,7 @@ func (d *Dice) registerCoreCommands() {
 				})
 
 				// 分两次防止死锁
-				newChars := []string{}
+				var newChars []string
 				for _, name := range characters {
 					prefix := "[×] "
 					if ctx.ChBindGet(name) != nil {

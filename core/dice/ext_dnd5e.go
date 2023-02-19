@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"math"
 	"os"
 	"regexp"
@@ -23,11 +22,11 @@ type ByRIListValue []*RIListItem
 func (lst ByRIListValue) Len() int {
 	return len(lst)
 }
-func (s ByRIListValue) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
+func (lst ByRIListValue) Swap(i, j int) {
+	lst[i], lst[j] = lst[j], lst[i]
 }
-func (s ByRIListValue) Less(i, j int) bool {
-	return s[i].val > s[j].val
+func (lst ByRIListValue) Less(i, j int) bool {
+	return lst[i].val > lst[j].val
 }
 
 var dndAttrParent = map[string]string{
@@ -58,76 +57,63 @@ var dndAttrParent = map[string]string{
 func setupConfigDND(d *Dice) AttributeConfigs {
 	attrConfigFn := d.GetExtConfigFilePath("dnd5e", "attribute.yaml")
 
-	if _, err := os.Stat(attrConfigFn); err == nil && false {
-		// 如果文件存在，那么读取
-		ac := AttributeConfigs{}
-		af, err := ioutil.ReadFile(attrConfigFn)
-		if err == nil {
-			err = yaml.Unmarshal(af, &ac)
-			if err != nil {
-				panic(err)
-			}
-		}
-		return ac
-	} else {
-		// 如果不存在，新建
-		defaultVals := AttributeConfigs{
-			Alias: map[string][]string{
-				"力量": {"str", "Strength"},
-				"敏捷": {"dex", "Dexterity"},
-				"体质": {"con", "Constitution", "體質"},
-				"智力": {"int", "Intelligence"},
-				"感知": {"wis", "Wisdom"},
-				"魅力": {"cha", "Charisma"},
+	_, _ = os.Stat(attrConfigFn)
+	// 如果不存在，新建
+	defaultVals := AttributeConfigs{
+		Alias: map[string][]string{
+			"力量": {"str", "Strength"},
+			"敏捷": {"dex", "Dexterity"},
+			"体质": {"con", "Constitution", "體質"},
+			"智力": {"int", "Intelligence"},
+			"感知": {"wis", "Wisdom"},
+			"魅力": {"cha", "Charisma"},
 
-				"ac":    {"AC", "护甲等级", "护甲值", "护甲", "護甲等級", "護甲值", "護甲", "装甲", "裝甲"},
-				"hp":    {"HP", "生命值", "生命", "血量", "体力", "體力", "耐久值"},
-				"hpmax": {"HPMAX", "生命值上限", "生命上限", "血量上限", "耐久上限"},
-				"dc":    {"DC", "难度等级", "法术豁免", "難度等級", "法術豁免"},
-				"hd":    {"HD", "生命骰"},
-				"pp":    {"PP", "被动察觉", "被动感知", "被動察覺", "被动感知"},
+			"ac":    {"AC", "护甲等级", "护甲值", "护甲", "護甲等級", "護甲值", "護甲", "装甲", "裝甲"},
+			"hp":    {"HP", "生命值", "生命", "血量", "体力", "體力", "耐久值"},
+			"hpmax": {"HPMAX", "生命值上限", "生命上限", "血量上限", "耐久上限"},
+			"dc":    {"DC", "难度等级", "法术豁免", "難度等級", "法術豁免"},
+			"hd":    {"HD", "生命骰"},
+			"pp":    {"PP", "被动察觉", "被动感知", "被動察覺", "被动感知"},
 
-				"熟练": {"熟练加值", "熟練", "熟練加值"},
-				"体型": {"siz", "size", "體型", "体型", "体形", "體形"},
+			"熟练": {"熟练加值", "熟練", "熟練加值"},
+			"体型": {"siz", "size", "體型", "体型", "体形", "體形"},
 
-				// 技能
-				"运动": {"Athletics", "運動"},
+			// 技能
+			"运动": {"Athletics", "運動"},
 
-				"体操": {"Acrobatics", "杂技", "特技", "體操", "雜技"},
-				"巧手": {"Sleight of Hand"},
-				"隐匿": {"Stealth", "隱匿", "潜行", "潛行"},
+			"体操": {"Acrobatics", "杂技", "特技", "體操", "雜技"},
+			"巧手": {"Sleight of Hand"},
+			"隐匿": {"Stealth", "隱匿", "潜行", "潛行"},
 
-				"调查": {"Investigation", "調查"},
-				"奥秘": {"Arcana", "奧秘"},
-				"历史": {"History", "歷史"},
-				"自然": {"Nature"},
-				"宗教": {"Religion"},
+			"调查": {"Investigation", "調查"},
+			"奥秘": {"Arcana", "奧秘"},
+			"历史": {"History", "歷史"},
+			"自然": {"Nature"},
+			"宗教": {"Religion"},
 
-				"察觉": {"Perception", "察覺", "觉察", "覺察"},
-				"洞悉": {"Insight", "洞察"},
-				"驯兽": {"Animal Handling", "馴獸", "驯养", "馴養"},
-				"医药": {"Medicine", "醫藥", "医疗", "醫療"},
-				"求生": {"Survival", "生存"},
+			"察觉": {"Perception", "察覺", "觉察", "覺察"},
+			"洞悉": {"Insight", "洞察"},
+			"驯兽": {"Animal Handling", "馴獸", "驯养", "馴養"},
+			"医药": {"Medicine", "醫藥", "医疗", "醫療"},
+			"求生": {"Survival", "生存"},
 
-				"游说": {"Persuasion", "说服", "话术", "遊說", "說服", "話術"},
-				"欺瞒": {"Deception", "唬骗", "欺诈", "欺骗", "诈骗", "欺瞞", "唬騙", "欺詐", "欺騙", "詐騙"},
-				"威吓": {"Intimidation", "恐吓", "威嚇", "恐嚇"},
-				"表演": {"Performance"},
-			},
-			Order: AttributeOrder{
-				Top:    []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
-				Others: AttributeOrderOthers{SortBy: "Name"},
-			},
-		}
-
-		buf, err := yaml.Marshal(defaultVals)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			ioutil.WriteFile(attrConfigFn, buf, 0644)
-		}
-		return defaultVals
+			"游说": {"Persuasion", "说服", "话术", "遊說", "說服", "話術"},
+			"欺瞒": {"Deception", "唬骗", "欺诈", "欺骗", "诈骗", "欺瞞", "唬騙", "欺詐", "欺騙", "詐騙"},
+			"威吓": {"Intimidation", "恐吓", "威嚇", "恐嚇"},
+			"表演": {"Performance"},
+		},
+		Order: AttributeOrder{
+			Top:    []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
+			Others: AttributeOrderOthers{SortBy: "Name"},
+		},
 	}
+	buf, err2 := yaml.Marshal(defaultVals)
+	if err2 != nil {
+		fmt.Println(err2)
+	} else {
+		_ = os.WriteFile(attrConfigFn, buf, 0644)
+	}
+	return defaultVals
 }
 
 func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Regexp) map[string]string {
@@ -307,7 +293,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					regexp.MustCompile(`^\$法术位上限_[1-9]$`),
 				})
 
-				texts := []string{}
+				var texts []string
 				for k, v := range m {
 					texts = append(texts, fmt.Sprintf("%s:%s", k, v))
 				}
@@ -373,7 +359,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 				} else {
 					// 按照配置文件排序
-					attrKeys := []string{}
+					var attrKeys []string
 					used := map[string]bool{}
 					for _, i := range ac.Order.Top {
 						key := p.GetValueNameByAlias(i, ac.Alias)
@@ -386,7 +372,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					// 其余按字典序
 					topNum := len(attrKeys)
-					attrKeys2 := []string{}
+					var attrKeys2 []string
 
 					_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
 						k := _k.(string)
@@ -482,9 +468,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			default:
 				text := cmdArgs.CleanArgs
 				// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
-				re := regexp.MustCompile(`(?:([^\s:0-9*][^\s:0-9*]*)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
-				attrSeted := []string{}
-				attrChanged := []string{}
+				re := regexp.MustCompile(`(?:([^\s:0-9*]+)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
+				var attrSeted []string
+				var attrChanged []string
 				var extraText string
 
 				var commandInfoItems []interface{}
@@ -822,7 +808,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 			case "clr", "clear":
 
-				varNames := []string{}
+				var varNames []string
 				_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
 					varname := _k.(string)
 					varname = "$buff_" + varname
@@ -831,7 +817,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					return nil
 				})
 
-				toDelete := []string{}
+				var toDelete []string
 				for _, varname := range varNames {
 					if _, exists := chVars.Get(varname); exists {
 						toDelete = append(toDelete, varname)
@@ -854,7 +840,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				p := mctx.Player
 				var info string
 
-				attrKeys2 := []string{}
+				var attrKeys2 []string
 				_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
 					k := _k.(string)
 					if strings.HasPrefix(k, "$buff_") {
@@ -869,7 +855,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 				} else {
 					// 按照配置文件排序
-					attrKeys := []string{}
+					var attrKeys []string
 					used := map[string]bool{}
 					for _, i := range ac.Order.Top {
 						key := p.GetValueNameByAlias(i, ac.Alias)
@@ -881,7 +867,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 
 					// 其余按字典序
-					attrKeys2 := []string{}
+					var attrKeys2 []string
 					_ = chVars.Iterate(func(_k interface{}, _v interface{}) error {
 						k := _k.(string)
 						attrKeys2 = append(attrKeys2, k)
@@ -945,9 +931,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			default:
 				text := cmdArgs.CleanArgs
 				// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
-				re := regexp.MustCompile(`(?:([^\s:0-9*][^\s:0-9*]*)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
-				attrSeted := []string{}
-				attrChanged := []string{}
+				re := regexp.MustCompile(`(?:([^\s:0-9*]+)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
+				var attrSeted []string
+				var attrChanged []string
 
 				for {
 					m := re.FindStringSubmatch(text)
@@ -1130,7 +1116,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				reSlot := regexp.MustCompile(`\d+`)
 				slots := reSlot.FindAllString(cmdArgs.CleanArgs, -1)
 				if len(slots) > 0 {
-					texts := []string{}
+					var texts []string
 					for index, levelVal := range slots {
 						val, _ := strconv.ParseInt(levelVal, 10, 64)
 						VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", index+1), val)
@@ -1163,7 +1149,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				reSlot := regexp.MustCompile(`(\d+)[环cC]\s*(\d+)|[lL][vV](\d+)\s+(\d+)`)
 				slots := reSlot.FindAllStringSubmatch(cmdArgs.CleanArgs, -1)
 				if len(slots) > 0 {
-					texts := []string{}
+					var texts []string
 					for _, oneSlot := range slots {
 						level := oneSlot[1]
 						if level == "" {
@@ -1185,7 +1171,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 			case "":
-				texts := []string{}
+				var texts []string
 				for i := 1; i < 10; i += 1 {
 					spellLevelCur, _ := VarGetValueInt64(mctx, fmt.Sprintf("$法术位_%d", i))
 					spellLevelMax, exists := VarGetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", i))
@@ -1496,7 +1482,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 					sort.Sort(nums)
 
-					items := []string{}
+					var items []string
 					for _, i := range nums {
 						items = append(items, strconv.FormatInt(i, 10))
 					}
@@ -1716,7 +1702,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					case "del", "rm":
 						names := cmdArgs.Args[1:]
 						riMap := dndGetRiMapList(ctx)
-						deleted := []string{}
+						var deleted []string
 						for _, i := range names {
 							_, exists := riMap[i]
 							if exists {
