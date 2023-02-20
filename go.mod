@@ -11,8 +11,8 @@ require (
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/blevesearch/bleve/v2 v2.3.6
 	github.com/bwmarrin/discordgo v0.26.1
-	github.com/dop251/goja v0.0.0-20230203172422-5460598cfa32
-	github.com/dop251/goja_nodejs v0.0.0-20230121151440-041f29a15066
+	github.com/dop251/goja v0.0.0-20230216180835-5937a312edda
+	github.com/dop251/goja_nodejs v0.0.0-20230207183254-2229640ea097
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd
 	github.com/fy0/lockfree v0.0.0-20220407095241-e3799de5fa34
@@ -43,7 +43,7 @@ require (
 	go.etcd.io/bbolt v1.3.5
 	go.uber.org/zap v1.24.0
 	golang.org/x/sys v0.4.0
-	golang.org/x/text v0.6.0
+	golang.org/x/text v0.7.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -77,7 +77,7 @@ require (
 	github.com/blevesearch/zapx/v14 v14.3.7 // indirect
 	github.com/blevesearch/zapx/v15 v15.3.8 // indirect
 	github.com/dchest/siphash v1.2.2 // indirect
-	github.com/dlclark/regexp2 v1.7.0 // indirect
+	github.com/dlclark/regexp2 v1.8.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819 // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20221015165544-a0805db90819 // indirect
