@@ -1129,6 +1129,8 @@ func (ctx *MsgContext) ChUnbindCur() (string, bool) {
 		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
 
 		lst := ctx.ChBindGetList(name)
+		fmt.Println("????", name, strings.Join(lst, "|"))
+		fmt.Println(ctx.Player.Vars.ValueMap.Get("$:card"))
 
 		if len(lst) == 0 {
 			// 没有群绑这个卡了，释放内存

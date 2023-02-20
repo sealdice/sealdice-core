@@ -1396,15 +1396,19 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "group1", "grp1")
 
-			getNickname := func() string {
+			getNicknameRaw := func(usePlayerName bool) string {
 				//name := cmdArgs.GetArgN(2)
 				name := cmdArgs.CleanArgsChopRest
-				if name == "" {
+				if usePlayerName && name == "" {
 					name = ctx.Player.Name
 				}
 				name = strings.ReplaceAll(name, "\n", "")
 				name = strings.ReplaceAll(name, "\r", "")
 				return name
+			}
+
+			getNickname := func() string {
+				return getNicknameRaw(true)
 			}
 
 			if cmdArgs.IsArgEqual(1, "list") {
@@ -1475,7 +1479,8 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载失败_已绑定"))
 				}
 			} else if cmdArgs.IsArgEqual(1, "tag") {
-				name := getNickname()
+				// 当不输入角色的时候，不用当前角色填充，因此做到不写角色名就取消绑定的效果
+				name := getNicknameRaw(false)
 				VarSetValueStr(ctx, "$t角色名", name)
 				if name != "" {
 					curBind := ctx.ChBindCurGet()
