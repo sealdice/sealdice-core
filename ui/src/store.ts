@@ -22,7 +22,8 @@ export interface AdapterQQ {
   inPackGoCqHttpProtocol: number
   useInPackGoCqhttp: boolean;
   goCqHttpLoginVerifyCode: string;
-  goCqHttpLoginDeviceLockUrl: string
+  goCqHttpLoginDeviceLockUrl: string;
+  ignoreFriendRequest: boolean;
 }
 
 interface TalkLogItem {
@@ -195,8 +196,8 @@ export const useStore = defineStore('main', {
       return info as any as DiceConnection
     },
 
-    async getImConnectionsSetData(i: DiceConnection, { protocol }: { protocol: number }) {
-      const info = await backend.post(urlPrefix+'/im_connections/set_data', { id: i.id, protocol })
+    async getImConnectionsSetData(i: DiceConnection, { protocol, ignoreFriendRequest }: { protocol: number, ignoreFriendRequest: boolean }) {
+      const info = await backend.post(urlPrefix+'/im_connections/set_data', { id: i.id, protocol, ignoreFriendRequest })
       return info as any as DiceConnection
     },
 

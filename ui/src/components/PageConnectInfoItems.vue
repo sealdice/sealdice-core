@@ -12,7 +12,7 @@
   </div>
 
   <div style="display: flex; flex-wrap: wrap;">
-    <div v-for="i, index in reactive(store.curDice.conns)" style="width: 20rem; flex: 1 0 50%; flex-grow: 0;">
+    <div v-for="i, index in reactive(store.curDice.conns)" style="min-width: 20rem; flex: 1 0 50%; flex-grow: 0;">
       <el-card class="box-card" style="margin-right: 1rem; margin-bottom: 1rem; position: relative">
         <template #header>
           <div class="card-header">
@@ -71,14 +71,20 @@
             <div>{{i.adapter?.connectUrl}}</div>
           </el-form-item>
 
-          <el-form-item label="协议">
-            <!-- <el-input v-model="i.connectUrl"></el-input> -->
-            <div v-if="i.adapter?.inPackGoCqHttpProtocol === 0">iPad</div>
-            <div v-if="i.adapter?.inPackGoCqHttpProtocol === 1">Android</div>
-            <div v-if="i.adapter?.inPackGoCqHttpProtocol === 2">Android 手表</div>
-            <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
-            <el-button size="small" type="primary" style="margin-left: 1rem" @click="askSetData(i)" :icon="Edit"></el-button>
-          </el-form-item>
+          <template v-if="i.platform == 'QQ'">
+            <el-form-item label="忽略好友请求">
+              <div>{{i.adapter?.ignoreFriendRequest ? '是' : '否'}}</div>
+            </el-form-item>
+
+            <el-form-item label="协议">
+              <!-- <el-input v-model="i.connectUrl"></el-input> -->
+              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 0">iPad</div>
+              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 1">Android</div>
+              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 2">Android 手表</div>
+              <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
+              <el-button size="small" type="primary" style="margin-left: 1rem" @click="askSetData(i)" :icon="Edit"></el-button>
+            </el-form-item>
+          </template>
 
           <!-- <el-form-item label="密码">
             <el-input type="password" v-model="i.password"></el-input>
@@ -112,6 +118,10 @@
     <el-form :model="form">
       <el-form-item label="类型" :label-width="formLabelWidth">
         <div>QQ账号</div>
+      </el-form-item>
+
+      <el-form-item label="忽略好友请求" :label-width="formLabelWidth">
+        <el-checkbox v-model="form.ignoreFriendRequest">{{ form.ignoreFriendRequest ? '我会登录官方客户端处理好友请求' : '让海豹帮我按照预设答案处理' }}</el-checkbox>
       </el-form-item>
 
       <el-form-item label="协议" :label-width="formLabelWidth" required>
@@ -477,12 +487,13 @@ const setEnable = async (i: DiceConnection, val: boolean) => {
 
 const askSetData = async (i: DiceConnection) => {
   form.protocol = i.adapter?.inPackGoCqHttpProtocol;
+  form.ignoreFriendRequest = i.adapter?.ignoreFriendRequest;
   dialogSetDataFormVisible.value = true;
   form.endpoint = i;
 }
 
 const doSetData = async () => {
-  const ret = await store.getImConnectionsSetData(form.endpoint, { protocol: form.protocol });
+  const ret = await store.getImConnectionsSetData(form.endpoint, { protocol: form.protocol, ignoreFriendRequest: form.ignoreFriendRequest });
   if (form.endpoint.adapter) {
     form.endpoint.adapter.inPackGoCqHttpProtocol = form.protocol;
   }
@@ -552,6 +563,7 @@ const form = reactive({
   token: '',
   url:'',
   clientID:'',
+  ignoreFriendRequest: false,
   endpoint: null as any as DiceConnection
 })
 
