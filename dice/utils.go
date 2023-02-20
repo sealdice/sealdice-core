@@ -474,3 +474,34 @@ func CheckDialErr(err error) syscall.Errno {
 
 	return 1 // 失败 但是原因不明
 }
+
+// CreateTempCtx 制作ctx，需要msg.MessageType和msg.Sender.UserId
+func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
+	session := ep.Session
+
+	if msg.Sender.UserId == "" {
+		return nil
+	}
+
+	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: session, Dice: session.Parent}
+
+	switch msg.MessageType {
+	case "private":
+		// msg.Sender.UserId 确保存在
+		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		if ctx.Player.Name == "" {
+			ctx.Player.Name = "<未知用户>"
+		}
+		SetTempVars(ctx, ctx.Player.Name)
+	case "group":
+		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		if ctx.Player.Name == "" {
+			ctx.Player.Name = "<未知用户>"
+		}
+		SetTempVars(ctx, ctx.Player.Name)
+	default:
+		return nil
+	}
+
+	return ctx
+}
