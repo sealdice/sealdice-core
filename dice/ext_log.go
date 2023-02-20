@@ -634,7 +634,6 @@ func RegisterBuiltinExtLog(self *Dice) {
 						RawMsgId:  msg.RawId,
 					}
 
-					fmt.Println("!!!!!!!", ctx.Group.GroupId, ctx.Group.LogCurName)
 					model.LogAppend(ctx.Dice.DBLogs, ctx.Group.GroupId, ctx.Group.LogCurName, &a)
 				}
 			}

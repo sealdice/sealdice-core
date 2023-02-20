@@ -138,6 +138,8 @@ type Dice struct {
 	WorkInQQChannel         bool                   `yaml:"workInQQChannel"`
 	QQChannelAutoOn         bool                   `yaml:"QQChannelAutoOn"`     // QQ频道中自动开启(默认不开)
 	QQChannelLogMessage     bool                   `yaml:"QQChannelLogMessage"` // QQ频道中记录消息(默认不开)
+	QQEnablePoke            bool                   `yaml:"QQEnablePoke"`        // 启用戳一戳
+	TextCmdTrustOnly        bool                   `yaml:"textCmdTrustOnly"`    // 只允许信任用户或master使用text指令
 	UILogLimit              int64                  `yaml:"UILogLimit"`
 	FriendAddComment        string                 `yaml:"friendAddComment"` // 加好友验证信息
 	MasterUnlockCode        string                 `yaml:"-"`                // 解锁码，每20分钟变化一次，使用后立即变化

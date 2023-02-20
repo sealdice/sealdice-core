@@ -57,8 +57,9 @@ type PlatformAdapterQQOnebot struct {
 
 	InPackGoCqHttpProtocol       int      `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
 	InPackGoCqHttpPassword       string   `yaml:"inPackGoCqHttpPassword" json:"-"`
-	DiceServing                  bool     `yaml:"-"`          // 是否正在连接中
-	InPackGoCqHttpDisconnectedCH chan int `yaml:"-" json:"-"` // 信号量，用于关闭连接
+	DiceServing                  bool     `yaml:"-"`                                              // 是否正在连接中
+	InPackGoCqHttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
+	IgnoreFriendRequest          bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
 	customEcho int64                                `yaml:"-"` // 自定义返回标记
 	echoMap    *xsync.MapOf[int64, chan *MessageQQ] `yaml:"-"`
@@ -468,20 +469,35 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					comment = strconv.Quote(comment)
 				}
 
-				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%d, 验证信息: %s, 是否自动同意: %t", msgQQ.UserId, comment, willAccept)
-				log.Info(txt)
-				ctx.Notice(txt)
-				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
-
-				// 黑名单
+				// 检查黑名单
+				extra := ""
 				uid := FormatDiceIdQQ(msgQQ.UserId)
 				banInfo := ctx.Dice.BanList.GetById(uid)
 				if banInfo != nil {
 					if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
-						pa.SetFriendAddRequest(msgQQ.Flag, false, "", "黑名单用户")
-						return
+						if willAccept {
+							extra = "。回答正确，但为被禁止用户，准备自动拒绝"
+						} else {
+							extra = "。回答错误，且为被禁止用户，准备自动拒绝"
+						}
+						willAccept = false
 					}
 				}
+
+				if pa.IgnoreFriendRequest {
+					extra += "。由于设置了忽略邀请，此信息仅为通报"
+				}
+
+				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%d, 验证信息: %s, 是否自动同意: %t%s", msgQQ.UserId, comment, willAccept, extra)
+				log.Info(txt)
+				ctx.Notice(txt)
+
+				// 忽略邀请
+				if pa.IgnoreFriendRequest {
+					return
+				}
+
+				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 
 				if willAccept {
 					pa.SetFriendAddRequest(msgQQ.Flag, true, "", "")
@@ -695,6 +711,12 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 			// 戳一戳
 			if msgQQ.PostType == "notice" && msgQQ.SubType == "poke" {
 				// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
+
+				// 检查设置中是否开启
+				if !ctx.Dice.QQEnablePoke {
+					return
+				}
+
 				go func() {
 					defer ErrorLogAndContinue(pa.Session.Parent)
 					ctx := pa.packTempCtx(msgQQ, msg)
