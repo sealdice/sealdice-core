@@ -174,6 +174,13 @@ func (d *Dice) JsInit() {
 		_ = seal.Set("formatTmpl", DiceFormatTmpl)
 		_ = seal.Set("getCtxProxyFirst", GetCtxProxyFirst)
 
+		// 1.2新增
+		_ = seal.Set("newMessage", func() *Message {
+			return &Message{}
+		})
+		// 1.2新增
+		_ = seal.Set("createTempCtx", CreateTempCtx)
+
 		_ = seal.Set("inst", d)
 		_ = vm.Set("__dirname", "")
 		_ = vm.Set("seal", seal)
