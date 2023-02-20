@@ -9,7 +9,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.logs404.walrus.common.ExtractAssets
-import com.logs404.walrus.common.KeepShell
 import com.logs404.walrus.databinding.FragmentFirstBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -93,17 +92,6 @@ class FirstFragment : Fragment() {
     private fun clear() {
         shellLogs = ""
         binding.textviewFirst.text = shellLogs
-    }
-    private fun execShell1(cmd: String) {
-        GlobalScope.launch(context = Dispatchers.IO) {
-            val keepShell = KeepShell(false)
-            keepShell.doCmdSync("cd ${context?.filesDir?.absolutePath}")
-            shellLogs += keepShell.doCmdSync(cmd)
-            shellLogs += "\n"
-            withContext(Dispatchers.Main) {
-                binding.textviewFirst.text = shellLogs
-            }
-        }
     }
 
     private fun execShell(cmd: String) {

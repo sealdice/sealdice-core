@@ -29,20 +29,12 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
-//        binding.
         binding.fab.setOnClickListener { view ->
             Snackbar.make(view, "SealDice For Android\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show()
 //            ExtractAssets(this).extractResources("sealdice")
         }
 
-//        val alertDialogBuilder = AlertDialog.Builder(this)
-//        alertDialogBuilder.setTitle("提示")
-//        alertDialogBuilder.setMessage("此app非海豹官方app，随时可能停止维护，并且不兼容后续海豹官方app")
-//        alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->
-////            finish()
-//        }
-//        val alertDialog = alertDialogBuilder.create().show()
 
     }
 
