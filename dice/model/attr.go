@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/binary"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"time"
@@ -75,11 +74,4 @@ func AttrUserGetAll(db *sqlx.DB, userId string) []byte {
 
 func AttrUserSave(db *sqlx.DB, userId string, data []byte) {
 	attrSave(db, "attrs_user", userId, data)
-}
-
-// itob returns an 8-byte big endian representation of v.
-func itob(v uint64) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(v))
-	return b
 }

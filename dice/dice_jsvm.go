@@ -1,11 +1,13 @@
 package dice
 
 import (
+	"encoding/base64"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	fetch "github.com/fy0/gojax/fetch"
+	"github.com/pkg/errors"
 	"gopkg.in/elazarl/goproxy.v1"
 	"io/fs"
 	"os"
@@ -178,8 +180,25 @@ func (d *Dice) JsInit() {
 		_ = seal.Set("newMessage", func() *Message {
 			return &Message{}
 		})
-		// 1.2新增
 		_ = seal.Set("createTempCtx", CreateTempCtx)
+		_ = vm.Set("atob", func(s string) (string, error) {
+			// Remove data URI scheme and any whitespace from the string.
+			s = strings.Replace(s, "data:text/plain;base64,", "", -1)
+			s = strings.Replace(s, " ", "", -1)
+
+			// Decode the base64-encoded string.
+			b, err := base64.StdEncoding.DecodeString(s)
+			if err != nil {
+				return "", errors.New("atob: 不合法的base64字串")
+			}
+
+			return string(b), nil
+		})
+		_ = vm.Set("btoa", func(s string) string {
+			// 编码
+			return base64.StdEncoding.EncodeToString([]byte(s))
+		})
+		// 1.2新增结束
 
 		_ = seal.Set("inst", d)
 		_ = vm.Set("__dirname", "")
