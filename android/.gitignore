@@ -18,5 +18,6 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+sealdice
 *.apk
 output.json
