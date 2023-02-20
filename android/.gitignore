@@ -18,6 +18,9 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
-sealdice
+data
+sealdice-core
+frontend
+go-cqhttp
 *.apk
 output.json
