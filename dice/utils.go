@@ -345,7 +345,9 @@ func isDeckFile(source string) bool {
 	// 1. Open the zip file
 	reader, err := zip.OpenReader(source)
 	defer func(reader *zip.ReadCloser) {
-		_ = reader.Close()
+		if reader != nil {
+			_ = reader.Close()
+		}
 	}(reader)
 	if err != nil {
 		return false

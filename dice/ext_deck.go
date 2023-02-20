@@ -75,7 +75,7 @@ func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	jsonData := map[string][]string{}
 	err := json.Unmarshal(content, &jsonData)
 	if err != nil {
-		fmt.Println("牌堆解析错误:", err)
+		d.Logger.Infof("牌堆解析错误: %s", err.Error())
 		return false
 	}
 	jsonData2 := DeckDiceEFormat{}
