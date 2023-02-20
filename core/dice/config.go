@@ -1221,6 +1221,8 @@ func (d *Dice) loads() {
 			d.WorkInQQChannel = dNew.WorkInQQChannel
 			d.QQChannelLogMessage = dNew.QQChannelLogMessage
 			d.QQChannelAutoOn = dNew.QQChannelAutoOn
+			d.QQEnablePoke = dNew.QQEnablePoke
+			d.TextCmdTrustOnly = dNew.TextCmdTrustOnly
 			d.UILogLimit = dNew.UILogLimit
 			d.FriendAddComment = dNew.FriendAddComment
 			d.AutoReloginEnable = dNew.AutoReloginEnable
@@ -1260,7 +1262,7 @@ func (d *Dice) loads() {
 			}
 
 			if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
-				d.DiceMasters = []string{}
+				d.DiceMasters = []string{"UI:1001"}
 			}
 			newDiceMasters := []string{}
 			for _, i := range d.DiceMasters {
@@ -1370,6 +1372,12 @@ func (d *Dice) loads() {
 				})
 			}
 
+			// 1.2 版本
+			if d.VersionCode != 0 && d.VersionCode < 10200 {
+				d.TextCmdTrustOnly = true
+				d.QQEnablePoke = true
+			}
+
 			// 设置全局群名缓存和用户名缓存
 			dm := d.Parent
 			now := time.Now().Unix()
@@ -1402,6 +1410,11 @@ func (d *Dice) loads() {
 		d.LogSizeNoticeEnable = true
 		d.CustomBotExtraText = "供职于{$t供职群数}个群，其中{$启用群数}个处于开启状态。{$t群内工作状态}"
 		d.CustomDrawKeysText = "牌组1/牌组2/牌组3"
+
+		// 1.2
+		d.QQEnablePoke = true
+		d.TextCmdTrustOnly = true
+		d.DiceMasters = []string{"UI:1001"}
 	}
 
 	model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {

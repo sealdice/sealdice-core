@@ -148,15 +148,18 @@ func ImConnectionsSetData(c echo.Context) error {
 	}
 
 	v := struct {
-		Id       string `form:"id" json:"id"`
-		Protocol int    `form:"protocol" json:"protocol"`
+		Id                  string `form:"id" json:"id"`
+		Protocol            int    `form:"protocol" json:"protocol"`
+		IgnoreFriendRequest bool   `json:"ignoreFriendRequest"` // 忽略好友请求
 	}{}
+
 	err := c.Bind(&v)
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
 				ad := i.Adapter.(*dice.PlatformAdapterQQOnebot)
 				ad.SetQQProtocol(v.Protocol)
+				ad.IgnoreFriendRequest = v.IgnoreFriendRequest
 				return c.JSON(http.StatusOK, i)
 			}
 		}

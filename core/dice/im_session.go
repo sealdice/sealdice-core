@@ -324,7 +324,7 @@ type MsgContext struct {
 	CommandId       int64       // 指令ID
 	CommandHideFlag string      // 暗骰标记
 	CommandInfo     interface{} // 命令信息
-	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 40邀请者 50管理 60群主 100master
+	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 40邀请者 50管理 60群主 70信任 100master
 	DelegateText    string      `jsbind:"delegateText"`   // 代骰附加文本
 
 	deckDepth      int                                         // 抽牌递归深度
@@ -464,6 +464,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			if val, exists := d.BanList.Map.Load(mctx.Player.UserId); exists {
 				if val.Rank == BanRankBanned {
 					mctx.PrivilegeLevel = -30
+				}
+				if val.Rank == BanRankTrusted {
+					mctx.PrivilegeLevel = 70
 				}
 			}
 
@@ -1143,8 +1146,6 @@ func (ctx *MsgContext) ChUnbindCur() (string, bool) {
 		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
 
 		lst := ctx.ChBindGetList(name)
-		fmt.Println("????", name, strings.Join(lst, "|"))
-		fmt.Println(ctx.Player.Vars.ValueMap.Get("$:card"))
 
 		if len(lst) == 0 {
 			// 没有群绑这个卡了，释放内存

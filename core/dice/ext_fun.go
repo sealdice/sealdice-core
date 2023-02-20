@@ -580,10 +580,20 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: textHelp,
 		Help:      "文本模板指令:\n" + textHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.PrivilegeLevel != 100 {
-				ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
-				return CmdExecuteResult{Matched: true, Solved: true}
+			if ctx.Dice.TextCmdTrustOnly {
+				// 检查master和信任权限
+				refuse := ctx.PrivilegeLevel != 100
+				if refuse {
+					refuse = ctx.PrivilegeLevel != 70
+				}
+
+				// 拒绝无权限访问
+				if refuse {
+					ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 			}
+
 			val := cmdArgs.GetArgN(1)
 			if val != "" {
 				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
