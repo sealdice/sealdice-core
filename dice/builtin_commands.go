@@ -1555,7 +1555,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				} else {
 					VarSetValueStr(ctx, "$t角色名", name)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_删除失败_已绑定"))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
 				}
 			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
 				name := getNickname()
