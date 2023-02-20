@@ -127,12 +127,36 @@
       <template #label>
         <div>
           <span>允许自由开关</span>
-          <el-tooltip raw-content content="只允许任何人执行bot on/off和ext on/off，否则只有邀请者、管理员和master进行操作">
+          <el-tooltip raw-content content="默认开启。允许任何人执行bot on/off和ext on/off，否则只有邀请者、管理员和master进行操作">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
         </div>
       </template>
       <el-checkbox label="开启" v-model="config.botExtFreeSwitch"/>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>启用戳一戳</span>
+          <el-tooltip raw-content content="默认开启。仅QQ平台，关闭后不回应戳一戳。">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.QQEnablePoke"/>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>限制.text指令</span>
+          <el-tooltip raw-content content="默认开启。开启后只有master和信任用户可使用.text指令。如果你不了解这个指令，一定要开启。">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.textCmdTrustOnly"/>
     </el-form-item>
 
     <el-form-item>
