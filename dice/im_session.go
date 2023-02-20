@@ -386,6 +386,20 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					}
 				}
 			}
+
+			// 如果非reply扩展存在OnNotCommandReceived功能，那么加载用户数据
+			if !mustLoadUser {
+				for _, i := range group.ActivatedExtList {
+					if i.Name == "reply" {
+						// 跳过reply
+						continue
+					}
+					if i.OnNotCommandReceived != nil {
+						mustLoadUser = true
+						break
+					}
+				}
+			}
 		}
 
 		// 当文本可能是在发送命令时，必须加载信息
