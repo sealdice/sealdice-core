@@ -190,7 +190,8 @@ type Dice struct {
 	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable"` // 开启日志数量提示
 	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount"`  // 日志数量提示阈值，默认500
 
-	IsAlreadyLoadConfig bool `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
+	IsAlreadyLoadConfig  bool                 `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
+	deckCommandItemsList DeckCommandListItems // 牌堆key信息，辅助作为模糊搜索使用
 
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行

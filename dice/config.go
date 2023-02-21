@@ -489,6 +489,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"抽牌_找不到牌组": {
 				{"找不到这个牌组", 1},
 			},
+			"抽牌_找不到牌组_存在类似": {
+				{"未找到牌组，但发现一些相似的:", 1},
+			},
 			"抽牌_结果前缀": {
 				{``, 1},
 			},
@@ -1387,6 +1390,24 @@ func (d *Dice) loads() {
 				if !isUI1001Master {
 					d.DiceMasters = append(d.DiceMasters, "UI:1001")
 				}
+
+				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+					// 更正写反的部分
+					d.Logger.Info("正在自动升级自定义文案文件")
+					for index, text := range d.TextMapRaw["COC"]["属性设置_保存提醒"] {
+						srcText := text[0].(string)
+						srcText = strings.ReplaceAll(
+							srcText,
+							`{ $t当前绑定角色 ? '角色信息已经变更，别忘了使用.pc save来进行保存！' : '' }`,
+							`{ $t当前绑定角色 ? '' : '角色信息已经变更，别忘了使用.pc save来进行保存！' }`,
+						)
+						d.TextMapRaw["COC"]["属性设置_保存提醒"][index][0] = srcText
+					}
+
+					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+					d.GenerateTextMap()
+					d.SaveText()
+				})
 			}
 
 			// 设置全局群名缓存和用户名缓存

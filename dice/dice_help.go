@@ -69,10 +69,11 @@ func (m *HelpManager) loadSearchEngine() {
 
 	switch m.EngineType {
 	case 0: // 默认，bleve
+		// 删除旧版本的
 		INDEX_DIR := "./data/_index"
+		_ = os.RemoveAll(INDEX_DIR)
 
 		mapping := bleve.NewIndexMapping()
-		_ = os.RemoveAll(INDEX_DIR)
 		INDEX_DIR = "./_help_cache"
 		_ = os.RemoveAll(INDEX_DIR)
 
@@ -430,7 +431,6 @@ func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, num i
 		}
 
 		hits := search.DocumentMatchCollection{}
-
 		matches := fuzzy.FindFrom(text, items)
 
 		right := len(matches)
