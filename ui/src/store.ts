@@ -58,7 +58,9 @@ interface DiceServer {
       filename: string[],
       origin: (string[])[],
       vars: string[],
-      modified: boolean
+      modified: boolean,
+      topOrder: number,
+      subType: string,
     }
   }}
   customTexts: { [k: string]: { [k: string]: (string[])[] } }
@@ -77,6 +79,8 @@ interface DiceBaseInfo {
   memoryAlloc: number
   memoryUsedSys: number
   uptime: number
+  OS: string
+  arch: string
 }
 
 import { defineStore } from 'pinia'
@@ -106,7 +110,7 @@ export const useStore = defineStore('main', {
     curDice(): DiceServer {
       if (this.diceServers.length === 0) {
         this.diceServers.push({
-          baseInfo: { version: '0.0', versionNew: '0.0', memoryUsedSys: 0, memoryAlloc: 0, uptime: 0, versionNewNote: '', versionCode: 0, versionNewCode: 0 },
+          baseInfo: { version: '0.0', versionNew: '0.0', memoryUsedSys: 0, memoryAlloc: 0, uptime: 0, versionNewNote: '', versionCode: 0, versionNewCode: 0, OS: '', arch: '' },
           customTexts: {},
           customTextsHelpInfo: {},
           logs: [],

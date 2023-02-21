@@ -12,7 +12,7 @@
       <el-button v-if="store.curDice.baseInfo.versionCode !== store.curDice.baseInfo.versionNewCode" type="primary" @click="upgradeDialogVisible = true">升级新版</el-button>
     </span>
   </p>
-  <el-table :data="store.curDice.logs" style="width: 100%;" class="hidden-xs-only">
+  <el-table :data="store.curDice.logs" style="width: 100%; padding: 0 1rem;" class="hidden-xs-only">
     <el-table-column label="时间" width="130" >
       <template #default="scope">
         <div style="display: flex; align-items: center">

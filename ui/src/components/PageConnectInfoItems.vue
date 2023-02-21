@@ -72,9 +72,9 @@
           </el-form-item>
 
           <template v-if="i.platform == 'QQ'">
-            <el-form-item label="忽略好友请求">
+            <!-- <el-form-item label="忽略好友请求">
               <div>{{i.adapter?.ignoreFriendRequest ? '是' : '否'}}</div>
-            </el-form-item>
+            </el-form-item> -->
 
             <el-form-item label="协议">
               <!-- <el-input v-model="i.connectUrl"></el-input> -->

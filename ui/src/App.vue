@@ -7,9 +7,9 @@
   >
     <h3
       class="mb-2"
-      style="color: #f8ffff; text-align: left; padding-left: 2em; font-weight: normal;max-height:60px; height: 60px;"
+      style="color: #f8ffff; text-align: left; padding-left: 1.2em; font-weight: normal;max-height:60px; height: 60px;"
     >
-      <span :v-show="store.canAccess">SealDice</span>
+      <span :v-show="store.canAccess" style="position: relative;">SealDice<span v-if="store.diceServers.length > 0" style="font-size: .2rem; position: absolute; bottom: -1rem; white-space: nowrap; left: 0;">{{ store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}</span></span>
     </h3>
 
     <div

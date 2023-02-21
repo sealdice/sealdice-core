@@ -59,7 +59,7 @@
   </div>
 
   <el-row :gutter="20">
-    <el-col :xs="24" :span="12" v-for="v, k in reactive(store.curDice.customTexts[category])">
+    <el-col :xs="24" :span="12" v-for="[k, v] in reactive(doSort(category))">
       <el-form ref="form" label-width="auto" label-position="top">
         <el-form-item>
           <template #label>
@@ -163,6 +163,28 @@ const configForImport = ref('')
 const importOnlyCurrent = ref(true)
 const importImpact = ref(true)
 const dialogImportVisible = ref(false)
+
+const doSort = (category: string) => {
+  const items = Object.entries(store.curDice.customTexts[category]);
+  const helpInfo = store.curDice.customTextsHelpInfo[category];
+
+  const out = items.sort((a, b) => {
+    const ia = helpInfo[a[0]];
+    const ib = helpInfo[b[0]];
+
+    if (ia.topOrder !== ib.topOrder) {
+      return ib.topOrder - ia.topOrder;
+    }
+
+    if (ia.subType !== ib.subType) {
+      return ib.subType.localeCompare(ia.subType);
+    }
+
+    return 0;
+  });
+  console.log(22, out);
+  return out;
+}
 
 const copied = () => {
   ElMessage.success('进行了复制！')

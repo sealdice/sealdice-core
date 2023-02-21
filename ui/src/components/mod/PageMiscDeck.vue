@@ -40,6 +40,7 @@
     </div> -->
     <div>作者: {{i.author || '<佚名>'}}  版本: {{i.version || '<未定义>'}}</div>
     <div>
+      <div v-if="i.license">许可协议: {{i.license}}</div>
       <div>牌组列表:</div>
       <div class="deck-keys">
         <span v-for="_,c of i.command">{{c}}</span>
