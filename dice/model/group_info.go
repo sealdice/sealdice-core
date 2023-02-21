@@ -112,7 +112,9 @@ func GroupPlayerInfoGet(db *sqlx.DB, groupId string, playerId string) *GroupPlay
 	//AutoSetNameTemplate: stmt.ColumnText(3),
 	//DiceSideNum:         int(stmt.ColumnInt64(4)),
 
+	exists := false
 	for rows.Next() {
+		exists = true
 		// 使用Scan方法将查询结果映射到结构体中
 		if err := rows.Scan(
 			&ret.Name,
@@ -125,6 +127,9 @@ func GroupPlayerInfoGet(db *sqlx.DB, groupId string, playerId string) *GroupPlay
 		}
 	}
 
+	if !exists {
+		return nil
+	}
 	ret.UserId = playerId
 	return &ret
 }

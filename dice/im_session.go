@@ -173,7 +173,9 @@ func (group *GroupInfo) PlayerGet(db *sqlx.DB, id string) *GroupPlayerInfo {
 	p, exists := group.Players.Load(id)
 	if !exists {
 		p = (*GroupPlayerInfo)(model.GroupPlayerInfoGet(db, group.GroupId, id))
-		group.Players.Store(id, p)
+		if p != nil {
+			group.Players.Store(id, p)
+		}
 	}
 	return (*GroupPlayerInfo)(p)
 }

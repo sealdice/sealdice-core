@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	"github.com/fy0/lockfree"
 	"regexp"
 	"strconv"
 	"strings"
@@ -27,6 +28,14 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 		p := ctx.Group.PlayerGet(ctx.Dice.DBData, i.UserId)
 		if p != nil {
 			mctx.Player = p
+		} else {
+			// TODO: 主动获取用户名
+			mctx.Player = &GroupPlayerInfo{
+				Name:          "",
+				UserId:        i.UserId,
+				ValueMapTemp:  lockfree.NewHashMap(),
+				UpdatedAtTime: 0,
+			}
 		}
 		return mctx, p != nil
 	}

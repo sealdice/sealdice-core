@@ -35,6 +35,7 @@ type TextTemplateHelpItem = struct {
 	ExtraText       string             `json:"extraText"`       // 额外解说
 	ExampleCommands []string           `json:"exampleCommands"` // 案例命令
 	NotBuiltin      bool               `json:"notBuiltin"`      // 非内置
+	TopOrder        int                `json:"topOrder"`        // 置顶序号，越高越靠前
 }
 type TextTemplateHelpGroup = map[string]*TextTemplateHelpItem
 type TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
@@ -261,6 +262,15 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"制卡_分隔符": {
 				{"#{SPLIT}", 1},
+			},
+			"对抗检定": {
+				{`对抗检定:
+{$t玩家A} {$t玩家A判定式}-> 属性值:{$t玩家A属性} 判定值:{$t玩家A判定值}{$t玩家A判定过程} {$t玩家A判定结果}
+{$t玩家B} {$t玩家B判定式}-> 属性值:{$t玩家B属性} 判定值:{$t玩家B判定值}{$t玩家B判定过程} {$t玩家B判定结果}
+{% $tWinFlag == -1 ? $t玩家A + '胜出！',
+   $tWinFlag == +1 ? $t玩家B + '胜出！',
+   $tWinFlag == 0 ? '平手！(请自行根据场景，如属性比较、攻击对反击，攻击对闪避)做出判断'
+%}`, 1},
 			},
 		},
 
@@ -516,7 +526,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`无法继续，没能找到记录: {$t记录名称}`, 1},
 			},
 			"记录_开启_失败_尚未新建": {
-				{`旅程尚未开始，请使用.log new新建记录`, 1},
+				{`找不到记录，请使用.log new新建记录`, 1},
 			},
 			"记录_关闭_成功": {
 				{`当前记录"{$t记录名称}"已经暂停，已记录文本{$t当前记录条数}条\n结束故事并传送日志请用.log end`, 1},
@@ -535,6 +545,15 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"记录_新建_失败_未结束的记录": {
 				{`上一段旅程还未结束，请先使用.log end结束故事。或使用.log new <名称>，强行建立新日志`, 1},
+			},
+			"记录_条数提醒": {
+				{`提示: 当前故事的文本已经记录了 {$t条数} 条`, 1},
+			},
+			"OB_开启": {
+				{"你将成为观众（自动修改昵称和群名片[如有权限]，并不会给观众发送暗骰结果）。", 1},
+			},
+			"OB_关闭": {
+				{"你不再是观众了（自动修改昵称和群名片[如有权限]）。", 1},
 			},
 		},
 	}
@@ -727,6 +746,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"制卡_分隔符": {
 				SubType: ".coc 2 旧版为\\n\\n",
 			},
+			"对抗检定": {
+				SubType: ".rav/.rcv",
+			},
 		},
 		"娱乐": {
 			"今日人品": {
@@ -802,31 +824,39 @@ func setupBaseTextTemplate(d *Dice) {
 		},
 		"核心": {
 			"骰子名字": {
-				SubType: "通用",
+				SubType:  "通用",
+				TopOrder: 1,
 			},
 			"骰子帮助文本_附加说明": {
-				SubType: "help",
+				SubType:  ".help",
+				TopOrder: 1,
 			},
 			"骰子执行异常": {
-				SubType: "通用",
+				SubType:  "通用",
+				TopOrder: 1,
 			},
 			"骰子开启": {
-				SubType: ".bot on",
+				SubType:  ".bot on",
+				TopOrder: 1,
 			},
 			"骰子关闭": {
-				SubType: ".bot off",
+				SubType:  ".bot off",
+				TopOrder: 1,
 			},
 			"骰子进群": {
-				SubType: "通用",
+				SubType:  "通用",
+				TopOrder: 1,
 			},
 			//"骰子群内迎新": {
 			//	{`欢迎，{$新人昵称}，祝你在这里过得愉快`, 1},
 			//},
 			"骰子成为好友": {
-				SubType: "通用",
+				SubType:  "通用",
+				TopOrder: 1,
 			},
 			"骰子退群预告": {
-				SubType: ".bot bye",
+				SubType:  ".bot bye",
+				TopOrder: 1,
 			},
 			"骰子保存设置": {
 				SubType: ".bot save",
@@ -953,10 +983,16 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"抽牌_找不到牌组": {
 				SubType: ".draw 不存在的某个牌组",
+				Vars:    []string{"$t牌组"},
+			},
+			"抽牌_找不到牌组_存在类似": {
+				SubType: ".draw 不存在的某个牌组",
+				Vars:    []string{"$t牌组"},
 			},
 			"抽牌_结果前缀": {
 				SubType:   ".draw XXX",
 				ExtraText: "举例: 你从牌堆抽出 xxxx",
+				Vars:      []string{"$t牌组"},
 			},
 			"随机名字": {
 				SubType: ".name/.namednd",
@@ -1000,6 +1036,15 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"记录_新建_失败_未结束的记录": {
 				SubType: ".log new",
+			},
+			"记录_条数提醒": {
+				SubType: ".log",
+			},
+			"OB_开启": {
+				SubType: ".ob",
+			},
+			"OB_关闭": {
+				SubType: ".ob exit",
 			},
 		},
 	}
