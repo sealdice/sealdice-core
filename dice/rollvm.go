@@ -878,14 +878,17 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 
 				if !exists {
 					if ctx.SystemTemplate != nil {
-						var calculated bool
-						var detail string
-						v2, detail, calculated = ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
-						if calculated && !e.Calculated {
-							e.Calculated = calculated
+						//var calculated bool
+						//var detail string
+						v2n, detail, calculated, exists2 := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+						if exists2 {
+							v2 = v2n
+							if calculated && !e.Calculated {
+								e.Calculated = calculated
+							}
+							lastDetail = detail
+							exists = true
 						}
-						exists = v2 != nil
-						lastDetail = detail
 					}
 				}
 
@@ -1016,7 +1019,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 
 			if v == nil {
 				if ctx.SystemTemplate != nil {
-					v2, detail, calculated := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+					v2, detail, calculated, _ := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
 					if calculated && !e.Calculated {
 						e.Calculated = calculated
 					}
