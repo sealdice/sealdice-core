@@ -1521,6 +1521,11 @@ func (d *Dice) registerCoreCommands() {
 					if i == ctx.Group.GroupId {
 						ctx.Player.Name = msg.Sender.Nickname
 						ctx.Player.UpdatedAtTime = time.Now().Unix()
+
+						// TODO: 其他群的设置sn的怎么办？先不管了。。
+						if ctx.Player.AutoSetNameTemplate != "" {
+							_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+						}
 					}
 				}
 
