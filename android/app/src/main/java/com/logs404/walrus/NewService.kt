@@ -1,6 +1,10 @@
 package com.logs404.walrus
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
 import android.net.Uri
@@ -36,6 +40,15 @@ class NewService : Service() {
         // providing the boolean
         // value as true to play
         // the audio on loop
+        val ns: String = Context.NOTIFICATION_SERVICE
+        val mNotificationManager = getSystemService(ns) as NotificationManager
+        val notificationChannel = NotificationChannel("sealdice","SealDice", NotificationManager.IMPORTANCE_HIGH)
+        mNotificationManager.createNotificationChannel(notificationChannel)
+        val notification: Notification = Notification.Builder(this,"sealdice")
+            .setContentTitle("SealDice is running")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .build()
+        startForeground(1, notification)
         player.isLooping = true
         // starting the process
         player.start()
@@ -52,8 +65,8 @@ class NewService : Service() {
 
         // stopping the process
         player.stop()
-        val intent = Intent(applicationContext, NewService::class.java)
-        startService(intent)
+//        val intent = Intent(applicationContext, NewService::class.java)
+//        startService(intent)
     }
 
     override fun onBind(intent: Intent): IBinder? {
