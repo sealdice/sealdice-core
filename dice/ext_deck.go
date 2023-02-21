@@ -623,8 +623,15 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 			continue
 		}
 
-		text = "{" + text[1:len(text)-1] + "}"
-		s = s[:i[0]] + text + s[i[1]:]
+		runeText, rest := extractExecuteContent(s[i[0]:])
+		text = "{" + runeText + "}"
+		if runeText == "" {
+			text = ""
+		}
+		s = s[:i[0]] + text + rest
+		fmt.Println("!!!!", text, "|", rest)
+		//text = "{" + text[1:len(text)-1] + "}"
+		//s = s[:i[0]] + text + s[i[1]:]
 	}
 
 	s = CQRewrite(s, cqSolve)
@@ -761,4 +768,30 @@ func DeckToShuffleRandomPool(deck []string) *ShuffleRandomPool {
 	}
 	randomPool, _ := NewChooser(choices...)
 	return randomPool
+}
+
+// extractExecuteContent 抽出需要执行代码的部分，支持嵌套，返回的第一项为匹配内容。第二项为剩余文本
+func extractExecuteContent(s string) (string, string) {
+	start := strings.Index(s, "[")
+	if start == -1 {
+		return "", ""
+	}
+	end := start
+	count := 1
+	for i := start + 1; i < len(s); i++ {
+		switch s[i] {
+		case '[':
+			count++
+		case ']':
+			count--
+		}
+		if count == 0 {
+			end = i
+			break
+		}
+	}
+	if end == 0 {
+		return "", s
+	}
+	return s[start+1 : end], s[end+1:]
 }
