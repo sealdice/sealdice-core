@@ -64,16 +64,6 @@ type DeckInfo struct {
 	RawData       *map[string][]string `yaml:"-" json:"-"`
 }
 
-type DeckInfoCommandList []string
-
-func (e DeckInfoCommandList) String(i int) string {
-	return e[i]
-}
-
-func (e DeckInfoCommandList) Len() int {
-	return len(e)
-}
-
 func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	jsonData := map[string][]string{}
 	err := json.Unmarshal(content, &jsonData)
@@ -304,6 +294,21 @@ func DeckDelete(d *Dice, deck *DeckInfo) {
 	}
 }
 
+type DeckCommandListItem struct {
+	command string
+	deck    *DeckInfo
+}
+
+type DeckCommandListItems []*DeckCommandListItem
+
+func (e DeckCommandListItems) String(i int) string {
+	return e[i].command
+}
+
+func (e DeckCommandListItems) Len() int {
+	return len(e)
+}
+
 func DeckReload(d *Dice) {
 	if d.IsDeckLoading {
 		return
@@ -315,6 +320,17 @@ func DeckReload(d *Dice) {
 	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
 	d.IsDeckLoading = false
 	d.MarkModified()
+
+	lst := DeckCommandListItems{}
+	for _, i := range d.DeckList {
+		for k, _ := range i.Command {
+			lst = append(lst, &DeckCommandListItem{
+				command: k,
+				deck:    i,
+			})
+		}
+	}
+	d.deckCommandItemsList = lst
 }
 
 func deckDraw(ctx *MsgContext, deckName string, shufflePool bool) (bool, string, error) {
@@ -369,17 +385,10 @@ func RegisterBuiltinExtDeck(d *Dice) {
 				} else if strings.EqualFold(deckName, "desc") {
 					// 查看详情
 					text := cmdArgs.GetArgN(2)
-					var lst DeckInfoCommandList
-					for _, i := range ctx.Dice.DeckList {
-						if i.Enable {
-							lst = append(lst, i.Name)
-						}
-					}
-
-					matches := fuzzy.FindFrom(text, lst)
+					matches := fuzzy.FindFrom(text, d.deckCommandItemsList)
 					if len(matches) > 0 {
 						text := "牌堆信息:\n"
-						i := ctx.Dice.DeckList[matches[0].Index]
+						i := ctx.Dice.deckCommandItemsList[matches[0].Index].deck
 						author := fmt.Sprintf("作者: %s", i.Author)
 						version := fmt.Sprintf("版本: %s", i.Version)
 						text += fmt.Sprintf("牌堆: %s\n格式: %s\n%s\n%s\n牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
@@ -445,15 +454,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 				} else if strings.EqualFold(deckName, "search") {
 					text := cmdArgs.GetArgN(2)
 					if text != "" {
-						var lst DeckInfoCommandList
-						for _, i := range ctx.Dice.DeckList {
-							if i.Enable {
-								for j, _ := range i.Command {
-									lst = append(lst, j)
-								}
-							}
-						}
-						matches := fuzzy.FindFrom(text, lst)
+						matches := fuzzy.FindFrom(text, d.deckCommandItemsList)
 
 						right := len(matches)
 						if right > 10 {
@@ -474,7 +475,21 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						prefix := DiceFormatTmpl(ctx, "其它:抽牌_结果前缀")
 						ReplyToSender(ctx, msg, prefix+result)
 					} else {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组"))
+						matches := fuzzy.FindFrom(deckName, d.deckCommandItemsList)
+						right := len(matches)
+						if right > 10 {
+							right = 4
+						}
+						if right > 0 {
+							text := DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组_存在类似")
+							text += "\n"
+							for _, i := range matches[:right] {
+								text += "- " + i.Str + "\n"
+							}
+							ReplyToSender(ctx, msg, text)
+						} else {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组"))
+						}
 					}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
