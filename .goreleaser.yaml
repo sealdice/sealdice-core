@@ -45,6 +45,21 @@ builds:
     gcflags:
       - all="-l" # -B
 
+  - id: sealdice-core-win32
+    env:
+      - CGO_ENABLED=1
+      - CGO_FLAGS=-Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+    #    ldflags:
+    #      -H windowsgui
+    goos:
+      - windows
+    goarch:
+      - 386
+    ldflags:
+      - -s -w -X main.build={{.Version}}
+    gcflags:
+      - all="-l" # -B
+
 archives:
   - replacements:
       darwin: darwin
