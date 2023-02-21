@@ -19,7 +19,7 @@ func (ng *NamesGenerator) Load() {
 	nameInfo := map[string]map[string][]string{}
 	ng.NamesInfo = nameInfo
 
-	for _, fn := range []string{"./data/names/姓名.xlsx", "./data/names/DND姓名大全.xlsx"} {
+	for _, fn := range []string{"./data/names/names.xlsx", "./data/names/names-dnd.xlsx"} {
 		f, err := excelize.OpenFile(fn)
 		if err != nil {
 			fmt.Println("加载names信息出错", fn, err)

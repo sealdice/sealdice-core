@@ -181,6 +181,17 @@ func (d *Dice) JsInit() {
 			return &Message{}
 		})
 		_ = seal.Set("createTempCtx", CreateTempCtx)
+		_ = seal.Set("applyPlayerGroupCardByTemplate", func(ctx *MsgContext, tmpl string) string {
+			if tmpl != "" {
+				ctx.Player.AutoSetNameTemplate = tmpl
+			}
+			if ctx.Player.AutoSetNameTemplate != "" {
+				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				return text
+			}
+			return ""
+		})
+
 		_ = vm.Set("atob", func(s string) (string, error) {
 			// Remove data URI scheme and any whitespace from the string.
 			s = strings.Replace(s, "data:text/plain;base64,", "", -1)
