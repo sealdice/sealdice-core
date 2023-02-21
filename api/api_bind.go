@@ -66,6 +66,8 @@ func baseInfo(c echo.Context) error {
 		Uptime         int64  `json:"uptime"`
 		MemoryUsedSys  uint64 `json:"memoryUsedSys"`
 		ExtraTitle     string `json:"extraTitle"`
+		OS             string `json:"OS"`
+		Arch           string `json:"arch"`
 	}{
 		AppName:        dice.APPNAME,
 		Version:        dice.VERSION,
@@ -77,6 +79,8 @@ func baseInfo(c echo.Context) error {
 		MemoryUsedSys:  m.Sys,
 		Uptime:         time.Now().Unix() - startTime,
 		ExtraTitle:     extraTitle,
+		OS:             runtime.GOOS,
+		Arch:           runtime.GOARCH,
 	})
 }
 

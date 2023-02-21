@@ -63,7 +63,7 @@ func (t *CharacterTemplate) GetAlias(varname string) string {
 	return varname
 }
 
-func (t *CharacterTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*VMValue, string, bool) {
+func (t *CharacterTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*VMValue, string, bool, bool) {
 	name := t.GetAlias(varname)
 	var detail string
 
@@ -84,19 +84,19 @@ func (t *CharacterTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) 
 		}
 
 		if err == nil {
-			return &r.VMValue, detail, r.Parser.Calculated
+			return &r.VMValue, detail, r.Parser.Calculated, true
 		}
 	}
 
 	if val, exists := t.Defaults[name]; exists {
-		return VMValueNew(VMTypeInt64, val), detail, false
+		return VMValueNew(VMTypeInt64, val), detail, false, true
 	}
 
-	return VMValueNew(VMTypeInt64, int64(0)), detail, false
+	return VMValueNew(VMTypeInt64, int64(0)), detail, false, false
 }
 
 func (t *CharacterTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) *VMValue {
-	a, _, _ := t.GetDefaultValueEx0(ctx, varname)
+	a, _, _, _ := t.GetDefaultValueEx0(ctx, varname)
 	return a
 }
 func (t *CharacterTemplate) GetShowAs0(ctx *MsgContext, k string) (*VMValue, error) {
