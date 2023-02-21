@@ -9,7 +9,7 @@
     </span>
 
     <span>
-      <el-button v-if="store.curDice.baseInfo.versionCode !== store.curDice.baseInfo.versionNewCode" type="primary" @click="upgradeDialogVisible = true">升级新版</el-button>
+      <el-button v-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode" type="primary" @click="upgradeDialogVisible = true">升级新版</el-button>
     </span>
   </p>
   <el-table :data="store.curDice.logs" style="width: 100%; padding: 0 1rem;" class="hidden-xs-only">
