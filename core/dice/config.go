@@ -1376,6 +1376,17 @@ func (d *Dice) loads() {
 			if d.VersionCode != 0 && d.VersionCode < 10200 {
 				d.TextCmdTrustOnly = true
 				d.QQEnablePoke = true
+
+				isUI1001Master := false
+				for _, i := range d.DiceMasters {
+					if i == "UI:1001" {
+						isUI1001Master = true
+						break
+					}
+				}
+				if !isUI1001Master {
+					d.DiceMasters = append(d.DiceMasters, "UI:1001")
+				}
 			}
 
 			// 设置全局群名缓存和用户名缓存
