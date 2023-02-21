@@ -462,14 +462,16 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ctx.Player.UpdatedAtTime = time.Now().Unix()
 				}
 				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
-				ReplyToSender(ctx, msg, "你不再是观众了（自动修改昵称和群名片[如有权限]）。")
+				text := DiceFormatTmpl(ctx, "日志:OB_关闭")
+				ReplyToSender(ctx, msg, text)
 			default:
 				if !strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
 					ctx.Player.Name = "ob" + ctx.Player.Name
 					ctx.Player.UpdatedAtTime = time.Now().Unix()
 				}
 				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
-				ReplyToSender(ctx, msg, "你将成为观众（自动修改昵称和群名片[如有权限]，并不会给观众发送暗骰结果）。")
+				text := DiceFormatTmpl(ctx, "日志:OB_开启")
+				ReplyToSender(ctx, msg, text)
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
@@ -680,6 +682,27 @@ func getSpecifiedGroupIfMaster(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) 
 func filenameReplace(name string) string {
 	re := regexp.MustCompile(`[/:\*\?"<>\|\\]`)
 	return re.ReplaceAllString(name, "")
+}
+
+func LogAppend(ctx *MsgContext, groupId string, logName string, logItem *model.LogOneItem) bool {
+	ok := model.LogAppend(ctx.Dice.DBLogs, groupId, logName, logItem)
+	if ok {
+		if size, ok := model.LogLinesCountGet(ctx.Dice.DBLogs, groupId, logName); ok {
+			// 每记录1000条发出提示
+			if ctx.Dice.LogSizeNoticeEnable {
+				if ctx.Dice.LogSizeNoticeCount == 0 {
+					ctx.Dice.LogSizeNoticeCount = 500
+				}
+				if size > 0 && int(size)%ctx.Dice.LogSizeNoticeCount == 0 {
+					VarSetValueInt64(ctx, "$t条数", size)
+					text := DiceFormatTmpl(ctx, "日志:记录_条数提醒")
+					//text := fmt.Sprintf("提示: 当前故事的文本已经记录了 %d 条", size)
+					ReplyToSenderRaw(ctx, &Message{MessageType: "group", GroupId: groupId}, text, "skip")
+				}
+			}
+		}
+	}
+	return ok
 }
 
 func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, error) {

@@ -471,6 +471,8 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					}
 				} else {
 					exists, result, _ := deckDraw(ctx, deckName, false)
+					VarSetValueStr(ctx, "$t牌组", deckName)
+
 					if exists {
 						prefix := DiceFormatTmpl(ctx, "其它:抽牌_结果前缀")
 						ReplyToSender(ctx, msg, prefix+result)
