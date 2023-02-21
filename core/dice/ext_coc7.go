@@ -761,27 +761,56 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					}
 				}
 
-				resultText := ""
 				suffix1 := GetResultTextWithRequire(ctx1, successRank1, difficultRequire1, true)
 				suffix2 := GetResultTextWithRequire(ctx2, successRank2, difficultRequire2, true)
 
-				switch winNum {
-				case -1:
-					resultText = fmt.Sprintf("<%s>胜出！", ctx1.Player.Name)
-				case +1:
-					resultText = fmt.Sprintf("<%s>胜出！", ctx2.Player.Name)
-				case 0:
-					resultText = "平手！(请自行根据场景，如属性比较、攻击对反击，攻击对闪避)做出判断"
+				//switch winNum {
+				//case -1:
+				//	resultText = fmt.Sprintf("<%s>胜出！", ctx1.Player.Name)
+				//case +1:
+				//	resultText = fmt.Sprintf("<%s>胜出！", ctx2.Player.Name)
+				//case 0:
+				//	resultText = "平手！(请自行根据场景，如属性比较、攻击对反击，攻击对闪避)做出判断"
+				//}
+
+				p1Name := ctx1.Player.Name
+				p2Name := ctx2.Player.Name
+				if p1Name == "" {
+					p1Name = "玩家A"
+				}
+				if p2Name == "" {
+					p2Name = "玩家B"
 				}
 
-				ReplyToSender(ctx, msg, fmt.Sprintf("对抗检定:\n"+
-					"<%s> %s-> 属性值:%d 判定值:%d%s %s\n"+
-					"<%s> %s-> 属性值:%d 判定值:%d%s %s\n%s",
-					ctx1.Player.Name, expr1, val1, checkVal1, rollDetail1, suffix1,
-					ctx2.Player.Name, expr2, val2, checkVal2, rollDetail2, suffix2,
-					resultText))
+				VarSetValueStr(ctx, "$t玩家A", p1Name)
+				VarSetValueStr(ctx, "$t玩家B", p2Name)
+
+				VarSetValueStr(ctx, "$t玩家A判定式", expr1)
+				VarSetValueStr(ctx, "$t玩家B判定式", expr2)
+
+				VarSetValueInt64(ctx, "$t玩家A属性", val1)
+				VarSetValueInt64(ctx, "$t玩家A属性", val2)
+
+				VarSetValueInt64(ctx, "$t玩家A判定值", checkVal1)
+				VarSetValueInt64(ctx, "$t玩家B判定值", checkVal2)
+
+				VarSetValueStr(ctx, "$t玩家A判定过程", rollDetail1)
+				VarSetValueStr(ctx, "$t玩家B判定过程", rollDetail2)
+
+				VarSetValueStr(ctx, "$t玩家A判定结果", suffix1)
+				VarSetValueStr(ctx, "$t玩家B判定结果", suffix2)
+
+				VarSetValueInt64(ctx, "$tWinFlag", int64(winNum))
+
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:对抗检定"))
+				//ReplyToSender(ctx, msg, fmt.Sprintf("对抗检定:\n"+
+				//	"<%s> %s-> 属性值:%d 判定值:%d%s %s\n"+
+				//	"<%s> %s-> 属性值:%d 判定值:%d%s %s\n%s",
+				//	ctx1.Player.Name, expr1, val1, checkVal1, rollDetail1, suffix1,
+				//	ctx2.Player.Name, expr2, val2, checkVal2, rollDetail2, suffix2,
+				//	resultText))
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
