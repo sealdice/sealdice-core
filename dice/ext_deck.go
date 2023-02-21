@@ -27,6 +27,7 @@ type DeckDiceEFormat struct {
 	Date       []string `json:"_date"`
 	UpdateDate []string `json:"_updateDate"`
 	Version    []string `json:"_version"`
+	License    []string `json:"_license"`
 	//Export  []string `json:"_export"` // 导出项，类似command
 	//Keys  []string `json:"_keys"` // 导出项，类似command
 	//一组牌        []string `json:"一组牌"`
@@ -37,6 +38,7 @@ type DeckSinaNyaFormat struct {
 	Author  string   `json:"author" yaml:"author"`
 	Version int      `json:"version" yaml:"version"`
 	Command string   `json:"command" yaml:"command"`
+	License string   `json:"license" yaml:"license"`
 	Desc    string   `json:"desc" yaml:"desc"`
 	Info    []string `json:"info" yaml:"info"`
 	Default []string `json:"default" yaml:"default"`
@@ -52,6 +54,7 @@ type DeckInfo struct {
 	Name          string               `json:"name" yaml:"name"`
 	Version       string               `json:"version" yaml:"-"`
 	Author        string               `json:"author" yaml:"-"`
+	License       string               `json:"license" yaml:"-"` // 许可协议，如cc-by-nc等
 	Command       map[string]bool      `json:"command" yaml:"-"` // 牌堆命令名
 	DeckItems     map[string][]string  `yaml:"-" json:"-"`
 	Date          string               `json:"date" yaml:"-" `
@@ -132,6 +135,7 @@ func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.Name = strings.Join(jsonData2.Title, " / ")
 	deckInfo.Author = strings.Join(jsonData2.Author, " / ")
 	deckInfo.Version = strings.Join(jsonData2.Version, " / ")
+	deckInfo.License = strings.Join(jsonData2.License, " / ")
 	deckInfo.Date = strings.Join(jsonData2.Date, " / ")
 	deckInfo.UpdateDate = strings.Join(jsonData2.UpdateDate, " / ")
 	deckInfo.Format = "Dice!"
@@ -182,6 +186,7 @@ func tryParseSinaNya(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.Name = jsonData2.Name
 	deckInfo.Author = jsonData2.Author
 	deckInfo.Version = strconv.Itoa(jsonData2.Version)
+	deckInfo.License = jsonData2.License
 	deckInfo.Desc = jsonData2.Desc
 	deckInfo.Info = jsonData2.Info
 	deckInfo.RawData = &jsonDataFix
