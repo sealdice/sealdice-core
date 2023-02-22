@@ -690,10 +690,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 	var _roulettes SyncMap[string, map[string]interface{}]
 	cmdDrl := CmdItemInfo{
-		Name:      "drl",
-		ShortHelp: ".drl mk 面数 次数 // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
-		Help:      "drl（Draw Lot）：.drl mk 面数 次数 (原因) // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
-		//DisabledInPrivate: true,
+		Name:              "drl",
+		ShortHelp:         ".drl mk 面数 次数 // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
+		Help:              "drl（Draw Lot）：.drl mk 面数 次数 (原因) // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
+		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "mk") {
 				// Make mode
