@@ -688,65 +688,88 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
-	var _roulettes = map[string]map[string]interface{}{}
+	var _roulettes SyncMap[string, map[string]interface{}]
 	cmdDrl := CmdItemInfo{
-		Name:              "drl",
-		ShortHelp:         ".drl mk 面数 次数 // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
-		Help:              "drl（Draw Lot）：.drl mk 面数 次数 (原因) // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
-		DisabledInPrivate: true,
+		Name:      "drl",
+		ShortHelp: ".drl mk 面数 次数 // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
+		Help:      "drl（Draw Lot）：.drl mk 面数 次数 (原因) // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
+		//DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "mk") {
 				// Make mode
+				roulette, _ := _roulettes.Load(ctx.Group.GroupId)
+				if roulette != nil {
+					roulette = make(map[string]interface{})
+				}
 				t := cmdArgs.SpecialExecuteTimes
 				if t == 0 {
 					t = 1
 				}
-				allArgsClean := cmdArgs.CleanArgs
-				allArgs := strings.Split(allArgsClean, " ")
+				allArgs := cmdArgs.Args
 				m := 100
+				var indicesForDelete []int
 				for i, v := range allArgs {
-					if n, err := strconv.Atoi(v); err == nil {
-						m = n
-						allArgs = append(allArgs[:i], allArgs[i+1:]...)
-						break
-					} else {
-						if v == "mk" {
-							allArgs = append(allArgs[:i], allArgs[i+1:]...)
+					if strings.HasPrefix(v, "d") {
+						_v := strings.Replace(v, "d", "", -1)
+						if n, err := strconv.Atoi(_v); err == nil {
+							m = n
+							indicesForDelete = append(indicesForDelete, i)
+							break
 						}
+					} else if v == "mk" {
+						indicesForDelete = append(indicesForDelete, i)
 					}
 				}
-				allArgsClean = strings.Join(allArgs, " ")
+				// 不能在上面那个for里面删除，因为删除后index不变，会越界
+				// 但这样似乎也有安全隐患……
+				for _, i := range indicesForDelete {
+					if i != 0 {
+						i -= 1
+					}
+					allArgs = append(allArgs[:i], allArgs[i+1:]...)
+				}
+				var text string
+				if len(allArgs) > 0 {
+					text = strings.Join(allArgs, " ")
+				}
 				var pool []int
 				for i := 1; i <= m; i++ {
 					pool = append(pool, i)
 				}
-				thisRoulette := map[string]interface{}{
-					"Reason":      allArgsClean,
+				roulette = map[string]interface{}{
+					"Reason":      text,
 					"Time":        t,
 					"Max":         m,
 					"Pool":        pool,
 					"DrawCounter": 0,
 				}
-				_roulettes[ctx.Group.GroupId] = thisRoulette
-				ReplyToSender(ctx, msg, fmt.Sprintf("创建骰轮%s成功，骰子面数%d，可抽取%d次。", allArgsClean, m, t))
+				_roulettes.Store(ctx.Group.GroupId, roulette)
+				ReplyToSender(ctx, msg, fmt.Sprintf("创建骰轮%s成功，骰子面数%d，可抽取%d次。", text, m, t))
 				return CmdExecuteResult{
 					Matched: true,
 					Solved:  true,
 				}
 			} else {
 				// Draw mode
-				if _roulettes == nil || _roulettes[ctx.Group.GroupId] == nil || len(_roulettes[ctx.Group.GroupId]) <= 0 {
+				var isRouletteEmpty = true
+				_roulettes.Range(func(key string, value map[string]interface{}) bool {
+					isRouletteEmpty = false
+					return false
+				})
+				tryLoad, ok := _roulettes.Load(ctx.Group.GroupId)
+				if isRouletteEmpty || tryLoad == nil || !ok || len(tryLoad) <= 0 {
 					ReplyToSender(ctx, msg, "当前群组无骰轮，请使用.drl mk创建一个。")
 					return CmdExecuteResult{
 						Matched: true,
 						Solved:  false,
 					}
 				}
+				//ctx.Dice.Logger.Infof("Reason is %s, max is %d", tryLoad["Reason"], tryLoad["Max"])
 				rand.Seed(time.Now().UTC().UnixNano())
-				res := rand.Intn(len(_roulettes[ctx.Group.GroupId]["Pool"].([]int)))
-				result := fmt.Sprintf("D%d=%d", _roulettes[ctx.Group.GroupId]["Max"], _roulettes[ctx.Group.GroupId]["Pool"].([]int)[res])
-				VarSetValueStr(ctx, "$t原因", _roulettes[ctx.Group.GroupId]["Reason"].(string))
-				if _roulettes[ctx.Group.GroupId]["Reason"].(string) != "" {
+				res := rand.Intn(len(tryLoad["Pool"].([]int)))
+				result := fmt.Sprintf("D%d=%d", tryLoad["Max"], tryLoad["Pool"].([]int)[res])
+				VarSetValueStr(ctx, "$t原因", tryLoad["Reason"].(string))
+				if tryLoad["Reason"].(string) != "" {
 					forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
 					VarSetValueStr(ctx, "$t原因句子", forWhatText)
 				} else {
@@ -754,12 +777,13 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 				VarSetValueStr(ctx, "$t结果文本", result)
 				reply := DiceFormatTmpl(ctx, "核心:骰点")
-				_roulettes[ctx.Group.GroupId]["DrawCounter"] = _roulettes[ctx.Group.GroupId]["DrawCounter"].(int) + 1
-				_roulettes[ctx.Group.GroupId]["Pool"] = append(_roulettes[ctx.Group.GroupId]["Pool"].([]int)[:res], _roulettes[ctx.Group.GroupId]["Pool"].([]int)[res+1:]...)
-				if _roulettes[ctx.Group.GroupId]["DrawCounter"].(int) >= _roulettes[ctx.Group.GroupId]["Time"].(int) {
-					reply += fmt.Sprintf("\n骰轮%s已经抽空，现在关闭。", _roulettes[ctx.Group.GroupId]["Reason"])
-					_roulettes[ctx.Group.GroupId] = nil
+				tryLoad["DrawCounter"] = tryLoad["DrawCounter"].(int) + 1
+				tryLoad["Pool"] = append(tryLoad["Pool"].([]int)[:res], tryLoad["Pool"].([]int)[res+1:]...)
+				if tryLoad["DrawCounter"].(int) >= tryLoad["Time"].(int) {
+					reply += fmt.Sprintf("\n骰轮%s已经抽空，现在关闭。", tryLoad["Reason"])
+					tryLoad = nil
 				}
+				_roulettes.Store(ctx.Group.GroupId, tryLoad)
 				ReplyToSender(ctx, msg, reply)
 			}
 			return CmdExecuteResult{
