@@ -183,18 +183,18 @@ func (group *GroupInfo) PlayerGet(db *sqlx.DB, id string) *GroupPlayerInfo {
 func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	// 有system优先system
 	if group.System != "" {
-		v, _ := dice.CharTemplateMap.Load(group.System)
+		v, _ := dice.GameSystemMap.Load(group.System)
 		return v
 	}
 
 	// 没有system，查看扩展的启动情况
 	if group.ExtGetActive("coc7") != nil {
-		v, _ := dice.CharTemplateMap.Load("coc7")
+		v, _ := dice.GameSystemMap.Load("coc7")
 		return v
 	}
 
 	if group.ExtGetActive("dnd5e") != nil {
-		v, _ := dice.CharTemplateMap.Load("dnd5e")
+		v, _ := dice.GameSystemMap.Load("dnd5e")
 		return v
 	}
 
@@ -442,7 +442,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 			if mctx.Group != nil && mctx.Group.System != "" {
 				mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
-				//tmpl, _ := d.CharTemplateMap.Load(group.System)
+				//tmpl, _ := d.GameSystemMap.Load(group.System)
 				//mctx.SystemTemplate = tmpl
 			}
 		}
