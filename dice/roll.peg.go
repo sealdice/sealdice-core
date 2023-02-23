@@ -3676,13 +3676,8 @@ func (p *DiceRollParser) Init(options ...func(*DiceRollParser) error) error {
 																	goto l394
 																}
 																position++
-															case '\'':
-																if buffer[position] != rune('\'') {
-																	goto l394
-																}
-																position++
 															default:
-																if buffer[position] != rune('{') {
+																if buffer[position] != rune('\'') {
 																	goto l394
 																}
 																position++
@@ -3728,13 +3723,8 @@ func (p *DiceRollParser) Init(options ...func(*DiceRollParser) error) error {
 																		goto l398
 																	}
 																	position++
-																case '\'':
-																	if buffer[position] != rune('\'') {
-																		goto l398
-																	}
-																	position++
 																default:
-																	if buffer[position] != rune('{') {
+																	if buffer[position] != rune('\'') {
 																		goto l398
 																	}
 																	position++
@@ -3818,13 +3808,8 @@ func (p *DiceRollParser) Init(options ...func(*DiceRollParser) error) error {
 																	goto l412
 																}
 																position++
-															case '"':
-																if buffer[position] != rune('"') {
-																	goto l412
-																}
-																position++
 															default:
-																if buffer[position] != rune('{') {
+																if buffer[position] != rune('"') {
 																	goto l412
 																}
 																position++
@@ -3870,13 +3855,8 @@ func (p *DiceRollParser) Init(options ...func(*DiceRollParser) error) error {
 																		goto l416
 																	}
 																	position++
-																case '"':
-																	if buffer[position] != rune('"') {
-																		goto l416
-																	}
-																	position++
 																default:
-																	if buffer[position] != rune('{') {
+																	if buffer[position] != rune('"') {
 																		goto l416
 																	}
 																	position++
@@ -4874,9 +4854,9 @@ func (p *DiceRollParser) Init(options ...func(*DiceRollParser) error) error {
 		nil,
 		/* 53 strPart1 <- <(<(escape / (!((&('\\') '\\') | (&('\x1e') '\x1e') | (&('{') '{')) .))+> Action81)> */
 		nil,
-		/* 54 strPart2 <- <(<(escape / (!((&('\r') '\r') | (&('\n') '\n') | (&('\\') '\\') | (&('"') '"') | (&('{') '{')) .))+> Action82)> */
+		/* 54 strPart2 <- <(<(escape / (!((&('\r') '\r') | (&('\n') '\n') | (&('\\') '\\') | (&('"') '"')) .))+> Action82)> */
 		nil,
-		/* 55 strPart3 <- <(<(escape / (!((&('\r') '\r') | (&('\n') '\n') | (&('\\') '\\') | (&('\'') '\'') | (&('{') '{')) .))+> Action83)> */
+		/* 55 strPart3 <- <(<(escape / (!((&('\r') '\r') | (&('\n') '\n') | (&('\\') '\\') | (&('\'') '\'')) .))+> Action83)> */
 		nil,
 		/* 56 fstring <- <(((&('\'') ('\'' Action94 <strPart3*> '\'' Action95)) | (&('"') ('"' Action92 <strPart2*> '"' Action93)) | (&('\x1e') ('\x1e' Action88 <(('{' sp e Action89 '}') / ('{' '%' sp e Action90 ('%' '}')) / strPart1)*> '\x1e' Action91)) | (&('`') ('`' Action84 <(('{' sp e Action85 '}') / ('{' '{' sp e Action86 ('}' '}')) / strPart)*> '`' Action87))) sp)> */
 		nil,

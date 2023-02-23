@@ -183,7 +183,7 @@ type Dice struct {
 	JsScriptList []*JsScriptInfo        `yaml:"-" json:"-"`
 
 	// 角色卡模板
-	CharTemplateMap *SyncMap[string, *CharacterTemplate] `yaml:"-" json:"-"`
+	CharTemplateMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
 
 	RunAfterLoaded []func() `yaml:"-" json:"-"`
 
@@ -245,7 +245,7 @@ func (d *Dice) Init() {
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
 	d.CmdMap = CmdMapCls{}
-	d.CharTemplateMap = new(SyncMap[string, *CharacterTemplate])
+	d.CharTemplateMap = new(SyncMap[string, *GameSystemTemplate])
 
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
@@ -543,10 +543,10 @@ func (d *Dice) ApplyAliveNotice() {
 	}
 }
 
-// CharTemplateAdd 应用一个角色模板
-func (d *Dice) CharTemplateAdd(tmpl *CharacterTemplate) {
-	if _, exists := d.CharTemplateMap.Load(tmpl.KeyName); !exists {
-		d.CharTemplateMap.Store(tmpl.KeyName, tmpl)
+// GameSystemTemplateAdd 应用一个角色模板
+func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
+	if _, exists := d.CharTemplateMap.Load(tmpl.Name); !exists {
+		d.CharTemplateMap.Store(tmpl.Name, tmpl)
 		// sn 从这里读取
 		// set 时从这里读取对应System名字的模板
 
@@ -559,7 +559,9 @@ func (d *Dice) CharTemplateAdd(tmpl *CharacterTemplate) {
 			}
 			tmpl.AliasMap.Store(strings.ToLower(k), k)
 		}
+		return true
 	}
+	return false
 }
 
 func DiceRoll(dicePoints int) int {

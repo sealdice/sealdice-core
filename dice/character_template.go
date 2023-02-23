@@ -33,8 +33,8 @@ type NameTemplateItem struct {
 	HelpText string `yaml:"helpText" json:"helpText"`
 }
 
-type CharacterTemplate struct {
-	KeyName      string                      `yaml:"keyName" json:"keyName"`           // 模板名字
+type GameSystemTemplate struct {
+	Name         string                      `yaml:"name" json:"name"`                 // 模板名字
 	FullName     string                      `yaml:"fullName" json:"fullName"`         // 全名
 	Authors      []string                    `yaml:"authors" json:"authors"`           // 作者
 	Version      string                      `yaml:"version" json:"version"`           // 版本
@@ -42,6 +42,10 @@ type CharacterTemplate struct {
 	TemplateVer  string                      `yaml:"templateVer" json:"templateVer"`   // 模板版本
 	NameTemplate map[string]NameTemplateItem `yaml:"nameTemplate" json:"nameTemplate"` // 名片模板
 	AttrSettings AttrSettings                `yaml:"attrSettings" json:"attrSettings"` // 默认展示顺序
+	RelatedExt   []string                    `yaml:"relatedExt" json:"relatedExt"`     // 关联扩展
+	DiceSides    int64                       `yaml:"diceSides" json:"diceSides"`       // 骰子面数
+	KeysForSet   []string                    `yaml:"keysForSet" json:"keysForSet"`     // 可用于 .set xxx 的key
+	EnableTip    string                      `yaml:"enableTip" json:"enableTip"`       // 启用提示
 
 	Defaults         map[string]int64    `yaml:"defaults" json:"defaults"`                 // 默认值
 	DefaultsComputed map[string]string   `yaml:"defaultsComputed" json:"defaultsComputed"` // 计算类型
@@ -55,7 +59,7 @@ type CharacterTemplate struct {
 	AliasMap *SyncMap[string, string] `yaml:"-" json:"-"` // 别名/同义词
 }
 
-func (t *CharacterTemplate) GetAlias(varname string) string {
+func (t *GameSystemTemplate) GetAlias(varname string) string {
 	v2, exists := t.AliasMap.Load(strings.ToLower(varname))
 	if exists {
 		varname = v2
@@ -63,7 +67,7 @@ func (t *CharacterTemplate) GetAlias(varname string) string {
 	return varname
 }
 
-func (t *CharacterTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*VMValue, string, bool, bool) {
+func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*VMValue, string, bool, bool) {
 	name := t.GetAlias(varname)
 	var detail string
 
@@ -95,11 +99,11 @@ func (t *CharacterTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) 
 	return VMValueNew(VMTypeInt64, int64(0)), detail, false, false
 }
 
-func (t *CharacterTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) *VMValue {
+func (t *GameSystemTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) *VMValue {
 	a, _, _, _ := t.GetDefaultValueEx0(ctx, varname)
 	return a
 }
-func (t *CharacterTemplate) GetShowAs0(ctx *MsgContext, k string) (*VMValue, error) {
+func (t *GameSystemTemplate) GetShowAs0(ctx *MsgContext, k string) (*VMValue, error) {
 	// 有showas的情况
 	if expr, exists := t.AttrSettings.ShowAs[k]; exists {
 		ctx.SystemTemplate = t
@@ -114,7 +118,7 @@ func (t *CharacterTemplate) GetShowAs0(ctx *MsgContext, k string) (*VMValue, err
 	return nil, nil
 }
 
-func (t *CharacterTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, error) {
+func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, error) {
 	// 有showas的情况
 	v, err := t.GetShowAs0(ctx, k)
 	if v != nil || err != nil {
