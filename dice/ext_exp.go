@@ -146,7 +146,7 @@ func RegisterBuiltinExtExp(dice *Dice) {
 				}
 
 				VarSetValueStr(mctx, "$t属性信息", info)
-				extra := ReadCardTypeEx(mctx, "coc7")
+				extra := ReadCardTypeEx(mctx, ctx.Group.System)
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
 
 			case "del", "rm":
@@ -234,8 +234,8 @@ func RegisterBuiltinExtExp(dice *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				retText := fmt.Sprintf("<%s>的%s人物属性设置如下:\n", mctx.Player.Name, tmpl.KeyName)
-				SetCardType(mctx, tmpl.KeyName)
+				retText := fmt.Sprintf("<%s>的%s人物属性设置如下:\n", mctx.Player.Name, tmpl.Name)
+				SetCardType(mctx, tmpl.Name)
 
 				var textPieces []string
 				if len(toSetItems) > 0 {

@@ -84,10 +84,10 @@ type GroupInfo struct {
 	LogCurName   string           `yaml:"logCurFile" json:"logCurName" jsbind:"logCurName"`
 	LogOn        bool             `yaml:"logOn" json:"logOn" jsbind:"logOn"`
 
-	QuitMarkAutoClean   bool   `yaml:"-" json:"-"`                                                            // 自动清群 - 播报，即将自动退出群组
-	QuitMarkMaster      bool   `yaml:"-" json:"-"`                                                            // 骰主命令退群 - 播报，即将自动退出群组
-	RecentCommandTime   int64  `yaml:"recentCommandTime" json:"recentCommandTime" jsbind:"recentCommandTime"` // 最近一次发送有效指令的时间
-	ShowGroupWelcome    bool   `yaml:"showGroupWelcome" json:"showGroupWelcome" jsbind:"showGroupWelcome"`    // 是否迎新
+	QuitMarkAutoClean   bool   `yaml:"-" json:"-"` // 自动清群 - 播报，即将自动退出群组
+	QuitMarkMaster      bool   `yaml:"-" json:"-"` // 骰主命令退群 - 播报，即将自动退出群组
+	RecentDiceSendTime  int64  `json:"recentDiceSendTime"`
+	ShowGroupWelcome    bool   `yaml:"showGroupWelcome" json:"showGroupWelcome" jsbind:"showGroupWelcome"` // 是否迎新
 	GroupWelcomeMessage string `yaml:"groupWelcomeMessage" json:"groupWelcomeMessage" jsbind:"groupWelcomeMessage"`
 	//FirstSpeechMade     bool   `yaml:"firstSpeechMade"` // 是否做过进群发言
 	LastCustomReplyTime float64 `yaml:"-" json:"-"` // 上次自定义回复时间
@@ -180,7 +180,7 @@ func (group *GroupInfo) PlayerGet(db *sqlx.DB, id string) *GroupPlayerInfo {
 	return (*GroupPlayerInfo)(p)
 }
 
-func (group *GroupInfo) GetCharTemplate(dice *Dice) *CharacterTemplate {
+func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	// 有system优先system
 	if group.System != "" {
 		v, _ := dice.CharTemplateMap.Load(group.System)
@@ -331,7 +331,7 @@ type MsgContext struct {
 
 	deckDepth      int                                         // 抽牌递归深度
 	DeckPools      map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
-	SystemTemplate *CharacterTemplate
+	SystemTemplate *GameSystemTemplate
 }
 
 //func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {
@@ -448,7 +448,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		}
 
 		// 权限号设置
-		if mctx.Group != nil && mctx.Group.IsActive(mctx) {
+		if mctx.Group != nil {
 			if mctx.Group != nil {
 				if msg.Sender.UserId == mctx.Group.InviteUserId {
 					mctx.PrivilegeLevel = 40 // 邀请者
@@ -650,10 +650,6 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					ep.CmdExecutedLastTime = time.Now().Unix()
 					mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
 					mctx.Player.UpdatedAtTime = time.Now().Unix()
-					if mctx.Group != nil {
-						mctx.Group.RecentCommandTime = ep.CmdExecutedLastTime
-						mctx.Group.UpdatedAtTime = time.Now().Unix()
-					}
 				} else {
 					if msg.MessageType == "group" {
 						log.Infof("忽略指令(骰子关闭/扩展关闭/未知指令): 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)

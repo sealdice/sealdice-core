@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
@@ -9,6 +10,7 @@ import (
 	fetch "github.com/fy0/gojax/fetch"
 	"github.com/pkg/errors"
 	"gopkg.in/elazarl/goproxy.v1"
+	"gopkg.in/yaml.v3"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -191,6 +193,32 @@ func (d *Dice) JsInit() {
 			}
 			return ""
 		})
+		gameSystem := vm.NewObject()
+		gameSystem.Set("newTemplate", func(data string) error {
+			tmpl := &GameSystemTemplate{}
+			err := json.Unmarshal([]byte(data), tmpl)
+			if err != nil {
+				return errors.New("解析失败:" + err.Error())
+			}
+			ret := d.GameSystemTemplateAdd(tmpl)
+			if !ret {
+				return errors.New("已存在同名模板")
+			}
+			return nil
+		})
+		gameSystem.Set("newTemplateByYaml", func(data string) error {
+			tmpl := &GameSystemTemplate{}
+			err := yaml.Unmarshal([]byte(data), tmpl)
+			if err != nil {
+				return errors.New("解析失败:" + err.Error())
+			}
+			ret := d.GameSystemTemplateAdd(tmpl)
+			if !ret {
+				return errors.New("已存在同名模板")
+			}
+			return nil
+		})
+		_ = seal.Set("gameSystem", gameSystem)
 
 		_ = vm.Set("atob", func(s string) (string, error) {
 			// Remove data URI scheme and any whitespace from the string.

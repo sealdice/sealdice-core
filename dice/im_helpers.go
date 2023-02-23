@@ -142,6 +142,11 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	if ctx.Dice != nil {
 		ctx.Dice.Logger.Infof("发给(群%s): %s", msg.GroupId, text)
 	}
+	if ctx.Group != nil {
+		now := time.Now().Unix()
+		ctx.Group.RecentDiceSendTime = now
+		ctx.Group.UpdatedAtTime = now
+	}
 	text = strings.TrimSpace(text)
 	for _, i := range strings.Split(text, "###SPLIT###") {
 		if ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {

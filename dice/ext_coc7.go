@@ -250,7 +250,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	// 初始化规则模板
 	tmpl := getCoc7CharTemplate()
-	self.CharTemplateAdd(tmpl)
+	self.GameSystemTemplateAdd(tmpl)
 
 	helpRc := "" +
 		".ra/rc <属性表达式> // 属性检定指令，当前者小于等于后者，检定通过\n" +
