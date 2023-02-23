@@ -22,7 +22,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.2.0dev v20230221"
+var VERSION = "1.2.0dev v20230223"
 
 // var VERSION_CODE = int64(1001000) // 991404
 var VERSION_CODE = int64(1001002) // 坏了，1.1的版本号标错了，标成了1.10.0
@@ -182,8 +182,8 @@ type Dice struct {
 	JsLoop       *eventloop.EventLoop   `yaml:"-" json:"-"`
 	JsScriptList []*JsScriptInfo        `yaml:"-" json:"-"`
 
-	// 角色卡模板
-	CharTemplateMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
+	// 游戏系统规则模板
+	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
 
 	RunAfterLoaded []func() `yaml:"-" json:"-"`
 
@@ -245,7 +245,7 @@ func (d *Dice) Init() {
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
 	d.CmdMap = CmdMapCls{}
-	d.CharTemplateMap = new(SyncMap[string, *GameSystemTemplate])
+	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
@@ -545,8 +545,8 @@ func (d *Dice) ApplyAliveNotice() {
 
 // GameSystemTemplateAdd 应用一个角色模板
 func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
-	if _, exists := d.CharTemplateMap.Load(tmpl.Name); !exists {
-		d.CharTemplateMap.Store(tmpl.Name, tmpl)
+	if _, exists := d.GameSystemMap.Load(tmpl.Name); !exists {
+		d.GameSystemMap.Store(tmpl.Name, tmpl)
 		// sn 从这里读取
 		// set 时从这里读取对应System名字的模板
 

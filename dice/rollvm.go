@@ -873,8 +873,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			}
 
 			if v == nil && ctx != nil {
-				var exists bool
-				v2, exists := VarGetValue(ctx, varname)
+				name2 := varname
+				if ctx.SystemTemplate != nil {
+					name2 = ctx.SystemTemplate.GetAlias(varname)
+				}
+				v2, exists := VarGetValue(ctx, name2)
 
 				if !exists {
 					if ctx.SystemTemplate != nil {
@@ -890,44 +893,6 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 							exists = true
 						}
 					}
-				}
-
-				if e.flags.CocDefaultAttrOn {
-					//if !exists {
-					//	if varname == "生命值上限" {
-					//		vConI, _ := VarGetValueInt64(ctx, "体质")
-					//		vSizI, _ := VarGetValueInt64(ctx, "体型")
-					//		v2 = &VMValue{TypeId: VMTypeInt64, Value: int64((vConI + vSizI) / 10)}
-					//		exists = true
-					//	}
-					//}
-					//
-					//if !exists {
-					//	if varname == "母语" {
-					//		v2, exists = VarGetValue(ctx, "edu")
-					//	}
-					//}
-					//
-					//if !exists {
-					//	if varname == "闪避" {
-					//		// 闪避默认值为敏捷的一半
-					//		v2, exists = VarGetValue(ctx, "敏捷")
-					//		if exists {
-					//			if v2.TypeId == VMTypeInt64 {
-					//				v2 = VMValueNew(VMTypeInt64, v2.Value.(int64)/2)
-					//				//v2.Value = v2.Value.(int64) / 2
-					//			}
-					//		}
-					//	}
-					//}
-					//
-					//if !exists {
-					//	// 取默认值
-					//	tmpl, exists := ctx.Dice.CharTemplateMap.Load("coc7")
-					//	if exists {
-					//		v2 = tmpl.GetDefaultValueEx(ctx, varname)
-					//	}
-					//}
 				}
 
 				if exists {
