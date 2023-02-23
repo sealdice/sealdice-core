@@ -1636,6 +1636,16 @@ func (d *Dice) Save(isAuto bool) {
 					model.GroupPlayerInfoSave(d.DBData, g.GroupId, key, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
+
+				// 保存群组卡
+				if value.Vars != nil && value.Vars.Loaded {
+					if value.Vars.LastWriteTime != 0 {
+						data, _ := json.Marshal(LockFreeMapToMap(value.Vars.ValueMap))
+						model.AttrGroupUserSave(d.DBData, g.GroupId, key, data)
+						value.Vars.LastWriteTime = 0
+					}
+				}
+
 				return true
 			})
 		}

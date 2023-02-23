@@ -6,7 +6,7 @@ import (
 
 var coc7TemplateData = `
 {
-  "keyName": "coc7",
+  "name": "coc7",
   "fullName": "克苏鲁的呼唤第七版",
   "authors": [
     "木落",
@@ -14,8 +14,12 @@ var coc7TemplateData = `
     "于言诺"
   ],
   "version": "1.0.0",
-  "updatedTime": "20230212",
+  "updatedTime": "20230214",
   "templateVer": "1.0",
+  "keysForSet": ["coc", "coc7"],
+  "relatedExt": ["coc7"],
+  "diceSides": 100,
+  "enableTip": "已切换至100面骰，并自动开启coc7扩展",
   "nameTemplate": {
     "coc": {
       "template": "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}",
@@ -676,14 +680,14 @@ var coc7TemplateData = `
 }
 `
 
-var _coc7tmpl *CharacterTemplate
+var _coc7tmpl *GameSystemTemplate
 
-func getCoc7CharTemplate() *CharacterTemplate {
+func getCoc7CharTemplate() *GameSystemTemplate {
 	if _coc7tmpl != nil {
 		return _coc7tmpl
 	}
 
-	temp := &CharacterTemplate{}
+	temp := &GameSystemTemplate{}
 	err := json.Unmarshal([]byte(coc7TemplateData), temp)
 	if err != nil {
 		return nil
@@ -692,6 +696,14 @@ func getCoc7CharTemplate() *CharacterTemplate {
 	// 因为 `` 的冲突，所以写在这里
 	temp.AttrSettings.ShowAs["db"] = "{ (力量 + 体型) \u003c 65 ? '-2', (力量 + 体型) \u003c 85 ? '-1', (力量 + 体型) \u003c 125 ? '0', (力量 + 体型) \u003c 165 ? '1d4', (力量 + 体型) \u003c 205 ? '1d6', 1 ? `{((力量 + 体型 - 205) / 80 + 2)}d6` }"
 	_coc7tmpl = temp
+
+	//a := func() {
+	//	v1, _ := json.Marshal(_coc7tmpl)
+	//	os.WriteFile("./coc7.json", v1, 0644)
+	//	v2, _ := yaml.Marshal(_coc7tmpl)
+	//	os.WriteFile("./coc7.yaml", v2, 0644)
+	//}
+	//a()
 
 	return temp
 }
