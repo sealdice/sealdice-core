@@ -490,7 +490,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		CheckMentionOthers: true,
 		HelpFunc: func(isShort bool) string {
 			text := ""
-			self.CharTemplateMap.Range(func(key string, value *GameSystemTemplate) bool {
+			self.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
 				for k, v := range value.NameTemplate {
 					text += fmt.Sprintf(".sn %s // %s\n", k, v.HelpText)
 				}
@@ -533,7 +533,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ReplyToSender(ctx, msg, "已关闭自动设置名片功能")
 			default:
 				ok := false
-				ctx.Dice.CharTemplateMap.Range(func(key string, value *GameSystemTemplate) bool {
+				ctx.Dice.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
 					name := strings.ToLower(val)
 					if t, exists := value.NameTemplate[name]; exists {
 						text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)

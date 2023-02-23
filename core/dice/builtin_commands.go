@@ -1286,7 +1286,7 @@ func (d *Dice) registerCoreCommands() {
 			text := ".set info // 查看当前面数设置\n"
 			text += ".set <面数> // 设置群内骰子面数\n"
 			text += ".set dnd // 设置群内骰子面数为20，并自动开启对应扩展\n"
-			d.CharTemplateMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
+			d.GameSystemMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
 				textHelp := fmt.Sprintf("设置群内骰子面数为%d，并自动开启对应扩展", tmpl.DiceSides)
 				text += fmt.Sprintf(".set %s // %s\n", strings.Join(tmpl.KeysForSet, "/"), textHelp)
 				return true
@@ -1318,7 +1318,7 @@ func (d *Dice) registerCoreCommands() {
 					ctx.Group.System = "dnd5e"
 					ctx.Group.UpdatedAtTime = time.Now().Unix()
 				}
-				ctx.Dice.CharTemplateMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
+				ctx.Dice.GameSystemMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
 					isMatch := false
 					for _, k := range tmpl.KeysForSet {
 						if strings.EqualFold(arg1, k) {
@@ -1339,7 +1339,10 @@ func (d *Dice) registerCoreCommands() {
 
 						for _, name := range tmpl.RelatedExt {
 							// 开启相关扩展
-							ctx.Group.ExtInactiveByName(name)
+							ei := ctx.Dice.ExtFind(name)
+							if ei != nil {
+								ctx.Group.ExtActive(ei)
+							}
 						}
 						return false
 					}

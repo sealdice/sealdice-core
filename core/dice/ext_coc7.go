@@ -789,7 +789,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				VarSetValueStr(ctx, "$t玩家B判定式", expr2)
 
 				VarSetValueInt64(ctx, "$t玩家A属性", val1)
-				VarSetValueInt64(ctx, "$t玩家A属性", val2)
+				VarSetValueInt64(ctx, "$t玩家B属性", val2)
 
 				VarSetValueInt64(ctx, "$t玩家A判定值", checkVal1)
 				VarSetValueInt64(ctx, "$t玩家B判定值", checkVal2)
