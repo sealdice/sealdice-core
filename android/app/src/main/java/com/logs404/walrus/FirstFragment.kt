@@ -53,6 +53,16 @@ class FirstFragment : Fragment() {
                 "sealdice" -> {
                     if (isrun) {
                         shellLogs += "sealdice is running"
+                        val alertDialogBuilder = context?.let { it1 ->
+                            AlertDialog.Builder(
+                                it1
+                            )
+                        }
+                        alertDialogBuilder?.setTitle("提示")
+                        alertDialogBuilder?.setMessage("请先重启APP后再启动海豹核心")
+                        alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+                        }
+                        alertDialogBuilder?.create()?.show()
                     } else {
                         isrun = true
                         ExtractAssets(context).extractResources("sealdice")
@@ -85,11 +95,18 @@ class FirstFragment : Fragment() {
                             binding.textviewFirst.text = "启动完成（或者失败）"
                             }
                             val address = sharedPreferences?.getString("ui_address", "http://127.0.0.1:3211")
-                            val uri = Uri.parse(address)
-                            val intent = Intent()
-                            intent.action = "android.intent.action.VIEW"
-                            intent.data = uri
-                            startActivity(intent)
+
+                            if (sharedPreferences?.getBoolean("use_internal_webview", true) == true) {
+                                val intent = Intent(context, WebViewActivity::class.java)
+                                intent.putExtra("url", address)
+                                startActivity(intent)
+                            } else {
+                                val uri = Uri.parse(address)
+                                val intent = Intent()
+                                intent.action = "android.intent.action.VIEW"
+                                intent.data = uri
+                                startActivity(intent)
+                            }
 //                            binding.buttonFirst.text = "停止"
 //                            binding.shellText.setText("stop")
                         }

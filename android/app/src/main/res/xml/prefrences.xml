@@ -18,7 +18,11 @@
 
     <androidx.preference.PreferenceCategory
         android:title="高级">
-
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="use_internal_webview"
+            android:title="使用内置WebView"
+            android:summary="关闭后将使用系统浏览器打开UI界面"
+            android:defaultValue="true" />
         <androidx.preference.EditTextPreference
             android:key="ui_address"
             android:title="UI界面地址"
