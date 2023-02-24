@@ -20,6 +20,11 @@
         android:title="高级">
 
         <androidx.preference.EditTextPreference
+            android:key="ui_address"
+            android:title="UI界面地址"
+            android:summary="点击更改启动时打开的链接"
+            android:defaultValue="http://127.0.0.1:3211" />
+        <androidx.preference.EditTextPreference
             android:key="launch_args"
             android:title="启动参数"
             android:summary="点击输入启动参数"

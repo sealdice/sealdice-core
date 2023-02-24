@@ -1,13 +1,18 @@
 package com.logs404.walrus
 
+import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Looper
 import androidx.fragment.app.Fragment
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.app.AlertDialog
+import androidx.preference.PreferenceManager
 import com.logs404.walrus.common.ExtractAssets
 import com.logs404.walrus.databinding.FragmentFirstBinding
 import kotlinx.coroutines.*
@@ -52,7 +57,22 @@ class FirstFragment : Fragment() {
                     } else {
                         ExtractAssets(context).extractResources("sealdice")
                         isrun = true
-                        execShell("cd sealdice&&./sealdice-core")
+                        val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
+                        val args = sharedPreferences?.getString("launch_args", "")
+                        execShell("cd sealdice&&./sealdice-core $args")
+                        if (!launchAliveService(context)) {
+                            val alertDialogBuilder = context?.let { it1 ->
+                                AlertDialog.Builder(
+                                    it1
+                                )
+                            }
+                            alertDialogBuilder?.setTitle("提示")
+                            alertDialogBuilder?.setMessage("似乎并没有开启任何保活策略，这可能导致后台被清理")
+                            alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+//                                                finish()
+                            }
+                            alertDialogBuilder?.create()?.show()
+                        }
                         GlobalScope.launch(context = Dispatchers.IO) {
                             for (i in 0..10) {
                                 withContext(Dispatchers.Main) {
@@ -63,9 +83,8 @@ class FirstFragment : Fragment() {
                             withContext(Dispatchers.Main){
                             binding.textviewFirst.text = "启动完成（或者失败）"
                             }
-                            val intentMedia = Intent(context, NotificationService::class.java)
-                            context?.startService(intentMedia)
-                            val uri = Uri.parse("http://127.0.0.1:3211")
+                            val address = sharedPreferences?.getString("ui_address", "http://127.0.0.1:3211")
+                            val uri = Uri.parse(address)
                             val intent = Intent()
                             intent.action = "android.intent.action.VIEW"
                             intent.data = uri
@@ -101,6 +120,25 @@ class FirstFragment : Fragment() {
         binding.textviewFirst.text = shellLogs
     }
 
+    private fun launchAliveService(context: Context?) : Boolean{
+        val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
+        var executed = false
+        if (sharedPreferences != null) {
+            if (sharedPreferences.getBoolean("alive_notification", true)) {
+                val intentMedia = Intent(context, NotificationService::class.java)
+                context.startService(intentMedia)
+                executed = true
+            }
+        }
+        if (sharedPreferences != null) {
+            if (sharedPreferences.getBoolean("alive_media", false)) {
+                val intentNoti = Intent(context, NotificationService::class.java)
+                context.startService(intentNoti)
+                executed = true
+            }
+        }
+        return executed
+    }
     private fun execShell(cmd: String) {
         GlobalScope.launch(context = Dispatchers.IO) {
             val process = Runtime.getRuntime().exec("sh")

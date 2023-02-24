@@ -13,9 +13,4 @@ class SettingsFragment : PreferenceFragmentCompat() {
         setPreferencesFromResource(R.xml.prefrences, rootKey)
         sharedPreferences = preferenceScreen.sharedPreferences!!
     }
-    fun readPreferences() {
-        val enableNotifications = sharedPreferences.getBoolean("enable_notifications", true)
-        val serverAddress = sharedPreferences.getString("server_address", "https://example.com")
-        // Use the preference values here
-    }
 }
