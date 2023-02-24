@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"hash/fnv"
+	"math"
 	"math/rand"
 	"regexp"
 	"sort"
@@ -634,15 +635,15 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 	cmdJsr := CmdItemInfo{
 		Name:      "jsr",
-		ShortHelp: ".jsr 次数# 面数 原因 //用法参考.r",
-		Help:      "不重复骰点（Jetter sans Répéter）：.jsr 次数# 面数 原因 //用法参考.r",
+		ShortHelp: ".jsr 3# d10 // 投掷10面骰3次，结果不重复。用法参考.r",
+		Help:      "不重复骰点（Jetter sans Répéter）：.jsr 次数# 面数",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			t := cmdArgs.SpecialExecuteTimes
 			allArgClean := cmdArgs.CleanArgs
 			allArgs := strings.Split(allArgClean, " ")
 			var m int
 			for i, v := range allArgs {
-				if n, err := strconv.Atoi(v); err == nil {
+				if n, err := strconv.Atoi(strings.Replace(v, "d", "", 1)); err == nil {
 					m = n
 					allArgs = append(allArgs[:i], allArgs[i+1:]...)
 					break
@@ -688,63 +689,51 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
-	var _roulettes SyncMap[string, map[string]interface{}]
+	type _singleRoulette struct {
+		Reason  string
+		Face    int
+		Time    int
+		Counter int
+		Pool    []int
+	}
+	var _roulette SyncMap[string, _singleRoulette]
 	cmdDrl := CmdItemInfo{
 		Name:              "drl",
-		ShortHelp:         ".drl mk 面数 次数 // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
-		Help:              "drl（Draw Lot）：.drl mk 面数 次数 (原因) // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
+		ShortHelp:         ".drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n.drl // 抽取当前群组的骰池",
+		Help:              "drl（Draw Lot）：.drl new d10 5# (原因) // 在当前群组创建一个骰池\n.drl 面数 次数 // 抽取当前群组的骰池",
 		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if cmdArgs.IsArgEqual(1, "mk") {
+			if cmdArgs.IsArgEqual(1, "new") {
 				// Make mode
-				roulette, _ := _roulettes.Load(ctx.Group.GroupId)
-				if roulette != nil {
-					roulette = make(map[string]interface{})
+				roulette := _singleRoulette{
+					Reason:  "",
+					Face:    100,
+					Time:    1,
+					Counter: 0,
 				}
 				t := cmdArgs.SpecialExecuteTimes
-				if t == 0 {
-					t = 1
+				if t != 0 {
+					roulette.Time = t
 				}
-				allArgs := cmdArgs.Args
-				m := 100
-				var indicesForDelete []int
-				for i, v := range allArgs {
-					if strings.HasPrefix(v, "d") {
-						_v := strings.Replace(v, "d", "", -1)
-						if n, err := strconv.Atoi(_v); err == nil {
-							m = n
-							indicesForDelete = append(indicesForDelete, i)
-							break
-						}
-					} else if v == "mk" {
-						indicesForDelete = append(indicesForDelete, i)
-					}
+
+				m := cmdArgs.GetArgN(2)
+				if i, err := strconv.Atoi(strings.Replace(m, "d", "", 1)); err == nil && float64(i) != math.NaN() {
+					roulette.Face = i
+					text := cmdArgs.GetArgN(3)
+					roulette.Reason = text
+				} else {
+					roulette.Reason = m
 				}
-				// 不能在上面那个for里面删除，因为删除后index不变，会越界
-				// 但这样似乎也有安全隐患……
-				for _, i := range indicesForDelete {
-					if i != 0 {
-						i -= 1
-					}
-					allArgs = append(allArgs[:i], allArgs[i+1:]...)
-				}
-				var text string
-				if len(allArgs) > 0 {
-					text = strings.Join(allArgs, " ")
-				}
+
 				var pool []int
-				for i := 1; i <= m; i++ {
+				for i := 1; i <= roulette.Face; i++ {
 					pool = append(pool, i)
 				}
-				roulette = map[string]interface{}{
-					"Reason":      text,
-					"Time":        t,
-					"Max":         m,
-					"Pool":        pool,
-					"DrawCounter": 0,
-				}
-				_roulettes.Store(ctx.Group.GroupId, roulette)
-				ReplyToSender(ctx, msg, fmt.Sprintf("创建骰轮%s成功，骰子面数%d，可抽取%d次。", text, m, t))
+				roulette.Pool = pool
+
+				_roulette.Store(ctx.Group.GroupId, roulette)
+				ReplyToSender(ctx, msg, fmt.Sprintf("创建骰池%s成功，骰子面数%d，可抽取%d次。",
+					roulette.Reason, roulette.Face, roulette.Time))
 				return CmdExecuteResult{
 					Matched: true,
 					Solved:  true,
@@ -752,24 +741,25 @@ func RegisterBuiltinExtFun(self *Dice) {
 			} else {
 				// Draw mode
 				var isRouletteEmpty = true
-				_roulettes.Range(func(key string, value map[string]interface{}) bool {
+				_roulette.Range(func(key string, value _singleRoulette) bool {
 					isRouletteEmpty = false
 					return false
 				})
-				tryLoad, ok := _roulettes.Load(ctx.Group.GroupId)
-				if isRouletteEmpty || tryLoad == nil || !ok || len(tryLoad) <= 0 {
-					ReplyToSender(ctx, msg, "当前群组无骰轮，请使用.drl mk创建一个。")
+				tryLoad, ok := _roulette.Load(ctx.Group.GroupId)
+				if isRouletteEmpty || !ok || tryLoad.Time == 0 {
+					ReplyToSender(ctx, msg, "当前群组无骰池，请使用.drl new创建一个。")
 					return CmdExecuteResult{
 						Matched: true,
 						Solved:  false,
 					}
 				}
 				//ctx.Dice.Logger.Infof("Reason is %s, max is %d", tryLoad["Reason"], tryLoad["Max"])
-				rand.Seed(time.Now().UTC().UnixNano())
-				res := rand.Intn(len(tryLoad["Pool"].([]int)))
-				result := fmt.Sprintf("D%d=%d", tryLoad["Max"], tryLoad["Pool"].([]int)[res])
-				VarSetValueStr(ctx, "$t原因", tryLoad["Reason"].(string))
-				if tryLoad["Reason"].(string) != "" {
+				n := len(tryLoad.Pool)
+				res := rand.Intn(n)
+				result := fmt.Sprintf("D%d=%d", tryLoad.Face, tryLoad.Pool[res])
+				tryLoad.Pool = append(tryLoad.Pool[:res], tryLoad.Pool[res+1:]...)
+				VarSetValueStr(ctx, "$t原因", tryLoad.Reason)
+				if tryLoad.Reason != "" {
 					forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
 					VarSetValueStr(ctx, "$t原因句子", forWhatText)
 				} else {
@@ -777,13 +767,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 				VarSetValueStr(ctx, "$t结果文本", result)
 				reply := DiceFormatTmpl(ctx, "核心:骰点")
-				tryLoad["DrawCounter"] = tryLoad["DrawCounter"].(int) + 1
-				tryLoad["Pool"] = append(tryLoad["Pool"].([]int)[:res], tryLoad["Pool"].([]int)[res+1:]...)
-				if tryLoad["DrawCounter"].(int) >= tryLoad["Time"].(int) {
-					reply += fmt.Sprintf("\n骰轮%s已经抽空，现在关闭。", tryLoad["Reason"])
-					tryLoad = nil
+				tryLoad.Counter += 1
+				if tryLoad.Counter >= tryLoad.Time {
+					reply += "\n骰池已经抽空，现在关闭。"
+					tryLoad = _singleRoulette{}
 				}
-				_roulettes.Store(ctx.Group.GroupId, tryLoad)
+				_roulette.Store(ctx.Group.GroupId, tryLoad)
 				ReplyToSender(ctx, msg, reply)
 			}
 			return CmdExecuteResult{
