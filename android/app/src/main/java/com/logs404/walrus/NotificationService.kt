@@ -9,7 +9,7 @@ import android.content.Intent
 import android.os.IBinder
 
 class NotificationService : Service(){
-    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val ns: String = Context.NOTIFICATION_SERVICE
         val mNotificationManager = getSystemService(ns) as NotificationManager
         val notificationChannel = NotificationChannel("sealdice","SealDice", NotificationManager.IMPORTANCE_HIGH)

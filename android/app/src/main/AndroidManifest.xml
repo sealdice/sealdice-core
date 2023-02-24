@@ -33,6 +33,7 @@
 
         <service android:name=".MediaService"/>
         <service android:name=".NotificationService"/>
+        <service android:name=".WakeLockService"/>
         <service
             android:name="com.tencent.smtt.export.external.DexClassLoaderProviderService"
             android:label="dexopt"

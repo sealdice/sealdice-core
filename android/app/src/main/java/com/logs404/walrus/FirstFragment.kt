@@ -146,11 +146,14 @@ class FirstFragment : Fragment() {
                 context.startService(intentNoti)
                 executed = true
             }
-        }
-        if (sharedPreferences != null) {
             if (sharedPreferences.getBoolean("alive_media", false)) {
                 val intentMedia = Intent(context, MediaService::class.java)
                 context.startService(intentMedia)
+                executed = true
+            }
+            if (sharedPreferences.getBoolean("alive_wakelock", true)) {
+                val intentWakelock = Intent(context, WakeLockService::class.java)
+                context.startService(intentWakelock)
                 executed = true
             }
         }
