@@ -910,7 +910,7 @@ func (d *Dice) registerCoreCommands() {
 					})
 
 					if !isRx {
-						if !r.Parser.Calculated {
+						if r != nil && !r.Parser.Calculated {
 							forWhat = cmdArgs.CleanArgs
 							r, detail, err = ctx.Dice.ExprEvalBase("d", ctx, RollExtraFlags{
 								DefaultDiceSideNum: getDefaultDicePoints(ctx),
@@ -1277,15 +1277,27 @@ func (d *Dice) registerCoreCommands() {
 	helpSet := ".set info// 查看当前面数设置\n" +
 		".set dnd/coc // 设置群内骰子面数为20/100，并自动开启对应扩展 \n" +
 		".set <面数> // 设置群内骰子面数\n" +
-		".set <面数> --my // 设定个人专属骰子面数\n" +
-		".set clr // 清除群内骰子面数设置\n" +
-		".set clr --my // 清除个人骰子面数设置"
+		".set clr // 清除群内骰子面数设置"
 	cmdSet := &CmdItemInfo{
 		Name:      "set",
 		ShortHelp: helpSet,
 		Help:      "设定骰子面数:\n" + helpSet,
+		HelpFunc: func(isShort bool) string {
+			text := ".set info // 查看当前面数设置\n"
+			text += ".set <面数> // 设置群内骰子面数\n"
+			text += ".set dnd // 设置群内骰子面数为20，并自动开启对应扩展\n"
+			d.GameSystemMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
+				textHelp := fmt.Sprintf("设置群内骰子面数为%d，并自动开启对应扩展", tmpl.DiceSides)
+				text += fmt.Sprintf(".set %s // %s\n", strings.Join(tmpl.KeysForSet, "/"), textHelp)
+				return true
+			})
+			text += `.set clr // 清除群内骰子面数设置`
+			if isShort {
+				return text
+			}
+			return "设定骰子面数:\n" + text
+		},
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-
 			p := ctx.Player
 			isSetGroup := true
 			my := cmdArgs.GetKwarg("my")
@@ -1297,15 +1309,7 @@ func (d *Dice) registerCoreCommands() {
 			modSwitch := false
 			if arg1 != "" {
 				tipText := "\n提示:"
-				if strings.EqualFold(arg1, "coc") {
-					cmdArgs.Args[0] = "100"
-					ctx.Group.ExtActive(d.ExtFind("coc7"))
-					//tipText += "如果你执行的是.setcoc(无空格)，可能说明此时coc7扩展并未打开，请运行.ext coc7 on\n"
-					tipText += "已切换至100面骰，并自动开启coc7扩展"
-					modSwitch = true
-					ctx.Group.System = "coc7"
-					ctx.Group.UpdatedAtTime = time.Now().Unix()
-				}
+
 				if strings.EqualFold(arg1, "dnd") {
 					cmdArgs.Args[0] = "20"
 					ctx.Group.ExtActive(d.ExtFind("dnd5e"))
@@ -1314,13 +1318,37 @@ func (d *Dice) registerCoreCommands() {
 					ctx.Group.System = "dnd5e"
 					ctx.Group.UpdatedAtTime = time.Now().Unix()
 				}
-				ctx.Dice.CharTemplateMap.Range(func(key string, value *CharacterTemplate) bool {
-					for k, v := range value.NameTemplate {
-						// TODO: 自动设置system
-						fmt.Println(k, v)
+				ctx.Dice.GameSystemMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
+					isMatch := false
+					for _, k := range tmpl.KeysForSet {
+						if strings.EqualFold(arg1, k) {
+							isMatch = true
+							break
+						}
+					}
+
+					if isMatch {
+						modSwitch = true
+						ctx.Group.System = key
+						ctx.Group.DiceSideNum = tmpl.DiceSides
+						ctx.Group.UpdatedAtTime = time.Now().Unix()
+						tipText += tmpl.EnableTip
+
+						// TODO: 命令该要进步啦
+						cmdArgs.Args[0] = strconv.FormatInt(tmpl.DiceSides, 10)
+
+						for _, name := range tmpl.RelatedExt {
+							// 开启相关扩展
+							ei := ctx.Dice.ExtFind(name)
+							if ei != nil {
+								ctx.Group.ExtActive(ei)
+							}
+						}
+						return false
 					}
 					return true
 				})
+
 				num, err := strconv.ParseInt(cmdArgs.Args[0], 10, 64)
 				if num < 0 {
 					num = 0
