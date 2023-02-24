@@ -13,7 +13,7 @@ import android.util.*
 import java.io.File
 import java.io.FileOutputStream
 
-class NewService : Service() {
+class MediaService : Service() {
 
     // declaring object of MediaPlayer
     private lateinit var player:MediaPlayer
@@ -40,15 +40,6 @@ class NewService : Service() {
         // providing the boolean
         // value as true to play
         // the audio on loop
-        val ns: String = Context.NOTIFICATION_SERVICE
-        val mNotificationManager = getSystemService(ns) as NotificationManager
-        val notificationChannel = NotificationChannel("sealdice","SealDice", NotificationManager.IMPORTANCE_HIGH)
-        mNotificationManager.createNotificationChannel(notificationChannel)
-        val notification: Notification = Notification.Builder(this,"sealdice")
-            .setContentTitle("SealDice is running")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .build()
-        startForeground(1, notification)
         player.isLooping = true
         // starting the process
         player.start()
@@ -65,7 +56,7 @@ class NewService : Service() {
 
         // stopping the process
         player.stop()
-//        val intent = Intent(applicationContext, NewService::class.java)
+//        val intent = Intent(applicationContext, MediaService::class.java)
 //        startService(intent)
     }
 

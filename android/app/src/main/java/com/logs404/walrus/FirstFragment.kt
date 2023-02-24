@@ -3,17 +3,14 @@ package com.logs404.walrus
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.support.v4.app.Fragment
+import androidx.fragment.app.Fragment
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.logs404.walrus.common.ExtractAssets
 import com.logs404.walrus.databinding.FragmentFirstBinding
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 
 
 /**
@@ -38,6 +35,7 @@ class FirstFragment : Fragment() {
 
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         var isrun = false
@@ -65,11 +63,15 @@ class FirstFragment : Fragment() {
                             withContext(Dispatchers.Main){
                             binding.textviewFirst.text = "启动完成（或者失败）"
                             }
+                            val intentMedia = Intent(context, NotificationService::class.java)
+                            context?.startService(intentMedia)
                             val uri = Uri.parse("http://127.0.0.1:3211")
                             val intent = Intent()
                             intent.action = "android.intent.action.VIEW"
                             intent.data = uri
                             startActivity(intent)
+//                            binding.buttonFirst.text = "停止"
+//                            binding.shellText.setText("stop")
                         }
                     }
                 }
@@ -78,6 +80,11 @@ class FirstFragment : Fragment() {
                 }
                 "cls" -> {
                     clear()
+                }
+                "stop" -> {
+                    execShell("pkill -SIGTERM sealdice-core")
+//                    binding.shellText.setText("sealdice")
+//                    binding.buttonFirst.text = "启动"
                 }
                 else -> {
                     execShell(text)
