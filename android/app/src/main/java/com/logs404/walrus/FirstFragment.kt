@@ -125,15 +125,15 @@ class FirstFragment : Fragment() {
         var executed = false
         if (sharedPreferences != null) {
             if (sharedPreferences.getBoolean("alive_notification", true)) {
-                val intentMedia = Intent(context, NotificationService::class.java)
-                context.startService(intentMedia)
+                val intentNoti = Intent(context, NotificationService::class.java)
+                context.startService(intentNoti)
                 executed = true
             }
         }
         if (sharedPreferences != null) {
             if (sharedPreferences.getBoolean("alive_media", false)) {
-                val intentNoti = Intent(context, NotificationService::class.java)
-                context.startService(intentNoti)
+                val intentMedia = Intent(context, MediaService::class.java)
+                context.startService(intentMedia)
                 executed = true
             }
         }
