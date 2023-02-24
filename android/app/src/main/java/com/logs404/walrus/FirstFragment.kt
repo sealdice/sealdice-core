@@ -5,13 +5,12 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.Looper
-import androidx.fragment.app.Fragment
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.logs404.walrus.common.ExtractAssets
 import com.logs404.walrus.databinding.FragmentFirstBinding
@@ -55,11 +54,13 @@ class FirstFragment : Fragment() {
                     if (isrun) {
                         shellLogs += "sealdice is running"
                     } else {
-                        ExtractAssets(context).extractResources("sealdice")
                         isrun = true
+                        ExtractAssets(context).extractResources("sealdice")
                         val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
                         val args = sharedPreferences?.getString("launch_args", "")
                         execShell("cd sealdice&&./sealdice-core $args")
+                        binding.buttonSecond.visibility = View.VISIBLE
+                        binding.buttonFirst.visibility = View.GONE
                         if (!launchAliveService(context)) {
                             val alertDialogBuilder = context?.let { it1 ->
                                 AlertDialog.Builder(
@@ -100,17 +101,16 @@ class FirstFragment : Fragment() {
                 "cls" -> {
                     clear()
                 }
-                "stop" -> {
-                    execShell("pkill -SIGTERM sealdice-core")
-//                    binding.shellText.setText("sealdice")
-//                    binding.buttonFirst.text = "启动"
-                }
                 else -> {
                     execShell(text)
 
                 }
             }
-
+            binding.buttonSecond.setOnClickListener {
+                binding.buttonSecond.visibility = View.GONE
+                execShell("pkill -SIGINT sealdice-core")
+                binding.buttonFirst.visibility = View.VISIBLE
+            }
         }
 
     }

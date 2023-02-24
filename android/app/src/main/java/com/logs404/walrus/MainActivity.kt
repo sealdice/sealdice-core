@@ -20,7 +20,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-//        startService(Intent(this, MediaService::class.java))
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -30,7 +29,7 @@ class MainActivity : AppCompatActivity() {
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
         binding.fab.setOnClickListener { view ->
-            Snackbar.make(view, "SealDice For Android Ver 0.0.1-Alpha\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
+            Snackbar.make(view, "SealDice For Android Ver 0.0.2-Alpha\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show()
 //            ExtractAssets(this).extractResources("sealdice")
         }
@@ -51,8 +50,6 @@ class MainActivity : AppCompatActivity() {
         return when (item.itemId) {
             R.id.action_settings -> {
                 val intent = Intent(this, SettingsActivity::class.java)
-//                intent.action = "android.intent.action.VIEW"
-//                intent.data = Uri.parse("https://sealdice.com")
                 startActivity(intent)
                 true
             }
