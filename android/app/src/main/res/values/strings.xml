@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">海豹核心</string>
-    <string name="action_settings">官网地址</string>
+    <string name="action_settings">设置</string>
+    <string name="action_official_website">官网地址</string>
     <!-- Strings used for fragments for navigation -->
     <string name="first_fragment_label">海豹核心</string>
     <string name="second_fragment_label">Second Fragment</string>

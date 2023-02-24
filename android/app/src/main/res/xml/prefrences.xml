@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <androidx.preference.PreferenceCategory
+        android:title="一般">
+
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="alive_notification"
+            android:title="保活策略：通知栏"
+            android:summary="通过通知栏进行保活"
+            android:defaultValue="true" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="alive_media"
+            android:title="保活策略：无声音频"
+            android:summary="通过循环播放无声音频进行保活"
+            android:defaultValue="false" />
+
+    </androidx.preference.PreferenceCategory>
+
+    <androidx.preference.PreferenceCategory
+        android:title="高级">
+
+        <androidx.preference.EditTextPreference
+            android:key="launch_args"
+            android:title="启动参数"
+            android:summary="点击输入启动参数"
+            android:defaultValue="" />
+
+    </androidx.preference.PreferenceCategory>
+</PreferenceScreen>

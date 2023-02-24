@@ -51,6 +51,13 @@ class MainActivity : AppCompatActivity() {
         // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
             R.id.action_settings -> {
+                val intent = Intent(this, SettingsActivity::class.java)
+//                intent.action = "android.intent.action.VIEW"
+//                intent.data = Uri.parse("https://sealdice.com")
+                startActivity(intent)
+                true
+            }
+            R.id.action_official_website -> {
                 val intent = Intent()
                 intent.action = "android.intent.action.VIEW"
                 intent.data = Uri.parse("https://sealdice.com")
