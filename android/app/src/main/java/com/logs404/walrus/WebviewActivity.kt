@@ -1,5 +1,8 @@
 package com.logs404.walrus
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.KeyEvent.KEYCODE_BACK
@@ -9,9 +12,69 @@ import com.tencent.smtt.export.external.interfaces.SslErrorHandler
 import com.tencent.smtt.export.external.interfaces.WebResourceRequest
 import com.tencent.smtt.sdk.*
 
+private open class WVChromeClient(_context: Context, activity: WebViewActivity): WebChromeClient() {
+    var _m: WebViewActivity? = activity
+    private val TAG = "WebChromeClient："
+    val CHOOSER_REQUEST = 0x33
+    private var uploadFiles: ValueCallback<Array<Uri>>? = null
+    var context: Context? = _context
+    override fun onShowFileChooser(webView: WebView, filePathCallback: ValueCallback<Array<Uri>>?, fileChooserParams: WebChromeClient.FileChooserParams?): Boolean {
+        uploadFiles = filePathCallback
+        val i = fileChooserParams!!.createIntent()
+        i.addCategory(Intent.CATEGORY_OPENABLE)
+        i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true) // 设置多选
 
+        _m?.startActivityForResult(Intent.createChooser(i, "Image Chooser"), CHOOSER_REQUEST)
+        return true
+    }
+    fun onActivityResultFileChooser(requestCode: Int, resultCode: Int, intent: Intent?) {
+        if (requestCode != CHOOSER_REQUEST || uploadFiles == null) return
+        var results: Array<Uri?>? = null
+        if (resultCode == AppCompatActivity.RESULT_OK) {
+            if (intent != null) {
+                val dataString = intent.dataString
+                val clipData = intent.clipData
+                if (clipData != null) {
+                    results = arrayOfNulls(clipData.itemCount)
+                    for (i in 0 until clipData.itemCount) {
+                        val item = clipData.getItemAt(i)
+                        results[i] = item.uri
+                    }
+                }
+                if (dataString != null) results = arrayOf(Uri.parse(dataString))
+            }
+        }
+        uploadFiles!!.onReceiveValue(results)
+        uploadFiles = null
+    }
+    private fun <T> ValueCallback<T>.onReceiveValue(results: Array<Uri?>?) {
+        // Check if the results array is not null and has at least one item
+        if (results != null && results.isNotEmpty()) {
+            // Get the first Uri from the array
+            val uri = results[0]
+            // Call the original onReceiveValue method with the Uri as its argument
+            this.onReceiveValue(uri as T)
+        } else {
+            // If the results array is null or empty, call the original onReceiveValue method with null as its argument
+            this.onReceiveValue(null)
+        }
+    }
+
+}
 class WebViewActivity : AppCompatActivity() {
     private lateinit var mWebView: WebView
+    private lateinit var mWebClient: WVChromeClient
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 0x33) { // 处理返回的文件
+            mWebClient.onActivityResultFileChooser(
+                requestCode,
+                resultCode,
+                data
+            ) // 调用 WVChromeClient 类中的 回调方法
+        }
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_webview)
@@ -56,8 +119,8 @@ class WebViewActivity : AppCompatActivity() {
                 handler?.proceed()
             }
         }
-        webView.webChromeClient = object : WebChromeClient() {
-        }
+        mWebClient = WVChromeClient(applicationContext,this)
+        webView.webChromeClient = mWebClient
         mWebView = webView
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
         if (url != null) {

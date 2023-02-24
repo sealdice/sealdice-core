@@ -16,7 +16,7 @@ import java.io.FileOutputStream
 class MediaService : Service() {
 
     // declaring object of MediaPlayer
-    private lateinit var player:MediaPlayer
+    private lateinit var player: MediaPlayer
 
     // execution of service will start
     // on calling this method
