@@ -69,7 +69,7 @@ object FileWrite {
         return getPrivateFileDir(context) + (if (outName.startsWith("/")) outName.substring(1, outName.length) else outName)
     }
     fun writePrivateFile(file: String, outName: String, context: Context): String? {
-        return writePrivateFile(context.assets, file, outName, context);
+        return writePrivateFile(context.assets, file, outName, context)
     }
 
     fun writePrivateFile(assetManager: AssetManager, file: String, outName: String, context: Context): String? {
@@ -85,8 +85,10 @@ object FileWrite {
                 dir.mkdirs()
             val filePath = getPrivateFilePath(context, outName)
             val fileDir = File(filePath).parentFile
-            if (!fileDir.exists())
-                fileDir.mkdirs()
+            if (fileDir != null) {
+                if (!fileDir.exists())
+                    fileDir.mkdirs()
+            }
 
             val fileOutputStream = FileOutputStream(filePath)
 
@@ -122,8 +124,10 @@ object FileWrite {
                 dir.mkdirs()
             val filePath = getPrivateFilePath(context, outName)
             val fileDir = File(filePath).parentFile
-            if (!fileDir.exists())
-                fileDir.mkdirs()
+            if (fileDir != null) {
+                if (!fileDir.exists())
+                    fileDir.mkdirs()
+            }
 
             val fileOutputStream = FileOutputStream(filePath)
             fileOutputStream.write(bytes, 0, bytes.size)
