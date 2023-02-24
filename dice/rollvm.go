@@ -243,6 +243,7 @@ type RollExtraFlags struct {
 	DNDAttrReadMod     bool  // 基础属性被读取为调整值，仅在检定时使用
 	DNDAttrReadDC      bool  // 将力量豁免读取为力量再计算豁免值
 	DefaultDiceSideNum int64 // 默认骰子面数
+	DisableBitwiseOp   bool  // 禁用位运算，用于st
 
 	StCallback func(_type string, name string, val *VMValue, op string, detail string) // st回调
 }
