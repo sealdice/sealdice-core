@@ -1,6 +1,5 @@
 package com.logs404.walrus
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -12,19 +11,19 @@ import com.tencent.smtt.export.external.interfaces.SslErrorHandler
 import com.tencent.smtt.export.external.interfaces.WebResourceRequest
 import com.tencent.smtt.sdk.*
 
-private open class WVChromeClient(_context: Context, activity: WebViewActivity): WebChromeClient() {
-    var _m: WebViewActivity? = activity
-    private val TAG = "WebChromeClient："
+
+private open class WVChromeClient(activity: WebViewActivity): WebChromeClient() {
+    var _m: WebViewActivity = activity
     val CHOOSER_REQUEST = 0x33
     private var uploadFiles: ValueCallback<Array<Uri>>? = null
-    var context: Context? = _context
     override fun onShowFileChooser(webView: WebView, filePathCallback: ValueCallback<Array<Uri>>?, fileChooserParams: WebChromeClient.FileChooserParams?): Boolean {
         uploadFiles = filePathCallback
         val i = fileChooserParams!!.createIntent()
+        i.type = "*/*"
         i.addCategory(Intent.CATEGORY_OPENABLE)
         i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true) // 设置多选
 
-        _m?.startActivityForResult(Intent.createChooser(i, "Image Chooser"), CHOOSER_REQUEST)
+        _m.startActivityForResult(Intent.createChooser(i, "Image Chooser"), CHOOSER_REQUEST)
         return true
     }
     fun onActivityResultFileChooser(requestCode: Int, resultCode: Int, intent: Intent?) {
@@ -44,27 +43,16 @@ private open class WVChromeClient(_context: Context, activity: WebViewActivity):
                 if (dataString != null) results = arrayOf(Uri.parse(dataString))
             }
         }
-        uploadFiles!!.onReceiveValue(results)
+        val nonNullArray: Array<Uri> = results?.filterNotNull()?.toTypedArray() ?: emptyArray()
+        uploadFiles!!.onReceiveValue(nonNullArray)
         uploadFiles = null
     }
-    private fun <T> ValueCallback<T>.onReceiveValue(results: Array<Uri?>?) {
-        // Check if the results array is not null and has at least one item
-        if (results != null && results.isNotEmpty()) {
-            // Get the first Uri from the array
-            val uri = results[0]
-            // Call the original onReceiveValue method with the Uri as its argument
-            this.onReceiveValue(uri as T)
-        } else {
-            // If the results array is null or empty, call the original onReceiveValue method with null as its argument
-            this.onReceiveValue(null)
-        }
-    }
-
 }
 class WebViewActivity : AppCompatActivity() {
     private lateinit var mWebView: WebView
     private lateinit var mWebClient: WVChromeClient
 
+    @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 0x33) { // 处理返回的文件
@@ -119,7 +107,7 @@ class WebViewActivity : AppCompatActivity() {
                 handler?.proceed()
             }
         }
-        mWebClient = WVChromeClient(applicationContext,this)
+        mWebClient = WVChromeClient(this)
         webView.webChromeClient = mWebClient
         mWebView = webView
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
