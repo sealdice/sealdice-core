@@ -1,11 +1,13 @@
 package com.logs404.walrus
 
-import android.net.http.SslError
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.KeyEvent.KEYCODE_BACK
-import android.webkit.*
 import androidx.appcompat.app.AppCompatActivity
+import com.tencent.smtt.export.external.interfaces.SslError
+import com.tencent.smtt.export.external.interfaces.SslErrorHandler
+import com.tencent.smtt.export.external.interfaces.WebResourceRequest
+import com.tencent.smtt.sdk.*
 
 
 class WebViewActivity : AppCompatActivity() {
@@ -30,7 +32,7 @@ class WebViewActivity : AppCompatActivity() {
 
         webSettings.displayZoomControls = false //隐藏原生的缩放控件
 
-        webSettings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK //关闭webview中缓存
+        webSettings.cacheMode = WebSettings.LOAD_DEFAULT
 
         webSettings.allowFileAccess = true //设置可以访问文件
 
@@ -40,11 +42,8 @@ class WebViewActivity : AppCompatActivity() {
 
         webSettings.defaultTextEncodingName = "utf-8" //设置编码格式
 
-        webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-
         webSettings.domStorageEnabled = true
         val url = intent.getStringExtra("url")
-
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(
                 view: WebView?,

@@ -3,15 +3,26 @@ package com.logs404.walrus
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import com.google.android.material.snackbar.Snackbar
-import androidx.appcompat.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
+import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
+import com.google.android.material.snackbar.Snackbar
 import com.logs404.walrus.databinding.ActivityMainBinding
+import com.tencent.smtt.export.external.TbsCoreSettings
+import com.tencent.smtt.sdk.QbSdk
+
+
+private class PreInitCallbackImpl: QbSdk.PreInitCallback {
+    override fun onCoreInitFinished() {
+    }
+
+    override fun onViewInitFinished(p0: Boolean) {
+    }
+}
 
 class MainActivity : AppCompatActivity() {
 
@@ -20,6 +31,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        QbSdk.initX5Environment(this, PreInitCallbackImpl())
+        val map = HashMap<String?, Any?>()
+        map[TbsCoreSettings.TBS_SETTINGS_USE_SPEEDY_CLASSLOADER] = true
+        map[TbsCoreSettings.TBS_SETTINGS_USE_DEXLOADER_SERVICE] = true
+        QbSdk.initTbsSettings(map)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
