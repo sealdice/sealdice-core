@@ -704,10 +704,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 	var _roulette SyncMap[string, _singleRoulette]
 	cmdDrl := CmdItemInfo{
-		Name:      "drl",
-		ShortHelp: ".drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n.drl // 抽取当前群组的骰池",
-		Help:      "drl（Draw Lot）：.drl new d10 5# (原因) // 在当前群组创建一个骰池\n.drl 面数 次数 // 抽取当前群组的骰池",
-		//DisabledInPrivate: true,
+		Name:              "drl",
+		ShortHelp:         ".drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n.drl // 抽取当前群组的骰池",
+		Help:              "drl（Draw Lot）：.drl new d10 5# (原因) // 在当前群组创建一个骰池\n.drl 面数 次数 // 抽取当前群组的骰池",
+		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "new") {
 				// Make mode
