@@ -3,11 +3,11 @@
     <string name="action_settings">设置</string>
     <string name="action_official_website">官网地址</string>
     <!-- Strings used for fragments for navigation -->
-    <string name="first_fragment_label">海豹核心 Ver 0.0.8-Alpha</string>
+    <string name="first_fragment_label">海豹核心 Ver 0.1.0-Beta</string>
     <string name="second_fragment_label">Second Fragment</string>
     <string name="next">Next</string>
     <string name="previous">Previous</string>
 
-    <string name="hello_first_fragment">海豹手机版技术原型\n各类核心功能未进行测试\n请谨慎使用\n使用过程中遇到的任何问题请反馈开发者\n特别感谢logs404大佬的帮助</string>
+    <string name="hello_first_fragment">海豹安卓测试版\n仅供SealDice测试群用户使用\n请勿外传\n鸣谢：logs404</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
 </resources>

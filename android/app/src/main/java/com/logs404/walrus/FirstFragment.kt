@@ -1,18 +1,13 @@
 package com.logs404.walrus
 
-import android.app.Service
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
-import android.graphics.PixelFormat
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.util.DisplayMetrics
 import android.util.Log
 import android.view.*
 import androidx.appcompat.app.AlertDialog
-import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.logs404.walrus.common.ExtractAssets
@@ -48,6 +43,24 @@ class FirstFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         var isrun = false
+        val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
+        binding.buttonThird.setOnClickListener {
+            val address = sharedPreferences?.getString("ui_address", "http://127.0.0.1:3211")
+            if (sharedPreferences?.getBoolean("use_internal_webview", true) == true) {
+                val intent = Intent(context, WebViewActivity::class.java)
+                intent.putExtra("url", address)
+                startActivity(intent)
+            } else {
+                val uri = Uri.parse(address)
+                val intent = Intent()
+                intent.action = "android.intent.action.VIEW"
+                intent.data = uri
+                startActivity(intent)
+            }
+        }
+        binding.buttonExit.setOnClickListener {
+            throw RuntimeException("Debug crash triggered!")
+        }
         binding.buttonFirst.setOnClickListener {
 //            findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
             when (val text = binding.shellText.text.toString()) {
@@ -71,7 +84,6 @@ class FirstFragment : Fragment() {
                     } else {
                         isrun = true
                         ExtractAssets(context).extractResources("sealdice")
-                        val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
                         val args = sharedPreferences?.getString("launch_args", "")
                         execShell("cd sealdice&&./sealdice-core $args")
                         binding.buttonSecond.visibility = View.VISIBLE
