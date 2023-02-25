@@ -219,6 +219,7 @@ func (d *Dice) JsInit() {
 			return nil
 		})
 		_ = seal.Set("gameSystem", gameSystem)
+		_ = seal.Set("getCtxProxyAtPos", GetCtxProxyAtPos)
 
 		_ = vm.Set("atob", func(s string) (string, error) {
 			// Remove data URI scheme and any whitespace from the string.
