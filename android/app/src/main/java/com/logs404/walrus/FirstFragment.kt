@@ -1,20 +1,25 @@
 package com.logs404.walrus
 
+import android.app.Service
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.graphics.PixelFormat
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.util.DisplayMetrics
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.logs404.walrus.common.ExtractAssets
 import com.logs404.walrus.databinding.FragmentFirstBinding
+import com.logs404.walrus.utils.Utils
 import kotlinx.coroutines.*
+import com.logs404.walrus.utils.ViewModelMain
 
 
 /**
@@ -156,6 +161,16 @@ class FirstFragment : Fragment() {
                 context.startService(intentWakelock)
                 executed = true
             }
+            if (sharedPreferences.getBoolean("alive_floatwindow", false)) {
+                context.startService(Intent(context, FloatWindowService::class.java))
+                this.activity?.let {
+                    Utils.checkSuspendedWindowPermission(it) {
+                        ViewModelMain.isShowSuspendWindow.postValue(true)
+                        ViewModelMain.isVisible.postValue(true)
+                    }
+                }
+                executed = true
+            }
         }
         return executed
     }
@@ -198,7 +213,6 @@ class FirstFragment : Fragment() {
                 Thread.sleep(1000)
             }
         }
-
     }
 
     override fun onDestroyView() {

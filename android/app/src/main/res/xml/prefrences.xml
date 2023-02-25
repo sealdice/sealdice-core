@@ -14,6 +14,11 @@
             android:summary="通过构造唤醒锁确保息屏后运行，可能会增加耗电量"
             android:defaultValue="false" />
         <androidx.preference.SwitchPreferenceCompat
+            android:key="alive_floatwindow"
+            android:title="保活策略：悬浮窗"
+            android:summary="添加一个悬浮窗进行保活，第一次使用会跳转到权限设置"
+            android:defaultValue="false" />
+        <androidx.preference.SwitchPreferenceCompat
             android:key="alive_media"
             android:title="保活策略：无声音频"
             android:summary="通过循环播放无声音频进行保活"

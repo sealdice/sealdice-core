@@ -45,7 +45,7 @@ class MainActivity : AppCompatActivity() {
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
         binding.fab.setOnClickListener { view ->
-            Snackbar.make(view, "SealDice For Android Ver 0.0.7-Alpha\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
+            Snackbar.make(view, "SealDice For Android Ver 0.0.8-Alpha\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show()
 //            ExtractAssets(this).extractResources("sealdice")
         }
