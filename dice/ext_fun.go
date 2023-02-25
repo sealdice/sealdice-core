@@ -730,6 +730,13 @@ func RegisterBuiltinExtFun(self *Dice) {
 					roulette.Reason = m
 				}
 
+				if roulette.Time > roulette.Face {
+					ReplyToSender(ctx, msg, fmt.Sprintf("创建错误：无法不重复地投掷%d次%d面骰。",
+						roulette.Time,
+						roulette.Face))
+					return CmdExecuteResult{Matched: true, Solved: false}
+				}
+
 				//创建pool后直接先随机了
 				var pool []int
 				ma := make(map[int]bool)
