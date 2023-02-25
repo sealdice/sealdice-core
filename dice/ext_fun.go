@@ -672,7 +672,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					pool = append(pool, n)
 				}
 			}
-			ctx.Dice.Logger.Info(pool)
+			//ctx.Dice.Logger.Info(pool)
 			var results []string
 			for _, v := range pool {
 				results = append(results, fmt.Sprintf("D%d=%d", m, v))
