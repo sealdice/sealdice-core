@@ -252,6 +252,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				ReplyToSender(mctx, msg, text)
 				return CmdExecuteResult{Matched: true, Solved: true}
 
+			case "fmt", "format":
+				cmdStCharFormat(mctx, nil)
+				ReplyToSender(mctx, msg, "角色卡片类型被强制修改为: "+ctx.Group.System)
+
 			case "del", "rm":
 				var nums []string
 				var failed []string

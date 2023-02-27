@@ -25,7 +25,14 @@ type ReplyResultBase interface {
 // ReplyConditionTextMatch 文本匹配 // textMatch
 type ReplyConditionTextMatch struct {
 	CondType  string `yaml:"condType" json:"condType"`
-	MatchType string `yaml:"matchType" json:"matchType"` // matchExact 精确 matchRegex 正则 matchFuzzy 模糊 matchContains 包含
+	MatchType string `yaml:"matchType" json:"matchType"` // matchExact 精确  matchRegex 正则 matchFuzzy 模糊 matchContains 包含
+	Value     string `yaml:"value" json:"value"`
+}
+
+// ReplyConditionMultiMatch 文本多重匹配
+type ReplyConditionMultiMatch struct {
+	CondType  string `yaml:"condType" json:"condType"`
+	MatchType string `yaml:"matchType" json:"matchType"`
 	Value     string `yaml:"value" json:"value"`
 }
 
@@ -58,6 +65,15 @@ func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *
 	switch m.MatchType {
 	case "matchExact":
 		ret = strings.ToLower(cleanText) == strings.ToLower(m.Value)
+	case "matchMulti":
+		texts := strings.Split(m.Value, "|")
+		for _, i := range texts {
+			if i == cleanText {
+				VarSetValueStr(ctx, "$t0", cleanText)
+				return true
+			}
+		}
+		return false
 	case "matchPrefix":
 		ret = strings.HasPrefix(strings.ToLower(cleanText), strings.ToLower(m.Value))
 	case "matchSuffix":
