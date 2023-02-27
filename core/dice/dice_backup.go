@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sealdice-core/dice/model"
 	"time"
 )
 
@@ -97,9 +98,20 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 		}
 
 		if cfg2.PlayerData {
+			err := model.FlushWAL(d.DBData)
+			if err != nil {
+				d.Logger.Warnln("备份时data数据库flush出错", err.Error())
+			}
+			err = model.FlushWAL(d.DBLogs)
+			if err != nil {
+				d.Logger.Warnln("备份时logs数据库flush出错", err.Error())
+			}
+
+			backup(d, filepath.Join(d.BaseConfig.DataDir, "data.db"))
+			backup(d, filepath.Join(d.BaseConfig.DataDir, "data-logs.db"))
+
 			//bakTestPath, _ := filepath.Abs("./data-logs-bak.db")
 			//model.Backup(d.DBData)
-
 			//backup(d, filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 		}
 		if cfg2.CustomReply {
