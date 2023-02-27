@@ -224,29 +224,31 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 }
 
 func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
-	vars, _ := mctx.ChVarsGet()
-	newMap := map[string]interface{}{}
-	_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-		key := _k.(string)
-		v := (_v).(*VMValue)
+	if tmpl != nil {
+		vars, _ := mctx.ChVarsGet()
+		newMap := map[string]interface{}{}
+		_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
+			key := _k.(string)
+			v := (_v).(*VMValue)
 
-		newKey := tmpl.GetAlias(key)
-		if v.TypeId == VMTypeInt64 {
-			// val, detail, calculated, exists2
-			val, _, _, exists := tmpl.GetDefaultValueEx0(mctx, newKey)
-			if exists && val.TypeId == v.TypeId && val.Value == v.Value {
-				// 与默认值相同，跳过
-				return nil
+			newKey := tmpl.GetAlias(key)
+			if v.TypeId == VMTypeInt64 {
+				// val, detail, calculated, exists2
+				val, _, _, exists := tmpl.GetDefaultValueEx0(mctx, newKey)
+				if exists && val.TypeId == v.TypeId && val.Value == v.Value {
+					// 与默认值相同，跳过
+					return nil
+				}
 			}
+
+			newMap[newKey] = _v
+			return nil
+		})
+
+		mctx.ChVarsClear()
+		for k, v := range newMap {
+			vars.Set(k, v)
 		}
-
-		newMap[newKey] = _v
-		return nil
-	})
-
-	mctx.ChVarsClear()
-	for k, v := range newMap {
-		vars.Set(k, v)
 	}
 
 	SetCardType(mctx, mctx.Group.System)
