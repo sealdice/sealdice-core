@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"hash/fnv"
+	"math"
 	"math/rand"
 	"regexp"
 	"sort"
@@ -634,15 +635,15 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 	cmdJsr := CmdItemInfo{
 		Name:      "jsr",
-		ShortHelp: ".jsr 次数# 面数 原因 //用法参考.r",
-		Help:      "不重复骰点（Jetter sans Répéter）：.jsr 次数# 面数 原因 //用法参考.r",
+		ShortHelp: ".jsr 3# d10 // 投掷10面骰3次，结果不重复。用法参考.r",
+		Help:      "不重复骰点（Jetter sans Répéter）：.jsr 次数# 面数",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			t := cmdArgs.SpecialExecuteTimes
 			allArgClean := cmdArgs.CleanArgs
 			allArgs := strings.Split(allArgClean, " ")
 			var m int
 			for i, v := range allArgs {
-				if n, err := strconv.Atoi(v); err == nil {
+				if n, err := strconv.Atoi(strings.Replace(v, "d", "", 1)); err == nil {
 					m = n
 					allArgs = append(allArgs[:i], allArgs[i+1:]...)
 					break
@@ -658,16 +659,23 @@ func RegisterBuiltinExtFun(self *Dice) {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 				return CmdExecuteResult{Matched: true, Solved: false}
 			}
-			var pool []int
-			for i := 1; i <= m; i++ {
-				pool = append(pool, i)
+			if t > m {
+				ReplyToSender(ctx, msg, fmt.Sprintf("无法不重复地投掷%d次%d面骰。", t, m))
+				return CmdExecuteResult{Matched: true, Solved: false}
 			}
+			var pool []int
+			ma := make(map[int]bool)
+			for len(pool) < t {
+				n := rand.Intn(m) + 1
+				if !ma[n] {
+					ma[n] = true
+					pool = append(pool, n)
+				}
+			}
+			//ctx.Dice.Logger.Info(pool)
 			var results []string
-			for i := 0; i < t; i++ {
-				rand.Seed(time.Now().UTC().UnixNano())
-				res := rand.Intn(len(pool))
-				results = append(results, fmt.Sprintf("D%d=%d", m, pool[res]))
-				pool = append(pool[:res], pool[res+1:]...)
+			for _, v := range pool {
+				results = append(results, fmt.Sprintf("D%d=%d", m, v))
 			}
 			allArgClean = strings.Join(allArgs, " ")
 			VarSetValueStr(ctx, "$t原因", allArgClean)
@@ -688,65 +696,87 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
-	var _roulettes = map[string]map[string]interface{}{}
+	type _singleRoulette struct {
+		Reason string
+		Face   int
+		Time   int
+		Pool   []int
+	}
+	var _roulette SyncMap[string, _singleRoulette]
 	cmdDrl := CmdItemInfo{
 		Name:              "drl",
-		ShortHelp:         ".drl mk 面数 次数 // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
-		Help:              "drl（Draw Lot）：.drl mk 面数 次数 (原因) // 在当前群组创建一个骰轮\n.drl 面数 次数 // 抽取当前群组的骰轮",
+		ShortHelp:         ".drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n.drl // 抽取当前群组的骰池",
+		Help:              "drl（Draw Lot）：.drl new d10 5# (原因) // 在当前群组创建一个骰池\n.drl 面数 次数 // 抽取当前群组的骰池",
 		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if cmdArgs.IsArgEqual(1, "mk") {
+			if cmdArgs.IsArgEqual(1, "new") {
 				// Make mode
-				t := cmdArgs.SpecialExecuteTimes
-				if t == 0 {
-					t = 1
+				roulette := _singleRoulette{
+					Reason: "",
+					Face:   100,
+					Time:   1,
 				}
-				allArgsClean := cmdArgs.CleanArgs
-				allArgs := strings.Split(allArgsClean, " ")
-				m := 100
-				for i, v := range allArgs {
-					if n, err := strconv.Atoi(v); err == nil {
-						m = n
-						allArgs = append(allArgs[:i], allArgs[i+1:]...)
-						break
-					} else {
-						if v == "mk" {
-							allArgs = append(allArgs[:i], allArgs[i+1:]...)
-						}
+				t := cmdArgs.SpecialExecuteTimes
+				if t != 0 {
+					roulette.Time = t
+				}
+
+				m := cmdArgs.GetArgN(2)
+				if i, err := strconv.Atoi(strings.Replace(m, "d", "", 1)); err == nil && float64(i) != math.NaN() {
+					roulette.Face = i
+					text := cmdArgs.GetArgN(3)
+					roulette.Reason = text
+				} else {
+					roulette.Reason = m
+				}
+
+				if roulette.Time > roulette.Face {
+					ReplyToSender(ctx, msg, fmt.Sprintf("创建错误：无法不重复地投掷%d次%d面骰。",
+						roulette.Time,
+						roulette.Face))
+					return CmdExecuteResult{Matched: true, Solved: false}
+				}
+
+				//创建pool后直接先随机了
+				var pool []int
+				ma := make(map[int]bool)
+				for len(pool) < roulette.Time {
+					n := rand.Intn(roulette.Face) + 1
+					if !ma[n] {
+						ma[n] = true
+						pool = append(pool, n)
 					}
 				}
-				allArgsClean = strings.Join(allArgs, " ")
-				var pool []int
-				for i := 1; i <= m; i++ {
-					pool = append(pool, i)
-				}
-				thisRoulette := map[string]interface{}{
-					"Reason":      allArgsClean,
-					"Time":        t,
-					"Max":         m,
-					"Pool":        pool,
-					"DrawCounter": 0,
-				}
-				_roulettes[ctx.Group.GroupId] = thisRoulette
-				ReplyToSender(ctx, msg, fmt.Sprintf("创建骰轮%s成功，骰子面数%d，可抽取%d次。", allArgsClean, m, t))
+				//ctx.Dice.Logger.Info(pool)
+				roulette.Pool = pool
+
+				_roulette.Store(ctx.Group.GroupId, roulette)
+				ReplyToSender(ctx, msg, fmt.Sprintf("创建骰池%s成功，骰子面数%d，可抽取%d次。",
+					roulette.Reason, roulette.Face, roulette.Time))
 				return CmdExecuteResult{
 					Matched: true,
 					Solved:  true,
 				}
 			} else {
 				// Draw mode
-				if _roulettes == nil || _roulettes[ctx.Group.GroupId] == nil || len(_roulettes[ctx.Group.GroupId]) <= 0 {
-					ReplyToSender(ctx, msg, "当前群组无骰轮，请使用.drl mk创建一个。")
+				var isRouletteEmpty = true
+				_roulette.Range(func(key string, value _singleRoulette) bool {
+					isRouletteEmpty = false
+					return false
+				})
+				tryLoad, ok := _roulette.Load(ctx.Group.GroupId)
+				if isRouletteEmpty || !ok || tryLoad.Face == 0 {
+					ReplyToSender(ctx, msg, "当前群组无骰池，请使用.drl new创建一个。")
 					return CmdExecuteResult{
 						Matched: true,
 						Solved:  false,
 					}
 				}
-				rand.Seed(time.Now().UTC().UnixNano())
-				res := rand.Intn(len(_roulettes[ctx.Group.GroupId]["Pool"].([]int)))
-				result := fmt.Sprintf("D%d=%d", _roulettes[ctx.Group.GroupId]["Max"], _roulettes[ctx.Group.GroupId]["Pool"].([]int)[res])
-				VarSetValueStr(ctx, "$t原因", _roulettes[ctx.Group.GroupId]["Reason"].(string))
-				if _roulettes[ctx.Group.GroupId]["Reason"].(string) != "" {
+
+				result := fmt.Sprintf("D%d=%d", tryLoad.Face, tryLoad.Pool[0])
+				tryLoad.Pool = append(tryLoad.Pool[:0], tryLoad.Pool[1:]...)
+				VarSetValueStr(ctx, "$t原因", tryLoad.Reason)
+				if tryLoad.Reason != "" {
 					forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
 					VarSetValueStr(ctx, "$t原因句子", forWhatText)
 				} else {
@@ -754,12 +784,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 				VarSetValueStr(ctx, "$t结果文本", result)
 				reply := DiceFormatTmpl(ctx, "核心:骰点")
-				_roulettes[ctx.Group.GroupId]["DrawCounter"] = _roulettes[ctx.Group.GroupId]["DrawCounter"].(int) + 1
-				_roulettes[ctx.Group.GroupId]["Pool"] = append(_roulettes[ctx.Group.GroupId]["Pool"].([]int)[:res], _roulettes[ctx.Group.GroupId]["Pool"].([]int)[res+1:]...)
-				if _roulettes[ctx.Group.GroupId]["DrawCounter"].(int) >= _roulettes[ctx.Group.GroupId]["Time"].(int) {
-					reply += fmt.Sprintf("\n骰轮%s已经抽空，现在关闭。", _roulettes[ctx.Group.GroupId]["Reason"])
-					_roulettes[ctx.Group.GroupId] = nil
+				if len(tryLoad.Pool) == 0 {
+					reply += "\n骰池已经抽空，现在关闭。"
+					tryLoad = _singleRoulette{}
 				}
+				_roulette.Store(ctx.Group.GroupId, tryLoad)
 				ReplyToSender(ctx, msg, reply)
 			}
 			return CmdExecuteResult{
