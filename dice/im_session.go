@@ -1193,6 +1193,7 @@ func (ctx *MsgContext) ChBindGet(name string) lockfree.HashMap {
 // ChUnbind 解除某个角色的绑定
 func (ctx *MsgContext) ChUnbind(name string) []string {
 	lst := ctx.ChBindGetList(name)
+
 	for _, groupId := range lst {
 		g := ctx.Session.ServiceAtNew[groupId]
 		p := g.PlayerGet(ctx.Dice.DBData, ctx.Player.UserId)
@@ -1209,6 +1210,10 @@ func (ctx *MsgContext) ChUnbind(name string) []string {
 		vars := ctx.LoadPlayerGlobalVars()
 		key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
 		vars.ValueMap.Del(key2)
+		for _, i := range lst {
+			// 删除绑定标记
+			vars.ValueMap.Del(fmt.Sprintf("$:group-bind:%s", i))
+		}
 		vars.LastWriteTime = time.Now().Unix()
 	}
 
