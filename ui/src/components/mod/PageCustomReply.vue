@@ -33,12 +33,7 @@
       <div>当前文件</div>
       <div>
         <el-select v-model="curFilename">
-          <el-option
-            v-for="item in fileItems"
-            :key="item.filename"
-            :label="item.filename"
-            :value="item.filename"
-          />
+          <el-option v-for="item in fileItems" :key="item.filename" :label="item.filename" :value="item.filename" />
         </el-select>
         <el-checkbox style="margin-left: 1rem;" v-model="cr.enable">启用</el-checkbox>
       </div>
@@ -46,18 +41,12 @@
         <el-button @click="customReplyFileNew">新文件</el-button>
         <el-button @click="customReplyFileDelete">删除</el-button>
         <el-button>
-          <a :href="`${urlBase}/sd-api/configs/custom_reply/file_download?name=${encodeURIComponent(curFilename)}&token=${encodeURIComponent(store.token)}`" style="text-decoration: none">下载</a>
+          <a :href="`${urlBase}/sd-api/configs/custom_reply/file_download?name=${encodeURIComponent(curFilename)}&token=${encodeURIComponent(store.token)}`"
+            style="text-decoration: none">下载</a>
         </el-button>
 
-        <el-upload
-          style="margin-left: 12px;"
-          class="upload-demo"
-          action=""
-          multiple
-          accept=".yaml"
-          :before-upload="beforeUpload"
-          :file-list="uploadFileList"
-        >
+        <el-upload style="margin-left: 12px;" class="upload-demo" action="" multiple accept=".yaml"
+          :before-upload="beforeUpload" :file-list="uploadFileList">
           <el-button type="">上传</el-button>
           <template #tip>
             <div class="el-upload__tip">
@@ -70,16 +59,23 @@
       <el-divider></el-divider>
     </div>
 
-    <nested-draggable :tasks="list" />
-    <div>
-      <el-button @click="addOne(list)">添加一项</el-button>
-      <el-button @click="doSave">保存</el-button>
-    </div>
+    <template v-if="!store.curDice.config.customReplyConfigEnable">
+      <div style="font-size: 1.5rem;">请先启用总开关！</div>
+    </template>
+    <template v-else>
+      <nested-draggable :tasks="list" :class="cr.enable ? '': 'disabled'" />
+      <div>
+        <el-button @click="addOne(list)">添加一项</el-button>
+        <el-button @click="doSave">保存</el-button>
+      </div>
+    </template>
   </div>
 
-  <el-dialog v-model="dialogFormVisible" title="导入配置" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
+  <el-dialog v-model="dialogFormVisible" title="导入配置" :close-on-click-modal="false" :close-on-press-escape="false"
+    :show-close="false" class="the-dialog">
     <!-- <template > -->
-    <el-input placeholder="支持格式: 关键字/回复语" class="reply-text" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" v-model="configForImport"></el-input>
+    <el-input placeholder="支持格式: 关键字/回复语" class="reply-text" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }"
+      v-model="configForImport"></el-input>
     <!-- </template> -->
 
     <template #footer>
@@ -90,31 +86,32 @@
     </template>
   </el-dialog>
 
-  <el-dialog v-model="dialogLicenseVisible" title="许可协议" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
-  <pre style="white-space: pre-wrap;">尊敬的用户，欢迎您选择由木落等研发的海豹骰点核心（SealDice），在您使用自定义功能前，请务必仔细阅读使用须知，当您使用我们提供的服务时，即代表您已同意使用须知的内容。
+  <el-dialog v-model="dialogLicenseVisible" title="许可协议" :close-on-click-modal="false" :close-on-press-escape="false"
+    :show-close="false" class="the-dialog">
+    <pre style="white-space: pre-wrap;">尊敬的用户，欢迎您选择由木落等研发的海豹骰点核心（SealDice），在您使用自定义功能前，请务必仔细阅读使用须知，当您使用我们提供的服务时，即代表您已同意使用须知的内容。
 
-您需了解，海豹核心官方版只支持TRPG功能，娱乐功能定制化请自便，和海豹无关。
-您清楚并明白您对通过骰子提供的全部内容负责，包括自定义回复、非自带的插件、牌堆。海豹骰不对非自身提供以外的内容合法性负责。您不得在使用海豹骰服务时，导入包括但不限于以下情形的内容:
-(1) 反对中华人民共和国宪法所确定的基本原则的；
-(2) 危害国家安全，泄露国家秘密，颠覆国家政权，破坏国家统一的;
-(3) 损害国家荣誉和利益的;
-(4) 煽动民族仇恨、民族歧视、破坏民族团结的；
-(5) 破坏国家宗教政策,宣扬邪教和封建迷信的;
-(6) 散布谣言，扰乱社会秩序，破坏社会稳定的；
-(7) 散布淫秽、色情、赌博、暴力、凶杀、恐怖或者教唆犯罪的；
-(8) 侮辱或者诽谤他人，侵害他人合法权益的；
-(9) 宣扬、教唆使用外挂、私服、病毒、恶意代码、木马及其相关内容的；
-(10)侵犯他人知识产权或涉及第三方商业秘密及其他专有权利的；
-(11)散布任何贬损、诋毁、恶意攻击海豹骰及开发人员、海洋馆工作人员、mod编写人员、关联合作者的；
-(12)含有中华人民共和国法律、行政法规、政策、上级主管部门下发通知中所禁止的其他内容的。
+  您需了解，海豹核心官方版只支持TRPG功能，娱乐功能定制化请自便，和海豹无关。
+  您清楚并明白您对通过骰子提供的全部内容负责，包括自定义回复、非自带的插件、牌堆。海豹骰不对非自身提供以外的内容合法性负责。您不得在使用海豹骰服务时，导入包括但不限于以下情形的内容:
+  (1) 反对中华人民共和国宪法所确定的基本原则的；
+  (2) 危害国家安全，泄露国家秘密，颠覆国家政权，破坏国家统一的;
+  (3) 损害国家荣誉和利益的;
+  (4) 煽动民族仇恨、民族歧视、破坏民族团结的；
+  (5) 破坏国家宗教政策,宣扬邪教和封建迷信的;
+  (6) 散布谣言，扰乱社会秩序，破坏社会稳定的；
+  (7) 散布淫秽、色情、赌博、暴力、凶杀、恐怖或者教唆犯罪的；
+  (8) 侮辱或者诽谤他人，侵害他人合法权益的；
+  (9) 宣扬、教唆使用外挂、私服、病毒、恶意代码、木马及其相关内容的；
+  (10)侵犯他人知识产权或涉及第三方商业秘密及其他专有权利的；
+  (11)散布任何贬损、诋毁、恶意攻击海豹骰及开发人员、海洋馆工作人员、mod编写人员、关联合作者的；
+  (12)含有中华人民共和国法律、行政法规、政策、上级主管部门下发通知中所禁止的其他内容的。
 
-一旦查实您有以上禁止行为，请立即停用海豹骰。同时我们也会主动对你进行举报。</pre>
-<!-- 一旦查实您有以上禁止行为，我们有权进行核查、修改和/或删除您导入的内容，而不需事先通知。 -->
+  一旦查实您有以上禁止行为，请立即停用海豹骰。同时我们也会主动对你进行举报。</pre>
+    <!-- 一旦查实您有以上禁止行为，我们有权进行核查、修改和/或删除您导入的内容，而不需事先通知。 -->
 
     <template #footer>
       <span class="dialog-footer">
-          <el-button @click="dialogLicenseVisible = false">我同意</el-button>
-          <el-button @click="licenseRefuse">我拒绝</el-button>
+        <el-button @click="dialogLicenseVisible = false">我同意</el-button>
+        <el-button @click="licenseRefuse">我拒绝</el-button>
       </span>
     </template>
   </el-dialog>
@@ -136,7 +133,7 @@ import {
   QuestionFilled,
   BrushFilled
 } from '@element-plus/icons-vue'
-import { cloneDeep } from "lodash-es";
+import { cloneDeep, zip } from "lodash-es";
 
 const store = useStore()
 const dialogFormVisible = ref(false)
@@ -178,11 +175,11 @@ const modified = ref(false)
 
 watch(() => cr.value, (newValue, oldValue) => { //直接监听
   modified.value = true
-}, {deep: true});
+}, { deep: true });
 
 watch(() => replyDebugMode.value, (newValue, oldValue) => {
   store.customReplyDebugModeSet(newValue);
-}, {deep: true});
+}, { deep: true });
 
 
 watch(() => curFilename.value, (newValue, oldValue) => { //直接监听
@@ -260,7 +257,7 @@ const beforeUpload = async (file: any) => { // UploadRawFile
 }
 
 const addOne = (lst: any) => {
-  lst.push({"enable":true,"notCollapse":true,"conditions":[{"condType":"textMatch","matchType":"matchExact","value":"要匹配的文本"}],"results":[{"resultType":"replyToSender","delay":0,"message":[ ["说点什么", 1] ]}]},)
+  lst.push({ "enable": true, "notCollapse": true, "conditions": [{ "condType": "textMatch", "matchType": "matchExact", "value": "要匹配的文本" }], "results": [{ "resultType": "replyToSender", "delay": 0, "message": [["说点什么", 1]] }] },)
 }
 
 const doSave = async () => {
@@ -291,27 +288,86 @@ const doSave = async () => {
   }
 }
 
+function parseString(str: string): [string[], string[], string] {
+  const leftArr: string[] = [];
+  const rightArr: string[] = [];
+  let restIndex = 0;
+
+  let currentStr = "";
+  let isLeft = true;
+  let isEscaped = false;
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    restIndex = i;
+    if (isEscaped) {
+      if (char !== "\r" && char !== "\n" && char !== "/") {
+        currentStr += "\\"; // 如果是被转义的字符，将反斜杠保留
+      }
+      if (char === 'n' || char === 'r') {
+        currentStr = currentStr.slice(0, -1) + '\n'
+      } else {
+        currentStr += char;
+      }
+      isEscaped = false;
+      continue;
+    }
+    if (char == '\n') {
+      break;
+    }
+    if (char === "\\") {
+      isEscaped = true;
+      continue;
+    }
+    if (char === "|") {
+      if (isLeft) {
+        leftArr.push(currentStr);
+      } else {
+        rightArr.push(currentStr);
+      }
+      currentStr = "";
+    } else if (char === "/") {
+      if (i < str.length - 1 && str[i + 1] === "|") {
+        currentStr += char;
+      } else {
+        if (isLeft) {
+          leftArr.push(currentStr);
+        } else {
+          rightArr.push(currentStr);
+        }
+        currentStr = "";
+        isLeft = false;
+      }
+    } else {
+      currentStr += char;
+    }
+  }
+  // 处理最后一个字符串
+  if (isLeft) {
+    leftArr.push(currentStr);
+  } else {
+    rightArr.push(currentStr);
+  }
+
+  return [leftArr, rightArr, str.slice(restIndex + 1)];
+}
+
 const doImport = () => {
   const ret = []
   let count = 0
-  const text = configForImport.value
+  let text = configForImport.value
 
-  for (let i of text.matchAll(/^([^/\n]+)\//gm)) {
-    ret.push([i[1], i.index, 0])
-    if (count !== 0) {
-      ret[count-1][2] = i.index
+  while (true) {
+    const [a, b, rest] = parseString(text);
+    if (a.length && b.length) {
+      const replies = b.map((v) => [v, 1]);
+      list.value.push({ "enable": true, "conditions": [
+        { "condType": "textMatch", "matchType": "matchMulti", "value": a.join('|') }], "results": [{ "resultType": "replyToSender", "delay": 0, "message": replies }] 
+      });
+      count += 1;
     }
-    count += 1
-  }
-
-  if (ret.length) {
-    ret[ret.length-1][2] = text.length
-  }
-
-  for (let i of ret) {
-    const word = i[0] as string
-    const reply = text.slice((i[1] as number) + word.length + 1, i[2] as number)
-    list.value.push({"enable":true,"conditions":[{"condType":"textMatch","matchType":"matchExact","value":word}],"results":[{"resultType":"replyToSender","delay":0,"message": [ [reply, 1] ]}]},)
+    text = rest;
+    if (!rest) break;
   }
 
   ElMessage.success('导入成功!')
@@ -345,12 +401,20 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
-.reply-text  > textarea {
+.reply-text>textarea {
   max-height: 65vh;
 }
 </style>
 
 <style scoped lang="scss">
+
+.disabled {
+  filter: grayscale(1);
+  /* pointer-events: none; */
+  cursor: not-allowed;
+  user-select: none;
+}
+
 .img-box {
   height: 250px;
   margin-right: 3rem;

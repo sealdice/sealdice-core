@@ -57,13 +57,13 @@
               <div v-if="cond.condType === 'textMatch'" style="display: flex;" class="mobile-changeline">
                 <div style="width: 7rem; margin-right: 0.5rem;">
                   <div>方式:
-                    <el-tooltip raw-content content="匹配方式一览:<br/>精确匹配: 完全相同时触发。<br/>包含文本: 包含此文本触发。<br/>不含文本: 不包含此文本触发。<br/>模糊匹配: 文本相似时触发<br/>正则匹配: 正则表达式匹配，语法请自行查阅<br/>前缀匹配: 文本以内容为开头<br/>后缀匹配: 文本以此内容为结尾">
+                    <el-tooltip raw-content content="匹配方式一览:<br/>精确匹配: 完全相同时触发。<br/>任意相符: 如aa|bb，则aa或bb都能触发。<br/>包含文本: 包含此文本触发。<br/>不含文本: 不包含此文本触发。<br/>模糊匹配: 文本相似时触发<br/>正则匹配: 正则表达式匹配，语法请自行查阅<br/>前缀匹配: 文本以内容为开头<br/>后缀匹配: 文本以此内容为结尾">
                       <el-icon><question-filled /></el-icon>
                     </el-tooltip>
                   </div>
                   <el-select v-model="cond.matchType" placeholder="Select">
                     <el-option
-                      v-for="item in [{'label': '精确匹配', value: 'matchExact'}, {'label': '包含文本', value: 'matchContains'}, {'label': '不含文本', value: 'matchNotContains'}, {'label': '模糊匹配', value: 'matchFuzzy'}, {'label': '正则匹配', value: 'matchRegex'}, {'label': '前缀匹配', value: 'matchPrefix'}, {'label': '后缀匹配', value: 'matchSuffix'}]"
+                      v-for="item in [{'label': '精确匹配', value: 'matchExact'}, {'label': '任意相符', value: 'matchMulti'}, {'label': '包含文本', value: 'matchContains'}, {'label': '不含文本', value: 'matchNotContains'}, {'label': '模糊匹配', value: 'matchFuzzy'}, {'label': '正则匹配', value: 'matchRegex'}, {'label': '前缀匹配', value: 'matchPrefix'}, {'label': '后缀匹配', value: 'matchSuffix'}]"
                       :key="item.value"
                       :label="item.label"
                       :value="item.value"
