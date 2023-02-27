@@ -636,12 +636,14 @@ func (d *Dice) registerCoreCommands() {
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
 .master backup // 做一次备份`
 	cmdMaster := &CmdItemInfo{
-		Name:      "master",
-		ShortHelp: masterListHelp,
-		Help:      "骰主指令:\n" + masterListHelp,
+		Name:          "master",
+		ShortHelp:     masterListHelp,
+		Help:          "骰主指令:\n" + masterListHelp,
+		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("unlock", "rm", "del", "add", "checkupdate", "reboot", "backup")
 			pRequired := 0
+			ctx.DelegateText = ""
 			if len(ctx.Dice.DiceMasters) >= 1 {
 				pRequired = 100
 			}
@@ -819,7 +821,7 @@ func (d *Dice) registerCoreCommands() {
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 	d.CmdMap["master"] = cmdMaster
