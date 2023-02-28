@@ -45,6 +45,7 @@ type HelpManager struct {
 	EngineType int
 	batch      *bleve.Batch
 	batchNum   int
+	LoadingFn  string
 }
 
 func (m *HelpManager) GetNextId() string {
@@ -235,6 +236,7 @@ func (m *HelpManager) Load() {
 
 			switch fileExt {
 			case ".json":
+				m.LoadingFn = path
 				data := HelpDocFormat{}
 				pack, err := os.ReadFile(path)
 				if err == nil {
@@ -251,6 +253,7 @@ func (m *HelpManager) Load() {
 				}
 			case ".xlsx":
 				// 梨骰帮助文件
+				m.LoadingFn = path
 				f, err := excelize.OpenFile(path)
 				if err != nil {
 					fmt.Println(err)

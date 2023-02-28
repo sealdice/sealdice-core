@@ -191,13 +191,16 @@ func GenerateDeviceJsonAndroid(protocol int) ([]byte, error) {
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
 	androidId := fmt.Sprintf("%X", rand.Uint64())
 
+	models := []string{"MI 6", "MI 10", "MI 11", "MI 11X", "MI12"}
+	m := models[rand.Int()%len(models)]
+
 	deviceJson := deviceFile{
 		Display:      "MIUI V9.5.3.0", // Rom的名字 比如 Flyme 1.1.2（魅族rom）  JWR66V（Android nexus系列原生4.3rom）
 		Product:      "sagit",         // 产品名，比如这是小米6的代号
 		Device:       "sagit",
 		Board:        "msm8998",                                                                     // 主板:骁龙835                                                                    //
 		Brand:        "Xiaomi",                                                                      // 品牌
-		Model:        "MI 6",                                                                        // 型号
+		Model:        m,                                                                             // 型号
 		Bootloader:   "unknown",                                                                     // unknown不需要改
 		FingerPrint:  "Xiaomi/sagit/sagit:8.0.0/OPR1.170623.027/V9.5.3.0.OCACNFA:user/release-keys", // 指纹
 		BootId:       bootId.String(),

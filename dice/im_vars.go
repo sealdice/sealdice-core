@@ -422,8 +422,18 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 func SetTempVars(ctx *MsgContext, qqNickname string) {
 	// 设置临时变量
 	if ctx.Player != nil {
-		VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
-		VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
+		pcName := ctx.Player.Name
+		pcName = strings.ReplaceAll(pcName, "\n", "")
+		pcName = strings.ReplaceAll(pcName, "\r", "")
+		pcName = strings.ReplaceAll(pcName, `\n`, "")
+		pcName = strings.ReplaceAll(pcName, `\r`, "")
+		pcName = strings.ReplaceAll(pcName, `\f`, "")
+
+		VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", pcName))
+		if ctx.Dice != nil && !ctx.Dice.PlayerNameWrapEnable {
+			VarSetValueStr(ctx, "$t玩家", pcName)
+		}
+		VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", pcName))
 		VarSetValueStr(ctx, "$tQQ昵称", fmt.Sprintf("<%s>", qqNickname))
 		VarSetValueStr(ctx, "$t帐号昵称", fmt.Sprintf("<%s>", qqNickname))
 		VarSetValueStr(ctx, "$t账号昵称", fmt.Sprintf("<%s>", qqNickname))
