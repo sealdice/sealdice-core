@@ -20,7 +20,7 @@
       <el-checkbox v-model="i.active" @click="i.changed = true">启用</el-checkbox>
       <div><span class="left">群名:</span> {{ i.groupName || '未获取到' }}</div>
       <div><span class="left">群号:</span> {{i.groupId}}</div>
-      <div><span class="left">上次指令:</span> {{ i.recentCommandTime ? dayjs.unix(i.recentCommandTime).fromNow() : '从未' }}</div>
+      <div><span class="left">上次使用:</span> {{ i.recentDiceSendTime ? dayjs.unix(i.recentDiceSendTime).fromNow() : '从未' }}</div>
       <!-- <div>玩家数量(执行过指令): {{i.tmpPlayerNum}}</div> -->
       <div><span class="left">Log状态:</span> {{i.logOn ? '开启' : '关闭'}}</div>
       <div><span class="left">邀请人:</span> {{ i.inviteUserId || '未知' }}</div>
@@ -31,7 +31,7 @@
       <!-- <div>{{i}}</div> -->
       <el-button :disabled="!i.changed" @click="saveOne(i, index)">保存</el-button>
 
-      <el-tooltip v-for="_,j in i.diceIds" raw-content :content="j.toString() + '<br>有二次确认'">
+      <el-tooltip v-for="_,j in i.diceIdExistsMap" raw-content :content="j.toString() + '<br>有二次确认'">
         <el-button  @click="quitGroup(i, index, j.toString())">退群 {{j.toString().slice(-4)}}</el-button>
       </el-tooltip>
     </div>
