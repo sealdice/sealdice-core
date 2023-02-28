@@ -345,14 +345,17 @@ func (d *Dice) registerCoreCommands() {
 				activeCount := 0
 				serveCount := 0
 				for _, i := range d.ImSession.ServiceAtNew {
-					if !i.NotInGroup && i.GroupId != "" {
+					if i.GroupId != "" {
 						if strings.HasPrefix(i.GroupId, "PG-") {
 							continue
 						}
-						if len(i.ActiveDiceIds) >= 1 {
-							activeCount += 1
+						if i.DiceIdExistsMap.Exists(ctx.EndPoint.UserId) {
+							serveCount += 1
+							// 在群内的开启数量才被计算，虽然也有被踢出的
+							if i.DiceIdActiveMap.Exists(ctx.EndPoint.UserId) {
+								activeCount += 1
+							}
 						}
-						serveCount += 1
 					}
 				}
 				//lastSavedTimeText := "从未"
@@ -471,7 +474,7 @@ func (d *Dice) registerCoreCommands() {
 							ctx.Notice(_txt)
 							SetBotOffAtGroup(ctx, ctx.Group.GroupId)
 							time.Sleep(6 * time.Second)
-							ctx.Group.NotInGroup = true
+							ctx.Group.DiceIdExistsMap.Delete(ctx.EndPoint.UserId)
 							ctx.Group.UpdatedAtTime = time.Now().Unix()
 							ctx.EndPoint.Adapter.QuitGroup(ctx, msg.GroupId)
 							return CmdExecuteResult{Matched: true, Solved: true}
@@ -565,10 +568,10 @@ func (d *Dice) registerCoreCommands() {
 				newCount := 0
 				for _, uid := range readIdList(ctx, msg, cmdArgs) {
 					allCount += 1
-					if ctx.Group.BotList[uid] {
+					if ctx.Group.BotList.Exists(uid) {
 						existsCount += 1
 					} else {
-						ctx.Group.BotList[uid] = true
+						ctx.Group.BotList.Store(uid, true)
 						newCount += 1
 					}
 				}
@@ -585,9 +588,9 @@ func (d *Dice) registerCoreCommands() {
 				existsCount := 0
 				for _, uid := range readIdList(ctx, msg, cmdArgs) {
 					allCount += 1
-					if ctx.Group.BotList[uid] {
+					if ctx.Group.BotList.Exists(uid) {
 						existsCount += 1
-						delete(ctx.Group.BotList, uid)
+						ctx.Group.BotList.Delete(uid)
 					}
 				}
 
@@ -604,9 +607,10 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				text := ""
-				for i := range ctx.Group.BotList {
-					text += "- " + i + "\n"
-				}
+				ctx.Group.BotList.Range(func(k string, _ bool) bool {
+					text += "- " + k + "\n"
+					return true
+				})
 				if text == "" {
 					text = "无"
 				}

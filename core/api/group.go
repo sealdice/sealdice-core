@@ -16,10 +16,6 @@ func groupList(c echo.Context) error {
 		if !strings.HasPrefix(i.GroupId, "PG-") {
 			item := myDice.ImSession.ServiceAtNew[index]
 			if item != nil {
-				if item.NotInGroup {
-					continue
-				}
-
 				var exts []string
 				item.TmpPlayerNum, _ = model.GroupPlayerNumGet(myDice.DBData, item.GroupId)
 				//item.TmpPlayerNum = int64(len(i.Players))
@@ -113,7 +109,7 @@ func groupQuit(c echo.Context) error {
 					}
 
 					time.Sleep(6 * time.Second)
-					group.NotInGroup = true
+					group.DiceIdExistsMap.Delete(v.DiceId)
 					group.UpdatedAtTime = time.Now().Unix()
 
 					ep.Adapter.QuitGroup(ctx, v.GroupId)
