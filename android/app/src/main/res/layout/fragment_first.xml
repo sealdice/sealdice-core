@@ -10,13 +10,12 @@
         android:id="@+id/textview_first"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="68dp"
+        android:layout_marginTop="108dp"
+        android:gravity="center"
         android:text="@string/hello_first_fragment"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        android:gravity="center"
-        app:layout_constraintTop_toBottomOf="@+id/button_first" />
+        app:layout_constraintTop_toBottomOf="@+id/button_second" />
 
     <Button
         android:id="@+id/button_first"
@@ -37,17 +36,28 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
     <Button
         android:id="@+id/button_third"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="420dp"
+        android:layout_marginTop="340dp"
         android:text="启动UI界面"
         android:visibility="visible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <Button
+        android:id="@+id/button_console"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="480dp"
+        android:text="显示日志"
+        android:visibility="visible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
     <Button
         android:id="@+id/button_exit"
         android:layout_width="wrap_content"

@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.*
 import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityCompat.finishAffinity
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.logs404.walrus.common.ExtractAssets
@@ -59,7 +60,20 @@ class FirstFragment : Fragment() {
             }
         }
         binding.buttonExit.setOnClickListener {
-            throw RuntimeException("Debug crash triggered!")
+            this.activity?.let { it1 -> finishAffinity(it1) } // Finishes all activities.
+            System.exit(0)
+        }
+        binding.buttonConsole.setOnClickListener {
+            val alertDialogBuilder = context?.let { it1 ->
+                AlertDialog.Builder(
+                    it1
+                )
+            }
+            alertDialogBuilder?.setTitle("控制台")
+            alertDialogBuilder?.setMessage(shellLogs)
+            alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+            }
+            alertDialogBuilder?.create()?.show()
         }
         binding.buttonFirst.setOnClickListener {
 //            findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
