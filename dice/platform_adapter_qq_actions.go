@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"errors"
-	"github.com/puzpuzpuz/xsync"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"net/url"
@@ -268,15 +267,9 @@ func (pa *PlatformAdapterQQOnebot) getCustomEcho() int64 {
 func (pa *PlatformAdapterQQOnebot) waitEcho(echo int64, beforeWait func()) *MessageQQ {
 	//pa.echoList = append(pa.echoList, )
 	ch := make(chan *MessageQQ, 1)
-	type Point struct {
-		x int32
-		y int32
-	}
 
 	if pa.echoMap == nil {
-		pa.echoMap = xsync.NewTypedMapOf[int64, chan *MessageQQ](func(p int64) uint64 {
-			return uint64(p)
-		})
+		pa.echoMap = new(SyncMap[int64, chan *MessageQQ])
 	}
 	pa.echoMap.Store(echo, ch)
 
