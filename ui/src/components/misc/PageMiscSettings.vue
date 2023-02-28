@@ -344,13 +344,25 @@
       <el-input v-model="config.messageDelayRangeEnd" type="number" style="width: 6rem;" />
     </el-form-item>
 
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>{{ `<玩家名>` }}外框</span>
+          <el-tooltip raw-content content="默认开启。建议开启，这可以防止用户改名为指令(如.bot)，并利用播报去唤醒其他骰子造成刷屏。">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.playerNameWrapEnable" @change="nameWrapUncheck"/>
+    </el-form-item>
+  
     <el-form-item label="日志仅记录指令">
       <el-checkbox label="在群聊中" v-model="config.onlyLogCommandInGroup"/>
       <el-checkbox label="在私聊中" v-model="config.onlyLogCommandInPrivate"/>
     </el-form-item>
 
     <el-form-item label="拒绝加入新群">
-      <el-checkbox label="非强制拉入时拒绝加群" v-model="config.refuseGroupInvite"/>
+      <el-checkbox label="拒绝加群(仅在非强制拉入时起效)" v-model="config.refuseGroupInvite"/>
     </el-form-item>
 
     <el-form-item label="自动重登录">
@@ -437,6 +449,8 @@ import { cloneDeep, toNumber } from 'lodash-es';
 import { computed, nextTick, onBeforeMount, onBeforeUnmount, ref, watch } from 'vue';
 import { useStore } from '~/store';
 import { objDiff, passwordHash } from '~/utils';
+import { ElMessage, ElMessageBox } from 'element-plus'
+
 const store = useStore()
 
 const config = ref<any>({})
@@ -540,6 +554,24 @@ const createFilter = (queryString: string) => {
     )
   }
 }
+
+const nameWrapUncheck = (v: boolean) => {
+  if (!v) {
+    // 取消
+    ElMessageBox.confirm(
+      '不推荐：用户可能会改名为.bot/.dismiss，并利用骰点播报让群内其他骰子刷屏，确定要取消吗？',
+      '',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    ).catch(e => {
+      config.playerNameWrapEnable = true;
+    })
+  }
+}
+
 </script>
 
 <style scoped lang="scss">
