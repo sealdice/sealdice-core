@@ -1484,8 +1484,18 @@ func (d *Dice) registerCoreCommands() {
 					if curBind == name {
 						prefix = "[√] "
 					}
+					var cardType string
+					vars2 := ctx.ChGet(name)
+					if _cardType, ok := vars2.Get("$cardType"); ok {
+						v := _cardType.(*VMValue)
+						cardType = v.ToString()
+					}
+					suffix := ""
+					if cardType != "" {
+						suffix = fmt.Sprintf(" #%s", cardType)
+					}
 
-					newChars = append(newChars, prefix+name)
+					newChars = append(newChars, prefix+name+suffix)
 				}
 
 				if len(characters) == 0 {

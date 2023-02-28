@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fy0/procs"
-	"github.com/puzpuzpuz/xsync"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"os"
@@ -67,9 +66,9 @@ type PlatformAdapterQQOnebot struct {
 	InPackGoCqHttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest          bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	customEcho int64                                `yaml:"-"` // 自定义返回标记
-	echoMap    *xsync.MapOf[int64, chan *MessageQQ] `yaml:"-"`
-	echoMap2   *SyncMap[int64, *echoMapInfo]        `yaml:"-"`
+	customEcho int64                            `yaml:"-"` // 自定义返回标记
+	echoMap    *SyncMap[int64, chan *MessageQQ] `yaml:"-"`
+	echoMap2   *SyncMap[int64, *echoMapInfo]    `yaml:"-"`
 }
 
 type Sender struct {
