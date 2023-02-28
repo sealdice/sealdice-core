@@ -315,7 +315,6 @@ func (d *Dice) Init() {
 								// 在群内存在，且开启时
 								if _, exists := v.DiceIdExistsMap.Load(diceId); exists {
 									if _, exists := v.DiceIdActiveMap.Load(diceId); exists {
-										fmt.Println("xxx", k)
 										i.Adapter.GetGroupInfoAsync(k)
 									}
 								}

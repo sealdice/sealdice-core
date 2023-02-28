@@ -1335,7 +1335,9 @@ func (d *Dice) loads() {
 				data = bytes.ReplaceAll(data, []byte(`"diceIds":{`), []byte(`"diceIdActiveMap":{`))
 				err := json.Unmarshal(data, &groupInfo)
 				if err == nil {
+					groupInfo.GroupId = id
 					groupInfo.UpdatedAtTime = updatedAt
+					//fmt.Println("????", id, groupInfo.GroupId)
 					d.ImSession.ServiceAtNew[id] = &groupInfo
 				} else {
 					d.Logger.Errorf("加载群信息失败: %s", id)
