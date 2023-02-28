@@ -255,7 +255,7 @@ func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
 	mctx.ChVarsUpdateTime()
 }
 
-func RegisterBuiltinExtExp(dice *Dice) {
+func getCmdStBase() *CmdItemInfo {
 	helpSt := ""
 	helpSt += ".st show // 展示个人属性\n"
 	helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
@@ -275,6 +275,7 @@ func RegisterBuiltinExtExp(dice *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
+			dice := ctx.Dice
 			val := cmdArgs.GetArgN(1)
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			tmpl := ctx.Group.GetCharTemplate(dice)
@@ -283,6 +284,9 @@ func RegisterBuiltinExtExp(dice *Dice) {
 			cardType := ReadCardType(mctx)
 
 			switch val {
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+
 			case "show", "list":
 				pickItems, limit := cmdStGetPickItemAndLimit(tmpl, cmdArgs)
 				items, droppedByLimit, err := cmdStGetItemsForShow(mctx, tmpl, pickItems, limit)
@@ -367,8 +371,9 @@ func RegisterBuiltinExtExp(dice *Dice) {
 				r, toSetItems, toModItems, err := cmdStReadOrMod(mctx, tmpl, cmdArgs.CleanArgs)
 
 				if err != nil {
-					ReplyToSender(mctx, msg, err.Error())
-					return CmdExecuteResult{Matched: true, Solved: true}
+					//ReplyToSender(mctx, msg, "") // +err.Error()
+					dice.Logger.Info(".st 格式错误: ", err.Error())
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
 				// 处理直接设置属性
@@ -431,6 +436,11 @@ func RegisterBuiltinExtExp(dice *Dice) {
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
+	return cmdNewSt
+}
+
+func RegisterBuiltinExtExp(dice *Dice) {
+	cmdNewSt := getCmdStBase()
 
 	theExt := &ExtInfo{
 		Name:       "exp", // 扩展的名称，需要用于开启和关闭指令中，写简短点

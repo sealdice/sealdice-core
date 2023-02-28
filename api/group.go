@@ -12,9 +12,9 @@ import (
 
 func groupList(c echo.Context) error {
 	var items []*dice.GroupInfo
-	for index, i := range myDice.ImSession.ServiceAtNew {
-		if !strings.HasPrefix(i.GroupId, "PG-") {
-			item := myDice.ImSession.ServiceAtNew[index]
+	for groupId, item := range myDice.ImSession.ServiceAtNew {
+		item.GroupId = groupId
+		if !strings.HasPrefix(item.GroupId, "PG-") {
 			if item != nil {
 				var exts []string
 				item.TmpPlayerNum, _ = model.GroupPlayerNumGet(myDice.DBData, item.GroupId)
@@ -22,8 +22,11 @@ func groupList(c echo.Context) error {
 				for _, i := range item.ActivatedExtList {
 					exts = append(exts, i.Name)
 				}
-				i.TmpExtList = exts
-				items = append(items, i)
+				item.TmpExtList = exts
+
+				if item.DiceIdExistsMap.Len() > 0 {
+					items = append(items, item)
+				}
 			}
 		}
 	}
@@ -98,7 +101,7 @@ func groupQuit(c echo.Context) error {
 
 					ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep, Session: myDice.ImSession}
 					ctx.Notice(_txt)
-					dice.SetBotOffAtGroup(ctx, group.GroupId)
+					//dice.SetBotOffAtGroup(ctx, group.GroupId)
 
 					if !v.Silence {
 						txtPost := "因长期不使用等原因，骰主后台操作退群"
@@ -108,8 +111,8 @@ func groupQuit(c echo.Context) error {
 						dice.ReplyGroup(ctx, &dice.Message{GroupId: v.GroupId}, txtPost)
 					}
 
-					time.Sleep(6 * time.Second)
 					group.DiceIdExistsMap.Delete(v.DiceId)
+					time.Sleep(6 * time.Second)
 					group.UpdatedAtTime = time.Now().Unix()
 
 					ep.Adapter.QuitGroup(ctx, v.GroupId)

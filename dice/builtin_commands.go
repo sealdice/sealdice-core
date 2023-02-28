@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -384,7 +385,12 @@ func (d *Dice) registerCoreCommands() {
 				VarSetValueInt64(ctx, "$t供职群数", int64(serveCount))
 				VarSetValueInt64(ctx, "$t启用群数", int64(activeCount))
 				VarSetValueStr(ctx, "$t群内工作状态", groupWorkInfo)
-				baseText := fmt.Sprintf("SealDice %s%s", VERSION, onlineVer)
+				ver := VERSION
+				arch := runtime.GOARCH
+				if arch != "386" && arch != "amd64" {
+					ver = fmt.Sprintf("%s %s", ver, arch)
+				}
+				baseText := fmt.Sprintf("SealDice %s%s", ver, onlineVer)
 				extText := DiceFormat(ctx, ctx.Dice.CustomBotExtraText)
 				if extText != "" {
 					extText = "\n" + extText

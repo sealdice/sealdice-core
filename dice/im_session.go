@@ -361,6 +361,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 			group = SetBotOnAtGroup(mctx, msg.GroupId)
 			group.Active = autoOn
+			group.DiceIdExistsMap.Store(ep.UserId, true)
 			group.UpdatedAtTime = time.Now().Unix()
 
 			dm := d.Parent
@@ -370,14 +371,6 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 			log.Info(txt)
 			mctx.Notice(txt)
-		}
-
-		if group != nil {
-			// 自动激活存在状态
-			if _, exists := group.DiceIdExistsMap.Load(ep.UserId); !exists {
-				group.DiceIdExistsMap.Store(ep.UserId, true)
-				group.UpdatedAtTime = time.Now().Unix()
-			}
 		}
 
 		var mustLoadUser bool
@@ -453,6 +446,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
 				//tmpl, _ := d.GameSystemMap.Load(group.System)
 				//mctx.SystemTemplate = tmpl
+			}
+		}
+
+		if group != nil {
+			// 自动激活存在状态
+			if _, exists := group.DiceIdExistsMap.Load(ep.UserId); !exists {
+				group.DiceIdExistsMap.Store(ep.UserId, true)
+				group.UpdatedAtTime = time.Now().Unix()
 			}
 		}
 
