@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-creed/sat"
 	"github.com/jmoiron/sqlx"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
@@ -22,7 +23,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.2.0dev v20230224"
+var VERSION = "1.2.0rc0 v20230228"
 
 // var VERSION_CODE = int64(1001000) // 991404
 var VERSION_CODE = int64(1001002) // 坏了，1.1的版本号标错了，标成了1.10.0
@@ -146,14 +147,15 @@ type Dice struct {
 	MasterUnlockCodeTime    int64                  `yaml:"-"`
 	CustomReplyConfigEnable bool                   `yaml:"customReplyConfigEnable"`
 	CustomReplyConfig       []*ReplyConfig         `yaml:"-"`
-	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"` // 启用自动重新登录
-	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"` // 拒绝加入新群
-	UpgradeWindowId         string                 `yaml:"upgradeWindowId"`   // 执行升级指令的窗口
-	BotExtFreeSwitch        bool                   `yaml:"botExtFreeSwitch"`  // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
-	TrustOnlyMode           bool                   `yaml:"trustOnlyMode"`     // 只有信任的用户/master可以拉群和使用
-	AliveNoticeEnable       bool                   `yaml:"aliveNoticeEnable"` // 定时通知
-	AliveNoticeValue        string                 `yaml:"aliveNoticeValue"`  // 定时通知间隔
-	ReplyDebugMode          bool                   `yaml:"replyDebugMode"`    // 回复调试
+	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"`    // 启用自动重新登录
+	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"`    // 拒绝加入新群
+	UpgradeWindowId         string                 `yaml:"upgradeWindowId"`      // 执行升级指令的窗口
+	BotExtFreeSwitch        bool                   `yaml:"botExtFreeSwitch"`     // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
+	TrustOnlyMode           bool                   `yaml:"trustOnlyMode"`        // 只有信任的用户/master可以拉群和使用
+	AliveNoticeEnable       bool                   `yaml:"aliveNoticeEnable"`    // 定时通知
+	AliveNoticeValue        string                 `yaml:"aliveNoticeValue"`     // 定时通知间隔
+	ReplyDebugMode          bool                   `yaml:"replyDebugMode"`       // 回复调试
+	PlayerNameWrapEnable    bool                   `yaml:"playerNameWrapEnable"` // 启用玩家名称外框
 
 	HelpMasterInfo      string `yaml:"helpMasterInfo" jsbind:"helpMasterInfo"`           // help中骰主信息
 	HelpMasterLicense   string `yaml:"helpMasterLicense" jsbind:"helpMasterLicense"`     // help中使用协议
@@ -604,3 +606,5 @@ func ErrorLogAndContinue(d *Dice) {
 		d.Logger.Infof("已从报错中恢复，建议将此错误回报给开发者")
 	}
 }
+
+var chsS2T = sat.DefaultDict()

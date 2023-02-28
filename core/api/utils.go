@@ -3,9 +3,10 @@ package api
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"net/http"
-
+	"fmt"
 	"github.com/labstack/echo/v4"
+	"github.com/monaco-io/request"
+	"net/http"
 )
 
 func Int64ToBytes(i int64) []byte {
@@ -48,4 +49,29 @@ func GetHexData(c echo.Context, method string, name string) (value []byte, finis
 	}
 
 	return value, false
+}
+
+var times = 0
+
+func getGithubAvatar(c echo.Context) error {
+	times += 1
+	if times > 500 {
+		// 请求次数过多
+		return c.JSON(http.StatusNotFound, "")
+	}
+
+	uid := c.Param("uid")
+	req := request.Client{
+		URL:    fmt.Sprintf("https://avatars.githubusercontent.com/%s?s=200", uid),
+		Method: "GET",
+	}
+
+	resp := req.Send()
+	if resp.OK() {
+		// 设置缓存时间为3天
+		c.Response().Header().Set("Cache-Control", "max-age=259200")
+
+		return c.Blob(http.StatusOK, resp.ContentType(), resp.Bytes())
+	}
+	return c.JSON(http.StatusNotFound, "")
 }

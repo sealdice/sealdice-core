@@ -861,7 +861,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				m := re.FindStringSubmatch(code.ValueStr)
 				if len(m) > 0 {
 					if m[1] != "" {
-						e.CocFlagVarPrefix = m[1]
+						e.CocFlagVarPrefix = chsS2T.Read(m[1])
 						varname = varname[len(m[1]):]
 					}
 

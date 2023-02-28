@@ -60,10 +60,18 @@ type GameSystemTemplate struct {
 }
 
 func (t *GameSystemTemplate) GetAlias(varname string) string {
-	v2, exists := t.AliasMap.Load(strings.ToLower(varname))
+	k := strings.ToLower(varname)
+	v2, exists := t.AliasMap.Load(k)
 	if exists {
 		varname = v2
+	} else {
+		k = chsS2T.Read(k)
+		v2, exists = t.AliasMap.Load(k)
+		if exists {
+			varname = v2
+		}
 	}
+
 	return varname
 }
 

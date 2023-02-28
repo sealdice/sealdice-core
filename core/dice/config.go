@@ -1299,6 +1299,7 @@ func (d *Dice) loads() {
 			d.CustomBotExtraText = dNew.CustomBotExtraText
 			d.CustomDrawKeysText = dNew.CustomDrawKeysText
 			d.CustomDrawKeysTextEnable = dNew.CustomDrawKeysTextEnable
+			d.PlayerNameWrapEnable = dNew.PlayerNameWrapEnable
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
@@ -1438,6 +1439,7 @@ func (d *Dice) loads() {
 			if d.VersionCode != 0 && d.VersionCode < 10200 {
 				d.TextCmdTrustOnly = true
 				d.QQEnablePoke = true
+				d.PlayerNameWrapEnable = true
 
 				isUI1001Master := false
 				for _, i := range d.DiceMasters {
@@ -1505,6 +1507,7 @@ func (d *Dice) loads() {
 		// 1.2
 		d.QQEnablePoke = true
 		d.TextCmdTrustOnly = true
+		d.PlayerNameWrapEnable = true
 		d.DiceMasters = []string{"UI:1001"}
 	}
 

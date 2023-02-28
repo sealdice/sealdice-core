@@ -523,14 +523,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		ShortHelp: helpSetCOC,
 		Help:      "设置房规:\n" + helpSetCOC,
 		HelpFunc: func(isShort bool) string {
-			help := ""
-			for i := 0; i < 6; i++ {
-				n := strings.ReplaceAll(SetCocRuleText[i], "\n", " ")
-				help += fmt.Sprintf(".setcoc %d // %s\n", i, n)
-			}
-			// dg
-			n := strings.ReplaceAll(SetCocRuleText[11], "\n", " ")
-			help += fmt.Sprintf(".setcoc dg // %s\n", n)
+			help := ".setcoc 0-5 // 设置常见的0-5房规，0为规则书，2为国内常用规则\n" +
+				".setcoc dg // delta green 扩展规则\n" +
+				".setcoc details // 列出所有规则及其解释文本 \n"
 
 			// 自定义
 			for _, i := range self.CocExtraRules {
@@ -581,6 +576,22 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				ctx.Group.CocRuleIndex = 11
 				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
+			case "details":
+				help := "当前有coc7规则如下:\n"
+				for i := 0; i < 6; i++ {
+					n := strings.ReplaceAll(SetCocRuleText[i], "\n", " ")
+					help += fmt.Sprintf(".setcoc %d // %s\n", i, n)
+				}
+				// dg
+				n := strings.ReplaceAll(SetCocRuleText[11], "\n", " ")
+				help += fmt.Sprintf(".setcoc dg // %s\n", n)
+
+				// 自定义
+				for _, i := range self.CocExtraRules {
+					n := strings.ReplaceAll(i.Desc, "\n", " ")
+					help += fmt.Sprintf(".setcoc %d/%s // %s\n", i.Index, i.Key, n)
+				}
+				ReplyToSender(ctx, msg, help)
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
