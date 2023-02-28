@@ -51,8 +51,9 @@ type DiceConfigInfo struct {
 	LogSizeNoticeEnable bool `json:"logSizeNoticeEnable"` // 开启日志数量提示
 	LogSizeNoticeCount  int  `json:"logSizeNoticeCount"`  // 日志数量提示阈值，默认500
 
-	TextCmdTrustOnly bool `json:"textCmdTrustOnly"` // text命令只允许信任用户和master
-	QQEnablePoke     bool `json:"QQEnablePoke"`     // QQ允许戳一戳
+	TextCmdTrustOnly     bool `json:"textCmdTrustOnly"`     // text命令只允许信任用户和master
+	QQEnablePoke         bool `json:"QQEnablePoke"`         // QQ允许戳一戳
+	PlayerNameWrapEnable bool `json:"playerNameWrapEnable"` // 玩家名外框
 }
 
 func DiceConfig(c echo.Context) error {
@@ -120,8 +121,9 @@ func DiceConfig(c echo.Context) error {
 		CustomReplyConfigEnable:  myDice.CustomReplyConfigEnable,
 
 		// 1.2
-		TextCmdTrustOnly: myDice.TextCmdTrustOnly,
-		QQEnablePoke:     myDice.QQEnablePoke,
+		TextCmdTrustOnly:     myDice.TextCmdTrustOnly,
+		QQEnablePoke:         myDice.QQEnablePoke,
+		PlayerNameWrapEnable: myDice.PlayerNameWrapEnable,
 	}
 	return c.JSON(http.StatusOK, info)
 }
@@ -352,6 +354,10 @@ func DiceConfigSet(c echo.Context) error {
 
 		if val, ok := jsonMap["QQEnablePoke"]; ok {
 			myDice.QQEnablePoke = val.(bool)
+		}
+
+		if val, ok := jsonMap["playerNameWrapEnable"]; ok {
+			myDice.PlayerNameWrapEnable = val.(bool)
 		}
 
 		// 统一标记为修改
