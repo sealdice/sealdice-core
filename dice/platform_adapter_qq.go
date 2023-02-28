@@ -33,6 +33,12 @@ const (
 	GoCqHttpStateCodeClosed            = 20
 )
 
+type echoMapInfo struct {
+	ch            chan string
+	echoOverwrite int64
+	timeout       int64
+}
+
 type PlatformAdapterQQOnebot struct {
 	EndPoint *EndPointInfo `yaml:"-" json:"-"`
 	Session  *IMSession    `yaml:"-" json:"-"`
@@ -63,6 +69,7 @@ type PlatformAdapterQQOnebot struct {
 
 	customEcho int64                                `yaml:"-"` // 自定义返回标记
 	echoMap    *xsync.MapOf[int64, chan *MessageQQ] `yaml:"-"`
+	echoMap2   *SyncMap[int64, *echoMapInfo]        `yaml:"-"`
 }
 
 type Sender struct {
@@ -279,6 +286,23 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 				return
 			}
 
+			// 自定义信息
+			if pa.echoMap2 != nil {
+				if v, ok := pa.echoMap2.Load(msgQQ.Echo); ok {
+					v.ch <- message
+					msgQQ.Echo = v.echoOverwrite
+					return
+				}
+
+				now := time.Now().Unix()
+				pa.echoMap2.Range(func(k int64, v *echoMapInfo) bool {
+					if v.timeout != 0 && now > v.timeout {
+						v.ch <- ""
+					}
+					return true
+				})
+			}
+
 			// 获得群信息
 			if msgQQ.Echo == -2 {
 				if msgQQ.Data != nil {
@@ -291,20 +315,11 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 					group := session.ServiceAtNew[groupId]
 					if group != nil {
 						if msgQQ.Data.MaxMemberCount == 0 {
-							// 试图删除自己
 							diceId := ep.UserId
-							if _, exists := group.ActiveDiceIds[diceId]; exists {
-								// 删除自己的登记信息
-								delete(group.ActiveDiceIds, diceId)
-
-								if len(group.ActiveDiceIds) == 0 {
-									// 如果该群所有账号都被删除了，那么也删掉整条记录
-									// 这似乎是个危险操作
-									// TODO: 该群下的用户信息实际没有被删除
-									group.NotInGroup = true
-									group.UpdatedAtTime = time.Now().Unix()
-									delete(session.ServiceAtNew, msg.GroupId)
-								}
+							if _, exists := group.DiceIdExistsMap.Load(diceId); exists {
+								// 不在群里了，更新信息
+								group.DiceIdExistsMap.Delete(diceId)
+								group.UpdatedAtTime = time.Now().Unix()
 							}
 						} else {
 							// 更新群名

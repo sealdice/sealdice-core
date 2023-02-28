@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/fy0/lockfree"
@@ -1330,6 +1331,8 @@ func (d *Dice) loads() {
 			//d.ImSession.ServiceAtNew = model.GroupInfoListGet(d.DBData)
 			model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
 				var groupInfo GroupInfo
+				// TODO: 兼容旧测试版，1.2.1拆掉
+				data = bytes.ReplaceAll(data, []byte(`"diceIds":{`), []byte(`"diceIdActiveMap":{`))
 				err := json.Unmarshal(data, &groupInfo)
 				if err == nil {
 					groupInfo.UpdatedAtTime = updatedAt
@@ -1373,11 +1376,14 @@ func (d *Dice) loads() {
 						g.ValueMap.Set(k, v)
 					}
 				}
-				if g.ActiveDiceIds == nil {
-					g.ActiveDiceIds = map[string]bool{}
+				if g.DiceIdActiveMap == nil {
+					g.DiceIdActiveMap = new(SyncMap[string, bool])
+				}
+				if g.DiceIdExistsMap == nil {
+					g.DiceIdExistsMap = new(SyncMap[string, bool])
 				}
 				if g.BotList == nil {
-					g.BotList = map[string]bool{}
+					g.BotList = new(SyncMap[string, bool])
 				}
 			}
 

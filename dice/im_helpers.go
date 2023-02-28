@@ -10,20 +10,26 @@ import (
 )
 
 func IsCurGroupBotOnById(session *IMSession, ep *EndPointInfo, messageType string, groupId string) bool {
-	return messageType == "group" &&
-		session.ServiceAtNew[groupId] != nil &&
-		session.ServiceAtNew[groupId].ActiveDiceIds[ep.UserId]
+	a := messageType == "group" &&
+		session.ServiceAtNew[groupId] != nil
+	if !a {
+		return false
+	}
+	_, exists := session.ServiceAtNew[groupId].DiceIdActiveMap.Load(ep.UserId)
+	return exists
 }
 
 func SetBotOffAtGroup(ctx *MsgContext, groupId string) {
 	session := ctx.Session
 	group := session.ServiceAtNew[groupId]
 	if group != nil {
-		if group.ActiveDiceIds == nil {
-			group.ActiveDiceIds = map[string]bool{}
+		if group.DiceIdActiveMap == nil {
+			group.DiceIdActiveMap = new(SyncMap[string, bool])
 		}
-		delete(group.ActiveDiceIds, ctx.EndPoint.UserId)
-		if len(group.ActiveDiceIds) == 0 {
+
+		// TODO: 进行更好的是否变更的检查
+		group.DiceIdActiveMap.Delete(ctx.EndPoint.UserId)
+		if group.DiceIdActiveMap.Len() == 0 {
 			group.Active = false
 		}
 		group.UpdatedAtTime = time.Now().Unix()
@@ -35,10 +41,10 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 	session := ctx.Session
 	group := session.ServiceAtNew[groupId]
 	if group != nil {
-		if group.ActiveDiceIds == nil {
-			group.ActiveDiceIds = map[string]bool{}
+		if group.DiceIdActiveMap == nil {
+			group.DiceIdActiveMap = new(SyncMap[string, bool])
 		}
-		group.ActiveDiceIds[ctx.EndPoint.UserId] = true
+		group.DiceIdActiveMap.Store(ctx.EndPoint.UserId, true)
 		group.Active = true
 	} else {
 		// 设定扩展情况
@@ -58,22 +64,21 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 			Players:          new(SyncMap[string, *GroupPlayerInfo]),
 			GroupId:          groupId,
 			ValueMap:         lockfree.NewHashMap(),
-			ActiveDiceIds:    map[string]bool{},
+			DiceIdActiveMap:  new(SyncMap[string, bool]),
 			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
 			UpdatedAtTime:    time.Now().Unix(),
 		}
 		group = session.ServiceAtNew[groupId]
 	}
 
-	if group.ActiveDiceIds == nil {
-		group.ActiveDiceIds = map[string]bool{}
+	if group.DiceIdActiveMap == nil {
+		group.DiceIdActiveMap = new(SyncMap[string, bool])
 	}
 	if group.BotList == nil {
-		group.BotList = map[string]bool{}
+		group.BotList = new(SyncMap[string, bool])
 	}
 
-	group.ActiveDiceIds[ctx.EndPoint.UserId] = true
-	group.NotInGroup = false
+	group.DiceIdActiveMap.Store(ctx.EndPoint.UserId, true)
 	group.UpdatedAtTime = time.Now().Unix()
 	return group
 }

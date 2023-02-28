@@ -249,12 +249,13 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 		// 这个其实无用，因为有@其他bot的指令不会进入到solve阶段
 		if ctx.Group != nil {
 			isBot := false
-			for botUid, _ := range ctx.Group.BotList {
+			ctx.Group.BotList.Range(func(botUid string, _ bool) bool {
 				if i.UserId == botUid {
 					isBot = true
-					break
+					return false
 				}
-			}
+				return true
+			})
 			if isBot {
 				continue
 			}
