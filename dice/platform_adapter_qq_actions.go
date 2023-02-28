@@ -79,6 +79,46 @@ func (pa *PlatformAdapterQQOnebot) GetGroupInfoAsync(groupId string) {
 	socketSendText(pa.Socket, string(a))
 }
 
+type OnebotGroupInfo struct {
+	GroupID         int64  `json:"group_id"`          // 群号
+	GroupName       string `json:"group_name"`        // 群名称
+	GroupMemo       string `json:"group_memo"`        // 群备注
+	GroupCreateTime uint32 `json:"group_create_time"` // 群创建时间
+	GroupLevel      uint32 `json:"group_level"`       // 群等级
+	MemberCount     int32  `json:"member_count"`      // 成员数
+	MaxMemberCount  int32  `json:"max_member_count"`  // 最大成员数（群容量）
+}
+
+// GetGroupInfo 获取群聊信息
+func (pa *PlatformAdapterQQOnebot) GetGroupInfo(groupId string) *OnebotGroupInfo {
+	type GroupMessageParams struct {
+		GroupId int64 `json:"group_id"`
+	}
+	realGroupId, type_ := pa.mustExtractId(groupId)
+	if type_ != QQUidGroup {
+		return nil
+	}
+
+	echo := pa.getCustomEcho()
+	a, _ := json.Marshal(oneBotCommand{
+		"get_group_info",
+		GroupMessageParams{
+			realGroupId,
+		},
+		echo,
+	})
+
+	data := &OnebotGroupInfo{}
+	err := pa.waitEcho2(echo, data, func(emi *echoMapInfo) {
+		emi.echoOverwrite = -2 // 强制覆盖为获取群信息，与之前兼容
+		socketSendText(pa.Socket, string(a))
+	})
+	if err == nil {
+		return data
+	}
+	return nil
+}
+
 func socketSendText(socket *gowebsocket.Socket, s string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -242,6 +282,22 @@ func (pa *PlatformAdapterQQOnebot) waitEcho(echo int64, beforeWait func()) *Mess
 
 	beforeWait()
 	return <-ch
+}
+
+func (pa *PlatformAdapterQQOnebot) waitEcho2(echo int64, value interface{}, beforeWait func(emi *echoMapInfo)) error {
+	if pa.echoMap2 == nil {
+		pa.echoMap2 = new(SyncMap[int64, *echoMapInfo])
+	}
+
+	emi := &echoMapInfo{ch: make(chan string, 1)}
+	beforeWait(emi)
+
+	pa.echoMap2.Store(echo, emi)
+	val := <-emi.ch
+	if val == "" {
+		return errors.New("超时")
+	}
+	return json.Unmarshal([]byte(val), value)
 }
 
 // GetGroupMemberInfo 获取群成员信息

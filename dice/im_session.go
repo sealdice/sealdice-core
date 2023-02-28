@@ -67,15 +67,15 @@ type GroupInfo struct {
 	Active           bool                               `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
 	ActivatedExtList []*ExtInfo                         `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
 	Players          *SyncMap[string, *GroupPlayerInfo] `yaml:"-" json:"-"`                                    // 群员角色数据
-	NotInGroup       bool                               `yaml:"notInGroup" json:"-"`                           // 是否已经离开群 - 准备处理单骰多号情况
 
-	GroupId       string          `yaml:"groupId" json:"groupId" jsbind:"groupId"`
-	GuildId       string          `yaml:"guildId" json:"guildId" jsbind:"guildId"`
-	GroupName     string          `yaml:"groupName" json:"groupName" jsbind:"groupName"`
-	ActiveDiceIds map[string]bool `yaml:"diceIds,flow" json:"diceIds"`    // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
-	BotList       map[string]bool `yaml:"botList,flow" json:"botList"`    // 其他骰子列表
-	DiceSideNum   int64           `yaml:"diceSideNum" json:"diceSideNum"` // 以后可能会支持 1d4 这种默认面数，暂不开放给js
-	System        string          `yaml:"system" json:"system"`           // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
+	GroupId         string                 `yaml:"groupId" json:"groupId" jsbind:"groupId"`
+	GuildId         string                 `yaml:"guildId" json:"guildId" jsbind:"guildId"`
+	GroupName       string                 `yaml:"groupName" json:"groupName" jsbind:"groupName"`
+	DiceIdActiveMap *SyncMap[string, bool] `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	DiceIdExistsMap *SyncMap[string, bool] `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
+	BotList         *SyncMap[string, bool] `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
+	DiceSideNum     int64                  `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
+	System          string                 `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
 	//ValueMap     map[string]*VMValue `yaml:"-"`
 	ValueMap     lockfree.HashMap `yaml:"-" json:"-"`
@@ -159,9 +159,10 @@ func (group *GroupInfo) ExtGetActive(name string) *ExtInfo {
 }
 
 func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
-	firstCheck := group.Active && len(group.ActiveDiceIds) >= 1
+	firstCheck := group.Active && group.DiceIdActiveMap.Len() >= 1
 	if firstCheck {
-		return group.ActiveDiceIds[ctx.EndPoint.UserId]
+		v, _ := group.DiceIdActiveMap.Load(ctx.EndPoint.UserId)
+		return v
 	}
 	return false
 }
@@ -369,6 +370,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 			log.Info(txt)
 			mctx.Notice(txt)
+		}
+
+		if group != nil {
+			// 自动激活存在状态
+			if _, exists := group.DiceIdExistsMap.Load(ep.UserId); !exists {
+				group.DiceIdExistsMap.Store(ep.UserId, true)
+				group.UpdatedAtTime = time.Now().Unix()
+			}
 		}
 
 		var mustLoadUser bool
@@ -609,7 +618,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					// 屏蔽机器人发送的消息
 					if mctx.MessageType == "group" {
 						//fmt.Println("YYYYYYYYY", myuid, mctx.Group != nil)
-						if mctx.Group.BotList[msg.Sender.UserId] {
+						if mctx.Group.BotList.Exists(msg.Sender.UserId) {
 							log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 							return
 						}
@@ -620,7 +629,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 								// 忽略自己
 								continue
 							}
-							if mctx.Group.BotList[uid] {
+							if mctx.Group.BotList.Exists(uid) {
 								return
 							}
 						}
@@ -674,7 +683,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// 试图匹配自定义回复
 			isSenderBot := false
 			if mctx.MessageType == "group" {
-				if mctx.Group != nil && mctx.Group.BotList[msg.Sender.UserId] {
+				if mctx.Group != nil && mctx.Group.BotList.Exists(msg.Sender.UserId) {
 					isSenderBot = true
 				}
 			}
@@ -907,11 +916,17 @@ func (ep *EndPointInfo) RefreshGroupNum() {
 	session := ep.Session
 	if session != nil && session.ServiceAtNew != nil {
 		for _, i := range session.ServiceAtNew {
-			if !i.NotInGroup && i.GroupId != "" {
+			if i.GroupId != "" {
 				if strings.HasPrefix(i.GroupId, "PG-") {
 					continue
 				}
-				serveCount += 1
+				if i.DiceIdExistsMap.Exists(ep.UserId) {
+					serveCount += 1
+					// 在群内的开启数量才被计算，虽然也有被踢出的
+					//if i.DiceIdActiveMap.Exists(ep.UserId) {
+					//activeCount += 1
+					//}
+				}
 			}
 		}
 		ep.GroupNum = int64(serveCount)

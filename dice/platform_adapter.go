@@ -1,7 +1,6 @@
 package dice
 
 type PlatformAdapter interface {
-	GetGroupInfoAsync(groupId string)
 	Serve() int
 	DoRelogin() bool
 	SetEnable(enable bool)
@@ -13,4 +12,6 @@ type PlatformAdapter interface {
 
 	MemberBan(groupId string, userId string, duration int64)
 	MemberKick(groupId string, userId string)
+
+	GetGroupInfoAsync(groupId string)
 }

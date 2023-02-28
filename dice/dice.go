@@ -305,12 +305,22 @@ func (d *Dice) Init() {
 						// TODO: 注意这里的Active可能不需要改
 						if !strings.HasPrefix(k, "PG-") && v.Active {
 							diceId := i.UserId
-							if len(v.ActiveDiceIds) == 0 {
-								v.ActiveDiceIds[diceId] = true
+							//if v.DiceIdActiveMap.Len() == 0 {
+							//	v.DiceIdActiveMap.Store(diceId, true)
+							//}
+							now := time.Now().Unix()
+
+							// 上次被人使用小于60s
+							if now-v.RecentDiceSendTime < 60 {
+								// 在群内存在，且开启时
+								if _, exists := v.DiceIdExistsMap.Load(diceId); exists {
+									if _, exists := v.DiceIdActiveMap.Load(diceId); exists {
+										fmt.Println("xxx", k)
+										i.Adapter.GetGroupInfoAsync(k)
+									}
+								}
 							}
-							if v.ActiveDiceIds[diceId] {
-								i.Adapter.GetGroupInfoAsync(k)
-							}
+
 						}
 					}
 				}
