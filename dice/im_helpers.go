@@ -44,6 +44,9 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 		if group.DiceIdActiveMap == nil {
 			group.DiceIdActiveMap = new(SyncMap[string, bool])
 		}
+		if group.DiceIdExistsMap == nil {
+			group.DiceIdActiveMap = new(SyncMap[string, bool])
+		}
 		group.DiceIdActiveMap.Store(ctx.EndPoint.UserId, true)
 		group.Active = true
 	} else {
@@ -65,6 +68,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 			GroupId:          groupId,
 			ValueMap:         lockfree.NewHashMap(),
 			DiceIdActiveMap:  new(SyncMap[string, bool]),
+			DiceIdExistsMap:  new(SyncMap[string, bool]),
 			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
 			UpdatedAtTime:    time.Now().Unix(),
 		}
@@ -73,6 +77,9 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 
 	if group.DiceIdActiveMap == nil {
 		group.DiceIdActiveMap = new(SyncMap[string, bool])
+	}
+	if group.DiceIdExistsMap == nil {
+		group.DiceIdExistsMap = new(SyncMap[string, bool])
 	}
 	if group.BotList == nil {
 		group.BotList = new(SyncMap[string, bool])
