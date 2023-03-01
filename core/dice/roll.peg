@@ -217,6 +217,7 @@ st_modify2 <- st_name2 st_modify_rest
 
 st_modify_rest <- sp (
      '+' '='? sp < e0 > {p.AddStModify("+", text)} /
+     &( '-' ) sp < e0 > {p.AddStModify("-", text)} /
      '-' '='? sp < e0 > {p.AddStModify("-", text)}
     )
 

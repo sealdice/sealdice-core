@@ -216,7 +216,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		return text
 	}
 
-	helpSt := ".st 模板 // 录卡模板"
+	helpSt := ".st 模板 // 录卡模板\n"
 	helpSt += ".st show // 展示个人属性\n"
 	helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
 	helpSt += ".st show <数字> // 展示高于<数字>的属性，如.st show 30\n"

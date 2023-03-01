@@ -695,6 +695,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"属性设置_增减": {
 				SubType: ".st hp+1",
 			},
+			"属性设置_增减_单项": {
+				SubType: ".st hp-1 san-1",
+			},
 			"属性设置_增减_错误的值": {
 				SubType: ".st hp+?",
 			},
@@ -1538,8 +1541,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	//d.VersionCode = 10200 // TODO: 记得修改！！！
-	d.VersionCode = 10005 // TODO: 记得修改！！！
+	d.VersionCode = 10200 // TODO: 记得修改！！！
 	d.LogWriter.LogLimit = d.UILogLimit
 
 	// 设置扩展选项
