@@ -16,6 +16,7 @@ import com.logs404.walrus.databinding.FragmentFirstBinding
 import com.logs404.walrus.utils.Utils
 import kotlinx.coroutines.*
 import com.logs404.walrus.utils.ViewModelMain
+import kotlin.system.exitProcess
 
 
 /**
@@ -61,7 +62,7 @@ class FirstFragment : Fragment() {
         }
         binding.buttonExit.setOnClickListener {
             this.activity?.let { it1 -> finishAffinity(it1) } // Finishes all activities.
-            System.exit(0)
+            exitProcess(0)
         }
         binding.buttonConsole.setOnClickListener {
             val alertDialogBuilder = context?.let { it1 ->
@@ -99,7 +100,7 @@ class FirstFragment : Fragment() {
                         isrun = true
                         ExtractAssets(context).extractResources("sealdice")
                         val args = sharedPreferences?.getString("launch_args", "")
-                        execShell("cd sealdice&&./sealdice-core $args")
+                        execShell("cd sealdice&&./sealdice-core $args",true)
                         binding.buttonSecond.visibility = View.VISIBLE
                         binding.buttonFirst.visibility = View.GONE
                         if (!launchAliveService(context)) {
@@ -150,13 +151,13 @@ class FirstFragment : Fragment() {
                     clear()
                 }
                 else -> {
-                    execShell(text)
+                    execShell(text,false)
 
                 }
             }
             binding.buttonSecond.setOnClickListener {
                 binding.buttonSecond.visibility = View.GONE
-                execShell("pkill -SIGINT sealdice-core")
+                execShell("pkill -SIGINT sealdice-core",false)
                 binding.buttonFirst.visibility = View.VISIBLE
             }
         }
@@ -201,7 +202,7 @@ class FirstFragment : Fragment() {
         return executed
     }
     @OptIn(DelicateCoroutinesApi::class)
-    private fun execShell(cmd: String) {
+    private fun execShell(cmd: String, recordLog: Boolean) {
         GlobalScope.launch(context = Dispatchers.IO) {
             val process = Runtime.getRuntime().exec("sh")
             val os = process.outputStream
@@ -223,7 +224,7 @@ class FirstFragment : Fragment() {
 //            withContext(Dispatchers.Main) {
 //                binding.textviewFirst.text = shellLogs
 //            }
-            while (process.isAlive) {
+            while (recordLog) {
                 val data = process.inputStream.readBytes()
                 val error = process.errorStream.readBytes()
                 if (data.isNotEmpty()) {
