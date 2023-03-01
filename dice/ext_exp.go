@@ -151,7 +151,7 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, chVars lockfree.H
 		theNewValue = theOldValue + theModValue
 	case "-":
 		signText = "扣除"
-		theNewValue = theOldValue - theModValue
+		theNewValue = theOldValue + theModValue
 	}
 
 	// 指令信息
@@ -440,26 +440,26 @@ func getCmdStBase() *CmdItemInfo {
 }
 
 func RegisterBuiltinExtExp(dice *Dice) {
-	cmdNewSt := getCmdStBase()
-
-	theExt := &ExtInfo{
-		Name:       "exp", // 扩展的名称，需要用于开启和关闭指令中，写简短点
-		Version:    "1.0.0",
-		Brief:      "实验指令模块，如果不知道里面有什么，建议不要开",
-		Author:     "木落",
-		AutoActive: false, // 是否自动开启
-		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			//p := getPlayerInfoBySender(session, msg)
-			//p.TempValueAlias = &ac.Alias;
-		},
-		GetDescText: func(i *ExtInfo) string {
-			return GetExtensionDesc(i)
-		},
-		CmdMap: CmdMapCls{
-			"st":  cmdNewSt,
-			"nst": cmdNewSt,
-		},
-	}
-
-	dice.RegisterExtension(theExt)
+	//cmdNewSt := getCmdStBase()
+	//
+	//theExt := &ExtInfo{
+	//	Name:       "exp", // 扩展的名称，需要用于开启和关闭指令中，写简短点
+	//	Version:    "1.0.0",
+	//	Brief:      "实验指令模块，如果不知道里面有什么，建议不要开",
+	//	Author:     "木落",
+	//	AutoActive: false, // 是否自动开启
+	//	OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
+	//		//p := getPlayerInfoBySender(session, msg)
+	//		//p.TempValueAlias = &ac.Alias;
+	//	},
+	//	GetDescText: func(i *ExtInfo) string {
+	//		return GetExtensionDesc(i)
+	//	},
+	//	CmdMap: CmdMapCls{
+	//		"st":  cmdNewSt,
+	//		"nst": cmdNewSt,
+	//	},
+	//}
+	//
+	//dice.RegisterExtension(theExt)
 }

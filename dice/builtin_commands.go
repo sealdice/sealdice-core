@@ -1755,3 +1755,70 @@ func getDefaultDicePoints(ctx *MsgContext) int64 {
 	}
 	return diceSides
 }
+
+func setRuleByName(ctx *MsgContext, name string) {
+	diceFaces := ""
+	d := ctx.Dice
+
+	modSwitch := false
+	if name != "" {
+		tipText := "\n提示:"
+
+		if strings.EqualFold(name, "dnd") {
+			diceFaces = "20"
+			ctx.Group.ExtActive(d.ExtFind("dnd5e"))
+			tipText += "已切换至20面骰，并自动开启dnd5e扩展。若不希望，请执行.ext dnd5e off"
+			modSwitch = true
+			ctx.Group.System = "dnd5e"
+			ctx.Group.UpdatedAtTime = time.Now().Unix()
+		}
+		d.GameSystemMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
+			isMatch := false
+			for _, k := range tmpl.KeysForSet {
+				if strings.EqualFold(name, k) {
+					isMatch = true
+					break
+				}
+			}
+
+			if isMatch {
+				modSwitch = true
+				ctx.Group.System = key
+				ctx.Group.DiceSideNum = tmpl.DiceSides
+				ctx.Group.UpdatedAtTime = time.Now().Unix()
+				tipText += tmpl.EnableTip
+
+				// TODO: 命令该要进步啦
+				diceFaces = strconv.FormatInt(tmpl.DiceSides, 10)
+
+				for _, name := range tmpl.RelatedExt {
+					// 开启相关扩展
+					ei := ctx.Dice.ExtFind(name)
+					if ei != nil {
+						ctx.Group.ExtActive(ei)
+					}
+				}
+				return false
+			}
+			return true
+		})
+
+		num, err := strconv.ParseInt(diceFaces, 10, 64)
+		if num < 0 {
+			num = 0
+		}
+		if err == nil {
+			ctx.Group.DiceSideNum = num
+			if !modSwitch {
+				if num == 20 {
+					tipText += "20面骰。如果要进行DND游戏，建议执行.set dnd以确保开启dnd5e指令"
+				} else if num == 100 {
+					tipText += "100面骰。如果要进行COC游戏，建议执行.set coc以确保开启coc7指令"
+				}
+			}
+			if tipText == "\n提示:" {
+				tipText = ""
+			}
+		}
+	}
+}
