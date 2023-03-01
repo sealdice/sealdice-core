@@ -70,10 +70,11 @@ type GroupInfo struct {
 	Players          map[string]*GroupPlayerInfo `yaml:"players" json:"-"`                              // 群员角色数据
 	NotInGroup       bool                        `yaml:"notInGroup" json:"notInGroup"`                  // 是否已经离开群 - 准备处理单骰多号情况
 
-	ActiveDiceIds map[string]bool `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
-	BotList       map[string]bool `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
-	DiceSideNum   int64           `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
-	System        string          `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
+	ActiveDiceIds   map[string]bool `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	DiceIdExistsMap map[string]bool `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
+	BotList         map[string]bool `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
+	DiceSideNum     int64           `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
+	System          string          `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
 	CocRuleIndex int `yaml:"cocRuleIndex" json:"cocRuleIndex" jsbind:"cocRuleIndex"`
 
