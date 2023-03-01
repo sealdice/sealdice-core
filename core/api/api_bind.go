@@ -278,6 +278,7 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 		pa := conn.Adapter.(*dice.PlatformAdapterDiscord)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeDiscord(myDice, conn)
 		return c.JSON(200, conn)
@@ -301,6 +302,7 @@ func ImConnectionsAddKook(c echo.Context) error {
 		pa := conn.Adapter.(*dice.PlatformAdapterKook)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeKook(myDice, conn)
 		return c.JSON(200, conn)
@@ -324,6 +326,7 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 		pa := conn.Adapter.(*dice.PlatformAdapterTelegram)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeTelegram(myDice, conn)
 		return c.JSON(200, conn)
@@ -346,6 +349,7 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 		pa := conn.Adapter.(*dice.PlatformAdapterMinecraft)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeMinecraft(myDice, conn)
 		return c.JSON(200, conn)
@@ -369,6 +373,7 @@ func ImConnectionsAddDodo(c echo.Context) error {
 		pa := conn.Adapter.(*dice.PlatformAdapterDodo)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeDodo(myDice, conn)
 		return c.JSON(200, conn)
@@ -418,6 +423,8 @@ func ImConnectionsAdd(c echo.Context) error {
 		pa.Session = myDice.ImSession
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+
 		dice.GoCqHttpServe(myDice, conn, v.Password, v.Protocol, true)
 		myDice.Save(false)
 		return c.JSON(200, conn)
