@@ -497,6 +497,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return true
 			})
 			text += `.sn dnd // 自动设置dnd名片
+.sn expr {$t玩家_RAW} HP{hp}/{hpmax} // 自设格式
 .sn none // 设置为空白格式
 .sn off // 取消自动设置`
 			if isShort {
@@ -528,9 +529,32 @@ func RegisterBuiltinExtLog(self *Dice) {
 				text, _ := SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "off", "cancel":
+				_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				ctx.Player.AutoSetNameTemplate = ""
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				ReplyToSender(ctx, msg, "已关闭自动设置名片功能")
+			case "expr":
+				t := cmdArgs.GetRestArgsFrom(2)
+				if len(t) > 80 {
+					t = t[:80]
+				}
+				if t == "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
+					ctx.Player.AutoSetNameTemplate = ""
+					ctx.Player.UpdatedAtTime = time.Now().Unix()
+					ReplyToSender(ctx, msg, "玩家自设内容为空，已自动关闭此功能")
+				} else {
+					last := ctx.Player.AutoSetNameTemplate
+					ctx.Player.AutoSetNameTemplate = t
+					text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+					if err != nil {
+						ctx.Player.AutoSetNameTemplate = last
+						ReplyToSender(ctx, msg, "玩家自设sn格式错误，已自动还原之前模板")
+					} else {
+						ctx.Player.UpdatedAtTime = time.Now().Unix()
+						ReplyToSender(ctx, msg, "应用玩家自设，预览文本: "+text)
+					}
+				}
 			default:
 				ok := false
 				ctx.Dice.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
