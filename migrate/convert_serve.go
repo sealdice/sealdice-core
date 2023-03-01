@@ -271,6 +271,7 @@ create table if not exists ban_info
 				}
 
 				v.Players = nil
+				v.DiceIdExistsMap = v.ActiveDiceIds // 暂时视为相同
 				d, _ := json.Marshal(v)
 
 				args := map[string]interface{}{
