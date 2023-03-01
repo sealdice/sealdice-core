@@ -1,6 +1,7 @@
 package com.logs404.walrus
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
@@ -40,12 +41,15 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setSupportActionBar(binding.toolbar)
-
+        val packageManager = this.packageManager
+        val packageName = this.packageName
+        val packageInfo = packageManager.getPackageInfo(packageName, 0)
+        val versionName = packageInfo.versionName
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
         binding.fab.setOnClickListener { view ->
-            Snackbar.make(view, getString(R.string.first_fragment_label)+"\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
+            Snackbar.make(view, "SealDice for Android $versionName\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show()
 //            ExtractAssets(this).extractResources("sealdice")
         }

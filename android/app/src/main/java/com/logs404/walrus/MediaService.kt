@@ -55,7 +55,11 @@ class MediaService : Service() {
         super.onDestroy()
 
         // stopping the process
-        player.stop()
+        try {
+            player.stop()
+        } finally {
+
+        }
 //        val intent = Intent(applicationContext, MediaService::class.java)
 //        startService(intent)
     }

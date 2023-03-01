@@ -200,6 +200,7 @@ class FirstFragment : Fragment() {
         }
         return executed
     }
+    @OptIn(DelicateCoroutinesApi::class)
     private fun execShell(cmd: String) {
         GlobalScope.launch(context = Dispatchers.IO) {
             val process = Runtime.getRuntime().exec("sh")
