@@ -670,4 +670,5 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.POST(prefix+"/tool/onebot", onebotTool)
 	e.GET(prefix+"/utils/ga/:uid", getGithubAvatar)
+	e.GET(prefix+"/utils/news", getNews)
 }
