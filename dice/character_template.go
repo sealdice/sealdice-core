@@ -20,7 +20,7 @@ type AttributeConfigs struct {
 
 // ---------
 
-type AttrSettings struct {
+type AttrConfig struct {
 	Top     []string          `yaml:"top,flow" json:"top,flow"`
 	SortBy  string            `yaml:"sortBy" json:"sortBy"`   // time | Name | value desc
 	Ignores []string          `yaml:"ignores" json:"ignores"` // 这里面的属性将不被显示
@@ -33,6 +33,13 @@ type NameTemplateItem struct {
 	HelpText string `yaml:"helpText" json:"helpText"`
 }
 
+type SetConfig struct {
+	RelatedExt []string `yaml:"relatedExt" json:"relatedExt"` // 关联扩展
+	DiceSides  int64    `yaml:"diceSides" json:"diceSides"`   // 骰子面数
+	Keys       []string `yaml:"keys" json:"keys"`             // 可用于 .set xxx 的key
+	EnableTip  string   `yaml:"enableTip" json:"enableTip"`   // 启用提示
+}
+
 type GameSystemTemplate struct {
 	Name         string                      `yaml:"name" json:"name"`                 // 模板名字
 	FullName     string                      `yaml:"fullName" json:"fullName"`         // 全名
@@ -41,11 +48,8 @@ type GameSystemTemplate struct {
 	UpdatedTime  string                      `yaml:"updatedTime" json:"updatedTime"`   // 更新日期
 	TemplateVer  string                      `yaml:"templateVer" json:"templateVer"`   // 模板版本
 	NameTemplate map[string]NameTemplateItem `yaml:"nameTemplate" json:"nameTemplate"` // 名片模板
-	AttrSettings AttrSettings                `yaml:"attrSettings" json:"attrSettings"` // 默认展示顺序
-	RelatedExt   []string                    `yaml:"relatedExt" json:"relatedExt"`     // 关联扩展
-	DiceSides    int64                       `yaml:"diceSides" json:"diceSides"`       // 骰子面数
-	KeysForSet   []string                    `yaml:"keysForSet" json:"keysForSet"`     // 可用于 .set xxx 的key
-	EnableTip    string                      `yaml:"enableTip" json:"enableTip"`       // 启用提示
+	AttrConfig   AttrConfig                  `yaml:"attrConfig" json:"attrConfig"`     // 默认展示顺序
+	SetConfig    SetConfig                   `yaml:"setConfig" json:"setConfig"`       // .set 命令设置
 
 	Defaults         map[string]int64    `yaml:"defaults" json:"defaults"`                 // 默认值
 	DefaultsComputed map[string]string   `yaml:"defaultsComputed" json:"defaultsComputed"` // 计算类型
@@ -113,7 +117,7 @@ func (t *GameSystemTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) 
 }
 func (t *GameSystemTemplate) GetShowAs0(ctx *MsgContext, k string) (*VMValue, error) {
 	// 有showas的情况
-	if expr, exists := t.AttrSettings.ShowAs[k]; exists {
+	if expr, exists := t.AttrConfig.ShowAs[k]; exists {
 		ctx.SystemTemplate = t
 		r, _, err := ctx.Dice.ExprTextBase(expr, ctx, RollExtraFlags{
 			DefaultDiceSideNum: getDefaultDicePoints(ctx),

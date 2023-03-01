@@ -1308,8 +1308,8 @@ func (d *Dice) registerCoreCommands() {
 			text += ".set <面数> // 设置群内骰子面数\n"
 			text += ".set dnd // 设置群内骰子面数为20，并自动开启对应扩展\n"
 			d.GameSystemMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
-				textHelp := fmt.Sprintf("设置群内骰子面数为%d，并自动开启对应扩展", tmpl.DiceSides)
-				text += fmt.Sprintf(".set %s // %s\n", strings.Join(tmpl.KeysForSet, "/"), textHelp)
+				textHelp := fmt.Sprintf("设置群内骰子面数为%d，并自动开启对应扩展", tmpl.SetConfig.DiceSides)
+				text += fmt.Sprintf(".set %s // %s\n", strings.Join(tmpl.SetConfig.Keys, "/"), textHelp)
 				return true
 			})
 			text += `.set clr // 清除群内骰子面数设置`
@@ -1341,7 +1341,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 				ctx.Dice.GameSystemMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
 					isMatch := false
-					for _, k := range tmpl.KeysForSet {
+					for _, k := range tmpl.SetConfig.Keys {
 						if strings.EqualFold(arg1, k) {
 							isMatch = true
 							break
@@ -1351,14 +1351,14 @@ func (d *Dice) registerCoreCommands() {
 					if isMatch {
 						modSwitch = true
 						ctx.Group.System = key
-						ctx.Group.DiceSideNum = tmpl.DiceSides
+						ctx.Group.DiceSideNum = tmpl.SetConfig.DiceSides
 						ctx.Group.UpdatedAtTime = time.Now().Unix()
-						tipText += tmpl.EnableTip
+						tipText += tmpl.SetConfig.EnableTip
 
 						// TODO: 命令该要进步啦
-						cmdArgs.Args[0] = strconv.FormatInt(tmpl.DiceSides, 10)
+						cmdArgs.Args[0] = strconv.FormatInt(tmpl.SetConfig.DiceSides, 10)
 
-						for _, name := range tmpl.RelatedExt {
+						for _, name := range tmpl.SetConfig.RelatedExt {
 							// 开启相关扩展
 							ei := ctx.Dice.ExtFind(name)
 							if ei != nil {
@@ -1774,7 +1774,7 @@ func setRuleByName(ctx *MsgContext, name string) {
 		}
 		d.GameSystemMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
 			isMatch := false
-			for _, k := range tmpl.KeysForSet {
+			for _, k := range tmpl.SetConfig.Keys {
 				if strings.EqualFold(name, k) {
 					isMatch = true
 					break
@@ -1784,14 +1784,14 @@ func setRuleByName(ctx *MsgContext, name string) {
 			if isMatch {
 				modSwitch = true
 				ctx.Group.System = key
-				ctx.Group.DiceSideNum = tmpl.DiceSides
+				ctx.Group.DiceSideNum = tmpl.SetConfig.DiceSides
 				ctx.Group.UpdatedAtTime = time.Now().Unix()
-				tipText += tmpl.EnableTip
+				tipText += tmpl.SetConfig.EnableTip
 
 				// TODO: 命令该要进步啦
-				diceFaces = strconv.FormatInt(tmpl.DiceSides, 10)
+				diceFaces = strconv.FormatInt(tmpl.SetConfig.DiceSides, 10)
 
-				for _, name := range tmpl.RelatedExt {
+				for _, name := range tmpl.SetConfig.RelatedExt {
 					// 开启相关扩展
 					ei := ctx.Dice.ExtFind(name)
 					if ei != nil {

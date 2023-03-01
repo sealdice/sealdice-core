@@ -549,7 +549,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			}
 		}
 
-		if pa.IsInLogin() || strings.Contains(line, "风控") || strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
+		if pa.IsInLogin() || strings.Contains(line, "[WARNING]") || strings.Contains(line, "[ERROR]") || strings.Contains(line, "[FATAL]") {
 			//  [WARNING]: 登录需要滑条验证码, 请使用手机QQ扫描二维码以继续登录
 			if pa.IsLoginSuccessed() {
 				skip := false
