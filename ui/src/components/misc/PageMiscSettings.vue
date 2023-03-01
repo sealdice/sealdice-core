@@ -353,7 +353,7 @@
           </el-tooltip>
         </div>
       </template>
-      <el-checkbox label="开启" v-model="config.playerNameWrapEnable" @change="nameWrapUncheck"/>
+      <el-checkbox label="开启" v-model="config.playerNameWrapEnable" @click="nameWrapUncheck"/>
     </el-form-item>
   
     <el-form-item label="日志仅记录指令">

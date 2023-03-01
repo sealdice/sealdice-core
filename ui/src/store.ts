@@ -159,6 +159,11 @@ export const useStore = defineStore('main', {
       return info as any as DiceConnection
     },
 
+    async news() {
+      const info = await backend.get(urlPrefix+'/utils/news')
+      return info as any
+    },
+
     async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, url: string, clientID: string}) {
       const {accountType, account, password, protocol, token, url, clientID} = form
       let info = null

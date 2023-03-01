@@ -12,6 +12,10 @@
       <span :v-show="store.canAccess" style="position: relative;">SealDice<span v-if="store.diceServers.length > 0" style="font-size: .2rem; position: absolute; bottom: -1rem; white-space: nowrap; left: 0;">{{ store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}</span></span>
     </h3>
 
+    <div @click="dialogFeed = true" style="position: absolute; right: 8rem; top: 0.6rem; font-size: 1.7rem; color: white; cursor: pointer;">
+      <el-icon><WarnTriangleFilled /></el-icon>
+    </div>
+
     <div
       :v-show="store.canAccess"
       style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small; text-align: right;"
@@ -191,6 +195,21 @@
     <div>如果失去响应过久，请登录服务器处理</div>
   </el-dialog>
 
+  <el-dialog v-model="dialogFeed" :close-on-click-modal="false" :close-on-press-escape="false"
+    :show-close="false">
+    <template #header="{ close, titleId, titleClass }">
+      <div class="my-header">
+        <h4 :id="titleId" :class="titleClass" style="margin: 0.5rem">海豹动向</h4>
+        <el-button type="danger" @click="close">
+          <el-icon class="el-icon--left"><CircleCloseFilled /></el-icon>
+          关闭
+        </el-button>
+      </div>
+    </template>
+
+    <div style="text-align: left;" v-html="newsData">
+    </div>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -207,6 +226,8 @@ import PageTest from "./components/PageTest.vue"
 import { onBeforeMount, ref, watch, computed } from 'vue'
 import { useStore } from './store'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { WarnTriangleFilled } from '@element-plus/icons-vue'
+
 
 import {
   Location,
@@ -227,6 +248,7 @@ import {
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import { CircleCloseFilled } from '@element-plus/icons-vue'
 
 import { passwordHash } from "./utils"
 import { delay } from "lodash-es"
@@ -236,6 +258,10 @@ dayjs.extend(relativeTime);
 
 const store = useStore()
 const password = ref('')
+
+const dialogFeed = ref(false)
+
+const newsData = ref(`<div>暂无内容</div>`)
 
 const showDialog = computed(() => {
   return !store.canAccess
@@ -286,6 +312,8 @@ onBeforeMount(async () => {
       }
     }
   }, 5000) as any
+
+  newsData.value = await store.news()
 })
 
 let timerId: number
@@ -408,5 +436,12 @@ body {
 
 .element-plus-logo {
   width: 50%;
+}
+
+.my-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
 }
 </style>

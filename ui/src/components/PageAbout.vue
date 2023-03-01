@@ -31,18 +31,18 @@
     <div style="margin-top: 2rem;" class="subtitle">V1.2版本</div>
     <div class="developers">
       <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
-      <el-link :underline="false" href="https://github.com/fy0" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/1579850?v=4"/>木落</el-link>
-      <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/54656633?v=4"/>Szzrain</el-link>
-      <el-link :underline="false" href="https://github.com/Verplitic" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/57583509?v=4"/>步棋</el-link>
-      <el-link :underline="false" href="https://github.com/yuyannuo" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/95773654?v=4"/>于言诺</el-link>
+      <el-link :underline="false" href="https://github.com/fy0" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/fy0'"/>木落</el-link>
+      <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Szzrain'"/>Szzrain</el-link>
+      <el-link :underline="false" href="https://github.com/yuyannuo" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/yuyannuo'"/>于言诺</el-link>
+      <el-link :underline="false" href="https://github.com/Verplitic" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Verplitic'"/>檀轶步棋</el-link>
     </div>
 
     <div style="margin-top: 2rem;" class="subtitle">V1.2安卓端</div>
     <div class="developers">
       <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
-      <el-link :underline="false" href="https://github.com/96368a" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/61831019?v=4"/>木末君</el-link>
-      <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/54656633?v=4"/>Szzrain</el-link>
-      <el-link :underline="false" href="https://github.com/JiYeHuanXiang" target="_blank"><el-avatar shape="circle" :size="50" src="https://avatars.githubusercontent.com/u/62323467?v=4"/>极夜幻想</el-link>
+      <el-link :underline="false" href="https://github.com/96368a" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/96368a'"/>木末君</el-link>
+      <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Szzrain'"/>Szzrain</el-link>
+      <el-link :underline="false" href="https://github.com/JiYeHuanXiang" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/JiYeHuanXiang'"/>极夜幻想</el-link>
     </div>
 
     <div style="margin-top: 2rem;" class="subtitle">V1.1版本</div>
@@ -81,6 +81,7 @@
 import { computed, onBeforeMount, onBeforeUnmount } from 'vue';
 import { useStore } from '~/store';
 import imgHaibao from '~/assets/haibao1.png'
+import { urlBase } from '~/backend';
 
 const store = useStore()
 
