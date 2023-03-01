@@ -231,7 +231,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`{$t玩家}的coc7属性录入完成，本次录入了{$t有效数量}条数据`, 1},
 			},
 			"属性设置_保存提醒": {
-				{`{ $t当前绑定角色 ? '' : '角色信息已经变更，别忘了使用.pc save来进行保存！' }`, 1},
+				{`{ $t当前绑定角色 ? '[√] 已绑卡' : '' }`, 1},
 			},
 			// -------------------- st end --------------------------
 
@@ -1458,13 +1458,14 @@ func (d *Dice) loads() {
 				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 					// 更正写反的部分
 					d.Logger.Info("正在自动升级自定义文案文件")
-					for index, text := range d.TextMapRaw["COC"]["属性设置_保存提醒"] {
-						srcText := text[0].(string)
-						srcText = strings.ReplaceAll(
-							srcText,
-							`{ $t当前绑定角色 ? '角色信息已经变更，别忘了使用.pc save来进行保存！' : '' }`,
-							`{ $t当前绑定角色 ? '' : '角色信息已经变更，别忘了使用.pc save来进行保存！' }`,
-						)
+					for index, _ := range d.TextMapRaw["COC"]["属性设置_保存提醒"] {
+						//srcText := text[0].(string)
+						//srcText = strings.ReplaceAll(
+						//	srcText,
+						//	`{ $t当前绑定角色 ? '角色信息已经变更，别忘了使用.pc save来进行保存！' : '' }`,
+						//	`{ $t当前绑定角色 ? '[√] 已绑卡' : '' }`,
+						//)
+						srcText := `{ $t当前绑定角色 ? '[√] 已绑卡' : '' }`
 						d.TextMapRaw["COC"]["属性设置_保存提醒"][index][0] = srcText
 					}
 

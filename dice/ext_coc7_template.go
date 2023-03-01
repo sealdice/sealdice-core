@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 var coc7TemplateData = `
@@ -16,10 +17,14 @@ var coc7TemplateData = `
   "version": "1.0.0",
   "updatedTime": "20230214",
   "templateVer": "1.0",
-  "keysForSet": ["coc", "coc7"],
-  "relatedExt": ["coc7"],
-  "diceSides": 100,
-  "enableTip": "已切换至100面骰，并自动开启coc7扩展",
+
+  "setConfig": {
+    "diceSides": 100,
+    "enableTip": "已切换至100面骰，并自动开启coc7扩展",
+    "keys": ["coc", "coc7"],
+    "relatedExt": ["coc7"]
+  },
+
   "nameTemplate": {
     "coc": {
       "template": "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}",
@@ -30,7 +35,8 @@ var coc7TemplateData = `
       "helpText": "自动设置coc名片，小写"
     }
   },
-  "attrSettings": {
+
+  "attrConfig": {
     "top": [
       "力量",
       "敏捷",
@@ -691,11 +697,12 @@ func getCoc7CharTemplate() *GameSystemTemplate {
 	temp := &GameSystemTemplate{}
 	err := json.Unmarshal([]byte(coc7TemplateData), temp)
 	if err != nil {
+		fmt.Println("解析模板错误:", err.Error())
 		return nil
 	}
 
 	// 因为 `` 的冲突，所以写在这里
-	temp.AttrSettings.ShowAs["db"] = "{ (力量 + 体型) \u003c 65 ? '-2', (力量 + 体型) \u003c 85 ? '-1', (力量 + 体型) \u003c 125 ? '0', (力量 + 体型) \u003c 165 ? '1d4', (力量 + 体型) \u003c 205 ? '1d6', 1 ? `{((力量 + 体型 - 205) / 80 + 2)}d6` }"
+	temp.AttrConfig.ShowAs["db"] = "{ (力量 + 体型) \u003c 65 ? '-2', (力量 + 体型) \u003c 85 ? '-1', (力量 + 体型) \u003c 125 ? '0', (力量 + 体型) \u003c 165 ? '1d4', (力量 + 体型) \u003c 205 ? '1d6', 1 ? `{((力量 + 体型 - 205) / 80 + 2)}d6` }"
 	_coc7tmpl = temp
 
 	//a := func() {

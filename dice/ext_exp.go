@@ -46,7 +46,7 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 		// 按照配置文件排序
 		var attrKeys []string
 		used := map[string]bool{}
-		for _, key := range tmpl.AttrSettings.Top {
+		for _, key := range tmpl.AttrConfig.Top {
 			if used[key] {
 				continue
 			}
@@ -65,7 +65,7 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 			if used[key] {
 				return nil
 			}
-			for _, n := range tmpl.AttrSettings.Ignores {
+			for _, n := range tmpl.AttrConfig.Ignores {
 				// 跳过忽略项
 				if n == key {
 					return nil
@@ -223,12 +223,21 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 	return r, toSetItems, toModItems, err
 }
 
-func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
+func cmdStCharFormat1(mctx *MsgContext, tmpl *GameSystemTemplate, vars lockfree.HashMap) {
 	if tmpl != nil {
-		vars, _ := mctx.ChVarsGet()
-		newMap := map[string]interface{}{}
+		toRemove := map[string]interface{}{}
+		toAdd := map[string]interface{}{}
+
+		// 先转存一次的原因是后面获取默认值时，可能会死锁
+		backups := map[string]interface{}{}
 		_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
 			key := _k.(string)
+			v := (_v).(*VMValue)
+			backups[key] = v
+			return nil
+		})
+
+		for key, _v := range backups {
 			v := (_v).(*VMValue)
 
 			newKey := tmpl.GetAlias(key)
@@ -237,18 +246,31 @@ func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
 				val, _, _, exists := tmpl.GetDefaultValueEx0(mctx, newKey)
 				if exists && val.TypeId == v.TypeId && val.Value == v.Value {
 					// 与默认值相同，跳过
-					return nil
+					toRemove[key] = true
+					continue
 				}
 			}
 
-			newMap[newKey] = _v
-			return nil
-		})
+			if key != newKey {
+				toRemove[key] = true
+			}
 
-		mctx.ChVarsClear()
-		for k, v := range newMap {
+			toAdd[newKey] = _v
+		}
+
+		for k, _ := range toRemove {
+			vars.Del(k)
+		}
+		for k, v := range toAdd {
 			vars.Set(k, v)
 		}
+	}
+}
+
+func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
+	if tmpl != nil {
+		vars, _ := mctx.ChVarsGet()
+		cmdStCharFormat1(mctx, tmpl, vars)
 	}
 
 	SetCardType(mctx, mctx.Group.System)
@@ -366,6 +388,8 @@ func getCmdStBase() *CmdItemInfo {
 					ReplyToSender(mctx, msg, fmt.Sprintf("当前卡规则为 %s，群规则为 %s。\n为避免误操作，请先换卡、或.st fmt强制转卡，或使用.st clr清除数据", cardType, mctx.Group.System))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
+				cmdStCharFormat(mctx, tmpl) // 转一下卡
 
 				mctx.SystemTemplate = tmpl
 				r, toSetItems, toModItems, err := cmdStReadOrMod(mctx, tmpl, cmdArgs.CleanArgs)
