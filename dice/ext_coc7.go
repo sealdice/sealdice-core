@@ -542,10 +542,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n := cmdArgs.GetArgN(1)
 			suffix := ""
-			ctx.Group.ExtActive(ctx.Group.ExtGetActive("coc7"))
 			suffix = "\nCOC7规则扩展已自动开启"
-			ctx.Group.System = "coc7"
-			ctx.Group.UpdatedAtTime = time.Now().Unix()
+			setRuleByName(ctx, "coc7")
 
 			switch n {
 			case "0":

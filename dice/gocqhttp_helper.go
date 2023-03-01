@@ -84,7 +84,7 @@ func RandString(len int) string {
 //"iPad13,2"	iPad Air 4
 //"Apple Watch"	Apple Watch
 
-func GenerateDeviceJsonIOS(protocol int) ([]byte, error) {
+func GenerateDeviceJsonIOS(protocol int) (string, []byte, error) {
 	rand.Seed(time.Now().Unix())
 	bootId := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
@@ -130,10 +130,11 @@ func GenerateDeviceJsonIOS(protocol int) ([]byte, error) {
 		deviceJson.Model = "mac OS X"
 	}
 
-	return json.Marshal(deviceJson)
+	a, b := json.Marshal(deviceJson)
+	return deviceJson.Model, a, b
 }
 
-func GenerateDeviceJsonAllRandom(protocol int) ([]byte, error) {
+func GenerateDeviceJsonAllRandom(protocol int) (string, []byte, error) {
 	rand.Seed(time.Now().Unix())
 	bootId := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
@@ -171,10 +172,11 @@ func GenerateDeviceJsonAllRandom(protocol int) ([]byte, error) {
 		},
 	}
 
-	return json.Marshal(deviceJson)
+	a, b := json.Marshal(deviceJson)
+	return deviceJson.Model, a, b
 }
 
-func GenerateDeviceJson(protocol int) ([]byte, error) {
+func GenerateDeviceJson(protocol int) (string, []byte, error) {
 	switch protocol {
 	case 0, 2, 3:
 		return GenerateDeviceJsonIOS(protocol)
@@ -185,48 +187,24 @@ func GenerateDeviceJson(protocol int) ([]byte, error) {
 	}
 }
 
-func GenerateDeviceJsonAndroid(protocol int) ([]byte, error) {
-	rand.Seed(time.Now().Unix())
-	bootId := uuid.New()
+func GenerateDeviceJsonAndroid(protocol int) (string, []byte, error) {
+	pool := androidDevicePool
+	//rand.Seed(time.Now().Unix())
+	//bootId := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
 	androidId := fmt.Sprintf("%X", rand.Uint64())
 
-	models := []string{"MI 6", "MI 10", "MI 11", "MI 11X", "MI12"}
-	m := models[rand.Int()%len(models)]
+	m := pool[rand.Int()%len(pool)]
+	deviceJson := m.data
 
-	deviceJson := deviceFile{
-		Display:      "MIUI V9.5.3.0", // Rom的名字 比如 Flyme 1.1.2（魅族rom）  JWR66V（Android nexus系列原生4.3rom）
-		Product:      "sagit",         // 产品名，比如这是小米6的代号
-		Device:       "sagit",
-		Board:        "msm8998",                                                                     // 主板:骁龙835                                                                    //
-		Brand:        "Xiaomi",                                                                      // 品牌
-		Model:        m,                                                                             // 型号
-		Bootloader:   "unknown",                                                                     // unknown不需要改
-		FingerPrint:  "Xiaomi/sagit/sagit:8.0.0/OPR1.170623.027/V9.5.3.0.OCACNFA:user/release-keys", // 指纹
-		BootId:       bootId.String(),
-		ProcVersion:  "Linux version 3.10.61-7254923", // 很长，后面 builder省略了
-		BaseBand:     "",                              // 基带版本 4.3CPL2-... 一大堆，直接不写
-		SimInfo:      "",
-		OSType:       "android",
-		MacAddress:   randomMacAddress(),
-		IpAddress:    []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2}, // 192.168.x.x
-		WifiBSSID:    randomMacAddress(),
-		WifiSSID:     "<unknown ssid>",
-		IMEI:         imei,
-		AndroidId:    androidId, // 原版的 androidId和Display内容一样，我没看协议，但是按android文档上说应该是64-bit number的hex，姑且这么做
-		APN:          "wifi",
-		VendorName:   "MIUI", // 这个和下面一个选项(VendorOSName)都属于意义不明，找不到相似对应，不知道是啥
-		VendorOSName: "xiaomi",
-		Protocol:     protocol,
-		Version: &osVersionFile{
-			Incremental: "OCACNFA", // Build.Version.INCREMENTAL, MIUI12: V12.5.3.0.RJBCNXM
-			Release:     "11",
-			Codename:    "REL",
-			Sdk:         29,
-		},
-	}
+	deviceJson.MacAddress = randomMacAddress()
+	deviceJson.IpAddress = []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2} // 192.168.x.x
+	deviceJson.IMEI = imei
+	deviceJson.AndroidId = androidId
+	deviceJson.Protocol = protocol
 
-	return json.Marshal(deviceJson)
+	a, b := json.Marshal(deviceJson)
+	return deviceJson.Model, a, b
 }
 
 var defaultConfig = `
@@ -439,7 +417,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 
 	// 创建设备配置文件
 	if _, err := os.Stat(deviceFilePath); errors.Is(err, os.ErrNotExist) {
-		deviceInfo, err := GenerateDeviceJson(protocol)
+		_, deviceInfo, err := GenerateDeviceJson(protocol)
 		if err == nil {
 			_ = os.WriteFile(deviceFilePath, deviceInfo, 0644)
 			dice.Logger.Info("onebot: 成功创建设备文件")
@@ -752,4 +730,12 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			time.Sleep(15 * time.Second)
 		}
 	}
+}
+
+func GetAndroidDeviceTemplateName() []string {
+	names := []string{}
+	for _, i := range androidDevicePool {
+		names = append(names, i.name)
+	}
+	return names
 }
