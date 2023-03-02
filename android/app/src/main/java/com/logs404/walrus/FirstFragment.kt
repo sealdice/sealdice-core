@@ -24,11 +24,11 @@ import kotlin.system.exitProcess
  */
 class FirstFragment : Fragment() {
 
-    private var _binding: FragmentFirstBinding? = null
+    private lateinit var _binding: FragmentFirstBinding
 
     // This property is only valid between onCreateView and
     // onDestroyView.
-    private val binding get() = _binding!!
+    private val binding get() = _binding
     private var shellLogs = ""
 
     override fun onCreateView(
@@ -241,10 +241,5 @@ class FirstFragment : Fragment() {
                 Thread.sleep(1000)
             }
         }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
     }
 }
