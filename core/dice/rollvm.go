@@ -999,6 +999,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 					if v2 != nil {
 						vType = v2.TypeId
 						v = v2.Value
+						lastDetail = v2.ToString()
 					}
 				}
 			}
@@ -1006,6 +1007,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				// 默认值为0
 				vType = VMTypeInt64
 				v = int64(0)
+				lastDetail = "0"
 			}
 
 			if !detailFlag {
