@@ -121,13 +121,10 @@ func (v *VMValue) ReadString() (string, bool) {
 	return "", false
 }
 
-func (v *VMValue) ComputedExecute(ctx *MsgContext) (*VmResult, string) {
+func (v *VMValue) ComputedExecute(ctx *MsgContext, curDepth int64) (*VmResult, string, error) {
 	cd, _ := v.ReadComputed()
 
-	realV, detail, err := ctx.Dice.ExprEvalBase(cd.Expr, ctx, RollExtraFlags{})
-	if err != nil {
-		return nil, detail
-	}
+	realV, detail, err := ctx.Dice.ExprEvalBase(cd.Expr, ctx, RollExtraFlags{vmDepth: curDepth + 1})
 
-	return realV, detail
+	return realV, detail, err
 }

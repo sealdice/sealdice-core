@@ -383,6 +383,10 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 	err := parser.Parse()
 	parser.RollExpression.flags = flags
 
+	if flags.vmDepth > 64 {
+		return nil, "", errors.New("E8: 递归次数超过上限")
+	}
+
 	if err == nil {
 		parser.Execute()
 		if parser.Error != nil {
