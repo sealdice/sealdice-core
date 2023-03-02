@@ -37,6 +37,11 @@ func deckUpload(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
 
 	if dm.JustForTest {
 		return c.JSON(200, map[string]interface{}{
@@ -105,6 +110,11 @@ func deckEnable(c echo.Context) error {
 func deckDelete(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
 	}
 
 	v := struct {
