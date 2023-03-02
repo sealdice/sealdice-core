@@ -636,7 +636,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 	cmdJsr := CmdItemInfo{
 		Name:      "jsr",
 		ShortHelp: ".jsr 3# d10 // 投掷10面骰3次，结果不重复。用法参考.r",
-		Help:      "不重复骰点（Jetter sans Répéter）：.jsr 次数# 面数",
+		Help:      "不重复骰点（Jetter sans répéter）：.jsr 次数# 面数\n用例：.jsr 3# d10 // 投掷10面骰3次，结果不重复。用法参考.r",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			t := cmdArgs.SpecialExecuteTimes
 			allArgClean := cmdArgs.CleanArgs
@@ -704,9 +704,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 	var _roulette SyncMap[string, _singleRoulette]
 	cmdDrl := CmdItemInfo{
-		Name:              "drl",
-		ShortHelp:         ".drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n.drl // 抽取当前群组的骰池",
-		Help:              "drl（Draw Lot）：.drl new d10 5# (原因) // 在当前群组创建一个骰池\n.drl 面数 次数 // 抽取当前群组的骰池",
+		Name: "drl",
+		ShortHelp: ".drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n.drl // 抽取当前群组的骰池\n" +
+			".drlh //抽取当前群组的骰池，结果私聊发送",
+		Help: "drl（Draw Lot）：.drl new 次数 面数 (名字) // 在当前群组创建一个骰池\n" +
+			"用例：.drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n\n.drl // 抽取当前群组的骰池\n" +
+			".drlh //抽取当前群组的骰池，结果私聊发送",
 		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "new") {
@@ -798,6 +801,52 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
+	cmdDrlh := CmdItemInfo{
+		Name:              "drlh",
+		ShortHelp:         ".drlh //抽取当前群组的骰池，结果私聊发送。详见.help drl",
+		Help:              ".drlh //抽取当前群组的骰池，结果私聊发送。详见.help drl",
+		DisabledInPrivate: true,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			var isRouletteEmpty = true
+			_roulette.Range(func(key string, value _singleRoulette) bool {
+				isRouletteEmpty = false
+				return false
+			})
+			tryLoad, ok := _roulette.Load(ctx.Group.GroupId)
+			if isRouletteEmpty || !ok || tryLoad.Face == 0 {
+				ReplyToSender(ctx, msg, "当前群组无骰池，请使用.drl new创建一个。")
+				return CmdExecuteResult{
+					Matched: true,
+					Solved:  false,
+				}
+			}
+
+			result := fmt.Sprintf("D%d=%d", tryLoad.Face, tryLoad.Pool[0])
+			tryLoad.Pool = append(tryLoad.Pool[:0], tryLoad.Pool[1:]...)
+			VarSetValueStr(ctx, "$t原因", tryLoad.Reason)
+			if tryLoad.Reason != "" {
+				forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
+				VarSetValueStr(ctx, "$t原因句子", forWhatText)
+			} else {
+				VarSetValueStr(ctx, "$t原因句子", "")
+			}
+			VarSetValueStr(ctx, "$t结果文本", result)
+			reply := DiceFormatTmpl(ctx, "核心:骰点")
+			announce := msg.Sender.Nickname + "进行了抽取。"
+			if len(tryLoad.Pool) == 0 {
+				announce += "\n骰池已经抽空，现在关闭。"
+				tryLoad = _singleRoulette{}
+			}
+			_roulette.Store(ctx.Group.GroupId, tryLoad)
+			ReplyGroup(ctx, msg, announce)
+			ReplyPerson(ctx, msg, reply)
+			return CmdExecuteResult{
+				Matched: true,
+				Solved:  true,
+			}
+		},
+	}
+
 	self.ExtList = append(self.ExtList, &ExtInfo{
 		Name:            "fun", // 扩展的名称，需要用于指令中，写简短点
 		Version:         "1.1.0",
@@ -830,6 +879,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"wwh":   &cmdWW,
 			"jsr":   &cmdJsr,
 			"drl":   &cmdDrl,
+			"drlh":  &cmdDrlh,
 		},
 	})
 }
