@@ -951,7 +951,7 @@ func (d *Dice) registerCoreCommands() {
 						}
 					} else {
 						errs := err.Error()
-						if strings.HasPrefix(errs, "E1:") || strings.HasPrefix(errs, "E5:") || strings.HasPrefix(errs, "E6:") || strings.HasPrefix(errs, "E7:") {
+						if strings.HasPrefix(errs, "E1:") || strings.HasPrefix(errs, "E5:") || strings.HasPrefix(errs, "E6:") || strings.HasPrefix(errs, "E7:") || strings.HasPrefix(errs, "E8:") {
 							ReplyToSender(ctx, msg, errs)
 							//ReplyGroup(ctx, msg.GroupId, errs)
 							return &CmdExecuteResult{Matched: true, Solved: true}

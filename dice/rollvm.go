@@ -245,6 +245,7 @@ type RollExtraFlags struct {
 	DefaultDiceSideNum int64 // 默认骰子面数
 	DisableBitwiseOp   bool  // 禁用位运算，用于st
 
+	vmDepth    int64                                                                   // 层数
 	StCallback func(_type string, name string, val *VMValue, op string, detail string) // st回调
 }
 
@@ -920,7 +921,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				// 解包计算属性
 				vd := v.(*VMDndComputedValueData)
 				VarSetValue(ctx, "$tVal", &vd.BaseValue)
-				realV, _, err := ctx.Dice.ExprEvalBase(vd.Expr, ctx, RollExtraFlags{})
+				realV, _, err := ctx.Dice.ExprEvalBase(vd.Expr, ctx, RollExtraFlags{vmDepth: e.flags.vmDepth + 1})
 				if err != nil {
 					return nil, "", errors.New("E3: 获取计算属性异常: " + vd.Expr)
 				}
@@ -931,7 +932,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			if vType == VMTypeComputedValue {
 				// 解包计算属性
 				v2 := VMValue{vType, v, 0}
-				ret, detail := v2.ComputedExecute(ctx)
+				ret, detail, err := v2.ComputedExecute(ctx, e.flags.vmDepth)
+				if err != nil {
+					return nil, "", err
+					// errors.New("E3: 获取计算属性异常: " + err.Error())
+				}
 				if ret == nil {
 					cd, _ := v2.ReadComputed()
 					return nil, "", errors.New("E3: 获取计算属性异常: " + cd.Expr)
