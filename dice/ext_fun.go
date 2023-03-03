@@ -664,11 +664,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: false}
 			}
 			var pool []int
-			ma := SyncMap[int, bool]{}
+			ma := make(map[int]bool)
 			for len(pool) < t {
 				n := rand.Intn(m) + 1
-				if b, ok := ma.Load(n); (ok && !b) || !ok {
-					ma.Store(n, true)
+				if !ma[n] {
+					ma[n] = true
 					pool = append(pool, n)
 				}
 			}
@@ -742,11 +742,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 				//创建pool后直接先随机了
 				var pool []int
-				ma := SyncMap[int, bool]{}
+				ma := make(map[int]bool)
 				for len(pool) < roulette.Time {
 					n := rand.Intn(roulette.Face) + 1
-					if b, ok := ma.Load(n); (ok && !b) || !ok {
-						ma.Store(n, true)
+					if !ma[n] {
+						ma[n] = true
 						pool = append(pool, n)
 					}
 				}
