@@ -134,6 +134,48 @@ func GenerateDeviceJsonIOS(protocol int) (string, []byte, error) {
 	return deviceJson.Model, a, b
 }
 
+func GenerateDeviceJsonAndroidWatch(protocol int) (string, []byte, error) {
+	rand.Seed(time.Now().Unix())
+	bootId := uuid.New()
+	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
+	androidId := fmt.Sprintf("%X", rand.Uint64())
+
+	deviceJson := deviceFile{
+		Display:      "MIRAI.142521.001", // Rom的名字 比如 Flyme 1.1.2（魅族rom）  JWR66V（Android nexus系列原生4.3rom）
+		Product:      "mirai",            // 产品名，比如这是小米6的代号
+		Device:       "mirai",
+		Board:        "mirai",                                                           // 主板:骁龙835                                                                    //
+		Brand:        "Apple",                                                           // 品牌
+		Model:        "mirai",                                                           // 型号
+		Bootloader:   "unknown",                                                         // unknown不需要改
+		FingerPrint:  "mamoe/mirai/mirai:10/MIRAI.200122.001/9108230:user/release-keys", // 指纹
+		BootId:       bootId.String(),
+		ProcVersion:  "Linux version 3.0.31-zli0DMkg (android-build@xxx.xxx.xxx.xxx.com)", // 很长，后面 builder省略了
+		BaseBand:     "",                                                                  // 基带版本 4.3CPL2-... 一大堆，直接不写
+		SimInfo:      "T-Mobile",
+		OSType:       "android",
+		MacAddress:   randomMacAddress(),
+		IpAddress:    []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2}, // 192.168.x.x
+		WifiBSSID:    randomMacAddress(),
+		WifiSSID:     "<unknown ssid>",
+		IMEI:         imei,
+		AndroidId:    androidId, // 原版的 androidId和Display内容一样，我没看协议，但是按android文档上说应该是64-bit number的hex，姑且这么做
+		APN:          "wifi",
+		VendorName:   "MIUI", // 这个和下面一个选项(VendorOSName)都属于意义不明，找不到相似对应，不知道是啥
+		VendorOSName: "mirai",
+		Protocol:     protocol,
+		Version: &osVersionFile{
+			Incremental: "5891938", // Build.Version.INCREMENTAL, MIUI12: V12.5.3.0.RJBCNXM
+			Release:     "10",
+			Codename:    "REL",
+			Sdk:         29,
+		},
+	}
+
+	a, b := json.Marshal(deviceJson)
+	return deviceJson.Model, a, b
+}
+
 func GenerateDeviceJsonAllRandom(protocol int) (string, []byte, error) {
 	rand.Seed(time.Now().Unix())
 	bootId := uuid.New()
@@ -178,8 +220,10 @@ func GenerateDeviceJsonAllRandom(protocol int) (string, []byte, error) {
 
 func GenerateDeviceJson(protocol int) (string, []byte, error) {
 	switch protocol {
-	case 0, 2, 3:
+	case 0, 3:
 		return GenerateDeviceJsonIOS(protocol)
+	case 2:
+		return GenerateDeviceJsonAndroidWatch(protocol)
 	case 1:
 		return GenerateDeviceJsonAndroid(protocol)
 	default:
