@@ -664,11 +664,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: false}
 			}
 			var pool []int
-			ma := make(map[int]bool)
+			ma := SyncMap[int, bool]{}
 			for len(pool) < t {
 				n := rand.Intn(m) + 1
-				if !ma[n] {
-					ma[n] = true
+				if b, ok := ma.Load(n); (ok && !b) || !ok {
+					ma.Store(n, true)
 					pool = append(pool, n)
 				}
 			}
@@ -742,11 +742,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 				//创建pool后直接先随机了
 				var pool []int
-				ma := make(map[int]bool)
+				ma := SyncMap[int, bool]{}
 				for len(pool) < roulette.Time {
 					n := rand.Intn(roulette.Face) + 1
-					if !ma[n] {
-						ma[n] = true
+					if b, ok := ma.Load(n); (ok && !b) || !ok {
+						ma.Store(n, true)
 						pool = append(pool, n)
 					}
 				}
@@ -787,59 +787,26 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 				VarSetValueStr(ctx, "$t结果文本", result)
 				reply := DiceFormatTmpl(ctx, "核心:骰点")
-				if len(tryLoad.Pool) == 0 {
-					reply += "\n骰池已经抽空，现在关闭。"
-					tryLoad = _singleRoulette{}
+
+				if cmdArgs.Command == "drl" {
+					if len(tryLoad.Pool) == 0 {
+						reply += "\n骰池已经抽空，现在关闭。"
+						tryLoad = _singleRoulette{}
+					}
+					ReplyToSender(ctx, msg, reply)
+				} else if cmdArgs.Command == "drlh" {
+					announce := msg.Sender.Nickname + "进行了抽取。"
+					reply += fmt.Sprintf("\n来自群%s(%s)",
+						ctx.Group.GroupName, ctx.Group.GroupId)
+					if len(tryLoad.Pool) == 0 {
+						announce += "\n骰池已经抽空，现在关闭。"
+						tryLoad = _singleRoulette{}
+					}
+					ReplyGroup(ctx, msg, announce)
+					ReplyPerson(ctx, msg, reply)
 				}
 				_roulette.Store(ctx.Group.GroupId, tryLoad)
-				ReplyToSender(ctx, msg, reply)
 			}
-			return CmdExecuteResult{
-				Matched: true,
-				Solved:  true,
-			}
-		},
-	}
-
-	cmdDrlh := CmdItemInfo{
-		Name:              "drlh",
-		ShortHelp:         ".drlh //抽取当前群组的骰池，结果私聊发送。详见.help drl",
-		Help:              ".drlh //抽取当前群组的骰池，结果私聊发送。详见.help drl",
-		DisabledInPrivate: true,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			var isRouletteEmpty = true
-			_roulette.Range(func(key string, value _singleRoulette) bool {
-				isRouletteEmpty = false
-				return false
-			})
-			tryLoad, ok := _roulette.Load(ctx.Group.GroupId)
-			if isRouletteEmpty || !ok || tryLoad.Face == 0 {
-				ReplyToSender(ctx, msg, "当前群组无骰池，请使用.drl new创建一个。")
-				return CmdExecuteResult{
-					Matched: true,
-					Solved:  false,
-				}
-			}
-
-			result := fmt.Sprintf("D%d=%d", tryLoad.Face, tryLoad.Pool[0])
-			tryLoad.Pool = append(tryLoad.Pool[:0], tryLoad.Pool[1:]...)
-			VarSetValueStr(ctx, "$t原因", tryLoad.Reason)
-			if tryLoad.Reason != "" {
-				forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
-				VarSetValueStr(ctx, "$t原因句子", forWhatText)
-			} else {
-				VarSetValueStr(ctx, "$t原因句子", "")
-			}
-			VarSetValueStr(ctx, "$t结果文本", result)
-			reply := DiceFormatTmpl(ctx, "核心:骰点")
-			announce := msg.Sender.Nickname + "进行了抽取。"
-			if len(tryLoad.Pool) == 0 {
-				announce += "\n骰池已经抽空，现在关闭。"
-				tryLoad = _singleRoulette{}
-			}
-			_roulette.Store(ctx.Group.GroupId, tryLoad)
-			ReplyGroup(ctx, msg, announce)
-			ReplyPerson(ctx, msg, reply)
 			return CmdExecuteResult{
 				Matched: true,
 				Solved:  true,
@@ -879,7 +846,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"wwh":   &cmdWW,
 			"jsr":   &cmdJsr,
 			"drl":   &cmdDrl,
-			"drlh":  &cmdDrlh,
+			"drlh":  &cmdDrl,
 		},
 	})
 }
