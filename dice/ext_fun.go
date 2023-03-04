@@ -636,7 +636,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 	cmdJsr := CmdItemInfo{
 		Name:      "jsr",
 		ShortHelp: ".jsr 3# d10 // 投掷10面骰3次，结果不重复。用法参考.r",
-		Help:      "不重复骰点（Jetter sans Répéter）：.jsr 次数# 面数",
+		Help:      "不重复骰点（Jetter sans répéter）：.jsr 次数# 面数\n用例：.jsr 3# d10 // 投掷10面骰3次，结果不重复。用法参考.r",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			t := cmdArgs.SpecialExecuteTimes
 			allArgClean := cmdArgs.CleanArgs
@@ -704,9 +704,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 	var _roulette SyncMap[string, _singleRoulette]
 	cmdDrl := CmdItemInfo{
-		Name:              "drl",
-		ShortHelp:         ".drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n.drl // 抽取当前群组的骰池",
-		Help:              "drl（Draw Lot）：.drl new d10 5# (原因) // 在当前群组创建一个骰池\n.drl 面数 次数 // 抽取当前群组的骰池",
+		Name: "drl",
+		ShortHelp: ".drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n.drl // 抽取当前群组的骰池\n" +
+			".drlh //抽取当前群组的骰池，结果私聊发送",
+		Help: "drl（Draw Lot）：.drl new 次数 面数 (名字) // 在当前群组创建一个骰池\n" +
+			"用例：.drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n\n.drl // 抽取当前群组的骰池\n" +
+			".drlh //抽取当前群组的骰池，结果私聊发送",
 		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "new") {
@@ -784,12 +787,25 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 				VarSetValueStr(ctx, "$t结果文本", result)
 				reply := DiceFormatTmpl(ctx, "核心:骰点")
-				if len(tryLoad.Pool) == 0 {
-					reply += "\n骰池已经抽空，现在关闭。"
-					tryLoad = _singleRoulette{}
+
+				if cmdArgs.Command == "drl" {
+					if len(tryLoad.Pool) == 0 {
+						reply += "\n骰池已经抽空，现在关闭。"
+						tryLoad = _singleRoulette{}
+					}
+					ReplyToSender(ctx, msg, reply)
+				} else if cmdArgs.Command == "drlh" {
+					announce := msg.Sender.Nickname + "进行了抽取。"
+					reply += fmt.Sprintf("\n来自群%s(%s)",
+						ctx.Group.GroupName, ctx.Group.GroupId)
+					if len(tryLoad.Pool) == 0 {
+						announce += "\n骰池已经抽空，现在关闭。"
+						tryLoad = _singleRoulette{}
+					}
+					ReplyGroup(ctx, msg, announce)
+					ReplyPerson(ctx, msg, reply)
 				}
 				_roulette.Store(ctx.Group.GroupId, tryLoad)
-				ReplyToSender(ctx, msg, reply)
 			}
 			return CmdExecuteResult{
 				Matched: true,
@@ -830,6 +846,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"wwh":   &cmdWW,
 			"jsr":   &cmdJsr,
 			"drl":   &cmdDrl,
+			"drlh":  &cmdDrl,
 		},
 	})
 }
