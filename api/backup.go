@@ -48,6 +48,11 @@ func backupDownload(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
 
 	name := c.QueryParam("name")
 	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {

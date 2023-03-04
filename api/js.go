@@ -19,6 +19,11 @@ func jsExec(c echo.Context) error {
 			"testMode": true,
 		})
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
 
 	v := struct {
 		Value string `json:"value"`
@@ -83,6 +88,11 @@ func jsDelete(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
 
 	v := struct {
 		Index int `json:"index"`
@@ -115,6 +125,11 @@ func jsReload(c echo.Context) error {
 func jsUpload(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
 	}
 
 	if dm.JustForTest {

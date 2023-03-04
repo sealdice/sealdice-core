@@ -129,6 +129,11 @@ func ImConnectionsSetEnable(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
 
 	v := struct {
 		Id     string `form:"id" json:"id"`
@@ -149,6 +154,11 @@ func ImConnectionsSetEnable(c echo.Context) error {
 func ImConnectionsSetData(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
 	}
 
 	v := struct {
@@ -174,6 +184,11 @@ func ImConnectionsSetData(c echo.Context) error {
 func ImConnectionsDel(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
 	}
 
 	v := struct {
@@ -246,6 +261,11 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
 
 	v := struct {
 		Id string `form:"id" json:"id"`
@@ -266,6 +286,12 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
 	//myDice.Logger.Infof("后端add调用")
 	v := struct {
 		Token string `yaml:"token" json:"token"`
@@ -290,6 +316,12 @@ func ImConnectionsAddKook(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
 	//myDice.Logger.Infof("后端add调用")
 	v := struct {
 		Token string `yaml:"token" json:"token"`
@@ -314,6 +346,12 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
 	//myDice.Logger.Infof("后端add调用")
 	v := struct {
 		Token string `yaml:"token" json:"token"`
@@ -338,6 +376,12 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
 	v := struct {
 		Url string `yaml:"url" json:"url"`
 	}{}
@@ -361,6 +405,12 @@ func ImConnectionsAddDodo(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
 	v := struct {
 		ClientID string `yaml:"clientID" json:"clientID"`
 		Token    string `yaml:"token" json:"token"`
@@ -568,6 +618,11 @@ func DiceAllCommand(c echo.Context) error {
 func onebotTool(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
 	}
 
 	v := struct {
