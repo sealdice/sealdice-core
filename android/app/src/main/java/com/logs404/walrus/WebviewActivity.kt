@@ -1,11 +1,13 @@
 package com.logs404.walrus
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.KeyEvent.KEYCODE_BACK
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat.startActivity
 import com.tencent.smtt.export.external.interfaces.SslError
 import com.tencent.smtt.export.external.interfaces.SslErrorHandler
 import com.tencent.smtt.export.external.interfaces.WebResourceRequest
@@ -48,6 +50,23 @@ private open class WVChromeClient(activity: WebViewActivity): WebChromeClient() 
         uploadFiles = null
     }
 }
+private class MyWebViewDownLoadListener(c: Context) : DownloadListener {
+    var context : Context = c
+    override fun onDownloadStart(
+        url: String, userAgent: String, contentDisposition: String, mimetype: String,
+        contentLength: Long
+    ) {
+//        Log.i("tag", "url=$url")
+//        Log.i("tag", "userAgent=$userAgent")
+//        Log.i("tag", "contentDisposition=$contentDisposition")
+//        Log.i("tag", "mimetype=$mimetype")
+//        Log.i("tag", "contentLength=$contentLength")
+        val uri = Uri.parse(url)
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+        startActivity(context,intent,null)
+    }
+}
+
 class WebViewActivity : AppCompatActivity() {
     private lateinit var mWebView: WebView
     private lateinit var mWebClient: WVChromeClient
@@ -107,6 +126,7 @@ class WebViewActivity : AppCompatActivity() {
                 handler?.proceed()
             }
         }
+        webView.setDownloadListener(MyWebViewDownLoadListener(this))
         mWebClient = WVChromeClient(this)
         webView.webChromeClient = mWebClient
         mWebView = webView
