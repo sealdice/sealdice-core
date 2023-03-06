@@ -21,14 +21,14 @@ import (
 // 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
 
 const (
-	GoCqHttpStateCodeInit              = 0
-	GoCqHttpStateCodeInLogin           = 1
-	GoCqHttpStateCodeInLoginQrCode     = 2
+	StateCodeInit                      = 0
+	StateCodeInLogin                   = 1
+	StateCodeInLoginQrCode             = 2
 	GoCqHttpStateCodeInLoginBar        = 3
 	GoCqHttpStateCodeInLoginVerifyCode = 6
-	GoCqHttpStateCodeInLoginDeviceLock = 7
-	GoCqHttpStateCodeLoginSuccessed    = 10
-	GoCqHttpStateCodeLoginFailed       = 11
+	StateCodeInLoginDeviceLock         = 7
+	StateCodeLoginSuccessed            = 10
+	StateCodeLoginFailed               = 11
 	GoCqHttpStateCodeClosed            = 20
 )
 
@@ -38,7 +38,7 @@ type echoMapInfo struct {
 	timeout       int64
 }
 
-type PlatformAdapterQQOnebot struct {
+type PlatformAdapterGocq struct {
 	EndPoint *EndPointInfo `yaml:"-" json:"-"`
 	Session  *IMSession    `yaml:"-" json:"-"`
 
@@ -195,7 +195,7 @@ func FormatDiceIdQQChGroup(GuildId, ChannelId string) string {
 	return fmt.Sprintf("QQ-CH-Group:%s-%s", GuildId, ChannelId)
 }
 
-func (pa *PlatformAdapterQQOnebot) Serve() int {
+func (pa *PlatformAdapterGocq) Serve() int {
 	ep := pa.EndPoint
 	s := pa.Session
 	log := s.Parent.Logger
@@ -821,7 +821,7 @@ func (pa *PlatformAdapterQQOnebot) Serve() int {
 	}
 }
 
-func (pa *PlatformAdapterQQOnebot) DoRelogin() bool {
+func (pa *PlatformAdapterGocq) DoRelogin() bool {
 	myDice := pa.Session.Parent
 	ep := pa.EndPoint
 	if pa.Socket != nil {
@@ -834,7 +834,7 @@ func (pa *PlatformAdapterQQOnebot) DoRelogin() bool {
 		}
 		myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserId)
 		pa.CurLoginIndex += 1
-		pa.GoCqHttpState = GoCqHttpStateCodeInit
+		pa.GoCqHttpState = StateCodeInit
 		go GoCqHttpServeProcessKill(myDice, ep)
 		time.Sleep(10 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
 		GoCqHttpServeRemoveSessionToken(myDice, ep) // 删除session.token
@@ -845,7 +845,7 @@ func (pa *PlatformAdapterQQOnebot) DoRelogin() bool {
 	return false
 }
 
-func (pa *PlatformAdapterQQOnebot) SetEnable(enable bool) {
+func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 	d := pa.Session.Parent
 	c := pa.EndPoint
 	if enable {
@@ -869,7 +869,7 @@ func (pa *PlatformAdapterQQOnebot) SetEnable(enable bool) {
 	}
 }
 
-func (pa *PlatformAdapterQQOnebot) SetQQProtocol(protocol int) bool {
+func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 	//oldProtocol := pa.InPackGoCqHttpProtocol
 	pa.InPackGoCqHttpProtocol = protocol
 
@@ -893,15 +893,15 @@ func (pa *PlatformAdapterQQOnebot) SetQQProtocol(protocol int) bool {
 	return false
 }
 
-func (pa *PlatformAdapterQQOnebot) IsInLogin() bool {
-	return pa.GoCqHttpState < GoCqHttpStateCodeLoginSuccessed
+func (pa *PlatformAdapterGocq) IsInLogin() bool {
+	return pa.GoCqHttpState < StateCodeLoginSuccessed
 }
 
-func (pa *PlatformAdapterQQOnebot) IsLoginSuccessed() bool {
-	return pa.GoCqHttpState == GoCqHttpStateCodeLoginSuccessed
+func (pa *PlatformAdapterGocq) IsLoginSuccessed() bool {
+	return pa.GoCqHttpState == StateCodeLoginSuccessed
 }
 
-func (pa *PlatformAdapterQQOnebot) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgContext {
+func (pa *PlatformAdapterGocq) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgContext {
 	ep := pa.EndPoint
 	session := pa.Session
 
