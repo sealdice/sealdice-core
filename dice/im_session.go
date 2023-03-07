@@ -244,16 +244,28 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 
 	switch val.Platform {
 	case "QQ":
-		var val struct {
-			Adapter *PlatformAdapterQQOnebot `yaml:"adapter"`
-		}
+		switch ep.ProtocolType {
+		case "onebot":
+			var val struct {
+				Adapter *PlatformAdapterGocq `yaml:"adapter"`
+			}
 
-		err := value.Decode(&val)
-		if err != nil {
-			return err
-		}
+			err := value.Decode(&val)
+			if err != nil {
+				return err
+			}
+			ep.Adapter = val.Adapter
+		case "walle-q":
+			var val struct {
+				Adapter *PlatformAdapterWalleQ `yaml:"adapter"`
+			}
 
-		ep.Adapter = val.Adapter
+			err := value.Decode(&val)
+			if err != nil {
+				return err
+			}
+			ep.Adapter = val.Adapter
+		}
 	case "DISCORD":
 		var val struct {
 			Adapter *PlatformAdapterDiscord `yaml:"adapter"`
@@ -886,9 +898,16 @@ func (ep *EndPointInfo) SetEnable(d *Dice, enable bool) {
 func (ep *EndPointInfo) AdapterSetup() {
 	switch ep.Platform {
 	case "QQ":
-		pa := ep.Adapter.(*PlatformAdapterQQOnebot)
-		pa.Session = ep.Session
-		pa.EndPoint = ep
+		if ep.ProtocolType == "onebot" {
+			pa := ep.Adapter.(*PlatformAdapterGocq)
+			pa.Session = ep.Session
+			pa.EndPoint = ep
+		}
+		if ep.ProtocolType == "walle-q" {
+			pa := ep.Adapter.(*PlatformAdapterWalleQ)
+			pa.Session = ep.Session
+			pa.EndPoint = ep
+		}
 	case "DISCORD":
 		pa := ep.Adapter.(*PlatformAdapterDiscord)
 		pa.Session = ep.Session
