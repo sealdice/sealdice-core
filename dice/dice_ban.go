@@ -156,7 +156,7 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 			v.BanTime = time.Now().Unix()
 
 			if ctx.EndPoint.Platform == "QQ" {
-				ctx.EndPoint.Adapter.(*PlatformAdapterQQOnebot).DeleteFriend(ctx, place)
+				ctx.EndPoint.Adapter.(*PlatformAdapterGocq).DeleteFriend(ctx, place)
 			}
 		}
 

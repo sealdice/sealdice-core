@@ -48,6 +48,7 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v1.2.1
 	github.com/glebarez/go-sqlite v1.20.3
 	github.com/go-creed/sat v1.0.3
 	github.com/grokify/html-strip-tags-go v0.0.1
@@ -58,7 +59,6 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.0.0 // indirect
 	github.com/RoaringBitmap/roaring v0.9.4 // indirect
 	github.com/bits-and-blooms/bitset v1.2.2 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.2.0 // indirect

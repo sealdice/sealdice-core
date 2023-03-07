@@ -4,10 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ShiraazMoollatjie/goluhn"
-	"github.com/acarl005/stripansi"
-	"github.com/fy0/procs"
-	"github.com/google/uuid"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -15,6 +11,11 @@ import (
 	"runtime/debug"
 	"strings"
 	"time"
+
+	"github.com/ShiraazMoollatjie/goluhn"
+	"github.com/acarl005/stripansi"
+	"github.com/fy0/procs"
+	"github.com/google/uuid"
 )
 
 type deviceFile struct {
@@ -372,7 +373,7 @@ func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
 	conn.Enable = false
 	conn.RelWorkDir = "extra/go-cqhttp-qq" + account
 
-	conn.Adapter = &PlatformAdapterQQOnebot{
+	conn.Adapter = &PlatformAdapterGocq{
 		EndPoint:          conn,
 		UseInPackGoCqhttp: true,
 	}
@@ -388,7 +389,7 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			}
 		}()
 
-		pa, ok := conn.Adapter.(*PlatformAdapterQQOnebot)
+		pa, ok := conn.Adapter.(*PlatformAdapterGocq)
 		if !ok {
 			return
 		}
@@ -429,14 +430,14 @@ func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 }
 
 func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int, isAsyncRun bool) {
-	pa := conn.Adapter.(*PlatformAdapterQQOnebot)
-	//if pa.GoCqHttpState != GoCqHttpStateCodeInit {
+	pa := conn.Adapter.(*PlatformAdapterGocq)
+	//if pa.GoCqHttpState != StateCodeInit {
 	//	return
 	//}
 
 	pa.CurLoginIndex += 1
 	loginIndex := pa.CurLoginIndex
-	pa.GoCqHttpState = GoCqHttpStateCodeInLogin
+	pa.GoCqHttpState = StateCodeInLogin
 
 	fmt.Println("GoCqHttpServe begin")
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
@@ -516,13 +517,13 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			// 获取二维码失败，登录失败
 			if strings.Contains(line, "fetch qrcode error: Packet timed out ") {
 				dice.Logger.Infof("从QQ服务器获取二维码错误（超时），帐号: <%s>(%s)", conn.Nickname, conn.UserId)
-				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
+				pa.GoCqHttpState = StateCodeLoginFailed
 			}
 
 			// 未知错误，gocqhttp崩溃
 			if strings.Contains(line, "Packet failed to sendPacket: connection closed") {
 				dice.Logger.Infof("登录异常，gocqhttp崩溃")
-				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
+				pa.GoCqHttpState = StateCodeLoginFailed
 			}
 
 			if strings.Contains(line, "WARNING") && strings.Contains(line, "账号已开启设备锁，请前往") {
@@ -531,7 +532,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				dice.Logger.Info("触发设备锁流程: ", len(m) > 0)
 				if len(m) > 0 {
 					// 设备锁流程，因为需要重新登录，进行一个“已成功登录过”的标记，这样配置文件不会被删除
-					pa.GoCqHttpState = GoCqHttpStateCodeInLoginDeviceLock
+					pa.GoCqHttpState = StateCodeInLoginDeviceLock
 					pa.GoCqHttpLoginSucceeded = true
 					pa.GoCqHttpLoginDeviceLockUrl = m[1]
 					fmt.Println("??????????????????? why")
@@ -544,7 +545,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			}
 
 			if strings.Contains(line, "发送验证码失败，可能是请求过于频繁.") {
-				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
+				pa.GoCqHttpState = StateCodeLoginFailed
 				pa.GocqhttpLoginFailedReason = "发送验证码失败，可能是请求过于频繁"
 			}
 
@@ -552,7 +553,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			if strings.Contains(line, "CQ WebSocket 服务器已启动") {
 				// CQ WebSocket 服务器已启动
 				// 登录成功 欢迎使用
-				pa.GoCqHttpState = GoCqHttpStateCodeLoginSuccessed
+				pa.GoCqHttpState = StateCodeLoginSuccessed
 				pa.GoCqHttpLoginSucceeded = true
 				dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserId)
 
@@ -650,13 +651,13 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			fmt.Println("如控制台二维码不好扫描，可以手动打开 ./data/default/extra/go-cqhttp-qqXXXXX 目录下qrcode.png")
 			qrdata, err := os.ReadFile(qrcodeFile)
 			if err == nil {
-				pa.GoCqHttpState = GoCqHttpStateCodeInLoginQrCode
+				pa.GoCqHttpState = StateCodeInLoginQrCode
 				pa.GoCqHttpQrcodeData = qrdata
 				dice.Logger.Info("获取二维码成功")
 				_ = os.Rename(qrcodeFile, qrcodeFile+".bak.png")
 			} else {
 				pa.GoCqHttpQrcodeData = nil
-				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
+				pa.GoCqHttpState = StateCodeLoginFailed
 				pa.GocqhttpLoginFailedReason = "获取二维码失败"
 				dice.Logger.Info("获取二维码失败，错误为: ", err.Error())
 			}
@@ -685,14 +686,14 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		}
 
 		isInLogin := pa.IsInLogin()
-		isDeviceLockLogin := pa.GoCqHttpState == GoCqHttpStateCodeInLoginDeviceLock
+		isDeviceLockLogin := pa.GoCqHttpState == StateCodeInLoginDeviceLock
 		if !isDeviceLockLogin {
 			// 如果在设备锁流程中，不清空数据
 			GoCqHttpServeProcessKill(dice, conn)
 
 			if isInLogin {
 				conn.State = 3
-				pa.GoCqHttpState = GoCqHttpStateCodeLoginFailed
+				pa.GoCqHttpState = StateCodeLoginFailed
 			}
 		}
 
@@ -708,78 +709,4 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	} else {
 		run()
 	}
-}
-
-// 注意：放在这里并不科学，记得重构
-func ServeQQ(d *Dice, ep *EndPointInfo) {
-	defer CrashLog()
-	if ep.Platform == "QQ" {
-		conn := ep.Adapter.(*PlatformAdapterQQOnebot)
-
-		if !conn.DiceServing {
-			conn.DiceServing = true
-		} else {
-			return
-		}
-
-		ep.Enable = true
-		ep.State = 2 // 连接中
-
-		checkQuit := func() bool {
-			if conn.GoCqHttpState == GoCqHttpStateCodeInLoginDeviceLock {
-				d.Logger.Infof("检测到设备锁流程，暂时不再连接")
-				ep.State = 0
-				return true
-			}
-			if !conn.DiceServing {
-				// 退出连接
-				d.Logger.Infof("检测到连接关闭，不再进行此onebot服务的重连: <%s>(%s)", ep.Nickname, ep.UserId)
-				return true
-			}
-			return false
-		}
-
-		lastRetryTime := time.Now().Unix()
-		waitTimes := 0
-		for {
-			if checkQuit() {
-				break
-			}
-
-			// 骰子开始连接
-			d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserId, waitTimes, 5)
-			ret := ep.Adapter.Serve()
-
-			if time.Now().Unix()-lastRetryTime > 8*60 {
-				lastRetryTime = 0
-			}
-			lastRetryTime = time.Now().Unix()
-
-			if ret == 0 {
-				break
-			}
-
-			if checkQuit() {
-				break
-			}
-
-			waitTimes += 1
-			if waitTimes > 5 {
-				d.Logger.Infof("onebot 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserId)
-				conn.DiceServing = false
-				break
-			}
-
-			//d.Logger.Infof("onebot 连接失败[%d/%d]，将在15秒后重新连接，帐号 <%s>(%s)", waitTimes, 5, ep.Nickname, ep.UserId)
-			time.Sleep(15 * time.Second)
-		}
-	}
-}
-
-func GetAndroidDeviceTemplateName() []string {
-	names := []string{}
-	for _, i := range androidDevicePool {
-		names = append(names, i.name)
-	}
-	return names
 }
