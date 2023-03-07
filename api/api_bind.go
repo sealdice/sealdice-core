@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 	"net/http"
 	"runtime"
 	"sealdice-core/dice"
@@ -258,7 +257,7 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 				case "walle-q":
 					pa := i.Adapter.(*dice.PlatformAdapterWalleQ)
 					if pa.WalleQState == dice.WqStateCodeInLoginQrCode {
-						fmt.Println("qrcode:", base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData))
+						//fmt.Println("qrcode:", base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData))
 						return c.JSON(http.StatusOK, map[string]string{
 							"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData),
 						})
@@ -302,7 +301,7 @@ func ImConnectionsAddWalleQ(c echo.Context) error {
 		pa.Session = myDice.ImSession
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
-		dice.WalleQServe(myDice, conn, v.Password, v.Protocol, false)
+		go dice.WalleQServe(myDice, conn, v.Password, v.Protocol, false)
 		myDice.Save(false)
 		return c.JSON(200, conn)
 	}
