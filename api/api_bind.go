@@ -242,10 +242,10 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 		Id string `form:"id" json:"id"`
 	}{}
 	err := c.Bind(&v)
-	fmt.Println(err)
+	//fmt.Println(err)
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
-			fmt.Println(i.Id, i.ProtocolType, i.ProtocolType)
+			//fmt.Println(i.Id, i.ProtocolType, i.ProtocolType)
 			if i.Id == v.Id {
 				switch i.ProtocolType {
 				case "onebot":
@@ -258,6 +258,7 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 				case "walle-q":
 					pa := i.Adapter.(*dice.PlatformAdapterWalleQ)
 					if pa.WalleQState == dice.WqStateCodeInLoginQrCode {
+						fmt.Println("qrcode:", base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData))
 						return c.JSON(http.StatusOK, map[string]string{
 							"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData),
 						})

@@ -27,7 +27,7 @@ type PlatformAdapterWalleQ struct {
 	Socket          *gowebsocket.Socket `yaml:"-" json:"-"`
 	ConnectUrl      string              `yaml:"connectUrl" json:"connectUrl"`           // 连接地址
 	UseInPackWalleQ bool                `yaml:"useInPackWalleQ" json:"useInPackWalleQ"` // 是否使用内置的WalleQ
-	WalleQState     int                 `yaml:"-" json:"WalleQState"`                   // 当前状态
+	WalleQState     int                 `yaml:"-" json:"loginState"`                    // 当前状态
 	CurLoginIndex   int                 `yaml:"-" json:"curLoginIndex"`                 // 当前登录序号，如果正在进行的登录不是该Index，证明过时
 
 	WalleQProcess           *procs.Process `yaml:"-" json:"-"`
@@ -47,9 +47,10 @@ type PlatformAdapterWalleQ struct {
 	InPackWalleQDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest        bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	echoMap  *SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
-	echoMap2 *SyncMap[string, *echoMapInfo]          `yaml:"-"`
-	FileMap  *SyncMap[string, string]                // 记录上传文件后得到的 id
+	echoMap        *SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
+	echoMap2       *SyncMap[string, *echoMapInfo]          `yaml:"-"`
+	FileMap        *SyncMap[string, string]                // 记录上传文件后得到的 id
+	Implementation string                                  `yaml:"implementation" json:"implementation"`
 }
 
 type EventWalleQBase struct {
@@ -171,6 +172,7 @@ type OnebotV12UserInfo struct {
 /* 标准方法实现 */
 
 func (pa *PlatformAdapterWalleQ) Serve() int {
+	pa.Implementation = "walle-q"
 	ep := pa.EndPoint
 	s := pa.Session
 	log := s.Parent.Logger
