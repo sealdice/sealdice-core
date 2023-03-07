@@ -102,8 +102,9 @@ func CQToText(t string, d map[string]string) MessageElement {
 func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, error) {
 	switch t {
 	case "file":
-		p := dMap["file"]
+		p := strings.TrimSpace(dMap["file"])
 		if strings.HasPrefix(p, "http") {
+			fmt.Println(p)
 			resp, err := http.Get(p)
 			if err != nil {
 				return nil, err
