@@ -46,7 +46,7 @@ type PlatformAdapterGocq struct {
 	ConnectUrl string              `yaml:"connectUrl" json:"connectUrl"` // 连接地址
 
 	UseInPackGoCqhttp bool `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
-	GoCqHttpState     int  `yaml:"-" json:"goCqHttpState"`                     // 当前状态
+	GoCqHttpState     int  `yaml:"-" json:"loginState"`                        // 当前状态
 	CurLoginIndex     int  `yaml:"-" json:"curLoginIndex"`                     // 当前登录序号，如果正在进行的登录不是该Index，证明过时
 
 	GoCqHttpProcess           *procs.Process `yaml:"-" json:"-"`
@@ -66,9 +66,10 @@ type PlatformAdapterGocq struct {
 	InPackGoCqHttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest          bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	customEcho int64                            `yaml:"-"` // 自定义返回标记
-	echoMap    *SyncMap[int64, chan *MessageQQ] `yaml:"-"`
-	echoMap2   *SyncMap[int64, *echoMapInfo]    `yaml:"-"`
+	customEcho     int64                            `yaml:"-"` // 自定义返回标记
+	echoMap        *SyncMap[int64, chan *MessageQQ] `yaml:"-"`
+	echoMap2       *SyncMap[int64, *echoMapInfo]    `yaml:"-"`
+	Implementation string                           `yaml:"implementation" json:"implementation"`
 }
 
 type Sender struct {
@@ -196,6 +197,7 @@ func FormatDiceIdQQChGroup(GuildId, ChannelId string) string {
 }
 
 func (pa *PlatformAdapterGocq) Serve() int {
+	pa.Implementation = "gocq"
 	ep := pa.EndPoint
 	s := pa.Session
 	log := s.Parent.Logger
