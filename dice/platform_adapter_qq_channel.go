@@ -108,6 +108,9 @@ func (pa *PlatformAdapterQQOnebot) SendToChannelGroup(ctx *MsgContext, userId st
 	}
 
 	lst := strings.Split(rawId, "-")
+	if len(lst) < 2 {
+		return
+	}
 
 	type GroupMessageParams struct {
 		//MessageType string `json:"message_type"`

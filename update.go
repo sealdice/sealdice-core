@@ -121,7 +121,8 @@ func doReboot(dm *dice.DiceManager) {
 	}
 	platform := runtime.GOOS
 	if platform == "windows" {
-		_ = exec.Command(binary, "--delay=10").Start()
+		cleanUpCreate(dm)()
+		_ = exec.Command(binary, "--delay=25").Start()
 	} else {
 		// 手动cleanup
 		cleanUpCreate(dm)()
