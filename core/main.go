@@ -354,8 +354,14 @@ func diceServe(d *dice.Dice) {
 
 				switch con.Platform {
 				case "QQ":
-					pa := con.Adapter.(*dice.PlatformAdapterQQOnebot)
-					dice.GoCqHttpServe(d, con, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+					if conn.EndPointInfoBase.ProtocolType == "walle-q" {
+						pa := con.Adapter.(*dice.PlatformAdapterWalleQ)
+						dice.WalleQServe(d, con, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, false)
+					}
+					if conn.EndPointInfoBase.ProtocolType == "onebot" {
+						pa := con.Adapter.(*dice.PlatformAdapterGocq)
+						dice.GoCqHttpServe(d, con, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
 					dice.ServeQQ(d, con)
 					break
