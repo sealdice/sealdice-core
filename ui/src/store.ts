@@ -17,9 +17,10 @@ export interface AdapterQQ {
   connectUrl: string;
   curLoginFailedReason: string
   curLoginIndex: number
-  goCqHttpState: goCqHttpStateCode
+  loginState: goCqHttpStateCode
   inPackGoCqHttpLastRestricted: number
   inPackGoCqHttpProtocol: number
+  implementation: string
   useInPackGoCqhttp: boolean;
   goCqHttpLoginVerifyCode: string;
   goCqHttpLoginDeviceLockUrl: string;
@@ -159,13 +160,17 @@ export const useStore = defineStore('main', {
       return info as any as DiceConnection
     },
 
-    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, url: string, clientID: string}) {
-      const {accountType, account, password, protocol, token, url, clientID} = form
+    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, url: string, clientID: string, implementation: string}) {
+      const {accountType, account, password, protocol, token, url, clientID, implementation} = form
       let info = null
       switch (accountType) {
         //QQ
         case 0:
-          info = await backend.post(urlPrefix+'/im_connections/add', { account, password, protocol }, { timeout: 65000 })
+          if (implementation === 'gocq') {
+            info = await backend.post(urlPrefix+'/im_connections/add', { account, password, protocol }, { timeout: 65000 })
+          } else if (implementation === 'walle-q') {
+            info = await backend.post(urlPrefix+'/im_connections/addWalleQ', { account, password, protocol }, { timeout: 65000 })
+          }
           break
         case 1:
           info = await backend.post(urlPrefix+'/im_connections/addDiscord', {token}, { timeout: 65000 })
