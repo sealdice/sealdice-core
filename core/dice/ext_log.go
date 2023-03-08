@@ -125,7 +125,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log list <群号> // 查看指定群的日志列表(无法取得日志时，找骰主做这个操作)
 .log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)`
 
-	txtLogTip := "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/logs路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
+	txtLogTip := "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
 
 	cmdLog := &CmdItemInfo{
 		Name:      "log",
@@ -585,7 +585,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Author:     "木落",
 		AutoActive: true,
 		OnLoad: func() {
-			_ = os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "logs"), 0755)
+			_ = os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "log-exports"), 0755)
 		},
 		OnMessageSend: func(ctx *MsgContext, messageType string, userId string, text string, flag string) {
 			// 记录骰子发言
@@ -730,7 +730,7 @@ func LogAppend(ctx *MsgContext, groupId string, logName string, logItem *model.L
 }
 
 func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, error) {
-	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "logs")
+	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
 	_ = os.MkdirAll(dirpath, 0755)
 
 	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupId, logName)
