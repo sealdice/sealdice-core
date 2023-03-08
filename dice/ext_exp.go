@@ -204,12 +204,7 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 			switch _type {
 			case "set":
 				newname := tmpl.GetAlias(name)
-				def := tmpl.GetDefaultValueEx(ctx, newname)
-				if def.TypeId == val.TypeId && def.Value == val.Value {
-					// 与预设相同，放弃
-				} else {
-					toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val})
-				}
+				toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val})
 			case "mod":
 				newname := tmpl.GetAlias(name)
 				if val.TypeId != VMTypeInt64 {
@@ -285,6 +280,7 @@ func getCmdStBase() *CmdItemInfo {
 	helpSt += ".st clr // 清除属性\n"
 	helpSt += ".st fmt // 强制转卡为当前规则(改变卡片类型，转换同义词)\n"
 	helpSt += ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"
+	helpSt += ".st export // 导出\n"
 	helpSt += ".st help // 帮助\n"
 	helpSt += ".st <属性><值> // 例：.st 敏捷50 力量3d6*5\n"
 	helpSt += ".st &<属性>=<式子> // 例：.st &手枪=1d6\n"
@@ -383,6 +379,8 @@ func getCmdStBase() *CmdItemInfo {
 				cmdStCharFormat(mctx, tmpl)
 				ReplyToSender(mctx, msg, "角色卡片类型被强制修改为: "+ctx.Group.System)
 
+			case "export":
+
 			default:
 				if cardType != "" && cardType != mctx.Group.System {
 					ReplyToSender(mctx, msg, fmt.Sprintf("当前卡规则为 %s，群规则为 %s。\n为避免误操作，请先换卡、或.st fmt强制转卡，或使用.st clr清除数据", cardType, mctx.Group.System))
@@ -404,15 +402,40 @@ func getCmdStBase() *CmdItemInfo {
 				var text string
 				//retText := fmt.Sprintf("<%s>的%s人物属性设置如下:\n", mctx.Player.Name, tmpl.Name)
 
+				validNum := int64(0)
 				if len(toSetItems) > 0 {
 					// 是 set
 					for _, i := range toSetItems {
+						def := tmpl.GetDefaultValueEx(ctx, i.name)
+						val := i.value
+						var curVal *VMValue
+						if a, ok := chVars.Get(i.name); ok {
+							curVal = a.(*VMValue)
+						}
+
+						if def.TypeId == val.TypeId && def.Value == val.Value {
+							// 如果当前有值
+							if curVal != nil {
+								// 不搞花的，直接赋值一次
+								//if curVal.TypeId == val.TypeId {
+								//	if curVal.Value == val.Value {
+								//		// 如果与当前值相同，放弃
+								//		continue
+								//	}
+								//}
+							} else {
+								// 与预设相同，放弃
+								continue
+							}
+						}
+
+						validNum += 1
 						chVars.Set(i.name, i.value)
 						//textPieces = append(textPieces, fmt.Sprintf("%s:%s", i.name, i.value.ToString()))
 					}
 					mctx.ChVarsUpdateTime()
 					VarSetValueInt64(mctx, "$t数量", int64(len(toSetItems))) // 废弃
-					VarSetValueInt64(mctx, "$t有效数量", int64(len(toSetItems)))
+					VarSetValueInt64(mctx, "$t有效数量", validNum)
 					VarSetValueInt64(mctx, "$t同义词数量", int64(0)) // 废弃
 					text = DiceFormatTmpl(mctx, "COC:属性设置")
 					SetCardType(mctx, tmpl.Name)
@@ -445,6 +468,7 @@ func getCmdStBase() *CmdItemInfo {
 
 					ctx.CommandInfo = commandInfo
 					mctx.ChVarsUpdateTime()
+					SetCardType(mctx, tmpl.Name)
 				}
 
 				if text == "" {
