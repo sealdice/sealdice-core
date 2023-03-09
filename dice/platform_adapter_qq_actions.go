@@ -31,7 +31,7 @@ const (
 	QQUidChannelGroup  QQUidType = 4
 )
 
-func (pa *PlatformAdapterQQOnebot) mustExtractId(id string) (int64, QQUidType) {
+func (pa *PlatformAdapterGocq) mustExtractId(id string) (int64, QQUidType) {
 	if strings.HasPrefix(id, "QQ:") {
 		num, _ := strconv.ParseInt(id[len("QQ:"):], 10, 64)
 		return num, QQUidPerson
@@ -47,7 +47,7 @@ func (pa *PlatformAdapterQQOnebot) mustExtractId(id string) (int64, QQUidType) {
 	return 0, 0
 }
 
-func (pa *PlatformAdapterQQOnebot) mustExtractChannelId(id string) (string, QQUidType) {
+func (pa *PlatformAdapterGocq) mustExtractChannelId(id string) (string, QQUidType) {
 	if strings.HasPrefix(id, "QQ-CH:") {
 		return id[len("QQ-CH:"):], QQUidChannelPerson
 	}
@@ -58,7 +58,7 @@ func (pa *PlatformAdapterQQOnebot) mustExtractChannelId(id string) (string, QQUi
 }
 
 // GetGroupInfoAsync 异步获取群聊信息
-func (pa *PlatformAdapterQQOnebot) GetGroupInfoAsync(groupId string) {
+func (pa *PlatformAdapterGocq) GetGroupInfoAsync(groupId string) {
 	type GroupMessageParams struct {
 		GroupId int64 `json:"group_id"`
 	}
@@ -89,7 +89,7 @@ type OnebotGroupInfo struct {
 }
 
 // GetGroupInfo 获取群聊信息
-func (pa *PlatformAdapterQQOnebot) GetGroupInfo(groupId string) *OnebotGroupInfo {
+func (pa *PlatformAdapterGocq) GetGroupInfo(groupId string) *OnebotGroupInfo {
 	type GroupMessageParams struct {
 		GroupId int64 `json:"group_id"`
 	}
@@ -153,7 +153,7 @@ func doSleepQQ(ctx *MsgContext) {
 	}
 }
 
-func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
+func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
 	rawId, type_ := pa.mustExtractId(userId)
 
 	if type_ != QQUidPerson {
@@ -190,7 +190,7 @@ func (pa *PlatformAdapterQQOnebot) SendToPerson(ctx *MsgContext, userId string, 
 	}
 }
 
-func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
+func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
 	if groupId == "" {
 		return
 	}
@@ -235,7 +235,7 @@ func (pa *PlatformAdapterQQOnebot) SendToGroup(ctx *MsgContext, groupId string, 
 }
 
 // SetGroupAddRequest 同意加群
-func (pa *PlatformAdapterQQOnebot) SetGroupAddRequest(flag string, subType string, approve bool, reason string) {
+func (pa *PlatformAdapterGocq) SetGroupAddRequest(flag string, subType string, approve bool, reason string) {
 	type DetailParams struct {
 		Flag    string `json:"flag"`
 		SubType string `json:"sub_type"`
@@ -256,7 +256,7 @@ func (pa *PlatformAdapterQQOnebot) SetGroupAddRequest(flag string, subType strin
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterQQOnebot) getCustomEcho() int64 {
+func (pa *PlatformAdapterGocq) getCustomEcho() int64 {
 	if pa.customEcho > -10 {
 		pa.customEcho = -10
 	}
@@ -264,7 +264,7 @@ func (pa *PlatformAdapterQQOnebot) getCustomEcho() int64 {
 	return pa.customEcho
 }
 
-func (pa *PlatformAdapterQQOnebot) waitEcho(echo int64, beforeWait func()) *MessageQQ {
+func (pa *PlatformAdapterGocq) waitEcho(echo int64, beforeWait func()) *MessageQQ {
 	//pa.echoList = append(pa.echoList, )
 	ch := make(chan *MessageQQ, 1)
 
@@ -277,7 +277,7 @@ func (pa *PlatformAdapterQQOnebot) waitEcho(echo int64, beforeWait func()) *Mess
 	return <-ch
 }
 
-func (pa *PlatformAdapterQQOnebot) waitEcho2(echo int64, value interface{}, beforeWait func(emi *echoMapInfo)) error {
+func (pa *PlatformAdapterGocq) waitEcho2(echo int64, value interface{}, beforeWait func(emi *echoMapInfo)) error {
 	if pa.echoMap2 == nil {
 		pa.echoMap2 = new(SyncMap[int64, *echoMapInfo])
 	}
@@ -294,7 +294,7 @@ func (pa *PlatformAdapterQQOnebot) waitEcho2(echo int64, value interface{}, befo
 }
 
 // GetGroupMemberInfo 获取群成员信息
-func (pa *PlatformAdapterQQOnebot) GetGroupMemberInfo(GroupId int64, UserId int64) *OnebotUserInfo {
+func (pa *PlatformAdapterGocq) GetGroupMemberInfo(GroupId int64, UserId int64) *OnebotUserInfo {
 	type DetailParams struct {
 		GroupId int64 `json:"group_id"`
 		UserId  int64 `json:"user_id"`
@@ -331,7 +331,7 @@ func (pa *PlatformAdapterQQOnebot) GetGroupMemberInfo(GroupId int64, UserId int6
 }
 
 // GetStrangerInfo 获取陌生人信息
-func (pa *PlatformAdapterQQOnebot) GetStrangerInfo(UserId int64) *OnebotUserInfo {
+func (pa *PlatformAdapterGocq) GetStrangerInfo(UserId int64) *OnebotUserInfo {
 	type DetailParams struct {
 		UserId  int64 `json:"user_id"`
 		NoCache bool  `json:"no_cache"`
@@ -363,7 +363,7 @@ func (pa *PlatformAdapterQQOnebot) GetStrangerInfo(UserId int64) *OnebotUserInfo
 	}
 }
 
-func (pa *PlatformAdapterQQOnebot) SetGroupCardName(groupId string, userId string, name string) {
+func (pa *PlatformAdapterGocq) SetGroupCardName(groupId string, userId string, name string) {
 	groupIdRaw, type_ := pa.mustExtractId(groupId)
 	if type_ != QQUidGroup {
 		return
@@ -377,7 +377,7 @@ func (pa *PlatformAdapterQQOnebot) SetGroupCardName(groupId string, userId strin
 }
 
 // SetGroupCardNameBase 设置群名片
-func (pa *PlatformAdapterQQOnebot) SetGroupCardNameBase(GroupId int64, UserId int64, Card string) {
+func (pa *PlatformAdapterGocq) SetGroupCardNameBase(GroupId int64, UserId int64, Card string) {
 	type DetailParams struct {
 		GroupId int64  `json:"group_id"`
 		UserId  int64  `json:"user_id"`
@@ -399,7 +399,7 @@ func (pa *PlatformAdapterQQOnebot) SetGroupCardNameBase(GroupId int64, UserId in
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterQQOnebot) SetFriendAddRequest(flag string, approve bool, remark string, reaseon string) {
+func (pa *PlatformAdapterGocq) SetFriendAddRequest(flag string, approve bool, remark string, reaseon string) {
 	type DetailParams struct {
 		Flag    string `json:"flag"`
 		Remark  string `json:"remark"` // 备注名
@@ -423,7 +423,7 @@ func (pa *PlatformAdapterQQOnebot) SetFriendAddRequest(flag string, approve bool
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterQQOnebot) DeleteFriend(ctx *MsgContext, id string) {
+func (pa *PlatformAdapterGocq) DeleteFriend(ctx *MsgContext, id string) {
 	friendId, type_ := pa.mustExtractId(id)
 	if type_ != QQUidPerson {
 		return
@@ -442,7 +442,7 @@ func (pa *PlatformAdapterQQOnebot) DeleteFriend(ctx *MsgContext, id string) {
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterQQOnebot) QuitGroup(ctx *MsgContext, id string) {
+func (pa *PlatformAdapterGocq) QuitGroup(ctx *MsgContext, id string) {
 	groupId, type_ := pa.mustExtractId(id)
 	if type_ != QQUidGroup {
 		return
@@ -463,15 +463,15 @@ func (pa *PlatformAdapterQQOnebot) QuitGroup(ctx *MsgContext, id string) {
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterQQOnebot) MemberBan(groupId string, userId string, last int64) {
+func (pa *PlatformAdapterGocq) MemberBan(groupId string, userId string, last int64) {
 
 }
 
-func (pa *PlatformAdapterQQOnebot) MemberKick(groupId string, userId string) {
+func (pa *PlatformAdapterGocq) MemberKick(groupId string, userId string) {
 
 }
 
-func (pa *PlatformAdapterQQOnebot) GetLoginInfo() {
+func (pa *PlatformAdapterGocq) GetLoginInfo() {
 	a, _ := json.Marshal(struct {
 		Action string `json:"action"`
 		Echo   int64  `json:"echo"`

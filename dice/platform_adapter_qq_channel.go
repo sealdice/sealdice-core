@@ -54,7 +54,7 @@ func (msgQQ *MessageQQChannel) toStdMessage() *Message {
 	return msg
 }
 
-func (pa *PlatformAdapterQQOnebot) QQChannelTrySolve(message string) {
+func (pa *PlatformAdapterGocq) QQChannelTrySolve(message string) {
 	msgQQ := new(MessageQQChannel)
 	err := json.Unmarshal([]byte(message), msgQQ)
 
@@ -97,7 +97,7 @@ func (pa *PlatformAdapterQQOnebot) QQChannelTrySolve(message string) {
 	//pa.SendToChannelGroup(ctx, msg.GroupId, msg.Message+"asdasd", "")
 }
 
-func (pa *PlatformAdapterQQOnebot) SendToChannelGroup(ctx *MsgContext, userId string, text string, flag string) {
+func (pa *PlatformAdapterGocq) SendToChannelGroup(ctx *MsgContext, userId string, text string, flag string) {
 	rawId, _ := pa.mustExtractChannelId(userId)
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
