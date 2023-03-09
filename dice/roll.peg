@@ -9,10 +9,11 @@ type DiceRollParser Peg {
 // 实际操作中发现，不匹配句尾比较好 (没有!.)
 eBase <- e { p.AddOperator(TypeHalt) }
 e <- '^st' st_expr
+   / &{!p.flags.DisableBlock} e0
    / eOne (';' sp { p.AddOperator(TypeClearDetail) } eOne?)*
 eOne <- sp (s0 / e0 / assign_expr)
 
-assign_expr <- identifier { p.AddValueStr(string(text)) } '=' sp e0 { p.AddStore() }
+assign_expr <- &{p.flags.DisableBlock} identifier { p.AddValueStr(string(text)) } '=' sp e0 { p.AddStore() }
 
 s0 <- stmtIf
 
@@ -193,7 +194,7 @@ est <- ( &'(' e0 )
 
 st_assign_multi <- (st_assign sp ','? sp)+
 
-st_assign <- st_name2 sp (':' / '=') sp est { p.AddStName() } // 属性2: 70
+st_assign <- st_name2 sp (':' / '=') sp est { p.AddStName() } // 属性2: 70 // 射击:弓箭:40 / 射击:弓箭40
            / st_name1 est { p.AddStName() } // 力量60
            / '&' st_name2 sp (':' / '=') sp { p.CodePush() } < est > { p.CodePop(); p.AddStoreComputed(text); p.AddStName() } // &手枪 = 1d4
 
@@ -221,8 +222,8 @@ st_modify_rest <- sp (
      '-' '='? sp < e0 > {p.AddStModify("-", text)}
     )
 
-st_name1 <- < id_ch0+ > { p.AddValueStr(text) } // 结尾不带数字
-st_name2 <- < id_ch0 id_ch* > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
+st_name1 <- < id_ch0+ (':' id_ch0+)? > { p.AddValueStr(text) } // 结尾不带数字
+st_name2 <- < id_ch0 id_ch* (':' id_ch+)? > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
 
 id_ch0 <- [^!"#$%&\'()*+,-./:;<=>?@\[\\\]^`{|}~ 0-9\t\n\r\36]
 id_ch <- id_ch0 / [0-9]

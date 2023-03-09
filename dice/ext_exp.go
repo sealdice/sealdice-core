@@ -199,6 +199,7 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 
 	r, _, err = ctx.Dice.ExprEvalBase("^st"+text, ctx, RollExtraFlags{
 		DefaultDiceSideNum: getDefaultDicePoints(ctx),
+		DisableBlock:       true,
 		StCallback: func(_type string, name string, val *VMValue, op string, detail string) {
 			//texts = append(texts, fmt.Sprintf("[%s]%s: %s %s [%s]", _type, name, val.ToString(), op, detail))
 			switch _type {
@@ -471,8 +472,8 @@ func getCmdStBase() *CmdItemInfo {
 					SetCardType(mctx, tmpl.Name)
 				}
 
-				if text == "" {
-					text = "解析失败: " + r.restInput
+				if r.restInput != "" {
+					text += "\n解析失败: " + r.restInput
 				}
 				//if r.restInput != "" {
 				//	retText += "解析失败: " + r.restInput
