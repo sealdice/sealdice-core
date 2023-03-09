@@ -327,6 +327,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					r1, detail1, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
 						CocVarNumberMode: true,
 						CocDefaultAttrOn: true,
+						DisableBlock:     true,
 					})
 
 					if err != nil {
@@ -350,6 +351,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					r2, detail2, err := mctx.Dice.ExprEvalBase(expr2Text, mctx, RollExtraFlags{
 						CocVarNumberMode: true,
 						CocDefaultAttrOn: true,
+						DisableBlock:     true,
 					})
 
 					if err != nil {
@@ -677,6 +679,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					r, _, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
 						CocVarNumberMode: true,
 						CocDefaultAttrOn: true,
+						DisableBlock:     true,
 					})
 
 					if err != nil {
@@ -699,7 +702,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						re := regexp.MustCompile(`[,，](.*)`)
 						m := re.FindStringSubmatch(restText)
 						restText = m[1]
-						r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{})
+						r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{DisableBlock: true})
 						if err != nil {
 							ReplyToSender(ctx, msg, "解析出错: "+restText)
 							return &CmdExecuteResult{Matched: true, Solved: true}, 0, ""
@@ -1083,7 +1086,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				innerGetOnePiece := func() int {
 					var err error
-					r, _, err := mctx.Dice.ExprEvalBase(argText, mctx, RollExtraFlags{IgnoreDiv0: true})
+					r, _, err := mctx.Dice.ExprEvalBase(argText, mctx, RollExtraFlags{IgnoreDiv0: true, DisableBlock: true})
 					if err != nil {
 						// 情况1，完全不能解析
 						return 1
@@ -1109,7 +1112,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 					// 可能是 .sc 1 1 或 .sc 1 1/1
 					expr1 = r.Matched
-					r2, _, err := mctx.Dice.ExprEvalBase(r.restInput, mctx, RollExtraFlags{})
+					r2, _, err := mctx.Dice.ExprEvalBase(r.restInput, mctx, RollExtraFlags{DisableBlock: true})
 					if err != nil {
 						return 2
 					}
@@ -1200,12 +1203,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				text1 = expr2 + "/" + expr3
 
-				r, _, err = mctx.Dice.ExprEvalBase(expr2, mctx, RollExtraFlags{})
+				r, _, err = mctx.Dice.ExprEvalBase(expr2, mctx, RollExtraFlags{DisableBlock: true})
 				if err == nil {
 					reduceSuccess = r.Value.(int64)
 				}
 
-				r, _, err = mctx.Dice.ExprEvalBase(expr3, mctx, RollExtraFlags{BigFailDiceOn: successRank == -2})
+				r, _, err = mctx.Dice.ExprEvalBase(expr3, mctx, RollExtraFlags{BigFailDiceOn: successRank == -2, DisableBlock: true})
 				if err == nil {
 					reduceFail = r.Value.(int64)
 				}
