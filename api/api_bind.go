@@ -171,7 +171,7 @@ func ImConnectionsSetData(c echo.Context) error {
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
-				ad := i.Adapter.(*dice.PlatformAdapterQQOnebot)
+				ad := i.Adapter.(*dice.PlatformAdapterGocq)
 				ad.SetQQProtocol(v.Protocol)
 				ad.IgnoreFriendRequest = v.IgnoreFriendRequest
 				return c.JSON(http.StatusOK, i)
@@ -241,20 +241,71 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 		Id string `form:"id" json:"id"`
 	}{}
 	err := c.Bind(&v)
+	//fmt.Println(err)
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
+			//fmt.Println(i.Id, i.ProtocolType, i.ProtocolType)
 			if i.Id == v.Id {
-				pa := i.Adapter.(*dice.PlatformAdapterQQOnebot)
-				if pa.GoCqHttpState == dice.GoCqHttpStateCodeInLoginQrCode {
-					return c.JSON(http.StatusOK, map[string]string{
-						"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.GoCqHttpQrcodeData),
-					})
+				switch i.ProtocolType {
+				case "onebot":
+					pa := i.Adapter.(*dice.PlatformAdapterGocq)
+					if pa.GoCqHttpState == dice.StateCodeInLoginQrCode {
+						return c.JSON(http.StatusOK, map[string]string{
+							"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.GoCqHttpQrcodeData),
+						})
+					}
+				case "walle-q":
+					pa := i.Adapter.(*dice.PlatformAdapterWalleQ)
+					if pa.WalleQState == dice.WqStateCodeInLoginQrCode {
+						//fmt.Println("qrcode:", base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData))
+						return c.JSON(http.StatusOK, map[string]string{
+							"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData),
+						})
+					}
 				}
 				return c.JSON(http.StatusOK, i)
 			}
 		}
 	}
 	return c.JSON(http.StatusNotFound, nil)
+}
+
+func ImConnectionsAddWalleQ(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	v := struct {
+		Account  string `yaml:"account" json:"account"`
+		Password string `yaml:"password" json:"password"`
+		Protocol int    `json:"protocol"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		uid, err := strconv.ParseInt(v.Account, 10, 64)
+		if err != nil {
+			return c.String(430, "")
+		}
+
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.UserId == dice.FormatDiceIdQQ(uid) {
+				return c.JSON(CODE_ALREADY_EXISTS, i)
+			}
+		}
+
+		conn := dice.NewWqConnectInfoItem(v.Account)
+		conn.UserId = dice.FormatDiceIdQQ(uid)
+		conn.ProtocolType = "walle-q"
+		pa := conn.Adapter.(*dice.PlatformAdapterWalleQ)
+		pa.InPackWalleQProtocol = v.Protocol
+		pa.InPackWalleQPassword = v.Password
+		pa.Session = myDice.ImSession
+
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		go dice.WalleQServe(myDice, conn, v.Password, v.Protocol, false)
+		myDice.Save(false)
+		return c.JSON(200, conn)
+	}
+	return c.String(430, "")
 }
 
 func ImConnectionsGocqhttpRelogin(c echo.Context) error {
@@ -265,6 +316,26 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 		return c.JSON(200, map[string]interface{}{
 			"testMode": true,
 		})
+	}
+
+	v := struct {
+		Id string `form:"id" json:"id"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.Id == v.Id {
+				i.Adapter.DoRelogin()
+				return c.JSON(http.StatusOK, nil)
+			}
+		}
+	}
+	return c.JSON(http.StatusNotFound, nil)
+}
+
+func ImConnectionsWalleQRelogin(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
 	}
 
 	v := struct {
@@ -467,7 +538,7 @@ func ImConnectionsAdd(c echo.Context) error {
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
 		conn.UserId = dice.FormatDiceIdQQ(uid)
-		pa := conn.Adapter.(*dice.PlatformAdapterQQOnebot)
+		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 		pa.InPackGoCqHttpProtocol = v.Protocol
 		pa.InPackGoCqHttpPassword = v.Password
 		pa.Session = myDice.ImSession
@@ -670,10 +741,12 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/addTelegram", ImConnectionsAddTelegram)
 	e.POST(prefix+"/im_connections/addMinecraft", ImConnectionsAddMinecraft)
 	e.POST(prefix+"/im_connections/addDodo", ImConnectionsAddDodo)
+	e.POST(prefix+"/im_connections/addWalleQ", ImConnectionsAddWalleQ)
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)
 	e.POST(prefix+"/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
+	e.POST(prefix+"/im_connections/walleQRelogin", ImConnectionsWalleQRelogin)
 
 	e.GET(prefix+"/configs/customText", customText)
 	e.POST(prefix+"/configs/customText/save", customTextSave)
