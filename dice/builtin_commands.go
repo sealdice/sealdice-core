@@ -928,6 +928,7 @@ func (d *Dice) registerCoreCommands() {
 					var err error
 					r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{
 						DefaultDiceSideNum: getDefaultDicePoints(ctx),
+						DisableBlock:       true,
 					})
 
 					if !isRx {
@@ -935,6 +936,7 @@ func (d *Dice) registerCoreCommands() {
 							forWhat = cmdArgs.CleanArgs
 							r, detail, err = ctx.Dice.ExprEvalBase("d", ctx, RollExtraFlags{
 								DefaultDiceSideNum: getDefaultDicePoints(ctx),
+								DisableBlock:       true,
 							})
 						}
 					}

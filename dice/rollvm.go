@@ -244,6 +244,7 @@ type RollExtraFlags struct {
 	DNDAttrReadDC      bool  // 将力量豁免读取为力量再计算豁免值
 	DefaultDiceSideNum int64 // 默认骰子面数
 	DisableBitwiseOp   bool  // 禁用位运算，用于st
+	DisableBlock       bool  // 禁用语句块(实际还禁用赋值语句，暂定名如此)
 
 	vmDepth    int64                                                                   // 层数
 	StCallback func(_type string, name string, val *VMValue, op string, detail string) // st回调

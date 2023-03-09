@@ -351,6 +351,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 					r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
 						CocVarNumberMode: true,
+						DisableBlock:     true,
 					})
 					if err == nil {
 						checkVal, _ := r.ReadInt64()
