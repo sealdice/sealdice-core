@@ -100,7 +100,6 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 			diceManager.Cron.Stop()
 		}
 	}
-
 }
 
 func main() {

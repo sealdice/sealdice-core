@@ -972,6 +972,14 @@ func (d *Dice) registerCoreCommands() {
 					detailWrap := ""
 					if detail != "" {
 						detailWrap = "=" + detail
+						re := regexp.MustCompile(`\[((\d+)d\d+)\=(\d+)\]`)
+						match := re.FindStringSubmatch(detail)
+						if len(match) > 0 {
+							num := match[2]
+							if num == "1" && (match[1] == r.Matched || match[1] == "1"+r.Matched) {
+								detailWrap = ""
+							}
+						}
 					}
 
 					// 指令信息标记
