@@ -423,7 +423,7 @@ func (pa *PlatformAdapterKook) toStdMessage(ctx *kook.KmarkdownMessageContext) *
 }
 
 func (pa *PlatformAdapterKook) checkIfGuildAdmin(ctx *kook.KmarkdownMessageContext) bool {
-	user, err := pa.IntentSession.UserView(ctx.Common.AuthorID)
+	user, err := pa.IntentSession.UserView(ctx.Common.AuthorID, kook.UserViewWithGuildID(ctx.Extra.GuildID))
 	if err != nil {
 		return false
 	}
@@ -485,10 +485,5 @@ func (pa *PlatformAdapterKook) memberPermissions(guildId *string, channelId *str
 	//		break
 	//	}
 	//}
-
-	if apermissions&int64(RolePermissionAdmin) == int64(RolePermissionAdmin) {
-		apermissions |= int64(RolePermissionAll)
-	}
-
 	return apermissions
 }
