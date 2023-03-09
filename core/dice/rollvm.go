@@ -1359,13 +1359,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				}
 
 				lastDetail := fmt.Sprintf("%dd%d=%d%s", aInt, bInt, num, suffix)
+				lastDetails = append(lastDetails, lastDetail)
 
-				if aInt == 1 {
-					// 只有一次时，如1d20，不必显示中间过程
-					lastDetail = ""
-				} else {
-					lastDetails = append(lastDetails, lastDetail)
-				}
 				//fmt.Println("xxxxx", aInt, "c", lastDetails, "|", lastDetail)
 				//ctx.Dice.Logger.Infoln("xxxxx", aInt, "c", lastDetails, "|", lastDetail)
 
