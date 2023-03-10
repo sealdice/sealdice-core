@@ -148,6 +148,9 @@ func ImConnectionsSetEnable(c echo.Context) error {
 			}
 		}
 	}
+
+	myDice.LastUpdatedTime = time.Now().Unix()
+	myDice.Save(false)
 	return c.JSON(http.StatusNotFound, nil)
 }
 
@@ -187,6 +190,8 @@ func ImConnectionsSetData(c echo.Context) error {
 			}
 		}
 	}
+
+	myDice.Save(false)
 	return c.JSON(http.StatusNotFound, nil)
 }
 
@@ -237,6 +242,8 @@ func ImConnectionsDel(c echo.Context) error {
 				}
 			}
 		}
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
 	}
 	return c.JSON(http.StatusNotFound, nil)
 }
@@ -311,6 +318,7 @@ func ImConnectionsAddWalleQ(c echo.Context) error {
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		go dice.WalleQServe(myDice, conn, v.Password, v.Protocol, false)
+		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		return c.JSON(200, conn)
 	}
@@ -556,6 +564,7 @@ func ImConnectionsAdd(c echo.Context) error {
 		myDice.LastUpdatedTime = time.Now().Unix()
 
 		dice.GoCqHttpServe(myDice, conn, v.Password, v.Protocol, true)
+		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		return c.JSON(200, conn)
 	}
@@ -595,6 +604,7 @@ func doSignIn(c echo.Context) error {
 		token := dice.RandStringBytesMaskImprSrcSB2(64) + ":" + head
 
 		myDice.Parent.AccessTokens[token] = true
+		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Parent.Save()
 		return c.JSON(http.StatusOK, map[string]string{
 			"token": token,
@@ -789,6 +799,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/group/set_one", groupSetOne)
 	e.POST(prefix+"/group/quit_one", groupQuit)
 
+	e.GET(prefix+"/banconfig/list", banMapList)
 	e.GET(prefix+"/banconfig/get", banConfigGet)
 	e.POST(prefix+"/banconfig/set", banConfigSet)
 

@@ -278,20 +278,6 @@ func (i *BanListInfo) AddScoreByGroupKicked(uid string, place string, ctx *MsgCo
 	}
 }
 
-func (i *BanListInfo) MapToJSON() []byte {
-	dict := map[string]*BanListInfoItem{}
-	i.Map.Range(func(k string, v *BanListInfoItem) bool {
-		dict[k] = v
-		return true
-	})
-
-	marshal, err := json.Marshal(dict)
-	if err != nil {
-		return nil
-	}
-	return marshal
-}
-
 func (i *BanListInfo) GetById(uid string) *BanListInfoItem {
 	v, _ := i.Map.Load(uid)
 	return v

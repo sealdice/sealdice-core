@@ -928,6 +928,7 @@ func (d *Dice) registerCoreCommands() {
 					var err error
 					r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{
 						DefaultDiceSideNum: getDefaultDicePoints(ctx),
+						DisableBlock:       true,
 					})
 
 					if !isRx {
@@ -935,6 +936,7 @@ func (d *Dice) registerCoreCommands() {
 							forWhat = cmdArgs.CleanArgs
 							r, detail, err = ctx.Dice.ExprEvalBase("d", ctx, RollExtraFlags{
 								DefaultDiceSideNum: getDefaultDicePoints(ctx),
+								DisableBlock:       true,
 							})
 						}
 					}
@@ -972,6 +974,14 @@ func (d *Dice) registerCoreCommands() {
 					detailWrap := ""
 					if detail != "" {
 						detailWrap = "=" + detail
+						re := regexp.MustCompile(`\[((\d+)d\d+)\=(\d+)\]`)
+						match := re.FindStringSubmatch(detail)
+						if len(match) > 0 {
+							num := match[2]
+							if num == "1" && (match[1] == r.Matched || match[1] == "1"+r.Matched) {
+								detailWrap = ""
+							}
+						}
 					}
 
 					// 指令信息标记

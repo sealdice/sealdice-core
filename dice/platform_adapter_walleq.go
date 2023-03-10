@@ -392,8 +392,28 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				return
 			case "group_member_decrease": //  被提出
 				if event.UserId == event.Self.UserId {
-					ctx.Dice.BanList.AddScoreByGroupKicked(opUid, msg.GroupId, ctx)
-					txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)", groupName, event.GroupId, userName, n.OperatorId)
+					skip := false
+					skipReason := ""
+					banInfo := ctx.Dice.BanList.GetById(opUid)
+					if banInfo != nil {
+						if banInfo.Rank == 30 {
+							skip = true
+							skipReason = "信任用户"
+						}
+					}
+					if ctx.Dice.IsMaster(opUid) {
+						skip = true
+						skipReason = "Master"
+					}
+
+					var extra string
+					if skip {
+						extra = fmt.Sprintf("\n取消处罚，原因为%s", skipReason)
+					} else {
+						ctx.Dice.BanList.AddScoreByGroupKicked(opUid, msg.GroupId, ctx)
+					}
+
+					txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, event.GroupId, userName, n.OperatorId, extra)
 					log.Info(txt)
 					ctx.Notice(txt)
 				}

@@ -5,7 +5,7 @@ import "time"
 func ServeQQ(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	// 换成 gocq 是不是更好 and 函数名都叫 ServeQQ 了……
-	if ep.Platform == "QQ" && ep.ProtocolType == "onebot" {
+	if ep.Platform == "QQ" && (ep.ProtocolType == "onebot" || ep.ProtocolType == "") {
 		conn := ep.Adapter.(*PlatformAdapterGocq)
 
 		if !conn.DiceServing {

@@ -121,7 +121,8 @@ func doReboot(dm *dice.DiceManager) {
 	}
 	platform := runtime.GOOS
 	if platform == "windows" {
-		_ = exec.Command(binary, "--delay=10").Start()
+		cleanUpCreate(dm)()
+		_ = exec.Command(binary, "--delay=25").Start()
 	} else {
 		// 手动cleanup
 		cleanUpCreate(dm)()
@@ -171,7 +172,7 @@ func doUpdate(dm *dice.DiceManager) {
 }
 
 func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo {
-	resp, err := http.Get(backendUrl + "/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 10))
+	resp, err := http.Get(backendUrl + "/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 20))
 	if err != nil {
 		logger.Errorf("获取新版本失败: %s", err.Error())
 		return nil

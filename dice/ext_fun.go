@@ -351,6 +351,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 					r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
 						CocVarNumberMode: true,
+						DisableBlock:     true,
 					})
 					if err == nil {
 						checkVal, _ := r.ReadInt64()
@@ -655,7 +656,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			if m == 0 {
 				m = 100
 			}
-			if t > 45 {
+			if t > 25 {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 				return CmdExecuteResult{Matched: true, Solved: false}
 			}
@@ -731,6 +732,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 					roulette.Reason = text
 				} else {
 					roulette.Reason = m
+				}
+
+				if roulette.Time > 25 {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
+					return CmdExecuteResult{Matched: true, Solved: false}
 				}
 
 				if roulette.Time > roulette.Face {

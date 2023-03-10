@@ -207,7 +207,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`{$t玩家}的属性数据已经清除，共计{$t数量}条`, 1},
 			},
 			"属性设置_增减_单项": {
-				{"$t属性: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})", 1},
+				{"{$t属性}: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})", 1},
 			},
 			"属性设置_增减": {
 				{"{$t玩家}的属性变化:\n{$t变更列表}\n{COC:属性设置_保存提醒}", 1},
@@ -1467,6 +1467,22 @@ func (d *Dice) loads() {
 						//)
 						srcText := `{ $t当前绑定角色 ? '[√] 已绑卡' : '' }`
 						d.TextMapRaw["COC"]["属性设置_保存提醒"][index][0] = srcText
+					}
+
+					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+					d.GenerateTextMap()
+					d.SaveText()
+				})
+			}
+
+			// 1.2 版本
+			if d.VersionCode != 0 && d.VersionCode < 10203 {
+				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+					// 更正写反的部分
+					d.Logger.Info("正在自动升级自定义文案文件")
+					for index, _ := range d.TextMapRaw["COC"]["属性设置_增减_单项"] {
+						srcText := "{$t属性}: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})"
+						d.TextMapRaw["COC"]["属性设置_增减_单项"][index][0] = srcText
 					}
 
 					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")

@@ -282,6 +282,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				mctx.SystemTemplate = mctx.Group.GetCharTemplate(ctx.Dice)
 				restText := cmdArgs.CleanArgs
 
+				cardType := ReadCardType(mctx)
+				if cardType != "" && cardType != mctx.Group.System {
+					ReplyToSender(mctx, msg, fmt.Sprintf("当前卡规则为 %s，群规则为 %s。\n为避免误操作，请先换卡、或.st fmt强制转卡，或使用.st clr清除数据", cardType, mctx.Group.System))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				cmdStCharFormat(mctx, tmpl) // 转一下卡
+
 				reBP := regexp.MustCompile(`^[bBpP]`)
 				re2 := regexp.MustCompile(`([^\d]+)\s+([\d]+)`)
 				//re2 := regexp.MustCompile(`([^\d])\s+([\d])|([\d])\s+([^\d])`)
@@ -320,6 +327,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					r1, detail1, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
 						CocVarNumberMode: true,
 						CocDefaultAttrOn: true,
+						DisableBlock:     true,
 					})
 
 					if err != nil {
@@ -343,6 +351,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					r2, detail2, err := mctx.Dice.ExprEvalBase(expr2Text, mctx, RollExtraFlags{
 						CocVarNumberMode: true,
 						CocDefaultAttrOn: true,
+						DisableBlock:     true,
 					})
 
 					if err != nil {
@@ -670,6 +679,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					r, _, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
 						CocVarNumberMode: true,
 						CocDefaultAttrOn: true,
+						DisableBlock:     true,
 					})
 
 					if err != nil {
@@ -692,7 +702,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						re := regexp.MustCompile(`[,，](.*)`)
 						m := re.FindStringSubmatch(restText)
 						restText = m[1]
-						r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{})
+						r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{DisableBlock: true})
 						if err != nil {
 							ReplyToSender(ctx, msg, "解析出错: "+restText)
 							return &CmdExecuteResult{Matched: true, Solved: true}, 0, ""
@@ -758,6 +768,16 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						// 攻击时，成功等级相同，视为被攻击者胜出(目标选择闪避)
 						// 攻击时，成功等级相同，视为攻击者胜出(目标选择反击)
 						// 技能高的人胜出
+
+						if cocRule == 11 {
+							// dg规则下，似乎并不区分情况，比骰点大小即可
+							if checkVal1 < checkVal2 {
+								winNum = -1
+							}
+							if checkVal1 > checkVal2 {
+								winNum = 1
+							}
+						}
 					}
 				} else {
 					if !checkPass1 && !checkPass2 {
@@ -1076,7 +1096,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				innerGetOnePiece := func() int {
 					var err error
-					r, _, err := mctx.Dice.ExprEvalBase(argText, mctx, RollExtraFlags{IgnoreDiv0: true})
+					r, _, err := mctx.Dice.ExprEvalBase(argText, mctx, RollExtraFlags{IgnoreDiv0: true, DisableBlock: true})
 					if err != nil {
 						// 情况1，完全不能解析
 						return 1
@@ -1102,7 +1122,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 					// 可能是 .sc 1 1 或 .sc 1 1/1
 					expr1 = r.Matched
-					r2, _, err := mctx.Dice.ExprEvalBase(r.restInput, mctx, RollExtraFlags{})
+					r2, _, err := mctx.Dice.ExprEvalBase(r.restInput, mctx, RollExtraFlags{DisableBlock: true})
 					if err != nil {
 						return 2
 					}
@@ -1193,12 +1213,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				text1 = expr2 + "/" + expr3
 
-				r, _, err = mctx.Dice.ExprEvalBase(expr2, mctx, RollExtraFlags{})
+				r, _, err = mctx.Dice.ExprEvalBase(expr2, mctx, RollExtraFlags{DisableBlock: true})
 				if err == nil {
 					reduceSuccess = r.Value.(int64)
 				}
 
-				r, _, err = mctx.Dice.ExprEvalBase(expr3, mctx, RollExtraFlags{BigFailDiceOn: successRank == -2})
+				r, _, err = mctx.Dice.ExprEvalBase(expr3, mctx, RollExtraFlags{BigFailDiceOn: successRank == -2, DisableBlock: true})
 				if err == nil {
 					reduceFail = r.Value.(int64)
 				}
@@ -1588,6 +1608,11 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 			} else {
 				successRank = -1
 			}
+		}
+
+		// 23.3 根据dg规则书修正: 为1大成功
+		if d100 == 1 {
+			successRank = 4
 		}
 	}
 
