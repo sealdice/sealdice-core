@@ -298,10 +298,15 @@ func main() {
 	//	panic(num)
 	//}
 
-	_, _ = diceManager.Cron.AddFunc("@every 15min", func() {
-		go CheckVersion(diceManager)
-	})
-	go CheckVersion(diceManager)
+	//_, _ = diceManager.Cron.AddFunc("@every 15min", func() {
+	//	go CheckVersion(diceManager)
+	//})
+	go func() {
+		for {
+			go CheckVersion(diceManager)
+			time.Sleep(5 * time.Minute)
+		}
+	}()
 	go RebootRequestListen(diceManager)
 	go UpdateRequestListen(diceManager)
 	go UpdateCheckRequestListen(diceManager)
