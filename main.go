@@ -346,38 +346,38 @@ func diceServe(d *dice.Dice) {
 		d.Logger.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
 	}
 
-	for _, conn := range d.ImSession.EndPoints {
-		if conn.Enable {
-			go func(con *dice.EndPointInfo) {
+	for _, _conn := range d.ImSession.EndPoints {
+		if _conn.Enable {
+			go func(conn *dice.EndPointInfo) {
 				defer dice.ErrorLogAndContinue(d)
 
-				switch con.Platform {
+				switch conn.Platform {
 				case "QQ":
 					if conn.EndPointInfoBase.ProtocolType == "walle-q" {
-						pa := con.Adapter.(*dice.PlatformAdapterWalleQ)
-						dice.WalleQServe(d, con, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, false)
+						pa := conn.Adapter.(*dice.PlatformAdapterWalleQ)
+						dice.WalleQServe(d, conn, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, false)
 					}
 					if conn.EndPointInfoBase.ProtocolType == "onebot" {
-						pa := con.Adapter.(*dice.PlatformAdapterGocq)
-						dice.GoCqHttpServe(d, con, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
+						dice.GoCqHttpServe(d, conn, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
 					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
-					dice.ServeQQ(d, con)
+					dice.ServeQQ(d, conn)
 					break
 				case "DISCORD":
-					dice.ServeDiscord(d, con)
+					dice.ServeDiscord(d, conn)
 					break
 				case "KOOK":
-					dice.ServeKook(d, con)
+					dice.ServeKook(d, conn)
 					break
 				case "TG":
-					dice.ServeTelegram(d, con)
+					dice.ServeTelegram(d, conn)
 					break
 				case "MC":
-					dice.ServeMinecraft(d, con)
+					dice.ServeMinecraft(d, conn)
 					break
 				case "DODO":
-					dice.ServeDodo(d, con)
+					dice.ServeDodo(d, conn)
 					break
 				}
 
@@ -394,7 +394,7 @@ func diceServe(d *dice.Dice) {
 				//	d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
 				//	time.Sleep(time.Duration(15 * time.Second))
 				//}
-			}(conn)
+			}(_conn)
 		}
 	}
 }
@@ -487,6 +487,7 @@ func dnsHack() {
 	}
 
 	http.DefaultTransport.(*http.Transport).DialContext = dialContext
+	net.DefaultResolver = dialer.Resolver
 }
 
 func mimePatch() {

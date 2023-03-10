@@ -781,7 +781,21 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 				if item.AllowDelegate {
 					// 允许代骰时，发一句话
-					ctx.DelegateText = fmt.Sprintf("由<%s>代骰:\n", ctx.Player.Name)
+					cur := -1
+					for index, i := range cmdArgs.At {
+						if i.UserId == ctx.EndPoint.UserId {
+							continue
+						}
+						cur = index
+					}
+
+					if cur != -1 {
+						if ctx.Dice.PlayerNameWrapEnable {
+							ctx.DelegateText = fmt.Sprintf("由<%s>代骰:\n", ctx.Player.Name)
+						} else {
+							ctx.DelegateText = fmt.Sprintf("由%s代骰:\n", ctx.Player.Name)
+						}
+					}
 				} else {
 					// 如果其他人被@了就不管
 					// 注: 如果被@的对象在botlist列表，那么不会走到这一步

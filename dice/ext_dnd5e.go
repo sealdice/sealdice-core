@@ -166,6 +166,14 @@ func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Reg
 	return exportMap
 }
 
+func getPlayerNameTempFunc(mctx *MsgContext) string {
+	if mctx.Dice.PlayerNameWrapEnable {
+		return fmt.Sprintf("<%s>", mctx.Player.Name)
+	} else {
+		return mctx.Player.Name
+	}
+}
+
 func RegisterBuiltinExtDnd5e(self *Dice) {
 	ac := setupConfigDND(self)
 
@@ -653,7 +661,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 				}
 
-				retText := fmt.Sprintf("<%s>的dnd5e人物属性设置如下:\n", mctx.Player.Name)
+				retText := fmt.Sprintf("%s的dnd5e人物属性设置如下:\n", getPlayerNameTempFunc(mctx))
 				if len(attrSeted) > 0 {
 					SetCardType(mctx, "dnd5e")
 					retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
@@ -733,7 +741,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					reason = restText
 				}
 
-				text := fmt.Sprintf("<%s>的“%s”检定(dnd5e)结果为:\n%s = %s", mctx.Player.Name, reason, detail, r.ToString())
+				text := fmt.Sprintf("%s的“%s”检定(dnd5e)结果为:\n%s = %s", getPlayerNameTempFunc(mctx), reason, detail, r.ToString())
 
 				// 指令信息
 				commandInfo := map[string]interface{}{
@@ -1038,7 +1046,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 				}
 
-				retText := fmt.Sprintf("<%s>的dnd5e人物Buff属性设置如下:\n", mctx.Player.Name)
+				retText := fmt.Sprintf("%s的dnd5e人物Buff属性设置如下:\n", getPlayerNameTempFunc(mctx))
 				if len(attrSeted) > 0 {
 					SetCardType(mctx, "dnd5e")
 					retText += "读入: " + strings.Join(attrSeted, ", ") + "\n"
@@ -1079,7 +1087,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 		newLevel := spellLevelCur + num
 		if newLevel < 0 {
-			ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>无法消耗%d个%d环法术位，当前%d个`, mctx.Player.Name, -num, spellLevel, spellLevelCur))
+			ReplyToSender(mctx, msg, fmt.Sprintf(`%s无法消耗%d个%d环法术位，当前%d个`, getPlayerNameTempFunc(mctx), -num, spellLevel, spellLevelCur))
 			return &CmdExecuteResult{Matched: true, Solved: true}
 		}
 		if newLevel > spellLevelMax {
@@ -1087,9 +1095,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		}
 		VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", spellLevel), newLevel)
 		if num < 0 {
-			ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的%d环法术位消耗至%d个，上限%d个`, mctx.Player.Name, spellLevel, newLevel, spellLevelMax))
+			ReplyToSender(mctx, msg, fmt.Sprintf(`%s的%d环法术位消耗至%d个，上限%d个`, getPlayerNameTempFunc(mctx), spellLevel, newLevel, spellLevelMax))
 		} else {
-			ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的%d环法术位恢复至%d个，上限%d个`, mctx.Player.Name, spellLevel, newLevel, spellLevelMax))
+			ReplyToSender(mctx, msg, fmt.Sprintf(`%s的%d环法术位恢复至%d个，上限%d个`, getPlayerNameTempFunc(mctx), spellLevel, newLevel, spellLevelMax))
 		}
 		return nil
 	}
@@ -1139,14 +1147,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					chVars.Del(fmt.Sprintf("$法术位上限_%d", i))
 				}
 				mctx.ChVarsUpdateTime()
-				ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>法术位数据已清除`, mctx.Player.Name))
+				ReplyToSender(mctx, msg, fmt.Sprintf(`%s法术位数据已清除`, getPlayerNameTempFunc(mctx)))
 
 			case "rest":
 				n := spellSlotsRenew(mctx, msg)
 				if n > 0 {
-					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的法术位已经完全恢复`, mctx.Player.Name))
+					ReplyToSender(mctx, msg, fmt.Sprintf(`%s的法术位已经完全恢复`, getPlayerNameTempFunc(mctx)))
 				} else {
-					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>并没有设置过法术位`, mctx.Player.Name))
+					ReplyToSender(mctx, msg, fmt.Sprintf(`%s并没有设置过法术位`, getPlayerNameTempFunc(mctx)))
 				}
 
 			case "set":
@@ -1187,7 +1195,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				if summary == "" {
 					summary = "没有设置过法术位"
 				}
-				ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的法术位状况: %s`, mctx.Player.Name, summary))
+				ReplyToSender(mctx, msg, fmt.Sprintf(`%s的法术位状况: %s`, getPlayerNameTempFunc(mctx), summary))
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
@@ -1302,7 +1310,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				if n > 0 {
 					ssText = "。法术位得到了恢复"
 				}
-				ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的长休: `+hpText+ssText, mctx.Player.Name))
+				ReplyToSender(mctx, msg, fmt.Sprintf(`%s的长休: `+hpText+ssText, getPlayerNameTempFunc(mctx)))
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
@@ -1351,7 +1359,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				case "f", "F", "失败":
 					a, b = deathSaving(mctx, 0, v)
 				}
-				text := fmt.Sprintf("<%s>当前的死亡豁免情况: 成功%d 失败%d", mctx.Player.Name, a, b)
+				text := fmt.Sprintf("%s当前的死亡豁免情况: 成功%d 失败%d", getPlayerNameTempFunc(mctx), a, b)
 				exText := deathSavingResultCheck(mctx, a, b)
 				if exText != "" {
 					text += "\n" + exText
@@ -1365,7 +1373,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			switch val {
 			case "stat":
 				a, b := deathSaving(mctx, 0, 0)
-				text := fmt.Sprintf("<%s>当前的死亡豁免情况: 成功%d 失败%d", mctx.Player.Name, a, b)
+				text := fmt.Sprintf("%s当前的死亡豁免情况: 成功%d 失败%d", getPlayerNameTempFunc(mctx), a, b)
 				ReplyToSender(mctx, msg, text)
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -1374,11 +1382,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			default:
 				hp, exists := VarGetValueInt64(mctx, "hp")
 				if !exists {
-					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>未设置生命值，无法进行死亡豁免检定。`, mctx.Player.Name))
+					ReplyToSender(mctx, msg, fmt.Sprintf(`%s未设置生命值，无法进行死亡豁免检定。`, getPlayerNameTempFunc(mctx)))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				if hp > 0 {
-					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>生命值大于0(当前为%d)，无法进行死亡豁免检定。`, mctx.Player.Name, hp))
+					ReplyToSender(mctx, msg, fmt.Sprintf(`%s生命值大于0(当前为%d)，无法进行死亡豁免检定。`, getPlayerNameTempFunc(mctx), hp))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
@@ -1405,10 +1413,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					deathSavingStable(mctx)
 					VarSetValueInt64(mctx, "hp", 1)
 					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_D20_附加语")
-					ReplyToSender(mctx, msg, fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix))
+					ReplyToSender(mctx, msg, fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), detail, d20, suffix))
 				} else if d20 == 1 {
 					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_D1_附加语")
-					text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
+					text := fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), detail, d20, suffix)
 					a, b := deathSaving(mctx, 0, 2)
 					exText := deathSavingResultCheck(mctx, a, b)
 					if exText != "" {
@@ -1418,7 +1426,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, text)
 				} else if d20 >= 10 {
 					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_成功_附加语")
-					text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
+					text := fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), detail, d20, suffix)
 					a, b := deathSaving(mctx, 1, 0)
 					exText := deathSavingResultCheck(mctx, a, b)
 					if exText != "" {
@@ -1428,7 +1436,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, text)
 				} else {
 					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_失败_附加语")
-					text := fmt.Sprintf(`<%s>的死亡豁免检定: %s=%d %s`, mctx.Player.Name, detail, d20, suffix)
+					text := fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), detail, d20, suffix)
 					a, b := deathSaving(mctx, 0, 1)
 					exText := deathSavingResultCheck(mctx, a, b)
 					if exText != "" {
@@ -1498,9 +1506,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			sep := DiceFormatTmpl(ctx, "DND:制卡_分隔符")
 			info := strings.Join(ss, sep)
 			if isMode2 {
-				ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的DnD5e人物作成(预设模式):\n%s\n自由分配模式请用.dnd", ctx.Player.Name, info))
+				ReplyToSender(ctx, msg, fmt.Sprintf("%s的DnD5e人物作成(预设模式):\n%s\n自由分配模式请用.dnd", getPlayerNameTempFunc(ctx), info))
 			} else {
-				ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的DnD5e人物作成(自由分配模式):\n%s\n获取带属性名的预设请用.dndx", ctx.Player.Name, info))
+				ReplyToSender(ctx, msg, fmt.Sprintf("%s的DnD5e人物作成(自由分配模式):\n%s\n获取带属性名的预设请用.dndx", getPlayerNameTempFunc(ctx), info))
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
