@@ -960,7 +960,7 @@ func (p *DiceRollParser) Init(options ...func(*DiceRollParser) error) error {
 			position, tokenIndex = position0, tokenIndex0
 			return false
 		},
-		/* 1 e <- <(('^' 's' 't' st_expr) / (&{!p.flags.DisableBlock} e0) / (eOne (';' sp Action1 eOne?)*))> */
+		/* 1 e <- <(('^' 's' 't' st_expr) / (&{p.flags.DisableBlock} e0) / (eOne (';' sp Action1 eOne?)*))> */
 		func() bool {
 			position3, tokenIndex3 := position, tokenIndex
 			{
@@ -1352,7 +1352,7 @@ func (p *DiceRollParser) Init(options ...func(*DiceRollParser) error) error {
 					goto l5
 				l6:
 					position, tokenIndex = position5, tokenIndex5
-					if !(!p.flags.DisableBlock) {
+					if !(p.flags.DisableBlock) {
 						goto l59
 					}
 					if !_rules[rulee0]() {
@@ -1501,12 +1501,12 @@ func (p *DiceRollParser) Init(options ...func(*DiceRollParser) error) error {
 			position, tokenIndex = position65, tokenIndex65
 			return false
 		},
-		/* 3 assign_expr <- <(&{p.flags.DisableBlock} identifier Action2 '=' sp e0 Action3)> */
+		/* 3 assign_expr <- <(&{!p.flags.DisableBlock} identifier Action2 '=' sp e0 Action3)> */
 		func() bool {
 			position79, tokenIndex79 := position, tokenIndex
 			{
 				position80 := position
-				if !(p.flags.DisableBlock) {
+				if !(!p.flags.DisableBlock) {
 					goto l79
 				}
 				if !_rules[ruleidentifier]() {

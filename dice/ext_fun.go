@@ -599,7 +599,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			val := cmdArgs.GetArgN(1)
 			if val != "" {
 				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-				r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{})
+				r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{DisableBlock: false})
 
 				if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
 					text := r.Value.(string)
