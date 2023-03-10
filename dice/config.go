@@ -1475,6 +1475,22 @@ func (d *Dice) loads() {
 				})
 			}
 
+			// 1.2 版本
+			if d.VersionCode != 0 && d.VersionCode < 10203 {
+				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+					// 更正写反的部分
+					d.Logger.Info("正在自动升级自定义文案文件")
+					for index, _ := range d.TextMapRaw["COC"]["属性设置_增减_单项"] {
+						srcText := "{$t属性}: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})"
+						d.TextMapRaw["COC"]["属性设置_增减_单项"][index][0] = srcText
+					}
+
+					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+					d.GenerateTextMap()
+					d.SaveText()
+				})
+			}
+
 			// 设置全局群名缓存和用户名缓存
 			dm := d.Parent
 			now := time.Now().Unix()

@@ -172,7 +172,7 @@ func doUpdate(dm *dice.DiceManager) {
 }
 
 func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo {
-	resp, err := http.Get(backendUrl + "/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 10))
+	resp, err := http.Get(backendUrl + "/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 20))
 	if err != nil {
 		logger.Errorf("获取新版本失败: %s", err.Error())
 		return nil

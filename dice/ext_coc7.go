@@ -768,6 +768,16 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						// 攻击时，成功等级相同，视为被攻击者胜出(目标选择闪避)
 						// 攻击时，成功等级相同，视为攻击者胜出(目标选择反击)
 						// 技能高的人胜出
+
+						if cocRule == 11 {
+							// dg规则下，似乎并不区分情况，比骰点大小即可
+							if checkVal1 < checkVal2 {
+								winNum = -1
+							}
+							if checkVal1 > checkVal2 {
+								winNum = 1
+							}
+						}
 					}
 				} else {
 					if !checkPass1 && !checkPass2 {
@@ -1598,6 +1608,11 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 			} else {
 				successRank = -1
 			}
+		}
+
+		// 23.3 根据dg规则书修正: 为1大成功
+		if d100 == 1 {
+			successRank = 4
 		}
 	}
 
