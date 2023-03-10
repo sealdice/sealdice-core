@@ -3,7 +3,7 @@
     <span style="display: flex; align-items: center;">
       <span>内存占用: </span>
       <span>{{filesize(store.curDice.baseInfo.memoryUsedSys || 0)}}</span>
-      <el-tooltip raw-content content="内存主要为全文搜索功能所占用，如果不需要“.查询”功能，删除data/helpdoc目录，内存占用将显著降低">
+      <el-tooltip raw-content content="理论内存占用，偏大。任务管理器中的“活动内存”为实际使用的系统内存">
         <el-icon><question-filled /></el-icon>
       </el-tooltip>
     </span>

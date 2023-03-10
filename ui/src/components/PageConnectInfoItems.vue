@@ -22,7 +22,7 @@
           </div>
         </template>
 
-        <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="i.adapter?.goCqHttpState === goCqHttpStateCode.InLoginQrCode && store.curDice.qrcodes[i.id]">
+        <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode) && store.curDice.qrcodes[i.id]">
           <div style="margin-left: 2rem">需要同账号的手机QQ扫码登录:</div>
           <img style="width: 10rem; height:10rem; margin-left: 3.5rem; margin-top: 2rem;" :src="store.curDice.qrcodes[i.id]" />
         </div>
@@ -71,7 +71,7 @@
             <div>{{i.adapter?.connectUrl}}</div>
           </el-form-item>
 
-          <template v-if="i.platform == 'QQ'">
+          <template v-if="i.platform === 'QQ'">
             <!-- <el-form-item label="忽略好友请求">
               <div>{{i.adapter?.ignoreFriendRequest ? '是' : '否'}}</div>
             </el-form-item> -->
@@ -81,8 +81,17 @@
               <div v-if="i.adapter?.inPackGoCqHttpProtocol === 0">iPad</div>
               <div v-if="i.adapter?.inPackGoCqHttpProtocol === 1">Android</div>
               <div v-if="i.adapter?.inPackGoCqHttpProtocol === 2">Android 手表</div>
+              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 3">MacOS</div>
+              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 5">iPad</div>
+              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 6">AndroidPad</div>
               <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
               <el-button size="small" type="primary" style="margin-left: 1rem" @click="askSetData(i)" :icon="Edit"></el-button>
+            </el-form-item>
+            <el-form-item label="协议实现">
+              <!-- <el-input v-model="i.connectUrl"></el-input> -->
+              <div v-if="i.adapter?.implementation === 'gocq'">Go-cqhttp</div>
+              <div v-if="i.adapter?.implementation === 'walle-q'">Walle-q</div>
+              <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
             </el-form-item>
           </template>
 
@@ -129,6 +138,9 @@
           <el-option label="iPad 协议" :value="0"></el-option>
           <el-option label="Android 协议 - 稳定协议，建议！" :value="1"></el-option>
           <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
+          <el-option label="MacOS" :value="3"></el-option>
+          <el-option label="iPad" :value="5"></el-option>
+          <el-option v-if="form.implementation === 'gocq'" label="AndroidPad" :value="6"></el-option>
           <!-- <el-option label="MacOS" :value="3"></el-option> -->
         </el-select>
       </el-form-item>
@@ -166,9 +178,18 @@
             <el-option label="iPad 协议" :value="0"></el-option>
             <el-option label="Android 协议" :value="1"></el-option>
             <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
+            <el-option label="MacOS" :value="3"></el-option>
+            <el-option label="iPad" :value="5"></el-option>
+            <el-option v-if="form.implementation === 'gocq'" label="AndroidPad" :value="6"></el-option>
             <!-- <el-option label="MacOS" :value="3"></el-option> -->
           </el-select>
         </el-form-item>
+        <!-- <el-form-item v-if="form.accountType === 0" label="协议实现" :label-width="formLabelWidth" required>
+          <el-select v-model="form.implementation">
+            <el-option label="Go-cqhttp" :value="'gocq'"></el-option>
+            <el-option label="Walle-Q" :value="'walle-q'"></el-option>
+          </el-select>
+        </el-form-item> -->
 
         <el-form-item v-if="form.accountType === 0" label="账号" :label-width="formLabelWidth" required>
           <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
@@ -261,11 +282,11 @@
             <div>展示版本未必是最新版，建议您下载体验。</div>
             <el-button style="margin-top: 1rem;" @click="formClose">再会</el-button>
           </div>
-          <div v-else-if="index === 2 && curConn.adapter?.goCqHttpState === goCqHttpStateCode.InLoginQrCode">
+          <div v-else-if="index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginQrCode">
             <div>登录需要滑条验证码, 请使用登录此账号的手机QQ扫描二维码以继续登录:</div>
-            <img :src="store.curDice.qrcodes[curConn.id]" style="width: 12rem; height: 12rem" />
+            <img :src="store.curDice.qrcodes[curConn.id]" style="width: 20rem; height: 20rem" />
           </div>
-          <div v-else-if="index === 2 && curConn.adapter?.goCqHttpState === goCqHttpStateCode.InLoginDeviceLock && curConn.adapter?.goCqHttpLoginDeviceLockUrl">
+          <div v-else-if="index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginDeviceLock && curConn.adapter?.goCqHttpLoginDeviceLockUrl">
             <div>账号已开启设备锁，请访问此链接进行验证：</div>
             <div>
               <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.goCqHttpLoginDeviceLockUrl}}</el-link>
@@ -278,7 +299,7 @@
               </div>
             </div>
           </div>
-          <div v-else-if="index === 2 && (curConn.adapter?.goCqHttpState === goCqHttpStateCode.LoginFailed)">
+          <div v-else-if="index === 2 && (curConn.adapter?.loginState === goCqHttpStateCode.LoginFailed)">
             <div>
               <div>登录失败!可能是以下原因：</div>
               <ul>
@@ -441,7 +462,7 @@ const goStepTwo = async () => {
   })
   if (form.accountType > 0) {
     dialogFormVisible.value = false
-    form.step = 3
+    form.step = 1
     return
   }
   activities.value = []
@@ -538,7 +559,7 @@ const gocqhttpReLogin = async (i: DiceConnection) => {
   duringRelogin.value = true;
   curConnId.value = ''; // 先改掉这个，以免和当前连接一致，导致被瞬间重置
   if (curConn.value && curConn.value.adapter) {
-    curConn.value.adapter.goCqHttpState = goCqHttpStateCode.Init;
+    curConn.value.adapter.loginState = goCqHttpStateCode.Init;
   }
   store.gocqhttpReloginImConnection(i).then(theConn => {
     curConnId.value = i.id;
@@ -559,7 +580,8 @@ const form = reactive({
   isEnd: false,
   account: '',
   password: '',
-  protocol: 2,
+  protocol: 1,
+  implementation:'',
   id: '',
   token: '',
   url:'',
@@ -571,6 +593,7 @@ const form = reactive({
 const addOne = () => {
   dialogFormVisible.value = true
   form.protocol = 2
+  form.implementation = 'gocq'
 }
 
 let timerId: number
@@ -596,7 +619,7 @@ onBeforeMount(async () => {
       // }
 
       // 获取二维码
-      if (i.adapter?.goCqHttpState === goCqHttpStateCode.InLoginQrCode) {
+      if (i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode) {
         store.curDice.qrcodes[i.id] = (await store.getImConnectionsQrCode(i)).img
       }
 
@@ -604,12 +627,12 @@ onBeforeMount(async () => {
         curConn.value = i;
 
         // 登录失败
-        if (i.state !== 1 && i.adapter?.goCqHttpState === goCqHttpStateCode.LoginFailed) {
+        if (i.state !== 1 && i.adapter?.loginState === goCqHttpStateCode.LoginFailed) {
           form.isEnd = true;
         }
 
         // 登录成功
-        if (i.state === 1 && i.adapter?.goCqHttpState === goCqHttpStateCode.LoginSuccessed) {
+        if (i.state === 1 && i.adapter?.loginState === goCqHttpStateCode.LoginSuccessed) {
           activities.value.push(fullActivities[3])
           await sleep(1000)
           form.step = 3

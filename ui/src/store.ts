@@ -17,9 +17,10 @@ export interface AdapterQQ {
   connectUrl: string;
   curLoginFailedReason: string
   curLoginIndex: number
-  goCqHttpState: goCqHttpStateCode
+  loginState: goCqHttpStateCode
   inPackGoCqHttpLastRestricted: number
   inPackGoCqHttpProtocol: number
+  implementation: string
   useInPackGoCqhttp: boolean;
   goCqHttpLoginVerifyCode: string;
   goCqHttpLoginDeviceLockUrl: string;
@@ -96,7 +97,7 @@ export const useStore = defineStore('main', {
 
       talkLogs: [
         {
-          content: '海豹，正在等待。\n设置中添加Master名为UI:1001\n即可在此界面使用master命令!',
+          content: '海豹已就绪。此界面可视为私聊窗口。\n设置中添加Master名为UI:1001\n即可在此界面使用master命令!',
           isSeal: true
         },
         {
@@ -164,13 +165,17 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, url: string, clientID: string}) {
-      const {accountType, account, password, protocol, token, url, clientID} = form
+    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, url: string, clientID: string, implementation: string}) {
+      const {accountType, account, password, protocol, token, url, clientID, implementation} = form
       let info = null
       switch (accountType) {
         //QQ
         case 0:
-          info = await backend.post(urlPrefix+'/im_connections/add', { account, password, protocol }, { timeout: 65000 })
+          if (implementation === 'gocq') {
+            info = await backend.post(urlPrefix+'/im_connections/add', { account, password, protocol }, { timeout: 65000 })
+          } else if (implementation === 'walle-q') {
+            info = await backend.post(urlPrefix+'/im_connections/addWalleQ', { account, password, protocol }, { timeout: 65000 })
+          }
           break
         case 1:
           info = await backend.post(urlPrefix+'/im_connections/addDiscord', {token}, { timeout: 65000 })
@@ -307,7 +312,7 @@ export const useStore = defineStore('main', {
     },
 
     async banConfigMapGet() {
-      const info = await backend.get(urlPrefix+'/banconfig/map_get')
+      const info = await backend.get(urlPrefix+'/banconfig/list')
       return info as any
     },
 
@@ -416,7 +421,7 @@ export const useStore = defineStore('main', {
     },
 
     async upgrade() {
-      const info = await backend.post(urlPrefix+'/dice/upgrade')
+      const info = await backend.post(urlPrefix+'/dice/upgrade', null, { timeout: 120000 })
       return info
     },
 
