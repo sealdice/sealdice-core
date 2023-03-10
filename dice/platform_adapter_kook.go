@@ -266,7 +266,7 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 		switch e := element.(type) {
 		case *TextElement:
 			//goldmark.DefaultParser().Parse(txt.NewReader([]byte(e.Content)))
-			msgb.Content += markdownAntiConvert(e.Content)
+			msgb.Content += "```\n" + e.Content + "\n```"
 		case *ImageElement:
 			if msgb.Content != "" {
 				err = pa.MessageCreateRaw(msgb, id, private)
@@ -324,7 +324,7 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 		case *AtElement:
 			msgb.Content = msgb.Content + fmt.Sprintf("(met)%s(met)", e.Target)
 		case *TTSElement:
-			msgb.Content += markdownAntiConvert(e.Content)
+			msgb.Content += "```" + e.Content + "```"
 		case *ReplyElement:
 			msgb.Quote = e.Target
 		}
