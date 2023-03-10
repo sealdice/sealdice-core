@@ -171,9 +171,18 @@ func ImConnectionsSetData(c echo.Context) error {
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
-				ad := i.Adapter.(*dice.PlatformAdapterGocq)
-				ad.SetQQProtocol(v.Protocol)
-				ad.IgnoreFriendRequest = v.IgnoreFriendRequest
+				if i.ProtocolType == "walle-q" {
+					ad := i.Adapter.(*dice.PlatformAdapterWalleQ)
+					ad.SetQQProtocol(v.Protocol)
+					ad.IgnoreFriendRequest = v.IgnoreFriendRequest
+				} else {
+					ad := i.Adapter.(*dice.PlatformAdapterGocq)
+					if i.ProtocolType != "onebot" {
+						i.ProtocolType = "onebot"
+					}
+					ad.SetQQProtocol(v.Protocol)
+					ad.IgnoreFriendRequest = v.IgnoreFriendRequest
+				}
 				return c.JSON(http.StatusOK, i)
 			}
 		}

@@ -6,7 +6,9 @@ import (
 	"github.com/lonelyevil/kook"
 	"github.com/lonelyevil/kook/log_adapter/plog"
 	"github.com/phuslu/log"
+	"github.com/yuin/goldmark"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -263,7 +265,8 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 	for _, element := range elem {
 		switch e := element.(type) {
 		case *TextElement:
-			msgb.Content += e.Content
+			//goldmark.DefaultParser().Parse(txt.NewReader([]byte(e.Content)))
+			msgb.Content += markdownAntiConvert(e.Content)
 		case *ImageElement:
 			if msgb.Content != "" {
 				err = pa.MessageCreateRaw(msgb, id, private)
@@ -321,7 +324,7 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 		case *AtElement:
 			msgb.Content = msgb.Content + fmt.Sprintf("(met)%s(met)", e.Target)
 		case *TTSElement:
-			msgb.Content += e.Content
+			msgb.Content += markdownAntiConvert(e.Content)
 		case *ReplyElement:
 			msgb.Quote = e.Target
 		}
@@ -397,12 +400,65 @@ func (pa *PlatformAdapterKook) SetGroupCardName(groupId string, userId string, n
 		return
 	}
 }
-
+func trimHtml(src string) string {
+	//将HTML标签全转换成小写
+	re, _ := regexp.Compile("\\<[\\S\\s]+?\\>")
+	src = re.ReplaceAllStringFunc(src, strings.ToLower)
+	//去除STYLE
+	re, _ = regexp.Compile("\\<style[\\S\\s]+?\\</style\\>")
+	src = re.ReplaceAllString(src, "")
+	//去除SCRIPT
+	re, _ = regexp.Compile("\\<script[\\S\\s]+?\\</script\\>")
+	src = re.ReplaceAllString(src, "")
+	//去除所有尖括号内的HTML代码，并换成换行符
+	re, _ = regexp.Compile("\\<[\\S\\s]+?\\>")
+	src = re.ReplaceAllString(src, "\n")
+	//去除连续的换行符
+	re, _ = regexp.Compile("\\s{2,}")
+	src = re.ReplaceAllString(src, "\n")
+	return strings.TrimSpace(src)
+}
+func markdownAntiConvert(src string) string {
+	re, _ := regexp.Compile("\\\\")
+	src = re.ReplaceAllStringFunc(src, addSlash)
+	re, _ = regexp.Compile("`")
+	src = re.ReplaceAllStringFunc(src, addSlash)
+	re, _ = regexp.Compile("\\*")
+	src = re.ReplaceAllStringFunc(src, addSlash)
+	re, _ = regexp.Compile("_")
+	src = re.ReplaceAllStringFunc(src, addSlash)
+	re, _ = regexp.Compile("\\{\\}")
+	src = re.ReplaceAllStringFunc(src, addSlash)
+	re, _ = regexp.Compile("\\[\\]")
+	src = re.ReplaceAllStringFunc(src, addSlash)
+	re, _ = regexp.Compile("\\(\\)")
+	src = re.ReplaceAllStringFunc(src, addSlash)
+	re, _ = regexp.Compile("#")
+	src = re.ReplaceAllStringFunc(src, addSlash)
+	//re, _ = regexp.Compile("\\\n")
+	//src = re.ReplaceAllString(src, "\n")
+	//re, _ = regexp.Compile("-")
+	//src = re.ReplaceAllStringFunc(src, addSlash)
+	re, _ = regexp.Compile("\\.")
+	src = re.ReplaceAllStringFunc(src, addSlash)
+	re, _ = regexp.Compile("!")
+	src = re.ReplaceAllStringFunc(src, addSlash)
+	return strings.TrimSpace(src)
+}
+func addSlash(src string) string {
+	return "\\" + src
+}
 func (pa *PlatformAdapterKook) toStdMessage(ctx *kook.KmarkdownMessageContext) *Message {
+	logger := pa.Session.Parent.Logger
 	msg := new(Message)
 	msg.Time = ctx.Common.MsgTimestamp
 	msg.RawId = ctx.Common.MsgID
-	msg.Message = ctx.Common.Content
+	var buf bytes.Buffer
+	if err := goldmark.Convert([]byte(ctx.Common.Content), &buf); err != nil {
+		logger.Errorf("Kook Markdown 解析错误:%s 内容:%s", err, ctx.Common.Content)
+		return nil
+	}
+	msg.Message = trimHtml(buf.String())
 	msg.Message = strings.ReplaceAll(msg.Message, `\[`, "[")
 	msg.Message = strings.ReplaceAll(msg.Message, `\]`, "]")
 	msg.Platform = "KOOK"
