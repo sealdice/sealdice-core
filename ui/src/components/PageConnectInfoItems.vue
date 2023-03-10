@@ -164,7 +164,7 @@
         <el-form-item v-if="form.accountType === 0" label="设备" :label-width="formLabelWidth" required>
           <el-select v-model="form.protocol">
             <el-option label="iPad 协议" :value="0"></el-option>
-            <el-option label="Android 协议 - 稳定协议，建议！" :value="1"></el-option>
+            <el-option label="Android 协议" :value="1"></el-option>
             <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
             <!-- <el-option label="MacOS" :value="3"></el-option> -->
           </el-select>
@@ -180,7 +180,8 @@
             <div>提示: 新设备首次登录多半需要手机版扫码，建议先准备好</div>
             <div>能够进行扫码登录（不填写密码即可），但注意扫码登录不支持自动重连。</div>
             <div>如果出现“要求同一WIFI扫码”可以本地登录后备份，复制到服务器上。</div>
-            <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div>
+            <div v-if="form.protocol !== 2" style="color: #aa4422;">提示: 首次登录时，目前建议使用手表协议(2023年3月)，别的协议目前无法登录。</div>
+            <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
           </small>
         </el-form-item>
 
@@ -558,7 +559,7 @@ const form = reactive({
   isEnd: false,
   account: '',
   password: '',
-  protocol: 1,
+  protocol: 2,
   id: '',
   token: '',
   url:'',
@@ -569,7 +570,7 @@ const form = reactive({
 
 const addOne = () => {
   dialogFormVisible.value = true
-  form.protocol = 1
+  form.protocol = 2
 }
 
 let timerId: number
