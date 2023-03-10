@@ -23,7 +23,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.2.3dev v20230310"
+var VERSION = "1.2.3dev v20230311"
 
 // var VERSION_CODE = int64(1001000) // 991404
 var VERSION_CODE = int64(1002002) // 坏了，1.1的版本号标错了，标成了1.10.0
@@ -220,7 +220,7 @@ func (d *Dice) Init() {
 	_ = os.MkdirAll(d.BaseConfig.DataDir, 0755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0755)
-	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "logs"), 0755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "log-exports"), 0755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0755)
 
@@ -278,11 +278,18 @@ func (d *Dice) Init() {
 	d.RunAfterLoaded = []func(){}
 
 	autoSave := func() {
+		count := 0
 		t := time.Tick(30 * time.Second)
 		for {
 			<-t
 			if d.IsAlreadyLoadConfig {
+				count += 1
 				d.Save(true)
+				if count%5 == 0 {
+					// 注: 这种用法我不太清楚是否有必要
+					model.FlushWAL(d.DBData)
+					model.FlushWAL(d.DBLogs)
+				}
 			}
 		}
 	}
@@ -380,8 +387,8 @@ func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
 
 func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VmResult, string, error) {
 	parser := d.rebuildParser(buffer)
+	parser.RollExpression.flags = flags // 千万记得在parse之前赋值
 	err := parser.Parse()
-	parser.RollExpression.flags = flags
 
 	if flags.vmDepth > 64 {
 		return nil, "", errors.New("E8: 递归次数超过上限")
