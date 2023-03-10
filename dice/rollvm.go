@@ -553,7 +553,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				}
 				outStr += val.ToString()
 			}
-
+			outStr = strings.ReplaceAll(outStr, "\\n", "\n")
 			//for index, i := range parts {
 			//	var val vmStack
 			//	if top-len(parts)+index < 0 {
