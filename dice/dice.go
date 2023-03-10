@@ -23,7 +23,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.2.2 v20230303"
+var VERSION = "1.2.3dev v20230310"
 
 // var VERSION_CODE = int64(1001000) // 991404
 var VERSION_CODE = int64(1002002) // 坏了，1.1的版本号标错了，标成了1.10.0

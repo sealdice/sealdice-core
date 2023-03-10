@@ -78,6 +78,8 @@ archives:
         dst: .
       - src: data/names
         dst: .
+      - src: data/decks/seal.json
+        dst: .
       - src: frontend
         dst: .
       - src: temp/go-cqhttp_{{ .Os }}_{{ .Arch }}

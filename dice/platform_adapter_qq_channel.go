@@ -108,6 +108,9 @@ func (pa *PlatformAdapterGocq) SendToChannelGroup(ctx *MsgContext, userId string
 	}
 
 	lst := strings.Split(rawId, "-")
+	if len(lst) < 2 {
+		return
+	}
 
 	type GroupMessageParams struct {
 		//MessageType string `json:"message_type"`

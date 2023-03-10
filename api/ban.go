@@ -1,9 +1,11 @@
 package api
 
 import (
+	"encoding/json"
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"sealdice-core/dice"
+	"sealdice-core/dice/model"
 	"strings"
 )
 
@@ -51,12 +53,22 @@ func banConfigSet(c echo.Context) error {
 	return c.JSON(http.StatusOK, myDice.BanList)
 }
 
-func banMapGet(c echo.Context) error {
+func banMapList(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	return c.JSONBlob(http.StatusOK, myDice.BanList.MapToJSON())
+	lst := []*dice.BanListInfoItem{}
+	model.BanItemList(myDice.DBData, func(id string, banUpdatedAt int64, data []byte) {
+		var v dice.BanListInfoItem
+		err := json.Unmarshal(data, &v)
+		if err != nil {
+			v.BanUpdatedAt = banUpdatedAt
+		}
+		lst = append(lst, &v)
+	})
+
+	return c.JSON(http.StatusOK, lst)
 }
 
 func banMapDeleteOne(c echo.Context) error {
