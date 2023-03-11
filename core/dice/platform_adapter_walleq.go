@@ -325,7 +325,9 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 			msg.Message = MessageSegmentToText(msgQQ.Message)
 			if msg.Sender.UserId != "" {
-				dm.UserNameCache.Set(msg.Sender.UserId, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+				if msg.Sender.Nickname != "" {
+					dm.UserNameCache.Set(msg.Sender.UserId, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+				}
 			}
 
 			pa.Session.Execute(pa.EndPoint, msg, false) // wq 还没有频道支持，直接执行

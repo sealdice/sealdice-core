@@ -274,7 +274,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			if msg.Sender.UserId != "" {
 				// 用户名缓存
-				dm.UserNameCache.Set(msg.Sender.UserId, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+				if msg.Sender.Nickname != "" {
+					dm.UserNameCache.Set(msg.Sender.UserId, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+				}
 			}
 
 			// 获得用户信息
