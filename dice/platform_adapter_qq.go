@@ -861,6 +861,8 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		time.Sleep(10 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
 		GoCqHttpServeRemoveSessionToken(myDice, ep) // 删除session.token
 		pa.GoCqHttpLastRestrictedTime = 0           // 重置风控时间
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
 		GoCqHttpServe(myDice, ep, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
 		return true
 	}

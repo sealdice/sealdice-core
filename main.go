@@ -400,6 +400,8 @@ func diceServe(d *dice.Dice) {
 				//	time.Sleep(time.Duration(15 * time.Second))
 				//}
 			}(_conn)
+		} else {
+			_conn.State = 0 // 重置状态
 		}
 	}
 }

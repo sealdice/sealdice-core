@@ -47,6 +47,9 @@ func (pa *PlatformAdapterMinecraft) Serve() int {
 	pa.Socket = &socket
 	pa.EndPoint.Nickname = "A Minecraft Server"
 	pa.EndPoint.UserId = "WebSocket"
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 	pa.socketSetup()
 	socket.Connect()
 	return 0

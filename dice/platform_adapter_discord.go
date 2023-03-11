@@ -86,6 +86,10 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
 	pa.Session.Parent.Logger.Infof("Discord 服务连接成功，账号<%s>(%s)", pa.IntentSession.State.User.Username, FormatDiceIdDiscord(pa.IntentSession.State.User.ID))
+
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 	return 0
 }
 

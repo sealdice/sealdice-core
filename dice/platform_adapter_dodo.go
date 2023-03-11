@@ -54,6 +54,9 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	if err == nil {
 		pa.EndPoint.UserId = FormatDiceIdDodo(selfid.DodoSourceId)
 		pa.EndPoint.Nickname = selfid.NickName
+		d := pa.Session.Parent
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
 	}
 	msgHandlers := &websocket.MessageHandlers{}
 	channelMessageHandler := func(event *websocket.WSEventMessage, data *websocket.ChannelMessageEventBody) error {
@@ -91,6 +94,9 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	pa.Session.Parent.Logger.Infof("Dodo 连接成功")
 	pa.EndPoint.Enable = true
 	pa.EndPoint.State = 1
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 	return 0
 }
 
