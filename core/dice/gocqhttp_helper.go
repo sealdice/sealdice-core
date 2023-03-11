@@ -535,6 +535,8 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 					pa.GoCqHttpState = StateCodeInLoginDeviceLock
 					pa.GoCqHttpLoginSucceeded = true
 					pa.GoCqHttpLoginDeviceLockUrl = m[1]
+					dice.LastUpdatedTime = time.Now().Unix()
+					dice.Save(false)
 					fmt.Println("??????????????????? why")
 				}
 			}
@@ -556,6 +558,8 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				pa.GoCqHttpState = StateCodeLoginSuccessed
 				pa.GoCqHttpLoginSucceeded = true
 				dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserId)
+				dice.LastUpdatedTime = time.Now().Unix()
+				dice.Save(false)
 
 				go ServeQQ(dice, conn)
 			}
@@ -654,11 +658,15 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				pa.GoCqHttpState = StateCodeInLoginQrCode
 				pa.GoCqHttpQrcodeData = qrdata
 				dice.Logger.Info("获取二维码成功")
+				dice.LastUpdatedTime = time.Now().Unix()
+				dice.Save(false)
 				_ = os.Rename(qrcodeFile, qrcodeFile+".bak.png")
 			} else {
 				pa.GoCqHttpQrcodeData = nil
 				pa.GoCqHttpState = StateCodeLoginFailed
 				pa.GocqhttpLoginFailedReason = "获取二维码失败"
+				dice.LastUpdatedTime = time.Now().Unix()
+				dice.Save(false)
 				dice.Logger.Info("获取二维码失败，错误为: ", err.Error())
 			}
 		}

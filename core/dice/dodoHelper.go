@@ -1,6 +1,9 @@
 package dice
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 func NewDodoConnItem(clientID string, token string) *EndPointInfo {
 	conn := new(EndPointInfo)
@@ -26,6 +29,8 @@ func ServeDodo(d *Dice, ep *EndPointInfo) {
 			d.Logger.Errorf("连接Dodo失败")
 			ep.State = 3
 			ep.Enable = false
+			d.LastUpdatedTime = time.Now().Unix()
+			d.Save(false)
 		}
 	}
 }

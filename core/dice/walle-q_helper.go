@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/BurntSushi/toml"
+	"github.com/fy0/procs"
+	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
-
-	"github.com/BurntSushi/toml"
-	"github.com/fy0/procs"
-	"github.com/google/uuid"
+	"time"
 )
 
 const (
@@ -246,6 +246,8 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 				pa.WalleQQrcodeData = qrdata
 				dice.Logger.Info("获取二维码成功")
 				_ = os.Rename(qrcodeFile, qrcodeFile+".bak.png")
+				dice.LastUpdatedTime = time.Now().Unix()
+				dice.Save(false)
 			} else {
 				pa.WalleQQrcodeData = nil
 				pa.WalleQState = WqStateCodeLoginFailed

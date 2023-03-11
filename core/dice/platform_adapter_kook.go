@@ -179,6 +179,9 @@ func (pa *PlatformAdapterKook) Serve() int {
 	pa.EndPoint.Nickname = self.Nickname
 	pa.EndPoint.UserId = FormatDiceIdKook(self.ID)
 	pa.Session.Parent.Logger.Infof("KOOK 连接成功，账号<%s>(%s)", pa.EndPoint.Nickname, pa.EndPoint.UserId)
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 	return 0
 }
 

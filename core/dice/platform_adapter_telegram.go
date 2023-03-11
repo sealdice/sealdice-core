@@ -49,6 +49,9 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 		pa.Session.Parent.Logger.Errorf("与Telegram服务进行连接时出错:%s", err.Error())
 		ep.State = 3
 		ep.Enable = false
+		d := pa.Session.Parent
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
 		return 1
 	}
 	pa.IntentSession = bot
@@ -56,6 +59,9 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	ep.Nickname = bot.Self.UserName
 	ep.State = 1
 	ep.Enable = true
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 	pa.Session.Parent.Logger.Infof("Telegram 服务连接成功，账号<%s>(%s)", bot.Self.UserName, pa.EndPoint.UserId)
 	updateConfig := tgbotapi.NewUpdate(0)
 
