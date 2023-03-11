@@ -1,6 +1,9 @@
 package dice
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 func NewKookConnItem(token string) *EndPointInfo {
 	conn := new(EndPointInfo)
@@ -26,6 +29,8 @@ func ServeKook(d *Dice, ep *EndPointInfo) {
 		} else {
 			d.Logger.Errorf("连接KOOK服务失败")
 			ep.State = 3
+			d.LastUpdatedTime = time.Now().Unix()
+			d.Save(false)
 		}
 	}
 }

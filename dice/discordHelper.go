@@ -1,6 +1,9 @@
 package dice
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 // NewDiscordConnItem 本来没必要写这个的，但是不知道为啥依赖出问题
 func NewDiscordConnItem(token string) *EndPointInfo {
@@ -27,6 +30,8 @@ func ServeDiscord(d *Dice, ep *EndPointInfo) {
 			d.Logger.Errorf("连接Discord服务失败")
 			ep.State = 3
 			ep.Enable = false
+			d.LastUpdatedTime = time.Now().Unix()
+			d.Save(false)
 		}
 	}
 }
