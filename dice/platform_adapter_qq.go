@@ -539,7 +539,12 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					time.Sleep(2 * time.Second)
 
 					msg.Sender.UserId = FormatDiceIdQQ(msgQQ.UserId)
+					d := pa.GetStrangerInfo(msgQQ.UserId) // 先获取个人信息，避免不存在id
 					ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+					if ctx.Player.Name == "" {
+						ctx.Player.Name = d.Nickname
+						ctx.Player.UpdatedAtTime = time.Now().Unix()
+					}
 					uid := FormatDiceIdQQ(msgQQ.UserId)
 
 					welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
