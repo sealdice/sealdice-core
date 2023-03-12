@@ -286,6 +286,10 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 				log.Debug("骰子信息已刷新")
 				ep.RefreshGroupNum()
+
+				d := pa.Session.Parent
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
 				return
 			}
 
@@ -539,12 +543,14 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					time.Sleep(2 * time.Second)
 
 					msg.Sender.UserId = FormatDiceIdQQ(msgQQ.UserId)
-					d := pa.GetStrangerInfo(msgQQ.UserId) // 先获取个人信息，避免不存在id
+					// 似乎这样会阻塞住，先不搞了
+					//d := pa.GetStrangerInfo(msgQQ.UserId) // 先获取个人信息，避免不存在id
 					ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
-					if ctx.Player.Name == "" {
-						ctx.Player.Name = d.Nickname
-						ctx.Player.UpdatedAtTime = time.Now().Unix()
-					}
+					//if ctx.Player.Name == "" {
+					//	ctx.Player.Name = d.Nickname
+					//	ctx.Player.UpdatedAtTime = time.Now().Unix()
+					//}
+
 					uid := FormatDiceIdQQ(msgQQ.UserId)
 
 					welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
@@ -898,6 +904,9 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 			GoCqHttpServeProcessKill(d, c)
 		}
 	}
+
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 }
 
 func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {

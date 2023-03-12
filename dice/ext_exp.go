@@ -281,7 +281,7 @@ func getCmdStBase() *CmdItemInfo {
 	helpSt += ".st clr // 清除属性\n"
 	helpSt += ".st fmt // 强制转卡为当前规则(改变卡片类型，转换同义词)\n"
 	helpSt += ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"
-	helpSt += ".st export // 导出\n"
+	//helpSt += ".st export // 导出\n"
 	helpSt += ".st help // 帮助\n"
 	helpSt += ".st <属性><值> // 例：.st 敏捷50 力量3d6*5\n"
 	helpSt += ".st &<属性>=<式子> // 例：.st &手枪=1d6\n"
@@ -380,8 +380,7 @@ func getCmdStBase() *CmdItemInfo {
 				cmdStCharFormat(mctx, tmpl)
 				ReplyToSender(mctx, msg, "角色卡片类型被强制修改为: "+ctx.Group.System)
 
-			case "export":
-
+			//case "export":
 			default:
 				if cardType != "" && cardType != mctx.Group.System {
 					ReplyToSender(mctx, msg, fmt.Sprintf("当前卡规则为 %s，群规则为 %s。\n为避免误操作，请先换卡、或使用.st clr清除数据再录卡", cardType, mctx.Group.System))

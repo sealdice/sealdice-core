@@ -223,6 +223,9 @@ func (pa *PlatformAdapterKook) SetEnable(enable bool) {
 		_ = pa.IntentSession.Close()
 		pa.IntentSession = nil
 	}
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 }
 
 func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {

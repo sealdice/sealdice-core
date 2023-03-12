@@ -16,11 +16,15 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 
 		ep.Enable = true
 		ep.State = 2 // 连接中
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
 
 		checkQuit := func() bool {
 			if conn.GoCqHttpState == StateCodeInLoginDeviceLock {
 				d.Logger.Infof("检测到设备锁流程，暂时不再连接")
 				ep.State = 0
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
 				return true
 			}
 			if !conn.DiceServing {
@@ -78,11 +82,15 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 
 		ep.Enable = true
 		ep.State = 2 // 连接中
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
 
 		checkQuit := func() bool {
 			if conn.WalleQState == StateCodeInLoginDeviceLock {
 				d.Logger.Infof("检测到设备锁流程，暂时不再连接")
 				ep.State = 0
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
 				return true
 			} // 暂时去掉设备锁检查
 			if !conn.DiceServing {

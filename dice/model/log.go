@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"time"
 )
@@ -198,7 +199,14 @@ func LogAppend(db *sqlx.DB, groupId string, logName string, logItem *LogOneItem)
 	// 向log_items表中添加一条信息
 	data, err := json.Marshal(logItem.CommandInfo)
 	query := "INSERT INTO log_items (log_id, group_id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-	_, err = tx.Exec(query, logId, groupId, logItem.Nickname, logItem.IMUserId, nowTimestamp, logItem.Message, logItem.IsDice, logItem.CommandId, data, logItem.RawMsgId, logItem.UniformId)
+
+	rid := ""
+	if logItem.RawMsgId != nil {
+		rid = fmt.Sprintf("%x", logItem.RawMsgId)
+	}
+
+	fmt.Println("log id", logItem.RawMsgId, fmt.Sprintf("%x", logItem.RawMsgId), rid)
+	_, err = tx.Exec(query, logId, groupId, logItem.Nickname, logItem.IMUserId, nowTimestamp, logItem.Message, logItem.IsDice, logItem.CommandId, data, rid, logItem.UniformId)
 	if err != nil {
 		return false
 	}
@@ -220,7 +228,11 @@ func LogMarkDeleteByMsgId(db *sqlx.DB, groupId string, logName string, rawId int
 	}
 
 	// 删除记录
-	_, err = db.Exec("DELETE FROM log_items WHERE log_id=? AND raw_msg_id=?", logId, rawId)
+	rid := ""
+	if rawId != nil {
+		rid = fmt.Sprintf("%x", rawId)
+	}
+	_, err = db.Exec("DELETE FROM log_items WHERE log_id=? AND raw_msg_id=?", logId, rid)
 	if err != nil {
 		return err
 	}
