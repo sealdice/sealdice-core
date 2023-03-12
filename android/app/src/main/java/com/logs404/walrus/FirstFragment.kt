@@ -98,10 +98,14 @@ class FirstFragment : Fragment() {
                         alertDialogBuilder?.create()?.show()
                     } else {
                         isrun = true
-                        ExtractAssets(context).extractResources("sealdice")
+                        if (sharedPreferences?.getBoolean("extract_on_start", true) == true) {
+                            ExtractAssets(context).extractResources("sealdice")
+                        }
                         val args = sharedPreferences?.getString("launch_args", "")
                         execShell("cd sealdice&&./sealdice-core $args",true)
                         binding.buttonSecond.visibility = View.VISIBLE
+                        binding.buttonThird.visibility = View.VISIBLE
+                        binding.buttonConsole.visibility = View.VISIBLE
                         binding.buttonFirst.visibility = View.GONE
                         if (!launchAliveService(context)) {
                             val alertDialogBuilder = context?.let { it1 ->
@@ -157,11 +161,14 @@ class FirstFragment : Fragment() {
             }
             binding.buttonSecond.setOnClickListener {
                 binding.buttonSecond.visibility = View.GONE
+                this.activity?.stopService(Intent(context, NotificationService::class.java))
+                this.activity?.stopService(Intent(context, MediaService::class.java))
+                this.activity?.stopService(Intent(context, WakeLockService::class.java))
+                this.activity?.stopService(Intent(context, FloatWindowService::class.java))
                 execShell("pkill -SIGINT sealdice-core",false)
-                binding.buttonFirst.visibility = View.VISIBLE
+                binding.buttonExit.visibility = View.VISIBLE
             }
         }
-
     }
 
     private fun clear() {

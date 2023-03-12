@@ -33,6 +33,11 @@
             android:title="使用内置WebView"
             android:summary="关闭后将使用系统浏览器打开UI界面"
             android:defaultValue="true" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="extract_on_start"
+            android:title="启动时导出资源"
+            android:summary="关闭后启动时将不再导出资源文件\n可能导致无法启动或无法更新\n如果你不清楚此操作的作用请不要关闭"
+            android:defaultValue="true" />
         <androidx.preference.EditTextPreference
             android:key="ui_address"
             android:title="UI界面地址"
