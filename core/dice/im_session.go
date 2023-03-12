@@ -1245,13 +1245,15 @@ func (ctx *MsgContext) ChUnbind(name string) []string {
 
 	for _, groupId := range lst {
 		g := ctx.Session.ServiceAtNew[groupId]
-		p := g.PlayerGet(ctx.Dice.DBData, ctx.Player.UserId)
-		if p.Vars == nil || !p.Vars.Loaded {
-			LoadPlayerGroupVars(ctx.Dice, g, p)
+		if g != nil {
+			p := g.PlayerGet(ctx.Dice.DBData, ctx.Player.UserId)
+			if p.Vars == nil || !p.Vars.Loaded {
+				LoadPlayerGroupVars(ctx.Dice, g, p)
+			}
+			p.Vars.ValueMap.Del("$:card")
+			p.Vars.ValueMap.Del("$:cardBindMark")
+			p.Vars.LastWriteTime = time.Now().Unix()
 		}
-		p.Vars.ValueMap.Del("$:card")
-		p.Vars.ValueMap.Del("$:cardBindMark")
-		p.Vars.LastWriteTime = time.Now().Unix()
 	}
 
 	if len(lst) > 0 {

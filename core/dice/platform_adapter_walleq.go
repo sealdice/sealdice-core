@@ -612,6 +612,9 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			case "get_self_info":
 				ep.Nickname = m["user_name"].(string)
 				ep.UserId = FormatDiceIdQQV12(m["user_id"].(string))
+				d := pa.Session.Parent
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
 				return
 			case "get_group_info":
 				groupId := FormatDiceIdQQGroupV12(m["group_id"].(string))
@@ -766,6 +769,9 @@ func (pa *PlatformAdapterWalleQ) SetEnable(enable bool) {
 			WalleQServeProcessKill(d, c)
 		}
 	}
+
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 }
 
 func (pa *PlatformAdapterWalleQ) GetGroupInfoAsync(id string) {
