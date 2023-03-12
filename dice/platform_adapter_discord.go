@@ -109,6 +109,9 @@ func (pa *PlatformAdapterDiscord) DoRelogin() bool {
 	_ = pa.IntentSession.UpdateGameStatus(0, "SealDice")
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 	return true
 }
 
@@ -136,6 +139,9 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 		pa.EndPoint.Enable = false
 		_ = pa.IntentSession.Close()
 	}
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 }
 
 // SendToPerson 这里发送的是私聊（dm）消息，私信对于discord来说也被视为一个频道

@@ -194,14 +194,17 @@ est <- ( &'(' e0 )
 
 st_assign_multi <- (st_assign sp ','? sp)+
 
-st_assign <- st_name2 sp (':' / '=') sp est { p.AddStName() } // 属性2: 70 // 射击:弓箭:40 / 射击:弓箭40
-           / st_name1 est { p.AddStName() } // 力量60
+st_assign <- st_name2 sp (':' / '=') sp est { p.AddStName() } // 射击:弓箭:40 / 射击:弓箭40
+           / st_name1 est { p.AddStName() } // 测试:力量60
+           / st_name2r sp (':' / '=') sp est { p.AddStName() } // 属性2: 70
+           / st_name1r est { p.AddStName() } // 力量60
            / '&' st_name2 sp (':' / '=') sp { p.CodePush() } < est > { p.CodePop(); p.AddStoreComputed(text); p.AddStName() } // &手枪 = 1d4
+           / '&' st_name2r sp (':' / '=') sp { p.CodePush() } < est > { p.CodePop(); p.AddStoreComputed(text); p.AddStName() } // &手枪 = 1d4
 
 // 第一类:
 // 力量+1d3
 // 力量123+=1d3
-st_modify_multi_1 <- ((st_name2 st_modify_rest1 / st_name1 st_modify_rest) sp ','? sp ) st_modify_multi_rest
+st_modify_multi_1 <- ((st_name2 st_modify_rest1 / st_name2r st_modify_rest1 / st_name1 st_modify_rest / st_name1r st_modify_rest) sp ','? sp ) st_modify_multi_rest
 
 st_modify_rest1 <- sp (
      '+=' sp < e0 > {p.AddStModify("+", text)} /
@@ -215,6 +218,7 @@ st_modify_multi_2 <- (st_modify2 sp ','? sp) st_modify_multi_rest
 
 st_modify_multi_rest <- (st_modify2 sp ','? sp)*
 st_modify2 <- st_name2 st_modify_rest
+            / st_name2r st_modify_rest
 
 st_modify_rest <- sp (
      '+' '='? sp < e0 > {p.AddStModify("+", text)} /
@@ -222,8 +226,10 @@ st_modify_rest <- sp (
      '-' '='? sp < e0 > {p.AddStModify("-", text)}
     )
 
-st_name1 <- < id_ch0+ (':' id_ch0+)? > { p.AddValueStr(text) } // 结尾不带数字
-st_name2 <- < id_ch0 id_ch* (':' id_ch+)? > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
+st_name1 <- < id_ch0+ ':' id_ch0+ > { p.AddValueStr(text) } // 结尾不带数字
+st_name1r <- < id_ch0+ > { p.AddValueStr(text) } // 结尾不带数字
+st_name2 <- < id_ch0 id_ch* (':' id_ch+) > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
+st_name2r <- < id_ch0 id_ch* > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
 
 id_ch0 <- [^!"#$%&\'()*+,-./:;<=>?@\[\\\]^`{|}~ 0-9\t\n\r\36]
 id_ch <- id_ch0 / [0-9]

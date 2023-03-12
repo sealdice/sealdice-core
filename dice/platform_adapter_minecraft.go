@@ -81,6 +81,11 @@ func (pa *PlatformAdapterMinecraft) socketSetup() {
 		ep.State = 1
 		ep.Enable = true
 		pa.RetryTimes = 0
+
+		d := pa.Session.Parent
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+
 		log.Info("Minecraft 连接成功")
 		time.Sleep(time.Duration(5) * time.Second)
 		pa.Reconnecting = false
