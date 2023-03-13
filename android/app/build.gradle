@@ -11,8 +11,8 @@ android {
         applicationId "com.logs404.walrus"
         minSdk 26
         targetSdk 28
-        versionCode 12
-        versionName "0.2.1-beta"
+        versionCode 13
+        versionName "0.2.2-beta"
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }

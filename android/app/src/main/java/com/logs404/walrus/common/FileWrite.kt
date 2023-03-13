@@ -8,6 +8,8 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * 提供公共方法，向外置存储读写文件
@@ -15,7 +17,31 @@ import java.io.IOException
  */
 object FileWrite {
     val SDCardDir: String = Environment.getExternalStorageDirectory().absolutePath
+    var FileCount = 0
+    fun copyFolder(sourceFolder: File, targetFolder: File) {
+        // create target folder if it doesn't exist
+        if (!targetFolder.exists()) {
+            targetFolder.mkdirs()
+        }
 
+        // list all files and subdirectories in the source folder
+        val files = sourceFolder.listFiles() ?: return
+        for (file in files) {
+            if (file.isDirectory) {
+                // create the subdirectory in the target folder
+                val subTargetFolder = File(targetFolder, file.name)
+                subTargetFolder.mkdir()
+                // recursively copy the subdirectory
+                copyFolder(file, subTargetFolder)
+            } else {
+                // copy the file to the target folder
+                val targetFile = File(targetFolder, file.name)
+                FileCount++
+                Files.copy(file.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                Log.d("CopyFolder", "Copied file ${file.absolutePath} to ${targetFile.absolutePath}")
+            }
+        }
+    }
     fun writeFile(context: Context, file: String, hasExtName: Boolean): String? {
         val baseUrl = "${SDCardDir}/Android/data/${context.packageName}/"
 

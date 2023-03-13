@@ -89,7 +89,7 @@ class FirstFragment : Fragment() {
             alertDialogBuilder?.setMessage("此操作将抹除本地存储的所有数据并且无法恢复\n如果你不明白此按钮的作用请点取消\n返回请按”取消“ 继续请按”确定“")
             alertDialogBuilder?.setNegativeButton("取消") {_: DialogInterface, _: Int ->}
             alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
-                context?.let { it1 -> FileWrite.getPrivateFileDir(it1) }?.let { it2 -> delete(it2) }
+                context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice/" }?.let { it2 -> delete(it2) }
                 Toast.makeText(
                     context, "清除成功", Toast.LENGTH_SHORT
                 ).show()
@@ -97,88 +97,115 @@ class FirstFragment : Fragment() {
 
             alertDialogBuilder?.create()?.show()
         }
+        binding.buttonOutput.setOnClickListener {
+            FileWrite.FileCount = 0
+            context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice/" }
+                ?.let { it2 -> File(it2) }
+                ?.let { it3 -> FileWrite.copyFolder(it3,File("${FileWrite.SDCardDir}/Android/data/${context?.packageName}/sealdice/")) }
+//            val address = "${FileWrite.SDCardDir}/Android/data/${context?.packageName}/"
+//            val uri = Uri.parse(address)
+//            val intent = Intent()
+//            intent.action = "android.intent.action.VIEW"
+//            intent.data = uri
+//            startActivity(intent)
+            val alertDialogBuilder = context?.let { it1 ->
+                AlertDialog.Builder(
+                    it1
+                )
+            }
+            alertDialogBuilder?.setTitle("提示")
+            alertDialogBuilder?.setMessage("所有内部数据已经导出至\n"+"${FileWrite.SDCardDir}/Android/data/${context?.packageName}/sealdice/\n共${FileWrite.FileCount}个文件")
+            alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+            }
+            alertDialogBuilder?.create()?.show()
+        }
+        binding.buttonInput.setOnClickListener {
+            val alertDialogBuilder = context?.let { it1 ->
+                AlertDialog.Builder(
+                    it1
+                )
+            }
+            alertDialogBuilder?.setTitle("警告")
+            alertDialogBuilder?.setMessage("将从\n"+"${FileWrite.SDCardDir}/Android/data/${context?.packageName}/sealdice/\n中导入数据，内部存储中所有的重复文件将被覆盖，覆盖后将无法恢复\n返回请按”取消“ 继续请按”确定“")
+            alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+                FileWrite.FileCount = 0
+                context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice" }?.let { it2 ->
+                    File(
+                        it2
+                    )
+                }?.let { it3 ->
+                    FileWrite.copyFolder(File("${FileWrite.SDCardDir}/Android/data/${context?.packageName}/sealdice/"),
+                        it3
+                    )
+                }
+                Toast.makeText(
+                    context, "导入了${FileWrite.FileCount}个文件", Toast.LENGTH_LONG
+                ).show()
+            }
+            alertDialogBuilder?.setNegativeButton("取消") {_: DialogInterface, _: Int ->}
+            alertDialogBuilder?.create()?.show()
+
+        }
         binding.buttonFirst.setOnClickListener {
-//            findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
-            when (val text = binding.shellText.text.toString()) {
-                "gin" -> {
-                    ExtractAssets(context).extractResource("gin-arm")
-//                    shellLogs += "gin"
+            if (isrun) {
+                shellLogs += "sealdice is running"
+                val alertDialogBuilder = context?.let { it1 ->
+                    AlertDialog.Builder(
+                        it1
+                    )
                 }
-                "sealdice" -> {
-                    if (isrun) {
-                        shellLogs += "sealdice is running"
-                        val alertDialogBuilder = context?.let { it1 ->
-                            AlertDialog.Builder(
-                                it1
-                            )
-                        }
-                        alertDialogBuilder?.setTitle("提示")
-                        alertDialogBuilder?.setMessage("请先重启APP后再启动海豹核心")
-                        alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
-                        }
-                        alertDialogBuilder?.create()?.show()
-                    } else {
-                        isrun = true
-                        if (sharedPreferences?.getBoolean("extract_on_start", true) == true) {
-                            ExtractAssets(context).extractResources("sealdice")
-                        }
-                        val args = sharedPreferences?.getString("launch_args", "")
-                        execShell("cd sealdice&&./sealdice-core $args",true)
-                        binding.buttonReset.visibility = View.GONE
-                        binding.buttonSecond.visibility = View.VISIBLE
-                        binding.buttonThird.visibility = View.VISIBLE
-                        binding.buttonConsole.visibility = View.VISIBLE
-                        binding.buttonFirst.visibility = View.GONE
-                        if (!launchAliveService(context)) {
-                            val alertDialogBuilder = context?.let { it1 ->
-                                AlertDialog.Builder(
-                                    it1
-                                )
-                            }
-                            alertDialogBuilder?.setTitle("提示")
-                            alertDialogBuilder?.setMessage("似乎并没有开启任何保活策略，这可能导致后台被清理")
-                            alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
-//                                                finish()
-                            }
-                            alertDialogBuilder?.create()?.show()
-                        }
-                        GlobalScope.launch(context = Dispatchers.IO) {
-                            for (i in 0..10) {
-                                withContext(Dispatchers.Main) {
-                                    binding.textviewFirst.text = "正在启动...\n请等待${10 - i}s..."
-                                }
-                                Thread.sleep(1000)
-                            }
-                            withContext(Dispatchers.Main){
-                            binding.textviewFirst.text = "启动完成（或者失败）"
-                            }
-                            val address = sharedPreferences?.getString("ui_address", "http://127.0.0.1:3211")
-
-                            if (sharedPreferences?.getBoolean("use_internal_webview", true) == true) {
-                                val intent = Intent(context, WebViewActivity::class.java)
-                                intent.putExtra("url", address)
-                                startActivity(intent)
-                            } else {
-                                val uri = Uri.parse(address)
-                                val intent = Intent()
-                                intent.action = "android.intent.action.VIEW"
-                                intent.data = uri
-                                startActivity(intent)
-                            }
-//                            binding.buttonFirst.text = "停止"
-//                            binding.shellText.setText("stop")
-                        }
+                alertDialogBuilder?.setTitle("提示")
+                alertDialogBuilder?.setMessage("请先重启APP后再启动海豹核心")
+                alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+                }
+                alertDialogBuilder?.create()?.show()
+            } else {
+                isrun = true
+                if (sharedPreferences?.getBoolean("extract_on_start", true) == true) {
+                    ExtractAssets(context).extractResources("sealdice")
+                }
+                val args = sharedPreferences?.getString("launch_args", "")
+                execShell("cd sealdice&&./sealdice-core $args",true)
+                binding.buttonInput.visibility = View.GONE
+                binding.buttonOutput.visibility = View.GONE
+                binding.buttonReset.visibility = View.GONE
+                binding.buttonSecond.visibility = View.VISIBLE
+                binding.buttonThird.visibility = View.VISIBLE
+                binding.buttonConsole.visibility = View.VISIBLE
+                binding.buttonFirst.visibility = View.GONE
+                if (!launchAliveService(context)) {
+                    val alertDialogBuilder = context?.let { it1 ->
+                        AlertDialog.Builder(
+                            it1
+                        )
                     }
+                    alertDialogBuilder?.setTitle("提示")
+                    alertDialogBuilder?.setMessage("似乎并没有开启任何保活策略，这可能导致后台被清理")
+                    alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
+                    alertDialogBuilder?.create()?.show()
                 }
-                "clear" -> {
-                    clear()
-                }
-                "cls" -> {
-                    clear()
-                }
-                else -> {
-                    execShell(text,false)
-
+                GlobalScope.launch(context = Dispatchers.IO) {
+                    for (i in 0..10) {
+                        withContext(Dispatchers.Main) {
+                            binding.textviewFirst.text = "正在启动...\n请等待${10 - i}s..."
+                        }
+                        Thread.sleep(1000)
+                    }
+                    withContext(Dispatchers.Main){
+                        binding.textviewFirst.text = "启动完成（或者失败）"
+                    }
+                    val address = sharedPreferences?.getString("ui_address", "http://127.0.0.1:3211")
+                    if (sharedPreferences?.getBoolean("use_internal_webview", true) == true) {
+                        val intent = Intent(context, WebViewActivity::class.java)
+                        intent.putExtra("url", address)
+                        startActivity(intent)
+                    } else {
+                        val uri = Uri.parse(address)
+                        val intent = Intent()
+                        intent.action = "android.intent.action.VIEW"
+                        intent.data = uri
+                        startActivity(intent)
+                    }
                 }
             }
             binding.buttonSecond.setOnClickListener {
@@ -191,11 +218,6 @@ class FirstFragment : Fragment() {
                 binding.buttonExit.visibility = View.VISIBLE
             }
         }
-    }
-
-    private fun clear() {
-        shellLogs = ""
-        binding.textviewFirst.text = shellLogs
     }
 
     private fun launchAliveService(context: Context?) : Boolean{

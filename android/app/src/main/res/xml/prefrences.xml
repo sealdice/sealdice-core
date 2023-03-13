@@ -12,7 +12,7 @@
             android:key="alive_wakelock"
             android:title="保活策略：唤醒锁"
             android:summary="通过构造唤醒锁确保息屏后运行，可能会增加耗电量"
-            android:defaultValue="false" />
+            android:defaultValue="true" />
         <androidx.preference.SwitchPreferenceCompat
             android:key="alive_floatwindow"
             android:title="保活策略：悬浮窗"

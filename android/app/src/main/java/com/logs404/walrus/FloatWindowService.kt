@@ -38,7 +38,7 @@ class FloatWindowService : LifecycleService(){
                     if (!Utils.isNull(floatRootView)) {
                         if (!Utils.isNull(floatRootView?.windowToken)) {
                             if (!Utils.isNull(windowManager)) {
-                                windowManager?.removeView(floatRootView)
+                                windowManager.removeView(floatRootView)
                             }
                         }
                     }
@@ -66,7 +66,7 @@ class FloatWindowService : LifecycleService(){
             //位置大小设置
             width = ViewGroup.LayoutParams.WRAP_CONTENT
             height = ViewGroup.LayoutParams.WRAP_CONTENT
-            gravity = Gravity.LEFT or Gravity.TOP
+            gravity = Gravity.START or Gravity.TOP
             //设置剧中屏幕显示
             x = outMetrics.widthPixels / 2 - width / 2
             y = outMetrics.heightPixels / 2 - height / 2
