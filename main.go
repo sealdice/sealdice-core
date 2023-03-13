@@ -117,7 +117,7 @@ func main() {
 		Delay                  int64  `long:"delay"`
 		JustForTest            bool   `long:"just-for-test"`
 	}
-
+	dice.SetDefaultNS([]string{"8.8.8.8:53", "1.1.1.1:53"}, false)
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
 		return
