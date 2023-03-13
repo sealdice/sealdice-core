@@ -7,15 +7,18 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.*
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat.finishAffinity
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.logs404.walrus.common.ExtractAssets
+import com.logs404.walrus.common.FileWrite
 import com.logs404.walrus.databinding.FragmentFirstBinding
 import com.logs404.walrus.utils.Utils
-import kotlinx.coroutines.*
 import com.logs404.walrus.utils.ViewModelMain
+import kotlinx.coroutines.*
+import java.io.File
 import kotlin.system.exitProcess
 
 
@@ -76,6 +79,24 @@ class FirstFragment : Fragment() {
             }
             alertDialogBuilder?.create()?.show()
         }
+        binding.buttonReset.setOnClickListener {
+            val alertDialogBuilder = context?.let { it1 ->
+                AlertDialog.Builder(
+                    it1
+                )
+            }
+            alertDialogBuilder?.setTitle("警告")
+            alertDialogBuilder?.setMessage("此操作将抹除本地存储的所有数据并且无法恢复\n如果你不明白此按钮的作用请点取消\n返回请按”取消“ 继续请按”确定“")
+            alertDialogBuilder?.setNegativeButton("取消") {_: DialogInterface, _: Int ->}
+            alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+                context?.let { it1 -> FileWrite.getPrivateFileDir(it1) }?.let { it2 -> delete(it2) }
+                Toast.makeText(
+                    context, "清除成功", Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            alertDialogBuilder?.create()?.show()
+        }
         binding.buttonFirst.setOnClickListener {
 //            findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
             when (val text = binding.shellText.text.toString()) {
@@ -103,6 +124,7 @@ class FirstFragment : Fragment() {
                         }
                         val args = sharedPreferences?.getString("launch_args", "")
                         execShell("cd sealdice&&./sealdice-core $args",true)
+                        binding.buttonReset.visibility = View.GONE
                         binding.buttonSecond.visibility = View.VISIBLE
                         binding.buttonThird.visibility = View.VISIBLE
                         binding.buttonConsole.visibility = View.VISIBLE
@@ -247,6 +269,111 @@ class FirstFragment : Fragment() {
                 }
                 Thread.sleep(1000)
             }
+        }
+    }
+
+    /** 删除文件，可以是文件或文件夹
+     * @param delFile 要删除的文件夹或文件名
+     * @return 删除成功返回true，否则返回false
+     */
+    private fun delete(delFile: String): Boolean {
+        val file = File(delFile)
+        return if (!file.exists()) {
+//            Toast.makeText(
+//                ApplicationProvider.getApplicationContext<Context>(),
+//                "删除文件失败:" + delFile + "不存在！",
+//                Toast.LENGTH_SHORT
+//            ).show()
+            false
+        } else {
+            if (file.isFile) deleteSingleFile(delFile) else deleteDirectory(delFile)
+        }
+    }
+
+    /** 删除单个文件
+     * @param filePath 要删除的文件的文件名
+     * @return 单个文件删除成功返回true，否则返回false
+     */
+    private fun deleteSingleFile(filePath: String): Boolean {
+        val file = File(filePath)
+        // 如果文件路径所对应的文件存在，并且是一个文件，则直接删除
+        return if (file.exists() && file.isFile) {
+            if (file.delete()) {
+                Log.e(
+                    "--Method--",
+                    "Copy_Delete.deleteSingleFile: 删除单个文件" + filePath + "成功！"
+                )
+                true
+            } else {
+//                Toast.makeText(
+//                    ApplicationProvider.getApplicationContext<Context>(),
+//                    "删除单个文件" + `filePath$Name` + "失败！",
+//                    Toast.LENGTH_SHORT
+//                ).show()
+                false
+            }
+        } else {
+//            Toast.makeText(
+//                ApplicationProvider.getApplicationContext<Context>(),
+//                "删除单个文件失败：" + `filePath$Name` + "不存在！",
+//                Toast.LENGTH_SHORT
+//            ).show()
+            false
+        }
+    }
+
+    /** 删除目录及目录下的文件
+     * @param filePath 要删除的目录的文件路径
+     * @return 目录删除成功返回true，否则返回false
+     */
+    private fun deleteDirectory(_filePath: String): Boolean {
+        // 如果dir不以文件分隔符结尾，自动添加文件分隔符
+        var filePath = _filePath
+        if (!filePath.endsWith(File.separator)) filePath += File.separator
+        val dirFile = File(filePath)
+        // 如果dir对应的文件不存在，或者不是一个目录，则退出
+        if (!dirFile.exists() || !dirFile.isDirectory) {
+//            Toast.makeText(
+//                ApplicationProvider.getApplicationContext<Context>(),
+//                "删除目录失败：" + filePath + "不存在！",
+//                Toast.LENGTH_SHORT
+//            ).show()
+            return false
+        }
+        var flag = true
+        // 删除文件夹中的所有文件包括子目录
+        val files: Array<File> = dirFile.listFiles() as Array<File>
+        for (file in files) {
+            // 删除子文件
+            if (file.isFile) {
+                flag = deleteSingleFile(file.absolutePath)
+                if (!flag) break
+            } else if (file.isDirectory) {
+                flag = deleteDirectory(
+                    file.absolutePath
+                )
+                if (!flag) break
+            }
+        }
+        if (!flag) {
+//            Toast.makeText(
+//                ApplicationProvider.getApplicationContext<Context>(),
+//                "删除目录失败！",
+//                Toast.LENGTH_SHORT
+//            ).show()
+            return false
+        }
+        // 删除当前目录
+        return if (dirFile.delete()) {
+            Log.e("--Method--", "Copy_Delete.deleteDirectory: 删除目录" + filePath + "成功！")
+            true
+        } else {
+//            Toast.makeText(
+//                ApplicationProvider.getApplicationContext<Context>(),
+//                "删除目录：" + filePath + "失败！",
+//                Toast.LENGTH_SHORT
+//            ).show()
+            false
         }
     }
 }
