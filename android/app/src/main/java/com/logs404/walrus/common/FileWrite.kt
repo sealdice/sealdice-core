@@ -143,7 +143,7 @@ object FileWrite {
         return null
     }
 
-    fun writePrivateFile(bytes: ByteArray, outName: String, context: Context): Boolean {
+    private fun writePrivateFile(bytes: ByteArray, outName: String, context: Context): Boolean {
         try {
             val dir = File(getPrivateFileDir(context))
             if (!dir.exists())
@@ -173,7 +173,7 @@ object FileWrite {
 
     fun writePrivateShellFile(file: String, outName: String, context: Context): String? {
         val data = parseText(context, file)
-        if (data.size > 0 && writePrivateFile(data, outName, context)) {
+        if (data.isNotEmpty() && writePrivateFile(data, outName, context)) {
             return getPrivateFilePath(context, outName)
         }
         return null
@@ -181,7 +181,7 @@ object FileWrite {
 
     //Dos转Unix，避免\r\n导致的脚本无法解析
     private fun parseText(context: Context, fileName: String): ByteArray {
-        try {
+        return try {
             val assetManager = context.assets
             val inputStream = assetManager.open(fileName)
             val datas = ByteArray(inputStream.available())
@@ -191,10 +191,10 @@ object FileWrite {
                 len = 0
             }
             val codes = String(datas, 0, len).replace(Regex("\r\n"), "\n").replace(Regex("\r\t"), "\t")
-            return codes.toByteArray(Charsets.UTF_8)
+            codes.toByteArray(Charsets.UTF_8)
         } catch (ex: Exception) {
             Log.e("script-parse", "" + ex.message)
-            return "".toByteArray()
+            "".toByteArray()
         }
     }
 }

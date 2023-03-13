@@ -101,7 +101,7 @@ class FirstFragment : Fragment() {
             FileWrite.FileCount = 0
             context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice/" }
                 ?.let { it2 -> File(it2) }
-                ?.let { it3 -> FileWrite.copyFolder(it3,File("${FileWrite.SDCardDir}/Android/data/${context?.packageName}/sealdice/")) }
+                ?.let { it3 -> FileWrite.copyFolder(it3,File("${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/")) }
 //            val address = "${FileWrite.SDCardDir}/Android/data/${context?.packageName}/"
 //            val uri = Uri.parse(address)
 //            val intent = Intent()
@@ -114,7 +114,7 @@ class FirstFragment : Fragment() {
                 )
             }
             alertDialogBuilder?.setTitle("提示")
-            alertDialogBuilder?.setMessage("所有内部数据已经导出至\n"+"${FileWrite.SDCardDir}/Android/data/${context?.packageName}/sealdice/\n共${FileWrite.FileCount}个文件")
+            alertDialogBuilder?.setMessage("所有内部数据已经导出至\n"+"${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/\n共${FileWrite.FileCount}个文件")
             alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
             }
             alertDialogBuilder?.create()?.show()
@@ -126,7 +126,7 @@ class FirstFragment : Fragment() {
                 )
             }
             alertDialogBuilder?.setTitle("警告")
-            alertDialogBuilder?.setMessage("将从\n"+"${FileWrite.SDCardDir}/Android/data/${context?.packageName}/sealdice/\n中导入数据，内部存储中所有的重复文件将被覆盖，覆盖后将无法恢复\n返回请按”取消“ 继续请按”确定“")
+            alertDialogBuilder?.setMessage("将从\n"+"${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/\n中导入数据，内部存储中所有的重复文件将被覆盖，覆盖后将无法恢复\n返回请按”取消“ 继续请按”确定“")
             alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
                 FileWrite.FileCount = 0
                 context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice" }?.let { it2 ->
@@ -134,7 +134,7 @@ class FirstFragment : Fragment() {
                         it2
                     )
                 }?.let { it3 ->
-                    FileWrite.copyFolder(File("${FileWrite.SDCardDir}/Android/data/${context?.packageName}/sealdice/"),
+                    FileWrite.copyFolder(File("${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/"),
                         it3
                     )
                 }
