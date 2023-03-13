@@ -51,7 +51,6 @@ require (
 	github.com/BurntSushi/toml v1.2.1
 	github.com/glebarez/go-sqlite v1.20.3
 	github.com/go-creed/sat v1.0.3
-	github.com/gonutz/w32/v2 v2.7.0
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mattn/go-sqlite3 v1.14.16
@@ -144,3 +143,5 @@ require (
 	modernc.org/memory v1.5.0 // indirect
 	modernc.org/sqlite v1.20.3 // indirect
 )
+
+replace github.com/Szzrain/dodo-open-go v0.2.7 => github.com/sealdice/dodo-open-go v0.2.7
