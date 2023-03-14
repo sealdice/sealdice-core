@@ -52,6 +52,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 						_ = j.Storage.Close()
 					}
 				}
+				i.IsAlreadyLoadConfig = false
 			}
 		}
 
@@ -117,7 +118,7 @@ func main() {
 		Delay                  int64  `long:"delay"`
 		JustForTest            bool   `long:"just-for-test"`
 	}
-	dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
+	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
 		return
@@ -472,29 +473,20 @@ func uiServe(dm *dice.DiceManager, hideUI bool) {
 
 func dnsHack() {
 	var (
-		dnsResolverIP        = "114.114.114.114:53" // Google DNS resolver.
-		dnsResolverProto     = "udp"                // Protocol to use for the DNS resolver
-		dnsResolverTimeoutMs = 5000                 // Timeout (ms) for the DNS resolver (optional)
+		dnsResolverIP    = "114.114.114.114:53" // Google DNS resolver.
+		dnsResolverProto = "udp"                // Protocol to use for the DNS resolver
 	)
-
-	dialer := &net.Dialer{
-		Resolver: &net.Resolver{
-			PreferGo: true,
-			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-				d := net.Dialer{
-					Timeout: time.Duration(dnsResolverTimeoutMs) * time.Millisecond,
-				}
-				return d.DialContext(ctx, dnsResolverProto, dnsResolverIP)
-			},
+	var dialer net.Dialer
+	net.DefaultResolver = &net.Resolver{
+		PreferGo: false,
+		Dial: func(context context.Context, _, _ string) (net.Conn, error) {
+			conn, err := dialer.DialContext(context, dnsResolverProto, dnsResolverIP)
+			if err != nil {
+				return nil, err
+			}
+			return conn, nil
 		},
 	}
-
-	dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return dialer.DialContext(ctx, network, addr)
-	}
-
-	http.DefaultTransport.(*http.Transport).DialContext = dialContext
-	net.DefaultResolver = dialer.Resolver
 }
 
 func mimePatch() {

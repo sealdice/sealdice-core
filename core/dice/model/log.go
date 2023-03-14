@@ -202,10 +202,10 @@ func LogAppend(db *sqlx.DB, groupId string, logName string, logItem *LogOneItem)
 
 	rid := ""
 	if logItem.RawMsgId != nil {
-		rid = fmt.Sprintf("%x", logItem.RawMsgId)
+		rid = fmt.Sprintf("%v", logItem.RawMsgId)
 	}
 
-	fmt.Println("log id", logItem.RawMsgId, fmt.Sprintf("%x", logItem.RawMsgId), rid)
+	//fmt.Println("log append", logId, rid, "|", groupId, logName)
 	_, err = tx.Exec(query, logId, groupId, logItem.Nickname, logItem.IMUserId, nowTimestamp, logItem.Message, logItem.IsDice, logItem.CommandId, data, rid, logItem.UniformId)
 	if err != nil {
 		return false
@@ -230,10 +230,13 @@ func LogMarkDeleteByMsgId(db *sqlx.DB, groupId string, logName string, rawId int
 	// 删除记录
 	rid := ""
 	if rawId != nil {
-		rid = fmt.Sprintf("%x", rawId)
+		rid = fmt.Sprintf("%v", rawId)
 	}
+
+	//fmt.Printf("log delete %v %d\n", rawId, logId)
 	_, err = db.Exec("DELETE FROM log_items WHERE log_id=? AND raw_msg_id=?", logId, rid)
 	if err != nil {
+		fmt.Println("log delete error", err.Error())
 		return err
 	}
 
