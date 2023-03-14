@@ -1,8 +1,8 @@
-#SealDice Android
+# SealDice Android
 
-###[SealDice海豹核心](https://github.com/sealdice/sealdice-core) 用于手机运行的版本
+### [SealDice海豹核心](https://github.com/sealdice/sealdice-core) 用于手机运行的版本
 
-##搭建须知
+## 搭建须知
 该项目使用了ACRA作为崩溃日志收集器
 因此在运行本项目前你应当创建 com.logs404.walrus.secrets 包并在其中添加一个名为 Auth 的 java class
 其内容如下
@@ -17,6 +17,6 @@ public class Auth {
 
 ```
 
-##关于 issue 和 pull request
+## 关于 issue 和 pull request
 你可以通过 fork 本项目并提交 pull request 的形式贡献代码
 关于手机版的功能需求和 bug 反馈请在本仓库内提交
