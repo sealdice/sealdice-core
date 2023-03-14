@@ -402,7 +402,7 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			pa.GoCqHttpQrcodeData = nil
 			pa.GoCqHttpLoginDeviceLockUrl = ""
 
-			workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
+			workDir := gocqGetWorkDir(dice, conn)
 			qrcodeFile := filepath.Join(workDir, "qrcode.png")
 			if _, err := os.Stat(qrcodeFile); err == nil {
 				// 如果已经存在二维码文件，将其删除
@@ -422,8 +422,17 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 	}()
 }
 
-func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
+func gocqGetWorkDir(dice *Dice, conn *EndPointInfo) string {
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
+	pa := conn.Adapter.(*PlatformAdapterGocq)
+	if !pa.UseInPackGoCqhttp {
+		return "#$%Abort^?*" // 使其尽量非法，从而跳过连接外所有流程
+	}
+	return workDir
+}
+
+func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
+	workDir := gocqGetWorkDir(dice, conn)
 	if _, err := os.Stat(filepath.Join(workDir, "session.token")); err == nil {
 		_ = os.Remove(filepath.Join(workDir, "session.token"))
 	}
@@ -440,7 +449,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	pa.GoCqHttpState = StateCodeInLogin
 
 	fmt.Println("GoCqHttpServe begin")
-	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
+	workDir := gocqGetWorkDir(dice, conn)
 	_ = os.MkdirAll(workDir, 0755)
 
 	qrcodeFile := filepath.Join(workDir, "qrcode.png")

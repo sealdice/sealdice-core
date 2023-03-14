@@ -284,7 +284,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				cardType := ReadCardType(mctx)
 				if cardType != "" && cardType != mctx.Group.System {
-					ReplyToSender(mctx, msg, fmt.Sprintf("当前卡规则为 %s，群规则为 %s。\n为避免误操作，请先换卡、或使用.st clr清除数据再录卡", cardType, mctx.Group.System))
+					ReplyToSender(mctx, msg, fmt.Sprintf("阻止操作：当前卡规则为 %s，群规则为 %s。\n为避免损坏此人物卡，请先更换/新建角色卡，或使用.st clr清除数据", cardType, mctx.Group.System))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				cmdStCharFormat(mctx, tmpl) // 转一下卡
@@ -1075,7 +1075,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 			cardType := ReadCardType(mctx)
 			if cardType != "" && cardType != mctx.Group.System {
-				ReplyToSender(mctx, msg, fmt.Sprintf("当前卡规则为 %s，群规则为 %s。\n为避免误操作，请先换卡、或使用.st clr清除数据再录卡", cardType, mctx.Group.System))
+				ReplyToSender(mctx, msg, fmt.Sprintf("阻止操作：当前卡规则为 %s，群规则为 %s。\n为避免损坏此人物卡，请先更换/新建角色卡，或使用.st clr清除数据", cardType, mctx.Group.System))
+				//ReplyToSender(mctx, msg, fmt.Sprintf("当前卡规则为 %s，群规则为 %s。\n为避免误操作，请先换卡、或使用.st clr清除数据再录卡", cardType, mctx.Group.System))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			cmdStCharFormat(mctx, tmpl) // 转一下卡

@@ -267,6 +267,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "end") {
+				if group.LogCurName == "" {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
@@ -559,6 +564,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ok := false
 				ctx.Dice.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
 					name := strings.ToLower(val)
+					if t, exists := value.NameTemplate[val]; exists {
+						text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
+						ReplyToSender(ctx, msg, "已自动设置名片为"+val+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
+						ok = true
+						return false
+					}
 					if t, exists := value.NameTemplate[name]; exists {
 						text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
 						ReplyToSender(ctx, msg, "已自动设置名片为"+name+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
