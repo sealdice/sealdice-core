@@ -1,4 +1,4 @@
-package com.logs404.walrus
+package com.sealdice.dice
 
 import androidx.lifecycle.LifecycleService
 import android.content.Intent
@@ -6,8 +6,8 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.util.DisplayMetrics
 import android.view.*
-import com.logs404.walrus.utils.Utils
-import com.logs404.walrus.utils.ViewModelMain
+import com.sealdice.dice.utils.Utils
+import com.sealdice.dice.utils.ViewModelMain
 
 class FloatWindowService : LifecycleService(){
     private lateinit var windowManager: WindowManager

@@ -1,4 +1,4 @@
-package com.logs404.walrus
+package com.sealdice.dice
 
 import android.content.Context
 import android.content.DialogInterface
@@ -12,11 +12,11 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat.finishAffinity
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
-import com.logs404.walrus.common.ExtractAssets
-import com.logs404.walrus.common.FileWrite
-import com.logs404.walrus.databinding.FragmentFirstBinding
-import com.logs404.walrus.utils.Utils
-import com.logs404.walrus.utils.ViewModelMain
+import com.sealdice.dice.common.ExtractAssets
+import com.sealdice.dice.common.FileWrite
+import com.sealdice.dice.databinding.FragmentFirstBinding
+import com.sealdice.dice.utils.Utils
+import com.sealdice.dice.utils.ViewModelMain
 import kotlinx.coroutines.*
 import java.io.File
 import kotlin.system.exitProcess

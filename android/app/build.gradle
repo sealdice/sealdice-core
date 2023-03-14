@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace 'com.logs404.walrus'
+    namespace 'com.sealdice.dice'
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.logs404.walrus"
+        applicationId "com.sealdice.dice"
         minSdk 26
         targetSdk 28
-        versionCode 16
-        versionName "0.2.5-beta"
+        versionCode 17
+        versionName "0.3.0-rc"
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }

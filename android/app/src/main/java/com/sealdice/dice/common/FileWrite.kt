@@ -1,4 +1,4 @@
-package com.logs404.walrus.common
+package com.sealdice.dice.common
 
 import android.content.Context
 import android.content.res.AssetManager

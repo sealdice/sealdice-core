@@ -1,4 +1,4 @@
-package com.logs404.walrus.utils
+package com.sealdice.dice.utils
 
 import android.app.Activity
 import android.app.ActivityManager

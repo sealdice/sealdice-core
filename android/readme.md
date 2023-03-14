@@ -6,8 +6,9 @@
 该项目使用了ACRA作为崩溃日志收集器
 因此在运行本项目前你应当创建 com.logs404.walrus.secrets 包并在其中添加一个名为 Auth 的 java class
 其内容如下
+
 ```java
-package com.logs404.walrus.secrets;
+package com.sealdice.dice.secrets;
 
 public class Auth {
     public static String ACRA_URL = "YOUR REPORT URL";

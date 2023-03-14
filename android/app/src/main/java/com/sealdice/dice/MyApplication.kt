@@ -1,8 +1,8 @@
-package com.logs404.walrus
+package com.sealdice.dice
 
 import android.app.Application
 import android.content.Context
-import com.logs404.walrus.secrets.Auth.*
+import com.sealdice.dice.secrets.Auth.*
 import org.acra.config.httpSender
 import org.acra.data.StringFormat
 import org.acra.ktx.initAcra

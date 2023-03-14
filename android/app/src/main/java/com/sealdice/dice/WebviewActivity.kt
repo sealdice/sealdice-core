@@ -1,4 +1,4 @@
-package com.logs404.walrus
+package com.sealdice.dice
 
 import android.content.Context
 import android.content.Intent
