@@ -848,7 +848,7 @@ func (d *Dice) registerCoreCommands() {
 	cmdSend := &CmdItemInfo{
 		Name:      "send",
 		ShortHelp: ".send // 向骰主留言",
-		Help: "留言指令:\n.send // 向骰主留言\n" +
+		Help: "留言指令:\n.send XXXXXX // 向骰主留言\n" +
 			".send to <对方ID> 要说的话 // 骰主回复，举例. send to QQ:12345 感谢留言\n" +
 			".send to <群组ID> 要说的话 // 举例. send to QQ-Group:12345 感谢留言\n" +
 			"> 指令.userid可以查看当前群的ID",
@@ -874,7 +874,7 @@ func (d *Dice) registerCoreCommands() {
 				} else {
 					ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
 				}
-			} else if val == "help" {
+			} else if val == "help" || val == "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			} else {
 				for _, uid := range ctx.Dice.DiceMasters {

@@ -1,6 +1,9 @@
+//go:build linux
+
 package dice
 
 import (
+	_ "net"
 	"sync"
 	"time"
 	_ "unsafe"
