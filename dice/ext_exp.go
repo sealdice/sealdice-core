@@ -474,9 +474,6 @@ func getCmdStBase() *CmdItemInfo {
 				if r.restInput != "" {
 					text += "\n解析失败: " + r.restInput
 				}
-				//if r.restInput != "" {
-				//	retText += "解析失败: " + r.restInput
-				//}
 
 				ReplyToSender(mctx, msg, text)
 			}
