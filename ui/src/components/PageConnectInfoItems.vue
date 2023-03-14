@@ -89,7 +89,7 @@
             </el-form-item>
             <el-form-item label="协议实现" v-if="i.adapter.useInPackGoCqhttp">
               <!-- <el-input v-model="i.connectUrl"></el-input> -->
-              <div v-if="i.adapter?.implementation === 'gocq'">Go-cqhttp</div>
+              <div v-if="i.adapter?.implementation === 'gocq' || i.adapter?.implementation===''">Go-Cqhttp</div>
               <div v-if="i.adapter?.implementation === 'walle-q'">Walle-q</div>
               <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
             </el-form-item>
@@ -205,7 +205,8 @@
             <div>提示: 新设备首次登录多半需要手机版扫码，建议先准备好</div>
             <div>能够进行扫码登录（不填写密码即可），但注意扫码登录不支持自动重连。</div>
             <div>如果出现“要求同一WIFI扫码”可以本地登录后备份，复制到服务器上。</div>
-            <div v-if="form.protocol !== 2" style="color: #aa4422;">提示: 首次登录时，建议先尝试AndroidPad，如扫码失败，切换使用手表协议，别的协议目前无法登录(2023年3月)。</div>
+            <!-- v-if="form.protocol !== 2"  -->
+            <div style="color: #aa4422;">提示: 首次登录时，建议先尝试AndroidPad，如扫码失败，切换使用手表协议，别的协议目前无法登录(2023年3月)。</div>
             <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
           </small>
         </el-form-item>
