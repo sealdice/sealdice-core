@@ -184,7 +184,7 @@
             <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
             <el-option label="MacOS" :value="3"></el-option>
             <el-option label="iPad" :value="5"></el-option>
-            <el-option v-if="form.implementation === 'gocq'" label="AndroidPad" :value="6"></el-option>
+            <el-option v-if="form.implementation === 'gocq' || form.implementation === ''" label="AndroidPad" :value="6"></el-option>
             <!-- <el-option label="MacOS" :value="3"></el-option> -->
           </el-select>
         </el-form-item>
