@@ -34,6 +34,7 @@
         </activity>
         <activity android:name=".SettingsActivity" />
         <activity android:name=".WebViewActivity" />
+        <activity android:name=".NotificationActivity" />
 
         <service android:name=".MediaService"/>
         <service android:name=".NotificationService"/>
