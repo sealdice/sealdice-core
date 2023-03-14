@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sealdice-core/dice/model"
+	"strings"
 	"time"
 )
 
@@ -42,7 +43,9 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 		data, err := ioutil.ReadFile(fn)
 		if err != nil {
 			if d != nil {
-				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+				if !strings.Contains(fn, "session.token") {
+					d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+				}
 			}
 			return
 		}
