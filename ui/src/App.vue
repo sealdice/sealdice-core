@@ -9,11 +9,14 @@
       class="mb-2"
       style="color: #f8ffff; text-align: left; padding-left: 1.2em; font-weight: normal;max-height:60px; height: 60px;"
     >
-      <span :v-show="store.canAccess" style="position: relative;">SealDice<span v-if="store.diceServers.length > 0" style="font-size: .2rem; position: absolute; bottom: -1rem; white-space: nowrap; left: 0;">{{ store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}</span></span>
+      <span :v-show="store.canAccess" style="position: relative;">SealDice<span v-if="store.diceServers.length > 0" style="font-size: .7rem; position: absolute; bottom: -1rem; white-space: nowrap; left: 0;">{{ store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}</span></span>
     </h3>
 
-    <div @click="dialogFeed = true" style="position: absolute; right: 8rem; top: 0.6rem; font-size: 1.7rem; color: white; cursor: pointer;">
-      <el-icon><WarnTriangleFilled /></el-icon>
+    <!-- border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; -->
+    <div @click="dialogFeed = true" style="position: absolute; right: 8rem; top: 0.8rem; font-size: 1.7rem; color: white; cursor: pointer; display: flex; align-items: center;">
+      <!-- <el-icon><WarnTriangleFilled /></el-icon> -->
+      <img :src="imgNews" style="width: 2.3rem;">
+      <!-- <span style="font-size: .9rem;">News!</span> -->
     </div>
 
     <div
@@ -227,6 +230,7 @@ import { onBeforeMount, ref, watch, computed } from 'vue'
 import { useStore } from './store'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { WarnTriangleFilled } from '@element-plus/icons-vue'
+import imgNews from '~/assets/news.png'
 
 
 import {

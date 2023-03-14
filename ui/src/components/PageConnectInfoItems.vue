@@ -325,6 +325,7 @@
               </ul>
               <div>具体请参见日志。如果不出现“确定”按钮，请直接刷新。</div>
               <div>若删除账号重复尝试无果，请回报bug给开发者。</div>
+              <el-link href="javascript:window.location.reload()" type="primary">点我前往日志界面</el-link>
             </div>
           </div>
         </el-timeline-item>
