@@ -25,6 +25,7 @@ export interface AdapterQQ {
   goCqHttpLoginVerifyCode: string;
   goCqHttpLoginDeviceLockUrl: string;
   ignoreFriendRequest: boolean;
+  goCqHttpSmsNumberTip: string;
 }
 
 interface TalkLogItem {
@@ -205,6 +206,11 @@ export const useStore = defineStore('main', {
     async getImConnectionsQrCode(i: DiceConnection) {
       const info = await backend.post(urlPrefix+'/im_connections/qrcode', { id: i.id })
       return info as any as { img: string }
+    },
+
+    async ImConnectionsSmsCodeSet(i: DiceConnection, smsCode: string) {
+      const info = await backend.post(urlPrefix+'/im_connections/sms_code_set', { id: i.id, code: smsCode })
+      return info as any as {}
     },
 
     async getImConnectionsSetEnable(i: DiceConnection, enable: boolean) {

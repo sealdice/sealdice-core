@@ -24,7 +24,26 @@
 
         <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode) && store.curDice.qrcodes[i.id]">
           <div style="margin-left: 2rem">需要同账号的手机QQ扫码登录:</div>
-          <img style="width: 10rem; height:10rem; margin-left: 3.5rem; margin-top: 2rem;" :src="store.curDice.qrcodes[i.id]" />
+          <img style="image-rendering: pixelated; width: 10rem; height:10rem; margin-left: 3.5rem; margin-top: 2rem;" :src="store.curDice.qrcodes[i.id]" />
+        </div>
+
+        <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginBar) && i.adapter?.goCqHttpLoginDeviceLockUrl">
+          <div style="margin-left: 2rem">滑条验证码流程:</div>
+          <div><a style="line-break: anywhere;" :href="i.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div>
+        </div>
+
+        <div style="position: absolute; width: 17rem; height: 18rem; background: #fff; z-index: 1;" v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginVerifyCode)">
+          <div style="margin-left: 2rem">短信验证码流程:</div>
+          <div style="margin-top: 4rem;">
+            <el-form label-width="5rem">
+              <el-form-item label="验证码">
+                <el-input v-model="smsCode"></el-input>
+              </el-form-item>
+              <el-form-item label="">
+                <el-button type="primary" @click="submitSmsCode(i)">提交</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
         </div>
 
         <el-form ref="formRef" :model="i" label-width="100px">
@@ -143,7 +162,7 @@
           <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
           <el-option label="MacOS" :value="3"></el-option>
           <el-option label="iPad" :value="5"></el-option>
-          <el-option v-if="form.implementation === 'gocq'" label="AndroidPad" :value="6"></el-option>
+          <el-option v-if="form.implementation === 'gocq' || form.implementation === ''" label="AndroidPad" :value="6"></el-option>
           <!-- <el-option label="MacOS" :value="3"></el-option> -->
         </el-select>
       </el-form-item>
@@ -206,7 +225,7 @@
             <div>能够进行扫码登录（不填写密码即可），但注意扫码登录不支持自动重连。</div>
             <div>如果出现“要求同一WIFI扫码”可以本地登录后备份，复制到服务器上。</div>
             <!-- v-if="form.protocol !== 2"  -->
-            <div style="color: #aa4422;">提示: 首次登录时，建议先尝试AndroidPad，如扫码失败，切换使用手表协议，别的协议目前无法登录(2023年3月)。</div>
+            <div style="color: #aa4422;">提示: 首次登录时，建议先尝试AndroidPad，如失败，切换使用手表协议。</div>
             <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
           </small>
         </el-form-item>
@@ -298,12 +317,13 @@
             <el-button style="margin-top: 1rem;" @click="formClose">再会</el-button>
           </div>
           <div v-else-if="index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginQrCode">
-            <div>登录需要滑条验证码, 请使用登录此账号的手机QQ扫描二维码以继续登录:</div>
-            <img :src="store.curDice.qrcodes[curConn.id]" style="width: 20rem; height: 20rem" />
+            <div>登录需要扫码验证, 请使用登录此账号的手机QQ扫描二维码以继续登录:</div>
+            <img :src="store.curDice.qrcodes[curConn.id]" style="width: 20rem; height: 20rem; image-rendering: pixelated;" />
           </div>
+
           <div v-else-if="index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginDeviceLock && curConn.adapter?.goCqHttpLoginDeviceLockUrl">
             <div>账号已开启设备锁，请访问此链接进行验证：</div>
-            <div>
+            <div style="line-break: anywhere;">
               <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.goCqHttpLoginDeviceLockUrl}}</el-link>
             </div>
             <div>
@@ -314,6 +334,32 @@
               </div>
             </div>
           </div>
+
+          <div v-else-if="index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginBar && curConn.adapter?.goCqHttpLoginDeviceLockUrl">
+            <div>滑条验证码流程，访问以下链接操作:</div>
+            <div style="line-break: anywhere;">
+              <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.goCqHttpLoginDeviceLockUrl}}</el-link>
+            </div>
+          </div>
+
+          <div v-else-if="index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginVerifyCode">
+            <!-- <div v-else-if="1"> -->
+            <div>短信验证码流程:</div>
+            <div style="line-break: anywhere;">
+              <el-form label-width="5rem">
+                <el-form-item label="手机号">
+                  <div>{{ curConn.adapter?.goCqHttpSmsNumberTip }}</div>
+                </el-form-item>
+                <el-form-item label="验证码">
+                  <el-input v-model="smsCode"></el-input>
+                </el-form-item>
+                <el-form-item label="">
+                  <el-button type="primary" @click="submitSmsCode(curConn)">提交</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
+
           <div v-else-if="index === 2 && (curConn.adapter?.loginState === goCqHttpStateCode.LoginFailed)">
             <div>
               <div>登录失败!可能是以下原因：</div>
@@ -423,6 +469,15 @@ const isTestMode = ref(false)
 
 const curConn = ref({} as DiceConnection);
 const curConnId = ref('');
+const smsCode = ref('');
+
+const submitSmsCode = async (i: DiceConnection) => {
+  console.log(smsCode.value);
+  if (!smsCode.value) return;
+  const code = smsCode.value;
+  smsCode.value = '';
+  store.ImConnectionsSmsCodeSet(i, code)
+}
 
 const setRecentLogin = () => {
   isRecentLogin.value = true
