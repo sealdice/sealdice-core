@@ -180,6 +180,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	deathSavingStable := func(ctx *MsgContext) {
 		VarDelValue(ctx, "DSS")
 		VarDelValue(ctx, "DSF")
+		if ctx.Player.AutoSetNameTemplate != "" {
+			_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+		}
 	}
 
 	deathSaving := func(ctx *MsgContext, successPlus int64, failurePlus int64) (int64, int64) {
@@ -206,6 +209,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		if failurePlus != 0 {
 			val2 += failurePlus
 			VarSetValueInt64(ctx, "DSF", val2)
+		}
+
+		if ctx.Player.AutoSetNameTemplate != "" {
+			_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 		}
 
 		return val1, val2
@@ -263,6 +270,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			case "fmt", "format":
 				cmdStCharFormat(mctx, nil)
 				ReplyToSender(mctx, msg, "角色卡片类型被强制修改为: "+ctx.Group.System)
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
 
 			case "del", "rm":
 				var nums []string
@@ -281,6 +291,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				if len(nums) > 0 {
 					mctx.ChVarsUpdateTime()
+				}
+
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				}
 
 				VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
@@ -316,6 +330,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				num := mctx.ChVarsClear()
 				VarSetValueInt64(mctx, "$t数量", int64(num))
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_清除"))
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
 
 			case "show", "list":
 				info := ""
@@ -817,6 +834,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
 				VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:BUFF设置_删除"))
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
 
 			case "clr", "clear":
 
@@ -847,6 +867,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				VarSetValueInt64(mctx, "$t数量", int64(num))
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:BUFF设置_清除"))
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
 
 			case "show", "list", "":
 				p := mctx.Player
@@ -1058,6 +1081,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					retText += "解析失败: " + text
 				}
 				ReplyToSender(mctx, msg, retText)
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
@@ -1099,6 +1125,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		} else {
 			ReplyToSender(mctx, msg, fmt.Sprintf(`%s的%d环法术位恢复至%d个，上限%d个`, getPlayerNameTempFunc(mctx), spellLevel, newLevel, spellLevelMax))
 		}
+		if mctx.Player.AutoSetNameTemplate != "" {
+			_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
+		}
 		return nil
 	}
 
@@ -1135,7 +1164,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						VarSetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", index+1), val)
 						texts = append(texts, fmt.Sprintf("%d环%d个", index+1, val))
 					}
-					ReplyToSender(mctx, msg, "为<"+mctx.Player.Name+">设置法术位: "+strings.Join(texts, ", "))
+					ReplyToSender(mctx, msg, "为"+getPlayerNameTempFunc(mctx)+"设置法术位: "+strings.Join(texts, ", "))
+					if ctx.Player.AutoSetNameTemplate != "" {
+						_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+					}
 				} else {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
@@ -1148,6 +1180,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 				mctx.ChVarsUpdateTime()
 				ReplyToSender(mctx, msg, fmt.Sprintf(`%s法术位数据已清除`, getPlayerNameTempFunc(mctx)))
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
 
 			case "rest":
 				n := spellSlotsRenew(mctx, msg)
@@ -1155,6 +1190,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, fmt.Sprintf(`%s的法术位已经完全恢复`, getPlayerNameTempFunc(mctx)))
 				} else {
 					ReplyToSender(mctx, msg, fmt.Sprintf(`%s并没有设置过法术位`, getPlayerNameTempFunc(mctx)))
+				}
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				}
 
 			case "set":
@@ -1178,7 +1216,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						VarSetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", iLevel), iLevelVal)
 						texts = append(texts, fmt.Sprintf("%d环%d个", iLevel, iLevelVal))
 					}
-					ReplyToSender(mctx, msg, "为<"+mctx.Player.Name+">设置法术位: "+strings.Join(texts, ", "))
+					ReplyToSender(mctx, msg, "为"+getPlayerNameTempFunc(mctx)+"设置法术位: "+strings.Join(texts, ", "))
 				} else {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
@@ -1309,6 +1347,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				ssText := ""
 				if n > 0 {
 					ssText = "。法术位得到了恢复"
+				}
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				}
 				ReplyToSender(mctx, msg, fmt.Sprintf(`%s的长休: `+hpText+ssText, getPlayerNameTempFunc(mctx)))
 			default:

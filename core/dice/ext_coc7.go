@@ -948,7 +948,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						VarSetValueStr(mctx, "$t当前绑定角色", mctx.ChBindCurGet())
 						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更"))
 					}
-
 				}
 
 				if mctx.Player.AutoSetNameTemplate != "" {
