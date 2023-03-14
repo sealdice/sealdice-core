@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.KeyEvent.KEYCODE_BACK
+import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat.startActivity
 import com.tencent.smtt.export.external.interfaces.SslError
@@ -70,6 +71,15 @@ private class MyWebViewDownLoadListener(c: Context) : DownloadListener {
 class WebViewActivity : AppCompatActivity() {
     private lateinit var mWebView: WebView
     private lateinit var mWebClient: WVChromeClient
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            android.R.id.home -> {
+                onBackPressed()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -84,6 +94,8 @@ class WebViewActivity : AppCompatActivity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
         setContentView(R.layout.activity_webview)
 
         val webView: WebView = findViewById(R.id.webview)
