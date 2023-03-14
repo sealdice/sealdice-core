@@ -25,8 +25,8 @@
       <div><span class="left">Log状态:</span> {{i.logOn ? '开启' : '关闭'}}</div>
       <div><span class="left">邀请人:</span> {{ i.inviteUserId || '未知' }}</div>
       <div><span class="left">入群时间:</span> {{ i.enteredTime ? dayjs.unix(i.enteredTime).fromNow() : '未知' }}</div>
-      <div><span class="left">开启迎新:</span> {{i.showGroupWelcome ? '开启' : '关闭'}}</div>
-      <div><span class="left">启用扩展:</span> {{i.tmpExtList.join(', ')}}</div>
+      <div><span class="left">开启迎新:</span> {{ i.showGroupWelcome ? '开启' : '关闭' }}</div>
+      <div><span class="left">启用扩展:</span>  {{ i.tmpExtList ? i.tmpExtList.join(', ') : '未知' }}</div>
       <!-- <div>欢迎语: <el-input type="textarea" v-model="i.groupWelcomeMessage" autosize /> </div> -->
       <!-- <div>{{i}}</div> -->
       <el-button :disabled="!i.changed" @click="saveOne(i, index)">保存</el-button>

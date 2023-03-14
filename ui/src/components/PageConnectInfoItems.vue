@@ -76,9 +76,9 @@
               <div>{{i.adapter?.ignoreFriendRequest ? '是' : '否'}}</div>
             </el-form-item> -->
 
-            <el-form-item label="协议">
+            <el-form-item label="协议" v-if="i.adapter.useInPackGoCqhttp">
               <!-- <el-input v-model="i.connectUrl"></el-input> -->
-              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 0">iPad</div>
+              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 0">Unset</div>
               <div v-if="i.adapter?.inPackGoCqHttpProtocol === 1">Android</div>
               <div v-if="i.adapter?.inPackGoCqHttpProtocol === 2">Android 手表</div>
               <div v-if="i.adapter?.inPackGoCqHttpProtocol === 3">MacOS</div>
@@ -87,11 +87,14 @@
               <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
               <el-button size="small" type="primary" style="margin-left: 1rem" @click="askSetData(i)" :icon="Edit"></el-button>
             </el-form-item>
-            <el-form-item label="协议实现">
+            <el-form-item label="协议实现" v-if="i.adapter.useInPackGoCqhttp">
               <!-- <el-input v-model="i.connectUrl"></el-input> -->
               <div v-if="i.adapter?.implementation === 'gocq'">Go-cqhttp</div>
               <div v-if="i.adapter?.implementation === 'walle-q'">Walle-q</div>
               <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
+            </el-form-item>
+            <el-form-item label="特殊" v-else>
+              <div>分离部署</div>
             </el-form-item>
           </template>
 
@@ -135,7 +138,7 @@
 
       <el-form-item label="协议" :label-width="formLabelWidth" required>
         <el-select v-model="form.protocol">
-          <el-option label="iPad 协议" :value="0"></el-option>
+          <!-- <el-option label="iPad 协议" :value="0"></el-option> -->
           <el-option label="Android 协议 - 稳定协议，建议！" :value="1"></el-option>
           <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
           <el-option label="MacOS" :value="3"></el-option>
@@ -165,6 +168,7 @@
         <el-form-item label="账号类型" :label-width="formLabelWidth">
           <el-select v-model="form.accountType">
             <el-option label="QQ账号" :value="0"></el-option>
+            <el-option label="QQ账号(gocq分离部署)" :value="6"></el-option>
             <el-option label="Discord账号" :value="1"></el-option>
             <el-option label="KOOK(开黑啦)账号" :value="2"></el-option>
              <el-option label="Telegram帐号" :value="3"></el-option>
@@ -175,7 +179,7 @@
 
         <el-form-item v-if="form.accountType === 0" label="设备" :label-width="formLabelWidth" required>
           <el-select v-model="form.protocol">
-            <el-option label="iPad 协议" :value="0"></el-option>
+            <!-- <el-option label="Unset" :value="0"></el-option> -->
             <el-option label="Android 协议" :value="1"></el-option>
             <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
             <el-option label="MacOS" :value="3"></el-option>
@@ -201,9 +205,19 @@
             <div>提示: 新设备首次登录多半需要手机版扫码，建议先准备好</div>
             <div>能够进行扫码登录（不填写密码即可），但注意扫码登录不支持自动重连。</div>
             <div>如果出现“要求同一WIFI扫码”可以本地登录后备份，复制到服务器上。</div>
-            <div v-if="form.protocol !== 2" style="color: #aa4422;">提示: 首次登录时，目前建议使用手表协议(2023年3月)，别的协议目前无法登录。</div>
+            <div v-if="form.protocol !== 2" style="color: #aa4422;">提示: 首次登录时，建议先尝试AndroidPad，如扫码失败，切换使用手表协议，别的协议目前无法登录(2023年3月)。</div>
             <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
           </small>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 6" label="账号" :label-width="formLabelWidth" required>
+          <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 6" label="gocqhttp目录" :label-width="formLabelWidth" required>
+          <el-input v-model="form.relWorkDir" type="text" autocomplete="off" placeholder="d:/my-gocqhttp"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 6" label="正向WS连接地址" :label-width="formLabelWidth" required>
+          <el-input v-model="form.connectUrl" placeholder="ws://localhost:1234" type="text" autocomplete="off"></el-input>
         </el-form-item>
 
         <el-form-item v-if="form.accountType === 1" label="Token" :label-width="formLabelWidth" required>
@@ -332,7 +346,9 @@
           <el-button type="primary" @click="goStepTwo"
                      :disabled="form.accountType === 0 && form.account === '' ||
                      (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === '' ||
-                      form.accountType === 4 && form.url === '' || form.accountType === 5 && (form.clientID === '' || form.token === '')">
+                      form.accountType === 4 && form.url === '' ||
+                      form.accountType === 5 && (form.clientID === '' || form.token === '') ||
+                      form.accountType === 6 && (form.account === '' || form.connectUrl === '' || form.relWorkDir === '')">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">
@@ -587,7 +603,10 @@ const form = reactive({
   url:'',
   clientID:'',
   ignoreFriendRequest: false,
-  endpoint: null as any as DiceConnection
+  endpoint: null as any as DiceConnection,
+
+  relWorkDir: '',
+  connectUrl: '',
 })
 
 const addOne = () => {
