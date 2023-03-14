@@ -478,6 +478,10 @@ func getCmdStBase() *CmdItemInfo {
 				ReplyToSender(mctx, msg, text)
 			}
 
+			if ctx.Player.AutoSetNameTemplate != "" {
+				_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+			}
+
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
