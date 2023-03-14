@@ -1,15 +1,19 @@
 package com.sealdice.dice
 
+import android.Manifest
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.*
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.finishAffinity
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.sealdice.dice.common.ExtractAssets
@@ -99,25 +103,36 @@ class FirstFragment : Fragment() {
         }
         binding.buttonOutput.setOnClickListener {
             FileWrite.FileCount = 0
-            context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice/" }
-                ?.let { it2 -> File(it2) }
-                ?.let { it3 -> FileWrite.copyFolder(it3,File("${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/")) }
-//            val address = "${FileWrite.SDCardDir}/Android/data/${context?.packageName}/"
-//            val uri = Uri.parse(address)
-//            val intent = Intent()
-//            intent.action = "android.intent.action.VIEW"
-//            intent.data = uri
-//            startActivity(intent)
-            val alertDialogBuilder = context?.let { it1 ->
-                AlertDialog.Builder(
-                    it1
-                )
+            val permissionState =
+                context?.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.WRITE_EXTERNAL_STORAGE) }
+            if (permissionState == PackageManager.PERMISSION_GRANTED) {
+//                Toast.makeText(context, "已授权！", Toast.LENGTH_LONG).show()
+                context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice/" }
+                    ?.let { it2 -> File(it2) }
+                    ?.let { it3 -> FileWrite.copyFolder(it3,File("${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/")) }
+                val alertDialogBuilder = context?.let { it1 ->
+                    AlertDialog.Builder(
+                        it1
+                    )
+                }
+                alertDialogBuilder?.setTitle("提示")
+                alertDialogBuilder?.setMessage("所有内部数据已经导出至\n"+"${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/\n共${FileWrite.FileCount}个文件")
+                alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+                }
+                alertDialogBuilder?.create()?.show()
+            } else {
+                Toast.makeText(context, "未获得文件权限！", Toast.LENGTH_LONG).show()
+                this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE), 1) }
+                val alertDialogBuilder = context?.let { it1 ->
+                    AlertDialog.Builder(
+                        it1
+                    )
+                }
+                alertDialogBuilder?.setTitle("提示")
+                alertDialogBuilder?.setMessage("请授权文件读写权限以使用此功能\n授权后请重试")
+                alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
+                alertDialogBuilder?.create()?.show()
             }
-            alertDialogBuilder?.setTitle("提示")
-            alertDialogBuilder?.setMessage("所有内部数据已经导出至\n"+"${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/\n共${FileWrite.FileCount}个文件")
-            alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
-            }
-            alertDialogBuilder?.create()?.show()
         }
         binding.buttonInput.setOnClickListener {
             val alertDialogBuilder = context?.let { it1 ->
@@ -129,18 +144,34 @@ class FirstFragment : Fragment() {
             alertDialogBuilder?.setMessage("将从\n"+"${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/\n中导入数据，内部存储中所有的重复文件将被覆盖，覆盖后将无法恢复\n返回请按”取消“ 继续请按”确定“")
             alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
                 FileWrite.FileCount = 0
-                context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice" }?.let { it2 ->
-                    File(
-                        it2
-                    )
-                }?.let { it3 ->
-                    FileWrite.copyFolder(File("${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/"),
-                        it3
-                    )
+                val permissionState =
+                    context?.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.READ_EXTERNAL_STORAGE) }
+                if (permissionState == PackageManager.PERMISSION_GRANTED) {
+                    context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice" }?.let { it2 ->
+                        File(
+                            it2
+                        )
+                    }?.let { it3 ->
+                        FileWrite.copyFolder(File("${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/"),
+                            it3
+                        )
+                    }
+                    Toast.makeText(
+                        context, "导入了${FileWrite.FileCount}个文件", Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    Toast.makeText(context, "未获得文件权限！", Toast.LENGTH_LONG).show()
+                    this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE), 1) }
+                    val alertDialogBuilder2 = context?.let { it1 ->
+                        AlertDialog.Builder(
+                            it1
+                        )
+                    }
+                    alertDialogBuilder2?.setTitle("提示")
+                    alertDialogBuilder2?.setMessage("请授权文件读写权限以使用此功能\n授权后请重试")
+                    alertDialogBuilder2?.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
+                    alertDialogBuilder2?.create()?.show()
                 }
-                Toast.makeText(
-                    context, "导入了${FileWrite.FileCount}个文件", Toast.LENGTH_LONG
-                ).show()
             }
             alertDialogBuilder?.setNegativeButton("取消") {_: DialogInterface, _: Int ->}
             alertDialogBuilder?.create()?.show()
