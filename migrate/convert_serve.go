@@ -3,6 +3,7 @@ package migrate
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"go.etcd.io/bbolt"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -165,7 +166,9 @@ func ConvertServe() error {
 	if err != nil {
 		return err
 	}
-	defer dbSql.Close()
+	defer func(dbSql *sqlx.DB) {
+		_ = dbSql.Close()
+	}(dbSql)
 	//flags := sqlite.OpenReadWrite | sqlite.OpenCreate | sqlite.OpenWAL
 	//dbpool, err := sqlitex.Open(dbDataPath, flags, 10)
 	//if err != nil {
@@ -236,7 +239,7 @@ create table if not exists ban_info
 	}
 
 	for _, i := range texts {
-		dbSql.Exec(i)
+		_, _ = dbSql.Exec(i)
 		//fmt.Println("xxx", err)
 	}
 	//fmt.Println(sqlitex.ExecuteTransient(conn, "VACUUM INTO bak", nil))
@@ -286,7 +289,7 @@ create table if not exists ban_info
 			err := tx.Commit()
 			if err != nil {
 				fmt.Println("???", err)
-				tx.Rollback()
+				_ = tx.Rollback()
 			}
 
 			fmt.Println("群组信息处理完成")
@@ -300,21 +303,23 @@ create table if not exists ban_info
 			//os.WriteFile("./data/default/serve.yaml", d2, 0644)
 		}
 
-		os.WriteFile("./data/default/serve.yaml.old", data, 0644)
+		_ = os.WriteFile("./data/default/serve.yaml.old", data, 0644)
 		//os.WriteFile("./serve.yaml", d2, 0644)
 	}
 
 	// 处理attrs部分
 	ctx := CreateFakeCtx()
 	db := ctx.Dice.DB
-	defer db.Close()
+	defer func(db *bbolt.DB) {
+		_ = db.Close()
+	}(db)
 
 	fmt.Println("处理属性部分")
 	copyByName := func(table string) {
 		times = 0
 		tx2 := dbSql.MustBegin()
 
-		db.View(func(tx *bbolt.Tx) error {
+		_ = db.View(func(tx *bbolt.Tx) error {
 			logs := tx.Bucket([]byte(table))
 
 			return logs.ForEach(func(k, v []byte) error {
@@ -335,7 +340,7 @@ create table if not exists ban_info
 
 		err := tx2.Commit()
 		if err != nil {
-			tx2.Rollback()
+			_ = tx2.Rollback()
 			return
 		}
 	}
@@ -347,7 +352,7 @@ create table if not exists ban_info
 
 	times = 0
 	tx2 := dbSql.MustBegin()
-	db.View(func(tx *bbolt.Tx) error {
+	_ = db.View(func(tx *bbolt.Tx) error {
 		b0 := tx.Bucket([]byte("common"))
 		if b0 == nil {
 			return nil
@@ -377,7 +382,7 @@ create table if not exists ban_info
 
 	err = tx2.Commit()
 	if err != nil {
-		tx2.Rollback()
+		_ = tx2.Rollback()
 	}
 
 	fmt.Println("黑名单条目数量", times)

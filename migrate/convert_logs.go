@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"go.etcd.io/bbolt"
 	"path/filepath"
 	"strconv"
@@ -96,7 +97,7 @@ func BoltDBInit(path string) *bbolt.DB {
 		panic(err)
 	}
 
-	db.Update(func(tx *bbolt.Tx) error {
+	_ = db.Update(func(tx *bbolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("attrs_group"))     // 组属性
 		_, err = tx.CreateBucketIfNotExists([]byte("attrs_user"))       // 用户属性
 		_, err = tx.CreateBucketIfNotExists([]byte("attrs_group_user")) // 组_用户_属性
@@ -116,7 +117,7 @@ func CreateFakeCtx() *MsgContext {
 
 // LogGetList 获取列表
 func LogGetList(ctx *MsgContext, groupId string) ([]string, error) {
-	ret := []string{}
+	var ret []string
 	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
 		b0 := tx.Bucket([]byte("logs"))
 		if b0 == nil {
@@ -141,7 +142,7 @@ func LogGetList(ctx *MsgContext, groupId string) ([]string, error) {
 }
 
 func LogGetAllLines(ctx *MsgContext, groupId string, logName string) ([]*LogOneItem, error) {
-	ret := []*LogOneItem{}
+	var ret []*LogOneItem
 	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
 		b0 := tx.Bucket([]byte("logs"))
 		if b0 == nil {
@@ -172,7 +173,7 @@ func LogGetAllLines(ctx *MsgContext, groupId string, logName string) ([]*LogOneI
 func LogGetAllLinesWithoutDeleted(ctx *MsgContext, groupId string, logName string) ([]*LogOneItem, error) {
 	badRawIds, err2 := LogGetAllDeleted(ctx, groupId, logName)
 
-	ret := []*LogOneItem{}
+	var ret []*LogOneItem
 	return ret, ctx.Dice.DB.View(func(tx *bbolt.Tx) error {
 		b0 := tx.Bucket([]byte("logs"))
 		if b0 == nil {
@@ -367,10 +368,12 @@ create index if not exists idx_log_items_log_id
 		fmt.Println("xxx", err)
 		return err
 	}
-	defer dbSql.Close()
+	defer func(dbSql *sqlx.DB) {
+		_ = dbSql.Close()
+	}(dbSql)
 
 	for _, i := range texts {
-		dbSql.Exec(i)
+		_, _ = dbSql.Exec(i)
 	}
 
 	//bakTestPath, _ := filepath.Abs("./data-logs-bak.db")
@@ -381,10 +384,12 @@ create index if not exists idx_log_items_log_id
 	// 加载数据
 	ctx := CreateFakeCtx()
 	db := ctx.Dice.DB
-	defer db.Close()
+	defer func(db *bbolt.DB) {
+		_ = db.Close()
+	}(db)
 
-	groupIds := []string{}
-	db.View(func(tx *bbolt.Tx) error {
+	var groupIds []string
+	_ = db.View(func(tx *bbolt.Tx) error {
 		logs := tx.Bucket([]byte("logs"))
 		return logs.ForEach(func(k, v []byte) error {
 			//fmt.Println("xxx", string(k))
@@ -463,7 +468,7 @@ create index if not exists idx_log_items_log_id
 				}
 				err := tx.Commit()
 				if err != nil {
-					tx.Rollback()
+					_ = tx.Rollback()
 				}
 			} else {
 				fmt.Println("错误:", err, i, j)
@@ -484,6 +489,6 @@ create index if not exists idx_log_items_log_id
 	}
 	fmt.Println("行数确认", num)
 
-	dbSql.Close()
+	_ = dbSql.Close()
 	return nil
 }
