@@ -233,6 +233,7 @@ func (d *Dice) Init() {
 	d.DBData, d.DBLogs, err = model.SQLiteDBInit(d.BaseConfig.DataDir)
 	if err != nil {
 		// TODO:
+		fmt.Println(err)
 	}
 
 	//d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
@@ -279,16 +280,16 @@ func (d *Dice) Init() {
 
 	autoSave := func() {
 		count := 0
-		t := time.Tick(30 * time.Second)
+		t := time.NewTicker(30 * time.Second)
 		for {
-			<-t
+			<-t.C
 			if d.IsAlreadyLoadConfig {
 				count += 1
 				d.Save(true)
 				if count%5 == 0 {
 					// 注: 这种用法我不太清楚是否有必要
-					model.FlushWAL(d.DBData)
-					model.FlushWAL(d.DBLogs)
+					_ = model.FlushWAL(d.DBData)
+					_ = model.FlushWAL(d.DBLogs)
 				}
 			}
 		}
@@ -296,7 +297,7 @@ func (d *Dice) Init() {
 	go autoSave()
 
 	refreshGroupInfo := func() {
-		t := time.Tick(35 * time.Second)
+		t := time.NewTicker(35 * time.Second)
 		defer func() {
 			// 防止报错
 			if r := recover(); r != nil {
@@ -305,7 +306,7 @@ func (d *Dice) Init() {
 		}()
 
 		for {
-			<-t
+			<-t.C
 
 			// 自动更新群信息
 			for _, i := range d.ImSession.EndPoints {

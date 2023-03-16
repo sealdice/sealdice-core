@@ -19,13 +19,13 @@ type ConsoleWriterShutUp struct {
 	*log.ConsoleWriter
 }
 
-func (c *ConsoleWriterShutUp) Close() (err error)                         { return nil }
-func (c *ConsoleWriterShutUp) write(out io.Writer, p []byte) (int, error) { return 0, nil }
-func (c *ConsoleWriterShutUp) format(out io.Writer, args *log.FormatterArgs) (n int, err error) {
+func (c *ConsoleWriterShutUp) Close() (err error)                         { return nil }    //nolint
+func (c *ConsoleWriterShutUp) write(out io.Writer, p []byte) (int, error) { return 0, nil } //nolint
+func (c *ConsoleWriterShutUp) format(out io.Writer, args *log.FormatterArgs) (n int, err error) { //nolint
 	return 0, nil
 }
-func (c *ConsoleWriterShutUp) WriteEntry(e *log.Entry) (int, error)              { return 0, nil }
-func (c *ConsoleWriterShutUp) writew(out io.Writer, p []byte) (n int, err error) { return 0, nil }
+func (c *ConsoleWriterShutUp) WriteEntry(e *log.Entry) (int, error)              { return 0, nil } //nolint
+func (c *ConsoleWriterShutUp) writew(out io.Writer, p []byte) (n int, err error) { return 0, nil } //nolint
 
 // kook go的鉴权目前并不好用，这里重写一遍
 const (
@@ -408,52 +408,50 @@ func (pa *PlatformAdapterKook) SetGroupCardName(groupId string, userId string, n
 }
 func trimHtml(src string) string {
 	//将HTML标签全转换成小写
-	re, _ := regexp.Compile("\\<[\\S\\s]+?\\>")
+	re, _ := regexp.Compile(`<[\S\s]+?>`)
 	src = re.ReplaceAllStringFunc(src, strings.ToLower)
 	//去除STYLE
-	re, _ = regexp.Compile("\\<style[\\S\\s]+?\\</style\\>")
+	re, _ = regexp.Compile(`<style[Ss]+?</style>`)
 	src = re.ReplaceAllString(src, "")
 	//去除SCRIPT
-	re, _ = regexp.Compile("\\<script[\\S\\s]+?\\</script\\>")
+	re, _ = regexp.Compile(`<script[Ss]+?</script>`)
 	src = re.ReplaceAllString(src, "")
 	//去除所有尖括号内的HTML代码，并换成换行符
-	re, _ = regexp.Compile("\\<[\\S\\s]+?\\>")
+	re, _ = regexp.Compile(`<[\\Ss]+?>`)
 	src = re.ReplaceAllString(src, "\n")
 	//去除连续的换行符
-	re, _ = regexp.Compile("\\s{2,}")
+	re, _ = regexp.Compile(`\s{2,}`)
 	src = re.ReplaceAllString(src, "\n")
 	return strings.TrimSpace(src)
 }
-func markdownAntiConvert(src string) string {
-	re, _ := regexp.Compile("\\\\")
-	src = re.ReplaceAllStringFunc(src, addSlash)
-	re, _ = regexp.Compile("`")
-	src = re.ReplaceAllStringFunc(src, addSlash)
-	re, _ = regexp.Compile("\\*")
-	src = re.ReplaceAllStringFunc(src, addSlash)
-	re, _ = regexp.Compile("_")
-	src = re.ReplaceAllStringFunc(src, addSlash)
-	re, _ = regexp.Compile("\\{\\}")
-	src = re.ReplaceAllStringFunc(src, addSlash)
-	re, _ = regexp.Compile("\\[\\]")
-	src = re.ReplaceAllStringFunc(src, addSlash)
-	re, _ = regexp.Compile("\\(\\)")
-	src = re.ReplaceAllStringFunc(src, addSlash)
-	re, _ = regexp.Compile("#")
-	src = re.ReplaceAllStringFunc(src, addSlash)
-	//re, _ = regexp.Compile("\\\n")
-	//src = re.ReplaceAllString(src, "\n")
-	//re, _ = regexp.Compile("-")
-	//src = re.ReplaceAllStringFunc(src, addSlash)
-	re, _ = regexp.Compile("\\.")
-	src = re.ReplaceAllStringFunc(src, addSlash)
-	re, _ = regexp.Compile("!")
-	src = re.ReplaceAllStringFunc(src, addSlash)
-	return strings.TrimSpace(src)
-}
-func addSlash(src string) string {
-	return "\\" + src
-}
+
+//	func markdownAntiConvert(src string) string {
+//		re, _ := regexp.Compile("\\\\")
+//		src = re.ReplaceAllStringFunc(src, addSlash)
+//		re, _ = regexp.Compile("`")
+//		src = re.ReplaceAllStringFunc(src, addSlash)
+//		re, _ = regexp.Compile("\\*")
+//		src = re.ReplaceAllStringFunc(src, addSlash)
+//		re, _ = regexp.Compile("_")
+//		src = re.ReplaceAllStringFunc(src, addSlash)
+//		re, _ = regexp.Compile(`{}`)
+//		src = re.ReplaceAllStringFunc(src, addSlash)
+//		re, _ = regexp.Compile("\\[\\]")
+//		src = re.ReplaceAllStringFunc(src, addSlash)
+//		re, _ = regexp.Compile("\\(\\)")
+//		src = re.ReplaceAllStringFunc(src, addSlash)
+//		re, _ = regexp.Compile("#")
+//		src = re.ReplaceAllStringFunc(src, addSlash)
+//		//re, _ = regexp.Compile("\\\n")
+//		//src = re.ReplaceAllString(src, "\n")
+//		//re, _ = regexp.Compile("-")
+//		//src = re.ReplaceAllStringFunc(src, addSlash)
+//		re, _ = regexp.Compile("\\.")
+//		src = re.ReplaceAllStringFunc(src, addSlash)
+//		re, _ = regexp.Compile("!")
+//		src = re.ReplaceAllStringFunc(src, addSlash)
+//		return strings.TrimSpace(src)
+//	}
 func (pa *PlatformAdapterKook) toStdMessage(ctx *kook.KmarkdownMessageContext) *Message {
 	logger := pa.Session.Parent.Logger
 	msg := new(Message)

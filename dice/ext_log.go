@@ -887,12 +887,12 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 						}
 
 						// 如果没有旧值，弄一个
-						key := fmt.Sprintf("理智:旧值")
+						key := "理智:旧值"
 						if pcInfo[nickname][key] == 0 {
 							pcInfo[nickname][key] = int(j["sanOld"].(float64))
 						}
 
-						key2 := fmt.Sprintf("理智:新值")
+						key2 := "理智:新值"
 						//if pcInfo[nickname][key2] == 0 {
 						pcInfo[nickname][key2] = int(j["sanNew"].(float64))
 						//}

@@ -510,14 +510,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 
 	numOpCountAdd := func(count int64) bool {
 		e.NumOpCount += count
-		if e.NumOpCount > 30000 {
-			return true
-		}
-		return false
+		return e.NumOpCount > 30000
 	}
 
 	getE5 := func() error {
-		return errors.New("E5: 超出单指令允许算力，不予计算")
+		return errors.New("e5: 超出单指令允许算力，不予计算")
 	}
 
 	codes := e.Code[0:e.Top]
@@ -910,7 +907,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 						if strings.Contains(varname, ":") {
 							vType = VMTypeString
 							v = "<%未定义值-" + varname + "%>"
-						} else {
+						} else { //nolint
+							//TODO
 							//vType = VMTypeInt64 // 这个方案不好，更多类型的时候就出事了
 							//v = int64(0)
 						}

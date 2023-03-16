@@ -1285,8 +1285,8 @@ func (ctx *MsgContext) ChBindGetList(name string) []string {
 		}
 		return nil
 	})
-	grps := []string{}
-	for k, _ := range groups {
+	var grps []string
+	for k := range groups {
 		grps = append(grps, k)
 	}
 	return grps
