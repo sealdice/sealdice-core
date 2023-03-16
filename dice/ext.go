@@ -45,7 +45,7 @@ func GetExtensionDesc(ei *ExtInfo) string {
 
 	valueMap := map[*CmdItemInfo]bool{}
 
-	for k, _ := range ei.CmdMap {
+	for k := range ei.CmdMap {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)

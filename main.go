@@ -60,7 +60,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 			d := i
 			(func() {
 				defer func() {
-					recover()
+					_ = recover()
 				}()
 				var dbData = d.DBData
 				if dbData != nil {
@@ -71,7 +71,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 
 			(func() {
 				defer func() {
-					recover()
+					_ = recover()
 				}()
 				var dbLogs = d.DBLogs
 				if dbLogs != nil {
@@ -243,13 +243,13 @@ func main() {
 	}
 
 	// 检查目录是否正确
-	if !checkFrontendExists() {
-		// 给一次修正机会吗？
-		//exe, err := filepath.Abs(os.Args[0])
-		//if err == nil {
-		//	ret := filepath.Dir(exe)
-		//}
-	}
+	//if !checkFrontendExists() {
+	// 给一次修正机会吗？
+	//exe, err := filepath.Abs(os.Args[0])
+	//if err == nil {
+	//	ret := filepath.Dir(exe)
+	//}
+	//}
 
 	if !checkFrontendExists() {
 		showWarn("SealDice 文件不完整", "未检查到UI文件目录，程序不完整，将自动退出。\n也可能是当前工作路径错误。")
@@ -316,12 +316,12 @@ func main() {
 	go (func() {
 		interrupt := make(chan os.Signal, 1)
 		signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-		select {
-		case <-interrupt:
-			cleanUp()
-			time.Sleep(3 * time.Second)
-			os.Exit(0)
-		}
+
+		<-interrupt
+		cleanUp()
+		time.Sleep(3 * time.Second)
+		os.Exit(0)
+
 	})()
 
 	if opts.Address != "" {
@@ -369,22 +369,16 @@ func diceServe(d *dice.Dice) {
 					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
 					dice.ServeQQ(d, conn)
-					break
 				case "DISCORD":
 					dice.ServeDiscord(d, conn)
-					break
 				case "KOOK":
 					dice.ServeKook(d, conn)
-					break
 				case "TG":
 					dice.ServeTelegram(d, conn)
-					break
 				case "MC":
 					dice.ServeMinecraft(d, conn)
-					break
 				case "DODO":
 					dice.ServeDodo(d, conn)
-					break
 				}
 
 				//for {

@@ -47,7 +47,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 
 	//exec.Command(`cmd`, `/c`, `start`, fmt.Sprintf(`http://localhost:%s`, portStr)).Start()
 	fmt.Println("如果浏览器没有自动打开，请手动访问:")
-	fmt.Println(fmt.Sprintf(`http://localhost:%s`, portStr)) // 默认:3211
+	fmt.Printf(`http://localhost:%s`, portStr) // 默认:3211
 	err = e.Start(dm.ServeAddress)
 	if err != nil {
 		logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)

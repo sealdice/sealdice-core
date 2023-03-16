@@ -154,10 +154,7 @@ func LogDelete(db *sqlx.DB, groupId string, logName string) bool {
 
 	// 提交事务
 	err = tx.Commit()
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // LogAppend 向指定的log中添加一条信息
@@ -215,10 +212,7 @@ func LogAppend(db *sqlx.DB, groupId string, logName string, logItem *LogOneItem)
 
 	// 提交事务
 	err = tx.Commit()
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // LogMarkDeleteByMsgId 撤回删除

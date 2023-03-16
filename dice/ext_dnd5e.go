@@ -128,7 +128,7 @@ func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Reg
 			for _, i := range regexps {
 				if i.MatchString(k) {
 					doIt = true
-					break
+					//break
 				}
 			}
 		}
@@ -141,7 +141,7 @@ func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Reg
 				exportMap[k] = v.Value.(string)
 			case VMTypeDNDComputedValue:
 				vd := v.Value.(*VMDndComputedValueData)
-				if strings.Index(vd.Expr, "熟练") != -1 {
+				if strings.Contains(vd.Expr, "熟练") {
 					k = k + "*"
 				}
 				val, ok := vd.ReadBaseInt64()
@@ -472,8 +472,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 						info += fmt.Sprintf("%s:%s\t", k, vText) // 单个文本
 						if tick%4 == 0 {
-							info = strings.TrimSpace(info) // 去除末尾空格
-							info += fmt.Sprintf("\n")
+							info = strings.TrimSpace(info) + "\n" // 去除末尾空格
+							//info += fmt.Sprintf("\n")
 						}
 					}
 
@@ -539,7 +539,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if m[3] == ":" || m[3] == "：" || m[3] == "=" || m[3] == "＝" {
 						exprTmpl := "$tVal + %s/2 - 5"
 						if isSkilled {
-							factorText := "熟练"
+							var factorText string
 							if skilledFactor != math.Trunc(skilledFactor) {
 								n := int64(skilledFactor * 100)
 								factorText = fmt.Sprintf("熟练*%d/100", n)
@@ -549,7 +549,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							exprTmpl += " + " + factorText
 						}
 
-						parent, _ := dndAttrParent[attrName]
+						parent := dndAttrParent[attrName]
 						aText := attrName
 						aText += fmt.Sprintf(":%d", r.Value.(int64))
 						if parent != "" {
@@ -948,7 +948,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						k = k[len("$buff_"):]
 						info += fmt.Sprintf("%s:%s\t", k, vText) // 单个文本
 						if tick%4 == 0 {
-							info += fmt.Sprintf("\n")
+							info += "\n"
 						}
 					}
 
@@ -1007,7 +1007,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if m[3] == ":" || m[3] == "：" || m[3] == "=" || m[3] == "＝" {
 						exprTmpl := "$tVal"
 						if isSkilled {
-							factorText := "熟练"
+							var factorText string
 							if skilledFactor != math.Trunc(skilledFactor) {
 								n := int64(skilledFactor * 100)
 								factorText = fmt.Sprintf("熟练*%d/100", n)
@@ -1017,7 +1017,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							exprTmpl += " + " + factorText
 						}
 
-						parent, _ := dndAttrParent[attrNameRaw]
+						parent := dndAttrParent[attrNameRaw]
 						aText := attrNameRaw
 						aText += fmt.Sprintf(":%d", r.Value.(int64))
 						if parent != "" {
@@ -1645,13 +1645,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						text = strings.TrimSpace(text)
 
 						if strings.HasPrefix(text, ",") || strings.HasPrefix(text, "，") || text == "" {
-							if strings.HasPrefix(text, ",") {
-								// 句末有,的话，吃掉
-								text = text[1:]
-							}
-							if strings.HasPrefix(text, "，") {
-								text = text[len("，"):]
-							}
+							// 句首有,的话，吃掉
+							text = strings.TrimPrefix(text, ",")
+							text = strings.TrimPrefix(text, "，")
 							// 情况1，名字是自己
 							name = mctx.Player.Name
 							// 情况2，名字是自己，没有加值
@@ -1793,9 +1789,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						riMap := dndGetRiMapList(ctx)
 						riMap[name] = r.Value.(int64)
 
-						VarSetValueStr(ctx, "$t表达式", fmt.Sprintf("%s", expr))
-						VarSetValueStr(ctx, "$t目标", fmt.Sprintf("%s", name))
-						VarSetValueStr(ctx, "$t计算过程", fmt.Sprintf("%s", _detail))
+						VarSetValueStr(ctx, "$t表达式", expr)
+						VarSetValueStr(ctx, "$t目标", name)
+						VarSetValueStr(ctx, "$t计算过程", _detail)
 						VarSetValue(ctx, "$t点数", &r.VMValue)
 						textOut := DiceFormatTmpl(ctx, "DND:先攻_设置_指定单位")
 

@@ -78,22 +78,22 @@ func (m *HelpManager) loadSearchEngine() {
 		INDEX_DIR = "./_help_cache"
 		_ = os.RemoveAll(INDEX_DIR)
 
-		if m.Parent.UseDictForTokenizer {
-			//这些代码封存，看起来不怎么需要
-			//if err := mapping.AddCustomTokenizer("gse", map[string]interface{}{
-			//	"type":       "gse",
-			//	"user_dicts": "./data/dict/zh/dict.txt", // <-- MUST specified, otherwise panic would occurred.
-			//}); err != nil {
-			//	panic(err)
-			//}
-			//if err := mapping.AddCustomAnalyzer("gse", map[string]interface{}{
-			//	"type":      "gse",
-			//	"tokenizer": "gse",
-			//}); err != nil {
-			//	panic(err)
-			//}
-			//mapping.DefaultAnalyzer = "gse"
-		}
+		//if m.Parent.UseDictForTokenizer {
+		//这些代码封存，看起来不怎么需要
+		//if err := mapping.AddCustomTokenizer("gse", map[string]interface{}{
+		//	"type":       "gse",
+		//	"user_dicts": "./data/dict/zh/dict.txt", // <-- MUST specified, otherwise panic would occurred.
+		//}); err != nil {
+		//	panic(err)
+		//}
+		//if err := mapping.AddCustomAnalyzer("gse", map[string]interface{}{
+		//	"type":      "gse",
+		//	"tokenizer": "gse",
+		//}); err != nil {
+		//	panic(err)
+		//}
+		//mapping.DefaultAnalyzer = "gse"
+		//}
 
 		docMapping := bleve.NewDocumentMapping()
 		docMapping.AddFieldMappingsAt("title", bleve.NewTextFieldMapping())

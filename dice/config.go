@@ -1457,7 +1457,7 @@ func (d *Dice) loads() {
 				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 					// 更正写反的部分
 					d.Logger.Info("正在自动升级自定义文案文件")
-					for index, _ := range d.TextMapRaw["COC"]["属性设置_保存提醒"] {
+					for index := range d.TextMapRaw["COC"]["属性设置_保存提醒"] {
 						//srcText := text[0].(string)
 						//srcText = strings.ReplaceAll(
 						//	srcText,
@@ -1479,7 +1479,7 @@ func (d *Dice) loads() {
 				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 					// 更正写反的部分
 					d.Logger.Info("正在自动升级自定义文案文件")
-					for index, _ := range d.TextMapRaw["COC"]["属性设置_增减_单项"] {
+					for index := range d.TextMapRaw["COC"]["属性设置_增减_单项"] {
 						srcText := "{$t属性}: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})"
 						d.TextMapRaw["COC"]["属性设置_增减_单项"][index][0] = srcText
 					}
@@ -1629,7 +1629,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 				}
 			}
 			// 塞入之前没有的指令
-			for k, _ := range names {
+			for k := range names {
 				if _, exists := m[k]; !exists {
 					m[k] = false // false 因为默认不禁用
 				}
@@ -1729,7 +1729,7 @@ func (d *Dice) Save(isAuto bool) {
 
 				//fmt.Println("!!!!!!!!", toDelete, syncMap, allCh)
 				// 这里面的角色是需要同步的
-				for name, _ := range syncMap {
+				for name := range syncMap {
 					chData := allCh[name]
 					if chData != nil {
 						val, err := json.Marshal(LockFreeMapToMap(chData))

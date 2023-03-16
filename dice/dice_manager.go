@@ -174,7 +174,7 @@ func (dm *DiceManager) Save() {
 	dc.ServiceName = dm.ServiceName
 	dc.ConfigVersion = 9914
 
-	for k, _ := range dm.AccessTokens {
+	for k := range dm.AccessTokens {
 		dc.AccessTokens = append(dc.AccessTokens, k)
 	}
 
