@@ -305,12 +305,12 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 		}
 	}
 
-	vd, _ := s.PlayerVarsData[id]
+	vd := s.PlayerVarsData[id]
 	if vd.ValueMap == nil {
 		vd.ValueMap = lockfree.NewHashMap()
 	}
 
-	if vd.Loaded == false {
+	if !vd.Loaded {
 		vd.ValueMap = lockfree.NewHashMap()
 		data := model.AttrUserGetAll(s.Parent.DBData, id)
 
@@ -336,7 +336,7 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 		//vd.LastWriteTime = time.Now().Unix()
 
 		// 进行绑定角色的设置
-		for name, _ := range needToLoad {
+		for name := range needToLoad {
 			_data := mapData["$ch:"+name]
 			if _data != nil {
 				chData := make(map[string]*VMValue)
@@ -369,7 +369,7 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 	}
 
 	vd := player.Vars
-	if vd.Loaded == false {
+	if !vd.Loaded {
 		vd.ValueMap = lockfree.NewHashMap()
 		vd.Loaded = true
 
@@ -433,12 +433,12 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		if ctx.Dice != nil && !ctx.Dice.PlayerNameWrapEnable {
 			VarSetValueStr(ctx, "$t玩家", pcName)
 		}
-		VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", pcName))
+		VarSetValueStr(ctx, "$t玩家_RAW", pcName)
 		VarSetValueStr(ctx, "$tQQ昵称", fmt.Sprintf("<%s>", qqNickname))
 		VarSetValueStr(ctx, "$t帐号昵称", fmt.Sprintf("<%s>", qqNickname))
 		VarSetValueStr(ctx, "$t账号昵称", fmt.Sprintf("<%s>", qqNickname))
-		VarSetValueStr(ctx, "$t帐号ID", fmt.Sprintf("%s", ctx.Player.UserId))
-		VarSetValueStr(ctx, "$t账号ID", fmt.Sprintf("%s", ctx.Player.UserId))
+		VarSetValueStr(ctx, "$t帐号ID", ctx.Player.UserId)
+		VarSetValueStr(ctx, "$t账号ID", ctx.Player.UserId)
 		VarSetValueInt64(ctx, "$t个人骰子面数", int64(ctx.Player.DiceSideNum))
 		//VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})
 		VarSetValueStr(ctx, "$tQQ", ctx.Player.UserId)

@@ -166,10 +166,7 @@ func CommandCheckPrefix(rawCmd string, prefix []string, platform string) bool {
 			break
 		}
 	}
-	if prefixStr == "" {
-		return false
-	}
-	return true
+	return prefixStr != ""
 }
 
 func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string, prefix []string, platformPrefix string) *CmdArgs {
@@ -250,13 +247,13 @@ func SpecialExecuteTimesParse(cmd string) (string, int) {
 	re := regexp.MustCompile(`\d+?[#＃]`)
 	m := re.FindAllStringIndex(cmd, 1)
 	var times int64
-	if m != nil {
-		for _, i := range m {
-			text := cmd[i[0]:i[1]]
-			times, _ = strconv.ParseInt(text[:len(text)-1], 10, 32)
-			cmd = cmd[:i[0]] + cmd[i[1]:]
-		}
+
+	for _, i := range m {
+		text := cmd[i[0]:i[1]]
+		times, _ = strconv.ParseInt(text[:len(text)-1], 10, 32)
+		cmd = cmd[:i[0]] + cmd[i[1]:]
 	}
+
 	return cmd, int(times)
 }
 
@@ -353,16 +350,12 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	switch prefix {
 	case "QQ":
 		re = regexp.MustCompile(`\[CQ:at,qq=(\d+?)]`)
-		break
 	case "DISCORD":
 		re = regexp.MustCompile(`<@(\d+?)>`)
-		break
 	case "KOOK":
 		re = regexp.MustCompile(`\(met\)(\d+?)\(met\)`)
-		break
 	case "TG":
 		re = regexp.MustCompile(`tg:\/\/user\?id=(\d+)`)
-		break
 	case "DODO":
 		re = regexp.MustCompile(`<@\!(\d+?)>`)
 	}
@@ -406,7 +399,6 @@ func ArgsParse2(rawCmd string) *CmdArgs {
 			kw.ValueExists = m[2] != ""
 			kw.AsBool = m[2] != "false"
 			cmd.Kwargs = append(cmd.Kwargs, &kw)
-			newText = ""
 		} else {
 			newArgs = append(newArgs, newText)
 		}

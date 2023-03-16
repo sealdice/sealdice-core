@@ -77,7 +77,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 	parseInner := func(inner string) string {
 		sp := strings.Split(inner, "#")
 		if len(sp) > 1 {
-			index, _ := tmpVars[sp[1]]
+			index := tmpVars[sp[1]]
 			lst := getList(sp[0])
 			if index < len(lst) {
 				return lst[index]

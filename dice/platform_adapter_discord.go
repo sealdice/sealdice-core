@@ -176,7 +176,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 			msgSend.Content = msgSend.Content + e.Content
 		case *AtElement:
 			if e.Target == "all" {
-				msgSend.Content = msgSend.Content + fmt.Sprintf("@everyone ")
+				msgSend.Content = msgSend.Content + "@everyone "
 				break
 			}
 			msgSend.Content = msgSend.Content + fmt.Sprintf("<@%s>", e.Target)

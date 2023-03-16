@@ -370,6 +370,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					} else {
 						// TODO: 这玩意的创建是个专业活，等下来弄
 						//session.ServiceAtNew[groupId] = GroupInfo{}
+						fmt.Println("TODO create group")
 					}
 					// 这句话太吵了
 					//log.Debug("群信息刷新: ", msgQQ.Data.GroupName)
@@ -756,6 +757,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// 群消息发送失败: 账号可能被风控，戳对方一下
 				// {"data":null,"echo":0,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
 				// 但是这里没QQ号也没有消息ID，很麻烦
+				fmt.Println("群消息发送失败: 账号可能被风控")
 			}
 
 			// 戳一戳
@@ -832,7 +834,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		//fmt.Println("socket close")
 		go func() {
 			defer func() {
-				if r := recover(); r != nil {
+				if r := recover(); r != nil { //nolint
 					// 太频繁了 不输出了
 					//fmt.Println("关闭连接时遭遇异常")
 					//core.GetLogger().Error(r)
@@ -917,7 +919,7 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
 	deviceFilePath := filepath.Join(workDir, "device.json")
 	if _, err := os.Stat(deviceFilePath); err == nil {
-		configFile, err := os.ReadFile(deviceFilePath)
+		configFile, _ := os.ReadFile(deviceFilePath)
 		info := map[string]interface{}{}
 		err = json.Unmarshal(configFile, &info)
 

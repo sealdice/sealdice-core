@@ -13,9 +13,7 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 	var names []string
 	var chops []string
 	for _, i := range cmdsList {
-		for _, j := range i {
-			chops = append(chops, j)
-		}
+		chops = append(chops, i...)
 	}
 	cmdArgs.ChopPrefixToArgsWith(chops...)
 
@@ -191,8 +189,8 @@ func RegisterBuiltinStory(self *Dice) {
 				if ret != nil {
 					item := ret.Data.Module
 
-					opinion := item.Opinion
-					opinion = html.UnescapeString(item.Opinion) // 确实仍然存在一些 有标签的，如2488
+					//opinion := item.Opinion
+					opinion := html.UnescapeString(item.Opinion) // 确实仍然存在一些 有标签的，如2488
 					opinion = strip.StripTags(opinion)
 					ori := "是"
 					if !item.Original {

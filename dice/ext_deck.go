@@ -323,7 +323,7 @@ func DeckReload(d *Dice) {
 
 	lst := DeckCommandListItems{}
 	for _, i := range d.DeckList {
-		for k, _ := range i.Command {
+		for k := range i.Command {
 			lst = append(lst, &DeckCommandListItem{
 				command: k,
 				deck:    i,
@@ -402,7 +402,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						}
 
 						var cmds []string
-						for j, _ := range i.Command {
+						for j := range i.Command {
 							cmds = append(cmds, j)
 						}
 						text += "牌组: " + strings.Join(cmds, "/")
@@ -441,7 +441,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					ReplyToSender(ctx, msg, text)
 				} else if strings.EqualFold(deckName, "reload") {
 					if ctx.PrivilegeLevel < 100 {
-						ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+						ReplyToSender(ctx, msg, "你不具备Master权限")
 					} else {
 						if ctx.Dice.Parent.JustForTest {
 							ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
@@ -542,7 +542,6 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 
 		// 特殊变量检查
 		if deckName == "{player}" {
-			var text string
 			if ctx.Player != nil {
 				text = ctx.Player.Name
 			} else {
@@ -552,7 +551,6 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 			continue
 		}
 		if deckName == "{self}" {
-			var text string
 			text = DiceFormatTmpl(ctx, "核心:骰子名字")
 			s = s[:i[0]] + text + s[i[1]:]
 			continue

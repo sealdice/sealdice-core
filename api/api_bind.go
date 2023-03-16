@@ -43,8 +43,7 @@ func baseInfo(c echo.Context) error {
 	getName := func() string {
 		defer func() {
 			// 防止报错
-			if r := recover(); r != nil {
-			}
+			_ = recover()
 		}()
 
 		ctx := &dice.MsgContext{Dice: myDice, EndPoint: nil, Session: myDice.ImSession}
@@ -243,7 +242,7 @@ func onebotTool(c echo.Context) error {
 	v := struct {
 		Port int64 `form:"port" json:"port"`
 	}{}
-	err := c.Bind(&v)
+	_ = c.Bind(&v)
 
 	port := int64(13325)
 	if v.Port != 0 {
@@ -251,8 +250,7 @@ func onebotTool(c echo.Context) error {
 	}
 
 	errText := ""
-	var ip string
-	ip, err = socksOpen(myDice, port)
+	ip, err := socksOpen(myDice, port)
 	if err != nil {
 		errText = err.Error()
 	}
@@ -269,8 +267,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
 
-	var prefix string
-	prefix = "/sd-api"
+	prefix := "/sd-api"
 
 	e.GET(prefix+"/baseInfo", baseInfo)
 	e.GET(prefix+"/hello", hello2)

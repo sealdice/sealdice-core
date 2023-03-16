@@ -36,7 +36,7 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("add", "rm", "del", "list", "show", "find", "trust")
 			if ctx.PrivilegeLevel < 100 {
-				ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+				ReplyToSender(ctx, msg, "你不具备Master权限")
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
@@ -86,7 +86,7 @@ func (d *Dice) registerCoreCommands() {
 					item.Score = 0
 					item.Rank = BanRankNormal
 				} else {
-					ReplyToSender(ctx, msg, fmt.Sprintf("找不到用户/群组"))
+					ReplyToSender(ctx, msg, "找不到用户/群组")
 				}
 			case "trust":
 				uid := cmdArgs.GetArgN(2)
@@ -128,7 +128,6 @@ func (d *Dice) registerCoreCommands() {
 					text = "当前名单:\n" + text
 				}
 				ReplyToSender(ctx, msg, text)
-				break
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
@@ -256,7 +255,7 @@ func (d *Dice) registerCoreCommands() {
 			if arg := cmdArgs.GetArgN(1); arg != "" {
 				if strings.EqualFold(arg, "reload") {
 					if ctx.PrivilegeLevel < 100 {
-						ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+						ReplyToSender(ctx, msg, "你不具备Master权限")
 					} else {
 						dm := d.Parent
 						if dm.JustForTest {
@@ -422,7 +421,7 @@ func (d *Dice) registerCoreCommands() {
 							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
 								SetBotOnAtGroup(ctx, msg.GroupId)
 							} else {
-								ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员、邀请者或master"))
+								ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -449,7 +448,7 @@ func (d *Dice) registerCoreCommands() {
 							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
 								SetBotOffAtGroup(ctx, ctx.Group.GroupId)
 							} else {
-								ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员、邀请者或master"))
+								ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -467,7 +466,7 @@ func (d *Dice) registerCoreCommands() {
 							// 感觉似乎不太必要
 							pRequired := 40 // 40邀请者 50管理 60群主 100master
 							if ctx.PrivilegeLevel < pRequired {
-								ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员或master"))
+								ReplyToSender(ctx, msg, "你不是管理员或master")
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -666,9 +665,9 @@ func (d *Dice) registerCoreCommands() {
 						ctx.Dice.MasterRefresh()
 						ctx.Dice.MasterAdd(ctx.Player.UserId)
 						ctx.Dice.UnlockCodeUpdate(true) // 强制刷新解锁码
-						ReplyToSender(ctx, msg, fmt.Sprintf("你已成为唯一Master"))
+						ReplyToSender(ctx, msg, "你已成为唯一Master")
 					} else {
-						ReplyToSender(ctx, msg, fmt.Sprintf("错误的解锁码"))
+						ReplyToSender(ctx, msg, "错误的解锁码")
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -690,7 +689,7 @@ func (d *Dice) registerCoreCommands() {
 				ctx.Dice.Save(false)
 				ReplyToSender(ctx, msg, fmt.Sprintf("海豹将新增%d位master", newCount))
 			case "unlock":
-				ReplyToSender(ctx, msg, fmt.Sprintf("Master，你找我有什么事吗？"))
+				ReplyToSender(ctx, msg, "你已经是Master了")
 			case "del", "rm":
 				existsCount := 0
 				for _, uid := range readIdList(ctx, msg, cmdArgs) {
@@ -702,18 +701,18 @@ func (d *Dice) registerCoreCommands() {
 				ReplyToSender(ctx, msg, fmt.Sprintf("海豹移除了%d名master", existsCount))
 			case "relogin":
 				if kw := cmdArgs.GetKwarg("cancel"); kw != nil {
-					if reloginFlag == true {
+					if reloginFlag {
 						reloginFlag = false
-						ReplyToSender(ctx, msg, fmt.Sprintf("已取消重登录"))
+						ReplyToSender(ctx, msg, "已取消重登录")
 					} else {
-						ReplyToSender(ctx, msg, fmt.Sprintf("错误: 不存在能够取消的重新登录行为"))
+						ReplyToSender(ctx, msg, "错误: 不存在能够取消的重新登录行为")
 					}
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
 				doRelogin := func() {
 					reloginLastTime = time.Now().Unix()
-					ReplyToSender(ctx, msg, fmt.Sprintf("开始执行重新登录"))
+					ReplyToSender(ctx, msg, "开始执行重新登录")
 					reloginFlag = false
 					time.Sleep(1 * time.Second)
 					ctx.EndPoint.Adapter.DoRelogin()
@@ -730,7 +729,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				reloginFlag = true
-				ReplyToSender(ctx, msg, fmt.Sprintf("将在30s后重新登录，期间可以输入.master relogin --cancel解除\n若遭遇风控，可能会没有任何输出。静等或输入.master relogin --now立即执行\n此指令每5分钟只能执行一次，可能解除风控，也可能使骰子失联。后果自负"))
+				ReplyToSender(ctx, msg, "将在30s后重新登录，期间可以输入.master relogin --cancel解除\n若遭遇风控，可能会没有任何输出。静等或输入.master relogin --now立即执行\n此指令每5分钟只能执行一次，可能解除风控，也可能使骰子失联。后果自负")
 				go func() {
 					time.Sleep(30 * time.Second)
 					if reloginFlag {
@@ -872,7 +871,7 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 				} else {
-					ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+					ReplyToSender(ctx, msg, "你不具备Master权限")
 				}
 			} else if val == "help" || val == "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -1156,7 +1155,7 @@ func (d *Dice) registerCoreCommands() {
 					showList()
 				} else if cmdArgs.IsArgEqual(last, "on") {
 					if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
-						ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员、邀请者或master"))
+						ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
@@ -1202,7 +1201,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				} else if cmdArgs.IsArgEqual(last, "off") {
 					if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
-						ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员、邀请者或master"))
+						ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
@@ -1260,11 +1259,11 @@ func (d *Dice) registerCoreCommands() {
 			case "clr", "reset":
 				p := ctx.Player
 				VarSetValueStr(ctx, "$t旧昵称", fmt.Sprintf("<%s>", ctx.Player.Name))
-				VarSetValueStr(ctx, "$t旧昵称_RAW", fmt.Sprintf("%s", ctx.Player.Name))
+				VarSetValueStr(ctx, "$t旧昵称_RAW", ctx.Player.Name)
 				p.Name = msg.Sender.Nickname
 				p.UpdatedAtTime = time.Now().Unix()
 				VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
-				VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
+				VarSetValueStr(ctx, "$t玩家_RAW", ctx.Player.Name)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_重置"))
 				if ctx.Player.AutoSetNameTemplate != "" {
 					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
@@ -1272,12 +1271,12 @@ func (d *Dice) registerCoreCommands() {
 			default:
 				p := ctx.Player
 				VarSetValueStr(ctx, "$t旧昵称", fmt.Sprintf("<%s>", ctx.Player.Name))
-				VarSetValueStr(ctx, "$t旧昵称_RAW", fmt.Sprintf("%s", ctx.Player.Name))
+				VarSetValueStr(ctx, "$t旧昵称_RAW", ctx.Player.Name)
 
 				p.Name = cmdArgs.Args[0]
 				p.UpdatedAtTime = time.Now().Unix()
 				VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
-				VarSetValueStr(ctx, "$t玩家_RAW", fmt.Sprintf("%s", ctx.Player.Name))
+				VarSetValueStr(ctx, "$t玩家_RAW", ctx.Player.Name)
 
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_改名"))
 				//replyGroup(ctx, msg.GroupId, fmt.Sprintf("%s(%d) 的昵称被设定为<%s>", msg.Sender.Nickname, msg.Sender.UserId, p.Name))
@@ -1687,7 +1686,7 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			pRequired := 50 // 50管理 60群主 100master
 			if ctx.PrivilegeLevel < pRequired {
-				ReplyToSender(ctx, msg, fmt.Sprintf("你不是管理员或master"))
+				ReplyToSender(ctx, msg, "你不是管理员或master")
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
@@ -1700,8 +1699,7 @@ func (d *Dice) registerCoreCommands() {
 				ctx.Group.UpdatedAtTime = time.Now().Unix()
 				ReplyToSender(ctx, msg, "入群欢迎语已关闭")
 			} else if cmdArgs.IsArgEqual(1, "show") {
-				welcome := "<无内容>"
-				welcome = ctx.Group.GroupWelcomeMessage
+				welcome := ctx.Group.GroupWelcomeMessage
 				var info string
 				if ctx.Group.ShowGroupWelcome {
 					info = "\n状态: 开启"

@@ -37,6 +37,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         if: github.event.name == 'pull_request'
         with:
+          go-version: '1.18'
           only-new-issues: true
           skip-pkg-cache: true
           skip-build-cache: true

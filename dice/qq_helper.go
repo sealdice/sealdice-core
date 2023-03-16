@@ -35,7 +35,7 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			return false
 		}
 
-		lastRetryTime := time.Now().Unix()
+		//lastRetryTime := time.Now().Unix()
 		waitTimes := 0
 		for {
 			if checkQuit() {
@@ -46,10 +46,10 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserId, waitTimes, 5)
 			ret := ep.Adapter.Serve()
 
-			if time.Now().Unix()-lastRetryTime > 8*60 {
-				lastRetryTime = 0
-			}
-			lastRetryTime = time.Now().Unix()
+			//if time.Now().Unix()-lastRetryTime > 8*60 {
+			//	lastRetryTime = 0
+			//}
+			//lastRetryTime = time.Now().Unix()
 
 			if ret == 0 {
 				break
@@ -101,7 +101,7 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			return false
 		}
 
-		lastRetryTime := time.Now().Unix()
+		//lastRetryTime := time.Now().Unix()
 		waitTimes := 0
 		for {
 			if checkQuit() {
@@ -112,10 +112,10 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserId, waitTimes, 5)
 			ret := ep.Adapter.Serve()
 
-			if time.Now().Unix()-lastRetryTime > 8*60 {
-				lastRetryTime = 0
-			}
-			lastRetryTime = time.Now().Unix()
+			//if time.Now().Unix()-lastRetryTime > 8*60 {
+			//	lastRetryTime = 0
+			//}
+			//lastRetryTime = time.Now().Unix()
 
 			if ret == 0 {
 				break

@@ -163,9 +163,9 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 		wqc.Onebot.WebsocketRev = make([]interface{}, 0)
 		wqc.Onebot.HttpWebhook = make([]interface{}, 0)
 		b := new(bytes.Buffer)
-		err = toml.NewEncoder(b).Encode(wqc)
-		_ = os.WriteFile(configFilePath, []byte(b.String()), 0644)
-	} else {
+		_ = toml.NewEncoder(b).Encode(wqc)
+		_ = os.WriteFile(configFilePath, b.Bytes(), 0644)
+	} else { //nolint
 		// 如果决定使用单进程 wq
 		/*
 			wqc := new(WalleQConfig)
@@ -226,7 +226,8 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 			}
 		}
 
-		if strings.Contains(line, "扫描二维码登录") {
+		if strings.Contains(line, "扫描二维码登录") { //nolint
+			//TODO
 		}
 		return line
 	}
@@ -309,8 +310,8 @@ func (pa *PlatformAdapterWalleQ) SetQQProtocol(protocol int) bool {
 		wqc.QQ[uid].Password, protocol,
 	}
 	b := new(bytes.Buffer)
-	err = toml.NewEncoder(b).Encode(wqc)
-	_ = os.WriteFile(wd, []byte(b.String()), 0644)
+	_ = toml.NewEncoder(b).Encode(wqc)
+	_ = os.WriteFile(wd, b.Bytes(), 0644)
 	return true
 }
 

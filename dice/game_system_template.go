@@ -21,11 +21,11 @@ type AttributeConfigs struct {
 // ---------
 
 type AttrConfig struct {
-	Top     []string          `yaml:"top,flow" json:"top,flow"`
-	SortBy  string            `yaml:"sortBy" json:"sortBy"`   // time | Name | value desc
-	Ignores []string          `yaml:"ignores" json:"ignores"` // 这里面的属性将不被显示
-	ShowAs  map[string]string `yaml:"showAs" json:"showAs"`   // 展示形式，即st show时格式
-	Setter  map[string]string `yaml:"setter" json:"setter"`   // st写入时执行这个
+	Top     []string          `yaml:"top,flow" json:"top,flow"` //nolint
+	SortBy  string            `yaml:"sortBy" json:"sortBy"`     // time | Name | value desc
+	Ignores []string          `yaml:"ignores" json:"ignores"`   // 这里面的属性将不被显示
+	ShowAs  map[string]string `yaml:"showAs" json:"showAs"`     // 展示形式，即st show时格式
+	Setter  map[string]string `yaml:"setter" json:"setter"`     // st写入时执行这个
 }
 
 type NameTemplateItem struct {
