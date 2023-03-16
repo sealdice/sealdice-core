@@ -7,7 +7,6 @@ import (
 	"github.com/fy0/lockfree"
 	wr "github.com/mroth/weightedrand"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1149,7 +1148,7 @@ func SetupTextHelpInfo(d *Dice, helpInfo TextTemplateWithHelpDict, texts TextTem
 			}
 
 			if len(helpInfoItem.Vars) == 0 {
-				vars := []string{}
+				var vars []string
 				existsMap := map[string]bool{}
 				for _, i := range v2 {
 					re := regexp.MustCompile(`{(\S+?)}`)
@@ -1171,7 +1170,7 @@ func loadTextTemplate(d *Dice, fn string) {
 	textPath := filepath.Join(d.BaseConfig.DataDir, fn)
 
 	if _, err := os.Stat(textPath); err == nil {
-		data, err := ioutil.ReadFile(textPath)
+		data, err := os.ReadFile(textPath)
 		if err != nil {
 			panic(err)
 		}
@@ -1323,7 +1322,7 @@ func (d *Dice) loads() {
 			if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
 				d.DiceMasters = []string{"UI:1001"}
 			}
-			newDiceMasters := []string{}
+			var newDiceMasters []string
 			for _, i := range d.DiceMasters {
 				if i != "<平台,如QQ>:<帐号,如QQ号>" {
 					newDiceMasters = append(newDiceMasters, i)
@@ -1333,7 +1332,7 @@ func (d *Dice) loads() {
 			// 装载ServiceAt
 			d.ImSession.ServiceAtNew = map[string]*GroupInfo{}
 			//d.ImSession.ServiceAtNew = model.GroupInfoListGet(d.DBData)
-			model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
+			_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
 				var groupInfo GroupInfo
 				// TODO: 兼容旧测试版，1.2.1拆掉
 				data = bytes.ReplaceAll(data, []byte(`"diceIds":{`), []byte(`"diceIdActiveMap":{`))
@@ -1355,7 +1354,7 @@ func (d *Dice) loads() {
 
 			// 设置群扩展
 			for _, v := range d.ImSession.ServiceAtNew {
-				tmp := []*ExtInfo{}
+				var tmp []*ExtInfo
 				for _, i := range v.ActivatedExtList {
 					if m[i.Name] != nil {
 						tmp = append(tmp, m[i.Name])
@@ -1458,7 +1457,7 @@ func (d *Dice) loads() {
 				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 					// 更正写反的部分
 					d.Logger.Info("正在自动升级自定义文案文件")
-					for index, _ := range d.TextMapRaw["COC"]["属性设置_保存提醒"] {
+					for index := range d.TextMapRaw["COC"]["属性设置_保存提醒"] {
 						//srcText := text[0].(string)
 						//srcText = strings.ReplaceAll(
 						//	srcText,
@@ -1480,7 +1479,7 @@ func (d *Dice) loads() {
 				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 					// 更正写反的部分
 					d.Logger.Info("正在自动升级自定义文案文件")
-					for index, _ := range d.TextMapRaw["COC"]["属性设置_增减_单项"] {
+					for index := range d.TextMapRaw["COC"]["属性设置_增减_单项"] {
 						srcText := "{$t属性}: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})"
 						d.TextMapRaw["COC"]["属性设置_增减_单项"][index][0] = srcText
 					}
@@ -1531,7 +1530,7 @@ func (d *Dice) loads() {
 		d.DiceMasters = []string{"UI:1001"}
 	}
 
-	model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
+	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
 		var v BanListInfoItem
 		err := json.Unmarshal(data, &v)
 		if err != nil {
@@ -1579,10 +1578,10 @@ func (d *Dice) SaveText() {
 		//ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
 		current, err := os.ReadFile(newFn)
 		if err != nil {
-			os.WriteFile(bakFn, current, 0644)
+			_ = os.WriteFile(bakFn, current, 0644)
 		}
 
-		os.WriteFile(newFn, buf, 0644)
+		_ = os.WriteFile(newFn, buf, 0644)
 	}
 }
 
@@ -1630,7 +1629,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 				}
 			}
 			// 塞入之前没有的指令
-			for k, _ := range names {
+			for k := range names {
 				if _, exists := m[k]; !exists {
 					m[k] = false // false 因为默认不禁用
 				}
@@ -1669,7 +1668,7 @@ func (d *Dice) Save(isAuto bool) {
 		if g.Players != nil {
 			g.Players.Range(func(key string, value *GroupPlayerInfo) bool {
 				if value.UpdatedAtTime != 0 {
-					model.GroupPlayerInfoSave(d.DBData, g.GroupId, key, (*model.GroupPlayerInfoBase)(value))
+					_ = model.GroupPlayerInfoSave(d.DBData, g.GroupId, key, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
 
@@ -1689,7 +1688,7 @@ func (d *Dice) Save(isAuto bool) {
 		if g.UpdatedAtTime != 0 {
 			data, err := json.Marshal(g)
 			if err == nil {
-				model.GroupInfoSave(d.DBData, g.GroupId, g.UpdatedAtTime, data)
+				_ = model.GroupInfoSave(d.DBData, g.GroupId, g.UpdatedAtTime, data)
 				g.UpdatedAtTime = 0
 			}
 		}
@@ -1705,11 +1704,11 @@ func (d *Dice) Save(isAuto bool) {
 	for _, v := range d.ImSession.PlayerVarsData {
 		if v.Loaded {
 			if v.LastWriteTime != 0 {
-				toDelete := []string{}
+				var toDelete []string
 				syncMap := map[string]bool{}
 				allCh := map[string]lockfree.HashMap{}
 
-				v.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+				_ = v.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
 					if k, ok := _k.(string); ok {
 						if strings.HasPrefix(k, chPrefixData) {
 							v := _v.(lockfree.HashMap)
@@ -1730,7 +1729,7 @@ func (d *Dice) Save(isAuto bool) {
 
 				//fmt.Println("!!!!!!!!", toDelete, syncMap, allCh)
 				// 这里面的角色是需要同步的
-				for name, _ := range syncMap {
+				for name := range syncMap {
 					chData := allCh[name]
 					if chData != nil {
 						val, err := json.Marshal(LockFreeMapToMap(chData))

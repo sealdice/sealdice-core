@@ -6,7 +6,7 @@ import (
 )
 
 // 添加 checklist
-func checklistAdd(c echo.Context) error {
+func checklistAdd(c echo.Context) error { //nolint
 	//var err error
 	//cl := model.CheckList{}
 	//db := model.GetDB()

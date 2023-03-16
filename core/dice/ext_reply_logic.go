@@ -64,7 +64,7 @@ func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *
 	var ret bool
 	switch m.MatchType {
 	case "matchExact":
-		ret = strings.ToLower(cleanText) == strings.ToLower(m.Value)
+		ret = strings.EqualFold(cleanText, m.Value)
 	case "matchMulti":
 		texts := strings.Split(m.Value, "|")
 		for _, i := range texts {

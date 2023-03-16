@@ -79,7 +79,7 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	msgHandlers.ChannelMessage = channelMessageHandler
 	msgHandlers.PersonalMessage = personalMessageHandler
 
-	ws, err := websocket.New(instance, websocket.WithMessageHandlers(msgHandlers))
+	ws, _ := websocket.New(instance, websocket.WithMessageHandlers(msgHandlers))
 	// 主动连接到 WebSocket 服务器
 	if err = ws.Connect(); err != nil {
 		return 1
@@ -152,8 +152,7 @@ func (pa *PlatformAdapterDodo) toStdChannelMessage(msgRaw *websocket.ChannelMess
 
 func (pa *PlatformAdapterDodo) DoRelogin() bool {
 	defer func() {
-		if recover() != nil {
-		}
+		_ = recover()
 	}()
 	logger := pa.Session.Parent.Logger
 	if pa.WebSocket != nil {
@@ -170,8 +169,7 @@ func (pa *PlatformAdapterDodo) DoRelogin() bool {
 
 func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 	defer func() {
-		if recover() != nil {
-		}
+		_ = recover()
 	}()
 	logger := pa.Session.Parent.Logger
 	if enable {
@@ -260,9 +258,8 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 }
 
 func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMessageBody, uid string, isPrivate bool) error {
-	var rawId string
+	rawId := ExtractDodoGroupId(uid)
 	if isPrivate {
-		rawId = ExtractDodoUserId(uid)
 		_, err := pa.Client.SendDirectMessage(context.Background(), &model.SendDirectMessageReq{
 			IslandSourceId: ctx.Group.GuildId,
 			DodoSourceId:   rawId,
@@ -270,7 +267,6 @@ func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMe
 		})
 		return err
 	} else {
-		rawId = ExtractDodoGroupId(uid)
 		_, err := pa.Client.SendChannelMessage(context.Background(), &model.SendChannelMessageReq{
 			ChannelId:   ExtractDodoGroupId(uid),
 			MessageBody: msgBody,

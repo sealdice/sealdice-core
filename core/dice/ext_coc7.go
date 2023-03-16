@@ -260,15 +260,15 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		".ra <属性表达式> (@某人) // 对某人做检定(使用他的属性)\n" +
 		".rch/rah // 暗中检定，和检定指令用法相同"
 
-	helpSt := ""
-	helpSt += ".st show // 展示个人属性\n"
-	helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
-	helpSt += ".st show <数字> // 展示高于<数字>的属性，如.st show 30\n"
-	helpSt += ".st clr/clear // 清除属性\n"
-	helpSt += ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"
-	helpSt += ".st help // 帮助\n"
-	helpSt += ".st <属性><值> // 例：.st 敏捷50\n"
-	helpSt += ".st <属性>±<表达式> // 例：.st 敏捷+1d50，请注意目前+或-要跟在属性后面，不得空格"
+	//helpSt := ""+
+	// ".st show // 展示个人属性\n"+
+	// ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"+
+	// ".st show <数字> // 展示高于<数字>的属性，如.st show 30\n"+
+	// ".st clr/clear // 清除属性\n"+
+	// ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"+
+	// ".st help // 帮助\n"+
+	// ".st <属性><值> // 例：.st 敏捷50\n"+
+	// ".st <属性>±<表达式> // 例：.st 敏捷+1d50，请注意目前+或-要跟在属性后面，不得空格"
 
 	cmdRc := &CmdItemInfo{
 		Name:          "rc/ra",
@@ -368,7 +368,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					}
 
 					if swap {
-						r1, detail1, r2, detail2 = r2, detail2, r1, detail1
+						r1, r2 = r2, r1
+						detail1, detail2 = detail2, detail1 //nolint
 						expr1Text, expr2Text = expr2Text, expr1Text
 					}
 
@@ -1217,8 +1218,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				var reduceFail int64
 				var text1 string
 				var sanNew int64
-
-				text1 = expr2 + "/" + expr3
 
 				r, _, err = mctx.Dice.ExprEvalBase(expr2, mctx, RollExtraFlags{DisableBlock: true})
 				if err == nil {

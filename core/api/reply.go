@@ -98,7 +98,7 @@ func customReplyFileNew(c echo.Context) error {
 	})
 }
 
-func customReplyFileRename(c echo.Context) error {
+func customReplyFileRename(c echo.Context) error { //nolint
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
