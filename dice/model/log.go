@@ -60,9 +60,11 @@ func LogGetAllLines(db *sqlx.DB, groupId string, logName string) ([]*LogOneItem,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func(rows *sqlx.Rows) {
+		_ = rows.Close()
+	}(rows)
 
-	ret := []*LogOneItem{}
+	var ret []*LogOneItem
 	for rows.Next() {
 		item := &LogOneItem{}
 		var commandInfoStr []byte
@@ -178,7 +180,7 @@ func LogAppend(db *sqlx.DB, groupId string, logName string, logItem *LogOneItem)
 	// 执行事务时发生错误时回滚
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
 
