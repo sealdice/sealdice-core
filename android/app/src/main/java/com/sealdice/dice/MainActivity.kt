@@ -1,11 +1,16 @@
 package com.sealdice.dice
 
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.MenuItemCompat
+import androidx.core.view.forEach
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
@@ -38,7 +43,6 @@ class MainActivity : AppCompatActivity() {
         QbSdk.initTbsSettings(map)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
         setSupportActionBar(binding.toolbar)
         val packageManager = this.packageManager
         val packageName = this.packageName
@@ -47,12 +51,11 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
-        binding.fab.setOnClickListener { view ->
-            Snackbar.make(view, "SealDice for Android $versionName\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
-                .setAction("Action", null).show()
-//            ExtractAssets(this).extractResources("sealdice")
-        }
-
+//        binding.fab.setOnClickListener { view ->
+//            Snackbar.make(view, "SealDice for Android $versionName\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
+//                .setAction("Action", null).show()
+////            ExtractAssets(this).extractResources("sealdice")
+//        }
 
     }
 

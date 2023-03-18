@@ -4,9 +4,10 @@
     tools:context="com.sealdice.dice.MainActivity">
     <item
         android:id="@+id/action_settings"
+        android:icon="?attr/seal_settings_icon"
         android:orderInCategory="100"
         android:title="@string/action_settings"
-        app:showAsAction="never" />
+        app:showAsAction="ifRoom" />
     <item
         android:id="@+id/action_official_website"
         android:orderInCategory="100"

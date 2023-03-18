@@ -3,6 +3,7 @@ package com.sealdice.dice
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Icon
 import android.os.IBinder
 
 

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -16,6 +17,7 @@ import androidx.core.app.ActivityCompat.finishAffinity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
+import com.google.android.material.snackbar.Snackbar
 import com.sealdice.dice.common.ExtractAssets
 import com.sealdice.dice.common.FileWrite
 import com.sealdice.dice.databinding.FragmentFirstBinding
@@ -52,7 +54,14 @@ class FirstFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         var isrun = false
+        val packageManager = this.activity?.packageManager
+        val packageName = this.activity?.packageName
+        val packageInfo = packageName?.let { packageManager?.getPackageInfo(it, 0) }
+        val versionName = packageInfo?.versionName
         val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
+        val nightModeFlags = context?.resources?.configuration?.uiMode?.and(Configuration.UI_MODE_NIGHT_MASK)
+        val isNightMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+        binding.textviewFirst.text = StringBuilder(binding.textviewFirst.text).append("\nApp Version: $versionName")
         binding.buttonThird.setOnClickListener {
             val address = sharedPreferences?.getString("ui_address", "http://127.0.0.1:3211")
             if (sharedPreferences?.getBoolean("use_internal_webview", true) == true) {
@@ -74,7 +83,7 @@ class FirstFragment : Fragment() {
         binding.buttonConsole.setOnClickListener {
             val alertDialogBuilder = context?.let { it1 ->
                 AlertDialog.Builder(
-                    it1
+                    it1, R.style.Theme_Mshell_DialogOverlay
                 )
             }
             alertDialogBuilder?.setTitle("控制台")
@@ -86,7 +95,7 @@ class FirstFragment : Fragment() {
         binding.buttonReset.setOnClickListener {
             val alertDialogBuilder = context?.let { it1 ->
                 AlertDialog.Builder(
-                    it1
+                    it1, R.style.Theme_Mshell_DialogOverlay
                 )
             }
             alertDialogBuilder?.setTitle("警告")
@@ -94,9 +103,13 @@ class FirstFragment : Fragment() {
             alertDialogBuilder?.setNegativeButton("取消") {_: DialogInterface, _: Int ->}
             alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
                 context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice/" }?.let { it2 -> delete(it2) }
-                Toast.makeText(
-                    context, "清除成功", Toast.LENGTH_SHORT
-                ).show()
+                context?.let { it1 ->
+                    this.view?.let { it2 ->
+                        Snackbar.make(
+                            it1, it2,"清除成功", Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
 
             alertDialogBuilder?.create()?.show()
@@ -107,7 +120,7 @@ class FirstFragment : Fragment() {
                 context?.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.WRITE_EXTERNAL_STORAGE) }
             if (permissionState == PackageManager.PERMISSION_GRANTED) {
 //                Toast.makeText(context, "已授权！", Toast.LENGTH_LONG).show()
-                val builder: AlertDialog.Builder? = context?.let { it1 -> AlertDialog.Builder(it1) }
+                val builder: AlertDialog.Builder? = context?.let { it1 -> AlertDialog.Builder(it1, R.style.Theme_Mshell_DialogOverlay) }
                 builder?.setCancelable(false) // if you want user to wait for some process to finish,
                 builder?.setView(R.layout.layout_loading_dialog)
                 val dialog = builder?.create()
@@ -119,7 +132,7 @@ class FirstFragment : Fragment() {
                     dialog?.dismiss()
                     val alertDialogBuilder = context?.let { it1 ->
                         AlertDialog.Builder(
-                            it1
+                            it1, R.style.Theme_Mshell_DialogOverlay
                         )
                     }
                     alertDialogBuilder?.setTitle("提示")
@@ -130,7 +143,14 @@ class FirstFragment : Fragment() {
                     }
                 }
             } else {
-                Toast.makeText(context, "未获得文件权限！", Toast.LENGTH_LONG).show()
+//                Toast.makeText(context, "未获得文件权限！", Toast.LENGTH_LONG).show()
+                this.view?.let { it2 ->
+                    context?.let { it1 ->
+                        Snackbar.make(
+                            it1, it2,"未获得文件权限！", Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
                 this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE), 1) }
                 val alertDialogBuilder = context?.let { it1 ->
                     AlertDialog.Builder(
@@ -146,7 +166,7 @@ class FirstFragment : Fragment() {
         binding.buttonInput.setOnClickListener {
             val alertDialogBuilder = context?.let { it1 ->
                 AlertDialog.Builder(
-                    it1
+                    it1, R.style.Theme_Mshell_DialogOverlay
                 )
             }
             alertDialogBuilder?.setTitle("警告")
@@ -173,17 +193,27 @@ class FirstFragment : Fragment() {
                         }
                         dialog?.dismiss()
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                context, "导入了${FileWrite.FileCount}个文件", Toast.LENGTH_LONG
-                            ).show()
+//                            Toast.makeText(
+//                                context, "导入了${FileWrite.FileCount}个文件", Toast.LENGTH_LONG
+//                            ).show()
+                            context?.let { it1 ->
+                                Snackbar.make(
+                                    it1, view,"导入了${FileWrite.FileCount}个文件", Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
                     }
                 } else {
-                    Toast.makeText(context, "未获得文件权限！", Toast.LENGTH_LONG).show()
+//                    Toast.makeText(context, "未获得文件权限！", Toast.LENGTH_LONG).show()
+                    context?.let { it1 ->
+                        Snackbar.make(
+                            it1, view,"未获得文件权限！", Toast.LENGTH_SHORT
+                        ).show()
+                    }
                     this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE), 1) }
                     val alertDialogBuilder2 = context?.let { it1 ->
                         AlertDialog.Builder(
-                            it1
+                            it1, R.style.Theme_Mshell_DialogOverlay
                         )
                     }
                     alertDialogBuilder2?.setTitle("提示")
@@ -200,7 +230,7 @@ class FirstFragment : Fragment() {
                 shellLogs += "sealdice is running"
                 val alertDialogBuilder = context?.let { it1 ->
                     AlertDialog.Builder(
-                        it1
+                        it1, R.style.Theme_Mshell_DialogOverlay
                     )
                 }
                 alertDialogBuilder?.setTitle("提示")
@@ -225,7 +255,7 @@ class FirstFragment : Fragment() {
                 if (!launchAliveService(context)) {
                     val alertDialogBuilder = context?.let { it1 ->
                         AlertDialog.Builder(
-                            it1
+                            it1, R.style.Theme_Mshell_DialogOverlay
                         )
                     }
                     alertDialogBuilder?.setTitle("提示")

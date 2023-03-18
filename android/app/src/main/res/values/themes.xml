@@ -2,10 +2,18 @@
     <!-- Base application theme. -->
     <style name="Theme.Mshell" parent="Theme.AppCompat.Light.DarkActionBar">
         <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryDark">@color/purple_700</item>
+        <item name="colorPrimary">@color/sky_blue</item>
+        <item name="colorPrimaryDark">@color/dark_blue</item>
         <item name="colorAccent">@color/teal_200</item>
+        <item name="backgroundColor">@color/white</item>
+        <item name="android:popupBackground">@color/white</item>
+        <item name="android:itemBackground">@color/white</item>
+        <!--        <item name="textFillColor">@color/black</item>-->
+        <item name="android:textColor">@color/black</item>
+        <item name="android:textColorSecondary">@color/grey_white</item>
         <!-- Customize your theme here. -->
+        <item name="seal_settings_icon">@drawable/ic_settings</item>
+        <item name="seal_buttonColor">@drawable/btn_select</item>
     </style>
 
     <style name="Theme.Mshell.NoActionBar">
@@ -16,4 +24,10 @@
     <style name="Theme.Mshell.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
     <style name="Theme.Mshell.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+    <style name="Theme.Mshell.DialogOverlay" parent="Theme.AppCompat.Light.Dialog.Alert" >
+        <item name="android:background">@color/white</item>
+        <item name="android:colorAccent">@color/black</item>
+        <item name="android:textColor">@color/black</item>
+        <item name="android:textColorPrimary">@color/black</item>
+    </style>
 </resources>

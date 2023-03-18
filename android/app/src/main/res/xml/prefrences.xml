@@ -48,6 +48,14 @@
             android:title="启动参数"
             android:summary="点击输入启动参数"
             android:defaultValue="--address=0.0.0.0:3211" />
+<!--        <androidx.preference.SeekBarPreference-->
+<!--            android:key="launch_waiting_time"-->
+<!--            android:title="启动等待时间"-->
+<!--            android:summary="拖动更改启动时等待的时间"-->
+<!--            android:max="30"-->
+<!--            android:stepSize="1"-->
+<!--            android:defaultValue="10">-->
+<!--            </androidx.preference.SeekBarPreference>-->
 
     </androidx.preference.PreferenceCategory>
 </PreferenceScreen>
