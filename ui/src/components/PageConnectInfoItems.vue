@@ -162,7 +162,7 @@
           <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
           <el-option label="MacOS" :value="3"></el-option>
           <el-option label="iPad" :value="5"></el-option>
-          <el-option v-if="form.implementation === 'gocq' || form.implementation === ''" label="AndroidPad" :value="6"></el-option>
+          <el-option v-if="form.implementation === 'gocq' || form.implementation === ''" label="AndroidPad - 稳定协议，建议！" :value="6"></el-option>
           <!-- <el-option label="MacOS" :value="3"></el-option> -->
         </el-select>
       </el-form-item>
@@ -203,7 +203,7 @@
             <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
             <el-option label="MacOS" :value="3"></el-option>
             <el-option label="iPad" :value="5"></el-option>
-            <el-option v-if="form.implementation === 'gocq' || form.implementation === ''" label="AndroidPad" :value="6"></el-option>
+            <el-option v-if="form.implementation === 'gocq' || form.implementation === ''" label="AndroidPad - 可共存" :value="6"></el-option>
             <!-- <el-option label="MacOS" :value="3"></el-option> -->
           </el-select>
         </el-form-item>
@@ -225,7 +225,7 @@
             <div>能够进行扫码登录（不填写密码即可），但注意扫码登录不支持自动重连。</div>
             <div>如果出现“要求同一WIFI扫码”可以本地登录后备份，复制到服务器上。</div>
             <!-- v-if="form.protocol !== 2"  -->
-            <div style="color: #aa4422;">提示: 首次登录时，建议先尝试AndroidPad，如失败，切换使用手表协议。</div>
+            <div style="color: #aa4422;">提示: 首次登录时，建议先尝试AndroidPad，如失败，切换使用Android，再失败手表协议。</div>
             <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
           </small>
         </el-form-item>
@@ -668,7 +668,7 @@ const form = reactive({
 
 const addOne = () => {
   dialogFormVisible.value = true
-  form.protocol = 2
+  form.protocol = 6
   form.implementation = 'gocq'
 }
 
