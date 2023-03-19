@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
+	"sealdice-core/utils/procs"
 	"strings"
 	"time"
 
 	"github.com/ShiraazMoollatjie/goluhn"
 	"github.com/acarl005/stripansi"
-	"github.com/fy0/procs"
 	"github.com/google/uuid"
 )
 
@@ -504,6 +504,10 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	chQrCode := make(chan int, 1)
 	riskCount := 0
 	isSeldKilling := false
+
+	slideMode := 0
+	chSMS := make(chan string, 1)
+
 	p.OutputHandler = func(line string) string {
 		if loginIndex != pa.CurLoginIndex {
 			// 当前连接已经无用，进程自杀
@@ -546,13 +550,60 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 					pa.GoCqHttpLoginDeviceLockUrl = m[1]
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
-					fmt.Println("??????????????????? why")
+				}
+			}
+
+			if strings.Contains(line, " 发送短信验证码") && strings.Contains(line, " [WARNING]: 1. 向手机 ") {
+				re := regexp.MustCompile(`\[WARNING\]: 发送短信验证码 (.+?) 发送短信验证码`)
+				m := re.FindStringSubmatch(line)
+				if len(m) > 0 {
+					pa.GoCqHttpSmsNumberTip = m[1]
+				}
+			}
+
+			if strings.Contains(line, " [WARNING]: 登录需要滑条验证码, 请验证后重试.") {
+				slideMode = 1
+			}
+
+			// 滑条流程
+			if slideMode == 1 {
+				if strings.Contains(line, "WARNING") && strings.Contains(line, "[WARNING]: 请输入(1 - 2)：") {
+					// gocq的tty检测太辣鸡了
+					return "1\n"
+				}
+
+				if strings.Contains(line, "WARNING") && strings.Contains(line, "请前往该地址验证") {
+					re := regexp.MustCompile(`-> (.+)`)
+					m := re.FindStringSubmatch(line)
+					dice.Logger.Info("触发滑条流程: ", len(m) > 0)
+
+					if len(m) > 0 {
+						pa.GoCqHttpState = GoCqHttpStateCodeInLoginBar
+						pa.GoCqHttpLoginDeviceLockUrl = strings.TrimSpace(m[1])
+					}
 				}
 			}
 
 			if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
-				fmt.Println("!!!!!!!!!!!!!!!!!!!! 短信验证码")
-				_, _ = p.Cmds[0].Stdout.Write([]byte("\n"))
+				dice.Logger.Info("进入短信验证码流程，等待输入")
+				pa.GoCqHttpState = GoCqHttpStateCodeInLoginVerifyCode
+				pa.GoCqHttpLoginVerifyCode = ""
+				go func() {
+					// 检查是否有短信验证码
+					for i := 0; i < 100; i += 1 {
+						if pa.GoCqHttpState != GoCqHttpStateCodeInLoginVerifyCode {
+							break
+						}
+						time.Sleep(6 * time.Duration(time.Second))
+						if pa.GoCqHttpLoginVerifyCode != "" {
+							chSMS <- pa.GoCqHttpLoginVerifyCode
+							break
+						}
+					}
+				}()
+				code := <-chSMS
+				dice.Logger.Infof("即将输入短信验证码: %v", code)
+				return code + "\n"
 			}
 
 			if strings.Contains(line, "发送验证码失败，可能是请求过于频繁.") {
@@ -630,10 +681,14 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				if !skip {
 					dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
 				} else {
-					fmt.Printf("onebot | %s\n", line)
+					if strings.HasSuffix(line, "\n") {
+						fmt.Printf("onebot | %s", line)
+					}
 				}
 			} else {
-				fmt.Printf("onebot | %s\n", line)
+				if strings.HasSuffix(line, "\n") {
+					fmt.Printf("onebot | %s", line)
+				}
 
 				skip := false
 				if strings.Contains(line, "WARNING") && strings.Contains(line, "使用了过时的配置格式，请更新配置文件") {
@@ -654,7 +709,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				}
 			}
 		}
-		return line
+		return ""
 	}
 
 	go func() {
@@ -693,8 +748,8 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		err := p.Start()
 
 		if err == nil {
-			if dice.Parent.progressExitGroupWin != 0 && len(p.Cmds) > 0 && p.Cmds[0] != nil {
-				err := dice.Parent.progressExitGroupWin.AddProcess(p.Cmds[0].Process)
+			if dice.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
+				err := dice.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
 				if err != nil {
 					dice.Logger.Warn("添加到进程组失败，若主进程崩溃，gocqhttp进程可能需要手动结束")
 				}
@@ -711,6 +766,9 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			if isInLogin {
 				conn.State = 3
 				pa.GoCqHttpState = StateCodeLoginFailed
+			} else {
+				conn.State = 0
+				pa.GoCqHttpState = GoCqHttpStateCodeClosed
 			}
 		}
 

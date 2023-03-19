@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fy0/lockfree"
+	"math/rand"
 	"reflect"
 	"sealdice-core/dice/model"
 	"strconv"
@@ -448,6 +449,13 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueStr(ctx, "$t帐号ID_RAW", UserIdExtract(ctx.Player.UserId))
 		VarSetValueStr(ctx, "$t账号ID_RAW", UserIdExtract(ctx.Player.UserId))
 		VarSetValueStr(ctx, "$t平台", ctx.EndPoint.Platform)
+
+		rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
+		rpSeed += int64(fingerprint(ctx.EndPoint.UserId))
+		rpSeed += int64(fingerprint(ctx.Player.UserId))
+		randItem := rand.NewSource(rpSeed)
+		rp := randItem.Int63()%100 + 1
+		VarSetValueInt64(ctx, "$t人品", rp)
 
 		now := time.Now()
 		t, _ := strconv.ParseInt(now.Format("20060102"), 10, 64)
