@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/BurntSushi/toml"
-	"github.com/fy0/procs"
 	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"sealdice-core/utils/procs"
 	"strings"
 	"time"
 )
@@ -231,11 +231,6 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 		return line
 	}
 
-	p.ErrHandler = func(line string) string {
-		fmt.Println(line)
-		return line
-	}
-
 	go func() {
 		<-chQrCode
 		if _, err := os.Stat(qrcodeFile); err == nil {
@@ -267,8 +262,8 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 		err := p.Start()
 
 		if err == nil {
-			if dice.Parent.progressExitGroupWin != 0 && len(p.Cmds) > 0 && p.Cmds[0] != nil {
-				err := dice.Parent.progressExitGroupWin.AddProcess(p.Cmds[0].Process)
+			if dice.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
+				err := dice.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
 				if err != nil {
 					dice.Logger.Warn("添加到进程组失败，若主进程崩溃，walle-q 进程可能需要手动结束")
 				}
