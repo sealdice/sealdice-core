@@ -539,6 +539,11 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				pa.GoCqHttpState = StateCodeLoginFailed
 			}
 
+			if strings.Contains(line, "按 Enter 继续....") {
+				// 直接输入继续，基本都是登录失败
+				return "\n"
+			}
+
 			if strings.Contains(line, "WARNING") && strings.Contains(line, "账号已开启设备锁，请前往") {
 				re := regexp.MustCompile(`-> (.+?) <-`)
 				m := re.FindStringSubmatch(line)
