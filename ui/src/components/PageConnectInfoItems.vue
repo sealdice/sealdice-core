@@ -351,10 +351,10 @@
                   <div>{{ curConn.adapter?.goCqHttpSmsNumberTip }}</div>
                 </el-form-item>
                 <el-form-item label="验证码">
-                  <el-input :disabled="smsCode == ''" v-model="smsCode"></el-input>
+                  <el-input v-model="smsCode"></el-input>
                 </el-form-item>
                 <el-form-item label="">
-                  <el-button type="primary" @click="submitSmsCode(curConn)">提交</el-button>
+                  <el-button :disabled="smsCode == ''" type="primary" @click="submitSmsCode(curConn)">提交</el-button>
                 </el-form-item>
               </el-form>
             </div>
