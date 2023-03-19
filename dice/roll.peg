@@ -231,5 +231,5 @@ st_name1r <- < id_ch0+ > { p.AddValueStr(text) } // 结尾不带数字
 st_name2 <- < id_ch0 id_ch* (':' id_ch+) > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
 st_name2r <- < id_ch0 id_ch* > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
 
-id_ch0 <- [^!"#$%&\'()*+,-./:;<=>?@\[\\\]^`{|}~ 0-9\t\n\r\36]
+id_ch0 <- [^!"#$%&\'()*+,-.:;<=>?@\[\\\]^`{|}~ 0-9\t\n\r\36] // 临时去掉一个斜杠，等车卡工具上线
 id_ch <- id_ch0 / [0-9]
