@@ -279,6 +279,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/im_connections/get", ImConnectionsGet)
 
 	e.POST(prefix+"/im_connections/qrcode", ImConnectionsQrcodeGet)
+	e.POST(prefix+"/im_connections/sms_code_get", ImConnectionsSmsCodeGet)
+	e.POST(prefix+"/im_connections/sms_code_set", ImConnectionsSmsCodeSet)
 	e.POST(prefix+"/im_connections/add", ImConnectionsAdd)
 	e.POST(prefix+"/im_connections/addDiscord", ImConnectionsAddDiscord)
 	e.POST(prefix+"/im_connections/addKook", ImConnectionsAddKook)

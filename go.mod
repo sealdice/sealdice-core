@@ -16,7 +16,6 @@ require (
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd
 	github.com/fy0/lockfree v0.0.0-20220407095241-e3799de5fa34
-	github.com/fy0/procs v0.0.0-20230206183124-933481d6e07e
 	github.com/fy0/systray v1.2.2
 	github.com/gen2brain/beeep v0.0.0-20210529141713-5586760f0cc1
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
@@ -49,6 +48,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1
+	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/glebarez/go-sqlite v1.20.3
 	github.com/go-creed/sat v1.0.3
 	github.com/gonutz/w32/v2 v2.7.0
@@ -84,7 +84,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819 // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20221015165544-a0805db90819 // indirect
-	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959 // indirect
 	github.com/getlantern/context v0.0.0-20190109183933-c447772a6520 // indirect
 	github.com/getlantern/errors v0.0.0-20190325191628-abdb3e3e36f7 // indirect
 	github.com/getlantern/golog v0.0.0-20190830074920-4ef2e798c2d7 // indirect

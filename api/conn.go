@@ -175,7 +175,7 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 			//fmt.Println(i.Id, i.ProtocolType, i.ProtocolType)
 			if i.Id == v.Id {
 				switch i.ProtocolType {
-				case "onebot":
+				case "onebot", "":
 					pa := i.Adapter.(*dice.PlatformAdapterGocq)
 					if pa.GoCqHttpState == dice.StateCodeInLoginQrCode {
 						return c.JSON(http.StatusOK, map[string]string{
@@ -190,6 +190,60 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 							"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData),
 						})
 					}
+				}
+				return c.JSON(http.StatusOK, i)
+			}
+		}
+	}
+	return c.JSON(http.StatusNotFound, nil)
+}
+
+func ImConnectionsSmsCodeSet(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := struct {
+		Id   string `form:"id" json:"id"`
+		Code string `form:"code" json:"code"`
+	}{}
+	err := c.Bind(&v)
+
+	if err == nil {
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.Id == v.Id {
+				switch i.ProtocolType {
+				case "onebot", "":
+					pa := i.Adapter.(*dice.PlatformAdapterGocq)
+					if pa.GoCqHttpState == dice.GoCqHttpStateCodeInLoginVerifyCode {
+						pa.GoCqHttpLoginVerifyCode = v.Code
+						return c.JSON(http.StatusOK, map[string]string{})
+					}
+				}
+				return c.JSON(http.StatusOK, i)
+			}
+		}
+	}
+	return c.JSON(http.StatusNotFound, nil)
+}
+
+func ImConnectionsSmsCodeGet(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := struct {
+		Id string `form:"id" json:"id"`
+	}{}
+	err := c.Bind(&v)
+
+	if err == nil {
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.Id == v.Id {
+				switch i.ProtocolType {
+				case "onebot", "":
+					pa := i.Adapter.(*dice.PlatformAdapterGocq)
+					return c.JSON(http.StatusOK, map[string]string{"tip": pa.GoCqHttpSmsNumberTip})
 				}
 				return c.JSON(http.StatusOK, i)
 			}

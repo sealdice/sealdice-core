@@ -450,7 +450,7 @@ create index if not exists idx_log_items_log_id
 						"group_id":        i,
 						"nickname":        logItem.Nickname,
 						"im_userid":       logItem.IMUserId,
-						"time":            nowTimestamp,
+						"time":            logItem.Time,
 						"message":         logItem.Message,
 						"is_dice":         logItem.IsDice,
 						"command_id":      int64(logItem.CommandId),
