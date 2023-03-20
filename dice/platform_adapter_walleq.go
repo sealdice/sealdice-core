@@ -2,7 +2,6 @@ package dice
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
@@ -47,10 +46,10 @@ type PlatformAdapterWalleQ struct {
 	InPackWalleQDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest        bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	echoMap        *SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
-	echoMap2       *SyncMap[string, *echoMapInfo]          `yaml:"-"`
-	FileMap        *SyncMap[string, string]                // 记录上传文件后得到的 id
-	Implementation string                                  `yaml:"implementation" json:"implementation"`
+	echoMap *SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
+	//echoMap2       *SyncMap[string, *echoMapInfo]          `yaml:"-"`
+	FileMap        *SyncMap[string, string] // 记录上传文件后得到的 id
+	Implementation string                   `yaml:"implementation" json:"implementation"`
 }
 
 type EventWalleQBase struct {
@@ -664,7 +663,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 						}
 					}
 
-				} else {
+				} else { //nolint
 					// TODO: 这玩意的创建是个专业活，等下来弄
 					//session.ServiceAtNew[groupId] = GroupInfo{}
 				}
@@ -673,10 +672,10 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				//pa.echoMap.Store("get_group_member_info", )
 
 			}
-
-			if pa.echoMap != nil {
-
-			}
+			//TODO
+			//if pa.echoMap != nil {
+			//
+			//}
 		}
 
 	}
@@ -915,21 +914,21 @@ func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait
 	return <-ch
 }
 
-func (pa *PlatformAdapterWalleQ) waitEcho2(echo string, value interface{}, beforeWait func(emi *echoMapInfo)) error {
-	if pa.echoMap2 == nil {
-		pa.echoMap2 = new(SyncMap[string, *echoMapInfo])
-	}
-
-	emi := &echoMapInfo{ch: make(chan string, 1)}
-	beforeWait(emi)
-
-	pa.echoMap2.Store(echo, emi)
-	val := <-emi.ch
-	if val == "" {
-		return errors.New("超时")
-	}
-	return json.Unmarshal([]byte(val), value)
-}
+//func (pa *PlatformAdapterWalleQ) waitEcho2(echo string, value interface{}, beforeWait func(emi *echoMapInfo)) error {
+//	if pa.echoMap2 == nil {
+//		pa.echoMap2 = new(SyncMap[string, *echoMapInfo])
+//	}
+//
+//	emi := &echoMapInfo{ch: make(chan string, 1)}
+//	beforeWait(emi)
+//
+//	pa.echoMap2.Store(echo, emi)
+//	val := <-emi.ch
+//	if val == "" {
+//		return errors.New("超时")
+//	}
+//	return json.Unmarshal([]byte(val), value)
+//}
 
 // SendMessage 原始的发消息 API
 func (pa *PlatformAdapterWalleQ) SendMessage(text string, ty string, id string, cid string) {

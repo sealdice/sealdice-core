@@ -361,7 +361,7 @@ func GenerateConfig(qq int64, password string, port int) string {
 	ret = strings.Replace(ret, "{QQ帐号}", fmt.Sprintf("%d", qq), 1)
 
 	password2, _ := json.Marshal(password)
-	ret = strings.Replace(ret, "{QQ密码}", fmt.Sprintf("%s", string(password2)), 1)
+	ret = strings.Replace(ret, "{QQ密码}", string(password2), 1)
 	return ret
 }
 
@@ -631,6 +631,8 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 		}
 
 		if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
+			//TODO
+			fmt.Println("请使用手机QQ扫描二维码以继续登录")
 		}
 
 		if (pa.IsLoginSuccessed() && strings.Contains(line, "[ERROR]:") && strings.Contains(line, "Protocol -> sendPacket msg error: 120")) || strings.Contains(line, "账号可能被风控####2测试触发语句") {

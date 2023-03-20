@@ -72,11 +72,9 @@ func DiceConfig(c echo.Context) error {
 	}
 	myDice.UnlockCodeUpdate(false)
 
-	cocRule := "0"
+	cocRule := strconv.FormatInt(myDice.DefaultCocRuleIndex, 10)
 	if myDice.DefaultCocRuleIndex == 11 {
 		cocRule = "dg"
-	} else {
-		cocRule = strconv.FormatInt(myDice.DefaultCocRuleIndex, 10)
 	}
 
 	info := DiceConfigInfo{

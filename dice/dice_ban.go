@@ -172,6 +172,8 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 	if ctx != nil {
 		// 警告: XXX 因为等行为，进入警告列表
 		// 黑名单: XXX 因为等行为，进入黑名单。将作出以下惩罚：拒绝回复、拒绝邀请、退出事发群
+		//TODO
+		fmt.Println("TODO Alert")
 	}
 
 	return v

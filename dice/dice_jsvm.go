@@ -194,7 +194,7 @@ func (d *Dice) JsInit() {
 			return ""
 		})
 		gameSystem := vm.NewObject()
-		gameSystem.Set("newTemplate", func(data string) error {
+		_ = gameSystem.Set("newTemplate", func(data string) error {
 			tmpl := &GameSystemTemplate{}
 			err := json.Unmarshal([]byte(data), tmpl)
 			if err != nil {
@@ -206,7 +206,7 @@ func (d *Dice) JsInit() {
 			}
 			return nil
 		})
-		gameSystem.Set("newTemplateByYaml", func(data string) error {
+		_ = gameSystem.Set("newTemplateByYaml", func(data string) error {
 			tmpl := &GameSystemTemplate{}
 			err := yaml.Unmarshal([]byte(data), tmpl)
 			if err != nil {
