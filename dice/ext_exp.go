@@ -77,13 +77,11 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 
 		// 排序、合并key
 		sort.Strings(attrKeys2)
-		for _, key := range attrKeys2 {
-			attrKeys = append(attrKeys, key)
-		}
+		attrKeys = append(attrKeys, attrKeys2...)
 
 		if len(pickItems) > 0 {
 			attrKeys = []string{}
-			for k, _ := range pickItems {
+			for k := range pickItems {
 				attrKeys = append(attrKeys, k)
 			}
 		}
@@ -254,7 +252,7 @@ func cmdStCharFormat1(mctx *MsgContext, tmpl *GameSystemTemplate, vars lockfree.
 			toAdd[newKey] = _v
 		}
 
-		for k, _ := range toRemove {
+		for k := range toRemove {
 			vars.Del(k)
 		}
 		for k, v := range toAdd {

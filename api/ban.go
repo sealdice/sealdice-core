@@ -59,7 +59,7 @@ func banMapList(c echo.Context) error {
 	}
 
 	lst := []*dice.BanListInfoItem{}
-	model.BanItemList(myDice.DBData, func(id string, banUpdatedAt int64, data []byte) {
+	_ = model.BanItemList(myDice.DBData, func(id string, banUpdatedAt int64, data []byte) {
 		var v dice.BanListInfoItem
 		err := json.Unmarshal(data, &v)
 		if err != nil {

@@ -28,7 +28,7 @@ func backupGetList(c echo.Context) error {
 	}
 
 	var items []*backupFileItem
-	filepath.Walk("./backups", func(path string, info fs.FileInfo, err error) error {
+	_ = filepath.Walk("./backups", func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() {
 			items = append(items, &backupFileItem{
 				Name:     info.Name(),
@@ -61,7 +61,7 @@ func backupDownload(c echo.Context) error {
 	return c.JSON(http.StatusOK, nil)
 }
 
-func backupDelete(c echo.Context) error {
+func backupDelete(c echo.Context) error { //nolint
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}

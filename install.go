@@ -64,11 +64,11 @@ func serviceInstall(isInstall bool, serviceName string, user string) {
 		}
 
 		fmt.Println("安装完成，正在启动……")
-		s.Start()
+		_ = s.Start()
 	} else {
 		fmt.Println("正在卸载系统服务……")
-		s.Stop()
-		s.Uninstall()
+		_ = s.Stop()
+		_ = s.Uninstall()
 		fmt.Println("系统服务已删除")
 	}
 }

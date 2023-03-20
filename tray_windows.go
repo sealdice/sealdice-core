@@ -47,10 +47,11 @@ var (
 )
 
 func CreateMutex(name string) (uintptr, error) {
+	s, _ := syscall.UTF16PtrFromString(name)
 	ret, _, err := procCreateMutex.Call(
 		0,
 		0,
-		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(name))),
+		uintptr(unsafe.Pointer(s)),
 	)
 	switch int(err.(syscall.Errno)) {
 	case 0:
@@ -69,17 +70,13 @@ func TestRunning() bool {
 	s1, _ := syscall.UTF16PtrFromString("SealDice 海豹已经在运作")
 	s2, _ := syscall.UTF16PtrFromString("如果你想在Windows上打开多个海豹，请点“确定”，或加参数-m启动。\n如果只是打开UI界面，请在任务栏右下角的系统托盘区域找到海豹图标并右键，点“取消")
 	ret := win.MessageBox(0, s2, s1, win.MB_YESNO|win.MB_ICONWARNING|win.MB_DEFBUTTON2)
-	if ret == win.IDYES {
-		return false
-	}
-	return true
+	return ret != win.IDYES
 }
 
 func PortExistsWarn() {
 	s1, _ := syscall.UTF16PtrFromString("SealDice 启动失败")
 	s2, _ := syscall.UTF16PtrFromString("端口已被占用，建议换用其他端口")
 	win.MessageBox(0, s2, s1, win.MB_OK)
-	return
 }
 
 func getAutoStart() *autostart.App {
@@ -239,7 +236,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 			}
 		} else {
 			fmt.Println("如果浏览器没有自动打开，请手动访问:")
-			fmt.Println(fmt.Sprintf(`http://localhost:%s`, portStr)) // 默认:3211
+			fmt.Printf("http://localhost:%s\n", portStr) // 默认:3211
 			go showUI()
 			break
 		}
