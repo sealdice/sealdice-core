@@ -230,6 +230,21 @@ var difficultPrefixMap = map[string]int{
 	"常規":  1,
 }
 
+func cardRuleCheck(mctx *MsgContext, msg *Message) *GameSystemTemplate {
+	cardType := ReadCardType(mctx)
+	if cardType != "" && cardType != mctx.Group.System {
+		ReplyToSender(mctx, msg, fmt.Sprintf("阻止操作：当前卡规则为 %s，群规则为 %s。\n为避免损坏此人物卡，请先更换/新建角色卡，或使用.st clr清除数据", cardType, mctx.Group.System))
+		return nil
+	}
+	tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+	if tmpl == nil {
+		ReplyToSender(mctx, msg, fmt.Sprintf("阻止操作：未发现人物卡使用的规则: %s，可能相关扩展已经卸载，请联系骰主", cardType))
+		return nil
+	}
+	cmdStCharFormat(mctx, tmpl) // 转一下卡
+	return tmpl
+}
+
 func RegisterBuiltinExtCoc7(self *Dice) {
 	// 初始化疯狂列表
 	reFear := regexp.MustCompile(`(\d+)\)\s+([^\n]+)`)
@@ -248,8 +263,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	}
 
 	// 初始化规则模板
-	tmpl := getCoc7CharTemplate()
-	self.GameSystemTemplateAdd(tmpl)
+	self.GameSystemTemplateAdd(getCoc7CharTemplate())
 
 	helpRc := "" +
 		".ra/rc <属性表达式> // 属性检定指令，当前者小于等于后者，检定通过\n" +
@@ -282,12 +296,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				mctx.SystemTemplate = mctx.Group.GetCharTemplate(ctx.Dice)
 				restText := cmdArgs.CleanArgs
 
-				cardType := ReadCardType(mctx)
-				if cardType != "" && cardType != mctx.Group.System {
-					ReplyToSender(mctx, msg, fmt.Sprintf("阻止操作：当前卡规则为 %s，群规则为 %s。\n为避免损坏此人物卡，请先更换/新建角色卡，或使用.st clr清除数据", cardType, mctx.Group.System))
+				tmpl := cardRuleCheck(mctx, msg)
+				if tmpl == nil {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				cmdStCharFormat(mctx, tmpl) // 转一下卡
+				mctx.Player.TempValueAlias = &tmpl.Alias // 兼容性支持
 
 				reBP := regexp.MustCompile(`^[bBpP]`)
 				re2 := regexp.MustCompile(`([^\d]+)\s+([\d]+)`)
@@ -862,6 +875,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+(([^/]+)/)?\s*(.+))?`)
 			m := re.FindStringSubmatch(cmdArgs.CleanArgs)
 
+			tmpl := cardRuleCheck(mctx, msg)
+			if tmpl == nil {
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
 			if m != nil {
 				varName := m[1]     // 技能名称
 				varValueStr := m[2] // 技能值 - 字符串
@@ -876,6 +894,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					varValue, _ = strconv.ParseInt(varValueStr, 10, 64)
 				} else {
 					val, exists := VarGetValue(mctx, varName)
+					if !exists {
+						// 没找到，尝试取得默认值
+						val, _, _, exists = tmpl.GetDefaultValueEx0(mctx, varName)
+					}
 					if !exists {
 						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_属性未录入"))
 						return CmdExecuteResult{Matched: true, Solved: false}
@@ -1071,15 +1093,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			mctx.Player.TempValueAlias = &tmpl.Alias
 
-			cardType := ReadCardType(mctx)
-			if cardType != "" && cardType != mctx.Group.System {
-				ReplyToSender(mctx, msg, fmt.Sprintf("阻止操作：当前卡规则为 %s，群规则为 %s。\n为避免损坏此人物卡，请先更换/新建角色卡，或使用.st clr清除数据", cardType, mctx.Group.System))
-				//ReplyToSender(mctx, msg, fmt.Sprintf("当前卡规则为 %s，群规则为 %s。\n为避免误操作，请先换卡、或使用.st clr清除数据再录卡", cardType, mctx.Group.System))
+			tmpl := cardRuleCheck(mctx, msg)
+			if tmpl == nil {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			cmdStCharFormat(mctx, tmpl) // 转一下卡
+
+			mctx.Player.TempValueAlias = &tmpl.Alias
 
 			// 首先读取一个值
 			// 试图读取 /: 读到了，当前是成功值，转入读取单项流程，试图读取失败值
@@ -1359,6 +1379,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
+			tmpl := getCoc7CharTemplate()
 			ctx.Player.TempValueAlias = &tmpl.Alias
 		},
 		GetDescText: func(ei *ExtInfo) string {
