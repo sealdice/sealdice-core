@@ -76,6 +76,14 @@ class FirstFragment : Fragment() {
                 startActivity(intent)
             }
         }
+        binding.buttonTut.setOnClickListener {
+            val address = "https://docs.qq.com/doc/DREhHbHVGenR3QmNV"
+            val uri = Uri.parse(address)
+            val intent = Intent()
+            intent.action = "android.intent.action.VIEW"
+            intent.data = uri
+            startActivity(intent)
+        }
         binding.buttonExit.setOnClickListener {
             this.activity?.let { it1 -> finishAffinity(it1) } // Finishes all activities.
             exitProcess(0)
@@ -245,6 +253,7 @@ class FirstFragment : Fragment() {
                 }
                 val args = sharedPreferences?.getString("launch_args", "")
                 execShell("cd sealdice&&./sealdice-core $args",true)
+                binding.buttonTut.visibility = View.GONE
                 binding.buttonInput.visibility = View.GONE
                 binding.buttonOutput.visibility = View.GONE
                 binding.buttonReset.visibility = View.GONE

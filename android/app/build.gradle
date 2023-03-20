@@ -11,8 +11,8 @@ android {
         applicationId "com.sealdice.dice"
         minSdk 26
         targetSdk 28
-        versionCode 20
-        versionName "0.4.0-rc"
+        versionCode 21
+        versionName "0.4.1-rc"
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
