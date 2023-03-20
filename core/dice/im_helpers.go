@@ -123,9 +123,7 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	if p.ValueMapTemp == nil {
 		p.ValueMapTemp = lockfree.NewHashMap()
 	}
-	if p.InGroup == false {
-		p.InGroup = true
-	}
+	p.InGroup = true
 	ctx.LoadPlayerGroupVars(group, p)
 	return group, p
 }

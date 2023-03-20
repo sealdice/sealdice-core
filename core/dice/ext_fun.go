@@ -3,7 +3,6 @@ package dice
 import (
 	"fmt"
 	"hash/fnv"
-	"math"
 	"math/rand"
 	"regexp"
 	"sort"
@@ -463,7 +462,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 
 				var nums Int64SliceDesc
-				for k, _ := range randMap {
+				for k := range randMap {
 					nums = append(nums, k)
 				}
 				sort.Sort(nums)
@@ -591,7 +590,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 				// 拒绝无权限访问
 				if refuse {
-					ReplyToSender(ctx, msg, fmt.Sprintf("你不具备Master权限"))
+					ReplyToSender(ctx, msg, "你不具备Master权限")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 			}
@@ -602,7 +601,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 				r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{DisableBlock: false})
 
 				if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
-					text := r.Value.(string)
+					var text string
+					if r != nil {
+						text = r.Value.(string)
+					}
 
 					if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
 						if ctx.PrivilegeLevel >= 40 {
@@ -726,7 +728,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 
 				m := cmdArgs.GetArgN(2)
-				if i, err := strconv.Atoi(strings.Replace(m, "d", "", 1)); err == nil && float64(i) != math.NaN() {
+				if i, err := strconv.Atoi(strings.Replace(m, "d", "", 1)); err == nil {
 					roulette.Face = i
 					text := cmdArgs.GetArgN(3)
 					roulette.Reason = text

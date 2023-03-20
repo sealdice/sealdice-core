@@ -44,7 +44,7 @@ func CustomReplyConfigCheckExists(dice *Dice, filename string) bool {
 
 func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 	for _, i := range dice.CustomReplyConfig {
-		if strings.ToLower(i.Filename) == strings.ToLower(filename) {
+		if strings.EqualFold(i.Filename, filename) {
 			return nil
 		}
 	}

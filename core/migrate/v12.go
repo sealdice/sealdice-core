@@ -12,8 +12,8 @@ func TryMigrateToV12() {
 	}
 
 	fmt.Println("检测到旧数据库存在，试图进行转换")
-	ConvertServe()
-	ConvertLogs()
-	os.Remove("./data/default/data.bdb")
+	_ = ConvertServe()
+	_ = ConvertLogs()
+	_ = os.Remove("./data/default/data.bdb")
 	fmt.Println("V1.2 版本数据库升级完成")
 }
