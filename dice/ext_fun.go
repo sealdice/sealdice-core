@@ -179,8 +179,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 			rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
 			rpSeed += int64(fingerprint(ctx.EndPoint.UserId))
 			rpSeed += int64(fingerprint(ctx.Player.UserId))
-			rand.Seed(rpSeed)
-			rp := rand.Int63()%100 + 1
+			randItem := rand.NewSource(rpSeed)
+			rp := randItem.Int63()%100 + 1
 
 			VarSetValueInt64(ctx, "$t人品", rp)
 			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "娱乐:今日人品"))
