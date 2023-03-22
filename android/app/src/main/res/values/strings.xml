@@ -5,6 +5,7 @@
     <!-- Strings used for fragments for navigation -->
     <string name="first_fragment_label">海豹核心</string>
     <string name="next">Next</string>
+    <string name="home">海豹核心</string>
     <string name="previous">Previous</string>
 
     <string name="hello_first_fragment">海豹安卓测试版\n请勿外传\nSpecial Thanks: 木末君(logs404)</string>

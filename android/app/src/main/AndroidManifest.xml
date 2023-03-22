@@ -35,7 +35,16 @@
         <activity android:name=".SettingsActivity" />
         <activity android:name=".WebViewActivity" />
         <activity android:name=".NotificationActivity" />
-
+        <provider
+            android:name=".utils.LocalStorageProvider"
+            android:authorities="com.sealdice.dice.authorities"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER"/>
+            </intent-filter>
+        </provider>
         <service android:name=".MediaService"/>
         <service android:name=".NotificationService"/>
         <service android:name=".WakeLockService"/>
