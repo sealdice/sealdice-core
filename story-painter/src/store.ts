@@ -46,6 +46,15 @@ export const useStore = defineStore('main', {
       this._reloadEditor(this.doEditorHighlight)
     },
 
+    colorMapSave() {
+      localStorage.setItem('pcNameColorMap', JSON.stringify([...this.pcNameColorMap]))
+    },
+
+    colorMapLoad() {
+      const lst = JSON.parse(localStorage.getItem('pcNameColorMap') || '[]');
+      this.pcNameColorMap = new Map(lst)
+    },
+
     getColor(): string {
       if (this.paletteStack.length === 0) {
         this.paletteStack = [...this.palette]
@@ -99,6 +108,7 @@ export const useStore = defineStore('main', {
           if (!c) {
             c = this.getColor();
             this.pcNameColorMap.set(v.name, c);
+            this.colorMapSave()
           }
           v.color = c;
           this.pcList.push(v);

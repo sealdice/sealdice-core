@@ -7,6 +7,7 @@ export const reEditLog = new RegExp(reEditLogTest, 'gm')
 
 
 export class EditLogImporter extends LogImporter {
+  // TODO 信息等待补充
   // 2022-05-10 11:28:25 名字(12345)
   check(text: string): boolean {
     if (reEditLogTest.test(text)) {

@@ -1,11 +1,11 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
     <h2 style="text-align: center;display: flex; align-items: center; justify-content: center; flex-flow: wrap;">
-      <span>海豹TRPG跑团Log着色器 V2.0.6</span>
+      <span>海豹TRPG跑团Log着色器 V2.1.0</span>
       <a style="margin:0 1rem" href="https://github.com/sealdice/story-painter" target="_blank"><img src="./assets/github-mark.svg" style="width: 1.2rem;"/></a>
       <el-button type="primary" @click="backV1">返回V1</el-button>
     </h2>
-    <div style="text-align: center;">SealDice骰QQ群 524364253 / 562897832</div>
+    <div style="text-align: center;">SealDice骰QQ群 524364253 [群介绍中有其余3群]</div>
     <!-- <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div> -->
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
       <div>
@@ -75,7 +75,9 @@
             <el-option value="隐藏" />
           </el-select>
 
-          <el-color-picker v-model="i.color" size="large" style="border: none;" />
+          <!-- <color-picker theme="light" :color="i.color" :sucker-hide="true" /> -->
+          <!-- <el-color-picker v-model="i.color" size="large" style="border: none;" /> -->
+          <input type="color" v-model.lazy="i.color" style="min-width: 2.5rem; margin-left: 0.2rem; border-color: #aaa; border-radius: 3px;" @change="debounceInput(i)" />
         </div>
       </div>
     </div>
@@ -141,12 +143,22 @@ import { LogItem, CharItem, packNameId } from "./logManager/types";
 import { setCharInfo } from './logManager/importers/_logImpoter'
 import { msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat } from "./utils";
 
+// 不用他了 虽然很不错，但是没有屏幕取色
+// import { ColorPicker } from 'vue-color-kit'
+// import 'vue-color-kit/dist/vue-color-kit.css'
+
 const isMobile = ref(false)
 const downloadUsableRank = ref(0)
 
 const isShowPreview = ref(false)
 const isShowPreviewBBS = ref(false)
 const isShowPreviewTRG = ref(false)
+
+const debounceInput = debounce(function(i) {
+  store.pcNameColorMap.set(i.name, i.color)
+  store.colorMapSave();
+  // console.log(i.color, i.name)
+}, 1000)
 
 const backV1 = () => {
   // location.href = location.origin + '/v1/' + location.search + location.hash;
@@ -389,6 +401,7 @@ function showPreview() {
     msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
     msg = msgCommandFormat(msg, store.exportOptions);
     msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);
+    msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice); // 再过滤一次
     if (msg.trim() === '') continue;
 
     i.index = index;
@@ -400,6 +413,7 @@ function showPreview() {
 
 const store = useStore()
 const color2 = ref('#409EFF')
+store.colorMapLoad();
 
 // 修改ot选项后重建items
 watch(() => store.exportOptions.offTopicHide, showPreview)

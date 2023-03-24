@@ -46,8 +46,14 @@ const timeSolve = (i: LogItem) => {
   if (options.timeHide) {
     timeText = ''
   } else {
-    if (typeof i.time === 'number') {
+    if (typeof i.time === 'number' && i.time !== 0) {
       timeText = dayjs.unix(i.time).format(options.yearHide ? 'HH:mm:ss' : 'YYYY/MM/DD HH:mm:ss')
+    } else {
+      if (i.timeText) {
+        timeText = i.timeText
+      } else {
+        timeText = dayjs.unix(i.time).format(options.yearHide ? 'HH:mm:ss' : 'YYYY/MM/DD HH:mm:ss')
+      }
     }
   }
   return timeText
@@ -70,6 +76,7 @@ const previewMessageSolve = (i: LogItem) => {
   msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
   msg = msgCommandFormat(msg, store.exportOptions);
   msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);
+  msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice); // 再过滤一次
 
   const prefix = (!store.exportOptions.timeHide ? `${timeSolve(i)}` : '') + nicknameSolve(i)
   if (i.isDice) {

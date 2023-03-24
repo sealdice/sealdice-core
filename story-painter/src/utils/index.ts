@@ -62,7 +62,7 @@ export function msgImageFormat(msg: string, options: any, htmlText = false) {
 export function msgOffTopicFormat(msg: string, options: any, isDice = false) {
   // 替换场外发言
   if (options.offTopicHide && (!isDice)) {
-    msg = msg.replaceAll(/^[(（].+?$/gm, '') // 【
+    msg = msg.replaceAll(/^\S*[(（].+?$/gm, '') // 【
   }
   return msg;
 }
@@ -91,9 +91,9 @@ export function msgIMUseridFormat(msg: string, options: any, isDice = false) {
   }
 
   // 过滤其他任何CQ码
-  msg = msg.replaceAll(/\[CQ:.+?,[^\]]+\]/g, '')
+  msg = msg.replaceAll(/\[CQ:(?!image).+?,[^\]]+\]/g, '')
   // 过滤mirai
-  msg = msg.replaceAll(/\[mirai:.+?:[^\]]+\]/g, '')
+  msg = msg.replaceAll(/\[mirai:(?!image).+?:[^\]]+\]/g, '')
 
   // 这个trim是消灭单行空白，例如“@xxxx\nXXXX”虽然还是会造成中间断行，但先不管
   msg = msg.trim();

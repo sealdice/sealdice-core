@@ -63,6 +63,7 @@ const trgMessageSolve = (i: LogItem) => {
   msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
   msg = msgCommandFormat(msg, store.exportOptions);
   msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);
+  msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice); // 再过滤一次
 
   let extra = ''
   if (i.isDice) {

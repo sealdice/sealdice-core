@@ -8,6 +8,8 @@ import { indexInfoListItem } from "./exporters/logExporter";
 import { EditLogImporter } from "./importers/EditLogImporter";
 import { CharItem, LogItem } from "./types";
 import { DiceKokonaLogImporter } from "./importers/DiceKokonaLogImporter";
+import { RenderedLogImporter } from "./importers/RenderedLogImporter";
+import { FvttLogImporter } from "./importers/FvttLogImporter";
 
 
 export class LogManager {
@@ -22,6 +24,8 @@ export class LogManager {
     ['qqExport', new QQExportLogImporter(this)],
     ['sinaNya', new SinaNyaLogImporter(this)],
     ['dice!', new DiceKokonaLogImporter(this)],
+    ['rendered', new RenderedLogImporter(this)],
+    ['fvtt', new FvttLogImporter(this)],
   ]
 
   exporters = {

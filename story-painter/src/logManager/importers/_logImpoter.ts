@@ -2,6 +2,9 @@ import dayjs from "dayjs";
 import type { LogManager } from "../logManager";
 import { CharItem, LogItem, packNameId } from "../types";
 
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+dayjs.extend(customParseFormat);
+
 
 export interface TextInfo {
   items: LogItem[];
@@ -24,6 +27,10 @@ export class LogImporter {
   }
 
   getAutoIMUserId(start: number, name: string) {
+    // 解释一下这里的古怪，因为2.1版本遇到过一次:
+    // 传入的两个参数，store.pcList.length, item.nickname
+    // 前者一般为0，因为这个时候还没有角色
+    // 后者必须先赋值，如果没经过赋值，传进来都是undefined，就会统一得到1001
     let data = this.tmpIMUserId.get(name);
     if (!data) {
       data = `${1001+start + this.tmpIMUserId.size}`;

@@ -1,6 +1,7 @@
 <template>
   <div class="">
-    <span style="color: #aaa" class="_time" v-if="!store.exportOptions.timeHide">[color=#silver]{{ timeSolve(source) }}[/color]</span>
+    <span style="color: #aaa" class="_time" v-if="!store.exportOptions.timeHide">[color=#silver]{{ timeSolve(source)
+    }}[/color]</span>
     <span :style="{ 'color': colorByName(source) }">[color={{ colorByName(source) }}]
       <span class="_nickname">{{ nicknameSolve(source) }}</span>
       <span v-html="bbsMessageSolve(source)"></span>
@@ -30,32 +31,38 @@ const colorByName = (i: LogItem) => {
 }
 
 const nicknameSolve = (i: LogItem) => {
-	let userid = '(' + i.IMUserId + ')'
-	const options = store.exportOptions
-	if (options.userIdHide) {
-		userid = ''
-	}
+  let userid = '(' + i.IMUserId + ')'
+  const options = store.exportOptions
+  if (options.userIdHide) {
+    userid = ''
+  }
   return `<${i.nickname}${userid}>`
 }
 
 
 const timeSolve = (i: LogItem) => {
-	let timeText = i.time.toString()
-	const options = store.exportOptions
-	if (typeof i.time === 'number') {
-		timeText = dayjs.unix(i.time).format(options.yearHide ? 'HH:mm:ss' : 'YYYY/MM/DD HH:mm:ss')
-	}
-	if (options.timeHide) {
-		timeText = ''
-	}
-	return timeText
+  let timeText = i.time.toString()
+  const options = store.exportOptions
+  if (typeof i.time === 'number' && i.time !== 0) {
+    timeText = dayjs.unix(i.time).format(options.yearHide ? 'HH:mm:ss' : 'YYYY/MM/DD HH:mm:ss')
+  } else {
+    if (i.timeText) {
+      timeText = i.timeText
+    } else {
+      timeText = dayjs.unix(i.time).format(options.yearHide ? 'HH:mm:ss' : 'YYYY/MM/DD HH:mm:ss')
+    }
+  }
+  if (options.timeHide) {
+    timeText = ''
+  }
+  return timeText
 }
 
 const nameReplace = (msg: string) => {
-	for (let i of store.pcList) {
-		msg = msg.replaceAll(`<${i.name}>`, `${i.name}`)
-	}
-	return msg
+  for (let i of store.pcList) {
+    msg = msg.replaceAll(`<${i.name}>`, `${i.name}`)
+  }
+  return msg
 }
 
 const bbsMessageSolve = (i: LogItem) => {
@@ -68,6 +75,7 @@ const bbsMessageSolve = (i: LogItem) => {
   msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
   msg = msgCommandFormat(msg, store.exportOptions);
   msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);
+  msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice); // 再过滤一次
 
   if (i.isDice) {
     msg = nameReplace(msg)
