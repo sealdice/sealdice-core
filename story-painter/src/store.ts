@@ -28,7 +28,9 @@ export const useStore = defineStore('main', {
         offTopicHide: false,
         timeHide: false,
         userIdHide: true,
-        yearHide: true
+        yearHide: true,
+        textIndentAll: false,
+        textIndentFirst: true,
       }
     }
   },

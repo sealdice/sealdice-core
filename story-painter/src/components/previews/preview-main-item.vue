@@ -83,12 +83,16 @@ const previewMessageSolve = (i: LogItem) => {
     msg = nameReplace(msg)
   }
 
-  if (canvasFontSize === '') {
-    // store.previewElement as any
-    canvasFontSize = getCanvasFontSize(document.getElementById('preview') as any);
+  let length = 0;
+  if (store.exportOptions.textIndentFirst) {
+    if (canvasFontSize === '') {
+      // store.previewElement as any
+      canvasFontSize = getCanvasFontSize(document.getElementById('preview') as any);
+    }
+    length = getTextWidth(prefix, canvasFontSize);
   }
-  const length = getTextWidth(prefix, canvasFontSize);
+  
   // return msg.replaceAll('<br />', '\n').replaceAll('\n', '<br /> ' + `<span style="color:white">${prefix}</span>`)
-  return msg.replaceAll('<br />', '\n').replaceAll(/\n([^\n]+)/g, `<p style="margin-left: ${length}px; margin-top: 0; margin-bottom: 0">$1</p>`)
+  return msg.replaceAll('<br />', '\n').replaceAll(/\n([^\n]+)/g, `<p style="text-indent: ${length}px; margin-top: 0; margin-bottom: 0">$1</p>`)
 }
 </script>

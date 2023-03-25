@@ -1,11 +1,11 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
     <h2 style="text-align: center;display: flex; align-items: center; justify-content: center; flex-flow: wrap;">
-      <span>海豹TRPG跑团Log着色器 V2.1.0</span>
+      <span>海豹TRPG跑团Log着色器 V2.1.1</span>
       <a style="margin:0 1rem" href="https://github.com/sealdice/story-painter" target="_blank"><img src="./assets/github-mark.svg" style="width: 1.2rem;"/></a>
       <el-button type="primary" @click="backV1">返回V1</el-button>
     </h2>
-    <div style="text-align: center;">SealDice骰QQ群 524364253 [群介绍中有其余3群]</div>
+    <div style="text-align: center;margin-bottom: 1rem;">SealDice骰QQ群 524364253 [群介绍中有其余3群]</div>
     <!-- <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div> -->
     <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
       <div>
@@ -54,6 +54,22 @@
           <h4>隐藏年月日</h4>
         </div>
         <div>开启后，导出结果的日期将只显示几点几分(如果可能)</div>
+      </div>
+
+      <div>
+        <div class="switch">
+          <el-switch v-model="exportOptions.textIndentFirst" />
+          <h4>首行缩进</h4>
+        </div>
+        <div>开启后，缩进将以名字为基准进行对齐</div>
+      </div>
+
+      <div>
+        <div class="switch">
+          <el-switch v-model="exportOptions.textIndentAll" />
+          <h4>安慰开关</h4>
+        </div>
+        <div>没有任何作用，看起来对称一点</div>
       </div>
     </div>
 
@@ -611,6 +627,8 @@ html {
   justify-content: center;
 
   &>h4 {
+    margin-top: 0rem;
+    margin-bottom: 0rem;
     margin-left: 1rem;
   }
 }
