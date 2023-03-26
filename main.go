@@ -42,7 +42,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 			if sysinfo == "windows" {
 				exec.Command("pause")
 			} else {
-				exec.Command("read -n1 -rp \"\"")
+				exec.Command("read -n1 -rp \"\" ")
 			}
 		}
 		for _, i := range diceManager.Dice {
