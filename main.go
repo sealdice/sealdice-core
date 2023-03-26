@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/jessevdk/go-flags"
-	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	cp "github.com/otiai10/copy"
 	"mime"
@@ -15,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"runtime/debug"
 	"sealdice-core/api"
 	"sealdice-core/dice"
@@ -39,7 +38,14 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		if err != nil {
 			showWindow()
 			logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
-			exec.Command("pause") // windows专属
+			sysinfo := runtime.GOOS
+			if sysinfo == "windows" {
+				exec.Command("pause")
+			} else if sysinfo == "linux" || sysinfo == "darwin" {
+				exec.Command("read -n1 -rp \"\"")
+			} else {
+				exec.Command("sleep 3000000000")
+			}
 		}
 
 		for _, i := range diceManager.Dice {
@@ -193,14 +199,22 @@ func main() {
 	if err1 == nil {
 		_, err = os.Stat("./auto_update_ok")
 		if err == nil {
-			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
+			if runtime.GOOS == "windows" {
+				logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
+			} else {
+				logger.Warn("检测到 auto_update 自动升级文件，进行升级收尾工作")
+			}
 			_ = os.Remove("./auto_update_ok")
 			_ = os.Remove("./auto_update.exe")
-			_ = os.Remove("./auto_updat3.exe")
+			_ = os.Remove("./auto_update.exe")
 			_ = os.RemoveAll("./update")
 		} else {
 			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
-			logger.Warn("检测到 auto_update.exe，即将进行升级")
+			if runtime.GOOS == "windows" {
+				logger.Warn("检测到 auto_update.exe，即将进行升级")
+			} else {
+				logger.Warn("检测到 auto_update 自动升级文件，即将进行升级")
+			}
 			// 这5s延迟是保险，其实并不必要
 			// 2023/1/9: 还是必要的，在有些设备上还要更久时间，所以现在改成15s
 			name := updateFileName
@@ -216,12 +230,20 @@ func main() {
 	if err2 == nil {
 		_, err = os.Stat("./auto_update_ok")
 		if err == nil {
-			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
+			if runtime.GOOS == "windows" {
+				logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
+			} else {
+				logger.Warn("检测到 auto_update 自动升级文件，进行升级收尾工作")
+			}
 			_ = os.Remove("./auto_update_ok")
 			_ = os.Remove("./auto_update")
 			_ = os.RemoveAll("./update")
 		} else {
-			logger.Warn("检测到 auto_update.exe，即将进行升级")
+			if runtime.GOOS == "windows" {
+				logger.Warn("检测到 auto_update.exe，即将进行升级")
+			} else {
+				logger.Warn("检测到 auto_update 自动升级文件，即将进行升级")
+			}
 			err := cp.Copy("./update/new", "./")
 			if err != nil {
 				logger.Errorf("更新: 复制文件失败: %s", err.Error())
