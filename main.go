@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/jessevdk/go-flags"
-	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	cp "github.com/otiai10/copy"
 	"mime"
@@ -43,13 +41,10 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 			sysinfo := runtime.GOOS
 			if sysinfo == "windows" {
 				exec.Command("pause")
-			} else if sysinfo == "linux" || sysinfo == "darwin" {
-				exec.Command("read -n1 -rp \"\"")
 			} else {
-				exec.Command("sleep 3000000000")
+				exec.Command("read -n1 -rp \"\"")
 			}
 		}
-
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
 				i.BanList.SaveChanged(i)
