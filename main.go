@@ -196,7 +196,7 @@ func main() {
 			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
 			_ = os.Remove("./auto_update_ok")
 			_ = os.Remove("./auto_update.exe")
-			_ = os.Remove("./auto_updat3.exe")
+			_ = os.Remove("./auto_update.exe")
 			_ = os.RemoveAll("./update")
 		} else {
 			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
