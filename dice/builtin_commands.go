@@ -751,6 +751,10 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				if runtime.GOOS == "android" {
+					ReplyToSender(ctx, msg, "检测到手机版，手机版海豹不支持指令更新，请手动下载新版本安装包")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				code := cmdArgs.GetArgN(2)
 				if code != "" {
 					if code == updateCode && updateCode != "0000" {
@@ -1514,6 +1518,9 @@ func (d *Dice) registerCoreCommands() {
 				}
 			} else if cmdArgs.IsArgEqual(1, "new") {
 				name := getNickname()
+				if len(name) > 90 {
+					name = name[:90]
+				}
 				if ctx.ChNew(name) {
 					ctx.ChUnbindCur() // 先移除绑定
 					ctx.ChBindCur(name)
@@ -1604,6 +1611,10 @@ func (d *Dice) registerCoreCommands() {
 				}
 			} else if cmdArgs.IsArgEqual(1, "save") {
 				name := getNickname()
+				if len(name) > 90 {
+					name = name[:90]
+				}
+
 				card := ctx.ChBindGet(name)
 				if card == nil {
 					// TODO: 改到ctx里

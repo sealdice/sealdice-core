@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"sealdice-core/migrate"
-
 	//_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -103,6 +102,15 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 	}
 }
 
+func deleteOldWrongFile() {
+	_ = os.Remove("./data/names/data-logs.db")
+	_ = os.Remove("./data/names/names.zip")
+	_ = os.Remove("./data/names/serve.yaml")
+	_ = os.Remove("./data/names/names/names.xlsx")
+	_ = os.Remove("./data/names/names/names-dnd.xlsx")
+	_ = os.Remove("./data/names/names")
+}
+
 func main() {
 	var opts struct {
 		Install                bool   `short:"i" long:"install" description:"安装为系统服务"`
@@ -118,6 +126,7 @@ func main() {
 		Delay                  int64  `long:"delay"`
 		JustForTest            bool   `long:"just-for-test"`
 	}
+	deleteOldWrongFile()
 	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {

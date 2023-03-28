@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fy0/procs"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"regexp"
 	"runtime/debug"
 	"sealdice-core/dice/model"
+	"sealdice-core/utils/procs"
 	"strconv"
 	"strings"
 	"syscall"
@@ -55,6 +55,7 @@ type PlatformAdapterGocq struct {
 	GoCqHttpLoginVerifyCode    string `yaml:"-" json:"goCqHttpLoginVerifyCode"`
 	GoCqHttpLoginDeviceLockUrl string `yaml:"-" json:"goCqHttpLoginDeviceLockUrl"`
 	GoCqHttpQrcodeData         []byte `yaml:"-" json:"-"` // 二维码数据
+	GoCqHttpSmsNumberTip       string `yaml:"-" json:"goCqHttpSmsNumberTip"`
 
 	GoCqLastAutoLoginTime      int64 `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`                             // 上次自动重新登录的时间
 	GoCqHttpLoginSucceeded     bool  `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"`                            // 是否登录成功过

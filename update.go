@@ -9,6 +9,7 @@ import (
 	"fmt"
 	cp "github.com/otiai10/copy"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -31,6 +32,11 @@ func downloadUpdate(dm *dice.DiceManager) error {
 			arch := runtime.GOARCH
 			version := ver.VersionLatest
 			var ext string
+
+			// 如果线上版本小于当前版本，那么拒绝更新
+			if ver.VersionLatestCode < dm.AppVersionCode {
+				return errors.New("获取到的线上版本旧于当前版本，停止更新")
+			}
 
 			switch platform {
 			case "windows":
@@ -142,7 +148,7 @@ func doUpdate(dm *dice.DiceManager) {
 		//if err == nil {
 		//cp.Copy("./update/new/sealdice-core.exe", "./sealdice-core.exe") // 仅作为标记
 		_ = cp.Copy("./update/new/sealdice-core.exe", "./auto_update.exe")
-		_ = cp.Copy("./update/new/sealdice-core.exe", "./auto_updat3.exe")
+		//_ = cp.Copy("./update/new/sealdice-core.exe", "./auto_updat3.exe")
 		//}
 	} else {
 		// Linux / Mac
@@ -172,7 +178,7 @@ func doUpdate(dm *dice.DiceManager) {
 }
 
 func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo {
-	resp, err := http.Get(backendUrl + "/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 20))
+	resp, err := http.Get(backendUrl + "/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 10) + "&v=" + strconv.FormatInt(rand.Int63(), 10))
 	if err != nil {
 		//logger.Errorf("获取新版本失败: %s", err.Error())
 		return nil
@@ -193,6 +199,9 @@ func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo
 }
 
 func CheckVersion(dm *dice.DiceManager) *dice.VersionInfo {
+	if runtime.GOOS == "android" {
+		return nil
+	}
 	// 逐个尝试所有后端地址
 	for _, i := range dice.BackendUrls {
 		ret := checkVersionBase(i, dm)

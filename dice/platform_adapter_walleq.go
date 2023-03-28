@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fy0/procs"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"regexp"
 	"runtime/debug"
 	"sealdice-core/dice/model"
+	"sealdice-core/utils/procs"
 	"strconv"
 	"strings"
 	"syscall"
