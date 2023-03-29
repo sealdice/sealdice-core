@@ -570,6 +570,22 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 				slideMode = 1
 			}
 
+			if strings.Contains(line, " [WARNING]: 账号已开启设备锁，请选择验证方式") {
+				slideMode = 2
+			}
+
+			// 直接短信验证，不过滑条
+			if slideMode == 2 {
+				// 账号已开启设备锁，请选择验证方式
+				// 1. 向手机 %v 发送短信验证码
+				// 2. 使用手机QQ扫码验证
+				// 请输入(1 - 2)：
+				if strings.Contains(line, "WARNING") && strings.Contains(line, "[WARNING]: 请输入(1 - 2)：") {
+					// gocq的tty检测太辣鸡了
+					return "1\n"
+				}
+			}
+
 			// 滑条流程
 			if slideMode == 1 {
 				if strings.Contains(line, "WARNING") && strings.Contains(line, "[WARNING]: 请输入(1 - 2)：") {
