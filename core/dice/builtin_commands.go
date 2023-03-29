@@ -1243,7 +1243,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 			}
-			return CmdExecuteResult{Matched: true, Solved: false}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 	d.CmdMap["ext"] = cmdExt
