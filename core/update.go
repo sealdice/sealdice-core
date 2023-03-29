@@ -199,6 +199,9 @@ func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo
 }
 
 func CheckVersion(dm *dice.DiceManager) *dice.VersionInfo {
+	if runtime.GOOS == "android" {
+		return nil
+	}
 	// 逐个尝试所有后端地址
 	for _, i := range dice.BackendUrls {
 		ret := checkVersionBase(i, dm)
