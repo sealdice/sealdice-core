@@ -7,6 +7,7 @@ import (
 	"github.com/lonelyevil/kook/log_adapter/plog"
 	"github.com/phuslu/log"
 	"github.com/yuin/goldmark"
+	"html"
 	"io"
 	"regexp"
 	"strconv"
@@ -467,6 +468,7 @@ func (pa *PlatformAdapterKook) toStdMessage(ctx *kook.KmarkdownMessageContext) *
 	msg.Message = trimHtml(buf.String())
 	msg.Message = strings.ReplaceAll(msg.Message, `\[`, "[")
 	msg.Message = strings.ReplaceAll(msg.Message, `\]`, "]")
+	msg.Message = html.UnescapeString(msg.Message)
 	msg.Platform = "KOOK"
 	send := new(SenderBase)
 	send.UserId = FormatDiceIdKook(ctx.Common.AuthorID)
