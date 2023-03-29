@@ -86,40 +86,40 @@ var guguText = `
 `
 
 var emokloreAttrParent = map[string][]string{
-	"检索":   {"知力"},
-	"洞察":   {"知力"},
-	"识路":   {"灵巧", "五感"},
-	"直觉":   {"精神", "运势"},
-	"鉴定":   {"五感", "知力"},
-	"观察":   {"五感"},
-	"聆听":   {"五感"},
-	"鉴毒":   {"五感"},
+	"检索":     {"知力"},
+	"洞察":     {"知力"},
+	"识路":     {"灵巧", "五感"},
+	"直觉":     {"精神", "运势"},
+	"鉴定":     {"五感", "知力"},
+	"观察":     {"五感"},
+	"聆听":     {"五感"},
+	"鉴毒":     {"五感"},
 	"危机察觉": {"五感", "运势"},
-	"灵感":   {"精神", "运势"},
-	"社交术":  {"社会"},
-	"辩论":   {"知力"},
-	"心理":   {"精神", "知力"},
-	"魅惑":   {"魅力"},
+	"灵感":     {"精神", "运势"},
+	"社交术":   {"社会"},
+	"辩论":     {"知力"},
+	"心理":     {"精神", "知力"},
+	"魅惑":     {"魅力"},
 	"专业知识": {"知力"},
-	"万事通":  {"五感", "社会"},
-	"业界":   {"社会", "魅力"},
-	"速度":   {"身体"},
-	"力量":   {"身体"},
+	"万事通":   {"五感", "社会"},
+	"业界":     {"社会", "魅力"},
+	"速度":     {"身体"},
+	"力量":     {"身体"},
 	"特技动作": {"身体", "灵巧"},
-	"潜泳":   {"身体"},
-	"武术":   {"身体"},
-	"奥义":   {"身体", "精神", "灵巧"},
-	"射击":   {"灵巧", "五感"},
-	"耐久":   {"身体"},
-	"毅力":   {"精神"},
-	"医术":   {"灵巧", "知力"},
-	"技巧":   {"灵巧"},
-	"艺术":   {"灵巧", "精神", "五感"},
-	"操纵":   {"灵巧", "五感", "知力"},
-	"暗号":   {"知力"},
-	"电脑":   {"知力"},
-	"隐匿":   {"灵巧", "社会", "运势"},
-	"强运":   {"运势"},
+	"潜泳":     {"身体"},
+	"武术":     {"身体"},
+	"奥义":     {"身体", "精神", "灵巧"},
+	"射击":     {"灵巧", "五感"},
+	"耐久":     {"身体"},
+	"毅力":     {"精神"},
+	"医术":     {"灵巧", "知力"},
+	"技巧":     {"灵巧"},
+	"艺术":     {"灵巧", "精神", "五感"},
+	"操纵":     {"灵巧", "五感", "知力"},
+	"暗号":     {"知力"},
+	"电脑":     {"知力"},
+	"隐匿":     {"灵巧", "社会", "运势"},
+	"强运":     {"运势"},
 }
 
 var emokloreAttrParent2 = map[string][]string{
@@ -636,10 +636,18 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
+	type _singleRoulette struct {
+		Reason string
+		Face   int
+		Time   int
+		Pool   []int
+	}
+	var _roulette SyncMap[string, _singleRoulette]
+
 	cmdJsr := CmdItemInfo{
 		Name:      "jsr",
-		ShortHelp: ".jsr 3# d10 // 投掷10面骰3次，结果不重复。用法参考.r",
-		Help:      "不重复骰点（Jetter sans répéter）：.jsr 次数# 面数\n用例：.jsr 3# d10 // 投掷10面骰3次，结果不重复。用法参考.r",
+		ShortHelp: ".jsr 3# d10 // 投掷10面骰3次，结果不重复。结果存入骰池并可用 .drl 抽取。用法参考.r",
+		Help:      "不重复骰点（Jetter sans répéter）：.jsr 次数# 面数\n用例：.jsr 3# d10 // 投掷10面骰3次，结果不重复，结果存入骰池并可用 .drl 抽取。用法参考.r",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			t := cmdArgs.SpecialExecuteTimes
 			allArgClean := cmdArgs.CleanArgs
@@ -675,12 +683,16 @@ func RegisterBuiltinExtFun(self *Dice) {
 					pool = append(pool, n)
 				}
 			}
-			//ctx.Dice.Logger.Info(pool)
 			var results []string
 			for _, v := range pool {
 				results = append(results, fmt.Sprintf("D%d=%d", m, v))
 			}
 			allArgClean = strings.Join(allArgs, " ")
+			roulette := _singleRoulette{
+				Reason: allArgClean,
+				Pool:   pool,
+			}
+			_roulette.Store(ctx.Group.GroupId, roulette)
 			VarSetValueStr(ctx, "$t原因", allArgClean)
 			if allArgClean != "" {
 				forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
@@ -699,13 +711,6 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
-	type _singleRoulette struct {
-		Reason string
-		Face   int
-		Time   int
-		Pool   []int
-	}
-	var _roulette SyncMap[string, _singleRoulette]
 	cmdDrl := CmdItemInfo{
 		Name: "drl",
 		ShortHelp: ".drl new d10 5# // 在当前群组创建一个面数为10，能抽取5次的骰池\n.drl // 抽取当前群组的骰池\n" +
@@ -840,7 +845,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 		CmdMap: CmdMapCls{
 			"gugu":  &cmdGugu,
-			"咕咕":    &cmdGugu,
+			"咕咕":  &cmdGugu,
 			"jrrp":  &cmdJrrp,
 			"text":  &cmdText,
 			"rsr":   &cmdRsr,
