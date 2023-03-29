@@ -1520,7 +1520,7 @@ func (d *Dice) loads() {
 
 		d.LogSizeNoticeCount = 500
 		d.LogSizeNoticeEnable = true
-		d.CustomBotExtraText = "供职于{$t供职群数}个群，其中{$启用群数}个处于开启状态。{$t群内工作状态}"
+		d.CustomBotExtraText = "供职于{$t供职群数}个群，其中{$t启用群数}个处于开启状态。{$t群内工作状态}"
 		d.CustomDrawKeysText = "牌组1/牌组2/牌组3"
 
 		// 1.2
