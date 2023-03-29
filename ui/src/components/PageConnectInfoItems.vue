@@ -28,12 +28,14 @@
         </div>
 
         <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginBar) && i.adapter?.goCqHttpLoginDeviceLockUrl">
-          <div style="margin-left: 2rem">滑条验证码流程:</div>
-          <div><a style="line-break: anywhere;" :href="i.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div>
+        <!-- <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;"> -->
+          <div style="margin-left: 2rem">滑条验证码流程</div>
+          <!-- <div><a style="line-break: anywhere;" :href="i.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div> -->
+          <div><a @click="slideUrlSet(i.adapter?.goCqHttpLoginDeviceLockUrl)" style="line-break: anywhere;" href="javascript:void(0)">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div>
         </div>
 
         <div style="position: absolute; width: 17rem; height: 18rem; background: #fff; z-index: 1;" v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginVerifyCode)">
-          <div style="margin-left: 2rem">短信验证码流程:</div>
+          <div style="margin-left: 2rem">短信验证码流程</div>
           <div style="margin-top: 4rem;">
             <el-form label-width="5rem">
               <el-form-item label="验证码">
@@ -144,7 +146,6 @@
     </div>
   </div>
 
-  
   <el-dialog v-model="dialogSetDataFormVisible" title="属性修改" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
     <el-form :model="form">
       <el-form-item label="类型" :label-width="formLabelWidth">
@@ -338,7 +339,8 @@
           <div v-else-if="index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginBar && curConn.adapter?.goCqHttpLoginDeviceLockUrl">
             <div>滑条验证码流程，访问以下链接操作:</div>
             <div style="line-break: anywhere;">
-              <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.goCqHttpLoginDeviceLockUrl}}</el-link>
+              <div><a @click="slideUrlSet(curConn.adapter?.goCqHttpLoginDeviceLockUrl)" style="line-break: anywhere;" href="javascript:void(0)">{{ curConn.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div>
+              <!-- <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.goCqHttpLoginDeviceLockUrl}}</el-link> -->
             </div>
           </div>
 
@@ -406,10 +408,18 @@
     </template>
   </el-dialog>
 
+  <!-- 滑条验证，需要3000 z-index的原因是 element 的overlay是2012，其移动端页面上是2017，我不知道是不是累加的，所以给一个很大的值 -->
+  <div v-show="dialogSlideVisible" style="position: fixed; top:0; left: 0; width: 100%; height: 100%; background: rgba(1,1,1,0.7); z-index: 3000;" id="slide">
+    <iframe id="slideIframe" ref="slideIframe" referrerpolicy="no-referrer" src="about:blank" style="width: 100%; height: 100%;"></iframe>
+    <div v-show="slideBottomShow" style="position: absolute; bottom: 0; width: 100%; height: 100px; z-index: 10; display: flex; justify-content: center; flex-direction: column; align-items: center;">
+      <div style=" margin-bottom: .5rem;"><a style="line-break: anywhere; font-size: .5rem;" :href="slideLink" target="_blank">方式2:新页面打开(如无法验证)</a></div>
+      <el-button type="primary" @click="dialogSlideVisible = false">关闭，滑条完成后点击</el-button>      
+    </div>
+  </div>
 </template>
 
 <script lang="ts" setup>
-import { h, reactive, onBeforeMount, onBeforeUnmount, ref, nextTick } from 'vue';
+import { h, reactive, onBeforeMount, onBeforeUnmount, onMounted, ref, nextTick } from 'vue';
 import { useStore, goCqHttpStateCode } from '~/store';
 import type { DiceConnection } from '~/store';
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -464,12 +474,35 @@ const isRecentLogin = ref(false)
 const duringRelogin = ref(false)
 const dialogFormVisible = ref(false)
 const dialogSetDataFormVisible = ref(false)
+const dialogSlideVisible = ref(false)
 const formLabelWidth = '100px'
 const isTestMode = ref(false)
+
+const slideIframe = ref(null)
+const slideLink = ref('')
+const slideBottomShow = ref(false)
 
 const curConn = ref({} as DiceConnection);
 const curConnId = ref('');
 const smsCode = ref('');
+
+const slideUrlSet = (url: string) => {
+  if (slideIframe.value) {
+    dialogSlideVisible.value = true
+    const el: HTMLIFrameElement = slideIframe.value;
+    slideLink.value = url;
+    el.src = url;
+
+    slideBottomShow.value = false;
+    setTimeout(() => {
+      // 等一小会再出来，防止误触
+      slideBottomShow.value = true;
+    }, 3000);
+  }
+}
+
+onMounted(() => {
+})
 
 const submitSmsCode = async (i: DiceConnection) => {
   console.log(smsCode.value);
