@@ -24,7 +24,7 @@
 
         <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode) && store.curDice.qrcodes[i.id]">
           <div style="margin-left: 2rem">需要同账号的手机QQ扫码登录:</div>
-          <img style="image-rendering: pixelated; width: 10rem; height:10rem; margin-left: 3.5rem; margin-top: 2rem;" :src="store.curDice.qrcodes[i.id]" />
+          <img style="margin-left: -3rem; image-rendering: pixelated; width: 10rem; height:10rem; margin-left: 3.5rem; margin-top: 2rem;" :src="store.curDice.qrcodes[i.id]" />
         </div>
 
         <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginBar) && i.adapter?.goCqHttpLoginDeviceLockUrl">
