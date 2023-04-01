@@ -435,9 +435,9 @@ func uiServe(dm *dice.DiceManager, hideUI bool) {
 	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
 		XSSProtection:         "1; mode=block",
 		ContentTypeNosniff:    "nosniff",
-		XFrameOptions:         "SAMEORIGIN",
 		HSTSMaxAge:            3600,
-		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data:;",
+		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
+		//XFrameOptions:         "ALLOW-FROM https://captcha.go-cqhttp.org/",
 	}))
 	// X-Content-Type-Options: nosniff
 
