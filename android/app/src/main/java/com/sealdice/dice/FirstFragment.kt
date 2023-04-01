@@ -44,10 +44,8 @@ class FirstFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
         return binding.root
-
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -151,7 +149,6 @@ class FirstFragment : Fragment() {
                     }
                 }
             } else {
-//                Toast.makeText(context, "未获得文件权限！", Toast.LENGTH_LONG).show()
                 this.view?.let { it2 ->
                     context?.let { it1 ->
                         Snackbar.make(
@@ -201,9 +198,6 @@ class FirstFragment : Fragment() {
                         }
                         dialog?.dismiss()
                         withContext(Dispatchers.Main) {
-//                            Toast.makeText(
-//                                context, "导入了${FileWrite.FileCount}个文件", Toast.LENGTH_LONG
-//                            ).show()
                             context?.let { it1 ->
                                 Snackbar.make(
                                     it1, view,"导入了${FileWrite.FileCount}个文件", Toast.LENGTH_SHORT
@@ -212,7 +206,6 @@ class FirstFragment : Fragment() {
                         }
                     }
                 } else {
-//                    Toast.makeText(context, "未获得文件权限！", Toast.LENGTH_LONG).show()
                     context?.let { it1 ->
                         Snackbar.make(
                             it1, view,"未获得文件权限！", Toast.LENGTH_SHORT

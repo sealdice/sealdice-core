@@ -2,6 +2,8 @@
     <string name="app_name">海豹核心</string>
     <string name="action_settings">设置</string>
     <string name="action_official_website">官网</string>
+    <string name="action_battery_setting">跳转至省电设置</string>
+    <string name="action_check_update">检查更新</string>
     <!-- Strings used for fragments for navigation -->
     <string name="first_fragment_label">海豹核心</string>
     <string name="next">Next</string>

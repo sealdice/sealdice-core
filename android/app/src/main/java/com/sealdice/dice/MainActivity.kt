@@ -1,13 +1,18 @@
 package com.sealdice.dice
 
+import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.MenuItemCompat
 import androidx.core.view.forEach
@@ -16,9 +21,19 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.google.android.material.snackbar.Snackbar
+import com.sealdice.dice.common.FileWrite
 import com.sealdice.dice.databinding.ActivityMainBinding
 import com.tencent.smtt.export.external.TbsCoreSettings
 import com.tencent.smtt.sdk.QbSdk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONException
+import org.json.JSONObject
+import java.io.IOException
 
 
 private class PreInitCallbackImpl: QbSdk.PreInitCallback {
@@ -30,12 +45,16 @@ private class PreInitCallbackImpl: QbSdk.PreInitCallback {
 }
 
 class MainActivity : AppCompatActivity() {
-
+    private val requestIgnoreBatteryOptimizations = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {}
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val intentUpdateService = Intent(this, UpdateService::class.java)
+        startService(intentUpdateService)
         QbSdk.initX5Environment(this, PreInitCallbackImpl())
         val map = HashMap<String?, Any?>()
         map[TbsCoreSettings.TBS_SETTINGS_USE_SPEEDY_CLASSLOADER] = true
@@ -80,6 +99,70 @@ class MainActivity : AppCompatActivity() {
                 intent.action = "android.intent.action.VIEW"
                 intent.data = Uri.parse("https://sealdice.com")
                 startActivity(intent)
+                true
+            }
+            R.id.action_battery_setting -> {
+                requestIgnoreBatteryOptimizations.launch(Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:${this.packageName}")
+                ))
+                true
+            }
+            R.id.action_check_update -> {
+                val builder: AlertDialog.Builder = AlertDialog.Builder(this)
+                builder.setCancelable(false) // if you want user to wait for some process to finish,
+                builder.setView(R.layout.layout_loading_dialog)
+                val dialog = builder.create()
+                dialog.show()
+                val self = this
+                GlobalScope.launch(context = Dispatchers.IO) {
+                    val UPDATE_URL = "https://get.sealdice.com/seal/version/android"
+                    val client = OkHttpClient()
+                    val request = Request.Builder()
+                        .url(UPDATE_URL)
+                        .build()
+                    try {
+                        val response = client.newCall(request).execute()
+                        val jsonData = response.body?.string()
+                        val jsonObject = jsonData?.let { JSONObject(it) }
+                        val latestVersion = jsonObject?.getString("version")
+                        Log.e("--Service--","已经获取了version${latestVersion}")
+                        // Check if current version is up-to-date
+                        val currentVersion = BuildConfig.VERSION_NAME
+                        if (latestVersion != currentVersion) {
+                            // Show update notification
+                            withContext(Dispatchers.Main) {
+                                dialog.cancel()
+                                val alertDialogBuilder = AlertDialog.Builder(self,R.style.Theme_Mshell_DialogOverlay)
+                                alertDialogBuilder.setTitle("提示")
+                                alertDialogBuilder.setMessage("发现更新，点击确定开始下载新版本\n线上版本:${latestVersion}\n本地版本:${currentVersion}")
+                                alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+                                    val uri = Uri.parse("https://d.catlevel.com/seal/android/latest")
+                                    val intent = Intent()
+                                    intent.action = "android.intent.action.VIEW"
+                                    intent.data = uri
+                                    startActivity(intent)
+                                }
+                                alertDialogBuilder.setNegativeButton("取消") {_: DialogInterface, _: Int ->}
+                                alertDialogBuilder.create().show()
+                            }
+                        } else {
+                        // Current version is up-to-date
+                            withContext(Dispatchers.Main) {
+                                dialog.cancel()
+                                val alertDialogBuilder = AlertDialog.Builder(self,R.style.Theme_Mshell_DialogOverlay)
+                                alertDialogBuilder.setTitle("提示")
+                                alertDialogBuilder.setMessage("当前版本已是最新")
+                                alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
+                                alertDialogBuilder.create().show()
+                            }
+                        }
+                    } catch (e: IOException) {
+                        e.printStackTrace()
+                    } catch (e: JSONException) {
+                        e.printStackTrace()
+                    }
+                }
                 true
             }
             else -> super.onOptionsItemSelected(item)

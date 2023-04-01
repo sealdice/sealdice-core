@@ -11,8 +11,8 @@ android {
         applicationId "com.sealdice.dice"
         minSdk 26
         targetSdk 28
-        versionCode 22
-        versionName "0.4.2-rc"
+        versionCode 23
+        versionName "v0.4.3-rc"
         buildConfigField "String", "DOCUMENTS_AUTHORITY", "\"com.sealdice.dice.authorities\""
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
@@ -45,12 +45,13 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.8.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.navigation:navigation-fragment-ktx:2.6.0-alpha07'
-    implementation 'androidx.navigation:navigation-ui-ktx:2.6.0-alpha07'
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.6.0-alpha08'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.6.0-alpha08'
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4"
     implementation 'androidx.core:core:1.9.0'
     implementation 'androidx.preference:preference:1.2.0'
-    implementation 'androidx.lifecycle:lifecycle-service:2.6.0'
+    implementation 'androidx.lifecycle:lifecycle-service:2.6.1'
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
     api 'com.tencent.tbs:tbssdk:44286'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
