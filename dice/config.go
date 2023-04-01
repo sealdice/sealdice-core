@@ -1688,7 +1688,10 @@ func (d *Dice) Save(isAuto bool) {
 		if g.UpdatedAtTime != 0 {
 			data, err := json.Marshal(g)
 			if err == nil {
-				_ = model.GroupInfoSave(d.DBData, g.GroupId, g.UpdatedAtTime, data)
+				err := model.GroupInfoSave(d.DBData, g.GroupId, g.UpdatedAtTime, data)
+				if err != nil {
+					d.Logger.Warnf("保存群组数据失败 %v : %v", g.GroupId, err.Error())
+				}
 				g.UpdatedAtTime = 0
 			}
 		}
