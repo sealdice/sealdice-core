@@ -19,7 +19,7 @@ private open class WVChromeClient(activity: WebViewActivity): WebChromeClient() 
     var _m: WebViewActivity = activity
     val CHOOSER_REQUEST = 0x33
     private var uploadFiles: ValueCallback<Array<Uri>>? = null
-    override fun onShowFileChooser(webView: WebView, filePathCallback: ValueCallback<Array<Uri>>?, fileChooserParams: WebChromeClient.FileChooserParams?): Boolean {
+    override fun onShowFileChooser(webView: WebView, filePathCallback: ValueCallback<Array<Uri>>?, fileChooserParams: FileChooserParams?): Boolean {
         uploadFiles = filePathCallback
         val i = fileChooserParams!!.createIntent()
         i.type = "*/*"
@@ -104,6 +104,8 @@ class WebViewActivity : AppCompatActivity() {
 
         webSettings.javaScriptEnabled = true
 
+        webSettings.allowContentAccess = true
+
         webSettings.useWideViewPort = true //将图片调整到适合webview的大小
 
         webSettings.loadWithOverviewMode = true // 缩放至屏幕的大小
@@ -145,6 +147,7 @@ class WebViewActivity : AppCompatActivity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
         if (url != null) {
             webView.loadUrl(url)
+//            webView.loadUrl(disableCSP)
         }
     }
 

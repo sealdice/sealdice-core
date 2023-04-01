@@ -157,10 +157,17 @@ class MainActivity : AppCompatActivity() {
                                 alertDialogBuilder.create().show()
                             }
                         }
-                    } catch (e: IOException) {
+                    } catch (e: Exception) {
+                        dialog.cancel()
                         e.printStackTrace()
-                    } catch (e: JSONException) {
-                        e.printStackTrace()
+                        withContext(Dispatchers.Main) {
+                            dialog.cancel()
+                            val alertDialogBuilder = AlertDialog.Builder(self,R.style.Theme_Mshell_DialogOverlay)
+                            alertDialogBuilder.setTitle("提示")
+                            alertDialogBuilder.setMessage("检查更新时出现错误，请稍后重试")
+                            alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
+                            alertDialogBuilder.create().show()
+                        }
                     }
                 }
                 true
