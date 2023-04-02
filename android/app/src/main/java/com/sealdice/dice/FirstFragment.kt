@@ -52,10 +52,11 @@ class FirstFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         var isrun = false
-        val packageManager = this.activity?.packageManager
-        val packageName = this.activity?.packageName
-        val packageInfo = packageName?.let { packageManager?.getPackageInfo(it, 0) }
-        val versionName = packageInfo?.versionName
+//        val packageManager = this.activity?.packageManager
+//        val packageName = this.activity?.packageName
+//        val packageInfo = packageName?.let { packageManager?.getPackageInfo(it, 0) }
+        val versionName = BuildConfig.VERSION_NAME
+        val packageName = BuildConfig.APPLICATION_ID
         val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
         val nightModeFlags = context?.resources?.configuration?.uiMode?.and(Configuration.UI_MODE_NIGHT_MASK)
         val isNightMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES
@@ -134,7 +135,7 @@ class FirstFragment : Fragment() {
                 GlobalScope.launch(context = Dispatchers.IO) {
                     context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice/" }
                         ?.let { it2 -> File(it2) }
-                        ?.let { it3 -> FileWrite.copyFolder(it3,File("${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/")) }
+                        ?.let { it3 -> FileWrite.copyFolder(it3,File("${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/")) }
                     dialog?.dismiss()
                     val alertDialogBuilder = context?.let { it1 ->
                         AlertDialog.Builder(
@@ -142,7 +143,7 @@ class FirstFragment : Fragment() {
                         )
                     }
                     alertDialogBuilder?.setTitle("提示")
-                    alertDialogBuilder?.setMessage("所有内部数据已经导出至\n"+"${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/\n共${FileWrite.FileCount}个文件")
+                    alertDialogBuilder?.setMessage("所有内部数据已经导出至\n"+"${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/\n共${FileWrite.FileCount}个文件")
                     alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int -> }
                     withContext(Dispatchers.Main) {
                         alertDialogBuilder?.create()?.show()
@@ -175,7 +176,7 @@ class FirstFragment : Fragment() {
                 )
             }
             alertDialogBuilder?.setTitle("警告")
-            alertDialogBuilder?.setMessage("将从\n"+"${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/\n中导入数据，内部存储中所有的重复文件将被覆盖，覆盖后将无法恢复\n返回请按”取消“ 继续请按”确定“")
+            alertDialogBuilder?.setMessage("将从\n"+"${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/\n中导入数据，内部存储中所有的重复文件将被覆盖，覆盖后将无法恢复\n返回请按”取消“ 继续请按”确定“")
             alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
                 FileWrite.FileCount = 0
                 val permissionState =
@@ -192,7 +193,7 @@ class FirstFragment : Fragment() {
                                 it2
                             )
                         }?.let { it3 ->
-                            FileWrite.copyFolder(File("${FileWrite.SDCardDir}/Documents/${context?.packageName}/sealdice/"),
+                            FileWrite.copyFolder(File("${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/"),
                                 it3
                             )
                         }
@@ -306,6 +307,10 @@ class FirstFragment : Fragment() {
         var executed = false
         if (sharedPreferences != null) {
             if (sharedPreferences.getBoolean("alive_notification", true)) {
+                val permissionState = context.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.FOREGROUND_SERVICE) }
+                if (permissionState != PackageManager.PERMISSION_GRANTED) {
+                    this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.FOREGROUND_SERVICE), 1) }
+                }
                 val intentNoti = Intent(context, NotificationService::class.java)
                 context.startService(intentNoti)
                 executed = true

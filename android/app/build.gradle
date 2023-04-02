@@ -9,10 +9,11 @@ android {
 
     defaultConfig {
         applicationId "com.sealdice.dice"
-        minSdk 26
+        minSdk 28
+        //noinspection ExpiredTargetSdkVersion
         targetSdk 28
-        versionCode 24
-        versionName "v0.4.4-rc"
+        versionCode 25
+        versionName "v0.4.5-rc"
         buildConfigField "String", "DOCUMENTS_AUTHORITY", "\"com.sealdice.dice.authorities\""
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }

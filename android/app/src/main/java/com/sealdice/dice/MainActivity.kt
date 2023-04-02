@@ -1,27 +1,24 @@
 package com.sealdice.dice
 
+import android.Manifest
 import android.content.DialogInterface
 import android.content.Intent
-import android.graphics.Color
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
-import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.MenuItemCompat
-import androidx.core.view.forEach
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
-import com.google.android.material.snackbar.Snackbar
-import com.sealdice.dice.common.FileWrite
 import com.sealdice.dice.databinding.ActivityMainBinding
 import com.tencent.smtt.export.external.TbsCoreSettings
 import com.tencent.smtt.sdk.QbSdk
@@ -31,9 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.json.JSONException
 import org.json.JSONObject
-import java.io.IOException
 
 
 private class PreInitCallbackImpl: QbSdk.PreInitCallback {
@@ -55,6 +50,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         val intentUpdateService = Intent(this, UpdateService::class.java)
         startService(intentUpdateService)
+        val permissionState = ContextCompat.checkSelfPermission(this, Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+        if (permissionState != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS), 1)
+        }
         QbSdk.initX5Environment(this, PreInitCallbackImpl())
         val map = HashMap<String?, Any?>()
         map[TbsCoreSettings.TBS_SETTINGS_USE_SPEEDY_CLASSLOADER] = true
@@ -63,10 +62,10 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
-        val packageManager = this.packageManager
-        val packageName = this.packageName
-        val packageInfo = packageManager.getPackageInfo(packageName, 0)
-        val versionName = packageInfo.versionName
+//        val packageManager = this.packageManager
+//        val packageName = this.packageName
+//        val packageInfo = packageManager.getPackageInfo(packageName, 0)
+//        val versionName = packageInfo.versionName
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
@@ -158,7 +157,6 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                     } catch (e: Exception) {
-                        dialog.cancel()
                         e.printStackTrace()
                         withContext(Dispatchers.Main) {
                             dialog.cancel()

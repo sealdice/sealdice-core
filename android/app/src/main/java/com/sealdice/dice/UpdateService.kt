@@ -6,19 +6,15 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.json.JSONException
 import org.json.JSONObject
-import java.io.IOException
 
 class UpdateService : Service() {
 
@@ -57,9 +53,7 @@ class UpdateService : Service() {
             } else {
                 // Current version is up-to-date
             }
-        } catch (e: IOException) {
-            e.printStackTrace()
-        } catch (e: JSONException) {
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }
