@@ -19,8 +19,7 @@ class NotificationService : Service(){
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
             .build()
-//        startForeground(1, notification)
-        mNotificationManager.notify(1, notification)
+        startForeground(1, notification)
         return START_STICKY
     }
 
