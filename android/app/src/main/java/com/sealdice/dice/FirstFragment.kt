@@ -7,10 +7,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.*
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.finishAffinity
@@ -307,12 +309,14 @@ class FirstFragment : Fragment() {
         var executed = false
         if (sharedPreferences != null) {
             if (sharedPreferences.getBoolean("alive_notification", true)) {
-                val permissionState = context.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.FOREGROUND_SERVICE) }
-                if (permissionState != PackageManager.PERMISSION_GRANTED) {
-                    this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.FOREGROUND_SERVICE), 1) }
+                if (Build.VERSION.SDK_INT >= 28) {
+                    val permissionState = context.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.FOREGROUND_SERVICE) }
+                    if (permissionState != PackageManager.PERMISSION_GRANTED) {
+                        this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.FOREGROUND_SERVICE), 1) }
+                    }
                 }
                 val intentNoti = Intent(context, NotificationService::class.java)
-                context.startService(intentNoti)
+                context.startForegroundService(intentNoti)
                 executed = true
             }
             if (sharedPreferences.getBoolean("alive_media", false)) {
@@ -372,9 +376,6 @@ class FirstFragment : Fragment() {
                     shellLogs += "\n"
                 }
                 Log.i("ExecShell", shellLogs)
-                withContext(Dispatchers.Main) {
-                binding.textviewFirst.text = shellLogs
-                }
                 Thread.sleep(1000)
             }
         }

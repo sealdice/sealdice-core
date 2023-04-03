@@ -19,7 +19,7 @@ import org.json.JSONObject
 class UpdateService : Service() {
 
     private val UPDATE_URL = "https://get.sealdice.com/seal/version/android"
-    private val NOTIFICATION_ID = 1
+    private val NOTIFICATION_ID = 2
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         GlobalScope.launch(context = Dispatchers.IO) {

@@ -18,7 +18,7 @@ class WakeLockService : Service(){
 
     private val task = object : Runnable {
         override fun run() {
-            wakeLockHelper.restartWakeLock(5000, 5000) // 每隔5秒释放Wakelock并获取新的Wakelock
+            wakeLockHelper.restartWakeLock(0, 0)
             handler.postDelayed(this, 300000) // 每隔5分钟执行一次
         }
     }

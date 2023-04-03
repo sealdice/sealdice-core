@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId "com.sealdice.dice"
-        minSdk 28
+        minSdk 26
         //noinspection ExpiredTargetSdkVersion
         targetSdk 28
         versionCode 25

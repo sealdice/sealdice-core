@@ -1,9 +1,7 @@
 package com.sealdice.dice
 
-import android.Manifest
 import android.content.DialogInterface
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -13,8 +11,6 @@ import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
@@ -50,10 +46,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         val intentUpdateService = Intent(this, UpdateService::class.java)
         startService(intentUpdateService)
-        val permissionState = ContextCompat.checkSelfPermission(this, Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-        if (permissionState != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS), 1)
-        }
         QbSdk.initX5Environment(this, PreInitCallbackImpl())
         val map = HashMap<String?, Any?>()
         map[TbsCoreSettings.TBS_SETTINGS_USE_SPEEDY_CLASSLOADER] = true
@@ -101,10 +93,9 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             R.id.action_battery_setting -> {
-                requestIgnoreBatteryOptimizations.launch(Intent(
-                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                    Uri.parse("package:${this.packageName}")
-                ))
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                intent.data = Uri.parse("package:${this.packageName}")
+                requestIgnoreBatteryOptimizations.launch(intent)
                 true
             }
             R.id.action_check_update -> {
