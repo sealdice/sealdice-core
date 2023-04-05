@@ -237,7 +237,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				// 设置邀请人
 				gi.InviteUserId = tempInviteMap2[msg.GroupId]
 			}
-			gi.DiceIdExistsMap.Store(msg.GroupId, true)
+			gi.DiceIdExistsMap.Store(ep.UserId, true)
 			gi.EnteredTime = nowTime // 设置入群时间
 			gi.UpdatedAtTime = time.Now().Unix()
 			// 立即获取群信息
