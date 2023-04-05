@@ -1,7 +1,6 @@
 package dice
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/fy0/lockfree"
@@ -1334,12 +1333,26 @@ func (d *Dice) loads() {
 			//d.ImSession.ServiceAtNew = model.GroupInfoListGet(d.DBData)
 			_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
 				var groupInfo GroupInfo
-				// TODO: 兼容旧测试版，1.2.1拆掉
-				data = bytes.ReplaceAll(data, []byte(`"diceIds":{`), []byte(`"diceIdActiveMap":{`))
 				err := json.Unmarshal(data, &groupInfo)
 				if err == nil {
 					groupInfo.GroupId = id
 					groupInfo.UpdatedAtTime = updatedAt
+
+					// 找出其中以群号开头的，这是1.2版本的bug
+					var toDelete []string
+					if groupInfo.DiceIdExistsMap != nil {
+						groupInfo.DiceIdExistsMap.Range(func(key string, value bool) bool {
+							if strings.HasPrefix(key, "QQ-Group:") {
+								toDelete = append(toDelete, key)
+							}
+							return true
+						})
+						for _, i := range toDelete {
+							groupInfo.DiceIdExistsMap.Delete(i)
+						}
+					}
+					//data = bytes.ReplaceAll(data, []byte(`"diceIds":{`), []byte(`"diceIdActiveMap":{`))
+
 					//fmt.Println("????", id, groupInfo.GroupId)
 					d.ImSession.ServiceAtNew[id] = &groupInfo
 				} else {
