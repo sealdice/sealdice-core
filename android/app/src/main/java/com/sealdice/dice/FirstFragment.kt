@@ -246,7 +246,7 @@ class FirstFragment : Fragment() {
                     ExtractAssets(context).extractResources("sealdice")
                 }
                 val args = sharedPreferences?.getString("launch_args", "")
-                execShell("pkill -SIGINT sealdice-core&&cd sealdice&&./sealdice-core $args",true)
+                execShell("cd sealdice&&./sealdice-core $args",true)
                 binding.buttonTut.visibility = View.GONE
                 binding.buttonInput.visibility = View.GONE
                 binding.buttonOutput.visibility = View.GONE
