@@ -1119,15 +1119,28 @@ func (d *Dice) registerCoreCommands() {
 			}
 		},
 	}
+
+	HelpRollX := ".rx <表达式> <原因> // 骰点指令\n.rxh <表达式> <原因> // 暗骰"
+	cmdRollX := &CmdItemInfo{
+		Name:          "roll",
+		ShortHelp:     HelpRoll,
+		Help:          "骰点(和r相同，但支持代骰):\n" + HelpRollX,
+		AllowDelegate: true,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
+			return cmdRoll.Solve(mctx, msg, cmdArgs)
+		},
+	}
+
 	d.CmdMap["r"] = cmdRoll
 	d.CmdMap["rd"] = cmdRoll
 	d.CmdMap["roll"] = cmdRoll
 	d.CmdMap["rh"] = cmdRoll
 	d.CmdMap["rhd"] = cmdRoll
 	d.CmdMap["rdh"] = cmdRoll
-	d.CmdMap["rx"] = cmdRoll
-	d.CmdMap["rxh"] = cmdRoll
-	d.CmdMap["rhx"] = cmdRoll
+	d.CmdMap["rx"] = cmdRollX
+	d.CmdMap["rxh"] = cmdRollX
+	d.CmdMap["rhx"] = cmdRollX
 
 	helpExt := ".ext // 查看扩展列表"
 	cmdExt := &CmdItemInfo{

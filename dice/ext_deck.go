@@ -350,11 +350,11 @@ func deckDraw(ctx *MsgContext, deckName string, shufflePool bool) (bool, string,
 func RegisterBuiltinExtDeck(d *Dice) {
 	helpDraw := "" +
 		".draw help // 显示本帮助\n" +
-		".draw list // 查看载入的牌堆文件\n" +
-		".draw keys // 查看可抽取的牌组列表(容易很长，不建议用)\n" +
+		".draw keys // 查看可抽取的牌组列表\n" +
 		".draw keys <牌堆> // 查看特定牌堆可抽取的牌组列表\n" +
 		".draw search <牌组名称> // 搜索相关牌组\n" +
 		".draw reload // 从硬盘重新装载牌堆，仅Master可用\n" +
+		".draw list // 查看载入的牌堆文件\n" +
 		".draw <牌组名称> // 进行抽牌"
 
 	cmdDraw := &CmdItemInfo{
@@ -474,6 +474,30 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					VarSetValueStr(ctx, "$t牌组", deckName)
 
 					if exists {
+						results := []string{result}
+
+						// 多抽限额为5
+						var times int
+						if t := cmdArgs.GetArgN(2); t != "" {
+							times64, _ := strconv.ParseInt(t, 10, 64)
+							times = int(times64)
+						}
+						if cmdArgs.SpecialExecuteTimes > times {
+							times = cmdArgs.SpecialExecuteTimes
+						}
+						if times < 1 {
+							times = 1
+						}
+						if times > 5 {
+							times = 5
+						}
+
+						for i := 1; i < times; i++ {
+							_, r2, _ := deckDraw(ctx, deckName, false)
+							results = append(results, r2)
+						}
+
+						result = strings.Join(results, "\n")
 						prefix := DiceFormatTmpl(ctx, "其它:抽牌_结果前缀")
 						ReplyToSender(ctx, msg, prefix+result)
 					} else {
