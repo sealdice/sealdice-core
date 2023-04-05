@@ -19,6 +19,11 @@
             android:summary="添加一个悬浮窗进行保活，第一次使用会跳转到权限设置"
             android:defaultValue="false" />
         <androidx.preference.SwitchPreferenceCompat
+            android:key="alive_heartbeat"
+            android:title="保活策略：心跳"
+            android:summary="通过定时发送心跳包保持存活"
+            android:defaultValue="false" />
+        <androidx.preference.SwitchPreferenceCompat
             android:key="alive_media"
             android:title="保活策略：无声音频"
             android:summary="通过循环播放无声音频进行保活"

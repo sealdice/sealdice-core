@@ -15,5 +15,5 @@
         android:layout_height="match_parent"
         android:layout_weight="4"
         android:gravity="center"
-        android:text="处理文件中，请稍候 ..." />
+        android:text="@string/processing_files" />
 </LinearLayout>

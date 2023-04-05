@@ -21,8 +21,12 @@
         <item name="windowNoTitle">true</item>
     </style>
 
-    <style name="Theme.Mshell.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
-
+    <style name="Theme.Mshell.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="android:background">#00000000</item>
+    </style>
+    <style name="Theme.Mshell.CommonOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="android:background">#00000000</item>
+    </style>
     <style name="Theme.Mshell.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
     <style name="Theme.Mshell.DialogOverlay" parent="Theme.AppCompat.Light.Dialog.Alert" >
         <item name="android:background">@color/white</item>

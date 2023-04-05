@@ -12,12 +12,14 @@ android {
         minSdk 26
         //noinspection ExpiredTargetSdkVersion
         targetSdk 28
-        versionCode 26
-        versionName "v0.4.6-rc"
+        versionCode 27
+        versionName "v0.4.7-rc"
         buildConfigField "String", "DOCUMENTS_AUTHORITY", "\"com.sealdice.dice.authorities\""
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
-
+    dataBinding {
+        enabled = true
+    }
     buildTypes {
         release {
             minifyEnabled true

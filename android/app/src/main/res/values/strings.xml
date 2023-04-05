@@ -4,11 +4,16 @@
     <string name="action_official_website">官网</string>
     <string name="action_battery_setting">跳转至省电设置</string>
     <string name="action_check_update">检查更新</string>
+    <string name="action_about">关于</string>
     <!-- Strings used for fragments for navigation -->
     <string name="first_fragment_label">海豹核心</string>
     <string name="next">Next</string>
     <string name="home">海豹核心</string>
     <string name="previous">Previous</string>
-
-    <string name="hello_first_fragment">海豹安卓测试版\n请勿外传\nSpecial Thanks: 木末君(logs404)</string>
+    <string name="hello_first_fragment">海豹安卓测试版\nSpecial Thanks: 木末君(logs404)</string>
+    <string name="processing_files">处理文件中，请稍候 …</string>
+    <string name="app_description">SealDice for Android</string>
+    <string name="thanks">项目参与者:\n\n木落(fy0) \nSzzRain \n于言诺 \n檀轶步棋 \n\n特别感谢: \n木末君(logs404)</string>
+    <string name="review">问题反馈</string>
+    <string name="repo">项目地址</string>
 </resources>

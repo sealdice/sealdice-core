@@ -15,6 +15,12 @@
         <item name="seal_settings_icon">@drawable/ic_settings</item>
         <item name="seal_buttonColor">@drawable/btn_select_dark</item>
     </style>
+    <style name="Theme.Mshell.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="android:background">#00000000</item>
+    </style>
+    <style name="Theme.Mshell.CommonOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="android:background">@color/grey</item>
+    </style>
     <style name="Theme.Mshell.DialogOverlay" parent="Theme.AppCompat.Light.Dialog.Alert" >
         <item name="android:background">@color/grey</item>
         <item name="android:colorAccent">@color/white</item>

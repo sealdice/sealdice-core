@@ -2,6 +2,7 @@ package com.sealdice.dice
 
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -11,6 +12,8 @@ import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
@@ -61,6 +64,9 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.INTERNET),1)
+        }
 //        binding.fab.setOnClickListener { view ->
 //            Snackbar.make(view, "SealDice for Android $versionName\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
 //                .setAction("Action", null).show()
@@ -96,6 +102,11 @@ class MainActivity : AppCompatActivity() {
                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
                 intent.data = Uri.parse("package:${this.packageName}")
                 requestIgnoreBatteryOptimizations.launch(intent)
+                true
+            }
+            R.id.action_about -> {
+                val intent = Intent(this, AboutActivity::class.java)
+                startActivity(intent)
                 true
             }
             R.id.action_check_update -> {
@@ -153,7 +164,7 @@ class MainActivity : AppCompatActivity() {
                             dialog.cancel()
                             val alertDialogBuilder = AlertDialog.Builder(self,R.style.Theme_Mshell_DialogOverlay)
                             alertDialogBuilder.setTitle("提示")
-                            alertDialogBuilder.setMessage("检查更新时出现错误，请稍后重试")
+                            alertDialogBuilder.setMessage("检查更新时出现错误，请稍后重试\n错误信息:\n${e.localizedMessage}\nStackTrace:\n${e.stackTraceToString()}")
                             alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
                             alertDialogBuilder.create().show()
                         }

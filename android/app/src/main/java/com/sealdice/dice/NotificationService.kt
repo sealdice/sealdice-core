@@ -13,7 +13,7 @@ class NotificationService : Service(){
         val mNotificationManager = getSystemService(ns) as NotificationManager
         val notificationChannel = NotificationChannel("sealdice","SealDice", NotificationManager.IMPORTANCE_HIGH)
         mNotificationManager.createNotificationChannel(notificationChannel)
-        val pendingIntent = PendingIntent.getActivity(applicationContext, 0, Intent(applicationContext, NotificationActivity::class.java), PendingIntent.FLAG_ONE_SHOT)
+        val pendingIntent = PendingIntent.getActivity(applicationContext, 0, Intent(applicationContext, NotificationActivity::class.java), PendingIntent.FLAG_MUTABLE)
         val notification: Notification = Notification.Builder(this,"sealdice")
             .setContentTitle("SealDice is running")
             .setSmallIcon(R.drawable.ic_launcher_foreground)

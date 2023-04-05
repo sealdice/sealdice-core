@@ -36,6 +36,7 @@
         </activity>
         <activity android:name=".SettingsActivity" />
         <activity android:name=".WebViewActivity" />
+        <activity android:name=".AboutActivity" />
         <activity android:name=".NotificationActivity" />
         <provider
             android:name=".utils.LocalStorageProvider"
@@ -51,6 +52,7 @@
         <service android:name=".NotificationService"/>
         <service android:name=".WakeLockService"/>
         <service android:name=".FloatWindowService"/>
+        <service android:name=".HeartbeatService"/>
         <service android:name=".UpdateService"/>
         <service
             android:name="com.tencent.smtt.export.external.DexClassLoaderProviderService"

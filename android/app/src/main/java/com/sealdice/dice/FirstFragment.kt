@@ -12,7 +12,6 @@ import android.os.Bundle
 import android.util.Log
 import android.view.*
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.finishAffinity
@@ -62,7 +61,6 @@ class FirstFragment : Fragment() {
         val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
         val nightModeFlags = context?.resources?.configuration?.uiMode?.and(Configuration.UI_MODE_NIGHT_MASK)
         val isNightMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES
-        binding.textviewFirst.text = StringBuilder(binding.textviewFirst.text).append("\nApp Version: $versionName")
         binding.buttonThird.setOnClickListener {
             val address = sharedPreferences?.getString("ui_address", "http://127.0.0.1:3211")
             if (sharedPreferences?.getBoolean("use_internal_webview", true) == true) {
@@ -248,7 +246,7 @@ class FirstFragment : Fragment() {
                     ExtractAssets(context).extractResources("sealdice")
                 }
                 val args = sharedPreferences?.getString("launch_args", "")
-                execShell("cd sealdice&&./sealdice-core $args",true)
+                execShell("pkill -SIGINT sealdice-core&&cd sealdice&&./sealdice-core $args",true)
                 binding.buttonTut.visibility = View.GONE
                 binding.buttonInput.visibility = View.GONE
                 binding.buttonOutput.visibility = View.GONE
@@ -298,6 +296,7 @@ class FirstFragment : Fragment() {
                 this.activity?.stopService(Intent(context, MediaService::class.java))
                 this.activity?.stopService(Intent(context, WakeLockService::class.java))
                 this.activity?.stopService(Intent(context, FloatWindowService::class.java))
+                this.activity?.stopService(Intent(context, HeartbeatService::class.java))
                 execShell("pkill -SIGINT sealdice-core",false)
                 binding.buttonExit.visibility = View.VISIBLE
             }
@@ -327,6 +326,11 @@ class FirstFragment : Fragment() {
             if (sharedPreferences.getBoolean("alive_wakelock", true)) {
                 val intentWakelock = Intent(context, WakeLockService::class.java)
                 context.startService(intentWakelock)
+                executed = true
+            }
+            if (sharedPreferences.getBoolean("alive_heartbeat", false)) {
+                val intentHeartbeat = Intent(context, HeartbeatService::class.java)
+                context.startService(intentHeartbeat)
                 executed = true
             }
             if (sharedPreferences.getBoolean("alive_floatwindow", false)) {
