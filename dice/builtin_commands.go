@@ -653,9 +653,20 @@ func (d *Dice) registerCoreCommands() {
 			cmdArgs.ChopPrefixToArgsWith("unlock", "rm", "del", "add", "checkupdate", "reboot", "backup")
 			pRequired := 0
 			ctx.DelegateText = ""
+
+			// 如果UI:1001以外的骰主存在，则需要100权限
 			if len(ctx.Dice.DiceMasters) >= 1 {
-				pRequired = 100
+				nums := 0
+				for _, uid := range ctx.Dice.DiceMasters {
+					if uid != "UI:1001" {
+						nums += 1
+					}
+				}
+				if nums >= 1 {
+					pRequired = 100
+				}
 			}
+
 			if ctx.PrivilegeLevel < pRequired {
 				subCmd := cmdArgs.GetArgN(1)
 				if subCmd == "unlock" {
@@ -665,7 +676,7 @@ func (d *Dice) registerCoreCommands() {
 						ctx.Dice.MasterRefresh()
 						ctx.Dice.MasterAdd(ctx.Player.UserId)
 						ctx.Dice.UnlockCodeUpdate(true) // 强制刷新解锁码
-						ReplyToSender(ctx, msg, "你已成为唯一Master")
+						ReplyToSender(ctx, msg, "你已成为Master")
 					} else {
 						ReplyToSender(ctx, msg, "错误的解锁码")
 					}
