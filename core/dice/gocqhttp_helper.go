@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -219,20 +220,40 @@ func GenerateDeviceJsonAllRandom(protocol int) (string, []byte, error) {
 	return deviceJson.Model, a, b
 }
 
-func GenerateDeviceJson(protocol int) (string, []byte, error) {
+func GenerateDeviceJson(dice *Dice, protocol int) (string, []byte, error) {
 	switch protocol {
 	case 0, 3:
 		return GenerateDeviceJsonIOS(protocol)
 	case 2:
 		return GenerateDeviceJsonAndroidWatch(protocol)
 	case 1:
-		return GenerateDeviceJsonAndroid(protocol)
+		return GenerateDeviceJsonAndroid(dice, protocol)
 	default:
 		return GenerateDeviceJsonAllRandom(protocol)
 	}
 }
 
-func GenerateDeviceJsonAndroid(protocol int) (string, []byte, error) {
+func GenerateDeviceJsonAndroid(dice *Dice, protocol int) (string, []byte, error) {
+	// check if ./my_device.json exists
+	if _, err := os.Stat("./my_device.json"); err == nil {
+		dice.Logger.Info("检测到my_device.json，将使用该文件中的设备信息")
+		// file exists
+		data, err := ioutil.ReadFile("./my_device.json")
+		if err == nil {
+			deviceJson := deviceFile{}
+			err = json.Unmarshal(data, &deviceJson)
+			if err == nil {
+				deviceJson.Protocol = protocol
+				a, b := json.Marshal(deviceJson)
+				return deviceJson.Model, a, b
+			} else {
+				dice.Logger.Warn("读取./my_device.json失败，将使用随机设备信息。原因为JSON解析错误: " + err.Error())
+			}
+		} else {
+			dice.Logger.Warn("读取./my_device.json失败，将使用随机设备信息")
+		}
+	}
+
 	pool := androidDevicePool
 	//rand.Seed(time.Now().Unix())
 	//bootId := uuid.New()
@@ -471,7 +492,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 
 	// 创建设备配置文件
 	if _, err := os.Stat(deviceFilePath); errors.Is(err, os.ErrNotExist) {
-		_, deviceInfo, err := GenerateDeviceJson(protocol)
+		_, deviceInfo, err := GenerateDeviceJson(dice, protocol)
 		if err == nil {
 			_ = os.WriteFile(deviceFilePath, deviceInfo, 0644)
 			dice.Logger.Info("onebot: 成功创建设备文件")
