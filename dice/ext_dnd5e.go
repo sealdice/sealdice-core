@@ -497,7 +497,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			default:
 				text := cmdArgs.CleanArgs
 				// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
-				re := regexp.MustCompile(`(?:([^\s:0-9*]+)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
+				re := regexp.MustCompile(`(?:([^\s:$0-9*]+)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
 				var attrSeted []string
 				var attrChanged []string
 				var extraText string
@@ -966,7 +966,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			default:
 				text := cmdArgs.CleanArgs
 				// \*(?:\d+(?:\.\d+)?)? // 这一段是熟练度
-				re := regexp.MustCompile(`(?:([^\s:0-9*]+)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
+				re := regexp.MustCompile(`(?:([^\s:$0-9*]+)(\*(?:\d+(?:\.\d+)?)?)?)\s*([:：=＝+\-＋－])`)
 				var attrSeted []string
 				var attrChanged []string
 
