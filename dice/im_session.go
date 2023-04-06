@@ -342,9 +342,10 @@ type MsgContext struct {
 	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 40邀请者 50管理 60群主 70信任 100master
 	DelegateText    string      `jsbind:"delegateText"`   // 代骰附加文本
 
-	deckDepth      int                                         // 抽牌递归深度
-	DeckPools      map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
-	SystemTemplate *GameSystemTemplate
+	deckDepth         int                                         // 抽牌递归深度
+	DeckPools         map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
+	diceExprOverwrite string                                      // 默认骰表达式覆盖
+	SystemTemplate    *GameSystemTemplate
 }
 
 //func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {

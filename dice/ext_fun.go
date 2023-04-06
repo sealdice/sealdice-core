@@ -86,40 +86,40 @@ var guguText = `
 `
 
 var emokloreAttrParent = map[string][]string{
-	"检索":     {"知力"},
-	"洞察":     {"知力"},
-	"识路":     {"灵巧", "五感"},
-	"直觉":     {"精神", "运势"},
-	"鉴定":     {"五感", "知力"},
-	"观察":     {"五感"},
-	"聆听":     {"五感"},
-	"鉴毒":     {"五感"},
+	"检索":   {"知力"},
+	"洞察":   {"知力"},
+	"识路":   {"灵巧", "五感"},
+	"直觉":   {"精神", "运势"},
+	"鉴定":   {"五感", "知力"},
+	"观察":   {"五感"},
+	"聆听":   {"五感"},
+	"鉴毒":   {"五感"},
 	"危机察觉": {"五感", "运势"},
-	"灵感":     {"精神", "运势"},
-	"社交术":   {"社会"},
-	"辩论":     {"知力"},
-	"心理":     {"精神", "知力"},
-	"魅惑":     {"魅力"},
+	"灵感":   {"精神", "运势"},
+	"社交术":  {"社会"},
+	"辩论":   {"知力"},
+	"心理":   {"精神", "知力"},
+	"魅惑":   {"魅力"},
 	"专业知识": {"知力"},
-	"万事通":   {"五感", "社会"},
-	"业界":     {"社会", "魅力"},
-	"速度":     {"身体"},
-	"力量":     {"身体"},
+	"万事通":  {"五感", "社会"},
+	"业界":   {"社会", "魅力"},
+	"速度":   {"身体"},
+	"力量":   {"身体"},
 	"特技动作": {"身体", "灵巧"},
-	"潜泳":     {"身体"},
-	"武术":     {"身体"},
-	"奥义":     {"身体", "精神", "灵巧"},
-	"射击":     {"灵巧", "五感"},
-	"耐久":     {"身体"},
-	"毅力":     {"精神"},
-	"医术":     {"灵巧", "知力"},
-	"技巧":     {"灵巧"},
-	"艺术":     {"灵巧", "精神", "五感"},
-	"操纵":     {"灵巧", "五感", "知力"},
-	"暗号":     {"知力"},
-	"电脑":     {"知力"},
-	"隐匿":     {"灵巧", "社会", "运势"},
-	"强运":     {"运势"},
+	"潜泳":   {"身体"},
+	"武术":   {"身体"},
+	"奥义":   {"身体", "精神", "灵巧"},
+	"射击":   {"灵巧", "五感"},
+	"耐久":   {"身体"},
+	"毅力":   {"精神"},
+	"医术":   {"灵巧", "知力"},
+	"技巧":   {"灵巧"},
+	"艺术":   {"灵巧", "精神", "五感"},
+	"操纵":   {"灵巧", "五感", "知力"},
+	"暗号":   {"知力"},
+	"电脑":   {"知力"},
+	"隐匿":   {"灵巧", "社会", "运势"},
+	"强运":   {"运势"},
 }
 
 var emokloreAttrParent2 = map[string][]string{
@@ -359,7 +359,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 						successDegrees := int64(0)
 						var results []string
 						for i := int64(0); i < nameLevel; i++ {
-							v := DiceRoll64(6)
+							v := DiceRoll64(10)
 							if v <= checkVal {
 								successDegrees += 1
 							}
@@ -553,6 +553,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				cmdArgs.Args = []string{txt}
 			}
 			cmdArgs.CleanArgs = txt
+			ctx.diceExprOverwrite = "1c10"
 			roll := ctx.Dice.CmdMap["roll"]
 			return roll.Solve(ctx, msg, cmdArgs)
 		},
@@ -571,6 +572,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			cmdArgs.CleanArgs = txt
 
 			roll := ctx.Dice.CmdMap["roll"]
+			ctx.diceExprOverwrite = "10a10"
 			return roll.Solve(ctx, msg, cmdArgs)
 		},
 	}
@@ -845,7 +847,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 		CmdMap: CmdMapCls{
 			"gugu":  &cmdGugu,
-			"咕咕":  &cmdGugu,
+			"咕咕":    &cmdGugu,
 			"jrrp":  &cmdJrrp,
 			"text":  &cmdText,
 			"rsr":   &cmdRsr,
