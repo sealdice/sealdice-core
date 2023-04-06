@@ -103,7 +103,7 @@ eDice <- ( _dnumber [dD] { p.AddValue("2"); p.AddLeftValueMark() } eDice2 dndDic
          // 双十字
          / doubleCrossDicePool [cC] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeDCSetPoints) }) )* { p.AddOperator(TypeDiceDC) }
 
-         / eDice2 ( [dD] { p.AddLeftValueMark() } simpleDice2 kqDiceOp { p.AddOperator(TypeDice) }
+         / eDice2 ( [dD] { p.AddLeftValueMark() } (simpleDice2 / sp {p.AddValue("0");} ) kqDiceOp { p.AddOperator(TypeDice) }
          )*
 
 laNumberOrLeftParen <- &(number / '(')
