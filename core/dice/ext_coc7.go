@@ -791,6 +791,20 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							if checkVal1 > checkVal2 {
 								winNum = 1
 							}
+						} else {
+							reX := regexp.MustCompile("\\d+$")
+							expr1X := reX.ReplaceAllString(expr1, "")
+							expr2X := reX.ReplaceAllString(expr2, "")
+							if expr1X != "" && expr1X == expr2X {
+								// 相同技能，技能等级高的人胜出
+								if val1 > val2 {
+									winNum = -1
+								}
+								if val1 < val2 {
+									winNum = 1
+								}
+							}
+
 						}
 					}
 				} else {
