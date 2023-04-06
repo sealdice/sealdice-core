@@ -109,10 +109,21 @@ func deleteOldWrongFile() {
 	_ = os.Remove("./data/names/names/names.xlsx")
 	_ = os.Remove("./data/names/names/names-dnd.xlsx")
 	_ = os.Remove("./data/names/names")
+
+	// 1.2.5之前版本兼容
+	_ = os.RemoveAll("./data/helpdoc/DND/3R")
+	_ = os.RemoveAll("./data/helpdoc/DND/核心")
+	_ = os.RemoveAll("./data/helpdoc/DND/扩展")
+	_ = os.RemoveAll("./data/helpdoc/DND/模组")
+	_ = os.RemoveAll("./data/helpdoc/DND/破解奥秘")
+	_ = os.Remove("./data/helpdoc/DND/法术列表大全.xlsx")
+	_ = os.Remove("./data/helpdoc/DND/名词解释.xlsx")
+	_ = os.Remove("./data/helpdoc/DND/子职列表大全.xlsx")
 }
 
 func main() {
 	var opts struct {
+		Version                bool   `short:"v" long:"version" description:"显示版本号"`
 		Install                bool   `short:"i" long:"install" description:"安装为系统服务"`
 		Uninstall              bool   `long:"uninstall" description:"删除系统服务"`
 		ShowConsole            bool   `long:"show-console" description:"Windows上显示控制台界面"`
@@ -126,6 +137,12 @@ func main() {
 		Delay                  int64  `long:"delay"`
 		JustForTest            bool   `long:"just-for-test"`
 	}
+
+	if opts.Version {
+		fmt.Println(dice.VERSION)
+		return
+	}
+
 	deleteOldWrongFile()
 	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -230,6 +247,7 @@ func main() {
 			_ = os.Chmod("./go-cqhttp/go-cqhttp", 0755)
 		}
 	}
+	removeUpdateFiles()
 
 	//if !opts.MultiInstanceOnWindows && TestRunning() {
 	//	return
@@ -353,6 +371,16 @@ func main() {
 	//if err != nil {
 	//	fmt.Printf("ListenAndServe: %s", err)
 	//}
+}
+
+func removeUpdateFiles() {
+	// 无论原因，只要走到这里全部删除
+	_ = os.Remove("./auto_update_ok")
+	_ = os.Remove("./auto_update.exe")
+	_ = os.Remove("./auto_updat3.exe")
+	_ = os.Remove("./auto_update_ok")
+	_ = os.Remove("./auto_update")
+	_ = os.RemoveAll("./update")
 }
 
 func diceServe(d *dice.Dice) {
