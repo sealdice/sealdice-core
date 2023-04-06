@@ -792,19 +792,19 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 								winNum = 1
 							}
 						} else {
-							reX := regexp.MustCompile("\\d+$")
-							expr1X := reX.ReplaceAllString(expr1, "")
-							expr2X := reX.ReplaceAllString(expr2, "")
-							if expr1X != "" && expr1X == expr2X {
-								// 相同技能，技能等级高的人胜出
-								if val1 > val2 {
-									winNum = -1
-								}
-								if val1 < val2 {
-									winNum = 1
-								}
-							}
-
+							// 这段代码不能使用，因为如果是反击，那么技能是相同的，然而攻击方必胜
+							//reX := regexp.MustCompile("\\d+$")
+							//expr1X := reX.ReplaceAllString(expr1, "")
+							//expr2X := reX.ReplaceAllString(expr2, "")
+							//if expr1X != "" && expr1X == expr2X {
+							//	// 相同技能，技能等级高的人胜出
+							//	if val1 > val2 {
+							//		winNum = -1
+							//	}
+							//	if val1 < val2 {
+							//		winNum = 1
+							//	}
+							//}
 						}
 					}
 				} else {

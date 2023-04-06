@@ -537,7 +537,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				ctx.Player.AutoSetNameTemplate = ""
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, "已关闭自动设置名片功能")
+				ReplyToSender(ctx, msg, fmt.Sprintf("已关闭对%s的名片自动修改", getPlayerNameTempFunc(ctx)))
 			case "expr":
 				t := cmdArgs.GetRestArgsFrom(2)
 				if len(t) > 80 {
