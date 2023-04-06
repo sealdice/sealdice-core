@@ -185,22 +185,37 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	// 有system优先system
 	if group.System != "" {
 		v, _ := dice.GameSystemMap.Load(group.System)
-		return v
-	}
+		if v != nil {
+			return v
+		}
+		// 返回这个单纯是为了不让st将其覆盖
+		// 这种情况属于卡片的规则模板被删除了
+		return &GameSystemTemplate{
+			Name:     group.System,
+			FullName: "空白模板",
+			AliasMap: &SyncMap[string, string]{},
+		}
+	} else {
+		// 没有system，查看扩展的启动情况
+		if group.ExtGetActive("coc7") != nil {
+			v, _ := dice.GameSystemMap.Load("coc7")
+			return v
+		}
 
-	// 没有system，查看扩展的启动情况
-	if group.ExtGetActive("coc7") != nil {
-		v, _ := dice.GameSystemMap.Load("coc7")
-		return v
-	}
-
-	if group.ExtGetActive("dnd5e") != nil {
-		v, _ := dice.GameSystemMap.Load("dnd5e")
-		return v
+		if group.ExtGetActive("dnd5e") != nil {
+			v, _ := dice.GameSystemMap.Load("dnd5e")
+			return v
+		}
 	}
 
 	// 啥都没有，返回空，还是白卡？
-	return nil
+	// 返回个空白模板好了
+	blankTmpl := &GameSystemTemplate{
+		Name:     "空白模板",
+		FullName: "空白模板",
+		AliasMap: &SyncMap[string, string]{},
+	}
+	return blankTmpl
 }
 
 type EndPointInfoBase struct {
