@@ -271,7 +271,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			}
 
 			txt := cmdArgs.CleanArgs
-			re := regexp.MustCompile(`(?:([^+\-\s\d]+)(\d+)?|(\d+))\s*(?:([+\-])\s*(\d+))?`)
+			re := regexp.MustCompile(`(?:([^*+\-\s\d]+)(\d+)?|(\d+))\s*(?:([+\-*])\s*(\d+))?`)
 			m := re.FindStringSubmatch(txt)
 			if len(m) > 0 {
 				// 读取技能名字和等级
@@ -354,11 +354,19 @@ func RegisterBuiltinExtFun(self *Dice) {
 					})
 					if err == nil {
 						checkVal, _ := r.ReadInt64()
-						nameLevel += extraVal
+						diceNum := nameLevel // 骰子个数为技能等级，至少1个
+						if diceNum < 1 {
+							diceNum = 1
+						}
+						if extraOp == "*" {
+							diceNum *= extraVal
+						} else {
+							diceNum += extraVal
+						}
 
 						successDegrees := int64(0)
 						var results []string
-						for i := int64(0); i < nameLevel; i++ {
+						for i := int64(0); i < diceNum; i++ {
 							v := DiceRoll64(10)
 							if v <= checkVal {
 								successDegrees += 1
@@ -370,7 +378,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 								successDegrees -= 1
 							}
 							// 过大的骰池不显示
-							if nameLevel < 15 {
+							if diceNum < 15 {
 								results = append(results, strconv.FormatInt(v, 10))
 							}
 						}
