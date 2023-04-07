@@ -21,6 +21,8 @@ type AttributeConfigs struct {
 // ---------
 
 type AttrConfig struct {
+	Display string `yaml:"display" json:"display"` // 展示形式，即st show时格式，默认为顺序展示
+
 	Top     []string          `yaml:"top,flow" json:"top,flow"` //nolint
 	SortBy  string            `yaml:"sortBy" json:"sortBy"`     // time | Name | value desc
 	Ignores []string          `yaml:"ignores" json:"ignores"`   // 这里面的属性将不被显示
