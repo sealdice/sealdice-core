@@ -123,7 +123,7 @@ func deleteOldWrongFile() {
 
 func main() {
 	var opts struct {
-		Version                bool   `short:"v" long:"version" description:"显示版本号"`
+		Version                bool   `long:"version" description:"显示版本号"`
 		Install                bool   `short:"i" long:"install" description:"安装为系统服务"`
 		Uninstall              bool   `long:"uninstall" description:"删除系统服务"`
 		ShowConsole            bool   `long:"show-console" description:"Windows上显示控制台界面"`
@@ -136,19 +136,24 @@ func main() {
 		DoUpdateOthers         bool   `long:"do-update-others" description:"linux/mac自动升级用，不要在任何情况下主动调用"`
 		Delay                  int64  `long:"delay"`
 		JustForTest            bool   `long:"just-for-test"`
+		//DBCheck                bool   `long:"db-check" description:"检查数据库是否有问题"`
+	}
+
+	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
+	_, err := flags.ParseArgs(&opts, os.Args)
+	if err != nil {
+		return
 	}
 
 	if opts.Version {
 		fmt.Println(dice.VERSION)
 		return
 	}
-
+	//if opts.DBCheck {
+	//	model.DBCheck("data/default")
+	//	return
+	//}
 	deleteOldWrongFile()
-	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
-	_, err := flags.ParseArgs(&opts, os.Args)
-	if err != nil {
-		return
-	}
 
 	if opts.Delay != 0 {
 		time.Sleep(time.Duration(opts.Delay) * time.Second)
