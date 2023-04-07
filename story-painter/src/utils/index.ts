@@ -62,7 +62,7 @@ export function msgImageFormat(msg: string, options: any, htmlText = false) {
 export function msgOffTopicFormat(msg: string, options: any, isDice = false) {
   // 替换场外发言
   if (options.offTopicHide && (!isDice)) {
-    msg = msg.replaceAll(/^\S*[(（].+?$/gm, '') // 【
+    msg = msg.replaceAll(/^\s*[(（].+?$/gm, '') // 【
   }
   return msg;
 }
@@ -70,7 +70,7 @@ export function msgOffTopicFormat(msg: string, options: any, isDice = false) {
 export function msgCommandFormat(msg: string, options: any) {
   // 替换指令
   if (options.commandHide) {
-    msg = msg.replaceAll(/^[\.。\/](.|\n)*$/g, '')
+    msg = msg.replaceAll(/^[\.。\/](?![\.。\/])(.|\n)*$/g, '')
   }
   return msg;
 }
