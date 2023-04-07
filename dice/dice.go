@@ -26,7 +26,7 @@ var APPNAME = "SealDice"
 var VERSION = "1.2.5 v20230409"
 
 // var VERSION_CODE = int64(1001000) // 991404
-var VERSION_CODE = int64(1002004) // 坏了，1.1的版本号标错了，标成了1.10.0
+var VERSION_CODE = int64(1002005) // 坏了，1.1的版本号标错了，标成了1.10.0
 var APP_BRANCH = ""
 
 type CmdExecuteResult struct {
