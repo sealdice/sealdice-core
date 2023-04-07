@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/fy0/lockfree"
 	"os"
@@ -232,9 +233,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 				fn, err := LogSendToBackend(ctx, groupId, logName)
 				if fn == "" {
 					text := txtLogTip
-					if err != nil {
-						text = fmt.Sprintf("%s\n%s", err.Error(), text)
+					t1 := err.Error()
+					if strings.HasPrefix(t1, "#") {
+						text = ""
 					}
+					text = fmt.Sprintf("%s\n%s", t1, text)
 					ReplyToSenderRaw(ctx, msg, text, "skip")
 				} else {
 					ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
@@ -252,9 +255,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 					fn, err := LogSendToBackend(ctx, group.GroupId, logName)
 					if fn == "" {
 						text := txtLogTip
-						if err != nil {
-							text = fmt.Sprintf("%s\n%s", err.Error(), text)
+						t1 := err.Error()
+						if strings.HasPrefix(t1, "#") {
+							text = ""
 						}
+						text = fmt.Sprintf("%s\n%s", t1, text)
 						ReplyToSenderRaw(ctx, msg, text, "skip")
 					} else {
 						ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
@@ -283,7 +288,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if fn == "" {
 					text := txtLogTip
 					if err != nil {
-						text = fmt.Sprintf("%s\n%s", err.Error(), text)
+						t1 := err.Error()
+						if strings.HasPrefix(t1, "#") {
+							text = ""
+						}
+						text = fmt.Sprintf("%s\n%s", t1, text)
 					}
 					ReplyToSenderRaw(ctx, msg, text, "skip")
 				} else {
@@ -745,6 +754,10 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 	_ = os.MkdirAll(dirpath, 0755)
 
 	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupId, logName)
+
+	if len(lines) == 0 {
+		return "", errors.New("#此log不存在，或条目数为空，名字是否正确？")
+	}
 
 	if err != nil {
 		return "", err

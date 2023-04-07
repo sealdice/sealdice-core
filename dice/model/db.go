@@ -7,13 +7,13 @@ import (
 
 func SQLiteDBInit(dataDir string) (dataDB *sqlx.DB, logsDB *sqlx.DB, err error) {
 	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
-	dataDB, err = _SQLiteDBInit(dbDataPath)
+	dataDB, err = _SQLiteDBInit(dbDataPath, true)
 	if err != nil {
 		return
 	}
 
 	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
-	logsDB, err = _SQLiteDBInit(dbDataLogsPath)
+	logsDB, err = _SQLiteDBInit(dbDataLogsPath, true)
 	if err != nil {
 		return
 	}

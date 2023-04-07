@@ -42,7 +42,8 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 	limitSkipCount := 0
 	items = []string{}
 
-	if mctx.ChVarsNumGet() > 0 {
+	// 或者有pickItems，或者当前的变量数量大于0
+	if len(pickItems) > 0 || mctx.ChVarsNumGet() > 0 {
 		// 按照配置文件排序
 		var attrKeys []string
 		used := map[string]bool{}
