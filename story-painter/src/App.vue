@@ -1,7 +1,7 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
     <h2 style="text-align: center;display: flex; align-items: center; justify-content: center; flex-flow: wrap;">
-      <span>海豹TRPG跑团Log着色器 V2.1.1</span>
+      <span>海豹TRPG跑团Log着色器 V2.1.2</span>
       <a style="margin:0 1rem" href="https://github.com/sealdice/story-painter" target="_blank"><img src="./assets/github-mark.svg" style="width: 1.2rem;"/></a>
       <el-button type="primary" @click="backV1">返回V1</el-button>
     </h2>
