@@ -1546,7 +1546,7 @@ func (d *Dice) loads() {
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
 		var v BanListInfoItem
 		err := json.Unmarshal(data, &v)
-		if err != nil {
+		if err == nil {
 			v.BanUpdatedAt = banUpdatedAt
 			d.BanList.Map.Store(id, &v)
 		}

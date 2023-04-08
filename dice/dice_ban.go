@@ -90,6 +90,9 @@ func (i *BanListInfo) Init() {
 	i.Map = new(SyncMap[string, *BanListInfoItem])
 }
 
+func (i *BanListInfo) Loads() {
+}
+
 func (i *BanListInfo) AfterLoads() {
 	// 加载完成了
 	d := i.Parent
