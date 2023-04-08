@@ -791,7 +791,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							if checkVal1 > checkVal2 {
 								winNum = 1
 							}
-						} else {
+						} else { // nolint
 							// 这段代码不能使用，因为如果是反击，那么技能是相同的，然而攻击方必胜
 							//reX := regexp.MustCompile("\\d+$")
 							//expr1X := reX.ReplaceAllString(expr1, "")
