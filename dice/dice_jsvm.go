@@ -226,6 +226,9 @@ func (d *Dice) JsInit() {
 				"version":     VERSION,
 			}
 		})
+		_ = seal.Set("getEndPoints", func() []*EndPointInfo {
+			return d.ImSession.EndPoints
+		})
 
 		_ = vm.Set("atob", func(s string) (string, error) {
 			// Remove data URI scheme and any whitespace from the string.
