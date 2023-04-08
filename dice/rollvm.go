@@ -496,6 +496,17 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 		wodState.points = &VMValue{TypeId: VMTypeInt64, Value: int64(10)}   // 面数，默认d10
 		wodState.threshold = &VMValue{TypeId: VMTypeInt64, Value: int64(8)} // 成功线，默认9
 		wodState.isGE = true
+
+		if threshold, exists := ctx.Group.ValueMap.Get("wodThreshold"); exists {
+			if t, ok := threshold.(*VMValue); ok {
+				wodState.threshold = t
+			}
+		}
+		if threshold, exists := ctx.Group.ValueMap.Get("wodPoints"); exists {
+			if t, ok := threshold.(*VMValue); ok {
+				wodState.points = t
+			}
+		}
 	}
 
 	var dcState struct {
@@ -1404,8 +1415,8 @@ func DiceDCRollVM(e *RollExpression, addLine *VMValue, pool *VMValue, points *VM
 		return nil, 0, 0, nil
 	}
 
-	if valPoints, _ = points.ReadInt64(); valPoints < 1 {
-		e.Error = errors.New("E7: 非法数值, 面数至少为1")
+	if valPoints, _ = points.ReadInt64(); valPoints < 1 || valPoints > 2000 {
+		e.Error = errors.New("E7: 非法数值, 面数至少为1，最多为2000")
 		return nil, 0, 0, nil
 	}
 
