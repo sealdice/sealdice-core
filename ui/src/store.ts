@@ -308,6 +308,11 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    async backupDelete(name: string) {
+      const info = await backend.post(urlPrefix+'/backup/delete', {}, { params: { name } })
+      return info as any
+    },
+
     // ban list相关
     async banConfigGet() {
       const info = await backend.get(urlPrefix+'/banconfig/get')

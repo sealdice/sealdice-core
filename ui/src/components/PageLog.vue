@@ -8,30 +8,33 @@
       </el-tooltip>
     </span>
 
-    <span>
+    <span style="display: flex; align-self: flex-end; flex-direction: column;">
       <el-button v-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode" type="primary" @click="upgradeDialogVisible = true">升级新版</el-button>
+      <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
     </span>
   </p>
-  <el-table :data="store.curDice.logs" style="width: 100%; padding: 0 1rem;" class="hidden-xs-only">
-    <el-table-column label="时间" width="130" >
-      <template #default="scope">
-        <div style="display: flex; align-items: center">
-          <el-icon><timer /></el-icon>
-          <span style="margin-left: 10px">{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
-        </div>
-      </template>
-    </el-table-column>
-    <el-table-column prop="level" label="级别" width="100" />
-    <el-table-column prop="msg" label="信息">
-      <template #default="scope">
-        <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: #DB7E44">{{ scope.row.msg }}</span>
-        <!-- <span v-else-if="scope.row.msg.startsWith('收到') && scope.row.msg.includes('的指令')" style="color: #445ddb">{{ scope.row.msg }}</span> -->
-        <span v-else-if="scope.row.msg.startsWith('发给')" style="color: #445ddb">{{ scope.row.msg }}</span>
-        <span v-else-if="scope.row.level === 'error'" style="color: #c00000">{{ scope.row.msg }}</span>
-        <span v-else>{{ scope.row.msg }}</span>
-      </template>
-    </el-table-column>
-  </el-table>
+  <div style=" padding: 0 1rem; background: #fff;" class="hidden-xs-only">
+    <el-table :data="store.curDice.logs">
+      <el-table-column label="时间" width="110" >
+        <template #default="scope">
+          <div style="display: flex; align-items: center">
+            <el-icon><timer /></el-icon>
+            <span style="margin-left: 10px">{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="level" label="级别" width="85" />
+      <el-table-column prop="msg" label="信息">
+        <template #default="scope">
+          <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: #DB7E44">{{ scope.row.msg }}</span>
+          <!-- <span v-else-if="scope.row.msg.startsWith('收到') && scope.row.msg.includes('的指令')" style="color: #445ddb">{{ scope.row.msg }}</span> -->
+          <span v-else-if="scope.row.msg.startsWith('发给')" style="color: #445ddb">{{ scope.row.msg }}</span>
+          <span v-else-if="scope.row.level === 'error'" style="color: #c00000">{{ scope.row.msg }}</span>
+          <span v-else>{{ scope.row.msg }}</span>
+        </template>
+      </el-table-column>
+    </el-table>
+  </div>
 
   <el-table :data="store.curDice.logs" style="width: 100%;" class="hidden-sm-and-up">
     <el-table-column label="时间" width="65" >
@@ -59,13 +62,16 @@
     <el-link style="font-size: 16px; font-weight: bolder;" type="primary" href="https://dice.weizaima.com/changelog" target="_blank">查看更新日志</el-link>
 
     <div>请及时更新海豹到最新版本，这意味着功能增加和BUG修复。</div>
+    <div>当然，在更新前最好看看右上角的海豹新闻，通常会很有帮助。</div>
     <div>在操作之前，最好能确保你目前可以接触到服务器，以防万一需要人工干预。</div>
     <div><b>如果升级后无法启动，请删除海豹目录中的"update"、"auto_update.exe"并手动进行升级</b></div>
+    <div><b>进一步的内容请查阅届时自动生成的“升级失败指引”或加群询问。</b></div>
 
     <el-button style="margin: 1rem 0" type="primary" @click="doUpgrade">确认升级到 {{store.curDice.baseInfo.versionNew}} </el-button>
     
     <div>{{store.curDice.baseInfo.versionNewNote}}</div>
     <div>注意: 升级成功后界面不会自动刷新，请在重连完成后手动刷新</div>
+    <div><b>当前Win11 22H2无法自动重启，建议此系统用户手动更新</b></div>
     <div>不要连续多次执行</div>
 
     <template #footer>
@@ -104,6 +110,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const store = useStore()
 
 const upgradeDialogVisible = ref(false)
+const autoRefresh = ref(true)
 
 let timerId: number
 
@@ -114,15 +121,19 @@ const doUpgrade = async () => {
     const ret = await store.upgrade()
     ElMessageBox.alert((ret as any).text + '<br>如果几分钟后服务没有恢复，检查一下海豹目录', '升级', { dangerouslyUseHTMLString: true })
   } catch (e) {
-    ElMessageBox.alert('升级失败', '升级')
+    // ElMessageBox.alert('升级失败', '升级')
   }
 }
 
 onBeforeMount(async () => {
-  await store.logFetchAndClear()
+  if (autoRefresh.value) {
+    await store.logFetchAndClear()
+  }
 
   timerId = setInterval(() => {
-    store.logFetchAndClear()
+    if (autoRefresh.value) {
+      store.logFetchAndClear()
+    }
   }, 5000) as any
 })
 

@@ -198,11 +198,11 @@
     <div>如果失去响应过久，请登录服务器处理</div>
   </el-dialog>
 
-  <el-dialog v-model="dialogFeed" :close-on-click-modal="false" :close-on-press-escape="false"
+  <el-dialog v-model="dialogFeed" :close-on-click-modal="false" :close-on-press-escape="false" class="dialog-feed"
     :show-close="false">
     <template #header="{ close, titleId, titleClass }">
       <div class="my-header">
-        <h4 :id="titleId" :class="titleClass" style="margin: 0.5rem">海豹动向</h4>
+        <h4 :id="titleId" :class="titleClass" style="margin: 0.5rem">海豹新闻</h4>
         <el-button type="danger" @click="close">
           <el-icon class="el-icon--left"><CircleCloseFilled /></el-icon>
           关闭
@@ -447,5 +447,11 @@ body {
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+}
+
+@media screen and (max-width: 700px) {
+  .dialog-feed {
+    width: 90% !important;
+  }
 }
 </style>

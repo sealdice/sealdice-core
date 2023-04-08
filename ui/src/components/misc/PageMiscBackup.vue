@@ -23,9 +23,13 @@
   <h2>已备份文件</h2>
   <div v-for="i in data.items" style="display: flex;" class="bak-item">
     <span style="flex: 1">{{ i.name }}</span>
-    <a :href="`${urlBase}/sd-api/backup/download?name=${encodeURIComponent(i.name)}&token=${encodeURIComponent(store.token)}`" style="text-decoration: none">
-      <el-button style="width: 9rem;">下载 - {{ filesize(i.fileSize) }}</el-button>
-    </a>
+    <span>
+      <a :href="`${urlBase}/sd-api/backup/download?name=${encodeURIComponent(i.name)}&token=${encodeURIComponent(store.token)}`" style="text-decoration: none">
+        <el-button style="width: 9rem;">下载 - {{ filesize(i.fileSize) }}</el-button>
+      </a>
+      <el-button :icon="Delete" @click="bakDeleteConfirm(i)"></el-button>
+    </span>
+
   </div>
 </template>
 
@@ -42,6 +46,7 @@ import {
   Setting,
   CirclePlusFilled,
   CircleClose,
+  Delete,
   QuestionFilled,
   BrushFilled
 } from '@element-plus/icons-vue'
@@ -64,6 +69,23 @@ const refreshList = async () => {
 const configGet = async () => {
   const data = await store.backupConfigGet()
   cfg.value = data
+}
+
+const bakDeleteConfirm = async (i: any) => {
+  const ret = await ElMessageBox.confirm('确认删除？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  })
+  if (ret) {
+    const r = await store.backupDelete(i.name)
+    if (!r.success) {
+      ElMessage.error('删除失败')
+    } else {
+      ElMessage.success('已删除')
+    }
+  }
+  await refreshList()
 }
 
 const doBackup = async () => {
