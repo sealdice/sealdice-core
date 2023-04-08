@@ -253,6 +253,7 @@ func (d *Dice) Init() {
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
 	d.loads()
+	d.BanList.Loads()
 	d.BanList.AfterLoads()
 	d.IsAlreadyLoadConfig = true
 
