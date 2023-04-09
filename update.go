@@ -131,7 +131,7 @@ func doReboot(dm *dice.DiceManager) {
 	if platform == "windows" {
 		cleanUpCreate(dm)()
 
-		name, err := filepath.Abs(binary)
+		name, _ := filepath.Abs(binary)
 		err = exec.Command(`cmd`, `/C`, "start", name, "--delay=15").Start()
 		//err = exec.Command(binary, "--delay=25").Start()
 		if err != nil {
