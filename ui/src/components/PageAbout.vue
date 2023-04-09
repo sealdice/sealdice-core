@@ -38,6 +38,8 @@
       <el-link :underline="false" href="https://github.com/FlameTEXT" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/FlameTEXT'"/>火焰</el-link>
       <el-link :underline="false" href="https://github.com/SunnyJoyce" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/SunnyJoyce'"/>熊米</el-link>
       <el-link :underline="false" href="https://github.com/VolEurr0Se" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/VolEurr0Se'"/>浣熊旅記</el-link>
+      <el-link :underline="false" href="https://github.com/lxy071130" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/lxy071130'"/>流溪</el-link>
+      <el-link :underline="false" href="https://github.com/nodisease" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/nodisease'"/>病</el-link>
     </div>
 
     <div style="margin-top: 2rem;" class="subtitle">V1.2安卓端</div>

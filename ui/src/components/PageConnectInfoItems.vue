@@ -761,7 +761,7 @@ onBeforeUnmount(() => {
 
 const doRemove = async (i: DiceConnection) => {
   ElMessageBox.confirm(
-    '删除此项帐号及其关联数据，确定吗？',
+    '删除此项帐号，确定吗？（注：删除账号不会影响人物卡和logs等数据）',
     '警告',
     {
       confirmButtonText: '确定',
