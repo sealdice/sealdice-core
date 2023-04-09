@@ -196,6 +196,14 @@ func main() {
 	}
 
 	if opts.DoUpdateWin || opts.DoUpdateOthers {
+		// 为之后留一个接口
+		if f, _ := os.Stat("./start.exe"); f != nil {
+			// run start.exe
+			logger.Warn("检测到启动器，尝试运行")
+			_ = exec.Command("./start.exe", "/u-first").Start()
+			return
+		}
+
 		logger.Warn("准备进行升级程序，先等待10s")
 		time.Sleep(10 * time.Second)
 		err := cp.Copy("./update/new", "./")
@@ -203,6 +211,15 @@ func main() {
 			logger.Warn("升级失败")
 			return
 		}
+
+		// 同样是留接口，如果新版内置了start.exe，就运行它
+		if f, _ := os.Stat("./start.exe"); f != nil {
+			// run start.exe
+			logger.Warn("检测到启动器，尝试运行")
+			_ = exec.Command("./start.exe", "/u-second").Start()
+			return
+		}
+
 		_ = os.WriteFile("./auto_update_ok", []byte(""), 0644)
 		logger.Warn("升级完成，即将重启主进程")
 		_ = exec.Command("./sealdice-core.exe").Start()
