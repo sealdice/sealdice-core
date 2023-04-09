@@ -314,12 +314,17 @@ func getCmdStBase() *CmdItemInfo {
 				}
 
 				// 每四个一行，拼起来
+				itemsPerLine := tmpl.AttrConfig.ItemsPerLine
+				if itemsPerLine <= 1 {
+					itemsPerLine = 4
+				}
+
 				tick := 0
 				info := ""
 				for _, i := range items {
 					tick += 1
 					info += i
-					if tick%4 == 0 {
+					if tick%itemsPerLine == 0 {
 						info += "\n"
 					} else {
 						info += "\t"
