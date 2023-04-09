@@ -601,7 +601,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 							ctx.Group.UpdatedAtTime = time.Now().Unix()
 							texts = append(texts, fmt.Sprintf("成功线k: 已修改为%d", v))
 						} else {
-							texts = append(texts, fmt.Sprintf("成功线k: 需要至少为1"))
+							texts = append(texts, "成功线k: 需要至少为1")
 						}
 					}
 				}
@@ -613,7 +613,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 							ctx.Group.UpdatedAtTime = time.Now().Unix()
 							texts = append(texts, fmt.Sprintf("骰子面数m: 已修改为%d", v))
 						} else {
-							texts = append(texts, fmt.Sprintf("骰子面数m: 需要在1-2000之间"))
+							texts = append(texts, "骰子面数m: 需要在1-2000之间")
 						}
 					}
 				}
@@ -625,7 +625,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 							ctx.Group.UpdatedAtTime = time.Now().Unix()
 							texts = append(texts, fmt.Sprintf("加骰线a: 已修改为%d", v))
 						} else {
-							texts = append(texts, fmt.Sprintf("加骰线a: 需要至少为2"))
+							texts = append(texts, "加骰线a: 需要至少为2")
 						}
 					}
 				}
