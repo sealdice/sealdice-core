@@ -51,7 +51,6 @@ require (
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/glebarez/go-sqlite v1.20.3
 	github.com/go-creed/sat v1.0.3
-	github.com/gonutz/w32/v2 v2.7.0
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mattn/go-sqlite3 v1.14.16
