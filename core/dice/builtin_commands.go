@@ -778,6 +778,7 @@ func (d *Dice) registerCoreCommands() {
 							} else {
 								ctx.Dice.UpgradeWindowId = ctx.Group.GroupId
 							}
+							ctx.Dice.UpgradeEndpointId = ctx.EndPoint.Id
 
 							ctx.Dice.Save(true)
 							bakFn, _ := ctx.Dice.Parent.BackupSimple()

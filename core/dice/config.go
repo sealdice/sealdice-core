@@ -1290,6 +1290,7 @@ func (d *Dice) loads() {
 			d.RefuseGroupInvite = dNew.RefuseGroupInvite
 			d.DefaultCocRuleIndex = dNew.DefaultCocRuleIndex
 			d.UpgradeWindowId = dNew.UpgradeWindowId
+			d.UpgradeEndpointId = dNew.UpgradeEndpointId
 			d.BotExtFreeSwitch = dNew.BotExtFreeSwitch
 			d.TrustOnlyMode = dNew.TrustOnlyMode
 			d.AliveNoticeEnable = dNew.AliveNoticeEnable
