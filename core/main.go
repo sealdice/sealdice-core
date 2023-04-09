@@ -157,6 +157,7 @@ func main() {
 	deleteOldWrongFile()
 
 	if opts.Delay != 0 {
+		fmt.Println("延迟启动", opts.Delay, "秒")
 		time.Sleep(time.Duration(opts.Delay) * time.Second)
 	}
 	dnsHack()
@@ -235,11 +236,13 @@ func main() {
 			logger.Error(err)
 			return
 		}
-		err = exec.Command(`cmd`, `/C`, "start", name).Start()
+		err = exec.Command(`cmd`, `/C`, "start", name, "--delay=5").Start()
 		if err != nil {
 			logger.Error(err)
 			return
 		}
+		// 给3s创建进程时间
+		time.Sleep(3 * time.Second)
 		//_ = exec.Command("./sealdice-core.exe").Start()
 		return
 	}
@@ -279,7 +282,7 @@ func main() {
 				logger.Warn("升级发生错误2: ", err.Error())
 				return
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(3 * time.Second)
 			return
 		}
 	}
