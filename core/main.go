@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"path/filepath"
 	"sealdice-core/migrate"
 	//_ "net/http/pprof"
 	"os"
@@ -196,6 +197,9 @@ func main() {
 	}
 
 	if opts.DoUpdateWin || opts.DoUpdateOthers {
+		MainLoggerInit("./升级日志.log", true)
+		logger.Info("我是更新程序，被主程序所调用启动，现在开始工作。")
+
 		// 为之后留一个接口
 		if f, _ := os.Stat("./start.exe"); f != nil {
 			// run start.exe
@@ -204,11 +208,13 @@ func main() {
 			return
 		}
 
-		logger.Warn("准备进行升级程序，先等待10s")
+		logger.Warn("准备进行升级程序，先等待10s，以免主进程尚未退出")
 		time.Sleep(10 * time.Second)
+		logger.Warn("继续进行工作: 将./update/new目录下的文件覆盖到当前目录")
 		err := cp.Copy("./update/new", "./")
 		if err != nil {
 			logger.Warn("升级失败")
+			logger.Error(err)
 			return
 		}
 
@@ -222,7 +228,19 @@ func main() {
 
 		_ = os.WriteFile("./auto_update_ok", []byte(""), 0644)
 		logger.Warn("升级完成，即将重启主进程")
-		_ = exec.Command("./sealdice-core.exe").Start()
+
+		time.Sleep(2 * time.Second)
+		name, err := filepath.Abs("./sealdice-core.exe")
+		if err != nil {
+			logger.Error(err)
+			return
+		}
+		err = exec.Command(`cmd`, `/C`, "start", name).Start()
+		if err != nil {
+			logger.Error(err)
+			return
+		}
+		//_ = exec.Command("./sealdice-core.exe").Start()
 		return
 	}
 
@@ -236,19 +254,32 @@ func main() {
 			_ = os.Remove("./auto_update_ok")
 			_ = os.Remove("./auto_update.exe")
 			_ = os.Remove("./auto_updat3.exe")
+			_ = os.Remove("./升级日志.log")
 			_ = os.RemoveAll("./update")
 		} else {
 			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
-			logger.Warn("检测到 auto_update.exe，即将进行升级")
+			logger.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
+			logger.Warn("程序目录下会出现“升级日志.log”，这代表升级正在进行中，如果失败了请检查此文件。")
 			// 这5s延迟是保险，其实并不必要
 			// 2023/1/9: 还是必要的，在有些设备上还要更久时间，所以现在改成15s
 			name := updateFileName
 			// "--delay=5",
-			err := exec.Command(name, "/do-update-win").Start()
+
+			//var procAttr os.ProcAttr
+			//procAttr.Files = []*os.File{nil, nil, nil}
+			name, err = filepath.Abs(name)
 			if err != nil {
-				logger.Warn("升级发生错误: ", err.Error())
+				logger.Warn("升级发生错误1: ", err.Error())
 				return
 			}
+
+			//err := exec.Command(name, "/do-update-win").Start()
+			err = exec.Command(`cmd`, `/C`, "start", name, "/do-update-win").Start()
+			if err != nil {
+				logger.Warn("升级发生错误2: ", err.Error())
+				return
+			}
+			time.Sleep(1 * time.Second)
 			return
 		}
 	}
