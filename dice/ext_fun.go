@@ -553,7 +553,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 	cmdDX := CmdItemInfo{
 		Name:      "dx",
 		ShortHelp: ".dx 3c4",
-		Help:      "双重十字规则骰点:\n.dx 3c4 // 推荐使用.r 3c4替代",
+		Help:      "双重十字规则骰点:\n.dx 3c4 // 也可使用.r 3c4替代",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			switch cmdArgs.GetArgN(1) {
 			case "help":
@@ -572,10 +572,16 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
+	helpWW := `.ww 10a5 // 也可使用.r 10a5替代
+.ww 10a5k6m7 // a加骰线 k成功线 m面数
+.ww 10 // 骰10a10(默认情况下)
+.ww set k6 // 修改成功线为6(当前群)
+.ww set a8k6m9 // 修改其他默认设定
+.ww set clr // 取消修改`
 	cmdWW := CmdItemInfo{
 		Name:      "ww",
-		ShortHelp: ".ww 10a5\n.ww 10",
-		Help:      "WOD/无限规则骰点:\n.ww 10a5 // 推荐使用.r 10a5替代\n.ww 10 // 骰10a10\n.ww set k6 // 修改成功线为6(当前群)\n.ww set a8k6m9 // 修改其他默认设定\n.ww set clr // 取消修改",
+		ShortHelp: helpWW,
+		Help:      "骰池(WOD/无限规则骰点):\n" + helpWW,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			switch cmdArgs.GetArgN(1) {
 			case "help":
