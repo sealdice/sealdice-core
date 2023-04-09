@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"io/fs"
 	"net/http"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -65,10 +66,20 @@ func backupDelete(c echo.Context) error { //nolint
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	var err error
+	name := c.QueryParam("name")
+	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
+		err = os.Remove("./backups/" + name)
+	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"texts":    myDice.TextMapRaw,
-		"helpInfo": myDice.TextMapHelpInfo,
+		"success": err == nil,
 	})
 }
 

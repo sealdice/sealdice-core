@@ -42,7 +42,8 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 	limitSkipCount := 0
 	items = []string{}
 
-	if mctx.ChVarsNumGet() > 0 {
+	// 或者有pickItems，或者当前的变量数量大于0
+	if len(pickItems) > 0 || mctx.ChVarsNumGet() > 0 {
 		// 按照配置文件排序
 		var attrKeys []string
 		used := map[string]bool{}
@@ -313,12 +314,17 @@ func getCmdStBase() *CmdItemInfo {
 				}
 
 				// 每四个一行，拼起来
+				itemsPerLine := tmpl.AttrConfig.ItemsPerLine
+				if itemsPerLine <= 1 {
+					itemsPerLine = 4
+				}
+
 				tick := 0
 				info := ""
 				for _, i := range items {
 					tick += 1
 					info += i
-					if tick%4 == 0 {
+					if tick%itemsPerLine == 0 {
 						info += "\n"
 					} else {
 						info += "\t"

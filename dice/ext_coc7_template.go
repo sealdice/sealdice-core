@@ -60,6 +60,7 @@ var coc7TemplateData = `
       "生命值": "{生命值}/{生命值上限}",
       "魔法值": "{魔法值}/{魔法值上限}"
     },
+    "itemsPerLine": 4,
     "setter": null
   },
   "defaults": {

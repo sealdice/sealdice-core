@@ -280,7 +280,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			}
 
 			txt := cmdArgs.CleanArgs
-			re := regexp.MustCompile(`(?:([^+\-\s\d]+)(\d+)?|(\d+))\s*(?:([+\-])\s*(\d+))?`)
+			re := regexp.MustCompile(`(?:([^*+\-\s\d]+)(\d+)?|(\d+))\s*(?:([+\-*])\s*(\d+))?`)
 			m := re.FindStringSubmatch(txt)
 			if len(m) > 0 {
 				// 读取技能名字和等级
@@ -363,12 +363,20 @@ func RegisterBuiltinExtFun(self *Dice) {
 					})
 					if err == nil {
 						checkVal, _ := r.ReadInt64()
-						nameLevel += extraVal
+						diceNum := nameLevel // 骰子个数为技能等级，至少1个
+						if diceNum < 1 {
+							diceNum = 1
+						}
+						if extraOp == "*" {
+							diceNum *= extraVal
+						} else {
+							diceNum += extraVal
+						}
 
 						successDegrees := int64(0)
 						var results []string
-						for i := int64(0); i < nameLevel; i++ {
-							v := DiceRoll64(6)
+						for i := int64(0); i < diceNum; i++ {
+							v := DiceRoll64(10)
 							if v <= checkVal {
 								successDegrees += 1
 							}
@@ -379,7 +387,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 								successDegrees -= 1
 							}
 							// 过大的骰池不显示
-							if nameLevel < 15 {
+							if diceNum < 15 {
 								results = append(results, strconv.FormatInt(v, 10))
 							}
 						}
@@ -554,32 +562,113 @@ func RegisterBuiltinExtFun(self *Dice) {
 	cmdDX := CmdItemInfo{
 		Name:      "dx",
 		ShortHelp: ".dx 3c4",
-		Help:      "双重十字规则骰点:\n.dx 3c4 // 推荐使用.r 3c4替代",
+		Help:      "双重十字规则骰点:\n.dx 3c4 // 也可使用.r 3c4替代",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			switch cmdArgs.GetArgN(1) {
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
 			txt := readNumber(cmdArgs.CleanArgs, "c10")
 			if txt == "" {
 				txt = "1c10"
 				cmdArgs.Args = []string{txt}
 			}
 			cmdArgs.CleanArgs = txt
+			ctx.diceExprOverwrite = "1c10"
 			roll := ctx.Dice.CmdMap["roll"]
 			return roll.Solve(ctx, msg, cmdArgs)
 		},
 	}
 
+	helpWW := `.ww 10a5 // 也可使用.r 10a5替代
+.ww 10a5k6m7 // a加骰线 k成功线 m面数
+.ww 10 // 骰10a10(默认情况下)
+.ww set k6 // 修改成功线为6(当前群)
+.ww set a8k6m9 // 修改其他默认设定
+.ww set clr // 取消修改`
 	cmdWW := CmdItemInfo{
 		Name:      "ww",
-		ShortHelp: ".ww 10a5\n.ww 10",
-		Help:      "WOD/无限规则骰点:\n.ww 10a5 // 推荐使用.r 10a5替代\n.ww 10",
+		ShortHelp: helpWW,
+		Help:      "骰池(WOD/无限规则骰点):\n" + helpWW,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			txt := readNumber(cmdArgs.CleanArgs, "a10")
+			switch cmdArgs.GetArgN(1) {
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			case "set":
+				arg2 := cmdArgs.GetArgN(2)
+				if arg2 == "clr" || arg2 == "clear" {
+					ctx.Group.ValueMap.Del("wodThreshold")
+					ctx.Group.ValueMap.Del("wodPoints")
+					ctx.Group.ValueMap.Del("wodAdd")
+					ctx.Group.UpdatedAtTime = time.Now().Unix()
+					ReplyToSender(ctx, msg, "骰池设定已恢复默认")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				var texts []string
+
+				reK := regexp.MustCompile(`[kK](\d+)`)
+				if m := reK.FindStringSubmatch(arg2); len(m) > 0 {
+					if v, err := strconv.ParseInt(m[1], 10, 64); err == nil {
+						if v >= 1 {
+							ctx.Group.ValueMap.Set("wodThreshold", &VMValue{TypeId: VMTypeInt64, Value: v})
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
+							texts = append(texts, fmt.Sprintf("成功线k: 已修改为%d", v))
+						} else {
+							texts = append(texts, "成功线k: 需要至少为1")
+						}
+					}
+				}
+				reM := regexp.MustCompile(`[mM](\d+)`)
+				if m := reM.FindStringSubmatch(arg2); len(m) > 0 {
+					if v, err := strconv.ParseInt(m[1], 10, 64); err == nil {
+						if v >= 1 && v <= 2000 {
+							ctx.Group.ValueMap.Set("wodPoints", &VMValue{TypeId: VMTypeInt64, Value: v})
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
+							texts = append(texts, fmt.Sprintf("骰子面数m: 已修改为%d", v))
+						} else {
+							texts = append(texts, "骰子面数m: 需要在1-2000之间")
+						}
+					}
+				}
+				reA := regexp.MustCompile(`[aA](\d+)`)
+				if m := reA.FindStringSubmatch(arg2); len(m) > 0 {
+					if v, err := strconv.ParseInt(m[1], 10, 64); err == nil {
+						if v >= 2 {
+							ctx.Group.ValueMap.Set("wodAdd", &VMValue{TypeId: VMTypeInt64, Value: v})
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
+							texts = append(texts, fmt.Sprintf("加骰线a: 已修改为%d", v))
+						} else {
+							texts = append(texts, "加骰线a: 需要至少为2")
+						}
+					}
+				}
+
+				if len(texts) == 0 {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				} else {
+					ReplyToSender(ctx, msg, strings.Join(texts, "\n"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+			}
+
+			addNum := int64(10)
+			if adding, exists := ctx.Group.ValueMap.Get("wodAdd"); exists {
+				if t, ok := adding.(*VMValue); ok {
+					addNum, _ = t.ReadInt64()
+				}
+			}
+
+			txt := readNumber(cmdArgs.CleanArgs, fmt.Sprintf("a%d", addNum))
 			if txt == "" {
-				txt = "10a10"
+				txt = fmt.Sprintf("10a%d", addNum)
 				cmdArgs.Args = []string{txt}
 			}
 			cmdArgs.CleanArgs = txt
 
 			roll := ctx.Dice.CmdMap["roll"]
+			ctx.diceExprOverwrite = "10a10"
 			return roll.Solve(ctx, msg, cmdArgs)
 		},
 	}

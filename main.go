@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"path/filepath"
 	"sealdice-core/migrate"
 	//_ "net/http/pprof"
 	"os"
@@ -109,10 +110,21 @@ func deleteOldWrongFile() {
 	_ = os.Remove("./data/names/names/names.xlsx")
 	_ = os.Remove("./data/names/names/names-dnd.xlsx")
 	_ = os.Remove("./data/names/names")
+
+	// 1.2.5之前版本兼容
+	_ = os.RemoveAll("./data/helpdoc/DND/3R")
+	_ = os.RemoveAll("./data/helpdoc/DND/核心")
+	_ = os.RemoveAll("./data/helpdoc/DND/扩展")
+	_ = os.RemoveAll("./data/helpdoc/DND/模组")
+	_ = os.RemoveAll("./data/helpdoc/DND/破解奥秘")
+	_ = os.Remove("./data/helpdoc/DND/法术列表大全.xlsx")
+	_ = os.Remove("./data/helpdoc/DND/名词解释.xlsx")
+	_ = os.Remove("./data/helpdoc/DND/子职列表大全.xlsx")
 }
 
 func main() {
 	var opts struct {
+		Version                bool   `long:"version" description:"显示版本号"`
 		Install                bool   `short:"i" long:"install" description:"安装为系统服务"`
 		Uninstall              bool   `long:"uninstall" description:"删除系统服务"`
 		ShowConsole            bool   `long:"show-console" description:"Windows上显示控制台界面"`
@@ -125,15 +137,27 @@ func main() {
 		DoUpdateOthers         bool   `long:"do-update-others" description:"linux/mac自动升级用，不要在任何情况下主动调用"`
 		Delay                  int64  `long:"delay"`
 		JustForTest            bool   `long:"just-for-test"`
+		//DBCheck                bool   `long:"db-check" description:"检查数据库是否有问题"`
 	}
-	deleteOldWrongFile()
+
 	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
 		return
 	}
 
+	if opts.Version {
+		fmt.Println(dice.VERSION)
+		return
+	}
+	//if opts.DBCheck {
+	//	model.DBCheck("data/default")
+	//	return
+	//}
+	deleteOldWrongFile()
+
 	if opts.Delay != 0 {
+		fmt.Println("延迟启动", opts.Delay, "秒")
 		time.Sleep(time.Duration(opts.Delay) * time.Second)
 	}
 	dnsHack()
@@ -174,16 +198,52 @@ func main() {
 	}
 
 	if opts.DoUpdateWin || opts.DoUpdateOthers {
-		logger.Warn("准备进行升级程序，先等待10s")
+		MainLoggerInit("./升级日志.log", true)
+		logger.Info("我是更新程序，被主程序所调用启动，现在开始工作。")
+
+		// 为之后留一个接口
+		if f, _ := os.Stat("./start.exe"); f != nil {
+			// run start.exe
+			logger.Warn("检测到启动器，尝试运行")
+			_ = exec.Command("./start.exe", "/u-first").Start()
+			return
+		}
+
+		logger.Warn("准备进行升级程序，先等待10s，以免主进程尚未退出")
 		time.Sleep(10 * time.Second)
+		logger.Warn("继续进行工作: 将./update/new目录下的文件覆盖到当前目录")
 		err := cp.Copy("./update/new", "./")
 		if err != nil {
 			logger.Warn("升级失败")
+			logger.Error(err)
 			return
 		}
+
+		// 同样是留接口，如果新版内置了start.exe，就运行它
+		if f, _ := os.Stat("./start.exe"); f != nil {
+			// run start.exe
+			logger.Warn("检测到启动器，尝试运行")
+			_ = exec.Command("./start.exe", "/u-second").Start()
+			return
+		}
+
 		_ = os.WriteFile("./auto_update_ok", []byte(""), 0644)
 		logger.Warn("升级完成，即将重启主进程")
-		_ = exec.Command("./sealdice-core.exe").Start()
+
+		time.Sleep(2 * time.Second)
+		name, err := filepath.Abs("./sealdice-core.exe")
+		if err != nil {
+			logger.Error(err)
+			return
+		}
+		err = exec.Command(`cmd`, `/C`, "start", name, "--delay=5").Start()
+		if err != nil {
+			logger.Error(err)
+			return
+		}
+		// 给3s创建进程时间
+		time.Sleep(3 * time.Second)
+		//_ = exec.Command("./sealdice-core.exe").Start()
 		return
 	}
 
@@ -197,18 +257,32 @@ func main() {
 			_ = os.Remove("./auto_update_ok")
 			_ = os.Remove("./auto_update.exe")
 			_ = os.Remove("./auto_updat3.exe")
+			_ = os.Remove("./升级日志.log")
 			_ = os.RemoveAll("./update")
 		} else {
 			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
-			logger.Warn("检测到 auto_update.exe，即将进行升级")
+			logger.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
+			logger.Warn("程序目录下会出现“升级日志.log”，这代表升级正在进行中，如果失败了请检查此文件。")
 			// 这5s延迟是保险，其实并不必要
 			// 2023/1/9: 还是必要的，在有些设备上还要更久时间，所以现在改成15s
 			name := updateFileName
-			err := exec.Command(name, "--delay=5", "--do-update-win").Start()
+			// "--delay=5",
+
+			//var procAttr os.ProcAttr
+			//procAttr.Files = []*os.File{nil, nil, nil}
+			name, err = filepath.Abs(name)
 			if err != nil {
-				logger.Warn("升级发生错误: ", err.Error())
+				logger.Warn("升级发生错误1: ", err.Error())
 				return
 			}
+
+			//err := exec.Command(name, "/do-update-win").Start()
+			err = exec.Command(`cmd`, `/C`, "start", name, "/do-update-win").Start()
+			if err != nil {
+				logger.Warn("升级发生错误2: ", err.Error())
+				return
+			}
+			time.Sleep(3 * time.Second)
 			return
 		}
 	}
@@ -218,8 +292,11 @@ func main() {
 		if err == nil {
 			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
 			_ = os.Remove("./auto_update_ok")
+			time.Sleep(5 * time.Second) // 稍等一下 防止删不掉
 			_ = os.Remove("./auto_update")
 			_ = os.RemoveAll("./update")
+			_ = os.Rename("./auto_update", "./_delete_me.exe") // 删不掉就试图改名
+			_ = os.Remove("./_delete_me.exe")
 		} else {
 			logger.Warn("检测到 auto_update.exe，即将进行升级")
 			err := cp.Copy("./update/new", "./")
@@ -230,6 +307,7 @@ func main() {
 			_ = os.Chmod("./go-cqhttp/go-cqhttp", 0755)
 		}
 	}
+	removeUpdateFiles()
 
 	//if !opts.MultiInstanceOnWindows && TestRunning() {
 	//	return
@@ -353,6 +431,17 @@ func main() {
 	//if err != nil {
 	//	fmt.Printf("ListenAndServe: %s", err)
 	//}
+}
+
+func removeUpdateFiles() {
+	// 无论原因，只要走到这里全部删除
+	_ = os.Remove("./auto_update_ok")
+	_ = os.Remove("./auto_update.exe")
+	_ = os.Remove("./auto_updat3.exe")
+	_ = os.Remove("./auto_update_ok")
+	_ = os.Remove("./auto_update")
+	_ = os.Remove("./_delete_me.exe")
+	_ = os.RemoveAll("./update")
 }
 
 func diceServe(d *dice.Dice) {

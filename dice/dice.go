@@ -23,10 +23,10 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.2.5dev v20230405"
+var VERSION = "1.2.5 v20230409"
 
 // var VERSION_CODE = int64(1001000) // 991404
-var VERSION_CODE = int64(1002004) // 坏了，1.1的版本号标错了，标成了1.10.0
+var VERSION_CODE = int64(1002005) // 坏了，1.1的版本号标错了，标成了1.10.0
 var APP_BRANCH = ""
 
 type CmdExecuteResult struct {
@@ -150,6 +150,7 @@ type Dice struct {
 	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"`    // 启用自动重新登录
 	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"`    // 拒绝加入新群
 	UpgradeWindowId         string                 `yaml:"upgradeWindowId"`      // 执行升级指令的窗口
+	UpgradeEndpointId       string                 `yaml:"upgradeEndpointId"`    // 执行升级指令的端点
 	BotExtFreeSwitch        bool                   `yaml:"botExtFreeSwitch"`     // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
 	TrustOnlyMode           bool                   `yaml:"trustOnlyMode"`        // 只有信任的用户/master可以拉群和使用
 	AliveNoticeEnable       bool                   `yaml:"aliveNoticeEnable"`    // 定时通知
@@ -253,6 +254,7 @@ func (d *Dice) Init() {
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
 	d.loads()
+	d.BanList.Loads()
 	d.BanList.AfterLoads()
 	d.IsAlreadyLoadConfig = true
 
@@ -343,31 +345,42 @@ func (d *Dice) Init() {
 
 	if d.UpgradeWindowId != "" {
 		go func() {
+			defer ErrorLogAndContinue(d)
+
+			var ep *EndPointInfo
+			for _, _ep := range d.ImSession.EndPoints {
+				if _ep.Id == d.UpgradeEndpointId {
+					ep = _ep
+					break
+				}
+			}
+
+			// 发送指令所用的端点不存在
+			if ep == nil {
+				return
+			}
+
 			for {
 				time.Sleep(30 * time.Second)
 				text := fmt.Sprintf("升级完成，当前版本: %s", VERSION)
 
-				isGroup := strings.Contains(d.UpgradeWindowId, "-Group:")
-				waitNext := false
-				for _, ep := range d.ImSession.EndPoints {
-					if ep.State == 2 {
-						waitNext = true
-						break
-					}
-					ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
-					if isGroup {
-						ReplyGroup(ctx, &Message{GroupId: d.UpgradeWindowId}, text)
-					} else {
-						ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: d.UpgradeWindowId}}, text)
-					}
+				if ep.State == 2 {
+					// 还没好，继续等待
+					continue
 				}
 
-				if waitNext {
-					continue
+				// 可以了，发送消息
+				ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
+				isGroup := strings.Contains(d.UpgradeWindowId, "-Group:")
+				if isGroup {
+					ReplyGroup(ctx, &Message{GroupId: d.UpgradeWindowId}, text)
+				} else {
+					ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: d.UpgradeWindowId}}, text)
 				}
 
 				d.Logger.Infof("升级完成，当前版本: %s", VERSION)
 				d.UpgradeWindowId = ""
+				d.UpgradeEndpointId = ""
 				d.MarkModified()
 				d.Save(false)
 				break

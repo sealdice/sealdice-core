@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/fy0/lockfree"
 	"os"
@@ -232,9 +233,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 				fn, err := LogSendToBackend(ctx, groupId, logName)
 				if fn == "" {
 					text := txtLogTip
-					if err != nil {
-						text = fmt.Sprintf("%s\n%s", err.Error(), text)
+					t1 := err.Error()
+					if strings.HasPrefix(t1, "#") {
+						text = ""
 					}
+					text = fmt.Sprintf("%s\n%s", t1, text)
 					ReplyToSenderRaw(ctx, msg, text, "skip")
 				} else {
 					ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
@@ -252,9 +255,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 					fn, err := LogSendToBackend(ctx, group.GroupId, logName)
 					if fn == "" {
 						text := txtLogTip
-						if err != nil {
-							text = fmt.Sprintf("%s\n%s", err.Error(), text)
+						t1 := err.Error()
+						if strings.HasPrefix(t1, "#") {
+							text = ""
 						}
+						text = fmt.Sprintf("%s\n%s", t1, text)
 						ReplyToSenderRaw(ctx, msg, text, "skip")
 					} else {
 						ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
@@ -283,7 +288,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if fn == "" {
 					text := txtLogTip
 					if err != nil {
-						text = fmt.Sprintf("%s\n%s", err.Error(), text)
+						t1 := err.Error()
+						if strings.HasPrefix(t1, "#") {
+							text = ""
+						}
+						text = fmt.Sprintf("%s\n%s", t1, text)
 					}
 					ReplyToSenderRaw(ctx, msg, text, "skip")
 				} else {
@@ -537,7 +546,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				ctx.Player.AutoSetNameTemplate = ""
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, "已关闭自动设置名片功能")
+				ReplyToSender(ctx, msg, fmt.Sprintf("已关闭对%s的名片自动修改", getPlayerNameTempFunc(ctx)))
 			case "expr":
 				t := cmdArgs.GetRestArgsFrom(2)
 				if len(t) > 80 {
@@ -564,14 +573,18 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ok := false
 				ctx.Dice.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
 					name := strings.ToLower(val)
+					// 先检查绝对匹配
 					if t, exists := value.NameTemplate[val]; exists {
 						text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
+						ctx.Player.AutoSetNameTemplate = text
 						ReplyToSender(ctx, msg, "已自动设置名片为"+val+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 						ok = true
 						return false
 					}
+					// 再检查小写匹配
 					if t, exists := value.NameTemplate[name]; exists {
 						text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
+						ctx.Player.AutoSetNameTemplate = text
 						ReplyToSender(ctx, msg, "已自动设置名片为"+name+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 						ok = true
 						return false
@@ -745,6 +758,10 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 	_ = os.MkdirAll(dirpath, 0755)
 
 	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupId, logName)
+
+	if len(lines) == 0 {
+		return "", errors.New("#此log不存在，或条目数为空，名字是否正确？")
+	}
 
 	if err != nil {
 		return "", err

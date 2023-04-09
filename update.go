@@ -107,7 +107,9 @@ func UpdateRequestListen(dm *dice.DiceManager) {
 	if err == nil {
 		dm.UpdateDownloadedChan <- ""
 		time.Sleep(2 * time.Second)
+		logger.Info("进行升级准备工作")
 		doUpdate(dm)
+		logger.Info("开始自重启，重启后将拉起升级程序auto_update.exe")
 		doReboot(dm)
 	} else {
 		dm.UpdateDownloadedChan <- err.Error()
@@ -128,7 +130,13 @@ func doReboot(dm *dice.DiceManager) {
 	platform := runtime.GOOS
 	if platform == "windows" {
 		cleanUpCreate(dm)()
-		_ = exec.Command(binary, "--delay=25").Start()
+
+		name, _ := filepath.Abs(binary)
+		err = exec.Command(`cmd`, `/C`, "start", name, "--delay=15").Start()
+		//err = exec.Command(binary, "--delay=25").Start()
+		if err != nil {
+			logger.Errorf("Restart error: %s %v", binary, err)
+		}
 	} else {
 		// 手动cleanup
 		cleanUpCreate(dm)()

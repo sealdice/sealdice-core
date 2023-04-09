@@ -1,0 +1,103 @@
+name: Bug Report
+description: 反馈一个海豹的bug
+title: "[Bug]: "
+labels: ['bug']
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 在提问之前...
+      options:
+        - label: 我理解 Issue 是用于反馈和解决问题的，而非吐槽评论区，将尽可能提供更多信息帮助问题解决
+          required: true
+        - label: 我填写了简短且清晰明确的标题，以便开发者在翻阅 issue 列表时能快速确定大致问题。而不是“一个建议”、“卡住了”等
+          required: true
+        - label: 我已查看master branch或最新测试版的更新内容，并未提及该 bug 已被修复的情况
+          required: true
+        - label: 已有issue中并没有看见其他人与我反馈相同的问题
+          required: true
+  - type: textarea
+    id: describe
+    attributes:
+      label: 问题描述
+      description: 尽可能详细描述你的问题，你遇到了什么问题
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 如何复现
+      description: 复现此bug的步骤，例子：1. 发送 '...' 2. 点击 '....' 3. 进入 '....' 4. 产生错误
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 你期望发生的
+      description: 清晰而简明地描述你在复现此错误时所期望发生的事情（即正常工作时应当产生什么结果）。
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: 实际上发生的
+      description: 清晰而简明地描述你在进行这些操作时实际发生的事情。并阐述与你预期的区别。
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志文件
+      description: |
+        **上传日志截图或log文件，截图应当包含尽可能多的信息，截图应当足够清晰以展示你遇到的bug**
+        **如果上传日志文件请直接将完整的文件拖拽进来，而非自己裁切的片段；若文件体积过大可压缩后再上传**
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图
+      description: |
+        如果有，添加屏幕截图以帮助解释你的问题，包括但不限于海豹日志截图、聊天窗口截图等等
+    validations:
+      required: false
+  - type: textarea
+    id: core-version
+    attributes:
+      label: 海豹核心版本
+      description: |
+        出现问题的海豹的版本，例如：1.0.2 v20221212
+    validations:
+      required: true
+  - type: textarea
+    id: os
+    attributes:
+      label: 操作系统
+      description: |
+        出现问题的海豹运行在什么操作系统上
+    validations:
+      required: true
+  - type: textarea
+    id: endpoints
+    attributes:
+      label: 帐号类型
+      description: |
+        错误发生时海豹搭载了哪些帐号（并请说明是在什么账号上出了问题）例如：QQ Discord KOOK 等
+    validations:
+      required: true
+  - type: textarea
+    id: protocols
+    attributes:
+      label: 使用协议
+      description: |
+        错误发生时海豹所使用的帐号协议（如果有） 例如：Android, ipad
+    validations:
+      required: false
+  - type: textarea
+    id: others
+    attributes:
+      label: 附加内容
+      description: |
+        如果还有任何能让我们对你所遇到的问题有更多了解的东西，请放在这里
+    validations:
+      required: false

@@ -220,6 +220,15 @@ func (d *Dice) JsInit() {
 		})
 		_ = seal.Set("gameSystem", gameSystem)
 		_ = seal.Set("getCtxProxyAtPos", GetCtxProxyAtPos)
+		_ = seal.Set("getVersion", func() map[string]interface{} {
+			return map[string]interface{}{
+				"versionCode": VERSION_CODE,
+				"version":     VERSION,
+			}
+		})
+		_ = seal.Set("getEndPoints", func() []*EndPointInfo {
+			return d.ImSession.EndPoints
+		})
 
 		_ = vm.Set("atob", func(s string) (string, error) {
 			// Remove data URI scheme and any whitespace from the string.

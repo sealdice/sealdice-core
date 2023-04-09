@@ -226,7 +226,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`\n注：{$t数量}条属性因<{$t判定值}被隐藏`, 1},
 			},
 			"属性设置": {
-				{`{$t玩家}的coc7属性录入完成，本次录入了{$t有效数量}条数据`, 1},
+				{`{$t玩家}的{$t规则模板}属性录入完成，本次录入了{$t有效数量}条数据`, 1},
 			},
 			"属性设置_保存提醒": {
 				{`{ $t当前绑定角色 ? '[√] 已绑卡' : '' }`, 1},
@@ -710,7 +710,7 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"属性设置": {
 				SubType:         ".st 力量70",
-				Vars:            []string{"$t玩家", "$t有效数量", "$t数量", "$t同义词数量"},
+				Vars:            []string{"$t玩家", "$t规则模板", "$t有效数量", "$t数量", "$t同义词数量"},
 				ExampleCommands: []string{".st 力量70"},
 			},
 			"属性设置_保存提醒": {
@@ -1290,6 +1290,7 @@ func (d *Dice) loads() {
 			d.RefuseGroupInvite = dNew.RefuseGroupInvite
 			d.DefaultCocRuleIndex = dNew.DefaultCocRuleIndex
 			d.UpgradeWindowId = dNew.UpgradeWindowId
+			d.UpgradeEndpointId = dNew.UpgradeEndpointId
 			d.BotExtFreeSwitch = dNew.BotExtFreeSwitch
 			d.TrustOnlyMode = dNew.TrustOnlyMode
 			d.AliveNoticeEnable = dNew.AliveNoticeEnable
@@ -1546,7 +1547,7 @@ func (d *Dice) loads() {
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
 		var v BanListInfoItem
 		err := json.Unmarshal(data, &v)
-		if err != nil {
+		if err == nil {
 			v.BanUpdatedAt = banUpdatedAt
 			d.BanList.Map.Store(id, &v)
 		}

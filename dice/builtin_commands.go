@@ -778,6 +778,7 @@ func (d *Dice) registerCoreCommands() {
 							} else {
 								ctx.Dice.UpgradeWindowId = ctx.Group.GroupId
 							}
+							ctx.Dice.UpgradeEndpointId = ctx.EndPoint.Id
 
 							ctx.Dice.Save(true)
 							bakFn, _ := ctx.Dice.Parent.BackupSimple()
@@ -922,7 +923,6 @@ func (d *Dice) registerCoreCommands() {
 			var diceResult int64
 			var diceResultExists bool
 			var detail string
-			isRx := cmdArgs.Command == "rx" || cmdArgs.Command == "rhx"
 
 			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
 			if ctx.Dice.CommandCompatibleMode {
@@ -945,14 +945,17 @@ func (d *Dice) registerCoreCommands() {
 						DisableBlock:       true,
 					})
 
-					if !isRx {
-						if r != nil && !r.Parser.Calculated {
-							forWhat = cmdArgs.CleanArgs
-							r, detail, err = ctx.Dice.ExprEvalBase("d", ctx, RollExtraFlags{
-								DefaultDiceSideNum: getDefaultDicePoints(ctx),
-								DisableBlock:       true,
-							})
+					if r != nil && !r.Parser.Calculated {
+						forWhat = cmdArgs.CleanArgs
+
+						defExpr := "d"
+						if ctx.diceExprOverwrite != "" {
+							defExpr = ctx.diceExprOverwrite
 						}
+						r, detail, err = ctx.Dice.ExprEvalBase(defExpr, ctx, RollExtraFlags{
+							DefaultDiceSideNum: getDefaultDicePoints(ctx),
+							DisableBlock:       true,
+						})
 					}
 
 					if r != nil && r.TypeId == 0 {
@@ -1014,8 +1017,20 @@ func (d *Dice) registerCoreCommands() {
 					VarSetValueInt64(ctx, "$t计算结果", diceResult)
 					//text = fmt.Sprintf("%s<%s>掷出了 %s%s=%d", prefix, ctx.Player.Name, cmdArgs.Args[0], detailWrap, diceResult)
 				} else {
+					var val int64
+					var detail string
 					dicePoints := getDefaultDicePoints(ctx)
-					val := DiceRoll64(dicePoints)
+					if ctx.diceExprOverwrite != "" {
+						r, detail, _ = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{
+							DefaultDiceSideNum: dicePoints,
+							DisableBlock:       true,
+						})
+						if r != nil && r.TypeId == 0 {
+							val, _ = r.ReadInt64()
+						}
+					} else {
+						val = DiceRoll64(dicePoints)
+					}
 
 					// 指令信息标记
 					item := map[string]interface{}{
@@ -1030,7 +1045,7 @@ func (d *Dice) registerCoreCommands() {
 					commandInfoItems = append(commandInfoItems, item)
 
 					VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("D%d", dicePoints))
-					VarSetValueStr(ctx, "$t计算过程", "")
+					VarSetValueStr(ctx, "$t计算过程", detail)
 					VarSetValueInt64(ctx, "$t计算结果", val)
 					//text = fmt.Sprintf("%s<%s>掷出了 D%d=%d", prefix, ctx.Player.Name, dicePoints, val)
 				}
