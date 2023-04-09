@@ -573,14 +573,18 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ok := false
 				ctx.Dice.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
 					name := strings.ToLower(val)
+					// 先检查绝对匹配
 					if t, exists := value.NameTemplate[val]; exists {
 						text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
+						ctx.Player.AutoSetNameTemplate = text
 						ReplyToSender(ctx, msg, "已自动设置名片为"+val+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 						ok = true
 						return false
 					}
+					// 再检查小写匹配
 					if t, exists := value.NameTemplate[name]; exists {
 						text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
+						ctx.Player.AutoSetNameTemplate = text
 						ReplyToSender(ctx, msg, "已自动设置名片为"+name+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 						ok = true
 						return false

@@ -494,6 +494,8 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 			ctx.Group.UpdatedAtTime = time.Now().Unix()
 		}
 		VarSetValueStr(ctx, "$t游戏模式", ctx.Group.System)
+		VarSetValueStr(ctx, "$t规则模板", ctx.Group.System)
+		VarSetValueStr(ctx, "$tSystem", ctx.Group.System)
 		VarSetValueStr(ctx, "$t当前记录", ctx.Group.LogCurName)
 	}
 
