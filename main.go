@@ -243,7 +243,8 @@ func main() {
 			// 这5s延迟是保险，其实并不必要
 			// 2023/1/9: 还是必要的，在有些设备上还要更久时间，所以现在改成15s
 			name := updateFileName
-			err := exec.Command(name, "--delay=5", "--do-update-win").Start()
+			// "--delay=5",
+			err := exec.Command(name, "/do-update-win").Start()
 			if err != nil {
 				logger.Warn("升级发生错误: ", err.Error())
 				return
@@ -257,8 +258,11 @@ func main() {
 		if err == nil {
 			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
 			_ = os.Remove("./auto_update_ok")
+			time.Sleep(5 * time.Second) // 稍等一下 防止删不掉
 			_ = os.Remove("./auto_update")
 			_ = os.RemoveAll("./update")
+			_ = os.Rename("./auto_update", "./_delete_me.exe") // 删不掉就试图改名
+			_ = os.Remove("./_delete_me.exe")
 		} else {
 			logger.Warn("检测到 auto_update.exe，即将进行升级")
 			err := cp.Copy("./update/new", "./")
@@ -402,6 +406,7 @@ func removeUpdateFiles() {
 	_ = os.Remove("./auto_updat3.exe")
 	_ = os.Remove("./auto_update_ok")
 	_ = os.Remove("./auto_update")
+	_ = os.Remove("./_delete_me.exe")
 	_ = os.RemoveAll("./update")
 }
 

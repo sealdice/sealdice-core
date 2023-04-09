@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 )
 
@@ -29,10 +30,11 @@ func upgrade(c echo.Context) error {
 			if ret == "" {
 				myDice.Save(true)
 				bakFn, _ := myDice.Parent.BackupSimple()
-				tmpPath := path.Join(os.TempDir(), bakFn)
-				_ = os.MkdirAll(tmpPath, 0644)
+				tmpParent := os.TempDir()
+				tmpPath := path.Join(tmpParent, bakFn)
+				_ = os.MkdirAll(filepath.Join(tmpParent, "backups"), 0644)
 				myDice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
-				_ = cp.Copy(path.Join("./backups", bakFn), tmpPath)
+				_ = cp.Copy(bakFn, tmpPath)
 
 				dm.UpdateRequestChan <- 1
 				return c.JSON(200, map[string]interface{}{
