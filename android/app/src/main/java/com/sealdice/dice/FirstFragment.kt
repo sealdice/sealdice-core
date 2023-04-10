@@ -1,14 +1,14 @@
 package com.sealdice.dice
 
 import android.Manifest
-import android.content.Context
-import android.content.DialogInterface
-import android.content.Intent
+import android.content.*
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
+import android.provider.Settings
 import android.util.Log
 import android.view.*
 import android.widget.Toast
@@ -25,7 +25,9 @@ import com.sealdice.dice.databinding.FragmentFirstBinding
 import com.sealdice.dice.utils.Utils
 import com.sealdice.dice.utils.ViewModelMain
 import kotlinx.coroutines.*
+import java.io.BufferedReader
 import java.io.File
+import java.io.InputStreamReader
 import kotlin.system.exitProcess
 
 
@@ -40,6 +42,20 @@ class FirstFragment : Fragment() {
     // onDestroyView.
     private val binding get() = _binding
     private var shellLogs = ""
+    private var isBound = false
+    private var processService: ProcessService? = null
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, service: IBinder) {
+            val binder = service as ProcessService.MyBinder
+            processService = binder.getService()
+            isBound = true
+        }
+
+        override fun onServiceDisconnected(name: ComponentName) {
+            isBound = false
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -53,9 +69,6 @@ class FirstFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         var isrun = false
-//        val packageManager = this.activity?.packageManager
-//        val packageName = this.activity?.packageName
-//        val packageInfo = packageName?.let { packageManager?.getPackageInfo(it, 0) }
         val versionName = BuildConfig.VERSION_NAME
         val packageName = BuildConfig.APPLICATION_ID
         val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
@@ -94,7 +107,7 @@ class FirstFragment : Fragment() {
                 )
             }
             alertDialogBuilder?.setTitle("控制台")
-            alertDialogBuilder?.setMessage(shellLogs)
+            alertDialogBuilder?.setMessage(processService?.getShellLogs())
             alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
             }
             alertDialogBuilder?.create()?.show()
@@ -228,8 +241,22 @@ class FirstFragment : Fragment() {
             alertDialogBuilder?.create()?.show()
         }
         binding.buttonFirst.setOnClickListener {
-            if (isrun) {
-                shellLogs += "sealdice is running"
+            val intentBtr = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            intentBtr.data = Uri.parse("package:$packageName")
+            startActivity(intentBtr)
+            if (BuildConfig.DEBUG) {
+                val alertDialogBuilder = context?.let { it1 ->
+                    AlertDialog.Builder(
+                        it1, R.style.Theme_Mshell_DialogOverlay
+                    )
+                }
+                alertDialogBuilder?.setTitle("DEBUG")
+                alertDialogBuilder?.setMessage("Support 64 abis:"+Build.SUPPORTED_64_BIT_ABIS.contentToString()+"\nSupport 32 abis:"+Build.SUPPORTED_32_BIT_ABIS.contentToString()+"\nSupport abis:"+Build.SUPPORTED_ABIS.contentToString())
+                alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+                }
+                alertDialogBuilder?.create()?.show()
+            }
+            if (processService?.isRunning() == true) {
                 val alertDialogBuilder = context?.let { it1 ->
                     AlertDialog.Builder(
                         it1, R.style.Theme_Mshell_DialogOverlay
@@ -245,8 +272,8 @@ class FirstFragment : Fragment() {
                 if (sharedPreferences?.getBoolean("extract_on_start", true) == true) {
                     ExtractAssets(context).extractResources("sealdice")
                 }
-                val args = sharedPreferences?.getString("launch_args", "")
-                execShell("cd sealdice&&./sealdice-core $args",true)
+//                val args = sharedPreferences?.getString("launch_args", "")
+//                execShell("cd sealdice&&./sealdice-core $args\n",true)
                 binding.buttonTut.visibility = View.GONE
                 binding.buttonInput.visibility = View.GONE
                 binding.buttonOutput.visibility = View.GONE
@@ -255,17 +282,34 @@ class FirstFragment : Fragment() {
                 binding.buttonThird.visibility = View.VISIBLE
                 binding.buttonConsole.visibility = View.VISIBLE
                 binding.buttonFirst.visibility = View.GONE
-                if (!launchAliveService(context)) {
-                    val alertDialogBuilder = context?.let { it1 ->
-                        AlertDialog.Builder(
-                            it1, R.style.Theme_Mshell_DialogOverlay
-                        )
+                if (Build.VERSION.SDK_INT >= 28) {
+                    val permissionState =
+                        context?.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.FOREGROUND_SERVICE) }
+                    if (permissionState != PackageManager.PERMISSION_GRANTED) {
+                        this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.FOREGROUND_SERVICE), 1) }
                     }
-                    alertDialogBuilder?.setTitle("提示")
-                    alertDialogBuilder?.setMessage("似乎并没有开启任何保活策略，这可能导致后台被清理")
-                    alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
-                    alertDialogBuilder?.create()?.show()
                 }
+                val intentNoti = Intent(context, ProcessService::class.java)
+                if (Build.VERSION.SDK_INT >= 26) {
+                    context?.startForegroundService(intentNoti).also { _ ->
+                        activity?.bindService(intentNoti, connection, Context.BIND_AUTO_CREATE)
+                    }
+                } else {
+                    context?.startService(intentNoti).also { _ ->
+                        activity?.bindService(intentNoti, connection, Context.BIND_AUTO_CREATE)
+                    }
+                }
+                launchAliveService(context)
+//                    val alertDialogBuilder = context?.let { it1 ->
+//                        AlertDialog.Builder(
+//                            it1, R.style.Theme_Mshell_DialogOverlay
+//                        )
+//                    }
+//                    alertDialogBuilder?.setTitle("提示")
+//                    alertDialogBuilder?.setMessage("似乎并没有开启任何保活策略，这可能导致后台被清理")
+//                    alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
+//                    alertDialogBuilder?.create()?.show()
+
                 GlobalScope.launch(context = Dispatchers.IO) {
                     for (i in 0..10) {
                         withContext(Dispatchers.Main) {
@@ -292,12 +336,36 @@ class FirstFragment : Fragment() {
             }
             binding.buttonSecond.setOnClickListener {
                 binding.buttonSecond.visibility = View.GONE
-                this.activity?.stopService(Intent(context, NotificationService::class.java))
+                activity?.unbindService(connection)
+                this.activity?.stopService(Intent(context, ProcessService::class.java))
                 this.activity?.stopService(Intent(context, MediaService::class.java))
                 this.activity?.stopService(Intent(context, WakeLockService::class.java))
                 this.activity?.stopService(Intent(context, FloatWindowService::class.java))
                 this.activity?.stopService(Intent(context, HeartbeatService::class.java))
-                execShell("pkill -SIGINT sealdice-core",false)
+                this.activity?.stopService(Intent(context, UpdateService::class.java))
+                val builder: AlertDialog.Builder? = context?.let { it1 -> AlertDialog.Builder(it1) }
+                builder?.setCancelable(false) // if you want user to wait for some process to finish,
+                builder?.setView(R.layout.layout_loading_dialog)
+                val dialog = builder?.create()
+                dialog?.show()
+                GlobalScope.launch(context = Dispatchers.IO){
+                    for (i in 0..5) {
+                        Thread.sleep(1000)
+                    }
+                    withContext(Dispatchers.Main){
+                        dialog?.dismiss()
+                    }
+                }
+                val alertDialogBuilder = context?.let { it1 ->
+                    AlertDialog.Builder(
+                        it1, R.style.Theme_Mshell_DialogOverlay
+                    )
+                }
+                alertDialogBuilder?.setTitle("提示")
+                alertDialogBuilder?.setMessage("请等到ui彻底无法打开后再点退出！")
+                alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+                }
+                alertDialogBuilder?.create()?.show()
                 binding.buttonExit.visibility = View.VISIBLE
             }
         }
@@ -307,17 +375,21 @@ class FirstFragment : Fragment() {
         val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
         var executed = false
         if (sharedPreferences != null) {
-            if (sharedPreferences.getBoolean("alive_notification", true)) {
-                if (Build.VERSION.SDK_INT >= 28) {
-                    val permissionState = context.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.FOREGROUND_SERVICE) }
-                    if (permissionState != PackageManager.PERMISSION_GRANTED) {
-                        this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.FOREGROUND_SERVICE), 1) }
-                    }
-                }
-                val intentNoti = Intent(context, NotificationService::class.java)
-                context.startForegroundService(intentNoti)
-                executed = true
-            }
+//            if (sharedPreferences.getBoolean("alive_notification", true)) {
+//                if (Build.VERSION.SDK_INT >= 28) {
+//                    val permissionState = context.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.FOREGROUND_SERVICE) }
+//                    if (permissionState != PackageManager.PERMISSION_GRANTED) {
+//                        this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.FOREGROUND_SERVICE), 1) }
+//                    }
+//                }
+//                val intentNoti = Intent(context, NotificationService::class.java)
+//                if (Build.VERSION.SDK_INT >= 26) {
+//                    context.startForegroundService(intentNoti)
+//                } else {
+//                    context.startService(intentNoti)
+//                }
+//                executed = true
+//            }
             if (sharedPreferences.getBoolean("alive_media", false)) {
                 val intentMedia = Intent(context, MediaService::class.java)
                 context.startService(intentMedia)
@@ -349,37 +421,25 @@ class FirstFragment : Fragment() {
     @OptIn(DelicateCoroutinesApi::class)
     private fun execShell(cmd: String, recordLog: Boolean) {
         GlobalScope.launch(context = Dispatchers.IO) {
-            val process = Runtime.getRuntime().exec("sh")
+            val process = ProcessBuilder("sh").redirectErrorStream(true).directory(context?.filesDir?.absolutePath?.let {
+                File(
+                    it
+                )
+            }).start()
             val os = process.outputStream
             os.write("cd ${context?.filesDir?.absolutePath}&&".toByteArray())
             os.write(cmd.toByteArray())
             os.flush()
             os.close()
-//            Thread.sleep(3000)
-//            val data = process.inputStream.readBytes()
-//            val error = process.errorStream.readBytes()
-//            if (data.isNotEmpty()) {
-//                shellLogs += String(data)
-//                shellLogs += "\n"
-//            } else {
-//                shellLogs += String(error)
-//                shellLogs += "\n"
-//            }
-//            Log.i("ExecShell", shellLogs)
-//            withContext(Dispatchers.Main) {
-//                binding.textviewFirst.text = shellLogs
-//            }
+            val data = process.inputStream
+            val ir = BufferedReader(InputStreamReader(data))
             while (recordLog) {
-                val data = process.inputStream.readBytes()
-                val error = process.errorStream.readBytes()
-                if (data.isNotEmpty()) {
-                    shellLogs += String(data)
+                var line = ir.readLine()
+                while (line != null) {
+                    shellLogs += line
                     shellLogs += "\n"
-                } else {
-                    shellLogs += String(error)
-                    shellLogs += "\n"
+                    line = ir.readLine()
                 }
-                Log.i("ExecShell", shellLogs)
                 Thread.sleep(1000)
             }
         }
@@ -392,11 +452,6 @@ class FirstFragment : Fragment() {
     private fun delete(delFile: String): Boolean {
         val file = File(delFile)
         return if (!file.exists()) {
-//            Toast.makeText(
-//                ApplicationProvider.getApplicationContext<Context>(),
-//                "删除文件失败:" + delFile + "不存在！",
-//                Toast.LENGTH_SHORT
-//            ).show()
             false
         } else {
             if (file.isFile) deleteSingleFile(delFile) else deleteDirectory(delFile)
@@ -418,19 +473,9 @@ class FirstFragment : Fragment() {
                 )
                 true
             } else {
-//                Toast.makeText(
-//                    ApplicationProvider.getApplicationContext<Context>(),
-//                    "删除单个文件" + `filePath$Name` + "失败！",
-//                    Toast.LENGTH_SHORT
-//                ).show()
                 false
             }
         } else {
-//            Toast.makeText(
-//                ApplicationProvider.getApplicationContext<Context>(),
-//                "删除单个文件失败：" + `filePath$Name` + "不存在！",
-//                Toast.LENGTH_SHORT
-//            ).show()
             false
         }
     }
@@ -446,11 +491,6 @@ class FirstFragment : Fragment() {
         val dirFile = File(filePath)
         // 如果dir对应的文件不存在，或者不是一个目录，则退出
         if (!dirFile.exists() || !dirFile.isDirectory) {
-//            Toast.makeText(
-//                ApplicationProvider.getApplicationContext<Context>(),
-//                "删除目录失败：" + filePath + "不存在！",
-//                Toast.LENGTH_SHORT
-//            ).show()
             return false
         }
         var flag = true
@@ -469,11 +509,6 @@ class FirstFragment : Fragment() {
             }
         }
         if (!flag) {
-//            Toast.makeText(
-//                ApplicationProvider.getApplicationContext<Context>(),
-//                "删除目录失败！",
-//                Toast.LENGTH_SHORT
-//            ).show()
             return false
         }
         // 删除当前目录
@@ -481,11 +516,6 @@ class FirstFragment : Fragment() {
             Log.e("--Method--", "Copy_Delete.deleteDirectory: 删除目录" + filePath + "成功！")
             true
         } else {
-//            Toast.makeText(
-//                ApplicationProvider.getApplicationContext<Context>(),
-//                "删除目录：" + filePath + "失败！",
-//                Toast.LENGTH_SHORT
-//            ).show()
             false
         }
     }

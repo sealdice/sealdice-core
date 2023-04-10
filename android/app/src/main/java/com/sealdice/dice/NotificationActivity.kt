@@ -17,6 +17,7 @@ class NotificationActivity : AppCompatActivity() {
         return when (item.itemId) {
             android.R.id.home -> {
                 onBackPressedDispatcher.onBackPressed()
+                finish()
                 true
             }
             else -> super.onOptionsItemSelected(item)

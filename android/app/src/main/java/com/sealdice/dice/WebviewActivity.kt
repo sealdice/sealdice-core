@@ -1,12 +1,14 @@
 package com.sealdice.dice
 
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.KeyEvent.KEYCODE_BACK
 import android.view.MenuItem
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat.startActivity
 import com.tencent.smtt.export.external.interfaces.SslError
@@ -129,6 +131,16 @@ class WebViewActivity : AppCompatActivity() {
         webSettings.domStorageEnabled = true
         val url = intent.getStringExtra("url")
         webView.webViewClient = object : WebViewClient() {
+            override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                super.onReceivedError(view, errorCode, description, failingUrl)
+                val alertDialogBuilder = AlertDialog.Builder(
+                    this@WebViewActivity, R.style.Theme_Mshell_DialogOverlay
+                )
+                alertDialogBuilder.setTitle("提示")
+                alertDialogBuilder.setMessage("加载ui失败，请点返回键根据日志内信息进行处理")
+                alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
+                alertDialogBuilder.create().show()
+            }
             override fun shouldOverrideUrlLoading(
                 view: WebView?,
                 request: WebResourceRequest?
@@ -154,6 +166,7 @@ class WebViewActivity : AppCompatActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KEYCODE_BACK && mWebView.canGoBack()) {
             mWebView.goBack()
+            finish()
             return true
         }
         return super.onKeyDown(keyCode, event)

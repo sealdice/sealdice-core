@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 
+
 class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,6 +20,7 @@ class SettingsActivity : AppCompatActivity() {
         return when (item.itemId) {
             android.R.id.home -> {
                 onBackPressedDispatcher.onBackPressed()
+                finish()
                 true
             }
             else -> super.onOptionsItemSelected(item)

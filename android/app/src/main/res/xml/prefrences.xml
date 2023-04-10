@@ -3,11 +3,11 @@
     <androidx.preference.PreferenceCategory
         android:title="一般">
 
-        <androidx.preference.SwitchPreferenceCompat
-            android:key="alive_notification"
-            android:title="保活策略：通知栏"
-            android:summary="通过通知栏进行保活"
-            android:defaultValue="true" />
+<!--        <androidx.preference.SwitchPreferenceCompat-->
+<!--            android:key="alive_notification"-->
+<!--            android:title="保活策略：通知栏"-->
+<!--            android:summary="通过通知栏进行保活"-->
+<!--            android:defaultValue="true" />-->
         <androidx.preference.SwitchPreferenceCompat
             android:key="alive_wakelock"
             android:title="保活策略：唤醒锁"
@@ -28,6 +28,12 @@
             android:title="保活策略：无声音频"
             android:summary="通过循环播放无声音频进行保活"
             android:defaultValue="false" />
+<!--        <androidx.preference.SwitchPreferenceCompat-->
+<!--            android:layout="@layout/danger_preference_layout"-->
+<!--            android:key="alive_dim_screen"-->
+<!--            android:title="保活策略：永不息屏"-->
+<!--            android:summary="不推荐！将保持屏幕以低亮度状态开启\n可能会大幅度增加耗电量\n并影响电池和屏幕寿命"-->
+<!--            android:defaultValue="false" />-->
 
     </androidx.preference.PreferenceCategory>
 

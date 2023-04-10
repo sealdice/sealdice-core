@@ -7,6 +7,7 @@ import android.widget.SeekBar
 import android.widget.SeekBar.OnSeekBarChangeListener
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SeekBarPreference
+import androidx.preference.SwitchPreferenceCompat
 
 
 class SettingsFragment : PreferenceFragmentCompat() {
@@ -15,5 +16,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
         setPreferencesFromResource(R.xml.prefrences, rootKey)
         sharedPreferences = preferenceScreen.sharedPreferences!!
         val mySeekBarPreference : SeekBarPreference? = findPreference<SeekBarPreference>("launch_waiting_time")
+//        val switchPreference: SwitchPreferenceCompat = findPreference("my_switch_preference")
+//        switchPreference.setTitleTextColor(resources.getColor(android.R.color.my_color))
     }
 }

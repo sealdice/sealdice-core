@@ -6,9 +6,11 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -21,6 +23,7 @@ class UpdateService : Service() {
     private val UPDATE_URL = "https://get.sealdice.com/seal/version/android"
     private val NOTIFICATION_ID = 2
 
+    @OptIn(DelicateCoroutinesApi::class)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         GlobalScope.launch(context = Dispatchers.IO) {
             checkForUpdates()
@@ -61,14 +64,33 @@ class UpdateService : Service() {
     private fun showUpdateNotification(version: String) {
         // Create a notification channel for Android Oreo and higher
         val notificationManager = getSystemService(NotificationManager::class.java)
-        val channel = NotificationChannel(
-            "update_channel",
-            "Update Channel",
-            NotificationManager.IMPORTANCE_DEFAULT
-        )
-        notificationManager.createNotificationChannel(channel)
+        if (Build.VERSION.SDK_INT >= 26) {
+            val channel = NotificationChannel(
+                "update_channel",
+                "Update Channel",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+            notificationManager.createNotificationChannel(channel)
+        } else {
+            val builder = NotificationCompat.Builder(this)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle("SealDice 检测到更新")
+                .setContentText("点击此处下载新版本 $version")
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            // Create a pending intent for the update dialog
+            val uri = Uri.parse("https://d.catlevel.com/seal/android/latest")
+            val intent = Intent()
+            intent.action = "android.intent.action.VIEW"
+            intent.data = uri
+            val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+            builder.setContentIntent(pendingIntent)
+            // Show the notification
+            notificationManager.notify(NOTIFICATION_ID, builder.build())
+            return
+        }
         // Create a notification builder
-        val builder = NotificationCompat.Builder(this, "update_channel")
+        val builder = NotificationCompat.Builder(this,"update_channel")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("SealDice 检测到更新")
             .setContentText("点击此处下载新版本 $version")
@@ -84,7 +106,5 @@ class UpdateService : Service() {
         // Show the notification
         notificationManager.notify(NOTIFICATION_ID, builder.build())
     }
-
-    // ...
 
 }

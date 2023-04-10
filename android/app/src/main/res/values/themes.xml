@@ -27,6 +27,14 @@
     <style name="Theme.Mshell.CommonOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
         <item name="android:background">#00000000</item>
     </style>
+    <style name="Theme.Mshell.DangerOverlay" parent="ThemeOverlay.AppCompat.ActionBar">
+        <item name="android:titleTextColor">@color/dark_red</item>
+        <item name="android:textColor">@color/dark_red</item>
+        <item name="colorPrimary">@color/dark_red</item>
+        <item name="colorControlNormal">@color/dark_red</item>
+        <item name="android:textColorPrimary">@color/dark_red</item>
+        <item name="android:textColorSecondary">@color/grey_white</item>
+    </style>
     <style name="Theme.Mshell.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
     <style name="Theme.Mshell.DialogOverlay" parent="Theme.AppCompat.Light.Dialog.Alert" >
         <item name="android:background">@color/white</item>

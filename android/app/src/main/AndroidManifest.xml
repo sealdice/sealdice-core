@@ -49,7 +49,9 @@
             </intent-filter>
         </provider>
         <service android:name=".MediaService"/>
-        <service android:name=".NotificationService"/>
+        <service
+            android:name=".ProcessService"
+            android:foregroundServiceType="location"/>
         <service android:name=".WakeLockService"/>
         <service android:name=".FloatWindowService"/>
         <service android:name=".HeartbeatService"/>
