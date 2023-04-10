@@ -54,7 +54,7 @@ dependencies {
     implementation 'androidx.core:core:1.10.0'
     implementation 'androidx.preference:preference:1.2.0'
     implementation 'androidx.lifecycle:lifecycle-service:2.6.1'
-    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+    implementation 'com.squareup.okhttp3:okhttp:5.0.0-alpha.11'
     api 'com.tencent.tbs:tbssdk:44286'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

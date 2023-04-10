@@ -17,7 +17,7 @@ class AboutActivity : AppCompatActivity(){
         val buttonReport = findViewById<Button>(R.id.button_report)
         buttonReport.setOnClickListener {
             val intent = Intent("android.intent.action.VIEW")
-            intent.data = Uri.parse("https://github.com/sealdice/sealdice-android/issues/new")
+            intent.data = Uri.parse("https://github.com/sealdice/sealdice-android/issues/new/choose")
             startActivity(intent)
         }
         val buttonRepo = findViewById<Button>(R.id.button_repo)
