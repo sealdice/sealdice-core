@@ -24,6 +24,7 @@ private open class WVChromeClient(activity: WebViewActivity): WebChromeClient() 
     override fun onShowFileChooser(webView: WebView, filePathCallback: ValueCallback<Array<Uri>>?, fileChooserParams: FileChooserParams?): Boolean {
         uploadFiles = filePathCallback
         val i = fileChooserParams!!.createIntent()
+        i.action = Intent.ACTION_GET_CONTENT
         i.type = "*/*"
         i.addCategory(Intent.CATEGORY_OPENABLE)
         i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true) // 设置多选
