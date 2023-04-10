@@ -507,6 +507,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"抽牌_找不到牌组_存在类似": {
 				{"未找到牌组，但发现一些相似的:", 1},
 			},
+			"抽牌_分隔符": {
+				{`\n\n`, 1},
+			},
 			"抽牌_结果前缀": {
 				{``, 1},
 			},
@@ -1001,6 +1004,10 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType:   ".draw XXX",
 				ExtraText: "举例: 你从牌堆抽出 xxxx",
 				Vars:      []string{"$t牌组"},
+			},
+			"抽牌_分隔符": {
+				SubType:   ".draw XXX",
+				ExtraText: "多个抽取结果之间的分隔符",
 			},
 			"随机名字": {
 				SubType: ".name/.namednd",
