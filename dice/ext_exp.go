@@ -90,7 +90,7 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 					Key string
 					Val *VMValue
 				}
-				for i, _ := range attrKeys2 {
+				for i := range attrKeys2 {
 					vals = append(vals, struct {
 						Key string
 						Val *VMValue
