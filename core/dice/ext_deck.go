@@ -470,7 +470,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						ReplyToSender(ctx, msg, "请给出要搜索的关键字")
 					}
 				} else {
-					exists, result, _ := deckDraw(ctx, deckName, false)
+					exists, result, _ := deckDraw(ctx, deckName, true)
 					VarSetValueStr(ctx, "$t牌组", deckName)
 
 					if exists {
@@ -493,11 +493,12 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						}
 
 						for i := 1; i < times; i++ {
-							_, r2, _ := deckDraw(ctx, deckName, false)
+							_, r2, _ := deckDraw(ctx, deckName, true)
 							results = append(results, r2)
 						}
 
-						result = strings.Join(results, "\n")
+						sep := DiceFormatTmpl(ctx, "其它:抽牌_分隔符")
+						result = strings.Join(results, sep)
 						prefix := DiceFormatTmpl(ctx, "其它:抽牌_结果前缀")
 						ReplyToSender(ctx, msg, prefix+result)
 					} else {
