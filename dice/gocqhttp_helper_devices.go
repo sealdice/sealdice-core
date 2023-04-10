@@ -1,4 +1,4 @@
-//go:build prod
+//go:build !prod
 
 package dice
 
