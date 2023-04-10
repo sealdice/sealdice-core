@@ -98,18 +98,21 @@ eDice <- ( _dnumber [dD] { p.AddValue("2"); p.AddLeftValueMark() } eDice2 dndDic
          / [dD] !([^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]) sp { p.AddValue("1"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
 
          // WOD规则，左侧个数，a加骰线，m面数，k阈值
-         / wodDicePool [aA] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeWodSetPoints) }) / ([kK] simpleDice2 { p.AddOperator(TypeWodSetThreshold) }) / ([qQ] simpleDice2 { p.AddOperator(TypeWodSetThresholdQ) }) )* { p.AddOperator(TypeDiceWod) }
+         / &{!p.flags.DisableDicePool} wodDicePool [aA] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeWodSetPoints) }) / ([kK] simpleDice2 { p.AddOperator(TypeWodSetThreshold) }) / ([qQ] simpleDice2 { p.AddOperator(TypeWodSetThresholdQ) }) )* { p.AddOperator(TypeDiceWod) }
 
          // 双十字
-         / doubleCrossDicePool [cC] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeDCSetPoints) }) )* { p.AddOperator(TypeDiceDC) }
+         / &{!p.flags.DisableCrossDice} doubleCrossDicePool [cC] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeDCSetPoints) }) )* { p.AddOperator(TypeDiceDC) }
 
-         / eDice2 ( [dD] { p.AddLeftValueMark() } (simpleDice2 / sp {p.AddValue("0");} ) kqDiceOp { p.AddOperator(TypeDice) }
+         / eDice2 ( [dD] { p.AddLeftValueMark() } (simpleDice2 / &{!p.flags.DisableNumDice} sp {p.AddValue("0");} ) kqDiceOp { p.AddOperator(TypeDice) }
          )*
 
 laNumberOrLeftParen <- &(number / '(')
 
 // 这里故意弄成number，因为出现了 .rab射击 读取了射击的值，结果成为 .rab60 这样子的情况
-eDice2 <- [pP] laNumberOrLeftParen eDice3 { p.AddOperator(TypeDicePenalty) }
+eDice2 <- &{!p.flags.DisableBPDice} eDice2x
+         / eDice4
+
+eDice2x <- [pP] laNumberOrLeftParen eDice3 { p.AddOperator(TypeDicePenalty) }
          / [pP] { p.AddValue("1"); p.AddOperator(TypeDicePenalty) }
          / eDice3
 
@@ -190,7 +193,15 @@ st_expr <- st_modify_multi_1
 // est <- eDice / &'(' ? e0
 // est <- e0
 est <- ( &'(' e0 )
-     / !{p.flags.DisableBitwiseOp = true} e0 !{p.flags.DisableBitwiseOp = false}
+     / !{p.flags.DisableBitwiseOp = true}
+       !{p.flags.DisableNumDice = true}
+       !{p.flags.DisableCrossDice = true}
+       !{p.flags.DisableDicePool = true}
+       e0
+       !{p.flags.DisableBitwiseOp = false}
+       !{p.flags.DisableNumDice = false}
+       !{p.flags.DisableCrossDice = false}
+       !{p.flags.DisableDicePool = false}
 
 st_assign_multi <- (st_assign sp ','? sp)+
 
@@ -228,8 +239,10 @@ st_modify_rest <- sp (
 
 st_name1 <- < id_ch0+ ':' id_ch0+ > { p.AddValueStr(text) } // 结尾不带数字
 st_name1r <- < id_ch0+ > { p.AddValueStr(text) } // 结尾不带数字
+
 st_name2 <- < id_ch0 id_ch* (':' id_ch+) > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
 st_name2r <- < id_ch0 id_ch* > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
+           / '\'' < (id_ch0 / [0-9] / ' ' / ':')+ > '\'' { p.AddValueStr(text) } // 任意字符
 
 id_ch0 <- [^!"#$%&\'()*+,-.:;<=>?@\[\\\]^`{|}~ 0-9\t\n\r\36] // 临时去掉一个斜杠，等车卡工具上线
-id_ch <- id_ch0 / [0-9]
+id_ch <- id_ch0 // / [0-9]

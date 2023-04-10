@@ -58,6 +58,7 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 		// 其余按字典序
 		topNum := len(attrKeys)
 		var attrKeys2 []string
+		var attrKeys2v []*VMValue
 
 		vars, _ := mctx.ChVarsGet()
 		_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
@@ -72,13 +73,66 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 					return nil
 				}
 			}
-			attrKeys2 = append(attrKeys2, key)
+			if v, ok := _v.(*VMValue); ok {
+				attrKeys2 = append(attrKeys2, key)
+				attrKeys2v = append(attrKeys2v, v)
+			}
 			return nil
 		})
 
-		// 排序、合并key
-		sort.Strings(attrKeys2)
-		attrKeys = append(attrKeys, attrKeys2...)
+		// 没有pickItem时，按照配置文件排序
+		if len(pickItems) == 0 {
+			switch tmpl.AttrConfig.SortBy {
+			case "value", "value desc":
+				isDesc := tmpl.AttrConfig.SortBy == "value desc"
+				// 首先变换为可排序形式
+				var vals []struct {
+					Key string
+					Val *VMValue
+				}
+				for i, _ := range attrKeys2 {
+					vals = append(vals, struct {
+						Key string
+						Val *VMValue
+					}{
+						Key: attrKeys2[i],
+						Val: attrKeys2v[i],
+					})
+				}
+
+				// Define a custom sorting function
+				sortByValue := func(i, j int) bool {
+					a := vals[i].Val
+					b := vals[j].Val
+					if a.TypeId != b.TypeId {
+						return a.TypeId < b.TypeId
+					}
+					if a.TypeId == VMTypeInt64 {
+						if isDesc {
+							return a.Value.(int64) > b.Value.(int64)
+						}
+						return a.Value.(int64) < b.Value.(int64)
+					}
+					if a.TypeId == VMTypeString {
+						a1, _ := a.ReadString()
+						b1, _ := b.ReadString()
+						return a1 < b1
+					}
+					return true
+				}
+
+				sort.Slice(vals, sortByValue)
+				for _, i := range vals {
+					attrKeys = append(attrKeys, i.Key)
+				}
+			case "name":
+				fallthrough
+			default:
+				// 排序、合并key
+				sort.Strings(attrKeys2)
+				attrKeys = append(attrKeys, attrKeys2...)
+			}
+		}
 
 		if len(pickItems) > 0 {
 			attrKeys = []string{}

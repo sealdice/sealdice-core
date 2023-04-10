@@ -245,6 +245,10 @@ type RollExtraFlags struct {
 	DefaultDiceSideNum int64 // 默认骰子面数
 	DisableBitwiseOp   bool  // 禁用位运算，用于st
 	DisableBlock       bool  // 禁用语句块(实际还禁用赋值语句，暂定名如此)
+	DisableNumDice     bool  // 禁用r2d语法
+	DisableBPDice      bool  // 禁用bp语法
+	DisableCrossDice   bool  // 禁用双十字骰
+	DisableDicePool    bool  // 禁用骰池
 
 	vmDepth    int64                                                                   // 层数
 	StCallback func(_type string, name string, val *VMValue, op string, detail string) // st回调
