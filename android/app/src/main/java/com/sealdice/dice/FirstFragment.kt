@@ -25,9 +25,7 @@ import com.sealdice.dice.databinding.FragmentFirstBinding
 import com.sealdice.dice.utils.Utils
 import com.sealdice.dice.utils.ViewModelMain
 import kotlinx.coroutines.*
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
 import kotlin.system.exitProcess
 
 
@@ -272,8 +270,6 @@ class FirstFragment : Fragment() {
                 if (sharedPreferences?.getBoolean("extract_on_start", true) == true) {
                     ExtractAssets(context).extractResources("sealdice")
                 }
-//                val args = sharedPreferences?.getString("launch_args", "")
-//                execShell("cd sealdice&&./sealdice-core $args\n",true)
                 binding.buttonTut.visibility = View.GONE
                 binding.buttonInput.visibility = View.GONE
                 binding.buttonOutput.visibility = View.GONE
@@ -300,15 +296,6 @@ class FirstFragment : Fragment() {
                     }
                 }
                 launchAliveService(context)
-//                    val alertDialogBuilder = context?.let { it1 ->
-//                        AlertDialog.Builder(
-//                            it1, R.style.Theme_Mshell_DialogOverlay
-//                        )
-//                    }
-//                    alertDialogBuilder?.setTitle("提示")
-//                    alertDialogBuilder?.setMessage("似乎并没有开启任何保活策略，这可能导致后台被清理")
-//                    alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
-//                    alertDialogBuilder?.create()?.show()
 
                 GlobalScope.launch(context = Dispatchers.IO) {
                     for (i in 0..10) {
@@ -375,21 +362,6 @@ class FirstFragment : Fragment() {
         val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
         var executed = false
         if (sharedPreferences != null) {
-//            if (sharedPreferences.getBoolean("alive_notification", true)) {
-//                if (Build.VERSION.SDK_INT >= 28) {
-//                    val permissionState = context.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.FOREGROUND_SERVICE) }
-//                    if (permissionState != PackageManager.PERMISSION_GRANTED) {
-//                        this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.FOREGROUND_SERVICE), 1) }
-//                    }
-//                }
-//                val intentNoti = Intent(context, NotificationService::class.java)
-//                if (Build.VERSION.SDK_INT >= 26) {
-//                    context.startForegroundService(intentNoti)
-//                } else {
-//                    context.startService(intentNoti)
-//                }
-//                executed = true
-//            }
             if (sharedPreferences.getBoolean("alive_media", false)) {
                 val intentMedia = Intent(context, MediaService::class.java)
                 context.startService(intentMedia)
@@ -417,32 +389,6 @@ class FirstFragment : Fragment() {
             }
         }
         return executed
-    }
-    @OptIn(DelicateCoroutinesApi::class)
-    private fun execShell(cmd: String, recordLog: Boolean) {
-        GlobalScope.launch(context = Dispatchers.IO) {
-            val process = ProcessBuilder("sh").redirectErrorStream(true).directory(context?.filesDir?.absolutePath?.let {
-                File(
-                    it
-                )
-            }).start()
-            val os = process.outputStream
-            os.write("cd ${context?.filesDir?.absolutePath}&&".toByteArray())
-            os.write(cmd.toByteArray())
-            os.flush()
-            os.close()
-            val data = process.inputStream
-            val ir = BufferedReader(InputStreamReader(data))
-            while (recordLog) {
-                var line = ir.readLine()
-                while (line != null) {
-                    shellLogs += line
-                    shellLogs += "\n"
-                    line = ir.readLine()
-                }
-                Thread.sleep(1000)
-            }
-        }
     }
 
     /** 删除文件，可以是文件或文件夹
