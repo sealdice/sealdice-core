@@ -16,7 +16,8 @@ func DBCheck(dataDir string) {
 		for rows.Next() {
 			var s string
 			if err := rows.Scan(&s); err != nil {
-				// ...
+				ok = false
+				break
 			}
 			fmt.Println(s)
 			if s == "ok" {
@@ -25,7 +26,7 @@ func DBCheck(dataDir string) {
 		}
 
 		if err := rows.Err(); err != nil {
-			// ...
+			ok = false
 		}
 		return ok
 	}
