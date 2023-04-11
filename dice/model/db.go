@@ -1,9 +1,62 @@
 package model
 
 import (
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"path/filepath"
 )
+
+func DBCheck(dataDir string) {
+	checkDB := func(db *sqlx.DB) bool {
+		rows, err := db.Query("PRAGMA integrity_check")
+		if err != nil {
+			return false
+		}
+		var ok bool
+		for rows.Next() {
+			var s string
+			if err := rows.Scan(&s); err != nil {
+				// ...
+			}
+			fmt.Println(s)
+			if s == "ok" {
+				ok = true
+			}
+		}
+
+		if err := rows.Err(); err != nil {
+			// ...
+		}
+		return ok
+	}
+
+	var ok1, ok2 bool
+	var dataDB *sqlx.DB
+	var logsDB *sqlx.DB
+	var err error
+
+	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
+	dataDB, err = _SQLiteDBInit(dbDataPath, false)
+	if err != nil {
+		fmt.Println("数据库 data.db 无法打开")
+	} else {
+		ok1 = checkDB(dataDB)
+		dataDB.Close()
+	}
+
+	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
+	logsDB, err = _SQLiteDBInit(dbDataLogsPath, false)
+	if err != nil {
+		fmt.Println("数据库 data-logs.db 无法打开")
+	} else {
+		ok2 = checkDB(logsDB)
+		logsDB.Close()
+	}
+
+	fmt.Println("数据库检查结果：")
+	fmt.Println("data.db:", ok1)
+	fmt.Println("data-logs.db:", ok2)
+}
 
 func SQLiteDBInit(dataDir string) (dataDB *sqlx.DB, logsDB *sqlx.DB, err error) {
 	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
