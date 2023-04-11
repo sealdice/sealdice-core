@@ -363,12 +363,13 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 		}
 	}
 
-	d.JsScriptList = append(d.JsScriptList, jsInfo)
 	_, err = d.JsRequire.Require(s)
 	if err != nil {
 		errText := err.Error()
 		jsInfo.ErrText = errText
 		d.Logger.Error("读取脚本失败(解析失败): ", errText)
+	} else {
+		d.JsScriptList = append(d.JsScriptList, jsInfo)
 	}
 }
 

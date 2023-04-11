@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
 	//_ "net/http/pprof"
 	"os"
@@ -137,7 +138,7 @@ func main() {
 		DoUpdateOthers         bool   `long:"do-update-others" description:"linux/mac自动升级用，不要在任何情况下主动调用"`
 		Delay                  int64  `long:"delay"`
 		JustForTest            bool   `long:"just-for-test"`
-		//DBCheck                bool   `long:"db-check" description:"检查数据库是否有问题"`
+		DBCheck                bool   `long:"db-check" description:"检查数据库是否有问题"`
 	}
 
 	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
@@ -150,10 +151,10 @@ func main() {
 		fmt.Println(dice.VERSION)
 		return
 	}
-	//if opts.DBCheck {
-	//	model.DBCheck("data/default")
-	//	return
-	//}
+	if opts.DBCheck {
+		model.DBCheck("data/default")
+		return
+	}
 	deleteOldWrongFile()
 
 	if opts.Delay != 0 {
