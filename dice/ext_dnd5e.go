@@ -522,7 +522,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
 						text = m[3] + text
 					}
-					r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
+					r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
 					if err != nil {
 						ReplyToSender(mctx, msg, "无法解析属性: "+attrName)
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -651,12 +651,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							}
 						}
 
-						vOld, _, _ := mctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
+						vOld, _, _ := mctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
 						theOldValue := vOld.Value.(int64)
 
 						leftValue.Value = newVal
 
-						vNew, _, _ := mctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{})
+						vNew, _, _ := mctx.Dice.ExprEvalBase(attrName, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
 						theNewValue := vNew.Value.(int64)
 
 						baseValue := ""
@@ -991,7 +991,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
 						text = m[3] + text
 					}
-					r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{})
+					r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
 					if err != nil {
 						ReplyToSender(mctx, msg, "无法解析属性: "+attrNameRaw)
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -1053,12 +1053,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						newVal = leftValue.Value.(int64) + r.Value.(int64)
 
-						vOld, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
+						vOld, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
 						theOldValue := vOld.Value.(int64)
 
 						leftValue.Value = newVal
 
-						vNew, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{})
+						vNew, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
 						theNewValue := vNew.Value.(int64)
 
 						baseValue := ""
