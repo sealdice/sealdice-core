@@ -905,14 +905,12 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	return false
 }
 
-func (s *IMSession) OnMessageSend(ctx *MsgContext, messageType string, groupId string, text string, flag string) {
-	if s.ServiceAtNew[groupId] != nil {
-		for _, i := range s.Parent.ExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, messageType, groupId, text, flag)
-				})
-			}
+func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
+	for _, i := range s.Parent.ExtList {
+		if i.OnMessageSend != nil {
+			i.callWithJsCheck(ctx.Dice, func() {
+				i.OnMessageSend(ctx, msg, flag)
+			})
 		}
 	}
 }

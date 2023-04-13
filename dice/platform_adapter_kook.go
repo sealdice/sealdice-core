@@ -236,12 +236,29 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userId string, text
 		return
 	}
 	pa.SendToChannelRaw(channel.Code, text, true)
-	pa.Session.OnMessageSend(ctx, "private", userId, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "KOOK",
+		MessageType: "private",
+		Message:     text,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
 	pa.SendToChannelRaw(ExtractKookChannelId(groupId), text, false)
-	pa.Session.OnMessageSend(ctx, "group", groupId, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "KOOK",
+		MessageType: "group",
+		Message:     text,
+		GroupId:     groupId,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterKook) MemberBan(groupId string, userId string, last int64) {
