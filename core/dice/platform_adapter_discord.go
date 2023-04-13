@@ -153,14 +153,31 @@ func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userId string, t
 		return
 	}
 	pa.sendToChannelRaw(ch.ID, text)
-	pa.Session.OnMessageSend(ctx, "private", userId, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "DISCORD",
+		MessageType: "private",
+		Message:     text,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 // SendToGroup 发送群聊（实际上是频道）消息
 func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
 	//_, err := pa.IntentSession.ChannelMessageSend(ExtractDiscordChannelId(groupId), text)
 	pa.sendToChannelRaw(groupId, text)
-	pa.Session.OnMessageSend(ctx, "group", groupId, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "DISCORD",
+		MessageType: "group",
+		Message:     text,
+		GroupId:     groupId,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string) {
