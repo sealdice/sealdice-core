@@ -611,14 +611,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 		OnLoad: func() {
 			_ = os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "log-exports"), 0755)
 		},
-		OnMessageSend: func(ctx *MsgContext, messageType string, userId string, text string, flag string) {
+		OnMessageSend: func(ctx *MsgContext, msg *Message, flag string) {
 			// 记录骰子发言
 			if flag == "skip" {
 				return
 			}
 			privateCommandListenCheck()
-
-			if messageType == "private" && ctx.CommandHideFlag != "" {
+			if msg.MessageType == "private" && ctx.CommandHideFlag != "" {
 				if _, exists := privateCommandListen[ctx.CommandId]; exists {
 					session := ctx.Session
 					group := session.ServiceAtNew[ctx.CommandHideFlag]
@@ -628,7 +627,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IMUserId:    UserIdExtract(ctx.EndPoint.UserId),
 						UniformId:   ctx.EndPoint.UserId,
 						Time:        time.Now().Unix(),
-						Message:     text,
+						Message:     msg.Message,
 						IsDice:      true,
 						CommandId:   ctx.CommandId,
 						CommandInfo: ctx.CommandInfo,
@@ -638,9 +637,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 			}
 
-			if IsCurGroupBotOnById(ctx.Session, ctx.EndPoint, messageType, userId) {
+			if IsCurGroupBotOnById(ctx.Session, ctx.EndPoint, msg.MessageType, msg.GroupId) {
 				session := ctx.Session
-				group := session.ServiceAtNew[userId]
+				group := session.ServiceAtNew[msg.GroupId]
 				if group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					if ctx.CommandHideFlag != "" {
@@ -653,7 +652,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IMUserId:    UserIdExtract(ctx.EndPoint.UserId),
 						UniformId:   ctx.EndPoint.UserId,
 						Time:        time.Now().Unix(),
-						Message:     text,
+						Message:     msg.Message,
 						IsDice:      true,
 						CommandId:   ctx.CommandId,
 						CommandInfo: ctx.CommandInfo,
