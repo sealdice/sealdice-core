@@ -299,12 +299,29 @@ func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
 
 func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	pa.SendToChatRaw(ExtractTelegramUserId(uid), text)
-	pa.Session.OnMessageSend(ctx, "private", uid, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "TG",
+		MessageType: "private",
+		Message:     text,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterTelegram) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	pa.SendToChatRaw(ExtractTelegramGroupId(uid), text)
-	pa.Session.OnMessageSend(ctx, "group", uid, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "TG",
+		MessageType: "group",
+		Message:     text,
+		GroupId:     uid,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 type RequestFileDataImpl struct {

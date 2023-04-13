@@ -803,7 +803,15 @@ func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userId string, te
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
 			i.callWithJsCheck(ctx.Dice, func() {
-				i.OnMessageSend(ctx, "private", userId, text, flag)
+				i.OnMessageSend(ctx, &Message{
+					Platform:    "QQ",
+					Message:     text,
+					MessageType: "private",
+					Sender: SenderBase{
+						UserId:   pa.EndPoint.UserId,
+						Nickname: pa.EndPoint.Nickname,
+					},
+				}, flag)
 			})
 		}
 	}
@@ -830,7 +838,16 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupId string, te
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, "group", groupId, text, flag)
+					i.OnMessageSend(ctx, &Message{
+						Platform:    "QQ",
+						Message:     text,
+						MessageType: "group",
+						GroupId:     groupId,
+						Sender: SenderBase{
+							UserId:   pa.EndPoint.UserId,
+							Nickname: pa.EndPoint.Nickname,
+						},
+					}, flag)
 				})
 			}
 		}

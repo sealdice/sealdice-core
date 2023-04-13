@@ -198,7 +198,15 @@ func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text st
 		pa.Session.Parent.Logger.Errorf("DODO 发送私聊消息失败：%v\n", err)
 		return
 	}
-	pa.Session.OnMessageSend(ctx, "private", uid, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		MessageType: "private",
+		Platform:    "DODO",
+		Message:     text,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterDodo) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
@@ -207,7 +215,16 @@ func (pa *PlatformAdapterDodo) SendToGroup(ctx *MsgContext, uid string, text str
 		pa.Session.Parent.Logger.Errorf("DODO 发送消息失败：%v\n", err)
 		return
 	}
-	pa.Session.OnMessageSend(ctx, "group", uid, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		MessageType: "group",
+		Platform:    "DODO",
+		Message:     text,
+		GroupId:     uid,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
