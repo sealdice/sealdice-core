@@ -15,8 +15,6 @@ captures/
 .cxx/
 data
 release/
-sealdice-core
-frontend
-go-cqhttp
+assets
 *.apk
 output.json

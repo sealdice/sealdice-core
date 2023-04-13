@@ -12,8 +12,8 @@ android {
         minSdk 23
         //noinspection ExpiredTargetSdkVersion
         targetSdk 28
-        versionCode 29
-        versionName "v0.4.9-rc"
+        versionCode 30
+        versionName "v0.4.10-rc"
         buildConfigField "String", "DOCUMENTS_AUTHORITY", "\"com.sealdice.dice.authorities\""
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }

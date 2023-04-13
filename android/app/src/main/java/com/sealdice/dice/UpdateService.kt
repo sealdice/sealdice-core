@@ -42,17 +42,15 @@ class UpdateService : Service() {
             .build()
         try {
             val response = client.newCall(request).execute()
-            val jsonData = response.body?.string()
-            val jsonObject = jsonData?.let { JSONObject(it) }
-            val latestVersion = jsonObject?.getString("version")
+            val jsonData = response.body.string()
+            val jsonObject = JSONObject(jsonData)
+            val latestVersion = jsonObject.getString("version")
             Log.e("--Service--","已经获取了version${latestVersion}")
             // Check if current version is up-to-date
             val currentVersion = BuildConfig.VERSION_NAME
             if (latestVersion != currentVersion) {
                 // Show update notification
-                if (latestVersion != null) {
-                    showUpdateNotification(latestVersion)
-                }
+                showUpdateNotification(latestVersion)
             } else {
                 // Current version is up-to-date
             }
@@ -83,7 +81,7 @@ class UpdateService : Service() {
             val intent = Intent()
             intent.action = "android.intent.action.VIEW"
             intent.data = uri
-            val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+            val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
             builder.setContentIntent(pendingIntent)
             // Show the notification
             notificationManager.notify(NOTIFICATION_ID, builder.build())
@@ -101,7 +99,7 @@ class UpdateService : Service() {
         val intent = Intent()
         intent.action = "android.intent.action.VIEW"
         intent.data = uri
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
         builder.setContentIntent(pendingIntent)
         // Show the notification
         notificationManager.notify(NOTIFICATION_ID, builder.build())
