@@ -30,8 +30,8 @@ class ProcessService : Service(){
     }
     fun stopProcess() {
         isRunning = false
-        Thread.sleep(5)
         process.destroy()
+        process.waitFor()
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (Build.VERSION.SDK_INT >= 26) {

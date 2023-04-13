@@ -14,11 +14,6 @@
         android:title="@string/action_official_website"
         app:showAsAction="never" />
     <item
-        android:id="@+id/action_battery_setting"
-        android:orderInCategory="100"
-        android:title="@string/action_battery_setting"
-        app:showAsAction="never" />
-    <item
         android:id="@+id/action_check_update"
         android:orderInCategory="100"
         android:title="@string/action_check_update"

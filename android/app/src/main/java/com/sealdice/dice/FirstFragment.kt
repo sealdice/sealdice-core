@@ -39,7 +39,6 @@ class FirstFragment : Fragment() {
     // This property is only valid between onCreateView and
     // onDestroyView.
     private val binding get() = _binding
-    private var shellLogs = ""
     private var isBound = false
     private var processService: ProcessService? = null
 
@@ -66,7 +65,6 @@ class FirstFragment : Fragment() {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        var isrun = false
         val versionName = BuildConfig.VERSION_NAME
         val packageName = BuildConfig.APPLICATION_ID
         val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
@@ -266,7 +264,6 @@ class FirstFragment : Fragment() {
                 }
                 alertDialogBuilder?.create()?.show()
             } else {
-                isrun = true
                 if (sharedPreferences?.getBoolean("extract_on_start", true) == true) {
                     ExtractAssets(context).extractResources("sealdice")
                 }
@@ -322,7 +319,19 @@ class FirstFragment : Fragment() {
                 }
             }
             binding.buttonSecond.setOnClickListener {
+                val builder: AlertDialog.Builder? = context?.let { it1 -> AlertDialog.Builder(it1) }
+                builder?.setCancelable(false) // if you want user to wait for some process to finish,
+                builder?.setView(R.layout.layout_loading_dialog)
+                val dialog = builder?.create()
+                dialog?.show()
+                GlobalScope.launch(context = Dispatchers.IO){
+                    processService?.stopProcess()
+                    withContext(Dispatchers.Main){
+                        dialog?.dismiss()
+                    }
+                }
                 binding.buttonSecond.visibility = View.GONE
+                binding.buttonConsole.visibility = View.GONE
                 activity?.unbindService(connection)
                 this.activity?.stopService(Intent(context, ProcessService::class.java))
                 this.activity?.stopService(Intent(context, MediaService::class.java))
@@ -330,29 +339,6 @@ class FirstFragment : Fragment() {
                 this.activity?.stopService(Intent(context, FloatWindowService::class.java))
                 this.activity?.stopService(Intent(context, HeartbeatService::class.java))
                 this.activity?.stopService(Intent(context, UpdateService::class.java))
-                val builder: AlertDialog.Builder? = context?.let { it1 -> AlertDialog.Builder(it1) }
-                builder?.setCancelable(false) // if you want user to wait for some process to finish,
-                builder?.setView(R.layout.layout_loading_dialog)
-                val dialog = builder?.create()
-                dialog?.show()
-                GlobalScope.launch(context = Dispatchers.IO){
-                    for (i in 0..5) {
-                        Thread.sleep(1000)
-                    }
-                    withContext(Dispatchers.Main){
-                        dialog?.dismiss()
-                    }
-                }
-                val alertDialogBuilder = context?.let { it1 ->
-                    AlertDialog.Builder(
-                        it1, R.style.Theme_Mshell_DialogOverlay
-                    )
-                }
-                alertDialogBuilder?.setTitle("提示")
-                alertDialogBuilder?.setMessage("请等到ui彻底无法打开后再点退出！")
-                alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
-                }
-                alertDialogBuilder?.create()?.show()
                 binding.buttonExit.visibility = View.VISIBLE
             }
         }
