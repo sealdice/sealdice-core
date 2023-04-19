@@ -36,11 +36,9 @@ android {
     buildFeatures {
         viewBinding true
     }
-    lintOptions {
-        checkReleaseBuilds false
-        // Or, if you prefer, you can continue to check for errors in release builds,
-        // but continue the build even when errors are found:
+    lint {
         abortOnError false
+        checkReleaseBuilds false
     }
 }
 dependencies {
@@ -48,8 +46,8 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.8.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.navigation:navigation-fragment-ktx:2.6.0-alpha09'
-    implementation 'androidx.navigation:navigation-ui-ktx:2.6.0-alpha09'
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.6.0-beta01'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.6.0-beta01'
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4"
     implementation 'androidx.core:core:1.10.0'
     implementation 'androidx.preference:preference:1.2.0'
