@@ -7,7 +7,7 @@
           class="upload"
           action=""
           multiple
-          accept="application/json, .yaml, .yml, .deck"
+
           :before-upload="beforeUpload"
           :file-list="fileList"
         >
