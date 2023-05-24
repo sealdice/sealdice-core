@@ -102,6 +102,16 @@ class DebugActivity : AppCompatActivity() {
         findViewById<Button>(R.id.DEBUG_crash).setOnClickListener {
             throw Exception("DEBUG:Crash")
         }
+        findViewById<Button>(R.id.DEBUG_button_info).setOnClickListener {
+            val alertDialogBuilder = androidx.appcompat.app.AlertDialog.Builder(
+                this, R.style.Theme_Mshell_DialogOverlay
+            )
+            alertDialogBuilder.setTitle("DEBUG:Info")
+            alertDialogBuilder.setMessage("Version:"+BuildConfig.VERSION_NAME+"\nBuild:"+BuildConfig.VERSION_CODE+"\nPackage:"+packageName)
+            alertDialogBuilder.setPositiveButton("确定") { _: android.content.DialogInterface, _: Int ->
+            }
+            alertDialogBuilder.create().show()
+        }
         findViewById<ImageView>(R.id.DEBUG_app_icon).setOnClickListener {
             it.animate().scaleX(1.2f).scaleY(1.2f).setDuration(100).withEndAction {
                 it.animate().scaleX(1f).scaleY(1f).setDuration(100).start()

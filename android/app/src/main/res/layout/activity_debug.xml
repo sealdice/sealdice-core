@@ -79,6 +79,16 @@
             android:gravity="center"
             android:text="RUNNING SERVICES"
             app:layout_constraintTop_toTopOf="parent" />
+        <Button
+            android:id="@+id/DEBUG_button_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="400dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:gravity="center"
+            android:text="INFO"
+            app:layout_constraintTop_toTopOf="parent" />
         <ImageView
             android:id="@+id/DEBUG_app_icon"
             app:layout_constraintEnd_toEndOf="parent"

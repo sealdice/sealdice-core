@@ -4,6 +4,7 @@ import android.content.*
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -71,6 +72,24 @@ class MainActivity : AppCompatActivity() {
         // Inflate the menu; this adds items to the action bar if it is present.
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
+    }
+
+    override fun onPostCreate(savedInstanceState: Bundle?, persistentState: PersistableBundle?) {
+        super.onPostCreate(savedInstanceState, persistentState)
+        if (this.packageName != "com.sealdice.dice") {
+            val alertDialogBuilder = AlertDialog.Builder(this,R.style.Theme_Mshell_DialogOverlay)
+            alertDialogBuilder.setTitle("提示")
+            alertDialogBuilder.setMessage("检测到您正在使用非官方版本或多开软件，可能会导致一些问题，建议您使用官方版本")
+            alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int -> }
+            alertDialogBuilder.setNegativeButton("前往官网") { _: DialogInterface, _: Int ->
+                val uri = Uri.parse("https://dice.weizaima.com")
+                val intent = Intent()
+                intent.action = "android.intent.action.VIEW"
+                intent.data = uri
+                startActivity(intent)
+            }
+            alertDialogBuilder.create().show()
+        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
