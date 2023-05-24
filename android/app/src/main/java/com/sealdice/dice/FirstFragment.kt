@@ -1,6 +1,7 @@
 package com.sealdice.dice
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -16,6 +17,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.finishAffinity
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
@@ -131,127 +133,15 @@ class FirstFragment : Fragment() {
             alertDialogBuilder?.create()?.show()
         }
         binding.buttonOutput.setOnClickListener {
-            FileWrite.FileCount = 0
-            val permissionState =
-                context?.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.WRITE_EXTERNAL_STORAGE) }
-            if (permissionState == PackageManager.PERMISSION_GRANTED) {
-//                Toast.makeText(context, "已授权！", Toast.LENGTH_LONG).show()
-                val builder: AlertDialog.Builder? = context?.let { it1 -> AlertDialog.Builder(it1, R.style.Theme_Mshell_DialogOverlay) }
-                builder?.setCancelable(false) // if you want user to wait for some process to finish,
-                builder?.setView(R.layout.layout_loading_dialog)
-                val dialog = builder?.create()
-                dialog?.show()
-                GlobalScope.launch(context = Dispatchers.IO) {
-                    context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice/" }
-                        ?.let { it2 -> File(it2) }
-                        ?.let { it3 -> FileWrite.copyFolder(it3,File("${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/")) }
-                    dialog?.dismiss()
-                    val alertDialogBuilder = context?.let { it1 ->
-                        AlertDialog.Builder(
-                            it1, R.style.Theme_Mshell_DialogOverlay
-                        )
-                    }
-                    alertDialogBuilder?.setTitle("提示")
-                    alertDialogBuilder?.setMessage("所有内部数据已经导出至\n"+"${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/\n共${FileWrite.FileCount}个文件")
-                    alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int -> }
-                    withContext(Dispatchers.Main) {
-                        alertDialogBuilder?.create()?.show()
-                    }
-                }
-            } else {
-                this.view?.let { it2 ->
-                    context?.let { it1 ->
-                        Snackbar.make(
-                            it1, it2,"未获得文件权限！", Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-                this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE), 1) }
-                val alertDialogBuilder = context?.let { it1 ->
-                    AlertDialog.Builder(
-                        it1
-                    )
-                }
-                alertDialogBuilder?.setTitle("提示")
-                alertDialogBuilder?.setMessage("请授权文件读写权限以使用此功能\n授权后请重试")
-                alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
-                alertDialogBuilder?.create()?.show()
-            }
+            outputData()
         }
         binding.buttonInput.setOnClickListener {
-            val alertDialogBuilder = context?.let { it1 ->
-                AlertDialog.Builder(
-                    it1, R.style.Theme_Mshell_DialogOverlay
-                )
-            }
-            alertDialogBuilder?.setTitle("警告")
-            alertDialogBuilder?.setMessage("将从\n"+"${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/\n中导入数据，内部存储中所有的重复文件将被覆盖，覆盖后将无法恢复\n返回请按”取消“ 继续请按”确定“")
-            alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
-                FileWrite.FileCount = 0
-                val permissionState =
-                    context?.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.READ_EXTERNAL_STORAGE) }
-                if (permissionState == PackageManager.PERMISSION_GRANTED) {
-                    val builder: AlertDialog.Builder? = context?.let { it1 -> AlertDialog.Builder(it1) }
-                    builder?.setCancelable(false) // if you want user to wait for some process to finish,
-                    builder?.setView(R.layout.layout_loading_dialog)
-                    val dialog = builder?.create()
-                    dialog?.show()
-                    GlobalScope.launch(context = Dispatchers.IO) {
-                        context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice" }?.let { it2 ->
-                            File(
-                                it2
-                            )
-                        }?.let { it3 ->
-                            FileWrite.copyFolder(File("${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/"),
-                                it3
-                            )
-                        }
-                        dialog?.dismiss()
-                        withContext(Dispatchers.Main) {
-                            context?.let { it1 ->
-                                Snackbar.make(
-                                    it1, view,"导入了${FileWrite.FileCount}个文件", Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    }
-                } else {
-                    context?.let { it1 ->
-                        Snackbar.make(
-                            it1, view,"未获得文件权限！", Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE), 1) }
-                    val alertDialogBuilder2 = context?.let { it1 ->
-                        AlertDialog.Builder(
-                            it1, R.style.Theme_Mshell_DialogOverlay
-                        )
-                    }
-                    alertDialogBuilder2?.setTitle("提示")
-                    alertDialogBuilder2?.setMessage("请授权文件读写权限以使用此功能\n授权后请重试")
-                    alertDialogBuilder2?.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
-                    alertDialogBuilder2?.create()?.show()
-                }
-            }
-            alertDialogBuilder?.setNegativeButton("取消") {_: DialogInterface, _: Int ->}
-            alertDialogBuilder?.create()?.show()
+            inputData(view)
         }
         binding.buttonFirst.setOnClickListener {
             val intentBtr = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
             intentBtr.data = Uri.parse("package:$packageName")
             startActivity(intentBtr)
-            if (BuildConfig.DEBUG) {
-                val alertDialogBuilder = context?.let { it1 ->
-                    AlertDialog.Builder(
-                        it1, R.style.Theme_Mshell_DialogOverlay
-                    )
-                }
-                alertDialogBuilder?.setTitle("DEBUG")
-                alertDialogBuilder?.setMessage("Support 64 abis:"+Build.SUPPORTED_64_BIT_ABIS.contentToString()+"\nSupport 32 abis:"+Build.SUPPORTED_32_BIT_ABIS.contentToString()+"\nSupport abis:"+Build.SUPPORTED_ABIS.contentToString())
-                alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
-                }
-                alertDialogBuilder?.create()?.show()
-            }
             if (processService?.isRunning() == true) {
                 val alertDialogBuilder = context?.let { it1 ->
                     AlertDialog.Builder(
@@ -284,13 +174,11 @@ class FirstFragment : Fragment() {
                 }
                 val intentNoti = Intent(context, ProcessService::class.java)
                 if (Build.VERSION.SDK_INT >= 26) {
-                    context?.startForegroundService(intentNoti).also { _ ->
-                        activity?.bindService(intentNoti, connection, Context.BIND_AUTO_CREATE)
-                    }
+                    context?.startForegroundService(intentNoti)
+                    activity?.bindService(intentNoti, connection, Context.BIND_IMPORTANT)
                 } else {
-                    context?.startService(intentNoti).also { _ ->
-                        activity?.bindService(intentNoti, connection, Context.BIND_AUTO_CREATE)
-                    }
+                    context?.startService(intentNoti)
+                    activity?.bindService(intentNoti, connection, Context.BIND_IMPORTANT)
                 }
                 launchAliveService(context)
 
@@ -304,43 +192,200 @@ class FirstFragment : Fragment() {
                     withContext(Dispatchers.Main){
                         binding.textviewFirst.text = "启动完成（或者失败）"
                     }
-                    val address = sharedPreferences?.getString("ui_address", "http://127.0.0.1:3211")
-                    if (sharedPreferences?.getBoolean("use_internal_webview", true) == true) {
-                        val intent = Intent(context, WebViewActivity::class.java)
-                        intent.putExtra("url", address)
-                        startActivity(intent)
-                    } else {
-                        val uri = Uri.parse(address)
-                        val intent = Intent()
-                        intent.action = "android.intent.action.VIEW"
-                        intent.data = uri
-                        startActivity(intent)
+                    if (sharedPreferences?.getBoolean("auto_launch_ui", true) == true) {
+                        val address = sharedPreferences.getString("ui_address", "http://127.0.0.1:3211")
+                        if (sharedPreferences.getBoolean("use_internal_webview", true)) {
+                            val intent = Intent(context, WebViewActivity::class.java)
+                            intent.putExtra("url", address)
+                            startActivity(intent)
+                        } else {
+                            val uri = Uri.parse(address)
+                            val intent = Intent()
+                            intent.action = "android.intent.action.VIEW"
+                            intent.data = uri
+                            startActivity(intent)
+                        }
                     }
                 }
             }
-            binding.buttonSecond.setOnClickListener {
+        }
+        binding.buttonSecond.setOnClickListener {
+            val builder: AlertDialog.Builder? = context?.let { it1 -> AlertDialog.Builder(it1) }
+            builder?.setCancelable(false)
+            builder?.setView(R.layout.layout_loading_dialog)
+            val dialog = builder?.create()
+            dialog?.show()
+            GlobalScope.launch(context = Dispatchers.IO) {
+                processService?.stopProcess()
+                try {
+                    this@FirstFragment.activity?.unbindService(connection)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                this@FirstFragment.activity?.stopService(Intent(context, ProcessService::class.java))
+                this@FirstFragment.activity?.stopService(Intent(context, MediaService::class.java))
+                this@FirstFragment.activity?.stopService(Intent(context, WakeLockService::class.java))
+                this@FirstFragment.activity?.stopService(Intent(context, FloatWindowService::class.java))
+                this@FirstFragment.activity?.stopService(Intent(context, HeartbeatService::class.java))
+                this@FirstFragment.activity?.stopService(Intent(context, UpdateService::class.java))
+                withContext(Dispatchers.Main){
+                    dialog?.dismiss()
+                }
+            }
+            binding.buttonSecond.visibility = View.GONE
+            binding.buttonConsole.visibility = View.GONE
+            binding.buttonExit.visibility = View.VISIBLE
+        }
+        val manager: ActivityManager = context?.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
+            if (service.service.className == ProcessService::class.java.name) {
+                binding.buttonTut.visibility = View.GONE
+                binding.buttonInput.visibility = View.GONE
+                binding.buttonOutput.visibility = View.GONE
+                binding.buttonReset.visibility = View.GONE
+                binding.buttonSecond.visibility = View.VISIBLE
+                binding.buttonThird.visibility = View.VISIBLE
+                binding.buttonConsole.visibility = View.VISIBLE
+                binding.buttonFirst.visibility = View.GONE
+                val intentNoti = Intent(context, ProcessService::class.java)
+                activity?.bindService(intentNoti, connection, Context.BIND_IMPORTANT)
+                val alertDialogBuilder = context?.let { it1 ->
+                    AlertDialog.Builder(
+                        it1, R.style.Theme_Mshell_DialogOverlay
+                    )
+                }
+                alertDialogBuilder?.setTitle("提示")
+                alertDialogBuilder?.setMessage("检测到海豹核心已经在运行中，已自动链接")
+                alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+                }
+                alertDialogBuilder?.create()?.show()
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        try {
+            this@FirstFragment.activity?.unbindService(connection)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun inputData(view: View) {
+        val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
+        val packageName = context?.packageName
+        val alertDialogBuilder = context?.let { it1 ->
+            AlertDialog.Builder(
+                it1, R.style.Theme_Mshell_DialogOverlay
+            )
+        }
+        alertDialogBuilder?.setTitle("警告")
+        alertDialogBuilder?.setMessage("将从\n"+"${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/\n中导入数据，内部存储中所有的重复文件将被覆盖，覆盖后将无法恢复\n返回请按”取消“ 继续请按”确定“")
+        alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+            FileWrite.FileCount = 0
+            val permissionState =
+                context?.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.READ_EXTERNAL_STORAGE) }
+            if (permissionState == PackageManager.PERMISSION_GRANTED) {
                 val builder: AlertDialog.Builder? = context?.let { it1 -> AlertDialog.Builder(it1) }
                 builder?.setCancelable(false) // if you want user to wait for some process to finish,
                 builder?.setView(R.layout.layout_loading_dialog)
                 val dialog = builder?.create()
                 dialog?.show()
-                GlobalScope.launch(context = Dispatchers.IO){
-                    processService?.stopProcess()
-                    withContext(Dispatchers.Main){
-                        dialog?.dismiss()
+                GlobalScope.launch(context = Dispatchers.IO) {
+                    if (sharedPreferences?.getBoolean("sync_mode",false) == true) {
+                        delete(FileWrite.getPrivateFileDir(context!!)+"sealdice/")
+                    }
+                    context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice" }?.let { it2 ->
+                        File(
+                            it2
+                        )
+                    }?.let { it3 ->
+                        FileWrite.copyFolder(File("${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/"),
+                            it3
+                        )
+                    }
+                    dialog?.dismiss()
+                    withContext(Dispatchers.Main) {
+                        context?.let { it1 ->
+                            Snackbar.make(
+                                it1, view,"导入了${FileWrite.FileCount}个文件", Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
                 }
-                binding.buttonSecond.visibility = View.GONE
-                binding.buttonConsole.visibility = View.GONE
-                activity?.unbindService(connection)
-                this.activity?.stopService(Intent(context, ProcessService::class.java))
-                this.activity?.stopService(Intent(context, MediaService::class.java))
-                this.activity?.stopService(Intent(context, WakeLockService::class.java))
-                this.activity?.stopService(Intent(context, FloatWindowService::class.java))
-                this.activity?.stopService(Intent(context, HeartbeatService::class.java))
-                this.activity?.stopService(Intent(context, UpdateService::class.java))
-                binding.buttonExit.visibility = View.VISIBLE
+            } else {
+                context?.let { it1 ->
+                    Snackbar.make(
+                        it1, view,"未获得文件权限！", Toast.LENGTH_SHORT
+                    ).show()
+                }
+                this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE), 1) }
+                val alertDialogBuilder2 = context?.let { it1 ->
+                    AlertDialog.Builder(
+                        it1, R.style.Theme_Mshell_DialogOverlay
+                    )
+                }
+                alertDialogBuilder2?.setTitle("提示")
+                alertDialogBuilder2?.setMessage("请授权文件读写权限以使用此功能\n授权后请重试")
+                alertDialogBuilder2?.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
+                alertDialogBuilder2?.create()?.show()
             }
+        }
+        alertDialogBuilder?.setNegativeButton("取消") {_: DialogInterface, _: Int ->}
+        alertDialogBuilder?.create()?.show()
+    }
+    private fun outputData() {
+        val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
+        val packageName = context?.packageName
+        FileWrite.FileCount = 0
+        val permissionState =
+            context?.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.WRITE_EXTERNAL_STORAGE) }
+        if (permissionState == PackageManager.PERMISSION_GRANTED) {
+//                Toast.makeText(context, "已授权！", Toast.LENGTH_LONG).show()
+            val builder: AlertDialog.Builder? = context?.let { it1 -> AlertDialog.Builder(it1, R.style.Theme_Mshell_DialogOverlay) }
+            builder?.setCancelable(false) // if you want user to wait for some process to finish,
+            builder?.setView(R.layout.layout_loading_dialog)
+            val dialog = builder?.create()
+            dialog?.show()
+            GlobalScope.launch(context = Dispatchers.IO) {
+                if (sharedPreferences?.getBoolean("sync_mode",false) == true) {
+                    delete(FileWrite.SDCardDir + "/Documents/${packageName}/sealdice/")
+                }
+                context?.let { it1 -> FileWrite.getPrivateFileDir(it1)+"sealdice/" }
+                    ?.let { it2 -> File(it2) }
+                    ?.let { it3 -> FileWrite.copyFolder(it3,File("${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/")) }
+                dialog?.dismiss()
+                val alertDialogBuilder = context?.let { it1 ->
+                    AlertDialog.Builder(
+                        it1, R.style.Theme_Mshell_DialogOverlay
+                    )
+                }
+                alertDialogBuilder?.setTitle("提示")
+                alertDialogBuilder?.setMessage("所有内部数据已经导出至\n"+"${FileWrite.SDCardDir}/Documents/${packageName}/sealdice/\n共${FileWrite.FileCount}个文件")
+                alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int -> }
+                withContext(Dispatchers.Main) {
+                    alertDialogBuilder?.create()?.show()
+                }
+            }
+        } else {
+            this.view?.let { it2 ->
+                context?.let { it1 ->
+                    Snackbar.make(
+                        it1, it2,"未获得文件权限！", Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE), 1) }
+            val alertDialogBuilder = context?.let { it1 ->
+                AlertDialog.Builder(
+                    it1
+                )
+            }
+            alertDialogBuilder?.setTitle("提示")
+            alertDialogBuilder?.setMessage("请授权文件读写权限以使用此功能\n授权后请重试")
+            alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
+            alertDialogBuilder?.create()?.show()
         }
     }
 
@@ -359,10 +404,13 @@ class FirstFragment : Fragment() {
                 executed = true
             }
             if (sharedPreferences.getBoolean("alive_heartbeat", false)) {
-                val intentHeartbeat = Intent(context, HeartbeatService::class.java)
-                context.startService(intentHeartbeat)
-                executed = true
+                sharedPreferences.edit(commit = true) { putBoolean("alive_heartbeat", false) }
             }
+//            if (sharedPreferences.getBoolean("alive_heartbeat", false)) {
+//                val intentHeartbeat = Intent(context, HeartbeatService::class.java)
+//                context.startService(intentHeartbeat)
+//                executed = true
+//            }
             if (sharedPreferences.getBoolean("alive_floatwindow", false)) {
                 context.startService(Intent(context, FloatWindowService::class.java))
                 this.activity?.let {

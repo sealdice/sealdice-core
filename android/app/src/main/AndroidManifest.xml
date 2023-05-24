@@ -38,6 +38,7 @@
         <activity android:name=".WebViewActivity" />
         <activity android:name=".AboutActivity" />
         <activity android:name=".NotificationActivity" />
+        <activity android:name=".DebugActivity" />
         <provider
             android:name=".utils.LocalStorageProvider"
             android:authorities="com.sealdice.dice.authorities"

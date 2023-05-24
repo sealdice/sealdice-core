@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import java.util.concurrent.TimeUnit
 
 
 class ProcessService : Service(){
@@ -30,8 +32,11 @@ class ProcessService : Service(){
     }
     fun stopProcess() {
         isRunning = false
-        process.destroy()
-        process.waitFor()
+        if (process.isAlive) {
+            Log.e("ProcessService", "stopProcess")
+            process.destroyForcibly()
+            process.waitFor(10, TimeUnit.SECONDS)
+        }
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (Build.VERSION.SDK_INT >= 26) {
@@ -58,7 +63,13 @@ class ProcessService : Service(){
         }
         if (!isRunning) {
             isRunning = true
-            process = processBuilder.directory(File(this.filesDir.absolutePath)).start()
+            if (processBuilder.directory(File(this.filesDir.absolutePath)).environment().containsKey("PATH")) {
+                Log.e("ProcessService", "PATH: " + processBuilder.directory(File(this.filesDir.absolutePath)).environment()["PATH"])
+                processBuilder.environment()["PATH"] = processBuilder.directory(File(this.filesDir.absolutePath)).environment()["PATH"] + ":${this.filesDir.absolutePath}/sealdice"
+            } else {
+                processBuilder.environment()["PATH"] = "${this.filesDir.absolutePath}/sealdice"
+            }
+            process = processBuilder.start()
             val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
             val args = sharedPreferences.getString("launch_args", "")
             val cmd = "cd sealdice&&./sealdice-core $args"

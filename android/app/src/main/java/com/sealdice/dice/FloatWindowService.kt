@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.*
 import com.sealdice.dice.utils.Utils
 import com.sealdice.dice.utils.ViewModelMain
@@ -46,9 +47,9 @@ class FloatWindowService : LifecycleService(){
             }
         }
     }
-    fun showWindow() {
+    private fun showWindow() {
         //获取WindowManager
-        println("show window")
+        Log.d("--FloatWindow--","show window")
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val outMetrics = DisplayMetrics()
         windowManager.defaultDisplay.getMetrics(outMetrics)

@@ -21,28 +21,34 @@
         <androidx.preference.SwitchPreferenceCompat
             android:key="alive_heartbeat"
             android:title="保活策略：心跳"
-            android:summary="通过定时发送心跳包保持存活"
+            android:summary="通过定时发送心跳包保持存活\n根据反馈此策略效果不佳，将在后续版本移除"
+            android:enabled="false"
             android:defaultValue="false" />
         <androidx.preference.SwitchPreferenceCompat
             android:key="alive_media"
             android:title="保活策略：无声音频"
             android:summary="通过循环播放无声音频进行保活"
             android:defaultValue="false" />
-<!--        <androidx.preference.SwitchPreferenceCompat-->
-<!--            android:layout="@layout/danger_preference_layout"-->
-<!--            android:key="alive_dim_screen"-->
-<!--            android:title="保活策略：永不息屏"-->
-<!--            android:summary="不推荐！将保持屏幕以低亮度状态开启\n可能会大幅度增加耗电量\n并影响电池和屏幕寿命"-->
-<!--            android:defaultValue="false" />-->
 
     </androidx.preference.PreferenceCategory>
 
     <androidx.preference.PreferenceCategory
         android:title="高级">
         <androidx.preference.SwitchPreferenceCompat
+            android:layout="@layout/danger_preference_layout"
+            android:key="sync_mode"
+            android:title="文件同步模式"
+            android:summary="开启后，导入/导出数据时将会先清理目标文件夹，请务必明白此操作的作用再开启"
+            android:defaultValue="false" />
+        <androidx.preference.SwitchPreferenceCompat
             android:key="use_internal_webview"
             android:title="使用内置WebView"
             android:summary="关闭后将使用系统浏览器打开UI界面"
+            android:defaultValue="true" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="auto_launch_ui"
+            android:title="自动启动UI界面"
+            android:summary="关闭后将不会自动启动UI界面"
             android:defaultValue="true" />
         <androidx.preference.SwitchPreferenceCompat
             android:key="extract_on_start"

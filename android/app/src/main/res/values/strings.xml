@@ -11,7 +11,7 @@
     <string name="home">海豹核心</string>
     <string name="previous">Previous</string>
     <string name="hello_first_fragment">海豹安卓测试版\nSpecial Thanks: 木末君(logs404)</string>
-    <string name="processing_files">处理文件中，请稍候 …</string>
+    <string name="processing_files">处理中，请稍候 …</string>
     <string name="app_description">SealDice for Android</string>
     <string name="thanks">项目参与者:\n\n木落(fy0) \nSzzRain \n于言诺 \n檀轶步棋 \n\n特别感谢: \n木末君(logs404)</string>
     <string name="review">问题反馈</string>

@@ -1,11 +1,9 @@
 package com.sealdice.dice
 
-import android.content.DialogInterface
-import android.content.Intent
+import android.content.*
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -67,12 +65,6 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.INTERNET),1)
         }
-//        binding.fab.setOnClickListener { view ->
-//            Snackbar.make(view, "SealDice for Android $versionName\nSpecial Thanks: 木末君(logs404)", Snackbar.LENGTH_LONG)
-//                .setAction("Action", null).show()
-////            ExtractAssets(this).extractResources("sealdice")
-//        }
-
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -158,7 +150,10 @@ class MainActivity : AppCompatActivity() {
                             dialog.cancel()
                             val alertDialogBuilder = AlertDialog.Builder(self,R.style.Theme_Mshell_DialogOverlay)
                             alertDialogBuilder.setTitle("提示")
-                            alertDialogBuilder.setMessage("检查更新时出现错误，请稍后重试\n错误信息:\n${e.localizedMessage}\nStackTrace:\n${e.stackTraceToString()}")
+                            alertDialogBuilder.setMessage("检查更新时出现错误，可能是网络问题，请稍后重试")
+                            alertDialogBuilder.setNegativeButton("查看错误信息") {_: DialogInterface, _: Int ->
+                                AlertDialog.Builder(self,R.style.Theme_Mshell_DialogOverlay).setTitle("错误信息").setMessage("错误信息:\n${e.localizedMessage}\nStackTrace:\n${e.stackTraceToString()}").setPositiveButton("确定") { _: DialogInterface, _: Int ->}.create().show()
+                            }
                             alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
                             alertDialogBuilder.create().show()
                         }
