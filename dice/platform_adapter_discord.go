@@ -206,7 +206,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 			})
 			msgSend.Files = files
 			if msgSend.Content != "" {
-				msgSend.Content = "```\n" + msgSend.Content + "\n```"
+				msgSend.Content = antiMarkdownFormat(msgSend.Content)
 			}
 			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			msgSend = &discordgo.MessageSend{Content: ""}
@@ -219,14 +219,10 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 				Reader:      f.Stream,
 			})
 			msgSend.Files = files
-			if msgSend.Content != "" {
-				msgSend.Content = "```\n" + msgSend.Content + "\n```"
-			}
 			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			msgSend = &discordgo.MessageSend{Content: ""}
 		case *TTSElement:
 			if msgSend.Content != "" || msgSend.Files != nil {
-				msgSend.Content = "```\n" + msgSend.Content + "\n```"
 				_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			}
 			if err != nil {
@@ -253,7 +249,6 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 		}
 	}
 	if msgSend.Content != "" || msgSend.Files != nil {
-		msgSend.Content = "```\n" + msgSend.Content + "\n```"
 		_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 	}
 	if err != nil {

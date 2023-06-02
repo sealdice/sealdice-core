@@ -290,7 +290,7 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 		switch e := element.(type) {
 		case *TextElement:
 			//goldmark.DefaultParser().Parse(txt.NewReader([]byte(e.Content)))
-			msgb.Content += "```\n" + e.Content + "\n```"
+			msgb.Content += antiMarkdownFormat(e.Content)
 		case *ImageElement:
 			if msgb.Content != "``````" && msgb.Content != "" {
 				err = pa.MessageCreateRaw(msgb, id, private)
@@ -348,7 +348,7 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 		case *AtElement:
 			msgb.Content = msgb.Content + fmt.Sprintf("(met)%s(met)", e.Target)
 		case *TTSElement:
-			msgb.Content += "```\n" + e.Content + "\n```"
+			msgb.Content += antiMarkdownFormat(e.Content)
 		case *ReplyElement:
 			msgb.Quote = e.Target
 		}
@@ -359,6 +359,38 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 			pa.Session.Parent.Logger.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
 		}
 	}
+}
+
+func antiMarkdownFormat(text string) string {
+	text = strings.ReplaceAll(text, "\\", "\\\\")
+	text = strings.ReplaceAll(text, "_", "\\_")
+	text = strings.ReplaceAll(text, "~", "\\~")
+	//text = strings.ReplaceAll(text, "|", "\\|")
+	//text = strings.ReplaceAll(text, ">", "\\>")
+	//text = strings.ReplaceAll(text, "<", "\\<")
+	text = strings.ReplaceAll(text, "`", "\\`")
+	//text = strings.ReplaceAll(text, "#", "\\#")
+	//text = strings.ReplaceAll(text, "+", "\\+")
+	//text = strings.ReplaceAll(text, "-", "\\-")
+	//text = strings.ReplaceAll(text, "=", "\\=")
+	//text = strings.ReplaceAll(text, "{", "\\{")
+	//text = strings.ReplaceAll(text, "}", "\\}")
+	text = strings.ReplaceAll(text, ".", "\\.")
+	text = strings.ReplaceAll(text, "!", "\\!")
+	text = strings.ReplaceAll(text, "(", "\\(")
+	text = strings.ReplaceAll(text, ")", "\\)")
+	text = strings.ReplaceAll(text, "[", "\\[")
+	text = strings.ReplaceAll(text, "]", "\\]")
+	text = strings.ReplaceAll(text, "*", "\\*")
+	//text = strings.ReplaceAll(text, ":", "\\:")
+	//text = strings.ReplaceAll(text, "\"", "\\\"")
+	//text = strings.ReplaceAll(text, "'", "\\'")
+	//text = strings.ReplaceAll(text, "/", "\\/")
+	//text = strings.ReplaceAll(text, "@", "\\@")
+	//text = strings.ReplaceAll(text, "%", "\\%")
+	//text = strings.ReplaceAll(text, ",", "\\,")
+	//text = strings.ReplaceAll(text, " ", "\\ ")
+	return text
 }
 
 func (pa *PlatformAdapterKook) MessageCreateRaw(base kook.MessageCreateBase, id string, isPrivate bool) error {

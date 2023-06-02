@@ -139,6 +139,7 @@ func main() {
 		Delay                  int64  `long:"delay"`
 		JustForTest            bool   `long:"just-for-test"`
 		DBCheck                bool   `long:"db-check" description:"检查数据库是否有问题"`
+		ShowEnv                bool   `long:"show-env" description:"显示环境变量"`
 	}
 
 	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
@@ -153,6 +154,12 @@ func main() {
 	}
 	if opts.DBCheck {
 		model.DBCheck("data/default")
+		return
+	}
+	if opts.ShowEnv {
+		for i, e := range os.Environ() {
+			println(i, e)
+		}
 		return
 	}
 	deleteOldWrongFile()
