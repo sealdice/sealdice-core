@@ -409,6 +409,10 @@ func FormatDiceIdKook(diceKook string) string {
 	return fmt.Sprintf("KOOK:%s", diceKook)
 }
 
+func FormatDiceIdKookGuild(diceKook string) string {
+	return fmt.Sprintf("KOOK-Guild:%s", diceKook)
+}
+
 func FormatDiceIdKookChannel(diceKook string) string {
 	return fmt.Sprintf("KOOK-CH-Group:%s", diceKook)
 }
@@ -527,6 +531,7 @@ func (pa *PlatformAdapterKook) toStdMessage(ctx *kook.KmarkdownMessageContext) *
 	} else {
 		msg.MessageType = "group"
 		msg.GroupId = FormatDiceIdKookChannel(ctx.Common.TargetID)
+		msg.GuildId = FormatDiceIdKookGuild(ctx.Extra.GuildID)
 		if pa.checkIfGuildAdmin(ctx) {
 			send.GroupRole = "admin"
 		}

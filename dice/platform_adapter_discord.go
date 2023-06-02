@@ -304,6 +304,9 @@ func FormatDiceIdDiscord(diceDiscord string) string {
 func FormatDiceIdDiscordChannel(diceDiscord string) string {
 	return fmt.Sprintf("DISCORD-CH-Group:%s", diceDiscord)
 }
+func FormatDiceIdDiscordGuild(diceDiscord string) string {
+	return fmt.Sprintf("DISCORD-Guild:%s", diceDiscord)
+}
 
 func ExtractDiscordUserId(id string) string {
 	if strings.HasPrefix(id, "DISCORD:") {
@@ -334,7 +337,8 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 		msg.MessageType = "private"
 	} else {
 		msg.MessageType = "group"
-		msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
+		msg.GroupId = FormatDiceIdDiscordGuild(m.ChannelID)
+		msg.GuildId = ch.GuildID
 	}
 	send := new(SenderBase)
 	send.UserId = FormatDiceIdDiscord(m.Author.ID)
