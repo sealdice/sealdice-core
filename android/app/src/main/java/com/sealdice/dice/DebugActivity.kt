@@ -26,7 +26,7 @@ class DebugActivity : AppCompatActivity() {
         setContentView(R.layout.activity_debug)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         findViewById<Button>(R.id.DEBUG_button_abis).setOnClickListener {
-            val alertDialogBuilder = androidx.appcompat.app.AlertDialog.Builder(
+            val alertDialogBuilder = AlertDialog.Builder(
                 this, R.style.Theme_Mshell_DialogOverlay
             )
             alertDialogBuilder.setTitle("DEBUG:ABIS")
