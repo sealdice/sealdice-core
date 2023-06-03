@@ -51,9 +51,8 @@ jobs:
 
         # Details on CodeQL's query packs refer to : https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
         # queries: security-extended,security-and-quality
-
-
-    # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
+    - run: cd app/src/main/java/com/sealdice/ && mkdir secrets  && echo "package com.sealdice.dice.secrets;public class Auth {public static String ACRA_URL = \"\";public static String ACRA_BASIC_AUTH = \"\";public static String ACRA_LOGIN_PASS = \"\";}"> Auth.java
+      # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
     - name: Autobuild
       uses: github/codeql-action/autobuild@v2
