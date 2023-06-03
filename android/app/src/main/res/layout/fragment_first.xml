@@ -56,7 +56,16 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
-
+            <Button
+                android:id="@+id/button_device_json"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="345dp"
+                android:background="?attr/seal_buttonColor"
+                android:text="生成设备信息"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
             <Button
                 android:id="@+id/button_third"
                 android:layout_width="wrap_content"
@@ -72,7 +81,7 @@
                 android:id="@+id/button_reset"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="400dp"
+                android:layout_marginTop="430dp"
                 android:text="清除数据"
                 android:background="?attr/seal_buttonColor"
                 android:visibility="visible"
@@ -84,7 +93,7 @@
                 android:id="@+id/button_output"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="484dp"
+                android:layout_marginTop="490dp"
                 android:text="导出数据"
                 android:background="?attr/seal_buttonColor"
                 android:visibility="visible"

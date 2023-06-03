@@ -1,14 +1,21 @@
 package com.sealdice.dice.common;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.provider.Settings;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+
+import androidx.core.app.ActivityCompat;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -16,6 +23,7 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.List;
 import java.util.Locale;
 
 public class DeviceInfo {
@@ -74,45 +82,45 @@ public class DeviceInfo {
         }
     }
 
-//    private String getImsiFromSubscriptionManager() {
-//        String simSerialNo = "";
-//        try {
-//            SubscriptionManager subsManager = null;
-//            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP_MR1) {
-//                subsManager = (SubscriptionManager) context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-//            }
-//
-//            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
-//                List<SubscriptionInfo> subsList = null;
-//                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP_MR1) {
-//                    subsList = subsManager.getActiveSubscriptionInfoList();
-//                }
-//
-//                if (subsList != null) {
-//                    for (SubscriptionInfo subsInfo : subsList) {
-//                        if (subsInfo != null) {
-//                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//                                simSerialNo = subsInfo.getMccString() + subsInfo.getMncString() + subsInfo.getIccId().substring(8, 18);
-//                            }
-//                        }
-//                    }
-//                } else {
-//                    simSerialNo = "WiFi";
-//                }
-//            }
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//
-//        if(simSerialNo.isEmpty())
-//            simSerialNo = "N/A";
-//
-//        return simSerialNo;
-//    }
+    private String getImsiFromSubscriptionManager() {
+        String simSerialNo = "";
+        try {
+            SubscriptionManager subsManager = null;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP_MR1) {
+                subsManager = (SubscriptionManager) context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+            }
+
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+                List<SubscriptionInfo> subsList = null;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP_MR1) {
+                    subsList = subsManager.getActiveSubscriptionInfoList();
+                }
+
+                if (subsList != null) {
+                    for (SubscriptionInfo subsInfo : subsList) {
+                        if (subsInfo != null) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                simSerialNo = subsInfo.getMccString() + subsInfo.getMncString() + subsInfo.getIccId().substring(8, 18);
+                            }
+                        }
+                    }
+                } else {
+                    simSerialNo = "WiFi";
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if(simSerialNo.isEmpty())
+            simSerialNo = "N/A";
+
+        return simSerialNo;
+    }
 
     public String getIMSIMd5() {
-//        return getImsiFromSubscriptionManager();
-        return "";
+        return getImsiFromSubscriptionManager();
+//        return "";
     }
 
     // 获取Android ID
@@ -141,19 +149,11 @@ public class DeviceInfo {
     }
 
     public String getMacAddress() {
-        return  "";
-//        WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-//        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-//            // TODO: Consider calling
-//            //    ActivityCompat#requestPermissions
-//            // here to request the missing permissions, and then overriding
-//            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-//            //                                          int[] grantResults)
-//            // to handle the case where the user grants the permission. See the documentation
-//            // for ActivityCompat#requestPermissions for more details.
-//            return "";
-//        }
-//        return wifiInfo.getMacAddress();
+        WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions((Activity) context, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        }
+        return wifiInfo.getMacAddress();
     }
 
     public String getIpAddress() {
