@@ -190,7 +190,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 	for _, element := range elem {
 		switch e := element.(type) {
 		case *TextElement:
-			msgSend.Content = msgSend.Content + e.Content
+			msgSend.Content = msgSend.Content + antiMarkdownFormat(e.Content)
 		case *AtElement:
 			if e.Target == "all" {
 				msgSend.Content = msgSend.Content + "@everyone "
@@ -205,9 +205,6 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 				Reader:      e.Stream,
 			})
 			msgSend.Files = files
-			if msgSend.Content != "" {
-				msgSend.Content = antiMarkdownFormat(msgSend.Content)
-			}
 			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			msgSend = &discordgo.MessageSend{Content: ""}
 		case *ImageElement:
