@@ -56,7 +56,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/pkg/errors v0.9.1
-	github.com/yuin/goldmark v1.4.13
+	github.com/yuin/goldmark v1.5.4
 )
 
 require (
