@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fy0/lockfree"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/time/rate"
 )
 
 func GroupInfoListGet(db *sqlx.DB, callback func(id string, updatedAt int64, data []byte)) error {
@@ -73,11 +74,13 @@ type PlayerVariablesItem struct {
 
 // GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
-	Name                string `yaml:"name" jsbind:"name"` // 玩家昵称
-	UserId              string `yaml:"userId" jsbind:"userId"`
-	InGroup             bool   `yaml:"inGroup"`                                          // 是否在群内，有时一个人走了，信息还暂时残留
-	LastCommandTime     int64  `yaml:"lastCommandTime" jsbind:"lastCommandTime"`         // 上次发送指令时间
-	AutoSetNameTemplate string `yaml:"autoSetNameTemplate" jsbind:"autoSetNameTemplate"` // 名片模板
+	Name                string        `yaml:"name" jsbind:"name"` // 玩家昵称
+	UserId              string        `yaml:"userId" jsbind:"userId"`
+	InGroup             bool          `yaml:"inGroup"`                                          // 是否在群内，有时一个人走了，信息还暂时残留
+	LastCommandTime     int64         `yaml:"lastCommandTime" jsbind:"lastCommandTime"`         // 上次发送指令时间
+	RateLimiter         *rate.Limiter `yaml:"-"`                                                // 限速器
+	RateLimitWarned     bool          `yaml:"-"`                                                // 是否已经警告过限速
+	AutoSetNameTemplate string        `yaml:"autoSetNameTemplate" jsbind:"autoSetNameTemplate"` // 名片模板
 
 	// level int 权限
 	DiceSideNum  int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
