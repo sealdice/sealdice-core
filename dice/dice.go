@@ -64,8 +64,8 @@ type ExtInfo struct {
 	Version string `yaml:"-" json:"version" jsbind:"version"` // 版本
 	// 作者
 	// 更新时间
-	AutoActive      bool      `yaml:"-" json:"-"`                 // 是否自动开启
-	CmdMap          CmdMapCls `yaml:"-" json:"-" jsbind:"cmdMap"` // 指令集合
+	AutoActive      bool      `yaml:"-" json:"-" jsbind:"autoActive"` // 是否自动开启
+	CmdMap          CmdMapCls `yaml:"-" json:"-" jsbind:"cmdMap"`     // 指令集合
 	Brief           string    `yaml:"-" json:"-"`
 	ActiveOnPrivate bool      `yaml:"-" json:"-"`
 

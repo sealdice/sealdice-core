@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"runtime/debug"
 	"sealdice-core/utils/procs"
 	"strings"
@@ -238,7 +238,7 @@ func GenerateDeviceJsonAndroid(dice *Dice, protocol int) (string, []byte, error)
 	if _, err := os.Stat("./my_device.json"); err == nil {
 		dice.Logger.Info("检测到my_device.json，将使用该文件中的设备信息")
 		// file exists
-		data, err := ioutil.ReadFile("./my_device.json")
+		data, err := os.ReadFile("./my_device.json")
 		if err == nil {
 			deviceJson := deviceFile{}
 			err = json.Unmarshal(data, &deviceJson)
@@ -522,6 +522,9 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	p := procs.NewProcess(fmt.Sprintf(`"%s" faststart`, gocqhttpExePath))
 	p.Dir = workDir
 
+	if runtime.GOOS == "android" {
+		p.Env = os.Environ()
+	}
 	chQrCode := make(chan int, 1)
 	riskCount := 0
 	isSeldKilling := false
