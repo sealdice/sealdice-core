@@ -17,6 +17,7 @@ type Process struct {
 	StdIn     io.WriteCloser
 	Cmd       *exec.Cmd
 	Dir       string
+	Env       []string
 	// show stdout, return value will be written to stdin
 	OutputHandler OutHandler
 }
@@ -44,7 +45,9 @@ func (p *Process) Start() error {
 	if p.Dir != "" {
 		cmd.Dir = p.Dir
 	}
-
+	if p.Env != nil {
+		cmd.Env = p.Env
+	}
 	p.Cmd = cmd
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

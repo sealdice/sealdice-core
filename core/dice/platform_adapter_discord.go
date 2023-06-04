@@ -190,7 +190,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 	for _, element := range elem {
 		switch e := element.(type) {
 		case *TextElement:
-			msgSend.Content = msgSend.Content + e.Content
+			msgSend.Content = msgSend.Content + antiMarkdownFormat(e.Content)
 		case *AtElement:
 			if e.Target == "all" {
 				msgSend.Content = msgSend.Content + "@everyone "
@@ -205,9 +205,6 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 				Reader:      e.Stream,
 			})
 			msgSend.Files = files
-			if msgSend.Content != "" {
-				msgSend.Content = "```\n" + msgSend.Content + "\n```"
-			}
 			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			msgSend = &discordgo.MessageSend{Content: ""}
 		case *ImageElement:
@@ -219,14 +216,10 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 				Reader:      f.Stream,
 			})
 			msgSend.Files = files
-			if msgSend.Content != "" {
-				msgSend.Content = "```\n" + msgSend.Content + "\n```"
-			}
 			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			msgSend = &discordgo.MessageSend{Content: ""}
 		case *TTSElement:
 			if msgSend.Content != "" || msgSend.Files != nil {
-				msgSend.Content = "```\n" + msgSend.Content + "\n```"
 				_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			}
 			if err != nil {
@@ -253,7 +246,6 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 		}
 	}
 	if msgSend.Content != "" || msgSend.Files != nil {
-		msgSend.Content = "```\n" + msgSend.Content + "\n```"
 		_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 	}
 	if err != nil {
@@ -309,6 +301,9 @@ func FormatDiceIdDiscord(diceDiscord string) string {
 func FormatDiceIdDiscordChannel(diceDiscord string) string {
 	return fmt.Sprintf("DISCORD-CH-Group:%s", diceDiscord)
 }
+func FormatDiceIdDiscordGuild(diceDiscord string) string {
+	return fmt.Sprintf("DISCORD-Guild:%s", diceDiscord)
+}
 
 func ExtractDiscordUserId(id string) string {
 	if strings.HasPrefix(id, "DISCORD:") {
@@ -339,7 +334,8 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 		msg.MessageType = "private"
 	} else {
 		msg.MessageType = "group"
-		msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
+		msg.GroupId = FormatDiceIdDiscordGuild(m.ChannelID)
+		msg.GuildId = ch.GuildID
 	}
 	send := new(SenderBase)
 	send.UserId = FormatDiceIdDiscord(m.Author.ID)
