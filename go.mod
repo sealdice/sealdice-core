@@ -26,7 +26,7 @@ require (
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.2
 	github.com/labstack/echo/v4 v4.10.0
-	github.com/lonelyevil/kook v0.0.31
+	github.com/lonelyevil/kook v0.0.33
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/monaco-io/request v1.0.15
