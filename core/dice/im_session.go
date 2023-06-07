@@ -5,6 +5,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/fy0/lockfree"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
 	"runtime/debug"
 	"sealdice-core/dice/model"
@@ -684,6 +685,24 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					ret = s.commandSolve(mctx, msg, cmdArgs)
 				}
 				if ret {
+					if s.Parent.RateLimitEnabled && mctx.PrivilegeLevel < 100 && msg.Platform == "QQ" {
+						if mctx.Player.RateLimiter != nil {
+							if !mctx.Player.RateLimiter.Allow() {
+								if mctx.Player.RateLimitWarned {
+									mctx.Dice.BanList.AddScoreByCommandSpam(mctx.Player.UserId, msg.GroupId, mctx)
+								} else {
+									mctx.Player.RateLimitWarned = true
+									ReplyToSender(mctx, msg, "您的指令频率过高，请注意。")
+								}
+							} else {
+								mctx.Player.RateLimitWarned = false
+							}
+						} else {
+							mctx.Player.RateLimitWarned = false
+							mctx.Player.RateLimiter = rate.NewLimiter(rate.Every(time.Second*3), 3)
+							mctx.Player.RateLimiter.Allow()
+						}
+					}
 					ep.CmdExecutedNum += 1
 					ep.CmdExecutedLastTime = time.Now().Unix()
 					mctx.Player.LastCommandTime = ep.CmdExecutedLastTime

@@ -138,7 +138,7 @@ func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 }
 
 func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
-	ReplyToSenderRaw(ctx, msg, text, "")
+	go ReplyToSenderRaw(ctx, msg, text, "")
 }
 
 func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
