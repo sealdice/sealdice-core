@@ -101,7 +101,7 @@
 
           </el-sub-menu>
 
-          <!-- 
+          <!--
           <el-menu-item index="4">
             <el-icon>
               <setting />
@@ -316,7 +316,6 @@ onBeforeMount(async () => {
       }
     }
   }, 5000) as any
-
   newsData.value = await store.news()
 })
 
@@ -425,7 +424,7 @@ body {
 .sd-center {
   display: flex;
   align-items: center;
-  justify-content: center;  
+  justify-content: center;
 }
 
 #app {

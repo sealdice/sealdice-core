@@ -33,6 +33,7 @@
 
           <div style="margin: .2rem 0;margin-top:1rem">禁言增加: <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreGroupMuted">50</el-input></div>
           <div style="margin: .2rem 0;">踢出增加: <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreGroupKicked">50</el-input></div>
+          <div style="margin: .2rem 0;">刷屏增加: <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreTooManyCommand">50</el-input></div>
           <!-- <div>短时间多次拉群: <el-input>50</el-input></div> -->
           <!-- <div style="margin: .2rem 0;">连续指令(≥10/分钟): <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreTooManyCommand"></el-input></div> -->
 

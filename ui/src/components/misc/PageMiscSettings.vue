@@ -134,7 +134,17 @@
       </template>
       <el-checkbox label="开启" v-model="config.botExtFreeSwitch"/>
     </el-form-item>
-
+      <el-form-item>
+          <template #label>
+              <div>
+                  <span>刷屏警告开关</span>
+                  <el-tooltip raw-content content="默认关闭。开启后会对使用指令过快的用户进行警告，警告后继续使用指令会增加怒气值，只对QQ平台有效">
+                      <el-icon><question-filled /></el-icon>
+                  </el-tooltip>
+              </div>
+          </template>
+          <el-checkbox label="开启" v-model="config.rateLimitEnabled"/>
+      </el-form-item>
     <el-form-item>
       <template #label>
         <div>

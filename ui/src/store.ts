@@ -243,6 +243,11 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    async getRecentMessage() {
+      const info = await backend.get(urlPrefix+'/dice/recentMessage')
+      return info as any
+    },
+
     async setCustomReply(data: any) {
       const info = await backend.post(urlPrefix+'/configs/custom_reply/save', data)
       return info
