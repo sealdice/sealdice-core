@@ -453,14 +453,6 @@ class FirstFragment : Fragment() {
                 context.startService(intentWakelock)
                 executed = true
             }
-            if (sharedPreferences.getBoolean("alive_heartbeat", false)) {
-                sharedPreferences.edit(commit = true) { putBoolean("alive_heartbeat", false) }
-            }
-//            if (sharedPreferences.getBoolean("alive_heartbeat", false)) {
-//                val intentHeartbeat = Intent(context, HeartbeatService::class.java)
-//                context.startService(intentHeartbeat)
-//                executed = true
-//            }
             if (sharedPreferences.getBoolean("alive_floatwindow", false)) {
                 context.startService(Intent(context, FloatWindowService::class.java))
                 this.activity?.let {
