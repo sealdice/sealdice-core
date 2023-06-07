@@ -363,7 +363,7 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 
 func antiMarkdownFormat(text string) string {
 	text = strings.ReplaceAll(text, "\\", "\\\\")
-	text = strings.ReplaceAll(text, "_", "\\_")
+	//text = strings.ReplaceAll(text, "_", "\\_")
 	text = strings.ReplaceAll(text, "~", "\\~")
 	//text = strings.ReplaceAll(text, "|", "\\|")
 	//text = strings.ReplaceAll(text, ">", "\\>")
