@@ -183,20 +183,20 @@ func DiceExec(c echo.Context) error {
 	}
 	lastExecTime = now
 
-	pa := dice.PlatformAdapterHttp{
-		RecentMessage: []dice.HttpSimpleMessage{},
-	}
-	tmpEp := &dice.EndPointInfo{
-		EndPointInfoBase: dice.EndPointInfoBase{
-			Id:       "1",
-			Nickname: "海豹核心",
-			State:    2,
-			UserId:   "UI:1000",
-			Platform: "UI",
-			Enable:   true,
-		},
-		Adapter: &pa,
-	}
+	//pa := dice.PlatformAdapterHttp{
+	//	RecentMessage: []dice.HttpSimpleMessage{},
+	//}
+	//tmpEp := &dice.EndPointInfo{
+	//	EndPointInfoBase: dice.EndPointInfoBase{
+	//		Id:       "1",
+	//		Nickname: "海豹核心",
+	//		State:    2,
+	//		UserId:   "UI:1000",
+	//		Platform: "UI",
+	//		Enable:   true,
+	//	},
+	//	Adapter: &pa,
+	//}
 	msg := &dice.Message{
 		MessageType: "private",
 		Message:     v.Message,
@@ -206,7 +206,19 @@ func DiceExec(c echo.Context) error {
 			UserId:   "UI:1001",
 		},
 	}
-	myDice.ImSession.Execute(tmpEp, msg, true)
+	//pa := myDice.UIEndpoint.Adapter.(*dice.PlatformAdapterHttp)
+	myDice.ImSession.Execute(myDice.UIEndpoint, msg, false)
+	return c.JSON(200, "ok")
+}
+
+func DiceRecentMessage(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	pa := myDice.UIEndpoint.Adapter.(*dice.PlatformAdapterHttp)
+	defer func() {
+		pa.RecentMessage = []dice.HttpSimpleMessage{}
+	}()
 	return c.JSON(200, pa.RecentMessage)
 }
 
@@ -308,6 +320,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/dice/config/get", DiceConfig)
 	e.POST(prefix+"/dice/config/set", DiceConfigSet)
 	e.POST(prefix+"/dice/exec", DiceExec)
+	e.GET(prefix+"/dice/recentMessage", DiceRecentMessage)
 	e.GET(prefix+"/dice/cmdList", DiceAllCommand)
 
 	e.POST(prefix+"/signin", doSignIn)
