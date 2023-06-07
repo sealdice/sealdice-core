@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -457,6 +458,12 @@ func diceServe(d *dice.Dice) {
 	if len(d.ImSession.EndPoints) == 0 {
 		d.Logger.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
 	}
+
+	d.UIEndpoint = new(dice.EndPointInfo)
+	d.UIEndpoint.Enable = true
+	d.UIEndpoint.Platform = "UI"
+	d.UIEndpoint.Id = uuid.New().String()
+	d.UIEndpoint.Adapter = &dice.PlatformAdapterHttp{}
 
 	for _, _conn := range d.ImSession.EndPoints {
 		if _conn.Enable {
