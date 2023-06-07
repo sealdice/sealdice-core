@@ -23,7 +23,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.2.6 v20230410"
+var VERSION = "1.2.7-dev v20230603"
 
 // var VERSION_CODE = int64(1001000) // 991404
 var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
@@ -140,6 +140,7 @@ type Dice struct {
 	QQChannelAutoOn         bool                   `yaml:"QQChannelAutoOn"`     // QQ频道中自动开启(默认不开)
 	QQChannelLogMessage     bool                   `yaml:"QQChannelLogMessage"` // QQ频道中记录消息(默认不开)
 	QQEnablePoke            bool                   `yaml:"QQEnablePoke"`        // 启用戳一戳
+	RateLimitEnabled        bool                   `yaml:"rateLimitEnabled"`    // 启用频率限制 (刷屏限制)
 	TextCmdTrustOnly        bool                   `yaml:"textCmdTrustOnly"`    // 只允许信任用户或master使用text指令
 	UILogLimit              int64                  `yaml:"UILogLimit"`
 	FriendAddComment        string                 `yaml:"friendAddComment"` // 加好友验证信息
