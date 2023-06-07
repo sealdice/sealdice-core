@@ -214,6 +214,7 @@ class FirstFragment : Fragment() {
                 binding.buttonThird.visibility = View.VISIBLE
                 binding.buttonConsole.visibility = View.VISIBLE
                 binding.buttonFirst.visibility = View.GONE
+                binding.buttonDeviceJson.visibility = View.GONE
                 if (Build.VERSION.SDK_INT >= 28) {
                     val permissionState =
                         context?.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.FOREGROUND_SERVICE) }

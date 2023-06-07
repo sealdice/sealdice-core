@@ -54,9 +54,20 @@ jobs:
     - run: cd app/src/main/java/com/sealdice/ && mkdir secrets  && echo "package com.sealdice.dice.secrets;public class Auth {public static String ACRA_URL = \"\";public static String ACRA_BASIC_AUTH = \"\";public static String ACRA_LOGIN_PASS = \"\";}"> Auth.java
       # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+#    - name: Autobuild
+#      uses: github/codeql-action/autobuild@v2
 
+    - name: Setup Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: temurin
+        java-version: 17
+
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+
+    - name: Execute Gradle build
+      run: ./gradlew build
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
 
