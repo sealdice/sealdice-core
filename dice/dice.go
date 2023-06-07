@@ -196,6 +196,8 @@ type Dice struct {
 	IsAlreadyLoadConfig  bool                 `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 	deckCommandItemsList DeckCommandListItems // 牌堆key信息，辅助作为模糊搜索使用
 
+	UIEndpoint *EndPointInfo `yaml:"-" json:"-"` // UI Endpoint
+
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 }

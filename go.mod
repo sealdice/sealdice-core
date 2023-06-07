@@ -25,7 +25,7 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.2
-	github.com/labstack/echo/v4 v4.10.0
+	github.com/labstack/echo/v4 v4.10.2
 	github.com/lonelyevil/kook v0.0.31
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
@@ -131,9 +131,9 @@ require (
 	github.com/xuri/nfp v0.0.0-20220409054826-5e722a1d9e22 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	golang.org/x/crypto v0.5.0 // indirect
+	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/time v0.2.0 // indirect
+	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
