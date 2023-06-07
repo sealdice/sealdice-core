@@ -31,6 +31,7 @@ type DiceConfigInfo struct {
 	QQChannelAutoOn         bool     `json:"QQChannelAutoOn"`
 	QQChannelLogMessage     bool     `json:"QQChannelLogMessage"`
 	RefuseGroupInvite       bool     `json:"refuseGroupInvite"` // 拒绝群组邀请
+	RateLimitEnabled        bool     `json:"rateLimitEnabled"`  // 是否开启限速
 
 	HelpMasterInfo      string `json:"helpMasterInfo"`      // help中骰主信息
 	HelpMasterLicense   string `json:"helpMasterLicense"`   // help中使用协议
@@ -95,6 +96,7 @@ func DiceConfig(c echo.Context) error {
 		QQChannelAutoOn:         myDice.QQChannelAutoOn,
 		QQChannelLogMessage:     myDice.QQChannelLogMessage,
 		RefuseGroupInvite:       myDice.RefuseGroupInvite,
+		RateLimitEnabled:        myDice.RateLimitEnabled,
 
 		HelpMasterInfo:      myDice.HelpMasterInfo,
 		HelpMasterLicense:   myDice.HelpMasterLicense,
@@ -219,7 +221,9 @@ func DiceConfigSet(c echo.Context) error {
 		if val, ok := jsonMap["botExtFreeSwitch"]; ok {
 			myDice.BotExtFreeSwitch = val.(bool)
 		}
-
+		if val, ok := jsonMap["rateLimitEnabled"]; ok {
+			myDice.RateLimitEnabled = val.(bool)
+		}
 		if val, ok := jsonMap["trustOnlyMode"]; ok {
 			myDice.TrustOnlyMode = val.(bool)
 		}
