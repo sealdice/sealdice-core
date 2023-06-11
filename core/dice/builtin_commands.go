@@ -892,6 +892,11 @@ func (d *Dice) registerCoreCommands() {
 			} else if val == "help" || val == "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			} else {
+				if d.MailEnable {
+					ctx.Dice.SendMail(cmdArgs.CleanArgs, SendNote)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				for _, uid := range ctx.Dice.DiceMasters {
 					text := ""
 
