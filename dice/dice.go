@@ -23,7 +23,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.2.6 v20230410"
+var VERSION = "1.2.7-dev v20230603"
 
 // var VERSION_CODE = int64(1001000) // 991404
 var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
@@ -140,6 +140,7 @@ type Dice struct {
 	QQChannelAutoOn         bool                   `yaml:"QQChannelAutoOn"`     // QQ频道中自动开启(默认不开)
 	QQChannelLogMessage     bool                   `yaml:"QQChannelLogMessage"` // QQ频道中记录消息(默认不开)
 	QQEnablePoke            bool                   `yaml:"QQEnablePoke"`        // 启用戳一戳
+	RateLimitEnabled        bool                   `yaml:"rateLimitEnabled"`    // 启用频率限制 (刷屏限制)
 	TextCmdTrustOnly        bool                   `yaml:"textCmdTrustOnly"`    // 只允许信任用户或master使用text指令
 	UILogLimit              int64                  `yaml:"UILogLimit"`
 	FriendAddComment        string                 `yaml:"friendAddComment"` // 加好友验证信息
@@ -196,11 +197,11 @@ type Dice struct {
 	IsAlreadyLoadConfig  bool                 `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 	deckCommandItemsList DeckCommandListItems // 牌堆key信息，辅助作为模糊搜索使用
 
+	UIEndpoint *EndPointInfo `yaml:"-" json:"-"` // UI Endpoint
 	MailEnable   bool   `json:"mailEnable" yaml:"mailEnable"`     // 是否启用
 	MailFrom     string `json:"mailFrom" yaml:"mailFrom"`         // 邮箱来源
 	MailPassword string `json:"mailPassword" yaml:"mailPassword"` // 邮箱密钥/密码
 	MailSmtp     string `json:"mailSmtp" yaml:"mailSmtp"`         // 邮箱 smtp 地址
-
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 }

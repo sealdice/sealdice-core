@@ -1299,6 +1299,7 @@ func (d *Dice) loads() {
 			d.UpgradeWindowId = dNew.UpgradeWindowId
 			d.UpgradeEndpointId = dNew.UpgradeEndpointId
 			d.BotExtFreeSwitch = dNew.BotExtFreeSwitch
+			d.RateLimitEnabled = dNew.RateLimitEnabled
 			d.TrustOnlyMode = dNew.TrustOnlyMode
 			d.AliveNoticeEnable = dNew.AliveNoticeEnable
 			d.AliveNoticeValue = dNew.AliveNoticeValue
