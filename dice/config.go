@@ -1309,6 +1309,10 @@ func (d *Dice) loads() {
 			d.CustomDrawKeysText = dNew.CustomDrawKeysText
 			d.CustomDrawKeysTextEnable = dNew.CustomDrawKeysTextEnable
 			d.PlayerNameWrapEnable = dNew.PlayerNameWrapEnable
+			d.MailEnable = dNew.MailEnable
+			d.MailFrom = dNew.MailFrom
+			d.MailPassword = dNew.MailPassword
+			d.MailSmtp = dNew.MailSmtp
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply

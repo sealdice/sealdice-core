@@ -892,6 +892,10 @@ func (d *Dice) registerCoreCommands() {
 			} else if val == "help" || val == "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			} else {
+				if d.MailEnable {
+					ctx.Dice.SendMail(cmdArgs.CleanArgs, SendNote)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				for _, uid := range ctx.Dice.DiceMasters {
 					text := ""
 
