@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -462,7 +461,9 @@ func diceServe(d *dice.Dice) {
 	d.UIEndpoint = new(dice.EndPointInfo)
 	d.UIEndpoint.Enable = true
 	d.UIEndpoint.Platform = "UI"
-	d.UIEndpoint.Id = uuid.New().String()
+	d.UIEndpoint.Id = "1"
+	d.UIEndpoint.State = 1
+	d.UIEndpoint.UserId = "UI:1000"
 	d.UIEndpoint.Adapter = &dice.PlatformAdapterHttp{}
 
 	for _, _conn := range d.ImSession.EndPoints {

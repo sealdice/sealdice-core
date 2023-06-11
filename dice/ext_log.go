@@ -633,7 +633,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						CommandInfo: ctx.CommandInfo,
 					}
 
-					model.LogAppend(ctx.Dice.DBLogs, group.GroupId, group.LogCurName, &a)
+					LogAppend(ctx, group.GroupId, group.LogCurName, &a)
 				}
 			}
 
@@ -657,7 +657,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						CommandId:   ctx.CommandId,
 						CommandInfo: ctx.CommandInfo,
 					}
-					model.LogAppend(ctx.Dice.DBLogs, group.GroupId, group.LogCurName, &a)
+					LogAppend(ctx, group.GroupId, group.LogCurName, &a)
 				}
 			}
 		},
@@ -683,7 +683,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						RawMsgId:  msg.RawId,
 					}
 
-					model.LogAppend(ctx.Dice.DBLogs, ctx.Group.GroupId, ctx.Group.LogCurName, &a)
+					LogAppend(ctx, ctx.Group.GroupId, ctx.Group.LogCurName, &a)
 				}
 			}
 		},
@@ -735,7 +735,7 @@ func LogAppend(ctx *MsgContext, groupId string, logName string, logItem *model.L
 	ok := model.LogAppend(ctx.Dice.DBLogs, groupId, logName, logItem)
 	if ok {
 		if size, ok := model.LogLinesCountGet(ctx.Dice.DBLogs, groupId, logName); ok {
-			// 每记录1000条发出提示
+			// 默认每记录500条发出提示
 			if ctx.Dice.LogSizeNoticeEnable {
 				if ctx.Dice.LogSizeNoticeCount == 0 {
 					ctx.Dice.LogSizeNoticeCount = 500
