@@ -79,7 +79,7 @@
       <template #label>
         <div>
           <span>消息通知列表</span>
-          <el-tooltip raw-content content="会对以下消息进行通知:<br>加群邀请、好友邀请、进入群组、被踢出群、被禁言、自动激活、指令退群<br>单行格式: QQ:12345 QQ-Group:12345">
+          <el-tooltip raw-content content="会对以下消息进行通知:<br>加群邀请、好友邀请、进入群组、被踢出群、被禁言、自动激活、指令退群<br>单行格式: QQ:12345 QQ-Group:12345 Mail:abc@foo.bar<br>通知列表中的QQ号在发件时会自动转换成对应邮箱">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
         </div>
@@ -111,6 +111,30 @@
       </template>
     </el-form-item>
 
+    <el-form-item label="邮箱通知">
+        <el-tooltip raw-content content="为处理某些平台通知频繁引起的问题，启用后<b>只会通过邮件</b>进行通知">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+          <el-checkbox label="开启" v-model="config.mailEnable"/>
+    </el-form-item>
+    <el-form-item label="发件邮箱">
+        <el-tooltip raw-content content="特别提醒：QQ号被冻结后对应账号的邮箱也无法使用">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+      <el-input v-model="config.mailFrom" style="width: 12rem"/>
+    </el-form-item>
+    <el-form-item label="邮箱密钥">
+        <el-tooltip raw-content content="请注意不一定是密码，例如 QQ邮箱就需要在设置界面生成授权码">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+      <el-input v-model="config.mailPassword"  style="width: 12rem"/>
+    </el-form-item>
+    <el-form-item label="SMTP 服务地址">
+        <el-tooltip raw-content content="例如 smtp.qq.com">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+      <el-input v-model="config.mailSmtp" style="width: 12rem"/>
+    </el-form-item>
     <el-form-item>
       <template #label>
         <div>
