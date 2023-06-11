@@ -759,6 +759,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// {"data":null,"echo":0,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
 				// 但是这里没QQ号也没有消息ID，很麻烦
 				fmt.Println("群消息发送失败: 账号可能被风控")
+				ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", CIAMLock)
 			}
 
 			// 戳一戳
@@ -827,6 +828,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
 		log.Info("onebot 服务的连接被对方关闭 ")
+		pa.Session.Parent.SendMail("", OnebotClose)
 		pa.InPackGoCqHttpDisconnectedCH <- 1
 	}
 

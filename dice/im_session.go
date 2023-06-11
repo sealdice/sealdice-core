@@ -1008,6 +1008,11 @@ func (ctx *MsgContext) Notice(txt string) {
 			}
 		}()
 
+		if ctx.Dice.MailEnable {
+			ctx.Dice.SendMail(txt, Notice)
+			return
+		}
+
 		for _, i := range ctx.Dice.NoticeIds {
 			n := strings.Split(i, ":")
 			if len(n) >= 2 {

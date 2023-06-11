@@ -198,7 +198,10 @@ type Dice struct {
 	deckCommandItemsList DeckCommandListItems // 牌堆key信息，辅助作为模糊搜索使用
 
 	UIEndpoint *EndPointInfo `yaml:"-" json:"-"` // UI Endpoint
-
+	MailEnable   bool   `json:"mailEnable" yaml:"mailEnable"`     // 是否启用
+	MailFrom     string `json:"mailFrom" yaml:"mailFrom"`         // 邮箱来源
+	MailPassword string `json:"mailPassword" yaml:"mailPassword"` // 邮箱密钥/密码
+	MailSmtp     string `json:"mailSmtp" yaml:"mailSmtp"`         // 邮箱 smtp 地址
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 }
