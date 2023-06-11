@@ -55,6 +55,11 @@ type DiceConfigInfo struct {
 	TextCmdTrustOnly     bool `json:"textCmdTrustOnly"`     // text命令只允许信任用户和master
 	QQEnablePoke         bool `json:"QQEnablePoke"`         // QQ允许戳一戳
 	PlayerNameWrapEnable bool `json:"playerNameWrapEnable"` // 玩家名外框
+
+	MailEnable   bool   `json:"mailEnable"`
+	MailFrom     string `json:"mailFrom"`     // 邮箱来源
+	MailPassword string `json:"mailPassword"` // 邮箱密钥/密码
+	MailSmtp     string `json:"mailSmtp"`     // 邮箱 smtp 地址
 }
 
 func DiceConfig(c echo.Context) error {
@@ -124,6 +129,12 @@ func DiceConfig(c echo.Context) error {
 		TextCmdTrustOnly:     myDice.TextCmdTrustOnly,
 		QQEnablePoke:         myDice.QQEnablePoke,
 		PlayerNameWrapEnable: myDice.PlayerNameWrapEnable,
+
+		// 1.3?
+		MailEnable:   myDice.MailEnable,
+		MailFrom:     myDice.MailFrom,
+		MailPassword: myDice.MailPassword,
+		MailSmtp:     myDice.MailSmtp,
 	}
 	return c.JSON(http.StatusOK, info)
 }
@@ -360,6 +371,19 @@ func DiceConfigSet(c echo.Context) error {
 
 		if val, ok := jsonMap["playerNameWrapEnable"]; ok {
 			myDice.PlayerNameWrapEnable = val.(bool)
+		}
+
+		if val, ok := jsonMap["mailEnable"]; ok {
+			myDice.MailEnable = val.(bool)
+		}
+		if val, ok := jsonMap["mailFrom"]; ok {
+			myDice.MailFrom = val.(string)
+		}
+		if val, ok := jsonMap["mailPassword"]; ok {
+			myDice.MailPassword = val.(string)
+		}
+		if val, ok := jsonMap["mailSmtp"]; ok {
+			myDice.MailSmtp = val.(string)
 		}
 
 		// 统一标记为修改
