@@ -7,7 +7,7 @@ require (
 	github.com/Szzrain/dodo-open-go v0.2.7
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
-	github.com/antlabs/strsim v0.0.2
+	github.com/antlabs/strsim v0.0.3
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/blevesearch/bleve/v2 v2.3.3
 	github.com/bwmarrin/discordgo v0.26.1
