@@ -23,7 +23,7 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.2.7-dev v20230611"
+var VERSION = "1.2.7-dev v20230612"
 
 // var VERSION_CODE = int64(1001000) // 991404
 var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
@@ -86,6 +86,7 @@ type ExtInfo struct {
 	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) `yaml:"-" json:"-" jsbind:"onCommandReceived"`
 	OnMessageReceived func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageReceived"`
 	OnMessageSend     func(ctx *MsgContext, msg *Message, flag string)      `yaml:"-" json:"-" jsbind:"onMessageSend"`
+	OnMessageDeleted  func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageDeleted"`
 	GetDescText       func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
 	IsLoaded          bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
 	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
@@ -198,6 +199,7 @@ type Dice struct {
 	deckCommandItemsList DeckCommandListItems // 牌堆key信息，辅助作为模糊搜索使用
 
 	UIEndpoint *EndPointInfo `yaml:"-" json:"-"` // UI Endpoint
+
 	MailEnable   bool   `json:"mailEnable" yaml:"mailEnable"`     // 是否启用
 	MailFrom     string `json:"mailFrom" yaml:"mailFrom"`         // 邮箱来源
 	MailPassword string `json:"mailPassword" yaml:"mailPassword"` // 邮箱密钥/密码

@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
-	"sealdice-core/dice/model"
 	"sealdice-core/utils/procs"
 	"strconv"
 	"strings"
@@ -745,12 +744,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			// 消息撤回
 			if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_recall" {
-				group := s.ServiceAtNew[msg.GroupId]
-				if group != nil {
-					if group.LogOn {
-						_ = model.LogMarkDeleteByMsgId(ctx.Dice.DBLogs, group.GroupId, group.LogCurName, msgQQ.MessageId)
-					}
-				}
+				s.OnMessageDeleted(ctx, msg)
 				return
 			}
 
