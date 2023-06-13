@@ -162,10 +162,29 @@ func (pa *PlatformAdapterKook) Serve() int {
 	}
 	s := kook.New(pa.Token, plog.NewLogger(&l))
 	s.AddHandler(func(ctx *kook.KmarkdownMessageContext) {
-		if ctx.Common.Type != kook.MessageTypeKMarkdown || ctx.Extra.Author.Bot {
+		if ctx.Extra.Author.Bot {
 			return
 		}
-		pa.Session.Execute(pa.EndPoint, pa.toStdMessage(ctx), false)
+		if ctx.Common.Type == kook.MessageTypeKMarkdown {
+			pa.Session.Execute(pa.EndPoint, pa.toStdMessage(ctx), false)
+			return
+		}
+	})
+	s.AddHandler(func(ctx *kook.MessageDeleteContext) {
+		msg := new(Message)
+		msg.Time = ctx.Common.MsgTimestamp
+		msg.RawId = ctx.Extra.MsgID
+		msg.GroupId = FormatDiceIdKookChannel(ctx.Extra.ChannelID)
+		msg.Sender.UserId = FormatDiceIdKook(ctx.Common.AuthorID)
+		msg.Sender.Nickname = "系统"
+		if ctx.Common.ChannelType == "PERSON" {
+			msg.MessageType = "private"
+		} else {
+			msg.MessageType = "group"
+		}
+		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
+		//pa.Session.Parent.Logger.Infof("删除信息#%s(%s)", msg.RawId, msg.GroupId)
+		pa.Session.OnMessageDeleted(mctx, msg)
 	})
 	err := s.Open()
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fy0/lockfree"
+	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -687,6 +688,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 			}
 		},
+		OnMessageDeleted: func(ctx *MsgContext, msg *Message) {
+			if ctx.Group != nil {
+				if ctx.Group.LogOn {
+					LogDeleteById(ctx, ctx.Group.GroupId, ctx.Group.LogCurName, msg.RawId)
+					//ctx.Session.Parent.Logger.Infof("删除日志 %s %s", ctx.Group.GroupId, msg.RawId.(string))
+				}
+			}
+		},
 		GetDescText: func(ei *ExtInfo) string {
 			return GetExtensionDesc(ei)
 		},
@@ -750,6 +759,15 @@ func LogAppend(ctx *MsgContext, groupId string, logName string, logItem *model.L
 		}
 	}
 	return ok
+}
+
+func LogDeleteById(ctx *MsgContext, groupId string, logName string, messageId interface{}) bool {
+	err := model.LogMarkDeleteByMsgId(ctx.Dice.DBLogs, groupId, logName, messageId)
+	if err != nil {
+		ctx.Dice.Logger.Error("LogDeleteById:", zap.Error(err))
+		return false
+	}
+	return true
 }
 
 func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, error) {
