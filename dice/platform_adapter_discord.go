@@ -3,6 +3,8 @@ package dice
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +14,7 @@ import (
 type PlatformAdapterDiscord struct {
 	Session       *IMSession         `yaml:"-" json:"-"`
 	Token         string             `yaml:"token" json:"token"`
+	ProxyURL      string             `yaml:"proxyURL" json:"proxyURL"`
 	EndPoint      *EndPointInfo      `yaml:"-" json:"-"`
 	IntentSession *discordgo.Session `yaml:"-" json:"-"`
 }
@@ -73,6 +76,15 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 	//这里只处理消息，未来根据需要再改这里
 	dg.Identify.Intents = discordgo.IntentsAll
 	pa.IntentSession = dg
+	if pa.ProxyURL != "" {
+		u, e := url.Parse(pa.ProxyURL)
+		dg.Client.Transport = &http.Transport{
+			Proxy: http.ProxyURL(u),
+		}
+		if e != nil {
+			pa.Session.Parent.Logger.Errorf("代理地址解析错误%s", e.Error())
+		}
+	}
 	err = dg.Open()
 	//这里出错要么没连上，要么连接被阻止了（懂得都懂）
 	if err != nil {
