@@ -336,6 +336,11 @@ func ImConnectionsWalleQRelogin(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
+type AddDiscordEcho struct {
+	Token    string
+	ProxyURL string
+}
+
 func ImConnectionsAddDiscord(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -347,13 +352,11 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 	}
 
 	//myDice.Logger.Infof("后端add调用")
-	v := struct {
-		Token string `yaml:"token" json:"token"`
-	}{}
+	v := &AddDiscordEcho{}
 	err := c.Bind(&v)
 	if err == nil {
 		//myDice.Logger.Infof("bind无异常")
-		conn := dice.NewDiscordConnItem(v.Token)
+		conn := dice.NewDiscordConnItem(dice.AddDiscordEcho(*v))
 		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterDiscord)
 		pa.Session = myDice.ImSession

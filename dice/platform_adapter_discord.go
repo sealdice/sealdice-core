@@ -1,8 +1,11 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +15,7 @@ import (
 type PlatformAdapterDiscord struct {
 	Session       *IMSession         `yaml:"-" json:"-"`
 	Token         string             `yaml:"token" json:"token"`
+	ProxyURL      string             `yaml:"proxyURL" json:"proxyURL"`
 	EndPoint      *EndPointInfo      `yaml:"-" json:"-"`
 	IntentSession *discordgo.Session `yaml:"-" json:"-"`
 }
@@ -63,12 +67,26 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		pa.Session.Parent.Logger.Errorf("创建DiscordSession时出错:%s", err.Error())
 		return 1
 	}
+	if pa.ProxyURL != "" {
+		u, e := url.Parse(pa.ProxyURL)
+		if e != nil {
+			pa.Session.Parent.Logger.Errorf("代理地址解析错误%s", e.Error())
+		}
+		dg.Client.Transport = &http.Transport{
+			Proxy: http.ProxyURL(u),
+		}
+		dg.Dialer.Proxy = http.ProxyURL(u)
+	}
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		//忽略自己的消息……以及其他机器人的消息和系统消息
 		if m.Author.Bot || m.Author.System {
 			return
 		}
-		pa.Session.Execute(pa.EndPoint, pa.toStdMessage(m), false)
+		msg, err := pa.toStdMessage(m)
+		if err != nil {
+			return
+		}
+		pa.Session.Execute(pa.EndPoint, msg, false)
 	})
 	//这里只处理消息，未来根据需要再改这里
 	dg.Identify.Intents = discordgo.IntentsAll
@@ -320,7 +338,7 @@ func ExtractDiscordChannelId(id string) string {
 }
 
 // 把discordgo的message转换成豹的message
-func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Message {
+func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) (*Message, error) {
 	msg := new(Message)
 	msg.Time = m.Timestamp.Unix()
 	msg.Message = m.Content
@@ -329,12 +347,13 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 	ch, err := pa.IntentSession.Channel(m.ChannelID)
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", FormatDiceIdDiscordChannel(m.ChannelID), err.Error())
+		return nil, errors.New("")
 	}
 	if ch != nil && ch.Type == discordgo.ChannelTypeDM {
 		msg.MessageType = "private"
 	} else {
 		msg.MessageType = "group"
-		msg.GroupId = FormatDiceIdDiscordGuild(m.ChannelID)
+		msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
 		msg.GuildId = ch.GuildID
 	}
 	send := new(SenderBase)
@@ -344,7 +363,7 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 		send.GroupRole = "admin"
 	}
 	msg.Sender = *send
-	return msg
+	return msg, nil
 }
 
 func (pa *PlatformAdapterDiscord) checkIfGuildAdmin(m *discordgo.Message) bool {
