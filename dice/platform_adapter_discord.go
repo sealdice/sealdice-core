@@ -62,6 +62,11 @@ func (pa *PlatformAdapterDiscord) updateChannelNum() {
 // Serve 启动服务，返回0就是成功，1就是失败
 func (pa *PlatformAdapterDiscord) Serve() int {
 	dg, err := discordgo.New("Bot " + pa.Token)
+	//这里出错很大概率是token不对
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("创建DiscordSession时出错:%s", err.Error())
+		return 1
+	}
 	if pa.ProxyURL != "" {
 		u, e := url.Parse(pa.ProxyURL)
 		if e != nil {
@@ -71,11 +76,6 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 			Proxy: http.ProxyURL(u),
 		}
 		dg.Dialer.Proxy = http.ProxyURL(u)
-	}
-	//这里出错很大概率是token不对
-	if err != nil {
-		pa.Session.Parent.Logger.Errorf("创建DiscordSession时出错:%s", err.Error())
-		return 1
 	}
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		//忽略自己的消息……以及其他机器人的消息和系统消息
