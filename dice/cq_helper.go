@@ -3,6 +3,7 @@ package dice
 import (
 	"bytes"
 	"crypto/sha1"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -137,6 +138,25 @@ func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, erro
 			r := &FileElement{
 				Stream:      bytes.NewReader(content),
 				ContentType: resp.Header.Get("Content-Type"),
+				File:        fmt.Sprintf("%x%s", Result, suffix),
+			}
+			return r, nil
+		} else if strings.HasPrefix(p, "base64://") {
+			content, err := base64.StdEncoding.DecodeString(p[9:])
+			if err != nil {
+				return nil, err
+			}
+			Sha1Inst := sha1.New()
+			filetype, _ := mime.ExtensionsByType(http.DetectContentType(content))
+			var suffix string
+			if filetype != nil {
+				suffix = filetype[len(filetype)-1]
+			}
+			Sha1Inst.Write(content)
+			Result := Sha1Inst.Sum([]byte(""))
+			r := &FileElement{
+				Stream:      bytes.NewReader(content),
+				ContentType: http.DetectContentType(content),
 				File:        fmt.Sprintf("%x%s", Result, suffix),
 			}
 			return r, nil
