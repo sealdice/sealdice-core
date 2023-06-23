@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"net/http"
@@ -71,7 +72,11 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		if m.Author.Bot || m.Author.System {
 			return
 		}
-		pa.Session.Execute(pa.EndPoint, pa.toStdMessage(m), false)
+		msg, err := pa.toStdMessage(m)
+		if err != nil {
+			return
+		}
+		pa.Session.Execute(pa.EndPoint, msg, false)
 	})
 	//这里只处理消息，未来根据需要再改这里
 	dg.Identify.Intents = discordgo.IntentsAll
@@ -332,7 +337,7 @@ func ExtractDiscordChannelId(id string) string {
 }
 
 // 把discordgo的message转换成豹的message
-func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Message {
+func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) (*Message, error) {
 	msg := new(Message)
 	msg.Time = m.Timestamp.Unix()
 	msg.Message = m.Content
@@ -341,6 +346,7 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 	ch, err := pa.IntentSession.Channel(m.ChannelID)
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", FormatDiceIdDiscordChannel(m.ChannelID), err.Error())
+		return nil, errors.New("")
 	}
 	if ch != nil && ch.Type == discordgo.ChannelTypeDM {
 		msg.MessageType = "private"
@@ -356,7 +362,7 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 		send.GroupRole = "admin"
 	}
 	msg.Sender = *send
-	return msg
+	return msg, nil
 }
 
 func (pa *PlatformAdapterDiscord) checkIfGuildAdmin(m *discordgo.Message) bool {
