@@ -62,6 +62,16 @@ func (pa *PlatformAdapterDiscord) updateChannelNum() {
 // Serve 启动服务，返回0就是成功，1就是失败
 func (pa *PlatformAdapterDiscord) Serve() int {
 	dg, err := discordgo.New("Bot " + pa.Token)
+	if pa.ProxyURL != "" {
+		u, e := url.Parse(pa.ProxyURL)
+		if e != nil {
+			pa.Session.Parent.Logger.Errorf("代理地址解析错误%s", e.Error())
+		}
+		dg.Client.Transport = &http.Transport{
+			Proxy: http.ProxyURL(u),
+		}
+		dg.Dialer.Proxy = http.ProxyURL(u)
+	}
 	//这里出错很大概率是token不对
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("创建DiscordSession时出错:%s", err.Error())
@@ -81,15 +91,6 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 	//这里只处理消息，未来根据需要再改这里
 	dg.Identify.Intents = discordgo.IntentsAll
 	pa.IntentSession = dg
-	if pa.ProxyURL != "" {
-		u, e := url.Parse(pa.ProxyURL)
-		dg.Client.Transport = &http.Transport{
-			Proxy: http.ProxyURL(u),
-		}
-		if e != nil {
-			pa.Session.Parent.Logger.Errorf("代理地址解析错误%s", e.Error())
-		}
-	}
 	err = dg.Open()
 	//这里出错要么没连上，要么连接被阻止了（懂得都懂）
 	if err != nil {
