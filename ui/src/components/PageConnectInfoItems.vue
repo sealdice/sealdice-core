@@ -251,6 +251,9 @@
             <div>最后把bot的token复制下来粘贴进来</div>
           </small>
         </el-form-item>
+        <el-form-item v-if="form.accountType === 1" label="http 代理地址" :label-width="formLabelWidth">
+          <el-input v-model="form.proxyURL" type="string" autocomplete="off" placeholder="http://127.0.0.1:7890"/>
+        </el-form-item>
 
         <el-form-item v-if="form.accountType === 2" label="Token" :label-width="formLabelWidth" required>
           <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
@@ -690,6 +693,7 @@ const form = reactive({
   implementation:'',
   id: '',
   token: '',
+  proxyURL:'',
   url:'',
   clientID:'',
   ignoreFriendRequest: false,

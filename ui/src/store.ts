@@ -166,8 +166,8 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, url: string, clientID: string, implementation: string, connectUrl: string, relWorkDir: string}) {
-      const {accountType, account, password, protocol, token, url, clientID, implementation, relWorkDir, connectUrl} = form
+    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, proxyURL:string,url: string, clientID: string, implementation: string, connectUrl: string, relWorkDir: string}) {
+      const {accountType, account, password, protocol, token,proxyURL, url, clientID, implementation, relWorkDir, connectUrl} = form
       let info = null
       switch (accountType) {
         //QQ
@@ -179,7 +179,7 @@ export const useStore = defineStore('main', {
           }
           break
         case 1:
-          info = await backend.post(urlPrefix+'/im_connections/addDiscord', {token}, { timeout: 65000 })
+          info = await backend.post(urlPrefix+'/im_connections/addDiscord', {token, proxyURL}, { timeout: 65000 })
           break
         case 2:
           info = await backend.post(urlPrefix+'/im_connections/addKook', {token}, { timeout: 65000 })
