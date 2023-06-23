@@ -334,7 +334,7 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) *Mess
 		msg.MessageType = "private"
 	} else {
 		msg.MessageType = "group"
-		msg.GroupId = FormatDiceIdDiscordGuild(m.ChannelID)
+		msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
 		msg.GuildId = ch.GuildID
 	}
 	send := new(SenderBase)
