@@ -88,6 +88,34 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		}
 		pa.Session.Execute(pa.EndPoint, msg, false)
 	})
+	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageDelete) {
+		ch, err := pa.IntentSession.Channel(m.ChannelID)
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", FormatDiceIdDiscordChannel(m.ChannelID), err.Error())
+			return
+		}
+		msg := &Message{}
+		if ch.Type != discordgo.ChannelTypeDM {
+			msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
+			msg.MessageType = "group"
+		} else {
+			msg.MessageType = "private"
+		}
+		msg.GuildId = m.GuildID
+		msg.Sender = SenderBase{}
+		if m.BeforeDelete != nil {
+			msg.Sender.UserId = FormatDiceIdDiscord(m.BeforeDelete.Author.ID)
+
+			msg.Sender.Nickname = m.BeforeDelete.Author.Username
+		} else if m.Author != nil {
+			msg.Sender.UserId = FormatDiceIdDiscord(m.Author.ID)
+			msg.Sender.Nickname = m.Author.Username
+		}
+		msg.RawId = m.ID
+		msg.Time = m.Timestamp.Unix()
+		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
+		pa.Session.OnMessageDeleted(mctx, msg)
+	})
 	//这里只处理消息，未来根据需要再改这里
 	dg.Identify.Intents = discordgo.IntentsAll
 	pa.IntentSession = dg
@@ -265,6 +293,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 	}
 	if msgSend.Content != "" || msgSend.Files != nil {
 		_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+		pa.Session.Parent.Logger.Infof("向Discord频道#%s发送消息:%s", id, msgSend.Content)
 	}
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
