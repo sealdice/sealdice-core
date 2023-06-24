@@ -293,7 +293,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 	}
 	if msgSend.Content != "" || msgSend.Files != nil {
 		_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
-		pa.Session.Parent.Logger.Infof("向Discord频道#%s发送消息:%s", id, msgSend.Content)
+		//pa.Session.Parent.Logger.Infof("向Discord频道#%s发送消息:%s", id, msgSend.Content)
 	}
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
