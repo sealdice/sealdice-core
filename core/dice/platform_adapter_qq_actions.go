@@ -605,7 +605,7 @@ func textAssetsConvert(s string) string {
 		//if cq.Type == "image" || cq.Type == "voice" {
 		fn, exists := cq.Args["file"]
 		if exists {
-			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
+			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") || strings.HasPrefix(fn, "base64://") {
 				return
 			}
 

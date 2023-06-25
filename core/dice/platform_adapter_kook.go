@@ -394,7 +394,7 @@ func antiMarkdownFormat(text string) string {
 	//text = strings.ReplaceAll(text, "=", "\\=")
 	//text = strings.ReplaceAll(text, "{", "\\{")
 	//text = strings.ReplaceAll(text, "}", "\\}")
-	text = strings.ReplaceAll(text, ".", "\\.")
+	//text = strings.ReplaceAll(text, ".", "\\.")
 	text = strings.ReplaceAll(text, "!", "\\!")
 	text = strings.ReplaceAll(text, "(", "\\(")
 	text = strings.ReplaceAll(text, ")", "\\)")
