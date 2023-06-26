@@ -16,4 +16,5 @@
     <string name="thanks">项目参与者:\n\n木落(fy0) \nSzzRain \n于言诺 \n檀轶步棋 \n\n特别感谢: \n木末君(logs404)</string>
     <string name="review">问题反馈</string>
     <string name="repo">项目地址</string>
+    <string name="action_manual">使用手册</string>
 </resources>

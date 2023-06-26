@@ -19,6 +19,11 @@
         android:title="@string/action_check_update"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_manual"
+        android:orderInCategory="100"
+        android:title="@string/action_manual"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_about"
         android:orderInCategory="100"
         android:title="@string/action_about"

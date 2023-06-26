@@ -105,12 +105,19 @@ class MainActivity : AppCompatActivity() {
             R.id.action_official_website -> {
                 val intent = Intent()
                 intent.action = "android.intent.action.VIEW"
-                intent.data = Uri.parse("https://sealdice.com")
+                intent.data = Uri.parse("https://dice.weizaima.com")
                 startActivity(intent)
                 true
             }
             R.id.action_about -> {
                 val intent = Intent(this, AboutActivity::class.java)
+                startActivity(intent)
+                true
+            }
+            R.id.action_manual -> {
+                val intent = Intent()
+                intent.action = "android.intent.action.VIEW"
+                intent.data = Uri.parse("https://dice.weizaima.com/manual/")
                 startActivity(intent)
                 true
             }
