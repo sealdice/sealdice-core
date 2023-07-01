@@ -1229,9 +1229,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				}
 
 				// 进行检定
-				successRank, _ := ResultCheck(ctx, mctx.Group.CocRuleIndex, d100, san)
-				suffix := GetResultText(ctx, successRank, false)
-				suffixShort := GetResultText(ctx, successRank, true)
+				successRank, _ := ResultCheck(mctx, mctx.Group.CocRuleIndex, d100, san)
+				suffix := GetResultText(mctx, successRank, false)
+				suffixShort := GetResultText(mctx, successRank, true)
 
 				VarSetValueStr(mctx, "$t检定表达式文本", expr1)
 				VarSetValueStr(mctx, "$t检定计算过程", detailWrap)
@@ -1275,8 +1275,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					sanNew = 0
 				}
 
-				name := ctx.Player.GetValueNameByAlias("理智", tmpl.Alias)
-				VarSetValueInt64(ctx, name, sanNew)
+				name := mctx.Player.GetValueNameByAlias("理智", tmpl.Alias)
+				VarSetValueInt64(mctx, name, sanNew)
 
 				//输出结果
 				offset := san - sanNew
@@ -1339,8 +1339,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				ReplyToSender(mctx, msg, text)
 			}
 
-			if ctx.Player.AutoSetNameTemplate != "" {
-				_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+			if mctx.Player.AutoSetNameTemplate != "" {
+				_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},

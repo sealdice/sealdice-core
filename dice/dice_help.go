@@ -265,6 +265,9 @@ func (m *HelpManager) Load() {
 					if err == nil {
 						for _, row := range rows {
 							//Key Synonym Content Description Catalogue Tag
+							if len(row) < 3 {
+								continue
+							}
 							key := row[0]
 							synonym := row[1]
 							content := row[2]
