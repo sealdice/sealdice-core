@@ -60,18 +60,25 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	}
 	msgHandlers := &websocket.MessageHandlers{}
 	channelMessageHandler := func(event *websocket.WSEventMessage, data *websocket.ChannelMessageEventBody) error {
-		//fmt.Printf("%v\n", data)
-		msg, err := pa.toStdChannelMessage(data)
-		if err != nil {
-			return err
+		//defer func() {
+		//	if recoverError := recover(); recoverError != nil {
+		//		pa.Session.Parent.Logger.Errorf("Dodo消息处理错误:%v\n Stack: \n%v", recoverError, string(debug.Stack()))
+		//	}
+		//}()
+		//pa.Session.Parent.Logger.Infof("WS-收到Dodo频道消息:%s", string(data.MessageBody))
+		msg, errs := pa.toStdChannelMessage(data)
+		if errs != nil {
+			pa.Session.Parent.Logger.Errorf("Dodo消息转换错误:%s", err.Error())
+			return errs
 		}
 		pa.Session.Execute(pa.EndPoint, msg, false)
 		return nil
 	}
 	personalMessageHandler := func(event *websocket.WSEventMessage, data *websocket.PersonalMessageEventBody) error {
-		msg, err := pa.toStdPersonalMessage(data)
-		if err != nil {
-			return err
+		msg, errs := pa.toStdPersonalMessage(data)
+		if errs != nil {
+			pa.Session.Parent.Logger.Errorf("Dodo消息转换错误:%s", err.Error())
+			return errs
 		}
 		pa.Session.Execute(pa.EndPoint, msg, false)
 		return nil
@@ -131,6 +138,7 @@ func (pa *PlatformAdapterDodo) toStdChannelMessage(msgRaw *websocket.ChannelMess
 	msg.MessageType = "group"
 	msg.Time = time.Now().Unix()
 	msg.Platform = "DODO"
+	msg.RawId = msgRaw.MessageId
 	send := new(SenderBase)
 	send.Nickname = msgRaw.Member.NickName
 	send.UserId = FormatDiceIdDodo(msgRaw.DodoSourceId)
@@ -140,12 +148,15 @@ func (pa *PlatformAdapterDodo) toStdChannelMessage(msgRaw *websocket.ChannelMess
 	switch msgRaw.MessageType {
 	case 1:
 		msgDodo := new(model.TextMessage)
+		//pa.Session.Parent.Logger.Infof("Dodo消息内容:%s", string(msgRaw.MessageBody))
 		err := json.Unmarshal(msgRaw.MessageBody, msgDodo)
 		if err == nil {
 			msg.Message = msgDodo.Content
 		} else {
 			return nil, err
 		}
+		//default:
+		//	return nil, errors.New("不支持的消息类型")
 	}
 	return msg, nil
 }

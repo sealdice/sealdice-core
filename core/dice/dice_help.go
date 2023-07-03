@@ -345,7 +345,10 @@ func (m *HelpManager) AddItem(item HelpTextItem) error {
 			m.batch = m.Index.NewBatch()
 		}
 		if m.batchNum >= 50 {
-			_ = m.Index.Batch(m.batch)
+			err := m.Index.Batch(m.batch)
+			if err != nil {
+				return err
+			}
 			m.batch.Reset()
 			m.batchNum = 0
 		}
