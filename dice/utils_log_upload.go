@@ -26,17 +26,17 @@ func _tryGetBackendBase(url string) string {
 }
 
 var backendUrlsRaw = []string{
-	"https://dice.weizaima.com",
+	"http://dice.weizaima.com",
 }
 
 var BackendUrls = []string{
-	"https://dice.weizaima.com",
+	"http://dice.weizaima.com",
 }
 
 func TryGetBackendUrl() {
-	ret := _tryGetBackendBase("https://sealdice.com/list.txt")
+	ret := _tryGetBackendBase("http://sealdice.com/list.txt")
 	if ret == "" {
-		ret = _tryGetBackendBase("https://test1.sealdice.com/list.txt")
+		ret = _tryGetBackendBase("http://test1.sealdice.com/list.txt")
 	}
 	if ret != "" {
 		BackendUrls = append(backendUrlsRaw, strings.Split(ret, "\n")...)
