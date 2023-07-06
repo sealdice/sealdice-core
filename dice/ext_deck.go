@@ -16,7 +16,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -754,8 +753,8 @@ type ShuffleRandomPool struct {
 }
 
 func NewChooser(choices ...wr.Choice) (*ShuffleRandomPool, error) {
-	sort.Slice(choices, func(i, j int) bool {
-		return choices[i].Weight < choices[j].Weight
+	rand.Shuffle(len(choices), func(i, j int) {
+		choices[i], choices[j] = choices[j], choices[i]
 	})
 
 	totals := make([]int, len(choices))
