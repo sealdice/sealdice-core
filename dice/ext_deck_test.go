@@ -14,8 +14,7 @@ func TestDeck(t *testing.T) {
 		var deck []string
 		_ = json.Unmarshal([]byte(`["::10::1","::10::2","::10::3","::10::4","::10::5","::10::6","::40::7"]`), &deck)
 		s := DeckToShuffleRandomPool(deck)
-		var k string
-		k = s.Pick().(string)
+		k := s.Pick().(string)
 		m[k] += 1
 
 	}
