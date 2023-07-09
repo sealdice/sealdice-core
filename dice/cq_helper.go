@@ -144,22 +144,11 @@ func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, erro
 			} else {
 				return nil, errors.New("http get failed")
 			}
-			//Sha1Inst := sha1.New()
-			//filetype, _ := mime.ExtensionsByType(resp.Header.Get("Content-Type"))
 			filename, _ := getFileName(header)
 			d.Logger.Infof("filetype: %s", filename)
-			//var suffix string
-			//if filetype != nil {
-			//	suffix = filetype[len(filetype)-1]
-			//}
-			//fmt.Println(filetype)
 			if err != nil {
 				return nil, err
 			}
-			//fmt.Println("img size", len(content))
-			//Sha1Inst.Write(content)
-			//Result := Sha1Inst.Sum([]byte(""))
-			//fmt.Printf("%x\n\n", Result)
 			d.Logger.Infof("filetype: %s", filename)
 			r := &FileElement{
 				Stream:      bytes.NewReader(content),

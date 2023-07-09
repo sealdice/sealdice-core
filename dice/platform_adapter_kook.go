@@ -196,10 +196,33 @@ func (pa *PlatformAdapterKook) Serve() int {
 		if ctx.Extra.Author.Bot {
 			return
 		}
-		if ctx.Common.Type == kook.MessageTypeKMarkdown {
+		if ctx.Common.Type == kook.MessageTypeKMarkdown || ctx.Common.Type == kook.MessageTypeImage {
 			pa.Session.Execute(pa.EndPoint, pa.toStdMessage(ctx), false)
 			return
 		}
+	})
+	s.AddHandler(func(ctx *kook.ImageMessageContext) {
+		msg := new(Message)
+		msg.Time = ctx.Common.MsgTimestamp
+		msg.RawId = ctx.Common.MsgID
+		msg.Platform = "KOOK"
+		send := new(SenderBase)
+		send.UserId = FormatDiceIdKook(ctx.Common.AuthorID)
+		send.Nickname = ctx.Extra.Author.Nickname
+		if ctx.Common.ChannelType == "PERSON" {
+			msg.MessageType = "private"
+		} else {
+			msg.MessageType = "group"
+			msg.GroupId = FormatDiceIdKookChannel(ctx.Common.TargetID)
+			msg.GuildId = FormatDiceIdKookGuild(ctx.Extra.GuildID)
+			//if pa.checkIfGuildAdmin(ctx) {
+			//	send.GroupRole = "admin"
+			//}
+		}
+		msg.Message = fmt.Sprintf("[CQ:image,file=someimage,url=%s]", ctx.Common.Content)
+		msg.Sender = *send
+		pa.Session.Execute(pa.EndPoint, msg, false)
+		return
 	})
 	s.AddHandler(func(ctx *kook.MessageDeleteContext) {
 		msg := new(Message)
