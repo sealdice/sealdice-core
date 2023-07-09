@@ -222,7 +222,6 @@ func (pa *PlatformAdapterKook) Serve() int {
 		msg.Message = fmt.Sprintf("[CQ:image,file=someimage,url=%s]", ctx.Common.Content)
 		msg.Sender = *send
 		pa.Session.Execute(pa.EndPoint, msg, false)
-		return
 	})
 	s.AddHandler(func(ctx *kook.MessageDeleteContext) {
 		msg := new(Message)
