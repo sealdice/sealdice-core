@@ -625,12 +625,13 @@ func (pa *PlatformAdapterKook) checkIfGuildAdmin(ctx *kook.KmarkdownMessageConte
 
 func (pa *PlatformAdapterKook) memberPermissions(guildId *string, channelId *string, userID string, roles []int64) (apermissions int64) {
 	guild, err := pa.IntentSession.GuildView(*guildId)
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("Kook GuildView 错误:%s", err)
+		return 0
+	}
 	if userID == guild.MasterID {
 		apermissions = int64(RolePermissionAll)
 		return
-	}
-	if err != nil {
-		return 0
 	}
 	for _, role := range roles {
 		if strconv.FormatInt(role, 10) == guild.ID {
