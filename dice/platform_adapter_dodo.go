@@ -286,8 +286,8 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 }
 
 func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMessageBody, uid string, isPrivate bool) error {
-	rawId := ExtractDodoGroupId(uid)
 	if isPrivate {
+		rawId := ExtractDodoUserId(uid)
 		_, err := pa.Client.SendDirectMessage(context.Background(), &model.SendDirectMessageReq{
 			IslandSourceId: ctx.Group.GuildId,
 			DodoSourceId:   rawId,
@@ -295,8 +295,9 @@ func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMe
 		})
 		return err
 	} else {
+		rawId := ExtractDodoGroupId(uid)
 		_, err := pa.Client.SendChannelMessage(context.Background(), &model.SendChannelMessageReq{
-			ChannelId:   ExtractDodoGroupId(uid),
+			ChannelId:   rawId,
 			MessageBody: msgBody,
 		})
 		return err
