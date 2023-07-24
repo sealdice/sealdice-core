@@ -551,9 +551,10 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 	}
 
 	v := struct {
-		Account    string `yaml:"account" json:"account"`
-		ConnectUrl string `yaml:"connectUrl" json:"connectUrl"` // 连接地址
-		RelWorkDir string `yaml:"relWorkDir" json:"relWorkDir"` //
+		Account     string `yaml:"account" json:"account"`
+		ConnectUrl  string `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
+		AccessToken string `yaml:"accessToken" json:"accessToken"` // 访问令牌
+		RelWorkDir  string `yaml:"relWorkDir" json:"relWorkDir"`   //
 	}{}
 
 	err := c.Bind(&v)
@@ -578,6 +579,8 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		// 三项设置
 		conn.RelWorkDir = v.RelWorkDir
 		pa.ConnectUrl = v.ConnectUrl
+		pa.AccessToken = v.AccessToken
+
 		pa.UseInPackGoCqhttp = false
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)

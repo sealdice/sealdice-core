@@ -41,8 +41,9 @@ type PlatformAdapterGocq struct {
 	EndPoint *EndPointInfo `yaml:"-" json:"-"`
 	Session  *IMSession    `yaml:"-" json:"-"`
 
-	Socket     *gowebsocket.Socket `yaml:"-" json:"-"`
-	ConnectUrl string              `yaml:"connectUrl" json:"connectUrl"` // 连接地址
+	Socket      *gowebsocket.Socket `yaml:"-" json:"-"`
+	ConnectUrl  string              `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
+	AccessToken string              `yaml:"accessToken" json:"accessToken"` // 访问令牌
 
 	UseInPackGoCqhttp bool `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
 	GoCqHttpState     int  `yaml:"-" json:"loginState"`                        // 当前状态
@@ -209,6 +210,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	session := s
 
 	socket := gowebsocket.New(pa.ConnectUrl)
+	if pa.AccessToken != "" {
+		socket.RequestHeader.Add("Authorization", "Bearer "+pa.AccessToken)
+	}
 	pa.Socket = &socket
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
