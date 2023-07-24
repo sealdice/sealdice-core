@@ -166,8 +166,8 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, proxyURL:string,url: string, clientID: string, implementation: string, connectUrl: string, relWorkDir: string}) {
-      const {accountType, account, password, protocol, token,proxyURL, url, clientID, implementation, relWorkDir, connectUrl} = form
+    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, proxyURL:string,url: string, clientID: string, implementation: string, connectUrl: string, accessToken: string, relWorkDir: string}) {
+      const {accountType, account, password, protocol, token,proxyURL, url, clientID, implementation, relWorkDir, connectUrl, accessToken} = form
       let info = null
       switch (accountType) {
         //QQ
@@ -193,7 +193,7 @@ export const useStore = defineStore('main', {
         case 5:
           info = await backend.post(urlPrefix+'/im_connections/addDodo', {clientID, token}, { timeout: 65000 })
         case 6:
-          info = await backend.post(urlPrefix+'/im_connections/addGocqSeparate', {relWorkDir, connectUrl, account}, { timeout: 65000 })
+          info = await backend.post(urlPrefix+'/im_connections/addGocqSeparate', {relWorkDir, connectUrl, accessToken, account}, { timeout: 65000 })
         }
       return info as any as DiceConnection
     },

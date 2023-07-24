@@ -240,6 +240,9 @@
         <el-form-item v-if="form.accountType === 6" label="正向WS连接地址" :label-width="formLabelWidth" required>
           <el-input v-model="form.connectUrl" placeholder="ws://localhost:1234" type="text" autocomplete="off"></el-input>
         </el-form-item>
+        <el-form-item v-if="form.accountType === 6" label="访问令牌" :label-width="formLabelWidth">
+          <el-input v-model="form.accessToken" placeholder="gocqhttp配置的access token，没有不用填写" type="text" autocomplete="off"></el-input>
+        </el-form-item>
 
         <el-form-item v-if="form.accountType === 1" label="Token" :label-width="formLabelWidth" required>
           <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
