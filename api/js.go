@@ -24,6 +24,13 @@ func jsExec(c echo.Context) error {
 			"testMode": true,
 		})
 	}
+	if !myDice.JsEnable {
+		resp := c.JSON(200, map[string]interface{}{
+			"result": false,
+			"err":    "js扩展支持已关闭",
+		})
+		return resp
+	}
 
 	v := struct {
 		Value string `json:"value"`
@@ -64,6 +71,7 @@ func jsExec(c echo.Context) error {
 	}
 
 	resp := c.JSON(200, map[string]interface{}{
+		"result":  true,
 		"ret":     retFinal,
 		"outputs": outputs,
 		"err":     errText,
@@ -75,6 +83,12 @@ func jsExec(c echo.Context) error {
 func jsGetRecord(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
+	}
+	if !myDice.JsEnable {
+		resp := c.JSON(200, map[string]interface{}{
+			"outputs": []string{},
+		})
+		return resp
 	}
 
 	outputs := myDice.JsPrinter.RecordEnd()
@@ -92,6 +106,13 @@ func jsDelete(c echo.Context) error {
 		return c.JSON(200, map[string]interface{}{
 			"testMode": true,
 		})
+	}
+	if !myDice.JsEnable {
+		resp := c.JSON(200, map[string]interface{}{
+			"result": false,
+			"err":    "js扩展支持已关闭",
+		})
+		return resp
 	}
 
 	v := struct {
@@ -180,6 +201,36 @@ func jsList(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	if !myDice.JsEnable {
+		resp := c.JSON(200, []*dice.JsScriptInfo{})
+		return resp
+	}
 
 	return c.JSON(http.StatusOK, myDice.JsScriptList)
+}
+
+func jsShutdown(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	if myDice.JsEnable {
+		myDice.JsShutdown()
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"result": true,
+	})
+}
+
+func jsStatus(c echo.Context) error {
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"result": true,
+		"status": myDice.JsEnable,
+	})
 }

@@ -46,25 +46,11 @@ func (p *PrinterFunc) Error(s string) { p.doRecord("error", s); p.d.Logger.Error
 
 func (d *Dice) JsInit() {
 	// 装载数据库(如果是初次运行)
-	// 清理js扩展
-	prepareRemove := []*ExtInfo{}
-	for _, i := range d.ExtList {
-		if i.IsJsExt {
-			prepareRemove = append(prepareRemove, i)
-		}
-	}
-	for _, i := range prepareRemove {
-		d.ExtRemove(i)
-	}
-	// 清理coc扩展规则
-	d.CocExtraRules = map[int]*CocRuleInfo{}
-	// 清理脚本列表
-	d.JsScriptList = []*JsScriptInfo{}
+
+	// 清理目前的js相关
+	d.jsClear()
 
 	// 重建js vm
-	if d.JsLoop != nil {
-		d.JsLoop.Stop()
-	}
 	reg := new(require.Registry)
 
 	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false), eventloop.WithRegistry(reg))
@@ -276,6 +262,36 @@ e.__proto__.storageGet = function(k, v) {
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
 	loop.Start()
+	d.JsEnable = true
+	d.Logger.Info("已加载JS环境")
+}
+
+func (d *Dice) JsShutdown() {
+	d.JsEnable = false
+	d.jsClear()
+	d.Logger.Info("已关闭JS环境")
+}
+
+func (d *Dice) jsClear() {
+	// 清理js扩展
+	prepareRemove := []*ExtInfo{}
+	for _, i := range d.ExtList {
+		if i.IsJsExt {
+			prepareRemove = append(prepareRemove, i)
+		}
+	}
+	for _, i := range prepareRemove {
+		d.ExtRemove(i)
+	}
+	// 清理coc扩展规则
+	d.CocExtraRules = map[int]*CocRuleInfo{}
+	// 清理脚本列表
+	d.JsScriptList = []*JsScriptInfo{}
+	// 关闭js vm
+	if d.JsLoop != nil {
+		d.JsLoop.Stop()
+		d.JsLoop = nil
+	}
 }
 
 func (d *Dice) JsLoadScripts() {
