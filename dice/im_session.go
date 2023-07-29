@@ -401,7 +401,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			log.Info(txt)
 			mctx.Notice(txt)
 
-			if msg.Platform == "QQ-CH" {
+			if msg.Platform == "QQ" || msg.Platform == "TG" {
 				if mctx.Session.ServiceAtNew[msg.GroupId] != nil {
 					for _, i := range mctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
 						if i.OnGroupJoined != nil {
@@ -1079,6 +1079,11 @@ func (ctx *MsgContext) Notice(txt string) {
 		}
 
 		for _, i := range ctx.Dice.NoticeIds {
+			seg := strings.Split(i, "-")
+			if len(seg) < 2 || ctx.EndPoint.Platform != seg[0] {
+				//ctx.Dice.Logger.Infof("Endpoint platform %s, ID platform %s", ctx.EndPoint.Platform, seg[0])
+				return
+			}
 			n := strings.Split(i, ":")
 			if len(n) >= 2 {
 				if strings.HasSuffix(n[0], "-Group") {
