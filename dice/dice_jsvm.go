@@ -356,21 +356,22 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 		re2 := regexp.MustCompile(`//[ \t]*@(\S+)\s+([^\r\n]+)`)
 		data := re2.FindAllStringSubmatch(text, -1)
 		for _, item := range data {
+			v := strings.TrimSpace(item[2])
 			switch item[1] {
 			case "name":
-				jsInfo.Name = item[2]
+				jsInfo.Name = v
 			case "homepageURL":
-				jsInfo.HomePage = item[2]
+				jsInfo.HomePage = v
 			case "license":
-				jsInfo.License = item[2]
+				jsInfo.License = v
 			case "author":
-				jsInfo.Author = item[2]
+				jsInfo.Author = v
 			case "version":
-				jsInfo.Version = item[2]
+				jsInfo.Version = v
 			case "description":
-				jsInfo.Desc = item[2]
+				jsInfo.Desc = v
 			case "timestamp":
-				v, err := strconv.ParseInt(item[2], 10, 64)
+				v, err := strconv.ParseInt(v, 10, 64)
 				if err == nil {
 					jsInfo.UpdateTime = v
 				}
