@@ -1079,8 +1079,8 @@ func (ctx *MsgContext) Notice(txt string) {
 		}
 
 		for _, i := range ctx.Dice.NoticeIds {
-			seg := strings.Split(i, "-")
-			if len(seg) < 2 || ctx.EndPoint.Platform != seg[0] {
+			seg := strings.Split(i, "-")[0]
+			if ctx.EndPoint.Platform != seg {
 				//ctx.Dice.Logger.Infof("Endpoint platform %s, ID platform %s", ctx.EndPoint.Platform, seg[0])
 				return
 			}
