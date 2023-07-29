@@ -400,6 +400,18 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 			log.Info(txt)
 			mctx.Notice(txt)
+
+			if msg.Platform == "QQ-CH" {
+				if mctx.Session.ServiceAtNew[msg.GroupId] != nil {
+					for _, i := range mctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+						if i.OnGroupJoined != nil {
+							i.callWithJsCheck(mctx.Dice, func() {
+								i.OnGroupJoined(mctx, msg)
+							})
+						}
+					}
+				}
+			}
 		}
 
 		var mustLoadUser bool
