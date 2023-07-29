@@ -309,6 +309,8 @@ func (d *Dice) JsLoadScripts() {
 type JsScriptInfo struct {
 	/** 名称 */
 	Name string `json:"name"`
+	/** 是否启用 */
+	Enable bool `json:"enable"`
 	/** 版本 */
 	Version string `json:"version"`
 	/** 作者 */
@@ -323,9 +325,6 @@ type JsScriptInfo struct {
 	Grant []string `json:"grant"`
 	/** 更新时间 */
 	UpdateTime int64 `json:"updateTime"`
-
-	/** 是否启用 未来再加这个功能吧，现在所有的都默认启用 */
-	//Enable bool `json:"enable"`
 	/** 安装时间 - 文件创建时间 */
 	InstallTime int64 `json:"installTime"`
 	/** 最近一条错误文本 */
@@ -378,8 +377,14 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 			}
 		}
 	}
+	jsInfo.Enable = !d.DisabledJsScripts[jsInfo.Name]
 
-	_, err = d.JsRequire.Require(s)
+	if jsInfo.Enable {
+		_, err = d.JsRequire.Require(s)
+	} else {
+		d.Logger.Infof("脚本<%s>已被禁用，跳过加载", jsInfo.Name)
+	}
+
 	if err != nil {
 		errText := err.Error()
 		jsInfo.ErrText = errText
@@ -400,5 +405,23 @@ func JsDelete(d *Dice, jsInfo *JsScriptInfo) {
 		_ = os.Remove(zipFilename)
 	} else {
 		_ = os.Remove(jsInfo.Filename)
+	}
+}
+
+func JsEnable(d *Dice, jsInfoName string) {
+	delete(d.DisabledJsScripts, jsInfoName)
+	for _, jsInfo := range d.JsScriptList {
+		if jsInfo.Name == jsInfoName {
+			jsInfo.Enable = true
+		}
+	}
+}
+
+func JsDisable(d *Dice, jsInfoName string) {
+	d.DisabledJsScripts[jsInfoName] = true
+	for _, jsInfo := range d.JsScriptList {
+		if jsInfo.Name == jsInfoName {
+			jsInfo.Enable = false
+		}
 	}
 }

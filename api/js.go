@@ -234,3 +234,52 @@ func jsStatus(c echo.Context) error {
 		"status": myDice.JsEnable,
 	})
 }
+
+func jsEnable(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+	v := struct {
+		Name string `form:"name" json:"name"`
+	}{}
+	err := c.Bind(&v)
+
+	if err == nil {
+		dice.JsEnable(myDice, v.Name)
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"result": true,
+			"name":   v.Name,
+		})
+	}
+	return c.JSON(http.StatusBadRequest, nil)
+}
+
+func jsDisable(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+	v := struct {
+		Name string `form:"name" json:"name"`
+	}{}
+	err := c.Bind(&v)
+
+	if err == nil {
+		dice.JsDisable(myDice, v.Name)
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"result": true,
+			"name":   v.Name,
+		})
+	}
+
+	return c.JSON(http.StatusBadRequest, nil)
+}

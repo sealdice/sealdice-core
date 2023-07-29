@@ -182,11 +182,12 @@ type Dice struct {
 	Cron             *cron.Cron           `yaml:"-" json:"-"`
 	AliveNoticeEntry cron.EntryID         `yaml:"-" json:"-"`
 	//JsVM             *goja.Runtime          `yaml:"-" json:"-"`
-	JsEnable     bool                   `yaml:"jsEnable" json:"jsEnable"`
-	JsPrinter    *PrinterFunc           `yaml:"-" json:"-"`
-	JsRequire    *require.RequireModule `yaml:"-" json:"-"`
-	JsLoop       *eventloop.EventLoop   `yaml:"-" json:"-"`
-	JsScriptList []*JsScriptInfo        `yaml:"-" json:"-"`
+	JsEnable          bool                   `yaml:"jsEnable" json:"jsEnable"`
+	DisabledJsScripts map[string]bool        `yaml:"disabledJsScripts" json:"disabledJsScripts"` // 作为set
+	JsPrinter         *PrinterFunc           `yaml:"-" json:"-"`
+	JsRequire         *require.RequireModule `yaml:"-" json:"-"`
+	JsLoop            *eventloop.EventLoop   `yaml:"-" json:"-"`
+	JsScriptList      []*JsScriptInfo        `yaml:"-" json:"-"`
 
 	// 游戏系统规则模板
 	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
