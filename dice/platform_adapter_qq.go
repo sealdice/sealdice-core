@@ -565,6 +565,15 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						doSleepQQ(ctx)
 						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 					}
+					if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+						for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+							if i.OnBecomeFriend != nil {
+								i.callWithJsCheck(ctx.Dice, func() {
+									i.OnBecomeFriend(ctx, msg)
+								})
+							}
+						}
+					}
 				}()
 				return
 			}
@@ -620,6 +629,15 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				txt := fmt.Sprintf("加入QQ群组: <%s>(%d)", groupName, msgQQ.GroupId)
 				log.Info(txt)
 				ctx.Notice(txt)
+				if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+					for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+						if i.OnGroupJoined != nil {
+							i.callWithJsCheck(ctx.Dice, func() {
+								i.OnGroupJoined(ctx, msg)
+							})
+						}
+					}
+				}
 			}
 
 			// 入群的另一种情况: 管理员审核
