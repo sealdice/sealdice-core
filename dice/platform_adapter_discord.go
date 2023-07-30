@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"github.com/gorilla/websocket"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -71,10 +72,12 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		u, e := url.Parse(pa.ProxyURL)
 		if e != nil {
 			pa.Session.Parent.Logger.Errorf("代理地址解析错误%s", e.Error())
+			return 1
 		}
 		dg.Client.Transport = &http.Transport{
 			Proxy: http.ProxyURL(u),
 		}
+		dg.Dialer = &websocket.Dialer{HandshakeTimeout: 45 * time.Second}
 		dg.Dialer.Proxy = http.ProxyURL(u)
 	}
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
