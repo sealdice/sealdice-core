@@ -1,8 +1,14 @@
 on:
   push:
+    paths:
+      - '**.go'
+      - 'go.mod'
   pull_request:
+    paths:
+      - '**.go'
+      - 'go.mod'
 
-name: CI
+name: Test & Lint
 
 jobs:
   test:
