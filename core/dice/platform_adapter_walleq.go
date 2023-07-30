@@ -263,6 +263,15 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					doSleepQQ(ctx)
 					pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
 				}
+				if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+					for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+						if i.OnGroupJoined != nil {
+							i.callWithJsCheck(ctx.Dice, func() {
+								i.OnGroupJoined(ctx, msg)
+							})
+						}
+					}
+				}
 			}()
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, event.GroupId)
 			log.Info(txt)
