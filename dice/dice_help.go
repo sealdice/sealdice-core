@@ -406,7 +406,7 @@ func (m *HelpManager) AddItemApply() error {
 	return nil
 }
 
-func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, num int) (*bleve.SearchResult, error) {
+func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, num int, group string) (*bleve.SearchResult, error) {
 	// 在标题中查找
 	queryTitle := query.NewMatchPhraseQuery(text)
 	queryTitle.SetField("title")
@@ -433,6 +433,13 @@ func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, 
 		andQuery.AddQuery(queryPack)
 	}
 
+	// 查询指定文档组
+	if group != "" {
+		queryPack := query.NewMatchPhraseQuery(group)
+		queryPack.SetField("group")
+		andQuery.AddQuery(queryPack)
+	}
+
 	req := bleve.NewSearchRequest(andQuery)
 
 	index := m.Index
@@ -449,7 +456,7 @@ func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, 
 	//index.Close()
 }
 
-func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, num int) (*bleve.SearchResult, error) {
+func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, num int, group string) (*bleve.SearchResult, error) {
 	if num < 1 {
 		num = 1
 	}
@@ -458,7 +465,7 @@ func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, num i
 	}
 
 	if m.EngineType == 0 {
-		return m.searchBleve(ctx, text, titleOnly, num)
+		return m.searchBleve(ctx, text, titleOnly, num, group)
 	} else {
 		//for _, i := range ctx.Group.HelpPackages {
 		//	//queryPack := query.NewMatchPhraseQuery(i)
