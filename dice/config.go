@@ -799,6 +799,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"先攻_查看_前缀": {
 				SubType: ".init",
 			},
+			"先攻_下一回合": {
+				SubType: "init ed",
+			},
 			"先攻_移除_前缀": {
 				SubType: ".init rm",
 			},
