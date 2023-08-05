@@ -13,8 +13,9 @@ import (
 )
 
 type RIListItem struct {
-	name string
-	val  int64
+	name   string
+	val    int64
+	detail string
 }
 
 type ByRIListValue []*RIListItem
@@ -1657,19 +1658,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 			solved := true
 			tryOnce := true
-			var items []struct {
-				name   string
-				val    int64
-				detail string
-			}
+			var items ByRIListValue
 
 			for tryOnce || text != "" {
 				code, name, val, detail := readOne()
-				items = append(items, struct {
-					name   string
-					val    int64
-					detail string
-				}{name, val, detail})
+				items = append(items, &RIListItem{name, val, detail})
 
 				if code != 0 {
 					solved = false
@@ -1681,7 +1674,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			if solved {
 				riMap := dndGetRiMapList(ctx)
 				textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
-
+				sort.Sort(items)
 				for order, i := range items {
 					var detail string
 					riMap[i.name] = i.val
@@ -1706,18 +1699,20 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			".init del <单位1> <单位2> ... // 从先攻列表中删除\n" +
 			".init set <单位名称> <先攻表达式> // 设置单位的先攻\n" +
 			".init clr // 清除先攻列表\n" +
+			".init ed // 结束一回合" +
 			".init help // 显示本帮助",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			cmdArgs.ChopPrefixToArgsWith("del", "set", "rm")
+			cmdArgs.ChopPrefixToArgsWith("del", "set", "rm", "ed")
 			n := cmdArgs.GetArgN(1)
 			switch n {
 			case "", "list":
 				textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
 				riMap := dndGetRiMapList(ctx)
+				round, _ := VarGetValueInt64(ctx, "$g回合数")
 
 				var lst ByRIListValue
 				for k, v := range riMap {
-					lst = append(lst, &RIListItem{k, v})
+					lst = append(lst, &RIListItem{name: k, val: v})
 				}
 
 				sort.Sort(lst)
@@ -1727,9 +1722,41 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				if len(lst) == 0 {
 					textOut += "- 没有找到任何单位"
+				} else {
+					if len(lst) <= int(round) || round < 0 {
+						round = 0
+					}
+					rounder := lst[round]
+					textOut += fmt.Sprintf("当前回合：%s", rounder.name)
 				}
 
 				ReplyToSender(ctx, msg, textOut)
+			case "ed", "end":
+				riMap := dndGetRiMapList(ctx)
+				round, _ := VarGetValueInt64(ctx, "$g回合数")
+				var lst ByRIListValue
+				for k, v := range riMap {
+					lst = append(lst, &RIListItem{name: k, val: v})
+				}
+				sort.Sort(lst)
+				if len(lst) == 0 {
+					ReplyToSender(ctx, msg, "先攻列表为空")
+					break
+				} else {
+					round += 1
+					l := len(lst)
+					if l <= int(round) || round < 0 {
+						round = 0
+					}
+					if round == 0 {
+						VarSetValueStr(ctx, "$t当前回合角色名", lst[l-1].name)
+					} else {
+						VarSetValueStr(ctx, "$t当前回合角色名", lst[round-1].name)
+					}
+					VarSetValueStr(ctx, "$t下一回合角色名", lst[round].name)
+					VarSetValueInt64(ctx, "$g回合数", round)
+				}
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
 			case "del", "rm":
 				names := cmdArgs.Args[1:]
 				riMap := dndGetRiMapList(ctx)
@@ -1782,6 +1809,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			case "clr", "clear":
 				dndClearRiMapList(ctx)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
+				VarSetValueInt64(ctx, "$g回合数", 0)
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
