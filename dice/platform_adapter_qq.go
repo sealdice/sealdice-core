@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/sacOO7/gowebsocket"
 )
 
 // 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
@@ -879,7 +880,11 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		pa.GoCqHttpLastRestrictedTime = 0           // 重置风控时间
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
-		GoCqHttpServe(myDice, ep, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+		GoCqHttpServe(myDice, ep, GoCqHttpLoginInfo{
+			Password:   pa.InPackGoCqHttpPassword,
+			Protocol:   pa.InPackGoCqHttpProtocol,
+			IsAsyncRun: true,
+		})
 		return true
 	}
 	return false
@@ -895,7 +900,11 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		if pa.UseInPackGoCqhttp {
 			GoCqHttpServeProcessKill(d, c)
 			time.Sleep(1 * time.Second)
-			GoCqHttpServe(d, c, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+			GoCqHttpServe(d, c, GoCqHttpLoginInfo{
+				Password:   pa.InPackGoCqHttpPassword,
+				Protocol:   pa.InPackGoCqHttpProtocol,
+				IsAsyncRun: true,
+			})
 			go ServeQQ(d, c)
 		} else {
 			go ServeQQ(d, c)

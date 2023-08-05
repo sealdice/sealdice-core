@@ -499,9 +499,12 @@ func ImConnectionsAdd(c echo.Context) error {
 	}
 
 	v := struct {
-		Account  string `yaml:"account" json:"account"`
-		Password string `yaml:"password" json:"password"`
-		Protocol int    `json:"protocol"`
+		Account       string `yaml:"account" json:"account"`
+		Password      string `yaml:"password" json:"password"`
+		Protocol      int    `json:"protocol"`
+		UseSignServer bool   `json:"useSignServer"`
+		SignServerUrl string `json:"signServerUrl"`
+		SignServerKey string `json:"signServerKey"`
 		//ConnectUrl        string `yaml:"connectUrl" json:"connectUrl"`               // 连接地址
 		//Platform          string `yaml:"platform" json:"platform"`                   // 平台，如QQ、QQ频道
 		//Enable            bool   `yaml:"enable" json:"enable"`                       // 是否启用
@@ -532,7 +535,14 @@ func ImConnectionsAdd(c echo.Context) error {
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 
-		dice.GoCqHttpServe(myDice, conn, v.Password, v.Protocol, true)
+		dice.GoCqHttpServe(myDice, conn, dice.GoCqHttpLoginInfo{
+			Password:      v.Password,
+			Protocol:      v.Protocol,
+			IsAsyncRun:    true,
+			UseSignServer: v.UseSignServer,
+			SignServerUrl: v.SignServerUrl,
+			SignServerKey: v.SignServerKey,
+		})
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		return c.JSON(200, conn)
