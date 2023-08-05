@@ -80,6 +80,9 @@ func ImConnectionsSetData(c echo.Context) error {
 		Id                  string `form:"id" json:"id"`
 		Protocol            int    `form:"protocol" json:"protocol"`
 		IgnoreFriendRequest bool   `json:"ignoreFriendRequest"` // 忽略好友请求
+		UseSignServer       bool   `json:"useSignServer"`
+		SignServerUrl       string `json:"signServerUrl"`
+		SignServerKey       string `json:"signServerKey"`
 	}{}
 
 	err := c.Bind(&v)
@@ -96,6 +99,12 @@ func ImConnectionsSetData(c echo.Context) error {
 						i.ProtocolType = "onebot"
 					}
 					ad.SetQQProtocol(v.Protocol)
+					if v.UseSignServer {
+						ad.SetSignServer(v.SignServerUrl, v.SignServerKey)
+						ad.UseSignServer = v.UseSignServer
+						ad.SignServerUrl = v.SignServerUrl
+						ad.SignServerKey = v.SignServerKey
+					}
 					ad.IgnoreFriendRequest = v.IgnoreFriendRequest
 				}
 				return c.JSON(http.StatusOK, i)
@@ -531,6 +540,9 @@ func ImConnectionsAdd(c echo.Context) error {
 		pa.InPackGoCqHttpProtocol = v.Protocol
 		pa.InPackGoCqHttpPassword = v.Password
 		pa.Session = myDice.ImSession
+		pa.UseSignServer = v.UseSignServer
+		pa.SignServerUrl = v.SignServerUrl
+		pa.SignServerKey = v.SignServerKey
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()

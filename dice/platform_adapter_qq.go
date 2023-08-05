@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/sacOO7/gowebsocket"
 )
 
@@ -72,6 +74,10 @@ type PlatformAdapterGocq struct {
 	echoMap        *SyncMap[int64, chan *MessageQQ] `yaml:"-"`
 	echoMap2       *SyncMap[int64, *echoMapInfo]    `yaml:"-"`
 	Implementation string                           `yaml:"implementation" json:"implementation"`
+
+	UseSignServer bool   `yaml:"useSignServer" json:"useSignServer"`
+	SignServerUrl string `yaml:"signServerUrl" json:"signServerUrl"`
+	SignServerKey string `yaml:"signServerKey" json:"signServerKey"`
 }
 
 type Sender struct {
@@ -938,6 +944,27 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 			data, err := json.Marshal(info)
 			if err == nil {
 				_ = os.WriteFile(deviceFilePath, data, 0644)
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (pa *PlatformAdapterGocq) SetSignServer(signServerUrl string, signServerKey string) bool {
+	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
+	configFilePath := filepath.Join(workDir, "config.yml")
+	if _, err := os.Stat(configFilePath); err == nil {
+		configFile, _ := os.ReadFile(configFilePath)
+		info := map[string]interface{}{}
+		err = yaml.Unmarshal(configFile, &info)
+
+		if err == nil {
+			(info["account"]).(map[string]interface{})["sign-server"] = signServerUrl
+			(info["account"]).(map[string]interface{})["key"] = signServerKey
+			data, err := yaml.Marshal(info)
+			if err == nil {
+				_ = os.WriteFile(configFilePath, data, 0644)
 				return true
 			}
 		}
