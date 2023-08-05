@@ -3,23 +3,27 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/search"
-	"github.com/blevesearch/bleve/v2/search/query"
-	"github.com/sahilm/fuzzy"
-	"github.com/xuri/excelize/v2"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
+
+	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search"
+	"github.com/blevesearch/bleve/v2/search/query"
+	"github.com/sahilm/fuzzy"
+	"github.com/xuri/excelize/v2"
 )
 
 // 分词器封存了，看起来不太需要
 //_ "github.com/leopku/bleve-gse-tokenizer/v2"
 
+const HelpBuiltinGroup = "builtin"
+
 type HelpTextItem struct {
+	Group       string
 	Title       string
 	Content     string
 	PackageName string
@@ -128,18 +132,21 @@ func (m *HelpManager) Load() {
 	m.loadSearchEngine()
 
 	_ = m.AddItem(HelpTextItem{
+		Group:       HelpBuiltinGroup,
 		Title:       "First Text",
 		Content:     "In view, a humble vaudevillian veteran cast vicariously as both victim and villain vicissitudes of fate.",
 		PackageName: "测试",
 	})
 
 	_ = m.AddItem(HelpTextItem{
+		Group:       HelpBuiltinGroup,
 		Title:       "测试词条",
 		Content:     "他在命运的沉浮中随波逐流, 扮演着受害与加害者的双重角色",
 		PackageName: "测试",
 	})
 
 	_ = m.AddItem(HelpTextItem{
+		Group: HelpBuiltinGroup,
 		Title: "骰点",
 		Content: `.help 骰点：
  .r  //丢一个100面骰
@@ -152,6 +159,7 @@ func (m *HelpManager) Load() {
 	})
 
 	_ = m.AddItem(HelpTextItem{
+		Group: HelpBuiltinGroup,
 		Title: "娱乐",
 		Content: `.gugu // 随机召唤一只鸽子
 .jrrp 今日人品
@@ -160,6 +168,7 @@ func (m *HelpManager) Load() {
 	})
 
 	_ = m.AddItem(HelpTextItem{
+		Group: HelpBuiltinGroup,
 		Title: "扩展",
 		Content: `.help 扩展：
 扩展功能可以让你开关部分指令。
@@ -177,6 +186,7 @@ func (m *HelpManager) Load() {
 	})
 
 	_ = m.AddItem(HelpTextItem{
+		Group: HelpBuiltinGroup,
 		Title: "日志",
 		Content: `.help 日志：
 .log new //新建记录
@@ -188,6 +198,7 @@ func (m *HelpManager) Load() {
 	})
 
 	_ = m.AddItem(HelpTextItem{
+		Group: HelpBuiltinGroup,
 		Title: "跑团",
 		Content: `.help 跑团：
 .st 力量50 //载入技能/属性
@@ -206,6 +217,7 @@ func (m *HelpManager) Load() {
 	})
 
 	_ = m.AddItem(HelpTextItem{
+		Group: HelpBuiltinGroup,
 		Title: "骰主",
 		Content: `.botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话
 .botlist del @A @B @C // 去除机器人标记
@@ -217,6 +229,7 @@ func (m *HelpManager) Load() {
 	})
 
 	_ = m.AddItem(HelpTextItem{
+		Group: HelpBuiltinGroup,
 		Title: "其他",
 		Content: `.find 克苏鲁星之眷族 //查找对应怪物资料
 .find 70尺 法术 // 查找关联资料（仅在全文搜索开启时可用）
@@ -230,70 +243,89 @@ func (m *HelpManager) Load() {
 	//	PackageName: "核心指令",
 	//})
 
-	_ = filepath.WalkDir("data/helpdoc", func(path string, d fs.DirEntry, err error) error {
-		if !d.IsDir() {
-			fileExt := filepath.Ext(path)
-
-			switch fileExt {
-			case ".json":
-				m.LoadingFn = path
-				data := HelpDocFormat{}
-				pack, err := os.ReadFile(path)
-				if err == nil {
-					err = json.Unmarshal(pack, &data)
-					if err == nil {
-						for k, v := range data.Helpdoc {
-							_ = m.AddItem(HelpTextItem{
-								Title:       k,
-								Content:     v,
-								PackageName: data.Mod,
-							})
-						}
-					}
+	entries, err := os.ReadDir("data/helpdoc")
+	if err != nil {
+		fmt.Println("unable to read helpdoc folder: ", err.Error())
+	}
+	for _, entry := range entries {
+		path := "data/helpdoc/" + entry.Name()
+		if entry.IsDir() {
+			// 读取该分组下的词条
+			_ = filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+				if !d.IsDir() {
+					m.loadHelpDoc(entry.Name(), path)
 				}
-			case ".xlsx":
-				// 梨骰帮助文件
-				m.LoadingFn = path
-				f, err := excelize.OpenFile(path)
-				if err != nil {
-					fmt.Println(err)
-					break
-				}
+				return nil
+			})
+		} else {
+			// 作为默认分组读取词条
+			m.loadHelpDoc("default", path)
+		}
+	}
+	_ = m.AddItemApply()
+}
 
-				for _, s := range f.GetSheetList() {
-					rows, err := f.GetRows(s)
-					if err == nil {
-						for _, row := range rows {
-							//Key Synonym Content Description Catalogue Tag
-							if len(row) < 3 {
-								continue
-							}
-							key := row[0]
-							synonym := row[1]
-							content := row[2]
+func (m *HelpManager) loadHelpDoc(group string, path string) {
+	fileExt := filepath.Ext(path)
 
-							if synonym != "" {
-								key += "/" + synonym
-							}
-
-							_ = m.AddItem(HelpTextItem{
-								Title:       key,
-								Content:     content,
-								PackageName: s,
-							})
-						}
-					}
-				}
-
-				// Close the spreadsheet.
-				if err := f.Close(); err != nil {
-					fmt.Println(err)
+	switch fileExt {
+	case ".json":
+		m.LoadingFn = path
+		data := HelpDocFormat{}
+		pack, err := os.ReadFile(path)
+		if err == nil {
+			err = json.Unmarshal(pack, &data)
+			if err == nil {
+				for k, v := range data.Helpdoc {
+					_ = m.AddItem(HelpTextItem{
+						Group:       group,
+						Title:       k,
+						Content:     v,
+						PackageName: data.Mod,
+					})
 				}
 			}
 		}
-		return nil
-	})
-	_ = m.AddItemApply()
+	case ".xlsx":
+		// 梨骰帮助文件
+		m.LoadingFn = path
+		f, err := excelize.OpenFile(path)
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+
+		for _, s := range f.GetSheetList() {
+			rows, err := f.GetRows(s)
+			if err == nil {
+				for _, row := range rows {
+					//Key Synonym Content Description Catalogue Tag
+					if len(row) < 3 {
+						continue
+					}
+					key := row[0]
+					synonym := row[1]
+					content := row[2]
+
+					if synonym != "" {
+						key += "/" + synonym
+					}
+
+					_ = m.AddItem(HelpTextItem{
+						Group:       group,
+						Title:       key,
+						Content:     content,
+						PackageName: s,
+					})
+				}
+			}
+		}
+
+		// Close the spreadsheet.
+		if err := f.Close(); err != nil {
+			fmt.Println(err)
+		}
+	}
 }
 
 func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
@@ -310,6 +342,7 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 				content = v.ShortHelp
 			}
 			_ = m.AddItem(HelpTextItem{
+				Group:       HelpBuiltinGroup,
 				Title:       k,
 				Content:     content,
 				PackageName: packageName,
@@ -320,6 +353,7 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 	addCmdMap("核心指令", dice.CmdMap)
 	for _, i := range dice.ExtList {
 		_ = m.AddItem(HelpTextItem{
+			Group:       HelpBuiltinGroup,
 			Title:       i.Name,
 			Content:     i.GetDescText(i),
 			PackageName: "扩展模块",
@@ -331,6 +365,7 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 
 func (m *HelpManager) AddItem(item HelpTextItem) error {
 	data := map[string]string{
+		"group":   item.Group,
 		"title":   item.Title,
 		"content": item.Content,
 		"package": item.PackageName,
