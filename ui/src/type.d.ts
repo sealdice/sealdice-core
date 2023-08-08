@@ -1,5 +1,6 @@
 interface JsScriptInfo {
   name: string;
+  enable: boolean;
   version: string;
   author: string;
   license: string;

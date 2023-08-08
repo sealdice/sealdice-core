@@ -391,6 +391,10 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    async jsStatus(): Promise<boolean> {
+      const resp = await apiFetch(urlPrefix+'/js/status', {method: 'GET'})
+      return resp.status
+    },
     async jsList(): Promise<JsScriptInfo[]> {
       return await apiFetch(urlPrefix+'/js/list', { method: 'GET', headers: {
         token: this.token
@@ -418,12 +422,35 @@ export const useStore = defineStore('main', {
         }
       })
     },
+    async jsShutdown() {
+      return await apiFetch(urlPrefix+'/js/shutdown', {
+        headers: {
+          token: this.token
+        }
+      })
+    },
     async jsExec(code: string) {
       return await apiFetch(urlPrefix+'/js/execute', {body: { value: code }}) as {
         ret: any,
         outputs: string[],
         err: string,
       }
+    },
+    async jsEnable(body: any) {
+      return await apiFetch(urlPrefix+'/js/enable', {
+        headers: {
+          token: this.token
+        },
+        body
+      })
+    },
+    async jsDisable(body: any) {
+      return await apiFetch(urlPrefix+'/js/disable', {
+        headers: {
+          token: this.token
+        },
+        body
+      })
     },
 
     async toolOnebot() {
