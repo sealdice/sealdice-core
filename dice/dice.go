@@ -184,10 +184,12 @@ type Dice struct {
 	Cron             *cron.Cron           `yaml:"-" json:"-"`
 	AliveNoticeEntry cron.EntryID         `yaml:"-" json:"-"`
 	//JsVM             *goja.Runtime          `yaml:"-" json:"-"`
-	JsPrinter    *PrinterFunc           `yaml:"-" json:"-"`
-	JsRequire    *require.RequireModule `yaml:"-" json:"-"`
-	JsLoop       *eventloop.EventLoop   `yaml:"-" json:"-"`
-	JsScriptList []*JsScriptInfo        `yaml:"-" json:"-"`
+	JsEnable          bool                   `yaml:"jsEnable" json:"jsEnable"`
+	DisabledJsScripts map[string]bool        `yaml:"disabledJsScripts" json:"disabledJsScripts"` // 作为set
+	JsPrinter         *PrinterFunc           `yaml:"-" json:"-"`
+	JsRequire         *require.RequireModule `yaml:"-" json:"-"`
+	JsLoop            *eventloop.EventLoop   `yaml:"-" json:"-"`
+	JsScriptList      []*JsScriptInfo        `yaml:"-" json:"-"`
 
 	// 游戏系统规则模板
 	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
@@ -269,7 +271,12 @@ func (d *Dice) Init() {
 	d.IsAlreadyLoadConfig = true
 
 	// 创建js运行时
-	d.JsInit()
+	if d.JsEnable {
+		d.Logger.Info("js扩展支持：开启")
+		d.JsInit()
+	} else {
+		d.Logger.Info("js扩展支持：关闭")
+	}
 
 	for _, i := range d.ExtList {
 		if i.OnLoad != nil {
@@ -351,7 +358,11 @@ func (d *Dice) Init() {
 	go refreshGroupInfo()
 
 	d.ApplyAliveNotice()
-	d.JsLoadScripts()
+	if d.JsEnable {
+		d.JsLoadScripts()
+	} else {
+		d.Logger.Info("js扩展支持已关闭，跳过js脚本的加载")
+	}
 
 	if d.UpgradeWindowId != "" {
 		go func() {
