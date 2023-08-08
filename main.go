@@ -3,16 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/jessevdk/go-flags"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	cp "github.com/otiai10/copy"
 	"mime"
 	"net"
 	"net/http"
 	"path/filepath"
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
+
+	"github.com/jessevdk/go-flags"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	cp "github.com/otiai10/copy"
+
 	//_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -479,7 +481,11 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.EndPointInfoBase.ProtocolType == "onebot" {
 						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-						dice.GoCqHttpServe(d, conn, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+						dice.GoCqHttpServe(d, conn, dice.GoCqHttpLoginInfo{
+							Password:   pa.InPackGoCqHttpPassword,
+							Protocol:   pa.InPackGoCqHttpProtocol,
+							IsAsyncRun: true,
+						})
 					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
 					dice.ServeQQ(d, conn)

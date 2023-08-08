@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -15,6 +14,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/sacOO7/gowebsocket"
 )
 
 // 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
@@ -71,6 +74,10 @@ type PlatformAdapterGocq struct {
 	echoMap        *SyncMap[int64, chan *MessageQQ] `yaml:"-"`
 	echoMap2       *SyncMap[int64, *echoMapInfo]    `yaml:"-"`
 	Implementation string                           `yaml:"implementation" json:"implementation"`
+
+	UseSignServer bool   `yaml:"useSignServer" json:"useSignServer"`
+	SignServerUrl string `yaml:"signServerUrl" json:"signServerUrl"`
+	SignServerKey string `yaml:"signServerKey" json:"signServerKey"`
 }
 
 type Sender struct {
@@ -897,7 +904,11 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		pa.GoCqHttpLastRestrictedTime = 0           // 重置风控时间
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
-		GoCqHttpServe(myDice, ep, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+		GoCqHttpServe(myDice, ep, GoCqHttpLoginInfo{
+			Password:   pa.InPackGoCqHttpPassword,
+			Protocol:   pa.InPackGoCqHttpProtocol,
+			IsAsyncRun: true,
+		})
 		return true
 	}
 	return false
@@ -913,7 +924,11 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		if pa.UseInPackGoCqhttp {
 			GoCqHttpServeProcessKill(d, c)
 			time.Sleep(1 * time.Second)
-			GoCqHttpServe(d, c, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+			GoCqHttpServe(d, c, GoCqHttpLoginInfo{
+				Password:   pa.InPackGoCqHttpPassword,
+				Protocol:   pa.InPackGoCqHttpProtocol,
+				IsAsyncRun: true,
+			})
 			go ServeQQ(d, c)
 		} else {
 			go ServeQQ(d, c)
@@ -947,6 +962,27 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 			data, err := json.Marshal(info)
 			if err == nil {
 				_ = os.WriteFile(deviceFilePath, data, 0644)
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (pa *PlatformAdapterGocq) SetSignServer(signServerUrl string, signServerKey string) bool {
+	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
+	configFilePath := filepath.Join(workDir, "config.yml")
+	if _, err := os.Stat(configFilePath); err == nil {
+		configFile, _ := os.ReadFile(configFilePath)
+		info := map[string]interface{}{}
+		err = yaml.Unmarshal(configFile, &info)
+
+		if err == nil {
+			(info["account"]).(map[string]interface{})["sign-server"] = signServerUrl
+			(info["account"]).(map[string]interface{})["key"] = signServerKey
+			data, err := yaml.Marshal(info)
+			if err == nil {
+				_ = os.WriteFile(configFilePath, data, 0644)
 				return true
 			}
 		}
