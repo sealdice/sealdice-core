@@ -167,6 +167,19 @@
           <!-- <el-option label="MacOS" :value="3"></el-option> -->
         </el-select>
       </el-form-item>
+
+      <el-form-item v-if="form.accountType === 0 && form.protocol === 1" label="使用签名服务" :label-width="formLabelWidth">
+        <el-switch v-model="form.useSignServer" style="--el-switch-on-color: #67C23A;"/>
+        <el-tooltip content="如果不知道这是什么请勿勾选。允许填写签名服务相关信息。" style="">
+          <el-icon><QuestionFilled/></el-icon>
+        </el-tooltip>
+      </el-form-item>
+      <el-form-item v-if="form.accountType === 0 && form.protocol === 1 && form.useSignServer" label="签名服务url" :label-width="formLabelWidth">
+        <el-input v-model="form.signServerUrl" type="string" autocomplete="off" placeholder="http://127.0.0.1:8080"></el-input>
+      </el-form-item>
+      <el-form-item v-if="form.accountType === 0 && form.protocol === 1 && form.useSignServer" label="签名服务key" :label-width="formLabelWidth">
+        <el-input v-model="form.signServerKey" type="string" autocomplete="off" placeholder="114514"></el-input>
+      </el-form-item>
       <small>
         <div>提示: 切换协议后，需要点击重新登录，或.master reboot重启骰子以应用设置</div>
       </small>
@@ -229,6 +242,18 @@
             <div style="color: #aa4422;">提示: 首次登录时，建议先尝试AndroidPad，如失败，切换使用Android，再失败手表协议。</div>
             <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
           </small>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 0 && form.protocol === 1" label="使用签名服务" :label-width="formLabelWidth">
+          <el-switch v-model="form.useSignServer" style="--el-switch-on-color: #67C23A;"/>
+          <el-tooltip content="如果不知道这是什么请勿勾选。允许填写签名服务相关信息。" style="">
+            <el-icon><QuestionFilled/></el-icon>
+          </el-tooltip>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 0 && form.protocol === 1 && form.useSignServer" label="签名服务url" :label-width="formLabelWidth">
+          <el-input v-model="form.signServerUrl" type="string" autocomplete="off" placeholder="http://127.0.0.1:8080"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 0 && form.protocol === 1 && form.useSignServer" label="签名服务key" :label-width="formLabelWidth">
+          <el-input v-model="form.signServerKey" type="string" autocomplete="off" placeholder="114514"></el-input>
         </el-form-item>
 
         <el-form-item v-if="form.accountType === 6" label="账号" :label-width="formLabelWidth" required>
@@ -429,7 +454,7 @@ import { h, reactive, onBeforeMount, onBeforeUnmount, onMounted, ref, nextTick }
 import { useStore, goCqHttpStateCode } from '~/store';
 import type { DiceConnection } from '~/store';
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit } from '@element-plus/icons-vue'
+import { Plus, Edit, QuestionFilled } from '@element-plus/icons-vue'
 import { sleep } from '~/utils'
 import { delay } from 'lodash-es'
 import * as dayjs from 'dayjs'
@@ -622,12 +647,15 @@ const setEnable = async (i: DiceConnection, val: boolean) => {
 const askSetData = async (i: DiceConnection) => {
   form.protocol = i.adapter?.inPackGoCqHttpProtocol;
   form.ignoreFriendRequest = i.adapter?.ignoreFriendRequest;
+  form.useSignServer = i.adapter?.useSignServer;
+  form.signServerUrl = i.adapter?.signServerUrl;
+  form.signServerKey = i.adapter?.signServerKey;
   dialogSetDataFormVisible.value = true;
   form.endpoint = i;
 }
 
 const doSetData = async () => {
-  const ret = await store.getImConnectionsSetData(form.endpoint, { protocol: form.protocol, ignoreFriendRequest: form.ignoreFriendRequest });
+  const ret = await store.getImConnectionsSetData(form.endpoint, { protocol: form.protocol, ignoreFriendRequest: form.ignoreFriendRequest, useSignServer: form.useSignServer, signServerUrl: form.signServerUrl, signServerKey: form.signServerKey });
   if (form.endpoint.adapter) {
     form.endpoint.adapter.inPackGoCqHttpProtocol = form.protocol;
   }
@@ -703,7 +731,12 @@ const form = reactive({
   endpoint: null as any as DiceConnection,
 
   relWorkDir: '',
+  accessToken: '',
   connectUrl: '',
+
+  useSignServer: false,
+  signServerUrl: '',
+  signServerKey: '',
 })
 
 const addOne = () => {
