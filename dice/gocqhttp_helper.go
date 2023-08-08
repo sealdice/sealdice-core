@@ -289,6 +289,22 @@ account: # 账号相关
   # 是否使用服务器下发的新地址进行重连
   # 注意, 此设置可能导致在海外服务器上连接情况更差
   use-sso-address: true
+  # 是否允许发送临时会话消息
+  allow-temp-session: false
+
+  # 数据包的签名服务器
+  # 兼容 https://github.com/fuqiuluo/unidbg-fetch-qsign
+  # 如果遇到 登录 45 错误, 或者发送信息风控的话需要填入一个服务器
+  # 示例:
+  # sign-server: 'http://127.0.0.1:8080' # 本地签名服务器
+  # sign-server: 'https://signserver.example.com' # 线上签名服务器
+  # 服务器可使用docker在本地搭建或者使用他人开放的服务
+  {是否使用签名服务}sign-server: {签名服务器url}
+  # 如果签名服务器的版本在1.1.0及以下, 请将下面的参数改成true
+  {是否使用签名服务}is-below-110: false
+  # 签名服务器所需要的apikey, 如果签名服务器的版本在1.1.0及以下则此项无效
+  # 本地部署的默认为114514
+  {是否使用签名服务}key: '{签名服务器key}'
 
 heartbeat:
   # 心跳频率, 单位秒
@@ -377,12 +393,18 @@ servers:
         <<: *default # 引用默认中间件
 `
 
-func GenerateConfig(qq int64, password string, port int) string {
+func GenerateConfig(qq int64, port int, info GoCqHttpLoginInfo) string {
 	ret := strings.ReplaceAll(defaultConfig, "{WS端口}", fmt.Sprintf("%d", port))
 	ret = strings.Replace(ret, "{QQ帐号}", fmt.Sprintf("%d", qq), 1)
+	ret = strings.Replace(ret, "{QQ密码}", info.Password, 1)
 
-	password2, _ := json.Marshal(password)
-	ret = strings.Replace(ret, "{QQ密码}", string(password2), 1)
+	if info.UseSignServer {
+		ret = strings.Replace(ret, "{是否使用签名服务}", "", 3)
+		ret = strings.Replace(ret, "{签名服务器url}", info.SignServerUrl, 1)
+		ret = strings.Replace(ret, "{签名服务器key}", info.SignServerKey, 1)
+	} else {
+		ret = strings.Replace(ret, "{是否使用签名服务}", "# ", 3)
+	}
 	return ret
 }
 
@@ -459,7 +481,16 @@ func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 	}
 }
 
-func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int, isAsyncRun bool) {
+type GoCqHttpLoginInfo struct {
+	Password      string
+	Protocol      int
+	IsAsyncRun    bool
+	UseSignServer bool
+	SignServerUrl string
+	SignServerKey string
+}
+
+func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) {
 	pa := conn.Adapter.(*PlatformAdapterGocq)
 	//if pa.GoCqHttpState != StateCodeInit {
 	//	return
@@ -493,7 +524,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 
 		// 创建设备配置文件
 		if _, err := os.Stat(deviceFilePath); errors.Is(err, os.ErrNotExist) {
-			_, deviceInfo, err := GenerateDeviceJson(dice, protocol)
+			_, deviceInfo, err := GenerateDeviceJson(dice, loginInfo.Protocol)
 			if err == nil {
 				_ = os.WriteFile(deviceFilePath, deviceInfo, 0644)
 				dice.Logger.Info("onebot: 成功创建设备文件")
@@ -507,7 +538,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			p, _ := GetRandomFreePort()
 			pa.ConnectUrl = fmt.Sprintf("ws://localhost:%d", p)
 			qqid, _ := pa.mustExtractId(conn.UserId)
-			c := GenerateConfig(qqid, password, p)
+			c := GenerateConfig(qqid, p, loginInfo)
 			_ = os.WriteFile(configFilePath, []byte(c), 0644)
 		}
 
@@ -827,7 +858,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 			}
 		}
 
-		if isAsyncRun {
+		if loginInfo.IsAsyncRun {
 			go run()
 		} else {
 			run()
