@@ -176,6 +176,7 @@ type Dice struct {
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	//InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
+
 	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
 	Parent          *DiceManager               `yaml:"-"`
