@@ -259,12 +259,12 @@
         <el-form-item v-if="form.accountType === 6" label="账号" :label-width="formLabelWidth" required>
           <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
         </el-form-item>
-        <el-form-item v-if="form.accountType === 6" label="gocqhttp目录" :label-width="formLabelWidth" required>
-          <el-input v-model="form.relWorkDir" type="text" autocomplete="off" placeholder="d:/my-gocqhttp"></el-input>
+        <el-form-item v-if="form.accountType === 6" label="程序目录" :label-width="formLabelWidth" required>
+          <el-input v-model="form.relWorkDir" type="text" autocomplete="off" placeholder="gocqhttp的程序目录，如 d:/my-gocqhttp"></el-input>
         </el-form-item>
-        <el-form-item v-if="form.accountType === 6" label="正向WS连接地址" :label-width="formLabelWidth" required>
-          <el-input v-model="form.connectUrl" placeholder="ws://localhost:1234" type="text" autocomplete="off"></el-input>
-        </el-form-item>
+        <el-form-item v-if="form.accountType === 6" label="连接地址" :label-width="formLabelWidth" required>
+          <el-input v-model="form.connectUrl" placeholder="正向WS连接地址，如 ws://localhost:1234" type="text" autocomplete="off"></el-input>
+        </el-form-item>  
         <el-form-item v-if="form.accountType === 6" label="访问令牌" :label-width="formLabelWidth">
           <el-input v-model="form.accessToken" placeholder="gocqhttp配置的access token，没有不用填写" type="text" autocomplete="off"></el-input>
         </el-form-item>
@@ -733,6 +733,7 @@ const form = reactive({
   relWorkDir: '',
   accessToken: '',
   connectUrl: '',
+  accessToken: '',
 
   useSignServer: false,
   signServerUrl: '',
