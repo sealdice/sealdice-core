@@ -37,7 +37,9 @@ func getNews(c echo.Context) error {
 			"newsMark": mark,
 		})
 	}
-	return c.JSON(http.StatusNotFound, "")
+	return c.JSON(http.StatusNotFound, map[string]interface{}{
+		"result": false,
+	})
 }
 
 func checkNews(c echo.Context) error {
