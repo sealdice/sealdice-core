@@ -1,0 +1,34 @@
+name: Build
+
+on:
+    push:
+        
+env:
+    PROJECT_NAME: "sealdice-ui"
+    COMMIT_ID: "${{ github.sha }}"
+    
+jobs:
+    build:
+        runs-on: 'ubuntu-latest'
+        steps:
+            - name: Code
+              uses: actions/checkout@v3
+            - name: Install Node
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 'latest'
+            - name: Install Dependencies
+              run: npm install
+            - name: Build WebUI
+              run: npm run build
+            - name: Upload Artifact
+              uses: actions/upload-artifact@v3
+              with:
+                name: ${{ env.PROJECT_NAME }}_${{ env.COMMIT_ID }}
+                path: dist/
+
+          
+              
+              
+          
+          
