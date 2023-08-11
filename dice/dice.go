@@ -3,14 +3,6 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"github.com/dop251/goja_nodejs/eventloop"
-	"github.com/dop251/goja_nodejs/require"
-	"github.com/go-creed/sat"
-	"github.com/jmoiron/sqlx"
-	wr "github.com/mroth/weightedrand"
-	"github.com/robfig/cron/v3"
-	"github.com/tidwall/buntdb"
-	"go.uber.org/zap"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -20,6 +12,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dop251/goja_nodejs/eventloop"
+	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-creed/sat"
+	"github.com/jmoiron/sqlx"
+	wr "github.com/mroth/weightedrand"
+	"github.com/robfig/cron/v3"
+	"github.com/tidwall/buntdb"
+	"go.uber.org/zap"
 )
 
 var APPNAME = "SealDice"
@@ -211,6 +212,8 @@ type Dice struct {
 	MailSmtp     string `json:"mailSmtp" yaml:"mailSmtp"`         // 邮箱 smtp 地址
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
+
+	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
 }
 
 func (d *Dice) MarkModified() {

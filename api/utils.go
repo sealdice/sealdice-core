@@ -4,9 +4,10 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
-	"net/http"
 )
 
 func Int64ToBytes(i int64) []byte {
@@ -71,21 +72,6 @@ func getGithubAvatar(c echo.Context) error {
 		// 设置缓存时间为3天
 		c.Response().Header().Set("Cache-Control", "max-age=259200")
 
-		return c.Blob(http.StatusOK, resp.ContentType(), resp.Bytes())
-	}
-	return c.JSON(http.StatusNotFound, "")
-}
-
-func getNews(c echo.Context) error {
-	req := request.Client{
-		URL:    "https://dice.weizaima.com/dice/api/news",
-		Method: "GET",
-	}
-
-	resp := req.Send()
-	if resp.OK() {
-		// 设置缓存时间为3天
-		c.Response().Header().Set("Cache-Control", "max-age=120")
 		return c.Blob(http.StatusOK, resp.ContentType(), resp.Bytes())
 	}
 	return c.JSON(http.StatusNotFound, "")

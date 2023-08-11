@@ -1322,6 +1322,7 @@ func (d *Dice) loads() {
 			d.MailSmtp = dNew.MailSmtp
 			d.JsEnable = dNew.JsEnable
 			d.DisabledJsScripts = dNew.DisabledJsScripts
+			d.NewsMark = dNew.NewsMark
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
