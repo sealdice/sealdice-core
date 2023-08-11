@@ -1,4 +1,8 @@
 <template>
+  <Teleport v-if="store.curDice.logs.length" to="#root">
+    <el-button type="default" class="btn-scrolldown" :icon="CaretBottom" circle @click="scrollDown"></el-button>
+  </Teleport>
+
   <p style="display: flex;justify-content: space-between;">
     <span style="display: flex; align-items: center;">
       <span>内存占用: </span>
@@ -90,7 +94,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Timer } from '@element-plus/icons-vue'
+import { Timer, CaretBottom } from '@element-plus/icons-vue'
 import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useStore } from '~/store';
 import * as dayjs from 'dayjs'
@@ -125,6 +129,13 @@ const doUpgrade = async () => {
   }
 }
 
+const scrollDown = () => {
+  const panel = document.querySelector<HTMLElement>('.main-container')?.parentElement;
+  if (panel) {
+    panel.scrollTop = panel.scrollHeight;
+  }
+}
+
 onBeforeMount(async () => {
   if (autoRefresh.value) {
     await store.logFetchAndClear()
@@ -141,3 +152,27 @@ onBeforeUnmount(() => {
   clearInterval(timerId)
 })
 </script>
+
+
+<style scoped>
+.btn-scrolldown {
+  position: absolute;
+  right: 40px; 
+  bottom: 60px;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  box-shadow: 0 0 6px rgba(0,0,0,.12);
+  cursor: pointer;
+  z-index: 5;
+  opacity: .4;
+}
+.btn-scrolldown:hover {
+  transition: all .3s;
+  opacity: 1;  
+}
+</style>

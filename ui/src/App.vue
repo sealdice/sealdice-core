@@ -3,6 +3,7 @@
   <!-- <HelloWorld msg="Hello Vue 3.0 + Element Plus + Vite" /> -->
 
   <div
+    id="root"
     style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 900px; width: 100%; margin: 0 auto; position: relative;"
   >
     <h3
