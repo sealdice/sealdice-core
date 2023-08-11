@@ -264,7 +264,7 @@
         </el-form-item>
         <el-form-item v-if="form.accountType === 6" label="连接地址" :label-width="formLabelWidth" required>
           <el-input v-model="form.connectUrl" placeholder="正向WS连接地址，如 ws://localhost:1234" type="text" autocomplete="off"></el-input>
-        </el-form-item>  
+        </el-form-item>
         <el-form-item v-if="form.accountType === 6" label="访问令牌" :label-width="formLabelWidth">
           <el-input v-model="form.accessToken" placeholder="gocqhttp配置的access token，没有不用填写" type="text" autocomplete="off"></el-input>
         </el-form-item>
@@ -444,7 +444,7 @@
     <iframe id="slideIframe" ref="slideIframe" referrerpolicy="no-referrer" src="about:blank" style="width: 100%; height: 100%;"></iframe>
     <div v-show="slideBottomShow" style="position: absolute; bottom: 0; width: 100%; height: 100px; z-index: 10; display: flex; justify-content: center; flex-direction: column; align-items: center;">
       <div style=" margin-bottom: .5rem;"><a style="line-break: anywhere; font-size: .5rem;" :href="slideLink" target="_blank">方式2:新页面打开(如无法验证)</a></div>
-      <el-button type="primary" @click="dialogSlideVisible = false">关闭，滑条完成后点击</el-button>      
+      <el-button type="primary" @click="dialogSlideVisible = false">关闭，滑条完成后点击</el-button>
     </div>
   </div>
 </template>
@@ -733,7 +733,6 @@ const form = reactive({
   relWorkDir: '',
   accessToken: '',
   connectUrl: '',
-  accessToken: '',
 
   useSignServer: false,
   signServerUrl: '',
