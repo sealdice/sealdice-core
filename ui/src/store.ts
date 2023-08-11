@@ -164,8 +164,13 @@ export const useStore = defineStore('main', {
       return info as any as DiceConnection
     },
 
-    async news() {
+    async news(): Promise<{result: true, checked: boolean, news: string, newsMark: string} | { result: false, err?: string}> {
       const info = await backend.get(urlPrefix+'/utils/news')
+      return info as any
+    },
+
+    async checkNews(newsMark: string): Promise<{ result: true; newsMark: string; } | {result: false}> {
+      const info = await backend.post(urlPrefix+'/utils/check_news', {newsMark}, {timeout: 5000})
       return info as any
     },
 

@@ -15,7 +15,9 @@
     <!-- border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; -->
     <div @click="dialogFeed = true" style="position: absolute; right: 8rem; top: 0.8rem; font-size: 1.7rem; color: white; cursor: pointer; display: flex; align-items: center;">
       <!-- <el-icon><WarnTriangleFilled /></el-icon> -->
-      <img :src="imgNews" style="width: 2.3rem;">
+      <el-badge value="new" :hidden="newsChecked">
+        <img :src="imgNews" style="width: 2.3rem;">
+      </el-badge>
       <!-- <span style="font-size: .9rem;">News!</span> -->
     </div>
 
@@ -203,10 +205,7 @@
     <template #header="{ close, titleId, titleClass }">
       <div class="my-header">
         <h4 :id="titleId" :class="titleClass" style="margin: 0.5rem">海豹新闻</h4>
-        <el-button type="danger" @click="close">
-          <el-icon class="el-icon--left"><CircleCloseFilled /></el-icon>
-          关闭
-        </el-button>
+        <el-button type="success" :icon="Check" @click="checkNews(close)">确认已读</el-button>
       </div>
     </template>
 
@@ -229,7 +228,7 @@ import PageTest from "./components/PageTest.vue"
 import { onBeforeMount, ref, watch, computed } from 'vue'
 import { useStore } from './store'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { WarnTriangleFilled } from '@element-plus/icons-vue'
+import { Check } from '@element-plus/icons-vue'
 import imgNews from '~/assets/news.png'
 
 
@@ -266,6 +265,29 @@ const password = ref('')
 const dialogFeed = ref(false)
 
 const newsData = ref(`<div>暂无内容</div>`)
+const newsChecked = ref(true)
+const newsMark = ref('')
+const checkNews = async(close: any) => {
+  console.log('newsMark', newsMark.value)
+  const ret = await store.checkNews(newsMark.value)
+  if (ret?.result) {
+    ElMessage.success('已阅读最新的海豹新闻')
+  } else {
+    ElMessage.error('阅读海豹新闻失败')
+  }
+  await updateNews()
+  close()
+}
+const updateNews = async () => {
+  const newsInfo = await store.news()
+  if (newsInfo.result) {
+    newsData.value = newsInfo.news
+    newsChecked.value = newsInfo.checked
+    newsMark.value = newsInfo.newsMark
+  } else {
+    ElMessage.error(newsInfo?.err ?? '获取海豹新闻失败')
+  }
+}
 
 const showDialog = computed(() => {
   return !store.canAccess
@@ -316,7 +338,8 @@ onBeforeMount(async () => {
       }
     }
   }, 5000) as any
-  newsData.value = await store.news()
+
+  await updateNews()
 })
 
 let timerId: number
