@@ -5,11 +5,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"net"
 	"regexp"
 	"runtime"
 	"sealdice-core/dice"
+
+	"github.com/labstack/echo/v4"
 )
 
 func trayInit(dm *dice.DiceManager) {
@@ -55,5 +56,5 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	}
 }
 
-func showWarn(title string, msg string) {
-}
+//func showWarn(title string, msg string) {
+//}
