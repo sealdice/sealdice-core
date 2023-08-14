@@ -40,7 +40,7 @@ require (
 	github.com/xuri/excelize/v2 v2.7.1
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/zap v1.24.0
-	golang.org/x/sys v0.8.0
+	golang.org/x/sys v0.10.0
 	golang.org/x/text v0.9.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/yaml.v3 v3.0.1
@@ -51,11 +51,13 @@ require (
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/glebarez/go-sqlite v1.21.2
 	github.com/go-creed/sat v1.0.3
+	github.com/gorilla/websocket v1.5.0
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/pkg/errors v0.9.1
+	github.com/tdewolff/minify/v2 v2.12.8
 	github.com/yuin/goldmark v1.5.4
 	golang.org/x/time v0.3.0
 )
@@ -101,7 +103,6 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20220221023154-0b2280d3ff96 // indirect
 	github.com/gopherjs/gopherwasm v1.1.0 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/labstack/gommon v0.4.0 // indirect
@@ -119,6 +120,7 @@ require (
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/sacOO7/go-logger v0.0.0-20180719173527-9ac9add5a50d // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
+	github.com/tdewolff/parse/v2 v2.6.7 // indirect
 	github.com/tidwall/btree v1.4.2 // indirect
 	github.com/tidwall/gjson v1.14.3 // indirect
 	github.com/tidwall/grect v0.1.4 // indirect
