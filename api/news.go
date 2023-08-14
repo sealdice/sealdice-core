@@ -27,9 +27,6 @@ func getNews(c echo.Context) error {
 				"err":    "无法解析新闻",
 			})
 		}
-
-		// 设置缓存时间为3天
-		c.Response().Header().Set("Cache-Control", "max-age=120")
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"result":   true,
 			"checked":  mark == myDice.NewsMark,
