@@ -31,7 +31,7 @@ require (
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/monaco-io/request v1.0.15
 	github.com/mroth/weightedrand v1.0.0
-	github.com/otiai10/copy v1.11.0
+	github.com/otiai10/copy v1.12.0
 	github.com/phuslu/log v1.0.83
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105
