@@ -11,6 +11,7 @@ import (
 	"html"
 	"io"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -238,6 +239,80 @@ func (pa *PlatformAdapterKook) Serve() int {
 		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
 		//pa.Session.Parent.Logger.Infof("删除信息#%s(%s)", msg.RawId, msg.GroupId)
 		pa.Session.OnMessageDeleted(mctx, msg)
+	})
+
+	s.AddHandler(func(ctx *kook.BotJoinContext) {
+		msg := new(Message)
+		msg.Time = ctx.Common.MsgTimestamp
+		msg.RawId = ctx.Common.MsgID
+		msg.Platform = "KOOK"
+
+		guild, err := s.GuildView(ctx.Extra.GuildID)
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("无法获取服务器信息，跳过入群致辞")
+			return
+		}
+
+		msg.GuildId = FormatDiceIdKookGuild(ctx.Extra.GuildID)
+		// WelcomeChannel 是发送“xxx加入群组”消息的频道，DefaultChannel 是加入后第一个看到的频道
+		// 这两个可能都为空
+		if guild.WelcomeChannelID != "" {
+			msg.GroupId = FormatDiceIdKookChannel(guild.WelcomeChannelID)
+		} else if guild.DefaultChannelID != "" {
+			msg.GroupId = FormatDiceIdKookChannel(guild.DefaultChannelID)
+		}
+
+		// 如果获取不到默认频道的话，入群致辞和 OnGuildJoined 基本上没什么意义
+		if msg.GroupId == "" {
+			return
+		}
+
+		msg.Sender.UserId = FormatDiceIdKook(ctx.Common.AuthorID)
+		msg.Sender.Nickname = "系统"
+		if ctx.Common.ChannelType == "PERSON" {
+			msg.MessageType = "private"
+		} else {
+			msg.MessageType = "group"
+		}
+
+		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
+		pa.GetGroupInfoAsync(msg.GroupId)
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					pa.Session.Parent.Logger.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+				}
+			}()
+
+			// 稍作等待后发送入群致词
+			time.Sleep(1 * time.Second)
+
+			mctx.Player = &GroupPlayerInfo{}
+			pa.Session.Parent.Logger.Infof("发送入群致辞，群: <%s>(%s)", guild.Name, msg.GuildId)
+			text := DiceFormatTmpl(mctx, "核心:骰子进群")
+			for _, i := range strings.Split(text, "###SPLIT###") {
+				pa.SendToGroup(mctx, msg.GroupId, strings.TrimSpace(i), "")
+			}
+		}()
+
+		// 此时 ServiceAtNew 中这个频道一般为空，照 im_session.go 中的方法处理
+		channel := mctx.Session.ServiceAtNew[msg.GroupId]
+		if channel == nil {
+			channel = SetBotOnAtGroup(mctx, msg.GroupId)
+			channel.Active = true
+			channel.DiceIdExistsMap.Store(pa.EndPoint.UserId, true)
+			channel.UpdatedAtTime = time.Now().Unix()
+		}
+
+		if mctx.Session.ServiceAtNew[msg.GroupId] != nil {
+			for _, i := range mctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+				if i.OnGuildJoined != nil {
+					i.callWithJsCheck(mctx.Dice, func() {
+						i.OnGuildJoined(mctx, msg)
+					})
+				}
+			}
+		}
 	})
 	err := s.Open()
 	if err != nil {

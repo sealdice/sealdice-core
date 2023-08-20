@@ -1079,13 +1079,13 @@ func (ctx *MsgContext) Notice(txt string) {
 		}
 
 		for _, i := range ctx.Dice.NoticeIds {
-			seg := strings.Split(i, "-")[0]
-			if ctx.EndPoint.Platform != seg {
-				//ctx.Dice.Logger.Infof("Endpoint platform %s, ID platform %s", ctx.EndPoint.Platform, seg[0])
-				return
-			}
 			n := strings.Split(i, ":")
 			if len(n) >= 2 {
+				seg := strings.Split(n[0], "-")[0]
+				if ctx.EndPoint.Platform != seg {
+					ctx.Dice.Logger.Infof("发给 %s，但由于平台不同而未发送通知：%s", i, txt)
+					continue
+				}
 				if strings.HasSuffix(n[0], "-Group") {
 					ReplyGroup(ctx, &Message{GroupId: i}, txt)
 				} else {
