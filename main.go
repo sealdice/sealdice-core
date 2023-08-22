@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"runtime"
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
 
@@ -125,6 +126,18 @@ func deleteOldWrongFile() {
 	_ = os.Remove("./data/helpdoc/DND/子职列表大全.xlsx")
 }
 
+func fixTimezone() {
+	out, err := exec.Command("/system/bin/getprop", "persist.sys.timezone").Output()
+	if err != nil {
+		return
+	}
+	z, err := time.LoadLocation(strings.TrimSpace(string(out)))
+	if err != nil {
+		return
+	}
+	time.Local = z
+}
+
 func main() {
 	var opts struct {
 		Version                bool   `long:"version" description:"显示版本号"`
@@ -169,6 +182,10 @@ func main() {
 	if opts.Delay != 0 {
 		fmt.Println("延迟启动", opts.Delay, "秒")
 		time.Sleep(time.Duration(opts.Delay) * time.Second)
+	}
+
+	if runtime.GOOS == "android" {
+		fixTimezone()
 	}
 	dnsHack()
 
