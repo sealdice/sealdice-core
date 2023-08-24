@@ -3,13 +3,14 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"math"
 	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type RIListItem struct {
@@ -27,6 +28,9 @@ func (lst ByRIListValue) Swap(i, j int) {
 	lst[i], lst[j] = lst[j], lst[i]
 }
 func (lst ByRIListValue) Less(i, j int) bool {
+	if lst[i].val == lst[j].val {
+		return lst[i].name > lst[j].name
+	}
 	return lst[i].val > lst[j].val
 }
 
