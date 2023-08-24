@@ -102,6 +102,10 @@
               <span>JS扩展</span>
             </el-menu-item>
 
+            <el-menu-item :index="`5-helpdoc`" @click="switchTo('mod', 'helpdoc')">
+              <span>帮助文档</span>
+            </el-menu-item>
+
           </el-sub-menu>
 
           <!--

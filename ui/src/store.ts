@@ -511,6 +511,39 @@ export const useStore = defineStore('main', {
         await this.signIn('defaultSignin')
       }
       return this.token != ''
-    }
+    },
+
+    async helpDocTree(): Promise<{result: true, data: HelpDoc[]} | {result: false, err?: string}> {
+      return await apiFetch(urlPrefix+'/helpdoc/tree', {method: 'GET', headers: {
+        token: this.token
+      }})
+    },
+
+    async helpDocReload(): Promise<{result: true} | {result: false, err?: string}> {
+      return await apiFetch(urlPrefix+'/helpdoc/reload', {method: 'POST', headers: {
+        token: this.token
+      }})
+    },
+
+    async helpDocUpload(form: any): Promise<{result: true} | {result: false, err?: string}> {
+      return await apiFetch(urlPrefix+'/helpdoc/upload', {method: 'POST', headers: {
+        token: this.token
+      }, body: form})
+    },
+
+    async helpDocDelete(keys: string[]): Promise<{result: true} | {result: false, err?: string}> {
+      return await apiFetch(urlPrefix+'/helpdoc/delete', {
+        method: 'POST', 
+        headers: {token: this.token}, 
+        body: {keys: keys}
+      })
+    },
+
+    async helpGetTextItemPage(param: HelpTextItemQuery): Promise<{ result: true; total: number; data: HelpTextItem[] } | { result: false; err?: string }> {
+      return await apiFetch(urlPrefix + "/helpdoc/textitem/get_page", {
+        method: "POST",
+        body: param,
+      });
+    },
   }
 })

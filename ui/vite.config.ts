@@ -5,6 +5,8 @@ import legacy from '@vitejs/plugin-legacy'
 
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import Icons from 'unplugin-icons/vite'
+import IconsResolver from 'unplugin-icons/resolver'
 
 const pathSrc = path.resolve(__dirname, 'src')
 
@@ -33,6 +35,7 @@ export default defineConfig({
       ],
       dts: path.resolve(pathSrc, 'components.d.ts'),
     }),
+    Icons({compiler: 'vue3'}),
     legacy({
       targets: ['defaults', 'not IE 11']
     })    
