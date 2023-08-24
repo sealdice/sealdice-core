@@ -366,6 +366,13 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/js/enable", jsEnable)
 	e.POST(prefix+"/js/disable", jsDisable)
 
+	e.GET(prefix+"/helpdoc/status", helpDocStatus)
+	e.GET(prefix+"/helpdoc/tree", helpDocTree)
+	e.POST(prefix+"/helpdoc/reload", helpDocReload)
+	e.POST(prefix+"/helpdoc/upload", helpDocUpload)
+	e.POST(prefix+"/helpdoc/delete", helpDocDelete)
+	e.POST(prefix+"/helpdoc/textitem/get_page", helpGetTextItemPage)
+
 	e.POST(prefix+"/tool/onebot", onebotTool)
 	e.GET(prefix+"/utils/ga/:uid", getGithubAvatar)
 	e.GET(prefix+"/utils/news", getNews)
