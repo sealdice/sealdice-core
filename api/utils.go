@@ -10,6 +10,19 @@ import (
 	"github.com/monaco-io/request"
 )
 
+type Response map[string]interface{}
+
+func Success(c *echo.Context, res Response) error {
+	res["result"] = true
+	return (*c).JSON(http.StatusOK, res)
+}
+
+func Error(c *echo.Context, errMsg string, res Response) error {
+	res["result"] = false
+	res["err"] = errMsg
+	return (*c).JSON(http.StatusOK, res)
+}
+
 func Int64ToBytes(i int64) []byte {
 	var buf = make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(i))
