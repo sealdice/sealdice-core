@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"mime"
 	"net"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"runtime"
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
+	"sealdice-core/static"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
@@ -351,24 +353,16 @@ func main() {
 		return
 	}
 
+	useBuiltinUI := false
 	checkFrontendExists := func() bool {
 		stat, err := os.Stat("./frontend")
 		return err == nil && stat.IsDir()
 	}
-
-	// 检查目录是否正确
-	//if !checkFrontendExists() {
-	// 给一次修正机会吗？
-	//exe, err := filepath.Abs(os.Args[0])
-	//if err == nil {
-	//	ret := filepath.Dir(exe)
-	//}
-	//}
-
 	if !checkFrontendExists() {
-		showWarn("SealDice 文件不完整", "未检查到UI文件目录，程序不完整，将自动退出。\n也可能是当前工作路径错误。")
-		logger.Error("因缺少frontend目录而自动退出")
-		return
+		logger.Info("未检测到外置的UI资源文件，将使用内置资源启动UI")
+		useBuiltinUI = true
+	} else {
+		logger.Info("检测到外置的UI资源文件，将使用frontend文件夹内的资源启动UI")
 	}
 
 	// 尝试进行升级
@@ -451,7 +445,7 @@ func main() {
 	//	http.ListenAndServe("0.0.0.0:8899", nil)
 	//}()
 
-	uiServe(diceManager, opts.HideUIWhenBoot)
+	uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
 	//OOM分析工具
 	//err = nil
 	//err = http.ListenAndServe(":9090", nil)
@@ -538,7 +532,7 @@ func diceServe(d *dice.Dice) {
 	}
 }
 
-func uiServe(dm *dice.DiceManager, hideUI bool) {
+func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	logger.Info("即将启动webui")
 	// Echo instance
 	e := echo.New()
@@ -575,7 +569,12 @@ func uiServe(dm *dice.DiceManager, hideUI bool) {
 		}
 	}
 	e.Use(groupStatic)
-	e.Static("/", "./frontend")
+	if useBuiltin {
+		frontend, _ := fs.Sub(static.Static, "frontend")
+		e.StaticFS("/", frontend)
+	} else {
+		e.Static("/", "./frontend")
+	}
 
 	api.Bind(e, dm)
 	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置
