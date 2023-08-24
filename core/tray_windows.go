@@ -5,12 +5,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/fy0/go-autostart"
-	"github.com/fy0/systray"
-	"github.com/gen2brain/beeep"
-	"github.com/labstack/echo/v4"
-	"github.com/lxn/win"
-	"github.com/monaco-io/request"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -22,6 +16,13 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/fy0/go-autostart"
+	"github.com/fy0/systray"
+	"github.com/gen2brain/beeep"
+	"github.com/labstack/echo/v4"
+	"github.com/lxn/win"
+	"github.com/monaco-io/request"
 )
 
 func hideWindow() {
@@ -250,9 +251,9 @@ func tempDirWarn() {
 	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
 }
 
-func showWarn(title string, msg string) {
-	s1, _ := syscall.UTF16PtrFromString(title)
-	s2, _ := syscall.UTF16PtrFromString(msg)
-	win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONERROR)
-	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
-}
+//func showWarn(title string, msg string) {
+//	s1, _ := syscall.UTF16PtrFromString(title)
+//	s2, _ := syscall.UTF16PtrFromString(msg)
+//	win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONERROR)
+//	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
+//}
