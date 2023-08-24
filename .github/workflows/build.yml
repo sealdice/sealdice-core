@@ -38,6 +38,8 @@ jobs:
         run: |
           go mod tidy
           go get .
+      - name: Generate
+        run: go generate ./...
       - name: Test
         run: go test -v -race ./...
       - name: Set env
