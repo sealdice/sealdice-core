@@ -275,6 +275,9 @@ func (m *HelpManager) Load() {
 		fmt.Println("unable to read helpdoc folder: ", err.Error())
 	}
 	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
 		var child HelpDoc
 		child.Key = generateHelpDocKey()
 		child.Name = entry.Name()
@@ -644,6 +647,9 @@ func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
 	}
 
 	for _, sub := range subs {
+		if strings.HasPrefix(sub.Name(), ".") {
+			continue
+		}
 		var child HelpDoc
 		child.Key = generateHelpDocKey()
 		child.Name = sub.Name()
