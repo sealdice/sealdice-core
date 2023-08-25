@@ -660,9 +660,9 @@ func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
 		fn(&child)
 		if sub.IsDir() {
 			buildHelpDocTree(&child, fn)
-		} else {
-			node.Children = append(node.Children, &child)
 		}
+		node.Children = append(node.Children, &child)
+
 	}
 }
 
