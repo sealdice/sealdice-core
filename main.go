@@ -355,14 +355,14 @@ func main() {
 
 	useBuiltinUI := false
 	checkFrontendExists := func() bool {
-		stat, err := os.Stat("./frontend")
+		stat, err := os.Stat("./frontend_overwrite")
 		return err == nil && stat.IsDir()
 	}
 	if !checkFrontendExists() {
 		logger.Info("未检测到外置的UI资源文件，将使用内置资源启动UI")
 		useBuiltinUI = true
 	} else {
-		logger.Info("检测到外置的UI资源文件，将使用frontend文件夹内的资源启动UI")
+		logger.Info("检测到外置的UI资源文件，将使用frontend_overwrite文件夹内的资源启动UI")
 	}
 
 	// 尝试进行升级
