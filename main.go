@@ -365,6 +365,8 @@ func main() {
 		logger.Info("检测到外置的UI资源文件，将使用frontend文件夹内的资源启动UI")
 	}
 
+	// 尝试修正log_items表的message字段类型
+	_ = migrate.LogItemFixDatatype()
 	// 尝试进行升级
 	migrate.TryMigrateToV12()
 
