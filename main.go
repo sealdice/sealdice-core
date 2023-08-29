@@ -288,6 +288,8 @@ func main() {
 			_ = os.Remove("./auto_updat3.exe")
 			_ = os.Remove("./升级日志.log")
 			_ = os.RemoveAll("./update")
+			// ui资源已经内置，删除旧的ui文件
+			_ = os.RemoveAll("./frontend")
 		} else {
 			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
 			logger.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
@@ -326,6 +328,8 @@ func main() {
 			_ = os.RemoveAll("./update")
 			_ = os.Rename("./auto_update", "./_delete_me.exe") // 删不掉就试图改名
 			_ = os.Remove("./_delete_me.exe")
+			// ui资源已经内置，删除旧的ui文件
+			_ = os.RemoveAll("./frontend")
 		} else {
 			logger.Warn("检测到 auto_update.exe，即将进行升级")
 			err := cp.Copy("./update/new", "./")
@@ -355,14 +359,14 @@ func main() {
 
 	useBuiltinUI := false
 	checkFrontendExists := func() bool {
-		stat, err := os.Stat("./frontend")
+		stat, err := os.Stat("./frontend_overwrite")
 		return err == nil && stat.IsDir()
 	}
 	if !checkFrontendExists() {
 		logger.Info("未检测到外置的UI资源文件，将使用内置资源启动UI")
 		useBuiltinUI = true
 	} else {
-		logger.Info("检测到外置的UI资源文件，将使用frontend文件夹内的资源启动UI")
+		logger.Info("检测到外置的UI资源文件，将使用frontend_overwrite文件夹内的资源启动UI")
 	}
 
 	// 尝试进行升级
