@@ -299,7 +299,7 @@ account: # 账号相关
   # sign-server: 'http://127.0.0.1:8080' # 本地签名服务器
   # sign-server: 'https://signserver.example.com' # 线上签名服务器
   # 服务器可使用docker在本地搭建或者使用他人开放的服务
-  {是否使用签名服务}sign-server: {签名服务器url}
+  {是否使用签名服务}sign-server: '{签名服务器url}'
   # 如果签名服务器的版本在1.1.0及以下, 请将下面的参数改成true
   {是否使用签名服务}is-below-110: false
   # 签名服务器所需要的apikey, 如果签名服务器的版本在1.1.0及以下则此项无效
