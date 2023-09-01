@@ -75,9 +75,8 @@ type PlatformAdapterGocq struct {
 	echoMap2       *SyncMap[int64, *echoMapInfo]    `yaml:"-"`
 	Implementation string                           `yaml:"implementation" json:"implementation"`
 
-	UseSignServer bool   `yaml:"useSignServer" json:"useSignServer"`
-	SignServerUrl string `yaml:"signServerUrl" json:"signServerUrl"`
-	SignServerKey string `yaml:"signServerKey" json:"signServerKey"`
+	UseSignServer    bool              `yaml:"useSignServer" json:"useSignServer"`
+	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`
 }
 
 type Sender struct {
@@ -969,7 +968,7 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 	return false
 }
 
-func (pa *PlatformAdapterGocq) SetSignServer(signServerUrl string, signServerKey string) bool {
+func (pa *PlatformAdapterGocq) SetSignServer(signServerConfig *SignServerConfig) bool {
 	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
 	configFilePath := filepath.Join(workDir, "config.yml")
 	if _, err := os.Stat(configFilePath); err == nil {
@@ -978,8 +977,9 @@ func (pa *PlatformAdapterGocq) SetSignServer(signServerUrl string, signServerKey
 		err = yaml.Unmarshal(configFile, &info)
 
 		if err == nil {
-			(info["account"]).(map[string]interface{})["sign-server"] = signServerUrl
-			(info["account"]).(map[string]interface{})["key"] = signServerKey
+			//FIXME: 新签名服务配置
+			//(info["account"]).(map[string]interface{})["sign-server"] = signServerUrl
+			//(info["account"]).(map[string]interface{})["key"] = signServerKey
 			data, err := yaml.Marshal(info)
 			if err == nil {
 				_ = os.WriteFile(configFilePath, data, 0644)
