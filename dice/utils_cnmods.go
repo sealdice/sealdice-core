@@ -135,10 +135,10 @@ func CnmodsSearch(title string, page int, pageSize int, isRec bool, article stri
 	// moduleType: DND COC
 	// moduleVersion: coc7th coc6th
 	c := request.Client{
-		URL:    "https://new.cnmods.net/index/moduleListPage.do",
+		URL:    "https://www.cnmods.net/prod-api/index/moduleListPage.do",
 		Method: "GET",
 		Header: map[string]string{
-			"Referer":    "https://new.cnmods.net/",
+			"Referer":    "https://www.cnmods.net/web/",
 			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36 Edg/100.0.1185.50",
 		},
 		Query: query,
@@ -162,10 +162,10 @@ func CnmodsDetail(keyId string) *CnmodsDetailInfo {
 	// moduleType: DND COC
 	// moduleVersion: coc7th coc6th
 	c := request.Client{
-		URL:    "https://new.cnmods.net/index/moduleDetail.do",
+		URL:    "https://www.cnmods.net/prod-api/index/moduleDetail.do",
 		Method: "GET",
 		Header: map[string]string{
-			"Referer":    "https://new.cnmods.net/",
+			"Referer":    "https://www.cnmods.net/web/",
 			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36 Edg/100.0.1185.50",
 		},
 		Query: query,
