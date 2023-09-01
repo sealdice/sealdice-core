@@ -927,6 +927,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				// 注意一下，这里其实是，小于失败 大于成功
 				successRank, _ := ResultCheck(mctx, mctx.Group.CocRuleIndex, d100, varValue)
 				var resultText string
+				// 若玩家投出了高于当前技能值的结果，或者结果大于95，则调查员该技能获得改善：骰1D10并且立即将结果加到当前技能值上。技能可通过此方式超过100%。
+				if d100 > 95 {
+					successRank = -1
+				}
 				if successRank > 0 {
 					resultText = "失败"
 				} else {
