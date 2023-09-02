@@ -981,9 +981,18 @@ func (pa *PlatformAdapterGocq) SetSignServer(signServerConfig *SignServerConfig)
 		err = yaml.Unmarshal(configFile, &info)
 
 		if err == nil {
-			//FIXME: 新签名服务配置
-			//(info["account"]).(map[string]interface{})["sign-server"] = signServerUrl
-			//(info["account"]).(map[string]interface{})["key"] = signServerKey
+			if signServerConfig.SignServers != nil {
+				mainServer := signServerConfig.SignServers[0]
+				(info["account"]).(map[string]interface{})["sign-server"] = mainServer.Url
+				(info["account"]).(map[string]interface{})["key"] = mainServer.Key
+				(info["account"]).(map[string]interface{})["sign-servers"] = signServerConfig.SignServers
+				(info["account"]).(map[string]interface{})["ruleChangeSignServer"] = signServerConfig.RuleChangeSignServer
+				(info["account"]).(map[string]interface{})["maxCheckCount"] = signServerConfig.MaxCheckCount
+				(info["account"]).(map[string]interface{})["signServerTimeout"] = signServerConfig.SignServerTimeout
+				(info["account"]).(map[string]interface{})["autoRegister"] = signServerConfig.AutoRegister
+				(info["account"]).(map[string]interface{})["autoRefreshToken"] = signServerConfig.AutoRefreshToken
+				(info["account"]).(map[string]interface{})["refreshInterval"] = signServerConfig.RefreshInterval
+			}
 			data, err := yaml.Marshal(info)
 			if err == nil {
 				_ = os.WriteFile(configFilePath, data, 0644)
