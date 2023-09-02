@@ -1,21 +1,22 @@
-import path from 'path'
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import legacy from '@vitejs/plugin-legacy'
+import path from "path";
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import legacy from "@vitejs/plugin-legacy";
 
-import Components from 'unplugin-vue-components/vite'
-import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
-import Icons from 'unplugin-icons/vite'
-import IconsResolver from 'unplugin-icons/resolver'
+import Components from "unplugin-vue-components/vite";
+import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
+import Icons from "unplugin-icons/vite";
+import IconsResolver from "unplugin-icons/resolver";
+import AutoImport from "unplugin-auto-import/vite"
 
-const pathSrc = path.resolve(__dirname, 'src')
+const pathSrc = path.resolve(__dirname, "src");
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: './',
+  base: "./",
   resolve: {
     alias: {
-      '~/': `${pathSrc}/`,
+      "~/": `${pathSrc}/`,
     },
   },
   css: {
@@ -30,17 +31,21 @@ export default defineConfig({
     Components({
       resolvers: [
         ElementPlusResolver({
-          importStyle: 'sass',
+          importStyle: "sass",
         }),
+        IconsResolver(),
       ],
-      dts: path.resolve(pathSrc, 'components.d.ts'),
+      dts: path.resolve(pathSrc, "components.d.ts"),
     }),
-    Icons({compiler: 'vue3'}),
+    Icons({
+      compiler: "vue3",
+      autoInstall: true,
+    }),
     legacy({
-      targets: ['defaults', 'not IE 11']
-    })    
+      targets: ["defaults", "not IE 11"],
+    }),
   ],
   build: {
-    target: "es6"
-  }
-})
+    target: "es6",
+  },
+});
