@@ -497,9 +497,11 @@ func diceServe(d *dice.Dice) {
 					if conn.EndPointInfoBase.ProtocolType == "onebot" {
 						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 						dice.GoCqHttpServe(d, conn, dice.GoCqHttpLoginInfo{
-							Password:   pa.InPackGoCqHttpPassword,
-							Protocol:   pa.InPackGoCqHttpProtocol,
-							IsAsyncRun: true,
+							Password:         pa.InPackGoCqHttpPassword,
+							Protocol:         pa.InPackGoCqHttpProtocol,
+							IsAsyncRun:       true,
+							UseSignServer:    pa.UseSignServer,
+							SignServerConfig: pa.SignServerConfig,
 						})
 					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接

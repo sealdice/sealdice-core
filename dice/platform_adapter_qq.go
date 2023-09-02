@@ -904,9 +904,11 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		GoCqHttpServe(myDice, ep, GoCqHttpLoginInfo{
-			Password:   pa.InPackGoCqHttpPassword,
-			Protocol:   pa.InPackGoCqHttpProtocol,
-			IsAsyncRun: true,
+			Password:         pa.InPackGoCqHttpPassword,
+			Protocol:         pa.InPackGoCqHttpProtocol,
+			IsAsyncRun:       true,
+			UseSignServer:    pa.UseSignServer,
+			SignServerConfig: pa.SignServerConfig,
 		})
 		return true
 	}
@@ -924,9 +926,11 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 			GoCqHttpServeProcessKill(d, c)
 			time.Sleep(1 * time.Second)
 			GoCqHttpServe(d, c, GoCqHttpLoginInfo{
-				Password:   pa.InPackGoCqHttpPassword,
-				Protocol:   pa.InPackGoCqHttpProtocol,
-				IsAsyncRun: true,
+				Password:         pa.InPackGoCqHttpPassword,
+				Protocol:         pa.InPackGoCqHttpProtocol,
+				IsAsyncRun:       true,
+				UseSignServer:    pa.UseSignServer,
+				SignServerConfig: pa.SignServerConfig,
 			})
 			go ServeQQ(d, c)
 		} else {
