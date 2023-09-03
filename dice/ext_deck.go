@@ -15,7 +15,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/mitchellh/mapstructure"
+
+	"github.com/BurntSushi/toml"
 	wr "github.com/mroth/weightedrand"
 	"github.com/sahilm/fuzzy"
 	"gopkg.in/yaml.v3"
@@ -45,12 +49,56 @@ type DeckSinaNyaFormat struct {
 	//一组牌        []string `json:"一组牌"`
 }
 
+type Prop struct {
+	Key   string `toml:"key" json:"key" yaml:"key"`
+	Value string `toml:"value" json:"value" yaml:"value"`
+
+	Name     string `toml:"name" json:"name" yaml:"name"`
+	Desc     string `toml:"desc" json:"desc" yaml:"desc"`
+	Required bool   `toml:"required" json:"required" yaml:"required"`
+	Default  string `toml:"default" json:"default" yaml:"default"`
+}
+
+type SealComplexSingleDeck struct {
+	Export  bool     `toml:"export"`
+	Visible bool     `toml:"visible"`
+	Aliases []string `toml:"aliases"`
+
+	// 文本牌堆项
+	Options []string `toml:"options"`
+
+	// 云牌堆项
+	CloudExtra bool   `toml:"cloudExtra"`
+	OptionsUrl string `toml:"optionsUrl"`
+	Etag       string `toml:"etag"`
+}
+
+type DeckSealFormat struct {
+	Meta struct {
+		Title      string    `toml:"title"`
+		Author     string    `toml:"author"`
+		Authors    []string  `toml:"authors"`
+		Version    string    `toml:"version"`
+		License    string    `toml:"license"`
+		Date       time.Time `toml:"date"`
+		UpdateDate time.Time `toml:"update_date"`
+		Desc       string    `toml:"desc"`
+
+		UpdateUrls []string `toml:"update_urls"`
+		Etag       string   `toml:"etag"`
+	} `toml:"meta"`
+
+	Props []Prop `toml:"props"`
+
+	Decks map[string][]string `toml:"decks"`
+}
+
 type DeckInfo struct {
 	Enable        bool                 `json:"enable" yaml:"enable"`
 	Filename      string               `json:"filename" yaml:"filename"`
-	Format        string               `json:"format" yaml:"format"`               // 几种：“SinaNya” ”Dice!“
+	Format        string               `json:"format" yaml:"format"`               // 几种：“SinaNya” ”Dice!“ "Seal"
 	FormatVersion int64                `json:"formatVersion" yaml:"formatVersion"` // 格式版本，默认都是1
-	FileFormat    string               `json:"fileFormat" yaml:"-" `               // json / yaml
+	FileFormat    string               `json:"fileFormat" yaml:"-" `               // json / yaml / toml
 	Name          string               `json:"name" yaml:"name"`
 	Version       string               `json:"version" yaml:"-"`
 	Author        string               `json:"author" yaml:"-"`
@@ -62,13 +110,15 @@ type DeckInfo struct {
 	Desc          string               `yaml:"-" json:"desc"`
 	Info          []string             `yaml:"-" json:"-"`
 	RawData       *map[string][]string `yaml:"-" json:"-"`
+	UpdateUrls    []string             `yaml:"updateUrls" json:"updateUrls"`
+	Etag          string               `yaml:"etag" json:"etag"`
+	Props         []Prop               `yaml:"props" json:"props"`
 }
 
-func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
+func tryParseDiceE(content []byte, deckInfo *DeckInfo) bool {
 	jsonData := map[string][]string{}
 	err := json.Unmarshal(content, &jsonData)
 	if err != nil {
-		d.Logger.Infof("牌堆解析错误: %s", err.Error())
 		return false
 	}
 	jsonData2 := DeckDiceEFormat{}
@@ -135,7 +185,7 @@ func tryParseDiceE(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	return true
 }
 
-func tryParseSinaNya(d *Dice, content []byte, deckInfo *DeckInfo) bool {
+func tryParseSinaNya(content []byte, deckInfo *DeckInfo) bool {
 	jsonData := map[string]interface{}{}
 	err := yaml.Unmarshal(content, &jsonData)
 	if err != nil {
@@ -186,6 +236,159 @@ func tryParseSinaNya(d *Dice, content []byte, deckInfo *DeckInfo) bool {
 	return true
 }
 
+func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
+	tomlData := map[string]interface{}{}
+	err := toml.Unmarshal(content, &tomlData)
+	if err != nil {
+		return false
+	}
+	deckData := DeckSealFormat{}
+	err = toml.Unmarshal(content, &deckData)
+	if err != nil {
+		return false
+	}
+
+	tomlDataFix := map[string][]string{}
+
+	for name, deckItems := range deckData.Decks {
+		deckInfo.DeckItems[name] = deckItems
+		if strings.HasPrefix(name, "__") {
+			continue
+		} else if strings.HasPrefix(name, "_") {
+			deckInfo.Command[name] = false
+		} else {
+			deckInfo.Command[name] = true
+		}
+	}
+
+	for k, v := range tomlData {
+		if k == "" || k == "meta" || k == "decks" {
+			continue
+		}
+
+		item := SealComplexSingleDeck{}
+		itemData, ok := v.(map[string]interface{})
+		if ok {
+			err := mapstructure.Decode(itemData, &item)
+			if err != nil {
+				deckItemName := k
+				deckInfo.DeckItems[deckItemName] = tomlDataFix[k]
+				if !item.Export {
+					continue
+				} else if !item.Visible {
+					deckInfo.Command[deckItemName] = false
+				} else {
+					deckInfo.Command[deckItemName] = true
+				}
+
+				// 别名
+				fakeData := []string{"{" + deckItemName + "}"}
+				for _, alias := range item.Aliases {
+					tomlDataFix[alias] = fakeData
+					deckInfo.DeckItems[alias] = fakeData
+					if !item.Export {
+						continue
+					} else if !item.Visible {
+						deckInfo.Command[alias] = false
+					} else {
+						deckInfo.Command[alias] = true
+					}
+				}
+			}
+		}
+
+		switch temp := v.(type) {
+		case []interface{}:
+			// 简单牌组
+			for _, option := range temp {
+				option, ok := option.(string)
+				if ok {
+					tomlDataFix[k] = append(tomlDataFix[k], option)
+				}
+			}
+			deckInfo.DeckItems[k] = tomlDataFix[k]
+			if strings.HasPrefix(k, "__") {
+				continue
+			} else if strings.HasPrefix(k, "_") {
+				deckInfo.Command[k] = false
+			} else {
+				deckInfo.Command[k] = true
+			}
+		case map[string]interface{}:
+			// 复杂牌组
+			options, ok := temp["options"]
+			if ok {
+				options, ok := options.([]interface{})
+				if ok {
+					for _, option := range options {
+						option, ok := option.(string)
+						if ok {
+							tomlDataFix[k] = append(tomlDataFix[k], option)
+						}
+					}
+				}
+			}
+
+			var export, show bool
+			e, ok1 := temp["export"]
+			s, ok2 := temp["visible"]
+			if ok1 || ok2 {
+				export, _ = e.(bool)
+				show, _ = s.(bool)
+			}
+
+			var deckItemName []string
+			deckItemName = append(deckItemName, k)
+			aliases, ok := temp["aliases"]
+			if ok {
+				aliases, ok := aliases.([]interface{})
+				if ok {
+					for _, alias := range aliases {
+						alias, ok := alias.(string)
+						if ok {
+							deckItemName = append(deckItemName, alias)
+						}
+					}
+				}
+			}
+
+			for _, name := range deckItemName {
+				deckInfo.DeckItems[name] = tomlDataFix[k]
+				if !export {
+					continue
+				} else if !show {
+					deckInfo.Command[name] = false
+				} else {
+					deckInfo.Command[name] = true
+				}
+			}
+		}
+	}
+
+	meta := deckData.Meta
+	deckInfo.Name = meta.Title
+	var author string
+	if meta.Authors != nil {
+		author = strings.Join(meta.Authors, " / ")
+	} else {
+		author = meta.Author
+	}
+	deckInfo.Author = author
+	deckInfo.Version = meta.Version
+	deckInfo.License = meta.License
+	deckInfo.Date = meta.Date.Format("2006-01-02")
+	deckInfo.UpdateDate = meta.UpdateDate.Format("2006-01-02")
+	deckInfo.Desc = meta.Desc
+	deckInfo.Format = "Seal"
+	deckInfo.FormatVersion = 1
+	deckInfo.Enable = true
+	deckInfo.UpdateUrls = meta.UpdateUrls
+	deckInfo.Etag = meta.Etag
+	deckInfo.RawData = &tomlDataFix
+	deckInfo.Props = deckData.Props
+	return true
+}
+
 func isPrefixWithUtf8Bom(buf []byte) bool {
 	return len(buf) >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF
 }
@@ -208,9 +411,13 @@ func DeckTryParse(d *Dice, fn string) {
 		deckInfo.Command = map[string]bool{}
 	}
 
-	if !tryParseDiceE(d, content, deckInfo) {
+	if path.Ext(fn) == ".toml" {
+		if !tryParseSeal(content, deckInfo) {
+			d.Logger.Infof("牌堆文件“%s”解析失败", fn)
+		}
+	} else if !tryParseDiceE(content, deckInfo) {
 		if path.Ext(fn) != ".json" {
-			if !tryParseSinaNya(d, content, deckInfo) {
+			if !tryParseSinaNya(content, deckInfo) {
 				d.Logger.Infof("牌堆文件“%s”解析失败", fn)
 				return
 			}
@@ -272,7 +479,7 @@ func DecksDetect(d *Dice) {
 
 		if !info.IsDir() {
 			ext := filepath.Ext(path)
-			if ext == ".json" || ext == ".yaml" || ext == "" {
+			if ext == ".json" || ext == ".yaml" || ext == ".toml" || ext == "" {
 				DeckTryParse(d, path)
 			}
 		}
