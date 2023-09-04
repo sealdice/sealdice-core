@@ -2,6 +2,11 @@ name: Build
 
 on:
   push:
+    paths-ignore:
+      - '**.yml'
+      - '**.yaml'
+      - '**.md'
+      - '.gitignore'
 
 env:
   PROJECT_NAME: "sealdice-core"
