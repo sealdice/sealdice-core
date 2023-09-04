@@ -1,0 +1,16 @@
+[submodule "sealdice-core"]
+	path = sealdice-core
+	url = https://github.com/sealdice/sealdice-core
+	branch = master
+[submodule "sealdice-ui"]
+	path = sealdice-ui
+	url = https://github.com/sealdice/sealdice-ui
+	branch = master
+[submodule "sealdice-android"]
+	path = sealdice-android
+	url = https://github.com/sealdice/sealdice-android
+	branch = master
+[submodule "sealdice-buildtool"]
+	path = sealdice-buildtool
+	url = https://github.com/sealdice/sealdice-buildtool
+	branch = master
