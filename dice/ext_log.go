@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/golang-module/carbon"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sealdice-core/dice/model"
 	"strings"
 	"time"
@@ -134,7 +136,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log stat (<日志名>) // 查看统计
 .log stat (<日志名>) --all // 查看统计(全团)，--all前必须有空格
 .log list <群号> // 查看指定群的日志列表(无法取得日志时，找骰主做这个操作)
-.log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)`
+.log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)
+.log export <日志名> // 直接取得日志txt(服务出问题或有其他需要时使用)`
 
 	txtLogTip := "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
 
@@ -405,6 +408,29 @@ func RegisterBuiltinExtLog(self *Dice) {
 					}
 				}
 				ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "export") {
+				logName := group.LogCurName
+				if newName := cmdArgs.GetArgN(2); newName != "" {
+					logName = newName
+				}
+				if logName != "" {
+					logFile, err := GetLogTxt(ctx, group.GroupId, logName)
+					if err != nil {
+						ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
+					}
+					var uri string
+					if runtime.GOOS == "windows" {
+						uri = "files:///" + logFile.Name()
+					} else {
+						uri = "files://" + logFile.Name()
+					}
+					SendFileToSenderRaw(ctx, msg, uri, "skip")
+					err = os.Remove(logFile.Name())
+					if err != nil {
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -797,6 +823,29 @@ func LogDeleteById(ctx *MsgContext, groupId string, logName string, messageId in
 		return false
 	}
 	return true
+}
+
+func GetLogTxt(ctx *MsgContext, groupId string, logName string) (*os.File, error) {
+	today := carbon.Now().ToShortDateString()
+	tempLog, err := os.CreateTemp("", fmt.Sprintf("[log]%s-%s-*.txt", logName, today))
+	if err != nil {
+		return nil, errors.New("log导出出现未知错误")
+	}
+
+	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupId, logName)
+	if len(lines) == 0 {
+		return nil, errors.New("此log不存在，或条目数为空，名字是否正确？")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	for _, line := range lines {
+		timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
+		text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserId, timeTxt, line.Message)
+		_, _ = tempLog.Write([]byte(text))
+	}
+	return tempLog, nil
 }
 
 func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, error) {

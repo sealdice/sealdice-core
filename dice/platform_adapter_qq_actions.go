@@ -653,7 +653,7 @@ func textAssetsConvert(s string) string {
 				return text // 不是文件路径，不管
 			}
 			cwd, _ := os.Getwd()
-			if strings.HasPrefix(afn, cwd) {
+			if strings.HasPrefix(afn, cwd) || strings.HasPrefix(afn, os.TempDir()) {
 				if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
 					return "[找不到图片/文件]"
 				} else {
@@ -672,7 +672,7 @@ func textAssetsConvert(s string) string {
 					return cq.Compile()
 				}
 			} else {
-				return "[图片/文件指向非当前程序目录，已禁止]"
+				return "[图片/文件指向的不是当前程序目录或临时文件目录，已禁止]"
 			}
 		}
 		return text
@@ -692,7 +692,7 @@ func textAssetsConvert(s string) string {
 			}
 			cwd, _ := os.Getwd()
 
-			if strings.HasPrefix(afn, cwd) {
+			if strings.HasPrefix(afn, cwd) || strings.HasPrefix(afn, os.TempDir()) {
 				if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
 					cq.Overwrite = "[CQ码找不到文件]"
 				} else {
@@ -707,7 +707,7 @@ func textAssetsConvert(s string) string {
 					cq.Args["file"] = u.String()
 				}
 			} else {
-				cq.Overwrite = "[CQ码读取非当前目录文件，可能是恶意行为，已禁止]"
+				cq.Overwrite = "[CQ码读取的不是当前目录文件或临时文件，可能是恶意行为，已禁止]"
 			}
 		}
 		//}
