@@ -41,11 +41,87 @@ jobs:
         with:
           name: documents
           path: ./sealdice-buildtool/data
+
+  gocqhttp-build:
+    name: Build Gocqhttp
+    runs-on: ubuntu-latest
+    needs: commit-num-check
+    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
+    strategy:
+      matrix:
+        # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
+        goos: [ linux, windows, darwin ]
+        goarch: [ '386', amd64, arm64 ]
+        exclude:
+          - goos: linux
+            goarch: '386'
+          - goos: windows
+            goarch: arm64
+          - goos: darwin
+            goarch: '386'
+      fail-fast: true
+    steps:
+      - name: Code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: stable
+      - name: Build Binary
+        working-directory: ./go-cqhttp
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLE: 0
+        run: |
+          if [ $GOOS = "windows" ]; then export BINARY_SUFFIX=".exe"; fi
+          export BINARY_NAME="go-cqhttp$BINARY_SUFFIX"
+          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${COMMIT_ID::7}"
+          go build -o "output/$BINARY_NAME" -trimpath -ldflags "$LD_FLAGS" .
       - name: Upload Gocqhttp
         uses: actions/upload-artifact@v3
         with:
-          name: gocqhttp
-          path: ./sealdice-buildtool/temp
+          name: go-cqhttp_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: ./go-cqhttp/output
+
+  gocqhttp-android-build:
+    name: Build Gocqhttp (android, arm64)
+    runs-on: ubuntu-latest
+    needs: commit-num-check
+    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
+    steps:
+      - name: Code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: stable
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+          link-to-sdk: true
+          local-cache: true
+      - name: Build Binary
+        working-directory: ./go-cqhttp
+        env:
+          GOOS: android
+          GOARCH: arm64
+          CGO_ENABLE: 0
+          CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
+        run: |
+          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${COMMIT_ID::7}"
+          go build -o "output/go-cqhttp" -trimpath -ldflags "$LD_FLAGS" .
+      - name: Upload Gocqhttp
+        uses: actions/upload-artifact@v3
+        with:
+          name: go-cqhttp_android_arm64
+          path: ./go-cqhttp/output
 
   ui-build:
     name: Build UI
@@ -250,6 +326,7 @@ jobs:
     needs:
       - core-android-build
       - resources-download
+      - gocqhttp-android-build
     steps:
       - name: Code
         uses: actions/checkout@v3
@@ -270,13 +347,8 @@ jobs:
       - name: Get Gocqhttp
         uses: actions/download-artifact@v3
         with:
-          name: gocqhttp
-          path: ./temp
-      - name: Select Gocqhttp
-        run: |
-          mkdir ./sealdice-android/app/src/main/assets/sealdice/go-cqhttp
-          mv ./temp/go-cqhttp_linux_arm64/go-cqhttp ./sealdice-android/app/src/main/assets/sealdice/go-cqhttp/;
-          rm -rf ./temp
+          name: go-cqhttp_android_arm64
+          path: ./sealdice-android/app/src/main/assets/sealdice/go-cqhttp/
       - name: Setup Java
         uses: actions/setup-java@v3
         with:
@@ -311,6 +383,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - resources-download
+      - gocqhttp-build
       - core-build
       - core-darwin-build
     strategy:
@@ -326,6 +399,8 @@ jobs:
           - goos: darwin
             goarch: '386'
     steps:
+      - name: Set Env
+        run: echo "PROJECT_VERSION=develop-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Get Documents
         uses: actions/download-artifact@v3
         with:
@@ -334,21 +409,8 @@ jobs:
       - name: Get Gocqhttp
         uses: actions/download-artifact@v3
         with:
-          name: gocqhttp
-          path: ./temp
-      - name: Select Gocqhttp
-        env:
-          GOOS: ${{ matrix.goos }}
-          ARCH: ${{ matrix.goarch == '386' && 'i386' || matrix.goarch }}
-        run: |
-          echo "PROJECT_VERSION=develop-${COMMIT_ID::7}" >> $GITHUB_ENV;
-          mkdir go-cqhttp;
-          if [ $GOOS = 'windows' ]; then
-            mv ./temp/go-cqhttp_"$GOOS"_$ARCH/go-cqhttp.exe ./go-cqhttp;
-          else
-            mv ./temp/go-cqhttp_"$GOOS"_$ARCH/go-cqhttp ./go-cqhttp;
-          fi
-          rm -rf ./temp
+          name: go-cqhttp_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: ./go-cqhttp/
       - name: Get Core
         uses: actions/download-artifact@v3
         with:
@@ -372,6 +434,6 @@ jobs:
         with:
           name: |
             documents
-            gocqhttp
+            go-cqhttp*
             sealdice-ui
             sealdice-core*
