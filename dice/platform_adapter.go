@@ -10,6 +10,9 @@ type PlatformAdapter interface {
 	SendToGroup(ctx *MsgContext, uid string, text string, flag string)
 	SetGroupCardName(groupId string, userId string, name string)
 
+	SendFileToPerson(ctx *MsgContext, uid string, path string, flag string)
+	SendFileToGroup(ctx *MsgContext, uid string, path string, flag string)
+
 	MemberBan(groupId string, userId string, duration int64)
 	MemberKick(groupId string, userId string)
 

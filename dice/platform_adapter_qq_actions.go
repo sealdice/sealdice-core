@@ -3,6 +3,7 @@ package dice
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"net/url"
@@ -250,6 +251,82 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupId string, text
 		}
 		socketSendText(pa.Socket, string(a))
 	}
+}
+
+func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
+	rawId, type_ := pa.mustExtractId(userId)
+	if type_ != QQUidPerson {
+		return
+	}
+
+	dice := pa.Session.Parent
+	//路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
+	fileName, temp, err := dice.ExtractLocalTempFile(path)
+	defer func(name string) {
+		_ = os.Remove(name)
+	}(temp.Name())
+
+	if err != nil {
+		dice.Logger.Errorf("尝试发送文件[path=%s]出错: %s", path, err.Error())
+		return
+	}
+
+	type uploadPrivateFileParams struct {
+		UserId int64  `json:"user_id"`
+		File   string `json:"file"`
+		Name   string `json:"name"`
+	}
+	a, _ := json.Marshal(oneBotCommand{
+		Action: "upload_private_file",
+		Params: uploadPrivateFileParams{
+			UserId: rawId,
+			File:   temp.Name(),
+			Name:   fileName,
+		},
+	})
+	doSleepQQ(ctx)
+	socketSendText(pa.Socket, string(a))
+}
+
+func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
+	if groupId == "" {
+		return
+	}
+	rawId, type_ := pa.mustExtractId(groupId)
+	if type_ == 0 {
+		// qq频道尚不支持文件发送，降级
+		pa.SendToChannelGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", filepath.Base(path)), flag)
+		return
+	}
+
+	dice := pa.Session.Parent
+	//路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
+	fileName, temp, err := dice.ExtractLocalTempFile(path)
+	defer func(name string) {
+		_ = os.Remove(name)
+	}(temp.Name())
+
+	if err != nil {
+		dice.Logger.Errorf("尝试发送文件[path=%s]出错: %s", path, err.Error())
+		return
+	}
+
+	type uploadGroupFileParams struct {
+		GroupId int64  `json:"group_id"`
+		File    string `json:"file"`
+		Name    string `json:"name"`
+	}
+	a, _ := json.Marshal(oneBotCommand{
+		Action: "upload_group_file",
+		Params: uploadGroupFileParams{
+			GroupId: rawId,
+			File:    temp.Name(),
+			Name:    fileName,
+		},
+	})
+	doSleepQQ(ctx)
+	socketSendText(pa.Socket, string(a))
+
 }
 
 // SetGroupAddRequest 同意加群
