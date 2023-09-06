@@ -999,6 +999,17 @@ func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
 	}
 }
 
+// GetEpByPlatform
+// 在 EndPoints 中找到第一个符合平台 p 且启用的
+func (s *IMSession) GetEpByPlatform(p string) *EndPointInfo {
+	for _, ep := range s.EndPoints {
+		if ep.Enable && ep.Platform == p {
+			return ep
+		}
+	}
+	return nil
+}
+
 // SetEnable
 /* 如果已连接，将断开连接，如果开着GCQ将自动结束。如果启用的话，则反过来  */
 func (ep *EndPointInfo) SetEnable(d *Dice, enable bool) {
@@ -1080,19 +1091,32 @@ func (ctx *MsgContext) Notice(txt string) {
 
 		for _, i := range ctx.Dice.NoticeIds {
 			n := strings.Split(i, ":")
-			if len(n) >= 2 {
-				seg := strings.Split(n[0], "-")[0]
-				if ctx.EndPoint.Platform != seg {
-					ctx.Dice.Logger.Infof("发给 %s，但由于平台不同而未发送通知：%s", i, txt)
-					continue
-				}
-				if strings.HasSuffix(n[0], "-Group") {
+			if len(n) < 2 {
+				continue
+			}
+
+			seg := strings.Split(n[0], "-")[0]
+
+			messageType := "private"
+			if strings.HasSuffix(n[0], "-Group") {
+				messageType = "group"
+			}
+
+			if ctx.EndPoint.Platform == seg {
+				if messageType == "group" {
 					ReplyGroup(ctx, &Message{GroupId: i}, txt)
 				} else {
 					ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
 				}
+				time.Sleep(1 * time.Second)
+				continue
 			}
-			time.Sleep(1 * time.Second)
+
+			if done := CrossMsgBySearch(ctx.Session, seg, i, txt, messageType == "private"); !done {
+				ctx.Dice.Logger.Errorf("未能向 %s 发送通知：%s", i, txt)
+			} else {
+				time.Sleep(1 * time.Second)
+			}
 		}
 	}
 	go foo()
