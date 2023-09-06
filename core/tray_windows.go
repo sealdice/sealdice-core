@@ -5,12 +5,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/fy0/go-autostart"
-	"github.com/fy0/systray"
-	"github.com/gen2brain/beeep"
-	"github.com/labstack/echo/v4"
-	"github.com/lxn/win"
-	"github.com/monaco-io/request"
 	"golang.org/x/sys/windows"
 	"math/rand"
 	"os"
@@ -23,6 +17,13 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/fy0/go-autostart"
+	"github.com/fy0/systray"
+	"github.com/gen2brain/beeep"
+	"github.com/labstack/echo/v4"
+	"github.com/lxn/win"
+	"github.com/monaco-io/request"
 )
 
 func hideWindow() {
@@ -247,13 +248,6 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 func tempDirWarn() {
 	s1, _ := syscall.UTF16PtrFromString("SealDice 临时目录错误")
 	s2, _ := syscall.UTF16PtrFromString("你正在临时文件目录运行海豹，最可能的情况是没有解压而是直接双击运行！\n请先完整解压后再进行运行操作！\n按确定后将自动退出")
-	win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONERROR)
-	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
-}
-
-func showWarn(title string, msg string) {
-	s1, _ := syscall.UTF16PtrFromString(title)
-	s2, _ := syscall.UTF16PtrFromString(msg)
 	win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONERROR)
 	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
 }

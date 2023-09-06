@@ -3,14 +3,6 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"github.com/dop251/goja_nodejs/eventloop"
-	"github.com/dop251/goja_nodejs/require"
-	"github.com/go-creed/sat"
-	"github.com/jmoiron/sqlx"
-	wr "github.com/mroth/weightedrand"
-	"github.com/robfig/cron/v3"
-	"github.com/tidwall/buntdb"
-	"go.uber.org/zap"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -20,10 +12,19 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dop251/goja_nodejs/eventloop"
+	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-creed/sat"
+	"github.com/jmoiron/sqlx"
+	wr "github.com/mroth/weightedrand"
+	"github.com/robfig/cron/v3"
+	"github.com/tidwall/buntdb"
+	"go.uber.org/zap"
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.2.6 v20230410"
+var VERSION = "1.2.7-dev v20230822"
 
 // var VERSION_CODE = int64(1001000) // 991404
 var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
@@ -64,8 +65,8 @@ type ExtInfo struct {
 	Version string `yaml:"-" json:"version" jsbind:"version"` // 版本
 	// 作者
 	// 更新时间
-	AutoActive      bool      `yaml:"-" json:"-"`                 // 是否自动开启
-	CmdMap          CmdMapCls `yaml:"-" json:"-" jsbind:"cmdMap"` // 指令集合
+	AutoActive      bool      `yaml:"-" json:"-" jsbind:"autoActive"` // 是否自动开启
+	CmdMap          CmdMapCls `yaml:"-" json:"-" jsbind:"cmdMap"`     // 指令集合
 	Brief           string    `yaml:"-" json:"-"`
 	ActiveOnPrivate bool      `yaml:"-" json:"-"`
 
@@ -83,12 +84,16 @@ type ExtInfo struct {
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
 	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
 
-	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)                              `yaml:"-" json:"-" jsbind:"onCommandReceived"`
-	OnMessageReceived func(ctx *MsgContext, msg *Message)                                                `yaml:"-" json:"-" jsbind:"onMessageReceived"`
-	OnMessageSend     func(ctx *MsgContext, messageType string, userId string, text string, flag string) `yaml:"-" json:"-" jsbind:"onMessageSend"`
-	GetDescText       func(i *ExtInfo) string                                                            `yaml:"-" json:"-" jsbind:"getDescText"`
-	IsLoaded          bool                                                                               `yaml:"-" json:"-" jsbind:"isLoaded"`
-	OnLoad            func()                                                                             `yaml:"-" json:"-" jsbind:"onLoad"`
+	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) `yaml:"-" json:"-" jsbind:"onCommandReceived"`
+	OnMessageReceived func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageReceived"`
+	OnMessageSend     func(ctx *MsgContext, msg *Message, flag string)      `yaml:"-" json:"-" jsbind:"onMessageSend"`
+	OnMessageDeleted  func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageDeleted"`
+	OnGroupJoined     func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGroupJoined"`
+	OnGuildJoined     func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGuildJoined"`
+	OnBecomeFriend    func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onBecomeFriend"`
+	GetDescText       func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
+	IsLoaded          bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
+	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
 type DiceConfig struct {
@@ -140,6 +145,7 @@ type Dice struct {
 	QQChannelAutoOn         bool                   `yaml:"QQChannelAutoOn"`     // QQ频道中自动开启(默认不开)
 	QQChannelLogMessage     bool                   `yaml:"QQChannelLogMessage"` // QQ频道中记录消息(默认不开)
 	QQEnablePoke            bool                   `yaml:"QQEnablePoke"`        // 启用戳一戳
+	RateLimitEnabled        bool                   `yaml:"rateLimitEnabled"`    // 启用频率限制 (刷屏限制)
 	TextCmdTrustOnly        bool                   `yaml:"textCmdTrustOnly"`    // 只允许信任用户或master使用text指令
 	UILogLimit              int64                  `yaml:"UILogLimit"`
 	FriendAddComment        string                 `yaml:"friendAddComment"` // 加好友验证信息
@@ -172,6 +178,7 @@ type Dice struct {
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	//InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
+
 	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
 	Parent          *DiceManager               `yaml:"-"`
@@ -180,10 +187,12 @@ type Dice struct {
 	Cron             *cron.Cron           `yaml:"-" json:"-"`
 	AliveNoticeEntry cron.EntryID         `yaml:"-" json:"-"`
 	//JsVM             *goja.Runtime          `yaml:"-" json:"-"`
-	JsPrinter    *PrinterFunc           `yaml:"-" json:"-"`
-	JsRequire    *require.RequireModule `yaml:"-" json:"-"`
-	JsLoop       *eventloop.EventLoop   `yaml:"-" json:"-"`
-	JsScriptList []*JsScriptInfo        `yaml:"-" json:"-"`
+	JsEnable          bool                   `yaml:"jsEnable" json:"jsEnable"`
+	DisabledJsScripts map[string]bool        `yaml:"disabledJsScripts" json:"disabledJsScripts"` // 作为set
+	JsPrinter         *PrinterFunc           `yaml:"-" json:"-"`
+	JsRequire         *require.RequireModule `yaml:"-" json:"-"`
+	JsLoop            *eventloop.EventLoop   `yaml:"-" json:"-"`
+	JsScriptList      []*JsScriptInfo        `yaml:"-" json:"-"`
 
 	// 游戏系统规则模板
 	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
@@ -196,8 +205,16 @@ type Dice struct {
 	IsAlreadyLoadConfig  bool                 `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 	deckCommandItemsList DeckCommandListItems // 牌堆key信息，辅助作为模糊搜索使用
 
+	UIEndpoint *EndPointInfo `yaml:"-" json:"-"` // UI Endpoint
+
+	MailEnable   bool   `json:"mailEnable" yaml:"mailEnable"`     // 是否启用
+	MailFrom     string `json:"mailFrom" yaml:"mailFrom"`         // 邮箱来源
+	MailPassword string `json:"mailPassword" yaml:"mailPassword"` // 邮箱密钥/密码
+	MailSmtp     string `json:"mailSmtp" yaml:"mailSmtp"`         // 邮箱 smtp 地址
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
+
+	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
 }
 
 func (d *Dice) MarkModified() {
@@ -259,7 +276,12 @@ func (d *Dice) Init() {
 	d.IsAlreadyLoadConfig = true
 
 	// 创建js运行时
-	d.JsInit()
+	if d.JsEnable {
+		d.Logger.Info("js扩展支持：开启")
+		d.JsInit()
+	} else {
+		d.Logger.Info("js扩展支持：关闭")
+	}
 
 	for _, i := range d.ExtList {
 		if i.OnLoad != nil {
@@ -341,7 +363,11 @@ func (d *Dice) Init() {
 	go refreshGroupInfo()
 
 	d.ApplyAliveNotice()
-	d.JsLoadScripts()
+	if d.JsEnable {
+		d.JsLoadScripts()
+	} else {
+		d.Logger.Info("js扩展支持已关闭，跳过js脚本的加载")
+	}
 
 	if d.UpgradeWindowId != "" {
 		go func() {

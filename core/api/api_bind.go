@@ -183,20 +183,20 @@ func DiceExec(c echo.Context) error {
 	}
 	lastExecTime = now
 
-	pa := dice.PlatformAdapterHttp{
-		RecentMessage: []dice.HttpSimpleMessage{},
-	}
-	tmpEp := &dice.EndPointInfo{
-		EndPointInfoBase: dice.EndPointInfoBase{
-			Id:       "1",
-			Nickname: "海豹核心",
-			State:    2,
-			UserId:   "UI:1000",
-			Platform: "UI",
-			Enable:   true,
-		},
-		Adapter: &pa,
-	}
+	//pa := dice.PlatformAdapterHttp{
+	//	RecentMessage: []dice.HttpSimpleMessage{},
+	//}
+	//tmpEp := &dice.EndPointInfo{
+	//	EndPointInfoBase: dice.EndPointInfoBase{
+	//		Id:       "1",
+	//		Nickname: "海豹核心",
+	//		State:    2,
+	//		UserId:   "UI:1000",
+	//		Platform: "UI",
+	//		Enable:   true,
+	//	},
+	//	Adapter: &pa,
+	//}
 	msg := &dice.Message{
 		MessageType: "private",
 		Message:     v.Message,
@@ -206,7 +206,19 @@ func DiceExec(c echo.Context) error {
 			UserId:   "UI:1001",
 		},
 	}
-	myDice.ImSession.Execute(tmpEp, msg, true)
+	//pa := myDice.UIEndpoint.Adapter.(*dice.PlatformAdapterHttp)
+	myDice.ImSession.Execute(myDice.UIEndpoint, msg, false)
+	return c.JSON(200, "ok")
+}
+
+func DiceRecentMessage(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	pa := myDice.UIEndpoint.Adapter.(*dice.PlatformAdapterHttp)
+	defer func() {
+		pa.RecentMessage = []dice.HttpSimpleMessage{}
+	}()
 	return c.JSON(200, pa.RecentMessage)
 }
 
@@ -308,6 +320,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/dice/config/get", DiceConfig)
 	e.POST(prefix+"/dice/config/set", DiceConfigSet)
 	e.POST(prefix+"/dice/exec", DiceExec)
+	e.GET(prefix+"/dice/recentMessage", DiceRecentMessage)
 	e.GET(prefix+"/dice/cmdList", DiceAllCommand)
 
 	e.POST(prefix+"/signin", doSignIn)
@@ -348,8 +361,20 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/js/list", jsList)
 	e.POST(prefix+"/js/delete", jsDelete)
 	e.GET(prefix+"/js/get_record", jsGetRecord)
+	e.POST(prefix+"/js/shutdown", jsShutdown)
+	e.GET(prefix+"/js/status", jsStatus)
+	e.POST(prefix+"/js/enable", jsEnable)
+	e.POST(prefix+"/js/disable", jsDisable)
+
+	e.GET(prefix+"/helpdoc/status", helpDocStatus)
+	e.GET(prefix+"/helpdoc/tree", helpDocTree)
+	e.POST(prefix+"/helpdoc/reload", helpDocReload)
+	e.POST(prefix+"/helpdoc/upload", helpDocUpload)
+	e.POST(prefix+"/helpdoc/delete", helpDocDelete)
+	e.POST(prefix+"/helpdoc/textitem/get_page", helpGetTextItemPage)
 
 	e.POST(prefix+"/tool/onebot", onebotTool)
 	e.GET(prefix+"/utils/ga/:uid", getGithubAvatar)
 	e.GET(prefix+"/utils/news", getNews)
+	e.POST(prefix+"/utils/check_news", checkNews)
 }

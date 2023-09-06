@@ -283,6 +283,20 @@ func (i *BanListInfo) AddScoreByGroupKicked(uid string, place string, ctx *MsgCo
 	}
 }
 
+// AddScoreByCommandSpam 指令刷屏
+func (i *BanListInfo) AddScoreByCommandSpam(uid string, place string, ctx *MsgContext) {
+	rank := i.NoticeCheckPrepare(uid)
+
+	i.AddScoreBase(uid, i.ScoreTooManyCommand, place, "指令刷屏", ctx)
+	inviterId, inviterRank := i.addJointScore(uid, i.ScoreTooManyCommand, place, "连带责任:指令刷屏", ctx)
+
+	i.NoticeCheck(uid, place, rank, ctx)
+	if inviterId != "" && inviterId != uid {
+		// 如果连带责任人与操作者不是同一人，进行单独计算
+		i.NoticeCheck(inviterId, place, inviterRank, ctx)
+	}
+}
+
 func (i *BanListInfo) GetById(uid string) *BanListInfoItem {
 	v, _ := i.Map.Load(uid)
 	return v

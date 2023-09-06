@@ -319,6 +319,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"先攻_设置_格式错误": {
 				{`{$t玩家}的ri格式不正确!`, 1},
 			},
+			"先攻_下一回合": {
+				{"【{$t当前回合角色名}】戏份结束了，下面该【{$t下一回合角色名}】出场了！", 1},
+			},
 			"死亡豁免_D20_附加语": {
 				{`你觉得你还可以抢救一下！HP回复1点！`, 1},
 			},
@@ -795,6 +798,9 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"先攻_查看_前缀": {
 				SubType: ".init",
+			},
+			"先攻_下一回合": {
+				SubType: "init ed",
 			},
 			"先攻_移除_前缀": {
 				SubType: ".init rm",
@@ -1299,6 +1305,7 @@ func (d *Dice) loads() {
 			d.UpgradeWindowId = dNew.UpgradeWindowId
 			d.UpgradeEndpointId = dNew.UpgradeEndpointId
 			d.BotExtFreeSwitch = dNew.BotExtFreeSwitch
+			d.RateLimitEnabled = dNew.RateLimitEnabled
 			d.TrustOnlyMode = dNew.TrustOnlyMode
 			d.AliveNoticeEnable = dNew.AliveNoticeEnable
 			d.AliveNoticeValue = dNew.AliveNoticeValue
@@ -1309,6 +1316,13 @@ func (d *Dice) loads() {
 			d.CustomDrawKeysText = dNew.CustomDrawKeysText
 			d.CustomDrawKeysTextEnable = dNew.CustomDrawKeysTextEnable
 			d.PlayerNameWrapEnable = dNew.PlayerNameWrapEnable
+			d.MailEnable = dNew.MailEnable
+			d.MailFrom = dNew.MailFrom
+			d.MailPassword = dNew.MailPassword
+			d.MailSmtp = dNew.MailSmtp
+			d.JsEnable = dNew.JsEnable
+			d.DisabledJsScripts = dNew.DisabledJsScripts
+			d.NewsMark = dNew.NewsMark
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply

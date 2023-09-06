@@ -263,6 +263,15 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					doSleepQQ(ctx)
 					pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
 				}
+				if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+					for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+						if i.OnGroupJoined != nil {
+							i.callWithJsCheck(ctx.Dice, func() {
+								i.OnGroupJoined(ctx, msg)
+							})
+						}
+					}
+				}
 			}()
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, event.GroupId)
 			log.Info(txt)
@@ -803,7 +812,15 @@ func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userId string, te
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
 			i.callWithJsCheck(ctx.Dice, func() {
-				i.OnMessageSend(ctx, "private", userId, text, flag)
+				i.OnMessageSend(ctx, &Message{
+					Platform:    "QQ",
+					Message:     text,
+					MessageType: "private",
+					Sender: SenderBase{
+						UserId:   pa.EndPoint.UserId,
+						Nickname: pa.EndPoint.Nickname,
+					},
+				}, flag)
 			})
 		}
 	}
@@ -830,7 +847,16 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupId string, te
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, "group", groupId, text, flag)
+					i.OnMessageSend(ctx, &Message{
+						Platform:    "QQ",
+						Message:     text,
+						MessageType: "group",
+						GroupId:     groupId,
+						Sender: SenderBase{
+							UserId:   pa.EndPoint.UserId,
+							Nickname: pa.EndPoint.Nickname,
+						},
+					}, flag)
 				})
 			}
 		}
