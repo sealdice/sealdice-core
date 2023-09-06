@@ -31,12 +31,12 @@ require (
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/monaco-io/request v1.0.15
 	github.com/mroth/weightedrand v1.0.0
-	github.com/otiai10/copy v1.11.0
+	github.com/otiai10/copy v1.12.0
 	github.com/phuslu/log v1.0.83
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105
 	github.com/sahilm/fuzzy v0.1.0
-	github.com/tidwall/buntdb v1.2.10
+	github.com/tidwall/buntdb v1.3.0
 	github.com/xuri/excelize/v2 v2.7.1
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/zap v1.24.0
