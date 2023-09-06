@@ -75,9 +75,8 @@ type PlatformAdapterGocq struct {
 	echoMap2       *SyncMap[int64, *echoMapInfo]    `yaml:"-"`
 	Implementation string                           `yaml:"implementation" json:"implementation"`
 
-	UseSignServer bool   `yaml:"useSignServer" json:"useSignServer"`
-	SignServerUrl string `yaml:"signServerUrl" json:"signServerUrl"`
-	SignServerKey string `yaml:"signServerKey" json:"signServerKey"`
+	UseSignServer    bool              `yaml:"useSignServer" json:"useSignServer"`
+	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`
 }
 
 type Sender struct {
@@ -905,9 +904,11 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		GoCqHttpServe(myDice, ep, GoCqHttpLoginInfo{
-			Password:   pa.InPackGoCqHttpPassword,
-			Protocol:   pa.InPackGoCqHttpProtocol,
-			IsAsyncRun: true,
+			Password:         pa.InPackGoCqHttpPassword,
+			Protocol:         pa.InPackGoCqHttpProtocol,
+			IsAsyncRun:       true,
+			UseSignServer:    pa.UseSignServer,
+			SignServerConfig: pa.SignServerConfig,
 		})
 		return true
 	}
@@ -925,9 +926,11 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 			GoCqHttpServeProcessKill(d, c)
 			time.Sleep(1 * time.Second)
 			GoCqHttpServe(d, c, GoCqHttpLoginInfo{
-				Password:   pa.InPackGoCqHttpPassword,
-				Protocol:   pa.InPackGoCqHttpProtocol,
-				IsAsyncRun: true,
+				Password:         pa.InPackGoCqHttpPassword,
+				Protocol:         pa.InPackGoCqHttpProtocol,
+				IsAsyncRun:       true,
+				UseSignServer:    pa.UseSignServer,
+				SignServerConfig: pa.SignServerConfig,
 			})
 			go ServeQQ(d, c)
 		} else {
@@ -969,7 +972,7 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 	return false
 }
 
-func (pa *PlatformAdapterGocq) SetSignServer(signServerUrl string, signServerKey string) bool {
+func (pa *PlatformAdapterGocq) SetSignServer(signServerConfig *SignServerConfig) bool {
 	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
 	configFilePath := filepath.Join(workDir, "config.yml")
 	if _, err := os.Stat(configFilePath); err == nil {
@@ -978,8 +981,18 @@ func (pa *PlatformAdapterGocq) SetSignServer(signServerUrl string, signServerKey
 		err = yaml.Unmarshal(configFile, &info)
 
 		if err == nil {
-			(info["account"]).(map[string]interface{})["sign-server"] = signServerUrl
-			(info["account"]).(map[string]interface{})["key"] = signServerKey
+			if signServerConfig.SignServers != nil {
+				mainServer := signServerConfig.SignServers[0]
+				(info["account"]).(map[string]interface{})["sign-server"] = mainServer.Url
+				(info["account"]).(map[string]interface{})["key"] = mainServer.Key
+				(info["account"]).(map[string]interface{})["sign-servers"] = signServerConfig.SignServers
+				(info["account"]).(map[string]interface{})["ruleChangeSignServer"] = signServerConfig.RuleChangeSignServer
+				(info["account"]).(map[string]interface{})["maxCheckCount"] = signServerConfig.MaxCheckCount
+				(info["account"]).(map[string]interface{})["signServerTimeout"] = signServerConfig.SignServerTimeout
+				(info["account"]).(map[string]interface{})["autoRegister"] = signServerConfig.AutoRegister
+				(info["account"]).(map[string]interface{})["autoRefreshToken"] = signServerConfig.AutoRefreshToken
+				(info["account"]).(map[string]interface{})["refreshInterval"] = signServerConfig.RefreshInterval
+			}
 			data, err := yaml.Marshal(info)
 			if err == nil {
 				_ = os.WriteFile(configFilePath, data, 0644)

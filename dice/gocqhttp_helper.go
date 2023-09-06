@@ -291,20 +291,8 @@ account: # 账号相关
   use-sso-address: true
   # 是否允许发送临时会话消息
   allow-temp-session: false
-
-  # 数据包的签名服务器
-  # 兼容 https://github.com/fuqiuluo/unidbg-fetch-qsign
-  # 如果遇到 登录 45 错误, 或者发送信息风控的话需要填入一个服务器
-  # 示例:
-  # sign-server: 'http://127.0.0.1:8080' # 本地签名服务器
-  # sign-server: 'https://signserver.example.com' # 线上签名服务器
-  # 服务器可使用docker在本地搭建或者使用他人开放的服务
-  {是否使用签名服务}sign-server: '{签名服务器url}'
-  # 如果签名服务器的版本在1.1.0及以下, 请将下面的参数改成true
-  {是否使用签名服务}is-below-110: false
-  # 签名服务器所需要的apikey, 如果签名服务器的版本在1.1.0及以下则此项无效
-  # 本地部署的默认为114514
-  {是否使用签名服务}key: '{签名服务器key}'
+{旧版签名服务相关配置信息}
+{新版签名服务相关配置信息}
 
 heartbeat:
   # 心跳频率, 单位秒
@@ -398,14 +386,99 @@ func GenerateConfig(qq int64, port int, info GoCqHttpLoginInfo) string {
 	ret = strings.Replace(ret, "{QQ帐号}", fmt.Sprintf("%d", qq), 1)
 	ret = strings.Replace(ret, "{QQ密码}", info.Password, 1)
 
-	if info.UseSignServer {
-		ret = strings.Replace(ret, "{是否使用签名服务}", "", 3)
-		ret = strings.Replace(ret, "{签名服务器url}", info.SignServerUrl, 1)
-		ret = strings.Replace(ret, "{签名服务器key}", info.SignServerKey, 1)
+	if info.UseSignServer && info.SignServerConfig != nil {
+		ret = strings.Replace(ret, "{旧版签名服务相关配置信息}", generateOldSignServerConfigStr(info.SignServerConfig), 1)
+		ret = strings.Replace(ret, "{新版签名服务相关配置信息}", generateNewSignServerConfigStr(info.SignServerConfig), 1)
 	} else {
-		ret = strings.Replace(ret, "{是否使用签名服务}", "# ", 3)
+		ret = strings.Replace(ret, "{旧版签名服务相关配置信息}", "", 1)
+		ret = strings.Replace(ret, "{新版签名服务相关配置信息}", "", 1)
 	}
 	return ret
+}
+
+func generateOldSignServerConfigStr(config *SignServerConfig) string {
+	if config.SignServers != nil {
+		mainServer := config.SignServers[0]
+		return fmt.Sprintf(`
+  # 旧版签名服务相关配置信息
+  sign-server: '%s'
+  # 如果签名服务器的版本在1.1.0及以下, 请将下面的参数改成true
+  # 该字段在新签名配置信息中也存在，防止重复此处不配置
+  # is-below-110: false
+  # 签名服务器所需要的apikey, 如果签名服务器的版本在1.1.0及以下则此项无效
+  key: '%s'
+`, mainServer.Url, mainServer.Key)
+	} else {
+		return ""
+	}
+}
+
+func generateNewSignServerConfigStr(config *SignServerConfig) string {
+	var signServers []string
+	for _, server := range config.SignServers {
+		signServers = append(
+			signServers,
+			fmt.Sprintf(`    - url: '%s'
+      key: "%s"
+      authorization: "%s"`, server.Url, server.Key, server.Authorization),
+		)
+	}
+	signServersStr := "  sign-servers:\n" + strings.Join(signServers, "\n")
+
+	return fmt.Sprintf(`  # 新版签名服务相关配置信息
+  # 数据包的签名服务器列表，第一个作为主签名服务器，后续作为备用
+  # 兼容 https://github.com/fuqiuluo/unidbg-fetch-qsign
+  # 如果遇到 登录 45 错误, 或者发送信息风控的话需要填入一个或多个服务器
+  # 不建议设置过多，设置主备各一个即可，超过 5 个只会取前五个
+  # 示例:
+  # sign-servers: 
+  #   - url: 'http://127.0.0.1:8080' # 本地签名服务器
+  #     key: "114514"  # 相应 key
+  #     authorization: "-"   # authorization 内容, 依服务端设置
+  #   - url: 'https://signserver.example.com' # 线上签名服务器
+  #     key: "114514"  
+  #     authorization: "-"   
+  #   ...
+  # 
+  # 服务器可使用docker在本地搭建或者使用他人开放的服务
+%s
+
+  # 判断签名服务不可用（需要切换）的额外规则
+  # 0: 不设置 （此时仅在请求无法返回结果时判定为不可用）
+  # 1: 在获取到的 sign 为空 （若选此建议关闭 auto-register，一般为实例未注册但是请求签名的情况）
+  # 2: 在获取到的 sign 或 token 为空（若选此建议关闭 auto-refresh-token ）
+  rule-change-sign-server: %d
+
+  # 连续寻找可用签名服务器最大尝试次数
+  # 为 0 时会在连续 3 次没有找到可用签名服务器后保持使用主签名服务器，不再尝试进行切换备用
+  # 否则会在达到指定次数后 **退出** 主程序
+  max-check-count: %d
+  # 签名服务请求超时时间(s)
+  sign-server-timeout: %d
+  # 如果签名服务器的版本在1.1.0及以下, 请将下面的参数改成true
+  # 建议使用 1.1.6 以上版本，低版本普遍半个月冻结一次
+  is-below-110: false
+  # 在实例可能丢失（获取到的签名为空）时是否尝试重新注册
+  # 为 true 时，在签名服务不可用时可能每次发消息都会尝试重新注册并签名。
+  # 为 false 时，将不会自动注册实例，在签名服务器重启或实例被销毁后需要重启 go-cqhttp 以获取实例
+  # 否则后续消息将不会正常签名。关闭此项后可以考虑开启签名服务器端 auto_register 避免需要重启
+  # 由于实现问题，当前建议关闭此项，推荐开启签名服务器的自动注册实例
+  auto-register: %v
+  # 是否在 token 过期后立即自动刷新签名 token（在需要签名时才会检测到，主要防止 token 意外丢失）
+  # 独立于定时刷新
+  auto-refresh-token: %v
+  # 定时刷新 token 间隔时间，单位为分钟, 建议 30~40 分钟, 不可超过 60 分钟
+  # 目前丢失token也不会有太大影响，可设置为 0 以关闭，推荐开启
+  refresh-interval: %d
+`,
+		signServersStr,
+		config.RuleChangeSignServer,
+		config.MaxCheckCount,
+		config.SignServerTimeout,
+		config.AutoRegister,
+		config.AutoRefreshToken,
+		config.RefreshInterval,
+	)
 }
 
 func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
@@ -482,12 +555,27 @@ func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 }
 
 type GoCqHttpLoginInfo struct {
-	Password      string
-	Protocol      int
-	IsAsyncRun    bool
-	UseSignServer bool
-	SignServerUrl string
-	SignServerKey string
+	Password         string
+	Protocol         int
+	IsAsyncRun       bool
+	UseSignServer    bool
+	SignServerConfig *SignServerConfig
+}
+
+type SignServerConfig struct {
+	SignServers          []*SignServer `yaml:"signServers" json:"signServers"`
+	RuleChangeSignServer int           `yaml:"ruleChangeSignServer" json:"ruleChangeSignServer"`
+	MaxCheckCount        int           `yaml:"maxCheckCount" json:"maxCheckCount"`
+	SignServerTimeout    int           `yaml:"signServerTimeout" json:"signServerTimeout"`
+	AutoRegister         bool          `yaml:"autoRegister" json:"autoRegister"`
+	AutoRefreshToken     bool          `yaml:"autoRefreshToken" json:"autoRefreshToken"`
+	RefreshInterval      int           `yaml:"refreshInterval" json:"refreshInterval"`
+}
+
+type SignServer struct {
+	Url           string `yaml:"url" json:"url"`
+	Key           string `yaml:"key" json:"key"`
+	Authorization string `yaml:"authorization" json:"authorization"`
 }
 
 func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) {
