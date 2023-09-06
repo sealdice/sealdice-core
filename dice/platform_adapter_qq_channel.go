@@ -102,7 +102,15 @@ func (pa *PlatformAdapterGocq) SendToChannelGroup(ctx *MsgContext, userId string
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
 			i.callWithJsCheck(ctx.Dice, func() {
-				i.OnMessageSend(ctx, "group", userId, text, flag)
+				i.OnMessageSend(ctx, &Message{
+					MessageType: "group",
+					Message:     text,
+					GroupId:     userId,
+					Sender: SenderBase{
+						UserId:   pa.EndPoint.UserId,
+						Nickname: pa.EndPoint.Nickname,
+					},
+				}, flag)
 			})
 		}
 	}

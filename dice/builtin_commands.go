@@ -3,9 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fy0/lockfree"
-	"github.com/juliangruber/go-intersect"
-	cp "github.com/otiai10/copy"
 	"math/rand"
 	"os"
 	"path"
@@ -14,6 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fy0/lockfree"
+	"github.com/juliangruber/go-intersect"
+	cp "github.com/otiai10/copy"
 )
 
 /** 这几条指令不能移除 */
@@ -138,6 +139,7 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["ban"] = cmdBlack
 
 	HelpForFind := ".find/查询 <关键字> // 查找文档。关键字可以多个，用空格分割\n" +
+		".find#<分组> <关键字> // 查找指定分组下的文档。关键字可以多个，用空格分割\n" +
 		".find <数字ID> // 显示该ID的词条\n" +
 		".find --rand // 显示随机词条\n" +
 		".find <关键字> --num=10 // 需要更多结果"
@@ -153,6 +155,15 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
+			var (
+				useGroupSearch bool
+				group          string
+			)
+			if _group := cmdArgs.GetArgN(1); strings.HasPrefix(_group, "#") {
+				useGroupSearch = true
+				group = strings.TrimPrefix(_group, "#")
+			}
+
 			var id string
 			if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {
 				_id := rand.Uint64()%d.Parent.Help.CurId + 1
@@ -160,7 +171,13 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			if id == "" {
-				if _id := cmdArgs.GetArgN(1); _id != "" {
+				var _id string
+				if useGroupSearch {
+					_id = cmdArgs.GetArgN(2)
+				} else {
+					_id = cmdArgs.GetArgN(1)
+				}
+				if _id != "" {
 					_, err2 := strconv.ParseInt(_id, 10, 64)
 					if err2 == nil {
 						id = _id
@@ -179,7 +196,13 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			if val := cmdArgs.GetArgN(1); val != "" {
+			var val string
+			if useGroupSearch {
+				val = cmdArgs.GetArgN(2)
+			} else {
+				val = cmdArgs.GetArgN(1)
+			}
+			if val != "" {
 				numLimit := 4
 				numParam := cmdArgs.GetKwarg("num")
 				if numParam != nil {
@@ -189,7 +212,8 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 
-				search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, false, numLimit)
+				text := strings.TrimPrefix(cmdArgs.CleanArgs, "#"+group+" ")
+				search, err := d.Parent.Help.Search(ctx, text, false, numLimit, group)
 				if err == nil {
 					if len(search.Hits) > 0 {
 						var bestResult string
@@ -199,7 +223,11 @@ func (d *Dice) registerCoreCommands() {
 
 						for _, i := range search.Hits {
 							t := d.Parent.Help.TextMap[i.ID]
-							others += fmt.Sprintf("[%s]【%s:%s】 匹配度%.2f\n", i.ID, t.PackageName, t.Title, i.Score)
+							if t.Group != "" && t.Group != HelpBuiltinGroup {
+								others += fmt.Sprintf("[%s][%s]【%s:%s】 匹配度%.2f\n", i.ID, t.Group, t.PackageName, t.Title, i.Score)
+							} else {
+								others += fmt.Sprintf("[%s]【%s:%s】 匹配度%.2f\n", i.ID, t.PackageName, t.Title, i.Score)
+							}
 						}
 
 						var showBest bool
@@ -212,7 +240,7 @@ func (d *Dice) registerCoreCommands() {
 							if val > float64(offset) {
 								showBest = true
 							}
-							if best.Title == cmdArgs.CleanArgs {
+							if best.Title == text {
 								showBest = true
 							}
 						} else {
@@ -292,7 +320,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true, 1)
+				search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true, 1, "")
 				if err == nil {
 					if len(search.Hits) > 0 {
 						// 居然会出现 hits[0] 为nil的情况？？
@@ -892,6 +920,11 @@ func (d *Dice) registerCoreCommands() {
 			} else if val == "help" || val == "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			} else {
+				if d.MailEnable {
+					ctx.Dice.SendMail(cmdArgs.CleanArgs, SendNote)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				for _, uid := range ctx.Dice.DiceMasters {
 					text := ""
 

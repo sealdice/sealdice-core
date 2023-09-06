@@ -163,7 +163,16 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userId string, text
 	for _, i := range ctx.Dice.ExtList {
 		if i.OnMessageSend != nil {
 			i.callWithJsCheck(ctx.Dice, func() {
-				i.OnMessageSend(ctx, "private", userId, text, flag)
+				i.OnMessageSend(ctx, &Message{
+					Message:     text,
+					MessageType: "private",
+					Platform:    pa.EndPoint.Platform,
+					Sender: SenderBase{
+						Nickname: pa.EndPoint.Nickname,
+						UserId:   pa.EndPoint.UserId,
+					},
+				},
+					flag)
 			})
 		}
 	}
@@ -204,7 +213,16 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupId string, text
 		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, "group", groupId, text, flag)
+					i.OnMessageSend(ctx, &Message{
+						Message:     text,
+						MessageType: "group",
+						Platform:    pa.EndPoint.Platform,
+						GroupId:     groupId,
+						Sender: SenderBase{
+							Nickname: pa.EndPoint.Nickname,
+							UserId:   pa.EndPoint.UserId,
+						},
+					}, flag)
 				})
 			}
 		}
@@ -587,7 +605,7 @@ func textAssetsConvert(s string) string {
 		//if cq.Type == "image" || cq.Type == "voice" {
 		fn, exists := cq.Args["file"]
 		if exists {
-			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
+			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") || strings.HasPrefix(fn, "base64://") {
 				return
 			}
 

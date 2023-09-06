@@ -5,8 +5,13 @@ import (
 	"time"
 )
 
+type AddDiscordEcho struct {
+	Token    string
+	ProxyURL string
+}
+
 // NewDiscordConnItem 本来没必要写这个的，但是不知道为啥依赖出问题
-func NewDiscordConnItem(token string) *EndPointInfo {
+func NewDiscordConnItem(v AddDiscordEcho) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.Id = uuid.New().String()
 	conn.Platform = "DISCORD"
@@ -15,7 +20,8 @@ func NewDiscordConnItem(token string) *EndPointInfo {
 	conn.RelWorkDir = "extra/discord-" + conn.Id
 	conn.Adapter = &PlatformAdapterDiscord{
 		EndPoint: conn,
-		Token:    token,
+		Token:    v.Token,
+		ProxyURL: v.ProxyURL,
 	}
 	return conn
 }

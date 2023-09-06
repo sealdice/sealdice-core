@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"runtime/debug"
 	"sealdice-core/utils/procs"
 	"strings"
@@ -238,7 +238,7 @@ func GenerateDeviceJsonAndroid(dice *Dice, protocol int) (string, []byte, error)
 	if _, err := os.Stat("./my_device.json"); err == nil {
 		dice.Logger.Info("检测到my_device.json，将使用该文件中的设备信息")
 		// file exists
-		data, err := ioutil.ReadFile("./my_device.json")
+		data, err := os.ReadFile("./my_device.json")
 		if err == nil {
 			deviceJson := deviceFile{}
 			err = json.Unmarshal(data, &deviceJson)
@@ -289,6 +289,22 @@ account: # 账号相关
   # 是否使用服务器下发的新地址进行重连
   # 注意, 此设置可能导致在海外服务器上连接情况更差
   use-sso-address: true
+  # 是否允许发送临时会话消息
+  allow-temp-session: false
+
+  # 数据包的签名服务器
+  # 兼容 https://github.com/fuqiuluo/unidbg-fetch-qsign
+  # 如果遇到 登录 45 错误, 或者发送信息风控的话需要填入一个服务器
+  # 示例:
+  # sign-server: 'http://127.0.0.1:8080' # 本地签名服务器
+  # sign-server: 'https://signserver.example.com' # 线上签名服务器
+  # 服务器可使用docker在本地搭建或者使用他人开放的服务
+  {是否使用签名服务}sign-server: '{签名服务器url}'
+  # 如果签名服务器的版本在1.1.0及以下, 请将下面的参数改成true
+  {是否使用签名服务}is-below-110: false
+  # 签名服务器所需要的apikey, 如果签名服务器的版本在1.1.0及以下则此项无效
+  # 本地部署的默认为114514
+  {是否使用签名服务}key: '{签名服务器key}'
 
 heartbeat:
   # 心跳频率, 单位秒
@@ -377,12 +393,18 @@ servers:
         <<: *default # 引用默认中间件
 `
 
-func GenerateConfig(qq int64, password string, port int) string {
+func GenerateConfig(qq int64, port int, info GoCqHttpLoginInfo) string {
 	ret := strings.ReplaceAll(defaultConfig, "{WS端口}", fmt.Sprintf("%d", port))
 	ret = strings.Replace(ret, "{QQ帐号}", fmt.Sprintf("%d", qq), 1)
+	ret = strings.Replace(ret, "{QQ密码}", info.Password, 1)
 
-	password2, _ := json.Marshal(password)
-	ret = strings.Replace(ret, "{QQ密码}", string(password2), 1)
+	if info.UseSignServer {
+		ret = strings.Replace(ret, "{是否使用签名服务}", "", 3)
+		ret = strings.Replace(ret, "{签名服务器url}", info.SignServerUrl, 1)
+		ret = strings.Replace(ret, "{签名服务器key}", info.SignServerKey, 1)
+	} else {
+		ret = strings.Replace(ret, "{是否使用签名服务}", "# ", 3)
+	}
 	return ret
 }
 
@@ -445,10 +467,10 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 
 func gocqGetWorkDir(dice *Dice, conn *EndPointInfo) string {
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
-	pa := conn.Adapter.(*PlatformAdapterGocq)
-	if !pa.UseInPackGoCqhttp {
-		return "#$%Abort^?*" // 使其尽量非法，从而跳过连接外所有流程
-	}
+	//pa := conn.Adapter.(*PlatformAdapterGocq)
+	//if !pa.UseInPackGoCqhttp {
+	//	return "#$%Abort^?*" // 使其尽量非法，从而跳过连接外所有流程
+	//}
 	return workDir
 }
 
@@ -459,7 +481,16 @@ func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 	}
 }
 
-func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int, isAsyncRun bool) {
+type GoCqHttpLoginInfo struct {
+	Password      string
+	Protocol      int
+	IsAsyncRun    bool
+	UseSignServer bool
+	SignServerUrl string
+	SignServerKey string
+}
+
+func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) {
 	pa := conn.Adapter.(*PlatformAdapterGocq)
 	//if pa.GoCqHttpState != StateCodeInit {
 	//	return
@@ -470,363 +501,372 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	pa.GoCqHttpState = StateCodeInLogin
 
 	fmt.Println("GoCqHttpServe begin")
-	workDir := gocqGetWorkDir(dice, conn)
-	_ = os.MkdirAll(workDir, 0755)
+	if pa.UseInPackGoCqhttp {
+		workDir := gocqGetWorkDir(dice, conn)
+		_ = os.MkdirAll(workDir, 0755)
 
-	qrcodeFile := filepath.Join(workDir, "qrcode.png")
-	deviceFilePath := filepath.Join(workDir, "device.json")
-	configFilePath := filepath.Join(workDir, "config.yml")
-	if _, err := os.Stat(qrcodeFile); err == nil {
-		// 如果已经存在二维码文件，将其删除
-		_ = os.Remove(qrcodeFile)
-		dice.Logger.Info("onebot: 删除已存在的二维码文件")
-	}
-
-	//if _, err := os.Stat(filepath.Join(workDir, "session.token")); errors.Is(err, os.ErrNotExist) {
-	if !pa.GoCqHttpLoginSucceeded {
-		// 并未登录成功，删除记录文件
-		dice.Logger.Info("onebot: 之前并未登录成功，删除设备文件和配置文件")
-		_ = os.Remove(configFilePath)
-		_ = os.Remove(deviceFilePath)
-	}
-
-	// 创建设备配置文件
-	if _, err := os.Stat(deviceFilePath); errors.Is(err, os.ErrNotExist) {
-		_, deviceInfo, err := GenerateDeviceJson(dice, protocol)
-		if err == nil {
-			_ = os.WriteFile(deviceFilePath, deviceInfo, 0644)
-			dice.Logger.Info("onebot: 成功创建设备文件")
-		}
-	}
-
-	// 创建配置文件
-	if _, err := os.Stat(configFilePath); errors.Is(err, os.ErrNotExist) {
-		// 如果不存在 config.yml 那么启动一次，让它自动生成
-		// 改为：如果不存在，帮他创建
-		p, _ := GetRandomFreePort()
-		pa.ConnectUrl = fmt.Sprintf("ws://localhost:%d", p)
-		qqid, _ := pa.mustExtractId(conn.UserId)
-		c := GenerateConfig(qqid, password, p)
-		_ = os.WriteFile(configFilePath, []byte(c), 0644)
-	}
-
-	// 启动客户端
-	wd, _ := os.Getwd()
-	gocqhttpExePath, _ := filepath.Abs(filepath.Join(wd, "go-cqhttp/go-cqhttp"))
-	gocqhttpExePath = strings.Replace(gocqhttpExePath, "\\", "/", -1) // windows平台需要这个替换
-
-	// 随手执行一下
-	_ = os.Chmod(gocqhttpExePath, 0755)
-
-	dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
-	p := procs.NewProcess(fmt.Sprintf(`"%s" faststart`, gocqhttpExePath))
-	p.Dir = workDir
-	dice.Logger.Info("onebot: 设定工作路径 ", workDir)
-
-	chQrCode := make(chan int, 1)
-	riskCount := 0
-	isSeldKilling := false
-
-	slideMode := 0
-	chSMS := make(chan string, 1)
-
-	p.OutputHandler = func(line string) string {
-		if loginIndex != pa.CurLoginIndex {
-			// 当前连接已经无用，进程自杀
-			if !isSeldKilling {
-				dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
-				// 注: 这里不要调用kill
-				isSeldKilling = true
-				_ = p.Stop()
-			}
-			return ""
+		qrcodeFile := filepath.Join(workDir, "qrcode.png")
+		deviceFilePath := filepath.Join(workDir, "device.json")
+		configFilePath := filepath.Join(workDir, "config.yml")
+		if _, err := os.Stat(qrcodeFile); err == nil {
+			// 如果已经存在二维码文件，将其删除
+			_ = os.Remove(qrcodeFile)
+			dice.Logger.Info("onebot: 删除已存在的二维码文件")
 		}
 
-		// 登录中
-		if pa.IsInLogin() {
-			// 请使用手机QQ扫描二维码 (qrcode.png) :
-			if strings.Contains(line, "qrcode.png") {
-				chQrCode <- 1
+		//if _, err := os.Stat(filepath.Join(workDir, "session.token")); errors.Is(err, os.ErrNotExist) {
+		if !pa.GoCqHttpLoginSucceeded {
+			// 并未登录成功，删除记录文件
+			dice.Logger.Info("onebot: 之前并未登录成功，删除设备文件和配置文件")
+			_ = os.Remove(configFilePath)
+			_ = os.Remove(deviceFilePath)
+		}
+
+		// 创建设备配置文件
+		if _, err := os.Stat(deviceFilePath); errors.Is(err, os.ErrNotExist) {
+			_, deviceInfo, err := GenerateDeviceJson(dice, loginInfo.Protocol)
+			if err == nil {
+				_ = os.WriteFile(deviceFilePath, deviceInfo, 0644)
+				dice.Logger.Info("onebot: 成功创建设备文件")
+			}
+		}
+
+		// 创建配置文件
+		if _, err := os.Stat(configFilePath); errors.Is(err, os.ErrNotExist) {
+			// 如果不存在 config.yml 那么启动一次，让它自动生成
+			// 改为：如果不存在，帮他创建
+			p, _ := GetRandomFreePort()
+			pa.ConnectUrl = fmt.Sprintf("ws://localhost:%d", p)
+			qqid, _ := pa.mustExtractId(conn.UserId)
+			c := GenerateConfig(qqid, p, loginInfo)
+			_ = os.WriteFile(configFilePath, []byte(c), 0644)
+		}
+
+		// 启动客户端
+		wd, _ := os.Getwd()
+		gocqhttpExePath, _ := filepath.Abs(filepath.Join(wd, "go-cqhttp/go-cqhttp"))
+		gocqhttpExePath = strings.Replace(gocqhttpExePath, "\\", "/", -1) // windows平台需要这个替换
+
+		// 随手执行一下
+		_ = os.Chmod(gocqhttpExePath, 0755)
+
+		dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
+		p := procs.NewProcess(fmt.Sprintf(`"%s" faststart`, gocqhttpExePath))
+		p.Dir = workDir
+
+		if runtime.GOOS == "android" {
+			p.Env = os.Environ()
+		}
+		chQrCode := make(chan int, 1)
+		riskCount := 0
+		isSeldKilling := false
+
+		slideMode := 0
+		chSMS := make(chan string, 1)
+
+		p.OutputHandler = func(line string) string {
+			if loginIndex != pa.CurLoginIndex {
+				// 当前连接已经无用，进程自杀
+				if !isSeldKilling {
+					dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
+					// 注: 这里不要调用kill
+					isSeldKilling = true
+					_ = p.Stop()
+				}
+				return ""
 			}
 
-			// 获取二维码失败，登录失败
-			if strings.Contains(line, "fetch qrcode error: Packet timed out ") {
-				dice.Logger.Infof("从QQ服务器获取二维码错误（超时），帐号: <%s>(%s)", conn.Nickname, conn.UserId)
-				pa.GoCqHttpState = StateCodeLoginFailed
-			}
+			// 登录中
+			if pa.IsInLogin() {
+				// 请使用手机QQ扫描二维码 (qrcode.png) :
+				if strings.Contains(line, "qrcode.png") {
+					chQrCode <- 1
+				}
 
-			// 未知错误，gocqhttp崩溃
-			if strings.Contains(line, "Packet failed to sendPacket: connection closed") {
-				dice.Logger.Infof("登录异常，gocqhttp崩溃")
-				pa.GoCqHttpState = StateCodeLoginFailed
-			}
+				// 获取二维码失败，登录失败
+				if strings.Contains(line, "fetch qrcode error: Packet timed out ") {
+					dice.Logger.Infof("从QQ服务器获取二维码错误（超时），帐号: <%s>(%s)", conn.Nickname, conn.UserId)
+					pa.GoCqHttpState = StateCodeLoginFailed
+				}
 
-			if strings.Contains(line, "按 Enter 继续....") {
-				// 直接输入继续，基本都是登录失败
-				return "\n"
-			}
+				// 未知错误，gocqhttp崩溃
+				if strings.Contains(line, "Packet failed to sendPacket: connection closed") {
+					dice.Logger.Infof("登录异常，gocqhttp崩溃")
+					pa.GoCqHttpState = StateCodeLoginFailed
+				}
 
-			if strings.Contains(line, "WARNING") && strings.Contains(line, "账号已开启设备锁，请前往") {
-				re := regexp.MustCompile(`-> (.+?) <-`)
-				m := re.FindStringSubmatch(line)
-				dice.Logger.Info("触发设备锁流程: ", len(m) > 0)
-				if len(m) > 0 {
-					// 设备锁流程，因为需要重新登录，进行一个“已成功登录过”的标记，这样配置文件不会被删除
-					pa.GoCqHttpState = StateCodeInLoginDeviceLock
+				if strings.Contains(line, "按 Enter 继续....") {
+					// 直接输入继续，基本都是登录失败
+					return "\n"
+				}
+
+				if strings.Contains(line, "WARNING") && strings.Contains(line, "账号已开启设备锁，请前往") {
+					re := regexp.MustCompile(`-> (.+?) <-`)
+					m := re.FindStringSubmatch(line)
+					dice.Logger.Info("触发设备锁流程: ", len(m) > 0)
+					if len(m) > 0 {
+						// 设备锁流程，因为需要重新登录，进行一个“已成功登录过”的标记，这样配置文件不会被删除
+						pa.GoCqHttpState = StateCodeInLoginDeviceLock
+						pa.GoCqHttpLoginSucceeded = true
+						pa.GoCqHttpLoginDeviceLockUrl = m[1]
+						dice.LastUpdatedTime = time.Now().Unix()
+						dice.Save(false)
+					}
+				}
+
+				if strings.Contains(line, " 发送短信验证码") && strings.Contains(line, " [WARNING]: 1. 向手机 ") {
+					re := regexp.MustCompile(`\[WARNING\]: 发送短信验证码 (.+?) 发送短信验证码`)
+					m := re.FindStringSubmatch(line)
+					if len(m) > 0 {
+						pa.GoCqHttpSmsNumberTip = m[1]
+					}
+				}
+
+				if strings.Contains(line, " [WARNING]: 登录需要滑条验证码, 请验证后重试.") {
+					slideMode = 1
+				}
+
+				if strings.Contains(line, " [WARNING]: 账号已开启设备锁，请选择验证方式") {
+					slideMode = 2
+				}
+
+				// 直接短信验证，不过滑条
+				if slideMode == 2 {
+					// 账号已开启设备锁，请选择验证方式
+					// 1. 向手机 %v 发送短信验证码
+					// 2. 使用手机QQ扫码验证
+					// 请输入(1 - 2)：
+					if strings.Contains(line, "WARNING") && strings.Contains(line, "[WARNING]: 请输入(1 - 2)：") {
+						// gocq的tty检测太辣鸡了
+						return "1\n"
+					}
+				}
+
+				// 滑条流程
+				if slideMode == 1 {
+					if strings.Contains(line, "WARNING") && strings.Contains(line, "[WARNING]: 请输入(1 - 2)：") {
+						// gocq的tty检测太辣鸡了
+						return "1\n"
+					}
+
+					if strings.Contains(line, "WARNING") && strings.Contains(line, "请前往该地址验证") {
+						re := regexp.MustCompile(`-> (.+)`)
+						m := re.FindStringSubmatch(line)
+						dice.Logger.Info("触发滑条流程: ", len(m) > 0)
+
+						if len(m) > 0 {
+							pa.GoCqHttpState = GoCqHttpStateCodeInLoginBar
+							pa.GoCqHttpLoginDeviceLockUrl = strings.TrimSpace(m[1])
+						}
+					}
+				}
+
+				if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
+					dice.Logger.Info("进入短信验证码流程，等待输入")
+					pa.GoCqHttpState = GoCqHttpStateCodeInLoginVerifyCode
+					pa.GoCqHttpLoginVerifyCode = ""
+					go func() {
+						// 检查是否有短信验证码
+						for i := 0; i < 100; i += 1 {
+							if pa.GoCqHttpState != GoCqHttpStateCodeInLoginVerifyCode {
+								break
+							}
+							time.Sleep(6 * time.Duration(time.Second))
+							if pa.GoCqHttpLoginVerifyCode != "" {
+								chSMS <- pa.GoCqHttpLoginVerifyCode
+								break
+							}
+						}
+					}()
+					code := <-chSMS
+					dice.Logger.Infof("即将输入短信验证码: %v", code)
+					return code + "\n"
+				}
+
+				if strings.Contains(line, "发送验证码失败，可能是请求过于频繁.") {
+					pa.GoCqHttpState = StateCodeLoginFailed
+					pa.GocqhttpLoginFailedReason = "发送验证码失败，可能是请求过于频繁"
+				}
+
+				// 登录成功
+				if strings.Contains(line, "CQ WebSocket 服务器已启动") {
+					// CQ WebSocket 服务器已启动
+					// 登录成功 欢迎使用
+					pa.GoCqHttpState = StateCodeLoginSuccessed
 					pa.GoCqHttpLoginSucceeded = true
-					pa.GoCqHttpLoginDeviceLockUrl = m[1]
+					dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserId)
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
+
+					go ServeQQ(dice, conn)
 				}
 			}
 
-			if strings.Contains(line, " 发送短信验证码") && strings.Contains(line, " [WARNING]: 1. 向手机 ") {
-				re := regexp.MustCompile(`\[WARNING\]: 发送短信验证码 (.+?) 发送短信验证码`)
-				m := re.FindStringSubmatch(line)
-				if len(m) > 0 {
-					pa.GoCqHttpSmsNumberTip = m[1]
+			if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
+				//TODO
+				fmt.Println("请使用手机QQ扫描二维码以继续登录")
+			}
+
+			if (pa.IsLoginSuccessed() && strings.Contains(line, "[ERROR]:") && strings.Contains(line, "Protocol -> sendPacket msg error: 120")) || strings.Contains(line, "账号可能被风控####2测试触发语句") {
+				// 这种情况应该是被禁言，提前减去以免出事
+				riskCount -= 1
+				dice.Logger.Infof("因禁言无法发言: 下方可能会提示遭遇风控")
+			}
+
+			if (pa.IsLoginSuccessed() && strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
+				//群消息发送失败: 账号可能被风控
+				now := time.Now().Unix()
+				if now-pa.GoCqHttpLastRestrictedTime < 5*60 {
+					// 阈值是5分钟内2次
+					riskCount += 1
 				}
-			}
-
-			if strings.Contains(line, " [WARNING]: 登录需要滑条验证码, 请验证后重试.") {
-				slideMode = 1
-			}
-
-			if strings.Contains(line, " [WARNING]: 账号已开启设备锁，请选择验证方式") {
-				slideMode = 2
-			}
-
-			// 直接短信验证，不过滑条
-			if slideMode == 2 {
-				// 账号已开启设备锁，请选择验证方式
-				// 1. 向手机 %v 发送短信验证码
-				// 2. 使用手机QQ扫码验证
-				// 请输入(1 - 2)：
-				if strings.Contains(line, "WARNING") && strings.Contains(line, "[WARNING]: 请输入(1 - 2)：") {
-					// gocq的tty检测太辣鸡了
-					return "1\n"
-				}
-			}
-
-			// 滑条流程
-			if slideMode == 1 {
-				if strings.Contains(line, "WARNING") && strings.Contains(line, "[WARNING]: 请输入(1 - 2)：") {
-					// gocq的tty检测太辣鸡了
-					return "1\n"
-				}
-
-				if strings.Contains(line, "WARNING") && strings.Contains(line, "请前往该地址验证") {
-					re := regexp.MustCompile(`-> (.+)`)
-					m := re.FindStringSubmatch(line)
-					dice.Logger.Info("触发滑条流程: ", len(m) > 0)
-
-					if len(m) > 0 {
-						pa.GoCqHttpState = GoCqHttpStateCodeInLoginBar
-						pa.GoCqHttpLoginDeviceLockUrl = strings.TrimSpace(m[1])
-					}
-				}
-			}
-
-			if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
-				dice.Logger.Info("进入短信验证码流程，等待输入")
-				pa.GoCqHttpState = GoCqHttpStateCodeInLoginVerifyCode
-				pa.GoCqHttpLoginVerifyCode = ""
-				go func() {
-					// 检查是否有短信验证码
-					for i := 0; i < 100; i += 1 {
-						if pa.GoCqHttpState != GoCqHttpStateCodeInLoginVerifyCode {
-							break
-						}
-						time.Sleep(6 * time.Duration(time.Second))
-						if pa.GoCqHttpLoginVerifyCode != "" {
-							chSMS <- pa.GoCqHttpLoginVerifyCode
-							break
-						}
-					}
-				}()
-				code := <-chSMS
-				dice.Logger.Infof("即将输入短信验证码: %v", code)
-				return code + "\n"
-			}
-
-			if strings.Contains(line, "发送验证码失败，可能是请求过于频繁.") {
-				pa.GoCqHttpState = StateCodeLoginFailed
-				pa.GocqhttpLoginFailedReason = "发送验证码失败，可能是请求过于频繁"
-			}
-
-			// 登录成功
-			if strings.Contains(line, "CQ WebSocket 服务器已启动") {
-				// CQ WebSocket 服务器已启动
-				// 登录成功 欢迎使用
-				pa.GoCqHttpState = StateCodeLoginSuccessed
-				pa.GoCqHttpLoginSucceeded = true
-				dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserId)
-				dice.LastUpdatedTime = time.Now().Unix()
-				dice.Save(false)
-
-				go ServeQQ(dice, conn)
-			}
-		}
-
-		if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
-			//TODO
-			fmt.Println("请使用手机QQ扫描二维码以继续登录")
-		}
-
-		if (pa.IsLoginSuccessed() && strings.Contains(line, "[ERROR]:") && strings.Contains(line, "Protocol -> sendPacket msg error: 120")) || strings.Contains(line, "账号可能被风控####2测试触发语句") {
-			// 这种情况应该是被禁言，提前减去以免出事
-			riskCount -= 1
-			dice.Logger.Infof("因禁言无法发言: 下方可能会提示遭遇风控")
-		}
-
-		if (pa.IsLoginSuccessed() && strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
-			//群消息发送失败: 账号可能被风控
-			now := time.Now().Unix()
-			if now-pa.GoCqHttpLastRestrictedTime < 5*60 {
-				// 阈值是5分钟内2次
-				riskCount += 1
-			}
-			pa.GoCqHttpLastRestrictedTime = now
-			if riskCount >= 2 {
-				riskCount = 0
-				if dice.AutoReloginEnable {
-					// 大于5分钟触发
-					if now-pa.GoCqLastAutoLoginTime > 5*60 {
-						dice.Logger.Warnf("自动重启: 达到风控重启阈值 <%s>(%s)", conn.Nickname, conn.UserId)
-						if pa.InPackGoCqHttpPassword != "" {
-							pa.DoRelogin()
-						} else {
-							dice.Logger.Warnf("自动重启: 未输入密码，放弃")
+				pa.GoCqHttpLastRestrictedTime = now
+				if riskCount >= 2 {
+					riskCount = 0
+					if dice.AutoReloginEnable {
+						// 大于5分钟触发
+						if now-pa.GoCqLastAutoLoginTime > 5*60 {
+							dice.Logger.Warnf("自动重启: 达到风控重启阈值 <%s>(%s)", conn.Nickname, conn.UserId)
+							if pa.InPackGoCqHttpPassword != "" {
+								pa.DoRelogin()
+							} else {
+								dice.Logger.Warnf("自动重启: 未输入密码，放弃")
+							}
 						}
 					}
 				}
 			}
-		}
 
-		if pa.IsInLogin() || strings.Contains(line, "[WARNING]") || strings.Contains(line, "[ERROR]") || strings.Contains(line, "[FATAL]") {
-			//  [WARNING]: 登录需要滑条验证码, 请使用手机QQ扫描二维码以继续登录
-			if pa.IsLoginSuccessed() {
-				skip := false
+			if pa.IsInLogin() || strings.Contains(line, "[WARNING]") || strings.Contains(line, "[ERROR]") || strings.Contains(line, "[FATAL]") {
+				//  [WARNING]: 登录需要滑条验证码, 请使用手机QQ扫描二维码以继续登录
+				if pa.IsLoginSuccessed() {
+					skip := false
 
-				if strings.Contains(line, "WARNING") {
-					if strings.Contains(line, "检查更新失败") || strings.Contains(line, "Protocol -> device lock is disable.") {
-						skip = true
+					if strings.Contains(line, "WARNING") {
+						if strings.Contains(line, "检查更新失败") || strings.Contains(line, "Protocol -> device lock is disable.") {
+							skip = true
+						}
+						if strings.Contains(line, "语音文件") && strings.Contains(line, "下载失败") {
+							skip = true
+						}
 					}
-					if strings.Contains(line, "语音文件") && strings.Contains(line, "下载失败") {
-						skip = true
-					}
-				}
 
-				if strings.Contains(line, "ERROR") {
-					if strings.Contains(line, "panic on decoder MsgPush.PushGroupProMsg") {
-						skip = true
+					if strings.Contains(line, "ERROR") {
+						if strings.Contains(line, "panic on decoder MsgPush.PushGroupProMsg") {
+							skip = true
+						}
 					}
-				}
 
-				if !skip {
-					dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+					if !skip {
+						dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+					} else {
+						if strings.HasSuffix(line, "\n") {
+							fmt.Printf("onebot | %s", line)
+						}
+					}
 				} else {
 					if strings.HasSuffix(line, "\n") {
 						fmt.Printf("onebot | %s", line)
 					}
-				}
-			} else {
-				if strings.HasSuffix(line, "\n") {
-					fmt.Printf("onebot | %s", line)
-				}
 
-				skip := false
-				if strings.Contains(line, "WARNING") && strings.Contains(line, "使用了过时的配置格式，请更新配置文件") {
-					skip = true
-				}
-
-				if strings.Contains(line, "WARNING") {
-					if strings.Contains(line, "检查更新失败") || strings.Contains(line, "Protocol -> device lock is disable.") {
+					skip := false
+					if strings.Contains(line, "WARNING") && strings.Contains(line, "使用了过时的配置格式，请更新配置文件") {
 						skip = true
 					}
-				}
 
-				// error 之类错误无条件警告
-				if !skip {
-					if strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
-						dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+					if strings.Contains(line, "WARNING") {
+						if strings.Contains(line, "检查更新失败") || strings.Contains(line, "Protocol -> device lock is disable.") {
+							skip = true
+						}
+					}
+
+					// error 之类错误无条件警告
+					if !skip {
+						if strings.Contains(line, "WARNING") || strings.Contains(line, "ERROR") || strings.Contains(line, "FATAL") {
+							dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
+						}
 					}
 				}
 			}
+			return ""
 		}
-		return ""
-	}
 
-	go func() {
-		<-chQrCode
-		if _, err := os.Stat(qrcodeFile); err == nil {
-			dice.Logger.Info("onebot: 二维码已经就绪")
-			fmt.Println("如控制台二维码不好扫描，可以手动打开 ./data/default/extra/go-cqhttp-qqXXXXX 目录下qrcode.png")
-			qrdata, err := os.ReadFile(qrcodeFile)
-			if err == nil {
-				pa.GoCqHttpState = StateCodeInLoginQrCode
-				pa.GoCqHttpQrcodeData = qrdata
-				dice.Logger.Info("获取二维码成功")
-				dice.LastUpdatedTime = time.Now().Unix()
-				dice.Save(false)
-				_ = os.Rename(qrcodeFile, qrcodeFile+".bak.png")
-			} else {
-				pa.GoCqHttpQrcodeData = nil
-				pa.GoCqHttpState = StateCodeLoginFailed
-				pa.GocqhttpLoginFailedReason = "获取二维码失败"
-				dice.LastUpdatedTime = time.Now().Unix()
-				dice.Save(false)
-				dice.Logger.Info("获取二维码失败，错误为: ", err.Error())
-			}
-		}
-	}()
-
-	run := func() {
-		defer func() {
-			if r := recover(); r != nil {
-				dice.Logger.Errorf("onebot: 异常: %v 堆栈: %v", r, string(debug.Stack()))
+		go func() {
+			<-chQrCode
+			if _, err := os.Stat(qrcodeFile); err == nil {
+				dice.Logger.Info("onebot: 二维码已经就绪")
+				fmt.Println("如控制台二维码不好扫描，可以手动打开 ./data/default/extra/go-cqhttp-qqXXXXX 目录下qrcode.png")
+				qrdata, err := os.ReadFile(qrcodeFile)
+				if err == nil {
+					pa.GoCqHttpState = StateCodeInLoginQrCode
+					pa.GoCqHttpQrcodeData = qrdata
+					dice.Logger.Info("获取二维码成功")
+					dice.LastUpdatedTime = time.Now().Unix()
+					dice.Save(false)
+					_ = os.Rename(qrcodeFile, qrcodeFile+".bak.png")
+				} else {
+					pa.GoCqHttpQrcodeData = nil
+					pa.GoCqHttpState = StateCodeLoginFailed
+					pa.GocqhttpLoginFailedReason = "获取二维码失败"
+					dice.LastUpdatedTime = time.Now().Unix()
+					dice.Save(false)
+					dice.Logger.Info("获取二维码失败，错误为: ", err.Error())
+				}
 			}
 		}()
 
-		// 启动gocqhttp，开始登录
-		pa.GoCqHttpProcess = p
-		err := p.Start()
+		run := func() {
+			defer func() {
+				if r := recover(); r != nil {
+					dice.Logger.Errorf("onebot: 异常: %v 堆栈: %v", r, string(debug.Stack()))
+				}
+			}()
 
-		if err == nil {
-			if dice.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
-				err := dice.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
-				if err != nil {
-					dice.Logger.Warn("添加到进程组失败，若主进程崩溃，gocqhttp进程可能需要手动结束")
+			// 启动gocqhttp，开始登录
+			pa.GoCqHttpProcess = p
+			err := p.Start()
+
+			if err == nil {
+				if dice.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
+					err := dice.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
+					if err != nil {
+						dice.Logger.Warn("添加到进程组失败，若主进程崩溃，gocqhttp进程可能需要手动结束")
+					}
+				}
+				_ = p.Wait()
+			}
+
+			isInLogin := pa.IsInLogin()
+			isDeviceLockLogin := pa.GoCqHttpState == StateCodeInLoginDeviceLock
+			if !isDeviceLockLogin {
+				// 如果在设备锁流程中，不清空数据
+				GoCqHttpServeProcessKill(dice, conn)
+
+				if isInLogin {
+					conn.State = 3
+					pa.GoCqHttpState = StateCodeLoginFailed
+				} else {
+					conn.State = 0
+					pa.GoCqHttpState = GoCqHttpStateCodeClosed
 				}
 			}
-			_ = p.Wait()
-		}
 
-		isInLogin := pa.IsInLogin()
-		isDeviceLockLogin := pa.GoCqHttpState == StateCodeInLoginDeviceLock
-		if !isDeviceLockLogin {
-			// 如果在设备锁流程中，不清空数据
-			GoCqHttpServeProcessKill(dice, conn)
-
-			if isInLogin {
-				conn.State = 3
-				pa.GoCqHttpState = StateCodeLoginFailed
+			if err != nil {
+				dice.Logger.Info("go-cqhttp 进程退出: ", err)
 			} else {
-				conn.State = 0
-				pa.GoCqHttpState = GoCqHttpStateCodeClosed
+				dice.Logger.Info("go-cqhttp 进程退出")
 			}
 		}
 
-		if err != nil {
-			dice.Logger.Info("go-cqhttp 进程退出: ", err)
+		if loginInfo.IsAsyncRun {
+			go run()
 		} else {
-			dice.Logger.Info("go-cqhttp 进程退出")
+			run()
 		}
-	}
-
-	if isAsyncRun {
-		go run()
 	} else {
-		run()
+		pa.GoCqHttpState = StateCodeLoginSuccessed
+		pa.GoCqHttpLoginSucceeded = true
+		dice.Save(false)
+		go ServeQQ(dice, conn)
 	}
 }

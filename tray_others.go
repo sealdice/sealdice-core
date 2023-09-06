@@ -5,12 +5,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"net"
-	"os/exec"
 	"regexp"
 	"runtime"
 	"sealdice-core/dice"
+
+	"github.com/labstack/echo/v4"
 )
 
 func trayInit(dm *dice.DiceManager) {
@@ -54,9 +54,6 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 		logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
 		return
 	}
-}
-
-func showWarn(title string, msg string) {
 }
 
 func executeWin(name string, arg ...string) *exec.Cmd {
