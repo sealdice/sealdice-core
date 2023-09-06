@@ -191,6 +191,39 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	}
 }
 
+// CrossMsgBySearch
+// 在 se 中找到第一个平台等于 p 且启用的 EndPointInfo, 并向目标 t 发送消息,
+// pr 判断是否为私聊消息
+func CrossMsgBySearch(se *IMSession, p, t, txt string, pr bool) bool {
+	ep := se.GetEpByPlatform(p)
+	if ep == nil {
+		return false
+	}
+	mctx := &MsgContext{
+		EndPoint: ep,
+		Session:  ep.Session,
+		Dice:     ep.Session.Parent,
+	}
+
+	if g, ok := mctx.Session.ServiceAtNew[t]; ok {
+		mctx.IsCurGroupBotOn = g.Active
+		mctx.Group = g
+	}
+
+	if !pr {
+		mctx.MessageType = "group"
+		ReplyGroup(mctx, &Message{GroupId: t}, txt)
+	} else {
+		mctx.IsPrivate = true
+		mctx.MessageType = "private"
+		ReplyPerson(mctx, &Message{Sender: SenderBase{UserId: t}}, txt)
+	}
+
+	return true
+}
+
+// TODO: CrossMsgById 用指定 Id 的 EndPoint 发送跨平台消息，现在似乎没有这个需求
+
 func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
 	ReplyPersonRaw(ctx, msg, text, "")
 }
