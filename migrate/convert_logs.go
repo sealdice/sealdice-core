@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jmoiron/sqlx"
-	"go.etcd.io/bbolt"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jmoiron/sqlx"
+	"go.etcd.io/bbolt"
 )
 
 type LogOneItem struct {
@@ -343,7 +344,7 @@ create table if not exists log_items
     nickname        TEXT,
     im_userid       TEXT,
     time            INTEGER,
-    message         INTEGER,
+    message         TEXT,
     is_dice         INTEGER,
     command_id      INTEGER,
     command_info    TEXT,
