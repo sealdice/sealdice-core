@@ -27,8 +27,7 @@ export interface AdapterQQ {
   ignoreFriendRequest: boolean;
   goCqHttpSmsNumberTip: string;
   useSignServer: boolean;
-  signServerUrl: string;
-  signServerKey: string;
+  signServerConfig: any;
 }
 
 interface TalkLogItem {
@@ -174,14 +173,14 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, proxyURL:string,url: string, clientID: string, implementation: string, connectUrl: string, accessToken: string, relWorkDir: string, useSignServer: boolean, signServerUrl: string, signServerKey: string}) {
-      const {accountType, account, password, protocol, token,proxyURL, url, clientID, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerUrl, signServerKey} = form
+    async addImConnection(form: {accountType: number, account: string, password: string, protocol: number, token: string, proxyURL:string,url: string, clientID: string, implementation: string, connectUrl: string, accessToken: string, relWorkDir: string, useSignServer: boolean, signServerConfig: any}) {
+      const {accountType, account, password, protocol, token,proxyURL, url, clientID, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig} = form
       let info = null
       switch (accountType) {
         //QQ
         case 0:
           if (implementation === 'gocq') {
-            info = await backend.post(urlPrefix+'/im_connections/add', { account, password, protocol, useSignServer, signServerUrl, signServerKey }, { timeout: 65000 })
+            info = await backend.post(urlPrefix+'/im_connections/add', { account, password, protocol, useSignServer, signServerConfig }, { timeout: 65000 })
           } else if (implementation === 'walle-q') {
             info = await backend.post(urlPrefix+'/im_connections/addWalleQ', { account, password, protocol }, { timeout: 65000 })
           }
@@ -226,8 +225,8 @@ export const useStore = defineStore('main', {
       return info as any as DiceConnection
     },
 
-    async getImConnectionsSetData(i: DiceConnection, { protocol, ignoreFriendRequest, useSignServer, signServerUrl, signServerKey }: { protocol: number, ignoreFriendRequest: boolean, useSignServer: boolean, signServerUrl: string, signServerKey: string }) {
-      const info = await backend.post(urlPrefix+'/im_connections/set_data', { id: i.id, protocol, ignoreFriendRequest, useSignServer, signServerUrl, signServerKey })
+    async getImConnectionsSetData(i: DiceConnection, { protocol, ignoreFriendRequest, useSignServer, signServerConfig }: { protocol: number, ignoreFriendRequest: boolean, useSignServer: boolean, signServerConfig: any }) {
+      const info = await backend.post(urlPrefix+'/im_connections/set_data', { id: i.id, protocol, ignoreFriendRequest, useSignServer, signServerConfig })
       return info as any as DiceConnection
     },
 

@@ -1,7 +1,7 @@
 <template>
   <!-- <div style="position: relative;"> -->
   <div style="position: absolute; right: 40px; bottom: 60px; z-index: 10">
-<!--    <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>-->
+    <!--    <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>-->
     <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>
   </div>
   <!-- </div> -->
@@ -28,7 +28,7 @@
         </div>
 
         <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;" v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginBar) && i.adapter?.goCqHttpLoginDeviceLockUrl">
-        <!-- <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;"> -->
+          <!-- <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;"> -->
           <div style="margin-left: 2rem">滑条验证码流程</div>
           <!-- <div><a style="line-break: anywhere;" :href="i.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div> -->
           <div><a @click="slideUrlSet(i.adapter?.goCqHttpLoginDeviceLockUrl)" style="line-break: anywhere;" href="javascript:void(0)">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div>
@@ -168,18 +168,201 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)" label="使用签名服务" :label-width="formLabelWidth">
-        <el-switch v-model="form.useSignServer" style="--el-switch-on-color: #67C23A;"/>
-        <el-tooltip content="如果不知道这是什么请勿勾选。允许填写签名服务相关信息。" style="">
-          <el-icon><QuestionFilled/></el-icon>
-        </el-tooltip>
-      </el-form-item>
-      <el-form-item v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && form.useSignServer" label="签名服务url" :label-width="formLabelWidth">
-        <el-input v-model="form.signServerUrl" type="string" autocomplete="off" placeholder="http://127.0.0.1:8080"></el-input>
-      </el-form-item>
-      <el-form-item v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && form.useSignServer" label="签名服务key" :label-width="formLabelWidth">
-        <el-input v-model="form.signServerKey" type="string" autocomplete="off" placeholder="114514"></el-input>
-      </el-form-item>
+      <el-form-item v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>签名服务</span>
+              <el-tooltip content="如果不知道这是什么，请选择 不使用。允许填写签名服务相关信息。" style="">
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-radio-group v-model="signConfigType" size="small" @change="signConfigTypeChange">
+            <el-radio-button label="none">不使用</el-radio-button>
+            <el-radio-button label="simple">简易配置</el-radio-button>
+            <el-radio-button label="advanced">高级配置</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'simple'"
+          label="服务url" :label-width="formLabelWidth">
+          <el-input v-model="form.signServerConfig.signServers[0].url" type="string" autocomplete="off"
+            placeholder="http://127.0.0.1:8080"></el-input>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'simple'"
+          label="服务key" :label-width="formLabelWidth">
+          <el-input v-model="form.signServerConfig.signServers[0].key" type="string" autocomplete="off"
+            placeholder="114514"></el-input>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'simple'"
+          label="服务鉴权" :label-width="formLabelWidth">
+          <el-input v-model="form.signServerConfig.signServers[0].authorization" type="string" autocomplete="off"
+            placeholder="Bearer xxxx"></el-input>
+        </el-form-item>
+
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'">
+          <el-alert type="warning" :closable="false">如果不理解以下配置项，请使用 <strong>简易配置</strong></el-alert>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'">
+          <el-table :data="form.signServerConfig.signServers" table-layout="auto">
+            <el-table-column prop="url" label="服务url">
+              <template #default="scope">
+                <el-input v-model="scope.row.url" placeholder="http://127.0.0.1:8080"/>
+              </template>
+            </el-table-column>
+            <el-table-column prop="key" label="服务key">
+              <template #default="scope">
+                <el-input v-model="scope.row.key" placeholder="114514"/>
+              </template>
+            </el-table-column>
+            <el-table-column prop="authorization" label="服务鉴权">
+              <template #default="scope">
+                <el-input v-model="scope.row.authorization" placeholder="Bearer xxxx"/>
+              </template>
+            </el-table-column>
+            <el-table-column align="right">
+              <template #header="scope">
+                <el-button size="small" type="primary" @click="handleSignServerAdd">新增一行</el-button>
+              </template>
+              <template #default="scope">
+                <el-button size="small" type="danger" @click="handleSignServerDelete(scope.row.url)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>自动切换规则</span>
+              <el-tooltip style="">
+                <template #content>
+                  判断签名服务不可用（需要切换）的额外规则<br />
+                  - 不设置 （此时仅在请求无法返回结果时判定为不可用）<br />
+                  - 在获取到的 sign 为空 （若选此建议关闭 auto-register，一般为实例未注册但是请求签名的情况）<br />
+                  - 在获取到的 sign 或 token 为空（若选此建议关闭 auto-refresh-token ）
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-radio-group v-model="form.signServerConfig.ruleChangeSignServer" size="small">
+            <el-radio-button :label="0">不设置</el-radio-button>
+            <el-radio-button :label="1">sign为空时切换</el-radio-button>
+            <el-radio-button :label="2">sign/token为空时切换</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>最大尝试次数</span>
+              <el-tooltip style="">
+                <template #content>
+                  连续寻找可用签名服务器最大尝试次数<br />
+                  为 0 时会在连续 3 次没有找到可用签名服务器后保持使用主签名服务器，不再尝试进行切换备用<br />
+                  否则会在达到指定次数后 <strong>退出</strong> 主程序
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-input-number v-model="form.signServerConfig.maxCheckCount" size="small" :precision="0" :min="0" />
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>请求超时时间</span>
+              <el-tooltip style="">
+                <template #content>
+                  签名服务请求超时时间(s)
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-input-number v-model="form.signServerConfig.signServerTimeout" size="small" :precision="0" :min="0" />
+          <span>&nbsp;秒</span>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>自动注册实例</span>
+              <el-tooltip style="">
+                <template #content>
+                  在实例可能丢失（获取到的签名为空）时是否尝试重新注册<br />
+                  为 true 时，在签名服务不可用时可能每次发消息都会尝试重新注册并签名。<br />
+                  为 false 时，将不会自动注册实例，在签名服务器重启或实例被销毁后需要重启 go-cqhttp 以获取实例<br />
+                  否则后续消息将不会正常签名。关闭此项后可以考虑开启签名服务器端 auto_register 避免需要重启<br />
+                  由于实现问题，当前建议关闭此项，推荐开启签名服务器的自动注册实例
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-switch v-model="form.signServerConfig.autoRegister" style="--el-switch-on-color: #67C23A;" />
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>自动刷新token</span>
+              <el-tooltip style="">
+                <template #content>
+                  是否在 token 过期后立即自动刷新签名 token（在需要签名时才会检测到，主要防止 token 意外丢失）<br />
+                  独立于定时刷新
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-switch v-model="form.signServerConfig.autoRefreshToken" style="--el-switch-on-color: #67C23A;" />
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>刷新间隔</span>
+              <el-tooltip style="">
+                <template #content>
+                  定时刷新 token 间隔时间，单位为分钟, 建议 30~40 分钟, 不可超过 60 分钟<br />
+                  目前丢失token也不会有太大影响，可设置为 0 以关闭，推荐开启
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-input-number v-model="form.signServerConfig.refreshInterval" size="small" :precision="0" :min="0" />
+          <span>&nbsp;分钟</span>
+        </el-form-item>
+
       <small>
         <div>提示: 切换协议后，需要点击重新登录，或.master reboot重启骰子以应用设置</div>
       </small>
@@ -204,9 +387,9 @@
             <el-option label="QQ账号(gocq分离部署)" :value="6"></el-option>
             <el-option label="Discord账号" :value="1"></el-option>
             <el-option label="KOOK(开黑啦)账号" :value="2"></el-option>
-             <el-option label="Telegram帐号" :value="3"></el-option>
-             <el-option label="Minecraft服务器(Paper)" :value="4"></el-option>
-             <el-option label="Dodo语音" :value="5"></el-option>
+            <el-option label="Telegram帐号" :value="3"></el-option>
+            <el-option label="Minecraft服务器(Paper)" :value="4"></el-option>
+            <el-option label="Dodo语音" :value="5"></el-option>
           </el-select>
         </el-form-item>
 
@@ -243,17 +426,199 @@
             <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
           </small>
         </el-form-item>
-        <el-form-item v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)" label="使用签名服务" :label-width="formLabelWidth">
-          <el-switch v-model="form.useSignServer" style="--el-switch-on-color: #67C23A;"/>
-          <el-tooltip content="如果不知道这是什么请勿勾选。允许填写签名服务相关信息。" style="">
-            <el-icon><QuestionFilled/></el-icon>
-          </el-tooltip>
+        <el-form-item v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>签名服务</span>
+              <el-tooltip content="如果不知道这是什么，请选择 不使用。允许填写签名服务相关信息。" style="">
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-radio-group v-model="signConfigType" size="small" @change="signConfigTypeChange">
+            <el-radio-button label="none">不使用</el-radio-button>
+            <el-radio-button label="simple">简易配置</el-radio-button>
+            <el-radio-button label="advanced">高级配置</el-radio-button>
+          </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && form.useSignServer" label="签名服务url" :label-width="formLabelWidth">
-          <el-input v-model="form.signServerUrl" type="string" autocomplete="off" placeholder="http://127.0.0.1:8080"></el-input>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'simple'"
+          label="服务url" :label-width="formLabelWidth">
+          <el-input v-model="form.signServerConfig.signServers[0].url" type="string" autocomplete="off"
+            placeholder="http://127.0.0.1:8080"></el-input>
         </el-form-item>
-        <el-form-item v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && form.useSignServer" label="签名服务key" :label-width="formLabelWidth">
-          <el-input v-model="form.signServerKey" type="string" autocomplete="off" placeholder="114514"></el-input>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'simple'"
+          label="服务key" :label-width="formLabelWidth">
+          <el-input v-model="form.signServerConfig.signServers[0].key" type="string" autocomplete="off"
+            placeholder="114514"></el-input>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'simple'"
+          label="服务鉴权" :label-width="formLabelWidth">
+          <el-input v-model="form.signServerConfig.signServers[0].authorization" type="string" autocomplete="off"
+            placeholder="Bearer xxxx"></el-input>
+        </el-form-item>
+
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'">
+          <el-alert type="warning" :closable="false">如果不理解以下配置项，请使用 <strong>简易配置</strong></el-alert>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'">
+          <el-table :data="form.signServerConfig.signServers" table-layout="auto">
+            <el-table-column prop="url" label="服务url">
+              <template #default="scope">
+                <el-input v-model="scope.row.url" placeholder="http://127.0.0.1:8080"/>
+              </template>
+            </el-table-column>
+            <el-table-column prop="key" label="服务key">
+              <template #default="scope">
+                <el-input v-model="scope.row.key" placeholder="114514"/>
+              </template>
+            </el-table-column>
+            <el-table-column prop="authorization" label="服务鉴权">
+              <template #default="scope">
+                <el-input v-model="scope.row.authorization" placeholder="Bearer xxxx"/>
+              </template>
+            </el-table-column>
+            <el-table-column align="right">
+              <template #header="scope">
+                <el-button size="small" type="primary" @click="handleSignServerAdd">新增一行</el-button>
+              </template>
+              <template #default="scope">
+                <el-button size="small" type="danger" @click="handleSignServerDelete(scope.row.url)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>自动切换规则</span>
+              <el-tooltip style="">
+                <template #content>
+                  判断签名服务不可用（需要切换）的额外规则<br />
+                  - 不设置 （此时仅在请求无法返回结果时判定为不可用）<br />
+                  - 在获取到的 sign 为空 （若选此建议关闭 auto-register，一般为实例未注册但是请求签名的情况）<br />
+                  - 在获取到的 sign 或 token 为空（若选此建议关闭 auto-refresh-token ）
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-radio-group v-model="form.signServerConfig.ruleChangeSignServer" size="small">
+            <el-radio-button :label="0">不设置</el-radio-button>
+            <el-radio-button :label="1">sign为空时切换</el-radio-button>
+            <el-radio-button :label="2">sign/token为空时切换</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>最大尝试次数</span>
+              <el-tooltip style="">
+                <template #content>
+                  连续寻找可用签名服务器最大尝试次数<br />
+                  为 0 时会在连续 3 次没有找到可用签名服务器后保持使用主签名服务器，不再尝试进行切换备用<br />
+                  否则会在达到指定次数后 <strong>退出</strong> 主程序
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-input-number v-model="form.signServerConfig.maxCheckCount" size="small" :precision="0" :min="0" />
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>请求超时时间</span>
+              <el-tooltip style="">
+                <template #content>
+                  签名服务请求超时时间(s)
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-input-number v-model="form.signServerConfig.signServerTimeout" size="small" :precision="0" :min="0" />
+          <span>&nbsp;秒</span>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>自动注册实例</span>
+              <el-tooltip style="">
+                <template #content>
+                  在实例可能丢失（获取到的签名为空）时是否尝试重新注册<br />
+                  为 true 时，在签名服务不可用时可能每次发消息都会尝试重新注册并签名。<br />
+                  为 false 时，将不会自动注册实例，在签名服务器重启或实例被销毁后需要重启 go-cqhttp 以获取实例<br />
+                  否则后续消息将不会正常签名。关闭此项后可以考虑开启签名服务器端 auto_register 避免需要重启<br />
+                  由于实现问题，当前建议关闭此项，推荐开启签名服务器的自动注册实例
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-switch v-model="form.signServerConfig.autoRegister" style="--el-switch-on-color: #67C23A;" />
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>自动刷新token</span>
+              <el-tooltip style="">
+                <template #content>
+                  是否在 token 过期后立即自动刷新签名 token（在需要签名时才会检测到，主要防止 token 意外丢失）<br />
+                  独立于定时刷新
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-switch v-model="form.signServerConfig.autoRefreshToken" style="--el-switch-on-color: #67C23A;" />
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'advanced'"
+          :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>刷新间隔</span>
+              <el-tooltip style="">
+                <template #content>
+                  定时刷新 token 间隔时间，单位为分钟, 建议 30~40 分钟, 不可超过 60 分钟<br />
+                  目前丢失token也不会有太大影响，可设置为 0 以关闭，推荐开启
+                </template>
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-input-number v-model="form.signServerConfig.refreshInterval" size="small" :precision="0" :min="0" />
+          <span>&nbsp;分钟</span>
         </el-form-item>
 
         <el-form-item v-if="form.accountType === 6" label="账号" :label-width="formLabelWidth" required>
@@ -425,11 +790,11 @@
         <template v-if="form.step === 1">
           <el-button @click="dialogFormVisible = false">取消</el-button>
           <el-button type="primary" @click="goStepTwo"
-                     :disabled="form.accountType === 0 && form.account === '' ||
-                     (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === '' ||
-                      form.accountType === 4 && form.url === '' ||
-                      form.accountType === 5 && (form.clientID === '' || form.token === '') ||
-                      form.accountType === 6 && (form.account === '' || form.connectUrl === '' || form.relWorkDir === '')">
+            :disabled="form.accountType === 0 && form.account === '' ||
+              (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === '' ||
+              form.accountType === 4 && form.url === '' ||
+              form.accountType === 5 && (form.clientID === '' || form.token === '') ||
+              form.accountType === 6 && (form.account === '' || form.connectUrl === '' || form.relWorkDir === '')">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">
@@ -450,7 +815,7 @@
 </template>
 
 <script lang="ts" setup>
-import { h, reactive, onBeforeMount, onBeforeUnmount, onMounted, ref, nextTick } from 'vue';
+import { h, reactive, onBeforeMount, onBeforeUnmount, onMounted, ref, nextTick, Ref, computed} from 'vue';
 import { useStore, goCqHttpStateCode } from '~/store';
 import type { DiceConnection } from '~/store';
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -506,7 +871,7 @@ const duringRelogin = ref(false)
 const dialogFormVisible = ref(false)
 const dialogSetDataFormVisible = ref(false)
 const dialogSlideVisible = ref(false)
-const formLabelWidth = '100px'
+const formLabelWidth = '120px'
 const isTestMode = ref(false)
 
 const slideIframe = ref(null)
@@ -648,14 +1013,26 @@ const askSetData = async (i: DiceConnection) => {
   form.protocol = i.adapter?.inPackGoCqHttpProtocol;
   form.ignoreFriendRequest = i.adapter?.ignoreFriendRequest;
   form.useSignServer = i.adapter?.useSignServer;
-  form.signServerUrl = i.adapter?.signServerUrl;
-  form.signServerKey = i.adapter?.signServerKey;
+  form.signServerConfig = i.adapter?.signServerConfig;
   dialogSetDataFormVisible.value = true;
   form.endpoint = i;
+
+  signConfigType.value = i.adapter?.useSignServer === true ? 'simple' : 'none'
 }
 
 const doSetData = async () => {
-  const ret = await store.getImConnectionsSetData(form.endpoint, { protocol: form.protocol, ignoreFriendRequest: form.ignoreFriendRequest, useSignServer: form.useSignServer, signServerUrl: form.signServerUrl, signServerKey: form.signServerKey });
+  let param = { 
+    protocol: form.protocol, 
+    ignoreFriendRequest: form.ignoreFriendRequest, 
+  }
+  if (form.protocol === 1 || form.protocol === 6) {
+    param = {
+      ...param, 
+      useSignServer: form.useSignServer, 
+      signServerConfig: form.signServerConfig 
+    }
+  }
+  const ret = await store.getImConnectionsSetData(form.endpoint, param);
   if (form.endpoint.adapter) {
     form.endpoint.adapter.inPackGoCqHttpProtocol = form.protocol;
   }
@@ -714,6 +1091,52 @@ const gocqhttpReLogin = async (i: DiceConnection) => {
   activities.value.push(fullActivities[2])
 }
 
+const signConfigType: Ref<'none' | 'simple' | 'advanced'> = ref('none')
+const signConfigTypeChange = (value: any) => {
+  switch (value) {
+    case 'simple':
+      form.useSignServer = true
+      // 恢复其他配置项的默认值
+      form.signServerConfig = {
+        signServers: [form?.signServerConfig?.signServers?.[0] ?? { url: '', key: '', authorization: '' }],
+        ruleChangeSignServer: 1,
+        maxCheckCount: 0,
+        signServerTimeout: 60,
+        autoRegister: false,
+        autoRefreshToken: false,
+        refreshInterval: 40
+      }
+      break
+    case 'advanced':
+      form.useSignServer = true
+      form.signServerConfig = {
+        signServers: form.signServerConfig?.signServers ?? [{ url: '', key: '', authorization: '' }],
+        ruleChangeSignServer: 1,
+        maxCheckCount: 0,
+        signServerTimeout: 60,
+        autoRegister: false,
+        autoRefreshToken: false,
+        refreshInterval: 40
+      }
+      break
+    case 'none':
+    default:
+      form.useSignServer = false
+      form.signServerConfig = { signServers: [{ url: '', key: '', authorization: '' }] } as any
+      break
+  }
+}
+
+const handleSignServerAdd = () => {
+  form.signServerConfig?.signServers?.push({ url: '', key: '', authorization: '' })
+}
+
+const handleSignServerDelete = (url: string) => {
+  if (form.signServerConfig?.signServers) {
+    form.signServerConfig.signServers = form.signServerConfig.signServers.filter((server) => {return server.url != url})
+  }
+}
+
 const form = reactive({
   accountType: 0,
   step: 1,
@@ -735,6 +1158,21 @@ const form = reactive({
   connectUrl: '',
 
   useSignServer: false,
+  signServerConfig: {
+    signServers: [
+      {
+        url: '',
+        key: '',
+        authorization: ''
+      }
+    ],
+    ruleChangeSignServer: 1,
+    maxCheckCount: 0,
+    signServerTimeout: 60,
+    autoRegister: false,
+    autoRefreshToken: false,
+    refreshInterval: 40
+  },
   signServerUrl: '',
   signServerKey: '',
 })
