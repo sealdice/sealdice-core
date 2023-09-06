@@ -206,7 +206,7 @@ func main() {
 		if f, _ := os.Stat("./start.exe"); f != nil {
 			// run start.exe
 			logger.Warn("检测到启动器，尝试运行")
-			_ = exec.Command("./start.exe", "/u-first").Start()
+			_ = executeWin("./start.exe", "/u-first").Start()
 			return
 		}
 
@@ -224,7 +224,7 @@ func main() {
 		if f, _ := os.Stat("./start.exe"); f != nil {
 			// run start.exe
 			logger.Warn("检测到启动器，尝试运行")
-			_ = exec.Command("./start.exe", "/u-second").Start()
+			_ = executeWin("./start.exe", "/u-second").Start()
 			return
 		}
 
@@ -237,13 +237,14 @@ func main() {
 			logger.Error(err)
 			return
 		}
-		err = exec.Command(`cmd`, `/C`, "start", name, "--delay=5").Start()
+		//err = exec.Command(`cmd`, `/C`, "start", name, "--delay=5").Start()
+		err = executeWin(name, "--delay=5").Start()
 		if err != nil {
 			logger.Error(err)
 			return
 		}
 		// 给3s创建进程时间
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 		//_ = exec.Command("./sealdice-core.exe").Start()
 		return
 	}
@@ -271,19 +272,20 @@ func main() {
 
 			//var procAttr os.ProcAttr
 			//procAttr.Files = []*os.File{nil, nil, nil}
-			name, err = filepath.Abs(name)
-			if err != nil {
-				logger.Warn("升级发生错误1: ", err.Error())
-				return
-			}
+			//name, err = filepath.Abs(name)
+			//if err != nil {
+			//	logger.Warn("升级发生错误1: ", err.Error())
+			//	return
+			//}
 
 			//err := exec.Command(name, "/do-update-win").Start()
-			err = exec.Command(`cmd`, `/C`, "start", name, "/do-update-win").Start()
+			//err = exec.Command(`cmd`, `/C`, "start", name, "/do-update-win").Start()
+			err = executeWin(name, "/do-update-win").Start()
 			if err != nil {
 				logger.Warn("升级发生错误2: ", err.Error())
 				return
 			}
-			time.Sleep(3 * time.Second)
+			time.Sleep(1 * time.Second)
 			return
 		}
 	}
