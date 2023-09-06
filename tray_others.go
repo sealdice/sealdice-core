@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"net"
+	"os/exec"
 	"regexp"
 	"runtime"
 	"sealdice-core/dice"
@@ -56,4 +57,8 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 }
 
 func showWarn(title string, msg string) {
+}
+
+func executeWin(name string, arg ...string) *exec.Cmd {
+	return nil
 }

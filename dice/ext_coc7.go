@@ -651,6 +651,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			}
 
 			ctx.Group.ExtActive(ctx.Dice.ExtFind("coc7"))
+			ctx.Group.System = "coc7"
 			ctx.Group.UpdatedAtTime = time.Now().Unix()
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},

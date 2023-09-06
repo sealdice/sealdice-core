@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/lxn/win"
 	"github.com/monaco-io/request"
+	"golang.org/x/sys/windows"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -255,4 +256,13 @@ func showWarn(title string, msg string) {
 	s2, _ := syscall.UTF16PtrFromString(msg)
 	win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONERROR)
 	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
+}
+
+func executeWin(name string, arg ...string) *exec.Cmd {
+	cmd := exec.Command(name, arg...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		//CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
+		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_NEW_CONSOLE,
+	}
+	return cmd
 }

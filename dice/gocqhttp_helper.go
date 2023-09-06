@@ -521,6 +521,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, password string, protocol int
 	dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
 	p := procs.NewProcess(fmt.Sprintf(`"%s" faststart`, gocqhttpExePath))
 	p.Dir = workDir
+	dice.Logger.Info("onebot: 设定工作路径 ", workDir)
 
 	chQrCode := make(chan int, 1)
 	riskCount := 0
