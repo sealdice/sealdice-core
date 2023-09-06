@@ -59,6 +59,10 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 type Cmd struct {
 }
 
+func (cmd *Cmd) Start() error {
+	return nil
+}
+
 func executeWin(name string, arg ...string) *Cmd {
 	return nil
 }
