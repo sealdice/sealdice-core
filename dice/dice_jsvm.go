@@ -46,25 +46,11 @@ func (p *PrinterFunc) Error(s string) { p.doRecord("error", s); p.d.Logger.Error
 
 func (d *Dice) JsInit() {
 	// 装载数据库(如果是初次运行)
-	// 清理js扩展
-	prepareRemove := []*ExtInfo{}
-	for _, i := range d.ExtList {
-		if i.IsJsExt {
-			prepareRemove = append(prepareRemove, i)
-		}
-	}
-	for _, i := range prepareRemove {
-		d.ExtRemove(i)
-	}
-	// 清理coc扩展规则
-	d.CocExtraRules = map[int]*CocRuleInfo{}
-	// 清理脚本列表
-	d.JsScriptList = []*JsScriptInfo{}
+
+	// 清理目前的js相关
+	d.jsClear()
 
 	// 重建js vm
-	if d.JsLoop != nil {
-		d.JsLoop.Stop()
-	}
 	reg := new(require.Registry)
 
 	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false), eventloop.WithRegistry(reg))
@@ -276,6 +262,36 @@ e.__proto__.storageGet = function(k, v) {
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
 	loop.Start()
+	d.JsEnable = true
+	d.Logger.Info("已加载JS环境")
+}
+
+func (d *Dice) JsShutdown() {
+	d.JsEnable = false
+	d.jsClear()
+	d.Logger.Info("已关闭JS环境")
+}
+
+func (d *Dice) jsClear() {
+	// 清理js扩展
+	prepareRemove := []*ExtInfo{}
+	for _, i := range d.ExtList {
+		if i.IsJsExt {
+			prepareRemove = append(prepareRemove, i)
+		}
+	}
+	for _, i := range prepareRemove {
+		d.ExtRemove(i)
+	}
+	// 清理coc扩展规则
+	d.CocExtraRules = map[int]*CocRuleInfo{}
+	// 清理脚本列表
+	d.JsScriptList = []*JsScriptInfo{}
+	// 关闭js vm
+	if d.JsLoop != nil {
+		d.JsLoop.Stop()
+		d.JsLoop = nil
+	}
 }
 
 func (d *Dice) JsLoadScripts() {
@@ -293,6 +309,8 @@ func (d *Dice) JsLoadScripts() {
 type JsScriptInfo struct {
 	/** 名称 */
 	Name string `json:"name"`
+	/** 是否启用 */
+	Enable bool `json:"enable"`
 	/** 版本 */
 	Version string `json:"version"`
 	/** 作者 */
@@ -307,9 +325,6 @@ type JsScriptInfo struct {
 	Grant []string `json:"grant"`
 	/** 更新时间 */
 	UpdateTime int64 `json:"updateTime"`
-
-	/** 是否启用 未来再加这个功能吧，现在所有的都默认启用 */
-	//Enable bool `json:"enable"`
 	/** 安装时间 - 文件创建时间 */
 	InstallTime int64 `json:"installTime"`
 	/** 最近一条错误文本 */
@@ -341,29 +356,36 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 		re2 := regexp.MustCompile(`//[ \t]*@(\S+)\s+([^\r\n]+)`)
 		data := re2.FindAllStringSubmatch(text, -1)
 		for _, item := range data {
+			v := strings.TrimSpace(item[2])
 			switch item[1] {
 			case "name":
-				jsInfo.Name = item[2]
+				jsInfo.Name = v
 			case "homepageURL":
-				jsInfo.HomePage = item[2]
+				jsInfo.HomePage = v
 			case "license":
-				jsInfo.License = item[2]
+				jsInfo.License = v
 			case "author":
-				jsInfo.Author = item[2]
+				jsInfo.Author = v
 			case "version":
-				jsInfo.Version = item[2]
+				jsInfo.Version = v
 			case "description":
-				jsInfo.Desc = item[2]
+				jsInfo.Desc = v
 			case "timestamp":
-				v, err := strconv.ParseInt(item[2], 10, 64)
+				v, err := strconv.ParseInt(v, 10, 64)
 				if err == nil {
 					jsInfo.UpdateTime = v
 				}
 			}
 		}
 	}
+	jsInfo.Enable = !d.DisabledJsScripts[jsInfo.Name]
 
-	_, err = d.JsRequire.Require(s)
+	if jsInfo.Enable {
+		_, err = d.JsRequire.Require(s)
+	} else {
+		d.Logger.Infof("脚本<%s>已被禁用，跳过加载", jsInfo.Name)
+	}
+
 	if err != nil {
 		errText := err.Error()
 		jsInfo.ErrText = errText
@@ -384,5 +406,23 @@ func JsDelete(d *Dice, jsInfo *JsScriptInfo) {
 		_ = os.Remove(zipFilename)
 	} else {
 		_ = os.Remove(jsInfo.Filename)
+	}
+}
+
+func JsEnable(d *Dice, jsInfoName string) {
+	delete(d.DisabledJsScripts, jsInfoName)
+	for _, jsInfo := range d.JsScriptList {
+		if jsInfo.Name == jsInfoName {
+			jsInfo.Enable = true
+		}
+	}
+}
+
+func JsDisable(d *Dice, jsInfoName string) {
+	d.DisabledJsScripts[jsInfoName] = true
+	for _, jsInfo := range d.JsScriptList {
+		if jsInfo.Name == jsInfoName {
+			jsInfo.Enable = false
+		}
 	}
 }

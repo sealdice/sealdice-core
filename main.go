@@ -3,16 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/jessevdk/go-flags"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	cp "github.com/otiai10/copy"
+	"io/fs"
 	"mime"
 	"net"
 	"net/http"
 	"path/filepath"
+	"runtime"
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
+	"sealdice-core/static"
+
+	"github.com/jessevdk/go-flags"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	cp "github.com/otiai10/copy"
+
 	//_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -123,6 +128,18 @@ func deleteOldWrongFile() {
 	_ = os.Remove("./data/helpdoc/DND/子职列表大全.xlsx")
 }
 
+func fixTimezone() {
+	out, err := exec.Command("/system/bin/getprop", "persist.sys.timezone").Output()
+	if err != nil {
+		return
+	}
+	z, err := time.LoadLocation(strings.TrimSpace(string(out)))
+	if err != nil {
+		return
+	}
+	time.Local = z
+}
+
 func main() {
 	var opts struct {
 		Version                bool   `long:"version" description:"显示版本号"`
@@ -139,6 +156,7 @@ func main() {
 		Delay                  int64  `long:"delay"`
 		JustForTest            bool   `long:"just-for-test"`
 		DBCheck                bool   `long:"db-check" description:"检查数据库是否有问题"`
+		ShowEnv                bool   `long:"show-env" description:"显示环境变量"`
 	}
 
 	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
@@ -155,11 +173,21 @@ func main() {
 		model.DBCheck("data/default")
 		return
 	}
+	if opts.ShowEnv {
+		for i, e := range os.Environ() {
+			println(i, e)
+		}
+		return
+	}
 	deleteOldWrongFile()
 
 	if opts.Delay != 0 {
 		fmt.Println("延迟启动", opts.Delay, "秒")
 		time.Sleep(time.Duration(opts.Delay) * time.Second)
+	}
+
+	if runtime.GOOS == "android" {
+		fixTimezone()
 	}
 	dnsHack()
 
@@ -261,6 +289,8 @@ func main() {
 			_ = os.Remove("./auto_updat3.exe")
 			_ = os.Remove("./升级日志.log")
 			_ = os.RemoveAll("./update")
+			// ui资源已经内置，删除旧的ui文件
+			_ = os.RemoveAll("./frontend")
 		} else {
 			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
 			logger.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
@@ -300,6 +330,8 @@ func main() {
 			_ = os.RemoveAll("./update")
 			_ = os.Rename("./auto_update", "./_delete_me.exe") // 删不掉就试图改名
 			_ = os.Remove("./_delete_me.exe")
+			// ui资源已经内置，删除旧的ui文件
+			_ = os.RemoveAll("./frontend")
 		} else {
 			logger.Warn("检测到 auto_update.exe，即将进行升级")
 			err := cp.Copy("./update/new", "./")
@@ -327,24 +359,16 @@ func main() {
 		return
 	}
 
+	useBuiltinUI := false
 	checkFrontendExists := func() bool {
-		stat, err := os.Stat("./frontend")
+		stat, err := os.Stat("./frontend_overwrite")
 		return err == nil && stat.IsDir()
 	}
-
-	// 检查目录是否正确
-	//if !checkFrontendExists() {
-	// 给一次修正机会吗？
-	//exe, err := filepath.Abs(os.Args[0])
-	//if err == nil {
-	//	ret := filepath.Dir(exe)
-	//}
-	//}
-
 	if !checkFrontendExists() {
-		showWarn("SealDice 文件不完整", "未检查到UI文件目录，程序不完整，将自动退出。\n也可能是当前工作路径错误。")
-		logger.Error("因缺少frontend目录而自动退出")
-		return
+		logger.Info("未检测到外置的UI资源文件，将使用内置资源启动UI")
+		useBuiltinUI = true
+	} else {
+		logger.Info("检测到外置的UI资源文件，将使用frontend_overwrite文件夹内的资源启动UI")
 	}
 
 	// 尝试进行升级
@@ -427,7 +451,7 @@ func main() {
 	//	http.ListenAndServe("0.0.0.0:8899", nil)
 	//}()
 
-	uiServe(diceManager, opts.HideUIWhenBoot)
+	uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
 	//OOM分析工具
 	//err = nil
 	//err = http.ListenAndServe(":9090", nil)
@@ -453,6 +477,14 @@ func diceServe(d *dice.Dice) {
 		d.Logger.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
 	}
 
+	d.UIEndpoint = new(dice.EndPointInfo)
+	d.UIEndpoint.Enable = true
+	d.UIEndpoint.Platform = "UI"
+	d.UIEndpoint.Id = "1"
+	d.UIEndpoint.State = 1
+	d.UIEndpoint.UserId = "UI:1000"
+	d.UIEndpoint.Adapter = &dice.PlatformAdapterHttp{}
+
 	for _, _conn := range d.ImSession.EndPoints {
 		if _conn.Enable {
 			go func(conn *dice.EndPointInfo) {
@@ -466,7 +498,11 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.EndPointInfoBase.ProtocolType == "onebot" {
 						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-						dice.GoCqHttpServe(d, conn, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+						dice.GoCqHttpServe(d, conn, dice.GoCqHttpLoginInfo{
+							Password:   pa.InPackGoCqHttpPassword,
+							Protocol:   pa.InPackGoCqHttpProtocol,
+							IsAsyncRun: true,
+						})
 					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
 					dice.ServeQQ(d, conn)
@@ -502,7 +538,7 @@ func diceServe(d *dice.Dice) {
 	}
 }
 
-func uiServe(dm *dice.DiceManager, hideUI bool) {
+func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	logger.Info("即将启动webui")
 	// Echo instance
 	e := echo.New()
@@ -539,7 +575,12 @@ func uiServe(dm *dice.DiceManager, hideUI bool) {
 		}
 	}
 	e.Use(groupStatic)
-	e.Static("/", "./frontend")
+	if useBuiltin {
+		frontend, _ := fs.Sub(static.Static, "frontend")
+		e.StaticFS("/", frontend)
+	} else {
+		e.Static("/", "./frontend")
+	}
 
 	api.Bind(e, dm)
 	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置

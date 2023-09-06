@@ -203,7 +203,7 @@ func RegisterBuiltinStory(self *Dice) {
 					//	recInfo = fmt.Sprintf("推荐语: %s - by %s\n", rec.Content, rec.LoginUser.NickName)
 					//}
 
-					text := fmt.Sprintf("[%d]%s\n作者: %s\n背景: %s,%s\n规模: %d-%d人，%d-%d时\n原创: %v\n简介: %s\n%s链接: %s",
+					text := fmt.Sprintf("[%d]%s\n作者: %s\n背景: %s,%s\n规模: %d-%d人，%d-%d时\n原创: %v\n简介: %s\n%sPC端链接：%s\n移动端链接：%s",
 						item.KeyId, item.Title,
 						item.Article,
 						item.ModuleAge, item.OccurrencePlace,
@@ -212,7 +212,9 @@ func RegisterBuiltinStory(self *Dice) {
 						ori,
 						opinion,
 						recInfo,
-						"https://www.cnmods.net/#/moduleDetail/index?keyId="+strconv.Itoa(item.KeyId))
+						"https://www.cnmods.net/web/moduleDetail?keyId="+strconv.Itoa(item.KeyId),
+						"https://www.cnmods.net/mobile/moduleDetail?keyId="+strconv.Itoa(item.KeyId),
+					)
 					return text
 				}
 				return ""

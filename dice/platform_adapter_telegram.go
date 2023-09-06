@@ -144,6 +144,15 @@ func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Mes
 	for _, i := range strings.Split(text, "###SPLIT###") {
 		pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
 	}
+	if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+		for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+			if i.OnGroupJoined != nil {
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnGroupJoined(ctx, msg)
+				})
+			}
+		}
+	}
 }
 
 func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
@@ -156,6 +165,15 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 	logger.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
 	for _, i := range strings.Split(welcome, "###SPLIT###") {
 		pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
+	}
+	if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+		for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+			if i.OnBecomeFriend != nil {
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnBecomeFriend(ctx, msg)
+				})
+			}
+		}
 	}
 }
 
@@ -299,12 +317,29 @@ func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
 
 func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	pa.SendToChatRaw(ExtractTelegramUserId(uid), text)
-	pa.Session.OnMessageSend(ctx, "private", uid, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "TG",
+		MessageType: "private",
+		Message:     text,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterTelegram) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	pa.SendToChatRaw(ExtractTelegramGroupId(uid), text)
-	pa.Session.OnMessageSend(ctx, "group", uid, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "TG",
+		MessageType: "group",
+		Message:     text,
+		GroupId:     uid,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 type RequestFileDataImpl struct {

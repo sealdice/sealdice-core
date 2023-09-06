@@ -7,13 +7,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fy0/lockfree"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sealdice-core/dice/model"
 	"strings"
 	"time"
+
+	"github.com/fy0/lockfree"
+	"go.uber.org/zap"
+)
+
+var (
+	ErrorGroupCardOverlong = errors.New("群名片长度超过限制")
 )
 
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
@@ -29,6 +35,10 @@ func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) 
 	var text string
 	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
 		text = val.Value.(string)
+	}
+
+	if ctx.EndPoint.Platform == "QQ" && len(text) >= 60 { // Note(Xiangze-Li): 2023-08-09实测群名片长度限制为59个英文字符, 20个中文字符是可行的, 但分别判断过于繁琐
+		return text, ErrorGroupCardOverlong
 	}
 
 	ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, text)
@@ -521,26 +531,44 @@ func RegisterBuiltinExtLog(self *Dice) {
 		},
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
+
+			handleOverlong := func(ctx *MsgContext, msg *Message, card string) CmdExecuteResult {
+				ReplyToSender(ctx, msg, fmt.Sprintf(
+					"尝试将群名片修改为 %q 失败，名片长度超过限制。\n请尝试缩短角色名或使用 .sn expr 自定义名片格式。",
+					card,
+				))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
 			switch strings.ToLower(val) {
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			case "coc", "coc7":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
-				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				if errors.Is(err, ErrorGroupCardOverlong) {
+					return handleOverlong(ctx, msg, text)
+				}
 				// 玩家 SAN60 HP10/10 DEX65
 				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "dnd", "dnd5e":
 				// PW{pw}
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PW{_pw}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
-				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				if errors.Is(err, ErrorGroupCardOverlong) {
+					return handleOverlong(ctx, msg, text)
+				}
 				// 玩家 HP10/10 AC15 DC15 PW10
 				ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "none":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
-				text, _ := SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
+				text, err := SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
+				if errors.Is(err, ErrorGroupCardOverlong) { // 大约不至于会走到这里，但是为了统一也这样写了
+					return handleOverlong(ctx, msg, text)
+				}
 				ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "off", "cancel":
 				_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
@@ -561,9 +589,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 					last := ctx.Player.AutoSetNameTemplate
 					ctx.Player.AutoSetNameTemplate = t
 					text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-					if err != nil {
+					if err != nil && !errors.Is(err, ErrorGroupCardOverlong) {
 						ctx.Player.AutoSetNameTemplate = last
 						ReplyToSender(ctx, msg, "玩家自设sn格式错误，已自动还原之前模板")
+					} else if errors.Is(err, ErrorGroupCardOverlong) {
+						return handleOverlong(ctx, msg, text)
 					} else {
 						ctx.Player.UpdatedAtTime = time.Now().Unix()
 						ReplyToSender(ctx, msg, "应用玩家自设，预览文本: "+text)
@@ -611,14 +641,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 		OnLoad: func() {
 			_ = os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "log-exports"), 0755)
 		},
-		OnMessageSend: func(ctx *MsgContext, messageType string, userId string, text string, flag string) {
+		OnMessageSend: func(ctx *MsgContext, msg *Message, flag string) {
 			// 记录骰子发言
 			if flag == "skip" {
 				return
 			}
 			privateCommandListenCheck()
-
-			if messageType == "private" && ctx.CommandHideFlag != "" {
+			if msg.MessageType == "private" && ctx.CommandHideFlag != "" {
 				if _, exists := privateCommandListen[ctx.CommandId]; exists {
 					session := ctx.Session
 					group := session.ServiceAtNew[ctx.CommandHideFlag]
@@ -628,19 +657,19 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IMUserId:    UserIdExtract(ctx.EndPoint.UserId),
 						UniformId:   ctx.EndPoint.UserId,
 						Time:        time.Now().Unix(),
-						Message:     text,
+						Message:     msg.Message,
 						IsDice:      true,
 						CommandId:   ctx.CommandId,
 						CommandInfo: ctx.CommandInfo,
 					}
 
-					model.LogAppend(ctx.Dice.DBLogs, group.GroupId, group.LogCurName, &a)
+					LogAppend(ctx, group.GroupId, group.LogCurName, &a)
 				}
 			}
 
-			if IsCurGroupBotOnById(ctx.Session, ctx.EndPoint, messageType, userId) {
+			if IsCurGroupBotOnById(ctx.Session, ctx.EndPoint, msg.MessageType, msg.GroupId) {
 				session := ctx.Session
-				group := session.ServiceAtNew[userId]
+				group := session.ServiceAtNew[msg.GroupId]
 				if group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					if ctx.CommandHideFlag != "" {
@@ -653,12 +682,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IMUserId:    UserIdExtract(ctx.EndPoint.UserId),
 						UniformId:   ctx.EndPoint.UserId,
 						Time:        time.Now().Unix(),
-						Message:     text,
+						Message:     msg.Message,
 						IsDice:      true,
 						CommandId:   ctx.CommandId,
 						CommandInfo: ctx.CommandInfo,
 					}
-					model.LogAppend(ctx.Dice.DBLogs, group.GroupId, group.LogCurName, &a)
+					LogAppend(ctx, group.GroupId, group.LogCurName, &a)
 				}
 			}
 		},
@@ -684,7 +713,15 @@ func RegisterBuiltinExtLog(self *Dice) {
 						RawMsgId:  msg.RawId,
 					}
 
-					model.LogAppend(ctx.Dice.DBLogs, ctx.Group.GroupId, ctx.Group.LogCurName, &a)
+					LogAppend(ctx, ctx.Group.GroupId, ctx.Group.LogCurName, &a)
+				}
+			}
+		},
+		OnMessageDeleted: func(ctx *MsgContext, msg *Message) {
+			if ctx.Group != nil {
+				if ctx.Group.LogOn {
+					LogDeleteById(ctx, ctx.Group.GroupId, ctx.Group.LogCurName, msg.RawId)
+					//ctx.Session.Parent.Logger.Infof("删除日志 %s %s", ctx.Group.GroupId, msg.RawId.(string))
 				}
 			}
 		},
@@ -736,7 +773,7 @@ func LogAppend(ctx *MsgContext, groupId string, logName string, logItem *model.L
 	ok := model.LogAppend(ctx.Dice.DBLogs, groupId, logName, logItem)
 	if ok {
 		if size, ok := model.LogLinesCountGet(ctx.Dice.DBLogs, groupId, logName); ok {
-			// 每记录1000条发出提示
+			// 默认每记录500条发出提示
 			if ctx.Dice.LogSizeNoticeEnable {
 				if ctx.Dice.LogSizeNoticeCount == 0 {
 					ctx.Dice.LogSizeNoticeCount = 500
@@ -751,6 +788,15 @@ func LogAppend(ctx *MsgContext, groupId string, logName string, logItem *model.L
 		}
 	}
 	return ok
+}
+
+func LogDeleteById(ctx *MsgContext, groupId string, logName string, messageId interface{}) bool {
+	err := model.LogMarkDeleteByMsgId(ctx.Dice.DBLogs, groupId, logName, messageId)
+	if err != nil {
+		ctx.Dice.Logger.Error("LogDeleteById:", zap.Error(err))
+		return false
+	}
+	return true
 }
 
 func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, error) {

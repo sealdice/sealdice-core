@@ -200,7 +200,15 @@ func (pa *PlatformAdapterMinecraft) SendToPerson(ctx *MsgContext, uid string, te
 	msg.MessageType = "private"
 	parse, _ := json.Marshal(msg)
 	pa.Socket.SendText(string(parse))
-	pa.Session.OnMessageSend(ctx, "private", uid, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "MC",
+		MessageType: "private",
+		Message:     text,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterMinecraft) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
@@ -209,7 +217,16 @@ func (pa *PlatformAdapterMinecraft) SendToGroup(ctx *MsgContext, uid string, tex
 	msg.MessageType = "group"
 	parse, _ := json.Marshal(msg)
 	pa.Socket.SendText(string(parse))
-	pa.Session.OnMessageSend(ctx, "group", uid, text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "MC",
+		MessageType: "group",
+		Message:     text,
+		GroupId:     uid,
+		Sender: SenderBase{
+			UserId:   pa.EndPoint.UserId,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterMinecraft) MemberBan(groupId string, userId string, duration int64) {

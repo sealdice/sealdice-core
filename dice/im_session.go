@@ -5,6 +5,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/fy0/lockfree"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
 	"runtime/debug"
 	"sealdice-core/dice/model"
@@ -399,6 +400,18 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 			log.Info(txt)
 			mctx.Notice(txt)
+
+			if msg.Platform == "QQ" || msg.Platform == "TG" {
+				if mctx.Session.ServiceAtNew[msg.GroupId] != nil {
+					for _, i := range mctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+						if i.OnGroupJoined != nil {
+							i.callWithJsCheck(mctx.Dice, func() {
+								i.OnGroupJoined(mctx, msg)
+							})
+						}
+					}
+				}
+			}
 		}
 
 		var mustLoadUser bool
@@ -684,6 +697,24 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					ret = s.commandSolve(mctx, msg, cmdArgs)
 				}
 				if ret {
+					if s.Parent.RateLimitEnabled && mctx.PrivilegeLevel < 100 && msg.Platform == "QQ" {
+						if mctx.Player.RateLimiter != nil {
+							if !mctx.Player.RateLimiter.Allow() {
+								if mctx.Player.RateLimitWarned {
+									mctx.Dice.BanList.AddScoreByCommandSpam(mctx.Player.UserId, msg.GroupId, mctx)
+								} else {
+									mctx.Player.RateLimitWarned = true
+									ReplyToSender(mctx, msg, "您的指令频率过高，请注意。")
+								}
+							} else {
+								mctx.Player.RateLimitWarned = false
+							}
+						} else {
+							mctx.Player.RateLimitWarned = false
+							mctx.Player.RateLimiter = rate.NewLimiter(rate.Every(time.Second*3), 3)
+							mctx.Player.RateLimiter.Allow()
+						}
+					}
 					ep.CmdExecutedNum += 1
 					ep.CmdExecutedLastTime = time.Now().Unix()
 					mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
@@ -905,14 +936,65 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	return false
 }
 
-func (s *IMSession) OnMessageSend(ctx *MsgContext, messageType string, groupId string, text string, flag string) {
-	if s.ServiceAtNew[groupId] != nil {
-		for _, i := range s.Parent.ExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, messageType, groupId, text, flag)
-				})
+func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
+	d := mctx.Dice
+	mctx.MessageType = msg.MessageType
+	mctx.IsPrivate = mctx.MessageType == "private"
+	group := s.ServiceAtNew[msg.GroupId]
+	mctx.Group = group
+	if group == nil {
+		return
+	}
+	mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+
+	mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
+	if mctx.Group != nil && mctx.Group.System != "" {
+		mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
+		//tmpl, _ := d.GameSystemMap.Load(group.System)
+		//mctx.SystemTemplate = tmpl
+	}
+	if mctx.Group != nil {
+		if msg.Sender.UserId == mctx.Group.InviteUserId {
+			mctx.PrivilegeLevel = 40 // 邀请者
+		}
+
+		if msg.Sender.GroupRole == "admin" {
+			mctx.PrivilegeLevel = 50 // 群管理
+		}
+		if msg.Sender.GroupRole == "owner" {
+			mctx.PrivilegeLevel = 60 // 群主
+		}
+
+		// 加入黑名单相关权限
+		if val, exists := d.BanList.Map.Load(mctx.Player.UserId); exists {
+			if val.Rank == BanRankBanned {
+				mctx.PrivilegeLevel = -30
 			}
+			if val.Rank == BanRankTrusted {
+				mctx.PrivilegeLevel = 70
+			}
+		}
+
+		// master 权限大于黑名单权限
+		if d.MasterCheck(mctx.Player.UserId) {
+			mctx.PrivilegeLevel = 100
+		}
+	}
+	for _, i := range s.Parent.ExtList {
+		if i.OnMessageDeleted != nil {
+			i.callWithJsCheck(mctx.Dice, func() {
+				i.OnMessageDeleted(mctx, msg)
+			})
+		}
+	}
+}
+
+func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
+	for _, i := range s.Parent.ExtList {
+		if i.OnMessageSend != nil {
+			i.callWithJsCheck(ctx.Dice, func() {
+				i.OnMessageSend(ctx, msg, flag)
+			})
 		}
 	}
 }
@@ -991,9 +1073,19 @@ func (ctx *MsgContext) Notice(txt string) {
 			}
 		}()
 
+		if ctx.Dice.MailEnable {
+			ctx.Dice.SendMail(txt, Notice)
+			return
+		}
+
 		for _, i := range ctx.Dice.NoticeIds {
 			n := strings.Split(i, ":")
 			if len(n) >= 2 {
+				seg := strings.Split(n[0], "-")[0]
+				if ctx.EndPoint.Platform != seg {
+					ctx.Dice.Logger.Infof("发给 %s，但由于平台不同而未发送通知：%s", i, txt)
+					continue
+				}
 				if strings.HasSuffix(n[0], "-Group") {
 					ReplyGroup(ctx, &Message{GroupId: i}, txt)
 				} else {

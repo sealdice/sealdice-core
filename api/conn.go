@@ -80,6 +80,9 @@ func ImConnectionsSetData(c echo.Context) error {
 		Id                  string `form:"id" json:"id"`
 		Protocol            int    `form:"protocol" json:"protocol"`
 		IgnoreFriendRequest bool   `json:"ignoreFriendRequest"` // 忽略好友请求
+		UseSignServer       bool   `json:"useSignServer"`
+		SignServerUrl       string `json:"signServerUrl"`
+		SignServerKey       string `json:"signServerKey"`
 	}{}
 
 	err := c.Bind(&v)
@@ -96,6 +99,12 @@ func ImConnectionsSetData(c echo.Context) error {
 						i.ProtocolType = "onebot"
 					}
 					ad.SetQQProtocol(v.Protocol)
+					if v.UseSignServer {
+						ad.SetSignServer(v.SignServerUrl, v.SignServerKey)
+						ad.UseSignServer = v.UseSignServer
+						ad.SignServerUrl = v.SignServerUrl
+						ad.SignServerKey = v.SignServerKey
+					}
 					ad.IgnoreFriendRequest = v.IgnoreFriendRequest
 				}
 				return c.JSON(http.StatusOK, i)
@@ -336,6 +345,11 @@ func ImConnectionsWalleQRelogin(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
+type AddDiscordEcho struct {
+	Token    string
+	ProxyURL string
+}
+
 func ImConnectionsAddDiscord(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -347,13 +361,11 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 	}
 
 	//myDice.Logger.Infof("后端add调用")
-	v := struct {
-		Token string `yaml:"token" json:"token"`
-	}{}
+	v := &AddDiscordEcho{}
 	err := c.Bind(&v)
 	if err == nil {
 		//myDice.Logger.Infof("bind无异常")
-		conn := dice.NewDiscordConnItem(v.Token)
+		conn := dice.NewDiscordConnItem(dice.AddDiscordEcho(*v))
 		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterDiscord)
 		pa.Session = myDice.ImSession
@@ -496,9 +508,12 @@ func ImConnectionsAdd(c echo.Context) error {
 	}
 
 	v := struct {
-		Account  string `yaml:"account" json:"account"`
-		Password string `yaml:"password" json:"password"`
-		Protocol int    `json:"protocol"`
+		Account       string `yaml:"account" json:"account"`
+		Password      string `yaml:"password" json:"password"`
+		Protocol      int    `json:"protocol"`
+		UseSignServer bool   `json:"useSignServer"`
+		SignServerUrl string `json:"signServerUrl"`
+		SignServerKey string `json:"signServerKey"`
 		//ConnectUrl        string `yaml:"connectUrl" json:"connectUrl"`               // 连接地址
 		//Platform          string `yaml:"platform" json:"platform"`                   // 平台，如QQ、QQ频道
 		//Enable            bool   `yaml:"enable" json:"enable"`                       // 是否启用
@@ -525,11 +540,21 @@ func ImConnectionsAdd(c echo.Context) error {
 		pa.InPackGoCqHttpProtocol = v.Protocol
 		pa.InPackGoCqHttpPassword = v.Password
 		pa.Session = myDice.ImSession
+		pa.UseSignServer = v.UseSignServer
+		pa.SignServerUrl = v.SignServerUrl
+		pa.SignServerKey = v.SignServerKey
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 
-		dice.GoCqHttpServe(myDice, conn, v.Password, v.Protocol, true)
+		dice.GoCqHttpServe(myDice, conn, dice.GoCqHttpLoginInfo{
+			Password:      v.Password,
+			Protocol:      v.Protocol,
+			IsAsyncRun:    true,
+			UseSignServer: v.UseSignServer,
+			SignServerUrl: v.SignServerUrl,
+			SignServerKey: v.SignServerKey,
+		})
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		return c.JSON(200, conn)
@@ -548,9 +573,10 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 	}
 
 	v := struct {
-		Account    string `yaml:"account" json:"account"`
-		ConnectUrl string `yaml:"connectUrl" json:"connectUrl"` // 连接地址
-		RelWorkDir string `yaml:"relWorkDir" json:"relWorkDir"` //
+		Account     string `yaml:"account" json:"account"`
+		ConnectUrl  string `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
+		AccessToken string `yaml:"accessToken" json:"accessToken"` // 访问令牌
+		RelWorkDir  string `yaml:"relWorkDir" json:"relWorkDir"`   //
 	}{}
 
 	err := c.Bind(&v)
@@ -575,6 +601,8 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		// 三项设置
 		conn.RelWorkDir = v.RelWorkDir
 		pa.ConnectUrl = v.ConnectUrl
+		pa.AccessToken = v.AccessToken
+
 		pa.UseInPackGoCqhttp = false
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)

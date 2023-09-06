@@ -1,8 +1,14 @@
 on:
   push:
+    paths:
+      - '**.go'
+      - 'go.mod'
   pull_request:
+    paths:
+      - '**.go'
+      - 'go.mod'
 
-name: CI
+name: Test & Lint
 
 jobs:
   test:
@@ -18,6 +24,7 @@ jobs:
       - name: Code
         uses: actions/checkout@v3
       - run: go get
+      - run: go generate ./...
       - run: go test -v -race ./...
 
   lint:
@@ -30,6 +37,7 @@ jobs:
       - name: Code
         uses: actions/checkout@v3
       - run: go get
+      - run: go generate ./...
       - name: Go vet
         run: go vet ./...
 
@@ -38,6 +46,8 @@ jobs:
         if: github.event.name == 'pull_request'
         with:
           go-version: '1.18'
+          version: 'v1.51.2'
+          args: '--timeout 9999s'
           only-new-issues: true
           skip-pkg-cache: true
           skip-build-cache: true
@@ -46,4 +56,5 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         if: github.event.name != 'pull_request'
         with:
-          version: latest
+          version: 'v1.51.2'
+          args: '--timeout 9999s'
