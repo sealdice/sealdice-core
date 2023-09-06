@@ -8,7 +8,7 @@
 - [sealdice-core](https://github.com/sealdice/sealdice-core)：海豹核心，即海豹的后端工程代码；
 - [sealdice-ui](https://github.com/sealdice/sealdice-ui)：海豹的前端工程代码；
 - [sealdice-android](https://github.com/sealdice/sealdice-android)：海豹的 Android 工程代码；
-- [sealdice-buildtool](https://github.com/sealdice/sealdice-buildtool)：其他海豹骰子所需的资源文件仓库，包括牌堆、helpdoc 等；
+- [sealdice-builtins](https://github.com/sealdice/sealdice-builtins)：其他海豹骰子所需的资源文件仓库，包括牌堆、helpdoc 等；
 - [go-cqhttp](https://github.com/sealdice/go-cqhttp)：go-cqhttp 的 fork。
 
 克隆该项目时需要使用 `git clone --recursive` 命令以将子模块代码一并拉取。

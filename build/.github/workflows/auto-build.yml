@@ -40,7 +40,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: documents
-          path: ./sealdice-buildtool/data
+          path: ./sealdice-builtins/data
 
   gocqhttp-build:
     name: Build Gocqhttp
