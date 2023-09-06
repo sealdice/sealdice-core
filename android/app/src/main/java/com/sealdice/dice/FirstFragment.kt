@@ -35,7 +35,7 @@ import kotlin.system.exitProcess
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
  */
-class FirstFragment : Fragment() {
+class FirstFragment : Fragment(),SharedPreferences.OnSharedPreferenceChangeListener {
 
     private lateinit var _binding: FragmentFirstBinding
 
@@ -55,6 +55,51 @@ class FirstFragment : Fragment() {
         override fun onServiceDisconnected(name: ComponentName) {
             isBound = false
         }
+    }
+    // Use onCreate function, make settings changes.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // 注册SharedPreferences监听器
+        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        sharedPreferences.registerOnSharedPreferenceChangeListener(this)
+    }
+
+    //Pinenutn:(想写英文，发现不会说，我还是中文8）
+    //由于不在最近任务列表显示如果也要放在启动核心之后会出现各种反人类操作，而我又不会改:(
+    //主要还是本人安卓程序开发经验较少……
+    override fun onSharedPreferenceChanged(p0: SharedPreferences?, p1: String?) {
+        if (p0 != null) {
+            //ADD enableExcludeFromRecents
+            if(p0.getBoolean("alive_excluderecents",false)){
+                //不在最近任务列表中显示
+                val am = context?.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                am.let {
+                    val tasks = it.appTasks
+                    if (!tasks.isNullOrEmpty()) {
+                        Toast.makeText(context,"豹豹已下潜",Toast.LENGTH_SHORT).show();
+                        tasks[0].setExcludeFromRecents(true)
+                    }
+                }
+            }
+            else{
+                //恢复最近任务列表中显示
+                val am = context?.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                am.let {
+                    val tasks = it.appTasks
+                    if (!tasks.isNullOrEmpty()) {
+                        Toast.makeText(context,"豹豹已上浮",Toast.LENGTH_SHORT).show();
+                        tasks[0].setExcludeFromRecents(false)
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // 在Fragment销毁时取消注册SharedPreferences监听器，以防止内存泄漏
+        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
     }
 
     override fun onCreateView(
@@ -541,4 +586,5 @@ class FirstFragment : Fragment() {
             false
         }
     }
+
 }
