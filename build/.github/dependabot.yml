@@ -3,20 +3,4 @@ updates:
   - package-ecosystem: gitsubmodule
     directory: "/"
     schedule:
-      interval: daily
-      time: "19:40"
-      timezone: "Asia/Shanghai"
-  - package-ecosystem: gitsubmodule
-    directory: "/"
-    schedule:
-      interval: weekly
-      day: saturday
-      time: "19:40"
-      timezone: "Asia/Shanghai"
-  - package-ecosystem: gitsubmodule
-    directory: "/"
-    schedule:
-      interval: weekly
-      day: sunday
-      time: "19:40"
-      timezone: "Asia/Shanghai"
+      interval: "daily"
