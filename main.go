@@ -371,6 +371,8 @@ func main() {
 		logger.Info("检测到外置的UI资源文件，将使用frontend_overwrite文件夹内的资源启动UI")
 	}
 
+	// 尝试修正log_items表的message字段类型
+	_ = migrate.LogItemFixDatatype()
 	// 尝试进行升级
 	migrate.TryMigrateToV12()
 
@@ -499,9 +501,11 @@ func diceServe(d *dice.Dice) {
 					if conn.EndPointInfoBase.ProtocolType == "onebot" {
 						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 						dice.GoCqHttpServe(d, conn, dice.GoCqHttpLoginInfo{
-							Password:   pa.InPackGoCqHttpPassword,
-							Protocol:   pa.InPackGoCqHttpProtocol,
-							IsAsyncRun: true,
+							Password:         pa.InPackGoCqHttpPassword,
+							Protocol:         pa.InPackGoCqHttpProtocol,
+							IsAsyncRun:       true,
+							UseSignServer:    pa.UseSignServer,
+							SignServerConfig: pa.SignServerConfig,
 						})
 					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
