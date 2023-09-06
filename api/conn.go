@@ -81,8 +81,7 @@ func ImConnectionsSetData(c echo.Context) error {
 		Protocol            int    `form:"protocol" json:"protocol"`
 		IgnoreFriendRequest bool   `json:"ignoreFriendRequest"` // 忽略好友请求
 		UseSignServer       bool   `json:"useSignServer"`
-		SignServerUrl       string `json:"signServerUrl"`
-		SignServerKey       string `json:"signServerKey"`
+		SignServerConfig    *dice.SignServerConfig
 	}{}
 
 	err := c.Bind(&v)
@@ -100,10 +99,9 @@ func ImConnectionsSetData(c echo.Context) error {
 					}
 					ad.SetQQProtocol(v.Protocol)
 					if v.UseSignServer {
-						ad.SetSignServer(v.SignServerUrl, v.SignServerKey)
+						ad.SetSignServer(v.SignServerConfig)
 						ad.UseSignServer = v.UseSignServer
-						ad.SignServerUrl = v.SignServerUrl
-						ad.SignServerKey = v.SignServerKey
+						ad.SignServerConfig = v.SignServerConfig
 					}
 					ad.IgnoreFriendRequest = v.IgnoreFriendRequest
 				}
@@ -508,12 +506,11 @@ func ImConnectionsAdd(c echo.Context) error {
 	}
 
 	v := struct {
-		Account       string `yaml:"account" json:"account"`
-		Password      string `yaml:"password" json:"password"`
-		Protocol      int    `json:"protocol"`
-		UseSignServer bool   `json:"useSignServer"`
-		SignServerUrl string `json:"signServerUrl"`
-		SignServerKey string `json:"signServerKey"`
+		Account          string                 `yaml:"account" json:"account"`
+		Password         string                 `yaml:"password" json:"password"`
+		Protocol         int                    `json:"protocol"`
+		UseSignServer    bool                   `json:"useSignServer"`
+		SignServerConfig *dice.SignServerConfig `json:"signServerConfig"`
 		//ConnectUrl        string `yaml:"connectUrl" json:"connectUrl"`               // 连接地址
 		//Platform          string `yaml:"platform" json:"platform"`                   // 平台，如QQ、QQ频道
 		//Enable            bool   `yaml:"enable" json:"enable"`                       // 是否启用
@@ -541,19 +538,17 @@ func ImConnectionsAdd(c echo.Context) error {
 		pa.InPackGoCqHttpPassword = v.Password
 		pa.Session = myDice.ImSession
 		pa.UseSignServer = v.UseSignServer
-		pa.SignServerUrl = v.SignServerUrl
-		pa.SignServerKey = v.SignServerKey
+		pa.SignServerConfig = v.SignServerConfig
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 
 		dice.GoCqHttpServe(myDice, conn, dice.GoCqHttpLoginInfo{
-			Password:      v.Password,
-			Protocol:      v.Protocol,
-			IsAsyncRun:    true,
-			UseSignServer: v.UseSignServer,
-			SignServerUrl: v.SignServerUrl,
-			SignServerKey: v.SignServerKey,
+			Password:         v.Password,
+			Protocol:         v.Protocol,
+			IsAsyncRun:       true,
+			UseSignServer:    v.UseSignServer,
+			SignServerConfig: v.SignServerConfig,
 		})
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
