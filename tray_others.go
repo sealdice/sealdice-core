@@ -56,6 +56,9 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	}
 }
 
-func executeWin(name string, arg ...string) *exec.Cmd {
+type Cmd struct {
+}
+
+func executeWin(name string, arg ...string) *Cmd {
 	return nil
 }
