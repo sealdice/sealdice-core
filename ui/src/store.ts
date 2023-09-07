@@ -225,7 +225,7 @@ export const useStore = defineStore('main', {
       return info as any as DiceConnection
     },
 
-    async getImConnectionsSetData(i: DiceConnection, { protocol, ignoreFriendRequest, useSignServer, signServerConfig }: { protocol: number, ignoreFriendRequest: boolean, useSignServer: boolean, signServerConfig: any }) {
+    async getImConnectionsSetData(i: DiceConnection, { protocol, ignoreFriendRequest, useSignServer, signServerConfig }: { protocol: number, ignoreFriendRequest: boolean, useSignServer?: boolean, signServerConfig?: any }) {
       const info = await backend.post(urlPrefix+'/im_connections/set_data', { id: i.id, protocol, ignoreFriendRequest, useSignServer, signServerConfig })
       return info as any as DiceConnection
     },

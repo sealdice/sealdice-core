@@ -1023,7 +1023,12 @@ const askSetData = async (i: DiceConnection) => {
 const doSetData = async () => {
   let param = { 
     protocol: form.protocol, 
-    ignoreFriendRequest: form.ignoreFriendRequest, 
+    ignoreFriendRequest: form.ignoreFriendRequest,
+  } as {
+    protocol: number,
+    ignoreFriendRequest: boolean,
+    useSignServer?: boolean,
+    signServerConfig?: any
   }
   if (form.protocol === 1 || form.protocol === 6) {
     param = {
