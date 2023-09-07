@@ -23,11 +23,6 @@
             android:title="保活策略：无声音频"
             android:summary="通过循环播放无声音频进行保活"
             android:defaultValue="false" />
-        <androidx.preference.SwitchPreferenceCompat
-            android:key="alive_excluderecents"
-            android:title="保活策略：最近任务列表不显示"
-            android:summary="豹豹通过在最近任务列表里潜水，有效避免某些系统划后台强行扬了可爱的豹豹的人间惨剧。"
-            android:defaultValue="false" />
 
     </androidx.preference.PreferenceCategory>
 

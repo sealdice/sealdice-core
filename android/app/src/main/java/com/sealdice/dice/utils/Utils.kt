@@ -10,25 +10,11 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
 import android.widget.Toast
-import android.content.SharedPreferences
-import androidx.preference.PreferenceManager
-import com.sealdice.dice.MediaService
 import java.util.ArrayList
 
 
 object Utils {
     const val REQUEST_FLOAT_CODE=1001
-    /**
-    * 用于检查是否需要消除后台任务的变量
-    */
-    fun getExcludeFromRecents(context: Context):Boolean{
-        val sharedPreferences = context.let { PreferenceManager.getDefaultSharedPreferences(it) }
-        if (sharedPreferences != null) {
-            return sharedPreferences.getBoolean("alive_media", false)
-        }
-        return false
-    }
-
     /**
      * 跳转到设置页面申请打开无障碍辅助功能
      */

@@ -1,6 +1,5 @@
 package com.sealdice.dice
 
-import android.app.ActivityManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -9,7 +8,6 @@ import android.os.PersistableBundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -20,8 +18,6 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.sealdice.dice.databinding.ActivityMainBinding
-import com.sealdice.dice.utils.Utils
-import com.sealdice.dice.utils.ViewModelMain
 import com.tencent.smtt.export.external.TbsCoreSettings
 import com.tencent.smtt.sdk.QbSdk
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +29,7 @@ import okhttp3.Request
 import org.json.JSONObject
 
 
-private class PreInitCallbackImpl : QbSdk.PreInitCallback {
+private class PreInitCallbackImpl: QbSdk.PreInitCallback {
     override fun onCoreInitFinished() {
     }
 
@@ -50,25 +46,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //每次都检查是否需要关闭/启动后台
-        if (Utils.getExcludeFromRecents(this)) {
-            val am = this.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            am.let {
-                val tasks = it.appTasks
-                if (!tasks.isNullOrEmpty()) {
-                    tasks[0].setExcludeFromRecents(true)
-                }
-            }
-        } else {
-            //恢复最近任务列表中显示
-            val am = this.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            am.let {
-                val tasks = it.appTasks
-                if (!tasks.isNullOrEmpty()) {
-                    tasks[0].setExcludeFromRecents(false)
-                }
-            }
-        }
         val intentUpdateService = Intent(this, UpdateService::class.java)
         startService(intentUpdateService)
         QbSdk.initX5Environment(this, PreInitCallbackImpl())
@@ -86,18 +63,9 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
-        if (ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.INTERNET
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(android.Manifest.permission.INTERNET),
-                1
-            )
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.INTERNET),1)
         }
-
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -109,7 +77,7 @@ class MainActivity : AppCompatActivity() {
     override fun onPostCreate(savedInstanceState: Bundle?, persistentState: PersistableBundle?) {
         super.onPostCreate(savedInstanceState, persistentState)
         if (this.packageName != "com.sealdice.dice") {
-            val alertDialogBuilder = AlertDialog.Builder(this, R.style.Theme_Mshell_DialogOverlay)
+            val alertDialogBuilder = AlertDialog.Builder(this,R.style.Theme_Mshell_DialogOverlay)
             alertDialogBuilder.setTitle("提示")
             alertDialogBuilder.setMessage("检测到您正在使用非官方版本或多开软件，可能会导致一些问题，建议您使用官方版本")
             alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int -> }
@@ -171,37 +139,34 @@ class MainActivity : AppCompatActivity() {
                         val jsonData = response.body?.string()
                         val jsonObject = jsonData?.let { JSONObject(it) }
                         val latestVersion = jsonObject?.getString("version")
-                        Log.e("--Service--", "已经获取了version${latestVersion}")
+                        Log.e("--Service--","已经获取了version${latestVersion}")
                         // Check if current version is up-to-date
                         val currentVersion = BuildConfig.VERSION_NAME
                         if (latestVersion != currentVersion) {
                             // Show update notification
                             withContext(Dispatchers.Main) {
                                 dialog.cancel()
-                                val alertDialogBuilder =
-                                    AlertDialog.Builder(self, R.style.Theme_Mshell_DialogOverlay)
+                                val alertDialogBuilder = AlertDialog.Builder(self,R.style.Theme_Mshell_DialogOverlay)
                                 alertDialogBuilder.setTitle("提示")
                                 alertDialogBuilder.setMessage("发现更新，点击确定开始下载新版本\n线上版本:${latestVersion}\n本地版本:${currentVersion}")
                                 alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->
-                                    val uri =
-                                        Uri.parse("https://d.catlevel.com/seal/android/latest")
+                                    val uri = Uri.parse("https://d.catlevel.com/seal/android/latest")
                                     val intent = Intent()
                                     intent.action = "android.intent.action.VIEW"
                                     intent.data = uri
                                     startActivity(intent)
                                 }
-                                alertDialogBuilder.setNegativeButton("取消") { _: DialogInterface, _: Int -> }
+                                alertDialogBuilder.setNegativeButton("取消") {_: DialogInterface, _: Int ->}
                                 alertDialogBuilder.create().show()
                             }
                         } else {
-                            // Current version is up-to-date
+                        // Current version is up-to-date
                             withContext(Dispatchers.Main) {
                                 dialog.cancel()
-                                val alertDialogBuilder =
-                                    AlertDialog.Builder(self, R.style.Theme_Mshell_DialogOverlay)
+                                val alertDialogBuilder = AlertDialog.Builder(self,R.style.Theme_Mshell_DialogOverlay)
                                 alertDialogBuilder.setTitle("提示")
                                 alertDialogBuilder.setMessage("当前版本已是最新")
-                                alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int -> }
+                                alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
                                 alertDialogBuilder.create().show()
                             }
                         }
@@ -209,18 +174,13 @@ class MainActivity : AppCompatActivity() {
                         e.printStackTrace()
                         withContext(Dispatchers.Main) {
                             dialog.cancel()
-                            val alertDialogBuilder =
-                                AlertDialog.Builder(self, R.style.Theme_Mshell_DialogOverlay)
+                            val alertDialogBuilder = AlertDialog.Builder(self,R.style.Theme_Mshell_DialogOverlay)
                             alertDialogBuilder.setTitle("提示")
                             alertDialogBuilder.setMessage("检查更新时出现错误，可能是网络问题，请稍后重试")
-                            alertDialogBuilder.setNegativeButton("查看错误信息") { _: DialogInterface, _: Int ->
-                                AlertDialog.Builder(self, R.style.Theme_Mshell_DialogOverlay)
-                                    .setTitle("错误信息")
-                                    .setMessage("错误信息:\n${e.localizedMessage}\nStackTrace:\n${e.stackTraceToString()}")
-                                    .setPositiveButton("确定") { _: DialogInterface, _: Int -> }
-                                    .create().show()
+                            alertDialogBuilder.setNegativeButton("查看错误信息") {_: DialogInterface, _: Int ->
+                                AlertDialog.Builder(self,R.style.Theme_Mshell_DialogOverlay).setTitle("错误信息").setMessage("错误信息:\n${e.localizedMessage}\nStackTrace:\n${e.stackTraceToString()}").setPositiveButton("确定") { _: DialogInterface, _: Int ->}.create().show()
                             }
-                            alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int -> }
+                            alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->}
                             alertDialogBuilder.create().show()
                         }
                     }
