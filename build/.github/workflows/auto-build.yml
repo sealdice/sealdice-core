@@ -582,7 +582,8 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          zip -Dr sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip ./temp
+          cd ./temp
+          zip -r ../sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip .
           echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
       - name: Skip Compress (android)
         if: matrix.goos == 'android'
