@@ -416,17 +416,27 @@ jobs:
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
+
+      - name: Set Archive Extension Default
+        run: |
+          echo "AEXT=tar" >> $GITHUB_ENV;
+          echo "AEXTF=tar.gz" >> $GITHUB_ENV;
+      - name: Set Archive Extension Windows
+        if: matrix.goos == 'windows'
+        run: |
+          echo "AEXT=zip" >> $GITHUB_ENV;
+          echo "AEXTF=zip" >> $GITHUB_ENV;
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
         with:
-          type: 'zip'
-          path: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
-          filename: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          type: ${{ env.AEXT }}
+          filename: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
           exclusions: '*.git* /*node_modules/* .editorconfig'
+
       - name: Upload
         uses: actions/upload-artifact@v3
         with:
-          name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ env.AEXTF }}
           path: .
 
   clear-temp-artifact:
