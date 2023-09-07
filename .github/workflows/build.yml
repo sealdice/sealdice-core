@@ -4,72 +4,163 @@ on:
   push:
     paths-ignore:
       - '**.yml'
+      - '!.github/workflows/build.yml'
       - '**.yaml'
       - '**.md'
       - '.gitignore'
 
 env:
-  PROJECT_NAME: "sealdice-core"
   COMMIT_ID: "${{ github.sha }}"
 
 jobs:
-  build:
+  ui-build:
+    name: Build UI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: latest
+      - name: Install Dependencies
+        working-directory: ./sealdice-ui
+        run: npm install
+      - name: Build WebUI
+        working-directory: ./sealdice-ui
+        run: npm run build3
+      - name: Upload UI
+        uses: actions/upload-artifact@v3
+        with:
+          name: sealdice-ui
+          path: ./sealdice-ui/dist
+
+  core-build:
     name: Build binary
     runs-on: 'ubuntu-latest'
+    needs: ui-build
     strategy:
       matrix:
-        # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
-        goos: [ linux, windows, darwin ]
+        # target: linux/amd64, linux/arm64, windows/386, windows/amd64
+        goos: [ linux, windows ]
         goarch: [ '386', amd64, arm64 ]
         exclude:
           - goos: linux
             goarch: '386'
           - goos: windows
             goarch: arm64
-          - goos: darwin
-            goarch: '386'
       fail-fast: true
     steps:
       - name: Code
         uses: actions/checkout@v3
-      - name: Install cross-compiler for windows
+        with:
+          submodules: true
+      - name: Install Cross-compiler for Windows
         if: matrix.goos == 'windows'
         run: sudo apt-get -y install mingw-w64
+      - name: Install Cross-compiler for Linux Arm64
+        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
+        run: sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Install Go
         uses: actions/setup-go@v4
         with:
           go-version: stable
-      - name: Install dependencies
+      - name: Install Dependencies
         run: go get .
-      - name: Generate
-        run: go generate ./...
+      - name: Get UI Resources
+        uses: actions/download-artifact@v3
+        with:
+          name: sealdice-ui
+          path: ./static/frontend
       - name: Test
         run: go test -v -race ./...
-      - name: Set env
+      - name: Set Env
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
           echo "PROJECT_VERSION=develop-${COMMIT_ID::7}" >> $GITHUB_ENV;
           if [ $GOOS = 'windows' ]; then
-            echo "BINARY_NAME="$PROJECT_NAME".exe" >> $GITHUB_ENV;
+            echo "BINARY_NAME=sealdice-core.exe" >> $GITHUB_ENV;
           else
-            echo "BINARY_NAME="$PROJECT_NAME"" >> $GITHUB_ENV;
+            echo "BINARY_NAME=sealdice-core" >> $GITHUB_ENV;
           fi
           if [ $GOOS = 'windows' ] && [ $GOARCH = '386' ]; then
             echo "CC=i686-w64-mingw32-gcc" >> $GITHUB_ENV;
           elif [ $GOOS = 'windows' ] && [ $GOARCH = 'amd64' ]; then
             echo "CC=x86_64-w64-mingw32-gcc" >> $GITHUB_ENV;
+          elif [ $GOOS = 'linux' ] && [ $GOARCH = 'amd64' ]; then
+            echo "CC=gcc" >> $GITHUB_ENV;
+          elif [ $GOOS = 'linux' ] && [ $GOARCH = 'arm64' ]; then
+            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV;
           fi
-      - name: Build binary
+      - name: Build Binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: ${{ matrix.goos == 'windows' && 1 || 0 }}
+          GO111MODULE: on
+          CGO_ENABLED: ${{ matrix.goarch != 'arm64' && 1 || 0 }}
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
         run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$PROJECT_VERSION" .
-      - name: Upload artifact
+      - name: Upload Core
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.PROJECT_NAME }}_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: output/
+          name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: output
+
+  core-darwin-build:
+    name: Build Core
+    runs-on: macos-latest
+    needs: ui-build
+    strategy:
+      matrix:
+        # target: darwin/amd64 darwin/arm64
+        goos: [ darwin ]
+        goarch: [ amd64, arm64 ]
+      fail-fast: true
+    steps:
+      - name: Code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: stable
+      - name: Install Dependencies
+        run: go get .
+      - name: Get UI Resources
+        uses: actions/download-artifact@v3
+        with:
+          name: sealdice-ui
+          path: ./static/frontend
+      - name: Set Env
+        run: echo "PROJECT_VERSION=develop-${COMMIT_ID::7}" >> $GITHUB_ENV;
+      - name: Build Binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO111MODULE: on
+          CGO_ENABLED: 1
+          CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$PROJECT_VERSION" .
+      - name: Upload Core
+        uses: actions/upload-artifact@v3
+        with:
+          name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: output
+
+  clear-temp-artifact:
+    name: Clear Temp Artifacts
+    if: always()
+    runs-on: ubuntu-latest
+    needs:
+      - core-build
+      - core-darwin-build
+    steps:
+      - uses: geekyeggo/delete-artifact@v2
+        with:
+          name: |
+            sealdice-ui
