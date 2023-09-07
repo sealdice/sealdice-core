@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 )
 
@@ -36,6 +37,10 @@ CREATE INDEX IF NOT EXISTS idx_log_items_log_id
 }
 
 func LogItemFixDatatype() error {
+	if _, err := os.Stat("./data/default/data-logs.db"); err != nil {
+		return nil
+	}
+
 	db, err := openDB("./data/default/data-logs.db")
 	if err != nil {
 		return err
