@@ -95,7 +95,7 @@ jobs:
         run: |
           if [ $GOOS = "windows" ]; then export BINARY_SUFFIX=".exe"; fi
           export BINARY_NAME="go-cqhttp$BINARY_SUFFIX"
-          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${COMMIT_ID::7}-sealdicefork"
+          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${GOCQ_CID::7}-sealdicefork"
           go build -o "output/$BINARY_NAME" -trimpath -ldflags "$LD_FLAGS" .
       - name: Upload Gocqhttp
         uses: actions/upload-artifact@v3
@@ -234,33 +234,16 @@ jobs:
       - name: Install Cross-compiler for Linux Arm64
         if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         run: sudo apt-get -y install gcc-aarch64-linux-gnu
-      - name: Get Commit ID
-        run: |
-          cd sealdice-core
-          echo "CORE_CID=`git rev-parse HEAD`" >> $GITHUB_ENV;
-          cd ../sealdice-ui
-          echo "UI_CID=`git rev-parse HEAD`" >> $GITHUB_ENV;
-      - name: Cache Core dist get
-        id: cache-core-dist
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}-dist
-        with:
-          path: ./sealdice-core/output
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}${{ env.UI_CID }}
       - name: Install Go
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         uses: actions/setup-go@v3
         with:
           go-version: stable
       - name: Install Dependencies
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         working-directory: ./sealdice-core
         run: |
           go mod tidy
           go get .
       - name: Get UI Resources
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         uses: actions/download-artifact@v3
         with:
           name: sealdice-ui
@@ -287,7 +270,6 @@ jobs:
             echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV;
           fi
       - name: Build Binary
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -317,33 +299,16 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: true
-      - name: Get Commit ID
-        run: |
-          cd sealdice-core
-          echo "CORE_CID=`git rev-parse HEAD`" >> $GITHUB_ENV;
-          cd ../sealdice-ui
-          echo "UI_CID=`git rev-parse HEAD`" >> $GITHUB_ENV;
-      - name: Cache Core dist get
-        id: cache-core-dist
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-core-${{ matrix.goos }}-${{ matrix.goarch }}-dist
-        with:
-          path: ./sealdice-core/output
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}${{ env.UI_CID }}
       - name: Install Go
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         uses: actions/setup-go@v3
         with:
           go-version: stable
       - name: Install dependencies
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         working-directory: ./sealdice-core
         run: |
           go mod tidy
           go get .
       - name: Get UI Resources
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         uses: actions/download-artifact@v3
         with:
           name: sealdice-ui
@@ -352,7 +317,6 @@ jobs:
         working-directory: ./sealdice-core
         run: echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Build Binary
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -376,22 +340,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: true
-      - name: Get Commit ID
-        run: |
-          cd sealdice-core
-          echo "CORE_CID=`git rev-parse HEAD`" >> $GITHUB_ENV;
-          cd ../sealdice-ui
-          echo "UI_CID=`git rev-parse HEAD`" >> $GITHUB_ENV;
-      - name: Cache Core dist get
-        id: cache-core-dist
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-corea-dist
-        with:
-          path: ./sealdice-core/output
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.CORE_CID }}${{ env.UI_CID }}
       - name: Setup Android NDK
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
@@ -399,18 +348,15 @@ jobs:
           link-to-sdk: true
           local-cache: true
       - name: Install Go
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         uses: actions/setup-go@v3
         with:
           go-version: 1.18
       - name: Install dependencies
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         working-directory: ./sealdice-core
         run: |
           go mod tidy
           go get .
       - name: Get UI Resources
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         uses: actions/download-artifact@v3
         with:
           name: sealdice-ui
@@ -419,7 +365,6 @@ jobs:
         run: |
           echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Build binary
-        if: ${{ steps.cache-core-dist.outputs.cache-hit != 'true' }}
         env:
           GOOS: android
           GOARCH: arm64
