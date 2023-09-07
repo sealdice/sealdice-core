@@ -29,7 +29,7 @@ require (
 	github.com/lonelyevil/kook v0.0.31
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
-	github.com/monaco-io/request v1.0.15
+	github.com/monaco-io/request v1.0.16
 	github.com/mroth/weightedrand v1.0.0
 	github.com/otiai10/copy v1.12.0
 	github.com/phuslu/log v1.0.83
