@@ -16,7 +16,6 @@
 
 info.db
 record.log
-go.sum
 .idea
 sealdice-core
 data/save.yaml
