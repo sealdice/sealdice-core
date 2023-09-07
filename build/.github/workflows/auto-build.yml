@@ -574,7 +574,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          tar -zcvf sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz ./temp;
+          tar -zcvf sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz -C ./temp .;
           echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
       - name: Compress (windows)
         if: matrix.goos == 'windows'
@@ -582,7 +582,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          zip -r sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip ./temp
+          zip -Dr sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip ./temp
           echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
       - name: Skip Compress (android)
         if: matrix.goos == 'android'
@@ -611,15 +611,17 @@ jobs:
         with:
           name: sealdice-prerelease
           path: ./dist/
-      - name: Prerelease
-        uses: softprops/action-gh-release@v1
+      - name: Update Prerelease
+        uses: andelf/nightly-release@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: Latest Build
           tag_name: pre-release
-          files: ./dist/sealdice*
-          body: "> ⚠️注意️️：这是自动构建的预发布版本，非正式版本！"
+          name: 'Latest Build $$'
           prerelease: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          body: '> ⚠️注意️️：这是自动构建的预发布版本，非正式版本！'
+          files: |
+            ./dist/sealdice*
 
   clear-temp-artifact:
     name: Clear Temp Artifacts
