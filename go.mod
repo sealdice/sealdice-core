@@ -10,7 +10,7 @@ require (
 	github.com/antlabs/strsim v0.0.2
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/blevesearch/bleve/v2 v2.3.3
-	github.com/bwmarrin/discordgo v0.26.1
+	github.com/bwmarrin/discordgo v0.27.1
 	github.com/dop251/goja v0.0.0-20230216180835-5937a312edda
 	github.com/dop251/goja_nodejs v0.0.0-20230207183254-2229640ea097
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
