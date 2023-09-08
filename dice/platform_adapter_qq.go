@@ -408,7 +408,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				userName := dm.TryGetUserName(uid)
 				txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%d) 邀请人:<%s>(%d)", groupName, msgQQ.GroupId, userName, msgQQ.UserId)
 				log.Info(txt)
-				ctx.Notice(txt)
+				ctx.Notice(txt, true)
 				tempInviteMap[msg.GroupId] = time.Now().Unix()
 				tempInviteMap2[msg.GroupId] = uid
 
@@ -523,7 +523,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%d, 验证信息: %s, 是否自动同意: %t%s", msgQQ.UserId, comment, willAccept, extra)
 				log.Info(txt)
-				ctx.Notice(txt)
+				ctx.Notice(txt, true)
 
 				// 忽略邀请
 				if pa.IgnoreFriendRequest {
@@ -634,7 +634,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				}()
 				txt := fmt.Sprintf("加入QQ群组: <%s>(%d)", groupName, msgQQ.GroupId)
 				log.Info(txt)
-				ctx.Notice(txt)
+				ctx.Notice(txt, true)
 				if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
 					for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
 						if i.OnGroupJoined != nil {
@@ -739,7 +739,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 					txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%d)中被踢出，操作者:<%s>(%d)%s", groupName, msgQQ.GroupId, userName, msgQQ.OperatorId, extra)
 					log.Info(txt)
-					ctx.Notice(txt)
+					ctx.Notice(txt, true)
 				}
 				return
 			}
@@ -750,7 +750,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				groupName := dm.TryGetGroupName(msg.GroupId)
 				txt := fmt.Sprintf("离开群组或群解散: <%s>(%d)", groupName, msgQQ.GroupId)
 				log.Info(txt)
-				ctx.Notice(txt)
+				ctx.Notice(txt, true)
 				return
 			}
 
@@ -765,7 +765,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					ctx.Dice.BanList.AddScoreByGroupMuted(opUid, msg.GroupId, ctx)
 					txt := fmt.Sprintf("被禁言: 在群组<%s>(%d)中被禁言，时长%d秒，操作者:<%s>(%d)", groupName, msgQQ.GroupId, msgQQ.Duration, userName, msgQQ.OperatorId)
 					log.Info(txt)
-					ctx.Notice(txt)
+					ctx.Notice(txt, true)
 				}
 				return
 			}
