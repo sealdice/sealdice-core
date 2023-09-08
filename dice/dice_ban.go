@@ -3,10 +3,11 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/robfig/cron/v3"
 	"sealdice-core/dice/model"
 	"strings"
 	"time"
+
+	"github.com/robfig/cron/v3"
 )
 
 type BanRankType int
@@ -223,7 +224,7 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 
 			if ctx != nil {
 				// 做出通知
-				ctx.Notice(txt)
+				ctx.Notice(txt, true)
 
 				// 发给当事人
 				ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserId: uid}}, "提醒：你引发了黑名单事件:\n"+txt, "")

@@ -2,12 +2,13 @@ package api
 
 import (
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"sealdice-core/dice"
 	"sealdice-core/dice/model"
 	"strings"
 	"time"
+
+	"github.com/labstack/echo/v4"
 )
 
 func groupList(c echo.Context) error {
@@ -100,7 +101,7 @@ func groupQuit(c echo.Context) error {
 					myDice.Logger.Info(_txt)
 
 					ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep, Session: myDice.ImSession}
-					ctx.Notice(_txt)
+					ctx.Notice(_txt, true)
 					//dice.SetBotOffAtGroup(ctx, group.GroupId)
 
 					if !v.Silence {

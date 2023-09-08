@@ -2,16 +2,17 @@ package dice
 
 import (
 	"fmt"
-	"github.com/dop251/goja"
-	"github.com/fy0/lockfree"
-	"github.com/jmoiron/sqlx"
-	"golang.org/x/time/rate"
-	"gopkg.in/yaml.v3"
 	"runtime/debug"
 	"sealdice-core/dice/model"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/dop251/goja"
+	"github.com/fy0/lockfree"
+	"github.com/jmoiron/sqlx"
+	"golang.org/x/time/rate"
+	"gopkg.in/yaml.v3"
 )
 
 type SenderBase struct {
@@ -399,7 +400,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, group.GroupId, autoOn)
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 			log.Info(txt)
-			mctx.Notice(txt)
+			mctx.Notice(txt, true)
 
 			if msg.Platform == "QQ" || msg.Platform == "TG" {
 				if mctx.Session.ServiceAtNew[msg.GroupId] != nil {
@@ -1076,7 +1077,10 @@ func (ep *EndPointInfo) RefreshGroupNum() {
 	}
 }
 
-func (ctx *MsgContext) Notice(txt string) {
+// Notice 向通知列表发送通知
+//   - txt 通知内容
+//   - allowCrossPlatform 是否允许跨平台发送
+func (ctx *MsgContext) Notice(txt string, allowCrossPlatform bool) {
 	foo := func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -1088,6 +1092,8 @@ func (ctx *MsgContext) Notice(txt string) {
 			ctx.Dice.SendMail(txt, Notice)
 			return
 		}
+
+		sent := false
 
 		for _, i := range ctx.Dice.NoticeIds {
 			n := strings.Split(i, ":")
@@ -1109,14 +1115,23 @@ func (ctx *MsgContext) Notice(txt string) {
 					ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
 				}
 				time.Sleep(1 * time.Second)
-				continue
+				sent = true
+				continue // 找到对应平台、调用了发送的在此即切出循环
 			}
 
-			if done := CrossMsgBySearch(ctx.Session, seg, i, txt, messageType == "private"); !done {
-				ctx.Dice.Logger.Errorf("未能向 %s 发送通知：%s", i, txt)
-			} else {
-				time.Sleep(1 * time.Second)
+			// 如果走到这里，一定是没有找到对应的平台
+			if allowCrossPlatform {
+				if done := CrossMsgBySearch(ctx.Session, seg, i, txt, messageType == "private"); !done {
+					ctx.Dice.Logger.Errorf("尝试跨平台后仍未能向 %s 发送通知：%s", i, txt)
+				} else {
+					sent = true
+					time.Sleep(1 * time.Second)
+				}
 			}
+		}
+
+		if !sent {
+			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
 		}
 	}
 	go foo()

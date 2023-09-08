@@ -593,7 +593,8 @@ func (d *Dice) ApplyAliveNotice() {
 		entry, err := d.Cron.AddFunc(d.AliveNoticeValue, func() {
 			for _, ep := range d.ImSession.EndPoints {
 				ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
-				ctx.Notice(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)))
+				// FIXME: 如果开启了邮件通知，每个存在的EP都会发一封邮件
+				ctx.Notice(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)), false)
 			}
 		})
 		if err == nil {
