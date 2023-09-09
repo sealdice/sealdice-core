@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"gopkg.in/yaml.v3"
 )
 
 var fearListText = `
@@ -1007,45 +1008,46 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Name:      "ti",
 		ShortHelp: ".ti // 抽取一个临时性疯狂症状",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			// 临时性疯狂
-			foo := func(tmpl string) string {
-				val, _, _ := self.ExprText(tmpl, ctx)
-				return val
-			}
-
 			num := DiceRoll(10)
-			text := fmt.Sprintf("<%s>的疯狂发作-即时症状:\n1D10=%d\n", ctx.Player.Name, num)
+			VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("1D10=%d", num))
+			VarSetValueInt64(ctx, "$t选项值", int64(num))
 
+			var desc string
+			extraNum1 := DiceRoll(10)
+			VarSetValueInt64(ctx, "$t附加值1", int64(extraNum1))
 			switch num {
 			case 1:
-				text += foo("失忆：调查员会发现自己只记得最后身处的安全地点，却没有任何来到这里的记忆。例如，调查员前一刻还在家中吃着早饭，下一刻就已经直面着不知名的怪物。这将会持续 1D10={1d10} 轮。")
+				desc += fmt.Sprintf("失忆：调查员会发现自己只记得最后身处的安全地点，却没有任何来到这里的记忆。例如，调查员前一刻还在家中吃着早饭，下一刻就已经直面着不知名的怪物。这将会持续 1D10=%d 轮。", extraNum1)
 			case 2:
-				text += foo("假性残疾：调查员陷入了心理性的失明，失聪以及躯体缺失感中，持续 1D10={1d10} 轮。")
+				desc += fmt.Sprintf("假性残疾：调查员陷入了心理性的失明，失聪以及躯体缺失感中，持续 1D10=%d 轮。", extraNum1)
 			case 3:
-				text += foo("暴力倾向：调查员陷入了六亲不认的暴力行为中，对周围的敌人与友方进行着无差别的攻击，持续 1D10={1d10} 轮。")
+				desc += fmt.Sprintf("暴力倾向：调查员陷入了六亲不认的暴力行为中，对周围的敌人与友方进行着无差别的攻击，持续 1D10=%d 轮。", extraNum1)
 			case 4:
-				text += foo("偏执：调查员陷入了严重的偏执妄想之中。有人在暗中窥视着他们，同伴中有人背叛了他们，没有人可以信任，万事皆虚。持续 1D10={1d10} 轮")
+				desc += fmt.Sprintf("偏执：调查员陷入了严重的偏执妄想之中。有人在暗中窥视着他们，同伴中有人背叛了他们，没有人可以信任，万事皆虚。持续 1D10=%d 轮", extraNum1)
 			case 5:
-				text += foo("人际依赖：守秘人适当参考调查员的背景中重要之人的条目，调查员因为一些原因而降他人误认为了他重要的人并且努力的会与那个人保持那种关系，持续 1D10={1d10} 轮")
+				desc += fmt.Sprintf("人际依赖：守秘人适当参考调查员的背景中重要之人的条目，调查员因为一些原因而降他人误认为了他重要的人并且努力的会与那个人保持那种关系，持续 1D10=%d 轮", extraNum1)
 			case 6:
-				text += foo("昏厥：调查员当场昏倒，并需要 1D10={1d10} 轮才能苏醒。")
+				desc += fmt.Sprintf("昏厥：调查员当场昏倒，并需要 1D10=%d 轮才能苏醒。", extraNum1)
 			case 7:
-				text += foo("逃避行为：调查员会用任何的手段试图逃离现在所处的位置，即使这意味着开走唯一一辆交通工具并将其它人抛诸脑后，调查员会试图逃离 1D10={1d10} 轮。")
+				desc += fmt.Sprintf("逃避行为：调查员会用任何的手段试图逃离现在所处的位置，即使这意味着开走唯一一辆交通工具并将其它人抛诸脑后，调查员会试图逃离 1D10=%d 轮。", extraNum1)
 			case 8:
-				text += foo("竭嘶底里：调查员表现出大笑，哭泣，嘶吼，害怕等的极端情绪表现，持续 1D10={1d10} 轮。")
+				desc += fmt.Sprintf("竭嘶底里：调查员表现出大笑，哭泣，嘶吼，害怕等的极端情绪表现，持续 1D10=%d 轮。", extraNum1)
 			case 9:
-				text += foo("恐惧：调查员通过一次 D100 或者由守秘人选择，来从恐惧症状表中选择一个恐惧源，就算这一恐惧的事物是并不存在的，调查员的症状会持续 1D10={1d10} 轮。")
-				num2 := DiceRoll(100)
-				text += fmt.Sprintf("\n1D100=%d\n", num2)
-				text += fearMap[num2]
+				desc += fmt.Sprintf("恐惧：调查员通过一次 D100 或者由守秘人选择，来从恐惧症状表中选择一个恐惧源，就算这一恐惧的事物是并不存在的，调查员的症状会持续 1D10=%d 轮。", extraNum1)
+				extraNum2 := DiceRoll(100)
+				desc += fmt.Sprintf("\n1D100=%d\n", extraNum2)
+				desc += fearMap[extraNum2]
+				VarSetValueInt64(ctx, "$t附加值2", int64(extraNum2))
 			case 10:
-				text += foo("躁狂：调查员通过一次 D100 或者由守秘人选择，来从躁狂症状表中选择一个躁狂的诱因，这个症状将会持续 1D10={1d10} 轮。")
-				num2 := DiceRoll(100)
-				text += fmt.Sprintf("\n1D100=%d\n", num2)
-				text += maniaMap[num2]
+				desc += fmt.Sprintf("躁狂：调查员通过一次 D100 或者由守秘人选择，来从躁狂症状表中选择一个躁狂的诱因，这个症状将会持续 1D10=%d 轮。", extraNum1)
+				extraNum2 := DiceRoll(100)
+				desc += fmt.Sprintf("\n1D100=%d\n", extraNum2)
+				desc += maniaMap[extraNum2]
+				VarSetValueInt64(ctx, "$t附加值2", int64(extraNum2))
 			}
+			VarSetValueStr(ctx, "$t疯狂描述", desc)
 
-			ReplyToSender(ctx, msg, text)
+			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:疯狂发作_即时症状"))
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
@@ -1054,45 +1056,46 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Name:      "li",
 		ShortHelp: ".li // 抽取一个总结性疯狂症状",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			// 总结性疯狂
-			foo := func(tmpl string) string {
-				val, _, _ := self.ExprText(tmpl, ctx)
-				return val
-			}
-
 			num := DiceRoll(10)
-			text := fmt.Sprintf("<%s>的疯狂发作-总结症状:\n1D10=%d\n", ctx.Player.Name, num)
+			VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("1D10=%d", num))
+			VarSetValueInt64(ctx, "$t选项值", int64(num))
 
+			var desc string
+			extraNum1 := DiceRoll(10)
+			VarSetValueInt64(ctx, "$t附加值1", int64(extraNum1))
 			switch num {
 			case 1:
-				text += foo("失忆：回过神来，调查员们发现自己身处一个陌生的地方，并忘记了自己是谁。记忆会随时间恢复。")
+				desc += "失忆：回过神来，调查员们发现自己身处一个陌生的地方，并忘记了自己是谁。记忆会随时间恢复。"
 			case 2:
-				text += foo("被窃：调查员在 1D10={1d10} 小时后恢复清醒，发觉自己被盗，身体毫发无损。如果调查员携带着宝贵之物（见调查员背景），做幸运检定来决定其是否被盗。所有有价值的东西无需检定自动消失。")
+				desc += fmt.Sprintf("被窃：调查员在 1D10=%d 小时后恢复清醒，发觉自己被盗，身体毫发无损。如果调查员携带着宝贵之物（见调查员背景），做幸运检定来决定其是否被盗。所有有价值的东西无需检定自动消失。", extraNum1)
 			case 3:
-				text += foo("遍体鳞伤：调查员在 1D10={1d10} 小时后恢复清醒，发现自己身上满是拳痕和瘀伤。生命值减少到疯狂前的一半，但这不会造成重伤。调查员没有被窃。这种伤害如何持续到现在由守秘人决定。")
+				desc += fmt.Sprintf("遍体鳞伤：调查员在 1D10=%d 小时后恢复清醒，发现自己身上满是拳痕和瘀伤。生命值减少到疯狂前的一半，但这不会造成重伤。调查员没有被窃。这种伤害如何持续到现在由守秘人决定。", extraNum1)
 			case 4:
-				text += foo("暴力倾向：调查员陷入强烈的暴力与破坏欲之中。调查员回过神来可能会理解自己做了什么也可能毫无印象。调查员对谁或何物施以暴力，他们是杀人还是仅仅造成了伤害，由守秘人决定。")
+				desc += "暴力倾向：调查员陷入强烈的暴力与破坏欲之中。调查员回过神来可能会理解自己做了什么也可能毫无印象。调查员对谁或何物施以暴力，他们是杀人还是仅仅造成了伤害，由守秘人决定。"
 			case 5:
-				text += foo("极端信念：查看调查员背景中的思想信念，调查员会采取极端和疯狂的表现手段展示他们的思想信念之一。比如一个信教者会在地铁上高声布道。")
+				desc += "极端信念：查看调查员背景中的思想信念，调查员会采取极端和疯狂的表现手段展示他们的思想信念之一。比如一个信教者会在地铁上高声布道。"
 			case 6:
-				text += foo("重要之人：考虑调查员背景中的重要之人，及其重要的原因。在 1D10={1d10} 小时或更久的时间中，调查员将不顾一切地接近那个人，并为他们之间的关系做出行动。")
+				desc += fmt.Sprintf("重要之人：考虑调查员背景中的重要之人，及其重要的原因。在 1D10=%d 小时或更久的时间中，调查员将不顾一切地接近那个人，并为他们之间的关系做出行动。", extraNum1)
 			case 7:
-				text += foo("被收容：调查员在精神病院病房或警察局牢房中回过神来，他们可能会慢慢回想起导致自己被关在这里的事情。")
+				desc += "被收容：调查员在精神病院病房或警察局牢房中回过神来，他们可能会慢慢回想起导致自己被关在这里的事情。"
 			case 8:
-				text += foo("逃避行为：调查员恢复清醒时发现自己在很远的地方，也许迷失在荒郊野岭，或是在驶向远方的列车或长途汽车上。")
+				desc += "逃避行为：调查员恢复清醒时发现自己在很远的地方，也许迷失在荒郊野岭，或是在驶向远方的列车或长途汽车上。"
 			case 9:
-				text += foo("恐惧：调查员患上一个新的恐惧症状。在恐惧症状表上骰 1 个 D100 来决定症状，或由守秘人选择一个。调查员在 1D10={1d10} 小时后回过神来，并开始为避开恐惧源而采取任何措施。")
-				num2 := DiceRoll(100)
-				text += fmt.Sprintf("\n1D100=%d\n", num2)
-				text += fearMap[num2]
+				desc += fmt.Sprintf("恐惧：调查员患上一个新的恐惧症状。在恐惧症状表上骰 1 个 D100 来决定症状，或由守秘人选择一个。调查员在 1D10=%d 小时后回过神来，并开始为避开恐惧源而采取任何措施。", extraNum1)
+				extraNum2 := DiceRoll(100)
+				desc += fmt.Sprintf("\n1D100=%d\n", extraNum2)
+				desc += fearMap[extraNum2]
+				VarSetValueInt64(ctx, "$t附加值2", int64(extraNum2))
 			case 10:
-				text += foo("狂躁：调查员患上一个新的狂躁症状。在狂躁症状表上骰 1 个 d100 来决定症状，或由守秘人选择一个。调查员会在 1D10={1d10} 小时后恢复理智。在这次疯狂发作中，调查员将完全沉浸于其新的狂躁症状。这症状是否会表现给旁人则取决于守秘人和此调查员。")
-				num2 := DiceRoll(100)
-				text += fmt.Sprintf("\n1D100=%d\n", num2)
-				text += maniaMap[num2]
+				desc += fmt.Sprintf("狂躁：调查员患上一个新的狂躁症状。在狂躁症状表上骰 1 个 d100 来决定症状，或由守秘人选择一个。调查员会在 1D10=%d 小时后恢复理智。在这次疯狂发作中，调查员将完全沉浸于其新的狂躁症状。这症状是否会表现给旁人则取决于守秘人和此调查员。", extraNum1)
+				extraNum2 := DiceRoll(100)
+				desc += fmt.Sprintf("\n1D100=%d\n", extraNum2)
+				desc += maniaMap[extraNum2]
+				VarSetValueInt64(ctx, "$t附加值2", int64(extraNum2))
 			}
+			VarSetValueStr(ctx, "$t疯狂描述", desc)
 
-			ReplyToSender(ctx, msg, text)
+			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:疯狂发作_总结症状"))
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
