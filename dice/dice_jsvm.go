@@ -8,6 +8,7 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	fetch "github.com/fy0/gojax/fetch"
+	"github.com/golang-module/carbon"
 	"github.com/pkg/errors"
 	"gopkg.in/elazarl/goproxy.v1"
 	"gopkg.in/yaml.v3"
@@ -371,9 +372,14 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 			case "description":
 				jsInfo.Desc = v
 			case "timestamp":
-				v, err := strconv.ParseInt(v, 10, 64)
+				timestamp, err := strconv.ParseInt(v, 10, 64)
 				if err == nil {
-					jsInfo.UpdateTime = v
+					jsInfo.UpdateTime = timestamp
+				} else {
+					t := carbon.Parse(v)
+					if t.IsValid() {
+						jsInfo.UpdateTime = t.Timestamp()
+					}
 				}
 			}
 		}
