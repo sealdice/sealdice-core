@@ -990,7 +990,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						checkResult.successExpr = successExpr
 						if err != nil {
 							checkResult.valid = false
-							//checkResult.invalidReason = fmt.Errorf(DiceFormatTmpl(mctx, "COC:技能成长_错误的成功成长值"))
 							checkResult.invalidReason = SuccessExprFormatError
 							return
 						}
@@ -1000,12 +999,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						checkResult.newVarValue = varValue + increment
 					} else {
 						if failExpr == "" {
+							checkResult.increment = 0
+							checkResult.newVarValue = varValue
 						} else {
 							r, _, err := mctx.Dice.ExprEval(failExpr, mctx)
 							checkResult.failExpr = failExpr
 							if err != nil {
 								checkResult.valid = false
-								//checkResult.invalidReason = fmt.Errorf(DiceFormatTmpl(mctx, "COC:技能成长_错误的失败成长值"))
 								checkResult.invalidReason = FailExprFormatError
 								return
 							}
