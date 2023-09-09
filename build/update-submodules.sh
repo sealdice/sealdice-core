@@ -1,4 +1,5 @@
 #!/bin/bash
+git submodule init
 git submodule update
 cd sealdice-builtins && git pull origin master && cd ..
 cd sealdice-ui && git pull origin master && cd ..
