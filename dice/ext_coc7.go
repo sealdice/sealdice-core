@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"gopkg.in/yaml.v3"
 )
 
 var fearListText = `
@@ -1064,7 +1065,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			VarSetValueInt64(ctx, "$t附加值1", int64(extraNum1))
 			switch num {
 			case 1:
-				desc += fmt.Sprintf("失忆：回过神来，调查员们发现自己身处一个陌生的地方，并忘记了自己是谁。记忆会随时间恢复。")
+				desc += "失忆：回过神来，调查员们发现自己身处一个陌生的地方，并忘记了自己是谁。记忆会随时间恢复。"
 			case 2:
 				desc += fmt.Sprintf("被窃：调查员在 1D10=%d 小时后恢复清醒，发觉自己被盗，身体毫发无损。如果调查员携带着宝贵之物（见调查员背景），做幸运检定来决定其是否被盗。所有有价值的东西无需检定自动消失。", extraNum1)
 			case 3:
