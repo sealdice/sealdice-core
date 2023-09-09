@@ -2,8 +2,8 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"gopkg.in/yaml.v3"
 )
 
 var fearListText = `
@@ -877,7 +879,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 .en <技能名称> // 骰D100，若点数大于当前值，属性成长1d10
 .en <技能名称>(技能点数) // 骰D100，若点数大于技能点数，属性=技能点数+1d10
 .en <技能名称>(技能点数) +<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点
-.en <技能名称>(技能点数) +<失败成长值>/<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点，否则增加失败`
+.en <技能名称>(技能点数) +<失败成长值>/<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点，否则增加失败
+.en <技能名称1> <技能名称2> // 批量技能成长，支持上述多种格式，每个技能用空格分开`
 
 	cmdEn := &CmdItemInfo{
 		Name:          "en",
@@ -885,119 +888,244 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Help:          "成长指令:\n" + helpEn,
 		AllowDelegate: false,
 		Solve: func(mctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			// 首先处理单参数形式
 			// .en [技能名称]([技能值])+(([失败成长值]/)[成功成长值])
 			re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+(([^/]+)/)?\s*(.+))?`)
-			m := re.FindStringSubmatch(cmdArgs.CleanArgs)
+			// 支持多组技能成长
+			skills := re.FindAllString(cmdArgs.CleanArgs, -1)
 
-			tmpl := cardRuleCheck(mctx, msg)
-			if tmpl == nil {
-				return CmdExecuteResult{Matched: true, Solved: true}
+			type enCheckResult struct {
+				valid         bool
+				invalidReason error
+
+				varName     string
+				varValueStr string
+				successExpr string
+				failExpr    string
+
+				varValue    int64
+				rollValue   int64
+				successRank int
+				success     bool
+				resultText  string
+				increment   int64
+				newVarValue int64
 			}
-
-			if m != nil {
-				varName := m[1]     // 技能名称
-				varValueStr := m[2] // 技能值 - 字符串
-				successExpr := m[6] // 成功的加值表达式
-				failExpr := m[5]    // 失败的加值表达式
-
-				var varValue int64
-				VarSetValueStr(mctx, "$t技能", varName)
-
-				// 首先，试图读取技能的值
-				if varValueStr != "" {
-					varValue, _ = strconv.ParseInt(varValueStr, 10, 64)
-				} else {
-					val, exists := VarGetValue(mctx, varName)
-					if !exists {
-						// 没找到，尝试取得默认值
-						val, _, _, exists = tmpl.GetDefaultValueEx0(mctx, varName)
-					}
-					if !exists {
-						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_属性未录入"))
-						return CmdExecuteResult{Matched: true, Solved: false}
-					}
-					if val.TypeId != VMTypeInt64 {
-						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_错误的属性类型"))
-						return CmdExecuteResult{Matched: true, Solved: false}
-					}
-					varValue = val.Value.(int64)
+			RuleNotMatch := fmt.Errorf("rule not match")
+			FormatMismatch := fmt.Errorf("format mismatch")
+			SkillNotEntered := fmt.Errorf("skill not entered")
+			SkillTypeError := fmt.Errorf("skill value type error")
+			SuccessExprFormatError := fmt.Errorf("success expr format error")
+			FailExprFormatError := fmt.Errorf("fail expr format error")
+			check := func(skill string) (checkResult enCheckResult) {
+				checkResult.valid = true
+				m := re.FindStringSubmatch(skill)
+				tmpl := cardRuleCheck(mctx, msg)
+				if tmpl == nil {
+					checkResult.valid = false
+					checkResult.invalidReason = RuleNotMatch
+					return
 				}
 
-				d100 := DiceRoll64(100)
-				// 注意一下，这里其实是，小于失败 大于成功
-				successRank, _ := ResultCheck(mctx, mctx.Group.CocRuleIndex, d100, varValue)
-				var resultText string
-				// 若玩家投出了高于当前技能值的结果，或者结果大于95，则调查员该技能获得改善：骰1D10并且立即将结果加到当前技能值上。技能可通过此方式超过100%。
-				if d100 > 95 {
-					successRank = -1
-				}
-				if successRank > 0 {
-					resultText = "失败"
-				} else {
-					resultText = "成功"
-				}
+				if m != nil {
+					varName := m[1]     // 技能名称
+					varValueStr := m[2] // 技能值 - 字符串
+					successExpr := m[6] // 成功的加值表达式
+					failExpr := m[5]    // 失败的加值表达式
 
-				VarSetValueInt64(mctx, "$tD100", d100)
-				VarSetValueInt64(mctx, "$t判定值", varValue)
-				VarSetValueStr(mctx, "$t判定结果", resultText)
-				VarSetValueStr(mctx, "$t判定结果", resultText)
-				VarSetValueInt64(mctx, "$tSuccessRank", int64(successRank))
+					var varValue int64
+					checkResult.varName = varName
 
-				if successRank < 0 {
-					// 如果成功
-					if successExpr == "" {
-						successExpr = "1d10"
-					}
-
-					r, _, err := mctx.Dice.ExprEval(successExpr, mctx)
-					VarSetValueStr(mctx, "$t表达式文本", successExpr)
-					if err != nil {
-						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_错误的成功成长值"))
-						return CmdExecuteResult{Matched: true, Solved: false}
-					}
-
-					VarSetValueInt64(mctx, "$t旧值", varValue)
-					varValue += r.VMValue.Value.(int64)
-					nv := &VMValue{TypeId: VMTypeInt64, Value: varValue}
-
-					VarSetValue(mctx, "$t增量", &r.VMValue)
-					VarSetValue(mctx, "$t新值", nv)
-					VarSetValue(mctx, varName, nv)
-
-					VarSetValueStr(mctx, "$t当前绑定角色", mctx.ChBindCurGet())
-					VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_成功"))
-				} else {
-					// 如果失败
-					if failExpr == "" {
-						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败"))
+					// 首先，试图读取技能的值
+					if varValueStr != "" {
+						varValue, _ = strconv.ParseInt(varValueStr, 10, 64)
 					} else {
-						r, _, err := mctx.Dice.ExprEval(failExpr, mctx)
-						VarSetValueStr(mctx, "$t表达式文本", failExpr)
-						if err != nil {
-							ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_错误的失败成长值"))
-							return CmdExecuteResult{Matched: true, Solved: false}
+						val, exists := VarGetValue(mctx, varName)
+						if !exists {
+							// 没找到，尝试取得默认值
+							val, _, _, exists = tmpl.GetDefaultValueEx0(mctx, varName)
+						}
+						if !exists {
+							checkResult.valid = false
+							checkResult.invalidReason = SkillNotEntered
+							return
+						}
+						if val.TypeId != VMTypeInt64 {
+							checkResult.valid = false
+							checkResult.invalidReason = SkillTypeError
+							return
+						}
+						varValue = val.Value.(int64)
+					}
+
+					d100 := DiceRoll64(100)
+					// 注意一下，这里其实是，小于失败 大于成功
+					successRank, _ := ResultCheck(mctx, mctx.Group.CocRuleIndex, d100, varValue)
+					var resultText string
+					// 若玩家投出了高于当前技能值的结果，或者结果大于95，则调查员该技能获得改善：骰1D10并且立即将结果加到当前技能值上。技能可通过此方式超过100%。
+					if d100 > 95 {
+						successRank = -1
+					}
+					var success bool
+					if successRank > 0 {
+						resultText = "失败"
+						success = false
+					} else {
+						resultText = "成功"
+						success = true
+					}
+
+					checkResult.rollValue = d100
+					checkResult.varValue = varValue
+					checkResult.resultText = resultText
+					checkResult.successRank = successRank
+					checkResult.success = success
+
+					if success {
+						if successExpr == "" {
+							successExpr = "1d10"
 						}
 
-						VarSetValueInt64(mctx, "$t旧值", varValue)
-						varValue += r.VMValue.Value.(int64)
-						nv := &VMValue{TypeId: VMTypeInt64, Value: varValue}
+						r, _, err := mctx.Dice.ExprEval(successExpr, mctx)
+						checkResult.successExpr = successExpr
+						if err != nil {
+							checkResult.valid = false
+							//checkResult.invalidReason = fmt.Errorf(DiceFormatTmpl(mctx, "COC:技能成长_错误的成功成长值"))
+							checkResult.invalidReason = SuccessExprFormatError
+							return
+						}
 
-						VarSetValue(mctx, "$t增量", &r.VMValue)
-						VarSetValue(mctx, "$t新值", nv)
-						VarSetValue(mctx, varName, nv)
+						increment := r.VMValue.Value.(int64)
+						checkResult.increment = increment
+						checkResult.newVarValue = varValue + increment
+					} else {
+						if failExpr == "" {
+						} else {
+							r, _, err := mctx.Dice.ExprEval(failExpr, mctx)
+							checkResult.failExpr = failExpr
+							if err != nil {
+								checkResult.valid = false
+								//checkResult.invalidReason = fmt.Errorf(DiceFormatTmpl(mctx, "COC:技能成长_错误的失败成长值"))
+								checkResult.invalidReason = FailExprFormatError
+								return
+							}
 
-						VarSetValueStr(mctx, "$t当前绑定角色", mctx.ChBindCurGet())
+							increment := r.VMValue.Value.(int64)
+							checkResult.increment = increment
+							checkResult.newVarValue = varValue + increment
+						}
+					}
+				} else {
+					checkResult.valid = false
+					checkResult.invalidReason = FormatMismatch
+				}
+				return
+			}
+
+			VarSetValueInt64(mctx, "$t数量", int64(len(skills)))
+			if len(skills) < 1 {
+				ReplyToSender(mctx, msg, "指令格式不匹配")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if len(skills) > 10 {
+				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_批量_技能过多警告"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if len(skills) == 1 {
+				checkResult := check(skills[0])
+				VarSetValueStr(mctx, "$t技能", checkResult.varName)
+				VarSetValueInt64(mctx, "$tD100", checkResult.rollValue)
+				VarSetValueInt64(mctx, "$t判定值", checkResult.varValue)
+				VarSetValueStr(mctx, "$t判定结果", checkResult.resultText)
+				VarSetValueInt64(mctx, "$tSuccessRank", int64(checkResult.successRank))
+				VarSetValueStr(mctx, "$t表达式文本", checkResult.successExpr)
+				VarSetValueInt64(mctx, "$t旧值", checkResult.varValue)
+				VarSetValueInt64(mctx, "$t增量", checkResult.increment)
+				VarSetValueInt64(mctx, "$t新值", checkResult.newVarValue)
+				if checkResult.valid {
+					VarSetValueInt64(mctx, checkResult.varName, checkResult.newVarValue)
+					if checkResult.success {
+						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_成功"))
+					} else {
 						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更"))
 					}
-				}
+					VarSetValueInt64(mctx, "$t数量", int64(1))
 
+					VarSetValueStr(mctx, "$t当前绑定角色", mctx.ChBindCurGet())
+					if mctx.Player.AutoSetNameTemplate != "" {
+						_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
+					}
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长"))
+				} else {
+					switch {
+					case errors.Is(checkResult.invalidReason, RuleNotMatch):
+						// skip
+						return CmdExecuteResult{Matched: true, Solved: true}
+					case errors.Is(checkResult.invalidReason, FormatMismatch):
+						ReplyToSender(mctx, msg, "指令格式不匹配")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					case errors.Is(checkResult.invalidReason, SkillNotEntered):
+						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_属性未录入"))
+					case errors.Is(checkResult.invalidReason, SkillTypeError):
+						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_错误的属性类型"))
+					case errors.Is(checkResult.invalidReason, SuccessExprFormatError):
+						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_错误的成功成长值"))
+					case errors.Is(checkResult.invalidReason, FailExprFormatError):
+						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_错误的失败成长值"))
+					}
+				}
+			} else {
+				var checkResultStrs []string
+				var checkResults []enCheckResult
+				for _, skill := range skills {
+					checkResult := check(skill)
+					checkResults = append(checkResults, checkResult)
+				}
+				for _, checkResult := range checkResults {
+					VarSetValueStr(mctx, "$t技能", checkResult.varName)
+					VarSetValueInt64(mctx, "$tD100", checkResult.rollValue)
+					VarSetValueInt64(mctx, "$t判定值", checkResult.varValue)
+					VarSetValueStr(mctx, "$t判定结果", checkResult.resultText)
+					VarSetValueInt64(mctx, "$tSuccessRank", int64(checkResult.successRank))
+					VarSetValueStr(mctx, "$t表达式文本", checkResult.successExpr)
+					VarSetValueInt64(mctx, "$t旧值", checkResult.varValue)
+					VarSetValueInt64(mctx, "$t增量", checkResult.increment)
+					VarSetValueInt64(mctx, "$t新值", checkResult.newVarValue)
+					if checkResult.valid {
+						VarSetValueInt64(mctx, checkResult.varName, checkResult.newVarValue)
+						if checkResult.success {
+							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_成功_无后缀"))
+						} else {
+							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更_无后缀"))
+						}
+						resStr := DiceFormatTmpl(mctx, "COC:技能成长_批量_单条")
+						checkResultStrs = append(checkResultStrs, resStr)
+					} else {
+						temp := DiceFormatTmpl(mctx, "COC:技能成长_批量_单条错误前缀")
+						switch {
+						case errors.Is(checkResult.invalidReason, RuleNotMatch):
+							// skip
+							return CmdExecuteResult{Matched: true, Solved: true}
+						case errors.Is(checkResult.invalidReason, FormatMismatch):
+							ReplyToSender(mctx, msg, "指令格式不匹配")
+							return CmdExecuteResult{Matched: true, Solved: true}
+						case errors.Is(checkResult.invalidReason, SkillNotEntered):
+							temp += DiceFormatTmpl(mctx, "COC:技能成长_属性未录入_无前缀")
+						case errors.Is(checkResult.invalidReason, SkillTypeError):
+							temp += DiceFormatTmpl(mctx, "COC:技能成长_错误的属性类型_无前缀")
+						case errors.Is(checkResult.invalidReason, SuccessExprFormatError):
+							temp += DiceFormatTmpl(mctx, "COC:技能成长_错误的成功成长值_无前缀")
+						case errors.Is(checkResult.invalidReason, FailExprFormatError):
+							temp += DiceFormatTmpl(mctx, "COC:技能成长_错误的失败成长值_无前缀")
+						}
+						checkResultStrs = append(checkResultStrs, temp)
+					}
+				}
+				sep := DiceFormatTmpl(mctx, "COC:技能成长_批量_分隔符")
+				resultStr := strings.Join(checkResultStrs, sep)
+				VarSetValueStr(mctx, "$t总结果文本", resultStr)
+				VarSetValueStr(mctx, "$t当前绑定角色", mctx.ChBindCurGet())
 				if mctx.Player.AutoSetNameTemplate != "" {
 					_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
 				}
-				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长"))
-			} else {
-				ReplyToSender(mctx, msg, "指令格式不匹配")
+				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:技能成长_批量"))
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
