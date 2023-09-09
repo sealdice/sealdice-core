@@ -934,6 +934,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 					var varValue int64
 					checkResult.varName = varName
+					checkResult.varValueStr = varValueStr
 
 					// 首先，试图读取技能的值
 					if varValueStr != "" {
