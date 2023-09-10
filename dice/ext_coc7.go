@@ -880,7 +880,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 .en <技能名称>(技能点数) // 骰D100，若点数大于技能点数，属性=技能点数+1d10
 .en <技能名称>(技能点数) +<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点
 .en <技能名称>(技能点数) +<失败成长值>/<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点，否则增加失败
-.en <技能名称1> <技能名称2> // 批量技能成长，支持上述多种格式，每个技能用空格分开`
+.en <技能名称1> <技能名称2> // 批量技能成长，支持上述多种格式，复杂情况建议用|隔开每个技能`
 
 	cmdEn := &CmdItemInfo{
 		Name:          "en",
@@ -889,7 +889,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		AllowDelegate: false,
 		Solve: func(mctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// .en [技能名称]([技能值])+(([失败成长值]/)[成功成长值])
-			re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+(([^/]+)/)?\s*(.+))?`)
+			// FIXME: 实在是被正则绕晕了，把多组和每组的正则分开了
+			re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+([-+\ddD]+/)?([-+\ddD]+))?[^|]*?`)
 			// 支持多组技能成长
 			skills := re.FindAllString(cmdArgs.CleanArgs, -1)
 
@@ -916,9 +917,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			SkillTypeError := fmt.Errorf("skill value type error")
 			SuccessExprFormatError := fmt.Errorf("success expr format error")
 			FailExprFormatError := fmt.Errorf("fail expr format error")
+			singleRe := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+(([^/]+)/)?\s*(.+))?`)
 			check := func(skill string) (checkResult enCheckResult) {
 				checkResult.valid = true
-				m := re.FindStringSubmatch(skill)
+				m := singleRe.FindStringSubmatch(skill)
 				tmpl := cardRuleCheck(mctx, msg)
 				if tmpl == nil {
 					checkResult.valid = false
