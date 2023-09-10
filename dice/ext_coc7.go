@@ -1036,16 +1036,21 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				VarSetValueInt64(mctx, "$t判定值", checkResult.varValue)
 				VarSetValueStr(mctx, "$t判定结果", checkResult.resultText)
 				VarSetValueInt64(mctx, "$tSuccessRank", int64(checkResult.successRank))
-				VarSetValueStr(mctx, "$t表达式文本", checkResult.successExpr)
 				VarSetValueInt64(mctx, "$t旧值", checkResult.varValue)
 				VarSetValueInt64(mctx, "$t增量", checkResult.increment)
 				VarSetValueInt64(mctx, "$t新值", checkResult.newVarValue)
 				if checkResult.valid {
 					VarSetValueInt64(mctx, checkResult.varName, checkResult.newVarValue)
 					if checkResult.success {
+						VarSetValueStr(mctx, "$t表达式文本", checkResult.successExpr)
 						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_成功"))
 					} else {
-						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更"))
+						VarSetValueStr(mctx, "$t表达式文本", checkResult.failExpr)
+						if checkResult.failExpr == "" {
+							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败"))
+						} else {
+							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更"))
+						}
 					}
 					VarSetValueInt64(mctx, "$t数量", int64(1))
 
@@ -1085,16 +1090,21 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					VarSetValueInt64(mctx, "$t判定值", checkResult.varValue)
 					VarSetValueStr(mctx, "$t判定结果", checkResult.resultText)
 					VarSetValueInt64(mctx, "$tSuccessRank", int64(checkResult.successRank))
-					VarSetValueStr(mctx, "$t表达式文本", checkResult.successExpr)
 					VarSetValueInt64(mctx, "$t旧值", checkResult.varValue)
 					VarSetValueInt64(mctx, "$t增量", checkResult.increment)
 					VarSetValueInt64(mctx, "$t新值", checkResult.newVarValue)
 					if checkResult.valid {
 						VarSetValueInt64(mctx, checkResult.varName, checkResult.newVarValue)
 						if checkResult.success {
+							VarSetValueStr(mctx, "$t表达式文本", checkResult.successExpr)
 							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_成功_无后缀"))
 						} else {
-							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更_无后缀"))
+							VarSetValueStr(mctx, "$t表达式文本", checkResult.failExpr)
+							if checkResult.failExpr == "" {
+								VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败"))
+							} else {
+								VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更_无后缀"))
+							}
 						}
 						resStr := DiceFormatTmpl(mctx, "COC:技能成长_批量_单条")
 						checkResultStrs = append(checkResultStrs, resStr)
