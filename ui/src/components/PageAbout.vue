@@ -8,15 +8,10 @@
       <div class="top-item"><span style="font-weight: 600;">最新版本: {{ store.curDice.baseInfo.versionNew }}</span></div>
       <div class="top-item" style="font-family: sans-serif;margin-top: 1rem;">官方网站: <el-link type="primary" target="_blank" href="https://www.sealdice.com">https://www.sealdice.com</el-link></div>
       <div class="top-item" style="font-family: sans-serif;">使用手册: <el-link type="primary" target="_blank" href="https://dice.weizaima.com/manual/">https://dice.weizaima.com/manual/</el-link></div>
+      <div class="top-item" style="font-family: sans-serif;">投喂海豹: <el-link type="primary" target="_blank" href="https://dice.weizaima.com/feed/">https://dice.weizaima.com/feed/</el-link></div>
+      <div class="top-item" style="font-family: sans-serif;">源码: <el-link type="primary" target="_blank" href="https://github.com/sealdice/sealdice-core/">https://github.com/sealdice/sealdice-core</el-link></div>
       <div class="top-item">
-        <div style="margin-top: 1rem; font-family: sans-serif;">
-          <div>海洋馆工作人员: </div>
-          <div class="hidden-xs-only">木落(fy0@qq.com)、 Yumeno(184023393)、 鹊鹊(1251343516)</div>
-          <div class="hidden-sm-and-up">
-            <div>木落(fy0@qq.com)</div>
-            <div>Yumeno(184023393)</div>
-            <div>鹊鹊(1251343516)</div>
-          </div>
+        <div style="margin-top: 5rem; font-family: sans-serif;">
         </div>
       </div>
     </div>
@@ -28,6 +23,24 @@
     <div></div>
     <div class="subtitle">社区协力</div>
 
+    <div style="margin-top: 2rem;" class="subtitle">V1.3版本</div>
+    <div class="developers">
+      <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
+      <el-link :underline="false" href="https://github.com/JustAnotherID" target="_blank"><el-avatar shape="circle" :size="50" style="border: 1px solid #aaa;" :src="urlBase + '/sd-api/utils/ga/JustAnotherID'"/>只是另一个ID</el-link>
+      <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Szzrain'"/>Szzrain</el-link>
+      <el-link :underline="false" href="https://github.com/Xiangze-Li" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Xiangze-Li'"/>JohNSoN</el-link>
+      <el-link :underline="false" href="https://github.com/Verplitic" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Verplitic'"/>檀轶步棋</el-link>
+      <el-link :underline="false" href="https://github.com/FlameTEXT" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/FlameTEXT'"/>脑</el-link>
+      <el-link :underline="false" href="https://github.com/fy0" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/fy0'"/>木落</el-link>
+    </div>
+
+    <div style="margin-top: 2rem;" class="subtitle">V1.3安卓端</div>
+    <div class="developers">
+      <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
+      <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Szzrain'"/>Szzrain</el-link>
+      <el-link :underline="false" href="https://github.com/PaienNate" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/PaienNate'"/>PaienNate</el-link>
+    </div>
+
     <div style="margin-top: 2rem;" class="subtitle">V1.2版本</div>
     <div class="developers">
       <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
@@ -35,7 +48,7 @@
       <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Szzrain'"/>Szzrain</el-link>
       <el-link :underline="false" href="https://github.com/yuyannuo" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/yuyannuo'"/>于言诺</el-link>
       <el-link :underline="false" href="https://github.com/Verplitic" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Verplitic'"/>檀轶步棋</el-link>
-      <el-link :underline="false" href="https://github.com/FlameTEXT" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/FlameTEXT'"/>火焰</el-link>
+      <el-link :underline="false" href="https://github.com/FlameTEXT" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/FlameTEXT'"/>脑</el-link>
       <el-link :underline="false" href="https://github.com/SunnyJoyce" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/SunnyJoyce'"/>熊米</el-link>
       <el-link :underline="false" href="https://github.com/VolEurr0Se" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/VolEurr0Se'"/>浣熊旅記</el-link>
       <el-link :underline="false" href="https://github.com/lxy071130" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/lxy071130'"/>流溪</el-link>
