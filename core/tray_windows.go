@@ -252,6 +252,12 @@ func tempDirWarn() {
 	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
 }
 
+func showMsgBox(title string, message string) {
+	s1, _ := syscall.UTF16PtrFromString(title)
+	s2, _ := syscall.UTF16PtrFromString(message)
+	win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONERROR)
+}
+
 func executeWin(name string, arg ...string) *exec.Cmd {
 	cmd := exec.Command(name, arg...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
