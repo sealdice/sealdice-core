@@ -1366,6 +1366,7 @@ func getNumVal(i interface{}) uint {
 func (d *Dice) loads() {
 	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
 
+	// 配置这块弄得比较屎，有机会换个方案。。。
 	if err == nil {
 		dNew := Dice{}
 		err2 := yaml.Unmarshal(data, &dNew)
@@ -1616,6 +1617,11 @@ func (d *Dice) loads() {
 				})
 			}
 
+			// 1.3 版本
+			if d.VersionCode != 0 && d.VersionCode < 10300 {
+				//d.JsEnable = true
+			}
+
 			// 设置全局群名缓存和用户名缓存
 			dm := d.Parent
 			now := time.Now().Unix()
@@ -1654,6 +1660,9 @@ func (d *Dice) loads() {
 		d.TextCmdTrustOnly = true
 		d.PlayerNameWrapEnable = true
 		d.DiceMasters = []string{"UI:1001"}
+
+		// 1.3
+		d.JsEnable = true
 	}
 
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {

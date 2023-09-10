@@ -156,3 +156,22 @@ func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, err
 	// 不存在的值，强行补0
 	return &VMValue{TypeId: VMTypeInt64, Value: int64(0)}, nil
 }
+
+func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*VMValue, error) {
+	// 跟 showas 一样，但是不采用showas而是返回实际值1
+	// 显示本体
+	ch, _ := ctx.ChVarsGet()
+	_v, exists := ch.Get(k)
+	if exists {
+		return _v.(*VMValue), nil
+	}
+
+	// 默认值
+	v := t.GetDefaultValueEx(ctx, k)
+	if v != nil {
+		return v, nil
+	}
+
+	// 不存在的值，强行补0
+	return &VMValue{TypeId: VMTypeInt64, Value: int64(0)}, nil
+}

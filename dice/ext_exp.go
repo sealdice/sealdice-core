@@ -36,10 +36,7 @@ func cmdStGetPickItemAndLimit(tmpl *GameSystemTemplate, cmdArgs *CmdArgs) (pickI
 	return pickItems, limit
 }
 
-func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, limit int64) (items []string, droppedByLimit int, err error) {
-	usePickItem := len(pickItems) > 0
-	useLimit := limit > 0
-	limitSkipCount := 0
+func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, limit int64) (topNum int, items []string) {
 	items = []string{}
 
 	// 或者有pickItems，或者当前的变量数量大于0
@@ -141,6 +138,23 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 			}
 		}
 
+		// 排序完成，返回
+		return topNum, attrKeys
+	}
+
+	return -1, []string{}
+}
+
+func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, limit int64) (items []string, droppedByLimit int, err error) {
+	usePickItem := len(pickItems) > 0
+	useLimit := limit > 0
+	limitSkipCount := 0
+	items = []string{}
+
+	topNum, attrKeys := cmdStSortNamesByTmpl(mctx, tmpl, pickItems, limit)
+
+	// 或者有pickItems，或者当前的变量数量大于0
+	if len(attrKeys) > 0 {
 		// 遍历输出
 		for index, k := range attrKeys {
 			if strings.HasPrefix(k, "$") {
@@ -167,6 +181,36 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 			}
 
 			items = append(items, fmt.Sprintf("%s:%s", k, v.ToString()))
+		}
+	}
+
+	return items, limitSkipCount, nil
+}
+
+func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate) (items []string, droppedByLimit int, err error) {
+	// 修改自 cmdStGetItemsForShow
+	limitSkipCount := 0
+	items = []string{}
+	_, attrKeys := cmdStSortNamesByTmpl(mctx, tmpl, map[string]int{}, 0)
+
+	// 或者有pickItems，或者当前的变量数量大于0
+	if len(attrKeys) > 0 {
+		// 遍历输出
+		for _, k := range attrKeys {
+			if strings.HasPrefix(k, "$") {
+				continue
+			}
+
+			v, err := tmpl.GetRealValue(mctx, k)
+			if err != nil {
+				return nil, 0, errors.New("模板卡异常, 属性: " + k)
+			}
+
+			if v.TypeId == VMTypeComputedValue {
+				items = append(items, fmt.Sprintf("&%s:%s", k, v.ToString()))
+			} else {
+				items = append(items, fmt.Sprintf("%s:%s", k, v.ToString()))
+			}
 		}
 	}
 
@@ -334,7 +378,7 @@ func getCmdStBase() *CmdItemInfo {
 	helpSt += ".st clr // 清除属性\n"
 	helpSt += ".st fmt // 强制转卡为当前规则(改变卡片类型，转换同义词)\n"
 	helpSt += ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"
-	//helpSt += ".st export // 导出\n"
+	helpSt += ".st export // 导出\n"
 	helpSt += ".st help // 帮助\n"
 	helpSt += ".st <属性><值> // 例：.st 敏捷50 力量3d6*5\n"
 	helpSt += ".st &<属性>=<式子> // 例：.st &手枪=1d6\n"
@@ -346,7 +390,7 @@ func getCmdStBase() *CmdItemInfo {
 		Help:          "属性修改指令，支持分支指令如下:\n" + helpSt,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list")
+			cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list", "export")
 			dice := ctx.Dice
 			val := cmdArgs.GetArgN(1)
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
@@ -400,6 +444,29 @@ func getCmdStBase() *CmdItemInfo {
 				VarSetValueStr(mctx, "$t属性信息", info)
 				extra := ReadCardTypeEx(mctx, ctx.Group.System)
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
+
+			case "export":
+				items, _, err := cmdStGetItemsForExport(mctx, tmpl)
+				if err != nil {
+					ReplyToSender(mctx, msg, err.Error())
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				info := ".st clr\n.st "
+				for _, i := range items {
+					info += i
+					info += " "
+				}
+				playerName := DiceFormat(mctx, "{$t玩家_RAW}")
+				if playerName != "" {
+					info += "\n.nn " + playerName
+				}
+
+				if len(items) == 0 {
+					info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
+				}
+
+				ReplyToSender(mctx, msg, info)
 
 			case "del", "rm":
 				var nums []string
