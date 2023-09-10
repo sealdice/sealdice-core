@@ -37,7 +37,7 @@ export const urlBase = process.env.NODE_ENV == 'development' ?
 
 
 // 逐渐使用ofetch替换axios
-export let apiFetch = ofetch.create({
+export const apiFetch = ofetch.create({
   baseURL: urlBase,
   retry: 3,
   method: 'POST'

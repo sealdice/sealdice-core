@@ -21,7 +21,7 @@
         <el-form label-position="top" :model="uploadForm" :rules="uploadRules" ref="uploadFormRef">
           <el-form-item label="分组" prop="group">
             <el-select v-model="uploadForm.group" placeholder="选择分组" filterable clearable allow-create>
-              <el-option v-for="group in docGroups" :key="group.key" :label="group.lable" :value="group.key" />
+              <el-option v-for="group in docGroups" :key="group.key" :label="group.label" :value="group.key" />
             </el-select>
           </el-form-item>
           <el-form-item label="帮助文档" prop="files">
@@ -63,7 +63,7 @@
               </div>
               <div v-if="!data.isDir" class="file-tag">
                 <el-tag :type="getHelpDocTag(data.loadStatus, data.deleted, data.group).type" size="small">
-                  {{ getHelpDocTag(data.loadStatus, data.deleted, data.group).lable }}
+                  {{ getHelpDocTag(data.loadStatus, data.deleted, data.group).label }}
                 </el-tag>
               </div>
             </div>
@@ -81,8 +81,8 @@
             </el-form-item>
             <el-form-item label="分组">
               <el-select v-model="textItemQuery.group" placeholder="选择分组" filterable clearable>
-                <el-option v-for="group in [{ key: 'builtin', lable: '内置' }, ...docGroups]" :key="group.key"
-                  :label="group.lable" :value="group.key" />
+                <el-option v-for="group in [{ key: 'builtin', label: '内置' }, ...docGroups]" :key="group.key"
+                  :label="group.label" :value="group.key" />
               </el-select>
               <!-- <el-input v-model="textItemQuery.group" clearable /> -->
             </el-form-item>
@@ -136,7 +136,7 @@ import { computed } from 'vue';
 
 interface Group {
   key: string,
-  lable: string,
+  label: string,
 }
 
 const store = useStore()
@@ -242,26 +242,26 @@ const deleteFiles = async () => {
   }
 }
 
-const getHelpDocTag = (loadStatus: number, deleted: boolean, group: string): { type: "" | "success" | "warning" | "info" | "danger", lable: string } => {
+const getHelpDocTag = (loadStatus: number, deleted: boolean, group: string): { type: "" | "success" | "warning" | "info" | "danger", label: string } => {
   if (loadStatus === 0) {
     return {
       type: "warning",
-      lable: "未加载"
+      label: "未加载"
     }
   } else if (loadStatus === 2) {
     return {
       type: "danger",
-      lable: "格式有误"
+      label: "格式有误"
     }
   } else if (deleted) {
     return {
       type: "warning",
-      lable: group
+      label: group
     }
   } else {
     return {
       type: "success",
-      lable: group
+      label: group
     }
   }
 }
@@ -272,24 +272,24 @@ const refreshFileTree = async () => {
     docTree.value = resp.data.map((entry) => {
       const e: any = { ...entry }
       if (entry.loadStatus === 0) {
-        e.groupLableType = "warning"
-        e.groupLable = "未加载"
+        e.groupLabelType = "warning"
+        e.groupLabel = "未加载"
       } else if (entry.loadStatus === 2) {
-        e.groupLableType = "error"
-        e.groupLable = "加载失败"
+        e.groupLabelType = "error"
+        e.groupLabel = "加载失败"
       } else if (entry.deleted) {
-        e.groupLableType = "warning"
-        e.groupLable = entry.group
+        e.groupLabelType = "warning"
+        e.groupLabel = entry.group
       } else {
-        e.groupLableType = "success"
-        e.groupLable = entry.group
+        e.groupLabelType = "success"
+        e.groupLabel = entry.group
       }
       return e
     })
-    docGroups.value = [{ lable: "默认", key: "default" }, ...resp.data.filter((entry) => {
+    docGroups.value = [{ label: "默认", key: "default" }, ...resp.data.filter((entry) => {
       return entry.isDir
     }).map((entry) => {
-      return { lable: entry.name, key: entry.name }
+      return { label: entry.name, key: entry.name }
     })]
   } else {
     ElMessage.error('无法获取帮助文件信息')

@@ -11,7 +11,7 @@ const _passwordResultToText = function (keyBuffer: ArrayBuffer, saltUint8: Array
   const saltArray = Array.from(new Uint8Array(saltUint8)) // salt as byte array
 
   const iterHex = ('000000' + iterations.toString(16)).slice(-6) // iter’n count as hex
-  let ret = iterHex.match(/.{2}/g)
+  const ret = iterHex.match(/.{2}/g)
   if (!ret) return ''
   const iterArray = ret.map(byte => parseInt(byte, 16)) // iter’ns as byte array
 

@@ -24,7 +24,7 @@ if (!String.prototype.matchAll) {
     if (typeof rx === "string") rx = new RegExp(rx, "g"); // coerce a string to be a global regex
     rx = new RegExp(rx); // Clone the regex so we don't update the last index on the regex they pass us
     let cap = []; // the single capture
-    let all = []; // all the captures (return this)
+    const all = []; // all the captures (return this)
     while ((cap = rx.exec(this)) !== null) all.push(cap); // execute and add
     return all; // profit!
   };

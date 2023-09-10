@@ -12,3 +12,4 @@ pnpm-lock.yaml
 *.log
 
 .idea
+/.vscode/settings.json

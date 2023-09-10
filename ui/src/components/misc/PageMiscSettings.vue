@@ -601,7 +601,7 @@ const nameWrapUncheck = (v: boolean) => {
         type: 'warning',
       }
     ).catch(e => {
-      config.playerNameWrapEnable = true;
+      config.value.playerNameWrapEnable = true;
     })
   }
 }

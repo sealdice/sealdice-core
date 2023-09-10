@@ -72,7 +72,7 @@ interface DiceServer {
   conns: DiceConnection[]
   baseInfo: DiceBaseInfo
   qrcodes: { [key: string]: string }
-};
+}
 
 interface DiceBaseInfo {
   version: string
@@ -496,7 +496,7 @@ export const useStore = defineStore('main', {
 
     async trySignIn(): Promise<boolean> {
       this.salt = (await backend.get(urlPrefix+'/signin/salt') as any).salt
-      let token = localStorage.getItem('t')
+      const token = localStorage.getItem('t')
       try {
         await backend.get(urlPrefix+'/hello', {
           headers: {token: token as string}

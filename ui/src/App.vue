@@ -1,7 +1,4 @@
 <template>
-  <!-- <BaseHeader /> -->
-  <!-- <HelloWorld msg="Hello Vue 3.0 + Element Plus + Vite" /> -->
-
   <div
     id="root"
     style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 900px; width: 100%; margin: 0 auto; position: relative;"
@@ -220,8 +217,6 @@
 </template>
 
 <script setup lang="ts">
-import BaseHeader from "./components/layouts/BaseHeader.vue";
-import HelloWorld from "./components/HelloWorld.vue";
 import PageCustomText from "./components/PageCustomText.vue";
 import PageConnectInfoItems from "./components/PageConnectInfoItems.vue";
 import PageMisc from "./components/PageMisc.vue"
