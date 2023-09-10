@@ -880,7 +880,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 .en <技能名称>(技能点数) // 骰D100，若点数大于技能点数，属性=技能点数+1d10
 .en <技能名称>(技能点数) +<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点
 .en <技能名称>(技能点数) +<失败成长值>/<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点，否则增加失败
-.en <技能名称1> <技能名称2> // 批量技能成长，支持上述多种格式，每个技能用空格分开`
+.en <技能名称1> <技能名称2> // 批量技能成长，支持上述多种格式，复杂情况建议用|隔开每个技能`
 
 	cmdEn := &CmdItemInfo{
 		Name:          "en",
@@ -889,7 +889,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		AllowDelegate: false,
 		Solve: func(mctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// .en [技能名称]([技能值])+(([失败成长值]/)[成功成长值])
-			re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+(([^/]+)/)?\s*(.+))?`)
+			// FIXME: 实在是被正则绕晕了，把多组和每组的正则分开了
+			re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+\s*([-+\ddD]+\s*/)?\s*([-+\ddD]+))?[^|]*?`)
 			// 支持多组技能成长
 			skills := re.FindAllString(cmdArgs.CleanArgs, -1)
 
@@ -916,9 +917,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			SkillTypeError := fmt.Errorf("skill value type error")
 			SuccessExprFormatError := fmt.Errorf("success expr format error")
 			FailExprFormatError := fmt.Errorf("fail expr format error")
+			singleRe := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+(([^/]+)/)?\s*(.+))?`)
 			check := func(skill string) (checkResult enCheckResult) {
 				checkResult.valid = true
-				m := re.FindStringSubmatch(skill)
+				m := singleRe.FindStringSubmatch(skill)
 				tmpl := cardRuleCheck(mctx, msg)
 				if tmpl == nil {
 					checkResult.valid = false
@@ -1036,16 +1038,21 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				VarSetValueInt64(mctx, "$t判定值", checkResult.varValue)
 				VarSetValueStr(mctx, "$t判定结果", checkResult.resultText)
 				VarSetValueInt64(mctx, "$tSuccessRank", int64(checkResult.successRank))
-				VarSetValueStr(mctx, "$t表达式文本", checkResult.successExpr)
 				VarSetValueInt64(mctx, "$t旧值", checkResult.varValue)
 				VarSetValueInt64(mctx, "$t增量", checkResult.increment)
 				VarSetValueInt64(mctx, "$t新值", checkResult.newVarValue)
 				if checkResult.valid {
 					VarSetValueInt64(mctx, checkResult.varName, checkResult.newVarValue)
 					if checkResult.success {
+						VarSetValueStr(mctx, "$t表达式文本", checkResult.successExpr)
 						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_成功"))
 					} else {
-						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更"))
+						VarSetValueStr(mctx, "$t表达式文本", checkResult.failExpr)
+						if checkResult.failExpr == "" {
+							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败"))
+						} else {
+							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更"))
+						}
 					}
 					VarSetValueInt64(mctx, "$t数量", int64(1))
 
@@ -1085,16 +1092,21 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					VarSetValueInt64(mctx, "$t判定值", checkResult.varValue)
 					VarSetValueStr(mctx, "$t判定结果", checkResult.resultText)
 					VarSetValueInt64(mctx, "$tSuccessRank", int64(checkResult.successRank))
-					VarSetValueStr(mctx, "$t表达式文本", checkResult.successExpr)
 					VarSetValueInt64(mctx, "$t旧值", checkResult.varValue)
 					VarSetValueInt64(mctx, "$t增量", checkResult.increment)
 					VarSetValueInt64(mctx, "$t新值", checkResult.newVarValue)
 					if checkResult.valid {
 						VarSetValueInt64(mctx, checkResult.varName, checkResult.newVarValue)
 						if checkResult.success {
+							VarSetValueStr(mctx, "$t表达式文本", checkResult.successExpr)
 							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_成功_无后缀"))
 						} else {
-							VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更_无后缀"))
+							VarSetValueStr(mctx, "$t表达式文本", checkResult.failExpr)
+							if checkResult.failExpr == "" {
+								VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败"))
+							} else {
+								VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:技能成长_结果_失败变更_无后缀"))
+							}
 						}
 						resStr := DiceFormatTmpl(mctx, "COC:技能成长_批量_单条")
 						checkResultStrs = append(checkResultStrs, resStr)
