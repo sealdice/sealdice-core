@@ -890,7 +890,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Solve: func(mctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// .en [技能名称]([技能值])+(([失败成长值]/)[成功成长值])
 			// FIXME: 实在是被正则绕晕了，把多组和每组的正则分开了
-			re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+([-+\ddD]+/)?([-+\ddD]+))?[^|]*?`)
+			re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+\s*([-+\ddD]+\s*/)?\s*([-+\ddD]+))?[^|]*?`)
 			// 支持多组技能成长
 			skills := re.FindAllString(cmdArgs.CleanArgs, -1)
 
