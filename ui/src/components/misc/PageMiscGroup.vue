@@ -102,7 +102,7 @@ const groupItems = computed<any[]>(() => {
       }
 
       if (ok) {
-        const t = Math.max(i.enteredTime, i.recentCommandTime)
+        const t = Math.max(i.enteredTime || 0, i.recentCommandTime || 0)
         if (filter30daysUnused.value) {
           if (now() / 1000 - t < 30 * 24 * 60 * 60) {
             ok = false;

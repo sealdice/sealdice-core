@@ -202,11 +202,11 @@ const submitUpload = async (formData: FormInstance | undefined) => {
 
 const fileTreeRef = ref<InstanceType<typeof ElTree>>()
 const showDeleteFile = computed(() => {
-  const checkedFileKeys = fileTreeRef.value!.getCheckedKeys(false) as string[]
-  return checkedFileKeys.length !== 0
+  const checkedFileKeys = fileTreeRef.value?.getCheckedKeys(false) as string[]
+  return checkedFileKeys?.length !== 0
 })
 const deleteFiles = async () => {
-  const checkedFileKeys = fileTreeRef.value!.getCheckedKeys(false) as string[]
+  const checkedFileKeys = fileTreeRef.value?.getCheckedKeys(false) as string[]
   if (checkedFileKeys && checkedFileKeys.length !== 0) {
     ElMessageBox.confirm(
       '确认删除选择的文件吗？',
