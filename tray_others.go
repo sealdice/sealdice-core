@@ -30,6 +30,9 @@ func TestRunning() bool {
 func tempDirWarn() {
 	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
 }
+func showMsgBox(title string, message string) {
+	fmt.Println(title, message)
+}
 
 func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	portStr := "3211"
