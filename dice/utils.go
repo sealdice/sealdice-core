@@ -504,12 +504,18 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 	case "private":
 		// msg.Sender.UserId 确保存在
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		if ctx.Player == nil {
+			ctx.Player = &GroupPlayerInfo{}
+		}
 		if ctx.Player.Name == "" {
 			ctx.Player.Name = "<未知用户>"
 		}
 		SetTempVars(ctx, ctx.Player.Name)
 	case "group":
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		if ctx.Player == nil {
+			ctx.Player = &GroupPlayerInfo{}
+		}
 		if ctx.Player.Name == "" {
 			ctx.Player.Name = "<未知用户>"
 		}
