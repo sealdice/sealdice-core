@@ -37,8 +37,6 @@ func cmdStGetPickItemAndLimit(tmpl *GameSystemTemplate, cmdArgs *CmdArgs) (pickI
 }
 
 func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, limit int64) (topNum int, items []string) {
-	items = []string{}
-
 	// 或者有pickItems，或者当前的变量数量大于0
 	if len(pickItems) > 0 || mctx.ChVarsNumGet() > 0 {
 		// 按照配置文件排序
