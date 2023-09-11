@@ -81,6 +81,7 @@ func ImConnectionsSetData(c echo.Context) error {
 		Protocol            int    `form:"protocol" json:"protocol"`
 		IgnoreFriendRequest bool   `json:"ignoreFriendRequest"` // 忽略好友请求
 		UseSignServer       bool   `json:"useSignServer"`
+		ExtraArgs           string `json:"extraArgs"`
 		SignServerConfig    *dice.SignServerConfig
 	}{}
 
@@ -104,6 +105,7 @@ func ImConnectionsSetData(c echo.Context) error {
 						ad.SignServerConfig = v.SignServerConfig
 					}
 					ad.IgnoreFriendRequest = v.IgnoreFriendRequest
+					ad.ExtraArgs = v.ExtraArgs
 				}
 				return c.JSON(http.StatusOK, i)
 			}

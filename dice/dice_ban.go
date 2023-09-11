@@ -224,7 +224,7 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 
 			if ctx != nil {
 				// 做出通知
-				ctx.Notice(txt, true)
+				ctx.Notice(txt)
 
 				// 发给当事人
 				ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserId: uid}}, "提醒：你引发了黑名单事件:\n"+txt, "")

@@ -101,7 +101,7 @@ func groupQuit(c echo.Context) error {
 					myDice.Logger.Info(_txt)
 
 					ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep, Session: myDice.ImSession}
-					ctx.Notice(_txt, true)
+					ctx.Notice(_txt)
 					//dice.SetBotOffAtGroup(ctx, group.GroupId)
 
 					if !v.Silence {
