@@ -426,6 +426,21 @@
             <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
           </small>
         </el-form-item>
+
+        <!-- <el-form-item label="附加参数" :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>附加参数</span>
+              <el-tooltip content="默认参数的作用为让gocqhttp在启动时自动更新协议" style="">
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-input v-model="form.extraArgs" type="string" autocomplete="off"></el-input>
+        </el-form-item> -->
+
         <el-form-item v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)"
           :label-width="formLabelWidth">
           <template #label>
@@ -1156,6 +1171,7 @@ const form = reactive({
   url:'',
   clientID:'',
   ignoreFriendRequest: false,
+  extraArgs: '',
   endpoint: null as any as DiceConnection,
 
   relWorkDir: '',

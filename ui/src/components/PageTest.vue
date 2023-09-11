@@ -44,6 +44,15 @@ onBeforeMount(async () => {
                     isSeal: true
                 })
             }
+            if (msg.length) {
+              // 拉下滚动条
+              nextTick(() => {
+                const el = chat.value as any
+                if (el) {
+                  el.scrollTop = el.scrollHeight
+                }
+              })
+            }
         } catch (e: any) {
 
         }

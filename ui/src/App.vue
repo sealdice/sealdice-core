@@ -1,7 +1,7 @@
 <template>
   <div
     id="root"
-    style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 900px; width: 100%; margin: 0 auto; position: relative;"
+    style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 950px; width: 100%; margin: 0 auto; position: relative;"
   >
     <h3
       class="mb-2"
