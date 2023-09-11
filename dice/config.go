@@ -1618,9 +1618,9 @@ func (d *Dice) loads() {
 			}
 
 			// 1.3 版本
-			if d.VersionCode != 0 && d.VersionCode < 10300 {
-				//d.JsEnable = true
-			}
+			//if d.VersionCode != 0 && d.VersionCode < 10300 {
+			//d.JsEnable = true
+			//}
 
 			// 设置全局群名缓存和用户名缓存
 			dm := d.Parent

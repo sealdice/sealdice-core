@@ -79,6 +79,6 @@ func LogItemFixDatatype() error {
 	}
 
 	fmt.Println("修复log_items表message字段类型成功")
-	db.Exec(`vacuum;`)
+	_, _ = db.Exec(`vacuum;`)
 	return nil
 }
