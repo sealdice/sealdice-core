@@ -10,9 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sealdice-core/dice/model"
 	"strings"
 	"time"
+
+	"github.com/golang-module/carbon"
 
 	"github.com/fy0/lockfree"
 	"go.uber.org/zap"
@@ -134,7 +137,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log stat (<日志名>) // 查看统计
 .log stat (<日志名>) --all // 查看统计(全团)，--all前必须有空格
 .log list <群号> // 查看指定群的日志列表(无法取得日志时，找骰主做这个操作)
-.log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)`
+.log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)
+.log export <日志名> // 直接取得日志txt(服务出问题或有其他需要时使用)
+.log export <日志名> <邮箱地址> // 通过邮件取得日志txt，多个邮箱用空格隔开`
 
 	txtLogTip := "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
 
@@ -405,6 +410,68 @@ func RegisterBuiltinExtLog(self *Dice) {
 					}
 				}
 				ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "export") {
+				logName := group.LogCurName
+				if newName := cmdArgs.GetArgN(2); newName != "" {
+					logName = newName
+				}
+				if logName != "" {
+					now := carbon.Now()
+					VarSetValueStr(ctx, "$t记录名", logName)
+					VarSetValueStr(ctx, "$t日期", now.ToShortDateString())
+					VarSetValueStr(ctx, "$t时间", now.ToShortTimeString())
+					logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
+					logFile, err := GetLogTxt(ctx, group.GroupId, logName, logFileNamePrefix)
+					if err != nil {
+						ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
+					}
+
+					var emails []string
+					if len(cmdArgs.Args) > 2 {
+						emails = cmdArgs.Args[2:]
+						// 试图发送邮件
+						dice := ctx.Session.Parent
+						if dice.CanSendMail() {
+							rightEmails := make([]string, 0, len(emails))
+							emailExp := regexp.MustCompile(`.*@.*`)
+							for _, email := range emails {
+								if emailExp.MatchString(email) {
+									rightEmails = append(rightEmails, email)
+								}
+							}
+							if len(rightEmails) > 0 {
+								dice.SendMailRow(
+									fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
+									rightEmails,
+									"",
+									[]string{logFile.Name()},
+								)
+								text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
+								ReplyToSenderRaw(ctx, msg, text, "skip")
+								return CmdExecuteResult{Matched: true, Solved: true}
+							} else {
+								ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_无格式有效邮箱"), "skip")
+							}
+						} else {
+							ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
+						}
+					}
+
+					var uri string
+					if runtime.GOOS == "windows" {
+						uri = "files:///" + logFile.Name()
+					} else {
+						uri = "files://" + logFile.Name()
+					}
+					SendFileToSenderRaw(ctx, msg, uri, "skip")
+					err = os.Remove(logFile.Name())
+					if err != nil {
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+				} else {
+					ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_未指定记录"), "skip")
+				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -797,6 +864,28 @@ func LogDeleteById(ctx *MsgContext, groupId string, logName string, messageId in
 		return false
 	}
 	return true
+}
+
+func GetLogTxt(ctx *MsgContext, groupId string, logName string, fileNamePrefix string) (*os.File, error) {
+	tempLog, err := os.CreateTemp("", fmt.Sprintf("%s(*).txt", fileNamePrefix))
+	if err != nil {
+		return nil, errors.New("log导出出现未知错误")
+	}
+
+	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupId, logName)
+	if len(lines) == 0 {
+		return nil, errors.New("此log不存在，或条目数为空，名字是否正确？")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	for _, line := range lines {
+		timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
+		text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserId, timeTxt, line.Message)
+		_, _ = tempLog.Write([]byte(text))
+	}
+	return tempLog, nil
 }
 
 func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, error) {

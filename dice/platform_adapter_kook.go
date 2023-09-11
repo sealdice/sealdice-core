@@ -408,12 +408,76 @@ func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupId string, text
 	}, flag)
 }
 
+func (pa *PlatformAdapterKook) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
+	channel, err := pa.IntentSession.UserChatCreate(ExtractKookUserId(userId))
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("创建Kook用户#%s的私聊频道时出错:%s", userId, err)
+		return
+	}
+	pa.SendFileToChannelRaw(channel.Code, path, true)
+}
+
+func (pa *PlatformAdapterKook) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
+	pa.SendFileToChannelRaw(ExtractKookChannelId(groupId), path, false)
+}
+
 func (pa *PlatformAdapterKook) MemberBan(groupId string, userId string, last int64) {
 
 }
 
 func (pa *PlatformAdapterKook) MemberKick(groupId string, userId string) {
 
+}
+
+func (pa *PlatformAdapterKook) SendFileToChannelRaw(id string, path string, private bool) {
+	bot := pa.IntentSession
+	dice := pa.Session.Parent
+	e, err := dice.FilepathToFileElement(path)
+	if err != nil {
+		dice.Logger.Errorf("向Kook频道#%s发送文件[path=%s]时出错:%s", id, path, err)
+		return
+	}
+
+	StreamToByte := func(stream io.Reader) []byte {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(stream)
+		if err != nil {
+			return nil
+		}
+		return buf.Bytes()
+	}
+	assert, err := bot.AssetCreate(e.File, StreamToByte(e.Stream))
+	if err != nil {
+		dice.Logger.Errorf("Kook创建asserts时出错:%s", err)
+		return
+	}
+
+	card := CardMessage{
+		Type:  "card",
+		Theme: "primary",
+		Size:  "lg",
+	}
+	cardModule := CardMessageModuleFile{
+		Type:  "file",
+		Title: e.File,
+		Src:   assert,
+	}
+	card.Modules = append(card.Modules, cardModule)
+	cardArray := []CardMessage{card}
+	sendText, err := json.Marshal(cardArray)
+	if err != nil {
+		dice.Logger.Errorf("Kook创建card时出错:%s", err)
+		return
+	}
+	msgb := kook.MessageCreateBase{
+		Content: "",
+		Type:    kook.MessageTypeCard,
+	}
+	msgb.Content = string(sendText)
+	err = pa.MessageCreateRaw(msgb, id, private)
+	if err != nil {
+		dice.Logger.Errorf("向Kook频道#%s发送文件[path=%s]时出错:%s", id, path, err)
+	}
 }
 
 func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private bool) {

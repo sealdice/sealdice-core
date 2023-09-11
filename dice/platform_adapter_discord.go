@@ -291,6 +291,44 @@ func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupId string, t
 	}, flag)
 }
 
+func (pa *PlatformAdapterDiscord) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
+	is := pa.IntentSession
+	ch, err := is.UserChannelCreate(ExtractDiscordUserId(userId))
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userId, err)
+		return
+	}
+	pa.sendFileToChannelRaw(ch.ID, path)
+}
+
+func (pa *PlatformAdapterDiscord) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
+	pa.sendFileToChannelRaw(groupId, path)
+}
+
+func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelId string, path string) {
+	dice := pa.Session.Parent
+	e, err := dice.FilepathToFileElement(path)
+	id := ExtractDiscordChannelId(channelId)
+	if err != nil {
+		dice.Logger.Errorf("向Discord频道#%s发送文件[path=%s]时出错:%s", id, path, err)
+		return
+	}
+
+	var files []*discordgo.File
+	files = append(files, &discordgo.File{
+		Name:        e.File,
+		ContentType: e.ContentType,
+		Reader:      e.Stream,
+	})
+	msgSend := &discordgo.MessageSend{Content: ""}
+	msgSend.Files = files
+	_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+	if err != nil {
+		dice.Logger.Errorf("向Discord频道#%s发送文件[path=%s]时出错:%s", id, path, err)
+		return
+	}
+}
+
 func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string) {
 	dice := pa.Session.Parent
 	logger := pa.Session.Parent.Logger
