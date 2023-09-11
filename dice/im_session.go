@@ -400,7 +400,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, group.GroupId, autoOn)
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 			log.Info(txt)
-			mctx.Notice(txt, true)
+			mctx.Notice(txt)
 
 			if msg.Platform == "QQ" || msg.Platform == "TG" {
 				if mctx.Session.ServiceAtNew[msg.GroupId] != nil {
@@ -1077,10 +1077,47 @@ func (ep *EndPointInfo) RefreshGroupNum() {
 	}
 }
 
-// Notice 向通知列表发送通知
-//   - txt 通知内容
-//   - allowCrossPlatform 是否允许跨平台发送
-func (ctx *MsgContext) Notice(txt string, allowCrossPlatform bool) {
+func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
+	// 通知种类之一：每个noticeId  *  每个平台匹配的ep：存活
+	// TODO: 先复制几次实现，后面重构
+	foo := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				d.Logger.Errorf("发送通知异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+
+		if d.MailEnable {
+			d.SendMail(txt, MailTypeNotice)
+			return
+		}
+
+		for _, ep := range d.ImSession.EndPoints {
+			ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
+
+			for _, i := range ctx.Dice.NoticeIds {
+				n := strings.Split(i, ":")
+				// 如果文本中没有-，则会取到整个字符串
+				// 但好像不严谨，比如QQ-CH-Group
+				prefix := strings.Split(n[0], "-")[0]
+
+				if len(n) >= 2 && prefix == ep.Platform {
+					if strings.HasSuffix(n[0], "-Group") {
+						ReplyGroup(ctx, &Message{GroupId: i}, txt)
+					} else {
+						ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
+					}
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}
+	go foo()
+}
+
+func (ctx *MsgContext) NoticeCrossPlatform(txt string) {
+	// 通知种类之二：每个noticeId  *  第一个平台匹配的ep：跨平台通知
+	// TODO: 先复制几次实现，后面重构
 	foo := func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -1089,7 +1126,7 @@ func (ctx *MsgContext) Notice(txt string, allowCrossPlatform bool) {
 		}()
 
 		if ctx.Dice.MailEnable {
-			ctx.Dice.SendMail(txt, Notice)
+			ctx.Dice.SendMail(txt, MailTypeNotice)
 			return
 		}
 
@@ -1119,15 +1156,51 @@ func (ctx *MsgContext) Notice(txt string, allowCrossPlatform bool) {
 				continue // 找到对应平台、调用了发送的在此即切出循环
 			}
 
-			// 如果走到这里，一定是没有找到对应的平台
-			if allowCrossPlatform {
-				if done := CrossMsgBySearch(ctx.Session, seg, i, txt, messageType == "private"); !done {
-					ctx.Dice.Logger.Errorf("尝试跨平台后仍未能向 %s 发送通知：%s", i, txt)
-				} else {
-					sent = true
-					time.Sleep(1 * time.Second)
-				}
+			// 如果走到这里，说明当前ep不是noticeId对应的平台
+			if done := CrossMsgBySearch(ctx.Session, seg, i, txt, messageType == "private"); !done {
+				ctx.Dice.Logger.Errorf("尝试跨平台后仍未能向 %s 发送通知：%s", i, txt)
+			} else {
+				sent = true
+				time.Sleep(1 * time.Second)
 			}
+		}
+
+		if !sent {
+			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+		}
+	}
+	go foo()
+}
+
+func (ctx *MsgContext) Notice(txt string) {
+	// Notice
+	// 通知种类之三：每个noticeId  * 当前mctx的ep：不跨平台通知
+	// TODO: 先复制几次实现，后面重构
+	foo := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				ctx.Dice.Logger.Errorf("发送通知异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+
+		if ctx.Dice.MailEnable {
+			ctx.Dice.SendMail(txt, MailTypeNotice)
+			return
+		}
+
+		sent := false
+
+		for _, i := range ctx.Dice.NoticeIds {
+			n := strings.Split(i, ":")
+			if len(n) >= 2 {
+				if strings.HasSuffix(n[0], "-Group") {
+					ReplyGroup(ctx, &Message{GroupId: i}, txt)
+				} else {
+					ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
+				}
+				sent = true
+			}
+			time.Sleep(1 * time.Second)
 		}
 
 		if !sent {

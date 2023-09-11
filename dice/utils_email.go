@@ -9,14 +9,14 @@ import (
 type MailCode int
 
 const (
-	// 掉线
-	OnebotClose MailCode = iota
-	// 风控 // tx 云把 Customer Identity Access Management 叫做 账号风控平台……
-	CIAMLock
-	// 通知
-	Notice
-	// send 指令
-	SendNote
+	// MailTypeOnebotClose 掉线
+	MailTypeOnebotClose MailCode = iota
+	// MailTypeCIAMLock 风控 // tx 云把 Customer Identity Access Management 叫做 账号风控平台……
+	MailTypeCIAMLock
+	// MailTypeNotice 通知
+	MailTypeNotice
+	// MailTypeSendNote send 指令
+	MailTypeSendNote
 )
 
 func (d *Dice) SendMail(body string, m MailCode) {
@@ -26,13 +26,13 @@ func (d *Dice) SendMail(body string, m MailCode) {
 	body += "\n自动邮件，无需回复。"
 	sub := "Seal News!"
 	switch m {
-	case OnebotClose:
+	case MailTypeOnebotClose:
 		sub = "Onebot 连接中断"
-	case CIAMLock:
+	case MailTypeCIAMLock:
 		sub = "Bot 机器人被风控"
-	case Notice:
+	case MailTypeNotice:
 		sub = "Event 事件通知"
-	case SendNote:
+	case MailTypeSendNote:
 		sub = "Send 指令反馈"
 	}
 	var to []string

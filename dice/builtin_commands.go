@@ -504,7 +504,7 @@ func (d *Dice) registerCoreCommands() {
 							userName := ctx.Dice.Parent.TryGetUserName(msg.Sender.UserId)
 							_txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)", ctx.Group.GroupName, msg.GroupId, userName, msg.Sender.UserId)
 							d.Logger.Info(_txt)
-							ctx.Notice(_txt, true)
+							ctx.Notice(_txt)
 							SetBotOffAtGroup(ctx, ctx.Group.GroupId)
 							time.Sleep(6 * time.Second)
 							ctx.Group.DiceIdExistsMap.Delete(ctx.EndPoint.UserId)
@@ -921,7 +921,7 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			} else {
 				if d.MailEnable {
-					ctx.Dice.SendMail(cmdArgs.CleanArgs, SendNote)
+					ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
