@@ -1703,7 +1703,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			".init del <单位1> <单位2> ... // 从先攻列表中删除\n" +
 			".init set <单位名称> <先攻表达式> // 设置单位的先攻\n" +
 			".init clr // 清除先攻列表\n" +
-			".init ed // 结束一回合" +
+			".init end // 结束一回合" +
 			".init help // 显示本帮助",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("del", "set", "rm", "ed")
