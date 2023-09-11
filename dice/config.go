@@ -1618,9 +1618,23 @@ func (d *Dice) loads() {
 			}
 
 			// 1.3 版本
-			//if d.VersionCode != 0 && d.VersionCode < 10300 {
-			//d.JsEnable = true
-			//}
+			if d.VersionCode != 0 && d.VersionCode < 10300 {
+				d.JsEnable = true
+
+				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+					// 更正写反的部分
+					d.Logger.Info("正在自动升级自定义文案文件")
+					for index, text := range d.TextMapRaw["娱乐"]["鸽子理由"] {
+						srcText := text[0].(string)
+						srcText = strings.ReplaceAll(srcText, "在互联网上约到可爱美少女不惜搁置跑团前去约会的{$t玩家}，还不知道这个叫奈亚的妹子隐藏着什么", "空山不见人，但闻咕咕声。 —— {$t玩家}")
+						d.TextMapRaw["娱乐"]["鸽子理由"][index][0] = srcText
+					}
+
+					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+					d.GenerateTextMap()
+					d.SaveText()
+				})
+			}
 
 			// 设置全局群名缓存和用户名缓存
 			dm := d.Parent
