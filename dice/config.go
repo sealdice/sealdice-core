@@ -1706,7 +1706,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.VersionCode = 10203 // TODO: 记得修改！！！
+	d.VersionCode = 10300 // TODO: 记得修改！！！
 	d.LogWriter.LogLimit = d.UILogLimit
 
 	// 设置扩展选项
