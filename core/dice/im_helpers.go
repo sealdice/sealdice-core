@@ -2,11 +2,12 @@ package dice
 
 import (
 	"fmt"
-	"github.com/fy0/lockfree"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/fy0/lockfree"
 )
 
 func IsCurGroupBotOnById(session *IMSession, ep *EndPointInfo, messageType string, groupId string) bool {
@@ -226,6 +227,29 @@ func CrossMsgBySearch(se *IMSession, p, t, txt string, pr bool) bool {
 
 func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
 	ReplyPersonRaw(ctx, msg, text, "")
+}
+
+func SendFileToSenderRaw(ctx *MsgContext, msg *Message, path string, flag string) {
+	inGroup := msg.MessageType == "group"
+	if inGroup {
+		SendFileToGroupRaw(ctx, msg, path, flag)
+	} else {
+		SendFileToPersonRaw(ctx, msg, path, flag)
+	}
+}
+
+func SendFileToPersonRaw(ctx *MsgContext, msg *Message, path string, flag string) {
+	if ctx.Dice != nil {
+		ctx.Dice.Logger.Infof("发文件给(账号%s): %s", msg.Sender.UserId, path)
+	}
+	ctx.EndPoint.Adapter.SendFileToPerson(ctx, msg.Sender.UserId, path, flag)
+}
+
+func SendFileToGroupRaw(ctx *MsgContext, msg *Message, path string, flag string) {
+	if ctx.Dice != nil {
+		ctx.Dice.Logger.Infof("发文件给(群%s): %s", msg.GroupId, path)
+	}
+	ctx.EndPoint.Adapter.SendFileToGroup(ctx, msg.GroupId, path, flag)
 }
 
 func MemberBan(ctx *MsgContext, groupId string, userId string, duration int64) {
