@@ -27,6 +27,7 @@ temp/
 dist/
 go-cqhttp/
 frontend/
+frontend-overwrite/
 backups/
 update/
 walle-q/

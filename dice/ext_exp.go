@@ -37,8 +37,6 @@ func cmdStGetPickItemAndLimit(tmpl *GameSystemTemplate, cmdArgs *CmdArgs) (pickI
 }
 
 func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, limit int64) (topNum int, items []string) {
-	items = []string{}
-
 	// 或者有pickItems，或者当前的变量数量大于0
 	if len(pickItems) > 0 || mctx.ChVarsNumGet() > 0 {
 		// 按照配置文件排序
@@ -452,7 +450,7 @@ func getCmdStBase() *CmdItemInfo {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				info := ".st clr\n.st "
+				info := "导出结果：\n.st clr\n.st "
 				for _, i := range items {
 					info += i
 					info += " "

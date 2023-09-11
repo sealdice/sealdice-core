@@ -590,7 +590,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 		frontend, _ := fs.Sub(static.Static, "frontend")
 		e.StaticFS("/", frontend)
 	} else {
-		e.Static("/", "./frontend")
+		e.Static("/", "./frontend_overwrite")
 	}
 
 	api.Bind(e, dm)
