@@ -1,0 +1,24 @@
+name: Release Build
+on:
+  workflow_dispatch:
+
+env:
+  ANDROID_NDK_VERSION: r25c
+  COMMIT_ID: "${{ github.sha }}"
+  NO_BUILD_PROMPT: "no new commits, no need to build."
+
+jobs:
+  commit-num-check:
+    name: Check Commit Num
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Get New Commits
+        id: get-commits
+        run: echo "NEW_COMMIT_COUNT=$(git log --oneline --since '24 hours ago' | wc -l)" >> $GITHUB_OUTPUT
+      - name: Warning
+        run: if [ $(git log --oneline --since '24 hours ago' | wc -l) <= 0 ]; then echo $NO_BUILD_PROMPT; fi
+    outputs:
+      commit-count: ${{ steps.get-commits.outputs.NEW_COMMIT_COUNT }}
