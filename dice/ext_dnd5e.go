@@ -78,7 +78,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 			"hpmax": {"HPMAX", "生命值上限", "生命上限", "血量上限", "耐久上限"},
 			"dc":    {"DC", "难度等级", "法术豁免", "難度等級", "法術豁免"},
 			"hd":    {"HD", "生命骰"},
-			"pp":    {"PP", "被动察觉", "被动感知", "被動察覺", "被动感知"},
+			"pp":    {"PP", "被动察觉", "被动感知", "被動察覺", "被动感知", "PW"},
 
 			"熟练": {"熟练加值", "熟練", "熟練加值"},
 			"体型": {"siz", "size", "體型", "体型", "体形", "體形"},
@@ -443,7 +443,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							vRaw = v
 						} else {
 							vRaw = _vRaw.(*VMValue)
-							v2, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
+							kExpr := k
+							if strings.HasPrefix(k, "p") || strings.HasPrefix(k, "b") {
+								kExpr = "_" + k
+							}
+							v2, _, _ := mctx.Dice.ExprEvalBase(kExpr, mctx, RollExtraFlags{})
 							v = &v2.VMValue
 						}
 
