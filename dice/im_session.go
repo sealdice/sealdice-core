@@ -1093,9 +1093,7 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
 		}
 
 		for _, ep := range d.ImSession.EndPoints {
-			ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
-
-			for _, i := range ctx.Dice.NoticeIds {
+			for _, i := range d.NoticeIds {
 				n := strings.Split(i, ":")
 				// 如果文本中没有-，则会取到整个字符串
 				// 但好像不严谨，比如QQ-CH-Group
@@ -1103,8 +1101,12 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
 
 				if len(n) >= 2 && prefix == ep.Platform {
 					if strings.HasSuffix(n[0], "-Group") {
-						ReplyGroup(ctx, &Message{GroupId: i}, txt)
+						msg := &Message{GroupId: i, MessageType: "private", Sender: SenderBase{UserId: i}}
+						ctx := CreateTempCtx(ep, msg)
+						ReplyGroup(ctx, msg, txt)
 					} else {
+						msg := &Message{GroupId: i, MessageType: "group", Sender: SenderBase{UserId: i}}
+						ctx := CreateTempCtx(ep, msg)
 						ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
 					}
 				}
