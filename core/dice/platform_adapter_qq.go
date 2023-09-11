@@ -77,6 +77,7 @@ type PlatformAdapterGocq struct {
 
 	UseSignServer    bool              `yaml:"useSignServer" json:"useSignServer"`
 	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`
+	ExtraArgs        string            `yaml:"extraArgs" json:"extraArgs"`
 }
 
 type Sender struct {
@@ -408,7 +409,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				userName := dm.TryGetUserName(uid)
 				txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%d) 邀请人:<%s>(%d)", groupName, msgQQ.GroupId, userName, msgQQ.UserId)
 				log.Info(txt)
-				ctx.Notice(txt, true)
+				ctx.Notice(txt)
 				tempInviteMap[msg.GroupId] = time.Now().Unix()
 				tempInviteMap2[msg.GroupId] = uid
 
@@ -523,7 +524,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%d, 验证信息: %s, 是否自动同意: %t%s", msgQQ.UserId, comment, willAccept, extra)
 				log.Info(txt)
-				ctx.Notice(txt, true)
+				ctx.Notice(txt)
 
 				// 忽略邀请
 				if pa.IgnoreFriendRequest {
@@ -634,7 +635,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				}()
 				txt := fmt.Sprintf("加入QQ群组: <%s>(%d)", groupName, msgQQ.GroupId)
 				log.Info(txt)
-				ctx.Notice(txt, true)
+				ctx.Notice(txt)
 				if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
 					for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
 						if i.OnGroupJoined != nil {
@@ -739,7 +740,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 					txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%d)中被踢出，操作者:<%s>(%d)%s", groupName, msgQQ.GroupId, userName, msgQQ.OperatorId, extra)
 					log.Info(txt)
-					ctx.Notice(txt, true)
+					ctx.Notice(txt)
 				}
 				return
 			}
@@ -750,7 +751,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				groupName := dm.TryGetGroupName(msg.GroupId)
 				txt := fmt.Sprintf("离开群组或群解散: <%s>(%d)", groupName, msgQQ.GroupId)
 				log.Info(txt)
-				ctx.Notice(txt, true)
+				ctx.Notice(txt)
 				return
 			}
 
@@ -765,7 +766,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					ctx.Dice.BanList.AddScoreByGroupMuted(opUid, msg.GroupId, ctx)
 					txt := fmt.Sprintf("被禁言: 在群组<%s>(%d)中被禁言，时长%d秒，操作者:<%s>(%d)", groupName, msgQQ.GroupId, msgQQ.Duration, userName, msgQQ.OperatorId)
 					log.Info(txt)
-					ctx.Notice(txt, true)
+					ctx.Notice(txt)
 				}
 				return
 			}
@@ -781,7 +782,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// {"data":null,"echo":0,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
 				// 但是这里没QQ号也没有消息ID，很麻烦
 				fmt.Println("群消息发送失败: 账号可能被风控")
-				ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", CIAMLock)
+				ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", MailTypeCIAMLock)
 			}
 
 			// 戳一戳
@@ -850,7 +851,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
 		log.Info("onebot 服务的连接被对方关闭 ")
-		pa.Session.Parent.SendMail("", OnebotClose)
+		pa.Session.Parent.SendMail("", MailTypeOnebotClose)
 		pa.InPackGoCqHttpDisconnectedCH <- 1
 	}
 
