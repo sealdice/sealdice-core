@@ -1099,7 +1099,7 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
 				// 但好像不严谨，比如QQ-CH-Group
 				prefix := strings.Split(n[0], "-")[0]
 
-				if len(n) >= 2 && prefix == ep.Platform {
+				if len(n) >= 2 && prefix == ep.Platform && ep.Enable {
 					if strings.HasSuffix(n[0], "-Group") {
 						msg := &Message{GroupId: i, MessageType: "private", Sender: SenderBase{UserId: i}}
 						ctx := CreateTempCtx(ep, msg)
@@ -1191,18 +1191,19 @@ func (ctx *MsgContext) Notice(txt string) {
 		}
 
 		sent := false
-
-		for _, i := range ctx.Dice.NoticeIds {
-			n := strings.Split(i, ":")
-			if len(n) >= 2 {
-				if strings.HasSuffix(n[0], "-Group") {
-					ReplyGroup(ctx, &Message{GroupId: i}, txt)
-				} else {
-					ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
+		if ctx.EndPoint.Enable {
+			for _, i := range ctx.Dice.NoticeIds {
+				n := strings.Split(i, ":")
+				if len(n) >= 2 {
+					if strings.HasSuffix(n[0], "-Group") {
+						ReplyGroup(ctx, &Message{GroupId: i}, txt)
+					} else {
+						ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
+					}
+					sent = true
 				}
-				sent = true
+				time.Sleep(1 * time.Second)
 			}
-			time.Sleep(1 * time.Second)
 		}
 
 		if !sent {
