@@ -450,7 +450,7 @@ func getCmdStBase() *CmdItemInfo {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				info := ".st clr\n.st "
+				info := "导出结果：\n.st clr\n.st "
 				for _, i := range items {
 					info += i
 					info += " "
