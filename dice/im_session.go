@@ -223,7 +223,7 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 type EndPointInfoBase struct {
 	Id                  string `yaml:"id" json:"id" jsbind:"id"` // uuid
 	Nickname            string `yaml:"nickname" json:"nickname" jsbind:"nickname"`
-	State               int    `yaml:"state" json:"state" jsbind:"state"` // 状态 0 断开 1已连接 2连接中 3连接失败
+	State               int    `yaml:"state" json:"state" jsbind:"state"` // 状态 0断开 1已连接 2连接中 3连接失败
 	UserId              string `yaml:"userId" json:"userId" jsbind:"userId"`
 	GroupNum            int64  `yaml:"groupNum" json:"groupNum" jsbind:"groupNum"`                                  // 拥有群数
 	CmdExecutedNum      int64  `yaml:"cmdExecutedNum" json:"cmdExecutedNum" jsbind:"cmdExecutedNum"`                // 指令执行次数
@@ -1099,7 +1099,7 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
 				// 但好像不严谨，比如QQ-CH-Group
 				prefix := strings.Split(n[0], "-")[0]
 
-				if len(n) >= 2 && prefix == ep.Platform && ep.Enable {
+				if len(n) >= 2 && prefix == ep.Platform && ep.Enable && ep.State == 1 {
 					if strings.HasSuffix(n[0], "-Group") {
 						msg := &Message{GroupId: i, MessageType: "private", Sender: SenderBase{UserId: i}}
 						ctx := CreateTempCtx(ep, msg)
