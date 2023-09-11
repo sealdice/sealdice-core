@@ -238,6 +238,26 @@ func (pa *PlatformAdapterDodo) SendToGroup(ctx *MsgContext, uid string, text str
 	}, flag)
 }
 
+func (pa *PlatformAdapterDodo) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
+	dice := pa.Session.Parent
+	fileElement, err := dice.FilepathToFileElement(path)
+	if err != nil {
+		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
+	} else {
+		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+	}
+}
+
+func (pa *PlatformAdapterDodo) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
+	dice := pa.Session.Parent
+	fileElement, err := dice.FilepathToFileElement(path)
+	if err != nil {
+		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
+	} else {
+		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+	}
+}
+
 func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
 	instance := pa.Client
 	dice := pa.Session.Parent
