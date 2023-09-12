@@ -1100,8 +1100,8 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
 				prefix := strings.Split(n[0], "-")[0]
 
 				if len(n) >= 2 && prefix == ep.Platform && ep.Enable && ep.State == 1 {
-					if ep.Session.Parent == nil {
-						ep.Session.Parent = d
+					if ep.Session == nil {
+						ep.Session = d.ImSession
 					}
 					if strings.HasSuffix(n[0], "-Group") {
 						msg := &Message{GroupId: i, MessageType: "private", Sender: SenderBase{UserId: i}}

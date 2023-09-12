@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"sealdice-core/dice"
 	"strconv"
@@ -285,6 +286,7 @@ func ImConnectionsAddWalleQ(c echo.Context) error {
 
 		conn := dice.NewWqConnectInfoItem(v.Account)
 		conn.UserId = dice.FormatDiceIdQQ(uid)
+		conn.Session = myDice.ImSession
 		conn.ProtocolType = "walle-q"
 		pa := conn.Adapter.(*dice.PlatformAdapterWalleQ)
 		pa.InPackWalleQProtocol = v.Protocol
@@ -317,6 +319,7 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
+				fmt.Print("!!! relogin ", v.Id)
 				i.Adapter.DoRelogin()
 				return c.JSON(http.StatusOK, nil)
 			}
@@ -366,6 +369,7 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 	if err == nil {
 		//myDice.Logger.Infof("bind无异常")
 		conn := dice.NewDiscordConnItem(dice.AddDiscordEcho(*v))
+		conn.Session = myDice.ImSession
 		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterDiscord)
 		pa.Session = myDice.ImSession
@@ -396,6 +400,7 @@ func ImConnectionsAddKook(c echo.Context) error {
 	if err == nil {
 		//myDice.Logger.Infof("bind无异常")
 		conn := dice.NewKookConnItem(v.Token)
+		conn.Session = myDice.ImSession
 		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterKook)
 		pa.Session = myDice.ImSession
@@ -426,6 +431,8 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 	if err == nil {
 		//myDice.Logger.Infof("bind无异常")
 		conn := dice.NewTelegramConnItem(v.Token)
+		conn.Session = myDice.ImSession
+
 		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterTelegram)
 		pa.Session = myDice.ImSession
@@ -455,6 +462,7 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 	if err == nil {
 		//myDice.Logger.Infof("bind无异常")
 		conn := dice.NewMinecraftConnItem(v.Url)
+		conn.Session = myDice.ImSession
 		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterMinecraft)
 		pa.Session = myDice.ImSession
@@ -485,6 +493,7 @@ func ImConnectionsAddDodo(c echo.Context) error {
 	if err == nil {
 		//myDice.Logger.Infof("bind无异常")
 		conn := dice.NewDodoConnItem(v.ClientID, v.Token)
+		conn.Session = myDice.ImSession
 		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterDodo)
 		pa.Session = myDice.ImSession
@@ -535,6 +544,7 @@ func ImConnectionsAdd(c echo.Context) error {
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
 		conn.UserId = dice.FormatDiceIdQQ(uid)
+		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 		pa.InPackGoCqHttpProtocol = v.Protocol
 		pa.InPackGoCqHttpPassword = v.Password
@@ -591,6 +601,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
 		conn.UserId = dice.FormatDiceIdQQ(uid)
+		conn.Session = myDice.ImSession
 
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 		pa.Session = myDice.ImSession
