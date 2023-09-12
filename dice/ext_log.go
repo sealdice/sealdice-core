@@ -176,6 +176,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
+				// 如果日志已经开启，报错返回
+				if group.LogOn {
+					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_未结束的记录"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				name := cmdArgs.GetArgN(2)
 				if name == "" {
 					name = group.LogCurName
@@ -354,26 +361,29 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				name := cmdArgs.GetArgN(2)
-
-				if group.LogCurName != "" && name == "" {
+				// 如果日志已经开启，或者当前有暂停的记录，报错返回
+				if group.LogOn || group.LogCurName != "" {
+					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
-				} else {
-					if groupNotActiveCheck() {
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					if name == "" {
-						todayTime := time.Now().Format("2006_01_02_15_04_05")
-						name = todayTime
-					}
-					VarSetValueStr(ctx, "$t记录名称", name)
-
-					group.LogCurName = name
-					group.LogOn = true
-					group.UpdatedAtTime = time.Now().Unix()
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
+				if groupNotActiveCheck() {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				name := cmdArgs.GetArgN(2)
+				if name == "" {
+					todayTime := time.Now().Format("2006_01_02_15_04_05")
+					name = todayTime
+				}
+				VarSetValueStr(ctx, "$t记录名称", name)
+
+				group.LogCurName = name
+				group.LogOn = true
+				group.UpdatedAtTime = time.Now().Unix()
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
+
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "stat") {
 				group := ctx.Group
