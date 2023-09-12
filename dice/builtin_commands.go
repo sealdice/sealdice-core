@@ -1515,13 +1515,13 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["set"] = cmdSet
 
 	helpCh := ".pc new <角色名> // 新建角色并绑卡\n" +
-		".pc tag <角色名> // 当前群绑卡/解除绑卡(不填角色名)\n" +
-		".pc untagAll <角色名> // 全部群解绑\n" +
-		".pc list // 列出当前角色\n" +
+		".pc tag <角色名> | <角色序号> // 当前群绑卡/解除绑卡(不填角色名)\n" +
+		".pc untagAll <角色名> | <角色序号> // 全部群解绑\n" +
+		".pc list // 列出当前角色和序号\n" +
 		//".ch group // 列出各群当前绑卡\n" +
 		".pc save <角色名> // [不绑卡]保存角色，角色名可省略\n" +
-		".pc load <角色名> // [不绑卡]加载角色\n" +
-		".pc del/rm <角色名> // 删除角色\n" +
+		".pc load <角色名> | <角色序号> // [不绑卡]加载角色\n" +
+		".pc del/rm <角色名> | <角色序号> // 删除角色 角色序号可用pc list查询\n" +
 		"> 注: 海豹各群数据独立(多张空白卡)，单群游戏不需要存角色。" // > 普通模组执行nn, st后直接跑即可。跑完若想保存角色用pc save存卡。
 	cmdChar := &CmdItemInfo{
 		Name:      "pc",
@@ -1561,7 +1561,10 @@ func (d *Dice) registerCoreCommands() {
 
 				// 分两次防止死锁
 				var newChars []string
-				for _, name := range characters {
+				for idx, name := range characters {
+					// HACK(Xiangze Li): lockfree.HashMap的迭代顺序在每次启动中是稳定的, 可以加序号
+					// 但是, 骰子重启之后顺序是会变化的. 如果用户记录了这个序号, 并且跨重启使用, 会出现问题
+					idxStr := fmt.Sprintf("%2d ", idx+1)
 					prefix := "[×] "
 					if ctx.ChBindGet(name) != nil {
 						prefix = "[★] "
@@ -1580,7 +1583,7 @@ func (d *Dice) registerCoreCommands() {
 						suffix = fmt.Sprintf(" #%s", cardType)
 					}
 
-					newChars = append(newChars, prefix+name+suffix)
+					newChars = append(newChars, idxStr+prefix+name+suffix)
 				}
 
 				if len(characters) == 0 {
@@ -1607,29 +1610,33 @@ func (d *Dice) registerCoreCommands() {
 				}
 			} else if cmdArgs.IsArgEqual(1, "load") {
 				cur := ctx.ChBindCurGet()
-				if cur == "" {
-					name := getNickname()
-					ret := ctx.ChLoad(name)
-					VarSetValueStr(ctx, "$t角色名", name)
-					if ret != nil {
-						VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
-						//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
-						if ctx.Player.AutoSetNameTemplate != "" {
-							_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-						}
-					} else {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
-					}
-				} else {
+				if cur != "" {
 					VarSetValueStr(ctx, "$t角色名", cur)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载失败_已绑定"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				name := getNickname()
+				name = tryConvertIndex2Name(ctx, name)
+				ret := ctx.ChLoad(name)
+				VarSetValueStr(ctx, "$t角色名", name)
+				if ret != nil {
+					VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
+					//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
+					if ctx.Player.AutoSetNameTemplate != "" {
+						_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+					}
+				} else {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 				}
 			} else if cmdArgs.IsArgEqual(1, "tag") {
 				// 当不输入角色的时候，不用当前角色填充，因此做到不写角色名就取消绑定的效果
 				name := getNicknameRaw(false)
 				VarSetValueStr(ctx, "$t角色名", name)
 				if name != "" {
+					name = tryConvertIndex2Name(ctx, name)
+					VarSetValueStr(ctx, "$t角色名", name)
 					curBind := ctx.ChBindCurGet()
 					if curBind == name {
 						// 已经绑定，直接成功
@@ -1662,6 +1669,7 @@ func (d *Dice) registerCoreCommands() {
 				ReplyToSender(ctx, msg, "卡片绑定: "+strings.Join(lst, " "))
 			} else if cmdArgs.IsArgEqual(1, "untagAll") {
 				name := getNickname()
+				name = tryConvertIndex2Name(ctx, name)
 				lst := ctx.ChUnbind(name)
 
 				for _, i := range lst {
@@ -1725,26 +1733,31 @@ func (d *Dice) registerCoreCommands() {
 
 				VarSetValueStr(ctx, "$t角色名", name)
 				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
-				_, exists := vars.ValueMap.Get("$ch:" + name)
-				if exists {
-					vars.ValueMap.Del("$ch:" + name)
-					vars.LastWriteTime = time.Now().Unix()
 
-					text := DiceFormatTmpl(ctx, "核心:角色管理_删除成功")
-					if name == ctx.Player.Name {
-						VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", msg.Sender.Nickname))
-						text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
-						p := ctx.Player
-						p.Name = msg.Sender.Nickname
-						p.UpdatedAtTime = time.Now().Unix()
-						p.Vars.ValueMap = lockfree.NewHashMap()
-						p.Vars.LastWriteTime = time.Now().Unix()
-					}
-
-					ReplyToSender(ctx, msg, text)
-				} else {
+				name = tryConvertIndex2Name(ctx, name)
+				if _, exists := vars.ValueMap.Get("$ch:" + name); !exists {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
+				// 如果name原是序号，这里将被更新为角色名
+				VarSetValueStr(ctx, "$t角色名", name)
+				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
+
+				vars.ValueMap.Del("$ch:" + name)
+				vars.LastWriteTime = time.Now().Unix()
+
+				text := DiceFormatTmpl(ctx, "核心:角色管理_删除成功")
+				if name == ctx.Player.Name {
+					VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", msg.Sender.Nickname))
+					text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
+					p := ctx.Player
+					p.Name = msg.Sender.Nickname
+					p.UpdatedAtTime = time.Now().Unix()
+					p.Vars.ValueMap = lockfree.NewHashMap()
+					p.Vars.LastWriteTime = time.Now().Unix()
+				}
+				ReplyToSender(ctx, msg, text)
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
@@ -1912,4 +1925,31 @@ func setRuleByName(ctx *MsgContext, name string) {
 			}
 		}
 	}
+}
+
+// tryConvertIndex2Name 确认name是否存在, 如果不存在, 尝试将name解析为序号并查出对应name
+//   - 如果name存在, 直接返回name
+//   - name不存在, name不是数字, 返回原name
+//   - name不存在, name是数字, 且超过用户的角色卡数, 返回原name
+//   - name不存在, name是数字, 且小于等于用户的角色卡数, 返回对应序号的卡名
+func tryConvertIndex2Name(ctx *MsgContext, name string) string {
+	// 确认name是否存在, 如果不存在, 尝试解析为序号并查出对应name
+	vars := ctx.LoadPlayerGlobalVars()
+	_, exists := vars.ValueMap.Get("$ch:" + name)
+	if !exists {
+		if idx, errInt := strconv.ParseInt(name, 10, 64); errInt == nil && idx > 0 {
+			_ = vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+				k := _k.(string)
+				if strings.HasPrefix(k, "$ch:") {
+					idx--
+					if idx == 0 {
+						name = k[4:]
+						return fmt.Errorf("break")
+					}
+				}
+				return nil
+			})
+		}
+	}
+	return name
 }
