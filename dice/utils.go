@@ -490,7 +490,7 @@ func CheckDialErr(err error) syscall.Errno {
 	return 1 // 失败 但是原因不明
 }
 
-// CreateTempCtx 制作ctx，需要msg.MessageType和msg.Sender.UserId
+// CreateTempCtx 制作ctx，需要msg.MessageType和msg.Sender.UserId，以及ep.Session
 func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 	session := ep.Session
 
