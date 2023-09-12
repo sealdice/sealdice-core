@@ -584,6 +584,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_开启_失败_尚未新建": {
 				{`找不到记录，请使用.log new新建记录`, 1},
 			},
+			"记录_开启_失败_未结束的记录": {
+				{`当前已有记录中的日志{$t记录名称}，请先将其结束。`, 1},
+			},
 			"记录_关闭_成功": {
 				{`当前记录"{$t记录名称}"已经暂停，已记录文本{$t当前记录条数}条\n结束故事并传送日志请用.log end`, 1},
 			},
@@ -600,7 +603,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`故事落下了帷幕。\n记录已经关闭。`, 1},
 			},
 			"记录_新建_失败_未结束的记录": {
-				{`上一段旅程还未结束，请先使用.log end结束故事。或使用.log new <名称>，强行建立新日志`, 1},
+				{`上一段旅程{$t记录名称}还未结束，请先使用.log end结束故事。`, 1},
 			},
 			"记录_条数提醒": {
 				{`提示: 当前故事的文本已经记录了 {$t条数} 条`, 1},
@@ -1143,6 +1146,10 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType:   ".log on",
 				ExtraText: "当 log new 之后，会有一个默认的记录名。此时可以直接log on和log off而不加参数。\n一旦log end之后，默认记录名没有了，就会出这个提示。",
 			},
+			"记录_开启_失败_未结束的记录": {
+				SubType: ".log on",
+				Vars:    []string{"$t记录名称"},
+			},
 			"记录_关闭_成功": {
 				SubType: ".log off",
 			},
@@ -1160,6 +1167,7 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"记录_新建_失败_未结束的记录": {
 				SubType: ".log new",
+				Vars:    []string{"$t记录名称"},
 			},
 			"记录_条数提醒": {
 				SubType: ".log",
