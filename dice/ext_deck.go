@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"math/rand"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -35,6 +37,10 @@ type DeckDiceEFormat struct {
 	//Export  []string `json:"_export"` // 导出项，类似command
 	//Keys  []string `json:"_keys"` // 导出项，类似command
 	//一组牌        []string `json:"一组牌"`
+
+	// 更新支持字段
+	UpdateUrls []string `json:"_updateUrls"`
+	Etag       string   `json:"_etag"`
 }
 
 type DeckSinaNyaFormat struct {
@@ -47,6 +53,10 @@ type DeckSinaNyaFormat struct {
 	Info    []string `json:"info" yaml:"info"`
 	Default []string `json:"default" yaml:"default"`
 	//一组牌        []string `json:"一组牌"`
+
+	// 更新支持字段
+	UpdateUrls []string `json:"update_urls"`
+	Etag       string   `json:"etag"`
 }
 
 type Prop struct {
@@ -1063,4 +1073,83 @@ func extractExecuteContent(s string) (string, string) {
 		return "", s
 	}
 	return s[start+1 : end], s[end+1:]
+}
+
+func (d *Dice) DeckCheckUpdate(deckInfo *DeckInfo) (string, string, error) {
+	if len(deckInfo.UpdateUrls) != 0 {
+		for _, url := range deckInfo.UpdateUrls {
+			statusCode, newData, err := getNewDeck(url, deckInfo.Etag)
+			if err != nil {
+				return "", "", err
+			}
+			if statusCode == http.StatusOK {
+				oldData, err := os.ReadFile(deckInfo.Filename)
+				if err != nil {
+					return "", "", err
+				}
+				return string(oldData), string(newData), nil
+			}
+		}
+		return "", "", fmt.Errorf("未获取到牌堆更新")
+	} else {
+		return "", "", fmt.Errorf("牌堆未提供更新链接")
+	}
+}
+
+func (d *Dice) DeckUpdate(deckInfo *DeckInfo, newStr string) error {
+	newData := []byte(newStr)
+	// 更新牌堆
+	var ok bool
+	switch deckInfo.Format {
+	case "Dice!":
+		ok = tryParseDiceE(newData, deckInfo)
+	case "SinaNya":
+		ok = tryParseSinaNya(newData, deckInfo)
+	case "Seal":
+		ok = tryParseSeal(newData, deckInfo)
+	}
+	if ok {
+		err := os.WriteFile(deckInfo.Filename, newData, 0755)
+		if err != nil {
+			d.Logger.Errorf("牌堆“%s”更新时保存文件出错，%s", deckInfo.Name, err.Error())
+		} else {
+			d.Logger.Infof("牌堆“%s”更新成功", deckInfo.Name)
+		}
+	} else {
+		d.Logger.Errorf("牌堆“%s”更新失败，无法解析获取到的牌堆数据", deckInfo.Name)
+	}
+	return nil
+}
+
+func getNewDeck(url, etag string) (int, []byte, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, http.NoBody)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Add("Accept", "application/toml;application/json")
+	if etag != "" {
+		req.Header.Add("If-None-Match", etag)
+	}
+	resp, err := client.Do(req)
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusNotModified:
+		return http.StatusNotModified, nil, nil
+	case http.StatusOK:
+		// 更新牌堆
+		newData, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return 0, nil, err
+		}
+		return http.StatusOK, newData, nil
+	default:
+		return resp.StatusCode, nil, nil
+	}
 }
