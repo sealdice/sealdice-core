@@ -7,9 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	wr "github.com/mroth/weightedrand"
-	"github.com/sahilm/fuzzy"
-	"gopkg.in/yaml.v3"
 	"io/fs"
 	"math/rand"
 	"os"
@@ -18,6 +15,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	wr "github.com/mroth/weightedrand"
+	"github.com/sahilm/fuzzy"
+	"gopkg.in/yaml.v3"
 )
 
 type DeckDiceEFormat struct {
@@ -296,12 +297,17 @@ func DeckDelete(d *Dice, deck *DeckInfo) {
 type DeckCommandListItem struct {
 	command string
 	deck    *DeckInfo
+	visible bool // 是否可见: 指定了_key列表的牌堆, 没有在_key中的visible=false
 }
 
 type DeckCommandListItems []*DeckCommandListItem
 
 func (e DeckCommandListItems) String(i int) string {
-	return e[i].command
+	// 如果可见, 返回牌组名; 否则, 返回空字符串以避免模糊匹配命中
+	if e[i].visible {
+		return e[i].command
+	}
+	return ""
 }
 
 func (e DeckCommandListItems) Len() int {
@@ -322,10 +328,11 @@ func DeckReload(d *Dice) {
 
 	lst := DeckCommandListItems{}
 	for _, i := range d.DeckList {
-		for k := range i.Command {
+		for k, v := range i.Command {
 			lst = append(lst, &DeckCommandListItem{
 				command: k,
 				deck:    i,
+				visible: v,
 			})
 		}
 	}
@@ -377,7 +384,13 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						if i.Enable {
 							author := fmt.Sprintf(" 作者:%s", i.Author)
 							version := fmt.Sprintf(" 版本:%s", i.Version)
-							text += fmt.Sprintf("- %s 格式: %s%s%s 牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
+							count := 0
+							for _, vis := range i.Command {
+								if vis {
+									count++
+								}
+							}
+							text += fmt.Sprintf("- %s 格式: %s%s%s 牌组数量: %d\n", i.Name, i.Format, author, version, count)
 						}
 					}
 					ReplyToSender(ctx, msg, text)
@@ -390,7 +403,13 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						i := ctx.Dice.deckCommandItemsList[matches[0].Index].deck
 						author := fmt.Sprintf("作者: %s", i.Author)
 						version := fmt.Sprintf("版本: %s", i.Version)
-						text += fmt.Sprintf("牌堆: %s\n格式: %s\n%s\n%s\n牌组数量: %d\n", i.Name, i.Format, author, version, len(i.Command))
+						var cmds []string
+						for j, vis := range i.Command {
+							if vis {
+								cmds = append(cmds, j)
+							}
+						}
+						text += fmt.Sprintf("牌堆: %s\n格式: %s\n%s\n%s\n牌组数量: %d\n", i.Name, i.Format, author, version, len(cmds))
 						if i.Date != "" {
 							time := fmt.Sprintf("时间: %s\n", i.Date)
 							text += time
@@ -400,10 +419,6 @@ func RegisterBuiltinExtDeck(d *Dice) {
 							text += time
 						}
 
-						var cmds []string
-						for j := range i.Command {
-							cmds = append(cmds, j)
-						}
 						text += "牌组: " + strings.Join(cmds, "/")
 						ReplyToSender(ctx, msg, text)
 					} else {
@@ -456,15 +471,18 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						matches := fuzzy.FindFrom(text, d.deckCommandItemsList)
 
 						right := len(matches)
-						if right > 10 {
-							right = 3
+						if right == 0 {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组"))
+						} else {
+							if right > 10 {
+								right = 3
+							}
+							text := "找到以下牌组:\n"
+							for _, i := range matches[:right] {
+								text += "- " + i.Str + "\n"
+							}
+							ReplyToSender(ctx, msg, text)
 						}
-
-						text := "找到以下牌组:\n"
-						for _, i := range matches[:right] {
-							text += "- " + i.Str + "\n"
-						}
-						ReplyToSender(ctx, msg, text)
 					} else {
 						ReplyToSender(ctx, msg, "请给出要搜索的关键字")
 					}
