@@ -340,13 +340,12 @@ func (d *Dice) registerCoreCommands() {
 			var rollMode string
 			switch d.RollMode {
 			case Gauss:
-				rollMode = "[稳定出目]"
+				rollMode = "[稳定出目模式]"
 			default:
-				rollMode = "[均匀出目]"
+				rollMode = "[均匀出目模式]"
 			}
 
-			text := "海豹核心 " + VERSION + "\n"
-			text += rollMode + "\n"
+			text := "海豹核心 " + VERSION + " " + rollMode + "\n"
 			text += "===============\n"
 			text += ".help 骰点/娱乐/跑团/日志" + "\n"
 			text += ".help 扩展/其他/关于" + "\n"
