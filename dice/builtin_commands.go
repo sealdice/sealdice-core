@@ -449,7 +449,7 @@ func (d *Dice) registerCoreCommands() {
 							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
 								SetBotOnAtGroup(ctx, msg.GroupId)
 							} else {
-								ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -476,7 +476,7 @@ func (d *Dice) registerCoreCommands() {
 							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
 								SetBotOffAtGroup(ctx, ctx.Group.GroupId)
 							} else {
-								ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -494,7 +494,7 @@ func (d *Dice) registerCoreCommands() {
 							// 感觉似乎不太必要
 							pRequired := 40 // 40邀请者 50管理 60群主 100master
 							if ctx.PrivilegeLevel < pRequired {
-								ReplyToSender(ctx, msg, "你不是管理员或master")
+								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -1231,7 +1231,7 @@ func (d *Dice) registerCoreCommands() {
 					showList()
 				} else if cmdArgs.IsArgEqual(last, "on") {
 					if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
-						ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
@@ -1277,7 +1277,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				} else if cmdArgs.IsArgEqual(last, "off") {
 					if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
-						ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
@@ -1782,7 +1782,7 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			pRequired := 50 // 50管理 60群主 100master
 			if ctx.PrivilegeLevel < pRequired {
-				ReplyToSender(ctx, msg, "你不是管理员或master")
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
