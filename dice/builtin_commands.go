@@ -337,7 +337,16 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
+			var rollMode string
+			switch d.RollMode {
+			case Gauss:
+				rollMode = "[稳定出目]"
+			default:
+				rollMode = "[均匀出目]"
+			}
+
 			text := "海豹核心 " + VERSION + "\n"
+			text += rollMode + "\n"
 			text += "===============\n"
 			text += ".help 骰点/娱乐/跑团/日志" + "\n"
 			text += ".help 扩展/其他/关于" + "\n"
@@ -1062,7 +1071,7 @@ func (d *Dice) registerCoreCommands() {
 							val, _ = r.ReadInt64()
 						}
 					} else {
-						val = DiceRoll64(dicePoints)
+						val = d.CurModeRoll64(dicePoints)
 					}
 
 					// 指令信息标记

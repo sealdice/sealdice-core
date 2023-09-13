@@ -218,7 +218,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				failedCount := int64(0)
 				var results []string
 				for i := int64(0); i < num; i++ {
-					v := DiceRoll64(6)
+					v := ctx.Dice.CurModeRoll64(6)
 					if v >= 5 {
 						successDegrees += 1
 					} else if v == 1 {
@@ -381,7 +381,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 						successDegrees := int64(0)
 						var results []string
 						for i := int64(0); i < diceNum; i++ {
-							v := DiceRoll64(10)
+							v := ctx.Dice.CurModeRoll64(10)
 							if v <= checkVal {
 								successDegrees += 1
 							}
@@ -475,7 +475,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			for i = 0; i < val; i++ {
 				randMap := map[int64]bool{}
 				for j := 0; j < 6; j++ {
-					n := DiceRoll64(24)
+					n := ctx.Dice.NoModeRoll64(24)
 					if randMap[n] {
 						j-- // 如果已经存在，重新roll
 					} else {
@@ -530,7 +530,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				})
 
 				text := fmt.Sprintf("身体:%d 灵巧:%d 精神:%d 五感:%d 知力:%d 魅力:%d 社会:%d", nums2...)
-				text += fmt.Sprintf(" 运势:%d hp:%d mp:%d", DiceRoll64(6), nums2[0].(int64)+10, nums2[2].(int64)+nums2[4].(int64))
+				text += fmt.Sprintf(" 运势:%d hp:%d mp:%d", ctx.Dice.CurModeRoll(6), nums2[0].(int64)+10, nums2[2].(int64)+nums2[4].(int64))
 
 				ss = append(ss, text)
 			}
@@ -777,7 +777,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			var pool []int
 			ma := make(map[int]bool)
 			for len(pool) < t {
-				n := rand.Intn(m) + 1
+				n := ctx.Dice.NoModeRoll(m)
 				if !ma[n] {
 					ma[n] = true
 					pool = append(pool, n)
@@ -867,7 +867,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				var pool []int
 				ma := make(map[int]bool)
 				for len(pool) < roulette.Time {
-					n := rand.Intn(int(roulette.Face)) + 1
+					n := ctx.Dice.NoModeRoll(int(roulette.Face))
 					if !ma[n] {
 						ma[n] = true
 						pool = append(pool, n)

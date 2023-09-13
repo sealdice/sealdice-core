@@ -3,11 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"sealdice-core/dice"
 	"strconv"
 	"strings"
+
+	"github.com/labstack/echo/v4"
 )
 
 type DiceConfigInfo struct {
@@ -60,6 +61,8 @@ type DiceConfigInfo struct {
 	MailFrom     string `json:"mailFrom"`     // 邮箱来源
 	MailPassword string `json:"mailPassword"` // 邮箱密钥/密码
 	MailSmtp     string `json:"mailSmtp"`     // 邮箱 smtp 地址
+
+	RollMode dice.RollMode `json:"rollMode"` // 掷骰模式
 }
 
 func DiceConfig(c echo.Context) error {
@@ -130,11 +133,14 @@ func DiceConfig(c echo.Context) error {
 		QQEnablePoke:         myDice.QQEnablePoke,
 		PlayerNameWrapEnable: myDice.PlayerNameWrapEnable,
 
-		// 1.3?
+		// 1.3
 		MailEnable:   myDice.MailEnable,
 		MailFrom:     myDice.MailFrom,
 		MailPassword: myDice.MailPassword,
 		MailSmtp:     myDice.MailSmtp,
+
+		// 1.3.1?
+		RollMode: myDice.RollMode,
 	}
 	return c.JSON(http.StatusOK, info)
 }
@@ -384,6 +390,10 @@ func DiceConfigSet(c echo.Context) error {
 		}
 		if val, ok := jsonMap["mailSmtp"]; ok {
 			myDice.MailSmtp = val.(string)
+		}
+
+		if val, ok := jsonMap["rollMode"]; ok {
+			myDice.RollMode = dice.RollMode(val.(float64))
 		}
 
 		// 统一标记为修改

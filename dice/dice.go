@@ -3,7 +3,6 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -27,7 +26,7 @@ var APPNAME = "SealDice"
 var VERSION = "1.3.0 v20230910"
 
 // var VERSION_CODE = int64(1001000) // 991404
-//var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
+// var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
 var VERSION_CODE = int64(1003000) // 1.3时代
 var APP_BRANCH = ""
 
@@ -216,7 +215,18 @@ type Dice struct {
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 
 	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
+
+	RollMode RollMode `json:"rollMode" yaml:"rollMode"` // 掷骰模式
 }
+
+type RollMode int
+
+const (
+	// Normal 默认均匀模式
+	Normal RollMode = iota
+	// Gauss 正态分布模式
+	Gauss
+)
 
 func (d *Dice) MarkModified() {
 	d.LastUpdatedTime = time.Now().Unix()
@@ -592,7 +602,7 @@ func (d *Dice) ApplyAliveNotice() {
 	}
 	if d.AliveNoticeEnable {
 		entry, err := d.Cron.AddFunc(d.AliveNoticeValue, func() {
-			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)), false)
+			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", d.CurModeRoll(100)), false)
 		})
 		if err == nil {
 			d.AliveNoticeEntry = entry
@@ -624,20 +634,36 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 	return false
 }
 
-func DiceRoll(dicePoints int) int {
-	if dicePoints <= 0 {
-		return 0
+// CurModeRoll 根据掷骰模式进行出目
+func (d *Dice) CurModeRoll(dicePoints int) int {
+	switch d.RollMode {
+	case Normal:
+		return Roll(dicePoints)
+	case Gauss:
+		return RollGauss(dicePoints)
 	}
-	val := rand.Int()%dicePoints + 1
-	return val
+	return Roll(dicePoints)
 }
 
-func DiceRoll64(dicePoints int64) int64 {
-	if dicePoints == 0 {
-		return 0
+// CurModeRoll64 根据掷骰模式进行出目
+func (d *Dice) CurModeRoll64(dicePoints int64) int64 {
+	switch d.RollMode {
+	case Normal:
+		return Roll64(dicePoints)
+	case Gauss:
+		return RollGauss64(dicePoints)
 	}
-	val := rand.Int63()%dicePoints + 1
-	return val
+	return Roll64(dicePoints)
+}
+
+// NoModeRoll 用于需要均匀出目时的掷骰，如抽取选项场景、非重复掷骰
+func (d *Dice) NoModeRoll(dicePoints int) int {
+	return Roll(dicePoints)
+}
+
+// NoModeRoll64 用于需要均匀出目时的掷骰，如抽取选项场景
+func (d *Dice) NoModeRoll64(dicePoints int64) int64 {
+	return Roll64(dicePoints)
 }
 
 func CrashLog() {

@@ -732,7 +732,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						restText = r.restInput
 						return nil, val, "[" + detail + "]"
 					}
-					return nil, DiceRoll64(100), ""
+					return nil, ctx.Dice.CurModeRoll64(100), ""
 				}
 
 				ret, val1, difficult1, expr1 := readOneVal(ctx1)
@@ -960,7 +960,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						varValue = val.Value.(int64)
 					}
 
-					d100 := DiceRoll64(100)
+					d100 := mctx.Dice.CurModeRoll64(100)
 					// 注意一下，这里其实是，小于失败 大于成功
 					successRank, _ := ResultCheck(mctx, mctx.Group.CocRuleIndex, d100, varValue)
 					var resultText string
@@ -1148,12 +1148,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Name:      "ti",
 		ShortHelp: ".ti // 抽取一个临时性疯狂症状",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			num := DiceRoll(10)
+			d := ctx.Dice
+			num := d.NoModeRoll(10)
 			VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("1D10=%d", num))
 			VarSetValueInt64(ctx, "$t选项值", int64(num))
 
 			var desc string
-			extraNum1 := DiceRoll(10)
+			extraNum1 := d.CurModeRoll(10)
 			VarSetValueInt64(ctx, "$t附加值1", int64(extraNum1))
 			switch num {
 			case 1:
@@ -1174,13 +1175,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				desc += fmt.Sprintf("竭嘶底里：调查员表现出大笑，哭泣，嘶吼，害怕等的极端情绪表现，持续 1D10=%d 轮。", extraNum1)
 			case 9:
 				desc += fmt.Sprintf("恐惧：调查员通过一次 D100 或者由守秘人选择，来从恐惧症状表中选择一个恐惧源，就算这一恐惧的事物是并不存在的，调查员的症状会持续 1D10=%d 轮。", extraNum1)
-				extraNum2 := DiceRoll(100)
+				extraNum2 := d.CurModeRoll(100)
 				desc += fmt.Sprintf("\n1D100=%d\n", extraNum2)
 				desc += fearMap[extraNum2]
 				VarSetValueInt64(ctx, "$t附加值2", int64(extraNum2))
 			case 10:
 				desc += fmt.Sprintf("躁狂：调查员通过一次 D100 或者由守秘人选择，来从躁狂症状表中选择一个躁狂的诱因，这个症状将会持续 1D10=%d 轮。", extraNum1)
-				extraNum2 := DiceRoll(100)
+				extraNum2 := d.CurModeRoll(100)
 				desc += fmt.Sprintf("\n1D100=%d\n", extraNum2)
 				desc += maniaMap[extraNum2]
 				VarSetValueInt64(ctx, "$t附加值2", int64(extraNum2))
@@ -1196,12 +1197,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Name:      "li",
 		ShortHelp: ".li // 抽取一个总结性疯狂症状",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			num := DiceRoll(10)
+			d := ctx.Dice
+			num := d.NoModeRoll(10)
 			VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("1D10=%d", num))
 			VarSetValueInt64(ctx, "$t选项值", int64(num))
 
 			var desc string
-			extraNum1 := DiceRoll(10)
+			extraNum1 := d.CurModeRoll(10)
 			VarSetValueInt64(ctx, "$t附加值1", int64(extraNum1))
 			switch num {
 			case 1:
@@ -1222,13 +1224,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				desc += "逃避行为：调查员恢复清醒时发现自己在很远的地方，也许迷失在荒郊野岭，或是在驶向远方的列车或长途汽车上。"
 			case 9:
 				desc += fmt.Sprintf("恐惧：调查员患上一个新的恐惧症状。在恐惧症状表上骰 1 个 D100 来决定症状，或由守秘人选择一个。调查员在 1D10=%d 小时后回过神来，并开始为避开恐惧源而采取任何措施。", extraNum1)
-				extraNum2 := DiceRoll(100)
+				extraNum2 := d.CurModeRoll(100)
 				desc += fmt.Sprintf("\n1D100=%d\n", extraNum2)
 				desc += fearMap[extraNum2]
 				VarSetValueInt64(ctx, "$t附加值2", int64(extraNum2))
 			case 10:
 				desc += fmt.Sprintf("狂躁：调查员患上一个新的狂躁症状。在狂躁症状表上骰 1 个 d100 来决定症状，或由守秘人选择一个。调查员会在 1D10=%d 小时后恢复理智。在这次疯狂发作中，调查员将完全沉浸于其新的狂躁症状。这症状是否会表现给旁人则取决于守秘人和此调查员。", extraNum1)
-				extraNum2 := DiceRoll(100)
+				extraNum2 := d.CurModeRoll(100)
 				desc += fmt.Sprintf("\n1D100=%d\n", extraNum2)
 				desc += maniaMap[extraNum2]
 				VarSetValueInt64(ctx, "$t附加值2", int64(extraNum2))
