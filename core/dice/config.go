@@ -632,6 +632,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_导出_文件名前缀": {
 				{`【{$t记录名}】{$t日期}{$t时间}`, 1},
 			},
+			"记录_导出_邮件附言": {
+				{`***自动邮件，无需回复***`, 1},
+			},
 			"OB_开启": {
 				{"你将成为观众（自动修改昵称和群名片[如有权限]，并不会给观众发送暗骰结果）。", 1},
 			},
@@ -1206,6 +1209,9 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".log export",
 			},
 			"记录_导出_文件名前缀": {
+				SubType: ".log export",
+			},
+			"记录_导出_邮件附言": {
 				SubType: ".log export",
 			},
 			"OB_开启": {
