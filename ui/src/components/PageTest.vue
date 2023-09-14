@@ -19,8 +19,16 @@
 
     <!-- style="position: absolute; bottom: 0;" -->
     <div style="display:flex; align-items: center;">
-      <el-autocomplete ref="autocomplete" v-model="input" :fetch-suggestions="querySearch" placeholder="来试一试，回车键发送" :trigger-on-focus="false" @select="inputChanged" @keyup.enter.native="doSend" style="flex: 1;" />
+      <el-autocomplete ref="autocomplete" v-model="input" :fetch-suggestions="querySearch" placeholder="来试一试，回车键发送" :trigger-on-focus="false" @select="inputChanged" @keyup.enter="doSend" style="flex: 1;" />
       <el-button type="primary" style="margin-left: .6rem; min-width: 3rem" @click="doSend">发送</el-button>
+      <el-popover class="reload-control" placement="top" trigger="click">
+        <template #reference>
+          <el-button :icon="Plus" circle />
+        </template>
+        <el-button class="reload-button" text @click="reloadDeck" :disabled="deckReloading">重载牌堆</el-button>
+        <el-button class="reload-button" style="margin-left: 0;" text @click="reloadJs" :disabled="jsReloading">重载JS</el-button>
+        <el-button class="reload-button" style="margin-left: 0;" text @click="reloadHelpdoc" :disabled="helpdocReloading">重载帮助文件</el-button>
+      </el-popover>
     </div>
   </div>
 </template>
@@ -30,6 +38,8 @@ import { computed, nextTick, onBeforeMount, onBeforeUnmount, ref } from 'vue';
 import { useStore } from '~/store';
 import imgSeal from '~/assets/seal.png'
 import imgMe from '~/assets/me.jpg'
+import { Plus } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus';
 
 const store = useStore()
 let timerMsg: number
@@ -150,6 +160,42 @@ const loadAll = () => {
   ret.reverse()
   return ret
 }
+
+const deckReloading = ref<boolean>(false)
+const reloadDeck = async () => {
+  deckReloading.value = true
+  const ret = await store.deckReload()
+  if (ret.testMode) {
+    ElMessage.success('展示模式无法重载牌堆')
+  } else {
+    ElMessage.success('已重载牌堆')
+  }
+  deckReloading.value = false
+}
+
+const jsReloading = ref<boolean>(false)
+const reloadJs = async () => {
+  jsReloading.value = true
+  const ret = await store.jsReload()
+  if (ret && ret?.testMode) {
+    ElMessage.success('展示模式无法重载JS')
+  } else {
+    ElMessage.success('已重载JS')
+  }
+  jsReloading.value = false
+}
+
+const helpdocReloading = ref<boolean>(false)
+const reloadHelpdoc = async () => {
+  helpdocReloading.value = true
+  const ret = await store.helpDocReload()
+  if (ret && ret?.result) {
+    ElMessage.success('已重载帮助文档')
+  } else {
+    ElMessage.success( ret.err || '无法重载帮助文档')
+  }
+  helpdocReloading.value = false
+}
 </script>
 
 <style scoped lang="scss">
@@ -190,5 +236,15 @@ const loadAll = () => {
       overflow-wrap: anywhere;
     }
   }
+}
+
+.reload-control {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.reload-button {
+  width: 100%;
 }
 </style>
