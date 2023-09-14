@@ -59,6 +59,7 @@ func LogItemFixDatatype() error {
 	}
 
 	fmt.Println("开始修复log_items表message字段类型")
+	fmt.Println("【不要关闭海豹程序！】")
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -78,7 +79,9 @@ func LogItemFixDatatype() error {
 		return tx.Rollback()
 	}
 
-	fmt.Println("修复log_items表message字段类型成功")
 	_, _ = db.Exec(`vacuum;`)
+
+	fmt.Println("修复log_items表message字段类型成功")
+	fmt.Println("您现在可以关闭海豹程序了")
 	return nil
 }
