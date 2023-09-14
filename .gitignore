@@ -33,3 +33,4 @@ update/
 walle-q/
 _help_cache
 .DS_Store
+!static/.nomedia
