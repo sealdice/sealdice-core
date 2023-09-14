@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"time"
+
+	"github.com/schollz/progressbar/v3"
 )
 
 var sqls = []string{
@@ -61,6 +64,26 @@ func LogItemFixDatatype() error {
 	fmt.Println("开始修复log_items表message字段类型")
 	fmt.Println("【不要关闭海豹程序！】")
 
+	done := make(chan struct{}, 1)
+
+	go func() {
+		bar := progressbar.NewOptions(-1, // spinner
+			progressbar.OptionEnableColorCodes(true),
+			progressbar.OptionShowBytes(false),
+			progressbar.OptionSetElapsedTime(true),
+		)
+		for {
+			select {
+			case <-done:
+				bar.Exit()
+				return
+			default:
+				bar.Add(1)
+				time.Sleep(time.Millisecond * 333)
+			}
+		}
+	}()
+
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -80,8 +103,9 @@ func LogItemFixDatatype() error {
 	}
 
 	_, _ = db.Exec(`vacuum;`)
+	done <- struct{}{}
 
-	fmt.Println("修复log_items表message字段类型成功")
+	fmt.Println("\n修复log_items表message字段类型成功")
 	fmt.Println("您现在可以关闭海豹程序了")
 	return nil
 }
