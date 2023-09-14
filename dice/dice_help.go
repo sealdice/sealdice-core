@@ -157,19 +157,19 @@ func (m *HelpManager) Close() {
 func (m *HelpManager) Load() {
 	m.loadSearchEngine()
 
-	_ = m.AddItem(HelpTextItem{
-		Group:       HelpBuiltinGroup,
-		Title:       "First Text",
-		Content:     "In view, a humble vaudevillian veteran cast vicariously as both victim and villain vicissitudes of fate.",
-		PackageName: "测试",
-	})
-
-	_ = m.AddItem(HelpTextItem{
-		Group:       HelpBuiltinGroup,
-		Title:       "测试词条",
-		Content:     "他在命运的沉浮中随波逐流, 扮演着受害与加害者的双重角色",
-		PackageName: "测试",
-	})
+	//_ = m.AddItem(HelpTextItem{
+	//	Group:       HelpBuiltinGroup,
+	//	Title:       "First Text",
+	//	Content:     "In view, a humble vaudevillian veteran cast vicariously as both victim and villain vicissitudes of fate.",
+	//	PackageName: "测试",
+	//})
+	//
+	//_ = m.AddItem(HelpTextItem{
+	//	Group:       HelpBuiltinGroup,
+	//	Title:       "测试词条",
+	//	Content:     "他在命运的沉浮中随波逐流, 扮演着受害与加害者的双重角色",
+	//	PackageName: "测试",
+	//})
 
 	_ = m.AddItem(HelpTextItem{
 		Group: HelpBuiltinGroup,
@@ -181,15 +181,6 @@ func (m *HelpManager) Load() {
 .ra 侦查 //侦查技能检定
 .ra 侦查+10 //技能临时加值检定
 .ra 3#p 射击 // 连续射击三次`,
-		PackageName: "帮助",
-	})
-
-	_ = m.AddItem(HelpTextItem{
-		Group: HelpBuiltinGroup,
-		Title: "娱乐",
-		Content: `.gugu // 随机召唤一只鸽子
-.jrrp 今日人品
-`,
 		PackageName: "帮助",
 	})
 
@@ -211,17 +202,17 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	_ = m.AddItem(HelpTextItem{
-		Group: HelpBuiltinGroup,
-		Title: "日志",
-		Content: `.help 日志：
-.log new //新建记录
-.log on //开始记录
-.log off //暂停纪录
-.log end //结束记录并导出
-`,
-		PackageName: "帮助",
-	})
+	//	_ = m.AddItem(HelpTextItem{
+	//		Group: HelpBuiltinGroup,
+	//		Title: "日志",
+	//		Content: `.help 日志：
+	//.log new //新建记录
+	//.log on //开始记录
+	//.log off //暂停纪录
+	//.log end //结束记录并导出
+	//`,
+	//		PackageName: "帮助",
+	//	})
 
 	_ = m.AddItem(HelpTextItem{
 		Group: HelpBuiltinGroup,
@@ -242,26 +233,17 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	_ = m.AddItem(HelpTextItem{
-		Group: HelpBuiltinGroup,
-		Title: "骰主",
-		Content: `.botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话
-.botlist del @A @B @C // 去除机器人标记
-.botlist list // 查看当前列表
-.master add me @A @B // 标记骰主
-.send <留言> // 给骰主留言
-`,
-		PackageName: "帮助",
-	})
-
-	_ = m.AddItem(HelpTextItem{
-		Group: HelpBuiltinGroup,
-		Title: "其他",
-		Content: `.find 克苏鲁星之眷族 //查找对应怪物资料
-.find 70尺 法术 // 查找关联资料（仅在全文搜索开启时可用）
-`,
-		PackageName: "帮助",
-	})
+	//	_ = m.AddItem(HelpTextItem{
+	//		Group: HelpBuiltinGroup,
+	//		Title: "骰主",
+	//		Content: `.botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话
+	//.botlist del @A @B @C // 去除机器人标记
+	//.botlist list // 查看当前列表
+	//.master add me @A @B // 标记骰主
+	//.send <留言> // 给骰主留言
+	//`,
+	//		PackageName: "帮助",
+	//	})
 
 	//m.AddItem(HelpTextItem{
 	//	Title:       "查询/find",
