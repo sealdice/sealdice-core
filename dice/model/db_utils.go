@@ -1,8 +1,11 @@
 package model
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sealdice-core/utils/spinner"
+	"sync"
 )
 
 func DBCacheDelete() bool {
@@ -32,4 +35,38 @@ func DBCacheDelete() bool {
 		tryDelete("data-logs.db-wal")
 	}
 	return ok
+}
+
+func DBVacuum() {
+	done := make(chan interface{}, 1)
+	fmt.Println("开始进行数据库整理")
+
+	go spinner.SpinnerWithLines(done, 3, 10)
+	defer func() {
+		done <- struct{}{}
+	}()
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	vacuum := func(path string, wg *sync.WaitGroup) {
+		defer wg.Done()
+		db, err := _SQLiteDBInit(path, true)
+		defer db.Close()
+		if err != nil {
+			fmt.Printf("清理 %q 时出现错误：%v", path, err)
+			return
+		}
+		_, err = db.Exec("VACUUM;")
+		if err != nil {
+			fmt.Printf("清理 %q 时出现错误：%v", path, err)
+		}
+	}
+
+	go vacuum("./data/default/data.db", &wg)
+	go vacuum("./data/default/data-logs.db", &wg)
+
+	wg.Wait()
+
+	fmt.Println("\n数据库整理完成")
 }
