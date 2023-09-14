@@ -679,7 +679,8 @@ func (d *Dice) registerCoreCommands() {
 .master reboot // 重新启动(需要二次确认)
 .master checkupdate // 检查更新(需要二次确认)
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
-.master backup // 做一次备份`
+.master backup // 做一次备份
+.master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档`
 	cmdMaster := &CmdItemInfo{
 		Name:          "master",
 		ShortHelp:     masterListHelp,
@@ -888,6 +889,32 @@ func (d *Dice) registerCoreCommands() {
 					text = "无"
 				}
 				ReplyToSender(ctx, msg, fmt.Sprintf("Master列表:\n%s", text))
+			case "reload":
+				system := cmdArgs.GetArgN(2)
+				dice := ctx.Dice
+				switch system {
+				case "deck":
+					DeckReload(dice)
+					ReplyToSender(ctx, msg, "牌堆已重载")
+				case "js":
+					dice.JsInit()
+					dice.JsLoadScripts()
+					ReplyToSender(ctx, msg, "js已重载")
+				case "help":
+					// 别名
+					fallthrough
+				case "helpdoc":
+					dm := dice.Parent
+					if !dm.IsHelpReloading {
+						dm.IsHelpReloading = true
+						dm.Help.Close()
+						dm.InitHelp()
+						dm.AddHelpWithDice(dice)
+						ReplyToSender(ctx, msg, "帮助文档已重载")
+					} else {
+						ReplyToSender(ctx, msg, "帮助文档正在重新装载")
+					}
+				}
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
