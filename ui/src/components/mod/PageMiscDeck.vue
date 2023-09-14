@@ -1,77 +1,75 @@
 <template>
-  <h2>设置</h2>
-  <div>
-    <div>
-      <div style="margin-top: 1rem">
-        <el-upload
-          class="upload"
-          action=""
-          multiple
+  <header class="page-header">
+    <el-button type="primary" :icon="Refresh" @click="doBackup">重载牌堆</el-button>
+  </header>
 
-          :before-upload="beforeUpload"
-          :file-list="fileList"
-        >
-          <el-button type="">上传牌堆(json/yaml/deck)</el-button>
-          <el-tooltip raw-content content="deck牌堆: 一种单文件带图的牌堆格式<br>在牌堆文件中使用./images/xxx.png的相对路径引用图片。并连同图片目录一起打包成zip，修改扩展名为deck即可制作">
-            <el-icon><question-filled /></el-icon>
+  <el-tabs v-model="mode" :stretch="true">
+    <el-tab-pane label="牌堆列表" name="list">
+      <header class="deck-list-header">
+        <el-space>
+          <el-upload class="upload" action="" multiple :before-upload="beforeUpload" :file-list="fileList">
+            <el-button type="primary" :icon="Upload">上传牌堆</el-button>
+          </el-upload>
+          <el-button class="link-button" type="info" :icon="Search" size="small" link tag="a" target="_blank"
+            href="https://github.com/sealdice/draw">获取牌堆</el-button>
+        </el-space>
+        <el-space>
+          <el-text type="info" size="small">目前支持 json/yaml/deck 格式的牌堆</el-text>
+          <el-tooltip raw-content
+            content="deck牌堆: 一种单文件带图的牌堆格式<br />在牌堆文件中使用./images/xxx.png的相对路径引用图片。并连同图片目录一起打包成zip，修改扩展名为deck即可制作">
+            <el-icon size="small"><question-filled /></el-icon>
           </el-tooltip>
-
-          <template #tip>
-            <div class="el-upload__tip">
+        </el-space>
+      </header>
+      <main class="deck-list-main">
+        <el-card class="deck-item" v-for="i, index in data" :key="index" shadow="hover">
+          <template #header>
+            <div class="deck-item-header">
+              <el-space>
+                <el-text size="large" tag="b">{{ i.name }}</el-text>
+                <el-text>{{ i.version }}</el-text>
+              </el-space>
+              <el-space>
+                <!-- <el-button :icon="Download" type="success" size="small">更新</el-button> -->
+                <!-- <el-button :icon="Tools" type="primary" size="small">设置</el-button> -->
+                <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i, index)">删除</el-button>
+              </el-space>
             </div>
           </template>
-        </el-upload>
-
-        <!-- <el-button @click="doSave">上传牌堆(json/yaml/zip)</el-button> -->
-        <el-button @click="doBackup">重新加载</el-button>
-        <el-button><el-link href="https://github.com/sealdice/draw" target="_blank">获取牌堆</el-link></el-button>
-      </div>
-    </div>
-  </div>
-
-  <h2>牌堆信息</h2>
-  <div v-for="i,index in data" style="display: flex; flex-direction: column;" class="deck-item">
-    <div style="display: flex; justify-content: space-between; align-content: center; align-items: center">
-      <h4 style="flex: 1">{{ i.name }}</h4>
-      <el-button @click="doDelete(i, index)">删除</el-button>
-    </div>
-    <!-- <div>
-      <el-checkbox v-model="i.enable" @click.native="setEnable(index, !i.enable)">启用(此状态不保存，重载后重置)</el-checkbox>       
-    </div> -->
-    <div>作者: {{i.author || '<佚名>'}}  版本: {{i.version || '<未定义>'}}</div>
-    <div>
-      <div v-if="i.license">许可协议: {{i.license}}</div>
-      <div>牌组列表:</div>
-      <div class="deck-keys">
-        <span v-for="_,c of i.command">{{c}}</span>
-      </div>
-    </div>
-    <!-- <div>{{i}}</div> -->
-    <!-- <a :href="`${urlBase}/sd-api/backup/download?name=${encodeURIComponent(i.name)}&token=${encodeURIComponent(store.token)}`" style="text-decoration: none">
-      <el-button style="width: 9rem;">下载 - {{ filesize(i.fileSize) }}</el-button>
-    </a> -->
-  </div>
+          <el-descriptions>
+            <el-descriptions-item :span="3" label="作者">{{ i.author || '<佚名>' }}</el-descriptions-item>
+            <el-descriptions-item :span="3" v-if="i.desc" label="简介">{{ i.desc }}</el-descriptions-item>
+            <el-descriptions-item :span="3" label="牌堆列表">
+              <el-tag v-for="_, c of i.command" :key="c" size="small" style="margin-right: 0.5rem;"
+                :disable-transitions="true">
+                {{ c }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item v-if="i.license" label="许可协议">{{ i.license }}</el-descriptions-item>
+            <el-descriptions-item v-if="i.date" label="发布时间">{{ i.date }}</el-descriptions-item>
+            <el-descriptions-item v-if="i.updateDate" label="更新时间">{{ i.date }}</el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+      </main>
+    </el-tab-pane>
+  </el-tabs>
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeMount, ref } from 'vue';
 import { useStore } from '~/store'
-import { urlBase } from '~/backend'
-import filesize from 'filesize'
 import { ElMessage, ElMessageBox } from 'element-plus'
-// import type { UploadProps, UploadUserFile } from 'element-plus'
 import {
-  Location,
-  Document,
-  Menu as IconMenu,
-  Setting,
-  CirclePlusFilled,
-  CircleClose,
   QuestionFilled,
-  BrushFilled
+  Upload,
+  Refresh,
+  Search,
+  Delete
 } from '@element-plus/icons-vue'
 
 const store = useStore()
+
+const mode = ref<string>('list')
 
 const data = ref<any[]>([])
 
@@ -149,7 +147,8 @@ onBeforeMount(async () => {
 @media screen and (max-width: 700px) {
   .bak-item {
     flex-direction: column;
-    & > span {
+
+    &>span {
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
@@ -158,18 +157,60 @@ onBeforeMount(async () => {
 }
 
 .deck-keys {
-  display:flex;
+  display: flex;
   flex-flow: wrap;
 
-  & > span {
+  &>span {
     margin-right: 1rem;
     // width: fit-content;
   }
 }
 
+.deck-control {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.deck-list-header {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.deck-list-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem
+}
+
+.deck-item-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.deck-item {
+  width: 100%;
+}
+
+.edit-operation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
 .upload {
-  > ul {
+  >ul {
     display: none;
   }
+}
+
+.link-button {
+  text-decoration: none;
 }
 </style>

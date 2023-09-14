@@ -18,15 +18,24 @@ code {
 }
 
 
+.tip-danger {
+  > .title {
+    font-weight: 700;
+  }
+  padding: 8px 16px;
+  background-color: var(--el-color-danger-light-9);
+  border-radius: 4px;
+  border-left: 3px solid var(--el-color-danger);
+  margin: 20px 0;
+}
+
 .tip {
   > .title {
     font-weight: 700;
   }
   padding: 8px 16px;
-  // background-color: var(--block-tip-bg-color);
-  background-color: #fff;
   border-radius: 4px;
-  border-left: 5px solid var(--el-color-primary);
+  border-left: 3px solid var(--el-color-primary);
   margin: 20px 0;
 }
 
@@ -35,5 +44,15 @@ code {
 @media screen and (max-width: 750px) {
   .el-message-box {
     width: 80% !important;
+  }
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+
+  .el-switch {
+    --el-switch-on-color: var(--el-color-success);
+    --el-switch-off-color: var(--el-color-danger);
   }
 }

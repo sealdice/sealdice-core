@@ -1,75 +1,95 @@
 <template>
-  <el-affix :offset="60" v-if="modified">
-    <div class="tip">
-      <!-- <p class="title">TIP</p> -->
-      <div style="display: flex; justify-content: space-between; align-content: center; align-items: center">
-        <span>内容已修改，不要忘记保存</span>
-        <!-- <el-button class="button" type="primary" @click="save" :disabled="!modified">点我保存</el-button> -->
-      </div>
+  <header class="page-header">
+    <el-switch @change="switchClick" v-model="replyEnable" active-text="启用" inactive-text="关闭">总开关</el-switch>
+    <el-button @click="doSave" :icon="DocumentChecked" type="primary"
+      v-if="store.curDice.config.customReplyConfigEnable">保存</el-button>
+  </header>
+
+  <el-affix :offset="70" v-if="modified">
+    <div class="tip-danger">
+      <el-text type="danger" size="large" tag="strong">内容已修改，不要忘记保存！</el-text>
     </div>
   </el-affix>
 
-  <div>
-    <el-checkbox @click="switchClick" v-model="store.curDice.config.customReplyConfigEnable">总开关</el-checkbox>
-    <el-button style="float: right" @click="dialogFormVisible = true">导入</el-button>
-    <div>每项自定义回复由一个“条件”触发，产生一系列“结果”</div>
-    <div>一旦一个“条件”被满足，将立即停止匹配，并执行“结果”</div>
-    <el-collapse>
-      <el-collapse-item name="1">
+  <div class="tip">
+    <el-collapse class="helptips" v-model="activeTip">
+      <el-collapse-item name="basic">
         <template #title>
-          <div style="padding: 0 1rem">进阶内容</div>
+          <el-text tag="strong">基础帮助</el-text>
         </template>
-
-        <div style="padding: 0 1rem;">
-          <div>越靠前的项具有越高的优先级，可以拖动来调整优先顺序！</div>
-          <div>为了避免滥用和无限互答，自定义回复的响应间隔最低为5s</div>
-          <div>匹配到的文本将被存入变量$t0，正则匹配的组将被存入$t1 $t2 ....</div>
-          <div>若存在组名，如(?P&lt;A&gt;cc)，将额外存入$tA</div>
-        </div>
+        <el-text tag="p">每项自定义回复由一个&lt;条件>触发，产生一系列&lt;结果><br />一旦一个&lt;条件>被满足，将立即停止匹配，并执行&lt;结果></el-text>
+      </el-collapse-item>
+      <el-collapse-item name="advanced">
+        <template #title>
+          <el-text tag="strong">进阶内容</el-text>
+        </template>
+        <el-text tag="p">
+          越靠前的项具有越高的优先级，可以拖动来调整优先顺序！<br />
+          为了避免滥用和无限互答，自定义回复的响应间隔最低为5s<br />
+          匹配到的文本将被存入变量$t0，正则匹配的组将被存入$t1 $t2 ....<br />
+          若存在组名，如(?P&lt;A&gt;cc)，将额外存入$tA
+        </el-text>
       </el-collapse-item>
     </el-collapse>
+  </div>
 
-    <div style="margin-top: 1rem;">
-      <div>当前文件</div>
-      <div>
-        <el-select v-model="curFilename">
-          <el-option v-for="item in fileItems" :key="item.filename" :label="item.filename" :value="item.filename" />
-        </el-select>
-        <el-checkbox style="margin-left: 1rem;" v-model="cr.enable">启用</el-checkbox>
+  <el-divider />
+
+  <main class="reply-main">
+    <header style="display: flex; flex-wrap: wrap; justify-content: space-between;"
+      v-if="store.curDice.config.customReplyConfigEnable">
+      <el-space class="current-reply" direction="vertical">
+        <el-space style="justify-content: center" wrap>
+          <strong>当前文件</strong>
+          <el-select v-model="curFilename">
+            <el-option v-for="item in fileItems" :key="item.filename" :label="item.filename" :value="item.filename" />
+          </el-select>
+          <el-checkbox-button :class="cr.enable ? `reply-file-status-open` : `reply-file-status-close`"
+            style="margin-left: 1rem" v-model="cr.enable">
+            {{ cr.enable ? '已启用' : '未启用' }}
+          </el-checkbox-button>
+        </el-space>
+        <el-space style="margin-top: 0.5rem;" warp>
+          <el-button @click="customReplyFileDelete" type="danger" size="small" plain :icon="Delete">删除</el-button>
+          <el-button type="primary" size="small" plain :icon="Download" tag="a" style="text-decoration: none;"
+            :href="`${urlBase}/sd-api/configs/custom_reply/file_download?name=${encodeURIComponent(curFilename)}&token=${encodeURIComponent(store.token)}`">下载
+          </el-button>
+        </el-space>
+        <el-checkbox v-model="replyDebugMode">开启回复调试日志（打印字符细节）</el-checkbox>
+      </el-space>
+      <div class="reply-operation">
+        <div>
+          <el-tooltip content="新建一个自定义回复文件。">
+            <el-button type="success" plain :icon="DocumentAdd" @click="customReplyFileNew">新建</el-button>
+          </el-tooltip>
+        </div>
+        <div>
+          <el-tooltip content="通过粘贴/编辑文本来导入自定义回复。">
+            <el-button type="primary" plain :icon="Tickets" @click="dialogFormVisible = true">解析</el-button>
+          </el-tooltip>
+        </div>
+        <el-tooltip content="上传自定义回复的 .yaml 文件。">
+          <el-upload action="" multiple accept=".yaml" :before-upload="beforeUpload" :file-list="uploadFileList">
+            <el-button type="primary" plain :icon="Upload">上传</el-button>
+          </el-upload>
+        </el-tooltip>
       </div>
-      <div style="margin-top: .5rem; margin-bottom: 0.5rem; display: flex;">
-        <el-button @click="customReplyFileNew">新文件</el-button>
-        <el-button @click="customReplyFileDelete">删除</el-button>
-        <el-button>
-          <a :href="`${urlBase}/sd-api/configs/custom_reply/file_download?name=${encodeURIComponent(curFilename)}&token=${encodeURIComponent(store.token)}`"
-            style="text-decoration: none">下载</a>
-        </el-button>
+    </header>
 
-        <el-upload style="margin-left: 12px;" class="upload-demo" action="" multiple accept=".yaml"
-          :before-upload="beforeUpload" :file-list="uploadFileList">
-          <el-button type="">上传</el-button>
-          <template #tip>
-            <div class="el-upload__tip">
-            </div>
-          </template>
-        </el-upload>
-      </div>
-
-      <el-checkbox v-model="replyDebugMode">开启回复调试日志(打印字符细节)</el-checkbox>
-      <el-divider></el-divider>
-    </div>
+    <el-divider v-if="store.curDice.config.customReplyConfigEnable" />
 
     <template v-if="!store.curDice.config.customReplyConfigEnable">
-      <div style="font-size: 1.5rem;">请先启用总开关！</div>
+      <div></div>
+      <el-text type="danger" size="large" style="font-size: 1.5rem;">请先启用总开关！</el-text>
     </template>
     <template v-else>
-      <nested-draggable :tasks="list" :class="cr.enable ? '': 'disabled'" />
-      <div>
-        <el-button @click="addOne(list)">添加一项</el-button>
-        <el-button @click="doSave">保存</el-button>
+      <nested-draggable :tasks="list" :class="cr.enable ? '' : 'disabled'" />
+      <div style="display: flex; justify-content: space-between;">
+        <el-button type="success" plain :icon="Plus" @click="addOne(list)">添加一项</el-button>
+        <el-button @click="doSave" :icon="DocumentChecked" type="primary">保存</el-button>
       </div>
     </template>
-  </div>
+  </main>
 
   <el-dialog v-model="dialogFormVisible" title="导入配置" :close-on-click-modal="false" :close-on-press-escape="false"
     :show-close="false" class="the-dialog">
@@ -118,27 +138,42 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, onBeforeUnmount, ref, watch, nextTick } from 'vue';
+import { onBeforeMount, onBeforeUnmount, ref, watch, nextTick, computed } from 'vue';
+import { urlBase } from "~/backend";
 import { useStore } from '~/store';
-import { urlBase } from '~/backend'
 import nestedDraggable from "./nested.vue";
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Location,
-  Document,
-  Menu as IconMenu,
-  Setting,
-  CirclePlusFilled,
-  CircleClose,
-  QuestionFilled,
-  BrushFilled
+  DocumentChecked,
+  Delete,
+  Download,
+  DocumentAdd,
+  Tickets,
+  Upload,
+  Plus
 } from '@element-plus/icons-vue'
-import { cloneDeep, zip } from "lodash-es";
 
 const store = useStore()
 const dialogFormVisible = ref(false)
 const dialogLicenseVisible = ref(false)
 const configForImport = ref('')
+
+const replyEnable = computed({
+  get: () => store.curDice.config.customReplyConfigEnable,
+  set: (value) => {
+    store.diceConfigSet({ customReplyConfigEnable: value })
+    if (!store.curDice.config.customReplyConfigEnable) {
+      dialogLicenseVisible.value = true
+    }
+  }
+})
+
+watch(replyEnable, async (newStatus, oldStatus) => {
+  if (newStatus != oldStatus) {
+  }
+})
+
+const activeTip = 'basic'
 
 const curFilename = ref('reply.yaml')
 
@@ -361,8 +396,9 @@ const doImport = () => {
     const [a, b, rest] = parseString(text);
     if (a.length && b.length) {
       const replies = b.map((v) => [v, 1]);
-      list.value.push({ "enable": true, "conditions": [
-        { "condType": "textMatch", "matchType": "matchMulti", "value": a.join('|') }], "results": [{ "resultType": "replyToSender", "delay": 0, "message": replies }] 
+      list.value.push({
+        "enable": true, "conditions": [
+          { "condType": "textMatch", "matchType": "matchMulti", "value": a.join('|') }], "results": [{ "resultType": "replyToSender", "delay": 0, "message": replies }]
       });
       count += 1;
     }
@@ -400,13 +436,66 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style>
+<style scoped>
 .reply-text>textarea {
   max-height: 65vh;
+}
+
+.helptips {
+  background-color: #f3f5f7;
+}
+
+.helptips :deep().el-collapse-item__header {
+  background-color: #f3f5f7;
+}
+
+.helptips :deep().el-collapse-item__wrap {
+  background-color: #f3f5f7;
 }
 </style>
 
 <style scoped lang="scss">
+@media screen and (max-width: 700px) {
+  .bak-item {
+    flex-direction: column;
+
+    &>span {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .current-reply {
+    width: 100%;
+  }
+
+  .reply-operation {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .reply-operation div:not(:last-child) {
+    margin-right: 1rem;
+  }
+}
+
+@media screen and (min-width: 700px) {
+  .reply-operation {
+    flex-direction: column;
+    margin-right: 0.5rem;
+  }
+
+  .reply-operation div:not(:last-child) {
+    margin-bottom: 0.5rem;
+  }
+}
+
+.reply-operation {
+  display: flex;
+  justify-content: center;
+  align-items: self-start;
+}
 
 .disabled {
   filter: grayscale(1);

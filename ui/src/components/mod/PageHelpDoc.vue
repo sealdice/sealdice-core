@@ -1,11 +1,14 @@
 <template>
-  <div>
+  <header class="page-header">
     <el-button type="primary" :icon="Refresh" @click="reload" :loading="reloadLoading"
       :disabled="reloadLoading">重载帮助文档</el-button>
-  </div>
+  </header>
 
-  <el-alert v-show="needReload" title="存在修改，需要重载后生效" type="error" effect="dark" :closable="false"
-    style="margin-top: 10px" />
+  <el-affix :offset="70" v-if="needReload">
+    <div class="tip-danger">
+      <el-text type="danger" size="large" tag="strong">存在修改，需要重载后生效！</el-text>
+    </div>
+  </el-affix>
 
   <el-tabs v-model="tab" :stretch=true>
     <el-tab-pane label="文件" name="file">
@@ -62,7 +65,8 @@
                 </span>
               </div>
               <div v-if="!data.isDir" class="file-tag">
-                <el-tag :type="getHelpDocTag(data.loadStatus, data.deleted, data.group).type" size="small">
+                <el-tag :type="getHelpDocTag(data.loadStatus, data.deleted, data.group).type" size="small"
+                  :disable-transitions="true">
                   {{ getHelpDocTag(data.loadStatus, data.deleted, data.group).label }}
                 </el-tag>
               </div>
@@ -101,7 +105,7 @@
           <el-table-column prop="id" label="序号" />
           <el-table-column prop="group" label="分组">
             <template #default="scope">
-              <el-tag type="success" size="small">{{ scope.row.group }}</el-tag>
+              <el-tag type="success" size="small" :disable-transitions="true">{{ scope.row.group }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="from" label="来源文件" />

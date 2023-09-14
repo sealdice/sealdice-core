@@ -1,18 +1,14 @@
 <template>
-  <el-row justify="space-between">
-    <el-col :span="5">
-      <el-switch v-model="jsEnable" style="--el-switch-on-color: #67C23A; --el-switch-off-color: #F56C6C" active-text="启用"
-        inactive-text="关闭" />
-    </el-col>
-    <el-col :span="5" style="display: flex;justify-content: flex-end;">
-      <el-button v-show="jsEnable" @click="jsReload" type="primary" :icon="Refresh" round>重载JS</el-button>
-    </el-col>
-  </el-row>
+  <header class="page-header">
+    <el-switch v-model="jsEnable" active-text="启用" inactive-text="关闭" />
+    <el-button v-show="jsEnable" @click="jsReload" type="primary" :icon="Refresh">重载JS</el-button>
+  </header>
 
-  <el-row>
-    <el-alert v-show="needReload" title="存在修改，需要重载后生效" type="error" effect="dark" :closable="false"
-      style="margin-top: 10px" />
-  </el-row>
+  <el-affix :offset="70" v-if="needReload">
+    <div class="tip-danger">
+      <el-text type="danger" size="large" tag="strong">存在修改，需要重载后生效！</el-text>
+    </div>
+  </el-affix>
 
   <el-row>
     <el-col :span="24">
@@ -23,60 +19,54 @@
             </div>
             <div>
               <div style="margin-top: 1rem">
-                <!-- <el-button @click="doSave">上传牌堆(json/yaml/zip)</el-button> -->
                 <el-button @click="doExecute" type="success" :icon="CaretRight" :disabled="!jsEnable">执行代码</el-button>
               </div>
             </div>
-            <p style="color: #999"><small>注意: 延迟执行的代码，其输出不会立即出现</small></p>
+            <el-text type="danger" tag="p" style="padding: 1rem 0;">注意：延迟执行的代码，其输出不会立即出现</el-text>
             <div style="word-break: break-all; margin-bottom: 1rem; white-space: pre-line;">
               <div v-for="i in jsLines">{{ i }}</div>
             </div>
           </div>
         </el-tab-pane>
         <el-tab-pane label="插件列表" name="list">
-          <div>
-            <el-space style="margin-bottom: 2rem;">
+          <header class="js-list-header">
+            <el-space>
               <el-upload action="" multiple accept="application/javascript, .js" class="upload"
                 :before-upload="beforeUpload" :file-list="uploadFileList">
                 <el-button type="primary" :icon="Upload">上传插件</el-button>
               </el-upload>
-
-              <!-- <el-button @click="jsVisitDir">浏览目录</el-button> -->
-              <!-- <el-button @click="jsReload">重载JS</el-button> -->
-              <el-link type="info" :underline="false" :icon="Search" href="https://github.com/sealdice/javascript"
-                target="_blank">获取插件</el-link>
+              <el-button type="info" :icon="Search" size="small" link tag="a" target="_blank"
+                style="text-decoration: none;" href="https://github.com/sealdice/javascript">获取插件</el-button>
             </el-space>
-
-            <el-space direction="vertical" :fill="true" wrap style="width: 100%">
-              <div v-for="i, index in jsList">
-                <el-descriptions :title="i.name" :border="false" class="js-item">
-                  <template #title>
-                    <el-row style="display: flex;">
-                      <el-col :span="2" :xs="3">
-                        <el-switch v-model="i.enable" @change="changejsScriptStatus(i.name, i.enable)"
-                          style="--el-switch-on-color: #67C23A; --el-switch-off-color: #F56C6C" />
-                      </el-col>
-                      <el-col :span="20" :xs="14" style="display: flex;align-items: center;">
-                        <div>{{ i.name }}</div>
-                      </el-col>
-                      <el-col :span="2" :xs="3" style="align-self: flex-end;">
-                        <el-button @click="doDelete(i, index)" :icon="Delete" circle title="删除" />
-                      </el-col>
-                    </el-row>
-                  </template>
-                  <el-descriptions-item label="作者">{{ i.author || '<佚名>' }}</el-descriptions-item>
-                  <el-descriptions-item label="版本">{{ i.version || '<未定义>' }}</el-descriptions-item>
-                  <el-descriptions-item label="安装时间">{{ dayjs.unix(i.installTime).fromNow() }}</el-descriptions-item>
-                  <el-descriptions-item label="许可协议">{{ i.license || '<暂无>' }}</el-descriptions-item>
-                  <el-descriptions-item label="主页">{{ i.homepage || '<暂无>' }}</el-descriptions-item>
-                  <el-descriptions-item label="更新时间">{{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || '<暂无>'
-                  }}</el-descriptions-item>
-                  <el-descriptions-item label="介绍" :span="3">{{ i.desc || '<暂无>' }}</el-descriptions-item>
-                  <el-descriptions-item label="报错信息" :span="3" v-if="i.errText">{{ i.errText }}</el-descriptions-item>
-                </el-descriptions>
-              </div>
-            </el-space>
-          </div>
+          </header>
+          <main class="js-list-main">
+            <el-card class="js-item" v-for="i, index in jsList" :key="index" shadow="hover">
+              <template #header>
+                <div class="js-item-header">
+                  <el-space>
+                    <el-switch v-model="i.enable" @change="changejsScriptStatus(i.name, i.enable)"
+                      style="--el-switch-on-color: #67C23A; --el-switch-off-color: #F56C6C" />
+                    <el-text size="large" tag="b">{{ i.name }}</el-text>
+                    <el-text>{{ i.version || '<未定义>' }}</el-text>
+                  </el-space>
+                  <el-space>
+                    <el-button @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>删除</el-button>
+                  </el-space>
+                </div>
+              </template>
+              <el-descriptions>
+                <el-descriptions-item :span="3" label="作者">{{ i.author || '<佚名>' }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="介绍">{{ i.desc || '<暂无>' }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="主页">{{ i.homepage || '<暂无>' }}</el-descriptions-item>
+                <el-descriptions-item label="许可协议">{{ i.license || '<暂无>' }}</el-descriptions-item>
+                <el-descriptions-item label="安装时间">{{ dayjs.unix(i.installTime).fromNow() }}</el-descriptions-item>
+                <el-descriptions-item label="更新时间">
+                  {{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || '<暂无>' }}
+                </el-descriptions-item>
+                <el-descriptions-item label="报错信息" :span="3" v-if="i.errText">{{ i.errText }}</el-descriptions-item>
+              </el-descriptions>
+            </el-card>
+          </main>
         </el-tab-pane>
       </el-tabs>
     </el-col>
@@ -85,24 +75,11 @@
 </template>
 
 <script lang="ts" setup>
-import { Ref, computed, onBeforeMount, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useStore } from '~/store'
-import { urlBase } from '~/backend'
-import filesize from 'filesize'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, CaretRight, Upload, Search, Delete } from '@element-plus/icons-vue'
 import * as dayjs from 'dayjs'
-
-// import type { UploadProps, UploadUserFile } from 'element-plus'
-import {
-  Location,
-  Document,
-  Menu as IconMenu,
-  Setting,
-  CirclePlusFilled,
-  CircleClose,
-  BrushFilled
-} from '@element-plus/icons-vue'
 import { EditorView, basicSetup } from "codemirror"
 import { javascript } from "@codemirror/lang-javascript"
 
@@ -344,17 +321,35 @@ const changejsScriptStatus = async (name: string, status: boolean) => {
   }
 }
 
+.js-list-header {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.js-list-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem
+}
+
+.js-item-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.js-item-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
 .js-item {
-  .el-descriptions__label {
-    font-weight: bolder;
-  }
-
-  .el-descriptions__title {
-    flex: 1;
-  }
-
-  >.el-descriptions__body {
-    padding: 1.5rem;
-  }
+  min-width: 100%;
 }
 </style>
