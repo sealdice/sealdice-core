@@ -1570,7 +1570,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 .ri 12 张三 // 格式2，值12(只能写数字)
 .ri +2 李四 // 格式3，值为D20+2
 .ri =D10+3 王五 // 格式4，值为D10+3
-.ri 张三, +2 李四, =D10+3 王五 // 设置全部`,
+.ri 张三, +2 李四, =D10+3 王五 // 设置全部
+.ri 优势 张三, 劣势-1 李四 // 支持优势劣势`,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			text := cmdArgs.CleanArgs
@@ -1587,7 +1588,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				var detail string
 				var exprExists bool
 
-				// 遇到加值
 				if strings.HasPrefix(text, "+") {
 					// 加值情况1，D20+
 					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
@@ -1617,6 +1617,17 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						// 情况1，加值输入错误
 						return 1, name, val, detail
 					}
+					val = r.Value.(int64)
+					text = r.restInput
+					exprExists = true
+				} else if strings.HasPrefix(text, "优势") || strings.HasPrefix(text, "劣势") {
+					// 优势/劣势
+					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
+					if err != nil {
+						// 优势劣势输入错误
+						return 2, name, val, detail
+					}
+					detail = _detail
 					val = r.Value.(int64)
 					text = r.restInput
 					exprExists = true
