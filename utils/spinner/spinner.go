@@ -51,10 +51,10 @@ func SpinnerWithLines(chDone <-chan interface{}, secondPerLine int, dotPerLine i
 	for {
 		select {
 		case <-chDone:
-			bar.Exit()
+			_ = bar.Exit()
 			return
 		default:
-			bar.Add(1)
+			_ = bar.Add(1)
 			bar.Describe(Lines[(it/secondPerLine)%len(Lines)] + strings.Repeat(".", (it%secondPerLine)/(secondPerLine/dotPerLine)+1))
 			it++
 			time.Sleep(time.Millisecond * 100) // processbar的spinner并不是随add轮转,而是time/100ms mod size选择要使用的

@@ -52,7 +52,7 @@ func DBVacuum() {
 	vacuum := func(path string, wg *sync.WaitGroup) {
 		defer wg.Done()
 		db, err := _SQLiteDBInit(path, true)
-		defer db.Close()
+		defer func() { _ = db.Close() }()
 		if err != nil {
 			fmt.Printf("清理 %q 时出现错误：%v", path, err)
 			return
