@@ -451,10 +451,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 								}
 							}
 							if len(rightEmails) > 0 {
+								emailMsg := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
 								dice.SendMailRow(
 									fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
 									rightEmails,
-									"",
+									emailMsg,
 									[]string{logFile.Name()},
 								)
 								text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
