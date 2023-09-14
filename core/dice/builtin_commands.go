@@ -314,6 +314,14 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, masterMsg)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				if cmdArgs.IsArgEqual(1, "娱乐") {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子帮助文本_娱乐"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				if cmdArgs.IsArgEqual(1, "其他", "其它") {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子帮助文本_其他"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 
 				if d.Parent.IsHelpReloading {
 					ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
@@ -338,19 +346,19 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			text := "海豹核心 " + VERSION + "\n"
-			text += "===============\n"
-			text += ".help 骰点/娱乐/跑团/日志" + "\n"
-			text += ".help 扩展/其他/关于" + "\n"
-			text += ".help 骰主/协议" + "\n"
+			//text += "===============\n"
+			//text += ".help 骰点/娱乐/跑团/日志" + "\n"
+			//text += ".help 扩展/其他/关于" + "\n"
+			//text += ".help 骰主/协议" + "\n"
 			text += "官网: sealdice.com" + "\n"
 			//text += "手册(荐): https://dice.weizaima.com/manual/" + "\n"
 			text += "海豹群: 524364253" + "\n"
 			//text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
-			extra := DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
-			if extra != "" {
-				text += "------------------\n"
-				text += extra
-			}
+			text += DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
+			//if extra != "" {
+			//	text += "------------------\n"
+			//	text += extra
+			//}
 			ReplyToSender(ctx, msg, text)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
