@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/sacOO7/gowebsocket"
 )
 
 /* 定义结构体 */
@@ -168,8 +169,6 @@ type OnebotV12UserInfo struct {
 	Card            string `json:"card"`
 }
 
-/* 标准方法实现 */
-
 func (pa *PlatformAdapterWalleQ) Serve() int {
 	pa.Implementation = "walle-q"
 	ep := pa.EndPoint
@@ -262,6 +261,15 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				for _, i := range strings.Split(text, "###SPLIT###") {
 					doSleepQQ(ctx)
 					pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+				}
+				if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+					for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+						if i.OnGroupJoined != nil {
+							i.callWithJsCheck(ctx.Dice, func() {
+								i.OnGroupJoined(ctx, msg)
+							})
+						}
+					}
 				}
 			}()
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, event.GroupId)
@@ -722,6 +730,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 	}
 }
 
+/* 标准方法实现 */
+
 func (pa *PlatformAdapterWalleQ) DoRelogin() bool {
 	d := pa.Session.Parent
 	ep := pa.EndPoint
@@ -861,6 +871,28 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupId string, te
 		if len(texts) > 1 && index != 0 {
 			doSleepQQ(ctx)
 		}
+	}
+}
+
+func (pa *PlatformAdapterWalleQ) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
+	// walleq 依赖的 ricq 尚不支持发送文件
+	dice := pa.Session.Parent
+	fileElement, err := dice.FilepathToFileElement(path)
+	if err != nil {
+		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
+	} else {
+		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+	}
+}
+
+func (pa *PlatformAdapterWalleQ) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
+	// walleq 依赖的 ricq 尚不支持发送文件
+	dice := pa.Session.Parent
+	fileElement, err := dice.FilepathToFileElement(path)
+	if err != nil {
+		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
+	} else {
+		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
 	}
 }
 

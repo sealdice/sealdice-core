@@ -144,6 +144,15 @@ func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Mes
 	for _, i := range strings.Split(text, "###SPLIT###") {
 		pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
 	}
+	if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+		for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+			if i.OnGroupJoined != nil {
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnGroupJoined(ctx, msg)
+				})
+			}
+		}
+	}
 }
 
 func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
@@ -156,6 +165,15 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 	logger.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
 	for _, i := range strings.Split(welcome, "###SPLIT###") {
 		pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
+	}
+	if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+		for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+			if i.OnBecomeFriend != nil {
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnBecomeFriend(ctx, msg)
+				})
+			}
+		}
 	}
 }
 
@@ -322,6 +340,46 @@ func (pa *PlatformAdapterTelegram) SendToGroup(ctx *MsgContext, uid string, text
 			Nickname: pa.EndPoint.Nickname,
 		},
 	}, flag)
+}
+
+func (pa *PlatformAdapterTelegram) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
+	userId := ExtractTelegramUserId(uid)
+	id, _ := strconv.ParseInt(userId, 10, 64)
+	bot := pa.IntentSession
+	dice := pa.Session.Parent
+
+	e, err := dice.FilepathToFileElement(path)
+	if err != nil {
+		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
+		return
+	}
+
+	f := tgbotapi.NewDocument(id, &RequestFileDataImpl{File: e.File, Reader: e.Stream})
+	_, err = bot.Send(f)
+	if err != nil {
+		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
+		return
+	}
+}
+
+func (pa *PlatformAdapterTelegram) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
+	groupId := ExtractTelegramGroupId(uid)
+	id, _ := strconv.ParseInt(groupId, 10, 64)
+	bot := pa.IntentSession
+	dice := pa.Session.Parent
+
+	e, err := dice.FilepathToFileElement(path)
+	if err != nil {
+		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
+		return
+	}
+
+	f := tgbotapi.NewDocument(id, &RequestFileDataImpl{File: e.File, Reader: e.Stream})
+	_, err = bot.Send(f)
+	if err != nil {
+		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
+		return
+	}
 }
 
 type RequestFileDataImpl struct {

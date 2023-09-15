@@ -2,16 +2,17 @@ package dice
 
 import (
 	"fmt"
-	"github.com/dop251/goja"
-	"github.com/fy0/lockfree"
-	"github.com/jmoiron/sqlx"
-	"golang.org/x/time/rate"
-	"gopkg.in/yaml.v3"
 	"runtime/debug"
 	"sealdice-core/dice/model"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/dop251/goja"
+	"github.com/fy0/lockfree"
+	"github.com/jmoiron/sqlx"
+	"golang.org/x/time/rate"
+	"gopkg.in/yaml.v3"
 )
 
 type SenderBase struct {
@@ -222,7 +223,7 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 type EndPointInfoBase struct {
 	Id                  string `yaml:"id" json:"id" jsbind:"id"` // uuid
 	Nickname            string `yaml:"nickname" json:"nickname" jsbind:"nickname"`
-	State               int    `yaml:"state" json:"state" jsbind:"state"` // 状态 0 断开 1已连接 2连接中 3连接失败
+	State               int    `yaml:"state" json:"state" jsbind:"state"` // 状态 0断开 1已连接 2连接中 3连接失败
 	UserId              string `yaml:"userId" json:"userId" jsbind:"userId"`
 	GroupNum            int64  `yaml:"groupNum" json:"groupNum" jsbind:"groupNum"`                                  // 拥有群数
 	CmdExecutedNum      int64  `yaml:"cmdExecutedNum" json:"cmdExecutedNum" jsbind:"cmdExecutedNum"`                // 指令执行次数
@@ -400,6 +401,18 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			ep.Adapter.GetGroupInfoAsync(msg.GroupId)
 			log.Info(txt)
 			mctx.Notice(txt)
+
+			if msg.Platform == "QQ" || msg.Platform == "TG" {
+				if mctx.Session.ServiceAtNew[msg.GroupId] != nil {
+					for _, i := range mctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+						if i.OnGroupJoined != nil {
+							i.callWithJsCheck(mctx.Dice, func() {
+								i.OnGroupJoined(mctx, msg)
+							})
+						}
+					}
+				}
+			}
 		}
 
 		var mustLoadUser bool
@@ -987,6 +1000,17 @@ func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
 	}
 }
 
+// GetEpByPlatform
+// 在 EndPoints 中找到第一个符合平台 p 且启用的
+func (s *IMSession) GetEpByPlatform(p string) *EndPointInfo {
+	for _, ep := range s.EndPoints {
+		if ep.Enable && ep.Platform == p {
+			return ep
+		}
+	}
+	return nil
+}
+
 // SetEnable
 /* 如果已连接，将断开连接，如果开着GCQ将自动结束。如果启用的话，则反过来  */
 func (ep *EndPointInfo) SetEnable(d *Dice, enable bool) {
@@ -1053,7 +1077,52 @@ func (ep *EndPointInfo) RefreshGroupNum() {
 	}
 }
 
-func (ctx *MsgContext) Notice(txt string) {
+func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
+	// 通知种类之一：每个noticeId  *  每个平台匹配的ep：存活
+	// TODO: 先复制几次实现，后面重构
+	foo := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				d.Logger.Errorf("发送通知异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+
+		if d.MailEnable {
+			d.SendMail(txt, MailTypeNotice)
+			return
+		}
+
+		for _, ep := range d.ImSession.EndPoints {
+			for _, i := range d.NoticeIds {
+				n := strings.Split(i, ":")
+				// 如果文本中没有-，则会取到整个字符串
+				// 但好像不严谨，比如QQ-CH-Group
+				prefix := strings.Split(n[0], "-")[0]
+
+				if len(n) >= 2 && prefix == ep.Platform && ep.Enable && ep.State == 1 {
+					if ep.Session == nil {
+						ep.Session = d.ImSession
+					}
+					if strings.HasSuffix(n[0], "-Group") {
+						msg := &Message{GroupId: i, MessageType: "private", Sender: SenderBase{UserId: i}}
+						ctx := CreateTempCtx(ep, msg)
+						ReplyGroup(ctx, msg, txt)
+					} else {
+						msg := &Message{GroupId: i, MessageType: "group", Sender: SenderBase{UserId: i}}
+						ctx := CreateTempCtx(ep, msg)
+						ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
+					}
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}
+	go foo()
+}
+
+func (ctx *MsgContext) NoticeCrossPlatform(txt string) {
+	// 通知种类之二：每个noticeId  *  第一个平台匹配的ep：跨平台通知
+	// TODO: 先复制几次实现，后面重构
 	foo := func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -1062,20 +1131,86 @@ func (ctx *MsgContext) Notice(txt string) {
 		}()
 
 		if ctx.Dice.MailEnable {
-			ctx.Dice.SendMail(txt, Notice)
+			ctx.Dice.SendMail(txt, MailTypeNotice)
 			return
 		}
 
+		sent := false
+
 		for _, i := range ctx.Dice.NoticeIds {
 			n := strings.Split(i, ":")
-			if len(n) >= 2 {
-				if strings.HasSuffix(n[0], "-Group") {
+			if len(n) < 2 {
+				continue
+			}
+
+			seg := strings.Split(n[0], "-")[0]
+
+			messageType := "private"
+			if strings.HasSuffix(n[0], "-Group") {
+				messageType = "group"
+			}
+
+			if ctx.EndPoint.Platform == seg {
+				if messageType == "group" {
 					ReplyGroup(ctx, &Message{GroupId: i}, txt)
 				} else {
 					ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
 				}
+				time.Sleep(1 * time.Second)
+				sent = true
+				continue // 找到对应平台、调用了发送的在此即切出循环
 			}
-			time.Sleep(1 * time.Second)
+
+			// 如果走到这里，说明当前ep不是noticeId对应的平台
+			if done := CrossMsgBySearch(ctx.Session, seg, i, txt, messageType == "private"); !done {
+				ctx.Dice.Logger.Errorf("尝试跨平台后仍未能向 %s 发送通知：%s", i, txt)
+			} else {
+				sent = true
+				time.Sleep(1 * time.Second)
+			}
+		}
+
+		if !sent {
+			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+		}
+	}
+	go foo()
+}
+
+func (ctx *MsgContext) Notice(txt string) {
+	// Notice
+	// 通知种类之三：每个noticeId  * 当前mctx的ep：不跨平台通知
+	// TODO: 先复制几次实现，后面重构
+	foo := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				ctx.Dice.Logger.Errorf("发送通知异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+
+		if ctx.Dice.MailEnable {
+			ctx.Dice.SendMail(txt, MailTypeNotice)
+			return
+		}
+
+		sent := false
+		if ctx.EndPoint.Enable {
+			for _, i := range ctx.Dice.NoticeIds {
+				n := strings.Split(i, ":")
+				if len(n) >= 2 {
+					if strings.HasSuffix(n[0], "-Group") {
+						ReplyGroup(ctx, &Message{GroupId: i}, txt)
+					} else {
+						ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: i}}, txt)
+					}
+					sent = true
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}
+
+		if !sent {
+			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
 		}
 	}
 	go foo()

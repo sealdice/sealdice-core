@@ -2,12 +2,13 @@ package api
 
 import (
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"sealdice-core/dice"
 	"sealdice-core/dice/model"
 	"strings"
 	"time"
+
+	"github.com/labstack/echo/v4"
 )
 
 func groupList(c echo.Context) error {

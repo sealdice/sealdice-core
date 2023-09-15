@@ -3,9 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fy0/lockfree"
-	"github.com/juliangruber/go-intersect"
-	cp "github.com/otiai10/copy"
 	"math/rand"
 	"os"
 	"path"
@@ -14,6 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fy0/lockfree"
+	"github.com/juliangruber/go-intersect"
+	cp "github.com/otiai10/copy"
 )
 
 /** 这几条指令不能移除 */
@@ -138,6 +139,7 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["ban"] = cmdBlack
 
 	HelpForFind := ".find/查询 <关键字> // 查找文档。关键字可以多个，用空格分割\n" +
+		".find#<分组> <关键字> // 查找指定分组下的文档。关键字可以多个，用空格分割\n" +
 		".find <数字ID> // 显示该ID的词条\n" +
 		".find --rand // 显示随机词条\n" +
 		".find <关键字> --num=10 // 需要更多结果"
@@ -153,6 +155,15 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
+			var (
+				useGroupSearch bool
+				group          string
+			)
+			if _group := cmdArgs.GetArgN(1); strings.HasPrefix(_group, "#") {
+				useGroupSearch = true
+				group = strings.TrimPrefix(_group, "#")
+			}
+
 			var id string
 			if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {
 				_id := rand.Uint64()%d.Parent.Help.CurId + 1
@@ -160,7 +171,13 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			if id == "" {
-				if _id := cmdArgs.GetArgN(1); _id != "" {
+				var _id string
+				if useGroupSearch {
+					_id = cmdArgs.GetArgN(2)
+				} else {
+					_id = cmdArgs.GetArgN(1)
+				}
+				if _id != "" {
 					_, err2 := strconv.ParseInt(_id, 10, 64)
 					if err2 == nil {
 						id = _id
@@ -179,7 +196,13 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			if val := cmdArgs.GetArgN(1); val != "" {
+			var val string
+			if useGroupSearch {
+				val = cmdArgs.GetArgN(2)
+			} else {
+				val = cmdArgs.GetArgN(1)
+			}
+			if val != "" {
 				numLimit := 4
 				numParam := cmdArgs.GetKwarg("num")
 				if numParam != nil {
@@ -189,7 +212,8 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 
-				search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, false, numLimit)
+				text := strings.TrimPrefix(cmdArgs.CleanArgs, "#"+group+" ")
+				search, err := d.Parent.Help.Search(ctx, text, false, numLimit, group)
 				if err == nil {
 					if len(search.Hits) > 0 {
 						var bestResult string
@@ -199,7 +223,11 @@ func (d *Dice) registerCoreCommands() {
 
 						for _, i := range search.Hits {
 							t := d.Parent.Help.TextMap[i.ID]
-							others += fmt.Sprintf("[%s]【%s:%s】 匹配度%.2f\n", i.ID, t.PackageName, t.Title, i.Score)
+							if t.Group != "" && t.Group != HelpBuiltinGroup {
+								others += fmt.Sprintf("[%s][%s]【%s:%s】 匹配度%.2f\n", i.ID, t.Group, t.PackageName, t.Title, i.Score)
+							} else {
+								others += fmt.Sprintf("[%s]【%s:%s】 匹配度%.2f\n", i.ID, t.PackageName, t.Title, i.Score)
+							}
 						}
 
 						var showBest bool
@@ -212,7 +240,7 @@ func (d *Dice) registerCoreCommands() {
 							if val > float64(offset) {
 								showBest = true
 							}
-							if best.Title == cmdArgs.CleanArgs {
+							if best.Title == text {
 								showBest = true
 							}
 						} else {
@@ -286,13 +314,21 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, masterMsg)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				if cmdArgs.IsArgEqual(1, "娱乐") {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子帮助文本_娱乐"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				if cmdArgs.IsArgEqual(1, "其他", "其它") {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子帮助文本_其他"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 
 				if d.Parent.IsHelpReloading {
 					ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true, 1)
+				search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true, 1, "")
 				if err == nil {
 					if len(search.Hits) > 0 {
 						// 居然会出现 hits[0] 为nil的情况？？
@@ -310,19 +346,19 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			text := "海豹核心 " + VERSION + "\n"
-			text += "===============\n"
-			text += ".help 骰点/娱乐/跑团/日志" + "\n"
-			text += ".help 扩展/其他/关于" + "\n"
-			text += ".help 骰主/协议" + "\n"
+			//text += "===============\n"
+			//text += ".help 骰点/娱乐/跑团/日志" + "\n"
+			//text += ".help 扩展/其他/关于" + "\n"
+			//text += ".help 骰主/协议" + "\n"
 			text += "官网: sealdice.com" + "\n"
 			//text += "手册(荐): https://dice.weizaima.com/manual/" + "\n"
 			text += "海豹群: 524364253" + "\n"
 			//text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
-			extra := DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
-			if extra != "" {
-				text += "------------------\n"
-				text += extra
-			}
+			text += DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
+			//if extra != "" {
+			//	text += "------------------\n"
+			//	text += extra
+			//}
 			ReplyToSender(ctx, msg, text)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
@@ -421,7 +457,7 @@ func (d *Dice) registerCoreCommands() {
 							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
 								SetBotOnAtGroup(ctx, msg.GroupId)
 							} else {
-								ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -448,7 +484,7 @@ func (d *Dice) registerCoreCommands() {
 							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
 								SetBotOffAtGroup(ctx, ctx.Group.GroupId)
 							} else {
-								ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -466,7 +502,7 @@ func (d *Dice) registerCoreCommands() {
 							// 感觉似乎不太必要
 							pRequired := 40 // 40邀请者 50管理 60群主 100master
 							if ctx.PrivilegeLevel < pRequired {
-								ReplyToSender(ctx, msg, "你不是管理员或master")
+								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -643,7 +679,8 @@ func (d *Dice) registerCoreCommands() {
 .master reboot // 重新启动(需要二次确认)
 .master checkupdate // 检查更新(需要二次确认)
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
-.master backup // 做一次备份`
+.master backup // 做一次备份
+.master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档`
 	cmdMaster := &CmdItemInfo{
 		Name:          "master",
 		ShortHelp:     masterListHelp,
@@ -852,6 +889,32 @@ func (d *Dice) registerCoreCommands() {
 					text = "无"
 				}
 				ReplyToSender(ctx, msg, fmt.Sprintf("Master列表:\n%s", text))
+			case "reload":
+				system := cmdArgs.GetArgN(2)
+				dice := ctx.Dice
+				switch system {
+				case "deck":
+					DeckReload(dice)
+					ReplyToSender(ctx, msg, "牌堆已重载")
+				case "js":
+					dice.JsInit()
+					dice.JsLoadScripts()
+					ReplyToSender(ctx, msg, "js已重载")
+				case "help":
+					// 别名
+					fallthrough
+				case "helpdoc":
+					dm := dice.Parent
+					if !dm.IsHelpReloading {
+						dm.IsHelpReloading = true
+						dm.Help.Close()
+						dm.InitHelp()
+						dm.AddHelpWithDice(dice)
+						ReplyToSender(ctx, msg, "帮助文档已重载")
+					} else {
+						ReplyToSender(ctx, msg, "帮助文档正在重新装载")
+					}
+				}
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
@@ -893,7 +956,7 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			} else {
 				if d.MailEnable {
-					ctx.Dice.SendMail(cmdArgs.CleanArgs, SendNote)
+					ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -1203,7 +1266,7 @@ func (d *Dice) registerCoreCommands() {
 					showList()
 				} else if cmdArgs.IsArgEqual(last, "on") {
 					if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
-						ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
@@ -1249,7 +1312,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				} else if cmdArgs.IsArgEqual(last, "off") {
 					if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
-						ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
@@ -1487,13 +1550,13 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["set"] = cmdSet
 
 	helpCh := ".pc new <角色名> // 新建角色并绑卡\n" +
-		".pc tag <角色名> // 当前群绑卡/解除绑卡(不填角色名)\n" +
-		".pc untagAll <角色名> // 全部群解绑\n" +
-		".pc list // 列出当前角色\n" +
+		".pc tag <角色名> | <角色序号> // 当前群绑卡/解除绑卡(不填角色名)\n" +
+		".pc untagAll <角色名> | <角色序号> // 全部群解绑\n" +
+		".pc list // 列出当前角色和序号\n" +
 		//".ch group // 列出各群当前绑卡\n" +
 		".pc save <角色名> // [不绑卡]保存角色，角色名可省略\n" +
-		".pc load <角色名> // [不绑卡]加载角色\n" +
-		".pc del/rm <角色名> // 删除角色\n" +
+		".pc load <角色名> | <角色序号> // [不绑卡]加载角色\n" +
+		".pc del/rm <角色名> | <角色序号> // 删除角色 角色序号可用pc list查询\n" +
 		"> 注: 海豹各群数据独立(多张空白卡)，单群游戏不需要存角色。" // > 普通模组执行nn, st后直接跑即可。跑完若想保存角色用pc save存卡。
 	cmdChar := &CmdItemInfo{
 		Name:      "pc",
@@ -1533,7 +1596,10 @@ func (d *Dice) registerCoreCommands() {
 
 				// 分两次防止死锁
 				var newChars []string
-				for _, name := range characters {
+				for idx, name := range characters {
+					// HACK(Xiangze Li): lockfree.HashMap的迭代顺序在每次启动中是稳定的, 可以加序号
+					// 但是, 骰子重启之后顺序是会变化的. 如果用户记录了这个序号, 并且跨重启使用, 会出现问题
+					idxStr := fmt.Sprintf("%2d ", idx+1)
 					prefix := "[×] "
 					if ctx.ChBindGet(name) != nil {
 						prefix = "[★] "
@@ -1552,7 +1618,7 @@ func (d *Dice) registerCoreCommands() {
 						suffix = fmt.Sprintf(" #%s", cardType)
 					}
 
-					newChars = append(newChars, prefix+name+suffix)
+					newChars = append(newChars, idxStr+prefix+name+suffix)
 				}
 
 				if len(characters) == 0 {
@@ -1579,29 +1645,33 @@ func (d *Dice) registerCoreCommands() {
 				}
 			} else if cmdArgs.IsArgEqual(1, "load") {
 				cur := ctx.ChBindCurGet()
-				if cur == "" {
-					name := getNickname()
-					ret := ctx.ChLoad(name)
-					VarSetValueStr(ctx, "$t角色名", name)
-					if ret != nil {
-						VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
-						//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
-						if ctx.Player.AutoSetNameTemplate != "" {
-							_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-						}
-					} else {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
-					}
-				} else {
+				if cur != "" {
 					VarSetValueStr(ctx, "$t角色名", cur)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载失败_已绑定"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				name := getNickname()
+				name = tryConvertIndex2Name(ctx, name)
+				ret := ctx.ChLoad(name)
+				VarSetValueStr(ctx, "$t角色名", name)
+				if ret != nil {
+					VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
+					//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
+					if ctx.Player.AutoSetNameTemplate != "" {
+						_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+					}
+				} else {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 				}
 			} else if cmdArgs.IsArgEqual(1, "tag") {
 				// 当不输入角色的时候，不用当前角色填充，因此做到不写角色名就取消绑定的效果
 				name := getNicknameRaw(false)
 				VarSetValueStr(ctx, "$t角色名", name)
 				if name != "" {
+					name = tryConvertIndex2Name(ctx, name)
+					VarSetValueStr(ctx, "$t角色名", name)
 					curBind := ctx.ChBindCurGet()
 					if curBind == name {
 						// 已经绑定，直接成功
@@ -1634,6 +1704,7 @@ func (d *Dice) registerCoreCommands() {
 				ReplyToSender(ctx, msg, "卡片绑定: "+strings.Join(lst, " "))
 			} else if cmdArgs.IsArgEqual(1, "untagAll") {
 				name := getNickname()
+				name = tryConvertIndex2Name(ctx, name)
 				lst := ctx.ChUnbind(name)
 
 				for _, i := range lst {
@@ -1697,26 +1768,31 @@ func (d *Dice) registerCoreCommands() {
 
 				VarSetValueStr(ctx, "$t角色名", name)
 				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
-				_, exists := vars.ValueMap.Get("$ch:" + name)
-				if exists {
-					vars.ValueMap.Del("$ch:" + name)
-					vars.LastWriteTime = time.Now().Unix()
 
-					text := DiceFormatTmpl(ctx, "核心:角色管理_删除成功")
-					if name == ctx.Player.Name {
-						VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", msg.Sender.Nickname))
-						text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
-						p := ctx.Player
-						p.Name = msg.Sender.Nickname
-						p.UpdatedAtTime = time.Now().Unix()
-						p.Vars.ValueMap = lockfree.NewHashMap()
-						p.Vars.LastWriteTime = time.Now().Unix()
-					}
-
-					ReplyToSender(ctx, msg, text)
-				} else {
+				name = tryConvertIndex2Name(ctx, name)
+				if _, exists := vars.ValueMap.Get("$ch:" + name); !exists {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
+				// 如果name原是序号，这里将被更新为角色名
+				VarSetValueStr(ctx, "$t角色名", name)
+				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
+
+				vars.ValueMap.Del("$ch:" + name)
+				vars.LastWriteTime = time.Now().Unix()
+
+				text := DiceFormatTmpl(ctx, "核心:角色管理_删除成功")
+				if name == ctx.Player.Name {
+					VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", msg.Sender.Nickname))
+					text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
+					p := ctx.Player
+					p.Name = msg.Sender.Nickname
+					p.UpdatedAtTime = time.Now().Unix()
+					p.Vars.ValueMap = lockfree.NewHashMap()
+					p.Vars.LastWriteTime = time.Now().Unix()
+				}
+				ReplyToSender(ctx, msg, text)
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
@@ -1741,7 +1817,7 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			pRequired := 50 // 50管理 60群主 100master
 			if ctx.PrivilegeLevel < pRequired {
-				ReplyToSender(ctx, msg, "你不是管理员或master")
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
@@ -1884,4 +1960,31 @@ func setRuleByName(ctx *MsgContext, name string) {
 			}
 		}
 	}
+}
+
+// tryConvertIndex2Name 确认name是否存在, 如果不存在, 尝试将name解析为序号并查出对应name
+//   - 如果name存在, 直接返回name
+//   - name不存在, name不是数字, 返回原name
+//   - name不存在, name是数字, 且超过用户的角色卡数, 返回原name
+//   - name不存在, name是数字, 且小于等于用户的角色卡数, 返回对应序号的卡名
+func tryConvertIndex2Name(ctx *MsgContext, name string) string {
+	// 确认name是否存在, 如果不存在, 尝试解析为序号并查出对应name
+	vars := ctx.LoadPlayerGlobalVars()
+	_, exists := vars.ValueMap.Get("$ch:" + name)
+	if !exists {
+		if idx, errInt := strconv.ParseInt(name, 10, 64); errInt == nil && idx > 0 {
+			_ = vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+				k := _k.(string)
+				if strings.HasPrefix(k, "$ch:") {
+					idx--
+					if idx == 0 {
+						name = k[4:]
+						return fmt.Errorf("break")
+					}
+				}
+				return nil
+			})
+		}
+	}
+	return name
 }

@@ -119,101 +119,123 @@ func calculateMD5(header http.Header) string {
 	}
 	return hex.EncodeToString(hash.Sum(nil))
 }
+
+// ExtractLocalTempFile 按路径提取临时文件，路径可以是 http/base64/本地路径
+func (d *Dice) ExtractLocalTempFile(path string) (string, *os.File, error) {
+	fileElement, err := d.FilepathToFileElement(path)
+	if err != nil {
+		return "", nil, err
+	}
+	temp, err := os.CreateTemp("", "temp-")
+	defer func(name string) {
+		_ = os.Remove(name)
+	}(temp.Name())
+	if err != nil {
+		return "", nil, err
+	}
+	data, err := io.ReadAll(fileElement.Stream)
+	if err != nil {
+		return "", nil, err
+	}
+	_, err = temp.Write(data)
+	if err != nil {
+		return "", nil, err
+	}
+	return fileElement.File, temp, nil
+}
+
+func (d *Dice) FilepathToFileElement(fp string) (*FileElement, error) {
+	if strings.HasPrefix(fp, "http") {
+		resp, err := http.Get(fp)
+		if err != nil {
+			return nil, err
+		}
+		header := resp.Header
+		content, err := io.ReadAll(resp.Body)
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(resp.Body)
+
+		if resp.StatusCode != 200 {
+			return nil, errors.New("http get failed")
+		}
+		filename, _ := getFileName(header)
+		d.Logger.Infof("file: %s", filename)
+		if err != nil {
+			return nil, err
+		}
+		d.Logger.Infof("file: %s", filename)
+		r := &FileElement{
+			Stream:      bytes.NewReader(content),
+			ContentType: resp.Header.Get("Content-Type"),
+			File:        filename,
+		}
+		return r, nil
+	} else if strings.HasPrefix(fp, "base64://") {
+		content, err := base64.StdEncoding.DecodeString(fp[9:])
+		if err != nil {
+			return nil, err
+		}
+		Sha1Inst := sha1.New()
+		filetype, _ := mime.ExtensionsByType(http.DetectContentType(content))
+		var suffix string
+		if filetype != nil {
+			suffix = filetype[len(filetype)-1]
+		}
+		Sha1Inst.Write(content)
+		Result := Sha1Inst.Sum([]byte(""))
+		r := &FileElement{
+			Stream:      bytes.NewReader(content),
+			ContentType: http.DetectContentType(content),
+			File:        fmt.Sprintf("%x%s", Result, suffix),
+		}
+		return r, nil
+	} else {
+		fu, err := url.Parse(fp)
+		if err != nil {
+			return nil, err
+		}
+		if runtime.GOOS == `windows` && strings.HasPrefix(fu.Path, "/") {
+			fu.Path = fu.Path[1:]
+		}
+		info, err := os.Stat(fu.Path)
+		if err != nil {
+			return nil, err
+		}
+		if info.Size() == 0 || info.Size() >= maxFileSize {
+			return nil, errors.New("invalid file size")
+		}
+		afn, err := filepath.Abs(fu.Path)
+		if err != nil {
+			return nil, err // 不是文件路径，不管
+		}
+		cwd, _ := os.Getwd()
+		if !strings.HasPrefix(afn, cwd) && !strings.HasPrefix(afn, os.TempDir()) {
+			return nil, errors.New("restricted file path")
+		}
+		filesuffix := path.Ext(fu.Path)
+		content, err := os.ReadFile(fu.Path)
+		if err != nil {
+			return nil, err
+		}
+		contenttype := mime.TypeByExtension(filesuffix)
+		if len(contenttype) == 0 {
+			contenttype = "application/octet-stream"
+		}
+		r := &FileElement{
+			Stream:      bytes.NewReader(content),
+			ContentType: contenttype,
+			File:        info.Name(),
+		}
+		return r, nil
+	}
+}
+
 func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, error) {
 	switch t {
 	case "file":
 		p := strings.TrimSpace(dMap["file"])
-		if strings.HasPrefix(p, "http") {
-			fmt.Println(p)
-			resp, err := http.Get(p)
-			if err != nil {
-				return nil, err
-			}
-			header := resp.Header
-			//for k, v := range header {
-			//	d.Logger.Infof("Http header: %s: %s", k, v)
-			//}
-			content, err := io.ReadAll(resp.Body)
-			//fmt.Println(string(body))
-			//fmt.Println(resp.StatusCode)
-			defer func(Body io.ReadCloser) {
-				_ = Body.Close()
-			}(resp.Body)
-			if resp.StatusCode == 200 {
-				//fmt.Println("ok")
-			} else {
-				return nil, errors.New("http get failed")
-			}
-			filename, _ := getFileName(header)
-			d.Logger.Infof("filetype: %s", filename)
-			if err != nil {
-				return nil, err
-			}
-			d.Logger.Infof("filetype: %s", filename)
-			r := &FileElement{
-				Stream:      bytes.NewReader(content),
-				ContentType: resp.Header.Get("Content-Type"),
-				File:        filename,
-			}
-			return r, nil
-		} else if strings.HasPrefix(p, "base64://") {
-			content, err := base64.StdEncoding.DecodeString(p[9:])
-			if err != nil {
-				return nil, err
-			}
-			Sha1Inst := sha1.New()
-			filetype, _ := mime.ExtensionsByType(http.DetectContentType(content))
-			var suffix string
-			if filetype != nil {
-				suffix = filetype[len(filetype)-1]
-			}
-			Sha1Inst.Write(content)
-			Result := Sha1Inst.Sum([]byte(""))
-			r := &FileElement{
-				Stream:      bytes.NewReader(content),
-				ContentType: http.DetectContentType(content),
-				File:        fmt.Sprintf("%x%s", Result, suffix),
-			}
-			return r, nil
-		} else {
-			fu, err := url.Parse(p)
-			if err != nil {
-				return nil, err
-			}
-			if runtime.GOOS == `windows` && strings.HasPrefix(fu.Path, "/") {
-				fu.Path = fu.Path[1:]
-			}
-			info, err := os.Stat(fu.Path)
-			if err != nil {
-				return nil, err
-			}
-			if info.Size() == 0 || info.Size() >= maxFileSize {
-				return nil, errors.New("invalid file size")
-			}
-			afn, err := filepath.Abs(fu.Path)
-			if err != nil {
-				return nil, err // 不是文件路径，不管
-			}
-			cwd, _ := os.Getwd()
-			if !strings.HasPrefix(afn, cwd) {
-				return nil, errors.New("restricted file path")
-			}
-			filesuffix := path.Ext(fu.Path)
-			content, err := os.ReadFile(fu.Path)
-			if err != nil {
-				return nil, err
-			}
-			contenttype := mime.TypeByExtension(filesuffix)
-			if len(contenttype) == 0 {
-				contenttype = "application/octet-stream"
-			}
-			r := &FileElement{
-				Stream:      bytes.NewReader(content),
-				ContentType: contenttype,
-				File:        info.Name(),
-			}
-			return r, nil
-		}
+		return d.FilepathToFileElement(p)
 	case "at":
 		target := dMap["qq"]
 		if dMap["id"] != "" {

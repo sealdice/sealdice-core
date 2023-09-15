@@ -2,8 +2,9 @@ package model
 
 import (
 	"fmt"
-	"github.com/jmoiron/sqlx"
 	"path/filepath"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func DBCheck(dataDir string) {
@@ -161,6 +162,7 @@ create index if not exists idx_logs_update_at
 		`
 create unique index if not exists idx_log_group_id_name
     on logs (group_id, name);`,
+		// 如果log_items有更改，需同步检查migrate/convert_logs.go
 		`
 create table if not exists log_items
 (
@@ -170,7 +172,7 @@ create table if not exists log_items
     nickname        TEXT,
     im_userid       TEXT,
     time            INTEGER,
-    message         INTEGER,
+    message         TEXT,
     is_dice         INTEGER,
     command_id      INTEGER,
     command_info    TEXT,

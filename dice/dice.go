@@ -3,14 +3,6 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"github.com/dop251/goja_nodejs/eventloop"
-	"github.com/dop251/goja_nodejs/require"
-	"github.com/go-creed/sat"
-	"github.com/jmoiron/sqlx"
-	wr "github.com/mroth/weightedrand"
-	"github.com/robfig/cron/v3"
-	"github.com/tidwall/buntdb"
-	"go.uber.org/zap"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -20,13 +12,23 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dop251/goja_nodejs/eventloop"
+	"github.com/dop251/goja_nodejs/require"
+	"github.com/go-creed/sat"
+	"github.com/jmoiron/sqlx"
+	wr "github.com/mroth/weightedrand"
+	"github.com/robfig/cron/v3"
+	"github.com/tidwall/buntdb"
+	"go.uber.org/zap"
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.2.7-dev v20230719"
+var VERSION = "1.3.0 v20230910"
 
 // var VERSION_CODE = int64(1001000) // 991404
-var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
+//var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
+var VERSION_CODE = int64(1003000) // 1.3时代
 var APP_BRANCH = ""
 
 type CmdExecuteResult struct {
@@ -87,6 +89,9 @@ type ExtInfo struct {
 	OnMessageReceived func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageReceived"`
 	OnMessageSend     func(ctx *MsgContext, msg *Message, flag string)      `yaml:"-" json:"-" jsbind:"onMessageSend"`
 	OnMessageDeleted  func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageDeleted"`
+	OnGroupJoined     func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGroupJoined"`
+	OnGuildJoined     func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGuildJoined"`
+	OnBecomeFriend    func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onBecomeFriend"`
 	GetDescText       func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
 	IsLoaded          bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
 	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
@@ -174,6 +179,7 @@ type Dice struct {
 
 	//ConfigVersion         int                    `yaml:"configVersion"`
 	//InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
+
 	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
 	Parent          *DiceManager               `yaml:"-"`
@@ -182,10 +188,12 @@ type Dice struct {
 	Cron             *cron.Cron           `yaml:"-" json:"-"`
 	AliveNoticeEntry cron.EntryID         `yaml:"-" json:"-"`
 	//JsVM             *goja.Runtime          `yaml:"-" json:"-"`
-	JsPrinter    *PrinterFunc           `yaml:"-" json:"-"`
-	JsRequire    *require.RequireModule `yaml:"-" json:"-"`
-	JsLoop       *eventloop.EventLoop   `yaml:"-" json:"-"`
-	JsScriptList []*JsScriptInfo        `yaml:"-" json:"-"`
+	JsEnable          bool                   `yaml:"jsEnable" json:"jsEnable"`
+	DisabledJsScripts map[string]bool        `yaml:"disabledJsScripts" json:"disabledJsScripts"` // 作为set
+	JsPrinter         *PrinterFunc           `yaml:"-" json:"-"`
+	JsRequire         *require.RequireModule `yaml:"-" json:"-"`
+	JsLoop            *eventloop.EventLoop   `yaml:"-" json:"-"`
+	JsScriptList      []*JsScriptInfo        `yaml:"-" json:"-"`
 
 	// 游戏系统规则模板
 	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
@@ -206,6 +214,8 @@ type Dice struct {
 	MailSmtp     string `json:"mailSmtp" yaml:"mailSmtp"`         // 邮箱 smtp 地址
 	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
+
+	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
 }
 
 func (d *Dice) MarkModified() {
@@ -267,7 +277,12 @@ func (d *Dice) Init() {
 	d.IsAlreadyLoadConfig = true
 
 	// 创建js运行时
-	d.JsInit()
+	if d.JsEnable {
+		d.Logger.Info("js扩展支持：开启")
+		d.JsInit()
+	} else {
+		d.Logger.Info("js扩展支持：关闭")
+	}
 
 	for _, i := range d.ExtList {
 		if i.OnLoad != nil {
@@ -349,7 +364,11 @@ func (d *Dice) Init() {
 	go refreshGroupInfo()
 
 	d.ApplyAliveNotice()
-	d.JsLoadScripts()
+	if d.JsEnable {
+		d.JsLoadScripts()
+	} else {
+		d.Logger.Info("js扩展支持已关闭，跳过js脚本的加载")
+	}
 
 	if d.UpgradeWindowId != "" {
 		go func() {
@@ -573,10 +592,7 @@ func (d *Dice) ApplyAliveNotice() {
 	}
 	if d.AliveNoticeEnable {
 		entry, err := d.Cron.AddFunc(d.AliveNoticeValue, func() {
-			for _, ep := range d.ImSession.EndPoints {
-				ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
-				ctx.Notice(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)))
-			}
+			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)), false)
 		})
 		if err == nil {
 			d.AliveNoticeEntry = entry

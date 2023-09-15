@@ -3,9 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fy0/lockfree"
-	wr "github.com/mroth/weightedrand"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,6 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fy0/lockfree"
+	wr "github.com/mroth/weightedrand"
+	"gopkg.in/yaml.v3"
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint
@@ -238,28 +239,64 @@ func setupBaseTextTemplate(d *Dice) {
 				{"{$t玩家}的“{$t技能}”成长检定：", 1},
 			},
 			"技能成长_错误的属性类型": {
-				{"{COC:技能成长_导入语}\n该属性不能成长", 1},
+				{"{COC:技能成长_导入语}\n{COC:技能成长_错误的属性类型_无前缀}", 1},
+			},
+			"技能成长_错误的属性类型_无前缀": {
+				{"该属性不能成长", 1},
 			},
 			"技能成长_错误的失败成长值": {
-				{"{COC:技能成长_导入语}\n错误的失败成长值: {$t表达式文本}", 1},
+				{"{COC:技能成长_导入语}\n{COC:技能成长_错误的失败成长值_无前缀}", 1},
+			},
+			"技能成长_错误的失败成长值_无前缀": {
+				{"错误的失败成长值: {$t表达式文本}", 1},
 			},
 			"技能成长_错误的成功成长值": {
-				{"{COC:技能成长_导入语}\n错误的成功成长值: {$t表达式文本}", 1},
+				{"{COC:技能成长_导入语}\n{COC:技能成长_错误的成功成长值_无前缀}", 1},
+			},
+			"技能成长_错误的成功成长值_无前缀": {
+				{"错误的成功成长值: {$t表达式文本}", 1},
 			},
 			"技能成长_属性未录入": {
-				{"{COC:技能成长_导入语}\n你没有使用st录入这个属性，或在en指令中指定属性的值", 1},
+				{"{COC:技能成长_导入语}\n{COC:技能成长_属性未录入_无前缀}", 1},
+			},
+			"技能成长_属性未录入_无前缀": {
+				{"你没有使用st录入这个属性，或在en指令中指定属性的值", 1},
 			},
 			"技能成长_结果_成功": {
-				{"“{$t技能}”增加了{$t表达式文本}={$t增量}点，当前为{$t新值}点\n{COC:属性设置_保存提醒}", 1},
+				{"{COC:技能成长_结果_成功_无后缀}\n{COC:属性设置_保存提醒}", 1},
+			},
+			"技能成长_结果_成功_无后缀": {
+				{"“{$t技能}”增加了{$t表达式文本}={$t增量}点，当前为{$t新值}点", 1},
 			},
 			"技能成长_结果_失败": {
 				{"“{$t技能}”成长失败了！", 1},
 			},
 			"技能成长_结果_失败变更": {
-				{"“{$t技能}”变化{$t表达式文本}={$t增量}点，当前为{$t新值}点\n{COC:属性设置_保存提醒}", 1},
+				{"{COC:技能成长_结果_失败变更_无后缀}\n{COC:属性设置_保存提醒}", 1},
+			},
+			"技能成长_结果_失败变更_无后缀": {
+				{"“{$t技能}”变化{$t表达式文本}={$t增量}点，当前为{$t新值}点", 1},
 			},
 			"技能成长": {
 				{"{COC:技能成长_导入语}\nD100={$tD100}/{$t判定值} {$t判定结果}\n{$t结果文本}", 1},
+			},
+			"技能成长_批量_分隔符": {
+				{`\n\n`, 1},
+			},
+			"技能成长_批量_导入语": {
+				{"{$t玩家}的{$t数量}项技能的批量成长检定：", 1},
+			},
+			"技能成长_批量_单条": {
+				{"“{$t技能}”：D100={$tD100}/{$t判定值} {$t判定结果}\n{$t结果文本}", 1},
+			},
+			"技能成长_批量_单条错误前缀": {
+				{"“{$t技能}”：", 1},
+			},
+			"技能成长_批量": {
+				{"{COC:技能成长_批量_导入语}\n{$t总结果文本}\n{COC:属性设置_保存提醒}", 1},
+			},
+			"技能成长_批量_技能过多警告": {
+				{`试图成长{$t数量}项技能，但{核心:骰子名字}没有这么多骰子。`, 1},
 			},
 			// -------------------- en end --------------------------
 			"制卡": {
@@ -277,6 +314,14 @@ func setupBaseTextTemplate(d *Dice) {
    $tWinFlag == 0 ? '平手！(请自行根据场景，如属性比较、攻击对反击，攻击对闪避)做出判断'
 %}`, 1},
 			},
+			// -------------------- ti li --------------------------
+			"疯狂发作_即时症状": {
+				{"{$t玩家}的疯狂发作-即时症状:\n{$t表达式文本}\n{$t疯狂描述}", 1},
+			},
+			"疯狂发作_总结症状": {
+				{"{$t玩家}的疯狂发作-总结症状:\n{$t表达式文本}\n{$t疯狂描述}", 1},
+			},
+			// -------------------- ti li end --------------------------
 		},
 
 		"DND": {
@@ -319,6 +364,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"先攻_设置_格式错误": {
 				{`{$t玩家}的ri格式不正确!`, 1},
 			},
+			"先攻_下一回合": {
+				{"【{$t当前回合角色名}】戏份结束了，下面该【{$t下一回合角色名}】出场了！", 1},
+			},
 			"死亡豁免_D20_附加语": {
 				{`你觉得你还可以抢救一下！HP回复1点！`, 1},
 			},
@@ -355,7 +403,13 @@ func setupBaseTextTemplate(d *Dice) {
 				{"海豹核心", 1},
 			},
 			"骰子帮助文本_附加说明": {
-				{"一只海豹罢了", 1},
+				{"========\n.help 骰点/娱乐/跑团/扩展/查询/其他\n========\n一只海豹罢了", 1},
+			},
+			"骰子帮助文本_娱乐": {
+				{"帮助:娱乐\n.gugu // 随机召唤一只鸽子\n.jrrp 今日人品", 1},
+			},
+			"骰子帮助文本_其他": {
+				{"帮助:其他\n.find 克苏鲁星之眷族 //查找对应怪物资料\n.find 70尺 法术 // 查找关联资料（仅在全文搜索开启时可用）", 1},
 			},
 			"骰子执行异常": {
 				{"指令执行异常，请联系开发者，群号524364253，非常感谢。", 1},
@@ -487,6 +541,12 @@ func setupBaseTextTemplate(d *Dice) {
 			"提示_无权限": {
 				{"你没有权限这样做", 1},
 			},
+			"提示_无权限_非master/管理/邀请者": {
+				{"你不是管理员、邀请者或master", 1},
+			},
+			"提示_无权限_非master/管理": {
+				{"你不是管理员或master", 1},
+			},
 			"留言_已记录": {
 				{"您的留言已被记录，另外注意不要滥用此功能，祝您生活愉快，再会。", 1},
 			},
@@ -536,6 +596,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_开启_失败_尚未新建": {
 				{`找不到记录，请使用.log new新建记录`, 1},
 			},
+			"记录_开启_失败_未结束的记录": {
+				{`当前已有记录中的日志{$t记录名称}，请先将其结束。`, 1},
+			},
 			"记录_关闭_成功": {
 				{`当前记录"{$t记录名称}"已经暂停，已记录文本{$t当前记录条数}条\n结束故事并传送日志请用.log end`, 1},
 			},
@@ -552,10 +615,25 @@ func setupBaseTextTemplate(d *Dice) {
 				{`故事落下了帷幕。\n记录已经关闭。`, 1},
 			},
 			"记录_新建_失败_未结束的记录": {
-				{`上一段旅程还未结束，请先使用.log end结束故事。或使用.log new <名称>，强行建立新日志`, 1},
+				{`上一段旅程{$t记录名称}还未结束，请先使用.log end结束故事。`, 1},
 			},
 			"记录_条数提醒": {
 				{`提示: 当前故事的文本已经记录了 {$t条数} 条`, 1},
+			},
+			"记录_导出_邮箱发送前缀": {
+				{`已向以下邮箱发送记录邮件：\n`, 1},
+			},
+			"记录_导出_无格式有效邮箱": {
+				{`未提供格式有效的邮箱，将直接发送记录文件`, 1},
+			},
+			"记录_导出_未指定记录": {
+				{`未指定记录名`, 1},
+			},
+			"记录_导出_文件名前缀": {
+				{`【{$t记录名}】{$t日期}{$t时间}`, 1},
+			},
+			"记录_导出_邮件附言": {
+				{`***自动邮件，无需回复***`, 1},
 			},
 			"OB_开启": {
 				{"你将成为观众（自动修改昵称和群名片[如有权限]，并不会给观众发送暗骰结果）。", 1},
@@ -729,16 +807,31 @@ func setupBaseTextTemplate(d *Dice) {
 			"技能成长_错误的属性类型": {
 				SubType: ".en $t玩家",
 			},
+			"技能成长_错误的属性类型_无前缀": {
+				SubType: ".en $t玩家",
+			},
 			"技能成长_错误的失败成长值": {
+				SubType: ".en 斗殴 +?/1",
+			},
+			"技能成长_错误的失败成长值_无前缀": {
 				SubType: ".en 斗殴 +?/1",
 			},
 			"技能成长_错误的成功成长值": {
 				SubType: ".en 斗殴 +?",
 			},
+			"技能成长_错误的成功成长值_无前缀": {
+				SubType: ".en 斗殴 +?",
+			},
 			"技能成长_属性未录入": {
 				SubType: ".en 斗殴",
 			},
+			"技能成长_属性未录入_无前缀": {
+				SubType: ".en 斗殴",
+			},
 			"技能成长_结果_成功": {
+				SubType: ".en 斗殴",
+			},
+			"技能成长_结果_成功_无后缀": {
 				SubType: ".en 斗殴",
 			},
 			"技能成长_结果_失败": {
@@ -747,8 +840,29 @@ func setupBaseTextTemplate(d *Dice) {
 			"技能成长_结果_失败变更": {
 				SubType: ".en 斗殴 +1/1d4",
 			},
+			"技能成长_结果_失败变更_无后缀": {
+				SubType: ".en 斗殴 +1/1d4",
+			},
 			"技能成长": {
 				SubType: ".en",
+			},
+			"技能成长_批量_分隔符": {
+				SubType: ".en 批量",
+			},
+			"技能成长_批量_导入语": {
+				SubType: ".en 批量",
+			},
+			"技能成长_批量_单条": {
+				SubType: ".en 批量",
+			},
+			"技能成长_批量_单条错误前缀": {
+				SubType: ".en 批量",
+			},
+			"技能成长_批量": {
+				SubType: ".en 批量",
+			},
+			"技能成长_批量_技能过多警告": {
+				SubType: ".en 批量",
 			},
 			// -------------------- en end --------------------------
 			"制卡": {
@@ -760,6 +874,16 @@ func setupBaseTextTemplate(d *Dice) {
 			"对抗检定": {
 				SubType: ".rav/.rcv",
 			},
+			// -------------------- ti li --------------------------
+			"疯狂发作_即时症状": {
+				Vars:    []string{"$t玩家", "$t表达式文本", "$t疯狂描述", "$t选项值", "$t附加值1", "$t附加值2"},
+				SubType: ".ti",
+			},
+			"疯狂发作_总结症状": {
+				Vars:    []string{"$t玩家", "$t表达式文本", "$t疯狂描述", "$t选项值", "$t附加值1", "$t附加值2"},
+				SubType: ".li",
+			},
+			// -------------------- ti li end --------------------------
 		},
 		"娱乐": {
 			"今日人品": {
@@ -795,6 +919,9 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"先攻_查看_前缀": {
 				SubType: ".init",
+			},
+			"先攻_下一回合": {
+				SubType: "init ed",
 			},
 			"先攻_移除_前缀": {
 				SubType: ".init rm",
@@ -841,6 +968,12 @@ func setupBaseTextTemplate(d *Dice) {
 			"骰子帮助文本_附加说明": {
 				SubType:  ".help",
 				TopOrder: 1,
+			},
+			"骰子帮助文本_娱乐": {
+				SubType: ".help 娱乐",
+			},
+			"骰子帮助文本_其他": {
+				SubType: ".help 其他",
 			},
 			"骰子执行异常": {
 				SubType:  "通用",
@@ -984,6 +1117,12 @@ func setupBaseTextTemplate(d *Dice) {
 			"提示_无权限": {
 				SubType: "通用",
 			},
+			"提示_无权限_非master/管理/邀请者": {
+				SubType: "通用",
+			},
+			"提示_无权限_非master/管理": {
+				SubType: "通用",
+			},
 			"留言_已记录": {
 				SubType: ".send",
 			},
@@ -1034,6 +1173,10 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType:   ".log on",
 				ExtraText: "当 log new 之后，会有一个默认的记录名。此时可以直接log on和log off而不加参数。\n一旦log end之后，默认记录名没有了，就会出这个提示。",
 			},
+			"记录_开启_失败_未结束的记录": {
+				SubType: ".log on",
+				Vars:    []string{"$t记录名称"},
+			},
 			"记录_关闭_成功": {
 				SubType: ".log off",
 			},
@@ -1051,9 +1194,25 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"记录_新建_失败_未结束的记录": {
 				SubType: ".log new",
+				Vars:    []string{"$t记录名称"},
 			},
 			"记录_条数提醒": {
 				SubType: ".log",
+			},
+			"记录_导出_邮箱发送前缀": {
+				SubType: ".log export",
+			},
+			"记录_导出_无格式有效邮箱": {
+				SubType: ".log export",
+			},
+			"记录_导出_未指定记录": {
+				SubType: ".log export",
+			},
+			"记录_导出_文件名前缀": {
+				SubType: ".log export",
+			},
+			"记录_导出_邮件附言": {
+				SubType: ".log export",
 			},
 			"OB_开启": {
 				SubType: ".ob",
@@ -1269,6 +1428,7 @@ func getNumVal(i interface{}) uint {
 func (d *Dice) loads() {
 	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
 
+	// 配置这块弄得比较屎，有机会换个方案。。。
 	if err == nil {
 		dNew := Dice{}
 		err2 := yaml.Unmarshal(data, &dNew)
@@ -1314,6 +1474,9 @@ func (d *Dice) loads() {
 			d.MailFrom = dNew.MailFrom
 			d.MailPassword = dNew.MailPassword
 			d.MailSmtp = dNew.MailSmtp
+			d.JsEnable = dNew.JsEnable
+			d.DisabledJsScripts = dNew.DisabledJsScripts
+			d.NewsMark = dNew.NewsMark
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
@@ -1516,6 +1679,25 @@ func (d *Dice) loads() {
 				})
 			}
 
+			// 1.3 版本
+			if d.VersionCode != 0 && d.VersionCode < 10300 {
+				d.JsEnable = true
+
+				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+					// 更正写反的部分
+					d.Logger.Info("正在自动升级自定义文案文件")
+					for index, text := range d.TextMapRaw["娱乐"]["鸽子理由"] {
+						srcText := text[0].(string)
+						srcText = strings.ReplaceAll(srcText, "在互联网上约到可爱美少女不惜搁置跑团前去约会的{$t玩家}，还不知道这个叫奈亚的妹子隐藏着什么", "空山不见人，但闻咕咕声。 —— {$t玩家}")
+						d.TextMapRaw["娱乐"]["鸽子理由"][index][0] = srcText
+					}
+
+					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+					d.GenerateTextMap()
+					d.SaveText()
+				})
+			}
+
 			// 设置全局群名缓存和用户名缓存
 			dm := d.Parent
 			now := time.Now().Unix()
@@ -1554,6 +1736,9 @@ func (d *Dice) loads() {
 		d.TextCmdTrustOnly = true
 		d.PlayerNameWrapEnable = true
 		d.DiceMasters = []string{"UI:1001"}
+
+		// 1.3
+		d.JsEnable = true
 	}
 
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
@@ -1583,7 +1768,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.VersionCode = 10203 // TODO: 记得修改！！！
+	d.VersionCode = 10300 // TODO: 记得修改！！！
 	d.LogWriter.LogLimit = d.UILogLimit
 
 	// 设置扩展选项

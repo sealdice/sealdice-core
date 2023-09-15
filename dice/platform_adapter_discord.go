@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"github.com/gorilla/websocket"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -71,10 +73,12 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		u, e := url.Parse(pa.ProxyURL)
 		if e != nil {
 			pa.Session.Parent.Logger.Errorf("代理地址解析错误%s", e.Error())
+			return 1
 		}
 		dg.Client.Transport = &http.Transport{
 			Proxy: http.ProxyURL(u),
 		}
+		dg.Dialer = &websocket.Dialer{HandshakeTimeout: 45 * time.Second}
 		dg.Dialer.Proxy = http.ProxyURL(u)
 	}
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -115,6 +119,67 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		msg.Time = m.Timestamp.Unix()
 		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
 		pa.Session.OnMessageDeleted(mctx, msg)
+	})
+	dg.AddHandler(func(s *discordgo.Session, m *discordgo.GuildCreate) {
+		msg := new(Message)
+		msg.Time = m.JoinedAt.Unix()
+		msg.Platform = "DISCORD"
+
+		msg.GuildId = FormatDiceIdDiscordGuild(m.ID)
+		// 一些服务器的 SystemChannel 和 RulesChannel 可能都为空
+		if m.SystemChannelID != "" {
+			msg.GroupId = FormatDiceIdDiscordChannel(m.SystemChannelID)
+		} else if m.RulesChannelID != "" {
+			msg.GroupId = FormatDiceIdDiscordChannel(m.RulesChannelID)
+		}
+
+		// 如果获取不到默认频道的话，入群致辞和 OnGuildJoined 基本上没什么意义
+		if msg.GroupId == "" {
+			return
+		}
+
+		msg.Sender.Nickname = "系统"
+		// GuildCreate 似乎不会在私聊消息时触发
+		msg.MessageType = "group"
+
+		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
+		pa.GetGroupInfoAsync(msg.GroupId)
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					pa.Session.Parent.Logger.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+				}
+			}()
+
+			// 稍作等待后发送入群致词
+			time.Sleep(1 * time.Second)
+
+			mctx.Player = &GroupPlayerInfo{}
+			pa.Session.Parent.Logger.Infof("发送入群致辞，群: <%s>(%s)", m.Name, msg.GuildId)
+			text := DiceFormatTmpl(mctx, "核心:骰子进群")
+			for _, i := range strings.Split(text, "###SPLIT###") {
+				pa.SendToGroup(mctx, msg.GroupId, strings.TrimSpace(i), "")
+			}
+		}()
+
+		// 此时 ServiceAtNew 中这个频道一般为空，照 im_session.go 中的方法处理
+		channel := mctx.Session.ServiceAtNew[msg.GroupId]
+		if channel == nil {
+			channel = SetBotOnAtGroup(mctx, msg.GroupId)
+			channel.Active = true
+			channel.DiceIdExistsMap.Store(pa.EndPoint.UserId, true)
+			channel.UpdatedAtTime = time.Now().Unix()
+		}
+
+		if mctx.Session.ServiceAtNew[msg.GroupId] != nil {
+			for _, i := range mctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+				if i.OnGuildJoined != nil {
+					i.callWithJsCheck(mctx.Dice, func() {
+						i.OnGuildJoined(mctx, msg)
+					})
+				}
+			}
+		}
 	})
 	//这里只处理消息，未来根据需要再改这里
 	dg.Identify.Intents = discordgo.IntentsAll
@@ -224,6 +289,44 @@ func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupId string, t
 			Nickname: pa.EndPoint.Nickname,
 		},
 	}, flag)
+}
+
+func (pa *PlatformAdapterDiscord) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
+	is := pa.IntentSession
+	ch, err := is.UserChannelCreate(ExtractDiscordUserId(userId))
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userId, err)
+		return
+	}
+	pa.sendFileToChannelRaw(ch.ID, path)
+}
+
+func (pa *PlatformAdapterDiscord) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
+	pa.sendFileToChannelRaw(groupId, path)
+}
+
+func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelId string, path string) {
+	dice := pa.Session.Parent
+	e, err := dice.FilepathToFileElement(path)
+	id := ExtractDiscordChannelId(channelId)
+	if err != nil {
+		dice.Logger.Errorf("向Discord频道#%s发送文件[path=%s]时出错:%s", id, path, err)
+		return
+	}
+
+	var files []*discordgo.File
+	files = append(files, &discordgo.File{
+		Name:        e.File,
+		ContentType: e.ContentType,
+		Reader:      e.Stream,
+	})
+	msgSend := &discordgo.MessageSend{Content: ""}
+	msgSend.Files = files
+	_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+	if err != nil {
+		dice.Logger.Errorf("向Discord频道#%s发送文件[path=%s]时出错:%s", id, path, err)
+		return
+	}
 }
 
 func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string) {

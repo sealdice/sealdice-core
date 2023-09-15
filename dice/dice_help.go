@@ -3,23 +3,52 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"path"
+	"path/filepath"
+	"regexp"
+	"runtime"
+	"sort"
+	"strconv"
+	"strings"
+
+	nanoid "github.com/matoous/go-nanoid/v2"
+
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/sahilm/fuzzy"
 	"github.com/xuri/excelize/v2"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"regexp"
-	"runtime"
-	"strconv"
 )
 
 // 分词器封存了，看起来不太需要
 //_ "github.com/leopku/bleve-gse-tokenizer/v2"
 
+const HelpBuiltinGroup = "builtin"
+
+const (
+	Unload int = iota
+	Loaded
+	LoadError
+)
+
+type HelpDoc struct {
+	Key        string `json:"key"`
+	Name       string `json:"name"`
+	Path       string `json:"path"`
+	Group      string `json:"group"`
+	Type       string `json:"type"`
+	IsDir      bool   `json:"isDir"`
+	LoadStatus int    `json:"loadStatus"`
+	Deleted    bool   `json:"deleted"`
+
+	Children []*HelpDoc `json:"children"`
+}
+
 type HelpTextItem struct {
+	Group       string
+	From        string
 	Title       string
 	Content     string
 	PackageName string
@@ -38,14 +67,15 @@ func (e HelpTextItems) Len() int {
 }
 
 type HelpManager struct {
-	CurId      uint64
-	Index      bleve.Index
-	TextMap    map[string]*HelpTextItem
-	Parent     *DiceManager
-	EngineType int
-	batch      *bleve.Batch
-	batchNum   int
-	LoadingFn  string
+	CurId       uint64
+	Index       bleve.Index
+	TextMap     map[string]*HelpTextItem
+	Parent      *DiceManager
+	EngineType  int
+	batch       *bleve.Batch
+	batchNum    int
+	LoadingFn   string
+	HelpDocTree []*HelpDoc
 }
 
 func (m *HelpManager) GetNextId() string {
@@ -127,19 +157,22 @@ func (m *HelpManager) Close() {
 func (m *HelpManager) Load() {
 	m.loadSearchEngine()
 
-	_ = m.AddItem(HelpTextItem{
-		Title:       "First Text",
-		Content:     "In view, a humble vaudevillian veteran cast vicariously as both victim and villain vicissitudes of fate.",
-		PackageName: "测试",
-	})
+	//_ = m.AddItem(HelpTextItem{
+	//	Group:       HelpBuiltinGroup,
+	//	Title:       "First Text",
+	//	Content:     "In view, a humble vaudevillian veteran cast vicariously as both victim and villain vicissitudes of fate.",
+	//	PackageName: "测试",
+	//})
+	//
+	//_ = m.AddItem(HelpTextItem{
+	//	Group:       HelpBuiltinGroup,
+	//	Title:       "测试词条",
+	//	Content:     "他在命运的沉浮中随波逐流, 扮演着受害与加害者的双重角色",
+	//	PackageName: "测试",
+	//})
 
 	_ = m.AddItem(HelpTextItem{
-		Title:       "测试词条",
-		Content:     "他在命运的沉浮中随波逐流, 扮演着受害与加害者的双重角色",
-		PackageName: "测试",
-	})
-
-	_ = m.AddItem(HelpTextItem{
+		Group: HelpBuiltinGroup,
 		Title: "骰点",
 		Content: `.help 骰点：
  .r  //丢一个100面骰
@@ -152,14 +185,7 @@ func (m *HelpManager) Load() {
 	})
 
 	_ = m.AddItem(HelpTextItem{
-		Title: "娱乐",
-		Content: `.gugu // 随机召唤一只鸽子
-.jrrp 今日人品
-`,
-		PackageName: "帮助",
-	})
-
-	_ = m.AddItem(HelpTextItem{
+		Group: HelpBuiltinGroup,
 		Title: "扩展",
 		Content: `.help 扩展：
 扩展功能可以让你开关部分指令。
@@ -176,18 +202,20 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	_ = m.AddItem(HelpTextItem{
-		Title: "日志",
-		Content: `.help 日志：
-.log new //新建记录
-.log on //开始记录
-.log off //暂停纪录
-.log end //结束记录并导出
-`,
-		PackageName: "帮助",
-	})
+	//	_ = m.AddItem(HelpTextItem{
+	//		Group: HelpBuiltinGroup,
+	//		Title: "日志",
+	//		Content: `.help 日志：
+	//.log new //新建记录
+	//.log on //开始记录
+	//.log off //暂停纪录
+	//.log end //结束记录并导出
+	//`,
+	//		PackageName: "帮助",
+	//	})
 
 	_ = m.AddItem(HelpTextItem{
+		Group: HelpBuiltinGroup,
 		Title: "跑团",
 		Content: `.help 跑团：
 .st 力量50 //载入技能/属性
@@ -205,24 +233,17 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	_ = m.AddItem(HelpTextItem{
-		Title: "骰主",
-		Content: `.botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话
-.botlist del @A @B @C // 去除机器人标记
-.botlist list // 查看当前列表
-.master add me @A @B // 标记骰主
-.send <留言> // 给骰主留言
-`,
-		PackageName: "帮助",
-	})
-
-	_ = m.AddItem(HelpTextItem{
-		Title: "其他",
-		Content: `.find 克苏鲁星之眷族 //查找对应怪物资料
-.find 70尺 法术 // 查找关联资料（仅在全文搜索开启时可用）
-`,
-		PackageName: "帮助",
-	})
+	//	_ = m.AddItem(HelpTextItem{
+	//		Group: HelpBuiltinGroup,
+	//		Title: "骰主",
+	//		Content: `.botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话
+	//.botlist del @A @B @C // 去除机器人标记
+	//.botlist list // 查看当前列表
+	//.master add me @A @B // 标记骰主
+	//.send <留言> // 给骰主留言
+	//`,
+	//		PackageName: "帮助",
+	//	})
 
 	//m.AddItem(HelpTextItem{
 	//	Title:       "查询/find",
@@ -230,70 +251,109 @@ func (m *HelpManager) Load() {
 	//	PackageName: "核心指令",
 	//})
 
-	_ = filepath.WalkDir("data/helpdoc", func(path string, d fs.DirEntry, err error) error {
-		if !d.IsDir() {
-			fileExt := filepath.Ext(path)
-
-			switch fileExt {
-			case ".json":
-				m.LoadingFn = path
-				data := HelpDocFormat{}
-				pack, err := os.ReadFile(path)
-				if err == nil {
-					err = json.Unmarshal(pack, &data)
-					if err == nil {
-						for k, v := range data.Helpdoc {
-							_ = m.AddItem(HelpTextItem{
-								Title:       k,
-								Content:     v,
-								PackageName: data.Mod,
-							})
-						}
-					}
+	m.HelpDocTree = make([]*HelpDoc, 0)
+	entries, err := os.ReadDir("data/helpdoc")
+	if err != nil {
+		fmt.Println("unable to read helpdoc folder: ", err.Error())
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		var child HelpDoc
+		child.Key = generateHelpDocKey()
+		child.Name = entry.Name()
+		child.Path = path.Join("data/helpdoc", entry.Name())
+		child.IsDir = entry.IsDir()
+		if child.IsDir {
+			child.Group = entry.Name()
+			child.Type = "dir"
+			child.Children = make([]*HelpDoc, 0)
+		} else {
+			child.Group = "default"
+			child.Type = filepath.Ext(child.Path)
+		}
+		buildHelpDocTree(&child, func(d *HelpDoc) {
+			if !d.IsDir {
+				ok := m.loadHelpDoc(d.Group, d.Path)
+				if ok {
+					d.LoadStatus = Loaded
+				} else {
+					d.LoadStatus = LoadError
 				}
-			case ".xlsx":
-				// 梨骰帮助文件
-				m.LoadingFn = path
-				f, err := excelize.OpenFile(path)
-				if err != nil {
-					fmt.Println(err)
-					break
-				}
+			}
+		})
+		m.HelpDocTree = append(m.HelpDocTree, &child)
+	}
+	_ = m.AddItemApply()
+}
 
-				for _, s := range f.GetSheetList() {
-					rows, err := f.GetRows(s)
-					if err == nil {
-						for _, row := range rows {
-							//Key Synonym Content Description Catalogue Tag
-							if len(row) < 3 {
-								continue
-							}
-							key := row[0]
-							synonym := row[1]
-							content := row[2]
+func (m *HelpManager) loadHelpDoc(group string, path string) bool {
+	fileExt := filepath.Ext(path)
 
-							if synonym != "" {
-								key += "/" + synonym
-							}
-
-							_ = m.AddItem(HelpTextItem{
-								Title:       key,
-								Content:     content,
-								PackageName: s,
-							})
-						}
-					}
-				}
-
-				// Close the spreadsheet.
-				if err := f.Close(); err != nil {
-					fmt.Println(err)
+	switch fileExt {
+	case ".json":
+		m.LoadingFn = path
+		data := HelpDocFormat{}
+		pack, err := os.ReadFile(path)
+		if err == nil {
+			err = json.Unmarshal(pack, &data)
+			if err == nil {
+				for k, v := range data.Helpdoc {
+					_ = m.AddItem(HelpTextItem{
+						Group:       group,
+						From:        path,
+						Title:       k,
+						Content:     v,
+						PackageName: data.Mod,
+					})
 				}
 			}
 		}
-		return nil
-	})
-	_ = m.AddItemApply()
+		return true
+	case ".xlsx":
+		// 梨骰帮助文件
+		m.LoadingFn = path
+		f, err := excelize.OpenFile(path)
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+
+		for _, s := range f.GetSheetList() {
+			rows, err := f.GetRows(s)
+			if err == nil {
+				for _, row := range rows {
+					//Keys Synonym Content Description Catalogue Tag
+					if len(row) < 3 {
+						continue
+					}
+					key := row[0]
+					synonym := row[1]
+					content := row[2]
+
+					if synonym != "" {
+						key += "/" + synonym
+					}
+
+					_ = m.AddItem(HelpTextItem{
+						Group:       group,
+						From:        path,
+						Title:       key,
+						Content:     content,
+						PackageName: s,
+					})
+				}
+			}
+		}
+
+		// Close the spreadsheet.
+		if err := f.Close(); err != nil {
+			fmt.Println(err)
+		}
+		return true
+	}
+	return false
 }
 
 func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
@@ -310,6 +370,7 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 				content = v.ShortHelp
 			}
 			_ = m.AddItem(HelpTextItem{
+				Group:       HelpBuiltinGroup,
 				Title:       k,
 				Content:     content,
 				PackageName: packageName,
@@ -320,6 +381,7 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 	addCmdMap("核心指令", dice.CmdMap)
 	for _, i := range dice.ExtList {
 		_ = m.AddItem(HelpTextItem{
+			Group:       HelpBuiltinGroup,
 			Title:       i.Name,
 			Content:     i.GetDescText(i),
 			PackageName: "扩展模块",
@@ -331,6 +393,8 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 
 func (m *HelpManager) AddItem(item HelpTextItem) error {
 	data := map[string]string{
+		"group":   item.Group,
+		"from":    item.From,
 		"title":   item.Title,
 		"content": item.Content,
 		"package": item.PackageName,
@@ -371,7 +435,7 @@ func (m *HelpManager) AddItemApply() error {
 	return nil
 }
 
-func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, num int) (*bleve.SearchResult, error) {
+func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, num int, group string) (*bleve.SearchResult, error) {
 	// 在标题中查找
 	queryTitle := query.NewMatchPhraseQuery(text)
 	queryTitle.SetField("title")
@@ -398,6 +462,13 @@ func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, 
 		andQuery.AddQuery(queryPack)
 	}
 
+	// 查询指定文档组
+	if group != "" {
+		queryPack := query.NewMatchPhraseQuery(group)
+		queryPack.SetField("group")
+		andQuery.AddQuery(queryPack)
+	}
+
 	req := bleve.NewSearchRequest(andQuery)
 
 	index := m.Index
@@ -414,7 +485,7 @@ func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, 
 	//index.Close()
 }
 
-func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, num int) (*bleve.SearchResult, error) {
+func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, num int, group string) (*bleve.SearchResult, error) {
 	if num < 1 {
 		num = 1
 	}
@@ -423,7 +494,7 @@ func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, num i
 	}
 
 	if m.EngineType == 0 {
-		return m.searchBleve(ctx, text, titleOnly, num)
+		return m.searchBleve(ctx, text, titleOnly, num, group)
 	} else {
 		//for _, i := range ctx.Group.HelpPackages {
 		//	//queryPack := query.NewMatchPhraseQuery(i)
@@ -533,4 +604,287 @@ func (m *HelpManager) GetContent(item *HelpTextItem, depth int) string {
 		return txt
 	}
 	return finalTxt
+}
+
+func generateHelpDocKey() string {
+	key, _ := nanoid.Generate("0123456789abcdef", 16)
+	return key
+}
+
+func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
+	p, err := os.Stat(node.Path)
+	if err != nil {
+		return
+	}
+
+	fn(node)
+
+	if !p.IsDir() {
+		return
+	}
+
+	subs, err := os.ReadDir(node.Path)
+	if err != nil {
+		return
+	}
+
+	for _, sub := range subs {
+		if strings.HasPrefix(sub.Name(), ".") {
+			continue
+		}
+		var child HelpDoc
+		child.Key = generateHelpDocKey()
+		child.Name = sub.Name()
+		child.Path = path.Join(node.Path, sub.Name())
+		child.Group = node.Group
+		child.IsDir = sub.IsDir()
+		if sub.IsDir() {
+			child.Type = "dir"
+			child.Children = make([]*HelpDoc, 0)
+		} else {
+			child.Type = filepath.Ext(sub.Name())
+		}
+
+		fn(&child)
+		if sub.IsDir() {
+			buildHelpDocTree(&child, fn)
+		}
+		node.Children = append(node.Children, &child)
+
+	}
+}
+
+func (m *HelpManager) UploadHelpDoc(src io.Reader, group string, name string) error {
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.ReplaceAll(name, "\\", "_")
+	group = strings.ReplaceAll(group, "/", "_")
+	group = strings.ReplaceAll(group, "\\", "_")
+	if group == "default" {
+		// 默认组直接上传到helpdoc文件夹中
+		group = ""
+	}
+
+	dirPath := filepath.Join("./data/helpdoc", group)
+	err := os.MkdirAll(dirPath, 0755)
+	if err != nil {
+		return err
+	}
+
+	filePath := filepath.Join(dirPath, name)
+	dst, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer func(dst *os.File) {
+		_ = dst.Close()
+	}(dst)
+
+	if _, err = io.Copy(dst, src); err != nil {
+		return err
+	}
+
+	var groupExists bool
+	for _, groupDir := range m.HelpDocTree {
+		if groupDir.Name == group {
+			groupExists = true
+			groupDir.Deleted = false
+
+			var fileExists bool
+			for _, child := range groupDir.Children {
+				if child.Name == name && filepath.Join(child.Path) == filepath.Join(filePath) && !child.Deleted {
+					if child.LoadStatus == Unload {
+						child.Deleted = false
+						fileExists = true
+					} else {
+						child.Deleted = true
+					}
+				}
+			}
+			if !fileExists {
+				groupDir.Children = append(groupDir.Children, &HelpDoc{
+					Key:   generateHelpDocKey(),
+					Name:  name,
+					Path:  filePath,
+					Group: group,
+					Type:  filepath.Ext(filePath),
+				})
+			}
+			break
+		}
+	}
+	if !groupExists {
+		if group != "" {
+			newGroupDir := HelpDoc{
+				Key:      generateHelpDocKey(),
+				Name:     group,
+				Path:     dirPath,
+				Group:    group,
+				Type:     "dir",
+				IsDir:    true,
+				Children: make([]*HelpDoc, 0),
+			}
+			newGroupDir.Children = append(newGroupDir.Children, &HelpDoc{
+				Key:   generateHelpDocKey(),
+				Name:  name,
+				Path:  filePath,
+				Group: group,
+				Type:  filepath.Ext(filePath),
+			})
+			m.HelpDocTree = append(m.HelpDocTree, &newGroupDir)
+		} else {
+			m.HelpDocTree = append(m.HelpDocTree, &HelpDoc{
+				Key:   generateHelpDocKey(),
+				Name:  name,
+				Path:  filePath,
+				Group: "default",
+				Type:  filepath.Ext(filePath),
+			})
+		}
+	}
+
+	return nil
+}
+
+func (m *HelpManager) DeleteHelpDoc(keys []string) error {
+	keySet := make(map[string]bool)
+	for _, key := range keys {
+		keySet[key] = true
+	}
+
+	for _, node := range m.HelpDocTree {
+		err := traverseHelpDocTree(node, func(d *HelpDoc) error {
+			if !d.IsDir {
+				_, ok := keySet[d.Key]
+				if ok {
+					_, err := os.Stat(d.Path)
+					if !os.IsNotExist(err) {
+						err := os.Remove(d.Path)
+						if err != nil {
+							return err
+						}
+					}
+					d.Deleted = true
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		_, ok := keySet[node.Key]
+		if ok {
+			_, err := os.Stat(node.Path)
+			if !os.IsNotExist(err) {
+				err := os.RemoveAll(node.Path)
+				if err != nil {
+					return err
+				}
+			}
+			node.Deleted = true
+		}
+	}
+	return nil
+}
+
+func traverseHelpDocTree(root *HelpDoc, fn func(node *HelpDoc) error) error {
+	if root == nil {
+		return nil
+	}
+	err := fn(root)
+	if err != nil {
+		return err
+	}
+
+	if len(root.Children) == 0 {
+		return nil
+	}
+
+	for _, child := range root.Children {
+		err := traverseHelpDocTree(child, fn)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type HelpTextVo struct {
+	Id          int    `json:"id"`
+	Group       string `json:"group"`
+	From        string `json:"from"`
+	Title       string `json:"title"`
+	Content     string `json:"content"`
+	PackageName string `json:"packageName"`
+	KeyWords    string `json:"keyWords"`
+}
+
+type HelpTextVos []HelpTextVo
+
+func (h HelpTextVos) Len() int {
+	return len(h)
+}
+
+func (h HelpTextVos) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h HelpTextVos) Less(i, j int) bool {
+	return h[i].Id < h[j].Id
+}
+
+func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, title string) (int, HelpTextVos) {
+	if pageNum <= 0 || pageSize <= 0 {
+		return 0, HelpTextVos{}
+	}
+
+	if id != "" {
+		item := m.TextMap[id]
+		if item != nil &&
+			strings.Contains(item.Group, group) &&
+			strings.Contains(item.From, from) &&
+			strings.Contains(item.Title, title) {
+			vo := HelpTextVo{
+				Group:       item.Group,
+				From:        item.From,
+				Title:       item.Title,
+				Content:     item.Content,
+				PackageName: item.PackageName,
+				KeyWords:    item.KeyWords,
+			}
+			vo.Id, _ = strconv.Atoi(id)
+			return 1, HelpTextVos{vo}
+		} else {
+			return 0, HelpTextVos{}
+		}
+	} else {
+		temp := make(HelpTextVos, 0, len(m.TextMap))
+		for i, item := range m.TextMap {
+			if strings.Contains(item.Group, group) &&
+				strings.Contains(item.From, from) &&
+				strings.Contains(item.Title, title) {
+				vo := HelpTextVo{
+					Group:       item.Group,
+					From:        item.From,
+					Title:       item.Title,
+					Content:     item.Content,
+					PackageName: item.PackageName,
+					KeyWords:    item.KeyWords,
+				}
+				vo.Id, _ = strconv.Atoi(i)
+				temp = append(temp, vo)
+			}
+		}
+		sort.Sort(temp)
+
+		start := (pageNum - 1) * pageSize
+		end := start + pageSize
+		total := len(temp)
+		if start >= total {
+			return total, HelpTextVos{}
+		} else if end < total {
+			return total, temp[start:end]
+		} else {
+			return total, temp[start:]
+		}
+	}
 }

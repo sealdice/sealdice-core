@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -15,6 +14,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/sacOO7/gowebsocket"
 )
 
 // 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
@@ -71,6 +74,10 @@ type PlatformAdapterGocq struct {
 	echoMap        *SyncMap[int64, chan *MessageQQ] `yaml:"-"`
 	echoMap2       *SyncMap[int64, *echoMapInfo]    `yaml:"-"`
 	Implementation string                           `yaml:"implementation" json:"implementation"`
+
+	UseSignServer    bool              `yaml:"useSignServer" json:"useSignServer"`
+	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`
+	ExtraArgs        string            `yaml:"extraArgs" json:"extraArgs"`
 }
 
 type Sender struct {
@@ -565,6 +572,15 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						doSleepQQ(ctx)
 						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 					}
+					if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+						for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+							if i.OnBecomeFriend != nil {
+								i.callWithJsCheck(ctx.Dice, func() {
+									i.OnBecomeFriend(ctx, msg)
+								})
+							}
+						}
+					}
 				}()
 				return
 			}
@@ -620,6 +636,15 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				txt := fmt.Sprintf("加入QQ群组: <%s>(%d)", groupName, msgQQ.GroupId)
 				log.Info(txt)
 				ctx.Notice(txt)
+				if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
+					for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+						if i.OnGroupJoined != nil {
+							i.callWithJsCheck(ctx.Dice, func() {
+								i.OnGroupJoined(ctx, msg)
+							})
+						}
+					}
+				}
 			}
 
 			// 入群的另一种情况: 管理员审核
@@ -757,7 +782,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// {"data":null,"echo":0,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
 				// 但是这里没QQ号也没有消息ID，很麻烦
 				fmt.Println("群消息发送失败: 账号可能被风控")
-				ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", CIAMLock)
+				ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", MailTypeCIAMLock)
 			}
 
 			// 戳一戳
@@ -826,7 +851,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
 		log.Info("onebot 服务的连接被对方关闭 ")
-		pa.Session.Parent.SendMail("", OnebotClose)
+		pa.Session.Parent.SendMail("", MailTypeOnebotClose)
 		pa.InPackGoCqHttpDisconnectedCH <- 1
 	}
 
@@ -879,7 +904,13 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		pa.GoCqHttpLastRestrictedTime = 0           // 重置风控时间
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
-		GoCqHttpServe(myDice, ep, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+		GoCqHttpServe(myDice, ep, GoCqHttpLoginInfo{
+			Password:         pa.InPackGoCqHttpPassword,
+			Protocol:         pa.InPackGoCqHttpProtocol,
+			IsAsyncRun:       true,
+			UseSignServer:    pa.UseSignServer,
+			SignServerConfig: pa.SignServerConfig,
+		})
 		return true
 	}
 	return false
@@ -895,7 +926,13 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		if pa.UseInPackGoCqhttp {
 			GoCqHttpServeProcessKill(d, c)
 			time.Sleep(1 * time.Second)
-			GoCqHttpServe(d, c, pa.InPackGoCqHttpPassword, pa.InPackGoCqHttpProtocol, true)
+			GoCqHttpServe(d, c, GoCqHttpLoginInfo{
+				Password:         pa.InPackGoCqHttpPassword,
+				Protocol:         pa.InPackGoCqHttpProtocol,
+				IsAsyncRun:       true,
+				UseSignServer:    pa.UseSignServer,
+				SignServerConfig: pa.SignServerConfig,
+			})
 			go ServeQQ(d, c)
 		} else {
 			go ServeQQ(d, c)
@@ -929,6 +966,37 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 			data, err := json.Marshal(info)
 			if err == nil {
 				_ = os.WriteFile(deviceFilePath, data, 0644)
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (pa *PlatformAdapterGocq) SetSignServer(signServerConfig *SignServerConfig) bool {
+	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
+	configFilePath := filepath.Join(workDir, "config.yml")
+	if _, err := os.Stat(configFilePath); err == nil {
+		configFile, _ := os.ReadFile(configFilePath)
+		info := map[string]interface{}{}
+		err = yaml.Unmarshal(configFile, &info)
+
+		if err == nil {
+			if signServerConfig.SignServers != nil {
+				mainServer := signServerConfig.SignServers[0]
+				(info["account"]).(map[string]interface{})["sign-server"] = mainServer.Url
+				(info["account"]).(map[string]interface{})["key"] = mainServer.Key
+				(info["account"]).(map[string]interface{})["sign-servers"] = signServerConfig.SignServers
+				(info["account"]).(map[string]interface{})["ruleChangeSignServer"] = signServerConfig.RuleChangeSignServer
+				(info["account"]).(map[string]interface{})["maxCheckCount"] = signServerConfig.MaxCheckCount
+				(info["account"]).(map[string]interface{})["signServerTimeout"] = signServerConfig.SignServerTimeout
+				(info["account"]).(map[string]interface{})["autoRegister"] = signServerConfig.AutoRegister
+				(info["account"]).(map[string]interface{})["autoRefreshToken"] = signServerConfig.AutoRefreshToken
+				(info["account"]).(map[string]interface{})["refreshInterval"] = signServerConfig.RefreshInterval
+			}
+			data, err := yaml.Marshal(info)
+			if err == nil {
+				_ = os.WriteFile(configFilePath, data, 0644)
 				return true
 			}
 		}

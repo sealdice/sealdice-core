@@ -19,10 +19,26 @@
 
 使用git拉取项目代码
 
-从已发布的海豹二进制包中，解压data、frontend、gocqhttp三个目录到代码目录下。
+从已发布的海豹二进制包中，解压 `data`、`gocqhttp` 两个目录到代码目录下。
 
-其中frontend目录为前端项目的编译结果。
+同时需要在项目的 `static/frontend` 下放置用于打包进 core 的 ui 静态资源文件，可手动提供，也可通过命令自动从 github 拉取：
 
+```bash
+go generate ./...
+```
+
+放置静态资源大致如下：
+
+```text
+static
+│
+└─frontend
+   │  CNAME
+   │  favicon.svg
+   │  index.html
+   │
+   └─assets
+```
 
 #### 3. 编译运行
 
@@ -34,7 +50,7 @@ go install github.com/pointlander/peg@v1.0.1
 go build
 ```
 
-或者直接使用
+或者直接使用：
 ```shell
 go run .
 ```

@@ -2,11 +2,12 @@ package dice
 
 import (
 	"fmt"
-	"github.com/fy0/lockfree"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/fy0/lockfree"
 )
 
 func IsCurGroupBotOnById(session *IMSession, ep *EndPointInfo, messageType string, groupId string) bool {
@@ -191,8 +192,64 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	}
 }
 
+// CrossMsgBySearch
+// 在 se 中找到第一个平台等于 p 且启用的 EndPointInfo, 并向目标 t 发送消息,
+// pr 判断是否为私聊消息
+func CrossMsgBySearch(se *IMSession, p, t, txt string, pr bool) bool {
+	ep := se.GetEpByPlatform(p)
+	if ep == nil {
+		return false
+	}
+	mctx := &MsgContext{
+		EndPoint: ep,
+		Session:  ep.Session,
+		Dice:     ep.Session.Parent,
+	}
+
+	if g, ok := mctx.Session.ServiceAtNew[t]; ok {
+		mctx.IsCurGroupBotOn = g.Active
+		mctx.Group = g
+	}
+
+	if !pr {
+		mctx.MessageType = "group"
+		ReplyGroup(mctx, &Message{GroupId: t}, txt)
+	} else {
+		mctx.IsPrivate = true
+		mctx.MessageType = "private"
+		ReplyPerson(mctx, &Message{Sender: SenderBase{UserId: t}}, txt)
+	}
+
+	return true
+}
+
+// TODO: CrossMsgById 用指定 Id 的 EndPoint 发送跨平台消息，现在似乎没有这个需求
+
 func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
 	ReplyPersonRaw(ctx, msg, text, "")
+}
+
+func SendFileToSenderRaw(ctx *MsgContext, msg *Message, path string, flag string) {
+	inGroup := msg.MessageType == "group"
+	if inGroup {
+		SendFileToGroupRaw(ctx, msg, path, flag)
+	} else {
+		SendFileToPersonRaw(ctx, msg, path, flag)
+	}
+}
+
+func SendFileToPersonRaw(ctx *MsgContext, msg *Message, path string, flag string) {
+	if ctx.Dice != nil {
+		ctx.Dice.Logger.Infof("发文件给(账号%s): %s", msg.Sender.UserId, path)
+	}
+	ctx.EndPoint.Adapter.SendFileToPerson(ctx, msg.Sender.UserId, path, flag)
+}
+
+func SendFileToGroupRaw(ctx *MsgContext, msg *Message, path string, flag string) {
+	if ctx.Dice != nil {
+		ctx.Dice.Logger.Infof("发文件给(群%s): %s", msg.GroupId, path)
+	}
+	ctx.EndPoint.Adapter.SendFileToGroup(ctx, msg.GroupId, path, flag)
 }
 
 func MemberBan(ctx *MsgContext, groupId string, userId string, duration int64) {

@@ -5,9 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/fy0/lockfree"
-	"golang.org/x/text/encoding/simplifiedchinese"
-	"golang.org/x/text/transform"
 	"io"
 	"math/rand"
 	"net"
@@ -17,6 +14,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/fy0/lockfree"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 type Int64SliceDesc []int64
@@ -489,7 +490,7 @@ func CheckDialErr(err error) syscall.Errno {
 	return 1 // 失败 但是原因不明
 }
 
-// CreateTempCtx 制作ctx，需要msg.MessageType和msg.Sender.UserId
+// CreateTempCtx 制作ctx，需要msg.MessageType和msg.Sender.UserId，以及ep.Session
 func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 	session := ep.Session
 
@@ -503,12 +504,18 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 	case "private":
 		// msg.Sender.UserId 确保存在
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		if ctx.Player == nil {
+			ctx.Player = &GroupPlayerInfo{}
+		}
 		if ctx.Player.Name == "" {
 			ctx.Player.Name = "<未知用户>"
 		}
 		SetTempVars(ctx, ctx.Player.Name)
 	case "group":
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		if ctx.Player == nil {
+			ctx.Player = &GroupPlayerInfo{}
+		}
 		if ctx.Player.Name == "" {
 			ctx.Player.Name = "<未知用户>"
 		}

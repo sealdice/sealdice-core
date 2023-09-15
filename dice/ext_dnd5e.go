@@ -3,18 +3,20 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"math"
 	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type RIListItem struct {
-	name string
-	val  int64
+	name   string
+	val    int64
+	detail string
 }
 
 type ByRIListValue []*RIListItem
@@ -26,6 +28,9 @@ func (lst ByRIListValue) Swap(i, j int) {
 	lst[i], lst[j] = lst[j], lst[i]
 }
 func (lst ByRIListValue) Less(i, j int) bool {
+	if lst[i].val == lst[j].val {
+		return lst[i].name > lst[j].name
+	}
 	return lst[i].val > lst[j].val
 }
 
@@ -73,7 +78,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 			"hpmax": {"HPMAX", "生命值上限", "生命上限", "血量上限", "耐久上限"},
 			"dc":    {"DC", "难度等级", "法术豁免", "難度等級", "法術豁免"},
 			"hd":    {"HD", "生命骰"},
-			"pp":    {"PP", "被动察觉", "被动感知", "被動察覺", "被动感知"},
+			"pp":    {"PP", "被动察觉", "被动感知", "被動察覺", "被动感知", "PW"},
 
 			"熟练": {"熟练加值", "熟練", "熟練加值"},
 			"体型": {"siz", "size", "體型", "体型", "体形", "體形"},
@@ -438,7 +443,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							vRaw = v
 						} else {
 							vRaw = _vRaw.(*VMValue)
-							v2, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
+							kExpr := k
+							if strings.HasPrefix(k, "p") || strings.HasPrefix(k, "b") {
+								kExpr = "_" + k
+							}
+							v2, _, _ := mctx.Dice.ExprEvalBase(kExpr, mctx, RollExtraFlags{})
 							v = &v2.VMValue
 						}
 
@@ -1555,6 +1564,279 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 	}
 
+	cmdRi := &CmdItemInfo{
+		Name: "ri",
+		ShortHelp: `.ri 小明 // 格式1，值为D20
+.ri 12 张三 // 格式2，值12(只能写数字)
+.ri +2 李四 // 格式3，值为D20+2
+.ri =D10+3 王五 // 格式4，值为D10+3
+.ri 张三, +2 李四, =D10+3 王五 // 设置全部
+.ri 优势 张三, 劣势-1 李四 // 支持优势劣势`,
+		AllowDelegate: true,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			text := cmdArgs.CleanArgs
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
+
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
+			readOne := func() (int, string, int64, string) {
+				text = strings.TrimSpace(text)
+				var name string
+				var val int64
+				var detail string
+				var exprExists bool
+
+				if strings.HasPrefix(text, "+") {
+					// 加值情况1，D20+
+					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
+					if err != nil {
+						// 情况1，加值输入错误
+						return 1, name, val, detail
+					}
+					detail = _detail
+					val = r.Value.(int64)
+					text = r.restInput
+					exprExists = true
+				} else if strings.HasPrefix(text, "-") {
+					// 加值情况1.1，D20-
+					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
+					if err != nil {
+						// 情况1，加值输入错误
+						return 1, name, val, detail
+					}
+					detail = _detail
+					val = r.Value.(int64)
+					text = r.restInput
+					exprExists = true
+				} else if strings.HasPrefix(text, "=") {
+					// 加值情况1，=表达式
+					r, _, err := ctx.Dice.ExprEvalBase(text[1:], mctx, RollExtraFlags{})
+					if err != nil {
+						// 情况1，加值输入错误
+						return 1, name, val, detail
+					}
+					val = r.Value.(int64)
+					text = r.restInput
+					exprExists = true
+				} else if strings.HasPrefix(text, "优势") || strings.HasPrefix(text, "劣势") {
+					// 优势/劣势
+					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
+					if err != nil {
+						// 优势劣势输入错误
+						return 2, name, val, detail
+					}
+					detail = _detail
+					val = r.Value.(int64)
+					text = r.restInput
+					exprExists = true
+				} else {
+					// 加值情况3，数字
+					reNum := regexp.MustCompile(`^(\d+)`)
+					m := reNum.FindStringSubmatch(text)
+					if len(m) > 0 {
+						val, _ = strconv.ParseInt(m[0], 10, 64)
+						text = text[len(m[0]):]
+						exprExists = true
+					}
+				}
+
+				// 清理读取了第一项文本之后的空格
+				text = strings.TrimSpace(text)
+
+				if strings.HasPrefix(text, ",") || strings.HasPrefix(text, "，") || text == "" {
+					// 句首有,的话，吃掉
+					text = strings.TrimPrefix(text, ",")
+					text = strings.TrimPrefix(text, "，")
+					// 情况1，名字是自己
+					name = mctx.Player.Name
+					// 情况2，名字是自己，没有加值
+					if !exprExists {
+						val = DiceRoll64(20)
+					}
+					return 0, name, val, detail
+				}
+
+				// 情况3: 是名字
+				reName := regexp.MustCompile(`^([^\s\d,，][^\s,，]*)\s*[,，]?`)
+				m := reName.FindStringSubmatch(text)
+				if len(m) > 0 {
+					name = m[1]
+					text = text[len(m[0]):]
+					if !exprExists {
+						val = DiceRoll64(20)
+					}
+				} else {
+					// 不知道是啥，报错
+					return 2, name, val, detail
+				}
+
+				return 0, name, val, detail
+			}
+
+			solved := true
+			tryOnce := true
+			var items ByRIListValue
+
+			for tryOnce || text != "" {
+				code, name, val, detail := readOne()
+				items = append(items, &RIListItem{name, val, detail})
+
+				if code != 0 {
+					solved = false
+					break
+				}
+				tryOnce = false
+			}
+
+			if solved {
+				riMap := dndGetRiMapList(ctx)
+				textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
+				sort.Sort(items)
+				for order, i := range items {
+					var detail string
+					riMap[i.name] = i.val
+					if i.detail != "" {
+						detail = i.detail + "="
+					}
+					textOut += fmt.Sprintf("%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
+				}
+
+				dndSetRiMapList(mctx, riMap)
+				ReplyToSender(ctx, msg, textOut)
+			} else {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "DND:先攻_设置_格式错误"))
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
+	cmdInit := &CmdItemInfo{
+		Name: "init",
+		ShortHelp: ".init // 查看先攻列表\n" +
+			".init del <单位1> <单位2> ... // 从先攻列表中删除\n" +
+			".init set <单位名称> <先攻表达式> // 设置单位的先攻\n" +
+			".init clr // 清除先攻列表\n" +
+			".init end // 结束一回合" +
+			".init help // 显示本帮助",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			cmdArgs.ChopPrefixToArgsWith("del", "set", "rm", "ed")
+			n := cmdArgs.GetArgN(1)
+			switch n {
+			case "", "list":
+				textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
+				riMap := dndGetRiMapList(ctx)
+				round, _ := VarGetValueInt64(ctx, "$g回合数")
+
+				var lst ByRIListValue
+				for k, v := range riMap {
+					lst = append(lst, &RIListItem{name: k, val: v})
+				}
+
+				sort.Sort(lst)
+				for order, i := range lst {
+					textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i.name, i.val)
+				}
+
+				if len(lst) == 0 {
+					textOut += "- 没有找到任何单位"
+				} else {
+					if len(lst) <= int(round) || round < 0 {
+						round = 0
+					}
+					rounder := lst[round]
+					textOut += fmt.Sprintf("当前回合：%s", rounder.name)
+				}
+
+				ReplyToSender(ctx, msg, textOut)
+			case "ed", "end":
+				riMap := dndGetRiMapList(ctx)
+				round, _ := VarGetValueInt64(ctx, "$g回合数")
+				var lst ByRIListValue
+				for k, v := range riMap {
+					lst = append(lst, &RIListItem{name: k, val: v})
+				}
+				sort.Sort(lst)
+				if len(lst) == 0 {
+					ReplyToSender(ctx, msg, "先攻列表为空")
+					break
+				} else {
+					round += 1
+					l := len(lst)
+					if l <= int(round) || round < 0 {
+						round = 0
+					}
+					if round == 0 {
+						VarSetValueStr(ctx, "$t当前回合角色名", lst[l-1].name)
+					} else {
+						VarSetValueStr(ctx, "$t当前回合角色名", lst[round-1].name)
+					}
+					VarSetValueStr(ctx, "$t下一回合角色名", lst[round].name)
+					VarSetValueInt64(ctx, "$g回合数", round)
+				}
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
+			case "del", "rm":
+				names := cmdArgs.Args[1:]
+				riMap := dndGetRiMapList(ctx)
+				var deleted []string
+				for _, i := range names {
+					_, exists := riMap[i]
+					if exists {
+						deleted = append(deleted, i)
+						delete(riMap, i)
+					}
+				}
+				textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
+				for order, i := range deleted {
+					textOut += fmt.Sprintf("%2d. %s\n", order+1, i)
+				}
+				if len(deleted) == 0 {
+					textOut += "- 没有找到任何单位"
+				}
+
+				dndSetRiMapList(ctx, riMap)
+				ReplyToSender(ctx, msg, textOut)
+			case "set":
+				name := cmdArgs.GetArgN(2)
+				exists := name != ""
+				arg3 := cmdArgs.GetArgN(3)
+				exists2 := arg3 != ""
+				if !exists || !exists2 {
+					ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				expr := strings.Join(cmdArgs.Args[2:], "")
+				r, _detail, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{})
+				if err != nil || r.TypeId != VMTypeInt64 {
+					ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				riMap := dndGetRiMapList(ctx)
+				riMap[name] = r.Value.(int64)
+
+				VarSetValueStr(ctx, "$t表达式", expr)
+				VarSetValueStr(ctx, "$t目标", name)
+				VarSetValueStr(ctx, "$t计算过程", _detail)
+				VarSetValue(ctx, "$t点数", &r.VMValue)
+				textOut := DiceFormatTmpl(ctx, "DND:先攻_设置_指定单位")
+
+				dndSetRiMapList(ctx, riMap)
+				ReplyToSender(ctx, msg, textOut)
+			case "clr", "clear":
+				dndClearRiMapList(ctx)
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
+				VarSetValueInt64(ctx, "$g回合数", 0)
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
 	theExt := &ExtInfo{
 		Name:       "dnd5e", // 扩展的名称，需要用于开启和关闭指令中，写简短点
 		Version:    "1.0.0",
@@ -1574,239 +1856,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		CmdMap: CmdMapCls{
 			"dnd":  cmdDnd,
 			"dndx": cmdDnd,
-			"ri": &CmdItemInfo{
-				Name: "ri",
-				ShortHelp: `.ri 小明 // 格式1，值为D20
-.ri 12 张三 // 格式2，值12(只能写数字)
-.ri +2 李四 // 格式3，值为D20+2
-.ri =D10+3 王五 // 格式4，值为D10+3
-.ri 张三, +2 李四, =D10+3 王五 // 设置全部`,
-				AllowDelegate: true,
-				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					text := cmdArgs.CleanArgs
-					mctx := GetCtxProxyFirst(ctx, cmdArgs)
-
-					if cmdArgs.IsArgEqual(1, "help") {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-					}
-
-					readOne := func() (int, string, int64, string) {
-						text = strings.TrimSpace(text)
-						var name string
-						var val int64
-						var detail string
-						var exprExists bool
-
-						// 遇到加值
-						if strings.HasPrefix(text, "+") {
-							// 加值情况1，D20+
-							r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
-							if err != nil {
-								// 情况1，加值输入错误
-								return 1, name, val, detail
-							}
-							detail = _detail
-							val = r.Value.(int64)
-							text = r.restInput
-							exprExists = true
-						} else if strings.HasPrefix(text, "-") {
-							// 加值情况1.1，D20-
-							r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
-							if err != nil {
-								// 情况1，加值输入错误
-								return 1, name, val, detail
-							}
-							detail = _detail
-							val = r.Value.(int64)
-							text = r.restInput
-							exprExists = true
-						} else if strings.HasPrefix(text, "=") {
-							// 加值情况1，=表达式
-							r, _, err := ctx.Dice.ExprEvalBase(text[1:], mctx, RollExtraFlags{})
-							if err != nil {
-								// 情况1，加值输入错误
-								return 1, name, val, detail
-							}
-							val = r.Value.(int64)
-							text = r.restInput
-							exprExists = true
-						} else {
-							// 加值情况3，数字
-							reNum := regexp.MustCompile(`^(\d+)`)
-							m := reNum.FindStringSubmatch(text)
-							if len(m) > 0 {
-								val, _ = strconv.ParseInt(m[0], 10, 64)
-								text = text[len(m[0]):]
-								exprExists = true
-							}
-						}
-
-						// 清理读取了第一项文本之后的空格
-						text = strings.TrimSpace(text)
-
-						if strings.HasPrefix(text, ",") || strings.HasPrefix(text, "，") || text == "" {
-							// 句首有,的话，吃掉
-							text = strings.TrimPrefix(text, ",")
-							text = strings.TrimPrefix(text, "，")
-							// 情况1，名字是自己
-							name = mctx.Player.Name
-							// 情况2，名字是自己，没有加值
-							if !exprExists {
-								val = DiceRoll64(20)
-							}
-							return 0, name, val, detail
-						}
-
-						// 情况3: 是名字
-						reName := regexp.MustCompile(`^([^\s\d,，][^\s,，]*)\s*[,，]?`)
-						m := reName.FindStringSubmatch(text)
-						if len(m) > 0 {
-							name = m[1]
-							text = text[len(m[0]):]
-							if !exprExists {
-								val = DiceRoll64(20)
-							}
-						} else {
-							// 不知道是啥，报错
-							return 2, name, val, detail
-						}
-
-						return 0, name, val, detail
-					}
-
-					solved := true
-					tryOnce := true
-					var items []struct {
-						name   string
-						val    int64
-						detail string
-					}
-
-					for tryOnce || text != "" {
-						code, name, val, detail := readOne()
-						items = append(items, struct {
-							name   string
-							val    int64
-							detail string
-						}{name, val, detail})
-
-						if code != 0 {
-							solved = false
-							break
-						}
-						tryOnce = false
-					}
-
-					if solved {
-						riMap := dndGetRiMapList(ctx)
-						textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
-
-						for order, i := range items {
-							var detail string
-							riMap[i.name] = i.val
-							if i.detail != "" {
-								detail = i.detail + "="
-							}
-							textOut += fmt.Sprintf("%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
-						}
-
-						dndSetRiMapList(mctx, riMap)
-						ReplyToSender(ctx, msg, textOut)
-					} else {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "DND:先攻_设置_格式错误"))
-					}
-					return CmdExecuteResult{Matched: true, Solved: true}
-				},
-			},
-			"init": &CmdItemInfo{
-				Name: "init",
-				ShortHelp: ".init // 查看先攻列表\n" +
-					".init del <单位1> <单位2> ... // 从先攻列表中删除\n" +
-					".init set <单位名称> <先攻表达式> // 设置单位的先攻\n" +
-					".init clr // 清除先攻列表\n" +
-					".init help // 显示本帮助",
-				Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-					cmdArgs.ChopPrefixToArgsWith("del", "set", "rm")
-					n := cmdArgs.GetArgN(1)
-					switch n {
-					case "", "list":
-						textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
-						riMap := dndGetRiMapList(ctx)
-
-						var lst ByRIListValue
-						for k, v := range riMap {
-							lst = append(lst, &RIListItem{k, v})
-						}
-
-						sort.Sort(lst)
-						for order, i := range lst {
-							textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i.name, i.val)
-						}
-
-						if len(lst) == 0 {
-							textOut += "- 没有找到任何单位"
-						}
-
-						ReplyToSender(ctx, msg, textOut)
-					case "del", "rm":
-						names := cmdArgs.Args[1:]
-						riMap := dndGetRiMapList(ctx)
-						var deleted []string
-						for _, i := range names {
-							_, exists := riMap[i]
-							if exists {
-								deleted = append(deleted, i)
-								delete(riMap, i)
-							}
-						}
-						textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
-						for order, i := range deleted {
-							textOut += fmt.Sprintf("%2d. %s\n", order+1, i)
-						}
-						if len(deleted) == 0 {
-							textOut += "- 没有找到任何单位"
-						}
-
-						dndSetRiMapList(ctx, riMap)
-						ReplyToSender(ctx, msg, textOut)
-					case "set":
-						name := cmdArgs.GetArgN(2)
-						exists := name != ""
-						arg3 := cmdArgs.GetArgN(3)
-						exists2 := arg3 != ""
-						if !exists || !exists2 {
-							ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-
-						expr := strings.Join(cmdArgs.Args[2:], "")
-						r, _detail, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{})
-						if err != nil || r.TypeId != VMTypeInt64 {
-							ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-
-						riMap := dndGetRiMapList(ctx)
-						riMap[name] = r.Value.(int64)
-
-						VarSetValueStr(ctx, "$t表达式", expr)
-						VarSetValueStr(ctx, "$t目标", name)
-						VarSetValueStr(ctx, "$t计算过程", _detail)
-						VarSetValue(ctx, "$t点数", &r.VMValue)
-						textOut := DiceFormatTmpl(ctx, "DND:先攻_设置_指定单位")
-
-						dndSetRiMapList(ctx, riMap)
-						ReplyToSender(ctx, msg, textOut)
-					case "clr", "clear":
-						dndClearRiMapList(ctx)
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
-					case "help":
-						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-					}
-
-					return CmdExecuteResult{Matched: true, Solved: true}
-				},
-			},
+			"ri":   cmdRi,
+			"init": cmdInit,
 			//"属性":    cmdSt,
 			"st":         cmdSt,
 			"dst":        cmdSt,

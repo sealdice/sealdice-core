@@ -5,11 +5,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"net"
 	"regexp"
 	"runtime"
 	"sealdice-core/dice"
+
+	"github.com/labstack/echo/v4"
 )
 
 func trayInit(dm *dice.DiceManager) {
@@ -28,6 +29,9 @@ func TestRunning() bool {
 
 func tempDirWarn() {
 	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
+}
+func showMsgBox(title string, message string) {
+	fmt.Println(title, message)
 }
 
 func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
@@ -55,5 +59,13 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	}
 }
 
-func showWarn(title string, msg string) {
+type Cmd struct {
+}
+
+func (cmd *Cmd) Start() error {
+	return nil
+}
+
+func executeWin(name string, arg ...string) *Cmd {
+	return nil
 }

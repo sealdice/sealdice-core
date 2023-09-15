@@ -16,7 +16,6 @@
 
 info.db
 record.log
-go.sum
 .idea
 sealdice-core
 data/save.yaml
@@ -28,8 +27,10 @@ temp/
 dist/
 go-cqhttp/
 frontend/
+frontend-overwrite/
 backups/
 update/
 walle-q/
 _help_cache
 .DS_Store
+!static/.nomedia

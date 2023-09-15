@@ -11,6 +11,7 @@ import (
 	"html"
 	"io"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -239,6 +240,80 @@ func (pa *PlatformAdapterKook) Serve() int {
 		//pa.Session.Parent.Logger.Infof("删除信息#%s(%s)", msg.RawId, msg.GroupId)
 		pa.Session.OnMessageDeleted(mctx, msg)
 	})
+
+	s.AddHandler(func(ctx *kook.BotJoinContext) {
+		msg := new(Message)
+		msg.Time = ctx.Common.MsgTimestamp
+		msg.RawId = ctx.Common.MsgID
+		msg.Platform = "KOOK"
+
+		guild, err := s.GuildView(ctx.Extra.GuildID)
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("无法获取服务器信息，跳过入群致辞")
+			return
+		}
+
+		msg.GuildId = FormatDiceIdKookGuild(ctx.Extra.GuildID)
+		// WelcomeChannel 是发送“xxx加入群组”消息的频道，DefaultChannel 是加入后第一个看到的频道
+		// 这两个可能都为空
+		if guild.WelcomeChannelID != "" {
+			msg.GroupId = FormatDiceIdKookChannel(guild.WelcomeChannelID)
+		} else if guild.DefaultChannelID != "" {
+			msg.GroupId = FormatDiceIdKookChannel(guild.DefaultChannelID)
+		}
+
+		// 如果获取不到默认频道的话，入群致辞和 OnGuildJoined 基本上没什么意义
+		if msg.GroupId == "" {
+			return
+		}
+
+		msg.Sender.UserId = FormatDiceIdKook(ctx.Common.AuthorID)
+		msg.Sender.Nickname = "系统"
+		if ctx.Common.ChannelType == "PERSON" {
+			msg.MessageType = "private"
+		} else {
+			msg.MessageType = "group"
+		}
+
+		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
+		pa.GetGroupInfoAsync(msg.GroupId)
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					pa.Session.Parent.Logger.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+				}
+			}()
+
+			// 稍作等待后发送入群致词
+			time.Sleep(1 * time.Second)
+
+			mctx.Player = &GroupPlayerInfo{}
+			pa.Session.Parent.Logger.Infof("发送入群致辞，群: <%s>(%s)", guild.Name, msg.GuildId)
+			text := DiceFormatTmpl(mctx, "核心:骰子进群")
+			for _, i := range strings.Split(text, "###SPLIT###") {
+				pa.SendToGroup(mctx, msg.GroupId, strings.TrimSpace(i), "")
+			}
+		}()
+
+		// 此时 ServiceAtNew 中这个频道一般为空，照 im_session.go 中的方法处理
+		channel := mctx.Session.ServiceAtNew[msg.GroupId]
+		if channel == nil {
+			channel = SetBotOnAtGroup(mctx, msg.GroupId)
+			channel.Active = true
+			channel.DiceIdExistsMap.Store(pa.EndPoint.UserId, true)
+			channel.UpdatedAtTime = time.Now().Unix()
+		}
+
+		if mctx.Session.ServiceAtNew[msg.GroupId] != nil {
+			for _, i := range mctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+				if i.OnGuildJoined != nil {
+					i.callWithJsCheck(mctx.Dice, func() {
+						i.OnGuildJoined(mctx, msg)
+					})
+				}
+			}
+		}
+	})
 	err := s.Open()
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("与KOOK服务建立连接时出错:%s", err.Error())
@@ -333,12 +408,76 @@ func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupId string, text
 	}, flag)
 }
 
+func (pa *PlatformAdapterKook) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
+	channel, err := pa.IntentSession.UserChatCreate(ExtractKookUserId(userId))
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("创建Kook用户#%s的私聊频道时出错:%s", userId, err)
+		return
+	}
+	pa.SendFileToChannelRaw(channel.Code, path, true)
+}
+
+func (pa *PlatformAdapterKook) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
+	pa.SendFileToChannelRaw(ExtractKookChannelId(groupId), path, false)
+}
+
 func (pa *PlatformAdapterKook) MemberBan(groupId string, userId string, last int64) {
 
 }
 
 func (pa *PlatformAdapterKook) MemberKick(groupId string, userId string) {
 
+}
+
+func (pa *PlatformAdapterKook) SendFileToChannelRaw(id string, path string, private bool) {
+	bot := pa.IntentSession
+	dice := pa.Session.Parent
+	e, err := dice.FilepathToFileElement(path)
+	if err != nil {
+		dice.Logger.Errorf("向Kook频道#%s发送文件[path=%s]时出错:%s", id, path, err)
+		return
+	}
+
+	StreamToByte := func(stream io.Reader) []byte {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(stream)
+		if err != nil {
+			return nil
+		}
+		return buf.Bytes()
+	}
+	assert, err := bot.AssetCreate(e.File, StreamToByte(e.Stream))
+	if err != nil {
+		dice.Logger.Errorf("Kook创建asserts时出错:%s", err)
+		return
+	}
+
+	card := CardMessage{
+		Type:  "card",
+		Theme: "primary",
+		Size:  "lg",
+	}
+	cardModule := CardMessageModuleFile{
+		Type:  "file",
+		Title: e.File,
+		Src:   assert,
+	}
+	card.Modules = append(card.Modules, cardModule)
+	cardArray := []CardMessage{card}
+	sendText, err := json.Marshal(cardArray)
+	if err != nil {
+		dice.Logger.Errorf("Kook创建card时出错:%s", err)
+		return
+	}
+	msgb := kook.MessageCreateBase{
+		Content: "",
+		Type:    kook.MessageTypeCard,
+	}
+	msgb.Content = string(sendText)
+	err = pa.MessageCreateRaw(msgb, id, private)
+	if err != nil {
+		dice.Logger.Errorf("向Kook频道#%s发送文件[path=%s]时出错:%s", id, path, err)
+	}
 }
 
 func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private bool) {

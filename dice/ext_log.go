@@ -7,14 +7,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fy0/lockfree"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sealdice-core/dice/model"
 	"strings"
 	"time"
+
+	"github.com/golang-module/carbon"
+
+	"github.com/fy0/lockfree"
+	"go.uber.org/zap"
+)
+
+var (
+	ErrorGroupCardOverlong = errors.New("群名片长度超过限制")
 )
 
 const Story_version = 100
@@ -32,6 +40,10 @@ func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) 
 	var text string
 	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
 		text = val.Value.(string)
+	}
+
+	if ctx.EndPoint.Platform == "QQ" && len(text) >= 60 { // Note(Xiangze-Li): 2023-08-09实测群名片长度限制为59个英文字符, 20个中文字符是可行的, 但分别判断过于繁琐
+		return text, ErrorGroupCardOverlong
 	}
 
 	ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, text)
@@ -127,7 +139,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log stat (<日志名>) // 查看统计
 .log stat (<日志名>) --all // 查看统计(全团)，--all前必须有空格
 .log list <群号> // 查看指定群的日志列表(无法取得日志时，找骰主做这个操作)
-.log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)`
+.log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)
+.log export <日志名> // 直接取得日志txt(服务出问题或有其他需要时使用)
+.log export <日志名> <邮箱地址> // 通过邮件取得日志txt，多个邮箱用空格隔开`
 
 	txtLogTip := "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
 
@@ -161,6 +175,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 			if cmdArgs.IsArgEqual(1, "on") {
 				if ctx.IsPrivate {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				// 如果日志已经开启，报错返回
+				if group.LogOn {
+					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_未结束的记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
@@ -342,26 +363,29 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				name := cmdArgs.GetArgN(2)
-
-				if group.LogCurName != "" && name == "" {
+				// 如果日志已经开启，或者当前有暂停的记录，报错返回
+				if group.LogOn || group.LogCurName != "" {
+					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
-				} else {
-					if groupNotActiveCheck() {
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					if name == "" {
-						todayTime := time.Now().Format("2006_01_02_15_04_05")
-						name = todayTime
-					}
-					VarSetValueStr(ctx, "$t记录名称", name)
-
-					group.LogCurName = name
-					group.LogOn = true
-					group.UpdatedAtTime = time.Now().Unix()
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
+				if groupNotActiveCheck() {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				name := cmdArgs.GetArgN(2)
+				if name == "" {
+					todayTime := time.Now().Format("2006_01_02_15_04_05")
+					name = todayTime
+				}
+				VarSetValueStr(ctx, "$t记录名称", name)
+
+				group.LogCurName = name
+				group.LogOn = true
+				group.UpdatedAtTime = time.Now().Unix()
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
+
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "stat") {
 				group := ctx.Group
@@ -398,6 +422,69 @@ func RegisterBuiltinExtLog(self *Dice) {
 					}
 				}
 				ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			} else if cmdArgs.IsArgEqual(1, "export") {
+				logName := group.LogCurName
+				if newName := cmdArgs.GetArgN(2); newName != "" {
+					logName = newName
+				}
+				if logName != "" {
+					now := carbon.Now()
+					VarSetValueStr(ctx, "$t记录名", logName)
+					VarSetValueStr(ctx, "$t日期", now.ToShortDateString())
+					VarSetValueStr(ctx, "$t时间", now.ToShortTimeString())
+					logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
+					logFile, err := GetLogTxt(ctx, group.GroupId, logName, logFileNamePrefix)
+					if err != nil {
+						ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
+					}
+
+					var emails []string
+					if len(cmdArgs.Args) > 2 {
+						emails = cmdArgs.Args[2:]
+						// 试图发送邮件
+						dice := ctx.Session.Parent
+						if dice.CanSendMail() {
+							rightEmails := make([]string, 0, len(emails))
+							emailExp := regexp.MustCompile(`.*@.*`)
+							for _, email := range emails {
+								if emailExp.MatchString(email) {
+									rightEmails = append(rightEmails, email)
+								}
+							}
+							if len(rightEmails) > 0 {
+								emailMsg := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
+								dice.SendMailRow(
+									fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
+									rightEmails,
+									emailMsg,
+									[]string{logFile.Name()},
+								)
+								text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
+								ReplyToSenderRaw(ctx, msg, text, "skip")
+								return CmdExecuteResult{Matched: true, Solved: true}
+							} else {
+								ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_无格式有效邮箱"), "skip")
+							}
+						} else {
+							ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
+						}
+					}
+
+					var uri string
+					if runtime.GOOS == "windows" {
+						uri = "files:///" + logFile.Name()
+					} else {
+						uri = "files://" + logFile.Name()
+					}
+					SendFileToSenderRaw(ctx, msg, uri, "skip")
+					err = os.Remove(logFile.Name())
+					if err != nil {
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+				} else {
+					ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_未指定记录"), "skip")
+				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -524,26 +611,44 @@ func RegisterBuiltinExtLog(self *Dice) {
 		},
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
+
+			handleOverlong := func(ctx *MsgContext, msg *Message, card string) CmdExecuteResult {
+				ReplyToSender(ctx, msg, fmt.Sprintf(
+					"尝试将群名片修改为 %q 失败，名片长度超过限制。\n请尝试缩短角色名或使用 .sn expr 自定义名片格式。",
+					card,
+				))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
 			switch strings.ToLower(val) {
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			case "coc", "coc7":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
-				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				if errors.Is(err, ErrorGroupCardOverlong) {
+					return handleOverlong(ctx, msg, text)
+				}
 				// 玩家 SAN60 HP10/10 DEX65
 				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "dnd", "dnd5e":
 				// PW{pw}
-				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PW{_pw}"
+				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PP{_pp}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
-				text, _ := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				if errors.Is(err, ErrorGroupCardOverlong) {
+					return handleOverlong(ctx, msg, text)
+				}
 				// 玩家 HP10/10 AC15 DC15 PW10
 				ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "none":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
-				text, _ := SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
+				text, err := SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
+				if errors.Is(err, ErrorGroupCardOverlong) { // 大约不至于会走到这里，但是为了统一也这样写了
+					return handleOverlong(ctx, msg, text)
+				}
 				ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "off", "cancel":
 				_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
@@ -564,9 +669,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 					last := ctx.Player.AutoSetNameTemplate
 					ctx.Player.AutoSetNameTemplate = t
 					text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-					if err != nil {
+					if err != nil && !errors.Is(err, ErrorGroupCardOverlong) {
 						ctx.Player.AutoSetNameTemplate = last
 						ReplyToSender(ctx, msg, "玩家自设sn格式错误，已自动还原之前模板")
+					} else if errors.Is(err, ErrorGroupCardOverlong) {
+						return handleOverlong(ctx, msg, text)
 					} else {
 						ctx.Player.UpdatedAtTime = time.Now().Unix()
 						ReplyToSender(ctx, msg, "应用玩家自设，预览文本: "+text)
@@ -770,6 +877,28 @@ func LogDeleteById(ctx *MsgContext, groupId string, logName string, messageId in
 		return false
 	}
 	return true
+}
+
+func GetLogTxt(ctx *MsgContext, groupId string, logName string, fileNamePrefix string) (*os.File, error) {
+	tempLog, err := os.CreateTemp("", fmt.Sprintf("%s(*).txt", fileNamePrefix))
+	if err != nil {
+		return nil, errors.New("log导出出现未知错误")
+	}
+
+	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupId, logName)
+	if len(lines) == 0 {
+		return nil, errors.New("此log不存在，或条目数为空，名字是否正确？")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	for _, line := range lines {
+		timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
+		text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserId, timeTxt, line.Message)
+		_, _ = tempLog.Write([]byte(text))
+	}
+	return tempLog, nil
 }
 
 func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, error) {
