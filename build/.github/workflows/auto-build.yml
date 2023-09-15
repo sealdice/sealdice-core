@@ -251,6 +251,14 @@ jobs:
         with:
           name: sealdice-ui
           path: ./sealdice-core/static/frontend
+
+      - name: Get current time
+        uses: josStorer/get-current-time@v2
+        id: current-time
+        with:
+          format: YYYYMMDD
+          utcOffset: "+08:00"
+
       - name: Set Env
         env:
           GOOS: ${{ matrix.goos }}
@@ -279,8 +287,9 @@ jobs:
           GO111MODULE: on
           CGO_ENABLED: ${{ matrix.goarch != 'arm64' && 1 || 0 }}
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+          CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
         working-directory: ./sealdice-core
-        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$PROJECT_VERSION" .
+        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$PROJECT_VERSION-$CUR_TIME" .
       - name: Upload Core
         uses: actions/upload-artifact@v3
         with:
@@ -516,31 +525,44 @@ jobs:
         with:
           name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./temp/
+
+      # 比较粗糙，回头按照release那个方式调整一下所有变量的出处
+      # 现在会有个问题就是steps执行隔夜可能会出事
+      - name: Get current time
+        uses: josStorer/get-current-time@v2
+        id: current-time
+        with:
+          format: YYYYMMDD
+          utcOffset: "+08:00"
+
       - name: Compress (default)
         if: matrix.goos != 'windows' && matrix.goos != 'android'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
         run: |
-          cd ./temp && find . -type f | cut -c 3- | tar -zcvf ../sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz -T -;
-          echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
+          cd ./temp && find . -type f | cut -c 3- | tar -zcvf ../sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.tar.gz -T -;
+          echo "DIST=sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
       - name: Compress (windows)
         if: matrix.goos == 'windows'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
         run: |
           cd ./temp
-          zip -r ../sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip .
-          echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
+          zip -r ../sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.zip .
+          echo "DIST=sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
       - name: Skip Compress (android)
         if: matrix.goos == 'android'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
         run: |
-          mv ./temp/sealdice_${PROJECT_VERSION}_${GOARCH}.apk .
-          echo "DIST=sealdice_${PROJECT_VERSION}_${GOARCH}.apk" >> $GITHUB_ENV;
+          mv ./temp/sealdice_${PROJECT_VERSION}_${GOARCH}.apk ./sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOARCH}.apk
+          echo "DIST=sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOARCH}.apk" >> $GITHUB_ENV;
       - name: Upload
         uses: actions/upload-artifact@v3
         with:
@@ -566,7 +588,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: pre-release
-          name: 'Latest Build $$'
+          name: 'Latest Dev Build $$'
           prerelease: true
           body: '> ⚠️注意️️：这是自动构建的预发布版本，非正式版本！'
           files: |
