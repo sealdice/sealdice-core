@@ -362,6 +362,12 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/js/delete", jsDelete)
 	e.GET(prefix+"/js/get_record", jsGetRecord)
 
+	e.GET(prefix+"/story/info", storyGetInfo)
+	e.GET(prefix+"/story/logs", storyGetLogs)
+	e.GET(prefix+"/story/items", storyGetItems)
+	e.DELETE(prefix+"/story/log", storyDelLog)
+	e.POST(prefix+"/story/uploadLog", storyUploadLog)
+
 	e.POST(prefix+"/tool/onebot", onebotTool)
 	e.GET(prefix+"/utils/ga/:uid", getGithubAvatar)
 	e.GET(prefix+"/utils/news", getNews)
