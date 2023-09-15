@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+type LogOne struct {
+	// Version int           `json:"version,omitempty"`
+	Items []LogOneItem `json:"items"`
+	Info  LogInfo      `json:"info"`
+}
+
 type LogOneItem struct {
 	Id          uint64      `json:"id" db:"id"`
 	Nickname    string      `json:"nickname" db:"nickname"`
@@ -21,6 +27,49 @@ type LogOneItem struct {
 
 	UniformId string `json:"uniformId" db:"user_uniform_id"`
 	Channel   string `json:"channel"`
+}
+
+type LogInfo struct {
+	Id        uint64 `json:"id" db:"id"`
+	Name      string `json:"name" db:"name"`
+	GroupId   string `json:"groupId" db:"groupId"`
+	CreatedAt int64  `json:"createdAt" db:"created_at"`
+	UpdatedAt int64  `json:"updatedAt" db:"updated_at"`
+}
+
+func LogGetInfo(db *sqlx.DB) ([]int, error) {
+	lst := []int{0, 0}
+	err := db.Get(&lst[0], "SELECT seq FROM sqlite_sequence WHERE name == 'logs'")
+	if err != nil {
+		return nil, err
+	}
+	err = db.Get(&lst[1], "SELECT seq FROM sqlite_sequence WHERE name == 'log_items'")
+	if err != nil {
+		return nil, err
+	}
+	return lst, nil
+}
+
+func LogGetLogs(db *sqlx.DB) ([]*LogInfo, error) {
+	var lst []*LogInfo
+	rows, err := db.Queryx("SELECT id,name,group_id,created_at, updated_at FROM logs")
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		log := &LogInfo{}
+		if err := rows.Scan(
+			&log.Id,
+			&log.Name,
+			&log.GroupId,
+			&log.CreatedAt,
+			&log.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		lst = append(lst, log)
+	}
+	return lst, nil
 }
 
 // LogGetList 获取列表
@@ -206,6 +255,7 @@ func LogAppend(db *sqlx.DB, groupId string, logName string, logItem *LogOneItem)
 
 	//fmt.Println("log append", logId, rid, "|", groupId, logName)
 	_, err = tx.Exec(query, logId, groupId, logItem.Nickname, logItem.IMUserId, nowTimestamp, logItem.Message, logItem.IsDice, logItem.CommandId, data, rid, logItem.UniformId)
+	_, err = tx.Exec("UPDATE logs SET updated_at = ? WHERE id = ?", nowTimestamp, logId)
 	if err != nil {
 		return false
 	}

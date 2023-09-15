@@ -157,6 +157,7 @@ func main() {
 		JustForTest            bool   `long:"just-for-test"`
 		DBCheck                bool   `long:"db-check" description:"检查数据库是否有问题"`
 		ShowEnv                bool   `long:"show-env" description:"显示环境变量"`
+		VacuumDB               bool   `long:"vacuum" description:"对数据库进行整理, 使其收缩到最小尺寸"`
 	}
 
 	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
@@ -171,6 +172,10 @@ func main() {
 	}
 	if opts.DBCheck {
 		model.DBCheck("data/default")
+		return
+	}
+	if opts.VacuumDB {
+		model.DBVacuum()
 		return
 	}
 	if opts.ShowEnv {
