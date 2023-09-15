@@ -32,9 +32,8 @@ export function newRequestClient(baseURL: string) {
 
 
 export const urlBase = process.env.NODE_ENV == 'development' ?
-  '//'+window.location.hostname+":"+3211 :
-  '//'+window.location.hostname+":"+location.port
-
+  '//' + window.location.hostname + ":" + 3211 :
+  '//' + window.location.hostname + ":" + location.port
 
 // 逐渐使用ofetch替换axios
 export const apiFetch = ofetch.create({

@@ -1,17 +1,16 @@
 <template>
-  <div
-    id="root"
-    style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 950px; width: 100%; margin: 0 auto; position: relative;"
-  >
-    <h3
-      class="mb-2"
-      style="color: #f8ffff; text-align: left; padding-left: 1.2em; font-weight: normal;max-height:60px; height: 60px;"
-    >
-      <span :v-show="store.canAccess" style="position: relative;">SealDice<span v-if="store.diceServers.length > 0" style="font-size: .7rem; position: absolute; bottom: -1rem; white-space: nowrap; left: 0;">{{ store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}</span></span>
+  <div id="root"
+    style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 950px; width: 100%; margin: 0 auto; position: relative;">
+    <h3 class="mb-2"
+      style="color: #f8ffff; text-align: left; padding-left: 1.2em; font-weight: normal;max-height:60px; height: 60px;">
+      <span :v-show="store.canAccess" style="position: relative;">SealDice<span v-if="store.diceServers.length > 0"
+          style="font-size: .7rem; position: absolute; bottom: -1rem; white-space: nowrap; left: 0;">{{
+            store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}</span></span>
     </h3>
 
     <!-- border: 1px solid #ccc; padding: 4px 8px; border-radius: 4px; -->
-    <div @click="dialogFeed = true" style="position: absolute; right: 8rem; top: 0.8rem; font-size: 1.7rem; color: white; cursor: pointer; display: flex; align-items: center;">
+    <div @click="dialogFeed = true"
+      style="position: absolute; right: 8rem; top: 0.8rem; font-size: 1.7rem; color: white; cursor: pointer; display: flex; align-items: center;">
       <!-- <el-icon><WarnTriangleFilled /></el-icon> -->
       <el-badge value="new" :hidden="newsChecked">
         <img :src="imgNews" style="width: 2.3rem;">
@@ -19,28 +18,18 @@
       <!-- <span style="font-size: .9rem;">News!</span> -->
     </div>
 
-    <div
-      :v-show="store.canAccess"
-      style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small; text-align: right;"
-    >
+    <div :v-show="store.canAccess"
+      style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small; text-align: right;">
       <div>{{ store.curDice.baseInfo.version }}</div>
-      <div v-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode">🆕{{store.curDice.baseInfo.versionNew}}</div>
+      <div v-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode">
+        🆕{{ store.curDice.baseInfo.versionNew }}</div>
     </div>
 
     <div style="display: flex;">
       <div style="position: relative; background: #545c64">
-        <el-menu
-          :unique-opened="true"
-          :collapse="sideCollapse"
-          style="border-right: 0;"
-          active-text-color="#ffd04b"
-          background-color="#545c64"
-          class="el-menu-vertical-demo"
-          default-active="2"
-          text-color="#fff"
-          @open="handleOpen"
-          @close="handleClose"
-        >
+        <el-menu :unique-opened="true" :collapse="sideCollapse" style="border-right: 0;" active-text-color="#ffd04b"
+          background-color="#545c64" class="el-menu-vertical-demo" default-active="2" text-color="#fff" @open="handleOpen"
+          @close="handleClose">
           <!-- <el-menu-item index="1" @click="switchTo('overview')">
             <el-icon>
               <setting />
@@ -70,11 +59,8 @@
               <span>自定义文案</span>
             </template>
 
-            <el-menu-item
-              :index="`5-${k}`"
-              @click="switchTo('customText', k.toString())"
-              v-for="_, k in store.curDice.customTexts"
-            >
+            <el-menu-item :index="`5-${k}`" @click="switchTo('customText', k.toString())"
+              v-for="_, k in store.curDice.customTexts">
               <span>{{ k }}</span>
             </el-menu-item>
           </el-sub-menu>
@@ -93,6 +79,10 @@
 
             <el-menu-item :index="`5-deck`" @click="switchTo('mod', 'deck')">
               <span>牌堆管理</span>
+            </el-menu-item>
+
+            <el-menu-item :index="`5-story`" @click="switchTo('mod', 'story')">
+              <span>跑团日志</span>
             </el-menu-item>
 
             <el-menu-item :index="`5-js`" @click="switchTo('mod', 'js')">
@@ -156,18 +146,15 @@
           </el-menu-item>
         </el-menu>
 
-        <div
-          class="hidden-sm-and-up"
-          style="position: absolute; bottom: 60px; color: #fff; font-size: small; margin-left: 1rem;"
-        >
-          <el-button circle type="info" :icon="sideCollapse ? DArrowRight : DArrowLeft" @click="sideCollapse = !sideCollapse"></el-button>
+        <div class="hidden-sm-and-up"
+          style="position: absolute; bottom: 60px; color: #fff; font-size: small; margin-left: 1rem;">
+          <el-button circle type="info" :icon="sideCollapse ? DArrowRight : DArrowLeft"
+            @click="sideCollapse = !sideCollapse"></el-button>
         </div>
       </div>
 
       <!-- #545c64 -->
-      <div
-        style="background-color: #f3f5f7; flex: 1; text-align: left; height: calc(100vh - 4rem); overflow-y: auto;"
-      >
+      <div style="background-color: #f3f5f7; flex: 1; text-align: left; height: calc(100vh - 4rem); overflow-y: auto;">
         <!-- <div style="background-color: #f3f5f7; text-align: left; height: 100%;"> -->
         <div class="main-container" :class="[needh100 ? 'h100' : '']" ref="rightbox">
           <page-misc v-if="tabName === 'miscSettings'" :category="miscSettingsCategory" />
@@ -184,20 +171,15 @@
     </div>
   </div>
 
-  <el-dialog
-    v-model="showDialog"
-    title=""
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    :show-close="false"
-    class="the-dialog"
-  >
+  <el-dialog v-model="showDialog" title="" :close-on-click-modal="false" :close-on-press-escape="false"
+    :show-close="false" class="the-dialog">
     <h3>输入密码解锁</h3>
     <el-input v-model="password" type="password"></el-input>
     <el-button type="primary" style="padding: 0px 50px; margin-top: 1rem;" @click="doUnlock">确认</el-button>
   </el-dialog>
 
-  <el-dialog v-model="dialogLostConnectionVisible" title="主程序离线" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
+  <el-dialog v-model="dialogLostConnectionVisible" title="主程序离线" :close-on-click-modal="false"
+    :close-on-press-escape="false" :show-close="false" class="the-dialog">
     <div>与主程序断开连接，请耐心等待连接恢复</div>
     <div>如果失去响应过久，请登录服务器处理</div>
   </el-dialog>
@@ -267,7 +249,7 @@ const dialogFeed = ref(false)
 const newsData = ref(`<div>暂无内容</div>`)
 const newsChecked = ref(true)
 const newsMark = ref('')
-const checkNews = async(close: any) => {
+const checkNews = async (close: any) => {
   console.log('newsMark', newsMark.value)
   const ret = await store.checkNews(newsMark.value)
   if (ret?.result) {

@@ -70,6 +70,7 @@ declare module 'vue' {
     PageMiscGroup: typeof import('./components/misc/PageMiscGroup.vue')['default']
     PageMiscSettings: typeof import('./components/misc/PageMiscSettings.vue')['default']
     PageMod: typeof import('./components/PageMod.vue')['default']
+    PageStory: typeof import('./components/mod/PageStory.vue')['default']
     PageTest: typeof import('./components/PageTest.vue')['default']
   }
 }
