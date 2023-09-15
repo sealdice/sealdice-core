@@ -16,22 +16,6 @@ import (
 	"time"
 )
 
-func logPostLog(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-	log := model.LogOne{}
-	err := c.Bind(&log)
-	if err != nil {
-		fmt.Println(err)
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-	for _, item := range log.Items {
-		model.LogAppend(myDice.DBLogs, log.Info.GroupId, log.Info.Name, &item)
-	}
-	return c.JSON(http.StatusOK, true)
-}
-
 func storyGetInfo(c echo.Context) error {
 	info, err := model.LogGetInfo(myDice.DBLogs)
 	if err != nil {
