@@ -519,7 +519,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          tar -zcvf sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz -C ./temp .;
+          cd ./temp && find . -type f | cut -c 3- | tar -zcvf ../sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz -T -;
           echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
       - name: Compress (windows)
         if: matrix.goos == 'windows'
