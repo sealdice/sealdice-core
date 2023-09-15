@@ -1,6 +1,9 @@
 package dice
 
-import "strconv"
+import (
+	ds "github.com/sealdice/dicescript"
+	"strconv"
+)
 
 type VMValueType int
 
@@ -127,4 +130,39 @@ func (v *VMValue) ComputedExecute(ctx *MsgContext, curDepth int64) (*VmResult, s
 	realV, detail, err := ctx.Dice.ExprEvalBase(cd.Expr, ctx, RollExtraFlags{vmDepth: curDepth + 1})
 
 	return realV, detail, err
+}
+
+func (v *VMValue) ConvertToDiceScriptValue() *ds.VMValue {
+	switch v.TypeId {
+	case VMTypeInt64:
+		return ds.VMValueNewInt(v.Value.(int64))
+	case VMTypeString:
+		return ds.VMValueNewStr(v.Value.(string))
+	case VMTypeNone:
+		return ds.VMValueNewNull()
+	case VMTypeDNDComputedValue:
+		// TODO: 这个转换应该有很大问题，我瞎编的，后面再改
+		oldCD := v.Value.(*VMDndComputedValueData)
+		m := &ds.ValueMap{}
+		m.Store("$base", oldCD.BaseValue.ConvertToDiceScriptValue())
+		cd := &ds.ComputedData{
+			Expr:  oldCD.Expr,
+			Attrs: m,
+		}
+		return ds.VMValueNewComputedRaw(cd)
+	case VMTypeComputedValue:
+		oldCd, _ := v.ReadComputed()
+
+		m := &ds.ValueMap{}
+		oldCd.Attrs.Range(func(key string, value *VMValue) bool {
+			m.Store(key, value.ConvertToDiceScriptValue())
+			return true
+		})
+		cd := &ds.ComputedData{
+			Expr:  oldCd.Expr,
+			Attrs: m,
+		}
+		return ds.VMValueNewComputedRaw(cd)
+	}
+	return ds.VMValueNewUndefined()
 }

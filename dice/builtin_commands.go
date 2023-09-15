@@ -15,6 +15,7 @@ import (
 	"github.com/fy0/lockfree"
 	"github.com/juliangruber/go-intersect"
 	cp "github.com/otiai10/copy"
+	ds "github.com/sealdice/dicescript"
 )
 
 /** 这几条指令不能移除 */
@@ -1189,6 +1190,49 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["rx"] = cmdRollX
 	d.CmdMap["rxh"] = cmdRollX
 	d.CmdMap["rhx"] = cmdRollX
+
+	vm := ds.NewVM()
+	vm.Flags.EnableDiceWoD = true
+	vm.Flags.EnableDiceCoC = true
+	vm.Flags.EnableDiceFate = true
+	vm.Flags.EnableDiceDoubleCross = true
+
+	HelpRollNew := ".fox <表达式> <原因> // 使用dicescript的骰点，测试用"
+	cmdRollNew := &CmdItemInfo{
+		Name:      "roll",
+		ShortHelp: HelpRollNew,
+		Help:      "骰点:\n" + HelpRoll,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
+
+			expr := cmdArgs.GetRestArgsFrom(1)
+			if expr != "" {
+				tmpl := cardRuleCheck(ctx, msg)
+				if tmpl == nil {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				vm.ValueLoadFunc = func(name string) *ds.VMValue {
+					val, err := tmpl.GetShowAs(ctx, name)
+					if err != nil {
+						return ds.VMValueNewUndefined()
+					}
+					return val.ConvertToDiceScriptValue()
+				}
+
+				var text string
+				if err := vm.Run(expr); err == nil {
+					text = fmt.Sprintf("%s=%s=%s", expr, vm.Detail, vm.Ret.ToString())
+				} else {
+					text = fmt.Sprintf("错误: %s\n", err.Error())
+				}
+				ReplyToSender(ctx, msg, text)
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+		},
+	}
+	d.CmdMap["fox"] = cmdRollNew
 
 	helpExt := ".ext // 查看扩展列表"
 	cmdExt := &CmdItemInfo{
