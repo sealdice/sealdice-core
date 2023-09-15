@@ -1,7 +1,7 @@
 <template>
   <draggable class="dragArea" tag="div" :list="tasks" handle=".handle" :group="{ name: 'g1' }" item-key="name">
     <template #item="{ element: el, index }">
-      <li style="padding-right: .5rem; list-style: none; margin-bottom: 0.5rem;">
+      <li class="reply-item" style="padding-right: .5rem; list-style: none; margin-bottom: 0.5rem;">
         <div style="display: flex; justify-content: space-between;">
           <el-checkbox v-model="el.enable">开启</el-checkbox>
           <div style="display: flex; align-items: center;">
@@ -9,36 +9,36 @@
               <rank />
             </el-icon>
             <i class="fa fa-align-justify handle"></i>
-            <el-button size="small" plain @click="el.notCollapse = !el.notCollapse">{{ el.notCollapse ? '收缩'
-              : '展开'
-            }}</el-button>
+            <el-button size="small" plain @click="el.notCollapse = !el.notCollapse">
+              {{ el.notCollapse ? '收缩' : '展开' }}
+            </el-button>
             <el-button :icon="Delete" plain type="danger" size="small" @click="deleteItem(index)">删除</el-button>
           </div>
         </div>
 
         <template v-if="!el.notCollapse">
           <div style="padding-left: 1rem; border-left: .2rem solid orange;">
-            <div v-for="(cond, index2) in (el.conditions || [])">
+            <div v-for="(cond, index2) in (el.conditions || [])" :key="index2">
               <div v-if="cond.condType === 'textMatch'" style="display: flex;" class="mobile-changeline">
                 文本匹配: {{ cond.value }}
               </div>
               <div v-else-if="cond.condType === 'exprTrue'" style="display: flex;" class="mobile-changeline">
                 <div style="flex: 1">
-                  表达式: {{ cond.value }}
+                  表达式：{{ cond.value }}
                 </div>
               </div>
               <div v-else-if="cond.condType === 'textLenLimit'" style="display: flex;" class="mobile-changeline">
                 <div style="flex: 1">
-                  长度: {{ cond.matchOp === 'ge' ? '大于等于' : '' }}{{ cond.matchOp === 'le' ? '小于等于' : '' }} {{ cond.value }}
+                  长度：{{ cond.matchOp === 'ge' ? '大于等于' : '' }}{{ cond.matchOp === 'le' ? '小于等于' : '' }} {{ cond.value }}
                 </div>
               </div>
             </div>
           </div>
         </template>
         <template v-else>
-          <div>条件(需同时满足，即and): </div>
+          <div>条件（需同时满足，即and）：</div>
           <div style="padding-left: 1rem; border-left: .2rem solid orange;">
-            <div v-for="(cond, index2) in (el.conditions || [])"
+            <div v-for="(cond, index2) in (el.conditions || [])" :key="index2"
               style="border-left: .1rem solid #008; padding-left: .3rem; margin-bottom: .8rem;">
               <div style="display: flex; justify-content: space-between;">
                 <el-select v-model="cond.condType">
@@ -52,7 +52,7 @@
 
               <div v-if="cond.condType === 'textMatch'" style="display: flex;" class="mobile-changeline">
                 <div style="width: 7rem; margin-right: 0.5rem;">
-                  <div>方式:
+                  <div>方式：
                     <el-tooltip raw-content
                       content="匹配方式一览:<br/>精确匹配: 完全相同时触发。<br/>任意相符: 如aa|bb，则aa或bb都能触发。<br/>包含文本: 包含此文本触发。<br/>不含文本: 不包含此文本触发。<br/>模糊匹配: 文本相似时触发<br/>正则匹配: 正则表达式匹配，语法请自行查阅<br/>前缀匹配: 文本以内容为开头<br/>后缀匹配: 文本以此内容为结尾">
                       <el-icon><question-filled /></el-icon>
@@ -66,14 +66,14 @@
                 </div>
 
                 <div style="flex: 1">
-                  <div>内容:</div>
+                  <div>内容：</div>
                   <el-input v-model="cond.value" />
                 </div>
               </div>
 
               <div v-else-if="cond.condType === 'exprTrue'" style="display: flex;" class="mobile-changeline">
                 <div style="flex: 1">
-                  <div>表达式:
+                  <div>表达式：
                     <el-tooltip raw-content
                       content="举例：<br>$t1 == '张三' // 正则匹配的第一个组内容是张三<br>$m个人计数器 >= 10<br>友情提醒，匹配失败时无提示，请先自行在“指令测试”测好">
                       <el-icon><question-filled /></el-icon>
@@ -85,11 +85,7 @@
 
               <div v-else-if="cond.condType === 'textLenLimit'" style="display: flex;" class="mobile-changeline">
                 <div style="width: 7rem; margin-right: 0.5rem;">
-                  <div>方式:
-                    <!-- <el-tooltip raw-content content="匹配方式一览:<br/>精确匹配: 完全相同时触发。<br/>包含文本: 包含此文本触发。<br/>不含文本: 不包含此文本触发。<br/>模糊匹配: 文本相似时触发<br/>正则匹配: 正则表达式匹配，语法请自行查阅<br/>前缀匹配: 文本以内容为开头<br/>后缀匹配: 文本以此内容为结尾">
-                      <el-icon><question-filled /></el-icon>
-                    </el-tooltip> -->
-                  </div>
+                  <div>方式：</div>
                   <el-select v-model="cond.matchOp" placeholder="Select">
                     <el-option v-for="item in [{ 'label': '大于等于', value: 'ge' }, { 'label': '小于等于', value: 'le' }]"
                       :key="item.value" :label="item.label" :value="item.value" />
@@ -97,18 +93,18 @@
                 </div>
 
                 <div style="flex: 1">
-                  <div>文本字数:</div>
+                  <div>文本字数：</div>
                   <el-input v-model="cond.value" type="number" />
                 </div>
               </div>
             </div>
 
-            <el-button @click="addCond(el.conditions)">增加</el-button>
+            <el-button type="success" size="small" :icon="Plus" @click="addCond(el.conditions)">增加</el-button>
           </div>
 
-          <div>结果(顺序执行)：</div>
+          <div>结果（顺序执行）：</div>
           <div style="padding-left: 1rem; border-left: .2rem solid skyblue;">
-            <div v-for="(i, index) in (el.results || [])"
+            <div v-for="(i, index) in (el.results || [])" :key="index"
               style="border-left: .1rem solid #008; padding-left: .3rem; margin-bottom: .8rem;">
               <div style="display: flex; justify-content: space-between;">
                 <el-select v-model="i.resultType">
@@ -123,7 +119,7 @@
               <div v-if="['replyToSender', 'replyPrivate', 'replyGroup'].includes(i.resultType)">
                 <div style="display: flex; justify-content: space-between;" class="mobile-changeline">
                   <div style="display: flex; align-items: center;">
-                    <div>回复文本(随机选择):</div>
+                    <div>回复文本（随机选择）：</div>
                   </div>
                   <div>
                     <div style="display: inline-block">延迟
@@ -135,7 +131,7 @@
                   </div>
                 </div>
 
-                <div v-for="k2, index in i.message" style="width: 100%; margin-bottom: .5rem;">
+                <div v-for="k2, index in i.message" :key="index" style="width: 100%; margin-bottom: .5rem;">
                   <!-- 这里面是单条修改项 -->
                   <div style="display: flex;">
                     <div style="display: flex; align-items: center; width: 1.3rem; margin-left: .2rem;">
@@ -148,17 +144,14 @@
                       </el-tooltip>
                     </div>
                     <div style="flex:1">
-                      <!-- :suffix-icon="Management" -->
                       <el-input type="textarea" class="reply-text" autosize v-model="k2[0]"></el-input>
                     </div>
                   </div>
                 </div>
-                <!-- <el-input type="textarea" autosize v-model="i.message"></el-input> -->
               </div>
             </div>
             <el-button type="success" size="small" :icon="Plus" @click="addResult(el.results)">增加</el-button>
           </div>
-          <!-- <nested-draggable :tasks="element.tasks" /> -->
         </template>
       </li>
     </template>
@@ -167,21 +160,15 @@
 
 <script lang="ts" setup>
 import {
-  Location,
-  Document,
-  Menu as IconMenu,
-  Setting,
   CirclePlusFilled,
   CircleClose,
   QuestionFilled,
   Rank,
-  BrushFilled,
-  ArrowRight,
   Delete,
   Plus
 } from '@element-plus/icons-vue'
 import draggable from "vuedraggable";
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 
 const props = defineProps<{ tasks: Array<any> }>();
 
@@ -226,6 +213,11 @@ const removeItem = (v: any[], index: number | any) => {
   /* outline: 1px dashed; */
   padding-top: 1rem;
   padding-bottom: 1rem;
+
+  .reply-item:not(:last-child) {
+    border-bottom: 1px solid var(--el-border-color);
+    padding-bottom: 1rem;
+  }
 }
 
 @media screen and (max-width: 700px) {
