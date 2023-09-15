@@ -288,11 +288,3 @@ func LogMarkDeleteByMsgId(db *sqlx.DB, groupId string, logName string, rawId int
 
 	return nil
 }
-
-func LogDelItem(db *sqlx.DB, logId int, itemId int) bool {
-	_, err := db.Exec("DELETE FROM log_items WHERE log_id=? AND id = ?", logId, itemId)
-	if err != nil {
-		return false
-	}
-	return true
-}
