@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"sealdice-core/dice/censor"
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
 	"strconv"
@@ -219,7 +220,32 @@ type Dice struct {
 	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 
 	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
+
+	EnableCensor         bool                   `json:"enableCensor" yaml:"enableCensor"` // 启用敏感词审查
+	CensorManager        *CensorManager         `json:"-" yaml:"-"`
+	CensorThresholds     map[censor.Level]int   `json:"censorThresholds" yaml:"censorThresholds"` // 敏感词阈值
+	CensorHandlers       map[censor.Level]uint8 `json:"censorHandlers" yaml:"censorHandlers"`
+	CensorCaseSensitive  bool                   `json:"censorCaseSensitive" yaml:"censorCaseSensitive"`   // 敏感词大小写敏感
+	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
+	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
 }
+
+const (
+	// SendWarning 发送警告
+	SendWarning CensorHandler = iota
+	// SendNotice 向通知列表/邮件发送通知
+	SendNotice
+	// BanUser 拉黑用户
+	BanUser
+	// BanGroup 拉黑群
+	BanGroup
+	// BanInviter 拉黑邀请人
+	BanInviter
+	// AddScore 增加怒气值
+	AddScore
+)
+
+type CensorHandler int
 
 func (d *Dice) MarkModified() {
 	d.LastUpdatedTime = time.Now().Unix()
@@ -245,6 +271,7 @@ func (d *Dice) Init() {
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "log-exports"), 0755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "./data/censor"), 0755)
 
 	d.Cron = cron.New()
 	d.Cron.Start()
@@ -264,6 +291,17 @@ func (d *Dice) Init() {
 	d.LogWriter = log.WX
 	d.BanList = &BanListInfo{Parent: d}
 	d.BanList.Init()
+
+	if d.EnableCensor {
+		cm := NewCensorManager(
+			d.BaseConfig.DataDir,
+			d.CensorCaseSensitive,
+			d.CensorMatchPinyin,
+			d.CensorFilterRegexStr,
+		)
+		cm.Parent = d
+		d.CensorManager = cm
+	}
 
 	d.CommandCompatibleMode = true
 	d.ImSession = &IMSession{}

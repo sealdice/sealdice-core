@@ -198,3 +198,35 @@ create index if not exists idx_log_items_log_id
 
 	return
 }
+
+func SQLiteCensorDBInit(dataDir string) (censorDB *sqlx.DB, err error) {
+	path, err := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
+	censorDB, err = _SQLiteDBInit(path, true)
+	if err != nil {
+		return
+	}
+
+	texts := []string{`
+CREATE TABLE IF NOT EXISTS censor_log
+(
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    msg_type 		TEXT,
+    user_id         TEXT,
+    group_id 		TEXT,
+    content         TEXT,
+    sensitive_words TEXT,
+    highest_level   TEXT,
+    created_at 		INTEGER
+);
+`,
+		`
+CREATE INDEX IF NOT EXISTS idx_censor_log_user_id
+    ON censor_log (user_id);
+`,
+	}
+
+	for _, i := range texts {
+		_, _ = censorDB.Exec(i)
+	}
+	return
+}

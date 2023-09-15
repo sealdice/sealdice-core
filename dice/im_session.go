@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"runtime/debug"
+	"sealdice-core/dice/censor"
 	"sealdice-core/dice/model"
 	"sort"
 	"strings"
@@ -647,6 +648,96 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				//	// @其他骰子
 				//	return
 				//}
+
+				// 敏感词拦截
+				if d.EnableCensor {
+					checkResult, err := d.CensorManager.Check(mctx, msg)
+					if err != nil {
+						// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
+						log.Warnf("审查系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserId)
+					}
+					thresholds := d.CensorThresholds
+					for level, hitCount := range checkResult.HitCounts {
+						if hitCount > thresholds[level] {
+							// 该等级敏感词超过阈值，执行操作
+							handler := d.CensorHandlers[level]
+							levelText := censor.LevelText[level]
+							if (handler << SendWarning) != 0 {
+								// FIXME: 发送警告
+								ReplyToSender(mctx, msg, "")
+							}
+							if (handler << SendNotice) != 0 {
+								// 向通知列表/邮件发送通知
+								var text string
+								if msg.MessageType == "group" {
+									text = fmt.Sprintf(
+										"群(%s)内<%s>(%s)的消息「%s」触发<%s>敏感词：",
+										group.GroupId,
+										msg.Sender.Nickname,
+										msg.Sender.UserId,
+										msg.Message,
+										levelText,
+									)
+								} else if msg.MessageType == "private" {
+									text = fmt.Sprintf(
+										"<%s>(%s)的私聊消息「%s」触发<%s>敏感词：",
+										msg.Sender.Nickname,
+										msg.Sender.UserId,
+										msg.Message,
+										levelText,
+									)
+								}
+								mctx.Notice(text)
+							}
+							if (handler << BanUser) != 0 {
+								// 拉黑用户
+								d.BanList.AddScoreBase(
+									msg.Sender.UserId,
+									d.BanList.ThresholdBan,
+									"敏感词审查",
+									"触发<"+levelText+">敏感词",
+									mctx,
+								)
+							}
+							if (handler << BanGroup) != 0 {
+								// 拉黑群
+								if msg.MessageType == "group" {
+									d.BanList.AddScoreBase(
+										msg.GroupId,
+										d.BanList.ThresholdBan,
+										"敏感词审查",
+										"触发<"+levelText+">敏感词",
+										mctx,
+									)
+								}
+							}
+							if (handler << BanInviter) != 0 {
+								// 拉黑邀请人
+								if msg.MessageType == "group" {
+									d.BanList.AddScoreBase(
+										group.InviteUserId,
+										d.BanList.ThresholdBan,
+										"敏感词审查",
+										"触发<"+levelText+">敏感词",
+										mctx,
+									)
+								}
+							}
+							if (handler << AddScore) != 0 {
+								// 仅增加怒气值
+								if msg.MessageType == "group" {
+									d.BanList.AddScoreByCensor(
+										msg.Sender.UserId,
+										100,
+										group.GroupId,
+										levelText,
+										mctx,
+									)
+								}
+							}
+						}
+					}
+				}
 
 				if mctx.PrivilegeLevel == -30 {
 					// 黑名单用户 - 拒绝回复
