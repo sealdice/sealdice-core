@@ -639,7 +639,7 @@
         <el-form-item v-if="form.accountType === 6" label="账号" :label-width="formLabelWidth" required>
           <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
         </el-form-item>
-        <el-form-item v-if="form.accountType === 6" label="程序目录" :label-width="formLabelWidth" required>
+        <el-form-item v-if="form.accountType === 6" label="程序目录" :label-width="formLabelWidth">
           <el-input v-model="form.relWorkDir" type="text" autocomplete="off" placeholder="gocqhttp的程序目录，如 d:/my-gocqhttp"></el-input>
         </el-form-item>
         <el-form-item v-if="form.accountType === 6" label="连接地址" :label-width="formLabelWidth" required>
