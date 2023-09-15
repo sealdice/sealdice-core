@@ -315,6 +315,14 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, masterMsg)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				if cmdArgs.IsArgEqual(1, "娱乐") {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子帮助文本_娱乐"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				if cmdArgs.IsArgEqual(1, "其他", "其它") {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子帮助文本_其他"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 
 				if d.Parent.IsHelpReloading {
 					ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
@@ -339,19 +347,19 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			text := "海豹核心 " + VERSION + "\n"
-			text += "===============\n"
-			text += ".help 骰点/娱乐/跑团/日志" + "\n"
-			text += ".help 扩展/其他/关于" + "\n"
-			text += ".help 骰主/协议" + "\n"
+			//text += "===============\n"
+			//text += ".help 骰点/娱乐/跑团/日志" + "\n"
+			//text += ".help 扩展/其他/关于" + "\n"
+			//text += ".help 骰主/协议" + "\n"
 			text += "官网: sealdice.com" + "\n"
 			//text += "手册(荐): https://dice.weizaima.com/manual/" + "\n"
 			text += "海豹群: 524364253" + "\n"
 			//text += "扩展指令请输入 .ext 和 .ext <扩展名称> 进行查看\n"
-			extra := DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
-			if extra != "" {
-				text += "------------------\n"
-				text += extra
-			}
+			text += DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
+			//if extra != "" {
+			//	text += "------------------\n"
+			//	text += extra
+			//}
 			ReplyToSender(ctx, msg, text)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
@@ -450,7 +458,7 @@ func (d *Dice) registerCoreCommands() {
 							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
 								SetBotOnAtGroup(ctx, msg.GroupId)
 							} else {
-								ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -477,7 +485,7 @@ func (d *Dice) registerCoreCommands() {
 							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
 								SetBotOffAtGroup(ctx, ctx.Group.GroupId)
 							} else {
-								ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -495,7 +503,7 @@ func (d *Dice) registerCoreCommands() {
 							// 感觉似乎不太必要
 							pRequired := 40 // 40邀请者 50管理 60群主 100master
 							if ctx.PrivilegeLevel < pRequired {
-								ReplyToSender(ctx, msg, "你不是管理员或master")
+								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
 								return CmdExecuteResult{Matched: true, Solved: true}
 							}
 
@@ -672,7 +680,8 @@ func (d *Dice) registerCoreCommands() {
 .master reboot // 重新启动(需要二次确认)
 .master checkupdate // 检查更新(需要二次确认)
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
-.master backup // 做一次备份`
+.master backup // 做一次备份
+.master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档`
 	cmdMaster := &CmdItemInfo{
 		Name:          "master",
 		ShortHelp:     masterListHelp,
@@ -881,6 +890,32 @@ func (d *Dice) registerCoreCommands() {
 					text = "无"
 				}
 				ReplyToSender(ctx, msg, fmt.Sprintf("Master列表:\n%s", text))
+			case "reload":
+				system := cmdArgs.GetArgN(2)
+				dice := ctx.Dice
+				switch system {
+				case "deck":
+					DeckReload(dice)
+					ReplyToSender(ctx, msg, "牌堆已重载")
+				case "js":
+					dice.JsInit()
+					dice.JsLoadScripts()
+					ReplyToSender(ctx, msg, "js已重载")
+				case "help":
+					// 别名
+					fallthrough
+				case "helpdoc":
+					dm := dice.Parent
+					if !dm.IsHelpReloading {
+						dm.IsHelpReloading = true
+						dm.Help.Close()
+						dm.InitHelp()
+						dm.AddHelpWithDice(dice)
+						ReplyToSender(ctx, msg, "帮助文档已重载")
+					} else {
+						ReplyToSender(ctx, msg, "帮助文档正在重新装载")
+					}
+				}
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
@@ -1275,7 +1310,7 @@ func (d *Dice) registerCoreCommands() {
 					showList()
 				} else if cmdArgs.IsArgEqual(last, "on") {
 					if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
-						ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
@@ -1321,7 +1356,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				} else if cmdArgs.IsArgEqual(last, "off") {
 					if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
-						ReplyToSender(ctx, msg, "你不是管理员、邀请者或master")
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
@@ -1826,7 +1861,7 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			pRequired := 50 // 50管理 60群主 100master
 			if ctx.PrivilegeLevel < pRequired {
-				ReplyToSender(ctx, msg, "你不是管理员或master")
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 

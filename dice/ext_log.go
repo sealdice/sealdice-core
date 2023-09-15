@@ -25,6 +25,8 @@ var (
 	ErrorGroupCardOverlong = errors.New("群名片长度超过限制")
 )
 
+const Story_version = 100
+
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 	val, _, err := ctx.Dice.ExprTextBase(tmpl, ctx, RollExtraFlags{
@@ -451,10 +453,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 								}
 							}
 							if len(rightEmails) > 0 {
+								emailMsg := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
 								dice.SendMailRow(
 									fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
 									rightEmails,
-									"",
+									emailMsg,
 									[]string{logFile.Name()},
 								)
 								text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
@@ -841,7 +844,7 @@ func getSpecifiedGroupIfMaster(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) 
 	return "", false
 }
 
-func filenameReplace(name string) string {
+func FilenameReplace(name string) string {
 	re := regexp.MustCompile(`[/:\*\?"<>\|\\]`)
 	return re.ReplaceAllString(name, "")
 }
@@ -914,7 +917,7 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 
 	if err == nil {
 		// 本地进行一个zip留档，以防万一
-		fzip, _ := os.CreateTemp(dirpath, filenameReplace(groupId+"_"+logName)+".*.zip")
+		fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupId+"_"+logName)+".*.zip")
 		writer := zip.NewWriter(fzip)
 
 		text := ""
@@ -927,7 +930,7 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 		_, _ = fileWriter.Write([]byte(text))
 
 		data, err := json.Marshal(map[string]interface{}{
-			"version": 100,
+			"version": Story_version,
 			"items":   lines,
 		})
 		if err == nil {
@@ -942,7 +945,7 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 	if err == nil {
 		// 压缩log，发往后端
 		data, err := json.Marshal(map[string]interface{}{
-			"version": 100,
+			"version": Story_version,
 			"items":   lines,
 		})
 
