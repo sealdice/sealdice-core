@@ -3,11 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"sealdice-core/dice"
 	"strconv"
 	"strings"
+
+	"github.com/labstack/echo/v4"
 )
 
 type DiceConfigInfo struct {
@@ -83,6 +84,11 @@ func DiceConfig(c echo.Context) error {
 		cocRule = "dg"
 	}
 
+	emailPasswordMasked := ""
+	if myDice.MailPassword != "" {
+		emailPasswordMasked = "******"
+	}
+
 	info := DiceConfigInfo{
 		CommandPrefix:           myDice.CommandPrefix,
 		DiceMasters:             myDice.DiceMasters,
@@ -133,7 +139,7 @@ func DiceConfig(c echo.Context) error {
 		// 1.3?
 		MailEnable:   myDice.MailEnable,
 		MailFrom:     myDice.MailFrom,
-		MailPassword: myDice.MailPassword,
+		MailPassword: emailPasswordMasked,
 		MailSmtp:     myDice.MailSmtp,
 	}
 	return c.JSON(http.StatusOK, info)
