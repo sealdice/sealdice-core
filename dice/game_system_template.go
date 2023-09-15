@@ -94,7 +94,7 @@ func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string)
 		})
 
 		// 使用showAs的值覆盖detail
-		v, _ := t.GetShowAs0(ctx, name)
+		v, _ := t.getShowAs0(ctx, name)
 		if v != nil {
 			detail = v.ToString()
 		}
@@ -118,7 +118,7 @@ func (t *GameSystemTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) 
 	a, _, _, _ := t.GetDefaultValueEx0(ctx, varname)
 	return a
 }
-func (t *GameSystemTemplate) GetShowAs0(ctx *MsgContext, k string) (*VMValue, error) {
+func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (*VMValue, error) {
 	// 有showas的情况
 	if expr, exists := t.AttrConfig.ShowAs[k]; exists {
 		ctx.SystemTemplate = t
@@ -135,7 +135,7 @@ func (t *GameSystemTemplate) GetShowAs0(ctx *MsgContext, k string) (*VMValue, er
 
 func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, error) {
 	// 有showas的情况
-	v, err := t.GetShowAs0(ctx, k)
+	v, err := t.getShowAs0(ctx, k)
 	if v != nil || err != nil {
 		return v, err
 	}
