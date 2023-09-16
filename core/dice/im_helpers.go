@@ -290,11 +290,22 @@ func CompatibleReplace(ctx *MsgContext, s string) string {
 	s = strings.ReplaceAll(s, "\f", "###SPLIT###")
 	s = strings.ReplaceAll(s, "\\f", "###SPLIT###")
 
-	re := regexp.MustCompile(`#\{DRAW-(\S+?)\}`)
+	// 匹配 #{DRAW-$1}, 其中$1执行最短匹配且允许左侧右侧各有一个花括号
+	// #{DRAW-aaa} => aaa
+	// #{DRAW-{aaa} => {aaa
+	// #{DRAW-aaa}} => aaa}
+	// #{DRAW-{aaa}} => {aaa}
+	// 这允许在牌组名中使用不含空格的表达式(主要是为了变量)
+	re := regexp.MustCompile(`#\{DRAW-(\{?\S+?\}?)\}`)
 	s = re.ReplaceAllString(s, "###DRAW-$1###")
 
 	if ctx != nil {
 		s = DeckRewrite(s, func(deckName string) string {
+
+			// 如果牌组名中含有表达式, 在此进行求值
+			// 不含表达式也无妨, 求值完还是原来的字符串
+			deckName, _, _ = ctx.Dice.ExprText(deckName, ctx)
+
 			exists, result, err := deckDraw(ctx, deckName, false)
 			if exists {
 				if err != nil {
