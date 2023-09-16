@@ -20,6 +20,10 @@ func CensorAppend(db *sqlx.DB, msgType string, userId string, groupId string, co
 	nowTimestamp := now.Unix()
 
 	words, err := json.Marshal(sensitiveWords)
+	if err != nil {
+		return false
+	}
+
 	_, err = db.Exec(`
 INSERT INTO censor_log(
     msg_type,

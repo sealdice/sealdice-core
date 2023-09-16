@@ -201,6 +201,9 @@ create index if not exists idx_log_items_log_id
 
 func SQLiteCensorDBInit(dataDir string) (censorDB *sqlx.DB, err error) {
 	path, err := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
+	if err != nil {
+		return
+	}
 	censorDB, err = _SQLiteDBInit(path, true)
 	if err != nil {
 		return
