@@ -41,9 +41,8 @@ func newTire() *trie {
 }
 
 func (t *trie) Insert(key string, level Level) {
-	chars := []rune(key)
 	cur := t.root
-	for _, c := range chars {
+	for _, c := range key {
 		cur = cur.insert(c)
 	}
 	cur.end = true
