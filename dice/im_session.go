@@ -724,11 +724,15 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 								}
 							}
 							if (handler << AddScore) != 0 {
+								score, ok := d.CensorScores[level]
+								if !ok {
+									score = 100
+								}
 								// 仅增加怒气值
 								if msg.MessageType == "group" {
 									d.BanList.AddScoreByCensor(
 										msg.Sender.UserId,
-										100,
+										int64(score),
 										group.GroupId,
 										levelText,
 										mctx,
