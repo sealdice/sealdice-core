@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sealdice-core/dice"
 	"sealdice-core/dice/model"
 	"time"
+
+	"github.com/labstack/echo/v4"
 )
 
 func storyGetInfo(c echo.Context) error {
@@ -25,6 +26,7 @@ func storyGetInfo(c echo.Context) error {
 	return c.JSON(http.StatusOK, info)
 }
 
+// Deprecated: replaced by page
 func storyGetLogs(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -37,11 +39,65 @@ func storyGetLogs(c echo.Context) error {
 	return c.JSON(http.StatusOK, logs)
 }
 
+func storyGetLogPage(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	v := model.QueryLogPage{}
+	err := c.Bind(&v)
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+
+	if v.PageNum < 1 {
+		v.PageNum = 1
+	}
+	if v.PageSize <= 0 {
+		v.PageSize = 20
+	}
+
+	logs, err := model.LogGetLogPage(myDice.DBLogs, &v)
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+
+	return c.JSON(http.StatusOK, logs)
+}
+
+// Deprecated: replaced by page
 func storyGetItems(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	lines, err := model.LogGetAllLines(myDice.DBLogs, c.QueryParam("groupId"), c.QueryParam("name"))
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, lines)
+}
+
+func storyGetItemPage(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := model.QueryLogLinePage{}
+	err := c.Bind(&v)
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	if v.PageNum < 1 {
+		v.PageNum = 1
+	}
+	if v.PageSize <= 0 {
+		v.PageSize = 10
+	}
+
+	lines, err := model.LogGetLinePage(myDice.DBLogs, &v)
 	if err != nil {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, err)
