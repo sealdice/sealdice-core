@@ -133,7 +133,7 @@ func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (*VMValue, er
 	return nil, nil
 }
 
-func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, error) {
+func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (*VMValue, error) {
 	// 有showas的情况
 	v, err := t.getShowAs0(ctx, k)
 	if v != nil || err != nil {
@@ -148,12 +148,24 @@ func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, err
 	}
 
 	// 默认值
-	v = t.GetDefaultValueEx(ctx, k)
-	if v != nil {
+	v, _, _, exists = t.GetDefaultValueEx0(ctx, k)
+	if v != nil && exists {
 		return v, nil
 	}
 
-	// 不存在的值，强行补0
+	// 不存在的值，返回nil
+	return nil, nil
+}
+
+func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, error) {
+	r, err := t.getShowAsBase(ctx, k)
+	if err != nil {
+		return r, err
+	}
+	if r != nil {
+		return r, err
+	}
+	// 返回值不存在，强行补0
 	return &VMValue{TypeId: VMTypeInt64, Value: int64(0)}, nil
 }
 
