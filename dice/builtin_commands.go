@@ -899,8 +899,7 @@ func (d *Dice) registerCoreCommands() {
 					DeckReload(dice)
 					ReplyToSender(ctx, msg, "牌堆已重载")
 				case "js":
-					dice.JsInit()
-					dice.JsLoadScripts()
+					dice.JsReload()
 					ReplyToSender(ctx, msg, "js已重载")
 				case "help":
 					// 别名

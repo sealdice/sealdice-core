@@ -3,6 +3,13 @@ package dice
 import (
 	"encoding/base64"
 	"encoding/json"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
@@ -12,12 +19,6 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/elazarl/goproxy.v1"
 	"gopkg.in/yaml.v3"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
 )
 
 type PrinterFunc struct {
@@ -305,6 +306,35 @@ func (d *Dice) JsLoadScripts() {
 		}
 		return nil
 	})
+}
+
+func (d *Dice) JsReload() {
+	d.JsInit()
+	d.JsLoadScripts()
+	d.JsExtSettingVacuum()
+}
+
+// JsExtSettingVacuum 清理已被删除的脚本对应的插件配置
+func (d *Dice) JsExtSettingVacuum() {
+	jsMap := map[string]bool{}
+	for _, jsInfo := range d.JsScriptList {
+		jsMap[jsInfo.Name] = true
+	}
+
+	idxToDel := []int{}
+	for k, v := range d.ExtDefaultSettings {
+		if !v.ExtItem.IsJsExt {
+			continue
+		}
+		if !jsMap[v.Name] {
+			idxToDel = append(idxToDel, k)
+		}
+	}
+
+	for i := len(idxToDel) - 1; i >= 0; i-- {
+		idx := idxToDel[i]
+		d.ExtDefaultSettings = append(d.ExtDefaultSettings[:idx], d.ExtDefaultSettings[idx+1:]...)
+	}
 }
 
 type JsScriptInfo struct {

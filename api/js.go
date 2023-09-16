@@ -2,8 +2,6 @@ package api
 
 import (
 	"fmt"
-	"github.com/dop251/goja"
-	"github.com/labstack/echo/v4"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -11,6 +9,9 @@ import (
 	"path/filepath"
 	"sealdice-core/dice"
 	"strings"
+
+	"github.com/dop251/goja"
+	"github.com/labstack/echo/v4"
 )
 
 func jsExec(c echo.Context) error {
@@ -138,8 +139,7 @@ func jsReload(c echo.Context) error {
 
 	//myDice.JsLock.Lock()
 	//defer myDice.JsLock.Unlock()
-	myDice.JsInit()
-	myDice.JsLoadScripts()
+	myDice.JsReload()
 	return c.JSON(200, nil)
 }
 

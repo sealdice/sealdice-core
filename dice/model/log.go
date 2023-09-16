@@ -3,9 +3,12 @@ package model
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/jmoiron/sqlx"
+	"strings"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type LogOne struct {
@@ -35,10 +38,11 @@ type LogInfo struct {
 	GroupId   string `json:"groupId" db:"groupId"`
 	CreatedAt int64  `json:"createdAt" db:"created_at"`
 	UpdatedAt int64  `json:"updatedAt" db:"updated_at"`
+	Size      int    `json:"size" db:"size"`
 }
 
 func LogGetInfo(db *sqlx.DB) ([]int, error) {
-	lst := []int{0, 0}
+	lst := []int{0, 0, 0, 0}
 	err := db.Get(&lst[0], "SELECT seq FROM sqlite_sequence WHERE name == 'logs'")
 	if err != nil {
 		return nil, err
@@ -47,9 +51,18 @@ func LogGetInfo(db *sqlx.DB) ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = db.Get(&lst[2], "SELECT COUNT(*) FROM logs")
+	if err != nil {
+		return nil, err
+	}
+	err = db.Get(&lst[3], "SELECT COUNT(*) FROM log_items")
+	if err != nil {
+		return nil, err
+	}
 	return lst, nil
 }
 
+// Deprecated: replaced by page
 func LogGetLogs(db *sqlx.DB) ([]*LogInfo, error) {
 	var lst []*LogInfo
 	rows, err := db.Queryx("SELECT id,name,group_id,created_at, updated_at FROM logs")
@@ -64,6 +77,68 @@ func LogGetLogs(db *sqlx.DB) ([]*LogInfo, error) {
 			&log.GroupId,
 			&log.CreatedAt,
 			&log.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		lst = append(lst, log)
+	}
+	return lst, nil
+}
+
+type QueryLogPage struct {
+	PageNum          int    `db:"page_num" query:"pageNum"`
+	PageSize         int    `db:"page_siz" query:"pageSize"`
+	Name             string `db:"name" query:"name"`
+	GroupId          string `db:"group_id" query:"groupId"`
+	CreatedTimeBegin string `db:"created_time_begin" query:"createdTimeBegin"`
+	CreatedTimeEnd   string `db:"created_time_end" query:"createdTimeEnd"`
+}
+
+// LogGetLogPage 获取分页
+func LogGetLogPage(db *sqlx.DB, param *QueryLogPage) ([]*LogInfo, error) {
+	query := `
+SELECT logs.id         as id,
+       logs.name       as name,
+       logs.group_id   as group_id,
+       logs.created_at as created_at,
+       logs.updated_at as updated_at,
+       count(logs.id)  as size
+FROM logs
+         LEFT JOIN log_items items ON logs.id = items.log_id
+`
+	var conditions []string
+	if param.Name != "" {
+		conditions = append(conditions, "logs.name like '%' || :name || '%'")
+	}
+	if param.GroupId != "" {
+		conditions = append(conditions, "logs.group_id like '%' || :group_id || '%'")
+	}
+	if param.CreatedTimeBegin != "" {
+		conditions = append(conditions, "logs.created_at >= :created_time_begin")
+	}
+	if param.CreatedTimeEnd != "" {
+		conditions = append(conditions, "logs.created_at <= :created_time_end")
+	}
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	query += fmt.Sprintf(" GROUP BY logs.id LIMIT %d, %d", (param.PageNum-1)*param.PageSize, param.PageSize)
+
+	var lst []*LogInfo
+	rows, err := db.NamedQuery(query, param)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		log := &LogInfo{}
+		if err := rows.Scan(
+			&log.Id,
+			&log.Name,
+			&log.GroupId,
+			&log.CreatedAt,
+			&log.UpdatedAt,
+			&log.Size,
 		); err != nil {
 			return nil, err
 		}
@@ -87,7 +162,7 @@ func LogGetIdByGroupIdAndName(db *sqlx.DB, groupId string, logName string) (logI
 	err = db.Get(&logId, "SELECT id FROM logs WHERE group_id = $1 AND name = $2", groupId, logName)
 	if err != nil {
 		// 如果出现错误，判断是否没有找到对应的记录
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
 		}
 		return 0, err
@@ -96,6 +171,7 @@ func LogGetIdByGroupIdAndName(db *sqlx.DB, groupId string, logName string) (logI
 }
 
 // LogGetAllLines 获取log的所有行数据
+// Deprecated: replaced by page
 func LogGetAllLines(db *sqlx.DB, groupId string, logName string) ([]*LogOneItem, error) {
 	// 获取log的ID
 	logId, err := LogGetIdByGroupIdAndName(db, groupId, logName)
@@ -106,6 +182,81 @@ func LogGetAllLines(db *sqlx.DB, groupId string, logName string) ([]*LogOneItem,
 	// 查询行数据
 	rows, err := db.Queryx(`SELECT id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id 
 	                        FROM log_items WHERE log_id=$1 ORDER BY time ASC`, logId)
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sqlx.Rows) {
+		_ = rows.Close()
+	}(rows)
+
+	var ret []*LogOneItem
+	for rows.Next() {
+		item := &LogOneItem{}
+		var commandInfoStr []byte
+
+		// 使用Scan方法将查询结果映射到结构体中
+		if err := rows.Scan(
+			&item.Id,
+			&item.Nickname,
+			&item.IMUserId,
+			&item.Time,
+			&item.Message,
+			&item.IsDice,
+			&item.CommandId,
+			&commandInfoStr,
+			&item.RawMsgId,
+			&item.UniformId,
+		); err != nil {
+			return nil, err
+		}
+
+		// 反序列化commandInfo
+		if commandInfoStr != nil {
+			_ = json.Unmarshal(commandInfoStr, &item.CommandInfo)
+		}
+
+		ret = append(ret, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return ret, nil
+}
+
+type QueryLogLinePage struct {
+	PageNum  int    `query:"pageNum"`
+	PageSize int    `query:"pageSize"`
+	GroupId  string `query:"groupId"`
+	LogName  string `query:"logName"`
+}
+
+// LogGetLinePage 获取log的行分页
+func LogGetLinePage(db *sqlx.DB, param *QueryLogLinePage) ([]*LogOneItem, error) {
+	// 获取log的ID
+	logId, err := LogGetIdByGroupIdAndName(db, param.GroupId, param.LogName)
+	if err != nil {
+		return nil, err
+	}
+
+	// 查询行数据
+	rows, err := db.Queryx(`
+SELECT id,
+       nickname,
+       im_userid,
+       time,
+       message,
+       is_dice,
+       command_id,
+       command_info,
+       raw_msg_id,
+       user_uniform_id
+FROM log_items
+WHERE log_id =$1
+ORDER BY time ASC
+LIMIT $2, $3`, logId, (param.PageNum-1)*param.PageSize, param.PageSize)
+
 	if err != nil {
 		return nil, err
 	}
