@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -1247,17 +1248,141 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				vm.ValueLoadFunc = func(name string) *ds.VMValue {
-					val, err := tmpl.GetShowAs(ctx, name)
+				loadValueFromRollVMv1 := func(name string) *ds.VMValue {
+					val, err := tmpl.getShowAsBase(ctx, name)
 					if err != nil {
+						vm.Error = err
 						return ds.VMValueNewUndefined()
+					}
+					if val == nil {
+						return nil
 					}
 					return val.ConvertToDiceScriptValue()
 				}
 
+				vm.GlobalValueLoadFunc = loadValueFromRollVMv1
+				valueToRollVMv1 := func(v *ds.VMValue) *VMValue {
+					var v2 *VMValue
+					switch v.TypeId {
+					case ds.VMTypeInt:
+						v2 = &VMValue{TypeId: VMTypeInt64, Value: v.MustReadInt()}
+					case ds.VMTypeFloat:
+						v2 = &VMValue{TypeId: VMTypeInt64, Value: int64(v.MustReadFloat())}
+					default:
+						v2 = &VMValue{TypeId: VMTypeString, Value: v.ToString()}
+					}
+					return v2
+				}
+
+				funcWrap := func(name string, val *ds.VMValue) *ds.VMValue {
+					return ds.VMValueNewNativeFunction(&ds.NativeFunctionData{
+						Name:   name,
+						Params: []string{},
+						NativeFunc: func(vm *ds.Context, this *ds.VMValue, params []*ds.VMValue) *ds.VMValue {
+							return val
+						},
+					})
+				}
+
+				od := &ds.NativeObjectData{
+					Name: "player",
+					AttrGet: func(vm *ds.Context, name string) *ds.VMValue {
+						// 注: 未来切换人物卡时，角色数据会被转换为ds版本，所以这里写的丑陋了一些
+						switch name {
+						case "keys":
+							vars, _ := ctx.ChVarsGet()
+							items := []*ds.VMValue{}
+							_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
+								items = append(items, ds.VMValueNewStr(_k.(string)))
+								return nil
+							})
+							return funcWrap("keys", ds.VMValueNewArrayRaw(items))
+						case "values":
+							vars, _ := ctx.ChVarsGet()
+							items := []*ds.VMValue{}
+							_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
+								v := (_v).(*VMValue)
+								items = append(items, v.ConvertToDiceScriptValue())
+								return nil
+							})
+							return funcWrap("values", ds.VMValueNewArrayRaw(items))
+						case "items":
+							vars, _ := ctx.ChVarsGet()
+							items := []*ds.VMValue{}
+							_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
+								items = append(items, ds.VMValueNewArray(ds.VMValueNewStr(_k.(string)), (_v).(*VMValue).ConvertToDiceScriptValue()))
+								return nil
+							})
+							return funcWrap("items", ds.VMValueNewArrayRaw(items))
+						}
+						return loadValueFromRollVMv1(name)
+					},
+					ItemGet: func(vm *ds.Context, index *ds.VMValue) *ds.VMValue {
+						if index.TypeId != ds.VMTypeString {
+							vm.Error = errors.New("index must be string")
+							return nil
+						}
+						return loadValueFromRollVMv1(index.ToString())
+					},
+					AttrSet: func(vm *ds.Context, name string, v *ds.VMValue) {
+						VarSetValue(ctx, tmpl.GetAlias(name), valueToRollVMv1(v))
+					},
+					ItemSet: func(vm *ds.Context, index *ds.VMValue, v *ds.VMValue) {
+						if index.TypeId != ds.VMTypeString {
+							vm.Error = errors.New("index must be string")
+							return
+						}
+						name := index.ToString()
+						VarSetValue(ctx, tmpl.GetAlias(name), valueToRollVMv1(v))
+					},
+					DirFunc: func(vm *ds.Context) []*ds.VMValue {
+						vars, _ := ctx.ChVarsGet()
+						items := []*ds.VMValue{}
+						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
+							items = append(items, ds.VMValueNewStr(_k.(string)))
+							return nil
+						})
+						return items
+					},
+				}
+
+				vPlayer := ds.VMValueNewNativeObject(od)
+				vm.StoreNameLocal("player", vPlayer)
+				vm.StoreNameLocal("玩家", vPlayer)
+
+				vm.ValueStoreHookFunc = func(vm *ds.Context, name string, v *ds.VMValue) (solved bool) {
+					if strings.HasPrefix(name, "$") {
+						VarSetValue(ctx, name, valueToRollVMv1(v))
+						return true
+					}
+					return false
+				}
+
+				storeName := func(name string, v *ds.VMValue) {
+					if strings.HasPrefix(name, "$") {
+						vm.StoreName(name, v) // 走hook
+					}
+					vm.StoreNameLocal(name, v)
+				}
+
 				var text string
 				if err := vm.Run(expr); err == nil {
-					text = fmt.Sprintf("%s=%s=%s", expr, vm.Detail, vm.Ret.ToString())
+					storeName("$t表达式文本", ds.VMValueNewStr(expr))
+					storeName("$t计算过程", ds.VMValueNewStr(vm.Detail))
+					storeName("$t计算结果", vm.Ret)
+					storeName("$t剩余文本", ds.VMValueNewStr(vm.RestInput))
+					//text = fmt.Sprintf("%s=%s=%s", expr, vm.Detail, vm.Ret.ToString())
+					// 注: 加一个format
+					expr := "过程: {$t计算过程}\n结果: {$t计算结果}"
+					if vm.RestInput != "" {
+						expr += "\n剩余: {$t剩余文本}"
+					}
+					err := vm.Run("\x1e" + expr + "\x1e")
+					if err == nil {
+						text = vm.Ret.ToString()
+					} else {
+						text = fmt.Sprintf("错误: %s\n", err.Error())
+					}
 				} else {
 					text = fmt.Sprintf("错误: %s\n", err.Error())
 				}
