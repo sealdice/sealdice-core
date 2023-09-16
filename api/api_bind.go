@@ -375,7 +375,9 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.GET(prefix+"/story/info", storyGetInfo)
 	e.GET(prefix+"/story/logs", storyGetLogs)
+	e.GET(prefix+"/story/logs/page", storyGetLogPage)
 	e.GET(prefix+"/story/items", storyGetItems)
+	e.GET(prefix+"/story/items/page", storyGetItemPage)
 	e.DELETE(prefix+"/story/log", storyDelLog)
 	e.POST(prefix+"/story/uploadLog", storyUploadLog)
 
