@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import { Delete, Select } from '@element-plus/icons-vue'
+import { Back, Delete, Select, Upload } from '@element-plus/icons-vue'
 import { Ref, ref, onBeforeMount, computed } from 'vue'
 import { useStore, urlPrefix } from '~/store'
 import { apiFetch, backend } from '~/backend'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 interface Log {
     id: number
@@ -13,6 +13,7 @@ interface Log {
     groupId: string
     createdAt: number
     updatedAt: number
+    size: number
     pitch?: boolean
     current?: number
 }
@@ -38,16 +39,44 @@ async function getInfo() {
     })
 }
 
-async function getLogs() {
-    return apiFetch(url("logs"), {
-        method: "get", headers: { token: token }
+// async function getLogs() {
+//     return apiFetch(url("logs"), {
+//         method: "get", headers: { token: token }
+//     })
+// }
+
+const queryLogPage = ref({
+    pageNum: 1,
+    pageSize: 100,
+    name: "",
+    groupId: "",
+    createdTime: ([undefined, undefined] as unknown) as [Date, Date],
+})
+
+async function getLogPage(params: { pageNum: number, pageSize: number, name?: string, groupId?: string, createdTimeBegin?: number, createdTimeEnd?: number }) {
+    return apiFetch(url("logs/page"), {
+        method: "get", headers: { token: token }, params: params
     })
 }
 
-async function getItems(v: Log) {
-    // ofetch get+params 至少在开发模式有莫名奇妙的 bug ，会丢失 baseURL 
-    // 下面的接口就先不更换了
-    return await backend.get(url('items'), { params: v, headers: { token } }) as unknown as Item[]
+// async function getItems(v: Log) {
+//     // ofetch get+params 至少在开发模式有莫名奇妙的 bug ，会丢失 baseURL 
+//     // 下面的接口就先不更换了
+//     return await backend.get(url('items'), { params: v, headers: { token } }) as unknown as Item[]
+// }
+
+const logItemPage = ref({
+    pageNum: 1,
+    pageSize: 100,
+    size: 0,
+    logName: "",
+    groupId: "",
+})
+
+async function getItemPage(params: { pageNum: number, pageSize: number, logName: string, groupId: string }) {
+    return apiFetch(url("items/page"), {
+        method: "get", headers: { token: token }, params: params
+    })
 }
 
 async function delLog(v: Log) {
@@ -63,94 +92,82 @@ async function uploadLog(v: Log) {
 //
 
 let mode: Ref<'logs' | 'items'> = ref('logs');
-let sum_log = ref(0), sum_item = ref(0);
+let sum_log = ref(0), sum_item = ref(0), cur_log = ref(0), cur_item = ref(0);
 dayjs.extend(relativeTime)
 
-// logs ui
-const logs_opt = [
-    "日志名",
-    "群号",
-    "创建时间之前",
-    "创建时间之后",
-]
-const logs_opt_val = ref(0)
-let input_val = ref('')
+let logs: Ref<Log[]> = ref([]);
 
-let logs_data: Ref<Log[]> = ref([]);
-const logs = computed(() => {
-    let logs: Log[] = []
-
-    for (const v of logs_data.value) {
-        if (v.pitch === undefined) {
-            v.pitch = false
-        }
-        if (input_val.value == '') {
-            logs.push(v)
-            continue
-        }
-        // 过滤
-        if (logs_opt[logs_opt_val.value] == logs_opt[0]) {
-            if (v.name.indexOf(input_val.value) > -1) logs.push(v);
-            continue
-        }
-        if (logs_opt[logs_opt_val.value] == logs_opt[1]) {
-            if (v.groupId.indexOf(input_val.value) > -1) logs.push(v);
-            continue
-        }
-        let d1 = dayjs(input_val.value)
-        if (!d1.isValid()) {
-            console.debug('时间格式错误', input_val.value)
-            break
-        }
-        let d2 = dayjs.unix(v.createdAt)
-        if (logs_opt[logs_opt_val.value] == logs_opt[2]) {
-            if (d2.isBefore(d1)) logs.push(v);
-            continue
-        }
-        if (logs_opt[logs_opt_val.value] == logs_opt[3]) {
-            if (d2.isAfter(d1)) logs.push(v);
-            continue
-        }
+async function searchLogs() {
+    const params = {
+        ...queryLogPage.value,
+        createdTimeBegin: queryLogPage.value.createdTime?.[0] ? dayjs(queryLogPage.value.createdTime?.[0]).startOf('date').unix() : undefined,
+        createdTimeEnd: queryLogPage.value.createdTime?.[1] ? dayjs(queryLogPage.value.createdTime?.[1]).endOf('date').unix() : undefined,
     }
-    return logs
-})
+    const page = await getLogPage(params)
+    logs.value = page
+}
 
 async function refreshLogs() {
-    [sum_log.value, sum_item.value] = await getInfo()
-    logs_data.value = await getLogs()
+    [sum_log.value, sum_item.value, cur_log.value, cur_item.value] = await getInfo()
+    logs.value = await getLogPage(queryLogPage.value)
     ElMessage({
         message: '刷新日志列表完成',
         type: 'success',
     })
 }
 
-async function DelLog(v: Log, flag = true) {
-    let info = await delLog(v)
-    if (info === true) {
-        ElMessage({
-            message: '删除成功',
-            type: 'success',
-        })
-        if (flag) await refreshLogs();
-    } else {
-        ElMessage({
-            message: '删除失败',
-            type: 'success',
-        })
-    }
+const handleLogPageChange = async (val: number) => {
+    queryLogPage.value.pageNum = val
+    await refreshLogs()
 }
 
-function DelLogs() {
-    let ls = []
-    for (const v of logs_data.value) {
-        if (v.pitch == true) {
-            ls.push(v)
+async function DelLog(v: Log, flag = true) {
+    await ElMessageBox.confirm(
+        '是否删除此跑团日志？',
+        '删除',
+        {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
         }
-    }
-    for (const v of ls) {
-        DelLog(v, false)
-    }
-    refreshLogs()
+    ).then(async () => {
+        let info = await delLog(v)
+        if (info === true) {
+            ElMessage({
+                message: '删除成功',
+                type: 'success',
+            })
+            if (flag) await refreshLogs();
+        } else {
+            ElMessage({
+                message: '删除失败',
+                type: 'success',
+            })
+        }
+    })
+}
+
+async function DelLogs() {
+    await ElMessageBox.confirm(
+        '是否删除所选跑团日志？',
+        '删除',
+        {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
+        }
+    ).then(async () => {
+        let ls = []
+        for (const v of logs.value) {
+            if (v.pitch == true) {
+                ls.push(v)
+            }
+        }
+        for (const v of ls) {
+            DelLog(v, false)
+        }
+        await refreshLogs()
+    })
 }
 
 async function UploadLog(v: Log) {
@@ -170,8 +187,21 @@ let item_data: Ref<Item[]> = ref([])
 const users = ref({}) as Ref<Record<string, Array<string>>>
 
 async function openItem(log: Log) {
-    item_data.value = await getItems(log)
+    logItemPage.value.logName = log.name
+    logItemPage.value.groupId = log.groupId
+    logItemPage.value.size = log.size
+    item_data.value = await getItemPage({
+        pageNum: logItemPage.value.pageNum,
+        pageSize: logItemPage.value.pageSize,
+        logName: logItemPage.value.logName,
+        groupId: logItemPage.value.groupId,
+    })
     mode.value = 'items'
+}
+
+const handleItemPageChange = async (val: number) => {
+    logItemPage.value.pageNum = val
+    item_data.value = await getItemPage(logItemPage.value)
 }
 
 function closeItem() {
@@ -203,53 +233,93 @@ onBeforeMount(() => {
 </script>
 
 <template>
+    <header style="margin-bottom: 1rem;">
+        <!-- <ElButton type="primary" :icon="Refresh" @click="getLogs(); getInfo()">刷新日志列表</ElButton> -->
+    </header>
     <template v-if="mode == 'logs'">
-        <ElCard>
-            <div style="display: flex;justify-content: space-between;align-items: center;">
-                <h4>跑团日志 / Story</h4>
-                <ElButton @click="getLogs(); getInfo()">刷新日志列表</ElButton>
-            </div>
-            <span style="margin-right: 1rem;">记录过 {{ sum_log }} 份日志</span>
-            <span style="margin-right: 1rem;">共计 {{ sum_item }} 条消息</span>
-        </ElCard>
-        <ElDivider></ElDivider>
-        <ElInput style="width: 30rem;" :placeholder="logs_opt_val > 1 ? '时间格式：yyyy-mm-dd，如2023-08-16' : ''"
-            v-model="input_val">
-            <template #prepend>
-                <ElSelect v-model="logs_opt_val" style="width: 10rem;">
-                    <ElOption v-for="v, i in logs_opt" :label="v" :value="i" :key="i" />
-                </ElSelect>
-            </template>
-        </ElInput>
-        <ElButtonGroup style="margin-top: 5px;display: block;">
-            <ElButton @click="logs.forEach(v => v.pitch = v.pitch ? false : true)" :icon="Select">全选</ElButton>
-            <ElButton :icon="Delete" @click="DelLogs()"></ElButton>
-        </ElButtonGroup>
-        <template v-for="i in logs" :key="i.id">
-            <ElCard style="margin-top: 10px;" shadow="hover">
-                <span style="padding-right: 1rem;">日志名：{{ i.name }}</span>
-                <ElCheckbox v-model="i.pitch" style="float: right;" />
-                <br />
-                <span>创建于： {{ i.groupId }}</span><br>
-                <span style="padding-right: 1rem;">创建时：{{ dayjs.unix(i.createdAt).format('YYYY-MM-DD') }}</span>
-                <ElTag size="small">{{ dayjs.unix(i.createdAt).fromNow() }}</ElTag><br />
-                <span style="padding-right: 1rem;">更新时：{{ dayjs.unix(i.updatedAt).format('YYYY-MM-DD') }}</span>
-                <ElTag size="small">{{ dayjs.unix(i.updatedAt).fromNow() }}</ElTag><br />
-                <div style="margin-top: 1rem;">
-                    <ElButton @click="openItem(i)">查看</ElButton>
-                    <!--<ElButton>下载到本地</ElButton>-->
-                    <ElButton @click="UploadLog(i)">上传到云端</ElButton>
-                    <ElButton type="danger" @click="DelLog(i); console.log('---')">删除</ElButton>
-                </div>
+        <header>
+            <ElCard>
+                <template #header>
+                    <strong style="display: block; margin: 10px 0;">跑团日志 / Story</strong>
+                </template>
+                <el-space direction="vertical" alignment="flex-start">
+                    <el-text size="large" style="margin-right: 1rem;">记录过 {{ sum_log }} 份日志，共计 {{ sum_item }} 条消息</el-text>
+                    <el-text size="large" style="margin-right: 1rem;">现有 {{ cur_log }} 份日志，共计 {{ cur_item }} 条消息</el-text>
+                </el-space>
             </ElCard>
-        </template>
+        </header>
+        <ElDivider></ElDivider>
+        <main>
+            <el-form :inline="true" :model="queryLogPage">
+                <el-form-item label="日志名">
+                    <el-input v-model="queryLogPage.name" clearable />
+                </el-form-item>
+                <el-form-item label="群号">
+                    <el-input v-model="queryLogPage.groupId" clearable />
+                </el-form-item>
+                <el-form-item label="创建时间">
+                    <el-date-picker v-model="queryLogPage.createdTime" type="daterange" range-separator="-" />
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="searchLogs">查询</el-button>
+                </el-form-item>
+            </el-form>
+            <ElButtonGroup style="margin-top: 5px;display: block;">
+                <ElButton type="primary" size="small" :icon="Select" @click="logs.forEach(v => v.pitch = !v.pitch)">全选
+                </ElButton>
+                <ElButton type="danger" size="small" :icon="Delete" @click="DelLogs()"
+                    v-show="logs.filter(v => v.pitch).length > 0">删除所选</ElButton>
+            </ElButtonGroup>
+            <template v-for=" i in logs" :key="i.id">
+                <ElCard style="margin-top: 10px;" shadow="hover">
+                    <template #header>
+                        <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between;">
+                            <el-space>
+                                <ElCheckbox v-model="i.pitch" style="float: right;" />
+                                <el-text size="large" tag="strong">{{ i.name }}</el-text>
+                                <el-text>({{ i.groupId }})</el-text>
+                            </el-space>
+                            <el-space>
+                                <ElButton size="small" plain @click="openItem(i)">查看</ElButton>
+                                <!--<ElButton>下载到本地</ElButton>-->
+                                <ElButton size="small" type="primary" :icon="Upload" plain @click="UploadLog(i)">上传到云端
+                                </ElButton>
+                                <ElButton size="small" type="danger" :icon="Delete" plain
+                                    @click="DelLog(i); console.log('---')">删除
+                                </ElButton>
+                            </el-space>
+                        </div>
+                    </template>
+                    <el-space direction="vertical" alignment="flex-start">
+                        <el-space>
+                            <el-text>包含 {{ i.size }} 条消息</el-text>
+                        </el-space>
+                        <el-space>
+                            <el-text>创建于：{{ dayjs.unix(i.createdAt).format('YYYY-MM-DD') }}</el-text>
+                            <ElTag size="small" disable-transitions>{{ dayjs.unix(i.createdAt).fromNow() }}</ElTag><br />
+                        </el-space>
+                        <el-space>
+                            <el-text>更新于：{{ dayjs.unix(i.updatedAt).format('YYYY-MM-DD') }}</el-text>
+                            <ElTag size="small" disable-transitions>{{ dayjs.unix(i.updatedAt).fromNow() }}</ElTag><br />
+                        </el-space>
+                    </el-space>
+                </ElCard>
+            </template>
+        </main>
+        <div style="display: flex; justify-content: center;">
+            <el-pagination class="pagination" :page-size="queryLogPage.pageSize" :current-page="queryLogPage.pageNum"
+                :pager-count=5 :total="cur_item" @current-change="handleLogPageChange" layout="prev, pager, next" background
+                hide-on-single-page />
+        </div>
     </template>
     <template v-if="mode == 'items'">
         <ElCard shadow="never">
-            <div style="display: flex;justify-content: space-between;align-items: center;">
-                <h4>跑团日志 / Story</h4>
-                <ElButton @click="closeItem()">返回日志列表</ElButton>
-            </div>
+            <template #header>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="margin: 10px 0;">跑团日志 / Story</strong>
+                    <ElButton type="primary" :icon="Back" @click="closeItem()">返回列表</ElButton>
+                </div>
+            </template>
             <ElCollapse>
                 <ElCollapseItem title="颜色设置">
                     <template v-for="(_, id) in users" :key="id">
@@ -269,5 +339,17 @@ onBeforeMount(() => {
                 </template>
             </p>
         </template>
+        <div style="display: flex; justify-content: center;">
+            <el-pagination class="pagination" :page-size="logItemPage.pageSize" :current-page="logItemPage.pageNum"
+                :pager-count=5 :total="logItemPage.size" @current-change="handleItemPageChange" layout="prev, pager, next"
+                background hide-on-single-page />
+        </div>
     </template>
 </template>
+
+<style lang="scss">
+.pagination {
+    margin-top: 10px;
+    background-color: #f3f5f7;
+}
+</style>

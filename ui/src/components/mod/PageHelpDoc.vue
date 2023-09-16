@@ -121,7 +121,7 @@
         </el-table>
         <footer>
           <el-pagination class="item-list-pagination" :page-size="20" :current-page="textItemQuery.pageNum"
-            :total="textItemQuery.total" :pager-count="6" @current-change="handleCurrentPageChange"
+            :total="textItemQuery.total" :pager-count=5 @current-change="handleCurrentPageChange"
             layout="prev, pager, next" background hide-on-single-page />
         </footer>
       </main>
