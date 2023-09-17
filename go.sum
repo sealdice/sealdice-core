@@ -310,6 +310,8 @@ github.com/sealdice/dicescript v0.0.0-20230916112027-8bafd5aa3ef5 h1:i+4+8RdgYUk
 github.com/sealdice/dicescript v0.0.0-20230916112027-8bafd5aa3ef5/go.mod h1:XeY7jJn/vGg9XZjQGrD6lS3RwisAeRdBYw4JDcUK/Rc=
 github.com/sealdice/dicescript v0.0.0-20230916113510-b66705d9d258 h1:j7tSGHm7sG2tTDoNw5eezCXxotmE7Ppbg01keiBTpGc=
 github.com/sealdice/dicescript v0.0.0-20230916113510-b66705d9d258/go.mod h1:XeY7jJn/vGg9XZjQGrD6lS3RwisAeRdBYw4JDcUK/Rc=
+github.com/sealdice/dicescript v0.0.0-20230917100026-46a8c8b410d3 h1:ufNIDFymYTnGkvAjmwxjqMZipsqWUzw/1k48qMxRHnE=
+github.com/sealdice/dicescript v0.0.0-20230917100026-46a8c8b410d3/go.mod h1:XeY7jJn/vGg9XZjQGrD6lS3RwisAeRdBYw4JDcUK/Rc=
 github.com/sealdice/dodo-open-go v0.2.7 h1:zNy/wXnzS4s/2Tawlg5UNMCEs5TmT0kyTRilrpvLhXo=
 github.com/sealdice/dodo-open-go v0.2.7/go.mod h1:Nk7ozwqQVvuQW2KubsVVXLM8fFqDo0TwN5UX7F4AR2w=
 github.com/sealdice/kook v0.0.3 h1:STMtiKRMFjhSFmUxi0BU5ktNkCQ8qi7Y5EEfrmYKvWY=

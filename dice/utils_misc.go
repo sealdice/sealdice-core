@@ -3,6 +3,7 @@ package dice
 import (
 	ds "github.com/sealdice/dicescript"
 	"strconv"
+	"strings"
 )
 
 type VMValueType int
@@ -141,12 +142,17 @@ func (v *VMValue) ConvertToDiceScriptValue() *ds.VMValue {
 	case VMTypeNone:
 		return ds.VMValueNewNull()
 	case VMTypeDNDComputedValue:
-		// TODO: 这个转换应该有很大问题，我瞎编的，后面再改
 		oldCD := v.Value.(*VMDndComputedValueData)
 		m := &ds.ValueMap{}
-		m.Store("$base", oldCD.BaseValue.ConvertToDiceScriptValue())
+		base := oldCD.BaseValue.ConvertToDiceScriptValue()
+		if base.TypeId == ds.VMTypeUndefined {
+			base = ds.VMValueNewInt(0)
+		}
+		m.Store("base", base)
+		expr := strings.ReplaceAll(oldCD.Expr, "$tVal", "this.base")
+		expr = strings.ReplaceAll(expr, "熟练", "(熟练||0)")
 		cd := &ds.ComputedData{
-			Expr:  oldCD.Expr,
+			Expr:  expr,
 			Attrs: m,
 		}
 		return ds.VMValueNewComputedRaw(cd)
