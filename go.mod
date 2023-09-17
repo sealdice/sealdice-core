@@ -61,7 +61,7 @@ require (
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/schollz/progressbar/v3 v3.13.1
-	github.com/sealdice/dicescript v0.0.0-20230916113510-b66705d9d258
+	github.com/sealdice/dicescript v0.0.0-20230917100026-46a8c8b410d3
 	github.com/tdewolff/minify/v2 v2.12.8
 	github.com/yuin/goldmark v1.5.4
 	golang.org/x/time v0.3.0
