@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 type Kwarg struct {
@@ -52,6 +53,7 @@ type CmdArgs struct {
 	AmIBeMentionedFirst        bool      `json:"amIBeMentionedFirst" jsbind:"amIBeMentionedFirst"` // 同上，但要求是第一个被@的
 	SomeoneBeMentionedButNotMe bool      `json:"someoneBeMentionedButNotMe"`
 	MentionedOtherDice         bool      `json:"mentionedOtherDice"`
+	IsSpaceBeforeArgs          bool      `json:"isSpaceBeforeArgs"`     // 命令前面是否有空格，用于区分rd20和rd 20
 	CleanArgs                  string    `jsbind:"cleanArgs"`           // 一种格式化后的参数，也就是中间所有分隔符都用一个空格替代
 	SpecialExecuteTimes        int       `jsbind:"specialExecuteTimes"` // 特殊的执行次数，对应 3# 这种
 	CleanArgsChopRest          string    // 未来可能移除
@@ -189,6 +191,7 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 	}
 	restText = restText[len(prefixStr):]   // 排除先导符号
 	restText = strings.TrimSpace(restText) // 清除剩余文本的空格，以兼容. rd20 形式
+	isSpaceBeforeArgs := false
 
 	// 兼容模式，进行格式化
 	if commandCompatibleMode {
@@ -210,6 +213,10 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 		if matched != "" {
 			runes := []rune(restText)
 			restParams := runes[len([]rune(matched)):]
+			// 检查是否有空格，例如.rd 20，以区别于.rd20
+			if len(restParams) > 0 && unicode.IsSpace(restParams[0]) {
+				isSpaceBeforeArgs = true
+			}
 			restText = matched + " " + string(restParams)
 		}
 	}
@@ -217,11 +224,13 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 	re := regexp.MustCompile(`^\s*(\S+)\s*([\S\s]*)`)
 	//fmt.Println("!!!", restText)
 	m := re.FindStringSubmatch(restText)
+
 	if len(m) == 3 {
 		cmdInfo := new(CmdArgs)
 		cmdInfo.Command = m[1]
 		cmdInfo.RawArgs = m[2]
 		cmdInfo.At = atInfo
+		cmdInfo.IsSpaceBeforeArgs = isSpaceBeforeArgs
 
 		a := ArgsParse2(m[2])
 		cmdInfo.Args = a.Args

@@ -997,7 +997,11 @@ func (d *Dice) registerCoreCommands() {
 			if ctx.Dice.CommandCompatibleMode {
 				if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd" || cmdArgs.Command == "rdh") && len(cmdArgs.Args) >= 1 {
 					if m, _ := regexp.MatchString(`^\d|优势|劣势|\+|-`, cmdArgs.CleanArgs); m {
-						cmdArgs.CleanArgs = "d" + cmdArgs.CleanArgs
+						if cmdArgs.IsSpaceBeforeArgs {
+							cmdArgs.CleanArgs = "d " + cmdArgs.CleanArgs
+						} else {
+							cmdArgs.CleanArgs = "d" + cmdArgs.CleanArgs
+						}
 					}
 				}
 			}
