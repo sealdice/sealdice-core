@@ -104,12 +104,12 @@ async function searchLogs() {
         createdTimeEnd: queryLogPage.value.createdTime?.[1] ? dayjs(queryLogPage.value.createdTime?.[1]).endOf('date').unix() : undefined,
     }
     const page = await getLogPage(params)
-    logs.value = page
+    logs.value = page as any
 }
 
 async function refreshLogs() {
     [sum_log.value, sum_item.value, cur_log.value, cur_item.value] = await getInfo()
-    logs.value = await getLogPage(queryLogPage.value)
+    logs.value = await getLogPage(queryLogPage.value) as any
     ElMessage({
         message: '刷新日志列表完成',
         type: 'success',
@@ -195,13 +195,13 @@ async function openItem(log: Log) {
         pageSize: logItemPage.value.pageSize,
         logName: logItemPage.value.logName,
         groupId: logItemPage.value.groupId,
-    })
+    }) as any
     mode.value = 'items'
 }
 
 const handleItemPageChange = async (val: number) => {
     logItemPage.value.pageNum = val
-    item_data.value = await getItemPage(logItemPage.value)
+    item_data.value = await getItemPage(logItemPage.value) as any
 }
 
 function closeItem() {
