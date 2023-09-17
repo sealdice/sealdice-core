@@ -54,8 +54,8 @@ const queryLogPage = ref({
 })
 
 async function getLogPage(params: { pageNum: number, pageSize: number, name?: string, groupId?: string, createdTimeBegin?: number, createdTimeEnd?: number }) {
-    return apiFetch(url("logs/page"), {
-        method: "get", headers: { token: token }, params: params
+    return backend.get(url("logs/page"), {
+        headers: { token: token }, params: params
     })
 }
 
@@ -74,8 +74,8 @@ const logItemPage = ref({
 })
 
 async function getItemPage(params: { pageNum: number, pageSize: number, logName: string, groupId: string }) {
-    return apiFetch(url("items/page"), {
-        method: "get", headers: { token: token }, params: params
+    return backend.get(url("items/page"), {
+        headers: { token: token }, params: params
     })
 }
 
