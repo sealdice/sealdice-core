@@ -1239,6 +1239,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				return nil, "", err
 			}
 			checkDice(&code)
+			if bInt == 0 {
+				return nil, "", errors.New("E2:被除数为0")
+			}
 			a.Value = aInt % bInt
 		case TypeExponentiation:
 			e.Calculated = true
