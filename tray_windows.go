@@ -234,7 +234,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 				continue
 			} else {
 				logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
-				runtime.Goexit()
+				os.Exit(0)
 			}
 		} else {
 			fmt.Println("如果浏览器没有自动打开，请手动访问:")
@@ -262,7 +262,8 @@ func executeWin(name string, arg ...string) *exec.Cmd {
 	cmd := exec.Command(name, arg...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		//CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
-		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_NEW_CONSOLE,
+		CreationFlags:    windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_NEW_CONSOLE,
+		NoInheritHandles: true,
 	}
 	return cmd
 }
