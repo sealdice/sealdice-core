@@ -33,6 +33,7 @@ func CheckUpdater(dm *dice.DiceManager) error {
 	// 获取updater版本
 	isUpdaterOk := false
 	if exists {
+		_ = os.Chmod(fn, 0755)
 		cmd := exec.Command(fn, "--version")
 		out, err := cmd.Output()
 		if err != nil {
