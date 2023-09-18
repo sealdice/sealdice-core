@@ -17,6 +17,7 @@ type VersionInfo struct {
 	VersionLatestNote       string `yaml:"versionLatestNote" json:"versionLatestNote"`
 	MinUpdateSupportVersion int64  `yaml:"minUpdateSupportVersion" json:"minUpdateSupportVersion"`
 	NewVersionUrlPrefix     string `yaml:"newVersionUrlPrefix" json:"newVersionUrlPrefix"`
+	UpdaterUrlPrefix        string `yaml:"updaterUrlPrefix" json:"updaterUrlPrefix"`
 }
 
 type GroupNameCacheItem struct {
@@ -58,11 +59,12 @@ type DiceManager struct {
 	UserNameCache  lockfree.HashMap // 用户缓存，全局共享, key string value *GroupNameCacheItem
 	UserIdCache    lockfree.HashMap // 用户id缓存 key username (string) value int64 目前仅Telegram adapter使用
 
-	Cron          *cron.Cron
-	ServiceName   string
-	JustForTest   bool
-	backupEntryId cron.EntryID
-	JsRegistry    *require.Registry
+	Cron                 *cron.Cron
+	ServiceName          string
+	JustForTest          bool
+	backupEntryId        cron.EntryID
+	JsRegistry           *require.Registry
+	UpdateSealdiceByFile func(packName string) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
 }
 
 type DiceConfigs struct {

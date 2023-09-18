@@ -92,8 +92,10 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 
 		// 清理gocqhttp
 		for _, i := range diceManager.Dice {
-			for _, j := range i.ImSession.EndPoints {
-				dice.GoCqHttpServeProcessKill(i, j)
+			if i.ImSession != nil && i.ImSession.EndPoints != nil {
+				for _, j := range i.ImSession.EndPoints {
+					dice.GoCqHttpServeProcessKill(i, j)
+				}
 			}
 		}
 
@@ -158,6 +160,7 @@ func main() {
 		DBCheck                bool   `long:"db-check" description:"检查数据库是否有问题"`
 		ShowEnv                bool   `long:"show-env" description:"显示环境变量"`
 		VacuumDB               bool   `long:"vacuum" description:"对数据库进行整理, 使其收缩到最小尺寸"`
+		UpdateTest             bool   `long:"update-test" description:"更新测试"`
 	}
 
 	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
@@ -348,6 +351,26 @@ func main() {
 		}
 	}
 	removeUpdateFiles()
+
+	if opts.UpdateTest {
+		err := CheckUpdater(diceManager)
+		if err != nil {
+			logger.Error("升级程序检查失败: ", err.Error())
+		} else {
+			UpdateByFile(diceManager, "./xx.zip")
+		}
+	}
+
+	// 先临时放这里，后面再整理一下升级模块
+	diceManager.UpdateSealdiceByFile = func(packName string) bool {
+		err := CheckUpdater(diceManager)
+		if err != nil {
+			logger.Error("升级程序检查失败: ", err.Error())
+			return false
+		} else {
+			return UpdateByFile(diceManager, packName)
+		}
+	}
 
 	//if !opts.MultiInstanceOnWindows && TestRunning() {
 	//	return
