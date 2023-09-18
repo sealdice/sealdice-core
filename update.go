@@ -240,9 +240,13 @@ func DownloadFile(filepath string, url string) error {
 		_ = out.Close()
 	}(out)
 
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
-	return err
+	if resp.StatusCode == http.StatusOK {
+		// Write the body to file
+		_, err = io.Copy(out, resp.Body)
+		return err
+	}
+
+	return errors.New("http status:" + resp.Status)
 }
 
 func unzipSource(source, destination string) error {
