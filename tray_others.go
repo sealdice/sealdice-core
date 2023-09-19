@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -67,5 +68,8 @@ func executeWin(name string, arg ...string) *exec.Cmd {
 		Setpgid: true,
 		Pgid:    0,
 	}
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stdin = os.Stdin
 	return cmd
 }
