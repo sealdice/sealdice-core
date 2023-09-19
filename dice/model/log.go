@@ -170,8 +170,41 @@ func LogGetIdByGroupIdAndName(db *sqlx.DB, groupId string, logName string) (logI
 	return logId, nil
 }
 
+func LogGetUploadInfo(db *sqlx.DB, groupId string, logName string) (url string, uploadTime, updateTime int64, err error) {
+	res, err := db.Queryx(
+		`SELECT updated_at, upload_url, upload_time FROM logs WHERE group_id = $1 AND name = $2`,
+		groupId, logName,
+	)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	defer func() { _ = res.Close() }()
+
+	for res.Next() {
+		err = res.Scan(&updateTime, &url, &uploadTime)
+		if err != nil {
+			return "", 0, 0, err
+		}
+	}
+
+	return
+}
+
+func LogSetUploadInfo(db *sqlx.DB, groupId string, logName string, url string) error {
+	if len(url) == 0 {
+		return nil
+	}
+
+	now := time.Now().Unix()
+
+	_, err := db.Exec(
+		`UPDATE logs SET upload_url = $1, upload_time = $2 WHERE group_id = $3 AND name = $4`,
+		url, now, groupId, logName,
+	)
+	return err
+}
+
 // LogGetAllLines 获取log的所有行数据
-// Deprecated: replaced by page
 func LogGetAllLines(db *sqlx.DB, groupId string, logName string) ([]*LogOneItem, error) {
 	// 获取log的ID
 	logId, err := LogGetIdByGroupIdAndName(db, groupId, logName)
@@ -180,7 +213,7 @@ func LogGetAllLines(db *sqlx.DB, groupId string, logName string) ([]*LogOneItem,
 	}
 
 	// 查询行数据
-	rows, err := db.Queryx(`SELECT id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id 
+	rows, err := db.Queryx(`SELECT id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id
 	                        FROM log_items WHERE log_id=$1 ORDER BY time ASC`, logId)
 	if err != nil {
 		return nil, err
