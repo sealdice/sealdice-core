@@ -6,9 +6,11 @@ package main
 import (
 	"fmt"
 	"net"
+	"os/exec"
 	"regexp"
 	"runtime"
 	"sealdice-core/dice"
+	"syscall"
 
 	"github.com/labstack/echo/v4"
 )
@@ -59,13 +61,11 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	}
 }
 
-type Cmd struct {
-}
-
-func (cmd *Cmd) Start() error {
-	return nil
-}
-
-func executeWin(name string, arg ...string) *Cmd {
-	return nil
+func executeWin(name string, arg ...string) *exec.Cmd {
+	cmd := exec.Command(name, arg...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+		Pgid:    0,
+	}
+	return cmd
 }
