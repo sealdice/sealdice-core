@@ -619,6 +619,18 @@ jobs:
           files: |
             ./dist/sealdice*
 
+      # 可以使用，但因为文件名都是 sealdice_dev-aea89ca_20230919_linux_arm64.tar.gz
+      # 这种形式 有一点捉急。就先屏蔽了
+      # - uses: ryand56/r2-upload-action@latest
+      #   continue-on-error: true
+      #   with:
+      #     r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+      #     r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+      #     r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      #     r2-bucket: ${{ secrets.R2_BUCKET }}
+      #     source-dir: ./dist
+      #     destination-dir: ./dev
+
   clear-temp-artifact:
     name: Clear Temp Artifacts
     if: always()
