@@ -689,9 +689,19 @@ func (d *Dice) registerCoreCommands() {
 		Help:          "骰主指令:\n" + masterListHelp,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			cmdArgs.ChopPrefixToArgsWith("unlock", "rm", "del", "add", "checkupdate", "reboot", "backup")
+			cmdArgs.ChopPrefixToArgsWith("unlock", "rm", "del", "add", "checkupdate", "reboot", "backup", "reload")
 			pRequired := 0
+
+			// 注: 这个指令并不真的需要代骰，只是需要借此拿到完整的at列表
 			ctx.DelegateText = ""
+			subCmd := cmdArgs.GetArgN(1)
+
+			if !(subCmd == "add" || subCmd == "del" || subCmd == "rm") {
+				// 如果不是add/del/rm，那么就不需要代骰
+				if !cmdArgs.AmIBeMentionedFirst {
+					return CmdExecuteResult{Matched: false, Solved: false}
+				}
+			}
 
 			// 如果UI:1001以外的骰主存在，则需要100权限
 			if len(ctx.Dice.DiceMasters) >= 1 {
@@ -726,7 +736,6 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			subCmd := cmdArgs.GetArgN(1)
 			switch subCmd {
 			case "add":
 				newCount := 0
