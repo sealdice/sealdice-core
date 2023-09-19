@@ -905,6 +905,30 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
 	_ = os.MkdirAll(dirpath, 0755)
 
+	url, uploadTs, updateTs, _ := model.LogGetUploadInfo(ctx.Dice.DBLogs, groupId, logName)
+	if len(url) > 0 && uploadTs > updateTs {
+		// 已有URL且上传时间晚于Log更新时间（最后录入时间），直接返回
+		ctx.Dice.Logger.Infof(
+			"查询到之前上传的URL, 直接使用 Log:%s.%s 上传时间:%s 更新时间:%s URL:%s",
+			groupId, logName,
+			time.Unix(uploadTs, 0).Format("2006-01-02 15:04:05"),
+			time.Unix(updateTs, 0).Format("2006-01-02 15:04:05"),
+			url,
+		)
+		return url, nil
+	} else {
+		if len(url) == 0 {
+			ctx.Dice.Logger.Infof("没有查询到之前上传的URL Log:%s.%s", groupId, logName)
+		} else {
+			ctx.Dice.Logger.Infof(
+				"Log上传后又有更新, 重新上传 Log:%s.%s 上传时间:%s 更新时间:%s",
+				groupId, logName,
+				time.Unix(uploadTs, 0).Format("2006-01-02 15:04:05"),
+				time.Unix(updateTs, 0).Format("2006-01-02 15:04:05"),
+			)
+		}
+	}
+
 	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupId, logName)
 
 	if len(lines) == 0 {
@@ -955,7 +979,12 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 			_, _ = w.Write(data)
 			_ = w.Close()
 
-			return UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserId, &zlibBuffer), nil
+			var url string
+			url, err = UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserId, &zlibBuffer), nil
+			if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupId, logName, url); errDB != nil {
+				ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
+			}
+			return url, err
 		}
 	}
 	return "", nil
