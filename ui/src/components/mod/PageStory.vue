@@ -47,7 +47,7 @@ async function getInfo() {
 
 const queryLogPage = ref({
     pageNum: 1,
-    pageSize: 100,
+    pageSize: 20,
     name: "",
     groupId: "",
     createdTime: ([undefined, undefined] as unknown) as [Date, Date],
@@ -60,7 +60,7 @@ async function getLogPage(params: { pageNum: number, pageSize: number, name?: st
 }
 
 // async function getItems(v: Log) {
-//     // ofetch get+params 至少在开发模式有莫名奇妙的 bug ，会丢失 baseURL 
+//     // ofetch get+params 至少在开发模式有莫名奇妙的 bug ，会丢失 baseURL
 //     // 下面的接口就先不更换了
 //     return await backend.get(url('items'), { params: v, headers: { token } }) as unknown as Item[]
 // }
@@ -180,7 +180,7 @@ async function UploadLog(v: Log) {
     })
     return info
 }
-// 
+//
 
 let item_data: Ref<Item[]> = ref([])
 
@@ -308,7 +308,7 @@ onBeforeMount(() => {
         </main>
         <div style="display: flex; justify-content: center;">
             <el-pagination class="pagination" :page-size="queryLogPage.pageSize" :current-page="queryLogPage.pageNum"
-                :pager-count=5 :total="cur_item" @current-change="handleLogPageChange" layout="prev, pager, next" background
+                :pager-count=5 :total="cur_log" @current-change="handleLogPageChange" layout="prev, pager, next" background
                 hide-on-single-page />
         </div>
     </template>
