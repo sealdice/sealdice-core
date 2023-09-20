@@ -10,7 +10,7 @@ require (
 	github.com/antlabs/strsim v0.0.2
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/blevesearch/bleve/v2 v2.3.3
-	github.com/bwmarrin/discordgo v0.26.1
+	github.com/bwmarrin/discordgo v0.27.1
 	github.com/dop251/goja v0.0.0-20230216180835-5937a312edda
 	github.com/dop251/goja_nodejs v0.0.0-20230207183254-2229640ea097
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
@@ -29,7 +29,7 @@ require (
 	github.com/lonelyevil/kook v0.0.31
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
-	github.com/monaco-io/request v1.0.15
+	github.com/monaco-io/request v1.0.16
 	github.com/mroth/weightedrand v1.0.0
 	github.com/otiai10/copy v1.12.0
 	github.com/phuslu/log v1.0.83
@@ -47,7 +47,7 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.2.1
+	github.com/BurntSushi/toml v1.3.2
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/glebarez/go-sqlite v1.21.2
 	github.com/go-creed/sat v1.0.3
@@ -57,7 +57,7 @@ require (
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/matoous/go-nanoid/v2 v2.0.0
-	github.com/mattn/go-sqlite3 v1.14.16
+	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/schollz/progressbar/v3 v3.13.1
@@ -154,10 +154,10 @@ require (
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	modernc.org/libc v1.22.5 // indirect
+	modernc.org/libc v1.24.1 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
-	modernc.org/memory v1.5.0 // indirect
-	modernc.org/sqlite v1.23.1 // indirect
+	modernc.org/memory v1.6.0 // indirect
+	modernc.org/sqlite v1.25.0 // indirect
 )
 
 replace (
