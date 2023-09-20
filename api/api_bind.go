@@ -386,4 +386,12 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/utils/ga/:uid", getGithubAvatar)
 	e.GET(prefix+"/utils/news", getNews)
 	e.POST(prefix+"/utils/check_news", checkNews)
+
+	e.POST(prefix+"/censor/restart", censorRestart)
+	e.GET(prefix+"/censor/status", censorGetStatus)
+	e.GET(prefix+"/censor/config", censorGetConfig)
+	e.POST(prefix+"/censor/config", censorSetConfig)
+	e.GET(prefix+"/censor/words", censorGetWords)
+	e.GET(prefix+"/censor/files", censorGetWordFiles)
+	e.GET(prefix+"/censor/logs/page", censorGetLogPage)
 }

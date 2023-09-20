@@ -666,7 +666,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 								// FIXME: 发送警告
 								ReplyToSender(mctx, msg, "")
 							}
-							if (handler << SendNotice) != 0 {
+							if handler&(1<<SendNotice) != 0 {
 								// 向通知列表/邮件发送通知
 								var text string
 								if msg.MessageType == "group" {
@@ -689,7 +689,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 								}
 								mctx.Notice(text)
 							}
-							if (handler << BanUser) != 0 {
+							if handler&(1<<BanUser) != 0 {
 								// 拉黑用户
 								d.BanList.AddScoreBase(
 									msg.Sender.UserId,
@@ -699,7 +699,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 									mctx,
 								)
 							}
-							if (handler << BanGroup) != 0 {
+							if handler&(1<<BanGroup) != 0 {
 								// 拉黑群
 								if msg.MessageType == "group" {
 									d.BanList.AddScoreBase(
@@ -711,7 +711,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 									)
 								}
 							}
-							if (handler << BanInviter) != 0 {
+							if handler&(1<<BanInviter) != 0 {
 								// 拉黑邀请人
 								if msg.MessageType == "group" {
 									d.BanList.AddScoreBase(
@@ -723,7 +723,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 									)
 								}
 							}
-							if (handler << AddScore) != 0 {
+							if handler&(1<<AddScore) != 0 {
 								score, ok := d.CensorScores[level]
 								if !ok {
 									score = 100

@@ -222,6 +222,7 @@ type Dice struct {
 	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
 
 	EnableCensor         bool                   `json:"enableCensor" yaml:"enableCensor"` // 启用敏感词审查
+	CensorMode           CensorMode             `json:"censorMode" yaml:"censorMode"`
 	CensorManager        *CensorManager         `json:"-" yaml:"-"`
 	CensorThresholds     map[censor.Level]int   `json:"censorThresholds" yaml:"censorThresholds"` // 敏感词阈值
 	CensorHandlers       map[censor.Level]uint8 `json:"censorHandlers" yaml:"censorHandlers"`
@@ -230,6 +231,14 @@ type Dice struct {
 	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
 }
+
+type CensorMode int
+
+const (
+	All CensorMode = iota
+	OnlyCommand
+	OnlyReply
+)
 
 const (
 	// SendWarning 发送警告
@@ -245,6 +254,15 @@ const (
 	// AddScore 增加怒气值
 	AddScore
 )
+
+var CensorHandlerText = map[CensorHandler]string{
+	SendWarning: "SendWarning",
+	SendNotice:  "SendNotice",
+	BanUser:     "BanUser",
+	BanGroup:    "BanGroup",
+	BanInviter:  "BanInviter",
+	AddScore:    "AddScore",
+}
 
 type CensorHandler int
 
@@ -272,7 +290,6 @@ func (d *Dice) Init() {
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "log-exports"), 0755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0755)
-	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "./data/censor"), 0755)
 
 	d.Cron = cron.New()
 	d.Cron.Start()
@@ -293,17 +310,6 @@ func (d *Dice) Init() {
 	d.BanList = &BanListInfo{Parent: d}
 	d.BanList.Init()
 
-	if d.EnableCensor {
-		cm := NewCensorManager(
-			d.BaseConfig.DataDir,
-			d.CensorCaseSensitive,
-			d.CensorMatchPinyin,
-			d.CensorFilterRegexStr,
-		)
-		cm.Parent = d
-		d.CensorManager = cm
-	}
-
 	d.CommandCompatibleMode = true
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
@@ -317,6 +323,10 @@ func (d *Dice) Init() {
 	d.BanList.Loads()
 	d.BanList.AfterLoads()
 	d.IsAlreadyLoadConfig = true
+
+	if d.EnableCensor {
+		d.NewCensorManager()
+	}
 
 	// 创建js运行时
 	if d.JsEnable {

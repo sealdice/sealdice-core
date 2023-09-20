@@ -50,7 +50,7 @@ type Reason int
 
 const (
 	Origin Reason = iota
-	CaseInsensitive
+	IgnoreCase
 	PinYin
 )
 
@@ -60,10 +60,12 @@ type WordInfo struct {
 	Reason Reason // 添加原因
 }
 
-func (c *Censor) PreloadFile(path string) error {
+type FileCounter [5]int
+
+func (c *Censor) PreloadFile(path string) (*FileCounter, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func(file *os.File) {
 		_ = file.Close()
@@ -72,59 +74,65 @@ func (c *Censor) PreloadFile(path string) error {
 	curLevel := Ignore
 	c.SensitiveKeys = make(map[string]WordInfo)
 	reader := bufio.NewReader(file)
+	var counter FileCounter
 	for {
 		word, err := reader.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-		// 处理敏感词库
-		if strings.HasPrefix(word, "#") {
-			mark := strings.ToLower(word)
-			switch mark {
-			case "#ignore":
-				curLevel = Ignore
-			case "#notice":
-				curLevel = Notice
-			case "#caution":
-				curLevel = Caution
-			case "#warning":
-				curLevel = Warning
-			case "#danger":
-				curLevel = Danger
-			}
-		} else {
-			if c.CaseSensitive {
-				c.SensitiveKeys[word] = WordInfo{Level: curLevel}
+		if word != "" {
+			// 处理敏感词库
+			if strings.HasPrefix(word, "#") {
+				mark := strings.ToLower(strings.TrimSpace(word))
+				switch mark {
+				case "#ignore":
+					curLevel = Ignore
+				case "#notice":
+					curLevel = Notice
+				case "#caution":
+					curLevel = Caution
+				case "#warning":
+					curLevel = Warning
+				case "#danger":
+					curLevel = Danger
+				}
 			} else {
-				if c.MatchPinyin {
-					// 拼音必须大小写不敏感
-					w := strings.ToLower(word)
-					c.SensitiveKeys[w] = WordInfo{Level: curLevel, Origin: word, Reason: CaseInsensitive}
-					pys := pinyin.Pinyin(w, pinyin.NewArgs())
-					for _, py := range pys {
-						pyStr := strings.Join(py, "")
-						c.SensitiveKeys[strings.ToLower(pyStr)] = WordInfo{Level: curLevel, Origin: word, Reason: PinYin}
-					}
+				key := strings.ToLower(strings.TrimSpace(word))
+				counter[curLevel]++
+				if c.CaseSensitive {
+					c.SensitiveKeys[key] = WordInfo{Level: curLevel}
 				} else {
-					c.SensitiveKeys[strings.ToLower(word)] = WordInfo{Level: curLevel, Origin: word, Reason: CaseInsensitive}
+					if c.MatchPinyin {
+						// 拼音必须大小写不敏感
+						w := strings.ToLower(key)
+						c.SensitiveKeys[w] = WordInfo{Level: curLevel, Origin: key, Reason: IgnoreCase}
+
+						pys := pinyin.LazyPinyin(w, pinyin.Args{
+							Style: pinyin.Normal,
+							Fallback: func(r rune, a pinyin.Args) []string {
+								return []string{string(r)}
+							},
+						})
+						pyStr := strings.Join(pys, "")
+						c.SensitiveKeys[strings.ToLower(pyStr)] = WordInfo{Level: curLevel, Origin: key, Reason: PinYin}
+					} else {
+						c.SensitiveKeys[strings.ToLower(key)] = WordInfo{Level: curLevel, Origin: key, Reason: IgnoreCase}
+					}
 				}
 			}
 		}
 
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return nil
+	return &counter, nil
 }
 
 func (c *Censor) Load() (err error) {
 	if c.FilterRegexStr != "" {
-		c.filterRegex, err = regexp.Compile(c.FilterRegexStr)
-		if err != nil {
-			return err
-		}
+		c.filterRegex = regexp.MustCompile(c.FilterRegexStr)
 	} else {
 		c.filterRegex = nil
 	}

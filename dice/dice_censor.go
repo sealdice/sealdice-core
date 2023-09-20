@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/model"
@@ -15,37 +16,43 @@ type CensorManager struct {
 	Parent              *Dice
 	Censor              *censor.Censor
 	DB                  *sqlx.DB
-	SensitiveWordsFiles []string
+	SensitiveWordsFiles map[string]*censor.FileCounter
 }
 
-func NewCensorManager(root string, caseSensitive bool, matchPinyin bool, filterRegexStr string) *CensorManager {
-	db, err := model.SQLiteCensorDBInit(root)
+func (d *Dice) NewCensorManager() {
+	db, err := model.SQLiteCensorDBInit(d.BaseConfig.DataDir)
 	if err != nil {
 		panic(err)
 	}
 	cm := CensorManager{
 		Censor: &censor.Censor{
-			CaseSensitive:  caseSensitive,
-			MatchPinyin:    matchPinyin,
-			FilterRegexStr: filterRegexStr,
+			CaseSensitive:  d.CensorCaseSensitive,
+			MatchPinyin:    d.CensorMatchPinyin,
+			FilterRegexStr: d.CensorFilterRegexStr,
 		},
 		DB: db,
 	}
-	cm.Load(filepath.Join(root, "censor"))
-	return &cm
+	cm.Parent = d
+	d.CensorManager = &cm
+	cm.Load(d)
 }
 
 // Load 审查加载
-func (cm *CensorManager) Load(fileDir string) {
+func (cm *CensorManager) Load(d *Dice) {
+	fileDir := "./data/censor"
 	cm.IsLoading = true
+	_ = os.MkdirAll(fileDir, 0755)
 	_ = filepath.Walk(fileDir, func(path string, info fs.FileInfo, err error) error {
-		if info.IsDir() {
-			return fs.SkipDir
-		}
-		cm.SensitiveWordsFiles = append(cm.SensitiveWordsFiles, path)
-		e := cm.Censor.PreloadFile(path)
-		if e != nil {
-			fmt.Printf("censor: unable to read %s, %s\n", path, e.Error())
+		if !info.IsDir() && (filepath.Ext(path) == ".txt" || filepath.Ext(path) == ".toml") {
+			cm.Parent.Logger.Infof("正在读取敏感词文件：%s\n", path)
+			counter, e := cm.Censor.PreloadFile(path)
+			if e != nil {
+				fmt.Printf("censor: unable to read %s, %s\n", path, e.Error())
+			}
+			if cm.SensitiveWordsFiles == nil {
+				cm.SensitiveWordsFiles = make(map[string]*censor.FileCounter)
+			}
+			cm.SensitiveWordsFiles[path] = counter
 		}
 		return nil
 	})

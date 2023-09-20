@@ -1479,6 +1479,15 @@ func (d *Dice) loads() {
 			d.NewsMark = dNew.NewsMark
 			d.MaxExecuteTime = dNew.MaxExecuteTime
 
+			d.EnableCensor = dNew.EnableCensor
+			d.CensorMode = dNew.CensorMode
+			d.CensorThresholds = dNew.CensorThresholds
+			d.CensorHandlers = dNew.CensorHandlers
+			d.CensorScores = dNew.CensorScores
+			d.CensorCaseSensitive = dNew.CensorCaseSensitive
+			d.CensorMatchPinyin = dNew.CensorMatchPinyin
+			d.CensorFilterRegexStr = dNew.CensorFilterRegexStr
+
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
 				d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite
