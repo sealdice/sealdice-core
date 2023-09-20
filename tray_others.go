@@ -66,7 +66,7 @@ func executeWin(name string, arg ...string) *exec.Cmd {
 	cmd := exec.Command(name, arg...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
-		Pgid:    0,
+		Pgid:    os.Getppid(),
 	}
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
