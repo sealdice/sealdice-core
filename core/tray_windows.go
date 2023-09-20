@@ -265,5 +265,12 @@ func executeWin(name string, arg ...string) *exec.Cmd {
 		CreationFlags:    windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_NEW_CONSOLE,
 		NoInheritHandles: true,
 	}
+
+	cmd.Dir, _ = os.Getwd()
+	path, err := os.Executable()
+	if err != nil {
+		cmd.Dir, _ = filepath.Abs(filepath.Dir(path))
+	}
+
 	return cmd
 }
