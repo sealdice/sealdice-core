@@ -68,7 +68,7 @@ func downloadUpdater(dm *dice.DiceManager) error {
 	platform := runtime.GOOS
 	arch := runtime.GOARCH
 
-	prefix := "http://dice.weizaima.com/u/v0.1.0"
+	prefix := "https://d1.sealdice.com/u/v0.1.0"
 	if ver != nil {
 		prefix = ver.UpdaterUrlPrefix
 	}
@@ -76,6 +76,7 @@ func downloadUpdater(dm *dice.DiceManager) error {
 	fn := "./seal-updater"
 	if platform == "windows" {
 		fn += ".exe"
+		link += ".exe"
 	}
 	err := DownloadFile(fn, link)
 	if err != nil {
