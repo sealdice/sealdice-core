@@ -354,6 +354,35 @@
       <el-input v-model="config.defaultCocRuleIndex" clearable style="width: 14rem;" />
     </el-form-item>
 
+    <h2>海豹</h2>
+    <el-form-item>
+      <template #label>
+        <span>保护开关</span>
+      </template>
+      <!-- <el-button v-if="!isShowUnlockCode" @click="isShowUnlockCode = true">查看</el-button> -->
+      <el-checkbox label="我已阅读功能描述" v-model="isUploadEnable"/>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>固件升级</span>
+          <el-tooltip raw-content content="使用海豹安装包进行覆盖升级">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <!-- <el-button v-if="!isShowUnlockCode" @click="isShowUnlockCode = true">查看</el-button> -->
+      <el-upload class="upload" action="" multiple :before-upload="beforeUpload" :file-list="fileList" :disabled="!isUploadEnable">
+        <el-button type="primary" :icon="Upload" :disabled="!isUploadEnable">上传压缩包</el-button>
+      </el-upload>
+    </el-form-item>
+
+    <el-form-item>
+      <div>使用指定的压缩包对当前海豹进行覆盖，上传完成后会自动重启海豹。</div>
+      <div>请注意尽量不要从高版本降低到低版本，数据库有可能不兼容。</div>
+    </el-form-item>
+
     <h2>其他</h2>
     <el-form-item label="加好友验证信息">
       <template #label>
@@ -473,7 +502,8 @@ import {
   CirclePlusFilled,
   CircleClose,
   QuestionFilled,
-  BrushFilled
+  BrushFilled,
+  Upload
 } from '@element-plus/icons-vue'
 import { cloneDeep, toNumber } from 'lodash-es';
 import { computed, nextTick, onBeforeMount, onBeforeUnmount, ref, watch } from 'vue';
@@ -484,9 +514,26 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const store = useStore()
 
 const config = ref<any>({})
+const fileList = ref<any[]>([])
 
 const isShowUnlockCode = ref(false)
 const modified = ref(false)
+const isUploadEnable = ref(false)
+
+const beforeUpload = async (file: any) => { // UploadRawFile
+  let fd = new FormData()
+  fd.append('files', file)
+  try {
+    await store.diceUploadToUpgrade({ form: fd });
+  } catch (e: any) {
+    if (e.toString().indexOf('Error: Network Error') != -1) {
+      ElMessage.success('上传完成，程序即将离线');
+    } else {
+      ElMessage.error(e.toString());
+      console.log(e);
+    }
+  }
+}
 
 watch(() => config, (newValue, oldValue) => { //直接监听
   modified.value = true

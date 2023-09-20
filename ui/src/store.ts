@@ -252,6 +252,11 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    async diceUploadToUpgrade({ form }: any) {
+      const info = await backend.post(urlPrefix + '/dice/upload_to_upgrade', form)
+      return info as any
+    },
+
     async getRecentMessage() {
       const info = await backend.get(urlPrefix + '/dice/recentMessage')
       return info as any
