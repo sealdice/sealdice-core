@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"runtime"
 )
 
 func DiceNewVersionUpload(c echo.Context) error {
@@ -35,7 +36,13 @@ func DiceNewVersionUpload(c echo.Context) error {
 		}(src)
 
 		// TODO: 临时将逻辑写在这里，后续根据情况再调整
-		f2, err := os.OpenFile("./new_package", os.O_RDWR|os.O_CREATE, 0644)
+		fn := "./new_package"
+		if runtime.GOOS == "windows" {
+			fn += ".zip"
+		} else {
+			fn += ".tar.gz"
+		}
+		f2, err := os.OpenFile(fn, os.O_RDWR|os.O_CREATE, 0644)
 		if err != nil {
 			return Error(&c, err.Error(), Response{})
 		}
@@ -45,7 +52,7 @@ func DiceNewVersionUpload(c echo.Context) error {
 		}
 
 		if dm.UpdateSealdiceByFile != nil {
-			if dm.UpdateSealdiceByFile("./new_package") {
+			if dm.UpdateSealdiceByFile(fn) {
 				return Success(&c, Response{"result": true})
 			} else {
 				return Error(&c, "自动升级流程失败，请检查控制台输出", Response{})
