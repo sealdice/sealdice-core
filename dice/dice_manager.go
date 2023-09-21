@@ -5,6 +5,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/fy0/lockfree"
 	"github.com/robfig/cron/v3"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	"os"
 	"time"
@@ -64,7 +65,7 @@ type DiceManager struct {
 	JustForTest          bool
 	backupEntryId        cron.EntryID
 	JsRegistry           *require.Registry
-	UpdateSealdiceByFile func(packName string) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
+	UpdateSealdiceByFile func(packName string, log *zap.SugaredLogger) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
 }
 
 type DiceConfigs struct {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"io/fs"
 	"mime"
 	"net"
@@ -357,18 +358,18 @@ func main() {
 		if err != nil {
 			logger.Error("升级程序检查失败: ", err.Error())
 		} else {
-			UpdateByFile(diceManager, "./xx.zip")
+			UpdateByFile(diceManager, nil, "./xx.zip")
 		}
 	}
 
 	// 先临时放这里，后面再整理一下升级模块
-	diceManager.UpdateSealdiceByFile = func(packName string) bool {
+	diceManager.UpdateSealdiceByFile = func(packName string, log *zap.SugaredLogger) bool {
 		err := CheckUpdater(diceManager)
 		if err != nil {
 			logger.Error("升级程序检查失败: ", err.Error())
 			return false
 		} else {
-			return UpdateByFile(diceManager, packName)
+			return UpdateByFile(diceManager, log, packName)
 		}
 	}
 
