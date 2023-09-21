@@ -33,7 +33,10 @@ func CheckUpdater(dm *dice.DiceManager) error {
 	// 获取updater版本
 	isUpdaterOk := false
 	if exists {
-		_ = os.Chmod(fn, 0755)
+		err := os.Chmod(fn, 0755)
+		if err != nil {
+			logger.Error("设置升级程序执行权限失败", err.Error())
+		}
 		cmd := exec.Command(fn, "--version")
 		out, err := cmd.Output()
 		if err != nil {
@@ -56,6 +59,10 @@ func CheckUpdater(dm *dice.DiceManager) error {
 			return errors.New("下载更新程序失败，无可用更新程序")
 		} else {
 			logger.Info("下载更新程序成功")
+			err := os.Chmod(fn, 0755)
+			if err != nil {
+				logger.Error("设置升级程序执行权限失败", err.Error())
+			}
 		}
 	}
 
@@ -87,6 +94,11 @@ func downloadUpdater(dm *dice.DiceManager) error {
 
 func UpdateByFile(dm *dice.DiceManager, packName string) bool {
 	fn := getUpdaterFn()
+	err := os.Chmod(fn, 0755)
+	if err != nil {
+		logger.Error("设置升级程序执行权限失败", err.Error())
+	}
+
 	logger.Infof("升级程序: 预计使用 %s 进行升级", packName)
 
 	// 创建一个具有5秒超时的上下文
