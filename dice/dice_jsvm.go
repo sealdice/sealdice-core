@@ -311,11 +311,18 @@ func (d *Dice) JsLoadScripts() {
 func (d *Dice) JsReload() {
 	d.JsInit()
 	d.JsLoadScripts()
-	d.JsExtSettingVacuum()
 }
 
 // JsExtSettingVacuum 清理已被删除的脚本对应的插件配置
+//
+// Deprecated: bug
 func (d *Dice) JsExtSettingVacuum() {
+	// NOTE(Xiangze Li): 这里jsInfo中的Name字段是JS文件头中定义的@name,
+	// 而ExtDefaultSettings中的Name字段是插件的名称,
+	// 这两者的内容没有任何关联, 也没有字段在两者之间建立关系, 因此不能用来匹配.
+	//
+	// 另外, 对于已经删除/禁用的JS, ExtDefaultSetting中的ExtItem指针可能是nil
+
 	jsMap := map[string]bool{}
 	for _, jsInfo := range d.JsScriptList {
 		jsMap[jsInfo.Name] = true
@@ -335,6 +342,8 @@ func (d *Dice) JsExtSettingVacuum() {
 		idx := idxToDel[i]
 		d.ExtDefaultSettings = append(d.ExtDefaultSettings[:idx], d.ExtDefaultSettings[idx+1:]...)
 	}
+
+	panic("DONT USE ME")
 }
 
 type JsScriptInfo struct {

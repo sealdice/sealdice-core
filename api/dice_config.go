@@ -89,6 +89,15 @@ func DiceConfig(c echo.Context) error {
 		emailPasswordMasked = "******"
 	}
 
+	// 过滤掉未加载的: 包括关闭的和已经删除的
+	// TODO(Xiangze Li): 如果前端能支持区分显示未加载插件的配置(.loaded字段), 这里就的过滤就可以去掉
+	extDefaultSettings := make([]*dice.ExtDefaultSettingItem, 0, len(myDice.ExtDefaultSettings))
+	for _, i := range myDice.ExtDefaultSettings {
+		if i.Loaded {
+			extDefaultSettings = append(extDefaultSettings, i)
+		}
+	}
+
 	info := DiceConfigInfo{
 		CommandPrefix:           myDice.CommandPrefix,
 		DiceMasters:             myDice.DiceMasters,
@@ -111,7 +120,7 @@ func DiceConfig(c echo.Context) error {
 
 		HelpMasterInfo:      myDice.HelpMasterInfo,
 		HelpMasterLicense:   myDice.HelpMasterLicense,
-		ExtDefaultSettings:  myDice.ExtDefaultSettings,
+		ExtDefaultSettings:  extDefaultSettings,
 		DefaultCocRuleIndex: cocRule,
 
 		BotExtFreeSwitch:  myDice.BotExtFreeSwitch,
