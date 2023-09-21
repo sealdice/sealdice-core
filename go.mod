@@ -154,10 +154,10 @@ require (
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	modernc.org/libc v1.24.1 // indirect
+	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.6.0 // indirect
-	modernc.org/sqlite v1.25.0 // indirect
+	modernc.org/sqlite v1.24.0 // indirect
 )
 
 replace (
