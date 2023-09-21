@@ -65,7 +65,7 @@ func DiceNewVersionUpload(c echo.Context) error {
 
 	myDice.Logger.Info("新版本骰子上传成功")
 
-	Success(&c, Response{"result": true})
+	_ = Success(&c, Response{"result": true})
 
 	if !dm.UpdateSealdiceByFile(fn) {
 		myDice.Logger.Error("更新骰子失败")
