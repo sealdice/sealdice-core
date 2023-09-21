@@ -27,7 +27,7 @@ var APPNAME = "SealDice"
 var VERSION = "1.3.0 v20230910"
 
 // var VERSION_CODE = int64(1001000) // 991404
-//var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
+// var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
 var VERSION_CODE = int64(1003000) // 1.3时代
 var APP_BRANCH = ""
 
@@ -108,6 +108,7 @@ type ExtDefaultSettingItem struct {
 	AutoActive      bool            `yaml:"autoActive" json:"autoActive"`                // 是否自动开启
 	DisabledCommand map[string]bool `yaml:"disabledCommand,flow" json:"disabledCommand"` // 实际为set
 	ExtItem         *ExtInfo        `yaml:"-" json:"-"`
+	Loaded          bool            `yaml:"-" json:"loaded"` // 当前插件是否正确加载. serve.yaml不保存, 前端请求时提供
 }
 
 type ExtDefaultSettingItemSlice []*ExtDefaultSettingItem

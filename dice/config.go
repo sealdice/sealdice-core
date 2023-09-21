@@ -1823,6 +1823,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 		extInfo, exists := exts2[k]
 		if exists {
 			v.ExtItem = extInfo
+			v.Loaded = true
 			extInfo.DefaultSetting = v
 
 			// 为了避免锁问题，这里做一个新的map
@@ -1846,6 +1847,11 @@ func (d *Dice) ApplyExtDefaultSettings() {
 				}
 			}
 			v.DisabledCommand = m
+		} else {
+			// 需要吗?
+			// 也许需要, 模糊地感觉可能造成内存泄漏
+			// v.ExtItem = nil
+			v.Loaded = false
 		}
 	}
 
