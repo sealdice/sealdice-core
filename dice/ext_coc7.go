@@ -1704,7 +1704,16 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 		//出1-5且<=成功率大成功
 		//出100或出96-99且>成功率大失败
 		criticalSuccessValue = 5
+		if checkValue < criticalSuccessValue {
+			criticalSuccessValue = checkValue
+		}
 		fumbleValue = 96
+		if checkValue >= fumbleValue {
+			fumbleValue = checkValue + 1
+			if fumbleValue > 100 {
+				fumbleValue = 100
+			}
+		}
 	case 3:
 		//出1-5大成功
 		//出100或出96-99大失败
