@@ -317,7 +317,6 @@ func (d *Dice) JsReload() {
 //
 // Deprecated: bug
 func (d *Dice) JsExtSettingVacuum() {
-	panic("DONT USE ME")
 	// NOTE(Xiangze Li): 这里jsInfo中的Name字段是JS文件头中定义的@name,
 	// 而ExtDefaultSettings中的Name字段是插件的名称,
 	// 这两者的内容没有任何关联, 也没有字段在两者之间建立关系, 因此不能用来匹配.
@@ -343,6 +342,8 @@ func (d *Dice) JsExtSettingVacuum() {
 		idx := idxToDel[i]
 		d.ExtDefaultSettings = append(d.ExtDefaultSettings[:idx], d.ExtDefaultSettings[idx+1:]...)
 	}
+
+	panic("DONT USE ME")
 }
 
 type JsScriptInfo struct {
