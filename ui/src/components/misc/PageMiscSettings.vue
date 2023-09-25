@@ -354,6 +354,30 @@
       <el-input v-model="config.defaultCocRuleIndex" clearable style="width: 14rem;" />
     </el-form-item>
 
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>COC制卡次数上限</span>
+          <el-tooltip raw-content content=".coc n中n的最大值，1-12之间，默认5">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-input v-model="config.maxCocCardGen" clearable style="width: 14rem;" />
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>骰点轮数上限</span>
+          <el-tooltip raw-content content=".r n#中n的最大值，1-25之间，默认12">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-input v-model="config.maxExecuteTime" clearable style="width: 14rem;" />
+    </el-form-item>
+
     <h2>海豹</h2>
     <el-form-item>
       <template #label>
