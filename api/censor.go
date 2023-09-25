@@ -340,14 +340,16 @@ func censorGetWordFiles(c echo.Context) error {
 	files := myDice.CensorManager.SensitiveWordsFiles
 
 	type file struct {
+		Key   string              `json:"key"`
 		Name  string              `json:"name"`
 		Count *censor.FileCounter `json:"count"`
 	}
 	var res []file
-	for path, counter := range files {
+	for _, fileInfo := range files {
 		res = append(res, file{
-			Name:  filepath.Base(path),
-			Count: counter,
+			Key:   fileInfo.Key,
+			Name:  filepath.Base(fileInfo.Path),
+			Count: fileInfo.FileCounter,
 		})
 	}
 
@@ -387,6 +389,26 @@ func censorUploadWordFiles(c echo.Context) error {
 	if _, err = io.Copy(dst, src); err != nil {
 		return err
 	}
+
+	return Success(&c, Response{})
+}
+
+func censorDeleteWordFiles(c echo.Context) error {
+	ok, err := check(c)
+	if !ok {
+		return err
+	}
+
+	v := struct {
+		Keys []string `json:"keys"`
+	}{}
+	err = c.Bind(&v)
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+
+	myDice.CensorManager.DeleteCensorWordFiles(v.Keys)
 
 	return Success(&c, Response{})
 }

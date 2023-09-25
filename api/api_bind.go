@@ -394,5 +394,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/censor/words", censorGetWords)
 	e.GET(prefix+"/censor/files", censorGetWordFiles)
 	e.POST(prefix+"/censor/files/upload", censorUploadWordFiles)
+	e.DELETE(prefix+"/censor/files", censorDeleteWordFiles)
 	e.GET(prefix+"/censor/logs/page", censorGetLogPage)
 }

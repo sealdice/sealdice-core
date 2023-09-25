@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 
+	nanoid "github.com/matoous/go-nanoid/v2"
+
 	"github.com/mozillazg/go-pinyin"
 )
 
@@ -68,9 +70,15 @@ type WordInfo struct {
 	Reason Reason // 添加原因
 }
 
+type WordFile struct {
+	Key         string
+	Path        string
+	FileCounter *FileCounter
+}
+
 type FileCounter [5]int
 
-func (c *Censor) PreloadFile(path string) (*FileCounter, error) {
+func (c *Censor) PreloadFile(path string) (*WordFile, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -135,7 +143,11 @@ func (c *Censor) PreloadFile(path string) (*FileCounter, error) {
 		}
 	}
 
-	return &counter, nil
+	return &WordFile{
+		Key:         generateFileKey(),
+		Path:        path,
+		FileCounter: &counter,
+	}, nil
 }
 
 func (c *Censor) Load() (err error) {
@@ -175,4 +187,9 @@ func (c *Censor) Check(content string) CheckResult {
 		HighestLevel:   highestLevel,
 		SensitiveWords: sensitiveWords,
 	}
+}
+
+func generateFileKey() string {
+	key, _ := nanoid.Generate("0123456789abcdef", 16)
+	return key
 }

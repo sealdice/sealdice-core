@@ -17,7 +17,7 @@ type CensorManager struct {
 	Parent              *Dice
 	Censor              *censor.Censor
 	DB                  *sqlx.DB
-	SensitiveWordsFiles map[string]*censor.FileCounter
+	SensitiveWordsFiles map[string]*censor.WordFile
 }
 
 func (d *Dice) NewCensorManager() {
@@ -55,14 +55,14 @@ func (cm *CensorManager) Load(d *Dice) {
 	_ = filepath.Walk(fileDir, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() && (filepath.Ext(path) == ".txt" || filepath.Ext(path) == ".toml") {
 			cm.Parent.Logger.Infof("正在读取敏感词文件：%s\n", path)
-			counter, e := cm.Censor.PreloadFile(path)
+			fileInfo, e := cm.Censor.PreloadFile(path)
 			if e != nil {
 				fmt.Printf("censor: unable to read %s, %s\n", path, e.Error())
 			}
 			if cm.SensitiveWordsFiles == nil {
-				cm.SensitiveWordsFiles = make(map[string]*censor.FileCounter)
+				cm.SensitiveWordsFiles = make(map[string]*censor.WordFile)
 			}
-			cm.SensitiveWordsFiles[path] = counter
+			cm.SensitiveWordsFiles[fileInfo.Key] = fileInfo
 		}
 		return nil
 	})
@@ -229,4 +229,17 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, sendContent string) (hi
 		}
 	}
 	return
+}
+
+func (cm *CensorManager) DeleteCensorWordFiles(keys []string) {
+	for _, key := range keys {
+		file, ok := cm.SensitiveWordsFiles[key]
+		if ok {
+			_, err := os.Stat(file.Path)
+			if !os.IsNotExist(err) {
+				_ = os.RemoveAll(file.Path)
+			}
+			delete(cm.SensitiveWordsFiles, key)
+		}
+	}
 }
