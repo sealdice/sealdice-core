@@ -468,7 +468,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				var text string
 				if cmdArgs.SpecialExecuteTimes > 1 {
 					VarSetValueInt64(mctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
-					if cmdArgs.SpecialExecuteTimes > 12 {
+					if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.MaxExecuteTime) {
 						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_轮数过多警告"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -1504,8 +1504,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				// 数量不存在时，视为1次
 				val = 1
 			}
-			if val > 10 {
-				val = 10
+			if val > ctx.Dice.MaxCocCardGen {
+				val = ctx.Dice.MaxCocCardGen
 			}
 			var i int64
 

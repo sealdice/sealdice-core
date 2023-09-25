@@ -1137,7 +1137,7 @@ func (d *Dice) registerCoreCommands() {
 
 			if cmdArgs.SpecialExecuteTimes > 1 {
 				VarSetValueInt64(ctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
-				if cmdArgs.SpecialExecuteTimes > 12 {
+				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.MaxExecuteTime) {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: false}
 				}

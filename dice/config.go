@@ -1477,6 +1477,7 @@ func (d *Dice) loads() {
 			d.JsEnable = dNew.JsEnable
 			d.DisabledJsScripts = dNew.DisabledJsScripts
 			d.NewsMark = dNew.NewsMark
+			d.MaxExecuteTime = dNew.MaxExecuteTime
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
