@@ -1495,6 +1495,14 @@ func (d *Dice) loads() {
 				d.BanList.JointScorePercentOfInviter = dNew.BanList.JointScorePercentOfInviter
 			}
 
+			if d.MaxExecuteTime == 0 {
+				d.MaxExecuteTime = 12
+			}
+
+			if d.MaxCocCardGen == 0 {
+				d.MaxCocCardGen = 5
+			}
+
 			if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
 				d.DiceMasters = []string{"UI:1001"}
 			}
