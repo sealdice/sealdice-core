@@ -304,7 +304,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				}
 				mctx.Player.TempValueAlias = &tmpl.Alias // 兼容性支持
 
-				reBP := regexp.MustCompile(`^[bBpP]`)
+				reBP := regexp.MustCompile(`^[bBpP(]`)
 				re2 := regexp.MustCompile(`([^\d]+)\s+([\d]+)`)
 				//re2 := regexp.MustCompile(`([^\d])\s+([\d])|([\d])\s+([^\d])`)
 
