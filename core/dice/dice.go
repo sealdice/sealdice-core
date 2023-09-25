@@ -169,6 +169,8 @@ type Dice struct {
 	HelpMasterInfo      string `yaml:"helpMasterInfo" jsbind:"helpMasterInfo"`           // help中骰主信息
 	HelpMasterLicense   string `yaml:"helpMasterLicense" jsbind:"helpMasterLicense"`     // help中使用协议
 	DefaultCocRuleIndex int64  `yaml:"defaultCocRuleIndex" jsbind:"defaultCocRuleIndex"` // 默认coc index
+	MaxExecuteTime      int64  `yaml:"maxExecuteTime" jsbind:"maxExecuteTime"`           // 最大骰点次数
+	MaxCocCardGen       int64  `yaml:"maxCocCardGen" jsbind:"maxCocCardGen"`             // 最大coc制卡数
 
 	CustomBotExtraText       string `yaml:"customBotExtraText"`       // bot自定义文本
 	CustomDrawKeysText       string `yaml:"customDrawKeysText"`       // draw keys自定义文本

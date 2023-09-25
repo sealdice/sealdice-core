@@ -1477,6 +1477,7 @@ func (d *Dice) loads() {
 			d.JsEnable = dNew.JsEnable
 			d.DisabledJsScripts = dNew.DisabledJsScripts
 			d.NewsMark = dNew.NewsMark
+			d.MaxExecuteTime = dNew.MaxExecuteTime
 
 			if dNew.BanList != nil {
 				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
@@ -1492,6 +1493,14 @@ func (d *Dice) loads() {
 
 				d.BanList.JointScorePercentOfGroup = dNew.BanList.JointScorePercentOfGroup
 				d.BanList.JointScorePercentOfInviter = dNew.BanList.JointScorePercentOfInviter
+			}
+
+			if d.MaxExecuteTime == 0 {
+				d.MaxExecuteTime = 12
+			}
+
+			if d.MaxCocCardGen == 0 {
+				d.MaxCocCardGen = 5
 			}
 
 			if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
