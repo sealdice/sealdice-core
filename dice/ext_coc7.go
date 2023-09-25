@@ -1574,6 +1574,17 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 func GetResultTextWithRequire(ctx *MsgContext, successRank int, difficultRequire int, userShortVersion bool) string {
 	if difficultRequire > 1 {
 		isSuccess := successRank >= difficultRequire
+
+		if successRank > difficultRequire && successRank == 4 {
+			// 大成功
+			VarSetValueStr(ctx, "$t附加判定结果", fmt.Sprintf("(%s)", GetResultText(ctx, successRank, true)))
+		} else if !isSuccess && successRank == -2 {
+			// 大失败
+			VarSetValueStr(ctx, "$t附加判定结果", fmt.Sprintf("(%s)", GetResultText(ctx, successRank, true)))
+		} else {
+			VarSetValueStr(ctx, "$t附加判定结果", "")
+		}
+
 		var suffix string
 		switch difficultRequire {
 		case +2:
@@ -1767,6 +1778,15 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 		if d100 >= fumbleValue {
 			//suffix = "大失败！"
 			successRank = -2
+		}
+	}
+
+	if cocRule == 0 || cocRule == 1 || cocRule == 2 {
+		if d100 == 1 {
+			// 为 1 必是大成功，即使判定线是0
+			// 根据群友说法，相关描述见40周年版407页 / 89-90页
+			// 保守起见，只在规则0、1、2下生效 [规则1与官方规则相似]
+			successRank = 4
 		}
 	}
 
