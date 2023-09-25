@@ -3,13 +3,17 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sealdice-core/dice"
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/model"
 	"sort"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -139,9 +143,9 @@ func censorSetConfig(c echo.Context) error {
 		}
 	}
 	if val, ok := jsonMap["mode"]; ok {
-		mode, ok := val.(dice.CensorMode)
+		mode, ok := val.(float64)
 		if ok {
-			myDice.CensorMode = mode
+			myDice.CensorMode = dice.CensorMode(mode)
 		}
 	}
 	if val, ok := jsonMap["caseSensitive"]; ok {
@@ -350,6 +354,41 @@ func censorGetWordFiles(c echo.Context) error {
 	return Success(&c, Response{
 		"data": res,
 	})
+}
+
+func censorUploadWordFiles(c echo.Context) error {
+	ok, err := check(c)
+	if !ok {
+		return err
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		return err
+	}
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer func(src multipart.File) {
+		_ = src.Close()
+	}(src)
+
+	file.Filename = strings.ReplaceAll(file.Filename, "/", "_")
+	file.Filename = strings.ReplaceAll(file.Filename, "\\", "_")
+	dst, err := os.Create(filepath.Join("./data/censor", file.Filename))
+	if err != nil {
+		return err
+	}
+	defer func(dst *os.File) {
+		_ = dst.Close()
+	}(dst)
+
+	if _, err = io.Copy(dst, src); err != nil {
+		return err
+	}
+
+	return Success(&c, Response{})
 }
 
 func censorGetLogPage(c echo.Context) error {

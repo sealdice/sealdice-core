@@ -393,5 +393,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/censor/config", censorSetConfig)
 	e.GET(prefix+"/censor/words", censorGetWords)
 	e.GET(prefix+"/censor/files", censorGetWordFiles)
+	e.POST(prefix+"/censor/files/upload", censorUploadWordFiles)
 	e.GET(prefix+"/censor/logs/page", censorGetLogPage)
 }

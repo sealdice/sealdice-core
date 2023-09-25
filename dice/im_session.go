@@ -3,7 +3,6 @@ package dice
 import (
 	"fmt"
 	"runtime/debug"
-	"sealdice-core/dice/censor"
 	"sealdice-core/dice/model"
 	"sort"
 	"strings"
@@ -364,6 +363,7 @@ type MsgContext struct {
 	DeckPools         map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
 	diceExprOverwrite string                                      // 默认骰表达式覆盖
 	SystemTemplate    *GameSystemTemplate
+	Censored          bool // 已检查过敏感词，返回重复检查
 }
 
 //func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {
@@ -565,6 +565,11 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
+		// 敏感词拦截：全部
+		if d.EnableCensor && d.CensorMode == All {
+			_ = d.CensorMsg(mctx, msg, "")
+		}
+
 		PlatformPrefix := msg.Platform
 		cmdArgs := CommandParse(msg.Message, d.CommandCompatibleMode, cmdLst, d.CommandPrefix, PlatformPrefix)
 		if cmdArgs != nil {
@@ -649,98 +654,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				//	return
 				//}
 
-				// 敏感词拦截
-				if d.EnableCensor {
-					checkResult, err := d.CensorManager.Check(mctx, msg)
-					if err != nil {
-						// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
-						log.Warnf("审查系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserId)
-					}
-					thresholds := d.CensorThresholds
-					for level, hitCount := range checkResult.HitCounts {
-						if hitCount > thresholds[level] {
-							// 该等级敏感词超过阈值，执行操作
-							handler := d.CensorHandlers[level]
-							levelText := censor.LevelText[level]
-							if (handler << SendWarning) != 0 {
-								// FIXME: 发送警告
-								ReplyToSender(mctx, msg, "")
-							}
-							if handler&(1<<SendNotice) != 0 {
-								// 向通知列表/邮件发送通知
-								var text string
-								if msg.MessageType == "group" {
-									text = fmt.Sprintf(
-										"群(%s)内<%s>(%s)的消息「%s」触发<%s>敏感词：",
-										group.GroupId,
-										msg.Sender.Nickname,
-										msg.Sender.UserId,
-										msg.Message,
-										levelText,
-									)
-								} else if msg.MessageType == "private" {
-									text = fmt.Sprintf(
-										"<%s>(%s)的私聊消息「%s」触发<%s>敏感词：",
-										msg.Sender.Nickname,
-										msg.Sender.UserId,
-										msg.Message,
-										levelText,
-									)
-								}
-								mctx.Notice(text)
-							}
-							if handler&(1<<BanUser) != 0 {
-								// 拉黑用户
-								d.BanList.AddScoreBase(
-									msg.Sender.UserId,
-									d.BanList.ThresholdBan,
-									"敏感词审查",
-									"触发<"+levelText+">敏感词",
-									mctx,
-								)
-							}
-							if handler&(1<<BanGroup) != 0 {
-								// 拉黑群
-								if msg.MessageType == "group" {
-									d.BanList.AddScoreBase(
-										msg.GroupId,
-										d.BanList.ThresholdBan,
-										"敏感词审查",
-										"触发<"+levelText+">敏感词",
-										mctx,
-									)
-								}
-							}
-							if handler&(1<<BanInviter) != 0 {
-								// 拉黑邀请人
-								if msg.MessageType == "group" {
-									d.BanList.AddScoreBase(
-										group.InviteUserId,
-										d.BanList.ThresholdBan,
-										"敏感词审查",
-										"触发<"+levelText+">敏感词",
-										mctx,
-									)
-								}
-							}
-							if handler&(1<<AddScore) != 0 {
-								score, ok := d.CensorScores[level]
-								if !ok {
-									score = 100
-								}
-								// 仅增加怒气值
-								if msg.MessageType == "group" {
-									d.BanList.AddScoreByCensor(
-										msg.Sender.UserId,
-										int64(score),
-										group.GroupId,
-										levelText,
-										mctx,
-									)
-								}
-							}
-						}
-					}
+				// 敏感词拦截：命令
+				if d.EnableCensor && (d.CensorMode == All || d.CensorMode == OnlyCommand) {
+					_ = d.CensorMsg(mctx, msg, "")
 				}
 
 				if mctx.PrivilegeLevel == -30 {
