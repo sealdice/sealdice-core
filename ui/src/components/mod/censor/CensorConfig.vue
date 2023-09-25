@@ -256,7 +256,7 @@ let timerId: number
 const refreshCensorConfig = async () => {
   const c = await getCensorConfig()
   if (c) {
-    config.value = c
+    config.value = c as any;
   }
   modified.value = false
   await nextTick(() => {

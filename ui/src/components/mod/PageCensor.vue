@@ -80,7 +80,7 @@ const restartCensor = async () => {
     censorStore.reload()
   }
 }
-const enableChange = async (value: boolean) => {
+const enableChange = async (value: boolean | number | string) => {
   if (value) {
     await restartCensor()
   }
