@@ -47,7 +47,7 @@
             </el-descriptions-item>
             <el-descriptions-item v-if="i.license" label="许可协议">{{ i.license }}</el-descriptions-item>
             <el-descriptions-item v-if="i.date" label="发布时间">{{ i.date }}</el-descriptions-item>
-            <el-descriptions-item v-if="i.updateDate" label="更新时间">{{ i.date }}</el-descriptions-item>
+            <el-descriptions-item v-if="i.updateDate" label="更新时间">{{ i.updateDate }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
       </main>
