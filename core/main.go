@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"io/fs"
 	"mime"
 	"net"
@@ -13,6 +12,8 @@ import (
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
 	"sealdice-core/static"
+
+	"go.uber.org/zap"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
@@ -200,7 +201,7 @@ func main() {
 	}
 	dnsHack()
 
-	_ = os.MkdirAll("./data", 0644)
+	_ = os.MkdirAll("./data", 0755)
 	MainLoggerInit("./data/main.log", true)
 
 	// 提早初始化是为了读取ServiceName
