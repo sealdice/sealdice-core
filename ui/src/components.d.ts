@@ -4,6 +4,10 @@
 
 declare module 'vue' {
   export interface GlobalComponents {
+    CensorConfig: typeof import('./components/mod/censor/CensorConfig.vue')['default']
+    CensorFiles: typeof import('./components/mod/censor/CensorFiles.vue')['default']
+    CensorLog: typeof import('./components/mod/censor/CensorLog.vue')['default']
+    CensorWords: typeof import('./components/mod/censor/CensorWords.vue')['default']
     ElAffix: typeof import('element-plus/es')['ElAffix']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAutocomplete: typeof import('element-plus/es')['ElAutocomplete']
@@ -14,6 +18,7 @@ declare module 'vue' {
     ElCard: typeof import('element-plus/es')['ElCard']
     ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
     ElCheckboxButton: typeof import('element-plus/es')['ElCheckboxButton']
+    ElCheckboxGroup: typeof import('element-plus/es')['ElCheckboxGroup']
     ElCol: typeof import('element-plus/es')['ElCol']
     ElCollapse: typeof import('element-plus/es')['ElCollapse']
     ElCollapseItem: typeof import('element-plus/es')['ElCollapseItem']
@@ -58,6 +63,7 @@ declare module 'vue' {
     IBiFolder2: typeof import('~icons/bi/folder2')['default']
     Nested: typeof import('./components/mod/nested.vue')['default']
     PageAbout: typeof import('./components/PageAbout.vue')['default']
+    PageCensor: typeof import('./components/mod/PageCensor.vue')['default']
     PageConnectInfoItems: typeof import('./components/PageConnectInfoItems.vue')['default']
     PageCustomReply: typeof import('./components/mod/PageCustomReply.vue')['default']
     PageCustomText: typeof import('./components/PageCustomText.vue')['default']

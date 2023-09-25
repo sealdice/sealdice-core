@@ -93,6 +93,10 @@
               <span>帮助文档</span>
             </el-menu-item>
 
+            <el-menu-item :index="`5-censor`" @click="switchTo('mod', 'censor')">
+              <span>拦截管理</span>
+            </el-menu-item>
+
           </el-sub-menu>
 
           <!--
