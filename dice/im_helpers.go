@@ -147,7 +147,7 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		text = ctx.DelegateText + text
 		ctx.DelegateText = ""
 	}
-	if len(text) > 15000 {
+	if lenWithoutBase64(text) > 15000 {
 		text = "要发送的文本过长"
 	}
 	if ctx.Dice != nil {
@@ -177,7 +177,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		ctx.DelegateText = ""
 	}
 
-	if len(text) > 15000 {
+	if lenWithoutBase64(text) > 15000 {
 		text = "要发送的文本过长"
 	}
 	if ctx.Dice != nil {
@@ -336,4 +336,10 @@ func FormatDiceId(ctx *MsgContext, Id interface{}, isGroup bool) string {
 		prefix += "-Group"
 	}
 	return fmt.Sprintf("%s:%v", prefix, Id)
+}
+
+func lenWithoutBase64(text string) int {
+	re := regexp.MustCompile(`base64://[A-Za-z0-9+/=]+`)
+	croppedText := re.ReplaceAllString(text, "")
+	return len(croppedText)
 }
