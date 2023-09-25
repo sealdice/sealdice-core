@@ -52,7 +52,6 @@ require (
 	github.com/glebarez/go-sqlite v1.21.2
 	github.com/go-creed/sat v1.0.3
 	github.com/golang-module/carbon v1.7.3
-	github.com/gonutz/w32/v2 v2.10.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jmoiron/sqlx v1.3.5
@@ -63,7 +62,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.13.1
 	github.com/sealdice/dicescript v0.0.0-20230917100026-46a8c8b410d3
 	github.com/tdewolff/minify/v2 v2.12.8
-	github.com/yuin/goldmark v1.5.4
+	github.com/yuin/goldmark v1.5.6
 	golang.org/x/time v0.3.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
