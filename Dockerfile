@@ -20,8 +20,9 @@ RUN go generate ./...
 RUN go install github.com/pointlander/peg@v1.0.1
 RUN go build -o sealdice-core-app
 
+
 # 使用一个轻量的Alpine Linux基础镜像作为最终的容器
-FROM alpine:3.14
+FROM ubuntu
 
 # 设置工作目录
 WORKDIR /sealdice-core-app
@@ -31,6 +32,7 @@ COPY --from=builder /sealdice-core-app/sealdice-core-app .
 
 # 暴露容器内部的3211端口
 EXPOSE 3211
-
+RUN ls
+RUN pwd
 # 运行你的应用程序
 CMD ["./sealdice-core-app"]
