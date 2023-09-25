@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"sealdice-core/dice/censor"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -34,14 +35,30 @@ INSERT INTO censor_log(
     content,
     sensitive_words,
     highest_level,
-    created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		msgType, userId, groupId, content, words, highestLevel, nowTimestamp)
+    created_at,
+    clear_mark
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		msgType, userId, groupId, content, words, highestLevel, nowTimestamp, false)
 
 	if err != nil {
 		return false
 	}
 	return err == nil
+}
+
+func CensorCount(db *sqlx.DB, userId string) map[censor.Level]int {
+	levels := [4]censor.Level{censor.Notice, censor.Caution, censor.Warning, censor.Danger}
+	var temp int
+	res := make(map[censor.Level]int)
+	for _, level := range levels {
+		_ = db.Get(&temp, `SELECT COUNT(*) FROM censor_log WHERE user_id = ? AND highest_level = ? AND clear_mark = ?`, userId, level, false)
+		res[level] = temp
+	}
+	return res
+}
+
+func CensorClearLevelCount(db *sqlx.DB, userId string, level censor.Level) {
+	_, _ = db.Exec(`UPDATE censor_log SET clear_mark = ? WHERE user_id = ? AND highest_level = ?`, true, userId, level)
 }
 
 type QueryCensorLog struct {

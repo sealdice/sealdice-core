@@ -151,7 +151,14 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	// 敏感词拦截：回复（群）
 	d := ctx.Dice
 	if d.EnableCensor && (d.CensorMode == All || d.CensorMode == OnlyReply) {
-		text = d.CensorMsg(ctx, msg, text)
+		hit, needToTerminate, _ := d.CensorMsg(ctx, msg, text)
+		if needToTerminate {
+			return
+		}
+		if hit {
+			d.Logger.Infof("拒绝回复命中敏感词的内容(%s): 来自群(%s)内<%s>(%s): %s", text, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+			text = DiceFormatTmpl(ctx, "核心:拦截_拦截提示_仅回复模式")
+		}
 	}
 
 	if lenWithoutBase64(text) > 15000 {
@@ -187,7 +194,14 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	// 敏感词拦截：回复（个人）
 	d := ctx.Dice
 	if d.EnableCensor && (d.CensorMode == All || d.CensorMode == OnlyReply) {
-		text = d.CensorMsg(ctx, msg, text)
+		hit, needToTerminate, _ := d.CensorMsg(ctx, msg, text)
+		if needToTerminate {
+			return
+		}
+		if hit {
+			d.Logger.Infof("拒绝回复命中敏感词的内容(%s): 来自<%s>(%s): %s", text, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+			text = DiceFormatTmpl(ctx, "核心:拦截_拦截提示_仅回复模式")
+		}
 	}
 
 	if lenWithoutBase64(text) > 15000 {

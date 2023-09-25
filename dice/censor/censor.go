@@ -20,6 +20,14 @@ const (
 
 type Level int
 
+type Levels []Level
+
+func (ls Levels) Len() int { return len(ls) }
+func (ls Levels) Less(i, j int) bool {
+	return ls[i] < ls[j]
+}
+func (ls Levels) Swap(i, j int) { ls[i], ls[j] = ls[j], ls[i] }
+
 var LevelText = map[Level]string{
 	Ignore:  "忽略",
 	Notice:  "提醒",

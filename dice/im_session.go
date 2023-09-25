@@ -363,7 +363,7 @@ type MsgContext struct {
 	DeckPools         map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
 	diceExprOverwrite string                                      // 默认骰表达式覆盖
 	SystemTemplate    *GameSystemTemplate
-	Censored          bool // 已检查过敏感词，返回重复检查
+	Censored          bool // 已检查过敏感词
 }
 
 //func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {
@@ -567,7 +567,22 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		// 敏感词拦截：全部
 		if d.EnableCensor && d.CensorMode == All {
-			_ = d.CensorMsg(mctx, msg, "")
+			hit, needToTerminate, _ := d.CensorMsg(mctx, msg, "")
+			if needToTerminate {
+				return
+			}
+			if hit {
+				text := DiceFormatTmpl(mctx, "核心:拦截_拦截提示_全部模式")
+				if text != "" {
+					ReplyToSender(mctx, msg, text)
+				}
+				if msg.MessageType == "group" {
+					log.Infof("拒绝处理命中敏感词的内容: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+				} else {
+					log.Infof("拒绝处理命中敏感词的内容: 来自<%s>(%s): %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+				}
+				return
+			}
 		}
 
 		PlatformPrefix := msg.Platform
@@ -655,8 +670,23 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				//}
 
 				// 敏感词拦截：命令
-				if d.EnableCensor && (d.CensorMode == All || d.CensorMode == OnlyCommand) {
-					_ = d.CensorMsg(mctx, msg, "")
+				if d.EnableCensor && d.CensorMode == OnlyCommand {
+					hit, needToTerminate, _ := d.CensorMsg(mctx, msg, "")
+					if needToTerminate {
+						return
+					}
+					if hit {
+						text := DiceFormatTmpl(mctx, "核心:拦截_拦截提示_仅命令模式")
+						if text != "" {
+							ReplyToSender(mctx, msg, text)
+						}
+						if msg.MessageType == "group" {
+							log.Infof("拒绝处理命中敏感词的指令: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+						} else {
+							log.Infof("拒绝处理命中敏感词的指令: 来自<%s>(%s): %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+						}
+						return
+					}
 				}
 
 				if mctx.PrivilegeLevel == -30 {

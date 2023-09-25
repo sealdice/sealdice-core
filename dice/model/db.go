@@ -219,12 +219,17 @@ CREATE TABLE IF NOT EXISTS censor_log
     content         TEXT,
     sensitive_words TEXT,
     highest_level   TEXT,
-    created_at 		INTEGER
+    created_at 		INTEGER,
+    clear_mark		BOOLEAN
 );
 `,
 		`
 CREATE INDEX IF NOT EXISTS idx_censor_log_user_id
     ON censor_log (user_id);
+`,
+		`
+CREATE INDEX IF NOT EXISTS idx_censor_log_level
+    ON censor_log (highest_level);
 `,
 	}
 
