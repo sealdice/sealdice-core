@@ -252,6 +252,8 @@ github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 h1:RWengNIwukTxcDr9
 github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826/go.mod h1:TaXosZuwdSHYgviHp1DAtfrULt5eUgsSMsZf+YrPgl8=
 github.com/monaco-io/request v1.0.16 h1:3jpKXaP5urKJTl2b2ZgVtWPQTRxMP5b9tSe/qabsIUg=
 github.com/monaco-io/request v1.0.16/go.mod h1:t0XPCmOgHf/hZ5MUSajwlFE/Hir2o/4N9hb/vgfPT1A=
+github.com/mozillazg/go-pinyin v0.20.0 h1:BtR3DsxpApHfKReaPO1fCqF4pThRwH9uwvXzm+GnMFQ=
+github.com/mozillazg/go-pinyin v0.20.0/go.mod h1:iR4EnMMRXkfpFVV5FMi4FNB6wGq9NV6uDWbUuPhP4Yc=
 github.com/mroth/weightedrand v1.0.0 h1:V8JeHChvl2MP1sAoXq4brElOcza+jxLkRuwvtQu8L3E=
 github.com/mroth/weightedrand v1.0.0/go.mod h1:3p2SIcC8al1YMzGhAIoXD+r9olo/g/cdJgAD905gyNE=
 github.com/mschoch/smat v0.2.0 h1:8imxQsjDm8yFEAVBe7azKmKSgzSkZXDuKkSq9374khM=
