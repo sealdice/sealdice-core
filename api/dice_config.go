@@ -37,6 +37,8 @@ type DiceConfigInfo struct {
 	HelpMasterInfo      string `json:"helpMasterInfo"`      // help中骰主信息
 	HelpMasterLicense   string `json:"helpMasterLicense"`   // help中使用协议
 	DefaultCocRuleIndex string `json:"defaultCocRuleIndex"` // 默认coc index
+	MaxExecuteTime      string `json:"maxExecuteTime"`      // 最大骰点次数
+	MaxCocCardGen       string `json:"maxCocCardGen"`       // 最大coc制卡数
 
 	ExtDefaultSettings []*dice.ExtDefaultSettingItem `yaml:"extDefaultSettings" json:"extDefaultSettings"` // 新群扩展按此顺序加载
 	BotExtFreeSwitch   bool                          `json:"botExtFreeSwitch"`
@@ -83,6 +85,10 @@ func DiceConfig(c echo.Context) error {
 	if myDice.DefaultCocRuleIndex == 11 {
 		cocRule = "dg"
 	}
+
+	maxExec := strconv.FormatInt(myDice.MaxExecuteTime, 10)
+
+	maxCard := strconv.FormatInt(myDice.MaxCocCardGen, 10)
 
 	emailPasswordMasked := ""
 	if myDice.MailPassword != "" {
@@ -146,10 +152,12 @@ func DiceConfig(c echo.Context) error {
 		PlayerNameWrapEnable: myDice.PlayerNameWrapEnable,
 
 		// 1.3?
-		MailEnable:   myDice.MailEnable,
-		MailFrom:     myDice.MailFrom,
-		MailPassword: emailPasswordMasked,
-		MailSmtp:     myDice.MailSmtp,
+		MailEnable:     myDice.MailEnable,
+		MailFrom:       myDice.MailFrom,
+		MailPassword:   emailPasswordMasked,
+		MailSmtp:       myDice.MailSmtp,
+		MaxExecuteTime: maxExec,
+		MaxCocCardGen:  maxCard,
 	}
 	return c.JSON(http.StatusOK, info)
 }
@@ -212,6 +220,28 @@ func DiceConfigSet(c echo.Context) error {
 							myDice.DefaultCocRuleIndex = 0
 						}
 					}
+				}
+			}
+		}
+
+		if val, ok := jsonMap["maxExecuteTime"]; ok {
+			valStr, ok := val.(string)
+			if ok {
+				valStr = strings.TrimSpace(valStr)
+				myDice.MaxExecuteTime, err = strconv.ParseInt(valStr, 10, 64)
+				if err != nil || myDice.MaxExecuteTime < 1 || myDice.MaxExecuteTime > 25 {
+					myDice.MaxExecuteTime = 12
+				}
+			}
+		}
+
+		if val, ok := jsonMap["maxCocCardGen"]; ok {
+			valStr, ok := val.(string)
+			if ok {
+				valStr = strings.TrimSpace(valStr)
+				myDice.MaxCocCardGen, err = strconv.ParseInt(valStr, 10, 64)
+				if err != nil || myDice.MaxCocCardGen < 1 || myDice.MaxCocCardGen > 12 {
+					myDice.MaxCocCardGen = 5
 				}
 			}
 		}

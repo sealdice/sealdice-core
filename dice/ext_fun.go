@@ -766,7 +766,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			if m == 0 {
 				m = int(getDefaultDicePoints(ctx))
 			}
-			if t > 25 {
+			if t > int(ctx.Dice.MaxExecuteTime) {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 				return CmdExecuteResult{Matched: true, Solved: false}
 			}
@@ -851,7 +851,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					roulette.Name = n
 				}
 
-				if roulette.Time > 25 {
+				if roulette.Time > int(ctx.Dice.MaxExecuteTime) {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: false}
 				}
