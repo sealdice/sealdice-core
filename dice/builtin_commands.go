@@ -370,9 +370,8 @@ func (d *Dice) registerCoreCommands() {
 	cmdBot := &CmdItemInfo{
 		Name:      "bot",
 		ShortHelp: ".bot on/off/about/bye/quit // 开启、关闭、查看信息、退群",
-		Help: "骰子管理:\n.bot on/off/about/bye/quit[exit] // 开启、关闭、查看信息、退群\n" +
-			"骰主远程退群：.bot quit [群ID] // 必须在同一平台操作",
-		Raw: true,
+		Help:      "骰子管理:\n.bot on/off/about/bye[quit,exit] // 开启、关闭、查看信息、退群",
+		Raw:       true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			inGroup := msg.MessageType == "group"
 			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentionedFirst // 喊的不是当前骰子
@@ -495,7 +494,7 @@ func (d *Dice) registerCoreCommands() {
 							// 停止服务
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
 							return CmdExecuteResult{Matched: true, Solved: true}
-						} else if cmdArgs.GetArgN(1) == "bye" {
+						} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
 							isMe, exists := matchNumber()
 							if exists && !isMe {
 								// 找的不是我
@@ -528,60 +527,6 @@ func (d *Dice) registerCoreCommands() {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子保存设置"))
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-					}
-				} else if !AtSomebodyButNotMe { // 这边流程很抽象，但我不敢乱动
-					if cmdArgs.IsArgEqual(1, "exit", "quit") {
-						gid := cmdArgs.GetArgN(2)
-						if gid == "" {
-							return CmdExecuteResult{Matched: true, Solved: false}
-						}
-
-						if ctx.PrivilegeLevel < 100 {
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限"))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-
-						n := strings.Split(gid, ":") // 不验证是否合法，反正下面会检查是否在 ServiceAtNew
-						platform := strings.Split(n[0], "-")[0]
-
-						gp, ok := ctx.Session.ServiceAtNew[gid]
-						if !ok || len(n[0]) < 2 {
-							ReplyToSender(ctx, msg, fmt.Sprintf("群组列表中没有找到%s", gid))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-
-						if msg.Platform != platform {
-							ReplyToSender(ctx, msg, fmt.Sprintf("目标群组不在当前平台，请前往%s完成操作", platform))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-
-						// 既然是骰主自己操作，就不通知了
-						// 除非有多骰主……
-						ReplyToSender(ctx, msg, fmt.Sprintf("收到指令，将在5秒后退出群组%s", gp.GroupId))
-
-						txt := "注意，收到骰主指令，5秒后将从该群组退出。"
-						wherefore := cmdArgs.GetArgN(3)
-						if wherefore != "" {
-							txt += fmt.Sprintf("原因: %s", wherefore)
-						}
-
-						ReplyGroup(ctx, &Message{GroupId: gp.GroupId}, txt)
-
-						mctx := &MsgContext{
-							MessageType: "group",
-							Group:       gp,
-							EndPoint:    ctx.EndPoint,
-							Session:     ctx.Session,
-							Dice:        ctx.Dice,
-							IsPrivate:   false,
-						}
-						SetBotOffAtGroup(mctx, gp.GroupId)
-						time.Sleep(6 * time.Second)
-						gp.DiceIdExistsMap.Delete(mctx.EndPoint.UserId)
-						gp.UpdatedAtTime = time.Now().Unix()
-						mctx.EndPoint.Adapter.QuitGroup(mctx, gp.GroupId)
-
-						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 				}
 			}
@@ -737,7 +682,8 @@ func (d *Dice) registerCoreCommands() {
 .master checkupdate // 检查更新(需要二次确认)
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
 .master backup // 做一次备份
-.master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档`
+.master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档
+.master quitgroup <群组ID> // 从指定群组中退出，必须在同一平台使用`
 	cmdMaster := &CmdItemInfo{
 		Name:          "master",
 		ShortHelp:     masterListHelp,
@@ -981,6 +927,53 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, "帮助文档正在重新装载")
 					}
 				}
+			case "quitgroup":
+				gid := cmdArgs.GetArgN(2)
+				if gid == "" {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				n := strings.Split(gid, ":") // 不验证是否合法，反正下面会检查是否在 ServiceAtNew
+				platform := strings.Split(n[0], "-")[0]
+
+				gp, ok := ctx.Session.ServiceAtNew[gid]
+				if !ok || len(n[0]) < 2 {
+					ReplyToSender(ctx, msg, fmt.Sprintf("群组列表中没有找到%s", gid))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				if msg.Platform != platform {
+					ReplyToSender(ctx, msg, fmt.Sprintf("目标群组不在当前平台，请前往%s完成操作", platform))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				// 既然是骰主自己操作，就不通知了
+				// 除非有多骰主……
+				ReplyToSender(ctx, msg, fmt.Sprintf("收到指令，将在5秒后退出群组%s", gp.GroupId))
+
+				txt := "注意，收到骰主指令，5秒后将从该群组退出。"
+				wherefore := cmdArgs.GetArgN(3)
+				if wherefore != "" {
+					txt += fmt.Sprintf("原因: %s", wherefore)
+				}
+
+				ReplyGroup(ctx, &Message{GroupId: gp.GroupId}, txt)
+
+				mctx := &MsgContext{
+					MessageType: "group",
+					Group:       gp,
+					EndPoint:    ctx.EndPoint,
+					Session:     ctx.Session,
+					Dice:        ctx.Dice,
+					IsPrivate:   false,
+				}
+				SetBotOffAtGroup(mctx, gp.GroupId)
+				time.Sleep(6 * time.Second)
+				gp.DiceIdExistsMap.Delete(mctx.EndPoint.UserId)
+				gp.UpdatedAtTime = time.Now().Unix()
+				mctx.EndPoint.Adapter.QuitGroup(mctx, gp.GroupId)
+
+				return CmdExecuteResult{Matched: true, Solved: true}
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
