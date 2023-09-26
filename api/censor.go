@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/pelletier/go-toml/v2"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -17,7 +15,10 @@ import (
 	"sealdice-core/dice/model"
 	"sort"
 	"strings"
-	"time"
+
+	"github.com/golang-module/carbon"
+	"github.com/labstack/echo/v4"
+	"github.com/pelletier/go-toml/v2"
 )
 
 func check(c echo.Context) (bool, error) {
@@ -444,7 +445,7 @@ func censorDeleteWordFiles(c echo.Context) error {
 }
 
 func censorGetTomlFileTemplate(c echo.Context) error {
-	now := time.Now()
+	now := carbon.NewCarbon().Now().StartOfDay().Carbon2Time()
 	template := censor.TomlCensorWordFile{
 		Meta: censor.TomlMeta{
 			Name:       "测试词库",
@@ -456,15 +457,15 @@ func censorGetTomlFileTemplate(c echo.Context) error {
 			UpdateDate: now,
 		},
 		Words: censor.TomlWords{
-			Notice:  []string{""},
-			Caution: []string{""},
-			Warning: []string{""},
-			Danger:  []string{""},
+			Notice:  []string{"提醒级词汇1", "提醒级词汇2"},
+			Caution: []string{"注意级词汇1", "注意级词汇2"},
+			Warning: []string{"警告级词汇1", "警告级词汇2"},
+			Danger:  []string{"危险级词汇1", "危险级词汇2"},
 		},
 	}
 	temp, _ := os.CreateTemp("", "词库模板-*.toml")
 	writer := bufio.NewWriter(temp)
-	err := toml.NewEncoder(writer).Encode(&template)
+	err := toml.NewEncoder(writer).SetArraysMultiline(true).Encode(&template)
 	_ = writer.Flush()
 	if err == nil {
 		c.Response().Header().Add("Cache-Control", "no-store")
