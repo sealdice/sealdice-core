@@ -28,6 +28,21 @@ export const useCensorStore = defineStore("censor", () => {
 
     const url = (p: string) => urlPrefix + "/censor/" + p;
 
+    const restartCensor = async (): Promise<{ result: false } | {
+        result: true,
+        enable: boolean,
+        isLoading: boolean
+    }> => {
+        return await backend.post(url("restart"), {token});
+    }
+
+    const stopCensor = async (): Promise<{ result: true } | {
+        result: false,
+        err: string
+    }> => {
+        return await backend.post(url("stop"), {token});
+    }
+
     const getConfig = async (): Promise<{ result: false } | {
         result: true
         mode: number,
@@ -58,6 +73,8 @@ export const useCensorStore = defineStore("censor", () => {
         needReload,
         markReload,
         reload,
+        restartCensor,
+        stopCensor,
         getConfig,
         saveConfig,
         fileUpload,

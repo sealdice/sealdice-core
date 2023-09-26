@@ -1,29 +1,4 @@
 <template>
-  <div class="tip">
-    <el-collapse class="filetips">
-      <el-collapse-item name="txt-template">
-        <template #title>
-          <el-text tag="strong">敏感词库模板</el-text>
-        </template>
-        <el-text tag="p">
-          <strong>敏感词库为 .txt 文件，内容示例如下：</strong><br/>
-          <br/>
-          #notice<br/>
-          提醒级词汇1<br/>
-          提醒级词汇2<br/>
-          #caution<br/>
-          注意级词汇1<br/>
-          注意级词汇2<br/>
-          #warning<br/>
-          警告级词汇<br/>
-          #danger<br/>
-          危险级词汇<br/>
-          <br/>
-          <em>其中每一行代表一个词汇。</em>
-        </el-text>
-      </el-collapse-item>
-    </el-collapse>
-  </div>
   <header>
     <el-upload action="" multiple accept="application/text,.text,application/toml,.toml"
                :before-upload="beforeUpload">
@@ -145,17 +120,3 @@ const deleteFile = async (key: string) => {
 }
 
 </script>
-
-<style scoped>
-.filetips {
-  background-color: #f3f5f7;
-}
-
-.filetips :deep().el-collapse-item__header {
-  background-color: #f3f5f7;
-}
-
-.filetips :deep().el-collapse-item__wrap {
-  background-color: #f3f5f7;
-}
-</style>

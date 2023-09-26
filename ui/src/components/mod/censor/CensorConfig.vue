@@ -13,9 +13,9 @@
         <el-tooltip raw-content
                     content="">
           <template #content>
-            全部：会对所有收到的消息进行检查，命中时拒绝回复，<el-tag size="small" type="info" disable-transitions>拦截_拦截提示_全部模式</el-tag>不为空时会发送提醒。<br />
-            仅命令：只会对收到的以 <strong>指令前缀</strong> 开头的消息进行检查，命中时拒绝回复，<el-tag size="small" type="info" disable-transitions>拦截_拦截提示_仅命令模式</el-tag>不为空时会发送提醒。<br />
-            仅回复：只检查回复内容，命中时回复将替换为<el-tag size="small" type="info" disable-transitions>拦截_拦截提示_仅回复模式</el-tag>的内容。
+            仅回复：只检查回复内容，命中时回复将替换为<el-tag size="small" type="info" disable-transitions>拦截_拦截提示_仅回复模式</el-tag>的内容。<br />
+            仅命令：只会对收到的以 <strong>指令前缀</strong> 开头的消息进行检查，命中时拒绝回复，<el-tag size="small" type="info" disable-transitions>拦截_拦截提示_仅命令模式</el-tag>不为空时会发送拦截提示。<br />
+            全部：会对所有收到的消息进行检查，命中时拒绝回复，<el-tag size="small" type="info" disable-transitions>拦截_拦截提示_全部模式</el-tag>不为空时会发送拦截提示。
           </template>
           <el-icon>
             <question-filled/>
@@ -23,9 +23,9 @@
         </el-tooltip>
       </template>
       <el-radio-group v-model="config.mode">
-        <el-radio-button :label="Mode.All">{{ "全部" }}</el-radio-button>
-        <el-radio-button :label="Mode.OnlyCommand">{{ "仅命令" }}</el-radio-button>
         <el-radio-button :label="Mode.OnlyReply">{{ "仅回复" }}</el-radio-button>
+        <el-radio-button :label="Mode.OnlyCommand">{{ "仅命令" }}</el-radio-button>
+        <el-radio-button :label="Mode.All">{{ "全部" }}</el-radio-button>
       </el-radio-group>
     </el-form-item>
     <el-form-item label="大小写敏感">
@@ -160,8 +160,6 @@
 <script lang="ts" setup>
 
 import {nextTick, onBeforeMount, onBeforeUnmount, ref, watch} from "vue";
-import {backend} from "~/backend";
-import {urlPrefix, useStore} from "~/store";
 import {DocumentChecked, QuestionFilled} from "@element-plus/icons-vue";
 import {isArray, isEqual, isObject, transform} from "lodash-es";
 import {ElMessage} from "element-plus";
@@ -169,7 +167,7 @@ import {useCensorStore} from "~/components/mod/censor/censor";
 
 onBeforeMount(async () => {
   await refreshCensorConfig()
-  nextTick(() => {
+  await nextTick(() => {
     modified.value = false
   })
 })
@@ -178,15 +176,12 @@ onBeforeUnmount(() => {
   clearInterval(timerId)
 })
 
-const store = useStore()
-const url = (p: string) => urlPrefix + "/censor/" + p;
-const token = store.token
 const censorStore = useCensorStore()
 
 const enum Mode {
-  All = 0,
-  OnlyCommand,
-  OnlyReply,
+  OnlyReply = 0,
+  OnlyCommand = 1,
+  All = 2,
 }
 
 interface Config {
