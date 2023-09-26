@@ -52,9 +52,13 @@ func censorRestart(c echo.Context) error {
 }
 
 func censorGetStatus(c echo.Context) error {
+	var isLoading bool
+	if myDice.CensorManager != nil {
+		isLoading = myDice.CensorManager.IsLoading
+	}
 	return Success(&c, Response{
 		"enable":    myDice.EnableCensor,
-		"isLoading": myDice.CensorManager.IsLoading,
+		"isLoading": isLoading,
 	})
 }
 
