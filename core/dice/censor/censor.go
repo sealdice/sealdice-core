@@ -2,7 +2,7 @@ package censor
 
 import (
 	"bufio"
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml/v2"
 	"io"
 	"os"
 	"path/filepath"
@@ -150,29 +150,42 @@ func (c *Censor) tryPreloadTxtFile(path string) (*WordFile, error) {
 	}, nil
 }
 
+type TomlMeta struct {
+	Name       string    `toml:"name" comment:"词库名称"`
+	Author     string    `toml:"author" comment:"作者"`
+	Authors    []string  `toml:"authors" comment:"作者（多个），优先级高于 author"`
+	Version    string    `toml:"version" comment:"版本，建议使用语义化版本号"`
+	Desc       string    `toml:"desc" comment:"简介"`
+	License    string    `toml:"license" comment:"协议"`
+	Date       time.Time `toml:"date" comment:"创建日期，使用 RFC 3339 格式"`
+	UpdateDate time.Time `toml:"updateDate" comment:"更新日期，使用 RFC 3339 格式"`
+}
+
+type TomlWords struct {
+	Ignore  []string `toml:"ignore" comment:"忽略级词表，没有实际作用"`
+	Notice  []string `toml:"notice" comment:"提醒级词表"`
+	Caution []string `toml:"caution" comment:"注意级词表"`
+	Warning []string `toml:"warning" comment:"警告级词表"`
+	Danger  []string `toml:"danger" comment:"危险级词表"`
+}
+
 type TomlCensorWordFile struct {
-	Meta struct {
-		Name       string    `toml:"name"`
-		Author     string    `toml:"author"`
-		Authors    []string  `toml:"authors"`
-		Version    string    `toml:"version"`
-		Desc       string    `toml:"desc"`
-		License    string    `toml:"license"`
-		Date       time.Time `toml:"date"`
-		UpdateDate time.Time `toml:"updateDate"`
-	} `toml:"meta"`
-	Words struct {
-		Ignore  []string `toml:"ignore"`
-		Notice  []string `toml:"notice"`
-		Caution []string `toml:"caution"`
-		Warning []string `toml:"warning"`
-		Danger  []string `toml:"danger"`
-	} `toml:"words"`
+	Meta  TomlMeta  `toml:"meta" comment:"元信息，用于填写一些额外的展示内容"`
+	Words TomlWords `toml:"words" comment:"词表，出现相同词汇时按最高级别判断"`
 }
 
 func (c *Censor) tryPreloadTomlFile(path string) (*WordFile, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
+	reader := bufio.NewReader(file)
+
 	var tomlFile *TomlCensorWordFile
-	if _, err := toml.DecodeFile(path, &tomlFile); err != nil {
+	if err = toml.NewDecoder(reader).Decode(&tomlFile); err != nil {
 		return nil, err
 	}
 
