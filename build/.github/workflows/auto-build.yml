@@ -286,7 +286,8 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GO111MODULE: on
-          CGO_ENABLED: ${{ matrix.goarch != 'arm64' && matrix.goos != 'linux' || 0 }}
+          # CGO_ENABLED: ${{ matrix.goarch != 'arm64' && 1 || 0 }}
+          CGO_ENABLED: ${{ matrix.goos == 'windows' && 1 || 0 }}
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
           CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
         working-directory: ./sealdice-core
