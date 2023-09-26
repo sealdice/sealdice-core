@@ -3,12 +3,13 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/labstack/echo/v4"
+	"golang.org/x/time/rate"
 	"net/http"
 	"sealdice-core/dice"
 	"strconv"
 	"strings"
-
-	"github.com/labstack/echo/v4"
+	"time"
 )
 
 type DiceConfigInfo struct {
@@ -31,8 +32,10 @@ type DiceConfigInfo struct {
 	AutoReloginEnable       bool     `json:"autoReloginEnable"`
 	QQChannelAutoOn         bool     `json:"QQChannelAutoOn"`
 	QQChannelLogMessage     bool     `json:"QQChannelLogMessage"`
-	RefuseGroupInvite       bool     `json:"refuseGroupInvite"` // 拒绝群组邀请
-	RateLimitEnabled        bool     `json:"rateLimitEnabled"`  // 是否开启限速
+	RefuseGroupInvite       bool     `json:"refuseGroupInvite"`   // 拒绝群组邀请
+	RateLimitEnabled        bool     `json:"rateLimitEnabled"`    // 是否开启限速
+	CustomReplenishRate     string   `json:"customReplenishRate"` // 自定义速率
+	CustomBurst             string   `json:"customBurst"`         // 自定义上限
 
 	HelpMasterInfo      string `json:"helpMasterInfo"`      // help中骰主信息
 	HelpMasterLicense   string `json:"helpMasterLicense"`   // help中使用协议
@@ -89,6 +92,8 @@ func DiceConfig(c echo.Context) error {
 	maxExec := strconv.FormatInt(myDice.MaxExecuteTime, 10)
 
 	maxCard := strconv.FormatInt(myDice.MaxCocCardGen, 10)
+
+	maxBurst := strconv.FormatInt(myDice.CustomBurst, 10)
 
 	emailPasswordMasked := ""
 	if myDice.MailPassword != "" {
@@ -152,12 +157,14 @@ func DiceConfig(c echo.Context) error {
 		PlayerNameWrapEnable: myDice.PlayerNameWrapEnable,
 
 		// 1.3?
-		MailEnable:     myDice.MailEnable,
-		MailFrom:       myDice.MailFrom,
-		MailPassword:   emailPasswordMasked,
-		MailSmtp:       myDice.MailSmtp,
-		MaxExecuteTime: maxExec,
-		MaxCocCardGen:  maxCard,
+		MailEnable:          myDice.MailEnable,
+		MailFrom:            myDice.MailFrom,
+		MailPassword:        emailPasswordMasked,
+		MailSmtp:            myDice.MailSmtp,
+		MaxExecuteTime:      maxExec,
+		MaxCocCardGen:       maxCard,
+		CustomReplenishRate: myDice.CustomReplenishRate,
+		CustomBurst:         maxBurst,
 	}
 	return c.JSON(http.StatusOK, info)
 }
@@ -242,6 +249,31 @@ func DiceConfigSet(c echo.Context) error {
 				myDice.MaxCocCardGen, err = strconv.ParseInt(valStr, 10, 64)
 				if err != nil || myDice.MaxCocCardGen < 1 || myDice.MaxCocCardGen > 12 {
 					myDice.MaxCocCardGen = 5
+				}
+			}
+		}
+
+		if val, ok := jsonMap["customBurst"]; ok {
+			valStr, ok := val.(string)
+			if ok {
+				valStr = strings.TrimSpace(valStr)
+				myDice.CustomBurst, err = strconv.ParseInt(valStr, 10, 32)
+				if err != nil || myDice.CustomBurst < 1 {
+					myDice.CustomBurst = 3
+				}
+			}
+		}
+
+		if val, ok := jsonMap["customReplenishRate"]; ok {
+			valStr, ok := val.(string)
+			if ok {
+				valStr = strings.TrimSpace(valStr)
+				myDice.CustomReplenishRate = valStr
+				myDice.ParsedReplenishRate, err = ParseRate(valStr)
+				if err != nil || myDice.ParsedReplenishRate == rate.Limit(0) {
+					fmt.Printf("解析刷屏警告速率失败，恢复默认速率: %v\n", err)
+					myDice.ParsedReplenishRate = rate.Every(time.Second * 3)
+					myDice.CustomReplenishRate = "@every 3s"
 				}
 			}
 		}
@@ -438,4 +470,22 @@ func DiceConfigSet(c echo.Context) error {
 		fmt.Println(err)
 	}
 	return c.JSON(http.StatusOK, nil)
+}
+
+func ParseRate(s string) (rate.Limit, error) {
+	// 为了防止奇怪的用户输入，还是先固定这种格式吧
+	if strings.HasPrefix(s, "@every ") {
+		durStr := strings.TrimPrefix(s, "@every ")
+		dur, err := time.ParseDuration(durStr)
+		if err != nil {
+			return 0, err
+		}
+		return rate.Every(dur), nil
+	}
+
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, err
+	}
+	return rate.Limit(n), nil
 }

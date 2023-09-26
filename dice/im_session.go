@@ -753,7 +753,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 							}
 						} else {
 							mctx.Player.RateLimitWarned = false
-							mctx.Player.RateLimiter = rate.NewLimiter(rate.Every(time.Second*3), 3)
+							if mctx.Dice.CustomReplenishRate == "" {
+								mctx.Dice.CustomReplenishRate = "@every 3s"
+								mctx.Dice.ParsedReplenishRate = rate.Every(time.Second * 3)
+							}
+							if mctx.Dice.CustomBurst == 0 {
+								mctx.Dice.CustomBurst = 3
+							}
+							mctx.Player.RateLimiter = rate.NewLimiter(mctx.Dice.ParsedReplenishRate, int(mctx.Dice.CustomBurst))
 							mctx.Player.RateLimiter.Allow()
 						}
 					}

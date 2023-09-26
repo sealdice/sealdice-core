@@ -3,6 +3,7 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"golang.org/x/time/rate"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1552,6 +1553,15 @@ func (d *Dice) loads() {
 
 			if d.MaxCocCardGen == 0 {
 				d.MaxCocCardGen = 5
+			}
+
+			if d.CustomReplenishRate == "" {
+				d.CustomReplenishRate = "@every 3s"
+				d.ParsedReplenishRate = rate.Every(time.Second * 3)
+			}
+
+			if d.CustomBurst == 0 {
+				d.CustomBurst = 3
 			}
 
 			if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
