@@ -369,9 +369,10 @@ func (d *Dice) registerCoreCommands() {
 
 	cmdBot := &CmdItemInfo{
 		Name:      "bot",
-		ShortHelp: ".bot on/off/about/bye // 开启、关闭、查看信息、退群",
-		Help:      "骰子管理:\n.bot on/off/about/bye[exit, quit] // 开启、关闭、查看信息、退群",
-		Raw:       true,
+		ShortHelp: ".bot on/off/about/bye/quit // 开启、关闭、查看信息、退群",
+		Help: "骰子管理:\n.bot on/off/about/bye/quit[exit] // 开启、关闭、查看信息、退群\n" +
+			"骰主远程退群：.bot quit [群ID] // 必须在同一平台操作",
+		Raw: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			inGroup := msg.MessageType == "group"
 			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentionedFirst // 喊的不是当前骰子
