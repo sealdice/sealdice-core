@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/labstack/echo/v4"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -14,8 +15,6 @@ import (
 	"sealdice-core/dice/model"
 	"sort"
 	"strings"
-
-	"github.com/labstack/echo/v4"
 )
 
 func check(c echo.Context) (bool, error) {
@@ -51,10 +50,27 @@ func censorRestart(c echo.Context) error {
 	})
 }
 
+func censorStop(c echo.Context) error {
+	ok, err := check(c)
+	if !ok {
+		return err
+	}
+
+	myDice.EnableCensor = false
+	_ = myDice.CensorManager.DB.Close()
+	myDice.CensorManager = nil
+
+	return Success(&c, Response{})
+}
+
 func censorGetStatus(c echo.Context) error {
+	var isLoading bool
+	if myDice.CensorManager != nil {
+		isLoading = myDice.CensorManager.IsLoading
+	}
 	return Success(&c, Response{
 		"enable":    myDice.EnableCensor,
-		"isLoading": myDice.CensorManager.IsLoading,
+		"isLoading": isLoading,
 	})
 }
 
@@ -341,15 +357,26 @@ func censorGetWordFiles(c echo.Context) error {
 
 	type file struct {
 		Key   string              `json:"key"`
-		Name  string              `json:"name"`
 		Count *censor.FileCounter `json:"count"`
+
+		FileType string `json:"fileType"`
+		Name     string `json:"name"`
+		Author   string `json:"author"`
+		Version  string `json:"version"`
+		Desc     string `json:"desc"`
+		License  string `json:"license"`
 	}
 	var res []file
-	for _, fileInfo := range files {
+	for _, f := range files {
 		res = append(res, file{
-			Key:   fileInfo.Key,
-			Name:  filepath.Base(fileInfo.Path),
-			Count: fileInfo.FileCounter,
+			Key:      f.Key,
+			Count:    f.FileCounter,
+			FileType: f.FileType,
+			Name:     f.Name,
+			Author:   strings.Join(f.Authors, " / "),
+			Version:  f.Version,
+			Desc:     f.Desc,
+			License:  f.License,
 		})
 	}
 

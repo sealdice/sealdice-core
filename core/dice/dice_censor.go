@@ -51,6 +51,7 @@ func (d *Dice) NewCensorManager() {
 func (cm *CensorManager) Load(d *Dice) {
 	fileDir := "./data/censor"
 	cm.IsLoading = true
+	cm.Censor.SensitiveKeys = make(map[string]censor.WordInfo)
 	_ = os.MkdirAll(fileDir, 0755)
 	_ = filepath.Walk(fileDir, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() && (filepath.Ext(path) == ".txt" || filepath.Ext(path) == ".toml") {
