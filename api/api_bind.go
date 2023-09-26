@@ -388,6 +388,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/utils/check_news", checkNews)
 
 	e.POST(prefix+"/censor/restart", censorRestart)
+	e.POST(prefix+"/censor/stop", censorStop)
 	e.GET(prefix+"/censor/status", censorGetStatus)
 	e.GET(prefix+"/censor/config", censorGetConfig)
 	e.POST(prefix+"/censor/config", censorSetConfig)

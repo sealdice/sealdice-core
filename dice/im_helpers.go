@@ -150,7 +150,7 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 
 	// 敏感词拦截：回复（群）
 	d := ctx.Dice
-	if d.EnableCensor && (d.CensorMode == All || d.CensorMode == OnlyReply) {
+	if d.EnableCensor && d.CensorMode == OnlyReply {
 		hit, needToTerminate, _ := d.CensorMsg(ctx, msg, text)
 		if needToTerminate {
 			return
@@ -193,7 +193,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 
 	// 敏感词拦截：回复（个人）
 	d := ctx.Dice
-	if d.EnableCensor && (d.CensorMode == All || d.CensorMode == OnlyReply) {
+	if d.EnableCensor && d.CensorMode == OnlyReply {
 		hit, needToTerminate, _ := d.CensorMsg(ctx, msg, text)
 		if needToTerminate {
 			return
