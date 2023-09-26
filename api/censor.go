@@ -1,9 +1,11 @@
 package api
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/labstack/echo/v4"
+	"github.com/pelletier/go-toml/v2"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 	"sealdice-core/dice/model"
 	"sort"
 	"strings"
+	"time"
 )
 
 func check(c echo.Context) (bool, error) {
@@ -438,6 +441,63 @@ func censorDeleteWordFiles(c echo.Context) error {
 	myDice.CensorManager.DeleteCensorWordFiles(v.Keys)
 
 	return Success(&c, Response{})
+}
+
+func censorGetTomlFileTemplate(c echo.Context) error {
+	now := time.Now()
+	template := censor.TomlCensorWordFile{
+		Meta: censor.TomlMeta{
+			Name:       "测试词库",
+			Authors:    []string{"<匿名>"},
+			Version:    "1.0",
+			Desc:       "一个测试词库",
+			License:    "CC-BY-NC-SA 4.0",
+			Date:       now,
+			UpdateDate: now,
+		},
+		Words: censor.TomlWords{
+			Notice:  []string{""},
+			Caution: []string{""},
+			Warning: []string{""},
+			Danger:  []string{""},
+		},
+	}
+	temp, _ := os.CreateTemp("", "词库模板-*.toml")
+	writer := bufio.NewWriter(temp)
+	err := toml.NewEncoder(writer).Encode(&template)
+	_ = writer.Flush()
+	if err == nil {
+		c.Response().Header().Add("Cache-Control", "no-store")
+		err := c.Attachment(temp.Name(), "词库模板.toml")
+		_ = temp.Close()
+		_ = os.RemoveAll(temp.Name())
+		return err
+	} else {
+		return Error(&c, err.Error(), Response{})
+	}
+}
+
+func censorGetTxtFileTemplate(c echo.Context) error {
+	temp, _ := os.CreateTemp("", "词库模板-*.txt")
+	writer := bufio.NewWriter(temp)
+	_, _ = writer.WriteString(`#notice
+提醒级词汇1
+提醒级词汇2
+#caution
+注意级词汇1
+注意级词汇2
+#warning
+警告级词汇
+#danger
+危险级词汇
+`)
+	_ = writer.Flush()
+
+	c.Response().Header().Add("Cache-Control", "no-store")
+	err := c.Attachment(temp.Name(), "词库模板.txt")
+	_ = temp.Close()
+	_ = os.RemoveAll(temp.Name())
+	return err
 }
 
 func censorGetLogPage(c echo.Context) error {
