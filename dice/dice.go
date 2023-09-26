@@ -239,9 +239,9 @@ type Dice struct {
 type CensorMode int
 
 const (
-	All CensorMode = iota
+	OnlyReply CensorMode = iota
 	OnlyCommand
-	OnlyReply
+	All
 )
 
 const (
