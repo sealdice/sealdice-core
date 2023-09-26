@@ -218,7 +218,7 @@ CREATE TABLE IF NOT EXISTS censor_log
     group_id 		TEXT,
     content         TEXT,
     sensitive_words TEXT,
-    highest_level   TEXT,
+    highest_level   INTEGER,
     created_at 		INTEGER,
     clear_mark		BOOLEAN
 );
