@@ -3,6 +3,7 @@ package dice
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/time/rate"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -149,6 +150,9 @@ type Dice struct {
 	QQChannelLogMessage     bool                   `yaml:"QQChannelLogMessage"` // QQ频道中记录消息(默认不开)
 	QQEnablePoke            bool                   `yaml:"QQEnablePoke"`        // 启用戳一戳
 	RateLimitEnabled        bool                   `yaml:"rateLimitEnabled"`    // 启用频率限制 (刷屏限制)
+	CustomReplenishRate     string                 `yaml:"customReplenishRate"` // 原始自定义速率
+	ParsedReplenishRate     rate.Limit             `yaml:"-"`                   // 刷屏警告速率
+	CustomBurst             int64                  `yaml:"customBurst"`         // 自定义上限
 	TextCmdTrustOnly        bool                   `yaml:"textCmdTrustOnly"`    // 只允许信任用户或master使用text指令
 	UILogLimit              int64                  `yaml:"UILogLimit"`
 	FriendAddComment        string                 `yaml:"friendAddComment"` // 加好友验证信息
