@@ -222,8 +222,8 @@ type Dice struct {
 	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
 
 	EnableCensor         bool                   `json:"enableCensor" yaml:"enableCensor"` // 启用敏感词审查
-	CensorMode           CensorMode             `json:"censorMode" yaml:"censorMode"`
 	CensorManager        *CensorManager         `json:"-" yaml:"-"`
+	CensorMode           CensorMode             `json:"censorMode" yaml:"censorMode"`
 	CensorThresholds     map[censor.Level]int   `json:"censorThresholds" yaml:"censorThresholds"` // 敏感词阈值
 	CensorHandlers       map[censor.Level]uint8 `json:"censorHandlers" yaml:"censorHandlers"`
 	CensorScores         map[censor.Level]int   `json:"censorScores" yaml:"censorScores"`                 // 敏感词怒气值

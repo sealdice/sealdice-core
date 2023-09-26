@@ -51,6 +51,19 @@ func censorRestart(c echo.Context) error {
 	})
 }
 
+func censorStop(c echo.Context) error {
+	ok, err := check(c)
+	if !ok {
+		return err
+	}
+
+	myDice.EnableCensor = false
+	_ = myDice.CensorManager.DB.Close()
+	myDice.CensorManager = nil
+
+	return Success(&c, Response{})
+}
+
 func censorGetStatus(c echo.Context) error {
 	var isLoading bool
 	if myDice.CensorManager != nil {
