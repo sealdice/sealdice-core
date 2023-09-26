@@ -105,7 +105,13 @@ type MsgCheckResult struct {
 }
 
 func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, sendContent string) (hit bool, needToTerminate bool, newContent string) {
+	log := d.Logger
 	checkResult, err := d.CensorManager.Check(mctx, msg)
+	if err != nil {
+		// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
+		log.Warnf("拦截系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserId)
+		return
+	}
 	newContent = sendContent
 
 	if checkResult.Level > censor.Ignore {
@@ -119,11 +125,6 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, sendContent string) (hi
 		if !mctx.Censored {
 			mctx.Censored = true
 			group := mctx.Session.ServiceAtNew[msg.GroupId]
-			log := d.Logger
-			if err != nil {
-				// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
-				log.Warnf("审查系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserId)
-			}
 			thresholds := d.CensorThresholds
 
 			// 保证按程度依次降低来处理
@@ -133,8 +134,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, sendContent string) (hi
 			}
 			sort.Sort(sort.Reverse(tempLevels))
 
-			for l := range tempLevels {
-				level := censor.Level(l)
+			for _, level := range tempLevels {
 				hitCount := checkResult.HitCounts[level]
 				if hitCount > thresholds[level] {
 					// 处理完跳出，多个等级超过阈值的处理仅进行最高的处理
@@ -145,7 +145,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, sendContent string) (hi
 					// 该等级敏感词超过阈值，执行操作
 					handler := d.CensorHandlers[level]
 					levelText := censor.LevelText[level]
-					if (handler << SendWarning) != 0 {
+					if handler&(1<<SendWarning) != 0 {
 						tmplText := fmt.Sprintf("核心:拦截_警告内容_%s级", censor.LevelText[level])
 						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, tmplText))
 					}
