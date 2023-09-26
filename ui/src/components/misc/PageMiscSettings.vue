@@ -154,17 +154,6 @@
       </template>
       <el-checkbox label="开启" v-model="config.botExtFreeSwitch"/>
     </el-form-item>
-      <el-form-item>
-          <template #label>
-              <div>
-                  <span>刷屏警告开关</span>
-                  <el-tooltip raw-content content="默认关闭。开启后会对使用指令过快的用户进行警告，警告后继续使用指令会增加怒气值，只对QQ平台有效">
-                      <el-icon><question-filled /></el-icon>
-                  </el-tooltip>
-              </div>
-          </template>
-          <el-checkbox label="开启" v-model="config.rateLimitEnabled"/>
-      </el-form-item>
     <el-form-item>
       <template #label>
         <div>
@@ -274,6 +263,48 @@
       <el-input v-model="config.customBotExtraText" type="textarea" autosize clearable style="width: 14rem;" />
     </el-form-item>
 
+    <h2>刷屏警告</h2>
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>刷屏警告开关</span>
+          <el-tooltip raw-content content="默认关闭。开启后会对使用指令过快的用户进行警告，警告后继续使用指令会增加怒气值，只对QQ平台有效">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.rateLimitEnabled"/>
+    </el-form-item>
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>刷屏警告速率</span>
+        </div>
+      </template>
+      补充速率 <el-tooltip raw-content content="支持以下格式: <br/>@every 3s 每3秒一个<br/>3 每秒3个">
+        <el-icon><question-filled /></el-icon>
+      </el-tooltip>
+      <el-input v-model="config.customReplenishRate" clearable style="width: 14rem;" /> <br/>
+    </el-form-item>
+
+    <el-form-item>
+      上限 <el-input v-model="config.customBurst" clearable style="width: 14rem;" />
+    </el-form-item>
+
+    <el-form-item>
+      <div>
+        刷屏警告工作原理如下：
+        <ul>
+          <li>有一个装令牌的桶，桶最多能装【上限】枚令牌</li>
+          <li>每次指令视作拿走一枚令牌</li>
+          <li>当桶里没有令牌时，试图拿走令牌将被阻止（触发警告）</li>
+          <li>桶以【速率】自动补充令牌</li>
+        </ul>
+      </div>
+      <div>如果您感觉难以理解，为了稳定性还是不要更改比较好！</div>
+      <div>对速率限制的所有更改<b>重启后生效</b></div>
+    </el-form-item>
+
     <h2>访问控制</h2>
     <el-form-item label="UI界面地址">
       <template #label>
@@ -357,7 +388,7 @@
     <el-form-item>
       <template #label>
         <div>
-          <span>COC制卡次数上限</span>
+          <span>COC制卡上限</span>
           <el-tooltip raw-content content=".coc n中n的最大值，1-12之间，默认5">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
