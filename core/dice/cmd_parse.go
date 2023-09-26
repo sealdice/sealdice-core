@@ -336,9 +336,9 @@ func CQParse(cmd string) *CQCommand {
 	if m != nil {
 		main = m[1]
 		if m[2] != "" {
-			argList := strings.Split(m[2], ",")
+			argList := strings.SplitN(m[2], ",", 1)
 			for _, i := range argList {
-				pair := strings.Split(i, "=")
+				pair := strings.SplitN(i, "=", 1)
 				if len(pair) >= 2 {
 					args[pair[0]] = pair[1]
 				}
