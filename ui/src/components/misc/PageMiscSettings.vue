@@ -40,7 +40,7 @@
       <template #label>
         <div>
           <span>Master列表</span>
-          <el-tooltip raw-content content="单行格式: QQ:12345">
+          <el-tooltip raw-content content="单行格式: QQ:12345<br>也可添加群ID, 在指定的群中所有人均视为有Master权限">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
         </div>
@@ -51,7 +51,7 @@
           <div style="display: flex;">
             <div>
               <!-- :suffix-icon="Management" -->
-              <el-input v-model="config.diceMasters[index]" :autosize="true"></el-input> 
+              <el-input v-model="config.diceMasters[index]" :autosize="true"></el-input>
             </div>
             <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
               <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项'" placement="bottom-start">
@@ -87,7 +87,7 @@
           <div style="display: flex;">
             <div>
               <!-- :suffix-icon="Management" -->
-              <el-input v-model="config.noticeIds[index]" :autosize="true"></el-input> 
+              <el-input v-model="config.noticeIds[index]" :autosize="true"></el-input>
             </div>
             <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
               <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项'" placement="bottom-start">
@@ -347,7 +347,7 @@
       </template>
       <el-checkbox label="开启" v-model="config.workInQQChannel"/>
     </el-form-item>
-  
+
     <el-form-item>
       <template #label>
         <div>
@@ -470,7 +470,7 @@
       </template>
       <el-checkbox label="开启" v-model="config.playerNameWrapEnable" @click="nameWrapUncheck"/>
     </el-form-item>
-  
+
     <el-form-item label="日志仅记录指令">
       <el-checkbox label="在群聊中" v-model="config.onlyLogCommandInGroup"/>
       <el-checkbox label="在私聊中" v-model="config.onlyLogCommandInPrivate"/>
@@ -508,7 +508,7 @@
           <div style="display: flex;">
             <div>
               <!-- :suffix-icon="Management" -->
-              <el-input v-model="config.commandPrefix[index]" :autosize="true"></el-input> 
+              <el-input v-model="config.commandPrefix[index]" :autosize="true"></el-input>
             </div>
             <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
               <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项目'" placement="bottom-start">
@@ -540,7 +540,7 @@
       </div>
       <!-- <el-input v-model="config.helpMasterLicense" type="textarea" autosize clearable style="width: auto;" /> -->
     </div>
-  
+
     <el-form-item label="" style="margin-top: 3rem;" v-if="modified">
       <el-button type="danger" @click="submitGiveup">放弃改动</el-button>
       <el-button type="success" @click="submit">保存设置</el-button>
