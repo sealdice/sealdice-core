@@ -3,7 +3,6 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/time/rate"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -14,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/time/rate"
 
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
@@ -595,9 +596,11 @@ func (d *Dice) MasterAdd(uid string) {
 	d.MasterRefresh()
 }
 
-func (d *Dice) MasterCheck(uid string) bool {
+// MasterCheck 检查是否有Master权限.
+//   - gid, uid: 群组和用户的统一ID(实际上并不区分哪个是哪个)
+func (d *Dice) MasterCheck(gid, uid string) bool {
 	for _, i := range d.DiceMasters {
-		if i == uid {
+		if i == uid || i == gid {
 			return true
 		}
 	}
