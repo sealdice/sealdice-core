@@ -181,6 +181,18 @@
     <el-form-item>
       <template #label>
         <div>
+          <span>忽略.bot裸指令</span>
+          <el-tooltip raw-content content="默认关闭。开启后在群聊中只有@骰子才会响应.bot">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox label="开启" v-model="config.ignoreUnaddressedBotCmd"/>
+    </el-form-item>
+
+    <el-form-item>
+      <template #label>
+        <div>
           <span>存活确认(骰狗)</span>
           <el-tooltip raw-content content="定期向通知列表发送消息，以便于骰主知晓存活状态">
             <el-icon><question-filled /></el-icon>
