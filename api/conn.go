@@ -134,6 +134,8 @@ func ImConnectionsDel(c echo.Context) error {
 	if err == nil {
 		for index, i := range myDice.ImSession.EndPoints {
 			if i.Id == v.Id {
+				// 待删除的EPInfo落库，保留其统计数据
+				i.StatsDump(myDice)
 				// TODO: 注意 这个好像很不科学
 				//i.DiceServing = false
 				switch i.Platform {
