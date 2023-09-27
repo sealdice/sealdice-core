@@ -32,9 +32,10 @@ func DBCheck(dataDir string) {
 		return ok
 	}
 
-	var ok1, ok2 bool
+	var ok1, ok2, ok3 bool
 	var dataDB *sqlx.DB
 	var logsDB *sqlx.DB
+	var censorDB *sqlx.DB
 	var err error
 
 	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
@@ -55,9 +56,19 @@ func DBCheck(dataDir string) {
 		logsDB.Close()
 	}
 
+	dbDataCensorPath, _ := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
+	censorDB, err = _SQLiteDBInit(dbDataCensorPath, false)
+	if err != nil {
+		fmt.Println("数据库 data-censor.db 无法打开")
+	} else {
+		ok3 = checkDB(censorDB)
+		censorDB.Close()
+	}
+
 	fmt.Println("数据库检查结果：")
 	fmt.Println("data.db:", ok1)
 	fmt.Println("data-logs.db:", ok2)
+	fmt.Println("data-censor.db:", ok3)
 }
 
 func SQLiteDBInit(dataDir string) (dataDB *sqlx.DB, logsDB *sqlx.DB, err error) {

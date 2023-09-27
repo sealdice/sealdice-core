@@ -35,7 +35,7 @@ type DiceConfigInfo struct {
 	RefuseGroupInvite       bool     `json:"refuseGroupInvite"`   // 拒绝群组邀请
 	RateLimitEnabled        bool     `json:"rateLimitEnabled"`    // 是否开启限速
 	CustomReplenishRate     string   `json:"customReplenishRate"` // 自定义速率
-	CustomBurst             string   `json:"customBurst"`         // 自定义上限
+	CustomBurst             int64    `json:"customBurst"`         // 自定义上限
 
 	HelpMasterInfo      string `json:"helpMasterInfo"`      // help中骰主信息
 	HelpMasterLicense   string `json:"helpMasterLicense"`   // help中使用协议
@@ -93,7 +93,7 @@ func DiceConfig(c echo.Context) error {
 
 	maxCard := strconv.FormatInt(myDice.MaxCocCardGen, 10)
 
-	maxBurst := strconv.FormatInt(myDice.CustomBurst, 10)
+	maxBurst := myDice.CustomBurst
 
 	emailPasswordMasked := ""
 	if myDice.MailPassword != "" {
@@ -254,10 +254,10 @@ func DiceConfigSet(c echo.Context) error {
 		}
 
 		if val, ok := jsonMap["customBurst"]; ok {
-			valStr, ok := val.(string)
+			valStr, ok := val.(float64)
 			if ok {
-				valStr = strings.TrimSpace(valStr)
-				myDice.CustomBurst, err = strconv.ParseInt(valStr, 10, 32)
+				customBurst := int64(valStr)
+				myDice.CustomBurst = customBurst
 				if err != nil || myDice.CustomBurst < 1 {
 					myDice.CustomBurst = 3
 				}

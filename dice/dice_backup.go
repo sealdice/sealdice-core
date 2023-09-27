@@ -112,6 +112,7 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "data.db"))
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "data-logs.db"))
+			backup(d, filepath.Join(d.BaseConfig.DataDir, "data-censor.db"))
 
 			//bakTestPath, _ := filepath.Abs("./data-logs-bak.db")
 			//model.Backup(d.DBData)

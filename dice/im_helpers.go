@@ -157,7 +157,7 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 				return
 			}
 			if hit {
-				d.Logger.Infof("拒绝回复命中敏感词的内容(%s): 来自群(%s)内<%s>(%s): %s", text, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+				d.Logger.Infof("拒绝回复命中敏感词的内容「%s」，原消息「%s」- 来自群(%s)内<%s>(%s)", text, msg.Message, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId)
 				text = DiceFormatTmpl(ctx, "核心:拦截_拦截提示_仅回复模式")
 			}
 		}
@@ -199,7 +199,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 				return
 			}
 			if hit {
-				d.Logger.Infof("拒绝回复命中敏感词的内容(%s): 来自<%s>(%s): %s", text, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+				d.Logger.Infof("拒绝回复命中敏感词的内容「%s」，原消息「%s」- 来自<%s>(%s)", text, msg.Message, msg.Sender.Nickname, msg.Sender.UserId)
 				text = DiceFormatTmpl(ctx, "核心:拦截_拦截提示_仅回复模式")
 			}
 		}

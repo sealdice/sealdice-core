@@ -154,19 +154,17 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, sendContent string) (hi
 						var text string
 						if msg.MessageType == "group" {
 							text = fmt.Sprintf(
-								"群(%s)内<%s>(%s)的消息「%s」触发<%s>敏感词：",
+								"群(%s)内<%s>(%s)触发<%s>敏感词拦截",
 								group.GroupId,
 								msg.Sender.Nickname,
 								msg.Sender.UserId,
-								msg.Message,
 								levelText,
 							)
 						} else if msg.MessageType == "private" {
 							text = fmt.Sprintf(
-								"<%s>(%s)的私聊消息「%s」触发<%s>敏感词：",
+								"<%s>(%s)触发<%s>敏感词拦截",
 								msg.Sender.Nickname,
 								msg.Sender.UserId,
-								msg.Message,
 								levelText,
 							)
 						}
@@ -223,7 +221,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, sendContent string) (hi
 						}
 					}
 					// 只处理一次
-					d.Logger.Infof("<%s>(%s)发送的“%s”超过了<%s>级敏感词触发次数的阈值，进行处理", msg.Sender.Nickname, msg.Sender.UserId, msg.Message, censor.LevelText[level])
+					d.Logger.Infof("<%s>(%s)发送的「%s」触发<%s>级敏感词，触发次数已经超过阈值，进行处理", msg.Sender.Nickname, msg.Sender.UserId, msg.Message, censor.LevelText[level])
 					break
 				}
 			}
