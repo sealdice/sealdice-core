@@ -369,6 +369,42 @@ type MsgContext struct {
 //func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {
 //}
 
+// fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
+//   - msg 使用其中的msg.Sender.GroupRole
+//
+// MsgContext.Dice需要指向一个有效的Dice对象
+func (mctx *MsgContext) fillPrivilege(msg *Message) int {
+	if mctx.Group != nil && mctx.Dice != nil {
+		switch {
+		case msg.Sender.GroupRole == "owner":
+			mctx.PrivilegeLevel = 60 // 群主
+		case msg.Sender.GroupRole == "admin":
+			mctx.PrivilegeLevel = 50 // 群管理
+		case msg.Sender.UserId == mctx.Group.InviteUserId:
+			mctx.PrivilegeLevel = 40 // 邀请者
+		default: /* no-op */
+		}
+
+		// 加入黑名单相关权限
+		if val, exists := mctx.Dice.BanList.Map.Load(mctx.Player.UserId); exists {
+			switch val.Rank {
+			case BanRankBanned:
+				mctx.PrivilegeLevel = -30
+			case BanRankTrusted:
+				mctx.PrivilegeLevel = 70
+			default: /* no-op */
+			}
+		}
+
+		// master 权限大于黑名单权限
+		if mctx.Dice.MasterCheck(mctx.Group.GroupId, mctx.Player.UserId) {
+			mctx.PrivilegeLevel = 100
+		}
+	}
+
+	return mctx.PrivilegeLevel
+}
+
 func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	d := s.Parent
 
@@ -501,35 +537,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		}
 
 		// 权限号设置
-		if mctx.Group != nil {
-			if mctx.Group != nil {
-				if msg.Sender.UserId == mctx.Group.InviteUserId {
-					mctx.PrivilegeLevel = 40 // 邀请者
-				}
-			}
-
-			if msg.Sender.GroupRole == "admin" {
-				mctx.PrivilegeLevel = 50 // 群管理
-			}
-			if msg.Sender.GroupRole == "owner" {
-				mctx.PrivilegeLevel = 60 // 群主
-			}
-
-			// 加入黑名单相关权限
-			if val, exists := d.BanList.Map.Load(mctx.Player.UserId); exists {
-				if val.Rank == BanRankBanned {
-					mctx.PrivilegeLevel = -30
-				}
-				if val.Rank == BanRankTrusted {
-					mctx.PrivilegeLevel = 70
-				}
-			}
-
-			// master 权限大于黑名单权限
-			if d.MasterCheck(mctx.Player.UserId) {
-				mctx.PrivilegeLevel = 100
-			}
-		}
+		_ = mctx.fillPrivilege(msg)
 
 		if mctx.Group != nil && mctx.Group.IsActive(mctx) {
 			if mctx.PrivilegeLevel != -30 {
@@ -1002,33 +1010,9 @@ func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
 		//tmpl, _ := d.GameSystemMap.Load(group.System)
 		//mctx.SystemTemplate = tmpl
 	}
-	if mctx.Group != nil {
-		if msg.Sender.UserId == mctx.Group.InviteUserId {
-			mctx.PrivilegeLevel = 40 // 邀请者
-		}
 
-		if msg.Sender.GroupRole == "admin" {
-			mctx.PrivilegeLevel = 50 // 群管理
-		}
-		if msg.Sender.GroupRole == "owner" {
-			mctx.PrivilegeLevel = 60 // 群主
-		}
+	_ = mctx.fillPrivilege(msg)
 
-		// 加入黑名单相关权限
-		if val, exists := d.BanList.Map.Load(mctx.Player.UserId); exists {
-			if val.Rank == BanRankBanned {
-				mctx.PrivilegeLevel = -30
-			}
-			if val.Rank == BanRankTrusted {
-				mctx.PrivilegeLevel = 70
-			}
-		}
-
-		// master 权限大于黑名单权限
-		if d.MasterCheck(mctx.Player.UserId) {
-			mctx.PrivilegeLevel = 100
-		}
-	}
 	for _, i := range s.Parent.ExtList {
 		if i.OnMessageDeleted != nil {
 			i.callWithJsCheck(mctx.Dice, func() {
