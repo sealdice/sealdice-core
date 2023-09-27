@@ -370,166 +370,148 @@ func (d *Dice) registerCoreCommands() {
 	cmdBot := &CmdItemInfo{
 		Name:      "bot",
 		ShortHelp: ".bot on/off/about/bye/quit // 开启、关闭、查看信息、退群",
-		Help:      "骰子管理:\n.bot on/off/about/bye[quit,exit] // 开启、关闭、查看信息、退群",
+		Help:      "骰子管理:\n.bot on/off/about/bye[exit,quit] // 开启、关闭、查看信息、退群",
 		Raw:       true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			inGroup := msg.MessageType == "group"
-			AtSomebodyButNotMe := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentionedFirst // 喊的不是当前骰子
+			mentionNotBot := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentionedFirst // 喊的不是当前骰子
 
-			if len(cmdArgs.Args) == 0 || cmdArgs.IsArgEqual(1, "about") {
-				if AtSomebodyButNotMe {
-					return CmdExecuteResult{Matched: false, Solved: false}
+			if inGroup && ctx.Dice.IgnoreUnaddressedBotCmd && (len(cmdArgs.At) < 1 || mentionNotBot) {
+				return CmdExecuteResult{Matched: true, Solved: false}
+			}
+
+			if len(cmdArgs.Args) > 0 && !cmdArgs.IsArgEqual(1, "about") {
+				if !inGroup || mentionNotBot {
+					return CmdExecuteResult{Matched: true, Solved: false}
 				}
-				activeCount := 0
-				serveCount := 0
-				for _, i := range d.ImSession.ServiceAtNew {
-					if i.GroupId != "" {
-						if strings.HasPrefix(i.GroupId, "PG-") {
-							continue
-						}
-						if i.DiceIdExistsMap.Exists(ctx.EndPoint.UserId) {
-							serveCount += 1
-							// 在群内的开启数量才被计算，虽然也有被踢出的
-							if i.DiceIdActiveMap.Exists(ctx.EndPoint.UserId) {
-								activeCount += 1
-							}
+
+				cmdArgs.ChopPrefixToArgsWith("on", "off")
+
+				matchNumber := func() (bool, bool) {
+					txt := cmdArgs.GetArgN(2)
+					if len(txt) >= 4 {
+						if strings.HasSuffix(ctx.EndPoint.UserId, txt) {
+							return true, txt != ""
 						}
 					}
-				}
-				//lastSavedTimeText := "从未"
-				//if d.LastSavedTime != nil {
-				//	lastSavedTimeText = d.LastSavedTime.Format("2006-01-02 15:04:05") + " UTC"
-				//}
-				onlineVer := ""
-				if d.Parent.AppVersionOnline != nil {
-					ver := d.Parent.AppVersionOnline
-					// 如果当前不是最新版，那么提示
-					if ver.VersionLatestCode != VERSION_CODE {
-						onlineVer = "\n最新版本: " + ver.VersionLatestDetail + "\n"
-					}
+					return false, txt != ""
 				}
 
-				groupWorkInfo := ""
-				if inGroup {
-					isActive := ctx.Group.IsActive(ctx)
-					activeText := "开启"
-					if !isActive {
-						activeText = "关闭"
-					}
-					groupWorkInfo = "\n群内工作状态: " + activeText
+				isMe, exists := matchNumber()
+				if exists && !isMe {
+					return CmdExecuteResult{Matched: true, Solved: false}
 				}
 
-				VarSetValueInt64(ctx, "$t供职群数", int64(serveCount))
-				VarSetValueInt64(ctx, "$t启用群数", int64(activeCount))
-				VarSetValueStr(ctx, "$t群内工作状态", groupWorkInfo)
-				ver := VERSION
-				arch := runtime.GOARCH
-				if arch != "386" && arch != "amd64" {
-					ver = fmt.Sprintf("%s %s", ver, arch)
-				}
-				baseText := fmt.Sprintf("SealDice %s%s", ver, onlineVer)
-				extText := DiceFormat(ctx, ctx.Dice.CustomBotExtraText)
-				if extText != "" {
-					extText = "\n" + extText
-				}
-				text := baseText + extText
-
-				ReplyToSender(ctx, msg, text)
-			} else {
-				if inGroup && !AtSomebodyButNotMe {
-					cmdArgs.ChopPrefixToArgsWith("on", "off")
-					matchNumber := func() (bool, bool) {
-						txt := cmdArgs.GetArgN(2)
-						if len(txt) >= 4 {
-							if strings.HasSuffix(ctx.EndPoint.UserId, txt) {
-								return true, txt != ""
-							}
-						}
-						return false, txt != ""
+				if cmdArgs.IsArgEqual(1, "on") {
+					if !(msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					if len(cmdArgs.Args) >= 1 {
-						if cmdArgs.IsArgEqual(1, "on") {
-							isMe, exists := matchNumber()
-							if exists && !isMe {
-								// 找的不是我
-								return CmdExecuteResult{Matched: false, Solved: false}
-							}
+					SetBotOnAtGroup(ctx, msg.GroupId)
+					ctx.Group = ctx.Session.ServiceAtNew[msg.GroupId]
+					ctx.IsCurGroupBotOn = true
 
-							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
-								SetBotOnAtGroup(ctx, msg.GroupId)
-							} else {
-								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
+					// "SealDice 已启用(开发中) " + VERSION
+					text := DiceFormatTmpl(ctx, "核心:骰子开启")
+					if ctx.Group.LogOn {
+						text += "\n请特别注意: 日志记录处于开启状态"
+					}
+					ReplyToSender(ctx, msg, text)
 
-							ctx.Group = ctx.Session.ServiceAtNew[msg.GroupId]
-							ctx.IsCurGroupBotOn = true
-							// "SealDice 已启用(开发中) " + VERSION
-							text := DiceFormatTmpl(ctx, "核心:骰子开启")
-							if ctx.Group.LogOn {
-								text += "\n请特别注意: 日志记录处于开启状态"
-							}
-							ReplyToSender(ctx, msg, text)
-							return CmdExecuteResult{Matched: true, Solved: true}
-						} else if cmdArgs.IsArgEqual(1, "off") {
-							isMe, exists := matchNumber()
-							if exists && !isMe {
-								// 找的不是我
-								return CmdExecuteResult{Matched: false, Solved: false}
-							}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "off") {
+					if !(msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
 
-							//if len(ctx.Group.ActivatedExtList) == 0 {
-							//	delete(ctx.Session.ServiceAt, msg.GroupId)
-							//} else {
+					SetBotOffAtGroup(ctx, ctx.Group.GroupId)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
 
-							if msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40 {
-								SetBotOffAtGroup(ctx, ctx.Group.GroupId)
-							} else {
-								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
+					if ctx.PrivilegeLevel < 40 {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
 
-							//}
-							// 停止服务
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
-							isMe, exists := matchNumber()
-							if exists && !isMe {
-								// 找的不是我
-								return CmdExecuteResult{Matched: false, Solved: false}
-							}
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
 
-							// 感觉似乎不太必要
-							pRequired := 40 // 40邀请者 50管理 60群主 100master
-							if ctx.PrivilegeLevel < pRequired {
-								ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
+					userName := ctx.Dice.Parent.TryGetUserName(msg.Sender.UserId)
+					txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)",
+						ctx.Group.GroupName, msg.GroupId, userName, msg.Sender.UserId)
+					d.Logger.Info(txt)
+					ctx.Notice(txt)
 
-							// 收到指令，5s后将退出当前群组
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
+					SetBotOffAtGroup(ctx, ctx.Group.GroupId)
+					time.Sleep(6 * time.Second)
+					ctx.Group.DiceIdExistsMap.Delete(ctx.EndPoint.UserId)
+					ctx.Group.UpdatedAtTime = time.Now().Unix()
+					ctx.EndPoint.Adapter.QuitGroup(ctx, msg.GroupId)
 
-							userName := ctx.Dice.Parent.TryGetUserName(msg.Sender.UserId)
-							_txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)", ctx.Group.GroupName, msg.GroupId, userName, msg.Sender.UserId)
-							d.Logger.Info(_txt)
-							ctx.Notice(_txt)
-							SetBotOffAtGroup(ctx, ctx.Group.GroupId)
-							time.Sleep(6 * time.Second)
-							ctx.Group.DiceIdExistsMap.Delete(ctx.EndPoint.UserId)
-							ctx.Group.UpdatedAtTime = time.Now().Unix()
-							ctx.EndPoint.Adapter.QuitGroup(ctx, msg.GroupId)
-							return CmdExecuteResult{Matched: true, Solved: true}
-						} else if cmdArgs.IsArgEqual(1, "save") {
-							d.Save(false)
-							// 数据已保存
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子保存设置"))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				} else if cmdArgs.IsArgEqual(1, "save") {
+					d.Save(false)
+
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子保存设置"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
+			if mentionNotBot {
+				return CmdExecuteResult{Matched: false, Solved: false}
+			}
+
+			activeCount := 0
+			serveCount := 0
+			for _, gp := range d.ImSession.ServiceAtNew {
+				if gp.GroupId != "" &&
+					!strings.HasPrefix(gp.GroupId, "PG-") &&
+					gp.DiceIdExistsMap.Exists(ctx.EndPoint.UserId) {
+					serveCount += 1
+					if gp.DiceIdActiveMap.Exists(ctx.EndPoint.UserId) {
+						activeCount += 1
 					}
 				}
 			}
+
+			onlineVer := ""
+			if d.Parent.AppVersionOnline != nil {
+				ver := d.Parent.AppVersionOnline
+				// 如果当前不是最新版，那么提示
+				if ver.VersionLatestCode != VERSION_CODE {
+					onlineVer = "\n最新版本: " + ver.VersionLatestDetail + "\n"
+				}
+			}
+
+			groupWorkInfo := ""
+			if inGroup {
+				activeText := "关闭"
+				if ctx.Group.IsActive(ctx) {
+					activeText = "开启"
+				}
+				groupWorkInfo = "\n群内工作状态: " + activeText
+			}
+
+			VarSetValueInt64(ctx, "$t供职群数", int64(serveCount))
+			VarSetValueInt64(ctx, "$t启用群数", int64(activeCount))
+			VarSetValueStr(ctx, "$t群内工作状态", groupWorkInfo)
+			ver := VERSION
+			arch := runtime.GOARCH
+			if arch != "386" && arch != "amd64" {
+				ver = fmt.Sprintf("%s %s", ver, arch)
+			}
+			baseText := fmt.Sprintf("SealDice %s%s", ver, onlineVer)
+			extText := DiceFormat(ctx, ctx.Dice.CustomBotExtraText)
+			if extText != "" {
+				extText = "\n" + extText
+			}
+			text := baseText + extText
+
+			ReplyToSender(ctx, msg, text)
 
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
@@ -683,7 +665,7 @@ func (d *Dice) registerCoreCommands() {
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
 .master backup // 做一次备份
 .master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档
-.master quitgroup <群组ID> // 从指定群组中退出，必须在同一平台使用`
+.master quitgroup <群组ID> <理由(可选)> // 从指定群组中退出，必须在同一平台使用`
 	cmdMaster := &CmdItemInfo{
 		Name:          "master",
 		ShortHelp:     masterListHelp,

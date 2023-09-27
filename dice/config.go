@@ -1489,6 +1489,7 @@ func (d *Dice) loads() {
 			d.QQChannelAutoOn = dNew.QQChannelAutoOn
 			d.QQEnablePoke = dNew.QQEnablePoke
 			d.TextCmdTrustOnly = dNew.TextCmdTrustOnly
+			d.IgnoreUnaddressedBotCmd = dNew.IgnoreUnaddressedBotCmd
 			d.UILogLimit = dNew.UILogLimit
 			d.FriendAddComment = dNew.FriendAddComment
 			d.AutoReloginEnable = dNew.AutoReloginEnable
