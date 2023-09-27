@@ -34,6 +34,12 @@ func DBCacheDelete() bool {
 	if ok {
 		tryDelete("data-logs.db-wal")
 	}
+	if ok {
+		tryDelete("data-censor.db-shm")
+	}
+	if ok {
+		tryDelete("data-censor.db-wal")
+	}
 	return ok
 }
 
@@ -65,6 +71,7 @@ func DBVacuum() {
 
 	go vacuum("./data/default/data.db", &wg)
 	go vacuum("./data/default/data-logs.db", &wg)
+	go vacuum("./data/default/data-censor.db", &wg)
 
 	wg.Wait()
 

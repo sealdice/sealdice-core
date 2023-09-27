@@ -87,6 +87,19 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 					_ = dbLogs.Close()
 				}
 			})()
+
+			(func() {
+				defer func() {
+					_ = recover()
+				}()
+				cm := d.CensorManager
+				if cm != nil && cm.DB != nil {
+					var dbCensor = cm.DB
+					cm.DB = nil
+					_ = dbCensor.Close()
+				}
+			})()
+
 			//if i.DB != nil {
 			//	i.DB.Close()
 			//}
