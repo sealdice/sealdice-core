@@ -577,9 +577,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					ReplyToSender(mctx, msg, text)
 				}
 				if msg.MessageType == "group" {
-					log.Infof("拒绝处理命中敏感词的内容: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+					log.Infof("拒绝处理命中敏感词的内容「%s」- 来自群(%s)内<%s>(%s)", msg.Message, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId)
 				} else {
-					log.Infof("拒绝处理命中敏感词的内容: 来自<%s>(%s): %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+					log.Infof("拒绝处理命中敏感词的内容「%s」- 来自<%s>(%s)", msg.Message, msg.Sender.Nickname, msg.Sender.UserId)
 				}
 				return
 			}
@@ -681,9 +681,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 							ReplyToSender(mctx, msg, text)
 						}
 						if msg.MessageType == "group" {
-							log.Infof("拒绝处理命中敏感词的指令: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+							log.Infof("拒绝处理命中敏感词的指令「%s」- 来自群(%s)内<%s>(%s)", msg.Message, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId)
 						} else {
-							log.Infof("拒绝处理命中敏感词的指令: 来自<%s>(%s): %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+							log.Infof("拒绝处理命中敏感词的指令「%s」- 来自<%s>(%s)", msg.Message, msg.Sender.Nickname, msg.Sender.UserId)
 						}
 						return
 					}
