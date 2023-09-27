@@ -288,21 +288,23 @@
     </el-form-item>
 
     <el-form-item>
-      上限 <el-input v-model="config.customBurst" clearable style="width: 14rem;" />
+      上限 <el-input-number v-model="config.customBurst" :min="1" :step="1" clearable/>
     </el-form-item>
 
     <el-form-item>
-      <div>
-        刷屏警告工作原理如下：
-        <ul>
-          <li>有一个装令牌的桶，桶最多能装【上限】枚令牌</li>
-          <li>每次指令视作拿走一枚令牌</li>
-          <li>当桶里没有令牌时，试图拿走令牌将被阻止（触发警告）</li>
-          <li>桶以【速率】自动补充令牌</li>
-        </ul>
-      </div>
-      <div>如果您感觉难以理解，为了稳定性还是不要更改比较好！</div>
-      <div>对速率限制的所有更改<b>重启后生效</b></div>
+      <el-text>
+        <div>
+          刷屏警告工作原理如下：
+          <ul>
+            <li>每群每用户独立有一个装令牌的桶，桶最多能装「上限」枚令牌</li>
+            <li>每次指令视作拿走一枚令牌</li>
+            <li>当桶里没有令牌时，试图拿走令牌将被阻止（触发警告）</li>
+            <li>桶以「速率」自动补充令牌</li>
+          </ul>
+        </div>
+        <div>如果您感觉难以理解，为了稳定性还是不要更改比较好！</div>
+        <div>对速率限制的所有更改 <strong>重启后生效</strong> </div>
+      </el-text>
     </el-form-item>
 
     <h2>访问控制</h2>

@@ -1,9 +1,19 @@
 <template>
-  <header>
-    <el-upload action="" multiple accept="application/text,.text,application/toml,.toml"
+  <h4>词库列表</h4>
+  <header class="page-header">
+    <el-upload action="" multiple accept="application/text,.txt,application/toml,.toml"
                :before-upload="beforeUpload">
       <el-button type="primary" :icon="Upload">导入</el-button>
     </el-upload>
+    <el-space>
+      <el-button style="text-decoration: none" type="success" tag="a" target="_blank" link size="small"
+                 :href="`${urlBase}/sd-api/censor/files/template/toml`" :icon="Download">
+        下载 toml 词库模板
+      </el-button>
+      <el-button style="text-decoration: none" type="success" tag="a" target="_blank" link size="small"
+                 :href="`${urlBase}/sd-api/censor/files/template/txt`" :icon="Download">下载 txt 词库模板
+      </el-button>
+    </el-space>
   </header>
   <main style="margin-top: 1rem;">
     <el-table table-layout="auto" :data="files">
@@ -40,9 +50,9 @@
 </template>
 
 <script setup lang="ts">
-import {Delete, Upload} from "@element-plus/icons-vue";
+import {Delete, Download, Upload} from "@element-plus/icons-vue";
 import {urlPrefix, useStore} from "~/store";
-import {backend} from "~/backend";
+import {backend, urlBase} from "~/backend";
 import {onBeforeMount, ref} from "vue";
 import {useCensorStore} from "~/components/mod/censor/censor";
 import {ElMessage, ElMessageBox, UploadUserFile} from "element-plus";

@@ -8,6 +8,7 @@ declare module 'vue' {
     CensorFiles: typeof import('./components/mod/censor/CensorFiles.vue')['default']
     CensorLog: typeof import('./components/mod/censor/CensorLog.vue')['default']
     CensorWords: typeof import('./components/mod/censor/CensorWords.vue')['default']
+    CensorWordTip: typeof import('./components/mod/censor/CensorWordTip.vue')['default']
     ElAffix: typeof import('element-plus/es')['ElAffix']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAutocomplete: typeof import('element-plus/es')['ElAutocomplete']

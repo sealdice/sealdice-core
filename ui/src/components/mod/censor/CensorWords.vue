@@ -1,7 +1,8 @@
 <template>
-<!--  <header>-->
-<!--    <el-button type="primary" :icon="Refresh" @click="refreshWords" plain>刷新列表</el-button>-->
-<!--  </header>-->
+  <h4>敏感词列表</h4>
+  <!--  <header>-->
+  <!--    <el-button type="primary" :icon="Refresh" @click="refreshWords" plain>刷新列表</el-button>-->
+  <!--  </header>-->
   <main style="margin-top: 1rem;">
     <el-table table-layout="auto" :data="words" :default-sort="{ prop: 'level', order: 'ascending' }">
       <el-table-column label="级别" width="80px">
@@ -14,8 +15,8 @@
       </el-table-column>
       <el-table-column label="匹配词汇">
         <template #default="scope">
-          <el-space v-if="scope.row.related" v-for="word of scope.row.related" :key="word.word" wrap>
-            <el-text>{{ word.word }}</el-text>
+          <el-space v-if="scope.row.related" wrap>
+            <el-text v-for="word of scope.row.related" :key="word.word">{{ word.word }}</el-text>
           </el-space>
           <el-space v-else>
             <el-text>{{ scope.row.main }}</el-text>

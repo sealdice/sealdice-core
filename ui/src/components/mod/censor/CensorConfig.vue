@@ -74,7 +74,7 @@
       <el-space direction="vertical" alignment="normal">
         <div>
           <el-checkbox-group v-model="config.levelConfig.notice.handlers">
-            <el-checkbox v-for="handle in defaultHandles" :label="handle.key">
+            <el-checkbox v-for="handle in defaultHandles" :key="handle.key" :label="handle.key">
               {{ handle.name }}
             </el-checkbox>
           </el-checkbox-group>
@@ -97,7 +97,7 @@
       <el-space direction="vertical" alignment="normal">
         <div>
           <el-checkbox-group v-model="config.levelConfig.caution.handlers">
-            <el-checkbox v-for="handle in defaultHandles" :label="handle.key">
+            <el-checkbox v-for="handle in defaultHandles" :key="handle.key" :label="handle.key">
               {{ handle.name }}
             </el-checkbox>
           </el-checkbox-group>
@@ -120,7 +120,7 @@
       <el-space direction="vertical" alignment="normal">
         <div>
           <el-checkbox-group v-model="config.levelConfig.warning.handlers">
-            <el-checkbox v-for="handle in defaultHandles" :label="handle.key">
+            <el-checkbox v-for="handle in defaultHandles" :key="handle.key" :label="handle.key">
               {{ handle.name }}
             </el-checkbox>
           </el-checkbox-group>
@@ -143,7 +143,7 @@
       <el-space direction="vertical" alignment="normal">
         <div>
           <el-checkbox-group v-model="config.levelConfig.danger.handlers">
-            <el-checkbox v-for="handle in defaultHandles" :label="handle.key">
+            <el-checkbox v-for="handle in defaultHandles" :key="handle.key" :label="handle.key">
               {{ handle.name }}
             </el-checkbox>
           </el-checkbox-group>
