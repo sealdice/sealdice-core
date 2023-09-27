@@ -2,7 +2,6 @@ package censor
 
 import (
 	"bufio"
-	"github.com/pelletier/go-toml/v2"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,8 +10,8 @@ import (
 	"time"
 
 	nanoid "github.com/matoous/go-nanoid/v2"
-
 	"github.com/mozillazg/go-pinyin"
+	"github.com/pelletier/go-toml/v2"
 )
 
 const (
@@ -152,8 +151,8 @@ func (c *Censor) tryPreloadTxtFile(path string) (*WordFile, error) {
 
 type TomlMeta struct {
 	Name       string    `toml:"name" comment:"词库名称"`
-	Author     string    `toml:"author" comment:"作者"`
-	Authors    []string  `toml:"authors" comment:"作者（多个），优先级高于 author"`
+	Author     string    `toml:"author" comment:"作者，和 authors 存在一个即可"`
+	Authors    []string  `toml:"authors" comment:"作者（多个），和 author 存在一个即可，同时存在时优先级高于 author"`
 	Version    string    `toml:"version" comment:"版本，建议使用语义化版本号"`
 	Desc       string    `toml:"desc" comment:"简介"`
 	License    string    `toml:"license" comment:"协议"`

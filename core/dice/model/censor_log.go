@@ -47,7 +47,7 @@ INSERT INTO censor_log(
 }
 
 func CensorCount(db *sqlx.DB, userId string) map[censor.Level]int {
-	levels := [4]censor.Level{censor.Notice, censor.Caution, censor.Warning, censor.Danger}
+	levels := [5]censor.Level{censor.Ignore, censor.Notice, censor.Caution, censor.Warning, censor.Danger}
 	var temp int
 	res := make(map[censor.Level]int)
 	for _, level := range levels {
