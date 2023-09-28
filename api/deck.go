@@ -147,14 +147,16 @@ func deckCheckUpdate(c echo.Context) error {
 
 	if err == nil {
 		if v.Index >= 0 && v.Index < len(myDice.DeckList) {
-			oldDeck, newDeck, err := myDice.DeckCheckUpdate(myDice.DeckList[v.Index])
+			deck := myDice.DeckList[v.Index]
+			oldDeck, newDeck, tempFileName, err := myDice.DeckCheckUpdate(deck)
 			if err != nil {
 				return Error(&c, err.Error(), Response{})
 			}
-			myDice.MarkModified()
 			return Success(&c, Response{
-				"oldDeck": oldDeck,
-				"newDeck": newDeck,
+				"old":          oldDeck,
+				"new":          newDeck,
+				"format":       deck.FileFormat,
+				"tempFileName": tempFileName,
 			})
 		}
 	}
@@ -169,14 +171,14 @@ func deckUpdate(c echo.Context) error {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
 	v := struct {
-		Index   int    `json:"index"`
-		NewDeck string `json:"newDeck"`
+		Index        int    `json:"index"`
+		TempFileName string `json:"tempFileName"`
 	}{}
 	err := c.Bind(&v)
 
 	if err == nil {
 		if v.Index >= 0 && v.Index < len(myDice.DeckList) {
-			err := myDice.DeckUpdate(myDice.DeckList[v.Index], v.NewDeck)
+			err := myDice.DeckUpdate(myDice.DeckList[v.Index], v.TempFileName)
 			if err != nil {
 				return Error(&c, err.Error(), Response{})
 			}

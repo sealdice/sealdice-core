@@ -346,6 +346,16 @@ func (d *Dice) JsExtSettingVacuum() {
 	panic("DONT USE ME")
 }
 
+type Prop struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+
+	Name     string `json:"name"`
+	Desc     string `json:"desc"`
+	Required bool   `json:"required"`
+	Default  string `json:"default"`
+}
+
 type JsScriptInfo struct {
 	/** 名称 */
 	Name string `json:"name"`

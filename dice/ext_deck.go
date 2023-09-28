@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"math/rand"
 	"net/http"
@@ -59,70 +58,67 @@ type DeckSinaNyaFormat struct {
 	Etag       string   `json:"etag"`
 }
 
-type Prop struct {
-	Key   string `toml:"key" json:"key" yaml:"key"`
-	Value string `toml:"value" json:"value" yaml:"value"`
+type SealMeta struct {
+	Title         string    `toml:"title"`
+	Author        string    `toml:"author"`
+	Authors       []string  `toml:"authors"`
+	Version       string    `toml:"version"`
+	License       string    `toml:"license"`
+	Date          time.Time `toml:"date"`
+	UpdateDate    time.Time `toml:"update_date"`
+	Desc          string    `toml:"desc"`
+	FormatVersion int64     `toml:"format_version"`
 
-	Name     string `toml:"name" json:"name" yaml:"name"`
-	Desc     string `toml:"desc" json:"desc" yaml:"desc"`
-	Required bool   `toml:"required" json:"required" yaml:"required"`
-	Default  string `toml:"default" json:"default" yaml:"default"`
+	UpdateUrls []string `toml:"update_urls"`
+	Etag       string   `toml:"etag"`
 }
 
 type SealComplexSingleDeck struct {
-	Export  bool     `toml:"export"`
-	Visible bool     `toml:"visible"`
-	Aliases []string `toml:"aliases"`
+	Export  bool     `toml:"export" mapstructure:"export"`
+	Visible bool     `toml:"visible" mapstructure:"visible"`
+	Aliases []string `toml:"aliases" mapstructure:"aliases"`
+	Replace bool     `toml:"replace" mapstructure:"replace"` // 是否放回
 
-	// 文本牌堆项
-	Options []string `toml:"options"`
+	// 文本牌组项
+	Options []string `toml:"options" mapstructure:"options"`
 
-	// 云牌堆项
-	CloudExtra bool   `toml:"cloudExtra"`
-	OptionsUrl string `toml:"optionsUrl"`
-	Etag       string `toml:"etag"`
+	// 云牌组项
+	CloudExtra  bool     `toml:"cloud_extra" mapstructure:"cloud_extra"`
+	Distinct    bool     `toml:"distinct" mapstructure:"distinct"`
+	OptionsUrls []string `toml:"options_urls" mapstructure:"options_urls"`
 }
 
 type DeckSealFormat struct {
-	Meta struct {
-		Title      string    `toml:"title"`
-		Author     string    `toml:"author"`
-		Authors    []string  `toml:"authors"`
-		Version    string    `toml:"version"`
-		License    string    `toml:"license"`
-		Date       time.Time `toml:"date"`
-		UpdateDate time.Time `toml:"update_date"`
-		Desc       string    `toml:"desc"`
-
-		UpdateUrls []string `toml:"update_urls"`
-		Etag       string   `toml:"etag"`
-	} `toml:"meta"`
-
-	Props []Prop `toml:"props"`
-
+	Meta  SealMeta            `toml:"meta"`
 	Decks map[string][]string `toml:"decks"`
 }
 
+type CloudDeckItemInfo struct {
+	Distinct    bool
+	OptionsUrls []string
+}
+
 type DeckInfo struct {
-	Enable        bool                 `json:"enable" yaml:"enable"`
-	Filename      string               `json:"filename" yaml:"filename"`
-	Format        string               `json:"format" yaml:"format"`               // 几种：“SinaNya” ”Dice!“ "Seal"
-	FormatVersion int64                `json:"formatVersion" yaml:"formatVersion"` // 格式版本，默认都是1
-	FileFormat    string               `json:"fileFormat" yaml:"-" `               // json / yaml / toml
-	Name          string               `json:"name" yaml:"name"`
-	Version       string               `json:"version" yaml:"-"`
-	Author        string               `json:"author" yaml:"-"`
-	License       string               `json:"license" yaml:"-"` // 许可协议，如cc-by-nc等
-	Command       map[string]bool      `json:"command" yaml:"-"` // 牌堆命令名
-	DeckItems     map[string][]string  `yaml:"-" json:"-"`
-	Date          string               `json:"date" yaml:"-" `
-	UpdateDate    string               `json:"updateDate" yaml:"-" `
-	Desc          string               `yaml:"-" json:"desc"`
-	Info          []string             `yaml:"-" json:"-"`
-	RawData       *map[string][]string `yaml:"-" json:"-"`
-	UpdateUrls    []string             `yaml:"updateUrls" json:"updateUrls"`
-	Etag          string               `yaml:"etag" json:"etag"`
-	Props         []Prop               `yaml:"props" json:"props"`
+	Enable             bool                          `json:"enable" yaml:"enable"`
+	Filename           string                        `json:"filename" yaml:"filename"`
+	Format             string                        `json:"format" yaml:"format"`               // 几种：“SinaNya” ”Dice!“ "Seal"
+	FormatVersion      int64                         `json:"formatVersion" yaml:"formatVersion"` // 格式版本，默认都是1
+	FileFormat         string                        `json:"fileFormat" yaml:"-" `               // json / yaml / toml
+	Name               string                        `json:"name" yaml:"name"`
+	Version            string                        `json:"version" yaml:"-"`
+	Author             string                        `json:"author" yaml:"-"`
+	License            string                        `json:"license" yaml:"-"` // 许可协议，如cc-by-nc等
+	Command            map[string]bool               `json:"command" yaml:"-"` // 牌堆命令名
+	DeckItems          map[string][]string           `yaml:"-" json:"-"`
+	Date               string                        `json:"date" yaml:"-" `
+	UpdateDate         string                        `json:"updateDate" yaml:"-" `
+	Desc               string                        `yaml:"-" json:"desc"`
+	Info               []string                      `yaml:"-" json:"-"`
+	RawData            *map[string][]string          `yaml:"-" json:"-"`
+	UpdateUrls         []string                      `yaml:"updateUrls" json:"updateUrls"`
+	Etag               string                        `yaml:"etag" json:"etag"`
+	Cloud              bool                          `yaml:"cloud" json:"cloud"` // 含有云端内容
+	CloudDeckItemInfos map[string]*CloudDeckItemInfo `yaml:"-" json:"-"`
 }
 
 func tryParseDiceE(content []byte, deckInfo *DeckInfo) bool {
@@ -190,25 +186,28 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.UpdateDate = strings.Join(jsonData2.UpdateDate, " / ")
 	deckInfo.Format = "Dice!"
 	deckInfo.FormatVersion = 1
+	deckInfo.FileFormat = "json"
 	deckInfo.Enable = true
+	deckInfo.UpdateUrls = jsonData2.UpdateUrls
+	deckInfo.Etag = jsonData2.Etag
 	deckInfo.RawData = &jsonData
 	return true
 }
 
 func tryParseSinaNya(content []byte, deckInfo *DeckInfo) bool {
-	jsonData := map[string]interface{}{}
-	err := yaml.Unmarshal(content, &jsonData)
+	yamlData := map[string]interface{}{}
+	err := yaml.Unmarshal(content, &yamlData)
 	if err != nil {
 		return false
 	}
-	jsonData2 := DeckSinaNyaFormat{}
-	err = yaml.Unmarshal(content, &jsonData2)
+	yamlData2 := DeckSinaNyaFormat{}
+	err = yaml.Unmarshal(content, &yamlData2)
 	if err != nil {
 		return false
 	}
 
-	jsonDataFix := map[string][]string{}
-	for k, v := range jsonData {
+	yamlDataFix := map[string][]string{}
+	for k, v := range yamlData {
 		vs1, ok := v.([]interface{})
 		if ok {
 			vs2 := make([]string, len(vs1))
@@ -216,33 +215,36 @@ func tryParseSinaNya(content []byte, deckInfo *DeckInfo) bool {
 				vs2[i], _ = v.(string)
 			}
 
-			jsonDataFix[k] = vs2
+			yamlDataFix[k] = vs2
 		}
 	}
 
-	if jsonData2.Default != nil {
-		deckInfo.Command[jsonData2.Command] = true
-		deckInfo.DeckItems[jsonData2.Command] = jsonData2.Default
-		for k, v := range jsonDataFix {
+	if yamlData2.Default != nil {
+		deckInfo.Command[yamlData2.Command] = true
+		deckInfo.DeckItems[yamlData2.Command] = yamlData2.Default
+		for k, v := range yamlDataFix {
 			deckInfo.DeckItems[k] = v
 		}
 	} else {
-		for k, v := range jsonDataFix {
+		for k, v := range yamlDataFix {
 			deckInfo.DeckItems[k] = v
 			deckInfo.Command[k] = true
 		}
 	}
 
-	deckInfo.Name = jsonData2.Name
-	deckInfo.Author = jsonData2.Author
-	deckInfo.Version = strconv.Itoa(jsonData2.Version)
-	deckInfo.License = jsonData2.License
-	deckInfo.Desc = jsonData2.Desc
-	deckInfo.Info = jsonData2.Info
-	deckInfo.RawData = &jsonDataFix
+	deckInfo.Name = yamlData2.Name
+	deckInfo.Author = yamlData2.Author
+	deckInfo.Version = strconv.Itoa(yamlData2.Version)
+	deckInfo.License = yamlData2.License
+	deckInfo.Desc = yamlData2.Desc
+	deckInfo.Info = yamlData2.Info
+	deckInfo.RawData = &yamlDataFix
 	deckInfo.Format = "SinaNya"
 	deckInfo.FormatVersion = 1
+	deckInfo.FileFormat = "yaml"
 	deckInfo.Enable = true
+	deckInfo.UpdateUrls = yamlData2.UpdateUrls
+	deckInfo.Etag = yamlData2.Etag
 	return true
 }
 
@@ -260,6 +262,7 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
 
 	tomlDataFix := map[string][]string{}
 
+	// 简单牌组
 	for name, deckItems := range deckData.Decks {
 		deckInfo.DeckItems[name] = deckItems
 		if strings.HasPrefix(name, "__") {
@@ -271,6 +274,7 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
 		}
 	}
 
+	// 复杂牌组
 	for k, v := range tomlData {
 		if k == "" || k == "meta" || k == "decks" {
 			continue
@@ -280,7 +284,7 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
 		itemData, ok := v.(map[string]interface{})
 		if ok {
 			err := mapstructure.Decode(itemData, &item)
-			if err != nil {
+			if err == nil {
 				deckItemName := k
 				deckInfo.DeckItems[deckItemName] = tomlDataFix[k]
 				if !item.Export {
@@ -304,72 +308,14 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
 						deckInfo.Command[alias] = true
 					}
 				}
-			}
-		}
 
-		switch temp := v.(type) {
-		case []interface{}:
-			// 简单牌组
-			for _, option := range temp {
-				option, ok := option.(string)
-				if ok {
-					tomlDataFix[k] = append(tomlDataFix[k], option)
-				}
-			}
-			deckInfo.DeckItems[k] = tomlDataFix[k]
-			if strings.HasPrefix(k, "__") {
-				continue
-			} else if strings.HasPrefix(k, "_") {
-				deckInfo.Command[k] = false
-			} else {
-				deckInfo.Command[k] = true
-			}
-		case map[string]interface{}:
-			// 复杂牌组
-			options, ok := temp["options"]
-			if ok {
-				options, ok := options.([]interface{})
-				if ok {
-					for _, option := range options {
-						option, ok := option.(string)
-						if ok {
-							tomlDataFix[k] = append(tomlDataFix[k], option)
-						}
+				// 云牌组项
+				if item.CloudExtra {
+					deckInfo.Cloud = true
+					deckInfo.CloudDeckItemInfos[deckItemName] = &CloudDeckItemInfo{
+						Distinct:    item.Distinct,
+						OptionsUrls: item.OptionsUrls,
 					}
-				}
-			}
-
-			var export, show bool
-			e, ok1 := temp["export"]
-			s, ok2 := temp["visible"]
-			if ok1 || ok2 {
-				export, _ = e.(bool)
-				show, _ = s.(bool)
-			}
-
-			var deckItemName []string
-			deckItemName = append(deckItemName, k)
-			aliases, ok := temp["aliases"]
-			if ok {
-				aliases, ok := aliases.([]interface{})
-				if ok {
-					for _, alias := range aliases {
-						alias, ok := alias.(string)
-						if ok {
-							deckItemName = append(deckItemName, alias)
-						}
-					}
-				}
-			}
-
-			for _, name := range deckItemName {
-				deckInfo.DeckItems[name] = tomlDataFix[k]
-				if !export {
-					continue
-				} else if !show {
-					deckInfo.Command[name] = false
-				} else {
-					deckInfo.Command[name] = true
 				}
 			}
 		}
@@ -383,6 +329,10 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
 	} else {
 		author = meta.Author
 	}
+	if meta.FormatVersion == 0 {
+		meta.FormatVersion = 1
+	}
+
 	deckInfo.Author = author
 	deckInfo.Version = meta.Version
 	deckInfo.License = meta.License
@@ -390,12 +340,12 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.UpdateDate = meta.UpdateDate.Format("2006-01-02")
 	deckInfo.Desc = meta.Desc
 	deckInfo.Format = "Seal"
-	deckInfo.FormatVersion = 1
+	deckInfo.FormatVersion = meta.FormatVersion
+	deckInfo.FileFormat = "toml"
 	deckInfo.Enable = true
 	deckInfo.UpdateUrls = meta.UpdateUrls
 	deckInfo.Etag = meta.Etag
 	deckInfo.RawData = &tomlDataFix
-	deckInfo.Props = deckData.Props
 	return true
 }
 
@@ -409,10 +359,6 @@ func DeckTryParse(d *Dice, fn string) {
 		d.Logger.Infof("牌堆文件“%s”加载失败", fn)
 		return
 	}
-	if isPrefixWithUtf8Bom(content) {
-		content = content[3:]
-	}
-
 	deckInfo := new(DeckInfo)
 	if deckInfo.DeckItems == nil {
 		deckInfo.DeckItems = map[string][]string{}
@@ -420,21 +366,10 @@ func DeckTryParse(d *Dice, fn string) {
 	if deckInfo.Command == nil {
 		deckInfo.Command = map[string]bool{}
 	}
-
-	if path.Ext(fn) == ".toml" {
-		if !tryParseSeal(content, deckInfo) {
-			d.Logger.Infof("牌堆文件“%s”解析失败", fn)
-		}
-	} else if !tryParseDiceE(content, deckInfo) {
-		if path.Ext(fn) != ".json" {
-			if !tryParseSinaNya(content, deckInfo) {
-				d.Logger.Infof("牌堆文件“%s”解析失败", fn)
-				return
-			}
-		} else {
-			d.Logger.Infof("牌堆文件“%s”解析失败", fn)
-		}
+	if deckInfo.CloudDeckItemInfos == nil {
+		deckInfo.CloudDeckItemInfos = map[string]*CloudDeckItemInfo{}
 	}
+	_ = parseDeck(d, fn, content, deckInfo)
 	deckInfo.Filename = fn
 
 	if deckInfo.Name == "" {
@@ -443,6 +378,30 @@ func DeckTryParse(d *Dice, fn string) {
 
 	d.DeckList = append(d.DeckList, deckInfo)
 	d.MarkModified()
+}
+
+func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
+	if isPrefixWithUtf8Bom(content) {
+		content = content[3:]
+	}
+	ext := strings.ToLower(path.Ext(fn))
+	if ext == ".toml" {
+		if !tryParseSeal(content, deckInfo) {
+			d.Logger.Infof("牌堆文件“%s”解析失败", fn)
+			return false
+		}
+	} else if !tryParseDiceE(content, deckInfo) {
+		if ext != ".json" {
+			if !tryParseSinaNya(content, deckInfo) {
+				d.Logger.Infof("牌堆文件“%s”解析失败", fn)
+				return false
+			}
+		} else {
+			d.Logger.Infof("牌堆文件“%s”解析失败", fn)
+			return false
+		}
+	}
+	return true
 }
 
 // DecksDetect 检查牌堆
@@ -937,7 +896,7 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 			ctx.DeckPools[deckInfo] = map[string]*ShuffleRandomPool{}
 		}
 
-		deckGroup := deckInfo.DeckItems[deckName]
+		deckGroup := getDeckGroup(deckInfo, deckName)
 		if ctx.DeckPools[deckInfo][deckName] == nil {
 			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
 		}
@@ -951,12 +910,47 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		key = pool.Pick().(string)
 		//fmt.Println("!!!!!!", pool.data, deckName, key)
 	} else {
-		deckGroup := deckInfo.DeckItems[deckName]
+		deckGroup := getDeckGroup(deckInfo, deckName)
 		pool := DeckToRandomPool(deckGroup)
 		key = pool.Pick().(string)
 	}
 	cmd, err := deckStringFormat(ctx, deckInfo, key)
 	return cmd, err
+}
+
+func getDeckGroup(deckInfo *DeckInfo, deckName string) (deckGroup []string) {
+	deckGroup = deckInfo.DeckItems[deckName]
+	if deckInfo.Cloud {
+		// 含有云端内容时，查看是否需要补充
+		cloudInfo, ok := deckInfo.CloudDeckItemInfos[deckName]
+		if ok {
+			statusCode, newData, err := GetCloudContent(cloudInfo.OptionsUrls, "")
+			if err != nil {
+				return
+			}
+			if statusCode == http.StatusOK {
+				cloudItems := make([]string, 0)
+				err := json.Unmarshal(newData, &cloudItems)
+				if err != nil {
+					return
+				}
+				deckGroup = append(deckGroup, cloudItems...)
+				if cloudInfo.Distinct {
+					// 内容去重
+					tempSet := map[string]bool{}
+					for _, item := range deckGroup {
+						tempSet[item] = true
+					}
+					temp := make([]string, 0, len(tempSet))
+					for item := range tempSet {
+						temp = append(temp, item)
+					}
+					deckGroup = temp
+				}
+			}
+		}
+	}
+	return
 }
 
 func extractWeight(s string) (uint, string) {
@@ -1075,81 +1069,72 @@ func extractExecuteContent(s string) (string, string) {
 	return s[start+1 : end], s[end+1:]
 }
 
-func (d *Dice) DeckCheckUpdate(deckInfo *DeckInfo) (string, string, error) {
+func (d *Dice) DeckCheckUpdate(deckInfo *DeckInfo) (string, string, string, error) {
 	if len(deckInfo.UpdateUrls) != 0 {
-		for _, url := range deckInfo.UpdateUrls {
-			statusCode, newData, err := getNewDeck(url, deckInfo.Etag)
-			if err != nil {
-				return "", "", err
-			}
-			if statusCode == http.StatusOK {
-				oldData, err := os.ReadFile(deckInfo.Filename)
-				if err != nil {
-					return "", "", err
-				}
-				return string(oldData), string(newData), nil
-			}
+		statusCode, newData, err := GetCloudContent(deckInfo.UpdateUrls, deckInfo.Etag)
+		if err != nil {
+			return "", "", "", err
 		}
-		return "", "", fmt.Errorf("未获取到牌堆更新")
+		if statusCode == http.StatusOK {
+			oldData, err := os.ReadFile(deckInfo.Filename)
+			if err != nil {
+				return "", "", "", err
+			}
+
+			// 内容预处理
+			if isPrefixWithUtf8Bom(oldData) {
+				oldData = oldData[3:]
+			}
+			oldDeck := strings.ReplaceAll(string(oldData), "\r\n", "\n")
+			if isPrefixWithUtf8Bom(newData) {
+				newData = newData[3:]
+			}
+			newDeck := strings.ReplaceAll(string(newData), "\r\n", "\n")
+
+			temp, err := os.CreateTemp("", filepath.Base(deckInfo.Filename)+".new.*")
+			if err != nil {
+				return "", "", "", err
+			}
+			defer func(temp *os.File) {
+				_ = temp.Close()
+			}(temp)
+
+			_, err = temp.WriteString(newDeck)
+			if err != nil {
+				return "", "", "", err
+			}
+			return oldDeck, newDeck, temp.Name(), nil
+		} else if statusCode == http.StatusNotModified {
+			return "", "", "", fmt.Errorf("牌堆没有更新")
+		}
+		return "", "", "", fmt.Errorf("未获取到牌堆更新")
 	} else {
-		return "", "", fmt.Errorf("牌堆未提供更新链接")
+		return "", "", "", fmt.Errorf("牌堆未提供更新链接")
 	}
 }
 
-func (d *Dice) DeckUpdate(deckInfo *DeckInfo, newStr string) error {
-	newData := []byte(newStr)
-	// 更新牌堆
-	var ok bool
-	switch deckInfo.Format {
-	case "Dice!":
-		ok = tryParseDiceE(newData, deckInfo)
-	case "SinaNya":
-		ok = tryParseSinaNya(newData, deckInfo)
-	case "Seal":
-		ok = tryParseSeal(newData, deckInfo)
+func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
+	newData, err := os.ReadFile(tempFileName)
+	_ = os.Remove(tempFileName)
+	if err != nil {
+		return err
 	}
+	if len(newData) == 0 {
+		return fmt.Errorf("new data is empty")
+	}
+	// 更新牌堆
+	ok := parseDeck(d, filepath.Base(tempFileName), newData, deckInfo)
 	if ok {
 		err := os.WriteFile(deckInfo.Filename, newData, 0755)
 		if err != nil {
 			d.Logger.Errorf("牌堆“%s”更新时保存文件出错，%s", deckInfo.Name, err.Error())
+			return err
 		} else {
 			d.Logger.Infof("牌堆“%s”更新成功", deckInfo.Name)
 		}
 	} else {
 		d.Logger.Errorf("牌堆“%s”更新失败，无法解析获取到的牌堆数据", deckInfo.Name)
+		return fmt.Errorf("无法解析获取到的牌堆数据")
 	}
 	return nil
-}
-
-func getNewDeck(url, etag string) (int, []byte, error) {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", url, http.NoBody)
-	if err != nil {
-		return 0, nil, err
-	}
-	req.Header.Add("Accept", "application/toml;application/json")
-	if etag != "" {
-		req.Header.Add("If-None-Match", etag)
-	}
-	resp, err := client.Do(req)
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	switch resp.StatusCode {
-	case http.StatusNotModified:
-		return http.StatusNotModified, nil, nil
-	case http.StatusOK:
-		// 更新牌堆
-		newData, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return 0, nil, err
-		}
-		return http.StatusOK, newData, nil
-	default:
-		return resp.StatusCode, nil, nil
-	}
 }
