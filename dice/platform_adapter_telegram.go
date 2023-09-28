@@ -2,16 +2,20 @@ package dice
 
 import (
 	"fmt"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type PlatformAdapterTelegram struct {
 	Session       *IMSession       `yaml:"-" json:"-"`
 	Token         string           `yaml:"token" json:"token"`
+	ProxyURL      string           `yaml:"proxyURL" json:"proxyURL"`
 	EndPoint      *EndPointInfo    `yaml:"-" json:"-"`
 	IntentSession *tgbotapi.BotAPI `yaml:"-" json:"-"`
 }
@@ -44,7 +48,21 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	logger := pa.Session.Parent.Logger
 	ep := pa.EndPoint
 	logger.Info("尝试连接Telegram服务……")
-	bot, err := tgbotapi.NewBotAPI(pa.Token)
+
+	var bot *tgbotapi.BotAPI
+	var err error
+
+	if len(pa.ProxyURL) > 0 {
+		var u *url.URL
+		u, err = url.Parse(pa.ProxyURL)
+		if err == nil {
+			bot, err = tgbotapi.NewBotAPIWithClient(pa.Token, tgbotapi.APIEndpoint, &http.Client{
+				Transport: &http.Transport{Proxy: http.ProxyURL(u)},
+			})
+		}
+	} else {
+		bot, err = tgbotapi.NewBotAPI(pa.Token)
+	}
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("与Telegram服务进行连接时出错:%s", err.Error())
 		ep.State = 3
@@ -54,6 +72,7 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 		d.Save(false)
 		return 1
 	}
+
 	pa.IntentSession = bot
 	ep.UserId = FormatDiceIdTelegram(strconv.FormatInt(bot.Self.ID, 10))
 	ep.Nickname = bot.Self.UserName

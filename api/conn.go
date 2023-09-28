@@ -425,12 +425,13 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 
 	//myDice.Logger.Infof("后端add调用")
 	v := struct {
-		Token string `yaml:"token" json:"token"`
+		Token    string `yaml:"token" json:"token"`
+		ProxyURL string `yaml:"proxyURL" json:"proxyURL"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
 		//myDice.Logger.Infof("bind无异常")
-		conn := dice.NewTelegramConnItem(v.Token)
+		conn := dice.NewTelegramConnItem(v.Token, v.ProxyURL)
 		conn.Session = myDice.ImSession
 
 		//myDice.Logger.Infof("成功创建endpoint")
