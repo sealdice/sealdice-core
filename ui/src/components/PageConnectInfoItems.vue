@@ -683,6 +683,9 @@
 
           </small>
         </el-form-item>
+        <el-form-item v-if="form.accountType === 3" label="http 代理地址" :label-width="formLabelWidth">
+          <el-input v-model="form.proxyURL" type="string" autocomplete="off" placeholder="http://127.0.0.1:7890"/>
+        </el-form-item>
 
         <el-form-item v-if="form.accountType === 4" label="Url" :label-width="formLabelWidth" required>
           <el-input v-model="form.url" type="string" autocomplete="off"></el-input>
@@ -1036,8 +1039,8 @@ const askSetData = async (i: DiceConnection) => {
 }
 
 const doSetData = async () => {
-  let param = { 
-    protocol: form.protocol, 
+  let param = {
+    protocol: form.protocol,
     ignoreFriendRequest: form.ignoreFriendRequest,
   } as {
     protocol: number,
@@ -1047,9 +1050,9 @@ const doSetData = async () => {
   }
   if (form.protocol === 1 || form.protocol === 6) {
     param = {
-      ...param, 
-      useSignServer: form.useSignServer, 
-      signServerConfig: form.signServerConfig 
+      ...param,
+      useSignServer: form.useSignServer,
+      signServerConfig: form.signServerConfig
     }
   }
   const ret = await store.getImConnectionsSetData(form.endpoint, param);
