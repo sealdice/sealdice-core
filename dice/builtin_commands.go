@@ -141,7 +141,7 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["ban"] = cmdBlack
 
 	HelpForFind := ".find/查询 <关键字> // 查找文档。关键字可以多个，用空格分割\n" +
-		".find#<分组> <关键字> // 查找指定分组下的文档。关键字可以多个，用空格分割\n" +
+		".find #<分组> <关键字> // 查找指定分组下的文档。关键字可以多个，用空格分割\n" +
 		".find <数字ID> // 显示该ID的词条\n" +
 		".find --rand // 显示随机词条\n" +
 		".find <关键字> --num=10 // 需要更多结果"
@@ -204,68 +204,95 @@ func (d *Dice) registerCoreCommands() {
 			} else {
 				val = cmdArgs.GetArgN(1)
 			}
-			if val != "" {
-				numLimit := 4
-				numParam := cmdArgs.GetKwarg("num")
-				if numParam != nil {
-					_num, err := strconv.ParseInt(numParam.Value, 10, 64)
-					if err == nil {
-						numLimit = int(_num)
-					}
-				}
+			if val == "" {
+				//ReplyToSender(ctx, msg, "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条")
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 
-				text := strings.TrimPrefix(cmdArgs.CleanArgs, "#"+group+" ")
-				search, err := d.Parent.Help.Search(ctx, text, false, numLimit, group)
+			numLimit := 4
+			numParam := cmdArgs.GetKwarg("num")
+			if numParam != nil {
+				_num, err := strconv.ParseInt(numParam.Value, 10, 64)
 				if err == nil {
-					if len(search.Hits) > 0 {
-						var bestResult string
-						hasSecond := len(search.Hits) >= 2
-						best := d.Parent.Help.TextMap[search.Hits[0].ID]
-						others := ""
+					numLimit = int(_num)
+				}
+			}
 
-						for _, i := range search.Hits {
-							t := d.Parent.Help.TextMap[i.ID]
-							if t.Group != "" && t.Group != HelpBuiltinGroup {
-								others += fmt.Sprintf("[%s][%s]【%s:%s】 匹配度%.2f\n", i.ID, t.Group, t.PackageName, t.Title, i.Score)
-							} else {
-								others += fmt.Sprintf("[%s]【%s:%s】 匹配度%.2f\n", i.ID, t.PackageName, t.Title, i.Score)
-							}
-						}
+			page := 1
+			pageParam := cmdArgs.GetKwarg("page")
+			if pageParam != nil {
+				if _page, err := strconv.ParseInt(pageParam.Value, 10, 64); err == nil {
+					page = int(_page)
+				}
+			}
 
-						var showBest bool
-						if hasSecond {
-							offset := d.Parent.Help.GetShowBestOffset()
-							val := search.Hits[1].Score - search.Hits[0].Score
-							if val < 0 {
-								val = -val
-							}
-							if val > float64(offset) {
-								showBest = true
-							}
-							if best.Title == text {
-								showBest = true
-							}
-						} else {
-							showBest = true
-						}
+			text := strings.TrimPrefix(cmdArgs.CleanArgs, "#"+group+" ")
 
-						if showBest {
-							content := d.Parent.Help.GetContent(best, 0)
-							bestResult = fmt.Sprintf("最优先结果:\n词条: %s:%s\n%s\n\n", best.PackageName, best.Title, content)
-						}
-
-						suffix := d.Parent.Help.GetSuffixText2()
-						ReplyToSender(ctx, msg, fmt.Sprintf("%s%s全部结果:\n%s\n使用\".find <序号>\"可查看明细，如.find 123", suffix, bestResult, others))
-					} else {
-						ReplyToSender(ctx, msg, "未找到搜索结果")
-					}
+			if numLimit <= 0 {
+				numLimit = 1
+			} else if numLimit > 10 {
+				numLimit = 10
+			}
+			if page <= 0 {
+				page = 1
+			}
+			search, total, pgStart, pgEnd, err := d.Parent.Help.Search(ctx, text, false, numLimit, page, group)
+			if err != nil {
+				ReplyToSender(ctx, msg, "搜索故障: "+err.Error())
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if len(search.Hits) == 0 {
+				if total == 0 {
+					ReplyToSender(ctx, msg, "未找到搜索结果")
 				} else {
-					ReplyToSender(ctx, msg, "搜索故障: "+err.Error())
+					ReplyToSender(ctx, msg, fmt.Sprintf("找到%d条结果, 但在当前页码并无结果", total))
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			hasSecond := len(search.Hits) >= 2
+			best := d.Parent.Help.TextMap[search.Hits[0].ID]
+			others := ""
+
+			for _, i := range search.Hits {
+				t := d.Parent.Help.TextMap[i.ID]
+				if t.Group != "" && t.Group != HelpBuiltinGroup {
+					others += fmt.Sprintf("[%s][%s]【%s:%s】 匹配度%.2f\n", i.ID, t.Group, t.PackageName, t.Title, i.Score)
+				} else {
+					others += fmt.Sprintf("[%s]【%s:%s】 匹配度%.2f\n", i.ID, t.PackageName, t.Title, i.Score)
+				}
+			}
+
+			var showBest bool
+			if hasSecond {
+				offset := d.Parent.Help.GetShowBestOffset()
+				val := search.Hits[1].Score - search.Hits[0].Score
+				if val < 0 {
+					val = -val
+				}
+				if val > float64(offset) {
+					showBest = true
+				}
+				if best.Title == text {
+					showBest = true
 				}
 			} else {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				//ReplyToSender(ctx, msg, "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条")
+				showBest = true
 			}
+
+			var bestResult string
+			if showBest {
+				content := d.Parent.Help.GetContent(best, 0)
+				bestResult = fmt.Sprintf("最优先结果:\n词条: %s:%s\n%s\n\n", best.PackageName, best.Title, content)
+			}
+
+			prefix := d.Parent.Help.GetPrefixText()
+			rplCurPage := fmt.Sprintf("本页结果:\n%s\n", others)
+			rplDetailHint := "使用\".find <序号>\"可查看明细，如.find 123\n"
+			// pgStart是下标闭左边界, 加1以获得序号; pgEnd是下标开右边界, 无需调整就是最后一条的序号
+			rplPageNum := fmt.Sprintf("共%d条结果, 当前显示第%d页(第%d条 到 第%d条)\n", total, page, pgStart+1, pgEnd)
+			rplPageHint := "使用\".find <词条> --page=<页码> 查看更多结果\n"
+			ReplyToSender(ctx, msg, prefix+bestResult+rplCurPage+rplDetailHint+rplPageNum+rplPageHint)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
@@ -330,7 +357,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				search, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true, 1, "")
+				search, _, _, _, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true, 1, 1, "")
 				if err == nil {
 					if len(search.Hits) > 0 {
 						// 居然会出现 hits[0] 为nil的情况？？
