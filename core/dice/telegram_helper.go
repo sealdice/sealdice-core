@@ -2,7 +2,7 @@ package dice
 
 import "github.com/google/uuid"
 
-func NewTelegramConnItem(token string) *EndPointInfo {
+func NewTelegramConnItem(token string, proxy string) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.Id = uuid.New().String()
 	conn.Platform = "TG"
@@ -12,6 +12,7 @@ func NewTelegramConnItem(token string) *EndPointInfo {
 	conn.Adapter = &PlatformAdapterTelegram{
 		EndPoint: conn,
 		Token:    token,
+		ProxyURL: proxy,
 	}
 	return conn
 }
