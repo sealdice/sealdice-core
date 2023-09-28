@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"golang.org/x/time/rate"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/time/rate"
 
 	"github.com/fy0/lockfree"
 	wr "github.com/mroth/weightedrand"
@@ -2055,4 +2056,15 @@ func (d *Dice) Save(isAuto bool) {
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测
 	//model.BanMapSet(d.DBData, d.BanList.MapToJSON())
+
+	// endpoint数据额外更新到数据库
+	for _, ep := range d.ImSession.EndPoints {
+		// 为了避免Restore时没有UserId, Dump时有UserId, 导致空白数据被错误落库的情况, 这里提前做判断
+		if len(ep.UserId) > 0 {
+			/* NOTE(Xiangze Li): 按理说Restore只需要在每个ep新增时做一次. 但是许多ep都是异步
+			   连接, 并且在连接真正完成之后才有UserId. 所以干脆每次保存数据都尝试一次Restore. */
+			ep.StatsRestore(d)
+			ep.StatsDump(d)
+		}
+	}
 }

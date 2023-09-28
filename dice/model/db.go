@@ -145,6 +145,14 @@ create table if not exists ban_info
 );`,
 		`create index if not exists idx_ban_info_updated_at on ban_info (updated_at);`,
 		`create index if not exists idx_ban_info_ban_updated_at on ban_info (ban_updated_at);`,
+
+		`CREATE TABLE IF NOT EXISTS endpoint_info (
+user_id TEXT PRIMARY KEY,
+cmd_num INTEGER,
+cmd_last_time INTEGER,
+online_time INTEGER,
+updated_at INTEGER
+);`,
 	}
 	for _, i := range texts {
 		_, _ = dataDB.Exec(i)

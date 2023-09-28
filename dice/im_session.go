@@ -332,6 +332,49 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 	return err
 }
 
+// StatsRestore 尝试从数据库中恢复EP的统计数据
+func (ep *EndPointInfo) StatsRestore(d *Dice) {
+	if len(ep.UserId) == 0 {
+		return // 尚未连接完成的新账号没有UserId, 跳过
+	}
+
+	m := model.EndpointInfo{UserId: ep.UserId}
+	err := m.Query(d.DBData)
+	if err != nil {
+		d.Logger.Errorf("恢复endpoint统计数据失败 %v : %v", ep.UserId, err)
+		return
+	}
+
+	if m.UpdatedAt <= ep.CmdExecutedLastTime {
+		// 只在数据库中保存的数据比当前数据新时才替换, 避免上次Dump之后新的指令统计被覆盖
+		return
+	}
+
+	// 虽然觉得不至于, 还是判断一下, 只进行增长方向的更新
+	if ep.CmdExecutedNum < m.CmdNum {
+		ep.CmdExecutedNum = m.CmdNum
+	}
+	if ep.CmdExecutedLastTime < m.CmdLastTime {
+		ep.CmdExecutedLastTime = m.CmdLastTime
+	}
+	if ep.OnlineTotalTime < m.OnlineTime {
+		ep.OnlineTotalTime = m.OnlineTime
+	}
+}
+
+// StatsDump EP统计数据落库
+func (ep *EndPointInfo) StatsDump(d *Dice) {
+	if len(ep.UserId) == 0 {
+		return // 尚未连接完成的新账号没有UserId, 跳过
+	}
+
+	m := model.EndpointInfo{UserId: ep.UserId, CmdNum: ep.CmdExecutedNum, CmdLastTime: ep.CmdExecutedLastTime, OnlineTime: ep.OnlineTotalTime}
+	err := m.Save(d.DBData)
+	if err != nil {
+		d.Logger.Errorf("保存endpoint数据到数据库失败 %v : %v", ep.UserId, err)
+	}
+}
+
 type PlayerVariablesItem model.PlayerVariablesItem
 
 type IMSession struct {
