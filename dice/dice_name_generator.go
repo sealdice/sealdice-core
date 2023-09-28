@@ -39,12 +39,8 @@ func (ng *NamesGenerator) Load() {
 			}
 			switch sheetName {
 			case "中文":
-				for _, s := range cols[0] {
-					l.maleName = append(l.maleName, s)
-				}
-				for _, s := range cols[1] {
-					l.femaleName = append(l.femaleName, s)
-				}
+				l.maleName = append(l.maleName, cols[0]...)
+				l.femaleName = append(l.femaleName, cols[1]...)
 				for i, s := range cols[2] {
 					w, _ := strconv.ParseFloat(cols[3][i], 64)
 					l.surname[s] = w
