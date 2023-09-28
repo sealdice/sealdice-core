@@ -435,7 +435,7 @@ func (m *HelpManager) AddItemApply() error {
 	return nil
 }
 
-func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, num int, group string) (*bleve.SearchResult, error) {
+func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, pageSize, pageNum int, group string) (*bleve.SearchResult, int, int, int, error) {
 	// 在标题中查找
 	queryTitle := query.NewMatchPhraseQuery(text)
 	queryTitle.SetField("title")
@@ -451,8 +451,6 @@ func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, 
 		}
 	}
 
-	//queryContent := query.NewQueryStringQuery("-AAAAAAAA +vaudevillian")
-	////queryContent.SetField("content")
 	andQuery := bleve.NewConjunctionQuery(titleOrContent)
 
 	// 限制查询组
@@ -469,69 +467,69 @@ func (m *HelpManager) searchBleve(ctx *MsgContext, text string, titleOnly bool, 
 		andQuery.AddQuery(queryPack)
 	}
 
-	req := bleve.NewSearchRequest(andQuery)
+	req := bleve.NewSearchRequestOptions(andQuery, pageSize, (pageNum-1)*pageSize, false)
 
 	index := m.Index
 	res, err := index.Search(req)
-
-	if err == nil {
-		if num > len(res.Hits) {
-			num = len(res.Hits)
-		}
-		res.Hits = res.Hits[:num]
+	if err != nil {
+		return res, 0, 0, 0, err
 	}
 
-	return res, err
-	//index.Close()
+	total := int(res.Total)
+	pageStart := (pageNum - 1) * pageSize
+	pageEnd := pageStart + len(res.Hits)
+	return res, total, pageStart, pageEnd, nil
 }
 
-func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, num int, group string) (*bleve.SearchResult, error) {
-	if num < 1 {
-		num = 1
-	}
-	if num > 10 {
-		num = 10
+func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageSize, pageNum int, group string) (res *bleve.SearchResult, total, pageStart, pageEnd int, err error) {
+	if pageSize <= 0 || pageNum <= 0 {
+		// 为了使Search的结果完全忠实于分页参数, 而不产生有结果但与分页不相符的情况
+		return nil, 0, 0, 0, fmt.Errorf("分页参数错误")
 	}
 
 	if m.EngineType == 0 {
-		return m.searchBleve(ctx, text, titleOnly, num, group)
-	} else {
-		//for _, i := range ctx.Group.HelpPackages {
-		//	//queryPack := query.NewMatchPhraseQuery(i)
-		//	//queryPack.SetField("package")
-		//}
+		return m.searchBleve(ctx, text, titleOnly, pageSize, pageNum, group)
+	}
 
-		// 不是很好的做法，待优化
-		items := HelpTextItems{}
-		var idLst []string
+	// 不是很好的做法，待优化
+	items := HelpTextItems{}
+	var idLst []string
 
-		for id, v := range m.TextMap {
-			items = append(items, v)
-			idLst = append(idLst, id)
+	for id, v := range m.TextMap {
+		items = append(items, v)
+		idLst = append(idLst, id)
+	}
+
+	hits := search.DocumentMatchCollection{}
+	matches := fuzzy.FindFrom(text, items)
+
+	total = len(matches)
+	pageStart = (pageNum - 1) * pageSize
+	pageEnd = pageNum * pageSize
+
+	if pageStart < total {
+		if pageEnd > total {
+			pageEnd = total
 		}
 
-		hits := search.DocumentMatchCollection{}
-		matches := fuzzy.FindFrom(text, items)
-
-		right := len(matches)
-
-		if right > num {
-			right = num
-		}
-		for _, i := range matches[:right] {
+		for _, i := range matches[pageStart:pageEnd] {
 			hits = append(hits, &search.DocumentMatch{
 				ID:    idLst[i.Index],
 				Score: float64(i.Score),
 			})
 		}
-
-		return &bleve.SearchResult{
-			Status:  nil,
-			Request: nil,
-			Hits:    hits,
-			Total:   uint64(len(hits)),
-		}, nil
+	} else {
+		// 分页超出范围, 返回空结果
+		pageStart = -1
+		pageEnd = -1
 	}
+
+	return &bleve.SearchResult{
+		Status:  nil,
+		Request: nil,
+		Hits:    hits,
+		Total:   uint64(total),
+	}, total, pageStart, pageEnd, nil
 }
 
 func (m *HelpManager) GetSuffixText() string {
@@ -543,7 +541,7 @@ func (m *HelpManager) GetSuffixText() string {
 	}
 }
 
-func (m *HelpManager) GetSuffixText2() string {
+func (m *HelpManager) GetPrefixText() string {
 	switch m.EngineType {
 	case 0:
 		return "[全文搜索]"
