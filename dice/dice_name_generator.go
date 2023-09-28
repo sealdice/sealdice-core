@@ -3,22 +3,26 @@ package dice
 import (
 	"fmt"
 	"github.com/xuri/excelize/v2"
-	"math/rand"
 	"os"
-	"regexp"
-	"strings"
+	"strconv"
 )
 
+type local struct {
+	surname    map[string]float64
+	maleName   []string
+	femaleName []string
+	firstName  []string
+}
+
 type NamesGenerator struct {
-	NamesInfo map[string]map[string][]string
+	names      map[string]local
+	aliasNames map[string]string
 }
 
 func (ng *NamesGenerator) Load() {
 	_ = os.MkdirAll("./data/names", 0755)
-
-	nameInfo := map[string]map[string][]string{}
-	ng.NamesInfo = nameInfo
-
+	ng.names = make(map[string]local)
+	ng.aliasNames = make(map[string]string)
 	for _, fn := range []string{"./data/names/names.xlsx", "./data/names/names-dnd.xlsx"} {
 		f, err := excelize.OpenFile(fn)
 		if err != nil {
@@ -27,83 +31,96 @@ func (ng *NamesGenerator) Load() {
 		}
 
 		for _, sheetName := range f.GetSheetList() {
-			words := map[string][]string{}
-			columns, err := f.Cols(sheetName)
-			if err == nil {
-				for columns.Next() {
-					column, _ := columns.Rows()
-					if len(column) > 0 {
-						// 首行为标题，如“男性名” 其他行为内容，如”济民 珍祥“
-						name := column[0]
-						var values []string
-						for _, i := range column[1:] {
-							if i == "" {
-								break
-							}
-							values = append(values, i)
-						}
-						//values := column[1:] // 注意行数是以最大行数算的，所以会出现很多空行，不能这样取
-						words[name] = values
-					}
-				}
+			var l local
+			l.surname = make(map[string]float64)
+			cols, _ := f.GetCols(sheetName)
+			for i, col := range cols {
+				cols[i] = col[1:]
 			}
-			nameInfo[sheetName] = words
-		}
-
-		if err := f.Close(); err != nil {
-			fmt.Println(err)
+			switch sheetName {
+			case "中文":
+				for _, s := range cols[0] {
+					l.maleName = append(l.maleName, s)
+				}
+				for _, s := range cols[1] {
+					l.femaleName = append(l.femaleName, s)
+				}
+				for i, s := range cols[2] {
+					w, _ := strconv.ParseFloat(cols[3][i], 64)
+					l.surname[s] = w
+				}
+			case "英文":
+				for i, s := range cols[0] {
+					l.firstName = append(l.firstName, s)
+					ng.aliasNames[s] = cols[1][i]
+				}
+				for i, s := range cols[2] {
+					l.surname[s] = 1
+					ng.aliasNames[s] = cols[3][i]
+				}
+			case "日文":
+				ng.c6(&cols, &l)
+			case "DND地精":
+				for i, s := range cols[0] {
+					l.maleName = append(l.maleName, s)
+					ng.aliasNames[s] = cols[1][i]
+				}
+				for i, s := range cols[2] {
+					l.femaleName = append(l.femaleName, s)
+					ng.aliasNames[s] = cols[3][i]
+				}
+			case "DND海族":
+				// 暂时没有女名 和 姓
+				for i, s := range cols[0] {
+					l.firstName = append(l.firstName, s)
+					ng.aliasNames[s] = cols[1][i]
+				}
+			case "DND兽人":
+				ng.c6(&cols, &l)
+			case "DND矮人":
+				ng.c6(&cols, &l)
+			case "DND精灵":
+				ng.c6(&cols, &l)
+			case "DND受国人":
+				ng.c6(&cols, &l)
+			case "DND莱瑟曼人":
+				ng.c6(&cols, &l)
+			case "DND卡林珊人":
+				ng.c6(&cols, &l)
+			}
+			l.removeEmptyStrings()
+			ng.names[sheetName] = l
 		}
 	}
 }
 
-func (ng *NamesGenerator) NameGenerate(rule string) string {
-	re := regexp.MustCompile(`\{[^}]+}`)
-	tmpVars := map[string]int{}
-
-	getList := func(inner string) []string {
-		sp := strings.Split(inner, ":")
-		if len(sp) > 1 {
-			m, exists := ng.NamesInfo[sp[0]]
-			if exists {
-				lst, exists := m[sp[1]]
-				if exists {
-					return lst
-				}
+func (l *local) removeEmptyStrings() {
+	one := func(sl []string) []string {
+		var res []string
+		for _, str := range sl {
+			if str != "" {
+				res = append(res, str)
 			}
 		}
-		return []string{}
+		return res
 	}
+	l.maleName = one(l.maleName)
+	l.femaleName = one(l.femaleName)
+	l.firstName = one(l.firstName)
+}
 
-	parseInner := func(inner string) string {
-		sp := strings.Split(inner, "#")
-		if len(sp) > 1 {
-			index := tmpVars[sp[1]]
-			lst := getList(sp[0])
-			if index < len(lst) {
-				return lst[index]
-			}
-		} else {
-			lst := getList(inner)
-			if len(lst) == 0 {
-				tmpVars[inner+".index"] = 0
-				return ""
-			}
-			index := rand.Int() % len(lst)
-			tmpVars[inner+".index"] = index
-			return lst[index]
-		}
-		return ""
+func (ng *NamesGenerator) c6(col *[][]string, l *local) {
+	cols := *col
+	for i, s := range cols[0] {
+		l.maleName = append(l.maleName, s)
+		ng.aliasNames[s] = cols[1][i]
 	}
-
-	result := ""
-	lastLeft := 0
-	for _, i := range re.FindAllStringIndex(rule, -1) {
-		inner := rule[i[0]+1 : i[1]-1]
-		result += rule[lastLeft:i[0]]
-		result += parseInner(inner)
-		lastLeft = i[1]
+	for i, s := range cols[2] {
+		l.femaleName = append(l.femaleName, s)
+		ng.aliasNames[s] = cols[3][i]
 	}
-
-	result += rule[lastLeft:]
-	return result
+	for i, s := range cols[4] {
+		ng.aliasNames[s] = cols[5][i]
+		l.surname[s] = 1
+	}
 }
