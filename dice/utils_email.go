@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"fmt"
 	"strings"
 
 	"gopkg.in/gomail.v2"
@@ -56,7 +57,14 @@ func (d *Dice) SendMail(body string, m MailCode) {
 
 func (d *Dice) SendMailRow(subject string, to []string, content string, attachments []string) {
 	m := gomail.NewMessage()
-	m.SetHeader("Subject", subject)
+	// NOTE(Xiangze Li): 按理说应当统一用DiceFotmatTmpl, 但是那样还得有一个MsgContext, 好复杂
+	diceName := "海豹核心"
+	if v := d.TextMap["核心:骰子名字"]; v != nil {
+		if s, ok := v.Pick().(string); ok {
+			diceName = s
+		}
+	}
+	m.SetHeader("Subject", fmt.Sprintf("[%s] %s", diceName, subject))
 	m.SetHeader("From", d.MailFrom)
 	m.SetHeader("To", to...)
 	if content == "" {
