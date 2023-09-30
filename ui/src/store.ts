@@ -194,7 +194,7 @@ export const useStore = defineStore('main', {
           info = await backend.post(urlPrefix + '/im_connections/addKook', { token }, { timeout: 65000 })
           break
         case 3:
-          info = await backend.post(urlPrefix + '/im_connections/addTelegram', { token }, { timeout: 65000 })
+          info = await backend.post(urlPrefix + '/im_connections/addTelegram', { token, proxyURL }, { timeout: 65000 })
           break
         case 4:
           info = await backend.post(urlPrefix + '/im_connections/addMinecraft', { url }, { timeout: 65000 })
