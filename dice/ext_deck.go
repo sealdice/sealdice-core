@@ -31,6 +31,7 @@ type DeckDiceEFormat struct {
 	Author     []string `json:"_author"`
 	Date       []string `json:"_date"`
 	UpdateDate []string `json:"_updateDate"`
+	Brief      []string `json:"_brief"`
 	Version    []string `json:"_version"`
 	License    []string `json:"_license"`
 	//Export  []string `json:"_export"` // 导出项，类似command
@@ -184,6 +185,7 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.License = strings.Join(jsonData2.License, " / ")
 	deckInfo.Date = strings.Join(jsonData2.Date, " / ")
 	deckInfo.UpdateDate = strings.Join(jsonData2.UpdateDate, " / ")
+	deckInfo.Desc = strings.Join(jsonData2.Brief, "\n")
 	deckInfo.Format = "Dice!"
 	deckInfo.FormatVersion = 1
 	deckInfo.FileFormat = "json"
