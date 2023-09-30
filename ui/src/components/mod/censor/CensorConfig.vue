@@ -58,7 +58,14 @@
   </el-form>
   <div>
     <h4 style="display: inline;">响应设置</h4>
-    <el-text style="display: block; margin: 1rem 0;" type="warning" size="small">注：超过阈值时，对应用户该等级的计数会被清空重新计算。</el-text>
+    <el-text style="display: block; margin: 1rem 0;" type="warning" size="small"></el-text>
+    <el-text style="display: block; margin: 1rem 0;" type="warning" size="small">
+      <span>提示：</span>
+      <ul>
+        <li><p>超过阈值时，对应用户该等级的计数会被清空重新计算。</p></li>
+        <li><p>增加怒气值时，会计算群组和邀请人的连带责任。连带责任比例在 <strong>综合设置 > 黑白名单 > 设置选项</strong> 中调整。</p></li>
+      </ul>
+    </el-text>
   </div>
   <el-form >
     <el-form-item>

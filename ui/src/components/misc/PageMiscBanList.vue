@@ -12,37 +12,54 @@
     </div>
     <div>群组列表</div> -->
 
-    <el-collapse>
+    <el-collapse class="tip setting-tips">
       <el-collapse-item name="1">
         <template #title>
-          <div style="padding: 0 1rem">设置选项</div>
+          <el-text tag="strong">设置选项</el-text>
         </template>
 
-        <div style="padding: 0 1rem;">
-          <h3>基本设置</h3>
-          <div>黑名单惩罚</div>
+        <h4>基本设置</h4>
+        <el-space wrap>
+          <el-text>黑名单惩罚：</el-text>
           <el-checkbox v-model="banConfig.banBehaviorRefuseReply">拒绝回复</el-checkbox>
           <el-checkbox v-model="banConfig.banBehaviorRefuseInvite">拒绝邀请</el-checkbox>
           <el-checkbox v-model="banConfig.banBehaviorQuitLastPlace">退出事发群</el-checkbox>
           <!-- <div>自动拉黑时长(分钟): <el-input style="max-width: 5rem;" type="number" v-model="banConfig.autoBanMinutes"></el-input></div> -->
+        </el-space>
 
-          <h3>怒气值设置</h3>
-          <small style="display: block; margin-bottom: 1rem;">说明: 海豹的黑名单使用积分制，每当用户做出恶意行为，其积分上涨一定数值，到达阈值后自动进入黑名单。会通知邀请者、通知列表、事发群(如果可能)</small>
-          <div style="margin: .2rem 0;">警告阈值: <el-input style="max-width: 5rem;" type="number" v-model="banConfig.thresholdWarn"></el-input></div>
-          <div style="margin: .2rem 0;">拉黑阈值: <el-input style="max-width: 5rem;" type="number" v-model="banConfig.thresholdBan"></el-input></div>
-
-          <div style="margin: .2rem 0;margin-top:1rem">禁言增加: <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreGroupMuted">50</el-input></div>
-          <div style="margin: .2rem 0;">踢出增加: <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreGroupKicked">50</el-input></div>
-          <div style="margin: .2rem 0;">刷屏增加: <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreTooManyCommand">50</el-input></div>
-          <!-- <div>短时间多次拉群: <el-input>50</el-input></div> -->
-          <!-- <div style="margin: .2rem 0;">连续指令(≥10/分钟): <el-input style="max-width: 5rem;" type="number" v-model="banConfig.scoreTooManyCommand"></el-input></div> -->
-
-          <div style="margin: .2rem 0;margin-top:1rem"><span style="display: inline-block;min-width: 6rem">每分钟下降:</span> <el-input style="max-width: 5rem;" v-model="banConfig.scoreReducePerMinute"></el-input></div>
-          <div style="margin: .2rem 0;"><span style="display: inline-block;min-width: 6rem">群组连带责任:</span> <el-input style="max-width: 5rem;" type="number" v-model="banConfig.jointScorePercentOfGroup"></el-input></div>
-          <div style="margin: .2rem 0;"><span style="display: inline-block;min-width: 6rem">邀请人连带责任:</span> <el-input style="max-width: 5rem;" type="number" v-model="banConfig.jointScorePercentOfInviter"></el-input></div>
-
-          <el-button style="margin-top: 1rem;" type="primary" @click="banConfigSave">保存设置</el-button>
+        <h4>怒气值设置</h4>
+        <div style="margin-bottom: 1rem">
+          <el-text size="small" type="warning" tag="p">说明：海豹的黑名单使用积分制，每当用户做出恶意行为，其积分上涨一定数值，到达阈值后自动进入黑名单。会通知邀请者、通知列表、事发群（如果可能）。</el-text>
         </div>
+        <el-form size="small">
+          <el-form-item label="警告阈值">
+            <el-input-number v-model="banConfig.thresholdWarn" :min="0" :step="1" step-strictly></el-input-number>
+          </el-form-item>
+          <el-form-item label="拉黑阈值">
+            <el-input-number v-model="banConfig.thresholdBan" :min="0" :step="1" step-strictly></el-input-number>
+          </el-form-item>
+          <el-divider />
+          <el-form-item label="禁言增加">
+            <el-input-number v-model="banConfig.scoreGroupMuted" :min="0" :step="1" step-strictly></el-input-number>
+          </el-form-item>
+          <el-form-item label="踢出增加">
+            <el-input-number v-model="banConfig.scoreGroupKicked" :min="0" :step="1" step-strictly></el-input-number>
+          </el-form-item>
+          <el-form-item label="刷屏增加">
+            <el-input-number v-model="banConfig.scoreTooManyCommand" :min="0" :step="1" step-strictly></el-input-number>
+          </el-form-item>
+          <el-form-item label="每分钟下降">
+            <el-input-number v-model="banConfig.scoreReducePerMinute" :min="0" :step="1" step-strictly></el-input-number>
+          </el-form-item>
+          <el-divider />
+          <el-form-item label="群组连带责任">
+            <el-input-number v-model="banConfig.jointScorePercentOfGroup" :min="0" :max="1" :step="0.1"></el-input-number>
+          </el-form-item>
+          <el-form-item label="邀请人连带责任">
+            <el-input-number v-model="banConfig.jointScorePercentOfInviter" :min="0" :max="1" :step="0.1"></el-input-number>
+          </el-form-item>
+        </el-form>
+        <el-button type="primary" :icon="DocumentChecked" @click="banConfigSave">保存设置</el-button>
       </el-collapse-item>
     </el-collapse>
 
@@ -143,7 +160,7 @@ import {
   CirclePlusFilled,
   CircleClose,
   QuestionFilled,
-  BrushFilled
+  BrushFilled, DocumentChecked
 } from '@element-plus/icons-vue'
 import * as dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -263,6 +280,20 @@ onBeforeMount(async () => {
   await refreshList()
 })
 </script>
+
+<style scoped>
+.setting-tips {
+  background-color: #f3f5f7;
+}
+
+.setting-tips :deep().el-collapse-item__header {
+  background-color: #f3f5f7;
+}
+
+.setting-tips :deep().el-collapse-item__wrap {
+  background-color: #f3f5f7;
+}
+</style>
 
 <style lang="scss">
 @media screen and (max-width: 700px) {
