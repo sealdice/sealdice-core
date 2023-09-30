@@ -1125,7 +1125,7 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 		return fmt.Errorf("new data is empty")
 	}
 	// 更新牌堆
-	ok := parseDeck(d, filepath.Base(tempFileName), newData, deckInfo)
+	ok := parseDeck(d, deckInfo.Filename, newData, deckInfo)
 	if ok {
 		err := os.WriteFile(deckInfo.Filename, newData, 0755)
 		if err != nil {
