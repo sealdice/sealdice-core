@@ -405,6 +405,24 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    async deckCheckUpdate({ index }: any) {
+      const info: { result: false, err: string } | {
+        result: true,
+        old: string,
+        new: string,
+        format: 'json' | 'yaml' | 'toml',
+        tempFileName: string,
+      } = await backend.post(urlPrefix + '/deck/check_update', { index })
+      return info
+    },
+
+    async deckUpdate({ index, tempFileName }: any) {
+      const res: {result: false, err: string} | {
+        result: true,
+      } = await backend.post(urlPrefix + '/deck/update', { index, tempFileName})
+      return res
+    },
+
     async jsStatus(): Promise<boolean> {
       const resp = await apiFetch(urlPrefix + '/js/status', { method: 'GET' })
       return resp.status

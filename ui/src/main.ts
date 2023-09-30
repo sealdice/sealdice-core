@@ -21,8 +21,19 @@ import './str.polyfill.ts'
 import { createPinia } from 'pinia'
 import { useStore } from "./store";
 
+import VueDiff from 'vue-diff'
+import 'vue-diff/dist/index.css'
+import yaml from 'highlight.js/lib/languages/yaml'
+import toml from 'highlight.js/lib/languages/ini.js'
+
 const app = createApp(App);
 app.use(createPinia())
+
+VueDiff.hljs.registerLanguage('yaml', yaml)
+VueDiff.hljs.registerLanguage('toml', toml)
+app.use(VueDiff, {
+  componentName: 'VueDiff'
+})
 
 const store = useStore();
 

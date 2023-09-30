@@ -50,6 +50,7 @@
                     <el-text>{{ i.version || '<未定义>' }}</el-text>
                   </el-space>
                   <el-space>
+<!--                    <el-button :icon="Setting" type="primary" size="small" plain @click="showSettingDialog = true">设置</el-button>-->
                     <el-button @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>删除</el-button>
                   </el-space>
                 </div>
@@ -66,6 +67,22 @@
                 <el-descriptions-item label="报错信息" :span="3" v-if="i.errText">{{ i.errText }}</el-descriptions-item>
               </el-descriptions>
             </el-card>
+
+<!--            <el-dialog v-model="showSettingDialog" title="设置项">-->
+<!--              <el-form :model="settingForm">-->
+<!--                <el-form-item v-for="p of settingForm.props" :key="p.key" :label="p.name ?? p.key">-->
+<!--                  <el-input v-model="p.value"/>-->
+<!--                </el-form-item>-->
+<!--              </el-form>-->
+<!--              <template #footer>-->
+<!--            <span class="dialog-footer">-->
+<!--              <el-button @click="showSettingDialog = false">取消</el-button>-->
+<!--              <el-button type="primary" @click="showSettingDialog = false">-->
+<!--                提交-->
+<!--              </el-button>-->
+<!--            </span>-->
+<!--              </template>-->
+<!--            </el-dialog>-->
           </main>
         </el-tab-pane>
       </el-tabs>
@@ -78,7 +95,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useStore } from '~/store'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, CaretRight, Upload, Search, Delete } from '@element-plus/icons-vue'
+import {Refresh, CaretRight, Upload, Search, Delete, Setting} from '@element-plus/icons-vue'
 import * as dayjs from 'dayjs'
 import { EditorView, basicSetup } from "codemirror"
 import { javascript } from "@codemirror/lang-javascript"
@@ -280,6 +297,22 @@ const changejsScriptStatus = async (name: string, status: boolean) => {
   needReload.value = true
   return true
 }
+
+const showSettingDialog = ref<boolean>(false)
+
+interface DeckProp {
+  key:  string
+  value: string
+
+  name?: string
+  desc?: string
+  required?: boolean
+  default?: string
+}
+
+const settingForm = ref({
+  props: [{key: "name", value: "test props"}] as DeckProp[]
+})
 </script>
 
 <style lang="scss">
