@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/labstack/echo/v4"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -9,6 +8,8 @@ import (
 	"path/filepath"
 	"sealdice-core/dice"
 	"strings"
+
+	"github.com/labstack/echo/v4"
 )
 
 func deckList(c echo.Context) error {
@@ -130,4 +131,59 @@ func deckDelete(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, nil)
+}
+
+func deckCheckUpdate(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+	v := struct {
+		Index int `json:"index"`
+	}{}
+	err := c.Bind(&v)
+
+	if err == nil {
+		if v.Index >= 0 && v.Index < len(myDice.DeckList) {
+			deck := myDice.DeckList[v.Index]
+			oldDeck, newDeck, tempFileName, err := myDice.DeckCheckUpdate(deck)
+			if err != nil {
+				return Error(&c, err.Error(), Response{})
+			}
+			return Success(&c, Response{
+				"old":          oldDeck,
+				"new":          newDeck,
+				"format":       deck.FileFormat,
+				"tempFileName": tempFileName,
+			})
+		}
+	}
+	return Success(&c, Response{})
+}
+
+func deckUpdate(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+	v := struct {
+		Index        int    `json:"index"`
+		TempFileName string `json:"tempFileName"`
+	}{}
+	err := c.Bind(&v)
+
+	if err == nil {
+		if v.Index >= 0 && v.Index < len(myDice.DeckList) {
+			err := myDice.DeckUpdate(myDice.DeckList[v.Index], v.TempFileName)
+			if err != nil {
+				return Error(&c, err.Error(), Response{})
+			}
+			myDice.MarkModified()
+		}
+	}
+	return Success(&c, Response{})
 }
