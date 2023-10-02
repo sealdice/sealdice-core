@@ -495,3 +495,18 @@ func ParseRate(s string) (rate.Limit, error) {
 	}
 	return rate.Limit(n), nil
 }
+
+func DiceMailTest(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+
+	err := myDice.SendMail("", dice.MailTest)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	return Success(&c, Response{})
+}
