@@ -10,6 +10,7 @@ interface JsScriptInfo {
   updateTime: number;
   installTime: number;
   errText: string;
+  updateUrls?: string[]
 }
 
 interface HelpDocData {
