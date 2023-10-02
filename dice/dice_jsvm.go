@@ -517,7 +517,7 @@ func (d *Dice) JsCheckUpdate(jsScriptInfo *JsScriptInfo) (string, string, string
 			}
 			newJs := strings.ReplaceAll(string(newData), "\r\n", "\n")
 
-			temp, err := os.CreateTemp("", filepath.Base(jsScriptInfo.Filename)+".new.*")
+			temp, err := os.CreateTemp("", "new-*-"+filepath.Base(jsScriptInfo.Filename))
 			if err != nil {
 				return "", "", "", err
 			}

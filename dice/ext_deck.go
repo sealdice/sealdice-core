@@ -1095,7 +1095,7 @@ func (d *Dice) DeckCheckUpdate(deckInfo *DeckInfo) (string, string, string, erro
 			}
 			newDeck := strings.ReplaceAll(string(newData), "\r\n", "\n")
 
-			temp, err := os.CreateTemp("", filepath.Base(deckInfo.Filename)+".new.*")
+			temp, err := os.CreateTemp("", "new-*-"+filepath.Base(deckInfo.Filename))
 			if err != nil {
 				return "", "", "", err
 			}
@@ -1127,7 +1127,7 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 		return fmt.Errorf("new data is empty")
 	}
 	// 更新牌堆
-	ok := parseDeck(d, deckInfo.Filename, newData, deckInfo)
+	ok := parseDeck(d, tempFileName, newData, deckInfo)
 	if ok {
 		err := os.WriteFile(deckInfo.Filename, newData, 0755)
 		if err != nil {
