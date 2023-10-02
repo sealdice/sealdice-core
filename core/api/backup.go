@@ -83,6 +83,41 @@ func backupDelete(c echo.Context) error { //nolint
 	})
 }
 
+func backupBatchDelete(c echo.Context) error { //nolint
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+
+	v := struct {
+		Names []string `json:"names"`
+	}{}
+	err := c.Bind(&v)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	fails := make([]string, 0, len(v.Names))
+	for _, name := range v.Names {
+		if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
+			err = os.Remove("./backups/" + name)
+			if err != nil {
+				fails = append(fails, name)
+			}
+		}
+	}
+
+	if len(fails) == 0 {
+		return Success(&c, Response{})
+	} else {
+		return Error(&c, "失败列表", Response{
+			"fails": fails,
+		})
+	}
+}
+
 // 快速备份
 func backupSimple(c echo.Context) error {
 	if !doAuth(c) {
