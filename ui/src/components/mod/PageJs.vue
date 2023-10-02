@@ -47,26 +47,45 @@
                     <el-switch v-model="i.enable" @change="changejsScriptStatus(i.name, i.enable)"
                       style="--el-switch-on-color: #67C23A; --el-switch-off-color: #F56C6C" />
                     <el-text size="large" tag="b">{{ i.name }}</el-text>
-                    <el-text>{{ i.version || '<未定义>' }}</el-text>
+                    <el-text>{{ i.version || 'lt;未定义>' }}</el-text>
                   </el-space>
                   <el-space>
+                    <el-popconfirm v-if="i.updateUrls && i.updateUrls.length > 0" width="220"
+                                   confirm-button-text="确认"
+                                   cancel-button-text="取消"
+                                   @confirm="doCheckUpdate(i, index)"
+                                   title="更新地址由插件作者提供，是否确认要检查该插件更新？">
+                      <template #reference>
+                        <el-button :icon="Download" type="success" size="small" plain :loading="diffLoading">更新</el-button>
+                      </template>
+                    </el-popconfirm>
 <!--                    <el-button :icon="Setting" type="primary" size="small" plain @click="showSettingDialog = true">设置</el-button>-->
                     <el-button @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>删除</el-button>
                   </el-space>
                 </div>
               </template>
               <el-descriptions>
-                <el-descriptions-item :span="3" label="作者">{{ i.author || '<佚名>' }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="介绍">{{ i.desc || '<暂无>' }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="主页">{{ i.homepage || '<暂无>' }}</el-descriptions-item>
-                <el-descriptions-item label="许可协议">{{ i.license || '<暂无>' }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="介绍">{{ i.desc || 'lt;暂无>' }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="主页">{{ i.homepage || 'lt;暂无>' }}</el-descriptions-item>
+                <el-descriptions-item label="许可协议">{{ i.license || 'lt;暂无>' }}</el-descriptions-item>
                 <el-descriptions-item label="安装时间">{{ dayjs.unix(i.installTime).fromNow() }}</el-descriptions-item>
                 <el-descriptions-item label="更新时间">
-                  {{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || '<暂无>' }}
+                  {{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || 'lt;暂无>' }}
                 </el-descriptions-item>
                 <el-descriptions-item label="报错信息" :span="3" v-if="i.errText">{{ i.errText }}</el-descriptions-item>
               </el-descriptions>
             </el-card>
+
+            <el-dialog v-model="showDiff" title="插件内容对比" class="diff-dialog">
+              <diff-viewer lang="javascript" :old="jsCheck.old" :new="jsCheck.new"/>
+              <template #footer>
+                <el-space wrap>
+                  <el-button @click="showDiff = false">取消</el-button>
+                  <el-button v-if="!(jsCheck.old === jsCheck.new)" type="success" :icon="DocumentChecked" @click="jsUpdate">确认更新</el-button>
+                </el-space>
+              </template>
+            </el-dialog>
 
 <!--            <el-dialog v-model="showSettingDialog" title="设置项">-->
 <!--              <el-form :model="settingForm">-->
@@ -95,10 +114,11 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useStore } from '~/store'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {Refresh, CaretRight, Upload, Search, Delete, Setting} from '@element-plus/icons-vue'
+import {Refresh, CaretRight, Upload, Search, Delete, Setting, Download, DocumentChecked} from '@element-plus/icons-vue'
 import * as dayjs from 'dayjs'
 import { EditorView, basicSetup } from "codemirror"
 import { javascript } from "@codemirror/lang-javascript"
+import DiffViewer from "~/components/mod/diff-viewer.vue";
 
 const store = useStore()
 const jsEnable = ref(false)
@@ -313,6 +333,50 @@ interface DeckProp {
 const settingForm = ref({
   props: [{key: "name", value: "test props"}] as DeckProp[]
 })
+
+const showDiff = ref<boolean>(false)
+const diffLoading = ref<boolean>(false)
+
+interface JsCheckResult {
+  old: string,
+  new: string,
+  tempFileName: string,
+  index: number,
+}
+
+const jsCheck = ref<JsCheckResult>({
+  old: "",
+  new: "",
+  tempFileName: "",
+  index: -1
+})
+
+const doCheckUpdate = async (data: any, index: number) => {
+  diffLoading.value = true
+  const checkResult = await store.jsCheckUpdate({ index });
+  diffLoading.value = false
+  if (checkResult.result) {
+    jsCheck.value = { ...checkResult, index }
+    showDiff.value = true
+  } else {
+    ElMessage.error('检查更新失败！' + checkResult.err)
+  }
+}
+
+const jsUpdate = async () => {
+  const res = await store.jsUpdate(jsCheck.value);
+  if (res.result) {
+    showDiff.value = false
+    needReload.value = true
+    setTimeout(() => {
+      refreshList()
+    }, 1000)
+    ElMessage.success('更新成功，请手动重载后生效')
+  } else {
+    showDiff.value = false
+    ElMessage.error('更新失败！' + res.err)
+  }
+}
 </script>
 
 <style lang="scss">

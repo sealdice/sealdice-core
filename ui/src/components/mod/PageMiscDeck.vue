@@ -34,6 +34,7 @@
                 <el-space size="small" alignment="center">
                   <el-text size="large" tag="b">{{ i.name }}</el-text>
                   <el-text>{{ i.version }}</el-text>
+                  <el-tag size="small" :type="i.fileFormat === 'toml' ? 'success' : ''" disable-transitions>{{ i.fileFormat }}</el-tag>
                 </el-space>
                 <el-text v-if="i.cloud" type="primary" size="small">
                   <el-icon><MostlyCloudy /></el-icon>
@@ -41,7 +42,7 @@
                 </el-text>
               </el-space>
               <el-space>
-                <el-popconfirm v-if="i.updateUrls" width="220"
+                <el-popconfirm v-if="i.updateUrls && i.updateUrls.length > 0" width="220"
                                confirm-button-text="确认"
                                cancel-button-text="取消"
                                @confirm="doCheckUpdate(i, index)"

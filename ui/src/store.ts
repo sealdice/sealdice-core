@@ -489,6 +489,23 @@ export const useStore = defineStore('main', {
       })
     },
 
+    async jsCheckUpdate({ index }: any) {
+      const info: { result: false, err: string } | {
+        result: true,
+        old: string,
+        new: string,
+        tempFileName: string,
+      } = await backend.post(urlPrefix + '/js/check_update', { index })
+      return info
+    },
+
+    async jsUpdate({ index, tempFileName }: any) {
+      const res: {result: false, err: string} | {
+        result: true,
+      } = await backend.post(urlPrefix + '/js/update', { index, tempFileName })
+      return res
+    },
+
     async toolOnebot() {
       return await apiFetch(urlPrefix + '/tool/onebot', {
         headers: {
