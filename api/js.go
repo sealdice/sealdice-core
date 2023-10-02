@@ -153,12 +153,6 @@ func jsUpload(c echo.Context) error {
 		})
 	}
 
-	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
-			"testMode": true,
-		})
-	}
-
 	//-----------
 	// Read file
 	//-----------
@@ -282,4 +276,63 @@ func jsDisable(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusBadRequest, nil)
+}
+
+func jsCheckUpdate(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+	v := struct {
+		Index int `json:"index"`
+	}{}
+	err := c.Bind(&v)
+
+	if err == nil {
+		if v.Index >= 0 && v.Index < len(myDice.JsScriptList) {
+			jsScript := myDice.JsScriptList[v.Index]
+			oldJs, newJs, tempFileName, err := myDice.JsCheckUpdate(jsScript)
+			if err != nil {
+				return Error(&c, err.Error(), Response{})
+			}
+			return Success(&c, Response{
+				"old":          oldJs,
+				"new":          newJs,
+				"format":       "javascript",
+				"tempFileName": tempFileName,
+			})
+		}
+	}
+	return Success(&c, Response{})
+}
+
+func jsUpdate(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+	if !myDice.JsEnable {
+		return Error(&c, "js扩展支持已关闭", Response{})
+	}
+
+	v := struct {
+		Index        int    `json:"index"`
+		TempFileName string `json:"tempFileName"`
+	}{}
+	err := c.Bind(&v)
+
+	if err == nil {
+		if v.Index >= 0 && v.Index < len(myDice.JsScriptList) {
+			err := myDice.JsUpdate(myDice.JsScriptList[v.Index], v.TempFileName)
+			if err != nil {
+				return Error(&c, err.Error(), Response{})
+			}
+			myDice.MarkModified()
+		}
+	}
+	return Success(&c, Response{})
 }

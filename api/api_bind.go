@@ -368,6 +368,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/js/status", jsStatus)
 	e.POST(prefix+"/js/enable", jsEnable)
 	e.POST(prefix+"/js/disable", jsDisable)
+	e.POST(prefix+"/js/check_update", jsCheckUpdate)
+	e.POST(prefix+"/js/update", jsUpdate)
 
 	e.GET(prefix+"/helpdoc/status", helpDocStatus)
 	e.GET(prefix+"/helpdoc/tree", helpDocTree)
