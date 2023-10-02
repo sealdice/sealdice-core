@@ -3,7 +3,9 @@ package dice
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -381,6 +383,10 @@ type JsScriptInfo struct {
 	ErrText string `json:"errText"`
 	/** 实际文件名 */
 	Filename string
+	/** 更新链接 */
+	UpdateUrls []string `json:"updateUrls"`
+	/** etag */
+	Etag string `json:"etag"`
 }
 
 func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
@@ -405,6 +411,7 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 		text := m[0]
 		re2 := regexp.MustCompile(`//[ \t]*@(\S+)\s+([^\r\n]+)`)
 		data := re2.FindAllStringSubmatch(text, -1)
+		updateUrls := make([]string, 0)
 		for _, item := range data {
 			v := strings.TrimSpace(item[2])
 			switch item[1] {
@@ -430,8 +437,13 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 						jsInfo.UpdateTime = t.Timestamp()
 					}
 				}
+			case "updateUrl":
+				updateUrls = append(updateUrls, v)
+			case "etag":
+				jsInfo.Etag = v
 			}
 		}
+		jsInfo.UpdateUrls = updateUrls
 	}
 	jsInfo.Enable = !d.DisabledJsScripts[jsInfo.Name]
 
@@ -480,4 +492,69 @@ func JsDisable(d *Dice, jsInfoName string) {
 			jsInfo.Enable = false
 		}
 	}
+}
+
+func (d *Dice) JsCheckUpdate(jsScriptInfo *JsScriptInfo) (string, string, string, error) {
+	// FIXME: dirty, copy from check deck update.
+	if len(jsScriptInfo.UpdateUrls) != 0 {
+		statusCode, newData, err := GetCloudContent(jsScriptInfo.UpdateUrls, jsScriptInfo.Etag)
+		if err != nil {
+			return "", "", "", err
+		}
+		if statusCode == http.StatusOK {
+			oldData, err := os.ReadFile(jsScriptInfo.Filename)
+			if err != nil {
+				return "", "", "", err
+			}
+
+			// 内容预处理
+			if isPrefixWithUtf8Bom(oldData) {
+				oldData = oldData[3:]
+			}
+			oldJs := strings.ReplaceAll(string(oldData), "\r\n", "\n")
+			if isPrefixWithUtf8Bom(newData) {
+				newData = newData[3:]
+			}
+			newJs := strings.ReplaceAll(string(newData), "\r\n", "\n")
+
+			temp, err := os.CreateTemp("", filepath.Base(jsScriptInfo.Filename)+".new.*")
+			if err != nil {
+				return "", "", "", err
+			}
+			defer func(temp *os.File) {
+				_ = temp.Close()
+			}(temp)
+
+			_, err = temp.WriteString(newJs)
+			if err != nil {
+				return "", "", "", err
+			}
+			return oldJs, newJs, temp.Name(), nil
+		} else if statusCode == http.StatusNotModified {
+			return "", "", "", fmt.Errorf("插件没有更新")
+		}
+		return "", "", "", fmt.Errorf("未获取到插件更新")
+	} else {
+		return "", "", "", fmt.Errorf("插件未提供更新链接")
+	}
+}
+
+func (d *Dice) JsUpdate(jsScriptInfo *JsScriptInfo, tempFileName string) error {
+	newData, err := os.ReadFile(tempFileName)
+	_ = os.Remove(tempFileName)
+	if err != nil {
+		return err
+	}
+	if len(newData) == 0 {
+		return fmt.Errorf("new data is empty")
+	}
+	// 更新插件
+	err = os.WriteFile(jsScriptInfo.Filename, newData, 0755)
+	if err != nil {
+		d.Logger.Errorf("插件“%s”更新时保存文件出错，%s", jsScriptInfo.Name, err.Error())
+		return err
+	} else {
+		d.Logger.Infof("插件“%s”更新成功", jsScriptInfo.Name)
+	}
+	return nil
 }
