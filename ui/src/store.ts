@@ -340,6 +340,14 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    async backupBatchDelete(names: string[]) {
+      const info: { result: true } | {
+        result: false,
+        fails: string[],
+      } = await backend.post(urlPrefix + '/backup/batch_delete', { names }, { headers: { token: this.token } })
+      return info
+    },
+
     // ban list相关
     async banConfigGet() {
       const info = await backend.get(urlPrefix + '/banconfig/get')

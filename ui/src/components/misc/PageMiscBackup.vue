@@ -5,8 +5,9 @@
       <el-checkbox v-model="cfg.autoBackupEnable">开启自动备份</el-checkbox>
       <div>
         <span>备份间隔:
-          <el-tooltip raw-content content="备份间隔请参阅 <a href='https://pkg.go.dev/github.com/robfig/cron' target='_blank'>cron文档</a>">
-            <el-icon><question-filled /></el-icon>
+          <el-tooltip raw-content
+                      content="备份间隔请参阅 <a href='https://pkg.go.dev/github.com/robfig/cron' target='_blank'>cron文档</a>">
+            <el-icon><question-filled/></el-icon>
           </el-tooltip>
         </span>
         <el-input v-model="cfg.autoBackupTime" style="width: 12rem"></el-input>
@@ -20,25 +21,47 @@
     <div>将骰子彻底关闭，解压备份压缩包到骰子目录。若提示“是否覆盖？”选择“全部”即可(覆盖data目录)。</div>
   </div>
 
-  <h2>已备份文件</h2>
-  <div v-for="i in data.items" style="display: flex;" class="bak-item">
-    <span style="flex: 1">{{ i.name }}</span>
-    <span>
-      <a :href="`${urlBase}/sd-api/backup/download?name=${encodeURIComponent(i.name)}&token=${encodeURIComponent(store.token)}`" style="text-decoration: none">
-        <el-button style="width: 9rem;">下载 - {{ filesize(i.fileSize) }}</el-button>
-      </a>
-      <el-button :icon="Delete" @click="bakDeleteConfirm(i)"></el-button>
-    </span>
-
+  <div style="display: flex; justify-content: space-between; align-items: center">
+    <h2>已备份文件</h2>
+    <el-button type="danger" :icon="Delete" @click="enterBatchDelete">进入批量删除页面</el-button>
   </div>
+
+  <div size="small" direction="vertical" class="backup-list" fill>
+    <div class="backup-line" v-for="i in data.items" :key="i.name" style="display: flex; justify-content: space-between;">
+      <el-text size="large">{{ i.name }}</el-text>
+      <el-space size="small" wrap style="margin-left: 1px; justify-content: flex-end;">
+        <el-button size="small" tag="a" style="text-decoration: none; width: 8rem;"
+                   :href="`${urlBase}/sd-api/backup/download?name=${encodeURIComponent(i.name)}&token=${encodeURIComponent(store.token)}`">
+          下载 - {{ filesize(i.fileSize) }}
+        </el-button>
+        <el-button type="danger" size="small" :icon="Delete" plain
+                   @click="bakDeleteConfirm(i.name)"></el-button>
+      </el-space>
+    </div>
+  </div>
+
+  <el-dialog v-model="showBatchDelete" title="批量删除备份" class="diff-dialog">
+    <el-alert :closable="false" style="margin-bottom: 1.5rem;" title="默认勾选最近的 5 个备份之前的历史备份，可自行调整。"></el-alert>
+    <el-checkbox-group v-model="batchDeleteBaks">
+      <el-checkbox v-for="i of data.items" :key="i.name" :label="i.name"/>
+    </el-checkbox-group>
+    <template #footer>
+      <el-space wrap>
+        <el-button @click="showBatchDelete = false">取消</el-button>
+        <el-button type="danger" :disabled="!(batchDeleteBaks && batchDeleteBaks.length > 0)"
+                   @click="bakBatchDeleteConfirm">删除所选
+        </el-button>
+      </el-space>
+    </template>
+  </el-dialog>
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useStore } from '~/store'
-import { urlBase } from '~/backend'
+import {computed, onBeforeMount, onBeforeUnmount, onMounted, ref} from 'vue';
+import {useStore} from '~/store'
+import {urlBase} from '~/backend'
 import filesize from 'filesize'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import {ElMessage, ElMessageBox} from 'element-plus'
 import {
   Location,
   Document,
@@ -48,8 +71,9 @@ import {
   CircleClose,
   Delete,
   QuestionFilled,
-  BrushFilled
+  BrushFilled, DocumentChecked
 } from '@element-plus/icons-vue'
+import DiffViewer from "~/components/mod/diff-viewer.vue";
 
 const store = useStore()
 
@@ -88,6 +112,33 @@ const bakDeleteConfirm = async (i: any) => {
   await refreshList()
 }
 
+const showBatchDelete = ref<boolean>(false)
+const batchDeleteBaks = ref<string[]>([])
+
+const enterBatchDelete = async () => {
+  batchDeleteBaks.value = data.value.items
+      .filter((_, index) => index >= 5)
+      .map((item) => item.name)
+  showBatchDelete.value = true
+}
+const bakBatchDeleteConfirm = async () => {
+  const ret = await ElMessageBox.confirm('确认删除所选备份？删除的内容无法找回！', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  })
+  if (ret) {
+    const res = await store.backupBatchDelete(batchDeleteBaks.value)
+    if (res.result) {
+      ElMessage.success('已删除所选备份')
+    } else {
+      ElMessage.error('有备份删除失败！失败文件：\n' + res.fails.join("\n"))
+    }
+  }
+  showBatchDelete.value = false
+  await refreshList()
+}
+
 const doBackup = async () => {
   const ret = await store.backupDoSimple()
   await refreshList()
@@ -110,14 +161,16 @@ onBeforeMount(async () => {
 </script>
 
 <style lang="scss">
-@media screen and (max-width: 700px) {
-  .bak-item {
-    flex-direction: column;
-    & > span {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
+.backup-list {
+  display: flex;
+  flex-direction: column;
+
+  .backup-line {
+    padding: 5px 0;
+  }
+
+  .backup-line:not(:first-child) {
+    border-top: 1px solid var(--el-border-color);
   }
 }
 </style>
