@@ -247,6 +247,14 @@ export const useStore = defineStore('main', {
       await this.diceConfigGet()
     },
 
+    async diceMailTest() {
+      const res: { result: true } | {
+        result: false,
+        err: string
+      } = await backend.post(urlPrefix + '/dice/config/mail_test')
+      return res
+    },
+
     async diceExec(text: string) {
       const info = await backend.post(urlPrefix + '/dice/exec', { message: text })
       return info as any

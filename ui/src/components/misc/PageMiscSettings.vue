@@ -134,6 +134,19 @@
     <el-form-item>
       <template #label>
         <div>
+          <el-text>发送测试邮件</el-text>
+          <el-tooltip content="向通知列表发送测试邮件，便于检查邮件相关配置">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-button type="primary" @click="mailTest">发送</el-button>
+    </el-form-item>
+
+
+    <el-form-item>
+      <template #label>
+        <div>
           <span>私骰模式</span>
           <el-tooltip raw-content content="只允许信任用户拉入群聊">
             <el-icon><question-filled /></el-icon>
@@ -713,6 +726,15 @@ const nameWrapUncheck = (v: boolean) => {
     ).catch(e => {
       config.value.playerNameWrapEnable = true;
     })
+  }
+}
+
+const mailTest = async () => {
+  const res = await store.diceMailTest()
+  if (res.result) {
+    ElMessage.success("已尝试发送测试邮件")
+  } else {
+    ElMessage.error("发送测试邮件失败！" + res.err)
   }
 }
 
