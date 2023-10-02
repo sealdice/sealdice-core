@@ -334,6 +334,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/backup/config_set", backupConfigSave)
 	e.GET(prefix+"/backup/download", backupDownload)
 	e.POST(prefix+"/backup/delete", backupDelete)
+	e.POST(prefix+"/backup/batch_delete", backupBatchDelete)
 
 	e.GET(prefix+"/group/list", groupList)
 	e.POST(prefix+"/group/set_one", groupSetOne)
