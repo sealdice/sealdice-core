@@ -267,6 +267,7 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
 	// 简单牌组
 	for name, deckItems := range deckData.Decks {
 		deckInfo.DeckItems[name] = deckItems
+		tomlDataFix[name] = deckItems
 		if strings.HasPrefix(name, "__") {
 			continue
 		} else if strings.HasPrefix(name, "_") {
@@ -288,7 +289,8 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
 			err := mapstructure.Decode(itemData, &item)
 			if err == nil {
 				deckItemName := k
-				deckInfo.DeckItems[deckItemName] = tomlDataFix[k]
+				deckInfo.DeckItems[deckItemName] = item.Options
+				tomlDataFix[deckItemName] = item.Options
 				if !item.Export {
 					continue
 				} else if !item.Visible {
@@ -300,8 +302,8 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
 				// 别名
 				fakeData := []string{"{" + deckItemName + "}"}
 				for _, alias := range item.Aliases {
-					tomlDataFix[alias] = fakeData
 					deckInfo.DeckItems[alias] = fakeData
+					tomlDataFix[alias] = fakeData
 					if !item.Export {
 						continue
 					} else if !item.Visible {
