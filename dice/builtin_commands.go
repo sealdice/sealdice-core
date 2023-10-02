@@ -1024,7 +1024,7 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			} else {
 				if d.MailEnable {
-					ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
+					_ = ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}

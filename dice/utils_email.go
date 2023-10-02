@@ -18,6 +18,8 @@ const (
 	MailTypeNotice
 	// MailTypeSendNote send 指令
 	MailTypeSendNote
+	// MailTest 测试邮件
+	MailTest
 )
 
 func (d *Dice) CanSendMail() bool {
@@ -27,9 +29,9 @@ func (d *Dice) CanSendMail() bool {
 	return true
 }
 
-func (d *Dice) SendMail(body string, m MailCode) {
+func (d *Dice) SendMail(body string, m MailCode) error {
 	if !d.CanSendMail() {
-		return
+		return fmt.Errorf("邮件配置不完整")
 	}
 	sub := "Seal News: "
 	switch m {
@@ -41,6 +43,8 @@ func (d *Dice) SendMail(body string, m MailCode) {
 		sub += "Event 事件通知"
 	case MailTypeSendNote:
 		sub += "Send 指令反馈"
+	case MailTest:
+		sub += "Test 测试邮件"
 	}
 	var to []string
 	for _, id := range d.NoticeIds {
@@ -53,6 +57,7 @@ func (d *Dice) SendMail(body string, m MailCode) {
 	}
 
 	d.SendMailRow(sub, to, body, nil)
+	return nil
 }
 
 func (d *Dice) SendMailRow(subject string, to []string, content string, attachments []string) {

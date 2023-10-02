@@ -1163,7 +1163,7 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
 		}()
 
 		if d.MailEnable {
-			d.SendMail(txt, MailTypeNotice)
+			_ = d.SendMail(txt, MailTypeNotice)
 			return
 		}
 
@@ -1206,7 +1206,7 @@ func (ctx *MsgContext) NoticeCrossPlatform(txt string) {
 		}()
 
 		if ctx.Dice.MailEnable {
-			ctx.Dice.SendMail(txt, MailTypeNotice)
+			_ = ctx.Dice.SendMail(txt, MailTypeNotice)
 			return
 		}
 
@@ -1264,7 +1264,7 @@ func (ctx *MsgContext) Notice(txt string) {
 		}()
 
 		if ctx.Dice.MailEnable {
-			ctx.Dice.SendMail(txt, MailTypeNotice)
+			_ = ctx.Dice.SendMail(txt, MailTypeNotice)
 			return
 		}
 
