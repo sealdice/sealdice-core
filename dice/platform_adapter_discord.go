@@ -352,7 +352,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 		case *TextElement:
 			//msgSend.Content = msgSend.Content + antiMarkdownFormat(e.Content)
 			msgSend.Embeds = append(msgSend.Embeds, &discordgo.MessageEmbed{
-				Description: e.Content,
+				Description: antiMarkdownFormat(e.Content),
 			})
 		case *AtElement:
 			if e.Target == "all" {
