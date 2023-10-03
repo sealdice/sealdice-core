@@ -52,14 +52,15 @@ func (i *BanListInfoItem) toText(d *Dice) string {
 }
 
 type BanListInfo struct {
-	Parent                   *Dice                              `yaml:"-" json:"-"`
-	Map                      *SyncMap[string, *BanListInfoItem] `yaml:"-" json:"-"`
-	BanBehaviorRefuseReply   bool                               `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`     //拉黑行为: 拒绝回复
-	BanBehaviorRefuseInvite  bool                               `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`   // 拉黑行为: 拒绝邀请
-	BanBehaviorQuitLastPlace bool                               `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"` // 拉黑行为: 退出事发群
-	ThresholdWarn            int64                              `yaml:"thresholdWarn" json:"thresholdWarn"`                       // 警告阈值
-	ThresholdBan             int64                              `yaml:"thresholdBan" json:"thresholdBan"`                         // 错误阈值
-	AutoBanMinutes           int64                              `yaml:"autoBanMinutes" json:"autoBanMinutes"`                     // 自动禁止时长
+	Parent                          *Dice                              `yaml:"-" json:"-"`
+	Map                             *SyncMap[string, *BanListInfoItem] `yaml:"-" json:"-"`
+	BanBehaviorRefuseReply          bool                               `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`                   //拉黑行为: 拒绝回复
+	BanBehaviorRefuseInvite         bool                               `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`                 // 拉黑行为: 拒绝邀请
+	BanBehaviorQuitLastPlace        bool                               `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"`               // 拉黑行为: 退出事发群
+	BanBehaviorQuitPlaceImmediately bool                               `yaml:"banBehaviorQuitPlaceImmediately" json:"banBehaviorQuitPlaceImmediately"` // 拉黑行为: 使用时立即退出群
+	ThresholdWarn                   int64                              `yaml:"thresholdWarn" json:"thresholdWarn"`                                     // 警告阈值
+	ThresholdBan                    int64                              `yaml:"thresholdBan" json:"thresholdBan"`                                       // 错误阈值
+	AutoBanMinutes                  int64                              `yaml:"autoBanMinutes" json:"autoBanMinutes"`                                   // 自动禁止时长
 
 	ScoreReducePerMinute int64 `yaml:"scoreReducePerMinute" json:"scoreReducePerMinute"` // 每分钟下降
 	ScoreGroupMuted      int64 `yaml:"scoreGroupMuted" json:"scoreGroupMuted"`           // 群组禁言
