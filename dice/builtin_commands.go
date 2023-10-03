@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/golang-module/carbon"
 	"math/rand"
 	"os"
 	"path"
@@ -30,6 +31,7 @@ func (d *Dice) registerCoreCommands() {
 		".ban list // 展示列表\n" +
 		".ban list ban/warn/trust //只显示被禁用/被警告/信任用户\n" +
 		".ban trust <统一ID> //添加信任\n" +
+		".ban query <统一ID> //查看指定用户拉黑情况\n" +
 		".ban help //查看帮助\n" +
 		"// 统一ID示例: QQ:12345、QQ-Group:12345"
 	cmdBlack := &CmdItemInfo{
@@ -131,6 +133,37 @@ func (d *Dice) registerCoreCommands() {
 					text = "当前名单:\n" + text
 				}
 				ReplyToSender(ctx, msg, text)
+			case "query":
+				targetId := cmdArgs.GetArgN(2)
+				if targetId == "" {
+					ReplyToSender(ctx, msg, "未指定要查询的对象！")
+				} else {
+					var text string
+					v, exists := d.BanList.Map.Load(targetId)
+					if exists {
+						text += fmt.Sprintf("所查询的<%s>情况：", targetId)
+						switch v.Rank {
+						case BanRankBanned:
+							text += "禁止(-30)"
+						case BanRankWarn:
+							text += "警告(-10)"
+						case BanRankTrusted:
+							text += "信任(30)"
+						default:
+							text += "正常(0)"
+						}
+						for i, reason := range v.Reasons {
+							text += fmt.Sprintf("\n%s在「%s」，原因：%s",
+								carbon.CreateFromTimestamp(v.Times[i]).ToDateTimeString(),
+								v.Places[i],
+								reason,
+							)
+						}
+					} else {
+						text = fmt.Sprintf("所查询的<%s>情况：正常(0)", targetId)
+					}
+					ReplyToSender(ctx, msg, text)
+				}
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
