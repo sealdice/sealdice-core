@@ -246,9 +246,22 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 			if curRank == BanRankBanned {
 				if i.BanBehaviorQuitLastPlace {
 					if ctx != nil {
-						ReplyGroupRaw(ctx, &Message{GroupId: place}, "因拉黑惩罚选项中有“退出事发群”，即将自动退群。", "")
-						time.Sleep(1 * time.Second)
-						ctx.EndPoint.Adapter.QuitGroup(ctx, place)
+						var isWhiteGroup bool
+						d := ctx.Dice
+						value, exists := d.BanList.Map.Load(place)
+						if exists {
+							if value.Rank == BanRankTrusted {
+								isWhiteGroup = true
+							}
+						}
+
+						if isWhiteGroup {
+							d.Logger.Infof("群<%s>触发“退出事发群”的拉黑惩罚，但该群是信任群所以未退群", place)
+						} else {
+							ReplyGroupRaw(ctx, &Message{GroupId: place}, "因拉黑惩罚选项中有“退出事发群”，即将自动退群。", "")
+							time.Sleep(1 * time.Second)
+							ctx.EndPoint.Adapter.QuitGroup(ctx, place)
+						}
 					}
 				}
 			}
