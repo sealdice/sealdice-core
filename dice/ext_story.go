@@ -3,24 +3,32 @@ package dice
 import (
 	"fmt"
 	strip "github.com/grokify/html-strip-tags-go"
+	wr "github.com/mroth/weightedrand"
 	"html"
 	"math/rand"
 	"strconv"
 	"strings"
 )
 
-func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][]string, rulesList [][]string, defaultIndex int) CmdExecuteResult {
-	var names []string
-	var chops []string
-	for _, i := range cmdsList {
-		chops = append(chops, i...)
-	}
-	cmdArgs.ChopPrefixToArgsWith(chops...)
+func randSlice(s []string) string {
+	return s[rand.Intn(len(s))]
+}
 
-	numText := cmdArgs.GetArgN(2)
-	var num int64
-	if numText != "" {
-		num, _ = strconv.ParseInt(numText, 10, 64)
+func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, rule string) CmdExecuteResult {
+	cmdArgs.ChopPrefixToArgsWith(
+		"cn", "中文", "zh", "中国",
+		"en", "英文", "英国", "美国", "us",
+		"jp", "日文", "日本",
+		"达马拉人", "卡林珊人", "莱瑟曼人", "受国人", "精灵", "矮人", "兽人", "海族", "地精",
+	)
+	str2num := cmdArgs.GetArgN(1) // 快捷方式 .name 10
+	num, err := strconv.ParseInt(str2num, 10, 64)
+	s := "cn"
+	if err != nil {
+		// 正常 .name cn 10
+		s = cmdArgs.GetArgN(1)
+		str2num = cmdArgs.GetArgN(2)
+		num, _ = strconv.ParseInt(str2num, 10, 64)
 	}
 	if num == 0 {
 		num = 5
@@ -28,36 +36,74 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 	if num > 10 {
 		num = 10
 	}
-
-	var rules []string
-	// 如果没有参数，采用默认
-	if len(cmdArgs.Args) == 0 && defaultIndex != -1 {
-		rules = rulesList[defaultIndex]
-	} else {
-		for index, cmds := range cmdsList {
-			if cmdArgs.IsArgEqual(1, cmds...) {
-				rules = rulesList[index]
-				break
+	switch s {
+	case "cn", "中文", "zh", "中国":
+		s = "中文"
+	case "en", "英文", "英国", "美国", "us":
+		s = "英文"
+	case "jp", "日文", "日本":
+		s = "日文"
+	}
+	s = rule + s
+	s = strings.ToUpper(s) // name dnd兽人
+	ng := ctx.Dice.Parent.NamesGenerator
+	if l, ok := ng.names[s]; ok {
+		one := func() string {
+			var surname, firstname, snAs, fnAs string
+			// 地精没有姓
+			if len(l.surname) > 0 {
+				var choices []wr.Choice
+				for text, w := range l.surname {
+					if cmdArgs.GetKwarg("nw") != nil {
+						w = 1
+					}
+					choices = append(choices, wr.Choice{Item: text, Weight: uint(w)})
+				}
+				pool, _ := wr.NewChooser(choices...)
+				surname = pool.Pick().(string)
 			}
+			// 有些不分男女
+			if len(l.firstName) > 0 {
+				firstname = randSlice(l.firstName)
+			} else {
+				if cmdArgs.GetKwarg("m") != nil {
+					firstname = randSlice(l.maleName)
+				} else if cmdArgs.GetKwarg("f") != nil {
+					firstname = randSlice(l.femaleName)
+				} else {
+					sl := append(l.maleName, l.femaleName...)
+					firstname = randSlice(sl)
+				}
+			}
+			snAs = ng.aliasNames[surname]
+			fnAs = ng.aliasNames[firstname]
+			VarSetValueAuto(ctx, "$t姓", surname)
+			VarSetValueAuto(ctx, "$t名", firstname)
+			VarSetValueAuto(ctx, "$t姓_as", snAs)
+			VarSetValueAuto(ctx, "$t名_as", fnAs)
+			var t string
+			switch s {
+			case "中文":
+				t = DiceFormatTmpl(ctx, "其它:随机名字_模版_中文")
+			case "日文":
+				t = DiceFormatTmpl(ctx, "其它:随机名字_模版_日文")
+			default:
+				t = DiceFormatTmpl(ctx, "其它:随机名字_模版_英文")
+			}
+			return t
 		}
+
+		var res []string
+		for i := 0; i < int(num); i++ {
+			res = append(res, one())
+		}
+
+		VarSetValueAuto(ctx, "$t随机名字文本", strings.Join(res, DiceFormatTmpl(ctx, "其它:随机名字_分隔符")))
+		ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:随机名字"))
+	} else {
+		return CmdExecuteResult{ShowHelp: true, Solved: true, Matched: true}
 	}
 
-	// 没匹配到，显示帮助
-	if len(rules) == 0 {
-		return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-	}
-
-	// 开始抽取
-	for i := int64(0); i < num; i++ {
-		rule := rules[rand.Int()%len(rules)]
-		names = append(names, ctx.Dice.Parent.NamesGenerator.NameGenerate(rule))
-	}
-
-	sep := DiceFormatTmpl(ctx, "其它:随机名字_分隔符")
-	namesTxt := strings.Join(names, sep)
-	VarSetValueStr(ctx, "$t随机名字文本", namesTxt)
-	text := DiceFormatTmpl(ctx, "其它:随机名字")
-	ReplyToSender(ctx, msg, text)
 	return CmdExecuteResult{Matched: true, Solved: true}
 }
 
@@ -65,79 +111,18 @@ func RegisterBuiltinStory(self *Dice) {
 	cmdName := &CmdItemInfo{
 		Name:      "name",
 		ShortHelp: ".name cn/en/jp (<数量>)",
-		Help:      "生成随机名字:\n.name cn/en/jp (<数量>)",
+		Help:      "生成随机名字:\n.name cn/en/jp (<数量>)\n--m 指定性别为男\n--f 指定性别为女\n--nw 不使用姓氏权重",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-
-			return cmdRandomName(ctx, msg, cmdArgs, [][]string{
-				{"cn", "中文", "zh", "中国"},
-				{"en", "英文", "英国", "美国", "us"},
-				{"jp", "日文", "日本"},
-			}, [][]string{
-				{
-					"{中文:姓氏}{中文:男性名}",
-					"{中文:姓氏}{中文:女性名}",
-				},
-				{"{英文:名字} {英文:姓氏} ({英文:名字中文#英文:名字.index}·{英文:姓氏中文#英文:姓氏.index})"},
-				{
-					"{日文:姓氏} {日文:男性名}({日文:姓氏平假名#日文:姓氏.index} {日文:男性名平假名#日文:男性名.index})",
-					"{日文:姓氏} {日文:女性名}({日文:姓氏平假名#日文:姓氏.index} {日文:女性名平假名#日文:女性名.index})",
-				},
-			}, 0)
+			return cmdRandomName(ctx, msg, cmdArgs, "")
 		},
 	}
 
 	cmdNameDnd := &CmdItemInfo{
 		Name:      "namednd",
 		ShortHelp: ".namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族/地精",
-		Help:      "生成随机DND名字:\n.namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族/地精",
+		Help:      "生成随机DND名字:\n.namednd 达马拉人/卡林珊人/莱瑟曼人/受国人/精灵/矮人/兽人/海族/地精\n--m 指定性别为男\n--f 指定性别为女",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			return cmdRandomName(ctx, msg, cmdArgs, [][]string{
-				{"达马拉人"},
-				{"卡林珊人"},
-				{"莱瑟曼人"},
-				{"受国人"},
-				{"精灵"},
-				{"矮人"},
-				{"兽人"},
-				{"海族"},
-				{"地精"},
-			}, [][]string{
-				{
-					"{DND达马拉人:男性英文名} {DND达马拉人:英文姓氏} ({DND达马拉人:男性中文名#DND达马拉人:男性英文名.index}·{DND达马拉人:中文姓氏#DND达马拉人:英文姓氏.index})",
-					"{DND达马拉人:女性英文名} {DND达马拉人:英文姓氏} ({DND达马拉人:女性中文名#DND达马拉人:女性英文名.index}·{DND达马拉人:中文姓氏#DND达马拉人:英文姓氏.index})",
-				},
-				{
-					"{DND卡林珊人:Calashite_名_男} {DND卡林珊人:Calashite_姓} ({DND卡林珊人:Calashite_名_男_中文#DND卡林珊人:Calashite_名_男.index}·{DND卡林珊人:Calashite_姓_中文#DND卡林珊人:Calashite_姓.index})",
-					"{DND卡林珊人:Calashite_名_女} {DND卡林珊人:Calashite_姓} ({DND卡林珊人:Calashite_名_女_中文#DND卡林珊人:Calashite_名_女.index}·{DND卡林珊人:Calashite_姓_中文#DND卡林珊人:Calashite_姓.index})",
-				},
-				{
-					"{DND莱瑟曼人:Rashemi_名_男} {DND莱瑟曼人:Rashemi_姓} ({DND莱瑟曼人:Rashemi_名_男_中文#DND莱瑟曼人:Rashemi_名_男.index}·{DND莱瑟曼人:Rashemi_姓_中文#DND莱瑟曼人:Rashemi_姓.index})",
-					"{DND莱瑟曼人:Rashemi_名_女} {DND莱瑟曼人:Rashemi_姓} ({DND莱瑟曼人:Rashemi_名_女_中文#DND莱瑟曼人:Rashemi_名_女.index}·{DND莱瑟曼人:Rashemi_姓_中文#DND莱瑟曼人:Rashemi_姓.index})",
-				},
-				{
-					"{DND受国人:男性中文名}·{DND受国人:中文姓氏} ({DND受国人:男性英文名#DND受国人:男性中文名.index} {DND受国人:英文姓氏#DND受国人:中文姓氏.index})",
-					"{DND受国人:女性中文名}·{DND受国人:中文姓氏} ({DND受国人:女性英文名#DND受国人:女性中文名.index} {DND受国人:英文姓氏#DND受国人:中文姓氏.index})",
-				},
-				{
-					"{DND精灵:精灵_名_男} {DND精灵:精灵_姓} ({DND精灵:精灵_名_男_中文#DND精灵:精灵_名_男.index}·{DND精灵:精灵_姓_中文#DND精灵:精灵_姓.index})",
-					"{DND精灵:精灵_名_女} {DND精灵:精灵_姓} ({DND精灵:精灵_名_女_中文#DND精灵:精灵_名_女.index}·{DND精灵:精灵_姓_中文#DND精灵:精灵_姓.index})",
-				},
-				{
-					"{DND矮人:矮人_名_男} {DND矮人:矮人_姓} ({DND矮人:矮人_名_男_中文#DND矮人:矮人_名_男.index}·{DND矮人:矮人_姓_中文#DND矮人:矮人_姓.index})",
-					"{DND矮人:矮人_名_女} {DND矮人:矮人_姓} ({DND矮人:矮人_名_女_中文#DND矮人:矮人_名_女.index}·{DND矮人:矮人_姓_中文#DND矮人:矮人_姓.index})",
-				},
-				{
-					"{DND兽人:兽人_名_男} \"{DND兽人:兽人_绰号}\" (“{DND兽人:兽人_绰号_中文#DND兽人:兽人_绰号.index}”{DND兽人:兽人_名_男_中文#DND兽人:兽人_名_男.index})",
-					"{DND兽人:兽人_名_女} \"{DND兽人:兽人_绰号}\" (“{DND兽人:兽人_绰号_中文#DND兽人:兽人_绰号.index}”{DND兽人:兽人_名_女_中文#DND兽人:兽人_名_女.index})",
-				},
-				{
-					"{DND海族:海族_名_男} ({DND海族:海族_名_男_中文#DND海族:海族_名_男.index})",
-				},
-				{
-					"{DND地精:地精_名_男} ({DND地精:地精_名_男_中文#DND地精:地精_名_男.index})",
-					"{DND地精:地精_名_女} ({DND地精:地精_名_女_中文#DND地精:地精_名_女.index})",
-				},
-			}, -1)
+			return cmdRandomName(ctx, msg, cmdArgs, "DND")
 		},
 	}
 
