@@ -2,11 +2,12 @@ package dice
 
 import (
 	"fmt"
-	"github.com/fy0/lockfree"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/fy0/lockfree"
 )
 
 type Kwarg struct {
@@ -383,6 +384,21 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 
 	replaced := re.ReplaceAllString(cmd, "")
 	return replaced, ret
+}
+
+func AtBuild(uid string) string {
+	if uid == "" {
+		return ""
+	}
+	re := regexp.MustCompile("(QQ|DISCORD|KOOK|TG|DODO).*?:(.*)")
+	m := re.FindStringSubmatch(uid)
+	var text string
+	if len(m) == 3 {
+		text = fmt.Sprintf("[CQ:at,qq=%s]", m[2])
+	} else {
+		text = fmt.Sprintf("[At:%s]", uid)
+	}
+	return text
 }
 
 var reSpace = regexp.MustCompile(`\s+`)

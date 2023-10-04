@@ -17,6 +17,7 @@ type RIListItem struct {
 	name   string
 	val    int64
 	detail string
+	uid    string
 }
 
 type ByRIListValue []*RIListItem
@@ -1581,19 +1582,20 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 
-			readOne := func() (int, string, int64, string) {
+			readOne := func() (int, string, int64, string, string) {
 				text = strings.TrimSpace(text)
 				var name string
 				var val int64
 				var detail string
 				var exprExists bool
+				var uid string
 
 				if strings.HasPrefix(text, "+") {
 					// 加值情况1，D20+
 					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
 					if err != nil {
 						// 情况1，加值输入错误
-						return 1, name, val, detail
+						return 1, name, val, detail, ""
 					}
 					detail = _detail
 					val = r.Value.(int64)
@@ -1604,7 +1606,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
 					if err != nil {
 						// 情况1，加值输入错误
-						return 1, name, val, detail
+						return 1, name, val, detail, ""
 					}
 					detail = _detail
 					val = r.Value.(int64)
@@ -1615,7 +1617,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					r, _, err := ctx.Dice.ExprEvalBase(text[1:], mctx, RollExtraFlags{})
 					if err != nil {
 						// 情况1，加值输入错误
-						return 1, name, val, detail
+						return 1, name, val, detail, ""
 					}
 					val = r.Value.(int64)
 					text = r.restInput
@@ -1625,7 +1627,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
 					if err != nil {
 						// 优势劣势输入错误
-						return 2, name, val, detail
+						return 2, name, val, detail, ""
 					}
 					detail = _detail
 					val = r.Value.(int64)
@@ -1655,7 +1657,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if !exprExists {
 						val = DiceRoll64(20)
 					}
-					return 0, name, val, detail
+					uid = mctx.Player.UserId
+					return 0, name, val, detail, uid
 				}
 
 				// 情况3: 是名字
@@ -1669,10 +1672,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 				} else {
 					// 不知道是啥，报错
-					return 2, name, val, detail
+					return 2, name, val, detail, ""
 				}
 
-				return 0, name, val, detail
+				return 0, name, val, detail, ""
 			}
 
 			solved := true
@@ -1680,8 +1683,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			var items ByRIListValue
 
 			for tryOnce || text != "" {
-				code, name, val, detail := readOne()
-				items = append(items, &RIListItem{name, val, detail})
+				code, name, val, detail, uid := readOne()
+				items = append(items, &RIListItem{name, val, detail, uid})
 
 				if code != 0 {
 					solved = false
@@ -1691,19 +1694,20 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			}
 
 			if solved {
-				riMap := dndGetRiMapList(ctx)
+				riMap, uidMap := dndGetRiMapList(ctx)
 				textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
 				sort.Sort(items)
 				for order, i := range items {
 					var detail string
 					riMap[i.name] = i.val
+					uidMap[i.name] = i.uid
 					if i.detail != "" {
 						detail = i.detail + "="
 					}
 					textOut += fmt.Sprintf("%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
 				}
 
-				dndSetRiMapList(mctx, riMap)
+				dndSetRiMapList(mctx, riMap, uidMap)
 				ReplyToSender(ctx, msg, textOut)
 			} else {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "DND:先攻_设置_格式错误"))
@@ -1726,7 +1730,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			switch n {
 			case "", "list":
 				textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
-				riMap := dndGetRiMapList(ctx)
+				riMap, _ := dndGetRiMapList(ctx)
 				round, _ := VarGetValueInt64(ctx, "$g回合数")
 
 				var lst ByRIListValue
@@ -1751,11 +1755,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				ReplyToSender(ctx, msg, textOut)
 			case "ed", "end":
-				riMap := dndGetRiMapList(ctx)
+				riMap, uidMap := dndGetRiMapList(ctx)
 				round, _ := VarGetValueInt64(ctx, "$g回合数")
 				var lst ByRIListValue
 				for k, v := range riMap {
-					lst = append(lst, &RIListItem{name: k, val: v})
+					lst = append(lst, &RIListItem{name: k, val: v, uid: uidMap[k]})
 				}
 				sort.Sort(lst)
 				if len(lst) == 0 {
@@ -1769,16 +1773,27 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 					if round == 0 {
 						VarSetValueStr(ctx, "$t当前回合角色名", lst[l-1].name)
+						VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[l-1].uid))
 					} else {
 						VarSetValueStr(ctx, "$t当前回合角色名", lst[round-1].name)
+						VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[round-1].uid))
 					}
 					VarSetValueStr(ctx, "$t下一回合角色名", lst[round].name)
+					VarSetValueStr(ctx, "$t下一回合at", AtBuild(lst[round].uid))
+
+					nextRound := round + 1
+					if l <= int(nextRound) || nextRound < 0 {
+						nextRound = 0
+					}
+					VarSetValueStr(ctx, "$t下下一回合角色名", lst[nextRound].name)
+					VarSetValueStr(ctx, "$t下下一回合at", AtBuild(lst[nextRound].uid))
+
 					VarSetValueInt64(ctx, "$g回合数", round)
 				}
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
 			case "del", "rm":
 				names := cmdArgs.Args[1:]
-				riMap := dndGetRiMapList(ctx)
+				riMap, uidMap := dndGetRiMapList(ctx)
 				var deleted []string
 				for _, i := range names {
 					_, exists := riMap[i]
@@ -1795,7 +1810,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					textOut += "- 没有找到任何单位"
 				}
 
-				dndSetRiMapList(ctx, riMap)
+				dndSetRiMapList(ctx, riMap, uidMap)
 				ReplyToSender(ctx, msg, textOut)
 			case "set":
 				name := cmdArgs.GetArgN(2)
@@ -1814,7 +1829,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				riMap := dndGetRiMapList(ctx)
+				riMap, uidMap := dndGetRiMapList(ctx)
 				riMap[name] = r.Value.(int64)
 
 				VarSetValueStr(ctx, "$t表达式", expr)
@@ -1823,7 +1838,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				VarSetValue(ctx, "$t点数", &r.VMValue)
 				textOut := DiceFormatTmpl(ctx, "DND:先攻_设置_指定单位")
 
-				dndSetRiMapList(ctx, riMap)
+				dndSetRiMapList(ctx, riMap, uidMap)
 				ReplyToSender(ctx, msg, textOut)
 			case "clr", "clear":
 				dndClearRiMapList(ctx)
@@ -1883,29 +1898,44 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	self.RegisterExtension(theExt)
 }
 
-func dndGetRiMapList(ctx *MsgContext) map[string]int64 {
+func dndGetRiMapList(ctx *MsgContext) (map[string]int64, map[string]string) {
 	ctx.LoadGroupVars()
-	mapName := "riMapList"
-	_, exists := ctx.Group.ValueMap.Get(mapName)
+	riMapName := "riMapList"
+	_, exists := ctx.Group.ValueMap.Get(riMapName)
 	if !exists {
-		ctx.Group.ValueMap.Set(mapName, &VMValue{TypeId: -1, Value: map[string]int64{}})
+		ctx.Group.ValueMap.Set(riMapName, &VMValue{TypeId: -1, Value: map[string]int64{}})
 	} else {
-		a, _ := ctx.Group.ValueMap.Get(mapName)
-		ctx.Group.ValueMap.Set(mapName, VMValueConvert(a.(*VMValue), nil, ""))
+		a, _ := ctx.Group.ValueMap.Get(riMapName)
+		ctx.Group.ValueMap.Set(riMapName, VMValueConvert(a.(*VMValue), nil, ""))
+	}
+	uidMapName := "uidMapList"
+	_, exists = ctx.Group.ValueMap.Get(uidMapName)
+	if !exists {
+		ctx.Group.ValueMap.Set(uidMapName, &VMValue{TypeId: -2, Value: map[string]string{}})
+	} else {
+		b, _ := ctx.Group.ValueMap.Get(uidMapName)
+		ctx.Group.ValueMap.Set(uidMapName, VMValueConvert(b.(*VMValue), nil, ""))
 	}
 
-	var riList *VMValue
-	v, e := ctx.Group.ValueMap.Get(mapName)
+	var riList, uidList *VMValue
+	v, e := ctx.Group.ValueMap.Get(riMapName)
 	if e {
 		riList = v.(*VMValue)
 	}
-	return riList.Value.(map[string]int64)
+	v2, e := ctx.Group.ValueMap.Get(uidMapName)
+	if e {
+		uidList = v2.(*VMValue)
+	}
+	return riList.Value.(map[string]int64), uidList.Value.(map[string]string)
 }
 
-func dndSetRiMapList(ctx *MsgContext, riMap map[string]int64) {
+func dndSetRiMapList(ctx *MsgContext, riMap map[string]int64, uidMap map[string]string) {
 	ctx.LoadGroupVars()
-	mapName := "riMapList"
-	ctx.Group.ValueMap.Set(mapName, &VMValue{TypeId: -1, Value: riMap})
+	riMapName := "riMapList"
+	ctx.Group.ValueMap.Set(riMapName, &VMValue{TypeId: -1, Value: riMap})
+
+	uidMapName := "uidMapList"
+	ctx.Group.ValueMap.Set(uidMapName, &VMValue{TypeId: -2, Value: uidMap})
 
 	// 这里出现了丢数据的情况，但其实
 	// 二次save其实并不科学 // 确实不科学 看起来不用了
@@ -1914,5 +1944,5 @@ func dndSetRiMapList(ctx *MsgContext, riMap map[string]int64) {
 }
 
 func dndClearRiMapList(ctx *MsgContext) {
-	dndSetRiMapList(ctx, map[string]int64{})
+	dndSetRiMapList(ctx, map[string]int64{}, map[string]string{})
 }

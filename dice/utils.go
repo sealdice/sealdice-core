@@ -130,6 +130,27 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 		}
 		return &VMValue{TypeId: -1, Value: m2}
 	}
+	if val.TypeId == -2 {
+		// 先攻uid列表
+		m2 := map[string]string{}
+
+		m, ok := val.Value.(map[string]interface{})
+		if ok {
+			for k, v := range m {
+				n, ok := v.(string)
+				if !ok {
+					continue
+				}
+				m2[k] = n
+			}
+		} else {
+			m2, _ = val.Value.(map[string]string)
+		}
+		if v != nil {
+			(*v)[key] = &VMValue{TypeId: -2, Value: m2}
+		}
+		return &VMValue{TypeId: -2, Value: m2}
+	}
 	if val.TypeId == VMTypeDNDComputedValue {
 		tmp := val.Value.(map[string]interface{})
 		baseValue := tmp["base_value"].(map[string]interface{})
