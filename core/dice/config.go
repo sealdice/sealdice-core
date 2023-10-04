@@ -602,6 +602,15 @@ func setupBaseTextTemplate(d *Dice) {
 			"随机名字_分隔符": {
 				{"、", 1},
 			},
+			"随机名字_模版_中文": {
+				{"{$t姓}{$t名}", 1},
+			},
+			"随机名字_模版_日文": {
+				{"{$t姓}{$t名}（{$t姓_as}{$t名_as}）", 1},
+			},
+			"随机名字_模版_英文": {
+				{"{ $t姓 == '' ? `{$t名_as}（{$t名}）` : `{$t名_as}·{$t姓_as}（{$t名}·{$t姓}）` }", 1},
+			},
 			"戳一戳": {
 				{"{核心:骰子名字}咕踊了一下", 1},
 			},
@@ -1196,6 +1205,15 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".name/.namednd",
 			},
 			"随机名字_分隔符": {
+				SubType: ".name/.namednd",
+			},
+			"随机名字_模版_中文": {
+				SubType: ".name/.namednd",
+			},
+			"随机名字_模版_日文": {
+				SubType: ".name/.namednd",
+			},
+			"随机名字_模版_英文": {
 				SubType: ".name/.namednd",
 			},
 			"戳一戳": {
