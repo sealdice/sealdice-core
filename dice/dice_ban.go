@@ -52,14 +52,15 @@ func (i *BanListInfoItem) toText(d *Dice) string {
 }
 
 type BanListInfo struct {
-	Parent                   *Dice                              `yaml:"-" json:"-"`
-	Map                      *SyncMap[string, *BanListInfoItem] `yaml:"-" json:"-"`
-	BanBehaviorRefuseReply   bool                               `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`     //拉黑行为: 拒绝回复
-	BanBehaviorRefuseInvite  bool                               `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`   // 拉黑行为: 拒绝邀请
-	BanBehaviorQuitLastPlace bool                               `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"` // 拉黑行为: 退出事发群
-	ThresholdWarn            int64                              `yaml:"thresholdWarn" json:"thresholdWarn"`                       // 警告阈值
-	ThresholdBan             int64                              `yaml:"thresholdBan" json:"thresholdBan"`                         // 错误阈值
-	AutoBanMinutes           int64                              `yaml:"autoBanMinutes" json:"autoBanMinutes"`                     // 自动禁止时长
+	Parent                          *Dice                              `yaml:"-" json:"-"`
+	Map                             *SyncMap[string, *BanListInfoItem] `yaml:"-" json:"-"`
+	BanBehaviorRefuseReply          bool                               `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`                   //拉黑行为: 拒绝回复
+	BanBehaviorRefuseInvite         bool                               `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`                 // 拉黑行为: 拒绝邀请
+	BanBehaviorQuitLastPlace        bool                               `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"`               // 拉黑行为: 退出事发群
+	BanBehaviorQuitPlaceImmediately bool                               `yaml:"banBehaviorQuitPlaceImmediately" json:"banBehaviorQuitPlaceImmediately"` // 拉黑行为: 使用时立即退出群
+	ThresholdWarn                   int64                              `yaml:"thresholdWarn" json:"thresholdWarn"`                                     // 警告阈值
+	ThresholdBan                    int64                              `yaml:"thresholdBan" json:"thresholdBan"`                                       // 错误阈值
+	AutoBanMinutes                  int64                              `yaml:"autoBanMinutes" json:"autoBanMinutes"`                                   // 自动禁止时长
 
 	ScoreReducePerMinute int64 `yaml:"scoreReducePerMinute" json:"scoreReducePerMinute"` // 每分钟下降
 	ScoreGroupMuted      int64 `yaml:"scoreGroupMuted" json:"scoreGroupMuted"`           // 群组禁言
@@ -245,9 +246,22 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 			if curRank == BanRankBanned {
 				if i.BanBehaviorQuitLastPlace {
 					if ctx != nil {
-						ReplyGroupRaw(ctx, &Message{GroupId: place}, "因拉黑惩罚选项中有“退出事发群”，即将自动退群。", "")
-						time.Sleep(1 * time.Second)
-						ctx.EndPoint.Adapter.QuitGroup(ctx, place)
+						var isWhiteGroup bool
+						d := ctx.Dice
+						value, exists := d.BanList.Map.Load(place)
+						if exists {
+							if value.Rank == BanRankTrusted {
+								isWhiteGroup = true
+							}
+						}
+
+						if isWhiteGroup {
+							d.Logger.Infof("群<%s>触发“退出事发群”的拉黑惩罚，但该群是信任群所以未退群", place)
+						} else {
+							ReplyGroupRaw(ctx, &Message{GroupId: place}, "因拉黑惩罚选项中有“退出事发群”，即将自动退群。", "")
+							time.Sleep(1 * time.Second)
+							ctx.EndPoint.Adapter.QuitGroup(ctx, place)
+						}
 					}
 				}
 			}
