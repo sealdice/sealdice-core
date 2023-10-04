@@ -636,6 +636,10 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
+		if notReply := checkBan(mctx, msg); notReply {
+			return
+		}
+
 		PlatformPrefix := msg.Platform
 		cmdArgs := CommandParse(msg.Message, d.CommandCompatibleMode, cmdLst, d.CommandPrefix, PlatformPrefix)
 		if cmdArgs != nil {
@@ -736,62 +740,6 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 						} else {
 							log.Infof("拒绝处理命中敏感词的指令「%s」- 来自<%s>(%s)", msg.Message, msg.Sender.Nickname, msg.Sender.UserId)
 						}
-						return
-					}
-				}
-
-				var isBanGroup, isWhiteGroup bool
-				if msg.MessageType == "group" {
-					value, exists := d.BanList.Map.Load(mctx.Group.GroupId)
-					if exists {
-						if value.Rank == BanRankBanned {
-							isBanGroup = true
-						}
-						if value.Rank == BanRankTrusted {
-							isWhiteGroup = true
-						}
-					}
-				}
-				if mctx.PrivilegeLevel == -30 {
-					if d.BanList.BanBehaviorQuitPlaceImmediately {
-						// 黑名单用户 - 立即退出所在群
-						if msg.MessageType == "group" {
-							groupId := mctx.Group.GroupId
-							if isWhiteGroup {
-								log.Infof("群(%s)内黑名单用户<%s>(%s)使用骰子，但在信任群所以不尝试退群，忽略指令：%s", groupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-							} else {
-								log.Infof("群(%s)内黑名单用户<%s>(%s)使用骰子，拒绝响应并将自动退群", groupId, msg.Sender.Nickname, msg.Sender.UserId)
-
-								text := fmt.Sprintf("因<%s>(%s)是黑名单用户，拒绝响应并将自动退群。", msg.Sender.Nickname, msg.Sender.UserId)
-								ReplyGroupRaw(mctx, &Message{GroupId: groupId}, text, "")
-
-								time.Sleep(1 * time.Second)
-								mctx.EndPoint.Adapter.QuitGroup(mctx, groupId)
-							}
-						}
-						return
-					} else if d.BanList.BanBehaviorRefuseReply {
-						// 黑名单用户 - 拒绝回复
-						log.Infof("忽略黑名单用户指令: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
-						return
-					}
-				} else if isBanGroup {
-					if d.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
-						// 黑名单群 - 立即退出
-						groupId := mctx.Group.GroupId
-						if isWhiteGroup {
-							log.Infof("群(%s)处于黑名单中，但在信任群所以不尝试退群，忽略指令：%s", groupId, msg.Message)
-						} else {
-							log.Infof("群(%s)处于黑名单中，拒绝响应并将自动退群", groupId)
-							ReplyGroupRaw(mctx, &Message{GroupId: groupId}, "因本群处于黑名单中，拒绝响应并将自动退群。", "")
-
-							time.Sleep(1 * time.Second)
-							mctx.EndPoint.Adapter.QuitGroup(mctx, groupId)
-						}
-						return
-					} else if d.BanList.BanBehaviorRefuseReply {
-						// 黑名单群 - 拒绝回复
-						log.Infof("忽略黑名单群指令: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
 						return
 					}
 				}
@@ -934,6 +882,75 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			//replyGroup(Socket, 22, text)
 		}
 	}
+}
+
+// checkBan 黑名单拦截
+func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
+	d := ctx.Dice
+	log := d.Logger
+	var isBanGroup, isWhiteGroup bool
+	if msg.MessageType == "group" {
+		value, exists := d.BanList.Map.Load(ctx.Group.GroupId)
+		if exists {
+			if value.Rank == BanRankBanned {
+				isBanGroup = true
+			}
+			if value.Rank == BanRankTrusted {
+				isWhiteGroup = true
+			}
+		}
+	}
+	if ctx.PrivilegeLevel == -30 {
+		if d.BanList.BanBehaviorQuitPlaceImmediately {
+			notReply = true
+			// 黑名单用户 - 立即退出所在群
+			if msg.MessageType == "group" {
+				groupId := ctx.Group.GroupId
+				if isWhiteGroup {
+					log.Infof("收到群(%s)内黑名单用户<%s>(%s)的消息，但在信任群所以不尝试退群", groupId, msg.Sender.Nickname, msg.Sender.UserId)
+				} else {
+					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群", groupId, msg.Sender.Nickname, msg.Sender.UserId)
+					log.Info(noticeMsg)
+
+					text := fmt.Sprintf("因<%s>(%s)是黑名单用户，将自动退群。", msg.Sender.Nickname, msg.Sender.UserId)
+					ReplyGroupRaw(ctx, &Message{GroupId: groupId}, text, "")
+
+					ctx.Notice(noticeMsg)
+
+					time.Sleep(1 * time.Second)
+					ctx.EndPoint.Adapter.QuitGroup(ctx, groupId)
+				}
+			}
+		} else if d.BanList.BanBehaviorRefuseReply {
+			notReply = true
+			// 黑名单用户 - 拒绝回复
+			log.Infof("忽略黑名单用户信息: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+		}
+	} else if isBanGroup {
+		if d.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
+			notReply = true
+			// 黑名单群 - 立即退出
+			groupId := ctx.Group.GroupId
+			if isWhiteGroup {
+				log.Infof("群(%s)处于黑名单中，但在信任群所以不尝试退群", groupId)
+			} else {
+				noticeMsg := fmt.Sprintf("群(%s)处于黑名单中，自动退群", groupId)
+				log.Info(noticeMsg)
+
+				ReplyGroupRaw(ctx, &Message{GroupId: groupId}, "因本群处于黑名单中，将自动退群。", "")
+
+				ctx.Notice(noticeMsg)
+
+				time.Sleep(1 * time.Second)
+				ctx.EndPoint.Adapter.QuitGroup(ctx, groupId)
+			}
+		} else if d.BanList.BanBehaviorRefuseReply {
+			notReply = true
+			// 黑名单群 - 拒绝回复
+			log.Infof("忽略黑名单群消息: 来自群(%s)内<%s>(%s): %s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
+		}
+	}
+	return
 }
 
 func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool {
