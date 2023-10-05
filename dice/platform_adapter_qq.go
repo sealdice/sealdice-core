@@ -65,6 +65,7 @@ type PlatformAdapterGocq struct {
 	GoCqHttpLastRestrictedTime int64 `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
 
 	InPackGoCqHttpProtocol       int      `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
+	InPackGoCqHttpAppVersion     string   `yaml:"inPackGoCqHttpAppVersion" json:"inPackGoCqHttpAppVersion"`
 	InPackGoCqHttpPassword       string   `yaml:"inPackGoCqHttpPassword" json:"-"`
 	DiceServing                  bool     `yaml:"-"`                                              // 是否正在连接中
 	InPackGoCqHttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
@@ -907,6 +908,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		GoCqHttpServe(myDice, ep, GoCqHttpLoginInfo{
 			Password:         pa.InPackGoCqHttpPassword,
 			Protocol:         pa.InPackGoCqHttpProtocol,
+			AppVersion:       pa.InPackGoCqHttpAppVersion,
 			IsAsyncRun:       true,
 			UseSignServer:    pa.UseSignServer,
 			SignServerConfig: pa.SignServerConfig,
@@ -929,6 +931,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 			GoCqHttpServe(d, c, GoCqHttpLoginInfo{
 				Password:         pa.InPackGoCqHttpPassword,
 				Protocol:         pa.InPackGoCqHttpProtocol,
+				AppVersion:       pa.InPackGoCqHttpAppVersion,
 				IsAsyncRun:       true,
 				UseSignServer:    pa.UseSignServer,
 				SignServerConfig: pa.SignServerConfig,
