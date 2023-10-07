@@ -72,7 +72,7 @@ import {computed, onBeforeMount, onBeforeUnmount, onMounted, ref} from 'vue';
 import {useStore} from '~/store'
 import {urlBase} from '~/backend'
 import filesize from 'filesize'
-import {ElMessage, ElMessageBox} from 'element-plus'
+import {CheckboxValueType, ElMessage, ElMessageBox} from 'element-plus'
 import {
   Location,
   Document,
@@ -124,7 +124,7 @@ const bakDeleteConfirm = async (name: string) => {
 }
 
 const showBatchDelete = ref<boolean>(false)
-const selectedBaks = ref<string[]>([])
+const selectedBaks = ref<any[]>([]) // 他不是string[]，是备份项的一种格式
 const checkAllBaks = ref(false)
 const isIndeterminate = ref(true)
 
@@ -133,12 +133,12 @@ const enterBatchDelete = async () => {
   showBatchDelete.value = true
 }
 
-const handleCheckAllChange = (val: boolean) => {
+const handleCheckAllChange = (val: CheckboxValueType) => {
   selectedBaks.value = val ? data.value.items : []
   isIndeterminate.value = false
 }
 
-const handleCheckedBakChange = (value: string[]) => {
+const handleCheckedBakChange = (value: CheckboxValueType[]) => {
   const checkedCount = value.length
   checkAllBaks.value = checkedCount === data.value.items.length
   isIndeterminate.value = checkedCount > 0 && checkedCount < data.value.items.length
