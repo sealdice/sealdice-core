@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Szzrain/dodo-open-go/client"
-	"github.com/Szzrain/dodo-open-go/model"
-	"github.com/Szzrain/dodo-open-go/websocket"
 	"io"
 	"strings"
 	"time"
+
+	"github.com/Szzrain/dodo-open-go/client"
+	"github.com/Szzrain/dodo-open-go/model"
+	"github.com/Szzrain/dodo-open-go/websocket"
 )
 
 type PlatformAdapterDodo struct {
@@ -241,7 +242,7 @@ func (pa *PlatformAdapterDodo) SendToGroup(ctx *MsgContext, uid string, text str
 func (pa *PlatformAdapterDodo) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
 	dice := pa.Session.Parent
 	fileElement, err := dice.FilepathToFileElement(path)
-	if err != nil {
+	if err == nil {
 		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
 		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
@@ -251,7 +252,7 @@ func (pa *PlatformAdapterDodo) SendFileToPerson(ctx *MsgContext, userId string, 
 func (pa *PlatformAdapterDodo) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
 	dice := pa.Session.Parent
 	fileElement, err := dice.FilepathToFileElement(path)
-	if err != nil {
+	if err == nil {
 		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
 		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)

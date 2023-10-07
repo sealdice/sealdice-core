@@ -392,9 +392,6 @@ func isDeckFile(source string) bool {
 		if f.Name == "info.yaml" {
 			return true
 		}
-		if err != nil {
-			return false
-		}
 	}
 
 	// 一定返回true

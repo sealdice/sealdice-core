@@ -437,31 +437,29 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					VarSetValueStr(mctx, "$t判定结果_详细", suffixFull)
 					VarSetValueStr(mctx, "$t判定结果_简短", suffixShort)
 
-					if err == nil {
-						detailWrap := ""
-						if detail1 != "" {
-							detailWrap = ", (" + detail1 + ")"
-						}
-
-						// 指令信息标记
-						infoItem := map[string]interface{}{
-							"expr1":    expr1Text,
-							"expr2":    expr2Text,
-							"checkVal": checkVal,
-							"attrVal":  attrVal,
-							"rank":     successRank,
-						}
-						commandInfoItems = append(commandInfoItems, infoItem)
-
-						VarSetValueStr(mctx, "$t检定表达式文本", expr1Text)
-						VarSetValueStr(mctx, "$t属性表达式文本", expr2Text)
-						VarSetValueStr(mctx, "$t检定计算过程", detailWrap)
-						VarSetValueStr(mctx, "$t计算过程", detailWrap)
-
-						//text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.Player.Name, cmdArgs.CleanArgs, d100, cond, detailWrap, suffix)
-						SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
-						VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
+					detailWrap := ""
+					if detail1 != "" {
+						detailWrap = ", (" + detail1 + ")"
 					}
+
+					// 指令信息标记
+					infoItem := map[string]interface{}{
+						"expr1":    expr1Text,
+						"expr2":    expr2Text,
+						"checkVal": checkVal,
+						"attrVal":  attrVal,
+						"rank":     successRank,
+					}
+					commandInfoItems = append(commandInfoItems, infoItem)
+
+					VarSetValueStr(mctx, "$t检定表达式文本", expr1Text)
+					VarSetValueStr(mctx, "$t属性表达式文本", expr2Text)
+					VarSetValueStr(mctx, "$t检定计算过程", detailWrap)
+					VarSetValueStr(mctx, "$t计算过程", detailWrap)
+
+					//text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.Player.Name, cmdArgs.CleanArgs, d100, cond, detailWrap, suffix)
+					SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
+					VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
 					return nil
 				}
 
