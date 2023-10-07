@@ -1,0 +1,20 @@
+name: Check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code
+        uses: actions/checkout@v3
+      - name: Install Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: "latest"
+      - name: Install Dependencies
+        run: npm install
+      - name: Check
+        uses: keita-hino/vue-tsc-action@main
