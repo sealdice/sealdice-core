@@ -653,7 +653,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 		_ = os.Chmod(gocqhttpExePath, 0755)
 
 		dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
-		p := procs.NewProcess(fmt.Sprintf(`"%s" faststart`, gocqhttpExePath))
+		p := procs.NewProcess(fmt.Sprintf(`"%s" -faststart`, gocqhttpExePath))
 		p.Dir = workDir
 
 		if runtime.GOOS == "android" {
