@@ -173,13 +173,15 @@ type Dice struct {
 	ReplyDebugMode          bool                   `yaml:"replyDebugMode"`       // 回复调试
 	PlayerNameWrapEnable    bool                   `yaml:"playerNameWrapEnable"` // 启用玩家名称外框
 
-	HelpMasterInfo      string `yaml:"helpMasterInfo" jsbind:"helpMasterInfo"`           // help中骰主信息
+	//Deprecated: 转移到自定义文案的 核心:骰子帮助文本_骰主
+	HelpMasterInfo string `yaml:"helpMasterInfo" jsbind:"helpMasterInfo"` // help中骰主信息
+	//Deprecated: 转移到自定义文案的 核心:骰子帮助文本_协议
 	HelpMasterLicense   string `yaml:"helpMasterLicense" jsbind:"helpMasterLicense"`     // help中使用协议
 	DefaultCocRuleIndex int64  `yaml:"defaultCocRuleIndex" jsbind:"defaultCocRuleIndex"` // 默认coc index
 	MaxExecuteTime      int64  `yaml:"maxExecuteTime" jsbind:"maxExecuteTime"`           // 最大骰点次数
 	MaxCocCardGen       int64  `yaml:"maxCocCardGen" jsbind:"maxCocCardGen"`             // 最大coc制卡数
 
-	//Deprecated 转移到自定义文案的 核心:骰子状态附加文本
+	//Deprecated: 转移到自定义文案的 核心:骰子状态附加文本
 	CustomBotExtraText       string `yaml:"customBotExtraText"`       // bot自定义文本
 	CustomDrawKeysText       string `yaml:"customDrawKeysText"`       // draw keys自定义文本
 	CustomDrawKeysTextEnable bool   `yaml:"customDrawKeysTextEnable"` // 应用draw keys自定义文本

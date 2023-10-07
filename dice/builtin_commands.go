@@ -368,12 +368,12 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				if cmdArgs.IsArgEqual(1, "骰主", "骰主信息") {
-					masterMsg := ctx.Dice.HelpMasterInfo
+					masterMsg := DiceFormatTmpl(ctx, "核心:骰子帮助文本_骰主")
 					ReplyToSender(ctx, msg, masterMsg)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				if cmdArgs.IsArgEqual(1, "协议", "使用协议") {
-					masterMsg := ctx.Dice.HelpMasterLicense
+					masterMsg := DiceFormatTmpl(ctx, "核心:骰子帮助文本_协议")
 					ReplyToSender(ctx, msg, masterMsg)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
