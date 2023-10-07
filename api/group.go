@@ -105,7 +105,7 @@ func groupQuit(c echo.Context) error {
 					//dice.SetBotOffAtGroup(ctx, group.GroupId)
 
 					if !v.Silence {
-						txtPost := "因长期不使用等原因，骰主后台操作退群"
+						txtPost := dice.DiceFormatTmpl(ctx, "核心:提示_手动退群前缀")
 						if v.ExtraText != "" {
 							txtPost += "\n骰主留言: " + v.ExtraText
 						}
