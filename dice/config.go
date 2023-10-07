@@ -593,6 +593,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"鸽子理由": guguReason,
 		},
 		"其它": {
+			"抽牌_列表": {
+				{"{$t原始列表}", 1},
+			},
 			"抽牌_列表_没有牌组": {
 				{`呃，没有发现任何牌组`, 1},
 			},
@@ -1206,6 +1209,9 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 		},
 		"其它": {
+			"抽牌_列表": {
+				SubType: ".draw keys",
+			},
 			"抽牌_列表_没有牌组": {
 				SubType: ".draw keys",
 			},

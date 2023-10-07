@@ -609,28 +609,25 @@ func RegisterBuiltinExtDeck(d *Dice) {
 				} else if strings.EqualFold(deckName, "keys") {
 					specified := cmdArgs.GetArgN(2)
 					text := "牌组关键字列表:\n"
-					keys := ""
-
-					if specified == "" && ctx.Dice.CustomDrawKeysTextEnable {
-						keys += ctx.Dice.CustomDrawKeysText + "/" // 注: 最后一个字符会被剔除，故额外添加一个
-					} else {
-						for _, i := range ctx.Dice.DeckList {
-							if i.Enable {
-								if strings.Contains(i.Name, specified) {
-									for j, isShow := range i.Command {
-										if isShow {
-											keys += j + "/"
-										}
+					var keys []string
+					for _, i := range ctx.Dice.DeckList {
+						if i.Enable {
+							if strings.Contains(i.Name, specified) {
+								for j, isShow := range i.Command {
+									if isShow {
+										keys = append(keys, j)
 									}
 								}
 							}
 						}
 					}
+					VarSetValueStr(ctx, "$t原始列表", strings.Join(keys, "/"))
 
-					if keys == "" {
+					keysStr := DiceFormatTmpl(ctx, "其它:抽牌_列表")
+					if keysStr == "" {
 						text += DiceFormatTmpl(ctx, "其它:抽牌_列表_没有牌组")
 					} else {
-						text += keys[:len(keys)-1]
+						text += keysStr
 					}
 					ReplyToSender(ctx, msg, text)
 				} else if strings.EqualFold(deckName, "reload") {

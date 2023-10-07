@@ -182,9 +182,11 @@ type Dice struct {
 	MaxCocCardGen       int64  `yaml:"maxCocCardGen" jsbind:"maxCocCardGen"`             // 最大coc制卡数
 
 	//Deprecated: 转移到自定义文案的 核心:骰子状态附加文本
-	CustomBotExtraText       string `yaml:"customBotExtraText"`       // bot自定义文本
-	CustomDrawKeysText       string `yaml:"customDrawKeysText"`       // draw keys自定义文本
-	CustomDrawKeysTextEnable bool   `yaml:"customDrawKeysTextEnable"` // 应用draw keys自定义文本
+	CustomBotExtraText string `yaml:"customBotExtraText"` // bot自定义文本
+	//Deprecated: 转移到自定义文案的 其他:抽牌_列表
+	CustomDrawKeysText string `yaml:"customDrawKeysText"` // draw keys自定义文本
+	//Deprecated: 迁移到自定义文案的 其他:抽牌_列表 后该值弃用
+	CustomDrawKeysTextEnable bool `yaml:"customDrawKeysTextEnable"` // 应用draw keys自定义文本
 
 	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
 
