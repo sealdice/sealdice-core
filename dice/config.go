@@ -1560,9 +1560,9 @@ func (d *Dice) loads() {
 			d.ReplyDebugMode = dNew.ReplyDebugMode
 			d.LogSizeNoticeCount = dNew.LogSizeNoticeCount
 			d.LogSizeNoticeEnable = dNew.LogSizeNoticeEnable
-			d.CustomBotExtraText = dNew.CustomBotExtraText
-			d.CustomDrawKeysText = dNew.CustomDrawKeysText
-			d.CustomDrawKeysTextEnable = dNew.CustomDrawKeysTextEnable
+			//d.CustomBotExtraText = dNew.CustomBotExtraText
+			//d.CustomDrawKeysText = dNew.CustomDrawKeysText
+			//d.CustomDrawKeysTextEnable = dNew.CustomDrawKeysTextEnable
 			d.PlayerNameWrapEnable = dNew.PlayerNameWrapEnable
 			d.MailEnable = dNew.MailEnable
 			d.MailFrom = dNew.MailFrom

@@ -3,13 +3,14 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"golang.org/x/time/rate"
 	"net/http"
 	"sealdice-core/dice"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/labstack/echo/v4"
+	"golang.org/x/time/rate"
 )
 
 type DiceConfigInfo struct {
@@ -403,17 +404,17 @@ func DiceConfigSet(c echo.Context) error {
 			}
 		}
 
-		if val, ok := jsonMap["customBotExtraText"]; ok {
-			myDice.CustomBotExtraText = val.(string)
-		}
-
-		if val, ok := jsonMap["customDrawKeysText"]; ok {
-			myDice.CustomDrawKeysText = val.(string)
-		}
-
-		if val, ok := jsonMap["customDrawKeysTextEnable"]; ok {
-			myDice.CustomDrawKeysTextEnable = val.(bool)
-		}
+		//if val, ok := jsonMap["customBotExtraText"]; ok {
+		//	myDice.CustomBotExtraText = val.(string)
+		//}
+		//
+		//if val, ok := jsonMap["customDrawKeysText"]; ok {
+		//	myDice.CustomDrawKeysText = val.(string)
+		//}
+		//
+		//if val, ok := jsonMap["customDrawKeysTextEnable"]; ok {
+		//	myDice.CustomDrawKeysTextEnable = val.(bool)
+		//}
 
 		if val, ok := jsonMap["logSizeNoticeEnable"]; ok {
 			myDice.LogSizeNoticeEnable = val.(bool)
