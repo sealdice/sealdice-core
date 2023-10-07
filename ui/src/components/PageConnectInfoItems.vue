@@ -108,6 +108,10 @@
               <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
               <el-button size="small" type="primary" style="margin-left: 1rem" @click="askSetData(i)" :icon="Edit"></el-button>
             </el-form-item>
+            <el-form-item label="协议版本" v-if="i.adapter.useInPackGoCqhttp">
+              <div v-if="i.adapter?.inPackGoCqHttpAppVersion === ''">未指定</div>
+              <div v-if="i.adapter?.inPackGoCqHttpAppVersion && i.adapter.inPackGoCqHttpAppVersion !== ''">{{ i.adapter.inPackGoCqHttpAppVersion }}</div>
+            </el-form-item>
             <el-form-item label="协议实现" v-if="i.adapter.useInPackGoCqhttp">
               <!-- <el-input v-model="i.connectUrl"></el-input> -->
               <div v-if="i.adapter?.implementation === 'gocq' || i.adapter?.implementation===''">Go-Cqhttp</div>
@@ -165,6 +169,24 @@
           <el-option label="iPad" :value="5"></el-option>
           <el-option v-if="form.implementation === 'gocq' || form.implementation === ''" label="AndroidPad - 稳定协议，建议！" :value="6"></el-option>
           <!-- <el-option label="MacOS" :value="3"></el-option> -->
+        </el-select>
+      </el-form-item>
+
+      <el-form-item :label-width="formLabelWidth" v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)">
+        <template #label>
+          <div style="display: flex; align-items: center;">
+            <span>版本</span>
+            <el-tooltip content="只有需要升级协议版本时才指定。" style="">
+              <el-icon>
+                <QuestionFilled />
+              </el-icon>
+            </el-tooltip>
+          </div>
+        </template>
+        <el-select v-model="form.appVersion">
+          <el-option v-for="version of supportedQQVersions"
+                     :key="version" :value="version"
+                     :label="version || '不指定版本'" />
         </el-select>
       </el-form-item>
 
@@ -402,6 +424,24 @@
             <el-option label="iPad" :value="5"></el-option>
             <el-option v-if="form.implementation === 'gocq' || form.implementation === ''" label="AndroidPad - 可共存" :value="6"></el-option>
             <!-- <el-option label="MacOS" :value="3"></el-option> -->
+          </el-select>
+        </el-form-item>
+
+        <el-form-item :label-width="formLabelWidth" v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>版本</span>
+              <el-tooltip content="只有需要升级协议版本时才指定。" style="">
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-select v-model="form.appVersion">
+            <el-option v-for="version of supportedQQVersions"
+                       :key="version" :value="version"
+                       :label="version || '不指定版本'" />
           </el-select>
         </el-form-item>
         <!-- <el-form-item v-if="form.accountType === 0" label="协议实现" :label-width="formLabelWidth" required>
@@ -1029,6 +1069,7 @@ const setEnable = async (i: DiceConnection, val: boolean) => {
 
 const askSetData = async (i: DiceConnection) => {
   form.protocol = i.adapter?.inPackGoCqHttpProtocol;
+  form.appVersion = i.adapter?.inPackGoCqHttpAppVersion;
   form.ignoreFriendRequest = i.adapter?.ignoreFriendRequest;
   form.useSignServer = i.adapter?.useSignServer;
   form.signServerConfig = i.adapter?.signServerConfig;
@@ -1044,6 +1085,7 @@ const doSetData = async () => {
     ignoreFriendRequest: form.ignoreFriendRequest,
   } as {
     protocol: number,
+    appVersion: string,
     ignoreFriendRequest: boolean,
     useSignServer?: boolean,
     signServerConfig?: any
@@ -1051,8 +1093,9 @@ const doSetData = async () => {
   if (form.protocol === 1 || form.protocol === 6) {
     param = {
       ...param,
+      appVersion: form.appVersion,
       useSignServer: form.useSignServer,
-      signServerConfig: form.signServerConfig
+      signServerConfig: form.signServerConfig,
     }
   }
   const ret = await store.getImConnectionsSetData(form.endpoint, param);
@@ -1160,6 +1203,8 @@ const handleSignServerDelete = (url: string) => {
   }
 }
 
+const supportedQQVersions = ref<string[]>([])
+
 const form = reactive({
   accountType: 0,
   step: 1,
@@ -1167,6 +1212,7 @@ const form = reactive({
   account: '',
   password: '',
   protocol: 1,
+  appVersion: '',
   implementation:'',
   id: '',
   token: '',
@@ -1213,6 +1259,11 @@ onBeforeMount(async () => {
   await store.getImConnections()
   for (let i of store.curDice.conns || []) {
     delete store.curDice.qrcodes[i.id]
+  }
+
+  const versionsRes = await store.getSupportedQQVersions();
+  if (versionsRes.result) {
+    supportedQQVersions.value = ['', ...versionsRes.versions]
   }
 
   const lastIndex = {}
