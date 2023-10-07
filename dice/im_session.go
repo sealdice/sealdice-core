@@ -641,29 +641,17 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		}
 
 		PlatformPrefix := msg.Platform
-		cmdArgs := CommandParse(msg.Message, d.CommandCompatibleMode, cmdLst, d.CommandPrefix, PlatformPrefix)
+		cmdArgs := CommandParse(msg.Message, cmdLst, d.CommandPrefix, PlatformPrefix, true)
 		if cmdArgs != nil {
 			mctx.CommandId = getNextCommandId()
 
-			// 设置AmIBeMentioned
-			cmdArgs.AmIBeMentioned = false
-			cmdArgs.AmIBeMentionedFirst = false
 			tmpUid := ep.UserId
 			if msg.TmpUid != "" {
 				tmpUid = msg.TmpUid
 			}
-			for _, i := range cmdArgs.At {
-				if i.UserId == tmpUid {
-					cmdArgs.AmIBeMentioned = true
-					break
-				}
-			}
-			if cmdArgs.AmIBeMentioned {
-				// 检查是不是第一个被AT的
-				if cmdArgs.At[0].UserId == tmpUid {
-					cmdArgs.AmIBeMentionedFirst = true
-				}
-			}
+
+			// 设置at信息
+			cmdArgs.SetupAtInfo(tmpUid)
 		}
 
 		// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
@@ -714,15 +702,6 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子执行异常"))
 					}
 				}()
-
-				// 有人被@了，但不是我
-				// 后面的代码保证了如果@的名单中有任何已知骰子，不会进入下一步操作
-				// 所以不用考虑其他骰子被@的情况
-				cmdArgs.SomeoneBeMentionedButNotMe = len(cmdArgs.At) > 0 && (!cmdArgs.AmIBeMentioned)
-				//if cmdArgs.MentionedOtherDice {
-				//	// @其他骰子
-				//	return
-				//}
 
 				// 敏感词拦截：命令
 				if d.EnableCensor && d.CensorMode == OnlyCommand {
@@ -966,6 +945,10 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			if ext != nil && ext.DefaultSetting.DisabledCommand[item.Name] {
 				ReplyToSender(ctx, msg, fmt.Sprintf("此指令已被骰主禁用: %s:%s", ext.Name, item.Name))
 				return true
+			}
+
+			if item.DisableExecuteTimesParse {
+				cmdArgs.RevokeExecuteTimesParse()
 			}
 
 			if item.Raw {

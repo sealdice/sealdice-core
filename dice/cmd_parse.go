@@ -53,21 +53,26 @@ type CmdArgs struct {
 	AmIBeMentioned             bool      `json:"amIBeMentioned" jsbind:"amIBeMentioned"`
 	AmIBeMentionedFirst        bool      `json:"amIBeMentionedFirst" jsbind:"amIBeMentionedFirst"` // 同上，但要求是第一个被@的
 	SomeoneBeMentionedButNotMe bool      `json:"someoneBeMentionedButNotMe"`
-	MentionedOtherDice         bool      `json:"mentionedOtherDice"`
 	IsSpaceBeforeArgs          bool      `json:"isSpaceBeforeArgs"`     // 命令前面是否有空格，用于区分rd20和rd 20
 	CleanArgs                  string    `jsbind:"cleanArgs"`           // 一种格式化后的参数，也就是中间所有分隔符都用一个空格替代
 	SpecialExecuteTimes        int       `jsbind:"specialExecuteTimes"` // 特殊的执行次数，对应 3# 这种
-	CleanArgsChopRest          string    // 未来可能移除
+	RawText                    string    `jsbind:"rawText"`             // 原始命令
+	prefixStr                  string    // 命令前导符号，这几个用于基于当前cmdArgs信息重走解析流程，暂不对js开放
+	platformPrefix             string    // 平台前缀
+	uidForAtInfo               string    // 用于处理@的uid
+
+	MentionedOtherDice bool   // 似乎没有在用
+	CleanArgsChopRest  string // 未来可能移除
 }
 
 /** 检查第N项参数是否为某个字符串，n从1开始，若没有第n项参数也视为失败 */
-func (a *CmdArgs) IsArgEqual(n int, ss ...string) bool {
+func (cmdArgs *CmdArgs) IsArgEqual(n int, ss ...string) bool {
 	if n <= 0 {
 		return false
 	}
-	if len(a.Args) >= n {
+	if len(cmdArgs.Args) >= n {
 		for _, i := range ss {
-			if strings.EqualFold(a.Args[n-1], i) {
+			if strings.EqualFold(cmdArgs.Args[n-1], i) {
 				return true
 			}
 		}
@@ -76,8 +81,8 @@ func (a *CmdArgs) IsArgEqual(n int, ss ...string) bool {
 	return false
 }
 
-func (a *CmdArgs) EatPrefixWith(ss ...string) (string, bool) {
-	text := a.CleanArgs
+func (cmdArgs *CmdArgs) EatPrefixWith(ss ...string) (string, bool) {
+	text := cmdArgs.CleanArgs
 	if len(text) > 0 {
 		for _, i := range ss {
 			if len(text) < len(i) {
@@ -92,9 +97,9 @@ func (a *CmdArgs) EatPrefixWith(ss ...string) (string, bool) {
 	return "", false
 }
 
-func (a *CmdArgs) ChopPrefixToArgsWith(ss ...string) bool {
-	if len(a.Args) > 0 {
-		text := a.Args[0]
+func (cmdArgs *CmdArgs) ChopPrefixToArgsWith(ss ...string) bool {
+	if len(cmdArgs.Args) > 0 {
+		text := cmdArgs.Args[0]
 		for _, i := range ss {
 			if len(text) < len(i) {
 				continue
@@ -106,11 +111,11 @@ func (a *CmdArgs) ChopPrefixToArgsWith(ss ...string) bool {
 					base = append(base, t)
 				}
 
-				a.Args = append(
+				cmdArgs.Args = append(
 					base,
-					a.Args[1:]...,
+					cmdArgs.Args[1:]...,
 				)
-				a.CleanArgsChopRest = strings.TrimSpace(a.RawArgs[len(i):])
+				cmdArgs.CleanArgsChopRest = strings.TrimSpace(cmdArgs.RawArgs[len(i):])
 				return true
 			}
 		}
@@ -119,16 +124,16 @@ func (a *CmdArgs) ChopPrefixToArgsWith(ss ...string) bool {
 	return false
 }
 
-func (a *CmdArgs) GetArgN(n int) string {
-	if len(a.Args) >= n {
-		return a.Args[n-1]
+func (cmdArgs *CmdArgs) GetArgN(n int) string {
+	if len(cmdArgs.Args) >= n {
+		return cmdArgs.Args[n-1]
 	}
 
 	return ""
 }
 
-func (a *CmdArgs) GetKwarg(s string) *Kwarg {
-	for _, i := range a.Kwargs {
+func (cmdArgs *CmdArgs) GetKwarg(s string) *Kwarg {
+	for _, i := range cmdArgs.Kwargs {
 		if i.Name == s {
 			return i
 		}
@@ -136,10 +141,10 @@ func (a *CmdArgs) GetKwarg(s string) *Kwarg {
 	return nil
 }
 
-func (a *CmdArgs) GetRestArgsFrom(index int) string {
+func (cmdArgs *CmdArgs) GetRestArgsFrom(index int) string {
 	txt := []string{}
-	for i := index; i < len(a.Args)+1; i++ {
-		info := a.GetArgN(i)
+	for i := index; i < len(cmdArgs.Args)+1; i++ {
+		info := cmdArgs.GetArgN(i)
 		if info != "" {
 			txt = append(txt, info)
 		} else {
@@ -147,6 +152,41 @@ func (a *CmdArgs) GetRestArgsFrom(index int) string {
 		}
 	}
 	return strings.Join(txt, " ")
+}
+
+func (cmdArgs *CmdArgs) RevokeExecuteTimesParse() {
+	// 因为次数解析进行的太早了，影响太大无法还原，这里干脆重新解析一遍
+	cmdArgs.commandParse(cmdArgs.RawText, []string{cmdArgs.Command}, []string{cmdArgs.prefixStr}, cmdArgs.platformPrefix, false)
+	cmdArgs.SetupAtInfo(cmdArgs.uidForAtInfo)
+}
+
+func (cmdArgs *CmdArgs) SetupAtInfo(uid string) {
+	// 设置AmIBeMentioned
+	cmdArgs.AmIBeMentioned = false
+	cmdArgs.AmIBeMentionedFirst = false
+	cmdArgs.uidForAtInfo = uid
+
+	for _, i := range cmdArgs.At {
+		if i.UserId == uid {
+			cmdArgs.AmIBeMentioned = true
+			break
+		}
+	}
+	if cmdArgs.AmIBeMentioned {
+		// 检查是不是第一个被AT的
+		if cmdArgs.At[0].UserId == uid {
+			cmdArgs.AmIBeMentionedFirst = true
+		}
+	}
+
+	// 有人被@了，但不是我
+	// 后面的代码保证了如果@的名单中有任何已知骰子，不会进入下一步操作
+	// 所以不用考虑其他骰子被@的情况
+	cmdArgs.SomeoneBeMentionedButNotMe = len(cmdArgs.At) > 0 && (!cmdArgs.AmIBeMentioned)
+	//if cmdArgs.MentionedOtherDice {
+	//	// @其他骰子
+	//	return
+	//}
 }
 
 func CommandCheckPrefix(rawCmd string, prefix []string, platform string) bool {
@@ -172,12 +212,14 @@ func CommandCheckPrefix(rawCmd string, prefix []string, platform string) bool {
 	return prefixStr != ""
 }
 
-func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []string, prefix []string, platformPrefix string) *CmdArgs {
+func (cmdArgs *CmdArgs) commandParse(rawCmd string, currentCmdLst []string, prefix []string, platformPrefix string, isParseExecuteTimes bool) *CmdArgs {
 	specialExecuteTimes := 0
 	rawCmd = strings.ReplaceAll(rawCmd, "\r\n", "\n") // 替换\r\n为\n
 	restText, atInfo := AtParse(rawCmd, platformPrefix)
 	restText = strings.TrimSpace(restText)
-	restText, specialExecuteTimes = SpecialExecuteTimesParse(restText)
+	if isParseExecuteTimes {
+		restText, specialExecuteTimes = SpecialExecuteTimesParse(restText)
+	}
 
 	// 先导符号检测
 	var prefixStr string
@@ -195,62 +237,71 @@ func CommandParse(rawCmd string, commandCompatibleMode bool, currentCmdLst []str
 	isSpaceBeforeArgs := false
 
 	// 兼容模式，进行格式化
-	if commandCompatibleMode {
-		if strings.HasPrefix(restText, "bot list") {
-			restText = "botlist" + restText[len("bot list"):]
+	// 之前的 commandCompatibleMode 现在不再有兼容模式的区分
+	if strings.HasPrefix(restText, "bot list") {
+		restText = "botlist" + restText[len("bot list"):]
+	}
+
+	matched := ""
+	for _, i := range currentCmdLst {
+		if len(i) > len(restText) {
+			continue
 		}
 
-		matched := ""
-		for _, i := range currentCmdLst {
-			if len(i) > len(restText) {
-				continue
-			}
-
-			if strings.EqualFold(restText[:len(i)], i) {
-				matched = i
-				break
-			}
-		}
-		if matched != "" {
-			runes := []rune(restText)
-			restParams := runes[len([]rune(matched)):]
-			// 检查是否有空格，例如.rd 20，以区别于.rd20
-			if len(restParams) > 0 && unicode.IsSpace(restParams[0]) {
-				isSpaceBeforeArgs = true
-			}
-			restText = matched + " " + string(restParams)
+		if strings.EqualFold(restText[:len(i)], i) {
+			matched = i
+			break
 		}
 	}
+	if matched != "" {
+		runes := []rune(restText)
+		restParams := runes[len([]rune(matched)):]
+		// 检查是否有空格，例如.rd 20，以区别于.rd20
+		if len(restParams) > 0 && unicode.IsSpace(restParams[0]) {
+			isSpaceBeforeArgs = true
+		}
+		restText = matched + " " + string(restParams)
+	}
+	// 之前的兼容模式代码结束标记，已经不再使用
 
 	re := regexp.MustCompile(`^\s*(\S+)\s*([\S\s]*)`)
 	//fmt.Println("!!!", restText)
 	m := re.FindStringSubmatch(restText)
 
 	if len(m) == 3 {
-		cmdInfo := new(CmdArgs)
-		cmdInfo.Command = m[1]
-		cmdInfo.RawArgs = m[2]
-		cmdInfo.At = atInfo
-		cmdInfo.IsSpaceBeforeArgs = isSpaceBeforeArgs
+		cmdArgs.Command = m[1]
+		cmdArgs.RawArgs = m[2]
+		cmdArgs.At = atInfo
+		cmdArgs.IsSpaceBeforeArgs = isSpaceBeforeArgs
 
-		a := ArgsParse2(m[2])
-		cmdInfo.Args = a.Args
-		cmdInfo.Kwargs = a.Kwargs
+		a := ArgsParse(m[2])
+		cmdArgs.Args = a.Args
+		cmdArgs.Kwargs = a.Kwargs
 		//log.Println(222, m[1], "[sep]", m[2])
 
 		// 将所有args连接起来，存入一个cleanArgs变量。主要用于兼容非标准参数
-		stText := strings.Join(cmdInfo.Args, " ")
-		cmdInfo.CleanArgs = strings.TrimSpace(stText)
+		stText := strings.Join(cmdArgs.Args, " ")
+		cmdArgs.CleanArgs = strings.TrimSpace(stText)
 		if specialExecuteTimes > 25 {
 			specialExecuteTimes = 25
 		}
-		cmdInfo.SpecialExecuteTimes = specialExecuteTimes
-		//fmt.Println("?????", cmdInfo.CleanArgs)
+		cmdArgs.SpecialExecuteTimes = specialExecuteTimes
 
-		return cmdInfo
+		// 以下信息用于重组解析使用
+		cmdArgs.RawText = rawCmd
+		cmdArgs.prefixStr = prefixStr
+		cmdArgs.platformPrefix = platformPrefix
+		//fmt.Println("?????", cmdArgs.CleanArgs)
+
+		return cmdArgs
 	}
 
 	return nil
+}
+
+func CommandParse(rawCmd string, currentCmdLst []string, prefix []string, platformPrefix string, isParseExecuteTimes bool) *CmdArgs {
+	cmdInfo := new(CmdArgs)
+	return cmdInfo.commandParse(rawCmd, currentCmdLst, prefix, platformPrefix, isParseExecuteTimes)
 }
 
 func SpecialExecuteTimesParse(cmd string) (string, int) {
@@ -404,7 +455,7 @@ func AtBuild(uid string) string {
 var reSpace = regexp.MustCompile(`\s+`)
 var reKeywordParam = regexp.MustCompile(`^--([^\s=]+)(?:=(\S+))?$`)
 
-func ArgsParse2(rawCmd string) *CmdArgs {
+func ArgsParse(rawCmd string) *CmdArgs {
 	args := reSpace.Split(rawCmd, -1)
 	newArgs := []string{}
 

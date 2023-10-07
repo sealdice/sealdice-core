@@ -680,9 +680,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 	textHelp := ".text <文本模板> // 文本指令，例: .text 看看手气: {1d16}"
 	cmdText := CmdItemInfo{
-		Name:      "text",
-		ShortHelp: textHelp,
-		Help:      "文本模板指令:\n" + textHelp,
+		Name:                     "text",
+		ShortHelp:                textHelp,
+		Help:                     "文本模板指令:\n" + textHelp,
+		DisableExecuteTimesParse: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.Dice.TextCmdTrustOnly {
 				// 检查master和信任权限
