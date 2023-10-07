@@ -106,6 +106,7 @@ func onReady() {
 	systray.SetTooltip("海豹TRPG骰点核心")
 
 	mOpen := systray.AddMenuItem("打开界面", "开启WebUI")
+	mOpenExeDir := systray.AddMenuItem("打开海豹目录", "资源管理器访问程序所在目录")
 	mShowHide := systray.AddMenuItemCheckbox("显示终端窗口", "显示终端窗口", false)
 	mAutoBoot := systray.AddMenuItemCheckbox("开机自启动", "开机自启动", false)
 	mQuit := systray.AddMenuItem("退出", "退出程序")
@@ -136,6 +137,8 @@ func onReady() {
 		select {
 		case <-mOpen.ClickedCh:
 			_ = exec.Command(`cmd`, `/c`, `start`, `http://localhost:`+_trayPortStr).Start()
+		case <-mOpenExeDir.ClickedCh:
+			_ = exec.Command(`cmd`, `/c`, `explorer`, `/select,`, os.Args[0]).Start()
 		case <-mQuit.ClickedCh:
 			systray.Quit()
 			systrayQuited = true
