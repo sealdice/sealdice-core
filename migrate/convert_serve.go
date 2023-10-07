@@ -3,12 +3,13 @@ package migrate
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jmoiron/sqlx"
-	"go.etcd.io/bbolt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/jmoiron/sqlx"
+	"go.etcd.io/bbolt"
+	"gopkg.in/yaml.v3"
 )
 
 type DeckInfo struct {
@@ -252,62 +253,60 @@ create table if not exists ban_info
 	fmt.Println("处理serve.yaml")
 
 	times := 0
-	if err == nil {
-		dNew := &Dice{}
-		if yaml.Unmarshal(data, &dNew) == nil {
-			//conn := dbpool.Get(nil)
-			tx := dbSql.MustBegin()
+	dNew := &Dice{}
+	if yaml.Unmarshal(data, &dNew) == nil {
+		//conn := dbpool.Get(nil)
+		tx := dbSql.MustBegin()
 
-			for k, v := range dNew.ImSession.ServiceAtNew {
-				fmt.Println("群组", k)
-				times += len(v.Players)
-				for _, playerInfo := range v.Players {
-					args := map[string]interface{}{
-						"group_id":               k,
-						"user_id":                playerInfo.UserId,
-						"created_at":             nowTimestamp,
-						"name":                   playerInfo.Name,
-						"last_command_time":      playerInfo.LastCommandTime,
-						"auto_set_name_template": playerInfo.AutoSetNameTemplate,
-						"dice_side_num":          int64(playerInfo.DiceSideNum),
-					}
-					_, _ = tx.NamedExec(`insert into group_player_info (group_id, user_id, created_at, name, last_command_time, auto_set_name_template, dice_side_num) VALUES (:group_id, :user_id, :created_at, :name, :last_command_time, :auto_set_name_template, :dice_side_num)`, args)
-					// $group_id, $user_id, $created_at, $last_command_time, $auto_set_name_template, $dice_side_num
-				}
-
-				v.Players = nil
-				v.DiceIdExistsMap = v.ActiveDiceIds // 暂时视为相同
-				d, _ := json.Marshal(v)
-
+		for k, v := range dNew.ImSession.ServiceAtNew {
+			fmt.Println("群组", k)
+			times += len(v.Players)
+			for _, playerInfo := range v.Players {
 				args := map[string]interface{}{
-					"group_id":   k,
-					"created_at": nowTimestamp,
-					"data":       d,
+					"group_id":               k,
+					"user_id":                playerInfo.UserId,
+					"created_at":             nowTimestamp,
+					"name":                   playerInfo.Name,
+					"last_command_time":      playerInfo.LastCommandTime,
+					"auto_set_name_template": playerInfo.AutoSetNameTemplate,
+					"dice_side_num":          int64(playerInfo.DiceSideNum),
 				}
-
-				_, _ = tx.NamedExec(`insert into group_info (id, created_at, data) VALUES (:group_id, :created_at, :data)`, args)
+				_, _ = tx.NamedExec(`insert into group_player_info (group_id, user_id, created_at, name, last_command_time, auto_set_name_template, dice_side_num) VALUES (:group_id, :user_id, :created_at, :name, :last_command_time, :auto_set_name_template, :dice_side_num)`, args)
+				// $group_id, $user_id, $created_at, $last_command_time, $auto_set_name_template, $dice_side_num
 			}
 
-			err := tx.Commit()
-			if err != nil {
-				fmt.Println("???", err)
-				_ = tx.Rollback()
+			v.Players = nil
+			v.DiceIdExistsMap = v.ActiveDiceIds // 暂时视为相同
+			d, _ := json.Marshal(v)
+
+			args := map[string]interface{}{
+				"group_id":   k,
+				"created_at": nowTimestamp,
+				"data":       d,
 			}
 
-			fmt.Println("群组信息处理完成")
-			fmt.Println("群数量", len(dNew.ImSession.ServiceAtNew))
-			fmt.Println("群成员数量", times)
+			_, _ = tx.NamedExec(`insert into group_info (id, created_at, data) VALUES (:group_id, :created_at, :data)`, args)
 		}
 
-		//data2 := DiceServe{}
-		//if yaml.Unmarshal(data, &data2) == nil {
-		//	//d2, _ := yaml.Marshal(data2)
-		//	//os.WriteFile("./data/default/serve.yaml", d2, 0644)
-		//}
+		err := tx.Commit()
+		if err != nil {
+			fmt.Println("???", err)
+			_ = tx.Rollback()
+		}
 
-		_ = os.WriteFile("./data/default/serve.yaml.old", data, 0644)
-		//os.WriteFile("./serve.yaml", d2, 0644)
+		fmt.Println("群组信息处理完成")
+		fmt.Println("群数量", len(dNew.ImSession.ServiceAtNew))
+		fmt.Println("群成员数量", times)
 	}
+
+	//data2 := DiceServe{}
+	//if yaml.Unmarshal(data, &data2) == nil {
+	//	//d2, _ := yaml.Marshal(data2)
+	//	//os.WriteFile("./data/default/serve.yaml", d2, 0644)
+	//}
+
+	_ = os.WriteFile("./data/default/serve.yaml.old", data, 0644)
+	//os.WriteFile("./serve.yaml", d2, 0644)
 
 	// 处理attrs部分
 	ctx := CreateFakeCtx()

@@ -3,9 +3,10 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sacOO7/gowebsocket"
 	"strings"
 	"time"
+
+	"github.com/sacOO7/gowebsocket"
 )
 
 type PlatformAdapterMinecraft struct {
@@ -232,7 +233,7 @@ func (pa *PlatformAdapterMinecraft) SendToGroup(ctx *MsgContext, uid string, tex
 func (pa *PlatformAdapterMinecraft) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
 	dice := pa.Session.Parent
 	fileElement, err := dice.FilepathToFileElement(path)
-	if err != nil {
+	if err == nil {
 		pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
 		pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
@@ -242,7 +243,7 @@ func (pa *PlatformAdapterMinecraft) SendFileToPerson(ctx *MsgContext, uid string
 func (pa *PlatformAdapterMinecraft) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
 	dice := pa.Session.Parent
 	fileElement, err := dice.FilepathToFileElement(path)
-	if err != nil {
+	if err == nil {
 		pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
 		pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)

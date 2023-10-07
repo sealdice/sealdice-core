@@ -433,46 +433,43 @@ create index if not exists idx_log_items_log_id
 			}
 			exec, err := dbSql.NamedExec(`insert into logs (name, group_id, created_at, updated_at) VALUES (:name, :group_id, :created_at, :updated_at)`, args)
 			if err != nil {
+				fmt.Println("错误:", err, i, j)
 				return err
 			}
 
-			if err == nil {
-				logId, _ := exec.LastInsertId()
-				logNum += 1
-				if logNum%10 == 0 {
-					fmt.Printf("进度: %d\n", logNum)
+			logId, _ := exec.LastInsertId()
+			logNum += 1
+			if logNum%10 == 0 {
+				fmt.Printf("进度: %d\n", logNum)
+			}
+
+			tx := dbSql.MustBegin()
+			items, _ := LogGetAllLines(ctx, i, j)
+			itemNumber += len(items)
+
+			for _, logItem := range items {
+				d, _ := json.Marshal(logItem.CommandInfo)
+				d2, _ := json.Marshal(logItem.RawMsgId)
+
+				args := map[string]interface{}{
+					"log_id":          logId,
+					"group_id":        i,
+					"nickname":        logItem.Nickname,
+					"im_userid":       logItem.IMUserId,
+					"time":            logItem.Time,
+					"message":         logItem.Message,
+					"is_dice":         logItem.IsDice,
+					"command_id":      int64(logItem.CommandId),
+					"command_info":    d,
+					"raw_msg_id":      d2,
+					"user_uniform_id": logItem.UniformId,
 				}
 
-				tx := dbSql.MustBegin()
-				items, _ := LogGetAllLines(ctx, i, j)
-				itemNumber += len(items)
-
-				for _, logItem := range items {
-					d, _ := json.Marshal(logItem.CommandInfo)
-					d2, _ := json.Marshal(logItem.RawMsgId)
-
-					args := map[string]interface{}{
-						"log_id":          logId,
-						"group_id":        i,
-						"nickname":        logItem.Nickname,
-						"im_userid":       logItem.IMUserId,
-						"time":            logItem.Time,
-						"message":         logItem.Message,
-						"is_dice":         logItem.IsDice,
-						"command_id":      int64(logItem.CommandId),
-						"command_info":    d,
-						"raw_msg_id":      d2,
-						"user_uniform_id": logItem.UniformId,
-					}
-
-					_, _ = tx.NamedExec(`insert into log_items (log_id, group_id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id) VALUES (:log_id, :group_id, :nickname, :im_userid, :time, :message, :is_dice, :command_id, :command_info, :raw_msg_id, :user_uniform_id)`, args)
-				}
-				err := tx.Commit()
-				if err != nil {
-					_ = tx.Rollback()
-				}
-			} else {
-				fmt.Println("错误:", err, i, j)
+				_, _ = tx.NamedExec(`insert into log_items (log_id, group_id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id) VALUES (:log_id, :group_id, :nickname, :im_userid, :time, :message, :is_dice, :command_id, :command_info, :raw_msg_id, :user_uniform_id)`, args)
+			}
+			err = tx.Commit()
+			if err != nil {
+				_ = tx.Rollback()
 			}
 		}
 	}

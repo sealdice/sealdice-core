@@ -878,7 +878,7 @@ func (pa *PlatformAdapterWalleQ) SendFileToPerson(ctx *MsgContext, userId string
 	// walleq 依赖的 ricq 尚不支持发送文件
 	dice := pa.Session.Parent
 	fileElement, err := dice.FilepathToFileElement(path)
-	if err != nil {
+	if err == nil {
 		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
 		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
@@ -889,7 +889,7 @@ func (pa *PlatformAdapterWalleQ) SendFileToGroup(ctx *MsgContext, groupId string
 	// walleq 依赖的 ricq 尚不支持发送文件
 	dice := pa.Session.Parent
 	fileElement, err := dice.FilepathToFileElement(path)
-	if err != nil {
+	if err == nil {
 		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
 		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
