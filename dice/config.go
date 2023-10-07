@@ -780,10 +780,10 @@ func setupBaseTextTemplate(d *Dice) {
 
 			// -------------------- sc --------------------------
 			"提示_永久疯狂": {
-				SubType: ".sc 100/200",
+				SubType: ".sc",
 			},
 			"提示_临时疯狂": {
-				SubType: ".sc 5/5",
+				SubType: ".sc",
 			},
 
 			"理智检定_单项结果文本": {
@@ -807,7 +807,7 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".sc",
 			},
 			"理智检定_格式错误": {
-				SubType: ".sc ???",
+				SubType: ".sc",
 			},
 			// -------------------- sc end --------------------------
 
@@ -822,7 +822,7 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".st hp+1",
 			},
 			"属性设置_增减_单项": {
-				SubType: ".st hp-1 san-1",
+				SubType: ".st hp+1 san-1",
 			},
 			"属性设置_增减_错误的值": {
 				SubType: ".st hp+?",
@@ -834,7 +834,7 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".st show",
 			},
 			"属性设置_列出_隐藏提示": {
-				SubType: ".st show 30",
+				SubType: ".st show",
 			},
 			"属性设置": {
 				SubType:         ".st 力量70",
@@ -858,10 +858,10 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".en $t玩家",
 			},
 			"技能成长_错误的失败成长值": {
-				SubType: ".en 斗殴 +?/1",
+				SubType: ".en 斗殴 +?",
 			},
 			"技能成长_错误的失败成长值_无前缀": {
-				SubType: ".en 斗殴 +?/1",
+				SubType: ".en 斗殴 +?",
 			},
 			"技能成长_错误的成功成长值": {
 				SubType: ".en 斗殴 +?",
@@ -885,10 +885,10 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".en 斗殴",
 			},
 			"技能成长_结果_失败变更": {
-				SubType: ".en 斗殴 +1/1d4",
+				SubType: ".en 斗殴",
 			},
 			"技能成长_结果_失败变更_无后缀": {
-				SubType: ".en 斗殴 +1/1d4",
+				SubType: ".en 斗殴",
 			},
 			"技能成长": {
 				SubType: ".en",
@@ -916,7 +916,7 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".coc 2",
 			},
 			"制卡_分隔符": {
-				SubType: ".coc 2 旧版为\\n\\n",
+				SubType: ".coc 2",
 			},
 			"对抗检定": {
 				SubType: ".rav/.rcv",
@@ -956,7 +956,7 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".st show",
 			},
 			"属性设置_列出_隐藏提示": {
-				SubType: ".st show 10",
+				SubType: ".st show",
 			},
 			"BUFF设置_删除": {
 				SubType: ".buff rm",
@@ -1017,16 +1017,16 @@ func setupBaseTextTemplate(d *Dice) {
 				TopOrder: 1,
 			},
 			"骰子帮助文本_骰主": {
-				SubType: ".help 骰主",
+				SubType: ".help",
 			},
 			"骰子帮助文本_协议": {
-				SubType: ".help 协议",
+				SubType: ".help",
 			},
 			"骰子帮助文本_娱乐": {
-				SubType: ".help 娱乐",
+				SubType: ".help",
 			},
 			"骰子帮助文本_其他": {
-				SubType: ".help 其他",
+				SubType: ".help",
 			},
 			"骰子执行异常": {
 				SubType:  "通用",
@@ -1070,7 +1070,7 @@ func setupBaseTextTemplate(d *Dice) {
 			//},
 			// -------------------- roll --------------------------
 			"骰点_原因": {
-				SubType: ".r 去睡觉",
+				SubType: ".r",
 			},
 			"骰点_单项结果文本": {
 				SubType: ".r",
@@ -1099,7 +1099,7 @@ func setupBaseTextTemplate(d *Dice) {
 				Vars:    []string{"$t旧昵称", "$t帐号昵称", "$t帐号ID", "$t玩家"},
 			},
 			"昵称_改名": {
-				SubType: ".nn 新名字",
+				SubType: ".nn",
 				Vars:    []string{"$t旧昵称", "$t帐号ID", "$t玩家"},
 			},
 			"设定默认骰子面数": {
@@ -1109,26 +1109,26 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".set 100",
 			},
 			"设定默认骰子面数_错误": {
-				SubType: ".set ???",
+				SubType: ".set ?",
 			},
 			"设定默认骰子面数_重置": {
 				SubType: ".set clr",
 			},
 			// -------------------- ch --------------------------
 			"角色管理_新建": {
-				SubType: ".pc new 角色名",
+				SubType: ".pc new",
 				Vars:    []string{"$t角色名"},
 			},
 			"角色管理_新建_已存在": {
-				SubType: ".pc new 角色名",
+				SubType: ".pc new",
 				Vars:    []string{"$t角色名"},
 			},
 			"角色管理_绑定_成功": {
-				SubType: ".pc tag 角色名",
+				SubType: ".pc tag",
 				Vars:    []string{"$t角色名"},
 			},
 			"角色管理_绑定_失败": {
-				SubType: ".pc tag 角色名",
+				SubType: ".pc tag",
 				Vars:    []string{"$t角色名"},
 			},
 			"角色管理_绑定_解除": {
@@ -1216,20 +1216,20 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".draw keys",
 			},
 			"抽牌_找不到牌组": {
-				SubType: ".draw 不存在的某个牌组",
+				SubType: ".draw",
 				Vars:    []string{"$t牌组"},
 			},
 			"抽牌_找不到牌组_存在类似": {
-				SubType: ".draw 不存在的某个牌组",
+				SubType: ".draw",
 				Vars:    []string{"$t牌组"},
 			},
 			"抽牌_结果前缀": {
-				SubType:   ".draw XXX",
+				SubType:   ".draw",
 				ExtraText: "举例: 你从牌堆抽出 xxxx",
 				Vars:      []string{"$t牌组"},
 			},
 			"抽牌_分隔符": {
-				SubType:   ".draw XXX",
+				SubType:   ".draw",
 				ExtraText: "多个抽取结果之间的分隔符",
 			},
 			"随机名字": {
@@ -1253,14 +1253,14 @@ func setupBaseTextTemplate(d *Dice) {
 		},
 		"日志": {
 			"记录_新建": {
-				SubType: ".log new 故事",
+				SubType: ".log new",
 				Vars:    []string{"$t记录名称"},
 			},
 			"记录_开启_成功": {
-				SubType: ".log on 故事",
+				SubType: ".log on",
 			},
 			"记录_开启_失败_无此记录": {
-				SubType: ".log on 记录名",
+				SubType: ".log on",
 			},
 			"记录_开启_失败_尚未新建": {
 				SubType:   ".log on",
