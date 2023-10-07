@@ -641,7 +641,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		}
 
 		PlatformPrefix := msg.Platform
-		cmdArgs := CommandParse(msg.Message, cmdLst, d.CommandPrefix, PlatformPrefix, true)
+		cmdArgs := CommandParse(msg.Message, cmdLst, d.CommandPrefix, PlatformPrefix, false)
 		if cmdArgs != nil {
 			mctx.CommandId = getNextCommandId()
 
@@ -947,8 +947,12 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				return true
 			}
 
-			if item.DisableExecuteTimesParse {
+			if item.EnableExecuteTimesParse {
 				cmdArgs.RevokeExecuteTimesParse()
+			}
+
+			if ctx.Player != nil {
+				VarSetValueInt64(ctx, "$t轮数", int64(cmdArgs.SpecialExecuteTimes))
 			}
 
 			if item.Raw {

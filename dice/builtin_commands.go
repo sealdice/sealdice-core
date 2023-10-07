@@ -339,10 +339,9 @@ func (d *Dice) registerCoreCommands() {
 		".help 关键字 // 查看任意帮助，同.find\n" +
 		".help reload // 重新加载帮助文档，需要Master权限"
 	cmdHelp := &CmdItemInfo{
-		Name:                     "help",
-		ShortHelp:                HelpForHelp,
-		DisableExecuteTimesParse: true,
-		Help:                     "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
+		Name:      "help",
+		ShortHelp: HelpForHelp,
+		Help:      "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if arg := cmdArgs.GetArgN(1); arg != "" {
 				if strings.EqualFold(arg, "reload") {
@@ -1087,9 +1086,10 @@ func (d *Dice) registerCoreCommands() {
 
 	HelpRoll := ".r <表达式> <原因> // 骰点指令\n.rh <表达式> <原因> // 暗骰"
 	cmdRoll := &CmdItemInfo{
-		Name:      "roll",
-		ShortHelp: HelpRoll,
-		Help:      "骰点:\n" + HelpRoll,
+		EnableExecuteTimesParse: true,
+		Name:                    "roll",
+		ShortHelp:               HelpRoll,
+		Help:                    "骰点:\n" + HelpRoll,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			var text string
 			var diceResult int64
@@ -1340,11 +1340,25 @@ func (d *Dice) registerCoreCommands() {
 	vm.Flags.EnableDiceDoubleCross = true
 
 	HelpRollNew := ".fox <表达式> <原因> // 使用dicescript的骰点，测试用"
-	cmdRollNew := &CmdItemInfo{
+	cmdFox := &CmdItemInfo{
 		Name:      "roll",
 		ShortHelp: HelpRollNew,
 		Help:      "骰点:\n" + HelpRoll,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.Dice.TextCmdTrustOnly {
+				// 检查master和信任权限
+				refuse := ctx.PrivilegeLevel != 100
+				if refuse {
+					refuse = ctx.PrivilegeLevel != 70
+				}
+
+				// 拒绝无权限访问
+				if refuse {
+					ReplyToSender(ctx, msg, "你不具备Master权限")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+			}
+
 			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
 
 			expr := cmdArgs.GetRestArgsFrom(1)
@@ -1498,7 +1512,7 @@ func (d *Dice) registerCoreCommands() {
 			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 		},
 	}
-	d.CmdMap["fox"] = cmdRollNew
+	d.CmdMap["fox"] = cmdFox
 
 	helpExt := ".ext // 查看扩展列表"
 	cmdExt := &CmdItemInfo{

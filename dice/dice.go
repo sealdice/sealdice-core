@@ -41,13 +41,13 @@ type CmdExecuteResult struct {
 }
 
 type CmdItemInfo struct {
-	Name                     string                    `jsbind:"name"`
-	ShortHelp                string                    // 短帮助，格式是 .xxx a b // 说明
-	Help                     string                    `jsbind:"help"`                     // 长帮助，带换行的较详细说明
-	HelpFunc                 func(isShort bool) string `jsbind:"helpFunc"`                 // 函数形式帮助，存在时优先于其他
-	AllowDelegate            bool                      `jsbind:"allowDelegate"`            // 允许代骰
-	DisabledInPrivate        bool                      `jsbind:"disabledInPrivate"`        // 私聊不可用
-	DisableExecuteTimesParse bool                      `jsbind:"disableExecuteTimesParse"` // 禁用执行次数解析，也就是不会再吃到3#这样的文本
+	Name                    string                    `jsbind:"name"`
+	ShortHelp               string                    // 短帮助，格式是 .xxx a b // 说明
+	Help                    string                    `jsbind:"help"`                    // 长帮助，带换行的较详细说明
+	HelpFunc                func(isShort bool) string `jsbind:"helpFunc"`                // 函数形式帮助，存在时优先于其他
+	AllowDelegate           bool                      `jsbind:"allowDelegate"`           // 允许代骰
+	DisabledInPrivate       bool                      `jsbind:"disabledInPrivate"`       // 私聊不可用
+	EnableExecuteTimesParse bool                      `jsbind:"enableExecuteTimesParse"` // 启用执行次数解析，也就是解析3#这样的文本
 
 	IsJsSolveFunc bool
 	Solve         func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult `jsbind:"solve"`

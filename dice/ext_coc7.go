@@ -287,10 +287,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	// ".st <属性>±<表达式> // 例：.st 敏捷+1d50，请注意目前+或-要跟在属性后面，不得空格"
 
 	cmdRc := &CmdItemInfo{
-		Name:          "rc/ra",
-		ShortHelp:     helpRc,
-		Help:          "检定指令:\n" + helpRc,
-		AllowDelegate: true,
+		EnableExecuteTimesParse: true,
+		Name:                    "rc/ra",
+		ShortHelp:               helpRc,
+		Help:                    "检定指令:\n" + helpRc,
+		AllowDelegate:           true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if len(cmdArgs.Args) >= 1 {
 				mctx := GetCtxProxyFirst(ctx, cmdArgs)

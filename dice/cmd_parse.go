@@ -156,7 +156,7 @@ func (cmdArgs *CmdArgs) GetRestArgsFrom(index int) string {
 
 func (cmdArgs *CmdArgs) RevokeExecuteTimesParse() {
 	// 因为次数解析进行的太早了，影响太大无法还原，这里干脆重新解析一遍
-	cmdArgs.commandParse(cmdArgs.RawText, []string{cmdArgs.Command}, []string{cmdArgs.prefixStr}, cmdArgs.platformPrefix, false)
+	cmdArgs.commandParse(cmdArgs.RawText, []string{cmdArgs.Command}, []string{cmdArgs.prefixStr}, cmdArgs.platformPrefix, true)
 	cmdArgs.SetupAtInfo(cmdArgs.uidForAtInfo)
 }
 
