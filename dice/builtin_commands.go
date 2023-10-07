@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/golang-module/carbon"
 	"math/rand"
 	"os"
 	"path"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/golang-module/carbon"
 
 	"github.com/fy0/lockfree"
 	"github.com/juliangruber/go-intersect"
@@ -547,9 +548,9 @@ func (d *Dice) registerCoreCommands() {
 				}
 			}
 
-			groupWorkInfo := ""
+			var groupWorkInfo, activeText string
 			if inGroup {
-				activeText := "关闭"
+				activeText = "关闭"
 				if ctx.Group.IsActive(ctx) {
 					activeText = "开启"
 				}
@@ -559,13 +560,14 @@ func (d *Dice) registerCoreCommands() {
 			VarSetValueInt64(ctx, "$t供职群数", int64(serveCount))
 			VarSetValueInt64(ctx, "$t启用群数", int64(activeCount))
 			VarSetValueStr(ctx, "$t群内工作状态", groupWorkInfo)
+			VarSetValueStr(ctx, "$t群内工作状态_仅状态", activeText)
 			ver := VERSION
 			arch := runtime.GOARCH
 			if arch != "386" && arch != "amd64" {
 				ver = fmt.Sprintf("%s %s", ver, arch)
 			}
 			baseText := fmt.Sprintf("SealDice %s%s", ver, onlineVer)
-			extText := DiceFormat(ctx, ctx.Dice.CustomBotExtraText)
+			extText := DiceFormatTmpl(ctx, "核心:骰子状态附加文本")
 			if extText != "" {
 				extText = "\n" + extText
 			}

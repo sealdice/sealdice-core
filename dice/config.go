@@ -437,6 +437,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"骰子保存设置": {
 				{"数据已保存", 1},
 			},
+			"骰子状态附加文本": {
+				{"供职于{$t供职群数}个群，其中{$t启用群数}个处于开启状态。{$t群内工作状态}", 1},
+			},
 			//"roll前缀":{
 			//	"为了{$t原因}", 1},
 			//},
@@ -548,6 +551,9 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"提示_无权限_非master/管理": {
 				{"你不是管理员或master", 1},
+			},
+			"提示_手动退群前缀": {
+				{"因长期不使用等原因，骰主后台操作退群", 1},
 			},
 			"留言_已记录": {
 				{"您的留言已被记录，另外注意不要滥用此功能，祝您生活愉快，再会。", 1},
@@ -953,7 +959,7 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".init",
 			},
 			"先攻_下一回合": {
-				SubType: "init ed",
+				SubType: ".init ed",
 			},
 			"先攻_移除_前缀": {
 				SubType: ".init rm",
@@ -1036,6 +1042,10 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"骰子保存设置": {
 				SubType: ".bot save",
+			},
+			"骰子状态附加文本": {
+				SubType: ".bot about",
+				Vars:    []string{"$t供职群数", "$t启用群数", "$t群内工作状态", "$t群内工作状态_仅状态"},
 			},
 			//"roll前缀":{
 			//	"为了{$t原因}", 1},
@@ -1153,6 +1163,9 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: "通用",
 			},
 			"提示_无权限_非master/管理": {
+				SubType: "通用",
+			},
+			"提示_手动退群前缀": {
 				SubType: "通用",
 			},
 			"留言_已记录": {
