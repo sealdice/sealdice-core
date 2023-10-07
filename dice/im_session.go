@@ -890,7 +890,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	log := d.Logger
 	var isBanGroup, isWhiteGroup bool
 	if msg.MessageType == "group" {
-		value, exists := d.BanList.Map.Load(ctx.Group.GroupId)
+		value, exists := d.BanList.Map.Load(msg.GroupId)
 		if exists {
 			if value.Rank == BanRankBanned {
 				isBanGroup = true
@@ -905,7 +905,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 			notReply = true
 			// 黑名单用户 - 立即退出所在群
 			if msg.MessageType == "group" {
-				groupId := ctx.Group.GroupId
+				groupId := msg.GroupId
 				if isWhiteGroup {
 					log.Infof("收到群(%s)内黑名单用户<%s>(%s)的消息，但在信任群所以不尝试退群", groupId, msg.Sender.Nickname, msg.Sender.UserId)
 				} else {
@@ -930,7 +930,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		if d.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
 			notReply = true
 			// 黑名单群 - 立即退出
-			groupId := ctx.Group.GroupId
+			groupId := msg.GroupId
 			if isWhiteGroup {
 				log.Infof("群(%s)处于黑名单中，但在信任群所以不尝试退群", groupId)
 			} else {
