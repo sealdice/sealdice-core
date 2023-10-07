@@ -339,9 +339,10 @@ func (d *Dice) registerCoreCommands() {
 		".help 关键字 // 查看任意帮助，同.find\n" +
 		".help reload // 重新加载帮助文档，需要Master权限"
 	cmdHelp := &CmdItemInfo{
-		Name:      "help",
-		ShortHelp: HelpForHelp,
-		Help:      "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
+		Name:                     "help",
+		ShortHelp:                HelpForHelp,
+		DisableExecuteTimesParse: true,
+		Help:                     "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + HelpForHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if arg := cmdArgs.GetArgN(1); arg != "" {
 				if strings.EqualFold(arg, "reload") {
