@@ -2,27 +2,24 @@ package dice
 
 import (
 	"fmt"
+	wr "github.com/mroth/weightedrand"
 	"github.com/xuri/excelize/v2"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 )
 
-type local struct {
-	surname    map[string]float64
-	maleName   []string
-	femaleName []string
-	firstName  []string
-}
-
 type NamesGenerator struct {
-	names      map[string]local
-	aliasNames map[string]string
+	NamesInfo map[string]map[string][]string
 }
 
 func (ng *NamesGenerator) Load() {
 	_ = os.MkdirAll("./data/names", 0755)
-	ng.names = make(map[string]local)
-	ng.aliasNames = make(map[string]string)
+
+	nameInfo := map[string]map[string][]string{}
+	ng.NamesInfo = nameInfo
+
 	for _, fn := range []string{"./data/names/names.xlsx", "./data/names/names-dnd.xlsx"} {
 		f, err := excelize.OpenFile(fn)
 		if err != nil {
@@ -31,92 +28,154 @@ func (ng *NamesGenerator) Load() {
 		}
 
 		for _, sheetName := range f.GetSheetList() {
-			var l local
-			l.surname = make(map[string]float64)
-			cols, _ := f.GetCols(sheetName)
-			for i, col := range cols {
-				cols[i] = col[1:]
+			words := map[string][]string{}
+			columns, err := f.Cols(sheetName)
+			if err == nil {
+				for columns.Next() {
+					column, _ := columns.Rows()
+					if len(column) > 0 {
+						// 首行为标题，如“男性名” 其他行为内容，如”济民 珍祥“
+						name := column[0]
+						var values []string
+						for _, i := range column[1:] {
+							if i == "" {
+								break
+							}
+							values = append(values, i)
+						}
+						//values := column[1:] // 注意行数是以最大行数算的，所以会出现很多空行，不能这样取
+						words[name] = values
+					}
+				}
 			}
-			switch sheetName {
-			case "中文":
-				l.maleName = append(l.maleName, cols[0]...)
-				l.femaleName = append(l.femaleName, cols[1]...)
-				for i, s := range cols[2] {
-					w, _ := strconv.ParseFloat(cols[3][i], 64)
-					l.surname[s] = w
-				}
-			case "英文":
-				for i, s := range cols[0] {
-					l.firstName = append(l.firstName, s)
-					ng.aliasNames[s] = cols[1][i]
-				}
-				for i, s := range cols[2] {
-					l.surname[s] = 1
-					ng.aliasNames[s] = cols[3][i]
-				}
-			case "日文":
-				ng.c6(&cols, &l)
-			case "DND地精":
-				for i, s := range cols[0] {
-					l.maleName = append(l.maleName, s)
-					ng.aliasNames[s] = cols[1][i]
-				}
-				for i, s := range cols[2] {
-					l.femaleName = append(l.femaleName, s)
-					ng.aliasNames[s] = cols[3][i]
-				}
-			case "DND海族":
-				// 暂时没有女名 和 姓
-				for i, s := range cols[0] {
-					l.firstName = append(l.firstName, s)
-					ng.aliasNames[s] = cols[1][i]
-				}
-			case "DND兽人":
-				ng.c6(&cols, &l)
-			case "DND矮人":
-				ng.c6(&cols, &l)
-			case "DND精灵":
-				ng.c6(&cols, &l)
-			case "DND受国人":
-				ng.c6(&cols, &l)
-			case "DND莱瑟曼人":
-				ng.c6(&cols, &l)
-			case "DND卡林珊人":
-				ng.c6(&cols, &l)
-			}
-			l.removeEmptyStrings()
-			ng.names[sheetName] = l
+			nameInfo[sheetName] = words
+		}
+
+		if err := f.Close(); err != nil {
+			fmt.Println(err)
 		}
 	}
 }
 
-func (l *local) removeEmptyStrings() {
-	one := func(sl []string) []string {
-		var res []string
-		for _, str := range sl {
-			if str != "" {
-				res = append(res, str)
+func (ng *NamesGenerator) NameGenerate(rule string) string {
+	// 规则说明:
+	// 基本形式为 {sheetName:columnName} 例如 {中文:姓氏}
+	// 权重扩展 {中文:姓氏@姓氏权重}
+	// 位置扩展 {英文:名字} ({英文:名字中文#英文:名字.index}) 意思是在“名字中文”这一列中取值，行数与“名字”这一列的行数相同
+
+	re := regexp.MustCompile(`\{[^}]+}`)
+	tmpVars := map[string]int{}
+
+	//xx := []string{}
+	//for i, _ := range ng.NamesInfo {
+	//	xx = append(xx, i)
+	//}
+	//fmt.Println("dddd", xx)
+
+	getList := func(inner string) []string {
+		// TODO: 可在ng加缓存优化速度
+		sp := strings.Split(inner, ":")
+		if len(sp) > 1 {
+			m, exists := ng.NamesInfo[sp[0]]
+			if exists {
+				lst, exists := m[sp[1]]
+				if exists {
+					return lst
+				}
 			}
 		}
-		return res
+		return []string{}
 	}
-	l.maleName = one(l.maleName)
-	l.femaleName = one(l.femaleName)
-	l.firstName = one(l.firstName)
-}
 
-func (ng *NamesGenerator) c6(col *[][]string, l *local) {
-	cols := *col
-	for i, s := range cols[0] {
-		l.maleName = append(l.maleName, s)
-		ng.aliasNames[s] = cols[1][i]
+	getIntList := func(inner string) []int {
+		// TODO: 可在ng加缓存优化速度
+		lst := getList(inner)
+		var result []int
+		for _, i := range lst {
+			weight, err := strconv.Atoi(i)
+			if err != nil {
+				_ = fmt.Errorf("权重转换出错，并非整数: %s, 来自 %s", i, rule)
+				weight = 1
+			}
+			result = append(result, weight)
+		}
+		return result
 	}
-	for i, s := range cols[2] {
-		l.femaleName = append(l.femaleName, s)
-		ng.aliasNames[s] = cols[3][i]
+
+	parseWeight := func(inner string) (c *wr.Chooser, restText string, err error) {
+		// TODO: 可加缓存，避免每次解析
+		sp := strings.SplitN(inner, "@", 2)
+		var choices []wr.Choice
+		if len(sp) > 1 {
+			lst := getList(sp[0])
+			weightLst := getIntList(sp[1])
+
+			// 取最小的，防止越界
+			length := len(lst)
+			length2 := len(weightLst)
+			if length > length2 {
+				length = length2
+			}
+
+			for index, _ := range lst {
+				choices = append(choices, wr.NewChoice(index, uint(weightLst[index])))
+			}
+			restText = sp[0]
+		} else {
+			// 这里注意一点，如果遇到 {英文:名字中文#英文:名字.index} 这样的格式，choices会是空的
+			// 但是没关系，因为不需要生成带权随机器
+			lst := getList(inner)
+			for index, _ := range lst {
+				choices = append(choices, wr.NewChoice(index, 1))
+			}
+			restText = inner
+		}
+
+		if len(choices) != 0 {
+			c, err = wr.NewChooser(choices...)
+		}
+		return
 	}
-	for i, s := range cols[4] {
-		ng.aliasNames[s] = cols[5][i]
-		l.surname[s] = 1
+
+	parseInner := func(inner string, c *wr.Chooser) string {
+		sp := strings.Split(inner, "#")
+		if len(sp) > 1 {
+			// 读取位置流程
+			index := tmpVars[sp[1]]
+			lst := getList(sp[0])
+			if index < len(lst) {
+				return lst[index]
+			}
+		} else {
+			// 正常流程
+			lst := getList(inner)
+			if len(lst) == 0 {
+				tmpVars[inner+".index"] = 0
+				return ""
+			}
+			index := c.Pick().(int) // 取得权重
+			tmpVars[inner+".index"] = index
+			return lst[index]
+		}
+		return ""
 	}
+
+	result := ""
+	lastLeft := 0
+	for _, i := range re.FindAllStringIndex(rule, -1) {
+		var c *wr.Chooser
+		var err error
+		inner := rule[i[0]+1 : i[1]-1]
+		result += rule[lastLeft:i[0]]
+		c, inner, err = parseWeight(inner)
+		if err != nil {
+			result += "<语句错误>"
+		} else {
+			result += parseInner(inner, c)
+		}
+		lastLeft = i[1]
+	}
+
+	result += rule[lastLeft:]
+	return result
 }
