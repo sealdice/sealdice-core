@@ -227,40 +227,40 @@
       <el-input v-model="config.aliveNoticeValue" style="width: 12rem"></el-input>
     </el-form-item>
 
-    <el-form-item>
-      <template #label>
-        <div>
-          <span>.help 骰主</span>
-        </div>
-      </template>
-      <el-input v-model="config.helpMasterInfo" type="textarea" clearable style="width: 14rem;" />
-    </el-form-item>
+<!--    <el-form-item>-->
+<!--      <template #label>-->
+<!--        <div>-->
+<!--          <span>.help 骰主</span>-->
+<!--        </div>-->
+<!--      </template>-->
+<!--      <el-input v-model="config.helpMasterInfo" type="textarea" clearable style="width: 14rem;" />-->
+<!--    </el-form-item>-->
 
-    <el-form-item>
-      <template #label>
-        <div>
-          <span>.help 协议</span>
-        </div>
-      </template>
-      <el-input v-model="config.helpMasterLicense" type="textarea" autosize clearable style="width: 14rem;" />
-    </el-form-item>
+<!--    <el-form-item>-->
+<!--      <template #label>-->
+<!--        <div>-->
+<!--          <span>.help 协议</span>-->
+<!--        </div>-->
+<!--      </template>-->
+<!--      <el-input v-model="config.helpMasterLicense" type="textarea" autosize clearable style="width: 14rem;" />-->
+<!--    </el-form-item>-->
 
-    <el-form-item>
-      <template #label>
-        <div>
-          <span>.draw keys自定义</span>
-        </div>
-      </template>
-      <div>
-        <div>
-          <el-checkbox label="开启" v-model="config.customDrawKeysTextEnable"/>
-          <el-tooltip raw-content content="启用后替代原本的.draw keys牌组关键字文本">
-            <el-icon><question-filled /></el-icon>
-          </el-tooltip>
-        </div>
-        <el-input v-model="config.customDrawKeysText" type="textarea" autosize clearable style="width: 14rem;" />
-      </div>
-    </el-form-item>
+<!--    <el-form-item>-->
+<!--      <template #label>-->
+<!--        <div>-->
+<!--          <span>.draw keys自定义</span>-->
+<!--        </div>-->
+<!--      </template>-->
+<!--      <div>-->
+<!--        <div>-->
+<!--          <el-checkbox label="开启" v-model="config.customDrawKeysTextEnable"/>-->
+<!--          <el-tooltip raw-content content="启用后替代原本的.draw keys牌组关键字文本">-->
+<!--            <el-icon><question-filled /></el-icon>-->
+<!--          </el-tooltip>-->
+<!--        </div>-->
+<!--        <el-input v-model="config.customDrawKeysText" type="textarea" autosize clearable style="width: 14rem;" />-->
+<!--      </div>-->
+<!--    </el-form-item>-->
 
     <el-form-item>
       <template #label>
@@ -279,14 +279,14 @@
       </div>
     </el-form-item>
 
-    <el-form-item>
-      <template #label>
-        <div>
-          <span>.bot 附加文本</span>
-        </div>
-      </template>
-      <el-input v-model="config.customBotExtraText" type="textarea" autosize clearable style="width: 14rem;" />
-    </el-form-item>
+<!--    <el-form-item>-->
+<!--      <template #label>-->
+<!--        <div>-->
+<!--          <span>.bot 附加文本</span>-->
+<!--        </div>-->
+<!--      </template>-->
+<!--      <el-input v-model="config.customBotExtraText" type="textarea" autosize clearable style="width: 14rem;" />-->
+<!--    </el-form-item>-->
 
     <h2>刷屏警告</h2>
     <el-form-item>
