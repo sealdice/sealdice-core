@@ -42,13 +42,24 @@
 
   <el-dialog v-model="showBatchDelete" title="批量删除备份" class="diff-dialog">
     <el-alert :closable="false" style="margin-bottom: 1.5rem;" title="默认勾选最近的 5 个备份之前的历史备份，可自行调整。"></el-alert>
-    <el-checkbox-group v-model="batchDeleteBaks">
-      <el-checkbox v-for="i of data.items" :key="i.name" :label="i.name"/>
+    <el-space size="large" alignment="center" style="margin-bottom: 1rem;">
+      <el-checkbox
+          v-model="checkAllBaks"
+          :indeterminate="isIndeterminate"
+          @change="handleCheckAllChange">{{ checkAllBaks ? '取消全选' : '全选' }}</el-checkbox>
+    <el-text type="info" size="small">已勾选 {{ selectedBaks.length }} 个备份，共 {{ filesize(selectedBaks.map(bak => bak.fileSize).reduce((a, b) => a + b, 0)) }}</el-text>
+    </el-space>
+    <el-checkbox-group v-model="selectedBaks" @change="handleCheckedBakChange">
+      <div v-for="i of data.items" :key="i.name">
+        <el-checkbox :label="i">
+          <template #default>{{ i.name }}</template>
+        </el-checkbox>
+      </div>
     </el-checkbox-group>
     <template #footer>
       <el-space wrap>
         <el-button @click="showBatchDelete = false">取消</el-button>
-        <el-button type="danger" :disabled="!(batchDeleteBaks && batchDeleteBaks.length > 0)"
+        <el-button type="danger" :disabled="!(selectedBaks && selectedBaks.length > 0)"
                    @click="bakBatchDeleteConfirm">删除所选
         </el-button>
       </el-space>
@@ -95,14 +106,14 @@ const configGet = async () => {
   cfg.value = data
 }
 
-const bakDeleteConfirm = async (i: any) => {
+const bakDeleteConfirm = async (name: string) => {
   const ret = await ElMessageBox.confirm('确认删除？', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
   })
   if (ret) {
-    const r = await store.backupDelete(i.name)
+    const r = await store.backupDelete(name)
     if (!r.success) {
       ElMessage.error('删除失败')
     } else {
@@ -113,14 +124,26 @@ const bakDeleteConfirm = async (i: any) => {
 }
 
 const showBatchDelete = ref<boolean>(false)
-const batchDeleteBaks = ref<string[]>([])
+const selectedBaks = ref<string[]>([])
+const checkAllBaks = ref(false)
+const isIndeterminate = ref(true)
 
 const enterBatchDelete = async () => {
-  batchDeleteBaks.value = data.value.items
-      .filter((_, index) => index >= 5)
-      .map((item) => item.name)
+  selectedBaks.value = data.value.items.filter((_, index) => index >= 5)
   showBatchDelete.value = true
 }
+
+const handleCheckAllChange = (val: boolean) => {
+  selectedBaks.value = val ? data.value.items : []
+  isIndeterminate.value = false
+}
+
+const handleCheckedBakChange = (value: string[]) => {
+  const checkedCount = value.length
+  checkAllBaks.value = checkedCount === data.value.items.length
+  isIndeterminate.value = checkedCount > 0 && checkedCount < data.value.items.length
+}
+
 const bakBatchDeleteConfirm = async () => {
   const ret = await ElMessageBox.confirm('确认删除所选备份？删除的内容无法找回！', '提示', {
     confirmButtonText: '确定',
@@ -128,7 +151,7 @@ const bakBatchDeleteConfirm = async () => {
     type: 'warning'
   })
   if (ret) {
-    const res = await store.backupBatchDelete(batchDeleteBaks.value)
+    const res = await store.backupBatchDelete(selectedBaks.value.map(bak => bak.name))
     if (res.result) {
       ElMessage.success('已删除所选备份')
     } else {
