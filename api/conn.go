@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sealdice-core/dice"
+	"sort"
 	"strconv"
 	"time"
 
@@ -36,6 +37,20 @@ func ImConnectionsGet(c echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusNotFound, nil)
+}
+
+func ImConnectionsGetQQVersions(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	versions := make([]string, 0, len(dice.GocqAppVersionMap))
+	for version := range dice.GocqAppVersionMap {
+		versions = append(versions, version)
+	}
+	sort.Strings(versions)
+	return Success(&c, Response{
+		"versions": versions,
+	})
 }
 
 func ImConnectionsSetEnable(c echo.Context) error {
@@ -80,6 +95,7 @@ func ImConnectionsSetData(c echo.Context) error {
 	v := struct {
 		Id                  string `form:"id" json:"id"`
 		Protocol            int    `form:"protocol" json:"protocol"`
+		AppVersion          string `form:"appVersion" json:"appVersion"`
 		IgnoreFriendRequest bool   `json:"ignoreFriendRequest"` // 忽略好友请求
 		UseSignServer       bool   `json:"useSignServer"`
 		ExtraArgs           string `json:"extraArgs"`
@@ -100,6 +116,7 @@ func ImConnectionsSetData(c echo.Context) error {
 						i.ProtocolType = "onebot"
 					}
 					ad.SetQQProtocol(v.Protocol)
+					ad.InPackGoCqHttpAppVersion = v.AppVersion
 					if v.UseSignServer {
 						ad.SetSignServer(v.SignServerConfig)
 						ad.UseSignServer = v.UseSignServer
@@ -525,6 +542,7 @@ func ImConnectionsAdd(c echo.Context) error {
 		Account          string                 `yaml:"account" json:"account"`
 		Password         string                 `yaml:"password" json:"password"`
 		Protocol         int                    `json:"protocol"`
+		AppVersion       string                 `json:"appVersion"`
 		UseSignServer    bool                   `json:"useSignServer"`
 		SignServerConfig *dice.SignServerConfig `json:"signServerConfig"`
 		//ConnectUrl        string `yaml:"connectUrl" json:"connectUrl"`               // 连接地址
@@ -553,6 +571,7 @@ func ImConnectionsAdd(c echo.Context) error {
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 		pa.InPackGoCqHttpProtocol = v.Protocol
 		pa.InPackGoCqHttpPassword = v.Password
+		pa.InPackGoCqHttpAppVersion = v.AppVersion
 		pa.Session = myDice.ImSession
 		pa.UseSignServer = v.UseSignServer
 		pa.SignServerConfig = v.SignServerConfig
@@ -563,6 +582,7 @@ func ImConnectionsAdd(c echo.Context) error {
 		dice.GoCqHttpServe(myDice, conn, dice.GoCqHttpLoginInfo{
 			Password:         v.Password,
 			Protocol:         v.Protocol,
+			AppVersion:       v.AppVersion,
 			IsAsyncRun:       true,
 			UseSignServer:    v.UseSignServer,
 			SignServerConfig: v.SignServerConfig,

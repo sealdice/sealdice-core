@@ -553,6 +553,7 @@ func diceServe(d *dice.Dice) {
 						dice.GoCqHttpServe(d, conn, dice.GoCqHttpLoginInfo{
 							Password:         pa.InPackGoCqHttpPassword,
 							Protocol:         pa.InPackGoCqHttpProtocol,
+							AppVersion:       pa.InPackGoCqHttpAppVersion,
 							IsAsyncRun:       true,
 							UseSignServer:    pa.UseSignServer,
 							SignServerConfig: pa.SignServerConfig,

@@ -557,6 +557,7 @@ func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 type GoCqHttpLoginInfo struct {
 	Password         string
 	Protocol         int
+	AppVersion       string
 	IsAsyncRun       bool
 	UseSignServer    bool
 	SignServerConfig *SignServerConfig
@@ -596,6 +597,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 		qrcodeFile := filepath.Join(workDir, "qrcode.png")
 		deviceFilePath := filepath.Join(workDir, "device.json")
 		configFilePath := filepath.Join(workDir, "config.yml")
+		versionDirPath := filepath.Join(workDir, "data", "versions")
 		if _, err := os.Stat(qrcodeFile); err == nil {
 			// 如果已经存在二维码文件，将其删除
 			_ = os.Remove(qrcodeFile)
@@ -628,6 +630,18 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 			qqid, _ := pa.mustExtractId(conn.UserId)
 			c := GenerateConfig(qqid, p, loginInfo)
 			_ = os.WriteFile(configFilePath, []byte(c), 0644)
+		}
+
+		if versions, ok := GocqAppVersionMap[loginInfo.AppVersion]; ok {
+			if targetVersion, ok2 := versions[ProtocolType(loginInfo.Protocol)]; ok2 {
+				// 删除旧协议版本文件
+				_ = os.RemoveAll(versionDirPath)
+				// 创建协议版本文件
+				_ = os.MkdirAll(versionDirPath, 0755)
+				versionFilePath := filepath.Join(versionDirPath, fmt.Sprintf("%d.json", loginInfo.Protocol))
+				jsonData, _ := json.Marshal(targetVersion)
+				_ = os.WriteFile(versionFilePath, jsonData, 0644)
+			}
 		}
 
 		// 启动客户端
