@@ -117,7 +117,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 				length = length2
 			}
 
-			for index, _ := range lst {
+			for index := 0; index < length; index++ {
 				choices = append(choices, wr.NewChoice(index, uint(weightLst[index])))
 			}
 			restText = sp[0]
@@ -125,7 +125,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 			// 这里注意一点，如果遇到 {英文:名字中文#英文:名字.index} 这样的格式，choices会是空的
 			// 但是没关系，因为不需要生成带权随机器
 			lst := getList(inner)
-			for index, _ := range lst {
+			for index := range lst {
 				choices = append(choices, wr.NewChoice(index, 1))
 			}
 			restText = inner
