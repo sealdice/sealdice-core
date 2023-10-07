@@ -38,7 +38,7 @@ func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) 
 	}
 
 	var text string
-	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
+	if val.TypeId == VMTypeString || val.TypeId == VMTypeNone {
 		text = val.Value.(string)
 	}
 
@@ -939,53 +939,42 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 		return "", err
 	}
 
-	if err == nil {
-		// 本地进行一个zip留档，以防万一
-		fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupId+"_"+logName)+".*.zip")
-		writer := zip.NewWriter(fzip)
+	// 本地进行一个zip留档，以防万一
+	fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupId+"_"+logName)+".*.zip")
+	writer := zip.NewWriter(fzip)
 
-		text := ""
-		for _, i := range lines {
-			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-			text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
-		}
-
-		fileWriter, _ := writer.Create("文本log.txt")
-		_, _ = fileWriter.Write([]byte(text))
-
-		data, err := json.Marshal(map[string]interface{}{
-			"version": Story_version,
-			"items":   lines,
-		})
-		if err == nil {
-			fileWriter2, _ := writer.Create("海豹标准log-粘贴到染色器可格式化.txt")
-			_, _ = fileWriter2.Write(data)
-		}
-
-		_ = writer.Close()
-		_ = fzip.Close()
+	text := ""
+	for _, i := range lines {
+		timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
+		text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
 	}
 
+	fileWriter, _ := writer.Create("文本log.txt")
+	_, _ = fileWriter.Write([]byte(text))
+
+	data, err := json.Marshal(map[string]interface{}{
+		"version": Story_version,
+		"items":   lines,
+	})
 	if err == nil {
-		// 压缩log，发往后端
-		data, err := json.Marshal(map[string]interface{}{
-			"version": Story_version,
-			"items":   lines,
-		})
+		fileWriter2, _ := writer.Create("海豹标准log-粘贴到染色器可格式化.txt")
+		_, _ = fileWriter2.Write(data)
+	}
 
-		if err == nil {
-			var zlibBuffer bytes.Buffer
-			w := zlib.NewWriter(&zlibBuffer)
-			_, _ = w.Write(data)
-			_ = w.Close()
+	_ = writer.Close()
+	_ = fzip.Close()
 
-			var url string
-			url, err = UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserId, &zlibBuffer), nil
-			if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupId, logName, url); errDB != nil {
-				ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
-			}
-			return url, err
+	if err == nil {
+		var zlibBuffer bytes.Buffer
+		w := zlib.NewWriter(&zlibBuffer)
+		_, _ = w.Write(data)
+		_ = w.Close()
+
+		url := UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserId, &zlibBuffer)
+		if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupId, logName, url); errDB != nil {
+			ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
 		}
+		return url, nil
 	}
 	return "", nil
 }
