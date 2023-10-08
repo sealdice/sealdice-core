@@ -68,6 +68,7 @@ interface DiceServer {
         notBuiltin: boolean,
         topOrder: number,
         subType: string,
+        extraText: string,
       }
     }
   }

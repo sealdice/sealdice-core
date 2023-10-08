@@ -1,57 +1,59 @@
 <template>
-  <el-affix :offset="60" v-if="modified">
+  <header>
+    <el-button type="primary" @click="dialogImportVisible = true">导入/导出</el-button>
+  </header>
+
+  <el-affix :offset="70" v-if="modified">
     <div class="page-header tip-danger">
       <el-text type="danger" size="large" tag="strong">内容已修改，不要忘记保存！</el-text>
       <el-button class="button" type="primary" :icon="DocumentChecked" @click="save" :disabled="!modified">点我保存</el-button>
     </div>
   </el-affix>
 
-  <div style="margin-bottom: 1rem;">
-    <el-button type="primary" style="float: right; height: 3rem; margin-left: .5rem;" @click="dialogImportVisible = true">导入/导出</el-button>
+  <div class="tip">
+    <el-collapse class="helptips">
+      <el-collapse-item name="1">
+        <template #title>
+          <el-text tag="strong">查看帮助</el-text>
+        </template>
 
-    <el-collapse>
-        <el-collapse-item name="1">
-          <template #title>
-            <div style="padding: 0 1rem">查看帮助<el-icon><question-filled /></el-icon></div>
-          </template>
-
-          <div style="padding: 0 1rem;">
-            <div>此处可以对骰子返回的文本进行修改。最终返回的文本将为多个条目中随机抽取的一个。</div>
-            <div>随机文本:默认一种显示结果，如果需要多种反馈结果，使用＋添加条目，使用-删除条目</div>
-            <!-- 权重选择:默认1，权重—致则没有优先级。数字越小，优先级越高 -->
-            <!-- <div>文件备份:已修改的指令统一存在于路径/路径1/路径2/文件名，如有需要替换文件即可</div> -->
-            <div>遇到有此标记(<el-icon><brush-filled /></el-icon>)的条目，说明和默认值不同，是一个自定义条目</div>
-            <div style="margin-top: 1rem;">文本下方的<el-tag>标签</el-tag>代表了被默认文本所使用的特殊变量，你可以使用 {变量名} 来插入他们，例如 {$t判定值} </div>
-            <div>除此之外，这些变量可以在所有文本中使用: 
-              <el-space wrap>
-                <el-tag v-for="i in ['$t玩家', '$tQQ昵称', '$t个人骰子面数', '$tQQ', '$t骰子帐号', '$t骰子昵称', '$t群号', '$t群名']">{{i}}</el-tag>
-              </el-space>
-            </div>
-            <div>
-              <span>以及，所有的自定义文本都可以嵌套使用，例如：</span>
-              <div>
-                <b>这里是{核心:骰子名字}，我是一个示例</b>
-              </div>
-              <div>默认会被解析为:</div>
-              <div>
-                <b>这里是海豹bot，我是一个示例</b>
-              </div>
-              <div>注意！千万不要递归嵌套，会发生很糟糕的事情</div>
-            </div>
-
-            <div style="margin-top: 1rem;">
-              <div>此外，支持插入图片，将图片放在骰子的适当目录，再写这样一句话即可:</div>
-              <div><b>[图:data/images/sealdice.png]</b></div>
-              <div>可以参考 核心:骰子进群 词条</div>
-              <div>同样的，可以使用CQ码插入图片和其他内容，关于CQ码，请参阅onebot项目文档</div>
-            </div>
-
-            <div style="margin-top: 1rem;">
-              <b>COC的“判定-常规”和“判定-简短”主要区别是，多重检定会默认使用简短版本(.ra 3#射击)</b>
-              <b>进行调整后，可以在左侧面板“指令测试”中进行测试！</b>
-            </div>
+        <el-text tag="p">
+          <div>此处可以对骰子返回的文本进行修改。最终返回的文本将为多个条目中随机抽取的一个。</div>
+          <div>随机文本:默认一种显示结果，如果需要多种反馈结果，使用＋添加条目，使用-删除条目</div>
+          <!-- 权重选择:默认1，权重—致则没有优先级。数字越小，优先级越高 -->
+          <!-- <div>文件备份:已修改的指令统一存在于路径/路径1/路径2/文件名，如有需要替换文件即可</div> -->
+          <div>遇到有此标记(<el-icon><brush-filled /></el-icon>)的条目，说明和默认值不同，是一个自定义条目</div>
+          <div style="margin-top: 1rem;">文本下方的 <el-tag size="small">标签</el-tag> 代表了被默认文本所使用的特殊变量，你可以使用 {变量名} 来插入他们，例如 {$t判定值} </div>
+          <div>除此之外，这些变量可以在所有文本中使用：
+            <el-space size="small" wrap>
+              <el-tag size="small" disable-transitions v-for="i in ['$t玩家', '$tQQ昵称', '$t个人骰子面数', '$tQQ', '$t骰子帐号', '$t骰子昵称', '$t群号', '$t群名']">{{i}}</el-tag>
+            </el-space>
           </div>
-        </el-collapse-item>
+          <div>
+            <span>以及，所有的自定义文本都可以嵌套使用，例如：</span>
+            <div>
+              <b>这里是{核心:骰子名字}，我是一个示例</b>
+            </div>
+            <div>默认会被解析为：</div>
+            <div>
+              <b>这里是海豹bot，我是一个示例</b>
+            </div>
+            <div>注意！千万不要递归嵌套，会发生很糟糕的事情。</div>
+          </div>
+
+          <div style="margin-top: 1rem;">
+            <div>此外，支持插入图片，将图片放在骰子的适当目录，再写这样一句话即可:</div>
+            <div><b>[图:data/images/sealdice.png]</b></div>
+            <div>可以参考 核心:骰子进群 词条</div>
+            <div>同样的，可以使用CQ码插入图片和其他内容，关于CQ码，请参阅onebot项目文档</div>
+          </div>
+
+          <div style="margin-top: 1rem;">
+            <b>COC的“判定-常规”和“判定-简短”主要区别是，多重检定会默认使用简短版本(.ra 3#射击)</b>
+            <b>进行调整后，可以在左侧面板“指令测试”中进行测试！</b>
+          </div>
+        </el-text>
+      </el-collapse-item>
     </el-collapse>
   </div>
 
@@ -81,7 +83,14 @@
             <div>
               <el-tag effect="dark" type="info" style="margin-right: .5rem;" disable-transitions>
                 {{(store.curDice.customTextsHelpInfo[category][k.toString()]).subType || ((store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin ? '旧版文本' : '其它') }}
-              </el-tag>{{ k.toString() }}
+              </el-tag>
+
+              <span>
+                <span>{{ k.toString() }}</span>
+                <el-tooltip v-if="store.curDice.customTextsHelpInfo[category][k.toString()].extraText" :content="store.curDice.customTextsHelpInfo[category][k.toString()].extraText" raw-content>
+                  <el-icon><question-filled /></el-icon>
+                </el-tooltip>
+              </span>
 
               <template v-if="(store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin">
                 <el-tooltip content="移除 - 这个文本在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除" raw-content placement="bottom-end">
@@ -121,10 +130,10 @@
               </el-col>
             </el-row>
           </div>
-          <div>
+          <el-space size="small" wrap>
             <el-tag size="small" disable-transitions v-for="i in store.curDice.customTextsHelpInfo[category][k.toString()].vars">{{i}}</el-tag>
             <!-- {{ store.curDice.customTextsHelpInfo[category][k.toString()] }} -->
-          </div>
+          </el-space>
         </el-form-item>
       </el-form>
     </el-col>
@@ -392,8 +401,20 @@ watch(props, () => {
 })
 </script>
 
-<style>
+<style scoped>
 .import-edit > textarea {
   max-height: 65vh;
+}
+
+.helptips {
+  background-color: #f3f5f7;
+}
+
+.helptips :deep().el-collapse-item__header {
+  background-color: #f3f5f7;
+}
+
+.helptips :deep().el-collapse-item__wrap {
+  background-color: #f3f5f7;
 }
 </style>
