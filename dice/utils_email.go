@@ -73,9 +73,9 @@ func (d *Dice) SendMailRow(subject string, to []string, content string, attachme
 	m.SetHeader("From", d.MailFrom)
 	m.SetHeader("To", to...)
 	if content == "" {
-		m.SetBody("text/plain", "自动邮件，无需回复。")
+		m.SetBody("text/plain", "***自动邮件，无需回复***")
 	} else {
-		m.SetBody("text/plain", content+"\n\n自动邮件，无需回复。")
+		m.SetBody("text/plain", content+"\n\n***自动邮件，无需回复***")
 	}
 	if len(attachments) > 0 {
 		for _, attachment := range attachments {
