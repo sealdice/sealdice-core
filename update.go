@@ -1,9 +1,6 @@
 package main
 
 import (
-	"archive/tar"
-	"archive/zip"
-	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,7 +14,6 @@ import (
 	"runtime"
 	"sealdice-core/dice"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -183,6 +179,10 @@ func DownloadFile(filepath string, url string) error {
 	//resp, err := http.Get(url)
 	client := new(http.Client)
 	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
 	request.Header.Add("Accept-Encoding", "gzip")
 	resp, err := client.Do(request)
 
@@ -209,138 +209,4 @@ func DownloadFile(filepath string, url string) error {
 	}
 
 	return errors.New("http status:" + resp.Status)
-}
-
-func unzipSource(source, destination string) error {
-	// 1. Open the zip file
-	reader, err := zip.OpenReader(source)
-	if err != nil {
-		return err
-	}
-	defer func(reader *zip.ReadCloser) {
-		_ = reader.Close()
-	}(reader)
-
-	// 2. Get the absolute destination path
-	destination, err = filepath.Abs(destination)
-	if err != nil {
-		return err
-	}
-
-	// 3. Iterate over zip files inside the archive and unzip each of them
-	for _, f := range reader.File {
-		err := unzipFile(f, destination)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func unzipFile(f *zip.File, destination string) error {
-	// 注: 用这个zip包的原因是解压utf-8不乱码
-	// 4. Check if file paths are not vulnerable to Zip Slip
-	filePath := filepath.Join(destination, f.Name)
-	if !strings.HasPrefix(filePath, filepath.Clean(destination)+string(os.PathSeparator)) {
-		return fmt.Errorf("invalid file path: %s", filePath)
-	}
-
-	// 5. Create directory tree
-	if f.FileInfo().IsDir() {
-		if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-		return err
-	}
-
-	// 6. Create a destination file for unzipped content
-	destinationFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-	if err != nil {
-		return err
-	}
-	defer func(destinationFile *os.File) {
-		_ = destinationFile.Close()
-	}(destinationFile)
-
-	// 7. Unzip the content of a file and copy it to the destination file
-	zippedFile, err := f.Open()
-	if err != nil {
-		return err
-	}
-	defer func(zippedFile io.ReadCloser) {
-		_ = zippedFile.Close()
-	}(zippedFile)
-
-	if _, err := io.Copy(destinationFile, zippedFile); err != nil {
-		return err
-	}
-	return nil
-}
-
-func ExtractTarGz(fn, dest string) error {
-	gzipStream, err := os.Open(fn)
-	if err != nil {
-		fmt.Println("error", err.Error())
-		return err
-	}
-	defer func(gzipStream *os.File) {
-		_ = gzipStream.Close()
-	}(gzipStream)
-
-	log := logger
-	uncompressedStream, err := gzip.NewReader(gzipStream)
-	if err != nil {
-		log.Error("ExtractTarGz: NewReader failed")
-		return err
-	}
-	defer func(uncompressedStream *gzip.Reader) {
-		_ = uncompressedStream.Close()
-	}(uncompressedStream)
-
-	tarReader := tar.NewReader(uncompressedStream)
-
-	for {
-		header, err := tarReader.Next()
-
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			log.Errorf("ExtractTarGz: Next() failed: %s", err.Error())
-			return err
-		}
-
-		switch header.Typeflag {
-		case tar.TypeDir:
-			if err := os.Mkdir(filepath.Join(dest, header.Name), 0755); err != nil {
-				log.Errorf("ExtractTarGz: Mkdir() failed: %s", err.Error())
-			}
-		case tar.TypeReg:
-			_ = os.MkdirAll(filepath.Dir(filepath.Join(dest, header.Name)), 0755) // 进行一个目录的创
-			outFile, err := os.Create(filepath.Join(dest, header.Name))
-			if err != nil {
-				log.Errorf("ExtractTarGz: Create() failed: %s", err.Error())
-				return err
-			}
-			if _, err := io.Copy(outFile, tarReader); err != nil {
-				log.Errorf("ExtractTarGz: Copy() failed: %s", err.Error())
-				return err
-			}
-			_ = outFile.Close()
-
-		default:
-			log.Error(
-				"ExtractTarGz: uknown type: %s in %s",
-				header.Typeflag,
-				header.Name)
-			return err
-		}
-	}
-	return nil
 }
