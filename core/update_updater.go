@@ -4,15 +4,60 @@ import (
 	"context"
 	"errors"
 	"go.uber.org/zap"
+	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
 	"sealdice-core/dice"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
+
+func checkURLOne(url string, wg *sync.WaitGroup, resultChan chan string) {
+	defer wg.Done()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	//go func() {
+	resp, err := http.Get(url)
+	if err != nil {
+		// URL 请求异常
+		return
+	}
+	defer resp.Body.Close()
+
+	select {
+	case <-ctx.Done():
+		// URL 可用，但已经超过 5 秒，强制中断
+		resultChan <- url
+	}
+	//}()
+}
+
+// 检查一组URL是否可用，返回可用的URL
+func checkURLs(urls []string) []string {
+	var wg sync.WaitGroup
+	resultChan := make(chan string, len(urls))
+
+	for _, url := range urls {
+		wg.Add(1)
+		go checkURLOne(url, &wg, resultChan)
+	}
+
+	wg.Wait()
+	close(resultChan)
+
+	var availableURLs []string
+	for result := range resultChan {
+		availableURLs = append(availableURLs, result)
+	}
+
+	return availableURLs
+}
 
 func getUpdaterFn() string {
 	fn := "./seal-updater.exe"
@@ -81,6 +126,12 @@ func downloadUpdater(dm *dice.DiceManager) error {
 		prefix = ver.UpdaterUrlPrefix
 	}
 	link := prefix + "/" + "seal-updater-" + platform + "-" + arch
+
+	// 如无法访问，尝试使用备用地址，但此地址不保证可用
+	if len(checkURLs([]string{link})) == 0 {
+		prefix := "http://dice.weizaima.com/u/v0.1.0"
+		link = prefix + "/" + "seal-updater-" + platform + "-" + arch
+	}
 	fn := "./seal-updater"
 	if platform == "windows" {
 		fn += ".exe"

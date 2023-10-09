@@ -887,7 +887,7 @@ func (d *Dice) registerCoreCommands() {
 								ReplyToSender(ctx, msg, "升级失败，原因: "+ret)
 							}
 						}()
-						dm.UpdateRequestChan <- 1
+						dm.UpdateRequestChan <- d
 					} else {
 						ReplyToSender(ctx, msg, "无效的升级指令码")
 					}

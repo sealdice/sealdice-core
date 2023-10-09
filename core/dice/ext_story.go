@@ -29,24 +29,34 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 		num = 10
 	}
 
-	genderText := cmdArgs.GetArgN(3)
-	matchOne := func(text string, list []string) bool {
-		for _, i := range list {
-			if strings.EqualFold(text, i) {
-				return true
+	var genderText string
+	checkGender := func(newText string) bool {
+		matchOne := func(text string, list []string) bool {
+			for _, i := range list {
+				if strings.EqualFold(text, i) {
+					return true
+				}
 			}
+			return false
 		}
-		return false
+		if matchOne(newText, []string{"男", "男性", "Male", "M"}) {
+			genderText = "M"
+		}
+		if matchOne(newText, []string{"女", "女性", "Female", "F"}) {
+			genderText = "F"
+		}
+
+		if genderText != "M" && genderText != "F" {
+			genderText = ""
+			return false
+		}
+		return true
 	}
-	if matchOne(genderText, []string{"男", "男性", "Male", "M"}) {
-		genderText = "M"
+
+	if !checkGender(cmdArgs.GetArgN(2)) {
+		checkGender(cmdArgs.GetArgN(3))
 	}
-	if matchOne(genderText, []string{"女", "女性", "Female", "F"}) {
-		genderText = "F"
-	}
-	if genderText != "M" && genderText != "F" {
-		genderText = ""
-	}
+
 	rulesList := rulesCallback(genderText)
 
 	var rules []string
@@ -98,13 +108,13 @@ func RegisterBuiltinStory(self *Dice) {
 				case "M":
 					return [][]string{
 						{"{中文:姓氏@中文:姓氏权重}{中文:男性名}"},
-						{"{英文:名字} {英文:姓氏} ({英文:名字中文#英文:名字.index}·{英文:姓氏中文#英文:姓氏.index})"},
+						{"{英文:男性名} {英文:姓氏} ({英文:男性名中文#英文:男性名.index}·{英文:姓氏中文#英文:姓氏.index})"},
 						{"{日文:姓氏} {日文:男性名}({日文:姓氏平假名#日文:姓氏.index} {日文:男性名平假名#日文:男性名.index})"},
 					}
 				case "F":
 					return [][]string{
 						{"{中文:姓氏@中文:姓氏权重}{中文:女性名}"},
-						{"{英文:名字} {英文:姓氏} ({英文:名字中文#英文:名字.index}·{英文:姓氏中文#英文:姓氏.index})"},
+						{"{英文:女性名} {英文:姓氏} ({英文:女性名中文#英文:女性名.index}·{英文:姓氏中文#英文:姓氏.index})"},
 						{"{日文:姓氏} {日文:女性名}({日文:姓氏平假名#日文:姓氏.index} {日文:女性名平假名#日文:女性名.index})"},
 					}
 				default:
@@ -114,7 +124,8 @@ func RegisterBuiltinStory(self *Dice) {
 							"{中文:姓氏@中文:姓氏权重}{中文:女性名}",
 						},
 						{
-							"{英文:名字} {英文:姓氏} ({英文:名字中文#英文:名字.index}·{英文:姓氏中文#英文:姓氏.index})",
+							"{英文:男性名} {英文:姓氏} ({英文:男性名中文#英文:男性名.index}·{英文:姓氏中文#英文:姓氏.index})",
+							"{英文:女性名} {英文:姓氏} ({英文:女性名中文#英文:女性名.index}·{英文:姓氏中文#英文:姓氏.index})",
 						},
 						{
 							"{日文:姓氏} {日文:男性名}({日文:姓氏平假名#日文:姓氏.index} {日文:男性名平假名#日文:男性名.index})",
