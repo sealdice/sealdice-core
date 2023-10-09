@@ -637,3 +637,31 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 	}
 	return c.String(430, "")
 }
+
+func ImConnectionsAddRed(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Success(&c, Response{"testMode": true})
+	}
+
+	v := struct {
+		Host  string `yaml:"host" json:"host"`
+		Port  int    `yaml:"port" json:"port"`
+		Token string `yaml:"token" json:"token"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		conn := dice.NewRedConnItem(v.Host, v.Port, v.Token)
+		conn.Session = myDice.ImSession
+		pa := conn.Adapter.(*dice.PlatformAdapterRed)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		go dice.ServeRed(myDice, conn)
+		return Success(&c, Response{})
+	}
+	return c.String(430, "")
+}

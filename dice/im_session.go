@@ -279,6 +279,15 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 				return err
 			}
 			ep.Adapter = val.Adapter
+		case "red":
+			var val struct {
+				Adapter *PlatformAdapterRed `yaml:"adapter"`
+			}
+			err = value.Decode(&val)
+			if err != nil {
+				return err
+			}
+			ep.Adapter = val.Adapter
 		}
 	case "DISCORD":
 		var val struct {
@@ -1159,6 +1168,11 @@ func (ep *EndPointInfo) AdapterSetup() {
 		}
 		if ep.ProtocolType == "walle-q" {
 			pa := ep.Adapter.(*PlatformAdapterWalleQ)
+			pa.Session = ep.Session
+			pa.EndPoint = ep
+		}
+		if ep.ProtocolType == "red" {
+			pa := ep.Adapter.(*PlatformAdapterRed)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
 		}
