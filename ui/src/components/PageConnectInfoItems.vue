@@ -13,12 +13,12 @@
 
   <div style="display: flex; flex-wrap: wrap;">
     <div v-for="i, index in reactive(store.curDice.conns)" style="min-width: 20rem; flex: 1 0 50%; flex-grow: 0;">
-      <el-card class="box-card" style="margin-right: 1rem; margin-bottom: 1rem; position: relative">
+      <el-card class="box-card" shadow="hover" style="margin-right: 1rem; margin-bottom: 1rem; position: relative">
         <template #header>
           <div class="card-header">
             <span style="word-break: break-all;">{{i.nickname || '<"未知">'}}({{i.userId}})</span>
             <!-- <el-button class="button" type="text"  @click="doModify(i, index)">修改</el-button> -->
-            <el-button class="button" type="text"  @click="doRemove(i)">删除</el-button>
+            <el-button size="small" type="danger" :icon="Delete" plain @click="doRemove(i)">删除</el-button>
           </div>
         </template>
 
@@ -60,10 +60,10 @@
 
           <el-form-item label="状态">
             <el-space>
-              <div v-if="i.state === 0"><el-tag type="danger">断开</el-tag></div>
-              <div v-if="i.state === 2"><el-tag type="warning">连接中</el-tag></div>
-              <div v-if="i.state === 1"><el-tag type="success">已连接</el-tag></div>
-              <div v-if="i.state === 3"><el-tag type="danger">失败</el-tag></div>
+              <div v-if="i.state === 0"><el-tag type="danger" disable-transitions>断开</el-tag></div>
+              <div v-if="i.state === 2"><el-tag type="warning" disable-transitions>连接中</el-tag></div>
+              <div v-if="i.state === 1"><el-tag type="success" disable-transitions>已连接</el-tag></div>
+              <div v-if="i.state === 3"><el-tag type="danger" disable-transitions>失败</el-tag></div>
               <el-tooltip :content="`看到这个标签是因为最近20分钟内有风控警告，将在重新登录后临时消除。触发时间: ` + dayjs.unix(i.adapter?.inPackGoCqHttpLastRestricted).fromNow()" v-if="Math.round(new Date().getTime()/1000) - i.adapter?.inPackGoCqHttpLastRestricted < 30 * 60">
                 <el-tag type="warning">风控</el-tag>
               </el-tooltip>
@@ -877,7 +877,7 @@ import { h, reactive, onBeforeMount, onBeforeUnmount, onMounted, ref, nextTick, 
 import { useStore, goCqHttpStateCode } from '~/store';
 import type { DiceConnection } from '~/store';
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, QuestionFilled } from '@element-plus/icons-vue'
+import {Plus, Edit, QuestionFilled, Delete} from '@element-plus/icons-vue'
 import { sleep } from '~/utils'
 import { delay } from 'lodash-es'
 import * as dayjs from 'dayjs'

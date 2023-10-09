@@ -103,38 +103,38 @@
   </div>
 
   <main style="margin-top: 2rem;">
-    <el-card v-for="i, index in groupItems">
-      <template #header>
-        <div class="ban-item-header">
-          <el-space direction="vertical" alignment="normal">
-            <el-space size="small" alignment="center">
+    <el-space fill size="small">
+      <el-card v-for="i, index in groupItems" :key="i.ID" shadow="hover">
+        <template #header>
+          <div class="ban-item-header">
+            <el-space alignment="center">
               <el-tag v-if="i.rankText === '禁止'" type="danger" disable-transitions>{{ i.rankText }}</el-tag>
               <el-tag v-else-if="i.rankText === '警告'" type="warning" disable-transitions>{{ i.rankText }}</el-tag>
               <el-tag v-else-if="i.rankText === '信任'" type="success" disable-transitions>{{ i.rankText }}</el-tag>
               <el-tag v-else disable-transitions>{{ i.rankText }}</el-tag>
-              <el-text size="large" tag="b">{{ i.ID }}</el-text>
+              <el-space size="small" alignment="center" wrap>
+                <el-text size="large" tag="strong">{{ i.ID }}</el-text>
+                <el-text>「{{ i.name }}」</el-text>
+                <el-text size="small" tag="em">怒气值：{{ i.score }}</el-text>
+              </el-space>
             </el-space>
-          </el-space>
-          <el-space>
-            <el-button :icon="Delete" type="danger" size="small" plain @click="deleteOne(i, index)">删除</el-button>
-          </el-space>
-        </div>
-      </template>
-      <el-descriptions>
-        <el-descriptions-item :span="2" label="名字">{{ i.name }}</el-descriptions-item>
-        <el-descriptions-item :span="1" label="怒气值">{{ i.score }}</el-descriptions-item>
-        <el-descriptions-item :span="3" label="原因">
-          <el-space style="display: block;" direction="vertical" v-for="j, index in i.reasons">
-            <el-text>
+            <el-space>
+              <el-button :icon="Delete" type="danger" size="small" plain @click="deleteOne(i, index)">删除</el-button>
+            </el-space>
+          </div>
+        </template>
+        <el-space style="display: block;" direction="vertical">
+          <div v-for="(j, index) in i.reasons" :key="index">
+            <el-space size="small" wrap>
               <el-tooltip raw-content :content="dayjs.unix(i.times[index]).format('YYYY-MM-DD HH:mm:ssZ[Z]')">
-                <span>{{ dayjs.unix(i.times[index]).fromNow() }}</span>
+                <el-tag size="small" type="info" disable-transitions>{{ dayjs.unix(i.times[index]).fromNow() }}</el-tag>
               </el-tooltip>
-              <span>于「{{ i.places[index] }}」，具体原因：{{j}}</span>
-            </el-text>
-          </el-space>
-        </el-descriptions-item>
-      </el-descriptions>
-    </el-card>
+              <el-text>在&lt;{{ i.places[index] }}>，原因：「{{j}}」</el-text>
+            </el-space>
+          </div>
+        </el-space>
+      </el-card>
+    </el-space>
   </main>
 
   <el-dialog v-model="dialogAddShow" title="添加用户/群组" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">

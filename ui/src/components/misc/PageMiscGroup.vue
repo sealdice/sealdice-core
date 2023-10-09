@@ -16,47 +16,54 @@
   </div>
 
   <div style="margin-top: 2rem;">
-    <div v-for="i, index in groupItems" style="margin-bottom: 2rem;border: 1px solid #ccc; border-radius: .2rem; padding: .5rem; background-color: #fff;">
-      <el-checkbox v-model="i.active" @click="i.changed = true">启用</el-checkbox>
-      <div><span class="left">群名:</span> {{ i.groupName || '未获取到' }}</div>
-      <div><span class="left">群号:</span> {{i.groupId}}</div>
-      <div><span class="left">上次使用:</span> {{ i.recentDiceSendTime ? dayjs.unix(i.recentDiceSendTime).fromNow() : '从未' }}</div>
-      <!-- <div>玩家数量(执行过指令): {{i.tmpPlayerNum}}</div> -->
-      <div><span class="left">Log状态:</span> {{i.logOn ? '开启' : '关闭'}}</div>
-      <div><span class="left">邀请人:</span> {{ i.inviteUserId || '未知' }}</div>
-      <div><span class="left">入群时间:</span> {{ i.enteredTime ? dayjs.unix(i.enteredTime).fromNow() : '未知' }}</div>
-      <div><span class="left">开启迎新:</span> {{ i.showGroupWelcome ? '开启' : '关闭' }}</div>
-      <div><span class="left">启用扩展:</span>  {{ i.tmpExtList ? i.tmpExtList.join(', ') : '未知' }}</div>
-      <!-- <div>欢迎语: <el-input type="textarea" v-model="i.groupWelcomeMessage" autosize /> </div> -->
-      <!-- <div>{{i}}</div> -->
-      <el-button :disabled="!i.changed" @click="saveOne(i, index)">保存</el-button>
-
-      <el-tooltip v-for="_,j in i.diceIdExistsMap" raw-content :content="j.toString() + '<br>有二次确认'">
-        <el-button  @click="quitGroup(i, index, j.toString())">退群 {{j.toString().slice(-4)}}</el-button>
-      </el-tooltip>
-    </div>
+    <el-card shadow="hover" v-for="(i, index) in groupItems" style="margin-top: 1rem;">
+      <template #header>
+        <div class="item-header">
+          <el-space size="large" alignment="center">
+            <el-switch v-model="i.active" @click="i.changed = true"
+                       style="--el-switch-on-color: var(--el-color-success); --el-switch-off-color: var(--el-color-danger)" />
+            <el-space size="small" wrap>
+              <el-text size="large" tag="strong">{{ i.groupId }}</el-text>
+              <el-text>「{{ i.groupName || '未获取到' }}」</el-text>
+            </el-space>
+          </el-space>
+          <el-space>
+            <el-button type="success" size="small" :icon="DocumentChecked" plain v-if="i.changed" @click="saveOne(i, index)">保存</el-button>
+            <el-tooltip v-for="_,j in i.diceIdExistsMap" raw-content :content="j.toString() + '<br>有二次确认'">
+              <el-button type="danger" size="small" :icon="Close" plain @click="quitGroup(i, index, j.toString())">退群 {{j.toString().slice(-4)}}</el-button>
+            </el-tooltip>
+          </el-space>
+        </div>
+      </template>
+      <el-descriptions>
+        <el-descriptions-item label="上次使用">{{ i.recentDiceSendTime ? dayjs.unix(i.recentDiceSendTime).fromNow() : '从未' }}</el-descriptions-item>
+        <el-descriptions-item label="入群时间">{{ i.enteredTime ? dayjs.unix(i.enteredTime).fromNow() : '未知' }}</el-descriptions-item>
+        <el-descriptions-item label="邀请人">{{ i.inviteUserId || '未知' }}</el-descriptions-item>
+        <el-descriptions-item label="Log状态">{{ i.logOn ? '开启' : '关闭' }}</el-descriptions-item>
+        <el-descriptions-item label="迎新">{{ i.showGroupWelcome ? '开启' : '关闭' }}</el-descriptions-item>
+        <el-descriptions-item />
+        <el-descriptions-item :span="3" label="启用扩展">
+              <span v-if="i.tmpExtList">
+                <el-tag size="small" v-for="group of i.tmpExtList" style="margin-right: 0.5rem;" disable-transitions>{{ group }}</el-tag>
+              </span>
+          <el-text v-else>'未知'</el-text>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref, h } from 'vue';
+import { computed, onBeforeMount, ref, h } from 'vue';
 import { useStore } from '~/store'
-import { urlBase } from '~/backend'
-import filesize from 'filesize'
 import { ElMessage, ElMessageBox, ElSwitch } from 'element-plus'
 import {
-  Location,
-  Document,
-  Menu as IconMenu,
-  Setting,
-  CirclePlusFilled,
-  CircleClose,
-  QuestionFilled,
-  BrushFilled
+  DocumentChecked,
+  Close,
 } from '@element-plus/icons-vue'
 import * as dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { cloneDeep, now, sortBy } from 'lodash-es'
+import { now, sortBy } from 'lodash-es'
 
 dayjs.extend(relativeTime)
 
@@ -203,5 +210,12 @@ span.left {
       text-overflow: ellipsis;
     }
   }
+}
+
+.item-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
 }
 </style>
