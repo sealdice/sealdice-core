@@ -2,10 +2,11 @@ package migrate
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"sealdice-core/dice"
+
+	"gopkg.in/yaml.v3"
 )
 
 type v131DeprecatedConfig struct {
@@ -25,23 +26,23 @@ func V131DeprecatedConfig2CustomText() error {
 	confPath := filepath.Join("./data/default/serve.yaml")
 	customTextPath := filepath.Join("./data/default/configs/text-template.yaml")
 	customTextBakPath := filepath.Join("./data/default/configs/text-template.yaml.bak")
-	data, err := os.ReadFile(confPath)
+	confData, err := os.ReadFile(confPath)
 	if err != nil {
 		return err
 	}
 
 	deprecatedConf := v131DeprecatedConfig{}
-	err = yaml.Unmarshal(data, &deprecatedConf)
+	err = yaml.Unmarshal(confData, &deprecatedConf)
 	if err != nil {
 		return err
 	}
 
-	data2, err := os.ReadFile(customTextPath)
+	customTextData, err := os.ReadFile(customTextPath)
 	if err != nil {
 		return err
 	}
 	var customTexts dice.TextTemplateWithWeightDict
-	err = yaml.Unmarshal(data2, &customTexts)
+	err = yaml.Unmarshal(customTextData, &customTexts)
 	if err != nil {
 		return err
 	}
@@ -92,9 +93,25 @@ func V131DeprecatedConfig2CustomText() error {
 
 	if needUpdateCustomText {
 		fmt.Println("检测到旧设置项需要迁移到自定义文案，试图进行迁移")
+
+		// 保存修改了的 custom text 设置
+		newData, err := yaml.Marshal(customTexts)
+		if err != nil {
+			return err
+		}
+		// 先备份
+		err = os.WriteFile(customTextBakPath, customTextData, 0644)
+		if err != nil {
+			return err
+		}
+		err = os.WriteFile(customTextPath, newData, 0644)
+		if err != nil {
+			return err
+		}
+
 		// 保存迁移后的 config.yaml
 		newConf := make(map[string]interface{})
-		err = yaml.Unmarshal(data, &newConf)
+		err = yaml.Unmarshal(confData, &newConf)
 		if err != nil {
 			return err
 		}
@@ -104,29 +121,15 @@ func V131DeprecatedConfig2CustomText() error {
 		delete(newConf, "customDrawKeysText")
 		delete(newConf, "customDrawKeysTextEnable")
 
-		newData, err := yaml.Marshal(newConf)
+		newData2, err := yaml.Marshal(newConf)
 		if err != nil {
 			return err
 		}
-		err = os.WriteFile(confPath, newData, 0644)
+		err = os.WriteFile(confPath, newData2, 0644)
 		if err != nil {
 			return err
 		}
 
-		// 保存修改了的 custom text 设置
-		newData2, err := yaml.Marshal(customTexts)
-		if err != nil {
-			return err
-		}
-		// 先备份
-		err = os.WriteFile(customTextBakPath, data2, 0644)
-		if err != nil {
-			return err
-		}
-		err = os.WriteFile(customTextPath, newData2, 0644)
-		if err != nil {
-			return err
-		}
 		fmt.Println("旧设置项迁移到自定义文案成功")
 	}
 
