@@ -425,6 +425,8 @@ func main() {
 	migrate.TryMigrateToV12()
 	// 尝试修正log_items表的message字段类型
 	_ = migrate.LogItemFixDatatype()
+	// v131迁移历史设置项到自定义文案
+	_ = migrate.V131DeprecatedConfig2CustomText()
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 		hideWindow()
