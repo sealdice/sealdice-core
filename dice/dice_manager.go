@@ -51,7 +51,7 @@ type DiceManager struct {
 	AppVersionCode   int64
 	AppVersionOnline *VersionInfo
 
-	UpdateRequestChan      chan int
+	UpdateRequestChan      chan *Dice
 	UpdateDownloadedChan   chan string
 	RebootRequestChan      chan int
 	UpdateCheckRequestChan chan int
@@ -192,7 +192,7 @@ func (dm *DiceManager) Save() {
 }
 
 func (dm *DiceManager) InitDice() {
-	dm.UpdateRequestChan = make(chan int, 1)
+	dm.UpdateRequestChan = make(chan *Dice, 1)
 	dm.RebootRequestChan = make(chan int, 1)
 	dm.UpdateCheckRequestChan = make(chan int, 1)
 	dm.UpdateDownloadedChan = make(chan string, 1)
