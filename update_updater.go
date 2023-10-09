@@ -19,7 +19,7 @@ import (
 func checkURLOne(url string, wg *sync.WaitGroup, resultChan chan string) {
 	defer wg.Done()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
 	defer cancel()
 
 	//go func() {
@@ -30,12 +30,9 @@ func checkURLOne(url string, wg *sync.WaitGroup, resultChan chan string) {
 	}
 	defer resp.Body.Close()
 
-	select {
-	case <-ctx.Done():
-		// URL 可用，但已经超过 5 秒，强制中断
-		resultChan <- url
-	}
-	//}()
+	<-ctx.Done()
+	// URL 可用，但已经超过 7 秒，强制中断
+	resultChan <- url
 }
 
 // 检查一组URL是否可用，返回可用的URL
