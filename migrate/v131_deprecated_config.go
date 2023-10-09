@@ -24,6 +24,12 @@ type v131DeprecatedConfig struct {
 
 func V131DeprecatedConfig2CustomText() error {
 	confPath := filepath.Join("./data/default/serve.yaml")
+
+	if _, err := os.Stat(confPath); err != nil {
+		// 如果文件没找到，那直接算成功，跳过流程
+		return nil
+	}
+
 	customTextPath := filepath.Join("./data/default/configs/text-template.yaml")
 	customTextBakPath := filepath.Join("./data/default/configs/text-template.yaml.bak")
 	confData, err := os.ReadFile(confPath)
