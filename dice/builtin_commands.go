@@ -1534,7 +1534,11 @@ func (d *Dice) registerCoreCommands() {
 					if author == "" {
 						author = "<未注明>"
 					}
-					text += fmt.Sprintf("%d. [%s]%s - %s - %s\n", index+1, state, i.Name, i.Version, author)
+					aliases := ""
+					if len(i.Aliases) > 0 {
+						aliases = "(" + strings.Join(i.Aliases, ",") + ")"
+					}
+					text += fmt.Sprintf("%d. [%s]%s %s - %s - %s\n", index+1, state, i.Name, aliases, i.Version, author)
 				}
 				text += "使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n"
 				text += "命令: .ext <扩展名> 可以查看扩展介绍及帮助"
@@ -1578,14 +1582,11 @@ func (d *Dice) registerCoreCommands() {
 					var extNames []string
 					var conflictsAll []string
 					for index := 0; index < len(cmdArgs.Args); index++ {
-						for _, i := range d.ExtList {
-							extName := strings.ToLower(cmdArgs.Args[index])
-
-							if i.Name == extName {
-								extNames = append(extNames, extName)
-								conflictsAll = append(conflictsAll, checkConflict(i)...)
-								ctx.Group.ExtActive(i)
-							}
+						extName := strings.ToLower(cmdArgs.Args[index])
+						if i := d.ExtFind(extName); i != nil {
+							extNames = append(extNames, extName)
+							conflictsAll = append(conflictsAll, checkConflict(i)...)
+							ctx.Group.ExtActive(i)
 						}
 					}
 
@@ -1609,6 +1610,7 @@ func (d *Dice) registerCoreCommands() {
 					var notfound []string
 					for index := 0; index < len(cmdArgs.Args); index++ {
 						extName := strings.ToLower(cmdArgs.Args[index])
+						extName = d.ExtAliasToName(extName)
 						ei := ctx.Group.ExtInactiveByName(extName)
 						if ei != nil {
 							closed = append(closed, ei.Name)
@@ -1628,14 +1630,12 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else {
 					extName := cmdArgs.Args[0]
-					for _, i := range d.ExtList {
-						if i.Name == extName {
-							text := fmt.Sprintf("> [%s] 版本%s 作者%s\n", i.Name, i.Version, i.Author)
-							i.callWithJsCheck(d, func() {
-								ReplyToSender(ctx, msg, text+i.GetDescText(i))
-							})
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
+					if i := d.ExtFind(extName); i != nil {
+						text := fmt.Sprintf("> [%s] 版本%s 作者%s\n", i.Name, i.Version, i.Author)
+						i.callWithJsCheck(d, func() {
+							ReplyToSender(ctx, msg, text+i.GetDescText(i))
+						})
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 				}
 			}
