@@ -424,9 +424,17 @@ func main() {
 	// 尝试进行升级
 	migrate.TryMigrateToV12()
 	// 尝试修正log_items表的message字段类型
-	_ = migrate.LogItemFixDatatype()
+	migrateErr := migrate.LogItemFixDatatype()
+	if migrateErr != nil {
+		logger.Errorf("修正log_items表时出错，%s", migrateErr.Error())
+		return
+	}
 	// v131迁移历史设置项到自定义文案
-	_ = migrate.V131DeprecatedConfig2CustomText()
+	migrateErr = migrate.V131DeprecatedConfig2CustomText()
+	if migrateErr != nil {
+		logger.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
+		return
+	}
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 		hideWindow()
