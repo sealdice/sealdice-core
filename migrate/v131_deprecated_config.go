@@ -45,24 +45,46 @@ func V131DeprecatedConfig2CustomText() error {
 		return err
 	}
 
+	if customTexts == nil {
+		customTexts = make(dice.TextTemplateWithWeightDict)
+	}
+	if customTexts["核心"] == nil {
+		customTexts["核心"] = make(dice.TextTemplateWithWeight)
+	}
+	if customTexts["核心"] == nil {
+		customTexts["其他"] = make(dice.TextTemplateWithWeight)
+	}
+
 	var needUpdateCustomText bool
 	if deprecatedConf.HelpMasterInfo != "" {
 		needUpdateCustomText = true
+		if len(customTexts["核心"]["骰子帮助文本_骰主"]) == 0 {
+			customTexts["核心"]["骰子帮助文本_骰主"] = dice.TextTemplateItemList{dice.TextTemplateItem{"", 0}}
+		}
 		customTexts["核心"]["骰子帮助文本_骰主"][0][0] = deprecatedConf.HelpMasterInfo
 		customTexts["核心"]["骰子帮助文本_骰主"][0][1] = 1
 	}
 	if deprecatedConf.HelpMasterLicense != "" {
 		needUpdateCustomText = true
+		if len(customTexts["核心"]["骰子帮助文本_协议"]) == 0 {
+			customTexts["核心"]["骰子帮助文本_协议"] = dice.TextTemplateItemList{dice.TextTemplateItem{"", 0}}
+		}
 		customTexts["核心"]["骰子帮助文本_协议"][0][0] = deprecatedConf.HelpMasterLicense
 		customTexts["核心"]["骰子帮助文本_协议"][0][1] = 1
 	}
 	if deprecatedConf.CustomBotExtraText != "" {
 		needUpdateCustomText = true
+		if len(customTexts["核心"]["骰子状态附加文本"]) == 0 {
+			customTexts["核心"]["骰子状态附加文本"] = dice.TextTemplateItemList{dice.TextTemplateItem{"", 0}}
+		}
 		customTexts["核心"]["骰子状态附加文本"][0][0] = deprecatedConf.CustomBotExtraText
 		customTexts["核心"]["骰子状态附加文本"][0][1] = 1
 	}
 	if deprecatedConf.CustomDrawKeysText != "" && deprecatedConf.CustomDrawKeysTextEnable {
 		needUpdateCustomText = true
+		if len(customTexts["其他"]["抽牌_列表"]) == 0 {
+			customTexts["其他"]["抽牌_列表"] = dice.TextTemplateItemList{dice.TextTemplateItem{"", 0}}
+		}
 		customTexts["其他"]["抽牌_列表"][0][0] = deprecatedConf.CustomDrawKeysText
 		customTexts["其他"]["抽牌_列表"][0][1] = 1
 	}
