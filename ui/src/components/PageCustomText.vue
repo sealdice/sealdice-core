@@ -1,12 +1,9 @@
 <template>
-  <header>
-    <el-button type="primary" @click="dialogImportVisible = true">导入/导出</el-button>
-  </header>
-
   <el-affix :offset="70" v-if="modified">
     <div class="page-header tip-danger">
       <el-text type="danger" size="large" tag="strong">内容已修改，不要忘记保存！</el-text>
-      <el-button class="button" type="primary" :icon="DocumentChecked" @click="save" :disabled="!modified">点我保存</el-button>
+      <el-button class="button" type="primary" :icon="DocumentChecked" @click="save"
+        :disabled="!modified">点我保存</el-button>
     </div>
   </el-affix>
 
@@ -23,10 +20,12 @@
           <!-- 权重选择:默认1，权重—致则没有优先级。数字越小，优先级越高 -->
           <!-- <div>文件备份:已修改的指令统一存在于路径/路径1/路径2/文件名，如有需要替换文件即可</div> -->
           <div>遇到有此标记(<el-icon><brush-filled /></el-icon>)的条目，说明和默认值不同，是一个自定义条目</div>
-          <div style="margin-top: 1rem;">文本下方的 <el-tag size="small">标签</el-tag> 代表了被默认文本所使用的特殊变量，你可以使用 {变量名} 来插入他们，例如 {$t判定值} </div>
+          <div style="margin-top: 1rem;">文本下方的 <el-tag size="small">标签</el-tag> 代表了被默认文本所使用的特殊变量，你可以使用 {变量名} 来插入他们，例如
+            {$t判定值} </div>
           <div>除此之外，这些变量可以在所有文本中使用：
             <el-space size="small" wrap>
-              <el-tag size="small" disable-transitions v-for="i in ['$t玩家', '$tQQ昵称', '$t个人骰子面数', '$tQQ', '$t骰子帐号', '$t骰子昵称', '$t群号', '$t群名']">{{i}}</el-tag>
+              <el-tag size="small" disable-transitions
+                v-for="i in ['$t玩家', '$tQQ昵称', '$t个人骰子面数', '$tQQ', '$t骰子帐号', '$t骰子昵称', '$t群号', '$t群名']">{{ i }}</el-tag>
             </el-space>
           </div>
           <div>
@@ -57,6 +56,15 @@
     </el-collapse>
   </div>
 
+  <div style="margin-top: 1rem; display: flex; justify-content: space-between;">
+    <div>
+      <el-text>搜索：</el-text>
+      <el-input :prefix-icon="Search" style="display: inline;" v-model="currentFilterName" clearable></el-input>
+    </div>
+    <!-- 这个按钮颜色还是淡一些不然喧宾夺主 -->
+    <el-button @click="dialogImportVisible = true">导入/导出</el-button>
+  </div>
+
   <el-space style="margin: 1rem 0" wrap>
     <el-radio-group v-model="filterMode" @change="handleFilterModeChange">
       <el-radio v-for="mode of filterModes" :key="mode.value" :label="mode.value">
@@ -69,10 +77,6 @@
         <el-option v-for="group of filterGroups" :key="group" :label="group" :value="group"></el-option>
       </el-select>
     </div>
-    <div v-if="filterMode === 'name'">
-      <el-text>文案名称：</el-text>
-      <el-input style="display: inline;" v-model="currentFilterName" clearable></el-input>
-    </div>
   </el-space>
 
   <el-row :gutter="20">
@@ -82,18 +86,21 @@
           <template #label>
             <div>
               <el-tag effect="dark" type="info" style="margin-right: .5rem;" disable-transitions>
-                {{(store.curDice.customTextsHelpInfo[category][k.toString()]).subType || ((store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin ? '旧版文本' : '其它') }}
+                {{ (store.curDice.customTextsHelpInfo[category][k.toString()]).subType ||
+                  ((store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin ? '旧版文本' : '其它') }}
               </el-tag>
 
               <span>
                 <span>{{ k.toString() }}</span>
-                <el-tooltip v-if="store.curDice.customTextsHelpInfo[category][k.toString()].extraText" :content="store.curDice.customTextsHelpInfo[category][k.toString()].extraText" raw-content>
+                <el-tooltip v-if="store.curDice.customTextsHelpInfo[category][k.toString()].extraText"
+                  :content="store.curDice.customTextsHelpInfo[category][k.toString()].extraText" raw-content>
                   <el-icon><question-filled /></el-icon>
                 </el-tooltip>
               </span>
 
               <template v-if="(store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin">
-                <el-tooltip content="移除 - 这个文本在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除" raw-content placement="bottom-end">
+                <el-tooltip content="移除 - 这个文本在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除" raw-content
+                  placement="bottom-end">
                   <el-icon style="float: right; margin-left: 1rem;" @click="askDeleteValue(category, k.toString())">
                     <delete-filled />
                   </el-icon>
@@ -112,12 +119,13 @@
               </el-tooltip> -->
             </div>
           </template>
-          
+
           <div v-for="k2, index in v" style="width: 100%; margin-bottom: .5rem;">
             <!-- 这里面是单条修改项 -->
             <el-row>
               <el-col :span="2">
-                <el-tooltip :content="index === 0 ? '点击添加一个回复语，SealDice将会随机抽取一个回复' : '点击删除你不想要的回复语'" placement="bottom-start">
+                <el-tooltip :content="index === 0 ? '点击添加一个回复语，SealDice将会随机抽取一个回复' : '点击删除你不想要的回复语'"
+                  placement="bottom-start">
                   <el-icon>
                     <circle-plus-filled v-if="index == 0" @click="addItem(k)" />
                     <circle-close v-else @click="removeItem(v, index)" />
@@ -126,12 +134,13 @@
               </el-col>
               <el-col :span="22">
                 <!-- :suffix-icon="Management" -->
-                <el-input type="textarea" autosize v-model="k2[0]" @change="doChanged(category, k.toString())"></el-input> 
+                <el-input type="textarea" autosize v-model="k2[0]" @change="doChanged(category, k.toString())"></el-input>
               </el-col>
             </el-row>
           </div>
           <el-space size="small" wrap>
-            <el-tag size="small" disable-transitions v-for="i in store.curDice.customTextsHelpInfo[category][k.toString()].vars">{{i}}</el-tag>
+            <el-tag size="small" disable-transitions
+              v-for="i in store.curDice.customTextsHelpInfo[category][k.toString()].vars">{{ i }}</el-tag>
             <!-- {{ store.curDice.customTextsHelpInfo[category][k.toString()] }} -->
           </el-space>
         </el-form-item>
@@ -139,13 +148,15 @@
     </el-col>
   </el-row>
 
-  <el-dialog v-model="dialogImportVisible" title="导入导出" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="true" :fullscreen="true" class="the-dialog">
+  <el-dialog v-model="dialogImportVisible" title="导入导出" :close-on-click-modal="false" :close-on-press-escape="false"
+    :show-close="true" :fullscreen="true" class="the-dialog">
     <el-checkbox v-model="importOnlyCurrent">仅当前页面(勾选)/全部自定义文案</el-checkbox>
     <el-checkbox v-model="importImpact">紧凑</el-checkbox>
 
     <!-- <template > -->
     <div>以下为导出内容，可以复制给别人:</div>
-    <el-input placeholder="填入数据" type="textarea" :autosize="{ minRows: 4 }" class="import-edit" id="import-edit" v-model="configForImport"></el-input>
+    <el-input placeholder="填入数据" type="textarea" :autosize="{ minRows: 4 }" class="import-edit" id="import-edit"
+      v-model="configForImport"></el-input>
     <!-- </template> -->
 
     <template #footer>
@@ -157,14 +168,13 @@
       </span>
     </template>
   </el-dialog>
-
 </template>
 
 <script setup lang="ts">
-import {ref, reactive, onBeforeMount, watch, nextTick} from "vue";
+import { ref, reactive, onBeforeMount, watch, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useStore } from '~/store'
-import { DeleteFilled, DocumentChecked } from '@element-plus/icons-vue'
+import { DeleteFilled, DocumentChecked, Search } from '@element-plus/icons-vue'
 
 import {
   CirclePlusFilled,
@@ -172,7 +182,7 @@ import {
   QuestionFilled,
   BrushFilled
 } from '@element-plus/icons-vue'
-import {cloneDeep, uniq, sortBy, trim, startsWith} from "lodash-es";
+import { cloneDeep, uniq, sortBy, trim, startsWith } from "lodash-es";
 import ClipboardJS from 'clipboard'
 
 const store = useStore()
@@ -186,6 +196,12 @@ const dialogImportVisible = ref(false)
 const doSort = (category: string) => {
   let items = Object.entries(store.curDice.customTexts[category]);
   const helpInfo = store.curDice.customTextsHelpInfo[category];
+
+  if (currentFilterName.value != "") {
+    items = items.filter(item => item[0].includes(currentFilterName.value)
+      || helpInfo[item[0]].subType.includes(currentFilterName.value));
+  }
+
 
   switch (filterMode.value) {
     case 'all':
@@ -202,11 +218,6 @@ const doSort = (category: string) => {
     case 'group':
       filterGroups.value = sortBy(uniq(Object.values(helpInfo).map(info => trim(info.subType)).filter(subType => subType !== "")))
       items = items.filter(item => startsWith(trim(helpInfo[item[0]].subType), currentFilterGroup.value))
-      break
-    case 'name':
-      if (currentFilterName.value != "") {
-        items = items.filter(item => item[0].includes(currentFilterName.value))
-      }
       break
   }
 
@@ -372,8 +383,7 @@ const filterModes: FilterMode[] = [
   { value: "unmodified", desc: "默认文案" },
   { value: "modified", desc: "修改过" },
   { value: "group", desc: "指定分组" },
-  { value: "name", desc: "搜索文案名称" },
-  { value: "deprecated", desc: "已移除" },
+  { value: "deprecated", desc: "旧版文本" },
 ]
 const filterMode = ref<string>("all")
 const filterGroups = ref<string[]>([])
@@ -402,7 +412,7 @@ watch(props, () => {
 </script>
 
 <style scoped>
-.import-edit > textarea {
+.import-edit>textarea {
   max-height: 65vh;
 }
 

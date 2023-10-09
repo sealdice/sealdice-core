@@ -212,7 +212,7 @@
           v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'simple'"
           label="服务url" :label-width="formLabelWidth">
           <el-input v-model="form.signServerConfig.signServers[0].url" type="string" autocomplete="off"
-            placeholder="http://127.0.0.1:8080"></el-input>
+            placeholder="http://127.0.0.1:13579"></el-input>
         </el-form-item>
         <el-form-item
           v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'simple'"
@@ -224,7 +224,7 @@
           v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6) && signConfigType === 'simple'"
           label="服务鉴权" :label-width="formLabelWidth">
           <el-input v-model="form.signServerConfig.signServers[0].authorization" type="string" autocomplete="off"
-            placeholder="Bearer xxxx"></el-input>
+            placeholder="Bearer xxxx 未设置可不填"></el-input>
         </el-form-item>
 
         <el-form-item

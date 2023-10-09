@@ -32,6 +32,7 @@
       <el-link :underline="false" href="https://github.com/Verplitic" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Verplitic'"/>檀轶步棋</el-link>
       <el-link :underline="false" href="https://github.com/FlameTEXT" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/FlameTEXT'"/>脑</el-link>
       <el-link :underline="false" href="https://github.com/fy0" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/fy0'"/>木落</el-link>
+      <el-link :underline="false" href="#" target="_blank"><el-avatar shape="circle" :size="50" :src="'#'"/>暮星</el-link>
     </div>
 
     <div style="margin-top: 2rem;" class="subtitle">V1.3安卓端</div>

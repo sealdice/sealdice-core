@@ -84,6 +84,15 @@ async function delLog(v: Log) {
 }
 
 async function uploadLog(v: Log) {
+    await ElMessageBox.confirm(
+        '将此跑团日志上传至海豹服务器？',
+        '警告',
+        {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
+        }
+    );
     return apiFetch(url("uploadLog"), {
         method: "post", body: v, headers: { token: token }
     })
@@ -282,7 +291,7 @@ onBeforeMount(() => {
                             <el-space>
                                 <ElButton size="small" plain @click="openItem(i)">查看</ElButton>
                                 <!--<ElButton>下载到本地</ElButton>-->
-                                <ElButton size="small" type="primary" :icon="Upload" plain @click="UploadLog(i)">上传到云端
+                                <ElButton size="small" type="primary" :icon="Upload" plain @click="UploadLog(i)">提取日志
                                 </ElButton>
                                 <ElButton size="small" type="danger" :icon="Delete" plain
                                     @click="DelLog(i); console.log('---')">删除

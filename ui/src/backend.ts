@@ -36,6 +36,7 @@ export const urlBase = process.env.NODE_ENV == 'development' ?
   '//' + window.location.hostname + ":" + location.port
 
 // 逐渐使用ofetch替换axios
+// 后记：发现ofetch也是一团糟，ky也是一团糟，还是axios好用
 export const apiFetch = ofetch.create({
   baseURL: urlBase,
   retry: 3,
