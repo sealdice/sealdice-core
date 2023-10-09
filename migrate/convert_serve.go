@@ -116,13 +116,7 @@ type DiceServe struct {
 	AliveNoticeValue        string          `yaml:"aliveNoticeValue"`  // 定时通知间隔
 	ReplyDebugMode          bool            `yaml:"replyDebugMode"`    // 回复调试
 
-	HelpMasterInfo      string `yaml:"helpMasterInfo" jsbind:"helpMasterInfo"`           // help中骰主信息
-	HelpMasterLicense   string `yaml:"helpMasterLicense" jsbind:"helpMasterLicense"`     // help中使用协议
-	DefaultCocRuleIndex int64  `yaml:"defaultCocRuleIndex" jsbind:"defaultCocRuleIndex"` // 默认coc index
-
-	CustomBotExtraText       string `yaml:"customBotExtraText"`       // bot自定义文本
-	CustomDrawKeysText       string `yaml:"customDrawKeysText"`       // draw keys自定义文本
-	CustomDrawKeysTextEnable bool   `yaml:"customDrawKeysTextEnable"` // 应用draw keys自定义文本
+	DefaultCocRuleIndex int64 `yaml:"defaultCocRuleIndex" jsbind:"defaultCocRuleIndex"` // 默认coc index
 
 	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
 

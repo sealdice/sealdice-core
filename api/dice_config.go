@@ -38,8 +38,6 @@ type DiceConfigInfo struct {
 	CustomReplenishRate     string   `json:"customReplenishRate"` // 自定义速率
 	CustomBurst             int64    `json:"customBurst"`         // 自定义上限
 
-	HelpMasterInfo      string `json:"helpMasterInfo"`      // help中骰主信息
-	HelpMasterLicense   string `json:"helpMasterLicense"`   // help中使用协议
 	DefaultCocRuleIndex string `json:"defaultCocRuleIndex"` // 默认coc index
 	MaxExecuteTime      string `json:"maxExecuteTime"`      // 最大骰点次数
 	MaxCocCardGen       string `json:"maxCocCardGen"`       // 最大coc制卡数
@@ -51,10 +49,7 @@ type DiceConfigInfo struct {
 	AliveNoticeValue   string                        `json:"aliveNoticeValue"`
 	ReplyDebugMode     bool                          `json:"replyDebugMode"`
 
-	CustomBotExtraText       string `json:"customBotExtraText"`       // bot自定义文本
-	CustomDrawKeysText       string `json:"customDrawKeysText"`       // draw keys自定义文本
-	CustomDrawKeysTextEnable bool   `json:"customDrawKeysTextEnable"` // 应用draw keys自定义文本
-	CustomReplyConfigEnable  bool   `json:"customReplyConfigEnable"`  // 是否开启reply
+	CustomReplyConfigEnable bool `json:"customReplyConfigEnable"` // 是否开启reply
 
 	LogSizeNoticeEnable bool `json:"logSizeNoticeEnable"` // 开启日志数量提示
 	LogSizeNoticeCount  int  `json:"logSizeNoticeCount"`  // 日志数量提示阈值，默认500
@@ -131,8 +126,6 @@ func DiceConfig(c echo.Context) error {
 		RefuseGroupInvite:       myDice.RefuseGroupInvite,
 		RateLimitEnabled:        myDice.RateLimitEnabled,
 
-		HelpMasterInfo:      myDice.HelpMasterInfo,
-		HelpMasterLicense:   myDice.HelpMasterLicense,
 		ExtDefaultSettings:  extDefaultSettings,
 		DefaultCocRuleIndex: cocRule,
 
@@ -146,12 +139,9 @@ func DiceConfig(c echo.Context) error {
 		HelpDocEngineType: myDice.Parent.HelpDocEngineType,
 
 		// 1.0 正式
-		CustomBotExtraText:       myDice.CustomBotExtraText,
-		CustomDrawKeysText:       myDice.CustomDrawKeysText,
-		CustomDrawKeysTextEnable: myDice.CustomDrawKeysTextEnable,
-		LogSizeNoticeEnable:      myDice.LogSizeNoticeEnable,
-		LogSizeNoticeCount:       myDice.LogSizeNoticeCount,
-		CustomReplyConfigEnable:  myDice.CustomReplyConfigEnable,
+		LogSizeNoticeEnable:     myDice.LogSizeNoticeEnable,
+		LogSizeNoticeCount:      myDice.LogSizeNoticeCount,
+		CustomReplyConfigEnable: myDice.CustomReplyConfigEnable,
 
 		// 1.2
 		TextCmdTrustOnly:     myDice.TextCmdTrustOnly,
@@ -376,14 +366,6 @@ func DiceConfigSet(c echo.Context) error {
 			if !dm.JustForTest {
 				myDice.Parent.UIPasswordHash = val.(string)
 			}
-		}
-
-		if val, ok := jsonMap["helpMasterInfo"]; ok {
-			myDice.HelpMasterInfo = strings.TrimSpace(val.(string))
-		}
-
-		if val, ok := jsonMap["helpMasterLicense"]; ok {
-			myDice.HelpMasterLicense = strings.TrimSpace(val.(string))
 		}
 
 		if val, ok := jsonMap["extDefaultSettings"]; ok {
