@@ -97,9 +97,6 @@ func UpdateRequestListen(dm *dice.DiceManager) {
 		dm.UpdateSealdiceByFile(updatePackFn, log)
 		// 旧版本行为: 将新升级包里的主程序复制到当前目录，命名为 auto_update.exe 或 auto_update
 		// 然后重启主程序
-
-		log.Info("开始自重启，重启后将拉起升级程序auto_update.exe")
-		doReboot(dm)
 	} else {
 		dm.UpdateDownloadedChan <- err.Error()
 	}
