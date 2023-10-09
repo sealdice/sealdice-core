@@ -24,6 +24,7 @@ type v131DeprecatedConfig struct {
 func V131DeprecatedConfig2CustomText() error {
 	confPath := filepath.Join("./data/default/serve.yaml")
 	customTextPath := filepath.Join("./data/default/configs/text-template.yaml")
+	customTextBakPath := filepath.Join("./data/default/configs/text-template.yaml.bak")
 	data, err := os.ReadFile(confPath)
 	if err != nil {
 		return err
@@ -114,6 +115,11 @@ func V131DeprecatedConfig2CustomText() error {
 
 		// 保存修改了的 custom text 设置
 		newData2, err := yaml.Marshal(customTexts)
+		if err != nil {
+			return err
+		}
+		// 先备份
+		err = os.WriteFile(customTextBakPath, data2, 0644)
 		if err != nil {
 			return err
 		}
