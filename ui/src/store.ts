@@ -387,6 +387,13 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
+    async banUpload({form}: { form: FormData }) : Promise<{ result: true } | {
+      result: false,
+      err: string
+    }>{
+      return await backend.post(urlPrefix + '/banconfig/import', form, {headers: {token: this.token, "Content-Type": "multipart/form-data"}})
+    },
+
     // 群组列表
     async groupList() {
       const info = await backend.get(urlPrefix + '/group/list')

@@ -65,18 +65,29 @@
     </el-collapse>
 
   </div>
-  <div>
 
-  </div>
+  <header style="display: flex; justify-content: space-between; flex-wrap: wrap;">
+    <h3>列表</h3>
 
-  <h2>列表</h2>
-  <!-- <div>
-    <span style="margin-right: 1rem;">平台:</span>
-    <el-checkbox v-model="showPlatformQQ">QQ</el-checkbox>
-    <el-checkbox v-model="showPlatformQQCH">QQ频道</el-checkbox>
-  </div> -->
-  <div>
-    <span style="margin-right: 1rem;">级别:</span>
+    <el-space>
+      <el-button type="success" :icon="Plus" plain @click="dialogAddShow = true">添加</el-button>
+      <el-upload action="" multiple accept="application/json,.json" :show-file-list="false"
+                 :before-upload="beforeUpload" style="display: flex; align-items: center;">
+        <el-button type="success" :icon="Upload" plain>导入</el-button>
+      </el-upload>
+      <el-button type="primary" :icon="Download" plain tag="a" target="_blank"
+                 :href="`${urlBase}/sd-api/banconfig/export`" style="text-decoration: none;">
+        导出
+      </el-button>
+    </el-space>
+    <!-- <div>
+      <span style="margin-right: 1rem;">平台:</span>
+      <el-checkbox v-model="showPlatformQQ">QQ</el-checkbox>
+      <el-checkbox v-model="showPlatformQQCH">QQ频道</el-checkbox>
+    </div> -->
+  </header>
+  <div style="margin: 0.5rem 0;">
+    <span style="margin-right: 0.5rem;">级别：</span>
     <el-checkbox v-model="showBanned">拉黑</el-checkbox>
     <el-checkbox v-model="showWarn">警告</el-checkbox>
     <el-checkbox v-model="showTrusted">信任</el-checkbox>
@@ -86,86 +97,90 @@
     <span style="margin-right: 1rem;">其他:</span>
     <el-checkbox v-model="orderByTimeDesc">按最后使用时间降序</el-checkbox>    
   </div> -->
-  <div>
-    <span style="margin-right: 1rem;">搜索:</span>
+  <div style="margin: 1rem 0;">
+    <span style="margin-right: 0.5rem;">搜索：</span>
     <el-input v-model="searchBy" style="max-width: 15rem;" placeholder="请输入帐号或名字的一部分"></el-input>
   </div>
 
-  <div style="margin-top: 2rem;">
-    <div v-for="i, index in groupItems" style="margin-bottom: 2rem;border: 1px solid #ccc; border-radius: .2rem; padding: .5rem; background-color: #fff;">
-      <div><span class="left">状态:</span> {{ banRankText.get(i.rank) }}</div>
-      <div><span class="left">帐号:</span> {{ i.ID }}</div>
-      <div><span class="left">名字:</span> {{ i.name }}</div>
-      <div><span class="left">怒气值:</span> {{ i.score }}</div>
-      <div>
-        <span class="left">原因:</span>
-        <div style="margin-left: 2rem">
-          <div v-for="j, index in i.reasons">
-            <el-tooltip raw-content :content="dayjs.unix(i.times[index]).format('YYYY-MM-DD HH:mm:ssZ[Z]')">
-              <span>{{ dayjs.unix(i.times[index]).fromNow() }}</span>
-            </el-tooltip>
-            <span>，地点“{{ i.places[index] }}”，具体原因: {{j}}</span>
-          </div>
+  <main style="margin-top: 2rem;">
+    <el-card v-for="i, index in groupItems">
+      <template #header>
+        <div class="ban-item-header">
+          <el-space direction="vertical" alignment="normal">
+            <el-space size="small" alignment="center">
+              <el-tag v-if="i.rankText === '禁止'" type="danger" disable-transitions>{{ i.rankText }}</el-tag>
+              <el-tag v-else-if="i.rankText === '警告'" type="warning" disable-transitions>{{ i.rankText }}</el-tag>
+              <el-tag v-else-if="i.rankText === '信任'" type="success" disable-transitions>{{ i.rankText }}</el-tag>
+              <el-tag v-else disable-transitions>{{ i.rankText }}</el-tag>
+              <el-text size="large" tag="b">{{ i.ID }}</el-text>
+            </el-space>
+          </el-space>
+          <el-space>
+            <el-button :icon="Delete" type="danger" size="small" plain @click="deleteOne(i, index)">删除</el-button>
+          </el-space>
         </div>
-      </div>
-      <el-button @click="deleteOne(i, index)">删除</el-button>
-    </div>
-  </div>
-  <el-button @click="dialogAddShow = true">添加</el-button>
+      </template>
+      <el-descriptions>
+        <el-descriptions-item :span="2" label="名字">{{ i.name }}</el-descriptions-item>
+        <el-descriptions-item :span="1" label="怒气值">{{ i.score }}</el-descriptions-item>
+        <el-descriptions-item :span="3" label="原因">
+          <el-space style="display: block;" direction="vertical" v-for="j, index in i.reasons">
+            <el-text>
+              <el-tooltip raw-content :content="dayjs.unix(i.times[index]).format('YYYY-MM-DD HH:mm:ssZ[Z]')">
+                <span>{{ dayjs.unix(i.times[index]).fromNow() }}</span>
+              </el-tooltip>
+              <span>于「{{ i.places[index] }}」，具体原因：{{j}}</span>
+            </el-text>
+          </el-space>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+  </main>
 
   <el-dialog v-model="dialogAddShow" title="添加用户/群组" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
-    <div>
-      <span>用户ID(必填):</span>
-      <el-input v-model="addData.id" placeholder="必须为 QQ:12345 或 QQ-Group:12345 格式"></el-input>
-    </div>
-    <div>
-      <span>名称:</span>
-      <el-input v-model="addData.name" placeholder="自动"></el-input>
-    </div>
-    <div>
-      <span>原因:</span>
-      <el-input v-model="addData.reason" placeholder="骰主后台设置"></el-input>
-    </div>
-    <div>
-      <div>身份:</div>
-      <el-select v-model="addData.rank">
-        <el-option
-          v-for="item in [{'label': '禁用', value: -30}, {'label': '信任', value: 30}]"
-          :key="item.value"
-          :label="item.label"
-          :value="item.value"
-        />
-      </el-select>
-    </div>
-
+    <el-form label-width="70px">
+      <el-form-item label="用户ID" required>
+        <el-input v-model="addData.id" placeholder="必须为 QQ:12345 或 QQ-Group:12345 格式"></el-input>
+      </el-form-item>
+      <el-form-item label="名称">
+        <el-input v-model="addData.name" placeholder="自动"></el-input>
+      </el-form-item>
+      <el-form-item label="原因">
+        <el-input v-model="addData.reason" placeholder="骰主后台设置"></el-input>
+      </el-form-item>
+      <el-form-item label="身份">
+        <el-select v-model="addData.rank">
+          <el-option
+              v-for="item in [{'label': '禁用', value: -30}, {'label': '信任', value: 30}]"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+    </el-form>
     <template #footer>
       <span class="dialog-footer">
-          <el-button @click="doAdd">添加</el-button>
           <el-button @click="dialogAddShow = false">取消</el-button>
+          <el-button type="success" @click="doAdd">添加</el-button>
       </span>
     </template>
   </el-dialog>
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue';
+import {computed, nextTick, onBeforeMount, ref} from 'vue';
 import { useStore } from '~/store'
 import { urlBase } from '~/backend'
-import filesize from 'filesize'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import {ElMessage, ElMessageBox, UploadUserFile} from 'element-plus'
 import {
-  Location,
-  Document,
-  Menu as IconMenu,
-  Setting,
-  CirclePlusFilled,
-  CircleClose,
-  QuestionFilled,
-  BrushFilled, DocumentChecked
+  DocumentChecked,
+  Download,
+  Delete,
+  Plus, Upload,
 } from '@element-plus/icons-vue'
 import * as dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { cloneDeep, sortBy } from 'lodash-es'
 
 dayjs.extend(relativeTime)
 
@@ -235,6 +250,8 @@ const groupItems = computed<any[]>(() => {
         ok = a || b
       }
 
+      v.rankText = banRankText.get(v.rank)
+
       if (ok) items.push(v)
     }
 
@@ -269,12 +286,38 @@ const configGet = async () => {
 }
 
 const deleteOne = async (i: any, index: number) => {
-  await store.banConfigMapDeleteOne(i)
-  await refreshList()
-  ElMessage.success('已保存')
+  const res = await ElMessageBox.confirm(
+      '是否删除此记录？',
+      '删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+  );
+  if (res) {
+    await store.banConfigMapDeleteOne(i)
+    await refreshList()
+    ElMessage.success('已保存')
+  }
 }
 
 const banConfig = ref<any>({})
+
+const beforeUpload = async (file: UploadUserFile) => {
+  let fd = new FormData()
+  fd.append('file', file as Blob)
+
+  const c = await store.banUpload({form: fd})
+  if (c.result) {
+    ElMessage.success('导入黑白名单完成')
+    await nextTick(async () => {
+      await refreshList()
+    })
+  } else {
+    ElMessage.error('导入黑白名单失败！' + c.err)
+  }
+}
 
 onBeforeMount(async () => {
   await configGet()
@@ -306,5 +349,12 @@ onBeforeMount(async () => {
       text-overflow: ellipsis;
     }
   }
+}
+
+.ban-item-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
 }
 </style>
