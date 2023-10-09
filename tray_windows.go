@@ -138,7 +138,7 @@ func onReady() {
 		case <-mOpen.ClickedCh:
 			_ = exec.Command(`cmd`, `/c`, `start`, `http://localhost:`+_trayPortStr).Start()
 		case <-mOpenExeDir.ClickedCh:
-			_ = exec.Command(`cmd`, `/c`, `explorer`, os.Args[0]).Start()
+			_ = exec.Command(`cmd`, `/c`, `explorer`, filepath.Dir(os.Args[0])).Start()
 		case <-mQuit.ClickedCh:
 			systray.Quit()
 			systrayQuited = true
