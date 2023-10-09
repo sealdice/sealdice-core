@@ -79,6 +79,8 @@ type PlatformAdapterGocq struct {
 	UseSignServer    bool              `yaml:"useSignServer" json:"useSignServer"`
 	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`
 	ExtraArgs        string            `yaml:"extraArgs" json:"extraArgs"`
+
+	riskAlertShieldCount int // 风控警告屏蔽次数，一个临时变量
 }
 
 type Sender struct {
@@ -782,8 +784,12 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// 群消息发送失败: 账号可能被风控，戳对方一下
 				// {"data":null,"echo":0,"msg":"SEND_MSG_API_ERROR","retcode":100,"status":"failed","wording":"请参考 go-cqhttp 端输出"}
 				// 但是这里没QQ号也没有消息ID，很麻烦
-				fmt.Println("群消息发送失败: 账号可能被风控")
-				_ = ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", MailTypeCIAMLock)
+				if pa.riskAlertShieldCount > 0 {
+					pa.riskAlertShieldCount -= 1
+				} else {
+					fmt.Println("群消息发送失败: 账号可能被风控")
+					_ = ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", MailTypeCIAMLock)
+				}
 			}
 
 			// 戳一戳

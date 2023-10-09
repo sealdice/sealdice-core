@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	cp "github.com/otiai10/copy"
+	"go.uber.org/zap"
 	"io"
 	"math/rand"
 	"net/http"
@@ -24,7 +24,8 @@ import (
 
 var binPrefix = "https://sealdice.coding.net/p/sealdice/d/sealdice-binaries/git/raw/master"
 
-func downloadUpdate(dm *dice.DiceManager) error {
+func downloadUpdate(dm *dice.DiceManager, log *zap.SugaredLogger) (string, error) {
+	var packFn string
 	if dm.AppVersionOnline != nil {
 		ver := dm.AppVersionOnline
 		if ver.VersionLatestCode != dm.AppVersionCode {
@@ -35,7 +36,7 @@ func downloadUpdate(dm *dice.DiceManager) error {
 
 			// 如果线上版本小于当前版本，那么拒绝更新
 			if ver.VersionLatestCode < dm.AppVersionCode {
-				return errors.New("获取到的线上版本旧于当前版本，停止更新")
+				return "", errors.New("获取到的线上版本旧于当前版本，停止更新")
 			}
 
 			switch platform {
@@ -57,36 +58,23 @@ func downloadUpdate(dm *dice.DiceManager) error {
 				fileUrl = ver.NewVersionUrlPrefix + "/" + fn
 			}
 
-			logger.Infof("准备下载更新: %s", fn)
+			log.Infof("准备下载更新: %s", fn)
 			err := os.RemoveAll("./update")
 			if err != nil {
-				return errors.New("更新: 删除缓存目录(update)失败")
+				return "", errors.New("更新: 删除缓存目录(update)失败")
 			}
 
 			_ = os.MkdirAll("./update", 0755)
-			_ = os.MkdirAll("./update/new", 0755)
 			fn2 := "./update/update." + ext
 			err = DownloadFile(fn2, fileUrl)
 			if err != nil {
-				fmt.Println("！！！", err)
-				return errors.New("更新: 下载更新文件失败")
+				return "", errors.New("更新: 下载更新文件失败")
 			}
-			logger.Infof("更新下载完成，保存于: %s", fn2)
-
-			if ext == "zip" {
-				err = unzipSource(fn2, "./update/new")
-				if err != nil {
-					return errors.New("更新: 更新文件解压失败")
-				}
-			} else {
-				err = ExtractTarGz(fn2, "./update/new")
-				if err != nil {
-					return errors.New("更新: 更新文件解压失败")
-				}
-			}
+			log.Infof("更新下载完成，保存于: %s", fn2)
+			packFn = fn2
 		}
 	}
-	return nil
+	return packFn, nil
 }
 
 func RebootRequestListen(dm *dice.DiceManager) {
@@ -102,14 +90,19 @@ func UpdateCheckRequestListen(dm *dice.DiceManager) {
 }
 
 func UpdateRequestListen(dm *dice.DiceManager) {
-	<-dm.UpdateRequestChan
-	err := downloadUpdate(dm)
+	curDice := <-dm.UpdateRequestChan
+	log := curDice.Logger
+	updatePackFn, err := downloadUpdate(dm, log)
 	if err == nil {
 		dm.UpdateDownloadedChan <- ""
 		time.Sleep(2 * time.Second)
-		logger.Info("进行升级准备工作")
-		doUpdate(dm)
-		logger.Info("开始自重启，重启后将拉起升级程序auto_update.exe")
+		log.Info("进行升级准备工作")
+
+		dm.UpdateSealdiceByFile(updatePackFn, log)
+		// 旧版本行为: 将新升级包里的主程序复制到当前目录，命名为 auto_update.exe 或 auto_update
+		// 然后重启主程序
+
+		log.Info("开始自重启，重启后将拉起升级程序auto_update.exe")
 		doReboot(dm)
 	} else {
 		dm.UpdateDownloadedChan <- err.Error()
@@ -150,42 +143,6 @@ func doReboot(dm *dice.DiceManager) {
 	os.Exit(0)
 }
 
-func doUpdate(dm *dice.DiceManager) {
-	platform := runtime.GOOS
-	if platform == "windows" {
-		//exe, err := filepath.Abs(os.Args[0])
-		//if err == nil {
-		//cp.Copy("./update/new/sealdice-core.exe", "./sealdice-core.exe") // 仅作为标记
-		_ = cp.Copy("./update/new/sealdice-core.exe", "./auto_update.exe")
-		//_ = cp.Copy("./update/new/sealdice-core.exe", "./auto_updat3.exe")
-		//}
-	} else {
-		// Linux / Mac
-		exe, err := filepath.Abs(os.Args[0])
-		if err == nil {
-			// 如果已经有一个auto_update
-			if _, err := os.Stat("./auto_update"); err == nil {
-				tmpName := "/tmp/auto_update_old_" + dice.RandStringBytesMaskImprSrcSB(16)
-				_ = os.Rename("./auto_update", tmpName)
-			}
-
-			tmpName := "/tmp/auto_update_" + dice.RandStringBytesMaskImprSrcSB(16)
-			_ = os.Rename(exe, tmpName)
-
-			_ = cp.Copy("./update/new/sealdice-core", "./auto_update") // 仅作为标记
-			_ = cp.Copy("./update/new/sealdice-core", exe)
-			_ = os.Chmod(exe, 0755)
-		}
-
-		//err := cp.Copy("./update/new", "./")
-		//if err != nil {
-		//	logger.Errorf("更新: 复制文件失败: %s", err.Error())
-		//}
-		//_ = os.Chmod("./sealdice-core", 0755)
-		//_ = os.Chmod("./go-cqhttp/go-cqhttp", 0755)
-	}
-}
-
 func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo {
 	resp, err := http.Get(backendUrl + "/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 10) + "&v=" + strconv.FormatInt(rand.Int63(), 10))
 	if err != nil {
@@ -223,7 +180,12 @@ func CheckVersion(dm *dice.DiceManager) *dice.VersionInfo {
 
 func DownloadFile(filepath string, url string) error {
 	// Get the data
-	resp, err := http.Get(url)
+	//resp, err := http.Get(url)
+	client := new(http.Client)
+	request, err := http.NewRequest("GET", url, nil)
+	request.Header.Add("Accept-Encoding", "gzip")
+	resp, err := client.Do(request)
+
 	if err != nil {
 		return err
 	}

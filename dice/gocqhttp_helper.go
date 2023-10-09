@@ -815,6 +815,18 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 				dice.Logger.Infof("因禁言无法发言: 下方可能会提示遭遇风控")
 			}
 
+			if pa.IsLoginSuccessed() {
+				if strings.Contains(line, "[ERROR]:") && strings.Contains(line, "错误: 请先添加") && strings.Contains(line, "为好友") {
+					// [ERROR]: 错误: 请先添加 xxx 为好友
+					pa.riskAlertShieldCount += 1
+				}
+
+				if strings.Contains(line, "[WARNING]:") && strings.Contains(line, "图片上传失败") {
+					// [2023-09-27 11:19:18] [WARNING]: 警告: 群 xxx 图片上传失败
+					pa.riskAlertShieldCount += 1
+				}
+			}
+
 			if (pa.IsLoginSuccessed() && strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
 				//群消息发送失败: 账号可能被风控
 				now := time.Now().Unix()

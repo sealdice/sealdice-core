@@ -7,7 +7,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"path/filepath"
 	"runtime"
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
@@ -18,8 +17,6 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	cp "github.com/otiai10/copy"
-
 	//_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -249,121 +246,35 @@ func main() {
 		return
 	}
 
-	if opts.DoUpdateWin || opts.DoUpdateOthers {
-		MainLoggerInit("./升级日志.log", true)
-		logger.Info("我是更新程序，被主程序所调用启动，现在开始工作。")
+	if _, err1 := os.Stat("./auto_update.exe"); err1 == nil {
+		// windows平台旧版本到1.3.1流程
+		_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
+		logger.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
+		logger.Warn("程序目录下会出现“升级日志.log”，这代表升级正在进行中，如果失败了请检查此文件。")
 
-		// 为之后留一个接口
-		if f, _ := os.Stat("./start.exe"); f != nil {
-			// run start.exe
-			logger.Warn("检测到启动器，尝试运行")
-			_ = executeWin("./start.exe", "/u-first").Start()
-			return
-		}
-
-		logger.Warn("准备进行升级程序，先等待10s，以免主进程尚未退出")
-		time.Sleep(10 * time.Second)
-		logger.Warn("继续进行工作: 将./update/new目录下的文件覆盖到当前目录")
-		err := cp.Copy("./update/new", "./")
+		err := CheckUpdater(diceManager)
 		if err != nil {
-			logger.Warn("升级失败")
-			logger.Error(err)
-			return
+			logger.Error("升级程序检查失败: ", err.Error())
+		} else {
+			_ = os.Remove("./auto_update.exe")
+			// ui资源已经内置，删除旧的ui文件，这里有点风险，但是此时已经不考虑升级失败的情况
+			_ = os.RemoveAll("./frontend")
+			UpdateByFile(diceManager, nil, "./update/update.zip")
 		}
-
-		// 同样是留接口，如果新版内置了start.exe，就运行它
-		if f, _ := os.Stat("./start.exe"); f != nil {
-			// run start.exe
-			logger.Warn("检测到启动器，尝试运行")
-			_ = executeWin("./start.exe", "/u-second").Start()
-			return
-		}
-
-		_ = os.WriteFile("./auto_update_ok", []byte(""), 0644)
-		logger.Warn("升级完成，即将重启主进程")
-
-		time.Sleep(2 * time.Second)
-		name, err := filepath.Abs("./sealdice-core.exe")
-		if err != nil {
-			logger.Error(err)
-			return
-		}
-		//err = exec.Command(`cmd`, `/C`, "start", name, "--delay=5").Start()
-		err = executeWin(name, "--delay=5").Start()
-		if err != nil {
-			logger.Error(err)
-			return
-		}
-		// 给3s创建进程时间
-		time.Sleep(1 * time.Second)
-		//_ = exec.Command("./sealdice-core.exe").Start()
 		return
 	}
 
-	updateFileName := "./auto_update.exe"
-	_, err1 := os.Stat("./auto_update.exe")
-
-	if err1 == nil {
-		_, err = os.Stat("./auto_update_ok")
-		if err == nil {
-			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
-			_ = os.Remove("./auto_update_ok")
-			_ = os.Remove("./auto_update.exe")
-			_ = os.Remove("./auto_updat3.exe")
-			_ = os.Remove("./升级日志.log")
-			_ = os.RemoveAll("./update")
-			// ui资源已经内置，删除旧的ui文件
-			_ = os.RemoveAll("./frontend")
+	if _, err2 := os.Stat("./auto_update"); err2 == nil {
+		err := CheckUpdater(diceManager)
+		if err != nil {
+			logger.Error("升级程序检查失败: ", err.Error())
 		} else {
-			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
-			logger.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
-			logger.Warn("程序目录下会出现“升级日志.log”，这代表升级正在进行中，如果失败了请检查此文件。")
-			// 这5s延迟是保险，其实并不必要
-			// 2023/1/9: 还是必要的，在有些设备上还要更久时间，所以现在改成15s
-			name := updateFileName
-			// "--delay=5",
-
-			//var procAttr os.ProcAttr
-			//procAttr.Files = []*os.File{nil, nil, nil}
-			//name, err = filepath.Abs(name)
-			//if err != nil {
-			//	logger.Warn("升级发生错误1: ", err.Error())
-			//	return
-			//}
-
-			//err := exec.Command(name, "/do-update-win").Start()
-			//err = exec.Command(`cmd`, `/C`, "start", name, "/do-update-win").Start()
-			err = executeWin(name, "/do-update-win").Start()
-			if err != nil {
-				logger.Warn("升级发生错误2: ", err.Error())
-				return
-			}
-			time.Sleep(1 * time.Second)
-			return
-		}
-	}
-	_, err2 := os.Stat("./auto_update")
-	if err2 == nil {
-		_, err = os.Stat("./auto_update_ok")
-		if err == nil {
-			logger.Warn("检测到 auto_update.exe，进行升级收尾工作")
-			_ = os.Remove("./auto_update_ok")
-			time.Sleep(5 * time.Second) // 稍等一下 防止删不掉
 			_ = os.Remove("./auto_update")
-			_ = os.RemoveAll("./update")
-			_ = os.Rename("./auto_update", "./_delete_me.exe") // 删不掉就试图改名
-			_ = os.Remove("./_delete_me.exe")
-			// ui资源已经内置，删除旧的ui文件
+			// ui资源已经内置，删除旧的ui文件，这里有点风险，但是此时已经不考虑升级失败的情况
 			_ = os.RemoveAll("./frontend")
-		} else {
-			logger.Warn("检测到 auto_update.exe，即将进行升级")
-			err := cp.Copy("./update/new", "./")
-			if err != nil {
-				logger.Errorf("更新: 复制文件失败: %s", err.Error())
-			}
-			_ = os.Chmod("./sealdice-core", 0755)
-			_ = os.Chmod("./go-cqhttp/go-cqhttp", 0755)
+			UpdateByFile(diceManager, nil, "./update/update.tar.gz")
 		}
+		return
 	}
 	removeUpdateFiles()
 
@@ -453,30 +364,8 @@ func main() {
 		diceManager.JustForTest = true
 	}
 
-	// goja 大概占据5MB空间，压缩后1MB，还行
-	// 按tengo和他自己的benchmark来看，还是比较出色的（当然和v8啥的不能比）
-	// 一些想法:
-	// 1. 脚本调用独立加锁，因为他线程不安全
-	// 2. 将部分函数注册进去，如SetVar等
-	// 3. 模拟一个LocalStorage给js用
-	// 4. 提供一个自定义条件(js脚本)，返回true即为成功
-	// 5. 所有条目(如helpdoc、牌堆、自定义回复)都带上一个mod字段，以mod名字为标记，可以一键装卸
-	// 6. 可以向骰子注册varname solver，以指定的正则去实现自定义语法（例如我定义一个算符c，匹配c5e2这样的变量名）
-	// 7. 可以向骰子注册自定义指令，指令必须存在模块归属，以便于关闭
-	// 8. 存在一个tick()或update()函数，每隔一段时间必定会调用一次
-	//vm := goja.New()
-	//v, err := vm.RunString("2 + 2")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//if num := v.Export().(int64); num != 4 {
-	//	panic(num)
-	//}
-
-	//_, _ = diceManager.Cron.AddFunc("@every 15min", func() {
-	//	go CheckVersion(diceManager)
-	//})
 	go func() {
+		// 每5分钟做一次新版本检查
 		for {
 			go CheckVersion(diceManager)
 			time.Sleep(5 * time.Minute)
