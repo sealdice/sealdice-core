@@ -1,12 +1,16 @@
 package api
 
 import (
+	"bufio"
 	"encoding/json"
 	"github.com/labstack/echo/v4"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
 	"sealdice-core/dice"
-	"sealdice-core/dice/model"
 	"strings"
+	"time"
 )
 
 func banConfigGet(c echo.Context) error {
@@ -58,17 +62,7 @@ func banMapList(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-
-	lst := []*dice.BanListInfoItem{}
-	_ = model.BanItemList(myDice.DBData, func(id string, banUpdatedAt int64, data []byte) {
-		var v dice.BanListInfoItem
-		err := json.Unmarshal(data, &v)
-		if err != nil {
-			v.BanUpdatedAt = banUpdatedAt
-		}
-		lst = append(lst, &v)
-	})
-
+	lst := myDice.GetBanList()
 	return c.JSON(http.StatusOK, lst)
 }
 
@@ -138,3 +132,74 @@ func banMapAddOne(c echo.Context) error {
 //	myDice.BanList.LoadMapFromJSON(v.data)
 //	return c.JSON(http.StatusOK, nil)
 //}
+
+func banExport(c echo.Context) error {
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+
+	lst := myDice.GetBanList()
+
+	temp, _ := os.CreateTemp("", "黑白名单-*.json")
+	defer func() {
+		_ = temp.Close()
+		_ = os.RemoveAll(temp.Name())
+	}()
+	writer := bufio.NewWriter(temp)
+	err := json.NewEncoder(writer).Encode(&lst)
+	_ = writer.Flush()
+	if err == nil {
+		c.Response().Header().Add("Cache-Control", "no-store")
+		err := c.Attachment(temp.Name(), "黑白名单.json")
+		return err
+	} else {
+		return Error(&c, err.Error(), Response{})
+	}
+}
+
+func banImport(c echo.Context) error {
+	if !doAuth(c) {
+		return c.NoContent(http.StatusForbidden)
+	}
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	src, err := file.Open()
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	defer func(src multipart.File) {
+		_ = src.Close()
+	}(src)
+
+	var lst []*dice.BanListInfoItem
+	data, err := io.ReadAll(src)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	err = json.Unmarshal(data, &lst)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	now := time.Now()
+	for _, item := range lst {
+		item.UpdatedAt = now.Unix()
+		var newReasons []string
+		for _, reason := range item.Reasons {
+			if !strings.HasSuffix(reason, "（来自导入）") {
+				newReasons = append(newReasons, reason+"（来自导入）")
+			}
+		}
+		item.Reasons = newReasons
+		myDice.BanList.Map.Store(item.ID, item)
+	}
+	myDice.BanList.SaveChanged(myDice)
+
+	return Success(&c, Response{})
+}

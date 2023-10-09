@@ -353,6 +353,19 @@ func (i *BanListInfo) SetTrustById(uid string, place string, reason string) {
 	i.Map.Store(uid, v)
 }
 
+func (d *Dice) GetBanList() []*BanListInfoItem {
+	var lst []*BanListInfoItem
+	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
+		var v BanListInfoItem
+		err := json.Unmarshal(data, &v)
+		if err != nil {
+			v.BanUpdatedAt = banUpdatedAt
+		}
+		lst = append(lst, &v)
+	})
+	return lst
+}
+
 func (i *BanListInfo) SaveChanged(d *Dice) {
 	d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
 		if v.UpdatedAt != 0 {
