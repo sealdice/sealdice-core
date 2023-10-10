@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -206,4 +207,20 @@ func DownloadFile(filepath string, url string) error {
 	}
 
 	return errors.New("http status:" + resp.Status)
+}
+
+func sha256Checksum(fn string) string {
+	f, err := os.Open(fn)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return ""
+	}
+
+	// bytes 比较需要使用 bytes.Equal 这里直接转文本了
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
