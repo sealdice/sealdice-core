@@ -665,7 +665,10 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						ReplyToSender(ctx, msg, "请给出要搜索的关键字")
 					}
 				} else {
-					exists, result, _ := deckDraw(ctx, deckName, true)
+					exists, result, err := deckDraw(ctx, deckName, true)
+					if err != nil {
+						result = fmt.Sprintf("<%s>", err.Error())
+					}
 					VarSetValueStr(ctx, "$t牌组", deckName)
 
 					if exists {
@@ -688,7 +691,10 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						}
 
 						for i := 1; i < times; i++ {
-							_, r2, _ := deckDraw(ctx, deckName, true)
+							_, r2, err := deckDraw(ctx, deckName, true)
+							if err != nil {
+								r2 = fmt.Sprintf("<%s>", err.Error())
+							}
 							results = append(results, r2)
 						}
 
@@ -909,7 +915,7 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 
 		pool = ctx.DeckPools[deckInfo][deckName]
 		if pool == nil {
-			return "", errors.New("牌组为空")
+			return "", errors.New("牌组为空，可能尚未加载完成")
 		}
 		//fmt.Println("@!!!!!", pool.data, deckName, key)
 		key = pool.Pick().(string)
@@ -918,7 +924,7 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		deckGroup := getDeckGroup(deckInfo, deckName)
 		pool := DeckToRandomPool(deckGroup)
 		if pool == nil {
-			return "", errors.New("牌组为空")
+			return "", errors.New("牌组为空，可能尚未加载完成")
 		}
 		key = pool.Pick().(string)
 	}
