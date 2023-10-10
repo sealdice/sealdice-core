@@ -351,20 +351,34 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 		switch e := element.(type) {
 		case *TextElement:
 			//msgSend.Content = msgSend.Content + antiMarkdownFormat(e.Content)
-			msgSend.Embeds = append(msgSend.Embeds, &discordgo.MessageEmbed{
-				Description: antiMarkdownFormat(e.Content),
-			})
-		case *AtElement:
-			if e.Target == "all" {
-				//msgSend.Content = msgSend.Content + "@everyone "
+			if msgSend.Embeds != nil {
+				msgSend.Embeds[len(msgSend.Embeds)-1].Description += antiMarkdownFormat(e.Content)
+			} else {
 				msgSend.Embeds = append(msgSend.Embeds, &discordgo.MessageEmbed{
-					Description: "@everyone ",
+					Description: antiMarkdownFormat(e.Content),
+					Type:        discordgo.EmbedTypeArticle,
 				})
-				break
 			}
-			msgSend.Embeds = append(msgSend.Embeds, &discordgo.MessageEmbed{
-				Description: fmt.Sprintf("<@%s>", e.Target),
-			})
+		case *AtElement:
+			if msgSend.Embeds != nil {
+				if e.Target == "all" {
+					msgSend.Embeds[len(msgSend.Embeds)-1].Description += fmt.Sprintf("@everyone ")
+				} else {
+					msgSend.Embeds[len(msgSend.Embeds)-1].Description += fmt.Sprintf("<@%s>", e.Target)
+				}
+			} else {
+				if e.Target == "all" {
+					msgSend.Embeds = append(msgSend.Embeds, &discordgo.MessageEmbed{
+						Description: fmt.Sprintf("@everyone "),
+						Type:        discordgo.EmbedTypeArticle,
+					})
+				} else {
+					msgSend.Embeds = append(msgSend.Embeds, &discordgo.MessageEmbed{
+						Description: fmt.Sprintf("<@%s>", e.Target),
+						Type:        discordgo.EmbedTypeArticle,
+					})
+				}
+			}
 		case *FileElement:
 			msgSend.Files = append(msgSend.Files, &discordgo.File{
 				Name:        e.File,
@@ -384,7 +398,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 			//_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			//msgSend = &discordgo.MessageSend{Content: ""}
 		case *TTSElement:
-			if msgSend.Content != "" || msgSend.Files != nil {
+			if msgSend.Content != "" || msgSend.Files != nil || msgSend.Embeds != nil {
 				_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			}
 			if err != nil {
