@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"sealdice-core/dice/model"
+	"sealdice-core/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -1549,7 +1550,6 @@ func (d *Dice) loads() {
 			d.JsEnable = dNew.JsEnable
 			d.DisabledJsScripts = dNew.DisabledJsScripts
 			d.NewsMark = dNew.NewsMark
-			d.MaxExecuteTime = dNew.MaxExecuteTime
 
 			d.EnableCensor = dNew.EnableCensor
 			d.CensorMode = dNew.CensorMode
@@ -1576,19 +1576,32 @@ func (d *Dice) loads() {
 				d.BanList.JointScorePercentOfInviter = dNew.BanList.JointScorePercentOfInviter
 			}
 
+			d.MaxExecuteTime = dNew.MaxExecuteTime
 			if d.MaxExecuteTime == 0 {
 				d.MaxExecuteTime = 12
 			}
 
+			d.MaxCocCardGen = dNew.MaxCocCardGen
 			if d.MaxCocCardGen == 0 {
 				d.MaxCocCardGen = 5
 			}
 
+			d.CustomReplenishRate = dNew.CustomReplenishRate
 			if d.CustomReplenishRate == "" {
 				d.CustomReplenishRate = "@every 3s"
 				d.ParsedReplenishRate = rate.Every(time.Second * 3)
+			} else {
+				if parsed, errParse := utils.ParseRate(d.CustomReplenishRate); errParse == nil {
+					d.ParsedReplenishRate = parsed
+				} else {
+					d.Logger.Errorf("解析CustomReplenishRate失败: %v", errParse)
+					d.CustomReplenishRate = "@every 3s"
+					d.ParsedReplenishRate = rate.Every(time.Second * 3)
+				}
+
 			}
 
+			d.CustomBurst = dNew.CustomBurst
 			if d.CustomBurst == 0 {
 				d.CustomBurst = 3
 			}
