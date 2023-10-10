@@ -259,7 +259,7 @@ func main() {
 			_ = os.Remove("./auto_update.exe")
 			// ui资源已经内置，删除旧的ui文件，这里有点风险，但是此时已经不考虑升级失败的情况
 			_ = os.RemoveAll("./frontend")
-			UpdateByFile(diceManager, nil, "./update/update.zip")
+			UpdateByFile(diceManager, nil, "./update/update.zip", true)
 		}
 		return
 	}
@@ -272,7 +272,7 @@ func main() {
 			_ = os.Remove("./auto_update")
 			// ui资源已经内置，删除旧的ui文件，这里有点风险，但是此时已经不考虑升级失败的情况
 			_ = os.RemoveAll("./frontend")
-			UpdateByFile(diceManager, nil, "./update/update.tar.gz")
+			UpdateByFile(diceManager, nil, "./update/update.tar.gz", true)
 		}
 		return
 	}
@@ -283,7 +283,7 @@ func main() {
 		if err != nil {
 			logger.Error("升级程序检查失败: ", err.Error())
 		} else {
-			UpdateByFile(diceManager, nil, "./xx.zip")
+			UpdateByFile(diceManager, nil, "./xx.zip", true)
 		}
 	}
 
@@ -294,7 +294,7 @@ func main() {
 			logger.Error("升级程序检查失败: ", err.Error())
 			return false
 		} else {
-			return UpdateByFile(diceManager, log, packName)
+			return UpdateByFile(diceManager, log, packName, false)
 		}
 	}
 
