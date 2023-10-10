@@ -222,14 +222,6 @@ class FirstFragment : Fragment() {
                         this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.FOREGROUND_SERVICE), 1) }
                     }
                 }
-                val intentNoti = Intent(context, ProcessService::class.java)
-                if (Build.VERSION.SDK_INT >= 26) {
-                    context?.startForegroundService(intentNoti)
-                    activity?.bindService(intentNoti, connection, Context.BIND_IMPORTANT)
-                } else {
-                    context?.startService(intentNoti)
-                    activity?.bindService(intentNoti, connection, Context.BIND_IMPORTANT)
-                }
                 launchAliveService(context)
 
                 GlobalScope.launch(context = Dispatchers.IO) {
@@ -439,32 +431,39 @@ class FirstFragment : Fragment() {
         }
     }
 
-    private fun launchAliveService(context: Context?) : Boolean{
+    private fun launchAliveService(context: Context?) {
         val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
-        var executed = false
+        val intentNoti = Intent(context, ProcessService::class.java)
         if (sharedPreferences != null) {
             if (sharedPreferences.getBoolean("alive_media", false)) {
-                val intentMedia = Intent(context, MediaService::class.java)
-                context.startService(intentMedia)
-                executed = true
+                intentNoti.putExtra("alive_media", true)
+//                val intentMedia = Intent(context, MediaService::class.java)
+//                context.startService(intentMedia)
             }
             if (sharedPreferences.getBoolean("alive_wakelock", true)) {
-                val intentWakelock = Intent(context, WakeLockService::class.java)
-                context.startService(intentWakelock)
-                executed = true
+                intentNoti.putExtra("alive_wakelock", true)
+//                val intentWakelock = Intent(context, WakeLockService::class.java)
+//                context.startService(intentWakelock)
             }
             if (sharedPreferences.getBoolean("alive_floatwindow", false)) {
-                context.startService(Intent(context, FloatWindowService::class.java))
+//                context.startService(Intent(context, FloatWindowService::class.java))
+                intentNoti.putExtra("alive_floatwindow", true)
                 this.activity?.let {
                     Utils.checkSuspendedWindowPermission(it) {
                         ViewModelMain.isShowSuspendWindow.postValue(true)
                         ViewModelMain.isVisible.postValue(true)
                     }
                 }
-                executed = true
             }
         }
-        return executed
+
+        if (Build.VERSION.SDK_INT >= 26) {
+            context?.startForegroundService(intentNoti)
+            activity?.bindService(intentNoti, connection, Context.BIND_IMPORTANT)
+        } else {
+            context?.startService(intentNoti)
+            activity?.bindService(intentNoti, connection, Context.BIND_IMPORTANT)
+        }
     }
 
     /** 删除文件，可以是文件或文件夹
