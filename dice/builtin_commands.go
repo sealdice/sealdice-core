@@ -1343,7 +1343,7 @@ func (d *Dice) registerCoreCommands() {
 	cmdFox := &CmdItemInfo{
 		Name:      "roll",
 		ShortHelp: HelpRollNew,
-		Help:      "骰点:\n" + HelpRoll,
+		Help:      "骰点:\n" + HelpRollNew,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.Dice.TextCmdTrustOnly {
 				// 检查master和信任权限
