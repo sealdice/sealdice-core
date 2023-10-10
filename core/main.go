@@ -249,9 +249,11 @@ func main() {
 
 	if _, err1 := os.Stat("./auto_update.exe"); err1 == nil {
 		doNext := true
+		fmt.Println("!!!", filepath.Base(os.Args[0]))
 		if filepath.Base(os.Args[0]) != "auto_update.exe" {
 			a := sha256Checksum("./auto_update.exe")
 			b := sha256Checksum(os.Args[0])
+			fmt.Println("xxxx", a, b)
 			doNext = a != b
 		}
 		if doNext {
