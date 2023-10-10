@@ -362,14 +362,14 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 		case *AtElement:
 			if msgSend.Embeds != nil {
 				if e.Target == "all" {
-					msgSend.Embeds[len(msgSend.Embeds)-1].Description += fmt.Sprintf("@everyone ")
+					msgSend.Embeds[len(msgSend.Embeds)-1].Description += "@everyone "
 				} else {
 					msgSend.Embeds[len(msgSend.Embeds)-1].Description += fmt.Sprintf("<@%s>", e.Target)
 				}
 			} else {
 				if e.Target == "all" {
 					msgSend.Embeds = append(msgSend.Embeds, &discordgo.MessageEmbed{
-						Description: fmt.Sprintf("@everyone "),
+						Description: "@everyone ",
 						Type:        discordgo.EmbedTypeArticle,
 					})
 				} else {
