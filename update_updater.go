@@ -141,7 +141,8 @@ func downloadUpdater(dm *dice.DiceManager) error {
 	return nil
 }
 
-func UpdateByFile(dm *dice.DiceManager, log *zap.SugaredLogger, packName string) bool {
+func UpdateByFile(dm *dice.DiceManager, log *zap.SugaredLogger, packName string, syncMode bool) bool {
+	// 注意: 当执行完就立即退进程的情况下，需要使用 syncMode 为true
 	if log == nil {
 		log = logger
 	}
@@ -165,7 +166,7 @@ func UpdateByFile(dm *dice.DiceManager, log *zap.SugaredLogger, packName string)
 		if ctx.Err() == context.DeadlineExceeded {
 			log.Info("升级程序: 验证成功，进入下一阶段，即将退出进程")
 
-			go func() {
+			updateFunc := func() {
 				if runtime.GOOS == "windows" {
 					log.Info("升级程序: 参数 ", args)
 					cmd := executeWin(fn, args...)
@@ -187,7 +188,12 @@ func UpdateByFile(dm *dice.DiceManager, log *zap.SugaredLogger, packName string)
 				time.Sleep(5 * time.Second)
 				cleanUpCreate(dm)()
 				os.Exit(0)
-			}()
+			}
+			if syncMode {
+				updateFunc()
+			} else {
+				go updateFunc()
+			}
 			return true
 		} else {
 			log.Info("升级程序: 命令执行失败 ", err.Error())
