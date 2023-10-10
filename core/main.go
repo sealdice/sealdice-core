@@ -247,34 +247,44 @@ func main() {
 	}
 
 	if _, err1 := os.Stat("./auto_update.exe"); err1 == nil {
-		// windows平台旧版本到1.3.1流程
-		_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
-		logger.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
-		logger.Warn("程序目录下会出现“升级日志.log”，这代表升级正在进行中，如果失败了请检查此文件。")
+		a := sha256Checksum("./auto_update.exe")
+		b := sha256Checksum(os.Args[0])
+		if a != b {
+			// 只有不同文件才进行校验
+			// windows平台旧版本到1.4.0流程
+			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
+			logger.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
+			logger.Warn("程序目录下会出现“升级日志.log”，这代表升级正在进行中，如果失败了请检查此文件。")
 
-		err := CheckUpdater(diceManager)
-		if err != nil {
-			logger.Error("升级程序检查失败: ", err.Error())
-		} else {
-			_ = os.Remove("./auto_update.exe")
-			// ui资源已经内置，删除旧的ui文件，这里有点风险，但是此时已经不考虑升级失败的情况
-			_ = os.RemoveAll("./frontend")
-			UpdateByFile(diceManager, nil, "./update/update.zip", true)
+			err := CheckUpdater(diceManager)
+			if err != nil {
+				logger.Error("升级程序检查失败: ", err.Error())
+			} else {
+				_ = os.Remove("./auto_update.exe")
+				// ui资源已经内置，删除旧的ui文件，这里有点风险，但是此时已经不考虑升级失败的情况
+				_ = os.RemoveAll("./frontend")
+				UpdateByFile(diceManager, nil, "./update/update.zip", true)
+			}
+			return
 		}
-		return
 	}
 
 	if _, err2 := os.Stat("./auto_update"); err2 == nil {
-		err := CheckUpdater(diceManager)
-		if err != nil {
-			logger.Error("升级程序检查失败: ", err.Error())
-		} else {
-			_ = os.Remove("./auto_update")
-			// ui资源已经内置，删除旧的ui文件，这里有点风险，但是此时已经不考虑升级失败的情况
-			_ = os.RemoveAll("./frontend")
-			UpdateByFile(diceManager, nil, "./update/update.tar.gz", true)
+		a := sha256Checksum("./auto_update.exe")
+		b := sha256Checksum(os.Args[0])
+
+		if a != b {
+			err := CheckUpdater(diceManager)
+			if err != nil {
+				logger.Error("升级程序检查失败: ", err.Error())
+			} else {
+				_ = os.Remove("./auto_update")
+				// ui资源已经内置，删除旧的ui文件，这里有点风险，但是此时已经不考虑升级失败的情况
+				_ = os.RemoveAll("./frontend")
+				UpdateByFile(diceManager, nil, "./update/update.tar.gz", true)
+			}
+			return
 		}
-		return
 	}
 	removeUpdateFiles()
 
