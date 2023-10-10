@@ -59,7 +59,7 @@ func V131DeprecatedConfig2CustomText() error {
 	if customTexts["核心"] == nil {
 		customTexts["核心"] = make(dice.TextTemplateWithWeight)
 	}
-	if customTexts["核心"] == nil {
+	if customTexts["其他"] == nil {
 		customTexts["其他"] = make(dice.TextTemplateWithWeight)
 	}
 
