@@ -616,26 +616,6 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
-		// 敏感词拦截：全部
-		if d.EnableCensor && d.CensorMode == All {
-			hit, needToTerminate, _ := d.CensorMsg(mctx, msg, "")
-			if needToTerminate {
-				return
-			}
-			if hit {
-				text := DiceFormatTmpl(mctx, "核心:拦截_拦截提示_全部模式")
-				if text != "" {
-					ReplyToSender(mctx, msg, text)
-				}
-				if msg.MessageType == "group" {
-					log.Infof("拒绝处理命中敏感词的内容「%s」- 来自群(%s)内<%s>(%s)", msg.Message, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId)
-				} else {
-					log.Infof("拒绝处理命中敏感词的内容「%s」- 来自<%s>(%s)", msg.Message, msg.Sender.Nickname, msg.Sender.UserId)
-				}
-				return
-			}
-		}
-
 		if notReply := checkBan(mctx, msg); notReply {
 			return
 		}
@@ -682,6 +662,26 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
+		// 敏感词拦截：全部输入
+		if mctx.IsCurGroupBotOn && d.EnableCensor && d.CensorMode == AllInput {
+			hit, needToTerminate, _ := d.CensorMsg(mctx, msg, "")
+			if needToTerminate {
+				return
+			}
+			if hit {
+				text := DiceFormatTmpl(mctx, "核心:拦截_完全拦截_收到的所有消息")
+				if text != "" {
+					ReplyToSender(mctx, msg, text)
+				}
+				if msg.MessageType == "group" {
+					log.Infof("拒绝处理命中敏感词的内容「%s」- 来自群(%s)内<%s>(%s)", msg.Message, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId)
+				} else {
+					log.Infof("拒绝处理命中敏感词的内容「%s」- 来自<%s>(%s)", msg.Message, msg.Sender.Nickname, msg.Sender.UserId)
+				}
+				return
+			}
+		}
+
 		if msg.MessageType == "private" {
 			if mctx.CommandId != 0 {
 				log.Infof("收到<%s>(%s)的私聊指令: %s", msg.Sender.Nickname, msg.Sender.UserId, msg.Message)
@@ -703,14 +703,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					}
 				}()
 
-				// 敏感词拦截：命令
-				if d.EnableCensor && d.CensorMode == OnlyCommand {
+				// 敏感词拦截：命令输入
+				if mctx.IsCurGroupBotOn && d.EnableCensor && d.CensorMode == OnlyInputCommand {
 					hit, needToTerminate, _ := d.CensorMsg(mctx, msg, "")
 					if needToTerminate {
 						return
 					}
 					if hit {
-						text := DiceFormatTmpl(mctx, "核心:拦截_拦截提示_仅命令模式")
+						text := DiceFormatTmpl(mctx, "核心:拦截_完全拦截_收到的指令")
 						if text != "" {
 							ReplyToSender(mctx, msg, text)
 						}

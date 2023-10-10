@@ -67,6 +67,7 @@ require (
 	github.com/sealdice/dicescript v0.0.0-20230917100026-46a8c8b410d3
 	github.com/tdewolff/minify/v2 v2.12.9
 	github.com/yuin/goldmark v1.5.6
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/time v0.3.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )

@@ -3,7 +3,8 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"math/rand"
+	"golang.org/x/time/rate"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -14,8 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/time/rate"
-
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
@@ -24,10 +23,11 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/tidwall/buntdb"
 	"go.uber.org/zap"
+	rand2 "golang.org/x/exp/rand"
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.3.1rc v20231010"
+var VERSION = "1.3.1rc2 v20231010"
 
 // var VERSION_CODE = int64(1001000) // 991404
 // var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
@@ -237,9 +237,9 @@ type Dice struct {
 type CensorMode int
 
 const (
-	OnlyReply CensorMode = iota
-	OnlyCommand
-	All
+	OnlyOutputReply CensorMode = iota
+	OnlyInputCommand
+	AllInput
 )
 
 const (
@@ -680,11 +680,13 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 	return false
 }
 
+var randSource = rand2.NewSource(uint64(time.Now().Unix()))
+
 func DiceRoll(dicePoints int) int {
 	if dicePoints <= 0 {
 		return 0
 	}
-	val := rand.Int()%dicePoints + 1
+	val := int(randSource.Uint64()%math.MaxInt32)%dicePoints + 1
 	return val
 }
 
@@ -692,7 +694,8 @@ func DiceRoll64(dicePoints int64) int64 {
 	if dicePoints == 0 {
 		return 0
 	}
-	val := rand.Int63()%dicePoints + 1
+	//val := rand.Int63()%dicePoints + 1
+	val := int64(randSource.Uint64()%math.MaxInt64)%dicePoints + 1
 	return val
 }
 
