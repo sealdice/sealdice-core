@@ -27,12 +27,11 @@ import (
 )
 
 var APPNAME = "SealDice"
-var VERSION = "1.3.1rc2 v20231010"
+var VERSION = "1.3.1 v20231010"
 
 // var VERSION_CODE = int64(1001000) // 991404
 // var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
-//var VERSION_CODE = int64(1003000) // 1.3时代
-var VERSION_CODE = int64(1002008) // 临时测试版本号
+var VERSION_CODE = int64(1003001) // 1.3时代
 var APP_BRANCH = ""
 
 type CmdExecuteResult struct {
