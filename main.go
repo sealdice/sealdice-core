@@ -7,6 +7,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"path/filepath"
 	"runtime"
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
@@ -247,9 +248,13 @@ func main() {
 	}
 
 	if _, err1 := os.Stat("./auto_update.exe"); err1 == nil {
-		a := sha256Checksum("./auto_update.exe")
-		b := sha256Checksum(os.Args[0])
-		if a != b {
+		doNext := true
+		if filepath.Base(os.Args[0]) != "auto_update.exe" {
+			a := sha256Checksum("./auto_update.exe")
+			b := sha256Checksum(os.Args[0])
+			doNext = a != b
+		}
+		if doNext {
 			// 只有不同文件才进行校验
 			// windows平台旧版本到1.4.0流程
 			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
@@ -270,10 +275,14 @@ func main() {
 	}
 
 	if _, err2 := os.Stat("./auto_update"); err2 == nil {
-		a := sha256Checksum("./auto_update.exe")
-		b := sha256Checksum(os.Args[0])
+		doNext := true
+		if filepath.Base(os.Args[0]) != "auto_update" {
+			a := sha256Checksum("./auto_update")
+			b := sha256Checksum(os.Args[0])
+			doNext = a != b
+		}
 
-		if a != b {
+		if doNext {
 			err := CheckUpdater(diceManager)
 			if err != nil {
 				logger.Error("升级程序检查失败: ", err.Error())
