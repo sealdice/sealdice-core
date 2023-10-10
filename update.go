@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -202,7 +203,20 @@ func DownloadFile(filepath string, url string) error {
 
 	if resp.StatusCode == http.StatusOK {
 		// Write the body to file
-		_, err = io.Copy(out, resp.Body)
+		if resp.Header.Get("Content-Encoding") == "gzip" {
+			// 如果响应使用了GZIP压缩，需要解压缩
+			var reader io.ReadCloser
+			reader, err = gzip.NewReader(resp.Body)
+			if err != nil {
+				fmt.Println("GZIP解压出错:", err)
+				return err
+			}
+			defer reader.Close()
+			_, err = io.Copy(out, reader)
+		} else {
+			_, err = io.Copy(out, resp.Body)
+		}
+
 		return err
 	}
 
