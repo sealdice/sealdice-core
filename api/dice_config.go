@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sealdice-core/dice"
+	"sealdice-core/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -262,7 +263,7 @@ func DiceConfigSet(c echo.Context) error {
 			if ok {
 				valStr = strings.TrimSpace(valStr)
 				myDice.CustomReplenishRate = valStr
-				myDice.ParsedReplenishRate, err = ParseRate(valStr)
+				myDice.ParsedReplenishRate, err = utils.ParseRate(valStr)
 				if err != nil || myDice.ParsedReplenishRate == rate.Limit(0) {
 					fmt.Printf("解析刷屏警告速率失败，恢复默认速率: %v\n", err)
 					myDice.ParsedReplenishRate = rate.Every(time.Second * 3)
@@ -459,24 +460,6 @@ func DiceConfigSet(c echo.Context) error {
 		fmt.Println(err)
 	}
 	return c.JSON(http.StatusOK, nil)
-}
-
-func ParseRate(s string) (rate.Limit, error) {
-	// 为了防止奇怪的用户输入，还是先固定这种格式吧
-	if strings.HasPrefix(s, "@every ") {
-		durStr := strings.TrimPrefix(s, "@every ")
-		dur, err := time.ParseDuration(durStr)
-		if err != nil {
-			return 0, err
-		}
-		return rate.Every(dur), nil
-	}
-
-	n, err := strconv.Atoi(s)
-	if err != nil {
-		return 0, err
-	}
-	return rate.Limit(n), nil
 }
 
 func DiceMailTest(c echo.Context) error {
