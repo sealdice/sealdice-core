@@ -59,8 +59,8 @@ func V131DeprecatedConfig2CustomText() error {
 	if customTexts["核心"] == nil {
 		customTexts["核心"] = make(dice.TextTemplateWithWeight)
 	}
-	if customTexts["其他"] == nil {
-		customTexts["其他"] = make(dice.TextTemplateWithWeight)
+	if customTexts["其它"] == nil {
+		customTexts["其它"] = make(dice.TextTemplateWithWeight)
 	}
 
 	var needUpdateCustomText bool
@@ -90,11 +90,11 @@ func V131DeprecatedConfig2CustomText() error {
 	}
 	if deprecatedConf.CustomDrawKeysText != "" && deprecatedConf.CustomDrawKeysTextEnable {
 		needUpdateCustomText = true
-		if len(customTexts["其他"]["抽牌_列表"]) == 0 {
-			customTexts["其他"]["抽牌_列表"] = dice.TextTemplateItemList{dice.TextTemplateItem{"", 0}}
+		if len(customTexts["其它"]["抽牌_列表"]) == 0 {
+			customTexts["其它"]["抽牌_列表"] = dice.TextTemplateItemList{dice.TextTemplateItem{"", 0}}
 		}
-		customTexts["其他"]["抽牌_列表"][0][0] = deprecatedConf.CustomDrawKeysText
-		customTexts["其他"]["抽牌_列表"][0][1] = 1
+		customTexts["其它"]["抽牌_列表"][0][0] = deprecatedConf.CustomDrawKeysText
+		customTexts["其它"]["抽牌_列表"][0][1] = 1
 	}
 
 	if needUpdateCustomText {
