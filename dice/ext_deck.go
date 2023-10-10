@@ -908,12 +908,18 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		}
 
 		pool = ctx.DeckPools[deckInfo][deckName]
+		if pool == nil {
+			return "", errors.New("牌组为空")
+		}
 		//fmt.Println("@!!!!!", pool.data, deckName, key)
 		key = pool.Pick().(string)
 		//fmt.Println("!!!!!!", pool.data, deckName, key)
 	} else {
 		deckGroup := getDeckGroup(deckInfo, deckName)
 		pool := DeckToRandomPool(deckGroup)
+		if pool == nil {
+			return "", errors.New("牌组为空")
+		}
 		key = pool.Pick().(string)
 	}
 	cmd, err := deckStringFormat(ctx, deckInfo, key)
