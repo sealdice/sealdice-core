@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+const updaterVersion = "0.1.0"
+
 func checkURLOne(url string, wg *sync.WaitGroup, resultChan chan string) {
 	defer wg.Done()
 
@@ -87,7 +89,7 @@ func CheckUpdater(dm *dice.DiceManager) error {
 		} else {
 			ver := strings.TrimSpace(string(out))
 			logger.Info("升级程序版本：", ver)
-			if ver == "seal-updater 0.1.0" {
+			if ver == "seal-updater "+updaterVersion {
 				isUpdaterOk = true
 			}
 		}
@@ -118,7 +120,7 @@ func downloadUpdater(dm *dice.DiceManager) error {
 	platform := runtime.GOOS
 	arch := runtime.GOARCH
 
-	prefix := "http://dice.weizaima.com/u/v0.1.0"
+	prefix := "http://dice.weizaima.com/u/v" + updaterVersion
 	if ver != nil {
 		prefix = ver.UpdaterUrlPrefix
 	}
@@ -126,7 +128,7 @@ func downloadUpdater(dm *dice.DiceManager) error {
 
 	// 如无法访问，尝试使用备用地址，但此地址不保证可用
 	if len(checkURLs([]string{link})) == 0 {
-		prefix := "https://d1.sealdice.com/u/v0.1.0"
+		prefix := "https://d1.sealdice.com/u/v" + updaterVersion
 		link = prefix + "/" + "seal-updater-" + platform + "-" + arch
 	}
 	fn := "./seal-updater"
@@ -163,7 +165,7 @@ func UpdateByFile(dm *dice.DiceManager, log *zap.SugaredLogger, packName string,
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			log.Info("升级程序: 验证成功，进入下一阶段，即将退出进程")
 
 			updateFunc := func() {
