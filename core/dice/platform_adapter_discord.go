@@ -350,36 +350,55 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 	for _, element := range elem {
 		switch e := element.(type) {
 		case *TextElement:
-			msgSend.Content = msgSend.Content + antiMarkdownFormat(e.Content)
-		case *AtElement:
-			if e.Target == "all" {
-				msgSend.Content = msgSend.Content + "@everyone "
-				break
+			//msgSend.Content = msgSend.Content + antiMarkdownFormat(e.Content)
+			if msgSend.Embeds != nil {
+				msgSend.Embeds[len(msgSend.Embeds)-1].Description += antiMarkdownFormat(e.Content)
+			} else {
+				msgSend.Embeds = append(msgSend.Embeds, &discordgo.MessageEmbed{
+					Description: antiMarkdownFormat(e.Content),
+					Type:        discordgo.EmbedTypeArticle,
+				})
 			}
-			msgSend.Content = msgSend.Content + fmt.Sprintf("<@%s>", e.Target)
+		case *AtElement:
+			if msgSend.Embeds != nil {
+				if e.Target == "all" {
+					msgSend.Embeds[len(msgSend.Embeds)-1].Description += "@everyone "
+				} else {
+					msgSend.Embeds[len(msgSend.Embeds)-1].Description += fmt.Sprintf("<@%s>", e.Target)
+				}
+			} else {
+				if e.Target == "all" {
+					msgSend.Embeds = append(msgSend.Embeds, &discordgo.MessageEmbed{
+						Description: "@everyone ",
+						Type:        discordgo.EmbedTypeArticle,
+					})
+				} else {
+					msgSend.Embeds = append(msgSend.Embeds, &discordgo.MessageEmbed{
+						Description: fmt.Sprintf("<@%s>", e.Target),
+						Type:        discordgo.EmbedTypeArticle,
+					})
+				}
+			}
 		case *FileElement:
-			var files []*discordgo.File
-			files = append(files, &discordgo.File{
+			msgSend.Files = append(msgSend.Files, &discordgo.File{
 				Name:        e.File,
 				ContentType: e.ContentType,
 				Reader:      e.Stream,
 			})
-			msgSend.Files = files
-			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
-			msgSend = &discordgo.MessageSend{Content: ""}
+			//_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+			//msgSend = &discordgo.MessageSend{Content: ""}
 		case *ImageElement:
-			var files []*discordgo.File
+			//var files []*discordgo.File
 			f := e.file
-			files = append(files, &discordgo.File{
+			msgSend.Files = append(msgSend.Files, &discordgo.File{
 				Name:        f.File,
 				ContentType: f.ContentType,
 				Reader:      f.Stream,
 			})
-			msgSend.Files = files
-			_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
-			msgSend = &discordgo.MessageSend{Content: ""}
+			//_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+			//msgSend = &discordgo.MessageSend{Content: ""}
 		case *TTSElement:
-			if msgSend.Content != "" || msgSend.Files != nil {
+			if msgSend.Content != "" || msgSend.Files != nil || msgSend.Embeds != nil {
 				_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			}
 			if err != nil {
@@ -405,9 +424,9 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 			return
 		}
 	}
-	if msgSend.Content != "" || msgSend.Files != nil {
+	if msgSend.Content != "" || msgSend.Files != nil || msgSend.Embeds != nil {
 		_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
-		//pa.Session.Parent.Logger.Infof("向Discord频道#%s发送消息:%s", id, msgSend.Content)
+		//pa.Session.Parent.Logger.Infof("真的向Discord频道#%s发送消息:%s", id, msgSend.Content)
 	}
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
@@ -513,7 +532,7 @@ func (pa *PlatformAdapterDiscord) checkIfGuildAdmin(m *discordgo.Message) bool {
 	p, err := pa.IntentSession.State.MessagePermissions(m)
 	//pa.Session.Parent.Logger.Info(m.Author.Username, p)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("鉴权时出现错误，\n发送者:%s，\n频道:%s，\n服务器id:%s，\n消息id:%s，\n时间:%s，\n消息内容:\"%s\"，\n错误详情:%s",
+		pa.Session.Parent.Logger.Errorf("Discord 鉴权时出现错误，\n发送者:%s，\n频道:%s，\n服务器id:%s，\n消息id:%s，\n时间:%s，\n消息内容:\"%s\"，\n错误详情:%s",
 			FormatDiceIdDiscord(m.Author.ID),
 			FormatDiceIdDiscordChannel(m.ChannelID),
 			m.GuildID,
