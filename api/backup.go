@@ -1,13 +1,16 @@
 package api
 
 import (
-	"github.com/labstack/echo/v4"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sealdice-core/dice"
 	"strings"
+	"time"
+
+	"github.com/labstack/echo/v4"
 )
 
 type backupFileItem struct {
@@ -138,12 +141,23 @@ func backupSimple(c echo.Context) error {
 type backupConfig struct {
 	AutoBackupEnable bool   `json:"autoBackupEnable"`
 	AutoBackupTime   string `json:"autoBackupTime"`
+
+	BackupCleanStrategy  int    `json:"backupCleanStrategy"`
+	BackupCleanKeepCount int    `json:"backupCleanKeepCount"`
+	BackupCleanKeepDur   string `json:"backupCleanKeepDur"`
+	BackupCleanTrigger   int    `json:"backupCleanTrigger"`
+	BackupCleanCron      string `json:"backupCleanCron"`
 }
 
 func backupConfigGet(c echo.Context) error {
 	bc := backupConfig{}
 	bc.AutoBackupEnable = dm.AutoBackupEnable
 	bc.AutoBackupTime = dm.AutoBackupTime
+	bc.BackupCleanStrategy = int(dm.BackupCleanStrategy)
+	bc.BackupCleanKeepCount = dm.BackupCleanKeepCount
+	bc.BackupCleanKeepDur = dm.BackupCleanKeepDur.String()
+	bc.BackupCleanTrigger = int(dm.BackupCleanTrigger)
+	bc.BackupCleanCron = dm.BackupCleanCron
 	return c.JSON(http.StatusOK, bc)
 }
 
@@ -162,7 +176,29 @@ func backupConfigSave(c echo.Context) error {
 	if err == nil {
 		dm.AutoBackupEnable = v.AutoBackupEnable
 		dm.AutoBackupTime = v.AutoBackupTime
+
+		if v.BackupCleanStrategy > 0 {
+			dm.BackupCleanStrategy = dice.BackupCleanStrategy(v.BackupCleanStrategy)
+			if dm.BackupCleanStrategy == dice.BackupCleanStrategyByCount && v.BackupCleanKeepCount > 0 {
+				dm.BackupCleanKeepCount = v.BackupCleanKeepCount
+			}
+			if dm.BackupCleanStrategy == dice.BackupCleanStrategyByTime && len(v.BackupCleanKeepDur) > 0 {
+				if dur, err := time.ParseDuration(v.BackupCleanKeepDur); err == nil {
+					dm.BackupCleanKeepDur = dur
+				} else {
+					myDice.Logger.Errorf("设定的自动清理保留时间有误: %q %v", v.BackupCleanKeepDur, err)
+				}
+			}
+			if v.BackupCleanTrigger > 0 {
+				dm.BackupCleanTrigger = dice.BackupCleanTrigger(v.BackupCleanTrigger)
+				if dm.BackupCleanTrigger&dice.BackupCleanTriggerCron > 0 {
+					dm.BackupCleanCron = v.BackupCleanCron
+				}
+			}
+		}
+
 		dm.ResetAutoBackup()
+		dm.ResetBackupClean()
 		return c.String(http.StatusOK, "")
 	}
 	return c.String(430, "")
