@@ -127,7 +127,71 @@ func (d *Dice) JsInit() {
 				i.ExtActive(ei)
 			}
 		})
-
+		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string) error {
+			if ei.dice == nil {
+				return errors.New("请先完成此扩展的注册")
+			}
+			config := ConfigItem{
+				Key:          key,
+				Type:         "string",
+				Value:        defaultValue,
+				DefaultValue: defaultValue,
+			}
+			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
+			return nil
+		})
+		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64) error {
+			if ei.dice == nil {
+				return errors.New("请先完成此扩展的注册")
+			}
+			config := ConfigItem{
+				Key:          key,
+				Type:         "int",
+				Value:        defaultValue,
+				DefaultValue: defaultValue,
+			}
+			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
+			return nil
+		})
+		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool) error {
+			if ei.dice == nil {
+				return errors.New("请先完成此扩展的注册")
+			}
+			config := ConfigItem{
+				Key:          key,
+				Type:         "bool",
+				Value:        defaultValue,
+				DefaultValue: defaultValue,
+			}
+			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
+			return nil
+		})
+		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64) error {
+			if ei.dice == nil {
+				return errors.New("请先完成此扩展的注册")
+			}
+			config := ConfigItem{
+				Key:          key,
+				Type:         "float",
+				Value:        defaultValue,
+				DefaultValue: defaultValue,
+			}
+			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
+			return nil
+		})
+		_ = ext.Set("registerArrayConfig", func(ei *ExtInfo, key string, defaultValue []interface{}) error {
+			if ei.dice == nil {
+				return errors.New("请先完成此扩展的注册")
+			}
+			config := ConfigItem{
+				Key:          key,
+				Type:         "array",
+				Value:        defaultValue,
+				DefaultValue: defaultValue,
+			}
+			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
+			return nil
+		})
 		// COC规则自定义
 		coc := vm.NewObject()
 		_ = coc.Set("newRule", func() *CocRuleInfo {

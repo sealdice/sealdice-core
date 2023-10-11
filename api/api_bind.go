@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"runtime"
 	"sealdice-core/dice"
@@ -275,6 +276,18 @@ func onebotTool(c echo.Context) error {
 	return resp
 }
 
+func handleGetConfigs(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	data, err := json.Marshal(myDice.ConfigManager.Plugins)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to marshal data")
+	}
+
+	return c.JSONBlob(http.StatusOK, data)
+}
+
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
@@ -374,6 +387,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/js/disable", jsDisable)
 	e.POST(prefix+"/js/check_update", jsCheckUpdate)
 	e.POST(prefix+"/js/update", jsUpdate)
+	e.GET(prefix+"/js/get_configs", handleGetConfigs)
 
 	e.GET(prefix+"/helpdoc/status", helpDocStatus)
 	e.GET(prefix+"/helpdoc/tree", helpDocTree)

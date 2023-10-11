@@ -31,7 +31,7 @@ var VERSION = "1.4.0 v20231010"
 
 // var VERSION_CODE = int64(1001000) // 991404
 // var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
-//var VERSION_CODE = int64(1003001) // 1.3时代
+// var VERSION_CODE = int64(1003001) // 1.3时代
 var VERSION_CODE = int64(1004000) // 1.3时代
 var APP_BRANCH = ""
 
@@ -188,6 +188,7 @@ type Dice struct {
 
 	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
+	ConfigManager   *ConfigManager             `yaml:"-"`
 	Parent          *DiceManager               `yaml:"-"`
 
 	CocExtraRules    map[int]*CocRuleInfo `yaml:"-" json:"cocExtraRules"`
@@ -318,6 +319,7 @@ func (d *Dice) Init() {
 	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
 	d.CmdMap = CmdMapCls{}
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
+	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()

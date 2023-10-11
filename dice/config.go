@@ -11,6 +11,7 @@ import (
 	"sealdice-core/utils"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -44,6 +45,123 @@ type TextTemplateHelpGroup = map[string]*TextTemplateHelpItem
 type TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
 
 //const CONFIG_TEXT_TEMPLATE_FILE = "./data/configs/text-template.yaml"
+
+// ConfigItem 供插件使用的配置项
+type ConfigItem struct {
+	Key          string      `json:"key" jsbind:"key"`
+	Type         string      `json:"type" jsbind:"type"`
+	DefaultValue interface{} `json:"default_value" jsbind:"defaultValue"`
+	Value        interface{} `json:"value,omitempty" jsbind:"value"`
+	Deprecated   bool        `json:"deprecated,omitempty" jsbind:"deprecated"`
+}
+
+type PluginConfig struct {
+	PluginName string                `json:"plugin_name"`
+	Configs    map[string]ConfigItem `json:"configs" jsbind:"configs"`
+}
+
+type ConfigManager struct {
+	filename string
+	Plugins  map[string]PluginConfig
+	lock     sync.RWMutex
+}
+
+func NewConfigManager(filename string) *ConfigManager {
+	return &ConfigManager{
+		filename: filename,
+		Plugins:  make(map[string]PluginConfig),
+	}
+}
+
+func (cm *ConfigManager) RegisterPlugin(pluginName string, configItems []ConfigItem) {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+	//var allowedTypes = map[string]bool{
+	//	"string": true,
+	//	"bool":   true,
+	//	"int":    true,
+	//	"float":  true,
+	//	"array":  true,
+	//}
+
+	//var isValidType = func(t string) bool {
+	//	return allowedTypes[t]
+	//}
+
+	// Check if the plugin already exists
+	if existingPlugin, ok := cm.Plugins[pluginName]; ok {
+		// Create a set of new keys for easy lookup
+		newKeys := make(map[string]bool)
+		for _, item := range configItems {
+			newKeys[item.Key] = true
+		}
+
+		// Mark old keys as deprecated if they're not in the new set
+		for key, existingItem := range existingPlugin.Configs {
+			if _, found := newKeys[key]; !found {
+				existingItem.Deprecated = true
+				existingPlugin.Configs[key] = existingItem
+			}
+		}
+
+		// Update or add new config items
+		for _, newItem := range configItems {
+			//if isValidType(newItem.Type) {
+			if existingItem, itemExists := existingPlugin.Configs[newItem.Key]; itemExists {
+				existingItem.DefaultValue = newItem.DefaultValue
+				existingItem.Deprecated = false // Reset deprecated flag
+				existingPlugin.Configs[newItem.Key] = existingItem
+			} else {
+				existingPlugin.Configs[newItem.Key] = newItem
+			}
+		}
+
+		cm.Plugins[pluginName] = existingPlugin
+	} else {
+		configs := make(map[string]ConfigItem)
+		for _, item := range configItems {
+			configs[item.Key] = item
+		}
+		cm.Plugins[pluginName] = PluginConfig{
+			PluginName: pluginName,
+			Configs:    configs,
+		}
+	}
+}
+
+func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+
+	plugin, ok := cm.Plugins[pluginName]
+	if !ok {
+		return
+	}
+
+	configItem, exists := plugin.Configs[key]
+	if exists {
+		configItem.Value = value
+		plugin.Configs[key] = configItem
+		cm.Plugins[pluginName] = plugin
+	}
+}
+
+func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+
+	plugin, ok := cm.Plugins[pluginName]
+	if !ok {
+		return
+	}
+
+	configItem, exists := plugin.Configs[key]
+	if exists {
+		configItem.Value = configItem.DefaultValue
+		plugin.Configs[key] = configItem
+		cm.Plugins[pluginName] = plugin
+	}
+}
 
 func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
 	var choices []wr.Choice
