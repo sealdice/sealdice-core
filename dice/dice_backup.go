@@ -2,14 +2,36 @@ package dice
 
 import (
 	"encoding/json"
-	"github.com/alexmullins/zip"
+	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sealdice-core/dice/model"
+	"sealdice-core/utils"
+	"sort"
 	"strings"
 	"time"
+
+	"github.com/alexmullins/zip"
+)
+
+const BackupDir = "./backups"
+
+type BackupCleanStrategy int
+
+const (
+	BackupCleanStrategyDisabled BackupCleanStrategy = iota
+	BackupCleanStrategyByCount
+	BackupCleanStrategyByTime
+)
+
+type BackupCleanTrigger int
+
+const (
+	// BackupCleanTriggerCron 通过独立定时任务触发
+	BackupCleanTriggerCron BackupCleanTrigger = 1 << iota
+	// BackupCleanTriggerRotate 通过自动备份触发
+	BackupCleanTriggerRotate
 )
 
 // 可勾选自定义文本、自定义回复、QQ帐号信息、牌堆等
@@ -30,17 +52,20 @@ type OneBackupConfig struct {
 }
 
 func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, error) {
-	dirpath := "./backups"
-	_ = os.MkdirAll(dirpath, 0755)
+	_ = os.MkdirAll(BackupDir, 0755)
 
-	fzip, _ := ioutil.TempFile(dirpath, bakFilename)
+	fzip, err := os.CreateTemp(BackupDir, bakFilename)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = fzip.Close() }()
 	writer := zip.NewWriter(fzip)
 	defer func(writer *zip.Writer) {
 		_ = writer.Close()
 	}(writer)
 
 	backup := func(d *Dice, fn string) {
-		data, err := ioutil.ReadFile(fn)
+		data, err := os.ReadFile(fn)
 		if err != nil {
 			if d != nil {
 				if !strings.Contains(fn, "session.token") {
@@ -149,8 +174,6 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 	fileWriter, _ := writer.CreateHeader(h)
 	_, _ = fileWriter.Write(data)
 
-	_ = writer.Close()
-	_ = fzip.Close()
 	return fzip.Name(), nil
 }
 
@@ -188,4 +211,71 @@ func (dm *DiceManager) BackupSimple() (string, error) {
 			},
 		},
 	}, fn)
+}
+
+func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
+	if dm.BackupCleanStrategy == BackupCleanStrategyDisabled {
+		return nil
+	}
+
+	if fromAuto && (dm.BackupCleanTrigger&BackupCleanTriggerRotate == 0) {
+		return nil
+	}
+
+	// fmt.Println("开始定时清理备份", fromAuto)
+
+	backupDir, err := os.Open(BackupDir)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = backupDir.Close() }()
+	if i, _ := backupDir.Stat(); !i.IsDir() {
+		return fmt.Errorf("backup directory %q is not a directory", BackupDir)
+	}
+
+	files, err := backupDir.ReadDir(-1)
+	if err != nil {
+		return err
+	}
+
+	fileInfos := make([]os.FileInfo, 0, len(files))
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		if fi, err := f.Info(); err == nil {
+			fileInfos = append(fileInfos, fi)
+		}
+	}
+
+	sort.Sort(utils.ByModtime(fileInfos))
+
+	var fileInfoOld []os.FileInfo
+	switch dm.BackupCleanStrategy {
+	case BackupCleanStrategyByCount:
+		if len(fileInfos) > dm.BackupCleanKeepCount {
+			fileInfoOld = fileInfos[:len(fileInfos)-dm.BackupCleanKeepCount]
+		}
+	case BackupCleanStrategyByTime:
+		threshold := time.Now().Add(-dm.BackupCleanKeepDur)
+		idx, _ := sort.Find(len(fileInfos), func(i int) int {
+			return threshold.Compare(fileInfos[i].ModTime())
+		})
+		fileInfoOld = fileInfos[:idx]
+	default:
+		// no-op
+	}
+
+	errDel := []string{}
+	for _, fi := range fileInfoOld {
+		errDelete := os.Remove(filepath.Join(BackupDir, fi.Name()))
+		if errDelete != nil {
+			errDel = append(errDel, errDelete.Error())
+		}
+	}
+
+	if len(errDel) > 0 {
+		return fmt.Errorf("error(s) occured when deleting files:\n" + strings.Join(errDel, "\n"))
+	}
+	return nil
 }

@@ -2,13 +2,14 @@ package dice
 
 import (
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/fy0/lockfree"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-	"os"
-	"time"
 )
 
 type VersionInfo struct {
@@ -46,6 +47,14 @@ type DiceManager struct {
 
 	AutoBackupEnable bool
 	AutoBackupTime   string
+	backupEntryId    cron.EntryID
+	// 备份自动清理配置
+	BackupCleanStrategy  BackupCleanStrategy // 关闭 / 保留一定数量 / 保留一定时间
+	BackupCleanKeepCount int                 // 保留的数量
+	BackupCleanKeepDur   time.Duration       // 保留的时间
+	BackupCleanTrigger   BackupCleanTrigger  // 触发方式: cron触发 / 随自动备份触发 (多种方式按位OR)
+	BackupCleanCron      string              // 如果使用cron触发, 表达式
+	backupCleanCronId    cron.EntryID
 
 	AppBootTime      int64
 	AppVersionCode   int64
@@ -63,7 +72,6 @@ type DiceManager struct {
 	Cron                 *cron.Cron
 	ServiceName          string
 	JustForTest          bool
-	backupEntryId        cron.EntryID
 	JsRegistry           *require.Registry
 	UpdateSealdiceByFile func(packName string, log *zap.SugaredLogger) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
 }
@@ -80,7 +88,16 @@ type DiceConfigs struct {
 
 	AutoBackupEnable bool   `yaml:"autoBackupEnable"`
 	AutoBackupTime   string `yaml:"autoBackupTime"`
-	ServiceName      string `yaml:"serviceName"`
+
+	BackupClean struct {
+		Strategy  int    `yaml:"strategy"`
+		KeepCount int    `yaml:"keepCount"`
+		KeepDur   int64  `yaml:"keepDur"`
+		Trigger   int    `yaml:"trigger"`
+		Cron      string `yaml:"cron"`
+	} `yaml:"backupClean"`
+
+	ServiceName string `yaml:"serviceName"`
 
 	ConfigVersion int `yaml:"configVersion"`
 }
@@ -103,7 +120,7 @@ func (dm *DiceManager) LoadDice() {
 	dm.UserNameCache = lockfree.NewHashMap()
 	dm.UserIdCache = lockfree.NewHashMap()
 
-	_ = os.MkdirAll("./backups", 0755)
+	_ = os.MkdirAll(BackupDir, 0755)
 	_ = os.MkdirAll("./data/images", 0755)
 	_ = os.MkdirAll("./data/decks", 0755)
 	_ = os.MkdirAll("./data/names", 0755)
@@ -145,6 +162,7 @@ func (dm *DiceManager) LoadDice() {
 	dm.HelpDocEngineType = dc.HelpDocEngineType
 	dm.UIPasswordHash = dc.UIPasswordHash
 	dm.UIPasswordSalt = dc.UIPasswordSalt
+
 	dm.AutoBackupTime = dc.AutoBackupTime
 	dm.AutoBackupEnable = dc.AutoBackupEnable
 
@@ -153,6 +171,12 @@ func (dm *DiceManager) LoadDice() {
 		dm.AutoBackupEnable = true
 		dm.AutoBackupTime = "@every 12h" // 每12小时一次
 	}
+
+	dm.BackupCleanStrategy = BackupCleanStrategy(dc.BackupClean.Strategy)
+	dm.BackupCleanKeepCount = dc.BackupClean.KeepCount
+	dm.BackupCleanKeepDur = time.Duration(dc.BackupClean.KeepDur)
+	dm.BackupCleanTrigger = BackupCleanTrigger(dc.BackupClean.Trigger)
+	dm.BackupCleanCron = dc.BackupClean.Cron
 
 	for _, i := range dc.AccessTokens {
 		dm.AccessTokens[i] = true
@@ -174,6 +198,11 @@ func (dm *DiceManager) Save() {
 	dc.AccessTokens = []string{}
 	dc.AutoBackupTime = dm.AutoBackupTime
 	dc.AutoBackupEnable = dm.AutoBackupEnable
+	dc.BackupClean.Strategy = int(dm.BackupCleanStrategy)
+	dc.BackupClean.KeepCount = dm.BackupCleanKeepCount
+	dc.BackupClean.KeepDur = int64(dm.BackupCleanKeepDur)
+	dc.BackupClean.Trigger = int(dm.BackupCleanTrigger)
+	dc.BackupClean.Cron = dm.BackupCleanCron
 	dc.ServiceName = dm.ServiceName
 	dc.ConfigVersion = 9914
 
@@ -229,6 +258,7 @@ func (dm *DiceManager) InitDice() {
 	}()
 
 	dm.ResetAutoBackup()
+	dm.ResetBackupClean()
 }
 
 func (dm *DiceManager) ResetAutoBackup() {
@@ -242,11 +272,39 @@ func (dm *DiceManager) ResetAutoBackup() {
 			err := dm.BackupAuto()
 			if err != nil {
 				fmt.Println("自动备份失败: ", err.Error())
+				return
+			}
+			if err = dm.BackupClean(true); err != nil {
+				fmt.Println("滚动清理备份失败: ", err.Error())
 			}
 		})
 		if err != nil {
 			if len(dm.Dice) > 0 {
 				dm.Dice[0].Logger.Errorf("设定的自动备份间隔有误: %v", err.Error())
+			}
+			return
+		}
+	}
+}
+
+func (dm *DiceManager) ResetBackupClean() {
+	if dm.backupCleanCronId > 0 {
+		dm.Cron.Remove(dm.backupCleanCronId)
+		dm.backupCleanCronId = 0
+	}
+
+	if (dm.BackupCleanTrigger & BackupCleanTriggerCron) > 0 {
+		var err error
+		dm.backupCleanCronId, err = dm.Cron.AddFunc(dm.BackupCleanCron, func() {
+			err := dm.BackupClean(false)
+			if err != nil {
+				fmt.Println("定时清理备份失败: ", err.Error())
+			}
+		})
+
+		if err != nil {
+			if len(dm.Dice) > 0 {
+				dm.Dice[0].Logger.Errorf("设定的备份清理cron有误: %q %v", dm.BackupCleanCron, err)
 			}
 			return
 		}
