@@ -239,7 +239,9 @@ func (d *Dice) JsInit() {
 		})
 		// 1.2新增结束
 
-		_ = seal.Set("inst", d)
+		// Note: Szzrain 暴露dice对象给js会导致js可以调用dice的所有Export的方法
+		// 这是不安全的, 所有需要用到dice实例的函数都可以以传入ctx作为替代
+		//_ = seal.Set("inst", d)
 		_ = vm.Set("__dirname", "")
 		_ = vm.Set("seal", seal)
 
