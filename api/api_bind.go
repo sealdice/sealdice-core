@@ -299,7 +299,6 @@ func handleSetConfigs(c echo.Context) error {
 	}
 	for k, v := range data {
 		for _, i := range v.Configs {
-			//myDice.Logger.Infof("设置配置: %v %v %v", k, i.Key, i.Value)
 			myDice.ConfigManager.SetConfig(k, i.Key, i.Value)
 		}
 	}
@@ -315,8 +314,20 @@ func handleDeleteUnusedConfig(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
 	}
-	myDice.Logger.Infof("data: %v", data)
 	myDice.ConfigManager.UnregisterConfig(data["pluginName"], data["key"])
+	return c.JSON(http.StatusOK, nil)
+}
+
+func handleResetConfig(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	var data map[string]string
+	err := c.Bind(&data)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
+	}
+	myDice.ConfigManager.ResetConfigToDefault(data["pluginName"], data["key"])
 	return c.JSON(http.StatusOK, nil)
 }
 
@@ -422,6 +433,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/js/get_configs", handleGetConfigs)
 	e.POST(prefix+"/js/set_configs", handleSetConfigs)
 	e.POST(prefix+"/js/delete_unused_config", handleDeleteUnusedConfig)
+	e.POST(prefix+"/js/reset_config", handleResetConfig)
 
 	e.GET(prefix+"/helpdoc/status", helpDocStatus)
 	e.GET(prefix+"/helpdoc/tree", helpDocTree)

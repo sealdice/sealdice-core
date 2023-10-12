@@ -192,13 +192,13 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerListConfig", func(ei *ExtInfo, key string, defaultValue string, option []string) error {
+		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
-				Type:         "list",
+				Type:         "option",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Option:       option,
@@ -254,6 +254,12 @@ func (d *Dice) JsInit() {
 				panic("配置不存在或类型不匹配")
 			}
 			return d.ConfigManager.getConfig(ei.Name, key).Value.([]string)
+		})
+		_ = ext.Set("getOptionConfig", func(ei *ExtInfo, key string) string {
+			if ei.dice == nil || d.ConfigManager.getConfig(ei.Name, key).Type != "option" {
+				panic("配置不存在或类型不匹配")
+			}
+			return d.ConfigManager.getConfig(ei.Name, key).Value.(string)
 		})
 		_ = ext.Set("unregisterConfig", func(ei *ExtInfo, key ...string) {
 			if ei.dice == nil {

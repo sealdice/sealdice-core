@@ -190,14 +190,16 @@ func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
 func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
-
+	fmt.Println("try reset config to default", pluginName, key)
 	plugin, ok := cm.Plugins[pluginName]
 	if !ok {
+		fmt.Println("plugin not found", pluginName)
 		return
 	}
 
 	configItem, exists := plugin.Configs[key]
 	if exists {
+		fmt.Println("reset config to default", pluginName, key)
 		configItem.Value = configItem.DefaultValue
 		plugin.Configs[key] = configItem
 		cm.Plugins[pluginName] = plugin
