@@ -177,7 +177,7 @@ func backupConfigSave(c echo.Context) error {
 		dm.AutoBackupEnable = v.AutoBackupEnable
 		dm.AutoBackupTime = v.AutoBackupTime
 
-		if v.BackupCleanStrategy > 0 {
+		if int(dice.BackupCleanStrategyDisabled) <= v.BackupCleanStrategy && v.BackupCleanStrategy <= int(dice.BackupCleanStrategyByTime) {
 			dm.BackupCleanStrategy = dice.BackupCleanStrategy(v.BackupCleanStrategy)
 			if dm.BackupCleanStrategy == dice.BackupCleanStrategyByCount && v.BackupCleanKeepCount > 0 {
 				dm.BackupCleanKeepCount = v.BackupCleanKeepCount
