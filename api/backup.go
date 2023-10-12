@@ -1,13 +1,16 @@
 package api
 
 import (
-	"github.com/labstack/echo/v4"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sealdice-core/dice"
 	"strings"
+	"time"
+
+	"github.com/labstack/echo/v4"
 )
 
 type backupFileItem struct {
@@ -29,7 +32,7 @@ func backupGetList(c echo.Context) error {
 	}
 
 	var items []*backupFileItem
-	_ = filepath.Walk("./backups", func(path string, info fs.FileInfo, err error) error {
+	_ = filepath.Walk(dice.BackupDir, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() {
 			items = append(items, &backupFileItem{
 				Name:     info.Name(),
@@ -57,7 +60,7 @@ func backupDownload(c echo.Context) error {
 
 	name := c.QueryParam("name")
 	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
-		return c.Attachment("./backups/"+name, name)
+		return c.Attachment(dice.BackupDir+"/"+name, name)
 	}
 	return c.JSON(http.StatusOK, nil)
 }
@@ -75,7 +78,7 @@ func backupDelete(c echo.Context) error { //nolint
 	var err error
 	name := c.QueryParam("name")
 	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
-		err = os.Remove("./backups/" + name)
+		err = os.Remove(dice.BackupDir + "/" + name)
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -102,7 +105,7 @@ func backupBatchDelete(c echo.Context) error { //nolint
 	fails := make([]string, 0, len(v.Names))
 	for _, name := range v.Names {
 		if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
-			err = os.Remove("./backups/" + name)
+			err = os.Remove(dice.BackupDir + "/" + name)
 			if err != nil {
 				fails = append(fails, name)
 			}
@@ -138,12 +141,23 @@ func backupSimple(c echo.Context) error {
 type backupConfig struct {
 	AutoBackupEnable bool   `json:"autoBackupEnable"`
 	AutoBackupTime   string `json:"autoBackupTime"`
+
+	BackupCleanStrategy  int    `json:"backupCleanStrategy"`
+	BackupCleanKeepCount int    `json:"backupCleanKeepCount"`
+	BackupCleanKeepDur   string `json:"backupCleanKeepDur"`
+	BackupCleanTrigger   int    `json:"backupCleanTrigger"`
+	BackupCleanCron      string `json:"backupCleanCron"`
 }
 
 func backupConfigGet(c echo.Context) error {
 	bc := backupConfig{}
 	bc.AutoBackupEnable = dm.AutoBackupEnable
 	bc.AutoBackupTime = dm.AutoBackupTime
+	bc.BackupCleanStrategy = int(dm.BackupCleanStrategy)
+	bc.BackupCleanKeepCount = dm.BackupCleanKeepCount
+	bc.BackupCleanKeepDur = dm.BackupCleanKeepDur.String()
+	bc.BackupCleanTrigger = int(dm.BackupCleanTrigger)
+	bc.BackupCleanCron = dm.BackupCleanCron
 	return c.JSON(http.StatusOK, bc)
 }
 
@@ -162,7 +176,29 @@ func backupConfigSave(c echo.Context) error {
 	if err == nil {
 		dm.AutoBackupEnable = v.AutoBackupEnable
 		dm.AutoBackupTime = v.AutoBackupTime
+
+		if int(dice.BackupCleanStrategyDisabled) <= v.BackupCleanStrategy && v.BackupCleanStrategy <= int(dice.BackupCleanStrategyByTime) {
+			dm.BackupCleanStrategy = dice.BackupCleanStrategy(v.BackupCleanStrategy)
+			if dm.BackupCleanStrategy == dice.BackupCleanStrategyByCount && v.BackupCleanKeepCount > 0 {
+				dm.BackupCleanKeepCount = v.BackupCleanKeepCount
+			}
+			if dm.BackupCleanStrategy == dice.BackupCleanStrategyByTime && len(v.BackupCleanKeepDur) > 0 {
+				if dur, err := time.ParseDuration(v.BackupCleanKeepDur); err == nil {
+					dm.BackupCleanKeepDur = dur
+				} else {
+					myDice.Logger.Errorf("设定的自动清理保留时间有误: %q %v", v.BackupCleanKeepDur, err)
+				}
+			}
+			if v.BackupCleanTrigger > 0 {
+				dm.BackupCleanTrigger = dice.BackupCleanTrigger(v.BackupCleanTrigger)
+				if dm.BackupCleanTrigger&dice.BackupCleanTriggerCron > 0 {
+					dm.BackupCleanCron = v.BackupCleanCron
+				}
+			}
+		}
+
 		dm.ResetAutoBackup()
+		dm.ResetBackupClean()
 		return c.String(http.StatusOK, "")
 	}
 	return c.String(430, "")
