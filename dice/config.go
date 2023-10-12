@@ -181,7 +181,8 @@ func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
 
 	configItem, exists := plugin.Configs[key]
 	if exists {
-		return configItem
+		n := *configItem
+		return &n
 	}
 	return nil
 }

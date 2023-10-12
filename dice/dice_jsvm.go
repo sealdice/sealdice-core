@@ -219,11 +219,11 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config...)
 			return nil
 		})
-		_ = ext.Set("getConfig", func(ei *ExtInfo, key string) interface{} {
+		_ = ext.Set("getConfig", func(ei *ExtInfo, key string) *ConfigItem {
 			if ei.dice == nil {
 				return nil
 			}
-			return d.ConfigManager.getConfig(ei.Name, key).Value
+			return d.ConfigManager.getConfig(ei.Name, key)
 		})
 		_ = ext.Set("getStringConfig", func(ei *ExtInfo, key string) string {
 			if ei.dice == nil || d.ConfigManager.getConfig(ei.Name, key).Type != "string" {
