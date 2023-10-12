@@ -453,6 +453,7 @@ func (d *Dice) JsLoadScripts() {
 
 func (d *Dice) JsReload() {
 	d.JsInit()
+	_ = d.ConfigManager.Load()
 	d.JsLoadScripts()
 }
 
