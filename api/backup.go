@@ -32,7 +32,7 @@ func backupGetList(c echo.Context) error {
 	}
 
 	var items []*backupFileItem
-	_ = filepath.Walk("./backups", func(path string, info fs.FileInfo, err error) error {
+	_ = filepath.Walk(dice.BackupDir, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() {
 			items = append(items, &backupFileItem{
 				Name:     info.Name(),
@@ -60,7 +60,7 @@ func backupDownload(c echo.Context) error {
 
 	name := c.QueryParam("name")
 	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
-		return c.Attachment("./backups/"+name, name)
+		return c.Attachment(dice.BackupDir+"/"+name, name)
 	}
 	return c.JSON(http.StatusOK, nil)
 }
@@ -78,7 +78,7 @@ func backupDelete(c echo.Context) error { //nolint
 	var err error
 	name := c.QueryParam("name")
 	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
-		err = os.Remove("./backups/" + name)
+		err = os.Remove(dice.BackupDir + "/" + name)
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -105,7 +105,7 @@ func backupBatchDelete(c echo.Context) error { //nolint
 	fails := make([]string, 0, len(v.Names))
 	for _, name := range v.Names {
 		if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
-			err = os.Remove("./backups/" + name)
+			err = os.Remove(dice.BackupDir + "/" + name)
 			if err != nil {
 				fails = append(fails, name)
 			}
