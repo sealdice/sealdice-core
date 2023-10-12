@@ -56,13 +56,14 @@
     </el-collapse>
   </div>
 
-  <div style="margin-top: 1rem; display: flex; justify-content: space-between;">
+  <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
     <div>
       <el-text>搜索：</el-text>
       <el-input :prefix-icon="Search" style="display: inline;" v-model="currentFilterName" clearable></el-input>
     </div>
     <!-- 这个按钮颜色还是淡一些不然喧宾夺主 -->
-    <el-button @click="dialogImportVisible = true">导入/导出</el-button>
+    <!-- 偷偷加个淡点的颜色回来（） -->
+    <el-button type="primary" plain @click="dialogImportVisible = true">导入/导出</el-button>
   </div>
 
   <el-space style="margin: 1rem 0" wrap>

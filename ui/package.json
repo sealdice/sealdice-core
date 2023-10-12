@@ -9,7 +9,7 @@
     "build2": "vue-tsc --noEmit && node --max_old_space_size=2048 ./node_modules/vite/bin/vite.js build",
     "build3": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .vue,.js,.ts,.jsx,.tsx --fix"
+    "lint": "vue-tsc --noEmit && eslint . --ext .vue,.js,.ts,.jsx,.tsx --fix"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.1.9",

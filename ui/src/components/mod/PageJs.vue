@@ -47,7 +47,7 @@
                     <el-switch v-model="i.enable" @change="changejsScriptStatus(i.name, i.enable)"
                       style="--el-switch-on-color: #67C23A; --el-switch-off-color: #F56C6C" />
                     <el-text size="large" tag="b">{{ i.name }}</el-text>
-                    <el-text>{{ i.version || 'lt;未定义>' }}</el-text>
+                    <el-text>{{ i.version || '&lt;未定义>' }}</el-text>
                   </el-space>
                   <el-space>
                     <el-popconfirm v-if="i.updateUrls && i.updateUrls.length > 0" width="220"
@@ -66,12 +66,12 @@
               </template>
               <el-descriptions>
                 <el-descriptions-item :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="介绍">{{ i.desc || 'lt;暂无>' }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="主页">{{ i.homepage || 'lt;暂无>' }}</el-descriptions-item>
-                <el-descriptions-item label="许可协议">{{ i.license || 'lt;暂无>' }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="介绍">{{ i.desc || '&lt;暂无>' }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="主页">{{ i.homepage || '&lt;暂无>' }}</el-descriptions-item>
+                <el-descriptions-item label="许可协议">{{ i.license || '&lt;暂无>' }}</el-descriptions-item>
                 <el-descriptions-item label="安装时间">{{ dayjs.unix(i.installTime).fromNow() }}</el-descriptions-item>
                 <el-descriptions-item label="更新时间">
-                  {{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || 'lt;暂无>' }}
+                  {{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || '&lt;暂无>' }}
                 </el-descriptions-item>
                 <el-descriptions-item label="报错信息" :span="3" v-if="i.errText">{{ i.errText }}</el-descriptions-item>
               </el-descriptions>

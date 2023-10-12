@@ -1,22 +1,82 @@
 <template>
-  <h2>设置</h2>
-  <div>
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>备份</h2>
     <div>
-      <el-checkbox v-model="cfg.autoBackupEnable">开启自动备份</el-checkbox>
-      <div>
-        <span>备份间隔:
-          <el-tooltip raw-content
-                      content="备份间隔请参阅 <a href='https://pkg.go.dev/github.com/robfig/cron' target='_blank'>cron文档</a>">
-            <el-icon><question-filled/></el-icon>
-          </el-tooltip>
-        </span>
-        <el-input v-model="cfg.autoBackupTime" style="width: 12rem"></el-input>
-      </div>
-      <div style="margin-top: 1rem">
-        <el-button @click="doSave">保存设置</el-button>
-        <el-button @click="doBackup">立即备份</el-button>
-      </div>
+      <el-button type="success" :icon="DocumentChecked" @click="doSave">保存设置</el-button>
+      <el-button type="primary" @click="doBackup">立即备份</el-button>
     </div>
+  </div>
+  <div>
+    <el-form label-position="left">
+    <h3>自动备份</h3>
+    <el-checkbox v-model="cfg.autoBackupEnable">开启</el-checkbox>
+    <div v-if="cfg.autoBackupEnable" style="margin-top: 1rem;">
+      <el-form-item>
+        <template #label>
+          <span>备份间隔
+            <el-tooltip raw-content
+                        content="备份间隔表达式请参阅 <a href='https://pkg.go.dev/github.com/robfig/cron' target='_blank'>cron文档</a>">
+              <el-icon><question-filled/></el-icon>
+            </el-tooltip>
+          </span>
+        </template>
+        <el-input v-model="cfg.autoBackupTime" style="width: 12rem;"></el-input>
+      </el-form-item>
+    </div>
+    <h3>自动清理</h3>
+      <el-form-item label="清理模式">
+        <el-radio-group v-model="cfg.backupCleanStrategy">
+          <el-radio-button :label="0">关闭</el-radio-button>
+          <el-radio-button :label="1">保留一定数量</el-radio-button>
+          <el-radio-button :label="2">保留一定时间内</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item label="保留数量" v-if="cfg.backupCleanStrategy === 1">
+        <el-input-number v-model="cfg.backupCleanKeepCount" :min="1" :step="1"/>
+      </el-form-item>
+      <el-form-item v-if="cfg.backupCleanStrategy === 2">
+        <template #label>
+          <span>保留时间
+            <el-tooltip>
+              <template #content>
+                请输入带时间单位的时间间隔。支持的时间单位只有 h m s（分别代表小时、分钟、秒）。<br />
+                示例：<br />
+                720h：代表保留 720 小时（即 30 天）内的备份<br />
+                10.5h：代表保留 10.5 小时（即 10 小时 30 分）内的备份<br />
+                10h30m：保留 10 小时 30 分内备份的另一种写法
+              </template>
+              <el-icon><question-filled/></el-icon>
+            </el-tooltip>
+          </span>
+        </template>
+        <el-input v-model="cfg.backupCleanKeepDur" style="width: 12rem;"/>
+      </el-form-item>
+      <el-form-item v-if="cfg.backupCleanStrategy !== 0">
+        <template #label>
+          <span>触发方式
+            <el-tooltip raw-content
+                        content="自动备份后：在每次自动备份完成后，顺便进行备份清理。<br/>定时：按照给定的 cron 表达式，单独触发清理。">
+              <el-icon><question-filled/></el-icon>
+            </el-tooltip>
+          </span>
+        </template>
+        <el-checkbox-group v-model="backupCleanTriggers">
+          <el-checkbox :label="CleanTrigger.AfterAutoBackup">自动备份后</el-checkbox>
+          <el-checkbox :label="CleanTrigger.Cron">定时</el-checkbox>
+        </el-checkbox-group>
+      </el-form-item>
+      <el-form-item v-if="cfg.backupCleanStrategy !== 0">
+        <template #label>
+          <span>定时间隔
+            <el-tooltip raw-content
+                        content="定时间隔表达式请参阅 <a href='https://pkg.go.dev/github.com/robfig/cron' target='_blank'>cron文档</a>">
+              <el-icon><question-filled/></el-icon>
+            </el-tooltip>
+          </span>
+        </template>
+        <el-input v-model="cfg.backupCleanCron" style="width: 12rem"/>
+      </el-form-item>
+    </el-form>
     <h4>如何恢复备份？</h4>
     <div>将骰子彻底关闭，解压备份压缩包到骰子目录。若提示“是否覆盖？”选择“全部”即可(覆盖data目录)。</div>
   </div>
@@ -68,7 +128,7 @@
 </template>
 
 <script lang="ts" setup>
-import {computed, onBeforeMount, onBeforeUnmount, onMounted, ref} from 'vue';
+import {computed, onBeforeMount, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import {useStore} from '~/store'
 import {urlBase} from '~/backend'
 import filesize from 'filesize'
@@ -85,6 +145,7 @@ import {
   BrushFilled, DocumentChecked
 } from '@element-plus/icons-vue'
 import DiffViewer from "~/components/mod/diff-viewer.vue";
+import {sum} from "lodash-es";
 
 const store = useStore()
 
@@ -104,6 +165,16 @@ const refreshList = async () => {
 const configGet = async () => {
   const data = await store.backupConfigGet()
   cfg.value = data
+  if (data.backupCleanTrigger) {
+    let triggers: CleanTrigger[] = []
+    if (data.backupCleanTrigger & CleanTrigger.Cron) {
+      triggers.push(CleanTrigger.Cron)
+    }
+    if (data.backupCleanTrigger & CleanTrigger.AfterAutoBackup) {
+      triggers.push(CleanTrigger.AfterAutoBackup)
+    }
+    backupCleanTriggers.value = triggers
+  }
 }
 
 const bakDeleteConfirm = async (name: string) => {
@@ -176,6 +247,19 @@ const doSave = async () => {
   await store.backupConfigSave(cfg.value)
   ElMessage.success('已保存')
 }
+
+const enum CleanTrigger {
+  // 定时
+  Cron = 1 << 0,
+  // 自动备份后
+  AfterAutoBackup = 1 << 1,
+}
+
+const backupCleanTriggers = ref<CleanTrigger[]>()
+
+watch(backupCleanTriggers, (newStrategies) => {
+  cfg.value.backupCleanTrigger = sum(newStrategies)
+})
 
 onBeforeMount(async () => {
   await configGet()
