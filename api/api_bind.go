@@ -315,13 +315,8 @@ func handleDeleteUnusedConfig(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
 	}
-	for i, k := range data {
-		if myDice.ConfigManager.Plugins[i].Configs[k].Deprecated {
-			myDice.ConfigManager.UnregisterConfig(k)
-		} else {
-			return echo.NewHTTPError(http.StatusBadRequest, "Config is not deprecated")
-		}
-	}
+	myDice.Logger.Infof("data: %v", data)
+	myDice.ConfigManager.UnregisterConfig(data["pluginName"], data["key"])
 	return c.JSON(http.StatusOK, nil)
 }
 
