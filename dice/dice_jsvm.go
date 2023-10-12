@@ -192,6 +192,12 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
 			return nil
 		})
+		_ = ext.Set("getConfig", func(ei *ExtInfo, key string) *ConfigItem {
+			if ei.dice == nil {
+				return nil
+			}
+			return d.ConfigManager.GetConfig(ei.Name, key)
+		})
 		// COC规则自定义
 		coc := vm.NewObject()
 		_ = coc.Set("newRule", func() *CocRuleInfo {

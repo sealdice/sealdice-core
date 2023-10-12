@@ -50,13 +50,14 @@ type TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
 type ConfigItem struct {
 	Key          string      `json:"key" jsbind:"key"`
 	Type         string      `json:"type" jsbind:"type"`
-	DefaultValue interface{} `json:"default_value" jsbind:"defaultValue"`
+	DefaultValue interface{} `json:"defaultValue" jsbind:"defaultValue"`
 	Value        interface{} `json:"value,omitempty" jsbind:"value"`
+	Option       interface{} `json:"option,omitempty" jsbind:"option"`
 	Deprecated   bool        `json:"deprecated,omitempty" jsbind:"deprecated"`
 }
 
 type PluginConfig struct {
-	PluginName string                `json:"plugin_name"`
+	PluginName string                `json:"pluginName"`
 	Configs    map[string]ConfigItem `json:"configs" jsbind:"configs"`
 }
 
@@ -144,6 +145,22 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
 		plugin.Configs[key] = configItem
 		cm.Plugins[pluginName] = plugin
 	}
+}
+
+func (cm *ConfigManager) GetConfig(pluginName, key string) *ConfigItem {
+	cm.lock.RLock()
+	defer cm.lock.RUnlock()
+
+	plugin, ok := cm.Plugins[pluginName]
+	if !ok {
+		return nil
+	}
+
+	configItem, exists := plugin.Configs[key]
+	if exists {
+		return &configItem
+	}
+	return nil
 }
 
 func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {

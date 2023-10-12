@@ -288,6 +288,24 @@ func handleGetConfigs(c echo.Context) error {
 	return c.JSONBlob(http.StatusOK, data)
 }
 
+func handleSetConfigs(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	var data map[string]dice.PluginConfig
+	err := c.Bind(&data)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
+	}
+	for k, v := range data {
+		for _, i := range v.Configs {
+			//myDice.Logger.Infof("设置配置: %v %v %v", k, i.Key, i.Value)
+			myDice.ConfigManager.SetConfig(k, i.Key, i.Value)
+		}
+	}
+	return c.JSON(http.StatusOK, nil)
+}
+
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
@@ -388,6 +406,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/js/check_update", jsCheckUpdate)
 	e.POST(prefix+"/js/update", jsUpdate)
 	e.GET(prefix+"/js/get_configs", handleGetConfigs)
+	e.POST(prefix+"/js/set_configs", handleSetConfigs)
 
 	e.GET(prefix+"/helpdoc/status", helpDocStatus)
 	e.GET(prefix+"/helpdoc/tree", helpDocTree)
