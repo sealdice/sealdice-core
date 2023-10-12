@@ -206,6 +206,12 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
+		_ = ext.Set("newConfigItem", func(ei *ExtInfo, key string, defaultValue interface{}) *ConfigItem {
+			if ei.dice == nil {
+				panic(errors.New("请先完成此扩展的注册"))
+			}
+			return d.ConfigManager.NewConfigItem(key, defaultValue)
+		})
 		_ = ext.Set("registerConfig", func(ei *ExtInfo, config ...*ConfigItem) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
