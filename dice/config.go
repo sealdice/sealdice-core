@@ -120,7 +120,7 @@ func (cm *ConfigManager) RegisterPlugin(pluginName string, configItems []ConfigI
 			Configs:    configs,
 		}
 	}
-	_ = cm.Save()
+	_ = cm.save()
 }
 
 func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
@@ -138,7 +138,7 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
 		plugin.Configs[key] = configItem
 		cm.Plugins[pluginName] = plugin
 	}
-	_ = cm.Save()
+	_ = cm.save()
 }
 
 func (cm *ConfigManager) GetConfig(pluginName, key string) *ConfigItem {
@@ -172,10 +172,10 @@ func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 		plugin.Configs[key] = configItem
 		cm.Plugins[pluginName] = plugin
 	}
-	_ = cm.Save()
+	_ = cm.save()
 }
 
-func (cm *ConfigManager) Save() error {
+func (cm *ConfigManager) save() error {
 	file, err := os.OpenFile(cm.filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
@@ -194,6 +194,8 @@ func (cm *ConfigManager) Save() error {
 }
 
 func (cm *ConfigManager) Load() error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
 	file, err := os.Open(cm.filename)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -212,12 +214,13 @@ func (cm *ConfigManager) Load() error {
 	}
 
 	// Mark all loaded configs as deprecated
-	for _, pluginConfig := range cm.Plugins {
-		for _, configItems := range pluginConfig.Configs {
-			configItems.Deprecated = true
+	for i := range cm.Plugins {
+		for j := range cm.Plugins[i].Configs {
+			temp := cm.Plugins[i].Configs[j]
+			temp.Deprecated = true
+			cm.Plugins[i].Configs[j] = temp
 		}
 	}
-
 	return nil
 }
 
