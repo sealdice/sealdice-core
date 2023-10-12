@@ -306,7 +306,7 @@ func handleSetConfigs(c echo.Context) error {
 	return c.JSON(http.StatusOK, nil)
 }
 
-func handleDeleteUnusedConfigs(c echo.Context) error {
+func handleDeleteUnusedConfig(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
@@ -426,7 +426,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/js/update", jsUpdate)
 	e.GET(prefix+"/js/get_configs", handleGetConfigs)
 	e.POST(prefix+"/js/set_configs", handleSetConfigs)
-	e.POST(prefix+"/js/delete_unused_configs", handleDeleteUnusedConfigs)
+	e.POST(prefix+"/js/delete_unused_config", handleDeleteUnusedConfig)
 
 	e.GET(prefix+"/helpdoc/status", helpDocStatus)
 	e.GET(prefix+"/helpdoc/tree", helpDocTree)
