@@ -320,6 +320,7 @@ func (d *Dice) Init() {
 	d.CmdMap = CmdMapCls{}
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
+	_ = d.ConfigManager.Load()
 
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()

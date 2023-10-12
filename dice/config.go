@@ -97,14 +97,6 @@ func (cm *ConfigManager) RegisterPlugin(pluginName string, configItems []ConfigI
 			newKeys[item.Key] = true
 		}
 
-		// Mark old keys as deprecated if they're not in the new set
-		for key, existingItem := range existingPlugin.Configs {
-			if _, found := newKeys[key]; !found {
-				existingItem.Deprecated = true
-				existingPlugin.Configs[key] = existingItem
-			}
-		}
-
 		// Update or add new config items
 		for _, newItem := range configItems {
 			//if isValidType(newItem.Type) {
@@ -128,6 +120,7 @@ func (cm *ConfigManager) RegisterPlugin(pluginName string, configItems []ConfigI
 			Configs:    configs,
 		}
 	}
+	_ = cm.Save()
 }
 
 func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
@@ -145,6 +138,7 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
 		plugin.Configs[key] = configItem
 		cm.Plugins[pluginName] = plugin
 	}
+	_ = cm.Save()
 }
 
 func (cm *ConfigManager) GetConfig(pluginName, key string) *ConfigItem {
@@ -178,6 +172,53 @@ func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 		plugin.Configs[key] = configItem
 		cm.Plugins[pluginName] = plugin
 	}
+	_ = cm.Save()
+}
+
+func (cm *ConfigManager) Save() error {
+	file, err := os.OpenFile(cm.filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(cm.Plugins)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cm *ConfigManager) Load() error {
+	file, err := os.Open(cm.filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // File doesn't exist, maybe first run.
+		}
+		return err
+	}
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
+
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&cm.Plugins)
+	if err != nil {
+		return err
+	}
+
+	// Mark all loaded configs as deprecated
+	for _, pluginConfig := range cm.Plugins {
+		for _, configItems := range pluginConfig.Configs {
+			configItems.Deprecated = true
+		}
+	}
+
+	return nil
 }
 
 func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
