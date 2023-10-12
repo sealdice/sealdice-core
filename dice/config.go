@@ -57,24 +57,32 @@ type ConfigItem struct {
 }
 
 type PluginConfig struct {
-	PluginName string                `json:"pluginName"`
-	Configs    map[string]ConfigItem `json:"configs" jsbind:"configs"`
+	PluginName string                 `json:"pluginName"`
+	Configs    map[string]*ConfigItem `json:"configs" jsbind:"configs"`
 }
 
 type ConfigManager struct {
 	filename string
-	Plugins  map[string]PluginConfig
+	Plugins  map[string]*PluginConfig
 	lock     sync.RWMutex
 }
 
 func NewConfigManager(filename string) *ConfigManager {
 	return &ConfigManager{
 		filename: filename,
-		Plugins:  make(map[string]PluginConfig),
+		Plugins:  make(map[string]*PluginConfig),
 	}
 }
 
-func (cm *ConfigManager) RegisterPlugin(pluginName string, configItems []ConfigItem) {
+func (cm *ConfigManager) NewConfigItem(key string, defaultValue interface{}) *ConfigItem {
+	return &ConfigItem{
+		Key:          key,
+		DefaultValue: defaultValue,
+		Value:        defaultValue,
+	}
+}
+
+func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...*ConfigItem) {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
 	//var allowedTypes = map[string]bool{
@@ -102,6 +110,7 @@ func (cm *ConfigManager) RegisterPlugin(pluginName string, configItems []ConfigI
 			//if isValidType(newItem.Type) {
 			if existingItem, itemExists := existingPlugin.Configs[newItem.Key]; itemExists {
 				existingItem.DefaultValue = newItem.DefaultValue
+				existingItem.Option = newItem.Option
 				existingItem.Deprecated = false // Reset deprecated flag
 				existingPlugin.Configs[newItem.Key] = existingItem
 			} else {
@@ -111,14 +120,34 @@ func (cm *ConfigManager) RegisterPlugin(pluginName string, configItems []ConfigI
 
 		cm.Plugins[pluginName] = existingPlugin
 	} else {
-		configs := make(map[string]ConfigItem)
+		configs := make(map[string]*ConfigItem)
 		for _, item := range configItems {
 			configs[item.Key] = item
 		}
-		cm.Plugins[pluginName] = PluginConfig{
+		cm.Plugins[pluginName] = &PluginConfig{
 			PluginName: pluginName,
 			Configs:    configs,
 		}
+	}
+	_ = cm.save()
+}
+
+func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+
+	plugin, ok := cm.Plugins[pluginName]
+	if !ok {
+		return
+	}
+
+	for _, key := range keys {
+		delete(plugin.Configs, key)
+	}
+	if cm.Plugins[pluginName] == nil || len(cm.Plugins[pluginName].Configs) == 0 {
+		delete(cm.Plugins, pluginName)
+	} else {
+		cm.Plugins[pluginName] = plugin
 	}
 	_ = cm.save()
 }
@@ -141,7 +170,7 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
 	_ = cm.save()
 }
 
-func (cm *ConfigManager) GetConfig(pluginName, key string) *ConfigItem {
+func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
 	cm.lock.RLock()
 	defer cm.lock.RUnlock()
 
@@ -152,7 +181,7 @@ func (cm *ConfigManager) GetConfig(pluginName, key string) *ConfigItem {
 
 	configItem, exists := plugin.Configs[key]
 	if exists {
-		return &configItem
+		return configItem
 	}
 	return nil
 }

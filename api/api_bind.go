@@ -306,6 +306,25 @@ func handleSetConfigs(c echo.Context) error {
 	return c.JSON(http.StatusOK, nil)
 }
 
+func handleDeleteUnusedConfigs(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	var data map[string]string
+	err := c.Bind(&data)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
+	}
+	for i, k := range data {
+		if myDice.ConfigManager.Plugins[i].Configs[k].Deprecated {
+			myDice.ConfigManager.UnregisterConfig(k)
+		} else {
+			return echo.NewHTTPError(http.StatusBadRequest, "Config is not deprecated")
+		}
+	}
+	return c.JSON(http.StatusOK, nil)
+}
+
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
@@ -407,6 +426,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/js/update", jsUpdate)
 	e.GET(prefix+"/js/get_configs", handleGetConfigs)
 	e.POST(prefix+"/js/set_configs", handleSetConfigs)
+	e.POST(prefix+"/js/delete_unused_configs", handleDeleteUnusedConfigs)
 
 	e.GET(prefix+"/helpdoc/status", helpDocStatus)
 	e.GET(prefix+"/helpdoc/tree", helpDocTree)

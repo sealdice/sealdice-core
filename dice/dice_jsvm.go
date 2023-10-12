@@ -131,72 +131,129 @@ func (d *Dice) JsInit() {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
-			config := ConfigItem{
+			config := &ConfigItem{
 				Key:          key,
 				Type:         "string",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 			}
-			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
+			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
 		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
-			config := ConfigItem{
+			config := &ConfigItem{
 				Key:          key,
 				Type:         "int",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 			}
-			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
+			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
 		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
-			config := ConfigItem{
+			config := &ConfigItem{
 				Key:          key,
 				Type:         "bool",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 			}
-			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
+			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
 		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
-			config := ConfigItem{
+			config := &ConfigItem{
 				Key:          key,
 				Type:         "float",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 			}
-			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
+			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerArrayConfig", func(ei *ExtInfo, key string, defaultValue []interface{}) error {
+		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
-			config := ConfigItem{
+			config := &ConfigItem{
 				Key:          key,
-				Type:         "array",
+				Type:         "template",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 			}
-			d.ConfigManager.RegisterPlugin(ei.Name, []ConfigItem{config})
+			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("getConfig", func(ei *ExtInfo, key string) *ConfigItem {
+		_ = ext.Set("registerListConfig", func(ei *ExtInfo, key string, defaultValue string, option []string) error {
+			if ei.dice == nil {
+				return errors.New("请先完成此扩展的注册")
+			}
+			config := &ConfigItem{
+				Key:          key,
+				Type:         "list",
+				Value:        defaultValue,
+				DefaultValue: defaultValue,
+				Option:       option,
+			}
+			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
+			return nil
+		})
+		_ = ext.Set("registerConfig", func(ei *ExtInfo, config ...*ConfigItem) error {
+			if ei.dice == nil {
+				return errors.New("请先完成此扩展的注册")
+			}
+			d.ConfigManager.RegisterPluginConfig(ei.Name, config...)
+			return nil
+		})
+		_ = ext.Set("getConfig", func(ei *ExtInfo, key string) interface{} {
 			if ei.dice == nil {
 				return nil
 			}
-			return d.ConfigManager.GetConfig(ei.Name, key)
+			return d.ConfigManager.getConfig(ei.Name, key).Value
+		})
+		_ = ext.Set("getStringConfig", func(ei *ExtInfo, key string) string {
+			if ei.dice == nil || d.ConfigManager.getConfig(ei.Name, key).Type != "string" {
+				panic("配置不存在或类型不匹配")
+			}
+			return d.ConfigManager.getConfig(ei.Name, key).Value.(string)
+		})
+		_ = ext.Set("getIntConfig", func(ei *ExtInfo, key string) int64 {
+			if ei.dice == nil || d.ConfigManager.getConfig(ei.Name, key).Type != "int" {
+				panic("配置不存在或类型不匹配")
+			}
+			return d.ConfigManager.getConfig(ei.Name, key).Value.(int64)
+		})
+		_ = ext.Set("getBoolConfig", func(ei *ExtInfo, key string) bool {
+			if ei.dice == nil || d.ConfigManager.getConfig(ei.Name, key).Type != "bool" {
+				panic("配置不存在或类型不匹配")
+			}
+			return d.ConfigManager.getConfig(ei.Name, key).Value.(bool)
+		})
+		_ = ext.Set("getFloatConfig", func(ei *ExtInfo, key string) float64 {
+			if ei.dice == nil || d.ConfigManager.getConfig(ei.Name, key).Type != "float" {
+				panic("配置不存在或类型不匹配")
+			}
+			return d.ConfigManager.getConfig(ei.Name, key).Value.(float64)
+		})
+		_ = ext.Set("getTemplateConfig", func(ei *ExtInfo, key string) []string {
+			if ei.dice == nil || d.ConfigManager.getConfig(ei.Name, key).Type != "template" {
+				panic("配置不存在或类型不匹配")
+			}
+			return d.ConfigManager.getConfig(ei.Name, key).Value.([]string)
+		})
+		_ = ext.Set("unregisterConfig", func(ei *ExtInfo, key ...string) {
+			if ei.dice == nil {
+				return
+			}
+			d.ConfigManager.UnregisterConfig(ei.Name, key...)
 		})
 		// COC规则自定义
 		coc := vm.NewObject()
