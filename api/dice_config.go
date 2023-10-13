@@ -39,6 +39,8 @@ type DiceConfigInfo struct {
 	CustomReplenishRate     string   `json:"customReplenishRate"` // 自定义速率
 	CustomBurst             int64    `json:"customBurst"`         // 自定义上限
 
+	QuitInactiveThreshold float64 `json:"quitInactiveThreshold"` // 退出不活跃群组阈值(天)
+
 	DefaultCocRuleIndex string `json:"defaultCocRuleIndex"` // 默认coc index
 	MaxExecuteTime      string `json:"maxExecuteTime"`      // 最大骰点次数
 	MaxCocCardGen       string `json:"maxCocCardGen"`       // 最大coc制卡数
@@ -129,6 +131,8 @@ func DiceConfig(c echo.Context) error {
 
 		ExtDefaultSettings:  extDefaultSettings,
 		DefaultCocRuleIndex: cocRule,
+
+		QuitInactiveThreshold: myDice.QuitInactiveThreshold.Hours() / 24,
 
 		BotExtFreeSwitch:  myDice.BotExtFreeSwitch,
 		TrustOnlyMode:     myDice.TrustOnlyMode,
@@ -454,6 +458,21 @@ func DiceConfigSet(c echo.Context) error {
 	}
 	if val, ok := jsonMap["mailSmtp"]; ok {
 		myDice.MailSMTP = val.(string)
+	}
+
+	if val, ok := jsonMap["quitInactiveThreshold"]; ok {
+		switch v := val.(type) {
+		case string:
+			if vv, err := strconv.ParseFloat(v, 64); err == nil {
+				myDice.QuitInactiveThreshold = time.Duration(float64(24*time.Hour) * vv)
+			}
+		case float64:
+			myDice.QuitInactiveThreshold = time.Duration(float64(24*time.Hour) * v)
+		case int64:
+			myDice.QuitInactiveThreshold = 24 * time.Hour * time.Duration(v)
+		default:
+			// ignore
+		}
 	}
 
 	// 统一标记为修改
