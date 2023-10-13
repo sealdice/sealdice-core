@@ -3,7 +3,6 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/time/rate"
 	"math"
 	"os"
 	"path/filepath"
@@ -14,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slices"
+	"golang.org/x/time/rate"
 
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
@@ -67,8 +69,9 @@ type CmdMapCls map[string]*CmdItemInfo
 //}
 
 type ExtInfo struct {
-	Name    string `yaml:"name" json:"name" jsbind:"name"`    // 名字
-	Version string `yaml:"-" json:"version" jsbind:"version"` // 版本
+	Name    string   `yaml:"name" json:"name" jsbind:"name"`    // 名字
+	Aliases []string `yaml:"-" json:"aliases" jsbind:"aliases"` // 别名
+	Version string   `yaml:"-" json:"version" jsbind:"version"` // 版本
 	// 作者
 	// 更新时间
 	AutoActive      bool      `yaml:"-" json:"-" jsbind:"autoActive"` // 是否自动开启
@@ -553,13 +556,23 @@ func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) 
 	return "格式化错误:" + strconv.Quote(buffer), "", errors.New("错误的表达式")
 }
 
+// ExtFind 根据名称或别名查找扩展
 func (d *Dice) ExtFind(s string) *ExtInfo {
 	for _, i := range d.ExtList {
-		if i.Name == s {
+		if i.Name == s || slices.Contains(i.Aliases, s) {
 			return i
 		}
 	}
 	return nil
+}
+
+// ExtAliasToName 将扩展别名转换成主用名, 如果没有找到则返回原值
+func (d *Dice) ExtAliasToName(s string) string {
+	ext := d.ExtFind(s)
+	if ext != nil {
+		return ext.Name
+	}
+	return s
 }
 
 func (d *Dice) ExtRemove(ei *ExtInfo) bool {
