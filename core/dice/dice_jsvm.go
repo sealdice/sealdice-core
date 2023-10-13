@@ -114,9 +114,17 @@ func (d *Dice) JsInit() {
 			return d.ExtFind(name)
 		})
 		_ = ext.Set("register", func(ei *ExtInfo) {
-			if d.ExtFind(ei.Name) != nil {
-				panic("扩展<" + ei.Name + ">已被注册")
-			}
+			// NOTE(Xiangze Li): 移动到dice.RegisterExtension里去检查
+			// if d.ExtFind(ei.Name) != nil {
+			// 	panic("扩展<" + ei.Name + ">已被注册")
+			// }
+
+			defer func() {
+				// 增加recover, 以免在scripts目录中存在名字冲突扩展时导致启动崩溃
+				if e := recover(); e != nil {
+					d.Logger.Error(e)
+				}
+			}()
 
 			d.RegisterExtension(ei)
 			if ei.OnLoad != nil {

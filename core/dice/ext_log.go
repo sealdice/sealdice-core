@@ -712,7 +712,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		},
 	}
 
-	self.ExtList = append(self.ExtList, &ExtInfo{
+	self.RegisterExtension(&ExtInfo{
 		Name:       "log",
 		Version:    "1.0.1",
 		Brief:      "跑团辅助扩展，提供日志、染色等功能",
