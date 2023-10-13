@@ -93,8 +93,8 @@ require (
 	github.com/dchest/siphash v1.2.2 // indirect
 	github.com/dlclark/regexp2 v1.8.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819 // indirect
-	github.com/elazarl/goproxy/ext v0.0.0-20221015165544-a0805db90819 // indirect
+	github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a // indirect
+	github.com/elazarl/goproxy/ext v0.0.0-20230808193330-2592e75ae04a // indirect
 	github.com/getlantern/context v0.0.0-20190109183933-c447772a6520 // indirect
 	github.com/getlantern/errors v0.0.0-20190325191628-abdb3e3e36f7 // indirect
 	github.com/getlantern/golog v0.0.0-20190830074920-4ef2e798c2d7 // indirect
