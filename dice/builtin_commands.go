@@ -87,12 +87,12 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 				item := d.BanList.GetById(uid)
-				if item.Rank == BanRankBanned || item.Rank == BanRankTrusted || item.Rank == BanRankWarn {
+				if item == nil || !(item.Rank == BanRankBanned || item.Rank == BanRankTrusted || item.Rank == BanRankWarn) {
+					ReplyToSender(ctx, msg, "找不到用户/群组")
+				} else {
 					ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 移出%s列表", uid, BanRankText[item.Rank]))
 					item.Score = 0
 					item.Rank = BanRankNormal
-				} else {
-					ReplyToSender(ctx, msg, "找不到用户/群组")
 				}
 			case "trust":
 				uid := cmdArgs.GetArgN(2)
