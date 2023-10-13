@@ -939,7 +939,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
-	self.ExtList = append(self.ExtList, &ExtInfo{
+	self.RegisterExtension(&ExtInfo{
 		Name:            "fun", // 扩展的名称，需要用于指令中，写简短点
 		Version:         "1.1.0",
 		Brief:           "娱乐扩展，主要提供今日人品、智能鸽子和text指令，以及暂时用于放置小众规则指令",

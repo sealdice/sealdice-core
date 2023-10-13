@@ -2,11 +2,13 @@ package dice
 
 import (
 	"errors"
-	"github.com/dop251/goja"
-	"github.com/tidwall/buntdb"
+	"fmt"
 	"os"
 	"path"
 	"sort"
+
+	"github.com/dop251/goja"
+	"github.com/tidwall/buntdb"
 )
 
 func (d *Dice) RegisterBuiltinExt() {
@@ -20,7 +22,17 @@ func (d *Dice) RegisterBuiltinExt() {
 	RegisterBuiltinExtExp(d)
 }
 
+// RegisterExtension 注册扩展
+//
+// panic 如果扩展的Name或Aliases冲突
 func (d *Dice) RegisterExtension(extInfo *ExtInfo) {
+	for _, name := range append(extInfo.Aliases, extInfo.Name) {
+		if collide := d.ExtFind(name); collide != nil {
+			panicMsg := fmt.Sprintf("扩展<%s>的名字%q与现存扩展<%s>冲突", extInfo.Name, name, collide.Name)
+			panic(panicMsg)
+		}
+	}
+
 	extInfo.dice = d
 	d.ExtList = append(d.ExtList, extInfo)
 }
