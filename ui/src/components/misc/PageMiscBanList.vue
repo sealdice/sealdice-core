@@ -95,7 +95,7 @@
   </div>
   <!-- <div>
     <span style="margin-right: 1rem;">其他:</span>
-    <el-checkbox v-model="orderByTimeDesc">按最后使用时间降序</el-checkbox>    
+    <el-checkbox v-model="orderByTimeDesc">按最后使用时间降序</el-checkbox>
   </div> -->
   <div style="margin: 1rem 0;">
     <span style="margin-right: 0.5rem;">搜索：</span>
@@ -306,7 +306,7 @@ const banConfig = ref<any>({})
 
 const beforeUpload = async (file: UploadUserFile) => {
   let fd = new FormData()
-  fd.append('file', file as Blob)
+  fd.append('file', file as unknown as Blob)
 
   const c = await store.banUpload({form: fd})
   if (c.result) {

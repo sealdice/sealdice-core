@@ -465,6 +465,22 @@ export const useStore = defineStore('main', {
         }
       })
     },
+    async jsGetConfig() {
+      return await apiFetch(urlPrefix + '/js/get_configs', {
+        method: 'GET', headers: {
+            token: this.token
+        }
+      })
+    },
+    async jsSetConfig(configs: any) {
+        return await backend.post(urlPrefix + '/js/set_configs',  configs)
+    },
+    async jsResetConfig(pluginName: any, key: any) {
+        return await backend.post(urlPrefix + '/js/reset_config', {pluginName, key})
+    },
+    async jsDeleteUnusedConfig(pluginName: any, key: any) {
+      return await backend.post(urlPrefix + '/js/delete_unused_config', {pluginName, key})
+    },
     async jsGetRecord() {
       return await apiFetch(urlPrefix + '/js/get_record', {
         method: 'GET', headers: {

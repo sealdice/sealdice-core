@@ -93,7 +93,7 @@ const refreshFiles = async () => {
 
 const beforeUpload = async (file: UploadUserFile) => {
   let fd = new FormData()
-  fd.append('file', file as Blob)
+  fd.append('file', file as unknown as Blob)
 
   const c = await censorStore.fileUpload({form: fd})
   if (c.result) {
