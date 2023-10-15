@@ -566,7 +566,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 			if mctx.Group != nil && mctx.Group.System != "" {
 				mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
-				//tmpl, _ := d.GameSystemMap.Load(group.System)
+				//tmpl, _ := d.GameSystemMap.LoadBase(group.System)
 				//mctx.SystemTemplate = tmpl
 			}
 		}

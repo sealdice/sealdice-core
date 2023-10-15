@@ -153,6 +153,25 @@ cmd_last_time INTEGER,
 online_time INTEGER,
 updated_at INTEGER
 );`,
+
+		`
+CREATE TABLE IF NOT EXISTS attrs (
+    id TEXT PRIMARY KEY,
+    data TEXT,
+
+	binding_sheet_id TEXT,
+
+    nickname TEXT,
+    owner_id TEXT,
+    sheet_type TEXT,
+    is_hidden BOOLEAN,
+
+    created_at INTEGER,
+    updated_at INTEGER
+);
+`,
+		`create index if not exists idx_attrs_binding_sheet_id on ban_info (binding_sheet_id);`,
+		`create index if not exists idx_attrs_owner_id_id on ban_info (owner_id);`,
 	}
 	for _, i := range texts {
 		_, _ = dataDB.Exec(i)
