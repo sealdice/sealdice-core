@@ -1381,18 +1381,6 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				vm.GlobalValueLoadFunc = loadValueFromRollVMv1
-				valueToRollVMv1 := func(v *ds.VMValue) *VMValue {
-					var v2 *VMValue
-					switch v.TypeId {
-					case ds.VMTypeInt:
-						v2 = &VMValue{TypeId: VMTypeInt64, Value: v.MustReadInt()}
-					case ds.VMTypeFloat:
-						v2 = &VMValue{TypeId: VMTypeInt64, Value: int64(v.MustReadFloat())}
-					default:
-						v2 = &VMValue{TypeId: VMTypeString, Value: v.ToString()}
-					}
-					return v2
-				}
 
 				funcWrap := func(name string, val *ds.VMValue) *ds.VMValue {
 					return ds.VMValueNewNativeFunction(&ds.NativeFunctionData{
@@ -1411,7 +1399,7 @@ func (d *Dice) registerCoreCommands() {
 						switch name {
 						case "keys":
 							vars, _ := ctx.ChVarsGet()
-							items := []*ds.VMValue{}
+							var items []*ds.VMValue
 							_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
 								items = append(items, ds.VMValueNewStr(_k.(string)))
 								return nil
@@ -1419,7 +1407,7 @@ func (d *Dice) registerCoreCommands() {
 							return funcWrap("keys", ds.VMValueNewArrayRaw(items))
 						case "values":
 							vars, _ := ctx.ChVarsGet()
-							items := []*ds.VMValue{}
+							var items []*ds.VMValue
 							_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
 								v := (_v).(*VMValue)
 								items = append(items, v.ConvertToDiceScriptValue())
@@ -1428,7 +1416,7 @@ func (d *Dice) registerCoreCommands() {
 							return funcWrap("values", ds.VMValueNewArrayRaw(items))
 						case "items":
 							vars, _ := ctx.ChVarsGet()
-							items := []*ds.VMValue{}
+							var items []*ds.VMValue
 							_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
 								items = append(items, ds.VMValueNewArray(ds.VMValueNewStr(_k.(string)), (_v).(*VMValue).ConvertToDiceScriptValue()))
 								return nil
@@ -1445,7 +1433,7 @@ func (d *Dice) registerCoreCommands() {
 						return loadValueFromRollVMv1(index.ToString())
 					},
 					AttrSet: func(vm *ds.Context, name string, v *ds.VMValue) {
-						VarSetValue(ctx, tmpl.GetAlias(name), valueToRollVMv1(v))
+						VarSetValue(ctx, tmpl.GetAlias(name), dsValueToRollVMv1(v))
 					},
 					ItemSet: func(vm *ds.Context, index *ds.VMValue, v *ds.VMValue) {
 						if index.TypeId != ds.VMTypeString {
@@ -1453,7 +1441,7 @@ func (d *Dice) registerCoreCommands() {
 							return
 						}
 						name := index.ToString()
-						VarSetValue(ctx, tmpl.GetAlias(name), valueToRollVMv1(v))
+						VarSetValue(ctx, tmpl.GetAlias(name), dsValueToRollVMv1(v))
 					},
 					DirFunc: func(vm *ds.Context) []*ds.VMValue {
 						vars, _ := ctx.ChVarsGet()
@@ -1466,13 +1454,13 @@ func (d *Dice) registerCoreCommands() {
 					},
 				}
 
-				vPlayer := ds.VMValueNewNativeObject(od)
-				vm.StoreNameLocal("player", vPlayer)
-				vm.StoreNameLocal("玩家", vPlayer)
+				vChar := ds.VMValueNewNativeObject(od)
+				vm.StoreNameLocal("角色", vChar)
+				vm.StoreNameLocal("char", vChar)
 
 				vm.ValueStoreHookFunc = func(vm *ds.Context, name string, v *ds.VMValue) (solved bool) {
 					if strings.HasPrefix(name, "$") {
-						VarSetValue(ctx, name, valueToRollVMv1(v))
+						VarSetValue(ctx, name, dsValueToRollVMv1(v))
 						return true
 					}
 					return false

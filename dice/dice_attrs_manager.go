@@ -1,7 +1,7 @@
 package dice
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"sealdice-core/dice/model"
 	"time"
@@ -14,43 +14,69 @@ type AttrsManager struct {
 	m      SyncMap[string, *AttributesItem]
 }
 
-func (am *AttrsManager) Load(groupId string, userId string) *AttributesItem {
+func (am *AttrsManager) Load(groupId string, userId string) (*AttributesItem, error) {
+	userId = am.UIDConvert(userId)
+
 	//	1. 首先获取当前群+用户所绑定的卡
 	// 绑定卡的id是nanoid
+	id, err := model.AttrsGetBindingSheetId(am.parent.DBData, userId)
+	if err != nil {
+		return nil, err
+	}
 
 	// 2. 如果取不到，那么取用户在当前群的默认卡
-	id := fmt.Sprintf("%s-%s", groupId, userId)
+	if id == "" {
+		id = fmt.Sprintf("%s-%s", groupId, userId)
+	}
 	return am.LoadBase(id)
 }
 
-func (am *AttrsManager) LoadBase(id string) *AttributesItem {
+func (am *AttrsManager) UIDConvert(userId string) string {
+	// 如果存在一个虚拟id，那么返回虚拟id，不存在原样返回
+	return userId
+}
+
+// LoadBase 数据加载，负责以下数据
+// 1. 群内用户的默认卡(id格式为：群id:用户id)
+// 2. 用户创建出的角色卡（指定id）
+// 3. 群属性(id为群id)
+// 4. 用户全局属性
+func (am *AttrsManager) LoadBase(id string) (*AttributesItem, error) {
 	// 1. 如果当前有缓存，那么从缓存中返回。
 	// 但是。。如果有人把这个对象一直持有呢？
 	i, exists := am.m.Load(id)
 	if exists {
-		return i
+		return i, nil
 	}
 
 	// 2. 从新数据库加载
 	d := am.parent
 	data, err := model.AttrsGetById(d.DBData, id)
 	if err == nil {
-		values := ds.ValueMap{}
-		err := json.Unmarshal([]byte(data.Data), &values)
-		if err != nil {
-			return nil
-		}
-
-		i = &AttributesItem{
-			ID:           id,
-			ValueMap:     &values,
-			LastUsedTime: time.Now().Unix(),
+		if data != nil {
+			v, err := ds.VMValueFromJSON([]byte(data.Data))
+			if err != nil {
+				return nil, err
+			}
+			if dd, ok := v.ReadDictData(); ok {
+				i = &AttributesItem{
+					ID:           id,
+					ValueMap:     dd.Dict,
+					LastUsedTime: time.Now().Unix(),
+				}
+				am.m.Store(id, i)
+				return i, nil
+			} else {
+				return nil, errors.New("角色数据类型不正确")
+			}
 		}
 	} else {
 		// 啊？表读不了？
+		return nil, errors.New("数据库异常，无法读取")
 	}
 
-	// 3. 从老数据库读取
+	// 3. 从老数据库读取 - 群用户数据
+	// （其实还有一种，但是读不了，就是玩家的卡数据，因为没有id）
 	dataOld := model.AttrGroupUserGetAllBase(d.DBData, id)
 	if dataOld != nil {
 		mapData := make(map[string]*VMValue)
@@ -58,15 +84,30 @@ func (am *AttrsManager) LoadBase(id string) *AttributesItem {
 		if err != nil {
 			d.Logger.Errorf("读取玩家数据失败！错误 %v 原数据 %v", err, data)
 		}
-		// TODO: 进行转换
+
+		m := &ds.ValueMap{}
+		for k, v := range mapData {
+			m.Store(k, v.ConvertToDiceScriptValue())
+		}
+
+		now := time.Now().Unix()
+		i = &AttributesItem{
+			ID:               id,
+			ValueMap:         m,
+			LastUsedTime:     now,
+			LastModifiedTime: now,
+		}
+		am.m.Store(id, i)
+		return i, nil
 	}
 
 	// 4. 创建一个新的
 	i = &AttributesItem{
-		ID: id,
+		ID:       id,
+		ValueMap: &ds.ValueMap{},
 	}
 	am.m.Store(id, i)
-	return i
+	return i, nil
 }
 
 func (am *AttrsManager) CheckForSave() (int, int) {

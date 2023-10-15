@@ -21,9 +21,11 @@ type AttributesItemModel struct {
 	UpdatedAt int64 `json:"updatedAt" db:"updated_at"`
 }
 
+// TOOD: 下面这个表记得添加 unique 索引
+
 // PlatformMappingModel 虚拟ID - 平台用户ID 映射表
 type PlatformMappingModel struct {
-	Id       string `json:"id" db:"id"`               // 虚拟ID，这是个nanoid
+	Id       string `json:"id" db:"id"`               // 虚拟ID，格式为 U:nanoid 意为 User / Uniform / Universal
 	IMUserID string `json:"IMUserID" db:"im_user_id"` // IM平台的用户ID
 }
 
@@ -34,4 +36,13 @@ func AttrsGetById(db *sqlx.DB, id string) (*AttributesItemModel, error) {
 		return nil, err
 	}
 	return &item, nil
+}
+
+func AttrsGetBindingSheetId(db *sqlx.DB, id string) (string, error) {
+	var item AttributesItemModel
+	err := db.Get(&item, "select binding_sheet_id from attrs where id = $1", id)
+	if err != nil {
+		return "", err
+	}
+	return item.BindingSheetId, nil
 }
