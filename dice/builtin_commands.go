@@ -1368,20 +1368,13 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				loadValueFromRollVMv1 := func(name string) *ds.VMValue {
-					val, err := tmpl.getShowAsBase(ctx, name)
-					if err != nil {
-						vm.Error = err
-						return ds.VMValueNewUndefined()
-					}
-					if val == nil {
-						return nil
-					}
-					return val.ConvertToDiceScriptValue()
+				attrs, err := d.AttrsManager.Load(ctx.Group.GroupId, ctx.Player.UserId)
+				if err != nil {
+					ReplyToSender(ctx, msg, "数据读取错误:"+err.Error())
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				vm.GlobalValueLoadFunc = loadValueFromRollVMv1
-
+				vm.GlobalValueLoadFunc = attrs.Load
 				funcWrap := func(name string, val *ds.VMValue) *ds.VMValue {
 					return ds.VMValueNewNativeFunction(&ds.NativeFunctionData{
 						Name:   name,
@@ -1398,42 +1391,27 @@ func (d *Dice) registerCoreCommands() {
 						// 注: 未来切换人物卡时，角色数据会被转换为ds版本，所以这里写的丑陋了一些
 						switch name {
 						case "keys":
-							vars, _ := ctx.ChVarsGet()
-							var items []*ds.VMValue
-							_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-								items = append(items, ds.VMValueNewStr(_k.(string)))
-								return nil
-							})
+							items := attrs.toArrayKeys()
 							return funcWrap("keys", ds.VMValueNewArrayRaw(items))
 						case "values":
-							vars, _ := ctx.ChVarsGet()
-							var items []*ds.VMValue
-							_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-								v := (_v).(*VMValue)
-								items = append(items, v.ConvertToDiceScriptValue())
-								return nil
-							})
+							items := attrs.toArrayValues()
 							return funcWrap("values", ds.VMValueNewArrayRaw(items))
 						case "items":
-							vars, _ := ctx.ChVarsGet()
-							var items []*ds.VMValue
-							_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-								items = append(items, ds.VMValueNewArray(ds.VMValueNewStr(_k.(string)), (_v).(*VMValue).ConvertToDiceScriptValue()))
-								return nil
-							})
+							items := attrs.toArrayItems()
 							return funcWrap("items", ds.VMValueNewArrayRaw(items))
 						}
-						return loadValueFromRollVMv1(name)
+						return attrs.Load(name)
 					},
 					ItemGet: func(vm *ds.Context, index *ds.VMValue) *ds.VMValue {
 						if index.TypeId != ds.VMTypeString {
 							vm.Error = errors.New("index must be string")
 							return nil
 						}
-						return loadValueFromRollVMv1(index.ToString())
+						return attrs.Load(index.ToString())
 					},
 					AttrSet: func(vm *ds.Context, name string, v *ds.VMValue) {
-						VarSetValue(ctx, tmpl.GetAlias(name), dsValueToRollVMv1(v))
+						//VarSetValue(ctx, tmpl.GetAlias(name), dsValueToRollVMv1(v))
+						attrs.Store(name, v)
 					},
 					ItemSet: func(vm *ds.Context, index *ds.VMValue, v *ds.VMValue) {
 						if index.TypeId != ds.VMTypeString {
@@ -1441,16 +1419,11 @@ func (d *Dice) registerCoreCommands() {
 							return
 						}
 						name := index.ToString()
-						VarSetValue(ctx, tmpl.GetAlias(name), dsValueToRollVMv1(v))
+						attrs.Store(name, v)
+						//VarSetValue(ctx, tmpl.GetAlias(name), dsValueToRollVMv1(v))
 					},
 					DirFunc: func(vm *ds.Context) []*ds.VMValue {
-						vars, _ := ctx.ChVarsGet()
-						items := []*ds.VMValue{}
-						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-							items = append(items, ds.VMValueNewStr(_k.(string)))
-							return nil
-						})
-						return items
+						return attrs.toArrayKeys()
 					},
 				}
 

@@ -1939,7 +1939,7 @@ func dndSetRiMapList(ctx *MsgContext, riMap map[string]int64, uidMap map[string]
 
 	// 这里出现了丢数据的情况，但其实
 	// 二次save其实并不科学 // 确实不科学 看起来不用了
-	//data, _ := json.Marshal(LockFreeMapToMap(ctx.Group.ValueMap))
+	//data, _ := json.Marshal(LockFreeMapToMap(ctx.Group.valueMap))
 	//model.AttrGroupSave(ctx.Dice.DB, ctx.Group.GroupId, data)
 }
 

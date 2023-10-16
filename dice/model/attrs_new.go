@@ -1,11 +1,14 @@
 package model
 
-import "github.com/jmoiron/sqlx"
+import (
+	"database/sql"
+	"github.com/jmoiron/sqlx"
+)
 
 // 新版人物卡
 type AttributesItemModel struct {
 	Id   string `json:"id" db:"id"`     // 如果是群内，那么是类似 QQ-Group:12345-QQ:678910，群外是nanoid
-	Data string `json:"data" db:"data"` // 序列化后的卡数据
+	Data []byte `json:"data" db:"data"` // 序列化后的卡数据，理论上[]byte不会进入字符串缓存，要更好些？
 
 	// 这些是群组内置卡专用的，其实就是少创建了一个绑卡关系表
 	BindingSheetId string `json:"bindingSheetId" db:"binding_sheet_id"` // 绑定的卡片ID
@@ -21,6 +24,10 @@ type AttributesItemModel struct {
 	UpdatedAt int64 `json:"updatedAt" db:"updated_at"`
 }
 
+func (m *AttributesItemModel) IsDataExists() bool {
+	return m.Data != nil && len(m.Data) > 0
+}
+
 // TOOD: 下面这个表记得添加 unique 索引
 
 // PlatformMappingModel 虚拟ID - 平台用户ID 映射表
@@ -32,7 +39,7 @@ type PlatformMappingModel struct {
 func AttrsGetById(db *sqlx.DB, id string) (*AttributesItemModel, error) {
 	var item AttributesItemModel
 	err := db.Get(&item, "select * from attrs where id = $1", id)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 	return &item, nil
@@ -41,8 +48,18 @@ func AttrsGetById(db *sqlx.DB, id string) (*AttributesItemModel, error) {
 func AttrsGetBindingSheetId(db *sqlx.DB, id string) (string, error) {
 	var item AttributesItemModel
 	err := db.Get(&item, "select binding_sheet_id from attrs where id = $1", id)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return "", err
 	}
 	return item.BindingSheetId, nil
+}
+
+func AttrsPutById(db *sqlx.DB, tx *sql.Tx, id string, data []byte) error {
+	var err error
+	if tx != nil {
+		_, err = tx.Exec("replace into attrs (id, data) values ($1, $2)", id, data)
+	} else {
+		_, err = db.Exec("replace into attrs (id, data) values ($1, $2)", id, data)
+	}
+	return err
 }

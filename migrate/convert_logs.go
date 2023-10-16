@@ -62,7 +62,6 @@ type GroupInfo struct {
 	GroupId   string `yaml:"groupId" json:"groupId" jsbind:"groupId"`
 	GroupName string `yaml:"groupName" json:"groupName" jsbind:"groupName"`
 
-	//ValueMap     map[string]*VMValue `yaml:"-"`
 	LogCurName string `yaml:"logCurFile" json:"logCurName" jsbind:"logCurName"`
 	LogOn      bool   `yaml:"logOn" json:"logOn" jsbind:"logOn"`
 

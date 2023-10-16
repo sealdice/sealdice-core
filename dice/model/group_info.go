@@ -69,7 +69,6 @@ type PlayerVariablesItem struct {
 	Loaded        bool             `yaml:"-"`
 	ValueMap      lockfree.HashMap `yaml:"-"`
 	LastWriteTime int64            `yaml:"lastUsedTime"`
-	//ValueMap            map[string]*VMValue `yaml:"-"`
 }
 
 // GroupPlayerInfoBase 群内玩家信息

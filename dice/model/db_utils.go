@@ -18,6 +18,7 @@ func DBCacheDelete() bool {
 			// 文件不在了，就当作删除成功
 			return true
 		}
+		fmt.Printf("删除文件 %s", fnPath)
 		return os.Remove(fnPath) == nil
 	}
 

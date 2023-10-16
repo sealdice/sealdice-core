@@ -1,8 +1,10 @@
 package dice
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"sealdice-core/dice/model"
 	"time"
 
@@ -53,15 +55,15 @@ func (am *AttrsManager) LoadBase(id string) (*AttributesItem, error) {
 	d := am.parent
 	data, err := model.AttrsGetById(d.DBData, id)
 	if err == nil {
-		if data != nil {
-			v, err := ds.VMValueFromJSON([]byte(data.Data))
+		if data.IsDataExists() {
+			v, err := ds.VMValueFromJSON(data.Data)
 			if err != nil {
 				return nil, err
 			}
 			if dd, ok := v.ReadDictData(); ok {
 				i = &AttributesItem{
 					ID:           id,
-					ValueMap:     dd.Dict,
+					valueMap:     dd.Dict,
 					LastUsedTime: time.Now().Unix(),
 				}
 				am.m.Store(id, i)
@@ -72,66 +74,106 @@ func (am *AttrsManager) LoadBase(id string) (*AttributesItem, error) {
 		}
 	} else {
 		// 啊？表读不了？
-		return nil, errors.New("数据库异常，无法读取")
+		return nil, err
 	}
 
 	// 3. 从老数据库读取 - 群用户数据
 	// （其实还有一种，但是读不了，就是玩家的卡数据，因为没有id）
-	dataOld := model.AttrGroupUserGetAllBase(d.DBData, id)
-	if dataOld != nil {
-		mapData := make(map[string]*VMValue)
-		err := JsonValueMapUnmarshal(dataOld, &mapData)
-		if err != nil {
-			d.Logger.Errorf("读取玩家数据失败！错误 %v 原数据 %v", err, data)
-		}
-
-		m := &ds.ValueMap{}
-		for k, v := range mapData {
-			m.Store(k, v.ConvertToDiceScriptValue())
-		}
-
-		now := time.Now().Unix()
-		i = &AttributesItem{
-			ID:               id,
-			ValueMap:         m,
-			LastUsedTime:     now,
-			LastModifiedTime: now,
-		}
-		am.m.Store(id, i)
-		return i, nil
-	}
+	// 暂时先不弄这种了，太容易出问题
+	//dataOld := model.AttrGroupUserGetAllBase(d.DBData, id)
+	//if dataOld != nil {
+	//	mapData := make(map[string]*VMValue)
+	//	err := JsonValueMapUnmarshal(dataOld, &mapData)
+	//	if err != nil {
+	//		d.Logger.Errorf("读取玩家数据失败！错误 %v 原数据 %v", err, data)
+	//	}
+	//
+	//	m := &ds.ValueMap{}
+	//	for k, v := range mapData {
+	//		m.Store(k, v.ConvertToDiceScriptValue())
+	//	}
+	//
+	//	now := time.Now().Unix()
+	//	i = &AttributesItem{
+	//		ID:               id,
+	//		valueMap:         m,
+	//		LastUsedTime:     now,
+	//		LastModifiedTime: now,
+	//	}
+	//	am.m.Store(id, i)
+	//	return i, nil
+	//}
 
 	// 4. 创建一个新的
+	// 注: 缺 created_at、updated_at、sheet_type、owner_id、is_hidden、nickname等各项
+	// 可能需要ctx了
 	i = &AttributesItem{
 		ID:       id,
-		ValueMap: &ds.ValueMap{},
+		valueMap: &ds.ValueMap{},
 	}
 	am.m.Store(id, i)
 	return i, nil
 }
 
+func (am *AttrsManager) Init() {
+	go func() {
+		for {
+			am.CheckForSave()
+			am.CheckAndFreeUnused()
+			time.Sleep(30 * time.Second)
+		}
+	}()
+}
+
 func (am *AttrsManager) CheckForSave() (int, int) {
 	times := 0
 	saved := 0
+
+	dice := am.parent
+	db := am.parent.DBData
+	if db == nil {
+		// 尚未初始化
+		return 0, 0
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		dice.Logger.Errorf("定期写入用户数据出错(创建事务): %v", err)
+		return 0, 0
+	}
+
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if !value.IsSaved {
 			saved += 1
-			value.SaveToDB()
+			value.SaveToDB(db, tx)
 		}
 		times += 1
 		return true
 	})
+
+	err = tx.Commit()
+	if err != nil {
+		dice.Logger.Errorf("定期写入用户数据出错(提交事务): %v", err)
+		_ = tx.Rollback()
+		return times, 0
+	}
 	return times, saved
 }
 
 // CheckAndFreeUnused 此函数会被定期调用，释放最近不用的对象
 func (am *AttrsManager) CheckAndFreeUnused() {
+	db := am.parent.DBData
+	if db == nil {
+		// 尚未初始化
+		return
+	}
+
 	prepareToFree := map[string]int{}
 	currentTime := time.Now().Unix()
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if value.LastUsedTime-currentTime > 60*10 {
 			prepareToFree[key] = 1
-			value.SaveToDB()
+			value.SaveToDB(am.parent.DBData, nil)
 		}
 		return true
 	})
@@ -144,13 +186,71 @@ func (am *AttrsManager) CheckAndFreeUnused() {
 // AttributesItem 这是一个人物卡对象
 type AttributesItem struct {
 	ID               string
-	ValueMap         *ds.ValueMap // SyncMap[string, *ds.VMValue] 这种类型更好吗？我得确认一下js兼容性
+	valueMap         *ds.ValueMap // SyncMap[string, *ds.VMValue] 这种类型更好吗？我得确认一下js兼容性
 	LastModifiedTime int64        // 上次修改时间
 	LastUsedTime     int64        // 上次使用时间
 	IsSaved          bool
 }
 
-func (i *AttributesItem) SaveToDB() {
-	// 可能还需要一点别的，例如db对象
+func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
+	if tx != nil {
+		// 使用事务写入
+		rawData, err := i.toDict().V().ToJSON()
+		if err != nil {
+			return
+		}
+		err = model.AttrsPutById(db, tx, i.ID, rawData)
+		if err != nil {
+			return
+		}
+	}
 	i.IsSaved = true
+}
+
+func (i *AttributesItem) Load(name string) *ds.VMValue {
+	v, _ := i.valueMap.Load(name)
+	i.LastUsedTime = time.Now().Unix()
+	return v
+}
+
+func (i *AttributesItem) Store(name string, value *ds.VMValue) {
+	now := time.Now().Unix()
+	i.valueMap.Store(name, value)
+	i.LastModifiedTime = now
+	i.LastUsedTime = now
+}
+
+func (i *AttributesItem) toDict() *ds.VMDictValue {
+	// 这里有一个风险，就是对dict的改动可能不会影响修改时间和使用时间，从而被丢弃
+	return ds.VMValueNewDict(i.valueMap)
+}
+
+func (i *AttributesItem) toArrayKeys() []*ds.VMValue {
+	var items []*ds.VMValue
+	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
+		items = append(items, ds.VMValueNewStr(key))
+		return true
+	})
+	return items
+}
+
+func (i *AttributesItem) toArrayValues() []*ds.VMValue {
+	var items []*ds.VMValue
+	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
+		items = append(items, value)
+		return true
+	})
+	return items
+}
+
+func (i *AttributesItem) toArrayItems() []*ds.VMValue {
+	var items []*ds.VMValue
+	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
+		items = append(
+			items,
+			ds.VMValueNewArray(ds.VMValueNewStr(key), value),
+		)
+		return true
+	})
+	return items
 }

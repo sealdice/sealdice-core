@@ -157,17 +157,18 @@ updated_at INTEGER
 		`
 CREATE TABLE IF NOT EXISTS attrs (
     id TEXT PRIMARY KEY,
-    data TEXT,
+    data BYTEA,
 
-	binding_sheet_id TEXT,
+	-- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
+	binding_sheet_id TEXT default '',
 
-    nickname TEXT,
-    owner_id TEXT,
-    sheet_type TEXT,
-    is_hidden BOOLEAN,
+    nickname TEXT default '',
+    owner_id TEXT default '',
+    sheet_type TEXT default '',
+    is_hidden BOOLEAN default FALSE,
 
-    created_at INTEGER,
-    updated_at INTEGER
+    created_at INTEGER default 0,
+    updated_at INTEGER  default 0
 );
 `,
 		`create index if not exists idx_attrs_binding_sheet_id on ban_info (binding_sheet_id);`,

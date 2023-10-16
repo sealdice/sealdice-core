@@ -302,9 +302,8 @@ func (d *Dice) Init() {
 	d.Cron = cron.New()
 	d.Cron.Start()
 
-	d.AttrsManager = &AttrsManager{
-		parent: d,
-	}
+	d.AttrsManager = &AttrsManager{parent: d}
+	d.AttrsManager.Init()
 
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 

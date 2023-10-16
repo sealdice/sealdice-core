@@ -79,7 +79,7 @@ type GroupInfo struct {
 	DiceSideNum     int64                  `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
 	System          string                 `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
-	//ValueMap     map[string]*VMValue `yaml:"-"`
+	//valueMap     map[string]*VMValue `yaml:"-"`
 	ValueMap     lockfree.HashMap `yaml:"-" json:"-"`
 	HelpPackages []string         `yaml:"-" json:"helpPackages"`
 	CocRuleIndex int              `yaml:"cocRuleIndex" json:"cocRuleIndex" jsbind:"cocRuleIndex"`
@@ -1046,11 +1046,11 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				//// 进行指令统计
 				//vPlayer := ctx.LoadPlayerGlobalVars()
 				//key := "#" + item.Name
-				//_v, ok := vPlayer.ValueMap.Get(key)
+				//_v, ok := vPlayer.valueMap.Get(key)
 				//if ok {
 				//	v, ok := _v.(int64)
 				//	if ok {
-				//		vPlayer.ValueMap.Set(key, v+1)
+				//		vPlayer.valueMap.Set(key, v+1)
 				//	}
 				//}
 
