@@ -704,7 +704,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				}()
 
 				// 敏感词拦截：命令输入
-				if mctx.IsCurGroupBotOn && d.EnableCensor && d.CensorMode == OnlyInputCommand {
+				if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.EnableCensor && d.CensorMode == OnlyInputCommand {
 					hit, needToTerminate, _ := d.CensorMsg(mctx, msg, "")
 					if needToTerminate {
 						return
