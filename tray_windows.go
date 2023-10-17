@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"golang.org/x/sys/windows"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -18,11 +17,12 @@ import (
 	"time"
 	"unsafe"
 
+	"golang.org/x/sys/windows"
+
 	"github.com/fy0/go-autostart"
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
 	"github.com/labstack/echo/v4"
-	"github.com/lxn/win"
 	"github.com/monaco-io/request"
 )
 
