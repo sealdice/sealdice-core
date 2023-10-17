@@ -148,7 +148,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, sendContent string) (hi
 					levelText := censor.LevelText[level]
 					if handler&(1<<SendWarning) != 0 {
 						tmplText := fmt.Sprintf("核心:拦截_警告内容_%s级", censor.LevelText[level])
-						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, tmplText))
+						ReplyToSenderNoCheck(mctx, msg, DiceFormatTmpl(mctx, tmplText))
 					}
 					if handler&(1<<SendNotice) != 0 {
 						// 向通知列表/邮件发送通知

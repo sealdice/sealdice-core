@@ -138,8 +138,21 @@ func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	}
 }
 
+func replyToSenderRawNoCheck(ctx *MsgContext, msg *Message, text string, flag string) {
+	inGroup := msg.MessageType == "group"
+	if inGroup {
+		replyGroupRawNoCheck(ctx, msg, text, flag)
+	} else {
+		replyPersonRawNoCheck(ctx, msg, text, flag)
+	}
+}
+
 func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
 	go ReplyToSenderRaw(ctx, msg, text, "")
+}
+
+func ReplyToSenderNoCheck(ctx *MsgContext, msg *Message, text string) {
+	go replyToSenderRawNoCheck(ctx, msg, text, "")
 }
 
 func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
@@ -161,6 +174,14 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 				text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
 			}
 		}
+	}
+	replyGroupRawNoCheck(ctx, msg, text, flag)
+}
+
+func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag string) {
+	if ctx.DelegateText != "" {
+		text = ctx.DelegateText + text
+		ctx.DelegateText = ""
 	}
 	if lenWithoutBase64(text) > 15000 {
 		text = "要发送的文本过长"
@@ -204,7 +225,14 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 			}
 		}
 	}
+	replyPersonRawNoCheck(ctx, msg, text, flag)
+}
 
+func replyPersonRawNoCheck(ctx *MsgContext, msg *Message, text string, flag string) {
+	if ctx.DelegateText != "" {
+		text = ctx.DelegateText + text
+		ctx.DelegateText = ""
+	}
 	if lenWithoutBase64(text) > 15000 {
 		text = "要发送的文本过长"
 	}
