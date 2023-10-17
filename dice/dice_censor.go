@@ -8,6 +8,7 @@ import (
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/model"
 	"sort"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -221,7 +222,14 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, sendContent string) (hi
 						}
 					}
 					// 只处理一次
-					d.Logger.Infof("<%s>(%s)发送的「%s」触发<%s>级敏感词，触发次数已经超过阈值，进行处理", msg.Sender.Nickname, msg.Sender.UserId, msg.Message, censor.LevelText[level])
+					d.Logger.Infof(
+						"<%s>(%s)发送的「%s」触发最高<%s>级敏感词（%s），触发次数已经超过阈值，进行处理",
+						msg.Sender.Nickname,
+						msg.Sender.UserId,
+						msg.Message,
+						censor.LevelText[level],
+						strings.Join(checkResult.CurSensitiveWords, "|"),
+					)
 					break
 				}
 			}
