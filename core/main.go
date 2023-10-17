@@ -18,6 +18,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
 	//_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -368,7 +369,6 @@ func main() {
 		hideWindow()
 	}
 
-	go trayInit(diceManager)
 	go dice.TryGetBackendUrl()
 
 	cleanUp := cleanUpCreate(diceManager)
@@ -419,13 +419,16 @@ func main() {
 	//	http.ListenAndServe("0.0.0.0:8899", nil)
 	//}()
 
-	uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
+	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
 	//OOM分析工具
 	//err = nil
 	//err = http.ListenAndServe(":9090", nil)
 	//if err != nil {
 	//	fmt.Printf("ListenAndServe: %s", err)
 	//}
+
+	// darwin 的托盘菜单似乎需要在主线程启动才能工作，调整到这里
+	trayInit(diceManager)
 }
 
 func removeUpdateFiles() {
