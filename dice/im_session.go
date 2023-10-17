@@ -566,7 +566,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 			if mctx.Group != nil && mctx.Group.System != "" {
 				mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
-				//tmpl, _ := d.GameSystemMap.LoadBase(group.System)
+				//tmpl, _ := d.GameSystemMap.LoadById(group.System)
 				//mctx.SystemTemplate = tmpl
 			}
 		}
@@ -1643,6 +1643,11 @@ func (ctx *MsgContext) ChBindGetList(name string) []string {
 		grps = append(grps, k)
 	}
 	return grps
+}
+
+// ChNewCurGet 获取当前群的用户数据(暂时以ChNew为前缀，以和之前API区分)
+func (mctx *MsgContext) ChNewCurGet() {
+	// 等等 好像暂时不需要
 }
 
 var curCommandId int64 = 0

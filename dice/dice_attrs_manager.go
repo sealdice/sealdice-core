@@ -19,18 +19,21 @@ type AttrsManager struct {
 func (am *AttrsManager) Load(groupId string, userId string) (*AttributesItem, error) {
 	userId = am.UIDConvert(userId)
 
+	// 组装当前群-用户的id
+	gid := fmt.Sprintf("%s-%s", groupId, userId)
+
 	//	1. 首先获取当前群+用户所绑定的卡
 	// 绑定卡的id是nanoid
-	id, err := model.AttrsGetBindingSheetId(am.parent.DBData, userId)
+	id, err := model.AttrsGetBindingSheetIdByGroupId(am.parent.DBData, gid)
 	if err != nil {
 		return nil, err
 	}
 
 	// 2. 如果取不到，那么取用户在当前群的默认卡
 	if id == "" {
-		id = fmt.Sprintf("%s-%s", groupId, userId)
+		id = gid
 	}
-	return am.LoadBase(id)
+	return am.LoadById(id)
 }
 
 func (am *AttrsManager) UIDConvert(userId string) string {
@@ -38,12 +41,38 @@ func (am *AttrsManager) UIDConvert(userId string) string {
 	return userId
 }
 
-// LoadBase 数据加载，负责以下数据
+func (am *AttrsManager) GetCharacterList(userId string) ([]*model.AttributesItemModel, error) {
+	userId = am.UIDConvert(userId)
+	lst, err := model.AttrsGetCharacterListByUserId(am.parent.DBData, userId)
+	if err != nil {
+		return nil, err
+	}
+	return lst, err
+}
+
+func (am *AttrsManager) CharNew(userId string, name string, sheetType string) (*model.AttributesItemModel, error) {
+	userId = am.UIDConvert(userId)
+	dict := &ds.ValueMap{}
+	dict.Store("$sheetType", ds.VMValueNewStr(sheetType))
+	json, err := ds.VMValueNewDict(dict).V().ToJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	return model.AttrsNewItem(am.parent.DBData, &model.AttributesItemModel{
+		Nickname:  name,
+		OwnerId:   userId,
+		SheetType: sheetType,
+		Data:      json,
+	})
+}
+
+// LoadById 数据加载，负责以下数据
 // 1. 群内用户的默认卡(id格式为：群id:用户id)
 // 2. 用户创建出的角色卡（指定id）
 // 3. 群属性(id为群id)
 // 4. 用户全局属性
-func (am *AttrsManager) LoadBase(id string) (*AttributesItem, error) {
+func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 	// 1. 如果当前有缓存，那么从缓存中返回。
 	// 但是。。如果有人把这个对象一直持有呢？
 	i, exists := am.m.Load(id)
@@ -64,6 +93,7 @@ func (am *AttrsManager) LoadBase(id string) (*AttributesItem, error) {
 				i = &AttributesItem{
 					ID:           id,
 					valueMap:     dd.Dict,
+					NickName:     i.NickName,
 					LastUsedTime: time.Now().Unix(),
 				}
 				am.m.Store(id, i)
@@ -183,6 +213,55 @@ func (am *AttrsManager) CheckAndFreeUnused() {
 	}
 }
 
+func (am *AttrsManager) CharBind(charId string, groupId string, userId string) error {
+	userId = am.UIDConvert(userId)
+	id := fmt.Sprintf("%s-%s", groupId, userId)
+	return model.AttrsBindCharacter(am.parent.DBData, charId, id)
+}
+
+// CharGetBindingId 获取当前群绑定的角色ID
+func (am *AttrsManager) CharGetBindingId(groupId string, userId string) (string, error) {
+	userId = am.UIDConvert(userId)
+	id := fmt.Sprintf("%s-%s", groupId, userId)
+	return model.AttrsGetBindingSheetIdByGroupId(am.parent.DBData, id)
+}
+
+func (am *AttrsManager) CharIdGetByName(userId string, name string) (string, error) {
+	return model.AttrsGetIdByUidAndName(am.parent.DBData, userId, name)
+}
+
+func (am *AttrsManager) CharCheckExists(name string, groupId string) bool {
+	// TODO: xxxx
+	//model.AttrsCharCheckExists(am.parent.DBData, name, id)
+	return false
+}
+
+func (am *AttrsManager) CharGetBindingGroupIdList(id string) []string {
+	all, err := model.AttrsCharGetBindingList(am.parent.DBData, id)
+	if err != nil {
+		return []string{}
+	}
+	// 只要群号
+	for i, v := range all {
+		a, b, _ := UnpackGroupUserId(v)
+		if b != "" {
+			all[i] = a
+		} else {
+			all[i] = b
+		}
+	}
+	return all
+}
+
+func (am *AttrsManager) CharUnbindAll(id string) []string {
+	all := am.CharGetBindingGroupIdList(id)
+	_, err := model.AttrsCharUnbindAll(am.parent.DBData, id)
+	if err != nil {
+		return []string{}
+	}
+	return all
+}
+
 // AttributesItem 这是一个人物卡对象
 type AttributesItem struct {
 	ID               string
@@ -190,19 +269,19 @@ type AttributesItem struct {
 	LastModifiedTime int64        // 上次修改时间
 	LastUsedTime     int64        // 上次使用时间
 	IsSaved          bool
+	NickName         string
 }
 
 func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
-	if tx != nil {
-		// 使用事务写入
-		rawData, err := i.toDict().V().ToJSON()
-		if err != nil {
-			return
-		}
-		err = model.AttrsPutById(db, tx, i.ID, rawData)
-		if err != nil {
-			return
-		}
+	// 使用事务写入
+	rawData, err := i.toDict().V().ToJSON()
+	if err != nil {
+		return
+	}
+	err = model.AttrsPutById(db, tx, i.ID, rawData)
+	if err != nil {
+		fmt.Println("保存数据失败", err.Error())
+		return
 	}
 	i.IsSaved = true
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	ds "github.com/sealdice/dicescript"
 	"math/rand"
 	"os"
 	"path"
@@ -18,7 +19,6 @@ import (
 	"github.com/fy0/lockfree"
 	"github.com/juliangruber/go-intersect"
 	cp "github.com/otiai10/copy"
-	ds "github.com/sealdice/dicescript"
 )
 
 /** 这几条指令不能移除 */
@@ -1333,148 +1333,6 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["rxh"] = cmdRollX
 	d.CmdMap["rhx"] = cmdRollX
 
-	vm := ds.NewVM()
-	vm.Flags.EnableDiceWoD = true
-	vm.Flags.EnableDiceCoC = true
-	vm.Flags.EnableDiceFate = true
-	vm.Flags.EnableDiceDoubleCross = true
-
-	HelpRollNew := ".fox <表达式> <原因> // 使用dicescript的骰点，测试用"
-	cmdFox := &CmdItemInfo{
-		Name:      "roll",
-		ShortHelp: HelpRollNew,
-		Help:      "骰点:\n" + HelpRollNew,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.Dice.TextCmdTrustOnly {
-				// 检查master和信任权限
-				refuse := ctx.PrivilegeLevel != 100
-				if refuse {
-					refuse = ctx.PrivilegeLevel != 70
-				}
-
-				// 拒绝无权限访问
-				if refuse {
-					ReplyToSender(ctx, msg, "你不具备Master权限")
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-			}
-
-			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
-
-			expr := cmdArgs.GetRestArgsFrom(1)
-			if expr != "" {
-				tmpl := cardRuleCheck(ctx, msg)
-				if tmpl == nil {
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				attrs, err := d.AttrsManager.Load(ctx.Group.GroupId, ctx.Player.UserId)
-				if err != nil {
-					ReplyToSender(ctx, msg, "数据读取错误:"+err.Error())
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				vm.GlobalValueLoadFunc = attrs.Load
-				funcWrap := func(name string, val *ds.VMValue) *ds.VMValue {
-					return ds.VMValueNewNativeFunction(&ds.NativeFunctionData{
-						Name:   name,
-						Params: []string{},
-						NativeFunc: func(vm *ds.Context, this *ds.VMValue, params []*ds.VMValue) *ds.VMValue {
-							return val
-						},
-					})
-				}
-
-				od := &ds.NativeObjectData{
-					Name: "player",
-					AttrGet: func(vm *ds.Context, name string) *ds.VMValue {
-						// 注: 未来切换人物卡时，角色数据会被转换为ds版本，所以这里写的丑陋了一些
-						switch name {
-						case "keys":
-							items := attrs.toArrayKeys()
-							return funcWrap("keys", ds.VMValueNewArrayRaw(items))
-						case "values":
-							items := attrs.toArrayValues()
-							return funcWrap("values", ds.VMValueNewArrayRaw(items))
-						case "items":
-							items := attrs.toArrayItems()
-							return funcWrap("items", ds.VMValueNewArrayRaw(items))
-						}
-						return attrs.Load(name)
-					},
-					ItemGet: func(vm *ds.Context, index *ds.VMValue) *ds.VMValue {
-						if index.TypeId != ds.VMTypeString {
-							vm.Error = errors.New("index must be string")
-							return nil
-						}
-						return attrs.Load(index.ToString())
-					},
-					AttrSet: func(vm *ds.Context, name string, v *ds.VMValue) {
-						//VarSetValue(ctx, tmpl.GetAlias(name), dsValueToRollVMv1(v))
-						attrs.Store(name, v)
-					},
-					ItemSet: func(vm *ds.Context, index *ds.VMValue, v *ds.VMValue) {
-						if index.TypeId != ds.VMTypeString {
-							vm.Error = errors.New("index must be string")
-							return
-						}
-						name := index.ToString()
-						attrs.Store(name, v)
-						//VarSetValue(ctx, tmpl.GetAlias(name), dsValueToRollVMv1(v))
-					},
-					DirFunc: func(vm *ds.Context) []*ds.VMValue {
-						return attrs.toArrayKeys()
-					},
-				}
-
-				vChar := ds.VMValueNewNativeObject(od)
-				vm.StoreNameLocal("角色", vChar)
-				vm.StoreNameLocal("char", vChar)
-
-				vm.ValueStoreHookFunc = func(vm *ds.Context, name string, v *ds.VMValue) (solved bool) {
-					if strings.HasPrefix(name, "$") {
-						VarSetValue(ctx, name, dsValueToRollVMv1(v))
-						return true
-					}
-					return false
-				}
-
-				storeName := func(name string, v *ds.VMValue) {
-					if strings.HasPrefix(name, "$") {
-						vm.StoreName(name, v) // 走hook
-					}
-					vm.StoreNameLocal(name, v)
-				}
-
-				var text string
-				if err := vm.Run(expr); err == nil {
-					storeName("$t表达式文本", ds.VMValueNewStr(expr))
-					storeName("$t计算过程", ds.VMValueNewStr(vm.Detail))
-					storeName("$t计算结果", vm.Ret)
-					storeName("$t剩余文本", ds.VMValueNewStr(vm.RestInput))
-					//text = fmt.Sprintf("%s=%s=%s", expr, vm.Detail, vm.Ret.ToString())
-					// 注: 加一个format
-					expr := "过程: {$t计算过程}\n结果: {$t计算结果}"
-					if vm.RestInput != "" {
-						expr += "\n剩余: {$t剩余文本}"
-					}
-					err := vm.Run("\x1e" + expr + "\x1e")
-					if err == nil {
-						text = vm.Ret.ToString()
-					} else {
-						text = fmt.Sprintf("错误: %s\n", err.Error())
-					}
-				} else {
-					text = fmt.Sprintf("错误: %s\n", err.Error())
-				}
-				ReplyToSender(ctx, msg, text)
-				return CmdExecuteResult{Matched: true, Solved: true}
-			}
-			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-		},
-	}
-	d.CmdMap["fox"] = cmdFox
-
 	helpExt := ".ext // 查看扩展列表"
 	cmdExt := &CmdItemInfo{
 		Name:      "ext",
@@ -2054,6 +1912,469 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["char"] = cmdChar
 	d.CmdMap["character"] = cmdChar
 	d.CmdMap["pc"] = cmdChar
+
+	vm := ds.NewVM()
+	vm.Flags.EnableDiceWoD = true
+	vm.Flags.EnableDiceCoC = true
+	vm.Flags.EnableDiceFate = true
+	vm.Flags.EnableDiceDoubleCross = true
+
+	HelpRollNew := ".fox <表达式> <原因> // 使用dicescript的骰点，测试用"
+	cmdFox := &CmdItemInfo{
+		Name:      "fox",
+		ShortHelp: HelpRollNew,
+		Help:      "骰点:\n" + HelpRollNew,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.Dice.TextCmdTrustOnly {
+				// 检查master和信任权限
+				refuse := ctx.PrivilegeLevel != 100
+				if refuse {
+					refuse = ctx.PrivilegeLevel != 70
+				}
+
+				// 拒绝无权限访问
+				if refuse {
+					ReplyToSender(ctx, msg, "你不具备Master权限")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+			}
+
+			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
+
+			expr := cmdArgs.GetRestArgsFrom(1)
+			if expr != "" {
+				tmpl := cardRuleCheck(ctx, msg)
+				if tmpl == nil {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				attrs, err := d.AttrsManager.Load(ctx.Group.GroupId, ctx.Player.UserId)
+				if err != nil {
+					ReplyToSender(ctx, msg, "数据读取错误:"+err.Error())
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				vm.GlobalValueLoadFunc = attrs.Load
+				funcWrap := func(name string, val *ds.VMValue) *ds.VMValue {
+					return ds.VMValueNewNativeFunction(&ds.NativeFunctionData{
+						Name:   name,
+						Params: []string{},
+						NativeFunc: func(vm *ds.Context, this *ds.VMValue, params []*ds.VMValue) *ds.VMValue {
+							return val
+						},
+					})
+				}
+
+				od := &ds.NativeObjectData{
+					Name: "player",
+					AttrGet: func(vm *ds.Context, name string) *ds.VMValue {
+						// 注: 未来切换人物卡时，角色数据会被转换为ds版本，所以这里写的丑陋了一些
+						switch name {
+						case "keys":
+							items := attrs.toArrayKeys()
+							return funcWrap("keys", ds.VMValueNewArrayRaw(items))
+						case "values":
+							items := attrs.toArrayValues()
+							return funcWrap("values", ds.VMValueNewArrayRaw(items))
+						case "items":
+							items := attrs.toArrayItems()
+							return funcWrap("items", ds.VMValueNewArrayRaw(items))
+						}
+						return attrs.Load(name)
+					},
+					ItemGet: func(vm *ds.Context, index *ds.VMValue) *ds.VMValue {
+						if index.TypeId != ds.VMTypeString {
+							vm.Error = errors.New("index must be string")
+							return nil
+						}
+						return attrs.Load(index.ToString())
+					},
+					AttrSet: func(vm *ds.Context, name string, v *ds.VMValue) {
+						//VarSetValue(ctx, tmpl.GetAlias(name), dsValueToRollVMv1(v))
+						attrs.Store(name, v)
+					},
+					ItemSet: func(vm *ds.Context, index *ds.VMValue, v *ds.VMValue) {
+						if index.TypeId != ds.VMTypeString {
+							vm.Error = errors.New("index must be string")
+							return
+						}
+						name := index.ToString()
+						attrs.Store(name, v)
+						//VarSetValue(ctx, tmpl.GetAlias(name), dsValueToRollVMv1(v))
+					},
+					DirFunc: func(vm *ds.Context) []*ds.VMValue {
+						return attrs.toArrayKeys()
+					},
+				}
+
+				vChar := ds.VMValueNewNativeObject(od)
+				vm.StoreNameLocal("角色", vChar)
+				vm.StoreNameLocal("char", vChar)
+
+				vm.ValueStoreHookFunc = func(vm *ds.Context, name string, v *ds.VMValue) (solved bool) {
+					if strings.HasPrefix(name, "$") {
+						VarSetValue(ctx, name, dsValueToRollVMv1(v))
+						return true
+					}
+					return false
+				}
+
+				storeName := func(name string, v *ds.VMValue) {
+					if strings.HasPrefix(name, "$") {
+						vm.StoreName(name, v) // 走hook
+					}
+					vm.StoreNameLocal(name, v)
+				}
+
+				var text string
+				if err := vm.Run(expr); err == nil {
+					storeName("$t表达式文本", ds.VMValueNewStr(expr))
+					storeName("$t计算过程", ds.VMValueNewStr(vm.Detail))
+					storeName("$t计算结果", vm.Ret)
+					storeName("$t剩余文本", ds.VMValueNewStr(vm.RestInput))
+					//text = fmt.Sprintf("%s=%s=%s", expr, vm.Detail, vm.Ret.ToString())
+					// 注: 加一个format
+					expr := "过程: {$t计算过程}\n结果: {$t计算结果}"
+					if vm.RestInput != "" {
+						expr += "\n剩余: {$t剩余文本}"
+					}
+					err := vm.Run("\x1e" + expr + "\x1e")
+					if err == nil {
+						text = vm.Ret.ToString()
+					} else {
+						text = fmt.Sprintf("错误: %s\n", err.Error())
+					}
+				} else {
+					text = fmt.Sprintf("错误: %s\n", err.Error())
+				}
+				ReplyToSender(ctx, msg, text)
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+		},
+	}
+	d.CmdMap["fox"] = cmdFox
+
+	cmdFoxChar := &CmdItemInfo{
+		Name:      "fch",
+		ShortHelp: helpCh,
+		Help:      "角色管理:\n" + helpCh,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "group1", "grp1")
+			val1 := cmdArgs.GetArgN(1)
+			am := d.AttrsManager
+
+			getNicknameRaw := func(usePlayerName bool) string {
+				//name := cmdArgs.GetArgN(2)
+				name := cmdArgs.CleanArgsChopRest
+				if usePlayerName && name == "" {
+					name = ctx.Player.Name
+				}
+				name = strings.ReplaceAll(name, "\n", "")
+				name = strings.ReplaceAll(name, "\r", "")
+				return name
+			}
+
+			getNickname := func() string {
+				return getNicknameRaw(true)
+			}
+
+			switch val1 {
+			case "list":
+				list, err := am.GetCharacterList(ctx.Player.UserId)
+				if err != nil {
+					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				bindingId, err := am.CharGetBindingId(ctx.Group.GroupId, ctx.Player.UserId)
+				if err != nil {
+					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				var newChars []string
+				for idx, item := range list {
+					// HACK(Xiangze Li): lockfree.HashMap的迭代顺序在每次启动中是稳定的, 可以加序号
+					// 但是, 骰子重启之后顺序是会变化的. 如果用户记录了这个序号, 并且跨重启使用, 会出现问题
+					// 1.5: 时代变了！现在是字典序，所以风险是用户在list之后新建卡，然后再进行操作
+					prefix := "[×]"
+					if item.BindingGroupsNum > 0 {
+						prefix = "[★]"
+					}
+					if bindingId == item.Id {
+						prefix = "[√]"
+					}
+					suffix := ""
+					if item.SheetType != "" {
+						suffix = fmt.Sprintf(" #%s", item.SheetType)
+					}
+
+					// 格式参考:
+					// 01[×] 张三 #dnd5e
+					// 02[★] 李四 #coc7
+					// 03[√] 王五 #coc7
+					// 04[×] 赵六
+					newChars = append(newChars, fmt.Sprintf("%2d %s %s%s", idx+1, prefix, item.Nickname, suffix))
+				}
+
+				if len(list) == 0 {
+					ReplyToSender(ctx, msg, fmt.Sprintf("<%s>当前还没有角色列表", ctx.Player.Name))
+				} else {
+					ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的角色列表为:\n%s\n[√]已绑 [×]未绑 [★]其他群绑定", ctx.Player.Name, strings.Join(newChars, "\n")))
+				}
+			case "new":
+				name := getNickname()
+				if len(name) > 90 {
+					name = name[:90]
+				}
+
+				VarSetValueStr(ctx, "$t角色名", name)
+				if !am.CharCheckExists(name, ctx.Group.GroupId) {
+					item, err := am.CharNew(ctx.Player.UserId, name, ctx.Group.System)
+					if err != nil {
+						ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					err = am.CharBind(item.Id, ctx.Group.GroupId, ctx.Player.UserId)
+					if err != nil {
+						ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_新建"))
+				} else {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_新建_已存在"))
+				}
+
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
+			case "tag":
+				// 当不输入角色的时候，不用当前角色填充，因此做到不写角色名就取消绑定的效果
+				name := getNicknameRaw(false)
+				//name = tryConvertIndex2Name(ctx, name)
+				// 这个转换回头写
+
+				VarSetValueStr(ctx, "$t角色名", name)
+				if name != "" {
+					VarSetValueStr(ctx, "$t角色名", name)
+					charId, err := am.CharIdGetByName(ctx.Player.UserId, name)
+					if err == nil {
+						if charId == "" {
+							err = errors.New("id错误")
+						} else {
+							err = am.CharBind(charId, ctx.Group.GroupId, ctx.Player.UserId)
+						}
+					}
+
+					if err != nil {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_失败"))
+					} else {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_成功"))
+					}
+				} else {
+					charId, err := am.CharGetBindingId(ctx.Group.GroupId, ctx.Player.UserId)
+					if err != nil {
+						ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					if charId == "" {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_并未绑定"))
+					} else {
+						ctx.Player.Name = name
+						ctx.Player.UpdatedAtTime = time.Now().Unix()
+						err := am.CharBind("", ctx.Group.GroupId, ctx.Player.UserId)
+						if err != nil {
+							ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						//attrs, err := am.LoadById(charId)
+						//if err != nil {
+						//	ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+						//	return CmdExecuteResult{Matched: true, Solved: true}
+						//}
+						name := "<待处理>"
+						VarSetValueStr(ctx, "$t角色名", name)
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_解除"))
+					}
+				}
+				if ctx.Player.AutoSetNameTemplate != "" {
+					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
+			case "load":
+				name := getNicknameRaw(false)
+				//name = tryConvertIndex2Name(ctx, name)
+				// 这个转换回头写
+				VarSetValueStr(ctx, "$t角色名", name)
+
+				charId, err := am.CharIdGetByName(ctx.Player.UserId, name)
+				if err != nil {
+					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				attrsCur, err := d.AttrsManager.Load(ctx.Group.GroupId, ctx.Player.UserId)
+				if err != nil {
+					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				if attrsCur == nil {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
+					//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
+				} else {
+					attrs, err := am.LoadById(charId)
+					if err != nil {
+						ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					// attrsCur clear ?
+					attrs.valueMap.Range(func(key string, value *ds.VMValue) bool {
+						attrsCur.Store(key, value)
+						return true
+					})
+
+					ctx.Player.Name = name
+					ctx.Player.UpdatedAtTime = time.Now().Unix()
+
+					if ctx.Player.AutoSetNameTemplate != "" {
+						_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+					}
+
+					VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
+				}
+			case "save":
+				name := getNickname()
+				if len(name) > 90 {
+					name = name[:90]
+				}
+
+				newItem, err := am.CharNew(ctx.Player.UserId, name, ctx.Group.System)
+				if err != nil {
+					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				attrs, err := am.Load(ctx.Group.GroupId, ctx.Player.UserId)
+				if err != nil {
+					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				if newItem == nil {
+					attrsNew, err := am.LoadById(newItem.Id)
+					if err != nil {
+						//ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					attrs.valueMap.Range(func(key string, value *ds.VMValue) bool {
+						attrsNew.Store(key, value)
+						return true
+					})
+
+					VarSetValueStr(ctx, "$t角色名", name)
+					VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
+					//replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", Name))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
+				} else {
+					VarSetValueStr(ctx, "$t角色名", name)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
+				}
+			case "untagAll":
+				name := getNickname()
+
+				charId, err := am.CharIdGetByName(ctx.Player.UserId, name)
+				if err != nil {
+					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				var lst []string
+				if charId != "" {
+					lst = am.CharUnbindAll(charId)
+				}
+
+				for _, i := range lst {
+					if i == ctx.Group.GroupId {
+						ctx.Player.Name = msg.Sender.Nickname
+						ctx.Player.UpdatedAtTime = time.Now().Unix()
+
+						// TODO: 其他群的设置sn的怎么办？先不管了。。
+						if ctx.Player.AutoSetNameTemplate != "" {
+							_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+						}
+					}
+				}
+
+				if len(lst) > 0 {
+					ReplyToSender(ctx, msg, "绑定已全部解除:\n"+strings.Join(lst, "\n"))
+				} else {
+					ReplyToSender(ctx, msg, "这张卡片并未绑定到任何群")
+				}
+			case "del", "rm":
+				name := getNickname()
+				//name = tryConvertIndex2Name(ctx, name)
+				VarSetValueStr(ctx, "$t角色名", name)
+
+				charId, err := am.CharIdGetByName(ctx.Player.UserId, name)
+				if err != nil {
+					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				if charId == "" {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				lst := am.CharGetBindingGroupIdList(charId)
+				if len(lst) > 0 {
+					//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_删除失败_已绑定"))
+					ReplyToSender(ctx, msg, "角色已绑定到以下群:\n"+strings.Join(lst, "\n"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				VarSetValueStr(ctx, "$t角色名", name)
+				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
+
+				// 如果name原是序号，这里将被更新为角色名
+				VarSetValueStr(ctx, "$t角色名", name)
+				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
+
+				text := DiceFormatTmpl(ctx, "核心:角色管理_删除成功")
+				if name == ctx.Player.Name {
+					// TODO: 啊？当前卡原来有特殊设定？可以删除？？
+					VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", msg.Sender.Nickname))
+					text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
+					p := ctx.Player
+					p.Name = msg.Sender.Nickname
+					p.UpdatedAtTime = time.Now().Unix()
+					p.Vars.ValueMap = lockfree.NewHashMap()
+					p.Vars.LastWriteTime = time.Now().Unix()
+				}
+				ReplyToSender(ctx, msg, text)
+			}
+
+			if cmdArgs.IsArgEqual(1, "list") {
+			} else if cmdArgs.IsArgEqual(1, "new") {
+			} else if cmdArgs.IsArgEqual(1, "load") {
+			} else if cmdArgs.IsArgEqual(1, "tag") {
+			} else if cmdArgs.IsArgEqual(1, "untagAll") {
+			} else if cmdArgs.IsArgEqual(1, "save") {
+			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
+			} else {
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+	d.CmdMap["fch"] = cmdFoxChar
+	d.CmdMap["fpc"] = cmdFoxChar
 
 	botWelcomeHelp := ".welcome on // 开启\n" +
 		".welcome off // 关闭\n" +
