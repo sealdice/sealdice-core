@@ -75,11 +75,11 @@ func (cm *CensorManager) Load(d *Dice) {
 	cm.IsLoading = false
 }
 
-func (cm *CensorManager) Check(ctx *MsgContext, msg *Message) (*MsgCheckResult, error) {
+func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, checkContent string) (*MsgCheckResult, error) {
 	if cm.IsLoading {
 		return nil, fmt.Errorf("censor is loading")
 	}
-	res := cm.Censor.Check(msg.Message)
+	res := cm.Censor.Check(checkContent)
 	if !ctx.Censored && res.HighestLevel > censor.Ignore {
 		// 敏感词命中记录保存
 		model.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserId, msg.GroupId, msg.Message, res.SensitiveWords, int(res.HighestLevel))
@@ -105,9 +105,9 @@ type MsgCheckResult struct {
 	CurSensitiveWords []string
 }
 
-func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, sendContent string) (hit bool, needToTerminate bool, newContent string) {
+func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, sendContent string) (hit bool, needToTerminate bool, newContent string) {
 	log := d.Logger
-	checkResult, err := d.CensorManager.Check(mctx, msg)
+	checkResult, err := d.CensorManager.Check(mctx, msg, checkContent)
 	if err != nil {
 		// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
 		log.Warnf("拦截系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserId)

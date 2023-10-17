@@ -10,6 +10,9 @@ import (
 	"github.com/fy0/lockfree"
 )
 
+var sealCodeRe = regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`)
+var cqCodeRe = regexp.MustCompile(`\[CQ:.+?]`)
+
 func IsCurGroupBotOnById(session *IMSession, ep *EndPointInfo, messageType string, groupId string) bool {
 	a := messageType == "group" &&
 		session.ServiceAtNew[groupId] != nil
@@ -165,7 +168,11 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		d.Logger.Infof("发给(群%s): %s", msg.GroupId, text)
 		// 敏感词拦截：回复（群）
 		if d.EnableCensor && d.CensorMode == OnlyOutputReply {
-			hit, needToTerminate, _ := d.CensorMsg(ctx, msg, text)
+			// 先拿掉海豹码和CQ码再检查敏感词
+			checkText := sealCodeRe.ReplaceAllString(text, "")
+			checkText = cqCodeRe.ReplaceAllString(checkText, "")
+
+			hit, needToTerminate, _ := d.CensorMsg(ctx, msg, checkText, text)
 			if needToTerminate {
 				return
 			}
@@ -215,7 +222,11 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		d.Logger.Infof("发给(帐号%s): %s", msg.Sender.UserId, text)
 		// 敏感词拦截：回复（个人）
 		if d.EnableCensor && d.CensorMode == OnlyOutputReply {
-			hit, needToTerminate, _ := d.CensorMsg(ctx, msg, text)
+			// 先拿掉海豹码和CQ码再检查敏感词
+			checkText := sealCodeRe.ReplaceAllString(text, "")
+			checkText = cqCodeRe.ReplaceAllString(checkText, "")
+
+			hit, needToTerminate, _ := d.CensorMsg(ctx, msg, checkText, text)
 			if needToTerminate {
 				return
 			}
