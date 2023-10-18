@@ -278,7 +278,7 @@ func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
 	if err != nil {
 		return
 	}
-	err = model.AttrsPutById(db, tx, i.ID, rawData)
+	err = model.AttrsPutById(db, tx, i.ID, rawData, i.NickName)
 	if err != nil {
 		fmt.Println("保存数据失败", err.Error())
 		return
@@ -302,6 +302,19 @@ func (i *AttributesItem) Store(name string, value *ds.VMValue) {
 func (i *AttributesItem) toDict() *ds.VMDictValue {
 	// 这里有一个风险，就是对dict的改动可能不会影响修改时间和使用时间，从而被丢弃
 	return ds.VMValueNewDict(i.valueMap)
+}
+
+func (i *AttributesItem) Clear() {
+	// TODO: 塞进函数里
+	var keys []string
+	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
+		keys = append(keys, key)
+		return true
+	})
+
+	for _, key := range keys {
+		i.valueMap.Delete(key)
+	}
 }
 
 func (i *AttributesItem) toArrayKeys() []*ds.VMValue {
@@ -332,4 +345,8 @@ func (i *AttributesItem) toArrayItems() []*ds.VMValue {
 		return true
 	})
 	return items
+}
+
+func (i *AttributesItem) Range(f func(key string, value *ds.VMValue) bool) {
+	i.valueMap.Range(f)
 }

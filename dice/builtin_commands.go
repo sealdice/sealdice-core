@@ -1950,7 +1950,7 @@ func (d *Dice) registerCoreCommands() {
 
 				attrs, err := d.AttrsManager.Load(ctx.Group.GroupId, ctx.Player.UserId)
 				if err != nil {
-					ReplyToSender(ctx, msg, "数据读取错误:"+err.Error())
+					ReplyToSender(ctx, msg, "数据读取错误: "+err.Error())
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
@@ -2059,10 +2059,17 @@ func (d *Dice) registerCoreCommands() {
 		Name:      "fch",
 		ShortHelp: helpCh,
 		Help:      "角色管理:\n" + helpCh,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "group1", "grp1")
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) (result CmdExecuteResult) {
+			cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "rename")
 			val1 := cmdArgs.GetArgN(1)
 			am := d.AttrsManager
+
+			defer func() {
+				if err, ok := recover().(error); ok {
+					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+				}
+				result = CmdExecuteResult{Matched: true, Solved: true}
+			}()
 
 			getNicknameRaw := func(usePlayerName bool) string {
 				//name := cmdArgs.GetArgN(2)
@@ -2081,17 +2088,8 @@ func (d *Dice) registerCoreCommands() {
 
 			switch val1 {
 			case "list":
-				list, err := am.GetCharacterList(ctx.Player.UserId)
-				if err != nil {
-					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				bindingId, err := am.CharGetBindingId(ctx.Group.GroupId, ctx.Player.UserId)
-				if err != nil {
-					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
+				list := Must(am.GetCharacterList(ctx.Player.UserId))
+				bindingId := Must(am.CharGetBindingId(ctx.Group.GroupId, ctx.Player.UserId))
 
 				var newChars []string
 				for idx, item := range list {
@@ -2131,17 +2129,9 @@ func (d *Dice) registerCoreCommands() {
 
 				VarSetValueStr(ctx, "$t角色名", name)
 				if !am.CharCheckExists(name, ctx.Group.GroupId) {
-					item, err := am.CharNew(ctx.Player.UserId, name, ctx.Group.System)
-					if err != nil {
-						ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
+					item := Must(am.CharNew(ctx.Player.UserId, name, ctx.Group.System))
+					Must0(am.CharBind(item.Id, ctx.Group.GroupId, ctx.Player.UserId))
 
-					err = am.CharBind(item.Id, ctx.Group.GroupId, ctx.Player.UserId)
-					if err != nil {
-						ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_新建"))
 				} else {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_新建_已存在"))
@@ -2149,6 +2139,20 @@ func (d *Dice) registerCoreCommands() {
 
 				if ctx.Player.AutoSetNameTemplate != "" {
 					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
+				}
+			case "rename":
+				a := cmdArgs.GetArgN(1)
+				b := cmdArgs.GetArgN(2)
+
+				if a != "" && b != "" {
+					charId := Must(am.CharIdGetByName(ctx.Player.UserId, a))
+
+					if charId != "" {
+						attrs := Must(am.LoadById(charId))
+						attrs.NickName = b
+						ctx.Player.Name = b
+						attrs.LastModifiedTime = time.Now().Unix()
+					}
 				}
 			case "tag":
 				// 当不输入角色的时候，不用当前角色填充，因此做到不写角色名就取消绑定的效果
@@ -2159,43 +2163,26 @@ func (d *Dice) registerCoreCommands() {
 				VarSetValueStr(ctx, "$t角色名", name)
 				if name != "" {
 					VarSetValueStr(ctx, "$t角色名", name)
-					charId, err := am.CharIdGetByName(ctx.Player.UserId, name)
-					if err == nil {
-						if charId == "" {
-							err = errors.New("id错误")
-						} else {
-							err = am.CharBind(charId, ctx.Group.GroupId, ctx.Player.UserId)
-						}
-					}
+					charId := Must(am.CharIdGetByName(ctx.Player.UserId, name))
 
-					if err != nil {
+					if charId == "" {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_失败"))
 					} else {
+						Must0(am.CharBind(charId, ctx.Group.GroupId, ctx.Player.UserId))
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_成功"))
 					}
 				} else {
-					charId, err := am.CharGetBindingId(ctx.Group.GroupId, ctx.Player.UserId)
-					if err != nil {
-						ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
+					charId := Must(am.CharGetBindingId(ctx.Group.GroupId, ctx.Player.UserId))
 
 					if charId == "" {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_并未绑定"))
 					} else {
 						ctx.Player.Name = name
 						ctx.Player.UpdatedAtTime = time.Now().Unix()
-						err := am.CharBind("", ctx.Group.GroupId, ctx.Player.UserId)
-						if err != nil {
-							ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-						//attrs, err := am.LoadById(charId)
-						//if err != nil {
-						//	ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-						//	return CmdExecuteResult{Matched: true, Solved: true}
-						//}
-						name := "<待处理>"
+						Must0(am.CharBind("", ctx.Group.GroupId, ctx.Player.UserId))
+						attrs := Must(am.LoadById(charId))
+
+						name := attrs.NickName
 						VarSetValueStr(ctx, "$t角色名", name)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_解除"))
 					}
@@ -2209,30 +2196,17 @@ func (d *Dice) registerCoreCommands() {
 				// 这个转换回头写
 				VarSetValueStr(ctx, "$t角色名", name)
 
-				charId, err := am.CharIdGetByName(ctx.Player.UserId, name)
-				if err != nil {
-					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				attrsCur, err := d.AttrsManager.Load(ctx.Group.GroupId, ctx.Player.UserId)
-				if err != nil {
-					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
+				charId := Must(am.CharIdGetByName(ctx.Player.UserId, name))
+				attrsCur := Must(d.AttrsManager.Load(ctx.Group.GroupId, ctx.Player.UserId))
 
 				if attrsCur == nil {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 					//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
 				} else {
-					attrs, err := am.LoadById(charId)
-					if err != nil {
-						ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
+					attrs := Must(am.LoadById(charId))
 
-					// attrsCur clear ?
-					attrs.valueMap.Range(func(key string, value *ds.VMValue) bool {
+					attrsCur.Clear()
+					attrs.Range(func(key string, value *ds.VMValue) bool {
 						attrsCur.Store(key, value)
 						return true
 					})
@@ -2253,17 +2227,8 @@ func (d *Dice) registerCoreCommands() {
 					name = name[:90]
 				}
 
-				newItem, err := am.CharNew(ctx.Player.UserId, name, ctx.Group.System)
-				if err != nil {
-					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				attrs, err := am.Load(ctx.Group.GroupId, ctx.Player.UserId)
-				if err != nil {
-					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
+				newItem := Must(am.CharNew(ctx.Player.UserId, name, ctx.Group.System))
+				attrs := Must(am.Load(ctx.Group.GroupId, ctx.Player.UserId))
 
 				if newItem == nil {
 					attrsNew, err := am.LoadById(newItem.Id)
@@ -2273,7 +2238,7 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					attrs.valueMap.Range(func(key string, value *ds.VMValue) bool {
+					attrs.Range(func(key string, value *ds.VMValue) bool {
 						attrsNew.Store(key, value)
 						return true
 					})
@@ -2288,12 +2253,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 			case "untagAll":
 				name := getNickname()
-
-				charId, err := am.CharIdGetByName(ctx.Player.UserId, name)
-				if err != nil {
-					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
+				charId := Must(am.CharIdGetByName(ctx.Player.UserId, name))
 
 				var lst []string
 				if charId != "" {
@@ -2322,12 +2282,7 @@ func (d *Dice) registerCoreCommands() {
 				//name = tryConvertIndex2Name(ctx, name)
 				VarSetValueStr(ctx, "$t角色名", name)
 
-				charId, err := am.CharIdGetByName(ctx.Player.UserId, name)
-				if err != nil {
-					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
+				charId := Must(am.CharIdGetByName(ctx.Player.UserId, name))
 				if charId == "" {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -2348,28 +2303,17 @@ func (d *Dice) registerCoreCommands() {
 				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
 
 				text := DiceFormatTmpl(ctx, "核心:角色管理_删除成功")
-				if name == ctx.Player.Name {
-					// TODO: 啊？当前卡原来有特殊设定？可以删除？？
-					VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", msg.Sender.Nickname))
-					text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
-					p := ctx.Player
-					p.Name = msg.Sender.Nickname
-					p.UpdatedAtTime = time.Now().Unix()
-					p.Vars.ValueMap = lockfree.NewHashMap()
-					p.Vars.LastWriteTime = time.Now().Unix()
-				}
+				//if name == ctx.Player.Name {
+				//	// TODO: 啊？当前卡原来有特殊设定？可以删除？？
+				//	VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", msg.Sender.Nickname))
+				//	text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
+				//	p := ctx.Player
+				//	p.Name = msg.Sender.Nickname
+				//	p.UpdatedAtTime = time.Now().Unix()
+				//}
 				ReplyToSender(ctx, msg, text)
 			}
 
-			if cmdArgs.IsArgEqual(1, "list") {
-			} else if cmdArgs.IsArgEqual(1, "new") {
-			} else if cmdArgs.IsArgEqual(1, "load") {
-			} else if cmdArgs.IsArgEqual(1, "tag") {
-			} else if cmdArgs.IsArgEqual(1, "untagAll") {
-			} else if cmdArgs.IsArgEqual(1, "save") {
-			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
-			} else {
-			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}

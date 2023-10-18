@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/jmoiron/sqlx"
 	nanoid "github.com/matoous/go-nanoid/v2"
+	ds "github.com/sealdice/dicescript"
 	"time"
 )
 
@@ -70,14 +71,14 @@ func AttrsGetIdByUidAndName(db *sqlx.DB, userId string, name string) (string, er
 	return item.Id, nil
 }
 
-func AttrsPutById(db *sqlx.DB, tx *sql.Tx, id string, data []byte) error {
+func AttrsPutById(db *sqlx.DB, tx *sql.Tx, id string, data []byte, nickname string) error {
 	// TODO: 好像还不够，需要nickname 需要sheetType，还有别的吗
 	var err error
 	now := time.Now().Unix()
-	query := `insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at)
-			  values ($1, $2, true, '', $3, $3)
-			  on conflict (id) do update set data = $2, updated_at = $3`
-	args := []any{id, data, now}
+	query := `insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at, nickname)
+			  values ($1, $2, true, '', $3, $3, $4)
+			  on conflict (id) do update set data = $2, updated_at = $3, nickname = $4`
+	args := []any{id, data, now, nickname}
 
 	if tx != nil {
 		_, err = tx.Exec(query, args...)
@@ -130,8 +131,12 @@ func AttrsNewItem(db *sqlx.DB, item *AttributesItemModel) (*AttributesItemModel,
 }
 
 func AttrsBindCharacter(db *sqlx.DB, charId string, id string) error {
+	json, err := ds.VMValueNewDict(nil).V().ToJSON()
+	if err != nil {
+		return err
+	}
 	_, _ = db.Exec(`insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at)
-					       values ($1, '{}', true, '', $2, $2)`, id, time.Now().Unix())
+					       values ($1, $3, true, '', $2, $2)`, id, time.Now().Unix(), json)
 
 	ret, err := db.Exec(`update attrs set binding_sheet_id = $1 where id = $2`, charId, id)
 	if err == nil {
