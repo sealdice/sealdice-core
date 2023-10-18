@@ -1,7 +1,7 @@
 {
-  "name": "element-plus-vite-starter",
+  "name": "sealdice-ui",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.4.0",
   "scripts": {
     "dev": "vite",
     "dev-host": "vite --host",
