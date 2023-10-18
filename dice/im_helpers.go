@@ -172,12 +172,19 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 			checkText := sealCodeRe.ReplaceAllString(text, "")
 			checkText = cqCodeRe.ReplaceAllString(checkText, "")
 
-			hit, needToTerminate, _ := d.CensorMsg(ctx, msg, checkText, text)
+			hit, words, needToTerminate, _ := d.CensorMsg(ctx, msg, checkText, text)
 			if needToTerminate {
 				return
 			}
 			if hit {
-				d.Logger.Infof("拒绝回复命中敏感词的内容「%s」，原消息「%s」- 来自群(%s)内<%s>(%s)", text, msg.Message, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId)
+				d.Logger.Infof(
+					"拒绝回复命中敏感词「%s」的内容「%s」，原消息「%s」- 来自群(%s)内<%s>(%s)",
+					strings.Join(words, "|"),
+					text, msg.Message,
+					msg.GroupId,
+					msg.Sender.Nickname,
+					msg.Sender.UserId,
+				)
 				text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
 			}
 		}
@@ -226,12 +233,18 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 			checkText := sealCodeRe.ReplaceAllString(text, "")
 			checkText = cqCodeRe.ReplaceAllString(checkText, "")
 
-			hit, needToTerminate, _ := d.CensorMsg(ctx, msg, checkText, text)
+			hit, words, needToTerminate, _ := d.CensorMsg(ctx, msg, checkText, text)
 			if needToTerminate {
 				return
 			}
 			if hit {
-				d.Logger.Infof("拒绝回复命中敏感词的内容「%s」，原消息「%s」- 来自<%s>(%s)", text, msg.Message, msg.Sender.Nickname, msg.Sender.UserId)
+				d.Logger.Infof("拒绝回复命中敏感词「%s」的内容「%s」，原消息「%s」- 来自<%s>(%s)",
+					strings.Join(words, "|"),
+					text,
+					msg.Message,
+					msg.Sender.Nickname,
+					msg.Sender.UserId,
+				)
 				text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
 			}
 		}
