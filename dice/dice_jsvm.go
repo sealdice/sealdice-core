@@ -29,7 +29,7 @@ type PrinterFunc struct {
 	recorder []string
 }
 
-func (p *PrinterFunc) doRecord(_type string, s string) {
+func (p *PrinterFunc) doRecord(_ string, s string) {
 	if p.isRecord {
 		p.recorder = append(p.recorder, s)
 	}
@@ -76,13 +76,9 @@ func (d *Dice) JsInit() {
 		d.JsRequire = reg.Enable(vm)
 
 		seal := vm.NewObject()
-		//seal.Set("setVarInt", VarSetValueInt64)
-		//seal.Set("setVarStr", VarSetValueStr)
 
 		vars := vm.NewObject()
 		_ = seal.Set("vars", vars)
-		//vars.Set("varGet", VarGetValue)
-		//vars.Set("varSet", VarSetValue)
 		_ = vars.Set("intGet", VarGetValueInt64)
 		_ = vars.Set("intSet", VarSetValueInt64)
 		_ = vars.Set("strGet", VarGetValueStr)
@@ -101,13 +97,11 @@ func (d *Dice) JsInit() {
 		})
 		_ = ext.Set("new", func(name, author, version string) *ExtInfo {
 			return &ExtInfo{Name: name, Author: author, Version: version,
-				GetDescText: func(i *ExtInfo) string {
-					return GetExtensionDesc(i)
-				},
-				AutoActive: true,
-				IsJsExt:    true,
-				Brief:      "一个JS自定义扩展",
-				CmdMap:     CmdMapCls{},
+				GetDescText: GetExtensionDesc,
+				AutoActive:  true,
+				IsJsExt:     true,
+				Brief:       "一个JS自定义扩展",
+				CmdMap:      CmdMapCls{},
 			}
 		})
 		_ = ext.Set("find", func(name string) *ExtInfo {
@@ -369,8 +363,8 @@ func (d *Dice) JsInit() {
 
 		_ = vm.Set("atob", func(s string) (string, error) {
 			// Remove data URI scheme and any whitespace from the string.
-			s = strings.Replace(s, "data:text/plain;base64,", "", -1)
-			s = strings.Replace(s, " ", "", -1)
+			s = strings.ReplaceAll(s, "data:text/plain;base64,", "")
+			s = strings.ReplaceAll(s, " ", "")
 
 			// Decode the base64-encoded string.
 			b, err := base64.StdEncoding.DecodeString(s)
@@ -388,7 +382,7 @@ func (d *Dice) JsInit() {
 
 		// Note: Szzrain 暴露dice对象给js会导致js可以调用dice的所有Export的方法
 		// 这是不安全的, 所有需要用到dice实例的函数都可以以传入ctx作为替代
-		//_ = seal.Set("inst", d)
+		// _ = seal.Set("inst", d)
 		_ = vm.Set("__dirname", "")
 		_ = vm.Set("seal", seal)
 
@@ -578,8 +572,8 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 			case "description":
 				jsInfo.Desc = v
 			case "timestamp":
-				timestamp, err := strconv.ParseInt(v, 10, 64)
-				if err == nil {
+				timestamp, errParse := strconv.ParseInt(v, 10, 64)
+				if errParse == nil {
 					jsInfo.UpdateTime = timestamp
 				} else {
 					t := carbon.Parse(v)
@@ -612,7 +606,7 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 	}
 }
 
-func JsDelete(d *Dice, jsInfo *JsScriptInfo) {
+func JsDelete(_ *Dice, jsInfo *JsScriptInfo) {
 	dirpath := filepath.Dir(jsInfo.Filename)
 	dirname := filepath.Base(dirpath)
 
@@ -646,47 +640,48 @@ func JsDisable(d *Dice, jsInfoName string) {
 
 func (d *Dice) JsCheckUpdate(jsScriptInfo *JsScriptInfo) (string, string, string, error) {
 	// FIXME: dirty, copy from check deck update.
-	if len(jsScriptInfo.UpdateUrls) != 0 {
-		statusCode, newData, err := GetCloudContent(jsScriptInfo.UpdateUrls, jsScriptInfo.Etag)
-		if err != nil {
-			return "", "", "", err
-		}
-		if statusCode == http.StatusOK {
-			oldData, err := os.ReadFile(jsScriptInfo.Filename)
-			if err != nil {
-				return "", "", "", err
-			}
-
-			// 内容预处理
-			if isPrefixWithUtf8Bom(oldData) {
-				oldData = oldData[3:]
-			}
-			oldJs := strings.ReplaceAll(string(oldData), "\r\n", "\n")
-			if isPrefixWithUtf8Bom(newData) {
-				newData = newData[3:]
-			}
-			newJs := strings.ReplaceAll(string(newData), "\r\n", "\n")
-
-			temp, err := os.CreateTemp("", "new-*-"+filepath.Base(jsScriptInfo.Filename))
-			if err != nil {
-				return "", "", "", err
-			}
-			defer func(temp *os.File) {
-				_ = temp.Close()
-			}(temp)
-
-			_, err = temp.WriteString(newJs)
-			if err != nil {
-				return "", "", "", err
-			}
-			return oldJs, newJs, temp.Name(), nil
-		} else if statusCode == http.StatusNotModified {
-			return "", "", "", fmt.Errorf("插件没有更新")
-		}
-		return "", "", "", fmt.Errorf("未获取到插件更新")
-	} else {
+	if len(jsScriptInfo.UpdateUrls) == 0 {
 		return "", "", "", fmt.Errorf("插件未提供更新链接")
 	}
+
+	statusCode, newData, err := GetCloudContent(jsScriptInfo.UpdateUrls, jsScriptInfo.Etag)
+	if err != nil {
+		return "", "", "", err
+	}
+	if statusCode == http.StatusNotModified {
+		return "", "", "", fmt.Errorf("插件没有更新")
+	}
+	if statusCode != http.StatusOK {
+		return "", "", "", fmt.Errorf("未获取到插件更新")
+	}
+	oldData, err := os.ReadFile(jsScriptInfo.Filename)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	// 内容预处理
+	if isPrefixWithUtf8Bom(oldData) {
+		oldData = oldData[3:]
+	}
+	oldJs := strings.ReplaceAll(string(oldData), "\r\n", "\n")
+	if isPrefixWithUtf8Bom(newData) {
+		newData = newData[3:]
+	}
+	newJs := strings.ReplaceAll(string(newData), "\r\n", "\n")
+
+	temp, err := os.CreateTemp("", "new-*-"+filepath.Base(jsScriptInfo.Filename))
+	if err != nil {
+		return "", "", "", err
+	}
+	defer func(temp *os.File) {
+		_ = temp.Close()
+	}(temp)
+
+	_, err = temp.WriteString(newJs)
+	if err != nil {
+		return "", "", "", err
+	}
+	return oldJs, newJs, temp.Name(), nil
 }
 
 func (d *Dice) JsUpdate(jsScriptInfo *JsScriptInfo, tempFileName string) error {
@@ -703,8 +698,7 @@ func (d *Dice) JsUpdate(jsScriptInfo *JsScriptInfo, tempFileName string) error {
 	if err != nil {
 		d.Logger.Errorf("插件“%s”更新时保存文件出错，%s", jsScriptInfo.Name, err.Error())
 		return err
-	} else {
-		d.Logger.Infof("插件“%s”更新成功", jsScriptInfo.Name)
 	}
+	d.Logger.Infof("插件“%s”更新成功", jsScriptInfo.Name)
 	return nil
 }

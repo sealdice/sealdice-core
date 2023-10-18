@@ -712,13 +712,5 @@ func getCoc7CharTemplate() *GameSystemTemplate {
 	temp.AttrConfig.ShowAs["db"] = "{ (力量 + 体型) \u003c 65 ? '-2', (力量 + 体型) \u003c 85 ? '-1', (力量 + 体型) \u003c 125 ? '0', (力量 + 体型) \u003c 165 ? '1d4', (力量 + 体型) \u003c 205 ? '1d6', 1 ? `{((力量 + 体型 - 205) / 80 + 2)}d6` }"
 	_coc7tmpl = temp
 
-	//a := func() {
-	//	v1, _ := json.Marshal(_coc7tmpl)
-	//	os.WriteFile("./coc7.json", v1, 0644)
-	//	v2, _ := yaml.Marshal(_coc7tmpl)
-	//	os.WriteFile("./coc7.yaml", v2, 0644)
-	//}
-	//a()
-
 	return temp
 }

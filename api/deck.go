@@ -67,8 +67,6 @@ func deckUpload(c echo.Context) error {
 		_ = src.Close()
 	}(src)
 
-	// Destination
-	//fmt.Println("????", filepath.Join("./data/decks", file.Filename))
 	file.Filename = strings.ReplaceAll(file.Filename, "/", "_")
 	file.Filename = strings.ReplaceAll(file.Filename, "\\", "_")
 	dst, err := os.Create(filepath.Join("./data/decks", file.Filename))

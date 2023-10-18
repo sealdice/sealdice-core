@@ -1,13 +1,14 @@
 package api
 
 import (
-	"github.com/labstack/echo/v4"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"sealdice-core/dice"
 	"strings"
+
+	"github.com/labstack/echo/v4"
 )
 
 func customReplySave(c echo.Context) error {
@@ -37,15 +38,6 @@ func customReplyGet(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-
-	//v := struct {
-	//	Filename string `json:"filename" form:"filename"`
-	//}{}
-	//
-	//err := c.Bind(&v)
-	//if err != nil {
-	//	return c.String(430, err.Error())
-	//}
 
 	rc, _ := dice.CustomReplyConfigRead(myDice, c.QueryParam("filename"))
 	return c.JSON(http.StatusOK, rc)
@@ -175,16 +167,14 @@ func customReplyFileUpload(c echo.Context) error {
 		_ = src.Close()
 	}(src)
 
-	// Destination
-	//fmt.Println("????", filepath.Join("./data/decks", file.Filename))
 	file.Filename = strings.ReplaceAll(file.Filename, "/", "_")
 	file.Filename = strings.ReplaceAll(file.Filename, "\\", "_")
 	thePath := myDice.GetExtConfigFilePath("reply", file.Filename)
 
 	if !dice.CustomReplyConfigCheckExists(myDice, file.Filename) {
 		myDice.Logger.Infof("上传自定义文件: %s", thePath)
-
-		dst, err := os.Create(thePath)
+		var dst *os.File
+		dst, err = os.Create(thePath)
 		if err != nil {
 			return err
 		}

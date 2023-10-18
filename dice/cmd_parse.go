@@ -19,22 +19,22 @@ type Kwarg struct {
 
 // [CQ:at,qq=22]
 type AtInfo struct {
-	UserId string `json:"userId" jsbind:"userId"`
-	//UID    string `json:"uid"`
+	UserID string `json:"userId" jsbind:"userId"`
+	// UID    string `json:"uid"`
 }
 
 func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 	c1 := *ctx
 	mctx := &c1 // 复制一个ctx，用于其他用途
 	if ctx.Group != nil {
-		p := ctx.Group.PlayerGet(ctx.Dice.DBData, i.UserId)
+		p := ctx.Group.PlayerGet(ctx.Dice.DBData, i.UserID)
 		if p != nil {
 			mctx.Player = p
 		} else {
 			// TODO: 主动获取用户名
 			mctx.Player = &GroupPlayerInfo{
 				Name:          "",
-				UserId:        i.UserId,
+				UserID:        i.UserID,
 				ValueMapTemp:  lockfree.NewHashMap(),
 				UpdatedAtTime: 0,
 			}
@@ -167,14 +167,14 @@ func (cmdArgs *CmdArgs) SetupAtInfo(uid string) {
 	cmdArgs.uidForAtInfo = uid
 
 	for _, i := range cmdArgs.At {
-		if i.UserId == uid {
+		if i.UserID == uid {
 			cmdArgs.AmIBeMentioned = true
 			break
 		}
 	}
 	if cmdArgs.AmIBeMentioned {
 		// 检查是不是第一个被AT的
-		if cmdArgs.At[0].UserId == uid {
+		if cmdArgs.At[0].UserID == uid {
 			cmdArgs.AmIBeMentionedFirst = true
 		}
 	}
@@ -183,10 +183,6 @@ func (cmdArgs *CmdArgs) SetupAtInfo(uid string) {
 	// 后面的代码保证了如果@的名单中有任何已知骰子，不会进入下一步操作
 	// 所以不用考虑其他骰子被@的情况
 	cmdArgs.SomeoneBeMentionedButNotMe = len(cmdArgs.At) > 0 && (!cmdArgs.AmIBeMentioned)
-	//if cmdArgs.MentionedOtherDice {
-	//	// @其他骰子
-	//	return
-	//}
 }
 
 func CommandCheckPrefix(rawCmd string, prefix []string, platform string) bool {
@@ -199,12 +195,12 @@ func CommandCheckPrefix(rawCmd string, prefix []string, platform string) bool {
 	for _, i := range prefix {
 		if strings.HasPrefix(restText, i) {
 			// 忽略两种非常容易误判的情况
-			//if i == "。" && strings.HasPrefix(restText, "。。") {
-			//	continue
-			//}
-			//if i == "." && strings.HasPrefix(restText, "..") {
-			//	continue
-			//}
+			// if i == "。" && strings.HasPrefix(restText, "。。") {
+			// 	continue
+			// }
+			// if i == "." && strings.HasPrefix(restText, "..") {
+			// 	continue
+			// }
 			prefixStr = i
 			break
 		}
@@ -265,7 +261,6 @@ func (cmdArgs *CmdArgs) commandParse(rawCmd string, currentCmdLst []string, pref
 	// 之前的兼容模式代码结束标记，已经不再使用
 
 	re := regexp.MustCompile(`^\s*(\S+)\s*([\S\s]*)`)
-	//fmt.Println("!!!", restText)
 	m := re.FindStringSubmatch(restText)
 
 	if len(m) == 3 {
@@ -277,7 +272,6 @@ func (cmdArgs *CmdArgs) commandParse(rawCmd string, currentCmdLst []string, pref
 		a := ArgsParse(m[2])
 		cmdArgs.Args = a.Args
 		cmdArgs.Kwargs = a.Kwargs
-		//log.Println(222, m[1], "[sep]", m[2])
 
 		// 将所有args连接起来，存入一个cleanArgs变量。主要用于兼容非标准参数
 		stText := strings.Join(cmdArgs.Args, " ")
@@ -291,7 +285,6 @@ func (cmdArgs *CmdArgs) commandParse(rawCmd string, currentCmdLst []string, pref
 		cmdArgs.RawText = rawCmd
 		cmdArgs.prefixStr = prefixStr
 		cmdArgs.platformPrefix = platformPrefix
-		//fmt.Println("?????", cmdArgs.CleanArgs)
 
 		return cmdArgs
 	}
@@ -404,10 +397,10 @@ func CQParse(cmd string) *CQCommand {
 }
 
 func AtParse(cmd string, prefix string) (string, []*AtInfo) {
-	//gocq的@:		[CQ:at,qq=3604749540]
-	//discordGo的@:	<@1048209604938563736>
+	// gocq的@:		[CQ:at,qq=3604749540]
+	// discordGo的@:	<@1048209604938563736>
 	ret := make([]*AtInfo, 0)
-	re, _ := regexp.Compile("")
+	re := regexp.MustCompile("")
 	switch prefix {
 	case "QQ":
 		re = regexp.MustCompile(`\[CQ:at,qq=(\d+?)]`)
@@ -426,9 +419,7 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	for _, i := range m {
 		if len(i) == 2 {
 			at := new(AtInfo)
-			//at.UserId, _ = strconv.ParseInt(i[1], 10, 64)
-			at.UserId = prefix + ":" + i[1]
-			//fmt.Println(at.UserId)
+			at.UserID = prefix + ":" + i[1]
 			ret = append(ret, at)
 		}
 	}

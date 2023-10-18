@@ -134,13 +134,13 @@ func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Reg
 			for _, i := range regexps {
 				if i.MatchString(k) {
 					doIt = true
-					//break
+					// break
 				}
 			}
 		}
 
 		if doIt {
-			switch v.TypeId {
+			switch v.TypeID {
 			case VMTypeInt64:
 				exportMap[k] = strconv.FormatInt(v.Value.(int64), 10)
 			case VMTypeString:
@@ -148,12 +148,13 @@ func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Reg
 			case VMTypeDNDComputedValue:
 				vd := v.Value.(*VMDndComputedValueData)
 				if strings.Contains(vd.Expr, "熟练") {
-					k = k + "*"
+					k += "*"
 				}
 				val, ok := vd.ReadBaseInt64()
 				if ok {
 					exportMap[k] = strconv.FormatInt(val, 10)
 				}
+			default: /* no-op */
 			}
 		}
 		return nil
@@ -175,9 +176,8 @@ func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Reg
 func getPlayerNameTempFunc(mctx *MsgContext) string {
 	if mctx.Dice.PlayerNameWrapEnable {
 		return fmt.Sprintf("<%s>", mctx.Player.Name)
-	} else {
-		return mctx.Player.Name
 	}
+	return mctx.Player.Name
 }
 
 func RegisterBuiltinExtDnd5e(self *Dice) {
@@ -319,7 +319,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					"hd": true, "hp": true, "hpmax": true,
 					"ac": true, "dc": true,
 					"DSS": true, "DSF": true,
-					//"$cardType": true,
+					// "$cardType": true,
 				}, []*regexp.Regexp{
 					regexp.MustCompile(`^\$法术位_[1-9]$`),
 					regexp.MustCompile(`^\$法术位上限_[1-9]$`),
@@ -390,7 +390,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				tick := 0
-				if chVars.Len() == 0 {
+				if chVars.Len() == 0 { //nolint:nestif
 					info = DiceFormatTmpl(mctx, "DND:属性设置_列出_未发现记录")
 				} else {
 					// 按照配置文件排序
@@ -440,32 +440,32 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						_vRaw, exists := chVars.Get(k)
 						if !exists {
 							// 不存在的值，强行补0
-							v = &VMValue{TypeId: VMTypeInt64, Value: int64(0)}
+							v = &VMValue{TypeID: VMTypeInt64, Value: int64(0)}
 							vRaw = v
 						} else {
 							vRaw = _vRaw.(*VMValue)
-							kExpr := k
+							expr := k
 							if strings.HasPrefix(k, "p") || strings.HasPrefix(k, "b") {
-								kExpr = "_" + k
+								expr = "_" + k
 							}
-							v2, _, _ := mctx.Dice.ExprEvalBase(kExpr, mctx, RollExtraFlags{})
+							v2, _, _ := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{})
 							v = &v2.VMValue
 						}
 
 						if index >= topNum {
-							if useLimit && v.TypeId == VMTypeInt64 && v.Value.(int64) < limit {
-								limktSkipCount += 1
+							if useLimit && v.TypeID == VMTypeInt64 && v.Value.(int64) < limit {
+								limktSkipCount++
 								continue
 							}
 						}
 
-						tick += 1
+						tick++
 
 						vRawStr := vRaw.ToString()
 						vStr := v.ToString()
 
-						vText := ""
-						if vRaw.TypeId == VMTypeDNDComputedValue {
+						var vText string
+						if vRaw.TypeID == VMTypeDNDComputedValue {
 							vd := vRaw.Value.(*VMDndComputedValueData)
 							b := vd.BaseValue.ToString()
 							if vStr != b {
@@ -483,7 +483,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						info += fmt.Sprintf("%s:%s\t", k, vText) // 单个文本
 						if tick%4 == 0 {
 							info = strings.TrimSpace(info) + "\n" // 去除末尾空格
-							//info += fmt.Sprintf("\n")
+							// info += fmt.Sprintf("\n")
 						}
 					}
 
@@ -494,7 +494,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				if useLimit {
 					VarSetValueInt64(mctx, "$t数量", int64(limktSkipCount))
-					VarSetValueInt64(mctx, "$t判定值", int64(limit))
+					VarSetValueInt64(mctx, "$t判定值", limit)
 					info += DiceFormatTmpl(mctx, "DND:属性设置_列出_隐藏提示")
 				}
 
@@ -540,7 +540,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					textRight := r.Matched
 					text = r.restInput
 
-					if r.TypeId != VMTypeInt64 {
+					if r.TypeID != VMTypeInt64 {
 						ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrName)
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -575,18 +575,18 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 						attrSeted = append(attrSeted, aText)
 					}
-					if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
+					if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" { //nolint:nestif
 						v, exists := VarGetValue(mctx, attrName)
 						if !exists {
 							ReplyToSender(mctx, msg, "不存在的属性: "+attrName)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-						if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeDNDComputedValue {
+						if v.TypeID != VMTypeInt64 && v.TypeID != VMTypeDNDComputedValue {
 							ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrName)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
-						//if m[3] == "-" || m[3] == "－" {
+						// if m[3] == "-" || m[3] == "－" {
 						//	r.Value = -r.Value.(int64)
 						//}
 
@@ -594,8 +594,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							// 当扣血时，特别处理
 							if r.Value.(int64) < 0 {
 								over := cmdArgs.GetKwarg("over")
-								vHpBuff, exists := VarGetValue(mctx, "$buff_hp")
-								if exists && over == nil {
+								vHpBuff, existsHP := VarGetValue(mctx, "$buff_hp")
+								if existsHP && over == nil {
 									vHpBuffVal := vHpBuff.Value.(int64)
 									// 正盾才做反馈
 									if vHpBuffVal > 0 {
@@ -616,7 +616,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						var newVal int64
 						var leftValue *VMValue
-						if v.TypeId == VMTypeDNDComputedValue {
+						if v.TypeID == VMTypeDNDComputedValue {
 							leftValue = &v.Value.(*VMDndComputedValueData).BaseValue
 						} else {
 							leftValue = v
@@ -670,7 +670,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						theNewValue := vNew.Value.(int64)
 
 						baseValue := ""
-						if v.TypeId == VMTypeDNDComputedValue {
+						if v.TypeID == VMTypeDNDComputedValue {
 							baseValue = fmt.Sprintf("[%d]", newVal)
 						}
 						attrChanged = append(attrChanged, fmt.Sprintf("%s%s(%d ➯ %d)", attrName, baseValue, theOldValue, theNewValue))
@@ -935,14 +935,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						_v, exists := chVars.Get(k)
 						if !exists {
 							// 不存在的值，强行补0
-							v = &VMValue{TypeId: VMTypeInt64, Value: int64(0)}
+							v = &VMValue{TypeID: VMTypeInt64, Value: int64(0)}
 						} else {
 							v = _v.(*VMValue)
 						}
 
-						tick += 1
-						vText := ""
-						if v.TypeId == VMTypeDNDComputedValue {
+						tick++
+						var vText string
+						if v.TypeID == VMTypeDNDComputedValue {
 							vd := v.Value.(*VMDndComputedValueData)
 							val, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
 							a := val.ToString()
@@ -1008,7 +1008,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 					text = r.restInput
 
-					if r.TypeId != VMTypeInt64 {
+					if r.TypeID != VMTypeInt64 {
 						ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrNameRaw)
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -1048,14 +1048,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							ReplyToSender(mctx, msg, "不存在的BUFF属性: "+attrNameRaw)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-						if v.TypeId != VMTypeInt64 && v.TypeId != VMTypeDNDComputedValue {
+						if v.TypeID != VMTypeInt64 && v.TypeID != VMTypeDNDComputedValue {
 							ReplyToSender(mctx, msg, "这个属性的值并非数字: "+attrNameRaw)
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
 
 						var newVal int64
 						var leftValue *VMValue
-						if v.TypeId == VMTypeDNDComputedValue {
+						if v.TypeID == VMTypeDNDComputedValue {
 							leftValue = &v.Value.(*VMDndComputedValueData).BaseValue
 						} else {
 							leftValue = v
@@ -1072,7 +1072,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						theNewValue := vNew.Value.(int64)
 
 						baseValue := ""
-						if v.TypeId == VMTypeDNDComputedValue {
+						if v.TypeID == VMTypeDNDComputedValue {
 							baseValue = fmt.Sprintf("[%d]", newVal)
 						}
 						attrChanged = append(attrChanged, fmt.Sprintf("%s%s(%d ➯ %d)", attrNameRaw, baseValue, theOldValue, theNewValue))
@@ -1104,13 +1104,13 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 	}
 
-	spellSlotsRenew := func(mctx *MsgContext, msg *Message) int {
+	spellSlotsRenew := func(mctx *MsgContext, _ *Message) int {
 		num := 0
-		for i := 1; i < 10; i += 1 {
-			//_, _ := VarGetValueInt64(mctx, fmt.Sprintf("$法术位_%d", i))
+		for i := 1; i < 10; i++ {
+			// _, _ := VarGetValueInt64(mctx, fmt.Sprintf("$法术位_%d", i))
 			spellLevelMax, exists := VarGetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", i))
 			if exists {
-				num += 1
+				num++
 				VarSetValueInt64(mctx, fmt.Sprintf("$法术位_%d", i), spellLevelMax)
 			}
 		}
@@ -1184,7 +1184,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 			case "clr":
 				chVars, _ := mctx.ChVarsGet()
-				for i := 1; i < 10; i += 1 {
+				for i := 1; i < 10; i++ {
 					chVars.Del(fmt.Sprintf("$法术位_%d", i))
 					chVars.Del(fmt.Sprintf("$法术位上限_%d", i))
 				}
@@ -1232,7 +1232,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 			case "":
 				var texts []string
-				for i := 1; i < 10; i += 1 {
+				for i := 1; i < 10; i++ {
 					spellLevelCur, _ := VarGetValueInt64(mctx, fmt.Sprintf("$法术位_%d", i))
 					spellLevelMax, exists := VarGetValueInt64(mctx, fmt.Sprintf("$法术位上限_%d", i))
 					if exists {
@@ -1295,7 +1295,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			val := cmdArgs.GetArgN(1)
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 
-			switch val {
+			switch val { //nolint:gocritic
 			default:
 				// 该正则匹配: 2 1, 2环1, 2环 1, 2c1, lv2 1
 				reSlot := regexp.MustCompile(`(\d+)(?:[环cC]?|\s)\s*(\d+)?|[lL][vV](\d+)(?:\s+(\d+))?`)
@@ -1657,7 +1657,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if !exprExists {
 						val = DiceRoll64(20)
 					}
-					uid = mctx.Player.UserId
+					uid = mctx.Player.UserID
 					return 0, name, val, detail, uid
 				}
 
@@ -1765,31 +1765,31 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				if len(lst) == 0 {
 					ReplyToSender(ctx, msg, "先攻列表为空")
 					break
-				} else {
-					round += 1
-					l := len(lst)
-					if l <= int(round) || round < 0 {
-						round = 0
-					}
-					if round == 0 {
-						VarSetValueStr(ctx, "$t当前回合角色名", lst[l-1].name)
-						VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[l-1].uid))
-					} else {
-						VarSetValueStr(ctx, "$t当前回合角色名", lst[round-1].name)
-						VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[round-1].uid))
-					}
-					VarSetValueStr(ctx, "$t下一回合角色名", lst[round].name)
-					VarSetValueStr(ctx, "$t下一回合at", AtBuild(lst[round].uid))
-
-					nextRound := round + 1
-					if l <= int(nextRound) || nextRound < 0 {
-						nextRound = 0
-					}
-					VarSetValueStr(ctx, "$t下下一回合角色名", lst[nextRound].name)
-					VarSetValueStr(ctx, "$t下下一回合at", AtBuild(lst[nextRound].uid))
-
-					VarSetValueInt64(ctx, "$g回合数", round)
 				}
+				round++
+				l := len(lst)
+				if l <= int(round) || round < 0 {
+					round = 0
+				}
+				if round == 0 {
+					VarSetValueStr(ctx, "$t当前回合角色名", lst[l-1].name)
+					VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[l-1].uid))
+				} else {
+					VarSetValueStr(ctx, "$t当前回合角色名", lst[round-1].name)
+					VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[round-1].uid))
+				}
+				VarSetValueStr(ctx, "$t下一回合角色名", lst[round].name)
+				VarSetValueStr(ctx, "$t下一回合at", AtBuild(lst[round].uid))
+
+				nextRound := round + 1
+				if l <= int(nextRound) || nextRound < 0 {
+					nextRound = 0
+				}
+				VarSetValueStr(ctx, "$t下下一回合角色名", lst[nextRound].name)
+				VarSetValueStr(ctx, "$t下下一回合at", AtBuild(lst[nextRound].uid))
+
+				VarSetValueInt64(ctx, "$g回合数", round)
+
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
 			case "del", "rm":
 				names := cmdArgs.Args[1:]
@@ -1824,7 +1824,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				expr := strings.Join(cmdArgs.Args[2:], "")
 				r, _detail, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{})
-				if err != nil || r.TypeId != VMTypeInt64 {
+				if err != nil || r.TypeID != VMTypeInt64 {
 					ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -1862,18 +1862,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"coc7",
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			//p := getPlayerInfoBySender(session, msg)
-			//ctx.Player.TempValueAlias = &ac.Alias // 因为换mctx，这句话似乎没用了
 		},
-		GetDescText: func(i *ExtInfo) string {
-			return GetExtensionDesc(i)
-		},
+		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
 			"dnd":  cmdDnd,
 			"dndx": cmdDnd,
 			"ri":   cmdRi,
 			"init": cmdInit,
-			//"属性":    cmdSt,
+			// "属性":    cmdSt,
 			"st":         cmdSt,
 			"dst":        cmdSt,
 			"rc":         cmdRc,
@@ -1903,7 +1899,7 @@ func dndGetRiMapList(ctx *MsgContext) (map[string]int64, map[string]string) {
 	riMapName := "riMapList"
 	_, exists := ctx.Group.ValueMap.Get(riMapName)
 	if !exists {
-		ctx.Group.ValueMap.Set(riMapName, &VMValue{TypeId: -1, Value: map[string]int64{}})
+		ctx.Group.ValueMap.Set(riMapName, &VMValue{TypeID: -1, Value: map[string]int64{}})
 	} else {
 		a, _ := ctx.Group.ValueMap.Get(riMapName)
 		ctx.Group.ValueMap.Set(riMapName, VMValueConvert(a.(*VMValue), nil, ""))
@@ -1911,7 +1907,7 @@ func dndGetRiMapList(ctx *MsgContext) (map[string]int64, map[string]string) {
 	uidMapName := "uidMapList"
 	_, exists = ctx.Group.ValueMap.Get(uidMapName)
 	if !exists {
-		ctx.Group.ValueMap.Set(uidMapName, &VMValue{TypeId: -2, Value: map[string]string{}})
+		ctx.Group.ValueMap.Set(uidMapName, &VMValue{TypeID: -2, Value: map[string]string{}})
 	} else {
 		b, _ := ctx.Group.ValueMap.Get(uidMapName)
 		ctx.Group.ValueMap.Set(uidMapName, VMValueConvert(b.(*VMValue), nil, ""))
@@ -1932,15 +1928,10 @@ func dndGetRiMapList(ctx *MsgContext) (map[string]int64, map[string]string) {
 func dndSetRiMapList(ctx *MsgContext, riMap map[string]int64, uidMap map[string]string) {
 	ctx.LoadGroupVars()
 	riMapName := "riMapList"
-	ctx.Group.ValueMap.Set(riMapName, &VMValue{TypeId: -1, Value: riMap})
+	ctx.Group.ValueMap.Set(riMapName, &VMValue{TypeID: -1, Value: riMap})
 
 	uidMapName := "uidMapList"
-	ctx.Group.ValueMap.Set(uidMapName, &VMValue{TypeId: -2, Value: uidMap})
-
-	// 这里出现了丢数据的情况，但其实
-	// 二次save其实并不科学 // 确实不科学 看起来不用了
-	//data, _ := json.Marshal(LockFreeMapToMap(ctx.Group.ValueMap))
-	//model.AttrGroupSave(ctx.Dice.DB, ctx.Group.GroupId, data)
+	ctx.Group.ValueMap.Set(uidMapName, &VMValue{TypeID: -2, Value: uidMap})
 }
 
 func dndClearRiMapList(ctx *MsgContext) {

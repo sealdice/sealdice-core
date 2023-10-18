@@ -15,7 +15,7 @@ type PlatformAdapterMinecraft struct {
 	Socket       *gowebsocket.Socket `yaml:"-" json:"-"`
 	RetryTimes   int                 `yaml:"-" json:"-"`
 	Reconnecting bool                `yaml:"-" json:"-"`
-	ConnectUrl   string              `yaml:"connectUrl" json:"connectUrl"` // 连接地址
+	ConnectURL   string              `yaml:"connectUrl" json:"connectUrl"` // 连接地址
 }
 
 type MessageMinecraft struct {
@@ -38,16 +38,16 @@ type SendMessageMinecraft struct {
 	MessageType string `json:"messageType"`
 }
 
-func (pa *PlatformAdapterMinecraft) GetGroupInfoAsync(groupId string) {}
+func (pa *PlatformAdapterMinecraft) GetGroupInfoAsync(_ string) {}
 
 func (pa *PlatformAdapterMinecraft) Serve() int {
-	if !strings.HasPrefix(pa.ConnectUrl, "ws://") {
-		pa.ConnectUrl = "ws://" + pa.ConnectUrl
+	if !strings.HasPrefix(pa.ConnectURL, "ws://") {
+		pa.ConnectURL = "ws://" + pa.ConnectURL
 	}
-	socket := gowebsocket.New(pa.ConnectUrl)
+	socket := gowebsocket.New(pa.ConnectURL)
 	pa.Socket = &socket
 	pa.EndPoint.Nickname = "A Minecraft Server"
-	pa.EndPoint.UserId = "WebSocket"
+	pa.EndPoint.UserID = "WebSocket"
 	d := pa.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
@@ -63,9 +63,9 @@ func (pa *PlatformAdapterMinecraft) tryReconnect(socket gowebsocket.Socket) bool
 	}
 	pa.Reconnecting = true
 	if pa.RetryTimes <= 5 && !socket.IsConnected {
-		pa.RetryTimes += 1
+		pa.RetryTimes++
 		log.Infof("MC server 尝试重新连接中[%d/5]", pa.RetryTimes)
-		socket = gowebsocket.New(pa.ConnectUrl)
+		socket = gowebsocket.New(pa.ConnectURL)
 		pa.Socket = &socket
 		pa.socketSetup()
 		socket.Connect()
@@ -101,7 +101,7 @@ func (pa *PlatformAdapterMinecraft) socketSetup() {
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
 		log.Errorf("MC websocket出现错误: %s", err)
 		if !socket.IsConnected {
-			//socket.Close()
+			// socket.Close()
 			if !pa.tryReconnect(*pa.Socket) {
 				log.Errorf("短时间内连接失败次数过多，不再进行重连")
 				ep.State = 3
@@ -128,10 +128,10 @@ func (pa *PlatformAdapterMinecraft) toStdMessage(msgMC *MessageMinecraft) *Messa
 	msg.Platform = "MC"
 	msg.MessageType = msgMC.Event.MessageType
 	if msg.MessageType == "group" {
-		msg.GroupId = "server"
+		msg.GroupID = "server"
 	}
 	send := new(SenderBase)
-	send.UserId = FormatDiceIdMC(msgMC.Event.UUID)
+	send.UserID = FormatDiceIDMC(msgMC.Event.UUID)
 	send.Nickname = msgMC.Event.Name
 	if msgMC.Event.IsAdmin {
 		send.GroupRole = "admin"
@@ -140,11 +140,11 @@ func (pa *PlatformAdapterMinecraft) toStdMessage(msgMC *MessageMinecraft) *Messa
 	return msg
 }
 
-func FormatDiceIdMC(diceMC string) string {
+func FormatDiceIDMC(diceMC string) string {
 	return fmt.Sprintf("MC:%s", diceMC)
 }
 
-func ExtractMCUserId(id string) string {
+func ExtractMCUserID(id string) string {
 	if strings.HasPrefix(id, "MC:") {
 		return id[len("MC:"):]
 	}
@@ -155,7 +155,7 @@ func (pa *PlatformAdapterMinecraft) DoRelogin() bool {
 	log := pa.Session.Parent.Logger
 	pa.Reconnecting = true
 	pa.Socket.Close()
-	socket := gowebsocket.New(pa.ConnectUrl)
+	socket := gowebsocket.New(pa.ConnectURL)
 	log.Infof("MC server 重新连接")
 	pa.Socket = &socket
 	pa.socketSetup()
@@ -171,14 +171,14 @@ func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
 		if pa.Socket != nil && pa.Socket.IsConnected {
 			pa.Reconnecting = true
 			pa.Socket.Close()
-			socket := gowebsocket.New(pa.ConnectUrl)
+			socket := gowebsocket.New(pa.ConnectURL)
 			pa.Socket = &socket
 			pa.socketSetup()
 			socket.Connect()
 			pa.Reconnecting = false
 		} else {
 			pa.Reconnecting = true
-			socket := gowebsocket.New(pa.ConnectUrl)
+			socket := gowebsocket.New(pa.ConnectURL)
 			pa.Socket = &socket
 			pa.socketSetup()
 			socket.Connect()
@@ -194,7 +194,7 @@ func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterMinecraft) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	id := ExtractMCUserId(uid)
+	id := ExtractMCUserID(uid)
 	msg := new(SendMessageMinecraft)
 	msg.UUID = id
 	msg.Content = text
@@ -206,7 +206,7 @@ func (pa *PlatformAdapterMinecraft) SendToPerson(ctx *MsgContext, uid string, te
 		MessageType: "private",
 		Message:     text,
 		Sender: SenderBase{
-			UserId:   pa.EndPoint.UserId,
+			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
 	}, flag)
@@ -222,9 +222,9 @@ func (pa *PlatformAdapterMinecraft) SendToGroup(ctx *MsgContext, uid string, tex
 		Platform:    "MC",
 		MessageType: "group",
 		Message:     text,
-		GroupId:     uid,
+		GroupID:     uid,
 		Sender: SenderBase{
-			UserId:   pa.EndPoint.UserId,
+			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
 	}, flag)
@@ -250,14 +250,10 @@ func (pa *PlatformAdapterMinecraft) SendFileToGroup(ctx *MsgContext, uid string,
 	}
 }
 
-func (pa *PlatformAdapterMinecraft) MemberBan(groupId string, userId string, duration int64) {
+func (pa *PlatformAdapterMinecraft) MemberBan(_ string, _ string, _ int64) {}
 
-}
+func (pa *PlatformAdapterMinecraft) MemberKick(_ string, _ string) {}
 
-func (pa *PlatformAdapterMinecraft) MemberKick(groupId string, userId string) {
+func (pa *PlatformAdapterMinecraft) QuitGroup(_ *MsgContext, _ string) {}
 
-}
-
-func (pa *PlatformAdapterMinecraft) QuitGroup(ctx *MsgContext, id string) {}
-
-func (pa *PlatformAdapterMinecraft) SetGroupCardName(groupId string, userId string, name string) {}
+func (pa *PlatformAdapterMinecraft) SetGroupCardName(_ string, _ string, _ string) {}
