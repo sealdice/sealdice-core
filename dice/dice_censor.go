@@ -105,7 +105,7 @@ type MsgCheckResult struct {
 	CurSensitiveWords []string
 }
 
-func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, sendContent string) (hit bool, needToTerminate bool, newContent string) {
+func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, sendContent string) (hit bool, hitWords []string, needToTerminate bool, newContent string) {
 	log := d.Logger
 	checkResult, err := d.CensorManager.Check(mctx, msg, checkContent)
 	if err != nil {
@@ -117,6 +117,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 
 	if checkResult.Level > censor.Ignore {
 		hit = true
+		hitWords = checkResult.CurSensitiveWords
 		// TODO: 替换掉敏感词（先暂时不提供）
 		//placeholder := DiceFormatTmpl(mctx, "核心:拦截_替换内容")
 		//for _, word := range checkResult.CurSensitiveWords {
@@ -223,7 +224,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 					}
 					// 只处理一次
 					d.Logger.Infof(
-						"<%s>(%s)发送的「%s」触发最高<%s>级敏感词（%s），触发次数已经超过阈值，进行处理",
+						"<%s>(%s)发送的「%s」触发最高<%s>级敏感词「%s」，触发次数已经超过阈值，进行处理",
 						msg.Sender.Nickname,
 						msg.Sender.UserId,
 						msg.Message,
