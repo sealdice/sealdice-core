@@ -22,6 +22,9 @@ func (e *EndpointInfo) Query(db *sqlx.DB) error {
 	if len(e.UserId) == 0 {
 		return ErrEndpointInfoUidEmpty
 	}
+	if db == nil {
+		return errors.New("db is nil")
+	}
 	row := db.QueryRowx(
 		`SELECT cmd_num, cmd_last_time, online_time, updated_at FROM endpoint_info WHERE user_id = $1`,
 		e.UserId,
@@ -37,7 +40,9 @@ func (e *EndpointInfo) Save(db *sqlx.DB) error {
 	if len(e.UserId) == 0 {
 		return ErrEndpointInfoUidEmpty
 	}
-
+	if db == nil {
+		return errors.New("db is nil")
+	}
 	now := time.Now().Unix()
 	e.UpdatedAt = now
 
