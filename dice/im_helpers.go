@@ -13,27 +13,27 @@ import (
 var sealCodeRe = regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`)
 var cqCodeRe = regexp.MustCompile(`\[CQ:.+?]`)
 
-func IsCurGroupBotOnById(session *IMSession, ep *EndPointInfo, messageType string, groupId string) bool {
+func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType string, groupID string) bool {
 	a := messageType == "group" &&
-		session.ServiceAtNew[groupId] != nil
+		session.ServiceAtNew[groupID] != nil
 	if !a {
 		return false
 	}
-	_, exists := session.ServiceAtNew[groupId].DiceIdActiveMap.Load(ep.UserId)
+	_, exists := session.ServiceAtNew[groupID].DiceIDActiveMap.Load(ep.UserID)
 	return exists
 }
 
-func SetBotOffAtGroup(ctx *MsgContext, groupId string) {
+func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 	session := ctx.Session
-	group := session.ServiceAtNew[groupId]
+	group := session.ServiceAtNew[groupID]
 	if group != nil {
-		if group.DiceIdActiveMap == nil {
-			group.DiceIdActiveMap = new(SyncMap[string, bool])
+		if group.DiceIDActiveMap == nil {
+			group.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
 
 		// TODO: 进行更好的是否变更的检查
-		group.DiceIdActiveMap.Delete(ctx.EndPoint.UserId)
-		if group.DiceIdActiveMap.Len() == 0 {
+		group.DiceIDActiveMap.Delete(ctx.EndPoint.UserID)
+		if group.DiceIDActiveMap.Len() == 0 {
 			group.Active = false
 		}
 		group.UpdatedAtTime = time.Now().Unix()
@@ -41,17 +41,17 @@ func SetBotOffAtGroup(ctx *MsgContext, groupId string) {
 }
 
 // SetBotOnAtGroup 在群内开启
-func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
+func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	session := ctx.Session
-	group := session.ServiceAtNew[groupId]
+	group := session.ServiceAtNew[groupID]
 	if group != nil {
-		if group.DiceIdActiveMap == nil {
-			group.DiceIdActiveMap = new(SyncMap[string, bool])
+		if group.DiceIDActiveMap == nil {
+			group.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
-		if group.DiceIdExistsMap == nil {
-			group.DiceIdActiveMap = new(SyncMap[string, bool])
+		if group.DiceIDExistsMap == nil {
+			group.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
-		group.DiceIdActiveMap.Store(ctx.EndPoint.UserId, true)
+		group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
 		group.Active = true
 	} else {
 		// 设定扩展情况
@@ -65,31 +65,31 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 			}
 		}
 
-		session.ServiceAtNew[groupId] = &GroupInfo{
+		session.ServiceAtNew[groupID] = &GroupInfo{
 			Active:           true,
 			ActivatedExtList: extLst,
 			Players:          new(SyncMap[string, *GroupPlayerInfo]),
-			GroupId:          groupId,
+			GroupID:          groupID,
 			ValueMap:         lockfree.NewHashMap(),
-			DiceIdActiveMap:  new(SyncMap[string, bool]),
-			DiceIdExistsMap:  new(SyncMap[string, bool]),
+			DiceIDActiveMap:  new(SyncMap[string, bool]),
+			DiceIDExistsMap:  new(SyncMap[string, bool]),
 			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
 			UpdatedAtTime:    time.Now().Unix(),
 		}
-		group = session.ServiceAtNew[groupId]
+		group = session.ServiceAtNew[groupID]
 	}
 
-	if group.DiceIdActiveMap == nil {
-		group.DiceIdActiveMap = new(SyncMap[string, bool])
+	if group.DiceIDActiveMap == nil {
+		group.DiceIDActiveMap = new(SyncMap[string, bool])
 	}
-	if group.DiceIdExistsMap == nil {
-		group.DiceIdExistsMap = new(SyncMap[string, bool])
+	if group.DiceIDExistsMap == nil {
+		group.DiceIDExistsMap = new(SyncMap[string, bool])
 	}
 	if group.BotList == nil {
 		group.BotList = new(SyncMap[string, bool])
 	}
 
-	group.DiceIdActiveMap.Store(ctx.EndPoint.UserId, true)
+	group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
 	group.UpdatedAtTime = time.Now().Unix()
 	return group
 }
@@ -97,32 +97,32 @@ func SetBotOnAtGroup(ctx *MsgContext, groupId string) *GroupInfo {
 // GetPlayerInfoBySender 获取玩家群内信息，没有就创建
 func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPlayerInfo) {
 	session := ctx.Session
-	var groupId string
+	var groupID string
 	if msg.MessageType == "group" {
 		// 群信息
-		groupId = msg.GroupId
+		groupID = msg.GroupID
 	} else {
 		// 私聊信息 PrivateGroup
-		groupId = "PG-" + msg.Sender.UserId
-		SetBotOnAtGroup(ctx, groupId)
+		groupID = "PG-" + msg.Sender.UserID
+		SetBotOnAtGroup(ctx, groupID)
 	}
-	group := session.ServiceAtNew[groupId]
-	if msg.GuildId != "" {
-		group.GuildId = msg.GuildId
+	group := session.ServiceAtNew[groupID]
+	if msg.GuildID != "" {
+		group.GuildID = msg.GuildID
 	}
 	if group == nil {
 		return nil, nil
 	}
 
-	p := group.PlayerGet(ctx.Dice.DBData, msg.Sender.UserId)
+	p := group.PlayerGet(ctx.Dice.DBData, msg.Sender.UserID)
 	if p == nil {
 		p = &GroupPlayerInfo{
 			Name:          msg.Sender.Nickname,
-			UserId:        msg.Sender.UserId,
+			UserID:        msg.Sender.UserID,
 			ValueMapTemp:  lockfree.NewHashMap(),
 			UpdatedAtTime: 0, // 新创建时不赋值，这样不会入库保存，减轻数据库负担
 		}
-		group.Players.Store(msg.Sender.UserId, p)
+		group.Players.Store(msg.Sender.UserID, p)
 	}
 	if p.ValueMapTemp == nil {
 		p.ValueMapTemp = lockfree.NewHashMap()
@@ -165,7 +165,7 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	}
 	d := ctx.Dice
 	if d != nil {
-		d.Logger.Infof("发给(群%s): %s", msg.GroupId, text)
+		d.Logger.Infof("发给(群%s): %s", msg.GroupID, text)
 		// 敏感词拦截：回复（群）
 		if d.EnableCensor && d.CensorMode == OnlyOutputReply {
 			// 先拿掉海豹码和CQ码再检查敏感词
@@ -181,9 +181,9 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 					"拒绝回复命中敏感词「%s」的内容「%s」，原消息「%s」- 来自群(%s)内<%s>(%s)",
 					strings.Join(words, "|"),
 					text, msg.Message,
-					msg.GroupId,
+					msg.GroupID,
 					msg.Sender.Nickname,
-					msg.Sender.UserId,
+					msg.Sender.UserID,
 				)
 				text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
 			}
@@ -210,7 +210,7 @@ func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag strin
 		if ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
 			doSleepQQ(ctx)
 		}
-		ctx.EndPoint.Adapter.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), flag)
+		ctx.EndPoint.Adapter.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), flag)
 	}
 }
 
@@ -226,7 +226,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 
 	d := ctx.Dice
 	if d != nil {
-		d.Logger.Infof("发给(帐号%s): %s", msg.Sender.UserId, text)
+		d.Logger.Infof("发给(帐号%s): %s", msg.Sender.UserID, text)
 		// 敏感词拦截：回复（个人）
 		if d.EnableCensor && d.CensorMode == OnlyOutputReply {
 			// 先拿掉海豹码和CQ码再检查敏感词
@@ -243,7 +243,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 					text,
 					msg.Message,
 					msg.Sender.Nickname,
-					msg.Sender.UserId,
+					msg.Sender.UserID,
 				)
 				text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
 			}
@@ -265,7 +265,7 @@ func replyPersonRawNoCheck(ctx *MsgContext, msg *Message, text string, flag stri
 		if ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
 			doSleepQQ(ctx)
 		}
-		ctx.EndPoint.Adapter.SendToPerson(ctx, msg.Sender.UserId, strings.TrimSpace(i), flag)
+		ctx.EndPoint.Adapter.SendToPerson(ctx, msg.Sender.UserID, strings.TrimSpace(i), flag)
 	}
 }
 
@@ -290,11 +290,11 @@ func CrossMsgBySearch(se *IMSession, p, t, txt string, pr bool) bool {
 
 	if !pr {
 		mctx.MessageType = "group"
-		ReplyGroup(mctx, &Message{GroupId: t}, txt)
+		ReplyGroup(mctx, &Message{GroupID: t}, txt)
 	} else {
 		mctx.IsPrivate = true
 		mctx.MessageType = "private"
-		ReplyPerson(mctx, &Message{Sender: SenderBase{UserId: t}}, txt)
+		ReplyPerson(mctx, &Message{Sender: SenderBase{UserID: t}}, txt)
 	}
 
 	return true
@@ -317,24 +317,24 @@ func SendFileToSenderRaw(ctx *MsgContext, msg *Message, path string, flag string
 
 func SendFileToPersonRaw(ctx *MsgContext, msg *Message, path string, flag string) {
 	if ctx.Dice != nil {
-		ctx.Dice.Logger.Infof("发文件给(账号%s): %s", msg.Sender.UserId, path)
+		ctx.Dice.Logger.Infof("发文件给(账号%s): %s", msg.Sender.UserID, path)
 	}
-	ctx.EndPoint.Adapter.SendFileToPerson(ctx, msg.Sender.UserId, path, flag)
+	ctx.EndPoint.Adapter.SendFileToPerson(ctx, msg.Sender.UserID, path, flag)
 }
 
 func SendFileToGroupRaw(ctx *MsgContext, msg *Message, path string, flag string) {
 	if ctx.Dice != nil {
-		ctx.Dice.Logger.Infof("发文件给(群%s): %s", msg.GroupId, path)
+		ctx.Dice.Logger.Infof("发文件给(群%s): %s", msg.GroupID, path)
 	}
-	ctx.EndPoint.Adapter.SendFileToGroup(ctx, msg.GroupId, path, flag)
+	ctx.EndPoint.Adapter.SendFileToGroup(ctx, msg.GroupID, path, flag)
 }
 
-func MemberBan(ctx *MsgContext, groupId string, userId string, duration int64) {
-	ctx.EndPoint.Adapter.MemberBan(groupId, userId, duration)
+func MemberBan(ctx *MsgContext, groupID string, userID string, duration int64) {
+	ctx.EndPoint.Adapter.MemberBan(groupID, userID, duration)
 }
 
-func MemberKick(ctx *MsgContext, groupId string, userId string) {
-	ctx.EndPoint.Adapter.MemberKick(groupId, userId)
+func MemberKick(ctx *MsgContext, groupID string, userID string) {
+	ctx.EndPoint.Adapter.MemberKick(groupID, userID)
 }
 
 type ByLength []string
@@ -349,7 +349,7 @@ func (s ByLength) Less(i, j int) bool {
 	return len(s[i]) > len(s[j])
 }
 
-func DiceFormatTmpl(ctx *MsgContext, s string) string {
+func DiceFormatTmpl(ctx *MsgContext, s string) string { //nolint:revive
 	var text string
 	a := ctx.Dice.TextMap[s]
 	if a == nil {
@@ -378,41 +378,36 @@ func CompatibleReplace(ctx *MsgContext, s string) string {
 
 	if ctx != nil {
 		s = DeckRewrite(s, func(deckName string) string {
-
 			// 如果牌组名中含有表达式, 在此进行求值
 			// 不含表达式也无妨, 求值完还是原来的字符串
 			deckName, _, _ = ctx.Dice.ExprText(deckName, ctx)
 
 			exists, result, err := deckDraw(ctx, deckName, false)
-			if exists {
-				if err != nil {
-					return "<%抽取错误-" + deckName + "%>"
-				} else {
-					return result
-				}
-			} else {
+			if !exists {
 				return "<%未知牌组-" + deckName + "%>"
 			}
+			if err != nil {
+				return "<%抽取错误-" + deckName + "%>"
+			}
+			return result
 		})
 	}
 	return s
 }
 
-func DiceFormat(ctx *MsgContext, s string) string {
-	//s = strings.ReplaceAll(s, "\n", `\n`)
-	//fmt.Println("???", s)
+func DiceFormat(ctx *MsgContext, s string) string { //nolint:revive
 	s = CompatibleReplace(ctx, s)
 
 	r, _, _ := ctx.Dice.ExprText(s, ctx)
 	return r
 }
 
-func FormatDiceId(ctx *MsgContext, Id interface{}, isGroup bool) string {
+func FormatDiceID(ctx *MsgContext, id interface{}, isGroup bool) string {
 	prefix := ctx.EndPoint.Platform
 	if isGroup {
 		prefix += "-Group"
 	}
-	return fmt.Sprintf("%s:%v", prefix, Id)
+	return fmt.Sprintf("%s:%v", prefix, id)
 }
 
 func lenWithoutBase64(text string) int {

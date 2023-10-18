@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,6 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 const updaterVersion = "0.1.0"
@@ -24,8 +25,7 @@ func checkURLOne(url string, wg *sync.WaitGroup, resultChan chan string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
 	defer cancel()
 
-	//go func() {
-	resp, err := http.Get(url)
+	resp, err := http.Get(url) //nolint:gosec
 	if err != nil {
 		// URL 请求异常
 		return
@@ -122,7 +122,7 @@ func downloadUpdater(dm *dice.DiceManager) error {
 
 	prefix := "http://dice.weizaima.com/u/v" + updaterVersion
 	if ver != nil {
-		prefix = ver.UpdaterUrlPrefix
+		prefix = ver.UpdaterURLPrefix
 	}
 	link := prefix + "/" + "seal-updater-" + platform + "-" + arch
 
@@ -172,17 +172,17 @@ func UpdateByFile(dm *dice.DiceManager, log *zap.SugaredLogger, packName string,
 				if runtime.GOOS == "windows" {
 					log.Info("升级程序: 参数 ", args)
 					cmd := executeWin(fn, args...)
-					err := cmd.Start()
-					if err != nil {
-						log.Error("升级程序: 执行失败 ", err.Error())
+					errStart := cmd.Start()
+					if errStart != nil {
+						log.Error("升级程序: 执行失败 ", errStart.Error())
 						return
 					}
 				} else {
 					args = append([]string{fn}, args...)
 					log.Info("升级程序: 参数 ", args)
-					err := syscall.Exec(fn, args, os.Environ())
-					if err != nil {
-						log.Error("升级程序: 执行失败 ", err.Error())
+					errStart := syscall.Exec(fn, args, os.Environ())
+					if errStart != nil {
+						log.Error("升级程序: 执行失败 ", errStart.Error())
 						return
 					}
 				}

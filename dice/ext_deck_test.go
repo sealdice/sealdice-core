@@ -16,7 +16,6 @@ func TestDeck(t *testing.T) {
 		s := DeckToShuffleRandomPool(deck)
 		k := s.Pick().(string)
 		m[k] += 1
-
 	}
 	fmt.Println(m) // map[1:1002 2:988 3:954 4:1013 5:965 6:1016 7:4062]
 }

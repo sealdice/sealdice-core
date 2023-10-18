@@ -2,13 +2,14 @@ package dice
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 func CustomReplyConfigRead(dice *Dice, filename string) (*ReplyConfig, error) {
@@ -118,37 +119,7 @@ func ReplyReload(dice *Dice) {
 }
 
 func RegisterBuiltinExtReply(dice *Dice) {
-	//rc := CustomReplyConfigRead(dice, "reply.yaml")
-	//rc.Save(dice)
-	//dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
 	ReplyReload(dice)
-
-	//a := ReplyItem{}
-	//a.Enable = true
-	//a.Condition = &ReplyConditionTextMatch{"match", "match_exact", "asd"}
-	//a.Results = []ReplyResultBase{
-	//	&ReplyResultReplyToSender{
-	//		"replyToSender",
-	//		0.3,
-	//		"text",
-	//	},
-	//}
-
-	//txt, _ := yaml.Marshal(a)
-	//fmt.Println(string(txt))
-	//{"enable":true,"condition":{"condType":"match","matchType":"match_exact","value":"asd"},"results":[{"resultType":"replyToSender","delay":0.3,"message":"text"}]}
-	////{"enable":false,"condition":{"condType":"match","matchType":"match_exact","value":"asd"},"results":null}
-	//
-	//ri := ReplyItem{}
-	//fmt.Println(yaml.Unmarshal(txt, &ri))
-	//fmt.Println(333, ri.Condition, ri.Condition.(*ReplyConditionTextMatch))
-	//
-	//rc := ReplyConfig{
-	//	Enable: true,
-	//	Items: []*ReplyItem{
-	//		&ri,
-	//	},
-	//}
 
 	theExt := &ExtInfo{
 		Name:       "reply", // 扩展的名称，需要用于开启和关闭指令中，写简短点
@@ -184,7 +155,6 @@ func RegisterBuiltinExtReply(dice *Dice) {
 					condIndex := -1
 					defer func() {
 						if r := recover(); r != nil {
-							//  + fmt.Sprintf("%s", r)
 							log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
 							if condIndex != -1 {
 								ReplyToSender(ctx, msg, fmt.Sprintf(
@@ -228,16 +198,11 @@ func RegisterBuiltinExtReply(dice *Dice) {
 								}
 							}
 
-							//fmt.Println("!!!!", cleanText, checkTrue, len(i.Conditions), len(i.Results))
-							//if checkTrue {
-							//	fmt.Println("!!xx", cleanText)
-							//}
-
 							if len(i.Conditions) > 0 && checkTrue {
 								log.Infof("自定义回复[%s]: 条件满足", rc.Filename)
 
 								SetTempVars(ctx, msg.Sender.Nickname)
-								VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawId))
+								VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
 								for _, j := range i.Results {
 									j.Execute(ctx, msg, nil)
 								}
@@ -249,10 +214,8 @@ func RegisterBuiltinExtReply(dice *Dice) {
 				}
 			}
 		},
-		GetDescText: func(i *ExtInfo) string {
-			return GetExtensionDesc(i)
-		},
-		CmdMap: CmdMapCls{},
+		GetDescText: GetExtensionDesc,
+		CmdMap:      CmdMapCls{},
 	}
 
 	dice.RegisterExtension(theExt)

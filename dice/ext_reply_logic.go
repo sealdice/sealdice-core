@@ -3,13 +3,14 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/antlabs/strsim"
-	"gopkg.in/yaml.v3"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/antlabs/strsim"
+	"gopkg.in/yaml.v3"
 )
 
 type ReplyConditionBase interface {
@@ -60,7 +61,7 @@ func (m *ReplyConditionTextMatch) Clean() {
 	m.Value = strings.TrimSpace(m.Value)
 }
 
-func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string) bool {
+func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, cleanText string) bool {
 	var ret bool
 	switch m.MatchType {
 	case "matchExact":
@@ -110,20 +111,19 @@ func (m *ReplyConditionTextLenLimit) Clean() {
 	}
 }
 
-func (m *ReplyConditionTextLenLimit) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string) bool {
+func (m *ReplyConditionTextLenLimit) Check(_ *MsgContext, _ *Message, _ *CmdArgs, cleanText string) bool {
 	textLen := len([]rune(cleanText))
 	if m.MatchOp == "le" {
 		return textLen <= m.Value
-	} else {
-		return textLen >= m.Value
 	}
+	return textLen >= m.Value
 }
 
 func (m *ReplyConditionExprTrue) Clean() {
 	m.Value = strings.TrimSpace(m.Value)
 }
 
-func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string) bool {
+func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, _ string) bool {
 	r, _, err := ctx.Dice.ExprEval(m.Value, ctx)
 	if err != nil {
 		ctx.Dice.Logger.Infof("自定义回复表达式执行失败: %s", m.Value)
@@ -134,7 +134,7 @@ func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, msg *Message, cmdArgs *C
 		ctx.Dice.Logger.Infof("自定义回复表达式执行失败(后半部分不能识别 %s): %s", r.restInput, m.Value)
 		return false
 	}
-	//fmt.Println("???", r, err, r.AsBool(), r.Value == int64(0), r.Value != int64(0))
+	// fmt.Println("???", r, err, r.AsBool(), r.Value == int64(0), r.Value != int64(0))
 	return r.AsBool()
 }
 
@@ -149,13 +149,13 @@ func (m *ReplyResultReplyToSender) Clean() {
 	m.Message.Clean()
 }
 
-func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-	//go func() {
+func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs) {
+	// go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 	ReplyToSender(ctx, msg, DiceFormat(ctx, p.Pick().(string)))
-	//}()
+	// }()
 }
 
 // ReplyResultReplyPrivate 回复到私人 replyPrivate
@@ -169,13 +169,10 @@ func (m *ReplyResultReplyPrivate) Clean() {
 	m.Message.Clean()
 }
 
-func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-	//go func() {
+func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
 	ReplyPerson(ctx, msg, DiceFormat(ctx, p.Pick().(string)))
-	//ReplyPerson(ctx, msg, DiceFormat(ctx, m.Message))
-	//}()
 }
 
 // ReplyResultReplyGroup 回复到群组 replyGroup
@@ -189,12 +186,12 @@ func (m *ReplyResultReplyGroup) Clean() {
 	m.Message.Clean()
 }
 
-func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-	//go func() {
+func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs) {
+	// go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
 	ReplyGroup(ctx, msg, DiceFormat(ctx, p.Pick().(string)))
-	//}()
+	// }()
 }
 
 // ReplyResultRunText 同.text，但无输出  runText
@@ -204,11 +201,9 @@ type ReplyResultRunText struct {
 	Message    string  `yaml:"message" json:"message"`
 }
 
-func (m *ReplyResultRunText) Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-	//go func() {
+func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	_, _, _ = ctx.Dice.ExprTextBase(m.Message, ctx, RollExtraFlags{})
-	//}()
 }
 
 type ReplyItem struct {
@@ -278,9 +273,9 @@ func (ri *ReplyItem) UnmarshalJSON(data []byte) error {
 			}
 
 			for _, i := range cs {
-				m, ok := i.(map[string]interface{})
-				if ok && m["condType"] != nil {
-					name, _ := m["condType"].(string)
+				mm, ok := i.(map[string]interface{})
+				if ok && mm["condType"] != nil {
+					name, _ := mm["condType"].(string)
 					theType := typeMap[name]
 					if theType != nil {
 						val, err := tryUnmarshal(i, theType)
@@ -358,9 +353,9 @@ func (ri *ReplyItem) UnmarshalYAML(value *yaml.Node) error {
 			}
 
 			for _, i := range cs {
-				m, ok := i.(map[string]interface{})
-				if ok && m["condType"] != nil {
-					name, _ := m["condType"].(string)
+				mm, ok := i.(map[string]interface{})
+				if ok && mm["condType"] != nil {
+					name, _ := mm["condType"].(string)
 					theType := typeMap[name]
 					if theType != nil {
 						val, err := tryUnmarshal(i, theType)

@@ -125,8 +125,9 @@ func (code *ByteCode) String() string {
 		return "**"
 	case TypeDiceFate:
 		return "df"
+	default:
+		return ""
 	}
-	return ""
 }
 
 func (code *ByteCode) CodeString() string {
@@ -229,8 +230,9 @@ func (code *ByteCode) CodeString() string {
 		return "tmp.conv.int"
 	case TypeConvertStr:
 		return "tmp.conv.str"
+	default:
+		return ""
 	}
-	return ""
 }
 
 type RollExtraFlags struct {
@@ -322,7 +324,7 @@ func (e *RollExpression) PopAndSetOffset() {
 	codeIndex := e.JmpStack[last]
 	e.JmpStack = e.JmpStack[:last]
 	e.Code[codeIndex].Value = int64(e.Top - codeIndex - 1)
-	//fmt.Println("XXXX", e.Code[codeIndex], "|", e.Top, codeIndex)
+	// fmt.Println("XXXX", e.Code[codeIndex], "|", e.Top, codeIndex)
 }
 
 func (e *RollExpression) CounterPush() {
@@ -423,35 +425,35 @@ func (e *RollExpression) AddStModify(op string, text string) {
 	code[top].ValueStr = op
 }
 
-func (e *RollExpression) WriteCode(T Type, value int64, valueStr string) {
+func (e *RollExpression) WriteCode(t Type, value int64, valueStr string) {
 	if e.checkStackOverflow() {
 		return
 	}
 
 	code, top := e.Code, e.Top
-	code[top].T = T
+	code[top].T = t
 	code[top].Value = value
 	code[top].ValueStr = valueStr
-	e.Top += 1
+	e.Top++
 }
 
-func (p *RollExpression) CodePush() {
-	p.TmpCodeStack = append(p.TmpCodeStack, p.Top)
+func (e *RollExpression) CodePush() {
+	e.TmpCodeStack = append(e.TmpCodeStack, e.Top)
 }
 
-func (p *RollExpression) CodePop() {
-	if len(p.TmpCodeStack) > 0 {
+func (e *RollExpression) CodePop() {
+	if len(e.TmpCodeStack) > 0 {
 		// 先这样凑合一下，因为好像删除中间的指令会引起别的问题
-		for i := p.TmpCodeStack[len(p.TmpCodeStack)-1]; i < p.Top; i++ {
-			p.Code[i].T = TypeNop
+		for i := e.TmpCodeStack[len(e.TmpCodeStack)-1]; i < e.Top; i++ {
+			e.Code[i].T = TypeNop
 		}
-		p.TmpCodeStack = p.TmpCodeStack[:len(p.TmpCodeStack)-1]
+		e.TmpCodeStack = e.TmpCodeStack[:len(e.TmpCodeStack)-1]
 	}
 }
 
-func (p *RollExpression) AddStoreComputed(text string) {
+func (e *RollExpression) AddStoreComputed(text string) {
 	// 相比DiceScript被迫少了很多机制，创建对象的位置也变了
-	p.WriteCode(TypePushComputed, 0, text)
+	e.WriteCode(TypePushComputed, 0, text)
 }
 
 func (e *RollExpression) AddFormatString(value string, num int64) {
@@ -466,19 +468,17 @@ func (e *RollExpression) AddFormatString(value string, num int64) {
 	code[top].ValueStr = value // 仅象征性意义
 }
 
-type VmStack = VMValue
+type VMStack = VMValue
 
-type VmResult struct {
+type VMResult struct {
 	VMValue
 	Parser    *DiceRollParser
 	Matched   string
 	restInput string
 }
 
-func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, error) {
-	stack, top := make([]VmStack, len(e.Code)), 0
-	//lastIsDice := false
-	//var lastValIndex int
+func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, error) {
+	stack, top := make([]VMStack, len(e.Code)), 0
 	times := 0
 	lastDetails := []string{}
 	lastDetailsLeft := []string{}
@@ -496,9 +496,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 	}
 
 	wodInit := func() {
-		wodState.pool = &VMValue{TypeId: VMTypeInt64, Value: int64(1)}
-		wodState.points = &VMValue{TypeId: VMTypeInt64, Value: int64(10)}   // 面数，默认d10
-		wodState.threshold = &VMValue{TypeId: VMTypeInt64, Value: int64(8)} // 成功线，默认9
+		wodState.pool = &VMValue{TypeID: VMTypeInt64, Value: int64(1)}
+		wodState.points = &VMValue{TypeID: VMTypeInt64, Value: int64(10)}   // 面数，默认d10
+		wodState.threshold = &VMValue{TypeID: VMTypeInt64, Value: int64(8)} // 成功线，默认9
 		wodState.isGE = true
 
 		if threshold, exists := ctx.Group.ValueMap.Get("wodThreshold"); exists {
@@ -519,8 +519,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 	}
 
 	dcInit := func() {
-		dcState.pool = &VMValue{TypeId: VMTypeInt64, Value: int64(1)}    // 骰数，默认1
-		dcState.points = &VMValue{TypeId: VMTypeInt64, Value: int64(10)} // 面数，默认d10
+		dcState.pool = &VMValue{TypeID: VMTypeInt64, Value: int64(1)}    // 骰数，默认1
+		dcState.points = &VMValue{TypeID: VMTypeInt64, Value: int64(10)} // 面数，默认d10
 	}
 
 	numOpCountAdd := func(count int64) bool {
@@ -533,11 +533,11 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 	}
 
 	codes := e.Code[0:e.Top]
-	//fmt.Println("!!!!!", e.GetAsmText())
+	// fmt.Println("!!!!!", e.GetAsmText())
 
-	for opIndex := 0; opIndex < len(codes); opIndex += 1 {
+	for opIndex := 0; opIndex < len(codes); opIndex++ {
 		code := codes[opIndex]
-		//fmt.Println("!!!", code.CodeString(), time.Now().UnixMilli())
+		// fmt.Println("!!!", code.CodeString(), time.Now().UnixMilli())
 
 		// 单目运算符
 		switch code.T {
@@ -549,24 +549,23 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			}
 			continue
 		case TypePop:
-			top -= 1
+			top--
 			continue
 		case TypeLoadFormatString:
 			num := int(code.Value)
 
 			outStr := ""
 			for index := 0; index < num; index++ {
-				var val VmStack
+				var val VMStack
 				if top-num+index < 0 {
 					return nil, "", errors.New("E3:无效的表达式")
-					//val = vmStack{VMTypeString, ""}
-				} else {
-					val = stack[top-num+index]
+					// val = vmStack{VMTypeString, ""}
 				}
+				val = stack[top-num+index]
 				outStr += val.ToString()
 			}
 			outStr = strings.ReplaceAll(outStr, "\\n", "\n")
-			//for index, i := range parts {
+			// for index, i := range parts {
 			//	var val vmStack
 			//	if top-len(parts)+index < 0 {
 			//		return nil, "", errors.New("E3: 无效的表达式")
@@ -578,18 +577,18 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			//}
 
 			top -= num
-			stack[top].TypeId = VMTypeString
+			stack[top].TypeID = VMTypeString
 			stack[top].Value = outStr
 			top++
 			continue
 		case TypePushNumber:
-			stack[top].TypeId = VMTypeInt64
+			stack[top].TypeID = VMTypeInt64
 			stack[top].Value = code.Value
 			top++
 			continue
 		case TypeDiceSetK:
 			t := stack[top-1]
-			registerDiceK = &VMValue{TypeId: t.TypeId, Value: t.Value}
+			registerDiceK = &VMValue{TypeID: t.TypeID, Value: t.Value}
 			kqFlag = code.Value
 			top--
 			continue
@@ -623,7 +622,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			continue
 		case TypeDiceSetQ:
 			t := stack[top-1]
-			registerDiceQ = &VMValue{TypeId: t.TypeId, Value: t.Value}
+			registerDiceQ = &VMValue{TypeID: t.TypeID, Value: t.Value}
 			kqFlag = code.Value
 			top--
 			continue
@@ -632,24 +631,24 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			continue
 		case TypeWodSetPoints:
 			t := stack[top-1]
-			wodState.points = &VMValue{TypeId: t.TypeId, Value: t.Value}
+			wodState.points = &VMValue{TypeID: t.TypeID, Value: t.Value}
 			top--
 			continue
 		case TypeWodSetThreshold:
 			t := stack[top-1]
-			wodState.threshold = &VMValue{TypeId: t.TypeId, Value: t.Value}
+			wodState.threshold = &VMValue{TypeID: t.TypeID, Value: t.Value}
 			wodState.isGE = true
 			top--
 			continue
 		case TypeWodSetThresholdQ:
 			t := stack[top-1]
-			wodState.threshold = &VMValue{TypeId: t.TypeId, Value: t.Value}
+			wodState.threshold = &VMValue{TypeID: t.TypeID, Value: t.Value}
 			wodState.isGE = false
 			top--
 			continue
 		case TypeWodSetPool:
 			t := stack[top-1]
-			wodState.pool = &VMValue{TypeId: t.TypeId, Value: t.Value}
+			wodState.pool = &VMValue{TypeID: t.TypeID, Value: t.Value}
 			top--
 			continue
 		case TypeDiceWod:
@@ -659,7 +658,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				return nil, "", e.Error
 			}
 			stack[top-1].Value = ret.Value
-			stack[top-1].TypeId = ret.TypeId
+			stack[top-1].TypeID = ret.TypeID
 
 			roundsText := ""
 			if rounds > 1 {
@@ -676,12 +675,12 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			continue
 		case TypeDCSetPool:
 			t := stack[top-1]
-			dcState.pool = &VMValue{TypeId: t.TypeId, Value: t.Value}
+			dcState.pool = &VMValue{TypeID: t.TypeID, Value: t.Value}
 			top--
 			continue
 		case TypeDCSetPoints:
 			t := stack[top-1]
-			dcState.points = &VMValue{TypeId: t.TypeId, Value: t.Value}
+			dcState.points = &VMValue{TypeID: t.TypeID, Value: t.Value}
 			top--
 			continue
 		case TypeDCSetInit:
@@ -694,7 +693,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				return nil, "", e.Error
 			}
 			stack[top-1].Value = ret.Value
-			stack[top-1].TypeId = ret.TypeId
+			stack[top-1].TypeID = ret.TypeID
 
 			detailText := ""
 			if len(details) > 0 {
@@ -737,9 +736,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 					num10Exists = true
 					nums = append(nums, "0")
 					continue
-				} else {
-					nums = append(nums, strconv.FormatInt(n, 10))
 				}
+				nums = append(nums, strconv.FormatInt(n, 10))
 
 				if n < diceMin {
 					diceMin = n
@@ -771,7 +769,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			}
 
 			stack[top-1].Value = newVal
-			stack[top-1].TypeId = VMTypeInt64
+			stack[top-1].TypeID = VMTypeInt64
 			e.Calculated = true
 			continue
 		case TypePushString:
@@ -779,7 +777,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			if err != nil {
 				unquote = code.ValueStr
 			}
-			stack[top].TypeId = VMTypeString
+			stack[top].TypeID = VMTypeString
 			stack[top].Value = unquote
 			top++
 			continue
@@ -808,14 +806,14 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				Expr: code.ValueStr,
 			})
 			stack[top].Value = val.Value
-			stack[top].TypeId = VMTypeComputedValue
-			top += 1
+			stack[top].TypeID = VMTypeComputedValue
+			top++
 			continue
 
 		case TypeConvertInt:
 			e.Calculated = true
 			val := stack[top-1]
-			if val.TypeId == VMTypeString {
+			if val.TypeID == VMTypeString {
 				v, _ := val.ReadString()
 				r, err := strconv.ParseInt(v, 10, 64)
 				if err == nil {
@@ -824,7 +822,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 					return nil, "", errors.New("错误: int() 无法转换为数字: " + v)
 				}
 				continue
-			} else if val.TypeId == VMTypeInt64 {
+			} else if val.TypeID == VMTypeInt64 {
 				// 啥都不做
 				continue
 			} else {
@@ -862,11 +860,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 					vName := strings.ReplaceAll(varname, "豁免", "")
 					realV, _, err := ctx.Dice.ExprEvalBase(fmt.Sprintf("$豁免_%s", vName), ctx, RollExtraFlags{})
 					if err == nil {
-						vType = realV.TypeId
+						vType = realV.TypeID
 						v = realV.Value
 					}
-					//lastDetail = fmt.Sprintf("%s调整值%d", varname, mod)
-					//lastDetail = varname + lastDetail
 				}
 			}
 
@@ -887,7 +883,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				}
 			}
 
-			if v == nil && ctx != nil {
+			if v == nil && ctx != nil { //nolint:nestif
 				name2 := varname
 				if ctx.SystemTemplate != nil {
 					name2 = ctx.SystemTemplate.GetAlias(varname)
@@ -896,8 +892,6 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 
 				if !exists {
 					if ctx.SystemTemplate != nil {
-						//var calculated bool
-						//var detail string
 						v2n, detail, calculated, exists2 := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
 						if exists2 {
 							v2 = v2n
@@ -911,22 +905,16 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				}
 
 				if exists {
-					vType = v2.TypeId
+					vType = v2.TypeID
 					v = v2.Value
 				} else {
 					textTmpl := ctx.Dice.TextMap[varname]
 					if textTmpl != nil {
 						vType = VMTypeString
 						v = DiceFormat(ctx, textTmpl.Pick().(string))
-					} else {
-						if strings.Contains(varname, ":") {
-							vType = VMTypeString
-							v = "<%未定义值-" + varname + "%>"
-						} else { //nolint
-							//TODO
-							//vType = VMTypeInt64 // 这个方案不好，更多类型的时候就出事了
-							//v = int64(0)
-						}
+					} else if strings.Contains(varname, ":") {
+						vType = VMTypeString
+						v = "<%未定义值-" + varname + "%>"
 					}
 				}
 			}
@@ -939,7 +927,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				if err != nil {
 					return nil, "", errors.New("E3: 获取计算属性异常: " + vd.Expr)
 				}
-				vType = realV.TypeId
+				vType = realV.TypeID
 				v = realV.Value
 			}
 
@@ -954,16 +942,15 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				if ret == nil {
 					cd, _ := v2.ReadComputed()
 					return nil, "", errors.New("E3: 获取计算属性异常: " + cd.Expr)
-				} else {
-					calculated := ret.Parser.Calculated
-					if calculated && !e.Calculated {
-						e.Calculated = calculated
-					}
-
-					lastDetail = detail
-					vType = ret.TypeId
-					v = ret.Value
 				}
+				calculated := ret.Parser.Calculated
+				if calculated && !e.Calculated {
+					e.Calculated = calculated
+				}
+
+				lastDetail = detail
+				vType = ret.TypeID
+				v = ret.Value
 			}
 
 			if vType == VMTypeInt64 && lastDetail == "" {
@@ -976,7 +963,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 					if vType == VMTypeInt64 {
 						buffV, _, err := ctx.Dice.ExprEvalBase("$buff_"+varname, ctx, RollExtraFlags{})
 						if err == nil {
-							if buffV.TypeId == VMTypeInt64 {
+							if buffV.TypeID == VMTypeInt64 {
 								lastDetail += fmt.Sprintf("+%d", buffV.Value.(int64))
 								v = v.(int64) + buffV.Value.(int64)
 							}
@@ -996,7 +983,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 							mod := v.(int64)/2 - 5
 							v = mod
 							lastDetail = fmt.Sprintf("%s调整值%d", varname, mod)
-							//lastDetail = varname + lastDetail
+							// lastDetail = varname + lastDetail
 						}
 					}
 				}
@@ -1011,7 +998,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 					lastDetail = detail
 
 					if v2 != nil {
-						vType = v2.TypeId
+						vType = v2.TypeID
 						v = v2.Value
 						lastDetail = v2.ToString()
 					}
@@ -1028,7 +1015,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				lastDetail = fmt.Sprintf("%s=%s", varname, lastDetail)
 			}
 
-			stack[top].TypeId = vType
+			stack[top].TypeID = vType
 			stack[top].Value = v
 			top++
 
@@ -1053,23 +1040,24 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				lastDetails = lastDetails[:0]
 			}
 			continue
+		default: /*no-op*/
 		}
 
 		a, b := &stack[top-2], &stack[top-1]
-		//lastValIndex = top-3
+		// lastValIndex = top-3
 		top--
 
 		checkDice := func(t *ByteCode) {
 			// 第一次 左然后右
 			// 后 一直右
-			times += 1
-			if a.TypeId != VMTypeInt64 || b.TypeId != VMTypeInt64 {
+			times++
+			if a.TypeID != VMTypeInt64 || b.TypeID != VMTypeInt64 {
 				return
 			}
 
 			checkLeft := func() {
 				if calcDetail == "" {
-					if a.TypeId == VMTypeNone {
+					if a.TypeID == VMTypeNone {
 						calcDetail += "0"
 					} else {
 						calcDetail += strconv.FormatInt(a.Value.(int64), 10)
@@ -1084,10 +1072,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 
 			if t.T != TypeDice && top == 1 {
 				if times == 1 {
-					if t.T == TypeDiceFate {
-						// 如果什么都不输出，反而正常了……不然会这样：
-						// <木落>掷出了 f + 1=0 df 0[0-++] + 1=2
-					} else {
+					if t.T != TypeDiceFate {
 						if len(lastDetailsLeft) > 0 {
 							// .r 3c2+1
 							// .r b2+1
@@ -1096,7 +1081,10 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 						} else {
 							calcDetail += fmt.Sprintf("%d %s %d", a.Value.(int64), t.String(), b.Value.(int64))
 						}
-					}
+					} /* else {
+						如果什么都不输出，反而正常了……不然会这样：
+						<木落>掷出了 f + 1=0 df 0[0-++] + 1=2
+					} */
 				} else {
 					checkLeft()
 					calcDetail += fmt.Sprintf(" %s %d", t.String(), b.Value.(int64))
@@ -1110,10 +1098,10 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 		}
 
 		var aInt, bInt int64
-		if a.TypeId == 0 {
+		if a.TypeID == 0 {
 			aInt = a.Value.(int64)
 		}
-		if b.TypeId == 0 {
+		if b.TypeID == 0 {
 			bInt = b.Value.(int64)
 		}
 
@@ -1125,7 +1113,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 		}
 
 		e4check := func() error {
-			if a.TypeId != b.TypeId {
+			if a.TypeID != b.TypeID {
 				return errors.New("E4:符号运算类型不匹配")
 			}
 			return nil
@@ -1147,50 +1135,50 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			a.Value = boolToInt64(aInt <= bInt)
 		case TypeCompEQ:
 			checkDice(&code)
-			if a.TypeId != b.TypeId {
-				a.TypeId = VMTypeInt64
+			if a.TypeID != b.TypeID {
+				a.TypeID = VMTypeInt64
 				a.Value = int64(0)
 			} else {
-				a.TypeId = VMTypeInt64
+				a.TypeID = VMTypeInt64
 				a.Value = boolToInt64(a.Value == b.Value)
 			}
 		case TypeCompNE:
 			checkDice(&code)
-			if a.TypeId != b.TypeId {
-				a.TypeId = VMTypeInt64
+			if a.TypeID != b.TypeID {
+				a.TypeID = VMTypeInt64
 				a.Value = int64(1)
 			} else {
-				a.TypeId = VMTypeInt64
+				a.TypeID = VMTypeInt64
 				a.Value = boolToInt64(a.Value != b.Value)
 			}
-			//a.Value = boolToInt64(aInt != bInt)
+			// a.Value = boolToInt64(aInt != bInt)
 		case TypeCompGT:
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
 			checkDice(&code)
-			a.TypeId = VMTypeInt64
+			a.TypeID = VMTypeInt64
 			a.Value = boolToInt64(aInt > bInt)
 		case TypeCompGE:
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
 			checkDice(&code)
-			a.TypeId = VMTypeInt64
+			a.TypeID = VMTypeInt64
 			a.Value = boolToInt64(aInt >= bInt)
 		case TypeBitwiseAnd:
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
 			checkDice(&code)
-			a.TypeId = VMTypeInt64
+			a.TypeID = VMTypeInt64
 			a.Value = aInt & bInt
 		case TypeBitwiseOr:
 			if err := e4check(); err != nil {
 				return nil, "", err
 			}
 			checkDice(&code)
-			a.TypeId = VMTypeInt64
+			a.TypeID = VMTypeInt64
 			a.Value = aInt | bInt
 		case TypeAdd:
 			e.Calculated = true
@@ -1198,7 +1186,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				return nil, "", err
 			}
 			checkDice(&code)
-			if a.TypeId == VMTypeString {
+			if a.TypeID == VMTypeString {
 				a.Value = a.Value.(string) + b.Value.(string)
 			} else {
 				a.Value = aInt + bInt
@@ -1212,7 +1200,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			a.Value = aInt - bInt
 		case TypeMultiply:
 			e.Calculated = true
-			if a.TypeId != b.TypeId {
+			if a.TypeID != b.TypeID {
 				return nil, "", errors.New("E4:符号运算类型不匹配")
 			}
 			checkDice(&code)
@@ -1258,9 +1246,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			top--
 			if ctx != nil {
 				VarSetValue(ctx, a.Value.(string), b)
-				//p.SetValueInt64(a.value.(string), b.value.(int64), nil)
+				// p.SetValueInt64(a.value.(string), b.value.(int64), nil)
 			}
-			stack[top].TypeId = b.TypeId
+			stack[top].TypeID = b.TypeID
 			stack[top].Value = b.Value
 			top++
 			continue
@@ -1283,11 +1271,8 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 			}
 			lastDetail := text
 			lastDetails = append(lastDetails, lastDetail)
-			//a := &stack[top]
-			a.TypeId = VMTypeInt64
+			a.TypeID = VMTypeInt64
 			a.Value = sum
-			//top++
-			//continue
 		case TypeDice:
 			e.Calculated = true
 			checkDice(&code)
@@ -1316,7 +1301,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				}
 
 				var nums []int64
-				for i := int64(0); i < aInt; i += 1 {
+				for i := int64(0); i < aInt; i++ {
 					if e.flags.BigFailDiceOn {
 						nums = append(nums, bInt)
 					} else {
@@ -1358,7 +1343,7 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				// XXX Dice YYY, 如 3d100
 				var num int64
 				text := ""
-				for i := int64(0); i < aInt; i += 1 {
+				for i := int64(0); i < aInt; i++ {
 					var curNum int64
 					if e.flags.BigFailDiceOn {
 						curNum = bInt
@@ -1378,11 +1363,9 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 				lastDetail := fmt.Sprintf("%dd%d=%d%s", aInt, bInt, num, suffix)
 				lastDetails = append(lastDetails, lastDetail)
 
-				//fmt.Println("xxxxx", aInt, "c", lastDetails, "|", lastDetail)
-				//ctx.Dice.Logger.Infoln("xxxxx", aInt, "c", lastDetails, "|", lastDetail)
-
 				a.Value = num
 			}
+		default: /*no-op*/
 		}
 	}
 
@@ -1393,18 +1376,18 @@ func (e *RollExpression) Evaluate(d *Dice, ctx *MsgContext) (*VmStack, string, e
 	return &stack[0], calcDetail, nil
 }
 
-func DiceDCRollVM(e *RollExpression, addLine *VMValue, pool *VMValue, points *VMValue) (*VMValue, int64, int64, []string) {
+func DiceDCRollVM(e *RollExpression, addLine *VMValue, pool *VMValue, points *VMValue) (*VMValue, int64, int64, []string) { //nolint:revive
 	makeE6 := func() {
 		e.Error = errors.New("E6: 类型错误")
 	}
 
-	if addLine.TypeId != VMTypeInt64 {
+	if addLine.TypeID != VMTypeInt64 {
 		makeE6()
 	}
-	if pool.TypeId != VMTypeInt64 {
+	if pool.TypeID != VMTypeInt64 {
 		makeE6()
 	}
-	if points.TypeId != VMTypeInt64 {
+	if points.TypeID != VMTypeInt64 {
 		makeE6()
 	}
 	if e.Error != nil {
@@ -1428,10 +1411,10 @@ func DiceDCRollVM(e *RollExpression, addLine *VMValue, pool *VMValue, points *VM
 	}
 
 	ret1, ret2, ret3, details := DiceDCRoll(valAddLine, valPool, valPoints)
-	return &VMValue{TypeId: VMTypeInt64, Value: ret1}, ret2, ret3, details
+	return &VMValue{TypeID: VMTypeInt64, Value: ret1}, ret2, ret3, details
 }
 
-func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, []string) {
+func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, []string) { //nolint:revive
 	var details []string
 	addTimes := 1
 
@@ -1452,7 +1435,7 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 			reachAddRound := one >= addLine
 
 			if reachAddRound {
-				addCount += 1
+				addCount++
 				maxDice = 10
 			}
 
@@ -1470,7 +1453,7 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 
 		// 有加骰，再骰一次
 		if addCount > 0 {
-			addTimes += 1
+			addTimes++
 			pool = addCount
 		}
 
@@ -1489,7 +1472,7 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 	return resultDice, allRollCount, int64(addTimes), details
 }
 
-func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE bool) (int64, int64, int64, []string) {
+func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE bool) (int64, int64, int64, []string) { //nolint:revive
 	var details []string
 	addTimes := 1
 
@@ -1517,10 +1500,10 @@ func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE 
 			}
 
 			if reachSuccess {
-				successCount += 1
+				successCount++
 			}
 			if reachAddRound {
-				addCount += 1
+				addCount++
 			}
 
 			if isShowDetails {
@@ -1538,7 +1521,7 @@ func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE 
 		allRollCount += addCount
 		// 有加骰，再骰一次
 		if addCount > 0 {
-			addTimes += 1
+			addTimes++
 			pool = addCount
 		}
 
@@ -1557,21 +1540,21 @@ func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE 
 	return successCount, allRollCount, int64(addTimes), details
 }
 
-func DiceWodRollVM(e *RollExpression, addLine *VmStack, pool *VMValue, points *VMValue, threshold *VMValue, isGE bool) (*VMValue, int64, int64, []string) {
+func DiceWodRollVM(e *RollExpression, addLine *VMStack, pool *VMValue, points *VMValue, threshold *VMValue, isGE bool) (*VMValue, int64, int64, []string) { //nolint:revive
 	makeE6 := func() {
 		e.Error = errors.New("E6: 类型错误")
 	}
 
-	if addLine.TypeId != VMTypeInt64 {
+	if addLine.TypeID != VMTypeInt64 {
 		makeE6()
 	}
-	if pool.TypeId != VMTypeInt64 {
+	if pool.TypeID != VMTypeInt64 {
 		makeE6()
 	}
-	if points.TypeId != VMTypeInt64 {
+	if points.TypeID != VMTypeInt64 {
 		makeE6()
 	}
-	if threshold.TypeId != VMTypeInt64 {
+	if threshold.TypeID != VMTypeInt64 {
 		makeE6()
 	}
 	if e.Error != nil {
@@ -1600,7 +1583,7 @@ func DiceWodRollVM(e *RollExpression, addLine *VmStack, pool *VMValue, points *V
 	}
 
 	ret1, ret2, ret3, details := DiceWodRoll(valAddLine, valPool, valPoints, valThreshold, isGE)
-	return &VMValue{TypeId: VMTypeInt64, Value: ret1}, ret2, ret3, details
+	return &VMValue{TypeID: VMTypeInt64, Value: ret1}, ret2, ret3, details
 }
 
 func (e *RollExpression) GetAsmText() string {

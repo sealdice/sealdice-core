@@ -1,10 +1,11 @@
 package main
 
 import (
+	"os"
+
 	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"os"
 )
 
 func MainLoggerInit(path string, enableConsoleLog bool) {

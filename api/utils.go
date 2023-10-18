@@ -68,7 +68,7 @@ func GetHexData(c echo.Context, method string, name string) (value []byte, finis
 var times = 0
 
 func getGithubAvatar(c echo.Context) error {
-	times += 1
+	times++
 	if times > 500 {
 		// 请求次数过多
 		return c.JSON(http.StatusNotFound, "")
