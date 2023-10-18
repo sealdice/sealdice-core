@@ -109,6 +109,9 @@ func AttrsCharGetBindingList(db *sqlx.DB, id string) ([]string, error) {
 
 func AttrsCharUnbindAll(db *sqlx.DB, id string) (int64, error) {
 	rows, err := db.Exec(`update attrs set binding_sheet_id = '' where binding_sheet_id = $1`, id)
+	if err != nil {
+		return 0, err
+	}
 	affected, err := rows.RowsAffected()
 	if err != nil {
 		return 0, err
