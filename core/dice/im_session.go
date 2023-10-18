@@ -664,7 +664,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		// 敏感词拦截：全部输入
 		if mctx.IsCurGroupBotOn && d.EnableCensor && d.CensorMode == AllInput {
-			hit, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
+			hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
 			if needToTerminate {
 				return
 			}
@@ -674,9 +674,19 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					ReplyToSender(mctx, msg, text)
 				}
 				if msg.MessageType == "group" {
-					log.Infof("拒绝处理命中敏感词的内容「%s」- 来自群(%s)内<%s>(%s)", msg.Message, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId)
+					log.Infof(
+						"拒绝处理命中敏感词「%s」的内容「%s」- 来自群(%s)内<%s>(%s)",
+						strings.Join(words, "|"),
+						msg.Message, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId,
+					)
 				} else {
-					log.Infof("拒绝处理命中敏感词的内容「%s」- 来自<%s>(%s)", msg.Message, msg.Sender.Nickname, msg.Sender.UserId)
+					log.Infof(
+						"拒绝处理命中敏感词「%s」的内容「%s」- 来自<%s>(%s)",
+						strings.Join(words, "|"),
+						msg.Message,
+						msg.Sender.Nickname,
+						msg.Sender.UserId,
+					)
 				}
 				return
 			}
@@ -705,7 +715,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 				// 敏感词拦截：命令输入
 				if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.EnableCensor && d.CensorMode == OnlyInputCommand {
-					hit, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
+					hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
 					if needToTerminate {
 						return
 					}
@@ -715,9 +725,22 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 							ReplyToSender(mctx, msg, text)
 						}
 						if msg.MessageType == "group" {
-							log.Infof("拒绝处理命中敏感词的指令「%s」- 来自群(%s)内<%s>(%s)", msg.Message, msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId)
+							log.Infof(
+								"拒绝处理命中敏感词「%s」的指令「%s」- 来自群(%s)内<%s>(%s)",
+								strings.Join(words, "|"),
+								msg.Message,
+								msg.GroupId,
+								msg.Sender.Nickname,
+								msg.Sender.UserId,
+							)
 						} else {
-							log.Infof("拒绝处理命中敏感词的指令「%s」- 来自<%s>(%s)", msg.Message, msg.Sender.Nickname, msg.Sender.UserId)
+							log.Infof(
+								"拒绝处理命中敏感词「%s」的指令「%s」- 来自<%s>(%s)",
+								strings.Join(words, "|"),
+								msg.Message,
+								msg.Sender.Nickname,
+								msg.Sender.UserId,
+							)
 						}
 						return
 					}
