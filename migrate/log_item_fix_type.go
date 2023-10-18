@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_log_items_log_id
 
 func LogItemFixDatatype() error {
 	if _, err := os.Stat("./data/default/data-logs.db"); err != nil {
-		return nil
+		return nil //nolint:nilerr
 	}
 
 	db, err := openDB("./data/default/data-logs.db")
@@ -48,14 +48,14 @@ func LogItemFixDatatype() error {
 	}
 	defer db.Close()
 
-	var log_item_sql []string
-	err = db.Select(&log_item_sql, "SELECT sql FROM sqlite_master WHERE type='table' AND name='log_items';")
-	if err != nil || len(log_item_sql) != 1 {
+	var logItemSQL []string
+	err = db.Select(&logItemSQL, "SELECT sql FROM sqlite_master WHERE type='table' AND name='log_items';")
+	if err != nil || len(logItemSQL) != 1 {
 		return err
 	}
 
 	// message字段不是INTEGER类型，说明已经修复过了
-	if !regexp.MustCompile(`message\s+INTEGER,`).MatchString(log_item_sql[0]) {
+	if !regexp.MustCompile(`message\s+INTEGER,`).MatchString(logItemSQL[0]) {
 		return nil
 	}
 
@@ -64,7 +64,7 @@ func LogItemFixDatatype() error {
 
 	done := make(chan interface{}, 1)
 
-	go spinner.SpinnerWithLines(done, 3, 10)
+	go spinner.WithLines(done, 3, 10)
 	defer func() {
 		done <- struct{}{}
 	}()

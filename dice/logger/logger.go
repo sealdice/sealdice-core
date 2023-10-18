@@ -2,15 +2,16 @@ package logger
 
 import (
 	"encoding/json"
+	"os"
+
 	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"os"
 )
 
 type LogItem struct {
 	Level  string  `json:"level"`
-	Ts     float64 `json:"ts"`
+	TS     float64 `json:"ts"`
 	Caller string  `json:"caller"`
 	Msg    string  `json:"msg"`
 }
@@ -44,7 +45,7 @@ func (w *WriterX) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func LoggerInit(path string, name string, enableConsoleLog bool) *LogInfo {
+func Init(path string, name string, enableConsoleLog bool) *LogInfo {
 	lumlog := &lumberjack.Logger{
 		Filename:   path,
 		MaxSize:    10, // megabytes

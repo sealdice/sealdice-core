@@ -15,6 +15,6 @@ func (g ProcessExitGroup) Dispose() error {
 	return nil
 }
 
-func (g ProcessExitGroup) AddProcess(p *os.Process) error {
+func (g ProcessExitGroup) AddProcess(_ *os.Process) error {
 	return nil
 }

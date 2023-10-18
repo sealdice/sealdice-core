@@ -51,7 +51,7 @@ func jsExec(c echo.Context) error {
 		defer func() {
 			// 防止崩掉进程
 			if r := recover(); r != nil {
-				//fmt.Println("xx", r.(goja.Exception))
+				// fmt.Println("xx", r.(goja.Exception))
 				myDice.JsPrinter.Error(fmt.Sprintf("JS脚本报错: %v", r))
 			}
 			waitRun <- 1
@@ -137,8 +137,8 @@ func jsReload(c echo.Context) error {
 		})
 	}
 
-	//myDice.JsLock.Lock()
-	//defer myDice.JsLock.Unlock()
+	// myDice.JsLock.Lock()
+	// defer myDice.JsLock.Unlock()
 	myDice.JsReload()
 	return c.JSON(200, nil)
 }
@@ -171,7 +171,7 @@ func jsUpload(c echo.Context) error {
 	}(src)
 
 	// Destination
-	//fmt.Println("????", filepath.Join("./data/decks", file.Filename))
+	// fmt.Println("????", filepath.Join("./data/decks", file.Filename))
 	file.Filename = strings.ReplaceAll(file.Filename, "/", "_")
 	file.Filename = strings.ReplaceAll(file.Filename, "\\", "_")
 	fmt.Println("XXXX", filepath.Join(myDice.BaseConfig.DataDir, "scripts", file.Filename))
@@ -293,9 +293,9 @@ func jsCheckUpdate(c echo.Context) error {
 	if err == nil {
 		if v.Index >= 0 && v.Index < len(myDice.JsScriptList) {
 			jsScript := myDice.JsScriptList[v.Index]
-			oldJs, newJs, tempFileName, err := myDice.JsCheckUpdate(jsScript)
-			if err != nil {
-				return Error(&c, err.Error(), Response{})
+			oldJs, newJs, tempFileName, errUpdate := myDice.JsCheckUpdate(jsScript)
+			if errUpdate != nil {
+				return Error(&c, errUpdate.Error(), Response{})
 			}
 			return Success(&c, Response{
 				"old":          oldJs,
@@ -327,7 +327,7 @@ func jsUpdate(c echo.Context) error {
 
 	if err == nil {
 		if v.Index >= 0 && v.Index < len(myDice.JsScriptList) {
-			err := myDice.JsUpdate(myDice.JsScriptList[v.Index], v.TempFileName)
+			err = myDice.JsUpdate(myDice.JsScriptList[v.Index], v.TempFileName)
 			if err != nil {
 				return Error(&c, err.Error(), Response{})
 			}

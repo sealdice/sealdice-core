@@ -9,16 +9,16 @@ import (
 )
 
 type CensorLog struct {
-	Id           uint64 `json:"id"`
+	ID           uint64 `json:"id"`
 	MsgType      string `json:"msgType"`
-	UserId       string `json:"userId"`
-	GroupId      string `json:"groupId"`
+	UserID       string `json:"userId"`
+	GroupID      string `json:"groupId"`
 	Content      string `json:"content"`
 	HighestLevel int    `json:"highestLevel"`
 	CreatedAt    int    `json:"createdAt"`
 }
 
-func CensorAppend(db *sqlx.DB, msgType string, userId string, groupId string, content string, sensitiveWords interface{}, highestLevel int) bool {
+func CensorAppend(db *sqlx.DB, msgType string, userID string, groupID string, content string, sensitiveWords interface{}, highestLevel int) bool {
 	now := time.Now()
 	nowTimestamp := now.Unix()
 
@@ -31,14 +31,14 @@ func CensorAppend(db *sqlx.DB, msgType string, userId string, groupId string, co
 INSERT INTO censor_log(
     msg_type,
     user_id,
-    group_id, 
+    group_id,
     content,
     sensitive_words,
     highest_level,
     created_at,
     clear_mark
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		msgType, userId, groupId, content, words, highestLevel, nowTimestamp, false)
+		msgType, userID, groupID, content, words, highestLevel, nowTimestamp, false)
 
 	if err != nil {
 		return false
@@ -46,29 +46,29 @@ INSERT INTO censor_log(
 	return err == nil
 }
 
-func CensorCount(db *sqlx.DB, userId string) map[censor.Level]int {
+func CensorCount(db *sqlx.DB, userID string) map[censor.Level]int {
 	levels := [5]censor.Level{censor.Ignore, censor.Notice, censor.Caution, censor.Warning, censor.Danger}
 	var temp int
 	res := make(map[censor.Level]int)
 	for _, level := range levels {
-		_ = db.Get(&temp, `SELECT COUNT(*) FROM censor_log WHERE user_id = ? AND highest_level = ? AND clear_mark = ?`, userId, level, false)
+		_ = db.Get(&temp, `SELECT COUNT(*) FROM censor_log WHERE user_id = ? AND highest_level = ? AND clear_mark = ?`, userID, level, false)
 		res[level] = temp
 	}
 	return res
 }
 
-func CensorClearLevelCount(db *sqlx.DB, userId string, level censor.Level) {
-	_, _ = db.Exec(`UPDATE censor_log SET clear_mark = ? WHERE user_id = ? AND highest_level = ?`, true, userId, level)
+func CensorClearLevelCount(db *sqlx.DB, userID string, level censor.Level) {
+	_, _ = db.Exec(`UPDATE censor_log SET clear_mark = ? WHERE user_id = ? AND highest_level = ?`, true, userID, level)
 }
 
 type QueryCensorLog struct {
 	PageNum  int    `query:"pageNum"`
 	PageSize int    `query:"pageSize"`
-	UserId   string `query:"userId"`
+	UserID   string `query:"userId"`
 	Level    int    `query:"level"`
 }
 
-func CensorGetLogPage(db *sqlx.DB, query *QueryCensorLog) ([]*CensorLog, error) {
+func CensorGetLogPage(db *sqlx.DB, _ *QueryCensorLog) ([]*CensorLog, error) {
 	var res []*CensorLog
 	rows, err := db.Queryx(`
 SELECT id,
@@ -89,10 +89,10 @@ FROM censor_log`)
 	for rows.Next() {
 		log := &CensorLog{}
 		err := rows.Scan(
-			&log.Id,
+			&log.ID,
 			&log.MsgType,
-			&log.UserId,
-			&log.GroupId,
+			&log.UserID,
+			&log.GroupID,
 			&log.Content,
 			&log.HighestLevel,
 			&log.CreatedAt,

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"math/rand"
 	"net/http"
@@ -18,6 +17,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 var binPrefix = "https://sealdice.coding.net/p/sealdice/d/sealdice-binaries/git/raw/master"
@@ -52,8 +53,8 @@ func downloadUpdate(dm *dice.DiceManager, log *zap.SugaredLogger) (string, error
 			fn := fmt.Sprintf("sealdice-core_%s_%s_%s.%s", version, platform, arch, ext)
 			fileUrl := binPrefix + "/" + fn
 
-			if ver.NewVersionUrlPrefix != "" {
-				fileUrl = ver.NewVersionUrlPrefix + "/" + fn
+			if ver.NewVersionURLPrefix != "" {
+				fileUrl = ver.NewVersionURLPrefix + "/" + fn
 			}
 
 			log.Infof("准备下载更新: %s", fn)
@@ -119,8 +120,8 @@ func doReboot(dm *dice.DiceManager) {
 	if platform == "windows" {
 		cleanUpCreate(dm)()
 
-		//name, _ := filepath.Abs(binary)
-		//err = exec.Command(`cmd`, `/C`, "start", name, "--delay=15").Start()
+		// name, _ := filepath.Abs(binary)
+		// err = exec.Command(`cmd`, `/C`, "start", name, "--delay=15").Start()
 		cmd := executeWin(binary, "--delay=15")
 		err := cmd.Start()
 		if err != nil {
@@ -141,12 +142,10 @@ func doReboot(dm *dice.DiceManager) {
 func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo {
 	resp, err := http.Get(backendUrl + "/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 10) + "&v=" + strconv.FormatInt(rand.Int63(), 10))
 	if err != nil {
-		//logger.Errorf("获取新版本失败: %s", err.Error())
+		// logger.Errorf("获取新版本失败: %s", err.Error())
 		return nil
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	defer func() { _ = resp.Body.Close() }()
 
 	var ver dice.VersionInfo
 	err = json.NewDecoder(resp.Body).Decode(&ver)
@@ -155,7 +154,7 @@ func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo
 	}
 
 	dm.AppVersionOnline = &ver
-	//downloadUpdate(dm)
+	// downloadUpdate(dm)
 	return &ver
 }
 
@@ -175,9 +174,9 @@ func CheckVersion(dm *dice.DiceManager) *dice.VersionInfo {
 
 func DownloadFile(filepath string, url string) error {
 	// Get the data
-	//resp, err := http.Get(url)
+	// resp, err := http.Get(url)
 	client := new(http.Client)
-	request, err := http.NewRequest("GET", url, nil)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
@@ -188,9 +187,7 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	defer func() { _ = resp.Body.Close() }()
 
 	// Create the file
 	out, err := os.Create(filepath)

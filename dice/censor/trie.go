@@ -13,10 +13,9 @@ func (n *node) insert(c rune) *node {
 	}
 	if cur, ok := n.children[c]; ok {
 		return cur
-	} else {
-		n.children[c] = &node{}
-		return n.children[c]
 	}
+	n.children[c] = &node{}
+	return n.children[c]
 }
 
 func (n *node) findChild(c rune) *node {
