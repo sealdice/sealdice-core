@@ -17,13 +17,13 @@ import (
 	"time"
 	"unsafe"
 
+	"golang.org/x/sys/windows"
+
 	"github.com/fy0/go-autostart"
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
 	"github.com/labstack/echo/v4"
-	win "github.com/lxn/win"
 	"github.com/monaco-io/request"
-	"golang.org/x/sys/windows"
 )
 
 func hideWindow() {
