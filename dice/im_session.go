@@ -230,7 +230,7 @@ type EndPointInfoBase struct {
 	Platform     string `yaml:"platform" json:"platform" jsbind:"platform"` // 平台，如QQ等
 	RelWorkDir   string `yaml:"relWorkDir" json:"relWorkDir"`               // 工作目录
 	Enable       bool   `yaml:"enable" json:"enable" jsbind:"enable"`       // 是否启用
-	ProtocolType string `yaml:"protocolType"`                               // 协议类型，如onebot、koishi等
+	ProtocolType string `yaml:"protocolType" json:"protocolType"`           // 协议类型，如onebot、koishi等
 
 	IsPublic bool       `yaml:"isPublic"`
 	Session  *IMSession `yaml:"-" json:"-"`
@@ -416,7 +416,7 @@ type MsgContext struct {
 }
 
 // func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {
-//}
+// }
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
 //   - msg 使用其中的msg.Sender.GroupRole

@@ -1,12 +1,9 @@
 package dice
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -32,8 +29,7 @@ type PlatformAdapterRed struct {
 	wsUrl   *url.URL
 	httpUrl *url.URL
 
-	conn    *websocket.Conn
-	friends []*Friend
+	conn *websocket.Conn
 }
 
 type RedPack[T interface{}] struct {
@@ -713,38 +709,38 @@ func (pa *PlatformAdapterRed) getGroups() []*Group {
 type RedRichMediaReq struct {
 }
 
-func (pa *PlatformAdapterRed) getFile(msgID string, chatType RedChatType, peerUid string, elementID string) {
-	paramData, _ := json.Marshal(map[string]interface{}{
-		"msgId":        msgID,
-		"chatType":     chatType,
-		"peerUid":      peerUid,
-		"elementId":    elementID,
-		"thumbSize":    0,
-		"downloadType": 2,
-	})
-	data, _ := pa.httpDo("POST", "message/fetchRichMedia", nil, bytes.NewBuffer(paramData))
-	var body map[string]interface{}
-	_ = json.Unmarshal(data, &body)
-}
-
-func (pa *PlatformAdapterRed) uploadFile(path string) *RedElement {
-	_, err := os.Stat(path)
-	if errors.Is(os.ErrNotExist, err) {
-		return nil
-	}
-
-	file, _ := os.Open(path)
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	part, _ := writer.CreateFormFile("file", filepath.Base(path))
-	_, _ = io.Copy(part, file)
-	_ = writer.Close()
-
-	data, _ := pa.httpDo("POST", "upload", map[string]string{"Content-Type": writer.FormDataContentType()}, body)
-	var resp RedElement
-	_ = json.Unmarshal(data, &resp)
-	return &resp
-}
+// func (pa *PlatformAdapterRed) getFile(msgID string, chatType RedChatType, peerUid string, elementID string) {
+// 	paramData, _ := json.Marshal(map[string]interface{}{
+// 		"msgId":        msgID,
+// 		"chatType":     chatType,
+// 		"peerUid":      peerUid,
+// 		"elementId":    elementID,
+// 		"thumbSize":    0,
+// 		"downloadType": 2,
+// 	})
+// 	data, _ := pa.httpDo("POST", "message/fetchRichMedia", nil, bytes.NewBuffer(paramData))
+// 	var body map[string]interface{}
+// 	_ = json.Unmarshal(data, &body)
+// }
+//
+// func (pa *PlatformAdapterRed) uploadFile(path string) *RedElement {
+// 	_, err := os.Stat(path)
+// 	if errors.Is(os.ErrNotExist, err) {
+// 		return nil
+// 	}
+//
+// 	file, _ := os.Open(path)
+// 	body := &bytes.Buffer{}
+// 	writer := multipart.NewWriter(body)
+// 	part, _ := writer.CreateFormFile("file", filepath.Base(path))
+// 	_, _ = io.Copy(part, file)
+// 	_ = writer.Close()
+//
+// 	data, _ := pa.httpDo("POST", "upload", map[string]string{"Content-Type": writer.FormDataContentType()}, body)
+// 	var resp RedElement
+// 	_ = json.Unmarshal(data, &resp)
+// 	return &resp
+// }
 
 func (pa *PlatformAdapterRed) httpDo(method, action string, headers map[string]string, body io.Reader) ([]byte, error) {
 	client := http.Client{}
