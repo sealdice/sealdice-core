@@ -38,7 +38,7 @@ type ExtDefaultSettingItem struct {
 }
 
 type BanListInfo struct {
-	BanBehaviorRefuseReply   bool  `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`     //拉黑行为: 拒绝回复
+	BanBehaviorRefuseReply   bool  `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`     // 拉黑行为: 拒绝回复
 	BanBehaviorRefuseInvite  bool  `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`   // 拉黑行为: 拒绝邀请
 	BanBehaviorQuitLastPlace bool  `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"` // 拉黑行为: 退出事发群
 	ThresholdWarn            int64 `yaml:"thresholdWarn" json:"thresholdWarn"`                       // 警告阈值
@@ -128,9 +128,6 @@ type DiceServe struct {
 	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount"`  // 日志数量提示阈值，默认500
 
 	IsAlreadyLoadConfig bool `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
-
-	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
-	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
 }
 
 type BanRankType int
@@ -166,12 +163,6 @@ func ConvertServe() error {
 	defer func(dbSql *sqlx.DB) {
 		_ = dbSql.Close()
 	}(dbSql)
-	//flags := sqlite.OpenReadWrite | sqlite.OpenCreate | sqlite.OpenWAL
-	//dbpool, err := sqlitex.Open(dbDataPath, flags, 10)
-	//if err != nil {
-	//	return err
-	//}
-	//defer dbpool.Close()
 
 	texts := []string{
 		`
@@ -237,10 +228,7 @@ create table if not exists ban_info
 
 	for _, i := range texts {
 		_, _ = dbSql.Exec(i)
-		//fmt.Println("xxx", err)
 	}
-	//fmt.Println(sqlitex.ExecuteTransient(conn, "VACUUM INTO bak", nil))
-	//dbpool.Put(conn)
 	now := time.Now()
 	nowTimestamp := now.Unix()
 
@@ -249,7 +237,6 @@ create table if not exists ban_info
 	times := 0
 	dNew := &Dice{}
 	if yaml.Unmarshal(data, &dNew) == nil {
-		//conn := dbpool.Get(nil)
 		tx := dbSql.MustBegin()
 
 		for k, v := range dNew.ImSession.ServiceAtNew {
@@ -258,7 +245,7 @@ create table if not exists ban_info
 			for _, playerInfo := range v.Players {
 				args := map[string]interface{}{
 					"group_id":               k,
-					"user_id":                playerInfo.UserId,
+					"user_id":                playerInfo.UserID,
 					"created_at":             nowTimestamp,
 					"name":                   playerInfo.Name,
 					"last_command_time":      playerInfo.LastCommandTime,
@@ -270,7 +257,7 @@ create table if not exists ban_info
 			}
 
 			v.Players = nil
-			v.DiceIdExistsMap = v.ActiveDiceIds // 暂时视为相同
+			v.DiceIDExistsMap = v.ActiveDiceIds // 暂时视为相同
 			d, _ := json.Marshal(v)
 
 			args := map[string]interface{}{
@@ -282,9 +269,9 @@ create table if not exists ban_info
 			_, _ = tx.NamedExec(`insert into group_info (id, created_at, data) VALUES (:group_id, :created_at, :data)`, args)
 		}
 
-		err := tx.Commit()
-		if err != nil {
-			fmt.Println("???", err)
+		errTx := tx.Commit()
+		if errTx != nil {
+			fmt.Println("???", errTx)
 			_ = tx.Rollback()
 		}
 
@@ -293,14 +280,7 @@ create table if not exists ban_info
 		fmt.Println("群成员数量", times)
 	}
 
-	//data2 := DiceServe{}
-	//if yaml.Unmarshal(data, &data2) == nil {
-	//	//d2, _ := yaml.Marshal(data2)
-	//	//os.WriteFile("./data/default/serve.yaml", d2, 0644)
-	//}
-
 	_ = os.WriteFile("./data/default/serve.yaml.old", data, 0644)
-	//os.WriteFile("./serve.yaml", d2, 0644)
 
 	// 处理attrs部分
 	ctx := CreateFakeCtx()
@@ -318,23 +298,19 @@ create table if not exists ban_info
 			logs := tx.Bucket([]byte(table))
 
 			return logs.ForEach(func(k, v []byte) error {
-				_, err := tx2.NamedExec(`INSERT INTO `+table+` (id, updated_at, data) VALUES (:id, :updated_at, :data)`, map[string]interface{}{
+				_, errExec := tx2.NamedExec(`INSERT INTO `+table+` (id, updated_at, data) VALUES (:id, :updated_at, :data)`, map[string]interface{}{
 					"id":         string(k),
 					"updated_at": nowTimestamp,
 					"data":       v,
 				})
 				times += 1
-				if err != nil {
-					return err
-				}
-				return nil
+				return errExec
 			})
 		})
 
 		fmt.Println("条目数量"+table, times)
 
-		err := tx2.Commit()
-		if err != nil {
+		if tx2.Commit() != nil {
 			_ = tx2.Rollback()
 			return
 		}
@@ -355,9 +331,9 @@ create table if not exists ban_info
 		data = b0.Get([]byte("banMap"))
 
 		dict := map[string]*BanListInfoItem{}
-		err := json.Unmarshal(data, &dict)
-		if err != nil {
-			return err
+		errUnmarshal := json.Unmarshal(data, &dict)
+		if errUnmarshal != nil {
+			return errUnmarshal
 		}
 
 		for k, v := range dict {

@@ -46,7 +46,7 @@ func (m *SyncMap[K, V]) Len() int {
 	// TOOD: 性能优化
 	times := 0
 	m.Range(func(_ K, _ V) bool {
-		times += 1
+		times++
 		return true
 	})
 	return times

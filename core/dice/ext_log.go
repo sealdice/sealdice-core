@@ -22,10 +22,10 @@ import (
 )
 
 var (
-	ErrorGroupCardOverlong = errors.New("群名片长度超过限制")
+	ErrGroupCardOverlong = errors.New("群名片长度超过限制")
 )
 
-const Story_version = 100
+const StoryVersion = 100
 
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
@@ -38,15 +38,15 @@ func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) 
 	}
 
 	var text string
-	if val.TypeId == VMTypeString || val.TypeId == VMTypeNone {
+	if val.TypeID == VMTypeString || val.TypeID == VMTypeNone {
 		text = val.Value.(string)
 	}
 
 	if ctx.EndPoint.Platform == "QQ" && len(text) >= 60 { // Note(Xiangze-Li): 2023-08-09实测群名片长度限制为59个英文字符, 20个中文字符是可行的, 但分别判断过于繁琐
-		return text, ErrorGroupCardOverlong
+		return text, ErrGroupCardOverlong
 	}
 
-	ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, text)
+	ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupID, ctx.Player.UserID, text)
 	return text, nil
 }
 
@@ -120,7 +120,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 	}
 
 	// 获取logname，第一项是默认名字
-	getLogName := func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, index int) (string, string) {
+	getLogName := func(ctx *MsgContext, _ *Message, cmdArgs *CmdArgs, index int) (string, string) {
 		bakLogCurName := ctx.Group.LogCurName
 		if newName := cmdArgs.GetArgN(index); newName != "" {
 			return bakLogCurName, newName
@@ -166,13 +166,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if group.LogOn {
 					onText = "开启"
 				}
-				lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupId, group.LogCurName)
+				lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
 				text := fmt.Sprintf("当前故事: %s\n当前状态: %s\n已记录文本%d条", group.LogCurName, onText, lines)
 				ReplyToSender(ctx, msg, text)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			if cmdArgs.IsArgEqual(1, "on") {
+			if cmdArgs.IsArgEqual(1, "on") { //nolint:nestif
 				if ctx.IsPrivate {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -191,7 +191,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 
 				if name != "" {
-					lines, exists := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupId, name)
+					lines, exists := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, name)
 
 					if exists {
 						if groupNotActiveCheck() {
@@ -217,7 +217,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if group.LogCurName != "" {
 					group.LogOn = false
 					group.UpdatedAtTime = time.Now().Unix()
-					lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupId, group.LogCurName)
+					lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 					VarSetValueInt64(ctx, "$t当前记录条数", lines)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_成功"))
@@ -231,7 +231,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					if name == group.LogCurName {
 						ReplyToSender(ctx, msg, "不能删除正在进行的log，请用log new开启新的，或log end结束后再行删除")
 					} else {
-						ok := model.LogDelete(ctx.Dice.DBLogs, group.GroupId, name)
+						ok := model.LogDelete(ctx.Dice.DBLogs, group.GroupID, name)
 						if ok {
 							ReplyToSender(ctx, msg, "删除log成功")
 						} else {
@@ -243,8 +243,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "masterget") {
-				groupId, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
-				if requestForAnotherGroup && groupId == "" {
+				groupID, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
+				if requestForAnotherGroup && groupID == "" {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
@@ -254,7 +254,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				fn, err := LogSendToBackend(ctx, groupId, logName)
+				fn, err := LogSendToBackend(ctx, groupID, logName)
 				if fn == "" {
 					text := txtLogTip
 					t1 := err.Error()
@@ -276,7 +276,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 
 				if logName != "" {
-					fn, err := LogSendToBackend(ctx, group.GroupId, logName)
+					fn, err := LogSendToBackend(ctx, group.GroupID, logName)
 					if fn == "" {
 						text := txtLogTip
 						t1 := err.Error()
@@ -307,7 +307,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				group.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
-				fn, err := LogSendToBackend(ctx, group.GroupId, group.LogCurName)
+				fn, err := LogSendToBackend(ctx, group.GroupID, group.LogCurName)
 
 				if fn == "" {
 					text := txtLogTip
@@ -335,16 +335,16 @@ func RegisterBuiltinExtLog(self *Dice) {
 				group.UpdatedAtTime = time.Now().Unix()
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "list") {
-				groupId, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
-				if requestForAnotherGroup && groupId == "" {
+				groupID, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
+				if requestForAnotherGroup && groupID == "" {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				if groupId == "" {
-					groupId = ctx.Group.GroupId
+				if groupID == "" {
+					groupID = ctx.Group.GroupID
 				}
 
 				text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
-				lst, err := model.LogGetList(ctx.Dice.DBLogs, groupId)
+				lst, err := model.LogGetList(ctx.Dice.DBLogs, groupID)
 				if err == nil {
 					for _, i := range lst {
 						text += "- " + i + "\n"
@@ -388,22 +388,22 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "stat") {
-				group := ctx.Group
+				// group := ctx.Group
 				_, name := getLogName(ctx, msg, cmdArgs, 2)
-				items, err := model.LogGetAllLines(ctx.Dice.DBLogs, group.GroupId, name)
+				items, err := model.LogGetAllLines(ctx.Dice.DBLogs, group.GroupID, name)
 				if err == nil && len(items) > 0 {
-					//showDetail := cmdArgs.GetKwarg("detail")
-					var showDetail *Kwarg
+					// showDetail := cmdArgs.GetKwarg("detail")
+					// var showDetail *Kwarg
 					showAll := cmdArgs.GetKwarg("all")
 
-					if showDetail != nil {
+					/* if showDetail != nil { //nolint // 故意保留
 						results := LogRollBriefDetail(items)
 
 						if len(results) > 0 {
 							ReplyToSender(ctx, msg, "统计结果如下:\n"+strings.Join(results, "\n"))
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-					} else {
+					} else */{
 						isShowAll := showAll != nil
 						text := LogRollBriefByPC(ctx.Dice, items, isShowAll, ctx.Player.Name)
 						if text == "" {
@@ -434,7 +434,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					VarSetValueStr(ctx, "$t日期", now.ToShortDateString())
 					VarSetValueStr(ctx, "$t时间", now.ToShortTimeString())
 					logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
-					logFile, err := GetLogTxt(ctx, group.GroupId, logName, logFileNamePrefix)
+					logFile, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
 					if err != nil {
 						ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
 					}
@@ -463,12 +463,10 @@ func RegisterBuiltinExtLog(self *Dice) {
 								text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
 								ReplyToSenderRaw(ctx, msg, text, "skip")
 								return CmdExecuteResult{Matched: true, Solved: true}
-							} else {
-								ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_无格式有效邮箱"), "skip")
 							}
-						} else {
-							ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
+							ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_无格式有效邮箱"), "skip")
 						}
+						ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
 					}
 
 					var uri string
@@ -506,20 +504,20 @@ func RegisterBuiltinExtLog(self *Dice) {
 			case "log":
 				group := ctx.Group
 				_, name := getLogName(ctx, msg, cmdArgs, 2)
-				items, err := model.LogGetAllLines(ctx.Dice.DBLogs, group.GroupId, name)
+				items, err := model.LogGetAllLines(ctx.Dice.DBLogs, group.GroupID, name)
 				if err == nil && len(items) > 0 {
-					//showDetail := cmdArgs.GetKwarg("detail")
-					var showDetail *Kwarg
+					// showDetail := cmdArgs.GetKwarg("detail")
+					// var showDetail *Kwarg
 					showAll := cmdArgs.GetKwarg("all")
 
-					if showDetail != nil {
+					/* if showDetail != nil { //nolint // 故意保留
 						results := LogRollBriefDetail(items)
 
 						if len(results) > 0 {
 							ReplyToSender(ctx, msg, "统计结果如下:\n"+strings.Join(results, "\n"))
 							return CmdExecuteResult{Matched: true, Solved: true}
 						}
-					} else {
+					} else */{
 						isShowAll := showAll != nil
 						text := LogRollBriefByPC(ctx.Dice, items, isShowAll, ctx.Player.Name)
 						if text == "" {
@@ -565,7 +563,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ctx.Player.Name = ctx.Player.Name[len("ob"):]
 					ctx.Player.UpdatedAtTime = time.Now().Unix()
 				}
-				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
+				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupID, ctx.Player.UserID, ctx.Player.Name)
 				text := DiceFormatTmpl(ctx, "日志:OB_关闭")
 				ReplyToSender(ctx, msg, text)
 			default:
@@ -573,7 +571,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ctx.Player.Name = "ob" + ctx.Player.Name
 					ctx.Player.UpdatedAtTime = time.Now().Unix()
 				}
-				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupId, ctx.Player.UserId, ctx.Player.Name)
+				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupID, ctx.Player.UserID, ctx.Player.Name)
 				text := DiceFormatTmpl(ctx, "日志:OB_开启")
 				ReplyToSender(ctx, msg, text)
 			}
@@ -627,7 +625,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-				if errors.Is(err, ErrorGroupCardOverlong) {
+				if errors.Is(err, ErrGroupCardOverlong) {
 					return handleOverlong(ctx, msg, text)
 				}
 				// 玩家 SAN60 HP10/10 DEX65
@@ -637,7 +635,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PP{_pp}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-				if errors.Is(err, ErrorGroupCardOverlong) {
+				if errors.Is(err, ErrGroupCardOverlong) {
 					return handleOverlong(ctx, msg, text)
 				}
 				// 玩家 HP10/10 AC15 DC15 PW10
@@ -646,7 +644,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				text, err := SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
-				if errors.Is(err, ErrorGroupCardOverlong) { // 大约不至于会走到这里，但是为了统一也这样写了
+				if errors.Is(err, ErrGroupCardOverlong) { // 大约不至于会走到这里，但是为了统一也这样写了
 					return handleOverlong(ctx, msg, text)
 				}
 				ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
@@ -669,10 +667,10 @@ func RegisterBuiltinExtLog(self *Dice) {
 					last := ctx.Player.AutoSetNameTemplate
 					ctx.Player.AutoSetNameTemplate = t
 					text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-					if err != nil && !errors.Is(err, ErrorGroupCardOverlong) {
+					if err != nil && !errors.Is(err, ErrGroupCardOverlong) {
 						ctx.Player.AutoSetNameTemplate = last
 						ReplyToSender(ctx, msg, "玩家自设sn格式错误，已自动还原之前模板")
-					} else if errors.Is(err, ErrorGroupCardOverlong) {
+					} else if errors.Is(err, ErrGroupCardOverlong) {
 						return handleOverlong(ctx, msg, text)
 					} else {
 						ctx.Player.UpdatedAtTime = time.Now().Unix()
@@ -728,46 +726,46 @@ func RegisterBuiltinExtLog(self *Dice) {
 			}
 			privateCommandListenCheck()
 			if msg.MessageType == "private" && ctx.CommandHideFlag != "" {
-				if _, exists := privateCommandListen[ctx.CommandId]; exists {
+				if _, exists := privateCommandListen[ctx.CommandID]; exists {
 					session := ctx.Session
 					group := session.ServiceAtNew[ctx.CommandHideFlag]
 
 					a := model.LogOneItem{
 						Nickname:    ctx.EndPoint.Nickname,
-						IMUserId:    UserIdExtract(ctx.EndPoint.UserId),
-						UniformId:   ctx.EndPoint.UserId,
+						IMUserID:    UserIDExtract(ctx.EndPoint.UserID),
+						UniformID:   ctx.EndPoint.UserID,
 						Time:        time.Now().Unix(),
 						Message:     msg.Message,
 						IsDice:      true,
-						CommandId:   ctx.CommandId,
+						CommandID:   ctx.CommandID,
 						CommandInfo: ctx.CommandInfo,
 					}
 
-					LogAppend(ctx, group.GroupId, group.LogCurName, &a)
+					LogAppend(ctx, group.GroupID, group.LogCurName, &a)
 				}
 			}
 
-			if IsCurGroupBotOnById(ctx.Session, ctx.EndPoint, msg.MessageType, msg.GroupId) {
+			if IsCurGroupBotOnByID(ctx.Session, ctx.EndPoint, msg.MessageType, msg.GroupID) {
 				session := ctx.Session
-				group := session.ServiceAtNew[msg.GroupId]
+				group := session.ServiceAtNew[msg.GroupID]
 				if group.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					if ctx.CommandHideFlag != "" {
 						// 记录当前指令和时间
-						privateCommandListen[ctx.CommandId] = time.Now().Unix()
+						privateCommandListen[ctx.CommandID] = time.Now().Unix()
 					}
 
 					a := model.LogOneItem{
 						Nickname:    ctx.EndPoint.Nickname,
-						IMUserId:    UserIdExtract(ctx.EndPoint.UserId),
-						UniformId:   ctx.EndPoint.UserId,
+						IMUserID:    UserIDExtract(ctx.EndPoint.UserID),
+						UniformID:   ctx.EndPoint.UserID,
 						Time:        time.Now().Unix(),
 						Message:     msg.Message,
 						IsDice:      true,
-						CommandId:   ctx.CommandId,
+						CommandID:   ctx.CommandID,
 						CommandInfo: ctx.CommandInfo,
 					}
-					LogAppend(ctx, group.GroupId, group.LogCurName, &a)
+					LogAppend(ctx, group.GroupID, group.LogCurName, &a)
 				}
 			}
 		},
@@ -776,38 +774,36 @@ func RegisterBuiltinExtLog(self *Dice) {
 			if ctx.Group != nil {
 				if ctx.Group.LogOn {
 					// 去重，用于同群多骰情况
-					if !groupMsgInfoCheckOk(msg.RawId) {
+					if !groupMsgInfoCheckOk(msg.RawID) {
 						return
 					}
-					groupMsgInfoSet(msg.RawId)
+					groupMsgInfoSet(msg.RawID)
 
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					a := model.LogOneItem{
 						Nickname:  ctx.Player.Name,
-						IMUserId:  UserIdExtract(ctx.Player.UserId),
-						UniformId: ctx.Player.UserId,
+						IMUserID:  UserIDExtract(ctx.Player.UserID),
+						UniformID: ctx.Player.UserID,
 						Time:      msg.Time,
 						Message:   msg.Message,
 						IsDice:    false,
-						CommandId: ctx.CommandId,
-						RawMsgId:  msg.RawId,
+						CommandID: ctx.CommandID,
+						RawMsgID:  msg.RawID,
 					}
 
-					LogAppend(ctx, ctx.Group.GroupId, ctx.Group.LogCurName, &a)
+					LogAppend(ctx, ctx.Group.GroupID, ctx.Group.LogCurName, &a)
 				}
 			}
 		},
 		OnMessageDeleted: func(ctx *MsgContext, msg *Message) {
 			if ctx.Group != nil {
 				if ctx.Group.LogOn {
-					LogDeleteById(ctx, ctx.Group.GroupId, ctx.Group.LogCurName, msg.RawId)
-					//ctx.Session.Parent.Logger.Infof("删除日志 %s %s", ctx.Group.GroupId, msg.RawId.(string))
+					LogDeleteByID(ctx, ctx.Group.GroupID, ctx.Group.LogCurName, msg.RawID)
+					// ctx.Session.Parent.Logger.Infof("删除日志 %s %s", ctx.Group.GroupId, msg.RawId.(string))
 				}
 			}
 		},
-		GetDescText: func(ei *ExtInfo) string {
-			return GetExtensionDesc(ei)
-		},
+		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
 			"log":  cmdLog,
 			"stat": cmdStat,
@@ -818,7 +814,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 	})
 }
 
-func getSpecifiedGroupIfMaster(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) (groupId string, requestForAnotherGroup bool) {
+func getSpecifiedGroupIfMaster(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) (groupID string, requestForAnotherGroup bool) {
 	if data := cmdArgs.GetArgN(2); data != "" {
 		if ctx.PrivilegeLevel < 100 {
 			ReplyToSender(ctx, msg, "你并非Master，请检查指令输入是否正确")
@@ -833,11 +829,11 @@ func getSpecifiedGroupIfMaster(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) 
 			data = prefix + ":" + data
 		}
 
-		//_newGroup := ctx.Session.ServiceAtNew[data]
-		//if _newGroup == nil {
-		//	ReplyToSender(ctx, msg, "找不到指定的群组，请输入正确群号。如在非QQ平台取log，群号请写 QQ-Group:12345")
-		//	return nil, true
-		//}
+		// _newGroup := ctx.Session.ServiceAtNew[data]
+		// if _newGroup == nil {
+		// 	ReplyToSender(ctx, msg, "找不到指定的群组，请输入正确群号。如在非QQ平台取log，群号请写 QQ-Group:12345")
+		// 	return nil, true
+		// }
 		return data, true
 	}
 	// 对应的组，是否存在第二个参数
@@ -849,10 +845,10 @@ func FilenameReplace(name string) string {
 	return re.ReplaceAllString(name, "")
 }
 
-func LogAppend(ctx *MsgContext, groupId string, logName string, logItem *model.LogOneItem) bool {
-	ok := model.LogAppend(ctx.Dice.DBLogs, groupId, logName, logItem)
+func LogAppend(ctx *MsgContext, groupID string, logName string, logItem *model.LogOneItem) bool {
+	ok := model.LogAppend(ctx.Dice.DBLogs, groupID, logName, logItem)
 	if ok {
-		if size, ok := model.LogLinesCountGet(ctx.Dice.DBLogs, groupId, logName); ok {
+		if size, okCount := model.LogLinesCountGet(ctx.Dice.DBLogs, groupID, logName); okCount {
 			// 默认每记录500条发出提示
 			if ctx.Dice.LogSizeNoticeEnable {
 				if ctx.Dice.LogSizeNoticeCount == 0 {
@@ -861,8 +857,8 @@ func LogAppend(ctx *MsgContext, groupId string, logName string, logItem *model.L
 				if size > 0 && int(size)%ctx.Dice.LogSizeNoticeCount == 0 {
 					VarSetValueInt64(ctx, "$t条数", size)
 					text := DiceFormatTmpl(ctx, "日志:记录_条数提醒")
-					//text := fmt.Sprintf("提示: 当前故事的文本已经记录了 %d 条", size)
-					ReplyToSenderRaw(ctx, &Message{MessageType: "group", GroupId: groupId}, text, "skip")
+					// text := fmt.Sprintf("提示: 当前故事的文本已经记录了 %d 条", size)
+					ReplyToSenderRaw(ctx, &Message{MessageType: "group", GroupID: groupID}, text, "skip")
 				}
 			}
 		}
@@ -870,8 +866,8 @@ func LogAppend(ctx *MsgContext, groupId string, logName string, logItem *model.L
 	return ok
 }
 
-func LogDeleteById(ctx *MsgContext, groupId string, logName string, messageId interface{}) bool {
-	err := model.LogMarkDeleteByMsgId(ctx.Dice.DBLogs, groupId, logName, messageId)
+func LogDeleteByID(ctx *MsgContext, groupID string, logName string, messageID interface{}) bool {
+	err := model.LogMarkDeleteByMsgID(ctx.Dice.DBLogs, groupID, logName, messageID)
 	if err != nil {
 		ctx.Dice.Logger.Error("LogDeleteById:", zap.Error(err))
 		return false
@@ -879,13 +875,13 @@ func LogDeleteById(ctx *MsgContext, groupId string, logName string, messageId in
 	return true
 }
 
-func GetLogTxt(ctx *MsgContext, groupId string, logName string, fileNamePrefix string) (*os.File, error) {
+func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (*os.File, error) {
 	tempLog, err := os.CreateTemp("", fmt.Sprintf("%s(*).txt", fileNamePrefix))
 	if err != nil {
 		return nil, errors.New("log导出出现未知错误")
 	}
 
-	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupId, logName)
+	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupID, logName)
 	if len(lines) == 0 {
 		return nil, errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
@@ -895,41 +891,40 @@ func GetLogTxt(ctx *MsgContext, groupId string, logName string, fileNamePrefix s
 
 	for _, line := range lines {
 		timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
-		text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserId, timeTxt, line.Message)
-		_, _ = tempLog.Write([]byte(text))
+		text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
+		_, _ = tempLog.WriteString(text)
 	}
 	return tempLog, nil
 }
 
-func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, error) {
+func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
 	_ = os.MkdirAll(dirpath, 0755)
 
-	url, uploadTs, updateTs, _ := model.LogGetUploadInfo(ctx.Dice.DBLogs, groupId, logName)
-	if len(url) > 0 && uploadTs > updateTs {
+	url, uploadTS, updateTS, _ := model.LogGetUploadInfo(ctx.Dice.DBLogs, groupID, logName)
+	if len(url) > 0 && uploadTS > updateTS {
 		// 已有URL且上传时间晚于Log更新时间（最后录入时间），直接返回
 		ctx.Dice.Logger.Infof(
 			"查询到之前上传的URL, 直接使用 Log:%s.%s 上传时间:%s 更新时间:%s URL:%s",
-			groupId, logName,
-			time.Unix(uploadTs, 0).Format("2006-01-02 15:04:05"),
-			time.Unix(updateTs, 0).Format("2006-01-02 15:04:05"),
+			groupID, logName,
+			time.Unix(uploadTS, 0).Format("2006-01-02 15:04:05"),
+			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
 			url,
 		)
 		return url, nil
+	}
+	if len(url) == 0 {
+		ctx.Dice.Logger.Infof("没有查询到之前上传的URL Log:%s.%s", groupID, logName)
 	} else {
-		if len(url) == 0 {
-			ctx.Dice.Logger.Infof("没有查询到之前上传的URL Log:%s.%s", groupId, logName)
-		} else {
-			ctx.Dice.Logger.Infof(
-				"Log上传后又有更新, 重新上传 Log:%s.%s 上传时间:%s 更新时间:%s",
-				groupId, logName,
-				time.Unix(uploadTs, 0).Format("2006-01-02 15:04:05"),
-				time.Unix(updateTs, 0).Format("2006-01-02 15:04:05"),
-			)
-		}
+		ctx.Dice.Logger.Infof(
+			"Log上传后又有更新, 重新上传 Log:%s.%s 上传时间:%s 更新时间:%s",
+			groupID, logName,
+			time.Unix(uploadTS, 0).Format("2006-01-02 15:04:05"),
+			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
+		)
 	}
 
-	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupId, logName)
+	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupID, logName)
 
 	if len(lines) == 0 {
 		return "", errors.New("#此log不存在，或条目数为空，名字是否正确？")
@@ -940,20 +935,20 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 	}
 
 	// 本地进行一个zip留档，以防万一
-	fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupId+"_"+logName)+".*.zip")
+	fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupID+"_"+logName)+".*.zip")
 	writer := zip.NewWriter(fzip)
 
 	text := ""
 	for _, i := range lines {
 		timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-		text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserId, timeTxt, i.Message)
+		text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
 	}
 
 	fileWriter, _ := writer.Create("文本log.txt")
 	_, _ = fileWriter.Write([]byte(text))
 
 	data, err := json.Marshal(map[string]interface{}{
-		"version": Story_version,
+		"version": StoryVersion,
 		"items":   lines,
 	})
 	if err == nil {
@@ -970,8 +965,8 @@ func LogSendToBackend(ctx *MsgContext, groupId string, logName string) (string, 
 		_, _ = w.Write(data)
 		_ = w.Close()
 
-		url := UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserId, &zlibBuffer)
-		if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupId, logName, url); errDB != nil {
+		url := UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserID, &zlibBuffer)
+		if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupID, logName, url); errDB != nil {
 			ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
 		}
 		return url, nil
@@ -996,9 +991,9 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 	}
 
 	for _, i := range items {
-		if i.CommandInfo != nil {
+		if i.CommandInfo != nil { //nolint:nestif
 			info, _ := i.CommandInfo.(map[string]interface{})
-			//t := time.Unix(i.Time, 0).Format("[04:05]")
+			// t := time.Unix(i.Time, 0).Format("[04:05]")
 
 			setupName := func(name string) {
 				if _, exists := pcInfo[name]; !exists {
@@ -1039,10 +1034,10 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 						attr := getName(fmt.Sprintf("%v", j["expr2"]))
 						if rank > 0 {
 							key := fmt.Sprintf("%v:%v", attr, "成功")
-							pcInfo[nickname][key] += 1
+							pcInfo[nickname][key]++
 						} else if rank < 0 {
 							key := fmt.Sprintf("%v:%v", attr, "失败")
-							pcInfo[nickname][key] += 1
+							pcInfo[nickname][key]++
 						}
 					}
 					continue
@@ -1063,10 +1058,10 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 						rank := int(j["rank"].(float64))
 						if rank > 0 {
 							key := fmt.Sprintf("%v:%v", "理智", "成功")
-							pcInfo[nickname][key] += 1
+							pcInfo[nickname][key]++
 						} else if rank < 0 {
 							key := fmt.Sprintf("%v:%v", "理智", "失败")
-							pcInfo[nickname][key] += 1
+							pcInfo[nickname][key]++
 						}
 
 						// 如果没有旧值，弄一个
@@ -1076,7 +1071,7 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 						}
 
 						key2 := "理智:新值"
-						//if pcInfo[nickname][key2] == 0 {
+						// if pcInfo[nickname][key2] == 0 {
 						pcInfo[nickname][key2] = int(j["sanNew"].(float64))
 						//}
 					}
@@ -1103,7 +1098,7 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 							}
 
 							key2 := fmt.Sprintf("%v:新值", attr)
-							//if pcInfo[nickname][key2] == 0 {
+							// if pcInfo[nickname][key2] == 0 {
 							pcInfo[nickname][key2] = int(j["valNew"].(float64))
 							//}
 						}
@@ -1209,7 +1204,7 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 func LogRollBriefDetail(items []*model.LogOneItem) []string {
 	var texts []string
 	for _, i := range items {
-		if i.CommandInfo != nil {
+		if i.CommandInfo != nil { //nolint:nestif
 			info, _ := i.CommandInfo.(map[string]interface{})
 			t := time.Unix(i.Time, 0).Format("[04:05]")
 

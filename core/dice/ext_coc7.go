@@ -276,16 +276,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		".ra <属性表达式> (@某人) // 对某人做检定(使用他的属性)\n" +
 		".rch/rah // 暗中检定，和检定指令用法相同"
 
-	//helpSt := ""+
-	// ".st show // 展示个人属性\n"+
-	// ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"+
-	// ".st show <数字> // 展示高于<数字>的属性，如.st show 30\n"+
-	// ".st clr/clear // 清除属性\n"+
-	// ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"+
-	// ".st help // 帮助\n"+
-	// ".st <属性><值> // 例：.st 敏捷50\n"+
-	// ".st <属性>±<表达式> // 例：.st 敏捷+1d50，请注意目前+或-要跟在属性后面，不得空格"
-
 	cmdRc := &CmdItemInfo{
 		EnableExecuteTimesParse: true,
 		Name:                    "rc/ra",
@@ -293,249 +283,248 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Help:                    "检定指令:\n" + helpRc,
 		AllowDelegate:           true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if len(cmdArgs.Args) >= 1 {
-				mctx := GetCtxProxyFirst(ctx, cmdArgs)
-				mctx.DelegateText = ctx.DelegateText
-				mctx.SystemTemplate = mctx.Group.GetCharTemplate(ctx.Dice)
-				restText := cmdArgs.CleanArgs
+			if len(cmdArgs.Args) == 0 {
+				ctx.DelegateText = ""
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
 
-				tmpl := cardRuleCheck(mctx, msg)
-				if tmpl == nil {
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
+			mctx.DelegateText = ctx.DelegateText
+			mctx.SystemTemplate = mctx.Group.GetCharTemplate(ctx.Dice)
+			restText := cmdArgs.CleanArgs
+
+			tmpl := cardRuleCheck(mctx, msg)
+			if tmpl == nil {
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			mctx.Player.TempValueAlias = &tmpl.Alias // 兼容性支持
+
+			reBP := regexp.MustCompile(`^[bBpP(]`)
+			re2 := regexp.MustCompile(`([^\d]+)\s+([\d]+)`)
+
+			if !reBP.MatchString(restText) {
+				restText = re2.ReplaceAllString(restText, "$1$2")
+				restText = "D100 " + restText
+			} else {
+				replaced := true
+				if len(restText) > 1 {
+					// 为了避免一种分支情况: .ra  b 50 测试，b和50中间的空格被消除
+					ch2 := restText[1]
+					if unicode.IsSpace(rune(ch2)) { // 暂不考虑太过奇葩的空格
+						replaced = true
+						restText = restText[:1] + " " + re2.ReplaceAllString(restText[2:], "$1$2")
+					}
+				}
+
+				if !replaced {
+					restText = re2.ReplaceAllString(restText, "$1$2")
+				}
+			}
+
+			cocRule := mctx.Group.CocRuleIndex
+			if cmdArgs.Command == "rc" {
+				// 强制规则书
+				cocRule = 0
+			}
+
+			var reason string
+			var commandInfoItems []interface{}
+			rollOne := func(manyTimes bool) *CmdExecuteResult {
+				difficultRequire := 0
+				// 试图读取检定表达式
+				swap := false
+				r1, detail1, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
+					CocVarNumberMode: true,
+					CocDefaultAttrOn: true,
+					DisableBlock:     true,
+				})
+
+				if err != nil {
+					ReplyToSender(mctx, msg, "解析出错: "+restText)
+					return &CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				difficultRequire2 := difficultPrefixMap[r1.Parser.CocFlagVarPrefix]
+				if difficultRequire2 > difficultRequire {
+					difficultRequire = difficultRequire2
+				}
+				expr1Text := r1.Matched
+				expr2Text := r1.restInput
+
+				// 如果读取完了，那么说明刚才读取的实际上是属性表达式
+				if expr2Text == "" {
+					expr2Text = "D100"
+					swap = true
+				}
+
+				r2, detail2, err := mctx.Dice.ExprEvalBase(expr2Text, mctx, RollExtraFlags{
+					CocVarNumberMode: true,
+					CocDefaultAttrOn: true,
+					DisableBlock:     true,
+				})
+
+				if err != nil {
+					ReplyToSender(mctx, msg, "解析出错: "+expr2Text)
+					return &CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				expr2Text = r2.Matched
+				reason = r2.restInput
+
+				difficultRequire2 = difficultPrefixMap[r2.Parser.CocFlagVarPrefix]
+				if difficultRequire2 > difficultRequire {
+					difficultRequire = difficultRequire2
+				}
+
+				if swap {
+					r1, r2 = r2, r1
+					detail1, detail2 = detail2, detail1 //nolint
+					expr1Text, expr2Text = expr2Text, expr1Text
+				}
+
+				if r1.TypeID != VMTypeInt64 || r2.TypeID != VMTypeInt64 {
+					ReplyToSender(mctx, msg, "你输入的表达式并非文本类型")
+					return &CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				if r1.Matched == "d100" || r1.Matched == "D100" {
+					// 此时没有必要
+					detail1 = ""
+				}
+
+				var checkVal = r1.Value.(int64)
+				var attrVal = r2.Value.(int64)
+
+				successRank, criticalSuccessValue := ResultCheck(mctx, cocRule, checkVal, attrVal)
+				var suffix string
+				var suffixFull string
+				var suffixShort string
+
+				if difficultRequire > 1 {
+					// 此时两者内容相同这样做是为了避免失败文本被计算两次
+					suffixFull = GetResultTextWithRequire(mctx, successRank, difficultRequire, false)
+					suffixShort = suffixFull
+				} else {
+					suffixFull = GetResultTextWithRequire(mctx, successRank, difficultRequire, false)
+					suffixShort = GetResultTextWithRequire(mctx, successRank, difficultRequire, true)
+				}
+
+				if manyTimes {
+					suffix = suffixShort
+				} else {
+					suffix = suffixFull
+				}
+
+				// 根据难度需求，修改判定值
+				switch difficultRequire {
+				case 2:
+					attrVal /= 2
+				case 3:
+					attrVal /= 5
+				case 4:
+					attrVal = criticalSuccessValue
+				}
+				VarSetValueInt64(mctx, "$tD100", checkVal)
+				VarSetValueInt64(mctx, "$t判定值", attrVal)
+				VarSetValueStr(mctx, "$t判定结果", suffix)
+				VarSetValueInt64(mctx, "$tSuccessRank", int64(successRank))
+				VarSetValueStr(mctx, "$t判定结果_详细", suffixFull)
+				VarSetValueStr(mctx, "$t判定结果_简短", suffixShort)
+
+				detailWrap := ""
+				if detail1 != "" {
+					detailWrap = ", (" + detail1 + ")"
+				}
+
+				// 指令信息标记
+				infoItem := map[string]interface{}{
+					"expr1":    expr1Text,
+					"expr2":    expr2Text,
+					"checkVal": checkVal,
+					"attrVal":  attrVal,
+					"rank":     successRank,
+				}
+				commandInfoItems = append(commandInfoItems, infoItem)
+
+				VarSetValueStr(mctx, "$t检定表达式文本", expr1Text)
+				VarSetValueStr(mctx, "$t属性表达式文本", expr2Text)
+				VarSetValueStr(mctx, "$t检定计算过程", detailWrap)
+				VarSetValueStr(mctx, "$t计算过程", detailWrap)
+
+				SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
+				VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
+				return nil
+			}
+
+			var text string
+			if cmdArgs.SpecialExecuteTimes > 1 {
+				VarSetValueInt64(mctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
+				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.MaxExecuteTime) {
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				mctx.Player.TempValueAlias = &tmpl.Alias // 兼容性支持
-
-				reBP := regexp.MustCompile(`^[bBpP(]`)
-				re2 := regexp.MustCompile(`([^\d]+)\s+([\d]+)`)
-				//re2 := regexp.MustCompile(`([^\d])\s+([\d])|([\d])\s+([^\d])`)
-
-				if !reBP.MatchString(restText) {
-					restText = re2.ReplaceAllString(restText, "$1$2")
-					restText = "D100 " + restText
-				} else {
-					replaced := true
-					if len(restText) > 1 {
-						// 为了避免一种分支情况: .ra  b 50 测试，b和50中间的空格被消除
-						ch2 := restText[1]
-						if unicode.IsSpace(rune(ch2)) { // 暂不考虑太过奇葩的空格
-							replaced = true
-							restText = restText[:1] + " " + re2.ReplaceAllString(restText[2:], "$1$2")
-						}
-					}
-
-					if !replaced {
-						restText = re2.ReplaceAllString(restText, "$1$2")
-					}
-				}
-
-				cocRule := mctx.Group.CocRuleIndex
-				if cmdArgs.Command == "rc" {
-					// 强制规则书
-					cocRule = 0
-				}
-
-				var reason string
-				var commandInfoItems []interface{}
-				rollOne := func(manyTimes bool) *CmdExecuteResult {
-					difficultRequire := 0
-					// 试图读取检定表达式
-					swap := false
-					r1, detail1, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
-						CocVarNumberMode: true,
-						CocDefaultAttrOn: true,
-						DisableBlock:     true,
-					})
-
-					if err != nil {
-						ReplyToSender(mctx, msg, "解析出错: "+restText)
-						return &CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					difficultRequire2 := difficultPrefixMap[r1.Parser.CocFlagVarPrefix]
-					if difficultRequire2 > difficultRequire {
-						difficultRequire = difficultRequire2
-					}
-					expr1Text := r1.Matched
-					expr2Text := r1.restInput
-
-					// 如果读取完了，那么说明刚才读取的实际上是属性表达式
-					if expr2Text == "" {
-						expr2Text = "D100"
-						swap = true
-					}
-
-					r2, detail2, err := mctx.Dice.ExprEvalBase(expr2Text, mctx, RollExtraFlags{
-						CocVarNumberMode: true,
-						CocDefaultAttrOn: true,
-						DisableBlock:     true,
-					})
-
-					if err != nil {
-						ReplyToSender(mctx, msg, "解析出错: "+expr2Text)
-						return &CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					expr2Text = r2.Matched
-					reason = r2.restInput
-
-					difficultRequire2 = difficultPrefixMap[r2.Parser.CocFlagVarPrefix]
-					if difficultRequire2 > difficultRequire {
-						difficultRequire = difficultRequire2
-					}
-
-					if swap {
-						r1, r2 = r2, r1
-						detail1, detail2 = detail2, detail1 //nolint
-						expr1Text, expr2Text = expr2Text, expr1Text
-					}
-
-					if r1.TypeId != VMTypeInt64 || r2.TypeId != VMTypeInt64 {
-						ReplyToSender(mctx, msg, "你输入的表达式并非文本类型")
-						return &CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					if r1.Matched == "d100" || r1.Matched == "D100" {
-						// 此时没有必要
-						detail1 = ""
-					}
-
-					var checkVal = r1.Value.(int64)
-					var attrVal = r2.Value.(int64)
-
-					successRank, criticalSuccessValue := ResultCheck(mctx, cocRule, checkVal, attrVal)
-					var suffix string
-					var suffixFull string
-					var suffixShort string
-
-					if difficultRequire > 1 {
-						// 此时两者内容相同这样做是为了避免失败文本被计算两次
-						suffixFull = GetResultTextWithRequire(mctx, successRank, difficultRequire, false)
-						suffixShort = suffixFull
-					} else {
-						suffixFull = GetResultTextWithRequire(mctx, successRank, difficultRequire, false)
-						suffixShort = GetResultTextWithRequire(mctx, successRank, difficultRequire, true)
-					}
-
-					if manyTimes {
-						suffix = suffixShort
-					} else {
-						suffix = suffixFull
-					}
-
-					// 根据难度需求，修改判定值
-					switch difficultRequire {
-					case 2:
-						attrVal /= 2
-					case 3:
-						attrVal /= 5
-					case 4:
-						attrVal = criticalSuccessValue
-					}
-					VarSetValueInt64(mctx, "$tD100", checkVal)
-					VarSetValueInt64(mctx, "$t判定值", attrVal)
-					VarSetValueStr(mctx, "$t判定结果", suffix)
-					VarSetValueInt64(mctx, "$tSuccessRank", int64(successRank))
-					VarSetValueStr(mctx, "$t判定结果_详细", suffixFull)
-					VarSetValueStr(mctx, "$t判定结果_简短", suffixShort)
-
-					detailWrap := ""
-					if detail1 != "" {
-						detailWrap = ", (" + detail1 + ")"
-					}
-
-					// 指令信息标记
-					infoItem := map[string]interface{}{
-						"expr1":    expr1Text,
-						"expr2":    expr2Text,
-						"checkVal": checkVal,
-						"attrVal":  attrVal,
-						"rank":     successRank,
-					}
-					commandInfoItems = append(commandInfoItems, infoItem)
-
-					VarSetValueStr(mctx, "$t检定表达式文本", expr1Text)
-					VarSetValueStr(mctx, "$t属性表达式文本", expr2Text)
-					VarSetValueStr(mctx, "$t检定计算过程", detailWrap)
-					VarSetValueStr(mctx, "$t计算过程", detailWrap)
-
-					//text := fmt.Sprintf("<%s>的“%s”检定结果为: D100=%d/%d%s %s", ctx.Player.Name, cmdArgs.CleanArgs, d100, cond, detailWrap, suffix)
-					SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
-					VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
-					return nil
-				}
-
-				var text string
-				if cmdArgs.SpecialExecuteTimes > 1 {
-					VarSetValueInt64(mctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
-					if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.MaxExecuteTime) {
-						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_轮数过多警告"))
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-					texts := []string{}
-					for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
-						ret := rollOne(true)
-						if ret != nil {
-							return *ret
-						}
-						texts = append(texts, DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
-					}
-
-					VarSetValueStr(mctx, "$t原因", reason)
-					VarSetValueStr(mctx, "$t结果文本", strings.Join(texts, `\n`))
-					text = DiceFormatTmpl(mctx, "COC:检定_多轮")
-				} else {
-					ret := rollOne(false)
+				texts := []string{}
+				for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
+					ret := rollOne(true)
 					if ret != nil {
 						return *ret
 					}
-					VarSetValueStr(mctx, "$t原因", reason)
-					VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
-					text = DiceFormatTmpl(mctx, "COC:检定")
+					texts = append(texts, DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
 				}
 
-				isHide := cmdArgs.Command == "rah" || cmdArgs.Command == "rch"
-
-				// 指令信息
-				commandInfo := map[string]interface{}{
-					"cmd":     "ra",
-					"rule":    "coc7",
-					"pcName":  mctx.Player.Name,
-					"cocRule": cocRule,
-					"items":   commandInfoItems,
+				VarSetValueStr(mctx, "$t原因", reason)
+				VarSetValueStr(mctx, "$t结果文本", strings.Join(texts, `\n`))
+				text = DiceFormatTmpl(mctx, "COC:检定_多轮")
+			} else {
+				ret := rollOne(false)
+				if ret != nil {
+					return *ret
 				}
-				if isHide {
-					commandInfo["hide"] = isHide
-				}
-				mctx.CommandInfo = commandInfo
-
-				if kw := cmdArgs.GetKwarg("ci"); kw != nil {
-					info, err := json.Marshal(mctx.CommandInfo)
-					if err == nil {
-						text += "\n" + string(info)
-					} else {
-						text += "\n" + "指令信息无法序列化"
-					}
-				}
-
-				if isHide {
-					if msg.Platform == "QQ-CH" {
-						ReplyToSender(mctx, msg, "QQ频道内尚不支持暗骰")
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-					if mctx.IsPrivate {
-						ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:提示_私聊不可用"))
-					} else {
-						mctx.CommandHideFlag = mctx.Group.GroupId
-						ReplyGroup(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_暗中_群内"))
-						ReplyPerson(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_暗中_私聊_前缀")+text)
-					}
-				} else {
-					ReplyToSender(mctx, msg, text)
-				}
-				return CmdExecuteResult{Matched: true, Solved: true}
+				VarSetValueStr(mctx, "$t原因", reason)
+				VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
+				text = DiceFormatTmpl(mctx, "COC:检定")
 			}
-			ctx.DelegateText = ""
-			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:检定_格式错误"))
+
+			isHide := cmdArgs.Command == "rah" || cmdArgs.Command == "rch"
+
+			// 指令信息
+			commandInfo := map[string]interface{}{
+				"cmd":     "ra",
+				"rule":    "coc7",
+				"pcName":  mctx.Player.Name,
+				"cocRule": cocRule,
+				"items":   commandInfoItems,
+			}
+			if isHide {
+				commandInfo["hide"] = isHide
+			}
+			mctx.CommandInfo = commandInfo
+
+			if kw := cmdArgs.GetKwarg("ci"); kw != nil {
+				info, err := json.Marshal(mctx.CommandInfo)
+				if err == nil {
+					text += "\n" + string(info)
+				} else {
+					text += "\n" + "指令信息无法序列化"
+				}
+			}
+
+			if isHide {
+				if msg.Platform == "QQ-CH" {
+					ReplyToSender(mctx, msg, "QQ频道内尚不支持暗骰")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				if mctx.IsPrivate {
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:提示_私聊不可用"))
+				} else {
+					mctx.CommandHideFlag = mctx.Group.GroupID
+					ReplyGroup(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_暗中_群内"))
+					ReplyPerson(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_暗中_私聊_前缀")+text)
+				}
+			} else {
+				ReplyToSender(mctx, msg, text)
+			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
@@ -559,14 +548,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 			if isShort {
 				return help
-			} else {
-				return "设置房规:\n" + help
 			}
+			return "设置房规:\n" + help
 		},
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n := cmdArgs.GetArgN(1)
-			suffix := ""
-			suffix = "\nCOC7规则扩展已自动开启"
+			suffix := "\nCOC7规则扩展已自动开启"
 			setRuleByName(ctx, "coc7")
 
 			switch n {
@@ -601,17 +588,17 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			case "details":
 				help := "当前有coc7规则如下:\n"
 				for i := 0; i < 6; i++ {
-					n := strings.ReplaceAll(SetCocRuleText[i], "\n", " ")
-					help += fmt.Sprintf(".setcoc %d // %s\n", i, n)
+					basicStr := strings.ReplaceAll(SetCocRuleText[i], "\n", " ")
+					help += fmt.Sprintf(".setcoc %d // %s\n", i, basicStr)
 				}
 				// dg
-				n := strings.ReplaceAll(SetCocRuleText[11], "\n", " ")
-				help += fmt.Sprintf(".setcoc dg // %s\n", n)
+				dgStr := strings.ReplaceAll(SetCocRuleText[11], "\n", " ")
+				help += fmt.Sprintf(".setcoc dg // %s\n", dgStr)
 
 				// 自定义
 				for _, i := range self.CocExtraRules {
-					n := strings.ReplaceAll(i.Desc, "\n", " ")
-					help += fmt.Sprintf(".setcoc %d/%s // %s\n", i.Index, i.Key, n)
+					ruleStr := strings.ReplaceAll(i.Desc, "\n", " ")
+					help += fmt.Sprintf(".setcoc %d/%s // %s\n", i.Index, i.Key, ruleStr)
 				}
 				ReplyToSender(ctx, msg, help)
 			case "help":
@@ -639,7 +626,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					for _, i := range ctx.Dice.CocExtraRules {
 						if nInt64 == i.Index {
 							rule = i
-							//text := fmt.Sprintf("已切换房规为%s:\n%s%s", i.Name, i.Desc, suffix)
 							break
 						}
 					}
@@ -772,14 +758,15 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				checkPass2 := successRank2 >= difficultRequire2 // B是否通过检定
 
 				winNum := 0
-				if checkPass1 && checkPass2 {
+				switch {
+				case checkPass1 && checkPass2:
 					if successRank1 > successRank2 {
 						// A 胜出
 						winNum = -1
 					} else if successRank1 < successRank2 {
 						// B 胜出
 						winNum = 1
-					} else {
+					} else { //nolint:gocritic
 						// 这里状况复杂，属性检定时，属性高的人胜出
 						// 攻击时，成功等级相同，视为被攻击者胜出(目标选择闪避)
 						// 攻击时，成功等级相同，视为攻击者胜出(目标选择反击)
@@ -793,43 +780,30 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 							if checkVal1 > checkVal2 {
 								winNum = 1
 							}
-						} else { // nolint
-							// 这段代码不能使用，因为如果是反击，那么技能是相同的，然而攻击方必胜
-							//reX := regexp.MustCompile("\\d+$")
-							//expr1X := reX.ReplaceAllString(expr1, "")
-							//expr2X := reX.ReplaceAllString(expr2, "")
-							//if expr1X != "" && expr1X == expr2X {
-							//	// 相同技能，技能等级高的人胜出
-							//	if val1 > val2 {
-							//		winNum = -1
-							//	}
-							//	if val1 < val2 {
-							//		winNum = 1
-							//	}
-							//}
-						}
+						} /* else {
+							这段代码不能使用，因为如果是反击，那么技能是相同的，然而攻击方必胜
+							reX := regexp.MustCompile("\\d+$")
+							expr1X := reX.ReplaceAllString(expr1, "")
+							expr2X := reX.ReplaceAllString(expr2, "")
+							if expr1X != "" && expr1X == expr2X {
+								if val1 > val2 {
+									winNum = -1
+								}
+								if val1 < val2 {
+									winNum = 1
+								}
+							}
+						} */
 					}
-				} else {
-					if !checkPass1 && !checkPass2 {
-						// 双方都失败，无事发生
-					} else if checkPass1 && !checkPass2 {
-						winNum = -1 // A胜
-					} else if !checkPass1 && checkPass2 {
-						winNum = 1 // B胜
-					}
+				case checkPass1 && !checkPass2:
+					winNum = -1 // A胜
+				case !checkPass1 && checkPass2:
+					winNum = 1 // B胜
+				default: /*no-op*/
 				}
 
 				suffix1 := GetResultTextWithRequire(ctx1, successRank1, difficultRequire1, true)
 				suffix2 := GetResultTextWithRequire(ctx2, successRank2, difficultRequire2, true)
-
-				//switch winNum {
-				//case -1:
-				//	resultText = fmt.Sprintf("<%s>胜出！", ctx1.Player.Name)
-				//case +1:
-				//	resultText = fmt.Sprintf("<%s>胜出！", ctx2.Player.Name)
-				//case 0:
-				//	resultText = "平手！(请自行根据场景，如属性比较、攻击对反击，攻击对闪避)做出判断"
-				//}
 
 				p1Name := ctx1.Player.Name
 				p2Name := ctx2.Player.Name
@@ -861,12 +835,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				VarSetValueInt64(ctx, "$tWinFlag", int64(winNum))
 
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "COC:对抗检定"))
-				//ReplyToSender(ctx, msg, fmt.Sprintf("对抗检定:\n"+
-				//	"<%s> %s-> 属性值:%d 判定值:%d%s %s\n"+
-				//	"<%s> %s-> 属性值:%d 判定值:%d%s %s\n%s",
-				//	ctx1.Player.Name, expr1, val1, checkVal1, rollDetail1, suffix1,
-				//	ctx2.Player.Name, expr2, val2, checkVal2, rollDetail2, suffix2,
-				//	resultText))
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
@@ -927,104 +895,105 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return
 				}
 
-				if m != nil {
-					varName := m[1]     // 技能名称
-					varValueStr := m[2] // 技能值 - 字符串
-					successExpr := m[6] // 成功的加值表达式
-					failExpr := m[5]    // 失败的加值表达式
+				if m == nil {
+					checkResult.valid = false
+					checkResult.invalidReason = FormatMismatch
+					return
+				}
 
-					var varValue int64
-					checkResult.varName = varName
-					checkResult.varValueStr = varValueStr
+				varName := m[1]     // 技能名称
+				varValueStr := m[2] // 技能值 - 字符串
+				successExpr := m[6] // 成功的加值表达式
+				failExpr := m[5]    // 失败的加值表达式
 
-					// 首先，试图读取技能的值
-					if varValueStr != "" {
-						varValue, _ = strconv.ParseInt(varValueStr, 10, 64)
+				var varValue int64
+				checkResult.varName = varName
+				checkResult.varValueStr = varValueStr
+
+				// 首先，试图读取技能的值
+				if varValueStr != "" {
+					varValue, _ = strconv.ParseInt(varValueStr, 10, 64)
+				} else {
+					val, exists := VarGetValue(mctx, varName)
+					if !exists {
+						// 没找到，尝试取得默认值
+						val, _, _, exists = tmpl.GetDefaultValueEx0(mctx, varName)
+					}
+					if !exists {
+						checkResult.valid = false
+						checkResult.invalidReason = SkillNotEntered
+						return
+					}
+					if val.TypeID != VMTypeInt64 {
+						checkResult.valid = false
+						checkResult.invalidReason = SkillTypeError
+						return
+					}
+					varValue = val.Value.(int64)
+				}
+
+				d100 := DiceRoll64(100)
+				// 注意一下，这里其实是，小于失败 大于成功
+				successRank, _ := ResultCheck(mctx, mctx.Group.CocRuleIndex, d100, varValue)
+				var resultText string
+				// 若玩家投出了高于当前技能值的结果，或者结果大于95，则调查员该技能获得改善：骰1D10并且立即将结果加到当前技能值上。技能可通过此方式超过100%。
+				if d100 > 95 {
+					successRank = -1
+				}
+				var success bool
+				if successRank > 0 {
+					resultText = "失败"
+					success = false
+				} else {
+					resultText = "成功"
+					success = true
+				}
+
+				checkResult.rollValue = d100
+				checkResult.varValue = varValue
+				checkResult.resultText = resultText
+				checkResult.successRank = successRank
+				checkResult.success = success
+
+				if success {
+					if successExpr == "" {
+						successExpr = "1d10"
+					}
+
+					r, _, err := mctx.Dice.ExprEval(successExpr, mctx)
+					checkResult.successExpr = successExpr
+					if err != nil {
+						checkResult.valid = false
+						checkResult.invalidReason = SuccessExprFormatError
+						return
+					}
+
+					increment := r.VMValue.Value.(int64)
+					checkResult.increment = increment
+					checkResult.newVarValue = varValue + increment
+				} else {
+					if failExpr == "" {
+						checkResult.increment = 0
+						checkResult.newVarValue = varValue
 					} else {
-						val, exists := VarGetValue(mctx, varName)
-						if !exists {
-							// 没找到，尝试取得默认值
-							val, _, _, exists = tmpl.GetDefaultValueEx0(mctx, varName)
-						}
-						if !exists {
-							checkResult.valid = false
-							checkResult.invalidReason = SkillNotEntered
-							return
-						}
-						if val.TypeId != VMTypeInt64 {
-							checkResult.valid = false
-							checkResult.invalidReason = SkillTypeError
-							return
-						}
-						varValue = val.Value.(int64)
-					}
-
-					d100 := DiceRoll64(100)
-					// 注意一下，这里其实是，小于失败 大于成功
-					successRank, _ := ResultCheck(mctx, mctx.Group.CocRuleIndex, d100, varValue)
-					var resultText string
-					// 若玩家投出了高于当前技能值的结果，或者结果大于95，则调查员该技能获得改善：骰1D10并且立即将结果加到当前技能值上。技能可通过此方式超过100%。
-					if d100 > 95 {
-						successRank = -1
-					}
-					var success bool
-					if successRank > 0 {
-						resultText = "失败"
-						success = false
-					} else {
-						resultText = "成功"
-						success = true
-					}
-
-					checkResult.rollValue = d100
-					checkResult.varValue = varValue
-					checkResult.resultText = resultText
-					checkResult.successRank = successRank
-					checkResult.success = success
-
-					if success {
-						if successExpr == "" {
-							successExpr = "1d10"
-						}
-
-						r, _, err := mctx.Dice.ExprEval(successExpr, mctx)
-						checkResult.successExpr = successExpr
+						r, _, err := mctx.Dice.ExprEval(failExpr, mctx)
+						checkResult.failExpr = failExpr
 						if err != nil {
 							checkResult.valid = false
-							checkResult.invalidReason = SuccessExprFormatError
+							checkResult.invalidReason = FailExprFormatError
 							return
 						}
 
 						increment := r.VMValue.Value.(int64)
 						checkResult.increment = increment
 						checkResult.newVarValue = varValue + increment
-					} else {
-						if failExpr == "" {
-							checkResult.increment = 0
-							checkResult.newVarValue = varValue
-						} else {
-							r, _, err := mctx.Dice.ExprEval(failExpr, mctx)
-							checkResult.failExpr = failExpr
-							if err != nil {
-								checkResult.valid = false
-								checkResult.invalidReason = FailExprFormatError
-								return
-							}
-
-							increment := r.VMValue.Value.(int64)
-							checkResult.increment = increment
-							checkResult.newVarValue = varValue + increment
-						}
 					}
-				} else {
-					checkResult.valid = false
-					checkResult.invalidReason = FormatMismatch
 				}
 				return
 			}
 
 			VarSetValueInt64(mctx, "$t数量", int64(len(skills)))
-			if len(skills) < 1 {
+			if len(skills) < 1 { //nolint:nestif
 				ReplyToSender(mctx, msg, "指令格式不匹配")
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if len(skills) > 10 {
@@ -1244,7 +1213,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		ShortHelp: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
 			".sc <失败时掉san> //同上，简易写法 \n" +
 			".sc (b/p) (<成功时掉san>/)<失败时掉san> // 加上奖惩骰",
-		//".sc <成功掉san>/<失败掉san> (,<成功掉san>/<失败掉san>)+",
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
@@ -1335,7 +1303,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			}
 
 			expr1, expr2, expr3, code := getOnePiece()
-			//fmt.Println("???", expr1, "|", expr2, "|", expr3, "x", code)
 
 			switch code {
 			case 1:
@@ -1355,7 +1322,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				// 获取判定值
 				rCond, detailCond, err := mctx.Dice.ExprEval(expr1, mctx)
-				if err == nil && rCond.TypeId == VMTypeInt64 {
+				if err == nil && rCond.TypeID == VMTypeInt64 {
 					d100 = rCond.Value.(int64)
 				}
 				detailWrap := ""
@@ -1367,7 +1334,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				// 读取san值
 				r, _, err := mctx.Dice.ExprEval("san", mctx)
-				if err == nil && r.TypeId == VMTypeInt64 {
+				if err == nil && r.TypeID == VMTypeInt64 {
 					san = r.Value.(int64)
 				}
 				_san, err := strconv.ParseInt(argText, 10, 64)
@@ -1425,20 +1392,17 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				name := mctx.Player.GetValueNameByAlias("理智", tmpl.Alias)
 				VarSetValueInt64(mctx, name, sanNew)
 
-				//输出结果
+				// 输出结果
 				offset := san - sanNew
 				VarSetValueInt64(mctx, "$t新值", sanNew)
 				VarSetValueStr(mctx, "$t表达式文本", text1)
 				VarSetValueInt64(mctx, "$t表达式值", offset)
-				//text := fmt.Sprintf("<%s>的理智检定:\nD100=%d/%d %s\n理智变化: %d ➯ %d (扣除%s=%d点)\n", ctx.Player.Name, d100, san, suffix, san, sanNew, text1, offset)
 
 				var crazyTip string
 				if sanNew == 0 {
 					crazyTip += DiceFormatTmpl(mctx, "COC:提示_永久疯狂") + "\n"
-				} else {
-					if offset >= 5 {
-						crazyTip += DiceFormatTmpl(mctx, "COC:提示_临时疯狂") + "\n"
-					}
+				} else if offset >= 5 {
+					crazyTip += DiceFormatTmpl(mctx, "COC:提示_临时疯狂") + "\n"
 				}
 				VarSetValueStr(mctx, "$t提示_角色疯狂", crazyTip)
 
@@ -1543,9 +1507,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			tmpl := getCoc7CharTemplate()
 			ctx.Player.TempValueAlias = &tmpl.Alias
 		},
-		GetDescText: func(ei *ExtInfo) string {
-			return GetExtensionDesc(ei)
-		},
+		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
 			"en":     cmdEn,
 			"setcoc": cmdSetCOC,
@@ -1606,9 +1568,8 @@ func GetResultTextWithRequire(ctx *MsgContext, successRank int, difficultRequire
 			}
 		}
 		return suffix
-	} else {
-		return GetResultText(ctx, successRank, userShortVersion)
 	}
+	return GetResultText(ctx, successRank, userShortVersion)
 }
 
 func GetResultText(ctx *MsgContext, successRank int, userShortVersion bool) string {
@@ -1697,13 +1658,13 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 	switch cocRule {
 	case 0:
 		// 规则书规则
-		//不满50出96-100大失败，满50出100大失败
+		// 不满50出96-100大失败，满50出100大失败
 		if checkValue < 50 {
 			fumbleValue = 96
 		}
 	case 1:
-		//不满50出1大成功，满50出1-5大成功
-		//不满50出96-100大失败，满50出100大失败
+		// 不满50出1大成功，满50出1-5大成功
+		// 不满50出96-100大失败，满50出100大失败
 		if checkValue >= 50 {
 			criticalSuccessValue = 5
 		}
@@ -1711,8 +1672,8 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 			fumbleValue = 96
 		}
 	case 2:
-		//出1-5且<=成功率大成功
-		//出100或出96-99且>成功率大失败
+		// 出1-5且<=成功率大成功
+		// 出100或出96-99且>成功率大失败
 		criticalSuccessValue = 5
 		if checkValue < criticalSuccessValue {
 			criticalSuccessValue = checkValue
@@ -1725,14 +1686,14 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 			}
 		}
 	case 3:
-		//出1-5大成功
-		//出100或出96-99大失败
+		// 出1-5大成功
+		// 出100或出96-99大失败
 		criticalSuccessValue = 5
 		fumbleValue = 96
 	case 4:
-		//出1-5且<=成功率/10大成功
-		//不满50出>=96+成功率/10大失败，满50出100大失败
-		//规则4 -> 大成功判定值 = min(5, 判定值/10)，大失败判定值 = min(96+判定值/10, 100)
+		// 出1-5且<=成功率/10大成功
+		// 不满50出>=96+成功率/10大失败，满50出100大失败
+		// 规则4 -> 大成功判定值 = min(5, 判定值/10)，大失败判定值 = min(96+判定值/10, 100)
 		criticalSuccessValue = checkValue / 10
 		if criticalSuccessValue > 5 {
 			criticalSuccessValue = 5
@@ -1742,8 +1703,8 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 			fumbleValue = 100
 		}
 	case 5:
-		//出1-2且<成功率/5大成功
-		//不满50出96-100大失败，满50出99-100大失败
+		// 出1-2且<成功率/5大成功
+		// 不满50出96-100大失败，满50出99-100大失败
 		criticalSuccessValue = checkValue / 5
 		if criticalSuccessValue > 2 {
 			criticalSuccessValue = 2
@@ -1753,7 +1714,7 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 		} else {
 			fumbleValue = 99
 		}
-	case 11: //dg
+	case 11: // dg
 		criticalSuccessValue = 1
 		fumbleValue = 100
 	}
@@ -1762,22 +1723,20 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 	if successRank == 1 {
 		// 区分大成功、困难成功、极难成功等
 		if d100 <= checkValue/2 {
-			//suffix = "成功(困难)"
+			// suffix = "成功(困难)"
 			successRank = 2
 		}
 		if d100 <= checkValue/5 {
-			//suffix = "成功(极难)"
+			// suffix = "成功(极难)"
 			successRank = 3
 		}
 		if d100 <= criticalSuccessValue {
-			//suffix = "大成功！"
+			// suffix = "大成功！"
 			successRank = 4
 		}
-	} else {
-		if d100 >= fumbleValue {
-			//suffix = "大失败！"
-			successRank = -2
-		}
+	} else if d100 >= fumbleValue {
+		// suffix = "大失败！"
+		successRank = -2
 	}
 
 	if cocRule == 0 || cocRule == 1 || cocRule == 2 {
@@ -1797,11 +1756,11 @@ func ResultCheckBase(cocRule int, d100 int64, checkValue int64) (successRank int
 	// 规则3的改判，强行大成功或大失败
 	if cocRule == 3 {
 		if d100 <= criticalSuccessValue {
-			//suffix = "大成功！"
+			// suffix = "大成功！"
 			successRank = 4
 		}
 		if d100 >= fumbleValue {
-			//suffix = "大失败！"
+			// suffix = "大失败！"
 			successRank = -2
 		}
 	}
@@ -1850,176 +1809,130 @@ func setupConfig(d *Dice) AttributeConfigs {
 			}
 		}
 		return ac
-	} else {
-		// 如果不存在，新建
-
-		defaultVals := AttributeConfigs{
-			Alias: map[string][]string{
-				"理智": {"san", "san值", "理智值", "理智点数", "心智", "心智点数", "心智點數", "理智點數"},
-				"力量": {"str"},
-				"体质": {"con", "體質"},
-				"体型": {"siz", "體型", "体形", "體形"},
-				"敏捷": {"dex"},
-				"外貌": {"app", "外表"},
-				"意志": {"pow"},
-				"教育": {"edu", "知识", "知識"}, // 教育和知识等值而不是一回事，注意
-				"智力": {"int", "灵感", "靈感"}, // 智力和灵感等值而不是一回事，注意
-
-				"幸运":     {"luck", "幸运值", "运气", "幸運", "運氣", "幸運值"},
-				"生命值":    {"hp", "生命", "体力", "體力", "血量", "耐久值"},
-				"生命值上限":  {"hpmax", "生命上限", "体力上限", "體力上限", "血量上限", "耐久值上限"},
-				"魔法值":    {"mp", "魔法", "魔力", "魔力值"},
-				"护甲":     {"装甲", "護甲", "裝甲"},
-				"枪械":     {"火器", "射击", "槍械", "射擊"},
-				"会计":     {"會計"},
-				"人类学":    {"人類學"},
-				"估价":     {"估價"},
-				"考古学":    {"考古學"},
-				"魅惑":     {"取悦", "取悅"},
-				"攀爬":     {"攀岩", "攀登"},
-				"计算机使用":  {"电脑使用", "計算機使用", "電腦使用", "计算机", "电脑", "計算機", "電腦", "计算机使用Ω"},
-				"信用评级":   {"信誉", "信用", "信誉度", "cr", "信用評級", "信譽", "信譽度"},
-				"克苏鲁神话":  {"cm", "克苏鲁", "克苏鲁神话知识", "克蘇魯", "克蘇魯神話", "克蘇魯神話知識"},
-				"乔装":     {"喬裝"},
-				"闪避":     {"閃避"},
-				"汽车驾驶":   {"汽車駕駛", "汽车", "驾驶", "汽車", "駕駛"},
-				"电气维修":   {"电器维修", "电工", "電氣維修", "電器維修", "電工"},
-				"电子学":    {"電子學", "电子学Ω"},
-				"话术":     {"快速交谈", "話術", "快速交談"},
-				"历史":     {"歷史"},
-				"恐吓":     {"恐嚇"},
-				"跳跃":     {"跳躍"},
-				"母语":     {"母語"},
-				"图书馆使用":  {"圖書館使用", "图书馆", "图书馆利用", "圖書館", "圖書館利用"},
-				"聆听":     {"聆聽"},
-				"锁匠":     {"开锁", "撬锁", "钳工", "鎖匠", "鉗工", "開鎖", "撬鎖"},
-				"机械维修":   {"机器维修", "机修", "機器維修", "機修", "機械維修"},
-				"医学":     {"醫學"},
-				"博物学":    {"自然", "自然学", "自然史", "自然學", "博物學"},
-				"领航":     {"导航", "領航", "導航"},
-				"神秘学":    {"神秘學"},
-				"操作重型机械": {"重型操作", "重型机械", "重型", "重机", "操作重型機械", "重型機械", "重機"},
-				"说服":     {"辩论", "议价", "演讲", "說服", "辯論", "議價", "演講"},
-				"精神分析":   {"心理分析"},
-				"心理学":    {"心理學"},
-				"骑术":     {"騎術"},
-				"妙手":     {"藏匿", "盗窃", "盜竊"},
-				"侦查":     {"侦察", "偵查", "偵察"},
-				"潜行":     {"躲藏", "潛行"},
-				"投掷":     {"投擲"},
-				"追踪":     {"跟踪", "追蹤", "跟蹤"},
-				"驯兽":     {"驯养", "动物驯养", "馴獸", "動物馴養", "馴養"},
-				"读唇":     {"唇语", "讀唇", "唇語"},
-				"炮术":     {"炮術"},
-				"学识":     {"学问", "學識", "學問"},
-				"艺术与手艺":  {"艺术和手艺", "艺术", "手艺", "工艺", "技艺", "藝術與手藝", "藝術和手藝", "藝術", "手藝", "工藝", "技藝"},
-				"美术":     {"美術"},
-				"伪造":     {"偽造"},
-				"摄影":     {"攝影"},
-				"理发":     {"理髮"},
-				"书法":     {"書法"},
-				"木匠":     {"木工"},
-				"厨艺":     {"烹饪", "廚藝", "烹飪"},
-				"写作":     {"文学", "寫作", "文學"},
-				"歌剧歌唱":   {"歌劇歌唱"},
-				"技术制图":   {"技術製圖"},
-				"裁缝":     {"裁縫"},
-				"声乐":     {"聲樂"},
-				"喜剧":     {"喜劇"},
-				"器乐":     {"器樂"},
-				"速记":     {"速記"},
-				"园艺":     {"園藝"},
-				"斗殴":     {"鬥毆", "格斗：斗殴", "格斗:斗殴"},
-				"剑":      {"剑术", "劍", "劍術", "格斗：剑", "格斗:剑"},
-				"斧":      {"斧头", "斧子", "斧頭", "格斗：斧", "格斗:斧"},
-				"链锯":     {"电锯", "油锯", "鏈鋸", "電鋸", "油鋸", "格斗：链锯", "格斗:链锯"},
-				"链枷":     {"连枷", "連枷", "鏈枷", "格斗：链枷", "格斗:链枷"},
-				"绞索":     {"绞具", "絞索", "絞具", "格斗：绞索", "格斗:绞索"},
-				"手枪":     {"手槍", "射击：手枪", "射击:手枪"},
-				"步枪":     {"霰弹枪", "步霰", "步枪/霰弹枪", "散弹枪", "步槍", "霰彈槍", "步霰", "步槍/霰彈槍", "散彈槍", "射击：步枪", "射击:步枪"},
-				"弓":      {"弓术", "弓箭", "弓術", "射击：弓", "射击:弓"},
-				"火焰喷射器":  {"火焰噴射器", "射击：火焰喷射器", "射击:火焰喷射器"},
-				"机枪":     {"機槍", "射击：机枪", "射击:机枪"},
-				"矛":      {"投矛", "射击：矛", "射击:矛"},
-				"冲锋枪":    {"衝鋒槍", "射击：冲锋枪", "射击:冲锋枪"},
-				"天文学":    {"天文學", "科学：天文学", "科学:天文学"},
-				"生物学":    {"生物學", "科学：生物学", "科学:生物学"},
-				"植物学":    {"植物學", "科学：植物学", "科学:植物学"},
-				"化学":     {"化學", "科学：化学", "科学:化学"},
-				"密码学":    {"密碼學", "科学：密码学", "科学:密码学"},
-				"工程学":    {"工程學", "科学：工程学", "科学:工程学"},
-				"司法科学":   {"司法科學", "科学：司法科学", "科学:司法科学"},
-				"地质学":    {"地理学", "地質學", "地理學", "科学：地质学", "科学:地质学"},
-				"数学":     {"數學", "科学：数学", "科学:数学"},
-				"气象学":    {"氣象學", "科学：", "科学:"},
-				"药学":     {"藥學", "科学：气象学", "科学:气象学"},
-				"物理学":    {"物理", "物理學", "科学：物理学", "科学:物理学"},
-				"动物学":    {"動物學", "科学：动物学", "科学:动物学"},
-				"船":      {"开船", "驾驶船", "開船", "駕駛船", "驾驶：船", "驾驶:船"},
-				"飞行器":    {"开飞行器", "驾驶飞行器", "飛行器", "開飛行器", "駕駛飛行器", "驾驶：飞行器", "驾驶:飞行器"},
-				"科学":     {"科學"},
-				"海洋":     {"海上"},
-				"极地":     {"極地"},
-				"语言":     {"外语", "語言", "外語"},
-				"潜水":     {"潛水"},
-			},
-			Order: AttributeOrder{
-				Top:    []string{"力量", "敏捷", "体质", "体型", "外貌", "智力", "意志", "教育", "理智", "克苏鲁神话", "生命值", "魔法值"},
-				Others: AttributeOrderOthers{SortBy: "Name"},
-			},
-		}
-
-		buf, err := yaml.Marshal(defaultVals)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			_ = os.WriteFile(attrConfigFn, buf, 0644)
-		}
-		return defaultVals
 	}
-}
+	// 如果不存在，新建
 
-// 一个sc的废案，当时没考虑到除号问题
-//	read2n3 := func(r0 *VmResult) int {
-//		if strings.HasPrefix(r0.restInput, "/") {
-//			// 当前值为成功值
-//			expr2 = r0.Matched
-//
-//			// 匹配失败值，必须匹配
-//			r, _, err := ctx.Dice.ExprEvalBase(r0.restInput[1:], mctx, RollExtraFlags{})
-//			if err != nil {
-//				return 2
-//			}
-//
-//			expr3 = r.Matched
-//			argText = r.restInput
-//			return 0
-//		}
-//
-//		fmt.Println("333 rest", r0.restInput, len(r0.restInput), r0.restInput == "")
-//		if strings.HasPrefix(r0.restInput, ",") || r0.restInput == "" {
-//			expr2 = defaultSuccessExpr
-//			expr3 = r.Matched
-//			argText = r.restInput
-//			return 0
-//		}
-//
-//		return -1
-//	}
-//
-//	code := read2n3(r)
-//	if code == -1 {
-//		// 读取到表达式，所以r是判定值
-//		r2, _, err := ctx.Dice.ExprEvalBase(r.restInput, mctx, RollExtraFlags{})
-//		if err != nil {
-//			// 情况3，格式错误
-//			return 3
-//		}
-//		expr1 = r.Matched
-//
-//		// 读取剩下两个值
-//		return read2n3(r2)
-//	}
-//
-//	return code
-//}
+	defaultVals := AttributeConfigs{
+		Alias: map[string][]string{
+			"理智": {"san", "san值", "理智值", "理智点数", "心智", "心智点数", "心智點數", "理智點數"},
+			"力量": {"str"},
+			"体质": {"con", "體質"},
+			"体型": {"siz", "體型", "体形", "體形"},
+			"敏捷": {"dex"},
+			"外貌": {"app", "外表"},
+			"意志": {"pow"},
+			"教育": {"edu", "知识", "知識"}, // 教育和知识等值而不是一回事，注意
+			"智力": {"int", "灵感", "靈感"}, // 智力和灵感等值而不是一回事，注意
+
+			"幸运":     {"luck", "幸运值", "运气", "幸運", "運氣", "幸運值"},
+			"生命值":    {"hp", "生命", "体力", "體力", "血量", "耐久值"},
+			"生命值上限":  {"hpmax", "生命上限", "体力上限", "體力上限", "血量上限", "耐久值上限"},
+			"魔法值":    {"mp", "魔法", "魔力", "魔力值"},
+			"护甲":     {"装甲", "護甲", "裝甲"},
+			"枪械":     {"火器", "射击", "槍械", "射擊"},
+			"会计":     {"會計"},
+			"人类学":    {"人類學"},
+			"估价":     {"估價"},
+			"考古学":    {"考古學"},
+			"魅惑":     {"取悦", "取悅"},
+			"攀爬":     {"攀岩", "攀登"},
+			"计算机使用":  {"电脑使用", "計算機使用", "電腦使用", "计算机", "电脑", "計算機", "電腦", "计算机使用Ω"},
+			"信用评级":   {"信誉", "信用", "信誉度", "cr", "信用評級", "信譽", "信譽度"},
+			"克苏鲁神话":  {"cm", "克苏鲁", "克苏鲁神话知识", "克蘇魯", "克蘇魯神話", "克蘇魯神話知識"},
+			"乔装":     {"喬裝"},
+			"闪避":     {"閃避"},
+			"汽车驾驶":   {"汽車駕駛", "汽车", "驾驶", "汽車", "駕駛"},
+			"电气维修":   {"电器维修", "电工", "電氣維修", "電器維修", "電工"},
+			"电子学":    {"電子學", "电子学Ω"},
+			"话术":     {"快速交谈", "話術", "快速交談"},
+			"历史":     {"歷史"},
+			"恐吓":     {"恐嚇"},
+			"跳跃":     {"跳躍"},
+			"母语":     {"母語"},
+			"图书馆使用":  {"圖書館使用", "图书馆", "图书馆利用", "圖書館", "圖書館利用"},
+			"聆听":     {"聆聽"},
+			"锁匠":     {"开锁", "撬锁", "钳工", "鎖匠", "鉗工", "開鎖", "撬鎖"},
+			"机械维修":   {"机器维修", "机修", "機器維修", "機修", "機械維修"},
+			"医学":     {"醫學"},
+			"博物学":    {"自然", "自然学", "自然史", "自然學", "博物學"},
+			"领航":     {"导航", "領航", "導航"},
+			"神秘学":    {"神秘學"},
+			"操作重型机械": {"重型操作", "重型机械", "重型", "重机", "操作重型機械", "重型機械", "重機"},
+			"说服":     {"辩论", "议价", "演讲", "說服", "辯論", "議價", "演講"},
+			"精神分析":   {"心理分析"},
+			"心理学":    {"心理學"},
+			"骑术":     {"騎術"},
+			"妙手":     {"藏匿", "盗窃", "盜竊"},
+			"侦查":     {"侦察", "偵查", "偵察"},
+			"潜行":     {"躲藏", "潛行"},
+			"投掷":     {"投擲"},
+			"追踪":     {"跟踪", "追蹤", "跟蹤"},
+			"驯兽":     {"驯养", "动物驯养", "馴獸", "動物馴養", "馴養"},
+			"读唇":     {"唇语", "讀唇", "唇語"},
+			"炮术":     {"炮術"},
+			"学识":     {"学问", "學識", "學問"},
+			"艺术与手艺":  {"艺术和手艺", "艺术", "手艺", "工艺", "技艺", "藝術與手藝", "藝術和手藝", "藝術", "手藝", "工藝", "技藝"},
+			"美术":     {"美術"},
+			"伪造":     {"偽造"},
+			"摄影":     {"攝影"},
+			"理发":     {"理髮"},
+			"书法":     {"書法"},
+			"木匠":     {"木工"},
+			"厨艺":     {"烹饪", "廚藝", "烹飪"},
+			"写作":     {"文学", "寫作", "文學"},
+			"歌剧歌唱":   {"歌劇歌唱"},
+			"技术制图":   {"技術製圖"},
+			"裁缝":     {"裁縫"},
+			"声乐":     {"聲樂"},
+			"喜剧":     {"喜劇"},
+			"器乐":     {"器樂"},
+			"速记":     {"速記"},
+			"园艺":     {"園藝"},
+			"斗殴":     {"鬥毆", "格斗：斗殴", "格斗:斗殴"},
+			"剑":      {"剑术", "劍", "劍術", "格斗：剑", "格斗:剑"},
+			"斧":      {"斧头", "斧子", "斧頭", "格斗：斧", "格斗:斧"},
+			"链锯":     {"电锯", "油锯", "鏈鋸", "電鋸", "油鋸", "格斗：链锯", "格斗:链锯"},
+			"链枷":     {"连枷", "連枷", "鏈枷", "格斗：链枷", "格斗:链枷"},
+			"绞索":     {"绞具", "絞索", "絞具", "格斗：绞索", "格斗:绞索"},
+			"手枪":     {"手槍", "射击：手枪", "射击:手枪"},
+			"步枪":     {"霰弹枪", "步霰", "步枪/霰弹枪", "散弹枪", "步槍", "霰彈槍", "步霰", "步槍/霰彈槍", "散彈槍", "射击：步枪", "射击:步枪"},
+			"弓":      {"弓术", "弓箭", "弓術", "射击：弓", "射击:弓"},
+			"火焰喷射器":  {"火焰噴射器", "射击：火焰喷射器", "射击:火焰喷射器"},
+			"机枪":     {"機槍", "射击：机枪", "射击:机枪"},
+			"矛":      {"投矛", "射击：矛", "射击:矛"},
+			"冲锋枪":    {"衝鋒槍", "射击：冲锋枪", "射击:冲锋枪"},
+			"天文学":    {"天文學", "科学：天文学", "科学:天文学"},
+			"生物学":    {"生物學", "科学：生物学", "科学:生物学"},
+			"植物学":    {"植物學", "科学：植物学", "科学:植物学"},
+			"化学":     {"化學", "科学：化学", "科学:化学"},
+			"密码学":    {"密碼學", "科学：密码学", "科学:密码学"},
+			"工程学":    {"工程學", "科学：工程学", "科学:工程学"},
+			"司法科学":   {"司法科學", "科学：司法科学", "科学:司法科学"},
+			"地质学":    {"地理学", "地質學", "地理學", "科学：地质学", "科学:地质学"},
+			"数学":     {"數學", "科学：数学", "科学:数学"},
+			"气象学":    {"氣象學", "科学：", "科学:"},
+			"药学":     {"藥學", "科学：气象学", "科学:气象学"},
+			"物理学":    {"物理", "物理學", "科学：物理学", "科学:物理学"},
+			"动物学":    {"動物學", "科学：动物学", "科学:动物学"},
+			"船":      {"开船", "驾驶船", "開船", "駕駛船", "驾驶：船", "驾驶:船"},
+			"飞行器":    {"开飞行器", "驾驶飞行器", "飛行器", "開飛行器", "駕駛飛行器", "驾驶：飞行器", "驾驶:飞行器"},
+			"科学":     {"科學"},
+			"海洋":     {"海上"},
+			"极地":     {"極地"},
+			"语言":     {"外语", "語言", "外語"},
+			"潜水":     {"潛水"},
+		},
+		Order: AttributeOrder{
+			Top:    []string{"力量", "敏捷", "体质", "体型", "外貌", "智力", "意志", "教育", "理智", "克苏鲁神话", "生命值", "魔法值"},
+			Others: AttributeOrderOthers{SortBy: "Name"},
+		},
+	}
+
+	buf, err := yaml.Marshal(defaultVals)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		_ = os.WriteFile(attrConfigFn, buf, 0644)
+	}
+	return defaultVals
+}

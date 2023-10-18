@@ -20,15 +20,15 @@ var Lines = []string{
 	"千门万户曈曈日，总把新桃换旧符。海豹更新中，稍等片刻",
 }
 
-// SpinnerWithLines 执行耗时任务时在命令行显示一个spinner, 并在最后循环显示Lines中的句子
+// WithLines 执行耗时任务时在命令行显示一个spinner, 并在最后循环显示Lines中的句子
 //   - `chDone` 当耗时任务完成后, 通过这个channel传入一个结束信号
 //   - `secondPerLine` 每个句子显示的秒数
 //   - `dotPerLine` 每个句子后显示的句点数
 //
 // Usage:
 //
-//	go SpinnerWithLines(chDone, 3, 10)
-func SpinnerWithLines(chDone <-chan interface{}, secondPerLine int, dotPerLine int) {
+//	go WithLines(chDone, 3, 10)
+func WithLines(chDone <-chan interface{}, secondPerLine int, dotPerLine int) {
 	if len(Lines) == 0 {
 		panic("SpinnerWithLines cannot be called when Lines is empty")
 	}
@@ -60,5 +60,4 @@ func SpinnerWithLines(chDone <-chan interface{}, secondPerLine int, dotPerLine i
 			time.Sleep(time.Millisecond * 100) // processbar的spinner并不是随add轮转,而是time/100ms mod size选择要使用的
 		}
 	}
-
 }

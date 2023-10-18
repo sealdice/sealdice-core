@@ -43,9 +43,8 @@ var LevelText = map[Level]string{
 func HigherLevel(l1 Level, l2 Level) Level {
 	if l1 > l2 {
 		return l1
-	} else {
-		return l2
 	}
+	return l2
 }
 
 type Censor struct {
@@ -92,9 +91,8 @@ type FileCounter [5]int
 func (c *Censor) PreloadFile(path string) (*WordFile, error) {
 	if strings.ToLower(filepath.Ext(path)) == ".toml" {
 		return c.tryPreloadTomlFile(path)
-	} else {
-		return c.tryPreloadTxtFile(path)
 	}
+	return c.tryPreloadTxtFile(path)
 }
 
 func (c *Censor) tryPreloadTxtFile(path string) (*WordFile, error) {

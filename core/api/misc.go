@@ -1,13 +1,14 @@
 package api
 
 import (
-	"github.com/labstack/echo/v4"
-	cp "github.com/otiai10/copy"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"time"
+
+	"github.com/labstack/echo/v4"
+	cp "github.com/otiai10/copy"
 )
 
 func upgrade(c echo.Context) error {
@@ -40,11 +41,10 @@ func upgrade(c echo.Context) error {
 				return c.JSON(200, map[string]interface{}{
 					"text": "准备开始升级，服务即将离线",
 				})
-			} else {
-				return c.JSON(200, map[string]interface{}{
-					"text": "升级失败，原因: " + ret,
-				})
 			}
+			return c.JSON(200, map[string]interface{}{
+				"text": "升级失败，原因: " + ret,
+			})
 		}
 	}
 

@@ -23,7 +23,7 @@ import (
 )
 
 // 分词器封存了，看起来不太需要
-//_ "github.com/leopku/bleve-gse-tokenizer/v2"
+// _ "github.com/leopku/bleve-gse-tokenizer/v2"
 
 const HelpBuiltinGroup = "builtin"
 
@@ -67,7 +67,7 @@ func (e HelpTextItems) Len() int {
 }
 
 type HelpManager struct {
-	CurId       uint64
+	CurID       uint64
 	Index       bleve.Index
 	TextMap     map[string]*HelpTextItem
 	Parent      *DiceManager
@@ -78,9 +78,9 @@ type HelpManager struct {
 	HelpDocTree []*HelpDoc
 }
 
-func (m *HelpManager) GetNextId() string {
-	m.CurId += 1
-	return strconv.FormatUint(m.CurId, 10)
+func (m *HelpManager) GetNextID() string {
+	m.CurID++
+	return strconv.FormatUint(m.CurID, 10)
 }
 
 type HelpDocFormat struct {
@@ -98,48 +98,50 @@ func (m *HelpManager) loadSearchEngine() {
 
 	m.TextMap = map[string]*HelpTextItem{}
 
-	switch m.EngineType {
-	case 0: // 默认，bleve
-		// 删除旧版本的
-		INDEX_DIR := "./data/_index"
-		_ = os.RemoveAll(INDEX_DIR)
-
-		mapping := bleve.NewIndexMapping()
-		INDEX_DIR = "./_help_cache"
-		_ = os.RemoveAll(INDEX_DIR)
-
-		//if m.Parent.UseDictForTokenizer {
-		//这些代码封存，看起来不怎么需要
-		//if err := mapping.AddCustomTokenizer("gse", map[string]interface{}{
-		//	"type":       "gse",
-		//	"user_dicts": "./data/dict/zh/dict.txt", // <-- MUST specified, otherwise panic would occurred.
-		//}); err != nil {
-		//	panic(err)
-		//}
-		//if err := mapping.AddCustomAnalyzer("gse", map[string]interface{}{
-		//	"type":      "gse",
-		//	"tokenizer": "gse",
-		//}); err != nil {
-		//	panic(err)
-		//}
-		//mapping.DefaultAnalyzer = "gse"
-		//}
-
-		docMapping := bleve.NewDocumentMapping()
-		docMapping.AddFieldMappingsAt("title", bleve.NewTextFieldMapping())
-		docMapping.AddFieldMappingsAt("content", bleve.NewTextFieldMapping())
-		docMapping.AddFieldMappingsAt("package", bleve.NewTextFieldMapping())
-
-		mapping.AddDocumentMapping("helpdoc", docMapping)
-		mapping.TypeField = "_type" // 此为默认值，可修改
-
-		index, err := bleve.New(INDEX_DIR, mapping)
-		if err != nil {
-			panic(err)
-		}
-
-		m.Index = index
+	// not bleve
+	if m.EngineType != 0 {
+		return
 	}
+
+	// 删除旧版本的
+	indexDir := "./data/_index"
+	_ = os.RemoveAll(indexDir)
+
+	mapping := bleve.NewIndexMapping()
+	indexDir = "./_help_cache"
+	_ = os.RemoveAll(indexDir)
+
+	// if m.Parent.UseDictForTokenizer {
+	// 这些代码封存，看起来不怎么需要
+	// if err := mapping.AddCustomTokenizer("gse", map[string]interface{}{
+	// 	"type":       "gse",
+	// 	"user_dicts": "./data/dict/zh/dict.txt", // <-- MUST specified, otherwise panic would occurred.
+	// }); err != nil {
+	// 	panic(err)
+	// }
+	// if err := mapping.AddCustomAnalyzer("gse", map[string]interface{}{
+	// 	"type":      "gse",
+	// 	"tokenizer": "gse",
+	// }); err != nil {
+	// 	panic(err)
+	// }
+	// mapping.DefaultAnalyzer = "gse"
+	// }
+
+	docMapping := bleve.NewDocumentMapping()
+	docMapping.AddFieldMappingsAt("title", bleve.NewTextFieldMapping())
+	docMapping.AddFieldMappingsAt("content", bleve.NewTextFieldMapping())
+	docMapping.AddFieldMappingsAt("package", bleve.NewTextFieldMapping())
+
+	mapping.AddDocumentMapping("helpdoc", docMapping)
+	mapping.TypeField = "_type" // 此为默认值，可修改
+
+	index, err := bleve.New(indexDir, mapping)
+	if err != nil {
+		panic(err)
+	}
+
+	m.Index = index
 }
 
 func (m *HelpManager) Close() {
@@ -148,28 +150,13 @@ func (m *HelpManager) Close() {
 			_ = m.Index.Close()
 			m.Index = nil
 
-			INDEX_DIR := "./_help_cache"
-			_ = os.RemoveAll(INDEX_DIR)
+			_ = os.RemoveAll("./_help_cache")
 		}
 	}
 }
 
 func (m *HelpManager) Load() {
 	m.loadSearchEngine()
-
-	//_ = m.AddItem(HelpTextItem{
-	//	Group:       HelpBuiltinGroup,
-	//	Title:       "First Text",
-	//	Content:     "In view, a humble vaudevillian veteran cast vicariously as both victim and villain vicissitudes of fate.",
-	//	PackageName: "测试",
-	//})
-	//
-	//_ = m.AddItem(HelpTextItem{
-	//	Group:       HelpBuiltinGroup,
-	//	Title:       "测试词条",
-	//	Content:     "他在命运的沉浮中随波逐流, 扮演着受害与加害者的双重角色",
-	//	PackageName: "测试",
-	//})
 
 	_ = m.AddItem(HelpTextItem{
 		Group: HelpBuiltinGroup,
@@ -202,18 +189,6 @@ func (m *HelpManager) Load() {
 		PackageName: "帮助",
 	})
 
-	//	_ = m.AddItem(HelpTextItem{
-	//		Group: HelpBuiltinGroup,
-	//		Title: "日志",
-	//		Content: `.help 日志：
-	//.log new //新建记录
-	//.log on //开始记录
-	//.log off //暂停纪录
-	//.log end //结束记录并导出
-	//`,
-	//		PackageName: "帮助",
-	//	})
-
 	_ = m.AddItem(HelpTextItem{
 		Group: HelpBuiltinGroup,
 		Title: "跑团",
@@ -232,24 +207,6 @@ func (m *HelpManager) Load() {
 `,
 		PackageName: "帮助",
 	})
-
-	//	_ = m.AddItem(HelpTextItem{
-	//		Group: HelpBuiltinGroup,
-	//		Title: "骰主",
-	//		Content: `.botlist add @A @B @C // 标记群内其他机器人，以免发生误触和无限对话
-	//.botlist del @A @B @C // 去除机器人标记
-	//.botlist list // 查看当前列表
-	//.master add me @A @B // 标记骰主
-	//.send <留言> // 给骰主留言
-	//`,
-	//		PackageName: "帮助",
-	//	})
-
-	//m.AddItem(HelpTextItem{
-	//	Title:       "查询/find",
-	//	Content:     "想要问什么呢？\n.查询 <数字ID> // 显示该ID的词条\n.查询 <任意文本> // 查询关联内容\n.查询 --rand // 随机词条",
-	//	PackageName: "核心指令",
-	//})
 
 	m.HelpDocTree = make([]*HelpDoc, 0)
 	entries, err := os.ReadDir("data/helpdoc")
@@ -324,7 +281,7 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 			rows, err := f.GetRows(s)
 			if err == nil {
 				for _, row := range rows {
-					//Keys Synonym Content Description Catalogue Tag
+					// Keys Synonym Content Description Catalogue Tag
 					if len(row) < 3 {
 						continue
 					}
@@ -357,10 +314,6 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 }
 
 func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
-	//lst := map[*CmdItemInfo]bool{}
-	//for _, v := range dice.CmdMap {
-	//	lst[v] = true
-	//}
 	m := dm.Help
 
 	addCmdMap := func(packageName string, cmdMap CmdMapCls) {
@@ -401,7 +354,7 @@ func (m *HelpManager) AddItem(item HelpTextItem) error {
 		"_type":   "helpdoc",
 	}
 
-	id := m.GetNextId()
+	id := m.GetNextID()
 	m.TextMap[id] = &item
 
 	if m.EngineType == 0 {
@@ -417,12 +370,10 @@ func (m *HelpManager) AddItem(item HelpTextItem) error {
 			m.batchNum = 0
 		}
 
-		m.batchNum += 1
+		m.batchNum++
 		return m.batch.Index(id, data)
-		//return m.Index.Index(id, data)
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func (m *HelpManager) AddItemApply() error {
@@ -648,7 +599,6 @@ func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
 			buildHelpDocTree(&child, fn)
 		}
 		node.Children = append(node.Children, &child)
-
 	}
 }
 
@@ -689,7 +639,7 @@ func (m *HelpManager) UploadHelpDoc(src io.Reader, group string, name string) er
 
 			var fileExists bool
 			for _, child := range groupDir.Children {
-				if child.Name == name && filepath.Join(child.Path) == filepath.Join(filePath) && !child.Deleted {
+				if child.Name == name && filepath.Clean(child.Path) == filepath.Clean(filePath) && !child.Deleted {
 					if child.LoadStatus == Unload {
 						child.Deleted = false
 						fileExists = true
@@ -807,7 +757,7 @@ func traverseHelpDocTree(root *HelpDoc, fn func(node *HelpDoc) error) error {
 }
 
 type HelpTextVo struct {
-	Id          int    `json:"id"`
+	ID          int    `json:"id"`
 	Group       string `json:"group"`
 	From        string `json:"from"`
 	Title       string `json:"title"`
@@ -827,7 +777,7 @@ func (h HelpTextVos) Swap(i, j int) {
 }
 
 func (h HelpTextVos) Less(i, j int) bool {
-	return h[i].Id < h[j].Id
+	return h[i].ID < h[j].ID
 }
 
 func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, title string) (int, HelpTextVos) {
@@ -849,40 +799,37 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 				PackageName: item.PackageName,
 				KeyWords:    item.KeyWords,
 			}
-			vo.Id, _ = strconv.Atoi(id)
+			vo.ID, _ = strconv.Atoi(id)
 			return 1, HelpTextVos{vo}
-		} else {
-			return 0, HelpTextVos{}
 		}
-	} else {
-		temp := make(HelpTextVos, 0, len(m.TextMap))
-		for i, item := range m.TextMap {
-			if strings.Contains(item.Group, group) &&
-				strings.Contains(item.From, from) &&
-				strings.Contains(item.Title, title) {
-				vo := HelpTextVo{
-					Group:       item.Group,
-					From:        item.From,
-					Title:       item.Title,
-					Content:     item.Content,
-					PackageName: item.PackageName,
-					KeyWords:    item.KeyWords,
-				}
-				vo.Id, _ = strconv.Atoi(i)
-				temp = append(temp, vo)
+		return 0, HelpTextVos{}
+	}
+	temp := make(HelpTextVos, 0, len(m.TextMap))
+	for i, item := range m.TextMap {
+		if strings.Contains(item.Group, group) &&
+			strings.Contains(item.From, from) &&
+			strings.Contains(item.Title, title) {
+			vo := HelpTextVo{
+				Group:       item.Group,
+				From:        item.From,
+				Title:       item.Title,
+				Content:     item.Content,
+				PackageName: item.PackageName,
+				KeyWords:    item.KeyWords,
 			}
-		}
-		sort.Sort(temp)
-
-		start := (pageNum - 1) * pageSize
-		end := start + pageSize
-		total := len(temp)
-		if start >= total {
-			return total, HelpTextVos{}
-		} else if end < total {
-			return total, temp[start:end]
-		} else {
-			return total, temp[start:]
+			vo.ID, _ = strconv.Atoi(i)
+			temp = append(temp, vo)
 		}
 	}
+	sort.Sort(temp)
+
+	start := (pageNum - 1) * pageSize
+	end := start + pageSize
+	total := len(temp)
+	if start >= total {
+		return total, HelpTextVos{}
+	} else if end < total {
+		return total, temp[start:end]
+	}
+	return total, temp[start:]
 }

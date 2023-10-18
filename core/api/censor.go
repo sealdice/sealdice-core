@@ -180,7 +180,7 @@ func censorSetConfig(c echo.Context) error {
 			myDice.CensorMatchPinyin = matchPinyin
 		}
 	}
-	if val, ok := jsonMap["levelConfig"]; ok {
+	if val, ok := jsonMap["levelConfig"]; ok { //nolint:nestif
 		levelConfig, ok := val.(map[string]interface{})
 
 		stringConvert := func(val interface{}) []string {
@@ -281,9 +281,8 @@ func (srs SensitiveRelatedWords) Len() int { return len(srs) }
 func (srs SensitiveRelatedWords) Less(i, j int) bool {
 	if srs[i].Reason == srs[j].Reason {
 		return srs[i].Word < srs[j].Word
-	} else {
-		return srs[i].Reason < srs[j].Reason
 	}
+	return srs[i].Reason < srs[j].Reason
 }
 func (srs SensitiveRelatedWords) Swap(i, j int) { srs[i], srs[j] = srs[j], srs[i] }
 
@@ -299,9 +298,8 @@ func (sws SensitiveWords) Len() int { return len(sws) }
 func (sws SensitiveWords) Less(i, j int) bool {
 	if sws[i].Level == sws[j].Level {
 		return sws[i].Main < sws[j].Main
-	} else {
-		return sws[i].Level < sws[j].Level
 	}
+	return sws[i].Level < sws[j].Level
 }
 func (sws SensitiveWords) Swap(i, j int) { sws[i], sws[j] = sws[j], sws[i] }
 
@@ -467,15 +465,15 @@ func censorGetTomlFileTemplate(c echo.Context) error {
 	writer := bufio.NewWriter(temp)
 	err := toml.NewEncoder(writer).SetArraysMultiline(true).Encode(&template)
 	_ = writer.Flush()
-	if err == nil {
-		c.Response().Header().Add("Cache-Control", "no-store")
-		err := c.Attachment(temp.Name(), "词库模板.toml")
-		_ = temp.Close()
-		_ = os.RemoveAll(temp.Name())
-		return err
-	} else {
+	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
+
+	c.Response().Header().Add("Cache-Control", "no-store")
+	err = c.Attachment(temp.Name(), "词库模板.toml")
+	_ = temp.Close()
+	_ = os.RemoveAll(temp.Name())
+	return err
 }
 
 func censorGetTxtFileTemplate(c echo.Context) error {

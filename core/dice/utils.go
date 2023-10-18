@@ -80,26 +80,26 @@ func RandStringBytesMaskImprSrcSB2(n int) string {
 	return sb.String()
 }
 
-func JsonNumberUnmarshal(data []byte, v interface{}) error {
+func JSONNumberUnmarshal(data []byte, v interface{}) error {
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
 	return d.Decode(v)
 }
 
 func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
-	if val.TypeId == VMTypeInt64 {
+	if val.TypeID == VMTypeInt64 {
 		n, ok := val.Value.(json.Number)
 		if !ok {
 			return nil
 		}
 		if i, err := n.Int64(); err == nil {
 			if v != nil {
-				(*v)[key] = &VMValue{TypeId: VMTypeInt64, Value: i}
+				(*v)[key] = &VMValue{TypeID: VMTypeInt64, Value: i}
 			}
-			return &VMValue{TypeId: VMTypeInt64, Value: i}
+			return &VMValue{TypeID: VMTypeInt64, Value: i}
 		}
 	}
-	if val.TypeId == -1 {
+	if val.TypeID == -1 {
 		// 先攻列表
 		m2 := map[string]int64{}
 
@@ -126,11 +126,11 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 			m2, _ = val.Value.(map[string]int64)
 		}
 		if v != nil {
-			(*v)[key] = &VMValue{TypeId: -1, Value: m2}
+			(*v)[key] = &VMValue{TypeID: -1, Value: m2}
 		}
-		return &VMValue{TypeId: -1, Value: m2}
+		return &VMValue{TypeID: -1, Value: m2}
 	}
-	if val.TypeId == -2 {
+	if val.TypeID == -2 {
 		// 先攻uid列表
 		m2 := map[string]string{}
 
@@ -147,17 +147,17 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 			m2, _ = val.Value.(map[string]string)
 		}
 		if v != nil {
-			(*v)[key] = &VMValue{TypeId: -2, Value: m2}
+			(*v)[key] = &VMValue{TypeID: -2, Value: m2}
 		}
-		return &VMValue{TypeId: -2, Value: m2}
+		return &VMValue{TypeID: -2, Value: m2}
 	}
-	if val.TypeId == VMTypeDNDComputedValue {
+	if val.TypeID == VMTypeDNDComputedValue {
 		tmp := val.Value.(map[string]interface{})
 		baseValue := tmp["base_value"].(map[string]interface{})
 
 		val, _ := baseValue["typeId"].(json.Number).Int64()
 		bv := VMValueConvert(&VMValue{
-			TypeId: VMValueType(val),
+			TypeID: VMValueType(val),
 			Value:  baseValue["value"],
 		}, nil, "")
 
@@ -167,25 +167,25 @@ func VMValueConvert(val *VMValue, v *map[string]*VMValue, key string) *VMValue {
 		}
 
 		if v != nil {
-			(*v)[key] = &VMValue{TypeId: VMTypeDNDComputedValue, Value: vd}
+			(*v)[key] = &VMValue{TypeID: VMTypeDNDComputedValue, Value: vd}
 		}
-		//val.Value.(map)
+		// val.Value.(map)
 	}
 
-	if val.TypeId == VMTypeComputedValue {
+	if val.TypeID == VMTypeComputedValue {
 		tmp := val.Value.(map[string]interface{})
 		vd := &ComputedData{
 			Expr: tmp["expr"].(string),
 		}
 
 		if v != nil {
-			(*v)[key] = &VMValue{TypeId: VMTypeComputedValue, Value: vd}
+			(*v)[key] = &VMValue{TypeID: VMTypeComputedValue, Value: vd}
 		}
 	}
 	return nil
 }
 
-func JsonValueMapUnmarshal(data []byte, v *map[string]*VMValue) error {
+func JSONValueMapUnmarshal(data []byte, v *map[string]*VMValue) error {
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
 	err := d.Decode(v)
@@ -259,12 +259,12 @@ func GetCtxProxyAtPos(ctx *MsgContext, cmdArgs *CmdArgs, pos int) *MsgContext {
 func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar bool) *MsgContext {
 	cur := 0
 	for _, i := range cmdArgs.At {
-		if i.UserId == ctx.EndPoint.UserId {
+		if i.UserID == ctx.EndPoint.UserID {
 			continue
 		}
 
 		if pos != cur {
-			cur += 1
+			cur++
 			continue
 		}
 
@@ -272,7 +272,7 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 		if ctx.Group != nil {
 			isBot := false
 			ctx.Group.BotList.Range(func(botUid string, _ bool) bool {
-				if i.UserId == botUid {
+				if i.UserID == botUid {
 					isBot = true
 					return false
 				}
@@ -283,9 +283,9 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 			}
 		}
 
-		//theChoosen := i.UID
+		// theChoosen := i.UID
 		mctx, _ := i.CopyCtx(ctx)
-		//if exists {
+		// if exists {
 		if mctx.Player != ctx.Player {
 			mctx.LoadPlayerGroupVars(mctx.Group, mctx.Player)
 			if setTempVar {
@@ -294,7 +294,7 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 		}
 		//}
 
-		if mctx.Player.UserId == ctx.Player.UserId {
+		if mctx.Player.UserID == ctx.Player.UserID {
 			// 并非代骰
 			ctx.DelegateText = ""
 		}
@@ -304,7 +304,7 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 	return ctx
 }
 
-func UserIdExtract(uid string) string {
+func UserIDExtract(uid string) string {
 	index := strings.Index(uid, ":")
 	if index != -1 {
 		return uid[index+1:]
@@ -335,7 +335,7 @@ func LockFreeMapToMap(m lockfree.HashMap) map[string]interface{} {
 	return ret
 }
 
-var SVG_ICON = []byte(`<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><style>.cls-1{fill:#bdccd4;}.cls-2{fill:#fff;}</style></defs><title>icon-s</title><rect class="cls-1" x="6.36" y="7.14" width="498.86" height="498.86" rx="12"/><polygon class="cls-2" points="130.65 58.2 31.9 269.01 183.55 462.82 365.95 427.73 480.24 237.52 336.41 52 130.65 58.2"/><path d="M488.44,230.71,346.28,44.41h0a10.57,10.57,0,0,0-8.87-4.18L133.26,48.62h0a10.61,10.61,0,0,0-9.15,6L22.06,263h0a10.57,10.57,0,0,0,1.14,11.14l150.59,194.6a10.58,10.58,0,0,0,10.53,3.95L373.17,436l1.35-.46a10.59,10.59,0,0,0,5.72-4.71L489.16,242.44a10.6,10.6,0,0,0-.72-11.73ZM186,449.75l-24.1-187.3L385.9,376ZM364.21,107.21,159.67,244,140.55,72.87ZM149.65,248.53l-102.77,12L131.65,87.9ZM392.46,367.38,165.87,252.6l207-138.45,1.2,1.54,18.83,250.94ZM358.79,95.63,178.51,67.86,333,61.44ZM47.71,271.08l103.1-12L173.2,433.22ZM364.32,416l-120,23.36,135.29-49.82Zm38.14-65.88-16.62-219L467.21,238Z"/><polygon class="cls-2" points="157.03 220.4 160.14 249.69 178.19 258.84 374.4 120.32 373.55 108.64 358.48 106.33 157.03 220.4"/><path d="M297.84,193.19h0c-11-3.95-22.25-3.44-29.35,1.3-7.73,3.69-13.91,13-16.18,24.53C249,235.69,255,250.45,266,252.61c9.44,1.87,19.48-6.76,24-20.27,8.76,1.95,17,1,22.68-2.23a15,15,0,0,0,7-7.93C323.42,211.65,313.84,198.92,297.84,193.19Z"/><path d="M221.27,164c-8.94-3.2-18.77-2.18-27.68,2.88l-.08,0a44.16,44.16,0,0,0-19.37,23.68c-7.61,21.25,1.15,43.9,19.53,50.47,8.94,3.2,18.77,2.18,27.68-2.88l.08,0A44.16,44.16,0,0,0,240.8,214.5C248.41,193.25,239.65,170.61,221.27,164Z"/><ellipse class="cls-2" cx="194.6" cy="193" rx="21.33" ry="16.31" transform="translate(-62.71 287.4) rotate(-64.91)"/><circle class="cls-2" cx="225.91" cy="185.74" r="9.96"/><path d="M310.56,113.25a44.14,44.14,0,0,0-30.26,4.47,32.67,32.67,0,0,0-16.76,22.33c-3.78,19.15,11.16,38.29,33.3,42.66a44.15,44.15,0,0,0,30.26-4.47l.08-.05c8.92-5.06,14.84-13,16.68-22.28C347.64,136.76,332.7,117.62,310.56,113.25Z"/><ellipse class="cls-2" cx="286.98" cy="140.6" rx="21.33" ry="16.31" transform="translate(37.95 340.88) rotate(-64.91)"/><circle class="cls-2" cx="320.22" cy="132.25" r="9.96"/><ellipse cx="226.67" cy="154.45" rx="6.5" ry="9.75" transform="translate(-7.12 297.91) rotate(-65.8)"/><ellipse cx="252.33" cy="140.56" rx="9.75" ry="6.5" transform="translate(83.38 374.84) rotate(-83.32)"/></svg>`)
+var SVGIcon = []byte(`<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><style>.cls-1{fill:#bdccd4;}.cls-2{fill:#fff;}</style></defs><title>icon-s</title><rect class="cls-1" x="6.36" y="7.14" width="498.86" height="498.86" rx="12"/><polygon class="cls-2" points="130.65 58.2 31.9 269.01 183.55 462.82 365.95 427.73 480.24 237.52 336.41 52 130.65 58.2"/><path d="M488.44,230.71,346.28,44.41h0a10.57,10.57,0,0,0-8.87-4.18L133.26,48.62h0a10.61,10.61,0,0,0-9.15,6L22.06,263h0a10.57,10.57,0,0,0,1.14,11.14l150.59,194.6a10.58,10.58,0,0,0,10.53,3.95L373.17,436l1.35-.46a10.59,10.59,0,0,0,5.72-4.71L489.16,242.44a10.6,10.6,0,0,0-.72-11.73ZM186,449.75l-24.1-187.3L385.9,376ZM364.21,107.21,159.67,244,140.55,72.87ZM149.65,248.53l-102.77,12L131.65,87.9ZM392.46,367.38,165.87,252.6l207-138.45,1.2,1.54,18.83,250.94ZM358.79,95.63,178.51,67.86,333,61.44ZM47.71,271.08l103.1-12L173.2,433.22ZM364.32,416l-120,23.36,135.29-49.82Zm38.14-65.88-16.62-219L467.21,238Z"/><polygon class="cls-2" points="157.03 220.4 160.14 249.69 178.19 258.84 374.4 120.32 373.55 108.64 358.48 106.33 157.03 220.4"/><path d="M297.84,193.19h0c-11-3.95-22.25-3.44-29.35,1.3-7.73,3.69-13.91,13-16.18,24.53C249,235.69,255,250.45,266,252.61c9.44,1.87,19.48-6.76,24-20.27,8.76,1.95,17,1,22.68-2.23a15,15,0,0,0,7-7.93C323.42,211.65,313.84,198.92,297.84,193.19Z"/><path d="M221.27,164c-8.94-3.2-18.77-2.18-27.68,2.88l-.08,0a44.16,44.16,0,0,0-19.37,23.68c-7.61,21.25,1.15,43.9,19.53,50.47,8.94,3.2,18.77,2.18,27.68-2.88l.08,0A44.16,44.16,0,0,0,240.8,214.5C248.41,193.25,239.65,170.61,221.27,164Z"/><ellipse class="cls-2" cx="194.6" cy="193" rx="21.33" ry="16.31" transform="translate(-62.71 287.4) rotate(-64.91)"/><circle class="cls-2" cx="225.91" cy="185.74" r="9.96"/><path d="M310.56,113.25a44.14,44.14,0,0,0-30.26,4.47,32.67,32.67,0,0,0-16.76,22.33c-3.78,19.15,11.16,38.29,33.3,42.66a44.15,44.15,0,0,0,30.26-4.47l.08-.05c8.92-5.06,14.84-13,16.68-22.28C347.64,136.76,332.7,117.62,310.56,113.25Z"/><ellipse class="cls-2" cx="286.98" cy="140.6" rx="21.33" ry="16.31" transform="translate(37.95 340.88) rotate(-64.91)"/><circle class="cls-2" cx="320.22" cy="132.25" r="9.96"/><ellipse cx="226.67" cy="154.45" rx="6.5" ry="9.75" transform="translate(-7.12 297.91) rotate(-65.8)"/><ellipse cx="252.33" cy="140.56" rx="9.75" ry="6.5" transform="translate(83.38 374.84) rotate(-83.32)"/></svg>`)
 
 var HelpMasterInfoDefault = "骰主很神秘，什么都没有说——"
 var HelpMasterLicenseDefault = "请在遵守以下规则前提下使用:\n" +
@@ -396,7 +396,7 @@ func isDeckFile(source string) bool {
 
 	// 一定返回true
 	return true
-	//return false
+	// return false
 }
 
 func unzipSource(source, destination string) error {
@@ -419,16 +419,14 @@ func unzipSource(source, destination string) error {
 
 	// 3. Iterate over zip files inside the archive and unzip each of them
 	for _, f := range reader.File {
-		if f.Flags&(1<<11) != 0 {
-			// 如果标志为是 1 << 11也就是 2048  则是utf-8编码
-			// 其它都认为是gbk
-		} else {
+		// 如果标志为是 1 << 11也就是 2048  则是utf-8编码
+		// 其它都认为是gbk
+		if f.Flags&(1<<11) == 0 {
 			i := bytes.NewReader([]byte(f.Name))
 			decoder := transform.NewReader(i, simplifiedchinese.GB18030.NewDecoder())
 			content, _ := io.ReadAll(decoder)
 			f.Name = string(content)
 		}
-
 		err := unzipFile(f, destination)
 		if err != nil {
 			return err
@@ -440,7 +438,7 @@ func unzipSource(source, destination string) error {
 
 func unzipFile(f *zip.File, destination string) error {
 	// 4. Check if file paths are not vulnerable to Zip Slip
-	filePath := filepath.Join(destination, f.Name)
+	filePath := filepath.Join(destination, f.Name) //nolint:gosec // TODO
 
 	if !strings.HasPrefix(filePath, filepath.Clean(destination)+string(os.PathSeparator)) {
 		return fmt.Errorf("invalid file path: %s", filePath)
@@ -448,10 +446,7 @@ func unzipFile(f *zip.File, destination string) error {
 
 	// 5. Create directory tree
 	if f.FileInfo().IsDir() {
-		if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
-			return err
-		}
-		return nil
+		return os.MkdirAll(filePath, os.ModePerm)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
@@ -485,11 +480,11 @@ func unzipFile(f *zip.File, destination string) error {
 func CheckDialErr(err error) syscall.Errno {
 	if err == nil {
 		return 0
-	} else if netError, ok := err.(net.Error); ok && netError.Timeout() {
+	} else if netError, ok := err.(net.Error); ok && netError.Timeout() { //nolint:errorlint
 		return syscall.ETIMEDOUT
 	}
 
-	switch t := err.(type) {
+	switch t := err.(type) { //nolint:errorlint
 	case *net.OpError:
 		if t.Op == "dial" {
 			// 但好像也可能是 unknown host 之类
@@ -512,7 +507,7 @@ func CheckDialErr(err error) syscall.Errno {
 func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 	session := ep.Session
 
-	if msg.Sender.UserId == "" {
+	if msg.Sender.UserID == "" {
 		return nil
 	}
 

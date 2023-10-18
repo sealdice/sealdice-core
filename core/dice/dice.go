@@ -31,11 +31,8 @@ import (
 var APPNAME = "SealDice"
 var VERSION = "1.4.0 v20231010"
 
-// var VERSION_CODE = int64(1001000) // 991404
-// var VERSION_CODE = int64(1002006) // 坏了，1.1的版本号标错了，标成了1.10.0
-// var VERSION_CODE = int64(1003001) // 1.3时代
-var VERSION_CODE = int64(1004000) // 1.3时代
-var APP_BRANCH = ""
+var VERSION_CODE = int64(1004000) //nolint:revive
+var APP_BRANCH = ""               //nolint:revive
 
 type CmdExecuteResult struct {
 	Matched  bool // 是否是指令
@@ -54,8 +51,6 @@ type CmdItemInfo struct {
 
 	IsJsSolveFunc bool
 	Solve         func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult `jsbind:"solve"`
-	//Keywords []string // 其他帮助关键字
-	//ChopWords     []string
 
 	Raw                bool `jsbind:"raw"`                // 高级模式。默认模式下行为是：需要在当前群/私聊开启，或@自己时生效(需要为第一个@目标)
 	CheckCurrentBotOn  bool `jsbind:"checkCurrentBotOn"`  // 是否检查当前可用状况，包括群内可用和是私聊两种方式，如失败不进入solve
@@ -64,7 +59,7 @@ type CmdItemInfo struct {
 
 type CmdMapCls map[string]*CmdItemInfo
 
-//type ExtInfoStorage interface {
+// type ExtInfoStorage interface {
 //
 //}
 
@@ -83,12 +78,10 @@ type ExtInfo struct {
 
 	Author       string   `yaml:"-" json:"-" jsbind:"author"`
 	ConflictWith []string `yaml:"-" json:"-"`
-	//activeInSession bool; // 在当前会话中开启
 
 	dice    *Dice
 	IsJsExt bool       `json:"-"`
 	Storage *buntdb.DB `yaml:"-"  json:"-"`
-	//Storage ExtInfoStorage `yaml:"-" jsbind:"storage"`
 
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
 	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
@@ -105,7 +98,7 @@ type ExtInfo struct {
 	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
-type DiceConfig struct {
+type DiceConfig struct { //nolint:revive
 	Name       string `yaml:"name"`       // 名称，默认为default
 	DataDir    string `yaml:"dataDir"`    // 数据路径，为./data/{name}，例如data/default
 	IsLogPrint bool   `yaml:"isLogPrint"` // 是否在控制台打印log
@@ -124,7 +117,7 @@ type ExtDefaultSettingItemSlice []*ExtDefaultSettingItem
 // 强制coc7排序在较前位置
 
 func (x ExtDefaultSettingItemSlice) Len() int           { return len(x) }
-func (x ExtDefaultSettingItemSlice) Less(i, j int) bool { return x[i].Name == "coc7" }
+func (x ExtDefaultSettingItemSlice) Less(i, _ int) bool { return x[i].Name == "coc7" }
 func (x ExtDefaultSettingItemSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 type Dice struct {
@@ -145,7 +138,7 @@ type Dice struct {
 	DeckList                []*DeckInfo            `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
 	CommandPrefix           []string               `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
 	DiceMasters             []string               `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
-	NoticeIds               []string               `yaml:"noticeIds"`                            // 通知ID
+	NoticeIDs               []string               `yaml:"noticeIds"`                            // 通知ID
 	OnlyLogCommandInGroup   bool                   `yaml:"onlyLogCommandInGroup"`                // 日志中仅记录命令
 	OnlyLogCommandInPrivate bool                   `yaml:"onlyLogCommandInPrivate"`              // 日志中仅记录命令
 	VersionCode             int                    `json:"versionCode"`                          // 版本ID(配置文件)
@@ -169,8 +162,8 @@ type Dice struct {
 	CustomReplyConfig       []*ReplyConfig         `yaml:"-"`
 	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"`    // 启用自动重新登录
 	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"`    // 拒绝加入新群
-	UpgradeWindowId         string                 `yaml:"upgradeWindowId"`      // 执行升级指令的窗口
-	UpgradeEndpointId       string                 `yaml:"upgradeEndpointId"`    // 执行升级指令的端点
+	UpgradeWindowID         string                 `yaml:"upgradeWindowId"`      // 执行升级指令的窗口
+	UpgradeEndpointID       string                 `yaml:"upgradeEndpointId"`    // 执行升级指令的端点
 	BotExtFreeSwitch        bool                   `yaml:"botExtFreeSwitch"`     // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
 	TrustOnlyMode           bool                   `yaml:"trustOnlyMode"`        // 只有信任的用户/master可以拉群和使用
 	AliveNoticeEnable       bool                   `yaml:"aliveNoticeEnable"`    // 定时通知
@@ -186,18 +179,14 @@ type Dice struct {
 
 	BanList *BanListInfo `yaml:"banList"` //
 
-	//ConfigVersion         int                    `yaml:"configVersion"`
-	//InPackGoCqHttpExists bool                       `yaml:"-"` // 是否存在同目录的gocqhttp
-
 	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
 	ConfigManager   *ConfigManager             `yaml:"-"`
 	Parent          *DiceManager               `yaml:"-"`
 
-	CocExtraRules    map[int]*CocRuleInfo `yaml:"-" json:"cocExtraRules"`
-	Cron             *cron.Cron           `yaml:"-" json:"-"`
-	AliveNoticeEntry cron.EntryID         `yaml:"-" json:"-"`
-	//JsVM             *goja.Runtime          `yaml:"-" json:"-"`
+	CocExtraRules     map[int]*CocRuleInfo   `yaml:"-" json:"cocExtraRules"`
+	Cron              *cron.Cron             `yaml:"-" json:"-"`
+	AliveNoticeEntry  cron.EntryID           `yaml:"-" json:"-"`
 	JsEnable          bool                   `yaml:"jsEnable" json:"jsEnable"`
 	DisabledJsScripts map[string]bool        `yaml:"disabledJsScripts" json:"disabledJsScripts"` // 作为set
 	JsPrinter         *PrinterFunc           `yaml:"-" json:"-"`
@@ -221,9 +210,7 @@ type Dice struct {
 	MailEnable   bool   `json:"mailEnable" yaml:"mailEnable"`     // 是否启用
 	MailFrom     string `json:"mailFrom" yaml:"mailFrom"`         // 邮箱来源
 	MailPassword string `json:"mailPassword" yaml:"mailPassword"` // 邮箱密钥/密码
-	MailSmtp     string `json:"mailSmtp" yaml:"mailSmtp"`         // 邮箱 smtp 地址
-	//InPackGoCqHttpLoginSuccess bool                       `yaml:"-"` // 是否登录成功
-	//InPackGoCqHttpRunning      bool                       `yaml:"-"` // 是否仍在运行
+	MailSMTP     string `json:"mailSmtp" yaml:"mailSmtp"`         // 邮箱 smtp 地址
 
 	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
 
@@ -277,14 +264,10 @@ func (d *Dice) MarkModified() {
 }
 
 func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
-	//d.JsLock.Lock()
-
 	if _, ok := d.CocExtraRules[ruleInfo.Index]; ok {
-		//d.JsLock.Unlock()
 		return false
 	}
 	d.CocExtraRules[ruleInfo.Index] = ruleInfo
-	//d.JsLock.Unlock()
 	return true
 }
 
@@ -309,8 +292,7 @@ func (d *Dice) Init() {
 		fmt.Println(err)
 	}
 
-	//d.DB = model.BoltDBInit(filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
-	log := logger.LoggerInit(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
+	log := logger.Init(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
 	d.Logger = log.Logger
 	d.LogWriter = log.WX
 	d.BanList = &BanListInfo{Parent: d}
@@ -369,7 +351,7 @@ func (d *Dice) Init() {
 		for {
 			<-t.C
 			if d.IsAlreadyLoadConfig {
-				count += 1
+				count++
 				d.Save(true)
 				if count%5 == 0 {
 					// 注: 这种用法我不太清楚是否有必要
@@ -399,22 +381,18 @@ func (d *Dice) Init() {
 					for k, v := range d.ImSession.ServiceAtNew {
 						// TODO: 注意这里的Active可能不需要改
 						if !strings.HasPrefix(k, "PG-") && v.Active {
-							diceId := i.UserId
-							//if v.DiceIdActiveMap.Len() == 0 {
-							//	v.DiceIdActiveMap.Store(diceId, true)
-							//}
+							diceID := i.UserID
 							now := time.Now().Unix()
 
 							// 上次被人使用小于60s
 							if now-v.RecentDiceSendTime < 60 {
 								// 在群内存在，且开启时
-								if _, exists := v.DiceIdExistsMap.Load(diceId); exists {
-									if _, exists := v.DiceIdActiveMap.Load(diceId); exists {
+								if _, exists := v.DiceIDExistsMap.Load(diceID); exists {
+									if _, exists := v.DiceIDActiveMap.Load(diceID); exists {
 										i.Adapter.GetGroupInfoAsync(k)
 									}
 								}
 							}
-
 						}
 					}
 				}
@@ -430,13 +408,13 @@ func (d *Dice) Init() {
 		d.Logger.Info("js扩展支持已关闭，跳过js脚本的加载")
 	}
 
-	if d.UpgradeWindowId != "" {
+	if d.UpgradeWindowID != "" {
 		go func() {
 			defer ErrorLogAndContinue(d)
 
 			var ep *EndPointInfo
 			for _, _ep := range d.ImSession.EndPoints {
-				if _ep.Id == d.UpgradeEndpointId {
+				if _ep.ID == d.UpgradeEndpointID {
 					ep = _ep
 					break
 				}
@@ -458,16 +436,16 @@ func (d *Dice) Init() {
 
 				// 可以了，发送消息
 				ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
-				isGroup := strings.Contains(d.UpgradeWindowId, "-Group:")
+				isGroup := strings.Contains(d.UpgradeWindowID, "-Group:")
 				if isGroup {
-					ReplyGroup(ctx, &Message{GroupId: d.UpgradeWindowId}, text)
+					ReplyGroup(ctx, &Message{GroupID: d.UpgradeWindowID}, text)
 				} else {
-					ReplyPerson(ctx, &Message{Sender: SenderBase{UserId: d.UpgradeWindowId}}, text)
+					ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: d.UpgradeWindowID}}, text)
 				}
 
 				d.Logger.Infof("升级完成，当前版本: %s", VERSION)
-				d.UpgradeWindowId = ""
-				d.UpgradeEndpointId = ""
+				d.UpgradeWindowID = ""
+				d.UpgradeEndpointID = ""
 				d.MarkModified()
 				d.Save(false)
 				break
@@ -482,11 +460,10 @@ func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
 	p := &DiceRollParser{Buffer: buffer}
 	_ = p.Init()
 	p.RollExpression.Init(512)
-	//d.RollParser = p;
 	return p
 }
 
-func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VmResult, string, error) {
+func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
 	parser := d.rebuildParser(buffer)
 	parser.RollExpression.flags = flags // 千万记得在parse之前赋值
 	err := parser.Parse()
@@ -500,14 +477,14 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 		if parser.Error != nil {
 			return nil, "", parser.Error
 		}
-		num, detail, err := parser.Evaluate(d, ctx)
-		if err != nil {
-			return nil, "", err
+		num, detail, errEval := parser.Evaluate(d, ctx)
+		if errEval != nil {
+			return nil, "", errEval
 		}
 
-		ret := VmResult{}
+		ret := VMResult{}
 		ret.Value = num.Value
-		ret.TypeId = num.TypeId
+		ret.TypeID = num.TypeID
 		ret.Parser = parser
 
 		tks := parser.Tokens()
@@ -522,23 +499,21 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 	return nil, "", err
 }
 
-func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VmResult, string, error) {
+func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VMResult, string, error) {
 	return d.ExprEvalBase(buffer, ctx, RollExtraFlags{})
 }
 
-func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VmResult, string, error) {
+func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
 	buffer = CompatibleReplace(ctx, buffer)
 
 	// 隐藏的内置字符串符号 \x1e
 	val, detail, err := d.ExprEvalBase("\x1e"+buffer+"\x1e", ctx, flags)
-	//val, detail, err := d.ExprEval("`"+buffer+"`", ctx)
-	//fmt.Println("???", buffer, val, detail, err, "'"+buffer+"'")
 
 	if err != nil {
 		fmt.Println("脚本执行出错: ", buffer, "->", err)
 	}
 
-	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
+	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {
 		return val, detail, err
 	}
 
@@ -547,9 +522,8 @@ func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 
 func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) {
 	val, detail, err := d.ExprTextBase(buffer, ctx, RollExtraFlags{})
-	//fmt.Println("!XX", buffer, val, detail, err)
 
-	if err == nil && (val.TypeId == VMTypeString || val.TypeId == VMTypeNone) {
+	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {
 		return val.Value.(string), detail, err
 	}
 
@@ -698,7 +672,7 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 
 var randSource = rand2.NewSource(uint64(time.Now().Unix()))
 
-func DiceRoll(dicePoints int) int {
+func DiceRoll(dicePoints int) int { //nolint:revive
 	if dicePoints <= 0 {
 		return 0
 	}
@@ -706,11 +680,10 @@ func DiceRoll(dicePoints int) int {
 	return val
 }
 
-func DiceRoll64(dicePoints int64) int64 {
+func DiceRoll64(dicePoints int64) int64 { //nolint:revive
 	if dicePoints == 0 {
 		return 0
 	}
-	//val := rand.Int63()%dicePoints + 1
 	val := int64(randSource.Uint64()%math.MaxInt64)%dicePoints + 1
 	return val
 }
