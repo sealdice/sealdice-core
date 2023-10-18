@@ -3,13 +3,14 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
-	"github.com/gorilla/websocket"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/gorilla/websocket"
 )
 
 // PlatformAdapterDiscord 只有token需要记录，别的是生成的
@@ -22,24 +23,24 @@ type PlatformAdapterDiscord struct {
 }
 
 // GetGroupInfoAsync 同步一下群组信息
-func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupId string) {
-	//极罕见情况下，未连接成功或被禁用的Endpoint也会去call GetGroupInfoAsync，并且由于IntentSession并未被实例化而抛出nil错误，因此这里做一个检查
+func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupID string) {
+	// 极罕见情况下，未连接成功或被禁用的Endpoint也会去call GetGroupInfoAsync，并且由于IntentSession并未被实例化而抛出nil错误，因此这里做一个检查
 	if pa.IntentSession == nil {
 		return
 	}
 	go pa.updateChannelNum()
 	logger := pa.Session.Parent.Logger
 	dm := pa.Session.Parent.Parent
-	channel, err := pa.IntentSession.Channel(ExtractDiscordChannelId(groupId))
+	channel, err := pa.IntentSession.Channel(ExtractDiscordChannelID(groupID))
 	if err != nil {
-		logger.Errorf("获取Discord频道信息#%s时出错:%s", groupId, err.Error())
+		logger.Errorf("获取Discord频道信息#%s时出错:%s", groupID, err.Error())
 		return
 	}
-	dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
+	dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
 		Name: channel.Name,
 		time: time.Now().Unix(),
 	})
-	group := pa.Session.ServiceAtNew[groupId]
+	group := pa.Session.ServiceAtNew[groupID]
 	if group != nil {
 		if channel.Name != group.GroupName {
 			group.GroupName = channel.Name
@@ -51,19 +52,19 @@ func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupId string) {
 // 更新一下频道的数量
 func (pa *PlatformAdapterDiscord) updateChannelNum() {
 	guilds := pa.IntentSession.State.Guilds
-	GroupNum := 0
-	//guilds是bot加入的服务器list，channels是每个服务器里的频道（有权限访问的）
+	groupNum := 0
+	// guilds是bot加入的服务器list，channels是每个服务器里的频道（有权限访问的）
 	for _, guild := range guilds {
 		channels, _ := pa.IntentSession.GuildChannels(guild.ID)
-		GroupNum += len(channels)
+		groupNum += len(channels)
 	}
-	pa.EndPoint.GroupNum = int64(GroupNum)
+	pa.EndPoint.GroupNum = int64(groupNum)
 }
 
 // Serve 启动服务，返回0就是成功，1就是失败
 func (pa *PlatformAdapterDiscord) Serve() int {
 	dg, err := discordgo.New("Bot " + pa.Token)
-	//这里出错很大概率是token不对
+	// 这里出错很大概率是token不对
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("创建DiscordSession时出错:%s", err.Error())
 		return 1
@@ -81,57 +82,45 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		dg.Dialer.Proxy = http.ProxyURL(u)
 	}
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
-		//if m.Author.Bot {
-		//	for i, elem := range m.Embeds {
-		//		pa.Session.Parent.Logger.Infof("收到来自Discord机器人的消息，embed:%c内容:%s", i, elem.Description)
-		//	}
-		//	for i, elem := range m.Components {
-		//		pa.Session.Parent.Logger.Infof("收到来自Discord机器人的消息，compoment:%c内容:%s", i, elem.Type())
-		//	}
-		//	pa.Session.Parent.Logger.Infof("收到来自Discord机器人的消息，type:%s", m.Type)
-		//	pa.Session.Parent.Logger.Infof("收到来自Discord机器人的消息，内容:%s", m.Content)
-		//	return
-		//}
-		//忽略自己的消息……以及其他机器人的消息和系统消息
+		// 忽略自己的消息……以及其他机器人的消息和系统消息
 		if m.Author.Bot || m.Author.System {
 			return
 		}
-		msg, err := pa.toStdMessage(m)
-		if err != nil {
+		msg, errConv := pa.toStdMessage(m)
+		if errConv != nil {
 			return
 		}
 		pa.Session.Execute(pa.EndPoint, msg, false)
 	})
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageDelete) {
-		ch, err := pa.IntentSession.Channel(m.ChannelID)
-		if err != nil {
-			pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", FormatDiceIdDiscordChannel(m.ChannelID), err.Error())
+		ch, errChannel := pa.IntentSession.Channel(m.ChannelID)
+		if errChannel != nil {
+			pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", FormatDiceIDDiscordChannel(m.ChannelID), errChannel.Error())
 			return
 		}
 		msg := &Message{}
 		if ch.Type != discordgo.ChannelTypeDM {
-			msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
+			msg.GroupID = FormatDiceIDDiscordChannel(m.ChannelID)
 			msg.MessageType = "group"
 		} else {
 			msg.MessageType = "private"
 		}
-		msg.GuildId = m.GuildID
+		msg.GuildID = m.GuildID
 		msg.Sender = SenderBase{}
 		if m.BeforeDelete != nil {
-			msg.Sender.UserId = FormatDiceIdDiscord(m.BeforeDelete.Author.ID)
-
+			msg.Sender.UserID = FormatDiceIDDiscord(m.BeforeDelete.Author.ID)
 			msg.Sender.Nickname = m.BeforeDelete.Author.Username
 		} else if m.Author != nil {
-			msg.Sender.UserId = FormatDiceIdDiscord(m.Author.ID)
+			msg.Sender.UserID = FormatDiceIDDiscord(m.Author.ID)
 			msg.Sender.Nickname = m.Author.Username
 		}
-		msg.RawId = m.ID
+		msg.RawID = m.ID
 		msg.Time = m.Timestamp.Unix()
 		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
 		pa.Session.OnMessageDeleted(mctx, msg)
 	})
 	// Szzrain 注: bot疑似在每次启动时都会收到一次这个入群事件，会导致入群致辞被重复发送，暂时注释掉
-	//dg.AddHandler(func(s *discordgo.Session, m *discordgo.GuildCreate) {
+	// dg.AddHandler(func(s *discordgo.Session, m *discordgo.GuildCreate) {
 	//	msg := new(Message)
 	//	msg.Time = m.JoinedAt.Unix()
 	//	msg.Platform = "DISCORD"
@@ -191,23 +180,23 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 	//			}
 	//		}
 	//	}
-	//})
-	//这里只处理消息，未来根据需要再改这里
+	// })
+	// 这里只处理消息，未来根据需要再改这里
 	dg.Identify.Intents = discordgo.IntentsAll
 	pa.IntentSession = dg
 	err = dg.Open()
-	//这里出错要么没连上，要么连接被阻止了（懂得都懂）
+	// 这里出错要么没连上，要么连接被阻止了（懂得都懂）
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("与Discord服务进行连接时出错:%s", err.Error())
 		return 1
 	}
-	//把bot的状态改成正在玩SealDice，这一行可以删掉，但是他很cool欸
+	// 把bot的状态改成正在玩SealDice，这一行可以删掉，但是他很cool欸
 	_ = pa.IntentSession.UpdateGameStatus(0, "SealDice")
-	pa.EndPoint.UserId = FormatDiceIdDiscord(pa.IntentSession.State.User.ID)
+	pa.EndPoint.UserID = FormatDiceIDDiscord(pa.IntentSession.State.User.ID)
 	pa.EndPoint.Nickname = pa.IntentSession.State.User.Username
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
-	pa.Session.Parent.Logger.Infof("Discord 服务连接成功，账号<%s>(%s)", pa.IntentSession.State.User.Username, FormatDiceIdDiscord(pa.IntentSession.State.User.ID))
+	pa.Session.Parent.Logger.Infof("Discord 服务连接成功，账号<%s>(%s)", pa.IntentSession.State.User.Username, FormatDiceIDDiscord(pa.IntentSession.State.User.ID))
 
 	d := pa.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
@@ -253,7 +242,7 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 			return
 		}
 		_ = pa.IntentSession.UpdateGameStatus(0, "SealDice")
-		pa.Session.Parent.Logger.Infof("Discord 服务连接成功，账号<%s>(%s)", pa.IntentSession.State.User.Username, FormatDiceIdDiscord(pa.IntentSession.State.User.ID))
+		pa.Session.Parent.Logger.Infof("Discord 服务连接成功，账号<%s>(%s)", pa.IntentSession.State.User.Username, FormatDiceIDDiscord(pa.IntentSession.State.User.ID))
 		pa.EndPoint.State = 1
 		pa.EndPoint.Enable = true
 	} else {
@@ -267,11 +256,11 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 }
 
 // SendToPerson 这里发送的是私聊（dm）消息，私信对于discord来说也被视为一个频道
-func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
+func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
 	is := pa.IntentSession
-	ch, err := is.UserChannelCreate(ExtractDiscordUserId(userId))
+	ch, err := is.UserChannelCreate(ExtractDiscordUserID(userID))
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userId, err)
+		pa.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userID, err)
 		return
 	}
 	pa.sendToChannelRaw(ch.ID, text)
@@ -280,46 +269,46 @@ func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userId string, t
 		MessageType: "private",
 		Message:     text,
 		Sender: SenderBase{
-			UserId:   pa.EndPoint.UserId,
+			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
 	}, flag)
 }
 
 // SendToGroup 发送群聊（实际上是频道）消息
-func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
-	//_, err := pa.IntentSession.ChannelMessageSend(ExtractDiscordChannelId(groupId), text)
-	pa.sendToChannelRaw(groupId, text)
+func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	// _, err := pa.IntentSession.ChannelMessageSend(ExtractDiscordChannelId(groupId), text)
+	pa.sendToChannelRaw(groupID, text)
 	pa.Session.OnMessageSend(ctx, &Message{
 		Platform:    "DISCORD",
 		MessageType: "group",
 		Message:     text,
-		GroupId:     groupId,
+		GroupID:     groupID,
 		Sender: SenderBase{
-			UserId:   pa.EndPoint.UserId,
+			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
 	}, flag)
 }
 
-func (pa *PlatformAdapterDiscord) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
+func (pa *PlatformAdapterDiscord) SendFileToPerson(_ *MsgContext, userID string, path string, _ string) {
 	is := pa.IntentSession
-	ch, err := is.UserChannelCreate(ExtractDiscordUserId(userId))
+	ch, err := is.UserChannelCreate(ExtractDiscordUserID(userID))
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userId, err)
+		pa.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userID, err)
 		return
 	}
 	pa.sendFileToChannelRaw(ch.ID, path)
 }
 
-func (pa *PlatformAdapterDiscord) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
-	pa.sendFileToChannelRaw(groupId, path)
+func (pa *PlatformAdapterDiscord) SendFileToGroup(_ *MsgContext, groupID string, path string, _ string) {
+	pa.sendFileToChannelRaw(groupID, path)
 }
 
-func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelId string, path string) {
+func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelID string, path string) {
 	dice := pa.Session.Parent
 	e, err := dice.FilepathToFileElement(path)
-	id := ExtractDiscordChannelId(channelId)
+	id := ExtractDiscordChannelID(channelID)
 	if err != nil {
 		dice.Logger.Errorf("向Discord频道#%s发送文件[path=%s]时出错:%s", id, path, err)
 		return
@@ -340,17 +329,17 @@ func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelId string, path st
 	}
 }
 
-func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string) {
+func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string) {
 	dice := pa.Session.Parent
 	logger := pa.Session.Parent.Logger
 	elem := dice.ConvertStringMessage(text)
-	id := ExtractDiscordChannelId(channelId)
+	id := ExtractDiscordChannelID(channelID)
 	var err error
 	msgSend := &discordgo.MessageSend{Content: ""}
 	for _, element := range elem {
 		switch e := element.(type) {
 		case *TextElement:
-			//msgSend.Content = msgSend.Content + antiMarkdownFormat(e.Content)
+			// msgSend.Content = msgSend.Content + antiMarkdownFormat(e.Content)
 			if msgSend.Embeds != nil {
 				msgSend.Embeds[len(msgSend.Embeds)-1].Description += antiMarkdownFormat(e.Content)
 			} else {
@@ -385,18 +374,18 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 				ContentType: e.ContentType,
 				Reader:      e.Stream,
 			})
-			//_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
-			//msgSend = &discordgo.MessageSend{Content: ""}
+			// _, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+			// msgSend = &discordgo.MessageSend{Content: ""}
 		case *ImageElement:
-			//var files []*discordgo.File
+			// var files []*discordgo.File
 			f := e.file
 			msgSend.Files = append(msgSend.Files, &discordgo.File{
 				Name:        f.File,
 				ContentType: f.ContentType,
 				Reader:      f.Stream,
 			})
-			//_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
-			//msgSend = &discordgo.MessageSend{Content: ""}
+			// _, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+			// msgSend = &discordgo.MessageSend{Content: ""}
 		case *TTSElement:
 			if msgSend.Content != "" || msgSend.Files != nil || msgSend.Embeds != nil {
 				_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
@@ -411,9 +400,9 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 				TTS:     true,
 			})
 		case *ReplyElement:
-			channel, err := pa.IntentSession.Channel(id)
-			if err != nil {
-				logger.Errorf("获取Discord频道信息#%s时出错:%s", id, err.Error())
+			channel, errChannel := pa.IntentSession.Channel(id)
+			if errChannel != nil {
+				logger.Errorf("获取Discord频道信息#%s时出错:%s", id, errChannel.Error())
 				break
 			}
 			ref := &discordgo.MessageReference{MessageID: e.Target, ChannelID: id, GuildID: channel.GuildID}
@@ -426,7 +415,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 	}
 	if msgSend.Content != "" || msgSend.Files != nil || msgSend.Embeds != nil {
 		_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
-		//pa.Session.Parent.Logger.Infof("真的向Discord频道#%s发送消息:%s", id, msgSend.Content)
+		// pa.Session.Parent.Logger.Infof("真的向Discord频道#%s发送消息:%s", id, msgSend.Content)
 	}
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
@@ -434,10 +423,10 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelId string, text string
 }
 
 // QuitGroup 退出服务器
-func (pa *PlatformAdapterDiscord) QuitGroup(ctx *MsgContext, id string) {
-	//没有退出单个频道的功能，这里一旦退群退的就是整个服务器，所以可能会产生一些问题，慎用
-	//另一个不建议使用此功能的原因是把discordBot重新拉回服务器很麻烦，需要去discord开发者页面再生成一遍链接
-	ch, err := pa.IntentSession.Channel(ExtractDiscordUserId(id))
+func (pa *PlatformAdapterDiscord) QuitGroup(_ *MsgContext, id string) {
+	// 没有退出单个频道的功能，这里一旦退群退的就是整个服务器，所以可能会产生一些问题，慎用
+	// 另一个不建议使用此功能的原因是把discordBot重新拉回服务器很麻烦，需要去discord开发者页面再生成一遍链接
+	ch, err := pa.IntentSession.Channel(ExtractDiscordUserID(id))
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", id, err.Error())
 		return
@@ -451,48 +440,44 @@ func (pa *PlatformAdapterDiscord) QuitGroup(ctx *MsgContext, id string) {
 }
 
 // SetGroupCardName 没有改变用户在某个频道中昵称的功能，一旦更改就是整个服务器范围内都改
-func (pa *PlatformAdapterDiscord) SetGroupCardName(groupId string, userId string, name string) {
-	ch, err := pa.IntentSession.Channel(ExtractDiscordChannelId(groupId))
+func (pa *PlatformAdapterDiscord) SetGroupCardName(groupID string, userID string, name string) {
+	ch, err := pa.IntentSession.Channel(ExtractDiscordChannelID(groupID))
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", groupId, err.Error())
+		pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", groupID, err.Error())
 		return
 	}
 	guildID := ch.GuildID
-	err = pa.IntentSession.GuildMemberNickname(guildID, ExtractDiscordUserId(userId), name)
+	err = pa.IntentSession.GuildMemberNickname(guildID, ExtractDiscordUserID(userID), name)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("修改用户#%s在Discord服务器%s(来源频道#%s)的昵称时出错:%s", userId, guildID, groupId, err.Error())
+		pa.Session.Parent.Logger.Errorf("修改用户#%s在Discord服务器%s(来源频道#%s)的昵称时出错:%s", userID, guildID, groupID, err.Error())
 	}
 }
 
-func (pa *PlatformAdapterDiscord) MemberBan(groupId string, userId string, duration int64) {
+func (pa *PlatformAdapterDiscord) MemberBan(_ string, _ string, _ int64) {}
 
-}
+func (pa *PlatformAdapterDiscord) MemberKick(_ string, _ string) {}
 
-func (pa *PlatformAdapterDiscord) MemberKick(groupId string, userId string) {
+// 下面四个函数是格式化和反格式化的
 
-}
-
-//下面四个函数是格式化和反格式化的
-
-func FormatDiceIdDiscord(diceDiscord string) string {
+func FormatDiceIDDiscord(diceDiscord string) string {
 	return fmt.Sprintf("DISCORD:%s", diceDiscord)
 }
 
-func FormatDiceIdDiscordChannel(diceDiscord string) string {
+func FormatDiceIDDiscordChannel(diceDiscord string) string {
 	return fmt.Sprintf("DISCORD-CH-Group:%s", diceDiscord)
 }
-func FormatDiceIdDiscordGuild(diceDiscord string) string {
+func FormatDiceIDDiscordGuild(diceDiscord string) string {
 	return fmt.Sprintf("DISCORD-Guild:%s", diceDiscord)
 }
 
-func ExtractDiscordUserId(id string) string {
+func ExtractDiscordUserID(id string) string {
 	if strings.HasPrefix(id, "DISCORD:") {
 		return id[len("DISCORD:"):]
 	}
 	return id
 }
 
-func ExtractDiscordChannelId(id string) string {
+func ExtractDiscordChannelID(id string) string {
 	if strings.HasPrefix(id, "DISCORD-CH-Group:") {
 		return id[len("DISCORD-CH-Group:"):]
 	}
@@ -504,22 +489,22 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) (*Mes
 	msg := new(Message)
 	msg.Time = m.Timestamp.Unix()
 	msg.Message = m.Content
-	msg.RawId = m.ID
+	msg.RawID = m.ID
 	msg.Platform = "DISCORD"
 	ch, err := pa.IntentSession.Channel(m.ChannelID)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", FormatDiceIdDiscordChannel(m.ChannelID), err.Error())
+		pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", FormatDiceIDDiscordChannel(m.ChannelID), err.Error())
 		return nil, errors.New("")
 	}
 	if ch != nil && ch.Type == discordgo.ChannelTypeDM {
 		msg.MessageType = "private"
 	} else {
 		msg.MessageType = "group"
-		msg.GroupId = FormatDiceIdDiscordChannel(m.ChannelID)
-		msg.GuildId = ch.GuildID
+		msg.GroupID = FormatDiceIDDiscordChannel(m.ChannelID)
+		msg.GuildID = ch.GuildID
 	}
 	send := new(SenderBase)
-	send.UserId = FormatDiceIdDiscord(m.Author.ID)
+	send.UserID = FormatDiceIDDiscord(m.Author.ID)
 	send.Nickname = m.Author.Username
 	if msg.MessageType == "group" && pa.checkIfGuildAdmin(m.Message) {
 		send.GroupRole = "admin"
@@ -530,11 +515,11 @@ func (pa *PlatformAdapterDiscord) toStdMessage(m *discordgo.MessageCreate) (*Mes
 
 func (pa *PlatformAdapterDiscord) checkIfGuildAdmin(m *discordgo.Message) bool {
 	p, err := pa.IntentSession.State.MessagePermissions(m)
-	//pa.Session.Parent.Logger.Info(m.Author.Username, p)
+	// pa.Session.Parent.Logger.Info(m.Author.Username, p)
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("Discord 鉴权时出现错误，\n发送者:%s，\n频道:%s，\n服务器id:%s，\n消息id:%s，\n时间:%s，\n消息内容:\"%s\"，\n错误详情:%s",
-			FormatDiceIdDiscord(m.Author.ID),
-			FormatDiceIdDiscordChannel(m.ChannelID),
+			FormatDiceIDDiscord(m.Author.ID),
+			FormatDiceIDDiscordChannel(m.ChannelID),
 			m.GuildID,
 			m.ID,
 			strconv.FormatInt(m.Timestamp.Unix(), 10),
@@ -542,9 +527,9 @@ func (pa *PlatformAdapterDiscord) checkIfGuildAdmin(m *discordgo.Message) bool {
 			err.Error())
 		return false
 	}
-	//https://discord.com/developers/docs/topics/permissions
-	//KICK_MEMBERS *	0x0000000000000002 (1 << 1)
-	//BAN_MEMBERS *	0x0000000000000004 (1 << 2)	Allows banning members
-	//ADMINISTRATOR *	0x0000000000000008 (1 << 3)	Allows all permissions and bypasses channel permission overwrites
+	// https://discord.com/developers/docs/topics/permissions
+	// KICK_MEMBERS *	0x0000000000000002 (1 << 1)
+	// BAN_MEMBERS *	0x0000000000000004 (1 << 2)	Allows banning members
+	// ADMINISTRATOR *	0x0000000000000008 (1 << 3)	Allows all permissions and bypasses channel permission overwrites
 	return p&(1<<1|1<<2|1<<3) > 0 || p == discordgo.PermissionAll
 }

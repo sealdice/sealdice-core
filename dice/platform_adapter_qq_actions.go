@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sacOO7/gowebsocket"
 	"math/rand"
 	"net/url"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/sacOO7/gowebsocket"
 )
 
 type oneBotCommand struct {
@@ -32,7 +33,7 @@ const (
 	QQUidChannelGroup  QQUidType = 4
 )
 
-func (pa *PlatformAdapterGocq) mustExtractId(id string) (int64, QQUidType) {
+func (pa *PlatformAdapterGocq) mustExtractID(id string) (int64, QQUidType) {
 	if strings.HasPrefix(id, "QQ:") {
 		num, _ := strconv.ParseInt(id[len("QQ:"):], 10, 64)
 		return num, QQUidPerson
@@ -48,7 +49,7 @@ func (pa *PlatformAdapterGocq) mustExtractId(id string) (int64, QQUidType) {
 	return 0, 0
 }
 
-func (pa *PlatformAdapterGocq) mustExtractChannelId(id string) (string, QQUidType) {
+func (pa *PlatformAdapterGocq) mustExtractChannelID(id string) (string, QQUidType) {
 	if strings.HasPrefix(id, "QQ-CH:") {
 		return id[len("QQ-CH:"):], QQUidChannelPerson
 	}
@@ -59,19 +60,19 @@ func (pa *PlatformAdapterGocq) mustExtractChannelId(id string) (string, QQUidTyp
 }
 
 // GetGroupInfoAsync 异步获取群聊信息
-func (pa *PlatformAdapterGocq) GetGroupInfoAsync(groupId string) {
+func (pa *PlatformAdapterGocq) GetGroupInfoAsync(groupID string) {
 	type GroupMessageParams struct {
-		GroupId int64 `json:"group_id"`
+		GroupID int64 `json:"group_id"`
 	}
-	realGroupId, type_ := pa.mustExtractId(groupId)
-	if type_ != QQUidGroup {
+	realGroupID, idType := pa.mustExtractID(groupID)
+	if idType != QQUidGroup {
 		return
 	}
 
 	a, _ := json.Marshal(oneBotCommand{
 		"get_group_info",
 		GroupMessageParams{
-			realGroupId,
+			realGroupID,
 		},
 		-2,
 	})
@@ -90,12 +91,12 @@ type OnebotGroupInfo struct {
 }
 
 // GetGroupInfo 获取群聊信息
-func (pa *PlatformAdapterGocq) GetGroupInfo(groupId string) *OnebotGroupInfo {
+func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string) *OnebotGroupInfo {
 	type GroupMessageParams struct {
-		GroupId int64 `json:"group_id"`
+		GroupID int64 `json:"group_id"`
 	}
-	realGroupId, type_ := pa.mustExtractId(groupId)
-	if type_ != QQUidGroup {
+	realGroupID, idType := pa.mustExtractID(groupID)
+	if idType != QQUidGroup {
 		return nil
 	}
 
@@ -103,7 +104,7 @@ func (pa *PlatformAdapterGocq) GetGroupInfo(groupId string) *OnebotGroupInfo {
 	a, _ := json.Marshal(oneBotCommand{
 		"get_group_info",
 		GroupMessageParams{
-			realGroupId,
+			realGroupID,
 		},
 		echo,
 	})
@@ -122,7 +123,7 @@ func (pa *PlatformAdapterGocq) GetGroupInfo(groupId string) *OnebotGroupInfo {
 func socketSendText(socket *gowebsocket.Socket, s string) {
 	defer func() {
 		if r := recover(); r != nil { //nolint
-			//core.GetLogger().Error(r)
+			// core.GetLogger().Error(r)
 		}
 	}()
 
@@ -135,7 +136,7 @@ func socketSendText(socket *gowebsocket.Socket, s string) {
 func socketSendBinary(socket *gowebsocket.Socket, data []byte) { //nolint
 	defer func() {
 		if r := recover(); r != nil { //nolint
-			//core.GetLogger().Error(r)
+			// core.GetLogger().Error(r)
 		}
 	}()
 
@@ -154,10 +155,10 @@ func doSleepQQ(ctx *MsgContext) {
 	}
 }
 
-func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
-	rawId, type_ := pa.mustExtractId(userId)
+func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	rawID, idType := pa.mustExtractID(userID)
 
-	if type_ != QQUidPerson {
+	if idType != QQUidPerson {
 		return
 	}
 
@@ -170,7 +171,7 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userId string, text
 					Platform:    pa.EndPoint.Platform,
 					Sender: SenderBase{
 						Nickname: pa.EndPoint.Nickname,
-						UserId:   pa.EndPoint.UserId,
+						UserID:   pa.EndPoint.UserID,
 					},
 				},
 					flag)
@@ -180,7 +181,7 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userId string, text
 
 	type GroupMessageParams struct {
 		MessageType string `json:"message_type"`
-		UserId      int64  `json:"user_id"`
+		UserID      int64  `json:"user_id"`
 		Message     string `json:"message"`
 	}
 
@@ -191,7 +192,7 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userId string, text
 			Action: "send_msg",
 			Params: GroupMessageParams{
 				MessageType: "private",
-				UserId:      rawId,
+				UserID:      rawID,
 				Message:     subText,
 			},
 		})
@@ -200,28 +201,28 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userId string, text
 	}
 }
 
-func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
-	if groupId == "" {
+func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	if groupID == "" {
 		return
 	}
-	rawId, type_ := pa.mustExtractId(groupId)
-	if type_ == 0 {
-		pa.SendToChannelGroup(ctx, groupId, text, flag)
+	rawID, idType := pa.mustExtractID(groupID)
+	if idType == 0 {
+		pa.SendToChannelGroup(ctx, groupID, text, flag)
 		return
 	}
 
-	if ctx.Session.ServiceAtNew[groupId] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
+	if ctx.Session.ServiceAtNew[groupID] != nil {
+		for _, i := range ctx.Session.ServiceAtNew[groupID].ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnMessageSend(ctx, &Message{
 						Message:     text,
 						MessageType: "group",
 						Platform:    pa.EndPoint.Platform,
-						GroupId:     groupId,
+						GroupID:     groupID,
 						Sender: SenderBase{
 							Nickname: pa.EndPoint.Nickname,
-							UserId:   pa.EndPoint.UserId,
+							UserID:   pa.EndPoint.UserID,
 						},
 					}, flag)
 				})
@@ -230,7 +231,7 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupId string, text
 	}
 
 	type GroupMessageParams struct {
-		GroupId int64  `json:"group_id"`
+		GroupID int64  `json:"group_id"`
 		Message string `json:"message"`
 	}
 
@@ -241,7 +242,7 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupId string, text
 		a, _ := json.Marshal(oneBotCommand{
 			Action: "send_group_msg",
 			Params: GroupMessageParams{
-				rawId,
+				rawID,
 				subText, // "golang client test",
 			},
 		})
@@ -253,14 +254,14 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupId string, text
 	}
 }
 
-func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
-	rawId, type_ := pa.mustExtractId(userId)
-	if type_ != QQUidPerson {
+func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, path string, _ string) {
+	rawID, idType := pa.mustExtractID(userID)
+	if idType != QQUidPerson {
 		return
 	}
 
 	dice := pa.Session.Parent
-	//路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
+	// 路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
 	fileName, temp, err := dice.ExtractLocalTempFile(path)
 	defer func(name string) {
 		_ = os.Remove(name)
@@ -272,14 +273,14 @@ func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userId string, 
 	}
 
 	type uploadPrivateFileParams struct {
-		UserId int64  `json:"user_id"`
+		UserID int64  `json:"user_id"`
 		File   string `json:"file"`
 		Name   string `json:"name"`
 	}
 	a, _ := json.Marshal(oneBotCommand{
 		Action: "upload_private_file",
 		Params: uploadPrivateFileParams{
-			UserId: rawId,
+			UserID: rawID,
 			File:   temp.Name(),
 			Name:   fileName,
 		},
@@ -288,19 +289,19 @@ func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userId string, 
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
-	if groupId == "" {
+func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
+	if groupID == "" {
 		return
 	}
-	rawId, type_ := pa.mustExtractId(groupId)
-	if type_ == 0 {
+	rawID, idType := pa.mustExtractID(groupID)
+	if idType == 0 {
 		// qq频道尚不支持文件发送，降级
-		pa.SendToChannelGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", filepath.Base(path)), flag)
+		pa.SendToChannelGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", filepath.Base(path)), flag)
 		return
 	}
 
 	dice := pa.Session.Parent
-	//路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
+	// 路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
 	fileName, temp, err := dice.ExtractLocalTempFile(path)
 	defer func(name string) {
 		_ = os.Remove(name)
@@ -312,21 +313,20 @@ func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupId string, 
 	}
 
 	type uploadGroupFileParams struct {
-		GroupId int64  `json:"group_id"`
+		GroupID int64  `json:"group_id"`
 		File    string `json:"file"`
 		Name    string `json:"name"`
 	}
 	a, _ := json.Marshal(oneBotCommand{
 		Action: "upload_group_file",
 		Params: uploadGroupFileParams{
-			GroupId: rawId,
+			GroupID: rawID,
 			File:    temp.Name(),
 			Name:    fileName,
 		},
 	})
 	doSleepQQ(ctx)
 	socketSendText(pa.Socket, string(a))
-
 }
 
 // SetGroupAddRequest 同意加群
@@ -355,12 +355,12 @@ func (pa *PlatformAdapterGocq) getCustomEcho() int64 {
 	if pa.customEcho > -10 {
 		pa.customEcho = -10
 	}
-	pa.customEcho -= 1
+	pa.customEcho--
 	return pa.customEcho
 }
 
 func (pa *PlatformAdapterGocq) waitEcho(echo int64, beforeWait func()) *MessageQQ {
-	//pa.echoList = append(pa.echoList, )
+	// pa.echoList = append(pa.echoList, )
 	ch := make(chan *MessageQQ, 1)
 
 	if pa.echoMap == nil {
@@ -389,10 +389,10 @@ func (pa *PlatformAdapterGocq) waitEcho2(echo int64, value interface{}, beforeWa
 }
 
 // GetGroupMemberInfo 获取群成员信息
-func (pa *PlatformAdapterGocq) GetGroupMemberInfo(GroupId int64, UserId int64) *OnebotUserInfo {
+func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID int64, userID int64) *OnebotUserInfo {
 	type DetailParams struct {
-		GroupId int64 `json:"group_id"`
-		UserId  int64 `json:"user_id"`
+		GroupID int64 `json:"group_id"`
+		UserID  int64 `json:"user_id"`
 		NoCache bool  `json:"no_cache"`
 	}
 
@@ -401,8 +401,8 @@ func (pa *PlatformAdapterGocq) GetGroupMemberInfo(GroupId int64, UserId int64) *
 	a, _ := json.Marshal(oneBotCommand{
 		Action: "get_group_member_info",
 		Params: DetailParams{
-			GroupId: GroupId,
-			UserId:  UserId,
+			GroupID: groupID,
+			UserID:  userID,
 			NoCache: false,
 		},
 		Echo: echo,
@@ -419,16 +419,16 @@ func (pa *PlatformAdapterGocq) GetGroupMemberInfo(GroupId int64, UserId int64) *
 
 	return &OnebotUserInfo{
 		Nickname: d.Nickname,
-		UserId:   d.UserId,
-		GroupId:  d.GroupId,
+		UserID:   d.UserID,
+		GroupID:  d.GroupID,
 		Card:     d.Card,
 	}
 }
 
 // GetStrangerInfo 获取陌生人信息
-func (pa *PlatformAdapterGocq) GetStrangerInfo(UserId int64) *OnebotUserInfo {
+func (pa *PlatformAdapterGocq) GetStrangerInfo(userID int64) *OnebotUserInfo {
 	type DetailParams struct {
-		UserId  int64 `json:"user_id"`
+		UserID  int64 `json:"user_id"`
 		NoCache bool  `json:"no_cache"`
 	}
 
@@ -437,7 +437,7 @@ func (pa *PlatformAdapterGocq) GetStrangerInfo(UserId int64) *OnebotUserInfo {
 	a, _ := json.Marshal(oneBotCommand{
 		Action: "get_stranger_info",
 		Params: DetailParams{
-			UserId:  UserId,
+			UserID:  userID,
 			NoCache: false,
 		},
 		Echo: echo,
@@ -454,28 +454,28 @@ func (pa *PlatformAdapterGocq) GetStrangerInfo(UserId int64) *OnebotUserInfo {
 
 	return &OnebotUserInfo{
 		Nickname: d.Nickname,
-		UserId:   d.UserId,
+		UserID:   d.UserID,
 	}
 }
 
-func (pa *PlatformAdapterGocq) SetGroupCardName(groupId string, userId string, name string) {
-	groupIdRaw, type_ := pa.mustExtractId(groupId)
-	if type_ != QQUidGroup {
+func (pa *PlatformAdapterGocq) SetGroupCardName(groupID string, userID string, name string) {
+	groupIDRaw, idType := pa.mustExtractID(groupID)
+	if idType != QQUidGroup {
 		return
 	}
-	userIdRaw, type_ := pa.mustExtractId(userId)
-	if type_ != QQUidPerson {
+	userIDRaw, idType := pa.mustExtractID(userID)
+	if idType != QQUidPerson {
 		return
 	}
 
-	pa.SetGroupCardNameBase(groupIdRaw, userIdRaw, name)
+	pa.SetGroupCardNameBase(groupIDRaw, userIDRaw, name)
 }
 
 // SetGroupCardNameBase 设置群名片
-func (pa *PlatformAdapterGocq) SetGroupCardNameBase(GroupId int64, UserId int64, Card string) {
+func (pa *PlatformAdapterGocq) SetGroupCardNameBase(groupID int64, userID int64, card string) {
 	type DetailParams struct {
-		GroupId int64  `json:"group_id"`
-		UserId  int64  `json:"user_id"`
+		GroupID int64  `json:"group_id"`
+		UserID  int64  `json:"user_id"`
 		Card    string `json:"card"`
 	}
 
@@ -485,9 +485,9 @@ func (pa *PlatformAdapterGocq) SetGroupCardNameBase(GroupId int64, UserId int64,
 	}{
 		"set_group_card",
 		DetailParams{
-			GroupId: GroupId,
-			UserId:  UserId,
-			Card:    Card,
+			GroupID: groupID,
+			UserID:  userID,
+			Card:    card,
 		},
 	})
 
@@ -518,39 +518,39 @@ func (pa *PlatformAdapterGocq) SetFriendAddRequest(flag string, approve bool, re
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterGocq) DeleteFriend(ctx *MsgContext, id string) {
-	friendId, type_ := pa.mustExtractId(id)
-	if type_ != QQUidPerson {
+func (pa *PlatformAdapterGocq) DeleteFriend(_ *MsgContext, id string) {
+	friendID, idType := pa.mustExtractID(id)
+	if idType != QQUidPerson {
 		return
 	}
 	type GroupMessageParams struct {
-		FriendId int64 `json:"friend_id"`
+		FriendID int64 `json:"friend_id"`
 	}
 
 	a, _ := json.Marshal(oneBotCommand{
 		Action: "friend_id",
 		Params: GroupMessageParams{
-			friendId,
+			friendID,
 		},
 	})
 
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterGocq) QuitGroup(ctx *MsgContext, id string) {
-	groupId, type_ := pa.mustExtractId(id)
-	if type_ != QQUidGroup {
+func (pa *PlatformAdapterGocq) QuitGroup(_ *MsgContext, id string) {
+	groupID, idType := pa.mustExtractID(id)
+	if idType != QQUidGroup {
 		return
 	}
 	type GroupMessageParams struct {
-		GroupId   int64 `json:"group_id"`
+		GroupID   int64 `json:"group_id"`
 		IsDismiss bool  `json:"is_dismiss"`
 	}
 
 	a, _ := json.Marshal(oneBotCommand{
 		Action: "set_group_leave",
 		Params: GroupMessageParams{
-			groupId,
+			groupID,
 			false,
 		},
 	})
@@ -558,13 +558,9 @@ func (pa *PlatformAdapterGocq) QuitGroup(ctx *MsgContext, id string) {
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterGocq) MemberBan(groupId string, userId string, last int64) {
+func (pa *PlatformAdapterGocq) MemberBan(_ string, _ string, _ int64) {}
 
-}
-
-func (pa *PlatformAdapterGocq) MemberKick(groupId string, userId string) {
-
-}
+func (pa *PlatformAdapterGocq) MemberKick(_ string, _ string) {}
 
 func (pa *PlatformAdapterGocq) GetLoginInfo() {
 	a, _ := json.Marshal(struct {
@@ -575,10 +571,7 @@ func (pa *PlatformAdapterGocq) GetLoginInfo() {
 		Echo:   -1,
 	})
 
-	//if s.Socket != nil {
 	socketSendText(pa.Socket, string(a))
-	//s.Socket.SendText(string(a))
-	//}
 }
 
 func textSplit(input string) []string {
@@ -615,14 +608,6 @@ func textSplit(input string) []string {
 // 以下都是CQ码处理
 // 相对路径不能在这里实现，不然遇到嵌套调用无法展开
 func textAssetsConvert(s string) string {
-	//var s2 string
-	//raw := []byte(`"` + strings.Replace(s, `"`, `\"`, -1) + `"`)
-	//err := json.Unmarshal(raw, &s2)
-	//if err != nil {
-	//	ctx.Dice.Logger.Info(err)
-	//	return s
-	//}
-
 	solve2 := func(text string) string {
 		re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
 		m := re.FindStringSubmatch(text)
@@ -653,33 +638,32 @@ func textAssetsConvert(s string) string {
 				return text // 不是文件路径，不管
 			}
 			cwd, _ := os.Getwd()
-			if strings.HasPrefix(afn, cwd) || strings.HasPrefix(afn, os.TempDir()) {
-				if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
-					return "[找不到图片/文件]"
-				} else {
-					// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
-					if runtime.GOOS == `windows` {
-						afn = "/" + afn
-					}
-					u := url.URL{
-						Scheme: "file",
-						Path:   afn,
-					}
-					cq := CQCommand{
-						Type: cqType,
-						Args: map[string]string{"file": u.String()},
-					}
-					return cq.Compile()
-				}
-			} else {
+			if !strings.HasPrefix(afn, cwd) && !strings.HasPrefix(afn, os.TempDir()) {
 				return "[图片/文件指向的不是当前程序目录或临时文件目录，已禁止]"
 			}
+
+			if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
+				return "[找不到图片/文件]"
+			}
+			// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
+			if runtime.GOOS == `windows` {
+				afn = "/" + afn
+			}
+			u := url.URL{
+				Scheme: "file",
+				Path:   afn,
+			}
+			cq := CQCommand{
+				Type: cqType,
+				Args: map[string]string{"file": u.String()},
+			}
+			return cq.Compile()
 		}
 		return text
 	}
 
 	solve := func(cq *CQCommand) {
-		//if cq.Type == "image" || cq.Type == "voice" {
+		// if cq.Type == "image" || cq.Type == "voice" {
 		fn, exists := cq.Args["file"]
 		if exists {
 			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") || strings.HasPrefix(fn, "base64://") {
@@ -713,7 +697,7 @@ func textAssetsConvert(s string) string {
 		//}
 	}
 
-	text := strings.Replace(s, `\n`, "\n", -1)
+	text := strings.ReplaceAll(s, `\n`, "\n")
 	text = ImageRewrite(text, solve2)
 	return CQRewrite(text, solve)
 }

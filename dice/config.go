@@ -44,7 +44,7 @@ type TextTemplateHelpItem = struct {
 type TextTemplateHelpGroup = map[string]*TextTemplateHelpItem
 type TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
 
-//const CONFIG_TEXT_TEMPLATE_FILE = "./data/configs/text-template.yaml"
+// const CONFIG_TEXT_TEMPLATE_FILE = "./data/configs/text-template.yaml"
 
 // ConfigItem 供插件使用的配置项
 type ConfigItem struct {
@@ -85,7 +85,7 @@ func (cm *ConfigManager) NewConfigItem(key string, defaultValue interface{}) *Co
 func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...*ConfigItem) {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
-	//var allowedTypes = map[string]bool{
+	// var allowedTypes = map[string]bool{
 	//	"string": true,
 	//	"bool":   true,
 	//	"int":    true,
@@ -93,7 +93,7 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 	//	"array":  true,
 	//}
 
-	//var isValidType = func(t string) bool {
+	// var isValidType = func(t string) bool {
 	//	return allowedTypes[t]
 	//}
 
@@ -107,7 +107,7 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 
 		// Update or add new config items
 		for _, newItem := range configItems {
-			//if isValidType(newItem.Type) {
+			// if isValidType(newItem.Type) {
 			if existingItem, itemExists := existingPlugin.Configs[newItem.Key]; itemExists {
 				existingItem.DefaultValue = newItem.DefaultValue
 				existingItem.Option = newItem.Option
@@ -259,7 +259,7 @@ func (cm *ConfigManager) Load() error {
 func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
 	var choices []wr.Choice
 	for _, i := range *i {
-		//weight, text := extractWeight(i)
+		// weight, text := extractWeight(i)
 		if len(i) == 1 {
 			// 一种奇怪的情况，没有第二个值，见过一例，不知道怎么触发的
 			i = append(i, 1)
@@ -425,9 +425,6 @@ func setupBaseTextTemplate(d *Dice) {
 			"属性设置_增减": {
 				{"{$t玩家}的属性变化:\n{$t变更列表}\n{COC:属性设置_保存提醒}", 1},
 			},
-			//"属性设置_增减": {
-			//	{"{$t玩家}的“{$t属性}”变化: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})\n{COC:属性设置_保存提醒}", 1},
-			//},
 			"属性设置_增减_错误的值": {
 				{`"{$t玩家}: 错误的增减值: {$t表达式文本}"`, 1},
 			},
@@ -643,9 +640,6 @@ func setupBaseTextTemplate(d *Dice) {
 			"骰子进群": {
 				{`<{核心:骰子名字}> 已经就绪。可通过.help查看手册\n[图:data/images/sealdice.png]\nCOC/DND玩家可以使用.set coc/dnd在两种模式中切换\n已搭载自动重连，如遇风控不回可稍作等待`, 1},
 			},
-			//"骰子群内迎新": {
-			//	{`欢迎，{$新人昵称}，祝你在这里过得愉快`, 1},
-			//},
 			"骰子成为好友": {
 				{`<{核心:骰子名字}> 已经就绪。可通过.help查看手册，请拉群测试，私聊容易被企鹅吃掉。\n[图:data/images/sealdice.png]`, 1},
 			},
@@ -658,12 +652,6 @@ func setupBaseTextTemplate(d *Dice) {
 			"骰子状态附加文本": {
 				{"供职于{$t供职群数}个群，其中{$t启用群数}个处于开启状态。{$t群内工作状态}", 1},
 			},
-			//"roll前缀":{
-			//	"为了{$t原因}", 1},
-			//},
-			//"roll": {
-			//	"{$t原因}{$t玩家} 掷出了 {$t骰点参数}{$t计算过程}={$t结果}${tASM}", 1},
-			//},
 			// -------------------- roll --------------------------
 			"骰点_原因": {
 				{"由于{$t原因}，", 1},
@@ -1247,9 +1235,6 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType:  "通用",
 				TopOrder: 1,
 			},
-			//"骰子群内迎新": {
-			//	{`欢迎，{$新人昵称}，祝你在这里过得愉快`, 1},
-			//},
 			"骰子成为好友": {
 				SubType:  "通用",
 				TopOrder: 1,
@@ -1265,12 +1250,6 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".bot about",
 				Vars:    []string{"$t供职群数", "$t启用群数", "$t群内工作状态", "$t群内工作状态_仅状态"},
 			},
-			//"roll前缀":{
-			//	"为了{$t原因}", 1},
-			//},
-			//"roll": {
-			//	"{$t原因}{$t玩家} 掷出了 {$t骰点参数}{$t计算过程}={$t结果}${tASM}", 1},
-			//},
 			// -------------------- roll --------------------------
 			"骰点_原因": {
 				SubType: ".r",
@@ -1546,22 +1525,8 @@ func SetupTextHelpInfo(d *Dice, helpInfo TextTemplateWithHelpDict, texts TextTem
 				helpInfoItem.Filename = []string{fn}
 				helpInfoItem.NotBuiltin = true
 				v1[keyName] = helpInfoItem
-
-				//vars := []string{}
-				//existsMap := map[string]bool{}
-				//for _, i := range v2 {
-				//	re := regexp.MustCompile(`{(\S+?)}`)
-				//	m := re.FindAllStringSubmatch(i[0].(string), -1)
-				//	for _, j := range m {
-				//		if !existsMap[j[1]] {
-				//			existsMap[j[1]] = true
-				//			vars = append(vars, j[1])
-				//		}
-				//	}
-				//}
-				//helpInfoItem.Vars = vars
 			} else {
-				//d.Logger.Debugf("词条覆盖: %s, %s", keyName, fn)
+				// d.Logger.Debugf("词条覆盖: %s, %s", keyName, fn)
 				// 如果和最初有变化，标记为修改
 				var modified bool
 
@@ -1691,7 +1656,7 @@ func getNumVal(i interface{}) uint {
 	case reflect.Int64:
 		return uint(i.(int64))
 	case reflect.Uint:
-		return uint(i.(uint))
+		return i.(uint)
 	case reflect.Uint8:
 		return uint(i.(uint8))
 	case reflect.Uint16:
@@ -1709,332 +1674,314 @@ func getNumVal(i interface{}) uint {
 	case reflect.String:
 		v, _ := strconv.ParseInt(i.(string), 10, 64)
 		return uint(v)
+	default:
+		return 0
 	}
-	return 0
 }
 
 func (d *Dice) loads() {
 	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
 
 	// 配置这块弄得比较屎，有机会换个方案。。。
-	if err == nil {
+	if err == nil { //nolint:nestif
 		dNew := Dice{}
 		err2 := yaml.Unmarshal(data, &dNew)
-		if err2 == nil {
-			//d.CommandCompatibleMode = dNew.CommandCompatibleMode
-			d.CommandCompatibleMode = true // 一直为true即可
-			d.ImSession.EndPoints = dNew.ImSession.EndPoints
-			d.CommandPrefix = dNew.CommandPrefix
-			d.DiceMasters = dNew.DiceMasters
-			d.VersionCode = dNew.VersionCode
-			d.MessageDelayRangeStart = dNew.MessageDelayRangeStart
-			d.MessageDelayRangeEnd = dNew.MessageDelayRangeEnd
-			d.WorkInQQChannel = dNew.WorkInQQChannel
-			d.QQChannelLogMessage = dNew.QQChannelLogMessage
-			d.QQChannelAutoOn = dNew.QQChannelAutoOn
-			d.QQEnablePoke = dNew.QQEnablePoke
-			d.TextCmdTrustOnly = dNew.TextCmdTrustOnly
-			d.IgnoreUnaddressedBotCmd = dNew.IgnoreUnaddressedBotCmd
-			d.UILogLimit = dNew.UILogLimit
-			d.FriendAddComment = dNew.FriendAddComment
-			d.AutoReloginEnable = dNew.AutoReloginEnable
-			d.NoticeIds = dNew.NoticeIds
-			d.ExtDefaultSettings = dNew.ExtDefaultSettings
-			d.CustomReplyConfigEnable = dNew.CustomReplyConfigEnable
-			d.RefuseGroupInvite = dNew.RefuseGroupInvite
-			d.DefaultCocRuleIndex = dNew.DefaultCocRuleIndex
-			d.UpgradeWindowId = dNew.UpgradeWindowId
-			d.UpgradeEndpointId = dNew.UpgradeEndpointId
-			d.BotExtFreeSwitch = dNew.BotExtFreeSwitch
-			d.RateLimitEnabled = dNew.RateLimitEnabled
-			d.TrustOnlyMode = dNew.TrustOnlyMode
-			d.AliveNoticeEnable = dNew.AliveNoticeEnable
-			d.AliveNoticeValue = dNew.AliveNoticeValue
-			d.ReplyDebugMode = dNew.ReplyDebugMode
-			d.LogSizeNoticeCount = dNew.LogSizeNoticeCount
-			d.LogSizeNoticeEnable = dNew.LogSizeNoticeEnable
-			d.PlayerNameWrapEnable = dNew.PlayerNameWrapEnable
-			d.MailEnable = dNew.MailEnable
-			d.MailFrom = dNew.MailFrom
-			d.MailPassword = dNew.MailPassword
-			d.MailSmtp = dNew.MailSmtp
-			d.JsEnable = dNew.JsEnable
-			d.DisabledJsScripts = dNew.DisabledJsScripts
-			d.NewsMark = dNew.NewsMark
-
-			d.EnableCensor = dNew.EnableCensor
-			d.CensorMode = dNew.CensorMode
-			d.CensorThresholds = dNew.CensorThresholds
-			d.CensorHandlers = dNew.CensorHandlers
-			d.CensorScores = dNew.CensorScores
-			d.CensorCaseSensitive = dNew.CensorCaseSensitive
-			d.CensorMatchPinyin = dNew.CensorMatchPinyin
-			d.CensorFilterRegexStr = dNew.CensorFilterRegexStr
-
-			if dNew.BanList != nil {
-				d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
-				d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite
-				d.BanList.BanBehaviorQuitLastPlace = dNew.BanList.BanBehaviorQuitLastPlace
-				d.BanList.ScoreReducePerMinute = dNew.BanList.ScoreReducePerMinute
-
-				d.BanList.ThresholdWarn = dNew.BanList.ThresholdWarn
-				d.BanList.ThresholdBan = dNew.BanList.ThresholdBan
-				d.BanList.ScoreGroupMuted = dNew.BanList.ScoreGroupMuted
-				d.BanList.ScoreGroupKicked = dNew.BanList.ScoreGroupKicked
-				d.BanList.ScoreTooManyCommand = dNew.BanList.ScoreTooManyCommand
-
-				d.BanList.JointScorePercentOfGroup = dNew.BanList.JointScorePercentOfGroup
-				d.BanList.JointScorePercentOfInviter = dNew.BanList.JointScorePercentOfInviter
-			}
-
-			d.MaxExecuteTime = dNew.MaxExecuteTime
-			if d.MaxExecuteTime == 0 {
-				d.MaxExecuteTime = 12
-			}
-
-			d.MaxCocCardGen = dNew.MaxCocCardGen
-			if d.MaxCocCardGen == 0 {
-				d.MaxCocCardGen = 5
-			}
-
-			d.CustomReplenishRate = dNew.CustomReplenishRate
-			if d.CustomReplenishRate == "" {
-				d.CustomReplenishRate = "@every 3s"
-				d.ParsedReplenishRate = rate.Every(time.Second * 3)
-			} else {
-				if parsed, errParse := utils.ParseRate(d.CustomReplenishRate); errParse == nil {
-					d.ParsedReplenishRate = parsed
-				} else {
-					d.Logger.Errorf("解析CustomReplenishRate失败: %v", errParse)
-					d.CustomReplenishRate = "@every 3s"
-					d.ParsedReplenishRate = rate.Every(time.Second * 3)
-				}
-
-			}
-
-			d.CustomBurst = dNew.CustomBurst
-			if d.CustomBurst == 0 {
-				d.CustomBurst = 3
-			}
-
-			if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
-				d.DiceMasters = []string{"UI:1001"}
-			}
-			var newDiceMasters []string
-			for _, i := range d.DiceMasters {
-				if i != "<平台,如QQ>:<帐号,如QQ号>" {
-					newDiceMasters = append(newDiceMasters, i)
-				}
-			}
-			d.DiceMasters = newDiceMasters
-			// 装载ServiceAt
-			d.ImSession.ServiceAtNew = map[string]*GroupInfo{}
-			//d.ImSession.ServiceAtNew = model.GroupInfoListGet(d.DBData)
-			_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
-				var groupInfo GroupInfo
-				err := json.Unmarshal(data, &groupInfo)
-				if err == nil {
-					groupInfo.GroupId = id
-					groupInfo.UpdatedAtTime = updatedAt
-
-					// 找出其中以群号开头的，这是1.2版本的bug
-					var toDelete []string
-					if groupInfo.DiceIdExistsMap != nil {
-						groupInfo.DiceIdExistsMap.Range(func(key string, value bool) bool {
-							if strings.HasPrefix(key, "QQ-Group:") {
-								toDelete = append(toDelete, key)
-							}
-							return true
-						})
-						for _, i := range toDelete {
-							groupInfo.DiceIdExistsMap.Delete(i)
-						}
-					}
-					//data = bytes.ReplaceAll(data, []byte(`"diceIds":{`), []byte(`"diceIdActiveMap":{`))
-
-					//fmt.Println("????", id, groupInfo.GroupId)
-					d.ImSession.ServiceAtNew[id] = &groupInfo
-				} else {
-					d.Logger.Errorf("加载群信息失败: %s", id)
-				}
-			})
-
-			m := map[string]*ExtInfo{}
-			for _, i := range d.ExtList {
-				m[i.Name] = i
-			}
-
-			// 设置群扩展
-			for _, v := range d.ImSession.ServiceAtNew {
-				var tmp []*ExtInfo
-				for _, i := range v.ActivatedExtList {
-					if m[i.Name] != nil {
-						tmp = append(tmp, m[i.Name])
-					}
-				}
-				v.ActivatedExtList = tmp
-			}
-
-			// 读取群变量
-			for _, g := range d.ImSession.ServiceAtNew {
-				// 群组数据
-				if g.ValueMap == nil {
-					g.ValueMap = lockfree.NewHashMap()
-				}
-
-				data := model.AttrGroupGetAll(d.DBData, g.GroupId)
-				if len(data) != 0 {
-					mapData := make(map[string]*VMValue)
-					err := JsonValueMapUnmarshal(data, &mapData)
-					if err != nil {
-						d.Logger.Error("读取群变量失败: ", err)
-					}
-					for k, v := range mapData {
-						g.ValueMap.Set(k, v)
-					}
-				}
-				if g.DiceIdActiveMap == nil {
-					g.DiceIdActiveMap = new(SyncMap[string, bool])
-				}
-				if g.DiceIdExistsMap == nil {
-					g.DiceIdExistsMap = new(SyncMap[string, bool])
-				}
-				if g.BotList == nil {
-					g.BotList = new(SyncMap[string, bool])
-				}
-			}
-
-			if d.VersionCode != 0 && d.VersionCode < 10000 {
-				d.CustomReplyConfigEnable = false
-			}
-
-			if d.VersionCode != 0 && d.VersionCode < 10001 {
-				d.AliveNoticeValue = "@every 3h"
-			}
-
-			if d.VersionCode != 0 && d.VersionCode < 10003 {
-				d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 10003)
-				d.LogSizeNoticeCount = 500
-				d.LogSizeNoticeEnable = true
-				d.CustomReplyConfigEnable = true
-			}
-
-			if d.VersionCode != 0 && d.VersionCode < 10004 {
-				d.AutoReloginEnable = false
-			}
-
-			if d.VersionCode != 0 && d.VersionCode < 10005 {
-				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
-					d.Logger.Info("正在自动升级自定义文案文件")
-					for index, text := range d.TextMapRaw["核心"]["昵称_重置"] {
-						srcText := text[0].(string)
-						srcText = strings.ReplaceAll(srcText, "{$tQQ昵称}", "{$t旧昵称}")
-						srcText = strings.ReplaceAll(srcText, "{$t帐号昵称}", "{$t旧昵称}")
-						d.TextMapRaw["核心"]["昵称_重置"][index][0] = srcText
-					}
-
-					for index, text := range d.TextMapRaw["核心"]["角色管理_删除成功"] {
-						srcText := text[0].(string)
-						srcText = strings.ReplaceAll(srcText, "{$t新角色名}", "{$t角色名}")
-						d.TextMapRaw["核心"]["角色管理_删除成功"][index][0] = srcText
-					}
-
-					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
-					d.GenerateTextMap()
-					d.SaveText()
-				})
-			}
-
-			// 1.2 版本
-			if d.VersionCode != 0 && d.VersionCode < 10200 {
-				d.TextCmdTrustOnly = true
-				d.QQEnablePoke = true
-				d.PlayerNameWrapEnable = true
-
-				isUI1001Master := false
-				for _, i := range d.DiceMasters {
-					if i == "UI:1001" {
-						isUI1001Master = true
-						break
-					}
-				}
-				if !isUI1001Master {
-					d.DiceMasters = append(d.DiceMasters, "UI:1001")
-				}
-
-				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
-					// 更正写反的部分
-					d.Logger.Info("正在自动升级自定义文案文件")
-					for index := range d.TextMapRaw["COC"]["属性设置_保存提醒"] {
-						//srcText := text[0].(string)
-						//srcText = strings.ReplaceAll(
-						//	srcText,
-						//	`{ $t当前绑定角色 ? '角色信息已经变更，别忘了使用.pc save来进行保存！' : '' }`,
-						//	`{ $t当前绑定角色 ? '[√] 已绑卡' : '' }`,
-						//)
-						srcText := `{ $t当前绑定角色 ? '[√] 已绑卡' : '' }`
-						d.TextMapRaw["COC"]["属性设置_保存提醒"][index][0] = srcText
-					}
-
-					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
-					d.GenerateTextMap()
-					d.SaveText()
-				})
-			}
-
-			// 1.2 版本
-			if d.VersionCode != 0 && d.VersionCode < 10203 {
-				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
-					// 更正写反的部分
-					d.Logger.Info("正在自动升级自定义文案文件")
-					for index := range d.TextMapRaw["COC"]["属性设置_增减_单项"] {
-						srcText := "{$t属性}: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})"
-						d.TextMapRaw["COC"]["属性设置_增减_单项"][index][0] = srcText
-					}
-
-					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
-					d.GenerateTextMap()
-					d.SaveText()
-				})
-			}
-
-			// 1.3 版本
-			if d.VersionCode != 0 && d.VersionCode < 10300 {
-				d.JsEnable = true
-
-				d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
-					// 更正写反的部分
-					d.Logger.Info("正在自动升级自定义文案文件")
-					for index, text := range d.TextMapRaw["娱乐"]["鸽子理由"] {
-						srcText := text[0].(string)
-						srcText = strings.ReplaceAll(srcText, "在互联网上约到可爱美少女不惜搁置跑团前去约会的{$t玩家}，还不知道这个叫奈亚的妹子隐藏着什么", "空山不见人，但闻咕咕声。 —— {$t玩家}")
-						d.TextMapRaw["娱乐"]["鸽子理由"][index][0] = srcText
-					}
-
-					SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
-					d.GenerateTextMap()
-					d.SaveText()
-				})
-			}
-
-			// 设置全局群名缓存和用户名缓存
-			dm := d.Parent
-			now := time.Now().Unix()
-			for k, v := range d.ImSession.ServiceAtNew {
-				dm.GroupNameCache.Set(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
-				// 这块暂时不存在了
-				//for k2, v2 := range v.Players {
-				//	dm.UserNameCache.Set(k2, &GroupNameCacheItem{Name: v2.Name, time: now})
-				//}
-			}
-
-			d.Logger.Info("serve.yaml loaded")
-			//info, _ := yaml.Marshal(Session.ServiceAt)
-			//replyGroup(ctx, msg.GroupId, fmt.Sprintf("临时指令：加载配置 似乎成功\n%s", info));
-		} else {
+		if err2 != nil {
 			d.Logger.Error("serve.yaml parse failed")
 			panic(err2)
 		}
+		d.CommandCompatibleMode = true // 一直为true即可
+		d.ImSession.EndPoints = dNew.ImSession.EndPoints
+		d.CommandPrefix = dNew.CommandPrefix
+		d.DiceMasters = dNew.DiceMasters
+		d.VersionCode = dNew.VersionCode
+		d.MessageDelayRangeStart = dNew.MessageDelayRangeStart
+		d.MessageDelayRangeEnd = dNew.MessageDelayRangeEnd
+		d.WorkInQQChannel = dNew.WorkInQQChannel
+		d.QQChannelLogMessage = dNew.QQChannelLogMessage
+		d.QQChannelAutoOn = dNew.QQChannelAutoOn
+		d.QQEnablePoke = dNew.QQEnablePoke
+		d.TextCmdTrustOnly = dNew.TextCmdTrustOnly
+		d.IgnoreUnaddressedBotCmd = dNew.IgnoreUnaddressedBotCmd
+		d.UILogLimit = dNew.UILogLimit
+		d.FriendAddComment = dNew.FriendAddComment
+		d.AutoReloginEnable = dNew.AutoReloginEnable
+		d.NoticeIDs = dNew.NoticeIDs
+		d.ExtDefaultSettings = dNew.ExtDefaultSettings
+		d.CustomReplyConfigEnable = dNew.CustomReplyConfigEnable
+		d.RefuseGroupInvite = dNew.RefuseGroupInvite
+		d.DefaultCocRuleIndex = dNew.DefaultCocRuleIndex
+		d.UpgradeWindowID = dNew.UpgradeWindowID
+		d.UpgradeEndpointID = dNew.UpgradeEndpointID
+		d.BotExtFreeSwitch = dNew.BotExtFreeSwitch
+		d.RateLimitEnabled = dNew.RateLimitEnabled
+		d.TrustOnlyMode = dNew.TrustOnlyMode
+		d.AliveNoticeEnable = dNew.AliveNoticeEnable
+		d.AliveNoticeValue = dNew.AliveNoticeValue
+		d.ReplyDebugMode = dNew.ReplyDebugMode
+		d.LogSizeNoticeCount = dNew.LogSizeNoticeCount
+		d.LogSizeNoticeEnable = dNew.LogSizeNoticeEnable
+		d.PlayerNameWrapEnable = dNew.PlayerNameWrapEnable
+		d.MailEnable = dNew.MailEnable
+		d.MailFrom = dNew.MailFrom
+		d.MailPassword = dNew.MailPassword
+		d.MailSMTP = dNew.MailSMTP
+		d.JsEnable = dNew.JsEnable
+		d.DisabledJsScripts = dNew.DisabledJsScripts
+		d.NewsMark = dNew.NewsMark
+
+		d.EnableCensor = dNew.EnableCensor
+		d.CensorMode = dNew.CensorMode
+		d.CensorThresholds = dNew.CensorThresholds
+		d.CensorHandlers = dNew.CensorHandlers
+		d.CensorScores = dNew.CensorScores
+		d.CensorCaseSensitive = dNew.CensorCaseSensitive
+		d.CensorMatchPinyin = dNew.CensorMatchPinyin
+		d.CensorFilterRegexStr = dNew.CensorFilterRegexStr
+
+		if dNew.BanList != nil {
+			d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
+			d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite
+			d.BanList.BanBehaviorQuitLastPlace = dNew.BanList.BanBehaviorQuitLastPlace
+			d.BanList.ScoreReducePerMinute = dNew.BanList.ScoreReducePerMinute
+
+			d.BanList.ThresholdWarn = dNew.BanList.ThresholdWarn
+			d.BanList.ThresholdBan = dNew.BanList.ThresholdBan
+			d.BanList.ScoreGroupMuted = dNew.BanList.ScoreGroupMuted
+			d.BanList.ScoreGroupKicked = dNew.BanList.ScoreGroupKicked
+			d.BanList.ScoreTooManyCommand = dNew.BanList.ScoreTooManyCommand
+
+			d.BanList.JointScorePercentOfGroup = dNew.BanList.JointScorePercentOfGroup
+			d.BanList.JointScorePercentOfInviter = dNew.BanList.JointScorePercentOfInviter
+		}
+
+		d.MaxExecuteTime = dNew.MaxExecuteTime
+		if d.MaxExecuteTime == 0 {
+			d.MaxExecuteTime = 12
+		}
+
+		d.MaxCocCardGen = dNew.MaxCocCardGen
+		if d.MaxCocCardGen == 0 {
+			d.MaxCocCardGen = 5
+		}
+
+		d.CustomReplenishRate = dNew.CustomReplenishRate
+		if d.CustomReplenishRate == "" {
+			d.CustomReplenishRate = "@every 3s"
+			d.ParsedReplenishRate = rate.Every(time.Second * 3)
+		} else {
+			if parsed, errParse := utils.ParseRate(d.CustomReplenishRate); errParse == nil {
+				d.ParsedReplenishRate = parsed
+			} else {
+				d.Logger.Errorf("解析CustomReplenishRate失败: %v", errParse)
+				d.CustomReplenishRate = "@every 3s"
+				d.ParsedReplenishRate = rate.Every(time.Second * 3)
+			}
+		}
+
+		d.CustomBurst = dNew.CustomBurst
+		if d.CustomBurst == 0 {
+			d.CustomBurst = 3
+		}
+
+		if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
+			d.DiceMasters = []string{"UI:1001"}
+		}
+		var newDiceMasters []string
+		for _, i := range d.DiceMasters {
+			if i != "<平台,如QQ>:<帐号,如QQ号>" {
+				newDiceMasters = append(newDiceMasters, i)
+			}
+		}
+		d.DiceMasters = newDiceMasters
+		// 装载ServiceAt
+		d.ImSession.ServiceAtNew = map[string]*GroupInfo{}
+		_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
+			var groupInfo GroupInfo
+			err := json.Unmarshal(data, &groupInfo)
+			if err == nil {
+				groupInfo.GroupID = id
+				groupInfo.UpdatedAtTime = updatedAt
+
+				// 找出其中以群号开头的，这是1.2版本的bug
+				var toDelete []string
+				if groupInfo.DiceIDExistsMap != nil {
+					groupInfo.DiceIDExistsMap.Range(func(key string, value bool) bool {
+						if strings.HasPrefix(key, "QQ-Group:") {
+							toDelete = append(toDelete, key)
+						}
+						return true
+					})
+					for _, i := range toDelete {
+						groupInfo.DiceIDExistsMap.Delete(i)
+					}
+				}
+				d.ImSession.ServiceAtNew[id] = &groupInfo
+			} else {
+				d.Logger.Errorf("加载群信息失败: %s", id)
+			}
+		})
+
+		m := map[string]*ExtInfo{}
+		for _, i := range d.ExtList {
+			m[i.Name] = i
+		}
+
+		// 设置群扩展
+		for _, v := range d.ImSession.ServiceAtNew {
+			var tmp []*ExtInfo
+			for _, i := range v.ActivatedExtList {
+				if m[i.Name] != nil {
+					tmp = append(tmp, m[i.Name])
+				}
+			}
+			v.ActivatedExtList = tmp
+		}
+
+		// 读取群变量
+		for _, g := range d.ImSession.ServiceAtNew {
+			// 群组数据
+			if g.ValueMap == nil {
+				g.ValueMap = lockfree.NewHashMap()
+			}
+
+			data := model.AttrGroupGetAll(d.DBData, g.GroupID)
+			if len(data) != 0 {
+				mapData := make(map[string]*VMValue)
+				err := JSONValueMapUnmarshal(data, &mapData)
+				if err != nil {
+					d.Logger.Error("读取群变量失败: ", err)
+				}
+				for k, v := range mapData {
+					g.ValueMap.Set(k, v)
+				}
+			}
+			if g.DiceIDActiveMap == nil {
+				g.DiceIDActiveMap = new(SyncMap[string, bool])
+			}
+			if g.DiceIDExistsMap == nil {
+				g.DiceIDExistsMap = new(SyncMap[string, bool])
+			}
+			if g.BotList == nil {
+				g.BotList = new(SyncMap[string, bool])
+			}
+		}
+
+		if d.VersionCode != 0 && d.VersionCode < 10000 {
+			d.CustomReplyConfigEnable = false
+		}
+
+		if d.VersionCode != 0 && d.VersionCode < 10001 {
+			d.AliveNoticeValue = "@every 3h"
+		}
+
+		if d.VersionCode != 0 && d.VersionCode < 10003 {
+			d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 10003)
+			d.LogSizeNoticeCount = 500
+			d.LogSizeNoticeEnable = true
+			d.CustomReplyConfigEnable = true
+		}
+
+		if d.VersionCode != 0 && d.VersionCode < 10004 {
+			d.AutoReloginEnable = false
+		}
+
+		if d.VersionCode != 0 && d.VersionCode < 10005 {
+			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+				d.Logger.Info("正在自动升级自定义文案文件")
+				for index, text := range d.TextMapRaw["核心"]["昵称_重置"] {
+					srcText := text[0].(string)
+					srcText = strings.ReplaceAll(srcText, "{$tQQ昵称}", "{$t旧昵称}")
+					srcText = strings.ReplaceAll(srcText, "{$t帐号昵称}", "{$t旧昵称}")
+					d.TextMapRaw["核心"]["昵称_重置"][index][0] = srcText
+				}
+
+				for index, text := range d.TextMapRaw["核心"]["角色管理_删除成功"] {
+					srcText := text[0].(string)
+					srcText = strings.ReplaceAll(srcText, "{$t新角色名}", "{$t角色名}")
+					d.TextMapRaw["核心"]["角色管理_删除成功"][index][0] = srcText
+				}
+
+				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+				d.GenerateTextMap()
+				d.SaveText()
+			})
+		}
+
+		// 1.2 版本
+		if d.VersionCode != 0 && d.VersionCode < 10200 {
+			d.TextCmdTrustOnly = true
+			d.QQEnablePoke = true
+			d.PlayerNameWrapEnable = true
+
+			isUI1001Master := false
+			for _, i := range d.DiceMasters {
+				if i == "UI:1001" {
+					isUI1001Master = true
+					break
+				}
+			}
+			if !isUI1001Master {
+				d.DiceMasters = append(d.DiceMasters, "UI:1001")
+			}
+
+			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+				// 更正写反的部分
+				d.Logger.Info("正在自动升级自定义文案文件")
+				for index := range d.TextMapRaw["COC"]["属性设置_保存提醒"] {
+					srcText := `{ $t当前绑定角色 ? '[√] 已绑卡' : '' }`
+					d.TextMapRaw["COC"]["属性设置_保存提醒"][index][0] = srcText
+				}
+
+				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+				d.GenerateTextMap()
+				d.SaveText()
+			})
+		}
+
+		// 1.2 版本
+		if d.VersionCode != 0 && d.VersionCode < 10203 {
+			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+				// 更正写反的部分
+				d.Logger.Info("正在自动升级自定义文案文件")
+				for index := range d.TextMapRaw["COC"]["属性设置_增减_单项"] {
+					srcText := "{$t属性}: {$t旧值} ➯ {$t新值} ({$t增加或扣除}{$t表达式文本}={$t变化量})"
+					d.TextMapRaw["COC"]["属性设置_增减_单项"][index][0] = srcText
+				}
+
+				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+				d.GenerateTextMap()
+				d.SaveText()
+			})
+		}
+
+		// 1.3 版本
+		if d.VersionCode != 0 && d.VersionCode < 10300 {
+			d.JsEnable = true
+
+			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+				// 更正写反的部分
+				d.Logger.Info("正在自动升级自定义文案文件")
+				for index, text := range d.TextMapRaw["娱乐"]["鸽子理由"] {
+					srcText := text[0].(string)
+					srcText = strings.ReplaceAll(srcText, "在互联网上约到可爱美少女不惜搁置跑团前去约会的{$t玩家}，还不知道这个叫奈亚的妹子隐藏着什么", "空山不见人，但闻咕咕声。 —— {$t玩家}")
+					d.TextMapRaw["娱乐"]["鸽子理由"][index][0] = srcText
+				}
+
+				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+				d.GenerateTextMap()
+				d.SaveText()
+			})
+		}
+
+		// 设置全局群名缓存和用户名缓存
+		dm := d.Parent
+		now := time.Now().Unix()
+		for k, v := range d.ImSession.ServiceAtNew {
+			dm.GroupNameCache.Set(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
+		}
+
+		d.Logger.Info("serve.yaml loaded")
 	} else {
 		// 这里是没有加载到配置文件，所以写默认设置项
 		d.AutoReloginEnable = false
@@ -2070,8 +2017,8 @@ func (d *Dice) loads() {
 		i.AdapterSetup()
 	}
 
-	if d.NoticeIds == nil {
-		d.NoticeIds = []string{}
+	if d.NoticeIDs == nil {
+		d.NoticeIDs = []string{}
 	}
 
 	if len(d.CommandPrefix) == 0 {
@@ -2101,7 +2048,7 @@ func (d *Dice) SaveText() {
 	} else {
 		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
-		//ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
+		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
 		current, err := os.ReadFile(newFn)
 		if err != nil {
 			_ = os.WriteFile(bakFn, current, 0644)
@@ -2200,7 +2147,7 @@ func (d *Dice) Save(isAuto bool) {
 		if g.Players != nil {
 			g.Players.Range(func(key string, value *GroupPlayerInfo) bool {
 				if value.UpdatedAtTime != 0 {
-					_ = model.GroupPlayerInfoSave(d.DBData, g.GroupId, key, (*model.GroupPlayerInfoBase)(value))
+					_ = model.GroupPlayerInfoSave(d.DBData, g.GroupID, key, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
 
@@ -2208,7 +2155,7 @@ func (d *Dice) Save(isAuto bool) {
 				if value.Vars != nil && value.Vars.Loaded {
 					if value.Vars.LastWriteTime != 0 {
 						data, _ := json.Marshal(LockFreeMapToMap(value.Vars.ValueMap))
-						model.AttrGroupUserSave(d.DBData, g.GroupId, key, data)
+						model.AttrGroupUserSave(d.DBData, g.GroupID, key, data)
 						value.Vars.LastWriteTime = 0
 					}
 				}
@@ -2220,9 +2167,9 @@ func (d *Dice) Save(isAuto bool) {
 		if g.UpdatedAtTime != 0 {
 			data, err := json.Marshal(g)
 			if err == nil {
-				err := model.GroupInfoSave(d.DBData, g.GroupId, g.UpdatedAtTime, data)
+				err := model.GroupInfoSave(d.DBData, g.GroupID, g.UpdatedAtTime, data)
 				if err != nil {
-					d.Logger.Warnf("保存群组数据失败 %v : %v", g.GroupId, err.Error())
+					d.Logger.Warnf("保存群组数据失败 %v : %v", g.GroupID, err.Error())
 				}
 				g.UpdatedAtTime = 0
 			}
@@ -2230,7 +2177,7 @@ func (d *Dice) Save(isAuto bool) {
 
 		// TODO: 这里其实还能优化
 		data, _ := json.Marshal(LockFreeMapToMap(g.ValueMap))
-		model.AttrGroupSave(d.DBData, g.GroupId, data)
+		model.AttrGroupSave(d.DBData, g.GroupID, data)
 	}
 
 	// 同步绑定的角色卡数据
@@ -2262,7 +2209,6 @@ func (d *Dice) Save(isAuto bool) {
 					v.ValueMap.Del(i)
 				}
 
-				//fmt.Println("!!!!!!!!", toDelete, syncMap, allCh)
 				// 这里面的角色是需要同步的
 				for name := range syncMap {
 					chData := allCh[name]
@@ -2271,10 +2217,9 @@ func (d *Dice) Save(isAuto bool) {
 						if err == nil {
 							varName := "$ch:" + name
 							v.ValueMap.Set(varName, &VMValue{
-								TypeId: VMTypeString,
+								TypeID: VMTypeString,
 								Value:  string(val),
 							})
-							//fmt.Println("XXXXXXX", varName, string(val))
 						}
 					} else {
 						// 过期了，可能该角色已经被删除
@@ -2298,12 +2243,12 @@ func (d *Dice) Save(isAuto bool) {
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测
-	//model.BanMapSet(d.DBData, d.BanList.MapToJSON())
+	// model.BanMapSet(d.DBData, d.BanList.MapToJSON())
 
 	// endpoint数据额外更新到数据库
 	for _, ep := range d.ImSession.EndPoints {
 		// 为了避免Restore时没有UserId, Dump时有UserId, 导致空白数据被错误落库的情况, 这里提前做判断
-		if len(ep.UserId) > 0 {
+		if len(ep.UserID) > 0 {
 			/* NOTE(Xiangze Li): 按理说Restore只需要在每个ep新增时做一次. 但是许多ep都是异步
 			   连接, 并且在连接真正完成之后才有UserId. 所以干脆每次保存数据都尝试一次Restore. */
 			ep.StatsRestore(d)

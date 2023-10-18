@@ -3,8 +3,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/armon/go-socks5"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -12,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/armon/go-socks5"
 )
 
 var privateIPBlocks []*net.IPNet
@@ -29,7 +29,7 @@ func ipInit() {
 	} {
 		_, block, err := net.ParseCIDR(cidr)
 		if err != nil {
-			panic(fmt.Errorf("parse error on %q: %v", cidr, err))
+			panic(fmt.Errorf("parse error on %q: %w", cidr, err))
 		}
 		privateIPBlocks = append(privateIPBlocks, block)
 	}
@@ -48,7 +48,7 @@ func isPrivateIP(ip net.IP) bool {
 	return false
 }
 
-func getClientIp() ([]string, error) {
+func getClientIP() ([]string, error) {
 	addrs, err := net.InterfaceAddrs()
 
 	if err != nil {
@@ -86,9 +86,7 @@ func getip2() string {
 	if err != nil {
 		return ""
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(req.Body)
+	defer func() { _ = req.Body.Close() }()
 
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -105,13 +103,13 @@ func socksOpen(d *dice.Dice, port int64) (string, error) {
 	ipInit()
 	ttl := 20 * 60
 
-	//ttl := flag.Int64("time", 25*60, "存活时长，单位秒，默认为25分钟")
-	//user := flag.String("user", "", "用户名，默认为空")
-	//password := flag.String("password", "", "密码，默认为空")
-	//port := flag.Int64("port", 13325, "端口号")
-	//flag.Parse()
+	// ttl := flag.Int64("time", 25*60, "存活时长，单位秒，默认为25分钟")
+	// user := flag.String("user", "", "用户名，默认为空")
+	// password := flag.String("password", "", "密码，默认为空")
+	// port := flag.Int64("port", 13325, "端口号")
+	// flag.Parse()
 
-	ip, err := getClientIp()
+	ip, err := getClientIP()
 	if err != nil {
 		return "", err
 	}
@@ -129,21 +127,21 @@ func socksOpen(d *dice.Dice, port int64) (string, error) {
 	} else {
 		d.Logger.Info("onebot辅助: 可能的公网IP: ", publicIP)
 	}
-	//fmt.Println("请于服务器管理面板放行你要用的端口(一般为13326即http)，协议TCP")
-	//fmt.Println("如果是Windows Server 2012R2及以上系统，请再额外关闭系统防火墙或设置规则放行")
+	// fmt.Println("请于服务器管理面板放行你要用的端口(一般为13326即http)，协议TCP")
+	// fmt.Println("如果是Windows Server 2012R2及以上系统，请再额外关闭系统防火墙或设置规则放行")
 
 	secure := []socks5.Authenticator{}
 
-	//if *user != "" && *password != "" {
-	//	fmt.Println("当前用户", *user)
-	//	fmt.Println("当前密码", *password)
-	//
-	//	cred := socks5.StaticCredentials{
-	//		*user: *password,
-	//	}
-	//	cator := socks5.UserPassAuthenticator{Credentials: cred}
-	//	secure = append(secure, cator)
-	//}
+	// if *user != "" && *password != "" {
+	// 	fmt.Println("当前用户", *user)
+	// 	fmt.Println("当前密码", *password)
+
+	// 	cred := socks5.StaticCredentials{
+	// 		*user: *password,
+	// 	}
+	// 	cator := socks5.UserPassAuthenticator{Credentials: cred}
+	// 	secure = append(secure, cator)
+	// }
 
 	// Create a SOCKS5 server
 	conf := &socks5.Config{
@@ -173,7 +171,7 @@ func socksOpen(d *dice.Dice, port int64) (string, error) {
 	}()
 	return publicIP, nil
 
-	//if err := server.ListenAndServe("tcp", address); err != nil {
+	// if err := server.ListenAndServe("tcp", address); err != nil {
 	//	panic(err)
-	//}
+	// }
 }

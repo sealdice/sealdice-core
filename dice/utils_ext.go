@@ -8,11 +8,11 @@ import (
 func GetCloudContent(urls []string, etag string) (int, []byte, error) {
 	client := &http.Client{}
 	for _, url := range urls {
-		req, err := http.NewRequest("GET", url, http.NoBody)
+		req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 		if err != nil {
 			return 0, nil, err
 		}
-		//req.Header.Add("Accept", "application/toml;application/json")
+		// req.Header.Add("Accept", "application/toml;application/json")
 		if etag != "" {
 			req.Header.Add("If-None-Match", etag)
 		}

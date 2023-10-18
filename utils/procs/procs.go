@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/fyrchik/go-shlex"
 	"io"
 	"os/exec"
 	"strings"
+
+	"github.com/fyrchik/go-shlex"
 )
 
 type OutHandler func(string) string
@@ -27,10 +28,6 @@ func NewProcess(command string) *Process {
 }
 
 func (p *Process) Start() error {
-	//abs, err := filepath.Abs(p.CmdString)
-	//if err != nil {
-	//	return err
-	//}
 	cmdparts, err := shlex.Split(strings.TrimSpace(p.CmdString))
 	if err != nil {
 		return err
@@ -83,7 +80,7 @@ func (p *Process) Start() error {
 				return len(data), data, nil
 			}
 			return len(data), data, err
-			//return 0, nil, nil
+			// return 0, nil, nil
 		})
 
 		for scanner.Scan() {

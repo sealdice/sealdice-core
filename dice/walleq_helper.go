@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/BurntSushi/toml"
-	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"sealdice-core/utils/procs"
 	"strings"
 	"time"
+
+	"github.com/BurntSushi/toml"
+	"github.com/google/uuid"
 )
 
 const (
@@ -50,8 +51,8 @@ type WalleQConfig struct {
 	Meta WqMeta `toml:"meta"`
 	// 连接方式必须完整，哪怕没有用到 http 连接方式
 	Onebot struct {
-		Http         []interface{} `toml:"http"`
-		HttpWebhook  []interface{} `toml:"http_webhook"`
+		HTTP         []interface{} `toml:"http"`
+		HTTPWebhook  []interface{} `toml:"http_webhook"`
 		WebsocketRev []interface{} `toml:"websocket_rev"`
 		Websocket    []WqWS        `toml:"websocket"`
 		// 心跳
@@ -64,7 +65,7 @@ type WalleQConfig struct {
 
 func NewWqConnectInfoItem(account string) *EndPointInfo {
 	conn := new(EndPointInfo)
-	conn.Id = uuid.New().String()
+	conn.ID = uuid.New().String()
 	conn.Platform = "QQ"
 	conn.ProtocolType = "walle-q"
 	conn.Enable = false
@@ -104,7 +105,7 @@ func WalleQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 
 			pa.DiceServing = false
 			pa.WalleQQrcodeData = nil
-			pa.WalleQLoginDeviceLockUrl = ""
+			pa.WalleQLoginDeviceLockURL = ""
 
 			workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 			qrcodeFile := filepath.Join(workDir, "qrcode.png")
@@ -118,7 +119,7 @@ func WalleQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			if pa.WalleQProcess != nil {
 				p := pa.WalleQProcess
 				pa.WalleQProcess = nil
-				//sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
+				// sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
 				_ = p.Stop()
 				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
 			}
@@ -128,7 +129,7 @@ func WalleQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 
 func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, isAsyncRun bool) {
 	pa := conn.Adapter.(*PlatformAdapterWalleQ)
-	pa.CurLoginIndex += 1
+	pa.CurLoginIndex++
 	loginIndex := pa.CurLoginIndex
 	pa.WalleQState = WqStateCodeInLogin
 	fmt.Println("WalleQServe begin")
@@ -136,7 +137,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	_ = os.MkdirAll(workDir, 0755)
 	log := dice.Logger
 	qrcodeFile := filepath.Join(workDir, "qrcode.png")
-	//deviceFilePath := filepath.Join(workDir, "device.json") // 暂时让他自己写
+	// deviceFilePath := filepath.Join(workDir, "device.json") // 暂时让他自己写
 	configFilePath := filepath.Join(workDir, "walle-q.toml")
 	if _, err := os.Stat(qrcodeFile); err == nil {
 		// 如果已经存在二维码文件，将其删除
@@ -147,8 +148,8 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	// 创建配置文件
 	if _, err := os.Stat(configFilePath); errors.Is(err, os.ErrNotExist) {
 		p, _ := GetRandomFreePort()
-		pa.ConnectUrl = fmt.Sprintf("ws://127.0.0.1:%d", p)
-		id, _ := pa.mustExtractId(conn.UserId)
+		pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", p)
+		id, _ := pa.mustExtractID(conn.UserID)
 		wqc := WalleQConfig{}
 		wqc.QQ = make(map[string]WqQQ)
 		wqc.QQ[id] = WqQQ{
@@ -159,9 +160,9 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 		wqc.Meta.Leveldb = true
 		wqc.Meta.Sled = false
 		wqc.Onebot.Websocket = append(wqc.Onebot.Websocket, WqWS{"127.0.0.1", p})
-		wqc.Onebot.Http = make([]interface{}, 0)
+		wqc.Onebot.HTTP = make([]interface{}, 0)
 		wqc.Onebot.WebsocketRev = make([]interface{}, 0)
-		wqc.Onebot.HttpWebhook = make([]interface{}, 0)
+		wqc.Onebot.HTTPWebhook = make([]interface{}, 0)
 		b := new(bytes.Buffer)
 		_ = toml.NewEncoder(b).Encode(wqc)
 		_ = os.WriteFile(configFilePath, b.Bytes(), 0644)
@@ -184,12 +185,12 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 		*/
 	}
 	wd, _ := os.Getwd()
-	WqExePath, _ := filepath.Abs(filepath.Join(wd, "walle-q/walle-q"))
-	WqExePath = strings.Replace(WqExePath, "\\", "/", -1) // windows平台需要这个替换
-	_ = os.Chmod(WqExePath, 0755)
+	wqExePath, _ := filepath.Abs(filepath.Join(wd, "walle-q/walle-q"))
+	wqExePath = strings.ReplaceAll(wqExePath, "\\", "/") // windows平台需要这个替换
+	_ = os.Chmod(wqExePath, 0755)
 
-	log.Info("onebot: 正在启动onebot客户端…… ", WqExePath)
-	p := procs.NewProcess(fmt.Sprintf(`"%s"`, WqExePath))
+	log.Info("onebot: 正在启动onebot客户端…… ", wqExePath)
+	p := procs.NewProcess(fmt.Sprintf(`"%s"`, wqExePath))
 	p.Dir = workDir
 	chQrCode := make(chan int, 1)
 	isSeldKilling := false
@@ -227,7 +228,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 		}
 
 		if strings.Contains(line, "扫描二维码登录") { //nolint
-			//TODO
+			// TODO
 		}
 		return line
 	}
@@ -264,7 +265,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 
 		if err == nil {
 			if dice.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
-				err := dice.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
+				err = dice.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
 				if err != nil {
 					dice.Logger.Warn("添加到进程组失败，若主进程崩溃，walle-q 进程可能需要手动结束")
 				}
@@ -289,9 +290,8 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 }
 
 func (pa *PlatformAdapterWalleQ) SetQQProtocol(protocol int) bool {
-
 	pa.InPackWalleQProtocol = protocol
-	uid := pa.EndPoint.UserId
+	uid := pa.EndPoint.UserID
 	log := pa.EndPoint.Session.Parent.Logger
 
 	wd := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)

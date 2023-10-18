@@ -107,7 +107,7 @@ func storyDelLog(c echo.Context) error {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
-	is := model.LogDelete(myDice.DBLogs, v.GroupId, v.Name)
+	is := model.LogDelete(myDice.DBLogs, v.GroupID, v.Name)
 	if !is {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, false)
@@ -121,7 +121,7 @@ func storyUploadLog(c echo.Context) error {
 	}
 	v := &model.LogInfo{}
 	_ = c.Bind(&v)
-	url, err := logSendToBackend(v.GroupId, v.Name)
+	url, err := logSendToBackend(v.GroupID, v.Name)
 	if err != nil {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, err.Error())
@@ -129,11 +129,11 @@ func storyUploadLog(c echo.Context) error {
 	return c.JSON(http.StatusOK, fmt.Sprintf("跑团日志已上传服务器，链接如下：<br>%s", url))
 }
 
-func logSendToBackend(groupId string, logName string) (string, error) {
+func logSendToBackend(groupID string, logName string) (string, error) {
 	ctx := &dice.MsgContext{
 		Dice:     myDice,
 		EndPoint: myDice.UIEndpoint,
 	}
 
-	return dice.LogSendToBackend(ctx, groupId, logName)
+	return dice.LogSendToBackend(ctx, groupID, logName)
 }

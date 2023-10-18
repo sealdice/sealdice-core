@@ -4,14 +4,14 @@ import "github.com/google/uuid"
 
 func NewMinecraftConnItem(url string) *EndPointInfo {
 	conn := new(EndPointInfo)
-	conn.Id = uuid.New().String()
+	conn.ID = uuid.New().String()
 	conn.Platform = "MC"
 	conn.ProtocolType = ""
 	conn.Enable = false
-	conn.RelWorkDir = "extra/minecraft-" + conn.Id
+	conn.RelWorkDir = "extra/minecraft-" + conn.ID
 	conn.Adapter = &PlatformAdapterMinecraft{
 		EndPoint:   conn,
-		ConnectUrl: url,
+		ConnectURL: url,
 	}
 	return conn
 }

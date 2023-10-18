@@ -61,7 +61,7 @@ type GameSystemTemplate struct {
 	TextMap         *TextTemplateWithWeightDict `yaml:"textMap" json:"textMap"` // UI文本
 	TextMapHelpInfo *TextTemplateWithHelpDict   `yaml:"TextMapHelpInfo" json:"textMapHelpInfo"`
 
-	//BasedOn           string                 `yaml:"based-on"`           // 基于规则
+	// BasedOn           string                 `yaml:"based-on"`           // 基于规则
 
 	AliasMap *SyncMap[string, string] `yaml:"-" json:"-"` // 别名/同义词
 }
@@ -130,7 +130,7 @@ func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (*VMValue, er
 		}
 		return nil, err
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (*VMValue, error) {
@@ -154,7 +154,7 @@ func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (*VMValue,
 	}
 
 	// 不存在的值，返回nil
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, error) {
@@ -166,7 +166,7 @@ func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, err
 		return r, err
 	}
 	// 返回值不存在，强行补0
-	return &VMValue{TypeId: VMTypeInt64, Value: int64(0)}, nil
+	return &VMValue{TypeID: VMTypeInt64, Value: int64(0)}, nil
 }
 
 func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*VMValue, error) {
@@ -185,5 +185,5 @@ func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*VMValue, 
 	}
 
 	// 不存在的值，强行补0
-	return &VMValue{TypeId: VMTypeInt64, Value: int64(0)}, nil
+	return &VMValue{TypeID: VMTypeInt64, Value: int64(0)}, nil
 }

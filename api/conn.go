@@ -26,12 +26,12 @@ func ImConnectionsGet(c echo.Context) error {
 	}
 
 	v := struct {
-		Id string `form:"id" json:"id"`
+		ID string `form:"id" json:"id"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
-			if i.Id == v.Id {
+			if i.ID == v.ID {
 				return c.JSON(http.StatusOK, i)
 			}
 		}
@@ -64,13 +64,13 @@ func ImConnectionsSetEnable(c echo.Context) error {
 	}
 
 	v := struct {
-		Id     string `form:"id" json:"id"`
+		ID     string `form:"id" json:"id"`
 		Enable bool   `form:"enable" json:"enable"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
-			if i.Id == v.Id {
+			if i.ID == v.ID {
 				i.SetEnable(myDice, v.Enable)
 				return c.JSON(http.StatusOK, i)
 			}
@@ -93,7 +93,7 @@ func ImConnectionsSetData(c echo.Context) error {
 	}
 
 	v := struct {
-		Id                  string `form:"id" json:"id"`
+		ID                  string `form:"id" json:"id"`
 		Protocol            int    `form:"protocol" json:"protocol"`
 		AppVersion          string `form:"appVersion" json:"appVersion"`
 		IgnoreFriendRequest bool   `json:"ignoreFriendRequest"` // 忽略好友请求
@@ -103,33 +103,35 @@ func ImConnectionsSetData(c echo.Context) error {
 	}{}
 
 	err := c.Bind(&v)
-	if err == nil {
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.Id == v.Id {
-				if i.ProtocolType == "walle-q" {
-					ad := i.Adapter.(*dice.PlatformAdapterWalleQ)
-					ad.SetQQProtocol(v.Protocol)
-					ad.IgnoreFriendRequest = v.IgnoreFriendRequest
-				} else {
-					ad := i.Adapter.(*dice.PlatformAdapterGocq)
-					if i.ProtocolType != "onebot" {
-						i.ProtocolType = "onebot"
-					}
-					ad.SetQQProtocol(v.Protocol)
-					ad.InPackGoCqHttpAppVersion = v.AppVersion
-					if v.UseSignServer {
-						ad.SetSignServer(v.SignServerConfig)
-						ad.UseSignServer = v.UseSignServer
-						ad.SignServerConfig = v.SignServerConfig
-					}
-					ad.IgnoreFriendRequest = v.IgnoreFriendRequest
-					ad.ExtraArgs = v.ExtraArgs
-				}
-				return c.JSON(http.StatusOK, i)
-			}
-		}
+	if err != nil {
+		myDice.Save(false)
+		return c.JSON(http.StatusNotFound, nil)
 	}
-
+	for _, i := range myDice.ImSession.EndPoints {
+		if i.ID != v.ID {
+			continue
+		}
+		if i.ProtocolType == "walle-q" {
+			ad := i.Adapter.(*dice.PlatformAdapterWalleQ)
+			ad.SetQQProtocol(v.Protocol)
+			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
+		} else {
+			ad := i.Adapter.(*dice.PlatformAdapterGocq)
+			if i.ProtocolType != "onebot" {
+				i.ProtocolType = "onebot"
+			}
+			ad.SetQQProtocol(v.Protocol)
+			ad.InPackGoCqhttpAppVersion = v.AppVersion
+			if v.UseSignServer {
+				ad.SetSignServer(v.SignServerConfig)
+				ad.UseSignServer = v.UseSignServer
+				ad.SignServerConfig = v.SignServerConfig
+			}
+			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
+			ad.ExtraArgs = v.ExtraArgs
+		}
+		return c.JSON(http.StatusOK, i)
+	}
 	myDice.Save(false)
 	return c.JSON(http.StatusNotFound, nil)
 }
@@ -145,21 +147,21 @@ func ImConnectionsDel(c echo.Context) error {
 	}
 
 	v := struct {
-		Id string `form:"id" json:"id"`
+		ID string `form:"id" json:"id"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
 		for index, i := range myDice.ImSession.EndPoints {
-			if i.Id == v.Id {
+			if i.ID == v.ID {
 				// 禁用该endpoint防止出问题
 				i.SetEnable(myDice, false)
 				// 待删除的EPInfo落库，保留其统计数据
 				i.StatsDump(myDice)
 				// TODO: 注意 这个好像很不科学
-				//i.DiceServing = false
+				// i.DiceServing = false
 				switch i.Platform {
 				case "QQ":
-					dice.GoCqHttpServeProcessKill(myDice, i)
+					dice.GoCqhttpServeProcessKill(myDice, i)
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					return c.JSON(http.StatusOK, i)
 				case "DISCORD":
@@ -197,34 +199,34 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 	}
 
 	v := struct {
-		Id string `form:"id" json:"id"`
+		ID string `form:"id" json:"id"`
 	}{}
 	err := c.Bind(&v)
-	//fmt.Println(err)
-	if err == nil {
-		for _, i := range myDice.ImSession.EndPoints {
-			//fmt.Println(i.Id, i.ProtocolType, i.ProtocolType)
-			if i.Id == v.Id {
-				switch i.ProtocolType {
-				case "onebot", "":
-					pa := i.Adapter.(*dice.PlatformAdapterGocq)
-					if pa.GoCqHttpState == dice.StateCodeInLoginQrCode {
-						return c.JSON(http.StatusOK, map[string]string{
-							"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.GoCqHttpQrcodeData),
-						})
-					}
-				case "walle-q":
-					pa := i.Adapter.(*dice.PlatformAdapterWalleQ)
-					if pa.WalleQState == dice.WqStateCodeInLoginQrCode {
-						//fmt.Println("qrcode:", base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData))
-						return c.JSON(http.StatusOK, map[string]string{
-							"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData),
-						})
-					}
-				}
-				return c.JSON(http.StatusOK, i)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, nil)
+	}
+
+	for _, i := range myDice.ImSession.EndPoints {
+		if i.ID != v.ID {
+			continue
+		}
+		switch i.ProtocolType {
+		case "onebot", "":
+			pa := i.Adapter.(*dice.PlatformAdapterGocq)
+			if pa.GoCqhttpState == dice.StateCodeInLoginQrCode {
+				return c.JSON(http.StatusOK, map[string]string{
+					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.GoCqhttpQrcodeData),
+				})
+			}
+		case "walle-q":
+			pa := i.Adapter.(*dice.PlatformAdapterWalleQ)
+			if pa.WalleQState == dice.WqStateCodeInLoginQrCode {
+				return c.JSON(http.StatusOK, map[string]string{
+					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData),
+				})
 			}
 		}
+		return c.JSON(http.StatusOK, i)
 	}
 	return c.JSON(http.StatusNotFound, nil)
 }
@@ -235,19 +237,19 @@ func ImConnectionsSmsCodeSet(c echo.Context) error {
 	}
 
 	v := struct {
-		Id   string `form:"id" json:"id"`
+		ID   string `form:"id" json:"id"`
 		Code string `form:"code" json:"code"`
 	}{}
 	err := c.Bind(&v)
 
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
-			if i.Id == v.Id {
+			if i.ID == v.ID {
 				switch i.ProtocolType {
 				case "onebot", "":
 					pa := i.Adapter.(*dice.PlatformAdapterGocq)
-					if pa.GoCqHttpState == dice.GoCqHttpStateCodeInLoginVerifyCode {
-						pa.GoCqHttpLoginVerifyCode = v.Code
+					if pa.GoCqhttpState == dice.GoCqhttpStateCodeInLoginVerifyCode {
+						pa.GoCqhttpLoginVerifyCode = v.Code
 						return c.JSON(http.StatusOK, map[string]string{})
 					}
 				}
@@ -264,17 +266,17 @@ func ImConnectionsSmsCodeGet(c echo.Context) error {
 	}
 
 	v := struct {
-		Id string `form:"id" json:"id"`
+		ID string `form:"id" json:"id"`
 	}{}
 	err := c.Bind(&v)
 
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
-			if i.Id == v.Id {
+			if i.ID == v.ID {
 				switch i.ProtocolType {
 				case "onebot", "":
 					pa := i.Adapter.(*dice.PlatformAdapterGocq)
-					return c.JSON(http.StatusOK, map[string]string{"tip": pa.GoCqHttpSmsNumberTip})
+					return c.JSON(http.StatusOK, map[string]string{"tip": pa.GoCqhttpSmsNumberTip})
 				}
 				return c.JSON(http.StatusOK, i)
 			}
@@ -300,13 +302,13 @@ func ImConnectionsAddWalleQ(c echo.Context) error {
 		}
 
 		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserId == dice.FormatDiceIdQQ(uid) {
-				return c.JSON(CODE_ALREADY_EXISTS, i)
+			if i.UserID == dice.FormatDiceIDQQ(uid) {
+				return c.JSON(CodeAlreadyExists, i)
 			}
 		}
 
 		conn := dice.NewWqConnectInfoItem(v.Account)
-		conn.UserId = dice.FormatDiceIdQQ(uid)
+		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 		conn.ProtocolType = "walle-q"
 		pa := conn.Adapter.(*dice.PlatformAdapterWalleQ)
@@ -334,13 +336,13 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 	}
 
 	v := struct {
-		Id string `form:"id" json:"id"`
+		ID string `form:"id" json:"id"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
-			if i.Id == v.Id {
-				fmt.Print("!!! relogin ", v.Id)
+			if i.ID == v.ID {
+				fmt.Print("!!! relogin ", v.ID)
 				i.Adapter.DoRelogin()
 				return c.JSON(http.StatusOK, nil)
 			}
@@ -355,12 +357,12 @@ func ImConnectionsWalleQRelogin(c echo.Context) error {
 	}
 
 	v := struct {
-		Id string `form:"id" json:"id"`
+		ID string `form:"id" json:"id"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
-			if i.Id == v.Id {
+			if i.ID == v.ID {
 				i.Adapter.DoRelogin()
 				return c.JSON(http.StatusOK, nil)
 			}
@@ -384,14 +386,11 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 		})
 	}
 
-	//myDice.Logger.Infof("后端add调用")
 	v := &AddDiscordEcho{}
 	err := c.Bind(&v)
 	if err == nil {
-		//myDice.Logger.Infof("bind无异常")
 		conn := dice.NewDiscordConnItem(dice.AddDiscordEcho(*v))
 		conn.Session = myDice.ImSession
-		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterDiscord)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
@@ -413,16 +412,13 @@ func ImConnectionsAddKook(c echo.Context) error {
 		})
 	}
 
-	//myDice.Logger.Infof("后端add调用")
 	v := struct {
 		Token string `yaml:"token" json:"token"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		//myDice.Logger.Infof("bind无异常")
 		conn := dice.NewKookConnItem(v.Token)
 		conn.Session = myDice.ImSession
-		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterKook)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
@@ -444,18 +440,16 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 		})
 	}
 
-	//myDice.Logger.Infof("后端add调用")
 	v := struct {
 		Token    string `yaml:"token" json:"token"`
 		ProxyURL string `yaml:"proxyURL" json:"proxyURL"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		//myDice.Logger.Infof("bind无异常")
 		conn := dice.NewTelegramConnItem(v.Token, v.ProxyURL)
 		conn.Session = myDice.ImSession
 
-		//myDice.Logger.Infof("成功创建endpoint")
+		// myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterTelegram)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
@@ -478,14 +472,12 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 	}
 
 	v := struct {
-		Url string `yaml:"url" json:"url"`
+		URL string `yaml:"url" json:"url"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		//myDice.Logger.Infof("bind无异常")
-		conn := dice.NewMinecraftConnItem(v.Url)
+		conn := dice.NewMinecraftConnItem(v.URL)
 		conn.Session = myDice.ImSession
-		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterMinecraft)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
@@ -513,10 +505,8 @@ func ImConnectionsAddDodo(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		//myDice.Logger.Infof("bind无异常")
 		conn := dice.NewDodoConnItem(v.ClientID, v.Token)
 		conn.Session = myDice.ImSession
-		//myDice.Logger.Infof("成功创建endpoint")
 		pa := conn.Adapter.(*dice.PlatformAdapterDodo)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
@@ -545,11 +535,11 @@ func ImConnectionsAdd(c echo.Context) error {
 		AppVersion       string                 `json:"appVersion"`
 		UseSignServer    bool                   `json:"useSignServer"`
 		SignServerConfig *dice.SignServerConfig `json:"signServerConfig"`
-		//ConnectUrl        string `yaml:"connectUrl" json:"connectUrl"`               // 连接地址
-		//Platform          string `yaml:"platform" json:"platform"`                   // 平台，如QQ、QQ频道
-		//Enable            bool   `yaml:"enable" json:"enable"`                       // 是否启用
-		//Type              string `yaml:"type" json:"type"`                           // 协议类型，如onebot、koishi等
-		//UseInPackGoCqhttp bool   `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
+		// ConnectUrl        string `yaml:"connectUrl" json:"connectUrl"`               // 连接地址
+		// Platform          string `yaml:"platform" json:"platform"`                   // 平台，如QQ、QQ频道
+		// Enable            bool   `yaml:"enable" json:"enable"`                       // 是否启用
+		// Type              string `yaml:"type" json:"type"`                           // 协议类型，如onebot、koishi等
+		// UseInPackGoCqhttp bool   `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
 	}{}
 
 	err := c.Bind(&v)
@@ -560,18 +550,18 @@ func ImConnectionsAdd(c echo.Context) error {
 		}
 
 		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserId == dice.FormatDiceIdQQ(uid) {
-				return c.JSON(CODE_ALREADY_EXISTS, i)
+			if i.UserID == dice.FormatDiceIDQQ(uid) {
+				return c.JSON(CodeAlreadyExists, i)
 			}
 		}
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
-		conn.UserId = dice.FormatDiceIdQQ(uid)
+		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-		pa.InPackGoCqHttpProtocol = v.Protocol
-		pa.InPackGoCqHttpPassword = v.Password
-		pa.InPackGoCqHttpAppVersion = v.AppVersion
+		pa.InPackGoCqhttpProtocol = v.Protocol
+		pa.InPackGoCqhttpPassword = v.Password
+		pa.InPackGoCqhttpAppVersion = v.AppVersion
 		pa.Session = myDice.ImSession
 		pa.UseSignServer = v.UseSignServer
 		pa.SignServerConfig = v.SignServerConfig
@@ -579,7 +569,7 @@ func ImConnectionsAdd(c echo.Context) error {
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 
-		dice.GoCqHttpServe(myDice, conn, dice.GoCqHttpLoginInfo{
+		dice.GoCqhttpServe(myDice, conn, dice.GoCqhttpLoginInfo{
 			Password:         v.Password,
 			Protocol:         v.Protocol,
 			AppVersion:       v.AppVersion,
@@ -606,7 +596,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 
 	v := struct {
 		Account     string `yaml:"account" json:"account"`
-		ConnectUrl  string `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
+		ConnectURL  string `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
 		AccessToken string `yaml:"accessToken" json:"accessToken"` // 访问令牌
 		RelWorkDir  string `yaml:"relWorkDir" json:"relWorkDir"`   //
 	}{}
@@ -619,13 +609,13 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		}
 
 		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserId == dice.FormatDiceIdQQ(uid) {
-				return c.JSON(CODE_ALREADY_EXISTS, i)
+			if i.UserID == dice.FormatDiceIDQQ(uid) {
+				return c.JSON(CodeAlreadyExists, i)
 			}
 		}
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
-		conn.UserId = dice.FormatDiceIdQQ(uid)
+		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
@@ -633,7 +623,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 
 		// 三项设置
 		conn.RelWorkDir = v.RelWorkDir
-		pa.ConnectUrl = v.ConnectUrl
+		pa.ConnectURL = v.ConnectURL
 		pa.AccessToken = v.AccessToken
 
 		pa.UseInPackGoCqhttp = false

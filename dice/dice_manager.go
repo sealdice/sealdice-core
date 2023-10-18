@@ -18,8 +18,8 @@ type VersionInfo struct {
 	VersionLatestCode       int64  `yaml:"versionLatestCode" json:"versionLatestCode"`
 	VersionLatestNote       string `yaml:"versionLatestNote" json:"versionLatestNote"`
 	MinUpdateSupportVersion int64  `yaml:"minUpdateSupportVersion" json:"minUpdateSupportVersion"`
-	NewVersionUrlPrefix     string `yaml:"newVersionUrlPrefix" json:"newVersionUrlPrefix"`
-	UpdaterUrlPrefix        string `yaml:"updaterUrlPrefix" json:"updaterUrlPrefix"`
+	NewVersionURLPrefix     string `yaml:"newVersionUrlPrefix" json:"newVersionUrlPrefix"`
+	UpdaterURLPrefix        string `yaml:"updaterUrlPrefix" json:"updaterUrlPrefix"`
 }
 
 type GroupNameCacheItem struct {
@@ -27,7 +27,7 @@ type GroupNameCacheItem struct {
 	time int64
 }
 
-type DiceManager struct {
+type DiceManager struct { //nolint:revive
 	Dice                 []*Dice
 	ServeAddress         string
 	Help                 *HelpManager
@@ -47,14 +47,14 @@ type DiceManager struct {
 
 	AutoBackupEnable bool
 	AutoBackupTime   string
-	backupEntryId    cron.EntryID
+	backupEntryID    cron.EntryID
 	// 备份自动清理配置
 	BackupCleanStrategy  BackupCleanStrategy // 关闭 / 保留一定数量 / 保留一定时间
 	BackupCleanKeepCount int                 // 保留的数量
 	BackupCleanKeepDur   time.Duration       // 保留的时间
 	BackupCleanTrigger   BackupCleanTrigger  // 触发方式: cron触发 / 随自动备份触发 (多种方式按位OR)
 	BackupCleanCron      string              // 如果使用cron触发, 表达式
-	backupCleanCronId    cron.EntryID
+	backupCleanCronID    cron.EntryID
 
 	AppBootTime      int64
 	AppVersionCode   int64
@@ -67,7 +67,7 @@ type DiceManager struct {
 
 	GroupNameCache lockfree.HashMap // 群名缓存，全局共享, key string value *GroupNameCacheItem
 	UserNameCache  lockfree.HashMap // 用户缓存，全局共享, key string value *GroupNameCacheItem
-	UserIdCache    lockfree.HashMap // 用户id缓存 key username (string) value int64 目前仅Telegram adapter使用
+	UserIDCache    lockfree.HashMap // 用户id缓存 key username (string) value int64 目前仅Telegram adapter使用
 
 	Cron                 *cron.Cron
 	ServiceName          string
@@ -76,7 +76,7 @@ type DiceManager struct {
 	UpdateSealdiceByFile func(packName string, log *zap.SugaredLogger) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
 }
 
-type DiceConfigs struct {
+type DiceConfigs struct { //nolint:revive
 	DiceConfigs       []DiceConfig `yaml:"diceConfigs"`
 	ServeAddress      string       `yaml:"serveAddress"`
 	WebUIAddress      string       `yaml:"webUIAddress"`
@@ -118,13 +118,13 @@ func (dm *DiceManager) LoadDice() {
 	dm.AppBootTime = time.Now().Unix()
 	dm.GroupNameCache = lockfree.NewHashMap()
 	dm.UserNameCache = lockfree.NewHashMap()
-	dm.UserIdCache = lockfree.NewHashMap()
+	dm.UserIDCache = lockfree.NewHashMap()
 
 	_ = os.MkdirAll(BackupDir, 0755)
 	_ = os.MkdirAll("./data/images", 0755)
 	_ = os.MkdirAll("./data/decks", 0755)
 	_ = os.MkdirAll("./data/names", 0755)
-	_ = os.WriteFile("./data/images/sealdice.png", ICON_PNG, 0644)
+	_ = os.WriteFile("./data/images/sealdice.png", IconPNG, 0644)
 
 	// this can be shared by multiple runtimes
 	dm.JsRegistry = new(require.Registry)
@@ -262,20 +262,20 @@ func (dm *DiceManager) InitDice() {
 }
 
 func (dm *DiceManager) ResetAutoBackup() {
-	if dm.backupEntryId != 0 {
-		dm.Cron.Remove(dm.backupEntryId)
-		dm.backupEntryId = 0
+	if dm.backupEntryID != 0 {
+		dm.Cron.Remove(dm.backupEntryID)
+		dm.backupEntryID = 0
 	}
 	if dm.AutoBackupEnable {
 		var err error
-		dm.backupEntryId, err = dm.Cron.AddFunc(dm.AutoBackupTime, func() {
-			err := dm.BackupAuto()
-			if err != nil {
-				fmt.Println("自动备份失败: ", err.Error())
+		dm.backupEntryID, err = dm.Cron.AddFunc(dm.AutoBackupTime, func() {
+			errBackup := dm.BackupAuto()
+			if errBackup != nil {
+				fmt.Println("自动备份失败: ", errBackup.Error())
 				return
 			}
-			if err = dm.BackupClean(true); err != nil {
-				fmt.Println("滚动清理备份失败: ", err.Error())
+			if errBackup = dm.BackupClean(true); errBackup != nil {
+				fmt.Println("滚动清理备份失败: ", errBackup.Error())
 			}
 		})
 		if err != nil {
@@ -288,17 +288,17 @@ func (dm *DiceManager) ResetAutoBackup() {
 }
 
 func (dm *DiceManager) ResetBackupClean() {
-	if dm.backupCleanCronId > 0 {
-		dm.Cron.Remove(dm.backupCleanCronId)
-		dm.backupCleanCronId = 0
+	if dm.backupCleanCronID > 0 {
+		dm.Cron.Remove(dm.backupCleanCronID)
+		dm.backupCleanCronID = 0
 	}
 
 	if (dm.BackupCleanTrigger & BackupCleanTriggerCron) > 0 {
 		var err error
-		dm.backupCleanCronId, err = dm.Cron.AddFunc(dm.BackupCleanCron, func() {
-			err := dm.BackupClean(false)
-			if err != nil {
-				fmt.Println("定时清理备份失败: ", err.Error())
+		dm.backupCleanCronID, err = dm.Cron.AddFunc(dm.BackupCleanCron, func() {
+			errBackup := dm.BackupClean(false)
+			if errBackup != nil {
+				fmt.Println("定时清理备份失败: ", errBackup.Error())
 			}
 		})
 

@@ -26,7 +26,7 @@ type deviceFile struct {
 	Board        string         `json:"board"`
 	Model        string         `json:"model"`
 	FingerPrint  string         `json:"finger_print"`
-	BootId       string         `json:"boot_id"`
+	BootID       string         `json:"boot_id"`
 	ProcVersion  string         `json:"proc_version"`
 	Protocol     int            `json:"protocol"` // 0: iPad 1: Android 2: AndroidWatch  // 3 macOS 4 企点
 	IMEI         string         `json:"imei"`
@@ -36,11 +36,11 @@ type deviceFile struct {
 	SimInfo      string         `json:"sim_info"`
 	OSType       string         `json:"os_type"`
 	MacAddress   string         `json:"mac_address"`
-	IpAddress    []int32        `json:"ip_address"`
+	IPAddress    []int32        `json:"ip_address"`
 	WifiBSSID    string         `json:"wifi_bssid"`
 	WifiSSID     string         `json:"wifi_ssid"`
 	ImsiMd5      string         `json:"imsi_md5"`
-	AndroidId    string         `json:"android_id"`
+	AndroidID    string         `json:"android_id"`
 	APN          string         `json:"apn"`
 	VendorName   string         `json:"vendor_name"`
 	VendorOSName string         `json:"vendor_os_name"`
@@ -65,34 +65,34 @@ func randomMacAddress() string {
 	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5])
 }
 
-func RandString(len int) string {
+func RandString(n int) string {
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 
-	bytes := make([]byte, len)
-	for i := 0; i < len; i++ {
+	bytes := make([]byte, n)
+	for i := 0; i < n; i++ {
 		b := r.Intn(26) + 65
 		bytes[i] = byte(b)
 	}
 	return string(bytes)
 }
 
-//model	设备
-//"iPhone11,2"	iPhone XS
-//"iPhone11,8"	iPhone XR
-//"iPhone12,1"	iPhone 11
-//"iPhone13,2"	iPhone 12
-//"iPad8,1"	iPad Pro
-//"iPad11,2"	iPad mini
-//"iPad13,2"	iPad Air 4
-//"Apple Watch"	Apple Watch
+// model	设备
+// "iPhone11,2"	iPhone XS
+// "iPhone11,8"	iPhone XR
+// "iPhone12,1"	iPhone 11
+// "iPhone13,2"	iPhone 12
+// "iPad8,1"	iPad Pro
+// "iPad11,2"	iPad mini
+// "iPad13,2"	iPad Air 4
+// "Apple Watch"	Apple Watch
 
-func GenerateDeviceJsonIOS(protocol int) (string, []byte, error) {
+func GenerateDeviceJSONIos(protocol int) (string, []byte, error) {
 	rand.Seed(time.Now().Unix())
-	bootId := uuid.New()
+	bootID := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
-	androidId := fmt.Sprintf("%X", rand.Uint64())
+	androidID := fmt.Sprintf("%X", rand.Uint64())
 
-	deviceJson := deviceFile{
+	deviceJSON := deviceFile{
 		Display:      "iPhone",      // Rom的名字 比如 Flyme 1.1.2（魅族rom）  JWR66V（Android nexus系列原生4.3rom）
 		Product:      RandString(6), // 产品名，比如这是小米6的代号
 		Device:       RandString(6),
@@ -101,17 +101,17 @@ func GenerateDeviceJsonIOS(protocol int) (string, []byte, error) {
 		Model:        "iPhone13,2",   // 型号
 		Bootloader:   "unknown",      // unknown不需要改
 		FingerPrint:  RandString(24), // 指纹
-		BootId:       bootId.String(),
+		BootID:       bootID.String(),
 		ProcVersion:  "1.0", // 很长，后面 builder省略了
 		BaseBand:     "",    // 基带版本 4.3CPL2-... 一大堆，直接不写
 		SimInfo:      "",
 		OSType:       "iOS",
 		MacAddress:   randomMacAddress(),
-		IpAddress:    []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2}, // 192.168.x.x
+		IPAddress:    []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2}, // 192.168.x.x
 		WifiBSSID:    randomMacAddress(),
 		WifiSSID:     "<unknown ssid>",
 		IMEI:         imei,
-		AndroidId:    androidId, // 原版的 androidId和Display内容一样，我没看协议，但是按android文档上说应该是64-bit number的hex，姑且这么做
+		AndroidID:    androidID, // 原版的 androidId和Display内容一样，我没看协议，但是按android文档上说应该是64-bit number的hex，姑且这么做
 		APN:          "wifi",
 		VendorName:   "Apple", // 这个和下面一个选项(VendorOSName)都属于意义不明，找不到相似对应，不知道是啥
 		VendorOSName: "Apple",
@@ -125,24 +125,24 @@ func GenerateDeviceJsonIOS(protocol int) (string, []byte, error) {
 	}
 
 	if protocol == 2 {
-		deviceJson.Model = "Apple Watch"
+		deviceJSON.Model = "Apple Watch"
 	}
 
 	if protocol == 3 {
-		deviceJson.Model = "mac OS X"
+		deviceJSON.Model = "mac OS X"
 	}
 
-	a, b := json.Marshal(deviceJson)
-	return deviceJson.Model, a, b
+	a, b := json.Marshal(deviceJSON)
+	return deviceJSON.Model, a, b
 }
 
-func GenerateDeviceJsonAndroidWatch(protocol int) (string, []byte, error) {
+func GenerateDeviceJSONAndroidWatch(protocol int) (string, []byte, error) {
 	rand.Seed(time.Now().Unix())
-	bootId := uuid.New()
+	bootID := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
-	androidId := fmt.Sprintf("%X", rand.Uint64())
+	androidID := fmt.Sprintf("%X", rand.Uint64())
 
-	deviceJson := deviceFile{
+	deviceJSON := deviceFile{
 		Display:      "MIRAI.142521.001", // Rom的名字 比如 Flyme 1.1.2（魅族rom）  JWR66V（Android nexus系列原生4.3rom）
 		Product:      "mirai",            // 产品名，比如这是小米6的代号
 		Device:       "mirai",
@@ -151,17 +151,17 @@ func GenerateDeviceJsonAndroidWatch(protocol int) (string, []byte, error) {
 		Model:        "mirai",                                                           // 型号
 		Bootloader:   "unknown",                                                         // unknown不需要改
 		FingerPrint:  "mamoe/mirai/mirai:10/MIRAI.200122.001/9108230:user/release-keys", // 指纹
-		BootId:       bootId.String(),
+		BootID:       bootID.String(),
 		ProcVersion:  "Linux version 3.0.31-zli0DMkg (android-build@xxx.xxx.xxx.xxx.com)", // 很长，后面 builder省略了
 		BaseBand:     "",                                                                  // 基带版本 4.3CPL2-... 一大堆，直接不写
 		SimInfo:      "T-Mobile",
 		OSType:       "android",
 		MacAddress:   randomMacAddress(),
-		IpAddress:    []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2}, // 192.168.x.x
+		IPAddress:    []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2}, // 192.168.x.x
 		WifiBSSID:    randomMacAddress(),
 		WifiSSID:     "<unknown ssid>",
 		IMEI:         imei,
-		AndroidId:    androidId, // 原版的 androidId和Display内容一样，我没看协议，但是按android文档上说应该是64-bit number的hex，姑且这么做
+		AndroidID:    androidID, // 原版的 androidId和Display内容一样，我没看协议，但是按android文档上说应该是64-bit number的hex，姑且这么做
 		APN:          "wifi",
 		VendorName:   "MIUI", // 这个和下面一个选项(VendorOSName)都属于意义不明，找不到相似对应，不知道是啥
 		VendorOSName: "mirai",
@@ -174,17 +174,17 @@ func GenerateDeviceJsonAndroidWatch(protocol int) (string, []byte, error) {
 		},
 	}
 
-	a, b := json.Marshal(deviceJson)
-	return deviceJson.Model, a, b
+	a, b := json.Marshal(deviceJSON)
+	return deviceJSON.Model, a, b
 }
 
-func GenerateDeviceJsonAllRandom(protocol int) (string, []byte, error) {
+func GenerateDeviceJSONAllRandom(protocol int) (string, []byte, error) {
 	rand.Seed(time.Now().Unix())
-	bootId := uuid.New()
+	bootID := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
-	androidId := fmt.Sprintf("%X", rand.Uint64())
+	androidID := fmt.Sprintf("%X", rand.Uint64())
 
-	deviceJson := deviceFile{
+	deviceJSON := deviceFile{
 		Display:      RandString(6), // Rom的名字 比如 Flyme 1.1.2（魅族rom）  JWR66V（Android nexus系列原生4.3rom）
 		Product:      RandString(6), // 产品名，比如这是小米6的代号
 		Device:       RandString(6),
@@ -193,17 +193,17 @@ func GenerateDeviceJsonAllRandom(protocol int) (string, []byte, error) {
 		Model:        RandString(24), // 型号
 		Bootloader:   "unknown",      // unknown不需要改
 		FingerPrint:  RandString(24), // 指纹
-		BootId:       bootId.String(),
+		BootID:       bootID.String(),
 		ProcVersion:  "1.0", // 很长，后面 builder省略了
 		BaseBand:     "",    // 基带版本 4.3CPL2-... 一大堆，直接不写
 		SimInfo:      "",
 		OSType:       "android",
 		MacAddress:   randomMacAddress(),
-		IpAddress:    []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2}, // 192.168.x.x
+		IPAddress:    []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2}, // 192.168.x.x
 		WifiBSSID:    randomMacAddress(),
 		WifiSSID:     "<unknown ssid>",
 		IMEI:         imei,
-		AndroidId:    androidId, // 原版的 androidId和Display内容一样，我没看协议，但是按android文档上说应该是64-bit number的hex，姑且这么做
+		AndroidID:    androidID, // 原版的 androidId和Display内容一样，我没看协议，但是按android文档上说应该是64-bit number的hex，姑且这么做
 		APN:          "wifi",
 		VendorName:   RandString(12), // 这个和下面一个选项(VendorOSName)都属于意义不明，找不到相似对应，不知道是啥
 		VendorOSName: RandString(12),
@@ -216,61 +216,57 @@ func GenerateDeviceJsonAllRandom(protocol int) (string, []byte, error) {
 		},
 	}
 
-	a, b := json.Marshal(deviceJson)
-	return deviceJson.Model, a, b
+	a, b := json.Marshal(deviceJSON)
+	return deviceJSON.Model, a, b
 }
 
-func GenerateDeviceJson(dice *Dice, protocol int) (string, []byte, error) {
+func GenerateDeviceJSON(dice *Dice, protocol int) (string, []byte, error) {
 	switch protocol {
 	case 0, 3:
-		return GenerateDeviceJsonIOS(protocol)
+		return GenerateDeviceJSONIos(protocol)
 	case 2:
-		return GenerateDeviceJsonAndroidWatch(protocol)
+		return GenerateDeviceJSONAndroidWatch(protocol)
 	case 1:
-		return GenerateDeviceJsonAndroid(dice, protocol)
+		return GenerateDeviceJSONAndroid(dice, protocol)
 	default:
-		return GenerateDeviceJsonAllRandom(protocol)
+		return GenerateDeviceJSONAllRandom(protocol)
 	}
 }
 
-func GenerateDeviceJsonAndroid(dice *Dice, protocol int) (string, []byte, error) {
+func GenerateDeviceJSONAndroid(dice *Dice, protocol int) (string, []byte, error) {
 	// check if ./my_device.json exists
 	if _, err := os.Stat("./my_device.json"); err == nil {
 		dice.Logger.Info("检测到my_device.json，将使用该文件中的设备信息")
 		// file exists
 		data, err := os.ReadFile("./my_device.json")
 		if err == nil {
-			deviceJson := deviceFile{}
-			err = json.Unmarshal(data, &deviceJson)
+			deviceJSON := deviceFile{}
+			err = json.Unmarshal(data, &deviceJSON)
 			if err == nil {
-				deviceJson.Protocol = protocol
-				a, b := json.Marshal(deviceJson)
-				return deviceJson.Model, a, b
-			} else {
-				dice.Logger.Warn("读取./my_device.json失败，将使用随机设备信息。原因为JSON解析错误: " + err.Error())
+				deviceJSON.Protocol = protocol
+				a, b := json.Marshal(deviceJSON)
+				return deviceJSON.Model, a, b
 			}
-		} else {
-			dice.Logger.Warn("读取./my_device.json失败，将使用随机设备信息")
+			dice.Logger.Warn("读取./my_device.json失败，将使用随机设备信息。原因为JSON解析错误: " + err.Error())
 		}
+		dice.Logger.Warn("读取./my_device.json失败，将使用随机设备信息")
 	}
 
 	pool := androidDevicePool
-	//rand.Seed(time.Now().Unix())
-	//bootId := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
-	androidId := fmt.Sprintf("%X", rand.Uint64())
+	androidID := fmt.Sprintf("%X", rand.Uint64())
 
 	m := pool[rand.Int()%len(pool)]
-	deviceJson := m.data
+	deviceJSON := m.data
 
-	deviceJson.MacAddress = randomMacAddress()
-	deviceJson.IpAddress = []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2} // 192.168.x.x
-	deviceJson.IMEI = imei
-	deviceJson.AndroidId = androidId
-	deviceJson.Protocol = protocol
+	deviceJSON.MacAddress = randomMacAddress()
+	deviceJSON.IPAddress = []int32{192, 168, rand.Int31() % 255, rand.Int31()%253 + 2} // 192.168.x.x
+	deviceJSON.IMEI = imei
+	deviceJSON.AndroidID = androidID
+	deviceJSON.Protocol = protocol
 
-	a, b := json.Marshal(deviceJson)
-	return deviceJson.Model, a, b
+	a, b := json.Marshal(deviceJSON)
+	return deviceJSON.Model, a, b
 }
 
 var defaultConfig = `
@@ -381,7 +377,7 @@ servers:
         <<: *default # 引用默认中间件
 `
 
-func GenerateConfig(qq int64, port int, info GoCqHttpLoginInfo) string {
+func GenerateConfig(qq int64, port int, info GoCqhttpLoginInfo) string {
 	ret := strings.ReplaceAll(defaultConfig, "{WS端口}", fmt.Sprintf("%d", port))
 	ret = strings.Replace(ret, "{QQ帐号}", fmt.Sprintf("%d", qq), 1)
 	ret = strings.Replace(ret, "{QQ密码}", info.Password, 1)
@@ -397,9 +393,12 @@ func GenerateConfig(qq int64, port int, info GoCqHttpLoginInfo) string {
 }
 
 func generateOldSignServerConfigStr(config *SignServerConfig) string {
-	if config.SignServers != nil {
-		mainServer := config.SignServers[0]
-		return fmt.Sprintf(`
+	if config.SignServers == nil {
+		return ""
+	}
+
+	mainServer := config.SignServers[0]
+	return fmt.Sprintf(`
   # 旧版签名服务相关配置信息
   sign-server: '%s'
   # 如果签名服务器的版本在1.1.0及以下, 请将下面的参数改成true
@@ -407,10 +406,7 @@ func generateOldSignServerConfigStr(config *SignServerConfig) string {
   # is-below-110: false
   # 签名服务器所需要的apikey, 如果签名服务器的版本在1.1.0及以下则此项无效
   key: '%s'
-`, mainServer.Url, mainServer.Key)
-	} else {
-		return ""
-	}
+`, mainServer.URL, mainServer.Key)
 }
 
 func generateNewSignServerConfigStr(config *SignServerConfig) string {
@@ -420,7 +416,7 @@ func generateNewSignServerConfigStr(config *SignServerConfig) string {
 			signServers,
 			fmt.Sprintf(`    - url: '%s'
       key: "%s"
-      authorization: "%s"`, server.Url, server.Key, server.Authorization),
+      authorization: "%s"`, server.URL, server.Key, server.Authorization),
 		)
 	}
 	signServersStr := "  sign-servers:\n" + strings.Join(signServers, "\n")
@@ -431,15 +427,15 @@ func generateNewSignServerConfigStr(config *SignServerConfig) string {
   # 如果遇到 登录 45 错误, 或者发送信息风控的话需要填入一个或多个服务器
   # 不建议设置过多，设置主备各一个即可，超过 5 个只会取前五个
   # 示例:
-  # sign-servers: 
+  # sign-servers:
   #   - url: 'http://127.0.0.1:8080' # 本地签名服务器
   #     key: "114514"  # 相应 key
   #     authorization: "-"   # authorization 内容, 依服务端设置
   #   - url: 'https://signserver.example.com' # 线上签名服务器
-  #     key: "114514"  
-  #     authorization: "-"   
+  #     key: "114514"
+  #     authorization: "-"
   #   ...
-  # 
+  #
   # 服务器可使用docker在本地搭建或者使用他人开放的服务
 %s
 
@@ -483,7 +479,7 @@ func generateNewSignServerConfigStr(config *SignServerConfig) string {
 
 func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
 	conn := new(EndPointInfo)
-	conn.Id = uuid.New().String()
+	conn.ID = uuid.New().String()
 	conn.Platform = "QQ"
 	conn.ProtocolType = "onebot"
 	conn.Enable = false
@@ -496,7 +492,7 @@ func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
 	return conn
 }
 
-func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
+func GoCqhttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 	defer func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -512,11 +508,11 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 		if pa.UseInPackGoCqhttp {
 			// 重置状态
 			conn.State = 0
-			pa.GoCqHttpState = 0
+			pa.GoCqhttpState = 0
 
 			pa.DiceServing = false
-			pa.GoCqHttpQrcodeData = nil
-			pa.GoCqHttpLoginDeviceLockUrl = ""
+			pa.GoCqhttpQrcodeData = nil
+			pa.GoCqhttpLoginDeviceLockURL = ""
 
 			workDir := gocqGetWorkDir(dice, conn)
 			qrcodeFile := filepath.Join(workDir, "qrcode.png")
@@ -527,10 +523,10 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			}
 
 			// 注意这个会panic，因此recover捕获了
-			if pa.GoCqHttpProcess != nil {
-				p := pa.GoCqHttpProcess
-				pa.GoCqHttpProcess = nil
-				//sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
+			if pa.GoCqhttpProcess != nil {
+				p := pa.GoCqhttpProcess
+				pa.GoCqhttpProcess = nil
+				// sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
 				_ = p.Stop()
 				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
 			}
@@ -540,21 +536,17 @@ func GoCqHttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 
 func gocqGetWorkDir(dice *Dice, conn *EndPointInfo) string {
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
-	//pa := conn.Adapter.(*PlatformAdapterGocq)
-	//if !pa.UseInPackGoCqhttp {
-	//	return "#$%Abort^?*" // 使其尽量非法，从而跳过连接外所有流程
-	//}
 	return workDir
 }
 
-func GoCqHttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
+func GoCqhttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 	workDir := gocqGetWorkDir(dice, conn)
 	if _, err := os.Stat(filepath.Join(workDir, "session.token")); err == nil {
 		_ = os.Remove(filepath.Join(workDir, "session.token"))
 	}
 }
 
-type GoCqHttpLoginInfo struct {
+type GoCqhttpLoginInfo struct {
 	Password         string
 	Protocol         int
 	AppVersion       string
@@ -574,23 +566,23 @@ type SignServerConfig struct {
 }
 
 type SignServer struct {
-	Url           string `yaml:"url" json:"url"`
+	URL           string `yaml:"url" json:"url"`
 	Key           string `yaml:"key" json:"key"`
 	Authorization string `yaml:"authorization" json:"authorization"`
 }
 
-func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) {
+func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) {
 	pa := conn.Adapter.(*PlatformAdapterGocq)
-	//if pa.GoCqHttpState != StateCodeInit {
+	// if pa.GoCqHttpState != StateCodeInit {
 	//	return
 	//}
 
-	pa.CurLoginIndex += 1
+	pa.CurLoginIndex++
 	loginIndex := pa.CurLoginIndex
-	pa.GoCqHttpState = StateCodeInLogin
+	pa.GoCqhttpState = StateCodeInLogin
 
 	fmt.Println("GoCqHttpServe begin")
-	if pa.UseInPackGoCqhttp {
+	if pa.UseInPackGoCqhttp { //nolint:nestif
 		workDir := gocqGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0755)
 
@@ -604,8 +596,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 			dice.Logger.Info("onebot: 删除已存在的二维码文件")
 		}
 
-		//if _, err := os.Stat(filepath.Join(workDir, "session.token")); errors.Is(err, os.ErrNotExist) {
-		if !pa.GoCqHttpLoginSucceeded {
+		if !pa.GoCqhttpLoginSucceeded {
 			// 并未登录成功，删除记录文件
 			dice.Logger.Info("onebot: 之前并未登录成功，删除设备文件和配置文件")
 			_ = os.Remove(configFilePath)
@@ -614,7 +605,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 
 		// 创建设备配置文件
 		if _, err := os.Stat(deviceFilePath); errors.Is(err, os.ErrNotExist) {
-			_, deviceInfo, err := GenerateDeviceJson(dice, loginInfo.Protocol)
+			_, deviceInfo, err := GenerateDeviceJSON(dice, loginInfo.Protocol)
 			if err == nil {
 				_ = os.WriteFile(deviceFilePath, deviceInfo, 0644)
 				dice.Logger.Info("onebot: 成功创建设备文件")
@@ -626,8 +617,8 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 			// 如果不存在 config.yml 那么启动一次，让它自动生成
 			// 改为：如果不存在，帮他创建
 			p, _ := GetRandomFreePort()
-			pa.ConnectUrl = fmt.Sprintf("ws://localhost:%d", p)
-			qqid, _ := pa.mustExtractId(conn.UserId)
+			pa.ConnectURL = fmt.Sprintf("ws://localhost:%d", p)
+			qqid, _ := pa.mustExtractID(conn.UserID)
 			c := GenerateConfig(qqid, p, loginInfo)
 			_ = os.WriteFile(configFilePath, []byte(c), 0644)
 		}
@@ -647,7 +638,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 		// 启动客户端
 		wd, _ := os.Getwd()
 		gocqhttpExePath, _ := filepath.Abs(filepath.Join(wd, "go-cqhttp/go-cqhttp"))
-		gocqhttpExePath = strings.Replace(gocqhttpExePath, "\\", "/", -1) // windows平台需要这个替换
+		gocqhttpExePath = strings.ReplaceAll(gocqhttpExePath, "\\", "/") // windows平台需要这个替换
 
 		// 随手执行一下
 		_ = os.Chmod(gocqhttpExePath, 0755)
@@ -687,14 +678,14 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 
 				// 获取二维码失败，登录失败
 				if strings.Contains(line, "fetch qrcode error: Packet timed out ") {
-					dice.Logger.Infof("从QQ服务器获取二维码错误（超时），帐号: <%s>(%s)", conn.Nickname, conn.UserId)
-					pa.GoCqHttpState = StateCodeLoginFailed
+					dice.Logger.Infof("从QQ服务器获取二维码错误（超时），帐号: <%s>(%s)", conn.Nickname, conn.UserID)
+					pa.GoCqhttpState = StateCodeLoginFailed
 				}
 
 				// 未知错误，gocqhttp崩溃
 				if strings.Contains(line, "Packet failed to sendPacket: connection closed") {
 					dice.Logger.Infof("登录异常，gocqhttp崩溃")
-					pa.GoCqHttpState = StateCodeLoginFailed
+					pa.GoCqhttpState = StateCodeLoginFailed
 				}
 
 				if strings.Contains(line, "按 Enter 继续....") {
@@ -708,9 +699,9 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 					dice.Logger.Info("触发设备锁流程: ", len(m) > 0)
 					if len(m) > 0 {
 						// 设备锁流程，因为需要重新登录，进行一个“已成功登录过”的标记，这样配置文件不会被删除
-						pa.GoCqHttpState = StateCodeInLoginDeviceLock
-						pa.GoCqHttpLoginSucceeded = true
-						pa.GoCqHttpLoginDeviceLockUrl = m[1]
+						pa.GoCqhttpState = StateCodeInLoginDeviceLock
+						pa.GoCqhttpLoginSucceeded = true
+						pa.GoCqhttpLoginDeviceLockURL = m[1]
 						dice.LastUpdatedTime = time.Now().Unix()
 						dice.Save(false)
 					}
@@ -720,7 +711,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 					re := regexp.MustCompile(`\[WARNING\]: 发送短信验证码 (.+?) 发送短信验证码`)
 					m := re.FindStringSubmatch(line)
 					if len(m) > 0 {
-						pa.GoCqHttpSmsNumberTip = m[1]
+						pa.GoCqhttpSmsNumberTip = m[1]
 					}
 				}
 
@@ -757,25 +748,25 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 						dice.Logger.Info("触发滑条流程: ", len(m) > 0)
 
 						if len(m) > 0 {
-							pa.GoCqHttpState = GoCqHttpStateCodeInLoginBar
-							pa.GoCqHttpLoginDeviceLockUrl = strings.TrimSpace(m[1])
+							pa.GoCqhttpState = GoCqhttpStateCodeInLoginBar
+							pa.GoCqhttpLoginDeviceLockURL = strings.TrimSpace(m[1])
 						}
 					}
 				}
 
 				if strings.Contains(line, " [WARNING]: 请输入短信验证码：") {
 					dice.Logger.Info("进入短信验证码流程，等待输入")
-					pa.GoCqHttpState = GoCqHttpStateCodeInLoginVerifyCode
-					pa.GoCqHttpLoginVerifyCode = ""
+					pa.GoCqhttpState = GoCqhttpStateCodeInLoginVerifyCode
+					pa.GoCqhttpLoginVerifyCode = ""
 					go func() {
 						// 检查是否有短信验证码
-						for i := 0; i < 100; i += 1 {
-							if pa.GoCqHttpState != GoCqHttpStateCodeInLoginVerifyCode {
+						for i := 0; i < 100; i++ {
+							if pa.GoCqhttpState != GoCqhttpStateCodeInLoginVerifyCode {
 								break
 							}
-							time.Sleep(6 * time.Duration(time.Second))
-							if pa.GoCqHttpLoginVerifyCode != "" {
-								chSMS <- pa.GoCqHttpLoginVerifyCode
+							time.Sleep(6 * time.Second)
+							if pa.GoCqhttpLoginVerifyCode != "" {
+								chSMS <- pa.GoCqhttpLoginVerifyCode
 								break
 							}
 						}
@@ -786,7 +777,7 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 				}
 
 				if strings.Contains(line, "发送验证码失败，可能是请求过于频繁.") {
-					pa.GoCqHttpState = StateCodeLoginFailed
+					pa.GoCqhttpState = StateCodeLoginFailed
 					pa.GocqhttpLoginFailedReason = "发送验证码失败，可能是请求过于频繁"
 				}
 
@@ -794,9 +785,9 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 				if strings.Contains(line, "CQ WebSocket 服务器已启动") {
 					// CQ WebSocket 服务器已启动
 					// 登录成功 欢迎使用
-					pa.GoCqHttpState = StateCodeLoginSuccessed
-					pa.GoCqHttpLoginSucceeded = true
-					dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserId)
+					pa.GoCqhttpState = StateCodeLoginSuccessed
+					pa.GoCqhttpLoginSucceeded = true
+					dice.Logger.Infof("gocqhttp登录成功，帐号: <%s>(%s)", conn.Nickname, conn.UserID)
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
 
@@ -805,43 +796,43 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 			}
 
 			if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
-				//TODO
+				// TODO
 				fmt.Println("请使用手机QQ扫描二维码以继续登录")
 			}
 
 			if (pa.IsLoginSuccessed() && strings.Contains(line, "[ERROR]:") && strings.Contains(line, "Protocol -> sendPacket msg error: 120")) || strings.Contains(line, "账号可能被风控####2测试触发语句") {
 				// 这种情况应该是被禁言，提前减去以免出事
-				riskCount -= 1
+				riskCount--
 				dice.Logger.Infof("因禁言无法发言: 下方可能会提示遭遇风控")
 			}
 
 			if pa.IsLoginSuccessed() {
 				if strings.Contains(line, "[ERROR]:") && strings.Contains(line, "错误: 请先添加") && strings.Contains(line, "为好友") {
 					// [ERROR]: 错误: 请先添加 xxx 为好友
-					pa.riskAlertShieldCount += 1
+					pa.riskAlertShieldCount++
 				}
 
 				if strings.Contains(line, "[WARNING]:") && strings.Contains(line, "图片上传失败") {
 					// [2023-09-27 11:19:18] [WARNING]: 警告: 群 xxx 图片上传失败
-					pa.riskAlertShieldCount += 1
+					pa.riskAlertShieldCount++
 				}
 			}
 
 			if (pa.IsLoginSuccessed() && strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
-				//群消息发送失败: 账号可能被风控
+				// 群消息发送失败: 账号可能被风控
 				now := time.Now().Unix()
-				if now-pa.GoCqHttpLastRestrictedTime < 5*60 {
+				if now-pa.GoCqhttpLastRestrictedTime < 5*60 {
 					// 阈值是5分钟内2次
-					riskCount += 1
+					riskCount++
 				}
-				pa.GoCqHttpLastRestrictedTime = now
+				pa.GoCqhttpLastRestrictedTime = now
 				if riskCount >= 2 {
 					riskCount = 0
 					if dice.AutoReloginEnable {
 						// 大于5分钟触发
 						if now-pa.GoCqLastAutoLoginTime > 5*60 {
-							dice.Logger.Warnf("自动重启: 达到风控重启阈值 <%s>(%s)", conn.Nickname, conn.UserId)
-							if pa.InPackGoCqHttpPassword != "" {
+							dice.Logger.Warnf("自动重启: 达到风控重启阈值 <%s>(%s)", conn.Nickname, conn.UserID)
+							if pa.InPackGoCqhttpPassword != "" {
 								pa.DoRelogin()
 							} else {
 								dice.Logger.Warnf("自动重启: 未输入密码，放弃")
@@ -873,10 +864,8 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 
 					if !skip {
 						dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
-					} else {
-						if strings.HasSuffix(line, "\n") {
-							fmt.Printf("onebot | %s", line)
-						}
+					} else if strings.HasSuffix(line, "\n") {
+						fmt.Printf("onebot | %s", line)
 					}
 				} else {
 					if strings.HasSuffix(line, "\n") {
@@ -912,15 +901,15 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 				fmt.Println("如控制台二维码不好扫描，可以手动打开 ./data/default/extra/go-cqhttp-qqXXXXX 目录下qrcode.png")
 				qrdata, err := os.ReadFile(qrcodeFile)
 				if err == nil {
-					pa.GoCqHttpState = StateCodeInLoginQrCode
-					pa.GoCqHttpQrcodeData = qrdata
+					pa.GoCqhttpState = StateCodeInLoginQrCode
+					pa.GoCqhttpQrcodeData = qrdata
 					dice.Logger.Info("获取二维码成功")
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
 					_ = os.Rename(qrcodeFile, qrcodeFile+".bak.png")
 				} else {
-					pa.GoCqHttpQrcodeData = nil
-					pa.GoCqHttpState = StateCodeLoginFailed
+					pa.GoCqhttpQrcodeData = nil
+					pa.GoCqhttpState = StateCodeLoginFailed
 					pa.GocqhttpLoginFailedReason = "获取二维码失败"
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
@@ -937,13 +926,13 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 			}()
 
 			// 启动gocqhttp，开始登录
-			pa.GoCqHttpProcess = p
+			pa.GoCqhttpProcess = p
 			err := p.Start()
 
 			if err == nil {
 				if dice.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
-					err := dice.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
-					if err != nil {
+					errAdd := dice.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
+					if errAdd != nil {
 						dice.Logger.Warn("添加到进程组失败，若主进程崩溃，gocqhttp进程可能需要手动结束")
 					}
 				}
@@ -951,17 +940,17 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 			}
 
 			isInLogin := pa.IsInLogin()
-			isDeviceLockLogin := pa.GoCqHttpState == StateCodeInLoginDeviceLock
+			isDeviceLockLogin := pa.GoCqhttpState == StateCodeInLoginDeviceLock
 			if !isDeviceLockLogin {
 				// 如果在设备锁流程中，不清空数据
-				GoCqHttpServeProcessKill(dice, conn)
+				GoCqhttpServeProcessKill(dice, conn)
 
 				if isInLogin {
 					conn.State = 3
-					pa.GoCqHttpState = StateCodeLoginFailed
+					pa.GoCqhttpState = StateCodeLoginFailed
 				} else {
 					conn.State = 0
-					pa.GoCqHttpState = GoCqHttpStateCodeClosed
+					pa.GoCqhttpState = GoCqhttpStateCodeClosed
 				}
 			}
 
@@ -978,8 +967,8 @@ func GoCqHttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqHttpLoginInfo) 
 			run()
 		}
 	} else {
-		pa.GoCqHttpState = StateCodeLoginSuccessed
-		pa.GoCqHttpLoginSucceeded = true
+		pa.GoCqhttpState = StateCodeLoginSuccessed
+		pa.GoCqhttpLoginSucceeded = true
 		dice.Save(false)
 		go ServeQQ(dice, conn)
 	}

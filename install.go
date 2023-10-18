@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/kardianos/service"
 	"os"
 	"path/filepath"
+
+	"github.com/kardianos/service"
 )
 
 type program struct{}

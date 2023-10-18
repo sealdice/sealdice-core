@@ -1,8 +1,9 @@
 package dice
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type AddDiscordEcho struct {
@@ -13,11 +14,11 @@ type AddDiscordEcho struct {
 // NewDiscordConnItem 本来没必要写这个的，但是不知道为啥依赖出问题
 func NewDiscordConnItem(v AddDiscordEcho) *EndPointInfo {
 	conn := new(EndPointInfo)
-	conn.Id = uuid.New().String()
+	conn.ID = uuid.New().String()
 	conn.Platform = "DISCORD"
 	conn.ProtocolType = ""
 	conn.Enable = false
-	conn.RelWorkDir = "extra/discord-" + conn.Id
+	conn.RelWorkDir = "extra/discord-" + conn.ID
 	conn.Adapter = &PlatformAdapterDiscord{
 		EndPoint: conn,
 		Token:    v.Token,

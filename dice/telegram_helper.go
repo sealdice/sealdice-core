@@ -4,11 +4,11 @@ import "github.com/google/uuid"
 
 func NewTelegramConnItem(token string, proxy string) *EndPointInfo {
 	conn := new(EndPointInfo)
-	conn.Id = uuid.New().String()
+	conn.ID = uuid.New().String()
 	conn.Platform = "TG"
 	conn.ProtocolType = ""
 	conn.Enable = false
-	conn.RelWorkDir = "extra/telegram-" + conn.Id
+	conn.RelWorkDir = "extra/telegram-" + conn.ID
 	conn.Adapter = &PlatformAdapterTelegram{
 		EndPoint: conn,
 		Token:    token,

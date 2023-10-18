@@ -5,12 +5,12 @@ import "testing"
 var testSignServerConfig = &SignServerConfig{
 	SignServers: []*SignServer{
 		{
-			Url:           "http://127.0.0.1:8080",
+			URL:           "http://127.0.0.1:8080",
 			Key:           "114514",
 			Authorization: "-",
 		},
 		{
-			Url:           "https://signserver.example.com",
+			URL:           "https://signserver.example.com",
 			Key:           "114514",
 			Authorization: "Bearer xxxx",
 		},
@@ -73,15 +73,15 @@ func Test_generateNewSignServerConfigStr(t *testing.T) {
   # 如果遇到 登录 45 错误, 或者发送信息风控的话需要填入一个或多个服务器
   # 不建议设置过多，设置主备各一个即可，超过 5 个只会取前五个
   # 示例:
-  # sign-servers: 
+  # sign-servers:
   #   - url: 'http://127.0.0.1:8080' # 本地签名服务器
   #     key: "114514"  # 相应 key
   #     authorization: "-"   # authorization 内容, 依服务端设置
   #   - url: 'https://signserver.example.com' # 线上签名服务器
-  #     key: "114514"  
-  #     authorization: "-"   
+  #     key: "114514"
+  #     authorization: "-"
   #   ...
-  # 
+  #
   # 服务器可使用docker在本地搭建或者使用他人开放的服务
   sign-servers:
     - url: 'http://127.0.0.1:8080'

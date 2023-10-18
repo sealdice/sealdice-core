@@ -2,12 +2,13 @@ package dice
 
 import (
 	"fmt"
-	wr "github.com/mroth/weightedrand"
-	"github.com/xuri/excelize/v2"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+
+	wr "github.com/mroth/weightedrand"
+	"github.com/xuri/excelize/v2"
 )
 
 type NamesGenerator struct {
@@ -43,7 +44,7 @@ func (ng *NamesGenerator) Load() {
 							}
 							values = append(values, i)
 						}
-						//values := column[1:] // 注意行数是以最大行数算的，所以会出现很多空行，不能这样取
+						// values := column[1:] // 注意行数是以最大行数算的，所以会出现很多空行，不能这样取
 						words[name] = values
 					}
 				}
@@ -65,12 +66,6 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 
 	re := regexp.MustCompile(`\{[^}]+}`)
 	tmpVars := map[string]int{}
-
-	//xx := []string{}
-	//for i, _ := range ng.NamesInfo {
-	//	xx = append(xx, i)
-	//}
-	//fmt.Println("dddd", xx)
 
 	getList := func(inner string) []string {
 		// TODO: 可在ng加缓存优化速度

@@ -103,17 +103,14 @@ func CQToText(t string, d map[string]string) MessageElement {
 }
 func getFileName(header http.Header) (string, error) {
 	contentDisposition := header.Get("Content-Disposition")
-	//fmt.Println("contentDisposition: ", contentDisposition)
 	if contentDisposition == "" {
 		return calculateMD5(header), nil
 	}
 	return regexp.MustCompile(`filename=(.+)`).FindStringSubmatch(strings.Split(contentDisposition, ";")[1])[1], nil
-
-	//return calculateMD5(header), nil
 }
 
 func calculateMD5(header http.Header) string {
-	hash := md5.New()
+	hash := md5.New() //nolint:gosec
 	for _, value := range header["Content-Type"] {
 		hash.Write([]byte(value))
 	}
@@ -146,17 +143,15 @@ func (d *Dice) ExtractLocalTempFile(path string) (string, *os.File, error) {
 
 func (d *Dice) FilepathToFileElement(fp string) (*FileElement, error) {
 	if strings.HasPrefix(fp, "http") {
-		resp, err := http.Get(fp)
+		resp, err := http.Get(fp) //nolint:gosec
 		if err != nil {
 			return nil, err
 		}
 		header := resp.Header
 		content, err := io.ReadAll(resp.Body)
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(resp.Body)
+		defer func() { _ = resp.Body.Close() }()
 
-		if resp.StatusCode != 200 {
+		if resp.StatusCode != http.StatusOK {
 			return nil, errors.New("http get failed")
 		}
 		filename, _ := getFileName(header)
@@ -176,18 +171,18 @@ func (d *Dice) FilepathToFileElement(fp string) (*FileElement, error) {
 		if err != nil {
 			return nil, err
 		}
-		Sha1Inst := sha1.New()
+		sha1Inst := sha1.New() //nolint:gosec
 		filetype, _ := mime.ExtensionsByType(http.DetectContentType(content))
 		var suffix string
 		if filetype != nil {
 			suffix = filetype[len(filetype)-1]
 		}
-		Sha1Inst.Write(content)
-		Result := Sha1Inst.Sum([]byte(""))
+		sha1Inst.Write(content)
+		result := sha1Inst.Sum([]byte(""))
 		r := &FileElement{
 			Stream:      bytes.NewReader(content),
 			ContentType: http.DetectContentType(content),
-			File:        fmt.Sprintf("%x%s", Result, suffix),
+			File:        fmt.Sprintf("%x%s", result, suffix),
 		}
 		return r, nil
 	} else {
@@ -336,54 +331,53 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 func SealCodeToCqCode(text string) string {
 	re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
 	m := re.FindStringSubmatch(text)
-	if m != nil {
-		fn := m[2]
-		cqType := "image"
-		if m[1] == "voice" || m[1] == "语音" {
-			cqType = "record"
-		}
-		if m[1] == "video" || m[1] == "视频" {
-			cqType = "video"
-		}
-
-		if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
-			u, err := url.Parse(fn)
-			if err != nil {
-				return text
-			}
-			cq := CQCommand{
-				Type: cqType,
-				Args: map[string]string{"file": u.String()},
-			}
-			return cq.Compile()
-		}
-
-		afn, err := filepath.Abs(fn)
-		if err != nil {
-			return text // 不是文件路径，不管
-		}
-		cwd, _ := os.Getwd()
-		if strings.HasPrefix(afn, cwd) {
-			if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
-				return "[找不到图片/文件]"
-			} else {
-				// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
-				if runtime.GOOS == `windows` {
-					afn = "/" + afn
-				}
-				u := url.URL{
-					Scheme: "file",
-					Path:   afn,
-				}
-				cq := CQCommand{
-					Type: cqType,
-					Args: map[string]string{"file": u.String()},
-				}
-				return cq.Compile()
-			}
-		} else {
-			return "[图片/文件指向非当前程序目录，已禁止]"
-		}
+	if len(m) == 0 {
+		return text
 	}
-	return text
+
+	fn := m[2]
+	cqType := "image"
+	if m[1] == "voice" || m[1] == "语音" {
+		cqType = "record"
+	}
+	if m[1] == "video" || m[1] == "视频" {
+		cqType = "video"
+	}
+
+	if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
+		u, err := url.Parse(fn)
+		if err != nil {
+			return text
+		}
+		cq := CQCommand{
+			Type: cqType,
+			Args: map[string]string{"file": u.String()},
+		}
+		return cq.Compile()
+	}
+
+	afn, err := filepath.Abs(fn)
+	if err != nil {
+		return text // 不是文件路径，不管
+	}
+	cwd, _ := os.Getwd()
+	if strings.HasPrefix(afn, cwd) {
+		if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
+			return "[找不到图片/文件]"
+		}
+		// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
+		if runtime.GOOS == `windows` {
+			afn = "/" + afn
+		}
+		u := url.URL{
+			Scheme: "file",
+			Path:   afn,
+		}
+		cq := CQCommand{
+			Type: cqType,
+			Args: map[string]string{"file": u.String()},
+		}
+		return cq.Compile()
+	}
+	return "[图片/文件指向非当前程序目录，已禁止]"
 }

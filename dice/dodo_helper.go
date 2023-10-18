@@ -1,17 +1,18 @@
 package dice
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func NewDodoConnItem(clientID string, token string) *EndPointInfo {
 	conn := new(EndPointInfo)
-	conn.Id = uuid.New().String()
+	conn.ID = uuid.New().String()
 	conn.Platform = "DODO"
 	conn.ProtocolType = ""
 	conn.Enable = false
-	conn.RelWorkDir = "extra/dodo-" + conn.Id
+	conn.RelWorkDir = "extra/dodo-" + conn.ID
 	conn.Adapter = &PlatformAdapterDodo{
 		EndPoint: conn,
 		ClientID: clientID,

@@ -77,7 +77,7 @@ func getNewsMd5(news []byte) (string, string, error) {
 		return "", "", err
 	}
 
-	mark := md5.New()
+	mark := md5.New() //nolint:gosec
 	mark.Write(miniH)
 	return string(miniH), hex.EncodeToString(mark.Sum(nil)), nil
 }

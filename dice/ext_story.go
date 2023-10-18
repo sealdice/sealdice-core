@@ -2,11 +2,12 @@ package dice
 
 import (
 	"fmt"
-	strip "github.com/grokify/html-strip-tags-go"
 	"html"
 	"math/rand"
 	"strconv"
 	"strings"
+
+	strip "github.com/grokify/html-strip-tags-go"
 )
 
 func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][]string, rulesCallback func(gender string) [][]string, defaultIndex int) CmdExecuteResult {
@@ -97,7 +98,6 @@ func RegisterBuiltinStory(self *Dice) {
 		ShortHelp: ".name cn/en/jp (<数量>) (<性别>)",
 		Help:      "生成随机名字:\n.name cn/en/jp (<数量>) (<性别>)",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-
 			return cmdRandomName(ctx, msg, cmdArgs, [][]string{
 				{"cn", "中文", "zh", "中国"},
 				{"en", "英文", "英国", "美国", "us"},
@@ -269,7 +269,7 @@ func RegisterBuiltinStory(self *Dice) {
 				if ret != nil {
 					item := ret.Data.Module
 
-					//opinion := item.Opinion
+					// opinion := item.Opinion
 					opinion := html.UnescapeString(item.Opinion) // 确实仍然存在一些 有标签的，如2488
 					opinion = strip.StripTags(opinion)
 					ori := "是"
@@ -278,13 +278,13 @@ func RegisterBuiltinStory(self *Dice) {
 					}
 
 					var recInfo string
-					//if len(ret.Data.RecommendList) > 0 {
+					// if len(ret.Data.RecommendList) > 0 {
 					//	rec := ret.Data.RecommendList[0]
 					//	recInfo = fmt.Sprintf("推荐语: %s - by %s\n", rec.Content, rec.LoginUser.NickName)
 					//}
 
 					text := fmt.Sprintf("[%d]%s\n作者: %s\n背景: %s,%s\n规模: %d-%d人，%d-%d时\n原创: %v\n简介: %s\n%sPC端链接：%s\n移动端链接：%s",
-						item.KeyId, item.Title,
+						item.KeyID, item.Title,
 						item.Article,
 						item.ModuleAge, item.OccurrencePlace,
 						item.MinAmount, item.MaxAmount,
@@ -292,8 +292,8 @@ func RegisterBuiltinStory(self *Dice) {
 						ori,
 						opinion,
 						recInfo,
-						"https://www.cnmods.net/web/moduleDetail?keyId="+strconv.Itoa(item.KeyId),
-						"https://www.cnmods.net/mobile/moduleDetail?keyId="+strconv.Itoa(item.KeyId),
+						"https://www.cnmods.net/web/moduleDetail?keyId="+strconv.Itoa(item.KeyID),
+						"https://www.cnmods.net/mobile/moduleDetail?keyId="+strconv.Itoa(item.KeyID),
 					)
 					return text
 				}
@@ -334,10 +334,10 @@ func RegisterBuiltinStory(self *Dice) {
 							ver = "[coc6]"
 						}
 						// 魔都现在只有coc本
-						//if item.ModuleVersion == "coc7th" {
+						// if item.ModuleVersion == "coc7th" {
 						//	ver = "[coc7]"
 						//}
-						text += fmt.Sprintf("[%d]%s%s %s%s - by %s\n", item.KeyId, ver, item.Title, item.ModuleAge, item.OccurrencePlace, item.Article)
+						text += fmt.Sprintf("[%d]%s%s %s%s - by %s\n", item.KeyID, ver, item.Title, item.ModuleAge, item.OccurrencePlace, item.Article)
 					}
 					if len(ret.Data.List) == 0 {
 						text += "什么也没发现"
@@ -376,15 +376,9 @@ func RegisterBuiltinStory(self *Dice) {
 		Author:     "木落",
 		AutoActive: true, // 是否自动开启
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			//p := getPlayerInfoBySender(session, msg)
-			//p.TempValueAlias = &ac.Alias;
 		},
-		GetDescText: func(i *ExtInfo) string {
-			return GetExtensionDesc(i)
-		},
-		OnLoad: func() {
-
-		},
+		GetDescText: GetExtensionDesc,
+		OnLoad:      func() {},
 		CmdMap: CmdMapCls{
 			"name":    cmdName,
 			"namednd": cmdNameDnd,

@@ -3,10 +3,11 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"github.com/fy0/lockfree"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/fy0/lockfree"
 )
 
 func cmdStGetPickItemAndLimit(tmpl *GameSystemTemplate, cmdArgs *CmdArgs) (pickItems map[string]int, limit int64) {
@@ -36,7 +37,7 @@ func cmdStGetPickItemAndLimit(tmpl *GameSystemTemplate, cmdArgs *CmdArgs) (pickI
 	return pickItems, limit
 }
 
-func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, limit int64) (topNum int, items []string) {
+func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, _ int64) (topNum int, items []string) {
 	// 或者有pickItems，或者当前的变量数量大于0
 	if len(pickItems) > 0 || mctx.ChVarsNumGet() > 0 {
 		// 按照配置文件排序
@@ -99,16 +100,16 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 				sortByValue := func(i, j int) bool {
 					a := vals[i].Val
 					b := vals[j].Val
-					if a.TypeId != b.TypeId {
-						return a.TypeId < b.TypeId
+					if a.TypeID != b.TypeID {
+						return a.TypeID < b.TypeID
 					}
-					if a.TypeId == VMTypeInt64 {
+					if a.TypeID == VMTypeInt64 {
 						if isDesc {
 							return a.Value.(int64) > b.Value.(int64)
 						}
 						return a.Value.(int64) < b.Value.(int64)
 					}
-					if a.TypeId == VMTypeString {
+					if a.TypeID == VMTypeString {
 						a1, _ := a.ReadString()
 						b1, _ := b.ReadString()
 						return a1 < b1
@@ -172,8 +173,8 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 			}
 
 			if index >= topNum {
-				if useLimit && v.TypeId == VMTypeInt64 && v.Value.(int64) < limit {
-					limitSkipCount += 1
+				if useLimit && v.TypeID == VMTypeInt64 && v.Value.(int64) < limit {
+					limitSkipCount++
 					continue
 				}
 			}
@@ -204,7 +205,7 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate) (items [
 				return nil, 0, errors.New("模板卡异常, 属性: " + k)
 			}
 
-			if v.TypeId == VMTypeComputedValue {
+			if v.TypeID == VMTypeComputedValue {
 				items = append(items, fmt.Sprintf("&%s:%s", k, v.ToString()))
 			} else {
 				items = append(items, fmt.Sprintf("%s:%s", k, v.ToString()))
@@ -229,7 +230,7 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, chVars lockfree.H
 		curVal = VMValueNew(VMTypeInt64, int64(0))
 	}
 
-	if curVal.TypeId != VMTypeInt64 {
+	if curVal.TypeID != VMTypeInt64 {
 		// 跳过非数字
 		return
 	}
@@ -260,10 +261,7 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, chVars lockfree.H
 		"op":      i.op,
 	})
 
-	//baseValue := ""
-	//text := fmt.Sprintf("%s%s(%d ➯ %d)", i.name, baseValue, theOldValue, theNewValue)
 	chVars.Set(i.name, VMValueNew(VMTypeInt64, theNewValue))
-	//textPieces = append(textPieces, text)
 
 	VarSetValueStr(mctx, "$t属性", i.name)
 	VarSetValueInt64(mctx, "$t旧值", theOldValue)
@@ -280,10 +278,7 @@ type stSetOrModInfoItem struct {
 	expr  string
 }
 
-func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *VmResult, toSetItems []*stSetOrModInfoItem, toModItems []*stSetOrModInfoItem, err error) {
-	//var texts []string
-	//mctx.SystemTemplate = tmpl
-
+func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *VMResult, toSetItems []*stSetOrModInfoItem, toModItems []*stSetOrModInfoItem, err error) {
 	// 处理全角符号
 	text = strings.ReplaceAll(text, "＋", "+")
 	text = strings.ReplaceAll(text, "－", "-")
@@ -296,14 +291,13 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 		DefaultDiceSideNum: getDefaultDicePoints(ctx),
 		DisableBlock:       true,
 		StCallback: func(_type string, name string, val *VMValue, op string, detail string) {
-			//texts = append(texts, fmt.Sprintf("[%s]%s: %s %s [%s]", _type, name, val.ToString(), op, detail))
 			switch _type {
 			case "set":
 				newname := tmpl.GetAlias(name)
 				toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val})
 			case "mod":
 				newname := tmpl.GetAlias(name)
-				if val.TypeId != VMTypeInt64 {
+				if val.TypeID != VMTypeInt64 {
 					return
 				}
 				toModItems = append(toModItems, &stSetOrModInfoItem{name: newname, value: val, op: op, expr: detail})
@@ -332,10 +326,10 @@ func cmdStCharFormat1(mctx *MsgContext, tmpl *GameSystemTemplate, vars lockfree.
 			v := (_v).(*VMValue)
 
 			newKey := tmpl.GetAlias(key)
-			if v.TypeId == VMTypeInt64 {
+			if v.TypeID == VMTypeInt64 {
 				// val, detail, calculated, exists2
 				val, _, _, exists := tmpl.GetDefaultValueEx0(mctx, newKey)
-				if exists && val.TypeId == v.TypeId && val.Value == v.Value {
+				if exists && val.TypeID == v.TypeID && val.Value == v.Value {
 					// 与默认值相同，跳过
 					toRemove[key] = true
 					continue
@@ -418,7 +412,7 @@ func getCmdStBase() *CmdItemInfo {
 				tick := 0
 				info := ""
 				for _, i := range items {
-					tick += 1
+					tick++
 					info += i
 					if tick%itemsPerLine == 0 {
 						info += "\n"
@@ -436,7 +430,7 @@ func getCmdStBase() *CmdItemInfo {
 					VarSetValueInt64(mctx, "$t数量", int64(droppedByLimit))
 					VarSetValueInt64(mctx, "$t判定值", limit)
 					info += DiceFormatTmpl(mctx, "COC:属性设置_列出_隐藏提示")
-					//info += fmt.Sprintf("\n注：%d条属性因≤%d被隐藏", limktSkipCount, limit)
+					// info += fmt.Sprintf("\n注：%d条属性因≤%d被隐藏", limktSkipCount, limit)
 				}
 
 				VarSetValueStr(mctx, "$t属性信息", info)
@@ -486,24 +480,18 @@ func getCmdStBase() *CmdItemInfo {
 					mctx.ChVarsUpdateTime()
 				}
 
-				//VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
-				//VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
-				//ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:属性设置_删除"))
 				VarSetValueStr(mctx, "$t属性列表", strings.Join(nums, " "))
 				VarSetValueInt64(mctx, "$t失败数量", int64(len(failed)))
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_删除"))
-
 			case "clr", "clear":
 				num := mctx.ChVarsClear()
 				VarSetValueInt64(mctx, "$t数量", int64(num))
-				//text := fmt.Sprintf("<%s>的属性数据已经清除，共计%d条", p.Name, num)
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_清除"))
 
 			case "fmt", "format":
 				cmdStCharFormat(mctx, tmpl)
 				ReplyToSender(mctx, msg, "角色卡片类型被强制修改为: "+ctx.Group.System)
 
-			//case "export":
 			default:
 				if cardType != "" && cardType != mctx.Group.System {
 					ReplyToSender(mctx, msg, fmt.Sprintf("阻止操作：当前卡规则为 %s，群规则为 %s。\n为避免损坏此人物卡，请先更换/新建角色卡，或使用.st clr清除数据", cardType, mctx.Group.System))
@@ -516,15 +504,12 @@ func getCmdStBase() *CmdItemInfo {
 				r, toSetItems, toModItems, err := cmdStReadOrMod(mctx, tmpl, cmdArgs.CleanArgs)
 
 				if err != nil {
-					//ReplyToSender(mctx, msg, "") // +err.Error()
 					dice.Logger.Info(".st 格式错误: ", err.Error())
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
 				// 处理直接设置属性
 				var text string
-				//retText := fmt.Sprintf("<%s>的%s人物属性设置如下:\n", mctx.Player.Name, tmpl.Name)
-
 				validNum := int64(0)
 				if len(toSetItems) > 0 {
 					// 是 set
@@ -536,25 +521,24 @@ func getCmdStBase() *CmdItemInfo {
 							curVal = a.(*VMValue)
 						}
 
-						if def.TypeId == val.TypeId && def.Value == val.Value {
+						if def.TypeID == val.TypeID && def.Value == val.Value {
 							// 如果当前有值
-							if curVal != nil {
-								// 不搞花的，直接赋值一次
-								//if curVal.TypeId == val.TypeId {
-								//	if curVal.Value == val.Value {
-								//		// 如果与当前值相同，放弃
-								//		continue
-								//	}
-								//}
-							} else {
+							if curVal == nil {
 								// 与预设相同，放弃
 								continue
-							}
+							} /* else {
+								// 不搞花的，直接赋值一次
+								if curVal.TypeId == val.TypeId {
+									if curVal.Value == val.Value {
+										// 如果与当前值相同，放弃
+										continue
+									}
+								}
+							} */
 						}
 
-						validNum += 1
+						validNum++
 						chVars.Set(i.name, i.value)
-						//textPieces = append(textPieces, fmt.Sprintf("%s:%s", i.name, i.value.ToString()))
 					}
 					mctx.ChVarsUpdateTime()
 					VarSetValueInt64(mctx, "$t数量", int64(len(toSetItems))) // 废弃
@@ -585,7 +569,7 @@ func getCmdStBase() *CmdItemInfo {
 						textItems = append(textItems, text2)
 					}
 
-					//text = DiceFormatTmpl(mctx, "COC:属性设置_增减")
+					// text = DiceFormatTmpl(mctx, "COC:属性设置_增减")
 					VarSetValueStr(mctx, "$t变更列表", strings.Join(textItems, "\n"))
 					text = DiceFormatTmpl(mctx, "COC:属性设置_增减")
 
@@ -611,27 +595,27 @@ func getCmdStBase() *CmdItemInfo {
 	return cmdNewSt
 }
 
-func RegisterBuiltinExtExp(dice *Dice) {
-	//cmdNewSt := getCmdStBase()
-	//
-	//theExt := &ExtInfo{
-	//	Name:       "exp", // 扩展的名称，需要用于开启和关闭指令中，写简短点
-	//	Version:    "1.0.0",
-	//	Brief:      "实验指令模块，如果不知道里面有什么，建议不要开",
-	//	Author:     "木落",
-	//	AutoActive: false, // 是否自动开启
-	//	OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-	//		//p := getPlayerInfoBySender(session, msg)
-	//		//p.TempValueAlias = &ac.Alias;
-	//	},
-	//	GetDescText: func(i *ExtInfo) string {
-	//		return GetExtensionDesc(i)
-	//	},
-	//	CmdMap: CmdMapCls{
-	//		"st":  cmdNewSt,
-	//		"nst": cmdNewSt,
-	//	},
-	//}
-	//
-	//dice.RegisterExtension(theExt)
+func RegisterBuiltinExtExp(_ *Dice) {
+	// cmdNewSt := getCmdStBase()
+
+	// theExt := &ExtInfo{
+	// 	Name:       "exp", // 扩展的名称，需要用于开启和关闭指令中，写简短点
+	// 	Version:    "1.0.0",
+	// 	Brief:      "实验指令模块，如果不知道里面有什么，建议不要开",
+	// 	Author:     "木落",
+	// 	AutoActive: false, // 是否自动开启
+	// 	OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
+	// 		//p := getPlayerInfoBySender(session, msg)
+	// 		//p.TempValueAlias = &ac.Alias;
+	// 	},
+	// 	GetDescText: func(i *ExtInfo) string {
+	// 		return GetExtensionDesc(i)
+	// 	},
+	// 	CmdMap: CmdMapCls{
+	// 		"st":  cmdNewSt,
+	// 		"nst": cmdNewSt,
+	// 	},
+	// }
+
+	// dice.RegisterExtension(theExt)
 }

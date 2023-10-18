@@ -5,19 +5,20 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fy0/lockfree"
 	"math/rand"
 	"reflect"
 	"sealdice-core/dice/model"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fy0/lockfree"
 )
 
 // LoadPlayerGlobalVars 加载个人全局数据
 func (ctx *MsgContext) LoadPlayerGlobalVars() *PlayerVariablesItem {
 	if ctx.Player != nil {
-		return LoadPlayerGlobalVars(ctx.Session, ctx.Player.UserId)
+		return LoadPlayerGlobalVars(ctx.Session, ctx.Player.UserID)
 	}
 	return nil
 }
@@ -35,7 +36,7 @@ func (ctx *MsgContext) LoadGroupVars() {
 	if g.ValueMap == nil {
 		g.ValueMap = lockfree.NewHashMap()
 
-		data := model.AttrGroupGetAll(ctx.Dice.DBData, g.GroupId)
+		data := model.AttrGroupGetAll(ctx.Dice.DBData, g.GroupID)
 		rawData := map[string]*VMValue{}
 		err := json.Unmarshal(data, &rawData)
 		if err != nil {
@@ -48,52 +49,53 @@ func (ctx *MsgContext) LoadGroupVars() {
 }
 
 func VarSetValueStr(ctx *MsgContext, s string, v string) {
-	VarSetValue(ctx, s, &VMValue{TypeId: VMTypeString, Value: v})
+	VarSetValue(ctx, s, &VMValue{TypeID: VMTypeString, Value: v})
 }
 
 func VarSetValueDNDComputed(ctx *MsgContext, s string, val int64, expr string) {
 	vd := &VMDndComputedValueData{
 		BaseValue: VMValue{
-			TypeId: VMTypeInt64,
+			TypeID: VMTypeInt64,
 			Value:  val,
 		},
 		Expr: expr,
 	}
-	VarSetValue(ctx, s, &VMValue{TypeId: VMTypeDNDComputedValue, Value: vd})
+	VarSetValue(ctx, s, &VMValue{TypeID: VMTypeDNDComputedValue, Value: vd})
 }
 
 func VarSetValueInt64(ctx *MsgContext, s string, v int64) {
-	VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: v})
+	VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: v})
 }
 
 func VarSetValueAuto(ctx *MsgContext, s string, v interface{}) {
 	switch reflect.TypeOf(v).Kind() {
 	case reflect.Int:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(int))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(int))})
 	case reflect.Int8:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(int8))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(int8))})
 	case reflect.Int16:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(int16))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(int16))})
 	case reflect.Int32:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(int32))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(int32))})
 	case reflect.Int64:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(int64))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: v.(int64)})
 	case reflect.Uint:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint))})
 	case reflect.Uint8:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint8))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint8))})
 	case reflect.Uint16:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint16))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint16))})
 	case reflect.Uint32:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint32))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint32))})
 	case reflect.Uint64:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint64))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint64))})
 	case reflect.Float32:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(uint64))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint64))})
 	case reflect.Float64:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeInt64, Value: int64(v.(float64))})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(float64))})
 	case reflect.String:
-		VarSetValue(ctx, s, &VMValue{TypeId: VMTypeString, Value: v.(string)})
+		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeString, Value: v.(string)})
+	default: /*no-op*/
 	}
 }
 
@@ -173,7 +175,7 @@ func VarDelValue(ctx *MsgContext, s string) {
 
 func VarGetValueInt64(ctx *MsgContext, s string) (int64, bool) {
 	v, exists := VarGetValue(ctx, s)
-	if exists && v.TypeId == VMTypeInt64 {
+	if exists && v.TypeID == VMTypeInt64 {
 		return v.Value.(int64), true
 	}
 	return 0, false
@@ -181,7 +183,7 @@ func VarGetValueInt64(ctx *MsgContext, s string) (int64, bool) {
 
 func VarGetValueStr(ctx *MsgContext, s string) (string, bool) {
 	v, exists := VarGetValue(ctx, s)
-	if exists && v.TypeId == VMTypeString {
+	if exists && v.TypeID == VMTypeString {
 		return v.Value.(string), true
 	}
 	return "", false
@@ -199,7 +201,7 @@ func VarGetValue(ctx *MsgContext, s string) (*VMValue, bool) {
 			return nil, false
 		}
 		_v, exists := ctx.Player.ValueMapTemp.Get(s)
-		//v, exists := ctx.Player.ValueMapTemp[s]
+		// v, exists := ctx.Player.ValueMapTemp[s]
 		if exists {
 			v = _v.(*VMValue)
 		}
@@ -316,7 +318,7 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 		data := model.AttrUserGetAll(s.Parent.DBData, id)
 
 		mapData := make(map[string]*VMValue)
-		err := JsonValueMapUnmarshal(data, &mapData)
+		err := JSONValueMapUnmarshal(data, &mapData)
 		if err != nil {
 			s.Parent.Logger.Errorf("读取玩家数据失败！错误 %v 原数据 %v", err, data)
 		}
@@ -325,23 +327,23 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 		for k, v := range mapData {
 			vd.ValueMap.Set(k, v)
 			if strings.HasPrefix(k, "$:group-bind:") {
-				//needToLoad[k[len("$:group-bind:"):]] = true
+				// needToLoad[k[len("$:group-bind:"):]] = true
 				name, _ := v.ReadString()
-				//fmt.Println("@@@@@@@@", k, name, v)
+				// fmt.Println("@@@@@@@@", k, name, v)
 				if name != "" {
 					needToLoad[name] = true
 				}
 			}
 		}
 		// 保险起见？应该不用
-		//vd.LastWriteTime = time.Now().Unix()
+		// vd.LastWriteTime = time.Now().Unix()
 
 		// 进行绑定角色的设置
 		for name := range needToLoad {
 			_data := mapData["$ch:"+name]
 			if _data != nil {
 				chData := make(map[string]*VMValue)
-				err := JsonValueMapUnmarshal([]byte(_data.Value.(string)), &chData)
+				err := JSONValueMapUnmarshal([]byte(_data.Value.(string)), &chData)
 
 				if err == nil {
 					m := lockfree.NewHashMap()
@@ -350,7 +352,7 @@ func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
 					}
 
 					// $:ch-bind-data:角色
-					m.Set("$:cardName", &VMValue{TypeId: VMTypeString, Value: name}) // 防止出事，覆盖一次
+					m.Set("$:cardName", &VMValue{TypeID: VMTypeString, Value: name}) // 防止出事，覆盖一次
 					vd.ValueMap.Set("$:ch-bind-data:"+name, m)
 				}
 			}
@@ -370,53 +372,47 @@ func LoadPlayerGroupVars(dice *Dice, group *GroupInfo, player *GroupPlayerInfo) 
 	}
 
 	vd := player.Vars
-	if !vd.Loaded {
-		vd.ValueMap = lockfree.NewHashMap()
-		vd.Loaded = true
+	if vd.Loaded {
+		return (*PlayerVariablesItem)(vd)
+	}
 
-		// QQ-Group:131687852-QQ:303451945
-		data := model.AttrGroupUserGetAll(dice.DBData, group.GroupId, player.UserId)
-		//fmt.Println("???", group.GroupId, string(data))
-		if len(data) > 0 {
-			mapData := make(map[string]*VMValue)
-			err := JsonValueMapUnmarshal(data, &mapData)
+	vd.ValueMap = lockfree.NewHashMap()
+	vd.Loaded = true
 
-			for k, v := range mapData {
-				vd.ValueMap.Set(k, v)
-			}
+	// QQ-Group:131687852-QQ:303451945
+	data := model.AttrGroupUserGetAll(dice.DBData, group.GroupID, player.UserID)
+	// fmt.Println("???", group.GroupId, string(data))
+	if len(data) > 0 {
+		mapData := make(map[string]*VMValue)
+		err := JSONValueMapUnmarshal(data, &mapData)
 
-			if _, exists := mapData["$:cardBindMark"]; exists {
-				vars := LoadPlayerGlobalVars(dice.ImSession, player.UserId)
+		for k, v := range mapData {
+			vd.ValueMap.Set(k, v)
+		}
 
-				if _data, exists := vars.ValueMap.Get("$:group-bind:" + group.GroupId); exists {
-					if data, ok := _data.(*VMValue); ok {
-						name, ok := data.ReadString()
+		if _, exists := mapData["$:cardBindMark"]; exists {
+			vars := LoadPlayerGlobalVars(dice.ImSession, player.UserID)
 
+			if _data, exists := vars.ValueMap.Get("$:group-bind:" + group.GroupID); exists {
+				if data, ok := _data.(*VMValue); ok {
+					name, ok := data.ReadString()
+
+					if ok {
+						_m, ok := vars.ValueMap.Get("$:ch-bind-data:" + name)
 						if ok {
-							_m, ok := vars.ValueMap.Get("$:ch-bind-data:" + name)
-							if ok {
-								m := _m.(lockfree.HashMap)
-								//fmt.Println("!!!!5", name, m)
-								//m.Iterate(func(_k interface{}, _v interface{}) error {
-								//	fmt.Println("XXXXXX", _k, _v)
-								//	return nil
-								//})
-
-								m.Set("$:cardName", &VMValue{TypeId: VMTypeString, Value: name}) // 防止出事，覆盖一次
-								player.Vars.ValueMap.Set("$:card", m)
-							}
+							m := _m.(lockfree.HashMap)
+							m.Set("$:cardName", &VMValue{TypeID: VMTypeString, Value: name}) // 防止出事，覆盖一次
+							player.Vars.ValueMap.Set("$:card", m)
 						}
 					}
 				}
 			}
+		}
 
-			if err != nil {
-				dice.Logger.Errorf("加载玩家数据失败%s-%s: %s", group.GroupId, player.UserId, string(err.Error()))
-				//dice.Logger.Error(group.GroupId, player.UserId, string(data))
-			}
+		if err != nil {
+			dice.Logger.Errorf("加载玩家数据失败%s-%s: %s", group.GroupID, player.UserID, err.Error())
 		}
 	}
-
 	return (*PlayerVariablesItem)(vd)
 }
 
@@ -438,21 +434,20 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueStr(ctx, "$tQQ昵称", fmt.Sprintf("<%s>", qqNickname))
 		VarSetValueStr(ctx, "$t帐号昵称", fmt.Sprintf("<%s>", qqNickname))
 		VarSetValueStr(ctx, "$t账号昵称", fmt.Sprintf("<%s>", qqNickname))
-		VarSetValueStr(ctx, "$t帐号ID", ctx.Player.UserId)
-		VarSetValueStr(ctx, "$t账号ID", ctx.Player.UserId)
+		VarSetValueStr(ctx, "$t帐号ID", ctx.Player.UserID)
+		VarSetValueStr(ctx, "$t账号ID", ctx.Player.UserID)
 		VarSetValueInt64(ctx, "$t个人骰子面数", int64(ctx.Player.DiceSideNum))
-		//VarSetValue(ctx, "$tQQ", &VMValue{VMTypeInt64, ctx.Player.UserId})
-		VarSetValueStr(ctx, "$tQQ", ctx.Player.UserId)
-		VarSetValueStr(ctx, "$t骰子帐号", ctx.EndPoint.UserId)
-		VarSetValueStr(ctx, "$t骰子账号", ctx.EndPoint.UserId)
+		VarSetValueStr(ctx, "$tQQ", ctx.Player.UserID)
+		VarSetValueStr(ctx, "$t骰子帐号", ctx.EndPoint.UserID)
+		VarSetValueStr(ctx, "$t骰子账号", ctx.EndPoint.UserID)
 		VarSetValueStr(ctx, "$t骰子昵称", ctx.EndPoint.Nickname)
-		VarSetValueStr(ctx, "$t帐号ID_RAW", UserIdExtract(ctx.Player.UserId))
-		VarSetValueStr(ctx, "$t账号ID_RAW", UserIdExtract(ctx.Player.UserId))
+		VarSetValueStr(ctx, "$t帐号ID_RAW", UserIDExtract(ctx.Player.UserID))
+		VarSetValueStr(ctx, "$t账号ID_RAW", UserIDExtract(ctx.Player.UserID))
 		VarSetValueStr(ctx, "$t平台", ctx.EndPoint.Platform)
 
 		rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
-		rpSeed += int64(fingerprint(ctx.EndPoint.UserId))
-		rpSeed += int64(fingerprint(ctx.Player.UserId))
+		rpSeed += int64(fingerprint(ctx.EndPoint.UserID))
+		rpSeed += int64(fingerprint(ctx.Player.UserID))
 		randItem := rand.NewSource(rpSeed)
 		rp := randItem.Int63()%100 + 1
 		VarSetValueInt64(ctx, "$t人品", rp)
@@ -483,9 +478,9 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 
 	if ctx.Group != nil {
 		if ctx.MessageType == "group" {
-			VarSetValueStr(ctx, "$t群号", ctx.Group.GroupId)
+			VarSetValueStr(ctx, "$t群号", ctx.Group.GroupID)
 			VarSetValueStr(ctx, "$t群名", ctx.Group.GroupName)
-			VarSetValueStr(ctx, "$t群号_RAW", UserIdExtract(ctx.Group.GroupId))
+			VarSetValueStr(ctx, "$t群号_RAW", UserIDExtract(ctx.Group.GroupID))
 		}
 		VarSetValueInt64(ctx, "$t群组骰子面数", ctx.Group.DiceSideNum)
 		VarSetValueInt64(ctx, "$t当前骰子面数", getDefaultDicePoints(ctx))
@@ -504,5 +499,4 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 	} else {
 		VarSetValueStr(ctx, "$t消息类型", "private")
 	}
-
 }

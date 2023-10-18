@@ -65,7 +65,7 @@ func backupDownload(c echo.Context) error {
 	return c.JSON(http.StatusOK, nil)
 }
 
-func backupDelete(c echo.Context) error { //nolint
+func backupDelete(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
@@ -86,7 +86,7 @@ func backupDelete(c echo.Context) error { //nolint
 	})
 }
 
-func backupBatchDelete(c echo.Context) error { //nolint
+func backupBatchDelete(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
@@ -114,11 +114,10 @@ func backupBatchDelete(c echo.Context) error { //nolint
 
 	if len(fails) == 0 {
 		return Success(&c, Response{})
-	} else {
-		return Error(&c, "失败列表", Response{
-			"fails": fails,
-		})
 	}
+	return Error(&c, "失败列表", Response{
+		"fails": fails,
+	})
 }
 
 // 快速备份
@@ -173,33 +172,34 @@ func backupConfigSave(c echo.Context) error {
 
 	v := backupConfig{}
 	err := c.Bind(&v)
-	if err == nil {
-		dm.AutoBackupEnable = v.AutoBackupEnable
-		dm.AutoBackupTime = v.AutoBackupTime
+	if err != nil {
+		return c.String(430, "")
+	}
 
-		if int(dice.BackupCleanStrategyDisabled) <= v.BackupCleanStrategy && v.BackupCleanStrategy <= int(dice.BackupCleanStrategyByTime) {
-			dm.BackupCleanStrategy = dice.BackupCleanStrategy(v.BackupCleanStrategy)
-			if dm.BackupCleanStrategy == dice.BackupCleanStrategyByCount && v.BackupCleanKeepCount > 0 {
-				dm.BackupCleanKeepCount = v.BackupCleanKeepCount
-			}
-			if dm.BackupCleanStrategy == dice.BackupCleanStrategyByTime && len(v.BackupCleanKeepDur) > 0 {
-				if dur, err := time.ParseDuration(v.BackupCleanKeepDur); err == nil {
-					dm.BackupCleanKeepDur = dur
-				} else {
-					myDice.Logger.Errorf("设定的自动清理保留时间有误: %q %v", v.BackupCleanKeepDur, err)
-				}
-			}
-			if v.BackupCleanTrigger > 0 {
-				dm.BackupCleanTrigger = dice.BackupCleanTrigger(v.BackupCleanTrigger)
-				if dm.BackupCleanTrigger&dice.BackupCleanTriggerCron > 0 {
-					dm.BackupCleanCron = v.BackupCleanCron
-				}
+	dm.AutoBackupEnable = v.AutoBackupEnable
+	dm.AutoBackupTime = v.AutoBackupTime
+
+	if int(dice.BackupCleanStrategyDisabled) <= v.BackupCleanStrategy && v.BackupCleanStrategy <= int(dice.BackupCleanStrategyByTime) {
+		dm.BackupCleanStrategy = dice.BackupCleanStrategy(v.BackupCleanStrategy)
+		if dm.BackupCleanStrategy == dice.BackupCleanStrategyByCount && v.BackupCleanKeepCount > 0 {
+			dm.BackupCleanKeepCount = v.BackupCleanKeepCount
+		}
+		if dm.BackupCleanStrategy == dice.BackupCleanStrategyByTime && len(v.BackupCleanKeepDur) > 0 {
+			if dur, err := time.ParseDuration(v.BackupCleanKeepDur); err == nil {
+				dm.BackupCleanKeepDur = dur
+			} else {
+				myDice.Logger.Errorf("设定的自动清理保留时间有误: %q %v", v.BackupCleanKeepDur, err)
 			}
 		}
-
-		dm.ResetAutoBackup()
-		dm.ResetBackupClean()
-		return c.String(http.StatusOK, "")
+		if v.BackupCleanTrigger > 0 {
+			dm.BackupCleanTrigger = dice.BackupCleanTrigger(v.BackupCleanTrigger)
+			if dm.BackupCleanTrigger&dice.BackupCleanTriggerCron > 0 {
+				dm.BackupCleanCron = v.BackupCleanCron
+			}
+		}
 	}
-	return c.String(430, "")
+
+	dm.ResetAutoBackup()
+	dm.ResetBackupClean()
+	return c.String(http.StatusOK, "")
 }

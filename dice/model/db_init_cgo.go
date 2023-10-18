@@ -5,7 +5,7 @@ package model
 
 import (
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
 )
 
 func _SQLiteDBInit(path string, useWAL bool) (*sqlx.DB, error) {
@@ -13,11 +13,6 @@ func _SQLiteDBInit(path string, useWAL bool) (*sqlx.DB, error) {
 	if err != nil {
 		panic(err)
 	}
-
-	//_, err = db.Exec("vacuum")
-	//if err != nil {
-	//	panic(err)
-	//}
 
 	// enable WAL mode
 	if useWAL {

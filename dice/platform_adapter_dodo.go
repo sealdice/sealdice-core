@@ -23,19 +23,19 @@ type PlatformAdapterDodo struct {
 	WebSocket websocket.Client `yaml:"-" json:"-"`
 }
 
-func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupId string) {
+func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupID string) {
 	info, err := pa.Client.GetChannelInfo(context.Background(), &model.GetChannelInfoReq{
-		ChannelId: ExtractDodoGroupId(groupId),
+		ChannelId: ExtractDodoGroupID(groupID),
 	})
 	if err != nil {
 		return
 	}
 	dm := pa.Session.Parent.Parent
-	dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
+	dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
 		Name: info.ChannelName,
 		time: time.Now().Unix(),
 	})
-	group := pa.Session.ServiceAtNew[groupId]
+	group := pa.Session.ServiceAtNew[groupID]
 	if group != nil {
 		group.GroupName = info.ChannelName
 	}
@@ -43,17 +43,17 @@ func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupId string) {
 
 func (pa *PlatformAdapterDodo) Serve() int {
 	logger := pa.Session.Parent.Logger
-	clientId := pa.ClientID
+	clientID := pa.ClientID
 	token := pa.Token
 
-	instance, err := client.New(clientId, token, client.WithTimeout(time.Second*3))
+	instance, err := client.New(clientID, token, client.WithTimeout(time.Second*3))
 	pa.Client = instance
 	if err != nil {
 		return 1
 	}
 	selfid, err := instance.GetBotInfo(context.Background())
 	if err == nil {
-		pa.EndPoint.UserId = FormatDiceIdDodo(selfid.DodoSourceId)
+		pa.EndPoint.UserID = FormatDiceIDDodo(selfid.DodoSourceId)
 		pa.EndPoint.Nickname = selfid.NickName
 		d := pa.Session.Parent
 		d.LastUpdatedTime = time.Now().Unix()
@@ -61,12 +61,12 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	}
 	msgHandlers := &websocket.MessageHandlers{}
 	channelMessageHandler := func(event *websocket.WSEventMessage, data *websocket.ChannelMessageEventBody) error {
-		//defer func() {
-		//	if recoverError := recover(); recoverError != nil {
-		//		pa.Session.Parent.Logger.Errorf("Dodo消息处理错误:%v\n Stack: \n%v", recoverError, string(debug.Stack()))
-		//	}
-		//}()
-		//pa.Session.Parent.Logger.Infof("WS-收到Dodo频道消息:%s", string(data.MessageBody))
+		// defer func() {
+		// 	if recoverError := recover(); recoverError != nil {
+		// 		pa.Session.Parent.Logger.Errorf("Dodo消息处理错误:%v\n Stack: \n%v", recoverError, string(debug.Stack()))
+		// 	}
+		// }()
+		// pa.Session.Parent.Logger.Infof("WS-收到Dodo频道消息:%s", string(data.MessageBody))
 		msg, errs := pa.toStdChannelMessage(data)
 		if errs != nil {
 			pa.Session.Parent.Logger.Errorf("Dodo消息转换错误:%s", err.Error())
@@ -115,14 +115,13 @@ func (pa *PlatformAdapterDodo) toStdPersonalMessage(msgRaw *websocket.PersonalMe
 	msg.Platform = "DODO"
 	send := new(SenderBase)
 	send.Nickname = msgRaw.Personal.NickName
-	send.UserId = FormatDiceIdDodo(msgRaw.DodoSourceId)
+	send.UserID = FormatDiceIDDodo(msgRaw.DodoSourceId)
 	msg.Sender = *send
 	if msgRaw.IslandSourceId != "" {
-		msg.GuildId = msgRaw.IslandSourceId
+		msg.GuildID = msgRaw.IslandSourceId
 	}
-	//pa.Session.Parent.Logger.Infof("source id: %s", msgRaw.IslandSourceId)
-	switch msgRaw.MessageType {
-	case 1:
+	// pa.Session.Parent.Logger.Infof("source id: %s", msgRaw.IslandSourceId)
+	if msgRaw.MessageType == 1 {
 		msgDodo := new(model.TextMessage)
 		err := json.Unmarshal(msgRaw.MessageBody, msgDodo)
 		if err == nil {
@@ -139,25 +138,22 @@ func (pa *PlatformAdapterDodo) toStdChannelMessage(msgRaw *websocket.ChannelMess
 	msg.MessageType = "group"
 	msg.Time = time.Now().Unix()
 	msg.Platform = "DODO"
-	msg.RawId = msgRaw.MessageId
+	msg.RawID = msgRaw.MessageId
 	send := new(SenderBase)
 	send.Nickname = msgRaw.Member.NickName
-	send.UserId = FormatDiceIdDodo(msgRaw.DodoSourceId)
+	send.UserID = FormatDiceIDDodo(msgRaw.DodoSourceId)
 	msg.Sender = *send
-	msg.GroupId = FormatDiceIdDodoGroup(msgRaw.ChannelId)
-	msg.GuildId = msgRaw.IslandSourceId
-	switch msgRaw.MessageType {
-	case 1:
+	msg.GroupID = FormatDiceIDDodoGroup(msgRaw.ChannelId)
+	msg.GuildID = msgRaw.IslandSourceId
+	if msgRaw.MessageType == 1 {
 		msgDodo := new(model.TextMessage)
-		//pa.Session.Parent.Logger.Infof("Dodo消息内容:%s", string(msgRaw.MessageBody))
+		// pa.Session.Parent.Logger.Infof("Dodo消息内容:%s", string(msgRaw.MessageBody))
 		err := json.Unmarshal(msgRaw.MessageBody, msgDodo)
 		if err == nil {
 			msg.Message = msgDodo.Content
 		} else {
 			return nil, err
 		}
-		//default:
-		//	return nil, errors.New("不支持的消息类型")
 	}
 	return msg, nil
 }
@@ -204,7 +200,7 @@ func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	//pa.Session.Parent.Logger.Infof("send to %s", ExtractDodoUserId(uid))
+	// pa.Session.Parent.Logger.Infof("send to %s", ExtractDodoUserId(uid))
 	err := pa.SendToChatRaw(ctx, uid, text, true)
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("DODO 发送私聊消息失败：%v\n", err)
@@ -215,7 +211,7 @@ func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text st
 		Platform:    "DODO",
 		Message:     text,
 		Sender: SenderBase{
-			UserId:   pa.EndPoint.UserId,
+			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
 	}, flag)
@@ -231,31 +227,31 @@ func (pa *PlatformAdapterDodo) SendToGroup(ctx *MsgContext, uid string, text str
 		MessageType: "group",
 		Platform:    "DODO",
 		Message:     text,
-		GroupId:     uid,
+		GroupID:     uid,
 		Sender: SenderBase{
-			UserId:   pa.EndPoint.UserId,
+			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
 	}, flag)
 }
 
-func (pa *PlatformAdapterDodo) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
+func (pa *PlatformAdapterDodo) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
 	dice := pa.Session.Parent
 	fileElement, err := dice.FilepathToFileElement(path)
 	if err == nil {
-		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
+		pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
-		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+		pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
 	}
 }
 
-func (pa *PlatformAdapterDodo) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
+func (pa *PlatformAdapterDodo) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
 	dice := pa.Session.Parent
 	fileElement, err := dice.FilepathToFileElement(path)
 	if err == nil {
-		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
+		pa.SendToGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
-		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+		pa.SendToGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
 	}
 }
 
@@ -263,7 +259,7 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 	instance := pa.Client
 	dice := pa.Session.Parent
 	elem := dice.ConvertStringMessage(text)
-	StreamToByte := func(stream io.Reader) []byte {
+	streamToByte := func(stream io.Reader) []byte {
 		buf := new(bytes.Buffer)
 		_, err := buf.ReadFrom(stream)
 		if err != nil {
@@ -281,7 +277,7 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 		case *ImageElement:
 			resourceResp, err := instance.UploadImageByBytes(context.Background(), &model.UploadImageByBytesReq{
 				Filename: e.file.File,
-				Bytes:    StreamToByte(e.file.Stream),
+				Bytes:    streamToByte(e.file.Stream),
 			})
 			if err != nil {
 				return err
@@ -308,52 +304,47 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 
 func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMessageBody, uid string, isPrivate bool) error {
 	if isPrivate {
-		rawId := ExtractDodoUserId(uid)
+		rawID := ExtractDodoUserID(uid)
 		_, err := pa.Client.SendDirectMessage(context.Background(), &model.SendDirectMessageReq{
-			IslandSourceId: ctx.Group.GuildId,
-			DodoSourceId:   rawId,
+			IslandSourceId: ctx.Group.GuildID,
+			DodoSourceId:   rawID,
 			MessageBody:    msgBody,
 		})
 		return err
-	} else {
-		rawId := ExtractDodoGroupId(uid)
-		_, err := pa.Client.SendChannelMessage(context.Background(), &model.SendChannelMessageReq{
-			ChannelId:   rawId,
-			MessageBody: msgBody,
-		})
-		return err
 	}
+	rawID := ExtractDodoGroupID(uid)
+	_, err := pa.Client.SendChannelMessage(context.Background(), &model.SendChannelMessageReq{
+		ChannelId:   rawID,
+		MessageBody: msgBody,
+	})
+	return err
 }
 
-func (pa *PlatformAdapterDodo) MemberBan(groupId string, userId string, last int64) {
+func (pa *PlatformAdapterDodo) MemberBan(_ string, _ string, _ int64) {}
 
-}
+func (pa *PlatformAdapterDodo) MemberKick(_ string, _ string) {}
 
-func (pa *PlatformAdapterDodo) MemberKick(groupId string, userId string) {
-
-}
-
-func FormatDiceIdDodo(sourceid string) string {
+func FormatDiceIDDodo(sourceid string) string {
 	return fmt.Sprintf("DODO:%s", sourceid)
 }
 
-func FormatDiceIdDodoGroup(channelid string) string {
+func FormatDiceIDDodoGroup(channelid string) string {
 	return fmt.Sprintf("DODO-Group:%s", channelid)
 }
 
-func ExtractDodoUserId(id string) string {
+func ExtractDodoUserID(id string) string {
 	if strings.HasPrefix(id, "DODO:") {
 		return id[len("DODO:"):]
 	}
 	return id
 }
 
-func ExtractDodoGroupId(id string) string {
+func ExtractDodoGroupID(id string) string {
 	if strings.HasPrefix(id, "DODO-Group:") {
 		return id[len("DODO-Group:"):]
 	}
 	return id
 }
-func (pa *PlatformAdapterDodo) QuitGroup(ctx *MsgContext, id string) {}
+func (pa *PlatformAdapterDodo) QuitGroup(_ *MsgContext, _ string) {}
 
-func (pa *PlatformAdapterDodo) SetGroupCardName(groupId string, userId string, name string) {}
+func (pa *PlatformAdapterDodo) SetGroupCardName(_ string, _ string, _ string) {}

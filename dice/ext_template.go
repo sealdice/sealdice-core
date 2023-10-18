@@ -8,12 +8,8 @@ func RegisterBuiltinExtTemple(dice *Dice) {
 		Author:     "",
 		AutoActive: true, // 是否自动开启
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			//p := getPlayerInfoBySender(session, msg)
-			//p.TempValueAlias = &ac.Alias;
 		},
-		GetDescText: func(i *ExtInfo) string {
-			return GetExtensionDesc(i)
-		},
+		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
 			"command": &CmdItemInfo{
 				Name: "command",

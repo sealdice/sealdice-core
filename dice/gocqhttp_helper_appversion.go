@@ -8,9 +8,9 @@ const (
 )
 
 type GocqAppVersion struct {
-	ApkId           string       `json:"apk_id"`
-	AppId           uint32       `json:"app_id"`
-	SubAppId        uint32       `json:"sub_app_id"`
+	ApkID           string       `json:"apk_id"`
+	AppID           uint32       `json:"app_id"`
+	SubAppID        uint32       `json:"sub_app_id"`
 	AppKey          string       `json:"app_key"`
 	SortVersionName string       `json:"sort_version_name"`
 	BuildTime       uint32       `json:"build_time"`
@@ -28,9 +28,9 @@ type GocqAppVersion struct {
 var GocqAppVersionMap = map[string]map[ProtocolType]GocqAppVersion{
 	"8.9.63": {
 		AndroidPhone: {
-			ApkId:           "com.tencent.mobileqq",
-			AppId:           537164840,
-			SubAppId:        537164840,
+			ApkID:           "com.tencent.mobileqq",
+			AppID:           537164840,
+			SubAppID:        537164840,
 			AppKey:          "0S200MNJT807V3GE",
 			SortVersionName: "8.9.63.11390",
 			BuildTime:       1685069178,
@@ -45,9 +45,9 @@ var GocqAppVersionMap = map[string]map[ProtocolType]GocqAppVersion{
 			ProtocolType:    AndroidPhone,
 		},
 		AndroidPad: {
-			ApkId:           "com.tencent.mobileqq",
-			AppId:           537164888,
-			SubAppId:        537164888,
+			ApkID:           "com.tencent.mobileqq",
+			AppID:           537164888,
+			SubAppID:        537164888,
 			AppKey:          "0S200MNJT807V3GE",
 			SortVersionName: "8.9.63.11390",
 			BuildTime:       1685069178,
@@ -64,9 +64,9 @@ var GocqAppVersionMap = map[string]map[ProtocolType]GocqAppVersion{
 	},
 	"8.9.68": {
 		AndroidPhone: {
-			ApkId:           "com.tencent.mobileqq",
-			AppId:           537168313,
-			SubAppId:        537168313,
+			ApkID:           "com.tencent.mobileqq",
+			AppID:           537168313,
+			SubAppID:        537168313,
 			AppKey:          "0S200MNJT807V3GE",
 			SortVersionName: "8.9.68.11565",
 			BuildTime:       1688523354,
@@ -81,9 +81,9 @@ var GocqAppVersionMap = map[string]map[ProtocolType]GocqAppVersion{
 			ProtocolType:    AndroidPhone,
 		},
 		AndroidPad: {
-			ApkId:           "com.tencent.mobileqq",
-			AppId:           537168361,
-			SubAppId:        537168361,
+			ApkID:           "com.tencent.mobileqq",
+			AppID:           537168361,
+			SubAppID:        537168361,
 			AppKey:          "0S200MNJT807V3GE",
 			SortVersionName: "8.9.68.11565",
 			BuildTime:       1688523354,
@@ -100,9 +100,9 @@ var GocqAppVersionMap = map[string]map[ProtocolType]GocqAppVersion{
 	},
 	"8.9.70": {
 		AndroidPhone: {
-			ApkId:           "com.tencent.mobileqq",
-			AppId:           537169928,
-			SubAppId:        537169928,
+			ApkID:           "com.tencent.mobileqq",
+			AppID:           537169928,
+			SubAppID:        537169928,
 			AppKey:          "0S200MNJT807V3GE",
 			SortVersionName: "8.9.70.11730",
 			BuildTime:       1689956914,
@@ -117,9 +117,9 @@ var GocqAppVersionMap = map[string]map[ProtocolType]GocqAppVersion{
 			ProtocolType:    AndroidPhone,
 		},
 		AndroidPad: {
-			ApkId:           "com.tencent.mobileqq",
-			AppId:           537169976,
-			SubAppId:        537169976,
+			ApkID:           "com.tencent.mobileqq",
+			AppID:           537169976,
+			SubAppID:        537169976,
 			AppKey:          "0S200MNJT807V3GE",
 			SortVersionName: "8.9.70.11730",
 			BuildTime:       1689956914,
@@ -136,9 +136,9 @@ var GocqAppVersionMap = map[string]map[ProtocolType]GocqAppVersion{
 	},
 	"8.9.73": {
 		AndroidPhone: {
-			ApkId:           "com.tencent.mobileqq",
-			AppId:           537171007,
-			SubAppId:        537171007,
+			ApkID:           "com.tencent.mobileqq",
+			AppID:           537171007,
+			SubAppID:        537171007,
 			AppKey:          "0S200MNJT807V3GE",
 			SortVersionName: "8.9.73.11790",
 			BuildTime:       1690515318,
@@ -153,9 +153,9 @@ var GocqAppVersionMap = map[string]map[ProtocolType]GocqAppVersion{
 			ProtocolType:    AndroidPhone,
 		},
 		AndroidPad: {
-			ApkId:           "com.tencent.mobileqq",
-			AppId:           537171018,
-			SubAppId:        537171018,
+			ApkID:           "com.tencent.mobileqq",
+			AppID:           537171018,
+			SubAppID:        537171018,
 			AppKey:          "0S200MNJT807V3GE",
 			SortVersionName: "8.9.73.11790",
 			BuildTime:       1690515318,

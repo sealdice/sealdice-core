@@ -19,7 +19,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	//_ "net/http/pprof"
+	// _ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -98,17 +98,13 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 					_ = dbCensor.Close()
 				}
 			})()
-
-			//if i.DB != nil {
-			//	i.DB.Close()
-			//}
 		}
 
 		// 清理gocqhttp
 		for _, i := range diceManager.Dice {
 			if i.ImSession != nil && i.ImSession.EndPoints != nil {
 				for _, j := range i.ImSession.EndPoints {
-					dice.GoCqHttpServeProcessKill(i, j)
+					dice.GoCqhttpServeProcessKill(i, j)
 				}
 			}
 		}
@@ -177,7 +173,6 @@ func main() {
 		UpdateTest             bool   `long:"update-test" description:"更新测试"`
 	}
 
-	//dice.SetDefaultNS([]string{"114.114.114.114:53", "8.8.8.8:53"}, false)
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
 		return
@@ -318,10 +313,6 @@ func main() {
 		}
 	}
 
-	//if !opts.MultiInstanceOnWindows && TestRunning() {
-	//	return
-	//}
-
 	cwd, _ := os.Getwd()
 	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
 	fmt.Println("工作路径: ", cwd)
@@ -369,7 +360,7 @@ func main() {
 		hideWindow()
 	}
 
-	go dice.TryGetBackendUrl()
+	go dice.TryGetBackendURL()
 
 	cleanUp := cleanUpCreate(diceManager)
 	defer dice.CrashLog()
@@ -403,7 +394,6 @@ func main() {
 		cleanUp()
 		time.Sleep(3 * time.Second)
 		os.Exit(0)
-
 	})()
 
 	if opts.Address != "" {
@@ -415,17 +405,17 @@ func main() {
 	}
 
 	// pprof
-	//go func() {
-	//	http.ListenAndServe("0.0.0.0:8899", nil)
-	//}()
+	// go func() {
+	// 	http.ListenAndServe("0.0.0.0:8899", nil)
+	// }()
 
 	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
-	//OOM分析工具
-	//err = nil
-	//err = http.ListenAndServe(":9090", nil)
-	//if err != nil {
-	//	fmt.Printf("ListenAndServe: %s", err)
-	//}
+	// OOM分析工具
+	// err = nil
+	// err = http.ListenAndServe(":9090", nil)
+	// if err != nil {
+	// 	fmt.Printf("ListenAndServe: %s", err)
+	// }
 
 	// darwin 的托盘菜单似乎需要在主线程启动才能工作，调整到这里
 	trayInit(diceManager)
@@ -451,10 +441,10 @@ func diceServe(d *dice.Dice) {
 	d.UIEndpoint = new(dice.EndPointInfo)
 	d.UIEndpoint.Enable = true
 	d.UIEndpoint.Platform = "UI"
-	d.UIEndpoint.Id = "1"
+	d.UIEndpoint.ID = "1"
 	d.UIEndpoint.State = 1
-	d.UIEndpoint.UserId = "UI:1000"
-	d.UIEndpoint.Adapter = &dice.PlatformAdapterHttp{}
+	d.UIEndpoint.UserID = "UI:1000"
+	d.UIEndpoint.Adapter = &dice.PlatformAdapterHTTP{}
 
 	for _, _conn := range d.ImSession.EndPoints {
 		if _conn.Enable {
@@ -469,10 +459,10 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.EndPointInfoBase.ProtocolType == "onebot" {
 						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-						dice.GoCqHttpServe(d, conn, dice.GoCqHttpLoginInfo{
-							Password:         pa.InPackGoCqHttpPassword,
-							Protocol:         pa.InPackGoCqHttpProtocol,
-							AppVersion:       pa.InPackGoCqHttpAppVersion,
+						dice.GoCqhttpServe(d, conn, dice.GoCqhttpLoginInfo{
+							Password:         pa.InPackGoCqhttpPassword,
+							Protocol:         pa.InPackGoCqhttpProtocol,
+							AppVersion:       pa.InPackGoCqhttpAppVersion,
 							IsAsyncRun:       true,
 							UseSignServer:    pa.UseSignServer,
 							SignServerConfig: pa.SignServerConfig,
@@ -491,20 +481,6 @@ func diceServe(d *dice.Dice) {
 				case "DODO":
 					dice.ServeDodo(d, conn)
 				}
-
-				//for {
-				//	conn.DiceServing = true
-				//	// 骰子开始连接
-				//	d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
-				//	ret := d.ImSession.Serve(index)
-				//
-				//	if ret == 0 {
-				//		break
-				//	}
-				//
-				//	d.Logger.Infof("onebot 连接中断，将在15秒后重新连接，帐号 <%s>(%d)", conn.Nickname, conn.UserId)
-				//	time.Sleep(time.Duration(15 * time.Second))
-				//}
 			}(_conn)
 		} else {
 			_conn.State = 0 // 重置状态
@@ -518,8 +494,8 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	e := echo.New()
 
 	// Middleware
-	//e.Use(middleware.Logger())
-	//e.Use(middleware.Recover())
+	// e.Use(middleware.Logger())
+	// e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		Skipper:      middleware.DefaultSkipper,
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, "token"},
@@ -560,21 +536,10 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置
 
 	httpServe(e, dm, hideUI)
-
-	//interrupt := make(chan os.Signal, 1)
-	//signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	//
-	//for {
-	//	select {
-	//	case <-interrupt:
-	//		fmt.Println("主动关闭")
-	//		return
-	//	}
-	//}
 }
 
 //
-//func checkCqHttpExists() bool {
+// func checkCqHttpExists() bool {
 //	if _, err := os.Stat("./go-cqhttp"); err == nil {
 //		return true
 //	}

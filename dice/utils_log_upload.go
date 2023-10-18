@@ -3,13 +3,14 @@ package dice
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/monaco-io/request"
-	"go.uber.org/zap"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/monaco-io/request"
+	"go.uber.org/zap"
 )
 
 func _tryGetBackendBase(url string) string {
@@ -33,17 +34,17 @@ var BackendUrls = []string{
 	"http://dice.weizaima.com",
 }
 
-func TryGetBackendUrl() {
+func TryGetBackendURL() {
 	ret := _tryGetBackendBase("http://sealdice.com/list.txt")
 	if ret == "" {
 		ret = _tryGetBackendBase("http://test1.sealdice.com/list.txt")
 	}
 	if ret != "" {
-		BackendUrls = append(backendUrlsRaw, strings.Split(ret, "\n")...)
+		BackendUrls = append(backendUrlsRaw, strings.Split(ret, "\n")...) //nolint:gocritic
 	}
 }
 
-func uploadFileToWeizaimaBase(backendUrl string, log *zap.SugaredLogger, name string, uniformId string, data io.Reader) string {
+func uploadFileToWeizaimaBase(backendURL string, log *zap.SugaredLogger, name string, uniformID string, data io.Reader) string {
 	client := &http.Client{}
 
 	body := &bytes.Buffer{}
@@ -55,7 +56,7 @@ func uploadFileToWeizaimaBase(backendUrl string, log *zap.SugaredLogger, name st
 
 	field, err = writer.CreateFormField("uniform_id")
 	if err == nil {
-		_, _ = field.Write([]byte(uniformId))
+		_, _ = field.Write([]byte(uniformID))
 	}
 
 	field, err = writer.CreateFormField("client")
@@ -67,23 +68,21 @@ func uploadFileToWeizaimaBase(backendUrl string, log *zap.SugaredLogger, name st
 	_, _ = io.Copy(part, data)
 	_ = writer.Close()
 
-	req, err := http.NewRequest("PUT", backendUrl+"/dice/api/log", body)
+	req, err := http.NewRequest(http.MethodPut, backendURL+"/dice/api/log", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	if err != nil {
 		log.Errorf(err.Error())
 		return ""
 	}
 
-	//req.Header.Set("authority", "transfer.sh")
+	// req.Header.Set("authority", "transfer.sh")
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Errorf(err.Error())
 		return ""
 	}
+	defer func() { _ = resp.Body.Close() }()
 
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Errorf(err.Error())
@@ -91,22 +90,22 @@ func uploadFileToWeizaimaBase(backendUrl string, log *zap.SugaredLogger, name st
 	}
 
 	var ret struct {
-		Url string `json:"url"`
+		URL string `json:"url"`
 	}
 	_ = json.Unmarshal(bodyText, &ret)
-	if ret.Url == "" {
+	if ret.URL == "" {
 		log.Error("日志上传的返回结果异常:", string(bodyText))
 	}
-	return ret.Url
+	return ret.URL
 }
 
-func UploadFileToWeizaima(log *zap.SugaredLogger, name string, uniformId string, data io.Reader) string {
+func UploadFileToWeizaima(log *zap.SugaredLogger, name string, uniformID string, data io.Reader) string {
 	// 逐个尝试所有后端地址
 	for _, i := range BackendUrls {
 		if i == "" {
 			continue
 		}
-		ret := uploadFileToWeizaimaBase(i, log, name, uniformId, data)
+		ret := uploadFileToWeizaimaBase(i, log, name, uniformID, data)
 		if ret != "" {
 			return ret
 		}
