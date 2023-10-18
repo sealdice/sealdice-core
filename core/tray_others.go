@@ -17,7 +17,7 @@ import (
 )
 
 func trayInit(dm *dice.DiceManager) {
-
+	select {}
 }
 
 func hideWindow() {
