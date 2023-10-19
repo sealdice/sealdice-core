@@ -875,14 +875,11 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					}
 				}
 			}
-
-			//text := fmt.Sprintf("信息 来自群%d - %s(%d)：%s", msg.GroupId, msg.Sender.Nickname, msg.Sender.UserId, msg.Message);
-			//replyGroup(Socket, 22, text)
 		}
 	}
 }
 
-func (s *IMSession) QuitInactiveGroup(threshold time.Time) {
+func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 	platformRE := regexp.MustCompile(`^(.*)-Group:`)
 
 	s.Parent.Logger.Infof("开始清理不活跃群聊. 判定线 %s", threshold.Format(time.RFC3339))
@@ -906,6 +903,10 @@ func (s *IMSession) QuitInactiveGroup(threshold time.Time) {
 				}
 				ep.Adapter.QuitGroup(&MsgContext{Dice: s.Parent}, grp.GroupID)
 			}
+		} else if last.Before(hint) {
+			s.Parent.Logger.Warnf("检测到群 %s 上次活动时间为 %s，将在未来自动退出", grp.GroupID, last.Format(time.RFC3339))
+			// TODO: 要不要给通知列表发消息？
+			// 不能给当事群发通知，否则会刷last
 		}
 	}
 }

@@ -461,17 +461,24 @@ func DiceConfigSet(c echo.Context) error {
 	}
 
 	if val, ok := jsonMap["quitInactiveThreshold"]; ok {
+		set := false
 		switch v := val.(type) {
 		case string:
 			if vv, err := strconv.ParseFloat(v, 64); err == nil {
 				myDice.QuitInactiveThreshold = time.Duration(float64(24*time.Hour) * vv)
+				set = true
 			}
 		case float64:
 			myDice.QuitInactiveThreshold = time.Duration(float64(24*time.Hour) * v)
+			set = true
 		case int64:
 			myDice.QuitInactiveThreshold = 24 * time.Hour * time.Duration(v)
+			set = true
 		default:
 			// ignore
+		}
+		if set {
+			myDice.ResetQuitInactiveCron()
 		}
 	}
 
