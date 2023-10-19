@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	"regexp"
 	"runtime/debug"
 	"sealdice-core/dice/model"
 	"sort"
@@ -883,6 +884,38 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					}
 				}
 			}
+		}
+	}
+}
+
+func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
+	platformRE := regexp.MustCompile(`^(.*)-Group:`)
+
+	s.Parent.Logger.Infof("开始清理不活跃群聊. 判定线 %s", threshold.Format(time.RFC3339))
+
+	for _, grp := range s.ServiceAtNew {
+		if strings.HasPrefix(grp.GroupID, "PG-") {
+			continue
+		}
+		last := time.Unix(grp.RecentDiceSendTime, 0)
+		if last.Before(threshold) {
+			match := platformRE.FindStringSubmatch(grp.GroupID)
+			if len(match) != 2 {
+				continue
+			}
+
+			s.Parent.Logger.Infof("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
+			platform := match[1]
+			for _, ep := range s.EndPoints {
+				if ep.Platform != platform {
+					continue
+				}
+				ep.Adapter.QuitGroup(&MsgContext{Dice: s.Parent}, grp.GroupID)
+			}
+		} else if last.Before(hint) {
+			s.Parent.Logger.Warnf("检测到群 %s 上次活动时间为 %s，将在未来自动退出", grp.GroupID, last.Format(time.RFC3339))
+			// TODO: 要不要给通知列表发消息？
+			// 不能给当事群发通知，否则会刷last
 		}
 	}
 }
