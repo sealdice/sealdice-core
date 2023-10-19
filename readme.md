@@ -10,10 +10,19 @@
 
 #### 1. golang 开发环境
 
-需求golang版本为1.16以上，推荐为1.18或更新版本。
+编译的golang版本为1.18。使用更新版本时需注意不要使用新版本引入的新函数。
 
-因部分依赖库的需求，可能需要配置国内镜像，个人使用 https://goproxy.cn/ 镜像
+因部分依赖库的需求，可能需要配置国内镜像，个人使用 <https://goproxy.cn/> 镜像
 
+本项目使用 golangci-lint 工具进行静态分析。如果你的开发环境还未安装，请参考[这份文档](https://golangci-lint.run/usage/install/#local-installation)。分析器的相关配置位于 `.golangci.yml` 文件中。
+
+你可能需要调整编辑器的相关配置，使用 golangci-lint 为默认的分析工具，并开启自动检查。
+
+> 对于 Visual Studio Code，列出以下配置项供参考：
+>
+> 1. `go.lintTool` 选择 golangci-lint
+> 2. `go.lintFlags` 添加一项 `--fast`
+> 3. `go.lintOnSave` **不能**选择 file，因为只分析单个文件会导致无法正确解析符号引用
 
 #### 2. 拉取代码并配置数据文件
 
@@ -51,9 +60,11 @@ go build
 ```
 
 或者直接使用：
+
 ```shell
 go run .
 ```
+
 启动项目，大功告成！
 
 ## 重点
@@ -65,7 +76,6 @@ go run .
 可以顺藤摸瓜了解海豹如何启动，如何提供服务，如何响应指令。指令响应的部分写在im_session.go中
 
 注意有部分代码还在构思中，实际并未使用，例如 CharacterTemplate，请阅读时先Find Usage加以区分
-
 
 ### 重要数据结构
 
@@ -79,7 +89,6 @@ GroupInfo 是群组信息
 
 GroupPlayerInfo 是玩家信息
 
-
 ### 为海豹添加更多平台支持
 
 海豹使用叫做 PlatformAdapter 的接口来接入平台，只需将接口全部实现，再创建一个 EndPointInfo 塞入当前用户的 IMSession 对象之中即可。
@@ -90,13 +99,11 @@ GroupPlayerInfo 是玩家信息
 
 观察 PlatformAdapterHttp 如何运作起来是一个很好的切入点，因为他非常简单。
 
-
 ### 改动扩展模块，如dnd5e，coc7等
 
 对应 dice/ext_xxx.go 系列文件
 
 推荐从 ext_template.go 入手，以 ext_dnd5e.go 为参考，因为这个模块书写时间较晚，相对较为完善。
-
 
 ### 暂不建议修改的地方
 
@@ -108,11 +115,10 @@ dice/rollvm.go 是骰点指令虚拟机
 
 这部分代码正在进行大规模的重构，并抽出作为通用模块。
 
-请移步 https://github.com/sealdice/dicescript
+请移步 <https://github.com/sealdice/dicescript>
 
-2. 
+2.
 
 角色数据相关，目前角色卡的实现有点绕，同样是计划进行较大规模的修改，包括角色卡模板、技能名称规范化等机制。
 
 另外还计划在未来更换保存数据的嵌入式数据库，目前使用bblot，而这个库对断电丢失数据不太友好。
-
