@@ -29,6 +29,9 @@ export interface AdapterQQ {
   goCqHttpSmsNumberTip: string;
   useSignServer: boolean;
   signServerConfig: any;
+  redVersion: string;
+  host: string;
+  port: number;
 }
 
 interface TalkLogItem {
@@ -183,8 +186,8 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async addImConnection(form: { accountType: number, account: string, password: string, protocol: number, appVersion: string, token: string, proxyURL: string, url: string, clientID: string, implementation: string, connectUrl: string, accessToken: string, relWorkDir: string, useSignServer: boolean, signServerConfig: any }) {
-      const { accountType, account, password, protocol, appVersion, token, proxyURL, url, clientID, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig } = form
+    async addImConnection(form: { accountType: number, account: string, password: string, protocol: number, appVersion: string, token: string, proxyURL: string, url: string, host: string, port: number, clientID: string, implementation: string, connectUrl: string, accessToken: string, relWorkDir: string, useSignServer: boolean, signServerConfig: any }) {
+      const { accountType, account, password, protocol, appVersion, token, proxyURL, url, host, port, clientID, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig } = form
       let info = null
       switch (accountType) {
         //QQ
@@ -209,8 +212,13 @@ export const useStore = defineStore('main', {
           break
         case 5:
           info = await backend.post(urlPrefix + '/im_connections/addDodo', { clientID, token }, { timeout: 65000 })
+          break
         case 6:
           info = await backend.post(urlPrefix + '/im_connections/addGocqSeparate', { relWorkDir, connectUrl, accessToken, account }, { timeout: 65000 })
+          break
+        case 7:
+          info = await backend.post(urlPrefix + '/im_connections/addRed', { host, port, token }, { timeout: 65000 })
+          break
       }
       return info as any as DiceConnection
     },

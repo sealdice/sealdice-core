@@ -87,12 +87,12 @@
             <div v-else>从未</div>
           </el-form-item>
 
-          <el-form-item label="连接地址">
+          <el-form-item label="连接地址" v-if="i.adapter?.connectUrl">
             <!-- <el-input v-model="i.connectUrl"></el-input> -->
             <div>{{i.adapter?.connectUrl}}</div>
           </el-form-item>
 
-          <template v-if="i.platform === 'QQ'">
+          <template v-if="i.platform === 'QQ' && (i.protocolType === 'onebot' || i.protocolType === 'walle-q')">
             <!-- <el-form-item label="忽略好友请求">
               <div>{{i.adapter?.ignoreFriendRequest ? '是' : '否'}}</div>
             </el-form-item> -->
@@ -120,6 +120,18 @@
             </el-form-item>
             <el-form-item label="特殊" v-else>
               <div>分离部署</div>
+            </el-form-item>
+          </template>
+
+          <template v-if="i.platform === 'QQ' && i.protocolType === 'red'">
+            <el-form-item label="协议">
+              <div>[WIP]Red</div>
+            </el-form-item>
+            <el-form-item label="协议版本">
+              <div>{{ i.adapter?.redVersion || '未知' }}</div>
+            </el-form-item>
+            <el-form-item label="连接地址">
+              <div>{{ i.adapter?.host + ":" + i.adapter?.port }}</div>
             </el-form-item>
           </template>
 
@@ -402,11 +414,14 @@
   <el-dialog v-model="dialogFormVisible" title="帐号登录" :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" class="the-dialog">
     <el-button style="float: right; margin-top: -4rem;" @click="openSocks">辅助工具-13325端口</el-button>
     <template v-if="form.step === 1">
+      <el-alert v-if="form.accountType === 7" type="warning" :closable="false" style="margin-bottom: 1.5rem;">该支持仍处于实验阶段，部分功能尚未完善。海豹不保证该支持的稳定性和持续性，并存在未来移除该支持的可能，请谨慎选择。</el-alert>
+
       <el-form :model="form">
         <el-form-item label="账号类型" :label-width="formLabelWidth">
           <el-select v-model="form.accountType">
             <el-option label="QQ账号" :value="0"></el-option>
             <el-option label="QQ账号(gocq分离部署)" :value="6"></el-option>
+            <el-option label="[WIP]QQ账号(red协议)" :value="7"></el-option>
             <el-option label="Discord账号" :value="1"></el-option>
             <el-option label="KOOK(开黑啦)账号" :value="2"></el-option>
             <el-option label="Telegram帐号" :value="3"></el-option>
@@ -689,6 +704,16 @@
           <el-input v-model="form.accessToken" placeholder="gocqhttp配置的access token，没有不用填写" type="text" autocomplete="off"></el-input>
         </el-form-item>
 
+        <el-form-item v-if="form.accountType === 7" label="主机" :label-width="formLabelWidth" required>
+          <el-input v-model="form.host" placeholder="Red 服务的地址，如 127.0.0.1" type="text" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 7" label="端口" :label-width="formLabelWidth" required>
+          <el-input-number v-model="form.port" placeholder="16530" autocomplete="off"></el-input-number>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 7" label="令牌" :label-width="formLabelWidth" required>
+          <el-input v-model="form.token" placeholder="Red 服务的 token" type="text" autocomplete="off"></el-input>
+        </el-form-item>
+
         <el-form-item v-if="form.accountType === 1" label="Token" :label-width="formLabelWidth" required>
           <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
           <small>
@@ -852,7 +877,8 @@
               (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === '' ||
               form.accountType === 4 && form.url === '' ||
               form.accountType === 5 && (form.clientID === '' || form.token === '') ||
-              form.accountType === 6 && (form.account === '' || form.connectUrl === '' || form.relWorkDir === '')">
+              form.accountType === 6 && (form.account === '' || form.connectUrl === '' || form.relWorkDir === '') ||
+              form.accountType === 7 && (form.host === '' || form.port === '' || form.token === '')">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">
@@ -1009,7 +1035,7 @@ const goStepTwo = async () => {
   setRecentLogin()
   duringRelogin.value = false;
 
-  store.addImConnection(form).then((conn) => {
+  store.addImConnection(form as any).then((conn) => {
     if ((conn as any).testMode) {
       isTestMode.value = true
     } else {
@@ -1226,6 +1252,9 @@ const form = reactive({
   relWorkDir: '',
   accessToken: '',
   connectUrl: '',
+
+  host: '',
+  port: undefined,
 
   useSignServer: false,
   signServerConfig: {
