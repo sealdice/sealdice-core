@@ -855,7 +855,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
 		log.Info("onebot 服务的连接被对方关闭 ")
-		_ = pa.Session.Parent.SendMail("", MailTypeOnebotClose)
+		_ = pa.Session.Parent.SendMail("", MailTypeConnectClose)
 		pa.InPackGoCqhttpDisconnectedCH <- 1
 	}
 

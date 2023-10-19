@@ -468,6 +468,9 @@ func diceServe(d *dice.Dice) {
 							SignServerConfig: pa.SignServerConfig,
 						})
 					}
+					if conn.EndPointInfoBase.ProtocolType == "red" {
+						dice.ServeRed(d, conn)
+					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
 					dice.ServeQQ(d, conn)
 				case "DISCORD":

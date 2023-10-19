@@ -35,7 +35,6 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			return false
 		}
 
-		// lastRetryTime := time.Now().Unix()
 		waitTimes := 0
 		for {
 			if checkQuit() {
@@ -45,11 +44,6 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			// 骰子开始连接
 			d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
 			ret := ep.Adapter.Serve()
-
-			// if time.Now().Unix()-lastRetryTime > 8*60 {
-			// 	lastRetryTime = 0
-			// }
-			// lastRetryTime = time.Now().Unix()
 
 			if ret == 0 {
 				break
@@ -66,7 +60,6 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 				break
 			}
 
-			// d.Logger.Infof("onebot 连接失败[%d/%d]，将在15秒后重新连接，帐号 <%s>(%s)", waitTimes, 5, ep.Nickname, ep.UserId)
 			time.Sleep(15 * time.Second)
 		}
 	}
@@ -101,7 +94,6 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			return false
 		}
 
-		// lastRetryTime := time.Now().Unix()
 		waitTimes := 0
 		for {
 			if checkQuit() {
@@ -111,11 +103,6 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			// 骰子开始连接
 			d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
 			ret := ep.Adapter.Serve()
-
-			// if time.Now().Unix()-lastRetryTime > 8*60 {
-			// 	lastRetryTime = 0
-			// }
-			// lastRetryTime = time.Now().Unix()
 
 			if ret == 0 {
 				break
@@ -128,6 +115,41 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			waitTimes++
 			if waitTimes > 5 {
 				d.Logger.Infof("onebot 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
+				conn.DiceServing = false
+				break
+			}
+
+			time.Sleep(15 * time.Second)
+		}
+	}
+
+	if ep.Platform == "QQ" && ep.ProtocolType == "red" {
+		conn := ep.Adapter.(*PlatformAdapterRed)
+
+		if !conn.DiceServing {
+			conn.DiceServing = true
+		} else {
+			return
+		}
+
+		ep.Enable = true
+		ep.State = 2 // 连接中
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		waitTimes := 0
+
+		for {
+			// 骰子开始连接
+			d.Logger.Infof("开始连接 red 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
+			ret := ep.Adapter.Serve()
+
+			if ret == 0 {
+				break
+			}
+
+			waitTimes += 1
+			if waitTimes > 5 {
+				d.Logger.Infof("red 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
 				conn.DiceServing = false
 				break
 			}
