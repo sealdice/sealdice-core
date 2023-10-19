@@ -10,8 +10,8 @@ import (
 type MailCode int
 
 const (
-	// MailTypeOnebotClose 掉线
-	MailTypeOnebotClose MailCode = iota
+	// MailTypeConnectClose 掉线
+	MailTypeConnectClose MailCode = iota
 	// MailTypeCIAMLock 风控 // tx 云把 Customer Identity Access Management 叫做 账号风控平台……
 	MailTypeCIAMLock
 	// MailTypeNotice 通知
@@ -35,8 +35,8 @@ func (d *Dice) SendMail(body string, m MailCode) error {
 	}
 	sub := "Seal News: "
 	switch m {
-	case MailTypeOnebotClose:
-		sub += "Onebot 连接中断"
+	case MailTypeConnectClose:
+		sub += "Connect 连接中断"
 	case MailTypeCIAMLock:
 		sub += "Bot 机器人被风控"
 	case MailTypeNotice:
