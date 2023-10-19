@@ -171,6 +171,9 @@ type Dice struct {
 	ReplyDebugMode          bool                   `yaml:"replyDebugMode"`       // 回复调试
 	PlayerNameWrapEnable    bool                   `yaml:"playerNameWrapEnable"` // 启用玩家名称外框
 
+	QuitInactiveThreshold time.Duration `yaml:"quitInactiveThreshold"` // 退出不活跃群组的时间阈值
+	quitInactiveCronEntry cron.EntryID
+
 	DefaultCocRuleIndex int64 `yaml:"defaultCocRuleIndex" jsbind:"defaultCocRuleIndex"` // 默认coc index
 	MaxExecuteTime      int64 `yaml:"maxExecuteTime" jsbind:"maxExecuteTime"`           // 最大骰点次数
 	MaxCocCardGen       int64 `yaml:"maxCocCardGen" jsbind:"maxCocCardGen"`             // 最大coc制卡数
@@ -453,6 +456,8 @@ func (d *Dice) Init() {
 		}()
 	}
 
+	d.ResetQuitInactiveCron()
+
 	d.MarkModified()
 }
 
@@ -705,3 +710,23 @@ func ErrorLogAndContinue(d *Dice) {
 }
 
 var chsS2T = sat.DefaultDict()
+
+func (d *Dice) ResetQuitInactiveCron() {
+	dm := d.Parent
+	if d.quitInactiveCronEntry > 0 {
+		dm.Cron.Remove(d.quitInactiveCronEntry)
+		d.quitInactiveCronEntry = 0
+	}
+
+	if d.QuitInactiveThreshold > 0 {
+		var err error
+		d.quitInactiveCronEntry, err = dm.Cron.AddFunc("0 4 * * *", func() {
+			thr := time.Now().Add(-d.QuitInactiveThreshold)
+			hint := thr.Add(d.QuitInactiveThreshold / 10) // 进入退出判定线的9/10开始提醒
+			d.ImSession.QuitInactiveGroup(thr, hint)
+		})
+		if err != nil {
+			d.Logger.Errorf("创建自动清理群聊cron任务失败: %v", err)
+		}
+	}
+}
