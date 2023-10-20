@@ -135,6 +135,7 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/sacOO7/go-logger v0.0.0-20180719173527-9ac9add5a50d // indirect
+	github.com/samber/lo v1.38.1 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/tdewolff/parse/v2 v2.6.8 // indirect
 	github.com/tidwall/btree v1.4.2 // indirect

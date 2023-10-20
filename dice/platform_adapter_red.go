@@ -1,9 +1,12 @@
 package dice
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,7 +16,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fy0/lockfree"
 	"github.com/gorilla/websocket"
+	"github.com/samber/lo"
 )
 
 type PlatformAdapterRed struct {
@@ -29,7 +34,8 @@ type PlatformAdapterRed struct {
 	wsUrl   *url.URL
 	httpUrl *url.URL
 
-	conn *websocket.Conn
+	conn      *websocket.Conn
+	memberMap map[string]map[string]*GroupMember
 }
 
 type RedPack[T interface{}] struct {
@@ -141,7 +147,7 @@ type RedElement struct {
 	AvRecordElement interface{}     `json:"avRecordElement,omitempty"`
 	CalendarElement interface{}     `json:"calendarElement,omitempty"`
 	FaceElement     interface{}     `json:"faceElement,omitempty"`
-	FileElement     interface{}     `json:"fileElement,omitempty"`
+	FileElement     *RedFileElement `json:"fileElement,omitempty"`
 	GiphyElement    interface{}     `json:"giphyElement,omitempty"`
 	GrayTipElement  *struct {
 		XmlElement          *RedXMLElement `json:"xmlElement,omitempty"`
@@ -193,8 +199,8 @@ type RedPicElement struct {
 	PicSubType     int            `json:"picSubType,omitempty"`
 	FileName       string         `json:"fileName,omitempty"`
 	FileSize       string         `json:"fileSize,omitempty"`
-	PicWidth       int            `json:"picWidth,omitempty"`
-	PicHeight      int            `json:"picHeight,omitempty"`
+	PicWidth       int64          `json:"picWidth,omitempty"`
+	PicHeight      int64          `json:"picHeight,omitempty"`
 	Original       bool           `json:"original,omitempty"`
 	Md5HexStr      string         `json:"md5HexStr,omitempty"`
 	SourcePath     string         `json:"sourcePath,omitempty"`
@@ -248,6 +254,22 @@ type RedTextElement struct {
 	AtRoleName     string `json:"atRoleName,omitempty"`
 	NeedNotify     int    `json:"needNotify,omitempty"`
 	AtNtUin        string `json:"atNtUin,omitempty"`
+}
+
+type RedFileElement struct {
+	FileMd5       string      `json:"fileMd5,omitempty"`
+	FileSize      int64       `json:"fileSize,omitempty"`
+	FileName      string      `json:"fileName,omitempty"`
+	FilePath      string      `json:"filePath,omitempty"`
+	PicWidth      int64       `json:"picWidth,omitempty"`
+	PicHeight     int64       `json:"picHeight,omitempty"`
+	PicThumbPath  interface{} `json:"thumbPath,omitempty"`
+	File10MMd5    string      `json:"file10MMd5,omitempty"`
+	FileSha       string      `json:"fileSha,omitempty"`
+	FileSha3      string      `json:"fileSha3,omitempty"`
+	FileUuid      string      `json:"fileUuid,omitempty"`
+	FileSubId     string      `json:"fileSubId,omitempty"`
+	ThumbFileSize int64       `json:"thumbFileSize,omitempty"`
 }
 
 type RedRoleInfo struct {
@@ -306,6 +328,20 @@ type Group struct {
 	DiscussToGroupUin       string `json:"discussToGroupUin"`
 	DiscussToGroupMaxMsgSeq int    `json:"discussToGroupMaxMsgSeq"`
 	DiscussToGroupTime      int    `json:"discussToGroupTime"`
+}
+
+type GroupMember struct {
+	Uid        string `json:"uid"`
+	Qid        string `json:"qid"`
+	Uin        string `json:"uin"`
+	Nick       string `json:"nick"`
+	Remark     string `json:"remark"`
+	CardType   int    `json:"cardType"`
+	CardName   string `json:"cardName"`
+	Role       int    `json:"role"` // 2-普通成员 3-管理 4-群主
+	AvatarPath string `json:"avatarPath"`
+	ShutUpTime int64  `json:"shutUpTime"`
+	IsDelete   bool   `json:"isDelete"`
 }
 
 func (pa *PlatformAdapterRed) Serve() int {
@@ -519,10 +555,7 @@ func (pa *PlatformAdapterRed) SendToPerson(ctx *MsgContext, uid string, text str
 				ChatType: PersonChat,
 				PeerUin:  strconv.FormatInt(rowId, 10),
 			},
-			Elements: []*RedElement{{
-				ElementType: 1,
-				TextElement: &RedTextElement{Content: subText},
-			}},
+			Elements: pa.encodeMessage(ctx, subText),
 		})
 	}
 }
@@ -560,10 +593,7 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 				ChatType: GroupChat,
 				PeerUin:  strconv.FormatInt(rowId, 10),
 			},
-			Elements: []*RedElement{{
-				ElementType: 1,
-				TextElement: &RedTextElement{Content: subText},
-			}},
+			Elements: pa.encodeMessage(ctx, subText),
 		})
 	}
 }
@@ -603,23 +633,11 @@ func (pa *PlatformAdapterRed) SetGroupCardName(groupId string, userId string, na
 }
 
 func (pa *PlatformAdapterRed) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
-	if err == nil {
-		pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
-	} else {
-		pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
-	}
+	pa.SendToPerson(ctx, uid, fmt.Sprintf("[CQ:file,file=%s]", path), flag)
 }
 
 func (pa *PlatformAdapterRed) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
-	if err == nil {
-		pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
-	} else {
-		pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
-	}
+	pa.SendToGroup(ctx, uid, fmt.Sprintf("[CQ:file,file=%s]", path), flag)
 }
 
 func (pa *PlatformAdapterRed) MemberBan(_ string, _ string, _ int64) {}
@@ -628,22 +646,68 @@ func (pa *PlatformAdapterRed) MemberKick(_ string, _ string) {}
 
 func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 	// 触发更新群信息
-	dm := pa.Session.Parent.Parent
+	d := pa.Session.Parent
+	dm := d.Parent
 	ep := pa.EndPoint
 	s := pa.Session
 	session := s
+	if pa.memberMap == nil {
+		pa.memberMap = make(map[string]map[string]*GroupMember)
+	}
+
+	refreshMembers := func(group *Group) {
+		groupID := formatDiceIDRedGroup(group.GroupCode)
+		members := pa.getMemberList(group.GroupCode, group.MemberCount)
+		groupInfo := session.ServiceAtNew[groupID]
+		groupMemberMap := make(map[string]*GroupMember)
+		for _, member := range members {
+			userID := formatDiceIDRed(member.Uin)
+			groupMemberMap[userID] = member
+			if groupInfo != nil {
+				p := groupInfo.PlayerGet(d.DBData, userID)
+				if p == nil {
+					name := member.CardName
+					if name == "" {
+						name = member.Nick
+					}
+					p = &GroupPlayerInfo{
+						Name:          name,
+						UserID:        userID,
+						ValueMapTemp:  lockfree.NewHashMap(),
+						UpdatedAtTime: 0,
+					}
+					groupInfo.Players.Store(userID, p)
+				}
+			}
+		}
+		pa.memberMap[groupID] = groupMemberMap
+	}
 
 	refresh := func() {
 		groups := pa.getGroups()
 		for _, group := range groups {
 			if group != nil {
-				groupId := group.GroupCode
+				groupId := formatDiceIDRedGroup(group.GroupCode)
 				dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
 					Name: group.GroupName,
 					time: time.Now().Unix(),
 				})
 
-				groupRecord := session.ServiceAtNew[groupId]
+				groupInfo := session.ServiceAtNew[groupId]
+				if groupInfo == nil {
+					// 新检测到群
+					ctx := &MsgContext{
+						Session:  session,
+						EndPoint: ep,
+						Dice:     session.Parent,
+					}
+					SetBotOnAtGroup(ctx, groupId)
+				}
+
+				// 触发群成员更新
+				go refreshMembers(group)
+
+				groupRecord := groupInfo
 				if groupRecord != nil {
 					if group.MemberCount == 0 {
 						diceId := ep.UserID
@@ -657,8 +721,6 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 						groupRecord.GroupName = group.GroupName
 						groupRecord.UpdatedAtTime = time.Now().Unix()
 					}
-
-					// TODO: 处理被强制拉群的情况
 				}
 			}
 		}
@@ -696,51 +758,69 @@ func (pa *PlatformAdapterRed) getGroups() []*Group {
 	return groups
 }
 
-// func (pa *PlatformAdapterRed) getMemberList(group int, size int) {
-// 	paramData, _ := json.Marshal(map[string]int{
-// 		"group": group,
-// 		"size":  size,
-// 	})
-// 	data, _ := pa.httpDo("POST", "group/getMemberList", bytes.NewBuffer(paramData))
-// 	var body map[string]interface{}
-// 	_ = json.Unmarshal(data, &body)
-// }
-
-type RedRichMediaReq struct {
+func (pa *PlatformAdapterRed) getMemberList(group string, size int) []*GroupMember {
+	groupID, _ := strconv.ParseInt(group, 10, 64)
+	paramData, _ := json.Marshal(map[string]interface{}{
+		"group": groupID,
+		"size":  size,
+	})
+	data, _ := pa.httpDo("POST", "group/getMemberList", nil, bytes.NewBuffer(paramData))
+	type memberInfo struct {
+		Index  int          `json:"index"`
+		Detail *GroupMember `json:"detail"`
+	}
+	var body []memberInfo
+	_ = json.Unmarshal(data, &body)
+	members := lo.Map(body, func(item memberInfo, _ int) *GroupMember {
+		return item.Detail
+	})
+	return members
 }
 
-// func (pa *PlatformAdapterRed) getFile(msgID string, chatType RedChatType, peerUid string, elementID string) {
-// 	paramData, _ := json.Marshal(map[string]interface{}{
-// 		"msgId":        msgID,
-// 		"chatType":     chatType,
-// 		"peerUid":      peerUid,
-// 		"elementId":    elementID,
-// 		"thumbSize":    0,
-// 		"downloadType": 2,
-// 	})
-// 	data, _ := pa.httpDo("POST", "message/fetchRichMedia", nil, bytes.NewBuffer(paramData))
-// 	var body map[string]interface{}
-// 	_ = json.Unmarshal(data, &body)
-// }
-//
-// func (pa *PlatformAdapterRed) uploadFile(path string) *RedElement {
-// 	_, err := os.Stat(path)
-// 	if errors.Is(os.ErrNotExist, err) {
-// 		return nil
-// 	}
-//
-// 	file, _ := os.Open(path)
-// 	body := &bytes.Buffer{}
-// 	writer := multipart.NewWriter(body)
-// 	part, _ := writer.CreateFormFile("file", filepath.Base(path))
-// 	_, _ = io.Copy(part, file)
-// 	_ = writer.Close()
-//
-// 	data, _ := pa.httpDo("POST", "upload", map[string]string{"Content-Type": writer.FormDataContentType()}, body)
-// 	var resp RedElement
-// 	_ = json.Unmarshal(data, &resp)
-// 	return &resp
-// }
+type RedRichMediaResp struct {
+	Md5        string              `json:"md5"`
+	FileSize   int64               `json:"fileSize"`
+	FilePath   string              `json:"filePath"`
+	NtFilePath string              `json:"ntFilePath"`
+	ImageInfo  *RedImageUploadInfo `json:"imageInfo"`
+}
+
+type RedImageUploadInfo struct {
+	Width  int64  `json:"width"`
+	Height int64  `json:"height"`
+	Type   string `json:"type"`
+	Mime   string `json:"mime"`
+	WUnits string `json:"wUnits"`
+	HUnits string `json:"hUnits"`
+}
+
+func (pa *PlatformAdapterRed) getFile(msgID string, chatType RedChatType, peerUid string, elementID string) map[string]interface{} {
+	paramData, _ := json.Marshal(map[string]interface{}{
+		"msgId":        msgID,
+		"chatType":     chatType,
+		"peerUid":      peerUid,
+		"elementId":    elementID,
+		"thumbSize":    0,
+		"downloadType": 2,
+	})
+	data, _ := pa.httpDo("POST", "message/fetchRichMedia", nil, bytes.NewBuffer(paramData))
+	var body map[string]interface{}
+	_ = json.Unmarshal(data, &body)
+	return body
+}
+
+func (pa *PlatformAdapterRed) uploadFile(file string, reader io.Reader) *RedRichMediaResp {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", filepath.Base(file))
+	_, _ = io.Copy(part, reader)
+	_ = writer.Close()
+
+	data, _ := pa.httpDo("POST", "upload", map[string]string{"Content-Type": writer.FormDataContentType()}, body)
+	var resp RedRichMediaResp
+	_ = json.Unmarshal(data, &resp)
+	return &resp
+}
 
 func (pa *PlatformAdapterRed) httpDo(method, action string, headers map[string]string, body io.Reader) ([]byte, error) {
 	client := http.Client{}
@@ -760,6 +840,71 @@ func (pa *PlatformAdapterRed) httpDo(method, action string, headers map[string]s
 	return io.ReadAll(resp.Body)
 }
 
+// encodeMessage 将带 cq code 的内容转换为 red 所需的格式
+func (pa *PlatformAdapterRed) encodeMessage(ctx *MsgContext, content string) []*RedElement {
+	dice := pa.Session.Parent
+	elems := dice.ConvertStringMessage(content)
+	var redElems []*RedElement
+	for _, elem := range elems {
+		switch e := elem.(type) {
+		case *TextElement:
+			redElems = append(redElems, &RedElement{
+				ElementType: 1,
+				TextElement: &RedTextElement{Content: e.Content},
+			})
+		case *AtElement:
+			redElems = append(redElems, &RedElement{
+				ElementType: 1,
+				TextElement: &RedTextElement{
+					AtType:  2,
+					AtNtUin: e.Target,
+					Content: fmt.Sprintf("@%s", e.Target),
+				},
+			})
+		case *ImageElement:
+			fi := e.file
+			resp := pa.uploadFile(fi.File, fi.Stream)
+			redElem := RedElement{
+				ElementType: 2,
+				PicElement: &RedPicElement{
+					Original:   true,
+					Md5HexStr:  resp.Md5,
+					FileSize:   strconv.FormatInt(resp.FileSize, 10),
+					FileName:   fi.File,
+					SourcePath: resp.NtFilePath,
+				},
+			}
+			if resp.ImageInfo != nil {
+				redElem.PicElement.PicWidth = resp.ImageInfo.Width
+				redElem.PicElement.PicHeight = resp.ImageInfo.Height
+			}
+			redElems = append(redElems, &redElem)
+		case *FileElement:
+			resp := pa.uploadFile(e.File, e.Stream)
+			redElems = append(redElems, &RedElement{
+				ElementType: 3,
+				FileElement: &RedFileElement{
+					FileMd5:       resp.Md5,
+					FileSize:      resp.FileSize,
+					FileName:      e.File,
+					FilePath:      resp.NtFilePath,
+					PicWidth:      0,
+					PicHeight:     0,
+					PicThumbPath:  nil,
+					File10MMd5:    "",
+					FileSha:       "",
+					FileSha3:      "",
+					FileUuid:      "",
+					FileSubId:     "",
+					ThumbFileSize: 750,
+				},
+			})
+		}
+	}
+	return redElems
+}
+
+// decodeMessage 将 red 格式的信息解析成海豹所需格式
 func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 	log := pa.Session.Parent.Logger
 	msg := new(Message)
@@ -826,9 +971,12 @@ func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 						fUuid,
 					)
 				}
-			} else if strings.Contains(u, "rkey") {
-				// TODO: 下载图片
-				// content += fmt.Sprintf("[CQ:image,file=///%s,type=show,id=40000]", url)
+			} else if strings.Contains(u, "&rkey") {
+				// 下载图片
+				resp := pa.getFile(message.MsgID, RedChatType(message.ChatType), message.PeerUin, element.ElementId)
+				data := resp["data"].([]byte)
+				dataBase64 := base64.StdEncoding.EncodeToString(data)
+				content += fmt.Sprintf("[CQ:image,file=base64://%s,type=show,id=40000]", dataBase64)
 			} else {
 				content += fmt.Sprintf("[CQ:image,file=https://c2cpicdw.qpic.cn%s,type=show,id=40000]", u)
 			}
@@ -866,7 +1014,17 @@ func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 		if send.Nickname == "" {
 			send.Nickname = message.SendMemberName
 		}
-		// send.GroupRole = message.RoleType
+		groupMemberInfo := pa.memberMap[msg.GroupID]
+		if groupMemberInfo != nil {
+			memberInfo := groupMemberInfo[send.UserID]
+			if memberInfo != nil {
+				if memberInfo.Role == 4 {
+					send.GroupRole = "owner"
+				} else if memberInfo.Role == 3 {
+					send.GroupRole = "admin"
+				}
+			}
+		}
 		if message.SendNickName != "" {
 			send.Nickname = message.SendNickName
 		} else if message.SendMemberName != "" {
