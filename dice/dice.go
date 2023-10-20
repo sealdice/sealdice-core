@@ -721,8 +721,9 @@ func (d *Dice) ResetQuitInactiveCron() {
 	if d.QuitInactiveThreshold > 0 {
 		var err error
 		d.quitInactiveCronEntry, err = dm.Cron.AddFunc("0 4 * * *", func() {
-			thr := time.Now().Add(-d.QuitInactiveThreshold)
-			hint := thr.Add(d.QuitInactiveThreshold / 10) // 进入退出判定线的9/10开始提醒
+			threshold := d.QuitInactiveThreshold * time.Second
+			thr := time.Now().Add(-threshold)
+			hint := thr.Add(threshold / 10) // 进入退出判定线的9/10开始提醒
 			d.ImSession.QuitInactiveGroup(thr, hint)
 		})
 		if err != nil {
