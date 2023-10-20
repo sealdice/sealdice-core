@@ -897,6 +897,10 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 		if strings.HasPrefix(grp.GroupID, "PG-") {
 			continue
 		}
+		if grp.RecentDiceSendTime == 0 {
+			// 防止骰子从未发言过的新加群被立即清理掉
+			continue
+		}
 		last := time.Unix(grp.RecentDiceSendTime, 0)
 		if last.Before(threshold) {
 			match := platformRE.FindStringSubmatch(grp.GroupID)
