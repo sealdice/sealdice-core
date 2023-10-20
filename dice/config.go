@@ -1683,6 +1683,7 @@ func (d *Dice) loads() {
 	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
 
 	// 配置这块弄得比较屎，有机会换个方案。。。
+	// TODO(Xiangze Li): 不管谁都好 赶紧重写吧, 谁能想起来加了配置还要在这里添一行才能Load出来哇
 	if err == nil { //nolint:nestif
 		dNew := Dice{}
 		err2 := yaml.Unmarshal(data, &dNew)
@@ -1743,6 +1744,8 @@ func (d *Dice) loads() {
 			d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
 			d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite
 			d.BanList.BanBehaviorQuitLastPlace = dNew.BanList.BanBehaviorQuitLastPlace
+			d.BanList.BanBehaviorQuitPlaceImmediately = dNew.BanList.BanBehaviorQuitPlaceImmediately
+
 			d.BanList.ScoreReducePerMinute = dNew.BanList.ScoreReducePerMinute
 
 			d.BanList.ThresholdWarn = dNew.BanList.ThresholdWarn
