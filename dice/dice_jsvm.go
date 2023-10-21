@@ -526,7 +526,7 @@ type JsScriptInfo struct {
 	/** 最近一条错误文本 */
 	ErrText string `json:"errText"`
 	/** 实际文件名 */
-	Filename string
+	Filename string `json:"filename"`
 	/** 更新链接 */
 	UpdateUrls []string `json:"updateUrls"`
 	/** etag */
@@ -600,10 +600,10 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 	if err != nil {
 		errText := err.Error()
 		jsInfo.ErrText = errText
+		jsInfo.Enable = false
 		d.Logger.Error("读取脚本失败(解析失败): ", errText)
-	} else {
-		d.JsScriptList = append(d.JsScriptList, jsInfo)
 	}
+	d.JsScriptList = append(d.JsScriptList, jsInfo)
 }
 
 func JsDelete(_ *Dice, jsInfo *JsScriptInfo) {
