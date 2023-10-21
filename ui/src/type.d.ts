@@ -10,7 +10,8 @@ interface JsScriptInfo {
   updateTime: number;
   installTime: number;
   errText: string;
-  updateUrls?: string[]
+  filename: string;
+  updateUrls?: string[];
 }
 
 interface JsPluginConfigItem {

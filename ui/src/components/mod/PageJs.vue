@@ -45,40 +45,60 @@
             </el-space>
           </header>
           <main class="js-list-main">
-            <el-card class="js-item" v-for="i, index in jsList" :key="index" shadow="hover">
+            <el-card class="js-item" v-for="(i, index) of jsList" :key="index" shadow="hover">
               <template #header>
                 <div class="js-item-header">
-                  <el-space>
-                    <el-switch v-model="i.enable" @change="changejsScriptStatus(i.name, i.enable)"
-                      style="--el-switch-on-color: #67C23A; --el-switch-off-color: #F56C6C" />
-                    <el-text size="large" tag="b">{{ i.name }}</el-text>
-                    <el-text>{{ i.version || '&lt;未定义>' }}</el-text>
-                  </el-space>
-                  <el-space>
-                    <el-popconfirm v-if="i.updateUrls && i.updateUrls.length > 0" width="220"
-                                   confirm-button-text="确认"
-                                   cancel-button-text="取消"
-                                   @confirm="doCheckUpdate(i, index)"
-                                   title="更新地址由插件作者提供，是否确认要检查该插件更新？">
-                      <template #reference>
-                        <el-button :icon="Download" type="success" size="small" plain :loading="diffLoading">更新</el-button>
-                      </template>
-                    </el-popconfirm>
-<!--                    <el-button :icon="Setting" type="primary" size="small" plain @click="showSettingDialog = true">设置</el-button>-->
-                    <el-button @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>删除</el-button>
-                  </el-space>
+                  <template v-if="!i.errText">
+                    <el-space>
+                      <el-switch v-model="i.enable" @change="changejsScriptStatus(i.name, i.enable)" :disabled="i.errText !== ''"
+                                 style="--el-switch-on-color: var(--el-color-success); --el-switch-off-color: var(--el-color-danger)" />
+                      <el-text size="large" tag="b">{{ i.name }}</el-text>
+                      <el-text>{{ i.version || '&lt;未定义>' }}</el-text>
+                    </el-space>
+                    <el-space>
+                      <el-popconfirm v-if="i.updateUrls && i.updateUrls.length > 0" width="220"
+                                     confirm-button-text="确认"
+                                     cancel-button-text="取消"
+                                     @confirm="doCheckUpdate(i, index)"
+                                     title="更新地址由插件作者提供，是否确认要检查该插件更新？">
+                        <template #reference>
+                          <el-button :icon="Download" type="success" size="small" plain :loading="diffLoading">更新</el-button>
+                        </template>
+                      </el-popconfirm>
+                      <!--                    <el-button :icon="Setting" type="primary" size="small" plain @click="showSettingDialog = true">设置</el-button>-->
+                      <el-button @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>删除</el-button>
+                    </el-space>
+                  </template>
+                  <template v-else>
+                    <el-space alignment="center">
+                      <el-icon size="20" color="var(--el-color-danger)"><circle-close/></el-icon>
+                      <del>
+                        <el-text size="large" tag="b">{{ i.filename }}</el-text>
+                      </del>
+                    </el-space>
+                    <el-space>
+                      <el-button @click="doDelete(i, index)" :icon="Delete" type="danger" size="small">删除</el-button>
+                    </el-space>
+                  </template>
                 </div>
               </template>
+
               <el-descriptions>
-                <el-descriptions-item :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="介绍">{{ i.desc || '&lt;暂无>' }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="主页">{{ i.homepage || '&lt;暂无>' }}</el-descriptions-item>
-                <el-descriptions-item label="许可协议">{{ i.license || '&lt;暂无>' }}</el-descriptions-item>
-                <el-descriptions-item label="安装时间">{{ dayjs.unix(i.installTime).fromNow() }}</el-descriptions-item>
-                <el-descriptions-item label="更新时间">
-                  {{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || '&lt;暂无>' }}
-                </el-descriptions-item>
-                <el-descriptions-item label="报错信息" :span="3" v-if="i.errText">{{ i.errText }}</el-descriptions-item>
+                <template v-if="!i.errText">
+                  <el-descriptions-item :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
+                  <el-descriptions-item :span="3" label="介绍">{{ i.desc || '&lt;暂无>' }}</el-descriptions-item>
+                  <el-descriptions-item :span="3" label="主页">{{ i.homepage || '&lt;暂无>' }}</el-descriptions-item>
+                  <el-descriptions-item label="许可协议">{{ i.license || '&lt;暂无>' }}</el-descriptions-item>
+                  <el-descriptions-item label="安装时间">{{ dayjs.unix(i.installTime).fromNow() }}</el-descriptions-item>
+                  <el-descriptions-item label="更新时间">
+                    {{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || '&lt;暂无>' }}
+                  </el-descriptions-item>
+                </template>
+                <template v-else>
+                  <el-descriptions-item label="错误信息">
+                    <el-text type="danger">{{ i.errText }}</el-text>
+                  </el-descriptions-item>
+                </template>
               </el-descriptions>
             </el-card>
 
