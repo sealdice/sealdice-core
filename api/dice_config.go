@@ -236,10 +236,13 @@ func DiceConfigSet(c echo.Context) error {
 		valStr, ok := val.(string)
 		if ok {
 			valStr = strings.TrimSpace(valStr)
-			myDice.MaxExecuteTime, err = strconv.ParseInt(valStr, 10, 64)
-			if err != nil || myDice.MaxExecuteTime < 1 || myDice.MaxExecuteTime > 25 {
-				myDice.MaxExecuteTime = 12
-			}
+			var valInt int64
+			valInt, err = strconv.ParseInt(valStr, 10, 64)
+			if err == nil && valInt > 0 {
+				myDice.MaxExecuteTime = valInt
+			} /* else {
+				Should return some error?
+			} */
 		}
 	}
 
@@ -247,10 +250,13 @@ func DiceConfigSet(c echo.Context) error {
 		valStr, ok := val.(string)
 		if ok {
 			valStr = strings.TrimSpace(valStr)
-			myDice.MaxCocCardGen, err = strconv.ParseInt(valStr, 10, 64)
-			if err != nil || myDice.MaxCocCardGen < 1 || myDice.MaxCocCardGen > 12 {
-				myDice.MaxCocCardGen = 5
-			}
+			var valInt int64
+			valInt, err = strconv.ParseInt(valStr, 10, 64)
+			if err == nil && valInt > 0 {
+				myDice.MaxCocCardGen = valInt
+			} /* else {
+				Should return some error?
+			} */
 		}
 	}
 

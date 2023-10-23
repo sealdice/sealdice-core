@@ -757,11 +757,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 			}
 			if t > int(ctx.Dice.MaxExecuteTime) {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
-				return CmdExecuteResult{Matched: true, Solved: false}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			if t > m {
 				ReplyToSender(ctx, msg, fmt.Sprintf("无法不重复地投掷%d次%d面骰。", t, m))
-				return CmdExecuteResult{Matched: true, Solved: false}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			var pool []int
 			ma := make(map[int]bool)
@@ -841,38 +841,37 @@ func RegisterBuiltinExtFun(self *Dice) {
 					roulette.Name = n
 				}
 
-				if roulette.Time > int(ctx.Dice.MaxExecuteTime) {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
-					return CmdExecuteResult{Matched: true, Solved: false}
-				}
+				// NOTE(Xiangze Li): 允许创建更多轮数。使用洗牌算法后并不会很重复计算
+				// if roulette.Time > int(ctx.Dice.MaxExecuteTime) {
+				// 	ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
+				// 	return CmdExecuteResult{Matched: true, Solved: true}
+				// }
 
 				if int64(roulette.Time) > roulette.Face {
 					ReplyToSender(ctx, msg, fmt.Sprintf("创建错误：无法不重复地投掷%d次%d面骰。",
 						roulette.Time,
 						roulette.Face))
-					return CmdExecuteResult{Matched: true, Solved: false}
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				// 创建pool后直接先随机了
-				var pool []int
-				ma := make(map[int]bool)
-				for len(pool) < roulette.Time {
-					n := rand.Intn(int(roulette.Face)) + 1
-					if !ma[n] {
-						ma[n] = true
-						pool = append(pool, n)
-					}
+				// 创建pool后产生随机数，使用F-Y洗牌算法以保证随机性和效率
+				var pool = make([]int, roulette.Time)
+				var allNum = make([]int, roulette.Face)
+				for i := range allNum {
+					allNum[i] = i + 1
 				}
-				// ctx.Dice.Logger.Info(pool)
+				for idx := 0; idx < roulette.Time; idx++ {
+					i := int(roulette.Face) - 1 - idx
+					j := rand.Intn(i + 1)
+					allNum[i], allNum[j] = allNum[j], allNum[i]
+					pool[idx] = allNum[i]
+				}
 				roulette.Pool = pool
 
 				rouletteMap.Store(ctx.Group.GroupID, roulette)
 				ReplyToSender(ctx, msg, fmt.Sprintf("创建骰池%s成功，骰子面数%d，可抽取%d次。",
 					roulette.Name, roulette.Face, roulette.Time))
-				return CmdExecuteResult{
-					Matched: true,
-					Solved:  true,
-				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			// Draw mode
 			var isRouletteEmpty = true
@@ -883,10 +882,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			tryLoad, ok := rouletteMap.Load(ctx.Group.GroupID)
 			if isRouletteEmpty || !ok || tryLoad.Face == 0 {
 				ReplyToSender(ctx, msg, "当前群组无骰池，请使用.drl new创建一个。")
-				return CmdExecuteResult{
-					Matched: true,
-					Solved:  false,
-				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
 			result := fmt.Sprintf("D%d=%d", tryLoad.Face, tryLoad.Pool[0])

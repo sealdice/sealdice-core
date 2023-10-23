@@ -276,9 +276,10 @@ func (cmdArgs *CmdArgs) commandParse(rawCmd string, currentCmdLst []string, pref
 		// 将所有args连接起来，存入一个cleanArgs变量。主要用于兼容非标准参数
 		stText := strings.Join(cmdArgs.Args, " ")
 		cmdArgs.CleanArgs = strings.TrimSpace(stText)
-		if specialExecuteTimes > 25 {
-			specialExecuteTimes = 25
-		}
+		// NOTE(Xiangze Li): 不要在解析指令时直接修改轮数
+		// if specialExecuteTimes > 25 {
+		// 	specialExecuteTimes = 25
+		// }
 		cmdArgs.SpecialExecuteTimes = specialExecuteTimes
 
 		// 以下信息用于重组解析使用
