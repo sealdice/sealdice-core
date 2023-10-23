@@ -1,7 +1,7 @@
 import { defaultTheme, defineUserConfig } from 'vuepress'
-import { backToTopPlugin } from '@vuepress/plugin-back-to-top'
-import { searchPlugin } from '@vuepress/plugin-search'
 import { mdEnhancePlugin } from 'vuepress-plugin-md-enhance'
+import { copyCodePlugin } from "vuepress-plugin-copy-code2";
+import { searchProPlugin } from "vuepress-plugin-search-pro";
 
 export default defineUserConfig({
   base: '/sealdice-manual-next/',
@@ -87,13 +87,16 @@ export default defineUserConfig({
     contributors: false,
   }),
   plugins: [
-    backToTopPlugin(),
-    searchPlugin({
+    searchProPlugin({
+      indexContent: true,
+      autoSuggestions: true,
       locales: {
         '/': {
+          search: '搜索',
           placeholder: '搜索',
         },
         '/en': {
+          search: 'Search',
           placeholder: 'Search',
         },
       },
@@ -105,6 +108,10 @@ export default defineUserConfig({
       imgLazyload: true,
       imgMark: true,
       imgSize: true,
+    }),
+    copyCodePlugin({
+      showInMobile: true,
+      pure: true,
     }),
   ],
 })
