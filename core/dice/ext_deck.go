@@ -685,11 +685,14 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					if cmdArgs.SpecialExecuteTimes > times {
 						times = cmdArgs.SpecialExecuteTimes
 					}
-					if times < 1 {
-						times = 1
-					}
-					if times > 5 {
-						times = 5
+
+					// 信任骰主设置的执行次数上限
+					// if times > 5 {
+					// 	times = 5
+					// }
+					if times > int(ctx.Dice.MaxExecuteTime) {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
 					for i := 1; i < times; i++ {
