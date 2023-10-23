@@ -61,6 +61,7 @@ export default defineUserConfig({
         children: [
           '/advanced/introduce.md',
           '/advanced/script.md',
+          '/advanced/edit_complex_custom_text.md',
           '/advanced/edit_reply.md',
           '/advanced/edit_deck.md',
           '/advanced/edit_jsscript.md',
@@ -100,6 +101,10 @@ export default defineUserConfig({
     mdEnhancePlugin({
       container: true,
       tabs: true,
+      figure: true,
+      imgLazyload: true,
+      imgMark: true,
+      imgSize: true,
     }),
   ],
 })
