@@ -1,4 +1,4 @@
 ---
 lang: zh-cn
-title: 敏感词拦截
+title: 敏感词
 ---

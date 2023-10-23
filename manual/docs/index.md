@@ -29,6 +29,10 @@ heroImage: /images/sealdice.ico
 
 ## 导航
 
+### 海豹有什么特别的功能吗？
+
+见 [使用-特色功能](./use/special_feature.md)
+
 ### 我是 PL，告诉我怎么用就好
 
 见 [使用-基础概念](./use/introduce.md)
@@ -44,3 +48,13 @@ heroImage: /images/sealdice.ico
 ### 我是开发者，如何参与海豹的开发？
 
 见 [开发-如何参与开发](./develop/develop.md)
+
+
+## 用户群
+
+主群: 524364253
+
+分群: 562897832
+
+分群: 715664650
+

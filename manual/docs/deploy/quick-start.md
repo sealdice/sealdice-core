@@ -76,3 +76,37 @@ Android 用户请使用手机海豹。
 :::
 
 ## 添加至系统服务（可选）
+
+如果你使用远程Linux服务器部署，那么随着SSH终端关闭，通常海豹也会一块关闭。
+
+SealDice提供了一种自动安装为系统服务(systemd服务项)的功能，可以免去手动配置：
+
+```shell
+./sealdice-core -i
+正在安装系统服务，安装完成后，SealDice将自动随系统启动
+安装完成，正在启动……
+```
+
+卸载：
+
+```
+./sealdice-core --uninstall
+正在卸载系统服务……
+系统服务已删除
+```
+
+服务名称和启动服务使用的用户名可以自定义，输入./sealdice-core -h自行查看
+
+安装完成后，可以使用systemctl来管理服务:
+
+```shell
+systemctl status sealdice
+systemctl start sealdice
+systemctl stop sealdice
+journalctl -xe -u sealdice.service // 查看日志
+```
+
+更多用法参见`systemd`文档
+
+P.S. 如果你有自己的onebot服务端，请将其设为WS主动连接模式，手动修改`data/default/serve.yaml`即可进行连接。
+P.S. 如果你有自己的onebot服务端，请将其设为WS主动连接模式，手动修改`data/default/serve.yaml`即可进行连接。

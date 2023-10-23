@@ -17,14 +17,25 @@ export default defineUserConfig({
         link: '/',
       },
       {
+        text: '常见问题',
+        link: '/faq.md',
+        activeMatch: '/faq.html'
+      },
+      {
         text: '部署',
         children: [
           '/deploy/quick-start.md',
+          '/deploy/transfer.md',
         ],
       },
       {
         text: '配置',
         children: [
+          '/config/custom_text.md',
+          '/config/reply.md',
+          '/config/deck.md',
+          '/config/jsscript.md',
+          '/config/helpdoc.md',
           '/config/censor.md',
         ],
       },
@@ -33,9 +44,15 @@ export default defineUserConfig({
         children: [
           '/use/introduce.md',
           '/use/quick-start.md',
+          '/use/special_feature.md',
           '/use/core.md',
+          '/use/helper.md',
           '/use/coc7.md',
           '/use/dnd5e.md',
+          '/use/story.md',
+          '/use/log.md',
+          '/use/fun.md',
+          '/use/deck_and_reply.md',
           '/use/sr.md',
         ],
       },
@@ -43,7 +60,12 @@ export default defineUserConfig({
         text: '进阶',
         children: [
           '/advanced/introduce.md',
-          '/advanced/decks.md',
+          '/advanced/script.md',
+          '/advanced/edit_reply.md',
+          '/advanced/edit_deck.md',
+          '/advanced/edit_jsscript.md',
+          '/advanced/edit_helpdoc.md',
+          '/advanced/edit_sensitive_words.md',
         ],
       },
       {
@@ -51,6 +73,11 @@ export default defineUserConfig({
         children: [
           '/develop/develop.md',
         ],
+      },
+      {
+        text: '关于',
+        link: '/about.md',
+        activeMatch: '/about.html'
       },
     ],
     repo: 'sealdice/sealdice-core',
