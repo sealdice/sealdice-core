@@ -1,0 +1,14 @@
+node_modules
+.DS_Store
+/docs/.vuepress/.temp/
+/docs/.vuepress/.cache/
+/docs/.vuepress/dist/
+
+# lock
+package-lock.json
+yarn.lock
+
+*.log
+
+.idea
+/.vscode/settings.json
