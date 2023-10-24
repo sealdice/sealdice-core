@@ -1,9 +1,9 @@
 ---
 lang: zh-cn
-title: 编写 JS 脚本
+title: 编写 JS 插件
 ---
 
-# 编写 JS 脚本
+# 编写 JS 插件
 
 ::: info 本节内容
 
@@ -17,6 +17,9 @@ title: 编写 JS 脚本
 
 - [JavaScript-菜鸟教程](https://www.runoob.com/js/js-tutorial.html)
 - [JavaScript教程-廖雪峰](https://www.liaoxuefeng.com/wiki/1022910821149312)
+
+- 扩展编写示例：https://github.com/sealdice/javascript/tree/main/examples
+- 已有扩展下载：https://github.com/sealdice/javascript/tree/main/scripts
 
 ## 0.如何优雅地偷懒
 

@@ -108,6 +108,7 @@ export default defineUserConfig({
       imgLazyload: true,
       imgMark: true,
       imgSize: true,
+      align: true,
     }),
     copyCodePlugin({
       showInMobile: true,
