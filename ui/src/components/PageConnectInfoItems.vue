@@ -427,6 +427,7 @@
             <el-option label="Telegram帐号" :value="3"></el-option>
             <el-option label="Minecraft服务器(Paper)" :value="4"></el-option>
             <el-option label="Dodo语音" :value="5"></el-option>
+            <el-option label="钉钉" :value="8"></el-option>
           </el-select>
         </el-form-item>
 
@@ -776,6 +777,30 @@
           </small>
         </el-form-item>
 
+        <el-form-item v-if="form.accountType === 8" label="昵称" :label-width="formLabelWidth" >
+          <el-input v-model="form.nickname" type="string" autocomplete="off" placeholder="机器人的昵称"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 8" label="ClientID" :label-width="formLabelWidth" required>
+          <el-input v-model="form.clientID" type="string" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 8" label="RobotCode" :label-width="formLabelWidth" required>
+          <el-input v-model="form.robotCode" type="string" autocomplete="off"></el-input>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 8" label="Token" :label-width="formLabelWidth" required>
+          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+          <small>
+            <div>提示: 前往钉钉开发者平台 https://open-dev.dingtalk.com/fe/app </div>
+            <div>点击创建应用</div>
+            <div>点击 基础信息 - 应用信息</div>
+            <div>把 AppKey 复制到 ClientID 内</div>
+            <div>把 AppSecret 复制到 Token 内</div>
+            <div>创建完成之后点击 应用功能 - 机器人与消息推送 并将机器人配置的开关打开</div>
+            <div>请务必确保 推送方式/消息接受模式 都为 Stream 模式</div>
+            <div>点击发布后 复制 RobotCode 到 RobotCode 内</div>
+          </small>
+        </el-form-item>
+
       </el-form>
     </template>
     <template v-else-if="form.step === 2">
@@ -877,6 +902,7 @@
               (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === '' ||
               form.accountType === 4 && form.url === '' ||
               form.accountType === 5 && (form.clientID === '' || form.token === '') ||
+              form.accountType === 8 && (form.clientID === '' || form.token === '' || form.robotCode === '') ||
               form.accountType === 6 && (form.account === '' || form.connectUrl === '' || form.relWorkDir === '') ||
               form.accountType === 7 && (form.host === '' || form.port === '' || form.token === '')">
             下一步</el-button>
@@ -1236,6 +1262,7 @@ const form = reactive({
   step: 1,
   isEnd: false,
   account: '',
+  nickname: '',
   password: '',
   protocol: 1,
   appVersion: '',
@@ -1245,6 +1272,7 @@ const form = reactive({
   proxyURL:'',
   url:'',
   clientID:'',
+  robotCode:'',
   ignoreFriendRequest: false,
   extraArgs: '',
   endpoint: null as any as DiceConnection,

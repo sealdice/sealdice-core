@@ -186,8 +186,8 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async addImConnection(form: { accountType: number, account: string, password: string, protocol: number, appVersion: string, token: string, proxyURL: string, url: string, host: string, port: number, clientID: string, implementation: string, connectUrl: string, accessToken: string, relWorkDir: string, useSignServer: boolean, signServerConfig: any }) {
-      const { accountType, account, password, protocol, appVersion, token, proxyURL, url, host, port, clientID, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig } = form
+    async addImConnection(form: { accountType: number, nickname: string,account: string, password: string, protocol: number, appVersion: string, token: string, proxyURL: string, url: string, host: string, port: number, clientID: string, robotCode: string, implementation: string, connectUrl: string, accessToken: string, relWorkDir: string, useSignServer: boolean, signServerConfig: any }) {
+      const { accountType, nickname, account, password, protocol, appVersion, token, proxyURL, url, host, port, clientID, robotCode, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig } = form
       let info = null
       switch (accountType) {
         //QQ
@@ -219,6 +219,8 @@ export const useStore = defineStore('main', {
         case 7:
           info = await backend.post(urlPrefix + '/im_connections/addRed', { host, port, token }, { timeout: 65000 })
           break
+        case 8:
+          info = await backend.post(urlPrefix + '/im_connections/addDingtalk', { clientID, token, nickname, robotCode }, { timeout: 65000 })
       }
       return info as any as DiceConnection
     },
