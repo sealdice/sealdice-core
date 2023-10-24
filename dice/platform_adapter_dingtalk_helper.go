@@ -1,8 +1,9 @@
 package dice
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func NewDingTalkConnItem(clientID string, token string, nickname string, robotCode string) *EndPointInfo {

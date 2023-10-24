@@ -2,10 +2,11 @@ package dice
 
 import (
 	"fmt"
-	dingtalk "github.com/Szzrain/DingTalk-go"
-	"github.com/open-dingtalk/dingtalk-stream-sdk-go/chatbot"
 	"strings"
 	"time"
+
+	dingtalk "github.com/Szzrain/DingTalk-go"
+	"github.com/open-dingtalk/dingtalk-stream-sdk-go/chatbot"
 )
 
 type PlatformAdapterDingTalk struct {
@@ -141,12 +142,10 @@ func (pa *PlatformAdapterDingTalk) GetGroupInfoAsync(groupID string) {
 }
 
 func (pa *PlatformAdapterDingTalk) OnChatReceive(_ *dingtalk.Session, data *chatbot.BotCallbackDataModel) {
-	//palogger := pa.Session.Parent.Logger
 	pa.EndPoint.UserID = FormatDiceIDDingTalk(data.ChatbotUserId)
 	if pa.Session.ServiceAtNew[FormatDiceIDDingTalkGroup(data.ConversationId)] != nil {
 		pa.Session.ServiceAtNew[FormatDiceIDDingTalkGroup(data.ConversationId)].GroupName = data.ConversationTitle
 	}
-	//palogger.Info("Dingtalk OnChatReceive: ", data.Text.Content, " Sender: ", data.SenderId, " CorpId: ", data.SenderCorpId, " Conversation Type: ", data.ConversationType)
 	msg := pa.toStdMessage(data)
 	pa.Session.Execute(pa.EndPoint, msg, false)
 }
