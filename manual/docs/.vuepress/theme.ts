@@ -10,33 +10,30 @@ export default hopeTheme({
   },
   favicon: "/images/sealdice.ico",
   docsDir: "docs",
-  // lastUpdatedText: "最近更新",
 
   navbar,
   logo: "/images/sealdice.ico",
-  repo: "sealdice/sealdice-manual-next",
+  repo: "sealdice/sealdice-core",
 
   sidebar,
 
   breadcrumb: false,
-
-  pageInfo: ["Date", "ReadingTime"],
-
-  metaLocales: {
-    contributors: false,
-    editLink: "在 Github 上编辑此页",
-    docsRepo: "sealdice/sealdice-manual-next",
-    docsBranch: "main",
-  },
-
+  pageInfo: ["ReadingTime"],
+  contributors: false,
+  editLink: false,
+  docsRepo: "sealdice/sealdice-manual-next",
+  docsBranch: "main",
   displayFooter: false,
-
   home: "/index.md",
-
   pure: true,
   print: false,
 
+  metaLocales: {
+    editLink: "在 Github 上编辑此页",
+  },
+
   plugins: {
+    autoCatalog: false,
     copyCode: {
       showInMobile: true,
     },

@@ -2,7 +2,16 @@
 home: true
 lang: zh-cn
 title: 首页
+tagline: 海豹核心的全新官方使用手册✨
 heroImage: /images/sealdice.ico
+actions:
+  - text: 指令上手
+    link: /use/quick-start
+    type: primary
+  - text: 快速部署
+    link: /deploy/quick-start
+  - text: 特色功能
+    link: /use/special_feature
 ---
 
 # 介绍
