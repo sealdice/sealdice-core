@@ -67,7 +67,7 @@ require (
 	github.com/samber/lo v1.38.1
 	github.com/schollz/progressbar/v3 v3.13.1
 	github.com/sealdice/dicescript v0.0.0-20230917100026-46a8c8b410d3
-	github.com/tdewolff/minify/v2 v2.12.9
+	github.com/tdewolff/minify/v2 v2.19.10
 	github.com/yuin/goldmark v1.5.6
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 	golang.org/x/time v0.3.0
