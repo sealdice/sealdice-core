@@ -5,6 +5,14 @@ github.com/RoaringBitmap/roaring v0.9.4 h1:ckvZSX5gwCRaJYBNe7syNawCU5oruY9gQmjXl
 github.com/RoaringBitmap/roaring v0.9.4/go.mod h1:icnadbWcNyfEHlYdr+tDlOTih1Bf/h+rzPpv4sbomAA=
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a h1:NPnGVqpua4c1iEFVdxnBJA9viP5bo2Zp2jfflbcjdto=
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a/go.mod h1:5LI6VqIHoGmWsR0EJLbct5bBrtM/0pTonaAyGKmFk9U=
+github.com/Szzrain/DingTalk-go v0.0.5-alpha h1:OFGYTTVbZUVko0iw29sLbWhTg8qwstHuBSUVVkz6wJs=
+github.com/Szzrain/DingTalk-go v0.0.5-alpha/go.mod h1:j2+BnL67DfiCu6E1rhJDHy4up2drtGXJOrRohIHg5uo=
+github.com/Szzrain/DingTalk-go v0.0.6-alpha h1:PLt9HInHqstJdPOjzcCxwAhdlzfQQhLb8QhDg8NAPzo=
+github.com/Szzrain/DingTalk-go v0.0.6-alpha/go.mod h1:j2+BnL67DfiCu6E1rhJDHy4up2drtGXJOrRohIHg5uo=
+github.com/Szzrain/DingTalk-go v0.0.7-alpha h1:7lN2cwtwUQbiSJoX/vihwEcpUu+w2+fCNjI1kr97CkA=
+github.com/Szzrain/DingTalk-go v0.0.7-alpha/go.mod h1:j2+BnL67DfiCu6E1rhJDHy4up2drtGXJOrRohIHg5uo=
+github.com/Szzrain/DingTalk-go v0.0.8-alpha h1:mSR/ORDDjtndoR12WrEdd3hdxxXXm9VMQ/r75NJkkkE=
+github.com/Szzrain/DingTalk-go v0.0.8-alpha/go.mod h1:j2+BnL67DfiCu6E1rhJDHy4up2drtGXJOrRohIHg5uo=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpHMqeKTCYkitsPqHNxTmd4SNR5r94FGM8=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d/go.mod h1:asat636LX7Bqt5lYEZ27JNDcqxfjdBQuJ/MM4CN/Lzo=
 github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0 h1:BVts5dexXf4i+JX8tXlKT0aKoi38JwTXSe+3WUneX0k=
@@ -267,6 +275,8 @@ github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d/go.mod h1:YUTz3bUH
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.7.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/gomega v1.4.3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
+github.com/open-dingtalk/dingtalk-stream-sdk-go v0.6.0 h1:bkdN7LQb+JKOj29cfvAW/HZXHoTerZQY4CwgNrM3OoI=
+github.com/open-dingtalk/dingtalk-stream-sdk-go v0.6.0/go.mod h1:ln3IqPYYocZbYvl9TAOrG/cxGR9xcn4pnZRLdCTEGEU=
 github.com/otiai10/copy v1.12.0 h1:cLMgSQnXBs1eehF0Wy/FAGsgDTDmAqFR7rQylBb1nDY=
 github.com/otiai10/copy v1.12.0/go.mod h1:rSaLseMUsZFFbsFGc7wCJnnkTAvdc5L6VWxPE4308Ww=
 github.com/otiai10/mint v1.5.1 h1:XaPLeE+9vGbuyEHem1JNk3bYc7KKqyI/na0/mLd/Kks=

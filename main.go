@@ -483,6 +483,8 @@ func diceServe(d *dice.Dice) {
 					dice.ServeMinecraft(d, conn)
 				case "DODO":
 					dice.ServeDodo(d, conn)
+				case "DINGTALK":
+					dice.ServeDingTalk(d, conn)
 				}
 			}(_conn)
 		} else {

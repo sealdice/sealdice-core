@@ -184,6 +184,10 @@ func ImConnectionsDel(c echo.Context) error {
 					i.Adapter.SetEnable(false)
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					return c.JSON(http.StatusOK, i)
+				case "DINGTALK":
+					i.Adapter.SetEnable(false)
+					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
+					return c.JSON(http.StatusOK, i)
 				}
 			}
 		}
@@ -513,6 +517,32 @@ func ImConnectionsAddDodo(c echo.Context) error {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeDodo(myDice, conn)
+		return c.JSON(200, conn)
+	}
+	return c.String(430, "")
+}
+
+func ImConnectionsAddDingTalk(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := struct {
+		ClientID  string `yaml:"clientID" json:"clientID"`
+		Token     string `yaml:"token" json:"token"`
+		Nickname  string `yaml:"nickname" json:"nickname"`
+		RobotCode string `yaml:"robotCode" json:"robotCode"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		conn := dice.NewDingTalkConnItem(v.ClientID, v.Token, v.Nickname, v.RobotCode)
+		conn.Session = myDice.ImSession
+		pa := conn.Adapter.(*dice.PlatformAdapterDingTalk)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		go dice.ServeDingTalk(myDice, conn)
 		return c.JSON(200, conn)
 	}
 	return c.String(430, "")
