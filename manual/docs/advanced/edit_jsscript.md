@@ -1,13 +1,13 @@
 ---
 lang: zh-cn
-title: 编写 JS 插件
+title: 编写 JavaScript 插件
 ---
 
-# 编写 JS 插件
+# 编写 JavaScript 插件
 
 ::: info 本节内容
 
-本节将介绍 JS 脚本的编写，请善用侧边栏和搜索，按需阅读文档。
+本节将介绍 JavaScript 脚本的编写，请善用侧边栏和搜索，按需阅读文档。
 
 :::
 
@@ -44,7 +44,7 @@ vscode相比于记事本的优势：
 
 （已经有了，名为[Sealdice Snippets](https://marketplace.visualstudio.com/items?itemName=yxChangingSelf.sealdice-snippets)，在vscode的扩展商店就能找到并直接安装，提供了一些常见代码片段，可以快速生成模板代码）
 
-## 1.创建一个JS扩展
+## 1.创建一个 JS 扩展
 
 你可以选择使用JavaScript或者Typescript来作为你的编写语言。
 

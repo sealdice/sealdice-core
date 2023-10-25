@@ -1,9 +1,9 @@
 ---
 lang: zh-cn
-title: JS 插件
+title: JavaScript 插件
 ---
 
-# JS 插件
+# JavaScript 插件
 
 ::: info 本节内容
 
@@ -11,13 +11,13 @@ title: JS 插件
 
 :::
 
-## JS 插件是什么
+## JavaScript 插件是什么
 
 为了给有能力的用户提供更大的自定义空间，海豹核心支持使用 `JavaScript` 语言编写扩展插件。
 
 :::: tip JavaScript
 
-JavaScript（通常缩写为 JS）是一门基于原型和头等函数的多范式高级解释型编程语言，它支持面向对象程序设计、指令式编程和函数式编程。它提供方法来操控文本、数组、日期以及正则表达式等。
+JavaScript（JS）是一门基于原型和头等函数的多范式高级解释型编程语言，它支持面向对象程序设计、指令式编程和函数式编程。它提供方法来操控文本、数组、日期以及正则表达式等。
 
 ::: right
 —— [WIKI](https://zh.wikipedia.org/wiki/JavaScript)
