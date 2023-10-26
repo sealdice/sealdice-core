@@ -496,4 +496,4 @@ func (pa *PlatformAdapterTelegram) QuitGroup(_ *MsgContext, id string) {
 }
 
 // SetGroupCardName 没有这个接口 不实现
-func (pa *PlatformAdapterTelegram) SetGroupCardName(_ string, _ string, _ string) {}
+func (pa *PlatformAdapterTelegram) SetGroupCardName(_ *MsgContext, _ string) {}

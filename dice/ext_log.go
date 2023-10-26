@@ -46,7 +46,7 @@ func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) 
 		return text, ErrGroupCardOverlong
 	}
 
-	ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupID, ctx.Player.UserID, text)
+	ctx.EndPoint.Adapter.SetGroupCardName(ctx, text)
 	return text, nil
 }
 
@@ -563,7 +563,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ctx.Player.Name = ctx.Player.Name[len("ob"):]
 					ctx.Player.UpdatedAtTime = time.Now().Unix()
 				}
-				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupID, ctx.Player.UserID, ctx.Player.Name)
+				ctx.EndPoint.Adapter.SetGroupCardName(ctx, ctx.Player.Name)
 				text := DiceFormatTmpl(ctx, "日志:OB_关闭")
 				ReplyToSender(ctx, msg, text)
 			default:
@@ -571,7 +571,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ctx.Player.Name = "ob" + ctx.Player.Name
 					ctx.Player.UpdatedAtTime = time.Now().Unix()
 				}
-				ctx.EndPoint.Adapter.SetGroupCardName(ctx.Group.GroupID, ctx.Player.UserID, ctx.Player.Name)
+				ctx.EndPoint.Adapter.SetGroupCardName(ctx, ctx.Player.Name)
 				text := DiceFormatTmpl(ctx, "日志:OB_开启")
 				ReplyToSender(ctx, msg, text)
 			}

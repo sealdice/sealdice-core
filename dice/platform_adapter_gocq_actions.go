@@ -458,12 +458,12 @@ func (pa *PlatformAdapterGocq) GetStrangerInfo(userID int64) *OnebotUserInfo {
 	}
 }
 
-func (pa *PlatformAdapterGocq) SetGroupCardName(groupID string, userID string, name string) {
-	groupIDRaw, idType := pa.mustExtractID(groupID)
+func (pa *PlatformAdapterGocq) SetGroupCardName(ctx *MsgContext, name string) {
+	groupIDRaw, idType := pa.mustExtractID(ctx.Group.GroupID)
 	if idType != QQUidGroup {
 		return
 	}
-	userIDRaw, idType := pa.mustExtractID(userID)
+	userIDRaw, idType := pa.mustExtractID(ctx.Player.UserID)
 	if idType != QQUidPerson {
 		return
 	}
