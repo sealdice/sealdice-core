@@ -44,7 +44,7 @@ func (pa *PlatformAdapterHTTP) SendFileToGroup(ctx *MsgContext, uid string, path
 
 func (pa *PlatformAdapterHTTP) QuitGroup(_ *MsgContext, _ string) {}
 
-func (pa *PlatformAdapterHTTP) SetGroupCardName(_ string, _ string, _ string) {}
+func (pa *PlatformAdapterHTTP) SetGroupCardName(_ *MsgContext, _ string) {}
 
 func (pa *PlatformAdapterHTTP) MemberBan(_ string, _ string, _ int64) {}
 

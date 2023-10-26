@@ -8,7 +8,7 @@ type PlatformAdapter interface {
 
 	SendToPerson(ctx *MsgContext, uid string, text string, flag string)
 	SendToGroup(ctx *MsgContext, uid string, text string, flag string)
-	SetGroupCardName(groupID string, userID string, name string)
+	SetGroupCardName(ctx *MsgContext, name string)
 
 	SendFileToPerson(ctx *MsgContext, uid string, path string, flag string)
 	SendFileToGroup(ctx *MsgContext, uid string, path string, flag string)

@@ -440,16 +440,11 @@ func (pa *PlatformAdapterDiscord) QuitGroup(_ *MsgContext, id string) {
 }
 
 // SetGroupCardName 没有改变用户在某个频道中昵称的功能，一旦更改就是整个服务器范围内都改
-func (pa *PlatformAdapterDiscord) SetGroupCardName(groupID string, userID string, name string) {
-	ch, err := pa.IntentSession.Channel(ExtractDiscordChannelID(groupID))
+func (pa *PlatformAdapterDiscord) SetGroupCardName(ctx *MsgContext, name string) {
+	guildID := ctx.Group.GuildID
+	err := pa.IntentSession.GuildMemberNickname(guildID, ExtractDiscordUserID(ctx.Player.UserID), name)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("获取Discord频道#%s信息时出错:%s", groupID, err.Error())
-		return
-	}
-	guildID := ch.GuildID
-	err = pa.IntentSession.GuildMemberNickname(guildID, ExtractDiscordUserID(userID), name)
-	if err != nil {
-		pa.Session.Parent.Logger.Errorf("修改用户#%s在Discord服务器%s(来源频道#%s)的昵称时出错:%s", userID, guildID, groupID, err.Error())
+		pa.Session.Parent.Logger.Errorf("修改用户#%s在Discord服务器%s(来源频道#%s)的昵称时出错:%s", ctx.Player.UserID, guildID, ctx.Group.GroupID, err.Error())
 	}
 }
 

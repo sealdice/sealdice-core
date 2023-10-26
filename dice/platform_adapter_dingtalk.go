@@ -108,7 +108,7 @@ func (pa *PlatformAdapterDingTalk) SendToGroup(ctx *MsgContext, uid string, text
 	}, flag)
 }
 
-func (pa *PlatformAdapterDingTalk) SetGroupCardName(groupID string, userID string, name string) {
+func (pa *PlatformAdapterDingTalk) SetGroupCardName(ctx *MsgContext, name string) {
 }
 
 func (pa *PlatformAdapterDingTalk) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {

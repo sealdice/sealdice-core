@@ -640,6 +640,13 @@ func ExtractKookChannelID(id string) string {
 	return id
 }
 
+func ExtractKookGuildID(id string) string {
+	if strings.HasPrefix(id, "KOOK-Guild:") {
+		return id[len("KOOK-Guild:"):]
+	}
+	return id
+}
+
 func (pa *PlatformAdapterKook) QuitGroup(_ *MsgContext, groupID string) {
 	channel, err := pa.IntentSession.ChannelView(ExtractKookChannelID(groupID))
 	if err != nil {
@@ -653,19 +660,14 @@ func (pa *PlatformAdapterKook) QuitGroup(_ *MsgContext, groupID string) {
 	}
 }
 
-func (pa *PlatformAdapterKook) SetGroupCardName(groupID string, userID string, name string) {
+func (pa *PlatformAdapterKook) SetGroupCardName(ctx *MsgContext, name string) {
 	nick := &kook.GuildNickname{}
-	channel, err := pa.IntentSession.ChannelView(ExtractKookChannelID(groupID))
-	if err != nil {
-		pa.Session.Parent.Logger.Errorf("获取Kook频道信息#%s时出错:%s", groupID, err.Error())
-		return
-	}
-	nick.GuildID = channel.GuildID
+	nick.GuildID = ExtractKookGuildID(ctx.Group.GuildID)
 	nick.Nickname = name
-	nick.UserID = ExtractKookUserID(userID)
-	err = pa.IntentSession.GuildNickname(nick)
+	nick.UserID = ExtractKookUserID(ctx.Player.UserID)
+	err := pa.IntentSession.GuildNickname(nick)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("修改Kook用户#%s在服务器#%s(来源频道#%s)的昵称时出错:%s", userID, channel.GuildID, groupID, err.Error())
+		pa.Session.Parent.Logger.Errorf("修改Kook用户#%s在服务器#%s(来源频道#%s)的昵称时出错:%s", ctx.Player.UserID, ctx.Group.GuildID, ctx.Group.GroupID, err.Error())
 		return
 	}
 }
