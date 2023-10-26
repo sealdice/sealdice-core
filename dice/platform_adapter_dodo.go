@@ -345,6 +345,22 @@ func ExtractDodoGroupID(id string) string {
 	}
 	return id
 }
-func (pa *PlatformAdapterDodo) QuitGroup(_ *MsgContext, _ string) {}
+func (pa *PlatformAdapterDodo) QuitGroup(ctx *MsgContext, groupId string) {
+	_, err := pa.Client.SetBotIslandLeave(context.Background(), &model.SetBotLeaveIslandReq{
+		IslandSourceId: ctx.Group.GuildID,
+	})
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("Dodo退群失败:%v", err)
+	}
+}
 
-func (pa *PlatformAdapterDodo) SetGroupCardName(_ string, _ string, _ string) {}
+func (pa *PlatformAdapterDodo) SetGroupCardName(ctx *MsgContext, name string) {
+	_, err := pa.Client.SetMemberNick(context.Background(), &model.SetMemberNickReq{
+		IslandSourceId: ctx.Group.GuildID,
+		DodoSourceId:   ExtractDodoUserID(ctx.Player.UserID),
+		NickName:       name,
+	})
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("Dodo设置群名片失败:%v", err)
+	}
+}

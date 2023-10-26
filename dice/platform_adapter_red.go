@@ -627,7 +627,7 @@ func (pa *PlatformAdapterRed) mustExtractId(id string) (int64, RedChatType) {
 	return 0, 0
 }
 
-func (pa *PlatformAdapterRed) SetGroupCardName(groupId string, userId string, name string) {
+func (pa *PlatformAdapterRed) SetGroupCardName(ctx *MsgContext, name string) {
 	log := pa.Session.Parent.Logger
 	log.Warn("red: 尚未实现该功能")
 }

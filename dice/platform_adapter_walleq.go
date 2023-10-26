@@ -904,7 +904,7 @@ func (pa *PlatformAdapterWalleQ) QuitGroup(_ *MsgContext, id string) {
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterWalleQ) SetGroupCardName(_ string, _ string, _ string) {
+func (pa *PlatformAdapterWalleQ) SetGroupCardName(_ *MsgContext, _ string) {
 	// wq 暂无该扩展 api
 }
 
