@@ -142,7 +142,6 @@ func (pa *PlatformAdapterDingTalk) GetGroupInfoAsync(groupID string) {
 }
 
 func (pa *PlatformAdapterDingTalk) OnChatReceive(_ *dingtalk.Session, data *chatbot.BotCallbackDataModel) {
-	pa.EndPoint.UserID = FormatDiceIDDingTalk(data.ChatbotUserId)
 	if pa.Session.ServiceAtNew[FormatDiceIDDingTalkGroup(data.ConversationId)] != nil {
 		pa.Session.ServiceAtNew[FormatDiceIDDingTalkGroup(data.ConversationId)].GroupName = data.ConversationTitle
 	}
@@ -213,6 +212,10 @@ func (pa *PlatformAdapterDingTalk) toStdMessage(data *chatbot.BotCallbackDataMod
 }
 
 func (pa *PlatformAdapterDingTalk) Serve() int {
+	pa.EndPoint.UserID = FormatDiceIDDingTalk(pa.RobotCode)
+	if pa.EndPoint.Nickname == "" {
+		pa.EndPoint.Nickname = "DingTalkBot"
+	}
 	logger := pa.Session.Parent.Logger
 	logger.Info("Dingtalk Serve")
 	pa.IntentSession = dingtalk.New(pa.ClientID, pa.Token)
