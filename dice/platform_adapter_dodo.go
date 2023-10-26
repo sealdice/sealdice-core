@@ -323,30 +323,18 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 				if ok {
 					component.Text.Content += e.Content
 					continue
-				} else {
-					msgSend.Card.Components = append(msgSend.Card.Components, &DoDoTextMessageComponent{
-						Type: "section",
-						Text: struct {
-							Content string `json:"content"`
-							Type    string `json:"type"`
-						}{
-							Content: convertLinksToMarkdown(antiMarkdownFormat(e.Content)),
-							Type:    "dodo-md",
-						},
-					})
 				}
-			} else {
-				msgSend.Card.Components = append(msgSend.Card.Components, &DoDoTextMessageComponent{
-					Type: "section",
-					Text: struct {
-						Content string `json:"content"`
-						Type    string `json:"type"`
-					}{
-						Content: convertLinksToMarkdown(antiMarkdownFormat(e.Content)),
-						Type:    "dodo-md",
-					},
-				})
 			}
+			msgSend.Card.Components = append(msgSend.Card.Components, &DoDoTextMessageComponent{
+				Type: "section",
+				Text: struct {
+					Content string `json:"content"`
+					Type    string `json:"type"`
+				}{
+					Content: convertLinksToMarkdown(antiMarkdownFormat(e.Content)),
+					Type:    "dodo-md",
+				},
+			})
 		case *ImageElement:
 			resourceResp, err := instance.UploadImageByBytes(context.Background(), &model.UploadImageByBytesReq{
 				Filename: e.file.File,
@@ -373,30 +361,18 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 				if ok {
 					component.Text.Content += fmt.Sprintf("<@!%s>", e.Target)
 					continue
-				} else {
-					msgSend.Card.Components = append(msgSend.Card.Components, &DoDoTextMessageComponent{
-						Type: "section",
-						Text: struct {
-							Content string `json:"content"`
-							Type    string `json:"type"`
-						}{
-							Content: fmt.Sprintf("<@!%s>", e.Target),
-							Type:    "dodo-md",
-						},
-					})
 				}
-			} else {
-				msgSend.Card.Components = append(msgSend.Card.Components, &DoDoTextMessageComponent{
-					Type: "section",
-					Text: struct {
-						Content string `json:"content"`
-						Type    string `json:"type"`
-					}{
-						Content: fmt.Sprintf("<@!%s>", e.Target),
-						Type:    "dodo-md",
-					},
-				})
 			}
+			msgSend.Card.Components = append(msgSend.Card.Components, &DoDoTextMessageComponent{
+				Type: "section",
+				Text: struct {
+					Content string `json:"content"`
+					Type    string `json:"type"`
+				}{
+					Content: fmt.Sprintf("<@!%s>", e.Target),
+					Type:    "dodo-md",
+				},
+			})
 		case *ReplyElement:
 			referenceMessageId = e.Target
 		}
