@@ -48,7 +48,7 @@ func DBVacuum() {
 	done := make(chan interface{}, 1)
 	fmt.Println("开始进行数据库整理")
 
-	go spinner.SpinnerWithLines(done, 3, 10)
+	go spinner.WithLines(done, 3, 10)
 	defer func() {
 		done <- struct{}{}
 	}()

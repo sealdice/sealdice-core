@@ -10,8 +10,8 @@ import (
 type MailCode int
 
 const (
-	// MailTypeOnebotClose 掉线
-	MailTypeOnebotClose MailCode = iota
+	// MailTypeConnectClose 掉线
+	MailTypeConnectClose MailCode = iota
 	// MailTypeCIAMLock 风控 // tx 云把 Customer Identity Access Management 叫做 账号风控平台……
 	MailTypeCIAMLock
 	// MailTypeNotice 通知
@@ -23,7 +23,7 @@ const (
 )
 
 func (d *Dice) CanSendMail() bool {
-	if d.MailFrom == "" || d.MailPassword == "" || d.MailSmtp == "" {
+	if d.MailFrom == "" || d.MailPassword == "" || d.MailSMTP == "" {
 		return false
 	}
 	return true
@@ -35,8 +35,8 @@ func (d *Dice) SendMail(body string, m MailCode) error {
 	}
 	sub := "Seal News: "
 	switch m {
-	case MailTypeOnebotClose:
-		sub += "Onebot 连接中断"
+	case MailTypeConnectClose:
+		sub += "Connect 连接中断"
 	case MailTypeCIAMLock:
 		sub += "Bot 机器人被风控"
 	case MailTypeNotice:
@@ -47,7 +47,7 @@ func (d *Dice) SendMail(body string, m MailCode) error {
 		sub += "Test 测试邮件"
 	}
 	var to []string
-	for _, id := range d.NoticeIds {
+	for _, id := range d.NoticeIDs {
 		if strings.HasPrefix(id, "QQ:") {
 			to = append(to, id[3:]+"@qq.com")
 		}
@@ -83,7 +83,7 @@ func (d *Dice) SendMailRow(subject string, to []string, content string, attachme
 		}
 	}
 
-	dialer := gomail.NewDialer(d.MailSmtp, 25, d.MailFrom, d.MailPassword)
+	dialer := gomail.NewDialer(d.MailSMTP, 25, d.MailFrom, d.MailPassword)
 	if err := dialer.DialAndSend(m); err != nil {
 		d.Logger.Error(err)
 	} else {

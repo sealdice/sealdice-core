@@ -48,6 +48,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.3.2
+	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/glebarez/go-sqlite v1.21.2
 	github.com/go-creed/sat v1.0.3
@@ -61,8 +62,10 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.6.0
 	github.com/pelletier/go-toml/v2 v2.1.0
 	github.com/pkg/errors v0.9.1
+	github.com/samber/lo v1.38.1
 	github.com/schollz/progressbar/v3 v3.13.1
 	github.com/sealdice/dicescript v0.0.0-20230917100026-46a8c8b410d3
 	github.com/tdewolff/minify/v2 v2.12.9

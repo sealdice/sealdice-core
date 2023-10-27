@@ -3,7 +3,6 @@ package api
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/labstack/echo/v4"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -11,6 +10,8 @@ import (
 	"sealdice-core/dice"
 	"strings"
 	"time"
+
+	"github.com/labstack/echo/v4"
 )
 
 func banConfigGet(c echo.Context) error {
@@ -72,7 +73,7 @@ func banMapDeleteOne(c echo.Context) error {
 	if err != nil {
 		return c.String(430, err.Error())
 	}
-	myDice.BanList.DeleteById(myDice, v.ID)
+	myDice.BanList.DeleteByID(myDice, v.ID)
 	return c.JSON(http.StatusOK, nil)
 }
 
@@ -109,14 +110,14 @@ func banMapAddOne(c echo.Context) error {
 		}
 	}
 	if v.Rank == dice.BanRankTrusted {
-		myDice.BanList.SetTrustById(v.ID, "海豹后台", "骰主后台设置")
+		myDice.BanList.SetTrustByID(v.ID, "海豹后台", "骰主后台设置")
 	}
 
 	return c.JSON(http.StatusOK, nil)
 }
 
 //
-//func banMapSet(c echo.Context) error {
+// func banMapSet(c echo.Context) error {
 //	if !doAuth(c) {
 //		return c.JSON(http.StatusForbidden, nil)
 //	}
@@ -148,13 +149,12 @@ func banExport(c echo.Context) error {
 	writer := bufio.NewWriter(temp)
 	err := json.NewEncoder(writer).Encode(&lst)
 	_ = writer.Flush()
-	if err == nil {
-		c.Response().Header().Add("Cache-Control", "no-store")
-		err := c.Attachment(temp.Name(), "黑白名单.json")
-		return err
-	} else {
+	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
+
+	c.Response().Header().Add("Cache-Control", "no-store")
+	return c.Attachment(temp.Name(), "黑白名单.json")
 }
 
 func banImport(c echo.Context) error {

@@ -9,14 +9,14 @@ import (
 
 func DBCheck(dataDir string) {
 	checkDB := func(db *sqlx.DB) bool {
-		rows, err := db.Query("PRAGMA integrity_check")
+		rows, err := db.Query("PRAGMA integrity_check") //nolint:execinquery
 		if err != nil {
 			return false
 		}
 		var ok bool
 		for rows.Next() {
 			var s string
-			if err := rows.Scan(&s); err != nil {
+			if errR := rows.Scan(&s); errR != nil {
 				ok = false
 				break
 			}
@@ -26,7 +26,7 @@ func DBCheck(dataDir string) {
 			}
 		}
 
-		if err := rows.Err(); err != nil {
+		if errR := rows.Err(); errR != nil {
 			ok = false
 		}
 		return ok

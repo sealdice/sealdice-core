@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-var uiResourcesUrl = "https://github.com/sealdice/sealdice-ui/releases/download/pre-release/sealdice-ui.zip"
+const uiResourcesURL = "https://github.com/sealdice/sealdice-ui/releases/download/pre-release/sealdice-ui.zip"
 
 func main() {
 	defer func() {
@@ -37,16 +37,14 @@ func main() {
 }
 
 func downloadFrontendZip() error {
-	resp, err := http.Get(uiResourcesUrl)
+	resp, err := http.Get(uiResourcesURL)
 	if err != nil {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf(resp.Status)
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	defer func() { _ = resp.Body.Close() }()
 
 	file, err := os.Create("sealdice-ui.zip")
 	if err != nil {
@@ -91,7 +89,7 @@ func unzip(src, dest string) error {
 			}
 		}()
 
-		path := filepath.Join(dest, f.Name)
+		path := filepath.Join(dest, f.Name) //nolint:gosec
 
 		// Check for ZipSlip (Directory traversal)
 		if !strings.HasPrefix(path, filepath.Clean(dest)+string(os.PathSeparator)) {
@@ -107,8 +105,8 @@ func unzip(src, dest string) error {
 				return err
 			}
 			defer func() {
-				if err := f.Close(); err != nil {
-					panic(err)
+				if errClose := f.Close(); errClose != nil {
+					panic(errClose)
 				}
 			}()
 

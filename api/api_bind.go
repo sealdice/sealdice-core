@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-const CODE_ALREADY_EXISTS = 602
+const CodeAlreadyExists = 602
 
 var startTime = time.Now().Unix()
 
@@ -24,12 +24,6 @@ func baseInfo(c echo.Context) error {
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	//fmt.Println("!!!!", m.Alloc-m.Frees, m.HeapReleased, m.HeapInuse)
-	//
-	//const meg = 1024 * 1024
-	//fmt.Printf("env: %v, sys: %4d MB, alloc: %4d MB, idel: %4d MB, released: %4d MB, inuse: %4d MB stack:%d\n",
-	//	os.Getenv("GODEBUG"), m.HeapSys/meg, m.HeapAlloc/meg, m.HeapIdle/meg, m.HeapReleased/meg, m.HeapInuse/meg,
-	//	m.StackSys/meg)
 
 	var versionNew string
 	var versionNewNote string
@@ -40,7 +34,6 @@ func baseInfo(c echo.Context) error {
 		versionNewCode = dm.AppVersionOnline.VersionLatestCode
 	}
 
-	extraTitle := ""
 	getName := func() string {
 		defer func() {
 			// 防止报错
@@ -50,8 +43,7 @@ func baseInfo(c echo.Context) error {
 		ctx := &dice.MsgContext{Dice: myDice, EndPoint: nil, Session: myDice.ImSession}
 		return dice.DiceFormatTmpl(ctx, "核心:骰子名字")
 	}
-
-	extraTitle = getName()
+	extraTitle := getName()
 
 	return c.JSON(http.StatusOK, struct {
 		AppName        string `json:"appName"`
@@ -87,9 +79,6 @@ func hello2(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	//dice.CmdRegister("aaa", "bb");
-	//a := dice.CmdList();
-	//b, _ := json.Marshal(a)
 	return c.JSON(http.StatusOK, nil)
 }
 
@@ -152,7 +141,7 @@ func logFetchAndClear(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	info := c.JSON(http.StatusOK, myDice.LogWriter.Items)
-	//myDice.LogWriter.Items = myDice.LogWriter.Items[:0]
+	// myDice.LogWriter.Items = myDice.LogWriter.Items[:0]
 	return info
 }
 
@@ -164,7 +153,7 @@ func DiceExec(c echo.Context) error {
 	}
 
 	v := struct {
-		Id      string `form:"id" json:"id"`
+		ID      string `form:"id" json:"id"`
 		Message string `form:"message"`
 	}{}
 	err := c.Bind(&v)
@@ -184,30 +173,30 @@ func DiceExec(c echo.Context) error {
 	}
 	lastExecTime = now
 
-	//pa := dice.PlatformAdapterHttp{
-	//	RecentMessage: []dice.HttpSimpleMessage{},
-	//}
-	//tmpEp := &dice.EndPointInfo{
-	//	EndPointInfoBase: dice.EndPointInfoBase{
-	//		Id:       "1",
-	//		Nickname: "海豹核心",
-	//		State:    2,
-	//		UserId:   "UI:1000",
-	//		Platform: "UI",
-	//		Enable:   true,
-	//	},
-	//	Adapter: &pa,
-	//}
+	// pa := dice.PlatformAdapterHttp{
+	// 	RecentMessage: []dice.HttpSimpleMessage{},
+	// }
+	// tmpEp := &dice.EndPointInfo{
+	// 	EndPointInfoBase: dice.EndPointInfoBase{
+	// 		Id:       "1",
+	// 		Nickname: "海豹核心",
+	// 		State:    2,
+	// 		UserId:   "UI:1000",
+	// 		Platform: "UI",
+	// 		Enable:   true,
+	// 	},
+	// 	Adapter: &pa,
+	// }
 	msg := &dice.Message{
 		MessageType: "private",
 		Message:     v.Message,
 		Platform:    "UI",
 		Sender: dice.SenderBase{
 			Nickname: "User",
-			UserId:   "UI:1001",
+			UserID:   "UI:1001",
 		},
 	}
-	//pa := myDice.UIEndpoint.Adapter.(*dice.PlatformAdapterHttp)
+	// pa := myDice.UIEndpoint.Adapter.(*dice.PlatformAdapterHttp)
 	myDice.ImSession.Execute(myDice.UIEndpoint, msg, false)
 	return c.JSON(200, "ok")
 }
@@ -216,9 +205,9 @@ func DiceRecentMessage(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	pa := myDice.UIEndpoint.Adapter.(*dice.PlatformAdapterHttp)
+	pa := myDice.UIEndpoint.Adapter.(*dice.PlatformAdapterHTTP)
 	defer func() {
-		pa.RecentMessage = []dice.HttpSimpleMessage{}
+		pa.RecentMessage = []dice.HTTPSimpleMessage{}
 	}()
 	return c.JSON(200, pa.RecentMessage)
 }
@@ -353,8 +342,10 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/addTelegram", ImConnectionsAddTelegram)
 	e.POST(prefix+"/im_connections/addMinecraft", ImConnectionsAddMinecraft)
 	e.POST(prefix+"/im_connections/addDodo", ImConnectionsAddDodo)
+	e.POST(prefix+"/im_connections/addDingtalk", ImConnectionsAddDingTalk)
 	e.POST(prefix+"/im_connections/addWalleQ", ImConnectionsAddWalleQ)
 	e.POST(prefix+"/im_connections/addGocqSeparate", ImConnectionsAddGocqSeparate)
+	e.POST(prefix+"/im_connections/addRed", ImConnectionsAddRed)
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)
@@ -401,10 +392,10 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/banconfig/list", banMapList)
 	e.GET(prefix+"/banconfig/get", banConfigGet)
 	e.POST(prefix+"/banconfig/set", banConfigSet)
-	//e.GET(prefix+"/banconfig/map_get", banMapGet)
+	// e.GET(prefix+"/banconfig/map_get", banMapGet)
 	e.POST(prefix+"/banconfig/map_delete_one", banMapDeleteOne)
 	e.POST(prefix+"/banconfig/map_add_one", banMapAddOne)
-	//e.POST(prefix+"/banconfig/map_set", banMapSet)
+	// e.POST(prefix+"/banconfig/map_set", banMapSet)
 	e.GET(prefix+"/banconfig/export", banExport)
 	e.POST(prefix+"/banconfig/import", banImport)
 

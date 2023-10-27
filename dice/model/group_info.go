@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+
 	"github.com/fy0/lockfree"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/time/rate"
@@ -33,26 +34,23 @@ func GroupInfoListGet(db *sqlx.DB, callback func(id string, updatedAt int64, dat
 		callback(id, updatedAt, data)
 	}
 
-	if err = rows.Err(); err != nil {
-		return err
-	}
-	return nil
+	return rows.Err()
 }
 
 // GroupInfoSave 保存群组信息
-func GroupInfoSave(db *sqlx.DB, groupId string, updatedAt int64, data []byte) error {
+func GroupInfoSave(db *sqlx.DB, groupID string, updatedAt int64, data []byte) error {
 	// INSERT OR REPLACE 语句可以根据是否已存在对应记录自动插入或更新记录
-	_, err := db.Exec("INSERT OR REPLACE INTO group_info (id, updated_at, data) VALUES (?, ?, ?)", groupId, updatedAt, data)
+	_, err := db.Exec("INSERT OR REPLACE INTO group_info (id, updated_at, data) VALUES (?, ?, ?)", groupID, updatedAt, data)
 	return err
 }
 
 // GroupPlayerNumGet 查询指定群组中玩家数量
-func GroupPlayerNumGet(db *sqlx.DB, groupId string) (int64, error) {
+func GroupPlayerNumGet(db *sqlx.DB, groupID string) (int64, error) {
 	var count int64
 
 	// 使用Named方法绑定命名参数
 	// 	sqlitex.ExecuteTransient(conn, `select count(id) from group_player_info where group_id=$group_id`, &sqlitex.ExecOptions{
-	query, args, err := sqlx.Named("SELECT COUNT(id) FROM group_player_info WHERE group_id = :group_id", map[string]interface{}{"group_id": groupId})
+	query, args, err := sqlx.Named("SELECT COUNT(id) FROM group_player_info WHERE group_id = :group_id", map[string]interface{}{"group_id": groupID})
 	if err != nil {
 		return 0, err
 	}
@@ -74,7 +72,7 @@ type PlayerVariablesItem struct {
 // GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
 	Name                string        `yaml:"name" jsbind:"name"` // 玩家昵称
-	UserId              string        `yaml:"userId" jsbind:"userId"`
+	UserID              string        `yaml:"userId" jsbind:"userId"`
 	InGroup             bool          `yaml:"inGroup"`                                          // 是否在群内，有时一个人走了，信息还暂时残留
 	LastCommandTime     int64         `yaml:"lastCommandTime" jsbind:"lastCommandTime"`         // 上次发送指令时间
 	RateLimiter         *rate.Limiter `yaml:"-"`                                                // 限速器
@@ -85,7 +83,7 @@ type GroupPlayerInfoBase struct {
 	DiceSideNum  int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
 	Vars         *PlayerVariablesItem `yaml:"-"`           // 玩家的群内变量
 	ValueMapTemp lockfree.HashMap     `yaml:"-"`           // 玩家的群内临时变量
-	//ValueMapTemp map[string]*VMValue  `yaml:"-"`           // 玩家的群内临时变量
+	// ValueMapTemp map[string]*VMValue  `yaml:"-"`           // 玩家的群内临时变量
 
 	TempValueAlias *map[string][]string `yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的，为什么在这里？
 
@@ -93,12 +91,12 @@ type GroupPlayerInfoBase struct {
 	RecentUsedTime int64 `yaml:"-" json:"-"`
 }
 
-func GroupPlayerInfoGet(db *sqlx.DB, groupId string, playerId string) *GroupPlayerInfoBase {
+func GroupPlayerInfoGet(db *sqlx.DB, groupID string, playerID string) *GroupPlayerInfoBase {
 	var ret GroupPlayerInfoBase
 
 	rows, err := db.NamedQuery("SELECT name, last_command_time, auto_set_name_template, dice_side_num FROM group_player_info WHERE group_id=:group_id AND user_id=:user_id", map[string]interface{}{
-		"group_id": groupId,
-		"user_id":  playerId,
+		"group_id": groupID,
+		"user_id":  playerID,
 	})
 
 	if err != nil {
@@ -132,19 +130,19 @@ func GroupPlayerInfoGet(db *sqlx.DB, groupId string, playerId string) *GroupPlay
 	if !exists {
 		return nil
 	}
-	ret.UserId = playerId
+	ret.UserID = playerID
 	return &ret
 }
 
-func GroupPlayerInfoSave(db *sqlx.DB, groupId string, playerId string, info *GroupPlayerInfoBase) error {
+func GroupPlayerInfoSave(db *sqlx.DB, groupID string, playerID string, info *GroupPlayerInfoBase) error {
 	_, err := db.NamedExec("REPLACE INTO group_player_info (name, updated_at, last_command_time, auto_set_name_template, dice_side_num, group_id, user_id) VALUES (:name, :updated_at, :last_command_time, :auto_set_name_template, :dice_side_num, :group_id, :user_id)", map[string]interface{}{
 		"name":                   info.Name,
 		"updated_at":             info.UpdatedAtTime,
 		"last_command_time":      info.LastCommandTime,
 		"auto_set_name_template": info.AutoSetNameTemplate,
 		"dice_side_num":          info.DiceSideNum,
-		"group_id":               groupId,
-		"user_id":                playerId,
+		"group_id":               groupID,
+		"user_id":                playerID,
 	})
 	return err
 }

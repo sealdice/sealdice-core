@@ -1,9 +1,10 @@
 package dice
 
 import (
-	"github.com/monaco-io/request"
 	"log"
 	"strconv"
+
+	"github.com/monaco-io/request"
 )
 
 type CnmodsDetailInfo struct {
@@ -11,7 +12,7 @@ type CnmodsDetailInfo struct {
 	Timestamp int64 `json:"timestamp"`
 	Data      struct {
 		Module struct {
-			KeyId           int    `json:"keyId"`
+			KeyID           int    `json:"keyId"`
 			CreateTime      string `json:"createTime"`
 			Sort            int    `json:"sort"`
 			Title           string `json:"title"`
@@ -27,33 +28,33 @@ type CnmodsDetailInfo struct {
 			MinAmount       int    `json:"minAmount"`
 			MaxAmount       int    `json:"maxAmount"`
 			Article         string `json:"article"`
-			Url             string `json:"url"`
+			URL             string `json:"url"`
 			Email           string `json:"email"`
 			Command         bool   `json:"command"`
 			Opinion         string `json:"opinion"`
 			Original        bool   `json:"original"`
 			Qq              string `json:"qq"`
-			CustomerId      int    `json:"customerId"`
+			CustomerID      int    `json:"customerId"`
 			OpenComment     bool   `json:"openComment"`
 			Open            bool   `json:"open"`
 		} `json:"module"`
 		ModuleToLabelList []interface{} `json:"moduleToLabelList"`
 		RelatedModuleList []interface{} `json:"relatedModuleList"`
 		RecommendList     []struct {
-			KeyId      int    `json:"keyId"`
+			KeyID      int    `json:"keyId"`
 			CreateTime string `json:"createTime"`
 			Sort       int    `json:"sort"`
 			Content    string `json:"content"`
 			LoginUser  struct {
-				KeyId      int    `json:"keyId"`
+				KeyID      int    `json:"keyId"`
 				CreateTime string `json:"createTime"`
 				Sort       int    `json:"sort"`
-				LoginId    string `json:"loginId"`
+				LoginID    string `json:"loginId"`
 				Password   string `json:"password"`
 				NickName   string `json:"nickName"`
 			} `json:"loginUser"`
 			Module struct {
-				KeyId           int    `json:"keyId"`
+				KeyID           int    `json:"keyId"`
 				CreateTime      string `json:"createTime"`
 				Sort            int    `json:"sort"`
 				Title           string `json:"title"`
@@ -69,13 +70,13 @@ type CnmodsDetailInfo struct {
 				MinAmount       int    `json:"minAmount"`
 				MaxAmount       int    `json:"maxAmount"`
 				Article         string `json:"article"`
-				Url             string `json:"url"`
+				URL             string `json:"url"`
 				Email           string `json:"email"`
 				Command         bool   `json:"command"`
 				Opinion         string `json:"opinion"`
 				Original        bool   `json:"original"`
 				Qq              string `json:"qq"`
-				CustomerId      int    `json:"customerId"`
+				CustomerID      int    `json:"customerId"`
 				OpenComment     bool   `json:"openComment"`
 				Open            bool   `json:"open"`
 			} `json:"module"`
@@ -96,12 +97,12 @@ type CnmodsSearchResult struct {
 			Original        bool   `json:"original"`
 			ModuleType      string `json:"moduleType"`
 			ReleaseDate     string `json:"releaseDate"`
-			KeyId           int    `json:"keyId"`
+			KeyID           int    `json:"keyId"`
 			Sort            int    `json:"sort"`
 			Title           string `json:"title"`
 			Structure       string `json:"structure"`
 			Article         string `json:"article"`
-			Url             string `json:"url"`
+			URL             string `json:"url"`
 			ModuleAge       string `json:"moduleAge"`
 			FreeLevel       string `json:"freeLevel"`
 			Opinion         string `json:"opinion"`
@@ -153,10 +154,10 @@ func CnmodsSearch(title string, page int, pageSize int, isRec bool, article stri
 	return nil
 }
 
-func CnmodsDetail(keyId string) *CnmodsDetailInfo {
+func CnmodsDetail(keyID string) *CnmodsDetailInfo {
 	var result CnmodsDetailInfo
 	query := map[string]string{
-		"keyId": keyId,
+		"keyId": keyID,
 	}
 
 	// moduleType: DND COC

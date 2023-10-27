@@ -2,8 +2,9 @@ package model
 
 import (
 	"fmt"
-	"github.com/jmoiron/sqlx"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func attrGetAllBase(db *sqlx.DB, bucket string, key string) []byte {
@@ -56,27 +57,28 @@ func AttrGroupUserGetAllBase(db *sqlx.DB, id string) []byte {
 	return attrGetAllBase(db, "attrs_group_user", id)
 }
 
-func AttrGroupUserGetAll(db *sqlx.DB, groupId string, userId string) []byte {
+func AttrGroupUserGetAll(db *sqlx.DB, groupID string, userID string) []byte {
 	//return attrGetAllBase(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupId, userId))
-	return AttrGroupUserGetAllBase(db, fmt.Sprintf("%s-%s", groupId, userId))
+	return AttrGroupUserGetAllBase(db, fmt.Sprintf("%s-%s", groupID, userID))
+	//return attrGetAllBase(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupID, userID))
 }
 
-func AttrGroupUserSave(db *sqlx.DB, groupId string, userId string, data []byte) {
-	attrSave(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupId, userId), data)
+func AttrGroupUserSave(db *sqlx.DB, groupID string, userID string, data []byte) {
+	attrSave(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupID, userID), data)
 }
 
-func AttrGroupGetAll(db *sqlx.DB, groupId string) []byte {
-	return attrGetAllBase(db, "attrs_group", groupId)
+func AttrGroupGetAll(db *sqlx.DB, groupID string) []byte {
+	return attrGetAllBase(db, "attrs_group", groupID)
 }
 
-func AttrGroupSave(db *sqlx.DB, groupId string, data []byte) {
-	attrSave(db, "attrs_group", groupId, data)
+func AttrGroupSave(db *sqlx.DB, groupID string, data []byte) {
+	attrSave(db, "attrs_group", groupID, data)
 }
 
-func AttrUserGetAll(db *sqlx.DB, userId string) []byte {
-	return attrGetAllBase(db, "attrs_user", userId)
+func AttrUserGetAll(db *sqlx.DB, userID string) []byte {
+	return attrGetAllBase(db, "attrs_user", userID)
 }
 
-func AttrUserSave(db *sqlx.DB, userId string, data []byte) {
-	attrSave(db, "attrs_user", userId, data)
+func AttrUserSave(db *sqlx.DB, userID string, data []byte) {
+	attrSave(db, "attrs_user", userID, data)
 }

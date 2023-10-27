@@ -1,5 +1,5 @@
-//go:build !windows
-// +build !windows
+//go:build !windows && !darwin
+// +build !windows,!darwin
 
 package main
 
@@ -17,7 +17,7 @@ import (
 )
 
 func trayInit(dm *dice.DiceManager) {
-
+	select {}
 }
 
 func hideWindow() {
@@ -52,7 +52,6 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	}
 	_ = ln.Close()
 
-	//exec.Command(`cmd`, `/c`, `start`, fmt.Sprintf(`http://localhost:%s`, portStr)).Start()
 	fmt.Println("如果浏览器没有自动打开，请手动访问:")
 	fmt.Printf(`http://localhost:%s`, portStr) // 默认:3211
 	err = e.Start(dm.ServeAddress)

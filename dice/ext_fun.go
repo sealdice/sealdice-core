@@ -157,19 +157,12 @@ type singleRoulette struct {
 var rouletteMap SyncMap[string, singleRoulette]
 
 func RegisterBuiltinExtFun(self *Dice) {
-	//choices := []wr.Choice{}
-	//for _, i := range gugu {
-	//	choices = append(choices, wr.Choice{Item: i, Weight: 1})
-	//}
-	//guguRandomPool, _ := wr.NewChooser(choices...)
-	// guguRandomPool.Pick().(string)
-
 	cmdGugu := CmdItemInfo{
 		Name:      "gugu",
 		ShortHelp: ".gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
 		Help:      "人工智能鸽子:\n.gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者\n.text // 文本指令",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			//p := getPlayerInfoBySender(session, msg)
+			// p := getPlayerInfoBySender(session, msg)
 			isShowFrom := cmdArgs.IsArgEqual(1, "from", "showfrom", "来源", "作者")
 			rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
 
@@ -191,8 +184,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 		Help:      "今日人品:\n.jrrp 获得一个D100随机值，一天内不会变化",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
-			rpSeed += int64(fingerprint(ctx.EndPoint.UserId))
-			rpSeed += int64(fingerprint(ctx.Player.UserId))
+			rpSeed += int64(fingerprint(ctx.EndPoint.UserID))
+			rpSeed += int64(fingerprint(ctx.Player.UserID))
 			randItem := rand.NewSource(rpSeed)
 			rp := randItem.Int63()%100 + 1
 
@@ -220,9 +213,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 				for i := int64(0); i < num; i++ {
 					v := DiceRoll64(6)
 					if v >= 5 {
-						successDegrees += 1
+						successDegrees++
 					} else if v == 1 {
-						failedCount += 1
+						failedCount++
 					}
 					// 过大的骰池不显示
 					if num < 10 {
@@ -287,179 +280,177 @@ func RegisterBuiltinExtFun(self *Dice) {
 			txt := cmdArgs.CleanArgs
 			re := regexp.MustCompile(`(?:([^*+\-\s\d]+)(\d+)?|(\d+))\s*(?:([+\-*])\s*(\d+))?`)
 			m := re.FindStringSubmatch(txt)
-			if len(m) > 0 {
-				// 读取技能名字和等级
-				mustHaveCheckVal := false
-				name := m[1]         // .ek 摸鱼
-				nameLevelStr := m[2] // .ek 摸鱼3
-				if name == "" && nameLevelStr == "" {
-					// .ek 3 4
-					nameLevelStr = m[3]
-					mustHaveCheckVal = true
-				}
-
-				var nameLevel int64
-				if nameLevelStr != "" {
-					nameLevel, _ = strconv.ParseInt(nameLevelStr, 10, 64)
-				} else {
-					nameLevel, _ = VarGetValueInt64(mctx, name)
-				}
-
-				// 附加值 .ek 技能+1
-				extraOp := m[4]
-				extraValStr := m[5]
-				extraVal := int64(0)
-				if extraValStr != "" {
-					extraVal, _ = strconv.ParseInt(extraValStr, 10, 64)
-					if extraOp == "-" {
-						extraVal = -extraVal
-					}
-				}
-
-				restText := txt[len(m[0]):]
-				restText = strings.TrimSpace(restText)
-
-				if restText == "" && mustHaveCheckVal {
-					ReplyToSender(ctx, msg, "必须填入判定值")
-				} else {
-					// 填充补充部分
-					if restText == "" {
-						restText = fmt.Sprintf("%s%s", name, nameLevelStr)
-						mode := 1
-						v := emokloreAttrParent[name]
-						if v == nil {
-							v = emokloreAttrParent2[name]
-							mode = 2
-						}
-						if v == nil {
-							v = emokloreAttrParent3[name]
-							mode = 3
-						}
-
-						if v != nil {
-							maxName := ""
-							maxVal := int64(0)
-							for _, i := range v {
-								val, _ := VarGetValueInt64(mctx, i)
-								if val >= maxVal {
-									maxVal = val
-									maxName = i
-								}
-							}
-							if maxName != "" {
-								switch mode {
-								case 1:
-									// 种类1: 技能+属性
-									restText += " + " + maxName
-								case 2:
-									// 种类2: 属性/2[向上取整]
-									restText = fmt.Sprintf("(%s+1)/2", maxName)
-								case 3:
-									// 种类3: 属性
-									restText = maxName
-								}
-							}
-						}
-					}
-
-					r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
-						CocVarNumberMode: true,
-						DisableBlock:     true,
-					})
-					if err == nil {
-						checkVal, _ := r.ReadInt64()
-						diceNum := nameLevel // 骰子个数为技能等级，至少1个
-						if diceNum < 1 {
-							diceNum = 1
-						}
-						if extraOp == "*" {
-							diceNum *= extraVal
-						} else {
-							diceNum += extraVal
-						}
-
-						successDegrees := int64(0)
-						var results []string
-						for i := int64(0); i < diceNum; i++ {
-							v := DiceRoll64(10)
-							if v <= checkVal {
-								successDegrees += 1
-							}
-							if v == 1 {
-								successDegrees += 1
-							}
-							if v == 10 {
-								successDegrees -= 1
-							}
-							// 过大的骰池不显示
-							if diceNum < 15 {
-								results = append(results, strconv.FormatInt(v, 10))
-							}
-						}
-
-						var detailPool string
-						if len(results) > 0 {
-							detailPool = "{" + strings.Join(results, "+") + "}\n"
-						}
-
-						// 检定原因
-						showName := name
-						if showName == "" {
-							showName = nameLevelStr
-						}
-						if nameLevelStr != "" {
-							showName += nameLevelStr
-						}
-						if extraVal > 0 {
-							showName += extraOp + extraValStr
-						}
-
-						if detail != "" {
-							detail = "{" + detail + "}"
-						}
-
-						checkText := ""
-						switch {
-						case successDegrees < 0:
-							checkText = "大失败"
-						case successDegrees == 0:
-							checkText = "失败"
-						case successDegrees == 1:
-							checkText = "通常成功"
-						case successDegrees == 2:
-							checkText = "有效成功"
-						case successDegrees == 3:
-							checkText = "极限成功"
-						case successDegrees >= 10:
-							checkText = "灾难成功"
-						case successDegrees >= 4:
-							checkText = "奇迹成功"
-						}
-
-						text := fmt.Sprintf("<%s>的“%s”共鸣性怪异规则检定:\n", ctx.Player.Name, showName)
-						text += detailPool
-						text += fmt.Sprintf("判定值: %d%s\n", checkVal, detail)
-						text += fmt.Sprintf("成功数: %d[%s]\n", successDegrees, checkText)
-
-						ReplyToSender(ctx, msg, text)
-					}
-				}
-			} else {
+			if len(m) == 0 {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 
+			// 读取技能名字和等级
+			mustHaveCheckVal := false
+			name := m[1]         // .ek 摸鱼
+			nameLevelStr := m[2] // .ek 摸鱼3
+			if name == "" && nameLevelStr == "" {
+				// .ek 3 4
+				nameLevelStr = m[3]
+				mustHaveCheckVal = true
+			}
+
+			var nameLevel int64
+			if nameLevelStr != "" {
+				nameLevel, _ = strconv.ParseInt(nameLevelStr, 10, 64)
+			} else {
+				nameLevel, _ = VarGetValueInt64(mctx, name)
+			}
+
+			// 附加值 .ek 技能+1
+			extraOp := m[4]
+			extraValStr := m[5]
+			extraVal := int64(0)
+			if extraValStr != "" {
+				extraVal, _ = strconv.ParseInt(extraValStr, 10, 64)
+				if extraOp == "-" {
+					extraVal = -extraVal
+				}
+			}
+
+			restText := txt[len(m[0]):]
+			restText = strings.TrimSpace(restText)
+
+			if restText == "" && mustHaveCheckVal {
+				ReplyToSender(ctx, msg, "必须填入判定值")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			// 填充补充部分
+			if restText == "" {
+				restText = fmt.Sprintf("%s%s", name, nameLevelStr)
+				mode := 1
+				v := emokloreAttrParent[name]
+				if v == nil {
+					v = emokloreAttrParent2[name]
+					mode = 2
+				}
+				if v == nil {
+					v = emokloreAttrParent3[name]
+					mode = 3
+				}
+				if v != nil {
+					maxName := ""
+					maxVal := int64(0)
+					for _, i := range v {
+						val, _ := VarGetValueInt64(mctx, i)
+						if val >= maxVal {
+							maxVal = val
+							maxName = i
+						}
+					}
+					if maxName != "" {
+						switch mode {
+						case 1:
+							// 种类1: 技能+属性
+							restText += " + " + maxName
+						case 2:
+							// 种类2: 属性/2[向上取整]
+							restText = fmt.Sprintf("(%s+1)/2", maxName)
+						case 3:
+							// 种类3: 属性
+							restText = maxName
+						}
+					}
+				}
+			}
+
+			r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
+				CocVarNumberMode: true,
+				DisableBlock:     true,
+			})
+			if err != nil {
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			checkVal, _ := r.ReadInt64()
+			diceNum := nameLevel // 骰子个数为技能等级，至少1个
+			if diceNum < 1 {
+				diceNum = 1
+			}
+			if extraOp == "*" {
+				diceNum *= extraVal
+			} else {
+				diceNum += extraVal
+			}
+
+			successDegrees := int64(0)
+			var results []string
+			for i := int64(0); i < diceNum; i++ {
+				v := DiceRoll64(10)
+				if v <= checkVal {
+					successDegrees++
+				}
+				if v == 1 {
+					successDegrees++
+				}
+				if v == 10 {
+					successDegrees--
+				}
+				// 过大的骰池不显示
+				if diceNum < 15 {
+					results = append(results, strconv.FormatInt(v, 10))
+				}
+			}
+
+			var detailPool string
+			if len(results) > 0 {
+				detailPool = "{" + strings.Join(results, "+") + "}\n"
+			}
+
+			// 检定原因
+			showName := name
+			if showName == "" {
+				showName = nameLevelStr
+			}
+			if nameLevelStr != "" {
+				showName += nameLevelStr
+			}
+			if extraVal > 0 {
+				showName += extraOp + extraValStr
+			}
+
+			if detail != "" {
+				detail = "{" + detail + "}"
+			}
+
+			checkText := ""
+			switch {
+			case successDegrees < 0:
+				checkText = "大失败"
+			case successDegrees == 0:
+				checkText = "失败"
+			case successDegrees == 1:
+				checkText = "通常成功"
+			case successDegrees == 2:
+				checkText = "有效成功"
+			case successDegrees == 3:
+				checkText = "极限成功"
+			case successDegrees >= 10:
+				checkText = "灾难成功"
+			case successDegrees >= 4:
+				checkText = "奇迹成功"
+			}
+
+			text := fmt.Sprintf("<%s>的“%s”共鸣性怪异规则检定:\n", ctx.Player.Name, showName)
+			text += detailPool
+			text += fmt.Sprintf("判定值: %d%s\n", checkVal, detail)
+			text += fmt.Sprintf("成功数: %d[%s]\n", successDegrees, checkText)
+
+			ReplyToSender(ctx, msg, text)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
 	helpEkGen := ".ekgen (<数量>) // 制卡指令，生成<数量>组人物属性，最高为10次"
-
 	cmdEkgen := CmdItemInfo{
 		Name:      "ekgen",
 		ShortHelp: helpEkGen,
 		Help:      "共鸣性怪异制卡指令:\n" + helpEkGen,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-
 			n := cmdArgs.GetArgN(1)
 			val, err := strconv.ParseInt(n, 10, 64)
 			if err != nil {
@@ -569,8 +560,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: ".dx 3c4",
 		Help:      "双重十字规则骰点:\n.dx 3c4 // 也可使用.r 3c4替代",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			switch cmdArgs.GetArgN(1) {
-			case "help":
+			if cmdArgs.GetArgN(1) == "help" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 
@@ -617,7 +607,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				if m := reK.FindStringSubmatch(arg2); len(m) > 0 {
 					if v, err := strconv.ParseInt(m[1], 10, 64); err == nil {
 						if v >= 1 {
-							ctx.Group.ValueMap.Set("wodThreshold", &VMValue{TypeId: VMTypeInt64, Value: v})
+							ctx.Group.ValueMap.Set("wodThreshold", &VMValue{TypeID: VMTypeInt64, Value: v})
 							ctx.Group.UpdatedAtTime = time.Now().Unix()
 							texts = append(texts, fmt.Sprintf("成功线k: 已修改为%d", v))
 						} else {
@@ -629,7 +619,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				if m := reM.FindStringSubmatch(arg2); len(m) > 0 {
 					if v, err := strconv.ParseInt(m[1], 10, 64); err == nil {
 						if v >= 1 && v <= 2000 {
-							ctx.Group.ValueMap.Set("wodPoints", &VMValue{TypeId: VMTypeInt64, Value: v})
+							ctx.Group.ValueMap.Set("wodPoints", &VMValue{TypeID: VMTypeInt64, Value: v})
 							ctx.Group.UpdatedAtTime = time.Now().Unix()
 							texts = append(texts, fmt.Sprintf("骰子面数m: 已修改为%d", v))
 						} else {
@@ -641,7 +631,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				if m := reA.FindStringSubmatch(arg2); len(m) > 0 {
 					if v, err := strconv.ParseInt(m[1], 10, 64); err == nil {
 						if v >= 2 {
-							ctx.Group.ValueMap.Set("wodAdd", &VMValue{TypeId: VMTypeInt64, Value: v})
+							ctx.Group.ValueMap.Set("wodAdd", &VMValue{TypeID: VMTypeInt64, Value: v})
 							ctx.Group.UpdatedAtTime = time.Now().Unix()
 							texts = append(texts, fmt.Sprintf("加骰线a: 已修改为%d", v))
 						} else {
@@ -652,10 +642,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 				if len(texts) == 0 {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				} else {
-					ReplyToSender(ctx, msg, strings.Join(texts, "\n"))
-					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				ReplyToSender(ctx, msg, strings.Join(texts, "\n"))
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
 			addNum := int64(10)
@@ -703,7 +692,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 				r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{DisableBlock: false})
 
-				if err == nil && (r.TypeId == VMTypeString || r.TypeId == VMTypeNone) {
+				if err == nil && (r.TypeID == VMTypeString || r.TypeID == VMTypeNone) {
 					var text string
 					if r != nil {
 						text = r.Value.(string)
@@ -733,9 +722,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 					ReplyToSender(ctx, msg, "格式错误")
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
-			} else {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
+			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 		},
 	}
 
@@ -769,11 +757,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 			}
 			if t > int(ctx.Dice.MaxExecuteTime) {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
-				return CmdExecuteResult{Matched: true, Solved: false}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			if t > m {
 				ReplyToSender(ctx, msg, fmt.Sprintf("无法不重复地投掷%d次%d面骰。", t, m))
-				return CmdExecuteResult{Matched: true, Solved: false}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			var pool []int
 			ma := make(map[int]bool)
@@ -799,7 +787,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				Pool: pool,
 			}
 
-			rouletteMap.Store(ctx.Group.GroupId, roulette)
+			rouletteMap.Store(ctx.Group.GroupID, roulette)
 			VarSetValueStr(ctx, "$t原因", allArgClean)
 			if allArgClean != "" {
 				forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
@@ -853,85 +841,80 @@ func RegisterBuiltinExtFun(self *Dice) {
 					roulette.Name = n
 				}
 
-				if roulette.Time > int(ctx.Dice.MaxExecuteTime) {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
-					return CmdExecuteResult{Matched: true, Solved: false}
-				}
+				// NOTE(Xiangze Li): 允许创建更多轮数。使用洗牌算法后并不会很重复计算
+				// if roulette.Time > int(ctx.Dice.MaxExecuteTime) {
+				// 	ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
+				// 	return CmdExecuteResult{Matched: true, Solved: true}
+				// }
 
 				if int64(roulette.Time) > roulette.Face {
 					ReplyToSender(ctx, msg, fmt.Sprintf("创建错误：无法不重复地投掷%d次%d面骰。",
 						roulette.Time,
 						roulette.Face))
-					return CmdExecuteResult{Matched: true, Solved: false}
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				//创建pool后直接先随机了
-				var pool []int
-				ma := make(map[int]bool)
-				for len(pool) < roulette.Time {
-					n := rand.Intn(int(roulette.Face)) + 1
-					if !ma[n] {
-						ma[n] = true
-						pool = append(pool, n)
-					}
+				// 创建pool后产生随机数，使用F-Y洗牌算法以保证随机性和效率
+				var pool = make([]int, roulette.Time)
+				var allNum = make([]int, roulette.Face)
+				for i := range allNum {
+					allNum[i] = i + 1
 				}
-				//ctx.Dice.Logger.Info(pool)
+				for idx := 0; idx < roulette.Time; idx++ {
+					i := int(roulette.Face) - 1 - idx
+					j := rand.Intn(i + 1)
+					allNum[i], allNum[j] = allNum[j], allNum[i]
+					pool[idx] = allNum[i]
+				}
 				roulette.Pool = pool
 
-				rouletteMap.Store(ctx.Group.GroupId, roulette)
+				rouletteMap.Store(ctx.Group.GroupID, roulette)
 				ReplyToSender(ctx, msg, fmt.Sprintf("创建骰池%s成功，骰子面数%d，可抽取%d次。",
 					roulette.Name, roulette.Face, roulette.Time))
-				return CmdExecuteResult{
-					Matched: true,
-					Solved:  true,
-				}
-			} else {
-				// Draw mode
-				var isRouletteEmpty = true
-				rouletteMap.Range(func(key string, value singleRoulette) bool {
-					isRouletteEmpty = false
-					return false
-				})
-				tryLoad, ok := rouletteMap.Load(ctx.Group.GroupId)
-				if isRouletteEmpty || !ok || tryLoad.Face == 0 {
-					ReplyToSender(ctx, msg, "当前群组无骰池，请使用.drl new创建一个。")
-					return CmdExecuteResult{
-						Matched: true,
-						Solved:  false,
-					}
-				}
-
-				result := fmt.Sprintf("D%d=%d", tryLoad.Face, tryLoad.Pool[0])
-				tryLoad.Pool = append(tryLoad.Pool[:0], tryLoad.Pool[1:]...)
-				VarSetValueStr(ctx, "$t原因", tryLoad.Name)
-				if tryLoad.Name != "" {
-					forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
-					VarSetValueStr(ctx, "$t原因句子", forWhatText)
-				} else {
-					VarSetValueStr(ctx, "$t原因句子", "")
-				}
-				VarSetValueStr(ctx, "$t结果文本", result)
-				reply := DiceFormatTmpl(ctx, "核心:骰点")
-
-				if cmdArgs.Command == "drl" {
-					if len(tryLoad.Pool) == 0 {
-						reply += "\n骰池已经抽空，现在关闭。"
-						tryLoad = singleRoulette{}
-					}
-					ReplyToSender(ctx, msg, reply)
-				} else if cmdArgs.Command == "drlh" {
-					announce := msg.Sender.Nickname + "进行了抽取。"
-					reply += fmt.Sprintf("\n来自群%s(%s)",
-						ctx.Group.GroupName, ctx.Group.GroupId)
-					if len(tryLoad.Pool) == 0 {
-						announce += "\n骰池已经抽空，现在关闭。"
-						tryLoad = singleRoulette{}
-					}
-					ReplyGroup(ctx, msg, announce)
-					ReplyPerson(ctx, msg, reply)
-				}
-				rouletteMap.Store(ctx.Group.GroupId, tryLoad)
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
+			// Draw mode
+			var isRouletteEmpty = true
+			rouletteMap.Range(func(key string, value singleRoulette) bool {
+				isRouletteEmpty = false
+				return false
+			})
+			tryLoad, ok := rouletteMap.Load(ctx.Group.GroupID)
+			if isRouletteEmpty || !ok || tryLoad.Face == 0 {
+				ReplyToSender(ctx, msg, "当前群组无骰池，请使用.drl new创建一个。")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			result := fmt.Sprintf("D%d=%d", tryLoad.Face, tryLoad.Pool[0])
+			tryLoad.Pool = append(tryLoad.Pool[:0], tryLoad.Pool[1:]...)
+			VarSetValueStr(ctx, "$t原因", tryLoad.Name)
+			if tryLoad.Name != "" {
+				forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")
+				VarSetValueStr(ctx, "$t原因句子", forWhatText)
+			} else {
+				VarSetValueStr(ctx, "$t原因句子", "")
+			}
+			VarSetValueStr(ctx, "$t结果文本", result)
+			reply := DiceFormatTmpl(ctx, "核心:骰点")
+
+			if cmdArgs.Command == "drl" {
+				if len(tryLoad.Pool) == 0 {
+					reply += "\n骰池已经抽空，现在关闭。"
+					tryLoad = singleRoulette{}
+				}
+				ReplyToSender(ctx, msg, reply)
+			} else if cmdArgs.Command == "drlh" {
+				announce := msg.Sender.Nickname + "进行了抽取。"
+				reply += fmt.Sprintf("\n来自群%s(%s)",
+					ctx.Group.GroupName, ctx.Group.GroupID)
+				if len(tryLoad.Pool) == 0 {
+					announce += "\n骰池已经抽空，现在关闭。"
+					tryLoad = singleRoulette{}
+				}
+				ReplyGroup(ctx, msg, announce)
+				ReplyPerson(ctx, msg, reply)
+			}
+			rouletteMap.Store(ctx.Group.GroupID, tryLoad)
 			return CmdExecuteResult{
 				Matched: true,
 				Solved:  true,
@@ -947,14 +930,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ActiveOnPrivate: true,
 		Author:          "木落",
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			//p := getPlayerInfoBySender(session, msg)
-			//p.TempValueAlias = &ac.Alias;
 		},
 		OnLoad: func() {
 		},
-		GetDescText: func(ei *ExtInfo) string {
-			return GetExtensionDesc(ei)
-		},
+		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
 			"gugu":  &cmdGugu,
 			"咕咕":    &cmdGugu,

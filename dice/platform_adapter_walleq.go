@@ -25,7 +25,7 @@ type PlatformAdapterWalleQ struct {
 	EndPoint        *EndPointInfo       `yaml:"-" json:"-"`
 	Session         *IMSession          `yaml:"-" json:"-"`
 	Socket          *gowebsocket.Socket `yaml:"-" json:"-"`
-	ConnectUrl      string              `yaml:"connectUrl" json:"connectUrl"`           // 连接地址
+	ConnectURL      string              `yaml:"connectUrl" json:"connectUrl"`           // 连接地址
 	UseInPackWalleQ bool                `yaml:"useInPackWalleQ" json:"useInPackWalleQ"` // 是否使用内置的WalleQ
 	WalleQState     int                 `yaml:"-" json:"loginState"`                    // 当前状态
 	CurLoginIndex   int                 `yaml:"-" json:"curLoginIndex"`                 // 当前登录序号，如果正在进行的登录不是该Index，证明过时
@@ -34,7 +34,7 @@ type PlatformAdapterWalleQ struct {
 	WalleQLoginFailedReason string         `yaml:"-" json:"curLoginFailedReason"` // 当前登录失败原因
 
 	WalleQLoginVerifyCode    string `yaml:"-" json:"WalleQLoginVerifyCode"`
-	WalleQLoginDeviceLockUrl string `yaml:"-" json:"WalleQLoginDeviceLockUrl"`
+	WalleQLoginDeviceLockURL string `yaml:"-" json:"WalleQLoginDeviceLockUrl"`
 	WalleQQrcodeData         []byte `yaml:"-" json:"-"` // 二维码数据
 
 	WalleQLastAutoLoginTime  int64 `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`                         // 上次自动重新登录的时间
@@ -47,27 +47,26 @@ type PlatformAdapterWalleQ struct {
 	InPackWalleQDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest        bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	echoMap *SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
-	//echoMap2       *SyncMap[string, *echoMapInfo]          `yaml:"-"`
-	FileMap        *SyncMap[string, string] // 记录上传文件后得到的 id
-	Implementation string                   `yaml:"implementation" json:"implementation"`
+	echoMap        *SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
+	FileMap        *SyncMap[string, string]                // 记录上传文件后得到的 id
+	Implementation string                                  `yaml:"implementation" json:"implementation"`
 }
 
 type EventWalleQBase struct {
-	Id         string  `json:"id"`          // 事件唯一标识符
+	ID         string  `json:"id"`          // 事件唯一标识符
 	Self       Self    `json:"self"`        // 机器人自身标识
 	Time       float64 `json:"time"`        // 事件发生时间（Unix 时间戳），单位：秒
 	Type       string  `json:"type"`        // meta、message、notice、request 中的一个，分别表示元事件、消息事件、通知事件和请求事件
 	DetailType string  `json:"detail_type"` // 详细
 	SubType    string  `json:"sub_type"`    // 子类型
 	// 下面这些虽然不是共有字段 但基本也算
-	UserId    string `json:"user_id"`
+	UserID    string `json:"user_id"`
 	UserName  string `json:"user_name"`
 	UserCard  string `json:"user_card"` // 群名片
-	GroupId   string `json:"group_id"`
+	GroupID   string `json:"group_id"`
 	GroupName string `json:"group_name"`
-	GuildId   string `json:"guild_id"`
-	ChannelId string `json:"channel_id"`
+	GuildID   string `json:"guild_id"`
+	ChannelID string `json:"channel_id"`
 }
 
 type Bot struct {
@@ -90,31 +89,31 @@ type EventWalleQMeta struct {
 
 // EventWalleQMsg 消息事件特有字段
 type EventWalleQMsg struct {
-	MessageId  string           `json:"message_id"`  // 消息id
+	MessageID  string           `json:"message_id"`  // 消息id
 	Message    []MessageSegment `json:"message"`     // 消息段
 	AltMessage string           `json:"alt_message"` // 文本化
 }
 
 // EventWalleQNotice 通知事件特有字段
 type EventWalleQNotice struct {
-	MessageId  string `json:"message_id"`  // 消息id
-	OperatorId string `json:"operator_id"` // 操作者账号
-	ReceiverId string `json:"receiver_id"` // 戳一戳的接收者
+	MessageID  string `json:"message_id"`  // 消息id
+	OperatorID string `json:"operator_id"` // 操作者账号
+	ReceiverID string `json:"receiver_id"` // 戳一戳的接收者
 	Duration   int64  `json:"duration"`
 }
 
 // EventWalleQReq 请求事件特有字段
 type EventWalleQReq struct {
 	Message     string `json:"message"`
-	RequestId   int64  `json:"request_id"` // 请求者
+	RequestID   int64  `json:"request_id"` // 请求者
 	Suspicious  bool   `json:"suspicious"`
-	InvitorId   string `json:"invitor_id"`   // 邀请者
+	InvitorID   string `json:"invitor_id"`   // 邀请者
 	InvitorName string `json:"invitor_name"` // 邀请者名
 }
 
 type Self struct {
 	Platform string `json:"platform"`
-	UserId   string `json:"user_id"`
+	UserID   string `json:"user_id"`
 }
 
 type MessageSegment struct {
@@ -123,15 +122,15 @@ type MessageSegment struct {
 }
 
 type MSData struct {
-	Id        int64   `json:"id,omitempty"`
+	ID        int64   `json:"id,omitempty"`
 	Text      string  `json:"text,omitempty"`
-	UserId    string  `json:"user_id,omitempty"`
+	UserID    string  `json:"user_id,omitempty"`
 	UserName  string  `json:"user_name,omitempty"`
 	Face      string  `json:"face,omitempty"`
-	MessageId string  `json:"message_id,omitempty"`
-	FileId    string  `json:"fileId,omitempty"`
+	MessageID string  `json:"message_id,omitempty"`
+	FileID    string  `json:"fileId,omitempty"`
 	Time      float64 `json:"time,omitempty"`
-	Url       string  `json:"url,omitempty"`
+	URL       string  `json:"url,omitempty"`
 }
 
 type EchoWalleQ struct {
@@ -144,8 +143,8 @@ type EchoWalleQ struct {
 }
 
 type LastWelcomeInfoWQ struct {
-	UserId  string
-	GroupId string
+	UserID  string
+	GroupID string
 	Time    float64
 }
 
@@ -158,10 +157,10 @@ type OneBotV12Command struct {
 type OnebotV12UserInfo struct {
 	// 个人信息
 	Nickname string `json:"nickname"`
-	UserId   string `json:"user_id"`
+	UserID   string `json:"user_id"`
 
 	// 群信息
-	GroupId         string `json:"group_id"`          // 群号
+	GroupID         string `json:"group_id"`          // 群号
 	GroupCreateTime uint32 `json:"group_create_time"` // 群号
 	MemberCount     int64  `json:"member_count"`
 	GroupName       string `json:"group_name"`
@@ -179,9 +178,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	pa.InPackWalleQDisconnectedCH = make(chan int, 1)
-	//session := s
 
-	socket := gowebsocket.New(pa.ConnectUrl)
+	socket := gowebsocket.New(pa.ConnectURL)
 	pa.Socket = &socket
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
@@ -202,7 +200,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 	tempInviteMap := map[string]int64{}
 	tempInviteMap2 := map[string]string{}
 	tempGroupEnterSpeechSent := map[string]int64{} // 记录入群致辞的发送时间 避免短时间重复
-	//tempFriendInviteSent := map[string]int64{}     // gocq会重新发送已经发过的邀请
+	// tempFriendInviteSent := map[string]int64{}     // gocq会重新发送已经发过的邀请
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		fmt.Println(message)
@@ -221,30 +219,29 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				return
 			}
 			groupEnterFired = true
-			lastTime := tempGroupEnterSpeechSent[msg.GroupId]
+			lastTime := tempGroupEnterSpeechSent[msg.GroupID]
 			nowTime := time.Now().Unix()
 
 			if nowTime-lastTime < 10 {
 				// 10s内只发一次
 				return
 			}
-			tempGroupEnterSpeechSent[msg.GroupId] = nowTime
+			tempGroupEnterSpeechSent[msg.GroupID] = nowTime
 
 			// 判断进群的人是自己，自动启动
-			gi := SetBotOnAtGroup(ctx, msg.GroupId)
-			if tempInviteMap2[msg.GroupId] != "" {
+			gi := SetBotOnAtGroup(ctx, msg.GroupID)
+			if tempInviteMap2[msg.GroupID] != "" {
 				// 设置邀请人
-				gi.InviteUserId = tempInviteMap2[msg.GroupId]
+				gi.InviteUserID = tempInviteMap2[msg.GroupID]
 			}
-			gi.DiceIdExistsMap.Store(ep.UserId, true)
+			gi.DiceIDExistsMap.Store(ep.UserID, true)
 			gi.EnteredTime = nowTime // 设置入群时间
 			gi.UpdatedAtTime = time.Now().Unix()
 			// 立即获取群信息
-			pa.GetGroupInfoAsync(msg.GroupId)
-			// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname)
+			pa.GetGroupInfoAsync(msg.GroupID)
 
 			time.Sleep(2 * time.Second)
-			groupName := dm.TryGetGroupName(msg.GroupId)
+			groupName := dm.TryGetGroupName(msg.GroupID)
 			go func() {
 				defer func() {
 					if r := recover(); r != nil {
@@ -256,14 +253,14 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				time.Sleep(1 * time.Second)
 
 				ctx.Player = &GroupPlayerInfo{}
-				log.Infof("发送入群致辞，群: <%s>(%s)", groupName, event.GroupId)
+				log.Infof("发送入群致辞，群: <%s>(%s)", groupName, event.GroupID)
 				text := DiceFormatTmpl(ctx, "核心:骰子进群")
 				for _, i := range strings.Split(text, "###SPLIT###") {
 					doSleepQQ(ctx)
-					pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+					pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 				}
-				if ctx.Session.ServiceAtNew[msg.GroupId] != nil {
-					for _, i := range ctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+				if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
+					for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
 						if i.OnGroupJoined != nil {
 							i.callWithJsCheck(ctx.Dice, func() {
 								i.OnGroupJoined(ctx, msg)
@@ -272,17 +269,17 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					}
 				}
 			}()
-			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, event.GroupId)
+			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, event.GroupID)
 			log.Info(txt)
 			ctx.Notice(txt)
 		}
 
 		// 入群的另一种情况: 管理员审核
-		group := s.ServiceAtNew[msg.GroupId]
-		if group == nil && msg.GroupId != "" {
+		group := s.ServiceAtNew[msg.GroupID]
+		if group == nil && msg.GroupID != "" {
 			now := time.Now().Unix()
-			if tempInviteMap[msg.GroupId] != 0 && now > tempInviteMap[msg.GroupId] {
-				delete(tempInviteMap, msg.GroupId)
+			if tempInviteMap[msg.GroupID] != 0 && now > tempInviteMap[msg.GroupID] {
+				delete(tempInviteMap, msg.GroupID)
 				groupEntered()
 			}
 		}
@@ -331,20 +328,21 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			}
 
 			msg.Message = MessageSegmentToText(msgQQ.Message)
-			if msg.Sender.UserId != "" {
+			if msg.Sender.UserID != "" {
 				if msg.Sender.Nickname != "" {
-					dm.UserNameCache.Set(msg.Sender.UserId, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+					dm.UserNameCache.Set(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
 				}
 			}
 
 			pa.Session.Execute(pa.EndPoint, msg, false) // wq 还没有频道支持，直接执行
 		}
 
+		//nolint:nestif
 		if event.Type == "notice" {
 			n := new(EventWalleQNotice)
-			opUid := FormatDiceIdQQV12(n.OperatorId)
-			groupName := dm.TryGetGroupName(msg.GroupId)
-			userName := dm.TryGetUserName(opUid)
+			opUID := FormatDiceIDQQV12(n.OperatorID)
+			groupName := dm.TryGetGroupName(msg.GroupID)
+			userName := dm.TryGetUserName(opUID)
 			switch event.DetailType {
 			case "friend_poke":
 				return
@@ -353,24 +351,24 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			case "friend_decrease": // 好友被删，哀悼一下？
 				return
 			case "group_member_increase":
-				//_ = session.ServiceAtNew[msg.GroupId]
-				if event.UserId == event.Self.UserId {
+				// _ = session.ServiceAtNew[msg.GroupId]
+				if event.UserID == event.Self.UserID {
 					groupEntered()
 				} else {
-					group := s.ServiceAtNew[msg.GroupId]
+					group := s.ServiceAtNew[msg.GroupID]
 					// 进群的是别人，是否迎新？
 					// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 					// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词 // 如果是 TX BUG 这里就不改了
 					if group != nil && group.ShowGroupWelcome {
 						isDouble := false
 						if lastWelcome != nil {
-							isDouble = event.GroupId == lastWelcome.GroupId &&
-								event.UserId == lastWelcome.UserId &&
+							isDouble = event.GroupID == lastWelcome.GroupID &&
+								event.UserID == lastWelcome.UserID &&
 								event.Time == lastWelcome.Time
 						}
 						lastWelcome = &LastWelcomeInfoWQ{
-							GroupId: event.GroupId,
-							UserId:  event.UserId,
+							GroupID: event.GroupID,
+							UserID:  event.UserID,
 							Time:    event.Time,
 						}
 
@@ -383,34 +381,33 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 								}()
 
 								ctx.Player = &GroupPlayerInfo{}
-								VarSetValueStr(ctx, "$t帐号ID_RAW", event.GroupId)
-								VarSetValueStr(ctx, "$t账号ID_RAW", event.GroupId)
-								stdId := FormatDiceIdQQV12(event.UserId)
-								VarSetValueStr(ctx, "$t帐号ID", stdId)
-								VarSetValueStr(ctx, "$t账号ID", stdId)
+								VarSetValueStr(ctx, "$t帐号ID_RAW", event.GroupID)
+								VarSetValueStr(ctx, "$t账号ID_RAW", event.GroupID)
+								stdID := FormatDiceIDQQV12(event.UserID)
+								VarSetValueStr(ctx, "$t帐号ID", stdID)
+								VarSetValueStr(ctx, "$t账号ID", stdID)
 								text := DiceFormat(ctx, group.GroupWelcomeMessage)
 								for _, i := range strings.Split(text, "###SPLIT###") {
 									doSleepQQ(ctx)
-									pa.SendToGroup(ctx, msg.GroupId, strings.TrimSpace(i), "")
+									pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 								}
 							}()
 						}
-
 					}
 				}
 				return
 			case "group_member_decrease": //  被提出
-				if event.UserId == event.Self.UserId {
+				if event.UserID == event.Self.UserID {
 					skip := false
 					skipReason := ""
-					banInfo := ctx.Dice.BanList.GetById(opUid)
+					banInfo := ctx.Dice.BanList.GetByID(opUID)
 					if banInfo != nil {
 						if banInfo.Rank == 30 {
 							skip = true
 							skipReason = "信任用户"
 						}
 					}
-					if ctx.Dice.IsMaster(opUid) {
+					if ctx.Dice.IsMaster(opUID) {
 						skip = true
 						skipReason = "Master"
 					}
@@ -419,26 +416,26 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					if skip {
 						extra = fmt.Sprintf("\n取消处罚，原因为%s", skipReason)
 					} else {
-						ctx.Dice.BanList.AddScoreByGroupKicked(opUid, msg.GroupId, ctx)
+						ctx.Dice.BanList.AddScoreByGroupKicked(opUID, msg.GroupID, ctx)
 					}
 
-					txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, event.GroupId, userName, n.OperatorId, extra)
+					txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, event.GroupID, userName, n.OperatorID, extra)
 					log.Info(txt)
 					ctx.Notice(txt)
 				}
 			case "group_member_ban": // 被禁言
-				if event.UserId == event.Self.UserId {
-					ctx.Dice.BanList.AddScoreByGroupMuted(opUid, msg.GroupId, ctx)
-					txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, msg.GroupId, n.Duration, userName, n.OperatorId)
+				if event.UserID == event.Self.UserID {
+					ctx.Dice.BanList.AddScoreByGroupMuted(opUID, msg.GroupID, ctx)
+					txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, msg.GroupID, n.Duration, userName, n.OperatorID)
 					log.Info(txt)
 					ctx.Notice(txt)
 				}
 				return
 			case "group_message_delete": // 消息撤回
-				group := s.ServiceAtNew[msg.GroupId]
+				group := s.ServiceAtNew[msg.GroupID]
 				if group != nil {
 					if group.LogOn {
-						_ = model.LogMarkDeleteByMsgId(ctx.Dice.DBLogs, group.GroupId, group.LogCurName, n.MessageId)
+						_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBLogs, group.GroupID, group.LogCurName, n.MessageID)
 					}
 				}
 				return
@@ -450,7 +447,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				return
 			}
 		}
-
+		//nolint:nestif
 		if event.Type == "request" {
 			req := new(EventWalleQReq)
 			err = json.Unmarshal([]byte(message), req)
@@ -508,8 +505,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 				// 检查黑名单
 				extra := ""
-				uid := msg.Sender.UserId
-				banInfo := ctx.Dice.BanList.GetById(uid)
+				uid := msg.Sender.UserID
+				banInfo := ctx.Dice.BanList.GetByID(uid)
 				if banInfo != nil {
 					if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
 						if willAccept {
@@ -525,7 +522,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					extra += "。由于设置了忽略邀请，此信息仅为通报"
 				}
 
-				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", event.UserId, comment, willAccept, extra)
+				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", event.UserID, comment, willAccept, extra)
 				log.Info(txt)
 				ctx.Notice(txt)
 
@@ -537,9 +534,9 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
 
 				if willAccept {
-					pa.SetFriendAddRequest(req.RequestId, event.UserId, true)
+					pa.SetFriendAddRequest(req.RequestID, event.UserID, true)
 				} else {
-					pa.SetFriendAddRequest(req.RequestId, event.UserId, false)
+					pa.SetFriendAddRequest(req.RequestID, event.UserID, false)
 				}
 				return
 			// 其他人的加群申请 // 管他呢
@@ -549,54 +546,54 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			case "group_invited":
 				// {"comment":"","flag":"111","group_id":222,"post_type":"request","request_type":"group","self_id":333,"sub_type":"invite","time":1646782195,"user_id":444}
 				ep.RefreshGroupNum()
-				pa.GetGroupInfoAsync(event.GroupId)
+				pa.GetGroupInfoAsync(event.GroupID)
 				time.Sleep(time.Duration((1.8 + rand.Float64()) * float64(time.Second))) // 稍作等待，也许能拿到群名
 
-				uid := FormatDiceIdQQV12(event.UserId)
-				gid := FormatDiceIdQQGroupV12(event.GroupId)
-				groupName := dm.TryGetGroupName(event.GroupId)
+				uid := FormatDiceIDQQV12(event.UserID)
+				gid := FormatDiceIDQQGroupV12(event.GroupID)
+				groupName := dm.TryGetGroupName(event.GroupID)
 				userName := dm.TryGetUserName(uid)
-				txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", groupName, event.GroupId, userName, event.UserId)
+				txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", groupName, event.GroupID, userName, event.UserID)
 				log.Info(txt)
 				ctx.Notice(txt)
-				//tempInviteMap[msg.GroupId] = time.Now().Unix()
-				//tempInviteMap2[msg.GroupId] = uid
+				// tempInviteMap[msg.GroupId] = time.Now().Unix()
+				// tempInviteMap2[msg.GroupId] = uid
 
 				// 邀请人在黑名单上
-				banInfo := ctx.Dice.BanList.GetById(uid)
+				banInfo := ctx.Dice.BanList.GetByID(uid)
 				if banInfo != nil {
 					if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
-						pa.SetGroupAddRequest(req.RequestId, event.GroupId, false)
+						pa.SetGroupAddRequest(req.RequestID, event.GroupID, false)
 						return
 					}
 				}
 				// 信任模式，如果不是信任，又不是master则拒绝拉群邀请
 				isMaster := ctx.Dice.IsMaster(uid)
 				if ctx.Dice.TrustOnlyMode && ((banInfo != nil && banInfo.Rank != BanRankTrusted) && !isMaster) {
-					pa.SetGroupAddRequest(req.RequestId, event.GroupId, false)
+					pa.SetGroupAddRequest(req.RequestID, event.GroupID, false)
 					return
 				}
 				// 群在黑名单上
-				banInfo = ctx.Dice.BanList.GetById(gid)
+				banInfo = ctx.Dice.BanList.GetByID(gid)
 				if banInfo != nil {
 					if banInfo.Rank == BanRankBanned {
-						pa.SetGroupAddRequest(req.RequestId, event.GroupId, false)
+						pa.SetGroupAddRequest(req.RequestID, event.GroupID, false)
 						return
 					}
 				}
 				// 拒绝加入新群
 				if ctx.Dice.RefuseGroupInvite {
-					pa.SetGroupAddRequest(req.RequestId, event.GroupId, false)
+					pa.SetGroupAddRequest(req.RequestID, event.GroupID, false)
 					return
 				}
 
-				pa.SetGroupAddRequest(req.RequestId, event.GroupId, true)
+				pa.SetGroupAddRequest(req.RequestID, event.GroupID, true)
 				return
 			}
 		}
-
 		// 事件都有 ID，没有就是响应 but 有几个元事件 ID 是 "" ；把响应处理放到最后吧
-		if event.Id == "" {
+		//nolint:nestif
+		if event.ID == "" {
 			fmt.Println(message)
 			echo := new(EchoWalleQ)
 			err = json.Unmarshal([]byte(message), echo)
@@ -618,21 +615,21 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				return
 			case "get_self_info":
 				ep.Nickname = m["user_name"].(string)
-				ep.UserId = FormatDiceIdQQV12(m["user_id"].(string))
+				ep.UserID = FormatDiceIDQQV12(m["user_id"].(string))
 				d := pa.Session.Parent
 				d.LastUpdatedTime = time.Now().Unix()
 				d.Save(false)
 				return
 			case "get_group_info":
-				groupId := FormatDiceIdQQGroupV12(m["group_id"].(string))
+				groupID := FormatDiceIDQQGroupV12(m["group_id"].(string))
 				GroupName := m["group_name"].(string)
 				ctx := &MsgContext{MessageType: "group", EndPoint: ep, Session: s, Dice: s.Parent}
-				dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
+				dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
 					Name: GroupName,
 					time: time.Now().Unix(),
 				}) // 不论如何，先试图取一下群名
 
-				group := s.ServiceAtNew[groupId]
+				group := s.ServiceAtNew[groupID]
 				if group != nil {
 					// 更新群名
 					if GroupName != group.GroupName {
@@ -641,51 +638,44 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					}
 
 					// 处理被强制拉群的情况
-					uid := group.InviteUserId
-					banInfo := ctx.Dice.BanList.GetById(uid)
+					uid := group.InviteUserID
+					banInfo := ctx.Dice.BanList.GetByID(uid)
 					if banInfo != nil {
 						if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
 							// 如果是被ban之后拉群，判定为强制拉群
 							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
-								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", group.InviteUserId)
-								ReplyGroupRaw(ctx, &Message{GroupId: groupId}, text, "")
+								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", group.InviteUserID)
+								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 								time.Sleep(1 * time.Second)
-								pa.QuitGroup(ctx, groupId)
+								pa.QuitGroup(ctx, groupID)
 							}
 							return
 						}
 					}
 
 					// 强制拉群情况2 - 群在黑名单
-					banInfo = ctx.Dice.BanList.GetById(groupId)
+					banInfo = ctx.Dice.BanList.GetByID(groupID)
 					if banInfo != nil {
 						if banInfo.Rank == BanRankBanned {
 							// 如果是被ban之后拉群，判定为强制拉群
 							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
 								text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
-								ReplyGroupRaw(ctx, &Message{GroupId: groupId}, text, "")
+								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 								time.Sleep(1 * time.Second)
-								pa.QuitGroup(ctx, groupId)
+								pa.QuitGroup(ctx, groupID)
 							}
 							return
 						}
 					}
-
 				} else { //nolint
 					// TODO: 这玩意的创建是个专业活，等下来弄
-					//session.ServiceAtNew[groupId] = GroupInfo{}
+					// session.ServiceAtNew[groupId] = GroupInfo{}
 				}
 				return
 			case "get_group_member_info":
-				//pa.echoMap.Store("get_group_member_info", )
-
+				// pa.echoMap.Store("get_group_member_info", )
 			}
-			//TODO
-			//if pa.echoMap != nil {
-			//
-			//}
 		}
-
 	}
 
 	socket.OnBinaryMessage = func(data []byte, socket gowebsocket.Socket) {
@@ -743,8 +733,8 @@ func (pa *PlatformAdapterWalleQ) DoRelogin() bool {
 		if pa.InPackWalleQDisconnectedCH != nil {
 			pa.InPackWalleQDisconnectedCH <- -1
 		}
-		d.Logger.Infof(fmt.Sprintf("重启 Walle-q，账号<%s>(%s)", ep.Nickname, ep.UserId))
-		pa.CurLoginIndex += 1
+		d.Logger.Infof(fmt.Sprintf("重启 Walle-q，账号<%s>(%s)", ep.Nickname, ep.UserID))
+		pa.CurLoginIndex++
 		pa.WalleQState = WqStateCodeInit
 		go WalleQServeProcessKill(d, ep)
 		time.Sleep(10 * time.Second)
@@ -785,17 +775,17 @@ func (pa *PlatformAdapterWalleQ) SetEnable(enable bool) {
 
 func (pa *PlatformAdapterWalleQ) GetGroupInfoAsync(id string) {
 	type GroupMessageParams struct {
-		GroupId string `json:"group_id"`
+		GroupID string `json:"group_id"`
 	}
-	realGroupId, type_ := pa.mustExtractId(id)
-	if type_ != QQUidGroup {
+	realGroupID, idType := pa.mustExtractID(id)
+	if idType != QQUidGroup {
 		return
 	}
 
 	a, _ := json.Marshal(OneBotV12Command{
 		"get_group_info",
 		GroupMessageParams{
-			realGroupId,
+			realGroupID,
 		},
 		"get_group_info",
 	})
@@ -803,10 +793,9 @@ func (pa *PlatformAdapterWalleQ) GetGroupInfoAsync(id string) {
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userId string, text string, flag string) {
-	rawId, type_ := pa.mustExtractId(userId)
-
-	if type_ != QQUidPerson {
+func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	rawID, idType := pa.mustExtractID(userID)
+	if idType != QQUidPerson {
 		return
 	}
 
@@ -818,7 +807,7 @@ func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userId string, te
 					Message:     text,
 					MessageType: "private",
 					Sender: SenderBase{
-						UserId:   pa.EndPoint.UserId,
+						UserID:   pa.EndPoint.UserID,
 						Nickname: pa.EndPoint.Nickname,
 					},
 				}, flag)
@@ -829,32 +818,32 @@ func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userId string, te
 	text = textAssetsConvert(text)
 	texts := textSplit(text)
 	for _, subText := range texts {
-		pa.SendMessage(subText, "private", rawId, "")
+		pa.SendMessage(subText, "private", rawID, "")
 		doSleepQQ(ctx)
 	}
 }
 
-func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
-	if groupId == "" {
+func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	if groupID == "" {
 		return
 	}
-	rawId, type_ := pa.mustExtractId(groupId)
-	if type_ == 0 {
+	rawID, idType := pa.mustExtractID(groupID)
+	if idType == 0 {
 		// pa.SendToChannelGroup(ctx, groupId, text, flag) wq 未实现
 		return
 	}
 
-	if ctx.Session.ServiceAtNew[groupId] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
+	if ctx.Session.ServiceAtNew[groupID] != nil {
+		for _, i := range ctx.Session.ServiceAtNew[groupID].ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnMessageSend(ctx, &Message{
 						Platform:    "QQ",
 						Message:     text,
 						MessageType: "group",
-						GroupId:     groupId,
+						GroupID:     groupID,
 						Sender: SenderBase{
-							UserId:   pa.EndPoint.UserId,
+							UserID:   pa.EndPoint.UserID,
 							Nickname: pa.EndPoint.Nickname,
 						},
 					}, flag)
@@ -867,82 +856,82 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupId string, te
 	texts := textSplit(text)
 
 	for index, subText := range texts {
-		pa.SendMessage(subText, "group", rawId, "")
+		pa.SendMessage(subText, "group", rawID, "")
 		if len(texts) > 1 && index != 0 {
 			doSleepQQ(ctx)
 		}
 	}
 }
 
-func (pa *PlatformAdapterWalleQ) SendFileToPerson(ctx *MsgContext, userId string, path string, flag string) {
+func (pa *PlatformAdapterWalleQ) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
 	// walleq 依赖的 ricq 尚不支持发送文件
 	dice := pa.Session.Parent
 	fileElement, err := dice.FilepathToFileElement(path)
 	if err == nil {
-		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
+		pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
-		pa.SendToPerson(ctx, userId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+		pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
 	}
 }
 
-func (pa *PlatformAdapterWalleQ) SendFileToGroup(ctx *MsgContext, groupId string, path string, flag string) {
+func (pa *PlatformAdapterWalleQ) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
 	// walleq 依赖的 ricq 尚不支持发送文件
 	dice := pa.Session.Parent
 	fileElement, err := dice.FilepathToFileElement(path)
 	if err == nil {
-		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
+		pa.SendToGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
-		pa.SendToGroup(ctx, groupId, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+		pa.SendToGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
 	}
 }
 
-func (pa *PlatformAdapterWalleQ) QuitGroup(ctx *MsgContext, id string) {
-	groupId, type_ := pa.mustExtractId(id)
-	if type_ != QQUidGroup {
+func (pa *PlatformAdapterWalleQ) QuitGroup(_ *MsgContext, id string) {
+	groupID, idType := pa.mustExtractID(id)
+	if idType != QQUidGroup {
 		return
 	}
 	type GroupMessageParams struct {
-		GroupId string `json:"group_id"`
+		GroupID string `json:"group_id"`
 	}
 
 	a, _ := json.Marshal(oneBotCommand{
 		Action: "leave_group",
 		Params: GroupMessageParams{
-			groupId,
+			groupID,
 		},
 	})
 
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterWalleQ) SetGroupCardName(groupId string, userId string, name string) {
+func (pa *PlatformAdapterWalleQ) SetGroupCardName(_ *MsgContext, _ string) {
 	// wq 暂无该扩展 api
 }
 
-func (pa *PlatformAdapterWalleQ) MemberBan(groupId string, userId string, last int64) {
+func (pa *PlatformAdapterWalleQ) MemberBan(groupID string, userID string, last int64) {
 	type P struct {
-		GroupId  string `json:"groupId"`
-		UserId   string `json:"userId"`
+		GroupID  string `json:"groupId"`
+		UserID   string `json:"userId"`
 		Duration int64  `json:"duration"`
 	}
 	a, _ := json.Marshal(&OneBotV12Command{
 		Action: "ban_group_member",
 		Params: P{
-			groupId, userId, last,
+			groupID, userID, last,
 		},
 	})
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterWalleQ) MemberKick(groupId string, userId string) {
+func (pa *PlatformAdapterWalleQ) MemberKick(groupID string, userID string) {
 	type P struct {
-		GroupId string `json:"groupId"`
-		UserId  string `json:"userId"`
+		GroupID string `json:"groupId"`
+		UserID  string `json:"userId"`
 	}
 	a, _ := json.Marshal(&OneBotV12Command{
 		Action: "kick_group_member",
 		Params: P{
-			groupId, userId,
+			groupID, userID,
 		},
 	})
 	socketSendText(pa.Socket, string(a))
@@ -951,7 +940,7 @@ func (pa *PlatformAdapterWalleQ) MemberKick(groupId string, userId string) {
 /* 扩展方法实现 */
 
 func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait func()) *EventWalleQBase {
-	//pa.echoList = append(pa.echoList, )
+	// pa.echoList = append(pa.echoList, )
 	ch := make(chan *EventWalleQBase, 1)
 
 	if pa.echoMap == nil {
@@ -963,7 +952,7 @@ func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait
 	return <-ch
 }
 
-//func (pa *PlatformAdapterWalleQ) waitEcho2(echo string, value interface{}, beforeWait func(emi *echoMapInfo)) error {
+// func (pa *PlatformAdapterWalleQ) waitEcho2(echo string, value interface{}, beforeWait func(emi *echoMapInfo)) error {
 //	if pa.echoMap2 == nil {
 //		pa.echoMap2 = new(SyncMap[string, *echoMapInfo])
 //	}
@@ -983,10 +972,10 @@ func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait
 func (pa *PlatformAdapterWalleQ) SendMessage(text string, ty string, id string, cid string) {
 	type Params struct {
 		DetailType string           `json:"detail_type"`
-		GroupId    string           `json:"group_id,omitempty"`
-		UserId     string           `json:"user_id,omitempty"`
-		GuildId    string           `json:"guild_id,omitempty"`
-		ChannelId  string           `json:"channel_id,omitempty"`
+		GroupID    string           `json:"group_id,omitempty"`
+		UserID     string           `json:"user_id,omitempty"`
+		GuildID    string           `json:"guild_id,omitempty"`
+		ChannelID  string           `json:"channel_id,omitempty"`
 		Message    []MessageSegment `json:"message"`
 	}
 	var (
@@ -1007,10 +996,10 @@ func (pa *PlatformAdapterWalleQ) SendMessage(text string, ty string, id string, 
 		Echo:   "send_message",
 		Params: Params{
 			DetailType: ty,
-			GroupId:    gid,
-			UserId:     uid,
-			GuildId:    g2id,
-			ChannelId:  cid,
+			GroupID:    gid,
+			UserID:     uid,
+			GuildID:    g2id,
+			ChannelID:  cid,
 			Message:    pa.TextToMessageSegment(text),
 		},
 	})
@@ -1028,18 +1017,18 @@ func (pa *PlatformAdapterWalleQ) GetLoginInfo() {
 }
 
 // GetGroupMemberInfo 获取群成员信息
-func (pa *PlatformAdapterWalleQ) GetGroupMemberInfo(GroupId string, UserId string) *OnebotV12UserInfo {
+func (pa *PlatformAdapterWalleQ) GetGroupMemberInfo(groupID string, userID string) *OnebotV12UserInfo {
 	type DetailParams struct {
-		GroupId string `json:"group_id"`
-		UserId  string `json:"user_id"`
+		GroupID string `json:"group_id"`
+		UserID  string `json:"user_id"`
 	}
 
 	echo := "get_group_member_info"
 	a, _ := json.Marshal(OneBotV12Command{
 		Action: "get_group_member_info",
 		Params: DetailParams{
-			GroupId: GroupId,
-			UserId:  UserId,
+			GroupID: groupID,
+			UserID:  userID,
 		},
 		Echo: echo,
 	})
@@ -1050,8 +1039,8 @@ func (pa *PlatformAdapterWalleQ) GetGroupMemberInfo(GroupId string, UserId strin
 
 	return &OnebotV12UserInfo{
 		Nickname: d.UserName,
-		UserId:   d.UserId,
-		GroupId:  d.GroupId,
+		UserID:   d.UserID,
+		GroupID:  d.GroupID,
 		Card:     d.UserCard,
 	}
 }
@@ -1059,8 +1048,8 @@ func (pa *PlatformAdapterWalleQ) GetGroupMemberInfo(GroupId string, UserId strin
 // SetGroupAddRequest 同意加群
 func (pa *PlatformAdapterWalleQ) SetGroupAddRequest(rid int64, gid string, accept bool) {
 	type DetailParams struct {
-		ReqId  int64  `json:"request_id"`
-		UserId string `json:"user_id"`
+		ReqID  int64  `json:"request_id"`
+		UserID string `json:"user_id"`
 		Accept bool   `json:"accept"`
 	}
 
@@ -1075,10 +1064,10 @@ func (pa *PlatformAdapterWalleQ) SetGroupAddRequest(rid int64, gid string, accep
 }
 
 // SetFriendAddRequest 同意好友
-func (pa *PlatformAdapterWalleQ) SetFriendAddRequest(reqId int64, userId string, accept bool) {
+func (pa *PlatformAdapterWalleQ) SetFriendAddRequest(reqID int64, userID string, accept bool) {
 	type DetailParams struct {
-		ReqId  int64  `json:"request_id"`
-		UserId string `json:"user_id"`
+		ReqID  int64  `json:"request_id"`
+		UserID string `json:"user_id"`
 		Accept bool   `json:"accept"`
 	}
 
@@ -1088,7 +1077,7 @@ func (pa *PlatformAdapterWalleQ) SetFriendAddRequest(reqId int64, userId string,
 	}{
 		"set_new_friend",
 		DetailParams{
-			reqId, userId, accept,
+			reqID, userID, accept,
 		},
 	})
 
@@ -1096,19 +1085,19 @@ func (pa *PlatformAdapterWalleQ) SetFriendAddRequest(reqId int64, userId string,
 }
 
 // DeleteFriend 删除好友
-func (pa *PlatformAdapterWalleQ) DeleteFriend(ctx *MsgContext, id string) {
-	friendId, type_ := pa.mustExtractId(id)
-	if type_ != QQUidPerson {
+func (pa *PlatformAdapterWalleQ) DeleteFriend(_ *MsgContext, id string) {
+	friendID, idType := pa.mustExtractID(id)
+	if idType != QQUidPerson {
 		return
 	}
 	type GroupMessageParams struct {
-		UserId string `json:"user_id"`
+		UserID string `json:"user_id"`
 	}
 
 	a, _ := json.Marshal(oneBotCommand{
 		Action: "delete_friend",
 		Params: GroupMessageParams{
-			friendId,
+			friendID,
 		},
 	})
 
@@ -1136,46 +1125,46 @@ func MessageSegmentToText(ms []MessageSegment) string {
 	for _, i := range ms {
 		switch i.Type {
 		case "text":
-			s = s + i.Data.Text
+			s += i.Data.Text
 		case "mention":
 			cq := CQCommand{
 				Type: "at",
-				Args: map[string]string{"qq": i.Data.UserId},
+				Args: map[string]string{"qq": i.Data.UserID},
 			}
-			s = s + cq.Compile()
+			s += cq.Compile()
 		case "mention_all":
 			cq := CQCommand{
 				Type: "at",
 				Args: map[string]string{"qq": "all"},
 			}
-			s = s + cq.Compile()
+			s += cq.Compile()
 		case "image":
 			cq := CQCommand{
 				Type: "image",
-				Args: map[string]string{"file": i.Data.Url},
+				Args: map[string]string{"file": i.Data.URL},
 			}
-			s = s + cq.Compile()
+			s += cq.Compile()
 		case "voice":
 			cq := CQCommand{
 				Type: "voice",
-				Args: map[string]string{"file": i.Data.FileId},
+				Args: map[string]string{"file": i.Data.FileID},
 			}
-			s = s + cq.Compile()
+			s += cq.Compile()
 		case "audio": // 这个是音频文件 wq 未支持 or QQ 没有
 		case "video":
 			cq := CQCommand{
 				Type: "voice",
-				Args: map[string]string{"file": i.Data.FileId},
+				Args: map[string]string{"file": i.Data.FileID},
 			}
-			s = s + cq.Compile()
+			s += cq.Compile()
 		case "file":
 		case "location":
 		case "reply":
 			cq := CQCommand{
 				Type: "reply",
-				Args: map[string]string{"user_id": i.Data.UserId, "message_id": i.Data.MessageId},
+				Args: map[string]string{"user_id": i.Data.UserID, "message_id": i.Data.MessageID},
 			}
-			s = s + cq.Compile()
+			s += cq.Compile()
 		}
 	}
 	return s
@@ -1201,14 +1190,13 @@ func (pa *PlatformAdapterWalleQ) TextToMessageSegment(text string) []MessageSegm
 		}
 		if filepath.IsAbs(path) {
 			return "file:///" + path
-		} else {
-			pa2, err := filepath.Abs(path)
-			if err != nil {
-				pa.Session.Parent.Logger.Info("路径转换错误，将使用原路径", err)
-				pa2 = path
-			}
-			return pa2
 		}
+		pa2, err := filepath.Abs(path)
+		if err != nil {
+			pa.Session.Parent.Logger.Info("路径转换错误，将使用原路径", err)
+			pa2 = path
+		}
+		return pa2
 	}
 	// 海豹码 转 cq 码 // 有点麻
 	for _, i := range arr {
@@ -1219,6 +1207,9 @@ func (pa *PlatformAdapterWalleQ) TextToMessageSegment(text string) []MessageSegm
 		if isCq {
 			i = i[4 : len(i)-1]
 			j := strings.Index(i, ",")
+			if j < 0 {
+				panic("no comma in CQ code")
+			}
 			cqT := i[:j]
 			i = i[:j]
 			cqP := f(i)
@@ -1228,17 +1219,17 @@ func (pa *PlatformAdapterWalleQ) TextToMessageSegment(text string) []MessageSegm
 				if p == "all" {
 					m = append(m, MessageSegment{Type: "mention_all", Data: MSData{}})
 				} else {
-					m = append(m, MessageSegment{Type: "mention", Data: MSData{UserId: p}})
+					m = append(m, MessageSegment{Type: "mention", Data: MSData{UserID: p}})
 				}
 				continue
 			case "image":
 				p := cqP["file"]
 				p = f2(p)
-				m = append(m, MessageSegment{"image", MSData{Url: p}})
+				m = append(m, MessageSegment{"image", MSData{URL: p}})
 				continue
 			case "reply":
 				p := cqP["id"]
-				m = append(m, MessageSegment{"reply", MSData{MessageId: p}})
+				m = append(m, MessageSegment{"reply", MSData{MessageID: p}})
 				continue
 			case "record":
 				continue
@@ -1255,32 +1246,32 @@ func (event *EventWalleQBase) toMessageBase() *Message {
 	msg.Platform = "QQ"
 	switch event.DetailType {
 	case "private":
-		msg.Sender.UserId = FormatDiceIdQQV12(event.UserId)
+		msg.Sender.UserID = FormatDiceIDQQV12(event.UserID)
 		msg.Sender.Nickname = event.UserName
-		msg.GroupId = "PG-QQ:" + event.UserId
+		msg.GroupID = "PG-QQ:" + event.UserID
 	case "group":
-		msg.Sender.UserId = FormatDiceIdQQV12(event.UserId)
+		msg.Sender.UserID = FormatDiceIDQQV12(event.UserID)
 		msg.Sender.Nickname = event.UserCard
-		msg.GroupId = FormatDiceIdQQGroupV12(event.GroupId)
+		msg.GroupID = FormatDiceIDQQGroupV12(event.GroupID)
 	case "channel": // wq 未实现
-		msg.Sender.UserId = FormatDiceIdQQCh(event.UserId)
+		msg.Sender.UserID = FormatDiceIDQQCh(event.UserID)
 		msg.Sender.Nickname = event.UserName
-		msg.GroupId = FormatDiceIdQQChGroup(event.ChannelId, event.GuildId) // v12 与海豹标准相反，好别扭啊
+		msg.GroupID = FormatDiceIDQQChGroup(event.ChannelID, event.GuildID) // v12 与海豹标准相反，好别扭啊
 	}
 	return msg
 }
 
-// FormatDiceIdQQV12 QQ:122
-func FormatDiceIdQQV12(diceWalleQ string) string {
+// FormatDiceIDQQV12 QQ:122
+func FormatDiceIDQQV12(diceWalleQ string) string {
 	return fmt.Sprintf("QQ:%s", diceWalleQ)
 }
 
-// FormatDiceIdQQGroupV12 QQ-Group:122
-func FormatDiceIdQQGroupV12(diceWalleQ string) string {
+// FormatDiceIDQQGroupV12 QQ-Group:122
+func FormatDiceIDQQGroupV12(diceWalleQ string) string {
 	return fmt.Sprintf("QQ-Group:%s", diceWalleQ)
 }
 
-func (pa *PlatformAdapterWalleQ) mustExtractId(id string) (string, QQUidType) {
+func (pa *PlatformAdapterWalleQ) mustExtractID(id string) (string, QQUidType) {
 	if strings.HasPrefix(id, "QQ:") {
 		return id[len("QQ:"):], QQUidPerson
 	}

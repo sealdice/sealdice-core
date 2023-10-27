@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"golang.org/x/sys/windows"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -22,8 +21,9 @@ import (
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
 	"github.com/labstack/echo/v4"
-	"github.com/lxn/win"
+	win "github.com/lxn/win"
 	"github.com/monaco-io/request"
+	"golang.org/x/sys/windows"
 )
 
 func hideWindow() {
@@ -55,7 +55,7 @@ func CreateMutex(name string) (uintptr, error) {
 		0,
 		uintptr(unsafe.Pointer(s)),
 	)
-	switch int(err.(syscall.Errno)) {
+	switch int(err.(syscall.Errno)) { //nolint:errorlint
 	case 0:
 		return ret, nil
 	default:
@@ -143,7 +143,7 @@ func onReady() {
 			systray.Quit()
 			systrayQuited = true
 			cleanUpCreate(theDM)()
-			time.Sleep(time.Duration(3 * time.Second))
+			time.Sleep(3 * time.Second)
 			os.Exit(0)
 		case <-mAutoBoot.ClickedCh:
 			if mAutoBoot.Checked() {
@@ -185,7 +185,7 @@ var _trayPortStr = "3211"
 
 func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	portStr := "3211"
-	//runtime.LockOSThread()
+	// runtime.LockOSThread()
 
 	go func() {
 		for {
@@ -269,10 +269,10 @@ func executeWin(name string, arg ...string) *exec.Cmd {
 		NoInheritHandles: true,
 	}
 
-	//cmd.Dir, _ = os.Getwd()
-	//path, err := os.Executable()
-	//if err != nil {
-	//	cmd.Dir, _ = filepath.Abs(filepath.Dir(path))
-	//}
+	// cmd.Dir, _ = os.Getwd()
+	// path, err := os.Executable()
+	// if err != nil {
+	//	 cmd.Dir, _ = filepath.Abs(filepath.Dir(path))
+	// }
 	return cmd
 }
