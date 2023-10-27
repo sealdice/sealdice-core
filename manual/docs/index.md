@@ -11,7 +11,7 @@ actions:
   - text: 快速部署
     link: /deploy/quick-start
   - text: 特色功能
-    link: /use/special_feature
+    link: /deploy/special_feature
 ---
 
 # 介绍
@@ -40,11 +40,11 @@ actions:
 
 ### 海豹有什么特别的功能吗？
 
-见 [使用-特色功能](./use/special_feature.md)
+见 [部署-特色功能](./deploy/special_feature.md)
 
 ### 我是 PL，告诉我怎么用就好
 
-见 [使用-基础概念](./use/introduce.md)
+见 [使用-快速上手](./use/quick-start.md)
 
 ### 我是骰主，告诉我怎么搭建
 
@@ -66,4 +66,3 @@ actions:
 分群: 562897832
 
 分群: 715664650
-

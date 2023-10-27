@@ -6,7 +6,7 @@ export default sidebar({
       text: "部署",
       link: "/deploy/",
       prefix: "/deploy/",
-      children: ["quick-start.md", "transfer.md"],
+      children: ["quick-start.md", "transfer.md", "special_feature.md"],
     },
   ],
   "/config/": [
@@ -38,11 +38,10 @@ export default sidebar({
       children: [
         "introduce.md",
         "quick-start.md",
-        "special_feature.md",
         "faq.md",
-        { text: "核心命令", children: ["core.md", "helper.md"] },
+        "core.md",
         {
-          text: "扩展命令",
+          text: "扩展指令",
           children: [
             "coc7.md",
             "dnd5e.md",
@@ -51,6 +50,7 @@ export default sidebar({
             "fun.md",
             "deck_and_reply.md",
             "sr.md",
+            "attribute_alias.md",
           ],
         },
       ],

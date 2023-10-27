@@ -8,7 +8,11 @@ export default navbar([
   {
     text: "部署",
     prefix: "/deploy/",
-    children: ["quick-start.md", "transfer.md"],
+    children: [
+      "quick-start.md",
+      "transfer.md",
+      "special_feature.md",
+    ],
   },
   {
     text: "配置",
@@ -37,14 +41,13 @@ export default navbar([
     children: [
       "introduce.md",
       "quick-start.md",
-      "special_feature.md",
       "faq.md",
       {
-        text: "核心命令",
-        children: ["core.md", "helper.md"],
+        text: "核心指令",
+        children: ["core.md"],
       },
       {
-        text: "扩展命令",
+        text: "扩展指令",
         children: [
           "coc7.md",
           "dnd5e.md",
@@ -53,6 +56,7 @@ export default navbar([
           "fun.md",
           "deck_and_reply.md",
           "sr.md",
+          "attribute_alias.md",
         ],
       },
     ],
