@@ -225,7 +225,7 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 			pa.Session.Parent.Logger.Errorf("Dodo权限转换错误:%s", err.Error())
 			return
 		}
-		aperm = aperm | num
+		aperm |= num
 	}
 	pa.UserPermMap[guildID][FormatDiceIDDodo(userID)] = &GuildPermCacheItem{
 		Perm: aperm,
