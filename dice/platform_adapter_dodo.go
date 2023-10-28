@@ -331,7 +331,7 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 					Content string `json:"content"`
 					Type    string `json:"type"`
 				}{
-					Content: convertLinksToMarkdown(antiMarkdownFormat(e.Content)),
+					Content: convertLinksToMarkdown(e.Content),
 					Type:    "dodo-md",
 				},
 			})
