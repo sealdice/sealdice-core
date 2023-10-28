@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,12 +16,23 @@ import (
 )
 
 type PlatformAdapterDodo struct {
-	Session   *IMSession       `yaml:"-" json:"-"`
-	ClientID  string           `yaml:"clientID" json:"clientID"`
-	Token     string           `yaml:"token" json:"token"`
-	EndPoint  *EndPointInfo    `yaml:"-" json:"-"`
-	Client    client.Client    `yaml:"-" json:"-"`
-	WebSocket websocket.Client `yaml:"-" json:"-"`
+	Session     *IMSession                                `yaml:"-" json:"-"`
+	ClientID    string                                    `yaml:"clientID" json:"clientID"`
+	Token       string                                    `yaml:"token" json:"token"`
+	EndPoint    *EndPointInfo                             `yaml:"-" json:"-"`
+	Client      client.Client                             `yaml:"-" json:"-"`
+	WebSocket   websocket.Client                          `yaml:"-" json:"-"`
+	UserPermMap map[string]map[string]*GuildPermCacheItem `yaml:"-" json:"-"`
+}
+
+const (
+	DodoPermManageMember = 1 << 2
+	DodoPermAdmin        = 1 << 3
+)
+
+type GuildPermCacheItem struct {
+	Perm int64
+	time int64
 }
 
 func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupID string) {
@@ -45,7 +57,7 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	logger := pa.Session.Parent.Logger
 	clientID := pa.ClientID
 	token := pa.Token
-
+	pa.UserPermMap = make(map[string]map[string]*GuildPermCacheItem)
 	instance, err := client.New(clientID, token, client.WithTimeout(time.Second*3))
 	pa.Client = instance
 	if err != nil {
@@ -145,9 +157,11 @@ func (pa *PlatformAdapterDodo) toStdChannelMessage(msgRaw *websocket.ChannelMess
 	msg.Sender = *send
 	msg.GroupID = FormatDiceIDDodoGroup(msgRaw.ChannelId)
 	msg.GuildID = msgRaw.IslandSourceId
+	if pa.checkIfGuildAdmin(msgRaw.IslandSourceId, msgRaw.DodoSourceId) {
+		msg.Sender.GroupRole = "admin"
+	}
 	if msgRaw.MessageType == 1 {
 		msgDodo := new(model.TextMessage)
-		// pa.Session.Parent.Logger.Infof("Dodo消息内容:%s", string(msgRaw.MessageBody))
 		err := json.Unmarshal(msgRaw.MessageBody, msgDodo)
 		if err == nil {
 			msg.Message = msgDodo.Content
@@ -156,6 +170,68 @@ func (pa *PlatformAdapterDodo) toStdChannelMessage(msgRaw *websocket.ChannelMess
 		}
 	}
 	return msg, nil
+}
+
+func (pa *PlatformAdapterDodo) checkIfGuildAdmin(guildID string, userID string) bool {
+	aperm := int64(0)
+	if pa.UserPermMap[guildID] == nil {
+		info, err := pa.Client.GetIslandInfo(context.Background(), &model.GetIslandInfoReq{
+			IslandSourceId: guildID,
+		})
+		if err != nil {
+			return false
+		}
+		pa.UserPermMap[guildID] = make(map[string]*GuildPermCacheItem)
+		if userID == info.OwnerDodoSourceId {
+			pa.UserPermMap[guildID][FormatDiceIDDodo(userID)] = &GuildPermCacheItem{
+				Perm: -1,
+				time: time.Now().Unix(),
+			}
+			return true
+		} else {
+			pa.refreshPermCache(guildID, userID)
+		}
+	} else {
+		if pa.UserPermMap[guildID][FormatDiceIDDodo(userID)] == nil {
+			aperm = pa.refreshPermCache(guildID, userID)
+		} else {
+			if pa.UserPermMap[guildID][FormatDiceIDDodo(userID)].Perm == -1 {
+				return true
+			}
+			if time.Now().Unix()-pa.UserPermMap[guildID][FormatDiceIDDodo(userID)].time > 30 {
+				aperm = pa.refreshPermCache(guildID, userID)
+			} else {
+				aperm = pa.UserPermMap[guildID][FormatDiceIDDodo(userID)].Perm
+			}
+		}
+	}
+	return aperm&int64(DodoPermAdmin|DodoPermManageMember) > 0
+}
+
+func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (aperm int64) {
+	aperm = int64(0)
+	list, err := pa.Client.GetMemberRoleList(context.Background(), &model.GetMemberRoleListReq{
+		IslandSourceId: guildID,
+		DodoSourceId:   userID,
+	})
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("Dodo获取权限列表失败:%s", err.Error())
+		return
+	}
+
+	for _, role := range list {
+		num, err := strconv.ParseInt(role.Permission, 16, 64) // 16 表示这是一个十六进制数
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("Dodo权限转换错误:%s", err.Error())
+			return
+		}
+		aperm = aperm | num
+	}
+	pa.UserPermMap[guildID][FormatDiceIDDodo(userID)] = &GuildPermCacheItem{
+		Perm: aperm,
+		time: time.Now().Unix(),
+	}
+	return
 }
 
 func (pa *PlatformAdapterDodo) DoRelogin() bool {

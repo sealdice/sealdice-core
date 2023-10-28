@@ -318,8 +318,8 @@ github.com/schollz/progressbar/v3 v3.13.1 h1:o8rySDYiQ59Mwzy2FELeHY5ZARXZTVJC7iH
 github.com/schollz/progressbar/v3 v3.13.1/go.mod h1:xvrbki8kfT1fzWzBT/UZd9L6GA+jdL7HAgq2RFnO6fQ=
 github.com/sealdice/dicescript v0.0.0-20230917100026-46a8c8b410d3 h1:ufNIDFymYTnGkvAjmwxjqMZipsqWUzw/1k48qMxRHnE=
 github.com/sealdice/dicescript v0.0.0-20230917100026-46a8c8b410d3/go.mod h1:XeY7jJn/vGg9XZjQGrD6lS3RwisAeRdBYw4JDcUK/Rc=
-github.com/sealdice/dodo-open-go v0.2.7 h1:zNy/wXnzS4s/2Tawlg5UNMCEs5TmT0kyTRilrpvLhXo=
-github.com/sealdice/dodo-open-go v0.2.7/go.mod h1:Nk7ozwqQVvuQW2KubsVVXLM8fFqDo0TwN5UX7F4AR2w=
+github.com/sealdice/dodo-open-go v0.2.8 h1:r7fB0GFbRKO+1zdCud5ZtxDNr5eQc+X9BXmoV65b3v8=
+github.com/sealdice/dodo-open-go v0.2.8/go.mod h1:Nk7ozwqQVvuQW2KubsVVXLM8fFqDo0TwN5UX7F4AR2w=
 github.com/sealdice/kook v0.0.3 h1:STMtiKRMFjhSFmUxi0BU5ktNkCQ8qi7Y5EEfrmYKvWY=
 github.com/sealdice/kook v0.0.3/go.mod h1:WjHC7AmbmNjInT/U/etBVOmAw7T6EqdCwApceRGs1sk=
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=
