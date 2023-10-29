@@ -29,7 +29,7 @@ export default hopeTheme({
   print: false,
 
   metaLocales: {
-    editLink: "在 Github 上编辑此页",
+    editLink: "在 GitHub 上编辑此页",
   },
 
   plugins: {

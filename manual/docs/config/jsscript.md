@@ -27,19 +27,19 @@ JavaScript（JS）是一门基于原型和头等函数的多范式高级解释�
 
 ## 获取 JS 插件
 
-你可以在 [JS插件仓库](https://github.com/sealdice/javascript) 或官方群的群文件中找到其他骰主分享的 JS 插件。
+你可以在 [JS 插件仓库](https://github.com/sealdice/javascript) 或官方群的群文件中找到其他骰主分享的 JS 插件。
 
 ::: note 无法访问仓库？
 
-仓库位于 Github，访问时请确认你的网络状况。
+仓库位于 GitHub，访问时请确认你的网络状况。
 
 :::
 
 ## 如何安装和管理 JS 插件？
 
-点击海豹 UI 界面的「扩展功能-JS扩展」选项，你就可以进入 JS 插件的管理页面。
+点击海豹 UI 界面的「扩展功能-JS 扩展」选项，你就可以进入 JS 插件的管理页面。
 
-![JS扩展](./images/jsscript-ui.png)
+![JS 扩展](./images/jsscript-ui.png)
 
 如果左上角的开关未打开，可以点击启用 JS 插件的支持。可以看见，在管理界面中有多个标签页，下面将一一介绍。
 
@@ -47,13 +47,13 @@ JavaScript（JS）是一门基于原型和头等函数的多范式高级解释�
 
 在「插件列表」页，可以查看当前的 JS 插件列表并进行管理。
 
-![JS插件列表](./images/jsscript-list.png)
+![JS 插件列表](./images/jsscript-list.png)
 
 在每一个插件名前都有一个开关，用来单独控制这个插件是否开启。
 
 点击「上传插件」，选择获取的插件文件，即可上传到海豹核心。在插件的右侧有「删除」按钮来删除不想要的插件。
 
-在对插件进行调整后，需要点击「重载JS」来使修改生效。
+在对插件进行调整后，需要点击「重载 JS」来使修改生效。
 
 ### 插件的更新
 
@@ -69,7 +69,7 @@ JavaScript（JS）是一门基于原型和头等函数的多范式高级解释�
 
 为了方便插件作者编写插件，海豹核心提供了「控制台」，方便直接测试代码。
 
-![JS插件控制台](./images/jsscrpit-console.png)
+![JS 插件控制台](./images/jsscrpit-console.png)
 
 在代码框中编写代码，点击「执行代码」即可运行，运行结果将显示在下方。
 
@@ -84,4 +84,4 @@ JavaScript（JS）是一门基于原型和头等函数的多范式高级解释�
 
 ## 如何编写 JS 插件？
 
-见 [进阶-编写JS插件](../advanced/edit_jsscript.md)。
+见 [进阶 - 编写 JS 插件](../advanced/edit_jsscript.md)。

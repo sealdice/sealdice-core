@@ -1,7 +1,7 @@
 {
   "name": "sealdice-manual-next",
   "version": "1.0.0",
-  "description": "海豹骰全新官方文档。",
+  "description": "海豹骰全新官方使用手册。",
   "main": "index.js",
   "scripts": {
     "docs:dev": "vuepress dev docs",

@@ -17,7 +17,7 @@ title: 快速开始
 
 - 官网：从 [官网下载页](https://dice.weizaima.com/download) 获取最新的正式版海豹核心安装包。
 
-- Github：从 [Github Release](https://github.com/sealdice/sealdice-build/releases) 获取海豹核心安装包。
+- GitHub：从 [GitHub Release](https://github.com/sealdice/sealdice-build/releases) 获取海豹核心安装包。
 
   这一渠道提供两个版本：以 `版本号+发布日期` 命名的正式版，与官网一致；以 `Latest Dev Build+日期` 命名的最新构建，可能有各种 Bug，不推荐一般用户使用。
 
@@ -38,7 +38,7 @@ title: 快速开始
   - x64：绝大多数使用 Intel 或 AMD CPU 的服务器都应使用此版本。
   - arm64：树莓派等 arm 设备请使用 arm64 版。
 - MacOS：提供给 Mac 用户使用，需要使用终端启动。
-  - arm64：Apple Silicon 芯片（M1、M2等）请使用 arm64 版。
+  - arm64：Apple Silicon 芯片（M1、M2 等）请使用 arm64 版。
   - x64：Intel 芯片请使用 x64 版。
 - Android：提供 Android 的 apk 安装包。
 

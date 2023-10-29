@@ -73,12 +73,12 @@ export default sidebar({
       ],
     },
   ],
-  "/develop/": [
+  "/about/": [
     {
-      text: "项目",
-      link: "/develop/",
-      prefix: "/develop/",
-      children: ["about.md", "develop.md"],
+      text: "关于",
+      link: "/about/",
+      prefix: "/about/",
+      children: ["about.md", "license.md", "develop.md"],
     },
   ],
 });

@@ -76,8 +76,8 @@ export default navbar([
     ],
   },
   {
-    text: "项目",
-    prefix: "/develop/",
-    children: ["about.md", "develop.md"],
+    text: "关于",
+    prefix: "/about/",
+    children: ["about.md", "license.md", "develop.md"],
   },
 ]);

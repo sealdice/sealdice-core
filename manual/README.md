@@ -1,8 +1,10 @@
 # sealdice-manual-next
 
-Vuepress2 驱动的海豹骰全新官方文档。
+VuePress2 驱动的海豹骰全新官方使用手册。
 
-## 编写
+当前手册预览可见 [海豹手册](https://sealdice.github.io/sealdice-manual-next/)。
+
+## 编写文档
 
 文档写在 `docs` 下的 `.md` 文件中，按文件夹分组。
 
@@ -11,6 +13,10 @@ Vuepress2 驱动的海豹骰全新官方文档。
 ## 排版
 
 文档排版应当遵循 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines) 的规范。
+
+使用 AutoCorrect 插件  可以提供相关帮助。
+- [VS Code](https://marketplace.visualstudio.com/items?itemName=huacnlee.autocorrect)
+- [JetBrains](https://plugins.jetbrains.com/plugin/20244-autocorrect)
 
 ## 本地调试
 
@@ -40,8 +46,8 @@ pnpm run docs:dev
 9. 等待 workflow 完成，左边栏选择 Deployments，应能看到一个对应你分支的 Pages 链接；
 10. 如需更新你 Pages 的内容，你只需重新进行第 3, 4 两步；发布 Pages 的 workflow 会自动触发。
 
-## Vuepress2 和 Markdown 扩展
+## VuePress2 和 Markdown 扩展
 
-文档使用 Vuepress2 驱动，文档见 [Vuepress2 文档](https://v2.vuepress.vuejs.org/zh/)。
+手册使用 VuePress2 驱动，文档见 [VuePress2 文档](https://v2.vuepress.vuejs.org/zh/)。
 
 同时使用了 `vuepress-plugin-md-enhance` 插件为 Markdown 提供更多扩展语法，文档见 [vuepress-plugin-md-enhance 文档](https://plugin-md-enhance.vuejs.press/zh/guide)。
