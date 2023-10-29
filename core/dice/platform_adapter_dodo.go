@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 
@@ -255,7 +256,45 @@ func (pa *PlatformAdapterDodo) SendFileToGroup(ctx *MsgContext, groupID string, 
 	}
 }
 
+type DoDoTextMessageComponent struct {
+	Type string `json:"type"` // section
+	Text struct {
+		Content string `json:"content"`
+		Type    string `json:"type"` // plain-text
+	} `json:"text"`
+}
+
+type DoDoImageMessageComponent struct {
+	Type     string `json:"type"` // image-group
+	Elements []struct {
+		Type string `json:"type"` // image
+		Src  string `json:"src"`
+	} `json:"elements"`
+}
+
+// convertLinksToMarkdown 接受一个包含普通文本的字符串，
+// 并将其中的URLs转换为Markdown格式的链接。
+func convertLinksToMarkdown(text string) string {
+	// 正则表达式匹配更严格的URL，确保URL的结尾不包括非字母数字字符。
+	re := regexp.MustCompile(`\b(http://www\.|https://www\.|http://|https://)?[a-zA-Z0-9]+([\-\.]{1}[a-zA-Z0-9]+)*\.[a-zA-Z]{2,5}(:[0-9]{1,5})?(/[a-zA-Z0-9#]+[\w\-./?%&=]*)?\b`)
+
+	// 查找文本中的所有链接
+	matches := re.FindAllString(text, -1)
+
+	// 遍历所有找到的链接
+	for _, match := range matches {
+		// 构造Markdown链接
+		markdownLink := fmt.Sprintf("[%s](%s)", match, match)
+
+		// 在原文本中替换URL为Markdown链接
+		text = regexp.MustCompile(regexp.QuoteMeta(match)).ReplaceAllString(text, markdownLink)
+	}
+
+	return text
+}
+
 func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
+	referenceMessageId := ""
 	instance := pa.Client
 	dice := pa.Session.Parent
 	elem := dice.ConvertStringMessage(text)
@@ -267,13 +306,35 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 		}
 		return buf.Bytes()
 	}
+	msgSend := &model.CardMessage{
+		Content: "",
+		Card: &model.CardBodyElement{
+			Type:       "card",
+			Theme:      "default",
+			Components: []interface{}{},
+			Title:      "",
+		},
+	}
 	for _, element := range elem {
 		switch e := element.(type) {
 		case *TextElement:
-			err := pa.SendMessageRaw(ctx, &model.TextMessage{Content: e.Content}, uid, isPrivate)
-			if err != nil {
-				return err
+			if msgSend.Card != nil && len(msgSend.Card.Components) > 0 {
+				component, ok := msgSend.Card.Components[len(msgSend.Card.Components)-1].(*DoDoTextMessageComponent)
+				if ok {
+					component.Text.Content += e.Content
+					continue
+				}
 			}
+			msgSend.Card.Components = append(msgSend.Card.Components, &DoDoTextMessageComponent{
+				Type: "section",
+				Text: struct {
+					Content string `json:"content"`
+					Type    string `json:"type"`
+				}{
+					Content: convertLinksToMarkdown(e.Content),
+					Type:    "dodo-md",
+				},
+			})
 		case *ImageElement:
 			resourceResp, err := instance.UploadImageByBytes(context.Background(), &model.UploadImageByBytesReq{
 				Filename: e.file.File,
@@ -282,27 +343,48 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 			if err != nil {
 				return err
 			}
-			msgBody := &model.ImageMessage{
-				Url:        resourceResp.Url,
-				Width:      resourceResp.Width,
-				Height:     resourceResp.Height,
-				IsOriginal: 0,
-			}
-			err = pa.SendMessageRaw(ctx, msgBody, uid, isPrivate)
-			if err != nil {
-				return err
-			}
+			msgSend.Card.Components = append(msgSend.Card.Components, &DoDoImageMessageComponent{
+				Type: "image-group",
+				Elements: []struct {
+					Type string `json:"type"`
+					Src  string `json:"src"`
+				}{
+					{
+						Type: "image",
+						Src:  resourceResp.Url,
+					},
+				},
+			})
 		case *AtElement:
-			err := pa.SendMessageRaw(ctx, &model.TextMessage{Content: fmt.Sprintf("<@!%s>", e.Target)}, uid, isPrivate)
-			if err != nil {
-				return err
+			if msgSend.Card != nil && len(msgSend.Card.Components) > 0 {
+				component, ok := msgSend.Card.Components[len(msgSend.Card.Components)-1].(*DoDoTextMessageComponent)
+				if ok {
+					component.Text.Content += fmt.Sprintf("<@!%s>", e.Target)
+					continue
+				}
 			}
+			msgSend.Card.Components = append(msgSend.Card.Components, &DoDoTextMessageComponent{
+				Type: "section",
+				Text: struct {
+					Content string `json:"content"`
+					Type    string `json:"type"`
+				}{
+					Content: fmt.Sprintf("<@!%s>", e.Target),
+					Type:    "dodo-md",
+				},
+			})
+		case *ReplyElement:
+			referenceMessageId = e.Target
 		}
+	}
+	err := pa.SendMessageRaw(ctx, msgSend, uid, isPrivate, referenceMessageId)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMessageBody, uid string, isPrivate bool) error {
+func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMessageBody, uid string, isPrivate bool, referenceMessageId string) error {
 	if isPrivate {
 		rawID := ExtractDodoUserID(uid)
 		_, err := pa.Client.SendDirectMessage(context.Background(), &model.SendDirectMessageReq{
@@ -314,8 +396,9 @@ func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMe
 	}
 	rawID := ExtractDodoGroupID(uid)
 	_, err := pa.Client.SendChannelMessage(context.Background(), &model.SendChannelMessageReq{
-		ChannelId:   rawID,
-		MessageBody: msgBody,
+		ChannelId:           rawID,
+		MessageBody:         msgBody,
+		ReferencedMessageId: referenceMessageId,
 	})
 	return err
 }
