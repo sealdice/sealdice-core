@@ -167,6 +167,6 @@ require (
 )
 
 replace (
-	github.com/Szzrain/dodo-open-go v0.2.7 => github.com/sealdice/dodo-open-go v0.2.7
+	github.com/Szzrain/dodo-open-go v0.2.7 => github.com/sealdice/dodo-open-go v0.2.8
 	github.com/lonelyevil/kook v0.0.31 => github.com/sealdice/kook v0.0.3
 )
