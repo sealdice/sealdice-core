@@ -14,7 +14,7 @@ VuePress2 驱动的海豹骰全新官方使用手册。
 
 文档排版应当遵循 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines) 的规范。
 
-使用 AutoCorrect 插件  可以提供相关帮助。
+使用 AutoCorrect 插件可以提供相关帮助。
 - [VS Code](https://marketplace.visualstudio.com/items?itemName=huacnlee.autocorrect)
 - [JetBrains](https://plugins.jetbrains.com/plugin/20244-autocorrect)
 

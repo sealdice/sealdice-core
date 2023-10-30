@@ -2,8 +2,7 @@ import { defineUserConfig } from "vuepress";
 import { searchProPlugin } from "vuepress-plugin-search-pro";
 import theme from "./theme";
 
-console.log('xxxxxxxxx', process.env.BASE_PATH)
-const basePath = process.env.BASE_PATH ?? "/sealdice-manual-next/";
+const basePath: any = process.env.BASE_PATH ?? "/sealdice-manual-next/";
 
 export default defineUserConfig({
   base: basePath,

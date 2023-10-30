@@ -64,12 +64,17 @@ export default sidebar({
       children: [
         "introduce.md",
         "script.md",
-        "edit_complex_custom_text.md",
-        "edit_reply.md",
-        "edit_deck.md",
-        "edit_jsscript.md",
-        "edit_helpdoc.md",
-        "edit_sensitive_words.md",
+        {
+          text: "扩展功能进阶",
+          children: [
+            "edit_complex_custom_text.md",
+            "edit_reply.md",
+            "edit_deck.md",
+            "edit_jsscript.md",
+            "edit_helpdoc.md",
+            "edit_sensitive_words.md",
+          ],
+        },
       ],
     },
   ],
