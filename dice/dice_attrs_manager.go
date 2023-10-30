@@ -93,7 +93,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 				i = &AttributesItem{
 					ID:           id,
 					valueMap:     dd.Dict,
-					NickName:     i.NickName,
+					NickName:     data.Nickname,
 					LastUsedTime: time.Now().Unix(),
 				}
 				am.m.Store(id, i)

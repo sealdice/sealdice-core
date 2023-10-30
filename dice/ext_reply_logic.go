@@ -203,7 +203,8 @@ type ReplyResultRunText struct {
 
 func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-	_, _, _ = ctx.Dice.ExprTextBase(m.Message, ctx, RollExtraFlags{})
+	// NOTE: 这句话干啥的？有点疑惑
+	_, _, _ = DiceExprTextBase(ctx, m.Message, RollExtraFlags{})
 }
 
 type ReplyItem struct {

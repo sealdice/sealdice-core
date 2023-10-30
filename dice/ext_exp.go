@@ -3,6 +3,7 @@ package dice
 import (
 	"errors"
 	"fmt"
+	ds "github.com/sealdice/dicescript"
 	"sort"
 	"strconv"
 	"strings"
@@ -173,7 +174,7 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 			}
 
 			if index >= topNum {
-				if useLimit && v.TypeID == VMTypeInt64 && v.Value.(int64) < limit {
+				if useLimit && v.TypeId == ds.VMTypeInt && v.Value.(int64) < limit {
 					limitSkipCount++
 					continue
 				}
@@ -205,7 +206,7 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate) (items [
 				return nil, 0, errors.New("模板卡异常, 属性: " + k)
 			}
 
-			if v.TypeID == VMTypeComputedValue {
+			if v.TypeId == ds.VMTypeComputedValue {
 				items = append(items, fmt.Sprintf("&%s:%s", k, v.ToString()))
 			} else {
 				items = append(items, fmt.Sprintf("%s:%s", k, v.ToString()))
@@ -224,7 +225,10 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, chVars lockfree.H
 		curVal = a.(*VMValue)
 	}
 	if curVal == nil {
-		curVal = tmpl.GetDefaultValueEx(mctx, i.name)
+		x := tmpl.GetDefaultValueEx(mctx, i.name)
+		if x != nil {
+			curVal = dsValueToRollVMv1(x)
+		}
 	}
 	if curVal == nil {
 		curVal = VMValueNew(VMTypeInt64, int64(0))
@@ -324,12 +328,13 @@ func cmdStCharFormat1(mctx *MsgContext, tmpl *GameSystemTemplate, vars lockfree.
 
 		for key, _v := range backups {
 			v := (_v).(*VMValue)
+			vx := v.ConvertToDiceScriptValue()
 
 			newKey := tmpl.GetAlias(key)
 			if v.TypeID == VMTypeInt64 {
 				// val, detail, calculated, exists2
 				val, _, _, exists := tmpl.GetDefaultValueEx0(mctx, newKey)
-				if exists && val.TypeID == v.TypeID && val.Value == v.Value {
+				if exists && val.TypeId == vx.TypeId && val.Value == v.Value {
 					// 与默认值相同，跳过
 					toRemove[key] = true
 					continue
@@ -521,7 +526,7 @@ func getCmdStBase() *CmdItemInfo {
 							curVal = a.(*VMValue)
 						}
 
-						if def.TypeID == val.TypeID && def.Value == val.Value {
+						if dsValueToRollVMv1(def).TypeID == val.TypeID && def.Value == val.Value {
 							// 如果当前有值
 							if curVal == nil {
 								// 与预设相同，放弃

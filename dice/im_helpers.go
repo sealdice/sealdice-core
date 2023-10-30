@@ -349,17 +349,6 @@ func (s ByLength) Less(i, j int) bool {
 	return len(s[i]) > len(s[j])
 }
 
-func DiceFormatTmpl(ctx *MsgContext, s string) string { //nolint:revive
-	var text string
-	a := ctx.Dice.TextMap[s]
-	if a == nil {
-		text = "<%未知项-" + s + "%>"
-	} else {
-		text = ctx.Dice.TextMap[s].Pick().(string)
-	}
-	return DiceFormat(ctx, text)
-}
-
 func CompatibleReplace(ctx *MsgContext, s string) string {
 	s = strings.ReplaceAll(s, "#{SPLIT}", "###SPLIT###")
 	s = strings.ReplaceAll(s, "{FormFeed}", "###SPLIT###")
@@ -393,13 +382,6 @@ func CompatibleReplace(ctx *MsgContext, s string) string {
 		})
 	}
 	return s
-}
-
-func DiceFormat(ctx *MsgContext, s string) string { //nolint:revive
-	s = CompatibleReplace(ctx, s)
-
-	r, _, _ := ctx.Dice.ExprText(s, ctx)
-	return r
 }
 
 func FormatDiceID(ctx *MsgContext, id interface{}, isGroup bool) string {

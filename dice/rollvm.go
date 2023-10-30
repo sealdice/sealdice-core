@@ -892,9 +892,9 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 
 				if !exists {
 					if ctx.SystemTemplate != nil {
-						v2n, detail, calculated, exists2 := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+						v2x, detail, calculated, exists2 := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
 						if exists2 {
-							v2 = v2n
+							v2 = dsValueToRollVMv1(v2x)
 							if calculated && !e.Calculated {
 								e.Calculated = calculated
 							}
@@ -991,7 +991,8 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 
 			if v == nil {
 				if ctx.SystemTemplate != nil {
-					v2, detail, calculated, _ := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+					v2x, detail, calculated, _ := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+					v2 := dsValueToRollVMv1(v2x)
 					if calculated && !e.Calculated {
 						e.Calculated = calculated
 					}

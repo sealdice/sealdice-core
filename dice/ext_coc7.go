@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	ds "github.com/sealdice/dicescript"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -917,7 +918,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					val, exists := VarGetValue(mctx, varName)
 					if !exists {
 						// 没找到，尝试取得默认值
-						val, _, _, exists = tmpl.GetDefaultValueEx0(mctx, varName)
+						var valX *ds.VMValue
+						valX, _, _, exists = tmpl.GetDefaultValueEx0(mctx, varName)
+						if exists {
+							// TODO: 临时兼容措施
+							val = dsValueToRollVMv1(valX)
+						}
 					}
 					if !exists {
 						checkResult.valid = false

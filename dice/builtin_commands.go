@@ -1083,51 +1083,52 @@ func (d *Dice) registerCoreCommands() {
 			var detail string
 
 			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
-			if ctx.Dice.CommandCompatibleMode {
-				if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd" || cmdArgs.Command == "rdh") && len(cmdArgs.Args) >= 1 {
-					if m, _ := regexp.MatchString(`^\d|优势|劣势|\+|-`, cmdArgs.CleanArgs); m {
-						if cmdArgs.IsSpaceBeforeArgs {
-							cmdArgs.CleanArgs = "d " + cmdArgs.CleanArgs
-						} else {
-							cmdArgs.CleanArgs = "d" + cmdArgs.CleanArgs
-						}
+			if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd" || cmdArgs.Command == "rdh") && len(cmdArgs.Args) >= 1 {
+				if m, _ := regexp.MatchString(`^\d|优势|劣势|\+|-`, cmdArgs.CleanArgs); m {
+					if cmdArgs.IsSpaceBeforeArgs {
+						cmdArgs.CleanArgs = "d " + cmdArgs.CleanArgs
+					} else {
+						cmdArgs.CleanArgs = "d" + cmdArgs.CleanArgs
 					}
 				}
 			}
 
-			var r *VMResult
+			var r *VMResultV2
 			var commandInfoItems []interface{}
 
 			rollOne := func() *CmdExecuteResult {
 				forWhat := ""
+				var matched string
+
 				if len(cmdArgs.Args) >= 1 { //nolint:nestif
 					var err error
-					r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{
+					r, detail, err = DiceExprEvalBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{
 						DefaultDiceSideNum: getDefaultDicePoints(ctx),
 						DisableBlock:       true,
 					})
 
-					if r != nil && !r.Parser.Calculated {
+					if r != nil && !r.IsCalculated() {
 						forWhat = cmdArgs.CleanArgs
 
 						defExpr := "d"
 						if ctx.diceExprOverwrite != "" {
 							defExpr = ctx.diceExprOverwrite
 						}
-						r, detail, err = ctx.Dice.ExprEvalBase(defExpr, ctx, RollExtraFlags{
+						r, detail, err = DiceExprEvalBase(ctx, defExpr, RollExtraFlags{
 							DefaultDiceSideNum: getDefaultDicePoints(ctx),
 							DisableBlock:       true,
 						})
 					}
 
-					if r != nil && r.TypeID == 0 {
+					if r != nil && r.TypeId == ds.VMTypeInt {
 						diceResult = r.Value.(int64)
 						diceResultExists = true
 					}
 
 					if err == nil {
+						matched = r.GetMatched()
 						if forWhat == "" {
-							forWhat = r.restInput
+							forWhat = r.GetRestInput()
 						}
 					} else {
 						errs := err.Error()
@@ -1155,7 +1156,7 @@ func (d *Dice) registerCoreCommands() {
 						match := re.FindStringSubmatch(detail)
 						if len(match) > 0 {
 							num := match[2]
-							if num == "1" && (match[1] == r.Matched || match[1] == "1"+r.Matched) {
+							if num == "1" && (match[1] == matched || match[1] == "1"+matched) {
 								detailWrap = ""
 							}
 						}
@@ -1163,7 +1164,7 @@ func (d *Dice) registerCoreCommands() {
 
 					// 指令信息标记
 					item := map[string]interface{}{
-						"expr":   r.Matched,
+						"expr":   matched,
 						"result": diceResult,
 						"reason": forWhat,
 					}
@@ -1172,7 +1173,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 					commandInfoItems = append(commandInfoItems, item)
 
-					VarSetValueStr(ctx, "$t表达式文本", r.Matched)
+					VarSetValueStr(ctx, "$t表达式文本", matched)
 					VarSetValueStr(ctx, "$t计算过程", detailWrap)
 					VarSetValueInt64(ctx, "$t计算结果", diceResult)
 				} else {
@@ -1180,12 +1181,12 @@ func (d *Dice) registerCoreCommands() {
 					var detail string
 					dicePoints := getDefaultDicePoints(ctx)
 					if ctx.diceExprOverwrite != "" {
-						r, detail, _ = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{
+						r, detail, _ = DiceExprEvalBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{
 							DefaultDiceSideNum: dicePoints,
 							DisableBlock:       true,
 						})
-						if r != nil && r.TypeID == 0 {
-							val, _ = r.ReadInt64()
+						if r != nil && r.TypeId == ds.VMTypeInt {
+							val, _ = r.ReadInt()
 						}
 					} else {
 						val = DiceRoll64(dicePoints)
@@ -1231,7 +1232,9 @@ func (d *Dice) registerCoreCommands() {
 				if ret != nil {
 					return *ret
 				}
-				VarSetValueStr(ctx, "$t结果文本", DiceFormatTmpl(ctx, "核心:骰点_单项结果文本"))
+				x := DiceFormatTmpl(ctx, "核心:骰点_单项结果文本")
+				// {$t表达式文本}{$t计算过程}={$t计算结果}
+				VarSetValueStr(ctx, "$t结果文本", x)
 				text = DiceFormatTmpl(ctx, "核心:骰点")
 			}
 
@@ -1250,7 +1253,7 @@ func (d *Dice) registerCoreCommands() {
 
 			if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
 				if ctx.PrivilegeLevel >= 40 {
-					asm := r.Parser.GetAsmText()
+					asm := r.GetAsmText()
 					text += "\n" + asm
 				}
 			}

@@ -14,6 +14,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 type SenderBase struct {
@@ -422,6 +424,8 @@ type MsgContext struct {
 	diceExprOverwrite string                                      // 默认骰表达式覆盖
 	SystemTemplate    *GameSystemTemplate
 	Censored          bool // 已检查过敏感词
+
+	vm *ds.Context
 }
 
 // func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {

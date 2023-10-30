@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	ds "github.com/sealdice/dicescript"
 	"hash/fnv"
 	"math/rand"
 	"regexp"
@@ -358,7 +359,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 			}
 
-			r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
+			r, detail, err := DiceExprEvalBase(mctx, restText, RollExtraFlags{
 				CocVarNumberMode: true,
 				DisableBlock:     true,
 			})
@@ -366,7 +367,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			checkVal, _ := r.ReadInt64()
+			checkVal, _ := r.ReadInt()
 			diceNum := nameLevel // 骰子个数为技能等级，至少1个
 			if diceNum < 1 {
 				diceNum = 1
@@ -690,9 +691,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 			val := cmdArgs.GetArgN(1)
 			if val != "" {
 				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-				r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{DisableBlock: false})
+				r, _, err := DiceExprTextBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{DisableBlock: false})
 
-				if err == nil && (r.TypeID == VMTypeString || r.TypeID == VMTypeNone) {
+				if err == nil && (r.TypeId == ds.VMTypeString || r.TypeId == ds.VMTypeNull) {
 					var text string
 					if r != nil {
 						text = r.Value.(string)
@@ -700,7 +701,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 					if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
 						if ctx.PrivilegeLevel >= 40 {
-							asm := r.Parser.GetAsmText()
+
+							asm := r.GetAsmText()
 							text += "\n" + asm
 						}
 					}
