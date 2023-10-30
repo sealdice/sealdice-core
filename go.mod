@@ -67,7 +67,7 @@ require (
 	github.com/samber/lo v1.38.1
 	github.com/schollz/progressbar/v3 v3.13.1
 	github.com/sealdice/dicescript v0.0.0-20230917100026-46a8c8b410d3
-	github.com/tdewolff/minify/v2 v2.12.9
+	github.com/tdewolff/minify/v2 v2.20.0
 	github.com/yuin/goldmark v1.5.6
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 	golang.org/x/time v0.3.0
@@ -139,7 +139,7 @@ require (
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/sacOO7/go-logger v0.0.0-20180719173527-9ac9add5a50d // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
-	github.com/tdewolff/parse/v2 v2.6.8 // indirect
+	github.com/tdewolff/parse/v2 v2.7.0 // indirect
 	github.com/tidwall/btree v1.4.2 // indirect
 	github.com/tidwall/gjson v1.14.3 // indirect
 	github.com/tidwall/grect v0.1.4 // indirect
