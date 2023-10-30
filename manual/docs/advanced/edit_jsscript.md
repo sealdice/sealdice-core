@@ -844,6 +844,101 @@ seal.coc.registerRule(rule);
 
 ```
 
+## 13.注册插件配置项
+
+插件若要在 UI 中注册可供用户修改的配置项，需要在插件注册后调用 `seal.ext.registerXXXConfig()` 函数注册配置项。
+
+`XXX` 为配置项的类型，目前支持 `string`、`int`、`float`、`bool`、`template`、`option` 六种类型。注意按照小驼峰命名法大写
+
+同样的，插件也可以使用 `seal.ext.getXXXConfig()` 函数获取配置项的值。
+
+你也可以直接使用 `seal.ext.getConfig()` 函数获取配置项的值，这个函数会返回一个 `ConfigItem` 对象，
+包含了配置项的类型、值、默认值等信息。
+
+ConfigItem 对象的类型定义如下，调用时请使用 `jsbind` 中的值作为 `key` 
+
+```go
+type ConfigItem struct {
+	Key          string      `json:"key" jsbind:"key"`
+	Type         string      `json:"type" jsbind:"type"`
+	DefaultValue interface{} `json:"defaultValue" jsbind:"defaultValue"`
+	Value        interface{} `json:"value,omitempty" jsbind:"value"`
+	Option       interface{} `json:"option,omitempty" jsbind:"option"`
+	Deprecated   bool        `json:"deprecated,omitempty" jsbind:"deprecated"`
+}
+```
+
+::: tip
+
+`seal.ext.registerConfig()` 函数也是可以使用的，你需要自己通过 `seal.ext.newConfigItem()` 来获取一个新的 `ConfigItem` 对象。
+在对你的 `ConfigItem` 对象进行修改后，再调用 `seal.ext.registerConfig()` 函数进行注册。
+
+:::
+
+
+### 示例代码：注册配置项
+
+```js
+// ==UserScript==
+// @name         js-config-example
+// @author       Szzrain
+// @version      1.0.0
+// @description  演示 js 配置项的用法
+// @timestamp    1698636875
+// @license      MIT
+// ==/UserScript==
+
+if (!seal.ext.find('js-config-example')) {
+    const ext = seal.ext.new('js-config-example', 'SzzRain', '1.0.0');
+    // 创建一个命令
+    const cmdgetConfig = seal.ext.newCmdItemInfo();
+    cmdgetConfig.name = 'getconfig';
+    cmdgetConfig.help = '使用.getconfig <key> 来获取配置项，仅master可用';
+    cmdgetConfig.allowDelegate = true;
+    cmdgetConfig.solve = (ctx, msg, cmdArgs) => {
+        let val = cmdArgs.getArgN(1);
+        switch (val) {
+            case 'help': {
+                const ret = seal.ext.newCmdExecuteResult(true);
+                ret.showHelp = true;
+                return ret;
+            }
+            default: {
+                if (ctx.privilegeLevel === 100) {
+                    let config = seal.ext.getConfig(ext, val);
+                    if (config) {
+                        seal.replyToSender(ctx, msg, config.value);
+                    }
+                } else {
+                    seal.replyToSender(ctx, msg, "你没有权限执行此命令");
+                }
+                return seal.ext.newCmdExecuteResult(true);
+            }
+        }
+    }
+    // 注册命令
+    ext.cmdMap['getconfig'] = cmdgetConfig;
+
+    // 注册扩展
+    seal.ext.register(ext);
+
+    // 注册配置项需在 ext 注册后进行
+    // 通常来说，register 函数的参数为 ext, key, defaultValue
+    seal.ext.registerStringConfig(ext,"testkey","testvalue");
+    seal.ext.registerIntConfig(ext,"testkey2", 123);
+    seal.ext.registerFloatConfig(ext,"testkey2", 123.456);
+    seal.ext.registerBoolConfig(ext,"testkey3", true);
+    seal.ext.registerTemplateConfig(ext,"testkey4", ["1","2","3","4"]);
+    // 注册单选项函数的参数为 ext, key, defaultValue, options
+    seal.ext.registerOptionConfig(ext, "testkey5", "1", ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
+}
+```
+
+注册后的配置项会在UI中显示，可以在UI中修改配置项的值
+
+![JS 配置项](./images/js-config-example.png)
+
+
 ## 使用TS模板
 
 ### clone或下载项目
@@ -1036,10 +1131,10 @@ ext.cmdMap['test'] = cmd
 
 ```js
 //要看懂这里你可能需要学习一下初阶豹语
-seal.vars.intSet(ctx, `$m今日打胶次数`， 8) //将触发者的该个人变量设置为8
-seal.vars.intGet(ctx, `$m今日打胶次数`) //返回 [8,true]
-seal.vars.strSet(ctx, `$g群友发癫语录`, `一条也没有，快来发癫吧`) //将群内的该群组变量设置为“一条也没有，快来发癫吧！”
-seal.vars.strGet(ctx, `$g群友发癫语录`) //返回 ["一条也没有，快来发癫吧",true]
+seal.vars.intSet(ctx, `$m今日打卡次数`, 8) //将触发者的该个人变量设置为8
+seal.vars.intGet(ctx, `$m今日打卡次数`) //返回 [8,true]
+seal.vars.strSet(ctx, `$g群友经典语录`, `我要 Git Blame 一下看看是谁写的`) //将群内的该群组变量设置为“我要 Git Blame 一下看看是谁写的”
+seal.vars.strGet(ctx, `$g群友经典语录`) //返回 ["我要 Git Blame 一下看看是谁写的",true]
 ```
 
 #### 6: ext
