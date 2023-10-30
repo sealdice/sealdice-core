@@ -6,10 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-  "regexp"
+	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Szzrain/dodo-open-go/client"
@@ -18,13 +17,13 @@ import (
 )
 
 type PlatformAdapterDodo struct {
-	Session       *IMSession       `yaml:"-" json:"-"`
-	ClientID      string           `yaml:"clientID" json:"clientID"`
-	Token         string           `yaml:"token" json:"token"`
-	EndPoint      *EndPointInfo    `yaml:"-" json:"-"`
-	Client        client.Client    `yaml:"-" json:"-"`
-	WebSocket     websocket.Client `yaml:"-" json:"-"`
-	UserPermCache sync.Map         `yaml:"-" json:"-"`
+	Session       *IMSession                                             `yaml:"-" json:"-"`
+	ClientID      string                                                 `yaml:"clientID" json:"clientID"`
+	Token         string                                                 `yaml:"token" json:"token"`
+	EndPoint      *EndPointInfo                                          `yaml:"-" json:"-"`
+	Client        client.Client                                          `yaml:"-" json:"-"`
+	WebSocket     websocket.Client                                       `yaml:"-" json:"-"`
+	UserPermCache SyncMap[string, *SyncMap[string, *GuildPermCacheItem]] `yaml:"-" json:"-"`
 }
 
 const (
@@ -173,26 +172,18 @@ func (pa *PlatformAdapterDodo) toStdChannelMessage(msgRaw *websocket.ChannelMess
 
 func (pa *PlatformAdapterDodo) checkGuildAdmin(guildID string, userID string) string {
 	aperm := int64(0)
-	guildRaw, ok := pa.UserPermCache.Load(guildID)
+	guildMap, ok := pa.UserPermCache.Load(guildID)
 	if ok {
-		guildMap, ok := guildRaw.(*sync.Map)
+		userCache, ok := guildMap.Load(userID)
 		if ok {
-			userRaw, ok := guildMap.Load(userID)
-			if ok {
-				userCache, ok := userRaw.(*GuildPermCacheItem)
-				if ok {
-					if userCache.Perm == -1 {
-						return "owner"
-					}
-					// 60秒刷新一次, 感觉也许可以提出来作为配置？
-					if time.Now().Unix()-userCache.time > 60 {
-						aperm = pa.refreshPermCache(guildID, userID)
-					} else {
-						aperm = userCache.Perm
-					}
-				}
-			} else {
+			if userCache.Perm == -1 {
+				return "owner"
+			}
+			// 60秒刷新一次, 感觉也许可以提出来作为配置？
+			if time.Now().Unix()-userCache.time > 60 {
 				aperm = pa.refreshPermCache(guildID, userID)
+			} else {
+				aperm = userCache.Perm
 			}
 		} else {
 			aperm = pa.refreshPermCache(guildID, userID)
@@ -228,22 +219,12 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 		}
 		aperm |= num
 	}
-	guildRaw, ok := pa.UserPermCache.Load(guildID)
+	guildMap, ok := pa.UserPermCache.Load(guildID)
 	if ok {
-		guildMap, ok := guildRaw.(*sync.Map)
-		if ok {
-			guildMap.Store(userID, &GuildPermCacheItem{
-				Perm: aperm,
-				time: time.Now().Unix(),
-			})
-		} else {
-			guildIDMap := &sync.Map{}
-			guildIDMap.Store(userID, &GuildPermCacheItem{
-				Perm: aperm,
-				time: time.Now().Unix(),
-			})
-			pa.UserPermCache.Store(guildID, guildIDMap)
-		}
+		guildMap.Store(userID, &GuildPermCacheItem{
+			Perm: aperm,
+			time: time.Now().Unix(),
+		})
 	} else {
 		info, err := pa.Client.GetIslandInfo(context.Background(), &model.GetIslandInfoReq{
 			IslandSourceId: guildID,
@@ -252,7 +233,7 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 			pa.Session.Parent.Logger.Errorf("Dodo获取群信息失败:%s", err.Error())
 			return
 		}
-		guildIDMap := &sync.Map{}
+		guildIDMap := &SyncMap[string, *GuildPermCacheItem]{}
 		guildIDMap.Store(userID, &GuildPermCacheItem{
 			Perm: aperm,
 			time: time.Now().Unix(),
