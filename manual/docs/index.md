@@ -5,7 +5,7 @@ title: 首页
 tagline: ✨海豹核心的全新官方使用手册
 heroImage: /images/sealdice.ico
 bgImage: /images/bg/4-light.svg
-bgImageDark: /images/bg/4-light.svg
+bgImageDark: /images/bg/4-dark.svg
 bgImageStyle:
   background-attachment: fixed
 actions:
@@ -23,7 +23,7 @@ highlights:
   - header: 海豹核心
     image: /images/seal.png
     bgImage: /images/bg/3-light.svg
-    bgImageDark: /images/bg/3-light.svg
+    bgImageDark: /images/bg/3-dark.svg
     highlights: 
     - title: 一个简单易用的跑团骰子系统。可以被叫做 海豹骰、豹骰，豹子骰。
     - title: 前往官网的「在线试用」中快速尝试——
@@ -31,7 +31,7 @@ highlights:
       link: https://sealdice.com
   - header: 特性
     bgImage: /images/bg/2-light.svg
-    bgImageDark: /images/bg/2-light.svg
+    bgImageDark: /images/bg/2-dark.svg
     features:
       - title: 常用指令
         icon: comment
@@ -59,7 +59,7 @@ highlights:
         link:
   - header: 开始使用
     bgImage: /images/bg/5-light.svg
-    bgImageDark: /images/bg/5-light.svg
+    bgImageDark: /images/bg/5-dark.svg
     features:
       - title: 特色功能
         icon: categoryselected
@@ -85,7 +85,7 @@ highlights:
     description: 使用有问题？对功能有新想法？想认识更多骰主？欢迎加入官方群
     image: /images/seal2.png
     bgImage: /images/bg/6-light.svg
-    bgImageDark: /images/bg/6-light.svg
+    bgImageDark: /images/bg/6-dark.svg
     highlights:
       - title: 1 群：524364253（已满）
       - title: 2 群：562897832（已满）
