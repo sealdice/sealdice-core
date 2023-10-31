@@ -134,6 +134,12 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 			if err != nil {
 				d.Logger.Warnln("备份时logs数据库flush出错", err.Error())
 			}
+			if d.CensorManager != nil && d.CensorManager.DB != nil {
+				err = model.FlushWAL(d.CensorManager.DB)
+				if err != nil {
+					d.Logger.Warnln("备份时censor数据库flush出错", err.Error())
+				}
+			}
 
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "data.db"))
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "data-logs.db"))
