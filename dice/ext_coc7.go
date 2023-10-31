@@ -335,9 +335,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				difficultRequire := 0
 				// 试图读取检定表达式
 				swap := false
-				r1, detail1, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
-					CocVarNumberMode: true,
-					CocDefaultAttrOn: true,
+				r1, detail1, err := DiceExprEvalBase(mctx, restText, RollExtraFlags{
+					CocVarNumberMode: true, // CallbackLoadVar 替代
+					CocDefaultAttrOn: true, // 弃用
 					DisableBlock:     true,
 				})
 
@@ -346,12 +346,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return &CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				difficultRequire2 := difficultPrefixMap[r1.Parser.CocFlagVarPrefix]
+				difficultRequire2 := difficultPrefixMap[r1.GetCocPrefix()]
 				if difficultRequire2 > difficultRequire {
 					difficultRequire = difficultRequire2
 				}
-				expr1Text := r1.Matched
-				expr2Text := r1.restInput
+				expr1Text := r1.GetMatched()
+				expr2Text := r1.GetRestInput()
 
 				// 如果读取完了，那么说明刚才读取的实际上是属性表达式
 				if expr2Text == "" {
@@ -359,7 +359,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					swap = true
 				}
 
-				r2, detail2, err := mctx.Dice.ExprEvalBase(expr2Text, mctx, RollExtraFlags{
+				r2, detail2, err := DiceExprEvalBase(mctx, expr2Text, RollExtraFlags{
 					CocVarNumberMode: true,
 					CocDefaultAttrOn: true,
 					DisableBlock:     true,
@@ -370,10 +370,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return &CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				expr2Text = r2.Matched
-				reason = r2.restInput
+				expr2Text = r2.GetMatched()
+				reason = r2.GetRestInput()
 
-				difficultRequire2 = difficultPrefixMap[r2.Parser.CocFlagVarPrefix]
+				difficultRequire2 = difficultPrefixMap[r2.GetCocPrefix()]
 				if difficultRequire2 > difficultRequire {
 					difficultRequire = difficultRequire2
 				}
@@ -384,12 +384,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					expr1Text, expr2Text = expr2Text, expr1Text
 				}
 
-				if r1.TypeID != VMTypeInt64 || r2.TypeID != VMTypeInt64 {
+				if r1.TypeId != ds.VMTypeInt || r2.TypeId != ds.VMTypeInt {
 					ReplyToSender(mctx, msg, "你输入的表达式并非文本类型")
 					return &CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				if r1.Matched == "d100" || r1.Matched == "D100" {
+				if r1.GetMatched() == "d100" || r1.GetMatched() == "D100" {
 					// 此时没有必要
 					detail1 = ""
 				}
@@ -679,7 +679,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				restText := cmdArgs.CleanArgs
 				var lastMatched string
 				readOneVal := func(mctx *MsgContext) (*CmdExecuteResult, int64, string, string) {
-					r, _, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
+					r, _, err := DiceExprEvalBase(mctx, restText, RollExtraFlags{
 						CocVarNumberMode: true,
 						CocDefaultAttrOn: true,
 						DisableBlock:     true,
@@ -689,14 +689,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						ReplyToSender(ctx, msg, "解析出错: "+restText)
 						return &CmdExecuteResult{Matched: true, Solved: true}, 0, "", ""
 					}
-					val, ok := r.ReadInt64()
+					val, ok := r.ReadInt()
 					if !ok {
-						ReplyToSender(ctx, msg, "类型不是数字: "+r.Matched)
+						ReplyToSender(ctx, msg, "类型不是数字: "+r.GetMatched())
 						return &CmdExecuteResult{Matched: true, Solved: true}, 0, "", ""
 					}
-					lastMatched = r.Matched
-					restText = r.restInput
-					return nil, val, r.Parser.CocFlagVarPrefix, r.Matched
+					lastMatched = r.GetMatched()
+					restText = r.GetRestInput()
+					return nil, val, r.GetCocPrefix(), r.GetMatched()
 				}
 
 				readOneCheckVal := func(mctx *MsgContext) (*CmdExecuteResult, int64, string) {
@@ -705,17 +705,17 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						re := regexp.MustCompile(`[,，](.*)`)
 						m := re.FindStringSubmatch(restText)
 						restText = m[1]
-						r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{DisableBlock: true})
+						r, detail, err := DiceExprEvalBase(mctx, restText, RollExtraFlags{DisableBlock: true})
 						if err != nil {
 							ReplyToSender(ctx, msg, "解析出错: "+restText)
 							return &CmdExecuteResult{Matched: true, Solved: true}, 0, ""
 						}
-						val, ok := r.ReadInt64()
+						val, ok := r.ReadInt()
 						if !ok {
-							ReplyToSender(ctx, msg, "类型不是数字: "+r.Matched)
+							ReplyToSender(ctx, msg, "类型不是数字: "+r.GetMatched())
 							return &CmdExecuteResult{Matched: true, Solved: true}, 0, ""
 						}
-						restText = r.restInput
+						restText = r.GetRestInput()
 						return nil, val, "[" + detail + "]"
 					}
 					return nil, DiceRoll64(100), ""
@@ -841,7 +841,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		},
 	}
 
-	cmdSt := getCmdStBase()
+	cmdSt := getCmdStBase(CmdStOverrideInfo{})
 
 	helpEn := `.en <技能名称>(技能点数) (+(<失败成长值>/)<成功成长值>) // 整体格式，可以直接看下面几个分解格式
 .en <技能名称> // 骰D100，若点数大于当前值，属性成长1d10
@@ -1259,49 +1259,49 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				innerGetOnePiece := func() int {
 					var err error
-					r, _, err := mctx.Dice.ExprEvalBase(argText, mctx, RollExtraFlags{IgnoreDiv0: true, DisableBlock: true})
+					r, _, err := DiceExprEvalBase(mctx, argText, RollExtraFlags{IgnoreDiv0: true, DisableBlock: true})
 					if err != nil {
 						// 情况1，完全不能解析
 						return 1
 					}
 
-					num, t1, t2 := splitDiv(r.Matched)
+					num, t1, t2 := splitDiv(r.GetMatched())
 					if num == 2 {
 						expr2 = t1
 						expr3 = t2
-						argText = r.restInput
+						argText = r.GetRestInput()
 						return 0
 					}
 
 					// 现在可以肯定并非是 .sc 1/1 形式，那么判断一下
 					// .sc 1 或 .sc 1 1/1 或 .sc 1 1
-					if strings.HasPrefix(r.restInput, ",") || r.restInput == "" {
+					if strings.HasPrefix(r.GetRestInput(), ",") || r.GetRestInput() == "" {
 						// 结束了，所以这是 .sc 1
 						expr2 = defaultSuccessExpr
-						expr3 = r.Matched
-						argText = r.restInput
+						expr3 = r.GetMatched()
+						argText = r.GetRestInput()
 						return 0
 					}
 
 					// 可能是 .sc 1 1 或 .sc 1 1/1
-					expr1 = r.Matched
-					r2, _, err := mctx.Dice.ExprEvalBase(r.restInput, mctx, RollExtraFlags{DisableBlock: true})
+					expr1 = r.GetMatched()
+					r2, _, err := DiceExprEvalBase(mctx, r.GetRestInput(), RollExtraFlags{DisableBlock: true})
 					if err != nil {
 						return 2
 					}
-					num, t1, t2 = splitDiv(r2.Matched)
+					num, t1, t2 = splitDiv(r2.GetMatched())
 					if num == 2 {
 						// sc 1 1
 						expr2 = t1
 						expr3 = t2
-						argText = r2.restInput
+						argText = r2.GetRestInput()
 						return 0
 					}
 
 					// sc 1/1
 					expr2 = defaultSuccessExpr
 					expr3 = t1
-					argText = r2.restInput
+					argText = r2.GetRestInput()
 					return 0
 				}
 
@@ -1339,9 +1339,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				}
 
 				// 读取san值
-				r, _, err := mctx.Dice.ExprEval("san", mctx)
-				if err == nil && r.TypeID == VMTypeInt64 {
-					san = r.Value.(int64)
+				r, _, err := DiceExprEvalBase(mctx, "san", RollExtraFlags{DisableBlock: true})
+				if err == nil && r.TypeId == ds.VMTypeInt {
+					san, _ = r.ReadInt()
 				}
 				_san, err := strconv.ParseInt(argText, 10, 64)
 				if err == nil {
@@ -1373,14 +1373,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				var text1 string
 				var sanNew int64
 
-				r, _, err = mctx.Dice.ExprEvalBase(expr2, mctx, RollExtraFlags{DisableBlock: true})
+				r, _, err = DiceExprEvalBase(mctx, expr2, RollExtraFlags{DisableBlock: true})
 				if err == nil {
-					reduceSuccess = r.Value.(int64)
+					reduceSuccess = r.MustReadInt()
 				}
 
-				r, _, err = mctx.Dice.ExprEvalBase(expr3, mctx, RollExtraFlags{BigFailDiceOn: successRank == -2, DisableBlock: true})
+				r, _, err = DiceExprEvalBase(mctx, expr3, RollExtraFlags{BigFailDiceOn: successRank == -2, DisableBlock: true})
 				if err == nil {
-					reduceFail = r.Value.(int64)
+					reduceFail = r.MustReadInt()
 				}
 
 				if successRank > 0 {

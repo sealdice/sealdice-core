@@ -16,6 +16,10 @@ type AttrsManager struct {
 	m      SyncMap[string, *AttributesItem]
 }
 
+func (am *AttrsManager) LoadByCtx(ctx *MsgContext) (*AttributesItem, error) {
+	return am.Load(ctx.Group.GroupID, ctx.Player.UserID)
+}
+
 func (am *AttrsManager) Load(groupId string, userId string) (*AttributesItem, error) {
 	userId = am.UIDConvert(userId)
 
@@ -290,6 +294,11 @@ func (i *AttributesItem) Load(name string) *ds.VMValue {
 	v, _ := i.valueMap.Load(name)
 	i.LastUsedTime = time.Now().Unix()
 	return v
+}
+
+func (i *AttributesItem) Delete(name string) {
+	i.valueMap.Delete(name)
+	i.LastUsedTime = time.Now().Unix()
 }
 
 func (i *AttributesItem) Store(name string, value *ds.VMValue) {

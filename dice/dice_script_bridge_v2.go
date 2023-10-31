@@ -3,12 +3,16 @@ package dice
 import (
 	"fmt"
 	ds "github.com/sealdice/dicescript"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 type VMResultV2 struct {
 	*ds.VMValue
-	vm     *ds.Context
-	legacy *VMResult
+	vm        *ds.Context
+	legacy    *VMResult
+	cocPrefix string
 }
 
 func (r *VMResultV2) GetAsmText() string {
@@ -39,6 +43,13 @@ func (r *VMResultV2) GetMatched() string {
 	return r.vm.Matched
 }
 
+func (r *VMResultV2) GetCocPrefix() string {
+	if r.legacy != nil {
+		return r.legacy.Parser.CocFlagVarPrefix
+	}
+	return r.cocPrefix
+}
+
 func (r *VMResultV2) GetVersion() int64 {
 	if r.legacy != nil {
 		return 1
@@ -49,10 +60,40 @@ func (r *VMResultV2) GetVersion() int64 {
 // 不建议用，纯兼容旧版
 func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2, string, error) {
 	ctx.CreateVmIfNotExists()
-	ctx.vm.Ret = nil
-	ctx.vm.Error = nil
+	vm := ctx.vm
+	vm.Ret = nil
+	vm.Error = nil
 
 	s = CompatibleReplace(ctx, s)
+
+	vm.Config.DisableStmts = flags.DisableBlock
+	vm.Config.IgnoreDiv0 = flags.IgnoreDiv0
+
+	var cocFlagVarPrefix string
+	if flags.CocVarNumberMode {
+		vm.Config.CallbackLoadVar = func(name string) (string, *ds.VMValue) {
+			re := regexp.MustCompile(`^(困难|极难|大成功|常规|失败|困難|極難|常規|失敗)?([^\d]+)(\d+)?$`)
+			m := re.FindStringSubmatch(name)
+
+			if len(m) > 0 {
+				if m[1] != "" {
+					cocFlagVarPrefix = chsS2T.Read(m[1])
+					name = name[len(m[1]):]
+				}
+
+				if !strings.HasPrefix(name, "$") {
+					// 有末值时覆盖，有初值时
+					if m[3] != "" {
+						v, _ := strconv.ParseInt(m[3], 10, 64)
+						//fmt.Println("COC值:", name, cocFlagVarPrefix)
+						return name, ds.VMValueNewInt(v)
+					}
+				}
+			}
+
+			return name, nil
+		}
+	}
 
 	err := ctx.vm.Run(s)
 	if err != nil || ctx.vm.Ret == nil {
@@ -64,9 +105,9 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 			return nil, detail, err
 		}
 
-		return &VMResultV2{val.ConvertToDiceScriptValue(), ctx.vm, val}, detail, err
+		return &VMResultV2{val.ConvertToDiceScriptValue(), ctx.vm, val, cocFlagVarPrefix}, detail, err
 	} else {
-		return &VMResultV2{ctx.vm.Ret, ctx.vm, nil}, ctx.vm.Detail, nil
+		return &VMResultV2{ctx.vm.Ret, ctx.vm, nil, cocFlagVarPrefix}, ctx.vm.Detail, nil
 	}
 }
 
@@ -81,13 +122,13 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		ctx.vm = ds.NewVM()
 
 		// 根据当前规则开语法 - 暂时是都开
-		ctx.vm.Flags.EnableDiceWoD = true
-		ctx.vm.Flags.EnableDiceCoC = true
-		ctx.vm.Flags.EnableDiceFate = true
-		ctx.vm.Flags.EnableDiceDoubleCross = true
+		ctx.vm.Config.EnableDiceWoD = true
+		ctx.vm.Config.EnableDiceCoC = true
+		ctx.vm.Config.EnableDiceFate = true
+		ctx.vm.Config.EnableDiceDoubleCross = true
 
 		// 设置默认骰子面数
-		ctx.vm.Flags.DefaultDiceSideExpr = fmt.Sprint("d%d", ctx.Group.DiceSideNum)
+		ctx.vm.Config.DefaultDiceSideExpr = fmt.Sprintf("%d", ctx.Group.DiceSideNum)
 	}
 }
 

@@ -1891,10 +1891,10 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["pc"] = cmdChar
 
 	vm := ds.NewVM()
-	vm.Flags.EnableDiceWoD = true
-	vm.Flags.EnableDiceCoC = true
-	vm.Flags.EnableDiceFate = true
-	vm.Flags.EnableDiceDoubleCross = true
+	vm.Config.EnableDiceWoD = true
+	vm.Config.EnableDiceCoC = true
+	vm.Config.EnableDiceFate = true
+	vm.Config.EnableDiceDoubleCross = true
 
 	HelpRollNew := ".fox <表达式> <原因> // 使用dicescript的骰点，测试用"
 	cmdFox := &CmdItemInfo{

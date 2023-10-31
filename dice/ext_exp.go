@@ -217,31 +217,27 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate) (items [
 	return items, limitSkipCount, nil
 }
 
-func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, chVars lockfree.HashMap, commandInfo map[string]interface{}, i *stSetOrModInfoItem) {
+func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, commandInfo map[string]interface{}, i *stSetOrModInfoItem) {
 	// TODO: 这套api是第一次尝试，之后再重新考虑
 	// 获取当前值
-	var curVal *VMValue
-	if a, ok := chVars.Get(i.name); ok {
-		curVal = a.(*VMValue)
+	attrs := Must(mctx.Dice.AttrsManager.LoadByCtx(mctx))
+
+	curVal := attrs.Load(i.name)
+	if curVal == nil {
+		curVal = tmpl.GetDefaultValueEx(mctx, i.name)
 	}
 	if curVal == nil {
-		x := tmpl.GetDefaultValueEx(mctx, i.name)
-		if x != nil {
-			curVal = dsValueToRollVMv1(x)
-		}
-	}
-	if curVal == nil {
-		curVal = VMValueNew(VMTypeInt64, int64(0))
+		curVal = ds.VMValueNewInt(0)
 	}
 
-	if curVal.TypeID != VMTypeInt64 {
+	if curVal.TypeId != ds.VMTypeInt {
 		// 跳过非数字
 		return
 	}
 
 	// 进行变更
-	theOldValue, _ := curVal.ReadInt64()
-	theModValue, _ := i.value.ReadInt64()
+	theOldValue, _ := curVal.ReadInt()
+	theModValue, _ := i.value.ReadInt()
 	var theNewValue int64
 
 	signText := ""
@@ -265,7 +261,7 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, chVars lockfree.H
 		"op":      i.op,
 	})
 
-	chVars.Set(i.name, VMValueNew(VMTypeInt64, theNewValue))
+	attrs.Store(i.name, ds.VMValueNewInt(theNewValue))
 
 	VarSetValueStr(mctx, "$t属性", i.name)
 	VarSetValueInt64(mctx, "$t旧值", theOldValue)
@@ -277,12 +273,13 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, chVars lockfree.H
 
 type stSetOrModInfoItem struct {
 	name  string
-	value *VMValue
+	value *ds.VMValue
+	extra *ds.VMValue
 	op    string
 	expr  string
 }
 
-func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *VMResult, toSetItems []*stSetOrModInfoItem, toModItems []*stSetOrModInfoItem, err error) {
+func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *ds.VMValue, toSetItems []*stSetOrModInfoItem, toModItems []*stSetOrModInfoItem, err error) {
 	// 处理全角符号
 	text = strings.ReplaceAll(text, "＋", "+")
 	text = strings.ReplaceAll(text, "－", "-")
@@ -291,25 +288,33 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 	text = strings.ReplaceAll(text, "＆", "&")
 	text = strings.ReplaceAll(text, "＊", "*")
 
-	r, _, err = ctx.Dice.ExprEvalBase("^st"+text, ctx, RollExtraFlags{
-		DefaultDiceSideNum: getDefaultDicePoints(ctx),
-		DisableBlock:       true,
-		StCallback: func(_type string, name string, val *VMValue, op string, detail string) {
-			switch _type {
-			case "set":
-				newname := tmpl.GetAlias(name)
-				toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val})
-			case "mod":
-				newname := tmpl.GetAlias(name)
-				if val.TypeID != VMTypeInt64 {
-					return
-				}
-				toModItems = append(toModItems, &stSetOrModInfoItem{name: newname, value: val, op: op, expr: detail})
+	ctx.CreateVmIfNotExists()
+	vm := ctx.vm
+	vm.Config.DisableStmts = true
+	vm.Config.DefaultDiceSideExpr = strconv.FormatInt(getDefaultDicePoints(ctx), 10)
+	vm.Config.CallbackSt = func(_type string, name string, val *ds.VMValue, extra *ds.VMValue, op string, detail string) {
+		fmt.Println("!!", _type, name, val, extra, op, detail)
+		switch _type {
+		case "set":
+			newname := tmpl.GetAlias(name)
+			toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val})
+		case "set.x1":
+			newname := tmpl.GetAlias(name)
+			toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val, extra: extra})
+		case "set.x0":
+			newname := tmpl.GetAlias(name)
+			toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val, extra: ds.VMValueNewInt(2)})
+		case "mod":
+			newname := tmpl.GetAlias(name)
+			if val.TypeId != ds.VMTypeInt {
+				return
 			}
-		},
-	})
+			toModItems = append(toModItems, &stSetOrModInfoItem{name: newname, value: val, op: op, expr: detail})
+		}
+	}
+	err = vm.Run("^st" + text)
 
-	return r, toSetItems, toModItems, err
+	return vm.Ret, toSetItems, toModItems, err
 }
 
 func cmdStCharFormat1(mctx *MsgContext, tmpl *GameSystemTemplate, vars lockfree.HashMap) {
@@ -367,7 +372,12 @@ func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
 	mctx.ChVarsUpdateTime()
 }
 
-func getCmdStBase() *CmdItemInfo {
+type CmdStOverrideInfo struct {
+	ToSet        func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate)
+	CommandSolve func(ctx *MsgContext, msg *Message, args *CmdArgs) *CmdExecuteResult
+}
+
+func getCmdStBase(info CmdStOverrideInfo) *CmdItemInfo {
 	helpSt := ""
 	helpSt += ".st show // 展示个人属性\n"
 	helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
@@ -393,8 +403,15 @@ func getCmdStBase() *CmdItemInfo {
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			tmpl := ctx.Group.GetCharTemplate(dice)
 
-			chVars, _ := mctx.ChVarsGet()
+			attrs := Must(dice.AttrsManager.LoadByCtx(mctx))
 			cardType := ReadCardType(mctx)
+
+			if info.CommandSolve != nil {
+				ret := info.CommandSolve(ctx, msg, cmdArgs)
+				if ret != nil {
+					return *ret
+				}
+			}
 
 			switch val {
 			case "help":
@@ -472,10 +489,10 @@ func getCmdStBase() *CmdItemInfo {
 				for _, varname := range cmdArgs.Args[1:] {
 					vname := tmpl.GetAlias(varname)
 
-					_, ok := chVars.Get(vname)
-					if ok {
+					val := attrs.Load(vname)
+					if val != nil {
 						nums = append(nums, vname)
-						chVars.Del(vname)
+						attrs.Delete(vname)
 					} else {
 						failed = append(failed, vname)
 					}
@@ -506,12 +523,15 @@ func getCmdStBase() *CmdItemInfo {
 				cmdStCharFormat(mctx, tmpl) // 转一下卡
 
 				mctx.SystemTemplate = tmpl
-				r, toSetItems, toModItems, err := cmdStReadOrMod(mctx, tmpl, cmdArgs.CleanArgs)
+				_, toSetItems, toModItems, err := cmdStReadOrMod(mctx, tmpl, cmdArgs.CleanArgs)
 
 				if err != nil {
 					dice.Logger.Info(".st 格式错误: ", err.Error())
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
+
+				rRestIput := ctx.vm.RestInput
+				attrs := Must(dice.AttrsManager.LoadByCtx(ctx))
 
 				// 处理直接设置属性
 				var text string
@@ -519,14 +539,14 @@ func getCmdStBase() *CmdItemInfo {
 				if len(toSetItems) > 0 {
 					// 是 set
 					for _, i := range toSetItems {
-						def := tmpl.GetDefaultValueEx(ctx, i.name)
-						val := i.value
-						var curVal *VMValue
-						if a, ok := chVars.Get(i.name); ok {
-							curVal = a.(*VMValue)
+						if info.ToSet != nil {
+							info.ToSet(ctx, i, attrs, tmpl)
 						}
 
-						if dsValueToRollVMv1(def).TypeID == val.TypeID && def.Value == val.Value {
+						def := tmpl.GetDefaultValueEx(ctx, i.name)
+
+						if ds.ValueEqual(i.value, def, true) {
+							curVal := attrs.Load(i.name)
 							// 如果当前有值
 							if curVal == nil {
 								// 与预设相同，放弃
@@ -543,7 +563,7 @@ func getCmdStBase() *CmdItemInfo {
 						}
 
 						validNum++
-						chVars.Set(i.name, i.value)
+						attrs.Store(i.name, i.value)
 					}
 					mctx.ChVarsUpdateTime()
 					VarSetValueInt64(mctx, "$t数量", int64(len(toSetItems))) // 废弃
@@ -568,7 +588,7 @@ func getCmdStBase() *CmdItemInfo {
 					var textItems []string
 					chName := mctx.ChBindCurGet()
 					for _, i := range toModItems {
-						cmdStValueMod(mctx, tmpl, chVars, commandInfo, i)
+						cmdStValueMod(mctx, tmpl, commandInfo, i)
 						VarSetValueStr(mctx, "$t当前绑定角色", chName)
 						text2 := DiceFormatTmpl(mctx, "COC:属性设置_增减_单项")
 						textItems = append(textItems, text2)
@@ -583,8 +603,8 @@ func getCmdStBase() *CmdItemInfo {
 					SetCardType(mctx, tmpl.Name)
 				}
 
-				if r.restInput != "" {
-					text += "\n解析失败: " + r.restInput
+				if rRestIput != "" {
+					text += "\n解析失败: " + rRestIput
 				}
 
 				ReplyToSender(mctx, msg, text)
