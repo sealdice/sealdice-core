@@ -2,69 +2,94 @@
 home: true
 lang: zh-cn
 title: 首页
-tagline: 海豹核心的全新官方使用手册✨
+tagline: ✨海豹核心的全新官方使用手册
 heroImage: /images/sealdice.ico
+bgImage: /images/bg/4-light.svg
+bgImageDark: /images/bg/4-light.svg
+bgImageStyle:
+  background-attachment: fixed
 actions:
   - text: 指令上手
+    icon: interact
     link: /use/quick-start
     type: primary
   - text: 快速部署
+    icon: light
     link: /deploy/quick-start
   - text: 特色功能
+    icon: categoryselected
     link: /deploy/special_feature
+highlights:
+  - header: 海豹核心
+    image: /images/seal.png
+    bgImage: /images/bg/3-light.svg
+    bgImageDark: /images/bg/3-light.svg
+    highlights: 
+    - title: 一个简单易用的跑团骰子系统。可以被叫做 海豹骰、豹骰，豹子骰。
+    - title: 前往官网的「在线试用」中快速尝试——
+      icon: arrow
+      link: https://sealdice.com
+  - header: 特性
+    bgImage: /images/bg/2-light.svg
+    bgImageDark: /images/bg/2-light.svg
+    features:
+      - title: 常用指令
+        icon: comment
+        details: 实现了跑团常用的绝大部分指令，用你熟悉的指令跑团
+        link:
+      - title: 多规则支持
+        icon: context
+        details: CoC、D&D、SR、WOD 等规则都有专门支持
+        link: 
+      - title: 同义词表
+        icon: article
+        details: 属性兼容中文简体、繁体、英文缩写和其他常见别名
+        link:
+      - title: 全文搜索
+        icon: search
+        details: 使用全文搜索技术，小型的搜索引擎帮助你快速查询各种资料
+        link:
+      - title: 指令代骰
+        icon: at
+        details: 通过 @ 指名代替其他玩家进行检定，愉快规避掉鸽子带来的麻烦事
+        link:
+      - title: 自定义扩展
+        icon: discover
+        details: 提供牌堆等或实用或娱乐的扩展能力
+        link:
+  - header: 开始使用
+    bgImage: /images/bg/5-light.svg
+    bgImageDark: /images/bg/5-light.svg
+    features:
+      - title: 特色功能
+        icon: categoryselected
+        details: 快速了解和其它骰系的区别
+        link: ./deploy/special_feature.md
+      - title: 我是 PL
+        icon: interact
+        details: 指令快速上手
+        link: ./use/quick-start.md
+      - title: 我是骰主
+        icon: light
+        details: 了解如何快速搭建海豹
+        link: ./deploy/quick-start.md
+      - title: 我是 MOD 作者
+        icon: setting
+        details: 了解海豹的扩展能力，定制属于你的骰子
+        link: ./advanced/introduce.md
+      - title: 我是开发者
+        icon: code
+        details: 一起开始海豹的开发吧
+        link: ./about/develop.md
+  - header: 更多……
+    description: 使用有问题？对功能有新想法？想认识更多骰主？欢迎加入官方群
+    image: /images/seal2.png
+    bgImage: /images/bg/6-light.svg
+    bgImageDark: /images/bg/6-light.svg
+    highlights:
+      - title: 1 群：524364253（已满）
+      - title: 2 群：562897832（已满）
+      - title: 3 群：715664650（已满）
+      - title: 4 群：917654757（已满）
+      - title: 5 群：747114944
 ---
-
-# 介绍
-
-「海豹核心」是一个简单易用的跑团骰子系统。形象是海豹，可以被叫做 **海豹骰、豹骰，豹子骰**。
-
-可以在 [官网](https://sealdice.com/) 的「在线试用」中快速尝试。
-
-## 特性
-
-- 实现了跑团常用的绝大部分指令，且 CoC、D&D、SR、WOD 等规则都有专门支持；
-
-- 丰富的同义词表，兼容中文简体、繁体、英文缩写和其他常见别名；
-
-- 强大搜索功能，使用全文搜索技术，可以看作是一个微型搜索引擎；
-
-- 通过艾特指名代替其他玩家进行检定，愉快规避掉鸽子带来的麻烦事；
-
-- 跑团日志可以上传到云端，从任何地方获取和编辑；
-
-- 牌堆等或实用或娱乐的功能；
-
-- ……
-
-## 导航
-
-### 海豹有什么特别的功能吗？
-
-见 [部署 - 特色功能](./deploy/special_feature.md)
-
-### 我是 PL，告诉我怎么用就好
-
-见 [使用 - 快速上手](./use/quick-start.md)
-
-### 我是骰主，告诉我怎么搭建
-
-见 [部署 - 快速开始](./deploy/quick-start.md)
-
-### 我是 MOD 作者，有什么好玩的？
-
-见 [进阶 - 扩展介绍](./advanced/introduce.md)
-
-### 我是开发者，如何参与海豹的开发？
-
-见 [开发 - 参与开发](./about/develop.md)
-
-
-## 用户群
-
-**QQ 群：**
-
-* 1 群：524364253（已满）
-* 2 群：562897832（已满）
-* 3 群：715664650（已满）
-* 4 群：917654757（已满）
-* 5 群：747114944

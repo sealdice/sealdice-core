@@ -48,6 +48,6 @@ pnpm run docs:dev
 
 ## VuePress2 和 Markdown 扩展
 
-手册使用 VuePress2 驱动，文档见 [VuePress2 文档](https://v2.vuepress.vuejs.org/zh/)。
+手册使用 VuePress2 驱动，文档见 [VuePress2 文档](https://v2.vuepress.vuejs.org/zh/)，主题为 [vuepress-theme-hope](https://theme-hope.vuejs.press/zh/)。
 
 同时使用了 `vuepress-plugin-md-enhance` 插件为 Markdown 提供更多扩展语法，文档见 [vuepress-plugin-md-enhance 文档](https://plugin-md-enhance.vuejs.press/zh/guide)。

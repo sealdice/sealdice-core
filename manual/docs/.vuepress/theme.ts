@@ -17,7 +17,7 @@ export default hopeTheme({
 
   sidebar,
 
-  breadcrumb: false,
+  breadcrumb: true,
   pageInfo: ["ReadingTime"],
   contributors: false,
   editLink: false,
@@ -28,12 +28,13 @@ export default hopeTheme({
   pure: true,
   print: false,
 
+  iconAssets: "iconfont",
+
   metaLocales: {
     editLink: "在 GitHub 上编辑此页",
   },
 
   plugins: {
-    autoCatalog: false,
     copyCode: {
       showInMobile: true,
     },
