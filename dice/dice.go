@@ -360,6 +360,9 @@ func (d *Dice) Init() {
 					// 注: 这种用法我不太清楚是否有必要
 					_ = model.FlushWAL(d.DBData)
 					_ = model.FlushWAL(d.DBLogs)
+					if d.CensorManager != nil && d.CensorManager.DB != nil {
+						_ = model.FlushWAL(d.CensorManager.DB)
+					}
 				}
 			}
 		}
