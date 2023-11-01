@@ -1,9 +1,9 @@
 ---
 lang: zh-cn
-title: 扩展：娱乐
+title: 娱乐
 ---
 
-# 扩展：娱乐
+# 娱乐
 
 ::: info 本节内容
 

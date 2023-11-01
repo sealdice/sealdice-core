@@ -1,9 +1,9 @@
 ---
 lang: zh-cn
-title: 扩展：故事
+title: 故事
 ---
 
-# 扩展：故事
+# 故事
 
 ::: info 本节内容
 

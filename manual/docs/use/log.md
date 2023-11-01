@@ -1,9 +1,9 @@
 ---
 lang: zh-cn
-title: 扩展：日志
+title: 日志
 ---
 
-# 扩展：日志
+# 日志
 
 ::: info 本节内容
 

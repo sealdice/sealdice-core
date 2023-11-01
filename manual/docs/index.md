@@ -22,7 +22,7 @@ actions:
 highlights:
   - header: 海豹核心
     image: /images/seal.png
-    highlights: 
+    highlights:
     - title: 一个简单易用的跑团骰子系统。可以被叫做 海豹骰、豹骰，豹子骰。
     - title: 前往官网的「在线试用」中快速尝试——
       icon: arrow
@@ -36,9 +36,9 @@ highlights:
       - title: 多规则支持
         icon: context
         details: CoC、D&D、SR、WOD 等规则都有专门支持
-        link: 
+        link:
       - title: 同义词表
-        icon: article
+        icon: change
         details: 属性兼容中文简体、繁体、英文缩写和其他常见别名
         link:
       - title: 全文搜索
@@ -63,6 +63,10 @@ highlights:
         icon: interact
         details: 指令快速上手
         link: ./use/quick-start.md
+      - title: 我是 GM
+        icon: read
+        details: 了解全部指令
+        link: ./use/core.md
       - title: 我是骰主
         icon: light
         details: 了解如何快速搭建海豹

@@ -36,23 +36,36 @@ export default sidebar({
       link: "/use/",
       prefix: "/use/",
       children: [
-        "introduce.md",
-        "quick-start.md",
-        "faq.md",
-        "core.md",
         {
-          text: "扩展指令",
+          text: "新手入门",
+          children: [
+            "introduce.md",
+            "quick-start.md",
+          ],
+        },
+        {
+          text: "核心指令",
+          children: ["core.md"],
+        },
+        {
+          text: "规则扩展",
           children: [
             "coc7.md",
             "dnd5e.md",
-            "other_rules.md",
             "attribute_alias.md",
+            "other_rules.md",
+          ],
+        },
+        {
+          text: "功能扩展",
+          children: [
             "story.md",
             "log.md",
             "fun.md",
             "deck_and_reply.md",
           ],
         },
+        "faq.md",
       ],
     },
   ],
