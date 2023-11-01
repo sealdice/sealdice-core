@@ -13,6 +13,7 @@ export default hopeTheme({
 
   navbar,
   logo: "/images/sealdice.svg",
+  logoDark: "/images/sealdice-dark.svg",
   repo: "sealdice/sealdice-core",
 
   sidebar,
