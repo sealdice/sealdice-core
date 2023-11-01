@@ -8,11 +8,11 @@ export default hopeTheme({
     name: "SealDice Team",
     url: "https://github.com/sealdice",
   },
-  favicon: "/images/sealdice.ico",
+  favicon: "/images/sealdice.svg",
   docsDir: "docs",
 
   navbar,
-  logo: "/images/sealdice.ico",
+  logo: "/images/sealdice.svg",
   repo: "sealdice/sealdice-core",
 
   sidebar,

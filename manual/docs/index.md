@@ -3,7 +3,7 @@ home: true
 lang: zh-cn
 title: 首页
 tagline: ✨海豹核心的全新官方使用手册
-heroImage: /images/sealdice.ico
+heroImage: /images/sealdice.svg
 bgImage: /images/bg/4-light.svg
 bgImageDark: /images/bg/4-dark.svg
 bgImageStyle:
