@@ -10,7 +10,7 @@ index: false
 - 扩展指令
   - [扩展：克苏鲁的呼唤 7 版](./coc7.md)
   - [扩展：龙与地下城 5E](./dnd5e.md)
-  - [海豹支持的其他规则](./other_rules.md)
+  - [其它规则支持](./other_rules.md)
   - [属性同义词](./attribute_alias.md)
   - [扩展：故事](./story.md)
   - [扩展：日志](./log.md)
