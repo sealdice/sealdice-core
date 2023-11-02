@@ -12,6 +12,14 @@ export default navbar([
       "quick-start.md",
       "transfer.md",
       "special_feature.md",
+      {
+        text: "平台",
+        children: [
+          "platform-qq.md",
+          "platform-kook.md",
+          "platform-dodo.md"
+        ],
+      },
     ],
   },
   {

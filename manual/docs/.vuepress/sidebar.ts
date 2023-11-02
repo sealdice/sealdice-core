@@ -6,7 +6,19 @@ export default sidebar({
       text: "部署",
       link: "/deploy/",
       prefix: "/deploy/",
-      children: ["quick-start.md", "transfer.md", "special_feature.md"],
+      children: [
+        "quick-start.md",
+        "transfer.md",
+        "special_feature.md",
+        {
+          text: "平台",
+          children: [
+            "platform-qq.md",
+            "platform-kook.md",
+            "platform-dodo.md"
+          ],
+        },
+      ],
     },
   ],
   "/config/": [
