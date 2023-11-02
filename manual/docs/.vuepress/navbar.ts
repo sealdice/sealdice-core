@@ -18,10 +18,10 @@ export default navbar([
     text: "配置",
     prefix: "/config/",
     children: [
-      "custom_text.md",
       {
         text: "扩展功能",
         children: [
+          "custom_text.md",
           "reply.md",
           "deck.md",
           "jsscript.md",

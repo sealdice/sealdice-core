@@ -82,11 +82,14 @@ highlights:
   - header: 更多……
     description: 使用有问题？对功能有新想法？想认识更多骰主？欢迎加入官方群
     image: /images/seal2.png
+    bgImage: /images/bg/6-light.svg
     bgImageDark: /images/bg/6-dark.svg
     highlights:
-      - title: 1 群：524364253（已满）
-      - title: 2 群：562897832（已满）
-      - title: 3 群：715664650（已满）
-      - title: 4 群：917654757（已满）
-      - title: 5 群：747114944
+      - title: QQ 一群：524364253
+      - title: QQ 二群：562897832
+      - title: QQ 三群：715664650
+      - title: QQ 四群：917654757
+      - title: QQ 五群：747114944
+      - title: DODO 群：https://imdodo.com/s/246716
+      - title: KOOK 群：https://kook.top/Cmr0Fy
 ---
