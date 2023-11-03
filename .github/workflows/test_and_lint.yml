@@ -19,7 +19,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: stable
+          go-version: 1.21
       - run: go get
       - run: go generate ./...
       - run: go test -v -race ./...
@@ -32,7 +32,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.18
+          go-version: 1.21
       - run: go get
       - run: go generate ./...
       - name: Go vet
@@ -42,7 +42,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         if: github.event.name == 'pull_request'
         with:
-          go-version: '1.18'
+          go-version: 1.21
           version: 'v1.51.2'
           args: '--timeout 9999s'
           only-new-issues: true
