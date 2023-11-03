@@ -1,0 +1,20 @@
+# The Docker image that will be used to build your app
+image: node:20
+# Functions that should be executed before the build script is run
+
+cache:
+  paths:
+    - node_modules/
+    - .yarn
+
+pages:
+  script:
+    - yarn config set cache-folder .yarn
+    - yarn
+    - BASE_PATH='/' yarn docs:build
+    - cp -R docs/.vuepress/dist ./public
+  artifacts:
+    paths:
+      # The folder that contains the files to be exposed at the Page URL
+      # - docs/.vuepress/dist
+      - public
