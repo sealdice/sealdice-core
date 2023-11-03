@@ -34,3 +34,14 @@ jobs:
           build_dir: docs/.vuepress/dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push changes
+        env:
+          KEY: ${{ secrets.KEY }}
+          URL: ${{ secrets.URL }}
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$KEY" > ~/.ssh/id_rsa
+          sudo chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+          git push "$URL" main:gh-pages -f
