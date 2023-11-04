@@ -141,6 +141,7 @@ func (pa *PlatformAdapterDodo) Serve() int {
 		}
 	}()
 	pa.WebSocket = ws
+	pa.EndPoint.State = 1
 	pa.Session.Parent.Logger.Infof("Dodo 连接成功")
 	pa.EndPoint.Enable = true
 	d := pa.Session.Parent
