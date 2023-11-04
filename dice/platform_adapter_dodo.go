@@ -17,13 +17,14 @@ import (
 )
 
 type PlatformAdapterDodo struct {
-	Session       *IMSession                                             `yaml:"-" json:"-"`
-	ClientID      string                                                 `yaml:"clientID" json:"clientID"`
-	Token         string                                                 `yaml:"token" json:"token"`
-	EndPoint      *EndPointInfo                                          `yaml:"-" json:"-"`
-	Client        client.Client                                          `yaml:"-" json:"-"`
-	WebSocket     websocket.Client                                       `yaml:"-" json:"-"`
-	UserPermCache SyncMap[string, *SyncMap[string, *GuildPermCacheItem]] `yaml:"-" json:"-"`
+	Session           *IMSession                                             `yaml:"-" json:"-"`
+	ClientID          string                                                 `yaml:"clientID" json:"clientID"`
+	Token             string                                                 `yaml:"token" json:"token"`
+	EndPoint          *EndPointInfo                                          `yaml:"-" json:"-"`
+	Client            client.Client                                          `yaml:"-" json:"-"`
+	WebSocket         websocket.Client                                       `yaml:"-" json:"-"`
+	UserPermCache     SyncMap[string, *SyncMap[string, *GuildPermCacheItem]] `yaml:"-" json:"-"`
+	RetryConnectTimes int                                                    `yaml:"-" json:"-"` // 重连次数
 }
 
 const (
@@ -102,7 +103,28 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	ws, _ := websocket.New(instance, websocket.WithMessageHandlers(msgHandlers))
 	// 主动连接到 WebSocket 服务器
 	if err = ws.Connect(); err != nil {
-		return 1
+		logger.Errorf("Dodo连接错误:%s", err.Error())
+		for pa.RetryConnectTimes <= 5 {
+			pa.RetryConnectTimes++
+			time.Sleep(time.Second * 5)
+			pa.Session.Parent.Logger.Infof("Dodo 尝试重连, 第 [%d/5] 次", pa.RetryConnectTimes)
+			ws.Close()
+			if err = ws.Connect(); err == nil {
+				pa.RetryConnectTimes = 0
+				pa.EndPoint.State = 1
+				break
+			} else {
+				logger.Errorf("Dodo连接错误:%s", err.Error())
+			}
+		}
+		if err != nil {
+			logger.Errorf("Dodo 短时间内重试次数过多，先行中断")
+			pa.EndPoint.State = 3
+			d := pa.Session.Parent
+			d.LastUpdatedTime = time.Now().Unix()
+			d.Save(false)
+			return 1
+		}
 	}
 	go func() {
 		err := ws.Listen()
@@ -121,7 +143,6 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	pa.WebSocket = ws
 	pa.Session.Parent.Logger.Infof("Dodo 连接成功")
 	pa.EndPoint.Enable = true
-	pa.EndPoint.State = 1
 	d := pa.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
