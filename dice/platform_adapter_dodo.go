@@ -108,6 +108,14 @@ func (pa *PlatformAdapterDodo) Serve() int {
 		err := ws.Listen()
 		if err != nil {
 			logger.Errorf("Dodo监听错误:%s", err.Error())
+			if pa.EndPoint.Enable {
+				pa.EndPoint.State = 3
+				d := pa.Session.Parent
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+				logger.Infof("Dodo 连接断开，正在尝试重连……")
+				pa.DoRelogin()
+			}
 		}
 	}()
 	pa.WebSocket = ws
