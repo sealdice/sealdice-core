@@ -344,8 +344,71 @@ function randomInt(min, max) {
 
 ### 抽取牌堆
 
-::: note 施工中……
-:::
+抽取牌堆的函数是 `seal.deck.draw(ctx, deckName, shufflePool)`
+- `ctx`：`MsgContext` 类型，指令上下文，`solve()` 函数传进来的第一个参数
+- `deckName`：牌堆名称，字符串类型，例如 `GRE单词`
+- `shufflePool`：是否放回抽取，布尔类型，`true` 为放回抽取，`false` 为不放回抽取
+
+返回值是一个 `map`，包含以下字段：
+- `exists`：布尔类型，是否抽取成功
+- `result`：字符串类型，抽取结果
+- `err`：字符串类型，抽取失败的原因
+
+### 示例代码：抽取牌堆
+
+```javascript
+// ==UserScript==
+// @name         抽取牌堆示例
+// @author       SzzRain
+// @version      1.0.0
+// @description  用于演示如何抽取牌堆
+// @timestamp    1699077659
+// @license      MIT
+// @homepageURL  https://github.com/sealdice/javascript
+// ==/UserScript==
+
+// 本脚本用于演示如何抽取牌堆, 共有两种实现方式
+if (!seal.ext.find('draw-decks-example')) {
+  const ext = seal.ext.new('draw-decks-example', 'SzzRain', '1.0.0');
+  // 创建一个命令
+  const cmdDrawDecks = seal.ext.newCmdItemInfo();
+  cmdDrawDecks.name = 'dr';
+  cmdDrawDecks.help = '使用 .dr <牌堆名> 来抽取牌堆';
+  cmdDrawDecks.solve = (ctx, msg, cmdArgs) => {
+    // 抽取牌堆
+    // 参数1：ctx 参数2：牌堆名称 参数3：是否放回抽取
+    // 返回值：{exists: true, result: '抽取结果', err: '错误原因'}
+    const decks = seal.deck.draw(ctx, cmdArgs.getArgN(1), true);
+    // 判断是否抽取成功
+    if (decks['exists']) {
+      seal.replyToSender(ctx, msg, decks['result']);
+      return seal.ext.newCmdExecuteResult(true);
+    } else {
+      seal.replyToSender(ctx, msg, '抽取牌堆失败，原因：' + decks['err']);
+      return seal.ext.newCmdExecuteResult(true);
+    }
+  };
+  // 注册命令
+  ext.cmdMap['dr'] = cmdDrawDecks;
+
+  // 创建一个命令
+  const cmdDrawDecks2 = seal.ext.newCmdItemInfo();
+  cmdDrawDecks2.name = 'dr2';
+  cmdDrawDecks2.help = '使用 .dr2 <牌堆名> 来抽取牌堆';
+  cmdDrawDecks2.solve = (ctx, msg, cmdArgs) => {
+    // 抽取牌堆的另一种写法，使用 format 函数，由于经过了 rollvm 的处理，所以代码的执行效率会更慢
+    // 不过这种写法的返回值固定为字符串，省去了判断是否抽取成功的步骤
+    // 参数1：ctx 参数2：海豹语表达式，其中 #{DRAW-牌堆名称} 会被替换为抽取结果
+    const decks = seal.format(ctx, `#{DRAW-${cmdArgs.getArgN(1)}}`);
+    seal.replyToSender(ctx, msg, decks);
+  }
+  // 注册命令
+  ext.cmdMap['dr2'] = cmdDrawDecks2;
+
+  // 注册扩展
+  seal.ext.register(ext);
+}
+```
 
 ### 存取数据
 
