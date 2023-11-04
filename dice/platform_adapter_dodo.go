@@ -126,6 +126,14 @@ func (pa *PlatformAdapterDodo) Serve() int {
 			return 1
 		}
 	}
+	pa.WebSocket = ws
+	pa.EndPoint.State = 1
+	pa.RetryConnectTimes = 0
+	pa.Session.Parent.Logger.Infof("Dodo 连接成功")
+	pa.EndPoint.Enable = true
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 	go func() {
 		err := ws.Listen()
 		if err != nil {
@@ -140,13 +148,6 @@ func (pa *PlatformAdapterDodo) Serve() int {
 			}
 		}
 	}()
-	pa.WebSocket = ws
-	pa.EndPoint.State = 1
-	pa.Session.Parent.Logger.Infof("Dodo 连接成功")
-	pa.EndPoint.Enable = true
-	d := pa.Session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
 	return 0
 }
 
