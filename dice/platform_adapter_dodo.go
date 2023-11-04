@@ -292,7 +292,7 @@ func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 
 func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	// pa.Session.Parent.Logger.Infof("send to %s", ExtractDodoUserId(uid))
-	err := pa.SendToChatRaw(ctx, uid, text, true)
+	err := pa.SendToPersonRaw(ctx, uid, text, true)
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("DODO 发送私聊消息失败：%v\n", err)
 		return
@@ -381,6 +381,48 @@ func convertLinksToMarkdown(text string) string {
 	}
 
 	return text
+}
+
+func (pa *PlatformAdapterDodo) SendToPersonRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
+	instance := pa.Client
+	dice := pa.Session.Parent
+	elem := dice.ConvertStringMessage(text)
+	streamToByte := func(stream io.Reader) []byte {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(stream)
+		if err != nil {
+			return nil
+		}
+		return buf.Bytes()
+	}
+	for _, element := range elem {
+		switch e := element.(type) {
+		case *TextElement:
+			err := pa.SendMessageRaw(ctx, &model.TextMessage{Content: e.Content}, uid, isPrivate, "")
+			if err != nil {
+				return err
+			}
+		case *ImageElement:
+			resourceResp, err := instance.UploadImageByBytes(context.Background(), &model.UploadImageByBytesReq{
+				Filename: e.file.File,
+				Bytes:    streamToByte(e.file.Stream),
+			})
+			if err != nil {
+				return err
+			}
+			msgBody := &model.ImageMessage{
+				Url:        resourceResp.Url,
+				Width:      resourceResp.Width,
+				Height:     resourceResp.Height,
+				IsOriginal: 0,
+			}
+			err = pa.SendMessageRaw(ctx, msgBody, uid, isPrivate, "")
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
