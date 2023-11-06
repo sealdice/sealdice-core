@@ -101,12 +101,25 @@ func CQToText(t string, d map[string]string) MessageElement {
 	org += "]"
 	return newText(org)
 }
-func getFileName(header http.Header) (string, error) {
+func getFileName(header http.Header) string {
 	contentDisposition := header.Get("Content-Disposition")
 	if contentDisposition == "" {
-		return calculateMD5(header), nil
+		contentType := header.Get("Content-Type")
+		if contentType == "" {
+			return calculateMD5(header)
+		}
+		filetype, err := mime.ExtensionsByType(contentType)
+		if err != nil {
+			return calculateMD5(header)
+		}
+		var suffix string
+		if len(filetype) != 0 {
+			suffix = filetype[len(filetype)-1]
+			return calculateMD5(header) + suffix
+		}
+		return calculateMD5(header)
 	}
-	return regexp.MustCompile(`filename=(.+)`).FindStringSubmatch(strings.Split(contentDisposition, ";")[1])[1], nil
+	return regexp.MustCompile(`filename=(.+)`).FindStringSubmatch(strings.Split(contentDisposition, ";")[1])[1]
 }
 
 func calculateMD5(header http.Header) string {
@@ -154,12 +167,10 @@ func (d *Dice) FilepathToFileElement(fp string) (*FileElement, error) {
 		if resp.StatusCode != http.StatusOK {
 			return nil, errors.New("http get failed")
 		}
-		filename, _ := getFileName(header)
-		d.Logger.Infof("file: %s", filename)
+		filename := getFileName(header)
 		if err != nil {
 			return nil, err
 		}
-		d.Logger.Infof("file: %s", filename)
 		r := &FileElement{
 			Stream:      bytes.NewReader(content),
 			ContentType: resp.Header.Get("Content-Type"),
@@ -329,6 +340,7 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 }
 
 func SealCodeToCqCode(text string) string {
+	text = strings.ReplaceAll(text, " ", "")
 	re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
 	m := re.FindStringSubmatch(text)
 	if len(m) == 0 {
