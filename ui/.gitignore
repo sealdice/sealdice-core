@@ -10,5 +10,7 @@ pnpm-lock.yaml
 
 *.log
 
+stats.html
+
 .idea
 /.vscode/settings.json

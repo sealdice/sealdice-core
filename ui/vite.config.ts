@@ -46,5 +46,15 @@ export default defineConfig({
   ],
   build: {
     target: "es6",
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          base: ["vue", "pinia"],
+          library: ["element-plus", "ofetch", "axios", "axios-retry"],
+          util: ["vue-diff", "vuedraggable", "dayjs", "lodash-es"],
+        },
+      },
+    },
   },
 });
