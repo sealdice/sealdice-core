@@ -340,6 +340,7 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 }
 
 func SealCodeToCqCode(text string) string {
+	text = strings.ReplaceAll(text, " ", "")
 	re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
 	m := re.FindStringSubmatch(text)
 	if len(m) == 0 {
