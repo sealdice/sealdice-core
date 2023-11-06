@@ -113,7 +113,7 @@ func getFileName(header http.Header) string {
 			return calculateMD5(header)
 		}
 		var suffix string
-		if filetype != nil || len(filetype) != 0 {
+		if len(filetype) != 0 {
 			suffix = filetype[len(filetype)-1]
 			return calculateMD5(header) + suffix
 		}
