@@ -38,7 +38,7 @@ require (
 	github.com/sahilm/fuzzy v0.1.0
 	github.com/tidwall/buntdb v1.3.0
 	github.com/xuri/excelize/v2 v2.7.1
-	go.etcd.io/bbolt v1.3.7
+	go.etcd.io/bbolt v1.3.8
 	go.uber.org/zap v1.24.0
 	golang.org/x/sys v0.13.0
 	golang.org/x/text v0.13.0
