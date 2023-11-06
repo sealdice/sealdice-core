@@ -131,7 +131,7 @@
 import {computed, onBeforeMount, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import {useStore} from '~/store'
 import {urlBase} from '~/backend'
-import filesize from 'filesize'
+import {filesize} from 'filesize'
 import {CheckboxValueType, ElMessage, ElMessageBox} from 'element-plus'
 import {
   Location,

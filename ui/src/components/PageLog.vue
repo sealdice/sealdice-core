@@ -98,7 +98,7 @@ import { Timer, CaretBottom } from '@element-plus/icons-vue'
 import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useStore } from '~/store';
 import * as dayjs from 'dayjs'
-import filesize from 'filesize'
+import {filesize} from 'filesize'
 import {
   Location,
   Document,
