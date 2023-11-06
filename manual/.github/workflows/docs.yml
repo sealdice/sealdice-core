@@ -36,6 +36,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push changes
+        if: github.repository == 'sealdice/sealdice-manual-next'
         env:
           KEY: ${{ secrets.KEY }}
           URL: ${{ secrets.URL }}
