@@ -111,6 +111,7 @@ title: 核心指令
 {content: '.r 4d6k3 骰4个6面骰，选3个最大的', send: true},
 {content: '由于骰4个6面骰，选3个最大的，<木落>掷出了 4d6k3=[{6 5 3 | 1 }]=14'},
 {content: '.r 100 + 3 * 2', send: true},
+{content: '<木落>掷出了 100 + 3 * 2=100 + 6=106'},
 ]" />
 
 :::
@@ -192,24 +193,45 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 
 ### fvtt 骰点兼容
 
-::: note 示例
+:::: note 示例
+
+::: tabs 
+
+@tab 优势骰
 
 <ChatBox :messages="[
-{content: '这是优势骰', send: true},
 {content: '.r d20kh', send: true},
 {content: '<木落>掷出了 d20kh=[{10 | 3 }]=10'},
-{content: '这是劣势骰', send: true},
+]" />
+
+@tab 劣势骰
+
+<ChatBox :messages="[
 {content: '.r d20kl', send: true},
 {content: '<木落>掷出了 d20kl=[{6 | 15 }]=6'},
-{content: '这是骰 4 个排除 1 个最低值', send: true},
+]" />
+
+@tab 排除低值
+
+骰 4 个排除 1 个最低值：
+
+<ChatBox :messages="[
 {content: '.r 4d6dl1', send: true},
 {content: '<木落>掷出了 4d6dl1=[{5 3 2 | 1 }]=10'},
-{content: '这是骰 4 个排除 1 个最高值', send: true},
+]" />
+
+@tab 排除高值
+
+骰 4 个排除 1 个最高值：
+
+<ChatBox :messages="[
 {content: '.r 4d6dh1', send: true},
 {content: '<木落>掷出了 4d6dh1=[{3 3 5 | 6 }]=11'},
 ]" />
 
 :::
+
+::::
 
 ### fate 命运骰
 
@@ -217,14 +239,18 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 
 骰点时投掷 4 次，加在一起为结果。
 
-::: note 示例
+:::: note 示例
+
+::: tabs
+
+@tab 一般使用
 
 <ChatBox :messages="[
 {content: '.r f', send: true},
 {content: '<木落>掷出了 f=[---+]=-2'},
 ]" />
 
-带补正的情况：
+@tab 带补正的情况
 
 <ChatBox :messages="[
 {content: '.r f+1', send: true},
@@ -232,6 +258,8 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 ]" />
 
 :::
+
+::::
 
 ### WOD 骰点
 
@@ -342,22 +370,26 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 :::
 
-::: note 示例
+:::: note 示例
 
-在群聊中
+::: tabs
+
+@tab 群聊
 
 <ChatBox :messages="[
 {content: '.rh d50', send: true},
 {content: '命运正在低语！'},
 ]" />
 
-在私聊中
+@tab 收到的私聊
 
 <ChatBox :messages="[
 {content: '来自群<群名>(群号)的暗骰:\n<木落>掷出了 d10=[1d10=3]=3'},
 ]" />
 
 :::
+
+::::
 
 ## `.rx` / `.rxh` 特殊骰点
 
@@ -506,41 +538,52 @@ D&D 系列资料的整理者主要为 DicePP 项目组成员，包括**Farevell*
 
 拥有 Master 权限的用户将看到消息内容和发送者的 IM 账号，如果是来自群组，也能看到群号。
 
-::: note 示例
+:::: note 示例
 
-用户在某群聊使用 send 指令
+::: tabs
+
+@tab 群聊
 
 <ChatBox :messages="[
-{content: '.send 骰主你好！', send: true},
+{username: 'Szz', avatar: '/images/avatar/user2.jpg', content: '.send 骰主你好！'},
 ]" />
 
-拥有 Master 权限的用户
+@tab Master 收到的消息
 
 <ChatBox :messages="[
-{content: '一条来自群组<群名>(群号)，作者<用户名>(用户 IM 账号)的留言:\n骰主你好！'},
+{content: '一条来自群组<群名>(群号)，作者<Szz>(用户 IM 账号)的留言:\n骰主你好！'},
 ]" />
 
 :::
+
+::::
 
 `.send to <对方ID> <消息内容>`
 
 Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可以是个人的 IM 账号。将收到的消息中的对应 ID 复制到此处即可。
 
-::: note 示例
+:::: note 示例
 
-拥有 Master 权限的用户
+::: tabs
+
+@tab Master 回复
 
 <ChatBox :messages="[
+{content: '一条来自群组<群名>(群号)，作者<Szz>(用户 IM 账号)的留言:\n骰主你好！'},
 {content: '.send to <群号> 我收到了！', send: true},
 ]" />
 
-在群聊中
+
+@tab 群聊
 
 <ChatBox :messages="[
+{username: 'Szz', avatar: '/images/avatar/user2.jpg', content: '.send 骰主你好！'},
 {content: '本消息由骰主<木落>通过指令发送:\n我收到了！'},
 ]" />
 
 :::
+
+::::
 
 ## `.set` 设定默认骰子面数 / 设定游戏系统
 

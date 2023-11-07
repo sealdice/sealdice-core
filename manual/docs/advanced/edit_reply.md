@@ -110,13 +110,6 @@ func strCompare(a string, b string) float64 {
 <ChatBox :messages="[
 {content: '.text {$t玩家}进行测试', send: true},
 {content: '<木落>进行测试'},
-]" />
-
-:::
-
-::: note 示例
-
-<ChatBox :messages="[
 {content: '.text {d100}', send: true},
 {content: '1'},
 ]" />

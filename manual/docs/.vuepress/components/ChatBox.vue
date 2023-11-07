@@ -150,6 +150,7 @@ const saturation = computed(() => {
   padding: 0.5rem 1rem;
   filter: brightness(v-bind(saturation));
   position: relative;
+  word-break: break-all;
   span {
     line-height: 1.5;
   }
