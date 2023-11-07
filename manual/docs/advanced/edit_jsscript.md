@@ -324,9 +324,7 @@ export {}
 
 这就是最基本的模板了。
 
-## 示例
-
-### 生成随机数
+## 生成随机数
 
 可以使用以下函数生成随机整数：
 
@@ -342,7 +340,7 @@ function randomInt(min, max) {
 }
 ```
 
-### 抽取牌堆
+## 抽取牌堆
 
 抽取牌堆的函数是 `seal.deck.draw(ctx, deckName, shufflePool)`
 - `ctx`：`MsgContext` 类型，指令上下文，`solve()` 函数传进来的第一个参数
@@ -410,7 +408,83 @@ if (!seal.ext.find('draw-decks-example')) {
 }
 ```
 
-### 存取数据
+## 权限识别
+
+海豹中的权限等级，由高到低分别是：**骰主**，**群主**，**管理员**，**邀请者**，**普通用户** 和 **黑名单用户**。
+每一个身份都有一个对应的数字，可以通过 `ctx.privilegeLevel` 获取当前用户的权限等级。
+每个身份所对应的数字如下表所示：
+
+::: info 
+
+**注意：** 部分权限等级仅在群聊中有效，私聊中除了 **骰主** 和 **黑名单用户** 以外的权限等级都为 0。
+
+:::
+
+| 身份 | 权限值 |
+|----|-----|
+| 骰主 | 100 |
+| 群主 | 60  | 
+| 管理员 | 50  |
+| 邀请者 | 40  |
+| 普通用户 | 0   |
+| 黑名单用户 | -30 |
+
+::: tip 关于黑名单用户
+
+通常情况下你不需要考虑黑名单用户的情况，因为黑名单用户的消息会被过滤掉，不会触发任何指令。
+
+:::
+
+### 示例代码：权限识别
+
+```javascript
+// ==UserScript==
+// @name         权限识别样例
+// @author       SzzRain
+// @version      1.0.0
+// @description  使用命令 .myperm 查看自己的权限
+// @timestamp    1699086084
+// @license      MIT
+// @homepageURL  https://github.com/Szzrain
+// ==/UserScript==
+if (!seal.ext.find('myperm')) {
+  const ext = seal.ext.new('myperm', 'SzzRain', '1.0.0');
+  // 创建一个命令
+  const cmdMyperm = seal.ext.newCmdItemInfo();
+  cmdMyperm.name = 'myperm';
+  cmdMyperm.help = '使用 .myperm 展示我的权限';
+  cmdMyperm.solve = (ctx, msg, cmdArgs) => {
+    let text = "普通用户";
+    console.log(ctx.privilegeLevel);
+    switch (ctx.privilegeLevel) {
+      case 100:
+        text = "master";
+        break;
+      case 60:
+        text = "owner";
+        break;
+      case 50:
+        text = "admin";
+        break;
+      case 40:
+        text = "inviter";
+        break;
+      case -30:
+        // 黑名单用户，但是由于黑名单会被过滤掉，所以实际上这里并不会执行，这里只是为了演示
+        return seal.ext.newCmdExecuteResult(false);
+    }
+    seal.replyToSender(ctx, msg, text);
+    return seal.ext.newCmdExecuteResult(true);
+  }
+  // 注册命令
+  ext.cmdMap['myperm'] = cmdMyperm;
+
+  // 注册扩展
+  seal.ext.register(ext);
+}
+```
+
+## 存取数据
 
 相关的 API 是两个函数，`ExtInfo.storageSet(key, value)` 函数和 `ExtInfo.storageGet(key)`，一个存，一个取。
 
@@ -649,7 +723,7 @@ ${optStr}`);
 
 ```
 
-### 数据处理模板
+## 数据处理模板
 
 关于取出数据来修改的函数，可以参考如下代码：
 
@@ -671,7 +745,7 @@ function akAdd(ctx, msg, ext, option) {
 }
 ```
 
-### 读取玩家或群组数据
+## 读取玩家或群组数据
 
 可以查看下文的 [API](#js-扩展-api)。
 
