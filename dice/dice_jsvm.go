@@ -9,8 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sealdice-core/static"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
@@ -21,6 +23,13 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/elazarl/goproxy.v1"
 	"gopkg.in/yaml.v3"
+)
+
+var (
+	// OfficialModPublicKey 官方 Mod 公钥
+	OfficialModPublicKey = ``
+
+	signRe = regexp.MustCompile(`// sign\s+([^\r\n]+)?[\r\n]+`)
 )
 
 type PrinterFunc struct {
@@ -49,6 +58,11 @@ func (p *PrinterFunc) Warn(s string) { p.doRecord("warn", s); p.d.Logger.Warn(s)
 func (p *PrinterFunc) Error(s string) { p.doRecord("error", s); p.d.Logger.Error(s) }
 
 func (d *Dice) JsInit() {
+	// 读取官方 Mod 公钥
+	if pub, err := static.Scripts.ReadFile("scripts/seal_mod.public.pem"); err == nil && len(pub) > 0 {
+		OfficialModPublicKey = string(pub)
+	}
+
 	// 装载数据库(如果是初次运行)
 
 	// 清理目前的js相关
@@ -96,12 +110,18 @@ func (d *Dice) JsInit() {
 			}
 		})
 		_ = ext.Set("new", func(name, author, version string) *ExtInfo {
+			var official bool
+			if d.JsLoadingScript != nil {
+				official = d.JsLoadingScript.Official
+			}
 			return &ExtInfo{Name: name, Author: author, Version: version,
 				GetDescText: GetExtensionDesc,
 				AutoActive:  true,
 				IsJsExt:     true,
 				Brief:       "一个JS自定义扩展",
+				Official:    official,
 				CmdMap:      CmdMapCls{},
+				Source:      d.JsLoadingScript,
 			}
 		})
 		_ = ext.Set("find", func(name string) *ExtInfo {
@@ -444,11 +464,66 @@ func (d *Dice) jsClear() {
 
 func (d *Dice) JsLoadScripts() {
 	d.JsScriptList = []*JsScriptInfo{}
+
 	path := filepath.Join(d.BaseConfig.DataDir, "scripts")
+	builtinPath := filepath.Join(path, "_builtin")
+
+	// 导出内置脚本数据
+	builtinScripts, _ := fs.ReadDir(static.Scripts, "scripts")
+	_ = os.MkdirAll(builtinPath, 0755)
+	for _, script := range builtinScripts {
+		if !script.IsDir() && filepath.Ext(script.Name()) == ".js" {
+			target := filepath.Join(builtinPath, script.Name())
+			data, _ := static.Scripts.ReadFile("scripts/" + script.Name())
+			d.JsBuiltinDigestSet[CalculateSHA512Str(data)] = true
+			// 判断是否有更新后的内置脚本
+			_, err := os.Stat(target)
+			if errors.Is(err, os.ErrNotExist) {
+				_ = os.WriteFile(target, data, 0644)
+			} else {
+				// 检查同名内置脚本的签名，检查不通过则覆盖
+				scriptData, _ := os.ReadFile(target)
+				if ok, _ := CheckJsSign(scriptData); !ok {
+					d.Logger.Warnf("已存在的内置脚本「%s」未通过校验，进行覆盖", script.Name())
+					_ = os.WriteFile(target, scriptData, 0644)
+				}
+			}
+		}
+	}
+
+	// 优先读取内置脚本
+	_ = filepath.Walk(builtinPath, func(path string, info fs.FileInfo, err error) error {
+		if filepath.Ext(path) == ".js" {
+			d.Logger.Info("正在读取内置脚本(已验证为官方插件): ", path)
+			data, err := os.ReadFile(path)
+			if err != nil {
+				d.Logger.Error("读取内置脚本失败(无法访问): ", err.Error())
+				return nil
+			}
+			// 检查内置脚本签名，检查不通过则拒绝加载
+			scriptData, _ := os.ReadFile(path)
+			if ok, _ := CheckJsSign(scriptData); ok {
+				d.JsLoadScriptRaw("./"+path, info.ModTime(), data, true)
+			} else {
+				d.Logger.Warnf("内置脚本「%s」校验未通过，拒绝加载", path)
+			}
+		}
+		return nil
+	})
+
+	// 读取第三方脚本
 	_ = filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
+		if info.IsDir() && info.Name() == "_builtin" {
+			return fs.SkipDir
+		}
 		if filepath.Ext(path) == ".js" {
 			d.Logger.Info("正在读取脚本: ", path)
-			d.JsLoadScriptRaw("./"+path, info)
+			data, err := os.ReadFile(path)
+			if err != nil {
+				d.Logger.Error("读取脚本失败(无法访问): ", err.Error())
+				return nil
+			}
+			d.JsLoadScriptRaw("./"+path, info.ModTime(), data, false)
 		}
 		return nil
 	})
@@ -503,6 +578,17 @@ type Prop struct {
 	Default  string `json:"default"`
 }
 
+type SignStatus int8
+
+const (
+	// ErrorSign 错误签名
+	ErrorSign SignStatus = -1
+	// UnknownSign 无签名
+	UnknownSign SignStatus = 0
+	// OfficialSign 官方签名
+	OfficialSign SignStatus = 1
+)
+
 type JsScriptInfo struct {
 	/** 名称 */
 	Name string `json:"name"`
@@ -532,24 +618,37 @@ type JsScriptInfo struct {
 	UpdateUrls []string `json:"updateUrls"`
 	/** etag */
 	Etag string `json:"etag"`
+	/** 是否官方插件 */
+	Official bool `json:"official"`
+	/** 签名状态 */
+	SignStatus SignStatus `json:"signStatus"`
+	/** 是否内置插件 */
+	Builtin bool `json:"builtin"`
+	/** 内容摘要 */
+	Digest string `json:"digest"`
 }
 
-func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
+func (d *Dice) JsLoadScriptRaw(s string, installTime time.Time, rawData []byte, builtin bool) {
 	// 读取文件内容填空，类似油猴脚本那种形式
 	jsInfo := &JsScriptInfo{
-		Name:        info.Name(),
+		Name:        filepath.Base(s),
 		Filename:    s,
-		InstallTime: info.ModTime().Unix(),
+		InstallTime: installTime.Unix(),
 	}
+	d.JsScriptList = append(d.JsScriptList, jsInfo)
 
-	fileTextRaw, err := os.ReadFile(s)
-	if err != nil {
-		d.Logger.Error("读取脚本失败(无法访问): ", err.Error())
-		return
-	}
+	var err error
+
+	jsInfo.Builtin = builtin
+	jsInfo.Digest = CalculateSHA512Str(rawData)
+
+	// 解析签名
+	official, signStatus := CheckJsSign(rawData)
+	jsInfo.Official = official
+	jsInfo.SignStatus = signStatus
 
 	// 解析信息
-	fileText := string(fileTextRaw)
+	fileText := string(rawData)
 	re := regexp.MustCompile(`(?s)//[ \t]*==UserScript==[ \t]*\r?\n(.*)//[ \t]*==/UserScript==`)
 	m := re.FindStringSubmatch(fileText)
 	if len(m) > 0 {
@@ -593,7 +692,9 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 	jsInfo.Enable = !d.DisabledJsScripts[jsInfo.Name]
 
 	if jsInfo.Enable {
+		d.JsLoadingScript = jsInfo
 		_, err = d.JsRequire.Require(s)
+		d.JsLoadingScript = nil
 	} else {
 		d.Logger.Infof("脚本<%s>已被禁用，跳过加载", jsInfo.Name)
 	}
@@ -604,7 +705,26 @@ func (d *Dice) JsLoadScriptRaw(s string, info fs.FileInfo) {
 		jsInfo.Enable = false
 		d.Logger.Error("读取脚本失败(解析失败): ", errText)
 	}
-	d.JsScriptList = append(d.JsScriptList, jsInfo)
+}
+
+func CheckJsSign(rawData []byte) (bool, SignStatus) {
+	if OfficialModPublicKey == "" {
+		return false, UnknownSign
+	}
+	matches := signRe.FindSubmatch(rawData)
+	if len(matches) > 1 {
+		sign := string(matches[1])
+		// 移除待验证内容中的 // sign
+		data := signRe.ReplaceAll(rawData, []byte(""))
+		// 验证是否是官方插件
+		err := RSAVerify(data, sign, OfficialModPublicKey)
+		if err == nil {
+			return true, OfficialSign
+		}
+		return false, ErrorSign
+	} else {
+		return false, UnknownSign
+	}
 }
 
 func JsDelete(_ *Dice, jsInfo *JsScriptInfo) {

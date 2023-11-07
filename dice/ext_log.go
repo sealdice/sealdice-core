@@ -720,6 +720,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Brief:      "跑团辅助扩展，提供日志、染色等功能",
 		Author:     "木落",
 		AutoActive: true,
+		Official:   true,
 		OnLoad: func() {
 			_ = os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "log-exports"), 0755)
 		},
@@ -1077,7 +1078,7 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 						key2 := "理智:新值"
 						// if pcInfo[nickname][key2] == 0 {
 						pcInfo[nickname][key2] = int(j["sanNew"].(float64))
-						//}
+						// }
 					}
 					continue
 				case "st":
@@ -1104,7 +1105,7 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 							key2 := fmt.Sprintf("%v:新值", attr)
 							// if pcInfo[nickname][key2] == 0 {
 							pcInfo[nickname][key2] = int(j["valNew"].(float64))
-							//}
+							// }
 						}
 					}
 					continue
