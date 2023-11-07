@@ -24,14 +24,16 @@ $t计算结果 == 1 ? " 啧！"
 %}
 ```
 
-展示：
-```text
-.r
-回复：<测试人员>掷出了 D100=1 啧！
+::: note 示例
 
-.r
-回复：<测试人员>掷出了 D100=100 乐！
-```
+<ChatBox :messages="[
+{content: '.r', send: true},
+{content: '<木落>掷出了 D100=1 啧！'},
+{content: '.r', send: true},
+{content: '<木落>掷出了 D100=100 乐！'},
+]" />
+
+:::
 
 ### 多套文案的实现
 
@@ -83,28 +85,25 @@ if $g文案模式 == 2 {$t目标文案 = `（这里填你个性化的模式2文�
 
 以修改了 `.jrrp` 的文案为例：
 
-```text
-mode show
-输出：默认模式启用
+::: note 示例
 
-mode switch 模式1
-输出：模式1启用
+<ChatBox :messages="[
+{content: 'mode show', send: true},
+{content: '默认模式启用'},
+{content: 'mode switch 模式1', send: true},
+{content: '模式1启用'},
+{content: 'mode show', send: true},
+{content: '当前在模式1'},
+{content: '.jrrp', send: true},
+{content: '（这里填你个性化的模式1文案）'},
+{content: 'mode switch 模式2', send: true},
+{content: '模式2启用'},
+{content: '.jrrp', send: true},
+{content: '（这里填你个性化的模式2文案）'},
+{content: 'mode switch', send: true},
+{content: '默认模式启用'},
+{content: '.jrrp', send: true},
+{content: '（这里填你个性化的默认模式文案）'},
+]" />
 
-mode show
-输出：当前在模式1
-
-.jrrp
-输出：（这里填你个性化的模式1文案）
-
-mode switch 模式2
-输出：模式2启用
-
-.jrrp
-输出：（这里填你个性化的模式2文案）
-
-mode switch
-输出：默认模式启用
-
-.jrrp
-输出：（这里填你个性化的默认模式文案）
-```
+:::

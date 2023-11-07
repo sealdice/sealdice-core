@@ -33,38 +33,25 @@ title: 牌堆 自定义回复
 
 `.draw desc <牌组名称>` 查看牌组所属牌堆的详细信息。
 
-```
-$ .draw list
-载入并开启的牌堆:
-- GRE单词 格式: Dice! 作者:于言诺 版本:1.0.1 牌组数量: 1
-- IELTS单词 格式: Dice! 作者:于言诺 版本:1.0.1 牌组数量: 1
-- TOEFL单词 格式: Dice! 作者:于言诺 版本:1.0.1 牌组数量: 1
-- SealDice内置牌堆 格式: Dice! 作者:<因过长略去> 版本:1.2.0 牌组数量: 8
+::: note 示例
 
-$ .draw keys GRE单词
-牌组关键字列表:
-GRE单词
+<ChatBox :messages="[
+{content: '.draw list', send: true},
+{content: '载入并开启的牌堆:\n- GRE单词 格式: Dice! 作者:于言诺 版本:1.0.1 牌组数量: 1\n- IELTS单词 格式: Dice! 作者:于言诺 版本:1.0.1 牌组数量: 1\n- TOEFL单词 格式: Dice! 作者:于言诺 版本:1.0.1 牌组数量: 1\n- SealDice内置牌堆 格式: Dice! 作者:<因过长略去> 版本:1.2.0 牌组数量: 8'},
+{content: '.draw keys GRE单词', send: true},
+{content: '牌组关键字列表:\nGRE单词'},
+{content: '.draw search 单词', send: true},
+{content: '找到以下牌组:\n- GRE单词\n- TOEFL单词\n- IELTS单词'},
+{content: '.draw desc GRE单词', send: true},
+{content: '牌堆信息:\n牌堆: GRE单词\n格式: Dice!\n作者: 于言诺\n版本: 1.0.1\n牌组数量: 1\n时间: 2022/5/23\n更新时间: 2022/8/16\n牌组: GRE单词'},
+]" />
 
-$ .draw search 单词
-找到以下牌组:
-- GRE单词
-- TOEFL单词
-- IELTS单词
+:::
 
-$ .draw desc GRE单词
-牌堆信息:
-牌堆: GRE单词
-格式: Dice!
-作者: 于言诺
-版本: 1.0.1
-牌组数量: 1
-时间: 2022/5/23
-更新时间: 2022/8/16
-牌组: GRE单词
-```
 <!--  autocorrect-disable: GRE单词 是牌堆名专词 -->
 需要说明，在以上的例子中，「GRE单词」同时是牌堆名与牌组名。在 `.draw keys GRE单词` 中，它作为牌堆名出现；在 `.draw desc GRE单词` 中，它作为牌组名出现。
 <!-- autocorrect-enable -->
+
 `.draw keys` 列出所有可抽取的牌组列表。
 
 ::: warning 谨慎使用
@@ -77,33 +64,27 @@ $ .draw desc GRE单词
 
 `.draw <牌组名称> (<数量>#)` 在指定牌组抽指定数量的牌，默认为抽 1 张。
 
-```
-.draw GRE单词 3#
-<木落>抽出了：
-GRE3178
-invoice n.
-发票, 发货单, 货物。
+::: note 示例
 
-<木落>抽出了：
-GRE4889
-rig n.
-索具装备, 钻探设备, 钻探平台, 钻塔。
+<ChatBox :messages="[
+{content: '.draw GRE单词 3#', send: true},
+{content: '<木落>抽出了：\nGRE3178\ninvoice n.\n发票, 发货单, 货物。'},
+{content: '<木落>抽出了：\nGRE4889\nrig n.\n索具装备, 钻探设备, 钻探平台, 钻塔。'},
+{content: '<木落>抽出了：\nGRE5421\nausterity n.\n严峻, 严厉, 朴素, 节俭, 苦行。'},
+]" />
 
-<木落>抽出了：
-GRE5421
-austerity n.
-严峻, 严厉, 朴素, 节俭, 苦行。
-```
+:::
 
 当指定的牌组名称不存在时，将会进行模糊搜索，效果与 `draw search` 类似。
 
-```
-$ .draw 单词
-找不到这个牌组，但发现一些相似的:
-- GRE单词
-- TOEFL单词
-- IELTS单词
-```
+::: note 示例
+
+<ChatBox :messages="[
+{content: '.draw 单词', send: true},
+{content: '找不到这个牌组，但发现一些相似的:\n- GRE单词\n- TOEFL单词\n- IELTS单词'},
+]" />
+
+:::
 
 ### 牌堆管理
 
