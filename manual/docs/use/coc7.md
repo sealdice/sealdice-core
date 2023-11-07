@@ -225,22 +225,28 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 一个较为常见的用法是，PL 要求使用心理学技能，由 KP 进行暗中代骰。
 
-::: note 示例
+:::: note 示例
+
+::: tabs
+
+@tab 跑团群
 
 <ChatBox :messages="[
-{username: 'PL', content: '我要对这个 NPC 使用心理学', send: true},
-{username: 'KP', avatar: '/images/avatar/user3.jpg', content: '可以'},
-{username: 'KP', avatar: '/images/avatar/user3.jpg', content: '.rah 心理学 @PL'},
+{username: 'PL', avatar: '/images/avatar/user1.jpg', content: '我要对这个 NPC 使用心理学'},
+{username: 'KP', avatar: '/images/avatar/user3.jpg', content: '可以', send: true},
+{username: 'KP', avatar: '/images/avatar/user3.jpg', content: '.rah 心理学 @PL', send: true},
 {content: '由<KP>代骰:\n<PL>悄悄进行了一项心理学检定'}
 ]"/>
 
-KP 收到的私聊信息
+@tab KP 收到的私聊信息
 
 <ChatBox :messages="[
-{content: '来自群<群名>(群号)的暗中检定:\n<PL>的&quot;心理学&quot;检定结果为：D100=70/70 成功'}
+{content: '来自群<跑团群>(群号)的暗中检定:\n<PL>的&quot;心理学&quot;检定结果为：D100=70/70 成功'}
 ]"/>
 
 :::
+
+::::
 
 ## `.rav`/`.rcv` 对抗检定
 

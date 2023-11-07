@@ -66,10 +66,16 @@ func strCompare(a string, b string) float64 {
 ```text
 正则匹配：^购买(.+)
 输出文本：{$t玩家}购买了{$t1}
-
-购买猫粮
-Dice: <于言诺>购买了猫粮
 ```
+
+::: note 示例
+
+<ChatBox :messages="[
+{content: '购买猫粮', send: true},
+{username: '海豹牌猫粮店', content: '<木落>购买了猫粮'},
+]" />
+
+:::
 
 正则匹配会将满足匹配的整条消息存入 `$t0`，而正则中的分组会按顺序存入 `$t1` `$t2` 等中。在如上例子中，就是将 `购买` 后用括号括起来的部分存入了 `$t1` 中，从而可以进行调用。
 
@@ -99,17 +105,23 @@ Dice: <于言诺>购买了猫粮
 
 ### 嵌入脚本语言
 
-```text
-.text {$t玩家}进行测试
+::: note 示例
 
-返回：<测试用户>进行测试
-```
+<ChatBox :messages="[
+{content: '.text {$t玩家}进行测试', send: true},
+{content: '<木落>进行测试'},
+]" />
 
-```text
-.text {d100}
+:::
 
-1 // 此处返回 d100 的结果
-```
+::: note 示例
+
+<ChatBox :messages="[
+{content: '.text {d100}', send: true},
+{content: '1'},
+]" />
+
+:::
 
 ::: tip 未赋值的变量
 
@@ -251,15 +263,14 @@ if 判断3 {$tRand=d10;$t输出=$tRand==1?`内容1`,……};
 
 这是因为如果某一变量可能为空时，如果采用第一种分行的写法，会出现这样的效果：
 
-```text
-踢海豹
+::: note 示例
 
-回复：
-Dice: <于言诺>一脚踢向海豹，踢了3格。
-海豹现在离终点还有37格。
+<ChatBox :messages="[
+{content: '踢海豹', send: true},
+{content: '<木落>一脚踢向海豹，踢了3格。\n海豹现在离终点还有37格。\n\n海豹的逃走骰：1d100=60，海豹没能逃脱凶猛恶汉们的掌控！'},
+]" />
 
-海豹的逃走骰：1d100=60，海豹没能逃脱凶猛恶汉们的掌控！
-```
+:::
 
 可以看见，在中间会出现突兀的空行。这是因为虽然并没有在变量内部赋值 `\n`，但是由于海豹读取时会按照写的格式读取，因此在应当是 `$t输出2` 的一行中，会照样调用 `{$t输出2}`，照常空行。
 
@@ -360,19 +371,39 @@ if $t0=="石头"&&$tDicePlay=="剪刀"||($t0=="布"&&$tDicePlay=="石头")||($t0
 后缀匹配：`B`
 回复：`怎么辉石呢`
 
-```text
-输入：A
-无回复
+:::: note 示例
 
-输入：B
-无回复
+::: tabs
 
-输入：AB
-怎么辉石呢
+@tab 输入：AB
 
-输入：A间隔B
-怎么辉石呢
-```
+<ChatBox :messages="[
+{content: 'AB', send: true},
+{content: '怎么辉石呢'},
+]" />
+
+@tab 输入：A间隔B
+
+<ChatBox :messages="[
+{content: 'A间隔B', send: true},
+{content: '怎么辉石呢'},
+]" />
+
+@tab 输入：A（无回复）
+
+<ChatBox :messages="[
+{content: 'A', send: true}
+]" />
+
+@tab 输入：B（无回复）
+
+<ChatBox :messages="[
+{content: 'B', send: true}
+]" />
+
+:::
+
+::::
 
 ### 随机看图
 
@@ -380,7 +411,24 @@ if $t0=="石头"&&$tDicePlay=="剪刀"||($t0=="布"&&$tDicePlay=="石头")||($t0
 
 ### 单人模组
 
-![单人模组](./images/edit-reply-single-person-mod.png)
+<!-- ![单人模组](./images/edit-reply-single-person-mod.png) -->
+
+::: note 示例
+
+<ChatBox :messages="[
+{content: '开始吧 @海豹核心', send: true},
+{content: '那么，故事就这么开始了？如果你想听的话，回复我：说下去'},
+{content: '说下去 @海豹核心', send: true},
+{content: '那么，故事要从一个村子说起……（说下去）'},
+{content: '说下去 @海豹核心', send: true},
+{content: '这个村子有一户人家，门前有两棵树'},
+{content: '说下去 @海豹核心', send: true},
+{content: '一棵是函树，一棵是反函树'},
+{content: '说下去 @海豹核心', send: true},
+{content: '我讲完了。'},
+]" />
+
+:::
 
 具体实现，第一段
 

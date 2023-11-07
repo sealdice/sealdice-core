@@ -22,7 +22,16 @@ title: 自定义回复
 
 如果希望骰子能对某些关键词做出响应，最简单的方式就是使用「自定义回复」功能。
 
-![自定义回复的典型使用场景](./images/reply-example.png =65%x65%)
+<!-- ![自定义回复的典型使用场景](./images/reply-example.png =65%x65%) -->
+
+::: note 示例
+
+<ChatBox :messages="[
+{content: 'v我50', send: true},
+{content: '¥50'}
+]"/>
+
+:::
 
 「自定义回复」是海豹核心提供的一种功能扩展方式。它的形式自由，触发机制多样（关键字、正则表达式等），并且能配合海豹核心的变量系统与牌堆功能使用。无论你只是想增加简单的回复，还是需要复杂的判断和响应，都可以尝试使用自定义回复。
 
@@ -126,28 +135,47 @@ title: 自定义回复
 - 前缀匹配：消息以内容为开头时触发；
 - 后缀匹配：消息以此内容为结尾时触发。
 
-::: note 「任意相符」示例
+:::: note 「任意相符」示例
 
 设置：任意相符，文本 `a|b`，回复 `c`。
 
-```text
-输入：a
-回复：c
+::: tabs
 
-输入：b  
-回复：c
+@tab 输入：a
 
-输入：ab
-回复：不回复
+<ChatBox :messages="[
+{content: 'a', send: true},
+{content: 'c'}
+]"/>
 
-输入：a|b
-回复：不回复
+@tab 输入：b
 
-输入：其他
-回复：不回复
-```
+<ChatBox :messages="[
+{content: 'b', send: true},
+{content: 'c'}
+]"/>
+
+@tab 输入：ab（不回复）
+
+<ChatBox :messages="[
+{content: 'ab', send: true}
+]"/>
+
+@tab 输入：a|b（不回复）
+
+<ChatBox :messages="[
+{content: 'a|b', send: true}
+]"/>
+
+@tab 输入：其它（不回复）
+
+<ChatBox :messages="[
+{content: '114514', send: true}
+]"/>
 
 :::
+
+::::
 
 ::: tip 常用方式
 
