@@ -42,7 +42,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         if: github.event.name == 'pull_request'
         with:
-          version: latest
+          version: 'v1.55.2'
           args: '--timeout 9999s'
           only-new-issues: true
           skip-pkg-cache: true
@@ -52,5 +52,5 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         if: github.event.name != 'pull_request'
         with:
-          version: latest
+          version: 'v1.55.2'
           args: '--timeout 9999s'
