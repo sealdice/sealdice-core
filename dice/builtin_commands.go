@@ -734,7 +734,7 @@ func (d *Dice) registerCoreCommands() {
 			if !(subCmd == "add" || subCmd == "del" || subCmd == "rm") {
 				// 如果不是add/del/rm，那么就不需要代骰
 				// 补充，在组内才这样，私聊不需要at
-				if ctx.MessageType == "group" && !cmdArgs.AmIBeMentionedFirst {
+				if ctx.MessageType == "group" && (!cmdArgs.AmIBeMentionedFirst && len(cmdArgs.At) > 0) {
 					return CmdExecuteResult{Matched: false, Solved: false}
 				}
 			}
