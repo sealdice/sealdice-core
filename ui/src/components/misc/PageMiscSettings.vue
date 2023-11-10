@@ -480,6 +480,19 @@
       <el-input v-model="config.friendAddComment" type="text" clearable style="width: auto;" :placeholder="'为空则填写任意均可通过'" />
     </el-form-item>
 
+    <el-form-item label="不活跃N天后自动退群">
+      <template #label>
+        <div>
+          <span>自动退群</span>
+          <el-tooltip raw-content content="每天凌晨4时检查所有群聊的不活跃天数, 若超过设定天数则自动退群<br>设置为0以关闭该功能">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+
+      <el-input v-model="config.quitInactiveThreshold" type="number" clearable style="width: auto;" :placeholder="'不活跃N天后自动退出'" />
+    </el-form-item>
+
     <el-form-item label="QQ回复延迟(秒)">
       <el-input v-model="config.messageDelayRangeStart" type="number" style="width: 6rem;" />
       <span style="margin: 0 1rem">-</span>
@@ -511,7 +524,7 @@
       <template #label>
         <div>
           <span>自动重登录</span>
-          <el-tooltip content="当5分钟内连续有两次风控信息，进行重登录(每5分钟最多一次)。">
+          <el-tooltip content="当5分钟内连续有两次风控信息，进行重登录(每5分钟最多一次)。现不建议使用">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
         </div>
