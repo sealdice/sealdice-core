@@ -1745,6 +1745,7 @@ func (d *Dice) loads() {
 			d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite
 			d.BanList.BanBehaviorQuitLastPlace = dNew.BanList.BanBehaviorQuitLastPlace
 			d.BanList.BanBehaviorQuitPlaceImmediately = dNew.BanList.BanBehaviorQuitPlaceImmediately
+			d.BanList.BanBehaviorQuitIfAdmin = dNew.BanList.BanBehaviorQuitIfAdmin
 
 			d.BanList.ScoreReducePerMinute = dNew.BanList.ScoreReducePerMinute
 
