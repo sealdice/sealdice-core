@@ -45,6 +45,7 @@ func banConfigSet(c echo.Context) error {
 	myDice.BanList.BanBehaviorRefuseInvite = v.BanBehaviorRefuseInvite
 	myDice.BanList.BanBehaviorQuitLastPlace = v.BanBehaviorQuitLastPlace
 	myDice.BanList.BanBehaviorQuitPlaceImmediately = v.BanBehaviorQuitPlaceImmediately
+	myDice.BanList.BanBehaviorQuitIfAdmin = v.BanBehaviorQuitIfAdmin
 	myDice.BanList.ScoreReducePerMinute = v.ScoreReducePerMinute
 	myDice.BanList.ThresholdWarn = v.ThresholdWarn
 	myDice.BanList.ThresholdBan = v.ThresholdBan

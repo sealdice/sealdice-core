@@ -950,7 +950,47 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		}
 	}
 	if ctx.PrivilegeLevel == -30 {
-		if d.BanList.BanBehaviorQuitPlaceImmediately {
+		banQuitGroup := func() {
+			groupID := msg.GroupID
+			noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+			log.Info(noticeMsg)
+
+			text := fmt.Sprintf("因<%s>(%s)是黑名单用户，将自动退群。", msg.Sender.Nickname, msg.Sender.UserID)
+			ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+
+			ctx.Notice(noticeMsg)
+
+			time.Sleep(1 * time.Second)
+			ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
+		}
+
+		if d.BanList.BanBehaviorQuitIfAdmin {
+			// 黑名单用户 - 立即退出所在群
+			if msg.MessageType == "group" {
+				groupID := msg.GroupID
+				notReply = true
+				if ctx.PrivilegeLevel >= 40 {
+					if isWhiteGroup {
+						log.Infof("收到群(%s)内邀请者以上权限黑名单用户<%s>(%s)的消息，但在信任群所以不尝试退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+					} else {
+						banQuitGroup()
+					}
+				} else {
+					if isWhiteGroup {
+						log.Infof("收到群(%s)内普通群员黑名单用户<%s>(%s)的消息，但在信任群所以不做其他操作", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+					} else {
+						notReply = true
+						noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+						log.Info(noticeMsg)
+
+						text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
+						ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+
+						ctx.Notice(noticeMsg)
+					}
+				}
+			}
+		} else if d.BanList.BanBehaviorQuitPlaceImmediately {
 			notReply = true
 			// 黑名单用户 - 立即退出所在群
 			if msg.MessageType == "group" {
@@ -958,16 +998,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 				if isWhiteGroup {
 					log.Infof("收到群(%s)内黑名单用户<%s>(%s)的消息，但在信任群所以不尝试退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
 				} else {
-					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
-					log.Info(noticeMsg)
-
-					text := fmt.Sprintf("因<%s>(%s)是黑名单用户，将自动退群。", msg.Sender.Nickname, msg.Sender.UserID)
-					ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
-
-					ctx.Notice(noticeMsg)
-
-					time.Sleep(1 * time.Second)
-					ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
+					banQuitGroup()
 				}
 			}
 		} else if d.BanList.BanBehaviorRefuseReply {
