@@ -26,6 +26,7 @@
           <el-checkbox v-model="banConfig.banBehaviorQuitLastPlace">退出事发群</el-checkbox>
           <!-- <div>自动拉黑时长(分钟): <el-input style="max-width: 5rem;" type="number" v-model="banConfig.autoBanMinutes"></el-input></div> -->
           <el-checkbox v-model="banConfig.banBehaviorQuitPlaceImmediately">使用时立即退出群</el-checkbox>
+          <el-checkbox v-model="banConfig.banBehaviorQuitIfAdmin">使用者为管理员立即退群，为普通群员进行通告</el-checkbox>
         </el-space>
 
         <h4>怒气值设置</h4>
