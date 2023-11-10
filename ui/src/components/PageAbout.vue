@@ -23,7 +23,7 @@
     <div></div>
     <div class="subtitle">社区协力</div>
 
-    <div style="margin-top: 2rem;" class="subtitle">V1.3版本</div>
+    <div style="margin-top: 2rem;" class="subtitle">V1.4版本</div>
     <div class="developers">
       <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
       <el-link :underline="false" href="https://github.com/JustAnotherID" target="_blank"><el-avatar shape="circle" :size="50" style="border: 1px solid #aaa;" :src="urlBase + '/sd-api/utils/ga/JustAnotherID'"/>只是另一个ID</el-link>
@@ -33,6 +33,17 @@
       <el-link :underline="false" href="https://github.com/FlameTEXT" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/FlameTEXT'"/>脑</el-link>
       <el-link :underline="false" href="https://github.com/fy0" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/fy0'"/>木落</el-link>
       <el-link :underline="false" href="https://github.com/Director259" target="_blank"><el-avatar shape="circle" :size="50" :src="'/sd-api/utils/ga/Director259'"/>Director259</el-link>
+    </div>
+
+    <div style="margin-top: 2rem;" class="subtitle">V1.3版本</div>
+    <div class="developers">
+      <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
+      <el-link :underline="false" href="https://github.com/JustAnotherID" target="_blank"><el-avatar shape="circle" :size="50" style="border: 1px solid #aaa;" :src="urlBase + '/sd-api/utils/ga/JustAnotherID'"/>只是另一个ID</el-link>
+      <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Szzrain'"/>Szzrain</el-link>
+      <el-link :underline="false" href="https://github.com/Xiangze-Li" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Xiangze-Li'"/>JohNSoN</el-link>
+      <el-link :underline="false" href="https://github.com/Verplitic" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Verplitic'"/>檀轶步棋</el-link>
+      <el-link :underline="false" href="https://github.com/FlameTEXT" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/FlameTEXT'"/>脑</el-link>
+      <el-link :underline="false" href="https://github.com/fy0" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/fy0'"/>木落</el-link>
     </div>
 
     <div style="margin-top: 2rem;" class="subtitle">V1.3安卓端</div>

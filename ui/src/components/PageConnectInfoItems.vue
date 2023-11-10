@@ -1401,8 +1401,8 @@ const doModify = () => {
 }
 
 .btn-add {
-  width: 3rem;
-  height: 3rem;
+  width: 3rem !important;
+  height: 3rem !important;
   font-size: 2rem;
   font-weight: bold;
 }
