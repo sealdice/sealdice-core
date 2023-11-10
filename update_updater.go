@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const updaterVersion = "0.1.0"
+const updaterVersion = "0.1.1"
 
 func checkURLOne(url string, wg *sync.WaitGroup, resultChan chan string) {
 	defer wg.Done()

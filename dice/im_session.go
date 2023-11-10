@@ -938,6 +938,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	d := ctx.Dice
 	log := d.Logger
 	var isBanGroup, isWhiteGroup bool
+	log.Info("check ban ", msg.MessageType, " ", msg.GroupID, " ", ctx.PrivilegeLevel)
 	if msg.MessageType == "group" {
 		value, exists := d.BanList.Map.Load(msg.GroupID)
 		if exists {
@@ -949,21 +950,22 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 			}
 		}
 	}
+
+	banQuitGroup := func() {
+		groupID := msg.GroupID
+		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+		log.Info(noticeMsg)
+
+		text := fmt.Sprintf("因<%s>(%s)是黑名单用户，将自动退群。", msg.Sender.Nickname, msg.Sender.UserID)
+		ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+
+		ctx.Notice(noticeMsg)
+
+		time.Sleep(1 * time.Second)
+		ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
+	}
+
 	if ctx.PrivilegeLevel == -30 {
-		banQuitGroup := func() {
-			groupID := msg.GroupID
-			noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
-			log.Info(noticeMsg)
-
-			text := fmt.Sprintf("因<%s>(%s)是黑名单用户，将自动退群。", msg.Sender.Nickname, msg.Sender.UserID)
-			ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
-
-			ctx.Notice(noticeMsg)
-
-			time.Sleep(1 * time.Second)
-			ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
-		}
-
 		if d.BanList.BanBehaviorQuitIfAdmin {
 			// 黑名单用户 - 立即退出所在群
 			if msg.MessageType == "group" {
