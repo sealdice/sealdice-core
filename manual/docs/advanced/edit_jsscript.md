@@ -53,7 +53,7 @@ console.log('Hello World!');
 
 海豹使用 [goja](https://github.com/dop251/goja) 作为 js 脚本引擎。goja 目前支持了 ES6 基本上全部的特性，包括 `async/await`，`promise` 和 `generator`。
 
-需要注意引擎的整型为 32 位，请小心溢出问题。
+需要注意引擎的整型为 32 位，请小心溢出问题。同时 `setTimeout` 和 `setInterval` 返回的句柄为一个空对象，而非数字类型。
 
 :::
 
