@@ -51,8 +51,8 @@ func (pa *PlatformAdapterSlack) Serve() int {
 		m := e.InnerEvent.Data.(*se.MessageEvent)
 		u := pa.getUser(m.User)
 		msg := &Message{
-			GuildId: FormatDiceIdSlackGuild(e.TeamID),
-			GroupId: FormatDiceIdSlackChannel(m.Channel),
+			GuildID: FormatDiceIdSlackGuild(e.TeamID),
+			GroupID: FormatDiceIdSlackChannel(m.Channel),
 			Message: pa.formatOneBot11(m),
 			MessageType: func() string {
 				// https://api.slack.com/events/message#events_api
@@ -63,7 +63,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 				}
 			}(),
 			Sender: SenderBase{
-				UserId: FormatDiceIdSlack(m.User),
+				UserID: FormatDiceIdSlack(m.User),
 				Nickname: func() string { // 不知道为什么为空，以后再看看库的源码
 					if m.Username == "" {
 						return u.Name
@@ -82,7 +82,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 				}(),
 			},
 			Platform: pa.EndPoint.Platform,
-			RawId:    m.ClientMsgID,
+			RawID:    m.ClientMsgID,
 			Time: func() int64 {
 				i, err := strconv.ParseInt(m.TimeStamp, 10, 64)
 				if err != nil {
@@ -108,6 +108,14 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	return 0
 }
 
+func (pa *PlatformAdapterSlack) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
+
+}
+
+func (pa *PlatformAdapterSlack) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
+
+}
+
 func (pa *PlatformAdapterSlack) DoRelogin() bool {
 	return true
 }
@@ -127,7 +135,7 @@ func (pa *PlatformAdapterSlack) SendToPerson(ctx *MsgContext, uid string, text s
 func (pa *PlatformAdapterSlack) SendToGroup(ctx *MsgContext, cid string, text string, flag string) {
 	pa.send(ctx, ExtractSlackChannelId(cid), text, flag)
 }
-func (pa *PlatformAdapterSlack) SetGroupCardName(groupId string, userId string, name string) {
+func (pa *PlatformAdapterSlack) SetGroupCardName(ctx *MsgContext, name string) {
 
 }
 

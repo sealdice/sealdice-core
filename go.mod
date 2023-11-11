@@ -67,6 +67,7 @@ require (
 	github.com/samber/lo v1.38.1
 	github.com/schollz/progressbar/v3 v3.14.1
 	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
+	github.com/slack-go/slack v0.12.2
 	github.com/tdewolff/minify/v2 v2.20.6
 	github.com/yuin/goldmark v1.6.0
 	golang.org/x/exp v0.0.0-20231108232855-2478ac86f678
@@ -136,7 +137,6 @@ require (
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/sacOO7/go-logger v0.0.0-20180719173527-9ac9add5a50d // indirect
-	github.com/slack-go/slack v0.12.2 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/tdewolff/parse/v2 v2.7.4 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect

@@ -10,11 +10,11 @@ import (
 
 func NewSlackConnItem(at string, bt string) *EndPointInfo {
 	conn := new(EndPointInfo)
-	conn.Id = uuid.New().String()
+	conn.ID = uuid.New().String()
 	conn.Platform = "SLACK"
 	conn.ProtocolType = ""
 	conn.Enable = false
-	conn.RelWorkDir = "extra/slack-" + conn.Id
+	conn.RelWorkDir = "extra/slack-" + conn.ID
 	conn.Adapter = &PlatformAdapterSlack{
 		EndPoint: conn,
 		AppToken: at,
