@@ -2,12 +2,13 @@ package dice
 
 import (
 	"fmt"
-	"github.com/slack-go/slack"
-	se "github.com/slack-go/slack/slackevents"
-	sm "github.com/slack-go/slack/socketmode"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/slack-go/slack"
+	se "github.com/slack-go/slack/slackevents"
+	sm "github.com/slack-go/slack/socketmode"
 )
 
 type PlatformAdapterSlack struct {

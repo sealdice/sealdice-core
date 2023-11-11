@@ -2,10 +2,11 @@ package dice
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/slack-go/slack"
 	sm "github.com/slack-go/slack/socketmode"
-	"time"
 )
 
 func NewSlackConnItem(at string, bt string) *EndPointInfo {
