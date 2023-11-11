@@ -348,7 +348,7 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		var val struct {
 			Adapter *PlatformAdapterSlack `yaml:"adapter"`
 		}
-		err := value.Decode(&val)
+		err = value.Decode(&val)
 		if err != nil {
 			return err
 		}
