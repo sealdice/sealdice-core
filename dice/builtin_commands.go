@@ -703,11 +703,13 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["botlist"] = cmdBotList
 
-	reloginFlag := false
-	reloginLastTime := int64(0)
+	var (
+		reloginFlag     bool
+		reloginLastTime int64
+		updateCode      = "0000"
+	)
 
-	updateCode := "0000"
-	masterListHelp := `.master add me // 将自己标记为骰主
+	var masterListHelp = `.master add me // 将自己标记为骰主
 .master add @A @B // 将别人标记为骰主
 .master del @A @B @C // 去除骰主标记
 .master unlock <密码(在UI中查看)> // (当Master被人抢占时)清空骰主列表，并使自己成为骰主
@@ -718,20 +720,22 @@ func (d *Dice) registerCoreCommands() {
 .master backup // 做一次备份
 .master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档
 .master quitgroup <群组ID> <理由(可选)> // 从指定群组中退出，必须在同一平台使用`
+
 	cmdMaster := &CmdItemInfo{
 		Name:          "master",
 		ShortHelp:     masterListHelp,
 		Help:          "骰主指令:\n" + masterListHelp,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			cmdArgs.ChopPrefixToArgsWith("unlock", "rm", "del", "add", "checkupdate", "reboot", "backup", "reload")
-			pRequired := 0
+			var subCmd string
 
-			// 注: 这个指令并不真的需要代骰，只是需要借此拿到完整的at列表
+			cmdArgs.ChopPrefixToArgsWith(
+				"unlock", "rm", "del", "add", "checkupdate", "reboot", "backup", "reload",
+			)
 			ctx.DelegateText = ""
-			subCmd := cmdArgs.GetArgN(1)
+			subCmd = cmdArgs.GetArgN(1)
 
-			if !(subCmd == "add" || subCmd == "del" || subCmd == "rm") {
+			if subCmd != "add" && subCmd != "del" && subCmd != "rm" {
 				// 如果不是add/del/rm，那么就不需要代骰
 				// 补充，在组内才这样，私聊不需要at
 				if ctx.MessageType == "group" && (!cmdArgs.AmIBeMentionedFirst && len(cmdArgs.At) > 0) {
@@ -739,62 +743,67 @@ func (d *Dice) registerCoreCommands() {
 				}
 			}
 
-			// 如果UI:1001以外的骰主存在，则需要100权限
+			var pRequired int
 			if len(ctx.Dice.DiceMasters) >= 1 {
-				nums := 0
+				// 如果帐号没有UI:1001以外的master，所有人都是master
+				count := 0
 				for _, uid := range ctx.Dice.DiceMasters {
 					if uid != "UI:1001" {
-						nums++
+						count += 1
 					}
 				}
-				if nums >= 1 {
+
+				if count >= 1 {
 					pRequired = 100
 				}
 			}
 
 			if ctx.PrivilegeLevel < pRequired {
-				if subCmd == "unlock" {
-					// 特殊解锁指令
-					code := cmdArgs.GetArgN(2)
-					if ctx.Dice.UnlockCodeVerify(code) {
-						ctx.Dice.MasterRefresh()
-						ctx.Dice.MasterAdd(ctx.Player.UserID)
-						ctx.Dice.UnlockCodeUpdate(true) // 强制刷新解锁码
-						ReplyToSender(ctx, msg, "你已成为Master")
-					} else {
-						ReplyToSender(ctx, msg, "错误的解锁码")
-					}
+				if subCmd != "unlock" {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限"))
+				// 特殊解锁指令
+				code := cmdArgs.GetArgN(2)
+				if ctx.Dice.UnlockCodeVerify(code) {
+					ctx.Dice.MasterRefresh()
+					ctx.Dice.MasterAdd(ctx.Player.UserID)
+
+					ctx.Dice.UnlockCodeUpdate(true) // 强制刷新解锁码
+					ReplyToSender(ctx, msg, "你已成为Master")
+				} else {
+					ReplyToSender(ctx, msg, "错误的解锁码")
+				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
 			switch subCmd {
 			case "add":
-				newCount := 0
+				var count int
 				for _, uid := range readIDList(ctx, msg, cmdArgs) {
 					if uid != ctx.EndPoint.UserID {
 						ctx.Dice.MasterAdd(uid)
-						newCount++
+						count++
 					}
 				}
 				ctx.Dice.Save(false)
-				ReplyToSender(ctx, msg, fmt.Sprintf("海豹将新增%d位master", newCount))
+				ReplyToSender(ctx, msg, fmt.Sprintf("海豹将新增%d位master", count))
 			case "unlock":
 				ReplyToSender(ctx, msg, "你已经是Master了")
 			case "del", "rm":
-				existsCount := 0
+				var count int
 				for _, uid := range readIDList(ctx, msg, cmdArgs) {
 					if ctx.Dice.MasterRemove(uid) {
-						existsCount++
+						count++
 					}
 				}
 				ctx.Dice.Save(false)
-				ReplyToSender(ctx, msg, fmt.Sprintf("海豹移除了%d名master", existsCount))
+				ReplyToSender(ctx, msg, fmt.Sprintf("海豹移除了%d名master", count))
 			case "relogin":
-				if kw := cmdArgs.GetKwarg("cancel"); kw != nil {
+				var kw *Kwarg
+
+				if kw = cmdArgs.GetKwarg("cancel"); kw != nil {
 					if reloginFlag {
 						reloginFlag = false
 						ReplyToSender(ctx, msg, "已取消重登录")
@@ -813,17 +822,25 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				if time.Now().Unix()-reloginLastTime < 5*60 {
-					ReplyToSender(ctx, msg, fmt.Sprintf("执行过不久，指令将在%d秒后可以使用", 5*60-(time.Now().Unix()-reloginLastTime)))
+					ReplyToSender(
+						ctx,
+						msg,
+						fmt.Sprintf(
+							"执行过不久，指令将在%d秒后可以使用",
+							5*60-(time.Now().Unix()-reloginLastTime),
+						),
+					)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				if kw := cmdArgs.GetKwarg("now"); kw != nil {
+				if kw = cmdArgs.GetKwarg("now"); kw != nil {
 					doRelogin()
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
 				reloginFlag = true
 				ReplyToSender(ctx, msg, "将在30s后重新登录，期间可以输入.master relogin --cancel解除\n若遭遇风控，可能会没有任何输出。静等或输入.master relogin --now立即执行\n此指令每5分钟只能执行一次，可能解除风控，也可能使骰子失联。后果自负")
+
 				go func() {
 					time.Sleep(30 * time.Second)
 					if reloginFlag {
@@ -832,6 +849,7 @@ func (d *Dice) registerCoreCommands() {
 				}()
 			case "backup":
 				ReplyToSender(ctx, msg, "开始备份数据")
+
 				_, err := ctx.Dice.Parent.BackupSimple()
 				if err == nil {
 					ReplyToSender(ctx, msg, "备份成功！请到UI界面(综合设置-备份)处下载备份，或在骰子backup目录下读取")
@@ -840,47 +858,19 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "备份失败！错误已写入日志。可能是磁盘已满所致，建议立即进行处理！")
 				}
 			case "checkupdate":
-				dm := ctx.Dice.Parent
+				var dm = ctx.Dice.Parent
 				if dm.JustForTest {
 					ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
 				if runtime.GOOS == "android" {
 					ReplyToSender(ctx, msg, "检测到手机版，手机版海豹不支持指令更新，请手动下载新版本安装包")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
 				code := cmdArgs.GetArgN(2)
-				if code != "" { //nolint:nestif
-					if code == updateCode && updateCode != "0000" {
-						ReplyToSender(ctx, msg, "开始下载新版本，完成后将自动进行一次备份")
-						go func() {
-							ret := <-dm.UpdateDownloadedChan
-
-							if ctx.IsPrivate {
-								ctx.Dice.UpgradeWindowID = msg.Sender.UserID
-							} else {
-								ctx.Dice.UpgradeWindowID = ctx.Group.GroupID
-							}
-							ctx.Dice.UpgradeEndpointID = ctx.EndPoint.ID
-
-							ctx.Dice.Save(true)
-							bakFn, _ := ctx.Dice.Parent.BackupSimple()
-							tmpPath := path.Join(os.TempDir(), bakFn)
-							_ = os.MkdirAll(tmpPath, 0644)
-							ctx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
-							_ = cp.Copy(path.Join(BackupDir, bakFn), tmpPath)
-
-							if ret == "" {
-								ReplyToSender(ctx, msg, "准备开始升级，服务即将离线")
-							} else {
-								ReplyToSender(ctx, msg, "升级失败，原因: "+ret)
-							}
-						}()
-						dm.UpdateRequestChan <- d
-					} else {
-						ReplyToSender(ctx, msg, "无效的升级指令码")
-					}
-				} else {
+				if code == "" {
 					var text string
 					dm.AppVersionOnline = nil
 					dm.UpdateCheckRequestChan <- 1
@@ -903,27 +893,60 @@ func (d *Dice) registerCoreCommands() {
 						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION, "未知")
 					}
 					ReplyToSender(ctx, msg, text)
+					break
 				}
+
+				if code != updateCode || updateCode == "0000" {
+					ReplyToSender(ctx, msg, "无效的升级指令码")
+					break
+				}
+
+				ReplyToSender(ctx, msg, "开始下载新版本，完成后将自动进行一次备份")
+				go func() {
+					ret := <-dm.UpdateDownloadedChan
+
+					if ctx.IsPrivate {
+						ctx.Dice.UpgradeWindowID = msg.Sender.UserID
+					} else {
+						ctx.Dice.UpgradeWindowID = ctx.Group.GroupID
+					}
+					ctx.Dice.UpgradeEndpointID = ctx.EndPoint.ID
+					ctx.Dice.Save(true)
+
+					bakFn, _ := ctx.Dice.Parent.BackupSimple()
+					tmpPath := path.Join(os.TempDir(), bakFn)
+					_ = os.MkdirAll(tmpPath, 0644)
+					ctx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
+					_ = cp.Copy(path.Join(BackupDir, bakFn), tmpPath)
+
+					if ret == "" {
+						ReplyToSender(ctx, msg, "准备开始升级，服务即将离线")
+					} else {
+						ReplyToSender(ctx, msg, "升级失败，原因: "+ret)
+					}
+				}()
+				dm.UpdateRequestChan <- d
 			case "reboot":
-				dm := ctx.Dice.Parent
+				var dm = ctx.Dice.Parent
 				if dm.JustForTest {
 					ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
 				code := cmdArgs.GetArgN(2)
-				if code != "" {
-					if code == updateCode && updateCode != "0000" {
-						ReplyToSender(ctx, msg, "3秒后开始重启")
-						time.Sleep(3 * time.Second)
-						dm.RebootRequestChan <- 1
-					} else {
-						ReplyToSender(ctx, msg, "无效的重启指令码")
-					}
-				} else {
+				if code == "" {
 					updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
 					text := fmt.Sprintf("进程重启:\n如需重启，请输入.master reboot %s 确认进行重启\n重启将花费约2分钟，失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
 					ReplyToSender(ctx, msg, text)
+					break
+				}
+
+				if code == updateCode && updateCode != "0000" {
+					ReplyToSender(ctx, msg, "3秒后开始重启")
+					time.Sleep(3 * time.Second)
+					dm.RebootRequestChan <- 1
+				} else {
+					ReplyToSender(ctx, msg, "无效的重启指令码")
 				}
 			case "list":
 				text := ""
@@ -936,19 +959,15 @@ func (d *Dice) registerCoreCommands() {
 				}
 				ReplyToSender(ctx, msg, fmt.Sprintf("Master列表:\n%s", text))
 			case "reload":
-				system := cmdArgs.GetArgN(2)
 				dice := ctx.Dice
-				switch system {
+				switch cmdArgs.GetArgN(2) {
 				case "deck":
 					DeckReload(dice)
 					ReplyToSender(ctx, msg, "牌堆已重载")
 				case "js":
 					dice.JsReload()
 					ReplyToSender(ctx, msg, "js已重载")
-				case "help":
-					// 别名
-					fallthrough
-				case "helpdoc":
+				case "help", "helpdoc":
 					dm := dice.Parent
 					if !dm.IsHelpReloading {
 						dm.IsHelpReloading = true
