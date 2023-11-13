@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +46,44 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	sh.Handle(sm.EventTypeDisconnect, func(event *sm.Event, client *sm.Client) {
 		ep.State = 0
 		log.Error("连接断开：", event.Data)
+	})
+	sh.HandleEvents(se.AppMention, func(event *sm.Event, client *sm.Client) {
+		e := event.Data.(se.EventsAPIEvent)
+		m := e.InnerEvent.Data.(*se.AppMentionEvent)
+		u := pa.getUser(m.User)
+		re := regexp.MustCompile(`<@(.+?)>`)
+		// 似乎没有办法获取到机器人的 ID 所以只能这样了
+		pa.EndPoint.UserID = FormatDiceIdSlack(re.FindString(m.Text))
+		msg := &Message{
+			GuildID:     FormatDiceIdSlackGuild(e.TeamID),
+			GroupID:     FormatDiceIdSlackChannel(m.Channel),
+			Message:     m.Text,
+			MessageType: "group",
+			Sender: SenderBase{
+				UserID:   FormatDiceIdSlack(m.User),
+				Nickname: u.Name,
+				GroupRole: func() string {
+					if u.IsOwner {
+						return "owner"
+					}
+					if u.IsAdmin {
+						return "admin"
+					}
+					return ""
+				}(),
+			},
+			Platform: pa.EndPoint.Platform,
+			RawID:    e.Token,
+			Time: func() int64 {
+				i, err := strconv.ParseInt(m.TimeStamp, 10, 64)
+				if err != nil {
+					return time.Now().Unix()
+				}
+				return i
+			}(),
+		}
+		go client.Ack(*event.Request)
+		s.Execute(ep, msg, false)
 	})
 	// Message
 	sh.HandleEvents(se.Message, func(event *sm.Event, client *sm.Client) {
