@@ -87,7 +87,7 @@ jobs:
         uses: actions/setup-go@v3
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
         with:
-          go-version: stable
+          go-version: '1.20'
       - name: Build Binary
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
         working-directory: ./go-cqhttp
@@ -135,7 +135,7 @@ jobs:
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
         uses: actions/setup-go@v3
         with:
-          go-version: stable
+          go-version: '1.20'
       - name: Setup Android NDK
         id: setup-ndk
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
@@ -240,7 +240,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: stable
+          go-version: '1.20'
       - name: Install Dependencies
         working-directory: ./sealdice-core
         run: |
@@ -316,7 +316,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: stable
+          go-version: '1.20'
       - name: Install dependencies
         working-directory: ./sealdice-core
         run: |
@@ -376,7 +376,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: stable
+          go-version: '1.20'
       - name: Install dependencies
         working-directory: ./sealdice-core
         run: |
