@@ -706,10 +706,10 @@ func (d *Dice) registerCoreCommands() {
 	var (
 		reloginFlag     bool
 		reloginLastTime int64
+		updateCode      = "0000"
 	)
 
-	updateCode := "0000"
-	masterListHelp := `.master add me // 将自己标记为骰主
+	var masterListHelp = `.master add me // 将自己标记为骰主
 .master add @A @B // 将别人标记为骰主
 .master del @A @B @C // 去除骰主标记
 .master unlock <密码(在UI中查看)> // (当Master被人抢占时)清空骰主列表，并使自己成为骰主
@@ -720,6 +720,7 @@ func (d *Dice) registerCoreCommands() {
 .master backup // 做一次备份
 .master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档
 .master quitgroup <群组ID> <理由(可选)> // 从指定群组中退出，必须在同一平台使用`
+
 	cmdMaster := &CmdItemInfo{
 		Name:          "master",
 		ShortHelp:     masterListHelp,
@@ -743,8 +744,16 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			var pRequired int
-			for _, uid := range ctx.Dice.DiceMasters {
-				if uid != "UI:1001" {
+			if len(ctx.Dice.DiceMasters) >= 1 {
+				// 如果帐号没有UI:1001以外的master，所有人都是master
+				count := 0
+				for _, uid := range ctx.Dice.DiceMasters {
+					if uid != "UI:1001" {
+						count += 1
+					}
+				}
+
+				if count >= 1 {
 					pRequired = 100
 				}
 			}
