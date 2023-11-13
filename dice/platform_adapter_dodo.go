@@ -202,7 +202,7 @@ func (pa *PlatformAdapterDodo) toStdChannelMessage(msgRaw *websocket.ChannelMess
 }
 
 func (pa *PlatformAdapterDodo) checkGuildAdmin(guildID string, userID string) string {
-	aperm := int64(0)
+	var aperm int64
 	guildMap, ok := pa.UserPermCache.Load(guildID)
 	if ok {
 		userCache, ok := guildMap.Load(userID)

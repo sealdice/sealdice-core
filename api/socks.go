@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"sealdice-core/dice"
@@ -88,7 +88,7 @@ func getip2() string {
 	}
 	defer func() { _ = req.Body.Close() }()
 
-	body, err := ioutil.ReadAll(req.Body)
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		return ""
 	}

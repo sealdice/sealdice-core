@@ -1,6 +1,7 @@
 package dice
 
 import (
+	crand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,7 +57,7 @@ type osVersionFile struct {
 
 func randomMacAddress() string {
 	buf := make([]byte, 6)
-	_, err := rand.Read(buf)
+	_, err := crand.Read(buf)
 	if err != nil {
 		return "00:16:ea:ae:3c:40"
 	}
@@ -87,7 +88,6 @@ func RandString(n int) string {
 // "Apple Watch"	Apple Watch
 
 func GenerateDeviceJSONIos(protocol int) (string, []byte, error) {
-	rand.Seed(time.Now().Unix())
 	bootID := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
 	androidID := fmt.Sprintf("%X", rand.Uint64())
@@ -137,7 +137,6 @@ func GenerateDeviceJSONIos(protocol int) (string, []byte, error) {
 }
 
 func GenerateDeviceJSONAndroidWatch(protocol int) (string, []byte, error) {
-	rand.Seed(time.Now().Unix())
 	bootID := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
 	androidID := fmt.Sprintf("%X", rand.Uint64())
@@ -179,7 +178,6 @@ func GenerateDeviceJSONAndroidWatch(protocol int) (string, []byte, error) {
 }
 
 func GenerateDeviceJSONAllRandom(protocol int) (string, []byte, error) {
-	rand.Seed(time.Now().Unix())
 	bootID := uuid.New()
 	imei := goluhn.Generate(15) // 注意，这个imei是完全胡乱创建的，并不符合imei规则
 	androidID := fmt.Sprintf("%X", rand.Uint64())
