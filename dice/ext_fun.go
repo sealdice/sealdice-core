@@ -164,7 +164,6 @@ func RegisterBuiltinExtFun(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// p := getPlayerInfoBySender(session, msg)
 			isShowFrom := cmdArgs.IsArgEqual(1, "from", "showfrom", "来源", "作者")
-			rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
 
 			reason := DiceFormatTmpl(ctx, "娱乐:鸽子理由")
 			reasonInfo := strings.SplitN(reason, "|", 2)

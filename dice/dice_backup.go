@@ -264,18 +264,9 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 		}
 	case BackupCleanStrategyByTime:
 		threshold := time.Now().Add(-dm.BackupCleanKeepDur)
-		// Note(Xiangze Li): sort.Find是1.19才有, time.Compare是1.20才有
-		// idx, _ := sort.Find(len(fileInfos), func(i int) int {
-		// 	return threshold.Compare(fileInfos[i].ModTime())
-		// })
-
-		idx := len(fileInfos) - 1
-		for idx >= 0 {
-			if !fileInfos[idx].ModTime().After(threshold) {
-				break
-			}
-			idx--
-		}
+		idx, _ := sort.Find(len(fileInfos), func(i int) int {
+			return threshold.Compare(fileInfos[i].ModTime())
+		})
 		fileInfoOld = fileInfos[:idx+1]
 	default:
 		// no-op

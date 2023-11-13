@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strconv"
@@ -1801,7 +1800,7 @@ func setupConfig(d *Dice) AttributeConfigs {
 	if _, err := os.Stat(attrConfigFn); err == nil && false {
 		// 如果文件存在，那么读取
 		ac := AttributeConfigs{}
-		af, err := ioutil.ReadFile(attrConfigFn)
+		af, err := os.ReadFile(attrConfigFn)
 		if err == nil {
 			err = yaml.Unmarshal(af, &ac)
 			if err != nil {
