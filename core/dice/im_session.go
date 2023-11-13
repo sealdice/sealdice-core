@@ -916,14 +916,15 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 			if len(match) != 2 {
 				continue
 			}
-
-			s.Parent.Logger.Infof("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
+			hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
+			s.Parent.Logger.Info(hint)
 			platform := match[1]
 			for _, ep := range s.EndPoints {
 				if ep.Platform != platform {
 					continue
 				}
 				ep.Adapter.QuitGroup(&MsgContext{Dice: s.Parent}, grp.GroupID)
+				(&MsgContext{Dice: s.Parent, EndPoint: ep, Session: s}).Notice(hint)
 			}
 		} else if last.Before(hint) {
 			s.Parent.Logger.Warnf("检测到群 %s 上次活动时间为 %s，将在未来自动退出", grp.GroupID, last.Format(time.RFC3339))
