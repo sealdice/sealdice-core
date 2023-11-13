@@ -19,7 +19,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	// _ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -29,6 +28,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	// _ "net/http/pprof"
 )
 
 /**

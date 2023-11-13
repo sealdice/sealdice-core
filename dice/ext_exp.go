@@ -3,9 +3,11 @@ package dice
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fy0/lockfree"
 )
@@ -501,7 +503,50 @@ func getCmdStBase() *CmdItemInfo {
 				cmdStCharFormat(mctx, tmpl) // 转一下卡
 
 				mctx.SystemTemplate = tmpl
-				r, toSetItems, toModItems, err := cmdStReadOrMod(mctx, tmpl, cmdArgs.CleanArgs)
+
+				// 进行简化卡的尝试解析
+				input := cmdArgs.CleanArgs
+				re := regexp.MustCompile(`^(([^\s-#]{1,25})([-#]))[^\s\d]+\d+`)
+				matches := re.FindStringSubmatch(input)
+				if len(matches) > 0 {
+					flag := matches[3]
+					name := matches[2]
+
+					isName := flag == "#"
+					if !isName {
+						// 尝试作为名字处理
+						name = tmpl.GetAlias(matches[2])
+						_, exists := chVars.Get(name)
+						isName = !exists
+
+						if isName {
+							// 好像是个名字了，先再看看是不是带默认值的属性
+							if tmpl.GetDefaultValueEx(mctx, name) != nil {
+								// 有默认值，不能作为名字
+								isName = false
+							}
+						}
+					}
+
+					if isName {
+						// 确定不是属性了，现在作为角色名处理
+						input = input[len(matches[1]):]
+
+						p := mctx.Player
+						VarSetValueStr(mctx, "$t旧昵称", fmt.Sprintf("<%s>", mctx.Player.Name))
+						VarSetValueStr(mctx, "$t旧昵称_RAW", mctx.Player.Name)
+						p.Name = name
+						VarSetValueStr(mctx, "$t玩家", fmt.Sprintf("<%s>", mctx.Player.Name))
+						VarSetValueStr(mctx, "$t玩家_RAW", mctx.Player.Name)
+						p.UpdatedAtTime = time.Now().Unix()
+
+						if mctx.Player.AutoSetNameTemplate != "" {
+							_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
+						}
+					}
+				}
+
+				r, toSetItems, toModItems, err := cmdStReadOrMod(mctx, tmpl, input)
 
 				if err != nil {
 					dice.Logger.Info(".st 格式错误: ", err.Error())
