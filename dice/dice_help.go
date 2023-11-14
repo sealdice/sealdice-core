@@ -277,17 +277,17 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 			break
 		}
 
-		for _, s := range f.GetSheetList() {
+		for index, s := range f.GetSheetList() {
 			rows, err := f.GetRows(s)
 			if err == nil {
-				for index, row := range rows {
-					if index == 0 {
+				for i, row := range rows {
+					if i == 0 {
 						err := checkXlsxHeaders(row)
 						if err == nil {
 							// 跳过第一行
 							continue
 						} else {
-							fmt.Printf("%s: %s\n", path, err)
+							fmt.Printf("%s sheet %d: %s\n", path, index, err)
 							break
 						}
 					}
