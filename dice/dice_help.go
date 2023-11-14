@@ -280,8 +280,12 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 		for _, s := range f.GetSheetList() {
 			rows, err := f.GetRows(s)
 			if err == nil {
-				for _, row := range rows {
+				for index, row := range rows {
 					// Keys Synonym Content Description Catalogue Tag
+					if index == 0 {
+						// 跳过第一行
+						continue
+					}
 					if len(row) < 3 {
 						continue
 					}
