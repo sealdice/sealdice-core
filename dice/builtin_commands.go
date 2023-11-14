@@ -112,16 +112,10 @@ func (d *Dice) registerCoreCommands() {
 						return true
 					}
 
-					if extra == "" {
-						text += v.toText(d) + "\n"
-						return true
-					}
-
-					if extra == "trust" && v.Rank == BanRankTrusted {
-						text += v.toText(d) + "\n"
-					} else if extra == "ban" && v.Rank == BanRankBanned {
-						text += v.toText(d) + "\n"
-					} else if extra == "warn" && v.Rank == BanRankWarn {
+					match := (extra == "trust" && v.Rank == BanRankTrusted) ||
+						(extra == "ban" && v.Rank == BanRankBanned) ||
+						(extra == "warn" && v.Rank == BanRankWarn)
+					if extra == "" || match {
 						text += v.toText(d) + "\n"
 					}
 					return true
