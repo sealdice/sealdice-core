@@ -281,10 +281,15 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 			rows, err := f.GetRows(s)
 			if err == nil {
 				for index, row := range rows {
-					// Keys Synonym Content Description Catalogue Tag
 					if index == 0 {
-						// 跳过第一行
-						continue
+						err := checkXlsxHeaders(row)
+						if err == nil {
+							// 跳过第一行
+							continue
+						} else {
+							fmt.Printf("%s: %s\n", path, err)
+							break
+						}
 					}
 					if len(row) < 3 {
 						continue
@@ -315,6 +320,20 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 		return true
 	}
 	return false
+}
+
+// checkXlsxHeaders 验证 xlsx 格式 helpdoc 的表头是否是 Key Synonym Content Description Catalogue Tag
+func checkXlsxHeaders(headers []string) error {
+	if len(headers) == 6 &&
+		headers[0] == "Key" &&
+		headers[1] == "Synonym" &&
+		headers[2] == "Content" &&
+		headers[3] == "Description" &&
+		headers[4] == "Catalogue" &&
+		headers[5] == "Tag" {
+		return nil
+	}
+	return fmt.Errorf("helpdoc表头格式错误")
 }
 
 func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
