@@ -46,32 +46,29 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			val := cmdArgs.GetArgN(1)
 			getID := func() string {
-				if cmdArgs.IsArgEqual(2, "user") {
-					user := cmdArgs.GetArgN(3)
-					if user == "" {
+				if cmdArgs.IsArgEqual(2, "user") || cmdArgs.IsArgEqual(2, "group") {
+					id := cmdArgs.GetArgN(3)
+					if id == "" {
 						return ""
 					}
-					return FormatDiceID(ctx, user, false)
-				} else if cmdArgs.IsArgEqual(2, "group") {
-					group := cmdArgs.GetArgN(3)
-					if group == "" {
-						return ""
-					}
-					return FormatDiceID(ctx, group, true)
+
+					isGroup := cmdArgs.IsArgEqual(2, "group")
+					return FormatDiceID(ctx, id, isGroup)
 				}
-				ret := cmdArgs.GetArgN(2)
-				if !strings.Contains(ret, ":") {
-					// 如果不是这种格式，那么放弃
-					ret = ""
+
+				arg := cmdArgs.GetArgN(2)
+				if !strings.Contains(arg, ":") {
+					return ""
 				}
-				return ret
+				return arg
 			}
 
+			var val = cmdArgs.GetArgN(1)
+			var uid string
 			switch strings.ToLower(val) {
 			case "add":
-				uid := getID()
+				uid = getID()
 				if uid == "" {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
@@ -82,25 +79,24 @@ func (d *Dice) registerCoreCommands() {
 				d.BanList.AddScoreBase(uid, d.BanList.ThresholdBan, "骰主指令", reason, ctx)
 				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入黑名单，原因: %s", uid, reason))
 			case "rm", "del":
-				uid := getID()
+				uid = getID()
 				if uid == "" {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
+
 				item := d.BanList.GetByID(uid)
-				if item == nil || !(item.Rank == BanRankBanned || item.Rank == BanRankTrusted || item.Rank == BanRankWarn) {
+				if item == nil || (item.Rank != BanRankBanned && item.Rank != BanRankTrusted && item.Rank != BanRankWarn) {
 					ReplyToSender(ctx, msg, "找不到用户/群组")
-				} else {
-					ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 移出%s列表", uid, BanRankText[item.Rank]))
-					item.Score = 0
-					item.Rank = BanRankNormal
+					break
 				}
+
+				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 移出%s列表", uid, BanRankText[item.Rank]))
+				item.Score = 0
+				item.Rank = BanRankNormal
 			case "trust":
-				uid := cmdArgs.GetArgN(2)
+				uid = cmdArgs.GetArgN(2)
 				if !strings.Contains(uid, ":") {
 					// 如果不是这种格式，那么放弃
-					uid = ""
-				}
-				if uid == "" {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
@@ -108,26 +104,29 @@ func (d *Dice) registerCoreCommands() {
 				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入信任列表", uid))
 			case "list", "show":
 				// ban/warn/trust
-				extra := cmdArgs.GetArgN(2)
-				text := ""
+				var extra, text string
+
+				extra = cmdArgs.GetArgN(2)
 				d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
-					if v.Rank != BanRankNormal {
-						if extra != "" {
-							if extra == "trust" && v.Rank == BanRankTrusted {
-								text += v.toText(d) + "\n"
-							}
-							if extra == "ban" && v.Rank == BanRankBanned {
-								text += v.toText(d) + "\n"
-							}
-							if extra == "warn" && v.Rank == BanRankWarn {
-								text += v.toText(d) + "\n"
-							}
-						} else {
-							text += v.toText(d) + "\n"
-						}
+					if v.Rank == BanRankNormal {
+						return true
+					}
+
+					if extra == "" {
+						text += v.toText(d) + "\n"
+						return true
+					}
+
+					if extra == "trust" && v.Rank == BanRankTrusted {
+						text += v.toText(d) + "\n"
+					} else if extra == "ban" && v.Rank == BanRankBanned {
+						text += v.toText(d) + "\n"
+					} else if extra == "warn" && v.Rank == BanRankWarn {
+						text += v.toText(d) + "\n"
 					}
 					return true
 				})
+
 				if text == "" {
 					text = "当前名单:\n<无内容>"
 				} else {
@@ -135,36 +134,38 @@ func (d *Dice) registerCoreCommands() {
 				}
 				ReplyToSender(ctx, msg, text)
 			case "query":
-				targetID := cmdArgs.GetArgN(2)
+				var targetID = cmdArgs.GetArgN(2)
 				if targetID == "" {
 					ReplyToSender(ctx, msg, "未指定要查询的对象！")
-				} else {
-					var text string
-					v, exists := d.BanList.Map.Load(targetID)
-					if exists {
-						text += fmt.Sprintf("所查询的<%s>情况：", targetID)
-						switch v.Rank {
-						case BanRankBanned:
-							text += "禁止(-30)"
-						case BanRankWarn:
-							text += "警告(-10)"
-						case BanRankTrusted:
-							text += "信任(30)"
-						default:
-							text += "正常(0)"
-						}
-						for i, reason := range v.Reasons {
-							text += fmt.Sprintf("\n%s在「%s」，原因：%s",
-								carbon.CreateFromTimestamp(v.Times[i]).ToDateTimeString(),
-								v.Places[i],
-								reason,
-							)
-						}
-					} else {
-						text = fmt.Sprintf("所查询的<%s>情况：正常(0)", targetID)
-					}
-					ReplyToSender(ctx, msg, text)
+					break
 				}
+
+				v, exists := d.BanList.Map.Load(targetID)
+				if !exists {
+					ReplyToSender(ctx, msg, fmt.Sprintf("所查询的<%s>情况：正常(0)", targetID))
+					break
+				}
+
+				var text = fmt.Sprintf("所查询的<%s>情况：", targetID)
+				switch v.Rank {
+				case BanRankBanned:
+					text += "禁止(-30)"
+				case BanRankWarn:
+					text += "警告(-10)"
+				case BanRankTrusted:
+					text += "信任(30)"
+				default:
+					text += "正常(0)"
+				}
+				for i, reason := range v.Reasons {
+					text += fmt.Sprintf(
+						"\n%s在「%s」，原因：%s",
+						carbon.CreateFromTimestamp(v.Times[i]).ToDateTimeString(),
+						v.Places[i],
+						reason,
+					)
+				}
+				ReplyToSender(ctx, msg, text)
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
