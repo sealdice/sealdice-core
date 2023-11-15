@@ -53,7 +53,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 		u := pa.getUser(m.User)
 		re := regexp.MustCompile(`<@(.+?)>`)
 		// 似乎没有办法获取到机器人的 ID 所以只能这样了
-		pa.EndPoint.UserID = FormatDiceIdSlack(re.FindString(m.Text))
+		pa.EndPoint.UserID = FormatDiceIdSlack(re.FindAllStringSubmatch(m.Text, -1)[0][1])
 		msg := &Message{
 			GuildID:     FormatDiceIdSlackGuild(e.TeamID),
 			GroupID:     FormatDiceIdSlackChannel(m.Channel),
