@@ -2,7 +2,6 @@ package dice
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ type PlatformAdapterSlack struct {
 	Session   *IMSession    `yaml:"-" json:"-"`
 	EndPoint  *EndPointInfo `yaml:"-" json:"-"`
 	Client    *sm.Client    `yaml:"-" json:"-"`
+	Api       *slack.Client `yaml:"-" json:"-"`
 	BotToken  string        `yaml:"botToken" json:"botToken"`
 	AppToken  string        `yaml:"appToken" json:"appToken"`
 	userCache *SyncMap[string, *slack.User]
@@ -27,6 +27,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	s := pa.Session
 	log := s.Parent.Logger
 	api := slack.New(pa.BotToken, slack.OptionAppLevelToken(pa.AppToken))
+	pa.Api = api
 	client := sm.New(api)
 	sh := sm.NewSocketmodeHandler(client)
 	// Connect
@@ -35,9 +36,15 @@ func (pa *PlatformAdapterSlack) Serve() int {
 		log.Info("使用 Socket Mode/套接字模式 连接到 Slack 中")
 	})
 	sh.Handle(sm.EventTypeConnected, func(event *sm.Event, client *sm.Client) {
+		test, err := api.AuthTest()
+		if err != nil {
+			return
+		}
+		log.Infof("Slack 连接成功：账号<%s>(%s)", test.User, FormatDiceIDSlack(test.UserID))
+		pa.EndPoint.UserID = FormatDiceIDSlack(test.UserID)
+		pa.EndPoint.Nickname = test.User
 		ep.State = 1
 		ep.Enable = true
-		log.Info("Slack 连接成功")
 	})
 	sh.Handle(sm.EventTypeConnectionError, func(event *sm.Event, client *sm.Client) {
 		ep.State = 0
@@ -48,19 +55,17 @@ func (pa *PlatformAdapterSlack) Serve() int {
 		log.Error("连接断开：", event.Data)
 	})
 	sh.HandleEvents(se.AppMention, func(event *sm.Event, client *sm.Client) {
+		go client.Ack(*event.Request)
 		e := event.Data.(se.EventsAPIEvent)
 		m := e.InnerEvent.Data.(*se.AppMentionEvent)
 		u := pa.getUser(m.User)
-		re := regexp.MustCompile(`<@(.+?)>`)
-		// 似乎没有办法获取到机器人的 ID 所以只能这样了
-		pa.EndPoint.UserID = FormatDiceIdSlack(re.FindAllStringSubmatch(m.Text, -1)[0][1])
 		msg := &Message{
-			GuildID:     FormatDiceIdSlackGuild(e.TeamID),
-			GroupID:     FormatDiceIdSlackChannel(m.Channel),
+			GuildID:     FormatDiceIDSlackGuild(e.TeamID),
+			GroupID:     FormatDiceIDSlackChannel(m.Channel),
 			Message:     m.Text,
 			MessageType: "group",
 			Sender: SenderBase{
-				UserID:   FormatDiceIdSlack(m.User),
+				UserID:   FormatDiceIDSlack(m.User),
 				Nickname: u.Name,
 				GroupRole: func() string {
 					if u.IsOwner {
@@ -82,17 +87,17 @@ func (pa *PlatformAdapterSlack) Serve() int {
 				return i
 			}(),
 		}
-		go client.Ack(*event.Request)
 		s.Execute(ep, msg, false)
 	})
 	// Message
 	sh.HandleEvents(se.Message, func(event *sm.Event, client *sm.Client) {
+		go client.Ack(*event.Request)
 		e := event.Data.(se.EventsAPIEvent)
 		m := e.InnerEvent.Data.(*se.MessageEvent)
 		u := pa.getUser(m.User)
 		msg := &Message{
-			GuildID: FormatDiceIdSlackGuild(e.TeamID),
-			GroupID: FormatDiceIdSlackChannel(m.Channel),
+			GuildID: FormatDiceIDSlackGuild(e.TeamID),
+			GroupID: FormatDiceIDSlackChannel(m.Channel),
 			Message: pa.formatOneBot11(m),
 			MessageType: func() string {
 				// https://api.slack.com/events/message#events_api
@@ -103,7 +108,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 				}
 			}(),
 			Sender: SenderBase{
-				UserID: FormatDiceIdSlack(m.User),
+				UserID: FormatDiceIDSlack(m.User),
 				Nickname: func() string { // 不知道为什么为空，以后再看看库的源码
 					if m.Username == "" {
 						return u.Name
@@ -132,7 +137,6 @@ func (pa *PlatformAdapterSlack) Serve() int {
 			}(),
 		}
 		s.Execute(ep, msg, false)
-		client.Ack(*event.Request) // 必须回应一下 不然 Slack 会重发 3 次事件看你死还是没死
 	})
 	// Other
 	sh.HandleEvents(se.AppHomeOpened, func(event *sm.Event, client *sm.Client) {
@@ -169,11 +173,11 @@ func (pa *PlatformAdapterSlack) QuitGroup(ctx *MsgContext, id string) {
 }
 
 func (pa *PlatformAdapterSlack) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	pa.send(ctx, ExtractSlackUserId(uid), text, flag)
+	pa.send(ctx, ExtractSlackUserID(uid), text, flag)
 }
 
 func (pa *PlatformAdapterSlack) SendToGroup(ctx *MsgContext, cid string, text string, flag string) {
-	pa.send(ctx, ExtractSlackChannelId(cid), text, flag)
+	pa.send(ctx, ExtractSlackChannelID(cid), text, flag)
 }
 func (pa *PlatformAdapterSlack) SetGroupCardName(ctx *MsgContext, name string) {
 
@@ -222,25 +226,25 @@ func (pa *PlatformAdapterSlack) formatOneBot11(m *se.MessageEvent) string {
 
 // 格式化
 
-func FormatDiceIdSlack(id string) string {
+func FormatDiceIDSlack(id string) string {
 	return fmt.Sprintf("SLACK:%s", id)
 }
 
-func FormatDiceIdSlackChannel(id string) string {
+func FormatDiceIDSlackChannel(id string) string {
 	return fmt.Sprintf("SLACK-CH-Group:%s", id)
 }
-func FormatDiceIdSlackGuild(id string) string {
+func FormatDiceIDSlackGuild(id string) string {
 	return fmt.Sprintf("SLACK-Guild:%s", id)
 }
 
-func ExtractSlackUserId(id string) string {
+func ExtractSlackUserID(id string) string {
 	if strings.HasPrefix(id, "SLACK:") {
 		return id[len("SLACK:"):]
 	}
 	return id
 }
 
-func ExtractSlackChannelId(id string) string {
+func ExtractSlackChannelID(id string) string {
 	if strings.HasPrefix(id, "SLACK-CH-Group:") {
 		return id[len("SLACK-CH-Group:"):]
 	}
