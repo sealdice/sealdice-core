@@ -293,7 +293,7 @@
       <template #label>
         <div>
           <span>刷屏警告开关</span>
-          <el-tooltip raw-content content="默认关闭。开启后会对使用指令过快的用户进行警告，警告后继续使用指令会增加怒气值，只对QQ平台有效">
+          <el-tooltip raw-content content="默认关闭。开启后会对使用指令过快的用户和群组进行警告，警告后继续使用指令会增加怒气值，只对QQ平台有效">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
         </div>
@@ -306,14 +306,25 @@
           <span>刷屏警告速率</span>
         </div>
       </template>
-      补充速率 <el-tooltip raw-content content="支持以下格式: <br/>@every 3s 每3秒一个<br/>3 每秒3个">
+      个人速率 <el-tooltip raw-content content="支持以下格式: <br/>@every 3s 每3秒一个<br/>3 每秒3个">
         <el-icon><question-filled /></el-icon>
       </el-tooltip>
-      <el-input v-model="config.customReplenishRate" clearable style="width: 14rem;" /> <br/>
+      <el-input v-model="config.personalReplenishRate" clearable style="width: 14rem;" /> <br/>
     </el-form-item>
 
     <el-form-item>
-      上限 <el-input-number v-model="config.customBurst" :min="1" :step="1" clearable/>
+      个人上限 <el-input-number v-model="config.personalBurst" :min="1" :step="1" clearable/>
+    </el-form-item>
+
+    <el-form-item>
+      群组速率 <el-tooltip raw-content content="支持以下格式: <br/>@every 3s 每3秒一个<br/>3 每秒3个">
+        <el-icon><question-filled /></el-icon>
+      </el-tooltip>
+      <el-input v-model="config.groupReplenishRate" clearable style="width: 14rem;" /> <br/>
+    </el-form-item>
+
+    <el-form-item>
+      群组上限 <el-input-number v-model="config.groupBurst" :min="1" :step="1" clearable/>
     </el-form-item>
 
     <el-form-item>
@@ -326,6 +337,7 @@
             <li>当桶里没有令牌时，试图拿走令牌将被阻止（触发警告）</li>
             <li>桶以「速率」自动补充令牌</li>
           </ul>
+          处置时，优先惩罚个人刷屏，其次是群组内许多人一起刷屏。
         </div>
         <div>如果您感觉难以理解，为了稳定性还是不要更改比较好！</div>
         <div>对速率限制的所有更改 <strong>重启后生效</strong> </div>
