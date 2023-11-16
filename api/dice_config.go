@@ -34,10 +34,7 @@ type DiceConfigInfo struct {
 	AutoReloginEnable       bool     `json:"autoReloginEnable"`
 	QQChannelAutoOn         bool     `json:"QQChannelAutoOn"`
 	QQChannelLogMessage     bool     `json:"QQChannelLogMessage"`
-	RefuseGroupInvite       bool     `json:"refuseGroupInvite"`   // 拒绝群组邀请
-	RateLimitEnabled        bool     `json:"rateLimitEnabled"`    // 是否开启限速
-	CustomReplenishRate     string   `json:"customReplenishRate"` // 自定义速率
-	CustomBurst             int64    `json:"customBurst"`         // 自定义上限
+	RefuseGroupInvite       bool     `json:"refuseGroupInvite"` // 拒绝群组邀请
 
 	QuitInactiveThreshold float64 `json:"quitInactiveThreshold"` // 退出不活跃群组阈值(天)
 
@@ -66,6 +63,12 @@ type DiceConfigInfo struct {
 	MailFrom     string `json:"mailFrom"`     // 邮箱来源
 	MailPassword string `json:"mailPassword"` // 邮箱密钥/密码
 	MailSMTP     string `json:"mailSmtp"`     // 邮箱 smtp 地址
+
+	RateLimitEnabled       bool   `json:"rateLimitEnabled"`      // 是否开启限速
+	PersonalReplenishRate  string `json:"personalReplenishRate"` // 个人自定义速率
+	PersonalReplenishBurst int64  `json:"personalBurst"`         // 个人自定义上限
+	GroupReplenishRate     string `json:"groupReplenishRate"`    // 群组自定义速率
+	GroupReplenishBurst    int64  `json:"groupBurst"`            // 群组自定义上限
 }
 
 func DiceConfig(c echo.Context) error {
@@ -92,8 +95,6 @@ func DiceConfig(c echo.Context) error {
 	maxExec := strconv.FormatInt(myDice.MaxExecuteTime, 10)
 
 	maxCard := strconv.FormatInt(myDice.MaxCocCardGen, 10)
-
-	maxBurst := myDice.CustomBurst
 
 	emailPasswordMasked := ""
 	if myDice.MailPassword != "" {
@@ -160,8 +161,10 @@ func DiceConfig(c echo.Context) error {
 		MailSMTP:                myDice.MailSMTP,
 		MaxExecuteTime:          maxExec,
 		MaxCocCardGen:           maxCard,
-		CustomReplenishRate:     myDice.CustomReplenishRate,
-		CustomBurst:             maxBurst,
+		PersonalReplenishRate:   myDice.PersonalReplenishRateStr,
+		PersonalReplenishBurst:  myDice.PersonalBurst,
+		GroupReplenishRate:      myDice.GroupReplenishRateStr,
+		GroupReplenishBurst:     myDice.GroupBurst,
 		IgnoreUnaddressedBotCmd: myDice.IgnoreUnaddressedBotCmd,
 	}
 	return c.JSON(http.StatusOK, info)
@@ -260,27 +263,46 @@ func DiceConfigSet(c echo.Context) error {
 		}
 	}
 
-	if val, ok := jsonMap["customBurst"]; ok {
+	if val, ok := jsonMap["personalBurst"]; ok {
 		valStr, ok := val.(float64)
 		if ok {
 			customBurst := int64(valStr)
-			myDice.CustomBurst = customBurst
-			if err != nil || myDice.CustomBurst < 1 {
-				myDice.CustomBurst = 3
+			if customBurst >= 1 {
+				myDice.PersonalBurst = customBurst
 			}
 		}
 	}
 
-	if val, ok := jsonMap["customReplenishRate"]; ok {
+	if val, ok := jsonMap["personalReplenishRate"]; ok {
 		valStr, ok := val.(string)
 		if ok {
 			valStr = strings.TrimSpace(valStr)
-			myDice.CustomReplenishRate = valStr
-			myDice.ParsedReplenishRate, err = utils.ParseRate(valStr)
-			if err != nil || myDice.ParsedReplenishRate == rate.Limit(0) {
-				fmt.Printf("解析刷屏警告速率失败，恢复默认速率: %v\n", err)
-				myDice.ParsedReplenishRate = rate.Every(time.Second * 3)
-				myDice.CustomReplenishRate = "@every 3s"
+			newRate, errParse := utils.ParseRate(valStr)
+			if errParse == nil && newRate != rate.Limit(0) {
+				myDice.PersonalReplenishRate = newRate
+				myDice.PersonalReplenishRateStr = valStr
+			}
+		}
+	}
+
+	if val, ok := jsonMap["groupBurst"]; ok {
+		valStr, ok := val.(float64)
+		if ok {
+			customBurst := int64(valStr)
+			if customBurst >= 1 {
+				myDice.GroupBurst = customBurst
+			}
+		}
+	}
+
+	if val, ok := jsonMap["groupReplenishRate"]; ok {
+		valStr, ok := val.(string)
+		if ok {
+			valStr = strings.TrimSpace(valStr)
+			newRate, errParse := utils.ParseRate(valStr)
+			if errParse == nil && newRate != rate.Limit(0) {
+				myDice.GroupReplenishRate = newRate
+				myDice.GroupReplenishRateStr = valStr
 			}
 		}
 	}

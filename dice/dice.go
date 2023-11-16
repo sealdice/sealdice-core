@@ -148,10 +148,6 @@ type Dice struct {
 	QQChannelAutoOn         bool                   `yaml:"QQChannelAutoOn"`         // QQ频道中自动开启(默认不开)
 	QQChannelLogMessage     bool                   `yaml:"QQChannelLogMessage"`     // QQ频道中记录消息(默认不开)
 	QQEnablePoke            bool                   `yaml:"QQEnablePoke"`            // 启用戳一戳
-	RateLimitEnabled        bool                   `yaml:"rateLimitEnabled"`        // 启用频率限制 (刷屏限制)
-	CustomReplenishRate     string                 `yaml:"customReplenishRate"`     // 原始自定义速率
-	ParsedReplenishRate     rate.Limit             `yaml:"-"`                       // 刷屏警告速率
-	CustomBurst             int64                  `yaml:"customBurst"`             // 自定义上限
 	TextCmdTrustOnly        bool                   `yaml:"textCmdTrustOnly"`        // 只允许信任用户或master使用text指令
 	IgnoreUnaddressedBotCmd bool                   `yaml:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
 	UILogLimit              int64                  `yaml:"UILogLimit"`
@@ -170,6 +166,14 @@ type Dice struct {
 	AliveNoticeValue        string                 `yaml:"aliveNoticeValue"`     // 定时通知间隔
 	ReplyDebugMode          bool                   `yaml:"replyDebugMode"`       // 回复调试
 	PlayerNameWrapEnable    bool                   `yaml:"playerNameWrapEnable"` // 启用玩家名称外框
+
+	RateLimitEnabled         bool       `yaml:"rateLimitEnabled"`      // 启用频率限制 (刷屏限制)
+	PersonalReplenishRateStr string     `yaml:"personalReplenishRate"` // 个人刷屏警告速率，字符串格式
+	PersonalReplenishRate    rate.Limit `yaml:"-"`                     // 个人刷屏警告速率
+	GroupReplenishRateStr    string     `yaml:"groupReplenishRate"`    // 群组刷屏警告速率，字符串格式
+	GroupReplenishRate       rate.Limit `yaml:"-"`                     // 群组刷屏警告速率
+	PersonalBurst            int64      `yaml:"personalBurst"`         // 个人自定义上限
+	GroupBurst               int64      `yaml:"groupBurst"`            // 群组自定义上限
 
 	QuitInactiveThreshold time.Duration `yaml:"quitInactiveThreshold"` // 退出不活跃群组的时间阈值
 	quitInactiveCronEntry cron.EntryID
