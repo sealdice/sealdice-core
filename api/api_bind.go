@@ -346,6 +346,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/addWalleQ", ImConnectionsAddWalleQ)
 	e.POST(prefix+"/im_connections/addGocqSeparate", ImConnectionsAddGocqSeparate)
 	e.POST(prefix+"/im_connections/addRed", ImConnectionsAddRed)
+	e.POST(prefix+"/im_connections/addSlack", ImConnectionsAddSlack)
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)

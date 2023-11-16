@@ -548,6 +548,34 @@ func ImConnectionsAddDingTalk(c echo.Context) error {
 	return c.String(430, "")
 }
 
+func ImConnectionsAddSlack(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	v := struct {
+		BotToken string `yaml:"botToken" json:"botToken"`
+		AppToken string `json:"appToken"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		conn := dice.NewSlackConnItem(v.AppToken, v.BotToken)
+		pa := conn.Adapter.(*dice.PlatformAdapterSlack)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		go dice.ServeSlack(myDice, conn)
+		return c.JSON(200, conn)
+	}
+	return c.String(430, "")
+}
+
 func ImConnectionsAdd(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
