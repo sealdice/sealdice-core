@@ -341,7 +341,7 @@ func validateXlsxHeaders(headers []string) error {
 	if len(headers) > 3 && headers[3] != "Description" {
 		return fmt.Errorf("helpdoc表头格式错误，第四列表头必须是Description")
 	}
-	if len(headers) > 4 && headers[4] != "Description" {
+	if len(headers) > 4 && headers[4] != "Catalogue" {
 		return fmt.Errorf("helpdoc表头格式错误，第五列表头必须是Catalogue")
 	}
 	if len(headers) > 5 && headers[6] != "Tag" {
