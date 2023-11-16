@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -15,9 +16,9 @@ type PlatformAdapterSlack struct {
 	Session   *IMSession    `yaml:"-" json:"-"`
 	EndPoint  *EndPointInfo `yaml:"-" json:"-"`
 	Client    *sm.Client    `yaml:"-" json:"-"`
-	Api       *slack.Client `yaml:"-" json:"-"`
 	BotToken  string        `yaml:"botToken" json:"botToken"`
 	AppToken  string        `yaml:"appToken" json:"appToken"`
+	cancel    func()
 	userCache *SyncMap[string, *slack.User]
 	// msgCache  *SyncMap[string, int]
 }
@@ -27,7 +28,6 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	s := pa.Session
 	log := s.Parent.Logger
 	api := slack.New(pa.BotToken, slack.OptionAppLevelToken(pa.AppToken))
-	pa.Api = api
 	client := sm.New(api)
 	sh := sm.NewSocketmodeHandler(client)
 	// Connect
@@ -38,6 +38,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	sh.Handle(sm.EventTypeConnected, func(event *sm.Event, client *sm.Client) {
 		test, err := api.AuthTest()
 		if err != nil {
+			log.Error("Slack 测试连接失败，需要重新登录：", err.Error())
 			return
 		}
 		log.Infof("Slack 连接成功：账号<%s>(%s)", test.User, FormatDiceIDSlack(test.UserID))
@@ -48,11 +49,11 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	})
 	sh.Handle(sm.EventTypeConnectionError, func(event *sm.Event, client *sm.Client) {
 		ep.State = 0
-		log.Error("连接失败：", event.Data)
+		log.Error("Slack 账号连接失败:", event.Data)
 	})
 	sh.Handle(sm.EventTypeDisconnect, func(event *sm.Event, client *sm.Client) {
 		ep.State = 0
-		log.Error("连接断开：", event.Data)
+		log.Error("Slack 连接断开：", event.Data)
 	})
 	sh.HandleEvents(se.AppMention, func(event *sm.Event, client *sm.Client) {
 		go client.Ack(*event.Request)
@@ -144,7 +145,9 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	})
 	// Start
 	pa.Client = client
-	err := sh.RunEventLoop()
+	ctx, cancel := context.WithCancel(context.Background())
+	pa.cancel = cancel
+	err := sh.RunEventLoopContext(ctx)
 	if err != nil {
 		log.Error("SlackEventLoopErr：", err.Error())
 		return 1
@@ -152,35 +155,91 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	return 0
 }
 
-func (pa *PlatformAdapterSlack) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
-
+func (pa *PlatformAdapterSlack) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
+	// TODO
+	dice := pa.Session.Parent
+	fileElement, err := dice.FilepathToFileElement(path)
+	if err == nil {
+		pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
+	} else {
+		pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+	}
 }
 
-func (pa *PlatformAdapterSlack) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
-
+func (pa *PlatformAdapterSlack) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
+	// TODO
+	dice := pa.Session.Parent
+	fileElement, err := dice.FilepathToFileElement(path)
+	if err == nil {
+		pa.SendToGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
+	} else {
+		pa.SendToGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+	}
 }
 
 func (pa *PlatformAdapterSlack) DoRelogin() bool {
+	if pa.cancel != nil {
+		pa.cancel()
+	}
+	pa.Client = nil
+	pa.EndPoint.Enable = false
+	pa.EndPoint.State = 0
+	go pa.Serve()
 	return true
 }
 
 func (pa *PlatformAdapterSlack) SetEnable(enable bool) {
-
+	if enable {
+		if pa.Client == nil {
+			go pa.Serve()
+		} else {
+			pa.Client = nil
+			pa.cancel = nil
+			go pa.Serve()
+		}
+	} else {
+		if pa.cancel != nil {
+			pa.cancel()
+		}
+		pa.Client = nil
+		pa.EndPoint.Enable = false
+		pa.EndPoint.State = 0
+	}
 }
 
 func (pa *PlatformAdapterSlack) QuitGroup(ctx *MsgContext, id string) {
-
+	pa.Session.Parent.Logger.Error("Slack 退出群组失败：暂不支持")
 }
 
-func (pa *PlatformAdapterSlack) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	pa.send(ctx, ExtractSlackUserID(uid), text, flag)
+func (pa *PlatformAdapterSlack) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	pa.send(ctx, ExtractSlackUserID(userID), text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		MessageType: "private",
+		Platform:    "SLACK",
+		Message:     text,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
-func (pa *PlatformAdapterSlack) SendToGroup(ctx *MsgContext, cid string, text string, flag string) {
-	pa.send(ctx, ExtractSlackChannelID(cid), text, flag)
+func (pa *PlatformAdapterSlack) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	pa.send(ctx, ExtractSlackChannelID(groupID), text, flag)
+	pa.Session.OnMessageSend(ctx, &Message{
+		MessageType: "group",
+		Platform:    "SLACK",
+		Message:     text,
+		GroupID:     groupID,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
+
 func (pa *PlatformAdapterSlack) SetGroupCardName(ctx *MsgContext, name string) {
-
+	pa.Session.Parent.Logger.Error("Slack 设置群名片失败：暂不支持")
 }
 
 func (pa *PlatformAdapterSlack) MemberBan(groupId string, userId string, duration int64) {
@@ -192,15 +251,15 @@ func (pa *PlatformAdapterSlack) MemberKick(groupId string, userId string) {
 }
 
 func (pa *PlatformAdapterSlack) GetGroupInfoAsync(groupId string) {
-
+	// TODO
 }
 
-func (pa *PlatformAdapterSlack) send(ctx *MsgContext, id string, text string, flag string) {
+func (pa *PlatformAdapterSlack) send(_ *MsgContext, id string, text string, _ string) {
 	// pa.Client.PostMessage 没看懂 Post 和 Send 有什么区别 先用语义更好的一个好了
 	// 频道以 C 开头 用户以 U 开头 老粗暴了
 	message, s, s2, err := pa.Client.SendMessage(id, slack.MsgOptionText(text, false))
 	if err != nil {
-		pa.Session.Parent.Logger.Error("发送失败", message, s, s2, err.Error())
+		pa.Session.Parent.Logger.Error("Slack 发送消息失败", message, s, s2, err.Error())
 	}
 }
 
@@ -208,12 +267,12 @@ func (pa *PlatformAdapterSlack) getUser(user string) *slack.User {
 	if pa.userCache == nil {
 		pa.userCache = new(SyncMap[string, *slack.User])
 	}
-	if u, e := pa.userCache.Load(user); e {
+	if u, ok := pa.userCache.Load(user); ok {
 		return u
 	}
 	info, err := pa.Client.GetUserInfo(user)
 	if err != nil {
-		pa.Session.Parent.Logger.Error("获取用户数据失败：", err.Error())
+		pa.Session.Parent.Logger.Error("Slack 获取用户数据失败：", err.Error())
 		return &slack.User{}
 	}
 	pa.userCache.Store(user, info)
