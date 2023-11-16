@@ -428,6 +428,7 @@
             <el-option label="Minecraft服务器(Paper)" :value="4"></el-option>
             <el-option label="Dodo语音" :value="5"></el-option>
             <el-option label="钉钉" :value="8"></el-option>
+            <el-option label="Slack" :value="9"></el-option>
           </el-select>
         </el-form-item>
 
@@ -801,6 +802,29 @@
           </small>
         </el-form-item>
 
+        <el-form-item v-if="form.accountType === 9" label="AppToken" :label-width="formLabelWidth" required>
+          <el-input v-model="form.appToken" type="string" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 9" label="BotToken" :label-width="formLabelWidth" required>
+          <el-input v-model="form.botToken" type="string" autocomplete="off"></el-input>
+          <small>
+            <div>提示: 前往 Slack 开发者平台 https://api.slack.com/apps </div>
+            <div>点击 Create an app 选择 From scratch</div>
+            <div>按照要求创建 APP 后，点击OAuth & Permissions</div>
+            <div>在下方的 Scopes 中，为机器人添加 channels:write 和 im:write</div>
+            <div>点击 Install App to Workspace</div>
+            <div>随后将 Bot User OAuth Token 复制并粘贴在 Bot Token 内</div>
+            <div>点击 Socket Mode</div>
+            <div>把 Enable Socket Mode 打开</div>
+            <div>点击 Event Subscriptions</div>
+            <div>在 Subscribe to bot events 中，添加 app_mention message.groups 和 message.im</div>
+            <div>如果要求你 reinstall 按照提示照做</div>
+            <div>点击 Basic Information</div>
+            <div>在 App-Level Tokens 一栏，点击 Generate Token and Scopes</div>
+            <div>弹出的窗口添加 connections:write 命名随意</div>
+            <div>随后将生成的 Token 复制到 App Token 内</div>
+          </small>
+        </el-form-item>
       </el-form>
     </template>
     <template v-else-if="form.step === 2">
@@ -904,7 +928,8 @@
               form.accountType === 5 && (form.clientID === '' || form.token === '') ||
               form.accountType === 8 && (form.clientID === '' || form.token === '' || form.robotCode === '') ||
               form.accountType === 6 && (form.account === '' || form.connectUrl === '' || form.relWorkDir === '') ||
-              form.accountType === 7 && (form.host === '' || form.port === '' || form.token === '')">
+              form.accountType === 7 && (form.host === '' || form.port === '' || form.token === '') ||
+              form.accountType === 9 && (form.botToken === '' || form.appToken === '')">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">
@@ -1269,6 +1294,8 @@ const form = reactive({
   implementation:'',
   id: '',
   token: '',
+  botToken: '',
+  appToken: '',
   proxyURL:'',
   url:'',
   clientID:'',
