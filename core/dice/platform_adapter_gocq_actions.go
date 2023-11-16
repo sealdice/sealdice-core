@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sealdice-core/utils"
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/sacOO7/gowebsocket"
 )
@@ -588,18 +588,7 @@ func textSplit(input string) []string {
 		}
 	}
 
-	maxLen := 5000 // 以utf-8计算，1666个汉字
-	var splits []string
-
-	var l, r int
-	for l, r = 0, maxLen; r < len(input); l, r = r, r+maxLen {
-		for !utf8.RuneStart(input[r]) {
-			r--
-		}
-		splits = append(splits, input[l:r])
-	}
-	splits = append(splits, input[l:])
-
+	splits := utils.SplitLongText(input, 2000)
 	splits = append(splits, poke...)
 
 	return splits

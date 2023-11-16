@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"path/filepath"
+	"sealdice-core/utils"
 )
 
 type HTTPSimpleMessage struct {
@@ -27,11 +28,14 @@ func (pa *PlatformAdapterHTTP) DoRelogin() bool {
 func (pa *PlatformAdapterHTTP) SetEnable(_ bool) {}
 
 func (pa *PlatformAdapterHTTP) SendToPerson(_ *MsgContext, uid string, text string, _ string) {
-	pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, text})
+	sp := utils.SplitLongText(text, 300)
+	for _, sub := range sp {
+		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub})
+	}
 }
 
 func (pa *PlatformAdapterHTTP) SendToGroup(_ *MsgContext, uid string, text string, _ string) {
-	pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, text})
+	pa.SendToPerson(nil, uid, text, "")
 }
 
 func (pa *PlatformAdapterHTTP) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
