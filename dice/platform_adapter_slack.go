@@ -49,11 +49,11 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	})
 	sh.Handle(sm.EventTypeConnectionError, func(event *sm.Event, client *sm.Client) {
 		ep.State = 0
-		log.Error("Slack 账号连接失败:", event.Data)
+		log.Errorf("Slack 账号 <%s> 连接失败: %v", pa.EndPoint.UserID, event.Data)
 	})
 	sh.Handle(sm.EventTypeDisconnect, func(event *sm.Event, client *sm.Client) {
 		ep.State = 0
-		log.Error("Slack 连接断开：", event.Data)
+		log.Errorf("Slack 账号 <%s> 连接断开：%v", pa.EndPoint.UserID, event.Data)
 	})
 	sh.HandleEvents(se.AppMention, func(event *sm.Event, client *sm.Client) {
 		go client.Ack(*event.Request)
