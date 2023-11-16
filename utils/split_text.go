@@ -6,12 +6,14 @@ import (
 )
 
 func splitFirst(s string, maxLen int) (first string, rest string) {
-	if len(s) <= maxLen { // 不足上限不切分
+	// 去除首尾空白
+	s = strings.TrimSpace(s)
+
+	// 不足上限不切分
+	if len(s) <= maxLen {
 		return s, ""
 	}
 
-	// 去除首尾空白
-	s = strings.TrimSpace(s)
 	// 确保子串长度不大于 maxLen 且完整切分 UTF-8 字符
 	r := maxLen
 	for (!utf8.RuneStart(s[r])) && r > 0 {
