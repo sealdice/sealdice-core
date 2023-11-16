@@ -355,6 +355,11 @@ func main() {
 		logger.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
 		return
 	}
+	// v141重命名刷屏警告字段
+	if migrateErr := migrate.V141DeprecatedConfigRename(); migrateErr != nil {
+		logger.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
+		return
+	}
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 		hideWindow()

@@ -785,6 +785,12 @@ func setupBaseTextTemplate(d *Dice) {
 			"拦截_警告内容_危险级": {
 				{"你已多次触发不当内容拦截，{核心:骰子名字}已经无法忍受！", 1},
 			},
+			"刷屏_警告内容_个人": {
+				{"警告：您的指令频率过高，请注意。", 1},
+			},
+			"刷屏_警告内容_群组": {
+				{"警告：该群组内指令频率过高，请注意。", 1},
+			},
 		},
 		"娱乐": {
 			"今日人品": {
@@ -1389,6 +1395,12 @@ func setupBaseTextTemplate(d *Dice) {
 			"拦截_警告内容_危险级": {
 				SubType: "拦截",
 			},
+			"刷屏_警告内容_个人": {
+				SubType: "刷屏",
+			},
+			"刷屏_警告内容_群组": {
+				SubType: "刷屏",
+			},
 		},
 		"其它": {
 			"抽牌_列表": {
@@ -1769,23 +1781,42 @@ func (d *Dice) loads() {
 			d.MaxCocCardGen = 5
 		}
 
-		d.CustomReplenishRate = dNew.CustomReplenishRate
-		if d.CustomReplenishRate == "" {
-			d.CustomReplenishRate = "@every 3s"
-			d.ParsedReplenishRate = rate.Every(time.Second * 3)
+		d.PersonalReplenishRateStr = dNew.PersonalReplenishRateStr
+		if d.PersonalReplenishRateStr == "" {
+			d.PersonalReplenishRateStr = "@every 3s"
+			d.PersonalReplenishRate = rate.Every(time.Second * 3)
 		} else {
-			if parsed, errParse := utils.ParseRate(d.CustomReplenishRate); errParse == nil {
-				d.ParsedReplenishRate = parsed
+			if parsed, errParse := utils.ParseRate(d.PersonalReplenishRateStr); errParse == nil {
+				d.PersonalReplenishRate = parsed
 			} else {
-				d.Logger.Errorf("解析CustomReplenishRate失败: %v", errParse)
-				d.CustomReplenishRate = "@every 3s"
-				d.ParsedReplenishRate = rate.Every(time.Second * 3)
+				d.Logger.Errorf("解析PersonalReplenishRate失败: %v", errParse)
+				d.PersonalReplenishRateStr = "@every 3s"
+				d.PersonalReplenishRate = rate.Every(time.Second * 3)
 			}
 		}
 
-		d.CustomBurst = dNew.CustomBurst
-		if d.CustomBurst == 0 {
-			d.CustomBurst = 3
+		d.PersonalBurst = dNew.PersonalBurst
+		if d.PersonalBurst == 0 {
+			d.PersonalBurst = 3
+		}
+
+		d.GroupReplenishRateStr = dNew.GroupReplenishRateStr
+		if d.GroupReplenishRateStr == "" {
+			d.GroupReplenishRateStr = "@every 3s"
+			d.GroupReplenishRate = rate.Every(time.Second * 3)
+		} else {
+			if parsed, errParse := utils.ParseRate(d.GroupReplenishRateStr); errParse == nil {
+				d.GroupReplenishRate = parsed
+			} else {
+				d.Logger.Errorf("解析GroupReplenishRate失败: %v", errParse)
+				d.GroupReplenishRateStr = "@every 3s"
+				d.GroupReplenishRate = rate.Every(time.Second * 3)
+			}
+		}
+
+		d.GroupBurst = dNew.GroupBurst
+		if d.GroupBurst == 0 {
+			d.GroupBurst = 3
 		}
 
 		if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
