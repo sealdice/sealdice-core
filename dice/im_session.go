@@ -1317,6 +1317,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa := ep.Adapter.(*PlatformAdapterDingTalk)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
+	case "SLACK":
+		pa := ep.Adapter.(*PlatformAdapterSlack)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
 	}
 }
 
