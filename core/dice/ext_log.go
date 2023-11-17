@@ -14,6 +14,7 @@ import (
 	"sealdice-core/dice/model"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/golang-module/carbon"
 
@@ -214,7 +215,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "off") {
-				if group.LogCurName != "" {
+				if group.LogCurName != "" && group.LogOn {
 					group.LogOn = false
 					group.UpdatedAtTime = time.Now().Unix()
 					lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
@@ -302,6 +303,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
+				if !group.LogOn {
+					text = strings.TrimRightFunc(DiceFormatTmpl(ctx, "日志:记录_关闭_失败"), unicode.IsSpace) + "\n" + text
+				}
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
 				group.UpdatedAtTime = time.Now().Unix()
