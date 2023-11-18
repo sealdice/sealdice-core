@@ -1461,21 +1461,19 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		ShortHelp: ".coc (<数量>) // 制卡指令，返回<数量>组人物属性",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n := cmdArgs.GetArgN(1)
-			val, err := strconv.ParseInt(n, 10, 64)
-			if err != nil {
-				// 数量不存在时，视为1次
+			val, _ := strconv.ParseInt(n, 10, 64)
+			if val <= 0 {
 				val = 1
-			}
-			if val > ctx.Dice.MaxCocCardGen {
+			} else if val > ctx.Dice.MaxCocCardGen {
 				val = ctx.Dice.MaxCocCardGen
 			}
-			var i int64
 
 			var ss []string
-			for i = 0; i < val; i++ {
+			for i := int64(0); i < val; i++ {
 				result, _, err := self.ExprText(`力量:{$t1=3d6*5} 敏捷:{$t2=3d6*5} 意志:{$t3=3d6*5}\n体质:{$t4=3d6*5} 外貌:{$t5=3d6*5} 教育:{$t6=(2d6+6)*5}\n体型:{$t7=(2d6+6)*5} 智力:{$t8=(2d6+6)*5}\nHP:{($t4+$t7)/10} 幸运:{$t9=3d6*5} [{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8}/{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8+$t9}]`, ctx)
 				if err != nil {
-					break
+					self.Logger.Errorf("coc card gen ExprText error at iter%d: %v", i, err)
+					continue
 				}
 				result = strings.ReplaceAll(result, `\n`, "\n")
 				ss = append(ss, result)
