@@ -167,8 +167,10 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 					adapter.DeleteFriend(ctx, place)
 				case *PlatformAdapterWalleQ:
 					adapter.DeleteFriend(ctx, place)
+				case *PlatformAdapterRed:
+					log.Warn("qq red 适配器不支持删除好友")
 				default:
-					log.Warn("当前qq适配器不支持删除好友")
+					log.Error("unknown qq adapter")
 				}
 			}
 		}
