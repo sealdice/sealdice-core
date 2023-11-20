@@ -158,8 +158,7 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 		if cfg2.Accounts {
 			for _, i := range d.ImSession.EndPoints {
 				if i.Platform == "QQ" {
-					pa := i.Adapter.(*PlatformAdapterGocq)
-					if pa.UseInPackGoCqhttp {
+					if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackGoCqhttp {
 						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "config.yml"))
 						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "device.json"))
 						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "session.token"))

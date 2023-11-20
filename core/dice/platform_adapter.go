@@ -17,4 +17,7 @@ type PlatformAdapter interface {
 	MemberKick(groupID string, userID string)
 
 	GetGroupInfoAsync(groupID string)
+
+	// DeleteFriend 删除好友，目前只有 QQ 平台下的 gocq 和 walleq 实现有这个方法
+	// DeleteFriend(ctx *MsgContext, id string)
 }
