@@ -127,6 +127,7 @@ func (i *BanListInfo) AfterLoads() {
 // AddScoreBase
 // 这一份ctx有endpoint就行
 func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason string, ctx *MsgContext) *BanListInfoItem {
+	log := i.Parent.Logger
 	v, _ := i.Map.Load(uid)
 	if v == nil {
 		v = &BanListInfoItem{
@@ -161,7 +162,14 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 			v.BanTime = time.Now().Unix()
 
 			if ctx.EndPoint.Platform == "QQ" {
-				ctx.EndPoint.Adapter.(*PlatformAdapterGocq).DeleteFriend(ctx, place)
+				switch adapter := ctx.EndPoint.Adapter.(type) {
+				case *PlatformAdapterGocq:
+					adapter.DeleteFriend(ctx, place)
+				case *PlatformAdapterWalleQ:
+					adapter.DeleteFriend(ctx, place)
+				default:
+					log.Warn("当前qq适配器不支持删除好友")
+				}
 			}
 		}
 
