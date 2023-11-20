@@ -16,7 +16,8 @@ export default sidebar({
           children: [
             "platform-qq.md",
             "platform-kook.md",
-            "platform-dodo.md"
+            "platform-dodo.md",
+            "Platform-slack.md"
           ],
         },
       ],

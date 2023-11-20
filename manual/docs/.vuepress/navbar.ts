@@ -18,7 +18,8 @@ export default navbar([
         children: [
           "platform-qq.md",
           "platform-kook.md",
-          "platform-dodo.md"
+          "platform-dodo.md",
+          "platform-slack.md"
         ],
       },
     ],
