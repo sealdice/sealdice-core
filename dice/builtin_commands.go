@@ -192,7 +192,14 @@ func (d *Dice) registerCoreCommands() {
 			)
 			if _group := cmdArgs.GetArgN(1); strings.HasPrefix(_group, "#") {
 				useGroupSearch = true
-				group = strings.TrimPrefix(_group, "#")
+				fakeGroup := strings.TrimPrefix(_group, "#")
+
+				// 转换 group 别名
+				if _g, ok := d.Parent.Help.GroupAliases[fakeGroup]; ok {
+					group = _g
+				} else {
+					group = fakeGroup
+				}
 			}
 
 			var id string

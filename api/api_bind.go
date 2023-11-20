@@ -434,6 +434,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/helpdoc/upload", helpDocUpload)
 	e.POST(prefix+"/helpdoc/delete", helpDocDelete)
 	e.POST(prefix+"/helpdoc/textitem/get_page", helpGetTextItemPage)
+	e.GET(prefix+"/helpdoc/config", helpGetConfig)
+	e.POST(prefix+"/helpdoc/config", helpSetConfig)
 
 	e.GET(prefix+"/story/info", storyGetInfo)
 	e.GET(prefix+"/story/logs", storyGetLogs)
