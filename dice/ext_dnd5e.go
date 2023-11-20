@@ -1730,15 +1730,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			switch n {
 			case "", "list":
 				textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
-				riMap, _ := dndGetRiMapList(ctx)
+				riMap, uidMap := dndGetRiMapList(ctx)
 				round, _ := VarGetValueInt64(ctx, "$g回合数")
+				lst := dndRiMapToList(riMap, uidMap)
 
-				var lst ByRIListValue
-				for k, v := range riMap {
-					lst = append(lst, &RIListItem{name: k, val: v})
-				}
-
-				sort.Sort(lst)
 				for order, i := range lst {
 					textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i.name, i.val)
 				}
@@ -1757,11 +1752,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			case "ed", "end":
 				riMap, uidMap := dndGetRiMapList(ctx)
 				round, _ := VarGetValueInt64(ctx, "$g回合数")
-				var lst ByRIListValue
-				for k, v := range riMap {
-					lst = append(lst, &RIListItem{name: k, val: v, uid: uidMap[k]})
-				}
-				sort.Sort(lst)
+				lst := dndRiMapToList(riMap, uidMap)
 				if len(lst) == 0 {
 					ReplyToSender(ctx, msg, "先攻列表为空")
 					break
@@ -1794,19 +1785,39 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			case "del", "rm":
 				names := cmdArgs.Args[1:]
 				riMap, uidMap := dndGetRiMapList(ctx)
-				var deleted []string
+				riList := dndRiMapToList(riMap, uidMap)
+
+				deleted := map[string]bool{}
 				for _, i := range names {
-					_, exists := riMap[i]
-					if exists {
-						deleted = append(deleted, i)
-						delete(riMap, i)
+					deleted[i] = false
+				}
+
+				round, _ := VarGetValueInt64(ctx, "$g回合数")
+				round %= int64(len(riList))
+
+				preCurrent := 0 // 每有一个在当前单位前面的单位被删除, 当前单位下标需要减 1
+				for i, v := range riList {
+					if _, exist := deleted[v.name]; exist {
+						deleted[v.name] = true
+						if int64(i) < round {
+							preCurrent++
+						}
+						delete(riMap, v.name)
 					}
 				}
+
+				round -= int64(preCurrent)
+				VarSetValueInt64(ctx, "$g回合数", round)
+
 				textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
-				for order, i := range deleted {
-					textOut += fmt.Sprintf("%2d. %s\n", order+1, i)
+				delCounter := 0
+				for _, name := range names {
+					if deleted[name] {
+						delCounter++
+						textOut += fmt.Sprintf("%2d. %s\n", delCounter, name)
+					}
 				}
-				if len(deleted) == 0 {
+				if delCounter == 0 {
 					textOut += "- 没有找到任何单位"
 				}
 
@@ -1936,4 +1947,13 @@ func dndSetRiMapList(ctx *MsgContext, riMap map[string]int64, uidMap map[string]
 
 func dndClearRiMapList(ctx *MsgContext) {
 	dndSetRiMapList(ctx, map[string]int64{}, map[string]string{})
+}
+
+func dndRiMapToList(riMap map[string]int64, uidMap map[string]string) ByRIListValue {
+	var lst ByRIListValue
+	for k, v := range riMap {
+		lst = append(lst, &RIListItem{name: k, val: v, uid: uidMap[k]})
+	}
+	sort.Sort(lst)
+	return lst
 }
