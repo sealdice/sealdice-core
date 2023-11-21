@@ -47,6 +47,9 @@ jobs:
           only-new-issues: true
           skip-pkg-cache: true
           skip-build-cache: true
+          output:
+            print-issued-lines: true
+            print-linter-name: true
 
       - name: GolangCI-Lint
         uses: golangci/golangci-lint-action@v3
