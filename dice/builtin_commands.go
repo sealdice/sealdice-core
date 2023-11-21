@@ -1524,6 +1524,10 @@ func (d *Dice) registerCoreCommands() {
 							break
 						}
 					}
+					var officialMark string
+					if i.Official {
+						officialMark = "[官方]"
+					}
 					author := i.Author
 					if author == "" {
 						author = "<未注明>"
@@ -1532,7 +1536,7 @@ func (d *Dice) registerCoreCommands() {
 					if len(i.Aliases) > 0 {
 						aliases = "(" + strings.Join(i.Aliases, ",") + ")"
 					}
-					text += fmt.Sprintf("%d. [%s]%s %s - %s - %s\n", index+1, state, i.Name, aliases, i.Version, author)
+					text += fmt.Sprintf("%d. [%s]%s%s %s - %s - %s\n", index+1, state, officialMark, i.Name, aliases, i.Version, author)
 				}
 				text += "使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n"
 				text += "命令: .ext <扩展名> 可以查看扩展介绍及帮助"
