@@ -386,26 +386,27 @@ func (d *Dice) JsInit() {
 		_ = vm.Set("__dirname", "")
 		_ = vm.Set("seal", seal)
 
-		_, _ = vm.RunString(`
-let e = seal.ext.new('_', '', '');
-e.__proto__.storageSet = function(k, v) {
-  try {
-    // 这里goja会强行抛出异常，等于是将返回error的函数转写成throw形式
-    this.storageSetRaw(k, v)
-  } catch (error) {
-    throw error;
-  }
-}
-e.__proto__.storageGet = function(k, v) {
-  try {
-    return this.storageGetRaw(k, v);
-  } catch (error) {
-    if (error.value.toString() !== 'not found') {
-      throw error;
-    }
-  }
-}
-`)
+		// Note(Szzrain): 不要修改原型链, 会导致一些奇怪的问题，比如无法使用某些 TS 库
+		//		_, _ = vm.RunString(`
+		// let e = seal.ext.new('_', '', '');
+		// e.__proto__.storageSet = function(k, v) {
+		//  try {
+		//    // 这里goja会强行抛出异常，等于是将返回error的函数转写成throw形式
+		//    this.storageSetRaw(k, v)
+		//  } catch (error) {
+		//    throw error;
+		//  }
+		// }
+		// e.__proto__.storageGet = function(k, v) {
+		//  try {
+		//    return this.storageGetRaw(k, v);
+		//  } catch (error) {
+		//    if (error.value.toString() !== 'not found') {
+		//      throw error;
+		//    }
+		//  }
+		// }
+		// `)
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
 	loop.Start()
