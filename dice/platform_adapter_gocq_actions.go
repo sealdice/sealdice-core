@@ -235,7 +235,7 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 		Message string `json:"message"`
 	}
 
-	type GroupMessageType2Params struct {
+	type GroupArrMessageParams struct {
 		GroupID int64         `json:"group_id"`
 		Message []interface{} `json:"message"` // 消息内容，原则上是OneBotV11MsgItem但是实际很杂说不清
 	}
@@ -248,7 +248,7 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 		if pa.useArrayMessage {
 			a, _ = json.Marshal(oneBotCommand{
 				Action: "send_group_msg",
-				Params: GroupMessageType2Params{
+				Params: GroupArrMessageParams{
 					GroupID: rawID,
 					Message: OneBot11CqMessageToArrayMessage(subText),
 				},

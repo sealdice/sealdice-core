@@ -193,12 +193,12 @@ type OneBotV11MsgItem struct {
 	Data map[string]interface{} `json:"data"`
 }
 
-type OneBotV11MsgItem2[T any] struct {
+type OneBotV11ArrMsgItem[T any] struct {
 	Type string `json:"type"`
 	Data T      `json:"data"`
 }
 
-type MessageQQType2 struct {
+type MessageQQArray struct {
 	MessageQQBase
 	Message []*OneBotV11MsgItem `json:"message"` // 消息内容
 }
@@ -261,36 +261,37 @@ func FormatDiceIDQQChGroup(guildID, channelID string) string {
 }
 
 func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeTo *MessageQQ) error {
-	msgQQType2 := new(MessageQQType2)
+	msgQQType2 := new(MessageQQArray)
 	err := json.Unmarshal([]byte(message), msgQQType2)
 
-	cqMessage := ""
-
-	if err == nil {
-		for _, i := range msgQQType2.Message {
-			switch i.Type {
-			case "text":
-				cqMessage += i.Data["text"].(string)
-			case "image":
-				cqMessage += fmt.Sprintf("[CQ:image,file=%s]", i.Data["file"].(string))
-			case "face":
-				cqMessage += fmt.Sprintf("[CQ:face,id=%s]", i.Data["id"].(string))
-			case "record":
-				cqMessage += fmt.Sprintf("[CQ:record,file=%s]", i.Data["file"].(string))
-			case "at":
-				cqMessage += fmt.Sprintf("[CQ:at,qq=%s]", i.Data["qq"].(string))
-			case "poke":
-				cqMessage += "[CQ:poke]"
-			case "reply":
-				cqMessage += fmt.Sprintf("[CQ:reply,id=%s]", i.Data["id"].(string))
-			}
-		}
-		writeTo.MessageQQBase = msgQQType2.MessageQQBase
-		writeTo.Message = cqMessage
-	} else {
+	if err != nil {
 		log.Warn("无法解析 onebot11 字段:", message)
+		return err
 	}
-	return err
+
+	cqMessage := strings.Builder{}
+
+	for _, i := range msgQQType2.Message {
+		switch i.Type {
+		case "text":
+			cqMessage.WriteString(i.Data["text"].(string))
+		case "image":
+			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%s]", i.Data["file"].(string)))
+		case "face":
+			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%s]", i.Data["id"].(string)))
+		case "record":
+			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%s]", i.Data["file"].(string)))
+		case "at":
+			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%s]", i.Data["qq"].(string)))
+		case "poke":
+			cqMessage.WriteString("[CQ:poke]")
+		case "reply":
+			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%s]", i.Data["id"].(string)))
+		}
+	}
+	writeTo.MessageQQBase = msgQQType2.MessageQQBase
+	writeTo.Message = cqMessage.String()
+	return nil
 }
 
 func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
@@ -307,21 +308,21 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 		// 如果尾部有文本，将其拼入数组
 		endText := newText[p[1]:]
 		if len(endText) > 0 {
-			i := OneBotV11MsgItem2[OneBotV11MsgItemTextType]{Type: "text", Data: OneBotV11MsgItemTextType{Text: endText}}
+			i := OneBotV11ArrMsgItem[OneBotV11MsgItemTextType]{Type: "text", Data: OneBotV11MsgItemTextType{Text: endText}}
 			arr = append(arr, i)
 		}
 
 		// 将 CQ 拼入数组
 		switch cq.Type {
 		case "image":
-			i := OneBotV11MsgItem2[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
+			i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
 			arr = append(arr, i)
 		case "record":
-			i := OneBotV11MsgItem2[OneBotV11MsgItemRecordType]{Type: "record", Data: OneBotV11MsgItemRecordType{File: cq.Args["file"]}}
+			i := OneBotV11ArrMsgItem[OneBotV11MsgItemRecordType]{Type: "record", Data: OneBotV11MsgItemRecordType{File: cq.Args["file"]}}
 			arr = append(arr, i)
 		case "at":
 			// [CQ:at,qq=10001000]
-			i := OneBotV11MsgItem2[OneBotV11MsgItemAtType]{Type: "at", Data: OneBotV11MsgItemAtType{QQ: cq.Args["qq"]}}
+			i := OneBotV11ArrMsgItem[OneBotV11MsgItemAtType]{Type: "at", Data: OneBotV11MsgItemAtType{QQ: cq.Args["qq"]}}
 			arr = append(arr, i)
 		default:
 			data := make(map[string]interface{})
@@ -337,7 +338,7 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 
 	// 如果剩余有文本，将其拼入数组
 	if len(newText) > 0 {
-		i := OneBotV11MsgItem2[OneBotV11MsgItemTextType]{Type: "text", Data: OneBotV11MsgItemTextType{Text: newText}}
+		i := OneBotV11ArrMsgItem[OneBotV11MsgItemTextType]{Type: "text", Data: OneBotV11MsgItemTextType{Text: newText}}
 		arr = append(arr, i)
 	}
 
@@ -413,10 +414,10 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if err != nil {
 				log.Error("error" + err.Error())
 				return
-			} else {
-				pa.useArrayMessage = true
 			}
+			pa.useArrayMessage = true
 		}
+
 		// 心跳包，忽略
 		if msgQQ.MetaEventType == "heartbeat" {
 			return
