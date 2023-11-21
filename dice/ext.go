@@ -143,10 +143,7 @@ func (i *ExtInfo) StorageGet(k string) (string, error) {
 
 	db := i.Storage
 	err = db.View(func(tx *buntdb.Tx) error {
-		val, err = tx.Get(k)
-		if err != nil {
-			return err
-		}
+		val, _ = tx.Get(k)
 		return nil
 	})
 
