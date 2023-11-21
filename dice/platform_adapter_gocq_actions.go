@@ -253,7 +253,6 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 					Message: OneBot11CqMessageToArrayMessage(subText),
 				},
 			})
-
 		} else {
 			a, _ = json.Marshal(oneBotCommand{
 				Action: "send_group_msg",
@@ -262,7 +261,6 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 					subText, // "golang client test",
 				},
 			})
-
 		}
 
 		if len(texts) > 1 && index != 0 {

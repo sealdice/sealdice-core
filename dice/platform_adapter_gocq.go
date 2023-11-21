@@ -3,8 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/samber/lo"
-	"go.uber.org/zap"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -17,9 +15,10 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/yaml.v3"
-
 	"github.com/sacOO7/gowebsocket"
+	"github.com/samber/lo"
+	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 )
 
 // 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
@@ -281,7 +280,7 @@ func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeT
 			case "at":
 				cqMessage += fmt.Sprintf("[CQ:at,qq=%s]", i.Data["qq"].(string))
 			case "poke":
-				cqMessage += fmt.Sprintf("[CQ:poke]")
+				cqMessage += "[CQ:poke]"
 			case "reply":
 				cqMessage += fmt.Sprintf("[CQ:reply,id=%s]", i.Data["id"].(string))
 			}
