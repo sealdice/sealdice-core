@@ -2037,8 +2037,9 @@ func (d *Dice) loads() {
 		// 1.3
 		d.JsEnable = true
 
-		d.MaxCocCardGen = 5
+		// 1.4
 		d.MaxExecuteTime = 12
+		d.MaxCocCardGen = 5
 	}
 
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
