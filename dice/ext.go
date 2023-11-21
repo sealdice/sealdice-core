@@ -122,7 +122,7 @@ func (i *ExtInfo) StorageInit() error {
 	return err
 }
 
-func (i *ExtInfo) StorageSetRaw(k, v string) error {
+func (i *ExtInfo) StorageSet(k, v string) error {
 	if err := i.StorageInit(); err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (i *ExtInfo) StorageSetRaw(k, v string) error {
 	})
 }
 
-func (i *ExtInfo) StorageGetRaw(k string) (string, error) {
+func (i *ExtInfo) StorageGet(k string) (string, error) {
 	if err := i.StorageInit(); err != nil {
 		return "", err
 	}
