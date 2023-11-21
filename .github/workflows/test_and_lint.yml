@@ -49,7 +49,6 @@ jobs:
           only-new-issues: true
           skip-pkg-cache: true
           skip-build-cache: true
-          skip-go-installation: true
 
       - name: GolangCI-Lint
         uses: golangci/golangci-lint-action@v3
