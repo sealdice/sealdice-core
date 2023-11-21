@@ -46,6 +46,9 @@ jobs:
         with:
           version: 'v1.55.2'
           args: '--timeout 9999s'
+          only-new-issues: true
+          skip-pkg-cache: true
+          skip-build-cache: true
 
       - name: GolangCI-Lint
         uses: golangci/golangci-lint-action@v3
@@ -53,3 +56,5 @@ jobs:
         with:
           version: 'v1.55.2'
           args: '--timeout 9999s'
+          skip-pkg-cache: true
+          skip-build-cache: true
