@@ -28,7 +28,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	// _ "net/http/pprof"
+
+	_ "net/http/pprof"
 )
 
 /**
@@ -410,9 +411,9 @@ func main() {
 	}
 
 	// pprof
-	// go func() {
-	// 	http.ListenAndServe("0.0.0.0:8899", nil)
-	// }()
+	go func() {
+		http.ListenAndServe("0.0.0.0:8899", nil)
+	}()
 
 	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
 	// OOM分析工具

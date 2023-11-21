@@ -235,17 +235,35 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 		Message string `json:"message"`
 	}
 
+	type GroupMessageType2Params struct {
+		GroupID int64         `json:"group_id"`
+		Message []interface{} `json:"message"` // 消息内容，原则上是OneBotV11MsgItem但是实际很杂说不清
+	}
+
 	text = textAssetsConvert(text)
 	texts := textSplit(text)
 
 	for index, subText := range texts {
-		a, _ := json.Marshal(oneBotCommand{
-			Action: "send_group_msg",
-			Params: GroupMessageParams{
-				rawID,
-				subText, // "golang client test",
-			},
-		})
+		var a []byte
+		if pa.useArrayMessage {
+			a, _ = json.Marshal(oneBotCommand{
+				Action: "send_group_msg",
+				Params: GroupMessageType2Params{
+					GroupID: rawID,
+					Message: OneBot11CqMessageToArrayMessage(subText),
+				},
+			})
+
+		} else {
+			a, _ = json.Marshal(oneBotCommand{
+				Action: "send_group_msg",
+				Params: GroupMessageParams{
+					rawID,
+					subText, // "golang client test",
+				},
+			})
+
+		}
 
 		if len(texts) > 1 && index != 0 {
 			doSleepQQ(ctx)

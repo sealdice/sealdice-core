@@ -3,6 +3,8 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/samber/lo"
+	"go.uber.org/zap"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -80,7 +82,8 @@ type PlatformAdapterGocq struct {
 	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`
 	ExtraArgs        string            `yaml:"extraArgs" json:"extraArgs"`
 
-	riskAlertShieldCount int // 风控警告屏蔽次数，一个临时变量
+	riskAlertShieldCount int  // 风控警告屏蔽次数，一个临时变量
+	useArrayMessage      bool `yaml:"-"` // 使用分段消息
 }
 
 type Sender struct {
@@ -105,13 +108,12 @@ type OnebotUserInfo struct {
 	Card            string `json:"card"`
 }
 
-type MessageQQ struct {
+type MessageQQBase struct {
 	MessageID     int64   `json:"message_id"`   // QQ信息此类型为int64，频道中为string
 	MessageType   string  `json:"message_type"` // Group
 	Sender        *Sender `json:"sender"`       // 发送者
 	RawMessage    string  `json:"raw_message"`
-	Message       string  `json:"message"` // 消息内容
-	Time          int64   `json:"time"`    // 发送时间
+	Time          int64   `json:"time"` // 发送时间
 	MetaEventType string  `json:"meta_event_type"`
 	OperatorID    int64   `json:"operator_id"`  // 操作者帐号
 	GroupID       int64   `json:"group_id"`     // 群号
@@ -148,6 +150,58 @@ type MessageQQ struct {
 	Msg string `json:"msg"`
 	// Status  interface{} `json:"status"`
 	Wording string `json:"wording"`
+}
+
+type MessageQQ struct {
+	MessageQQBase
+	Message string `json:"message"` // 消息内容
+}
+
+// 注: 这部分对应了 onebot v11 的另一种消息格式
+// https://github.com/botuniverse/onebot-11/blob/master/message/array.md
+
+type OneBotV11MsgItemTextType struct {
+	Text string `json:"text"`
+}
+
+type OneBotV11MsgItemImageType struct {
+	File string `json:"file"`
+}
+
+type OneBotV11MsgItemFaceType struct {
+	Id string `json:"id"`
+}
+
+type OneBotV11MsgItemRecordType struct {
+	File string `json:"file"`
+}
+
+type OneBotV11MsgItemAtType struct {
+	QQ string `json:"qq"`
+}
+
+type OneBotV11MsgItemPokeType struct {
+	Type string `json:"type"`
+	Id   string `json:"id"`
+}
+
+type OneBotV11MsgItemReplyType struct {
+	Id string `json:"id"`
+}
+
+type OneBotV11MsgItem struct {
+	Type string                 `json:"type"`
+	Data map[string]interface{} `json:"data"`
+}
+
+type OneBotV11MsgItem2[T any] struct {
+	Type string `json:"type"`
+	Data T      `json:"data"`
+}
+
+type MessageQQType2 struct {
+	MessageQQBase
+	Message []*OneBotV11MsgItem `json:"message"` // 消息内容
 }
 
 type LastWelcomeInfo struct {
@@ -205,6 +259,90 @@ func FormatDiceIDQQCh(userID string) string {
 
 func FormatDiceIDQQChGroup(guildID, channelID string) string {
 	return fmt.Sprintf("QQ-CH-Group:%s-%s", guildID, channelID)
+}
+
+func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeTo *MessageQQ) error {
+	msgQQType2 := new(MessageQQType2)
+	err := json.Unmarshal([]byte(message), msgQQType2)
+
+	cqMessage := ""
+
+	if err == nil {
+		for _, i := range msgQQType2.Message {
+			switch i.Type {
+			case "text":
+				cqMessage += i.Data["text"].(string)
+			case "image":
+				cqMessage += fmt.Sprintf("[CQ:image,file=%s]", i.Data["file"].(string))
+			case "face":
+				cqMessage += fmt.Sprintf("[CQ:face,id=%s]", i.Data["id"].(string))
+			case "record":
+				cqMessage += fmt.Sprintf("[CQ:record,file=%s]", i.Data["file"].(string))
+			case "at":
+				cqMessage += fmt.Sprintf("[CQ:at,qq=%s]", i.Data["qq"].(string))
+			case "poke":
+				cqMessage += fmt.Sprintf("[CQ:poke]")
+			case "reply":
+				cqMessage += fmt.Sprintf("[CQ:reply,id=%s]", i.Data["id"].(string))
+			}
+		}
+		writeTo.MessageQQBase = msgQQType2.MessageQQBase
+		writeTo.Message = cqMessage
+	} else {
+		log.Warn("无法解析 onebot11 字段:", message)
+	}
+	return err
+}
+
+func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
+	re := regexp.MustCompile(`\[CQ:.+?]`)
+	m := re.FindAllStringIndex(longText, -1)
+
+	newText := longText
+	var arr []interface{}
+
+	for i := len(m) - 1; i >= 0; i-- {
+		p := m[i]
+		cq := CQParse(longText[p[0]:p[1]])
+
+		// 如果尾部有文本，将其拼入数组
+		endText := newText[p[1]:]
+		if len(endText) > 0 {
+			i := OneBotV11MsgItem2[OneBotV11MsgItemTextType]{Type: "text", Data: OneBotV11MsgItemTextType{Text: endText}}
+			arr = append(arr, i)
+		}
+
+		// 将 CQ 拼入数组
+		switch cq.Type {
+		case "image":
+			i := OneBotV11MsgItem2[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
+			arr = append(arr, i)
+		case "record":
+			i := OneBotV11MsgItem2[OneBotV11MsgItemRecordType]{Type: "record", Data: OneBotV11MsgItemRecordType{File: cq.Args["file"]}}
+			arr = append(arr, i)
+		case "at":
+			// [CQ:at,qq=10001000]
+			i := OneBotV11MsgItem2[OneBotV11MsgItemAtType]{Type: "at", Data: OneBotV11MsgItemAtType{QQ: cq.Args["qq"]}}
+			arr = append(arr, i)
+		default:
+			data := make(map[string]interface{})
+			for k, v := range cq.Args {
+				data[k] = v
+			}
+			i := OneBotV11MsgItem{Type: cq.Type, Data: data}
+			arr = append(arr, i)
+		}
+
+		newText = newText[:p[0]]
+	}
+
+	// 如果剩余有文本，将其拼入数组
+	if len(newText) > 0 {
+		i := OneBotV11MsgItem2[OneBotV11MsgItemTextType]{Type: "text", Data: OneBotV11MsgItemTextType{Text: newText}}
+		arr = append(arr, i)
+	}
+
+	return lo.Reverse(arr)
 }
 
 func (pa *PlatformAdapterGocq) Serve() int {
@@ -271,8 +409,14 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		err := json.Unmarshal([]byte(message), msgQQ)
 
 		if err != nil {
-			log.Error("error" + err.Error())
-			return
+			err = tryParseOneBot11ArrayMessage(log, message, msgQQ)
+
+			if err != nil {
+				log.Error("error" + err.Error())
+				return
+			} else {
+				pa.useArrayMessage = true
+			}
 		}
 		// 心跳包，忽略
 		if msgQQ.MetaEventType == "heartbeat" {
