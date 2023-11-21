@@ -347,7 +347,3 @@ issues:
         - gosec
         - noctx
         - wrapcheck
-
-output:
-  print-issued-lines: true
-  print-linter-name: true
