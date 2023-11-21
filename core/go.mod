@@ -67,7 +67,7 @@ require (
 	github.com/samber/lo v1.38.1
 	github.com/schollz/progressbar/v3 v3.14.1
 	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
-	github.com/slack-go/slack v0.12.2
+	github.com/slack-go/slack v0.12.3
 	github.com/tdewolff/minify/v2 v2.20.7
 	github.com/yuin/goldmark v1.6.0
 	golang.org/x/exp v0.0.0-20231108232855-2478ac86f678
