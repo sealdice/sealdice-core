@@ -12,6 +12,9 @@ interface JsScriptInfo {
   errText: string;
   filename: string;
   updateUrls?: string[];
+  official: boolean;
+  builtin: boolean;
+  builtinUpdated: boolean;
 }
 
 interface JsPluginConfigItem {

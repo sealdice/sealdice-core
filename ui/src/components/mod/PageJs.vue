@@ -54,9 +54,12 @@
                                  style="--el-switch-on-color: var(--el-color-success); --el-switch-off-color: var(--el-color-danger)" />
                       <el-text size="large" tag="b">{{ i.name }}</el-text>
                       <el-text>{{ i.version || '&lt;未定义>' }}</el-text>
+                      <el-tag v-if="i.official" size="small" type="success">官方</el-tag>
                     </el-space>
                     <el-space>
-                      <el-popconfirm v-if="i.updateUrls && i.updateUrls.length > 0" width="220"
+                      <el-button v-if="i.official && i.updateUrls && i.updateUrls.length > 0"
+                                 :icon="Download" type="success" size="small" plain :loading="diffLoading">更新</el-button>
+                      <el-popconfirm v-else-if="i.updateUrls && i.updateUrls.length > 0" width="220"
                                      confirm-button-text="确认"
                                      cancel-button-text="取消"
                                      @confirm="doCheckUpdate(i, index)"
@@ -66,7 +69,8 @@
                         </template>
                       </el-popconfirm>
                       <!--                    <el-button :icon="Setting" type="primary" size="small" plain @click="showSettingDialog = true">设置</el-button>-->
-                      <el-button @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>删除</el-button>
+                      <el-button v-if="i.builtin && i.builtinUpdated" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>卸载更新</el-button>
+                      <el-button v-else-if="!i.builtin" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>删除</el-button>
                     </el-space>
                   </template>
                   <template v-else>
@@ -77,7 +81,8 @@
                       </del>
                     </el-space>
                     <el-space>
-                      <el-button @click="doDelete(i, index)" :icon="Delete" type="danger" size="small">删除</el-button>
+                      <el-button v-if="i.builtin && i.builtinUpdated" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small">卸载更新</el-button>
+                      <el-button v-else-if="!i.builtin" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small">删除</el-button>
                     </el-space>
                   </template>
                 </div>
@@ -85,9 +90,9 @@
 
               <el-descriptions>
                 <template v-if="!i.errText">
-                  <el-descriptions-item :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
+                  <el-descriptions-item v-if="!i.official" :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
                   <el-descriptions-item :span="3" label="介绍">{{ i.desc || '&lt;暂无>' }}</el-descriptions-item>
-                  <el-descriptions-item :span="3" label="主页">{{ i.homepage || '&lt;暂无>' }}</el-descriptions-item>
+                  <el-descriptions-item v-if="!i.official" :span="3" label="主页">{{ i.homepage || '&lt;暂无>' }}</el-descriptions-item>
                   <el-descriptions-item label="许可协议">{{ i.license || '&lt;暂无>' }}</el-descriptions-item>
                   <el-descriptions-item label="安装时间">{{ dayjs.unix(i.installTime).fromNow() }}</el-descriptions-item>
                   <el-descriptions-item label="更新时间">
@@ -565,9 +570,9 @@ const beforeUpload = async (file: any) => { // UploadRawFile
   needReload.value = true
 }
 
-const doDelete = async (data: any, index: number) => {
+const doDelete = async (data: JsScriptInfo, index: number) => {
   ElMessageBox.confirm(
-    `删除插件《${data.name}》，确定吗？`,
+    data.official ? `卸载官方插件《${data.name}》的更新，确定吗？` : `删除插件《${data.name}》，确定吗？`,
     '删除',
     {
       confirmButtonText: '确定',
@@ -719,13 +724,6 @@ const jsUpdate = async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem
-}
-
-.js-item-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
 }
 
 .js-item-header {
