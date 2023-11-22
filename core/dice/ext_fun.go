@@ -928,6 +928,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		AutoActive:      true, // 是否自动开启
 		ActiveOnPrivate: true,
 		Author:          "木落",
+		Official:        true,
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 		},
 		OnLoad: func() {

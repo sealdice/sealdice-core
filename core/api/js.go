@@ -153,9 +153,9 @@ func jsUpload(c echo.Context) error {
 		})
 	}
 
-	//-----------
+	// -----------
 	// Read file
-	//-----------
+	// -----------
 
 	// Source
 	file, err := c.FormFile("file")
@@ -200,7 +200,20 @@ func jsList(c echo.Context) error {
 		return resp
 	}
 
-	return c.JSON(http.StatusOK, myDice.JsScriptList)
+	type script struct {
+		dice.JsScriptInfo
+		BuiltinUpdated bool `json:"builtinUpdated"`
+	}
+	scripts := make([]*script, 0, len(myDice.JsScriptList))
+	for _, info := range myDice.JsScriptList {
+		temp := script{
+			JsScriptInfo:   *info,
+			BuiltinUpdated: info.Builtin && !myDice.JsBuiltinDigestSet[info.Digest],
+		}
+		scripts = append(scripts, &temp)
+	}
+
+	return c.JSON(http.StatusOK, scripts)
 }
 
 func jsShutdown(c echo.Context) error {

@@ -127,6 +127,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 		Brief:      "自定义回复模块，支持各种文本匹配和简易脚本",
 		Author:     "木落",
 		AutoActive: true, // 是否自动开启
+		Official:   true,
 		OnNotCommandReceived: func(ctx *MsgContext, msg *Message) {
 			// 当前，只有非指令才会匹配
 			rcs := ctx.Dice.CustomReplyConfig
