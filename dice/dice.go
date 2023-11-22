@@ -78,7 +78,7 @@ type ExtInfo struct {
 
 	Author       string   `yaml:"-" json:"-" jsbind:"author"`
 	ConflictWith []string `yaml:"-" json:"-"`
-	Official     bool     `yaml:"-" json:"-" jsbind:"official"` // 官方插件
+	Official     bool     `yaml:"-" json:"-"` // 官方插件
 
 	dice    *Dice
 	IsJsExt bool          `json:"-"`

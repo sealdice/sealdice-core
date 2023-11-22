@@ -1,15 +1,19 @@
 package dice
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sealdice-core/static"
+	"sealdice-core/utils/crypto"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +33,7 @@ var (
 	// OfficialModPublicKey 官方 Mod 公钥
 	OfficialModPublicKey = ``
 
-	signRe = regexp.MustCompile(`// sign\s+([^\r\n]+)?[\r\n]+`)
+	signRe = regexp.MustCompile(`^// sign\s+([^\r\n]+)?[\r\n]+$`)
 )
 
 type PrinterFunc struct {
@@ -475,7 +479,7 @@ func (d *Dice) JsLoadScripts() {
 		if !script.IsDir() && filepath.Ext(script.Name()) == ".js" {
 			target := filepath.Join(builtinPath, script.Name())
 			data, _ := static.Scripts.ReadFile("scripts/" + script.Name())
-			d.JsBuiltinDigestSet[CalculateSHA512Str(data)] = true
+			d.JsBuiltinDigestSet[crypto.CalculateSHA512Str(data)] = true
 			// 判断是否有更新后的内置脚本
 			_, err := os.Stat(target)
 			if errors.Is(err, os.ErrNotExist) {
@@ -494,7 +498,7 @@ func (d *Dice) JsLoadScripts() {
 	// 优先读取内置脚本
 	_ = filepath.Walk(builtinPath, func(path string, info fs.FileInfo, err error) error {
 		if filepath.Ext(path) == ".js" {
-			d.Logger.Info("正在读取内置脚本(已验证为官方插件): ", path)
+			d.Logger.Info("正在读取内置脚本: ", path)
 			data, err := os.ReadFile(path)
 			if err != nil {
 				d.Logger.Error("读取内置脚本失败(无法访问): ", err.Error())
@@ -621,11 +625,11 @@ type JsScriptInfo struct {
 	/** 是否官方插件 */
 	Official bool `json:"official"`
 	/** 签名状态 */
-	SignStatus SignStatus `json:"signStatus"`
+	signStatus SignStatus
 	/** 是否内置插件 */
 	Builtin bool `json:"builtin"`
 	/** 内容摘要 */
-	Digest string `json:"digest"`
+	Digest string `json:"-"`
 }
 
 func (d *Dice) JsLoadScriptRaw(s string, installTime time.Time, rawData []byte, builtin bool) {
@@ -640,12 +644,12 @@ func (d *Dice) JsLoadScriptRaw(s string, installTime time.Time, rawData []byte, 
 	var err error
 
 	jsInfo.Builtin = builtin
-	jsInfo.Digest = CalculateSHA512Str(rawData)
+	jsInfo.Digest = crypto.CalculateSHA512Str(rawData)
 
 	// 解析签名
 	official, signStatus := CheckJsSign(rawData)
 	jsInfo.Official = official
-	jsInfo.SignStatus = signStatus
+	jsInfo.signStatus = signStatus
 
 	// 解析信息
 	fileText := string(rawData)
@@ -708,23 +712,30 @@ func (d *Dice) JsLoadScriptRaw(s string, installTime time.Time, rawData []byte, 
 }
 
 func CheckJsSign(rawData []byte) (bool, SignStatus) {
-	if OfficialModPublicKey == "" {
+	if OfficialModPublicKey == "" || len(rawData) == 0 {
 		return false, UnknownSign
 	}
-	matches := signRe.FindSubmatch(rawData)
-	if len(matches) > 1 {
-		sign := string(matches[1])
-		// 移除待验证内容中的 // sign
-		data := signRe.ReplaceAll(rawData, []byte(""))
-		// 验证是否是官方插件
-		err := RSAVerify(data, sign, OfficialModPublicKey)
-		if err == nil {
-			return true, OfficialSign
-		}
-		return false, ErrorSign
-	} else {
+	r := bufio.NewReader(bytes.NewReader(rawData))
+	// 读取第一行判断签名
+	fl, err := r.ReadBytes('\n')
+	if err != nil {
 		return false, UnknownSign
 	}
+	matches := signRe.FindSubmatch(fl)
+	if len(matches) <= 1 {
+		return false, UnknownSign
+	}
+	sign := string(matches[1])
+	// 读取剩余内容
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return false, UnknownSign
+	}
+	err = crypto.RSAVerify(data, sign, OfficialModPublicKey)
+	if err == nil {
+		return true, OfficialSign
+	}
+	return false, ErrorSign
 }
 
 func JsDelete(_ *Dice, jsInfo *JsScriptInfo) {
