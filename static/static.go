@@ -7,4 +7,7 @@ import (
 //go:generate go run gen/download-fe.go
 
 //go:embed frontend
-var Static embed.FS
+var Frontend embed.FS
+
+//go:embed scripts
+var Scripts embed.FS

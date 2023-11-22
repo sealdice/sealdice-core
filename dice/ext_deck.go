@@ -734,6 +734,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		Version:    "1.0.0",
 		Author:     "木落",
 		Brief:      "牌堆扩展，提供.deck指令支持，兼容Dice!和塔系牌堆",
+		Official:   true,
 		AutoActive: true, // 是否自动开启
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 		},

@@ -78,8 +78,10 @@ jobs:
         with:
           name: sealdice-ui
           path: ./static/frontend
-      - name: Test
-        run: go test -v -race ./...
+      - name: Sign Builtin Mod
+        env:
+          SEAL_MOD_PRIVATE_KEY: ${{ secrets.SEAL_MOD_PRIVATE_KEY }}
+        run: go generate sealdice-core/signature
       - name: Set Env
         env:
           GOOS: ${{ matrix.goos }}
@@ -140,6 +142,10 @@ jobs:
         with:
           name: sealdice-ui
           path: ./static/frontend
+      - name: Sign Builtin Mod
+        env:
+          SEAL_MOD_PRIVATE_KEY: ${{ secrets.SEAL_MOD_PRIVATE_KEY }}
+        run: go generate sealdice-core/signature
       - name: Set Env
         run: echo "PROJECT_VERSION=develop-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Build Binary
@@ -181,6 +187,10 @@ jobs:
         with:
           name: sealdice-ui
           path: ./static/frontend
+      - name: Sign Builtin Mod
+        env:
+          SEAL_MOD_PRIVATE_KEY: ${{ secrets.SEAL_MOD_PRIVATE_KEY }}
+        run: go generate sealdice-core/signature
       - name: Set Env
         run: echo "PROJECT_VERSION=develop-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Build binary

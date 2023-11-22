@@ -1496,6 +1496,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Brief:      "第七版克苏鲁的呼唤TRPG跑团指令集",
 		AutoActive: true,
 		Author:     "木落",
+		Official:   true,
 		ConflictWith: []string{
 			"dnd5e",
 		},

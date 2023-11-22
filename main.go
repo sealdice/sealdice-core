@@ -524,7 +524,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 		ContentTypeNosniff:    "nosniff",
 		HSTSMaxAge:            3600,
 		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
-		//XFrameOptions:         "ALLOW-FROM https://captcha.go-cqhttp.org/",
+		// XFrameOptions:         "ALLOW-FROM https://captcha.go-cqhttp.org/",
 	}))
 	// X-Content-Type-Options: nosniff
 
@@ -541,7 +541,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	}
 	e.Use(groupStatic)
 	if useBuiltin {
-		frontend, _ := fs.Sub(static.Static, "frontend")
+		frontend, _ := fs.Sub(static.Frontend, "frontend")
 		e.StaticFS("/", frontend)
 	} else {
 		e.Static("/", "./frontend_overwrite")
@@ -559,7 +559,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 //		return true
 //	}
 //	return false
-//}
+// }
 
 func dnsHack() {
 	var (

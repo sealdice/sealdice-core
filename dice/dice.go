@@ -61,7 +61,7 @@ type CmdMapCls map[string]*CmdItemInfo
 
 // type ExtInfoStorage interface {
 //
-//}
+// }
 
 type ExtInfo struct {
 	Name    string   `yaml:"name" json:"name" jsbind:"name"`    // 名字
@@ -78,10 +78,12 @@ type ExtInfo struct {
 
 	Author       string   `yaml:"-" json:"-" jsbind:"author"`
 	ConflictWith []string `yaml:"-" json:"-"`
+	Official     bool     `yaml:"-" json:"-"` // 官方插件
 
 	dice    *Dice
-	IsJsExt bool       `json:"-"`
-	Storage *buntdb.DB `yaml:"-"  json:"-"`
+	IsJsExt bool          `json:"-"`
+	Source  *JsScriptInfo `yaml:"-" json:"-"`
+	Storage *buntdb.DB    `yaml:"-"  json:"-"`
 
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
 	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
@@ -200,6 +202,10 @@ type Dice struct {
 	JsRequire         *require.RequireModule `yaml:"-" json:"-"`
 	JsLoop            *eventloop.EventLoop   `yaml:"-" json:"-"`
 	JsScriptList      []*JsScriptInfo        `yaml:"-" json:"-"`
+	// 内置脚本摘要表，用于判断内置脚本是否有更新
+	JsBuiltinDigestSet map[string]bool `yaml:"-" json:"-"`
+	// 当前在加载的脚本路径，用于关联 jsScriptInfo 和 ExtInfo
+	JsLoadingScript *JsScriptInfo `yaml:"-" json:"-"`
 
 	// 游戏系统规则模板
 	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
@@ -413,6 +419,7 @@ func (d *Dice) Init() {
 
 	d.ApplyAliveNotice()
 	if d.JsEnable {
+		d.JsBuiltinDigestSet = make(map[string]bool)
 		d.JsLoadScripts()
 	} else {
 		d.Logger.Info("js扩展支持已关闭，跳过js脚本的加载")
