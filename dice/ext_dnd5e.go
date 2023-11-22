@@ -588,7 +588,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						// if m[3] == "-" || m[3] == "－" {
 						//	r.Value = -r.Value.(int64)
-						//}
+						// }
 
 						if attrName == "hp" {
 							// 当扣血时，特别处理
@@ -1869,6 +1869,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Brief:      "提供DND5E规则TRPG支持",
 		Author:     "木落",
 		AutoActive: true, // 是否自动开启
+		Official:   true,
 		ConflictWith: []string{
 			"coc7",
 		},

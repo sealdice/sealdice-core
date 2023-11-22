@@ -281,7 +281,7 @@ func RegisterBuiltinStory(self *Dice) {
 					// if len(ret.Data.RecommendList) > 0 {
 					//	rec := ret.Data.RecommendList[0]
 					//	recInfo = fmt.Sprintf("推荐语: %s - by %s\n", rec.Content, rec.LoginUser.NickName)
-					//}
+					// }
 
 					text := fmt.Sprintf("[%d]%s\n作者: %s\n背景: %s,%s\n规模: %d-%d人，%d-%d时\n原创: %v\n简介: %s\n%sPC端链接：%s\n移动端链接：%s",
 						item.KeyID, item.Title,
@@ -336,7 +336,7 @@ func RegisterBuiltinStory(self *Dice) {
 						// 魔都现在只有coc本
 						// if item.ModuleVersion == "coc7th" {
 						//	ver = "[coc7]"
-						//}
+						// }
 						text += fmt.Sprintf("[%d]%s%s %s%s - by %s\n", item.KeyID, ver, item.Title, item.ModuleAge, item.OccurrencePlace, item.Article)
 					}
 					if len(ret.Data.List) == 0 {
@@ -375,6 +375,7 @@ func RegisterBuiltinStory(self *Dice) {
 		Brief:      "提供随机姓名、排序、魔都查询等功能",
 		Author:     "木落",
 		AutoActive: true, // 是否自动开启
+		Official:   true,
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 		},
 		GetDescText: GetExtensionDesc,
