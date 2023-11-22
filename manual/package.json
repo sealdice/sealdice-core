@@ -13,7 +13,7 @@
   "license": "MIT",
   "devDependencies": {
     "@vuepress/client": "2.0.0-beta.67",
-    "@vuepress/plugin-register-components": "2.0.0-beta.68",
+    "@vuepress/plugin-register-components": "2.0.0-rc.0",
     "@vuepress/utils": "2.0.0-alpha.1",
     "scss": "^0.2.4",
     "vue": "^3.3.8",
