@@ -506,7 +506,7 @@ func getCmdStBase() *CmdItemInfo {
 
 				// 进行简化卡的尝试解析
 				input := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`^(([^\s-#]{1,25})([-#]))[^\s\d]+\d+`)
+				re := regexp.MustCompile(`^(([^\s\-#]{1,25})([-#]))[^\s\d]+\d+`)
 				matches := re.FindStringSubmatch(input)
 				if len(matches) > 0 {
 					flag := matches[3]
@@ -515,13 +515,15 @@ func getCmdStBase() *CmdItemInfo {
 					isName := flag == "#"
 					if !isName {
 						// 尝试作为名字处理
-						name = tmpl.GetAlias(matches[2])
-						_, exists := chVars.Get(name)
-						isName = !exists
+						name = tmpl.GetAlias(name)
+						// 注: 这两句逻辑上是对的，但是chVars.Get()第二个值一直返回true，导致永远判定不了是名字
+						// _, exists := chVars.Get(name)
+						// isName = !exists
+						isName = true // 先调整为true
 
 						if isName {
 							// 好像是个名字了，先再看看是不是带默认值的属性
-							if tmpl.GetDefaultValueEx(mctx, name) != nil {
+							if _, _, _, exists := tmpl.GetDefaultValueEx0(mctx, name); exists {
 								// 有默认值，不能作为名字
 								isName = false
 							}
