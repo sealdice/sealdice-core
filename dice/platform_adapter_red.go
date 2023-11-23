@@ -758,13 +758,14 @@ func (pa *PlatformAdapterRed) getGroups() []*Group {
 	return groups
 }
 
-func (pa *PlatformAdapterRed) getMemberList(group string, size int) []*GroupMember {
+func (pa *PlatformAdapterRed) getMemberList(group string, size int) (members []*GroupMember) {
 	if strings.HasPrefix(group, "QQ-Group:") {
 		group = group[len("QQ-Group"):]
 	}
 	groupID, err := strconv.ParseInt(group, 10, 64)
 	if err != nil {
 		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		return
 	}
 	paramData, err := json.Marshal(map[string]interface{}{
 		"group": groupID,
@@ -772,18 +773,24 @@ func (pa *PlatformAdapterRed) getMemberList(group string, size int) []*GroupMemb
 	})
 	if err != nil {
 		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		return
 	}
 	data, err := pa.httpDo("POST", "group/getMemberList", nil, bytes.NewBuffer(paramData))
 	if err != nil {
 		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		return
 	}
 	type memberInfo struct {
 		Index  int          `json:"index"`
 		Detail *GroupMember `json:"detail"`
 	}
 	var body []memberInfo
-	_ = json.Unmarshal(data, &body)
-	members := lo.Map(body, func(item memberInfo, _ int) *GroupMember {
+	err = json.Unmarshal(data, &body)
+	if err != nil {
+		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		return []*GroupMember{}
+	}
+	members = lo.Map(body, func(item memberInfo, _ int) *GroupMember {
 		return item.Detail
 	})
 	return members
