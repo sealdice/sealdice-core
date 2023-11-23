@@ -759,12 +759,24 @@ func (pa *PlatformAdapterRed) getGroups() []*Group {
 }
 
 func (pa *PlatformAdapterRed) getMemberList(group string, size int) []*GroupMember {
-	groupID, _ := strconv.ParseInt(group, 10, 64)
-	paramData, _ := json.Marshal(map[string]interface{}{
+	if strings.HasPrefix(group, "QQ-Group:") {
+		group = group[len("QQ-Group"):]
+	}
+	groupID, err := strconv.ParseInt(group, 10, 64)
+	if err != nil {
+		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+	}
+	paramData, err := json.Marshal(map[string]interface{}{
 		"group": groupID,
 		"size":  size,
 	})
-	data, _ := pa.httpDo("POST", "group/getMemberList", nil, bytes.NewBuffer(paramData))
+	if err != nil {
+		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+	}
+	data, err := pa.httpDo("POST", "group/getMemberList", nil, bytes.NewBuffer(paramData))
+	if err != nil {
+		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+	}
 	type memberInfo struct {
 		Index  int          `json:"index"`
 		Detail *GroupMember `json:"detail"`
