@@ -76,12 +76,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 		ep.Nickname = botInfo.Username
 	}
 
-	//nolint
-	for {
-		select {
-		case <-pa.Ctx.Done():
-		}
-	}
+	return 0
 }
 
 func (pa *PlatformAdapterOfficialQQ) ChannelAtMessageReceive(event *dto.WSPayload, data *dto.WSATMessageData) error {
@@ -93,6 +88,7 @@ func (pa *PlatformAdapterOfficialQQ) ChannelAtMessageReceive(event *dto.WSPayloa
 		msg.Message = msgQQ.Content
 		msg.RawID = msgQQ.ID
 		msg.Platform = "QQ-CH"
+		msg.GuildID = formatDiceIDOfficialQQChGuild(msgQQ.GuildID)
 		msg.GroupID = formatDiceIDOfficialQQChGroup(msgQQ.GuildID, msgQQ.ChannelID)
 		if msgQQ.Author != nil {
 			msg.Sender.Nickname = msgQQ.Author.Username
@@ -122,7 +118,7 @@ func (pa *PlatformAdapterOfficialQQ) GroupAtMessageReceive(event *dto.WSPayload,
 		msg.GroupID = formatDiceIDOfficialQQGroupOpenID(appID, msgQQ.GroupOpenID)
 		if msgQQ.Author != nil {
 			// FIXME: 我要用户名啊kora
-			msg.Sender.Nickname = "未知"
+			msg.Sender.Nickname = "用户" + msgQQ.Author.MemberOpenID[len(msgQQ.Author.MemberOpenID)-4:]
 			msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 		}
 		return msg
@@ -208,7 +204,8 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 }
 
 func (pa *PlatformAdapterOfficialQQ) GetGroupInfoAsync(groupID string) {
-	pa.Session.Parent.Logger.Infof("official qq 更新群信息失败：不支持该功能")
+	// 警告太频繁了，拿掉
+	// pa.Session.Parent.Logger.Infof("official qq 更新群信息失败：不支持该功能")
 }
 
 func formatDiceIDOfficialQQ(userUnionID string) string {
@@ -229,6 +226,10 @@ func formatDiceIDOfficialQQMemberOpenID(botID, groupOpenID, memberOpenID string)
 
 func formatDiceIDOfficialQQCh(userID string) string {
 	return fmt.Sprintf("QQ-CH:%s", userID)
+}
+
+func formatDiceIDOfficialQQChGuild(guildID string) string {
+	return fmt.Sprintf("QQ-CH-Guild:%s", guildID)
 }
 
 func formatDiceIDOfficialQQChGroup(guildID, channelID string) string {
