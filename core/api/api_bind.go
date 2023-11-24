@@ -66,7 +66,7 @@ func baseInfo(c echo.Context) error {
 		VersionCode:    dice.VERSION_CODE,
 		VersionNewCode: versionNewCode,
 		MemoryAlloc:    m.Alloc,
-		MemoryUsedSys:  m.Sys,
+		MemoryUsedSys:  m.Sys - m.HeapReleased,
 		Uptime:         time.Now().Unix() - startTime,
 		ExtraTitle:     extraTitle,
 		OS:             runtime.GOOS,
