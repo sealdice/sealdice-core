@@ -961,9 +961,11 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 			s.Parent.Logger.Info(hint)
 			platform := match[1]
 			for _, ep := range s.EndPoints {
-				if ep.Platform != platform {
+				if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
 					continue
 				}
+				grp.DiceIDExistsMap.Delete(ep.UserID)
+				grp.UpdatedAtTime = time.Now().Unix()
 				ep.Adapter.QuitGroup(&MsgContext{Dice: s.Parent}, grp.GroupID)
 				(&MsgContext{Dice: s.Parent, EndPoint: ep, Session: s}).Notice(hint)
 			}
