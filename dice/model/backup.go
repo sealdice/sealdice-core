@@ -10,6 +10,7 @@ func Vacuum(db *sqlx.DB, path string) error {
 }
 
 func FlushWAL(db *sqlx.DB) error {
-	_, err := db.Exec("PRAGMA wal_checkpoint(FULL);")
+	_, _ = db.Exec("PRAGMA shrink_memory")
+	_, err := db.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
 	return err
 }
