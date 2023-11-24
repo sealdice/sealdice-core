@@ -367,7 +367,7 @@ func (d *Dice) Init() {
 				count++
 				d.Save(true)
 				if count%5 == 0 {
-					// 注: 这种用法我不太清楚是否有必要
+					// d.Logger.Info("测试: flush wal")
 					_ = model.FlushWAL(d.DBData)
 					_ = model.FlushWAL(d.DBLogs)
 					if d.CensorManager != nil && d.CensorManager.DB != nil {
