@@ -228,6 +228,29 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			toCreate.Media = &dto.Media{
 				FileInfo: media.FileInfo,
 			}
+		case *RecordElement:
+			url := elem.file.URL
+			// 目前不支持本地发送，检查一下url
+			if url == "" ||
+				strings.Contains(url, "localhost") ||
+				strings.Contains(url, "127.0.0.1") {
+				pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持发送本地语音，跳过该部分")
+			}
+			fMsg := &dto.MessageMediaToCreate{
+				FileType:   3,
+				URL:        url,
+				SrvSendMsg: false,
+			}
+			media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
+			if err != nil {
+				pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备语音信息失败：" + err.Error())
+				continue
+			}
+
+			toCreate.MsgType = 7
+			toCreate.Media = &dto.Media{
+				FileInfo: media.FileInfo,
+			}
 		}
 	}
 
