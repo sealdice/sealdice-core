@@ -75,6 +75,7 @@ type FileElement struct {
 	ContentType string
 	Stream      io.Reader
 	File        string
+	URL         string
 }
 
 func (l *FileElement) Type() ElementType {
@@ -175,6 +176,7 @@ func (d *Dice) FilepathToFileElement(fp string) (*FileElement, error) {
 			Stream:      bytes.NewReader(content),
 			ContentType: resp.Header.Get("Content-Type"),
 			File:        filename,
+			URL:         fp,
 		}
 		return r, nil
 	} else if strings.HasPrefix(fp, "base64://") {
@@ -241,7 +243,13 @@ func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, erro
 	switch t {
 	case "file":
 		p := strings.TrimSpace(dMap["file"])
-		return d.FilepathToFileElement(p)
+		u := strings.TrimSpace(dMap["url"])
+		if u == "" {
+			return d.FilepathToFileElement(p)
+		} else {
+			// 当 url 不为空时，绕过读取直接发送 url
+			return &ImageElement{file: &FileElement{URL: u}}, nil
+		}
 	case "at":
 		target := dMap["qq"]
 		if dMap["id"] != "" {

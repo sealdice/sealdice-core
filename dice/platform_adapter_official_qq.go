@@ -175,30 +175,99 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 		// TODO：允许主动消息发送，并校验频率
 		pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：无法直接发送消息")
 	}
-	groupId, idType := pa.mustExtractID(ctx.Group.GroupID)
+	groupId, idType := pa.mustExtractID(uid)
 	if idType == OpenQQGroupOpenid {
-		qctx := context.Background()
-		toCreate := &dto.MessageToCreate{
-			Content: text,
-			MsgType: 0,
-			MsgID:   rowID,
-		}
-		if _, err := pa.Api.PostGroupMessage(qctx, groupId, toCreate); err != nil {
-			pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
-		}
+		pa.sendQQGroupMsgRaw(ctx, rowID, groupId, text)
 	} else if idType == OpenQQCHChannel {
-		qctx := context.Background()
-		toCreate := &dto.MessageToCreate{
-			Content: text,
-			MsgType: 0,
-			MsgID:   rowID,
-		}
-		if _, err := pa.Api.PostMessage(qctx, groupId, toCreate); err != nil {
-			pa.Session.Parent.Logger.Error("official qq 发送频道消息失败：" + err.Error())
-		}
+		pa.sendQQChannelMsgRaw(ctx, rowID, groupId, text)
 	} else {
 		pa.Session.Parent.Logger.Errorf("official qq 发送群聊消息失败：错误的群聊id[%s]类型-%d", ctx.Group.GroupID, idType)
 		return
+	}
+}
+
+func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID, groupID string, text string) {
+	dice := pa.Session.Parent
+	qctx := context.Background()
+	elems := dice.ConvertStringMessage(text)
+	var (
+		content  string
+		toCreate *dto.MessageToCreate
+	)
+
+	toCreate = &dto.MessageToCreate{
+		MsgID: rowMsgID,
+	}
+
+	for _, element := range elems {
+		switch elem := element.(type) {
+		case *TextElement:
+			content += elem.Content
+		case *AtElement:
+			pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持发送 @，跳过该部分")
+		case *ImageElement:
+			url := elem.file.URL
+			// 目前不支持本地发送，检查一下url
+			if url == "" ||
+				strings.Contains(url, "localhost") ||
+				strings.Contains(url, "127.0.0.1") {
+				pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持发送本地图片，跳过该部分")
+			}
+			fMsg := &dto.MessageMediaToCreate{
+				FileType:   1,
+				URL:        url,
+				SrvSendMsg: false,
+			}
+			media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
+			if err != nil {
+				pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备图片信息失败：" + err.Error())
+				continue
+			}
+
+			toCreate.MsgType = 7
+			toCreate.Media = &dto.Media{
+				FileInfo: media.FileInfo,
+			}
+		}
+	}
+
+	toCreate.Content = content
+
+	if _, err := pa.Api.PostGroupMessage(qctx, groupID, toCreate); err != nil {
+		pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
+	}
+}
+
+func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw(ctx *MsgContext, rowMsgID, channelID string, text string) {
+	dice := pa.Session.Parent
+	qctx := context.Background()
+	elems := dice.ConvertStringMessage(text)
+	var (
+		content  string
+		toCreate *dto.MessageToCreate
+	)
+
+	for _, elem := range elems {
+		switch e := elem.(type) {
+		case *TextElement:
+			content += e.Content
+		case *AtElement:
+			if e.Target == "all" {
+				content += "@everyone"
+			} else {
+				content += fmt.Sprintf("<@%s>", e.Target)
+			}
+		case *ImageElement:
+		}
+	}
+
+	toCreate = &dto.MessageToCreate{
+		Content: content,
+		MsgType: 0,
+		MsgID:   rowMsgID,
+	}
+	if _, err := pa.Api.PostMessage(qctx, channelID, toCreate); err != nil {
+		pa.Session.Parent.Logger.Error("official qq 发送频道消息失败：" + err.Error())
 	}
 }
 
