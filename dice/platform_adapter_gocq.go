@@ -37,7 +37,7 @@ const (
 
 type echoMapInfo struct {
 	ch            chan string
-	echoOverwrite int64
+	echoOverwrite any
 	timeout       int64
 }
 
@@ -72,10 +72,10 @@ type PlatformAdapterGocq struct {
 	InPackGoCqhttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest          bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	customEcho     int64                            `yaml:"-"` // 自定义返回标记
-	echoMap        *SyncMap[int64, chan *MessageQQ] `yaml:"-"`
-	echoMap2       *SyncMap[int64, *echoMapInfo]    `yaml:"-"`
-	Implementation string                           `yaml:"implementation" json:"implementation"`
+	customEcho     int64                          `yaml:"-"` // 自定义返回标记
+	echoMap        *SyncMap[any, chan *MessageQQ] `yaml:"-"`
+	echoMap2       *SyncMap[any, *echoMapInfo]    `yaml:"-"`
+	Implementation string                         `yaml:"implementation" json:"implementation"`
 
 	UseSignServer    bool              `yaml:"useSignServer" json:"useSignServer"`
 	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`
@@ -144,7 +144,7 @@ type MessageQQBase struct {
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	// Status string `json:"status"`
-	Echo int64 `json:"echo"` // 声明类型而不是interface的原因是interface下数字不能正确转换
+	Echo any `json:"echo"` // 声明类型而不是interface的原因是interface下数字不能正确转换
 
 	Msg string `json:"msg"`
 	// Status  interface{} `json:"status"`
@@ -276,17 +276,18 @@ func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeT
 		case "text":
 			cqMessage.WriteString(i.Data["text"].(string))
 		case "image":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%s]", i.Data["file"].(string)))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%s]", i.Data["file"]))
 		case "face":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%s]", i.Data["id"].(string)))
+			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64 但是我不能理解，姑且先遵循
+			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%s]", i.Data["id"]))
 		case "record":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%s]", i.Data["file"].(string)))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%s]", i.Data["file"]))
 		case "at":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%s]", i.Data["qq"].(string)))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%s]", i.Data["qq"]))
 		case "poke":
 			cqMessage.WriteString("[CQ:poke]")
 		case "reply":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%s]", i.Data["id"].(string)))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%s]", i.Data["id"]))
 		}
 	}
 	writeTo.MessageQQBase = msgQQType2.MessageQQBase
@@ -463,7 +464,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			}
 
 			now := time.Now().Unix()
-			pa.echoMap2.Range(func(k int64, v *echoMapInfo) bool {
+			pa.echoMap2.Range(func(k any, v *echoMapInfo) bool {
 				if v.timeout != 0 && now > v.timeout {
 					v.ch <- ""
 				}
