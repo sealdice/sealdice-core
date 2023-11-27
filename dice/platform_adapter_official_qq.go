@@ -59,7 +59,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 		defer func() {
 			// 防止崩掉进程
 			if r := recover(); r != nil {
-				log.Error("official qq 启动失败")
+				log.Error("official qq 启动失败: ", r)
 			}
 		}()
 		_ = pa.SessionManager.Start(ws, token, &intent)
@@ -80,58 +80,57 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 }
 
 func (pa *PlatformAdapterOfficialQQ) ChannelAtMessageReceive(event *dto.WSPayload, data *dto.WSATMessageData) error {
-	toStdMessage := func(msgQQ *dto.WSATMessageData) *Message {
-		msg := new(Message)
-		timestamp, _ := msgQQ.Timestamp.Time()
-		msg.Time = timestamp.Unix()
-		msg.MessageType = "group"
-		msg.Message = msgQQ.Content
-		msg.RawID = msgQQ.ID
-		msg.Platform = "QQ-CH"
-		msg.GuildID = formatDiceIDOfficialQQChGuild(msgQQ.GuildID)
-		msg.GroupID = formatDiceIDOfficialQQChGroup(msgQQ.GuildID, msgQQ.ChannelID)
-		if msgQQ.Author != nil {
-			msg.Sender.Nickname = msgQQ.Author.Username
-			msg.Sender.UserID = formatDiceIDOfficialQQCh(msgQQ.Author.ID)
-		}
-		return msg
-	}
-
 	s := pa.Session
 	log := s.Parent.Logger
 	log.Debugf("收到文字频道消息：%v, %v", event, data)
 
-	s.Execute(pa.EndPoint, toStdMessage(data), false)
+	s.Execute(pa.EndPoint, pa.channelMsgToStdMsg(data), false)
 	return nil
 }
 
-func (pa *PlatformAdapterOfficialQQ) GroupAtMessageReceive(event *dto.WSPayload, data *dto.WSGroupATMessageData) error {
-	appID := strconv.FormatUint(pa.AppID, 10)
-	toStdMessage := func(msgQQ *dto.WSGroupATMessageData) *Message {
-		msg := new(Message)
-		timestamp, _ := msgQQ.Timestamp.Time()
-		msg.Time = timestamp.Unix()
-		msg.MessageType = "group"
-		msg.Message = msgQQ.Content
-		msg.RawID = msgQQ.ID
-		msg.Platform = "QQ"
-		msg.GroupID = formatDiceIDOfficialQQGroupOpenID(appID, msgQQ.GroupOpenID)
-		if msgQQ.Author != nil {
-			// FIXME: 我要用户名啊kora
-			msg.Sender.Nickname = "用户" + msgQQ.Author.MemberOpenID[len(msgQQ.Author.MemberOpenID)-4:]
-			msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
-		}
-		return msg
+func (pa *PlatformAdapterOfficialQQ) channelMsgToStdMsg(msgQQ *dto.WSATMessageData) *Message {
+	msg := new(Message)
+	timestamp, _ := msgQQ.Timestamp.Time()
+	msg.Time = timestamp.Unix()
+	msg.MessageType = "group"
+	msg.Message = msgQQ.Content
+	msg.RawID = msgQQ.ID
+	msg.Platform = "OpenQQ"
+	msg.GuildID = formatDiceIDOfficialQQChGuild(msgQQ.GuildID)
+	msg.GroupID = formatDiceIDOfficialQQChannel(msgQQ.GuildID, msgQQ.ChannelID)
+	if msgQQ.Author != nil {
+		msg.Sender.Nickname = msgQQ.Author.Username
+		msg.Sender.UserID = formatDiceIDOfficialQQCh(msgQQ.Author.ID)
 	}
+	return msg
+}
 
+func (pa *PlatformAdapterOfficialQQ) GroupAtMessageReceive(event *dto.WSPayload, data *dto.WSGroupATMessageData) error {
 	s := pa.Session
 	log := s.Parent.Logger
 	log.Debugf("收到群聊消息：%v, %v", event, data)
 
-	s.Execute(pa.EndPoint, toStdMessage(data), false)
+	s.Execute(pa.EndPoint, pa.groupMsgToStdMsg(data), false)
 	return nil
 }
 
+func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessageData) *Message {
+	appID := strconv.FormatUint(pa.AppID, 10)
+	msg := new(Message)
+	timestamp, _ := msgQQ.Timestamp.Time()
+	msg.Time = timestamp.Unix()
+	msg.MessageType = "group"
+	msg.Message = msgQQ.Content
+	msg.RawID = msgQQ.ID
+	msg.Platform = "QQ"
+	msg.GroupID = formatDiceIDOfficialQQGroupOpenID(appID, msgQQ.GroupOpenID)
+	if msgQQ.Author != nil {
+		// FIXME: 我要用户名啊kora
+		msg.Sender.Nickname = "用户" + msgQQ.Author.MemberOpenID[len(msgQQ.Author.MemberOpenID)-4:]
+		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
+	}
+	return msg
+}
 func (pa *PlatformAdapterOfficialQQ) DoRelogin() bool {
 	pa.CancelFunc()
 	pa.Session.Parent.Logger.Infof("正在启用 official qq 服务")
@@ -208,67 +207,64 @@ func (pa *PlatformAdapterOfficialQQ) GetGroupInfoAsync(groupID string) {
 	// pa.Session.Parent.Logger.Infof("official qq 更新群信息失败：不支持该功能")
 }
 
+func formatDiceIDOfficialQQCh(userID string) string {
+	return formatDiceIDOfficialQQ(userID)
+}
+
+func formatDiceIDOfficialQQChGuild(guildID string) string {
+	return fmt.Sprintf("OpenQQ-Guild:%s", guildID)
+}
+
+func formatDiceIDOfficialQQChannel(guildID, channelID string) string {
+	return fmt.Sprintf("OpenQQ-Channel:%s-%s", guildID, channelID)
+}
+
 func formatDiceIDOfficialQQ(userUnionID string) string {
 	return fmt.Sprintf("OpenQQ:%s", userUnionID)
 }
 
-// func formatDiceIDOfficialQQUserOpenID(botID, userOpenID string) string {
-// 	return fmt.Sprintf("OpenQQ-User:%s-%s", botID, userOpenID)
-// }
-
 func formatDiceIDOfficialQQGroupOpenID(botID, groupOpenID string) string {
-	return fmt.Sprintf("OpenQQ-Group:%s-%s", botID, groupOpenID)
+	// 在没有qq_unionid时的临时方案
+	return fmt.Sprintf("OpenQQ-Group-T:%s-%s", botID, groupOpenID)
 }
 
 func formatDiceIDOfficialQQMemberOpenID(botID, groupOpenID, memberOpenID string) string {
-	return fmt.Sprintf("OpenQQ-Member:%s-%s-%s", botID, groupOpenID, memberOpenID)
-}
-
-func formatDiceIDOfficialQQCh(userID string) string {
-	return fmt.Sprintf("QQ-CH:%s", userID)
-}
-
-func formatDiceIDOfficialQQChGuild(guildID string) string {
-	return fmt.Sprintf("QQ-CH-Guild:%s", guildID)
-}
-
-func formatDiceIDOfficialQQChGroup(guildID, channelID string) string {
-	return fmt.Sprintf("QQ-CH-Group:%s-%s", guildID, channelID)
+	// 在没有qq_unionid时的临时方案
+	return fmt.Sprintf("OpenQQ-Member-T:%s-%s-%s", botID, groupOpenID, memberOpenID)
 }
 
 type OpenQQIDType = int
 
 const (
 	OpenQQUnknown OpenQQIDType = iota
-	OpenQQUserUnionid
-	OpenQQUserOpenid
+
+	OpenQQUser
 	OpenQQGroupOpenid
 	OpenQQGroupMemberOpenid
 
-	OpenQQCHUser
 	OpenQQCHGuild
 	OpenQQCHChannel
 )
 
 func (pa *PlatformAdapterOfficialQQ) mustExtractID(text string) (string, OpenQQIDType) {
 	if strings.HasPrefix(text, "OpenQQ:") {
-		return text[len("OpenQQ:"):], OpenQQUserUnionid
+		return text[len("OpenQQ:"):], OpenQQUser
 	}
-	if strings.HasPrefix(text, "OpenQQ-User:") {
-		temp := text[len("OpenQQ-User:"):]
-		lst := strings.Split(temp, "-")
-		return lst[1], OpenQQUserOpenid
-	}
-	if strings.HasPrefix(text, "OpenQQ-Group:") {
-		temp := text[len("OpenQQ-Group:"):]
+	if strings.HasPrefix(text, "OpenQQ-Group-T:") {
+		temp := text[len("OpenQQ-Group-T:"):]
 		lst := strings.Split(temp, "-")
 		return lst[1], OpenQQGroupOpenid
 	}
-	if strings.HasPrefix(text, "QQ-CH:") {
-		return text[len("QQ-CH:"):], OpenQQCHUser
+	if strings.HasPrefix(text, "OpenQQ-Member-T:") {
+		temp := text[len("OpenQQ-Member-T:"):]
+		lst := strings.Split(temp, "-")
+		return lst[1], OpenQQGroupMemberOpenid
 	}
-	if strings.HasPrefix(text, "QQ-CH-Group:") {
-		temp := text[len("QQ-CH-Group:"):]
+	if strings.HasPrefix(text, "OpenQQ-Guild:") {
+		return text[len("OpenQQ-Guild:"):], OpenQQCHGuild
+	}
+	if strings.HasPrefix(text, "OpenQQ-Channel:") {
+		temp := text[len("OpenQQ-Channel:"):]
 		lst := strings.Split(temp, "-")
 		return lst[1], OpenQQCHChannel
 	}
