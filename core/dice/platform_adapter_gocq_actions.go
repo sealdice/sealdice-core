@@ -21,7 +21,7 @@ import (
 type oneBotCommand struct {
 	Action string      `json:"action"`
 	Params interface{} `json:"params"`
-	Echo   int64       `json:"echo"`
+	Echo   interface{} `json:"echo"`
 }
 
 type QQUidType int
@@ -111,7 +111,7 @@ func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string) *OnebotGroupInfo {
 
 	data := &OnebotGroupInfo{}
 	err := pa.waitEcho2(echo, data, func(emi *echoMapInfo) {
-		emi.echoOverwrite = -2 // 强制覆盖为获取群信息，与之前兼容
+		emi.echoOverwrite = "-2" // 强制覆盖为获取群信息，与之前兼容
 		socketSendText(pa.Socket, string(a))
 	})
 	if err == nil {
@@ -375,12 +375,12 @@ func (pa *PlatformAdapterGocq) getCustomEcho() int64 {
 	return pa.customEcho
 }
 
-func (pa *PlatformAdapterGocq) waitEcho(echo int64, beforeWait func()) *MessageQQ {
+func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ {
 	// pa.echoList = append(pa.echoList, )
 	ch := make(chan *MessageQQ, 1)
 
 	if pa.echoMap == nil {
-		pa.echoMap = new(SyncMap[int64, chan *MessageQQ])
+		pa.echoMap = new(SyncMap[any, chan *MessageQQ])
 	}
 	pa.echoMap.Store(echo, ch)
 
@@ -388,9 +388,9 @@ func (pa *PlatformAdapterGocq) waitEcho(echo int64, beforeWait func()) *MessageQ
 	return <-ch
 }
 
-func (pa *PlatformAdapterGocq) waitEcho2(echo int64, value interface{}, beforeWait func(emi *echoMapInfo)) error {
+func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait func(emi *echoMapInfo)) error {
 	if pa.echoMap2 == nil {
-		pa.echoMap2 = new(SyncMap[int64, *echoMapInfo])
+		pa.echoMap2 = new(SyncMap[any, *echoMapInfo])
 	}
 
 	emi := &echoMapInfo{ch: make(chan string, 1)}
