@@ -983,6 +983,11 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 				}
 				grp.DiceIDExistsMap.Delete(ep.UserID)
 				grp.UpdatedAtTime = time.Now().Unix()
+
+				msgText := DiceFormatTmpl(&MsgContext{Dice: s.Parent}, "核心:骰子自动退群告别语")
+				msgCtx := CreateTempCtx(ep, &Message{MessageType: "group", Sender: SenderBase{UserID: ep.UserID}})
+				ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
+
 				ep.Adapter.QuitGroup(&MsgContext{Dice: s.Parent}, grp.GroupID)
 				(&MsgContext{Dice: s.Parent, EndPoint: ep, Session: s}).Notice(hint)
 			}
