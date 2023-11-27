@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	qqbot "github.com/JustAnotherID/botgo"
-	"github.com/JustAnotherID/botgo/dto"
-	"github.com/JustAnotherID/botgo/event"
-	qqapi "github.com/JustAnotherID/botgo/openapi"
-	qqtoken "github.com/JustAnotherID/botgo/token"
-	qqws "github.com/JustAnotherID/botgo/websocket"
+	qqbot "github.com/sealdice/botgo"
+	"github.com/sealdice/botgo/dto"
+	"github.com/sealdice/botgo/event"
+	qqapi "github.com/sealdice/botgo/openapi"
+	qqtoken "github.com/sealdice/botgo/token"
+	qqws "github.com/sealdice/botgo/websocket"
 )
 
 type PlatformAdapterOfficialQQ struct {

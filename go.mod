@@ -48,7 +48,6 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.3.2
-	github.com/JustAnotherID/botgo v0.0.0-20231127123738-3ac4cf27e30b
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/glebarez/go-sqlite v1.21.2
@@ -67,6 +66,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/samber/lo v1.38.1
 	github.com/schollz/progressbar/v3 v3.14.1
+	github.com/sealdice/botgo v0.0.0-20231127135811-15eff113b4c0
 	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
 	github.com/slack-go/slack v0.12.3
 	github.com/tdewolff/minify/v2 v2.20.7
