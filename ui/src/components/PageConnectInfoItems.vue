@@ -135,6 +135,15 @@
             </el-form-item>
           </template>
 
+          <template v-if="i.platform === 'QQ' && i.protocolType === 'official'">
+            <el-form-item label="协议">
+              <div>[WIP]官方 QQ Bot</div>
+            </el-form-item>
+            <el-form-item label="AppID">
+              <div>{{ i.adapter?.appID }}</div>
+            </el-form-item>
+          </template>
+
           <!-- <el-form-item label="密码">
             <el-input type="password" v-model="i.password"></el-input>
           </el-form-item> -->
@@ -415,16 +424,18 @@
     <el-button style="float: right; margin-top: -4rem;" @click="openSocks">辅助工具-13325端口</el-button>
     <template v-if="form.step === 1">
       <el-alert v-if="form.accountType === 7" type="warning" :closable="false" style="margin-bottom: 1.5rem;">该支持仍处于实验阶段，部分功能尚未完善。海豹不保证该支持的稳定性和持续性，并存在未来移除该支持的可能，请谨慎选择。</el-alert>
+      <el-alert v-if="form.accountType === 10" type="warning" :closable="false" style="margin-bottom: 1.5rem;">该支持仍处于实验阶段，部分功能尚未完善。<br />同时，受到腾讯官方提供的 API 能力的限制，一些功能暂时无法实现。</el-alert>
 
       <el-form :model="form">
         <el-form-item label="账号类型" :label-width="formLabelWidth">
           <el-select v-model="form.accountType">
-            <el-option label="QQ账号" :value="0"></el-option>
-            <el-option label="QQ账号(gocq分离部署)" :value="6"></el-option>
-            <el-option label="[WIP]QQ账号(red协议)" :value="7"></el-option>
-            <el-option label="Discord账号" :value="1"></el-option>
-            <el-option label="KOOK(开黑啦)账号" :value="2"></el-option>
-            <el-option label="Telegram帐号" :value="3"></el-option>
+            <el-option label="QQ(内置gocq)" :value="0"></el-option>
+            <el-option label="QQ(gocq分离部署)" :value="6"></el-option>
+            <el-option label="[WIP]QQ(官方bot)" :value="10"></el-option>
+            <el-option label="[WIP]QQ(red协议)" :value="7"></el-option>
+            <el-option label="Discord" :value="1"></el-option>
+            <el-option label="KOOK(开黑啦)" :value="2"></el-option>
+            <el-option label="Telegram" :value="3"></el-option>
             <el-option label="Minecraft服务器(Paper)" :value="4"></el-option>
             <el-option label="Dodo语音" :value="5"></el-option>
             <el-option label="钉钉" :value="8"></el-option>
@@ -714,6 +725,24 @@
         </el-form-item>
         <el-form-item v-if="form.accountType === 7" label="令牌" :label-width="formLabelWidth" required>
           <el-input v-model="form.token" placeholder="Red 服务的 token" type="text" autocomplete="off"></el-input>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 10" label="机器人ID" :label-width="formLabelWidth" required>
+          <el-input v-model="form.appID" placeholder="填写在开放平台获取的AppID" autocomplete="off" type="number"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 10" label="机器人令牌" :label-width="formLabelWidth" required>
+          <el-input v-model="form.token" placeholder="填写在开放平台获取的Token" type="text" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 10" label="机器人密钥" :label-width="formLabelWidth" required>
+          <el-input v-model="form.appSecret" placeholder="填写在开放平台获取的AppSecret" type="text" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 10" :label-width="formLabelWidth">
+          <small>
+            <div>提示: 进入腾讯开放平台创建一个机器人</div>
+            <div>https://q.qq.com/#/app/bot</div>
+            <div>创建之后进入机器人管理后台，切换到「开发-开发设置」页</div>
+            <div>把机器人的相关信息复制并粘贴进来</div>
+          </small>
         </el-form-item>
 
         <el-form-item v-if="form.accountType === 1" label="Token" :label-width="formLabelWidth" required>
@@ -1310,6 +1339,9 @@ const form = reactive({
 
   host: '',
   port: undefined,
+
+  appID: undefined,
+  appSecret: '',
 
   useSignServer: false,
   signServerConfig: {
