@@ -66,10 +66,12 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/samber/lo v1.38.1
 	github.com/schollz/progressbar/v3 v3.14.1
+	github.com/sealdice/botgo v0.0.0-20231127135811-15eff113b4c0
 	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
 	github.com/slack-go/slack v0.12.3
 	github.com/tdewolff/minify/v2 v2.20.7
 	github.com/yuin/goldmark v1.6.0
+	golang.org/x/crypto v0.15.0
 	golang.org/x/exp v0.0.0-20231108232855-2478ac86f678
 	golang.org/x/time v0.4.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
@@ -106,7 +108,7 @@ require (
 	github.com/getlantern/hidden v0.0.0-20190325191715-f02dbb02be55 // indirect
 	github.com/getlantern/ops v0.0.0-20190325191751-d70cb0d6f85f // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
-	github.com/go-resty/resty/v2 v2.7.0 // indirect
+	github.com/go-resty/resty/v2 v2.10.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/go-toast/toast v0.0.0-20190211030409-01e6764cf0a4 // indirect
@@ -151,9 +153,8 @@ require (
 	github.com/xuri/efp v0.0.0-20230802181842-ad255f2331ca // indirect
 	github.com/xuri/nfp v0.0.0-20230819163627-dc951e3ffe1a // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/term v0.14.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
