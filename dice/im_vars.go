@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"reflect"
 	"sealdice-core/dice/model"
 	"strconv"
 	"strings"
@@ -65,38 +64,6 @@ func VarSetValueDNDComputed(ctx *MsgContext, s string, val int64, expr string) {
 
 func VarSetValueInt64(ctx *MsgContext, s string, v int64) {
 	VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: v})
-}
-
-func VarSetValueAuto(ctx *MsgContext, s string, v interface{}) {
-	switch reflect.TypeOf(v).Kind() {
-	case reflect.Int:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(int))})
-	case reflect.Int8:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(int8))})
-	case reflect.Int16:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(int16))})
-	case reflect.Int32:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(int32))})
-	case reflect.Int64:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: v.(int64)})
-	case reflect.Uint:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint))})
-	case reflect.Uint8:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint8))})
-	case reflect.Uint16:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint16))})
-	case reflect.Uint32:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint32))})
-	case reflect.Uint64:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint64))})
-	case reflect.Float32:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(uint64))})
-	case reflect.Float64:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeInt64, Value: int64(v.(float64))})
-	case reflect.String:
-		VarSetValue(ctx, s, &VMValue{TypeID: VMTypeString, Value: v.(string)})
-	default: /*no-op*/
-	}
 }
 
 func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
