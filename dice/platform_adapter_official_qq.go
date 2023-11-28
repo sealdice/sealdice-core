@@ -84,7 +84,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 func (pa *PlatformAdapterOfficialQQ) ChannelAtMessageReceive(event *dto.WSPayload, data *dto.WSATMessageData) error {
 	s := pa.Session
 	log := s.Parent.Logger
-	log.Debugf("收到文字频道消息：%v, %v", event, data)
+	log.Debugf("official qq: 收到文字频道消息：%v, %v", event, data)
 
 	s.Execute(pa.EndPoint, pa.channelMsgToStdMsg(data), false)
 	return nil
@@ -110,7 +110,7 @@ func (pa *PlatformAdapterOfficialQQ) channelMsgToStdMsg(msgQQ *dto.WSATMessageDa
 func (pa *PlatformAdapterOfficialQQ) GuildDirectMessageReceive(event *dto.WSPayload, data *dto.WSDirectMessageData) error {
 	s := pa.Session
 	log := s.Parent.Logger
-	log.Debugf("收到频道私信消息：%v, %v", event, data)
+	log.Debugf("official qq: 收到频道私信消息：%v, %v", event, data)
 
 	s.Execute(pa.EndPoint, pa.guildDirectMsgToStdMsg(data), false)
 	return nil
@@ -134,7 +134,7 @@ func (pa *PlatformAdapterOfficialQQ) guildDirectMsgToStdMsg(msgQQ *dto.WSDirectM
 func (pa *PlatformAdapterOfficialQQ) GroupAtMessageReceive(event *dto.WSPayload, data *dto.WSGroupATMessageData) error {
 	s := pa.Session
 	log := s.Parent.Logger
-	log.Debugf("收到群聊消息：%v, %v", event, data)
+	log.Debugf("official qq: 收到群聊消息：%v, %v", event, data)
 
 	s.Execute(pa.EndPoint, pa.groupMsgToStdMsg(data), false)
 	return nil
@@ -230,7 +230,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 		case *TextElement:
 			content += elem.Content
 		case *AtElement:
-			pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持发送 @，跳过该部分")
+			pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
 		case *ImageElement:
 			url := elem.file.URL
 			// 目前不支持本地发送，检查一下url
