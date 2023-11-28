@@ -951,6 +951,14 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 			// 防止骰子从未发言过的新加群被立即清理掉
 			continue
 		}
+		if s.Parent.BanList != nil {
+			if info := s.Parent.BanList.GetByID(grp.GroupID); info != nil {
+				if info.Rank > BanRankNormal {
+					continue // 信任等级高于普通的不清理
+				}
+			}
+		}
+
 		last := time.Unix(grp.RecentDiceSendTime, 0)
 		if last.Before(threshold) {
 			match := platformRE.FindStringSubmatch(grp.GroupID)
