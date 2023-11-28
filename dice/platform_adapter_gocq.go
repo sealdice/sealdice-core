@@ -108,36 +108,36 @@ type OnebotUserInfo struct {
 }
 
 type MessageQQBase struct {
-	MessageID     int64       `json:"message_id"`   // QQ信息此类型为int64，频道中为string
-	MessageType   string      `json:"message_type"` // Group
-	Sender        *Sender     `json:"sender"`       // 发送者
-	RawMessage    string      `json:"raw_message"`
-	Time          int64       `json:"time"` // 发送时间
-	MetaEventType string      `json:"meta_event_type"`
-	OperatorID    json.Number `json:"operator_id"`  // 操作者帐号
-	GroupID       json.Number `json:"group_id"`     // 群号
-	PostType      string      `json:"post_type"`    // 上报类型，如group、notice
-	RequestType   string      `json:"request_type"` // 请求类型，如group
-	SubType       string      `json:"sub_type"`     // 子类型，如add invite
-	Flag          string      `json:"flag"`         // 请求 flag, 在调用处理请求的 API 时需要传入
-	NoticeType    string      `json:"notice_type"`
-	UserID        json.Number `json:"user_id"`
-	SelfID        json.Number `json:"self_id"`
-	Duration      int64       `json:"duration"`
-	Comment       string      `json:"comment"`
-	TargetID      json.Number `json:"target_id"`
+	MessageID     int64           `json:"message_id"`   // QQ信息此类型为int64，频道中为string
+	MessageType   string          `json:"message_type"` // Group
+	Sender        *Sender         `json:"sender"`       // 发送者
+	RawMessage    string          `json:"raw_message"`
+	Time          int64           `json:"time"` // 发送时间
+	MetaEventType string          `json:"meta_event_type"`
+	OperatorID    json.RawMessage `json:"operator_id"`  // 操作者帐号
+	GroupID       json.RawMessage `json:"group_id"`     // 群号
+	PostType      string          `json:"post_type"`    // 上报类型，如group、notice
+	RequestType   string          `json:"request_type"` // 请求类型，如group
+	SubType       string          `json:"sub_type"`     // 子类型，如add invite
+	Flag          string          `json:"flag"`         // 请求 flag, 在调用处理请求的 API 时需要传入
+	NoticeType    string          `json:"notice_type"`
+	UserID        json.RawMessage `json:"user_id"`
+	SelfID        json.RawMessage `json:"self_id"`
+	Duration      int64           `json:"duration"`
+	Comment       string          `json:"comment"`
+	TargetID      json.RawMessage `json:"target_id"`
 
 	Data *struct {
 		// 个人信息
-		Nickname string      `json:"nickname"`
-		UserID   json.Number `json:"user_id"`
+		Nickname string          `json:"nickname"`
+		UserID   json.RawMessage `json:"user_id"`
 
 		// 群信息
-		GroupID         json.Number `json:"group_id"`          // 群号
-		GroupCreateTime uint32      `json:"group_create_time"` // 群号
-		MemberCount     int64       `json:"member_count"`
-		GroupName       string      `json:"group_name"`
-		MaxMemberCount  int32       `json:"max_member_count"`
+		GroupID         json.RawMessage `json:"group_id"`          // 群号
+		GroupCreateTime uint32          `json:"group_create_time"` // 群号
+		MemberCount     int64           `json:"member_count"`
+		GroupName       string          `json:"group_name"`
+		MaxMemberCount  int32           `json:"max_member_count"`
 
 		// 群成员信息
 		Card string `json:"card"`
@@ -224,10 +224,10 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 		msg.MessageType = "private"
 	}
 
-	if msgQQ.Data != nil && msgQQ.Data.GroupID != "" {
+	if msgQQ.Data != nil && string(msgQQ.Data.GroupID) != "" {
 		msg.GroupID = FormatDiceIDQQGroup(string(msgQQ.Data.GroupID))
 	}
-	if msgQQ.GroupID != "" {
+	if string(msgQQ.GroupID) != "" {
 		if msg.MessageType == "private" {
 			msg.MessageType = "group"
 		}
@@ -809,7 +809,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		// 入群后自动开启
 		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_increase" {
 			// {"group_id":111,"notice_type":"group_increase","operator_id":0,"post_type":"notice","self_id":333,"sub_type":"approve","time":1646782012,"user_id":333}
-			if msgQQ.UserID == msgQQ.SelfID {
+			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
 				groupEntered()
 			} else {
 				group := session.ServiceAtNew[msg.GroupID]
@@ -860,7 +860,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_decrease" && msgQQ.SubType == "kick_me" {
 			// 被踢
 			//  {"group_id":111,"notice_type":"group_decrease","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"kick_me","time":1646689414 ,"user_id":333}
-			if msgQQ.UserID == msgQQ.SelfID {
+			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
 				opUID := FormatDiceIDQQ(string(msgQQ.OperatorID))
 				groupName := dm.TryGetGroupName(msg.GroupID)
 				userName := dm.TryGetUserName(opUID)
@@ -893,7 +893,10 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			return
 		}
 
-		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_decrease" && msgQQ.SubType == "leave" && msgQQ.OperatorID == msgQQ.SelfID {
+		if msgQQ.PostType == "notice" &&
+			msgQQ.NoticeType == "group_decrease" &&
+			msgQQ.SubType == "leave" &&
+			string(msgQQ.OperatorID) == string(msgQQ.SelfID) {
 			// 群解散
 			// {"group_id":564808710,"notice_type":"group_decrease","operator_id":2589922907,"post_type":"notice","self_id":2589922907,"sub_type":"leave","time":1651584460,"user_id":2589922907}
 			groupName := dm.TryGetGroupName(msg.GroupID)
@@ -906,7 +909,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_ban" && msgQQ.SubType == "ban" {
 			// 禁言
 			// {"duration":600,"group_id":111,"notice_type":"group_ban","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"ban","time":1646689567,"user_id":333}
-			if msgQQ.UserID == msgQQ.SelfID {
+			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
 				opUID := FormatDiceIDQQ(string(msgQQ.OperatorID))
 				groupName := dm.TryGetGroupName(msg.GroupID)
 				userName := dm.TryGetUserName(opUID)
@@ -950,7 +953,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				defer ErrorLogAndContinue(pa.Session.Parent)
 				ctx := pa.packTempCtx(msgQQ, msg)
 
-				if msgQQ.TargetID == msgQQ.SelfID {
+				if string(msgQQ.TargetID) == string(msgQQ.SelfID) {
 					// 如果在戳自己
 					text := DiceFormatTmpl(ctx, "其它:戳一戳")
 					for _, i := range strings.Split(text, "###SPLIT###") {
