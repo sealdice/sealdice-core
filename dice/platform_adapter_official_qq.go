@@ -48,11 +48,13 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 
 	// 文字子频道at消息
 	var channelAtMessage event.ATMessageEventHandler = pa.ChannelAtMessageReceive
+	// 频道私聊消息
+	var guildDirectMessage event.DirectMessageEventHandler = pa.GuildDirectMessageReceive
 	// 群聊at消息
 	var groupAtMessage event.GroupATMessageEventHandler = pa.GroupAtMessageReceive
 
 	intent := qqws.RegisterHandlers(
-		channelAtMessage, groupAtMessage,
+		channelAtMessage, guildDirectMessage, groupAtMessage,
 	)
 
 	go func() {
@@ -98,6 +100,30 @@ func (pa *PlatformAdapterOfficialQQ) channelMsgToStdMsg(msgQQ *dto.WSATMessageDa
 	msg.Platform = "OpenQQ"
 	msg.GuildID = formatDiceIDOfficialQQChGuild(msgQQ.GuildID)
 	msg.GroupID = formatDiceIDOfficialQQChannel(msgQQ.GuildID, msgQQ.ChannelID)
+	if msgQQ.Author != nil {
+		msg.Sender.Nickname = msgQQ.Author.Username
+		msg.Sender.UserID = formatDiceIDOfficialQQCh(msgQQ.Author.ID)
+	}
+	return msg
+}
+
+func (pa *PlatformAdapterOfficialQQ) GuildDirectMessageReceive(event *dto.WSPayload, data *dto.WSDirectMessageData) error {
+	s := pa.Session
+	log := s.Parent.Logger
+	log.Debugf("收到频道私信消息：%v, %v", event, data)
+
+	s.Execute(pa.EndPoint, pa.guildDirectMsgToStdMsg(data), false)
+	return nil
+}
+
+func (pa *PlatformAdapterOfficialQQ) guildDirectMsgToStdMsg(msgQQ *dto.WSDirectMessageData) *Message {
+	msg := new(Message)
+	timestamp, _ := msgQQ.Timestamp.Time()
+	msg.Time = timestamp.Unix()
+	msg.MessageType = "private"
+	msg.Message = msgQQ.Content
+	msg.RawID = msgQQ.ID
+	msg.Platform = "OpenQQ"
 	if msgQQ.Author != nil {
 		msg.Sender.Nickname = msgQQ.Author.Username
 		msg.Sender.UserID = formatDiceIDOfficialQQCh(msgQQ.Author.ID)
