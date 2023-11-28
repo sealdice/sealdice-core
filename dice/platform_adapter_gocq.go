@@ -90,16 +90,16 @@ type Sender struct {
 	Card     string `json:"card"`
 	Nickname string `json:"nickname"`
 	Role     string `json:"role"` // owner 群主
-	UserID   int64  `json:"user_id"`
+	UserID   string `json:"user_id"`
 }
 
 type OnebotUserInfo struct {
 	// 个人信息
 	Nickname string `json:"nickname"`
-	UserID   int64  `json:"user_id"`
+	UserID   string `json:"user_id"`
 
 	// 群信息
-	GroupID         int64  `json:"group_id"`          // 群号
+	GroupID         string `json:"group_id"`          // 群号
 	GroupCreateTime uint32 `json:"group_create_time"` // 群号
 	MemberCount     int64  `json:"member_count"`
 	GroupName       string `json:"group_name"`
@@ -108,36 +108,36 @@ type OnebotUserInfo struct {
 }
 
 type MessageQQBase struct {
-	MessageID     int64   `json:"message_id"`   // QQ信息此类型为int64，频道中为string
-	MessageType   string  `json:"message_type"` // Group
-	Sender        *Sender `json:"sender"`       // 发送者
-	RawMessage    string  `json:"raw_message"`
-	Time          int64   `json:"time"` // 发送时间
-	MetaEventType string  `json:"meta_event_type"`
-	OperatorID    int64   `json:"operator_id"`  // 操作者帐号
-	GroupID       int64   `json:"group_id"`     // 群号
-	PostType      string  `json:"post_type"`    // 上报类型，如group、notice
-	RequestType   string  `json:"request_type"` // 请求类型，如group
-	SubType       string  `json:"sub_type"`     // 子类型，如add invite
-	Flag          string  `json:"flag"`         // 请求 flag, 在调用处理请求的 API 时需要传入
-	NoticeType    string  `json:"notice_type"`
-	UserID        int64   `json:"user_id"`
-	SelfID        int64   `json:"self_id"`
-	Duration      int64   `json:"duration"`
-	Comment       string  `json:"comment"`
-	TargetID      int64   `json:"target_id"`
+	MessageID     int64       `json:"message_id"`   // QQ信息此类型为int64，频道中为string
+	MessageType   string      `json:"message_type"` // Group
+	Sender        *Sender     `json:"sender"`       // 发送者
+	RawMessage    string      `json:"raw_message"`
+	Time          int64       `json:"time"` // 发送时间
+	MetaEventType string      `json:"meta_event_type"`
+	OperatorID    json.Number `json:"operator_id"`  // 操作者帐号
+	GroupID       json.Number `json:"group_id"`     // 群号
+	PostType      string      `json:"post_type"`    // 上报类型，如group、notice
+	RequestType   string      `json:"request_type"` // 请求类型，如group
+	SubType       string      `json:"sub_type"`     // 子类型，如add invite
+	Flag          string      `json:"flag"`         // 请求 flag, 在调用处理请求的 API 时需要传入
+	NoticeType    string      `json:"notice_type"`
+	UserID        json.Number `json:"user_id"`
+	SelfID        json.Number `json:"self_id"`
+	Duration      int64       `json:"duration"`
+	Comment       string      `json:"comment"`
+	TargetID      json.Number `json:"target_id"`
 
 	Data *struct {
 		// 个人信息
-		Nickname string `json:"nickname"`
-		UserID   int64  `json:"user_id"`
+		Nickname string      `json:"nickname"`
+		UserID   json.Number `json:"user_id"`
 
 		// 群信息
-		GroupID         int64  `json:"group_id"`          // 群号
-		GroupCreateTime uint32 `json:"group_create_time"` // 群号
-		MemberCount     int64  `json:"member_count"`
-		GroupName       string `json:"group_name"`
-		MaxMemberCount  int32  `json:"max_member_count"`
+		GroupID         json.Number `json:"group_id"`          // 群号
+		GroupCreateTime uint32      `json:"group_create_time"` // 群号
+		MemberCount     int64       `json:"member_count"`
+		GroupName       string      `json:"group_name"`
+		MaxMemberCount  int32       `json:"max_member_count"`
 
 		// 群成员信息
 		Card string `json:"card"`
@@ -204,8 +204,8 @@ type MessageQQArray struct {
 }
 
 type LastWelcomeInfo struct {
-	UserID  int64
-	GroupID int64
+	UserID  string
+	GroupID string
 	Time    int64
 }
 
@@ -224,14 +224,14 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 		msg.MessageType = "private"
 	}
 
-	if msgQQ.Data != nil && msgQQ.Data.GroupID != 0 {
-		msg.GroupID = FormatDiceIDQQGroup(msgQQ.Data.GroupID)
+	if msgQQ.Data != nil && msgQQ.Data.GroupID != "" {
+		msg.GroupID = FormatDiceIDQQGroup(string(msgQQ.Data.GroupID))
 	}
-	if msgQQ.GroupID != 0 {
+	if msgQQ.GroupID != "" {
 		if msg.MessageType == "private" {
 			msg.MessageType = "group"
 		}
-		msg.GroupID = FormatDiceIDQQGroup(msgQQ.GroupID)
+		msg.GroupID = FormatDiceIDQQGroup(string(msgQQ.GroupID))
 	}
 	if msgQQ.Sender != nil {
 		msg.Sender.Nickname = msgQQ.Sender.Nickname
@@ -244,12 +244,12 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 	return msg
 }
 
-func FormatDiceIDQQ(diceQQ int64) string {
-	return fmt.Sprintf("QQ:%s", strconv.FormatInt(diceQQ, 10))
+func FormatDiceIDQQ(diceQQ string) string {
+	return fmt.Sprintf("QQ:%s", diceQQ)
 }
 
-func FormatDiceIDQQGroup(diceQQ int64) string {
-	return fmt.Sprintf("QQ-Group:%s", strconv.FormatInt(diceQQ, 10))
+func FormatDiceIDQQGroup(diceQQ string) string {
+	return fmt.Sprintf("QQ-Group:%s", diceQQ)
 }
 
 func FormatDiceIDQQCh(userID string) string {
@@ -444,7 +444,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		// 获得用户信息
 		if msgQQ.Echo == -1 {
 			ep.Nickname = msgQQ.Data.Nickname
-			ep.UserID = FormatDiceIDQQ(msgQQ.Data.UserID)
+			ep.UserID = FormatDiceIDQQ(string(msgQQ.Data.UserID))
 
 			log.Debug("骰子信息已刷新")
 			ep.RefreshGroupNum()
@@ -475,7 +475,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		// 获得群信息
 		if msgQQ.Echo == -2 { //nolint:nestif
 			if msgQQ.Data != nil {
-				groupID := FormatDiceIDQQGroup(msgQQ.Data.GroupID)
+				groupID := FormatDiceIDQQGroup(string(msgQQ.Data.GroupID))
 				dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
 					Name: msgQQ.Data.GroupName,
 					time: time.Now().Unix(),
@@ -552,10 +552,10 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			pa.GetGroupInfoAsync(msg.GroupID)
 			time.Sleep(time.Duration((1.8 + rand.Float64()) * float64(time.Second))) // 稍作等待，也许能拿到群名
 
-			uid := FormatDiceIDQQ(msgQQ.UserID)
+			uid := FormatDiceIDQQ(string(msgQQ.UserID))
 			groupName := dm.TryGetGroupName(msg.GroupID)
 			userName := dm.TryGetUserName(uid)
-			txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%d) 邀请人:<%s>(%d)", groupName, msgQQ.GroupID, userName, msgQQ.UserID)
+			txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", groupName, msgQQ.GroupID, userName, msgQQ.UserID)
 			log.Info(txt)
 			ctx.Notice(txt)
 			tempInviteMap[msg.GroupID] = time.Now().Unix()
@@ -653,7 +653,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			// 检查黑名单
 			extra := ""
-			uid := FormatDiceIDQQ(msgQQ.UserID)
+			uid := FormatDiceIDQQ(string(msgQQ.UserID))
 			banInfo := ctx.Dice.BanList.GetByID(uid)
 			if banInfo != nil {
 				if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
@@ -670,7 +670,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				extra += "。由于设置了忽略邀请，此信息仅为通报"
 			}
 
-			txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%d, 验证信息: %s, 是否自动同意: %t%s", msgQQ.UserID, comment, willAccept, extra)
+			txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", msgQQ.UserID, comment, willAccept, extra)
 			log.Info(txt)
 			ctx.Notice(txt)
 
@@ -702,7 +702,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// 稍作等待后发好友致辞
 				time.Sleep(2 * time.Second)
 
-				msg.Sender.UserID = FormatDiceIDQQ(msgQQ.UserID)
+				msg.Sender.UserID = FormatDiceIDQQ(string(msgQQ.UserID))
 				// 似乎这样会阻塞住，先不搞了
 				// d := pa.GetStrangerInfo(msgQQ.UserId) // 先获取个人信息，避免不存在id
 				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
@@ -711,7 +711,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				//	ctx.Player.UpdatedAtTime = time.Now().Unix()
 				//}
 
-				uid := FormatDiceIDQQ(msgQQ.UserID)
+				uid := FormatDiceIDQQ(string(msgQQ.UserID))
 
 				welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 				log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
@@ -781,7 +781,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 				}
 			}()
-			txt := fmt.Sprintf("加入QQ群组: <%s>(%d)", groupName, msgQQ.GroupID)
+			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, msgQQ.GroupID)
 			log.Info(txt)
 			ctx.Notice(txt)
 			if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
@@ -819,13 +819,13 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				if group != nil && group.ShowGroupWelcome {
 					isDouble := false
 					if lastWelcome != nil {
-						isDouble = msgQQ.GroupID == lastWelcome.GroupID &&
-							msgQQ.UserID == lastWelcome.UserID &&
+						isDouble = string(msgQQ.GroupID) == lastWelcome.GroupID &&
+							string(msgQQ.UserID) == lastWelcome.UserID &&
 							msgQQ.Time == lastWelcome.Time
 					}
 					lastWelcome = &LastWelcomeInfo{
-						GroupID: msgQQ.GroupID,
-						UserID:  msgQQ.UserID,
+						GroupID: string(msgQQ.GroupID),
+						UserID:  string(msgQQ.UserID),
 						Time:    msgQQ.Time,
 					}
 
@@ -839,10 +839,10 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 							ctx.Player = &GroupPlayerInfo{}
 							// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
-							uidRaw := strconv.FormatInt(msgQQ.UserID, 10)
+							uidRaw := string(msgQQ.UserID)
 							VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
 							VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
-							stdID := FormatDiceIDQQ(msgQQ.UserID)
+							stdID := FormatDiceIDQQ(string(msgQQ.UserID))
 							VarSetValueStr(ctx, "$t帐号ID", stdID)
 							VarSetValueStr(ctx, "$t账号ID", stdID)
 							text := DiceFormat(ctx, group.GroupWelcomeMessage)
@@ -861,7 +861,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// 被踢
 			//  {"group_id":111,"notice_type":"group_decrease","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"kick_me","time":1646689414 ,"user_id":333}
 			if msgQQ.UserID == msgQQ.SelfID {
-				opUID := FormatDiceIDQQ(msgQQ.OperatorID)
+				opUID := FormatDiceIDQQ(string(msgQQ.OperatorID))
 				groupName := dm.TryGetGroupName(msg.GroupID)
 				userName := dm.TryGetUserName(opUID)
 
@@ -886,7 +886,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					ctx.Dice.BanList.AddScoreByGroupKicked(opUID, msg.GroupID, ctx)
 				}
 
-				txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%d)中被踢出，操作者:<%s>(%d)%s", groupName, msgQQ.GroupID, userName, msgQQ.OperatorID, extra)
+				txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, msgQQ.GroupID, userName, msgQQ.OperatorID, extra)
 				log.Info(txt)
 				ctx.Notice(txt)
 			}
@@ -897,7 +897,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// 群解散
 			// {"group_id":564808710,"notice_type":"group_decrease","operator_id":2589922907,"post_type":"notice","self_id":2589922907,"sub_type":"leave","time":1651584460,"user_id":2589922907}
 			groupName := dm.TryGetGroupName(msg.GroupID)
-			txt := fmt.Sprintf("离开群组或群解散: <%s>(%d)", groupName, msgQQ.GroupID)
+			txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, msgQQ.GroupID)
 			log.Info(txt)
 			ctx.Notice(txt)
 			return
@@ -907,12 +907,12 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// 禁言
 			// {"duration":600,"group_id":111,"notice_type":"group_ban","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"ban","time":1646689567,"user_id":333}
 			if msgQQ.UserID == msgQQ.SelfID {
-				opUID := FormatDiceIDQQ(msgQQ.OperatorID)
+				opUID := FormatDiceIDQQ(string(msgQQ.OperatorID))
 				groupName := dm.TryGetGroupName(msg.GroupID)
 				userName := dm.TryGetUserName(opUID)
 
 				ctx.Dice.BanList.AddScoreByGroupMuted(opUID, msg.GroupID, ctx)
-				txt := fmt.Sprintf("被禁言: 在群组<%s>(%d)中被禁言，时长%d秒，操作者:<%s>(%d)", groupName, msgQQ.GroupID, msgQQ.Duration, userName, msgQQ.OperatorID)
+				txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, msgQQ.GroupID, msgQQ.Duration, userName, msgQQ.OperatorID)
 				log.Info(txt)
 				ctx.Notice(txt)
 			}
@@ -1171,8 +1171,8 @@ func (pa *PlatformAdapterGocq) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgC
 
 	switch msg.MessageType {
 	case "private":
-		d := pa.GetStrangerInfo(msgQQ.UserID) // 先获取个人信息，避免不存在id
-		msg.Sender.UserID = FormatDiceIDQQ(msgQQ.UserID)
+		d := pa.GetStrangerInfo(string(msgQQ.UserID)) // 先获取个人信息，避免不存在id
+		msg.Sender.UserID = FormatDiceIDQQ(string(msgQQ.UserID))
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 		if ctx.Player.Name == "" {
 			ctx.Player.Name = d.Nickname
@@ -1180,8 +1180,8 @@ func (pa *PlatformAdapterGocq) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgC
 		}
 		SetTempVars(ctx, ctx.Player.Name)
 	case "group":
-		d := pa.GetGroupMemberInfo(msgQQ.GroupID, msgQQ.UserID) // 先获取个人信息，避免不存在id
-		msg.Sender.UserID = FormatDiceIDQQ(msgQQ.UserID)
+		d := pa.GetGroupMemberInfo(string(msgQQ.GroupID), string(msgQQ.UserID)) // 先获取个人信息，避免不存在id
+		msg.Sender.UserID = FormatDiceIDQQ(string(msgQQ.UserID))
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 		if ctx.Player.Name == "" {
 			ctx.Player.Name = d.Card
