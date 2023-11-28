@@ -32,10 +32,11 @@ type Message struct {
 	MessageType string      `json:"messageType" jsbind:"messageType"` // group private
 	GroupID     string      `json:"groupId" jsbind:"groupId"`         // 群号，如果是群聊消息
 	GuildID     string      `json:"guildId" jsbind:"guildId"`         // 服务器群组号，会在discord,kook,dodo等平台见到
-	Sender      SenderBase  `json:"sender" jsbind:"sender"`           // 发送者
-	Message     string      `json:"message" jsbind:"message"`         // 消息内容
-	RawID       interface{} `json:"rawId" jsbind:"rawId"`             // 原始信息ID，用于处理撤回等
-	Platform    string      `json:"platform" jsbind:"platform"`       // 当前平台
+	ChannelID   string      `json:"channelId" jsbind:"channelId"`
+	Sender      SenderBase  `json:"sender" jsbind:"sender"`     // 发送者
+	Message     string      `json:"message" jsbind:"message"`   // 消息内容
+	RawID       interface{} `json:"rawId" jsbind:"rawId"`       // 原始信息ID，用于处理撤回等
+	Platform    string      `json:"platform" jsbind:"platform"` // 当前平台
 	TmpUID      string      `json:"-" yaml:"-"`
 }
 
@@ -71,6 +72,7 @@ type GroupInfo struct {
 
 	GroupID         string                 `yaml:"groupId" json:"groupId" jsbind:"groupId"`
 	GuildID         string                 `yaml:"guildId" json:"guildId" jsbind:"guildId"`
+	ChannelID       string                 `yaml:"channelId" json:"channelId" jsbind:"channelId"`
 	GroupName       string                 `yaml:"groupName" json:"groupName" jsbind:"groupName"`
 	DiceIDActiveMap *SyncMap[string, bool] `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
 	DiceIDExistsMap *SyncMap[string, bool] `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
@@ -587,9 +589,20 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				tmpUID = msg.TmpUID
 			}
 			for _, i := range ats {
-				if i.UserID == tmpUID {
-					amIBeMentioned = true
-					break
+				// 特殊处理 OpenQQ 和 OpenQQCH
+				if strings.HasPrefix(i.UserID, "OpenQQ:") ||
+					strings.HasPrefix(i.UserID, "OpenQQCH:") {
+					uid := strings.TrimPrefix(tmpUID, "OpenQQ:")
+					if i.UserID == "OpenQQ:"+uid || i.UserID == "OpenQQCH:"+uid {
+						amIBeMentioned = true
+						tmpUID = i.UserID
+						break
+					}
+				} else {
+					if i.UserID == tmpUID {
+						amIBeMentioned = true
+						break
+					}
 				}
 			}
 			if amIBeMentioned {
@@ -662,7 +675,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		if cmdArgs != nil {
 			mctx.CommandID = getNextCommandID()
 
-			tmpUID := ep.UserID
+			var tmpUID string
+			if platformPrefix == "OpenQQCH" {
+				// 特殊处理 OpenQQ频道
+				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
+				tmpUID = "OpenQQCH:" + uid
+			} else {
+				tmpUID = ep.UserID
+			}
 			if msg.TmpUID != "" {
 				tmpUID = msg.TmpUID
 			}

@@ -110,6 +110,9 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	if msg.GuildID != "" {
 		group.GuildID = msg.GuildID
 	}
+	if msg.ChannelID != "" {
+		group.ChannelID = msg.ChannelID
+	}
 	if group == nil {
 		return nil, nil
 	}
