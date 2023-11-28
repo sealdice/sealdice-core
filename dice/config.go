@@ -1742,6 +1742,7 @@ func (d *Dice) loads() {
 		d.JsEnable = dNew.JsEnable
 		d.DisabledJsScripts = dNew.DisabledJsScripts
 		d.NewsMark = dNew.NewsMark
+		d.QuitInactiveThreshold = dNew.QuitInactiveThreshold
 
 		d.EnableCensor = dNew.EnableCensor
 		d.CensorMode = dNew.CensorMode
