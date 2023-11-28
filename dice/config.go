@@ -91,11 +91,11 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 	//	"int":    true,
 	//	"float":  true,
 	//	"array":  true,
-	//}
+	// }
 
 	// var isValidType = func(t string) bool {
 	//	return allowedTypes[t]
-	//}
+	// }
 
 	// Check if the plugin already exists
 	if existingPlugin, ok := cm.Plugins[pluginName]; ok {
@@ -826,6 +826,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"戳一戳": {
 				{"{核心:骰子名字}咕踊了一下", 1},
 			},
+			"私信恢复": {
+				{"这里是{核心:骰子名字}", 1},
+			},
 		},
 		"日志": {
 			"记录_新建": {
@@ -1434,6 +1437,10 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"戳一戳": {
 				SubType: "手机QQ功能",
+			},
+			"私信恢复": {
+				SubType:   "官方QQ协议功能",
+				ExtraText: "使用.stm命令恢复频道私信时的提示语",
 			},
 		},
 		"日志": {
