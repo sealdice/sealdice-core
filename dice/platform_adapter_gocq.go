@@ -224,7 +224,7 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 		msg.MessageType = "private"
 	}
 
-	if msgQQ.Data != nil && string(msgQQ.Data.GroupID) != "" {
+	if msgQQ.Data != nil && len(msgQQ.Data.GroupID) > 0 {
 		msg.GroupID = FormatDiceIDQQGroup(string(msgQQ.Data.GroupID))
 	}
 	if string(msgQQ.GroupID) != "" {
