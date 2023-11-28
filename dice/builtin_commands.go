@@ -600,11 +600,8 @@ func (d *Dice) registerCoreCommands() {
 					uidLst = append(uidLst, ctx.Player.UserID)
 					continue
 				}
-				qq, err := strconv.ParseInt(i, 10, 64)
-				if err == nil {
-					uid := FormatDiceIDQQ(qq)
-					uidLst = append(uidLst, uid)
-				}
+				uid := FormatDiceIDQQ(i)
+				uidLst = append(uidLst, uid)
 			}
 		}
 		return uidLst

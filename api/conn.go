@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"sealdice-core/dice"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -304,11 +303,7 @@ func ImConnectionsAddWalleQ(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		uid, err := strconv.ParseInt(v.Account, 10, 64)
-		if err != nil {
-			return c.String(430, "")
-		}
-
+		uid := v.Account
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.UserID == dice.FormatDiceIDQQ(uid) {
 				return c.JSON(CodeAlreadyExists, i)
@@ -606,11 +601,7 @@ func ImConnectionsAdd(c echo.Context) error {
 
 	err := c.Bind(&v)
 	if err == nil {
-		uid, err := strconv.ParseInt(v.Account, 10, 64)
-		if err != nil {
-			return c.String(430, "")
-		}
-
+		uid := v.Account
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.UserID == dice.FormatDiceIDQQ(uid) {
 				return c.JSON(CodeAlreadyExists, i)
@@ -665,11 +656,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 
 	err := c.Bind(&v)
 	if err == nil {
-		uid, err := strconv.ParseInt(v.Account, 10, 64)
-		if err != nil {
-			return c.String(430, "")
-		}
-
+		uid := v.Account
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.UserID == dice.FormatDiceIDQQ(uid) {
 				return c.JSON(CodeAlreadyExists, i)

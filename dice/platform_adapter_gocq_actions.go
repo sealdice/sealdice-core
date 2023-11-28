@@ -405,11 +405,11 @@ func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait
 }
 
 // GetGroupMemberInfo 获取群成员信息
-func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID int64, userID int64) *OnebotUserInfo {
+func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID string, userID string) *OnebotUserInfo {
 	type DetailParams struct {
-		GroupID int64 `json:"group_id"`
-		UserID  int64 `json:"user_id"`
-		NoCache bool  `json:"no_cache"`
+		GroupID string `json:"group_id"`
+		UserID  string `json:"user_id"`
+		NoCache bool   `json:"no_cache"`
 	}
 
 	echo := pa.getCustomEcho()
@@ -435,17 +435,17 @@ func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID int64, userID int64) *
 
 	return &OnebotUserInfo{
 		Nickname: d.Nickname,
-		UserID:   d.UserID,
-		GroupID:  d.GroupID,
+		UserID:   string(d.UserID),
+		GroupID:  string(d.GroupID),
 		Card:     d.Card,
 	}
 }
 
 // GetStrangerInfo 获取陌生人信息
-func (pa *PlatformAdapterGocq) GetStrangerInfo(userID int64) *OnebotUserInfo {
+func (pa *PlatformAdapterGocq) GetStrangerInfo(userID string) *OnebotUserInfo {
 	type DetailParams struct {
-		UserID  int64 `json:"user_id"`
-		NoCache bool  `json:"no_cache"`
+		UserID  string `json:"user_id"`
+		NoCache bool   `json:"no_cache"`
 	}
 
 	echo := pa.getCustomEcho()
@@ -470,7 +470,7 @@ func (pa *PlatformAdapterGocq) GetStrangerInfo(userID int64) *OnebotUserInfo {
 
 	return &OnebotUserInfo{
 		Nickname: d.Nickname,
-		UserID:   d.UserID,
+		UserID:   string(d.UserID),
 	}
 }
 
