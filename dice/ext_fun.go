@@ -794,7 +794,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			} else {
 				VarSetValueStr(ctx, "$t原因句子", "")
 			}
-			VarSetValueAuto(ctx, "$t次数", t)
+			VarSetValueInt64(ctx, "$t次数", int64(t))
 			VarSetValueStr(ctx, "$t结果文本", strings.Join(results, "\n"))
 			reply := DiceFormatTmpl(ctx, "核心:骰点_多轮")
 			ReplyToSender(ctx, msg, reply)
