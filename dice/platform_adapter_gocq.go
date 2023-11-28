@@ -86,11 +86,11 @@ type PlatformAdapterGocq struct {
 }
 
 type Sender struct {
-	Age      int32  `json:"age"`
-	Card     string `json:"card"`
-	Nickname string `json:"nickname"`
-	Role     string `json:"role"` // owner 群主
-	UserID   string `json:"user_id"`
+	Age      int32           `json:"age"`
+	Card     string          `json:"card"`
+	Nickname string          `json:"nickname"`
+	Role     string          `json:"role"` // owner 群主
+	UserID   json.RawMessage `json:"user_id"`
 }
 
 type OnebotUserInfo struct {
@@ -239,7 +239,7 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 			msg.Sender.Nickname = msgQQ.Sender.Card
 		}
 		msg.Sender.GroupRole = msgQQ.Sender.Role
-		msg.Sender.UserID = FormatDiceIDQQ(msgQQ.Sender.UserID)
+		msg.Sender.UserID = FormatDiceIDQQ(string(msgQQ.Sender.UserID))
 	}
 	return msg
 }
