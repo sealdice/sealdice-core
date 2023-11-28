@@ -714,3 +714,31 @@ func ImConnectionsAddRed(c echo.Context) error {
 	}
 	return c.String(430, "")
 }
+
+func ImConnectionsAddOfficialQQ(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Success(&c, Response{"testMode": true})
+	}
+
+	v := struct {
+		AppID     uint64 `yaml:"appID" json:"appID"`
+		Token     string `yaml:"token" json:"token"`
+		AppSecret string `yaml:"appSecret" json:"appSecret"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		conn := dice.NewOfficialQQConnItem(v.AppID, v.Token, v.AppSecret)
+		conn.Session = myDice.ImSession
+		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		go dice.ServerOfficialQQ(myDice, conn)
+		return Success(&c, Response{})
+	}
+	return c.String(430, "")
+}
