@@ -595,14 +595,11 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					uid := strings.TrimPrefix(tmpUID, "OpenQQ:")
 					if i.UserID == "OpenQQ:"+uid || i.UserID == "OpenQQCH:"+uid {
 						amIBeMentioned = true
-						tmpUID = i.UserID
 						break
 					}
-				} else {
-					if i.UserID == tmpUID {
-						amIBeMentioned = true
-						break
-					}
+				} else if i.UserID == tmpUID {
+					amIBeMentioned = true
+					break
 				}
 			}
 			if amIBeMentioned {
