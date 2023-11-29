@@ -12,7 +12,7 @@ title: Discord
 
 ## 获取 Token
 
-要获取用于连接海豹的 Token 之前，你需要建立好一个应用。登陆 [Discord 开发者平台](https://discord.com/developers/applications/1178793642148769905/bot)，点击「New application」，按照要求填写应用名字并确认创建。完成后，点击侧边导航栏「bot」，打开「Privileged Gateway Intents」目录下全部三个开关：`Presence Intent`，`Server Members Intent`，`Message Content Intent`。完成后点击「Save Changes」。
+要获取用于连接海豹的 Token 之前，你需要建立好一个应用。登录 [Discord 开发者平台](https://discord.com/developers/applications/1178793642148769905/bot)，点击「New application」，按照要求填写应用名字并确认创建。完成后，点击侧边导航栏「bot」，打开「Privileged Gateway Intents」目录下全部三个开关：`Presence Intent`，`Server Members Intent`，`Message Content Intent`。完成后点击「Save Changes」。
 
 建立好应用后上滑，点击 `Reset Token`，确认后点击 `Copy` 复制。
 

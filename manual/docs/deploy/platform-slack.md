@@ -12,7 +12,7 @@ title: Slack
 
 ## 获取 Token
 
-要获取用于连接海豹的 Token 之前，你需要建立好一个应用。前往 [Slack Api 平台](https://api.slack.com/apps)，点击「Create New App」，再点击「From Scratch」。按照要求填写应用名字，并选择你想要骰娘被部署到的工作区后点击「Create App」。
+要获取用于连接海豹的 Token 之前，你需要建立好一个应用。登录 [Slack Api 平台](https://api.slack.com/apps)，点击「Create New App」，再点击「From Scratch」。按照要求填写应用名字，并选择你想要海豹被部署到的工作区后点击「Create App」。
 
 ::: warning 私骰模式
 
@@ -32,7 +32,7 @@ Slack 平台的机制使没有公开发布的应用无法加入被指定的单�
 
 ::: warning 事件注意
 
-如果这不是你期望的情况，请不要添加 `app_mention`。这个权限会让你的骰娘只接收被@到的指令和消息，导致 log 等功能无法正常工作。
+如果这不是你期望的情况，请不要添加 `app_mention`。这个权限会让海豹只接收被 @ 到的指令和消息，导致 log 等功能无法正常工作。
 
 :::
 

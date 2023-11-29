@@ -13,7 +13,7 @@ title: DoDo
 
 ## 建立应用
 
-要在 DoDo 开发用于连接海豹的应用前，你需要前往 [DoDo 开发者平台](https://doker.imdodo.com/application)注册账号并申请个人开发者。
+要在 DoDo 开发用于连接海豹的应用前，你需要前往 [DoDo 开放平台](https://doker.imdodo.com/application)注册账号并申请个人开发者。
 
 ## 获取 Client ID 和 Bot Token
 
@@ -30,5 +30,13 @@ title: DoDo
 ::: warning 权限不足
 
 如果给予海豹的权限不充分，可能会导致无法发送消息或图片。若你不确定具体应该添加哪些权限，可直接添加 `超级管理员`权限。
+
+:::
+
+::: warning DoDo 私聊
+
+由于 DoDo 平台本身的问题，导致海豹无法响应直接发起的私聊。从群聊中触发的私聊，也即各种暗骰指令不受影响。
+
+如果 DoDo 平台做出适当的修正，海豹核心会第一时间跟进以解决这一问题。
 
 :::

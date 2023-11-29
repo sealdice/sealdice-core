@@ -13,7 +13,7 @@ title: KOOK
 
 ## 获取 Token
 
-要获取用于连接海豹的 Token 之前，你需要建立好一个应用。登陆 [KOOK 开发者平台](https://developer.kookapp.cn/app/index)，点击「创建应用」，按照要求填写应用名字并确认创建。
+要获取用于连接海豹的 Token 之前，你需要建立好一个应用。登录 [KOOK 开发者平台](https://developer.kookapp.cn/app/index)，点击「创建应用」，按照要求填写应用名字并确认创建。
 
 建立好应用后点击侧边导航栏「机器人」，在 `Token` 下找到 Token 并复制。
 
