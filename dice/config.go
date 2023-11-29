@@ -646,6 +646,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"骰子退群预告": {
 				{"收到指令，5s后将退出当前群组", 1},
 			},
+			"骰子自动退群告别语": {
+				{"由于长时间不使用，{核心:骰子名字}将退出本群，感谢您的使用。", 1},
+			},
 			"骰子保存设置": {
 				{"数据已保存", 1},
 			},
@@ -1247,6 +1250,10 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"骰子退群预告": {
 				SubType:  ".bot bye",
+				TopOrder: 1,
+			},
+			"骰子自动退群告别语": {
+				SubType:  "通用",
 				TopOrder: 1,
 			},
 			"骰子保存设置": {
