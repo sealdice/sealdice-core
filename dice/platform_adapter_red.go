@@ -36,7 +36,7 @@ type PlatformAdapterRed struct {
 	httpUrl *url.URL
 
 	conn      *websocket.Conn
-	mu        sync.Mutex
+	muxSend   sync.Mutex
 	memberMap *SyncMap[string, *SyncMap[string, *GroupMember]]
 }
 
@@ -601,8 +601,8 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 }
 
 func (pa *PlatformAdapterRed) sendRow(redMsg *RedMessageSend) {
-	pa.mu.Lock()
-	defer pa.mu.Unlock()
+	pa.muxSend.Lock()
+	defer pa.muxSend.Unlock()
 	if pa.conn != nil {
 		log := pa.Session.Parent.Logger
 		conn := pa.conn
