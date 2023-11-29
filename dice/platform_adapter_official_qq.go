@@ -97,9 +97,11 @@ func (pa *PlatformAdapterOfficialQQ) channelMsgToStdMsg(msgQQ *dto.WSATMessageDa
 	msg.MessageType = "group"
 	msg.Message = msgQQ.Content
 	msg.RawID = msgQQ.ID
-	msg.Platform = "OpenQQ"
+	msg.Platform = "OpenQQCH"
 	msg.GuildID = formatDiceIDOfficialQQChGuild(msgQQ.GuildID)
-	msg.GroupID = formatDiceIDOfficialQQChannel(msgQQ.GuildID, msgQQ.ChannelID)
+	channelID := formatDiceIDOfficialQQChannel(msgQQ.GuildID, msgQQ.ChannelID)
+	msg.GroupID = channelID
+	msg.ChannelID = channelID
 	if msgQQ.Author != nil {
 		msg.Sender.Nickname = msgQQ.Author.Username
 		msg.Sender.UserID = formatDiceIDOfficialQQCh(msgQQ.Author.ID)
@@ -123,7 +125,11 @@ func (pa *PlatformAdapterOfficialQQ) guildDirectMsgToStdMsg(msgQQ *dto.WSDirectM
 	msg.MessageType = "private"
 	msg.Message = msgQQ.Content
 	msg.RawID = msgQQ.ID
-	msg.Platform = "OpenQQ"
+	msg.Platform = "OpenQQCH"
+	// 频道私信需要私信频道的 guild_id 和 channel_id
+	channelID := formatDiceIDOfficialQQChannel(msgQQ.GuildID, msgQQ.ChannelID)
+	msg.GroupID = channelID
+	msg.ChannelID = channelID
 	if msgQQ.Author != nil {
 		msg.Sender.Nickname = msgQQ.Author.Username
 		msg.Sender.UserID = formatDiceIDOfficialQQCh(msgQQ.Author.ID)
@@ -148,7 +154,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessag
 	msg.MessageType = "group"
 	msg.Message = msgQQ.Content
 	msg.RawID = msgQQ.ID
-	msg.Platform = "QQ"
+	msg.Platform = "OpenQQ"
 	msg.GroupID = formatDiceIDOfficialQQGroupOpenID(appID, msgQQ.GroupOpenID)
 	if msgQQ.Author != nil {
 		// FIXME: 我要用户名啊kora
@@ -192,7 +198,75 @@ func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	pa.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
+	userID, idType := pa.mustExtractID(uid)
+	if idType != OpenQQCHUser {
+		// 说明不是频道信息
+		pa.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
+		return
+	}
+	channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
+	rowID, ok := VarGetValueStr(ctx, "$tMsgID")
+	if !ok || ctx.MessageType == "group" {
+		// 需要主动发起私聊
+		g, c, err := pa.createQQGuildDirectChannel(ctx, guildID, userID)
+		if err != nil {
+			pa.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：", err.Error())
+			return
+		}
+		guildID = g
+		channelID = c
+	}
+	pa.sendQQGuildDirectMsgRaw(ctx, rowID, guildID, channelID, text)
+}
+
+func (pa *PlatformAdapterOfficialQQ) createQQGuildDirectChannel(ctx *MsgContext, guildID, userID string) (string, string, error) {
+	if guildID == "" || userID == "" {
+		err := fmt.Errorf("创建私信频道的参数不全")
+		pa.Session.Parent.Logger.Error("official qq 创建私信频道失败：" + err.Error())
+		return "", "", err
+	}
+	qctx := context.Background()
+	toCreate := &dto.DirectMessageToCreate{
+		SourceGuildID: guildID,
+		RecipientID:   userID,
+	}
+	info, err := pa.Api.CreateDirectMessage(qctx, toCreate)
+	if err != nil {
+		pa.Session.Parent.Logger.Error("official qq 创建私信频道失败：" + err.Error())
+		return "", "", err
+	}
+	return info.GuildID, info.ChannelID, nil
+}
+
+func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw(ctx *MsgContext, rowMsgID string, guildID, channelID string, text string) {
+	dice := pa.Session.Parent
+	qctx := context.Background()
+	elems := dice.ConvertStringMessage(text)
+	var (
+		content  string
+		toCreate *dto.MessageToCreate
+	)
+
+	for _, elem := range elems {
+		switch e := elem.(type) {
+		case *TextElement:
+			content += e.Content
+		case *ImageElement:
+		}
+	}
+
+	dMsg := &dto.DirectMessage{
+		GuildID:   guildID,
+		ChannelID: channelID,
+	}
+	toCreate = &dto.MessageToCreate{
+		Content: content,
+		MsgType: 0,
+		MsgID:   rowMsgID,
+	}
+	if _, err := pa.Api.PostDirectMessage(qctx, dMsg, toCreate); err != nil {
+		pa.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：" + err.Error())
+	}
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
@@ -200,6 +274,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	if !ok {
 		// TODO：允许主动消息发送，并校验频率
 		pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：无法直接发送消息")
+		return
 	}
 	groupId, idType := pa.mustExtractID(uid)
 	if idType == OpenQQGroupOpenid {
@@ -207,7 +282,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	} else if idType == OpenQQCHChannel {
 		pa.sendQQChannelMsgRaw(ctx, rowID, groupId, text)
 	} else {
-		pa.Session.Parent.Logger.Errorf("official qq 发送群聊消息失败：错误的群聊id[%s]类型-%d", ctx.Group.GroupID, idType)
+		pa.Session.Parent.Logger.Errorf("official qq 发送群聊消息失败：错误的群聊id[%s]类型-%d", uid, idType)
 		return
 	}
 }
@@ -326,15 +401,15 @@ func (pa *PlatformAdapterOfficialQQ) GetGroupInfoAsync(groupID string) {
 }
 
 func formatDiceIDOfficialQQCh(userID string) string {
-	return formatDiceIDOfficialQQ(userID)
+	return fmt.Sprintf("OpenQQCH:%s", userID)
 }
 
 func formatDiceIDOfficialQQChGuild(guildID string) string {
-	return fmt.Sprintf("OpenQQ-Guild:%s", guildID)
+	return fmt.Sprintf("OpenQQCH-Guild:%s", guildID)
 }
 
 func formatDiceIDOfficialQQChannel(guildID, channelID string) string {
-	return fmt.Sprintf("OpenQQ-Channel:%s-%s", guildID, channelID)
+	return fmt.Sprintf("OpenQQCH-Channel:%s-%s", guildID, channelID)
 }
 
 func formatDiceIDOfficialQQ(userUnionID string) string {
@@ -360,33 +435,42 @@ const (
 	OpenQQGroupOpenid
 	OpenQQGroupMemberOpenid
 
+	OpenQQCHUser
 	OpenQQCHGuild
 	OpenQQCHChannel
 )
 
 func (pa *PlatformAdapterOfficialQQ) mustExtractID(text string) (string, OpenQQIDType) {
+	id, _, idType := pa.mustExtractTwoID(text)
+	return id, idType
+}
+
+func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, string, OpenQQIDType) {
 	if strings.HasPrefix(text, "OpenQQ:") {
-		return text[len("OpenQQ:"):], OpenQQUser
+		return text[len("OpenQQ:"):], "", OpenQQUser
 	}
 	if strings.HasPrefix(text, "OpenQQ-Group-T:") {
 		temp := text[len("OpenQQ-Group-T:"):]
 		lst := strings.Split(temp, "-")
-		return lst[1], OpenQQGroupOpenid
+		return lst[1], "", OpenQQGroupOpenid
 	}
 	if strings.HasPrefix(text, "OpenQQ-Member-T:") {
 		temp := text[len("OpenQQ-Member-T:"):]
 		lst := strings.Split(temp, "-")
-		return lst[1], OpenQQGroupMemberOpenid
+		return lst[2], lst[1], OpenQQGroupMemberOpenid
 	}
-	if strings.HasPrefix(text, "OpenQQ-Guild:") {
-		return text[len("OpenQQ-Guild:"):], OpenQQCHGuild
+	if strings.HasPrefix(text, "OpenQQCH:") {
+		return text[len("OpenQQCH:"):], "", OpenQQCHUser
 	}
-	if strings.HasPrefix(text, "OpenQQ-Channel:") {
-		temp := text[len("OpenQQ-Channel:"):]
+	if strings.HasPrefix(text, "OpenQQCH-Guild:") {
+		return text[len("OpenQQCH-Guild:"):], "", OpenQQCHGuild
+	}
+	if strings.HasPrefix(text, "OpenQQCH-Channel:") {
+		temp := text[len("OpenQQCH-Channel:"):]
 		lst := strings.Split(temp, "-")
-		return lst[1], OpenQQCHChannel
+		return lst[1], lst[0], OpenQQCHChannel
 	}
-	return "", OpenQQUnknown
+	return "", "", OpenQQUnknown
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
