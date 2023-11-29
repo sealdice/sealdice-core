@@ -203,7 +203,7 @@ func (d *Dice) registerCoreCommands() {
 			}
 			var groupStr string
 			if group != "" {
-				groupStr = "[仅" + group + "]"
+				groupStr = "[搜索分组" + group + "]"
 			}
 
 			var id string
@@ -322,7 +322,7 @@ func (d *Dice) registerCoreCommands() {
 			var bestResult string
 			if showBest {
 				content := d.Parent.Help.GetContent(best, 0)
-				bestResult = fmt.Sprintf("最优先结果:\n词条: %s:%s\n%s\n\n", best.PackageName, best.Title, content)
+				bestResult = fmt.Sprintf("最优先结果%s:\n词条: %s:%s\n%s\n\n", groupStr, best.PackageName, best.Title, content)
 			}
 
 			prefix := d.Parent.Help.GetPrefixText()
