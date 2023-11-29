@@ -590,16 +590,16 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 			for _, i := range ats {
 				// 特殊处理 OpenQQ 和 OpenQQCH
-				if strings.HasPrefix(i.UserID, "OpenQQ:") ||
+				if i.UserID == tmpUID {
+					amIBeMentioned = true
+					break
+				} else if strings.HasPrefix(i.UserID, "OpenQQ:") ||
 					strings.HasPrefix(i.UserID, "OpenQQCH:") {
 					uid := strings.TrimPrefix(tmpUID, "OpenQQ:")
 					if i.UserID == "OpenQQ:"+uid || i.UserID == "OpenQQCH:"+uid {
 						amIBeMentioned = true
 						break
 					}
-				} else if i.UserID == tmpUID {
-					amIBeMentioned = true
-					break
 				}
 			}
 			if amIBeMentioned {
