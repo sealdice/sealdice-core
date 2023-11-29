@@ -2161,20 +2161,24 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["reply"] = cmdReply
 
-	cmdStm := &CmdItemInfo{
-		Name:      "stm",
-		ShortHelp: ".stm // 触发发送一条频道私信",
-		Help:      "从QQ频道触发发送一条频道私信消息，避免由于超过限制条数未回复，导致与骰子的私信被彻底锁定:\n.stm",
+	cmdPing := &CmdItemInfo{
+		Name:      "ping",
+		ShortHelp: ".ping // 触发发送一条回复",
+		Help:      "触发发送一条回复。特别地，如果是qq官方bot，并且是在频道中触发，会以私信消息形式回复。\n.ping",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if msg.Platform == "OpenQQCH" &&
 				strings.HasPrefix(msg.GuildID, "OpenQQCH-Guild:") &&
 				strings.HasPrefix(msg.GroupID, "OpenQQCH-Channel:") {
-				ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "其它:私信恢复"))
+				// 从 official qq 的频道触发的，就触发私信的回复
+				ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "其它:ping响应"))
+			} else {
+				// 其它的情况就直接回复
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:ping响应"))
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
-	d.CmdMap["stm"] = cmdStm
+	d.CmdMap["ping"] = cmdPing
 }
 
 func getDefaultDicePoints(ctx *MsgContext) int64 {

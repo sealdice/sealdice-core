@@ -829,8 +829,8 @@ func setupBaseTextTemplate(d *Dice) {
 			"戳一戳": {
 				{"{核心:骰子名字}咕踊了一下", 1},
 			},
-			"私信恢复": {
-				{"这里是{核心:骰子名字}", 1},
+			"ping响应": {
+				{"pong！这里是{核心:骰子名字}", 1},
 			},
 		},
 		"日志": {
@@ -1445,9 +1445,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"戳一戳": {
 				SubType: "手机QQ功能",
 			},
-			"私信恢复": {
-				SubType:   "官方QQ协议功能",
-				ExtraText: "使用.stm命令恢复频道私信时的提示语",
+			"ping响应": {
+				SubType:   ".ping",
+				ExtraText: ".ping命令的响应语",
 			},
 		},
 		"日志": {
