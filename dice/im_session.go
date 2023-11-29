@@ -1003,7 +1003,11 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 					continue
 				}
 				msgText := DiceFormatTmpl(&MsgContext{Dice: s.Parent}, "核心:骰子自动退群告别语")
-				msgCtx := CreateTempCtx(ep, &Message{MessageType: "group", Sender: SenderBase{UserID: ep.UserID}})
+				msgCtx := CreateTempCtx(ep, &Message{
+					MessageType: "group",
+					Sender:      SenderBase{UserID: ep.UserID},
+					GroupID:     grp.GroupID,
+				})
 				ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
 
 				grp.DiceIDExistsMap.Delete(ep.UserID)
