@@ -665,13 +665,24 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				}
 				ctx1 := ctx
 				ctx2 := ctx
-				if len(cmdArgs.At) == 1 {
-					// 单人
-					ctx2, _ = cmdArgs.At[0].CopyCtx(ctx)
-				}
-				if len(cmdArgs.At) == 2 {
-					ctx1, _ = cmdArgs.At[0].CopyCtx(ctx)
-					ctx2, _ = cmdArgs.At[1].CopyCtx(ctx)
+
+				if cmdArgs.AmIBeMentionedFirst {
+					// 第一个at的是骰子，不计为 at的人
+					if len(cmdArgs.At) == 2 {
+						// 单人
+						ctx2, _ = cmdArgs.At[1].CopyCtx(ctx)
+					} else if len(cmdArgs.At) == 3 {
+						ctx1, _ = cmdArgs.At[1].CopyCtx(ctx)
+						ctx2, _ = cmdArgs.At[2].CopyCtx(ctx)
+					}
+				} else {
+					if len(cmdArgs.At) == 1 {
+						// 单人
+						ctx2, _ = cmdArgs.At[0].CopyCtx(ctx)
+					} else if len(cmdArgs.At) == 2 {
+						ctx1, _ = cmdArgs.At[0].CopyCtx(ctx)
+						ctx2, _ = cmdArgs.At[1].CopyCtx(ctx)
+					}
 				}
 
 				restText := cmdArgs.CleanArgs
