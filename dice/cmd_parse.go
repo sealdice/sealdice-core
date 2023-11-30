@@ -38,6 +38,12 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 				ValueMapTemp:  lockfree.NewHashMap(),
 				UpdatedAtTime: 0,
 			}
+			// 特殊处理 official qq
+			if strings.HasPrefix(i.UserID, "OpenQQCH:") {
+				mctx.Player.Name = "<@!" + strings.TrimPrefix(i.UserID, "OpenQQCH:") + ">"
+			} else if strings.HasPrefix(i.UserID, "OpenQQ-Member-T:") {
+				mctx.Player.Name = i.UserID[len(i.UserID)-4:]
+			}
 		}
 		return mctx, p != nil
 	}
