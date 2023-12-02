@@ -34,11 +34,12 @@ title: 编写新的TRPG规则
 
 我们已经写了一个比较完善的示例，可以参考这里，有大量的详细注释：
 
-https://github.com/sealdice/javascript/blob/main/examples_ts/013.%E8%87%AA%E5%AE%9A%E4%B9%89TRPG%E6%B8%B8%E6%88%8F%E8%A7%84%E5%88%99.ts
+[摸鱼大赛TRPG规则.ts](https://github.com/sealdice/javascript/blob/main/examples_ts/013.%E8%87%AA%E5%AE%9A%E4%B9%89TRPG%E6%B8%B8%E6%88%8F%E8%A7%84%E5%88%99.ts)
 
-上面是TypeScript文件，可直接执行的js版本在这里：
+上面是TypeScript文件，它提供了对开发者更友好的提示，可直接执行的js版本在这里：
 
-https://github.com/sealdice/javascript/blob/main/examples/013.%E8%87%AA%E5%AE%9A%E4%B9%89TRPG%E6%B8%B8%E6%88%8F%E8%A7%84%E5%88%99.js
+[摸鱼大赛TRPG规则.js](https://github.com/sealdice/javascript/blob/main/examples/013.%E8%87%AA%E5%AE%9A%E4%B9%89TRPG%E6%B8%B8%E6%88%8F%E8%A7%84%E5%88%99.js)
+
 
 大部分配置由代码中的数据文件来进行。
 

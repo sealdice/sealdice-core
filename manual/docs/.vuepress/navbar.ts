@@ -13,6 +13,7 @@ export default navbar([
       "quick-start.md",
       "transfer.md",
       "special_feature.md",
+      "db-repair.md",
       {
         text: "平台",
         children: [
@@ -99,6 +100,7 @@ export default navbar([
           "edit_reply.md",
           "edit_deck.md",
           "edit_jsscript.md",
+          "edit_gamesystem.md",
           "edit_helpdoc.md",
           "edit_sensitive_words.md",
         ],

@@ -71,7 +71,7 @@ pause
 
 这种办法有一定的操作难度，酌情进行使用。这里我们以windows系统为例，其他操作系统大同小异
 
-首先需要下载一个 sqlite.exe，可以从其官网 https://www.sqlite.org/download.html ，找到 Precompiled Binaries for Windows 进行下载
+首先需要下载一个 sqlite.exe，可以从其[官网](https://www.sqlite.org/download.html)，找到 Precompiled Binaries for Windows 进行下载
 
 下载完成后，找出sqlite.exe放到空目录备用，注意sqlite必须是3.40以上版本，不然没有.recover指令。
 
