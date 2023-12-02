@@ -8,5 +8,8 @@ index: false
 - 平台
   - [QQ](./platform-qq.md)
   - [KOOK](./platform-kook.md)
-  - [DODO](./platform-dodo.md)
+  - [DoDo](./platform-dodo.md)
+  - [Discord](./platform-discord.md)
+  - [Telegram](./platform-telegram.md)
+  - [Slack](./platform-slack.md)
   - ……
