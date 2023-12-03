@@ -201,6 +201,10 @@ func (d *Dice) registerCoreCommands() {
 					group = fakeGroup
 				}
 			}
+			var groupStr string
+			if group != "" {
+				groupStr = "[仅" + group + "]"
+			}
 
 			var id string
 			if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {
@@ -273,14 +277,14 @@ func (d *Dice) registerCoreCommands() {
 			}
 			search, total, pgStart, pgEnd, err := d.Parent.Help.Search(ctx, text, false, numLimit, page, group)
 			if err != nil {
-				ReplyToSender(ctx, msg, "搜索故障: "+err.Error())
+				ReplyToSender(ctx, msg, groupStr+"搜索故障: "+err.Error())
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			if len(search.Hits) == 0 {
 				if total == 0 {
-					ReplyToSender(ctx, msg, "未找到搜索结果")
+					ReplyToSender(ctx, msg, groupStr+"未找到搜索结果")
 				} else {
-					ReplyToSender(ctx, msg, fmt.Sprintf("找到%d条结果, 但在当前页码并无结果", total))
+					ReplyToSender(ctx, msg, fmt.Sprintf("%s找到%d条结果, 但在当前页码并无结果", groupStr, total))
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -327,7 +331,7 @@ func (d *Dice) registerCoreCommands() {
 			// pgStart是下标闭左边界, 加1以获得序号; pgEnd是下标开右边界, 无需调整就是最后一条的序号
 			rplPageNum := fmt.Sprintf("共%d条结果, 当前显示第%d页(第%d条 到 第%d条)\n", total, page, pgStart+1, pgEnd)
 			rplPageHint := "使用\".find <词条> --page=<页码> 查看更多结果\n"
-			ReplyToSender(ctx, msg, prefix+bestResult+rplCurPage+rplDetailHint+rplPageNum+rplPageHint)
+			ReplyToSender(ctx, msg, prefix+groupStr+bestResult+rplCurPage+rplDetailHint+rplPageNum+rplPageHint)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
