@@ -161,7 +161,7 @@
                   <el-form-item label="字符串配置项:">{{(c as unknown as JsPluginConfigItem).key}}</el-form-item>
                   <el-form-item :span="30">
                     <div style="margin-left: 1rem;">
-                      <el-input v-model="(c as unknown as JsPluginConfigItem).value" @change="doJsConfigChanged()"></el-input>
+                      <el-input type="textarea" v-model="(c as unknown as JsPluginConfigItem).value" @change="doJsConfigChanged()"></el-input>
                     </div>
                   </el-form-item>
                   <template v-if="(c as unknown as JsPluginConfigItem).value !== (c as unknown as JsPluginConfigItem).defaultValue">
