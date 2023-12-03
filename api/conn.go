@@ -687,6 +687,52 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 	return c.String(430, "")
 }
 
+func ImConnectionsAddReverseWs(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	v := struct {
+		Account     string `yaml:"account" json:"account"`
+		ReverseAddr string `yaml:"reverseAddr" json:"reverseAddr"`
+	}{}
+
+	err := c.Bind(&v)
+	if err == nil {
+		uid := v.Account
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.UserID == dice.FormatDiceIDQQ(uid) {
+				return c.JSON(CodeAlreadyExists, i)
+			}
+		}
+
+		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
+		conn.UserID = dice.FormatDiceIDQQ(uid)
+		conn.Session = myDice.ImSession
+
+		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
+		pa.Session = myDice.ImSession
+
+		pa.IsReverse = true
+		pa.ReverseAddr = v.ReverseAddr
+
+		pa.UseInPackGoCqhttp = false
+
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		conn.SetEnable(myDice, true)
+
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		return c.JSON(200, conn)
+	}
+	return c.String(430, "")
+}
+
 func ImConnectionsAddRed(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)

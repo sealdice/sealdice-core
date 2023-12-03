@@ -3,6 +3,8 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
+	"github.com/labstack/echo/v4"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -44,6 +46,9 @@ type echoMapInfo struct {
 type PlatformAdapterGocq struct {
 	EndPoint *EndPointInfo `yaml:"-" json:"-"`
 	Session  *IMSession    `yaml:"-" json:"-"`
+
+	IsReverse   bool   `yaml:"isReverse" json:"isReverse" `
+	ReverseAddr string `yaml:"reverseAddr" json:"reverseAddr"`
 
 	Socket      *gowebsocket.Socket `yaml:"-" json:"-"`
 	ConnectURL  string              `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
@@ -1007,7 +1012,37 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		pa.InPackGoCqhttpDisconnectedCH <- 1
 	}
 
-	socket.Connect()
+	if pa.IsReverse {
+		go func() {
+			e := echo.New()
+
+			upgrader := websocket.Upgrader{}
+			e.GET("/ws", func(c echo.Context) error {
+				ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+				if err != nil {
+					return err
+				}
+				defer ws.Close()
+
+				socketClone := socket
+				// socketClone.sendMu = &sync.Mutex{}
+				// socketClone.receiveMu = &sync.Mutex{}
+				// 这里会陷入select()，当有两个连接的时候，这会导致阻塞吗？
+				socketClone.NewClient(ws)
+
+				return nil
+			})
+			log.Info("Onebot v11反向WS服务启动，地址: ", pa.ReverseAddr)
+			e.HideBanner = true
+			err := e.Start(pa.ReverseAddr)
+			if err != nil {
+				log.Error("Onebot v11反向WS服务启动失败: ", err)
+			}
+		}()
+	} else {
+		socket.Connect()
+	}
+
 	defer func() {
 		// fmt.Println("socket close")
 		go func() {
