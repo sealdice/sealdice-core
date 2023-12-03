@@ -870,3 +870,13 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 	}
 	return total, temp[start:]
 }
+
+// SetDefaultHelpGroup 设置群默认搜索分组
+func (group *GroupInfo) SetDefaultHelpGroup(target string) {
+	group.DefaultHelpGroup = target
+}
+
+// ClearDefaultHelpGroup 清空群指定搜索分组
+func (group *GroupInfo) ClearDefaultHelpGroup(target string) {
+	group.DefaultHelpGroup = ""
+}
