@@ -100,7 +100,7 @@ type ExtInfo struct {
 	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
-type DiceConfig struct { //nolint:revive
+type RootConfig struct { //nolint:revive
 	Name       string `yaml:"name"`       // 名称，默认为default
 	DataDir    string `yaml:"dataDir"`    // 数据路径，为./data/{name}，例如data/default
 	IsLogPrint bool   `yaml:"isLogPrint"` // 是否在控制台打印log
@@ -131,7 +131,7 @@ type Dice struct {
 	LastSavedTime           *time.Time             `yaml:"lastSavedTime"`
 	LastUpdatedTime         int64                  `yaml:"-"`
 	TextMap                 map[string]*wr.Chooser `yaml:"-"`
-	BaseConfig              DiceConfig             `yaml:"-"`
+	BaseConfig              RootConfig             `yaml:"-"`
 	DBData                  *sqlx.DB               `yaml:"-"`                                    // 数据库对象
 	DBLogs                  *sqlx.DB               `yaml:"-"`                                    // 数据库对象
 	Logger                  *zap.SugaredLogger     `yaml:"-"`                                    // 日志
@@ -236,41 +236,9 @@ type Dice struct {
 	CensorCaseSensitive  bool                   `json:"censorCaseSensitive" yaml:"censorCaseSensitive"`   // 敏感词大小写敏感
 	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
+
+	Config Config `json:"-" yaml:"-"`
 }
-
-type CensorMode int
-
-const (
-	OnlyOutputReply CensorMode = iota
-	OnlyInputCommand
-	AllInput
-)
-
-const (
-	// SendWarning 发送警告
-	SendWarning CensorHandler = iota
-	// SendNotice 向通知列表/邮件发送通知
-	SendNotice
-	// BanUser 拉黑用户
-	BanUser
-	// BanGroup 拉黑群
-	BanGroup
-	// BanInviter 拉黑邀请人
-	BanInviter
-	// AddScore 增加怒气值
-	AddScore
-)
-
-var CensorHandlerText = map[CensorHandler]string{
-	SendWarning: "SendWarning",
-	SendNotice:  "SendNotice",
-	BanUser:     "BanUser",
-	BanGroup:    "BanGroup",
-	BanInviter:  "BanInviter",
-	AddScore:    "AddScore",
-}
-
-type CensorHandler int
 
 func (d *Dice) MarkModified() {
 	d.LastUpdatedTime = time.Now().Unix()

@@ -1717,6 +1717,15 @@ func (d *Dice) loads() {
 			d.Logger.Error("serve.yaml parse failed")
 			panic(err2)
 		}
+
+		var config *Config
+		err3 := yaml.Unmarshal(data, &config)
+		if err3 != nil {
+			d.Logger.Error("serve.yaml parse failed")
+			panic(err3)
+		}
+		d.Config = *config
+
 		d.CommandCompatibleMode = true // 一直为true即可
 		d.ImSession.EndPoints = dNew.ImSession.EndPoints
 		d.CommandPrefix = dNew.CommandPrefix
@@ -2102,7 +2111,7 @@ func (d *Dice) SaveText() {
 	} else {
 		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
-		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
+		// ioutil.WriteFile(filepath.Join(d.RootConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
 		current, err := os.ReadFile(newFn)
 		if err != nil {
 			_ = os.WriteFile(bakFn, current, 0644)

@@ -13,6 +13,40 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+type CensorMode int
+
+const (
+	OnlyOutputReply CensorMode = iota
+	OnlyInputCommand
+	AllInput
+)
+
+const (
+	// SendWarning 发送警告
+	SendWarning CensorHandler = iota
+	// SendNotice 向通知列表/邮件发送通知
+	SendNotice
+	// BanUser 拉黑用户
+	BanUser
+	// BanGroup 拉黑群
+	BanGroup
+	// BanInviter 拉黑邀请人
+	BanInviter
+	// AddScore 增加怒气值
+	AddScore
+)
+
+var CensorHandlerText = map[CensorHandler]string{
+	SendWarning: "SendWarning",
+	SendNotice:  "SendNotice",
+	BanUser:     "BanUser",
+	BanGroup:    "BanGroup",
+	BanInviter:  "BanInviter",
+	AddScore:    "AddScore",
+}
+
+type CensorHandler int
+
 type CensorManager struct {
 	IsLoading           bool
 	Parent              *Dice
