@@ -92,6 +92,11 @@
             <div>{{i.adapter?.connectUrl}}</div>
           </el-form-item>
 
+          <el-form-item label="服务地址" v-if="i.adapter?.isReverse">
+            <!-- <el-input v-model="i.connectUrl"></el-input> -->
+            <div>{{i.adapter?.reverseAddr}}/ws</div>
+          </el-form-item>
+
           <template v-if="i.platform === 'QQ' && (i.protocolType === 'onebot' || i.protocolType === 'walle-q')">
             <!-- <el-form-item label="忽略好友请求">
               <div>{{i.adapter?.ignoreFriendRequest ? '是' : '否'}}</div>
@@ -117,6 +122,9 @@
               <div v-if="i.adapter?.implementation === 'gocq' || i.adapter?.implementation===''">Go-Cqhttp</div>
               <div v-if="i.adapter?.implementation === 'walle-q'">Walle-q</div>
               <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
+            </el-form-item>
+            <el-form-item label="特殊" v-else-if="i.adapter?.isReverse">
+              <div>反向WS</div>
             </el-form-item>
             <el-form-item label="特殊" v-else>
               <div>分离部署</div>
@@ -430,7 +438,8 @@
         <el-form-item label="账号类型" :label-width="formLabelWidth">
           <el-select v-model="form.accountType">
             <el-option label="QQ(内置gocq)" :value="0"></el-option>
-            <el-option label="QQ(gocq分离部署)" :value="6"></el-option>
+            <el-option label="QQ(onebot11分离部署)" :value="6"></el-option>
+            <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
             <el-option label="[WIP]QQ(官方bot)" :value="10"></el-option>
             <el-option label="[WIP]QQ(red协议)" :value="7"></el-option>
             <el-option label="Discord" :value="1"></el-option>
@@ -717,6 +726,13 @@
           <el-input v-model="form.accessToken" placeholder="gocqhttp配置的access token，没有不用填写" type="text" autocomplete="off"></el-input>
         </el-form-item>
 
+        <el-form-item v-if="form.accountType === 11" label="账号" :label-width="formLabelWidth" required>
+          <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 11" label="连接地址" :label-width="formLabelWidth" required>
+          <el-input v-model="form.reverseAddr" placeholder="反向WS服务地址，如 0.0.0.0:4001 (允许全部IP连入，4001端口)" type="text" autocomplete="off"></el-input>
+        </el-form-item>
+
         <el-form-item v-if="form.accountType === 7" label="主机" :label-width="formLabelWidth" required>
           <el-input v-model="form.host" placeholder="Red 服务的地址，如 127.0.0.1" type="text" autocomplete="off"></el-input>
         </el-form-item>
@@ -945,6 +961,15 @@
         <!-- <template #extra></template> -->
       </el-result>
     </template>
+    <template v-else-if="form.step === 4">
+      <el-result
+        icon="success"
+        title="成功啦!"
+        sub-title="操作完成，现在可以进行下一步了"
+      >
+        <!-- <template #extra></template> -->
+      </el-result>
+    </template>
 
     <template #footer>
       <span class="dialog-footer">
@@ -956,9 +981,10 @@
               form.accountType === 4 && form.url === '' ||
               form.accountType === 5 && (form.clientID === '' || form.token === '') ||
               form.accountType === 8 && (form.clientID === '' || form.token === '' || form.robotCode === '') ||
-              form.accountType === 6 && (form.account === '' || form.connectUrl === '' || form.relWorkDir === '') ||
+              form.accountType === 6 && (form.account === '' || form.connectUrl === '') ||
               form.accountType === 7 && (form.host === '' || form.port === '' || form.token === '') ||
-              form.accountType === 9 && (form.botToken === '' || form.appToken === '')">
+              form.accountType === 9 && (form.botToken === '' || form.appToken === '') ||
+              form.accountType === 11 && (form.account === '' || form.reverseAddr === '')">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">
@@ -1165,11 +1191,17 @@ const setEnable = async (i: DiceConnection, val: boolean) => {
     // 重复登录时，也打开这个窗口
     activities.value = []
     dialogFormVisible.value = true
-    form.step = 2
 
-    activities.value.push(fullActivities[4])
-    activities.value.push(fullActivities[5])
-    activities.value.push(fullActivities[2])
+    
+    if (i.adapter.useInPackGoCqhttp) {
+      form.step = 2
+      activities.value.push(fullActivities[4])
+      activities.value.push(fullActivities[5])
+      activities.value.push(fullActivities[2])
+    } else {
+      form.step = 4
+      form.isEnd = true
+    }
   }
 }
 
@@ -1252,15 +1284,21 @@ const gocqhttpReLogin = async (i: DiceConnection) => {
   }
   store.gocqhttpReloginImConnection(i).then(theConn => {
     curConnId.value = i.id;
+  }).finally(() => {
+    form.isEnd = true
   })
   // 重复登录时，也打开这个窗口
   activities.value = []
   dialogFormVisible.value = true
-  form.step = 2
 
-  activities.value.push(fullActivities[4])
-  activities.value.push(fullActivities[5])
-  activities.value.push(fullActivities[2])
+  if (i.adapter.useInPackGoCqhttp) {
+    form.step = 2
+    activities.value.push(fullActivities[4])
+    activities.value.push(fullActivities[5])
+    activities.value.push(fullActivities[2])
+  } else {
+    form.step = 4
+  }
 }
 
 const signConfigType: Ref<'none' | 'simple' | 'advanced'> = ref('none')
@@ -1361,6 +1399,8 @@ const form = reactive({
   },
   signServerUrl: '',
   signServerKey: '',
+
+  reverseAddr: ':4001'
 })
 
 const addOne = () => {

@@ -33,6 +33,8 @@ export interface AdapterQQ {
   host: string;
   port: number;
   appID: number;
+  isReverse: boolean;
+  reverseAddr: string;
 }
 
 interface TalkLogItem {
@@ -168,7 +170,7 @@ export const useStore = defineStore('main', {
     },
 
     async getSupportedQQVersions() {
-      const info: {result: true, versions: string[]} | {result: false} = await backend.get(urlPrefix + '/im_connections/qq/get_versions')
+      const info: { result: true, versions: string[] } | { result: false } = await backend.get(urlPrefix + '/im_connections/qq/get_versions')
       return info
     },
 
@@ -187,8 +189,8 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async addImConnection(form: { accountType: number, nickname: string,account: string, password: string, protocol: number, appVersion: string, token: string, botToken: string, appToken: string, proxyURL: string, url: string, host: string, port: number, appID: number, appSecret: string, clientID: string, robotCode: string, implementation: string, connectUrl: string, accessToken: string, relWorkDir: string, useSignServer: boolean, signServerConfig: any }) {
-      const { accountType, nickname, account, password, protocol, appVersion, token, botToken, appToken, proxyURL, url, host, port, appID, appSecret, clientID, robotCode, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig } = form
+    async addImConnection(form: { accountType: number, nickname: string, account: string, password: string, protocol: number, appVersion: string, token: string, botToken: string, appToken: string, proxyURL: string, url: string, host: string, port: number, appID: number, appSecret: string, clientID: string, robotCode: string, implementation: string, connectUrl: string, accessToken: string, relWorkDir: string, useSignServer: boolean, signServerConfig: any, reverseAddr: string }) {
+      const { accountType, nickname, account, password, protocol, appVersion, token, botToken, appToken, proxyURL, url, host, port, appID, appSecret, clientID, robotCode, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig, reverseAddr } = form
       let info = null
       switch (accountType) {
         //QQ
@@ -228,6 +230,9 @@ export const useStore = defineStore('main', {
           break;
         case 10:
           info = await backend.post(urlPrefix + '/im_connections/addOfficialQQ', { appID: Number(appID), appSecret, token }, { timeout: 65000 })
+          break
+        case 11:
+          info = await backend.post(urlPrefix + '/im_connections/addOnebot11ReverseWs', { account, reverseAddr }, { timeout: 65000 })
           break
       }
       return info as any as DiceConnection
@@ -405,11 +410,11 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async banUpload({form}: { form: FormData }) : Promise<{ result: true } | {
+    async banUpload({ form }: { form: FormData }): Promise<{ result: true } | {
       result: false,
       err: string
-    }>{
-      return await backend.post(urlPrefix + '/banconfig/import', form, {headers: {token: this.token, "Content-Type": "multipart/form-data"}})
+    }> {
+      return await backend.post(urlPrefix + '/banconfig/import', form, { headers: { token: this.token, "Content-Type": "multipart/form-data" } })
     },
 
     // 群组列表
@@ -466,9 +471,9 @@ export const useStore = defineStore('main', {
     },
 
     async deckUpdate({ index, tempFileName }: any) {
-      const res: {result: false, err: string} | {
+      const res: { result: false, err: string } | {
         result: true,
-      } = await backend.post(urlPrefix + '/deck/update', { index, tempFileName})
+      } = await backend.post(urlPrefix + '/deck/update', { index, tempFileName })
       return res
     },
 
@@ -486,18 +491,18 @@ export const useStore = defineStore('main', {
     async jsGetConfig() {
       return await apiFetch(urlPrefix + '/js/get_configs', {
         method: 'GET', headers: {
-            token: this.token
+          token: this.token
         }
       })
     },
     async jsSetConfig(configs: any) {
-        return await backend.post(urlPrefix + '/js/set_configs',  configs)
+      return await backend.post(urlPrefix + '/js/set_configs', configs)
     },
     async jsResetConfig(pluginName: any, key: any) {
-        return await backend.post(urlPrefix + '/js/reset_config', {pluginName, key})
+      return await backend.post(urlPrefix + '/js/reset_config', { pluginName, key })
     },
     async jsDeleteUnusedConfig(pluginName: any, key: any) {
-      return await backend.post(urlPrefix + '/js/delete_unused_config', {pluginName, key})
+      return await backend.post(urlPrefix + '/js/delete_unused_config', { pluginName, key })
     },
     async jsGetRecord() {
       return await apiFetch(urlPrefix + '/js/get_record', {
@@ -565,7 +570,7 @@ export const useStore = defineStore('main', {
     },
 
     async jsUpdate({ index, tempFileName }: any) {
-      const res: {result: false, err: string} | {
+      const res: { result: false, err: string } | {
         result: true,
       } = await backend.post(urlPrefix + '/js/update', { index, tempFileName })
       return res
