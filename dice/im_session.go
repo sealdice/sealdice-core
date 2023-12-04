@@ -367,6 +367,15 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 			return err
 		}
 		ep.Adapter = val.Adapter
+	case "SEALCHAT":
+		var val struct {
+			Adapter *PlatformAdapterSealChat `yaml:"adapter"`
+		}
+		err = value.Decode(&val)
+		if err != nil {
+			return err
+		}
+		ep.Adapter = val.Adapter
 	}
 	return err
 }
@@ -1377,6 +1386,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa.EndPoint = ep
 	case "SLACK":
 		pa := ep.Adapter.(*PlatformAdapterSlack)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
+	case "SEALCHAT":
+		pa := ep.Adapter.(*PlatformAdapterSealChat)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}

@@ -495,6 +495,8 @@ func diceServe(d *dice.Dice) {
 					dice.ServeSlack(d, conn)
 				case "DINGTALK":
 					dice.ServeDingTalk(d, conn)
+				case "SEALCHAT":
+					dice.ServeSealChat(d, conn)
 				}
 			}(_conn)
 		} else {

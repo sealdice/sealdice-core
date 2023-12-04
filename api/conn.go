@@ -191,6 +191,10 @@ func ImConnectionsDel(c echo.Context) error {
 					i.Adapter.SetEnable(false)
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					return c.JSON(http.StatusOK, i)
+				case "SEALCHAT":
+					i.Adapter.SetEnable(false)
+					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
+					return c.JSON(http.StatusOK, i)
 				}
 			}
 		}
