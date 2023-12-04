@@ -105,6 +105,8 @@ type GroupInfo struct {
 	TmpExtList   []string `yaml:"-" json:"tmpExtList"`
 
 	UpdatedAtTime int64 `yaml:"-" json:"-"`
+
+	DefaultHelpGroup string `yaml:"defaultHelpGroup" json:"defaultHelpGroup"` // 当前群默认的帮助文档分组
 }
 
 // ExtActive 开启扩展
