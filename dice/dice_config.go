@@ -2,10 +2,11 @@ package dice
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"sealdice-core/dice/censor"
 	"sealdice-core/utils"
 	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/robfig/cron/v3"
 
