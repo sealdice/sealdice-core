@@ -1020,6 +1020,11 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 	if pa.IsReverse {
 		go func() {
+			if pa.IsReverse && pa.reverseApp != nil {
+				_ = pa.reverseApp.Close()
+				pa.reverseApp = nil
+			}
+
 			e := echo.New()
 
 			upgrader := websocket.Upgrader{}
@@ -1099,6 +1104,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 	}
 	if pa.IsReverse && pa.reverseApp != nil {
 		_ = pa.reverseApp.Close()
+		pa.reverseApp = nil
 	}
 
 	if pa.UseInPackGoCqhttp {
@@ -1162,6 +1168,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		}
 		if pa.IsReverse && pa.reverseApp != nil {
 			_ = pa.reverseApp.Close()
+			pa.reverseApp = nil
 		}
 	}
 
