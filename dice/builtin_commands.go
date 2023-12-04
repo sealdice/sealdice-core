@@ -173,7 +173,10 @@ func (d *Dice) registerCoreCommands() {
 		".find #<分组> <关键字> // 查找指定分组下的文档。关键字可以多个，用空格分割\n" +
 		".find <数字ID> // 显示该ID的词条\n" +
 		".find --rand // 显示随机词条\n" +
-		".find <关键字> --num=10 // 需要更多结果"
+		".find <关键字> --num=10 // 需要更多结果\n" +
+		".find config --group // 查看当前默认搜索分组\n" +
+		".find config --group=<分组> // 设置当前默认搜索分组\n" +
+		".find config --groupclr // 清空当前默认搜索分组"
 	cmdSearch := &CmdItemInfo{
 		Name:      "find",
 		ShortHelp: helpForFind,
@@ -183,6 +186,40 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if d.Parent.IsHelpReloading {
 				ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			if _config := cmdArgs.GetArgN(1); _config == "config" {
+				oldDefault := ctx.Group.DefaultHelpGroup
+				if cmdArgs.GetKwarg("groupclr") != nil {
+					ctx.Group.SetDefaultHelpGroup("")
+					if oldDefault != "" {
+						ReplyToSender(ctx, msg, "已清空默认搜索分组，原分组为"+oldDefault)
+					} else {
+						ReplyToSender(ctx, msg, "未指定默认搜索分组")
+					}
+				} else if _defaultGroup := cmdArgs.GetKwarg("group"); _defaultGroup != nil {
+					defaultGroup := _defaultGroup.Value
+					if defaultGroup == "" {
+						// 为查看默认分组
+						if oldDefault != "" {
+							ReplyToSender(ctx, msg, "当前默认搜索分组为"+oldDefault)
+						} else {
+							ReplyToSender(ctx, msg, "未指定默认搜索分组")
+						}
+					} else {
+						// 为设置默认分组
+						ctx.Group.SetDefaultHelpGroup(defaultGroup)
+						if oldDefault != "" {
+							ReplyToSender(ctx, msg, fmt.Sprintf("默认搜索分组由%s切换到%s", oldDefault, defaultGroup))
+						} else {
+							ReplyToSender(ctx, msg, "指定默认搜索分组为"+defaultGroup)
+						}
+					}
+				} else {
+					ReplyToSender(ctx, msg, "设置选项有误")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
@@ -274,6 +311,10 @@ func (d *Dice) registerCoreCommands() {
 			}
 			if page <= 0 {
 				page = 1
+			}
+			if group == "" {
+				// 未指定搜索分组时，取当前群指定的分组
+				group = ctx.Group.DefaultHelpGroup
 			}
 			search, total, pgStart, pgEnd, err := d.Parent.Help.Search(ctx, text, false, numLimit, page, group)
 			if err != nil {
