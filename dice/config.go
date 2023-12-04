@@ -8,13 +8,10 @@ import (
 	"reflect"
 	"regexp"
 	"sealdice-core/dice/model"
-	"sealdice-core/utils"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/time/rate"
 
 	"github.com/fy0/lockfree"
 	wr "github.com/mroth/weightedrand"
@@ -1706,8 +1703,15 @@ func getNumVal(i interface{}) uint {
 }
 
 func (d *Dice) loads() {
+	config := NewConfig(d)
 	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
 	if err == nil { //nolint:nestif
+		err3 := config.LoadYamlConfig(data)
+		if err3 != nil {
+			d.Logger.Error("serve.yaml parse failed")
+			panic(err3)
+		}
+
 		// 有一些配置项被用 jsbind 导出了，只能先留在 Dice 不迁移了
 		dNew := Dice{}
 		err2 := yaml.Unmarshal(data, &dNew)
@@ -1715,59 +1719,7 @@ func (d *Dice) loads() {
 			d.Logger.Error("serve.yaml parse failed")
 			panic(err2)
 		}
-
-		var config *Config
-		err3 := yaml.Unmarshal(data, &config)
-		if err3 != nil {
-			d.Logger.Error("serve.yaml parse failed")
-			panic(err3)
-		}
-
-		config.CommandCompatibleMode = true // 一直为true即可
 		d.ImSession.EndPoints = dNew.ImSession.EndPoints
-
-		if config.MaxExecuteTime == 0 {
-			config.MaxExecuteTime = 12
-		}
-
-		if config.MaxCocCardGen == 0 {
-			config.MaxCocCardGen = 5
-		}
-
-		if config.PersonalReplenishRateStr == "" {
-			config.PersonalReplenishRateStr = "@every 3s"
-			config.PersonalReplenishRate = rate.Every(time.Second * 3)
-		} else {
-			if parsed, errParse := utils.ParseRate(config.PersonalReplenishRateStr); errParse == nil {
-				config.PersonalReplenishRate = parsed
-			} else {
-				d.Logger.Errorf("解析PersonalReplenishRate失败: %v", errParse)
-				config.PersonalReplenishRateStr = "@every 3s"
-				config.PersonalReplenishRate = rate.Every(time.Second * 3)
-			}
-		}
-
-		if config.PersonalBurst == 0 {
-			config.PersonalBurst = 3
-		}
-
-		if config.GroupReplenishRateStr == "" {
-			config.GroupReplenishRateStr = "@every 3s"
-			config.GroupReplenishRate = rate.Every(time.Second * 3)
-		} else {
-			if parsed, errParse := utils.ParseRate(config.GroupReplenishRateStr); errParse == nil {
-				d.Config.GroupReplenishRate = parsed
-			} else {
-				d.Logger.Errorf("解析GroupReplenishRate失败: %v", errParse)
-				config.GroupReplenishRateStr = "@every 3s"
-				config.GroupReplenishRate = rate.Every(time.Second * 3)
-			}
-		}
-
-		if config.GroupBurst == 0 {
-			config.GroupBurst = 3
-		}
-
 		d.DiceMasters = dNew.DiceMasters
 		if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
 			d.DiceMasters = []string{"UI:1001"}
@@ -1779,6 +1731,7 @@ func (d *Dice) loads() {
 			}
 		}
 		d.DiceMasters = newDiceMasters
+
 		// 装载ServiceAt
 		d.ImSession.ServiceAtNew = map[string]*GroupInfo{}
 		_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
@@ -1850,25 +1803,6 @@ func (d *Dice) loads() {
 			if g.BotList == nil {
 				g.BotList = new(SyncMap[string, bool])
 			}
-		}
-
-		if config.VersionCode != 0 && config.VersionCode < 10000 {
-			config.CustomReplyConfigEnable = false
-		}
-
-		if config.VersionCode != 0 && config.VersionCode < 10001 {
-			config.AliveNoticeValue = "@every 3h"
-		}
-
-		if config.VersionCode != 0 && config.VersionCode < 10003 {
-			d.Logger.Infof("进行配置文件版本升级: %d -> %d", config.VersionCode, 10003)
-			config.LogSizeNoticeCount = 500
-			config.LogSizeNoticeEnable = true
-			config.CustomReplyConfigEnable = true
-		}
-
-		if config.VersionCode != 0 && config.VersionCode < 10004 {
-			config.AutoReloginEnable = false
 		}
 
 		if config.VersionCode != 0 && config.VersionCode < 10005 {
@@ -1959,7 +1893,7 @@ func (d *Dice) loads() {
 			})
 		}
 
-		d.Config = *config
+		d.Config = config
 
 		// 设置全局群名缓存和用户名缓存
 		dm := d.Parent
@@ -1972,26 +1906,7 @@ func (d *Dice) loads() {
 	} else {
 		d.Logger.Info("serve.yaml not found")
 		// 这里是没有加载到配置文件，所以写默认设置项
-		d.Config.AutoReloginEnable = false
-		d.Config.WorkInQQChannel = true
-		d.Config.CustomReplyConfigEnable = false
-		d.Config.AliveNoticeValue = "@every 3h"
-
-		d.Config.LogSizeNoticeCount = 500
-		d.Config.LogSizeNoticeEnable = true
-
-		// 1.2
-		d.Config.QQEnablePoke = true
-		d.Config.TextCmdTrustOnly = true
-		d.Config.PlayerNameWrapEnable = true
 		d.DiceMasters = []string{"UI:1001"}
-
-		// 1.3
-		d.Config.JsEnable = true
-
-		// 1.4
-		d.Config.MaxExecuteTime = 12
-		d.Config.MaxCocCardGen = 5
 	}
 
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
@@ -2008,10 +1923,6 @@ func (d *Dice) loads() {
 		i.AdapterSetup()
 	}
 
-	if d.Config.NoticeIDs == nil {
-		d.Config.NoticeIDs = []string{}
-	}
-
 	if len(d.CommandPrefix) == 0 {
 		d.CommandPrefix = []string{
 			"!",
@@ -2021,7 +1932,6 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.Config.VersionCode = 10300 // TODO: 记得修改！！！
 	d.LogWriter.LogLimit = d.Config.UILogLimit
 
 	// 设置扩展选项
@@ -2114,7 +2024,11 @@ func (d *Dice) ApplyExtDefaultSettings() {
 
 func (d *Dice) Save(isAuto bool) {
 	if d.LastUpdatedTime != 0 {
-		a, err := yaml.Marshal(d)
+		totalConf := &struct {
+			Dice   `yaml:",inline"`
+			Config `yaml:",inline"`
+		}{*d, d.Config}
+		a, err := yaml.Marshal(totalConf)
 
 		if err == nil {
 			err := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0644)

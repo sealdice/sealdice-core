@@ -1,7 +1,10 @@
 package dice
 
 import (
+	"fmt"
+	"gopkg.in/yaml.v3"
 	"sealdice-core/dice/censor"
+	"sealdice-core/utils"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -9,29 +12,152 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// ConfigVersion 当前设置版本
+const (
+	ConfigVersion     = 1
+	ConfigVersionCode = 10300 // 旧的设置版本标记
+)
+
 type Config struct {
-	ConfigVersion int `yaml:"configVersion"` // 配置版本
+	d             *Dice `yaml:"-"`
+	ConfigVersion int   `yaml:"configVersion"` // 配置版本
 
 	// 基础设置
-	BaseConfig
+	BaseConfig `yaml:",inline"`
 	// 刷屏警告设置
-	RateLimitConfig
+	RateLimitConfig `yaml:",inline"`
 	// 退出不活跃设置
-	QuitInactiveConfig
+	QuitInactiveConfig `yaml:",inline"`
 	// 扩展设置
-	ExtConfig
+	ExtConfig `yaml:",inline"`
 	// 黑名单设置
-	BanConfig
+	BanConfig `yaml:",inline"`
 	// js 设置
-	JsConfig
+	JsConfig `yaml:",inline"`
 	// 跑团日志设置
-	StoryLogConfig
+	StoryLogConfig `yaml:",inline"`
 	// 邮件设置
-	MailConfig
+	MailConfig `yaml:",inline"`
 	// 新闻设置
-	NewsConfig
+	NewsConfig `yaml:",inline"`
 	// 敏感词设置
-	CensorConfig
+	CensorConfig `yaml:",inline"`
+}
+
+func NewConfig(d *Dice) Config {
+	c := &Config{d: d}
+	c.setDefaults()
+	return *c
+}
+
+func (c *Config) LoadYamlConfig(data []byte) error {
+	err := yaml.Unmarshal(data, &c)
+	if err != nil {
+		return err
+	}
+	c.migrateOld2Version1()
+	return nil
+}
+
+func (c *Config) setDefaults() {
+	c.VersionCode = ConfigVersionCode
+	if c.NoticeIDs == nil {
+		c.NoticeIDs = []string{}
+	}
+	c.BanList = &BanListInfo{Parent: c.d}
+	c.BanList.Init()
+
+	c.AutoReloginEnable = false
+	c.WorkInQQChannel = true
+	c.CustomReplyConfigEnable = false
+	c.AliveNoticeValue = "@every 3h"
+
+	c.LogSizeNoticeCount = 500
+	c.LogSizeNoticeEnable = true
+
+	// 1.2
+	c.QQEnablePoke = true
+	c.TextCmdTrustOnly = true
+	c.PlayerNameWrapEnable = true
+
+	// 1.3
+	c.JsEnable = true
+
+	// 1.4
+	c.MaxExecuteTime = 12
+	c.MaxCocCardGen = 5
+}
+
+// migrateOld2Version1 旧格式设置项的迁移
+func (c *Config) migrateOld2Version1() {
+	if c.ConfigVersion == 0 {
+		c.ConfigVersion = ConfigVersion
+
+		c.CommandCompatibleMode = true // 一直为true即可
+
+		if c.MaxExecuteTime == 0 {
+			c.MaxExecuteTime = 12
+		}
+
+		if c.MaxCocCardGen == 0 {
+			c.MaxCocCardGen = 5
+		}
+
+		if c.PersonalReplenishRateStr == "" {
+			c.PersonalReplenishRateStr = "@every 3s"
+			c.PersonalReplenishRate = rate.Every(time.Second * 3)
+		} else {
+			if parsed, errParse := utils.ParseRate(c.PersonalReplenishRateStr); errParse == nil {
+				c.PersonalReplenishRate = parsed
+			} else {
+				fmt.Printf("解析PersonalReplenishRate失败: %v", errParse)
+				c.PersonalReplenishRateStr = "@every 3s"
+				c.PersonalReplenishRate = rate.Every(time.Second * 3)
+			}
+		}
+
+		if c.PersonalBurst == 0 {
+			c.PersonalBurst = 3
+		}
+
+		if c.GroupReplenishRateStr == "" {
+			c.GroupReplenishRateStr = "@every 3s"
+			c.GroupReplenishRate = rate.Every(time.Second * 3)
+		} else {
+			if parsed, errParse := utils.ParseRate(c.GroupReplenishRateStr); errParse == nil {
+				c.GroupReplenishRate = parsed
+			} else {
+				fmt.Printf("解析GroupReplenishRate失败: %v", errParse)
+				c.GroupReplenishRateStr = "@every 3s"
+				c.GroupReplenishRate = rate.Every(time.Second * 3)
+			}
+		}
+
+		if c.GroupBurst == 0 {
+			c.GroupBurst = 3
+		}
+
+		if c.VersionCode != 0 && c.VersionCode < 10000 {
+			c.CustomReplyConfigEnable = false
+		}
+
+		if c.VersionCode != 0 && c.VersionCode < 10001 {
+			c.AliveNoticeValue = "@every 3h"
+		}
+
+		if c.VersionCode != 0 && c.VersionCode < 10003 {
+			fmt.Printf("进行配置文件版本升级: %d -> %d", c.VersionCode, 10003)
+			c.LogSizeNoticeCount = 500
+			c.LogSizeNoticeEnable = true
+			c.CustomReplyConfigEnable = true
+		}
+
+		if c.VersionCode != 0 && c.VersionCode < 10004 {
+			c.AutoReloginEnable = false
+		}
+	} else {
+		return
+	}
 }
 
 type BaseConfig struct {

@@ -120,21 +120,25 @@ func (x ExtDefaultSettingItemSlice) Less(i, _ int) bool { return x[i].Name == "c
 func (x ExtDefaultSettingItemSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 type Dice struct {
-	ImSession       *IMSession             `yaml:"imSession" jsbind:"imSession"`
+	// 由于被导出的原因，暂时不迁移至 config
+	ImSession *IMSession `yaml:"imSession" jsbind:"imSession"`
+
 	CmdMap          CmdMapCls              `yaml:"-" json:"-"`
 	ExtList         []*ExtInfo             `yaml:"-"`
 	RollParser      *DiceRollParser        `yaml:"-"`
 	LastUpdatedTime int64                  `yaml:"-"`
 	TextMap         map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig      RootConfig             `yaml:"-"`
-	DBData          *sqlx.DB               `yaml:"-"`                                    // 数据库对象
-	DBLogs          *sqlx.DB               `yaml:"-"`                                    // 数据库对象
-	Logger          *zap.SugaredLogger     `yaml:"-"`                                    // 日志
-	LogWriter       *logger.WriterX        `yaml:"-"`                                    // 用于api的log对象
-	IsDeckLoading   bool                   `yaml:"-"`                                    // 正在加载中
-	DeckList        []*DeckInfo            `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
-	CommandPrefix   []string               `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
-	DiceMasters     []string               `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
+	DBData          *sqlx.DB               `yaml:"-"` // 数据库对象
+	DBLogs          *sqlx.DB               `yaml:"-"` // 数据库对象
+	Logger          *zap.SugaredLogger     `yaml:"-"` // 日志
+	LogWriter       *logger.WriterX        `yaml:"-"` // 用于api的log对象
+	IsDeckLoading   bool                   `yaml:"-"` // 正在加载中
+
+	// 由于被导出的原因，暂时不迁移至 config
+	DeckList      []*DeckInfo `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
+	CommandPrefix []string    `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
+	DiceMasters   []string    `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
 
 	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
@@ -158,14 +162,14 @@ type Dice struct {
 
 	RunAfterLoaded []func() `yaml:"-" json:"-"`
 
-	IsAlreadyLoadConfig  bool                 `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 	deckCommandItemsList DeckCommandListItems // 牌堆key信息，辅助作为模糊搜索使用
 
 	UIEndpoint *EndPointInfo `yaml:"-" json:"-"` // UI Endpoint
 
 	CensorManager *CensorManager `json:"-" yaml:"-"`
 
-	Config Config `json:"-" yaml:"-"`
+	Config              Config `json:"-" yaml:"-"`
+	IsAlreadyLoadConfig bool   `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 }
 
 func (d *Dice) MarkModified() {
@@ -204,10 +208,7 @@ func (d *Dice) Init() {
 	log := logger.Init(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
 	d.Logger = log.Logger
 	d.LogWriter = log.WX
-	d.Config.BanList = &BanListInfo{Parent: d}
-	d.Config.BanList.Init()
 
-	d.Config.CommandCompatibleMode = true
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
