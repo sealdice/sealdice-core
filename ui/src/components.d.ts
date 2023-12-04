@@ -64,6 +64,7 @@ declare module 'vue' {
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElTree: typeof import('element-plus/es')['ElTree']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    HelpConfigTags: typeof import('./components/mod/helpdoc/HelpConfigTags.vue')['default']
     IBiFileBreak: typeof import('~icons/bi/file-break')['default']
     IBiFiletypeJson: typeof import('~icons/bi/filetype-json')['default']
     IBiFiletypeXlsx: typeof import('~icons/bi/filetype-xlsx')['default']

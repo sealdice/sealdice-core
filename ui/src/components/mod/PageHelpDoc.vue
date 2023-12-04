@@ -10,11 +10,18 @@
     </div>
   </el-affix>
 
+  <el-affix :offset="70" v-if="configNeedSave">
+    <div class="tip-danger">
+      <el-text type="danger" size="large" tag="strong">设置存在修改，别忘记保存！</el-text>
+    </div>
+  </el-affix>
+
   <el-tabs v-model="tab" :stretch=true>
     <el-tab-pane label="文件" name="file">
       <el-space class="file-control">
         <el-button type="danger" :icon="Delete" v-show="showDeleteFile" @click="deleteFiles">删除所选</el-button>
         <el-button type="primary" :icon="Upload" @click="uploadDialogVisible = true">上传</el-button>
+        <el-button type="primary" :icon="Setting" @click="configDialogVisible = true">设置</el-button>
       </el-space>
 
       <el-dialog v-model="uploadDialogVisible" title="上传帮助文档">
@@ -40,6 +47,24 @@
           <el-space>
             <el-button @click="uploadDialogVisible = false">取消</el-button>
             <el-button type="primary" @click="submitUpload(uploadFormRef)">上传</el-button>
+          </el-space>
+        </template>
+      </el-dialog>
+
+      <el-dialog v-model="configDialogVisible" title="设置帮助文档">
+        <el-alert v-show="configNeedSave" style="margin-bottom: 20px;" type="warning" :closable="false">
+          设置存在修改，别忘记保存！
+        </el-alert>
+        <h3>分组别名</h3>
+        <el-form>
+          <el-form-item v-for="group in docGroups" :key="group.key" :label="group.label" label-width="50px">
+            <HelpConfigTags :group="group" :aliases="helpAliases" @add-alias="addAlias" @remove-alias="removeAlias" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-space>
+            <el-button @click="configDialogClose">取消</el-button>
+            <el-button type="primary" @click="summitConfig">保存</el-button>
           </el-space>
         </template>
       </el-dialog>
@@ -94,7 +119,7 @@
               <el-input v-model="textItemQuery.from" clearable />
             </el-form-item>
             <el-form-item label="词条名">
-              <el-input v-model="textItemQuery.title" clearable />
+              <el-input v-model="textItemQuery.title" clearable/>
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="refreshTextItems">搜索</el-button>
@@ -132,9 +157,9 @@
 <script lang="ts" setup>
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormRules, FormInstance, ElTree } from 'element-plus';
-import { onBeforeMount, reactive, ref } from 'vue';
+import {nextTick, onBeforeMount, reactive, ref} from 'vue';
 import { useStore } from '~/store';
-import { Delete, Refresh, Upload } from '@element-plus/icons-vue'
+import { Delete, Plus, Refresh, Setting, Upload } from '@element-plus/icons-vue'
 import { trim } from 'lodash-es';
 import { computed } from 'vue';
 
@@ -336,15 +361,71 @@ const reload = async () => {
     needReload.value = false
     await refreshFileTree()
     await refreshTextItems()
+    await refreshConfig()
   } else {
     ElMessage.error(resp.err ?? '重载帮助文件失败')
   }
   reloadLoading.value = false
 }
 
+const configDialogVisible = ref<boolean>(false)
+const configNeedSave = ref<boolean>(false)
+const helpAliases = ref<Map<string, string[]>>(new Map())
+
+const refreshConfig = async () => {
+  const config = await store.helpGetConfig()
+  helpAliases.value = new Map(Object.entries(config.aliases))
+  configNeedSave.value = false
+}
+
+const configDialogClose = () => {
+  configDialogVisible.value = false
+}
+
+const addAlias = (groupKey: string, alias: string) => {
+  // 别名不能重复
+  for (let aliases of helpAliases.value.values()) {
+    if (aliases.includes(alias)) {
+      ElMessage.error("别名 " + alias + " 已被使用")
+      return
+    }
+  }
+  if (helpAliases.value.has(groupKey)) {
+    helpAliases.value?.get?.(groupKey)?.push(alias)
+  } else {
+    helpAliases.value.set(groupKey, [alias])
+  }
+  configNeedSave.value = true
+}
+
+const removeAlias = (groupKey: string, alias: string) => {
+  if (helpAliases.value.has(groupKey)) {
+    const lst = helpAliases.value.get(groupKey) ?? []
+    helpAliases.value.set(groupKey, [...lst.filter(v => v !== alias)])
+    configNeedSave.value = true
+  }
+}
+
+const summitConfig = async () => {
+  if (helpAliases.value) {
+    console.log("aliases=", helpAliases.value)
+    const res = await store.helpSetConfig({aliases: Object.fromEntries(helpAliases.value)})
+    if (res.result) {
+      ElMessage.success("保存设置成功")
+      configDialogClose()
+      nextTick(async () => {
+        await refreshConfig()
+      })
+    } else {
+      ElMessage.error("保存设置失败! " + res.err)
+    }
+  }
+}
+
 onBeforeMount(async () => {
   await refreshFileTree()
   await refreshTextItems()
+  await refreshConfig()
 })
 
 

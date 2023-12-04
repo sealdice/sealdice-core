@@ -661,5 +661,25 @@ export const useStore = defineStore('main', {
         body: param,
       });
     },
+
+    async helpGetConfig(): Promise<{ aliases: { [key: string]: string[] } }> {
+      return await apiFetch(urlPrefix + "/helpdoc/config", {
+        method: "GET",
+        headers: {
+          token: this.token
+        }
+      })
+    },
+
+    async helpSetConfig(param: { aliases: { [key: string]: string[] } }): Promise<{ result: true } | { result: false, err?: string }> {
+      console.log("param=", param)
+      return await apiFetch(urlPrefix + "/helpdoc/config", {
+        method: "POST",
+        headers: {
+          token: this.token
+        },
+        body: param
+      })
+    },
   }
 })
