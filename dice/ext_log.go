@@ -855,11 +855,11 @@ func LogAppend(ctx *MsgContext, groupID string, logName string, logItem *model.L
 	if ok {
 		if size, okCount := model.LogLinesCountGet(ctx.Dice.DBLogs, groupID, logName); okCount {
 			// 默认每记录500条发出提示
-			if ctx.Dice.LogSizeNoticeEnable {
-				if ctx.Dice.LogSizeNoticeCount == 0 {
-					ctx.Dice.LogSizeNoticeCount = 500
+			if ctx.Dice.Config.LogSizeNoticeEnable {
+				if ctx.Dice.Config.LogSizeNoticeCount == 0 {
+					ctx.Dice.Config.LogSizeNoticeCount = 500
 				}
-				if size > 0 && int(size)%ctx.Dice.LogSizeNoticeCount == 0 {
+				if size > 0 && int(size)%ctx.Dice.Config.LogSizeNoticeCount == 0 {
 					VarSetValueInt64(ctx, "$t条数", size)
 					text := DiceFormatTmpl(ctx, "日志:记录_条数提醒")
 					// text := fmt.Sprintf("提示: 当前故事的文本已经记录了 %d 条", size)

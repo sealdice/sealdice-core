@@ -496,15 +496,15 @@ func (e DeckCommandListItems) Len() int {
 }
 
 func DeckReload(d *Dice) {
-	if d.IsDeckLoading {
+	if d.Config.IsDeckLoading {
 		return
 	}
-	d.IsDeckLoading = true
+	d.Config.IsDeckLoading = true
 	d.DeckList = d.DeckList[:0]
 	d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
 	DecksDetect(d)
 	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
-	d.IsDeckLoading = false
+	d.Config.IsDeckLoading = false
 	d.MarkModified()
 
 	lst := DeckCommandListItems{}
@@ -549,7 +549,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		ShortHelp:               helpDraw,
 		Help:                    "抽牌命令: \n" + helpDraw,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if d.IsDeckLoading {
+			if d.Config.IsDeckLoading {
 				ReplyToSender(ctx, msg, "牌堆尚未就绪，可能正在重新装载")
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -690,7 +690,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					// if times > 5 {
 					// 	times = 5
 					// }
-					if times > int(ctx.Dice.MaxExecuteTime) {
+					if times > int(ctx.Dice.Config.MaxExecuteTime) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}

@@ -62,22 +62,22 @@ func (d *Dice) NewCensorManager() {
 	}
 	cm := CensorManager{
 		Censor: &censor.Censor{
-			CaseSensitive:  d.CensorCaseSensitive,
-			MatchPinyin:    d.CensorMatchPinyin,
-			FilterRegexStr: d.CensorFilterRegexStr,
+			CaseSensitive:  d.Config.CensorCaseSensitive,
+			MatchPinyin:    d.Config.CensorMatchPinyin,
+			FilterRegexStr: d.Config.CensorFilterRegexStr,
 		},
 		DB: db,
 	}
 	cm.Parent = d
 	d.CensorManager = &cm
-	if d.CensorThresholds == nil {
-		d.CensorThresholds = make(map[censor.Level]int)
+	if d.Config.CensorThresholds == nil {
+		d.Config.CensorThresholds = make(map[censor.Level]int)
 	}
-	if d.CensorHandlers == nil {
-		d.CensorHandlers = make(map[censor.Level]uint8)
+	if d.Config.CensorHandlers == nil {
+		d.Config.CensorHandlers = make(map[censor.Level]uint8)
 	}
-	if d.CensorScores == nil {
-		d.CensorScores = make(map[censor.Level]int)
+	if d.Config.CensorScores == nil {
+		d.Config.CensorScores = make(map[censor.Level]int)
 	}
 	cm.Load(d)
 }
@@ -167,7 +167,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 
 	mctx.Censored = true
 	group := mctx.Session.ServiceAtNew[msg.GroupID]
-	thresholds := d.CensorThresholds
+	thresholds := d.Config.CensorThresholds
 
 	// 保证按程度依次降低来处理
 	var tempLevels censor.Levels
@@ -185,7 +185,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 			// 清空此用户该等级计数
 			model.CensorClearLevelCount(d.CensorManager.DB, msg.Sender.UserID, level)
 			// 该等级敏感词超过阈值，执行操作
-			handler := d.CensorHandlers[level]
+			handler := d.Config.CensorHandlers[level]
 			levelText := censor.LevelText[level]
 			if handler&(1<<SendWarning) != 0 {
 				tmplText := fmt.Sprintf("核心:拦截_警告内容_%s级", censor.LevelText[level])
@@ -214,9 +214,9 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 			}
 			if handler&(1<<BanUser) != 0 {
 				// 拉黑用户
-				d.BanList.AddScoreBase(
+				d.Config.BanList.AddScoreBase(
 					msg.Sender.UserID,
-					d.BanList.ThresholdBan,
+					d.Config.BanList.ThresholdBan,
 					"敏感词审查",
 					"触发<"+levelText+">敏感词",
 					mctx,
@@ -225,9 +225,9 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 			if handler&(1<<BanGroup) != 0 {
 				// 拉黑群
 				if msg.MessageType == "group" {
-					d.BanList.AddScoreBase(
+					d.Config.BanList.AddScoreBase(
 						msg.GroupID,
-						d.BanList.ThresholdBan,
+						d.Config.BanList.ThresholdBan,
 						"敏感词审查",
 						"触发<"+levelText+">敏感词",
 						mctx,
@@ -237,9 +237,9 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 			if handler&(1<<BanInviter) != 0 {
 				// 拉黑邀请人
 				if msg.MessageType == "group" {
-					d.BanList.AddScoreBase(
+					d.Config.BanList.AddScoreBase(
 						group.InviteUserID,
-						d.BanList.ThresholdBan,
+						d.Config.BanList.ThresholdBan,
 						"敏感词审查",
 						"触发<"+levelText+">敏感词",
 						mctx,
@@ -247,13 +247,13 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 				}
 			}
 			if handler&(1<<AddScore) != 0 {
-				score, ok := d.CensorScores[level]
+				score, ok := d.Config.CensorScores[level]
 				if !ok {
 					score = 100
 				}
 				// 仅增加怒气值
 				if msg.MessageType == "group" {
-					d.BanList.AddScoreByCensor(
+					d.Config.BanList.AddScoreByCensor(
 						msg.Sender.UserID,
 						int64(score),
 						group.GroupID,

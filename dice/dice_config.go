@@ -35,17 +35,14 @@ type Config struct {
 }
 
 type BaseConfig struct {
-	ImSession               *IMSession     `yaml:"imSession" jsbind:"imSession"`
 	CommandCompatibleMode   bool           `yaml:"commandCompatibleMode"`
 	LastSavedTime           *time.Time     `yaml:"lastSavedTime"`
-	DeckList                []*DeckInfo    `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
-	CommandPrefix           []string       `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
-	DiceMasters             []string       `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
-	NoticeIDs               []string       `yaml:"noticeIds"`                            // 通知ID
-	OnlyLogCommandInGroup   bool           `yaml:"onlyLogCommandInGroup"`                // 日志中仅记录命令
-	OnlyLogCommandInPrivate bool           `yaml:"onlyLogCommandInPrivate"`              // 日志中仅记录命令
-	VersionCode             int            `json:"versionCode"`                          // 版本ID(配置文件)
-	MessageDelayRangeStart  float64        `yaml:"messageDelayRangeStart"`               // 指令延迟区间
+	IsDeckLoading           bool           `yaml:"-"`                       // 正在加载中
+	NoticeIDs               []string       `yaml:"noticeIds"`               // 通知ID
+	OnlyLogCommandInGroup   bool           `yaml:"onlyLogCommandInGroup"`   // 日志中仅记录命令
+	OnlyLogCommandInPrivate bool           `yaml:"onlyLogCommandInPrivate"` // 日志中仅记录命令
+	VersionCode             int            `json:"versionCode"`             // 版本ID(配置文件)
+	MessageDelayRangeStart  float64        `yaml:"messageDelayRangeStart"`  // 指令延迟区间
 	MessageDelayRangeEnd    float64        `yaml:"messageDelayRangeEnd"`
 	WorkInQQChannel         bool           `yaml:"workInQQChannel"`
 	QQChannelAutoOn         bool           `yaml:"QQChannelAutoOn"`         // QQ频道中自动开启(默认不开)
