@@ -131,3 +131,38 @@ func helpGetTextItemPage(c echo.Context) error {
 	}
 	return Success(&c, Response{"total": 0, "data": dice.HelpTextItems{}})
 }
+
+func helpGetConfig(c echo.Context) error {
+	if !dm.IsHelpReloading {
+		if dm.Help.Config == nil {
+			return c.JSON(http.StatusOK, dice.HelpConfig{Aliases: make(map[string][]string)})
+		}
+		return c.JSON(http.StatusOK, dm.Help.Config)
+	}
+	return Error(&c, "帮助文档正在重新装载", Response{})
+}
+
+func helpSetConfig(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Success(&c, Response{
+			"testMode": true,
+		})
+	}
+	if dm.IsHelpReloading {
+		return Error(&c, "帮助文档正在重新装载", Response{})
+	}
+
+	var v dice.HelpConfig
+	err := c.Bind(&v)
+	if err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+	err = dm.Help.SaveHelpConfig(&v)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	return Success(&c, Response{})
+}
