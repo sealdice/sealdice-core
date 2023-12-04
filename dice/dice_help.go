@@ -875,8 +875,3 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 func (group *GroupInfo) SetDefaultHelpGroup(target string) {
 	group.DefaultHelpGroup = target
 }
-
-// ClearDefaultHelpGroup 清空群指定搜索分组
-func (group *GroupInfo) ClearDefaultHelpGroup(target string) {
-	group.DefaultHelpGroup = ""
-}
