@@ -64,7 +64,7 @@ require (
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.6.0
 	github.com/pelletier/go-toml/v2 v2.1.0
 	github.com/pkg/errors v0.9.1
-	github.com/samber/lo v1.38.1
+	github.com/samber/lo v1.39.0
 	github.com/schollz/progressbar/v3 v3.14.1
 	github.com/sealdice/botgo v0.0.0-20231127135811-15eff113b4c0
 	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
