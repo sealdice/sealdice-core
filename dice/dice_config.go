@@ -59,7 +59,7 @@ var DefaultConfig = Config{
 
 type Config struct {
 	d             *Dice `yaml:"-"`
-	ConfigVersion int   `yaml:"configVersion"` // 配置版本
+	ConfigVersion int   `yaml:"configVersion" json:"configVersion"` // 配置版本
 
 	// 基础设置
 	BaseConfig `yaml:",inline"`
@@ -175,64 +175,64 @@ func (c *Config) migrateOld2Version1() {
 }
 
 type BaseConfig struct {
-	CommandCompatibleMode   bool           `yaml:"commandCompatibleMode"`
-	LastSavedTime           *time.Time     `yaml:"lastSavedTime"`
-	IsDeckLoading           bool           `yaml:"-"`                       // 正在加载中
-	NoticeIDs               []string       `yaml:"noticeIds"`               // 通知ID
-	OnlyLogCommandInGroup   bool           `yaml:"onlyLogCommandInGroup"`   // 日志中仅记录命令
-	OnlyLogCommandInPrivate bool           `yaml:"onlyLogCommandInPrivate"` // 日志中仅记录命令
-	VersionCode             int            `json:"versionCode"`             // 版本ID(配置文件)
-	MessageDelayRangeStart  float64        `yaml:"messageDelayRangeStart"`  // 指令延迟区间
-	MessageDelayRangeEnd    float64        `yaml:"messageDelayRangeEnd"`
-	WorkInQQChannel         bool           `yaml:"workInQQChannel"`
-	QQChannelAutoOn         bool           `yaml:"QQChannelAutoOn"`         // QQ频道中自动开启(默认不开)
-	QQChannelLogMessage     bool           `yaml:"QQChannelLogMessage"`     // QQ频道中记录消息(默认不开)
-	QQEnablePoke            bool           `yaml:"QQEnablePoke"`            // 启用戳一戳
-	TextCmdTrustOnly        bool           `yaml:"textCmdTrustOnly"`        // 只允许信任用户或master使用text指令
-	IgnoreUnaddressedBotCmd bool           `yaml:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
-	UILogLimit              int64          `yaml:"UILogLimit"`
-	FriendAddComment        string         `yaml:"friendAddComment"` // 加好友验证信息
-	MasterUnlockCode        string         `yaml:"-"`                // 解锁码，每20分钟变化一次，使用后立即变化
-	MasterUnlockCodeTime    int64          `yaml:"-"`
-	CustomReplyConfigEnable bool           `yaml:"customReplyConfigEnable"`
-	CustomReplyConfig       []*ReplyConfig `yaml:"-"`
-	AutoReloginEnable       bool           `yaml:"autoReloginEnable"`    // 启用自动重新登录
-	RefuseGroupInvite       bool           `yaml:"refuseGroupInvite"`    // 拒绝加入新群
-	UpgradeWindowID         string         `yaml:"upgradeWindowId"`      // 执行升级指令的窗口
-	UpgradeEndpointID       string         `yaml:"upgradeEndpointId"`    // 执行升级指令的端点
-	BotExtFreeSwitch        bool           `yaml:"botExtFreeSwitch"`     // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
-	TrustOnlyMode           bool           `yaml:"trustOnlyMode"`        // 只有信任的用户/master可以拉群和使用
-	AliveNoticeEnable       bool           `yaml:"aliveNoticeEnable"`    // 定时通知
-	AliveNoticeValue        string         `yaml:"aliveNoticeValue"`     // 定时通知间隔
-	ReplyDebugMode          bool           `yaml:"replyDebugMode"`       // 回复调试
-	PlayerNameWrapEnable    bool           `yaml:"playerNameWrapEnable"` // 启用玩家名称外框
+	CommandCompatibleMode   bool           `yaml:"commandCompatibleMode" json:"-"`
+	LastSavedTime           *time.Time     `yaml:"lastSavedTime" json:"-"`
+	IsDeckLoading           bool           `yaml:"-" json:"-"`                                             // 正在加载中
+	NoticeIDs               []string       `yaml:"noticeIds" json:"noticeIds"`                             // 通知ID
+	OnlyLogCommandInGroup   bool           `yaml:"onlyLogCommandInGroup" json:"onlyLogCommandInGroup"`     // 日志中仅记录命令
+	OnlyLogCommandInPrivate bool           `yaml:"onlyLogCommandInPrivate" json:"onlyLogCommandInPrivate"` // 日志中仅记录命令
+	VersionCode             int            `yaml:"versionCode" json:"versionCode"`                         // 版本ID(配置文件)
+	MessageDelayRangeStart  float64        `yaml:"messageDelayRangeStart" json:"messageDelayRangeStart"`   // 指令延迟区间
+	MessageDelayRangeEnd    float64        `yaml:"messageDelayRangeEnd" json:"messageDelayRangeEnd"`
+	WorkInQQChannel         bool           `yaml:"workInQQChannel" json:"workInQQChannel"`
+	QQChannelAutoOn         bool           `yaml:"QQChannelAutoOn" json:"QQChannelAutoOn"`                 // QQ频道中自动开启(默认不开)
+	QQChannelLogMessage     bool           `yaml:"QQChannelLogMessage" json:"QQChannelLogMessage"`         // QQ频道中记录消息(默认不开)
+	QQEnablePoke            bool           `yaml:"QQEnablePoke" json:"QQEnablePoke"`                       // 启用戳一戳
+	TextCmdTrustOnly        bool           `yaml:"textCmdTrustOnly" json:"textCmdTrustOnly"`               // 只允许信任用户或master使用text指令
+	IgnoreUnaddressedBotCmd bool           `yaml:"ignoreUnaddressedBotCmd" json:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
+	UILogLimit              int64          `yaml:"UILogLimit" json:"-"`
+	FriendAddComment        string         `yaml:"friendAddComment" json:"friendAddComment"` // 加好友验证信息
+	MasterUnlockCode        string         `yaml:"-" json:"masterUnlockCode"`                // 解锁码，每20分钟变化一次，使用后立即变化
+	MasterUnlockCodeTime    int64          `yaml:"-" json:"masterUnlockCodeTime"`
+	CustomReplyConfigEnable bool           `yaml:"customReplyConfigEnable" json:"customReplyConfigEnable"`
+	CustomReplyConfig       []*ReplyConfig `yaml:"-" json:"-"`
+	AutoReloginEnable       bool           `yaml:"autoReloginEnable" json:"autoReloginEnable"`       // 启用自动重新登录
+	RefuseGroupInvite       bool           `yaml:"refuseGroupInvite" json:"refuseGroupInvite"`       // 拒绝加入新群
+	UpgradeWindowID         string         `yaml:"upgradeWindowId" json:"-"`                         // 执行升级指令的窗口
+	UpgradeEndpointID       string         `yaml:"upgradeEndpointId" json:"-"`                       // 执行升级指令的端点
+	BotExtFreeSwitch        bool           `yaml:"botExtFreeSwitch" json:"botExtFreeSwitch"`         // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
+	TrustOnlyMode           bool           `yaml:"trustOnlyMode" json:"trustOnlyMode"`               // 只有信任的用户/master可以拉群和使用
+	AliveNoticeEnable       bool           `yaml:"aliveNoticeEnable" json:"aliveNoticeEnable"`       // 定时通知
+	AliveNoticeValue        string         `yaml:"aliveNoticeValue" json:"aliveNoticeValue"`         // 定时通知间隔
+	ReplyDebugMode          bool           `yaml:"replyDebugMode" json:"replyDebugMode"`             // 回复调试
+	PlayerNameWrapEnable    bool           `yaml:"playerNameWrapEnable" json:"playerNameWrapEnable"` // 启用玩家名称外框
 }
 
 type RateLimitConfig struct {
-	RateLimitEnabled         bool       `yaml:"rateLimitEnabled"`      // 启用频率限制 (刷屏限制)
-	PersonalReplenishRateStr string     `yaml:"personalReplenishRate"` // 个人刷屏警告速率，字符串格式
-	PersonalReplenishRate    rate.Limit `yaml:"-"`                     // 个人刷屏警告速率
-	GroupReplenishRateStr    string     `yaml:"groupReplenishRate"`    // 群组刷屏警告速率，字符串格式
-	GroupReplenishRate       rate.Limit `yaml:"-"`                     // 群组刷屏警告速率
-	PersonalBurst            int64      `yaml:"personalBurst"`         // 个人自定义上限
-	GroupBurst               int64      `yaml:"groupBurst"`            // 群组自定义上限
+	RateLimitEnabled         bool       `yaml:"rateLimitEnabled" json:"rateLimitEnabled"`           // 启用频率限制 (刷屏限制)
+	PersonalReplenishRateStr string     `yaml:"personalReplenishRate" json:"personalReplenishRate"` // 个人刷屏警告速率，字符串格式
+	PersonalReplenishRate    rate.Limit `yaml:"-" json:"-"`                                         // 个人刷屏警告速率
+	GroupReplenishRateStr    string     `yaml:"groupReplenishRate" json:"groupReplenishRate"`       // 群组刷屏警告速率，字符串格式
+	GroupReplenishRate       rate.Limit `yaml:"-" json:"-"`                                         // 群组刷屏警告速率
+	PersonalBurst            int64      `yaml:"personalBurst" json:"personalBurst"`                 // 个人自定义上限
+	GroupBurst               int64      `yaml:"groupBurst" json:"groupBurst"`                       // 群组自定义上限
 }
 
 type QuitInactiveConfig struct {
-	QuitInactiveThreshold time.Duration `yaml:"quitInactiveThreshold"` // 退出不活跃群组的时间阈值
+	QuitInactiveThreshold time.Duration `yaml:"quitInactiveThreshold" json:"quitInactiveThreshold"` // 退出不活跃群组的时间阈值
 	quitInactiveCronEntry cron.EntryID
 }
 
 type ExtConfig struct {
-	DefaultCocRuleIndex int64 `yaml:"defaultCocRuleIndex" jsbind:"defaultCocRuleIndex"` // 默认coc index
-	MaxExecuteTime      int64 `yaml:"maxExecuteTime" jsbind:"maxExecuteTime"`           // 最大骰点次数
-	MaxCocCardGen       int64 `yaml:"maxCocCardGen" jsbind:"maxCocCardGen"`             // 最大coc制卡数
+	DefaultCocRuleIndex int64 `yaml:"defaultCocRuleIndex" json:"-" jsbind:"defaultCocRuleIndex"` // 默认coc index
+	MaxExecuteTime      int64 `yaml:"maxExecuteTime" json:"-" jsbind:"maxExecuteTime"`           // 最大骰点次数
+	MaxCocCardGen       int64 `yaml:"maxCocCardGen" json:"-" jsbind:"maxCocCardGen"`             // 最大coc制卡数
 
-	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
+	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings" json:"extDefaultSettings"` // 新群扩展按此顺序加载
 }
 
 type BanConfig struct {
-	BanList *BanListInfo `yaml:"banList"`
+	BanList *BanListInfo `yaml:"banList" json:"-"`
 }
 
 type JsConfig struct {
@@ -241,8 +241,8 @@ type JsConfig struct {
 }
 
 type StoryLogConfig struct {
-	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable"` // 开启日志数量提示
-	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount"`  // 日志数量提示阈值，默认500
+	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable" json:"logSizeNoticeEnable"` // 开启日志数量提示
+	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount" json:"logSizeNoticeCount"`   // 日志数量提示阈值，默认500
 }
 
 type MailConfig struct {

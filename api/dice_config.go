@@ -15,60 +15,17 @@ import (
 )
 
 type DiceConfigInfo struct {
-	// 注：form其实不需要
-	CommandPrefix           []string `json:"commandPrefix" form:"commandPrefix"`                     // 指令前缀
-	DiceMasters             []string `json:"diceMasters" form:"diceMasters"`                         // 骰主设置，需要格式: 平台:帐号
-	NoticeIds               []string `json:"noticeIds"`                                              // 通知设置，需要格式: 平台:帐号
-	OnlyLogCommandInGroup   bool     `json:"onlyLogCommandInGroup" form:"onlyLogCommandInGroup"`     // 日志中仅记录命令
-	OnlyLogCommandInPrivate bool     `json:"onlyLogCommandInPrivate" form:"onlyLogCommandInPrivate"` // 日志中仅记录命令
-	WorkInQQChannel         bool     `json:"workInQQChannel"`                                        // 在QQ频道中开启
-	MessageDelayRangeStart  float64  `json:"messageDelayRangeStart" form:"messageDelayRangeStart"`   // 指令延迟区间
-	MessageDelayRangeEnd    float64  `json:"messageDelayRangeEnd" form:"messageDelayRangeEnd"`
-	UIPassword              string   `json:"uiPassword" form:"uiPassword"`
-	HelpDocEngineType       int      `json:"helpDocEngineType"`
-	MasterUnlockCode        string   `json:"masterUnlockCode" form:"masterUnlockCode"`
-	ServeAddress            string   `json:"serveAddress" form:"serveAddress"`
-	MasterUnlockCodeTime    int64    `json:"masterUnlockCodeTime"`
-	LogPageItemLimit        int64    `json:"logPageItemLimit"`
-	FriendAddComment        string   `json:"friendAddComment"`
-	AutoReloginEnable       bool     `json:"autoReloginEnable"`
-	QQChannelAutoOn         bool     `json:"QQChannelAutoOn"`
-	QQChannelLogMessage     bool     `json:"QQChannelLogMessage"`
-	RefuseGroupInvite       bool     `json:"refuseGroupInvite"` // 拒绝群组邀请
+	dice.Config
 
-	QuitInactiveThreshold float64 `json:"quitInactiveThreshold"` // 退出不活跃群组阈值(天)
-
-	DefaultCocRuleIndex string `json:"defaultCocRuleIndex"` // 默认coc index
-	MaxExecuteTime      string `json:"maxExecuteTime"`      // 最大骰点次数
-	MaxCocCardGen       string `json:"maxCocCardGen"`       // 最大coc制卡数
-
-	ExtDefaultSettings []*dice.ExtDefaultSettingItem `yaml:"extDefaultSettings" json:"extDefaultSettings"` // 新群扩展按此顺序加载
-	BotExtFreeSwitch   bool                          `json:"botExtFreeSwitch"`
-	TrustOnlyMode      bool                          `json:"trustOnlyMode"`
-	AliveNoticeEnable  bool                          `json:"aliveNoticeEnable"`
-	AliveNoticeValue   string                        `json:"aliveNoticeValue"`
-	ReplyDebugMode     bool                          `json:"replyDebugMode"`
-
-	CustomReplyConfigEnable bool `json:"customReplyConfigEnable"` // 是否开启reply
-
-	LogSizeNoticeEnable bool `json:"logSizeNoticeEnable"` // 开启日志数量提示
-	LogSizeNoticeCount  int  `json:"logSizeNoticeCount"`  // 日志数量提示阈值，默认500
-
-	TextCmdTrustOnly        bool `json:"textCmdTrustOnly"`        // text命令只允许信任用户和master
-	IgnoreUnaddressedBotCmd bool `json:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
-	QQEnablePoke            bool `json:"QQEnablePoke"`            // QQ允许戳一戳
-	PlayerNameWrapEnable    bool `json:"playerNameWrapEnable"`    // 玩家名外框
-
-	MailEnable   bool   `json:"mailEnable"`
-	MailFrom     string `json:"mailFrom"`     // 邮箱来源
-	MailPassword string `json:"mailPassword"` // 邮箱密钥/密码
-	MailSMTP     string `json:"mailSmtp"`     // 邮箱 smtp 地址
-
-	RateLimitEnabled       bool   `json:"rateLimitEnabled"`      // 是否开启限速
-	PersonalReplenishRate  string `json:"personalReplenishRate"` // 个人自定义速率
-	PersonalReplenishBurst int64  `json:"personalBurst"`         // 个人自定义上限
-	GroupReplenishRate     string `json:"groupReplenishRate"`    // 群组自定义速率
-	GroupReplenishBurst    int64  `json:"groupBurst"`            // 群组自定义上限
+	CommandPrefix       []string `json:"commandPrefix" form:"commandPrefix"`
+	DiceMasters         []string `json:"diceMasters" form:"diceMasters"`
+	UIPassword          string   `json:"uiPassword" form:"uiPassword"`
+	LogPageItemLimit    int64    `json:"logPageItemLimit"`
+	DefaultCocRuleIndex string   `json:"defaultCocRuleIndex"` // 默认coc index
+	MaxExecuteTime      string   `json:"maxExecuteTime"`      // 最大骰点次数
+	MaxCocCardGen       string   `json:"maxCocCardGen"`       // 最大coc制卡数
+	ServerAddress       string   `json:"serveAddress" form:"serveAddress"`
+	HelpDocEngineType   int      `json:"helpDocEngineType"`
 }
 
 func DiceConfig(c echo.Context) error {
@@ -111,62 +68,22 @@ func DiceConfig(c echo.Context) error {
 	}
 
 	info := DiceConfigInfo{
-		CommandPrefix:           myDice.CommandPrefix,
-		DiceMasters:             myDice.DiceMasters,
-		NoticeIds:               myDice.Config.NoticeIDs,
-		OnlyLogCommandInPrivate: myDice.Config.OnlyLogCommandInPrivate,
-		OnlyLogCommandInGroup:   myDice.Config.OnlyLogCommandInGroup,
-		MessageDelayRangeStart:  myDice.Config.MessageDelayRangeStart,
-		MessageDelayRangeEnd:    myDice.Config.MessageDelayRangeEnd,
-		UIPassword:              password,
-		MasterUnlockCode:        myDice.Config.MasterUnlockCode,
-		MasterUnlockCodeTime:    myDice.Config.MasterUnlockCodeTime,
-		WorkInQQChannel:         myDice.Config.WorkInQQChannel,
-		LogPageItemLimit:        limit,
-		FriendAddComment:        myDice.Config.FriendAddComment,
-		AutoReloginEnable:       myDice.Config.AutoReloginEnable,
-		QQChannelAutoOn:         myDice.Config.QQChannelAutoOn,
-		QQChannelLogMessage:     myDice.Config.QQChannelLogMessage,
-		RefuseGroupInvite:       myDice.Config.RefuseGroupInvite,
-		RateLimitEnabled:        myDice.Config.RateLimitEnabled,
+		Config: myDice.Config,
 
-		ExtDefaultSettings:  extDefaultSettings,
+		CommandPrefix:       myDice.CommandPrefix,
+		DiceMasters:         myDice.DiceMasters,
+		UIPassword:          password,
+		LogPageItemLimit:    limit,
 		DefaultCocRuleIndex: cocRule,
-
-		QuitInactiveThreshold: myDice.Config.QuitInactiveThreshold.Hours() / 24,
-
-		BotExtFreeSwitch:  myDice.Config.BotExtFreeSwitch,
-		TrustOnlyMode:     myDice.Config.TrustOnlyMode,
-		AliveNoticeEnable: myDice.Config.AliveNoticeEnable,
-		AliveNoticeValue:  myDice.Config.AliveNoticeValue,
-		ReplyDebugMode:    myDice.Config.ReplyDebugMode,
-
-		ServeAddress:      myDice.Parent.ServeAddress,
-		HelpDocEngineType: myDice.Parent.HelpDocEngineType,
-
-		// 1.0 正式
-		LogSizeNoticeEnable:     myDice.Config.LogSizeNoticeEnable,
-		LogSizeNoticeCount:      myDice.Config.LogSizeNoticeCount,
-		CustomReplyConfigEnable: myDice.Config.CustomReplyConfigEnable,
-
-		// 1.2
-		TextCmdTrustOnly:     myDice.Config.TextCmdTrustOnly,
-		QQEnablePoke:         myDice.Config.QQEnablePoke,
-		PlayerNameWrapEnable: myDice.Config.PlayerNameWrapEnable,
-
-		// 1.3?
-		MailEnable:              myDice.Config.MailEnable,
-		MailFrom:                myDice.Config.MailFrom,
-		MailPassword:            emailPasswordMasked,
-		MailSMTP:                myDice.Config.MailSMTP,
-		MaxExecuteTime:          maxExec,
-		MaxCocCardGen:           maxCard,
-		PersonalReplenishRate:   myDice.Config.PersonalReplenishRateStr,
-		PersonalReplenishBurst:  myDice.Config.PersonalBurst,
-		GroupReplenishRate:      myDice.Config.GroupReplenishRateStr,
-		GroupReplenishBurst:     myDice.Config.GroupBurst,
-		IgnoreUnaddressedBotCmd: myDice.Config.IgnoreUnaddressedBotCmd,
+		ServerAddress:       myDice.Parent.ServeAddress,
+		HelpDocEngineType:   myDice.Parent.HelpDocEngineType,
+		MaxExecuteTime:      maxExec,
+		MaxCocCardGen:       maxCard,
 	}
+	info.ExtDefaultSettings = extDefaultSettings
+	info.DefaultCocRuleIndex = cocRule
+	info.MailPassword = emailPasswordMasked
+
 	return c.JSON(http.StatusOK, info)
 }
 

@@ -419,11 +419,11 @@ func (ep *EndPointInfo) StatsDump(d *Dice) {
 type PlayerVariablesItem model.PlayerVariablesItem
 
 type IMSession struct {
-	Parent    *Dice           `yaml:"-"`
+	Parent    *Dice           `json:"-" yaml:"-"`
 	EndPoints []*EndPointInfo `yaml:"endPoints"`
 
 	ServiceAtNew   map[string]*GroupInfo           `json:"servicesAt" yaml:"-"`
-	PlayerVarsData map[string]*PlayerVariablesItem `yaml:"-"` // 感觉似乎没有什么存本地的必要
+	PlayerVarsData map[string]*PlayerVariablesItem `json:"-" yaml:"-"` // 感觉似乎没有什么存本地的必要
 }
 
 type MsgContext struct {

@@ -121,7 +121,7 @@ func (x ExtDefaultSettingItemSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i
 
 type Dice struct {
 	// 由于被导出的原因，暂时不迁移至 config
-	ImSession *IMSession `yaml:"imSession" jsbind:"imSession"`
+	ImSession *IMSession `yaml:"imSession" jsbind:"imSession" json:"-"`
 
 	CmdMap          CmdMapCls              `yaml:"-" json:"-"`
 	ExtList         []*ExtInfo             `yaml:"-"`
