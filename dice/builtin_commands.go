@@ -174,9 +174,9 @@ func (d *Dice) registerCoreCommands() {
 		".find <数字ID> // 显示该ID的词条\n" +
 		".find --rand // 显示随机词条\n" +
 		".find <关键字> --num=10 // 需要更多结果\n" +
-		".find defaultgroup // 查看当前默认搜索分组\n" +
-		".find defaultgroup <分组> // 设置当前默认搜索分组\n" +
-		".find defaultgroup --clr // 清空当前默认搜索分组"
+		".find config --group // 查看当前默认搜索分组\n" +
+		".find config --group=<分组> // 设置当前默认搜索分组\n" +
+		".find config --groupclr // 清空当前默认搜索分组"
 	cmdSearch := &CmdItemInfo{
 		Name:      "find",
 		ShortHelp: helpForFind,
@@ -189,28 +189,36 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			if _defaultGroup := cmdArgs.GetArgN(1); _defaultGroup == "defaultgroup" {
+			if _config := cmdArgs.GetArgN(1); _config == "config" {
 				oldDefault := ctx.Group.DefaultHelpGroup
-				if cmdArgs.GetKwarg("clr") != nil {
+				if cmdArgs.GetKwarg("groupclr") != nil {
 					ctx.Group.SetDefaultHelpGroup("")
 					if oldDefault != "" {
 						ReplyToSender(ctx, msg, "已清空默认搜索分组，原分组为"+oldDefault)
 					} else {
 						ReplyToSender(ctx, msg, "未指定默认搜索分组")
 					}
-				} else if defaultGroup := cmdArgs.GetArgN(2); defaultGroup != "" {
-					ctx.Group.SetDefaultHelpGroup(defaultGroup)
-					if oldDefault != "" {
-						ReplyToSender(ctx, msg, fmt.Sprintf("默认搜索分组由%s切换到%s", oldDefault, defaultGroup))
+				} else if _defaultGroup := cmdArgs.GetKwarg("group"); _defaultGroup != nil {
+					defaultGroup := _defaultGroup.Value
+					if defaultGroup == "" {
+						// 为查看默认分组
+						if oldDefault != "" {
+							ReplyToSender(ctx, msg, "当前默认搜索分组为"+oldDefault)
+						} else {
+							ReplyToSender(ctx, msg, "未指定默认搜索分组")
+						}
 					} else {
-						ReplyToSender(ctx, msg, "指定默认搜索分组为"+defaultGroup)
+						// 为设置默认分组
+						ctx.Group.SetDefaultHelpGroup(defaultGroup)
+						if oldDefault != "" {
+							ReplyToSender(ctx, msg, fmt.Sprintf("默认搜索分组由%s切换到%s", oldDefault, defaultGroup))
+						} else {
+							ReplyToSender(ctx, msg, "指定默认搜索分组为"+defaultGroup)
+						}
 					}
 				} else {
-					if oldDefault != "" {
-						ReplyToSender(ctx, msg, "当前默认搜索分组为"+oldDefault)
-					} else {
-						ReplyToSender(ctx, msg, "未指定默认搜索分组")
-					}
+					ReplyToSender(ctx, msg, "设置选项有误")
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
