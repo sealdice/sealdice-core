@@ -371,7 +371,11 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		ep.State = 1
-		log.Info("onebot 连接成功")
+		if pa.IsReverse {
+			log.Info("onebot v11 反向ws连接成功")
+		} else {
+			log.Info("onebot v11 连接成功")
+		}
 		//  {"data":{"nickname":"闃斧鐗岃�佽檸鏈�","user_id":1001},"retcode":0,"status":"ok"}
 		pa.GetLoginInfo()
 	}
@@ -1024,19 +1028,26 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				}
 				defer ws.Close()
 
-				socketClone := socket
-				// socketClone.sendMu = &sync.Mutex{}
-				// socketClone.receiveMu = &sync.Mutex{}
-				// 这里会陷入select()，当有两个连接的时候，这会导致阻塞吗？
-				socketClone.NewClient(ws)
+				socketClone := gowebsocket.New("")
+				socketClone.OnDisconnected = socket.OnDisconnected
+				socketClone.OnTextMessage = socket.OnTextMessage
+				socketClone.OnBinaryMessage = socket.OnBinaryMessage
+				socketClone.OnPingReceived = socket.OnPingReceived
+				socketClone.OnPongReceived = socket.OnPongReceived
+				socketClone.OnConnected = socket.OnConnected
+				socketClone.OnConnectError = socket.OnConnectError
+				// 注: 只能管一个socket，不过不管了
+				pa.Socket = &socketClone
 
+				socketClone.NewClient(ws)
 				return nil
 			})
-			log.Info("Onebot v11反向WS服务启动，地址: ", pa.ReverseAddr)
+
+			log.Info("Onebot v11 反向WS服务启动，地址: ", pa.ReverseAddr)
 			e.HideBanner = true
 			err := e.Start(pa.ReverseAddr)
 			if err != nil {
-				log.Error("Onebot v11反向WS服务启动失败: ", err)
+				log.Error("Onebot v11 反向WS服务启动失败: ", err)
 			}
 		}()
 	} else {
