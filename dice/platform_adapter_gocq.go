@@ -370,6 +370,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	}
 	pa.Socket = &socket
 
+	ep.State = 2
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		ep.State = 1
 		if pa.IsReverse {
@@ -1040,6 +1041,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// 注: 只能管一个socket，不过不管了
 				pa.Socket = &socketClone
 
+				pa.EndPoint.State = 1
 				socketClone.NewClient(ws)
 				return nil
 			})
