@@ -1103,9 +1103,15 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 			pa.Socket.Close()
 		}()
 	}
-	if pa.IsReverse && pa.reverseApp != nil {
-		_ = pa.reverseApp.Close()
-		pa.reverseApp = nil
+
+	if pa.IsReverse {
+		if pa.reverseApp != nil {
+			_ = pa.reverseApp.Close()
+			pa.reverseApp = nil
+		}
+
+		go pa.Serve()
+		return true
 	}
 
 	if pa.UseInPackGoCqhttp {
@@ -1129,9 +1135,6 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 			UseSignServer:    pa.UseSignServer,
 			SignServerConfig: pa.SignServerConfig,
 		})
-		return true
-	} else if pa.IsReverse {
-		go pa.Serve()
 		return true
 	}
 	return false
