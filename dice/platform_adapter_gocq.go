@@ -3,20 +3,21 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
-	"github.com/labstack/echo/v4"
 	"math/rand"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
-	"sealdice-core/utils/procs"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"sealdice-core/utils/procs"
+
+	"github.com/gorilla/websocket"
+	"github.com/labstack/echo/v4"
 	"github.com/sacOO7/gowebsocket"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
@@ -1129,11 +1130,9 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 			SignServerConfig: pa.SignServerConfig,
 		})
 		return true
-	} else {
-		if pa.IsReverse {
-			go pa.Serve()
-			return true
-		}
+	} else if pa.IsReverse {
+		go pa.Serve()
+		return true
 	}
 	return false
 }
