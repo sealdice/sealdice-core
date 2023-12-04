@@ -19,6 +19,44 @@ const (
 	ConfigVersionCode = 10300 // 旧的设置版本标记
 )
 
+var DefaultConfig = Config{
+	nil,
+	ConfigVersion,
+	BaseConfig{
+		VersionCode:             ConfigVersionCode,
+		CommandCompatibleMode:   true, // 一直为true即可
+		NoticeIDs:               []string{},
+		AutoReloginEnable:       false,
+		WorkInQQChannel:         true,
+		CustomReplyConfigEnable: false,
+		AliveNoticeValue:        "@every 3h",
+
+		// 1.2
+		QQEnablePoke:         true,
+		TextCmdTrustOnly:     true,
+		PlayerNameWrapEnable: true,
+	},
+	RateLimitConfig{},
+	QuitInactiveConfig{},
+	ExtConfig{
+		// 1.4
+		MaxExecuteTime: 12,
+		MaxCocCardGen:  5,
+	},
+	BanConfig{},
+	JsConfig{
+		// 1.3
+		JsEnable: true,
+	},
+	StoryLogConfig{
+		LogSizeNoticeCount:  500,
+		LogSizeNoticeEnable: true,
+	},
+	MailConfig{},
+	NewsConfig{},
+	CensorConfig{},
+}
+
 type Config struct {
 	d             *Dice `yaml:"-"`
 	ConfigVersion int   `yaml:"configVersion"` // 配置版本
@@ -46,9 +84,13 @@ type Config struct {
 }
 
 func NewConfig(d *Dice) Config {
-	c := &Config{d: d}
-	c.setDefaults()
-	return *c
+	c := DefaultConfig
+	c.d = d
+
+	// set other default
+	c.BanList = &BanListInfo{Parent: c.d}
+	c.BanList.Init()
+	return c
 }
 
 func (c *Config) LoadYamlConfig(data []byte) error {
@@ -58,35 +100,6 @@ func (c *Config) LoadYamlConfig(data []byte) error {
 	}
 	c.migrateOld2Version1()
 	return nil
-}
-
-func (c *Config) setDefaults() {
-	c.VersionCode = ConfigVersionCode
-	if c.NoticeIDs == nil {
-		c.NoticeIDs = []string{}
-	}
-	c.BanList = &BanListInfo{Parent: c.d}
-	c.BanList.Init()
-
-	c.AutoReloginEnable = false
-	c.WorkInQQChannel = true
-	c.CustomReplyConfigEnable = false
-	c.AliveNoticeValue = "@every 3h"
-
-	c.LogSizeNoticeCount = 500
-	c.LogSizeNoticeEnable = true
-
-	// 1.2
-	c.QQEnablePoke = true
-	c.TextCmdTrustOnly = true
-	c.PlayerNameWrapEnable = true
-
-	// 1.3
-	c.JsEnable = true
-
-	// 1.4
-	c.MaxExecuteTime = 12
-	c.MaxCocCardGen = 5
 }
 
 // migrateOld2Version1 旧格式设置项的迁移
