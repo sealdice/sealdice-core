@@ -97,7 +97,7 @@ type ExtInfo struct {
 	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
-type RootConfig struct { //nolint:revive
+type RootConfig struct {
 	Name       string `yaml:"name"`       // 名称，默认为default
 	DataDir    string `yaml:"dataDir"`    // 数据路径，为./data/{name}，例如data/default
 	IsLogPrint bool   `yaml:"isLogPrint"` // 是否在控制台打印log
@@ -525,7 +525,7 @@ func (d *Dice) UnlockCodeUpdate(force bool) {
 	now := time.Now().Unix()
 	// 大于20分钟重置
 	if now-d.Config.MasterUnlockCodeTime > 20*60 || force {
-		d.Config.MasterUnlockCode = ""
+		d.Config.MasterUnlockCode = DefaultConfig.MasterUnlockCode
 	}
 	if d.Config.MasterUnlockCode == "" {
 		d.Config.MasterUnlockCode = RandStringBytesMaskImprSrcSB(8)
@@ -626,7 +626,7 @@ func (d *Dice) ResetQuitInactiveCron() {
 	dm := d.Parent
 	if d.Config.quitInactiveCronEntry > 0 {
 		dm.Cron.Remove(d.Config.quitInactiveCronEntry)
-		d.Config.quitInactiveCronEntry = 0
+		d.Config.quitInactiveCronEntry = DefaultConfig.quitInactiveCronEntry
 	}
 
 	if d.Config.QuitInactiveThreshold > 0 {

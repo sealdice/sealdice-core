@@ -857,7 +857,7 @@ func LogAppend(ctx *MsgContext, groupID string, logName string, logItem *model.L
 			// 默认每记录500条发出提示
 			if ctx.Dice.Config.LogSizeNoticeEnable {
 				if ctx.Dice.Config.LogSizeNoticeCount == 0 {
-					ctx.Dice.Config.LogSizeNoticeCount = 500
+					ctx.Dice.Config.LogSizeNoticeCount = DefaultConfig.LogSizeNoticeCount
 				}
 				if size > 0 && int(size)%ctx.Dice.Config.LogSizeNoticeCount == 0 {
 					VarSetValueInt64(ctx, "$t条数", size)

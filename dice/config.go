@@ -1829,9 +1829,9 @@ func (d *Dice) loads() {
 
 		// 1.2 版本
 		if config.VersionCode != 0 && config.VersionCode < 10200 {
-			config.TextCmdTrustOnly = true
-			config.QQEnablePoke = true
-			config.PlayerNameWrapEnable = true
+			config.TextCmdTrustOnly = DefaultConfig.TextCmdTrustOnly
+			config.QQEnablePoke = DefaultConfig.QQEnablePoke
+			config.PlayerNameWrapEnable = DefaultConfig.PlayerNameWrapEnable
 
 			isUI1001Master := false
 			for _, i := range d.DiceMasters {
@@ -1876,7 +1876,7 @@ func (d *Dice) loads() {
 
 		// 1.3 版本
 		if config.VersionCode != 0 && config.VersionCode < 10300 {
-			config.JsEnable = true
+			config.JsEnable = DefaultConfig.JsEnable
 
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 				// 更正写反的部分

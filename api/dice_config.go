@@ -145,7 +145,7 @@ func DiceConfigSet(c echo.Context) error {
 				myDice.Config.DefaultCocRuleIndex, err = strconv.ParseInt(valStr, 10, 64)
 				if err == nil {
 					if myDice.Config.DefaultCocRuleIndex > 5 || myDice.Config.DefaultCocRuleIndex < 0 {
-						myDice.Config.DefaultCocRuleIndex = 0
+						myDice.Config.DefaultCocRuleIndex = dice.DefaultConfig.DefaultCocRuleIndex
 					}
 				}
 			}
@@ -368,7 +368,7 @@ func DiceConfigSet(c echo.Context) error {
 		}
 		if myDice.Config.LogSizeNoticeCount == 0 {
 			// 不能为零
-			myDice.Config.LogSizeNoticeCount = 500
+			myDice.Config.LogSizeNoticeCount = dice.DefaultConfig.LogSizeNoticeCount
 		}
 	}
 

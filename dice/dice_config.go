@@ -1,7 +1,6 @@
 package dice
 
 import (
-	"fmt"
 	"sealdice-core/dice/censor"
 	"sealdice-core/utils"
 	"time"
@@ -18,44 +17,6 @@ const (
 	ConfigVersion     = 1
 	ConfigVersionCode = 10300 // 旧的设置版本标记
 )
-
-var DefaultConfig = Config{
-	nil,
-	ConfigVersion,
-	BaseConfig{
-		VersionCode:             ConfigVersionCode,
-		CommandCompatibleMode:   true, // 一直为true即可
-		NoticeIDs:               []string{},
-		AutoReloginEnable:       false,
-		WorkInQQChannel:         true,
-		CustomReplyConfigEnable: false,
-		AliveNoticeValue:        "@every 3h",
-
-		// 1.2
-		QQEnablePoke:         true,
-		TextCmdTrustOnly:     true,
-		PlayerNameWrapEnable: true,
-	},
-	RateLimitConfig{},
-	QuitInactiveConfig{},
-	ExtConfig{
-		// 1.4
-		MaxExecuteTime: 12,
-		MaxCocCardGen:  5,
-	},
-	BanConfig{},
-	JsConfig{
-		// 1.3
-		JsEnable: true,
-	},
-	StoryLogConfig{
-		LogSizeNoticeCount:  500,
-		LogSizeNoticeEnable: true,
-	},
-	MailConfig{},
-	NewsConfig{},
-	CensorConfig{},
-}
 
 type Config struct {
 	d             *Dice `yaml:"-"`
@@ -104,80 +65,73 @@ func (c *Config) LoadYamlConfig(data []byte) error {
 
 // migrateOld2Version1 旧格式设置项的迁移
 func (c *Config) migrateOld2Version1() {
-	if c.ConfigVersion == 0 {
-		c.ConfigVersion = ConfigVersion
-
-		c.CommandCompatibleMode = true // 一直为true即可
-
-		if c.MaxExecuteTime == 0 {
-			c.MaxExecuteTime = 12
-		}
-
-		if c.MaxCocCardGen == 0 {
-			c.MaxCocCardGen = 5
-		}
-
-		if c.PersonalReplenishRateStr == "" {
-			c.PersonalReplenishRateStr = "@every 3s"
-			c.PersonalReplenishRate = rate.Every(time.Second * 3)
-		} else {
-			if parsed, errParse := utils.ParseRate(c.PersonalReplenishRateStr); errParse == nil {
-				c.PersonalReplenishRate = parsed
-			} else {
-				fmt.Printf("解析PersonalReplenishRate失败: %v", errParse)
-				c.PersonalReplenishRateStr = "@every 3s"
-				c.PersonalReplenishRate = rate.Every(time.Second * 3)
-			}
-		}
-
-		if c.PersonalBurst == 0 {
-			c.PersonalBurst = 3
-		}
-
-		if c.GroupReplenishRateStr == "" {
-			c.GroupReplenishRateStr = "@every 3s"
-			c.GroupReplenishRate = rate.Every(time.Second * 3)
-		} else {
-			if parsed, errParse := utils.ParseRate(c.GroupReplenishRateStr); errParse == nil {
-				c.GroupReplenishRate = parsed
-			} else {
-				fmt.Printf("解析GroupReplenishRate失败: %v", errParse)
-				c.GroupReplenishRateStr = "@every 3s"
-				c.GroupReplenishRate = rate.Every(time.Second * 3)
-			}
-		}
-
-		if c.GroupBurst == 0 {
-			c.GroupBurst = 3
-		}
-
-		if c.VersionCode != 0 && c.VersionCode < 10000 {
-			c.CustomReplyConfigEnable = false
-		}
-
-		if c.VersionCode != 0 && c.VersionCode < 10001 {
-			c.AliveNoticeValue = "@every 3h"
-		}
-
-		if c.VersionCode != 0 && c.VersionCode < 10003 {
-			fmt.Printf("进行配置文件版本升级: %d -> %d", c.VersionCode, 10003)
-			c.LogSizeNoticeCount = 500
-			c.LogSizeNoticeEnable = true
-			c.CustomReplyConfigEnable = true
-		}
-
-		if c.VersionCode != 0 && c.VersionCode < 10004 {
-			c.AutoReloginEnable = false
-		}
-	} else {
+	if c.ConfigVersion != 0 {
 		return
+	}
+	c.ConfigVersion = ConfigVersion
+
+	c.CommandCompatibleMode = DefaultConfig.CommandCompatibleMode
+
+	if c.MaxExecuteTime == 0 {
+		c.MaxExecuteTime = DefaultConfig.MaxExecuteTime
+	}
+
+	if c.MaxCocCardGen == 0 {
+		c.MaxCocCardGen = DefaultConfig.MaxCocCardGen
+	}
+
+	if c.PersonalReplenishRateStr == "" {
+		c.PersonalReplenishRateStr = DefaultConfig.PersonalReplenishRateStr
+		c.PersonalReplenishRate = DefaultConfig.PersonalReplenishRate
+	} else {
+		if parsed, errParse := utils.ParseRate(c.PersonalReplenishRateStr); errParse == nil {
+			c.PersonalReplenishRate = parsed
+		} else {
+			c.d.Logger.Errorf("解析PersonalReplenishRate失败: %v", errParse)
+			c.PersonalReplenishRateStr = DefaultConfig.PersonalReplenishRateStr
+			c.PersonalReplenishRate = DefaultConfig.PersonalReplenishRate
+		}
+	}
+
+	if c.PersonalBurst == 0 {
+		c.PersonalBurst = DefaultConfig.PersonalBurst
+	}
+
+	if c.GroupReplenishRateStr == "" {
+		c.GroupReplenishRateStr = DefaultConfig.GroupReplenishRateStr
+		c.GroupReplenishRate = DefaultConfig.GroupReplenishRate
+	} else {
+		if parsed, errParse := utils.ParseRate(c.GroupReplenishRateStr); errParse == nil {
+			c.GroupReplenishRate = parsed
+		} else {
+			c.d.Logger.Errorf("解析GroupReplenishRate失败: %v", errParse)
+			c.GroupReplenishRateStr = DefaultConfig.GroupReplenishRateStr
+			c.GroupReplenishRate = DefaultConfig.GroupReplenishRate
+		}
+	}
+
+	if c.GroupBurst == 0 {
+		c.GroupBurst = DefaultConfig.GroupBurst
+	}
+
+	if c.VersionCode != 0 && c.VersionCode < 10001 {
+		c.AliveNoticeValue = DefaultConfig.AliveNoticeValue
+	}
+
+	if c.VersionCode != 0 && c.VersionCode < 10003 {
+		c.LogSizeNoticeCount = DefaultConfig.LogSizeNoticeCount
+		c.LogSizeNoticeEnable = DefaultConfig.LogSizeNoticeEnable
+		c.CustomReplyConfigEnable = DefaultConfig.CustomReplyConfigEnable
+	}
+
+	if c.VersionCode != 0 && c.VersionCode < 10004 {
+		c.AutoReloginEnable = DefaultConfig.AutoReloginEnable
 	}
 }
 
 type BaseConfig struct {
 	CommandCompatibleMode   bool           `yaml:"commandCompatibleMode" json:"-"`
 	LastSavedTime           *time.Time     `yaml:"lastSavedTime" json:"-"`
-	IsDeckLoading           bool           `yaml:"-" json:"-"`                                             // 正在加载中
 	NoticeIDs               []string       `yaml:"noticeIds" json:"noticeIds"`                             // 通知ID
 	OnlyLogCommandInGroup   bool           `yaml:"onlyLogCommandInGroup" json:"onlyLogCommandInGroup"`     // 日志中仅记录命令
 	OnlyLogCommandInPrivate bool           `yaml:"onlyLogCommandInPrivate" json:"onlyLogCommandInPrivate"` // 日志中仅记录命令

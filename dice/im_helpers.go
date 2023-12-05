@@ -433,11 +433,11 @@ func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
 	if ctx.Player.RateLimiter == nil {
 		ctx.Player.RateLimitWarned = false
 		if ctx.Dice.Config.PersonalReplenishRateStr == "" {
-			ctx.Dice.Config.PersonalReplenishRateStr = "@every 3s"
-			ctx.Dice.Config.PersonalReplenishRate = rate.Every(time.Second * 3)
+			ctx.Dice.Config.PersonalReplenishRateStr = DefaultConfig.PersonalReplenishRateStr
+			ctx.Dice.Config.PersonalReplenishRate = DefaultConfig.PersonalReplenishRate
 		}
 		if ctx.Dice.Config.PersonalBurst == 0 {
-			ctx.Dice.Config.PersonalBurst = 3
+			ctx.Dice.Config.PersonalBurst = DefaultConfig.PersonalBurst
 		}
 		ctx.Player.RateLimiter = rate.NewLimiter(
 			ctx.Dice.Config.PersonalReplenishRate,
@@ -474,11 +474,11 @@ func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
 	if ctx.Group.RateLimiter == nil {
 		ctx.Group.RateLimitWarned = false
 		if ctx.Dice.Config.GroupReplenishRateStr == "" {
-			ctx.Dice.Config.GroupReplenishRateStr = "@every 3s"
-			ctx.Dice.Config.GroupReplenishRate = rate.Every(time.Second * 3)
+			ctx.Dice.Config.GroupReplenishRateStr = DefaultConfig.GroupReplenishRateStr
+			ctx.Dice.Config.GroupReplenishRate = DefaultConfig.GroupReplenishRate
 		}
 		if ctx.Dice.Config.GroupBurst == 0 {
-			ctx.Dice.Config.GroupBurst = 3
+			ctx.Dice.Config.GroupBurst = DefaultConfig.GroupBurst
 		}
 		ctx.Group.RateLimiter = rate.NewLimiter(
 			ctx.Dice.Config.GroupReplenishRate,
