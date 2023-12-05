@@ -57,7 +57,7 @@ func ImConnectionsSetEnable(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -86,7 +86,7 @@ func ImConnectionsSetData(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -140,7 +140,7 @@ func ImConnectionsDel(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -323,7 +323,7 @@ func ImConnectionsAddWalleQ(c echo.Context) error {
 		go dice.WalleQServe(myDice, conn, v.Password, v.Protocol, false)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
-		return c.JSON(200, conn)
+		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
 }
@@ -333,7 +333,7 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -384,7 +384,7 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -400,9 +400,9 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeDiscord(myDice, conn)
-		return c.JSON(200, conn)
+		return c.JSON(http.StatusOK, conn)
 	}
-	return c.String(430, "")
+	return c.String(430, "") // 这个是非标的，呃。。
 }
 
 func ImConnectionsAddKook(c echo.Context) error {
@@ -410,7 +410,7 @@ func ImConnectionsAddKook(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -428,7 +428,7 @@ func ImConnectionsAddKook(c echo.Context) error {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeKook(myDice, conn)
-		return c.JSON(200, conn)
+		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
 }
@@ -438,7 +438,7 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -459,7 +459,7 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeTelegram(myDice, conn)
-		return c.JSON(200, conn)
+		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
 }
@@ -469,7 +469,7 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -487,7 +487,7 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeMinecraft(myDice, conn)
-		return c.JSON(200, conn)
+		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
 }
@@ -497,7 +497,7 @@ func ImConnectionsAddDodo(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -516,7 +516,7 @@ func ImConnectionsAddDodo(c echo.Context) error {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeDodo(myDice, conn)
-		return c.JSON(200, conn)
+		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
 }
@@ -542,7 +542,7 @@ func ImConnectionsAddDingTalk(c echo.Context) error {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeDingTalk(myDice, conn)
-		return c.JSON(200, conn)
+		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
 }
@@ -552,7 +552,7 @@ func ImConnectionsAddSlack(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -570,7 +570,7 @@ func ImConnectionsAddSlack(c echo.Context) error {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeSlack(myDice, conn)
-		return c.JSON(200, conn)
+		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
 }
@@ -580,7 +580,7 @@ func ImConnectionsAdd(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -632,7 +632,7 @@ func ImConnectionsAdd(c echo.Context) error {
 		})
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
-		return c.JSON(200, conn)
+		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
 }
@@ -642,7 +642,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -682,7 +682,53 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
-		return c.JSON(200, conn)
+		return c.JSON(http.StatusOK, conn)
+	}
+	return c.String(430, "")
+}
+
+func ImConnectionsAddReverseWs(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	v := struct {
+		Account     string `yaml:"account" json:"account"`
+		ReverseAddr string `yaml:"reverseAddr" json:"reverseAddr"`
+	}{}
+
+	err := c.Bind(&v)
+	if err == nil {
+		uid := v.Account
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.UserID == dice.FormatDiceIDQQ(uid) {
+				return c.JSON(CodeAlreadyExists, i)
+			}
+		}
+
+		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
+		conn.UserID = dice.FormatDiceIDQQ(uid)
+		conn.Session = myDice.ImSession
+
+		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
+		pa.Session = myDice.ImSession
+
+		pa.IsReverse = true
+		pa.ReverseAddr = v.ReverseAddr
+
+		pa.UseInPackGoCqhttp = false
+
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		conn.SetEnable(myDice, true)
+
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
 }

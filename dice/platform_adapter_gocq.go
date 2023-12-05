@@ -9,12 +9,15 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
-	"sealdice-core/utils/procs"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"sealdice-core/utils/procs"
+
+	"github.com/gorilla/websocket"
+	"github.com/labstack/echo/v4"
 	"github.com/sacOO7/gowebsocket"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
@@ -44,6 +47,10 @@ type echoMapInfo struct {
 type PlatformAdapterGocq struct {
 	EndPoint *EndPointInfo `yaml:"-" json:"-"`
 	Session  *IMSession    `yaml:"-" json:"-"`
+
+	IsReverse   bool       `yaml:"isReverse" json:"isReverse" `
+	ReverseAddr string     `yaml:"reverseAddr" json:"reverseAddr"`
+	reverseApp  *echo.Echo `yaml:"-" json:"-"`
 
 	Socket      *gowebsocket.Socket `yaml:"-" json:"-"`
 	ConnectURL  string              `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
@@ -364,9 +371,14 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	}
 	pa.Socket = &socket
 
+	ep.State = 2
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		ep.State = 1
-		log.Info("onebot 连接成功")
+		if pa.IsReverse {
+			log.Info("onebot v11 反向ws连接成功")
+		} else {
+			log.Info("onebot v11 连接成功")
+		}
 		//  {"data":{"nickname":"闃斧鐗岃�佽檸鏈�","user_id":1001},"retcode":0,"status":"ok"}
 		pa.GetLoginInfo()
 	}
@@ -1007,7 +1019,51 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		pa.InPackGoCqhttpDisconnectedCH <- 1
 	}
 
-	socket.Connect()
+	if pa.IsReverse {
+		go func() {
+			if pa.IsReverse && pa.reverseApp != nil {
+				_ = pa.reverseApp.Close()
+				pa.reverseApp = nil
+			}
+
+			e := echo.New()
+
+			upgrader := websocket.Upgrader{}
+			e.GET("/ws", func(c echo.Context) error {
+				ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+				if err != nil {
+					return err
+				}
+				defer ws.Close()
+
+				socketClone := gowebsocket.New("")
+				socketClone.OnDisconnected = socket.OnDisconnected
+				socketClone.OnTextMessage = socket.OnTextMessage
+				socketClone.OnBinaryMessage = socket.OnBinaryMessage
+				socketClone.OnPingReceived = socket.OnPingReceived
+				socketClone.OnPongReceived = socket.OnPongReceived
+				socketClone.OnConnected = socket.OnConnected
+				socketClone.OnConnectError = socket.OnConnectError
+				// 注: 只能管一个socket，不过不管了
+				pa.Socket = &socketClone
+
+				pa.EndPoint.State = 1
+				socketClone.NewClient(ws)
+				return nil
+			})
+
+			pa.reverseApp = e
+			log.Info("Onebot v11 反向WS服务启动，地址: ", pa.ReverseAddr)
+			e.HideBanner = true
+			err := e.Start(pa.ReverseAddr)
+			if err != nil {
+				log.Error("Onebot v11 反向WS服务关闭: ", err)
+			}
+		}()
+	} else {
+		socket.Connect()
+	}
+
 	defer func() {
 		// fmt.Println("socket close")
 		go func() {
@@ -1040,9 +1096,24 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 	myDice := pa.Session.Parent
 	ep := pa.EndPoint
 	if pa.Socket != nil {
-		go pa.Socket.Close()
-		pa.Socket = nil
+		go func() {
+			defer func() {
+				_ = recover()
+			}()
+			pa.Socket.Close()
+		}()
 	}
+
+	if pa.IsReverse {
+		if pa.reverseApp != nil {
+			_ = pa.reverseApp.Close()
+			pa.reverseApp = nil
+		}
+
+		go pa.Serve()
+		return true
+	}
+
 	if pa.UseInPackGoCqhttp {
 		if pa.InPackGoCqhttpDisconnectedCH != nil {
 			pa.InPackGoCqhttpDisconnectedCH <- -1
@@ -1096,6 +1167,10 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		pa.DiceServing = false
 		if pa.UseInPackGoCqhttp {
 			GoCqhttpServeProcessKill(d, c)
+		}
+		if pa.IsReverse && pa.reverseApp != nil {
+			_ = pa.reverseApp.Close()
+			pa.reverseApp = nil
 		}
 	}
 
