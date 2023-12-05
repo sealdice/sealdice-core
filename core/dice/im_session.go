@@ -842,60 +842,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					ret = s.commandSolve(mctx, msg, cmdArgs)
 				}
 				if ret {
-					if s.Parent.RateLimitEnabled && msg.Platform == "QQ" {
-						if mctx.Group.RateLimiter == nil {
-							mctx.Group.RateLimitWarned = false
-							if mctx.Dice.GroupReplenishRateStr == "" {
-								mctx.Dice.GroupReplenishRateStr = "@every 3s"
-								mctx.Dice.GroupReplenishRate = rate.Every(time.Second * 3)
-							}
-							if mctx.Dice.GroupBurst == 0 {
-								mctx.Dice.GroupBurst = 3
-							}
-							mctx.Group.RateLimiter = rate.NewLimiter(mctx.Dice.GroupReplenishRate, int(mctx.Dice.GroupBurst))
-						}
-						if mctx.Player.RateLimiter == nil {
-							mctx.Player.RateLimitWarned = false
-							if mctx.Dice.PersonalReplenishRateStr == "" {
-								mctx.Dice.PersonalReplenishRateStr = "@every 3s"
-								mctx.Dice.PersonalReplenishRate = rate.Every(time.Second * 3)
-							}
-							if mctx.Dice.PersonalBurst == 0 {
-								mctx.Dice.PersonalBurst = 3
-							}
-							mctx.Player.RateLimiter = rate.NewLimiter(mctx.Dice.PersonalReplenishRate, int(mctx.Dice.PersonalBurst))
-						}
-
-						if mctx.PrivilegeLevel < 100 {
-							var handled bool
-
-							if !mctx.Player.RateLimiter.Allow() {
-								if mctx.Player.RateLimitWarned {
-									mctx.Dice.BanList.AddScoreByCommandSpam(mctx.Player.UserID, msg.GroupID, mctx)
-								} else {
-									mctx.Player.RateLimitWarned = true
-									t := DiceFormatTmpl(mctx, "核心:刷屏_警告内容_个人")
-									ReplyToSender(mctx, msg, t)
-								}
-								handled = true
-							} else {
-								mctx.Player.RateLimitWarned = false
-							}
-
-							if !handled && !mctx.Group.RateLimiter.Allow() {
-								if mctx.Group.RateLimitWarned {
-									mctx.Dice.BanList.AddScoreByCommandSpam(mctx.Group.GroupID, mctx.Group.GroupID, mctx)
-								} else {
-									mctx.Group.RateLimitWarned = true
-									t := DiceFormatTmpl(mctx, "核心:刷屏_警告内容_群组")
-									ReplyToSender(mctx, msg, t)
-								}
-							} else {
-								// Verplitic: 如果已经因为个人刷屏进行了处理，就不追责群组了。这样可以吗？
-								mctx.Group.RateLimitWarned = false
-							}
-						}
-					}
+					// Oissevalt: 刷屏检测已经迁移到 im_helpers.go，此处不再处理
+					// if s.Parent.RateLimitEnabled && msg.Platform == "QQ" {
+					// 	if !spamCheckPerson(mctx, msg) {
+					// 		spamCheckGroup(mctx, msg)
+					// 	}
+					// }
 					ep.CmdExecutedNum++
 					ep.CmdExecutedLastTime = time.Now().Unix()
 					mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
