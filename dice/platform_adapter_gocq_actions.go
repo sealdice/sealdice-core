@@ -695,7 +695,7 @@ func textAssetsConvert(s string) string {
 
 			if strings.HasPrefix(afn, cwd) || strings.HasPrefix(afn, os.TempDir()) {
 				if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
-					cq.Overwrite = "[CQ码找不到文件]"
+					// cq.Overwrite = "[CQ码找不到文件]"
 				} else {
 					// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
 					if runtime.GOOS == `windows` {
