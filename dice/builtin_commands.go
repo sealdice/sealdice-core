@@ -173,7 +173,10 @@ func (d *Dice) registerCoreCommands() {
 		".find #<分组> <关键字> // 查找指定分组下的文档。关键字可以多个，用空格分割\n" +
 		".find <数字ID> // 显示该ID的词条\n" +
 		".find --rand // 显示随机词条\n" +
-		".find <关键字> --num=10 // 需要更多结果"
+		".find <关键字> --num=10 // 需要更多结果\n" +
+		".find config --group // 查看当前默认搜索分组\n" +
+		".find config --group=<分组> // 设置当前默认搜索分组\n" +
+		".find config --groupclr // 清空当前默认搜索分组"
 	cmdSearch := &CmdItemInfo{
 		Name:      "find",
 		ShortHelp: helpForFind,
@@ -186,13 +189,58 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
+			if _config := cmdArgs.GetArgN(1); _config == "config" {
+				oldDefault := ctx.Group.DefaultHelpGroup
+				if cmdArgs.GetKwarg("groupclr") != nil {
+					ctx.Group.SetDefaultHelpGroup("")
+					if oldDefault != "" {
+						ReplyToSender(ctx, msg, "已清空默认搜索分组，原分组为"+oldDefault)
+					} else {
+						ReplyToSender(ctx, msg, "未指定默认搜索分组")
+					}
+				} else if _defaultGroup := cmdArgs.GetKwarg("group"); _defaultGroup != nil {
+					defaultGroup := _defaultGroup.Value
+					if defaultGroup == "" {
+						// 为查看默认分组
+						if oldDefault != "" {
+							ReplyToSender(ctx, msg, "当前默认搜索分组为"+oldDefault)
+						} else {
+							ReplyToSender(ctx, msg, "未指定默认搜索分组")
+						}
+					} else {
+						// 为设置默认分组
+						ctx.Group.SetDefaultHelpGroup(defaultGroup)
+						if oldDefault != "" {
+							ReplyToSender(ctx, msg, fmt.Sprintf("默认搜索分组由%s切换到%s", oldDefault, defaultGroup))
+						} else {
+							ReplyToSender(ctx, msg, "指定默认搜索分组为"+defaultGroup)
+						}
+					}
+				} else {
+					ReplyToSender(ctx, msg, "设置选项有误")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
 			var (
 				useGroupSearch bool
 				group          string
 			)
 			if _group := cmdArgs.GetArgN(1); strings.HasPrefix(_group, "#") {
 				useGroupSearch = true
-				group = strings.TrimPrefix(_group, "#")
+				fakeGroup := strings.TrimPrefix(_group, "#")
+
+				// 转换 group 别名
+				if _g, ok := d.Parent.Help.GroupAliases[fakeGroup]; ok {
+					group = _g
+				} else {
+					group = fakeGroup
+				}
+			}
+			var groupStr string
+			if group != "" {
+				groupStr = "[搜索分组" + group + "]"
 			}
 
 			var id string
@@ -264,16 +312,20 @@ func (d *Dice) registerCoreCommands() {
 			if page <= 0 {
 				page = 1
 			}
+			if group == "" {
+				// 未指定搜索分组时，取当前群指定的分组
+				group = ctx.Group.DefaultHelpGroup
+			}
 			search, total, pgStart, pgEnd, err := d.Parent.Help.Search(ctx, text, false, numLimit, page, group)
 			if err != nil {
-				ReplyToSender(ctx, msg, "搜索故障: "+err.Error())
+				ReplyToSender(ctx, msg, groupStr+"搜索故障: "+err.Error())
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			if len(search.Hits) == 0 {
 				if total == 0 {
-					ReplyToSender(ctx, msg, "未找到搜索结果")
+					ReplyToSender(ctx, msg, groupStr+"未找到搜索结果")
 				} else {
-					ReplyToSender(ctx, msg, fmt.Sprintf("找到%d条结果, 但在当前页码并无结果", total))
+					ReplyToSender(ctx, msg, fmt.Sprintf("%s找到%d条结果, 但在当前页码并无结果", groupStr, total))
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -311,7 +363,7 @@ func (d *Dice) registerCoreCommands() {
 			var bestResult string
 			if showBest {
 				content := d.Parent.Help.GetContent(best, 0)
-				bestResult = fmt.Sprintf("最优先结果:\n词条: %s:%s\n%s\n\n", best.PackageName, best.Title, content)
+				bestResult = fmt.Sprintf("最优先结果%s:\n词条: %s:%s\n%s\n\n", groupStr, best.PackageName, best.Title, content)
 			}
 
 			prefix := d.Parent.Help.GetPrefixText()
@@ -320,7 +372,7 @@ func (d *Dice) registerCoreCommands() {
 			// pgStart是下标闭左边界, 加1以获得序号; pgEnd是下标开右边界, 无需调整就是最后一条的序号
 			rplPageNum := fmt.Sprintf("共%d条结果, 当前显示第%d页(第%d条 到 第%d条)\n", total, page, pgStart+1, pgEnd)
 			rplPageHint := "使用\".find <词条> --page=<页码> 查看更多结果\n"
-			ReplyToSender(ctx, msg, prefix+bestResult+rplCurPage+rplDetailHint+rplPageNum+rplPageHint)
+			ReplyToSender(ctx, msg, prefix+groupStr+bestResult+rplCurPage+rplDetailHint+rplPageNum+rplPageHint)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}

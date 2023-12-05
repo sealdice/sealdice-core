@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fy0/lockfree"
+	"golang.org/x/time/rate"
 )
 
 var sealCodeRe = regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`)
@@ -166,6 +167,13 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		text = ctx.DelegateText + text
 		ctx.DelegateText = ""
 	}
+
+	if ctx.Dice.RateLimitEnabled && msg.Platform == "QQ" {
+		if !spamCheckPerson(ctx, msg) {
+			spamCheckGroup(ctx, msg)
+		}
+	}
+
 	d := ctx.Dice
 	if d != nil {
 		d.Logger.Infof("发给(群%s): %s", msg.GroupID, text)
@@ -225,6 +233,10 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	if ctx.DelegateText != "" {
 		text = ctx.DelegateText + text
 		ctx.DelegateText = ""
+	}
+
+	if ctx.Dice.RateLimitEnabled && msg.Platform == "QQ" {
+		spamCheckPerson(ctx, msg)
 	}
 
 	d := ctx.Dice
@@ -411,6 +423,87 @@ func FormatDiceID(ctx *MsgContext, id interface{}, isGroup bool) string {
 		prefix += "-Group"
 	}
 	return fmt.Sprintf("%s:%v", prefix, id)
+}
+
+func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
+	if ctx.PrivilegeLevel >= 100 {
+		return false
+	}
+
+	if ctx.Player.RateLimiter == nil {
+		ctx.Player.RateLimitWarned = false
+		if ctx.Dice.PersonalReplenishRateStr == "" {
+			ctx.Dice.PersonalReplenishRateStr = "@every 3s"
+			ctx.Dice.PersonalReplenishRate = rate.Every(time.Second * 3)
+		}
+		if ctx.Dice.PersonalBurst == 0 {
+			ctx.Dice.PersonalBurst = 3
+		}
+		ctx.Player.RateLimiter = rate.NewLimiter(
+			ctx.Dice.PersonalReplenishRate,
+			int(ctx.Dice.PersonalBurst),
+		)
+	}
+
+	if ctx.Player.RateLimiter.Allow() {
+		ctx.Player.RateLimitWarned = false
+		return false
+	}
+
+	if ctx.Player.RateLimitWarned {
+		ctx.Dice.BanList.AddScoreByCommandSpam(ctx.Player.UserID, msg.GroupID, ctx)
+	} else {
+		ctx.Player.RateLimitWarned = true
+		replyToSenderRawNoCheck(
+			ctx, msg,
+			DiceFormatTmpl(ctx, "核心:刷屏_警告内容_个人"),
+			"",
+		)
+	}
+	return true
+}
+
+func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
+	// Skip privileged groups
+	for _, g := range ctx.Dice.DiceMasters {
+		if ctx.Group.GroupID == g {
+			return false
+		}
+	}
+
+	if ctx.Group.RateLimiter == nil {
+		ctx.Group.RateLimitWarned = false
+		if ctx.Dice.GroupReplenishRateStr == "" {
+			ctx.Dice.GroupReplenishRateStr = "@every 3s"
+			ctx.Dice.GroupReplenishRate = rate.Every(time.Second * 3)
+		}
+		if ctx.Dice.GroupBurst == 0 {
+			ctx.Dice.GroupBurst = 3
+		}
+		ctx.Group.RateLimiter = rate.NewLimiter(
+			ctx.Dice.GroupReplenishRate,
+			int(ctx.Dice.GroupBurst),
+		)
+	}
+
+	if ctx.Group.RateLimiter.Allow() {
+		ctx.Group.RateLimitWarned = false
+		return false
+	}
+
+	// If not allow
+	if ctx.Group.RateLimitWarned {
+		ctx.Dice.BanList.AddScoreByCommandSpam(ctx.Group.GroupID, msg.GroupID, ctx)
+	} else {
+		ctx.Group.RateLimitWarned = true
+		replyToSenderRawNoCheck(
+			ctx, msg,
+			DiceFormatTmpl(ctx, "核心:刷屏_警告内容_群组"),
+			"",
+		)
+	}
+
+	return true
 }
 
 func lenWithoutBase64(text string) int {
