@@ -885,6 +885,15 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_导出_邮件附言": {
 				{"log文件见附件。", 1},
 			},
+			"记录_删除_成功": {
+				{"删除记录 {$t记录名称} 成功", 1},
+			},
+			"记录_删除_失败_找不到": {
+				{"删除记录 {$t记录名称} 失败，可能是名字不对", 1},
+			},
+			"记录_删除_失败_正在进行": {
+				{"记录 {$t记录名称} 正在进行，无法删除。请先用 log end 结束记录，如不希望上传请用 log halt。", 1},
+			},
 			"OB_开启": {
 				{"你将成为观众（自动修改昵称和群名片[如有权限]，并不会给观众发送暗骰结果）。", 1},
 			},
@@ -1452,8 +1461,9 @@ func setupBaseTextTemplate(d *Dice) {
 		},
 		"日志": {
 			"记录_新建": {
-				SubType: ".log new",
-				Vars:    []string{"$t记录名称"},
+				SubType:   ".log new",
+				Vars:      []string{"$t记录名称", "$t存在开启记录", "$t上一记录名称"},
+				ExtraText: "如果通过 log new 替换掉了某个进行中的记录，$t存在开启记录 为 1，$t上一记录名称 为被替换的记录名；否则，$t存在开启记录 为 0，$t上一记录名称 为空字符串",
 			},
 			"记录_开启_成功": {
 				SubType: ".log on",
@@ -1506,6 +1516,18 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_导出_邮件附言": {
 				SubType:   ".log export",
 				ExtraText: "发送的跑团log提取邮件附带的文案。",
+			},
+			"记录_删除_成功": {
+				SubType: ".log del",
+				Vars:    []string{"$t记录名称"},
+			},
+			"记录_删除_失败_找不到": {
+				SubType: ".log del",
+				Vars:    []string{"$t记录名称"},
+			},
+			"记录_删除_失败_正在进行": {
+				SubType: ".log del",
+				Vars:    []string{"$t记录名称"},
 			},
 			"OB_开启": {
 				SubType: ".ob",

@@ -228,19 +228,20 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
 				name := cmdArgs.GetArgN(2)
-				if name != "" {
-					if name == group.LogCurName {
-						ReplyToSender(ctx, msg, "不能删除正在进行的log，请用log new开启新的，或log end结束后再行删除")
-					} else {
-						ok := model.LogDelete(ctx.Dice.DBLogs, group.GroupID, name)
-						if ok {
-							ReplyToSender(ctx, msg, "删除log成功")
-						} else {
-							ReplyToSender(ctx, msg, "删除log失败，可能是名字不对？")
-						}
-					}
-				} else {
+				if name == "" {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
+
+				VarSetValueStr(ctx, "$t记录名称", name)
+				if name == group.LogCurName {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_失败_正在进行"))
+				} else {
+					ok := model.LogDelete(ctx.Dice.DBLogs, group.GroupID, name)
+					if ok {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_成功"))
+					} else {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_失败_找不到"))
+					}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "masterget") {
@@ -367,29 +368,31 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				// 如果日志已经开启，或者当前有暂停的记录，报错返回
-				if group.LogOn || group.LogCurName != "" {
+				name := cmdArgs.GetArgN(2)
+				if group.LogCurName != "" && name == "" {
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-
 				if groupNotActiveCheck() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				name := cmdArgs.GetArgN(2)
 				if name == "" {
-					todayTime := time.Now().Format("2006_01_02_15_04_05")
-					name = todayTime
+					name = time.Now().Format("2006_01_02_15_04_05")
 				}
+				if group.LogCurName != "" {
+					VarSetValueInt64(ctx, "$t存在开启记录", 1)
+				} else {
+					VarSetValueInt64(ctx, "$t存在开启记录", 0)
+				}
+				VarSetValueStr(ctx, "$t上一记录名称", group.LogCurName)
 				VarSetValueStr(ctx, "$t记录名称", name)
-
 				group.LogCurName = name
 				group.LogOn = true
 				group.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
 
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "stat") {
 				// group := ctx.Group
