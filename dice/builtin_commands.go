@@ -542,8 +542,8 @@ func (d *Dice) registerCoreCommands() {
 					d.Logger.Info(txt)
 					ctx.Notice(txt)
 
-					SetBotOffAtGroup(ctx, ctx.Group.GroupID)
-					time.Sleep(6 * time.Second)
+					// SetBotOffAtGroup(ctx, ctx.Group.GroupID)
+					time.Sleep(3 * time.Second)
 					ctx.Group.DiceIDExistsMap.Delete(ctx.EndPoint.UserID)
 					ctx.Group.UpdatedAtTime = time.Now().Unix()
 					ctx.EndPoint.Adapter.QuitGroup(ctx, msg.GroupID)
@@ -1063,8 +1063,8 @@ func (d *Dice) registerCoreCommands() {
 					Dice:        ctx.Dice,
 					IsPrivate:   false,
 				}
-				SetBotOffAtGroup(mctx, gp.GroupID)
-				time.Sleep(6 * time.Second)
+				// SetBotOffAtGroup(mctx, gp.GroupID)
+				time.Sleep(3 * time.Second)
 				gp.DiceIDExistsMap.Delete(mctx.EndPoint.UserID)
 				gp.UpdatedAtTime = time.Now().Unix()
 				mctx.EndPoint.Adapter.QuitGroup(mctx, gp.GroupID)
