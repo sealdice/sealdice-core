@@ -439,31 +439,28 @@ func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
 		if ctx.Dice.PersonalBurst == 0 {
 			ctx.Dice.PersonalBurst = 3
 		}
-		ctx.Group.RateLimiter = rate.NewLimiter(
+		ctx.Player.RateLimiter = rate.NewLimiter(
 			ctx.Dice.PersonalReplenishRate,
 			int(ctx.Dice.PersonalBurst),
 		)
 	}
 
-	var handled bool
-
-	if !ctx.Player.RateLimiter.Allow() {
-		if ctx.Player.RateLimitWarned {
-			ctx.Dice.BanList.AddScoreByCommandSpam(ctx.Player.UserID, msg.GroupID, ctx)
-		} else {
-			ctx.Player.RateLimitWarned = true
-			replyToSenderRawNoCheck(
-				ctx, msg,
-				DiceFormatTmpl(ctx, "核心:刷屏_警告内容_个人"),
-				"",
-			)
-		}
-		handled = true
-	} else {
+	if ctx.Player.RateLimiter.Allow() {
 		ctx.Player.RateLimitWarned = false
+		return false
 	}
 
-	return handled
+	if ctx.Player.RateLimitWarned {
+		ctx.Dice.BanList.AddScoreByCommandSpam(ctx.Player.UserID, msg.GroupID, ctx)
+	} else {
+		ctx.Player.RateLimitWarned = true
+		replyToSenderRawNoCheck(
+			ctx, msg,
+			DiceFormatTmpl(ctx, "核心:刷屏_警告内容_个人"),
+			"",
+		)
+	}
+	return true
 }
 
 func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
@@ -489,25 +486,24 @@ func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
 		)
 	}
 
-	var handled bool
-
-	if !ctx.Group.RateLimiter.Allow() {
-		if ctx.Group.RateLimitWarned {
-			ctx.Dice.BanList.AddScoreByCommandSpam(ctx.Group.GroupID, msg.GroupID, ctx)
-		} else {
-			ctx.Player.RateLimitWarned = true
-			replyToSenderRawNoCheck(
-				ctx, msg,
-				DiceFormatTmpl(ctx, "核心:刷屏_警告内容_个人"),
-				"",
-			)
-		}
-		handled = true
-	} else {
+	if ctx.Group.RateLimiter.Allow() {
 		ctx.Group.RateLimitWarned = false
+		return false
 	}
 
-	return handled
+	// If not allow
+	if ctx.Group.RateLimitWarned {
+		ctx.Dice.BanList.AddScoreByCommandSpam(ctx.Group.GroupID, msg.GroupID, ctx)
+	} else {
+		ctx.Group.RateLimitWarned = true
+		replyToSenderRawNoCheck(
+			ctx, msg,
+			DiceFormatTmpl(ctx, "核心:刷屏_警告内容_群组"),
+			"",
+		)
+	}
+
+	return true
 }
 
 func lenWithoutBase64(text string) int {
