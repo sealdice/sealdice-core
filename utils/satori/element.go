@@ -7,11 +7,11 @@ import (
 )
 
 type Element struct {
-	//KElement bool      `json:"kElement"`
+	// KElement bool      `json:"kElement"`
 	Type     string     `json:"type"`
 	Attrs    Dict       `json:"attrs"`
 	Children []*Element `json:"children"`
-	//Source   string    `json:"source"` // js版本自己也不写source，所以姑且注释掉
+	// Source   string    `json:"source"` // js版本自己也不写source，所以姑且注释掉
 }
 
 func (el *Element) Traverse(fn func(el *Element)) {

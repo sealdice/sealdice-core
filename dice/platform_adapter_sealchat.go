@@ -3,11 +3,13 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/sacOO7/gowebsocket"
-	"sealdice-core/utils/satori"
 	"strings"
 	"time"
+
+	"sealdice-core/utils/satori"
+
+	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/sacOO7/gowebsocket"
 )
 
 type PlatformAdapterSealChat struct {
@@ -31,7 +33,7 @@ func (pa *PlatformAdapterSealChat) Serve() int {
 	socket := gowebsocket.New(pa.ConnectURL)
 	pa.Socket = &socket
 	pa.EndPoint.Nickname = "SealChat Bot"
-	pa.EndPoint.UserID = "WebSocket"
+	pa.EndPoint.UserID = "SEALCHAT:BOT"
 	d := pa.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
@@ -80,6 +82,7 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 
 		solved := false
 		if err == nil {
+			// nolint:exhaustive
 			switch gatewayMsg.Op {
 			case satori.OpReady:
 				info := gatewayMsg.Body.(map[string]any)
@@ -96,13 +99,17 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 						log.Errorf("SealChat 解析用户信息失败: %s", err)
 					} else {
 						pa.UserID = data.Body.User.ID
-						ep.UserID = data.Body.User.ID
+						ep.UserID = FormatDiceIDSealChat(data.Body.User.ID)
 						ep.Nickname = data.Body.User.Nick
 						ep.State = 2
 						log.Infof("SealChat 连接成功: %s", ep.Nickname)
 					}
 
-					pa.registerCommands()
+					go func() {
+						// 等一会再发，因为好像有的模块会在这个事件之后注册指令
+						time.Sleep(time.Duration(10) * time.Second)
+						pa.registerCommands()
+					}()
 				}
 				// TODO: 心跳
 				solved = true
@@ -118,12 +125,12 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 
 		log.Infof("SealChat: %s %d", message, solved)
 
-		//fmt.Println("SealChat: " + message)
-		//msgMC := new(MessageMinecraft)
-		//err := json.Unmarshal([]byte(message), msgMC)
-		//if err == nil {
+		// fmt.Println("SealChat: " + message)
+		// msgMC := new(MessageMinecraft)
+		// err := json.Unmarshal([]byte(message), msgMC)
+		// if err == nil {
 		//	pa.Session.Execute(ep, pa.toStdMessage(msgMC), false)
-		//}
+		// }
 	}
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
 		log.Errorf("SealChat websocket出现错误: %s", err)
@@ -322,6 +329,7 @@ func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 		return
 	}
 
+	// nolint:exhaustive
 	switch ev.Type {
 	case satori.EventMessageCreated:
 		if ev.Message.User.ID == pa.UserID {
@@ -331,7 +339,7 @@ func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 		pa.Session.Execute(pa.EndPoint, pa.toStdMessage(ev.Message), false)
 		return
 	}
-	//fmt.Println("!!!", msg)
+	// fmt.Println("!!!", msg)
 	fmt.Println("msg", ev.Type, ev)
 }
 
@@ -350,10 +358,8 @@ func (pa *PlatformAdapterSealChat) toStdMessage(scMsg *satori.Message) *Message 
 			if el.Attrs["role"] != "all" {
 				cqMsg.WriteString(fmt.Sprintf("<@%s>", el.Attrs["id"]))
 			}
-			break
 		case "root":
 			// 啥都不做
-			break
 		default:
 			cqMsg.WriteString(el.ToString())
 		}
@@ -366,14 +372,15 @@ func (pa *PlatformAdapterSealChat) toStdMessage(scMsg *satori.Message) *Message 
 	if msg.MessageType == "group" {
 		msg.GroupID = FormatDiceIDSealChatGroup(scMsg.Channel.ID)
 	}
+	msg.RawID = scMsg.ID
 	send := new(SenderBase)
 	send.UserID = FormatDiceIDSealChat(scMsg.User.ID)
 	// send.Nickname = scMsg.Member.Nick
 	send.Nickname = "用户"
 	fmt.Println("!!!", scMsg.Member, "|", scMsg.User.Name)
-	//if msgMC.Event.IsAdmin {
+	// if msgMC.Event.IsAdmin {
 	//	send.GroupRole = "admin"
-	//}
+	// }
 	msg.Sender = *send
 	return msg
 }
@@ -382,8 +389,15 @@ func (pa *PlatformAdapterSealChat) registerCommands() {
 	cmdMap := pa.EndPoint.Session.Parent.CmdMap
 	m := map[string]string{}
 	for k, v := range cmdMap {
-		//fmt.Println("??", k, v)
+		// fmt.Println("??", k, v)
 		m[k] = v.ShortHelp
+	}
+
+	for _, i := range pa.EndPoint.Session.Parent.ExtList {
+		for k, v := range i.CmdMap {
+			// fmt.Println("??", k, v)
+			m[k] = v.ShortHelp
+		}
 	}
 	pa.sendAPI("command.register", m)
 }
