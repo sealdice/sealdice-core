@@ -842,11 +842,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					ret = s.commandSolve(mctx, msg, cmdArgs)
 				}
 				if ret {
-					if s.Parent.RateLimitEnabled && msg.Platform == "QQ" {
-						if !spamCheckPerson(mctx, msg) {
-							spamCheckGroup(mctx, msg)
-						}
-					}
+					// Oissevalt: 刷屏检测已经迁移到 im_helpers.go，此处不再处理
+					// if s.Parent.RateLimitEnabled && msg.Platform == "QQ" {
+					// 	if !spamCheckPerson(mctx, msg) {
+					// 		spamCheckGroup(mctx, msg)
+					// 	}
+					// }
 					ep.CmdExecutedNum++
 					ep.CmdExecutedLastTime = time.Now().Unix()
 					mctx.Player.LastCommandTime = ep.CmdExecutedLastTime

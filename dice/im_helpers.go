@@ -168,8 +168,10 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		ctx.DelegateText = ""
 	}
 
-	if !spamCheckPerson(ctx, msg) {
-		spamCheckGroup(ctx, msg)
+	if ctx.Dice.RateLimitEnabled && msg.Platform == "QQ" {
+		if !spamCheckPerson(ctx, msg) {
+			spamCheckGroup(ctx, msg)
+		}
 	}
 
 	d := ctx.Dice
@@ -233,7 +235,9 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		ctx.DelegateText = ""
 	}
 
-	spamCheckPerson(ctx, msg)
+	if ctx.Dice.RateLimitEnabled && msg.Platform == "QQ" {
+		spamCheckPerson(ctx, msg)
+	}
 
 	d := ctx.Dice
 	if d != nil {
