@@ -669,8 +669,20 @@ func textAssetsConvert(s string) string {
 	solve := func(cq *CQCommand) {
 		// if cq.Type == "image" || cq.Type == "voice" {
 		fn, exists := cq.Args["file"]
+		_, urlExists := cq.Args["url"]
+
 		if exists {
+			if urlExists {
+				// 另一个问题，这个会爆出路径
+				// .text [CQ:image,file=eff8428fa4034480d20631e0e37d10d2.image,url=http://]
+				return
+			}
 			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") || strings.HasPrefix(fn, "base64://") {
+				return
+			}
+			if strings.HasSuffix(fn, ".image") && len(fn) == 32+6 {
+				// 举例
+				// [CQ:image,file=eff8428fa4034480d20631e0e37d10d2.image,subType=1,url=https://gchat.qpic.cn/gchatpic_new/303451945/4186699433-2282331144-EFF8428FA4034480D20631E0E37D10D2/0?term=2&is_origin=0]
 				return
 			}
 
