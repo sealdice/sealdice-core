@@ -11,9 +11,9 @@ type ChannelType int
 
 const (
 	TextChannelType ChannelType = iota
-	DirectChannelType
 	VoiceChannelType
 	CategoryChannelType
+	DirectChannelType
 )
 
 type Guild struct {

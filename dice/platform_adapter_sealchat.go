@@ -79,10 +79,13 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		gatewayMsg := satori.GatewayPayloadStructure{}
 		err := json.Unmarshal([]byte(message), &gatewayMsg)
+		if len(message) == 0 {
+			return
+		}
+		fmt.Printf("XXXXX: %s\n", message)
 
 		solved := false
 		if err == nil {
-			// nolint:exhaustive
 			switch gatewayMsg.Op {
 			case satori.OpReady:
 				info := gatewayMsg.Body.(map[string]any)
@@ -107,7 +110,7 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 
 					go func() {
 						// 等一会再发，因为好像有的模块会在这个事件之后注册指令
-						time.Sleep(time.Duration(10) * time.Second)
+						time.Sleep(time.Duration(5) * time.Second)
 						pa.registerCommands()
 					}()
 				}
@@ -116,14 +119,14 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 			case satori.OpEvent:
 				pa.dispatchMessage(message)
 				solved = true
+			default:
+				log.Infof("SealChat: %s", message)
 			}
 		}
 
 		if solved {
 			return
 		}
-
-		log.Infof("SealChat: %s %d", message, solved)
 
 		// fmt.Println("SealChat: " + message)
 		// msgMC := new(MessageMinecraft)
@@ -139,7 +142,7 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 			if !pa.tryReconnect(*pa.Socket) {
 				log.Errorf("短时间内连接失败次数过多，不再进行重连")
 				ep.State = 3
-				ep.Enable = false
+				//ep.Enable = false
 			}
 		}
 	}
@@ -147,9 +150,8 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 		log.Errorf("与SealChat服务器断开连接")
 		time.Sleep(time.Duration(2) * time.Second)
 		if !pa.tryReconnect(*pa.Socket) {
-			log.Errorf("短时间内连接失败次数过多，不再进行重连")
+			log.Errorf("尝试进行重连")
 			ep.State = 3
-			ep.Enable = false
 		}
 	}
 	pa.Socket = socket
@@ -161,13 +163,16 @@ func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool 
 		return false
 	}
 	pa.Reconnecting = true
-	if pa.RetryTimes <= 5 && !socket.IsConnected {
+	pa.RetryTimes = 0
+	allTimes := 500
+	for pa.RetryTimes <= allTimes && !socket.IsConnected {
 		pa.RetryTimes++
-		log.Infof("尝试重新连接SealChat中[%d/5]", pa.RetryTimes)
+		log.Infof("尝试重新连接SealChat中[%d/%d]", pa.RetryTimes, allTimes)
 		socket = gowebsocket.New(pa.ConnectURL)
 		pa.Socket = &socket
 		pa.socketSetup()
 		socket.Connect()
+		time.Sleep(time.Duration(10) * time.Second)
 	}
 	return true
 }
@@ -176,6 +181,10 @@ func (pa *PlatformAdapterSealChat) GetGroupInfoAsync(_ string) {}
 
 func FormatDiceIDSealChat(id string) string {
 	return fmt.Sprintf("SEALCHAT:%s", id)
+}
+
+func FormatDiceIDSealChatPrivate(id string) string {
+	return fmt.Sprintf("PG-SEALCHAT:%s", id)
 }
 
 func FormatDiceIDSealChatGroup(id string) string {
@@ -227,25 +236,6 @@ func (pa *PlatformAdapterSealChat) SetEnable(enable bool) {
 	}
 }
 
-func (pa *PlatformAdapterSealChat) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	id := ExtractMCUserID(uid)
-	msg := new(SendMessageMinecraft)
-	msg.UUID = id
-	msg.Content = text
-	msg.MessageType = "private"
-	parse, _ := json.Marshal(msg)
-	pa.Socket.SendText(string(parse))
-	pa.Session.OnMessageSend(ctx, &Message{
-		Platform:    "SEALCHAT",
-		MessageType: "private",
-		Message:     text,
-		Sender: SenderBase{
-			UserID:   pa.EndPoint.UserID,
-			Nickname: pa.EndPoint.Nickname,
-		},
-	}, flag)
-}
-
 func (pa *PlatformAdapterSealChat) sendAPI(api string, data any) {
 	echo := gonanoid.Must()
 	// 等下，这个好像没必要
@@ -255,6 +245,18 @@ func (pa *PlatformAdapterSealChat) sendAPI(api string, data any) {
 		Echo: echo,
 		Data: data,
 	})
+}
+
+func ExtractSealChatPrivateChatID(id string, userId string) string {
+	if strings.HasPrefix(id, "SEALCHAT:") {
+		id1 := id[len("SEALCHAT:"):]
+		id2 := userId[len("SEALCHAT:"):]
+		if id1 > id2 {
+			id1, id2 = id2, id1
+		}
+		return fmt.Sprintf("%s:%s", id1, id2)
+	}
+	return id
 }
 
 func ExtractSealChatUserID(id string) string {
@@ -267,13 +269,12 @@ func ExtractSealChatUserID(id string) string {
 	return id
 }
 
-func (pa *PlatformAdapterSealChat) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
+func (pa *PlatformAdapterSealChat) _sendTo(ctx *MsgContext, chId string, text string, flag string, msgType string) {
 	msg := new(SendMessageMinecraft)
 	msg.Content = text
 	msg.MessageType = "group"
 	parse, _ := json.Marshal(msg)
 
-	chId := ExtractSealChatUserID(uid)
 	pa.sendAPI("message.create", map[string]any{
 		"channel_id": chId,
 		"content":    text,
@@ -283,14 +284,24 @@ func (pa *PlatformAdapterSealChat) SendToGroup(ctx *MsgContext, uid string, text
 	pa.Socket.SendText(string(parse))
 	pa.Session.OnMessageSend(ctx, &Message{
 		Platform:    "SEALCHAT",
-		MessageType: "group",
+		MessageType: msgType,
 		Message:     text,
-		GroupID:     uid,
+		GroupID:     chId,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
 	}, flag)
+}
+
+func (pa *PlatformAdapterSealChat) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
+	gid := ExtractSealChatPrivateChatID(uid, pa.EndPoint.UserID)
+	pa._sendTo(ctx, gid, text, flag, "private")
+}
+
+func (pa *PlatformAdapterSealChat) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
+	chId := ExtractSealChatUserID(uid)
+	pa._sendTo(ctx, chId, text, flag, "group")
 }
 
 func (pa *PlatformAdapterSealChat) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
@@ -319,7 +330,13 @@ func (pa *PlatformAdapterSealChat) MemberKick(_ string, _ string) {}
 
 func (pa *PlatformAdapterSealChat) QuitGroup(_ *MsgContext, _ string) {}
 
-func (pa *PlatformAdapterSealChat) SetGroupCardName(_ *MsgContext, _ string) {}
+func (pa *PlatformAdapterSealChat) SetGroupCardName(mctx *MsgContext, text string) {
+	pa.sendAPI("bot.channel_member.set_name", map[string]string{
+		"user_id":    ExtractSealChatUserID(mctx.Player.UserID),
+		"channel_id": ExtractSealChatUserID(mctx.Group.GroupID),
+		"name":       text,
+	})
+}
 
 func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 	ev := satori.Event{}
@@ -329,7 +346,6 @@ func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 		return
 	}
 
-	// nolint:exhaustive
 	switch ev.Type {
 	case satori.EventMessageCreated:
 		if ev.Message.User.ID == pa.UserID {
@@ -338,9 +354,14 @@ func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 		}
 		pa.Session.Execute(pa.EndPoint, pa.toStdMessage(ev.Message), false)
 		return
+	case satori.EventMessageDeleted:
+		stdMsg := pa.toStdMessage(ev.Message)
+		mctx := CreateTempCtx(pa.EndPoint, stdMsg)
+		pa.Session.OnMessageDeleted(mctx, stdMsg)
+		return
+	default:
+		fmt.Println("msg", ev.Type, "|", ev)
 	}
-	// fmt.Println("!!!", msg)
-	fmt.Println("msg", ev.Type, ev)
 }
 
 func (pa *PlatformAdapterSealChat) toStdMessage(scMsg *satori.Message) *Message {
@@ -368,16 +389,31 @@ func (pa *PlatformAdapterSealChat) toStdMessage(scMsg *satori.Message) *Message 
 	msg.Message = strings.TrimSpace(cqMsg.String())
 
 	msg.Platform = "SEALCHAT"
-	msg.MessageType = "group"
-	if msg.MessageType == "group" {
+	if scMsg.Channel.Type == satori.DirectChannelType {
+		msg.MessageType = "private"
+		msg.GroupID = FormatDiceIDSealChatPrivate(scMsg.Channel.ID)
+	} else {
+		gonanoid.Must()
+		msg.MessageType = "group"
 		msg.GroupID = FormatDiceIDSealChatGroup(scMsg.Channel.ID)
 	}
+
 	msg.RawID = scMsg.ID
 	send := new(SenderBase)
 	send.UserID = FormatDiceIDSealChat(scMsg.User.ID)
-	// send.Nickname = scMsg.Member.Nick
-	send.Nickname = "用户"
-	fmt.Println("!!!", scMsg.Member, "|", scMsg.User.Name)
+
+	if scMsg.Member != nil {
+		// 注: 部分消息，比如message-deleted没有member
+		send.Nickname = scMsg.Member.Nick
+	}
+	if send.Nickname == "" && scMsg.User != nil {
+		send.Nickname = scMsg.User.Nick
+	}
+
+	if send.Nickname == "" {
+		send.Nickname = fmt.Sprintf("用户%4s", scMsg.Channel.ID)
+	}
+	//fmt.Println("!!!", scMsg.Member, "|", scMsg.User.Name)
 	// if msgMC.Event.IsAdmin {
 	//	send.GroupRole = "admin"
 	// }
@@ -399,7 +435,12 @@ func (pa *PlatformAdapterSealChat) registerCommands() {
 			m[k] = v.ShortHelp
 		}
 	}
-	pa.sendAPI("command.register", m)
+	mctx := CreateTempCtx(pa.EndPoint, &Message{
+		MessageType: "group",
+		Sender:      SenderBase{UserID: pa.EndPoint.UserID},
+	})
+	pa.sendAPI("bot.info.set_name", map[string]string{"name": DiceFormatTmpl(mctx, "核心:骰子名字")})
+	pa.sendAPI("bot.command.register", m)
 }
 
 func ServeSealChat(d *Dice, ep *EndPointInfo) {
