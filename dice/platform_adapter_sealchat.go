@@ -8,6 +8,7 @@ import (
 
 	"sealdice-core/utils/satori"
 
+	"github.com/google/uuid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/sacOO7/gowebsocket"
 )
@@ -455,4 +456,19 @@ func ServeSealChat(d *Dice, ep *EndPointInfo) {
 			d.Save(false)
 		}
 	}
+}
+
+func NewSealChatConnItem(url string, token string) *EndPointInfo {
+	conn := new(EndPointInfo)
+	conn.ID = uuid.New().String()
+	conn.Platform = "SEALCHAT"
+	conn.ProtocolType = ""
+	conn.Enable = true
+	conn.RelWorkDir = "extra/sealchat-" + conn.ID
+	conn.Adapter = &PlatformAdapterSealChat{
+		EndPoint:   conn,
+		ConnectURL: url,
+		Token:      token,
+	}
+	return conn
 }

@@ -496,6 +496,35 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 	return c.String(430, "")
 }
 
+func ImConnectionsAddSealChat(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	v := struct {
+		URL   string `yaml:"url" json:"url"`
+		Token string `yaml:"token" json:"token"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		conn := dice.NewSealChatConnItem(v.URL, v.Token)
+		conn.Session = myDice.ImSession
+		pa := conn.Adapter.(*dice.PlatformAdapterSealChat)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		go dice.ServeSealChat(myDice, conn)
+		return c.JSON(http.StatusOK, conn)
+	}
+	return c.String(430, "")
+}
+
 func ImConnectionsAddDodo(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
