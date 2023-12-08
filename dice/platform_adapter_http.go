@@ -12,8 +12,8 @@ type HTTPSimpleMessage struct {
 }
 
 type PlatformAdapterHTTP struct {
-	Session *IMSession
-	EndPoint *EndPointInfo
+	Session       *IMSession
+	EndPoint      *EndPointInfo
 	RecentMessage []HTTPSimpleMessage
 }
 
