@@ -28,7 +28,7 @@ func check(c echo.Context) (bool, error) {
 	if dm.JustForTest {
 		return false, Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
-	if !myDice.EnableCensor {
+	if !myDice.Config.EnableCensor {
 		return false, Error(&c, "未启用拦截引擎", Response{})
 	}
 	if myDice.CensorManager.IsLoading {
@@ -46,10 +46,10 @@ func censorRestart(c echo.Context) error {
 	}
 
 	myDice.NewCensorManager()
-	myDice.EnableCensor = true
+	myDice.Config.EnableCensor = true
 
 	return Success(&c, Response{
-		"enable":    myDice.EnableCensor,
+		"enable":    myDice.Config.EnableCensor,
 		"isLoading": myDice.CensorManager.IsLoading,
 	})
 }
@@ -60,7 +60,7 @@ func censorStop(c echo.Context) error {
 		return err
 	}
 
-	myDice.EnableCensor = false
+	myDice.Config.EnableCensor = false
 	_ = myDice.CensorManager.DB.Close()
 	myDice.CensorManager = nil
 
@@ -73,23 +73,23 @@ func censorGetStatus(c echo.Context) error {
 		isLoading = myDice.CensorManager.IsLoading
 	}
 	return Success(&c, Response{
-		"enable":    myDice.EnableCensor,
+		"enable":    myDice.Config.EnableCensor,
 		"isLoading": isLoading,
 	})
 }
 
 func censorGetConfig(c echo.Context) error {
 	levelConfig := map[string]LevelConfig{
-		"notice":  getLevelConfig(censor.Notice, myDice.CensorThresholds, myDice.CensorHandlers, myDice.CensorScores),
-		"caution": getLevelConfig(censor.Caution, myDice.CensorThresholds, myDice.CensorHandlers, myDice.CensorScores),
-		"warning": getLevelConfig(censor.Warning, myDice.CensorThresholds, myDice.CensorHandlers, myDice.CensorScores),
-		"danger":  getLevelConfig(censor.Danger, myDice.CensorThresholds, myDice.CensorHandlers, myDice.CensorScores),
+		"notice":  getLevelConfig(censor.Notice, myDice.Config.CensorThresholds, myDice.Config.CensorHandlers, myDice.Config.CensorScores),
+		"caution": getLevelConfig(censor.Caution, myDice.Config.CensorThresholds, myDice.Config.CensorHandlers, myDice.Config.CensorScores),
+		"warning": getLevelConfig(censor.Warning, myDice.Config.CensorThresholds, myDice.Config.CensorHandlers, myDice.Config.CensorScores),
+		"danger":  getLevelConfig(censor.Danger, myDice.Config.CensorThresholds, myDice.Config.CensorHandlers, myDice.Config.CensorScores),
 	}
 	return Success(&c, Response{
-		"mode":          myDice.CensorMode,
-		"caseSensitive": myDice.CensorCaseSensitive,
-		"matchPinyin":   myDice.CensorMatchPinyin,
-		"filterRegex":   myDice.CensorFilterRegexStr,
+		"mode":          myDice.Config.CensorMode,
+		"caseSensitive": myDice.Config.CensorCaseSensitive,
+		"matchPinyin":   myDice.Config.CensorMatchPinyin,
+		"filterRegex":   myDice.Config.CensorFilterRegexStr,
 		"levelConfig":   levelConfig,
 	})
 }
@@ -159,25 +159,25 @@ func censorSetConfig(c echo.Context) error {
 			if err != nil {
 				return Error(&c, "过滤字符正则不是合法的正则表达式", Response{})
 			}
-			myDice.CensorFilterRegexStr = filterRegex
+			myDice.Config.CensorFilterRegexStr = filterRegex
 		}
 	}
 	if val, ok := jsonMap["mode"]; ok {
 		mode, ok := val.(float64)
 		if ok {
-			myDice.CensorMode = dice.CensorMode(mode)
+			myDice.Config.CensorMode = dice.CensorMode(mode)
 		}
 	}
 	if val, ok := jsonMap["caseSensitive"]; ok {
 		caseSensitive, ok := val.(bool)
 		if ok {
-			myDice.CensorCaseSensitive = caseSensitive
+			myDice.Config.CensorCaseSensitive = caseSensitive
 		}
 	}
 	if val, ok := jsonMap["matchPinyin"]; ok {
 		matchPinyin, ok := val.(bool)
 		if ok {
-			myDice.CensorMatchPinyin = matchPinyin
+			myDice.Config.CensorMatchPinyin = matchPinyin
 		}
 	}
 	if val, ok := jsonMap["levelConfig"]; ok { //nolint:nestif
@@ -211,7 +211,7 @@ func censorSetConfig(c echo.Context) error {
 				if ok {
 					if val, ok = confMap["threshold"]; ok {
 						threshold := val.(float64)
-						myDice.CensorThresholds[level] = int(threshold)
+						myDice.Config.CensorThresholds[level] = int(threshold)
 					}
 					if val, ok = confMap["handlers"]; ok {
 						handlers := stringConvert(val)
@@ -219,7 +219,7 @@ func censorSetConfig(c echo.Context) error {
 					}
 					if val, ok = confMap["score"]; ok {
 						score := val.(float64)
-						myDice.CensorScores[level] = int(score)
+						myDice.Config.CensorScores[level] = int(score)
 					}
 				}
 			}
@@ -258,7 +258,7 @@ func setLevelHandlers(level censor.Level, handlers []string) {
 	handlerVal = newHandlerVal(handlerVal, dice.BanInviter, newHandlers)
 	handlerVal = newHandlerVal(handlerVal, dice.AddScore, newHandlers)
 
-	myDice.CensorHandlers[level] = handlerVal
+	myDice.Config.CensorHandlers[level] = handlerVal
 }
 
 func newHandlerVal(val uint8, handle dice.CensorHandler, newHandlers map[dice.CensorHandler]bool) uint8 {

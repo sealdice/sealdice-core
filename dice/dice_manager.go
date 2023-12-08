@@ -76,8 +76,8 @@ type DiceManager struct { //nolint:revive
 	UpdateSealdiceByFile func(packName string, log *zap.SugaredLogger) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
 }
 
-type DiceConfigs struct { //nolint:revive
-	DiceConfigs       []DiceConfig `yaml:"diceConfigs"`
+type Configs struct { //nolint:revive
+	DiceConfigs       []RootConfig `yaml:"diceConfigs"`
 	ServeAddress      string       `yaml:"serveAddress"`
 	WebUIAddress      string       `yaml:"webUIAddress"`
 	HelpDocEngineType int          `yaml:"helpDocEngineType"`
@@ -146,7 +146,7 @@ func (dm *DiceManager) LoadDice() {
 		return
 	}
 
-	var dc DiceConfigs
+	var dc Configs
 	err = yaml.Unmarshal(data, &dc)
 	if err != nil {
 		fmt.Println("读取 data/dice.yaml 发生错误: 配置文件格式不正确")
@@ -190,7 +190,7 @@ func (dm *DiceManager) LoadDice() {
 }
 
 func (dm *DiceManager) Save() {
-	var dc DiceConfigs
+	var dc Configs
 	dc.ServeAddress = dm.ServeAddress
 	dc.HelpDocEngineType = dm.HelpDocEngineType
 	dc.UIPasswordSalt = dm.UIPasswordSalt
@@ -320,8 +320,8 @@ func (dm *DiceManager) TryCreateDefault() {
 		defaultDice := new(Dice)
 		defaultDice.BaseConfig.Name = "default"
 		defaultDice.BaseConfig.IsLogPrint = true
-		defaultDice.MessageDelayRangeStart = 0.4
-		defaultDice.MessageDelayRangeEnd = 0.9
+		defaultDice.Config.MessageDelayRangeStart = DefaultConfig.MessageDelayRangeStart
+		defaultDice.Config.MessageDelayRangeEnd = DefaultConfig.MessageDelayRangeEnd
 		defaultDice.MarkModified()
 		dm.Dice = append(dm.Dice, defaultDice)
 	}
