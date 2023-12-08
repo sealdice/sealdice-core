@@ -67,7 +67,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/samber/lo v1.39.0
 	github.com/schollz/progressbar/v3 v3.14.1
-	github.com/sealdice/botgo v0.0.0-20231127135811-15eff113b4c0
+	github.com/sealdice/botgo v0.0.0-20231208035838-29bc68dc3f98
 	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
 	github.com/slack-go/slack v0.12.3
 	github.com/tdewolff/minify/v2 v2.20.9
@@ -155,7 +155,7 @@ require (
 	github.com/xuri/nfp v0.0.0-20230819163627-dc951e3ffe1a // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.18.0 // indirect
+	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/term v0.15.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
