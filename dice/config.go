@@ -1857,143 +1857,24 @@ func getNumVal(i interface{}) uint {
 }
 
 func (d *Dice) loads() {
+	config := NewConfig(d)
 	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
-
-	// 配置这块弄得比较屎，有机会换个方案。。。
-	// TODO(Xiangze Li): 不管谁都好 赶紧重写吧, 谁能想起来加了配置还要在这里添一行才能Load出来哇
 	if err == nil { //nolint:nestif
+		err3 := config.LoadYamlConfig(data)
+		if err3 != nil {
+			d.Logger.Error("serve.yaml parse failed")
+			panic(err3)
+		}
+
+		// 有一些配置项被用 jsbind 导出了，只能先留在 Dice 不迁移了
 		dNew := Dice{}
 		err2 := yaml.Unmarshal(data, &dNew)
 		if err2 != nil {
 			d.Logger.Error("serve.yaml parse failed")
 			panic(err2)
 		}
-		d.CommandCompatibleMode = true // 一直为true即可
 		d.ImSession.EndPoints = dNew.ImSession.EndPoints
-		d.CommandPrefix = dNew.CommandPrefix
 		d.DiceMasters = dNew.DiceMasters
-		d.VersionCode = dNew.VersionCode
-		d.MessageDelayRangeStart = dNew.MessageDelayRangeStart
-		d.MessageDelayRangeEnd = dNew.MessageDelayRangeEnd
-		d.WorkInQQChannel = dNew.WorkInQQChannel
-		d.QQChannelLogMessage = dNew.QQChannelLogMessage
-		d.QQChannelAutoOn = dNew.QQChannelAutoOn
-		d.QQEnablePoke = dNew.QQEnablePoke
-		d.TextCmdTrustOnly = dNew.TextCmdTrustOnly
-		d.IgnoreUnaddressedBotCmd = dNew.IgnoreUnaddressedBotCmd
-		d.UILogLimit = dNew.UILogLimit
-		d.FriendAddComment = dNew.FriendAddComment
-		d.AutoReloginEnable = dNew.AutoReloginEnable
-		d.NoticeIDs = dNew.NoticeIDs
-		d.ExtDefaultSettings = dNew.ExtDefaultSettings
-		d.CustomReplyConfigEnable = dNew.CustomReplyConfigEnable
-		d.RefuseGroupInvite = dNew.RefuseGroupInvite
-		d.DefaultCocRuleIndex = dNew.DefaultCocRuleIndex
-		d.UpgradeWindowID = dNew.UpgradeWindowID
-		d.UpgradeEndpointID = dNew.UpgradeEndpointID
-		d.BotExtFreeSwitch = dNew.BotExtFreeSwitch
-		d.RateLimitEnabled = dNew.RateLimitEnabled
-		d.TrustOnlyMode = dNew.TrustOnlyMode
-		d.AliveNoticeEnable = dNew.AliveNoticeEnable
-		d.AliveNoticeValue = dNew.AliveNoticeValue
-		d.ReplyDebugMode = dNew.ReplyDebugMode
-		d.LogSizeNoticeCount = dNew.LogSizeNoticeCount
-		d.LogSizeNoticeEnable = dNew.LogSizeNoticeEnable
-		d.PlayerNameWrapEnable = dNew.PlayerNameWrapEnable
-		d.MailEnable = dNew.MailEnable
-		d.MailFrom = dNew.MailFrom
-		d.MailPassword = dNew.MailPassword
-		d.MailSMTP = dNew.MailSMTP
-		d.JsEnable = dNew.JsEnable
-		d.DisabledJsScripts = dNew.DisabledJsScripts
-		d.NewsMark = dNew.NewsMark
-
-		d.QuitInactiveThreshold = dNew.QuitInactiveThreshold
-		d.QuitInactiveBatchSize = dNew.QuitInactiveBatchSize
-		if d.QuitInactiveBatchSize == 0 {
-			d.QuitInactiveBatchSize = 10
-		}
-		d.QuitInactiveBatchWait = dNew.QuitInactiveBatchWait
-		if d.QuitInactiveBatchWait == 0 {
-			d.QuitInactiveBatchWait = 30
-		}
-
-		d.EnableCensor = dNew.EnableCensor
-		d.CensorMode = dNew.CensorMode
-		d.CensorThresholds = dNew.CensorThresholds
-		d.CensorHandlers = dNew.CensorHandlers
-		d.CensorScores = dNew.CensorScores
-		d.CensorCaseSensitive = dNew.CensorCaseSensitive
-		d.CensorMatchPinyin = dNew.CensorMatchPinyin
-		d.CensorFilterRegexStr = dNew.CensorFilterRegexStr
-
-		if dNew.BanList != nil {
-			d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
-			d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite
-			d.BanList.BanBehaviorQuitLastPlace = dNew.BanList.BanBehaviorQuitLastPlace
-			d.BanList.BanBehaviorQuitPlaceImmediately = dNew.BanList.BanBehaviorQuitPlaceImmediately
-			d.BanList.BanBehaviorQuitIfAdmin = dNew.BanList.BanBehaviorQuitIfAdmin
-
-			d.BanList.ScoreReducePerMinute = dNew.BanList.ScoreReducePerMinute
-
-			d.BanList.ThresholdWarn = dNew.BanList.ThresholdWarn
-			d.BanList.ThresholdBan = dNew.BanList.ThresholdBan
-			d.BanList.ScoreGroupMuted = dNew.BanList.ScoreGroupMuted
-			d.BanList.ScoreGroupKicked = dNew.BanList.ScoreGroupKicked
-			d.BanList.ScoreTooManyCommand = dNew.BanList.ScoreTooManyCommand
-
-			d.BanList.JointScorePercentOfGroup = dNew.BanList.JointScorePercentOfGroup
-			d.BanList.JointScorePercentOfInviter = dNew.BanList.JointScorePercentOfInviter
-		}
-
-		d.MaxExecuteTime = dNew.MaxExecuteTime
-		if d.MaxExecuteTime == 0 {
-			d.MaxExecuteTime = 12
-		}
-
-		d.MaxCocCardGen = dNew.MaxCocCardGen
-		if d.MaxCocCardGen == 0 {
-			d.MaxCocCardGen = 5
-		}
-
-		d.PersonalReplenishRateStr = dNew.PersonalReplenishRateStr
-		if d.PersonalReplenishRateStr == "" {
-			d.PersonalReplenishRateStr = "@every 3s"
-			d.PersonalReplenishRate = rate.Every(time.Second * 3)
-		} else {
-			if parsed, errParse := utils.ParseRate(d.PersonalReplenishRateStr); errParse == nil {
-				d.PersonalReplenishRate = parsed
-			} else {
-				d.Logger.Errorf("解析PersonalReplenishRate失败: %v", errParse)
-				d.PersonalReplenishRateStr = "@every 3s"
-				d.PersonalReplenishRate = rate.Every(time.Second * 3)
-			}
-		}
-
-		d.PersonalBurst = dNew.PersonalBurst
-		if d.PersonalBurst == 0 {
-			d.PersonalBurst = 3
-		}
-
-		d.GroupReplenishRateStr = dNew.GroupReplenishRateStr
-		if d.GroupReplenishRateStr == "" {
-			d.GroupReplenishRateStr = "@every 3s"
-			d.GroupReplenishRate = rate.Every(time.Second * 3)
-		} else {
-			if parsed, errParse := utils.ParseRate(d.GroupReplenishRateStr); errParse == nil {
-				d.GroupReplenishRate = parsed
-			} else {
-				d.Logger.Errorf("解析GroupReplenishRate失败: %v", errParse)
-				d.GroupReplenishRateStr = "@every 3s"
-				d.GroupReplenishRate = rate.Every(time.Second * 3)
-			}
-		}
-
-		d.GroupBurst = dNew.GroupBurst
-		if d.GroupBurst == 0 {
-			d.GroupBurst = 3
-		}
-
 		if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
 			d.DiceMasters = []string{"UI:1001"}
 		}
@@ -2004,6 +1885,7 @@ func (d *Dice) loads() {
 			}
 		}
 		d.DiceMasters = newDiceMasters
+
 		// 装载ServiceAt
 		d.ImSession.ServiceAtNew = map[string]*GroupInfo{}
 		_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
@@ -2077,26 +1959,7 @@ func (d *Dice) loads() {
 			}
 		}
 
-		if d.VersionCode != 0 && d.VersionCode < 10000 {
-			d.CustomReplyConfigEnable = false
-		}
-
-		if d.VersionCode != 0 && d.VersionCode < 10001 {
-			d.AliveNoticeValue = "@every 3h"
-		}
-
-		if d.VersionCode != 0 && d.VersionCode < 10003 {
-			d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 10003)
-			d.LogSizeNoticeCount = 500
-			d.LogSizeNoticeEnable = true
-			d.CustomReplyConfigEnable = true
-		}
-
-		if d.VersionCode != 0 && d.VersionCode < 10004 {
-			d.AutoReloginEnable = false
-		}
-
-		if d.VersionCode != 0 && d.VersionCode < 10005 {
+		if config.VersionCode != 0 && config.VersionCode < 10005 {
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 				d.Logger.Info("正在自动升级自定义文案文件")
 				for index, text := range d.TextMapRaw["核心"]["昵称_重置"] {
@@ -2119,10 +1982,10 @@ func (d *Dice) loads() {
 		}
 
 		// 1.2 版本
-		if d.VersionCode != 0 && d.VersionCode < 10200 {
-			d.TextCmdTrustOnly = true
-			d.QQEnablePoke = true
-			d.PlayerNameWrapEnable = true
+		if config.VersionCode != 0 && config.VersionCode < 10200 {
+			config.TextCmdTrustOnly = DefaultConfig.TextCmdTrustOnly
+			config.QQEnablePoke = DefaultConfig.QQEnablePoke
+			config.PlayerNameWrapEnable = DefaultConfig.PlayerNameWrapEnable
 
 			isUI1001Master := false
 			for _, i := range d.DiceMasters {
@@ -2150,7 +2013,7 @@ func (d *Dice) loads() {
 		}
 
 		// 1.2 版本
-		if d.VersionCode != 0 && d.VersionCode < 10203 {
+		if config.VersionCode != 0 && config.VersionCode < 10203 {
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 				// 更正写反的部分
 				d.Logger.Info("正在自动升级自定义文案文件")
@@ -2166,8 +2029,8 @@ func (d *Dice) loads() {
 		}
 
 		// 1.3 版本
-		if d.VersionCode != 0 && d.VersionCode < 10300 {
-			d.JsEnable = true
+		if config.VersionCode != 0 && config.VersionCode < 10300 {
+			config.JsEnable = DefaultConfig.JsEnable
 
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 				// 更正写反的部分
@@ -2198,6 +2061,8 @@ func (d *Dice) loads() {
 			d.SaveText()
 		})
 
+		d.Config = config
+
 		// 设置全局群名缓存和用户名缓存
 		dm := d.Parent
 		now := time.Now().Unix()
@@ -2207,31 +2072,9 @@ func (d *Dice) loads() {
 
 		d.Logger.Info("serve.yaml loaded")
 	} else {
-		// 这里是没有加载到配置文件，所以写默认设置项
-		d.AutoReloginEnable = false
-		d.WorkInQQChannel = true
-		d.CustomReplyConfigEnable = false
-		d.AliveNoticeValue = "@every 3h"
 		d.Logger.Info("serve.yaml not found")
-
-		d.LogSizeNoticeCount = 500
-		d.LogSizeNoticeEnable = true
-
-		// 1.2
-		d.QQEnablePoke = true
-		d.TextCmdTrustOnly = true
-		d.PlayerNameWrapEnable = true
+		// 这里是没有加载到配置文件，所以写默认设置项
 		d.DiceMasters = []string{"UI:1001"}
-
-		// 1.3
-		d.JsEnable = true
-
-		// 1.4
-		d.MaxExecuteTime = 12
-		d.MaxCocCardGen = 5
-
-		d.QuitInactiveBatchSize = 10
-		d.QuitInactiveBatchWait = 30
 	}
 
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
@@ -2239,17 +2082,13 @@ func (d *Dice) loads() {
 		err := json.Unmarshal(data, &v)
 		if err == nil {
 			v.BanUpdatedAt = banUpdatedAt
-			d.BanList.Map.Store(id, &v)
+			d.Config.BanList.Map.Store(id, &v)
 		}
 	})
 
 	for _, i := range d.ImSession.EndPoints {
 		i.Session = d.ImSession
 		i.AdapterSetup()
-	}
-
-	if d.NoticeIDs == nil {
-		d.NoticeIDs = []string{}
 	}
 
 	if len(d.CommandPrefix) == 0 {
@@ -2261,8 +2100,7 @@ func (d *Dice) loads() {
 		}
 	}
 
-	d.VersionCode = 10300 // TODO: 记得修改！！！
-	d.LogWriter.LogLimit = d.UILogLimit
+	d.LogWriter.LogLimit = d.Config.UILogLimit
 
 	// 设置扩展选项
 	d.ApplyExtDefaultSettings()
@@ -2279,7 +2117,7 @@ func (d *Dice) SaveText() {
 	} else {
 		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
-		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
+		// ioutil.WriteFile(filepath.Join(d.RootConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
 		current, err := os.ReadFile(newFn)
 		if err != nil {
 			_ = os.WriteFile(bakFn, current, 0o644)
@@ -2293,7 +2131,7 @@ func (d *Dice) SaveText() {
 func (d *Dice) ApplyExtDefaultSettings() {
 	// 遍历两个列表
 	exts1 := map[string]*ExtDefaultSettingItem{}
-	for _, i := range d.ExtDefaultSettings {
+	for _, i := range d.Config.ExtDefaultSettings {
 		exts1[i.Name] = i
 	}
 
@@ -2306,7 +2144,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 	for k, v := range exts2 {
 		if _, exists := exts1[k]; !exists {
 			item := &ExtDefaultSettingItem{Name: k, AutoActive: v.AutoActive, DisabledCommand: map[string]bool{}}
-			d.ExtDefaultSettings = append(d.ExtDefaultSettings, item)
+			d.Config.ExtDefaultSettings = append(d.Config.ExtDefaultSettings, item)
 			exts1[k] = item
 		}
 	}
@@ -2354,13 +2192,17 @@ func (d *Dice) ApplyExtDefaultSettings() {
 
 func (d *Dice) Save(isAuto bool) {
 	if d.LastUpdatedTime != 0 {
-		a, err := yaml.Marshal(d)
+		totalConf := &struct {
+			Dice   `yaml:",inline"`
+			Config `yaml:",inline"`
+		}{*d, d.Config}
+		a, err := yaml.Marshal(totalConf)
 
 		if err == nil {
 			err := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0o644)
 			if err == nil {
 				now := time.Now()
-				d.LastSavedTime = &now
+				d.Config.LastSavedTime = &now
 				if isAuto {
 					d.Logger.Info("自动保存")
 				} else {
@@ -2474,7 +2316,7 @@ func (d *Dice) Save(isAuto bool) {
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测
-	// model.BanMapSet(d.DBData, d.BanList.MapToJSON())
+	// model.BanMapSet(d.DBData, d.Config.BanList.MapToJSON())
 
 	// endpoint数据额外更新到数据库
 	for _, ep := range d.ImSession.EndPoints {

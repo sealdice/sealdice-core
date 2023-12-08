@@ -476,12 +476,12 @@ func (d *Dice) JsInit() {
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
 	loop.Start()
-	d.JsEnable = true
+	d.Config.JsEnable = true
 	d.Logger.Info("已加载JS环境")
 }
 
 func (d *Dice) JsShutdown() {
-	d.JsEnable = false
+	d.Config.JsEnable = false
 	d.jsClear()
 	d.Logger.Info("已关闭JS环境")
 }
@@ -654,7 +654,7 @@ func (d *Dice) JsExtSettingVacuum() {
 	}
 
 	idxToDel := []int{}
-	for k, v := range d.ExtDefaultSettings {
+	for k, v := range d.Config.ExtDefaultSettings {
 		if !v.ExtItem.IsJsExt {
 			continue
 		}
@@ -665,7 +665,7 @@ func (d *Dice) JsExtSettingVacuum() {
 
 	for i := len(idxToDel) - 1; i >= 0; i-- {
 		idx := idxToDel[i]
-		d.ExtDefaultSettings = append(d.ExtDefaultSettings[:idx], d.ExtDefaultSettings[idx+1:]...)
+		d.Config.ExtDefaultSettings = append(d.Config.ExtDefaultSettings[:idx], d.Config.ExtDefaultSettings[idx+1:]...)
 	}
 
 	panic("DONT USE ME")
@@ -827,7 +827,7 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 		}
 		jsInfo.UpdateUrls = updateUrls
 	}
-	jsInfo.Enable = !d.DisabledJsScripts[jsInfo.Name]
+	jsInfo.Enable = !d.Config.DisabledJsScripts[jsInfo.Name]
 	return jsInfo, nil
 }
 
@@ -891,7 +891,7 @@ func JsDelete(_ *Dice, jsInfo *JsScriptInfo) {
 }
 
 func JsEnable(d *Dice, jsInfoName string) {
-	delete(d.DisabledJsScripts, jsInfoName)
+	delete(d.Config.DisabledJsScripts, jsInfoName)
 	for _, jsInfo := range d.JsScriptList {
 		if jsInfo.Name == jsInfoName {
 			jsInfo.Enable = true
@@ -900,7 +900,7 @@ func JsEnable(d *Dice, jsInfoName string) {
 }
 
 func JsDisable(d *Dice, jsInfoName string) {
-	d.DisabledJsScripts[jsInfoName] = true
+	d.Config.DisabledJsScripts[jsInfoName] = true
 	for _, jsInfo := range d.JsScriptList {
 		if jsInfo.Name == jsInfoName {
 			jsInfo.Enable = false

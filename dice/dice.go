@@ -106,7 +106,7 @@ type ExtInfo struct {
 	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
-type DiceConfig struct { //nolint:revive
+type RootConfig struct {
 	Name       string `yaml:"name"`       // 名称，默认为default
 	DataDir    string `yaml:"dataDir"`    // 数据路径，为./data/{name}，例如data/default
 	IsLogPrint bool   `yaml:"isLogPrint"` // 是否在控制台打印log
@@ -129,87 +129,38 @@ func (x ExtDefaultSettingItemSlice) Less(i, _ int) bool { return x[i].Name == "c
 func (x ExtDefaultSettingItemSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 type Dice struct {
-	ImSession               *IMSession             `yaml:"imSession" jsbind:"imSession"`
-	CmdMap                  CmdMapCls              `yaml:"-" json:"-"`
-	ExtList                 []*ExtInfo             `yaml:"-"`
-	RollParser              *DiceRollParser        `yaml:"-"`
-	CommandCompatibleMode   bool                   `yaml:"commandCompatibleMode"`
-	LastSavedTime           *time.Time             `yaml:"lastSavedTime"`
-	LastUpdatedTime         int64                  `yaml:"-"`
-	TextMap                 map[string]*wr.Chooser `yaml:"-"`
-	BaseConfig              DiceConfig             `yaml:"-"`
-	DBData                  *sqlx.DB               `yaml:"-"`                                    // 数据库对象
-	DBLogs                  *sqlx.DB               `yaml:"-"`                                    // 数据库对象
-	Logger                  *zap.SugaredLogger     `yaml:"-"`                                    // 日志
-	LogWriter               *logger.WriterX        `yaml:"-"`                                    // 用于api的log对象
-	IsDeckLoading           bool                   `yaml:"-"`                                    // 正在加载中
-	DeckList                []*DeckInfo            `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
-	CommandPrefix           []string               `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
-	DiceMasters             []string               `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
-	NoticeIDs               []string               `yaml:"noticeIds"`                            // 通知ID
-	OnlyLogCommandInGroup   bool                   `yaml:"onlyLogCommandInGroup"`                // 日志中仅记录命令
-	OnlyLogCommandInPrivate bool                   `yaml:"onlyLogCommandInPrivate"`              // 日志中仅记录命令
-	VersionCode             int                    `json:"versionCode"`                          // 版本ID(配置文件)
-	MessageDelayRangeStart  float64                `yaml:"messageDelayRangeStart"`               // 指令延迟区间
-	MessageDelayRangeEnd    float64                `yaml:"messageDelayRangeEnd"`
-	WorkInQQChannel         bool                   `yaml:"workInQQChannel"`
-	QQChannelAutoOn         bool                   `yaml:"QQChannelAutoOn"`         // QQ频道中自动开启(默认不开)
-	QQChannelLogMessage     bool                   `yaml:"QQChannelLogMessage"`     // QQ频道中记录消息(默认不开)
-	QQEnablePoke            bool                   `yaml:"QQEnablePoke"`            // 启用戳一戳
-	TextCmdTrustOnly        bool                   `yaml:"textCmdTrustOnly"`        // 只允许信任用户或master使用text指令
-	IgnoreUnaddressedBotCmd bool                   `yaml:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
-	UILogLimit              int64                  `yaml:"UILogLimit"`
-	FriendAddComment        string                 `yaml:"friendAddComment"` // 加好友验证信息
-	MasterUnlockCode        string                 `yaml:"-"`                // 解锁码，每20分钟变化一次，使用后立即变化
-	MasterUnlockCodeTime    int64                  `yaml:"-"`
-	CustomReplyConfigEnable bool                   `yaml:"customReplyConfigEnable"`
-	CustomReplyConfig       []*ReplyConfig         `yaml:"-"`
-	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"`    // 启用自动重新登录
-	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"`    // 拒绝加入新群
-	UpgradeWindowID         string                 `yaml:"upgradeWindowId"`      // 执行升级指令的窗口
-	UpgradeEndpointID       string                 `yaml:"upgradeEndpointId"`    // 执行升级指令的端点
-	BotExtFreeSwitch        bool                   `yaml:"botExtFreeSwitch"`     // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
-	TrustOnlyMode           bool                   `yaml:"trustOnlyMode"`        // 只有信任的用户/master可以拉群和使用
-	AliveNoticeEnable       bool                   `yaml:"aliveNoticeEnable"`    // 定时通知
-	AliveNoticeValue        string                 `yaml:"aliveNoticeValue"`     // 定时通知间隔
-	ReplyDebugMode          bool                   `yaml:"replyDebugMode"`       // 回复调试
-	PlayerNameWrapEnable    bool                   `yaml:"playerNameWrapEnable"` // 启用玩家名称外框
+	// 由于被导出的原因，暂时不迁移至 config
+	ImSession *IMSession `yaml:"imSession" jsbind:"imSession" json:"-"`
 
-	RateLimitEnabled         bool       `yaml:"rateLimitEnabled"`      // 启用频率限制 (刷屏限制)
-	PersonalReplenishRateStr string     `yaml:"personalReplenishRate"` // 个人刷屏警告速率，字符串格式
-	PersonalReplenishRate    rate.Limit `yaml:"-"`                     // 个人刷屏警告速率
-	GroupReplenishRateStr    string     `yaml:"groupReplenishRate"`    // 群组刷屏警告速率，字符串格式
-	GroupReplenishRate       rate.Limit `yaml:"-"`                     // 群组刷屏警告速率
-	PersonalBurst            int64      `yaml:"personalBurst"`         // 个人自定义上限
-	GroupBurst               int64      `yaml:"groupBurst"`            // 群组自定义上限
+	CmdMap          CmdMapCls              `yaml:"-" json:"-"`
+	ExtList         []*ExtInfo             `yaml:"-"`
+	RollParser      *DiceRollParser        `yaml:"-"`
+	LastUpdatedTime int64                  `yaml:"-"`
+	TextMap         map[string]*wr.Chooser `yaml:"-"`
+	BaseConfig      RootConfig             `yaml:"-"`
+	DBData          *sqlx.DB               `yaml:"-"` // 数据库对象
+	DBLogs          *sqlx.DB               `yaml:"-"` // 数据库对象
+	Logger          *zap.SugaredLogger     `yaml:"-"` // 日志
+	LogWriter       *logger.WriterX        `yaml:"-"` // 用于api的log对象
+	IsDeckLoading   bool                   `yaml:"-"` // 正在加载中
 
-	QuitInactiveThreshold time.Duration `yaml:"quitInactiveThreshold"` // 退出不活跃群组的时间阈值
-	quitInactiveCronEntry cron.EntryID
-	QuitInactiveBatchSize int64 `yaml:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
-	QuitInactiveBatchWait int64 `yaml:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
-
-	DefaultCocRuleIndex int64 `yaml:"defaultCocRuleIndex" jsbind:"defaultCocRuleIndex"` // 默认coc index
-	MaxExecuteTime      int64 `yaml:"maxExecuteTime" jsbind:"maxExecuteTime"`           // 最大骰点次数
-	MaxCocCardGen       int64 `yaml:"maxCocCardGen" jsbind:"maxCocCardGen"`             // 最大coc制卡数
-
-	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
-
-	BanList *BanListInfo `yaml:"banList"` //
+	// 由于被导出的原因，暂时不迁移至 config
+	DeckList      []*DeckInfo `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
+	CommandPrefix []string    `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
+	DiceMasters   []string    `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
 
 	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
 	ConfigManager   *ConfigManager             `yaml:"-"`
 	Parent          *DiceManager               `yaml:"-"`
 
-	CocExtraRules     map[int]*CocRuleInfo   `yaml:"-" json:"cocExtraRules"`
-	Cron              *cron.Cron             `yaml:"-" json:"-"`
-	AliveNoticeEntry  cron.EntryID           `yaml:"-" json:"-"`
-	JsEnable          bool                   `yaml:"jsEnable" json:"jsEnable"`
-	DisabledJsScripts map[string]bool        `yaml:"disabledJsScripts" json:"disabledJsScripts"` // 作为set
-	JsPrinter         *PrinterFunc           `yaml:"-" json:"-"`
-	JsRequire         *require.RequireModule `yaml:"-" json:"-"`
-	JsLoop            *eventloop.EventLoop   `yaml:"-" json:"-"`
-	JsScriptList      []*JsScriptInfo        `yaml:"-" json:"-"`
+	CocExtraRules    map[int]*CocRuleInfo   `yaml:"-" json:"cocExtraRules"`
+	Cron             *cron.Cron             `yaml:"-" json:"-"`
+	AliveNoticeEntry cron.EntryID           `yaml:"-" json:"-"`
+	JsPrinter        *PrinterFunc           `yaml:"-" json:"-"`
+	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
+	JsLoop           *eventloop.EventLoop   `yaml:"-" json:"-"`
+	JsScriptList     []*JsScriptInfo        `yaml:"-" json:"-"`
 	// 内置脚本摘要表，用于判断内置脚本是否有更新
 	JsBuiltinDigestSet map[string]bool `yaml:"-" json:"-"`
 	// 当前在加载的脚本路径，用于关联 jsScriptInfo 和 ExtInfo
@@ -220,65 +171,15 @@ type Dice struct {
 
 	RunAfterLoaded []func() `yaml:"-" json:"-"`
 
-	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable"` // 开启日志数量提示
-	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount"`  // 日志数量提示阈值，默认500
-
-	IsAlreadyLoadConfig  bool                 `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 	deckCommandItemsList DeckCommandListItems // 牌堆key信息，辅助作为模糊搜索使用
 
 	UIEndpoint *EndPointInfo `yaml:"-" json:"-"` // UI Endpoint
 
-	MailEnable   bool   `json:"mailEnable" yaml:"mailEnable"`     // 是否启用
-	MailFrom     string `json:"mailFrom" yaml:"mailFrom"`         // 邮箱来源
-	MailPassword string `json:"mailPassword" yaml:"mailPassword"` // 邮箱密钥/密码
-	MailSMTP     string `json:"mailSmtp" yaml:"mailSmtp"`         // 邮箱 smtp 地址
+	CensorManager *CensorManager `json:"-" yaml:"-"`
 
-	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
-
-	EnableCensor         bool                   `json:"enableCensor" yaml:"enableCensor"` // 启用敏感词审查
-	CensorManager        *CensorManager         `json:"-" yaml:"-"`
-	CensorMode           CensorMode             `json:"censorMode" yaml:"censorMode"`
-	CensorThresholds     map[censor.Level]int   `json:"censorThresholds" yaml:"censorThresholds"` // 敏感词阈值
-	CensorHandlers       map[censor.Level]uint8 `json:"censorHandlers" yaml:"censorHandlers"`
-	CensorScores         map[censor.Level]int   `json:"censorScores" yaml:"censorScores"`                 // 敏感词怒气值
-	CensorCaseSensitive  bool                   `json:"censorCaseSensitive" yaml:"censorCaseSensitive"`   // 敏感词大小写敏感
-	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
-	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
+	Config              Config `json:"-" yaml:"-"`
+	IsAlreadyLoadConfig bool   `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 }
-
-type CensorMode int
-
-const (
-	OnlyOutputReply CensorMode = iota
-	OnlyInputCommand
-	AllInput
-)
-
-const (
-	// SendWarning 发送警告
-	SendWarning CensorHandler = iota
-	// SendNotice 向通知列表/邮件发送通知
-	SendNotice
-	// BanUser 拉黑用户
-	BanUser
-	// BanGroup 拉黑群
-	BanGroup
-	// BanInviter 拉黑邀请人
-	BanInviter
-	// AddScore 增加怒气值
-	AddScore
-)
-
-var CensorHandlerText = map[CensorHandler]string{
-	SendWarning: "SendWarning",
-	SendNotice:  "SendNotice",
-	BanUser:     "BanUser",
-	BanGroup:    "BanGroup",
-	BanInviter:  "BanInviter",
-	AddScore:    "AddScore",
-}
-
-type CensorHandler int
 
 func (d *Dice) MarkModified() {
 	d.LastUpdatedTime = time.Now().Unix()
@@ -316,10 +217,7 @@ func (d *Dice) Init() {
 	log := logger.Init(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
 	d.Logger = log.Logger
 	d.LogWriter = log.WX
-	d.BanList = &BanListInfo{Parent: d}
-	d.BanList.Init()
 
-	d.CommandCompatibleMode = true
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
@@ -331,16 +229,16 @@ func (d *Dice) Init() {
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
 	d.loads()
-	d.BanList.Loads()
-	d.BanList.AfterLoads()
+	d.Config.BanList.Loads()
+	d.Config.BanList.AfterLoads()
 	d.IsAlreadyLoadConfig = true
 
-	if d.EnableCensor {
+	if d.Config.EnableCensor {
 		d.NewCensorManager()
 	}
 
 	// 创建js运行时
-	if d.JsEnable {
+	if d.Config.JsEnable {
 		d.Logger.Info("js扩展支持：开启")
 		d.JsInit()
 	} else {
@@ -426,20 +324,20 @@ func (d *Dice) Init() {
 	go refreshGroupInfo()
 
 	d.ApplyAliveNotice()
-	if d.JsEnable {
+	if d.Config.JsEnable {
 		d.JsBuiltinDigestSet = make(map[string]bool)
 		d.JsLoadScripts()
 	} else {
 		d.Logger.Info("js扩展支持已关闭，跳过js脚本的加载")
 	}
 
-	if d.UpgradeWindowID != "" {
+	if d.Config.UpgradeWindowID != "" {
 		go func() {
 			defer ErrorLogAndContinue(d)
 
 			var ep *EndPointInfo
 			for _, _ep := range d.ImSession.EndPoints {
-				if _ep.ID == d.UpgradeEndpointID {
+				if _ep.ID == d.Config.UpgradeEndpointID {
 					ep = _ep
 					break
 				}
@@ -461,16 +359,16 @@ func (d *Dice) Init() {
 
 				// 可以了，发送消息
 				ctx := &MsgContext{Dice: d, EndPoint: ep, Session: d.ImSession}
-				isGroup := strings.Contains(d.UpgradeWindowID, "-Group:")
+				isGroup := strings.Contains(d.Config.UpgradeWindowID, "-Group:")
 				if isGroup {
-					ReplyGroup(ctx, &Message{GroupID: d.UpgradeWindowID}, text)
+					ReplyGroup(ctx, &Message{GroupID: d.Config.UpgradeWindowID}, text)
 				} else {
-					ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: d.UpgradeWindowID}}, text)
+					ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: d.Config.UpgradeWindowID}}, text)
 				}
 
 				d.Logger.Infof("升级完成，当前版本: %s", VERSION)
-				d.UpgradeWindowID = ""
-				d.UpgradeEndpointID = ""
+				d.Config.UpgradeWindowID = ""
+				d.Config.UpgradeEndpointID = ""
 				d.MarkModified()
 				d.Save(false)
 				break
@@ -647,18 +545,18 @@ func (d *Dice) MasterRemove(uid string) bool {
 func (d *Dice) UnlockCodeUpdate(force bool) {
 	now := time.Now().Unix()
 	// 大于20分钟重置
-	if now-d.MasterUnlockCodeTime > 20*60 || force {
-		d.MasterUnlockCode = ""
+	if now-d.Config.MasterUnlockCodeTime > 20*60 || force {
+		d.Config.MasterUnlockCode = DefaultConfig.MasterUnlockCode
 	}
-	if d.MasterUnlockCode == "" {
-		d.MasterUnlockCode = RandStringBytesMaskImprSrcSB(8)
-		d.MasterUnlockCodeTime = now
+	if d.Config.MasterUnlockCode == "" {
+		d.Config.MasterUnlockCode = RandStringBytesMaskImprSrcSB(8)
+		d.Config.MasterUnlockCodeTime = now
 	}
 }
 
 func (d *Dice) UnlockCodeVerify(code string) bool {
 	d.UnlockCodeUpdate(false)
-	return code == d.MasterUnlockCode
+	return code == d.Config.MasterUnlockCode
 }
 
 func (d *Dice) IsMaster(uid string) bool {
@@ -675,8 +573,8 @@ func (d *Dice) ApplyAliveNotice() {
 	if d.Cron != nil && d.AliveNoticeEntry != 0 {
 		d.Cron.Remove(d.AliveNoticeEntry)
 	}
-	if d.AliveNoticeEnable {
-		entry, err := d.Cron.AddFunc(d.AliveNoticeValue, func() {
+	if d.Config.AliveNoticeEnable {
+		entry, err := d.Cron.AddFunc(d.Config.AliveNoticeValue, func() {
 			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)), false)
 		})
 		if err == nil {
@@ -747,19 +645,19 @@ var chsS2T = sat.DefaultDict()
 
 func (d *Dice) ResetQuitInactiveCron() {
 	dm := d.Parent
-	if d.quitInactiveCronEntry > 0 {
-		dm.Cron.Remove(d.quitInactiveCronEntry)
-		d.quitInactiveCronEntry = 0
+	if d.Config.quitInactiveCronEntry > 0 {
+		dm.Cron.Remove(d.Config.quitInactiveCronEntry)
+		d.Config.quitInactiveCronEntry = DefaultConfig.quitInactiveCronEntry
 	}
 
-	if d.QuitInactiveThreshold > 0 {
+	if d.Config.QuitInactiveThreshold > 0 {
 		var err error
-		d.quitInactiveCronEntry, err = dm.Cron.AddFunc("0 4 * * *", func() {
-			thr := time.Now().Add(-d.QuitInactiveThreshold)
-			hint := thr.Add(d.QuitInactiveThreshold / 10) // 进入退出判定线的9/10开始提醒
+		d.Config.quitInactiveCronEntry, err = dm.Cron.AddFunc("0 4 * * *", func() {
+			thr := time.Now().Add(-d.Config.QuitInactiveThreshold)
+			hint := thr.Add(d.Config.QuitInactiveThreshold / 10) // 进入退出判定线的9/10开始提醒
 			d.ImSession.LongTimeQuitInactiveGroup(thr, hint,
-				int(d.QuitInactiveBatchWait),
-				int(d.QuitInactiveBatchSize))
+				int(d.Config.QuitInactiveBatchWait),
+				int(d.Config.QuitInactiveBatchSize))
 		})
 		if err != nil {
 			d.Logger.Errorf("创建自动清理群聊cron任务失败: %v", err)

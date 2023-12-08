@@ -852,7 +852,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 				pa.GoCqhttpLastRestrictedTime = now
 				if riskCount >= 2 {
 					riskCount = 0
-					if dice.AutoReloginEnable {
+					if dice.Config.AutoReloginEnable {
 						// 大于5分钟触发
 						if now-pa.GoCqLastAutoLoginTime > 5*60 {
 							dice.Logger.Warnf("自动重启: 达到风控重启阈值 <%s>(%s)", conn.Nickname, conn.UserID)

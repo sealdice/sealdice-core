@@ -682,7 +682,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: textHelp,
 		Help:      "文本模板指令:\n" + textHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.Dice.TextCmdTrustOnly {
+			if ctx.Dice.Config.TextCmdTrustOnly {
 				// 检查master和信任权限
 				refuse := ctx.PrivilegeLevel != 100
 				if refuse {
@@ -770,7 +770,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			if m == 0 {
 				m = int(getDefaultDicePoints(ctx))
 			}
-			if t > int(ctx.Dice.MaxExecuteTime) {
+			if t > int(ctx.Dice.Config.MaxExecuteTime) {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -860,7 +860,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 
 				// NOTE(Xiangze Li): 允许创建更多轮数。使用洗牌算法后并不会很重复计算
-				// if roulette.Time > int(ctx.Dice.MaxExecuteTime) {
+				// if roulette.Time > int(ctx.Dice.Config.MaxExecuteTime) {
 				// 	ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 				// 	return CmdExecuteResult{Matched: true, Solved: true}
 				// }

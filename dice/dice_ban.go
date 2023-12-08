@@ -105,7 +105,7 @@ func (i *BanListInfo) AfterLoads() {
 			return
 		}
 		var toDelete []string
-		d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
+		d.Config.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
 			if v.Rank == BanRankNormal || v.Rank == BanRankWarn {
 				v.Score -= i.ScoreReducePerMinute
 				if v.Score <= 0 {
@@ -121,7 +121,7 @@ func (i *BanListInfo) AfterLoads() {
 			_ = model.BanItemDel(d.DBData, j)
 		}
 
-		d.BanList.SaveChanged(d)
+		d.Config.BanList.SaveChanged(d)
 	})
 }
 
@@ -281,7 +281,7 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 			if ctx != nil {
 				var isWhiteGroup bool
 				d := ctx.Dice
-				value, exists := d.BanList.Map.Load(place)
+				value, exists := d.Config.BanList.Map.Load(place)
 				if exists {
 					if value.Rank == BanRankTrusted {
 						isWhiteGroup = true
@@ -400,7 +400,7 @@ func (d *Dice) GetBanList() []*BanListInfoItem {
 }
 
 func (i *BanListInfo) SaveChanged(d *Dice) {
-	d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
+	d.Config.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
 		if v.UpdatedAt != 0 {
 			data, err := json.Marshal(v)
 			if err == nil {
