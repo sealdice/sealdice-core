@@ -80,7 +80,7 @@ func GetExtensionDesc(ei *ExtInfo) string {
 
 func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 	if i.IsJsExt {
-		if d.JsEnable {
+		if d.Config.JsEnable {
 			waitRun := make(chan int, 1)
 			d.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
 				defer func() {

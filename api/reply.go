@@ -23,10 +23,10 @@ func customReplySave(c echo.Context) error {
 	}
 
 	v.Clean()
-	for index, i := range myDice.CustomReplyConfig {
+	for index, i := range myDice.Config.CustomReplyConfig {
 		if i.Filename == v.Filename {
-			myDice.CustomReplyConfig[index].Enable = v.Enable
-			myDice.CustomReplyConfig[index].Items = v.Items
+			myDice.Config.CustomReplyConfig[index].Enable = v.Enable
+			myDice.Config.CustomReplyConfig[index].Items = v.Items
 			break
 		}
 	}
@@ -54,7 +54,7 @@ func customReplyFileList(c echo.Context) error {
 	}
 
 	var items []*ReplyConfigInfo
-	for _, i := range myDice.CustomReplyConfig {
+	for _, i := range myDice.Config.CustomReplyConfig {
 		items = append(items, &ReplyConfigInfo{
 			Enable:   i.Enable,
 			Filename: i.Filename,
@@ -200,7 +200,7 @@ func customReplyDebugModeGet(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"value": myDice.ReplyDebugMode,
+		"value": myDice.Config.ReplyDebugMode,
 	})
 }
 
@@ -217,9 +217,9 @@ func customReplyDebugModeSet(c echo.Context) error {
 		return c.String(430, err.Error())
 	}
 
-	myDice.ReplyDebugMode = v.Value
+	myDice.Config.ReplyDebugMode = v.Value
 	myDice.MarkModified()
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"value": myDice.ReplyDebugMode,
+		"value": myDice.Config.ReplyDebugMode,
 	})
 }

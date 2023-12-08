@@ -56,9 +56,9 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		group.Active = true
 	} else {
 		// 设定扩展情况
-		sort.Sort(ExtDefaultSettingItemSlice(session.Parent.ExtDefaultSettings))
+		sort.Sort(ExtDefaultSettingItemSlice(session.Parent.Config.ExtDefaultSettings))
 		var extLst []*ExtInfo
-		for _, i := range session.Parent.ExtDefaultSettings {
+		for _, i := range session.Parent.Config.ExtDefaultSettings {
 			if i.ExtItem != nil {
 				if i.AutoActive {
 					extLst = append(extLst, i.ExtItem)
@@ -74,7 +74,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			ValueMap:         lockfree.NewHashMap(),
 			DiceIDActiveMap:  new(SyncMap[string, bool]),
 			DiceIDExistsMap:  new(SyncMap[string, bool]),
-			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
+			CocRuleIndex:     int(session.Parent.Config.DefaultCocRuleIndex),
 			UpdatedAtTime:    time.Now().Unix(),
 		}
 		group = session.ServiceAtNew[groupID]
@@ -168,7 +168,7 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		ctx.DelegateText = ""
 	}
 
-	if ctx.Dice.RateLimitEnabled && msg.Platform == "QQ" {
+	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
 		if !spamCheckPerson(ctx, msg) {
 			spamCheckGroup(ctx, msg)
 		}
@@ -178,7 +178,7 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	if d != nil {
 		d.Logger.Infof("发给(群%s): %s", msg.GroupID, text)
 		// 敏感词拦截：回复（群）
-		if d.EnableCensor && d.CensorMode == OnlyOutputReply {
+		if d.Config.EnableCensor && d.Config.CensorMode == OnlyOutputReply {
 			// 先拿掉海豹码和CQ码再检查敏感词
 			checkText := sealCodeRe.ReplaceAllString(text, "")
 			checkText = cqCodeRe.ReplaceAllString(checkText, "")
@@ -235,7 +235,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		ctx.DelegateText = ""
 	}
 
-	if ctx.Dice.RateLimitEnabled && msg.Platform == "QQ" {
+	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
 		spamCheckPerson(ctx, msg)
 	}
 
@@ -243,7 +243,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	if d != nil {
 		d.Logger.Infof("发给(帐号%s): %s", msg.Sender.UserID, text)
 		// 敏感词拦截：回复（个人）
-		if d.EnableCensor && d.CensorMode == OnlyOutputReply {
+		if d.Config.EnableCensor && d.Config.CensorMode == OnlyOutputReply {
 			// 先拿掉海豹码和CQ码再检查敏感词
 			checkText := sealCodeRe.ReplaceAllString(text, "")
 			checkText = cqCodeRe.ReplaceAllString(checkText, "")
@@ -432,16 +432,16 @@ func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
 
 	if ctx.Player.RateLimiter == nil {
 		ctx.Player.RateLimitWarned = false
-		if ctx.Dice.PersonalReplenishRateStr == "" {
-			ctx.Dice.PersonalReplenishRateStr = "@every 3s"
-			ctx.Dice.PersonalReplenishRate = rate.Every(time.Second * 3)
+		if ctx.Dice.Config.PersonalReplenishRateStr == "" {
+			ctx.Dice.Config.PersonalReplenishRateStr = DefaultConfig.PersonalReplenishRateStr
+			ctx.Dice.Config.PersonalReplenishRate = DefaultConfig.PersonalReplenishRate
 		}
-		if ctx.Dice.PersonalBurst == 0 {
-			ctx.Dice.PersonalBurst = 3
+		if ctx.Dice.Config.PersonalBurst == 0 {
+			ctx.Dice.Config.PersonalBurst = DefaultConfig.PersonalBurst
 		}
 		ctx.Player.RateLimiter = rate.NewLimiter(
-			ctx.Dice.PersonalReplenishRate,
-			int(ctx.Dice.PersonalBurst),
+			ctx.Dice.Config.PersonalReplenishRate,
+			int(ctx.Dice.Config.PersonalBurst),
 		)
 	}
 
@@ -451,7 +451,7 @@ func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
 	}
 
 	if ctx.Player.RateLimitWarned {
-		ctx.Dice.BanList.AddScoreByCommandSpam(ctx.Player.UserID, msg.GroupID, ctx)
+		ctx.Dice.Config.BanList.AddScoreByCommandSpam(ctx.Player.UserID, msg.GroupID, ctx)
 	} else {
 		ctx.Player.RateLimitWarned = true
 		replyToSenderRawNoCheck(
@@ -473,16 +473,16 @@ func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
 
 	if ctx.Group.RateLimiter == nil {
 		ctx.Group.RateLimitWarned = false
-		if ctx.Dice.GroupReplenishRateStr == "" {
-			ctx.Dice.GroupReplenishRateStr = "@every 3s"
-			ctx.Dice.GroupReplenishRate = rate.Every(time.Second * 3)
+		if ctx.Dice.Config.GroupReplenishRateStr == "" {
+			ctx.Dice.Config.GroupReplenishRateStr = DefaultConfig.GroupReplenishRateStr
+			ctx.Dice.Config.GroupReplenishRate = DefaultConfig.GroupReplenishRate
 		}
-		if ctx.Dice.GroupBurst == 0 {
-			ctx.Dice.GroupBurst = 3
+		if ctx.Dice.Config.GroupBurst == 0 {
+			ctx.Dice.Config.GroupBurst = DefaultConfig.GroupBurst
 		}
 		ctx.Group.RateLimiter = rate.NewLimiter(
-			ctx.Dice.GroupReplenishRate,
-			int(ctx.Dice.GroupBurst),
+			ctx.Dice.Config.GroupReplenishRate,
+			int(ctx.Dice.Config.GroupBurst),
 		)
 	}
 
@@ -493,7 +493,7 @@ func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
 
 	// If not allow
 	if ctx.Group.RateLimitWarned {
-		ctx.Dice.BanList.AddScoreByCommandSpam(ctx.Group.GroupID, msg.GroupID, ctx)
+		ctx.Dice.Config.BanList.AddScoreByCommandSpam(ctx.Group.GroupID, msg.GroupID, ctx)
 	} else {
 		ctx.Group.RateLimitWarned = true
 		replyToSenderRawNoCheck(
