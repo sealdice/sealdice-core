@@ -394,7 +394,7 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		pcName = strings.ReplaceAll(pcName, `\f`, "")
 
 		VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", pcName))
-		if ctx.Dice != nil && !ctx.Dice.PlayerNameWrapEnable {
+		if ctx.Dice != nil && !ctx.Dice.Config.PlayerNameWrapEnable {
 			VarSetValueStr(ctx, "$t玩家", pcName)
 		}
 		VarSetValueStr(ctx, "$t玩家_RAW", pcName)

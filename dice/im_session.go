@@ -430,11 +430,11 @@ func (ep *EndPointInfo) StatsDump(d *Dice) {
 type PlayerVariablesItem model.PlayerVariablesItem
 
 type IMSession struct {
-	Parent    *Dice           `yaml:"-"`
+	Parent    *Dice           `json:"-" yaml:"-"`
 	EndPoints []*EndPointInfo `yaml:"endPoints"`
 
 	ServiceAtNew   map[string]*GroupInfo           `json:"servicesAt" yaml:"-"`
-	PlayerVarsData map[string]*PlayerVariablesItem `yaml:"-"` // 感觉似乎没有什么存本地的必要
+	PlayerVarsData map[string]*PlayerVariablesItem `json:"-" yaml:"-"` // 感觉似乎没有什么存本地的必要
 }
 
 type MsgContext struct {
@@ -487,7 +487,7 @@ func (ctx *MsgContext) fillPrivilege(msg *Message) int {
 		ctx.GroupRoleLevel = ctx.PrivilegeLevel
 
 		// 加入黑名单相关权限
-		if val, exists := ctx.Dice.BanList.Map.Load(ctx.Player.UserID); exists {
+		if val, exists := ctx.Dice.Config.BanList.Map.Load(ctx.Player.UserID); exists {
 			switch val.Rank {
 			case BanRankBanned:
 				ctx.PrivilegeLevel = -30
@@ -525,7 +525,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// 注意: 此处必须开启，不然下面mctx.player取不到
 			autoOn := true
 			if msg.Platform == "QQ-CH" {
-				autoOn = d.QQChannelAutoOn
+				autoOn = d.Config.QQChannelAutoOn
 			}
 			group = SetBotOnAtGroup(mctx, msg.GroupID)
 			group.Active = autoOn
@@ -563,10 +563,10 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				mustLoadUser = true
 			}
 			// 开启reply时，必须加载信息
-			// d.CustomReplyConfigEnable
+			// d.Config.CustomReplyConfigEnable
 			extReply := group.ExtGetActive("reply")
 			if extReply != nil {
-				for _, i := range d.CustomReplyConfig {
+				for _, i := range d.Config.CustomReplyConfig {
 					if i.Enable {
 						mustLoadUser = true
 						break
@@ -667,7 +667,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		if maybeCommand {
 			// 兼容模式检查
 			// 是的，永远使用兼容模式
-			if true || d.CommandCompatibleMode {
+			if true || d.Config.CommandCompatibleMode {
 				for k := range d.CmdMap {
 					cmdLst = append(cmdLst, k)
 				}
@@ -721,13 +721,13 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				log.Infof("收到群(%s)内<%s>(%s)的指令: %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 			} else {
 				doLog := true
-				if d.OnlyLogCommandInGroup {
+				if d.Config.OnlyLogCommandInGroup {
 					// 检查上级选项
 					doLog = false
 				}
 				if doLog {
 					// 检查QQ频道的独立选项
-					if msg.Platform == "QQ-CH" && (!d.QQChannelLogMessage) {
+					if msg.Platform == "QQ-CH" && (!d.Config.QQChannelLogMessage) {
 						doLog = false
 					}
 				}
@@ -739,7 +739,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		}
 
 		// 敏感词拦截：全部输入
-		if mctx.IsCurGroupBotOn && d.EnableCensor && d.CensorMode == AllInput {
+		if mctx.IsCurGroupBotOn && d.Config.EnableCensor && d.Config.CensorMode == AllInput {
 			hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
 			if needToTerminate {
 				return
@@ -771,7 +771,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		if msg.MessageType == "private" {
 			if mctx.CommandID != 0 {
 				log.Infof("收到<%s>(%s)的私聊指令: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
-			} else if !d.OnlyLogCommandInPrivate {
+			} else if !d.Config.OnlyLogCommandInPrivate {
 				log.Infof("收到<%s>(%s)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 			}
 		}
@@ -788,7 +788,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				}()
 
 				// 敏感词拦截：命令输入
-				if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.EnableCensor && d.CensorMode == OnlyInputCommand {
+				if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.Config.EnableCensor && d.Config.CensorMode == OnlyInputCommand {
 					hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
 					if needToTerminate {
 						return
@@ -955,8 +955,8 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 			// 防止骰子从未发言过的新加群被立即清理掉
 			continue
 		}
-		if s.Parent.BanList != nil {
-			if info := s.Parent.BanList.GetByID(grp.GroupID); info != nil {
+		if s.Parent.Config.BanList != nil {
+			if info := s.Parent.Config.BanList.GetByID(grp.GroupID); info != nil {
 				if info.Rank > BanRankNormal {
 					continue // 信任等级高于普通的不清理
 				}
@@ -1008,7 +1008,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	var isBanGroup, isWhiteGroup bool
 	// log.Info("check ban ", msg.MessageType, " ", msg.GroupID, " ", ctx.PrivilegeLevel)
 	if msg.MessageType == "group" {
-		value, exists := d.BanList.Map.Load(msg.GroupID)
+		value, exists := d.Config.BanList.Map.Load(msg.GroupID)
 		if exists {
 			if value.Rank == BanRankBanned {
 				isBanGroup = true
@@ -1035,7 +1035,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 
 	if ctx.PrivilegeLevel == -30 {
 		groupLevel := ctx.GroupRoleLevel
-		if d.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
+		if d.Config.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
 			groupID := msg.GroupID
 			notReply = true
@@ -1065,7 +1065,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 					ctx.Notice(noticeMsg)
 				}
 			}
-		} else if d.BanList.BanBehaviorQuitPlaceImmediately && msg.MessageType == "group" {
+		} else if d.Config.BanList.BanBehaviorQuitPlaceImmediately && msg.MessageType == "group" {
 			notReply = true
 			// 黑名单用户 - 立即退出所在群
 			groupID := msg.GroupID
@@ -1074,13 +1074,13 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 			} else {
 				banQuitGroup()
 			}
-		} else if d.BanList.BanBehaviorRefuseReply {
+		} else if d.Config.BanList.BanBehaviorRefuseReply {
 			notReply = true
 			// 黑名单用户 - 拒绝回复
 			log.Infof("忽略黑名单用户信息: 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 		}
 	} else if isBanGroup {
-		if d.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
+		if d.Config.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
 			notReply = true
 			// 黑名单群 - 立即退出
 			groupID := msg.GroupID
@@ -1097,7 +1097,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 				time.Sleep(1 * time.Second)
 				ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
 			}
-		} else if d.BanList.BanBehaviorRefuseReply {
+		} else if d.Config.BanList.BanBehaviorRefuseReply {
 			notReply = true
 			// 黑名单群 - 拒绝回复
 			log.Infof("忽略黑名单群消息: 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
@@ -1173,7 +1173,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				}
 
 				if cur != -1 {
-					if ctx.Dice.PlayerNameWrapEnable {
+					if ctx.Dice.Config.PlayerNameWrapEnable {
 						ctx.DelegateText = fmt.Sprintf("由<%s>代骰:\n", ctx.Player.Name)
 					} else {
 						ctx.DelegateText = fmt.Sprintf("由%s代骰:\n", ctx.Player.Name)
@@ -1404,13 +1404,13 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
 			}
 		}()
 
-		if d.MailEnable {
+		if d.Config.MailEnable {
 			_ = d.SendMail(txt, MailTypeNotice)
 			return
 		}
 
 		for _, ep := range d.ImSession.EndPoints {
-			for _, i := range d.NoticeIDs {
+			for _, i := range d.Config.NoticeIDs {
 				n := strings.Split(i, ":")
 				// 如果文本中没有-，则会取到整个字符串
 				// 但好像不严谨，比如QQ-CH-Group
@@ -1447,14 +1447,14 @@ func (ctx *MsgContext) NoticeCrossPlatform(txt string) {
 			}
 		}()
 
-		if ctx.Dice.MailEnable {
+		if ctx.Dice.Config.MailEnable {
 			_ = ctx.Dice.SendMail(txt, MailTypeNotice)
 			return
 		}
 
 		sent := false
 
-		for _, i := range ctx.Dice.NoticeIDs {
+		for _, i := range ctx.Dice.Config.NoticeIDs {
 			n := strings.Split(i, ":")
 			if len(n) < 2 {
 				continue
@@ -1505,14 +1505,14 @@ func (ctx *MsgContext) Notice(txt string) {
 			}
 		}()
 
-		if ctx.Dice.MailEnable {
+		if ctx.Dice.Config.MailEnable {
 			_ = ctx.Dice.SendMail(txt, MailTypeNotice)
 			return
 		}
 
 		sent := false
 		if ctx.EndPoint.Enable {
-			for _, i := range ctx.Dice.NoticeIDs {
+			for _, i := range ctx.Dice.Config.NoticeIDs {
 				n := strings.Split(i, ":")
 				if len(n) >= 2 {
 					if strings.HasSuffix(n[0], "-Group") {

@@ -690,7 +690,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					// if times > 5 {
 					// 	times = 5
 					// }
-					if times > int(ctx.Dice.MaxExecuteTime) {
+					if times > int(ctx.Dice.Config.MaxExecuteTime) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}

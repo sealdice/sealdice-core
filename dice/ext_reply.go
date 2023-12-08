@@ -44,7 +44,7 @@ func CustomReplyConfigCheckExists(dice *Dice, filename string) bool {
 }
 
 func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
-	for _, i := range dice.CustomReplyConfig {
+	for _, i := range dice.Config.CustomReplyConfig {
 		if strings.EqualFold(i.Filename, filename) {
 			return nil
 		}
@@ -52,7 +52,7 @@ func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 
 	nowTime := time.Now().Unix()
 	rc := &ReplyConfig{Enable: true, Filename: filename, Name: filename, Items: []*ReplyItem{}, UpdateTimestamp: nowTime, CreateTimestamp: nowTime, Author: []string{"无名海豹"}}
-	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
+	dice.Config.CustomReplyConfig = append(dice.Config.CustomReplyConfig, rc)
 	rc.Save(dice)
 	return rc
 }
@@ -63,12 +63,12 @@ func CustomReplyConfigDelete(dice *Dice, filename string) bool {
 		err := os.Remove(attrConfigFn)
 		if err == nil {
 			var rcs []*ReplyConfig
-			for _, i := range dice.CustomReplyConfig {
+			for _, i := range dice.Config.CustomReplyConfig {
 				if i.Filename != filename {
 					rcs = append(rcs, i)
 				}
 			}
-			dice.CustomReplyConfig = rcs
+			dice.Config.CustomReplyConfig = rcs
 		}
 		return true
 	}
@@ -115,7 +115,7 @@ func ReplyReload(dice *Dice) {
 		}
 	}
 
-	dice.CustomReplyConfig = rcs
+	dice.Config.CustomReplyConfig = rcs
 }
 
 func RegisterBuiltinExtReply(dice *Dice) {
@@ -130,8 +130,8 @@ func RegisterBuiltinExtReply(dice *Dice) {
 		Official:   true,
 		OnNotCommandReceived: func(ctx *MsgContext, msg *Message) {
 			// 当前，只有非指令才会匹配
-			rcs := ctx.Dice.CustomReplyConfig
-			if !ctx.Dice.CustomReplyConfigEnable {
+			rcs := ctx.Dice.Config.CustomReplyConfig
+			if !ctx.Dice.Config.CustomReplyConfigEnable {
 				return
 			}
 			executed := false
@@ -141,7 +141,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 			cleanText = strings.TrimSpace(cleanText)
 			VarSetValueInt64(ctx, "$t文本长度", int64(len(cleanText)))
 
-			if dice.ReplyDebugMode {
+			if dice.Config.ReplyDebugMode {
 				log.Infof("[回复调试]当前文本:“%s” hex: %x 字节形式: %v", cleanText, cleanText, []byte(cleanText))
 			}
 

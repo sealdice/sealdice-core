@@ -411,9 +411,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		//	log.Info("...", message)
 		//}
 		if strings.Contains(message, `"guild_id"`) {
-			// log.Info("!!!", message, s.Parent.WorkInQQChannel)
+			// log.Info("!!!", message, s.Parent.Config.WorkInQQChannel)
 			// 暂时忽略频道消息
-			if s.Parent.WorkInQQChannel {
+			if s.Parent.Config.WorkInQQChannel {
 				pa.QQChannelTrySolve(message)
 			}
 			return
@@ -511,9 +511,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 					// 处理被强制拉群的情况
 					uid := group.InviteUserID
-					banInfo := ctx.Dice.BanList.GetByID(uid)
+					banInfo := ctx.Dice.Config.BanList.GetByID(uid)
 					if banInfo != nil {
-						if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
+						if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
 							// 如果是被ban之后拉群，判定为强制拉群
 							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
 								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", group.InviteUserID)
@@ -526,7 +526,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					}
 
 					// 强制拉群情况2 - 群在黑名单
-					banInfo = ctx.Dice.BanList.GetByID(groupID)
+					banInfo = ctx.Dice.Config.BanList.GetByID(groupID)
 					if banInfo != nil {
 						if banInfo.Rank == BanRankBanned {
 							// 如果是被ban之后拉群，判定为强制拉群
@@ -575,9 +575,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			tempInviteMap2[msg.GroupID] = uid
 
 			// 邀请人在黑名单上
-			banInfo := ctx.Dice.BanList.GetByID(uid)
+			banInfo := ctx.Dice.Config.BanList.GetByID(uid)
 			if banInfo != nil {
-				if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
+				if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
 					pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "黑名单")
 					return
 				}
@@ -585,13 +585,13 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			// 信任模式，如果不是信任，又不是master则拒绝拉群邀请
 			isMaster := ctx.Dice.IsMaster(uid)
-			if ctx.Dice.TrustOnlyMode && ((banInfo != nil && banInfo.Rank != BanRankTrusted) && !isMaster) {
+			if ctx.Dice.Config.TrustOnlyMode && ((banInfo != nil && banInfo.Rank != BanRankTrusted) && !isMaster) {
 				pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "只允许骰主设置信任的人拉群")
 				return
 			}
 
 			// 群在黑名单上
-			banInfo = ctx.Dice.BanList.GetByID(msg.GroupID)
+			banInfo = ctx.Dice.Config.BanList.GetByID(msg.GroupID)
 			if banInfo != nil {
 				if banInfo.Rank == BanRankBanned {
 					pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "群黑名单")
@@ -599,7 +599,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				}
 			}
 
-			if ctx.Dice.RefuseGroupInvite {
+			if ctx.Dice.Config.RefuseGroupInvite {
 				pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "设置拒绝加群")
 				return
 			}
@@ -627,7 +627,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				comment = strings.ReplaceAll(comment, "\u00a0", "")
 			}
 
-			toMatch := strings.TrimSpace(session.Parent.FriendAddComment)
+			toMatch := strings.TrimSpace(session.Parent.Config.FriendAddComment)
 			willAccept := comment == DiceFormat(ctx, toMatch)
 			if toMatch == "" {
 				willAccept = true
@@ -667,9 +667,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// 检查黑名单
 			extra := ""
 			uid := FormatDiceIDQQ(string(msgQQ.UserID))
-			banInfo := ctx.Dice.BanList.GetByID(uid)
+			banInfo := ctx.Dice.Config.BanList.GetByID(uid)
 			if banInfo != nil {
-				if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
+				if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
 					if willAccept {
 						extra = "。回答正确，但为被禁止用户，准备自动拒绝"
 					} else {
@@ -880,7 +880,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 				skip := false
 				skipReason := ""
-				banInfo := ctx.Dice.BanList.GetByID(opUID)
+				banInfo := ctx.Dice.Config.BanList.GetByID(opUID)
 				if banInfo != nil {
 					if banInfo.Rank == 30 {
 						skip = true
@@ -896,7 +896,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				if skip {
 					extra = fmt.Sprintf("\n取消处罚，原因为%s", skipReason)
 				} else {
-					ctx.Dice.BanList.AddScoreByGroupKicked(opUID, msg.GroupID, ctx)
+					ctx.Dice.Config.BanList.AddScoreByGroupKicked(opUID, msg.GroupID, ctx)
 				}
 
 				txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, msgQQ.GroupID, userName, msgQQ.OperatorID, extra)
@@ -927,7 +927,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				groupName := dm.TryGetGroupName(msg.GroupID)
 				userName := dm.TryGetUserName(opUID)
 
-				ctx.Dice.BanList.AddScoreByGroupMuted(opUID, msg.GroupID, ctx)
+				ctx.Dice.Config.BanList.AddScoreByGroupMuted(opUID, msg.GroupID, ctx)
 				txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, msgQQ.GroupID, msgQQ.Duration, userName, msgQQ.OperatorID)
 				log.Info(txt)
 				ctx.Notice(txt)
@@ -958,7 +958,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
 
 			// 检查设置中是否开启
-			if !ctx.Dice.QQEnablePoke {
+			if !ctx.Dice.Config.QQEnablePoke {
 				return
 			}
 

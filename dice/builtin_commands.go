@@ -76,7 +76,7 @@ func (d *Dice) registerCoreCommands() {
 				if reason == "" {
 					reason = "骰主指令"
 				}
-				d.BanList.AddScoreBase(uid, d.BanList.ThresholdBan, "骰主指令", reason, ctx)
+				d.Config.BanList.AddScoreBase(uid, d.Config.BanList.ThresholdBan, "骰主指令", reason, ctx)
 				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入黑名单，原因: %s", uid, reason))
 			case "rm", "del":
 				uid = getID()
@@ -84,7 +84,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				item := d.BanList.GetByID(uid)
+				item := d.Config.BanList.GetByID(uid)
 				if item == nil || (item.Rank != BanRankBanned && item.Rank != BanRankTrusted && item.Rank != BanRankWarn) {
 					ReplyToSender(ctx, msg, "找不到用户/群组")
 					break
@@ -100,14 +100,14 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				d.BanList.SetTrustByID(uid, "骰主指令", "骰主指令")
+				d.Config.BanList.SetTrustByID(uid, "骰主指令", "骰主指令")
 				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入信任列表", uid))
 			case "list", "show":
 				// ban/warn/trust
 				var extra, text string
 
 				extra = cmdArgs.GetArgN(2)
-				d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
+				d.Config.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
 					if v.Rank == BanRankNormal {
 						return true
 					}
@@ -134,7 +134,7 @@ func (d *Dice) registerCoreCommands() {
 					break
 				}
 
-				v, exists := d.BanList.Map.Load(targetID)
+				v, exists := d.Config.BanList.Map.Load(targetID)
 				if !exists {
 					ReplyToSender(ctx, msg, fmt.Sprintf("所查询的<%s>情况：正常(0)", targetID))
 					break
@@ -474,7 +474,7 @@ func (d *Dice) registerCoreCommands() {
 			inGroup := msg.MessageType == "group"
 			mentionNotBot := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentionedFirst // 喊的不是当前骰子
 
-			if inGroup && ctx.Dice.IgnoreUnaddressedBotCmd && (len(cmdArgs.At) < 1 || mentionNotBot) {
+			if inGroup && ctx.Dice.Config.IgnoreUnaddressedBotCmd && (len(cmdArgs.At) < 1 || mentionNotBot) {
 				return CmdExecuteResult{Matched: true, Solved: false}
 			}
 
@@ -501,7 +501,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				if cmdArgs.IsArgEqual(1, "on") {
-					if !(msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
+					if !(msg.Platform == "QQ-CH" || ctx.Dice.Config.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -519,7 +519,7 @@ func (d *Dice) registerCoreCommands() {
 
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else if cmdArgs.IsArgEqual(1, "off") {
-					if !(msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
+					if !(msg.Platform == "QQ-CH" || ctx.Dice.Config.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -950,11 +950,11 @@ func (d *Dice) registerCoreCommands() {
 					ret := <-dm.UpdateDownloadedChan
 
 					if ctx.IsPrivate {
-						ctx.Dice.UpgradeWindowID = msg.Sender.UserID
+						ctx.Dice.Config.UpgradeWindowID = msg.Sender.UserID
 					} else {
-						ctx.Dice.UpgradeWindowID = ctx.Group.GroupID
+						ctx.Dice.Config.UpgradeWindowID = ctx.Group.GroupID
 					}
-					ctx.Dice.UpgradeEndpointID = ctx.EndPoint.ID
+					ctx.Dice.Config.UpgradeEndpointID = ctx.EndPoint.ID
 					ctx.Dice.Save(true)
 
 					bakFn, _ := ctx.Dice.Parent.BackupSimple()
@@ -1108,7 +1108,7 @@ func (d *Dice) registerCoreCommands() {
 			} else if val == "help" || val == "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			} else {
-				if d.MailEnable {
+				if d.Config.MailEnable {
 					_ = ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -1146,7 +1146,7 @@ func (d *Dice) registerCoreCommands() {
 			var detail string
 
 			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
-			if ctx.Dice.CommandCompatibleMode {
+			if ctx.Dice.Config.CommandCompatibleMode {
 				if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd" || cmdArgs.Command == "rdh") && len(cmdArgs.Args) >= 1 {
 					if m, _ := regexp.MatchString(`^\d|优势|劣势|\+|-`, cmdArgs.CleanArgs); m {
 						if cmdArgs.IsSpaceBeforeArgs {
@@ -1275,7 +1275,7 @@ func (d *Dice) registerCoreCommands() {
 
 			if cmdArgs.SpecialExecuteTimes > 1 {
 				VarSetValueInt64(ctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
-				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.MaxExecuteTime) {
+				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.Config.MaxExecuteTime) {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -1387,7 +1387,7 @@ func (d *Dice) registerCoreCommands() {
 		ShortHelp: helpRollNew,
 		Help:      "骰点:\n" + helpRollNew,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.Dice.TextCmdTrustOnly {
+			if ctx.Dice.Config.TextCmdTrustOnly {
 				// 检查master和信任权限
 				refuse := ctx.PrivilegeLevel != 100
 				if refuse {
@@ -1606,7 +1606,7 @@ func (d *Dice) registerCoreCommands() {
 			if cmdArgs.IsArgEqual(1, "list") {
 				showList()
 			} else if cmdArgs.IsArgEqual(last, "on") {
-				if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
+				if !ctx.Dice.Config.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -1649,7 +1649,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, text)
 				}
 			} else if cmdArgs.IsArgEqual(last, "off") {
-				if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
+				if !ctx.Dice.Config.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
