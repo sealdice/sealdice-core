@@ -449,7 +449,7 @@ func diceServe(d *dice.Dice) {
 	d.UIEndpoint.ID = "1"
 	d.UIEndpoint.State = 1
 	d.UIEndpoint.UserID = "UI:1000"
-	d.UIEndpoint.Adapter = &dice.PlatformAdapterHTTP{}
+	d.UIEndpoint.Adapter = &dice.PlatformAdapterHTTP{Session: d.ImSession, EndPoint: d.UIEndpoint}
 
 	for _, _conn := range d.ImSession.EndPoints {
 		if _conn.Enable {
