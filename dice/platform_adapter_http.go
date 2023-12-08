@@ -12,6 +12,8 @@ type HTTPSimpleMessage struct {
 }
 
 type PlatformAdapterHTTP struct {
+	Session       *IMSession
+	EndPoint      *EndPointInfo
 	RecentMessage []HTTPSimpleMessage
 }
 
@@ -27,15 +29,34 @@ func (pa *PlatformAdapterHTTP) DoRelogin() bool {
 
 func (pa *PlatformAdapterHTTP) SetEnable(_ bool) {}
 
-func (pa *PlatformAdapterHTTP) SendToPerson(_ *MsgContext, uid string, text string, _ string) {
+func (pa *PlatformAdapterHTTP) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	sp := utils.SplitLongText(text, 300)
 	for _, sub := range sp {
 		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub})
 	}
+	pa.Session.OnMessageSend(ctx, &Message{
+		MessageType: "private",
+		Platform:    "UI",
+		Message:     text,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
-func (pa *PlatformAdapterHTTP) SendToGroup(_ *MsgContext, uid string, text string, _ string) {
+func (pa *PlatformAdapterHTTP) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	pa.SendToPerson(nil, uid, text, "")
+	pa.Session.OnMessageSend(ctx, &Message{
+		MessageType: "group",
+		Platform:    "UI",
+		Message:     text,
+		GroupID:     uid,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterHTTP) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
