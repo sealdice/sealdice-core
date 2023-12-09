@@ -13,4 +13,5 @@ index: false
   - [Discord](./platform-discord.md)
   - [Telegram](./platform-telegram.md)
   - [Slack](./platform-slack.md)
+  - [钉钉](./platform-dingtalk.md)
   - ……

@@ -22,7 +22,8 @@ export default navbar([
           "platform-dodo.md",
           "platform-discord.md",
           "platform-telegram.md",
-          "platform-slack.md"
+          "platform-slack.md",
+          "platform-dingtalk.md",
         ],
       },
     ],

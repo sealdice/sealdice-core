@@ -4,11 +4,16 @@ title: Slack
 ---
 
 # Slack
+
 ::: info 本节内容
 
 本节将包含你在 Slack 平台接入海豹核心需要了解的特定内容。
 
 :::
+
+## Slack 支持 <Badge type="tip" text="v1.4.2" vertical="middle" />
+
+海豹从 `v1.4.2` 开始支持对接 Slack。
 
 ## 获取 Token
 
