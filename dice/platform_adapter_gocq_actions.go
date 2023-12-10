@@ -111,7 +111,7 @@ func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string) *OnebotGroupInfo {
 
 	data := &OnebotGroupInfo{}
 	err := pa.waitEcho2(echo, data, func(emi *echoMapInfo) {
-		emi.echoOverwrite = "-2" // 强制覆盖为获取群信息，与之前兼容
+		emi.echoOverwrite = -2 // 强制覆盖为获取群信息，与之前兼容
 		socketSendText(pa.Socket, string(a))
 	})
 	if err == nil {
