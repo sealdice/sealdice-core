@@ -450,10 +450,9 @@ type MsgContext struct {
 	CommandID       int64       // 指令ID
 	CommandHideFlag string      // 暗骰标记
 	CommandInfo     interface{} // 命令信息
-	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 40邀请者 50管理 60群主 70信任 100master
-	DelegateText    string      `jsbind:"delegateText"`   // 代骰附加文本
-
-	PrivilegeLevelRaw int // 权限等级 40邀请者 50管理 60群主 70信任 100master，不考虑ban的原本权限
+	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 -30ban 40邀请者 50管理 60群主 70信任 100master
+	GroupRoleLevel  int         // 群内权限 40邀请者 50管理 60群主 70信任 100master，相当于不考虑ban的权限等级
+	DelegateText    string      `jsbind:"delegateText"` // 代骰附加文本
 
 	deckDepth         int                                         // 抽牌递归深度
 	DeckPools         map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
@@ -481,7 +480,7 @@ func (ctx *MsgContext) fillPrivilege(msg *Message) int {
 		default: /* no-op */
 		}
 
-		ctx.PrivilegeLevelRaw = ctx.PrivilegeLevel
+		ctx.GroupRoleLevel = ctx.PrivilegeLevel
 
 		// 加入黑名单相关权限
 		if val, exists := ctx.Dice.BanList.Map.Load(ctx.Player.UserID); exists {
@@ -1027,7 +1026,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	}
 
 	if ctx.PrivilegeLevel == -30 {
-		groupLevel := ctx.PrivilegeLevelRaw
+		groupLevel := ctx.GroupRoleLevel
 		if d.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
 			groupID := msg.GroupID

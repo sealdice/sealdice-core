@@ -485,6 +485,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 获得群信息
+		fmt.Println("msgQQ.Echo tttttttttttttttttttest", msgQQ.Echo)
 		if msgQQ.Echo == -2 { //nolint:nestif
 			if msgQQ.Data != nil {
 				groupID := FormatDiceIDQQGroup(string(msgQQ.Data.GroupID))
