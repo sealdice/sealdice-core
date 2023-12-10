@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime/debug"
 	"strconv"
@@ -485,8 +486,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 获得群信息
-		fmt.Println("msgQQ.Echo tttttttttttttttttttest", msgQQ.Echo)
-		if msgQQ.Echo == -2 { //nolint:nestif
+		fmt.Println("msgQQ.Echo tttttttttttttttttttest", msgQQ.Echo, reflect.TypeOf(msgQQ.Echo))
+		if msgQQ.Echo == "-2" || msgQQ.Echo == -2 { //nolint:nestif
 			if msgQQ.Data != nil {
 				groupID := FormatDiceIDQQGroup(string(msgQQ.Data.GroupID))
 				dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
@@ -998,7 +999,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// fmt.Println("Recieved message1 " + message)
 			session.Execute(ep, msg, false)
 		} else {
-			fmt.Println("Recieved message " + message)
+			fmt.Println("Received message " + message)
 		}
 	}
 
