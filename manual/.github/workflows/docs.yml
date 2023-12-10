@@ -3,13 +3,12 @@ name: docs
 on:
   push:
     branches: 
-      - main
-      - master
   workflow_dispatch:
 
 jobs:
   docs:
     runs-on: ubuntu-latest
+    if: (github.repository == 'sealdice/sealdice-manual-next' && github.ref_name == 'main') || github.repository != 'sealdice/sealdice-manual'
 
     steps:
       - uses: actions/checkout@v3
