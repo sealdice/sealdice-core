@@ -103,6 +103,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 	// 检查是否已经记录过 如果记录过则跳过
 	groupMsgInfoCheckOk := func(_k interface{}) bool {
 		groupMsgInfoClean()
+		if _k == nil {
+			return false
+		}
 		_val, exists := groupMsgInfo.Get(_k)
 		if exists {
 			t, ok := _val.(int64)
