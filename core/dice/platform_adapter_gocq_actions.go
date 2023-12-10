@@ -10,12 +10,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sealdice-core/utils"
 	"strconv"
 	"strings"
 	"time"
 
+	"sealdice-core/utils"
+
 	"github.com/sacOO7/gowebsocket"
+	"github.com/samber/lo"
 )
 
 type oneBotCommand struct {
@@ -366,12 +368,12 @@ func (pa *PlatformAdapterGocq) SetGroupAddRequest(flag string, subType string, a
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterGocq) getCustomEcho() int64 {
+func (pa *PlatformAdapterGocq) getCustomEcho() string {
 	if pa.customEcho > -10 {
 		pa.customEcho = -10
 	}
 	pa.customEcho--
-	return pa.customEcho
+	return strconv.FormatInt(pa.customEcho, 10)
 }
 
 func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ {
@@ -381,7 +383,10 @@ func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ 
 	if pa.echoMap == nil {
 		pa.echoMap = new(SyncMap[any, chan *MessageQQ])
 	}
-	pa.echoMap.Store(echo, ch)
+
+	// 注: 之所以这样是因为echo是json.RawMessage
+	e := lo.Must(json.Marshal(echo))
+	pa.echoMap.Store(string(e), ch)
 
 	beforeWait()
 	return <-ch

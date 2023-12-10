@@ -283,18 +283,18 @@ func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeT
 		case "text":
 			cqMessage.WriteString(i.Data["text"].(string))
 		case "image":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%s]", i.Data["file"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", i.Data["file"]))
 		case "face":
-			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64 但是我不能理解，姑且先遵循
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%s]", i.Data["id"]))
+			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64，这是go解析的问题
+			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", i.Data["id"]))
 		case "record":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%s]", i.Data["file"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", i.Data["file"]))
 		case "at":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%s]", i.Data["qq"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", i.Data["qq"]))
 		case "poke":
 			cqMessage.WriteString("[CQ:poke]")
 		case "reply":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%s]", i.Data["id"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", i.Data["id"]))
 		}
 	}
 	writeTo.MessageQQBase = msgQQType2.MessageQQBase
