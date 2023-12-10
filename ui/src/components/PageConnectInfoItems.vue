@@ -442,6 +442,7 @@
             <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
             <el-option label="[WIP]QQ(官方bot)" :value="10"></el-option>
             <el-option label="[WIP]QQ(red协议)" :value="7"></el-option>
+            <el-option label="[WIP]SealChat" :value="13"></el-option>
             <el-option label="Discord" :value="1"></el-option>
             <el-option label="KOOK(开黑啦)" :value="2"></el-option>
             <el-option label="Telegram" :value="3"></el-option>
@@ -733,6 +734,13 @@
           <el-input v-model="form.reverseAddr" placeholder="反向WS服务地址，如 0.0.0.0:4001 (允许全部IP连入，4001端口)" type="text" autocomplete="off"></el-input>
         </el-form-item>
 
+        <el-form-item v-if="form.accountType === 13" label="连接地址" :label-width="formLabelWidth" required>
+          <el-input v-model="form.url" placeholder="连接地址，如 ws://127.0.0.1:3212/ws/seal" type="text" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 13" label="Token" :label-width="formLabelWidth" required>
+          <el-input v-model="form.token" type="text" autocomplete="off" placeholder="填入平台管理界面中获取的token"></el-input>
+        </el-form-item>
+
         <el-form-item v-if="form.accountType === 7" label="主机" :label-width="formLabelWidth" required>
           <el-input v-model="form.host" placeholder="Red 服务的地址，如 127.0.0.1" type="text" autocomplete="off"></el-input>
         </el-form-item>
@@ -984,7 +992,8 @@
               form.accountType === 6 && (form.account === '' || form.connectUrl === '') ||
               form.accountType === 7 && (form.host === '' || form.port === '' || form.token === '') ||
               form.accountType === 9 && (form.botToken === '' || form.appToken === '') ||
-              form.accountType === 11 && (form.account === '' || form.reverseAddr === '')">
+              form.accountType === 11 && (form.account === '' || form.reverseAddr === '') ||
+              form.accountType === 13 && (form.token === '' || form.url === '')">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">

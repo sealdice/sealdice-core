@@ -234,6 +234,9 @@ export const useStore = defineStore('main', {
         case 11:
           info = await backend.post(urlPrefix + '/im_connections/addOnebot11ReverseWs', { account, reverseAddr }, { timeout: 65000 })
           break
+        case 13:
+          info = await backend.post(urlPrefix + '/im_connections/addSealChat', { url, token }, { timeout: 65000 })
+          break
       }
       return info as any as DiceConnection
     },
