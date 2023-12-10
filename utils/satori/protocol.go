@@ -152,6 +152,11 @@ type Event struct {
 	Button    *Button      `json:"button"`
 }
 
+type GatewayPayloadStructure2 struct {
+	Op   *Opcode     `json:"op"`
+	Body interface{} `json:"body"`
+}
+
 type GatewayPayloadStructure struct {
 	Op   Opcode      `json:"op"`
 	Body interface{} `json:"body"`

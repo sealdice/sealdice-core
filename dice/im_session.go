@@ -37,6 +37,7 @@ type Message struct {
 	Message     string      `json:"message" jsbind:"message"`   // 消息内容
 	RawID       interface{} `json:"rawId" jsbind:"rawId"`       // 原始信息ID，用于处理撤回等
 	Platform    string      `json:"platform" jsbind:"platform"` // 当前平台
+	GroupName   string      `json:"groupName"`
 	TmpUID      string      `json:"-" yaml:"-"`
 }
 
@@ -522,6 +523,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			group = SetBotOnAtGroup(mctx, msg.GroupID)
 			group.Active = autoOn
 			group.DiceIDExistsMap.Store(ep.UserID, true)
+			if msg.GroupName != "" {
+				group.GroupName = msg.GroupName
+			}
 			group.UpdatedAtTime = time.Now().Unix()
 
 			dm := d.Parent
