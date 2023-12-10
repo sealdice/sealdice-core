@@ -151,7 +151,7 @@ type MessageQQBase struct {
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	// Status string `json:"status"`
-	Echo any `json:"echo"` // 声明类型而不是interface的原因是interface下数字不能正确转换
+	Echo json.RawMessage `json:"echo"` // 声明类型而不是interface的原因是interface下数字不能正确转换
 
 	Msg string `json:"msg"`
 	// Status  interface{} `json:"status"`
@@ -454,7 +454,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 获得用户信息
-		if fmt.Sprintf("%s", msgQQ.Echo) == "-1" {
+		if string(msgQQ.Echo) == "-1" {
 			ep.Nickname = msgQQ.Data.Nickname
 			ep.UserID = FormatDiceIDQQ(string(msgQQ.Data.UserID))
 
@@ -471,7 +471,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if pa.echoMap2 != nil {
 			if v, ok := pa.echoMap2.Load(msgQQ.Echo); ok {
 				v.ch <- message
-				msgQQ.Echo = v.echoOverwrite
+				msgQQ.Echo = []byte(fmt.Sprintf("%v", v.echoOverwrite))
 				return
 			}
 
@@ -485,7 +485,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 获得群信息
-		if fmt.Sprintf("%s", msgQQ.Echo) == "-2" { //nolint:nestif
+		if string(msgQQ.Echo) == "-2" { //nolint:nestif
 			if msgQQ.Data != nil {
 				groupID := FormatDiceIDQQGroup(string(msgQQ.Data.GroupID))
 				dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
