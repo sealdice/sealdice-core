@@ -468,8 +468,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 自定义信息
-		if pa.echoMap2 != nil {
-			if v, ok := pa.echoMap2.Load(msgQQ.Echo); ok {
+		if pa.echoMap2 != nil && msgQQ.Echo != nil {
+			if v, ok := pa.echoMap2.Load(string(msgQQ.Echo)); ok {
 				v.ch <- message
 				msgQQ.Echo = []byte(fmt.Sprintf("%v", v.echoOverwrite))
 				return
@@ -550,8 +550,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 自定义信息
-		if pa.echoMap != nil {
-			if v, ok := pa.echoMap.Load(msgQQ.Echo); ok {
+		if pa.echoMap != nil && msgQQ.Echo != nil {
+			if v, ok := pa.echoMap.Load(string(msgQQ.Echo)); ok {
 				v <- msgQQ
 				return
 			}
