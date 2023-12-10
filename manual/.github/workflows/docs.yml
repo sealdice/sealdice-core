@@ -8,7 +8,7 @@ on:
 jobs:
   docs:
     runs-on: ubuntu-latest
-    if: (github.repository == 'sealdice/sealdice-manual-next' && github.ref_name == 'main') || github.repository != 'sealdice/sealdice-manual'
+    if: (github.repository == 'sealdice/sealdice-manual-next' && github.ref_name == 'main') || github.repository != 'sealdice/sealdice-manual-next'
 
     steps:
       - uses: actions/checkout@v3
