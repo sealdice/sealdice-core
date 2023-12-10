@@ -453,6 +453,8 @@ type MsgContext struct {
 	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 40邀请者 50管理 60群主 70信任 100master
 	DelegateText    string      `jsbind:"delegateText"`   // 代骰附加文本
 
+	PrivilegeLevelRaw int // 权限等级 40邀请者 50管理 60群主 70信任 100master，不考虑ban的原本权限
+
 	deckDepth         int                                         // 抽牌递归深度
 	DeckPools         map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
 	diceExprOverwrite string                                      // 默认骰表达式覆盖
@@ -478,6 +480,8 @@ func (ctx *MsgContext) fillPrivilege(msg *Message) int {
 			ctx.PrivilegeLevel = 40 // 邀请者
 		default: /* no-op */
 		}
+
+		ctx.PrivilegeLevelRaw = ctx.PrivilegeLevel
 
 		// 加入黑名单相关权限
 		if val, exists := ctx.Dice.BanList.Map.Load(ctx.Player.UserID); exists {
@@ -1023,14 +1027,21 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	}
 
 	if ctx.PrivilegeLevel == -30 {
+		groupLevel := ctx.PrivilegeLevelRaw
 		if d.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
 			groupID := msg.GroupID
 			notReply = true
-			if ctx.PrivilegeLevel >= 40 {
+			if groupLevel >= 40 {
 				if isWhiteGroup {
 					log.Infof("收到群(%s)内邀请者以上权限黑名单用户<%s>(%s)的消息，但在信任群所以不尝试退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
 				} else {
+					text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知并退群。", msg.Sender.Nickname, msg.Sender.UserID)
+					ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+
+					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是管理以上权限，执行通告后自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+					log.Info(noticeMsg)
+					ctx.Notice(noticeMsg)
 					banQuitGroup()
 				}
 			} else {
