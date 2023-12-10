@@ -37,6 +37,7 @@ type Message struct {
 	Message     string      `json:"message" jsbind:"message"`   // 消息内容
 	RawID       interface{} `json:"rawId" jsbind:"rawId"`       // 原始信息ID，用于处理撤回等
 	Platform    string      `json:"platform" jsbind:"platform"` // 当前平台
+	GroupName   string      `json:"groupName"`
 	TmpUID      string      `json:"-" yaml:"-"`
 }
 
@@ -369,6 +370,15 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 			return err
 		}
 		ep.Adapter = val.Adapter
+	case "SEALCHAT":
+		var val struct {
+			Adapter *PlatformAdapterSealChat `yaml:"adapter"`
+		}
+		err = value.Decode(&val)
+		if err != nil {
+			return err
+		}
+		ep.Adapter = val.Adapter
 	}
 	return err
 }
@@ -513,6 +523,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			group = SetBotOnAtGroup(mctx, msg.GroupID)
 			group.Active = autoOn
 			group.DiceIDExistsMap.Store(ep.UserID, true)
+			if msg.GroupName != "" {
+				group.GroupName = msg.GroupName
+			}
 			group.UpdatedAtTime = time.Now().Unix()
 
 			dm := d.Parent
@@ -1331,6 +1344,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa.EndPoint = ep
 	case "SLACK":
 		pa := ep.Adapter.(*PlatformAdapterSlack)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
+	case "SEALCHAT":
+		pa := ep.Adapter.(*PlatformAdapterSealChat)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}

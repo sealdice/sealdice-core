@@ -173,8 +173,7 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userID string, text
 						Nickname: pa.EndPoint.Nickname,
 						UserID:   pa.EndPoint.UserID,
 					},
-				},
-					flag)
+				}, flag)
 			})
 		}
 	}

@@ -423,6 +423,8 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 		re = regexp.MustCompile(`<@\!(\d+?)>`)
 	case "SLACK":
 		re = regexp.MustCompile(`<@(.+?)>`)
+	case "SEALCHAT":
+		re = regexp.MustCompile(`<@(\S+?)>`)
 	}
 
 	m := re.FindAllStringSubmatch(cmd, -1)
