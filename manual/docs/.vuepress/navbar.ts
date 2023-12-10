@@ -45,7 +45,10 @@ export default navbar([
       },
       {
         text: "综合设置",
-        children: ["ban.md"],
+        children: [
+          "ban.md",
+          "quit_grp_auto.md",
+        ],
       },
     ],
   },

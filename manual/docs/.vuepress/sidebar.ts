@@ -44,7 +44,13 @@ export default sidebar({
             "censor.md",
           ],
         },
-        { text: "综合设置", children: ["ban.md"] },
+        {
+          text: "综合设置",
+          children: [
+            "ban.md",
+            "quit_grp_auto.md",
+          ],
+        },
       ],
     },
   ],

@@ -195,7 +195,7 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 
 :::: note 示例
 
-::: tabs 
+::: tabs
 
 @tab 优势骰
 
@@ -467,13 +467,42 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ## `.find` 词条查询指令
 
-海豹核心默认搭载了 CoC 的《怪物之锤》、《魔法大典》和 D&D 规则的一系列资料。这些资料被整理成词条，并支持使用此指令进行查询。
+海豹核心默认搭载了 CoC 的《怪物之锤》、《魔法大典》和 D&D 规则的一系列资料。这些资料在海豹的 `data/helpdpc` 目录下的不同文件中被整理成词条，并支持使用此指令进行查询。
 
-`.find <关键字>` 用关键字进行词条查询。
+`.find (#<分组名>) <关键字>` 用关键字进行词条查询；如果提供了分组名，则只在指定分组中进行查询。
+
+「分组名」是指海豹 `data/helpdoc` 目录下的子目录名。对于内置的帮助文档，分组名分别是「COC」和「DND」。
 
 别名：`.查询`
 
 查询功能在不同设备上的实现是不同的。在 x86 设备上，海豹核心使用稍微更多的内存使用全文搜索，这赋予了查询指令强大的获取能力。在其他平台上，由于搜索库的限制，海豹核心使用词条标题模糊搜索。
+
+<Badge type="tip" text="v1.4.2" vertical="middle" /> 从 `v1.4.2` 版本起，你可以在 WebUI 的「扩展功能 - 帮助文档」中设置分组的别名。
+
+### 指定默认查询分组 <Badge type="tip" text="v1.4.2" vertical="middle" />
+
+从 `v1.4.2` 版本起，海豹支持在每个群组中分别设置默认的查询分组。
+
+`.find config --group` 查看当前群组的默认查询分组。
+
+`.find config --group=<分组名>` 设置当前群组的默认查询分组。
+
+`.find config --groupclr` 清除当前群组的默认查询分组。
+
+::: note 示例
+
+<ChatBox :messages="[
+{content: '.find config --group=COC', send: true},
+{content: '指定默认搜索分组为COC'},
+{content: '.find 火球术', send: true},
+{content: '未找到搜索结果'},
+{content: '.find config --groupclr', send: true},
+{content: '已清空默认搜索分组，原分组为COC'},
+{content: '.find 火球术', send: true},
+{content: '[全文搜索]最优先结果:\n词条: PHB法术:火球术'},
+]" />
+
+:::
 
 ### 全文搜索
 
@@ -644,3 +673,49 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 `.welcome show` 查看当前欢迎语
 
 `.welcome set <欢迎语>` 设定欢迎语
+
+## `.ping` 指令响应测试 <Badge type="tip" text="v1.4.2" vertical="middle" />
+
+从 `v1.4.2` 版本起，海豹支持 `.ping` 指令，用于指示海豹回复你一条消息。
+
+`.ping` 海豹回复你一条消息。
+
+:::: info 为什么要有这个指令？
+
+对于绝大多数情况，这个指令似乎都没有实际作用。事实上，这个指令的存在是为了解决 **QQ 官方 Bot 在频道私聊中**的以下问题：
+
+如果你向机器人连续发送 3 条频道私聊消息而没有收到回复，在机器人回复你之前，你将无法继续发送频道私聊消息。
+而机器人并不会主动向你发送消息，这就造成了死锁。
+
+此时，你可以在**频道**中向海豹核心发送 `.ping` 指令，海豹核心会在**频道私聊**中回复你，以打破死锁。
+
+::: tabs
+
+@tab 频道私聊
+
+<ChatBox :messages="[
+{username: 'PL', avatar: '/images/avatar/user1.jpg', content: '我要对这个 NPC 使用心理学'},
+{username: 'KP', avatar: '/images/avatar/user3.jpg', content: '可以', send: true},
+{username: 'KP', avatar: '/images/avatar/user3.jpg', content: '.rah 心理学 @PL', send: true},
+{content: '由<KP>代骰:\n<PL>悄悄进行了一项心理学检定'}
+]"/>
+
+<ChatBox :messages="[
+{content: '我发出第一条消息。', send: true},
+{content: '我发出第二条消息。', send: true},
+{content: '我发出第三条消息，机器人怎么还不理我？', send: true},
+{content: '这时，用户已经无法再发送第四条频道私聊', username: '说明', avatar: '/images/avatar/user2.jpg'},
+{content: '用户去频道公屏发送一个 ping 指令', username: '说明', avatar: '/images/avatar/user2.jpg'},
+{content: 'PONG！这里是海豹核心！'},
+{content: '好耶，我又可以发频道私信了！', send: true},
+]" />
+
+@tab 频道公屏
+
+<ChatBox :messages="[
+{content: '.ping', send: true},
+]"/>
+
+:::
+
+::::

@@ -129,6 +129,8 @@ if (!seal.ext.find('test')) {
 
 :::
 
+<!-- TODO: 添加 1.4.1 新增的 插件配置项 相关说明 -->
+
 ## 自定义指令
 
 想要创建一条自定义指令，首先需要创建一个扩展（`seal.ExtInfo`），写好自定义指令的实现逻辑之后，再注册到扩展中。
@@ -414,7 +416,7 @@ if (!seal.ext.find('draw-decks-example')) {
 每一个身份都有一个对应的数字，可以通过 `ctx.privilegeLevel` 获取当前用户的权限等级。
 每个身份所对应的数字如下表所示：
 
-::: info 
+::: info
 
 **注意：** 部分权限等级仅在群聊中有效，私聊中除了 **骰主** 和 **黑名单用户** 以外的权限等级都为 0。
 
@@ -423,7 +425,7 @@ if (!seal.ext.find('draw-decks-example')) {
 | 身份 | 权限值 |
 |----|-----|
 | 骰主 | 100 |
-| 群主 | 60  | 
+| 群主 | 60  |
 | 管理员 | 50  |
 | 邀请者 | 40  |
 | 普通用户 | 0   |
@@ -733,13 +735,13 @@ const STORAGE_KEY = "anchor"; // 将你的 key 抽出来单独作为一个常量
 function akAdd(ctx, msg, ext, option) {
     //取出数据
     const data = JSON.parse(ext.storageGet(STORAGE_KEY) || '{"title":"","options":[]}');
-    
+
     //处理数据
     data.options.push(option);
-    
+
     //响应发送者
     seal.replyToSender(ctx, msg, `当前分歧:${data.title}\n已添加第${data.options.length}个选项:${option}`);
-    
+
     //将处理完的数据写回去
     ext.storageSet(STORAGE_KEY, JSON.stringify(data));
 }
@@ -751,7 +753,7 @@ function akAdd(ctx, msg, ext, option) {
 
 ## 编写暗骰指令
 
-如下：  
+如下：
 
 ```javascript
 // ==UserScript==
@@ -981,16 +983,16 @@ seal.coc.registerRule(rule);
 一个完整的非指令关键词模板如下：
 
 ```javascript
-// 必要流程，注册扩展，注意即使是非指令关键词也是依附于扩展的  
-if (!seal.ext.find('xxx')){    
-    ext = seal.ext.new('xxx','xxx','x.x.x');    
-    seal.ext.register(ext); 
-    // 这里其实是编写处理函数     
-    ext.onNotCommandReceived = (ctx, msg) => {    
-        let message = msg.message;  
-        // 这里请自己处理要如何达成 message 的匹配条件，js 那么多的匹配方法，足够你玩出花来。  
+// 必要流程，注册扩展，注意即使是非指令关键词也是依附于扩展的
+if (!seal.ext.find('xxx')){
+    ext = seal.ext.new('xxx','xxx','x.x.x');
+    seal.ext.register(ext);
+    // 这里其实是编写处理函数
+    ext.onNotCommandReceived = (ctx, msg) => {
+        let message = msg.message;
+        // 这里请自己处理要如何达成 message 的匹配条件，js 那么多的匹配方法，足够你玩出花来。
         if(xxx){
-          // 匹配到关键词了，要干什么？  
+          // 匹配到关键词了，要干什么？
           xxx;
         }
     }
@@ -1008,7 +1010,7 @@ if (!seal.ext.find('xxx')){
 你也可以直接使用 `seal.ext.getConfig()` 函数获取配置项的值，这个函数会返回一个 `ConfigItem` 对象，
 包含了配置项的类型、值、默认值等信息。
 
-`ConfigItem` 对象的类型定义如下，调用时请使用 `jsbind` 中的值作为 `key` 
+`ConfigItem` 对象的类型定义如下，调用时请使用 `jsbind` 中的值作为 `key`
 
 ```go
 type ConfigItem struct {
@@ -1181,53 +1183,54 @@ pnpm run build
 ```javascript
 cmd.solve = (ctx, msg, cmdArgs) => {
     someFunction;
-} 
+}
 ```
 
 下面是 api 的说明（完全了吧......应该？）：
 
 ```javascript
-//被注释掉的 api 是可以提供的，但是在源码中被注释。  
-//seal.setVarInt(ctx, `$XXX`, valueToSet) //`$XXX`即 rollvm（初阶豹语）中的变量，其会将$XXX 的值设定为 int 类型的 valueToSet。  
-//seal.setVarStr(ctx, `$XXX`, valueToSet) //同上，区别是设定的为 str 类型的 valueToSet。  
-seal.replyGroup(ctx, msg, something) //向收到指令的群中发送 something。  
-seal.replyPerson(ctx, msg, something) //顾名思义，类似暗骰，向指令触发者（若为好友）私信 something。  
-seal.replyToSender(ctx, msg, something) //同上，区别是群内收到就群内发送，私聊收到就私聊发送。  
+//被注释掉的 api 是可以提供的，但是在源码中被注释。
+//seal.setVarInt(ctx, `$XXX`, valueToSet) //`$XXX`即 rollvm（初阶豹语）中的变量，其会将$XXX 的值设定为 int 类型的 valueToSet。
+//seal.setVarStr(ctx, `$XXX`, valueToSet) //同上，区别是设定的为 str 类型的 valueToSet。
+seal.replyGroup(ctx, msg, something) //向收到指令的群中发送 something。
+seal.replyPerson(ctx, msg, something) //顾名思义，类似暗骰，向指令触发者（若为好友）私信 something。
+seal.replyToSender(ctx, msg, something) //同上，区别是群内收到就群内发送，私聊收到就私聊发送。
 seal.memberBan(ctx, groupID, userID, dur) //将指定群的指定用户封禁指定时间 (似乎只实现了 walleq 协议？)
 seal.memberKick(ctx, groupID, userID)  //将指定群的指定用户踢出 (似乎也只实现了 walleq 协议？)
-seal.format(ctx, something) //将 something 经过一层 rollvm 转译并返回，注意需要配合 replyToSender 才能发送给触发者！  
-seal.formatTmpl(ctx, something) //调用自定义文案 something  
-seal.getCtxProxyFirst(ctx, cmdArgs)  //获取被 at 的第一个人，等价于 getCtxProxyAtPos(ctx, 0)  
-seal.vars.intGet(ctx, `$XXX`) //返回一个数组，其为 `[int 类型的触发者的该变量的值，bool]` 当 strGet 一个 int 或 intGet 一个 str 时 bool 为 false，若一切正常则为 true。（之所以会有这么奇怪的说法是因为 rollvm 的「个人变量」机制）。  
-seal.vars.intSet(ctx, `$XXX`, valueToSet) //`$XXX` 即 rollvm（初阶豹语）中的变量，其会将 $XXX 的值设定为 int 类型的 valueToSet。  
-seal.vars.strGet(ctx, `$XXX`) //返回一个数组，其为 `[str 类型的触发者的该变量的值，bool]`（之所以会有这么奇怪的说法是因为 rollvm 的「个人变量」机制），当 strGet 一个 int 或 intGet 一个 str 时 bool 为 false，如果一切正常则为 true。  
-seal.vars.strSet(ctx, `$XXX`, valueToSet) //`$XXX` 即 rollvm（初阶豹语）中的变量，其会将 $XXX 的值设定为 str 类型的 valueToSet。  
+seal.format(ctx, something) //将 something 经过一层 rollvm 转译并返回，注意需要配合 replyToSender 才能发送给触发者！
+seal.formatTmpl(ctx, something) //调用自定义文案 something
+seal.getCtxProxyFirst(ctx, cmdArgs)  //获取被 at 的第一个人，等价于 getCtxProxyAtPos(ctx, 0)
+seal.vars.intGet(ctx, `$XXX`) //返回一个数组，其为 `[int 类型的触发者的该变量的值，bool]` 当 strGet 一个 int 或 intGet 一个 str 时 bool 为 false，若一切正常则为 true。（之所以会有这么奇怪的说法是因为 rollvm 的「个人变量」机制）。
+seal.vars.intSet(ctx, `$XXX`, valueToSet) //`$XXX` 即 rollvm（初阶豹语）中的变量，其会将 $XXX 的值设定为 int 类型的 valueToSet。
+seal.vars.strGet(ctx, `$XXX`) //返回一个数组，其为 `[str 类型的触发者的该变量的值，bool]`（之所以会有这么奇怪的说法是因为 rollvm 的「个人变量」机制），当 strGet 一个 int 或 intGet 一个 str 时 bool 为 false，如果一切正常则为 true。
+seal.vars.strSet(ctx, `$XXX`, valueToSet) //`$XXX` 即 rollvm（初阶豹语）中的变量，其会将 $XXX 的值设定为 str 类型的 valueToSet。
 //seal.vars.varSet(ctx, `$XXX`, valueToSet) //可能是根据数据类型自动推断 int 或 str？
 //seal.vars.varGet(ctx, `$XXX`) //同上
-seal.ext.newCmdItemInfo() //用来定义新的指令；没有参数，个人觉得可以视其为类（class）。  
-seal.ext.newCmdExecuteResult(bool) //用于判断指令执行结果，true 为成功，false 为失败。  
-seal.ext.new(extName, extAuthor, Version) //用于建立一个名为 extName，作者为 extAuthor，版本为 Version 的扩展。注意，extName，extAuthor 和 Version 均为字符串。  
-seal.ext.find(extName) //用于查找名为 extname 的扩展，若存在则返回 true，否则返回 false。  
-seal.ext.register(newExt) //将扩展 newExt 注册到系统中。注意 newExt 是 seal.ext.new 的返回值，将 register 视为 seal.ext.new() 是错误的。  
-seal.coc.newRule() //用来创建自定义 coc 规则，github.com/sealdice/javascript/examples 中已有详细例子，不多赘述。  
-seal.coc.newRuleCheckResult() //同上，不多赘述。  
-seal.coc.registerRule(rule) //同上，不多赘述。  
-seal.deck.draw(ctx, deckname, isShuffle) //他会返回一个抽取牌堆的结果。这里有些复杂：deckname 为需要抽取的牌堆名，而 isShuffle 则是一个布尔值，它决定是否放回抽取；false 为放回，true 为不放回。  
-seal.deck.reload() //重新加载牌堆。  
-//下面是 1.2 新增 api  
+seal.ext.newCmdItemInfo() //用来定义新的指令；没有参数，个人觉得可以视其为类（class）。
+seal.ext.newCmdExecuteResult(bool) //用于判断指令执行结果，true 为成功，false 为失败。
+seal.ext.new(extName, extAuthor, Version) //用于建立一个名为 extName，作者为 extAuthor，版本为 Version 的扩展。注意，extName，extAuthor 和 Version 均为字符串。
+seal.ext.find(extName) //用于查找名为 extname 的扩展，若存在则返回 true，否则返回 false。
+seal.ext.register(newExt) //将扩展 newExt 注册到系统中。注意 newExt 是 seal.ext.new 的返回值，将 register 视为 seal.ext.new() 是错误的。
+seal.coc.newRule() //用来创建自定义 coc 规则，github.com/sealdice/javascript/examples 中已有详细例子，不多赘述。
+seal.coc.newRuleCheckResult() //同上，不多赘述。
+seal.coc.registerRule(rule) //同上，不多赘述。
+seal.deck.draw(ctx, deckname, isShuffle) //他会返回一个抽取牌堆的结果。这里有些复杂：deckname 为需要抽取的牌堆名，而 isShuffle 则是一个布尔值，它决定是否放回抽取；false 为放回，true 为不放回。
+seal.deck.reload() //重新加载牌堆。
+//下面是 1.2 新增 api
 seal.newMessage() //返回一个空白的 Message 对象，结构与收到消息的 msg 相同
 seal.createTempCtx(endpoint, msg) // 制作一个 ctx, 需要 msg.MessageType 和 msg.Sender.UserId
 seal.applyPlayerGroupCardByTemplate(ctx, tmpl) // 设定当前 ctx 玩家的自动名片格式
-seal.gameSystem.newTemplate(string) //从 json 解析新的游戏规则。  
-seal.gameSystem.newTemplateByYaml(string) //从 yaml 解析新的游戏规则。 
-seal.getCtxProxyAtPos(ctx, pos) //获取第 pos 个被 at 的人，pos 从 0 开始计数 
-seal.atob(base64String) //返回被解码的 base64 编码  
+seal.gameSystem.newTemplate(string) //从 json 解析新的游戏规则。
+seal.gameSystem.newTemplateByYaml(string) //从 yaml 解析新的游戏规则。
+seal.getCtxProxyAtPos(ctx, pos) //获取第 pos 个被 at 的人，pos 从 0 开始计数
+seal.atob(base64String) //返回被解码的 base64 编码
 seal.btoa(string) //将 string 编码为 base64 并返回
 ```
+<!-- TODO: 添加 1.4.1 中新增的插件配置项 -->
 
 ### 部分 api 使用示例
 
-::: note 
+::: note
 
 声明和注册扩展的代码部分已省略。
 
@@ -1317,7 +1320,7 @@ seal.deck.reload() //重新加载牌堆
 
 ```javascript
 //这里实在不知道如何举例了
-seal.gameSystem.newTemplate(string) //从 json 解析新的游戏规则。  
+seal.gameSystem.newTemplate(string) //从 json 解析新的游戏规则。
 seal.gameSystem.newTemplateByYaml(string) //从 yaml 解析新的游戏规则。
 seal.applyPlayerGroupCardByTemplate(ctx, tmpl) // 设定当前 ctx 玩家的自动名片格式
 ```
@@ -1327,7 +1330,7 @@ seal.applyPlayerGroupCardByTemplate(ctx, tmpl) // 设定当前 ctx 玩家的自�
 ```javascript
 seal.newMessage() //返回一个空白的 Message 对象，结构与收到消息的 msg 相同
 seal.createTempCtx(endpoint, msg) // 制作一个 ctx, 需要 msg.MessageType 和 msg.Sender.UserId
-seal.atob(base64String) //返回被解码的 base64 编码  
+seal.atob(base64String) //返回被解码的 base64 编码
 seal.btoa(string) //将 string 编码为 base64 并返回
 seal.getEndPoints() //返回骰子（应该？）的 EndPoints
 seal.getVersion() //返回一个 map，键值为 version 和 versionCode
@@ -1342,7 +1345,7 @@ ctx.group // 当前群信息 (对象)
 ctx.player // 当前玩家数据 (对象)
 ctx.endPoint // 接入点数据 (对象)
 // 以上三个对象内容暂略
-ctx.isCurGroupBotOn // bool 
+ctx.isCurGroupBotOn // bool
 ctx.isPrivate // bool 是否私聊
 ctx.privilegeLevel // int 权限等级：40 邀请者、50 管理、60 群主、70 信任、100 master
 ctx.delegateText // string 代骰附加文本
