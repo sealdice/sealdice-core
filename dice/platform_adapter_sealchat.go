@@ -99,7 +99,7 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 							User satori.User `json:"user"`
 						} `json:"body"`
 					}{}
-					err := json.Unmarshal([]byte(message), &data)
+					err = json.Unmarshal([]byte(message), &data)
 					if err != nil {
 						log.Errorf("SealChat 解析用户信息失败: %s", err)
 					} else {
@@ -145,7 +145,6 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 			if !pa.tryReconnect(*pa.Socket) {
 				log.Errorf("短时间内连接失败次数过多，不再进行重连")
 				ep.State = 3
-				//ep.Enable = false
 			}
 		}
 	}
@@ -426,7 +425,7 @@ func (pa *PlatformAdapterSealChat) toStdMessage(scMsg *satori.Message) *Message 
 	if send.Nickname == "" {
 		send.Nickname = fmt.Sprintf("用户%4s", scMsg.Channel.ID)
 	}
-	//fmt.Println("!!!", scMsg.Member, "|", scMsg.User.Name)
+	// fmt.Println("!!!", scMsg.Member, "|", scMsg.User.Name)
 	// if msgMC.Event.IsAdmin {
 	//	send.GroupRole = "admin"
 	// }
