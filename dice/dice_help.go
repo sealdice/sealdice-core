@@ -336,14 +336,15 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 		for index, s := range f.GetSheetList() {
 			rows, err := f.GetRows(s)
 			if err == nil {
+				var synonymCount int
 				for i, row := range rows {
 					if i == 0 {
-						err := validateXlsxHeaders(row)
+						synonymCount, err = validateXlsxHeaders(row)
 						if err == nil {
 							// 跳过第一行
 							continue
 						} else {
-							fmt.Printf("%s sheet %d: %s\n", path, index, err)
+							fmt.Printf("%s sheet %d(zero-based): %s\n", path, index, err)
 							break
 						}
 					}
@@ -351,12 +352,10 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 						continue
 					}
 					key := row[0]
-					synonym := row[1]
-					content := row[2]
-
-					if synonym != "" {
-						key += "/" + synonym
+					for j := 0; j < synonymCount; j++ {
+						key += "/" + row[1+j]
 					}
+					content := row[synonymCount+1]
 
 					_ = m.AddItem(HelpTextItem{
 						Group:       group,
@@ -378,32 +377,69 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 	return false
 }
 
-// validateXlsxHeaders 验证 xlsx 格式 helpdoc 的表头是否是 Key Synonym Content Description Catalogue Tag
-func validateXlsxHeaders(headers []string) error {
+// validateXlsxHeaders 验证 xlsx 格式 helpdoc 的表头是否是 Key Synonym（可能有多列） Content Description Catalogue Tag
+func validateXlsxHeaders(headers []string) (int, error) {
 	if len(headers) < 3 {
-		return fmt.Errorf("helpdoc格式错误，缺少必须列")
-	}
-	if headers[0] != "Key" {
-		return fmt.Errorf("helpdoc表头格式错误，第一列表头必须是Key")
-	}
-	if headers[1] != "Synonym" {
-		return fmt.Errorf("helpdoc表头格式错误，第二列表头必须是Synonym")
-	}
-	if headers[2] != "Content" {
-		return fmt.Errorf("helpdoc表头格式错误，第三列表头必须是Content")
+		return 0, fmt.Errorf("helpdoc格式错误，缺少必须列 Key Synonym Content")
 	}
 
-	// 其它表头校验
-	if len(headers) > 3 && headers[3] != "Description" {
-		return fmt.Errorf("helpdoc表头格式错误，第四列表头必须是Description")
+	var (
+		index    int
+		expected string
+	)
+	var synonymCount int
+	expected = "key"
+out:
+	for index < len(headers) {
+		// 放宽同义词大小写校验
+		header := strings.ToLower(headers[index])
+		switch expected {
+		case "key":
+			if header != "key" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Key，当前为%s", index+1, header)
+			}
+			expected = "synonym"
+			index++
+		case "synonym":
+			if header != "synonym" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Synonym，当前为%s", index+1, header)
+			}
+			expected = "content"
+			index++
+			synonymCount++
+		case "content":
+			if header == "" || header == "synonym" {
+				// 有多列同义词
+				index++
+				synonymCount++
+				continue
+			} else if header != "content" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是为空白（表示同义词列）或者Content，当前为%s", index+1, header)
+			}
+			expected = "description"
+			index++
+		case "description":
+			if header != "description" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Description，当前为%s", index+1, header)
+			}
+			expected = "catalogue"
+			index++
+		case "catalogue":
+			if header != "catalogue" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Catalogue，当前为%s", index+1, header)
+			}
+			expected = "tag"
+			index++
+		case "tag":
+			if header != "tag" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Tag", index+1)
+			}
+			break out
+		default:
+			return 0, fmt.Errorf("错误的表头校验状态，当前等待表头%s，实际获得%s", expected, header)
+		}
 	}
-	if len(headers) > 4 && headers[4] != "Catalogue" {
-		return fmt.Errorf("helpdoc表头格式错误，第五列表头必须是Catalogue")
-	}
-	if len(headers) > 5 && headers[5] != "Tag" {
-		return fmt.Errorf("helpdoc表头格式错误，第六列表头必须是Tag")
-	}
-	return nil
+	return synonymCount, nil
 }
 
 func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
