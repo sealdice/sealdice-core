@@ -690,13 +690,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 			default:
 				ok := false
 				ctx.Dice.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
-					name := strings.ToLower(val)
 					var t NameTemplateItem
 					var exists bool
 
 					// 先检查绝对匹配, 不存在则检查小写匹配
 					if t, exists = value.NameTemplate[val]; !exists {
-						t, exists = value.NameTemplate[name]
+						t, exists = value.NameTemplate[strings.ToLower(val)]
 					}
 
 					if !exists {
