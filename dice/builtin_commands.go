@@ -2231,6 +2231,90 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["ping"] = cmdPing
+
+	defHelp := ".def/define <别名> <指令> // 将 .<别名> 定义为指定指令的快捷触发方式\n" +
+		".def del <别名> // 删除快捷指令\n" +
+		".def show // 显示目前定义的快捷指令"
+	cmdDef := &CmdItemInfo{
+		Name:      "def",
+		ShortHelp: defHelp,
+		Help:      "可以定义一条指令的快捷方式。\n" + defHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			args := cmdArgs.Args
+			if len(args) == 0 {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			playerVars := ctx.LoadPlayerGlobalVars()
+			switch action := args[0]; action {
+			case "del":
+				name := args[1]
+				key := "$m:define:" + name
+				if _cmd, ok := playerVars.ValueMap.Get(key); ok {
+					if cmd, ok := _cmd.(string); ok {
+						playerVars.ValueMap.Del(key)
+						VarSetValueStr(ctx, "$t快捷指令名", name)
+						VarSetValueStr(ctx, "$t旧指令", cmd)
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除"))
+					}
+				} else {
+					VarSetValueStr(ctx, "$t快捷指令名", name)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除_未定义"))
+				}
+			case "show":
+				var cmd []string
+				_ = playerVars.ValueMap.Iterate(func(k interface{}, v interface{}) error {
+					if key, ok := k.(string); ok {
+						if strings.HasPrefix(key, "$m:define:") {
+							_cmd := key[len("$m:define:"):]
+							if val, ok := v.(string); ok {
+								VarSetValueStr(ctx, "$t快捷指令名", _cmd)
+								VarSetValueStr(ctx, "$t指令", val)
+								cmd = append(cmd, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
+							}
+						}
+					}
+					return nil
+				})
+				if len(cmd) > 0 {
+					sep := DiceFormatTmpl(ctx, "核心:快捷指令_列表_分隔符")
+					VarSetValueStr(ctx, "$t列表内容", strings.Join(cmd, sep))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表"))
+				} else {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表_空"))
+				}
+			default:
+				if len(args) < 2 {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_新增_无指令"))
+					break
+				}
+				name := action
+				_args := args[1:]
+				for _, kw := range cmdArgs.Kwargs {
+					_args = append(_args, fmt.Sprintf("--%s=%s", kw.Name, kw.Value))
+				}
+				cmd := strings.TrimSpace(strings.Join(_args, " "))
+
+				key := "$m:define:" + name
+				if _oldCmd, ok := playerVars.ValueMap.Get(key); ok {
+					if oldCmd, ok := _oldCmd.(string); ok {
+						playerVars.ValueMap.Set(key, cmd)
+						VarSetValueStr(ctx, "$t快捷指令名", name)
+						VarSetValueStr(ctx, "$t指令", cmd)
+						VarSetValueStr(ctx, "$t旧指令", oldCmd)
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_替换"))
+					}
+				} else {
+					playerVars.ValueMap.Set(key, cmd)
+					VarSetValueStr(ctx, "$t快捷指令名", name)
+					VarSetValueStr(ctx, "$t指令", cmd)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_新增"))
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+	d.CmdMap["def"] = cmdDef
+	d.CmdMap["define"] = cmdDef
 }
 
 func getDefaultDicePoints(ctx *MsgContext) int64 {

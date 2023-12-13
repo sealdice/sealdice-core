@@ -839,13 +839,27 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					}
 				}
 
-				var ret bool
+				// 试图匹配指令别名
+				targetCmdArgs := cmdArgs
+				playerVars := mctx.LoadPlayerGlobalVars()
+				if _cmd, ok := playerVars.ValueMap.Get("$m:define:" + cmdArgs.Command); ok {
+					if cmd, ok := _cmd.(string); ok {
+						_target := CommandParse(cmd, cmdLst, d.CommandPrefix, platformPrefix, false)
+						if _target != nil {
+							log.Infof("快捷指令映射: .%s -> %s", cmdArgs.Command, cmd)
+							targetCmdArgs = _target
+						} else {
+							log.Infof("快捷指令解析失败，继续使用原命令")
+						}
+					}
+				}
 
+				var ret bool
 				// 试图匹配自定义指令
 				if mctx.Group != nil && mctx.Group.IsActive(mctx) {
 					for _, i := range mctx.Group.ActivatedExtList {
 						if i.OnCommandOverride != nil {
-							ret = i.OnCommandOverride(mctx, msg, cmdArgs)
+							ret = i.OnCommandOverride(mctx, msg, targetCmdArgs)
 							if ret {
 								break
 							}
@@ -855,7 +869,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 				if !ret {
 					// 若自定义指令未匹配，匹配标准指令
-					ret = s.commandSolve(mctx, msg, cmdArgs)
+					ret = s.commandSolve(mctx, msg, targetCmdArgs)
 				}
 				if ret {
 					// Oissevalt: 刷屏检测已经迁移到 im_helpers.go，此处不再处理
