@@ -680,7 +680,7 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 `.ping` 海豹回复你一条消息。
 
-:::: info 为什么要有这个指令？
+::::: info 为什么要有这个指令？
 
 对于绝大多数情况，这个指令似乎都没有实际作用。事实上，这个指令的存在是为了解决 **QQ 官方 Bot 在频道私聊中**的以下问题：
 
@@ -689,33 +689,37 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 此时，你可以在**频道**中向海豹核心发送 `.ping` 指令，海豹核心会在**频道私聊**中回复你，以打破死锁。
 
-::: tabs
+:::: tabs
 
 @tab 频道私聊
-
-<ChatBox :messages="[
-{username: 'PL', avatar: '/images/avatar/user1.jpg', content: '我要对这个 NPC 使用心理学'},
-{username: 'KP', avatar: '/images/avatar/user3.jpg', content: '可以', send: true},
-{username: 'KP', avatar: '/images/avatar/user3.jpg', content: '.rah 心理学 @PL', send: true},
-{content: '由<KP>代骰:\n<PL>悄悄进行了一项心理学检定'}
-]"/>
 
 <ChatBox :messages="[
 {content: '我发出第一条消息。', send: true},
 {content: '我发出第二条消息。', send: true},
 {content: '我发出第三条消息，机器人怎么还不理我？', send: true},
-{content: '这时，用户已经无法再发送第四条频道私聊', username: '说明', avatar: '/images/avatar/user2.jpg'},
-{content: '用户去频道公屏发送一个 ping 指令', username: '说明', avatar: '/images/avatar/user2.jpg'},
-{content: 'PONG！这里是海豹核心！'},
-{content: '好耶，我又可以发频道私信了！', send: true},
+]" />
+
+::: note
+
+如果出现类似场景，可以发现 QQ 会提示你已经禁止再向骰子发送私聊消息，要求在骰子回应后才能再次发送。
+
+但用户已经无法再通过私聊发送正确的指令，触发骰子的回应了。
+
+此时，用户可以去频道公屏发送一个 `.ping` 指令。
+
+:::
+
+<ChatBox :messages="[
+{content: 'pong！这里是海豹核心！'},
+{content: '好耶，我又可以发私信给骰子了！', send: true},
 ]" />
 
 @tab 频道公屏
 
 <ChatBox :messages="[
-{content: '.ping', send: true},
+{content: '@海豹核心 .ping', send: true},
 ]"/>
 
-:::
-
 ::::
+
+:::::
