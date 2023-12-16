@@ -302,17 +302,14 @@ func (pa *PlatformAdapterSealChat) SendToPerson(ctx *MsgContext, uid string, tex
 		"user_id": ExtractSealChatUserID(uid),
 	})
 
-	text = strings.ReplaceAll(text, "<", "&lt;")
-	text = strings.ReplaceAll(text, ">", "&gt;")
-
+	text = satori.ContentEscape(text)
 	gid := ExtractSealChatPrivateChatID(uid, pa.EndPoint.UserID)
 	pa._sendTo(ctx, gid, text, flag, "private")
 }
 
 func (pa *PlatformAdapterSealChat) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	chId := ExtractSealChatUserID(uid)
-	text = strings.ReplaceAll(text, "<", "&lt;")
-	text = strings.ReplaceAll(text, ">", "&gt;")
+	text = satori.ContentEscape(text)
 	pa._sendTo(ctx, chId, text, flag, "group")
 }
 
