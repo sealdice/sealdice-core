@@ -167,6 +167,7 @@ type Dice struct {
 	UIEndpoint *EndPointInfo `yaml:"-" json:"-"` // UI Endpoint
 
 	CensorManager *CensorManager `json:"-" yaml:"-"`
+	AttrsManager  *AttrsManager  `json:"-" yaml:"-"`
 
 	Config              Config `json:"-" yaml:"-"`
 	IsAlreadyLoadConfig bool   `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
@@ -195,6 +196,9 @@ func (d *Dice) Init() {
 
 	d.Cron = cron.New()
 	d.Cron.Start()
+
+	d.AttrsManager = &AttrsManager{parent: d}
+	d.AttrsManager.Init()
 
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 

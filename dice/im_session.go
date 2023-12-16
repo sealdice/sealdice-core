@@ -14,6 +14,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 type SenderBase struct {
@@ -81,7 +83,6 @@ type GroupInfo struct {
 	DiceSideNum     int64                  `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
 	System          string                 `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
-	// ValueMap     map[string]*VMValue `yaml:"-"`
 	ValueMap     lockfree.HashMap `yaml:"-" json:"-"`
 	HelpPackages []string         `yaml:"-" json:"helpPackages"`
 	CocRuleIndex int              `yaml:"cocRuleIndex" json:"cocRuleIndex" jsbind:"cocRuleIndex"`
@@ -459,6 +460,8 @@ type MsgContext struct {
 	diceExprOverwrite string                                      // 默认骰表达式覆盖
 	SystemTemplate    *GameSystemTemplate
 	Censored          bool // 已检查过敏感词
+
+	vm *ds.Context
 }
 
 // func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {
@@ -1825,6 +1828,11 @@ func (ctx *MsgContext) ChBindGetList(name string) []string {
 		grps = append(grps, k)
 	}
 	return grps
+}
+
+// ChNewCurGet 获取当前群的用户数据(暂时以ChNew为前缀，以和之前API区分)
+func (mctx *MsgContext) ChNewCurGet() {
+	// 等等 好像暂时不需要
 }
 
 var curCommandID int64 = 0

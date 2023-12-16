@@ -168,7 +168,6 @@ func (v *VMValue) ConvertToDiceScriptValue() *ds.VMValue {
 			Attrs: m,
 		}
 		return ds.VMValueNewComputedRaw(cd)
-	default:
-		return ds.VMValueNewUndefined()
 	}
+	return ds.VMValueNewUndefined()
 }

@@ -53,8 +53,14 @@ func attrSave(db *sqlx.DB, bucket string, key string, data []byte) {
 	}
 }
 
+func AttrGroupUserGetAllBase(db *sqlx.DB, id string) []byte {
+	return attrGetAllBase(db, "attrs_group_user", id)
+}
+
 func AttrGroupUserGetAll(db *sqlx.DB, groupID string, userID string) []byte {
-	return attrGetAllBase(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupID, userID))
+	//return attrGetAllBase(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupId, userId))
+	return AttrGroupUserGetAllBase(db, fmt.Sprintf("%s-%s", groupID, userID))
+	//return attrGetAllBase(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupID, userID))
 }
 
 func AttrGroupUserSave(db *sqlx.DB, groupID string, userID string, data []byte) {

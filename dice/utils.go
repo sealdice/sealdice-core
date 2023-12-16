@@ -546,3 +546,56 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 
 	return ctx
 }
+
+// UnpackGroupUserId 分离群组ID和用户ID的连写
+func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
+	prefixMap := map[string]string{
+		"QQ-Group:":      "QQ:",
+		"KOOK-CH-Group:": "KOOK:",
+	}
+
+	// 我们是否能做这样的假设：XX-Group:123 的用户ID形式是 XX:123 ？
+	// 但是 KOOK 就例外了
+	for groupPrefix, userPrefix := range prefixMap {
+		if strings.HasPrefix(id, groupPrefix) {
+			lenX := len(groupPrefix)
+
+			idx := strings.Index(id[lenX:], "-"+userPrefix)
+			if idx != -1 {
+				idx += lenX
+				return id[:idx], id[idx+1:], true
+			}
+		}
+	}
+
+	prefixMap2 := map[string]string{
+		"PG-QQ:": "",
+	}
+	for userPrefix := range prefixMap2 {
+		if strings.HasPrefix(id, userPrefix) {
+			return "", id, true
+		}
+	}
+
+	return "", "", false
+}
+
+func Must0(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func Must[T any](obj T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+func Must2[T1 any, T2 any](obj1 T1, obj2 T2, err error) (T1, T2) {
+	if err != nil {
+		panic(err)
+	}
+	return obj1, obj2
+}

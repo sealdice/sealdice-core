@@ -67,6 +67,7 @@ func VarSetValueInt64(ctx *MsgContext, s string, v int64) {
 }
 
 func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
+	ctx.CreateVmIfNotExists()
 	name := ctx.Player.GetValueNameByAlias(s, nil)
 	vClone := *v
 
@@ -76,6 +77,7 @@ func VarSetValue(ctx *MsgContext, s string, v *VMValue) {
 			ctx.Player.ValueMapTemp = lockfree.NewHashMap()
 		}
 		ctx.Player.ValueMapTemp.Set(s, &vClone)
+		ctx.vm.StoreNameLocal(s, vClone.ConvertToDiceScriptValue())
 		return
 	}
 
