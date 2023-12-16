@@ -165,7 +165,6 @@ func RegisterBuiltinExtFun(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// p := getPlayerInfoBySender(session, msg)
 			isShowFrom := cmdArgs.IsArgEqual(1, "from", "showfrom", "来源", "作者")
-			rand.Seed(time.Now().UTC().UnixNano()) // always seed random!
 
 			reason := DiceFormatTmpl(ctx, "娱乐:鸽子理由")
 			reasonInfo := strings.SplitN(reason, "|", 2)
@@ -674,7 +673,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: textHelp,
 		Help:      "文本模板指令:\n" + textHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.Dice.TextCmdTrustOnly {
+			if ctx.Dice.Config.TextCmdTrustOnly {
 				// 检查master和信任权限
 				refuse := ctx.PrivilegeLevel != 100
 				if refuse {
@@ -757,7 +756,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			if m == 0 {
 				m = int(getDefaultDicePoints(ctx))
 			}
-			if t > int(ctx.Dice.MaxExecuteTime) {
+			if t > int(ctx.Dice.Config.MaxExecuteTime) {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -797,7 +796,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			} else {
 				VarSetValueStr(ctx, "$t原因句子", "")
 			}
-			VarSetValueAuto(ctx, "$t次数", t)
+			VarSetValueInt64(ctx, "$t次数", int64(t))
 			VarSetValueStr(ctx, "$t结果文本", strings.Join(results, "\n"))
 			reply := DiceFormatTmpl(ctx, "核心:骰点_多轮")
 			ReplyToSender(ctx, msg, reply)
@@ -844,7 +843,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 
 				// NOTE(Xiangze Li): 允许创建更多轮数。使用洗牌算法后并不会很重复计算
-				// if roulette.Time > int(ctx.Dice.MaxExecuteTime) {
+				// if roulette.Time > int(ctx.Dice.Config.MaxExecuteTime) {
 				// 	ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 				// 	return CmdExecuteResult{Matched: true, Solved: true}
 				// }
@@ -931,6 +930,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		AutoActive:      true, // 是否自动开启
 		ActiveOnPrivate: true,
 		Author:          "木落",
+		Official:        true,
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 		},
 		OnLoad: func() {

@@ -34,10 +34,12 @@ type Message struct {
 	MessageType string      `json:"messageType" jsbind:"messageType"` // group private
 	GroupID     string      `json:"groupId" jsbind:"groupId"`         // 群号，如果是群聊消息
 	GuildID     string      `json:"guildId" jsbind:"guildId"`         // 服务器群组号，会在discord,kook,dodo等平台见到
-	Sender      SenderBase  `json:"sender" jsbind:"sender"`           // 发送者
-	Message     string      `json:"message" jsbind:"message"`         // 消息内容
-	RawID       interface{} `json:"rawId" jsbind:"rawId"`             // 原始信息ID，用于处理撤回等
-	Platform    string      `json:"platform" jsbind:"platform"`       // 当前平台
+	ChannelID   string      `json:"channelId" jsbind:"channelId"`
+	Sender      SenderBase  `json:"sender" jsbind:"sender"`     // 发送者
+	Message     string      `json:"message" jsbind:"message"`   // 消息内容
+	RawID       interface{} `json:"rawId" jsbind:"rawId"`       // 原始信息ID，用于处理撤回等
+	Platform    string      `json:"platform" jsbind:"platform"` // 当前平台
+	GroupName   string      `json:"groupName"`
 	TmpUID      string      `json:"-" yaml:"-"`
 }
 
@@ -73,6 +75,7 @@ type GroupInfo struct {
 
 	GroupID         string                 `yaml:"groupId" json:"groupId" jsbind:"groupId"`
 	GuildID         string                 `yaml:"guildId" json:"guildId" jsbind:"guildId"`
+	ChannelID       string                 `yaml:"channelId" json:"channelId" jsbind:"channelId"`
 	GroupName       string                 `yaml:"groupName" json:"groupName" jsbind:"groupName"`
 	DiceIDActiveMap *SyncMap[string, bool] `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
 	DiceIDExistsMap *SyncMap[string, bool] `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
@@ -94,6 +97,9 @@ type GroupInfo struct {
 	// FirstSpeechMade     bool   `yaml:"firstSpeechMade"` // 是否做过进群发言
 	LastCustomReplyTime float64 `yaml:"-" json:"-"` // 上次自定义回复时间
 
+	RateLimiter     *rate.Limiter `yaml:"-" json:"-"`
+	RateLimitWarned bool          `yaml:"-" json:"-"`
+
 	EnteredTime  int64  `yaml:"enteredTime" json:"enteredTime" jsbind:"enteredTime"`    // 入群时间
 	InviteUserID string `yaml:"inviteUserId" json:"inviteUserId" jsbind:"inviteUserId"` // 邀请人
 	// 仅用于http接口
@@ -101,6 +107,8 @@ type GroupInfo struct {
 	TmpExtList   []string `yaml:"-" json:"tmpExtList"`
 
 	UpdatedAtTime int64 `yaml:"-" json:"-"`
+
+	DefaultHelpGroup string `yaml:"defaultHelpGroup" json:"defaultHelpGroup"` // 当前群默认的帮助文档分组
 }
 
 // ExtActive 开启扩展
@@ -290,6 +298,15 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 				return err
 			}
 			ep.Adapter = val.Adapter
+		case "official":
+			var val struct {
+				Adapter *PlatformAdapterOfficialQQ `yaml:"adapter"`
+			}
+			err = value.Decode(&val)
+			if err != nil {
+				return err
+			}
+			ep.Adapter = val.Adapter
 		}
 	case "DISCORD":
 		var val struct {
@@ -339,6 +356,24 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 	case "DINGTALK":
 		var val struct {
 			Adapter *PlatformAdapterDingTalk `yaml:"adapter"`
+		}
+		err = value.Decode(&val)
+		if err != nil {
+			return err
+		}
+		ep.Adapter = val.Adapter
+	case "SLACK":
+		var val struct {
+			Adapter *PlatformAdapterSlack `yaml:"adapter"`
+		}
+		err = value.Decode(&val)
+		if err != nil {
+			return err
+		}
+		ep.Adapter = val.Adapter
+	case "SEALCHAT":
+		var val struct {
+			Adapter *PlatformAdapterSealChat `yaml:"adapter"`
 		}
 		err = value.Decode(&val)
 		if err != nil {
@@ -395,11 +430,11 @@ func (ep *EndPointInfo) StatsDump(d *Dice) {
 type PlayerVariablesItem model.PlayerVariablesItem
 
 type IMSession struct {
-	Parent    *Dice           `yaml:"-"`
+	Parent    *Dice           `json:"-" yaml:"-"`
 	EndPoints []*EndPointInfo `yaml:"endPoints"`
 
 	ServiceAtNew   map[string]*GroupInfo           `json:"servicesAt" yaml:"-"`
-	PlayerVarsData map[string]*PlayerVariablesItem `yaml:"-"` // 感觉似乎没有什么存本地的必要
+	PlayerVarsData map[string]*PlayerVariablesItem `json:"-" yaml:"-"` // 感觉似乎没有什么存本地的必要
 }
 
 type MsgContext struct {
@@ -416,8 +451,9 @@ type MsgContext struct {
 	CommandID       int64       // 指令ID
 	CommandHideFlag string      // 暗骰标记
 	CommandInfo     interface{} // 命令信息
-	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 40邀请者 50管理 60群主 70信任 100master
-	DelegateText    string      `jsbind:"delegateText"`   // 代骰附加文本
+	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 -30ban 40邀请者 50管理 60群主 70信任 100master
+	GroupRoleLevel  int         // 群内权限 40邀请者 50管理 60群主 70信任 100master，相当于不考虑ban的权限等级
+	DelegateText    string      `jsbind:"delegateText"` // 代骰附加文本
 
 	deckDepth         int                                         // 抽牌递归深度
 	DeckPools         map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
@@ -447,8 +483,10 @@ func (ctx *MsgContext) fillPrivilege(msg *Message) int {
 		default: /* no-op */
 		}
 
+		ctx.GroupRoleLevel = ctx.PrivilegeLevel
+
 		// 加入黑名单相关权限
-		if val, exists := ctx.Dice.BanList.Map.Load(ctx.Player.UserID); exists {
+		if val, exists := ctx.Dice.Config.BanList.Map.Load(ctx.Player.UserID); exists {
 			switch val.Rank {
 			case BanRankBanned:
 				ctx.PrivilegeLevel = -30
@@ -486,11 +524,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// 注意: 此处必须开启，不然下面mctx.player取不到
 			autoOn := true
 			if msg.Platform == "QQ-CH" {
-				autoOn = d.QQChannelAutoOn
+				autoOn = d.Config.QQChannelAutoOn
 			}
 			group = SetBotOnAtGroup(mctx, msg.GroupID)
 			group.Active = autoOn
 			group.DiceIDExistsMap.Store(ep.UserID, true)
+			if msg.GroupName != "" {
+				group.GroupName = msg.GroupName
+			}
 			group.UpdatedAtTime = time.Now().Unix()
 
 			dm := d.Parent
@@ -521,10 +562,10 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				mustLoadUser = true
 			}
 			// 开启reply时，必须加载信息
-			// d.CustomReplyConfigEnable
+			// d.Config.CustomReplyConfigEnable
 			extReply := group.ExtGetActive("reply")
 			if extReply != nil {
-				for _, i := range d.CustomReplyConfig {
+				for _, i := range d.Config.CustomReplyConfig {
 					if i.Enable {
 						mustLoadUser = true
 						break
@@ -569,9 +610,17 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				tmpUID = msg.TmpUID
 			}
 			for _, i := range ats {
+				// 特殊处理 OpenQQ 和 OpenQQCH
 				if i.UserID == tmpUID {
 					amIBeMentioned = true
 					break
+				} else if strings.HasPrefix(i.UserID, "OpenQQ:") ||
+					strings.HasPrefix(i.UserID, "OpenQQCH:") {
+					uid := strings.TrimPrefix(tmpUID, "OpenQQ:")
+					if i.UserID == "OpenQQ:"+uid || i.UserID == "OpenQQCH:"+uid {
+						amIBeMentioned = true
+						break
+					}
 				}
 			}
 			if amIBeMentioned {
@@ -617,7 +666,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		if maybeCommand {
 			// 兼容模式检查
 			// 是的，永远使用兼容模式
-			if true || d.CommandCompatibleMode {
+			if true || d.Config.CommandCompatibleMode {
 				for k := range d.CmdMap {
 					cmdLst = append(cmdLst, k)
 				}
@@ -644,7 +693,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		if cmdArgs != nil {
 			mctx.CommandID = getNextCommandID()
 
-			tmpUID := ep.UserID
+			var tmpUID string
+			if platformPrefix == "OpenQQCH" {
+				// 特殊处理 OpenQQ频道
+				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
+				tmpUID = "OpenQQCH:" + uid
+			} else {
+				tmpUID = ep.UserID
+			}
 			if msg.TmpUID != "" {
 				tmpUID = msg.TmpUID
 			}
@@ -664,13 +720,13 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				log.Infof("收到群(%s)内<%s>(%s)的指令: %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 			} else {
 				doLog := true
-				if d.OnlyLogCommandInGroup {
+				if d.Config.OnlyLogCommandInGroup {
 					// 检查上级选项
 					doLog = false
 				}
 				if doLog {
 					// 检查QQ频道的独立选项
-					if msg.Platform == "QQ-CH" && (!d.QQChannelLogMessage) {
+					if msg.Platform == "QQ-CH" && (!d.Config.QQChannelLogMessage) {
 						doLog = false
 					}
 				}
@@ -682,7 +738,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		}
 
 		// 敏感词拦截：全部输入
-		if mctx.IsCurGroupBotOn && d.EnableCensor && d.CensorMode == AllInput {
+		if mctx.IsCurGroupBotOn && d.Config.EnableCensor && d.Config.CensorMode == AllInput {
 			hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
 			if needToTerminate {
 				return
@@ -714,7 +770,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		if msg.MessageType == "private" {
 			if mctx.CommandID != 0 {
 				log.Infof("收到<%s>(%s)的私聊指令: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
-			} else if !d.OnlyLogCommandInPrivate {
+			} else if !d.Config.OnlyLogCommandInPrivate {
 				log.Infof("收到<%s>(%s)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 			}
 		}
@@ -731,7 +787,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				}()
 
 				// 敏感词拦截：命令输入
-				if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.EnableCensor && d.CensorMode == OnlyInputCommand {
+				if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.Config.EnableCensor && d.Config.CensorMode == OnlyInputCommand {
 					hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
 					if needToTerminate {
 						return
@@ -805,31 +861,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					ret = s.commandSolve(mctx, msg, cmdArgs)
 				}
 				if ret {
-					if s.Parent.RateLimitEnabled && mctx.PrivilegeLevel < 100 && msg.Platform == "QQ" {
-						if mctx.Player.RateLimiter != nil {
-							if !mctx.Player.RateLimiter.Allow() {
-								if mctx.Player.RateLimitWarned {
-									mctx.Dice.BanList.AddScoreByCommandSpam(mctx.Player.UserID, msg.GroupID, mctx)
-								} else {
-									mctx.Player.RateLimitWarned = true
-									ReplyToSender(mctx, msg, "您的指令频率过高，请注意。")
-								}
-							} else {
-								mctx.Player.RateLimitWarned = false
-							}
-						} else {
-							mctx.Player.RateLimitWarned = false
-							if mctx.Dice.CustomReplenishRate == "" {
-								mctx.Dice.CustomReplenishRate = "@every 3s"
-								mctx.Dice.ParsedReplenishRate = rate.Every(time.Second * 3)
-							}
-							if mctx.Dice.CustomBurst == 0 {
-								mctx.Dice.CustomBurst = 3
-							}
-							mctx.Player.RateLimiter = rate.NewLimiter(mctx.Dice.ParsedReplenishRate, int(mctx.Dice.CustomBurst))
-							mctx.Player.RateLimiter.Allow()
-						}
-					}
+					// Oissevalt: 刷屏检测已经迁移到 im_helpers.go，此处不再处理
+					// if s.Parent.RateLimitEnabled && msg.Platform == "QQ" {
+					// 	if !spamCheckPerson(mctx, msg) {
+					// 		spamCheckGroup(mctx, msg)
+					// 	}
+					// }
 					ep.CmdExecutedNum++
 					ep.CmdExecutedLastTime = time.Now().Unix()
 					mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
@@ -913,20 +950,43 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 			// 防止骰子从未发言过的新加群被立即清理掉
 			continue
 		}
+		if s.Parent.Config.BanList != nil {
+			if info := s.Parent.Config.BanList.GetByID(grp.GroupID); info != nil {
+				if info.Rank > BanRankNormal {
+					continue // 信任等级高于普通的不清理
+				}
+			}
+		}
+
 		last := time.Unix(grp.RecentDiceSendTime, 0)
 		if last.Before(threshold) {
 			match := platformRE.FindStringSubmatch(grp.GroupID)
 			if len(match) != 2 {
 				continue
 			}
-
-			s.Parent.Logger.Infof("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
 			platform := match[1]
+			if platform != "QQ" {
+				continue
+			}
+
+			hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
+			s.Parent.Logger.Info(hint)
 			for _, ep := range s.EndPoints {
-				if ep.Platform != platform {
+				if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
 					continue
 				}
+				msgText := DiceFormatTmpl(&MsgContext{Dice: s.Parent}, "核心:骰子自动退群告别语")
+				msgCtx := CreateTempCtx(ep, &Message{
+					MessageType: "group",
+					Sender:      SenderBase{UserID: ep.UserID},
+					GroupID:     grp.GroupID,
+				})
+				ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
+
+				grp.DiceIDExistsMap.Delete(ep.UserID)
+				grp.UpdatedAtTime = time.Now().Unix()
 				ep.Adapter.QuitGroup(&MsgContext{Dice: s.Parent}, grp.GroupID)
+				(&MsgContext{Dice: s.Parent, EndPoint: ep, Session: s}).Notice(hint)
 			}
 		} else if last.Before(hint) {
 			s.Parent.Logger.Warnf("检测到群 %s 上次活动时间为 %s，将在未来自动退出", grp.GroupID, last.Format(time.RFC3339))
@@ -941,8 +1001,9 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	d := ctx.Dice
 	log := d.Logger
 	var isBanGroup, isWhiteGroup bool
+	// log.Info("check ban ", msg.MessageType, " ", msg.GroupID, " ", ctx.PrivilegeLevel)
 	if msg.MessageType == "group" {
-		value, exists := d.BanList.Map.Load(msg.GroupID)
+		value, exists := d.Config.BanList.Map.Load(msg.GroupID)
 		if exists {
 			if value.Rank == BanRankBanned {
 				isBanGroup = true
@@ -952,34 +1013,69 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 			}
 		}
 	}
+
+	banQuitGroup := func() {
+		groupID := msg.GroupID
+		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+		log.Info(noticeMsg)
+
+		text := fmt.Sprintf("因<%s>(%s)是黑名单用户，将自动退群。", msg.Sender.Nickname, msg.Sender.UserID)
+		ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+
+		ctx.Notice(noticeMsg)
+
+		time.Sleep(1 * time.Second)
+		ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
+	}
+
 	if ctx.PrivilegeLevel == -30 {
-		if d.BanList.BanBehaviorQuitPlaceImmediately {
-			notReply = true
+		groupLevel := ctx.GroupRoleLevel
+		if d.Config.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
-			if msg.MessageType == "group" {
-				groupID := msg.GroupID
+			groupID := msg.GroupID
+			notReply = true
+			if groupLevel >= 40 {
 				if isWhiteGroup {
-					log.Infof("收到群(%s)内黑名单用户<%s>(%s)的消息，但在信任群所以不尝试退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+					log.Infof("收到群(%s)内邀请者以上权限黑名单用户<%s>(%s)的消息，但在信任群所以不尝试退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
 				} else {
-					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+					text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知并退群。", msg.Sender.Nickname, msg.Sender.UserID)
+					ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+
+					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是管理以上权限，执行通告后自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+					log.Info(noticeMsg)
+					ctx.Notice(noticeMsg)
+					banQuitGroup()
+				}
+			} else {
+				if isWhiteGroup {
+					log.Infof("收到群(%s)内普通群员黑名单用户<%s>(%s)的消息，但在信任群所以不做其他操作", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+				} else {
+					notReply = true
+					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告", groupID, msg.Sender.Nickname, msg.Sender.UserID)
 					log.Info(noticeMsg)
 
-					text := fmt.Sprintf("因<%s>(%s)是黑名单用户，将自动退群。", msg.Sender.Nickname, msg.Sender.UserID)
+					text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
 					ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 
 					ctx.Notice(noticeMsg)
-
-					time.Sleep(1 * time.Second)
-					ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
 				}
 			}
-		} else if d.BanList.BanBehaviorRefuseReply {
+		} else if d.Config.BanList.BanBehaviorQuitPlaceImmediately && msg.MessageType == "group" {
+			notReply = true
+			// 黑名单用户 - 立即退出所在群
+			groupID := msg.GroupID
+			if isWhiteGroup {
+				log.Infof("收到群(%s)内黑名单用户<%s>(%s)的消息，但在信任群所以不尝试退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+			} else {
+				banQuitGroup()
+			}
+		} else if d.Config.BanList.BanBehaviorRefuseReply {
 			notReply = true
 			// 黑名单用户 - 拒绝回复
 			log.Infof("忽略黑名单用户信息: 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 		}
 	} else if isBanGroup {
-		if d.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
+		if d.Config.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
 			notReply = true
 			// 黑名单群 - 立即退出
 			groupID := msg.GroupID
@@ -996,7 +1092,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 				time.Sleep(1 * time.Second)
 				ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
 			}
-		} else if d.BanList.BanBehaviorRefuseReply {
+		} else if d.Config.BanList.BanBehaviorRefuseReply {
 			notReply = true
 			// 黑名单群 - 拒绝回复
 			log.Infof("忽略黑名单群消息: 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
@@ -1060,12 +1156,19 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				for index, i := range cmdArgs.At {
 					if i.UserID == ctx.EndPoint.UserID {
 						continue
+					} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
+						// 特殊处理 OpenQQ频道
+						uid := strings.TrimPrefix(i.UserID, "OpenQQCH:")
+						diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
+						if uid == diceId {
+							continue
+						}
 					}
 					cur = index
 				}
 
 				if cur != -1 {
-					if ctx.Dice.PlayerNameWrapEnable {
+					if ctx.Dice.Config.PlayerNameWrapEnable {
 						ctx.DelegateText = fmt.Sprintf("由<%s>代骰:\n", ctx.Player.Name)
 					} else {
 						ctx.DelegateText = fmt.Sprintf("由%s代骰:\n", ctx.Player.Name)
@@ -1210,18 +1313,21 @@ func (ep *EndPointInfo) SetEnable(_ *Dice, enable bool) {
 func (ep *EndPointInfo) AdapterSetup() {
 	switch ep.Platform {
 	case "QQ":
-		if ep.ProtocolType == "onebot" {
+		switch ep.ProtocolType {
+		case "onebot":
 			pa := ep.Adapter.(*PlatformAdapterGocq)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
-		}
-		if ep.ProtocolType == "walle-q" {
+		case "walle-q":
 			pa := ep.Adapter.(*PlatformAdapterWalleQ)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
-		}
-		if ep.ProtocolType == "red" {
+		case "red":
 			pa := ep.Adapter.(*PlatformAdapterRed)
+			pa.Session = ep.Session
+			pa.EndPoint = ep
+		case "official":
+			pa := ep.Adapter.(*PlatformAdapterOfficialQQ)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
 		}
@@ -1247,6 +1353,14 @@ func (ep *EndPointInfo) AdapterSetup() {
 		pa.EndPoint = ep
 	case "DINGTALK":
 		pa := ep.Adapter.(*PlatformAdapterDingTalk)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
+	case "SLACK":
+		pa := ep.Adapter.(*PlatformAdapterSlack)
+		pa.Session = ep.Session
+		pa.EndPoint = ep
+	case "SEALCHAT":
+		pa := ep.Adapter.(*PlatformAdapterSealChat)
 		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
@@ -1285,13 +1399,13 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
 			}
 		}()
 
-		if d.MailEnable {
+		if d.Config.MailEnable {
 			_ = d.SendMail(txt, MailTypeNotice)
 			return
 		}
 
 		for _, ep := range d.ImSession.EndPoints {
-			for _, i := range d.NoticeIDs {
+			for _, i := range d.Config.NoticeIDs {
 				n := strings.Split(i, ":")
 				// 如果文本中没有-，则会取到整个字符串
 				// 但好像不严谨，比如QQ-CH-Group
@@ -1328,14 +1442,14 @@ func (ctx *MsgContext) NoticeCrossPlatform(txt string) {
 			}
 		}()
 
-		if ctx.Dice.MailEnable {
+		if ctx.Dice.Config.MailEnable {
 			_ = ctx.Dice.SendMail(txt, MailTypeNotice)
 			return
 		}
 
 		sent := false
 
-		for _, i := range ctx.Dice.NoticeIDs {
+		for _, i := range ctx.Dice.Config.NoticeIDs {
 			n := strings.Split(i, ":")
 			if len(n) < 2 {
 				continue
@@ -1386,14 +1500,14 @@ func (ctx *MsgContext) Notice(txt string) {
 			}
 		}()
 
-		if ctx.Dice.MailEnable {
+		if ctx.Dice.Config.MailEnable {
 			_ = ctx.Dice.SendMail(txt, MailTypeNotice)
 			return
 		}
 
 		sent := false
 		if ctx.EndPoint.Enable {
-			for _, i := range ctx.Dice.NoticeIDs {
+			for _, i := range ctx.Dice.Config.NoticeIDs {
 				n := strings.Split(i, ":")
 				if len(n) >= 2 {
 					if strings.HasSuffix(n[0], "-Group") {

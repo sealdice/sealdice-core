@@ -29,12 +29,13 @@ type (
 )
 
 const (
-	Text  ElementType = iota // 文本
-	At                       // 艾特
-	File                     // 文件
-	Image                    // 图片
-	TTS                      // 文字转语音
-	Reply                    // 回复
+	Text   ElementType = iota // 文本
+	At                        // 艾特
+	File                      // 文件
+	Image                     // 图片
+	TTS                       // 文字转语音
+	Reply                     // 回复
+	Record                    // 语音
 )
 
 const maxFileSize = 1024 * 1024 * 50 // 50MB
@@ -75,6 +76,7 @@ type FileElement struct {
 	ContentType string
 	Stream      io.Reader
 	File        string
+	URL         string
 }
 
 func (l *FileElement) Type() ElementType {
@@ -89,6 +91,14 @@ func (l *ImageElement) Type() ElementType {
 	return Image
 }
 
+type RecordElement struct {
+	file *FileElement
+}
+
+func (r *RecordElement) Type() ElementType {
+	return Record
+}
+
 func newText(s string) *TextElement {
 	return &TextElement{Content: s}
 }
@@ -101,12 +111,25 @@ func CQToText(t string, d map[string]string) MessageElement {
 	org += "]"
 	return newText(org)
 }
-func getFileName(header http.Header) (string, error) {
+func getFileName(header http.Header) string {
 	contentDisposition := header.Get("Content-Disposition")
 	if contentDisposition == "" {
-		return calculateMD5(header), nil
+		contentType := header.Get("Content-Type")
+		if contentType == "" {
+			return calculateMD5(header)
+		}
+		filetype, err := mime.ExtensionsByType(contentType)
+		if err != nil {
+			return calculateMD5(header)
+		}
+		var suffix string
+		if len(filetype) != 0 {
+			suffix = filetype[len(filetype)-1]
+			return calculateMD5(header) + suffix
+		}
+		return calculateMD5(header)
 	}
-	return regexp.MustCompile(`filename=(.+)`).FindStringSubmatch(strings.Split(contentDisposition, ";")[1])[1], nil
+	return regexp.MustCompile(`filename=(.+)`).FindStringSubmatch(strings.Split(contentDisposition, ";")[1])[1]
 }
 
 func calculateMD5(header http.Header) string {
@@ -154,16 +177,15 @@ func (d *Dice) FilepathToFileElement(fp string) (*FileElement, error) {
 		if resp.StatusCode != http.StatusOK {
 			return nil, errors.New("http get failed")
 		}
-		filename, _ := getFileName(header)
-		d.Logger.Infof("file: %s", filename)
+		filename := getFileName(header)
 		if err != nil {
 			return nil, err
 		}
-		d.Logger.Infof("file: %s", filename)
 		r := &FileElement{
 			Stream:      bytes.NewReader(content),
 			ContentType: resp.Header.Get("Content-Type"),
 			File:        filename,
+			URL:         fp,
 		}
 		return r, nil
 	} else if strings.HasPrefix(fp, "base64://") {
@@ -230,7 +252,21 @@ func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, erro
 	switch t {
 	case "file":
 		p := strings.TrimSpace(dMap["file"])
-		return d.FilepathToFileElement(p)
+		u := strings.TrimSpace(dMap["url"])
+		if u == "" {
+			return d.FilepathToFileElement(p)
+		} else {
+			// 当 url 不为空时，绕过读取直接发送 url
+			return &ImageElement{file: &FileElement{URL: u}}, nil
+		}
+	case "record":
+		t = "file"
+		f, err := d.toElement(t, dMap)
+		if err != nil {
+			return nil, err
+		}
+		file := f.(*FileElement)
+		return &RecordElement{file: file}, nil
 	case "at":
 		target := dMap["qq"]
 		if dMap["id"] != "" {
@@ -329,6 +365,7 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 }
 
 func SealCodeToCqCode(text string) string {
+	text = strings.ReplaceAll(text, " ", "")
 	re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
 	m := re.FindStringSubmatch(text)
 	if len(m) == 0 {

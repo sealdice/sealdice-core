@@ -38,6 +38,12 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 				ValueMapTemp:  lockfree.NewHashMap(),
 				UpdatedAtTime: 0,
 			}
+			// 特殊处理 official qq
+			if strings.HasPrefix(i.UserID, "OpenQQCH:") {
+				mctx.Player.Name = "<@!" + strings.TrimPrefix(i.UserID, "OpenQQCH:") + ">"
+			} else if strings.HasPrefix(i.UserID, "OpenQQ-Member-T:") {
+				mctx.Player.Name = i.UserID[len(i.UserID)-4:]
+			}
 		}
 		return mctx, p != nil
 	}
@@ -382,7 +388,7 @@ func CQParse(cmd string) *CQCommand {
 	if m != nil {
 		main = m[1]
 		if m[2] != "" {
-			argList := strings.SplitN(m[2], ",", 2)
+			argList := strings.Split(m[2], ",")
 			for _, i := range argList {
 				pair := strings.SplitN(i, "=", 2)
 				if len(pair) >= 2 {
@@ -405,6 +411,8 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	switch prefix {
 	case "QQ":
 		re = regexp.MustCompile(`\[CQ:at,qq=(\d+?)]`)
+	case "OpenQQ", "OpenQQCH":
+		re = regexp.MustCompile(`<@!?(\S+?)>`)
 	case "DISCORD":
 		re = regexp.MustCompile(`<@(\d+?)>`)
 	case "KOOK":
@@ -413,6 +421,10 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 		re = regexp.MustCompile(`tg:\/\/user\?id=(\d+)`)
 	case "DODO":
 		re = regexp.MustCompile(`<@\!(\d+?)>`)
+	case "SLACK":
+		re = regexp.MustCompile(`<@(.+?)>`)
+	case "SEALCHAT":
+		re = regexp.MustCompile(`<@(\S+?)>`)
 	}
 
 	m := re.FindAllStringSubmatch(cmd, -1)

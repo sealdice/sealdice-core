@@ -134,10 +134,18 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 			if err != nil {
 				d.Logger.Warnln("备份时logs数据库flush出错", err.Error())
 			}
+			if d.CensorManager != nil && d.CensorManager.DB != nil {
+				err = model.FlushWAL(d.CensorManager.DB)
+				if err != nil {
+					d.Logger.Warnln("备份时censor数据库flush出错", err.Error())
+				}
+			}
 
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "data.db"))
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "data-logs.db"))
-			backup(d, filepath.Join(d.BaseConfig.DataDir, "data-censor.db"))
+			if _, err = os.Stat(filepath.Join(d.BaseConfig.DataDir, "data-censor.db")); err == nil {
+				backup(d, filepath.Join(d.BaseConfig.DataDir, "data-censor.db"))
+			}
 
 			// bakTestPath, _ := filepath.Abs("./data-logs-bak.db")
 			// model.Backup(d.DBData)
@@ -152,8 +160,7 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 		if cfg2.Accounts {
 			for _, i := range d.ImSession.EndPoints {
 				if i.Platform == "QQ" {
-					pa := i.Adapter.(*PlatformAdapterGocq)
-					if pa.UseInPackGoCqhttp {
+					if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackGoCqhttp {
 						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "config.yml"))
 						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "device.json"))
 						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "session.token"))
@@ -258,18 +265,9 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 		}
 	case BackupCleanStrategyByTime:
 		threshold := time.Now().Add(-dm.BackupCleanKeepDur)
-		// Note(Xiangze Li): sort.Find是1.19才有, time.Compare是1.20才有
-		// idx, _ := sort.Find(len(fileInfos), func(i int) int {
-		// 	return threshold.Compare(fileInfos[i].ModTime())
-		// })
-
-		idx := len(fileInfos) - 1
-		for idx >= 0 {
-			if !fileInfos[idx].ModTime().After(threshold) {
-				break
-			}
-			idx--
-		}
+		idx, _ := sort.Find(len(fileInfos), func(i int) int {
+			return threshold.Compare(fileInfos[i].ModTime())
+		})
 		fileInfoOld = fileInfos[:idx+1]
 	default:
 		// no-op

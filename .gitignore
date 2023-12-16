@@ -36,3 +36,5 @@ _help_cache
 !static/.nomedia
 
 .vscode/
+
+*.private.pem

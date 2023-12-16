@@ -19,7 +19,7 @@ func banConfigGet(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	return c.JSON(http.StatusOK, myDice.BanList)
+	return c.JSON(http.StatusOK, myDice.Config.BanList)
 }
 
 func banConfigSet(c echo.Context) error {
@@ -41,22 +41,23 @@ func banConfigSet(c echo.Context) error {
 		v.ThresholdBan = 200
 	}
 
-	myDice.BanList.BanBehaviorRefuseReply = v.BanBehaviorRefuseReply
-	myDice.BanList.BanBehaviorRefuseInvite = v.BanBehaviorRefuseInvite
-	myDice.BanList.BanBehaviorQuitLastPlace = v.BanBehaviorQuitLastPlace
-	myDice.BanList.BanBehaviorQuitPlaceImmediately = v.BanBehaviorQuitPlaceImmediately
-	myDice.BanList.ScoreReducePerMinute = v.ScoreReducePerMinute
-	myDice.BanList.ThresholdWarn = v.ThresholdWarn
-	myDice.BanList.ThresholdBan = v.ThresholdBan
-	myDice.BanList.ScoreGroupMuted = v.ScoreGroupMuted
-	myDice.BanList.ScoreGroupKicked = v.ScoreGroupKicked
-	myDice.BanList.ScoreTooManyCommand = v.ScoreTooManyCommand
+	myDice.Config.BanList.BanBehaviorRefuseReply = v.BanBehaviorRefuseReply
+	myDice.Config.BanList.BanBehaviorRefuseInvite = v.BanBehaviorRefuseInvite
+	myDice.Config.BanList.BanBehaviorQuitLastPlace = v.BanBehaviorQuitLastPlace
+	myDice.Config.BanList.BanBehaviorQuitPlaceImmediately = v.BanBehaviorQuitPlaceImmediately
+	myDice.Config.BanList.BanBehaviorQuitIfAdmin = v.BanBehaviorQuitIfAdmin
+	myDice.Config.BanList.ScoreReducePerMinute = v.ScoreReducePerMinute
+	myDice.Config.BanList.ThresholdWarn = v.ThresholdWarn
+	myDice.Config.BanList.ThresholdBan = v.ThresholdBan
+	myDice.Config.BanList.ScoreGroupMuted = v.ScoreGroupMuted
+	myDice.Config.BanList.ScoreGroupKicked = v.ScoreGroupKicked
+	myDice.Config.BanList.ScoreTooManyCommand = v.ScoreTooManyCommand
 
-	myDice.BanList.JointScorePercentOfGroup = v.JointScorePercentOfGroup
-	myDice.BanList.JointScorePercentOfInviter = v.JointScorePercentOfInviter
+	myDice.Config.BanList.JointScorePercentOfGroup = v.JointScorePercentOfGroup
+	myDice.Config.BanList.JointScorePercentOfInviter = v.JointScorePercentOfInviter
 	myDice.MarkModified()
 
-	return c.JSON(http.StatusOK, myDice.BanList)
+	return c.JSON(http.StatusOK, myDice.Config.BanList)
 }
 
 func banMapList(c echo.Context) error {
@@ -73,7 +74,7 @@ func banMapDeleteOne(c echo.Context) error {
 	if err != nil {
 		return c.String(430, err.Error())
 	}
-	myDice.BanList.DeleteByID(myDice, v.ID)
+	myDice.Config.BanList.DeleteByID(myDice, v.ID)
 	return c.JSON(http.StatusOK, nil)
 }
 
@@ -90,7 +91,7 @@ func banMapAddOne(c echo.Context) error {
 		return c.String(430, err.Error())
 	}
 	if v.Rank == dice.BanRankBanned {
-		score := myDice.BanList.ThresholdBan
+		score := myDice.Config.BanList.ThresholdBan
 		reason := "骰主后台设置"
 		if len(v.Reasons) > 0 {
 			reason = v.Reasons[0]
@@ -100,7 +101,7 @@ func banMapAddOne(c echo.Context) error {
 		platform := strings.Replace(prefix, "-Group", "", 1)
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.Platform == platform && i.Enable {
-				v2 := myDice.BanList.AddScoreBase(v.ID, score, "海豹后台", reason, &dice.MsgContext{Dice: myDice, EndPoint: i})
+				v2 := myDice.Config.BanList.AddScoreBase(v.ID, score, "海豹后台", reason, &dice.MsgContext{Dice: myDice, EndPoint: i})
 				if v2 != nil {
 					if v.Name != "" {
 						v2.Name = v.Name
@@ -110,7 +111,7 @@ func banMapAddOne(c echo.Context) error {
 		}
 	}
 	if v.Rank == dice.BanRankTrusted {
-		myDice.BanList.SetTrustByID(v.ID, "海豹后台", "骰主后台设置")
+		myDice.Config.BanList.SetTrustByID(v.ID, "海豹后台", "骰主后台设置")
 	}
 
 	return c.JSON(http.StatusOK, nil)
@@ -130,7 +131,7 @@ func banMapAddOne(c echo.Context) error {
 //		return c.String(430, err.Error())
 //	}
 //
-//	myDice.BanList.LoadMapFromJSON(v.data)
+//	myDice.Config.BanList.LoadMapFromJSON(v.data)
 //	return c.JSON(http.StatusOK, nil)
 //}
 
@@ -197,9 +198,9 @@ func banImport(c echo.Context) error {
 			}
 		}
 		item.Reasons = newReasons
-		myDice.BanList.Map.Store(item.ID, item)
+		myDice.Config.BanList.Map.Store(item.ID, item)
 	}
-	myDice.BanList.SaveChanged(myDice)
+	myDice.Config.BanList.SaveChanged(myDice)
 
 	return Success(&c, Response{})
 }

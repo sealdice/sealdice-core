@@ -14,6 +14,7 @@ import (
 	"sealdice-core/dice/model"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/golang-module/carbon"
 
@@ -102,6 +103,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 	// 检查是否已经记录过 如果记录过则跳过
 	groupMsgInfoCheckOk := func(_k interface{}) bool {
 		groupMsgInfoClean()
+		if _k == nil {
+			return false
+		}
 		_val, exists := groupMsgInfo.Get(_k)
 		if exists {
 			t, ok := _val.(int64)
@@ -214,7 +218,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "off") {
-				if group.LogCurName != "" {
+				if group.LogCurName != "" && group.LogOn {
 					group.LogOn = false
 					group.UpdatedAtTime = time.Now().Unix()
 					lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
@@ -227,19 +231,20 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
 				name := cmdArgs.GetArgN(2)
-				if name != "" {
-					if name == group.LogCurName {
-						ReplyToSender(ctx, msg, "不能删除正在进行的log，请用log new开启新的，或log end结束后再行删除")
-					} else {
-						ok := model.LogDelete(ctx.Dice.DBLogs, group.GroupID, name)
-						if ok {
-							ReplyToSender(ctx, msg, "删除log成功")
-						} else {
-							ReplyToSender(ctx, msg, "删除log失败，可能是名字不对？")
-						}
-					}
-				} else {
+				if name == "" {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
+
+				VarSetValueStr(ctx, "$t记录名称", name)
+				if name == group.LogCurName {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_失败_正在进行"))
+				} else {
+					ok := model.LogDelete(ctx.Dice.DBLogs, group.GroupID, name)
+					if ok {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_成功"))
+					} else {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_失败_找不到"))
+					}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "masterget") {
@@ -302,6 +307,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
+				if !group.LogOn {
+					text = strings.TrimRightFunc(DiceFormatTmpl(ctx, "日志:记录_关闭_失败"), unicode.IsSpace) + "\n" + text
+				}
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
 				group.UpdatedAtTime = time.Now().Unix()
@@ -363,29 +371,31 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				// 如果日志已经开启，或者当前有暂停的记录，报错返回
-				if group.LogOn || group.LogCurName != "" {
+				name := cmdArgs.GetArgN(2)
+				if group.LogCurName != "" && name == "" {
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-
 				if groupNotActiveCheck() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				name := cmdArgs.GetArgN(2)
 				if name == "" {
-					todayTime := time.Now().Format("2006_01_02_15_04_05")
-					name = todayTime
+					name = time.Now().Format("2006_01_02_15_04_05")
 				}
+				if group.LogCurName != "" {
+					VarSetValueInt64(ctx, "$t存在开启记录", 1)
+				} else {
+					VarSetValueInt64(ctx, "$t存在开启记录", 0)
+				}
+				VarSetValueStr(ctx, "$t上一记录名称", group.LogCurName)
 				VarSetValueStr(ctx, "$t记录名称", name)
-
 				group.LogCurName = name
 				group.LogOn = true
 				group.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
 
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "stat") {
 				// group := ctx.Group
@@ -680,24 +690,23 @@ func RegisterBuiltinExtLog(self *Dice) {
 			default:
 				ok := false
 				ctx.Dice.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
-					name := strings.ToLower(val)
-					// 先检查绝对匹配
-					if t, exists := value.NameTemplate[val]; exists {
-						text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
-						ctx.Player.AutoSetNameTemplate = text
-						ReplyToSender(ctx, msg, "已自动设置名片为"+val+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
-						ok = true
-						return false
+					var t NameTemplateItem
+					var exists bool
+
+					// 先检查绝对匹配, 不存在则检查小写匹配
+					if t, exists = value.NameTemplate[val]; !exists {
+						t, exists = value.NameTemplate[strings.ToLower(val)]
 					}
-					// 再检查小写匹配
-					if t, exists := value.NameTemplate[name]; exists {
-						text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
-						ctx.Player.AutoSetNameTemplate = text
-						ReplyToSender(ctx, msg, "已自动设置名片为"+name+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
-						ok = true
-						return false
+
+					if !exists {
+						return true
 					}
-					return true
+
+					text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
+					ctx.Player.AutoSetNameTemplate = t.Template
+					ReplyToSender(ctx, msg, "已自动设置名片为"+val+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
+					ok = true
+					return false
 				})
 
 				if ok {
@@ -716,6 +725,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Brief:      "跑团辅助扩展，提供日志、染色等功能",
 		Author:     "木落",
 		AutoActive: true,
+		Official:   true,
 		OnLoad: func() {
 			_ = os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "log-exports"), 0755)
 		},
@@ -850,11 +860,11 @@ func LogAppend(ctx *MsgContext, groupID string, logName string, logItem *model.L
 	if ok {
 		if size, okCount := model.LogLinesCountGet(ctx.Dice.DBLogs, groupID, logName); okCount {
 			// 默认每记录500条发出提示
-			if ctx.Dice.LogSizeNoticeEnable {
-				if ctx.Dice.LogSizeNoticeCount == 0 {
-					ctx.Dice.LogSizeNoticeCount = 500
+			if ctx.Dice.Config.LogSizeNoticeEnable {
+				if ctx.Dice.Config.LogSizeNoticeCount == 0 {
+					ctx.Dice.Config.LogSizeNoticeCount = DefaultConfig.LogSizeNoticeCount
 				}
-				if size > 0 && int(size)%ctx.Dice.LogSizeNoticeCount == 0 {
+				if size > 0 && int(size)%ctx.Dice.Config.LogSizeNoticeCount == 0 {
 					VarSetValueInt64(ctx, "$t条数", size)
 					text := DiceFormatTmpl(ctx, "日志:记录_条数提醒")
 					// text := fmt.Sprintf("提示: 当前故事的文本已经记录了 %d 条", size)
@@ -1073,7 +1083,7 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 						key2 := "理智:新值"
 						// if pcInfo[nickname][key2] == 0 {
 						pcInfo[nickname][key2] = int(j["sanNew"].(float64))
-						//}
+						// }
 					}
 					continue
 				case "st":
@@ -1100,7 +1110,7 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 							key2 := fmt.Sprintf("%v:新值", attr)
 							// if pcInfo[nickname][key2] == 0 {
 							pcInfo[nickname][key2] = int(j["valNew"].(float64))
-							//}
+							// }
 						}
 					}
 					continue

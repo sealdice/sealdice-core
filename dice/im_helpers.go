@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fy0/lockfree"
+	"golang.org/x/time/rate"
 )
 
 var sealCodeRe = regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`)
@@ -55,9 +56,9 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		group.Active = true
 	} else {
 		// 设定扩展情况
-		sort.Sort(ExtDefaultSettingItemSlice(session.Parent.ExtDefaultSettings))
+		sort.Sort(ExtDefaultSettingItemSlice(session.Parent.Config.ExtDefaultSettings))
 		var extLst []*ExtInfo
-		for _, i := range session.Parent.ExtDefaultSettings {
+		for _, i := range session.Parent.Config.ExtDefaultSettings {
 			if i.ExtItem != nil {
 				if i.AutoActive {
 					extLst = append(extLst, i.ExtItem)
@@ -73,7 +74,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			ValueMap:         lockfree.NewHashMap(),
 			DiceIDActiveMap:  new(SyncMap[string, bool]),
 			DiceIDExistsMap:  new(SyncMap[string, bool]),
-			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
+			CocRuleIndex:     int(session.Parent.Config.DefaultCocRuleIndex),
 			UpdatedAtTime:    time.Now().Unix(),
 		}
 		group = session.ServiceAtNew[groupID]
@@ -109,6 +110,9 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	group := session.ServiceAtNew[groupID]
 	if msg.GuildID != "" {
 		group.GuildID = msg.GuildID
+	}
+	if msg.ChannelID != "" {
+		group.ChannelID = msg.ChannelID
 	}
 	if group == nil {
 		return nil, nil
@@ -163,11 +167,18 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		text = ctx.DelegateText + text
 		ctx.DelegateText = ""
 	}
+
+	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
+		if !spamCheckPerson(ctx, msg) {
+			spamCheckGroup(ctx, msg)
+		}
+	}
+
 	d := ctx.Dice
 	if d != nil {
 		d.Logger.Infof("发给(群%s): %s", msg.GroupID, text)
 		// 敏感词拦截：回复（群）
-		if d.EnableCensor && d.CensorMode == OnlyOutputReply {
+		if d.Config.EnableCensor && d.Config.CensorMode == OnlyOutputReply {
 			// 先拿掉海豹码和CQ码再检查敏感词
 			checkText := sealCodeRe.ReplaceAllString(text, "")
 			checkText = cqCodeRe.ReplaceAllString(checkText, "")
@@ -224,11 +235,15 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		ctx.DelegateText = ""
 	}
 
+	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
+		spamCheckPerson(ctx, msg)
+	}
+
 	d := ctx.Dice
 	if d != nil {
 		d.Logger.Infof("发给(帐号%s): %s", msg.Sender.UserID, text)
 		// 敏感词拦截：回复（个人）
-		if d.EnableCensor && d.CensorMode == OnlyOutputReply {
+		if d.Config.EnableCensor && d.Config.CensorMode == OnlyOutputReply {
 			// 先拿掉海豹码和CQ码再检查敏感词
 			checkText := sealCodeRe.ReplaceAllString(text, "")
 			checkText = cqCodeRe.ReplaceAllString(checkText, "")
@@ -390,6 +405,87 @@ func FormatDiceID(ctx *MsgContext, id interface{}, isGroup bool) string {
 		prefix += "-Group"
 	}
 	return fmt.Sprintf("%s:%v", prefix, id)
+}
+
+func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
+	if ctx.PrivilegeLevel >= 100 {
+		return false
+	}
+
+	if ctx.Player.RateLimiter == nil {
+		ctx.Player.RateLimitWarned = false
+		if ctx.Dice.Config.PersonalReplenishRateStr == "" {
+			ctx.Dice.Config.PersonalReplenishRateStr = DefaultConfig.PersonalReplenishRateStr
+			ctx.Dice.Config.PersonalReplenishRate = DefaultConfig.PersonalReplenishRate
+		}
+		if ctx.Dice.Config.PersonalBurst == 0 {
+			ctx.Dice.Config.PersonalBurst = DefaultConfig.PersonalBurst
+		}
+		ctx.Player.RateLimiter = rate.NewLimiter(
+			ctx.Dice.Config.PersonalReplenishRate,
+			int(ctx.Dice.Config.PersonalBurst),
+		)
+	}
+
+	if ctx.Player.RateLimiter.Allow() {
+		ctx.Player.RateLimitWarned = false
+		return false
+	}
+
+	if ctx.Player.RateLimitWarned {
+		ctx.Dice.Config.BanList.AddScoreByCommandSpam(ctx.Player.UserID, msg.GroupID, ctx)
+	} else {
+		ctx.Player.RateLimitWarned = true
+		replyToSenderRawNoCheck(
+			ctx, msg,
+			DiceFormatTmpl(ctx, "核心:刷屏_警告内容_个人"),
+			"",
+		)
+	}
+	return true
+}
+
+func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
+	// Skip privileged groups
+	for _, g := range ctx.Dice.DiceMasters {
+		if ctx.Group.GroupID == g {
+			return false
+		}
+	}
+
+	if ctx.Group.RateLimiter == nil {
+		ctx.Group.RateLimitWarned = false
+		if ctx.Dice.Config.GroupReplenishRateStr == "" {
+			ctx.Dice.Config.GroupReplenishRateStr = DefaultConfig.GroupReplenishRateStr
+			ctx.Dice.Config.GroupReplenishRate = DefaultConfig.GroupReplenishRate
+		}
+		if ctx.Dice.Config.GroupBurst == 0 {
+			ctx.Dice.Config.GroupBurst = DefaultConfig.GroupBurst
+		}
+		ctx.Group.RateLimiter = rate.NewLimiter(
+			ctx.Dice.Config.GroupReplenishRate,
+			int(ctx.Dice.Config.GroupBurst),
+		)
+	}
+
+	if ctx.Group.RateLimiter.Allow() {
+		ctx.Group.RateLimitWarned = false
+		return false
+	}
+
+	// If not allow
+	if ctx.Group.RateLimitWarned {
+		ctx.Dice.Config.BanList.AddScoreByCommandSpam(ctx.Group.GroupID, msg.GroupID, ctx)
+	} else {
+		ctx.Group.RateLimitWarned = true
+		replyToSenderRawNoCheck(
+			ctx, msg,
+			DiceFormatTmpl(ctx, "核心:刷屏_警告内容_群组"),
+			"",
+		)
+	}
+
+	return true
 }
 
 func lenWithoutBase64(text string) int {

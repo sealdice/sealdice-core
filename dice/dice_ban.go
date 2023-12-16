@@ -58,6 +58,7 @@ type BanListInfo struct {
 	BanBehaviorRefuseInvite         bool                               `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`                 // 拉黑行为: 拒绝邀请
 	BanBehaviorQuitLastPlace        bool                               `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"`               // 拉黑行为: 退出事发群
 	BanBehaviorQuitPlaceImmediately bool                               `yaml:"banBehaviorQuitPlaceImmediately" json:"banBehaviorQuitPlaceImmediately"` // 拉黑行为: 使用时立即退出群
+	BanBehaviorQuitIfAdmin          bool                               `yaml:"banBehaviorQuitIfAdmin" json:"banBehaviorQuitIfAdmin"`                   // 拉黑行为: 邀请者以上权限使用时立即退群，否则发出警告信息
 	ThresholdWarn                   int64                              `yaml:"thresholdWarn" json:"thresholdWarn"`                                     // 警告阈值
 	ThresholdBan                    int64                              `yaml:"thresholdBan" json:"thresholdBan"`                                       // 错误阈值
 	AutoBanMinutes                  int64                              `yaml:"autoBanMinutes" json:"autoBanMinutes"`                                   // 自动禁止时长
@@ -103,7 +104,7 @@ func (i *BanListInfo) AfterLoads() {
 			return
 		}
 		var toDelete []string
-		d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
+		d.Config.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
 			if v.Rank == BanRankNormal || v.Rank == BanRankWarn {
 				v.Score -= i.ScoreReducePerMinute
 				if v.Score <= 0 {
@@ -119,13 +120,14 @@ func (i *BanListInfo) AfterLoads() {
 			_ = model.BanItemDel(d.DBData, j)
 		}
 
-		d.BanList.SaveChanged(d)
+		d.Config.BanList.SaveChanged(d)
 	})
 }
 
 // AddScoreBase
 // 这一份ctx有endpoint就行
 func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason string, ctx *MsgContext) *BanListInfoItem {
+	log := i.Parent.Logger
 	v, _ := i.Map.Load(uid)
 	if v == nil {
 		v = &BanListInfoItem{
@@ -160,7 +162,18 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 			v.BanTime = time.Now().Unix()
 
 			if ctx.EndPoint.Platform == "QQ" {
-				ctx.EndPoint.Adapter.(*PlatformAdapterGocq).DeleteFriend(ctx, place)
+				switch adapter := ctx.EndPoint.Adapter.(type) {
+				case *PlatformAdapterGocq:
+					adapter.DeleteFriend(ctx, place)
+				case *PlatformAdapterWalleQ:
+					adapter.DeleteFriend(ctx, place)
+				case *PlatformAdapterRed:
+					log.Warn("qq red 适配器不支持删除好友")
+				case *PlatformAdapterOfficialQQ:
+					log.Warn("official qq 适配器不支持删除好友")
+				default:
+					log.Error("unknown qq adapter")
+				}
 			}
 		}
 
@@ -253,7 +266,7 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 			if ctx != nil {
 				var isWhiteGroup bool
 				d := ctx.Dice
-				value, exists := d.BanList.Map.Load(place)
+				value, exists := d.Config.BanList.Map.Load(place)
 				if exists {
 					if value.Rank == BanRankTrusted {
 						isWhiteGroup = true
@@ -370,7 +383,7 @@ func (d *Dice) GetBanList() []*BanListInfoItem {
 }
 
 func (i *BanListInfo) SaveChanged(d *Dice) {
-	d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
+	d.Config.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
 		if v.UpdatedAt != 0 {
 			data, err := json.Marshal(v)
 			if err == nil {

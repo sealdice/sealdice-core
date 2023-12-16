@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,12 +17,24 @@ import (
 )
 
 type PlatformAdapterDodo struct {
-	Session   *IMSession       `yaml:"-" json:"-"`
-	ClientID  string           `yaml:"clientID" json:"clientID"`
-	Token     string           `yaml:"token" json:"token"`
-	EndPoint  *EndPointInfo    `yaml:"-" json:"-"`
-	Client    client.Client    `yaml:"-" json:"-"`
-	WebSocket websocket.Client `yaml:"-" json:"-"`
+	Session           *IMSession                                             `yaml:"-" json:"-"`
+	ClientID          string                                                 `yaml:"clientID" json:"clientID"`
+	Token             string                                                 `yaml:"token" json:"token"`
+	EndPoint          *EndPointInfo                                          `yaml:"-" json:"-"`
+	Client            client.Client                                          `yaml:"-" json:"-"`
+	WebSocket         websocket.Client                                       `yaml:"-" json:"-"`
+	UserPermCache     SyncMap[string, *SyncMap[string, *GuildPermCacheItem]] `yaml:"-" json:"-"`
+	RetryConnectTimes int                                                    `yaml:"-" json:"-"` // 重连次数
+}
+
+const (
+	DodoPermManageMember = 1 << 2
+	DodoPermAdmin        = 1 << 3
+)
+
+type GuildPermCacheItem struct {
+	Perm int64
+	time int64
 }
 
 func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupID string) {
@@ -45,7 +59,6 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	logger := pa.Session.Parent.Logger
 	clientID := pa.ClientID
 	token := pa.Token
-
 	instance, err := client.New(clientID, token, client.WithTimeout(time.Second*3))
 	pa.Client = instance
 	if err != nil {
@@ -90,21 +103,51 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	ws, _ := websocket.New(instance, websocket.WithMessageHandlers(msgHandlers))
 	// 主动连接到 WebSocket 服务器
 	if err = ws.Connect(); err != nil {
-		return 1
+		logger.Errorf("Dodo连接错误:%s", err.Error())
+		for pa.RetryConnectTimes <= 5 {
+			pa.RetryConnectTimes++
+			time.Sleep(time.Second * 5)
+			pa.Session.Parent.Logger.Infof("Dodo 尝试重连, 第 [%d/5] 次", pa.RetryConnectTimes)
+			ws.Close()
+			if err = ws.Connect(); err == nil {
+				pa.RetryConnectTimes = 0
+				pa.EndPoint.State = 1
+				break
+			} else {
+				logger.Errorf("Dodo连接错误:%s", err.Error())
+			}
+		}
+		if err != nil {
+			logger.Errorf("Dodo 短时间内重试次数过多，先行中断")
+			pa.EndPoint.State = 3
+			d := pa.Session.Parent
+			d.LastUpdatedTime = time.Now().Unix()
+			d.Save(false)
+			return 1
+		}
 	}
+	pa.WebSocket = ws
+	pa.EndPoint.State = 1
+	pa.RetryConnectTimes = 0
+	pa.Session.Parent.Logger.Infof("Dodo 连接成功")
+	pa.EndPoint.Enable = true
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 	go func() {
 		err := ws.Listen()
 		if err != nil {
 			logger.Errorf("Dodo监听错误:%s", err.Error())
+			if pa.EndPoint.Enable {
+				pa.EndPoint.State = 3
+				d := pa.Session.Parent
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+				logger.Infof("Dodo 连接断开，正在尝试重连……")
+				pa.DoRelogin()
+			}
 		}
 	}()
-	pa.WebSocket = ws
-	pa.Session.Parent.Logger.Infof("Dodo 连接成功")
-	pa.EndPoint.Enable = true
-	pa.EndPoint.State = 1
-	d := pa.Session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
 	return 0
 }
 
@@ -145,9 +188,9 @@ func (pa *PlatformAdapterDodo) toStdChannelMessage(msgRaw *websocket.ChannelMess
 	msg.Sender = *send
 	msg.GroupID = FormatDiceIDDodoGroup(msgRaw.ChannelId)
 	msg.GuildID = msgRaw.IslandSourceId
+	msg.Sender.GroupRole = pa.checkGuildAdmin(msgRaw.IslandSourceId, msgRaw.DodoSourceId)
 	if msgRaw.MessageType == 1 {
 		msgDodo := new(model.TextMessage)
-		// pa.Session.Parent.Logger.Infof("Dodo消息内容:%s", string(msgRaw.MessageBody))
 		err := json.Unmarshal(msgRaw.MessageBody, msgDodo)
 		if err == nil {
 			msg.Message = msgDodo.Content
@@ -156,6 +199,85 @@ func (pa *PlatformAdapterDodo) toStdChannelMessage(msgRaw *websocket.ChannelMess
 		}
 	}
 	return msg, nil
+}
+
+func (pa *PlatformAdapterDodo) checkGuildAdmin(guildID string, userID string) string {
+	var aperm int64
+	guildMap, ok := pa.UserPermCache.Load(guildID)
+	if ok {
+		userCache, ok := guildMap.Load(userID)
+		if ok {
+			if userCache.Perm == -1 {
+				return "owner"
+			}
+			// 60秒刷新一次, 感觉也许可以提出来作为配置？
+			if time.Now().Unix()-userCache.time > 60 {
+				aperm = pa.refreshPermCache(guildID, userID)
+			} else {
+				aperm = userCache.Perm
+			}
+		} else {
+			aperm = pa.refreshPermCache(guildID, userID)
+		}
+	} else {
+		aperm = pa.refreshPermCache(guildID, userID)
+	}
+	if aperm == -1 {
+		return "owner"
+	}
+	if aperm&int64(DodoPermAdmin|DodoPermManageMember) > 0 {
+		return "admin"
+	}
+	return ""
+}
+
+func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (aperm int64) {
+	aperm = int64(0)
+	list, err := pa.Client.GetMemberRoleList(context.Background(), &model.GetMemberRoleListReq{
+		IslandSourceId: guildID,
+		DodoSourceId:   userID,
+	})
+	if err != nil {
+		pa.Session.Parent.Logger.Errorf("Dodo获取权限列表失败:%s", err.Error())
+		return
+	}
+
+	for _, role := range list {
+		num, err := strconv.ParseInt(role.Permission, 16, 64) // 16 表示这是一个十六进制数
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("Dodo权限转换错误:%s", err.Error())
+			return
+		}
+		aperm |= num
+	}
+	guildMap, ok := pa.UserPermCache.Load(guildID)
+	if ok {
+		guildMap.Store(userID, &GuildPermCacheItem{
+			Perm: aperm,
+			time: time.Now().Unix(),
+		})
+	} else {
+		info, err := pa.Client.GetIslandInfo(context.Background(), &model.GetIslandInfoReq{
+			IslandSourceId: guildID,
+		})
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("Dodo获取群信息失败:%s", err.Error())
+			return
+		}
+		guildIDMap := &SyncMap[string, *GuildPermCacheItem]{}
+		guildIDMap.Store(userID, &GuildPermCacheItem{
+			Perm: aperm,
+			time: time.Now().Unix(),
+		})
+		guildIDMap.Store(info.OwnerDodoSourceId, &GuildPermCacheItem{
+			Perm: -1,
+		})
+		pa.UserPermCache.Store(guildID, guildIDMap)
+		if info.OwnerDodoSourceId == userID {
+			aperm = -1
+		}
+	}
+	return
 }
 
 func (pa *PlatformAdapterDodo) DoRelogin() bool {
@@ -201,7 +323,7 @@ func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 
 func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	// pa.Session.Parent.Logger.Infof("send to %s", ExtractDodoUserId(uid))
-	err := pa.SendToChatRaw(ctx, uid, text, true)
+	err := pa.SendToPersonRaw(ctx, uid, text, true)
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("DODO 发送私聊消息失败：%v\n", err)
 		return
@@ -255,7 +377,44 @@ func (pa *PlatformAdapterDodo) SendFileToGroup(ctx *MsgContext, groupID string, 
 	}
 }
 
-func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
+type DoDoTextMessageComponent struct {
+	Type string `json:"type"` // section
+	Text struct {
+		Content string `json:"content"`
+		Type    string `json:"type"` // plain-text
+	} `json:"text"`
+}
+
+type DoDoImageMessageComponent struct {
+	Type     string `json:"type"` // image-group
+	Elements []struct {
+		Type string `json:"type"` // image
+		Src  string `json:"src"`
+	} `json:"elements"`
+}
+
+// convertLinksToMarkdown 接受一个包含普通文本的字符串，
+// 并将其中的URLs转换为Markdown格式的链接。
+func convertLinksToMarkdown(text string) string {
+	// 正则表达式匹配更严格的URL，确保URL的结尾不包括非字母数字字符。
+	re := regexp.MustCompile(`\b(http://www\.|https://www\.|http://|https://)?[a-zA-Z0-9]+([\-\.]{1}[a-zA-Z0-9]+)*\.[a-zA-Z]{2,5}(:[0-9]{1,5})?(/[a-zA-Z0-9#]+[\w\-./?%&=]*)?\b`)
+
+	// 查找文本中的所有链接
+	matches := re.FindAllString(text, -1)
+
+	// 遍历所有找到的链接
+	for _, match := range matches {
+		// 构造Markdown链接
+		markdownLink := fmt.Sprintf("[%s](%s)", match, match)
+
+		// 在原文本中替换URL为Markdown链接
+		text = regexp.MustCompile(regexp.QuoteMeta(match)).ReplaceAllString(text, markdownLink)
+	}
+
+	return text
+}
+
+func (pa *PlatformAdapterDodo) SendToPersonRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
 	instance := pa.Client
 	dice := pa.Session.Parent
 	elem := dice.ConvertStringMessage(text)
@@ -270,7 +429,7 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 	for _, element := range elem {
 		switch e := element.(type) {
 		case *TextElement:
-			err := pa.SendMessageRaw(ctx, &model.TextMessage{Content: e.Content}, uid, isPrivate)
+			err := pa.SendMessageRaw(ctx, &model.TextMessage{Content: e.Content}, uid, isPrivate, "")
 			if err != nil {
 				return err
 			}
@@ -288,12 +447,7 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 				Height:     resourceResp.Height,
 				IsOriginal: 0,
 			}
-			err = pa.SendMessageRaw(ctx, msgBody, uid, isPrivate)
-			if err != nil {
-				return err
-			}
-		case *AtElement:
-			err := pa.SendMessageRaw(ctx, &model.TextMessage{Content: fmt.Sprintf("<@!%s>", e.Target)}, uid, isPrivate)
+			err = pa.SendMessageRaw(ctx, msgBody, uid, isPrivate, "")
 			if err != nil {
 				return err
 			}
@@ -302,7 +456,98 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 	return nil
 }
 
-func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMessageBody, uid string, isPrivate bool) error {
+func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
+	referenceMessageId := ""
+	instance := pa.Client
+	dice := pa.Session.Parent
+	elem := dice.ConvertStringMessage(text)
+	streamToByte := func(stream io.Reader) []byte {
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(stream)
+		if err != nil {
+			return nil
+		}
+		return buf.Bytes()
+	}
+	msgSend := &model.CardMessage{
+		Content: "",
+		Card: &model.CardBodyElement{
+			Type:       "card",
+			Theme:      "default",
+			Components: []interface{}{},
+			Title:      "",
+		},
+	}
+	for _, element := range elem {
+		switch e := element.(type) {
+		case *TextElement:
+			if msgSend.Card != nil && len(msgSend.Card.Components) > 0 {
+				component, ok := msgSend.Card.Components[len(msgSend.Card.Components)-1].(*DoDoTextMessageComponent)
+				if ok {
+					component.Text.Content += e.Content
+					continue
+				}
+			}
+			msgSend.Card.Components = append(msgSend.Card.Components, &DoDoTextMessageComponent{
+				Type: "section",
+				Text: struct {
+					Content string `json:"content"`
+					Type    string `json:"type"`
+				}{
+					Content: convertLinksToMarkdown(e.Content),
+					Type:    "dodo-md",
+				},
+			})
+		case *ImageElement:
+			resourceResp, err := instance.UploadImageByBytes(context.Background(), &model.UploadImageByBytesReq{
+				Filename: e.file.File,
+				Bytes:    streamToByte(e.file.Stream),
+			})
+			if err != nil {
+				return err
+			}
+			msgSend.Card.Components = append(msgSend.Card.Components, &DoDoImageMessageComponent{
+				Type: "image-group",
+				Elements: []struct {
+					Type string `json:"type"`
+					Src  string `json:"src"`
+				}{
+					{
+						Type: "image",
+						Src:  resourceResp.Url,
+					},
+				},
+			})
+		case *AtElement:
+			if msgSend.Card != nil && len(msgSend.Card.Components) > 0 {
+				component, ok := msgSend.Card.Components[len(msgSend.Card.Components)-1].(*DoDoTextMessageComponent)
+				if ok {
+					component.Text.Content += fmt.Sprintf("<@!%s>", e.Target)
+					continue
+				}
+			}
+			msgSend.Card.Components = append(msgSend.Card.Components, &DoDoTextMessageComponent{
+				Type: "section",
+				Text: struct {
+					Content string `json:"content"`
+					Type    string `json:"type"`
+				}{
+					Content: fmt.Sprintf("<@!%s>", e.Target),
+					Type:    "dodo-md",
+				},
+			})
+		case *ReplyElement:
+			referenceMessageId = e.Target
+		}
+	}
+	err := pa.SendMessageRaw(ctx, msgSend, uid, isPrivate, referenceMessageId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMessageBody, uid string, isPrivate bool, referenceMessageId string) error {
 	if isPrivate {
 		rawID := ExtractDodoUserID(uid)
 		_, err := pa.Client.SendDirectMessage(context.Background(), &model.SendDirectMessageReq{
@@ -314,8 +559,9 @@ func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMe
 	}
 	rawID := ExtractDodoGroupID(uid)
 	_, err := pa.Client.SendChannelMessage(context.Background(), &model.SendChannelMessageReq{
-		ChannelId:   rawID,
-		MessageBody: msgBody,
+		ChannelId:           rawID,
+		MessageBody:         msgBody,
+		ReferencedMessageId: referenceMessageId,
 	})
 	return err
 }

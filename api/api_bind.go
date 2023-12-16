@@ -66,7 +66,7 @@ func baseInfo(c echo.Context) error {
 		VersionCode:    dice.VERSION_CODE,
 		VersionNewCode: versionNewCode,
 		MemoryAlloc:    m.Alloc,
-		MemoryUsedSys:  m.Sys,
+		MemoryUsedSys:  m.Sys - m.HeapReleased,
 		Uptime:         time.Now().Unix() - startTime,
 		ExtraTitle:     extraTitle,
 		OS:             runtime.GOOS,
@@ -337,6 +337,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/sms_code_get", ImConnectionsSmsCodeGet)
 	e.POST(prefix+"/im_connections/sms_code_set", ImConnectionsSmsCodeSet)
 	e.POST(prefix+"/im_connections/add", ImConnectionsAdd)
+	e.POST(prefix+"/im_connections/addOnebot11ReverseWs", ImConnectionsAddReverseWs)
+	e.POST(prefix+"/im_connections/addGocqSeparate", ImConnectionsAddGocqSeparate)
 	e.POST(prefix+"/im_connections/addDiscord", ImConnectionsAddDiscord)
 	e.POST(prefix+"/im_connections/addKook", ImConnectionsAddKook)
 	e.POST(prefix+"/im_connections/addTelegram", ImConnectionsAddTelegram)
@@ -344,8 +346,10 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/addDodo", ImConnectionsAddDodo)
 	e.POST(prefix+"/im_connections/addDingtalk", ImConnectionsAddDingTalk)
 	e.POST(prefix+"/im_connections/addWalleQ", ImConnectionsAddWalleQ)
-	e.POST(prefix+"/im_connections/addGocqSeparate", ImConnectionsAddGocqSeparate)
 	e.POST(prefix+"/im_connections/addRed", ImConnectionsAddRed)
+	e.POST(prefix+"/im_connections/addSlack", ImConnectionsAddSlack)
+	e.POST(prefix+"/im_connections/addOfficialQQ", ImConnectionsAddOfficialQQ)
+	e.POST(prefix+"/im_connections/addSealChat", ImConnectionsAddSealChat)
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)
@@ -432,6 +436,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/helpdoc/upload", helpDocUpload)
 	e.POST(prefix+"/helpdoc/delete", helpDocDelete)
 	e.POST(prefix+"/helpdoc/textitem/get_page", helpGetTextItemPage)
+	e.GET(prefix+"/helpdoc/config", helpGetConfig)
+	e.POST(prefix+"/helpdoc/config", helpSetConfig)
 
 	e.GET(prefix+"/story/info", storyGetInfo)
 	e.GET(prefix+"/story/logs", storyGetLogs)

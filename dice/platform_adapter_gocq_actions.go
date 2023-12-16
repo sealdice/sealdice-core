@@ -13,15 +13,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
+
+	"sealdice-core/utils"
 
 	"github.com/sacOO7/gowebsocket"
+	"github.com/samber/lo"
 )
 
 type oneBotCommand struct {
 	Action string      `json:"action"`
 	Params interface{} `json:"params"`
-	Echo   int64       `json:"echo"`
+	Echo   interface{} `json:"echo"`
 }
 
 type QQUidType int
@@ -148,8 +150,8 @@ func socketSendBinary(socket *gowebsocket.Socket, data []byte) { //nolint
 func doSleepQQ(ctx *MsgContext) {
 	if ctx.Dice != nil {
 		d := ctx.Dice
-		offset := d.MessageDelayRangeEnd - d.MessageDelayRangeStart
-		time.Sleep(time.Duration((d.MessageDelayRangeStart + rand.Float64()*offset) * float64(time.Second)))
+		offset := d.Config.MessageDelayRangeEnd - d.Config.MessageDelayRangeStart
+		time.Sleep(time.Duration((d.Config.MessageDelayRangeStart + rand.Float64()*offset) * float64(time.Second)))
 	} else {
 		time.Sleep(time.Duration((0.4 + rand.Float64()/2) * float64(time.Second)))
 	}
@@ -173,8 +175,7 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userID string, text
 						Nickname: pa.EndPoint.Nickname,
 						UserID:   pa.EndPoint.UserID,
 					},
-				},
-					flag)
+				}, flag)
 			})
 		}
 	}
@@ -235,17 +236,33 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 		Message string `json:"message"`
 	}
 
+	type GroupArrMessageParams struct {
+		GroupID int64         `json:"group_id"`
+		Message []interface{} `json:"message"` // 消息内容，原则上是OneBotV11MsgItem但是实际很杂说不清
+	}
+
 	text = textAssetsConvert(text)
 	texts := textSplit(text)
 
 	for index, subText := range texts {
-		a, _ := json.Marshal(oneBotCommand{
-			Action: "send_group_msg",
-			Params: GroupMessageParams{
-				rawID,
-				subText, // "golang client test",
-			},
-		})
+		var a []byte
+		if pa.useArrayMessage {
+			a, _ = json.Marshal(oneBotCommand{
+				Action: "send_group_msg",
+				Params: GroupArrMessageParams{
+					GroupID: rawID,
+					Message: OneBot11CqMessageToArrayMessage(subText),
+				},
+			})
+		} else {
+			a, _ = json.Marshal(oneBotCommand{
+				Action: "send_group_msg",
+				Params: GroupMessageParams{
+					rawID,
+					subText, // "golang client test",
+				},
+			})
+		}
 
 		if len(texts) > 1 && index != 0 {
 			doSleepQQ(ctx)
@@ -351,30 +368,33 @@ func (pa *PlatformAdapterGocq) SetGroupAddRequest(flag string, subType string, a
 	socketSendText(pa.Socket, string(a))
 }
 
-func (pa *PlatformAdapterGocq) getCustomEcho() int64 {
+func (pa *PlatformAdapterGocq) getCustomEcho() string {
 	if pa.customEcho > -10 {
 		pa.customEcho = -10
 	}
 	pa.customEcho--
-	return pa.customEcho
+	return strconv.FormatInt(pa.customEcho, 10)
 }
 
-func (pa *PlatformAdapterGocq) waitEcho(echo int64, beforeWait func()) *MessageQQ {
+func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ {
 	// pa.echoList = append(pa.echoList, )
 	ch := make(chan *MessageQQ, 1)
 
 	if pa.echoMap == nil {
-		pa.echoMap = new(SyncMap[int64, chan *MessageQQ])
+		pa.echoMap = new(SyncMap[any, chan *MessageQQ])
 	}
-	pa.echoMap.Store(echo, ch)
+
+	// 注: 之所以这样是因为echo是json.RawMessage
+	e := lo.Must(json.Marshal(echo))
+	pa.echoMap.Store(string(e), ch)
 
 	beforeWait()
 	return <-ch
 }
 
-func (pa *PlatformAdapterGocq) waitEcho2(echo int64, value interface{}, beforeWait func(emi *echoMapInfo)) error {
+func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait func(emi *echoMapInfo)) error {
 	if pa.echoMap2 == nil {
-		pa.echoMap2 = new(SyncMap[int64, *echoMapInfo])
+		pa.echoMap2 = new(SyncMap[any, *echoMapInfo])
 	}
 
 	emi := &echoMapInfo{ch: make(chan string, 1)}
@@ -389,11 +409,11 @@ func (pa *PlatformAdapterGocq) waitEcho2(echo int64, value interface{}, beforeWa
 }
 
 // GetGroupMemberInfo 获取群成员信息
-func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID int64, userID int64) *OnebotUserInfo {
+func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID string, userID string) *OnebotUserInfo {
 	type DetailParams struct {
-		GroupID int64 `json:"group_id"`
-		UserID  int64 `json:"user_id"`
-		NoCache bool  `json:"no_cache"`
+		GroupID string `json:"group_id"`
+		UserID  string `json:"user_id"`
+		NoCache bool   `json:"no_cache"`
 	}
 
 	echo := pa.getCustomEcho()
@@ -419,17 +439,17 @@ func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID int64, userID int64) *
 
 	return &OnebotUserInfo{
 		Nickname: d.Nickname,
-		UserID:   d.UserID,
-		GroupID:  d.GroupID,
+		UserID:   string(d.UserID),
+		GroupID:  string(d.GroupID),
 		Card:     d.Card,
 	}
 }
 
 // GetStrangerInfo 获取陌生人信息
-func (pa *PlatformAdapterGocq) GetStrangerInfo(userID int64) *OnebotUserInfo {
+func (pa *PlatformAdapterGocq) GetStrangerInfo(userID string) *OnebotUserInfo {
 	type DetailParams struct {
-		UserID  int64 `json:"user_id"`
-		NoCache bool  `json:"no_cache"`
+		UserID  string `json:"user_id"`
+		NoCache bool   `json:"no_cache"`
 	}
 
 	echo := pa.getCustomEcho()
@@ -454,7 +474,7 @@ func (pa *PlatformAdapterGocq) GetStrangerInfo(userID int64) *OnebotUserInfo {
 
 	return &OnebotUserInfo{
 		Nickname: d.Nickname,
-		UserID:   d.UserID,
+		UserID:   string(d.UserID),
 	}
 }
 
@@ -588,18 +608,7 @@ func textSplit(input string) []string {
 		}
 	}
 
-	maxLen := 5000 // 以utf-8计算，1666个汉字
-	var splits []string
-
-	var l, r int
-	for l, r = 0, maxLen; r < len(input); l, r = r, r+maxLen {
-		for !utf8.RuneStart(input[r]) {
-			r--
-		}
-		splits = append(splits, input[l:r])
-	}
-	splits = append(splits, input[l:])
-
+	splits := utils.SplitLongText(input, 2000)
 	splits = append(splits, poke...)
 
 	return splits
@@ -665,8 +674,20 @@ func textAssetsConvert(s string) string {
 	solve := func(cq *CQCommand) {
 		// if cq.Type == "image" || cq.Type == "voice" {
 		fn, exists := cq.Args["file"]
+		_, urlExists := cq.Args["url"]
+
 		if exists {
+			if urlExists {
+				// 另一个问题，这个会爆出路径
+				// .text [CQ:image,file=eff8428fa4034480d20631e0e37d10d2.image,url=http://]
+				return
+			}
 			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") || strings.HasPrefix(fn, "base64://") {
+				return
+			}
+			if strings.HasSuffix(fn, ".image") && len(fn) == 32+6 {
+				// 举例
+				// [CQ:image,file=eff8428fa4034480d20631e0e37d10d2.image,subType=1,url=https://gchat.qpic.cn/gchatpic_new/303451945/4186699433-2282331144-EFF8428FA4034480D20631E0E37D10D2/0?term=2&is_origin=0]
 				return
 			}
 

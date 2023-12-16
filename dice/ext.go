@@ -80,7 +80,7 @@ func GetExtensionDesc(ei *ExtInfo) string {
 
 func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 	if i.IsJsExt {
-		if d.JsEnable {
+		if d.Config.JsEnable {
 			waitRun := make(chan int, 1)
 			d.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
 				defer func() {
@@ -122,7 +122,7 @@ func (i *ExtInfo) StorageInit() error {
 	return err
 }
 
-func (i *ExtInfo) StorageSetRaw(k, v string) error {
+func (i *ExtInfo) StorageSet(k, v string) error {
 	if err := i.StorageInit(); err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (i *ExtInfo) StorageSetRaw(k, v string) error {
 	})
 }
 
-func (i *ExtInfo) StorageGetRaw(k string) (string, error) {
+func (i *ExtInfo) StorageGet(k string) (string, error) {
 	if err := i.StorageInit(); err != nil {
 		return "", err
 	}
@@ -144,7 +144,7 @@ func (i *ExtInfo) StorageGetRaw(k string) (string, error) {
 	db := i.Storage
 	err = db.View(func(tx *buntdb.Tx) error {
 		val, err = tx.Get(k)
-		if err != nil {
+		if err != nil && !errors.Is(err, buntdb.ErrNotFound) {
 			return err
 		}
 		return nil

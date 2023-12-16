@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fy0/lockfree"
@@ -35,7 +36,8 @@ type PlatformAdapterRed struct {
 	httpUrl *url.URL
 
 	conn      *websocket.Conn
-	memberMap map[string]map[string]*GroupMember
+	muxSend   sync.Mutex
+	memberMap *SyncMap[string, *SyncMap[string, *GroupMember]]
 }
 
 type RedPack[T interface{}] struct {
@@ -599,6 +601,8 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 }
 
 func (pa *PlatformAdapterRed) sendRow(redMsg *RedMessageSend) {
+	pa.muxSend.Lock()
+	defer pa.muxSend.Unlock()
 	if pa.conn != nil {
 		log := pa.Session.Parent.Logger
 		conn := pa.conn
@@ -652,17 +656,17 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 	s := pa.Session
 	session := s
 	if pa.memberMap == nil {
-		pa.memberMap = make(map[string]map[string]*GroupMember)
+		pa.memberMap = &SyncMap[string, *SyncMap[string, *GroupMember]]{}
 	}
 
 	refreshMembers := func(group *Group) {
 		groupID := formatDiceIDRedGroup(group.GroupCode)
 		members := pa.getMemberList(group.GroupCode, group.MemberCount)
 		groupInfo := session.ServiceAtNew[groupID]
-		groupMemberMap := make(map[string]*GroupMember)
+		groupMemberMap := &SyncMap[string, *GroupMember]{}
 		for _, member := range members {
 			userID := formatDiceIDRed(member.Uin)
-			groupMemberMap[userID] = member
+			groupMemberMap.Store(userID, member)
 			if groupInfo != nil {
 				p := groupInfo.PlayerGet(d.DBData, userID)
 				if p == nil {
@@ -680,7 +684,7 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 				}
 			}
 		}
-		pa.memberMap[groupID] = groupMemberMap
+		pa.memberMap.Store(groupID, groupMemberMap)
 	}
 
 	refresh := func() {
@@ -758,20 +762,39 @@ func (pa *PlatformAdapterRed) getGroups() []*Group {
 	return groups
 }
 
-func (pa *PlatformAdapterRed) getMemberList(group string, size int) []*GroupMember {
-	groupID, _ := strconv.ParseInt(group, 10, 64)
-	paramData, _ := json.Marshal(map[string]interface{}{
+func (pa *PlatformAdapterRed) getMemberList(group string, size int) (members []*GroupMember) {
+	if strings.HasPrefix(group, "QQ-Group:") {
+		group = group[len("QQ-Group"):]
+	}
+	groupID, err := strconv.ParseInt(group, 10, 64)
+	if err != nil {
+		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		return
+	}
+	paramData, err := json.Marshal(map[string]interface{}{
 		"group": groupID,
 		"size":  size,
 	})
-	data, _ := pa.httpDo("POST", "group/getMemberList", nil, bytes.NewBuffer(paramData))
+	if err != nil {
+		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		return
+	}
+	data, err := pa.httpDo("POST", "group/getMemberList", nil, bytes.NewBuffer(paramData))
+	if err != nil {
+		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		return
+	}
 	type memberInfo struct {
 		Index  int          `json:"index"`
 		Detail *GroupMember `json:"detail"`
 	}
 	var body []memberInfo
-	_ = json.Unmarshal(data, &body)
-	members := lo.Map(body, func(item memberInfo, _ int) *GroupMember {
+	err = json.Unmarshal(data, &body)
+	if err != nil {
+		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		return []*GroupMember{}
+	}
+	members = lo.Map(body, func(item memberInfo, _ int) *GroupMember {
 		return item.Detail
 	})
 	return members
@@ -1014,10 +1037,10 @@ func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 		if send.Nickname == "" {
 			send.Nickname = message.SendMemberName
 		}
-		groupMemberInfo := pa.memberMap[msg.GroupID]
-		if groupMemberInfo != nil {
-			memberInfo := groupMemberInfo[send.UserID]
-			if memberInfo != nil {
+		groupMemberInfo, ok := pa.memberMap.Load(msg.GroupID)
+		if ok && groupMemberInfo != nil {
+			memberInfo, ok := groupMemberInfo.Load(send.UserID)
+			if ok && memberInfo != nil {
 				if memberInfo.Role == 4 {
 					send.GroupRole = "owner"
 				} else if memberInfo.Role == 3 {

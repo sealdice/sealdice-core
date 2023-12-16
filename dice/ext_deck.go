@@ -690,7 +690,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					// if times > 5 {
 					// 	times = 5
 					// }
-					if times > int(ctx.Dice.MaxExecuteTime) {
+					if times > int(ctx.Dice.Config.MaxExecuteTime) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -734,6 +734,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		Version:    "1.0.0",
 		Author:     "木落",
 		Brief:      "牌堆扩展，提供.deck指令支持，兼容Dice!和塔系牌堆",
+		Official:   true,
 		AutoActive: true, // 是否自动开启
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 		},

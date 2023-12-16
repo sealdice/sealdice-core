@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	ds "github.com/sealdice/dicescript"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strconv"
@@ -13,6 +11,7 @@ import (
 	"time"
 	"unicode"
 
+	ds "github.com/sealdice/dicescript"
 	"gopkg.in/yaml.v3"
 )
 
@@ -461,7 +460,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			var text string
 			if cmdArgs.SpecialExecuteTimes > 1 {
 				VarSetValueInt64(mctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
-				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.MaxExecuteTime) {
+				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.Config.MaxExecuteTime) {
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -667,13 +666,24 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				}
 				ctx1 := ctx
 				ctx2 := ctx
-				if len(cmdArgs.At) == 1 {
-					// 单人
-					ctx2, _ = cmdArgs.At[0].CopyCtx(ctx)
-				}
-				if len(cmdArgs.At) == 2 {
-					ctx1, _ = cmdArgs.At[0].CopyCtx(ctx)
-					ctx2, _ = cmdArgs.At[1].CopyCtx(ctx)
+
+				if cmdArgs.AmIBeMentionedFirst {
+					// 第一个at的是骰子，不计为 at的人
+					if len(cmdArgs.At) == 2 {
+						// 单人
+						ctx2, _ = cmdArgs.At[1].CopyCtx(ctx)
+					} else if len(cmdArgs.At) == 3 {
+						ctx1, _ = cmdArgs.At[1].CopyCtx(ctx)
+						ctx2, _ = cmdArgs.At[2].CopyCtx(ctx)
+					}
+				} else {
+					if len(cmdArgs.At) == 1 {
+						// 单人
+						ctx2, _ = cmdArgs.At[0].CopyCtx(ctx)
+					} else if len(cmdArgs.At) == 2 {
+						ctx1, _ = cmdArgs.At[0].CopyCtx(ctx)
+						ctx2, _ = cmdArgs.At[1].CopyCtx(ctx)
+					}
 				}
 
 				restText := cmdArgs.CleanArgs
@@ -1473,8 +1483,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				// 数量不存在时，视为1次
 				val = 1
 			}
-			if val > ctx.Dice.MaxCocCardGen {
-				val = ctx.Dice.MaxCocCardGen
+			if val > ctx.Dice.Config.MaxCocCardGen {
+				val = ctx.Dice.Config.MaxCocCardGen
 			}
 			var i int64
 
@@ -1503,6 +1513,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Brief:      "第七版克苏鲁的呼唤TRPG跑团指令集",
 		AutoActive: true,
 		Author:     "木落",
+		Official:   true,
 		ConflictWith: []string{
 			"dnd5e",
 		},
@@ -1807,7 +1818,7 @@ func setupConfig(d *Dice) AttributeConfigs {
 	if _, err := os.Stat(attrConfigFn); err == nil && false {
 		// 如果文件存在，那么读取
 		ac := AttributeConfigs{}
-		af, err := ioutil.ReadFile(attrConfigFn)
+		af, err := os.ReadFile(attrConfigFn)
 		if err == nil {
 			err = yaml.Unmarshal(af, &ac)
 			if err != nil {
@@ -1916,8 +1927,8 @@ func setupConfig(d *Dice) AttributeConfigs {
 			"司法科学":   {"司法科學", "科学：司法科学", "科学:司法科学"},
 			"地质学":    {"地理学", "地質學", "地理學", "科学：地质学", "科学:地质学"},
 			"数学":     {"數學", "科学：数学", "科学:数学"},
-			"气象学":    {"氣象學", "科学：", "科学:"},
-			"药学":     {"藥學", "科学：气象学", "科学:气象学"},
+			"气象学":    {"氣象學", "科学：气象学", "科学:气象学"},
+			"药学":     {"藥學", "科学：药学", "科学:药学"},
 			"物理学":    {"物理", "物理學", "科学：物理学", "科学:物理学"},
 			"动物学":    {"動物學", "科学：动物学", "科学:动物学"},
 			"船":      {"开船", "驾驶船", "開船", "駕駛船", "驾驶：船", "驾驶:船"},

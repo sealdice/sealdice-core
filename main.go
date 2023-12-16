@@ -19,7 +19,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	// _ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -29,6 +28,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	// _ "net/http/pprof"
 )
 
 /**
@@ -52,7 +52,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
-				i.BanList.SaveChanged(i)
+				i.Config.BanList.SaveChanged(i)
 				i.Save(true)
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
@@ -355,6 +355,11 @@ func main() {
 		logger.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
 		return
 	}
+	// v141重命名刷屏警告字段
+	if migrateErr := migrate.V141DeprecatedConfigRename(); migrateErr != nil {
+		logger.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
+		return
+	}
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 		hideWindow()
@@ -406,7 +411,7 @@ func main() {
 
 	// pprof
 	// go func() {
-	// 	http.ListenAndServe("0.0.0.0:8899", nil)
+	//	http.ListenAndServe("0.0.0.0:8899", nil)
 	// }()
 
 	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
@@ -444,7 +449,7 @@ func diceServe(d *dice.Dice) {
 	d.UIEndpoint.ID = "1"
 	d.UIEndpoint.State = 1
 	d.UIEndpoint.UserID = "UI:1000"
-	d.UIEndpoint.Adapter = &dice.PlatformAdapterHTTP{}
+	d.UIEndpoint.Adapter = &dice.PlatformAdapterHTTP{Session: d.ImSession, EndPoint: d.UIEndpoint}
 
 	for _, _conn := range d.ImSession.EndPoints {
 		if _conn.Enable {
@@ -471,6 +476,9 @@ func diceServe(d *dice.Dice) {
 					if conn.EndPointInfoBase.ProtocolType == "red" {
 						dice.ServeRed(d, conn)
 					}
+					if conn.EndPointInfoBase.ProtocolType == "official" {
+						dice.ServerOfficialQQ(d, conn)
+					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
 					dice.ServeQQ(d, conn)
 				case "DISCORD":
@@ -483,8 +491,12 @@ func diceServe(d *dice.Dice) {
 					dice.ServeMinecraft(d, conn)
 				case "DODO":
 					dice.ServeDodo(d, conn)
+				case "SLACK":
+					dice.ServeSlack(d, conn)
 				case "DINGTALK":
 					dice.ServeDingTalk(d, conn)
+				case "SEALCHAT":
+					dice.ServeSealChat(d, conn)
 				}
 			}(_conn)
 		} else {
@@ -508,13 +520,16 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
 	}))
 
+	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{
+		Level: 5,
+	}))
 	mimePatch()
 	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
 		XSSProtection:         "1; mode=block",
 		ContentTypeNosniff:    "nosniff",
 		HSTSMaxAge:            3600,
 		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
-		//XFrameOptions:         "ALLOW-FROM https://captcha.go-cqhttp.org/",
+		// XFrameOptions:         "ALLOW-FROM https://captcha.go-cqhttp.org/",
 	}))
 	// X-Content-Type-Options: nosniff
 
@@ -531,7 +546,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	}
 	e.Use(groupStatic)
 	if useBuiltin {
-		frontend, _ := fs.Sub(static.Static, "frontend")
+		frontend, _ := fs.Sub(static.Frontend, "frontend")
 		e.StaticFS("/", frontend)
 	} else {
 		e.Static("/", "./frontend_overwrite")
@@ -549,7 +564,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 //		return true
 //	}
 //	return false
-//}
+// }
 
 func dnsHack() {
 	var (

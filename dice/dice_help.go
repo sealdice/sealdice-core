@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	nanoid "github.com/matoous/go-nanoid/v2"
 
 	"github.com/blevesearch/bleve/v2"
@@ -67,15 +69,24 @@ func (e HelpTextItems) Len() int {
 }
 
 type HelpManager struct {
-	CurID       uint64
-	Index       bleve.Index
-	TextMap     map[string]*HelpTextItem
-	Parent      *DiceManager
-	EngineType  int
-	batch       *bleve.Batch
-	batchNum    int
-	LoadingFn   string
-	HelpDocTree []*HelpDoc
+	CurID        uint64
+	Index        bleve.Index
+	TextMap      map[string]*HelpTextItem
+	Parent       *DiceManager
+	EngineType   int
+	batch        *bleve.Batch
+	batchNum     int
+	LoadingFn    string
+	HelpDocTree  []*HelpDoc
+	GroupAliases map[string]string
+
+	Config *HelpConfig
+}
+
+const HelpConfigFilename = "help_config.yaml"
+
+type HelpConfig struct {
+	Aliases map[string][]string `yaml:"aliases" json:"aliases"`
 }
 
 func (m *HelpManager) GetNextID() string {
@@ -217,6 +228,10 @@ func (m *HelpManager) Load() {
 		if strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
+		if filepath.Base(entry.Name()) == HelpConfigFilename {
+			m.loadHelpConfig()
+			continue
+		}
 		var child HelpDoc
 		child.Key = generateHelpDocKey()
 		child.Name = entry.Name()
@@ -243,6 +258,47 @@ func (m *HelpManager) Load() {
 		m.HelpDocTree = append(m.HelpDocTree, &child)
 	}
 	_ = m.AddItemApply()
+}
+
+func (m *HelpManager) loadHelpConfig() {
+	data, err := os.ReadFile(filepath.Join("./data/helpdoc", HelpConfigFilename))
+	if err != nil {
+		panic(err)
+	}
+	var config HelpConfig
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		panic(err)
+	}
+	m.Config = &config
+	m.refreshHelpGroupAliases(config)
+}
+
+func (m *HelpManager) refreshHelpGroupAliases(config HelpConfig) {
+	// 先清空旧的别名
+	m.GroupAliases = make(map[string]string)
+	for group, aliases := range config.Aliases {
+		if len(aliases) > 0 {
+			for _, alias := range aliases {
+				m.GroupAliases[alias] = group
+			}
+		}
+	}
+}
+
+func (m *HelpManager) SaveHelpConfig(config *HelpConfig) error {
+	m.Config = config
+	m.refreshHelpGroupAliases(*config)
+
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(filepath.Join("./data/helpdoc", HelpConfigFilename), data, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *HelpManager) loadHelpDoc(group string, path string) bool {
@@ -277,21 +333,29 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 			break
 		}
 
-		for _, s := range f.GetSheetList() {
+		for index, s := range f.GetSheetList() {
 			rows, err := f.GetRows(s)
 			if err == nil {
-				for _, row := range rows {
-					// Keys Synonym Content Description Catalogue Tag
+				var synonymCount int
+				for i, row := range rows {
+					if i == 0 {
+						synonymCount, err = validateXlsxHeaders(row)
+						if err == nil {
+							// 跳过第一行
+							continue
+						} else {
+							fmt.Printf("%s sheet %d(zero-based): %s\n", path, index, err)
+							break
+						}
+					}
 					if len(row) < 3 {
 						continue
 					}
 					key := row[0]
-					synonym := row[1]
-					content := row[2]
-
-					if synonym != "" {
-						key += "/" + synonym
+					for j := 0; j < synonymCount; j++ {
+						key += "/" + row[1+j]
 					}
+					content := row[synonymCount+1]
 
 					_ = m.AddItem(HelpTextItem{
 						Group:       group,
@@ -311,6 +375,71 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 		return true
 	}
 	return false
+}
+
+// validateXlsxHeaders 验证 xlsx 格式 helpdoc 的表头是否是 Key Synonym（可能有多列） Content Description Catalogue Tag
+func validateXlsxHeaders(headers []string) (int, error) {
+	if len(headers) < 3 {
+		return 0, fmt.Errorf("helpdoc格式错误，缺少必须列 Key Synonym Content")
+	}
+
+	var (
+		index    int
+		expected string
+	)
+	var synonymCount int
+	expected = "key"
+out:
+	for index < len(headers) {
+		// 放宽同义词大小写校验
+		header := strings.ToLower(headers[index])
+		switch expected {
+		case "key":
+			if header != "key" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Key，当前为%s", index+1, header)
+			}
+			expected = "synonym"
+			index++
+		case "synonym":
+			if header != "synonym" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Synonym，当前为%s", index+1, header)
+			}
+			expected = "content"
+			index++
+			synonymCount++
+		case "content":
+			if header == "" || header == "synonym" {
+				// 有多列同义词
+				index++
+				synonymCount++
+				continue
+			} else if header != "content" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是为空白（表示同义词列）或者Content，当前为%s", index+1, header)
+			}
+			expected = "description"
+			index++
+		case "description":
+			if header != "description" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Description，当前为%s", index+1, header)
+			}
+			expected = "catalogue"
+			index++
+		case "catalogue":
+			if header != "catalogue" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Catalogue，当前为%s", index+1, header)
+			}
+			expected = "tag"
+			index++
+		case "tag":
+			if header != "tag" {
+				return 0, fmt.Errorf("helpdoc表头格式错误，第%d列表头必须是Tag", index+1)
+			}
+			break out
+		default:
+			return 0, fmt.Errorf("错误的表头校验状态，当前等待表头%s，实际获得%s", expected, header)
+		}
+	}
+	return synonymCount, nil
 }
 
 func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
@@ -832,4 +961,9 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 		return total, temp[start:end]
 	}
 	return total, temp[start:]
+}
+
+// SetDefaultHelpGroup 设置群默认搜索分组
+func (group *GroupInfo) SetDefaultHelpGroup(target string) {
+	group.DefaultHelpGroup = target
 }
