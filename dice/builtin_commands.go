@@ -2232,55 +2232,105 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["ping"] = cmdPing
 
-	defHelp := ".def/define <别名> <指令> // 将 .<别名> 定义为指定指令的快捷触发方式\n" +
-		".def del <别名> // 删除快捷指令\n" +
-		".def show // 显示目前定义的快捷指令"
-	cmdDef := &CmdItemInfo{
-		Name:      "def",
-		ShortHelp: defHelp,
-		Help:      "可以定义一条指令的快捷方式。\n" + defHelp,
+	aliasHelp := ".alias <别名> <指令> // 将 .&<别名> 定义为个人指定指令的快捷触发方式\n" +
+		".alias --g <别名> <指令> // 将 .&<别名> 定义为群内快捷指令\n" +
+		".alias del/rm <别名> // 删除个人快捷指令\n" +
+		".alias del/rm --g <别名> // 删除群内快捷指令\n" +
+		".alias clr // 清除所有个人快捷指令\n" +
+		".alias clr --g // 清除所有群内快捷指令\n" +
+		".alias show/list // 显示目前可用的快捷指令"
+	cmdAlias := &CmdItemInfo{
+		Name:      "alias",
+		ShortHelp: aliasHelp,
+		Help:      "可以定义一条指令的快捷方式。\n" + aliasHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			args := cmdArgs.Args
 			if len(args) == 0 {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
+
+			_isGroup := cmdArgs.GetKwarg("g")
+			isGroup := _isGroup != nil
+			if isGroup && ctx.MessageType != "group" {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_非群聊"))
+			} else {
+				ctx.LoadGroupVars()
+			}
+
 			playerVars := ctx.LoadPlayerGlobalVars()
 			switch action := args[0]; action {
-			case "del":
+			case "del", "rm":
 				name := args[1]
-				key := "$m:define:" + name
-				if _cmd, ok := playerVars.ValueMap.Get(key); ok {
-					if cmd, ok := _cmd.(string); ok {
-						playerVars.ValueMap.Del(key)
+				key := "$m:alias:" + name
+				m := playerVars.ValueMap
+				VarSetValueStr(ctx, "$t指令来源", "个人")
+				if isGroup {
+					key = "$g:alias:" + name
+					m = ctx.Group.ValueMap
+					VarSetValueStr(ctx, "$t指令来源", "群")
+				}
+				if _cmd, ok := m.Get(key); ok {
+					if cmd, ok := _cmd.(*VMValue); ok && cmd != nil && cmd.TypeID == VMTypeString {
 						VarSetValueStr(ctx, "$t快捷指令名", name)
-						VarSetValueStr(ctx, "$t旧指令", cmd)
+						VarSetValueStr(ctx, "$t旧指令", cmd.Value.(string))
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除"))
+					}
+					m.Del(key)
+					if isGroup && ctx.Group != nil {
+						ctx.Group.UpdatedAtTime = time.Now().Unix()
+					} else if !isGroup {
+						playerVars.LastWriteTime = time.Now().Unix()
 					}
 				} else {
 					VarSetValueStr(ctx, "$t快捷指令名", name)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除_未定义"))
 				}
-			case "show":
-				var cmd []string
+			case "list", "show":
+				var personCmds, groupCmds []string
 				_ = playerVars.ValueMap.Iterate(func(k interface{}, v interface{}) error {
 					if key, ok := k.(string); ok {
-						if strings.HasPrefix(key, "$m:define:") {
-							_cmd := key[len("$m:define:"):]
-							if val, ok := v.(string); ok {
+						if strings.HasPrefix(key, "$m:alias:") {
+							_cmd := key[len("$m:alias:"):]
+							if val, ok := v.(*VMValue); ok && val != nil && val.TypeID == VMTypeString {
 								VarSetValueStr(ctx, "$t快捷指令名", _cmd)
-								VarSetValueStr(ctx, "$t指令", val)
-								cmd = append(cmd, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
+								VarSetValueStr(ctx, "$t指令", val.Value.(string))
+								VarSetValueStr(ctx, "$t指令来源", "个人")
+								personCmds = append(personCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
 							}
 						}
 					}
 					return nil
 				})
-				if len(cmd) > 0 {
-					sep := DiceFormatTmpl(ctx, "核心:快捷指令_列表_分隔符")
-					VarSetValueStr(ctx, "$t列表内容", strings.Join(cmd, sep))
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表"))
-				} else {
+				if ctx.MessageType == "group" {
+					groupValueMap := ctx.Group.ValueMap
+					_ = groupValueMap.Iterate(func(k interface{}, v interface{}) error {
+						if key, ok := k.(string); ok {
+							if strings.HasPrefix(key, "$g:alias:") {
+								_cmd := key[len("$g:alias:"):]
+								if val, ok := v.(*VMValue); ok && val != nil && val.TypeID == VMTypeString {
+									VarSetValueStr(ctx, "$t快捷指令名", _cmd)
+									VarSetValueStr(ctx, "$t指令", val.Value.(string))
+									VarSetValueStr(ctx, "$t指令来源", "群")
+									groupCmds = append(groupCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
+								}
+							}
+						}
+						return nil
+					})
+				}
+				sep := DiceFormatTmpl(ctx, "核心:快捷指令_列表_分隔符")
+				// 保证个人在前群在后的顺序
+				var totalCmds []string
+				totalCmds = append(totalCmds, personCmds...)
+				totalCmds = append(totalCmds, groupCmds...)
+				if len(totalCmds) > 0 {
+					VarSetValueStr(ctx, "$t列表内容", strings.Join(totalCmds, sep))
+				}
+
+				if len(totalCmds) == 0 {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表_空"))
+				} else {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表"))
 				}
 			default:
 				if len(args) < 2 {
@@ -2289,22 +2339,50 @@ func (d *Dice) registerCoreCommands() {
 				}
 				name := action
 				_args := args[1:]
-				for _, kw := range cmdArgs.Kwargs {
-					_args = append(_args, fmt.Sprintf("--%s=%s", kw.Name, kw.Value))
+				for _, kwa := range cmdArgs.Kwargs {
+					if kwa.Name != "g" {
+						_args = append(_args, kwa.String())
+					}
 				}
 				cmd := strings.TrimSpace(strings.Join(_args, " "))
 
-				key := "$m:define:" + name
-				if _oldCmd, ok := playerVars.ValueMap.Get(key); ok {
-					if oldCmd, ok := _oldCmd.(string); ok {
-						playerVars.ValueMap.Set(key, cmd)
+				key := "$m:alias:" + name
+				m := playerVars.ValueMap
+				VarSetValueStr(ctx, "$t指令来源", "个人")
+				if isGroup {
+					m = ctx.Group.ValueMap
+					key = "$g:alias:" + name
+					VarSetValueStr(ctx, "$t指令来源", "群")
+				}
+
+				if _oldCmd, ok := m.Get(key); ok && _oldCmd != nil {
+					if oldCmd, ok := _oldCmd.(*VMValue); ok && oldCmd.TypeID == VMTypeString {
+						m.Set(key, &VMValue{TypeID: VMTypeString, Value: cmd})
+						if isGroup && ctx.Group != nil {
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
+						} else if !isGroup {
+							playerVars.LastWriteTime = time.Now().Unix()
+						}
 						VarSetValueStr(ctx, "$t快捷指令名", name)
 						VarSetValueStr(ctx, "$t指令", cmd)
-						VarSetValueStr(ctx, "$t旧指令", oldCmd)
+						VarSetValueStr(ctx, "$t旧指令", oldCmd.Value.(string))
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_替换"))
+					} else {
+						// 防止错误的数据一直卡着
+						m.Del(key)
+						if isGroup && ctx.Group != nil {
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
+						} else if !isGroup {
+							playerVars.LastWriteTime = time.Now().Unix()
+						}
 					}
 				} else {
-					playerVars.ValueMap.Set(key, cmd)
+					m.Set(key, &VMValue{TypeID: VMTypeString, Value: cmd})
+					if isGroup && ctx.Group != nil {
+						ctx.Group.UpdatedAtTime = time.Now().Unix()
+					} else if !isGroup {
+						playerVars.LastWriteTime = time.Now().Unix()
+					}
 					VarSetValueStr(ctx, "$t快捷指令名", name)
 					VarSetValueStr(ctx, "$t指令", cmd)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_新增"))
@@ -2313,8 +2391,75 @@ func (d *Dice) registerCoreCommands() {
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
-	d.CmdMap["def"] = cmdDef
-	d.CmdMap["define"] = cmdDef
+	d.CmdMap["alias"] = cmdAlias
+
+	aHelp := ".&/a <快捷指令名> [参数] // 执行对应快捷指令"
+	cmdA := &CmdItemInfo{
+		Name:      "&",
+		ShortHelp: aHelp,
+		Help:      "执行一条快捷指令。\n" + aHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if len(cmdArgs.Args) < 1 {
+				ReplyToSender(ctx, msg, "未指定快捷指令")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			log := d.Logger
+			name := cmdArgs.Args[0]
+			args := cmdArgs.Args[:]
+			for _, kwa := range cmdArgs.Kwargs {
+				args = append(args, kwa.String())
+			}
+
+			if msg.MessageType == "group" {
+				ctx.LoadGroupVars()
+				_cmdValue, ok := ctx.Group.ValueMap.Get("$g:alias:" + name)
+				if ok {
+					if cmdValue, ok2 := _cmdValue.(*VMValue); ok2 && cmdValue != nil && cmdValue.TypeID == VMTypeString {
+						args[0] = cmdValue.Value.(string)
+						targetCmd := strings.Join(args, " ")
+						targetArgs := CommandParse(targetCmd, []string{}, d.CommandPrefix, msg.Platform, false)
+						if targetArgs != nil {
+							log.Infof("群快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
+
+							VarSetValueStr(ctx, "$t指令来源", "群")
+							VarSetValueStr(ctx, "$t目标指令", targetCmd)
+							ctx.AliasPrefixText = DiceFormatTmpl(ctx, "核心:快捷指令触发_前缀")
+
+							ctx.EndPoint.TriggerCommand(ctx, msg, targetArgs)
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+					}
+				}
+			}
+
+			playerVars := ctx.LoadPlayerGlobalVars()
+			_cmdValue, ok := playerVars.ValueMap.Get("$m:alias:" + name)
+			if ok {
+				if cmdValue, ok := _cmdValue.(*VMValue); ok && cmdValue != nil && cmdValue.TypeID == VMTypeString {
+					args[0] = cmdValue.Value.(string)
+					targetCmd := strings.Join(args, " ")
+					msg.Message = targetCmd
+					targetArgs := CommandParse(targetCmd, []string{}, d.CommandPrefix, msg.Platform, false)
+					if targetArgs != nil {
+						log.Infof("个人快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
+
+						VarSetValueStr(ctx, "$t指令来源", "个人")
+						VarSetValueStr(ctx, "$t目标指令", targetCmd)
+						ctx.AliasPrefixText = DiceFormatTmpl(ctx, "核心:快捷指令触发_前缀")
+
+						ctx.EndPoint.TriggerCommand(ctx, msg, targetArgs)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+				}
+			}
+
+			VarSetValueStr(ctx, "$t目标指令名", name)
+			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令触发_无指令"))
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+	d.CmdMap["&"] = cmdA
+	d.CmdMap["a"] = cmdA
 }
 
 func getDefaultDicePoints(ctx *MsgContext) int64 {
