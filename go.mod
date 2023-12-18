@@ -53,7 +53,6 @@ require (
 	github.com/glebarez/go-sqlite v1.21.2
 	github.com/go-creed/sat v1.0.3
 	github.com/golang-module/carbon v1.7.3
-	github.com/gonutz/w32/v2 v2.11.1
 	github.com/gorilla/websocket v1.5.1
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jmoiron/sqlx v1.3.5
@@ -63,7 +62,7 @@ require (
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.6.0
-	github.com/pelletier/go-toml/v2 v2.1.0
+	github.com/pelletier/go-toml/v2 v2.1.1
 	github.com/pkg/errors v0.9.1
 	github.com/samber/lo v1.39.0
 	github.com/schollz/progressbar/v3 v3.14.1
