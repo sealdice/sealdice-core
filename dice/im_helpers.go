@@ -434,6 +434,11 @@ func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
 		return false
 	}
 
+	// 同一个 ctx 只需检查一次
+	defer func() {
+		ctx.SpamCheckedPerson = true
+	}()
+
 	if ctx.PrivilegeLevel >= 100 {
 		return false
 	}
@@ -469,7 +474,6 @@ func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
 		)
 	}
 
-	ctx.SpamCheckedPerson = true
 	return true
 }
 
@@ -477,6 +481,11 @@ func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
 	if ctx.SpamCheckedGroup {
 		return false
 	}
+
+	// 同一个 ctx 只需检查一次
+	defer func() {
+		ctx.SpamCheckedGroup = true
+	}()
 
 	// Skip privileged groups
 	for _, g := range ctx.Dice.DiceMasters {
@@ -517,7 +526,6 @@ func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
 		)
 	}
 
-	ctx.SpamCheckedGroup = true
 	return true
 }
 
