@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"regexp"
 	"runtime/debug"
-	"sealdice-core/dice/model"
 	"sort"
 	"strings"
 	"time"
+
+	"sealdice-core/dice/model"
 
 	"github.com/dop251/goja"
 	"github.com/fy0/lockfree"
@@ -459,6 +460,8 @@ type MsgContext struct {
 	diceExprOverwrite string                                      // 默认骰表达式覆盖
 	SystemTemplate    *GameSystemTemplate
 	Censored          bool // 已检查过敏感词
+	SpamCheckedGroup  bool
+	SpamCheckedPerson bool
 }
 
 // func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {
