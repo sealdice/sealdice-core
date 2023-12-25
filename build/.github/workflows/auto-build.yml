@@ -141,11 +141,11 @@ jobs:
       - name: Setup Android NDK
         id: setup-ndk
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-        uses: nttld/setup-ndk@v1
+        uses: nttld/setup-ndk@v1.4.2
         with:
           ndk-version: ${{ env.ANDROID_NDK_VERSION }}
           link-to-sdk: true
-          local-cache: true
+          local-cache: false
       - name: Build Binary
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
         working-directory: ./go-cqhttp
@@ -376,7 +376,7 @@ jobs:
         with:
           ndk-version: ${{ env.ANDROID_NDK_VERSION }}
           link-to-sdk: true
-          local-cache: true
+          local-cache: false
       - name: Install Go
         uses: actions/setup-go@v3
         with:
@@ -414,7 +414,8 @@ jobs:
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
           CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$CUR_TIME($PROJECT_VERSION_S)" .
+        run: |
+          go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$CUR_TIME($PROJECT_VERSION_S)" .
       - name: Upload Core
         uses: actions/upload-artifact@v3
         with:
