@@ -398,6 +398,10 @@ func (pa *PlatformAdapterTelegram) SendFileToGroup(_ *MsgContext, uid string, pa
 	}
 }
 
+func (pa *PlatformAdapterTelegram) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterTelegram) RecallMessage(_ *MsgContext, _ string) {}
+
 type RequestFileDataImpl struct {
 	Reader io.Reader
 	File   string

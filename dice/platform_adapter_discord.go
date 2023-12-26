@@ -181,6 +181,42 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 	//		}
 	//	}
 	// })
+
+	dg.AddHandler(func(s *discordgo.Session, ctx *discordgo.MessageUpdate) {
+		msg := new(Message)
+		msg.Time = ctx.EditedTimestamp.Unix() // secs
+		msg.RawID = ctx.ID
+		msg.Message = ctx.Content
+		msg.Platform = "DISCORD"
+
+		ch, errChannel := pa.IntentSession.Channel(ctx.ChannelID)
+		if errChannel != nil {
+			pa.Session.Parent.Logger.Errorf(
+				"获取Discord频道#%s信息时出错:%s",
+				FormatDiceIDDiscordChannel(ctx.ChannelID),
+				errChannel.Error(),
+			)
+			return
+		}
+		if ch.Type == discordgo.ChannelTypeDM {
+			msg.MessageType = "private"
+		} else {
+			msg.MessageType = "group"
+		}
+		msg.GroupID = FormatDiceIDDiscordChannel(ctx.ChannelID)
+		msg.ChannelID = msg.GroupID
+		msg.GuildID = FormatDiceIDDiscordGuild(ctx.GuildID)
+
+		mctx := &MsgContext{
+			Session:     pa.Session,
+			EndPoint:    pa.EndPoint,
+			Dice:        pa.Session.Parent,
+			MessageType: msg.MessageType,
+			Player:      &GroupPlayerInfo{},
+		}
+		pa.Session.OnMessageEdit(mctx, msg)
+	})
+
 	// 这里只处理消息，未来根据需要再改这里
 	dg.Identify.Intents = discordgo.IntentsAll
 	pa.IntentSession = dg
@@ -451,6 +487,31 @@ func (pa *PlatformAdapterDiscord) SetGroupCardName(ctx *MsgContext, name string)
 func (pa *PlatformAdapterDiscord) MemberBan(_ string, _ string, _ int64) {}
 
 func (pa *PlatformAdapterDiscord) MemberKick(_ string, _ string) {}
+
+func (pa *PlatformAdapterDiscord) EditMessage(ctx *MsgContext, msgID, message string) {
+	var envID string
+	if ctx.MessageType == "private" {
+		envID = ExtractDiscordUserID(ctx.Player.UserID)
+	} else {
+		envID = ExtractDiscordChannelID(ctx.Group.GroupID)
+	}
+
+	if _, err := pa.IntentSession.ChannelMessageEdit(envID, msgID, message); err != nil {
+		pa.Session.Parent.Logger.Errorf("更新Discord消息失败: %v", err)
+	}
+}
+
+func (pa *PlatformAdapterDiscord) RecallMessage(ctx *MsgContext, msgID string) {
+	var envID string
+	if ctx.MessageType == "private" {
+		envID = ExtractDiscordUserID(ctx.Player.UserID)
+	} else {
+		envID = ExtractDiscordChannelID(ctx.Group.GroupID)
+	}
+
+	// TODO: test
+	_ = pa.IntentSession.ChannelMessageDelete(envID, msgID)
+}
 
 // 下面四个函数是格式化和反格式化的
 

@@ -74,3 +74,7 @@ func (pa *PlatformAdapterHTTP) SetGroupCardName(_ *MsgContext, _ string) {}
 func (pa *PlatformAdapterHTTP) MemberBan(_ string, _ string, _ int64) {}
 
 func (pa *PlatformAdapterHTTP) MemberKick(_ string, _ string) {}
+
+func (pa *PlatformAdapterHTTP) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterHTTP) RecallMessage(_ *MsgContext, _ string) {}
