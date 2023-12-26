@@ -2405,7 +2405,7 @@ func (d *Dice) registerCoreCommands() {
 			}
 			log := d.Logger
 			name := cmdArgs.Args[0]
-			args := cmdArgs.Args[:]
+			args := cmdArgs.Args
 			for _, kwa := range cmdArgs.Kwargs {
 				args = append(args, kwa.String())
 			}
