@@ -2236,8 +2236,6 @@ func (d *Dice) registerCoreCommands() {
 		".alias --g <别名> <指令> // 将 .&<别名> 定义为群内快捷指令\n" +
 		".alias del/rm <别名> // 删除个人快捷指令\n" +
 		".alias del/rm --g <别名> // 删除群内快捷指令\n" +
-		".alias clr // 清除所有个人快捷指令\n" +
-		".alias clr --g // 清除所有群内快捷指令\n" +
 		".alias show/list // 显示目前可用的快捷指令"
 	cmdAlias := &CmdItemInfo{
 		Name:      "alias",
