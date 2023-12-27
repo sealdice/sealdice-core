@@ -2236,7 +2236,9 @@ func (d *Dice) registerCoreCommands() {
 		".alias --g <别名> <指令> // 将 .&<别名> 定义为群内快捷指令\n" +
 		".alias del/rm <别名> // 删除个人快捷指令\n" +
 		".alias del/rm --g <别名> // 删除群内快捷指令\n" +
-		".alias show/list // 显示目前可用的快捷指令"
+		".alias show/list // 显示目前可用的快捷指令\n" +
+		".alias help // 查看帮助\n" +
+		"// 执行快捷命令见 .& 命令"
 	cmdAlias := &CmdItemInfo{
 		Name:      "alias",
 		ShortHelp: aliasHelp,
@@ -2257,6 +2259,8 @@ func (d *Dice) registerCoreCommands() {
 
 			playerVars := ctx.LoadPlayerGlobalVars()
 			switch action := args[0]; action {
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			case "del", "rm":
 				name := args[1]
 				key := "$m:alias:" + name
@@ -2391,18 +2395,23 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["alias"] = cmdAlias
 
-	aHelp := ".&/a <快捷指令名> [参数] // 执行对应快捷指令"
+	aHelp := ".&/a <快捷指令名> [参数] // 执行对应快捷指令\n" +
+		".& help // 查看帮助\n" +
+		"// 定义快捷指令见 .alias 命令"
 	cmdA := &CmdItemInfo{
 		Name:      "&",
 		ShortHelp: aHelp,
 		Help:      "执行一条快捷指令。\n" + aHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if len(cmdArgs.Args) < 1 {
-				ReplyToSender(ctx, msg, "未指定快捷指令")
-				return CmdExecuteResult{Matched: true, Solved: true}
+			if len(cmdArgs.Args) == 0 {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			log := d.Logger
 			name := cmdArgs.Args[0]
+			if name == "help" {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
+			log := d.Logger
 			args := cmdArgs.Args
 			for _, kwa := range cmdArgs.Kwargs {
 				args = append(args, kwa.String())
