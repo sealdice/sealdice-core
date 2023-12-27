@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/zlib"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -900,9 +899,7 @@ func LogDeleteByID(ctx *MsgContext, groupID string, logName string, messageID in
 func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID interface{}) bool {
 	err := model.LogEditByMsgID(ctx.Dice.DBLogs, groupID, logName, content, messageID)
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			ctx.Dice.Logger.Error("LogEditByID:", zap.Error(err))
-		}
+		ctx.Dice.Logger.Error("LogEditByID:", zap.Error(err))
 		return false
 	}
 	return true
