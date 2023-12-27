@@ -92,6 +92,7 @@ type ExtInfo struct {
 	OnMessageReceived func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageReceived"`
 	OnMessageSend     func(ctx *MsgContext, msg *Message, flag string)      `yaml:"-" json:"-" jsbind:"onMessageSend"`
 	OnMessageDeleted  func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageDeleted"`
+	OnMessageEdit     func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageEdit"`
 	OnGroupJoined     func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGroupJoined"`
 	OnGuildJoined     func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGuildJoined"`
 	OnBecomeFriend    func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onBecomeFriend"`

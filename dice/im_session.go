@@ -1291,18 +1291,40 @@ func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
 	}
 }
 
+// OnMessageEdit 消息编辑事件
+//
+// msg.Message 应为更新后的消息, msg.Time 应为更新时间而非发送时间，同时
+// msg.RawID 应确保为原消息的 ID (一些 API 同时会有系统事件 ID，勿混淆)
+//
+// 依据 API，Sender 不一定有效
 func (s *IMSession) OnMessageEdit(ctx *MsgContext, msg *Message) {
-	// msg.Message 应为更新后的消息, msg.Time 应为更新时间而非发送时间，同时
-	// msg.RawID 应确保为原消息的 ID (一些 API 同时会有系统事件 ID，勿混淆)
-
-	// TODO
-	m := fmt.Sprintf("来自%s的消息修改事件:\n新消息: %s\n群组ID: %s\n消息ID: %s",
+	// TODO: 这块目前 debug 用，但生产坏境是否需要为消息修改打印日志？
+	m := fmt.Sprintf("来自%s的消息修改事件:\n新消息: %s\n群组ID: %s %s\n服务器ID: %s\n消息ID: %s\n时间戳: %d",
 		msg.Platform,
 		msg.Message,
-		msg.ChannelID,
+		msg.GroupID, msg.ChannelID,
+		msg.GuildID,
 		msg.RawID,
+		msg.Time,
 	)
 	s.Parent.Logger.Info(m)
+
+	if group, ok := s.ServiceAtNew[msg.GroupID]; ok {
+		ctx.Group = group
+	} else {
+		return
+	}
+
+	group := ctx.Group
+	if group.Active || ctx.IsCurGroupBotOn {
+		for _, i := range group.ActivatedExtList {
+			if i.OnMessageEdit != nil {
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnMessageEdit(ctx, msg)
+				})
+			}
+		}
+	}
 }
 
 // GetEpByPlatform

@@ -472,3 +472,34 @@ func LogMarkDeleteByMsgID(db *sqlx.DB, groupID string, logName string, rawID int
 
 	return nil
 }
+
+func LogEditByMsgID(db *sqlx.DB, groupID, logName, newContent string, rawID interface{}) error {
+	logID, err := LogGetIDByGroupIDAndName(db, groupID, logName)
+	if err != nil {
+		return err
+	}
+
+	rid := ""
+	if rawID != nil {
+		rid = fmt.Sprintf("%v", rawID)
+	}
+
+	_, err = db.Exec("SELECT * FROM log_items WHERE log_id = ? AND raw_msg_id = ?", logID, rid)
+	if err != nil {
+		//if errors.Is(err, sql.ErrNoRows) {
+		//	// 开启 log 后修改开启前的消息可能很常见，这边太吵了
+		//	// fmt.Printf("\n")
+		//	return nil
+		//}
+		return fmt.Errorf("query log: %w", err)
+	}
+
+	_, err = db.Exec(`UPDATE log_items
+SET message = ?
+WHERE log_id = ? AND raw_msg_id = ?`, newContent, logID, rid)
+	if err != nil {
+		return fmt.Errorf("log edit: %v", err)
+	}
+
+	return nil
+}
