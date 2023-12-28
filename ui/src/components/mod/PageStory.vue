@@ -113,12 +113,12 @@ async function searchLogs() {
         createdTimeEnd: queryLogPage.value.createdTime?.[1] ? dayjs(queryLogPage.value.createdTime?.[1]).endOf('date').unix() : undefined,
     }
     const page = await getLogPage(params)
-    logs.value = page as any
+    logs.value = page as unknown as Log[]
 }
 
 async function refreshLogs() {
     [sum_log.value, sum_item.value, cur_log.value, cur_item.value] = await getInfo()
-    logs.value = await getLogPage(queryLogPage.value) as any
+    logs.value = await getLogPage(queryLogPage.value) as unknown as Log[] || []
     ElMessage({
         message: '刷新日志列表完成',
         type: 'success',
@@ -150,7 +150,7 @@ async function DelLog(v: Log, flag = true) {
         } else {
             ElMessage({
                 message: '删除失败',
-                type: 'success',
+                type: 'error',
             })
         }
     })
@@ -173,10 +173,21 @@ async function DelLogs() {
             }
         }
         for (const v of ls) {
-            DelLog(v, false)
+            let info = await delLog(v)
+            if (info === true) {
+                ElMessage({
+                    message: '删除成功',
+                    type: 'success',
+                })
+            } else {
+                ElMessage({
+                    message: '删除失败',
+                    type: 'error',
+                })
+            }
         }
-        await refreshLogs()
-    })
+            await refreshLogs()
+        })
 }
 
 async function UploadLog(v: Log) {
@@ -204,13 +215,13 @@ async function openItem(log: Log) {
         pageSize: logItemPage.value.pageSize,
         logName: logItemPage.value.logName,
         groupId: logItemPage.value.groupId,
-    }) as any
+    }) as unknown as Item[]
     mode.value = 'items'
 }
 
 const handleItemPageChange = async (val: number) => {
     logItemPage.value.pageNum = val
-    item_data.value = await getItemPage(logItemPage.value) as any
+    item_data.value = await getItemPage(logItemPage.value) as unknown as Item[]
 }
 
 function closeItem() {
@@ -294,7 +305,7 @@ onBeforeMount(() => {
                                 <ElButton size="small" type="primary" :icon="Upload" plain @click="UploadLog(i)">提取日志
                                 </ElButton>
                                 <ElButton size="small" type="danger" :icon="Delete" plain
-                                    @click="DelLog(i); console.log('---')">删除
+                                    @click="DelLog(i);">删除
                                 </ElButton>
                             </el-space>
                         </div>
