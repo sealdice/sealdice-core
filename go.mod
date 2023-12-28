@@ -21,11 +21,11 @@ require (
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.5.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.2
-	github.com/labstack/echo/v4 v4.11.3
+	github.com/labstack/echo/v4 v4.11.4
 	github.com/lonelyevil/kook v0.0.31
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
@@ -53,26 +53,25 @@ require (
 	github.com/glebarez/go-sqlite v1.21.2
 	github.com/go-creed/sat v1.0.3
 	github.com/golang-module/carbon v1.7.3
-	github.com/gonutz/w32/v2 v2.11.1
 	github.com/gorilla/websocket v1.5.1
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/matoous/go-nanoid/v2 v2.0.0
-	github.com/mattn/go-sqlite3 v1.14.18
+	github.com/mattn/go-sqlite3 v1.14.19
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.6.0
-	github.com/pelletier/go-toml/v2 v2.1.0
+	github.com/pelletier/go-toml/v2 v2.1.1
 	github.com/pkg/errors v0.9.1
 	github.com/samber/lo v1.39.0
 	github.com/schollz/progressbar/v3 v3.14.1
 	github.com/sealdice/botgo v0.0.0-20231208035838-29bc68dc3f98
 	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
 	github.com/slack-go/slack v0.12.3
-	github.com/tdewolff/minify/v2 v2.20.9
+	github.com/tdewolff/minify/v2 v2.20.10
 	github.com/yuin/goldmark v1.6.0
-	golang.org/x/crypto v0.16.0
+	golang.org/x/crypto v0.17.0
 	golang.org/x/exp v0.0.0-20231108232855-2478ac86f678
 	golang.org/x/time v0.5.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
@@ -124,7 +123,7 @@ require (
 	github.com/joho/godotenv v1.3.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/labstack/gommon v0.4.0 // indirect
+	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
@@ -141,7 +140,7 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/sacOO7/go-logger v0.0.0-20180719173527-9ac9add5a50d // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
-	github.com/tdewolff/parse/v2 v2.7.6 // indirect
+	github.com/tdewolff/parse/v2 v2.7.7 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/tidwall/gjson v1.17.0 // indirect
 	github.com/tidwall/grect v0.1.4 // indirect
