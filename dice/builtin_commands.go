@@ -2340,7 +2340,7 @@ func (d *Dice) registerCoreCommands() {
 				name := subCmd
 				_args := cmdArgs.Args[1:]
 				for _, kwa := range cmdArgs.Kwargs {
-					if kwa.Name != "g" {
+					if kwa.Name != "my" {
 						_args = append(_args, kwa.String())
 					}
 				}
