@@ -2,12 +2,13 @@ package api
 
 import (
 	"bytes"
-	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
+
+	"encoding/binary"
+	"encoding/hex"
+	"net/http"
 	"path/filepath"
 
 	"github.com/alexmullins/zip"
