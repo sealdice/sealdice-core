@@ -63,6 +63,7 @@ type PlatformAdapterGocq struct {
 	GoCqhttpProcess           *procs.Process `yaml:"-" json:"-"`
 	GocqhttpLoginFailedReason string         `yaml:"-" json:"curLoginFailedReason"` // 当前登录失败原因
 
+	GoCqhttpLoginCaptcha       string `yaml:"-" json:"goCqHttpLoginCaptcha"`
 	GoCqhttpLoginVerifyCode    string `yaml:"-" json:"goCqHttpLoginVerifyCode"`
 	GoCqhttpLoginDeviceLockURL string `yaml:"-" json:"goCqHttpLoginDeviceLockUrl"`
 	GoCqhttpQrcodeData         []byte `yaml:"-" json:"-"` // 二维码数据
