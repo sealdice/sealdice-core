@@ -61,6 +61,12 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 海豹从 `v1.4.2` 开始适配了 Shamrock 的连接。
 
+::: warning 有难度的操作
+
+此方式存在一定难度，你可能需要对Root，使用命令行程序等有所了解。
+
+:::
+
 ::: info Shamrock
 
 [Shamrock](https://whitechi73.github.io/OpenShamrock/) 是一个基于 [LSPosed](https://github.com/LSPosed/LSPosed)/Xposed 框架，实现劫持 QQ 以对外暴露 Onebot Api 的软件。你可以在 Android 手机/模拟器中使用 Shamrock 代替已经停止开发的 gocq。
@@ -207,6 +213,107 @@ Root 即 Android 的超级用户权限，如对 QQ 应用进行注入等的危�
 ![连接 Shamrock](./images/platform-qq-shamrock-9.png =65%x65%)
 
 成功连接后即可使用。
+
+## Shamrock LSPatch <Badge type="tip" text="v1.4.2" vertical="middle" />
+
+::: warning 有难度的操作
+
+此方式存在一定难度，你可能需要对使用命令行程序有所了解。
+
+:::
+
+::: warning Andriod 版本要求
+
+由于 LSPatch 要求安卓版本 9.0 以上，因此你的安卓手机版本必须超过安卓 9。
+
+:::
+
+::: info LSPatch
+
+LSPatch 是在无 root 环境下使用 Shamrock 的一种途径，原理是利用 Shizuku 安装经 LSPatch 修补后的 QQ，再使用 Shamrock 劫持 QQ 并对外开放 API。
+
+:::
+
+### 安装 Shizuku
+
+::: info Shizuku
+
+[Shizuku](https://github.com/RikkaApps/Shizuku/releases) 是一个帮助其他应用直接使用系统 API 的应用，而 Shizuku 本身则需要通过电脑使用 adb 工具赋予权限。
+
+Adb 即 [Android 调试桥](https://developer.android.com/studio/command-line/adb?hl=zh-cn)，是安卓官方提供的帮助在电脑端调试 Android 设备的命令行工具。
+
+:::
+
+首先需要在你的手机安装 Shizuku，安装后需要在电脑中使用 adb 命令为其赋予权限。
+
+::: tabs
+
+@tab Windows#windows
+
+**在 Windows 中使用 cmd 执行 adb 命令：**
+
+1. 安装 adb，工具下载见 [上文](#开放模拟器端口供海豹对接)；
+2. 打开 cmd 窗口；
+  - 如果你的电脑是 Window 11 操作系统，你可以直接右键 `platform-tools` 文件夹单击 **在此处打开命令行**；
+  - 其它版本的打开方式请自行搜索。
+3. 你有多种方式使用 adb：
+  - 将 adb 添加至系统环境变量，在系统开始一栏中可以直接搜索到该功能，随后将 **解压好的** `platform-tools` 路径填入至系统变量中的 `path`，例如，adb 在 `E:/shamrock achieve/platform-tools` 文件夹中，那么你只需要将该路径填入 `path` 即可。
+  ![adb path](.\images\image-016.png)
+    - 如果你是旧版本 Window（如 Win 7），系统未提供对应的 GUI，你需要使用 **`;`** 隔开不同的路径。
+  - 也可以选择使用 `cd` 命令切换至 adb 目录，使用此方法请将 adb 放在 C 盘；（由于 Windows 权限问题，使用运行开启的 cmd 实例无法访问 C 盘之外的路径。）
+    - `win + R` 键启动「运行」；
+    - 在运行中输入 `cmd` 并回车；
+    - 在打开的黑框框中输入命令 `cd <替换为对应路径>`。
+  ![切换到adb文件夹](.\images\image-017.png)
+- 还可以选择在 `platform-tools` 文件夹中新建`.bat` 文件。
+
+:::
+
+在手机中，你需要开启 **USB 调试** ，在手机设置中，选择「更多设置—关于手机」，多次点击软件版本号，即可进入开发者模式。
+
+随后在「更多设置—开发者选项」中打开 **USB 调试**，使用数据线连接电脑和手机，随后在你的手机中出现指纹调试弹框，给予通过。
+
+在电脑中使用命令：
+
+```cmd
+adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh
+```
+![为Shizuku赋予adb权限](.\images\image-018.png)
+
+### 安装 LSPatch
+
+:::info LSPatch
+
+[LSPatch](https://github.com/LSPosed/LSPatch/releases) 可以在无 root 环境使用 LSPosed 框架。
+
+可以参看 [LSPatch 使用教程](https://duzhaokun123.github.io/2022/05/06/simple-lspatch-guide.html) 了解更多。
+
+:::
+
+1. 你需要在 Shizuku 中启用 LSPatch，并重启 Shizuku。
+2. 在管理中，单击加号，选择已经下载的 QQ apk 文件，选择本地修补，等待一会，然后就可以安装了。
+
+### 安装并激活 Shamrock
+
+安装方式 [上文](#安装-shamrock) 有提及，此处不予重复。
+
+在 LSPatch 中，长按修补后的 QQ 出现模块作用域，允许 Shamrock 然后重启 LSPatch。
+
+激活 Shamrock 模块有三个前提，即 QQ 进程，Shamrock 进程和 LSPatch 进程存活，请自行配置保活策略，例如允许自启动，允许后台存活和关闭后台高耗电等。
+
+### 对接海豹
+
+首先安装海豹安卓端。
+
+::: warning 确认海豹版本
+
+请使用版本为 1.4.2 以上的安卓端海豹。
+
+:::
+
+建议使用 **反向 ws** 设置。在海豹中，账号添加中选择「onebot v11 反向 ws」，填入骰子 QQ 号和要开放的 ws 端口（例如 `:6544`）。
+
+随后在 Shamrock 中的被动 ws 连接地址中写 `ws://localhost:6544/ws`。
 
 ## Lagrange <Badge type="tip" text="v1.4.2" vertical="middle" />
 
