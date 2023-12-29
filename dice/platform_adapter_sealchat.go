@@ -140,7 +140,7 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 	}
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
 		log.Errorf("SealChat websocket出现错误: %s", err)
-		if !socket.IsConnected {
+		if !socket.IsConnected && !pa.Reconnecting {
 			// socket.Close()
 			if !pa.tryReconnect(*pa.Socket) {
 				log.Errorf("短时间内连接失败次数过多，不再进行重连")
@@ -168,6 +168,10 @@ func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool 
 	pa.RetryTimes = 0
 	allTimes := 500
 	for pa.RetryTimes <= allTimes && !socket.IsConnected {
+		if !pa.EndPoint.Enable {
+			return false
+		}
+
 		pa.RetryTimes++
 		log.Infof("尝试重新连接SealChat中[%d/%d]", pa.RetryTimes, allTimes)
 		socket = gowebsocket.New(pa.ConnectURL)
@@ -176,6 +180,7 @@ func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool 
 		socket.Connect()
 		time.Sleep(time.Duration(10) * time.Second)
 	}
+	pa.Reconnecting = false
 	return true
 }
 
@@ -212,6 +217,7 @@ func (pa *PlatformAdapterSealChat) DoRelogin() bool {
 func (pa *PlatformAdapterSealChat) SetEnable(enable bool) {
 	log := pa.Session.Parent.Logger
 	if enable {
+		pa.EndPoint.Enable = true
 		log.Infof("Sealchat 连接中")
 		if pa.Socket != nil && pa.Socket.IsConnected {
 			pa.Reconnecting = true
@@ -230,6 +236,7 @@ func (pa *PlatformAdapterSealChat) SetEnable(enable bool) {
 			pa.Reconnecting = false
 		}
 	} else {
+		pa.EndPoint.Enable = false
 		pa.Reconnecting = true
 		if pa.Socket != nil && pa.Socket.IsConnected {
 			pa.Socket.Close()
