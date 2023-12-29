@@ -252,23 +252,23 @@ func ImConnectionsCaptchaSet(c echo.Context) error {
 		Code string `form:"code" json:"code"`
 	}{}
 	err := c.Bind(&v)
+	if err != nil {
+		return err
+	}
 
-	if err == nil {
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.ID == v.ID {
-				switch i.ProtocolType {
-				case "onebot", "":
-					pa := i.Adapter.(*dice.PlatformAdapterGocq)
-					if pa.GoCqhttpState == dice.GoCqhttpStateCodeInLoginBar {
-						pa.GoCqhttpLoginCaptcha = v.Code
-						return c.JSON(http.StatusOK, map[string]string{})
-					}
+	for _, i := range myDice.ImSession.EndPoints {
+		if i.ID == v.ID {
+			switch i.ProtocolType {
+			case "onebot", "":
+				pa := i.Adapter.(*dice.PlatformAdapterGocq)
+				if pa.GoCqhttpState == dice.GoCqhttpStateCodeInLoginBar {
+					pa.GoCqhttpLoginCaptcha = v.Code
+					return c.String(http.StatusOK, "")
 				}
-				return c.JSON(http.StatusOK, i)
 			}
 		}
 	}
-	return c.JSON(http.StatusNotFound, nil)
+	return c.String(http.StatusNotFound, "")
 }
 
 func ImConnectionsSmsCodeSet(c echo.Context) error {
@@ -412,7 +412,7 @@ func ImConnectionsGocqConfigDownload(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
 	}
@@ -425,7 +425,7 @@ func ImConnectionsGocqConfigDownload(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, nil)
+	return c.String(http.StatusNotFound, "")
 }
 
 type AddDiscordEcho struct {
