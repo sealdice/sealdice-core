@@ -2231,6 +2231,240 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["ping"] = cmdPing
+
+	aliasHelp := ".alias <别名> <指令> // 将 .&<别名> 定义为指定指令的快捷触发方式\n" +
+		".alias --my <别名> <指令> // 将 .&<别名> 定义为个人快捷指令\n" +
+		".alias del/rm <别名> // 删除群快捷指令\n" +
+		".alias del/rm --my <别名> // 删除个人快捷指令\n" +
+		".alias show/list // 显示目前可用的快捷指令\n" +
+		".alias help // 查看帮助\n" +
+		"// 执行快捷命令见 .& 命令"
+	cmdAlias := &CmdItemInfo{
+		Name:      "alias",
+		ShortHelp: aliasHelp,
+		Help:      "可以定义一条指令的快捷方式。\n" + aliasHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if len(cmdArgs.Args) == 0 {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
+			_isPersonal := cmdArgs.GetKwarg("my")
+			isPersonal := ctx.MessageType == "private" || _isPersonal != nil
+			if !isPersonal {
+				ctx.LoadGroupVars()
+			}
+
+			playerVars := ctx.LoadPlayerGlobalVars()
+			subCmd := cmdArgs.GetArgN(1)
+			switch subCmd {
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			case "del", "rm":
+				name := cmdArgs.GetArgN(2)
+				key := "$g:alias:" + name
+				m := ctx.Group.ValueMap
+				VarSetValueStr(ctx, "$t指令来源", "群")
+				if isPersonal {
+					key = "$m:alias:" + name
+					m = playerVars.ValueMap
+					VarSetValueStr(ctx, "$t指令来源", "个人")
+				}
+				if _cmd, ok := m.Get(key); ok {
+					if cmd, ok := _cmd.(*VMValue); ok && cmd != nil && cmd.TypeID == VMTypeString {
+						VarSetValueStr(ctx, "$t快捷指令名", name)
+						VarSetValueStr(ctx, "$t旧指令", cmd.Value.(string))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除"))
+					}
+					m.Del(key)
+					if isPersonal {
+						playerVars.LastWriteTime = time.Now().Unix()
+					} else if ctx.Group != nil {
+						ctx.Group.UpdatedAtTime = time.Now().Unix()
+					}
+				} else {
+					VarSetValueStr(ctx, "$t快捷指令名", name)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除_未定义"))
+				}
+			case "list", "show":
+				var personCmds, groupCmds []string
+				_ = playerVars.ValueMap.Iterate(func(k interface{}, v interface{}) error {
+					if key, ok := k.(string); ok {
+						if strings.HasPrefix(key, "$m:alias:") {
+							_cmd := key[len("$m:alias:"):]
+							if val, ok := v.(*VMValue); ok && val != nil && val.TypeID == VMTypeString {
+								VarSetValueStr(ctx, "$t快捷指令名", _cmd)
+								VarSetValueStr(ctx, "$t指令", val.Value.(string))
+								VarSetValueStr(ctx, "$t指令来源", "个人")
+								personCmds = append(personCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
+							}
+						}
+					}
+					return nil
+				})
+				if ctx.MessageType == "group" {
+					groupValueMap := ctx.Group.ValueMap
+					_ = groupValueMap.Iterate(func(k interface{}, v interface{}) error {
+						if key, ok := k.(string); ok {
+							if strings.HasPrefix(key, "$g:alias:") {
+								_cmd := key[len("$g:alias:"):]
+								if val, ok := v.(*VMValue); ok && val != nil && val.TypeID == VMTypeString {
+									VarSetValueStr(ctx, "$t快捷指令名", _cmd)
+									VarSetValueStr(ctx, "$t指令", val.Value.(string))
+									VarSetValueStr(ctx, "$t指令来源", "群")
+									groupCmds = append(groupCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
+								}
+							}
+						}
+						return nil
+					})
+				}
+				sep := DiceFormatTmpl(ctx, "核心:快捷指令_列表_分隔符")
+				// 保证群在前个人在后的顺序
+				var totalCmds []string
+				totalCmds = append(totalCmds, groupCmds...)
+				totalCmds = append(totalCmds, personCmds...)
+				if len(totalCmds) > 0 {
+					VarSetValueStr(ctx, "$t列表内容", strings.Join(totalCmds, sep))
+				}
+
+				if len(totalCmds) == 0 {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表_空"))
+				} else {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表"))
+				}
+			default:
+				if len(cmdArgs.Args) < 2 {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_新增_无指令"))
+					break
+				}
+				name := subCmd
+				_args := cmdArgs.Args[1:]
+				for _, kwa := range cmdArgs.Kwargs {
+					if kwa.Name != "my" {
+						_args = append(_args, kwa.String())
+					}
+				}
+				cmd := strings.TrimSpace(strings.Join(_args, " "))
+
+				m := ctx.Group.ValueMap
+				key := "$g:alias:" + name
+				VarSetValueStr(ctx, "$t指令来源", "群")
+				if isPersonal {
+					key = "$m:alias:" + name
+					m = playerVars.ValueMap
+					VarSetValueStr(ctx, "$t指令来源", "个人")
+				}
+
+				if _oldCmd, ok := m.Get(key); ok && _oldCmd != nil {
+					if oldCmd, ok := _oldCmd.(*VMValue); ok && oldCmd.TypeID == VMTypeString {
+						m.Set(key, &VMValue{TypeID: VMTypeString, Value: cmd})
+						if isPersonal {
+							playerVars.LastWriteTime = time.Now().Unix()
+						} else if ctx.Group != nil {
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
+						}
+						VarSetValueStr(ctx, "$t快捷指令名", name)
+						VarSetValueStr(ctx, "$t指令", cmd)
+						VarSetValueStr(ctx, "$t旧指令", oldCmd.Value.(string))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_替换"))
+					} else {
+						// 防止错误的数据一直卡着
+						m.Del(key)
+						if isPersonal {
+							playerVars.LastWriteTime = time.Now().Unix()
+						} else if ctx.Group != nil {
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
+						}
+					}
+				} else {
+					m.Set(key, &VMValue{TypeID: VMTypeString, Value: cmd})
+					if isPersonal {
+						playerVars.LastWriteTime = time.Now().Unix()
+					} else if ctx.Group != nil {
+						ctx.Group.UpdatedAtTime = time.Now().Unix()
+					}
+					VarSetValueStr(ctx, "$t快捷指令名", name)
+					VarSetValueStr(ctx, "$t指令", cmd)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_新增"))
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+	d.CmdMap["alias"] = cmdAlias
+
+	aHelp := ".&/a <快捷指令名> [参数] // 执行对应快捷指令\n" +
+		".& help // 查看帮助\n" +
+		"// 定义快捷指令见 .alias 命令"
+	cmdA := &CmdItemInfo{
+		Name:      "&",
+		ShortHelp: aHelp,
+		Help:      "执行一条快捷指令。\n" + aHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if len(cmdArgs.Args) == 0 {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			name := cmdArgs.GetArgN(1)
+			if name == "help" {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
+			log := d.Logger
+			args := cmdArgs.Args
+			for _, kwa := range cmdArgs.Kwargs {
+				args = append(args, kwa.String())
+			}
+
+			if msg.MessageType == "group" {
+				ctx.LoadGroupVars()
+				_cmdValue, ok := ctx.Group.ValueMap.Get("$g:alias:" + name)
+				if ok {
+					if cmdValue, ok2 := _cmdValue.(*VMValue); ok2 && cmdValue != nil && cmdValue.TypeID == VMTypeString {
+						args[0] = cmdValue.Value.(string)
+						targetCmd := strings.Join(args, " ")
+						targetArgs := CommandParse(targetCmd, []string{}, d.CommandPrefix, msg.Platform, false)
+						if targetArgs != nil {
+							log.Infof("群快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
+
+							VarSetValueStr(ctx, "$t指令来源", "群")
+							VarSetValueStr(ctx, "$t目标指令", targetCmd)
+							ctx.AliasPrefixText = DiceFormatTmpl(ctx, "核心:快捷指令触发_前缀")
+
+							ctx.EndPoint.TriggerCommand(ctx, msg, targetArgs)
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+					}
+				}
+			}
+
+			playerVars := ctx.LoadPlayerGlobalVars()
+			_cmdValue, ok := playerVars.ValueMap.Get("$m:alias:" + name)
+			if ok {
+				if cmdValue, ok := _cmdValue.(*VMValue); ok && cmdValue != nil && cmdValue.TypeID == VMTypeString {
+					args[0] = cmdValue.Value.(string)
+					targetCmd := strings.Join(args, " ")
+					msg.Message = targetCmd
+					targetArgs := CommandParse(targetCmd, []string{}, d.CommandPrefix, msg.Platform, false)
+					if targetArgs != nil {
+						log.Infof("个人快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
+
+						VarSetValueStr(ctx, "$t指令来源", "个人")
+						VarSetValueStr(ctx, "$t目标指令", targetCmd)
+						ctx.AliasPrefixText = DiceFormatTmpl(ctx, "核心:快捷指令触发_前缀")
+
+						ctx.EndPoint.TriggerCommand(ctx, msg, targetArgs)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+				}
+			}
+
+			VarSetValueStr(ctx, "$t目标指令名", name)
+			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令触发_无指令"))
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+	d.CmdMap["&"] = cmdA
+	d.CmdMap["a"] = cmdA
 }
 
 func getDefaultDicePoints(ctx *MsgContext) int64 {
