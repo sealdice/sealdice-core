@@ -653,6 +653,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 		slideMode := 0
 		chSMS := make(chan string, 1)
+		chCaptcha := make(chan string, 1)
 
 		p.OutputHandler = func(line string) string {
 			if loginIndex != pa.CurLoginIndex {
@@ -736,7 +737,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 				if slideMode == 1 {
 					if strings.Contains(line, "WARNING") && strings.Contains(line, "[WARNING]: 请输入(1 - 2)：") {
 						// gocq的tty检测太辣鸡了
-						return "1\n"
+						return "2\n"
 					}
 
 					if strings.Contains(line, "WARNING") && strings.Contains(line, "请前往该地址验证") {
@@ -746,7 +747,32 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 						if len(m) > 0 {
 							pa.GoCqhttpState = GoCqhttpStateCodeInLoginBar
-							pa.GoCqhttpLoginDeviceLockURL = strings.TrimSpace(m[1])
+							// pa.GoCqhttpLoginDeviceLockURL = strings.TrimSpace(m[1])
+							linkUrl := strings.TrimSpace(m[1])
+
+							urlPrefix := "https://ssl.captcha.qq.com/"
+							if strings.HasPrefix(linkUrl, "https://ssl.captcha.qq.com/") {
+								pa.GoCqhttpLoginDeviceLockURL = "https://gocqhelper.sealdice.com/" + linkUrl[len(urlPrefix):]
+							}
+
+							dice.Logger.Info("进入滑条验证码流程，等待输入")
+							pa.GoCqhttpLoginCaptcha = ""
+							go func() {
+								// 检查是否有短信验证码
+								for i := 0; i < 100; i++ {
+									if pa.GoCqhttpState != GoCqhttpStateCodeInLoginBar {
+										break
+									}
+									time.Sleep(6 * time.Second)
+									if pa.GoCqhttpLoginCaptcha != "" {
+										chCaptcha <- pa.GoCqhttpLoginCaptcha
+										break
+									}
+								}
+							}()
+							code := <-chCaptcha
+							dice.Logger.Infof("即将输入token: %v", code)
+							return code + "\n"
 						}
 					}
 				}
