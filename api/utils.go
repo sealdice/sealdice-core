@@ -1,13 +1,17 @@
 package api
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"net/http"
-
+	"github.com/alexmullins/zip"
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
 )
 
 type Response map[string]interface{}
@@ -88,4 +92,51 @@ func getGithubAvatar(c echo.Context) error {
 		return c.Blob(http.StatusOK, resp.ContentType(), resp.Bytes())
 	}
 	return c.JSON(http.StatusNotFound, "")
+}
+
+func packGocqConfig(relWorkDir string) *bytes.Buffer {
+	//workDir := "extra/go-cqhttp-qq" + account
+	rootPath := filepath.Join(myDice.BaseConfig.DataDir, relWorkDir)
+
+	// 创建一个内存缓冲区，用于保存 Zip 文件内容
+	buf := new(bytes.Buffer)
+
+	// 创建 Zip Writer，将 Zip 文件内容写入内存缓冲区
+	zipWriter := zip.NewWriter(buf)
+
+	if err := compressFile(filepath.Join(rootPath, "config.yml"), "config.yml", zipWriter); err != nil {
+		log.Println(err)
+	}
+	if err := compressFile(filepath.Join(rootPath, "device.json"), "device.json", zipWriter); err != nil {
+		log.Println(err)
+	}
+	if err := compressFile(filepath.Join(rootPath, "data/versions/1.json"), "data/versions/6.json", zipWriter); err != nil {
+		// log.Println(err)
+	}
+	if err := compressFile(filepath.Join(rootPath, "data/versions/6.json"), "data/versions/6.json", zipWriter); err != nil {
+		// log.Println(err)
+	}
+
+	// 关闭 Zip Writer
+	if err := zipWriter.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	// 将 Zip 文件保存在内存中
+	return buf
+}
+
+func compressFile(fn string, zipFn string, zipWriter *zip.Writer) error {
+	data, err := os.ReadFile(fn)
+	if err != nil {
+		return err
+	}
+
+	h := &zip.FileHeader{Name: zipFn, Method: zip.Deflate, Flags: 0x800}
+	fileWriter, err := zipWriter.CreateHeader(h)
+	if err != nil {
+		return err
+	}
+	_, _ = fileWriter.Write(data)
+	return nil
 }

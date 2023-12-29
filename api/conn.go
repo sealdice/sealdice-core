@@ -242,6 +242,35 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
+func ImConnectionsCaptchaSet(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := struct {
+		ID   string `form:"id" json:"id"`
+		Code string `form:"code" json:"code"`
+	}{}
+	err := c.Bind(&v)
+
+	if err == nil {
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.ID == v.ID {
+				switch i.ProtocolType {
+				case "onebot", "":
+					pa := i.Adapter.(*dice.PlatformAdapterGocq)
+					if pa.GoCqhttpState == dice.GoCqhttpStateCodeInLoginBar {
+						pa.GoCqhttpLoginCaptcha = v.Code
+						return c.JSON(http.StatusOK, map[string]string{})
+					}
+				}
+				return c.JSON(http.StatusOK, i)
+			}
+		}
+	}
+	return c.JSON(http.StatusNotFound, nil)
+}
+
 func ImConnectionsSmsCodeSet(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -376,6 +405,27 @@ func ImConnectionsWalleQRelogin(c echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusNotFound, nil)
+}
+
+func ImConnectionsGocqConfigDownload(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	id := c.QueryParam("id")
+	for _, i := range myDice.ImSession.EndPoints {
+		if i.ID == id {
+			buf := packGocqConfig(i.RelWorkDir)
+			return c.Blob(http.StatusOK, "", buf.Bytes())
+		}
+	}
+
+	return c.JSON(http.StatusOK, nil)
 }
 
 type AddDiscordEcho struct {
