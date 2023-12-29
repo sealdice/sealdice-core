@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"regexp"
 	"runtime/debug"
-	"sealdice-core/dice/model"
 	"sort"
 	"strings"
 	"time"
+
+	"sealdice-core/dice/model"
 
 	"github.com/dop251/goja"
 	"github.com/fy0/lockfree"
@@ -452,13 +453,16 @@ type MsgContext struct {
 	CommandInfo     interface{} // 命令信息
 	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 -30ban 40邀请者 50管理 60群主 70信任 100master
 	GroupRoleLevel  int         // 群内权限 40邀请者 50管理 60群主 70信任 100master，相当于不考虑ban的权限等级
-	DelegateText    string      `jsbind:"delegateText"` // 代骰附加文本
+	DelegateText    string      `jsbind:"delegateText"`  // 代骰附加文本
+	AliasPrefixText string      `json:"aliasPrefixText"` // 快捷指令回复前缀文本
 
 	deckDepth         int                                         // 抽牌递归深度
 	DeckPools         map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
 	diceExprOverwrite string                                      // 默认骰表达式覆盖
 	SystemTemplate    *GameSystemTemplate
 	Censored          bool // 已检查过敏感词
+	SpamCheckedGroup  bool
+	SpamCheckedPerson bool
 }
 
 // func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {
@@ -839,44 +843,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					}
 				}
 
-				var ret bool
-
-				// 试图匹配自定义指令
-				if mctx.Group != nil && mctx.Group.IsActive(mctx) {
-					for _, i := range mctx.Group.ActivatedExtList {
-						if i.OnCommandOverride != nil {
-							ret = i.OnCommandOverride(mctx, msg, cmdArgs)
-							if ret {
-								break
-							}
-						}
-					}
-				}
-
-				if !ret {
-					// 若自定义指令未匹配，匹配标准指令
-					ret = s.commandSolve(mctx, msg, cmdArgs)
-				}
-				if ret {
-					// Oissevalt: 刷屏检测已经迁移到 im_helpers.go，此处不再处理
-					// if s.Parent.RateLimitEnabled && msg.Platform == "QQ" {
-					// 	if !spamCheckPerson(mctx, msg) {
-					// 		spamCheckGroup(mctx, msg)
-					// 	}
-					// }
-					ep.CmdExecutedNum++
-					ep.CmdExecutedLastTime = time.Now().Unix()
-					mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
-					mctx.Player.UpdatedAtTime = time.Now().Unix()
-				} else {
-					if msg.MessageType == "group" {
-						log.Infof("忽略指令(骰子关闭/扩展关闭/未知指令): 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
-					}
-
-					if msg.MessageType == "private" {
-						log.Infof("忽略指令(骰子关闭/扩展关闭/未知指令): 来自<%s>(%s)的私聊: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
-					}
-				}
+				ep.TriggerCommand(mctx, msg, cmdArgs)
 			}
 			if runInSync {
 				f()
@@ -932,6 +899,47 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 	}
+}
+
+func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool {
+	s := mctx.Session
+	d := mctx.Dice
+	log := d.Logger
+
+	var ret bool
+	// 试图匹配自定义指令
+	if mctx.Group != nil && mctx.Group.IsActive(mctx) {
+		for _, i := range mctx.Group.ActivatedExtList {
+			if i.OnCommandOverride != nil {
+				ret = i.OnCommandOverride(mctx, msg, cmdArgs)
+				if ret {
+					break
+				}
+			}
+		}
+	}
+
+	if !ret {
+		// 若自定义指令未匹配，匹配标准指令
+		ret = s.commandSolve(mctx, msg, cmdArgs)
+	}
+
+	if ret {
+		// 刷屏检测已经迁移到 im_helpers.go，此处不再处理
+		ep.CmdExecutedNum++
+		ep.CmdExecutedLastTime = time.Now().Unix()
+		mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
+		mctx.Player.UpdatedAtTime = time.Now().Unix()
+	} else {
+		if msg.MessageType == "group" {
+			log.Infof("忽略指令(骰子关闭/扩展关闭/未知指令): 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
+		}
+
+		if msg.MessageType == "private" {
+			log.Infof("忽略指令(骰子关闭/扩展关闭/未知指令): 来自<%s>(%s)的私聊: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
+		}
+	}
+	return ret
 }
 
 func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {

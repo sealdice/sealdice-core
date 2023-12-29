@@ -17,6 +17,14 @@ type Kwarg struct {
 	AsBool      bool   `json:"asBool" jsbind:"asBool"`
 }
 
+func (kwa *Kwarg) String() string {
+	if kwa.Value == "" {
+		return fmt.Sprintf("--%s", kwa.Name)
+	} else {
+		return fmt.Sprintf("--%s=%s", kwa.Name, kwa.Value)
+	}
+}
+
 // [CQ:at,qq=22]
 type AtInfo struct {
 	UserID string `json:"userId" jsbind:"userId"`

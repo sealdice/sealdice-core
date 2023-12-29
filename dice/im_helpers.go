@@ -11,8 +11,10 @@ import (
 	"golang.org/x/time/rate"
 )
 
-var sealCodeRe = regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`)
-var cqCodeRe = regexp.MustCompile(`\[CQ:.+?]`)
+var (
+	sealCodeRe = regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`)
+	cqCodeRe   = regexp.MustCompile(`\[CQ:.+?]`)
+)
 
 func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType string, groupID string) bool {
 	a := messageType == "group" &&
@@ -163,6 +165,10 @@ func ReplyToSenderNoCheck(ctx *MsgContext, msg *Message, text string) {
 }
 
 func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
+	if ctx.AliasPrefixText != "" {
+		text = ctx.AliasPrefixText + text
+		ctx.AliasPrefixText = ""
+	}
 	if ctx.DelegateText != "" {
 		text = ctx.DelegateText + text
 		ctx.DelegateText = ""
@@ -204,6 +210,10 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 }
 
 func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag string) {
+	if ctx.AliasPrefixText != "" {
+		text = ctx.AliasPrefixText + text
+		ctx.AliasPrefixText = ""
+	}
 	if ctx.DelegateText != "" {
 		text = ctx.DelegateText + text
 		ctx.DelegateText = ""
@@ -230,6 +240,10 @@ func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
 }
 
 func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
+	if ctx.AliasPrefixText != "" {
+		text = ctx.AliasPrefixText + text
+		ctx.AliasPrefixText = ""
+	}
 	if ctx.DelegateText != "" {
 		text = ctx.DelegateText + text
 		ctx.DelegateText = ""
@@ -268,6 +282,10 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 }
 
 func replyPersonRawNoCheck(ctx *MsgContext, msg *Message, text string, flag string) {
+	if ctx.AliasPrefixText != "" {
+		text = ctx.AliasPrefixText + text
+		ctx.AliasPrefixText = ""
+	}
 	if ctx.DelegateText != "" {
 		text = ctx.DelegateText + text
 		ctx.DelegateText = ""
@@ -357,9 +375,11 @@ type ByLength []string
 func (s ByLength) Len() int {
 	return len(s)
 }
+
 func (s ByLength) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
+
 func (s ByLength) Less(i, j int) bool {
 	return len(s[i]) > len(s[j])
 }
@@ -426,6 +446,15 @@ func FormatDiceID(ctx *MsgContext, id interface{}, isGroup bool) string {
 }
 
 func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
+	if ctx.SpamCheckedPerson {
+		return false
+	}
+
+	// 同一个 ctx 只需检查一次
+	defer func() {
+		ctx.SpamCheckedPerson = true
+	}()
+
 	if ctx.PrivilegeLevel >= 100 {
 		return false
 	}
@@ -460,10 +489,20 @@ func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
 			"",
 		)
 	}
+
 	return true
 }
 
 func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
+	if ctx.SpamCheckedGroup {
+		return false
+	}
+
+	// 同一个 ctx 只需检查一次
+	defer func() {
+		ctx.SpamCheckedGroup = true
+	}()
+
 	// Skip privileged groups
 	for _, g := range ctx.Dice.DiceMasters {
 		if ctx.Group.GroupID == g {
