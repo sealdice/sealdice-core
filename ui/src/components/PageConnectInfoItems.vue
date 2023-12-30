@@ -1032,7 +1032,7 @@
       style="position: absolute; bottom: 0; width: 100%; height: 100px; z-index: 10; display: flex; justify-content: center; flex-direction: column; align-items: center;">
       <div style=" margin-bottom: .5rem;"><a style="line-break: anywhere; font-size: .5rem;" :href="slideLink"
           target="_blank">方式2:新页面打开(如无法验证)</a></div>
-      <el-button type="" @click="dialogSlideVisible = false">关闭，滑条完成后点击</el-button>
+      <el-button type="" @click="closeCaptchaFrame">关闭，滑条完成后点击</el-button>
     </div>
   </div>
 </template>
@@ -1105,6 +1105,7 @@ const curConn = ref({} as DiceConnection);
 const curConnId = ref('');
 const smsCode = ref('');
 
+let captchaTimer = null as any
 const slideUrlSet = (url: string) => {
   if (slideIframe.value) {
     dialogSlideVisible.value = true
@@ -1112,28 +1113,42 @@ const slideUrlSet = (url: string) => {
     slideLink.value = url;
     el.src = url;
 
-    window.addEventListener("message", (e) => {
-      const key = e.data.code;
-      let requestURL = `${urlBase}/sd-api/utils/get_token?key=${key}`;
-      console.log('code', key);
-      document.cookie = "b=" + key + "; path=/;";
-      let timer = setInterval(async () => {
-        const resp = await fetch(requestURL, { method: 'GET', timeout: 240000 } as any);
-        const text = await resp.text();
-        if (text) {
-          console.log('ticket', text);
-          submitCaptchaCode(text);
-          ElMessage({
-            type: 'success',
-            message: '已自动读取 ticket:' + text,
-          })
-          setTimeout(() => {
-            dialogSlideVisible.value = false;
-          }, 2000);
-          clearInterval(timer);
+    const x = new URL(url);
+    const key = x.searchParams.get('cap_cd')
+    clearTimeout(captchaTimer);
+
+    // window.addEventListener("message", (e) => {
+    //   const key = e.data.code;
+    let requestURL = `${urlBase}/sd-api/utils/get_token?key=${key}`;
+    console.log('code', key);
+    document.cookie = "b=" + key + "; path=/;";
+
+    const ticketCheck = async () => {
+      const resp = await fetch(requestURL, { method: 'GET', timeout: 240000 } as any);
+      const text = await resp.text();
+      if (text) {
+        console.log('ticket', text);
+        if (text === 'FAIL') {
+          captchaTimer = setTimeout(ticketCheck, 2000);
+          return;
         }
-      }, 5000);
-    });
+        submitCaptchaCode(text);
+        ElMessage({
+          type: 'success',
+          message: '已自动读取 ticket:' + text,
+          duration: 8000,
+        })
+        setTimeout(() => {
+          dialogSlideVisible.value = false;
+        }, 2000);
+        clearTimeout(captchaTimer);
+        captchaTimer = null;
+        return;
+      }
+      captchaTimer = setTimeout(ticketCheck, 2000);
+    }
+    captchaTimer = setTimeout(ticketCheck, 5000);
+    // });
 
     slideBottomShow.value = false;
     setTimeout(() => {
@@ -1145,6 +1160,11 @@ const slideUrlSet = (url: string) => {
 
 onMounted(() => {
 })
+
+const closeCaptchaFrame = () => {
+  clearTimeout(captchaTimer);
+  dialogSlideVisible.value = false;
+}
 
 const submitCaptchaCode = async (code: string) => {
   store.ImConnectionsCaptchaSet(curConn.value, code)
