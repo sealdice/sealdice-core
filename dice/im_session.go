@@ -1298,14 +1298,9 @@ func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
 //
 // 依据 API，Sender 不一定存在，ctx 信息亦不一定有效
 func (s *IMSession) OnMessageEdit(ctx *MsgContext, msg *Message) {
-	// TODO: 这块目前 debug 用，但生产坏境是否需要为消息修改打印日志？
-	m := fmt.Sprintf("来自%s的消息修改事件:\n新消息: %s\n群组ID: %s %s\n服务器ID: %s\n消息ID: %s\n时间戳: %d",
-		msg.Platform,
+	m := fmt.Sprintf("来自%s的消息修改事件: %s",
+		msg.GroupID,
 		msg.Message,
-		msg.GroupID, msg.ChannelID,
-		msg.GuildID,
-		msg.RawID,
-		msg.Time,
 	)
 	s.Parent.Logger.Info(m)
 
