@@ -118,7 +118,7 @@ type CnmodsSearchResult struct {
 	} `json:"data"`
 }
 
-func CnmodsSearch(title string, page int, pageSize int, isRec bool, article string) *CnmodsSearchResult {
+func CnmodsSearch(title string, page int, pageSize int, isRec bool, article string) (CnmodsSearchResult, error) {
 	var result CnmodsSearchResult
 	query := map[string]string{
 		"title":    title,
@@ -146,12 +146,9 @@ func CnmodsSearch(title string, page int, pageSize int, isRec bool, article stri
 	}
 	resp := c.Send().Scan(&result)
 	if !resp.OK() {
-		// handle error
-		log.Println(resp.Error())
-	} else {
-		return &result
+		return result, resp.Error()
 	}
-	return nil
+	return result, nil
 }
 
 func CnmodsDetail(keyID string) *CnmodsDetailInfo {

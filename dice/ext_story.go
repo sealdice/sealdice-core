@@ -264,6 +264,11 @@ func RegisterBuiltinStory(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 
+			logAndReply := func(err error) {
+				ctx.Dice.Logger.Errorf("cnmods search error: %v", err)
+				ReplyToSender(ctx, msg, "魔都查询出错，请稍后再试")
+			}
+
 			getDetail := func(keyId string) string {
 				ret := CnmodsDetail(keyId)
 				if ret != nil {
@@ -325,27 +330,34 @@ func RegisterBuiltinStory(self *Dice) {
 					thePage = 1
 				}
 
-				ret := CnmodsSearch(keyword, int(thePage), 7, isRec, author)
-				if ret != nil {
-					text := fmt.Sprintf("来自cnmods的搜索结果 - %d/%d页%d项:\n", thePage, ret.Data.TotalPages, ret.Data.TotalElements)
-					for _, item := range ret.Data.List {
-						ver := ""
-						if item.ModuleVersion == "coc6th" {
-							ver = "[coc6]"
-						}
-						// 魔都现在只有coc本
-						// if item.ModuleVersion == "coc7th" {
-						//	ver = "[coc7]"
-						// }
-						text += fmt.Sprintf("[%d]%s%s %s%s - by %s\n", item.KeyID, ver, item.Title, item.ModuleAge, item.OccurrencePlace, item.Article)
-					}
-					if len(ret.Data.List) == 0 {
-						text += "什么也没发现"
-					}
-					ReplyToSender(ctx, msg, text)
+				ret, err := CnmodsSearch(keyword, int(thePage), 7, isRec, author)
+				if err != nil {
+					logAndReply(err)
+					break
 				}
+
+				text := fmt.Sprintf("来自cnmods的搜索结果 - %d/%d页%d项:\n", thePage, ret.Data.TotalPages, ret.Data.TotalElements)
+				for _, item := range ret.Data.List {
+					ver := ""
+					if item.ModuleVersion == "coc6th" {
+						ver = "[coc6]"
+					}
+					// 魔都现在只有coc本
+					// if item.ModuleVersion == "coc7th" {
+					//	ver = "[coc7]"
+					// }
+					text += fmt.Sprintf("[%d]%s%s %s%s - by %s\n", item.KeyID, ver, item.Title, item.ModuleAge, item.OccurrencePlace, item.Article)
+				}
+				if len(ret.Data.List) == 0 {
+					text += "什么也没发现"
+				}
+				ReplyToSender(ctx, msg, text)
 			case "roll":
-				ret := CnmodsSearch("", 1, 1, false, "")
+				ret, err := CnmodsSearch("", 1, 1, false, "")
+				if err != nil {
+					logAndReply(err)
+					break
+				}
 				id := rand.Int()%ret.Data.TotalElements + 1
 				text := getDetail(strconv.Itoa(id))
 				if text != "" {
