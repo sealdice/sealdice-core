@@ -496,3 +496,7 @@ func (pa *PlatformAdapterOfficialQQ) MemberBan(_ string, _ string, _ int64) {
 func (pa *PlatformAdapterOfficialQQ) MemberKick(_ string, _ string) {
 	pa.Session.Parent.Logger.Error("official qq 踢出用户失败：不支持该功能")
 }
+
+func (pa *PlatformAdapterOfficialQQ) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterOfficialQQ) RecallMessage(_ *MsgContext, _ string) {}

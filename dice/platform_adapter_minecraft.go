@@ -257,3 +257,7 @@ func (pa *PlatformAdapterMinecraft) MemberKick(_ string, _ string) {}
 func (pa *PlatformAdapterMinecraft) QuitGroup(_ *MsgContext, _ string) {}
 
 func (pa *PlatformAdapterMinecraft) SetGroupCardName(_ *MsgContext, _ string) {}
+
+func (pa *PlatformAdapterMinecraft) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterMinecraft) RecallMessage(_ *MsgContext, _ string) {}
