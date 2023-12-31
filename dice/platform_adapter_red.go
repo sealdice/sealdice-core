@@ -648,6 +648,10 @@ func (pa *PlatformAdapterRed) MemberBan(_ string, _ string, _ int64) {}
 
 func (pa *PlatformAdapterRed) MemberKick(_ string, _ string) {}
 
+func (pa *PlatformAdapterRed) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterRed) RecallMessage(_ *MsgContext, _ string) {}
+
 func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 	// 触发更新群信息
 	d := pa.Session.Parent

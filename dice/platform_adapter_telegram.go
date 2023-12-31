@@ -89,6 +89,22 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	updates := bot.GetUpdatesChan(updateConfig)
 	go func() {
 		for update := range updates {
+			if update.EditedMessage != nil {
+				msg := pa.toStdMessage(update.EditedMessage)
+				mctx := &MsgContext{
+					Session:     pa.Session,
+					EndPoint:    pa.EndPoint,
+					Dice:        pa.Session.Parent,
+					MessageType: msg.MessageType,
+				}
+				if g, ok := pa.Session.ServiceAtNew[msg.GroupID]; ok {
+					if p, ok2 := g.Players.Load(msg.Sender.UserID); ok2 {
+						mctx.Player = p
+					}
+				}
+				go pa.Session.OnMessageEdit(mctx, msg)
+				continue
+			}
 			if update.Message == nil {
 				continue
 			}
@@ -397,6 +413,10 @@ func (pa *PlatformAdapterTelegram) SendFileToGroup(_ *MsgContext, uid string, pa
 		return
 	}
 }
+
+func (pa *PlatformAdapterTelegram) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterTelegram) RecallMessage(_ *MsgContext, _ string) {}
 
 type RequestFileDataImpl struct {
 	Reader io.Reader

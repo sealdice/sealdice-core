@@ -137,6 +137,10 @@ func (pa *PlatformAdapterDingTalk) MemberBan(groupID string, userID string, dura
 func (pa *PlatformAdapterDingTalk) MemberKick(groupID string, userID string) {
 }
 
+func (pa *PlatformAdapterDingTalk) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterDingTalk) RecallMessage(_ *MsgContext, _ string) {}
+
 func (pa *PlatformAdapterDingTalk) GetGroupInfoAsync(groupID string) {
 
 }

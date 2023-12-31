@@ -582,6 +582,10 @@ func (pa *PlatformAdapterGocq) MemberBan(_ string, _ string, _ int64) {}
 
 func (pa *PlatformAdapterGocq) MemberKick(_ string, _ string) {}
 
+func (pa *PlatformAdapterGocq) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterGocq) RecallMessage(_ *MsgContext, _ string) {}
+
 func (pa *PlatformAdapterGocq) GetLoginInfo() {
 	a, _ := json.Marshal(struct {
 		Action string `json:"action"`

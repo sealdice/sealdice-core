@@ -812,6 +812,15 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 			}
 		},
+		OnMessageEdit: func(ctx *MsgContext, msg *Message) {
+			if ctx.Group == nil {
+				return
+			}
+
+			if ctx.Group.LogOn {
+				LogEditByID(ctx, ctx.Group.GroupID, ctx.Group.LogCurName, msg.Message, msg.RawID)
+			}
+		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
 			"log":  cmdLog,
@@ -879,6 +888,17 @@ func LogDeleteByID(ctx *MsgContext, groupID string, logName string, messageID in
 	err := model.LogMarkDeleteByMsgID(ctx.Dice.DBLogs, groupID, logName, messageID)
 	if err != nil {
 		ctx.Dice.Logger.Error("LogDeleteById:", zap.Error(err))
+		return false
+	}
+	return true
+}
+
+// LogEditByID finds the log item under logName with messageID and replace it with content.
+// If the log item cannot be found or an error happens, it returns false.
+func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID interface{}) bool {
+	err := model.LogEditByMsgID(ctx.Dice.DBLogs, groupID, logName, content, messageID)
+	if err != nil {
+		ctx.Dice.Logger.Error("LogEditByID:", zap.Error(err))
 		return false
 	}
 	return true
