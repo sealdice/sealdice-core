@@ -173,8 +173,10 @@ type RateLimitConfig struct {
 }
 
 type QuitInactiveConfig struct {
-	QuitInactiveThreshold time.Duration `yaml:"quitInactiveThreshold" json:"quitInactiveThreshold"` // 退出不活跃群组的时间阈值
+	QuitInactiveThreshold time.Duration `yaml:"quitInactiveThreshold" json:"-"` // 退出不活跃群组的时间阈值
 	quitInactiveCronEntry cron.EntryID
+
+	QuitInactiveThresholdDays float64 `json:"quitInactiveThreshold"` // 为了和前端通信
 }
 
 type ExtConfig struct {
