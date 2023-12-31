@@ -132,7 +132,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		return bakLogCurName, bakLogCurName
 	}
 
-	helpLog := `.log new (<日志名>) // 新建日志并开始记录，注意new后跟空格！
+	const helpLog = `.log new (<日志名>) // 新建日志并开始记录，注意new后跟空格！
 .log on (<日志名>)  // 开始记录，不写日志名则开启最近一次日志，注意on后跟空格！
 .log off // 暂停记录
 .log end // 完成记录并发送日志文件
@@ -147,7 +147,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log export <日志名> // 直接取得日志txt(服务出问题或有其他需要时使用)
 .log export <日志名> <邮箱地址> // 通过邮件取得日志txt，多个邮箱用空格隔开`
 
-	txtLogTip := "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
+	const txtLogTip = "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
 
 	cmdLog := &CmdItemInfo{
 		Name:      "log",
@@ -260,7 +260,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 
 				fn, err := LogSendToBackend(ctx, groupID, logName)
-				if fn == "" {
+				if err != nil {
 					text := txtLogTip
 					t1 := err.Error()
 					if strings.HasPrefix(t1, "#") {
@@ -280,24 +280,25 @@ func RegisterBuiltinExtLog(self *Dice) {
 					logName = newName
 				}
 
-				if logName != "" {
-					fn, err := LogSendToBackend(ctx, group.GroupID, logName)
-					if fn == "" {
-						text := txtLogTip
-						t1 := err.Error()
-						if strings.HasPrefix(t1, "#") {
-							text = ""
-						}
-						text = fmt.Sprintf("%s\n%s", t1, text)
-						ReplyToSenderRaw(ctx, msg, text, "skip")
-					} else {
-						ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
-						time.Sleep(time.Duration(0.3 * float64(time.Second)))
-						ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
-					}
-				} else {
+				if logName == "" {
 					text := DiceFormatTmpl(ctx, "日志:记录_取出_未指定记录")
 					ReplyToSenderRaw(ctx, msg, text, "skip")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				fn, err := LogSendToBackend(ctx, group.GroupID, logName)
+				if err != nil {
+					text := txtLogTip
+					t1 := err.Error()
+					if strings.HasPrefix(t1, "#") {
+						text = ""
+					}
+					text = fmt.Sprintf("%s\n%s", t1, text)
+					ReplyToSenderRaw(ctx, msg, text, "skip")
+				} else {
+					ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
+					time.Sleep(time.Duration(0.3 * float64(time.Second)))
+					ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "end") {
@@ -317,15 +318,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
 				fn, err := LogSendToBackend(ctx, group.GroupID, group.LogCurName)
 
-				if fn == "" {
+				if err != nil {
 					text := txtLogTip
-					if err != nil {
-						t1 := err.Error()
-						if strings.HasPrefix(t1, "#") {
-							text = ""
-						}
-						text = fmt.Sprintf("%s\n%s", t1, text)
+					t1 := err.Error()
+					if strings.HasPrefix(t1, "#") {
+						text = ""
 					}
+					text = fmt.Sprintf("%s\n%s", t1, text)
 					ReplyToSenderRaw(ctx, msg, text, "skip")
 				} else {
 					ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
@@ -969,19 +968,23 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 	_ = writer.Close()
 	_ = fzip.Close()
 
-	if err == nil {
-		var zlibBuffer bytes.Buffer
-		w := zlib.NewWriter(&zlibBuffer)
-		_, _ = w.Write(data)
-		_ = w.Close()
-
-		url := UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserID, &zlibBuffer)
-		if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupID, logName, url); errDB != nil {
-			ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
-		}
-		return url, nil
+	if err != nil {
+		return "", err
 	}
-	return "", nil
+
+	var zlibBuffer bytes.Buffer
+	w := zlib.NewWriter(&zlibBuffer)
+	_, _ = w.Write(data)
+	_ = w.Close()
+
+	url = UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserID, &zlibBuffer)
+	if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupID, logName, url); errDB != nil {
+		ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
+	}
+	if len(url) == 0 {
+		return "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
+	}
+	return url, nil
 }
 
 // LogRollBriefByPC 根据log生成骰点简报
