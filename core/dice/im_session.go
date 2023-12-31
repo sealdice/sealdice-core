@@ -1296,6 +1296,37 @@ func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
 	}
 }
 
+// OnMessageEdit 消息编辑事件
+//
+// msg.Message 应为更新后的消息, msg.Time 应为更新时间而非发送时间，同时
+// msg.RawID 应确保为原消息的 ID (一些 API 同时会有系统事件 ID，勿混淆)
+//
+// 依据 API，Sender 不一定存在，ctx 信息亦不一定有效
+func (s *IMSession) OnMessageEdit(ctx *MsgContext, msg *Message) {
+	m := fmt.Sprintf("来自%s的消息修改事件: %s",
+		msg.GroupID,
+		msg.Message,
+	)
+	s.Parent.Logger.Info(m)
+
+	if group, ok := s.ServiceAtNew[msg.GroupID]; ok {
+		ctx.Group = group
+	} else {
+		return
+	}
+
+	group := ctx.Group
+	if group.Active || ctx.IsCurGroupBotOn {
+		for _, i := range group.ActivatedExtList {
+			if i.OnMessageEdit != nil {
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnMessageEdit(ctx, msg)
+				})
+			}
+		}
+	}
+}
+
 // GetEpByPlatform
 // 在 EndPoints 中找到第一个符合平台 p 且启用的
 func (s *IMSession) GetEpByPlatform(p string) *EndPointInfo {

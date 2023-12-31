@@ -315,6 +315,31 @@ func (pa *PlatformAdapterKook) Serve() int {
 			}
 		}
 	})
+
+	s.AddHandler(func(ctx *kook.MessageUpdateContext) {
+		msg := new(Message)
+		msg.Time = ctx.Extra.UpdatedAt.ToTime().Unix() // secs
+		msg.RawID = ctx.Extra.MsgID
+		msg.Message = ctx.Extra.Content
+		msg.Platform = "KOOK"
+		if ctx.Common.ChannelType == "PERSON" {
+			msg.MessageType = "private"
+		} else {
+			msg.MessageType = "group"
+		}
+		msg.GroupID = FormatDiceIDKookChannel(ctx.Extra.ChannelID)
+		msg.GuildID = FormatDiceIDKookGuild(ctx.Common.TargetID)
+
+		mctx := &MsgContext{
+			Session:     pa.Session,
+			EndPoint:    pa.EndPoint,
+			Dice:        pa.Session.Parent,
+			MessageType: msg.MessageType,
+			Player:      &GroupPlayerInfo{},
+		}
+		pa.Session.OnMessageEdit(mctx, msg)
+	})
+
 	err := s.Open()
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("与KOOK服务建立连接时出错:%s", err.Error())
@@ -425,6 +450,23 @@ func (pa *PlatformAdapterKook) SendFileToGroup(_ *MsgContext, groupID string, pa
 func (pa *PlatformAdapterKook) MemberBan(_ string, _ string, _ int64) {}
 
 func (pa *PlatformAdapterKook) MemberKick(_ string, _ string) {}
+
+func (pa *PlatformAdapterKook) EditMessage(ctx *MsgContext, msgID, message string) {
+	req := kook.MessageUpdate{
+		MessageUpdateBase: kook.MessageUpdateBase{
+			MsgID:   msgID,
+			Content: message,
+		},
+	}
+	if err := pa.IntentSession.MessageUpdate(&req); err != nil {
+		pa.Session.Parent.Logger.Errorf("更新KOOK消息失败: %v", err)
+	}
+}
+
+func (pa *PlatformAdapterKook) RecallMessage(ctx *MsgContext, msgID string) {
+	// TODO: not tested
+	_ = pa.IntentSession.MessageDelete(msgID)
+}
 
 func (pa *PlatformAdapterKook) SendFileToChannelRaw(id string, path string, private bool) {
 	bot := pa.IntentSession

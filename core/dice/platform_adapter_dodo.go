@@ -377,6 +377,10 @@ func (pa *PlatformAdapterDodo) SendFileToGroup(ctx *MsgContext, groupID string, 
 	}
 }
 
+func (pa *PlatformAdapterDodo) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterDodo) RecallMessage(_ *MsgContext, _ string) {}
+
 type DoDoTextMessageComponent struct {
 	Type string `json:"type"` // section
 	Text struct {

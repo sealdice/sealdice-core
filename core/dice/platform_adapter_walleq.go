@@ -937,6 +937,10 @@ func (pa *PlatformAdapterWalleQ) MemberKick(groupID string, userID string) {
 	socketSendText(pa.Socket, string(a))
 }
 
+func (pa *PlatformAdapterWalleQ) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterWalleQ) RecallMessage(_ *MsgContext, _ string) {}
+
 /* 扩展方法实现 */
 
 func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait func()) *EventWalleQBase {

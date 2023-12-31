@@ -357,6 +357,10 @@ func (pa *PlatformAdapterSealChat) SetGroupCardName(mctx *MsgContext, text strin
 	})
 }
 
+func (pa *PlatformAdapterSealChat) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterSealChat) RecallMessage(_ *MsgContext, _ string) {}
+
 func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 	ev := satori.Event{}
 	err := json.Unmarshal([]byte(msg), &ev)

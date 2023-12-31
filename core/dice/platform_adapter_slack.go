@@ -254,6 +254,10 @@ func (pa *PlatformAdapterSlack) GetGroupInfoAsync(groupId string) {
 	// TODO
 }
 
+func (pa *PlatformAdapterSlack) EditMessage(_ *MsgContext, _, _ string) {}
+
+func (pa *PlatformAdapterSlack) RecallMessage(_ *MsgContext, _ string) {}
+
 func (pa *PlatformAdapterSlack) send(_ *MsgContext, id string, text string, _ string) {
 	// pa.Client.PostMessage 没看懂 Post 和 Send 有什么区别 先用语义更好的一个好了
 	// 频道以 C 开头 用户以 U 开头 老粗暴了
