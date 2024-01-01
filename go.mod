@@ -50,7 +50,7 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
-	github.com/glebarez/go-sqlite v1.21.2
+	github.com/glebarez/go-sqlite v1.22.0
 	github.com/go-creed/sat v1.0.3
 	github.com/golang-module/carbon v1.7.3
 	github.com/gorilla/websocket v1.5.1
@@ -161,10 +161,10 @@ require (
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	modernc.org/libc v1.30.0 // indirect
+	modernc.org/libc v1.37.6 // indirect
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.7.2 // indirect
-	modernc.org/sqlite v1.27.0 // indirect
+	modernc.org/sqlite v1.28.0 // indirect
 )
 
 replace (
