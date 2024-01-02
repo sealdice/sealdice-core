@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sealdice-core/dice/constants"
 	"sealdice-core/dice/model"
 	"strings"
 	"time"
@@ -973,15 +974,21 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 		text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
 	}
 
-	fileWriter, _ := writer.Create("文本log.txt")
-	_, _ = fileWriter.Write([]byte(text))
+	{
+		wr, _ := writer.Create(constants.LogExportReadmeFilename)
+		_, _ = wr.Write([]byte(constants.LogExportReadmeContent))
+	}
+	{
+		fileWriter, _ := writer.Create(constants.LogExportTxtFilename)
+		_, _ = fileWriter.Write([]byte(text))
+	}
 
 	data, err := json.Marshal(map[string]interface{}{
 		"version": StoryVersion,
 		"items":   lines,
 	})
 	if err == nil {
-		fileWriter2, _ := writer.Create("海豹标准log-粘贴到染色器可格式化.txt")
+		fileWriter2, _ := writer.Create(constants.LogExportJsonFilename)
 		_, _ = fileWriter2.Write(data)
 	}
 
