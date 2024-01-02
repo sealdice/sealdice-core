@@ -84,6 +84,7 @@ func DiceConfig(c echo.Context) error {
 	info.ExtDefaultSettings = extDefaultSettings
 	info.DefaultCocRuleIndex = cocRule
 	info.MailPassword = emailPasswordMasked
+	info.Config.QuitInactiveThresholdDays = info.QuitInactiveThreshold.Hours() / 24
 
 	return c.JSON(http.StatusOK, info)
 }
