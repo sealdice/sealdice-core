@@ -217,6 +217,7 @@ func (cm *ConfigManager) save() error {
 	}(file)
 
 	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "\t")
 	err = encoder.Encode(cm.Plugins)
 	if err != nil {
 		return err
