@@ -64,7 +64,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 				log.Error("official qq 启动失败: ", r)
 			}
 		}()
-		_ = pa.SessionManager.Start(ws, token, &intent)
+		_ = pa.SessionManager.Start(pa.Ctx, ws, token, &intent)
 	}()
 	ep.State = 1
 	ep.Enable = true
@@ -193,6 +193,8 @@ func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
 		if pa.CancelFunc != nil {
 			pa.CancelFunc()
 		}
+		pa.CancelFunc = nil
+		pa.Ctx = nil
 	}
 	d.LastUpdatedTime = time.Now().Unix()
 }
