@@ -951,10 +951,6 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 		if strings.HasPrefix(grp.GroupID, "PG-") {
 			continue
 		}
-		if grp.RecentDiceSendTime == 0 {
-			// 防止骰子从未发言过的新加群被立即清理掉
-			continue
-		}
 		if s.Parent.BanList != nil {
 			if info := s.Parent.BanList.GetByID(grp.GroupID); info != nil {
 				if info.Rank > BanRankNormal {
@@ -964,6 +960,9 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 		}
 
 		last := time.Unix(grp.RecentDiceSendTime, 0)
+		if enter := time.Unix(grp.EnteredTime, 0); enter.After(last) {
+			last = enter
+		}
 		if last.Before(threshold) {
 			match := platformRE.FindStringSubmatch(grp.GroupID)
 			if len(match) != 2 {

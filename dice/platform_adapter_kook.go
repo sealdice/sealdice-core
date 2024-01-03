@@ -302,7 +302,9 @@ func (pa *PlatformAdapterKook) Serve() int {
 			channel = SetBotOnAtGroup(mctx, msg.GroupID)
 			channel.Active = true
 			channel.DiceIDExistsMap.Store(pa.EndPoint.UserID, true)
-			channel.UpdatedAtTime = time.Now().Unix()
+			now := time.Now().Unix()
+			channel.UpdatedAtTime = now
+			channel.EnteredTime = now
 		}
 
 		if mctx.Session.ServiceAtNew[msg.GroupID] != nil {
