@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -222,31 +223,32 @@ func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
 	if m.Entities != nil {
 		replacedText := ""
 		index := 0
+		u16 := utf16.Encode([]rune(m.Text))
 		for _, entity := range m.Entities {
 			// 是否包含@信息
 			if entity.IsMention() || entity.Type == "text_mention" {
 				// text mention时User不为nil
 				if entity.User != nil {
-					replacedText += string([]rune(m.Text)[index:entity.Offset]) + fmt.Sprintf("tg://user?id=%d", entity.User.ID)
+					replacedText += string(utf16.Decode(u16[index:entity.Offset])) + fmt.Sprintf("tg://user?id=%d", entity.User.ID)
 				} else {
 					// 这里处理最烦人的username mention 首先判断是不是@了机器人自己
-					if self.UserName == string([]rune(m.Text)[entity.Offset+1:entity.Offset+entity.Length]) {
-						replacedText += string([]rune(m.Text)[index:entity.Offset]) + fmt.Sprintf("tg://user?id=%d", self.ID)
+					if self.UserName == string(utf16.Decode(u16[entity.Offset+1:entity.Offset+entity.Length])) {
+						replacedText += string(utf16.Decode(u16[index:entity.Offset])) + fmt.Sprintf("tg://user?id=%d", self.ID)
 					} else {
 						// @的不是自己，查看是否能从用户名缓存中找到username
-						name := string([]rune(m.Text)[entity.Offset+1 : entity.Offset+entity.Length])
+						name := string(utf16.Decode(u16[entity.Offset+1 : entity.Offset+entity.Length]))
 						v, exist := ucache.Get(name)
 						if exist {
-							replacedText += string([]rune(m.Text)[index:entity.Offset]) + fmt.Sprintf("tg://user?id=%d", v)
+							replacedText += string(utf16.Decode(u16[index:entity.Offset])) + fmt.Sprintf("tg://user?id=%d", v)
 						} else {
 							// 找不到，没有办法了，现阶段没有通过username获取userid的api
-							replacedText += string([]rune(m.Text)[index : entity.Offset+entity.Length])
+							replacedText += string(utf16.Decode(u16[index : entity.Offset+entity.Length]))
 						}
 					}
 				}
 			} else {
 				// 不是mention 忽略
-				replacedText += string([]rune(m.Text)[index : entity.Offset+entity.Length])
+				replacedText += string(utf16.Decode(u16[index : entity.Offset+entity.Length]))
 			}
 			index = entity.Offset + entity.Length
 		}
