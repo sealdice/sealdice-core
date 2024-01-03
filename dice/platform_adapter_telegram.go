@@ -90,6 +90,10 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	updates := bot.GetUpdatesChan(updateConfig)
 	go func() {
 		for update := range updates {
+			if pa.IntentSession == nil {
+				break
+			}
+
 			if update.EditedMessage != nil {
 				msg := pa.toStdMessage(update.EditedMessage)
 				mctx := &MsgContext{
@@ -325,7 +329,10 @@ func (pa *PlatformAdapterTelegram) DoRelogin() bool {
 		go pa.Serve()
 		return true
 	}
-	pa.IntentSession.StopReceivingUpdates()
+	if pa.IntentSession != nil {
+		pa.IntentSession.StopReceivingUpdates()
+		pa.IntentSession = nil
+	}
 	go pa.Serve()
 	return true
 }
@@ -338,11 +345,15 @@ func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
 			go pa.Serve()
 			return
 		}
-		pa.IntentSession.StopReceivingUpdates()
+		if pa.IntentSession != nil {
+			pa.IntentSession.StopReceivingUpdates()
+			pa.IntentSession = nil
+		}
 		go pa.Serve()
 	} else {
 		if pa.IntentSession != nil {
 			pa.IntentSession.StopReceivingUpdates()
+			pa.IntentSession = nil
 		}
 		pa.EndPoint.State = 0
 		ep.Enable = false
