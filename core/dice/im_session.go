@@ -986,6 +986,7 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 					GroupID:     grp.GroupID,
 				})
 				ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
+				time.Sleep(3 * time.Second)
 
 				grp.DiceIDExistsMap.Delete(ep.UserID)
 				grp.UpdatedAtTime = time.Now().Unix()
