@@ -148,7 +148,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log export <日志名> // 直接取得日志txt(服务出问题或有其他需要时使用)
 .log export <日志名> <邮箱地址> // 通过邮件取得日志txt，多个邮箱用空格隔开`
 
-	const txtLogTip = "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
+	// const txtLogTip = "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
 
 	cmdLog := &CmdItemInfo{
 		Name:      "log",
