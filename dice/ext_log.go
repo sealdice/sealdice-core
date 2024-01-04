@@ -148,7 +148,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log export <日志名> // 直接取得日志txt(服务出问题或有其他需要时使用)
 .log export <日志名> <邮箱地址> // 通过邮件取得日志txt，多个邮箱用空格隔开`
 
-	const txtLogTip = "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
+	// const txtLogTip = "若未出现线上日志地址，可换时间获取，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成"
 
 	cmdLog := &CmdItemInfo{
 		Name:      "log",
@@ -175,6 +175,21 @@ func RegisterBuiltinExtLog(self *Dice) {
 				text := fmt.Sprintf("当前故事: %s\n当前状态: %s\n已记录文本%d条", group.LogCurName, onText, lines)
 				ReplyToSender(ctx, msg, text)
 				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			getAndUpload := func(gid, lname string) {
+				fn, err := LogSendToBackend(ctx, gid, lname)
+				if err != nil {
+					reason := strings.TrimPrefix(err.Error(), "#")
+					VarSetValueStr(ctx, "$t错误原因", reason)
+
+					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_失败")
+					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
+				} else {
+					VarSetValueStr(ctx, "$t日志链接", fn)
+					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
+					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
+				}
 			}
 
 			if cmdArgs.IsArgEqual(1, "on") { //nolint:nestif
@@ -260,20 +275,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				fn, err := LogSendToBackend(ctx, groupID, logName)
-				if err != nil {
-					text := txtLogTip
-					t1 := err.Error()
-					if strings.HasPrefix(t1, "#") {
-						text = ""
-					}
-					text = fmt.Sprintf("%s\n%s", t1, text)
-					ReplyToSenderRaw(ctx, msg, text, "skip")
-				} else {
-					ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
-					time.Sleep(time.Duration(0.3 * float64(time.Second)))
-					ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
-				}
+				getAndUpload(groupID, logName)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "get") {
 				logName := group.LogCurName
@@ -287,20 +289,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				fn, err := LogSendToBackend(ctx, group.GroupID, logName)
-				if err != nil {
-					text := txtLogTip
-					t1 := err.Error()
-					if strings.HasPrefix(t1, "#") {
-						text = ""
-					}
-					text = fmt.Sprintf("%s\n%s", t1, text)
-					ReplyToSenderRaw(ctx, msg, text, "skip")
-				} else {
-					ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
-					time.Sleep(time.Duration(0.3 * float64(time.Second)))
-					ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
-				}
+				getAndUpload(group.GroupID, logName)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "end") {
 				if group.LogCurName == "" {
@@ -317,21 +306,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				group.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
-				fn, err := LogSendToBackend(ctx, group.GroupID, group.LogCurName)
-
-				if err != nil {
-					text := txtLogTip
-					t1 := err.Error()
-					if strings.HasPrefix(t1, "#") {
-						text = ""
-					}
-					text = fmt.Sprintf("%s\n%s", t1, text)
-					ReplyToSenderRaw(ctx, msg, text, "skip")
-				} else {
-					ReplyToSenderRaw(ctx, msg, fmt.Sprintf("跑团日志已上传服务器，链接如下：\n%s", fn), "skip")
-					time.Sleep(time.Duration(0.3 * float64(time.Second)))
-					ReplyToSenderRaw(ctx, msg, txtLogTip, "skip")
-				}
+				getAndUpload(group.GroupID, group.LogCurName)
 				group.LogCurName = ""
 				group.UpdatedAtTime = time.Now().Unix()
 				return CmdExecuteResult{Matched: true, Solved: true}

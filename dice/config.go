@@ -937,6 +937,13 @@ func setupBaseTextTemplate(d *Dice) {
 			"OB_关闭": {
 				{"你不再是观众了（自动修改昵称和群名片[如有权限]）。", 1},
 			},
+			// 1.4.2+
+			"记录_上传_成功": {
+				{`跑团日志已上传服务器，链接如下：{$t日志链接}`, 1},
+			},
+			"记录_上传_失败": {
+				{`跑团日志上传失败：{$t错误原因}\n若未出现线上日志地址，可换时间重试，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成`, 1},
+			},
 		},
 	}
 
@@ -1607,6 +1614,16 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"OB_关闭": {
 				SubType: ".ob exit",
+			},
+
+			// 1.4.2+
+			"记录_上传_成功": {
+				SubType: ".log end",
+				Vars:    []string{"$t日志链接"},
+			},
+			"记录_上传_失败": {
+				SubType: ".log end",
+				Vars:    []string{"$t错误原因"},
 			},
 		},
 	}
