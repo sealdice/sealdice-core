@@ -257,6 +257,7 @@ export const useStore = defineStore('main', {
     },
 
     async ImConnectionsCaptchaSet(i: DiceConnection, code: string) {
+      console.log('xxx', { id: i.id, code })
       const info = await backend.post(urlPrefix + '/im_connections/gocq_captcha_set', { id: i.id, code })
       return info as any as {}
     },

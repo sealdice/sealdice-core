@@ -33,10 +33,16 @@
         <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;"
           v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginBar) && i.adapter?.goCqHttpLoginDeviceLockUrl">
           <!-- <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;"> -->
-          <div style="margin-left: 2rem">滑条验证码流程</div>
-          <!-- <div><a style="line-break: anywhere;" :href="i.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div> -->
-          <div><a @click="slideUrlSet(i.adapter?.goCqHttpLoginDeviceLockUrl)" style="line-break: anywhere;"
-              href="javascript:void(0)">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div>
+
+          <template v-if="i.id === curCaptchaIdSet">
+            <div>已提交ticket，正在等待gocqhttp回应</div>
+          </template>
+          <template v-else>
+            <div style="margin-left: 2rem">滑条验证码流程</div>
+            <!-- <div><a style="line-break: anywhere;" :href="i.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div> -->
+            <div><a @click="captchaUrlSet(i, i.adapter?.goCqHttpLoginDeviceLockUrl)" style="line-break: anywhere;"
+                href="javascript:void(0)">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div>
+          </template>
         </div>
 
         <div style="position: absolute; width: 17rem; height: 18rem; background: #fff; z-index: 1;"
@@ -164,7 +170,7 @@
 
           <template v-if="i.platform === 'QQ' && i.protocolType === 'onebot'">
             <el-form-item label="其他">
-              <el-tooltip content="导出gocq设置，用于转分离部署" placement="bottom-start">
+              <el-tooltip content="导出gocq设置，用于转分离部署" placement="top-start">
                 <el-button type="" @click="doGocqExport(i)">导出</el-button>
               </el-tooltip>
             </el-form-item>
@@ -929,11 +935,18 @@
 
           <div
             v-else-if="index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginDeviceLock && curConn.adapter?.goCqHttpLoginDeviceLockUrl">
-            <div>账号已开启设备锁，请访问此链接进行验证：</div>
-            <div style="line-break: anywhere;">
-              <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{
-                curConn.adapter?.goCqHttpLoginDeviceLockUrl }}</el-link>
-            </div>
+
+            <template v-if="curConn.id === curCaptchaIdSet">
+              <div>已提交ticket，正在等待gocqhttp回应</div>
+            </template>
+            <template v-else>
+              <div>账号已开启设备锁，请访问此链接进行验证：</div>
+              <div style="line-break: anywhere;">
+                <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{
+                  curConn.adapter?.goCqHttpLoginDeviceLockUrl }}</el-link>
+              </div>
+            </template>
+
             <div>
               <div>确认验证完成后，点击此按钮：</div>
               <div>
@@ -945,12 +958,19 @@
 
           <div
             v-else-if="index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginBar && curConn.adapter?.goCqHttpLoginDeviceLockUrl">
-            <div>滑条验证码流程，访问以下链接操作:</div>
-            <div style="line-break: anywhere;">
-              <div><a @click="slideUrlSet(curConn.adapter?.goCqHttpLoginDeviceLockUrl)" style="line-break: anywhere;"
-                  href="javascript:void(0)">{{ curConn.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div>
-              <!-- <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.goCqHttpLoginDeviceLockUrl}}</el-link> -->
-            </div>
+
+            <template v-if="curConn.id === curCaptchaIdSet">
+              <div>已提交ticket，正在等待gocqhttp回应</div>
+            </template>
+            <template v-else>
+              <div>滑条验证码流程，访问以下链接操作:</div>
+              <div style="line-break: anywhere;">
+                <div><a @click="captchaUrlSet(curConn, curConn.adapter?.goCqHttpLoginDeviceLockUrl)"
+                    style="line-break: anywhere;" href="javascript:void(0)">{{ curConn.adapter?.goCqHttpLoginDeviceLockUrl
+                    }}</a></div>
+                <!-- <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.goCqHttpLoginDeviceLockUrl}}</el-link> -->
+              </div>
+            </template>
           </div>
 
           <div v-else-if="index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginVerifyCode">
@@ -1088,6 +1108,7 @@ const fullActivities = [
 const activities = ref([] as typeof fullActivities)
 
 const store = useStore()
+const curCaptchaIdSet = ref(''); // 当前设置了ticket的id
 
 const isRecentLogin = ref(false)
 const duringRelogin = ref(false)
@@ -1106,7 +1127,7 @@ const curConnId = ref('');
 const smsCode = ref('');
 
 let captchaTimer = null as any
-const slideUrlSet = (url: string) => {
+const captchaUrlSet = (i: DiceConnection, url: string) => {
   if (slideIframe.value) {
     dialogSlideVisible.value = true
     const el: HTMLIFrameElement = slideIframe.value;
@@ -1132,7 +1153,9 @@ const slideUrlSet = (url: string) => {
           captchaTimer = setTimeout(ticketCheck, 2000);
           return;
         }
-        submitCaptchaCode(text);
+        curCaptchaIdSet.value = i.id;
+
+        submitCaptchaCode(i, text);
         ElMessage({
           type: 'success',
           message: '已自动读取 ticket:' + text,
@@ -1140,7 +1163,7 @@ const slideUrlSet = (url: string) => {
         })
         setTimeout(() => {
           dialogSlideVisible.value = false;
-        }, 2000);
+        }, 500);
         clearTimeout(captchaTimer);
         captchaTimer = null;
         return;
@@ -1166,8 +1189,8 @@ const closeCaptchaFrame = () => {
   dialogSlideVisible.value = false;
 }
 
-const submitCaptchaCode = async (code: string) => {
-  store.ImConnectionsCaptchaSet(curConn.value, code)
+const submitCaptchaCode = async (i: DiceConnection, code: string) => {
+  store.ImConnectionsCaptchaSet(i, code)
 }
 
 const submitSmsCode = async (i: DiceConnection) => {
@@ -1256,6 +1279,7 @@ const formClose = async () => {
 const setEnable = async (i: DiceConnection, val: boolean) => {
   const ret = await store.getImConnectionsSetEnable(i, val)
   i.enable = ret.enable
+  curCaptchaIdSet.value = '';
   ElMessage.success('状态修改完成')
   if (val) {
     setRecentLogin()
@@ -1371,6 +1395,7 @@ const doGocqExport = async (i: DiceConnection) => {
 }
 
 const gocqhttpReLogin = async (i: DiceConnection) => {
+  curCaptchaIdSet.value = '';
   setRecentLogin()
   duringRelogin.value = true;
   curConnId.value = ''; // 先改掉这个，以免和当前连接一致，导致被瞬间重置
