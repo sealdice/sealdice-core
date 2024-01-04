@@ -177,6 +177,21 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
+			getAndUpload := func(gid, lname string) {
+				fn, err := LogSendToBackend(ctx, gid, lname)
+				if err != nil {
+					reason := strings.TrimPrefix(err.Error(), "#")
+					VarSetValueStr(ctx, "$t错误原因", reason)
+
+					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_失败")
+					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
+				} else {
+					VarSetValueStr(ctx, "$t日志链接", fn)
+					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
+					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
+				}
+			}
+
 			if cmdArgs.IsArgEqual(1, "on") { //nolint:nestif
 				if ctx.IsPrivate {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
@@ -260,21 +275,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				fn, err := LogSendToBackend(ctx, groupID, logName)
-				if err != nil {
-					reason := err.Error()
-					if strings.HasPrefix(reason, "#") { // internal error
-						reason = reason[1:]
-					}
-					VarSetValueStr(ctx, "$t错误原因", reason)
-
-					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_失败")
-					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
-				} else {
-					VarSetValueStr(ctx, "$t日志链接", fn)
-					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
-					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
-				}
+				getAndUpload(groupID, logName)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "get") {
 				logName := group.LogCurName
@@ -288,21 +289,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				fn, err := LogSendToBackend(ctx, group.GroupID, logName)
-				if err != nil {
-					reason := err.Error()
-					if strings.HasPrefix(reason, "#") { // internal error
-						reason = reason[1:]
-					}
-					VarSetValueStr(ctx, "$t错误原因", reason)
-
-					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_失败")
-					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
-				} else {
-					VarSetValueStr(ctx, "$t日志链接", fn)
-					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
-					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
-				}
+				getAndUpload(group.GroupID, logName)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "end") {
 				if group.LogCurName == "" {
@@ -319,21 +306,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				group.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
-				fn, err := LogSendToBackend(ctx, group.GroupID, group.LogCurName)
-				if err != nil {
-					reason := err.Error()
-					if strings.HasPrefix(reason, "#") { // internal error
-						reason = reason[1:]
-					}
-					VarSetValueStr(ctx, "$t错误原因", reason)
-
-					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_失败")
-					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
-				} else {
-					VarSetValueStr(ctx, "$t日志链接", fn)
-					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
-					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
-				}
+				getAndUpload(group.GroupID, group.LogCurName)
 				group.LogCurName = ""
 				group.UpdatedAtTime = time.Now().Unix()
 				return CmdExecuteResult{Matched: true, Solved: true}
