@@ -256,7 +256,7 @@ func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
 			}
 			index = entity.Offset + entity.Length
 		}
-		msg.Message = replacedText + string([]rune(m.Text)[index:])
+		msg.Message = replacedText + string(utf16.Decode(u16[index:]))
 	} else {
 		msg.Message = m.Text
 	}
