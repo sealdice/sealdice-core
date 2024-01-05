@@ -390,7 +390,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						}
 					} else */{
 						isShowAll := showAll != nil
-						text := LogRollBriefByPC(ctx.Dice, items, isShowAll, ctx.Player.Name)
+						text := LogRollBriefByPC(ctx, items, isShowAll, ctx.Player.Name)
 						if text == "" {
 							if isShowAll {
 								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
@@ -504,7 +504,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						}
 					} else */{
 						isShowAll := showAll != nil
-						text := LogRollBriefByPC(ctx.Dice, items, isShowAll, ctx.Player.Name)
+						text := LogRollBriefByPC(ctx, items, isShowAll, ctx.Player.Name)
 						if text == "" {
 							if isShowAll {
 								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
@@ -990,10 +990,10 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 }
 
 // LogRollBriefByPC 根据log生成骰点简报
-func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name string) string {
+func LogRollBriefByPC(ctx *MsgContext, items []*model.LogOneItem, showAll bool, name string) string {
 	pcInfo := map[string]map[string]int{}
-	// coc 同义词
-	acCoc7 := setupConfig(dice)
+	// 加载同义词
+	tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
 
 	getName := func(s string) string {
 		re := regexp.MustCompile(`^([^\d\s]+)(\d+)?$`)
@@ -1002,7 +1002,7 @@ func LogRollBriefByPC(dice *Dice, items []*model.LogOneItem, showAll bool, name 
 			s = m[1]
 		}
 
-		return GetValueNameByAlias(s, acCoc7.Alias)
+		return tmpl.GetAlias(s)
 	}
 
 	for _, i := range items {
