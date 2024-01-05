@@ -231,7 +231,7 @@ var difficultPrefixMap = map[string]int{
 func cardRuleCheck(mctx *MsgContext, msg *Message) *GameSystemTemplate {
 	cardType := ReadCardType(mctx)
 	if cardType != "" && cardType != mctx.Group.System {
-		ReplyToSender(mctx, msg, fmt.Sprintf("阻止操作：当前卡规则为 %s，群规则为 %s。\n为避免损坏此人物卡，请先更换/新建角色卡，或使用.st clr清除数据", cardType, mctx.Group.System))
+		ReplyToSender(mctx, msg, fmt.Sprintf("阻止操作：当前卡规则为 %s，群规则为 %s。\n为避免损坏此人物卡，请先更换角色卡，或使用.st fmt强制转卡", cardType, mctx.Group.System))
 		return nil
 	}
 	tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
