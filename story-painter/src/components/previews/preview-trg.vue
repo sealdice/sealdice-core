@@ -4,7 +4,7 @@
 
     <div style="text-align: center; margin-bottom: 2rem; margin-top: 0.5rem;">
       <div>提示: 海豹骰与回声工坊达成了合作，<el-link type="primary" target="_blank" href="https://github.com/DanDDXuanX/TRPG-Replay-Generator">回声工坊</el-link>可以将海豹的log一键转视频哦！</div>
-      <div>回声工坊的介绍和视频教程看这里：<el-link type="primary" target="_blank" href="https://www.bilibili.com/video/BV1GY4y1H7wK/">B站传送门</el-link></div>
+      <div>回声工坊的介绍和视频教程看这里：<el-link type="primary" target="_blank" href="https://www.bilibili.com/video/BV1PC4y1j7P2/">B站传送门</el-link></div>
     </div>
 
     <el-checkbox :border="true" label="添加语音合成标记" v-model="store.trgIsAddVoiceMark" />

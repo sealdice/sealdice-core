@@ -12,6 +12,7 @@ export interface TextInfo {
   // nicknames: Map<string, string>;
   startText: string;
   exporter?: string;
+  version?: number;
 }
 
 export class LogImporter {
@@ -33,7 +34,7 @@ export class LogImporter {
     // 后者必须先赋值，如果没经过赋值，传进来都是undefined，就会统一得到1001
     let data = this.tmpIMUserId.get(name);
     if (!data) {
-      data = `${1001+start + this.tmpIMUserId.size}`;
+      data = `${1001 + start + this.tmpIMUserId.size}`;
       this.tmpIMUserId.set(name, data);
     }
     return data;

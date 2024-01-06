@@ -26,15 +26,16 @@ export class SealDiceLogImporter extends LogImporter {
   parse(text: string): TextInfo {
     // if (!this.latestData) this.check(text);
     const charInfo = new Map<string, CharItem>();
-    const data = this.latestData as { items: LogItem[] };
+    const data = this.latestData as { items: LogItem[], version: number };
     let startText = '';
     for (let i of data.items) {
       this.setCharInfo(charInfo, i);
       // 这个\r\n替换是为了防止logman因为新旧文本不同，导致重新格式化
       i.message = i.message.replaceAll('\r\n', '\n');
       i.message += '\n\n';
+      i.version = data.version;
     }
     console.log(data);
-    return { items: data.items, charInfo, startText };
+    return { items: data.items, charInfo, startText, version: data.version };
   }
 }

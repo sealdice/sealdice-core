@@ -1,7 +1,7 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
     <h2 style="text-align: center;display: flex; align-items: center; justify-content: center; flex-flow: wrap;">
-      <span>海豹TRPG跑团Log着色器 V2.1.2</span>
+      <span>海豹TRPG跑团Log着色器 V2.2.0</span>
       <a style="margin:0 1rem" href="https://github.com/sealdice/story-painter" target="_blank"><img src="./assets/github-mark.svg" style="width: 1.2rem;"/></a>
       <el-button type="primary" @click="backV1">返回V1</el-button>
     </h2>
@@ -659,6 +659,7 @@ html {
   padding: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
   position: relative;
+  // font-family: monospace;
 }
 
 

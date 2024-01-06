@@ -12,7 +12,7 @@
 import dayjs from 'dayjs';
 import { LogItem, packNameId } from '~/logManager/types';
 import { useStore } from '~/store';
-import { getCanvasFontSize, getTextWidth, msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat } from '~/utils';
+import { escapeHTML, getCanvasFontSize, getTextWidth, msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat } from '~/utils';
 
 const store = useStore();
 
@@ -72,7 +72,7 @@ const previewMessageSolve = (i: LogItem) => {
   const id = packNameId(i);
   if (store.pcMap.get(id)?.role === '隐藏') return '';
 
-  let msg = msgImageFormat(i.message, store.exportOptions, true);
+  let msg = msgImageFormat(escapeHTML(i.message), store.exportOptions, true);
   msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
   msg = msgCommandFormat(msg, store.exportOptions);
   msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);

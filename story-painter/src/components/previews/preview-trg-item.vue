@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import { LogItem, packNameId } from '~/logManager/types';
 import { useStore } from '~/store';
-import { msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat } from '~/utils';
+import { escapeHTML, msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat } from '~/utils';
 
 const store = useStore();
 
@@ -59,7 +59,7 @@ const trgMessageSolve = (i: LogItem) => {
   const id = packNameId(i);
   if (store.pcMap.get(id)?.role === '隐藏') return '';
 
-  let msg = msgImageFormat(i.message, store.exportOptions, true);
+  let msg = msgImageFormat(escapeHTML(i.message), store.exportOptions, true);
   msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
   msg = msgCommandFormat(msg, store.exportOptions);
   msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);
@@ -72,7 +72,7 @@ const trgMessageSolve = (i: LogItem) => {
   }
   msg = msg.trim().replaceAll('"', '').replaceAll('\\', '') // 移除反斜杠和双引号
   const prefix = store.trgIsAddVoiceMark ? '{*}' : ''
-  return msg.replaceAll('<br />', '\n').replaceAll('\n', prefix + '<br /> ' + extra + nicknameSolve(i))
+  return msg.replaceAll('<br />', '\n').replaceAll('\n', prefix + '<br /><span class="lf">\n</span>' + extra + nicknameSolve(i))
 }
 
 const readDiceNum = (expr: string, defaultVal = 100) => {
@@ -93,7 +93,11 @@ const trgCommandSolve = (item: LogItem) => {
           let items = []
           for (let i of ci.items) {
             let diceNum = readDiceNum(i.expr1)
-            items.push(`(${ci.pcName}的${i.expr2},${diceNum},${i.attrVal},${i.checkVal})`)
+            if (i.version == 101) {
+              items.push(`(${ci.pcName}的${i.expr2},${diceNum},${i.checkVal},${i.outcome })`)
+            } else {
+              items.push(`(${ci.pcName}的${i.expr2},${diceNum},${i.attrVal},${i.checkVal})`)
+            }
           }
           return `<dice>:${items.join(',')}`
           break
@@ -118,7 +122,7 @@ const trgCommandSolve = (item: LogItem) => {
           let items = []
           for (let i of ci.items) {
             let diceNum = readDiceNum(i.exprs[0])
-            items.push(`(${ci.pcName}的${i.exprs[0]},${diceNum},${i.sanOld},${i.checkVal})`)
+            items.push(`(${ci.pcName}的${i.exprs[0]},${diceNum},${i.sanOld},${i.outcome ?? i.checkVal})`)
           }
           return `<dice>:${items.join(',')}`
           break

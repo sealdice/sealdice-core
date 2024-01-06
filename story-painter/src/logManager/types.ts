@@ -22,6 +22,7 @@ export interface LogItem {
   // 如果为真，那么只有message有意义，且当作纯文本处理
   isRaw?: boolean;
   index?: number;
+  version?: number;
 }
 
 export function packNameId(i: CharItem | LogItem) {

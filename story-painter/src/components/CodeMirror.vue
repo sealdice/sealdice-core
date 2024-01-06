@@ -198,7 +198,7 @@ const createEditor = (editorContainer: any, doc: any) => {
 由于a 灵感，<木落>掷出了 D20=5
 
 木落(303451945) 2022/03/21 19:07:20
-草没开扩展
+啊没开扩展
 
 木落(303451945) 2022/03/21 19:07:37
 .ext coc7 on

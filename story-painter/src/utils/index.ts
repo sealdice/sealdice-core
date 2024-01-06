@@ -100,3 +100,10 @@ export function msgIMUseridFormat(msg: string, options: any, isDice = false) {
 
   return msg;
 }
+
+
+export function escapeHTML(html: string) {
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(html));
+  return div.innerHTML;
+}
