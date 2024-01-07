@@ -1513,8 +1513,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			n := cmdArgs.GetArgN(1)
 			val, err := strconv.ParseInt(n, 10, 64)
 			if err != nil {
-				// 数量不存在时，视为1次
-				val = 1
+				if n == "" {
+					val = 1 // 数量不存在时，视为1次
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
 			}
 			if val > 10 {
 				val = 10
@@ -1565,14 +1568,16 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 	}
 
-	cmdRi := &CmdItemInfo{
-		Name: "ri",
-		ShortHelp: `.ri 小明 // 格式1，值为D20
+	helpRi := `.ri 小明 // 格式1，值为D20
 .ri 12 张三 // 格式2，值12(只能写数字)
 .ri +2 李四 // 格式3，值为D20+2
 .ri =D10+3 王五 // 格式4，值为D10+3
 .ri 张三, +2 李四, =D10+3 王五 // 设置全部
-.ri 优势 张三, 劣势-1 李四 // 支持优势劣势`,
+.ri 优势 张三, 劣势-1 李四 // 支持优势劣势`
+	cmdRi := &CmdItemInfo{
+		Name:          "ri",
+		ShortHelp:     helpRi,
+		Help:          "先攻设置:\n" + helpRi,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			text := cmdArgs.CleanArgs
