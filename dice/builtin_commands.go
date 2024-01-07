@@ -177,13 +177,17 @@ func (d *Dice) registerCoreCommands() {
 		".find config --group // 查看当前默认搜索分组\n" +
 		".find config --group=<分组> // 设置当前默认搜索分组\n" +
 		".find config --groupclr // 清空当前默认搜索分组"
-	cmdSearch := &CmdItemInfo{
+	cmdFind := &CmdItemInfo{
 		Name:      "find",
 		ShortHelp: helpForFind,
-		Help:      "查询指令，通常使用全文搜索(x86版)或快速查询(arm, 移动版)\n" + helpForFind,
+		Help:      "查询指令，通常使用全文搜索(x86版)或快速查询(arm, 移动版):\n" + helpForFind,
 		// 写不下了
 		// + "\n注: 默认搭载的《怪物之锤查询》来自蜜瓜包、October整理\n默认搭载的COC《魔法大典》来自魔骨，NULL，Dr.Amber整理\n默认搭载的DND系列文档来自DicePP项目"
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
 			if d.Parent.IsHelpReloading {
 				ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -376,8 +380,8 @@ func (d *Dice) registerCoreCommands() {
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
-	d.CmdMap["查询"] = cmdSearch
-	d.CmdMap["find"] = cmdSearch
+	d.CmdMap["查询"] = cmdFind
+	d.CmdMap["find"] = cmdFind
 
 	helpForHelp := ".help // 查看本帮助\n" +
 		".help 指令 // 查看某指令信息\n" +
@@ -387,7 +391,7 @@ func (d *Dice) registerCoreCommands() {
 	cmdHelp := &CmdItemInfo{
 		Name:      "help",
 		ShortHelp: helpForHelp,
-		Help:      "帮助指令，用于查看指令帮助和helpdoc中录入的信息\n" + helpForHelp,
+		Help:      "帮助指令，用于查看指令帮助和helpdoc中录入的信息:\n" + helpForHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			arg := cmdArgs.GetArgN(1)
 			if arg == "" {
@@ -421,6 +425,9 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 			if cmdArgs.IsArgEqual(1, "骰主", "骰主信息") {
 				masterMsg := DiceFormatTmpl(ctx, "核心:骰子帮助文本_骰主")
@@ -529,6 +536,10 @@ func (d *Dice) registerCoreCommands() {
 
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
+					if cmdArgs.GetArgN(2) != "" {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+					}
+
 					if ctx.PrivilegeLevel < 40 {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -617,15 +628,17 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["bot"] = cmdBot
 
-	helpForDismiss := ".dismiss // 退群" +
-		".dismiss 1234 // 指定尾号退群"
+	helpForDismiss := ".dismiss // 退出当前群，主用于QQ，支持机器人的平台可以直接移出成员"
 	cmdDismiss := &CmdItemInfo{
 		Name:      "dismiss",
 		ShortHelp: helpForDismiss,
-		Help:      "退群(映射到bot off):\n" + helpForDismiss,
+		Help:      "退群(映射到bot bye):\n" + helpForDismiss,
 		Raw:       true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			rest := cmdArgs.GetArgN(1)
+			if rest != "" {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 			cmdArgs.Args = []string{"bye"}
 			cmdArgs.RawArgs = "bye " + cmdArgs.RawArgs
 			if rest != "" {
@@ -1145,6 +1158,10 @@ func (d *Dice) registerCoreCommands() {
 			var diceResultExists bool
 			var detail string
 
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
 			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
 			if ctx.Dice.CommandCompatibleMode {
 				if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd" || cmdArgs.Command == "rdh") && len(cmdArgs.Args) >= 1 {
@@ -1400,6 +1417,9 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 			}
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 
 			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
 
@@ -1563,6 +1583,10 @@ func (d *Dice) registerCoreCommands() {
 		ShortHelp: helpExt,
 		Help:      "群扩展模块管理:\n" + helpExt,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
 			showList := func() {
 				text := "检测到以下扩展(名称-版本-作者)：\n"
 				for index, i := range ctx.Dice.ExtList {
@@ -1699,10 +1723,12 @@ func (d *Dice) registerCoreCommands() {
 		ShortHelp: helpNN,
 		Help:      "角色名设置:\n" + helpNN,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val := cmdArgs.GetArgN(1)
+			val := strings.ToLower(cmdArgs.GetArgN(1))
 			switch val {
 			case "":
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_当前"))
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			case "clr", "reset":
 				p := ctx.Player
 				VarSetValueStr(ctx, "$t旧昵称", fmt.Sprintf("<%s>", ctx.Player.Name))
@@ -1739,7 +1765,11 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["userid"] = &CmdItemInfo{
 		Name:      "userid",
 		ShortHelp: ".userid // 查看当前帐号和群组ID",
+		Help:      "查看ID:\n.userid // 查看当前帐号和群组ID",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 			text := fmt.Sprintf("个人账号ID为 %s", ctx.Player.UserID)
 			if !ctx.IsPrivate {
 				text += fmt.Sprintf("\n当前群组ID为 %s", ctx.Group.GroupID)
@@ -2216,8 +2246,11 @@ func (d *Dice) registerCoreCommands() {
 	cmdPing := &CmdItemInfo{
 		Name:      "ping",
 		ShortHelp: ".ping // 触发发送一条回复",
-		Help:      "触发发送一条回复。特别地，如果是qq官方bot，并且是在频道中触发，会以私信消息形式回复。\n.ping",
+		Help:      "触发回复:\n触发发送一条回复。特别地，如果是qq官方bot，并且是在频道中触发，会以私信消息形式回复",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 			if msg.Platform == "OpenQQCH" &&
 				strings.HasPrefix(msg.GuildID, "OpenQQCH-Guild:") &&
 				strings.HasPrefix(msg.GroupID, "OpenQQCH-Channel:") {

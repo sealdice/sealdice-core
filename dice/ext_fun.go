@@ -162,6 +162,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: ".gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
 		Help:      "人工智能鸽子:\n.gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者\n.text // 文本指令",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
 			// p := getPlayerInfoBySender(session, msg)
 			isShowFrom := cmdArgs.IsArgEqual(1, "from", "showfrom", "来源", "作者")
 
@@ -182,6 +186,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: ".jrrp 获得一个D100随机值，一天内不会变化",
 		Help:      "今日人品:\n.jrrp 获得一个D100随机值，一天内不会变化",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 			rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
 			rpSeed += int64(fingerprint(ctx.EndPoint.UserID))
 			rpSeed += int64(fingerprint(ctx.Player.UserID))
@@ -453,8 +460,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 			n := cmdArgs.GetArgN(1)
 			val, err := strconv.ParseInt(n, 10, 64)
 			if err != nil {
-				// 数量不存在时，视为1次
-				val = 1
+				if n == "" {
+					val = 1 // 数量不存在时，视为1次
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
 			}
 			if val > 10 {
 				val = 10
@@ -559,7 +569,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: ".dx 3c4",
 		Help:      "双重十字规则骰点:\n.dx 3c4 // 也可使用.r 3c4替代",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if cmdArgs.GetArgN(1) == "help" {
+			if cmdArgs.IsArgEqual(1, "help") {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 
@@ -685,6 +695,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 			}
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 
 			val := cmdArgs.GetArgN(1)
 			if val != "" {
@@ -730,9 +743,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 		EnableExecuteTimesParse: true,
 		Name:                    "jsr",
 		ShortHelp:               ".jsr 3# 10 // 投掷 10 面骰 3 次，结果不重复。结果存入骰池并可用 .drl 抽取。",
-		Help: "不重复骰点（Jetter sans répéter）：.jsr 次数# 投骰表达式 (名字)" +
+		Help: "不重复骰点(Jetter sans répéter):\n.jsr 次数# 投骰表达式 (名字)" +
 			"\n用例：.jsr 3# 10 // 投掷 10 面骰 3 次，结果不重复，结果存入骰池并可用 .drl 抽取。",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 			t := cmdArgs.SpecialExecuteTimes
 			allArgClean := cmdArgs.CleanArgs
 			allArgs := strings.Split(allArgClean, " ")
@@ -815,6 +831,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 			".drlh //抽取当前群组的骰池，结果私聊发送",
 		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 			if cmdArgs.IsArgEqual(1, "new") {
 				// Make mode
 				roulette := singleRoulette{
