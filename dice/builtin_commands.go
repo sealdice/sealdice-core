@@ -474,8 +474,15 @@ func (d *Dice) registerCoreCommands() {
 			inGroup := msg.MessageType == "group"
 			mentionNotBot := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentionedFirst // 喊的不是当前骰子
 
-			if inGroup && ctx.Dice.IgnoreUnaddressedBotCmd && (len(cmdArgs.At) < 1 || mentionNotBot) {
-				return CmdExecuteResult{Matched: true, Solved: false}
+			if inGroup {
+				// 不响应裸指令选项
+				if len(cmdArgs.At) < 1 && ctx.Dice.IgnoreUnaddressedBotCmd {
+					return CmdExecuteResult{Matched: true, Solved: false}
+				}
+				// 不响应at其他人
+				if !cmdArgs.AmIBeMentionedFirst {
+					return CmdExecuteResult{Matched: true, Solved: false}
+				}
 			}
 
 			if len(cmdArgs.Args) > 0 && !cmdArgs.IsArgEqual(1, "about") { //nolint:nestif
