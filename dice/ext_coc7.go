@@ -288,6 +288,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			mctx.DelegateText = ctx.DelegateText
 			mctx.SystemTemplate = mctx.Group.GetCharTemplate(ctx.Dice)
@@ -865,6 +869,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		Help:          "成长指令:\n" + helpEn,
 		AllowDelegate: false,
 		Solve: func(mctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
 			// .en [技能名称]([技能值])+(([失败成长值]/)[成功成长值])
 			// FIXME: 实在是被正则绕晕了，把多组和每组的正则分开了
 			re := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+\s*([-+\ddD]+\s*/)?\s*([-+\ddD]+))?[^|]*?`)
@@ -1125,7 +1133,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	cmdTi := &CmdItemInfo{
 		Name:      "ti",
 		ShortHelp: ".ti // 抽取一个临时性疯狂症状",
+		Help:      "抽取临时性疯狂症状:\n.li // 抽取一个临时性疯狂症状",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 			num := DiceRoll(10)
 			VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("1D10=%d", num))
 			VarSetValueInt64(ctx, "$t选项值", int64(num))
@@ -1173,7 +1185,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	cmdLi := &CmdItemInfo{
 		Name:      "li",
 		ShortHelp: ".li // 抽取一个总结性疯狂症状",
+		Help:      "抽取总结性疯狂症状:\n.li // 抽取一个总结性疯狂症状",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
 			num := DiceRoll(10)
 			VarSetValueStr(ctx, "$t表达式文本", fmt.Sprintf("1D10=%d", num))
 			VarSetValueInt64(ctx, "$t选项值", int64(num))
@@ -1218,11 +1234,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		},
 	}
 
+	helpSc := ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
+		".sc <失败时掉san> //同上，简易写法 \n" +
+		".sc (b/p) (<成功时掉san>/)<失败时掉san> // 加上奖惩骰"
 	cmdSc := &CmdItemInfo{
-		Name: "sc",
-		ShortHelp: ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
-			".sc <失败时掉san> //同上，简易写法 \n" +
-			".sc (b/p) (<成功时掉san>/)<失败时掉san> // 加上奖惩骰",
+		Name:          "sc",
+		ShortHelp:     helpSc,
+		Help:          "理智检定:\n" + helpSc,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
@@ -1231,6 +1249,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			if len(cmdArgs.Args) == 0 {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 
 			tmpl := cardRuleCheck(mctx, msg)
@@ -1470,12 +1492,16 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	cmdCoc := &CmdItemInfo{
 		Name:      "coc",
 		ShortHelp: ".coc (<数量>) // 制卡指令，返回<数量>组人物属性",
+		Help:      "COC制卡指令:\n.coc (<数量>) // 制卡指令，返回<数量>组人物属性",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n := cmdArgs.GetArgN(1)
 			val, err := strconv.ParseInt(n, 10, 64)
 			if err != nil {
-				// 数量不存在时，视为1次
-				val = 1
+				if n == "" {
+					val = 1 // 数量不存在时，视为1次
+				} else {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
 			}
 			if val > ctx.Dice.MaxCocCardGen {
 				val = ctx.Dice.MaxCocCardGen
