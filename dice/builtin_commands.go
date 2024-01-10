@@ -479,7 +479,6 @@ func (d *Dice) registerCoreCommands() {
 		Raw:       true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			inGroup := msg.MessageType == "group"
-			mentionNotBot := len(cmdArgs.At) > 0 && !cmdArgs.AmIBeMentionedFirst // 喊的不是当前骰子
 
 			if inGroup {
 				// 不响应裸指令选项
@@ -487,13 +486,13 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: false}
 				}
 				// 不响应at其他人
-				if !cmdArgs.AmIBeMentionedFirst {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
 					return CmdExecuteResult{Matched: true, Solved: false}
 				}
 			}
 
 			if len(cmdArgs.Args) > 0 && !cmdArgs.IsArgEqual(1, "about") { //nolint:nestif
-				if !inGroup || mentionNotBot {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
 					return CmdExecuteResult{Matched: true, Solved: false}
 				}
 
@@ -577,7 +576,7 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 
-			if mentionNotBot {
+			if cmdArgs.SomeoneBeMentionedButNotMe {
 				return CmdExecuteResult{Matched: false, Solved: false}
 			}
 
