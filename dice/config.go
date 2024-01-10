@@ -519,8 +519,8 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"对抗检定": {
 				{`对抗检定:
-{$t玩家A} {$t玩家A判定式}-> 属性值:{$t玩家A属性} 判定值:{$t玩家A判定值}{$t玩家A判定过程} {$t玩家A判定结果}
-{$t玩家B} {$t玩家B判定式}-> 属性值:{$t玩家B属性} 判定值:{$t玩家B判定值}{$t玩家B判定过程} {$t玩家B判定结果}
+{$t玩家A} {$t玩家A判定式}-> 属性值:{$t玩家A属性} 判定值:{$t玩家A出目}{$t玩家A判定过程} {$t玩家A判定结果}
+{$t玩家B} {$t玩家B判定式}-> 属性值:{$t玩家B属性} 判定值:{$t玩家B出目}{$t玩家B判定过程} {$t玩家B判定结果}
 {% $tWinFlag == -1 ? $t玩家A + '胜出！',
    $tWinFlag == +1 ? $t玩家B + '胜出！',
    $tWinFlag == 0 ? '平手！(请自行根据场景，如属性比较、攻击对反击，攻击对闪避)做出判断'
@@ -2135,6 +2135,20 @@ func (d *Dice) loads() {
 				d.SaveText()
 			})
 		}
+
+		// 1.4.3 版本 - 这个migrate应当持续运行几个版本，因为随时可能导入旧文案，而不是升级到143就结束
+		d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
+			d.Logger.Info("正在自动升级自定义文案文件")
+			for index, text := range d.TextMapRaw["COC"]["对抗检定"] {
+				srcText := text[0].(string)
+				srcText = strings.ReplaceAll(srcText, "{$t玩家A判定值}", "{$t玩家A出目}")
+				srcText = strings.ReplaceAll(srcText, "{$t玩家B判定值}", "{$t玩家B出目}")
+				d.TextMapRaw["COC"]["对抗检定"][index][0] = srcText
+			}
+			SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
+			d.GenerateTextMap()
+			d.SaveText()
+		})
 
 		// 设置全局群名缓存和用户名缓存
 		dm := d.Parent
