@@ -27,7 +27,7 @@ var (
 	ErrGroupCardOverlong = errors.New("群名片长度超过限制")
 )
 
-const StoryVersion = 100
+const StoryVersion = 101
 
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
