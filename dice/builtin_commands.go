@@ -64,8 +64,11 @@ func (d *Dice) registerCoreCommands() {
 				return arg
 			}
 
-			val := cmdArgs.GetArgN(1)
-			var uid string
+			var (
+				val = cmdArgs.GetArgN(1)
+				uid string
+			)
+
 			switch strings.ToLower(val) {
 			case "add":
 				uid = getID()
