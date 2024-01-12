@@ -64,7 +64,7 @@ func (d *Dice) registerCoreCommands() {
 				return arg
 			}
 
-			var val = cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			var uid string
 			switch strings.ToLower(val) {
 			case "add":
@@ -128,7 +128,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 				ReplyToSender(ctx, msg, text)
 			case "query":
-				var targetID = cmdArgs.GetArgN(2)
+				targetID := cmdArgs.GetArgN(2)
 				if targetID == "" {
 					ReplyToSender(ctx, msg, "未指定要查询的对象！")
 					break
@@ -140,7 +140,7 @@ func (d *Dice) registerCoreCommands() {
 					break
 				}
 
-				var text = fmt.Sprintf("所查询的<%s>情况：", targetID)
+				text := fmt.Sprintf("所查询的<%s>情况：", targetID)
 				switch v.Rank {
 				case BanRankBanned:
 					text += "禁止(-30)"
@@ -598,7 +598,7 @@ func (d *Dice) registerCoreCommands() {
 				ver := d.Parent.AppVersionOnline
 				// 如果当前不是最新版，那么提示
 				if ver.VersionLatestCode != VERSION_CODE {
-					onlineVer = "\n最新版本: " + ver.VersionLatestDetail + "\n"
+					onlineVer = "\n最新版本: " + ver.VersionLatestDetail + "\n" + "了解新功能请看 https://dice.weizaima.com/changelog \n\n"
 				}
 			}
 
@@ -772,7 +772,7 @@ func (d *Dice) registerCoreCommands() {
 		updateCode      = "0000"
 	)
 
-	var masterListHelp = `.master add me // 将自己标记为骰主
+	masterListHelp := `.master add me // 将自己标记为骰主
 .master add @A @B // 将别人标记为骰主
 .master del @A @B @C // 去除骰主标记
 .master unlock <密码(在UI中查看)> // (当Master被人抢占时)清空骰主列表，并使自己成为骰主
@@ -921,7 +921,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "备份失败！错误已写入日志。可能是磁盘已满所致，建议立即进行处理！")
 				}
 			case "checkupdate":
-				var dm = ctx.Dice.Parent
+				dm := ctx.Dice.Parent
 				if dm.JustForTest {
 					ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -947,13 +947,13 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					if dm.AppVersionOnline != nil {
-						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION, dm.AppVersionOnline.VersionLatestDetail)
+						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s\n了解新版内容请看 https://dice.weizaima.com/changelog \n\n", VERSION, dm.AppVersionOnline.VersionLatestDetail)
 						if dm.AppVersionCode != dm.AppVersionOnline.VersionLatestCode {
 							updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
 							text += fmt.Sprintf("\n如需升级，请输入.master checkupdate %s 确认进行升级\n升级将花费约2分钟，升级失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
 						}
 					} else {
-						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION, "未知")
+						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s\n了解新版内容请看 https://dice.weizaima.com/changelog", VERSION, "未知")
 					}
 					ReplyToSender(ctx, msg, text)
 					break
@@ -978,7 +978,7 @@ func (d *Dice) registerCoreCommands() {
 
 					bakFn, _ := ctx.Dice.Parent.BackupSimple()
 					tmpPath := path.Join(os.TempDir(), bakFn)
-					_ = os.MkdirAll(tmpPath, 0644)
+					_ = os.MkdirAll(tmpPath, 0o644)
 					ctx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
 					_ = cp.Copy(path.Join(BackupDir, bakFn), tmpPath)
 
@@ -990,7 +990,7 @@ func (d *Dice) registerCoreCommands() {
 				}()
 				dm.UpdateRequestChan <- d
 			case "reboot":
-				var dm = ctx.Dice.Parent
+				dm := ctx.Dice.Parent
 				if dm.JustForTest {
 					ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
 					return CmdExecuteResult{Matched: true, Solved: true}
