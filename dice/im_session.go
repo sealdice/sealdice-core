@@ -947,6 +947,8 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 
 	s.Parent.Logger.Infof("开始清理不活跃群聊. 判定线 %s", threshold.Format(time.RFC3339))
 
+	count := 0
+
 	for _, grp := range s.ServiceAtNew {
 		if strings.HasPrefix(grp.GroupID, "PG-") {
 			continue
@@ -973,6 +975,14 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 				continue
 			}
 
+			count++
+			if count > 10 {
+				if count == 11 {
+					s.Parent.Logger.Infof("本次清理不活跃群聊已达到 10 个，为防止封禁危险，不再操作退群")
+				}
+				continue // 不使用 break，为了让 last.Before(hint) 分支的“将来要退出” WARN 能够全量打出
+			}
+
 			hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
 			s.Parent.Logger.Info(hint)
 			for _, ep := range s.EndPoints {
@@ -993,6 +1003,8 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 				ep.Adapter.QuitGroup(&MsgContext{Dice: s.Parent}, grp.GroupID)
 				(&MsgContext{Dice: s.Parent, EndPoint: ep, Session: s}).Notice(hint)
 			}
+
+			time.Sleep(2 * time.Minute)
 		} else if last.Before(hint) {
 			s.Parent.Logger.Warnf("检测到群 %s 上次活动时间为 %s，将在未来自动退出", grp.GroupID, last.Format(time.RFC3339))
 			// TODO: 要不要给通知列表发消息？
