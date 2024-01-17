@@ -1683,30 +1683,30 @@ func ResultCheck(ctx *MsgContext, cocRule int, d100 int64, attrValue int64, diff
 大成功：骰出1 -> 4
 */
 func ResultCheckBase(cocRule int, d100 int64, attrValue int64, difficultyRequired int) (successRank int, criticalSuccessValue int64) {
-	if d100 <= attrValue {
+	criticalSuccessValue = int64(1) // 大成功阈值
+	fumbleValue := int64(100)       // 大失败阈值
+
+	checkVal := attrValue
+	switch difficultyRequired {
+	case 2:
+		checkVal /= 2
+	case 3:
+		checkVal /= 5
+	case 4:
+		checkVal = criticalSuccessValue
+	}
+
+	if d100 <= checkVal {
 		successRank = 1
 	} else {
 		successRank = -1
 	}
-
-	criticalSuccessValue = int64(1) // 大成功阈值
-	fumbleValue := int64(100)       // 大失败阈值
-
+	
 	// 分支规则设定
 	switch cocRule {
 	case 0:
 		// 规则书规则
 		// 不满50出96-100大失败，满50出100大失败
-		checkVal := attrValue
-		switch difficultyRequired {
-		case 2:
-			checkVal /= 2
-		case 3:
-			checkVal /= 5
-		case 4:
-			checkVal = criticalSuccessValue
-		}
-
 		if checkVal < 50 {
 			fumbleValue = 96
 		}
@@ -1768,7 +1768,7 @@ func ResultCheckBase(cocRule int, d100 int64, attrValue int64, difficultyRequire
 	}
 
 	// 成功判定
-	if successRank == 1 {
+	if successRank == 1 || d100 <= criticalSuccessValue {
 		// 区分大成功、困难成功、极难成功等
 		if d100 <= attrValue/2 {
 			// suffix = "成功(困难)"
