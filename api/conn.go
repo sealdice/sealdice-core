@@ -160,8 +160,10 @@ func ImConnectionsDel(c echo.Context) error {
 				// i.DiceServing = false
 				switch i.Platform {
 				case "QQ":
-					dice.GoCqhttpServeProcessKill(myDice, i)
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
+					if i.ProtocolType == "onebot" {
+						dice.GoCqhttpServeProcessKill(myDice, i)
+					}
 					return c.JSON(http.StatusOK, i)
 				case "DISCORD":
 					i.Adapter.SetEnable(false)
@@ -871,4 +873,34 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 		return Success(&c, Response{})
 	}
 	return c.String(430, "")
+}
+
+func ImConnectionsAddSatori(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Success(&c, Response{"testMode": true})
+	}
+
+	v := struct {
+		Platform string `yaml:"platform" json:"platform"`
+		Host     string `yaml:"host" json:"host"`
+		Port     int    `yaml:"port" json:"port"`
+		Token    string `yaml:"token" json:"token"`
+	}{}
+	err := c.Bind(&v)
+	if err != nil {
+		return c.String(430, "")
+	}
+
+	conn := dice.NewSatoriConnItem(v.Platform, v.Host, v.Port, v.Token)
+	conn.Session = myDice.ImSession
+	pa := conn.Adapter.(*dice.PlatformAdapterSatori)
+	pa.Session = myDice.ImSession
+	myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+	myDice.LastUpdatedTime = time.Now().Unix()
+	myDice.Save(false)
+	go dice.ServeQQ(myDice, conn)
+	return Success(&c, Response{})
 }

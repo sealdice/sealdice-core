@@ -479,6 +479,9 @@ func diceServe(d *dice.Dice) {
 					if conn.EndPointInfoBase.ProtocolType == "official" {
 						dice.ServerOfficialQQ(d, conn)
 					}
+					if conn.EndPointInfoBase.ProtocolType == "satori" {
+						dice.ServeSatori(d, conn)
+					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
 					dice.ServeQQ(d, conn)
 				case "DISCORD":

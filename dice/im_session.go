@@ -308,6 +308,15 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 				return err
 			}
 			ep.Adapter = val.Adapter
+		case "satori":
+			var val struct {
+				Adapter *PlatformAdapterSatori `yaml:"adapter"`
+			}
+			err = value.Decode(&val)
+			if err != nil {
+				return err
+			}
+			ep.Adapter = val.Adapter
 		}
 	case "DISCORD":
 		var val struct {
@@ -1410,6 +1419,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 			pa.EndPoint = ep
 		case "official":
 			pa := ep.Adapter.(*PlatformAdapterOfficialQQ)
+			pa.Session = ep.Session
+			pa.EndPoint = ep
+		case "satori":
+			pa := ep.Adapter.(*PlatformAdapterSatori)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
 		}
