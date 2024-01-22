@@ -157,4 +157,40 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 			time.Sleep(15 * time.Second)
 		}
 	}
+
+	if ep.Platform == "QQ" && ep.ProtocolType == "satori" {
+		conn := ep.Adapter.(*PlatformAdapterSatori)
+		if !conn.DiceServing {
+			conn.DiceServing = true
+		} else {
+			return
+		}
+		ep.Enable = true
+		ep.State = 2 // 连接中
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		waitTimes := 0
+
+		for {
+			if ep.State != 2 {
+				break
+			}
+			// 骰子开始连接
+			d.Logger.Infof("开始连接 satori 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
+			ret := ep.Adapter.Serve()
+
+			if ret == 0 {
+				break
+			}
+
+			waitTimes += 1
+			if waitTimes > 5 {
+				d.Logger.Infof("satori 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
+				conn.DiceServing = false
+				break
+			}
+
+			time.Sleep(15 * time.Second)
+		}
+	}
 }
