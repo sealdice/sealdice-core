@@ -477,8 +477,10 @@ func (pa *PlatformAdapterRed) Serve() int {
 		case <-interrupt:
 			log.Debug("red interrupt")
 
-			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			_ = pa.conn.Close()
+			if pa.conn != nil {
+				_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+				_ = pa.conn.Close()
+			}
 
 			select {
 			case <-done:
