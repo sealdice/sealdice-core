@@ -1080,13 +1080,13 @@ if (!seal.ext.find('js-config-example')) {
 
     // 注册配置项需在 ext 注册后进行
     // 通常来说，register 函数的参数为 ext, key, defaultValue
-    seal.ext.registerStringConfig(ext,"testkey","testvalue");
+    seal.ext.registerStringConfig(ext,"testkey1","testvalue");
     seal.ext.registerIntConfig(ext,"testkey2", 123);
-    seal.ext.registerFloatConfig(ext,"testkey2", 123.456);
-    seal.ext.registerBoolConfig(ext,"testkey3", true);
-    seal.ext.registerTemplateConfig(ext,"testkey4", ["1","2","3","4"]);
+    seal.ext.registerFloatConfig(ext,"testkey3", 123.456);
+    seal.ext.registerBoolConfig(ext,"testkey4", true);
+    seal.ext.registerTemplateConfig(ext,"testkey5", ["1","2","3","4"]);
     // 注册单选项函数的参数为 ext, key, defaultValue, options
-    seal.ext.registerOptionConfig(ext, "testkey5", "1", ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
+    seal.ext.registerOptionConfig(ext, "testkey6", "1", ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
 }
 ```
 
