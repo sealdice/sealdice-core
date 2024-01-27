@@ -351,7 +351,8 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           GO111MODULE: on
           CGO_ENABLED: 1
-          CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
+          CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -mmacosx-version-min=10.12
+          CGO_CFLAGS: -mmacosx-version-min=10.12
           CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
         working-directory: ./sealdice-core
         run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$CUR_TIME($PROJECT_VERSION_S)" .
