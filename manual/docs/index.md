@@ -91,5 +91,9 @@ highlights:
       - title: QQ 四群：917654757
       - title: QQ 五群：747114944
       - title: DODO 群：https://imdodo.com/s/246716
+        link: https://imdodo.com/s/246716
       - title: KOOK 群：https://kook.top/Cmr0Fy
+        link: https://kook.top/Cmr0Fy
+      - title: Discord Server：https://discord.gg/HxuZ72T67C
+        link: https://discord.gg/HxuZ72T67C
 ---
