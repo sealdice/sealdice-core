@@ -57,6 +57,123 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 :::
 
+## Lagrange <Badge type="tip" text="v1.4.2" vertical="middle" />
+
+海豹从 `v1.4.2` 开始适配了 Lagrange（拉格兰）的连接。
+
+::: info Lagrange
+
+Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括目前实现了 Linux NTQQ 协议的 Lagrange.Core，和提供 OneBot-V11 Api 的 Lagrange.Onebot 两部分。
+
+与 GoCqhttp 类似，Lagrange 可以很方便的在多个平台（Windows、Linux、Mac）部署，海豹核心可以对接其提供的 OneBot-V11 Api 来提供 QQ 骰子服务。
+
+:::
+
+### 准备 Lagrange
+
+可以在 [Lagrange Github 仓库](https://github.com/LagrangeDev/Lagrange.Core) 中获取到相应程序，通常你需要进入 Action 页面，根据你的系统选择相应版本的最新制品。
+
+![Lagrange Action](./images/platform-qq-lagrange-1.png =80%x80%)
+
+点击进入页面后拉到最下方，选择相应版本下载。
+
+![Lagrange Action Artifacts](./images/platform-qq-lagrange-2.png =40%x40%)
+
+### 运行 Lagrange
+
+首先解压对应制品压缩文件，你可以看见 `Lagrange.OneBot.exe` 等多个文件。
+
+在运行之前，需要在与 `Lagrange.OneBot.exe` 同级的目录下，新建一个 `appsettings.json` 文件，用来填写 Lagrange 的配置。
+
+配置示例在 Lagrange Github 的介绍中有提供，你也可以参照下面进行配置：
+
+`appsettings.json`：
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Trace",
+      "Microsoft": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information"
+    }
+  },
+  "SignServerUrl": "",
+  "Account": {
+    "Uin": 0,
+    "Password": "",
+    "Protocol": "Linux",
+    "AutoReconnect": true,
+    "GetOptimumServer": true
+  },
+  "Message": {
+    "IgnoreSelf": true
+  },
+  "Implementation": {
+    "ForwardWebSocket": {
+      "Host": "127.0.0.1",
+      "Port": 8081,
+      "HeartBeatInterval": 5000,
+      "AccessToken": ""
+    },
+    "ReverseWebSocket": {
+      "Host": "127.0.0.1",
+      "Port": 8080,
+      "Suffix": "/onebot/v11/ws",
+      "ReconnectInterval": 5000,
+      "HeartBeatInterval": 5000,
+      "AccessToken": ""
+    },
+    "Http": {
+      "Host": "",
+      "Port": 0,
+      "EventEnabled": false
+    },
+    "HttpPost": {
+      "Host": "127.0.0.1",
+      "Port": 8080,
+      "Suffix": "/onebot/v11/http",
+      "Timeout": 0
+    }
+  }
+}
+```
+
+其中有几个重要的设置项需要填写和注意：
+- `Account` 下的 `Uin` 保持为 0 以使用二维码登录；
+- `SignServerUrl`：NTQQ 的签名服务地址，**注意此处的签名服务需要是 Linux NTQQ 签名服务，不可以使用 QSign、Shamrock 等提供的 Android QQ 签名服务**；
+- `Implementation.ForwardWebSocket` 下的 `Host` 和 `Port`，这是 Lagrange 将提供的 **OneBot-V11 正向 WS 服务地址**，记下后续使用。如果对应端口已占用请自行调整。
+
+::: info Linux NTQQ 的签名服务
+
+由于众所周知的原因，Lagrange 不能提供公共签名服务，海豹官方也不会对相关信息进行说明。但你可以在相应 TG 群找到由海外热心网友提供的一些帮助。
+
+:::
+
+配置完成后的文件夹如下：
+
+![准备运行前的 Lagrange 文件夹](./images/platform-qq-lagrange-3.png =40%x40%)
+
+设置文件保存后，双击运行 `Lagrange.OneBot.exe` 启动 Lagrange，有可能会先弹出如下警告，按步骤允许即可：
+
+![Lagrange 运行警告 1](./images/platform-qq-lagrange-4.png =40%x40%)
+
+![Lagrange 运行警告 2](./images/platform-qq-lagrange-5.png =40%x40%)
+
+成功运行时，很快会弹出一个命令行窗口，同时在同一文件夹下会出现一张登录二维码图片 `qr-0.png`，尽快在二维码过期前使用手机 QQ 扫码连接。
+
+Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时出现报错，需要去下载 [.Net SDK](https://dotnet.microsoft.com/zh-cn/download) 并安装。
+
+### 海豹连接 Lagrange
+
+进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebott11分离部署)」。
+
+账号填写骰子的 QQ 号，连接地址使用上面记下的 WS 正向服务地址 `ws://{Host}:{Port}`，如 `ws://127.0.0.1:8081`。
+
+![海豹连接 Lagrange](./images/platform-qq-lagrange-6.png =65%x65%)
+
+成功连接后即可使用。
+
 ## Shamrock <Badge type="tip" text="v1.4.2" vertical="middle" />
 
 海豹从 `v1.4.2` 开始适配了 Shamrock 的连接。
@@ -314,15 +431,6 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 建议使用 **反向 ws** 设置。在海豹中，账号添加中选择「onebot v11 反向 ws」，填入骰子 QQ 号和要开放的 ws 端口（例如 `:6544`）。
 
 随后在 Shamrock 中的被动 ws 连接地址中写 `ws://localhost:6544/ws`。
-
-## Lagrange <Badge type="tip" text="v1.4.2" vertical="middle" />
-
-海豹从 `v1.4.2` 开始适配了 Lagrange（拉格兰）的连接。
-
-在账号添加中，选择「QQ 分离部署」，填写相应信息进行连接。
-
-::: note 施工中……
-:::
 
 ## Chronocat <Badge type="tip" text="v1.4.2" vertical="middle" />
 
