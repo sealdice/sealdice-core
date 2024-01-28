@@ -163,7 +163,12 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
 
 	configItem, exists := plugin.Configs[key]
 	if exists {
-		configItem.Value = value
+		// Json 默认解析数字为 float64，需要转换
+		if configItem.Type == "int" {
+			configItem.Value = int64(value.(float64))
+		} else {
+			configItem.Value = value
+		}
 		plugin.Configs[key] = configItem
 		cm.Plugins[pluginName] = plugin
 	}
