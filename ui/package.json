@@ -17,7 +17,7 @@
     "@vueuse/core": "^10.7.0",
     "asmcrypto.js": "^2.3.2",
     "axios": "^1.6.5",
-    "axios-retry": "^3.8.1",
+    "axios-retry": "^4.0.0",
     "clipboard": "^2.0.11",
     "codemirror": "^6.0.1",
     "dayjs": "^1.11.10",
