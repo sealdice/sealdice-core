@@ -1156,7 +1156,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			case 4:
 				desc += fmt.Sprintf("偏执：调查员陷入了严重的偏执妄想之中。有人在暗中窥视着他们，同伴中有人背叛了他们，没有人可以信任，万事皆虚。持续 1D10=%d 轮", extraNum1)
 			case 5:
-				desc += fmt.Sprintf("人际依赖：守秘人适当参考调查员的背景中重要之人的条目，调查员因为一些原因而降他人误认为了他重要的人并且努力的会与那个人保持那种关系，持续 1D10=%d 轮", extraNum1)
+				desc += fmt.Sprintf("人际依赖：守秘人适当参考调查员的背景中重要之人的条目，调查员因为一些原因而将他人误认为了他重要的人并且努力的会与那个人保持那种关系，持续 1D10=%d 轮", extraNum1)
 			case 6:
 				desc += fmt.Sprintf("昏厥：调查员当场昏倒，并需要 1D10=%d 轮才能苏醒。", extraNum1)
 			case 7:
