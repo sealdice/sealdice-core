@@ -108,15 +108,18 @@ func (d *Dice) JsInit() {
 			d.BanList.AddScoreBase(id, d.BanList.ThresholdBan, place, reason, ctx)
 			d.BanList.SaveChanged(d)
 		})
-		_ = ban.Set("removeBan", func(ctx *MsgContext, id string) error {
+		_ = ban.Set("addTrust", func(ctx *MsgContext, id string, place string, reason string) {
+			d.BanList.SetTrustByID(id, place, reason)
+			d.BanList.SaveChanged(d)
+		})
+		_ = ban.Set("remove", func(ctx *MsgContext, id string) {
 			item := d.BanList.GetByID(id)
-			if item == nil || (item.Rank != BanRankBanned && item.Rank != BanRankTrusted && item.Rank != BanRankWarn) {
-				return errors.New("找不到用户/群组")
+			if item == nil {
+				return
 			}
 			d.BanList.DeleteByID(d, id)
-			return nil
 		})
-		_ = ban.Set("getBanList", func() []*BanListInfoItem {
+		_ = ban.Set("getList", func() []*BanListInfoItem {
 			var list []*BanListInfoItem
 			d.BanList.Map.Range(func(key string, value *BanListInfoItem) bool {
 				list = append(list, value)
@@ -124,9 +127,8 @@ func (d *Dice) JsInit() {
 			})
 			return list
 		})
-		_ = ban.Set("getBanUser", func(id string) *BanListInfoItem {
-			info := *d.BanList.GetByID(id)
-			return &info
+		_ = ban.Set("getUser", func(id string) BanListInfoItem {
+			return *d.BanList.GetByID(id)
 		})
 
 		ext := vm.NewObject()
