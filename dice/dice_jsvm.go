@@ -119,10 +119,10 @@ func (d *Dice) JsInit() {
 			}
 			d.BanList.DeleteByID(d, id)
 		})
-		_ = ban.Set("getList", func() []*BanListInfoItem {
-			var list []*BanListInfoItem
+		_ = ban.Set("getList", func() []BanListInfoItem {
+			var list []BanListInfoItem
 			d.BanList.Map.Range(func(key string, value *BanListInfoItem) bool {
-				list = append(list, value)
+				list = append(list, *value)
 				return true
 			})
 			return list
