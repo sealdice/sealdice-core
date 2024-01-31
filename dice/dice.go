@@ -22,9 +22,7 @@ import (
 
 	rand2 "golang.org/x/exp/rand"
 	"golang.org/x/exp/slices"
-	"golang.org/x/time/rate"
 
-	"sealdice-core/dice/censor"
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
 )

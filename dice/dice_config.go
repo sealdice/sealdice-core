@@ -1,15 +1,14 @@
 package dice
 
 import (
-	"sealdice-core/dice/censor"
-	"sealdice-core/utils"
 	"time"
 
+	"github.com/robfig/cron/v3"
+	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
 
-	"github.com/robfig/cron/v3"
-
-	"golang.org/x/time/rate"
+	"sealdice-core/dice/censor"
+	"sealdice-core/utils"
 )
 
 // ConfigVersion 当前设置版本

@@ -14,11 +14,9 @@ import (
 
 	"github.com/fy0/lockfree"
 	wr "github.com/mroth/weightedrand"
-	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/model"
-	"sealdice-core/utils"
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint

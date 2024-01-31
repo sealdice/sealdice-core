@@ -110,30 +110,30 @@ func (d *Dice) JsInit() {
 		ban := vm.NewObject()
 		_ = seal.Set("ban", ban)
 		_ = ban.Set("addBan", func(ctx *MsgContext, id string, place string, reason string) {
-			d.BanList.AddScoreBase(id, d.BanList.ThresholdBan, place, reason, ctx)
-			d.BanList.SaveChanged(d)
+			d.Config.BanList.AddScoreBase(id, d.Config.BanList.ThresholdBan, place, reason, ctx)
+			d.Config.BanList.SaveChanged(d)
 		})
 		_ = ban.Set("addTrust", func(ctx *MsgContext, id string, place string, reason string) {
-			d.BanList.SetTrustByID(id, place, reason)
-			d.BanList.SaveChanged(d)
+			d.Config.BanList.SetTrustByID(id, place, reason)
+			d.Config.BanList.SaveChanged(d)
 		})
 		_ = ban.Set("remove", func(ctx *MsgContext, id string) {
-			_, ok := d.BanList.GetByID(id)
+			_, ok := d.Config.BanList.GetByID(id)
 			if !ok {
 				return
 			}
-			d.BanList.DeleteByID(d, id)
+			d.Config.BanList.DeleteByID(d, id)
 		})
 		_ = ban.Set("getList", func() []BanListInfoItem {
 			var list []BanListInfoItem
-			d.BanList.Map.Range(func(key string, value *BanListInfoItem) bool {
+			d.Config.BanList.Map.Range(func(key string, value *BanListInfoItem) bool {
 				list = append(list, *value)
 				return true
 			})
 			return list
 		})
 		_ = ban.Set("getUser", func(id string) *BanListInfoItem {
-			i, ok := d.BanList.GetByID(id)
+			i, ok := d.Config.BanList.GetByID(id)
 			if !ok {
 				return nil
 			}
