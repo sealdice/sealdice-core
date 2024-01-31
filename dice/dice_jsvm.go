@@ -102,6 +102,20 @@ func (d *Dice) JsInit() {
 		_ = vars.Set("strGet", VarGetValueStr)
 		_ = vars.Set("strSet", VarSetValueStr)
 
+		ban := vm.NewObject()
+		_ = seal.Set("ban", ban)
+		_ = ban.Set("addScore", func(ctx *MsgContext, id string, score int64, place string, reason string) *BanListInfoItem {
+			// 返回一个复制的对象
+			info := *d.BanList.AddScoreBase(id, score, place, reason, ctx)
+			return &info
+		})
+		_ = ban.Set("getBanList", func() []*BanListInfoItem {
+			return d.GetBanList()
+		})
+		_ = ban.Set("getById", func(id string) *BanListInfoItem {
+			return d.BanList.GetByID(id)
+		})
+
 		ext := vm.NewObject()
 		_ = seal.Set("ext", ext)
 		_ = ext.Set("newCmdItemInfo", func() *CmdItemInfo {
