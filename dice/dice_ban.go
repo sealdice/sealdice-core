@@ -20,14 +20,14 @@ const (
 )
 
 type BanListInfoItem struct {
-	ID      string      `json:"ID"`
-	Name    string      `json:"name"`
-	Score   int64       `json:"score"`
-	Rank    BanRankType `json:"rank"`    // 0 没事 -10警告 -30禁止 30信任
-	Times   []int64     `json:"times"`   // 事发时间
-	Reasons []string    `json:"reasons"` // 拉黑原因
-	Places  []string    `json:"places"`  // 发生地点
-	BanTime int64       `json:"banTime"` // 上黑名单时间
+	ID      string      `json:"ID" jsbind:"id"`
+	Name    string      `json:"name" jsbind:"name"`
+	Score   int64       `json:"score" jsbind:"score"`     // 怒气值
+	Rank    BanRankType `json:"rank" jsbind:"rank"`       // 0 没事 -10警告 -30禁止 30信任
+	Times   []int64     `json:"times" jsbind:"times"`     // 事发时间
+	Reasons []string    `json:"reasons" jsbind:"reasons"` // 拉黑原因
+	Places  []string    `json:"places" jsbind:"places"`   // 发生地点
+	BanTime int64       `json:"banTime" jsbind:"banTime"` // 上黑名单时间
 
 	BanUpdatedAt int64 `json:"-"` // 排序依据，不过可能和bantime重复？
 	UpdatedAt    int64 `json:"-"` // 数据更新时间
