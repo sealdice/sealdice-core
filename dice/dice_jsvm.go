@@ -104,15 +104,27 @@ func (d *Dice) JsInit() {
 
 		ban := vm.NewObject()
 		_ = seal.Set("ban", ban)
-		_ = ban.Set("addScore", func(ctx *MsgContext, id string, score int64, place string, reason string) *BanListInfoItem {
-			// 返回一个复制的对象
-			info := *d.BanList.AddScoreBase(id, score, place, reason, ctx)
-			return &info
+		_ = ban.Set("addBan", func(ctx *MsgContext, id string, place string, reason string) {
+			d.BanList.AddScoreBase(id, d.BanList.ThresholdBan, place, reason, ctx)
+			d.BanList.SaveChanged(d)
+		})
+		_ = ban.Set("removeBan", func(ctx *MsgContext, id string) error {
+			item := d.BanList.GetByID(id)
+			if item == nil || (item.Rank != BanRankBanned && item.Rank != BanRankTrusted && item.Rank != BanRankWarn) {
+				return errors.New("找不到用户/群组")
+			}
+			d.BanList.DeleteByID(d, id)
+			return nil
 		})
 		_ = ban.Set("getBanList", func() []*BanListInfoItem {
-			return d.GetBanList()
+			var list []*BanListInfoItem
+			d.BanList.Map.Range(func(key string, value *BanListInfoItem) bool {
+				list = append(list, value)
+				return true
+			})
+			return list
 		})
-		_ = ban.Set("getById", func(id string) *BanListInfoItem {
+		_ = ban.Set("getBanUser", func(id string) *BanListInfoItem {
 			return d.BanList.GetByID(id)
 		})
 
