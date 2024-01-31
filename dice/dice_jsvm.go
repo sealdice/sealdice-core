@@ -125,7 +125,8 @@ func (d *Dice) JsInit() {
 			return list
 		})
 		_ = ban.Set("getBanUser", func(id string) *BanListInfoItem {
-			return d.BanList.GetByID(id)
+			info := *d.BanList.GetByID(id)
+			return &info
 		})
 
 		ext := vm.NewObject()
