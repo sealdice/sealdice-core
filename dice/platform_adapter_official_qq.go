@@ -3,11 +3,12 @@ package dice
 import (
 	"context"
 	"fmt"
-	"github.com/sealdice/botgo/event"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sealdice/botgo/event"
 
 	qqbot "github.com/sealdice/botgo"
 	"github.com/sealdice/botgo/dto"
