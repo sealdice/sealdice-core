@@ -1,5 +1,8 @@
 import { apiFetch, backend } from './backend'
 
+import { addImConnectionForm } from '../src/components/PageConnectInfoItems.vue'
+import { defineStore } from 'pinia'
+
 export enum goCqHttpStateCode {
   Init = 0,
   InLogin = 1,
@@ -98,7 +101,7 @@ interface DiceBaseInfo {
   arch: string
 }
 
-import { defineStore } from 'pinia'
+
 
 export const useStore = defineStore('main', {
   state: () => {
@@ -189,8 +192,9 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async addImConnection(form: { accountType: number, nickname: string, account: string, password: string, protocol: number, appVersion: string, token: string, botToken: string, appToken: string, proxyURL: string, url: string, host: string, port: number, appID: number, appSecret: string, clientID: string, robotCode: string, implementation: string, connectUrl: string, accessToken: string, relWorkDir: string, useSignServer: boolean, signServerConfig: any, reverseAddr: string }) {
-      const { accountType, nickname, account, password, protocol, appVersion, token, botToken, appToken, proxyURL, url, host, port, appID, appSecret, clientID, robotCode, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig, reverseAddr } = form
+    async addImConnection(form: addImConnectionForm ) {
+      const { 
+        accountType, nickname, account, password, protocol, appVersion, token, botToken, appToken, proxyURL, url, host, port, appID, appSecret, clientID, robotCode, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig, reverseAddr,onlyQQGuild } = form
       let info = null
       switch (accountType) {
         //QQ
@@ -229,7 +233,7 @@ export const useStore = defineStore('main', {
           info = await backend.post(urlPrefix + '/im_connections/addSlack', { botToken, appToken }, { timeout: 65000 })
           break;
         case 10:
-          info = await backend.post(urlPrefix + '/im_connections/addOfficialQQ', { appID: Number(appID), appSecret, token }, { timeout: 65000 })
+          info = await backend.post(urlPrefix + '/im_connections/addOfficialQQ', { appID: Number(appID), appSecret, token,onlyQQGuild }, { timeout: 65000 })
           break
         case 11:
           info = await backend.post(urlPrefix + '/im_connections/addOnebot11ReverseWs', { account, reverseAddr }, { timeout: 65000 })

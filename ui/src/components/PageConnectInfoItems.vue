@@ -12,7 +12,7 @@
   </div>
 
   <div style="display: flex; flex-wrap: wrap;">
-    <div v-for="i, index in reactive(store.curDice.conns)" style="min-width: 20rem; flex: 1 0 50%; flex-grow: 0;">
+    <div v-for="(i, index) in reactive(store.curDice.conns)" style="min-width: 20rem; flex: 1 0 50%; flex-grow: 0;">
       <el-card class="box-card" shadow="hover" style="margin-right: 1rem; margin-bottom: 1rem; position: relative">
         <template #header>
           <div class="card-header">
@@ -795,6 +795,10 @@
         <el-form-item v-if="form.accountType === 10" label="机器人密钥" :label-width="formLabelWidth" required>
           <el-input v-model="form.appSecret" placeholder="填写在开放平台获取的AppSecret" type="text" autocomplete="off"></el-input>
         </el-form-item>
+        <el-form-item v-if="form.accountType === 10" label="只在频道使用" :label-width="formLabelWidth" required>
+          <el-switch v-model="form.onlyQQGuild" />
+        </el-form-item>
+
         <el-form-item v-if="form.accountType === 10" :label-width="formLabelWidth">
           <small>
             <div>提示: 进入腾讯开放平台创建一个机器人</div>
@@ -1500,6 +1504,7 @@ const form = reactive({
 
   appID: undefined,
   appSecret: '',
+  onlyQQGuild: true,
 
   useSignServer: false,
   signServerConfig: {
@@ -1522,6 +1527,8 @@ const form = reactive({
 
   reverseAddr: ':4001'
 })
+
+export type addImConnectionForm = typeof form
 
 const addOne = () => {
   dialogFormVisible.value = true
