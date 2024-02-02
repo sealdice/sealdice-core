@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewOfficialQQConnItem(appID uint64, token string, appSecret string) *EndPointInfo {
+func NewOfficialQQConnItem(appID uint64, token string, appSecret string, onlyQQGuild bool) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.ID = uuid.New().String()
 	conn.Platform = "QQ"
@@ -19,10 +19,11 @@ func NewOfficialQQConnItem(appID uint64, token string, appSecret string) *EndPoi
 	conn.Enable = false
 	conn.RelWorkDir = "extra/official-qq-" + conn.ID
 	conn.Adapter = &PlatformAdapterOfficialQQ{
-		EndPoint:  conn,
-		AppID:     appID,
-		Token:     token,
-		AppSecret: appSecret,
+		EndPoint:    conn,
+		AppID:       appID,
+		Token:       token,
+		AppSecret:   appSecret,
+		OnlyQQGuild: onlyQQGuild,
 	}
 	return conn
 }

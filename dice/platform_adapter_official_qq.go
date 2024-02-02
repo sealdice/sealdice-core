@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sealdice/botgo/event"
+
 	qqbot "github.com/sealdice/botgo"
 	"github.com/sealdice/botgo/dto"
-	"github.com/sealdice/botgo/event"
 	qqapi "github.com/sealdice/botgo/openapi"
 	qqtoken "github.com/sealdice/botgo/token"
 	qqws "github.com/sealdice/botgo/websocket"
@@ -20,9 +21,10 @@ type PlatformAdapterOfficialQQ struct {
 	Session  *IMSession    `yaml:"-" json:"-"`
 	EndPoint *EndPointInfo `yaml:"-" json:"-"`
 
-	AppID     uint64 `yaml:"appID" json:"appID"`
-	AppSecret string `yaml:"appSecret" json:"appSecret"`
-	Token     string `yaml:"token" json:"token"`
+	AppID       uint64 `yaml:"appID" json:"appID"`
+	AppSecret   string `yaml:"appSecret" json:"appSecret"`
+	Token       string `yaml:"token" json:"token"`
+	OnlyQQGuild bool   `yaml:"onlyQQGuild" json:"onlyQQGuild"`
 
 	Api            qqapi.OpenAPI        `yaml:"-" json:"-"`
 	SessionManager qqbot.SessionManager `yaml:"-" json:"-"`
@@ -46,16 +48,24 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	log.Debug("official qq connecting")
 	ws, _ := pa.Api.WS(pa.Ctx, nil, "")
 
+	var intent dto.Intent
 	// 文字子频道at消息
 	var channelAtMessage event.ATMessageEventHandler = pa.ChannelAtMessageReceive
 	// 频道私聊消息
 	var guildDirectMessage event.DirectMessageEventHandler = pa.GuildDirectMessageReceive
 	// 群聊at消息
 	var groupAtMessage event.GroupATMessageEventHandler = pa.GroupAtMessageReceive
-
-	intent := qqws.RegisterHandlers(
-		channelAtMessage, guildDirectMessage, groupAtMessage,
-	)
+	if pa.OnlyQQGuild {
+		intent = qqws.RegisterHandlers(
+			channelAtMessage, guildDirectMessage,
+		)
+	} else {
+		intent = qqws.RegisterHandlers(
+			channelAtMessage,
+			guildDirectMessage,
+			groupAtMessage,
+		)
+	}
 
 	go func() {
 		defer func() {
