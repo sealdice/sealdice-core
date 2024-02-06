@@ -400,8 +400,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				if event.UserID == event.Self.UserID {
 					skip := false
 					skipReason := ""
-					banInfo := ctx.Dice.BanList.GetByID(opUID)
-					if banInfo != nil {
+					banInfo, ok := ctx.Dice.BanList.GetByID(opUID)
+					if ok {
 						if banInfo.Rank == 30 {
 							skip = true
 							skipReason = "信任用户"
@@ -506,8 +506,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				// 检查黑名单
 				extra := ""
 				uid := msg.Sender.UserID
-				banInfo := ctx.Dice.BanList.GetByID(uid)
-				if banInfo != nil {
+				banInfo, ok := ctx.Dice.BanList.GetByID(uid)
+				if ok {
 					if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
 						if willAccept {
 							extra = "。回答正确，但为被禁止用户，准备自动拒绝"
@@ -560,8 +560,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				// tempInviteMap2[msg.GroupId] = uid
 
 				// 邀请人在黑名单上
-				banInfo := ctx.Dice.BanList.GetByID(uid)
-				if banInfo != nil {
+				banInfo, ok := ctx.Dice.BanList.GetByID(uid)
+				if ok {
 					if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
 						pa.SetGroupAddRequest(req.RequestID, event.GroupID, false)
 						return
@@ -574,8 +574,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					return
 				}
 				// 群在黑名单上
-				banInfo = ctx.Dice.BanList.GetByID(gid)
-				if banInfo != nil {
+				banInfo, ok = ctx.Dice.BanList.GetByID(gid)
+				if ok {
 					if banInfo.Rank == BanRankBanned {
 						pa.SetGroupAddRequest(req.RequestID, event.GroupID, false)
 						return
@@ -639,8 +639,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 					// 处理被强制拉群的情况
 					uid := group.InviteUserID
-					banInfo := ctx.Dice.BanList.GetByID(uid)
-					if banInfo != nil {
+					banInfo, ok := ctx.Dice.BanList.GetByID(uid)
+					if ok {
 						if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
 							// 如果是被ban之后拉群，判定为强制拉群
 							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
@@ -654,8 +654,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					}
 
 					// 强制拉群情况2 - 群在黑名单
-					banInfo = ctx.Dice.BanList.GetByID(groupID)
-					if banInfo != nil {
+					banInfo, ok = ctx.Dice.BanList.GetByID(groupID)
+					if ok {
 						if banInfo.Rank == BanRankBanned {
 							// 如果是被ban之后拉群，判定为强制拉群
 							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {

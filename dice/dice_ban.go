@@ -219,8 +219,8 @@ func (i *BanListInfo) addJointScore(_ string, score int64, place string, reason 
 }
 
 func (i *BanListInfo) NoticeCheckPrepare(uid string) BanRankType {
-	item := i.GetByID(uid)
-	if item != nil {
+	item, ok := i.GetByID(uid)
+	if ok {
 		return item.Rank
 	}
 	return BanRankNormal
@@ -228,8 +228,8 @@ func (i *BanListInfo) NoticeCheckPrepare(uid string) BanRankType {
 
 func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType, ctx *MsgContext) BanRankType {
 	log := i.Parent.Logger
-	item := i.GetByID(uid)
-	if item == nil {
+	item, ok := i.GetByID(uid)
+	if !ok {
 		return 0
 	}
 
@@ -342,14 +342,13 @@ func (i *BanListInfo) AddScoreByCensor(uid string, score int64, place string, le
 	}
 }
 
-func (i *BanListInfo) GetByID(uid string) *BanListInfoItem {
-	v, _ := i.Map.Load(uid)
-	return v
+func (i *BanListInfo) GetByID(uid string) (*BanListInfoItem, bool) {
+	return i.Map.Load(uid)
 }
 
 func (i *BanListInfo) SetTrustByID(uid string, place string, reason string) {
-	v := i.GetByID(uid)
-	if v == nil {
+	v, ok := i.GetByID(uid)
+	if !ok {
 		v = &BanListInfoItem{
 			ID:      uid,
 			Reasons: []string{},

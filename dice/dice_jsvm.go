@@ -113,8 +113,8 @@ func (d *Dice) JsInit() {
 			d.BanList.SaveChanged(d)
 		})
 		_ = ban.Set("remove", func(ctx *MsgContext, id string) {
-			item := d.BanList.GetByID(id)
-			if item == nil {
+			_, ok := d.BanList.GetByID(id)
+			if !ok {
 				return
 			}
 			d.BanList.DeleteByID(d, id)
@@ -127,8 +127,13 @@ func (d *Dice) JsInit() {
 			})
 			return list
 		})
-		_ = ban.Set("getUser", func(id string) BanListInfoItem {
-			return *d.BanList.GetByID(id)
+		_ = ban.Set("getUser", func(id string) *BanListInfoItem {
+			i, ok := d.BanList.GetByID(id)
+			if !ok {
+				return nil
+			}
+			cp := *i
+			return &cp
 		})
 
 		ext := vm.NewObject()
