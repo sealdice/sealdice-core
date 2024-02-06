@@ -954,7 +954,8 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 			continue
 		}
 		if s.Parent.BanList != nil {
-			if info := s.Parent.BanList.GetByID(grp.GroupID); info != nil {
+			info, ok := s.Parent.BanList.GetByID(grp.GroupID)
+			if ok {
 				if info.Rank > BanRankNormal {
 					continue // 信任等级高于普通的不清理
 				}
