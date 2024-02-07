@@ -1,9 +1,11 @@
 <template>
   <!-- <div style="position: relative;"> -->
-  <div style="position: absolute; right: 40px; bottom: 60px; z-index: 10">
-    <!--    <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>-->
-    <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>
-  </div>
+  <Teleport to="#root">
+    <div style="position: absolute; right: 40px; bottom: 60px; z-index: 10">
+      <!--    <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>-->
+      <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>
+    </div>
+  </Teleport>
   <!-- </div> -->
 
   <div v-if="(!store.curDice.conns) || (store.curDice.conns && store.curDice.conns.length === 0)">
