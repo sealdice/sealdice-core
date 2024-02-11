@@ -994,8 +994,16 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// r_id":2589922907}
 				return
 			}
-
 			// fmt.Println("Recieved message1 " + message)
+			// 拉格朗日无Sender缓存，采用最低修改的方式修补对接以解决私聊无法回复的问题
+			if msgQQ.MessageType == "private" {
+				if msg.Sender.UserID == "QQ:" {
+					msg.Sender.UserID = "QQ:" + string(msgQQ.UserID)
+				}
+				if msg.Sender.Nickname == "" {
+					msg.Sender.Nickname = "未知用户"
+				}
+			}
 			session.Execute(ep, msg, false)
 		} else {
 			fmt.Println("Received message " + message)
