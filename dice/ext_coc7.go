@@ -397,10 +397,23 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				var attrVal = r2.Value.(int64)
 
 				successRank, criticalSuccessValue := ResultCheck(mctx, cocRule, outcome, attrVal, difficultyRequire)
+				// 根据难度需求，修改判定值
+				checkVal := attrVal
+				switch difficultyRequire {
+				case 2:
+					checkVal /= 2
+				case 3:
+					checkVal /= 5
+				case 4:
+					checkVal = criticalSuccessValue
+				}
+				VarSetValueInt64(mctx, "$tD100", outcome)
+				VarSetValueInt64(mctx, "$t判定值", checkVal)
+				VarSetValueInt64(mctx, "$tSuccessRank", int64(successRank))
+
 				var suffix string
 				var suffixFull string
 				var suffixShort string
-
 				if difficultyRequire > 1 {
 					// 此时两者内容相同这样做是为了避免失败文本被计算两次
 					suffixFull = GetResultTextWithRequire(mctx, successRank, difficultyRequire, false)
@@ -416,20 +429,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					suffix = suffixFull
 				}
 
-				// 根据难度需求，修改判定值
-				checkVal := attrVal
-				switch difficultyRequire {
-				case 2:
-					checkVal /= 2
-				case 3:
-					checkVal /= 5
-				case 4:
-					checkVal = criticalSuccessValue
-				}
-				VarSetValueInt64(mctx, "$tD100", outcome)
-				VarSetValueInt64(mctx, "$t判定值", checkVal)
 				VarSetValueStr(mctx, "$t判定结果", suffix)
-				VarSetValueInt64(mctx, "$tSuccessRank", int64(successRank))
 				VarSetValueStr(mctx, "$t判定结果_详细", suffixFull)
 				VarSetValueStr(mctx, "$t判定结果_简短", suffixShort)
 

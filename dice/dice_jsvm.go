@@ -102,6 +102,40 @@ func (d *Dice) JsInit() {
 		_ = vars.Set("strGet", VarGetValueStr)
 		_ = vars.Set("strSet", VarSetValueStr)
 
+		ban := vm.NewObject()
+		_ = seal.Set("ban", ban)
+		_ = ban.Set("addBan", func(ctx *MsgContext, id string, place string, reason string) {
+			d.BanList.AddScoreBase(id, d.BanList.ThresholdBan, place, reason, ctx)
+			d.BanList.SaveChanged(d)
+		})
+		_ = ban.Set("addTrust", func(ctx *MsgContext, id string, place string, reason string) {
+			d.BanList.SetTrustByID(id, place, reason)
+			d.BanList.SaveChanged(d)
+		})
+		_ = ban.Set("remove", func(ctx *MsgContext, id string) {
+			_, ok := d.BanList.GetByID(id)
+			if !ok {
+				return
+			}
+			d.BanList.DeleteByID(d, id)
+		})
+		_ = ban.Set("getList", func() []BanListInfoItem {
+			var list []BanListInfoItem
+			d.BanList.Map.Range(func(key string, value *BanListInfoItem) bool {
+				list = append(list, *value)
+				return true
+			})
+			return list
+		})
+		_ = ban.Set("getUser", func(id string) *BanListInfoItem {
+			i, ok := d.BanList.GetByID(id)
+			if !ok {
+				return nil
+			}
+			cp := *i
+			return &cp
+		})
+
 		ext := vm.NewObject()
 		_ = seal.Set("ext", ext)
 		_ = ext.Set("newCmdItemInfo", func() *CmdItemInfo {
@@ -403,6 +437,8 @@ func (d *Dice) JsInit() {
 			return base64.StdEncoding.EncodeToString([]byte(s))
 		})
 		// 1.2新增结束
+
+		_ = seal.Set("setPlayerGroupCard", SetPlayerGroupCardByTemplate)
 
 		// Note: Szzrain 暴露dice对象给js会导致js可以调用dice的所有Export的方法
 		// 这是不安全的, 所有需要用到dice实例的函数都可以以传入ctx作为替代

@@ -20,14 +20,14 @@ const (
 )
 
 type BanListInfoItem struct {
-	ID      string      `json:"ID"`
-	Name    string      `json:"name"`
-	Score   int64       `json:"score"`
-	Rank    BanRankType `json:"rank"`    // 0 没事 -10警告 -30禁止 30信任
-	Times   []int64     `json:"times"`   // 事发时间
-	Reasons []string    `json:"reasons"` // 拉黑原因
-	Places  []string    `json:"places"`  // 发生地点
-	BanTime int64       `json:"banTime"` // 上黑名单时间
+	ID      string      `json:"ID" jsbind:"id"`
+	Name    string      `json:"name" jsbind:"name"`
+	Score   int64       `json:"score" jsbind:"score"`     // 怒气值
+	Rank    BanRankType `json:"rank" jsbind:"rank"`       // 0 没事 -10警告 -30禁止 30信任
+	Times   []int64     `json:"times" jsbind:"times"`     // 事发时间
+	Reasons []string    `json:"reasons" jsbind:"reasons"` // 拉黑原因
+	Places  []string    `json:"places" jsbind:"places"`   // 发生地点
+	BanTime int64       `json:"banTime" jsbind:"banTime"` // 上黑名单时间
 
 	BanUpdatedAt int64 `json:"-"` // 排序依据，不过可能和bantime重复？
 	UpdatedAt    int64 `json:"-"` // 数据更新时间
@@ -219,8 +219,8 @@ func (i *BanListInfo) addJointScore(_ string, score int64, place string, reason 
 }
 
 func (i *BanListInfo) NoticeCheckPrepare(uid string) BanRankType {
-	item := i.GetByID(uid)
-	if item != nil {
+	item, ok := i.GetByID(uid)
+	if ok {
 		return item.Rank
 	}
 	return BanRankNormal
@@ -228,8 +228,8 @@ func (i *BanListInfo) NoticeCheckPrepare(uid string) BanRankType {
 
 func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType, ctx *MsgContext) BanRankType {
 	log := i.Parent.Logger
-	item := i.GetByID(uid)
-	if item == nil {
+	item, ok := i.GetByID(uid)
+	if !ok {
 		return 0
 	}
 
@@ -342,14 +342,13 @@ func (i *BanListInfo) AddScoreByCensor(uid string, score int64, place string, le
 	}
 }
 
-func (i *BanListInfo) GetByID(uid string) *BanListInfoItem {
-	v, _ := i.Map.Load(uid)
-	return v
+func (i *BanListInfo) GetByID(uid string) (*BanListInfoItem, bool) {
+	return i.Map.Load(uid)
 }
 
 func (i *BanListInfo) SetTrustByID(uid string, place string, reason string) {
-	v := i.GetByID(uid)
-	if v == nil {
+	v, ok := i.GetByID(uid)
+	if !ok {
 		v = &BanListInfoItem{
 			ID:      uid,
 			Reasons: []string{},

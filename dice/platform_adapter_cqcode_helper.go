@@ -302,6 +302,7 @@ func (d *Dice) ConvertStringMessage(raw string) (r []MessageElement) {
 		if err != nil {
 			d.Logger.Errorf("转换CQ码时出现错误，将原样发送 <%s>", err.Error())
 			r = append(r, CQToText(arg, dMap))
+			return
 		}
 		r = append(r, elem)
 	}

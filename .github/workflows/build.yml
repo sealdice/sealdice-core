@@ -20,11 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
       - name: Install Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -36,7 +36,7 @@ jobs:
         working-directory: ./sealdice-ui
         run: npm run build3
       - name: Upload UI
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-ui/dist
@@ -60,7 +60,7 @@ jobs:
       - name: Apt-get Update
         run: sudo apt-get update
       - name: Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
       - name: Install Cross-compiler for Windows
@@ -70,13 +70,13 @@ jobs:
         if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         run: sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20'
       - name: Install Dependencies
         run: go get .
       - name: Get UI Resources
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./static/frontend
@@ -113,7 +113,7 @@ jobs:
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
         run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$PROJECT_VERSION" .
       - name: Upload Core
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: output
@@ -130,17 +130,17 @@ jobs:
       fail-fast: true
     steps:
       - name: Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20'
       - name: Install Dependencies
         run: go get .
       - name: Get UI Resources
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./static/frontend
@@ -160,7 +160,7 @@ jobs:
           CGO_CFLAGS: -mmacosx-version-min=10.12
         run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$PROJECT_VERSION" .
       - name: Upload Core
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: output
@@ -171,7 +171,7 @@ jobs:
     needs: ui-build
     steps:
       - name: Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
       - name: Setup Android NDK
@@ -180,13 +180,13 @@ jobs:
         with:
           ndk-version: ${{ env.ANDROID_NDK_VERSION }}
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20'
       - name: Install dependencies
         run: go get .
       - name: Get UI Resources
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./static/frontend
@@ -205,7 +205,7 @@ jobs:
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
         run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$PROJECT_VERSION" .
       - name: Upload Core
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_android_arm64
           path: output
@@ -218,8 +218,11 @@ jobs:
       - core-build
       - core-darwin-build
       - core-android-build
+    permissions:
+      actions: write
     steps:
-      - uses: geekyeggo/delete-artifact@v2
+      - uses: geekyeggo/delete-artifact@v4
         with:
+          token: ${{ github.token }}
           name: |
             sealdice-ui

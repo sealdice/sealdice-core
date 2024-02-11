@@ -853,13 +853,14 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	}
 
 	v := struct {
-		AppID     uint64 `yaml:"appID" json:"appID"`
-		Token     string `yaml:"token" json:"token"`
-		AppSecret string `yaml:"appSecret" json:"appSecret"`
+		AppID       uint64 `yaml:"appID" json:"appID"`
+		Token       string `yaml:"token" json:"token"`
+		AppSecret   string `yaml:"appSecret" json:"appSecret"`
+		OnlyQQGuild bool   `yaml:"onlyQQGuild" json:"onlyQQGuild"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		conn := dice.NewOfficialQQConnItem(v.AppID, v.Token, v.AppSecret)
+		conn := dice.NewOfficialQQConnItem(v.AppID, v.Token, v.AppSecret, v.OnlyQQGuild)
 		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
 		pa.Session = myDice.ImSession
