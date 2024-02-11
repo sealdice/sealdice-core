@@ -22,5 +22,8 @@
     "vuepress-plugin-md-enhance": "2.0.0-beta.245",
     "vuepress-plugin-search-pro": "2.0.0-beta.245",
     "vuepress-theme-hope": "2.0.0-beta.245"
+  },
+  "dependencies": {
+    "nodejs-jieba": "^0.1.2"
   }
 }
