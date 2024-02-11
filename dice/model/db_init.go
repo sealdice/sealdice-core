@@ -14,10 +14,10 @@ func _SQLiteDBInit(path string, useWAL bool) (*sqlx.DB, error) {
 		panic(err)
 	}
 
-	//_, err = db.Exec("vacuum")
-	//if err != nil {
-	//	panic(err)
-	//}
+	// _, err = db.Exec("vacuum")
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	// enable WAL mode
 	if useWAL {
