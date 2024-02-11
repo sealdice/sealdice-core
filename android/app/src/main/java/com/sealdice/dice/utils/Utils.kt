@@ -10,6 +10,7 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
 import android.widget.Toast
+import com.sealdice.dice.MyApplication
 import java.util.ArrayList
 
 
@@ -93,7 +94,13 @@ object Utils {
 //            accessibilityToSettingPage(context)
 //        }
 //    }
-
+    fun setHideTaskStatus(hide: Boolean = false) {
+        val am = MyApplication.appContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val tasks = am.appTasks
+        if (!tasks.isNullOrEmpty()) {
+            tasks[0].setExcludeFromRecents(hide)
+        }
+    }
     fun isNull(any: Any?): Boolean = any == null
 
 }
