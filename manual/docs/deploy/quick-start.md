@@ -138,10 +138,10 @@ $ ./sealdice-core --uninstall
 @tab Linux#linux
 
 ```shell
-systemctl status sealdice # 查看运行状态
-systemctl start sealdice  # 启动海豹核心
-systemctl start sealdice  # 启动或重启海豹核心
-systemctl stop sealdice   # 停止海豹核心
+systemctl status sealdice   # 查看运行状态
+systemctl start sealdice    # 启动海豹核心
+systemctl restart sealdice  # 启动或重启海豹核心
+systemctl stop sealdice     # 停止海豹核心
 journalctl -xe -u sealdice.service # 查看日志
 ```
 
