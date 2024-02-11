@@ -40,7 +40,7 @@ jobs:
         with:
           submodules: true
       - name: Upload Documents
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: documents
           path: ./sealdice-builtins/data
@@ -78,7 +78,7 @@ jobs:
 
       - name: Cache dist get
         id: cache-gocq-dist
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-gocq-${{ matrix.goos }}-${{ matrix.goarch }}-dist
         with:
@@ -86,10 +86,11 @@ jobs:
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.GOCQ_CID }}
 
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
         with:
           go-version: '1.20'
+          cache-dependency-path: go-cqhttp/go.sum
       - name: Build Binary
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
         working-directory: ./go-cqhttp
@@ -103,7 +104,7 @@ jobs:
           export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${GOCQ_CID::7}-sealdicefork"
           go build -o "output/$BINARY_NAME" -trimpath -ldflags "$LD_FLAGS" .
       - name: Upload Gocqhttp
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: go-cqhttp_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./go-cqhttp/output
@@ -126,7 +127,7 @@ jobs:
 
       - name: Cache dist get
         id: cache-gocq-dist
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-gocqa-dist
         with:
@@ -135,9 +136,10 @@ jobs:
 
       - name: Install Go
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20'
+          cache-dependency-path: go-cqhttp/go.sum
       - name: Setup Android NDK
         id: setup-ndk
         if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
@@ -158,7 +160,7 @@ jobs:
           export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${COMMIT_ID::7}-sealdicefork"
           go build -o "output/go-cqhttp" -trimpath -ldflags "$LD_FLAGS" .
       - name: Upload Gocqhttp
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: go-cqhttp_android_arm64
           path: ./go-cqhttp/output
@@ -181,7 +183,7 @@ jobs:
 
       - name: Cache ui dist get
         id: cache-ui-dist
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-ui-dist
         with:
@@ -208,7 +210,7 @@ jobs:
         run: npm run build
 
       - name: Upload UI
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-ui/dist
@@ -242,26 +244,27 @@ jobs:
         if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         run: sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20'
+          cache-dependency-path: sealdice-core/go.sum
       - name: Install Dependencies
         working-directory: ./sealdice-core
         run: |
           go mod tidy
           go get .
       - name: Get UI Resources
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-core/static/frontend
 
       - name: Get current time
-        uses: josStorer/get-current-time@v2
-        id: current-time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
         with:
-          format: YYMMDD
-          utcOffset: "+08:00"
+          format: YYYYMMDD
+          timezone-offset: -480
 
       - name: Set Env
         env:
@@ -293,11 +296,11 @@ jobs:
           # CGO_ENABLED: ${{ matrix.goarch != 'arm64' && 1 || 0 }}
           CGO_ENABLED: ${{ matrix.goos == 'windows' && 1 || 0 }}
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
-          CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
         working-directory: ./sealdice-core
         run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$CUR_TIME($PROJECT_VERSION_S)" .
       - name: Upload Core
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./sealdice-core/output
@@ -318,26 +321,27 @@ jobs:
         with:
           submodules: true
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20'
+          cache-dependency-path: sealdice-core/go.sum
       - name: Install dependencies
         working-directory: ./sealdice-core
         run: |
           go mod tidy
           go get .
       - name: Get UI Resources
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-core/static/frontend
 
       - name: Get current time
-        uses: josStorer/get-current-time@v2
-        id: current-time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
         with:
-          format: YYMMDD
-          utcOffset: "+08:00"
+          format: YYYYMMDD
+          timezone-offset: -480
 
       - name: Set Env
         working-directory: ./sealdice-core
@@ -353,11 +357,11 @@ jobs:
           CGO_ENABLED: 1
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -mmacosx-version-min=10.12
           CGO_CFLAGS: -mmacosx-version-min=10.12
-          CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
         working-directory: ./sealdice-core
         run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$CUR_TIME($PROJECT_VERSION_S)" .
       - name: Upload Core
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./sealdice-core/output
@@ -379,26 +383,27 @@ jobs:
           link-to-sdk: true
           local-cache: false
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20'
+          cache-dependency-path: sealdice-core/go.sum
       - name: Install dependencies
         working-directory: ./sealdice-core
         run: |
           go mod tidy
           go get .
       - name: Get UI Resources
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-ui
           path: ./sealdice-core/static/frontend
 
       - name: Get current time
-        uses: josStorer/get-current-time@v2
-        id: current-time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
         with:
-          format: YYMMDD
-          utcOffset: "+08:00"
+          format: YYYYMMDD
+          timezone-offset: -480
 
       - name: Set Env
         working-directory: ./sealdice-core
@@ -413,12 +418,12 @@ jobs:
           CGO_ENABLED: 1
           CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
-          CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
         working-directory: ./sealdice-core
         run: |
           go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$CUR_TIME($PROJECT_VERSION_S)" .
       - name: Upload Core
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_android_arm64
           path: ./sealdice-core/output
@@ -438,22 +443,22 @@ jobs:
       - name: Set Env
         run: echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Get Core-android
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_android_arm64
           path: ./sealdice-android/app/src/main/assets/sealdice
       - name: Get Documents
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: documents
           path: ./sealdice-android/app/src/main/assets/sealdice/data
       - name: Get Gocqhttp
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: go-cqhttp_android_arm64
           path: ./sealdice-android/app/src/main/assets/sealdice/go-cqhttp/
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -476,7 +481,7 @@ jobs:
           bash ./gradlew assembleDebug --stacktrace
           mv ./app/build/outputs/apk/debug/app-debug.apk ./app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION }}_arm64.apk
       - name: Upload Apk
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice_${{ env.PROJECT_VERSION }}_android_arm64
           path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION }}_arm64.apk
@@ -505,17 +510,17 @@ jobs:
       - name: Set Env
         run: echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Get Documents
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: documents
           path: ./data
       - name: Get Gocqhttp
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: go-cqhttp_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./go-cqhttp/
       - name: Get Core
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
@@ -523,7 +528,7 @@ jobs:
         if: matrix.goos != 'windows'
         run: chmod +x ./sealdice-core
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
@@ -553,7 +558,7 @@ jobs:
       - name: Set Env
         run: echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
       - name: Get Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./temp/
@@ -561,18 +566,18 @@ jobs:
       # 比较粗糙，回头按照release那个方式调整一下所有变量的出处
       # 现在会有个问题就是steps执行隔夜可能会出事
       - name: Get current time
-        uses: josStorer/get-current-time@v2
-        id: current-time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
         with:
           format: YYYYMMDD
-          utcOffset: "+08:00"
+          timezone-offset: -480
 
       - name: Compress (default)
         if: matrix.goos != 'windows' && matrix.goos != 'android'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
         run: |
           cd ./temp && find . -type f | cut -c 3- | tar -zcvf ../sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.tar.gz -T -;
           echo "DIST=sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
@@ -581,7 +586,7 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
         run: |
           cd ./temp
           zip -r ../sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.zip .
@@ -591,14 +596,14 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CUR_TIME: ${{ steps.current-time.outputs.formattedTime }}
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
         run: |
           mv ./temp/sealdice_${PROJECT_VERSION}_${GOARCH}.apk ./sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOARCH}.apk
           echo "DIST=sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOARCH}.apk" >> $GITHUB_ENV;
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: sealdice-prerelease
+          name: sealdice-prerelease_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ${{ env.DIST }}
 
   prerelease:
@@ -609,22 +614,36 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Get Files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: sealdice-prerelease
+          pattern: sealdice-prerelease*
           path: ./dist/
-      - name: Update Prerelease
-        uses: andelf/nightly-release@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
         with:
-          tag_name: pre-release
-          name: 'Latest Dev Build $$'
+          format: YYYYMMDD
+          timezone-offset: -480
+      - name: Update Prerelease tag
+        run: |
+          git tag -f pre-release
+          git push -f origin pre-release
+      - name: Update Prerelease
+        uses: ncipollo/release-action@v1
+        with:
+          tag: pre-release
+          name: 'Latest Dev Build ${{ steps.currentTime.outputs.time }}'
           prerelease: true
           body: '> ⚠️注意️️：这是自动构建的预发布版本，非正式版本！'
-          files: |
-            ./dist/sealdice*
+          artifacts: | 
+            dist/sealdice*
+          allowUpdates: true
+          removeArtifacts: true
 
       # 可以使用，但因为文件名都是 sealdice_dev-aea89ca_20230919_linux_arm64.tar.gz
       # 这种形式 有一点捉急。就先屏蔽了
@@ -644,12 +663,15 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - prerelease
+    permissions:
+      actions: write
     steps:
-      - uses: geekyeggo/delete-artifact@v2
+      - uses: geekyeggo/delete-artifact@v4
         with:
+          token: ${{ github.token }}
           name: |
             documents
             go-cqhttp*
             sealdice-ui
             sealdice-core*
-            sealdice-prerelease
+            sealdice-prerelease*
