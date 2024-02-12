@@ -15,11 +15,13 @@ import (
 
 // PlatformAdapterDiscord 只有token需要记录，别的是生成的
 type PlatformAdapterDiscord struct {
-	Session       *IMSession         `yaml:"-" json:"-"`
-	Token         string             `yaml:"token" json:"token"`
-	ProxyURL      string             `yaml:"proxyURL" json:"proxyURL"`
-	EndPoint      *EndPointInfo      `yaml:"-" json:"-"`
-	IntentSession *discordgo.Session `yaml:"-" json:"-"`
+	Session            *IMSession         `yaml:"-" json:"-"`
+	Token              string             `yaml:"token" json:"token"`
+	ProxyURL           string             `yaml:"proxyURL" json:"proxyURL"`
+	ReverseProxyUrl    string             `yaml:"reverseProxyUrl" json:"reverseProxyUrl"`
+	ReverseProxyCDNUrl string             `yaml:"reverseProxyCDNUrl" json:"reverseProxyCDNUrl"`
+	EndPoint           *EndPointInfo      `yaml:"-" json:"-"`
+	IntentSession      *discordgo.Session `yaml:"-" json:"-"`
 }
 
 // GetGroupInfoAsync 同步一下群组信息
@@ -80,6 +82,14 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		}
 		dg.Dialer = &websocket.Dialer{HandshakeTimeout: 45 * time.Second}
 		dg.Dialer.Proxy = http.ProxyURL(u)
+	}
+	if pa.ReverseProxyUrl != "" {
+		pa.Session.Parent.Logger.Infof("Discord代理地址已设置为%s", pa.ReverseProxyUrl)
+		regenerateDiscordEndPoint(pa.ReverseProxyUrl)
+	}
+	if pa.ReverseProxyCDNUrl != "" {
+		pa.Session.Parent.Logger.Infof("Discord CDN代理地址已设置为%s", pa.ReverseProxyCDNUrl)
+		regenerateDiscordEndPointCDN(pa.ReverseProxyCDNUrl)
 	}
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// 忽略自己的消息……以及其他机器人的消息和系统消息
@@ -216,7 +226,6 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		}
 		pa.Session.OnMessageEdit(mctx, msg)
 	})
-
 	// 这里只处理消息，未来根据需要再改这里
 	dg.Identify.Intents = discordgo.IntentsAll
 	pa.IntentSession = dg
