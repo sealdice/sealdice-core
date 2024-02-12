@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/zlib"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -902,6 +904,9 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	return tempLog, nil
 }
 
+// 定义用于上传的元信息
+
+// 破坏性修改：更合理的第三方分页后端传参方式
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
 	_ = os.MkdirAll(dirpath, 0755)
@@ -921,6 +926,7 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 	if len(url) == 0 {
 		ctx.Dice.Logger.Infof("没有查询到之前上传的URL Log:%s.%s", groupID, logName)
 	} else {
+		// TODO:Log上传后又有更新，理论上应当更新原本的日志吧？考虑到潜在的海豹爆炸导致的安全性问题，多上传就多上传吧……
 		ctx.Dice.Logger.Infof(
 			"Log上传后又有更新, 重新上传 Log:%s.%s 上传时间:%s 更新时间:%s",
 			groupID, logName,
@@ -931,7 +937,9 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 
 	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupID, logName)
 
-	if len(lines) == 0 {
+	totalLines := len(lines)
+
+	if totalLines == 0 {
 		return "", errors.New("#此log不存在，或条目数为空，名字是否正确？")
 	}
 
@@ -939,47 +947,86 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 		return "", err
 	}
 
-	// 本地进行一个zip留档，以防万一
-	fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupID+"_"+logName)+".*.zip")
-	writer := zip.NewWriter(fzip)
+	// 在遇到超大规模的日志时（真的有人跑那么大个的日志吗我暂且蒙在鼓里）
+	// 会导致渲染出现问题。故考虑以5000行为一页，进行打包上传
+	// TODO:对于此，染色器需要更新以适配多页的情况
 
-	text := ""
-	for _, i := range lines {
-		timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-		text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
+	// 每次处理的日志条目数
+	pageSize := 5000
+
+	// 计算需要分页的次数
+	totalPages := (len(lines) + pageSize - 1) / pageSize
+
+	// 生成类似这样的数据：
+	//    {
+	//        "1": "md5",
+	//        "2": "md5",
+	//        pageNum:xxx
+	//    }
+	// 方便KV数据库存储。
+	pageNumToMD5 := make(map[string]string)
+	// 如果要让totalPages单独是数字好像会改结构体好麻烦的样子……
+	pageNumToMD5["pageNum"] = string(rune(totalPages))
+	for page := 0; page < totalPages; page++ {
+		// 计算当前页的起始和结束索引
+		// 创建一个分页请求
+		v := model.QueryLogLinePage{}
+		v.PageNum = page
+		v.PageSize = pageSize
+		v.GroupID = groupID
+		v.LogName = logName
+		pageLines, err := model.LogGetLinePage(ctx.Dice.DBLogs, &v)
+		//暂时先打印日志，目前暂时没有什么太多的修改方案
+		if err != nil {
+			fmt.Println(err)
+		}
+		// 本地进行数个zip留档(话说回来不能分卷压缩诶2333)
+		fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupID+"_"+logName)+".*.zip")
+		writer := zip.NewWriter(fzip)
+		text := ""
+		for _, i := range pageLines {
+			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
+			text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
+		}
+		{
+			wr, _ := writer.Create(constants.LogExportReadmeFilename)
+			_, _ = wr.Write([]byte(constants.LogExportReadmeContent))
+		}
+		{
+			fileWriter, _ := writer.Create(constants.LogExportTxtFilename)
+			_, _ = fileWriter.Write([]byte(text))
+		}
+		// 上传的数据不变，毕竟服务器不能也最好不要进行解压以防止压缩炸弹
+		// 想想可能会很麻烦，毕竟分页之后染色器的许多逻辑都得调整，从长计议
+		// 另外后面的表单上传需要想办法区分页码……
+		data, err := json.Marshal(map[string]interface{}{
+			"version": StoryVersion,
+			"items":   lines,
+		})
+		if err == nil {
+			// 要能体现出页码来，暂时没写
+			fileWriter2, _ := writer.Create(constants.LogExportJsonFilename)
+			_, _ = fileWriter2.Write(data)
+		}
+		_ = writer.Close()
+		_ = fzip.Close()
+		if err != nil {
+			return "", err
+		}
+		var zlibBuffer bytes.Buffer
+		w := zlib.NewWriter(&zlibBuffer)
+		_, _ = w.Write(data)
+		_ = w.Close()
+		// 计算md5并根据页码填写
+		hashMd5 := CalculateMD5(zlibBuffer.Bytes())
+		pageNumToMD5[string(rune(page))] = hashMd5
+		// 简单琢磨了一下，即使我先上传元数据，再上传数据，代码开源的情况下也是极其容易伪造
+		// 防范的话应该是通过请求头等方式规避（公骰），开源的话，后端安全几乎不可能能做到。
+		// 调用曾经的接口上传就好了，不过要带上自己的md5
+		url = UploadFileToPinenut(ctx.Dice.Logger, hashMd5, logName, ctx.EndPoint.UserID, &zlibBuffer)
 	}
+	// 上传对应的元数据，理论上，上面的上传就已经将所有的都上传好了，元数据在服务器可以验证一下是否存在，之后返回一个链接
 
-	{
-		wr, _ := writer.Create(constants.LogExportReadmeFilename)
-		_, _ = wr.Write([]byte(constants.LogExportReadmeContent))
-	}
-	{
-		fileWriter, _ := writer.Create(constants.LogExportTxtFilename)
-		_, _ = fileWriter.Write([]byte(text))
-	}
-
-	data, err := json.Marshal(map[string]interface{}{
-		"version": StoryVersion,
-		"items":   lines,
-	})
-	if err == nil {
-		fileWriter2, _ := writer.Create(constants.LogExportJsonFilename)
-		_, _ = fileWriter2.Write(data)
-	}
-
-	_ = writer.Close()
-	_ = fzip.Close()
-
-	if err != nil {
-		return "", err
-	}
-
-	var zlibBuffer bytes.Buffer
-	w := zlib.NewWriter(&zlibBuffer)
-	_, _ = w.Write(data)
-	_ = w.Close()
-
-	url = UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserID, &zlibBuffer)
 	if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupID, logName, url); errDB != nil {
 		ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
 	}
@@ -987,6 +1034,12 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 		return "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
 	}
 	return url, nil
+}
+
+func CalculateMD5(input []byte) string {
+	hash := md5.New()
+	hash.Write(input)
+	return hex.EncodeToString(hash.Sum(nil))
 }
 
 // LogRollBriefByPC 根据log生成骰点简报

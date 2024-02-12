@@ -27,24 +27,37 @@ func _tryGetBackendBase(url string) string {
 }
 
 var backendUrlsRaw = []string{
-	"http://dice.weizaima.com",
+	"https://worker.firehomework.top",
 }
 
 var BackendUrls = []string{
-	"http://dice.weizaima.com",
+	"https://worker.firehomework.top",
 }
 
 func TryGetBackendURL() {
-	ret := _tryGetBackendBase("http://sealdice.com/list.txt")
+	ret := _tryGetBackendBase("http://sealdice.com/listA.txt")
 	if ret == "" {
-		ret = _tryGetBackendBase("http://test1.sealdice.com/list.txt")
+		ret = _tryGetBackendBase("http://test1.sealdice.com/listA.txt")
 	}
 	if ret != "" {
 		BackendUrls = append(backendUrlsRaw, strings.Split(ret, "\n")...) //nolint:gocritic
 	}
 }
 
-func uploadFileToWeizaimaBase(backendURL string, log *zap.SugaredLogger, name string, uniformID string, data io.Reader) string {
+// Hadoop里说这是元信息，咱也不知道Go里怎么称呼，反正先这样好了~
+func uploadFsimage(name string) {
+	// 其实我不喜欢处理这种multipart，但是我不知道怎么写POST传参——
+	// 高情商：木落一定有他自己的想法和限制8
+	client := &http.Client{}
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	field, err := writer.CreateFormField("name")
+	if err == nil {
+		_, _ = field.Write([]byte(name))
+	}
+}
+
+func uploadFileToPinenutBase(backendURL string, md5 string, log *zap.SugaredLogger, name string, uniformID string, data io.Reader) string {
 	client := &http.Client{}
 
 	body := &bytes.Buffer{}
@@ -57,6 +70,11 @@ func uploadFileToWeizaimaBase(backendURL string, log *zap.SugaredLogger, name st
 	field, err = writer.CreateFormField("uniform_id")
 	if err == nil {
 		_, _ = field.Write([]byte(uniformID))
+	}
+	// 添加md5字段，依靠此存放KV
+	field, err = writer.CreateFormField("md5")
+	if err == nil {
+		_, _ = field.Write([]byte(md5))
 	}
 
 	field, err = writer.CreateFormField("client")
@@ -99,13 +117,14 @@ func uploadFileToWeizaimaBase(backendURL string, log *zap.SugaredLogger, name st
 	return ret.URL
 }
 
-func UploadFileToWeizaima(log *zap.SugaredLogger, name string, uniformID string, data io.Reader) string {
+// 毕竟会和海豹的设计完全不同，改一下名吧反正改回来也很方便（？）
+func UploadFileToPinenut(log *zap.SugaredLogger, name string, uniformID string, md5 string, data io.Reader) string {
 	// 逐个尝试所有后端地址
 	for _, i := range BackendUrls {
 		if i == "" {
 			continue
 		}
-		ret := uploadFileToWeizaimaBase(i, log, name, uniformID, data)
+		ret := uploadFileToPinenutBase(i, md5, log, name, uniformID, data)
 		if ret != "" {
 			return ret
 		}
