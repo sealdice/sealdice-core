@@ -184,6 +184,9 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 
 	dg.AddHandler(func(s *discordgo.Session, ctx *discordgo.MessageUpdate) {
 		msg := new(Message)
+		if ctx.EditedTimestamp == nil {
+			return
+		}
 		msg.Time = ctx.EditedTimestamp.Unix() // secs
 		msg.RawID = ctx.ID
 		msg.Message = ctx.Content
