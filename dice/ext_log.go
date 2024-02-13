@@ -980,7 +980,7 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 		v.GroupID = groupID
 		v.LogName = logName
 		pageLines, err := model.LogGetLinePage(ctx.Dice.DBLogs, &v)
-		//暂时先打印日志，目前暂时没有什么太多的修改方案
+		// 暂时先打印日志，目前暂时没有什么太多的修改方案
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -1043,7 +1043,8 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 }
 
 func CalculateMD5(input []byte) string {
-	hash := md5.New()
+	// 感觉MD5就足够了……
+	hash := md5.New() // #nosec
 	hash.Write(input)
 	return hex.EncodeToString(hash.Sum(nil))
 }

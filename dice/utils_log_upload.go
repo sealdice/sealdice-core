@@ -69,7 +69,7 @@ func sendJSONPostRequest(backendURL string, log *zap.SugaredLogger, data interfa
 		return ""
 	}
 	// 构建 POST 请求
-	req, err := http.NewRequest("POST", backendURL+"/dice/api/log", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(http.MethodPost, backendURL+"/dice/api/log", bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Errorf("构建请求错误: %v", err)
 		return ""
