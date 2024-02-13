@@ -27,11 +27,11 @@ func _tryGetBackendBase(url string) string {
 }
 
 var backendUrlsRaw = []string{
-	"https://worker.firehomework.top",
+	"http://127.0.0.1:8787",
 }
 
 var BackendUrls = []string{
-	"https://worker.firehomework.top",
+	"http://127.0.0.1:8787",
 }
 
 func TryGetBackendURL() {
@@ -45,16 +45,58 @@ func TryGetBackendURL() {
 }
 
 // Hadoop里说这是元信息，咱也不知道Go里怎么称呼，反正先这样好了~
-func uploadFsimage(name string) {
-	// 其实我不喜欢处理这种multipart，但是我不知道怎么写POST传参——
-	// 高情商：木落一定有他自己的想法和限制8
-	client := &http.Client{}
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	field, err := writer.CreateFormField("name")
-	if err == nil {
-		_, _ = field.Write([]byte(name))
+func uploadFsimage(log *zap.SugaredLogger, data interface{}) string {
+	// 逐个尝试所有后端地址
+	for _, i := range BackendUrls {
+		if i == "" {
+			continue
+		}
+		ret := sendJSONPostRequest(i, log, data)
+		if ret != "" {
+			return ret
+		}
 	}
+	return ""
+}
+
+func sendJSONPostRequest(backendURL string, log *zap.SugaredLogger, data interface{}) string {
+	client := &http.Client{}
+	// 将数据编码为 JSON 格式
+	jsonData, err := json.Marshal(data)
+	log.Infof("JSON 数据：%s", string(jsonData))
+	if err != nil {
+		log.Errorf("上传元数据 JSON 编码失败")
+		return ""
+	}
+	// 构建 POST 请求
+	req, err := http.NewRequest("POST", backendURL+"/dice/api/log", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Errorf("构建请求错误: %v", err)
+		return ""
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// 发送请求并获取响应
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Errorf("发送请求错误: %v", err)
+		return ""
+	}
+	defer func() { _ = resp.Body.Close() }()
+	bodyText, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Errorf(err.Error())
+		return ""
+	}
+
+	var ret struct {
+		URL string `json:"url"`
+	}
+	_ = json.Unmarshal(bodyText, &ret)
+	if ret.URL == "" {
+		log.Error("日志元信息上传的返回结果异常:", string(bodyText))
+	}
+	return ret.URL
 }
 
 func uploadFileToPinenutBase(backendURL string, md5 string, log *zap.SugaredLogger, name string, uniformID string, data io.Reader) string {
@@ -108,13 +150,13 @@ func uploadFileToPinenutBase(backendURL string, md5 string, log *zap.SugaredLogg
 	}
 
 	var ret struct {
-		URL string `json:"url"`
+		STATUS string `json:"status"`
 	}
 	_ = json.Unmarshal(bodyText, &ret)
-	if ret.URL == "" {
-		log.Error("日志上传的返回结果异常:", string(bodyText))
+	if ret.STATUS != "success" {
+		log.Error("日志分块上传的返回结果异常:", string(bodyText))
 	}
-	return ret.URL
+	return ret.STATUS
 }
 
 // 毕竟会和海豹的设计完全不同，改一下名吧反正改回来也很方便（？）

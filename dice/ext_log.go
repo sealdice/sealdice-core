@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"sealdice-core/dice/constants"
 	"sealdice-core/dice/model"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -906,7 +907,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 
 // 定义用于上传的元信息
 
-// 破坏性修改：更合理的第三方分页后端传参方式
+// 破坏性修改：试图描述一种更合理的第三方分页后端传参方式
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
 	_ = os.MkdirAll(dirpath, 0755)
@@ -954,7 +955,7 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 	// 每次处理的日志条目数
 	pageSize := 5000
 
-	// 计算需要分页的次数
+	// 计算需要分页的次数,加1是为了能和ID佬的代码直接对接
 	totalPages := (len(lines) + pageSize - 1) / pageSize
 
 	// 生成类似这样的数据：
@@ -965,9 +966,12 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 	//    }
 	// 方便KV数据库存储。
 	pageNumToMD5 := make(map[string]string)
-	// 如果要让totalPages单独是数字好像会改结构体好麻烦的样子……
-	pageNumToMD5["pageNum"] = string(rune(totalPages))
-	for page := 0; page < totalPages; page++ {
+	// 将页码数量转换为字符串，并存储到 map 中
+	pageNumToMD5["totalPage"] = strconv.Itoa(totalPages)
+	// 将本地进行zip留档的部分提取出来
+	fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupID+"_"+logName)+".*.zip")
+	writer := zip.NewWriter(fzip)
+	for page := 1; page <= totalPages; page++ {
 		// 计算当前页的起始和结束索引
 		// 创建一个分页请求
 		v := model.QueryLogLinePage{}
@@ -980,36 +984,31 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 		if err != nil {
 			fmt.Println(err)
 		}
-		// 本地进行数个zip留档(话说回来不能分卷压缩诶2333)
-		fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupID+"_"+logName)+".*.zip")
-		writer := zip.NewWriter(fzip)
 		text := ""
 		for _, i := range pageLines {
 			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
 			text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
 		}
+		// TODO：这里需要合并一个总的吗？还是说全部以分页的方式存储呢？
 		{
-			wr, _ := writer.Create(constants.LogExportReadmeFilename)
-			_, _ = wr.Write([]byte(constants.LogExportReadmeContent))
-		}
-		{
-			fileWriter, _ := writer.Create(constants.LogExportTxtFilename)
+			mystr := fmt.Sprintf("raw-log-%d.txt", page)
+			fileWriter, _ := writer.Create(mystr)
 			_, _ = fileWriter.Write([]byte(text))
 		}
 		// 上传的数据不变，毕竟服务器不能也最好不要进行解压以防止压缩炸弹
-		// 想想可能会很麻烦，毕竟分页之后染色器的许多逻辑都得调整，从长计议
+		// 想想可能会很麻烦，毕竟分页之后染色器的许多逻辑都得调整
+		// 比如：现在的用户QQ怎么染色……因为一页很可能不能显示所有用户，是否要考虑元数据中维护一个列表？
 		// 另外后面的表单上传需要想办法区分页码……
 		data, err := json.Marshal(map[string]interface{}{
 			"version": StoryVersion,
-			"items":   lines,
+			"items":   pageLines,
 		})
 		if err == nil {
 			// 要能体现出页码来，暂时没写
-			fileWriter2, _ := writer.Create(constants.LogExportJsonFilename)
+			mystr := fmt.Sprintf("sealdice-standard-log-%d.json", page)
+			fileWriter2, _ := writer.Create(mystr)
 			_, _ = fileWriter2.Write(data)
 		}
-		_ = writer.Close()
-		_ = fzip.Close()
 		if err != nil {
 			return "", err
 		}
@@ -1019,14 +1018,21 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 		_ = w.Close()
 		// 计算md5并根据页码填写
 		hashMd5 := CalculateMD5(zlibBuffer.Bytes())
-		pageNumToMD5[string(rune(page))] = hashMd5
+		pageNumToMD5[strconv.Itoa(page)] = hashMd5
 		// 简单琢磨了一下，即使我先上传元数据，再上传数据，代码开源的情况下也是极其容易伪造
 		// 防范的话应该是通过请求头等方式规避（公骰），开源的话，后端安全几乎不可能能做到。
 		// 调用曾经的接口上传就好了，不过要带上自己的md5
-		url = UploadFileToPinenut(ctx.Dice.Logger, hashMd5, logName, ctx.EndPoint.UserID, &zlibBuffer)
+		UploadFileToPinenut(ctx.Dice.Logger, logName, ctx.EndPoint.UserID, hashMd5, &zlibBuffer)
 	}
+	{
+		wr, _ := writer.Create(constants.LogExportReadmeFilename)
+		_, _ = wr.Write([]byte(constants.LogExportReadmeContent))
+	}
+	// 关闭压缩包的读写部分
+	_ = writer.Close()
+	_ = fzip.Close()
 	// 上传对应的元数据，理论上，上面的上传就已经将所有的都上传好了，元数据在服务器可以验证一下是否存在，之后返回一个链接
-
+	url = uploadFsimage(ctx.Dice.Logger, pageNumToMD5)
 	if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupID, logName, url); errDB != nil {
 		ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
 	}
