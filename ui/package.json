@@ -41,7 +41,7 @@
     "eslint": "^8.54.0",
     "eslint-plugin-vue": "^9.18.1",
     "iconify-icon": "^1.0.8",
-    "sass": "^1.69.5",
+    "sass": "^1.70.0",
     "typescript": "^5.3.2",
     "unplugin-icons": "^0.17.4",
     "unplugin-vue-components": "^0.25.2",
