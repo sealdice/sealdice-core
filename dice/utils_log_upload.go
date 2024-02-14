@@ -27,62 +27,62 @@ func _tryGetBackendBase(url string) string {
 }
 
 var backendUrlsRaw = []string{
-	"http://127.0.0.1:8787",
+	"http://dice.weizaima.com",
 }
 
 var BackendUrls = []string{
-	"http://127.0.0.1:8787",
+	"http://dice.weizaima.com",
 }
 
 func TryGetBackendURL() {
-	ret := _tryGetBackendBase("http://sealdice.com/listA.txt")
+	ret := _tryGetBackendBase("http://sealdice.com/list.txt")
 	if ret == "" {
-		ret = _tryGetBackendBase("http://test1.sealdice.com/listA.txt")
+		ret = _tryGetBackendBase("http://test1.sealdice.com/list.txt")
 	}
 	if ret != "" {
 		BackendUrls = append(backendUrlsRaw, strings.Split(ret, "\n")...) //nolint:gocritic
 	}
 }
 
-// Hadoop里说这是元信息，咱也不知道Go里怎么称呼，反正先这样好了~
-func uploadFsimage(log *zap.SugaredLogger, data interface{}) string {
-	// 逐个尝试所有后端地址
-	for _, i := range BackendUrls {
-		if i == "" {
-			continue
-		}
-		ret := sendJSONPostRequest(i, log, data)
-		if ret != "" {
-			return ret
-		}
-	}
-	return ""
-}
-
-func sendJSONPostRequest(backendURL string, log *zap.SugaredLogger, data interface{}) string {
+func uploadFileToWeizaimaBase(backendURL string, log *zap.SugaredLogger, name string, uniformID string, data io.Reader) string {
 	client := &http.Client{}
-	// 将数据编码为 JSON 格式
-	jsonData, err := json.Marshal(data)
-	log.Infof("JSON 数据：%s", string(jsonData))
-	if err != nil {
-		log.Errorf("上传元数据 JSON 编码失败")
-		return ""
-	}
-	// 构建 POST 请求
-	req, err := http.NewRequest(http.MethodPost, backendURL+"/dice/api/log", bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Errorf("构建请求错误: %v", err)
-		return ""
-	}
-	req.Header.Set("Content-Type", "application/json")
 
-	// 发送请求并获取响应
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	field, err := writer.CreateFormField("name")
+	if err == nil {
+		_, _ = field.Write([]byte(name))
+	}
+
+	field, err = writer.CreateFormField("uniform_id")
+	if err == nil {
+		_, _ = field.Write([]byte(uniformID))
+	}
+
+	field, err = writer.CreateFormField("client")
+	if err == nil {
+		_, _ = field.Write([]byte("SealDice"))
+	}
+
+	part, _ := writer.CreateFormFile("file", "log-zlib-compressed")
+	_, _ = io.Copy(part, data)
+	_ = writer.Close()
+
+	req, err := http.NewRequest(http.MethodPut, backendURL+"/dice/api/log", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if err != nil {
+		log.Errorf(err.Error())
+		return ""
+	}
+
+	// req.Header.Set("authority", "transfer.sh")
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Errorf("发送请求错误: %v", err)
+		log.Errorf(err.Error())
 		return ""
 	}
 	defer func() { _ = resp.Body.Close() }()
+
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Errorf(err.Error())
@@ -94,9 +94,23 @@ func sendJSONPostRequest(backendURL string, log *zap.SugaredLogger, data interfa
 	}
 	_ = json.Unmarshal(bodyText, &ret)
 	if ret.URL == "" {
-		log.Error("日志元信息上传的返回结果异常:", string(bodyText))
+		log.Error("日志上传的返回结果异常:", string(bodyText))
 	}
 	return ret.URL
+}
+
+func UploadFileToWeizaima(log *zap.SugaredLogger, name string, uniformID string, data io.Reader) string {
+	// 逐个尝试所有后端地址
+	for _, i := range BackendUrls {
+		if i == "" {
+			continue
+		}
+		ret := uploadFileToWeizaimaBase(i, log, name, uniformID, data)
+		if ret != "" {
+			return ret
+		}
+	}
+	return ""
 }
 
 func uploadFileToPinenutBase(backendURL string, md5 string, log *zap.SugaredLogger, name string, uniformID string, data io.Reader) string {
@@ -159,7 +173,7 @@ func uploadFileToPinenutBase(backendURL string, md5 string, log *zap.SugaredLogg
 	return ret.STATUS
 }
 
-// 毕竟会和海豹的设计完全不同，改一下名吧反正改回来也很方便（？）
+// UploadFileToPinenut 分页上传到派恩实现的后端
 func UploadFileToPinenut(log *zap.SugaredLogger, name string, uniformID string, md5 string, data io.Reader) string {
 	// 逐个尝试所有后端地址
 	for _, i := range BackendUrls {
@@ -172,4 +186,59 @@ func UploadFileToPinenut(log *zap.SugaredLogger, name string, uniformID string, 
 		}
 	}
 	return ""
+}
+
+// uploadFsimage 上传元信息数据
+func uploadFsimage(log *zap.SugaredLogger, data interface{}) string {
+	// 逐个尝试所有后端地址
+	for _, i := range BackendUrls {
+		if i == "" {
+			continue
+		}
+		ret := sendJSONPostRequest(i, log, data)
+		if ret != "" {
+			return ret
+		}
+	}
+	return ""
+}
+
+func sendJSONPostRequest(backendURL string, log *zap.SugaredLogger, data interface{}) string {
+	client := &http.Client{}
+	// 将数据编码为 JSON 格式
+	jsonData, err := json.Marshal(data)
+	log.Infof("JSON 数据：%s", string(jsonData))
+	if err != nil {
+		log.Errorf("上传元数据 JSON 编码失败")
+		return ""
+	}
+	// 构建 POST 请求
+	req, err := http.NewRequest(http.MethodPost, backendURL+"/dice/api/log", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Errorf("构建请求错误: %v", err)
+		return ""
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// 发送请求并获取响应
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Errorf("发送请求错误: %v", err)
+		return ""
+	}
+	defer func() { _ = resp.Body.Close() }()
+	bodyText, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Errorf(err.Error())
+		return ""
+	}
+
+	var ret struct {
+		URL string `json:"url"`
+	}
+	_ = json.Unmarshal(bodyText, &ret)
+	if ret.URL == "" {
+		log.Error("日志元信息上传的返回结果异常:", string(bodyText))
+	}
+	return ret.URL
 }
