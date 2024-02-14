@@ -821,12 +821,8 @@ func (d *Dice) registerCoreCommands() {
 				}
 			}
 
-			if ctx.PrivilegeLevel < pRequired {
-				if subCmd != "unlock" {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限"))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
+			// 单独处理解锁指令
+			if subCmd == "unlock" {
 				// 特殊解锁指令
 				code := cmdArgs.GetArgN(2)
 				if ctx.Dice.UnlockCodeVerify(code) {
@@ -841,6 +837,11 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
+			if ctx.PrivilegeLevel < pRequired {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
 			switch subCmd {
 			case "add":
 				var count int
@@ -852,8 +853,6 @@ func (d *Dice) registerCoreCommands() {
 				}
 				ctx.Dice.Save(false)
 				ReplyToSender(ctx, msg, fmt.Sprintf("海豹将新增%d位master", count))
-			case "unlock":
-				ReplyToSender(ctx, msg, "你已经是Master了")
 			case "del", "rm":
 				var count int
 				for _, uid := range readIDList(ctx, msg, cmdArgs) {
