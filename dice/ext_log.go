@@ -905,10 +905,96 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	return tempLog, nil
 }
 
-// 定义用于上传的元信息
-
-// 破坏性修改：试图描述一种更合理的第三方分页后端传参方式
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
+	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
+	_ = os.MkdirAll(dirpath, 0755)
+
+	url, uploadTS, updateTS, _ := model.LogGetUploadInfo(ctx.Dice.DBLogs, groupID, logName)
+	if len(url) > 0 && uploadTS > updateTS {
+		// 已有URL且上传时间晚于Log更新时间（最后录入时间），直接返回
+		ctx.Dice.Logger.Infof(
+			"查询到之前上传的URL, 直接使用 Log:%s.%s 上传时间:%s 更新时间:%s URL:%s",
+			groupID, logName,
+			time.Unix(uploadTS, 0).Format("2006-01-02 15:04:05"),
+			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
+			url,
+		)
+		return url, nil
+	}
+	if len(url) == 0 {
+		ctx.Dice.Logger.Infof("没有查询到之前上传的URL Log:%s.%s", groupID, logName)
+	} else {
+		ctx.Dice.Logger.Infof(
+			"Log上传后又有更新, 重新上传 Log:%s.%s 上传时间:%s 更新时间:%s",
+			groupID, logName,
+			time.Unix(uploadTS, 0).Format("2006-01-02 15:04:05"),
+			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
+		)
+	}
+
+	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupID, logName)
+
+	if len(lines) == 0 {
+		return "", errors.New("#此log不存在，或条目数为空，名字是否正确？")
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	// 本地进行一个zip留档，以防万一
+	fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupID+"_"+logName)+".*.zip")
+	writer := zip.NewWriter(fzip)
+
+	text := ""
+	for _, i := range lines {
+		timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
+		text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
+	}
+
+	{
+		wr, _ := writer.Create(constants.LogExportReadmeFilename)
+		_, _ = wr.Write([]byte(constants.LogExportReadmeContent))
+	}
+	{
+		fileWriter, _ := writer.Create(constants.LogExportTxtFilename)
+		_, _ = fileWriter.Write([]byte(text))
+	}
+
+	data, err := json.Marshal(map[string]interface{}{
+		"version": StoryVersion,
+		"items":   lines,
+	})
+	if err == nil {
+		fileWriter2, _ := writer.Create(constants.LogExportJsonFilename)
+		_, _ = fileWriter2.Write(data)
+	}
+
+	_ = writer.Close()
+	_ = fzip.Close()
+
+	if err != nil {
+		return "", err
+	}
+
+	var zlibBuffer bytes.Buffer
+	w := zlib.NewWriter(&zlibBuffer)
+	_, _ = w.Write(data)
+	_ = w.Close()
+
+	url = UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserID, &zlibBuffer)
+	if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupID, logName, url); errDB != nil {
+		ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
+	}
+	if len(url) == 0 {
+		return "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
+	}
+	return url, nil
+}
+
+// LogPageSendToBackend 一种以分页的形式进行上传的预想代码
+
+func LogPageSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
 	_ = os.MkdirAll(dirpath, 0755)
 
@@ -989,7 +1075,7 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 			timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
 			text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
 		}
-		// TODO：这里需要合并一个总的吗？还是说全部以分页的方式存储呢？
+		// TODO：这里需要合并一个总的还是说全部以分页的方式存储
 		{
 			mystr := fmt.Sprintf("raw-log-%d.txt", page)
 			fileWriter, _ := writer.Create(mystr)
@@ -1042,6 +1128,7 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 	return url, nil
 }
 
+// CalculateMD5 提供给分页代码的MD5计算函数
 func CalculateMD5(input []byte) string {
 	// 感觉MD5就足够了……
 	hash := md5.New() // #nosec
