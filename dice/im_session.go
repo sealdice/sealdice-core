@@ -1020,7 +1020,7 @@ var mutex sync.Mutex
 var groupLeaveNum int
 
 // LongTimeQuitInactiveGroup 另一种退群方案,其中minute代表间隔多久执行一次，num代表一次退几个群（每次退群之间有10秒的等待时间）
-func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundInterval time.Duration, groupsPerRound int) {
+func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundInterval int, groupsPerRound int) {
 	// 该方案目前是issue方案的简化版，是我制作的鲨群机的略高级解决方式。
 	// 该方案下，将会创建一个线程，从该时间开始计算将要退出的群聊并以minute为间隔的时间退出num个群。
 	if !mutex.TryLock() {
@@ -1121,7 +1121,7 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 			s.Parent.Logger.Info(hint)
 			// 研究了半天，怀疑得这么改以规避durationcheck
 			// durationcheck好像是担心你调用函数时重复乘对应的倍数
-			roundIntervalMinute := roundInterval * time.Minute
+			roundIntervalMinute := time.Duration(roundInterval) * time.Minute
 			time.Sleep(roundIntervalMinute)
 		}
 	}()
