@@ -566,7 +566,7 @@ func (d *Dice) ExtFind(s string) *ExtInfo {
 	}
 	for _, i := range d.ExtList {
 		// 忽略大小写匹配，优先级最低
-		if strings.ToLower(i.Name) == strings.ToLower(s) || slices.Contains(i.Aliases, strings.ToLower(s)) {
+		if strings.EqualFold(i.Name, s) || slices.Contains(i.Aliases, strings.ToLower(s)) {
 			return i
 		}
 	}
