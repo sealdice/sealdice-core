@@ -553,7 +553,20 @@ func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) 
 // ExtFind 根据名称或别名查找扩展
 func (d *Dice) ExtFind(s string) *ExtInfo {
 	for _, i := range d.ExtList {
-		if i.Name == s || slices.Contains(i.Aliases, s) {
+		// 名字匹配，优先级最高
+		if i.Name == s {
+			return i
+		}
+	}
+	for _, i := range d.ExtList {
+		// 别名匹配，优先级次之
+		if slices.Contains(i.Aliases, s) {
+			return i
+		}
+	}
+	for _, i := range d.ExtList {
+		// 忽略大小写匹配，优先级最低
+		if strings.ToLower(i.Name) == strings.ToLower(s) || slices.Contains(i.Aliases, strings.ToLower(s)) {
 			return i
 		}
 	}
