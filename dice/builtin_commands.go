@@ -1687,7 +1687,7 @@ func (d *Dice) registerCoreCommands() {
 				var closed []string
 				var notfound []string
 				for index := 0; index < len(cmdArgs.Args); index++ {
-					extName := strings.ToLower(cmdArgs.Args[index])
+					extName := cmdArgs.Args[index]
 					extName = d.ExtAliasToName(extName)
 					ei := ctx.Group.ExtInactiveByName(extName)
 					if ei != nil {
