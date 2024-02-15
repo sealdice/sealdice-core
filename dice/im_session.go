@@ -1034,6 +1034,7 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 
 	s.Parent.Logger.Infof("开始清理不活跃群聊. 判定线 %s", threshold.Format(time.RFC3339))
 	go func() {
+		defer mutex.Unlock()
 		groupLeaveNum = 0
 		// 原函数的思路似乎是直接获取整个群列表然后挨个判断
 		// 我试图修改成获取所有要退出群的消息，然后退出，这样能判断总计处理的数量，以便于掌握。
@@ -1120,8 +1121,6 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 			s.Parent.Logger.Info(hint)
 			time.Sleep(roundInterval * time.Minute)
 		}
-		// 整体运行完成，解开锁，供下次调用时使用
-		mutex.Unlock()
 	}()
 }
 
