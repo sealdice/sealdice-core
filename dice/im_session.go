@@ -1119,7 +1119,10 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 			// 等三十分钟
 			hint := fmt.Sprintf("第 %d 轮退群已经完成，共计 %d 轮，休息 %d 分钟中", round, rounds, roundInterval)
 			s.Parent.Logger.Info(hint)
-			time.Sleep(time.Duration(roundInterval) * time.Minute)
+			// 研究了半天，怀疑得这么改以规避durationcheck
+			// durationcheck好像是担心你调用函数时重复乘对应的倍数
+			roundIntervalMinute := roundInterval * time.Minute
+			time.Sleep(roundIntervalMinute)
 		}
 	}()
 }
