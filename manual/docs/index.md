@@ -88,7 +88,7 @@ highlights:
       - title: QQ 一群：524364253
       - title: QQ 二群：562897832
       - title: QQ 三群：715664650
-      - title: <del>QQ 四群：917654757</del>
+      - title: QQ 四群：917654757
       - title: QQ 五群：747114944
       - title: DODO 群：https://imdodo.com/s/246716
         link: https://imdodo.com/s/246716
