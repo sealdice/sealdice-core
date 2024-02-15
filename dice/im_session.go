@@ -1119,7 +1119,7 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 			// 等三十分钟
 			hint := fmt.Sprintf("第 %d 轮退群已经完成，共计 %d 轮，休息 %d 分钟中", round, rounds, roundInterval)
 			s.Parent.Logger.Info(hint)
-			time.Sleep(roundInterval * time.Minute)
+			time.Sleep(time.Duration(roundInterval) * time.Minute)
 		}
 	}()
 }
