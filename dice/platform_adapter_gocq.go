@@ -705,6 +705,12 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		// 好友通过后
 		if msgQQ.NoticeType == "friend_add" && msgQQ.PostType == "notice" {
 			// {"notice_type":"friend_add","post_type":"notice","self_id":222,"time":1648239248,"user_id":111}
+			// 拉格兰目前会发送错误的记录，记录如下：
+			// {"user_id":aaa,"notice_type":"friend_add","time":1708080896,"self_id":aaa,"post_type":"notice"}
+			// 即用户id和self_id是同一个id的情况，这就会导致错误发送消息。
+			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
+				return
+			}
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
