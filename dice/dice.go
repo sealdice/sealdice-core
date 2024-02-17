@@ -71,7 +71,7 @@ type ExtInfo struct {
 	// 更新时间
 	AutoActive      bool      `yaml:"-" json:"-" jsbind:"autoActive"` // 是否自动开启
 	CmdMap          CmdMapCls `yaml:"-" json:"-" jsbind:"cmdMap"`     // 指令集合
-	Brief           string    `yaml:"-" json:"-"`
+	Brief           string    `yaml:"-" json:"-" jsbind:"brief"`      // 简介
 	ActiveOnPrivate bool      `yaml:"-" json:"-"`
 
 	DefaultSetting *ExtDefaultSettingItem `yaml:"-" json:"-"` // 默认配置
