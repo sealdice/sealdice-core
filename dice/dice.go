@@ -99,7 +99,7 @@ type ExtInfo struct {
 	GetDescText       func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
 	IsLoaded          bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
 	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
-	OnAfterLoaded     func()                                                `yaml:"-" json:"-" jsbind:"onAfterLoaded"`
+	OnAfterLoad       func()                                                `yaml:"-" json:"-" jsbind:"onAfterLoaded"`
 }
 
 type DiceConfig struct { //nolint:revive
@@ -355,9 +355,9 @@ func (d *Dice) Init() {
 	d.RunAfterLoaded = []func(){}
 
 	for _, i := range d.ExtList {
-		if i.OnAfterLoaded != nil {
+		if i.OnAfterLoad != nil {
 			i.callWithJsCheck(d, func() {
-				i.OnAfterLoaded()
+				i.OnAfterLoad()
 			})
 		}
 	}

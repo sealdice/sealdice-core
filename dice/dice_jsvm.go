@@ -574,9 +574,9 @@ func (d *Dice) JsReload() {
 	_ = d.ConfigManager.Load()
 	d.JsLoadScripts()
 	for _, i := range d.ExtList {
-		if i.IsJsExt && i.OnAfterLoaded != nil {
+		if i.IsJsExt && i.OnAfterLoad != nil {
 			i.callWithJsCheck(d, func() {
-				i.OnAfterLoaded()
+				i.OnAfterLoad()
 			})
 		}
 	}
