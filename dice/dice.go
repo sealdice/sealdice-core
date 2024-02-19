@@ -99,7 +99,7 @@ type ExtInfo struct {
 	GetDescText       func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
 	IsLoaded          bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
 	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
-	OnAfterLoad       func()                                                `yaml:"-" json:"-" jsbind:"onAfterLoaded"`
+	OnAfterLoad       func()                                                `yaml:"-" json:"-" jsbind:"onAfterLoad"`
 }
 
 type DiceConfig struct { //nolint:revive
