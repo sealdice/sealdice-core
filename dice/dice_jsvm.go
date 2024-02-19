@@ -573,6 +573,13 @@ func (d *Dice) JsReload() {
 	d.JsInit()
 	_ = d.ConfigManager.Load()
 	d.JsLoadScripts()
+	for _, i := range d.ExtList {
+		if i.IsJsExt && i.OnAfterLoaded != nil {
+			i.callWithJsCheck(d, func() {
+				i.OnAfterLoaded()
+			})
+		}
+	}
 }
 
 // JsExtSettingVacuum 清理已被删除的脚本对应的插件配置
