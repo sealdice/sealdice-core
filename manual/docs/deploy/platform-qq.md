@@ -140,8 +140,10 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
 ```
 
 其中有几个重要的设置项需要填写和注意：
-- `Account` 下的 `Uin` 保持为 0 以使用二维码登录；
-- `SignServerUrl`：NTQQ 的签名服务地址，**注意此处的签名服务需要是 Linux NTQQ 签名服务，不可以使用 QSign、Shamrock 等提供的 Android QQ 签名服务**；
+
+- 运行 Lagrange 需要 [.NET](https://dotnet.microsoft.com/download)，安装对应拉格兰的版本（例如拉格兰后面是 7 则需安装 SDK 的版本为 7）。
+- `Password` 为空时为扫码，这里请留空。
+- `SignServerUrl`：NTQQ 的签名服务地址，**注意此处的签名服务需要是 Linux NTQQ 签名服务，不可以使用 QSign、Shamrock 等提供的 Android QQ 签名服务**；签名地址请到 Lagrange 的 MD 文档中自行寻找。
 - `Implementation.ForwardWebSocket` 下的 `Host` 和 `Port`，这是 Lagrange 将提供的 **OneBot-V11 正向 WS 服务地址**，记下后续使用。如果对应端口已占用请自行调整。
 
 ::: info Linux NTQQ 的签名服务
@@ -226,7 +228,7 @@ Root 即 Android 的超级用户权限，如对 QQ 应用进行注入等的危�
 
 *在使用之前，请在模拟器设置中打开 root 选项，软件中获取的一切权限都给予 **通过**，包括 **root 权限**。*
 
-使用 [面具安装工具](https://cowtransfer.com/s/9794ead1113d47)，把它安装到模拟器。 
+使用 [面具安装工具](https://cowtransfer.com/s/9794ead1113d47)，把它安装到模拟器。
 
 然后启动软件，输入 `m` 回车，再输入 `y` 回车，会索取超级用户权限，给予，然后输入 `1` 回车，再输入 `a` 回车，输入 `1` 回车，此时面具就安装到你的模拟器上了。
 
@@ -444,6 +446,50 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 :::
 
+## Liteloader ONEBOT-API <Badge type="tip" text="v1.4.2" vertical="middle" />
+
+海豹从 `v1.4.2` 版本开始支持通过 OneBot 协议连接 LiteLoader-OneBotAPI。
+
+::: info 介绍 LiteLoader-OneBotAPI
+
+*Liteloader* 是 NTQQ 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能，例如 *LiteLoader-OneBotAPI*，可以实现劫持客户端对外开放 API ，可以理解为装在 PC 上的 Shamrock。
+
+:::
+
+### 安装 LiteLoader
+
+社区提供了非常简便的[安装脚本](https://github.com/Mzdyl/LiteLoaderQQNT_Install/)，安装方法中在文档中，请自行查看。
+
+::: warning 注意
+
+- 使用 Windows 部署时脚本要使用管理员模式运行。
+- 由于脚本使用了 git，请在系统中安装 [git](https://git-scm.com/)。
+- 一定要在安装 QQ 客户端的主机上使用安装脚本。
+
+:::
+
+### 安装 OneBotAPI
+
+::: info 寻找 Plugins 文件夹
+
+安装完成 LiteLoader 后，如图所示![LiteLoader 中的 Plugins 目录](./images/image-020.png)
+所指处即插件文件夹，打开这个文件夹并且在 Plugins 新建一个文件夹，把 OneBotAPI **Release** 版本的 4 个文件解压到新建的文件夹处，重启 QQ 即可。
+
+:::
+
+在 LiteLoader 中安装 OneBotAPI，具体方法请参考 [OneBotAPI仓库](https://github.com/linyuchen/LiteLoaderQQNT-OneBotApi)。
+
+### 配置海豹
+
+安装完成后重新登录 QQ，默认开放的正向ws端口为 3001，在海豹的新添账号选择 OneBot 分离部署，账号处随便填写，连接地址填 **ws://localhost:3001** 就看到登录成功了！
+
+::: warning 注意事项
+
+- 暂时未添加反向 ws，只能通过正向 ws 连接，如若想修改端口请在 QQ 的设置 UI 自行修改。
+- 由于采用劫持路线，暂不清楚多账号登录情况。
+
+:::
+
 ## Go-cqhttp / Mirai
 
 ::: danger 不被 QQ 官方欢迎的第三方机器人
@@ -581,56 +627,74 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 1. 将 `go-cqhttp\go-cqhttp.exe` 文件复制到 `海豹目录/data/default/extra/gocqQQ号(你登录骰娘的qq号)` 这个文件夹下。
 
-![](./images/image-010.png)
+   ![](./images/image-010.png)
 
 2. 双击运行 `go-cqhttp.exe`，两次确认后出现 `go-cqhttp.bat` 文件。
 
-![](./images/image-011.png) ![](./images/image-012.png)
+   ![](./images/image-011.png) ![](./images/image-012.png)
 
 3. 双击运行 `go-cqhttp.bat`，出现以下消息后输入 `2`，回车，复制链接到浏览器（终端选中后右键即可复制粘贴，没有选项）。
 
-![](./images/image-013.png)
+   ![](./images/image-013.png)
 
-::: tip 出现 `open image cache db failed`
+   ::: tip 出现 `open image cache db failed`
 
-出现该报错的原因很可能是未彻底关闭海豹，gocq 依然在运行。你需要打开任务管理器终止 gocq 进程。
+   出现该报错的原因很可能是未彻底关闭海豹，gocq 依然在运行。你需要打开任务管理器终止 gocq 进程。
 
-:::
+   :::
 
 4. 按照 [手动抓取ticket教程-哔哩哔哩](https://b23.tv/GRGg4GR) 视频教程操作，成功滑条后（需要抓 ticket，不只是滑条）复制 ticket 到终端后回车。
 
-![](./images/image-014.png)
+   ![](./images/image-014.png)
 
 5. 复制一份 token 到桌面作为临时备份，避免出现意外。
 
-![](./images/image-015.png)
+   ![](./images/image-015.png)
 
 6. 关闭 `go-cqhttp`，打开海豹，启用账号（不要点重新登录，如果没有启用请先禁用再启用）。
 
 如果登录失败（比如不小心选了重新登录），可将桌面的 token 文件复制一份回原位，再次操作第 6 步。登录成功后无需保留 token 文件。
 
+### FAQ
 
-#### F&Q
+#### 1. 出现 Code 1
 
-##### 1. QSign 闪退
+1. 账号密码错误，输入正确的账号密码。
+
+#### 2. QSign 闪退
+
 1. 确认没有启动多个 qsign（多个 qsign 需要端口不重复）；
 2. 确认端口没有重复。若重复，请重新配置 qsign，修改 port；
 3. 将 qsign 文件夹放到硬盘根目录试试（如 D盘、C盘）。
-##### 2. 出现 Code 45
+
+#### 3. 出现 Code 45
+
 1. 没连上 qsign，重启 qsign，重新登录；
 2. QSign 协议版本和 gocq 协议版本没对应，切换对应协议后重新登录；
 3. 该版本 qsign 已失效，升级版本。
-##### 3. 出现 Code 235
+
+#### 4. 出现 Code 235
+
 1. Ticket 复制错误（多复制了 `""` 或少复制了内容），重新登录；
 2. 更换网络进行滑条，如电脑连手机热点，复制链接发给手机滑条，换台电脑等；
 3. 登录频繁，过段时间重新尝试登录（时间不确定）。
-##### 4. Code 1
-1. 账号密码错误，输入正确的账号密码。
-##### 5. 如何启动多个 qsign？（仅当需要备用签名或不同协议版本的时候有此需求）
+
+#### 5. 出现 Code 237
+
+1. 登录过于频繁 ，请等待一段时间继续；
+2. 内置的 ticket 抓取工具失效，需要手动抓取；
+3. 让他人帮助你滑条。
+
+#### 5. 如何启动多个 qsign？（仅当需要备用签名或不同协议版本的时候有此需求）
+
 解压一个新的 qsign 文件，重新配置，端口需要输入不同于前面的端口。
-##### 6. 什么是 go-cqhttp？（通常简称 gocq）
+
+#### 6. 什么是 go-cqhttp？（通常简称 gocq）
+
 登录 QQ 的程序，现各大骰系都用此程序，此外还有 mirai 等其他程序。
-##### 7. 什么是签名？
+
+#### 7. 什么是签名？
+
 - 手机 QQ 有内置的签名程序，可以不太准确的简单理解为会生成一些密码发给腾讯，让它识别是不是人；
 - qsign 把手机 QQ 的签名程序偷了出来，提供了让我们自己生成密码的功能；
 - gocq 在配置后可以对接 qsign，那样骰子也可以证明自己是正常人了。
