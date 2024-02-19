@@ -20,6 +20,13 @@ func (d *Dice) RegisterBuiltinExt() {
 	RegisterBuiltinExtDnd5e(d)
 	RegisterBuiltinStory(d)
 	RegisterBuiltinExtExp(d)
+	for _, i := range d.ExtList {
+		if i.OnLoad != nil {
+			i.callWithJsCheck(d, func() {
+				i.OnLoad()
+			})
+		}
+	}
 }
 
 // RegisterExtension 注册扩展

@@ -99,6 +99,7 @@ type ExtInfo struct {
 	GetDescText       func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
 	IsLoaded          bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
 	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
+	OnAfterLoaded     func()                                                `yaml:"-" json:"-" jsbind:"onAfterLoaded"`
 }
 
 type DiceConfig struct { //nolint:revive
@@ -336,16 +337,10 @@ func (d *Dice) Init() {
 	if d.JsEnable {
 		d.Logger.Info("js扩展支持：开启")
 		d.JsInit()
+		d.JsBuiltinDigestSet = make(map[string]bool)
+		d.JsLoadScripts()
 	} else {
 		d.Logger.Info("js扩展支持：关闭")
-	}
-
-	for _, i := range d.ExtList {
-		if i.OnLoad != nil {
-			i.callWithJsCheck(d, func() {
-				i.OnLoad()
-			})
-		}
 	}
 
 	for _, i := range d.RunAfterLoaded {
@@ -358,6 +353,14 @@ func (d *Dice) Init() {
 		i()
 	}
 	d.RunAfterLoaded = []func(){}
+
+	for _, i := range d.ExtList {
+		if i.OnAfterLoaded != nil {
+			i.callWithJsCheck(d, func() {
+				i.OnAfterLoaded()
+			})
+		}
+	}
 
 	autoSave := func() {
 		count := 0
@@ -419,12 +422,6 @@ func (d *Dice) Init() {
 	go refreshGroupInfo()
 
 	d.ApplyAliveNotice()
-	if d.JsEnable {
-		d.JsBuiltinDigestSet = make(map[string]bool)
-		d.JsLoadScripts()
-	} else {
-		d.Logger.Info("js扩展支持已关闭，跳过js脚本的加载")
-	}
 
 	if d.UpgradeWindowID != "" {
 		go func() {
