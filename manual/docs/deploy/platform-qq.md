@@ -87,7 +87,82 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
 
 配置示例在 Lagrange Github 的介绍中有提供，你也可以参照下面进行配置：
 
+::: warning Lagrange 配置文件版本
+
+Lagrange 项目对其配置文件的格式进行过破坏兼容的更改。以下说明针对的是我们所知的当前版本。
+
+如果你是在 2024 年 2 月 18 日或之前下载的 Lagrange 程序，请你参考[这段说明](#旧版-lagrange-配置)。
+
+如果 Lagrange 项目后续做出更多破坏性更改，我们会尽可能快地更新这里的说明，但不做任何承诺。请以其 [官方仓库的最新说明](https://github.com/LagrangeDev/Lagrange.Core) 为准。
+
+:::
+
 `appsettings.json`：
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information"
+    }
+  },
+  "SignServerUrl": "",
+  "Account": {
+    "Uin": 0,
+    "Password": "",
+    "Protocol": "Linux",
+    "AutoReconnect": true,
+    "GetOptimumServer": true
+  },
+  "Message": {
+    "IgnoreSelf": true
+  },
+  "Implementations": [
+    {
+      "Type": "ForwardWebSocket",
+      "Host": "127.0.0.1",
+      "Port": 8081,
+      "HeartBeatInterval": 5000,
+      "AccessToken": ""
+    }
+  ]
+}
+```
+
+其中有几个重要的设置项需要填写和注意：
+
+- 运行 Lagrange 需要 [.NET](https://dotnet.microsoft.com/download)，安装对应拉格兰的版本（例如拉格兰后面是 7 则需安装 SDK 的版本为 7）。
+- `Password` 为空时为扫码，这里请留空。
+- `SignServerUrl`：NTQQ 的签名服务地址，**注意此处的签名服务需要是 Linux NTQQ 签名服务，不可以使用 QSign、Shamrock 等提供的 Android QQ 签名服务**；签名地址请到 Lagrange 的 MD 文档中自行寻找。
+- `Implementations`：海豹将使用 `ForwardWebSocket`，即正向 WebSocket 方式连接 Lagrange，该项下的 `Host` 和 `Port` 是 Lagrange 将提供的 **OneBot-V11 正向 WS 服务地址**，记下以供后续使用。如果对应端口已占用请自行调整。
+
+::: info Linux NTQQ 的签名服务
+
+由于众所周知的原因，Lagrange 不能提供公共签名服务，海豹官方也不会对相关信息进行说明。但你可以在相应 TG 群找到由海外热心网友提供的一些帮助。
+
+:::
+
+配置完成后的文件夹如下：
+
+![准备运行前的 Lagrange 文件夹](./images/platform-qq-lagrange-3.png =40%x40%)
+
+设置文件保存后，双击运行 `Lagrange.OneBot.exe` 启动 Lagrange，有可能会先弹出如下警告，按步骤允许即可：
+
+![Lagrange 运行警告 1](./images/platform-qq-lagrange-4.png =40%x40%)
+
+![Lagrange 运行警告 2](./images/platform-qq-lagrange-5.png =40%x40%)
+
+成功运行时，很快会弹出一个命令行窗口，同时在同一文件夹下会出现一张登录二维码图片 `qr-0.png`，尽快在二维码过期前使用手机 QQ 扫码连接。
+
+Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时出现报错，需要去下载 [.Net SDK](https://dotnet.microsoft.com/zh-cn/download) 并安装。
+
+#### 旧版 Lagrange 配置
+
+我们始终建议你升级到程序的最新版本，而不是为了沿用旧配置而保持旧版本。
+
+如果你使用的是 2024 年 2 月 18 日或之前下载的 Lagrange 程序，或使用以上配置出现问题，请尝试替换为以下配置：
 
 ```json
 {
@@ -115,56 +190,12 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
       "Port": 8081,
       "HeartBeatInterval": 5000,
       "AccessToken": ""
-    },
-    "ReverseWebSocket": {
-      "Host": "127.0.0.1",
-      "Port": 8080,
-      "Suffix": "/onebot/v11/ws",
-      "ReconnectInterval": 5000,
-      "HeartBeatInterval": 5000,
-      "AccessToken": ""
-    },
-    "Http": {
-      "Host": "",
-      "Port": 0,
-      "EventEnabled": false
-    },
-    "HttpPost": {
-      "Host": "127.0.0.1",
-      "Port": 8080,
-      "Suffix": "/onebot/v11/http",
-      "Timeout": 0
     }
   }
 }
 ```
 
-其中有几个重要的设置项需要填写和注意：
-
-- 运行 Lagrange 需要 [.NET](https://dotnet.microsoft.com/download)，安装对应拉格兰的版本（例如拉格兰后面是 7 则需安装 SDK 的版本为 7）。
-- `Password` 为空时为扫码，这里请留空。
-- `SignServerUrl`：NTQQ 的签名服务地址，**注意此处的签名服务需要是 Linux NTQQ 签名服务，不可以使用 QSign、Shamrock 等提供的 Android QQ 签名服务**；签名地址请到 Lagrange 的 MD 文档中自行寻找。
-- `Implementation.ForwardWebSocket` 下的 `Host` 和 `Port`，这是 Lagrange 将提供的 **OneBot-V11 正向 WS 服务地址**，记下后续使用。如果对应端口已占用请自行调整。
-
-::: info Linux NTQQ 的签名服务
-
-由于众所周知的原因，Lagrange 不能提供公共签名服务，海豹官方也不会对相关信息进行说明。但你可以在相应 TG 群找到由海外热心网友提供的一些帮助。
-
-:::
-
-配置完成后的文件夹如下：
-
-![准备运行前的 Lagrange 文件夹](./images/platform-qq-lagrange-3.png =40%x40%)
-
-设置文件保存后，双击运行 `Lagrange.OneBot.exe` 启动 Lagrange，有可能会先弹出如下警告，按步骤允许即可：
-
-![Lagrange 运行警告 1](./images/platform-qq-lagrange-4.png =40%x40%)
-
-![Lagrange 运行警告 2](./images/platform-qq-lagrange-5.png =40%x40%)
-
-成功运行时，很快会弹出一个命令行窗口，同时在同一文件夹下会出现一张登录二维码图片 `qr-0.png`，尽快在二维码过期前使用手机 QQ 扫码连接。
-
-Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时出现报错，需要去下载 [.Net SDK](https://dotnet.microsoft.com/zh-cn/download) 并安装。
+配置项的含义与上述说明相同，可以做相同处理。
 
 ### 海豹连接 Lagrange
 
