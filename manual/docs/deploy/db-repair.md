@@ -95,7 +95,7 @@ pause
 
 下载完成后，找出 sqlite.exe 放到空目录备用。
 
-将损坏的数据文件（如 data.db）从海豹的 data/defualt/ 目录中复制出来，放在和 sqlite.exe 同一个目录。
+将损坏的数据文件（如 data.db）从海豹的 data/default/ 目录中复制出来，放在和 sqlite.exe 同一个目录。
 
 使用命令行工具打开这个目录，在此目录下，执行下面的指令：
 
