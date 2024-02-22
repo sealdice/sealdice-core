@@ -490,7 +490,7 @@ if (!seal.ext.find('myperm')) {
 
 ### 黑名单操作的函数
 
-添加：`seal.ban.addBan(ctx, uid, place, reason)` 
+添加：`seal.ban.addBan(ctx, uid, place, reason)`
 
 移除：`seal.ban.remove(ctx, uid)`
 - `ctx`：`MsgContext` 类型，指令上下文，`solve()` 函数传进来的第一个参数
@@ -1047,7 +1047,7 @@ cmdCatch.help = '捕捉某人，格式.catch <@名字>';
 cmdCatch.allowDelegate = true;
 cmdCatch.solve = (ctx, msg, cmdArgs) => {
   // 获取对方数据，之后用 mctx 替代 ctx，mctx 下读出的数据即被代骰者的个人数据
-  const mctx = seal.getCtxProxyFirst(ctx, msg);
+  const mctx = seal.getCtxProxyFirst(ctx, cmdArgs);
   let val = cmdArgs.getArgN(1);
   switch (val) {
     case 'help': {
