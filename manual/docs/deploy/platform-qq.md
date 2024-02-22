@@ -9,6 +9,16 @@ title: QQ
 
 本节将包含你在 QQ 平台接入海豹核心需要了解的特定内容。
 
+由于众所周知的原因，在 QQ 平台部署机器人目前有一定难度。所有支持的途径参见侧边目录，本节提供了多种对接途径的引导：
+
+- 如果你有 QQ 官方机器人权限，见 [官方机器人](#官方机器人)；
+- 需要比较简单的部署流程的，见 [Liteloader ONEBOT-API](#liteloader-onebot-api)；
+- 需要比较简单的部署流程，且有能力上 Telegram 的，见 [Lagrange](#lagrange)；
+- 能接受复杂部署流程，有能力自行部署 QSign，需要功能支持完整的，见 [Go-cqhttp](#go-cqhttp--mirai)。该部署方式中的常见问题解答见 [FAQ](#gocqhttp-faq)；
+- Android 手机/模拟器用户见 [Shamrock](#shamrock)（需要 Root）或 [Shamrock LSPatch](#shamrock-lspatch)。
+
+不同的对接方式适应不同的情况，可能会存在途径特有的功能缺失和其它问题，请根据自己的情况选择适合的方式。
+
 :::
 
 ## 官方机器人 <Badge type="tip" text="v1.4.2" vertical="middle" />
@@ -81,6 +91,14 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
 
 ### 运行 Lagrange
 
+::: tip .Net SDK 
+
+Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时出现报错，需要去下载 [.Net SDK](https://dotnet.microsoft.com/zh-cn/download) 并安装。
+
+在下载 Lagrange 时，后缀中的数字说明了其对 .Net 版本的需求，请根据说明下载对应版本（例如后面是 8.0，则需安装 SDK 的版本为 8.0）。
+
+:::
+
 首先解压对应制品压缩文件，你可以看见 `Lagrange.OneBot.exe` 等多个文件。
 
 在运行之前，需要在与 `Lagrange.OneBot.exe` 同级的目录下，新建一个 `appsettings.json` 文件，用来填写 Lagrange 的配置。
@@ -132,15 +150,13 @@ Lagrange 项目对其配置文件的格式进行过破坏兼容的更改。以�
 ```
 
 其中有几个重要的设置项需要填写和注意：
-
-- 运行 Lagrange 需要 [.NET](https://dotnet.microsoft.com/download)，安装对应拉格兰的版本（例如拉格兰后面是 7 则需安装 SDK 的版本为 7）。
 - `Password` 为空时为扫码，这里请留空。
-- `SignServerUrl`：NTQQ 的签名服务地址，**注意此处的签名服务需要是 Linux NTQQ 签名服务，不可以使用 QSign、Shamrock 等提供的 Android QQ 签名服务**；签名地址请到 Lagrange 的 MD 文档中自行寻找。
+- `SignServerUrl`：NTQQ 的签名服务地址，**注意此处的签名服务需要是 Linux NTQQ 签名服务，不可以使用 QSign、Shamrock 等提供的 Android QQ 签名服务**；
 - `Implementations`：海豹将使用 `ForwardWebSocket`，即正向 WebSocket 方式连接 Lagrange，该项下的 `Host` 和 `Port` 是 Lagrange 将提供的 **OneBot-V11 正向 WS 服务地址**，记下以供后续使用。如果对应端口已占用请自行调整。
 
 ::: info Linux NTQQ 的签名服务
 
-由于众所周知的原因，Lagrange 不能提供公共签名服务，海豹官方也不会对相关信息进行说明。但你可以在相应 TG 群找到由海外热心网友提供的一些帮助。
+由于众所周知的原因，Lagrange 不能提供公共签名服务，海豹官方也不会对相关信息进行说明。请在 Lagrange 的 README 中自行寻找相应 TG 群，寻找由海外热心网友提供的一些帮助。
 
 :::
 
@@ -156,11 +172,13 @@ Lagrange 项目对其配置文件的格式进行过破坏兼容的更改。以�
 
 成功运行时，很快会弹出一个命令行窗口，同时在同一文件夹下会出现一张登录二维码图片 `qr-0.png`，尽快在二维码过期前使用手机 QQ 扫码连接。
 
-Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时出现报错，需要去下载 [.Net SDK](https://dotnet.microsoft.com/zh-cn/download) 并安装。
-
 #### 旧版 Lagrange 配置
 
-我们始终建议你升级到程序的最新版本，而不是为了沿用旧配置而保持旧版本。
+::: warning 使用最新的 Lagrange
+
+**我们始终建议你升级到程序的最新版本，而不是为了沿用旧配置而保持旧版本。**
+
+:::
 
 如果你使用的是 2024 年 2 月 18 日或之前下载的 Lagrange 程序，或使用以上配置出现问题，请尝试替换为以下配置：
 
@@ -595,6 +613,12 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 ::: tip 有能力的用户可以自行搭建服务。
 :::
 
+::: warning
+
+由于项目的特殊性，下面的方法随时可能失效，我们不对信息的及时性做任何保证。可以加入海豹官方群寻求帮助。
+
+:::
+
 ::: tabs#os
 
 @tab Windows#windows
@@ -686,7 +710,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 如果登录失败（比如不小心选了重新登录），可将桌面的 token 文件复制一份回原位，再次操作第 6 步。登录成功后无需保留 token 文件。
 
-### FAQ
+### GoCqhttp FAQ
 
 #### 1. 出现 Code 1
 
