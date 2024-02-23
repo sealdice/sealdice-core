@@ -495,14 +495,21 @@
     <el-form-item label="不活跃N天后自动退群">
       <template #label>
         <div>
-          <span>自动退群</span>
+          <span>自动退群阈值</span>
           <el-tooltip raw-content content="每天凌晨4时检查所有群聊的不活跃天数, 若超过设定天数则自动退群<br>设置为0以关闭该功能">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
         </div>
       </template>
+      <el-input-number v-model="config.quitInactiveThreshold" type="number" style="width: auto;" :placeholder="'不活跃N天后自动退出'" />
+    </el-form-item>
 
-      <el-input v-model="config.quitInactiveThreshold" type="number" clearable style="width: auto;" :placeholder="'不活跃N天后自动退出'" />
+    <el-form-item label="退群批次大小">
+      <el-input-number v-model="config.quitInactiveBatchSize" type="number" style="width: auto;" />
+    </el-form-item>
+
+    <el-form-item label="退群批次间隔(分)">
+      <el-input-number v-model="config.quitInactiveBatchWait" type="number" style="width: auto;" />
     </el-form-item>
 
     <el-form-item label="QQ回复延迟(秒)">
