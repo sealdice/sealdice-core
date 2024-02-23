@@ -8,12 +8,24 @@ export default sidebar({
       link: "/deploy/",
       prefix: "/deploy/",
       children: [
-        "quick-start.md",
-        "transfer.md",
-        "special_feature.md",
-        "db-repair.md",
         {
-          text: "平台",
+          text: "基础知识（电脑小白先看我）",
+          children: [
+            "about_pc.md",
+            "about_opensource.md",
+          ],
+        },
+        {
+          text: "部署指南",
+          children: [
+            "quick-start.md",
+            "transfer.md",
+            "special_feature.md",
+            "db-repair.md",
+          ]
+        },
+        {
+          text: "连接平台",
           children: [
             "platform-qq.md",
             "platform-kook.md",
