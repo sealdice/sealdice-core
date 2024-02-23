@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"sealdice-core/dice/model"
@@ -942,31 +943,49 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 	return ret
 }
 
-func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
-	platformRE := regexp.MustCompile(`^(.*)-Group:`)
+// 借助类似操作系统信号量的思路来做一个互斥锁
+var muxAutoQuit sync.Mutex
+var groupLeaveNum int
+
+// LongTimeQuitInactiveGroup 另一种退群方案,其中minute代表间隔多久执行一次，num代表一次退几个群（每次退群之间有10秒的等待时间）
+func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIntervalMinute int, groupsPerRound int) {
+	// 该方案目前是issue方案的简化版，是我制作的鲨群机的略高级解决方式。
+	// 该方案下，将会创建一个线程，从该时间开始计算将要退出的群聊并以minute为间隔的时间退出num个群。
+	if !muxAutoQuit.TryLock() {
+		// 如果没能获得“临界资源”信号量
+		// 直接输出有任务在运行中
+		hint := fmt.Sprintf("有任务在运行中，已经退群 %d 个", groupLeaveNum)
+		s.Parent.Logger.Info(hint)
+		return
+	}
 
 	s.Parent.Logger.Infof("开始清理不活跃群聊. 判定线 %s", threshold.Format(time.RFC3339))
-
-	count := 0
-
-	for _, grp := range s.ServiceAtNew {
-		if strings.HasPrefix(grp.GroupID, "PG-") {
-			continue
+	go func() {
+		type GroupEndpointPair struct {
+			Group    *GroupInfo
+			Endpoint *EndPointInfo
 		}
-		if s.Parent.BanList != nil {
-			info, ok := s.Parent.BanList.GetByID(grp.GroupID)
-			if ok {
-				if info.Rank > BanRankNormal {
+
+		defer muxAutoQuit.Unlock()
+
+		groupLeaveNum = 0
+		platformRE := regexp.MustCompile(`^(.*)-Group:`)
+		selectedGroupEndpoints := []*GroupEndpointPair{} // 创建一个存放 grp 和 ep 组合的切片
+		for _, grp := range s.ServiceAtNew {
+			if strings.HasPrefix(grp.GroupID, "PG-") {
+				continue
+			}
+			if s.Parent.BanList != nil {
+				info, ok := s.Parent.BanList.GetByID(grp.GroupID)
+				if ok && info.Rank > BanRankNormal {
 					continue // 信任等级高于普通的不清理
 				}
 			}
-		}
 
-		last := time.Unix(grp.RecentDiceSendTime, 0)
-		if enter := time.Unix(grp.EnteredTime, 0); enter.After(last) {
-			last = enter
-		}
-		if last.Before(threshold) {
+			last := time.Unix(grp.RecentDiceSendTime, 0)
+			if enter := time.Unix(grp.EnteredTime, 0); enter.After(last) {
+				last = enter
+			}
 			match := platformRE.FindStringSubmatch(grp.GroupID)
 			if len(match) != 2 {
 				continue
@@ -975,21 +994,35 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 			if platform != "QQ" {
 				continue
 			}
-
-			count++
-			if count > 10 {
-				if count == 11 {
-					s.Parent.Logger.Infof("本次清理不活跃群聊已达到 10 个，为防止封禁危险，不再操作退群")
+			if last.Before(threshold) {
+				for _, ep := range s.EndPoints {
+					if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
+						continue
+					}
+					selectedGroupEndpoints = append(selectedGroupEndpoints, &GroupEndpointPair{Group: grp, Endpoint: ep})
 				}
-				continue // 不使用 break，为了让 last.Before(hint) 分支的“将来要退出” WARN 能够全量打出
+			} else if last.Before(hint) {
+				s.Parent.Logger.Warnf("检测到群 %s 上次活动时间为 %s，将在未来自动退出", grp.GroupID, last.Format(time.RFC3339))
 			}
-
-			hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
-			s.Parent.Logger.Info(hint)
-			for _, ep := range s.EndPoints {
-				if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
-					continue
+		}
+		// 采用类似分页的手法进行退群
+		groupCount := len(selectedGroupEndpoints)
+		rounds := (groupCount + groupsPerRound - 1) / groupsPerRound
+		for round := 0; round < rounds; round++ {
+			startIndex := round * groupsPerRound
+			endIndex := (round + 1) * groupsPerRound
+			if endIndex > groupCount {
+				endIndex = groupCount
+			}
+			for _, pair := range selectedGroupEndpoints[startIndex:endIndex] {
+				grp := pair.Group
+				ep := pair.Endpoint
+				last := time.Unix(grp.RecentDiceSendTime, 0)
+				if enter := time.Unix(grp.EnteredTime, 0); enter.After(last) {
+					last = enter
 				}
+				hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
+				s.Parent.Logger.Info(hint)
 				msgText := DiceFormatTmpl(&MsgContext{Dice: s.Parent}, "核心:骰子自动退群告别语")
 				msgCtx := CreateTempCtx(ep, &Message{
 					MessageType: "group",
@@ -997,21 +1030,21 @@ func (s *IMSession) QuitInactiveGroup(threshold, hint time.Time) {
 					GroupID:     grp.GroupID,
 				})
 				ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
-				time.Sleep(3 * time.Second)
-
+				// 和我自制的鲨群机时间同步
+				time.Sleep(10 * time.Second)
 				grp.DiceIDExistsMap.Delete(ep.UserID)
 				grp.UpdatedAtTime = time.Now().Unix()
 				ep.Adapter.QuitGroup(&MsgContext{Dice: s.Parent}, grp.GroupID)
+				// 保证在多次点击时可以收到日志
+				groupLeaveNum++
 				(&MsgContext{Dice: s.Parent, EndPoint: ep, Session: s}).Notice(hint)
 			}
-
-			time.Sleep(2 * time.Minute)
-		} else if last.Before(hint) {
-			s.Parent.Logger.Warnf("检测到群 %s 上次活动时间为 %s，将在未来自动退出", grp.GroupID, last.Format(time.RFC3339))
-			// TODO: 要不要给通知列表发消息？
-			// 不能给当事群发通知，否则会刷last
+			// 等三十分钟
+			hint := fmt.Sprintf("第 %d 轮退群已经完成，共计 %d 轮，休息 %d 分钟中", round, rounds, roundIntervalMinute)
+			s.Parent.Logger.Info(hint)
+			time.Sleep(time.Duration(roundIntervalMinute) * time.Minute)
 		}
-	}
+	}()
 }
 
 // checkBan 黑名单拦截

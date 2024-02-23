@@ -37,6 +37,8 @@ type DiceConfigInfo struct {
 	RefuseGroupInvite       bool     `json:"refuseGroupInvite"` // 拒绝群组邀请
 
 	QuitInactiveThreshold float64 `json:"quitInactiveThreshold"` // 退出不活跃群组阈值(天)
+	QuitInactiveBatchSize int64   `json:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
+	QuitInactiveBatchWait int64   `json:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
 
 	DefaultCocRuleIndex string `json:"defaultCocRuleIndex"` // 默认coc index
 	MaxExecuteTime      string `json:"maxExecuteTime"`      // 最大骰点次数
@@ -134,6 +136,8 @@ func DiceConfig(c echo.Context) error {
 		DefaultCocRuleIndex: cocRule,
 
 		QuitInactiveThreshold: myDice.QuitInactiveThreshold.Hours() / 24,
+		QuitInactiveBatchSize: myDice.QuitInactiveBatchSize,
+		QuitInactiveBatchWait: myDice.QuitInactiveBatchWait,
 
 		BotExtFreeSwitch:  myDice.BotExtFreeSwitch,
 		TrustOnlyMode:     myDice.TrustOnlyMode,
@@ -507,6 +511,22 @@ func DiceConfigSet(c echo.Context) error {
 		}
 		if set {
 			myDice.ResetQuitInactiveCron()
+		}
+	}
+
+	if val, ok := jsonMap["quitInactiveBatchSize"]; ok {
+		if v, ok := val.(float64); ok {
+			if vv := int64(v); vv > 0 {
+				myDice.QuitInactiveBatchSize = vv
+			}
+		}
+	}
+
+	if val, ok := jsonMap["quitInactiveBatchWait"]; ok {
+		if v, ok := val.(float64); ok {
+			if vv := int64(v); vv > 0 {
+				myDice.QuitInactiveBatchWait = vv
+			}
 		}
 	}
 
