@@ -1873,7 +1873,16 @@ func (d *Dice) loads() {
 		d.JsEnable = dNew.JsEnable
 		d.DisabledJsScripts = dNew.DisabledJsScripts
 		d.NewsMark = dNew.NewsMark
+
 		d.QuitInactiveThreshold = dNew.QuitInactiveThreshold
+		d.QuitInactiveBatchSize = dNew.QuitInactiveBatchSize
+		if d.QuitInactiveBatchSize == 0 {
+			d.QuitInactiveBatchSize = 10
+		}
+		d.QuitInactiveBatchWait = dNew.QuitInactiveBatchWait
+		if d.QuitInactiveBatchWait == 0 {
+			d.QuitInactiveBatchWait = 30
+		}
 
 		d.EnableCensor = dNew.EnableCensor
 		d.CensorMode = dNew.CensorMode
@@ -2186,6 +2195,9 @@ func (d *Dice) loads() {
 		// 1.4
 		d.MaxExecuteTime = 12
 		d.MaxCocCardGen = 5
+
+		d.QuitInactiveBatchSize = 10
+		d.QuitInactiveBatchWait = 30
 	}
 
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
