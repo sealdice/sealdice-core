@@ -180,6 +180,8 @@ type Dice struct {
 
 	QuitInactiveThreshold time.Duration `yaml:"quitInactiveThreshold"` // 退出不活跃群组的时间阈值
 	quitInactiveCronEntry cron.EntryID
+	QuitInactiveBatchSize int64 `yaml:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
+	QuitInactiveBatchWait int64 `yaml:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
 
 	DefaultCocRuleIndex int64 `yaml:"defaultCocRuleIndex" jsbind:"defaultCocRuleIndex"` // 默认coc index
 	MaxExecuteTime      int64 `yaml:"maxExecuteTime" jsbind:"maxExecuteTime"`           // 最大骰点次数
@@ -751,7 +753,9 @@ func (d *Dice) ResetQuitInactiveCron() {
 		d.quitInactiveCronEntry, err = dm.Cron.AddFunc("0 4 * * *", func() {
 			thr := time.Now().Add(-d.QuitInactiveThreshold)
 			hint := thr.Add(d.QuitInactiveThreshold / 10) // 进入退出判定线的9/10开始提醒
-			d.ImSession.QuitInactiveGroup(thr, hint)
+			d.ImSession.LongTimeQuitInactiveGroup(thr, hint,
+				int(d.QuitInactiveBatchWait),
+				int(d.QuitInactiveBatchSize))
 		})
 		if err != nil {
 			d.Logger.Errorf("创建自动清理群聊cron任务失败: %v", err)
