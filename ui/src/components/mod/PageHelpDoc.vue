@@ -271,7 +271,7 @@ const deleteFiles = async () => {
   }
 }
 
-const getHelpDocTag = (loadStatus: number, deleted: boolean, group: string): { type: "" | "success" | "warning" | "info" | "danger", label: string } => {
+const getHelpDocTag = (loadStatus: number, deleted: boolean, group: string): { type: "primary" | "success" | "warning" | "info" | "danger", label: string } => {
   if (loadStatus === 0) {
     return {
       type: "warning",

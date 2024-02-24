@@ -305,7 +305,7 @@ export const useStore = defineStore('main', {
     },
 
     async diceUploadToUpgrade({ form }: any) {
-      const info = await backend.post(urlPrefix + '/dice/upload_to_upgrade', form)
+      const info = await backend.post(urlPrefix + '/dice/upload_to_upgrade', form, { headers: { "Content-Type": "multipart/form-data" } })
       return info as any
     },
 
@@ -340,7 +340,7 @@ export const useStore = defineStore('main', {
     },
 
     async customReplyFileUpload({ form }: any) {
-      const info = await backend.post(urlPrefix + '/configs/custom_reply/file_upload', form)
+      const info = await backend.post(urlPrefix + '/configs/custom_reply/file_upload', form,  { headers: { "Content-Type": "multipart/form-data" } })
       return info as any
     },
 
@@ -468,7 +468,7 @@ export const useStore = defineStore('main', {
     },
 
     async deckUpload({ form }: any) {
-      const info = await backend.post(urlPrefix + '/deck/upload', form)
+      const info = await backend.post(urlPrefix + '/deck/upload', form, { headers: { "Content-Type": "multipart/form-data" } })
       return info as any
     },
 
@@ -527,7 +527,7 @@ export const useStore = defineStore('main', {
       }
     },
     async jsUpload({ form }: any) {
-      const info = await backend.post(urlPrefix + '/js/upload', form)
+      const info = await backend.post(urlPrefix + '/js/upload', form,  { headers: { "Content-Type": "multipart/form-data" } })
       return info as any
     },
     async jsDelete({ index }: any) {
@@ -660,7 +660,8 @@ export const useStore = defineStore('main', {
     async helpDocUpload(form: any): Promise<{ result: true } | { result: false, err?: string }> {
       return await apiFetch(urlPrefix + '/helpdoc/upload', {
         method: 'POST', headers: {
-          token: this.token
+          token: this.token,
+          "Content-Type": "multipart/form-data",
         }, body: form
       })
     },

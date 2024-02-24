@@ -34,7 +34,7 @@
                 <el-space size="small" alignment="center">
                   <el-text size="large" tag="b">{{ i.name }}</el-text>
                   <el-text>{{ i.version }}</el-text>
-                  <el-tag size="small" :type="i.fileFormat === 'toml' ? 'success' : ''" disable-transitions>{{ i.fileFormat }}</el-tag>
+                  <el-tag size="small" :type="i.fileFormat === 'toml' ? 'success' : 'primary'" disable-transitions>{{ i.fileFormat }}</el-tag>
                 </el-space>
                 <el-text v-if="i.cloud" type="primary" size="small">
                   <el-icon><MostlyCloudy /></el-icon>
@@ -59,7 +59,7 @@
             <el-descriptions-item :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
             <el-descriptions-item :span="3" v-if="i.desc" label="简介">{{ i.desc }}</el-descriptions-item>
             <el-descriptions-item :span="3" label="牌堆列表">
-              <el-tag v-for="(visible, c) of i.command" :key="c" size="small" :type="visible ? '' : 'info'" style="margin-right: 0.5rem;" disable-transitions>
+              <el-tag v-for="(visible, c) of i.command" :key="c" size="small" :type="visible ? 'primary' : 'info'" style="margin-right: 0.5rem;" disable-transitions>
                 {{ c }}
               </el-tag>
             </el-descriptions-item>
