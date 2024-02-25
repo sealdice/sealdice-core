@@ -33,7 +33,7 @@ func upgrade(c echo.Context) error {
 				bakFn, _ := myDice.Parent.BackupSimple()
 				tmpParent := os.TempDir()
 				tmpPath := path.Join(tmpParent, bakFn)
-				_ = os.MkdirAll(filepath.Join(tmpParent, "backups"), 0644)
+				_ = os.MkdirAll(filepath.Join(tmpParent, "backups"), 0o644)
 				myDice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
 				_ = cp.Copy(bakFn, tmpPath)
 

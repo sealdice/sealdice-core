@@ -142,7 +142,6 @@ func (pa *PlatformAdapterDingTalk) EditMessage(_ *MsgContext, _, _ string) {}
 func (pa *PlatformAdapterDingTalk) RecallMessage(_ *MsgContext, _ string) {}
 
 func (pa *PlatformAdapterDingTalk) GetGroupInfoAsync(groupID string) {
-
 }
 
 func (pa *PlatformAdapterDingTalk) OnChatReceive(_ *dingtalk.Session, data *chatbot.BotCallbackDataModel) {

@@ -271,7 +271,6 @@ func FormatDiceIDQQChGroup(guildID, channelID string) string {
 func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeTo *MessageQQ) error {
 	msgQQType2 := new(MessageQQArray)
 	err := json.Unmarshal([]byte(message), msgQQType2)
-
 	if err != nil {
 		log.Warn("无法解析 onebot11 字段:", message)
 		return err
@@ -421,7 +420,6 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 		msgQQ := new(MessageQQ)
 		err := json.Unmarshal([]byte(message), msgQQ)
-
 		if err != nil {
 			err = tryParseOneBot11ArrayMessage(log, message, msgQQ)
 
@@ -1209,7 +1207,7 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 			info["protocol"] = protocol
 			data, err := json.Marshal(info)
 			if err == nil {
-				_ = os.WriteFile(deviceFilePath, data, 0644)
+				_ = os.WriteFile(deviceFilePath, data, 0o644)
 				return true
 			}
 		}
@@ -1240,7 +1238,7 @@ func (pa *PlatformAdapterGocq) SetSignServer(signServerConfig *SignServerConfig)
 			}
 			data, err := yaml.Marshal(info)
 			if err == nil {
-				_ = os.WriteFile(configFilePath, data, 0644)
+				_ = os.WriteFile(configFilePath, data, 0o644)
 				return true
 			}
 		}

@@ -235,7 +235,7 @@ func (c *ReplyConfig) Save(dice *Dice) {
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		_ = os.WriteFile(attrConfigFn, buf, 0644)
+		_ = os.WriteFile(attrConfigFn, buf, 0o644)
 	}
 }
 

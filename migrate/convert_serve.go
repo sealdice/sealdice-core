@@ -280,7 +280,7 @@ create table if not exists ban_info
 		fmt.Println("群成员数量", times)
 	}
 
-	_ = os.WriteFile("./data/default/serve.yaml.old", data, 0644)
+	_ = os.WriteFile("./data/default/serve.yaml.old", data, 0o644)
 
 	// 处理attrs部分
 	ctx := CreateFakeCtx()

@@ -141,7 +141,6 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	})
 	// Other
 	sh.HandleEvents(se.AppHomeOpened, func(event *sm.Event, client *sm.Client) {
-
 	})
 	// Start
 	pa.Client = client
@@ -243,11 +242,9 @@ func (pa *PlatformAdapterSlack) SetGroupCardName(ctx *MsgContext, name string) {
 }
 
 func (pa *PlatformAdapterSlack) MemberBan(groupId string, userId string, duration int64) {
-
 }
 
 func (pa *PlatformAdapterSlack) MemberKick(groupId string, userId string) {
-
 }
 
 func (pa *PlatformAdapterSlack) GetGroupInfoAsync(groupId string) {
@@ -296,6 +293,7 @@ func FormatDiceIDSlack(id string) string {
 func FormatDiceIDSlackChannel(id string) string {
 	return fmt.Sprintf("SLACK-CH-Group:%s", id)
 }
+
 func FormatDiceIDSlackGuild(id string) string {
 	return fmt.Sprintf("SLACK-Guild:%s", id)
 }

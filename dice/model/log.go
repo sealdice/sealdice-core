@@ -289,7 +289,6 @@ FROM log_items
 WHERE log_id =$1
 ORDER BY time ASC
 LIMIT $2, $3;`, logID, (param.PageNum-1)*param.PageSize, param.PageSize)
-
 	if err != nil {
 		return nil, err
 	}

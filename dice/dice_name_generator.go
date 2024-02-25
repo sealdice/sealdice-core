@@ -16,7 +16,7 @@ type NamesGenerator struct {
 }
 
 func (ng *NamesGenerator) Load() {
-	_ = os.MkdirAll("./data/names", 0755)
+	_ = os.MkdirAll("./data/names", 0o755)
 
 	nameInfo := map[string]map[string][]string{}
 	ng.NamesInfo = nameInfo

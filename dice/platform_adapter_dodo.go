@@ -595,6 +595,7 @@ func ExtractDodoGroupID(id string) string {
 	}
 	return id
 }
+
 func (pa *PlatformAdapterDodo) QuitGroup(ctx *MsgContext, groupId string) {
 	_, err := pa.Client.SetBotIslandLeave(context.Background(), &model.SetBotLeaveIslandReq{
 		IslandSourceId: ctx.Group.GuildID,

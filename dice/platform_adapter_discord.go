@@ -525,6 +525,7 @@ func FormatDiceIDDiscord(diceDiscord string) string {
 func FormatDiceIDDiscordChannel(diceDiscord string) string {
 	return fmt.Sprintf("DISCORD-CH-Group:%s", diceDiscord)
 }
+
 func FormatDiceIDDiscordGuild(diceDiscord string) string {
 	return fmt.Sprintf("DISCORD-Guild:%s", diceDiscord)
 }

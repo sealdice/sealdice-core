@@ -111,6 +111,7 @@ func CQToText(t string, d map[string]string) MessageElement {
 	org += "]"
 	return newText(org)
 }
+
 func getFileName(header http.Header) string {
 	contentDisposition := header.Get("Content-Disposition")
 	if contentDisposition == "" {

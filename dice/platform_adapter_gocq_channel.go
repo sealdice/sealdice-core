@@ -3,8 +3,9 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"sealdice-core/dice/model"
 	"strings"
+
+	"sealdice-core/dice/model"
 )
 
 type SenderChannel struct {
@@ -137,7 +138,7 @@ func (pa *PlatformAdapterGocq) SendToChannelGroup(ctx *MsgContext, userID string
 		a, _ := json.Marshal(oneBotCommand{
 			Action: "send_guild_channel_msg",
 			Params: GroupMessageParams{
-				//MessageType: "private",
+				// MessageType: "private",
 				GuildID:   lst[0],
 				ChannelID: lst[1],
 				Message:   subText,

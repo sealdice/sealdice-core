@@ -2,8 +2,9 @@ package model
 
 import (
 	"encoding/json"
-	"sealdice-core/dice/censor"
 	"time"
+
+	"sealdice-core/dice/censor"
 
 	"github.com/jmoiron/sqlx"
 )

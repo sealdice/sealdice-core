@@ -11,9 +11,10 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
-	"sealdice-core/utils/procs"
 	"strings"
 	"time"
+
+	"sealdice-core/utils/procs"
 
 	"github.com/ShiraazMoollatjie/goluhn"
 	"github.com/acarl005/stripansi"
@@ -581,7 +582,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 	if pa.UseInPackGoCqhttp { //nolint:nestif
 		workDir := gocqGetWorkDir(dice, conn)
-		_ = os.MkdirAll(workDir, 0755)
+		_ = os.MkdirAll(workDir, 0o755)
 
 		qrcodeFile := filepath.Join(workDir, "qrcode.png")
 		deviceFilePath := filepath.Join(workDir, "device.json")
@@ -604,7 +605,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		if _, err := os.Stat(deviceFilePath); errors.Is(err, os.ErrNotExist) {
 			_, deviceInfo, err := GenerateDeviceJSON(dice, loginInfo.Protocol)
 			if err == nil {
-				_ = os.WriteFile(deviceFilePath, deviceInfo, 0644)
+				_ = os.WriteFile(deviceFilePath, deviceInfo, 0o644)
 				dice.Logger.Info("onebot: 成功创建设备文件")
 			}
 		}
@@ -617,7 +618,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			pa.ConnectURL = fmt.Sprintf("ws://localhost:%d", p)
 			qqid, _ := pa.mustExtractID(conn.UserID)
 			c := GenerateConfig(qqid, p, loginInfo)
-			_ = os.WriteFile(configFilePath, []byte(c), 0644)
+			_ = os.WriteFile(configFilePath, []byte(c), 0o644)
 		}
 
 		if versions, ok := GocqAppVersionMap[loginInfo.AppVersion]; ok {
@@ -625,10 +626,10 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 				// 删除旧协议版本文件
 				_ = os.RemoveAll(versionDirPath)
 				// 创建协议版本文件
-				_ = os.MkdirAll(versionDirPath, 0755)
+				_ = os.MkdirAll(versionDirPath, 0o755)
 				versionFilePath := filepath.Join(versionDirPath, fmt.Sprintf("%d.json", loginInfo.Protocol))
 				jsonData, _ := json.Marshal(targetVersion)
-				_ = os.WriteFile(versionFilePath, jsonData, 0644)
+				_ = os.WriteFile(versionFilePath, jsonData, 0o644)
 			}
 		}
 
@@ -638,7 +639,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		gocqhttpExePath = strings.ReplaceAll(gocqhttpExePath, "\\", "/") // windows平台需要这个替换
 
 		// 随手执行一下
-		_ = os.Chmod(gocqhttpExePath, 0755)
+		_ = os.Chmod(gocqhttpExePath, 0o755)
 
 		dice.Logger.Info("onebot: 正在启动onebot客户端…… ", gocqhttpExePath)
 		p := procs.NewProcess(fmt.Sprintf(`"%s" -faststart`, gocqhttpExePath))

@@ -320,7 +320,7 @@ func RegisterBuiltinStory(self *Dice) {
 				if val == "rec" {
 					isRec = true
 				}
-				var author = ""
+				author := ""
 				if val == "author" {
 					author = cmdArgs.GetArgN(2)
 				}

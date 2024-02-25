@@ -118,6 +118,7 @@ func (t *GameSystemTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) 
 	a, _, _, _ := t.GetDefaultValueEx0(ctx, varname)
 	return a
 }
+
 func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (*VMValue, error) {
 	// 有showas的情况
 	if expr, exists := t.AttrConfig.ShowAs[k]; exists {

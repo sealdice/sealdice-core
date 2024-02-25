@@ -75,7 +75,7 @@ func unzip(src, dest string) error {
 		}
 	}()
 
-	_ = os.MkdirAll(dest, 0755)
+	_ = os.MkdirAll(dest, 0o755)
 
 	// Closure to address file descriptors issue with all the deferred .Close() methods
 	extractAndWriteFile := func(f *zip.File) error {

@@ -6,9 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sealdice-core/dice"
 	"strings"
 	"time"
+
+	"sealdice-core/dice"
 
 	"github.com/labstack/echo/v4"
 )

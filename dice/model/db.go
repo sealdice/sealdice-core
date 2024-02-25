@@ -228,7 +228,8 @@ func SQLiteCensorDBInit(dataDir string) (censorDB *sqlx.DB, err error) {
 		return
 	}
 
-	texts := []string{`
+	texts := []string{
+		`
 CREATE TABLE IF NOT EXISTS censor_log
 (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,

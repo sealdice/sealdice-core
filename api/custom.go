@@ -2,8 +2,9 @@ package api
 
 import (
 	"net/http"
-	"sealdice-core/dice"
 	"strings"
+
+	"sealdice-core/dice"
 
 	"github.com/labstack/echo/v4"
 )

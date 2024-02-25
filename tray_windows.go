@@ -11,11 +11,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sealdice-core/dice"
-	"sealdice-core/icon"
 	"syscall"
 	"time"
 	"unsafe"
+
+	"sealdice-core/dice"
+	"sealdice-core/icon"
 
 	"github.com/fy0/go-autostart"
 	"github.com/fy0/systray"
@@ -264,7 +265,7 @@ func showMsgBox(title string, message string) {
 func executeWin(name string, arg ...string) *exec.Cmd {
 	cmd := exec.Command(name, arg...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		//CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
+		// CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
 		CreationFlags:    windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_NEW_CONSOLE,
 		NoInheritHandles: true,
 	}

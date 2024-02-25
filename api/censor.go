@@ -10,11 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strings"
+
 	"sealdice-core/dice"
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/model"
-	"sort"
-	"strings"
 
 	"github.com/golang-module/carbon"
 	"github.com/labstack/echo/v4"

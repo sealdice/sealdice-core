@@ -5,8 +5,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	sealcrypto "sealdice-core/utils/crypto"
 	"strings"
+
+	sealcrypto "sealdice-core/utils/crypto"
 )
 
 func main() {
@@ -52,7 +53,7 @@ func signModFile(privateKey string, path, name string, signStrTmpl string) {
 		return
 	}
 	newData := []byte(fmt.Sprintf(signStrTmpl, sign) + string(data))
-	err = os.WriteFile("[signed]"+name, newData, 0644)
+	err = os.WriteFile("[signed]"+name, newData, 0o644)
 	if err != nil {
 		return
 	}

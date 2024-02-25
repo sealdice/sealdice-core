@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sealdice-core/dice"
-	"sealdice-core/utils"
 	"strconv"
 	"strings"
 	"time"
+
+	"sealdice-core/dice"
+	"sealdice-core/utils"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/time/rate"

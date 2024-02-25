@@ -99,7 +99,6 @@ func GroupPlayerInfoGet(db *sqlx.DB, groupID string, playerID string) *GroupPlay
 		"group_id": groupID,
 		"user_id":  playerID,
 	})
-
 	if err != nil {
 		fmt.Printf("error getting group player info: %s", err.Error())
 		return nil
@@ -107,11 +106,11 @@ func GroupPlayerInfoGet(db *sqlx.DB, groupID string, playerID string) *GroupPlay
 
 	defer rows.Close()
 
-	//Name:                stmt.ColumnText(0),
-	//UserId:              playerId,
-	//LastCommandTime:     stmt.ColumnInt64(2),
-	//AutoSetNameTemplate: stmt.ColumnText(3),
-	//DiceSideNum:         int(stmt.ColumnInt64(4)),
+	// Name:                stmt.ColumnText(0),
+	// UserId:              playerId,
+	// LastCommandTime:     stmt.ColumnInt64(2),
+	// AutoSetNameTemplate: stmt.ColumnText(3),
+	// DiceSideNum:         int(stmt.ColumnInt64(4)),
 
 	exists := false
 	for rows.Next() {

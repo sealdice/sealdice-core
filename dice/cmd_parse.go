@@ -464,8 +464,10 @@ func AtBuild(uid string) string {
 	return text
 }
 
-var reSpace = regexp.MustCompile(`\s+`)
-var reKeywordParam = regexp.MustCompile(`^--([^\s=]+)(?:=(\S+))?$`)
+var (
+	reSpace        = regexp.MustCompile(`\s+`)
+	reKeywordParam = regexp.MustCompile(`^--([^\s=]+)(?:=(\S+))?$`)
+)
 
 func ArgsParse(rawCmd string) *CmdArgs {
 	args := reSpace.Split(rawCmd, -1)

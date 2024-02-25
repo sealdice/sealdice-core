@@ -439,12 +439,15 @@ type RequestFileDataImpl struct {
 func (r *RequestFileDataImpl) NeedsUpload() bool {
 	return true
 }
+
 func (r *RequestFileDataImpl) UploadData() (string, io.Reader, error) {
 	return r.File, r.Reader, nil
 }
+
 func (r *RequestFileDataImpl) SendData() string {
 	return r.File
 }
+
 func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 	bot := pa.IntentSession
 	dice := pa.Session.Parent

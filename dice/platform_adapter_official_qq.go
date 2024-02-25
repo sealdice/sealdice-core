@@ -173,6 +173,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessag
 	}
 	return msg
 }
+
 func (pa *PlatformAdapterOfficialQQ) DoRelogin() bool {
 	pa.CancelFunc()
 	pa.Session.Parent.Logger.Infof("正在启用 official qq 服务")

@@ -25,9 +25,11 @@ type ByRIListValue []*RIListItem
 func (lst ByRIListValue) Len() int {
 	return len(lst)
 }
+
 func (lst ByRIListValue) Swap(i, j int) {
 	lst[i], lst[j] = lst[j], lst[i]
 }
+
 func (lst ByRIListValue) Less(i, j int) bool {
 	if lst[i].val == lst[j].val {
 		return lst[i].name > lst[j].name
@@ -117,7 +119,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 	if err2 != nil {
 		fmt.Println(err2)
 	} else {
-		_ = os.WriteFile(attrConfigFn, buf, 0644)
+		_ = os.WriteFile(attrConfigFn, buf, 0o644)
 	}
 	return defaultVals
 }

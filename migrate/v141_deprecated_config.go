@@ -10,7 +10,7 @@ import (
 
 func V141DeprecatedConfigRename() error {
 	var err error
-	var confp = filepath.Clean("./data/default/serve.yaml")
+	confp := filepath.Clean("./data/default/serve.yaml")
 
 	if _, err = os.Stat(confp); err != nil {
 		// No renaming is needed if config hasn't been created.
@@ -46,7 +46,7 @@ func V141DeprecatedConfigRename() error {
 		return err
 	}
 
-	err = os.WriteFile(confp, modified, 0644)
+	err = os.WriteFile(confp, modified, 0o644)
 	if err != nil {
 		return err
 	}

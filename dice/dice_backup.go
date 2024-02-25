@@ -6,11 +6,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sealdice-core/dice/model"
-	"sealdice-core/utils"
 	"sort"
 	"strings"
 	"time"
+
+	"sealdice-core/dice/model"
+	"sealdice-core/utils"
 
 	"github.com/alexmullins/zip"
 )
@@ -52,7 +53,7 @@ type OneBackupConfig struct {
 }
 
 func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, error) {
-	_ = os.MkdirAll(BackupDir, 0755)
+	_ = os.MkdirAll(BackupDir, 0o755)
 
 	fzip, err := os.CreateTemp(BackupDir, bakFilename)
 	if err != nil {

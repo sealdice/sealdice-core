@@ -944,8 +944,10 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 }
 
 // 借助类似操作系统信号量的思路来做一个互斥锁
-var muxAutoQuit sync.Mutex
-var groupLeaveNum int
+var (
+	muxAutoQuit   sync.Mutex
+	groupLeaveNum int
+)
 
 // LongTimeQuitInactiveGroup 另一种退群方案,其中minute代表间隔多久执行一次，num代表一次退几个群（每次退群之间有10秒的等待时间）
 func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIntervalMinute int, groupsPerRound int) {

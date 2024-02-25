@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"sealdice-core/dice/model"
 	"strconv"
 	"strings"
 	"time"
+
+	"sealdice-core/dice/model"
 
 	"github.com/fy0/lockfree"
 )

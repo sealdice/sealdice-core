@@ -240,8 +240,7 @@ type RedEmojiZplan struct {
 	BytesReserveInfo string `json:"bytesReserveInfo,omitempty"`
 }
 
-type RedThumbPath struct {
-}
+type RedThumbPath struct{}
 
 type RedTextElement struct {
 	Content        string `json:"content,omitempty"`

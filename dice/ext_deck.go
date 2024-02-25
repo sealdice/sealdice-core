@@ -1145,7 +1145,7 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 		return fmt.Errorf("无法解析获取到的牌堆数据")
 	}
 
-	err = os.WriteFile(deckInfo.Filename, newData, 0755)
+	err = os.WriteFile(deckInfo.Filename, newData, 0o755)
 	if err != nil {
 		d.Logger.Errorf("牌堆“%s”更新时保存文件出错，%s", deckInfo.Name, err.Error())
 		return err

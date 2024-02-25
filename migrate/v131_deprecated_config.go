@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
 	"sealdice-core/dice"
 
 	"gopkg.in/yaml.v3"
@@ -106,11 +107,11 @@ func V131DeprecatedConfig2CustomText() error {
 			return err
 		}
 		// 先备份
-		err = os.WriteFile(customTextBakPath, customTextData, 0644)
+		err = os.WriteFile(customTextBakPath, customTextData, 0o644)
 		if err != nil {
 			return err
 		}
-		err = os.WriteFile(customTextPath, newData, 0644)
+		err = os.WriteFile(customTextPath, newData, 0o644)
 		if err != nil {
 			return err
 		}
@@ -131,7 +132,7 @@ func V131DeprecatedConfig2CustomText() error {
 		if err != nil {
 			return err
 		}
-		err = os.WriteFile(confPath, newData2, 0644)
+		err = os.WriteFile(confPath, newData2, 0o644)
 		if err != nil {
 			return err
 		}

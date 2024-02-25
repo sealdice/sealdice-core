@@ -908,6 +908,7 @@ func Size(size int) func(*DiceRollParser) error {
 		return nil
 	}
 }
+
 func (p *DiceRollParser) Init(options ...func(*DiceRollParser) error) error {
 	var (
 		max                  token32

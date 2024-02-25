@@ -5,8 +5,9 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"sealdice-core/dice"
 	"strings"
+
+	"sealdice-core/dice"
 
 	"github.com/labstack/echo/v4"
 )

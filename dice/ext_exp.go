@@ -549,7 +549,6 @@ func getCmdStBase() *CmdItemInfo {
 				}
 
 				r, toSetItems, toModItems, err := cmdStReadOrMod(mctx, tmpl, input)
-
 				if err != nil {
 					dice.Logger.Info(".st 格式错误: ", err.Error())
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}

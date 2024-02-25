@@ -7,12 +7,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"sealdice-core/dice/model"
-	"sealdice-core/utils"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"sealdice-core/dice/model"
+	"sealdice-core/utils"
 
 	"golang.org/x/time/rate"
 
@@ -22,11 +23,15 @@ import (
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint
-type TextTemplateItem = []interface{} // 实际上是 [](string | int) 类型
-type TextTemplateItemList []TextTemplateItem
+type (
+	TextTemplateItem     = []interface{} // 实际上是 [](string | int) 类型
+	TextTemplateItemList []TextTemplateItem
+)
 
-type TextTemplateWithWeight = map[string][]TextTemplateItem
-type TextTemplateWithWeightDict = map[string]TextTemplateWithWeight
+type (
+	TextTemplateWithWeight     = map[string][]TextTemplateItem
+	TextTemplateWithWeightDict = map[string]TextTemplateWithWeight
+)
 
 // TextTemplateHelpItem 辅助信息，用于UI中，大部分自动生成
 type TextTemplateHelpItem = struct {
@@ -41,8 +46,10 @@ type TextTemplateHelpItem = struct {
 	NotBuiltin      bool               `json:"notBuiltin"`      // 非内置
 	TopOrder        int                `json:"topOrder"`        // 置顶序号，越高越靠前
 }
-type TextTemplateHelpGroup = map[string]*TextTemplateHelpItem
-type TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
+type (
+	TextTemplateHelpGroup    = map[string]*TextTemplateHelpItem
+	TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
+)
 
 // const CONFIG_TEXT_TEMPLATE_FILE = "./data/configs/text-template.yaml"
 
@@ -213,7 +220,7 @@ func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 }
 
 func (cm *ConfigManager) save() error {
-	file, err := os.OpenFile(cm.filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	file, err := os.OpenFile(cm.filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}
@@ -2248,10 +2255,10 @@ func (d *Dice) SaveText() {
 		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
 		current, err := os.ReadFile(newFn)
 		if err != nil {
-			_ = os.WriteFile(bakFn, current, 0644)
+			_ = os.WriteFile(bakFn, current, 0o644)
 		}
 
-		_ = os.WriteFile(newFn, buf, 0644)
+		_ = os.WriteFile(newFn, buf, 0o644)
 	}
 }
 
@@ -2323,7 +2330,7 @@ func (d *Dice) Save(isAuto bool) {
 		a, err := yaml.Marshal(d)
 
 		if err == nil {
-			err := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0644)
+			err := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0o644)
 			if err == nil {
 				now := time.Now()
 				d.LastSavedTime = &now

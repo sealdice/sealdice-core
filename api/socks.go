@@ -6,10 +6,11 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"sealdice-core/dice"
 	"strconv"
 	"strings"
 	"time"
+
+	"sealdice-core/dice"
 
 	"github.com/armon/go-socks5"
 )
@@ -50,7 +51,6 @@ func isPrivateIP(ip net.IP) bool {
 
 func getClientIP() ([]string, error) {
 	addrs, err := net.InterfaceAddrs()
-
 	if err != nil {
 		return nil, err
 	}

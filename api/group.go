@@ -3,10 +3,11 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"sealdice-core/dice"
-	"sealdice-core/dice/model"
 	"strings"
 	"time"
+
+	"sealdice-core/dice"
+	"sealdice-core/dice/model"
 
 	"github.com/labstack/echo/v4"
 )
@@ -89,7 +90,6 @@ func groupQuit(c echo.Context) error {
 		ExtraText string `yaml:"extraText" json:"extraText"`
 	}{}
 	err := c.Bind(&v)
-
 	if err != nil {
 		return c.String(430, "")
 	}

@@ -7,8 +7,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sealdice-core/dice"
 	"strings"
+
+	"sealdice-core/dice"
 
 	"github.com/dop251/goja"
 	"github.com/labstack/echo/v4"

@@ -90,6 +90,7 @@ var guguText = `
 什么跑团？刚分手，别来烦我！{$t玩家}如是说道|蜜瓜包结合实际经历创作
 今天发大水，脑子被水淹了，跑不了团啦！|蜜瓜包结合实际经历创作
 `
+
 var emokloreAttrParent = map[string][]string{
 	"检索":   {"知力"},
 	"洞察":   {"知力"},
@@ -873,8 +874,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 
 				// 创建pool后产生随机数，使用F-Y洗牌算法以保证随机性和效率
-				var pool = make([]int, roulette.Time)
-				var allNum = make([]int, roulette.Face)
+				pool := make([]int, roulette.Time)
+				allNum := make([]int, roulette.Face)
 				for i := range allNum {
 					allNum[i] = i + 1
 				}
@@ -892,7 +893,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			// Draw mode
-			var isRouletteEmpty = true
+			isRouletteEmpty := true
 			rouletteMap.Range(func(key string, value singleRoulette) bool {
 				isRouletteEmpty = false
 				return false

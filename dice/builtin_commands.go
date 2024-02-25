@@ -64,7 +64,7 @@ func (d *Dice) registerCoreCommands() {
 				return arg
 			}
 
-			var val = cmdArgs.GetArgN(1)
+			val := cmdArgs.GetArgN(1)
 			var uid string
 			switch strings.ToLower(val) {
 			case "add":
@@ -128,7 +128,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 				ReplyToSender(ctx, msg, text)
 			case "query":
-				var targetID = cmdArgs.GetArgN(2)
+				targetID := cmdArgs.GetArgN(2)
 				if targetID == "" {
 					ReplyToSender(ctx, msg, "未指定要查询的对象！")
 					break
@@ -140,7 +140,7 @@ func (d *Dice) registerCoreCommands() {
 					break
 				}
 
-				var text = fmt.Sprintf("所查询的<%s>情况：", targetID)
+				text := fmt.Sprintf("所查询的<%s>情况：", targetID)
 				switch v.Rank {
 				case BanRankBanned:
 					text += "禁止(-30)"
@@ -772,7 +772,7 @@ func (d *Dice) registerCoreCommands() {
 		updateCode      = "0000"
 	)
 
-	var masterListHelp = `.master add me // 将自己标记为骰主
+	masterListHelp := `.master add me // 将自己标记为骰主
 .master add @A @B // 将别人标记为骰主
 .master del @A @B @C // 去除骰主标记
 .master unlock <密码(在UI中查看)> // (当Master被人抢占时)清空骰主列表，并使自己成为骰主
@@ -920,7 +920,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "备份失败！错误已写入日志。可能是磁盘已满所致，建议立即进行处理！")
 				}
 			case "checkupdate":
-				var dm = ctx.Dice.Parent
+				dm := ctx.Dice.Parent
 				if dm.JustForTest {
 					ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -977,7 +977,7 @@ func (d *Dice) registerCoreCommands() {
 
 					bakFn, _ := ctx.Dice.Parent.BackupSimple()
 					tmpPath := path.Join(os.TempDir(), bakFn)
-					_ = os.MkdirAll(tmpPath, 0644)
+					_ = os.MkdirAll(tmpPath, 0o644)
 					ctx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
 					_ = cp.Copy(path.Join(BackupDir, bakFn), tmpPath)
 
@@ -989,7 +989,7 @@ func (d *Dice) registerCoreCommands() {
 				}()
 				dm.UpdateRequestChan <- d
 			case "reboot":
-				var dm = ctx.Dice.Parent
+				dm := ctx.Dice.Parent
 				if dm.JustForTest {
 					ReplyToSender(ctx, msg, "此指令在展示模式下不可用")
 					return CmdExecuteResult{Matched: true, Solved: true}

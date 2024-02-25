@@ -294,7 +294,7 @@ func (m *HelpManager) SaveHelpConfig(config *HelpConfig) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(filepath.Join("./data/helpdoc", HelpConfigFilename), data, 0644)
+	err = os.WriteFile(filepath.Join("./data/helpdoc", HelpConfigFilename), data, 0o644)
 	if err != nil {
 		return err
 	}
@@ -742,7 +742,7 @@ func (m *HelpManager) UploadHelpDoc(src io.Reader, group string, name string) er
 	}
 
 	dirPath := filepath.Join("./data/helpdoc", group)
-	err := os.MkdirAll(dirPath, 0755)
+	err := os.MkdirAll(dirPath, 0o755)
 	if err != nil {
 		return err
 	}

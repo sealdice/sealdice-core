@@ -5,10 +5,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sealdice-core/dice/censor"
-	"sealdice-core/dice/model"
 	"sort"
 	"strings"
+
+	"sealdice-core/dice/censor"
+	"sealdice-core/dice/model"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -53,7 +54,7 @@ func (cm *CensorManager) Load(_ *Dice) {
 	fileDir := "./data/censor"
 	cm.IsLoading = true
 	cm.Censor.SensitiveKeys = make(map[string]censor.WordInfo)
-	_ = os.MkdirAll(fileDir, 0755)
+	_ = os.MkdirAll(fileDir, 0o755)
 	_ = filepath.Walk(fileDir, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() && (filepath.Ext(path) == ".txt" || filepath.Ext(path) == ".toml") {
 			cm.Parent.Logger.Infof("正在读取敏感词文件：%s\n", path)

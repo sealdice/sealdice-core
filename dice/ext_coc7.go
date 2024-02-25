@@ -339,7 +339,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					CocDefaultAttrOn: true,
 					DisableBlock:     true,
 				})
-
 				if err != nil {
 					ReplyToSender(mctx, msg, "解析出错: "+restText)
 					return &CmdExecuteResult{Matched: true, Solved: true}
@@ -363,7 +362,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					CocDefaultAttrOn: true,
 					DisableBlock:     true,
 				})
-
 				if err != nil {
 					ReplyToSender(mctx, msg, "解析出错: "+expr2Text)
 					return &CmdExecuteResult{Matched: true, Solved: true}
@@ -393,8 +391,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					detail1 = ""
 				}
 
-				var outcome = r1.Value.(int64)
-				var attrVal = r2.Value.(int64)
+				outcome := r1.Value.(int64)
+				attrVal := r2.Value.(int64)
 
 				successRank, criticalSuccessValue := ResultCheck(mctx, cocRule, outcome, attrVal, difficultyRequire)
 				// 根据难度需求，修改判定值
@@ -696,7 +694,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						CocDefaultAttrOn: true,
 						DisableBlock:     true,
 					})
-
 					if err != nil {
 						ReplyToSender(ctx, msg, "解析出错: "+restText)
 						return &CmdExecuteResult{Matched: true, Solved: true}, 0, "", ""
@@ -1539,7 +1536,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			"dnd5e",
 		},
 		OnLoad: func() {
-
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 			tmpl := getCoc7CharTemplate()

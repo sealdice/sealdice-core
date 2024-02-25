@@ -104,7 +104,7 @@ type DiceConfigs struct { //nolint:revive
 
 func (dm *DiceManager) InitHelp() {
 	dm.IsHelpReloading = true
-	_ = os.MkdirAll("./data/helpdoc", 0755)
+	_ = os.MkdirAll("./data/helpdoc", 0o755)
 	dm.Help = new(HelpManager)
 	dm.Help.Parent = dm
 	dm.Help.EngineType = dm.HelpDocEngineType
@@ -120,11 +120,11 @@ func (dm *DiceManager) LoadDice() {
 	dm.UserNameCache = lockfree.NewHashMap()
 	dm.UserIDCache = lockfree.NewHashMap()
 
-	_ = os.MkdirAll(BackupDir, 0755)
-	_ = os.MkdirAll("./data/images", 0755)
-	_ = os.MkdirAll("./data/decks", 0755)
-	_ = os.MkdirAll("./data/names", 0755)
-	_ = os.WriteFile("./data/images/sealdice.png", IconPNG, 0644)
+	_ = os.MkdirAll(BackupDir, 0o755)
+	_ = os.MkdirAll("./data/images", 0o755)
+	_ = os.MkdirAll("./data/decks", 0o755)
+	_ = os.MkdirAll("./data/names", 0o755)
+	_ = os.WriteFile("./data/images/sealdice.png", IconPNG, 0o644)
 
 	// this can be shared by multiple runtimes
 	dm.JsRegistry = new(require.Registry)
@@ -216,7 +216,7 @@ func (dm *DiceManager) Save() {
 
 	data, err := yaml.Marshal(dc)
 	if err == nil {
-		_ = os.WriteFile("./data/dice.yaml", data, 0644)
+		_ = os.WriteFile("./data/dice.yaml", data, 0o644)
 	}
 }
 

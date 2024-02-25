@@ -92,7 +92,7 @@ type MsgContext struct {
 }
 
 func BoltDBInit(path string) *bbolt.DB {
-	db, err := bbolt.Open(path, 0644, nil)
+	db, err := bbolt.Open(path, 0o644, nil)
 	if err != nil {
 		panic(err)
 	}

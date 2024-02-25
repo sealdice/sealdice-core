@@ -10,8 +10,9 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
-	"sealdice-core/dice"
 	"syscall"
+
+	"sealdice-core/dice"
 
 	"github.com/labstack/echo/v4"
 )
@@ -33,6 +34,7 @@ func TestRunning() bool {
 func tempDirWarn() {
 	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
 }
+
 func showMsgBox(title string, message string) {
 	fmt.Println(title, message)
 }

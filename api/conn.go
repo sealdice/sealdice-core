@@ -4,9 +4,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"sealdice-core/dice"
 	"sort"
 	"time"
+
+	"sealdice-core/dice"
 
 	"github.com/labstack/echo/v4"
 )
