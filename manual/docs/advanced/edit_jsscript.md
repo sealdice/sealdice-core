@@ -1070,10 +1070,10 @@ ext.cmdMap['catch'] = cmdCatch;
 
 ## 网络请求
 
-主要使用 [Fetch API](https://developer.mozilla.org/zh-CN/docs/Web/API/Fetch_API) 进行网络请求，详细文档见链接。
+主要使用 [Fetch API](https://developer.mozilla.org/zh-CN/docs/Web/API/Fetch_API) 进行网络请求，详细文档见链接。`fetch` 函数返回一个 Promise，传统的写法是这样：
 
 ```javascript
-// 你可以使用 async/await 和 generator 来重写这段代码，欢迎 pr
+// 你可以使用 generator 来重写这段代码，欢迎 pr
 // 访问网址
 fetch('https://api-music.imsyy.top/cloudsearch?keywords=稻香').then((resp) => {
   // 在返回对象的基础上，将文本流作为 json 解析
@@ -1082,6 +1082,17 @@ fetch('https://api-music.imsyy.top/cloudsearch?keywords=稻香').then((resp) => 
     console.log(JSON.stringify(data));
   });
 });
+```
+
+你也可以使用异步编程（async/await）来简化代码：
+
+```javascript
+const response = await fetch('https://api-music.imsyy.top/cloudsearch?keywords=稻香');
+if (!response.ok) {
+    // 处理不成功的请求...
+}
+const data = await response.json();
+console.log(JSON.stringify(data));
 ```
 
 套用这个模板，你可以写出很多调用 API 的简单扩展。
