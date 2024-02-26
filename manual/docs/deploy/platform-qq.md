@@ -81,7 +81,22 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
 
 ### 准备 Lagrange
 
-可以在 [Lagrange Github 仓库](https://github.com/LagrangeDev/Lagrange.Core) 中获取到相应程序，通常你需要进入 Action 页面，根据你的系统选择相应版本的最新制品。
+可以在 [Lagrange Github Release](https://github.com/LagrangeDev/Lagrange.Core/releases) 中获取到 Nightly 版程序，根据你的系统选择相应版本下载，例如：
+
+- Windows 通常选择 `win-x64` 版本；
+- Mac（Intel 芯片）选择 `osx-x64` 的版本；
+- Mac（Arm 芯片，如 M1、M2、M3 等）选择 `osx-arm64` 的版本；
+- ……
+
+![Lagrange Nightly Release](./images/platform-qq-lagrange-release.png)
+
+::: details 使用 Lagrange Action 版本
+
+你还可以选择使用 Lagrange 在 Action 中自动构建的版本，这些版本是 **最新** 的构建。在使用这些版本时，你需要安装对应版本的 .Net SDK。
+
+**除特殊情况外，我们始终建议你选择前面提到的 Nightly 版本。**
+
+可以在 [Lagrange Github 仓库](https://github.com/LagrangeDev/Lagrange.Core) 中的 Action 页面，进入位于列表最前一条的最新制品页面，根据你的系统选择相应版本。
 
 ![Lagrange Action](./images/platform-qq-lagrange-1.png =80%x80%)
 
@@ -89,31 +104,23 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
 
 ![Lagrange Action Artifacts](./images/platform-qq-lagrange-2.png =40%x40%)
 
+:::
+
 ### 运行 Lagrange
 
-::: tip .Net SDK 
+解压下载的 Nightly 版的 Lagrange 压缩文件，你可以看见名如 `Lagrange.OneBot.exe` 的应用程序，双击启动即可。启动时有可能会先弹出如下警告，按步骤允许即可：
 
-Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时出现报错，需要去下载 [.Net SDK](https://dotnet.microsoft.com/zh-cn/download) 并安装。
+![Lagrange 运行警告 1](./images/platform-qq-lagrange-3.png =40%x40%)
 
-在下载 Lagrange 时，后缀中的数字说明了其对 .Net 版本的需求，请根据说明下载对应版本（例如后面是 8.0，则需安装 SDK 的版本为 8.0）。
+![Lagrange 运行警告 2](./images/platform-qq-lagrange-4.png =40%x40%)
 
-:::
+成功启动后可以发现打开了如下的命令行窗口，其中提示已创建了一个配置文件：
 
-首先解压对应制品压缩文件，你可以看见 `Lagrange.OneBot.exe` 等多个文件。
+![Lagrange 启动后提示](./images/platform-qq-lagrange-5.png =80%x80%)
 
-在运行之前，需要在与 `Lagrange.OneBot.exe` 同级的目录下，新建一个 `appsettings.json` 文件，用来填写 Lagrange 的配置。
+可以发现，在程序所在的文件夹中多出了一个 `appsettings.json`，这是 [Lagrange 的配置文件](#lagrange-配置文件)，你需要打开并修改其中的一些项。也可以在启动前直接手动新建 `appsettings.json` 并写入内容。
 
-配置示例在 Lagrange Github 的介绍中有提供，你也可以参照下面进行配置：
-
-::: warning Lagrange 配置文件版本
-
-Lagrange 项目对其配置文件的格式进行过破坏兼容的更改。以下说明针对的是我们所知的当前版本。
-
-如果你是在 2024 年 2 月 18 日或之前下载的 Lagrange 程序，请你参考[这段说明](#旧版-lagrange-配置)。
-
-如果 Lagrange 项目后续做出更多破坏性更改，我们会尽可能快地更新这里的说明，但不做任何承诺。请以其 [官方仓库的最新说明](https://github.com/LagrangeDev/Lagrange.Core) 为准。
-
-:::
+修改后内容大致如下：
 
 `appsettings.json`：
 
@@ -150,9 +157,10 @@ Lagrange 项目对其配置文件的格式进行过破坏兼容的更改。以�
 ```
 
 其中有几个重要的设置项需要填写和注意：
+
 - `Password` 为空时为扫码，这里请留空。
 - `SignServerUrl`：NTQQ 的签名服务地址，**注意此处的签名服务需要是 Linux NTQQ 签名服务，不可以使用 QSign、Shamrock 等提供的 Android QQ 签名服务**；
-- `Implementations`：海豹将使用 `ForwardWebSocket`，即正向 WebSocket 方式连接 Lagrange，该项下的 `Host` 和 `Port` 是 Lagrange 将提供的 **OneBot-V11 正向 WS 服务地址**，记下以供后续使用。如果对应端口已占用请自行调整。
+- `Implementations`：这是 Lagrange 的连接配置，海豹将使用 `ForwardWebSocket`，即正向 WebSocket 方式连接 Lagrange，该方式下的 `Host` 和 `Port` 是 Lagrange 将提供的 **OneBot-V11 正向 WS 服务地址**，记下以供后续使用。如果对应端口已占用请自行调整。
 
 ::: info Linux NTQQ 的签名服务
 
@@ -160,17 +168,41 @@ Lagrange 项目对其配置文件的格式进行过破坏兼容的更改。以�
 
 :::
 
-配置完成后的文件夹如下：
+修改配置完成后的文件夹如下：
 
-![准备运行前的 Lagrange 文件夹](./images/platform-qq-lagrange-3.png =40%x40%)
+![正式运行前的 Lagrange 文件夹](./images/platform-qq-lagrange-6.png =40%x40%)
 
-设置文件保存后，双击运行 `Lagrange.OneBot.exe` 启动 Lagrange，有可能会先弹出如下警告，按步骤允许即可：
+在配置文件按需要正确修改后，在命令行中按任意键，Lagrange 将正式运行。在同一文件夹下会出现一张登录二维码图片 `qr-0.png`，在二维码过期前尽快使用手机 QQ 扫码连接。
 
-![Lagrange 运行警告 1](./images/platform-qq-lagrange-4.png =40%x40%)
+::: details Action 版 Lagrange 与 .Net SDK 
 
-![Lagrange 运行警告 2](./images/platform-qq-lagrange-5.png =40%x40%)
+Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时出现报错，需要去下载 [.Net SDK](https://dotnet.microsoft.com/zh-cn/download) 并安装。
 
-成功运行时，很快会弹出一个命令行窗口，同时在同一文件夹下会出现一张登录二维码图片 `qr-0.png`，尽快在二维码过期前使用手机 QQ 扫码连接。
+在下载 Lagrange 时，后缀中的数字说明了其对 .Net 版本的需求，请根据说明下载对应版本（例如后面是 8.0，则需安装 SDK 的版本为 8.0）。
+
+此外，与 Nightly 下载后解压的单文件版本的 Lagrange 不同，在解压 Action 制品压缩文件后，你可以看见 `Lagrange.OneBot.exe` 等多个文件，这些文件都是运行必不可少的。
+
+包括生成的配置文件在内，一个正确的 Action 版 Lagrange 文件夹如下：
+
+![Action 版的 Lagrange 文件夹](./images/platform-qq-lagrange-7.png =40%x40%)
+
+:::
+
+### 海豹连接 Lagrange
+
+进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebott11分离部署)」。
+
+账号填写骰子的 QQ 号，连接地址使用上面记下的 WS 正向服务地址 `ws://{Host}:{Port}`，如 `ws://127.0.0.1:8081`。
+
+![海豹连接 Lagrange](./images/platform-qq-lagrange-8.png =65%x65%)
+
+成功连接后即可使用。
+
+### Lagrange 配置文件
+
+与可执行文件在同级目录下的 `appsettings.json` 文件，是 Lagrange 的配置文件。
+
+最新的 Lagrange 会在没有该文件时自动创建默认配置，如果没有生成该文件，你可以按照 [官方仓库的最新说明](https://github.com/LagrangeDev/Lagrange.Core) 手动创建这一文件。
 
 #### 旧版 Lagrange 配置
 
@@ -180,7 +212,15 @@ Lagrange 项目对其配置文件的格式进行过破坏兼容的更改。以�
 
 :::
 
-如果你使用的是 2024 年 2 月 18 日或之前下载的 Lagrange 程序，或使用以上配置出现问题，请尝试替换为以下配置：
+::: warning Lagrange 配置文件版本
+
+Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024 年 2 月 18 日或之前下载的 Lagrange 程序，请你参考下面的版本。
+
+目前最新的 Lagrange 可以识别两个版本的配置文件，但依然建议修改为最新格式。
+
+:::
+
+如果你使用的是 2024 年 2 月 18 日或之前下载的 Lagrange 程序，或使用前面提到的配置出现问题，请尝试替换为以下配置：
 
 ```json
 {
@@ -213,17 +253,7 @@ Lagrange 项目对其配置文件的格式进行过破坏兼容的更改。以�
 }
 ```
 
-配置项的含义与上述说明相同，可以做相同处理。
-
-### 海豹连接 Lagrange
-
-进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebott11分离部署)」。
-
-账号填写骰子的 QQ 号，连接地址使用上面记下的 WS 正向服务地址 `ws://{Host}:{Port}`，如 `ws://127.0.0.1:8081`。
-
-![海豹连接 Lagrange](./images/platform-qq-lagrange-6.png =65%x65%)
-
-成功连接后即可使用。
+配置项的含义与之前的说明相同，可以做相同处理。
 
 ## Shamrock <Badge type="tip" text="v1.4.2" vertical="middle" />
 
