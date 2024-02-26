@@ -17,6 +17,7 @@
 info.db
 record.log
 .idea
+!/.idea/**/Project.xml
 sealdice-core
 data/save.yaml
 configs/
