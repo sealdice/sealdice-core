@@ -1,19 +1,19 @@
 package api
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"runtime"
 	"sort"
 	"strings"
 	"time"
 
-	"encoding/hex"
-	"encoding/json"
-	"net/http"
-	"sealdice-core/dice"
-
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
+
+	"sealdice-core/dice"
 )
 
 const CodeAlreadyExists = 602
@@ -85,8 +85,10 @@ func hello2(c echo.Context) error {
 	return c.JSON(http.StatusOK, nil)
 }
 
-var myDice *dice.Dice
-var dm *dice.DiceManager
+var (
+	myDice *dice.Dice
+	dm     *dice.DiceManager
+)
 
 func doSignInGetSalt(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{

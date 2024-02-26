@@ -7,28 +7,28 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
-	"sealdice-core/dice/model"
-	"sealdice-core/migrate"
-	"sealdice-core/static"
+	"runtime/debug"
+	"strings"
+	"syscall"
+	"time"
 
-	"go.uber.org/zap"
+	// _ "net/http/pprof"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.uber.org/zap"
 
-	"os"
-	"os/exec"
-	"os/signal"
-	"runtime/debug"
 	"sealdice-core/api"
 	"sealdice-core/dice"
-	"strings"
-	"syscall"
-	"time"
-	// _ "net/http/pprof"
+	"sealdice-core/dice/model"
+	"sealdice-core/migrate"
+	"sealdice-core/static"
 )
 
 /**
@@ -69,7 +69,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 				defer func() {
 					_ = recover()
 				}()
-				var dbData = d.DBData
+				dbData := d.DBData
 				if dbData != nil {
 					d.DBData = nil
 					_ = dbData.Close()
@@ -80,7 +80,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 				defer func() {
 					_ = recover()
 				}()
-				var dbLogs = d.DBLogs
+				dbLogs := d.DBLogs
 				if dbLogs != nil {
 					d.DBLogs = nil
 					_ = dbLogs.Close()
@@ -93,7 +93,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 				}()
 				cm := d.CensorManager
 				if cm != nil && cm.DB != nil {
-					var dbCensor = cm.DB
+					dbCensor := cm.DB
 					cm.DB = nil
 					_ = dbCensor.Close()
 				}
@@ -208,7 +208,7 @@ func main() {
 	}
 	dnsHack()
 
-	_ = os.MkdirAll("./data", 0755)
+	_ = os.MkdirAll("./data", 0o755)
 	MainLoggerInit("./data/main.log", true)
 
 	// 提早初始化是为了读取ServiceName
@@ -253,7 +253,7 @@ func main() {
 		if doNext {
 			// 只有不同文件才进行校验
 			// windows平台旧版本到1.4.0流程
-			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0644)
+			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0o644)
 			logger.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
 			logger.Warn("程序目录下会出现“升级日志.log”，这代表升级正在进行中，如果失败了请检查此文件。")
 

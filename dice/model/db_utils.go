@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sealdice-core/utils/spinner"
 	"sync"
+
+	"sealdice-core/utils/spinner"
 )
 
 func DBCacheDelete() bool {

@@ -17,6 +17,7 @@
 info.db
 record.log
 .idea
+!/.idea/**/Project.xml
 sealdice-core
 data/save.yaml
 configs/
@@ -34,7 +35,5 @@ walle-q/
 _help_cache
 .DS_Store
 !static/.nomedia
-
-.vscode/
 
 *.private.pem

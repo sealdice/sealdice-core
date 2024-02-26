@@ -3,12 +3,13 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"sealdice-core/dice"
-	"sealdice-core/dice/model"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+
+	"sealdice-core/dice"
+	"sealdice-core/dice/model"
 )
 
 func groupList(c echo.Context) error {
@@ -89,7 +90,6 @@ func groupQuit(c echo.Context) error {
 		ExtraText string `yaml:"extraText" json:"extraText"`
 	}{}
 	err := c.Bind(&v)
-
 	if err != nil {
 		return c.String(430, "")
 	}

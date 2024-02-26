@@ -13,12 +13,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sealdice-core/dice"
 	"strconv"
 	"syscall"
 	"time"
 
 	"go.uber.org/zap"
+
+	"sealdice-core/dice"
 )
 
 var binPrefix = "https://sealdice.coding.net/p/sealdice/d/sealdice-binaries/git/raw/master"
@@ -63,7 +64,7 @@ func downloadUpdate(dm *dice.DiceManager, log *zap.SugaredLogger) (string, error
 				return "", errors.New("更新: 删除缓存目录(update)失败")
 			}
 
-			_ = os.MkdirAll("./update", 0755)
+			_ = os.MkdirAll("./update", 0o755)
 			fn2 := "./update/update." + ext
 			err = DownloadFile(fn2, fileUrl)
 			if err != nil {
@@ -183,7 +184,6 @@ func DownloadFile(filepath string, url string) error {
 
 	request.Header.Add("Accept-Encoding", "gzip")
 	resp, err := client.Do(request)
-
 	if err != nil {
 		return err
 	}

@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"sealdice-core/dice"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,6 +14,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"sealdice-core/dice"
 )
 
 const updaterVersion = "0.1.1"
@@ -78,7 +79,7 @@ func CheckUpdater(dm *dice.DiceManager) error {
 	// 获取updater版本
 	isUpdaterOk := false
 	if exists {
-		err := os.Chmod(fn, 0755)
+		err := os.Chmod(fn, 0o755)
 		if err != nil {
 			logger.Error("设置升级程序执行权限失败", err.Error())
 		}
@@ -104,7 +105,7 @@ func CheckUpdater(dm *dice.DiceManager) error {
 			return errors.New("下载更新程序失败，无可用更新程序")
 		} else {
 			logger.Info("下载更新程序成功")
-			err := os.Chmod(fn, 0755)
+			err := os.Chmod(fn, 0o755)
 			if err != nil {
 				logger.Error("设置升级程序执行权限失败", err.Error())
 			}
@@ -149,7 +150,7 @@ func UpdateByFile(dm *dice.DiceManager, log *zap.SugaredLogger, packName string,
 		log = logger
 	}
 	fn := getUpdaterFn()
-	err := os.Chmod(fn, 0755)
+	err := os.Chmod(fn, 0o755)
 	if err != nil {
 		log.Error("设置升级程序执行权限失败", err.Error())
 	}
@@ -163,7 +164,6 @@ func UpdateByFile(dm *dice.DiceManager, log *zap.SugaredLogger, packName string,
 	args := []string{"--upgrade", packName, "--pid", strconv.Itoa(os.Getpid())}
 	cmd := exec.CommandContext(ctx, fn, args...)
 	out, err := cmd.CombinedOutput()
-
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			log.Info("升级程序: 验证成功，进入下一阶段，即将退出进程")

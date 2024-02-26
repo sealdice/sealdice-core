@@ -4,11 +4,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"sealdice-core/dice"
 	"sort"
 	"time"
 
 	"github.com/labstack/echo/v4"
+
+	"sealdice-core/dice"
 )
 
 func ImConnections(c echo.Context) error {

@@ -11,21 +11,19 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sealdice-core/dice/constants"
-	"sealdice-core/dice/model"
 	"strings"
 	"time"
 	"unicode"
 
-	"github.com/golang-module/carbon"
-
 	"github.com/fy0/lockfree"
+	"github.com/golang-module/carbon"
 	"go.uber.org/zap"
+
+	"sealdice-core/dice/constants"
+	"sealdice-core/dice/model"
 )
 
-var (
-	ErrGroupCardOverlong = errors.New("群名片长度超过限制")
-)
+var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
 
 const StoryVersion = 101
 
@@ -702,7 +700,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		AutoActive: true,
 		Official:   true,
 		OnLoad: func() {
-			_ = os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "log-exports"), 0755)
+			_ = os.MkdirAll(filepath.Join(self.BaseConfig.DataDir, "log-exports"), 0o755)
 		},
 		OnMessageSend: func(ctx *MsgContext, msg *Message, flag string) {
 			// 记录骰子发言
@@ -904,7 +902,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
 	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
-	_ = os.MkdirAll(dirpath, 0755)
+	_ = os.MkdirAll(dirpath, 0o755)
 
 	url, uploadTS, updateTS, _ := model.LogGetUploadInfo(ctx.Dice.DBLogs, groupID, logName)
 	if len(url) > 0 && uploadTS > updateTS {

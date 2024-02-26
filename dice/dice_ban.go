@@ -3,11 +3,12 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"sealdice-core/dice/model"
 	"strings"
 	"time"
 
 	"github.com/robfig/cron/v3"
+
+	"sealdice-core/dice/model"
 )
 
 type BanRankType int

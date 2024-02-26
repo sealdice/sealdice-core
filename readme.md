@@ -10,13 +10,23 @@
 
 ## 开发环境搭建
 
-#### 1. golang 开发环境
+### 1. golang 开发环境
 
 编译的 golang 版本为 1.20。使用更新版本时需注意不要使用新版本引入的新函数。
 
-因部分依赖库的需求，可能需要配置国内镜像，个人使用 <https://goproxy.cn/> 镜像
+因部分依赖库的需求，可能需要配置国内镜像，个人使用 <https://goproxy.cn/> 镜像。
 
-本项目使用 golangci-lint 工具进行静态分析。如果你的开发环境还未安装，请参考[这份文档](https://golangci-lint.run/usage/install/#local-installation)。分析器的相关配置位于 `.golangci.yml` 文件中。
+#### 代码格式化
+
+本项目要求所有代码使用 goimports 进行格式化。这一行为已经设定在本项目的编辑器配置文件中。
+
+#### 在本地配置 LINTER
+
+本项目使用 golangci-lint 工具进行静态分析。
+
+此工具对于代码开发**不是**必要的。但是，本项目的 CI 流程中配置了 linter 检查，不符合规范的代码不能被合入。
+
+因此，强烈推荐开发者在本地安装此工具，请参考[这份文档](https://golangci-lint.run/usage/install/#local-installation)。分析器的相关配置位于 `.golangci.yml` 文件中。
 
 你可能需要调整编辑器的相关配置，使用 golangci-lint 为默认的分析工具，并开启自动检查。
 
@@ -25,8 +35,10 @@
 > 1. `go.lintTool` 选择 golangci-lint
 > 2. `go.lintFlags` 添加一项 `--fast`
 > 3. `go.lintOnSave` **不能**选择 file，因为只分析单个文件会导致无法正确解析符号引用
+>
+> 以上配置没有写入项目的统一设置，以允许开发者不本地使用 golangci-lint
 
-#### 2. 拉取代码并配置数据文件
+### 2. 拉取代码并配置数据文件
 
 使用git拉取项目代码
 
@@ -51,7 +63,7 @@ static
    └─assets
 ```
 
-#### 3. 编译运行
+### 3. 编译运行
 
 打开项目，或使用终端访问项目目录，运行：
 

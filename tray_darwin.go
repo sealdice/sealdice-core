@@ -11,14 +11,15 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sealdice-core/dice"
-	"sealdice-core/icon"
 	"syscall"
 	"time"
 
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
 	"github.com/labstack/echo/v4"
+
+	"sealdice-core/dice"
+	"sealdice-core/icon"
 )
 
 var theDm *dice.DiceManager
@@ -42,6 +43,7 @@ func TestRunning() bool {
 func tempDirWarn() {
 	fmt.Println("当前工作路径为临时目录，因此拒绝继续执行。")
 }
+
 func showMsgBox(title string, message string) {
 	fmt.Println(title, message)
 }

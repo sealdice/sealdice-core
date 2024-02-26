@@ -7,12 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
-	"sealdice-core/utils/procs"
 	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/google/uuid"
+
+	"sealdice-core/utils/procs"
 )
 
 const (
@@ -134,7 +135,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	pa.WalleQState = WqStateCodeInLogin
 	fmt.Println("WalleQServe begin")
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
-	_ = os.MkdirAll(workDir, 0755)
+	_ = os.MkdirAll(workDir, 0o755)
 	log := dice.Logger
 	qrcodeFile := filepath.Join(workDir, "qrcode.png")
 	// deviceFilePath := filepath.Join(workDir, "device.json") // 暂时让他自己写
@@ -165,7 +166,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 		wqc.Onebot.HTTPWebhook = make([]interface{}, 0)
 		b := new(bytes.Buffer)
 		_ = toml.NewEncoder(b).Encode(wqc)
-		_ = os.WriteFile(configFilePath, b.Bytes(), 0644)
+		_ = os.WriteFile(configFilePath, b.Bytes(), 0o644)
 	} else { //nolint
 		// 如果决定使用单进程 wq
 		/*
@@ -187,7 +188,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	wd, _ := os.Getwd()
 	wqExePath, _ := filepath.Abs(filepath.Join(wd, "walle-q/walle-q"))
 	wqExePath = strings.ReplaceAll(wqExePath, "\\", "/") // windows平台需要这个替换
-	_ = os.Chmod(wqExePath, 0755)
+	_ = os.Chmod(wqExePath, 0o755)
 
 	log.Info("onebot: 正在启动onebot客户端…… ", wqExePath)
 	p := procs.NewProcess(fmt.Sprintf(`"%s"`, wqExePath))
@@ -306,7 +307,7 @@ func (pa *PlatformAdapterWalleQ) SetQQProtocol(protocol int) bool {
 	}
 	b := new(bytes.Buffer)
 	_ = toml.NewEncoder(b).Encode(wqc)
-	_ = os.WriteFile(wd, b.Bytes(), 0644)
+	_ = os.WriteFile(wd, b.Bytes(), 0o644)
 	return true
 }
 

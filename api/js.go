@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sealdice-core/dice"
 	"strings"
 
 	"github.com/dop251/goja"
 	"github.com/labstack/echo/v4"
+
+	"sealdice-core/dice"
 )
 
 func jsExec(c echo.Context) error {

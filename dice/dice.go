@@ -7,15 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
-	"sealdice-core/dice/censor"
-	"sealdice-core/dice/logger"
-	"sealdice-core/dice/model"
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/exp/slices"
-	"golang.org/x/time/rate"
 
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
@@ -25,14 +19,25 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/tidwall/buntdb"
 	"go.uber.org/zap"
+
 	rand2 "golang.org/x/exp/rand"
+	"golang.org/x/exp/slices"
+	"golang.org/x/time/rate"
+
+	"sealdice-core/dice/censor"
+	"sealdice-core/dice/logger"
+	"sealdice-core/dice/model"
 )
 
-var APPNAME = "SealDice"
-var VERSION = "1.4.3f1 v20240110"
+var (
+	APPNAME = "SealDice"
+	VERSION = "1.4.3f1 v20240110"
+)
 
-var VERSION_CODE = int64(1004003) //nolint:revive
-var APP_BRANCH = ""               //nolint:revive
+var (
+	VERSION_CODE = int64(1004003) //nolint:revive
+	APP_BRANCH   = ""             //nolint:revive
+)
 
 type CmdExecuteResult struct {
 	Matched  bool // 是否是指令
@@ -289,12 +294,12 @@ func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
 
 func (d *Dice) Init() {
 	d.BaseConfig.DataDir = filepath.Join("./data", d.BaseConfig.Name)
-	_ = os.MkdirAll(d.BaseConfig.DataDir, 0755)
-	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0755)
-	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0755)
-	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "log-exports"), 0755)
-	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0755)
-	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0755)
+	_ = os.MkdirAll(d.BaseConfig.DataDir, 0o755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extensions"), 0o755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "log-exports"), 0o755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0o755)
+	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0o755)
 
 	d.Cron = cron.New()
 	d.Cron.Start()
@@ -530,7 +535,6 @@ func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 
 	// 隐藏的内置字符串符号 \x1e
 	val, detail, err := d.ExprEvalBase("\x1e"+buffer+"\x1e", ctx, flags)
-
 	if err != nil {
 		fmt.Println("脚本执行出错: ", buffer, "->", err)
 	}
@@ -727,7 +731,7 @@ func CrashLog() {
 	if r := recover(); r != nil {
 		text := fmt.Sprintf("报错: %v\n堆栈: %v", r, string(debug.Stack()))
 		now := time.Now()
-		_ = os.WriteFile(fmt.Sprintf("崩溃日志_%s.txt", now.Format("20060201_150405")), []byte(text), 0644)
+		_ = os.WriteFile(fmt.Sprintf("崩溃日志_%s.txt", now.Format("20060201_150405")), []byte(text), 0o644)
 		panic(r)
 	}
 }

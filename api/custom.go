@@ -2,10 +2,11 @@ package api
 
 import (
 	"net/http"
-	"sealdice-core/dice"
 	"strings"
 
 	"github.com/labstack/echo/v4"
+
+	"sealdice-core/dice"
 )
 
 func customText(c echo.Context) error {

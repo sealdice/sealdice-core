@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"path/filepath"
+
 	"sealdice-core/utils"
 )
 

@@ -12,8 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sealdice-core/static"
-	"sealdice-core/utils/crypto"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +25,9 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/elazarl/goproxy.v1"
 	"gopkg.in/yaml.v3"
+
+	"sealdice-core/static"
+	"sealdice-core/utils/crypto"
 )
 
 var (
@@ -152,7 +153,8 @@ func (d *Dice) JsInit() {
 			if d.JsLoadingScript != nil {
 				official = d.JsLoadingScript.Official
 			}
-			return &ExtInfo{Name: name, Author: author, Version: version,
+			return &ExtInfo{
+				Name: name, Author: author, Version: version,
 				GetDescText: GetExtensionDesc,
 				AutoActive:  true,
 				IsJsExt:     true,
@@ -510,7 +512,7 @@ func (d *Dice) JsLoadScripts() {
 
 	// 导出内置脚本数据
 	builtinScripts, _ := fs.ReadDir(static.Scripts, "scripts")
-	_ = os.MkdirAll(builtinPath, 0755)
+	_ = os.MkdirAll(builtinPath, 0o755)
 	for _, script := range builtinScripts {
 		if !script.IsDir() && filepath.Ext(script.Name()) == ".js" {
 			target := filepath.Join(builtinPath, script.Name())
@@ -519,13 +521,13 @@ func (d *Dice) JsLoadScripts() {
 			// 判断是否有更新后的内置脚本
 			_, err := os.Stat(target)
 			if errors.Is(err, os.ErrNotExist) {
-				_ = os.WriteFile(target, data, 0644)
+				_ = os.WriteFile(target, data, 0o644)
 			} else {
 				// 检查同名内置脚本的签名，检查不通过则覆盖
 				scriptData, _ := os.ReadFile(target)
 				if ok, _ := CheckJsSign(scriptData); !ok {
 					d.Logger.Warnf("已存在的内置脚本「%s」未通过校验，进行覆盖", script.Name())
-					_ = os.WriteFile(target, scriptData, 0644)
+					_ = os.WriteFile(target, scriptData, 0o644)
 				}
 			}
 		}
@@ -862,7 +864,7 @@ func (d *Dice) JsUpdate(jsScriptInfo *JsScriptInfo, tempFileName string) error {
 		return fmt.Errorf("new data is empty")
 	}
 	// 更新插件
-	err = os.WriteFile(jsScriptInfo.Filename, newData, 0755)
+	err = os.WriteFile(jsScriptInfo.Filename, newData, 0o755)
 	if err != nil {
 		d.Logger.Errorf("插件“%s”更新时保存文件出错，%s", jsScriptInfo.Name, err.Error())
 		return err
