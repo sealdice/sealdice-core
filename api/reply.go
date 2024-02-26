@@ -5,10 +5,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"sealdice-core/dice"
 	"strings"
 
 	"github.com/labstack/echo/v4"
+
+	"sealdice-core/dice"
 )
 
 func customReplySave(c echo.Context) error {

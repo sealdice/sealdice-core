@@ -5,8 +5,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	sealcrypto "sealdice-core/utils/crypto"
 	"strings"
+
+	sealcrypto "sealdice-core/utils/crypto"
 )
 
 func main() {

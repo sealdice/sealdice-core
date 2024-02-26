@@ -3,10 +3,11 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"sealdice-core/dice"
-	"sealdice-core/dice/model"
 
 	"github.com/labstack/echo/v4"
+
+	"sealdice-core/dice"
+	"sealdice-core/dice/model"
 )
 
 func storyGetInfo(c echo.Context) error {
