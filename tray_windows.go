@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
-	
+
 	"github.com/fy0/go-autostart"
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
@@ -22,7 +22,7 @@ import (
 	win "github.com/lxn/win"
 	"github.com/monaco-io/request"
 	"golang.org/x/sys/windows"
-	
+
 	"sealdice-core/dice"
 	"sealdice-core/icon"
 )

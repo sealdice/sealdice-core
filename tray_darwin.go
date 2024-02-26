@@ -13,11 +13,11 @@ import (
 	"runtime"
 	"syscall"
 	"time"
-	
+
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
 	"github.com/labstack/echo/v4"
-	
+
 	"sealdice-core/dice"
 	"sealdice-core/icon"
 )
