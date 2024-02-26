@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sealdice-core/dice"
-	"sealdice-core/utils"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/time/rate"
+
+	"sealdice-core/dice"
+	"sealdice-core/utils"
 )
 
 type DiceConfigInfo struct {

@@ -3,9 +3,10 @@ package api
 import (
 	"mime/multipart"
 	"net/http"
-	"sealdice-core/dice"
 
 	"github.com/labstack/echo/v4"
+
+	"sealdice-core/dice"
 )
 
 func helpDocStatus(c echo.Context) error {

@@ -3,8 +3,9 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"sealdice-core/dice/model"
 	"strings"
+
+	"sealdice-core/dice/model"
 )
 
 type SenderChannel struct {

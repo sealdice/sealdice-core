@@ -7,11 +7,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"sealdice-core/dice"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+
+	"sealdice-core/dice"
 )
 
 func banConfigGet(c echo.Context) error {
