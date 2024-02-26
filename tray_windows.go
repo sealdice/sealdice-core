@@ -11,12 +11,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sealdice-core/dice"
-	"sealdice-core/icon"
 	"syscall"
 	"time"
 	"unsafe"
-
+	
 	"github.com/fy0/go-autostart"
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
@@ -24,6 +22,9 @@ import (
 	win "github.com/lxn/win"
 	"github.com/monaco-io/request"
 	"golang.org/x/sys/windows"
+	
+	"sealdice-core/dice"
+	"sealdice-core/icon"
 )
 
 func hideWindow() {
@@ -264,7 +265,7 @@ func showMsgBox(title string, message string) {
 func executeWin(name string, arg ...string) *exec.Cmd {
 	cmd := exec.Command(name, arg...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		//CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
+		// CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
 		CreationFlags:    windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_NEW_CONSOLE,
 		NoInheritHandles: true,
 	}

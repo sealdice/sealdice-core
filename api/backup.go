@@ -6,11 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sealdice-core/dice"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+
+	"sealdice-core/dice"
 )
 
 type backupFileItem struct {

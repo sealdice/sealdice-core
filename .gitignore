@@ -35,6 +35,4 @@ _help_cache
 .DS_Store
 !static/.nomedia
 
-.vscode/
-
 *.private.pem

@@ -2,10 +2,11 @@ package model
 
 import (
 	"encoding/json"
-	"sealdice-core/dice/censor"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+
+	"sealdice-core/dice/censor"
 )
 
 type CensorLog struct {

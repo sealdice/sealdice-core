@@ -10,15 +10,16 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sealdice-core/dice"
-	"sealdice-core/dice/censor"
-	"sealdice-core/dice/model"
 	"sort"
 	"strings"
 
 	"github.com/golang-module/carbon"
 	"github.com/labstack/echo/v4"
 	"github.com/pelletier/go-toml/v2"
+
+	"sealdice-core/dice"
+	"sealdice-core/dice/censor"
+	"sealdice-core/dice/model"
 )
 
 func check(c echo.Context) (bool, error) {
