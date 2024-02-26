@@ -12,6 +12,7 @@
   "author": "Sealdice Team",
   "license": "MIT",
   "devDependencies": {
+    "@node-rs/jieba": "^1.9.2",
     "@vuepress/client": "2.0.0-beta.67",
     "@vuepress/plugin-register-components": "2.0.0-rc.0",
     "@vuepress/utils": "2.0.0-rc.2",
@@ -22,8 +23,5 @@
     "vuepress-plugin-md-enhance": "2.0.0-beta.245",
     "vuepress-plugin-search-pro": "2.0.0-beta.245",
     "vuepress-theme-hope": "2.0.0-beta.245"
-  },
-  "dependencies": {
-    "nodejs-jieba": "^0.1.2"
   }
 }

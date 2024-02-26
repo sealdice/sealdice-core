@@ -3,7 +3,7 @@ import { registerComponentsPlugin } from "@vuepress/plugin-register-components";
 // @ts-ignore
 import { searchProPlugin } from "vuepress-plugin-search-pro";
 import { path } from "@vuepress/utils";
-import { cut } from "nodejs-jieba";
+import { cut } from "@node-rs/jieba";
 
 import theme from "./theme";
 
