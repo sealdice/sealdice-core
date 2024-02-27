@@ -295,6 +295,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
+				VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
 				if !group.LogOn {
 					text = strings.TrimRightFunc(DiceFormatTmpl(ctx, "日志:记录_关闭_失败"), unicode.IsSpace) + "\n" + text
@@ -309,6 +310,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				group.UpdatedAtTime = time.Now().Unix()
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "halt") {
+				if len(group.LogCurName) > 0 {
+					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
+				}
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
