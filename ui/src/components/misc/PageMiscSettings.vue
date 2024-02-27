@@ -56,7 +56,7 @@
             <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
               <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项'" placement="bottom-start">
                 <el-icon>
-                  <circle-plus-filled v-if="index == 0" @click="addItem(config.diceMasters)" />
+                  <circle-plus-filled v-if="index == 0" @click="config.diceMasters = addItem(config.diceMasters)" />
                   <circle-close v-else @click="removeItem(config.diceMasters, index)" />
                 </el-icon>
               </el-tooltip>
@@ -66,7 +66,7 @@
       </template>
       <template v-else>
         <el-icon>
-          <circle-plus-filled @click="addItem(config.diceMasters)" />
+          <circle-plus-filled @click="config.diceMasters = addItem(config.diceMasters)" />
         </el-icon>
       </template>
     </el-form-item>
@@ -92,7 +92,7 @@
             <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
               <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项'" placement="bottom-start">
                 <el-icon>
-                  <circle-plus-filled v-if="index == 0" @click="addItem(config.noticeIds)" />
+                  <circle-plus-filled v-if="index == 0" @click="config.noticeIds = addItem(config.noticeIds)" />
                   <circle-close v-else @click="removeItem(config.noticeIds, index)" />
                 </el-icon>
               </el-tooltip>
@@ -102,7 +102,7 @@
       </template>
       <template v-else>
         <el-icon>
-          <circle-plus-filled @click="addItem(config.noticeIds)" />
+          <circle-plus-filled @click="config.noticeIds = addItem(config.noticeIds)" />
         </el-icon>
       </template>
     </el-form-item>
@@ -572,7 +572,7 @@
             <div style="display: flex; align-items: center; width: 1.3rem; margin-left: 1rem;">
               <el-tooltip :content="index === 0 ? '点击添加项目' : '点击删除你不想要的项目'" placement="bottom-start">
                 <el-icon>
-                  <circle-plus-filled v-if="index == 0" @click="addItem(config.commandPrefix)" />
+                  <circle-plus-filled v-if="index == 0" @click="config.commandPrefix = addItem(config.commandPrefix)" />
                   <circle-close v-else @click="removeItem(config.commandPrefix, index)" />
                 </el-icon>
               </el-tooltip>
@@ -582,7 +582,7 @@
       </template>
       <template v-else>
         <el-icon>
-          <circle-plus-filled @click="addItem(config.commandPrefix)" />
+          <circle-plus-filled @click="config.commandPrefix = addItem(config.commandPrefix)" />
         </el-icon>
       </template>
     </el-form-item>
@@ -653,8 +653,12 @@ watch(() => config, (newValue, oldValue) => { //直接监听
   deep: true
 });
 
-const addItem = (k: any) => {
+const addItem = (k: any[]) => {
+  if (!k) {
+    k = []
+  }
   k.push('')
+  return k
 }
 
 const removeItem = (v: any[], index: number) => {
