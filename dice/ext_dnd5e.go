@@ -752,9 +752,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
 				restText := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`^优势|劣势`)
+				re := regexp.MustCompile(`^优势|劣势|優勢|劣勢`)
 				m := re.FindString(restText)
 				if m != "" {
+					m = strings.Replace(m, "優勢", "优势", 1)
+					m = strings.Replace(m, "劣勢", "劣势", 1)
 					restText = strings.TrimSpace(restText[len(m):])
 				}
 				expr := fmt.Sprintf("D20%s + %s", m, restText)
