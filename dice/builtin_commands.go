@@ -1141,7 +1141,11 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					text += cmdArgs.CleanArgs
-					ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")
+					if strings.Contains(uid, "Group") {
+						ctx.EndPoint.Adapter.SendToGroup(ctx, uid, text, "")
+					} else {
+						ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")
+					}
 				}
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 				return CmdExecuteResult{Matched: true, Solved: true}
