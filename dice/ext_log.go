@@ -7,17 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fy0/lockfree"
+	"github.com/golang-module/carbon"
+	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 	"time"
-	"unicode"
-
-	"github.com/fy0/lockfree"
-	"github.com/golang-module/carbon"
-	"go.uber.org/zap"
 
 	"sealdice-core/dice/constants"
 	"sealdice-core/dice/model"
@@ -296,9 +294,10 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
-				if !group.LogOn {
-					text = strings.TrimRightFunc(DiceFormatTmpl(ctx, "日志:记录_关闭_失败"), unicode.IsSpace) + "\n" + text
-				}
+				// Note: 2024-02-28 经过讨论，日志在 off 的情况下 end 属于合理操作，这里不再检查是否开启
+				//if !group.LogOn {
+				//	text = strings.TrimRightFunc(DiceFormatTmpl(ctx, "日志:记录_关闭_失败"), unicode.IsSpace) + "\n" + text
+				//}
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
 				group.UpdatedAtTime = time.Now().Unix()
