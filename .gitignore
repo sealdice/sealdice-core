@@ -37,3 +37,6 @@ _help_cache
 !static/.nomedia
 
 *.private.pem
+
+.vscode/
+!.vscode/settings.json
