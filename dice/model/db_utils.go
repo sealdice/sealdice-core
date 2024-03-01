@@ -54,7 +54,7 @@ func DBVacuum() {
 	}()
 
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(3)
 
 	vacuum := func(path string, wg *sync.WaitGroup) {
 		defer wg.Done()
