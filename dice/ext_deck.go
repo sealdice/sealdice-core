@@ -122,16 +122,16 @@ type DeckInfo struct {
 	CloudDeckItemInfos map[string]*CloudDeckItemInfo `yaml:"-" json:"-"`
 }
 
-func tryParseDiceE(content []byte, deckInfo *DeckInfo) bool {
+func tryParseDiceE(content []byte, deckInfo *DeckInfo) error {
 	jsonData := map[string][]string{}
 	err := json.Unmarshal(content, &jsonData)
 	if err != nil {
-		return false
+		return err
 	}
 	jsonData2 := DeckDiceEFormat{}
 	err = json.Unmarshal(content, &jsonData2)
 	if err != nil {
-		return false
+		return err
 	}
 
 	// 存在 _export
@@ -193,19 +193,19 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.UpdateUrls = jsonData2.UpdateUrls
 	deckInfo.Etag = jsonData2.Etag
 	deckInfo.RawData = &jsonData
-	return true
+	return nil
 }
 
-func tryParseSinaNya(content []byte, deckInfo *DeckInfo) bool {
+func tryParseSinaNya(content []byte, deckInfo *DeckInfo) error {
 	yamlData := map[string]interface{}{}
 	err := yaml.Unmarshal(content, &yamlData)
 	if err != nil {
-		return false
+		return err
 	}
 	yamlData2 := DeckSinaNyaFormat{}
 	err = yaml.Unmarshal(content, &yamlData2)
 	if err != nil {
-		return false
+		return err
 	}
 
 	yamlDataFix := map[string][]string{}
@@ -247,19 +247,19 @@ func tryParseSinaNya(content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.Enable = true
 	deckInfo.UpdateUrls = yamlData2.UpdateUrls
 	deckInfo.Etag = yamlData2.Etag
-	return true
+	return nil
 }
 
-func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
+func tryParseSeal(content []byte, deckInfo *DeckInfo) error {
 	tomlData := map[string]interface{}{}
 	err := toml.Unmarshal(content, &tomlData)
 	if err != nil {
-		return false
+		return err
 	}
 	deckData := DeckSealFormat{}
 	err = toml.Unmarshal(content, &deckData)
 	if err != nil {
-		return false
+		return err
 	}
 
 	tomlDataFix := map[string][]string{}
@@ -351,7 +351,7 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) bool {
 	deckInfo.UpdateUrls = meta.UpdateUrls
 	deckInfo.Etag = meta.Etag
 	deckInfo.RawData = &tomlDataFix
-	return true
+	return nil
 }
 
 func isPrefixWithUtf8Bom(buf []byte) bool {
@@ -390,21 +390,25 @@ func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
 		content = content[3:]
 	}
 	ext := strings.ToLower(path.Ext(fn))
-	if ext == ".toml" {
-		if !tryParseSeal(content, deckInfo) {
-			d.Logger.Infof("牌堆文件“%s”解析失败", fn)
-			return false
+	var err error
+
+	switch ext {
+	case ".json":
+		err = tryParseDiceE(content, deckInfo)
+	case ".yaml", ".yml":
+		err = tryParseSinaNya(content, deckInfo)
+	case ".toml":
+		err = tryParseSeal(content, deckInfo)
+	default:
+		d.Logger.Infof("牌堆文件“%s”是未知格式，尝试以json和yaml格式解析", fn)
+		if tryParseDiceE(content, deckInfo) != nil {
+			err = tryParseSinaNya(content, deckInfo)
 		}
-	} else if !tryParseDiceE(content, deckInfo) {
-		if ext != ".json" {
-			if !tryParseSinaNya(content, deckInfo) {
-				d.Logger.Infof("牌堆文件“%s”解析失败", fn)
-				return false
-			}
-		} else {
-			d.Logger.Infof("牌堆文件“%s”解析失败", fn)
-			return false
-		}
+	}
+
+	if err != nil {
+		d.Logger.Errorf("牌堆文件“%s”解析失败 %v", fn, err)
+		return false
 	}
 	return true
 }
