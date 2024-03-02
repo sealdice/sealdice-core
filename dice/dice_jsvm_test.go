@@ -223,9 +223,9 @@ func TestSortJsScripts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := sortJsScripts(tt.args.jsScripts)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("sortJsScripts() error = %v, wantErr %v", err, tt.wantErr)
+			got, errMap := sortJsScripts(tt.args.jsScripts)
+			if len(errMap) != 0 && !tt.wantErr {
+				t.Errorf("sortJsScripts() errMap = %v", errMap)
 				return
 			}
 			if !sameScriptInfos(got, tt.want) {
