@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
@@ -581,8 +582,19 @@ func (d *Dice) JsLoadScripts() {
 		return nil
 	})
 
+	// 检查依赖是否满足
+	scripts, infoMap := checkJsScriptsDeps(jsInfos)
+	if len(infoMap) > 0 {
+		// 部分插件不进行加载
+		var keys, infos []string
+		for k, v := range infoMap {
+			keys = append(keys, k)
+			infos = append(infos, v...)
+		}
+		d.Logger.Warnf("插件「%s」的依赖不满足，拒绝加载：\n%s", strings.Join(keys, "、"), strings.Join(infos, "\n"))
+	}
 	// 分析加载顺序
-	sortedJsInfos, err := sortJsScripts(jsInfos)
+	sortedJsInfos, err := sortJsScripts(scripts)
 	if err != nil {
 		// 拒绝加载
 		d.Logger.Error("脚本加载失败：", err.Error())
@@ -592,13 +604,13 @@ func (d *Dice) JsLoadScripts() {
 	// 按顺序加载
 	for _, jsInfo := range sortedJsInfos {
 		if len(jsInfo.Depends) == 0 {
-			d.Logger.Infof("正在加载脚本「%s::%s@%s」", jsInfo.Author, jsInfo.Name, jsInfo.Version)
+			d.Logger.Infof("正在加载脚本「%s:%s:%s」", jsInfo.Author, jsInfo.Name, jsInfo.Version)
 		} else {
 			var depends []string
 			for _, dep := range jsInfo.Depends {
 				depends = append(depends, dep.RawKey)
 			}
-			d.Logger.Infof("正在加载脚本「%s::%s@%s」，其依赖：%s", jsInfo.Author, jsInfo.Name, jsInfo.Version, strings.Join(depends, "、"))
+			d.Logger.Infof("正在加载脚本「%s:%s:%s」，其依赖：%s", jsInfo.Author, jsInfo.Name, jsInfo.Version, strings.Join(depends, "、"))
 		}
 		d.JsLoadScriptRaw(jsInfo)
 	}
@@ -710,10 +722,8 @@ type JsScriptDepends struct {
 	Author string `json:"author"`
 	/** 名称 */
 	Name string `json:"name"`
-	/** 依赖版本 */
-	DependentVersion string `json:"dependentVersion"`
-	/** 依赖类型 0：任意 1：特定版本 2：最低版本 */
-	DependentType int `json:"dependentType"`
+	/** 版本限制 */
+	Constraint *semver.Constraints `json:"constraint"`
 	/** 原始依赖Key */
 	RawKey string `json:"rawKey"`
 }
@@ -774,31 +784,27 @@ func (d *Dice) JsParseScriptRaw(s string, installTime time.Time, rawData []byte,
 			case "etag":
 				jsInfo.Etag = v
 			case "depends":
-				dependsStr := strings.SplitN(v, "::", 2)
+				dependsStr := strings.SplitN(v, ":", 2)
 				if len(dependsStr) != 2 {
-					return nil, fmt.Errorf("插件「%s」指定依赖格式不正确，应为「作者::插件名[版本限制，可选]」，现为「%s」", jsInfo.Name, v)
+					return nil, fmt.Errorf("插件「%s」指定依赖格式不正确，应为 作者:插件名:[SemVer版本约束，可选]，现为「%s」", jsInfo.Name, v)
 				}
 				author := dependsStr[0]
-				nameAndVersion := dependsStr[1]
+				name := dependsStr[1]
 				var dependsInfo JsScriptDepends
 				dependsInfo.Author = author
 				dependsInfo.RawKey = v
-				if strings.Contains(nameAndVersion, "@") {
-					// name@version：固定版本
-					split := strings.SplitN(nameAndVersion, "@", 2)
+
+				if strings.Contains(name, ":") {
+					split := strings.SplitN(name, ":", 2)
+					constraint, err := semver.NewConstraint(split[1])
+					if err != nil {
+						return nil, fmt.Errorf("插件「%s」指定依赖格式不正确，应为 作者:插件名:[SemVer版本约束，可选]，现为「%s」", jsInfo.Name, v)
+					}
 					dependsInfo.Name = split[0]
-					dependsInfo.DependentVersion = split[1]
-					dependsInfo.DependentType = 1
-				} else if strings.Contains(nameAndVersion, ">=") {
-					// name>=version：最低版本
-					split := strings.SplitN(nameAndVersion, ">=", 2)
-					dependsInfo.Name = split[0]
-					dependsInfo.DependentVersion = split[1]
-					dependsInfo.DependentType = 2
+					dependsInfo.Constraint = constraint
 				} else {
-					// name：任意版本
-					dependsInfo.Name = nameAndVersion
-					dependsInfo.DependentType = 0
+					dependsInfo.Name = name
+					dependsInfo.Constraint, _ = semver.NewConstraint("")
 				}
 				jsInfo.Depends = append(jsInfo.Depends, dependsInfo)
 			}
@@ -951,6 +957,58 @@ func (d *Dice) JsUpdate(jsScriptInfo *JsScriptInfo, tempFileName string) error {
 	return nil
 }
 
+func checkJsScriptsDeps(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, map[string][]string) {
+	needLoad := make([]*JsScriptInfo, 0, len(jsScripts))
+	infos := make(map[string][]string)
+	scriptMap := make(map[string]*JsScriptInfo)
+	for _, jsScript := range jsScripts {
+		key := fmt.Sprintf("%s:%s", jsScript.Author, jsScript.Name)
+		scriptMap[key] = jsScript
+	}
+
+	// 检查依赖是否存在，且是否符合版本要求
+	for _, script := range jsScripts {
+		key := script.Author + ":" + script.Name
+		if len(script.Depends) > 0 {
+			for _, dep := range script.Depends {
+				// 依赖是否存在
+				depKey := fmt.Sprintf("%s:%s", dep.Author, dep.Name)
+				depScript, ok := scriptMap[depKey]
+				if !ok {
+					infos[key] = append(infos[key],
+						fmt.Sprintf("「%s」依赖的「%s」不存在，所需版本：%s", key, depKey, dep.Constraint.String()))
+					continue
+				}
+				// 版本是否符合要求
+				depVersion, vErr := semver.NewVersion(depScript.Version)
+				if vErr != nil {
+					infos[key] = append(infos[key],
+						fmt.Sprintf(
+							"「%s」依赖的「%s」无法正确识别版本，现为：%s",
+							key, depKey, depScript.Version,
+						))
+					continue
+				}
+				ok = dep.Constraint.Check(depVersion)
+				if !ok {
+					infos[key] = append(infos[key], fmt.Sprintf(
+						"「%s」依赖的「%s」版本不满足要求：要求 %s，现为 %s",
+						key, depKey, dep.Constraint.String(), depScript.Version,
+					))
+					continue
+				}
+			}
+		}
+		if len(infos[key]) == 0 {
+			needLoad = append(needLoad, script)
+		} else {
+			script.Enable = false
+			script.ErrText = strings.Join(infos[key], "\n")
+		}
+	}
+	return needLoad, infos
+}
+
 // sortJsScripts 使用 Kahn 算法分析依赖加载顺序，同时保证所有内置脚本均在外置脚本前加载
 func sortJsScripts(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, error) {
 	type boxedScript struct {
@@ -958,22 +1016,23 @@ func sortJsScripts(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, error) {
 		visited bool
 		js      *JsScriptInfo
 	}
+
 	var queue []*boxedScript
 	relations := make(map[string][]string)
 	inDegree := make(map[string]int)
 	vertices := make(map[string]*boxedScript)
 	// 为了方便计算，添加一个 builtin 节点作为所有外置插件的依赖，其依赖所有内置插件
-	dummy := "sealdice::_builtin"
+	dummy := "sealdice:_builtin"
 	vertices[dummy] = &boxedScript{
 		key:     dummy,
 		visited: false,
 	}
 	inDegree[dummy] = 0
 	for _, jsScript := range jsScripts {
-		key := fmt.Sprintf("%s::%s", jsScript.Author, jsScript.Name)
+		key := fmt.Sprintf("%s:%s", jsScript.Author, jsScript.Name)
 		if len(jsScript.Depends) > 0 {
 			for _, dep := range jsScript.Depends {
-				depKey := fmt.Sprintf("%s::%s", dep.Author, dep.Name)
+				depKey := fmt.Sprintf("%s:%s", dep.Author, dep.Name)
 				relations[depKey] = append(relations[depKey], key)
 				inDegree[key]++
 			}
