@@ -168,6 +168,12 @@ func TestSortJsScripts(t *testing.T) {
 						Name:    "D",
 						Author:  "sealdice",
 						Builtin: true,
+						Depends: []JsScriptDepends{
+							{
+								Author: "sealdice",
+								Name:   "A",
+							},
+						},
 					},
 					{
 						Name:    "E",
