@@ -533,7 +533,8 @@ func (d *Dice) JsLoadScripts() {
 		}
 	}
 
-	// 优先读取内置脚本
+	var jsInfos []*JsScriptInfo
+	// 解析内置脚本
 	_ = filepath.Walk(builtinPath, func(path string, info fs.FileInfo, err error) error {
 		if filepath.Ext(path) == ".js" {
 			d.Logger.Info("正在读取内置脚本: ", path)
@@ -545,7 +546,12 @@ func (d *Dice) JsLoadScripts() {
 			// 检查内置脚本签名，检查不通过则拒绝加载
 			scriptData, _ := os.ReadFile(path)
 			if ok, _ := CheckJsSign(scriptData); ok {
-				d.JsLoadScriptRaw("./"+path, info.ModTime(), data, true)
+				jsInfo, err := d.JsParseScriptRaw("./"+path, info.ModTime(), data, true)
+				if err != nil {
+					d.Logger.Error("读取内置脚本失败(错误依赖)", err.Error())
+					return nil
+				}
+				jsInfos = append(jsInfos, jsInfo)
 			} else {
 				d.Logger.Warnf("内置脚本「%s」校验未通过，拒绝加载", path)
 			}
@@ -553,7 +559,7 @@ func (d *Dice) JsLoadScripts() {
 		return nil
 	})
 
-	// 读取第三方脚本
+	// 解析第三方脚本
 	_ = filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() && info.Name() == "_builtin" {
 			return fs.SkipDir
@@ -565,10 +571,37 @@ func (d *Dice) JsLoadScripts() {
 				d.Logger.Error("读取脚本失败(无法访问): ", err.Error())
 				return nil
 			}
-			d.JsLoadScriptRaw("./"+path, info.ModTime(), data, false)
+			jsInfo, err := d.JsParseScriptRaw("./"+path, info.ModTime(), data, false)
+			if err != nil {
+				d.Logger.Error("读取脚本失败(错误依赖)", err.Error())
+				return nil
+			}
+			jsInfos = append(jsInfos, jsInfo)
 		}
 		return nil
 	})
+
+	// 分析加载顺序
+	sortedJsInfos, err := sortJsScripts(jsInfos)
+	if err != nil {
+		// 拒绝加载
+		d.Logger.Error("脚本加载失败：", err.Error())
+		return
+	}
+
+	// 按顺序加载
+	for _, jsInfo := range sortedJsInfos {
+		if len(jsInfo.Depends) == 0 {
+			d.Logger.Infof("正在加载脚本「%s::%s@%s」", jsInfo.Author, jsInfo.Name, jsInfo.Version)
+		} else {
+			var depends []string
+			for _, dep := range jsInfo.Depends {
+				depends = append(depends, dep.RawKey)
+			}
+			d.Logger.Infof("正在加载脚本「%s::%s@%s」，其依赖：%s", jsInfo.Author, jsInfo.Name, jsInfo.Version, strings.Join(depends, "、"))
+		}
+		d.JsLoadScriptRaw(jsInfo)
+	}
 }
 
 func (d *Dice) JsReload() {
@@ -668,9 +701,24 @@ type JsScriptInfo struct {
 	Builtin bool `json:"builtin"`
 	/** 内容摘要 */
 	Digest string `json:"-"`
+	/** 依赖项 */
+	Depends []JsScriptDepends `json:"depends"`
 }
 
-func (d *Dice) JsLoadScriptRaw(s string, installTime time.Time, rawData []byte, builtin bool) {
+type JsScriptDepends struct {
+	/** 作者 */
+	Author string `json:"author"`
+	/** 名称 */
+	Name string `json:"name"`
+	/** 依赖版本 */
+	DependentVersion string `json:"dependentVersion"`
+	/** 依赖类型 0：任意 1：特定版本 2：最低版本 */
+	DependentType int `json:"dependentType"`
+	/** 原始依赖Key */
+	RawKey string `json:"rawKey"`
+}
+
+func (d *Dice) JsParseScriptRaw(s string, installTime time.Time, rawData []byte, builtin bool) (*JsScriptInfo, error) {
 	// 读取文件内容填空，类似油猴脚本那种形式
 	jsInfo := &JsScriptInfo{
 		Name:        filepath.Base(s),
@@ -678,8 +726,6 @@ func (d *Dice) JsLoadScriptRaw(s string, installTime time.Time, rawData []byte, 
 		InstallTime: installTime.Unix(),
 	}
 	d.JsScriptList = append(d.JsScriptList, jsInfo)
-
-	var err error
 
 	jsInfo.Builtin = builtin
 	jsInfo.Digest = crypto.CalculateSHA512Str(rawData)
@@ -727,15 +773,47 @@ func (d *Dice) JsLoadScriptRaw(s string, installTime time.Time, rawData []byte, 
 				updateUrls = append(updateUrls, v)
 			case "etag":
 				jsInfo.Etag = v
+			case "depends":
+				dependsStr := strings.SplitN(v, "::", 2)
+				if len(dependsStr) != 2 {
+					return nil, fmt.Errorf("插件「%s」指定依赖格式不正确，应为「作者::插件名[版本限制，可选]」，现为「%s」", jsInfo.Name, v)
+				}
+				author := dependsStr[0]
+				nameAndVersion := dependsStr[1]
+				var dependsInfo JsScriptDepends
+				dependsInfo.Author = author
+				dependsInfo.RawKey = v
+				if strings.Contains(nameAndVersion, "@") {
+					// name@version：固定版本
+					split := strings.SplitN(nameAndVersion, "@", 2)
+					dependsInfo.Name = split[0]
+					dependsInfo.DependentVersion = split[1]
+					dependsInfo.DependentType = 1
+				} else if strings.Contains(nameAndVersion, ">=") {
+					// name>=version：最低版本
+					split := strings.SplitN(nameAndVersion, ">=", 2)
+					dependsInfo.Name = split[0]
+					dependsInfo.DependentVersion = split[1]
+					dependsInfo.DependentType = 2
+				} else {
+					// name：任意版本
+					dependsInfo.Name = nameAndVersion
+					dependsInfo.DependentType = 0
+				}
+				jsInfo.Depends = append(jsInfo.Depends, dependsInfo)
 			}
 		}
 		jsInfo.UpdateUrls = updateUrls
 	}
 	jsInfo.Enable = !d.DisabledJsScripts[jsInfo.Name]
+	return jsInfo, nil
+}
 
+func (d *Dice) JsLoadScriptRaw(jsInfo *JsScriptInfo) {
+	var err error
 	if jsInfo.Enable {
 		d.JsLoadingScript = jsInfo
-		_, err = d.JsRequire.Require(s)
+		_, err = d.JsRequire.Require(jsInfo.Filename)
 		d.JsLoadingScript = nil
 	} else {
 		d.Logger.Infof("脚本<%s>已被禁用，跳过加载", jsInfo.Name)
@@ -871,4 +949,77 @@ func (d *Dice) JsUpdate(jsScriptInfo *JsScriptInfo, tempFileName string) error {
 	}
 	d.Logger.Infof("插件“%s”更新成功", jsScriptInfo.Name)
 	return nil
+}
+
+// sortJsScripts 使用 Kahn 算法分析依赖加载顺序，同时保证所有内置脚本均在外置脚本前加载
+func sortJsScripts(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, error) {
+	type boxedScript struct {
+		key     string
+		visited bool
+		js      *JsScriptInfo
+	}
+	var queue []*boxedScript
+	relations := make(map[string][]string)
+	inDegree := make(map[string]int)
+	vertices := make(map[string]*boxedScript)
+	// 为了方便计算，添加一个 builtin 节点作为所有外置插件的依赖，其依赖所有内置插件
+	dummy := "sealdice::_builtin"
+	vertices[dummy] = &boxedScript{
+		key:     dummy,
+		visited: false,
+	}
+	inDegree[dummy] = 0
+	for _, jsScript := range jsScripts {
+		key := fmt.Sprintf("%s::%s", jsScript.Author, jsScript.Name)
+		if len(jsScript.Depends) > 0 {
+			for _, dep := range jsScript.Depends {
+				depKey := fmt.Sprintf("%s::%s", dep.Author, dep.Name)
+				relations[depKey] = append(relations[depKey], key)
+				inDegree[key]++
+			}
+		}
+		if jsScript.Builtin {
+			relations[key] = append(relations[key], dummy)
+			inDegree[dummy]++
+		} else {
+			relations[dummy] = append(relations[dummy], key)
+			inDegree[key]++
+		}
+
+		vertices[key] = &boxedScript{
+			key:     key,
+			visited: false,
+			js:      jsScript,
+		}
+	}
+
+	for key, vertex := range vertices {
+		if inDegree[key] == 0 {
+			queue = append(queue, vertex)
+		}
+	}
+	var boxedResult []*boxedScript
+	for len(queue) > 0 {
+		vertex := queue[0]
+		queue = queue[1:]
+		if vertex.visited {
+			return nil, fmt.Errorf("存在循环依赖，请检查")
+		}
+		vertex.visited = true
+		boxedResult = append(boxedResult, vertex)
+		for _, key := range relations[vertex.key] {
+			inDegree[key]--
+			if inDegree[key] == 0 {
+				queue = append(queue, vertices[key])
+			}
+		}
+	}
+
+	var result []*JsScriptInfo
+	for _, boxed := range boxedResult {
+		if boxed.js != nil {
+			result = append(result, boxed.js)
+		}
+	}
+	return result, nil
 }
