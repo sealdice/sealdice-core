@@ -547,7 +547,7 @@ func (d *Dice) JsLoadScripts() {
 			// 检查内置脚本签名，检查不通过则拒绝加载
 			scriptData, _ := os.ReadFile(path)
 			if ok, _ := CheckJsSign(scriptData); ok {
-				jsInfo, err := d.JsParseScriptRaw("./"+path, info.ModTime(), data, true)
+				jsInfo, err := d.JsParseMeta("./"+path, info.ModTime(), data, true)
 				if err != nil {
 					d.Logger.Error("读取内置脚本失败(错误依赖)", err.Error())
 					return nil
@@ -572,7 +572,7 @@ func (d *Dice) JsLoadScripts() {
 				d.Logger.Error("读取脚本失败(无法访问): ", err.Error())
 				return nil
 			}
-			jsInfo, err := d.JsParseScriptRaw("./"+path, info.ModTime(), data, false)
+			jsInfo, err := d.JsParseMeta("./"+path, info.ModTime(), data, false)
 			if err != nil {
 				d.Logger.Error("读取脚本失败(错误依赖)", err.Error())
 				return nil
@@ -585,22 +585,22 @@ func (d *Dice) JsLoadScripts() {
 	// 检查依赖是否满足
 	unloadKeySet := make(map[string]bool)
 	var unloadInfos []string
-	scripts, infoMap := checkJsScriptsDeps(jsInfos)
-	if len(infoMap) > 0 {
+	scripts, invalidInfoMap := checkJsScriptsDeps(jsInfos)
+	if len(invalidInfoMap) > 0 {
 		// 部分插件依赖不满足，不进行加载
 		var infos []string
-		for k, v := range infoMap {
+		for k, v := range invalidInfoMap {
 			unloadKeySet[k] = true
 			infos = append(infos, v...)
 		}
 		unloadInfos = append(unloadInfos, infos...)
 	}
 	// 分析加载顺序
-	sortedJsInfos, infoMap := sortJsScripts(scripts)
-	if len(infoMap) != 0 {
+	sortedJsInfos, invalidInfoMap := sortJsScripts(scripts)
+	if len(invalidInfoMap) != 0 {
 		// 部分插件存在循环依赖，不进行加载
 		var infos []string
-		for k, v := range infoMap {
+		for k, v := range invalidInfoMap {
 			unloadKeySet[k] = true
 			infos = append(infos, v...)
 		}
@@ -741,7 +741,7 @@ type JsScriptDepends struct {
 	RawKey string `json:"rawKey"`
 }
 
-func (d *Dice) JsParseScriptRaw(s string, installTime time.Time, rawData []byte, builtin bool) (*JsScriptInfo, error) {
+func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, builtin bool) (*JsScriptInfo, error) {
 	// 读取文件内容填空，类似油猴脚本那种形式
 	jsInfo := &JsScriptInfo{
 		Name:        filepath.Base(s),
@@ -971,8 +971,8 @@ func (d *Dice) JsUpdate(jsScriptInfo *JsScriptInfo, tempFileName string) error {
 }
 
 func checkJsScriptsDeps(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, map[string][]string) {
-	needLoad := make([]*JsScriptInfo, 0, len(jsScripts))
-	infos := make(map[string][]string)
+	canLoad := make([]*JsScriptInfo, 0, len(jsScripts))
+	invalidInfoMap := make(map[string][]string)
 	scriptMap := make(map[string]*JsScriptInfo)
 	for _, jsScript := range jsScripts {
 		key := fmt.Sprintf("%s:%s", jsScript.Author, jsScript.Name)
@@ -988,23 +988,22 @@ func checkJsScriptsDeps(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, map[string]
 				depKey := fmt.Sprintf("%s:%s", dep.Author, dep.Name)
 				depScript, ok := scriptMap[depKey]
 				if !ok {
-					infos[key] = append(infos[key],
+					invalidInfoMap[key] = append(invalidInfoMap[key],
 						fmt.Sprintf("「%s」依赖的「%s」不存在，所需版本：%s", key, depKey, dep.Constraint.String()))
 					continue
 				}
 				// 版本是否符合要求
 				depVersion, vErr := semver.NewVersion(depScript.Version)
 				if vErr != nil {
-					infos[key] = append(infos[key],
+					invalidInfoMap[key] = append(invalidInfoMap[key],
 						fmt.Sprintf(
 							"「%s」依赖的「%s」无法正确识别版本，现为：%s",
 							key, depKey, depScript.Version,
 						))
 					continue
 				}
-				ok = dep.Constraint.Check(depVersion)
-				if !ok {
-					infos[key] = append(infos[key], fmt.Sprintf(
+				if !dep.Constraint.Check(depVersion) {
+					invalidInfoMap[key] = append(invalidInfoMap[key], fmt.Sprintf(
 						"「%s」依赖的「%s」版本不满足要求：要求 %s，现为 %s",
 						key, depKey, dep.Constraint.String(), depScript.Version,
 					))
@@ -1012,14 +1011,14 @@ func checkJsScriptsDeps(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, map[string]
 				}
 			}
 		}
-		if len(infos[key]) == 0 {
-			needLoad = append(needLoad, script)
+		if len(invalidInfoMap[key]) == 0 {
+			canLoad = append(canLoad, script)
 		} else {
 			script.Enable = false
-			script.ErrText = strings.Join(infos[key], "\n")
+			script.ErrText = strings.Join(invalidInfoMap[key], "\n")
 		}
 	}
-	return needLoad, infos
+	return canLoad, invalidInfoMap
 }
 
 // sortJsScripts 使用 Kahn 算法分析依赖加载顺序，同时保证所有内置脚本均在外置脚本前加载
