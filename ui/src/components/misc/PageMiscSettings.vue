@@ -108,27 +108,39 @@
     </el-form-item>
 
     <el-form-item label="邮箱通知">
+      <template #label><div>
+        <span>邮箱通知</span>
         <el-tooltip raw-content content="为处理某些平台通知频繁引起的问题，启用后<b>只会通过邮件</b>进行通知">
-            <el-icon><question-filled /></el-icon>
-          </el-tooltip>
-          <el-checkbox label="开启" v-model="config.mailEnable"/>
+          <el-icon><question-filled /></el-icon>
+        </el-tooltip>
+      </div></template>
+      <el-checkbox label="开启" v-model="config.mailEnable"/>
     </el-form-item>
     <el-form-item label="发件邮箱">
+      <template #label><div>
+        <span>发件邮箱</span>
         <el-tooltip raw-content content="特别提醒：QQ号被冻结后对应账号的邮箱也无法使用">
-            <el-icon><question-filled /></el-icon>
-          </el-tooltip>
+          <el-icon><question-filled /></el-icon>
+        </el-tooltip>
+      </div></template>
       <el-input v-model="config.mailFrom" style="width: 12rem"/>
     </el-form-item>
     <el-form-item label="邮箱密钥">
+      <template #label><div>
+        <span>邮箱密钥</span>
         <el-tooltip raw-content content="请注意不一定是密码，例如 QQ邮箱就需要在设置界面生成授权码">
-            <el-icon><question-filled /></el-icon>
-          </el-tooltip>
+          <el-icon><question-filled /></el-icon>
+        </el-tooltip>
+      </div></template>
       <el-input v-model="config.mailPassword"  style="width: 12rem"/>
     </el-form-item>
-    <el-form-item label="SMTP 服务地址">
+    <el-form-item label="SMTP 地址">
+      <template #label><div>
+        <span>SMTP 地址</span>
         <el-tooltip raw-content content="例如 smtp.qq.com">
-            <el-icon><question-filled /></el-icon>
-          </el-tooltip>
+          <el-icon><question-filled /></el-icon>
+        </el-tooltip>
+      </div></template>
       <el-input v-model="config.mailSmtp" style="width: 12rem"/>
     </el-form-item>
     <el-form-item>
@@ -227,53 +239,16 @@
       <el-input v-model="config.aliveNoticeValue" style="width: 12rem"></el-input>
     </el-form-item>
 
-<!--    <el-form-item>-->
-<!--      <template #label>-->
-<!--        <div>-->
-<!--          <span>.help 骰主</span>-->
-<!--        </div>-->
-<!--      </template>-->
-<!--      <el-input v-model="config.helpMasterInfo" type="textarea" clearable style="width: 14rem;" />-->
-<!--    </el-form-item>-->
-
-<!--    <el-form-item>-->
-<!--      <template #label>-->
-<!--        <div>-->
-<!--          <span>.help 协议</span>-->
-<!--        </div>-->
-<!--      </template>-->
-<!--      <el-input v-model="config.helpMasterLicense" type="textarea" autosize clearable style="width: 14rem;" />-->
-<!--    </el-form-item>-->
-
-<!--    <el-form-item>-->
-<!--      <template #label>-->
-<!--        <div>-->
-<!--          <span>.draw keys自定义</span>-->
-<!--        </div>-->
-<!--      </template>-->
-<!--      <div>-->
-<!--        <div>-->
-<!--          <el-checkbox label="开启" v-model="config.customDrawKeysTextEnable"/>-->
-<!--          <el-tooltip raw-content content="启用后替代原本的.draw keys牌组关键字文本">-->
-<!--            <el-icon><question-filled /></el-icon>-->
-<!--          </el-tooltip>-->
-<!--        </div>-->
-<!--        <el-input v-model="config.customDrawKeysText" type="textarea" autosize clearable style="width: 14rem;" />-->
-<!--      </div>-->
-<!--    </el-form-item>-->
-
     <el-form-item>
-      <template #label>
-        <div>
+      <template #label><div>
           <span>日志记录提示</span>
-        </div>
-      </template>
-      <div>
-        <div>
-          <el-checkbox label="开启" v-model="config.logSizeNoticeEnable"/>
           <el-tooltip raw-content content="每记录N条文本后，主动发送一条提醒信息，避免忘记log off">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
+      </div></template>
+      <div>
+        <div>
+          <el-checkbox label="开启" v-model="config.logSizeNoticeEnable"/>
         </div>
         <el-input v-model="config.logSizeNoticeCount" type="number" autosize clearable style="width: 14rem;" />
       </div>
