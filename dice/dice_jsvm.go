@@ -583,22 +583,35 @@ func (d *Dice) JsLoadScripts() {
 	})
 
 	// 检查依赖是否满足
+	unloadKeySet := make(map[string]bool)
+	var unloadInfos []string
 	scripts, infoMap := checkJsScriptsDeps(jsInfos)
 	if len(infoMap) > 0 {
-		// 部分插件不进行加载
-		var keys, infos []string
+		// 部分插件依赖不满足，不进行加载
+		var infos []string
 		for k, v := range infoMap {
-			keys = append(keys, k)
+			unloadKeySet[k] = true
 			infos = append(infos, v...)
 		}
-		d.Logger.Warnf("插件「%s」的依赖不满足，拒绝加载：\n%s", strings.Join(keys, "、"), strings.Join(infos, "\n"))
+		unloadInfos = append(unloadInfos, infos...)
 	}
 	// 分析加载顺序
-	sortedJsInfos, err := sortJsScripts(scripts)
-	if err != nil {
-		// 拒绝加载
-		d.Logger.Error("脚本加载失败：", err.Error())
-		return
+	sortedJsInfos, infoMap := sortJsScripts(scripts)
+	if len(infoMap) != 0 {
+		// 部分插件存在循环依赖，不进行加载
+		var infos []string
+		for k, v := range infoMap {
+			unloadKeySet[k] = true
+			infos = append(infos, v...)
+		}
+		unloadInfos = append(unloadInfos, infos...)
+	}
+	if len(unloadInfos) > 0 {
+		var keys []string
+		for key := range unloadKeySet {
+			keys = append(keys, key)
+		}
+		d.Logger.Warnf("插件「%s」拒绝加载：\n%s", strings.Join(keys, "、"), strings.Join(unloadInfos, "\n"))
 	}
 
 	// 按顺序加载
@@ -1010,50 +1023,47 @@ func checkJsScriptsDeps(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, map[string]
 }
 
 // sortJsScripts 使用 Kahn 算法分析依赖加载顺序，同时保证所有内置脚本均在外置脚本前加载
-func sortJsScripts(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, error) {
+func sortJsScripts(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, map[string][]string) {
 	type boxedScript struct {
-		key     string
-		visited bool
-		js      *JsScriptInfo
+		key string
+		js  *JsScriptInfo
 	}
 
 	var queue []*boxedScript
 	relations := make(map[string][]string)
-	inDegree := make(map[string]int)
+	inDegrees := make(map[string]int)
 	vertices := make(map[string]*boxedScript)
 	// 为了方便计算，添加一个 builtin 节点作为所有外置插件的依赖，其依赖所有内置插件
 	dummy := "sealdice:_builtin"
 	vertices[dummy] = &boxedScript{
-		key:     dummy,
-		visited: false,
+		key: dummy,
 	}
-	inDegree[dummy] = 0
+	inDegrees[dummy] = 0
 	for _, jsScript := range jsScripts {
 		key := fmt.Sprintf("%s:%s", jsScript.Author, jsScript.Name)
 		if len(jsScript.Depends) > 0 {
 			for _, dep := range jsScript.Depends {
 				depKey := fmt.Sprintf("%s:%s", dep.Author, dep.Name)
 				relations[depKey] = append(relations[depKey], key)
-				inDegree[key]++
+				inDegrees[key]++
 			}
 		}
 		if jsScript.Builtin {
 			relations[key] = append(relations[key], dummy)
-			inDegree[dummy]++
+			inDegrees[dummy]++
 		} else {
 			relations[dummy] = append(relations[dummy], key)
-			inDegree[key]++
+			inDegrees[key]++
 		}
 
 		vertices[key] = &boxedScript{
-			key:     key,
-			visited: false,
-			js:      jsScript,
+			key: key,
+			js:  jsScript,
 		}
 	}
 
 	for key, vertex := range vertices {
-		if inDegree[key] == 0 {
+		if inDegrees[key] == 0 {
 			queue = append(queue, vertex)
 		}
 	}
@@ -1061,16 +1071,27 @@ func sortJsScripts(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, error) {
 	for len(queue) > 0 {
 		vertex := queue[0]
 		queue = queue[1:]
-		if vertex.visited {
-			return nil, fmt.Errorf("存在循环依赖，请检查")
-		}
-		vertex.visited = true
 		boxedResult = append(boxedResult, vertex)
 		for _, key := range relations[vertex.key] {
-			inDegree[key]--
-			if inDegree[key] == 0 {
+			inDegrees[key]--
+			if inDegrees[key] == 0 {
 				queue = append(queue, vertices[key])
 			}
+		}
+	}
+
+	// 是否入度都归零了，未归零说明存在循环依赖
+	infos := make(map[string][]string)
+	for key, inDegree := range inDegrees {
+		script := vertices[key].js
+		if inDegree != 0 && script != nil {
+			var deps []string
+			for _, dep := range script.Depends {
+				deps = append(deps, dep.RawKey)
+			}
+			infos[key] = append(infos[key], fmt.Sprintf("「%s」存在循环依赖，请检查，依赖列表：%s", key, strings.Join(deps, "、")))
+			script.Enable = false
+			script.ErrText = strings.Join(infos[key], "\n")
 		}
 	}
 
@@ -1080,5 +1101,5 @@ func sortJsScripts(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, error) {
 			result = append(result, boxed.js)
 		}
 	}
-	return result, nil
+	return result, infos
 }
