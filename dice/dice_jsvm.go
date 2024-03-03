@@ -57,7 +57,10 @@ func (p *PrinterFunc) RecordEnd() []string {
 	return r
 }
 
-func (p *PrinterFunc) Log(s string) { p.doRecord("log", s); p.d.Logger.Info(s) }
+func (p *PrinterFunc) Log(s string) {
+	p.doRecord("log", s)
+	p.d.Logger.Info(s)
+}
 
 func (p *PrinterFunc) Warn(s string) { p.doRecord("warn", s); p.d.Logger.Warn(s) }
 
@@ -83,7 +86,7 @@ func (d *Dice) JsInit() {
 
 	printer := &PrinterFunc{d, false, []string{}}
 	d.JsPrinter = printer
-	reg.RegisterNativeModule("node:console", console.RequireWithPrinter(printer))
+	reg.RegisterNativeModule("console", console.RequireWithPrinter(printer))
 
 	// 初始化
 	loop.Run(func(vm *goja.Runtime) {
