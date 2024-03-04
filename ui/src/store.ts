@@ -193,7 +193,7 @@ export const useStore = defineStore('main', {
     },
 
     async addImConnection(form: addImConnectionForm ) {
-      const { 
+      const {
         accountType, nickname, account, password, protocol, appVersion, token, botToken, appToken, proxyURL, url, host, port, appID, appSecret, clientID, robotCode, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig, reverseAddr,onlyQQGuild } = form
       let info = null
       switch (accountType) {
@@ -661,7 +661,6 @@ export const useStore = defineStore('main', {
       return await apiFetch(urlPrefix + '/helpdoc/upload', {
         method: 'POST', headers: {
           token: this.token,
-          "Content-Type": "multipart/form-data",
         }, body: form
       })
     },
