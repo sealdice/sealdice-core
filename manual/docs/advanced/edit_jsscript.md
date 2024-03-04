@@ -78,6 +78,7 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 // @timestamp    1672066028
 // @license      Apache-2
 // @homepageURL  https://github.com/sealdice/javascript
+// @depends      SzzRain:demo:1.0.0
 // ==/UserScript==
 ```
 
@@ -90,6 +91,7 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 | @timestamp   | 最后更新时间，以秒为单位的 unix 时间戳，新版本支持了直接使用时间字符串，如 `2023-10-30`。                         |
 | @license     | 开源协议，示例中的 Apache-2 是一个比较自由的协议，允许任意使用和分发（包括商用），当然你也可以使用其它协议（MIT GPL 等）          |
 | @homepageURL | 你的扩展的主页链接，有 GitHub 仓库可以填仓库链接，没有则可以填海豹官方插件仓库                                    |
+| @depends <Badge type="tip" text="v1.4.4" vertical="middle"/> | 从 `v1.4.4` 加入。指定你的扩展依赖的其他扩展，**可以不含此行或含有多行**。每一行一个依赖，格式为 `作者:插件名[:SemVer版本约束，可选]`。 |
 
 ## 创建和注册扩展
 
@@ -1470,7 +1472,12 @@ seal.ext.getTemplateConfig(ext, "key") //用于获取一个 template 类型配�
 seal.ext.getOptionConfig(ext, "key") //用于获取一个 option 类型配置项的值，参数为扩展对象和配置项的 key
 
 //下面是 1.4.4 新增 api
-setPlayerGroupCard(ctx, tmpl) //设置当前 ctx 玩家的名片
+seal.setPlayerGroupCard(ctx, tmpl) //设置当前 ctx 玩家的名片
+seal.ban.addBan(ctx, id, place, reason)
+seal.ban.addTrust(ctx, id, place, reason)
+seal.ban.remove(ctx, id)
+seal.ban.getList()
+seal.ban.getUser(id)
 ```
 <!-- TODO: 添加 1.4.1 中新增的插件配置项 -->
 
@@ -1569,7 +1576,7 @@ seal.deck.reload() //重新加载牌堆
 seal.gameSystem.newTemplate(string) //从 json 解析新的游戏规则。
 seal.gameSystem.newTemplateByYaml(string) //从 yaml 解析新的游戏规则。
 seal.applyPlayerGroupCardByTemplate(ctx, tmpl) // 设定当前 ctx 玩家的自动名片格式
-setPlayerGroupCard(ctx, tmpl) // 立刻设定当前 ctx 玩家的名片格式
+seal.setPlayerGroupCard(ctx, tmpl) // 立刻设定当前 ctx 玩家的名片格式
 ```
 
 #### 其他
