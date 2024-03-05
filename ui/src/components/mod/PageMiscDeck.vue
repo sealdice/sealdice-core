@@ -40,6 +40,10 @@
                   <el-icon><MostlyCloudy /></el-icon>
                   作者提供云端内容，请自行鉴别安全性
                 </el-text>
+                <el-text v-if="i.fileFormat === 'jsonc'" type="warning" size="small">
+                  <el-icon><Warning /></el-icon>
+                  注意：该牌堆的格式并非标准 JSON ，而是允许尾逗号与注释语法的扩展 JSON
+                </el-text>
               </el-space>
               <el-space>
                 <el-popconfirm v-if="i.updateUrls && i.updateUrls.length > 0" width="220"
@@ -96,6 +100,7 @@ import {
   Delete,
   MostlyCloudy,
   DocumentChecked,
+  Warning,
 } from '@element-plus/icons-vue'
 import DiffViewer from "~/components/mod/diff-viewer.vue";
 
