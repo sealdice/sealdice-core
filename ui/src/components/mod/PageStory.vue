@@ -210,6 +210,7 @@ async function openItem(log: Log) {
     logItemPage.value.logName = log.name
     logItemPage.value.groupId = log.groupId
     logItemPage.value.size = log.size
+    logItemPage.value.pageNum = 1
     item_data.value = await getItemPage({
         pageNum: logItemPage.value.pageNum,
         pageSize: logItemPage.value.pageSize,
