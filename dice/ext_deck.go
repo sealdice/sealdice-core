@@ -18,11 +18,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
-
 	"github.com/BurntSushi/toml"
+	"github.com/mitchellh/mapstructure"
 	wr "github.com/mroth/weightedrand"
 	"github.com/sahilm/fuzzy"
+	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
 )
 
@@ -104,7 +104,7 @@ type DeckInfo struct {
 	Filename           string                        `json:"filename" yaml:"filename"`
 	Format             string                        `json:"format" yaml:"format"`               // 几种：“SinaNya” ”Dice!“ "Seal"
 	FormatVersion      int64                         `json:"formatVersion" yaml:"formatVersion"` // 格式版本，默认都是1
-	FileFormat         string                        `json:"fileFormat" yaml:"-" `               // json / yaml / toml
+	FileFormat         string                        `json:"fileFormat" yaml:"-" `               // json / yaml / toml / jsonc
 	Name               string                        `json:"name" yaml:"name"`
 	Version            string                        `json:"version" yaml:"-"`
 	Author             string                        `json:"author" yaml:"-"`
@@ -124,12 +124,16 @@ type DeckInfo struct {
 
 func tryParseDiceE(content []byte, deckInfo *DeckInfo) error {
 	jsonData := map[string][]string{}
-	err := json.Unmarshal(content, &jsonData)
+	standardJson, isRFC, err := standardizeJson(content)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(standardJson, &jsonData)
 	if err != nil {
 		return err
 	}
 	jsonData2 := DeckDiceEFormat{}
-	err = json.Unmarshal(content, &jsonData2)
+	err = json.Unmarshal(standardJson, &jsonData2)
 	if err != nil {
 		return err
 	}
@@ -188,12 +192,28 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo) error {
 	deckInfo.Desc = strings.Join(jsonData2.Brief, "\n")
 	deckInfo.Format = "Dice!"
 	deckInfo.FormatVersion = 1
-	deckInfo.FileFormat = "json"
+	if isRFC {
+		deckInfo.FileFormat = "json"
+	} else {
+		deckInfo.FileFormat = "jsonc"
+	}
 	deckInfo.Enable = true
 	deckInfo.UpdateUrls = jsonData2.UpdateUrls
 	deckInfo.Etag = jsonData2.Etag
 	deckInfo.RawData = &jsonData
 	return nil
+}
+
+func standardizeJson(src []byte) (converted []byte, isRFC bool, err error) {
+	jsonValue, err := hujson.Parse(src)
+	if err != nil {
+		return nil, false, err
+	}
+	isRFC = jsonValue.IsStandard()
+	if !isRFC {
+		jsonValue.Standardize()
+	}
+	return jsonValue.Pack(), isRFC, nil
 }
 
 func tryParseSinaNya(content []byte, deckInfo *DeckInfo) error {
@@ -393,7 +413,7 @@ func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
 	var err error
 
 	switch ext {
-	case ".json":
+	case ".json", ".jsonc":
 		err = tryParseDiceE(content, deckInfo)
 	case ".yaml", ".yml":
 		err = tryParseSinaNya(content, deckInfo)
