@@ -246,18 +246,32 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 		// 做出通知
 		ctx.Notice(txt)
 
+		if ctx.Player == nil {
+			ctx.Player = &GroupPlayerInfo{} // 为了能存 $t 变量，God bless this design
+		}
+
+		VarSetValueStr(ctx, "$t黑名单事件", txt)
+
 		// 发给当事人
-		ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserID: uid}}, "提醒：你引发了黑名单事件:\n"+txt, "")
+		ReplyPersonRaw(ctx,
+			&Message{Sender: SenderBase{UserID: uid}},
+			DiceFormatTmpl(ctx, "核心:黑名单触发_当事人"),
+			"")
 
 		// 发给当事群
 		time.Sleep(1 * time.Second)
-		ReplyGroupRaw(ctx, &Message{GroupID: place}, "提醒: 当前群组发生黑名单事件\n"+txt, "")
+		ReplyGroupRaw(ctx,
+			&Message{GroupID: place},
+			DiceFormatTmpl(ctx, "核心:黑名单触发_所在群"),
+			"")
 
 		// 发给邀请者
 		time.Sleep(1 * time.Second)
 		group := i.Parent.ImSession.ServiceAtNew[place]
 		if group != nil && group.InviteUserID != "" {
-			text := fmt.Sprintf("提醒: 你邀请的骰子在群组<%s>(%s)中遭遇黑名单事件:\n%v", group.GroupName, group.GroupID, txt)
+			VarSetValueStr(ctx, "$t事发群名", group.GroupName)
+			VarSetValueStr(ctx, "$t事发群号", group.GroupID)
+			text := DiceFormatTmpl(ctx, "核心:黑名单触发_邀请人")
 			ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserID: group.InviteUserID}}, text, "")
 		}
 	}
@@ -277,7 +291,10 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 				if isWhiteGroup {
 					d.Logger.Infof("群<%s>触发“退出事发群”的拉黑惩罚，但该群是信任群所以未退群", place)
 				} else {
-					ReplyGroupRaw(ctx, &Message{GroupID: place}, "因拉黑惩罚选项中有“退出事发群”，即将自动退群。", "")
+					ReplyGroupRaw(ctx,
+						&Message{GroupID: place},
+						DiceFormatTmpl(ctx, "核心:黑名单惩罚_退群"),
+						"")
 					time.Sleep(1 * time.Second)
 					ctx.EndPoint.Adapter.QuitGroup(ctx, place)
 				}
