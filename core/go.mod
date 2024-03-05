@@ -48,6 +48,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.3.2
+	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/glebarez/go-sqlite v1.22.0
@@ -69,6 +70,7 @@ require (
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
 	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
 	github.com/slack-go/slack v0.12.4
+	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	github.com/tdewolff/minify/v2 v2.20.17
 	github.com/yuin/goldmark v1.7.0
 	golang.org/x/crypto v0.19.0
@@ -78,7 +80,6 @@ require (
 )
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/RoaringBitmap/roaring v1.2.3 // indirect
 	github.com/bits-and-blooms/bitset v1.2.2 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.2.0 // indirect
