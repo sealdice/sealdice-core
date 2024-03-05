@@ -19,6 +19,20 @@ VuePress2 驱动的海豹骰全新官方使用手册。
 - [VS Code](https://marketplace.visualstudio.com/items?itemName=huacnlee.autocorrect)
 - [JetBrains](https://plugins.jetbrains.com/plugin/20244-autocorrect)
 
+## 标注功能版本
+
+对于新加入的功能，需要在标题和正文开头都注明加入的版本。
+
+段落标题的标签应当加在尽可能高等级的标题上，使用以下标签附在标题末尾：
+
+```markdown
+## 新加入的功能 <Badge type="tip" text="vA.B.C" vertical="middle"/>
+```
+
+在紧随以上标题的第一段正文开头，也应该做出文字叙述，例如：
+
+> 从 `vA.B.C` 起，海豹支持某新加入的功能……
+
 ## 本地调试
 
 ```bash
