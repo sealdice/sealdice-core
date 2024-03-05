@@ -31,7 +31,7 @@ import (
 
 var (
 	APPNAME = "SealDice"
-	VERSION = "1.4.3f1 v20240110"
+	VERSION = "1.4.4rc0 v20240310"
 )
 
 var (
