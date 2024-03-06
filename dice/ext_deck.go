@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/mitchellh/mapstructure"
 	wr "github.com/mroth/weightedrand"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/sahilm/fuzzy"
 	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
