@@ -29,6 +29,7 @@ import (
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
 	"sealdice-core/static"
+	"sealdice-core/utils/crypto"
 )
 
 /**
@@ -246,8 +247,8 @@ func main() {
 	if _, err1 := os.Stat("./auto_update.exe"); err1 == nil {
 		doNext := true
 		if filepath.Base(os.Args[0]) != "auto_update.exe" {
-			a := sha256Checksum("./auto_update.exe")
-			b := sha256Checksum(os.Args[0])
+			a := crypto.Sha256Checksum("./auto_update.exe")
+			b := crypto.Sha256Checksum(os.Args[0])
 			doNext = a != b
 		}
 		if doNext {
@@ -273,8 +274,8 @@ func main() {
 	if _, err2 := os.Stat("./auto_update"); err2 == nil {
 		doNext := true
 		if filepath.Base(os.Args[0]) != "auto_update" {
-			a := sha256Checksum("./auto_update")
-			b := sha256Checksum(os.Args[0])
+			a := crypto.Sha256Checksum("./auto_update")
+			b := crypto.Sha256Checksum(os.Args[0])
 			doNext = a != b
 		}
 
@@ -359,6 +360,10 @@ func main() {
 	if migrateErr := migrate.V141DeprecatedConfigRename(); migrateErr != nil {
 		logger.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
 		return
+	}
+	// v144删除旧的帮助文档
+	if migrateErr := migrate.V144RemoveOldHelpdoc(); migrateErr != nil {
+		logger.Errorf("移除旧帮助文档时出错，%v", migrateErr)
 	}
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
