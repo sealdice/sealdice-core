@@ -31,12 +31,22 @@ import (
 
 var (
 	APPNAME = "SealDice"
-	VERSION = "1.4.4 v20240310"
-)
 
-var (
+	VERSION = VERSION_MAIN + VERSION_SUFFIX
+
+	// VERSION_MAIN 主版本号
+	VERSION_MAIN = "1.4.5"
+
+	// VERSION_SUFFIX 版本后缀，按固定格式，由 action 在构建时自动注入
+	// 正式：+yyMMdd.6位hash，如 +230308.1a2b3c
+	// dev：-dev+yyMMdd.6位hash，如 -dev+230308.1a2b3c
+	// rc：-rc.序号+yyMMdd.6位hash如 -rc.0+230308.1a2b3c，-rc.1+230309.2a3b4c，……
+	VERSION_SUFFIX = ""
+
+	// APP_CHANNEL 更新频道，stable/dev，dev 在 action 构建时自动注入
+	APP_CHANNEL = "stable" //nolint:revive
+
 	VERSION_CODE = int64(1004004) //nolint:revive
-	APP_BRANCH   = ""             //nolint:revive
 )
 
 type CmdExecuteResult struct {
