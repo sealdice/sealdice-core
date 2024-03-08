@@ -1034,7 +1034,7 @@ func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 			send.Nickname = nameInfo.Name
 		}
 		if send.Nickname == "" {
-			send.Nickname = "<未知用户>"
+			send.Nickname = "未知用户"
 		}
 	} else {
 		msg.MessageType = "group"
