@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fy0/lockfree"
+
 	"sealdice-core/utils/satori"
 
 	"github.com/gorilla/websocket"
@@ -36,6 +38,8 @@ type PlatformAdapterSatori struct {
 	conn       *websocket.Conn
 	Ctx        context.Context    `yaml:"-" json:"-"`
 	CancelFunc context.CancelFunc `yaml:"-" json:"-"`
+
+	memberMap *SyncMap[string, *SyncMap[string, *SatoriGuildMember]]
 }
 
 func (pa *PlatformAdapterSatori) Serve() int {
@@ -312,11 +316,80 @@ func (pa *PlatformAdapterSatori) refreshGroups() {
 					groupInfo.UpdatedAtTime = time.Now().Unix()
 				}
 			}
+
+			// 触发群成员更新
+			go pa.refreshMembers(group)
 		}
 		if next == "" {
 			return
 		}
 	}
+}
+
+func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
+	session := pa.Session
+	d := session.Parent
+	log := d.Logger
+
+	groupID := formatDiceIDSatoriGroup(pa.Platform, group.ID)
+	groupInfo := session.ServiceAtNew[groupID]
+	groupMemberMap := &SyncMap[string, *SatoriGuildMember]{}
+	next := ""
+	for {
+		req := map[string]interface{}{
+			"guild_id": group.ID,
+		}
+		if next != "" {
+			req["next"] = next
+		}
+
+		reqJson, _ := json.Marshal(req)
+		data, err := pa.post("guild.member.list", bytes.NewBuffer(reqJson))
+		if err != nil {
+			log.Error("satori 获取群成员列表失败:", err)
+			return
+		}
+		var memberPage struct {
+			Data []SatoriGuildMember `json:"data"`
+			Next string              `json:"next"`
+		}
+		next = memberPage.Next
+		err = json.Unmarshal(data, &memberPage)
+		if err != nil {
+			log.Error("satori 获取群成员列表失败:", err)
+			return
+		}
+		for _, member := range memberPage.Data {
+			userID := formatDiceIDSatori(pa.Platform, member.User.ID)
+			groupMemberMap.Store(userID, &member)
+			if groupInfo != nil {
+				p := groupInfo.PlayerGet(d.DBData, userID)
+				if p == nil {
+					name := member.Nick
+					if name == "" {
+						if member.User.Name != "" {
+							name = member.User.Name
+						}
+						if member.User.Nick != "" {
+							name = member.User.Nick
+						}
+					}
+					p = &GroupPlayerInfo{
+						Name:          name,
+						UserID:        userID,
+						ValueMapTemp:  lockfree.NewHashMap(),
+						UpdatedAtTime: 0,
+					}
+					groupInfo.Players.Store(userID, p)
+				}
+			}
+		}
+		if next == "" {
+			return
+		}
+	}
+
+	pa.memberMap.Store(groupID, groupMemberMap)
 }
 
 func (pa *PlatformAdapterSatori) DoRelogin() bool {
@@ -535,7 +608,7 @@ func (pa *PlatformAdapterSatori) decodeMessage(messageEvent *SatoriEvent) *Messa
 	sender.UserID = formatDiceIDSatori(pa.Platform, messageEvent.User.ID)
 	userName, _ := dm.UserNameCache.Get(sender.UserID)
 	if userName != nil {
-		sender.Nickname = userName.(string)
+		sender.Nickname = userName.(*GroupNameCacheItem).Name
 	}
 	if messageEvent.User.Name != "" {
 		sender.Nickname = messageEvent.User.Name
