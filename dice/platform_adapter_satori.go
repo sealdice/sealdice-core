@@ -257,7 +257,7 @@ func (pa *PlatformAdapterSatori) refreshFriends() {
 			})
 		}
 		if next == "" {
-			return
+			break
 		}
 	}
 }
@@ -310,19 +310,17 @@ func (pa *PlatformAdapterSatori) refreshGroups() {
 					Dice:     d,
 				}
 				SetBotOnAtGroup(ctx, groupID)
-			} else {
-				if group.Name != "" && groupInfo.GroupName != group.Name {
-					// 更新群名
-					groupInfo.GroupName = group.Name
-					groupInfo.UpdatedAtTime = time.Now().Unix()
-				}
+			} else if group.Name != "" && groupInfo.GroupName != group.Name {
+				// 更新群名
+				groupInfo.GroupName = group.Name
+				groupInfo.UpdatedAtTime = time.Now().Unix()
 			}
 
 			// 触发群成员更新
 			go pa.refreshMembers(group)
 		}
 		if next == "" {
-			return
+			break
 		}
 	}
 }
@@ -361,18 +359,19 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 			return
 		}
 		for _, member := range memberPage.Data {
-			userID := formatDiceIDSatori(pa.Platform, member.User.ID)
-			groupMemberMap.Store(userID, &member)
+			mem := member
+			userID := formatDiceIDSatori(pa.Platform, mem.User.ID)
+			groupMemberMap.Store(userID, &mem)
 			if groupInfo != nil {
 				p := groupInfo.PlayerGet(d.DBData, userID)
 				if p == nil {
-					name := member.Nick
+					name := mem.Nick
 					if name == "" {
-						if member.User.Name != "" {
-							name = member.User.Name
+						if mem.User.Name != "" {
+							name = mem.User.Name
 						}
-						if member.User.Nick != "" {
-							name = member.User.Nick
+						if mem.User.Nick != "" {
+							name = mem.User.Nick
 						}
 					}
 					p = &GroupPlayerInfo{
@@ -386,7 +385,7 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 			}
 		}
 		if next == "" {
-			return
+			break
 		}
 	}
 
@@ -652,7 +651,7 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 			}
 		case *FileElement:
 			node := &satori.Element{
-				Type:  "file",
+				// Type:  "file",
 				Attrs: make(satori.Dict),
 			}
 			if e.File != "" {
