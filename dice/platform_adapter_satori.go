@@ -571,7 +571,7 @@ func (pa *PlatformAdapterSatori) post(resource string, body io.Reader) ([]byte, 
 	}
 }
 
-func (pa *PlatformAdapterSatori) decodeMessage(messageEvent *SatoriEvent) *Message {
+func (pa *PlatformAdapterSatori) toStdMessage(messageEvent *SatoriEvent) *Message {
 	session := pa.Session
 	d := session.Parent
 	log := d.Logger
@@ -583,25 +583,7 @@ func (pa *PlatformAdapterSatori) decodeMessage(messageEvent *SatoriEvent) *Messa
 	}
 	msg := new(Message)
 	msg.RawID = messageEvent.Message.ID
-
-	msgRoot := satori.ElementParse(messageEvent.Message.Content)
-	content := strings.Builder{}
-	msgRoot.Traverse(func(el *satori.Element) {
-		switch el.Type {
-		case "at":
-			if el.Attrs["role"] != "all" {
-				content.WriteString(fmt.Sprintf("[CQ:at,qq=%s]", el.Attrs["id"]))
-			}
-		case "img":
-			content.WriteString(fmt.Sprintf("[CQ:image,url=%s]", el.Attrs["src"]))
-		case "root":
-			// pass
-		default:
-			content.WriteString(el.ToString())
-		}
-	})
-
-	msg.Message = content.String()
+	msg.Message = decodeMessage(messageEvent.Message.Content)
 	msg.Platform = pa.Platform
 
 	sender := SenderBase{}
@@ -633,6 +615,26 @@ func (pa *PlatformAdapterSatori) decodeMessage(messageEvent *SatoriEvent) *Messa
 	msg.Sender = sender
 
 	return msg
+}
+
+func decodeMessage(text string) string {
+	msgRoot := satori.ElementParse(text)
+	content := strings.Builder{}
+	msgRoot.Traverse(func(el *satori.Element) {
+		switch el.Type {
+		case "at":
+			if el.Attrs["role"] != "all" {
+				content.WriteString(fmt.Sprintf("[CQ:at,qq=%s]", el.Attrs["id"]))
+			}
+		case "img":
+			content.WriteString(fmt.Sprintf("[CQ:image,url=%s]", el.Attrs["src"]))
+		case "root":
+			// pass
+		default:
+			content.WriteString(el.ToString())
+		}
+	})
+	return content.String()
 }
 
 func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
@@ -707,18 +709,61 @@ func (pa *PlatformAdapterSatori) handleEvent(event SatoriPayload[SatoriEvent]) {
 	s := pa.Session
 	switch event.Body.Type {
 	case "message-created": // 消息创建
-		msg := pa.decodeMessage(event.Body)
+		msg := pa.toStdMessage(event.Body)
 		if msg != nil {
 			s.Execute(pa.EndPoint, msg, false)
 		}
 	case "message-updated": // 消息编辑
+		pa.editMessageHandle(event.Body)
 	case "message-deleted": // 消息撤回
+		pa.deleteMessageHandle(event.Body)
 	case "guild-added": // 加入群组
 	case "guild-updated": // 群组被修改
 	case "guild-removed": // 退出群组
 	case "guild-request": // 收到入群邀请
 	case "friend-request": // 收到好友申请
 	}
+}
+
+func (pa *PlatformAdapterSatori) deleteMessageHandle(e *SatoriEvent) {
+	msg := new(Message)
+	msg.Time = e.Message.CreatedAt
+	msg.RawID = e.Message.ID
+	msg.Sender.UserID = formatDiceIDSatori(pa.Platform, e.User.ID)
+	msg.Sender.Nickname = e.User.Name
+	if e.User.Nick != "" {
+		msg.Sender.Nickname = e.User.Nick
+	}
+	if e.Channel.Type == SatoriDirectChannel {
+		msg.MessageType = "private"
+	} else {
+		msg.MessageType = "group"
+		msg.GroupID = formatDiceIDSatoriGroup(pa.Platform, e.Channel.ID)
+	}
+	mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
+	pa.Session.OnMessageDeleted(mctx, msg)
+}
+
+func (pa *PlatformAdapterSatori) editMessageHandle(e *SatoriEvent) {
+	msg := new(Message)
+	msg.Time = e.Message.UpdatedAt
+	msg.RawID = e.Message.ID
+	msg.Message = decodeMessage(e.Message.Content)
+	msg.Platform = pa.Platform
+	if e.Channel.Type == SatoriDirectChannel {
+		msg.MessageType = "private"
+	} else {
+		msg.MessageType = "group"
+		msg.GroupID = formatDiceIDSatoriGroup(pa.Platform, e.Channel.ID)
+	}
+	mctx := &MsgContext{
+		Session:     pa.Session,
+		EndPoint:    pa.EndPoint,
+		Dice:        pa.Session.Parent,
+		MessageType: msg.MessageType,
+		Player:      &GroupPlayerInfo{},
+	}
+	pa.Session.OnMessageEdit(mctx, msg)
 }
 
 func formatDiceIDSatori(platform string, diceSatori string) string {
