@@ -9,9 +9,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sealdice-core/utils/satori"
 	"strings"
 	"time"
+
+	"sealdice-core/utils/satori"
 
 	"github.com/gorilla/websocket"
 )
@@ -42,7 +43,6 @@ func (pa *PlatformAdapterSatori) Serve() int {
 	s := pa.Session
 	log := s.Parent.Logger
 	d := pa.Session.Parent
-	// dm := d.Parent
 
 	wsUrl := url.URL{
 		Scheme: "ws",
@@ -63,12 +63,12 @@ func (pa *PlatformAdapterSatori) Serve() int {
 
 	log.Infof("connecting to %s", wsUrl.String())
 	conn, resp, err := websocket.DefaultDialer.DialContext(pa.Ctx, wsUrl.String(), nil)
-	defer resp.Body.Close()
 	if err != nil {
 		log.Error("dial:", err)
 		pa.EndPoint.State = 3
 		return 1
 	}
+	defer resp.Body.Close()
 	pa.conn = conn
 	pa.EndPoint.State = 2
 
@@ -175,6 +175,11 @@ func (pa *PlatformAdapterSatori) Serve() int {
 		}
 	}()
 
+	// 更新好友列表
+	go pa.refreshFriends()
+	// 更新群列表
+	go pa.refreshGroups()
+
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		select {
@@ -196,6 +201,120 @@ func (pa *PlatformAdapterSatori) Serve() int {
 			_ = conn.Close()
 			pa.conn = nil
 			return 0
+		}
+	}
+}
+
+// refreshFriends 更新好友信息
+func (pa *PlatformAdapterSatori) refreshFriends() {
+	session := pa.Session
+	d := session.Parent
+	log := d.Logger
+	dm := d.Parent
+
+	next := ""
+	for {
+		req := make(map[string]interface{})
+		if next != "" {
+			req["next"] = next
+		}
+		reqJson, _ := json.Marshal(req)
+		data, err := pa.post("friend.list", bytes.NewBuffer(reqJson))
+		if err != nil {
+			log.Error("satori 获取好友列表失败:", err)
+			return
+		}
+		var friendPage struct {
+			Data []SatoriUser `json:"data"`
+			Next string       `json:"next"`
+		}
+		err = json.Unmarshal(data, &friendPage)
+		if err != nil {
+			log.Error("satori 获取好友列表失败:", err)
+			return
+		}
+		next = friendPage.Next
+		for _, friend := range friendPage.Data {
+			name := "未知用户"
+			if friend.Name != "" {
+				name = friend.Name
+			}
+			if friend.Nick != "" {
+				name = friend.Nick
+			}
+			if name == "" {
+				continue
+			}
+			userID := formatDiceIDSatori(pa.Platform, friend.ID)
+			dm.UserNameCache.Set(userID, &GroupNameCacheItem{
+				Name: name,
+				time: time.Now().Unix(),
+			})
+		}
+		if next == "" {
+			return
+		}
+	}
+}
+
+// refreshGroups 更新群信息
+func (pa *PlatformAdapterSatori) refreshGroups() {
+	session := pa.Session
+	d := session.Parent
+	log := d.Logger
+	dm := d.Parent
+
+	next := ""
+	for {
+		req := make(map[string]interface{})
+		if next != "" {
+			req["next"] = next
+		}
+		reqJson, _ := json.Marshal(req)
+		data, err := pa.post("guild.list", bytes.NewBuffer(reqJson))
+		if err != nil {
+			log.Error("satori 获取群列表失败:", err)
+			return
+		}
+		var groupPage struct {
+			Data []SatoriGuild `json:"data"`
+			Next string        `json:"next"`
+		}
+		next = groupPage.Next
+		err = json.Unmarshal(data, &groupPage)
+		if err != nil {
+			log.Error("satori 获取群列表失败:", err)
+			return
+		}
+		for _, group := range groupPage.Data {
+			if group.Name == "" {
+				continue
+			}
+			groupID := formatDiceIDSatoriGroup(pa.Platform, group.ID)
+			dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
+				Name: group.Name,
+				time: time.Now().Unix(),
+			})
+
+			groupInfo := session.ServiceAtNew[groupID]
+			if groupInfo == nil {
+				// 新检测到群
+				ctx := &MsgContext{
+					Session:  session,
+					EndPoint: pa.EndPoint,
+					Dice:     d,
+				}
+				SetBotOnAtGroup(ctx, groupID)
+			} else {
+				if group.Name != "" && groupInfo.GroupName != group.Name {
+					// 更新群名
+					groupInfo.GroupName = group.Name
+					groupInfo.UpdatedAtTime = time.Now().Unix()
+				}
+			}
+		}
+		if next == "" {
+			return
 		}
 	}
 }
@@ -284,7 +403,7 @@ func (pa *PlatformAdapterSatori) SendFileToPerson(ctx *MsgContext, userID string
 
 func (pa *PlatformAdapterSatori) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
 	log := pa.Session.Parent.Logger
-	log.Errorf("satori %s 平台暂不支持群聊消息发送", pa.Platform)
+	log.Errorf("satori %s 平台暂不支持群聊文件发送", pa.Platform)
 }
 
 func (pa *PlatformAdapterSatori) MemberBan(groupID string, userID string, duration int64) {
@@ -328,6 +447,8 @@ func (pa *PlatformAdapterSatori) GetGroupInfoAsync(groupID string) {
 		logger.Errorf("satori 获取群(%s)信息失败：%s", groupID, err)
 		return
 	}
+
+	go pa.refreshGroups()
 }
 
 func (pa *PlatformAdapterSatori) EditMessage(ctx *MsgContext, msgID, message string) {
@@ -378,7 +499,11 @@ func (pa *PlatformAdapterSatori) post(resource string, body io.Reader) ([]byte, 
 }
 
 func (pa *PlatformAdapterSatori) decodeMessage(messageEvent *SatoriEvent) *Message {
-	log := pa.Session.Parent.Logger
+	session := pa.Session
+	d := session.Parent
+	log := d.Logger
+	dm := d.Parent
+
 	if messageEvent.Message == nil {
 		log.Errorf("satori 消息解析失败：消息为空")
 		return nil
@@ -408,7 +533,13 @@ func (pa *PlatformAdapterSatori) decodeMessage(messageEvent *SatoriEvent) *Messa
 
 	sender := SenderBase{}
 	sender.UserID = formatDiceIDSatori(pa.Platform, messageEvent.User.ID)
-	sender.Nickname = messageEvent.User.Name
+	userName, _ := dm.UserNameCache.Get(sender.UserID)
+	if userName != nil {
+		sender.Nickname = userName.(string)
+	}
+	if messageEvent.User.Name != "" {
+		sender.Nickname = messageEvent.User.Name
+	}
 	if messageEvent.User.Nick != "" {
 		sender.Nickname = messageEvent.User.Nick
 	}
