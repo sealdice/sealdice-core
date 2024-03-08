@@ -279,8 +279,13 @@ func (d *Dice) toElement(t string, dMap map[string]string) (MessageElement, erro
 		if err != nil {
 			return nil, err
 		}
-		file := f.(*FileElement)
-		return &ImageElement{file: file}, nil
+		switch f.(type) {
+		case *FileElement:
+			file := f.(*FileElement)
+			return &ImageElement{file: file}, nil
+		case *ImageElement:
+			return f, nil
+		}
 	case "tts":
 		content := dMap["text"]
 		return &TTSElement{Content: content}, nil

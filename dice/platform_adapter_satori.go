@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -593,7 +594,7 @@ func (pa *PlatformAdapterSatori) decodeMessage(messageEvent *SatoriEvent) *Messa
 				content.WriteString(fmt.Sprintf("[CQ:at,qq=%s]", el.Attrs["id"]))
 			}
 		case "img":
-			content.WriteString(fmt.Sprintf("[CQ:image,file=%s]", el.Attrs["src"]))
+			content.WriteString(fmt.Sprintf("[CQ:image,url=%s]", el.Attrs["src"]))
 		case "root":
 			// pass
 		default:
@@ -649,9 +650,58 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 			} else {
 				msg.WriteString(fmt.Sprintf("<at id=\"%s\"/>", e.Target))
 			}
+		case *FileElement:
+			node := &satori.Element{
+				Type:  "file",
+				Attrs: make(satori.Dict),
+			}
+			if e.File != "" {
+				node.Attrs["title"] = e.File
+			}
+			if e.Stream != nil {
+				fileName := e.File
+				if fileName == "" {
+					fileName = "temp"
+				}
+				temp, _ := os.CreateTemp("", fileName)
+				_, err := io.Copy(temp, e.Stream)
+				if err != nil {
+					continue
+				}
+				node.Attrs["src"] = "file://" + temp.Name()
+			} else if e.URL != "" {
+				node.Attrs["src"] = e.URL
+			}
+			// 目前 cc 尚不支持发送
+			// msg.WriteString(node.ToString())
+		case *ImageElement:
+			file := e.file
+			node := &satori.Element{
+				Type:  "img",
+				Attrs: make(satori.Dict),
+			}
+			if file.File != "" {
+				node.Attrs["title"] = file.File
+			}
+			if file.Stream != nil {
+				fileName := file.File
+				if fileName == "" {
+					fileName = "temp"
+				}
+				temp, _ := os.CreateTemp("", fileName)
+				_, err := io.Copy(temp, file.Stream)
+				if err != nil {
+					continue
+				}
+				node.Attrs["src"] = "file://" + temp.Name()
+			} else if e.file.URL != "" {
+				node.Attrs["src"] = e.file.URL
+			}
+			msg.WriteString(node.ToString())
 		}
 	}
-	return msg.String()
+	result := msg.String()
+	return result
 }
 
 func (pa *PlatformAdapterSatori) handleEvent(event SatoriPayload[SatoriEvent]) {
