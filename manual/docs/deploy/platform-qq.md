@@ -12,7 +12,7 @@ title: QQ
 由于众所周知的原因，在 QQ 平台部署机器人目前有一定难度。所有支持的途径参见侧边目录，本节提供了多种对接途径的引导：
 
 - 如果你有 QQ 官方机器人权限，见 [官方机器人](#官方机器人)；
-- 需要比较简单的部署流程的，见 [Liteloader ONEBOT-API](#liteloader-onebot-api)；
+- 需要比较简单的部署流程的，见 [LLOneBot API](#llonebot-api)；
 - 需要比较简单的部署流程，且有能力上 Telegram 的，见 [Lagrange](#lagrange)；
 - 能接受复杂部署流程，有能力自行部署 QSign，需要功能支持完整的，见 [Go-cqhttp](#go-cqhttp--mirai)。该部署方式中的常见问题解答见 [FAQ](#gocqhttp-faq)；
 - Android 手机/模拟器用户见 [Shamrock](#shamrock)（需要 Root）或 [Shamrock LSPatch](#shamrock-lspatch)。
@@ -525,46 +525,60 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 :::
 
-## Liteloader ONEBOT-API <Badge type="tip" text="v1.4.2" vertical="middle" />
+## LLOneBot API <Badge type="tip" text="v1.4.2" vertical="middle" />
 
-海豹从 `v1.4.2` 版本开始支持通过 OneBot 协议连接 LiteLoader-OneBotAPI。
+海豹从 `v1.4.2` 版本开始支持通过 OneBot 协议连接 LLOneBot API。
 
-::: info 介绍 LiteLoader-OneBotAPI
+::: info LLOneBot API
 
-*Liteloader* 是 NTQQ 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能，例如 *LiteLoader-OneBotAPI*，可以实现劫持客户端对外开放 API ，可以理解为装在 PC 上的 Shamrock。
+[LiteLoaderQQNT](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)（LiteLoader）是 NTQQ 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能。
+
+[LLOneBot API](https://github.com/LLOneBot/LLOneBot) 则是 Liteloader 的插件之一，可以实现劫持客户端对外开放 API ，可以理解为装在 PC 上的 Shamrock。
 
 :::
 
 ### 安装 LiteLoader
 
-社区提供了非常简便的[安装脚本](https://github.com/Mzdyl/LiteLoaderQQNT_Install/)，安装方法中在文档中，请自行查看。
+社区提供了非常简便的 [安装脚本](https://github.com/Mzdyl/LiteLoaderQQNT_Install/)，安装方法中在文档中，请自行查看。
 
 ::: warning 注意
 
 - 使用 Windows 部署时脚本要使用管理员模式运行。
 - 由于脚本使用了 git，请在系统中安装 [git](https://git-scm.com/)。
 - 一定要在安装 QQ 客户端的主机上使用安装脚本。
+- **由于 Windows 平台的 QQ 被添加了文件完整性验证，你需要额外步骤来解除限制，请自行前往 [LLQQNT 文档](https://liteloaderqqnt.github.io/guide/install.html#修补) 查阅方法。**
 
 :::
 
-### 安装 OneBotAPI
+### 安装 LLOneBot API
 
-::: info 寻找 Plugins 文件夹
+在 LiteLoader 中安装 OneBotAPI，具体方法请参考 [LLOneBot API](https://github.com/LLOneBot/LLOneBot) 仓库中的说明。
 
-安装完成 LiteLoader 后，如图所示![LiteLoader 中的 Plugins 目录](./images/image-020.png)
-所指处即插件文件夹，打开这个文件夹并且在 Plugins 新建一个文件夹，把 OneBotAPI **Release** 版本的 4 个文件解压到新建的文件夹处，重启 QQ 即可。
+::: info plugins 文件夹位置
+
+安装完成 LiteLoader 后，如图所示：
+
+![LiteLoader 中的 Plugins 目录](./images/platform-qq-llonebot-1.png)
+
+所指处即插件文件夹，打开这个文件夹并且在 plugins 新建一个文件夹，把 LLOneBot API **Release** 版本的 4 个文件解压到新建的文件夹处，重启 QQ 即可。
 
 :::
-
-在 LiteLoader 中安装 OneBotAPI，具体方法请参考 [OneBotAPI仓库](https://github.com/linyuchen/LiteLoaderQQNT-OneBotApi)。
 
 ### 配置海豹
 
-安装完成后重新登录 QQ，默认开放的正向ws端口为 3001，在海豹的新添账号选择 OneBot 分离部署，账号处随便填写，连接地址填 **ws://localhost:3001** 就看到登录成功了！
+安装完成后重新登录 QQ，进入 LLOneBot 的设置页：
+
+![LLOneBot 设置页](./images/platform-qq-llonebot-2.png)
+
+支持两种方式与海豹对接：
+
+- 正向连接：默认开放的正向 ws 端口为 3001，在海豹的新添账号选择「OneBot 分离部署」，账号处随便填写，连接地址填 `ws://localhost:3001`。
+- 反向连接：关闭正向连接开关，打开反向连接，点击「添加」，输入 `ws://127.0.0.1:4001/ws`，在海豹的新添账号选择「OneBot 反向连接」，输入账号。
 
 ::: warning 注意事项
 
-- 暂时未添加反向 ws，只能通过正向 ws 连接，如若想修改端口请在 QQ 的设置 UI 自行修改。
+- 如若想修改端口请在 LLOneBot 的设置 UI 自行修改。
+- 请注意设置中的正向连接和反向连接请 **不要同时打开**，否则会发不出消息。
 - 由于采用劫持路线，暂不清楚多账号登录情况。
 
 :::
