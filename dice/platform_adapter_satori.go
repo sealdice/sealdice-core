@@ -106,7 +106,7 @@ func (pa *PlatformAdapterSatori) Serve() int {
 	log.Debugf("satori auth resp:%+v", authResp)
 	logins := authResp.Body.Logins
 	var login *SatoriLogin
-	if logins == nil || len(logins) < 1 {
+	if len(logins) < 1 {
 		log.Error("invalid satori login info")
 		pa.EndPoint.State = 3
 		return 1
@@ -431,14 +431,14 @@ func (pa *PlatformAdapterSatori) SendToPerson(ctx *MsgContext, userID string, te
 	log := pa.Session.Parent.Logger
 	if pa.Platform == "QQ" {
 		id := UserIDExtract(userID)
-		pa.sendMsgRaw(ctx, "private:"+id, text, flag, "私聊")
+		pa.sendMsgRaw(ctx, "private:"+id, text, flag, "private")
 	} else {
 		log.Errorf("satori %s 平台暂不支持私聊消息发送", pa.Platform)
 	}
 }
 
 func (pa *PlatformAdapterSatori) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
-	pa.sendMsgRaw(ctx, UserIDExtract(groupID), text, flag, "群")
+	pa.sendMsgRaw(ctx, UserIDExtract(groupID), text, flag, "group")
 }
 
 func (pa *PlatformAdapterSatori) sendMsgRaw(ctx *MsgContext, channelID string, text string, flag string, msgType string) {
@@ -447,19 +447,25 @@ func (pa *PlatformAdapterSatori) sendMsgRaw(ctx *MsgContext, channelID string, t
 		"channel_id": channelID,
 		"content":    pa.encodeMessage(text),
 	})
+	var msgTypeStr string
+	if msgType == "private" {
+		msgTypeStr = "私聊"
+	} else {
+		msgTypeStr = "群"
+	}
 	if err != nil {
-		log.Errorf("satori 发送%s(%s)消息失败: %s", msgType, channelID, err)
+		log.Errorf("satori 发送%s(%s)消息失败: %s", msgTypeStr, channelID, err)
 		return
 	}
 	data, err := pa.post("message.create", bytes.NewBuffer(req))
 	if err != nil {
-		log.Errorf("satori 发送%s(%s)消息失败: %s", msgType, channelID, err)
+		log.Errorf("satori 发送%s(%s)消息失败: %s", msgTypeStr, channelID, err)
 		return
 	}
 	var messages []SatoriMessage
 	err = json.Unmarshal(data, &messages)
 	if err != nil {
-		log.Errorf("satori 发送%s(%s)消息失败: %s", msgType, channelID, err)
+		log.Errorf("satori 发送%s(%s)消息失败: %s", msgTypeStr, channelID, err)
 		return
 	}
 }
@@ -480,7 +486,7 @@ func (pa *PlatformAdapterSatori) SendFileToGroup(ctx *MsgContext, groupID string
 }
 
 func (pa *PlatformAdapterSatori) MemberBan(groupID string, userID string, duration int64) {
-	pa.Session.Parent.Logger.Errorf("satori 禁言群(%s)内成员(%s)失败：尚不支持", groupID, userID)
+	pa.Session.Parent.Logger.Errorf("satori %s 平台暂不支持禁言群(%s)内成员%s", pa.Platform, groupID, userID)
 }
 
 func (pa *PlatformAdapterSatori) MemberKick(groupID string, userID string) {
@@ -647,9 +653,9 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 			msg.WriteString(satori.ContentEscape(e.Content))
 		case *AtElement:
 			if e.Target == "all" {
-				msg.WriteString("<at type=\"all\"/>")
+				msg.WriteString(`<at type="all"/>`)
 			} else {
-				msg.WriteString(fmt.Sprintf("<at id=\"%s\"/>", e.Target))
+				msg.WriteString(fmt.Sprintf(`<at id="%s"/>`, e.Target))
 			}
 		case *FileElement:
 			node := &satori.Element{
@@ -669,11 +675,11 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 				if err != nil {
 					continue
 				}
-				node.Attrs["src"] = "file://" + temp.Name()
+				node.Attrs["src"] = "file:///" + temp.Name()
 			} else if e.URL != "" {
 				node.Attrs["src"] = e.URL
 			}
-			// 目前 cc 尚不支持发送
+			// cc 0.2.2 发送 file QQ 会直接爆炸
 			// msg.WriteString(node.ToString())
 		case *ImageElement:
 			file := e.file
@@ -694,7 +700,7 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 				if err != nil {
 					continue
 				}
-				node.Attrs["src"] = "file://" + temp.Name()
+				node.Attrs["src"] = "file:///" + temp.Name()
 			} else if e.file.URL != "" {
 				node.Attrs["src"] = e.file.URL
 			}
