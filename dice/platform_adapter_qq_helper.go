@@ -29,9 +29,9 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 	}
 }
 
-func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) bool {
+func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 	if conn.DiceServing {
-		return true
+		return
 	}
 	conn.DiceServing = true
 
@@ -83,12 +83,11 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) bool {
 
 		time.Sleep(15 * time.Second)
 	}
-	return false
 }
 
-func serverWalleQ(d *Dice, ep *EndPointInfo, conn *PlatformAdapterWalleQ) bool {
+func serverWalleQ(d *Dice, ep *EndPointInfo, conn *PlatformAdapterWalleQ) {
 	if conn.DiceServing {
-		return true
+		return
 	}
 	conn.DiceServing = true
 	ep.Enable = true
@@ -139,12 +138,11 @@ func serverWalleQ(d *Dice, ep *EndPointInfo, conn *PlatformAdapterWalleQ) bool {
 
 		time.Sleep(15 * time.Second)
 	}
-	return false
 }
 
-func serverRed(d *Dice, ep *EndPointInfo, conn *PlatformAdapterRed) bool {
+func serverRed(d *Dice, ep *EndPointInfo, conn *PlatformAdapterRed) {
 	if conn.DiceServing {
-		return true
+		return
 	}
 	conn.DiceServing = true
 
@@ -172,12 +170,11 @@ func serverRed(d *Dice, ep *EndPointInfo, conn *PlatformAdapterRed) bool {
 
 		time.Sleep(15 * time.Second)
 	}
-	return false
 }
 
-func serverSatori(d *Dice, ep *EndPointInfo, conn *PlatformAdapterSatori) bool {
+func serverSatori(d *Dice, ep *EndPointInfo, conn *PlatformAdapterSatori) {
 	if conn.DiceServing {
-		return true
+		return
 	}
 	conn.DiceServing = true
 
@@ -208,5 +205,4 @@ func serverSatori(d *Dice, ep *EndPointInfo, conn *PlatformAdapterSatori) bool {
 
 		time.Sleep(15 * time.Second)
 	}
-	return false
 }

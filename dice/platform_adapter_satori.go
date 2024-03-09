@@ -39,8 +39,6 @@ type PlatformAdapterSatori struct {
 	conn       *websocket.Conn
 	Ctx        context.Context    `yaml:"-" json:"-"`
 	CancelFunc context.CancelFunc `yaml:"-" json:"-"`
-
-	memberMap *SyncMap[string, *SyncMap[string, *SatoriGuildMember]]
 }
 
 func (pa *PlatformAdapterSatori) Serve() int {
@@ -146,6 +144,9 @@ func (pa *PlatformAdapterSatori) Serve() int {
 			default:
 				msgType, msgData, err := conn.ReadMessage()
 				if err != nil {
+					if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+						log.Error("satori read failed:", err)
+					}
 					if pa.CancelFunc != nil {
 						pa.CancelFunc()
 					}
@@ -332,7 +333,6 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 
 	groupID := formatDiceIDSatoriGroup(pa.Platform, group.ID)
 	groupInfo := session.ServiceAtNew[groupID]
-	groupMemberMap := &SyncMap[string, *SatoriGuildMember]{}
 	next := ""
 	for {
 		req := map[string]interface{}{
@@ -361,7 +361,6 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 		for _, member := range memberPage.Data {
 			mem := member
 			userID := formatDiceIDSatori(pa.Platform, mem.User.ID)
-			groupMemberMap.Store(userID, &mem)
 			if groupInfo != nil {
 				p := groupInfo.PlayerGet(d.DBData, userID)
 				if p == nil {
@@ -388,8 +387,6 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 			break
 		}
 	}
-
-	pa.memberMap.Store(groupID, groupMemberMap)
 }
 
 func (pa *PlatformAdapterSatori) DoRelogin() bool {
