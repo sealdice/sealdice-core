@@ -21,6 +21,14 @@ const CodeAlreadyExists = 602
 
 var startTime = time.Now().Unix()
 
+type VersionDetail struct {
+	Major         uint64 `json:"major"`
+	Minor         uint64 `json:"minor"`
+	Patch         uint64 `json:"patch"`
+	Prerelease    string `json:"prerelease"`
+	BuildMetaData string `json:"buildMetaData"`
+}
+
 func baseInfo(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -50,45 +58,46 @@ func baseInfo(c echo.Context) error {
 	extraTitle := getName()
 
 	version, _ := semver.NewVersion(dice.VERSION)
-	var versionSimple string
-	if version.Prerelease() != "" {
-		versionSimple = fmt.Sprintf("%d.%d.%d-%s", version.Major(), version.Minor(), version.Patch(), version.Prerelease())
-	} else {
-		versionSimple = fmt.Sprintf("%d.%d.%d", version.Major(), version.Minor(), version.Patch())
+	versionDetail := VersionDetail{
+		Major:         version.Major(),
+		Minor:         version.Minor(),
+		Patch:         version.Patch(),
+		Prerelease:    dice.VERSION_PRERELEASE,
+		BuildMetaData: dice.VERSION_BUILD_METADATA,
 	}
 
 	return c.JSON(http.StatusOK, struct {
-		AppName          string `json:"appName"`
-		AppChannel       string `json:"appChannel"`
-		Version          string `json:"version"`
-		VersionSimple    string `json:"versionSimple"`
-		VersionBuildInfo string `json:"versionBuildInfo"`
-		VersionNew       string `json:"versionNew"`
-		VersionNewNote   string `json:"versionNewNote"`
-		VersionCode      int64  `json:"versionCode"`
-		VersionNewCode   int64  `json:"versionNewCode"`
-		MemoryAlloc      uint64 `json:"memoryAlloc"`
-		Uptime           int64  `json:"uptime"`
-		MemoryUsedSys    uint64 `json:"memoryUsedSys"`
-		ExtraTitle       string `json:"extraTitle"`
-		OS               string `json:"OS"`
-		Arch             string `json:"arch"`
+		AppName        string        `json:"appName"`
+		AppChannel     string        `json:"appChannel"`
+		Version        string        `json:"version"`
+		VersionSimple  string        `json:"versionSimple"`
+		VersionDetail  VersionDetail `json:"versionDetail"`
+		VersionNew     string        `json:"versionNew"`
+		VersionNewNote string        `json:"versionNewNote"`
+		VersionCode    int64         `json:"versionCode"`
+		VersionNewCode int64         `json:"versionNewCode"`
+		MemoryAlloc    uint64        `json:"memoryAlloc"`
+		Uptime         int64         `json:"uptime"`
+		MemoryUsedSys  uint64        `json:"memoryUsedSys"`
+		ExtraTitle     string        `json:"extraTitle"`
+		OS             string        `json:"OS"`
+		Arch           string        `json:"arch"`
 	}{
-		AppName:          dice.APPNAME,
-		AppChannel:       dice.APP_CHANNEL,
-		Version:          dice.VERSION,
-		VersionSimple:    versionSimple,
-		VersionBuildInfo: version.Metadata(),
-		VersionNew:       versionNew,
-		VersionNewNote:   versionNewNote,
-		VersionCode:      dice.VERSION_CODE,
-		VersionNewCode:   versionNewCode,
-		MemoryAlloc:      m.Alloc,
-		MemoryUsedSys:    m.Sys - m.HeapReleased,
-		Uptime:           time.Now().Unix() - startTime,
-		ExtraTitle:       extraTitle,
-		OS:               runtime.GOOS,
-		Arch:             runtime.GOARCH,
+		AppName:        dice.APPNAME,
+		AppChannel:     dice.APP_CHANNEL,
+		Version:        dice.VERSION,
+		VersionSimple:  dice.VERSION_MAIN + dice.VERSION_PRERELEASE,
+		VersionDetail:  versionDetail,
+		VersionNew:     versionNew,
+		VersionNewNote: versionNewNote,
+		VersionCode:    dice.VERSION_CODE,
+		VersionNewCode: versionNewCode,
+		MemoryAlloc:    m.Alloc,
+		MemoryUsedSys:  m.Sys - m.HeapReleased,
+		Uptime:         time.Now().Unix() - startTime,
+		ExtraTitle:     extraTitle,
+		OS:             runtime.GOOS,
+		Arch:           runtime.GOARCH,
 	})
 }
 
