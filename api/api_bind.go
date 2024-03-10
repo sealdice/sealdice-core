@@ -62,8 +62,8 @@ func baseInfo(c echo.Context) error {
 		Major:         version.Major(),
 		Minor:         version.Minor(),
 		Patch:         version.Patch(),
-		Prerelease:    dice.VERSION_PRERELEASE,
-		BuildMetaData: dice.VERSION_BUILD_METADATA,
+		Prerelease:    version.Prerelease(),
+		BuildMetaData: version.Metadata(),
 	}
 
 	return c.JSON(http.StatusOK, struct {
