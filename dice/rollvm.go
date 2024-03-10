@@ -855,9 +855,16 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 
 			if e.flags.DNDAttrReadDC {
 				// 额外调整值补正，用于检定
+				if ctx.SystemTemplate != nil {
+					// NOTE: 1.4.4 版本，豁免检定不认同义词
+					name := strings.TrimSuffix(varname, "豁免")
+					name = ctx.SystemTemplate.GetAlias(name)
+					varname = name + "豁免"
+				}
+
 				switch varname {
 				case "力量豁免", "敏捷豁免", "体质豁免", "智力豁免", "感知豁免", "魅力豁免":
-					vName := strings.ReplaceAll(varname, "豁免", "")
+					vName := strings.TrimSuffix(varname, "豁免")
 					realV, _, err := ctx.Dice.ExprEvalBase(fmt.Sprintf("$豁免_%s", vName), ctx, RollExtraFlags{})
 					if err == nil {
 						vType = realV.TypeID
