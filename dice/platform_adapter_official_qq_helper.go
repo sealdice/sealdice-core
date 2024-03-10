@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -96,4 +97,22 @@ func output(v ...interface{}) string {
 
 	logFormat := "official qq sdk: %s:%d:%s " + fmt.Sprint(v...) + "\n"
 	return fmt.Sprintf(logFormat, file, line, funcName)
+}
+
+// 参考: https://gist.github.com/brydavis/0c7da92bd508195744708eeb2b54ac96
+var reUrlExtract = regexp.MustCompile(`(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/|\/|\/\/)?[A-z0-9_-]*?[:]?[A-z0-9_-]*?[@]?[A-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?`)
+
+func textLinkStrip(text string) string {
+	urls := reUrlExtract.FindAllString(text, -1)
+
+	// 在每个URL中将"."替换为"_"
+	for _, url := range urls {
+		replacedURL := strings.ReplaceAll(url, ".", "_")
+		replacedURL = strings.ReplaceAll(replacedURL, "https://", "https_")
+		replacedURL = strings.ReplaceAll(replacedURL, "http://", "http_")
+		// replacedURL = strings.ReplaceAll(replacedURL, "/", "_")
+		text = strings.ReplaceAll(text, url, replacedURL)
+	}
+
+	return text
 }
