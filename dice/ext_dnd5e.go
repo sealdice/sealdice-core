@@ -69,7 +69,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 		Alias: map[string][]string{
 			"力量": {"str", "Strength"},
 			"敏捷": {"dex", "Dexterity"},
-			"体质": {"con", "Constitution", "體質"},
+			"体质": {"con", "Constitution", "體質", "體魄", "体魄"},
 			"智力": {"int", "Intelligence"},
 			"感知": {"wis", "Wisdom"},
 			"魅力": {"cha", "Charisma"},
@@ -87,8 +87,8 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 			// 技能
 			"运动": {"Athletics", "運動"},
 
-			"体操": {"Acrobatics", "杂技", "特技", "體操", "雜技"},
-			"巧手": {"Sleight of Hand"},
+			"体操": {"Acrobatics", "杂技", "特技", "體操", "雜技", "特技動作", "特技动作"},
+			"巧手": {"Sleight of Hand", "上手把戲", "上手把戏"},
 			"隐匿": {"Stealth", "隱匿", "潜行", "潛行"},
 
 			"调查": {"Investigation", "調查"},
@@ -98,8 +98,8 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 			"宗教": {"Religion"},
 
 			"察觉": {"Perception", "察覺", "觉察", "覺察"},
-			"洞悉": {"Insight", "洞察"},
-			"驯兽": {"Animal Handling", "馴獸", "驯养", "馴養"},
+			"洞悉": {"Insight", "洞察", "察言觀色", "察言观色"},
+			"驯兽": {"Animal Handling", "馴獸", "驯养", "馴養", "動物馴服", "動物馴養", "动物驯服", "动物驯养"},
 			"医药": {"Medicine", "醫藥", "医疗", "醫療"},
 			"求生": {"Survival", "生存"},
 
