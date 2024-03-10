@@ -56,7 +56,7 @@ title: 快速开始
 
 根据系统不同，用以下方法即可启动海豹：
 
-::: tabs#os
+:::: tabs#os
 
 @tab Windows#windows
 
@@ -87,6 +87,13 @@ chmod +x ./sealdice-core
 
 随后，运行 `./sealdice-core` 来启动海豹。在浏览器中输入 `localhost:3211` 来访问后台（WebUI）。
 
+::: info MacOS 启动海豹失败问题排查
+
+1. 启动时若出现 `Bad CPU type in executable`，请确认你是否下载的是正确版本的海豹。**Intel 芯片的 Mac 请下载 `darwin x64` ，Apple Silicon 芯片请下载 `darwin arm64`。**
+2. 请确认 MacOS 版本高于 10.12，低版本 MacOS 不支持运行，建议尽量将 MacOS 更新至最新稳定版本。
+
+:::
+
 @tab Android#android
 
 安装下载的 APK 包，给予适当的权限。为了保证海豹核心在手机上稳定运行，可以采取以下措施：
@@ -95,7 +102,7 @@ chmod +x ./sealdice-core
 2. 关闭海豹核心的省电模式、自动清理、后台禁止联网等；
 3. 确保手机的省电模式保持关闭。
 
-:::
+::::
 
 ## 安装为系统服务（可选）
 
