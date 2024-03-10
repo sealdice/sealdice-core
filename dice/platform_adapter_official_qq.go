@@ -315,7 +315,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 	for _, element := range elems {
 		switch elem := element.(type) {
 		case *TextElement:
-			content += elem.Content
+			// QQ官方API中不能发送链接，所以全部进行转写绕过
+			content += textLinkStrip(elem.Content)
 		case *AtElement:
 			pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
 		case *ImageElement:
@@ -386,7 +387,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw(ctx *MsgContext, rowMsg
 	for _, elem := range elems {
 		switch e := elem.(type) {
 		case *TextElement:
-			content += e.Content
+			// QQ官方API中不能发送链接，所以全部进行转写绕过
+			content += textLinkStrip(e.Content)
 		case *AtElement:
 			if e.Target == "all" {
 				content += "@everyone"
