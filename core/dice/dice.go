@@ -31,11 +31,11 @@ import (
 
 var (
 	APPNAME = "SealDice"
-	VERSION = "1.4.4rc0 v20240310"
+	VERSION = "1.4.4 v20240310"
 )
 
 var (
-	VERSION_CODE = int64(1004003) //nolint:revive
+	VERSION_CODE = int64(1004004) //nolint:revive
 	APP_BRANCH   = ""             //nolint:revive
 )
 
