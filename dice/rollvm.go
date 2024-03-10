@@ -855,8 +855,8 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 
 			if e.flags.DNDAttrReadDC {
 				// 额外调整值补正，用于检定
-				if ctx.SystemTemplate != nil {
-					// NOTE: 1.4.4 版本，豁免检定不认同义词
+				if ctx.SystemTemplate != nil && strings.HasSuffix(varname, "豁免") {
+					// NOTE: 1.4.4 版本，豁免检定不识别同义词
 					name := strings.TrimSuffix(varname, "豁免")
 					name = ctx.SystemTemplate.GetAlias(name)
 					varname = name + "豁免"
