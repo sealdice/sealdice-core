@@ -33,9 +33,9 @@ var (
 	APPNAME = "SealDice"
 
 	// VERSION 版本号，按固定格式，action 在构建时可能会自动注入部分信息
-	// 正式：主版本号+yyMMdd.6位hash，如 1.4.5+230308.1a2b3c
-	// dev：主版本号-dev+yyMMdd.6位hash，如 1.4.5-dev+230308.1a2b3c
-	// rc：主版本号-rc.序号+yyMMdd.6位hash如 1.4.5-rc.0+230308.1a2b3c，1.4.5-rc.1+230309.2a3b4c，……
+	// 正式：主版本号+yyMMdd.7位hash，如 1.4.5+230308.1a2b3c4
+	// dev：主版本号-dev+yyMMdd.7位hash，如 1.4.5-dev+230308.1a2b3c4
+	// rc：主版本号-rc.序号+yyMMdd.7位hash如 1.4.5-rc.0+230308.1a2b3c4，1.4.5-rc.1+230309.2a3b4c4，……
 	VERSION = VERSION_MAIN + VERSION_PRERELEASE + VERSION_BUILD_METADATA
 
 	// VERSION_MAIN 主版本号
