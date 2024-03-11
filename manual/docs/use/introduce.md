@@ -20,7 +20,7 @@ title: 基础概念
 
 ## 获取和使用
 
-最简单的方法就是自己 [搭建](../deploy/quick-start.md) 一个海豹骰自用（私骰），也可以从 [SealDice 海豹骰公骰登记表](https://docs.qq.com/sheet/DV0F4RWdyellaRkZD?tab=BB08J2&scode=) 中寻找一个面向公众提供服务的骰子（公骰）。
+最简单的方法就是自己 [搭建](../deploy/quick-start.md) 一个海豹骰自用（私骰），也可以从 [SealDice 公骰列表](https://docs.qq.com/sheet/DQ0pQQlBPcVFmTkhO) 中寻找一个面向公众提供服务的骰子（公骰）。
 
 一般而言，公骰是免费的。但他们的维护者（骰主）一般都要求用户严格遵循使用协议，使用前请使用 `.help 协议` 指令了解你需要注意哪些事项。
 
