@@ -2,6 +2,7 @@
 import { hopeTheme } from "vuepress-theme-hope";
 import navbar from "./navbar";
 import sidebar from "./sidebar";
+import { cut } from "@node-rs/jieba";
 
 export default hopeTheme({
   hostname: "http://localhost:8080",
@@ -41,14 +42,21 @@ export default hopeTheme({
       showInMobile: true,
     },
     mdEnhance: {
-      container: true,
+      hint: true,
       tabs: true,
       figure: true,
-      imgLazyload: true,
       imgMark: true,
       imgSize: true,
       align: true,
-      mermaid: true,
+    },
+    searchPro: {
+      indexContent: true,
+      autoSuggestions: true,
+      indexOptions: {
+        // 使用 jieba 分词
+        tokenize: (text, fieldName) =>
+          fieldName === "id" ? [text] : cut(text, true),
+      },
     },
   },
 });

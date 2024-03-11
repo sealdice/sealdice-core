@@ -1,10 +1,8 @@
 import { defineUserConfig } from "vuepress";
+import viteBundler from "@vuepress/bundler-vite";
 import { registerComponentsPlugin } from "@vuepress/plugin-register-components";
 // @ts-ignore
-import { searchProPlugin } from "vuepress-plugin-search-pro";
-import { path } from "@vuepress/utils";
-import { cut } from "@node-rs/jieba";
-
+import { path } from "vuepress/utils";
 import theme from "./theme";
 
 const basePath: any = process.env.BASE_PATH ?? "/sealdice-manual-next/";
@@ -23,14 +21,10 @@ export default defineUserConfig({
         ChatBox: path.resolve(__dirname, "./components/ChatBox.vue"),
       },
     }),
-    searchProPlugin({
-      indexContent: true,
-      autoSuggestions: true,
-      indexOptions: {
-        // 使用 jieba 分词
-        tokenize: (text, fieldName) =>
-          fieldName === "id" ? [text] : cut(text, true),
-      },
-    }),
   ],
+
+  bundler: viteBundler({
+    viteOptions: {},
+    vuePluginOptions: {},
+  })
 });

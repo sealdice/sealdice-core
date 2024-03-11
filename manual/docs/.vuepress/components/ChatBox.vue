@@ -35,7 +35,8 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
-import { withBase } from '@vuepress/client'
+// @ts-ignore
+import { withBase } from 'vuepress/client'
 
 interface ChatMessage {
   username: string,
