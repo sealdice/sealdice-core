@@ -174,7 +174,7 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 	// 写入文件信息
 	data, _ := json.Marshal(map[string]interface{}{
 		"config":      cfg,
-		"version":     VERSION,
+		"version":     VERSION.String(),
 		"versionCode": VERSION_CODE,
 	})
 

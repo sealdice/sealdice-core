@@ -180,7 +180,7 @@ func main() {
 	}
 
 	if opts.Version {
-		fmt.Println(dice.VERSION)
+		fmt.Println(dice.VERSION.String())
 		return
 	}
 	if opts.DBCheck {
@@ -315,7 +315,7 @@ func main() {
 	}
 
 	cwd, _ := os.Getwd()
-	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
+	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION.String())
 	fmt.Println("工作路径: ", cwd)
 
 	if strings.HasPrefix(cwd, os.TempDir()) {
