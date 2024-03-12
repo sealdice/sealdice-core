@@ -74,7 +74,7 @@ jobs:
       - name: Get Commit ID
         run: |
           cd go-cqhttp
-          echo "GOCQ_CID=`git rev-parse HEAD`" >> $GITHUB_ENV;
+          echo "GOCQ_CID=`git rev-parse --short HEAD`" >> $GITHUB_ENV;
 
       - name: Cache dist get
         id: cache-gocq-dist
@@ -101,7 +101,7 @@ jobs:
         run: |
           if [ $GOOS = "windows" ]; then export BINARY_SUFFIX=".exe"; fi
           export BINARY_NAME="go-cqhttp$BINARY_SUFFIX"
-          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${GOCQ_CID::7}-sealdicefork"
+          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${GOCQ_CID}-sealdicefork"
           go build -o "output/$BINARY_NAME" -trimpath -ldflags "$LD_FLAGS" .
       - name: Upload Gocqhttp
         uses: actions/upload-artifact@v4
@@ -123,7 +123,7 @@ jobs:
       - name: Get Commit ID
         run: |
           cd go-cqhttp
-          echo "GOCQ_CID=`git rev-parse HEAD`" >> $GITHUB_ENV;
+          echo "GOCQ_CID=`git rev-parse --short HEAD`" >> $GITHUB_ENV;
 
       - name: Cache dist get
         id: cache-gocq-dist
@@ -157,7 +157,7 @@ jobs:
           CGO_ENABLE: 0
           CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
         run: |
-          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${COMMIT_ID::7}-sealdicefork"
+          export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${GOCQ_CID}-sealdicefork"
           go build -o "output/go-cqhttp" -trimpath -ldflags "$LD_FLAGS" .
       - name: Upload Gocqhttp
         uses: actions/upload-artifact@v4
@@ -179,7 +179,7 @@ jobs:
       - name: Get Commit ID
         run: |
           cd sealdice-ui
-          echo "UI_CID=`git rev-parse HEAD`" >> $GITHUB_ENV;
+          echo "UI_CID=`git rev-parse --short HEAD`" >> $GITHUB_ENV;
 
       - name: Cache ui dist get
         id: cache-ui-dist
@@ -270,10 +270,10 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
         working-directory: ./sealdice-core
         run: |
-          echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
-          echo "PROJECT_VERSION_S=dev-${COMMIT_ID::4}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION_C=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
           if [ $GOOS = 'windows' ]; then
             echo "BINARY_NAME=sealdice-core.exe" >> $GITHUB_ENV;
           else
@@ -298,7 +298,7 @@ jobs:
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
         working-directory: ./sealdice-core
-        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$CUR_TIME($PROJECT_VERSION_S)" .
+        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev" .
       - name: Run UPX
         uses: crazy-max/ghaction-upx@v3
         with:
@@ -308,7 +308,7 @@ jobs:
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
-          name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          name: sealdice-core_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./sealdice-core/output
 
   core-darwin-build:
@@ -352,8 +352,9 @@ jobs:
       - name: Set Env
         working-directory: ./sealdice-core
         run: |
-          echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
-          echo "PROJECT_VERSION_S=dev-${COMMIT_ID::4}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION_C=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+        env:
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
 
       - name: Build Binary
         env:
@@ -365,11 +366,11 @@ jobs:
           CGO_CFLAGS: -mmacosx-version-min=10.12
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$CUR_TIME($PROJECT_VERSION_S)" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev" .
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
-          name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          name: sealdice-core_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./sealdice-core/output
 
   core-android-build:
@@ -414,8 +415,9 @@ jobs:
       - name: Set Env
         working-directory: ./sealdice-core
         run: |
-          echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
-          echo "PROJECT_VERSION_S=dev-${COMMIT_ID::4}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION_C=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+        env:
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
 
       - name: Build binary
         env:
@@ -427,11 +429,11 @@ jobs:
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
         working-directory: ./sealdice-core
         run: |
-          go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION=$CUR_TIME($PROJECT_VERSION_S)" .
+          go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev" .
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
-          name: sealdice-core_${{ env.PROJECT_VERSION }}_android_arm64
+          name: sealdice-core_${{ env.PROJECT_VERSION_C }}_android_arm64
           path: ./sealdice-core/output
 
   android-build:
@@ -446,12 +448,22 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
+        with:
+          format: YYYYMMDD
+          timezone-offset: -480
       - name: Set Env
-        run: echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
+        run: |
+          echo "PROJECT_VERSION=dev-${CUR_TIME}.${COMMIT_ID::7}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION_C=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+        env:
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
       - name: Get Core-android
         uses: actions/download-artifact@v4
         with:
-          name: sealdice-core_${{ env.PROJECT_VERSION }}_android_arm64
+          name: sealdice-core_${{ env.PROJECT_VERSION_C }}_android_arm64
           path: ./sealdice-android/app/src/main/assets/sealdice
       - name: Get Documents
         uses: actions/download-artifact@v4
@@ -481,16 +493,18 @@ jobs:
         working-directory: ./sealdice-android/app
         run: |
           sed -i 's/versionName ".*"/versionName "${{ env.PROJECT_VERSION }}"/g' build.gradle
+        env:
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
       - name: Build Apk
         working-directory: ./sealdice-android
         run: |
           bash ./gradlew assembleDebug --stacktrace
-          mv ./app/build/outputs/apk/debug/app-debug.apk ./app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION }}_arm64.apk
+          mv ./app/build/outputs/apk/debug/app-debug.apk ./app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION_C }}_arm64.apk
       - name: Upload Apk
         uses: actions/upload-artifact@v4
         with:
-          name: sealdice_${{ env.PROJECT_VERSION }}_android_arm64
-          path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION }}_arm64.apk
+          name: sealdice_${{ env.PROJECT_VERSION_C }}_android_arm64
+          path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION_C }}_arm64.apk
 
   pc-pack:
     name: PC Pack
@@ -513,8 +527,17 @@ jobs:
           - goos: darwin
             goarch: '386'
     steps:
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
+        with:
+          format: YYYYMMDD
+          timezone-offset: -480
       - name: Set Env
-        run: echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
+        run: |
+          echo "PROJECT_VERSION_C=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+        env:
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
       - name: Get Documents
         uses: actions/download-artifact@v4
         with:
@@ -528,7 +551,7 @@ jobs:
       - name: Get Core
         uses: actions/download-artifact@v4
         with:
-          name: sealdice-core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          name: sealdice-core_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
       - name: Set Execute Attribute
         if: matrix.goos != 'windows'
@@ -536,7 +559,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          name: sealdice_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: .
 
   preparation:
@@ -561,22 +584,22 @@ jobs:
           - goos: android
             goarch: arm64
     steps:
-      - name: Set Env
-        run: echo "PROJECT_VERSION=dev-${COMMIT_ID::7}" >> $GITHUB_ENV;
-      - name: Get Files
-        uses: actions/download-artifact@v4
-        with:
-          name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: ./temp/
-
-      # 比较粗糙，回头按照release那个方式调整一下所有变量的出处
-      # 现在会有个问题就是steps执行隔夜可能会出事
       - name: Get current time
         uses: Kaven-Universe/github-action-current-date-time@v1
         id: currentTime
         with:
           format: YYYYMMDD
           timezone-offset: -480
+      - name: Set Env
+        run: |
+          echo "PROJECT_VERSION_C=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+        env:
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
+      - name: Get Files
+        uses: actions/download-artifact@v4
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: ./temp/
 
       - name: Compress (default)
         if: matrix.goos != 'windows' && matrix.goos != 'android'
@@ -585,8 +608,8 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
         run: |
-          cd ./temp && find . -type f | cut -c 3- | tar -zcvf ../sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.tar.gz -T -;
-          echo "DIST=sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
+          cd ./temp && find . -type f | cut -c 3- | tar -zcvf ../sealdice_${PROJECT_VERSION_C}_${GOOS}_${GOARCH}.tar.gz -T -;
+          echo "DIST=sealdice_${PROJECT_VERSION_C}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
       - name: Compress (windows)
         if: matrix.goos == 'windows'
         env:
@@ -595,8 +618,8 @@ jobs:
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
         run: |
           cd ./temp
-          zip -r ../sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.zip .
-          echo "DIST=sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
+          zip -r ../sealdice_${PROJECT_VERSION_C}_${GOOS}_${GOARCH}.zip .
+          echo "DIST=sealdice_${PROJECT_VERSION_C}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
       - name: Skip Compress (android)
         if: matrix.goos == 'android'
         env:
@@ -604,12 +627,12 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
         run: |
-          mv ./temp/sealdice_${PROJECT_VERSION}_${GOARCH}.apk ./sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOARCH}.apk
-          echo "DIST=sealdice_${PROJECT_VERSION}_${CUR_TIME}_${GOARCH}.apk" >> $GITHUB_ENV;
+          mv ./temp/sealdice_${PROJECT_VERSION_C}_${GOARCH}.apk ./sealdice_${PROJECT_VERSION_C}_${GOARCH}.apk
+          echo "DIST=sealdice_${PROJECT_VERSION_C}_${GOARCH}.apk" >> $GITHUB_ENV;
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: sealdice-prerelease_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          name: sealdice-prerelease_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ${{ env.DIST }}
 
   prerelease:
