@@ -417,8 +417,16 @@ func (d *Dice) JsInit() {
 		_ = seal.Set("getCtxProxyAtPos", GetCtxProxyAtPos)
 		_ = seal.Set("getVersion", func() map[string]interface{} {
 			return map[string]interface{}{
-				"versionCode": VERSION_CODE,
-				"version":     VERSION,
+				"versionCode":   VERSION_CODE,
+				"version":       VERSION.String(),
+				"versionSimple": VERSION_MAIN + VERSION_PRERELEASE,
+				"versionDetail": map[string]interface{}{
+					"major":         VERSION.Major(),
+					"minor":         VERSION.Minor(),
+					"patch":         VERSION.Patch(),
+					"prerelease":    VERSION.Prerelease(),
+					"buildMetaData": VERSION.Metadata(),
+				},
 			}
 		})
 		_ = seal.Set("getEndPoints", func() []*EndPointInfo {
