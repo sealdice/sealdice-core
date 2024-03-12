@@ -1415,13 +1415,8 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.Dice.TextCmdTrustOnly {
 				// 检查master和信任权限
-				refuse := ctx.PrivilegeLevel != 100
-				if refuse {
-					refuse = ctx.PrivilegeLevel != 70
-				}
-
 				// 拒绝无权限访问
-				if refuse {
+				if ctx.PrivilegeLevel < 70 {
 					ReplyToSender(ctx, msg, "你不具备Master权限")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
