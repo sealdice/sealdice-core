@@ -20,6 +20,14 @@ const CodeAlreadyExists = 602
 
 var startTime = time.Now().Unix()
 
+type VersionDetail struct {
+	Major         uint64 `json:"major"`
+	Minor         uint64 `json:"minor"`
+	Patch         uint64 `json:"patch"`
+	Prerelease    string `json:"prerelease"`
+	BuildMetaData string `json:"buildMetaData"`
+}
+
 func baseInfo(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -48,22 +56,36 @@ func baseInfo(c echo.Context) error {
 	}
 	extraTitle := getName()
 
+	versionDetail := VersionDetail{
+		Major:         dice.VERSION.Major(),
+		Minor:         dice.VERSION.Minor(),
+		Patch:         dice.VERSION.Patch(),
+		Prerelease:    dice.VERSION.Prerelease(),
+		BuildMetaData: dice.VERSION.Metadata(),
+	}
+
 	return c.JSON(http.StatusOK, struct {
-		AppName        string `json:"appName"`
-		Version        string `json:"version"`
-		VersionNew     string `json:"versionNew"`
-		VersionNewNote string `json:"versionNewNote"`
-		VersionCode    int64  `json:"versionCode"`
-		VersionNewCode int64  `json:"versionNewCode"`
-		MemoryAlloc    uint64 `json:"memoryAlloc"`
-		Uptime         int64  `json:"uptime"`
-		MemoryUsedSys  uint64 `json:"memoryUsedSys"`
-		ExtraTitle     string `json:"extraTitle"`
-		OS             string `json:"OS"`
-		Arch           string `json:"arch"`
+		AppName        string        `json:"appName"`
+		AppChannel     string        `json:"appChannel"`
+		Version        string        `json:"version"`
+		VersionSimple  string        `json:"versionSimple"`
+		VersionDetail  VersionDetail `json:"versionDetail"`
+		VersionNew     string        `json:"versionNew"`
+		VersionNewNote string        `json:"versionNewNote"`
+		VersionCode    int64         `json:"versionCode"`
+		VersionNewCode int64         `json:"versionNewCode"`
+		MemoryAlloc    uint64        `json:"memoryAlloc"`
+		Uptime         int64         `json:"uptime"`
+		MemoryUsedSys  uint64        `json:"memoryUsedSys"`
+		ExtraTitle     string        `json:"extraTitle"`
+		OS             string        `json:"OS"`
+		Arch           string        `json:"arch"`
 	}{
 		AppName:        dice.APPNAME,
-		Version:        dice.VERSION,
+		AppChannel:     dice.APP_CHANNEL,
+		Version:        dice.VERSION.String(),
+		VersionSimple:  dice.VERSION_MAIN + dice.VERSION_PRERELEASE,
+		VersionDetail:  versionDetail,
 		VersionNew:     versionNew,
 		VersionNewNote: versionNewNote,
 		VersionCode:    dice.VERSION_CODE,
