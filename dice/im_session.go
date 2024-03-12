@@ -474,34 +474,40 @@ type MsgContext struct {
 //
 // MsgContext.Dice需要指向一个有效的Dice对象
 func (ctx *MsgContext) fillPrivilege(msg *Message) int {
-	if ctx.Group != nil && ctx.Dice != nil {
-		switch {
-		case msg.Sender.GroupRole == "owner":
-			ctx.PrivilegeLevel = 60 // 群主
-		case msg.Sender.GroupRole == "admin":
-			ctx.PrivilegeLevel = 50 // 群管理
-		case msg.Sender.UserID == ctx.Group.InviteUserID:
-			ctx.PrivilegeLevel = 40 // 邀请者
+	switch {
+	case msg.Sender.GroupRole == "owner":
+		ctx.PrivilegeLevel = 60 // 群主
+	case ctx.IsPrivate || msg.Sender.GroupRole == "admin":
+		ctx.PrivilegeLevel = 50 // 群管理
+	case ctx.Group != nil && msg.Sender.UserID == ctx.Group.InviteUserID:
+		ctx.PrivilegeLevel = 40 // 邀请者
+	default: /* no-op */
+	}
+
+	ctx.GroupRoleLevel = ctx.PrivilegeLevel
+
+	if ctx.Dice == nil || ctx.Player == nil {
+		return ctx.PrivilegeLevel
+	}
+
+	// 加入黑名单相关权限
+	if val, exists := ctx.Dice.BanList.Map.Load(ctx.Player.UserID); exists {
+		switch val.Rank {
+		case BanRankBanned:
+			ctx.PrivilegeLevel = -30
+		case BanRankTrusted:
+			ctx.PrivilegeLevel = 70
 		default: /* no-op */
 		}
+	}
 
-		ctx.GroupRoleLevel = ctx.PrivilegeLevel
-
-		// 加入黑名单相关权限
-		if val, exists := ctx.Dice.BanList.Map.Load(ctx.Player.UserID); exists {
-			switch val.Rank {
-			case BanRankBanned:
-				ctx.PrivilegeLevel = -30
-			case BanRankTrusted:
-				ctx.PrivilegeLevel = 70
-			default: /* no-op */
-			}
-		}
-
-		// master 权限大于黑名单权限
-		if ctx.Dice.MasterCheck(ctx.Group.GroupID, ctx.Player.UserID) {
-			ctx.PrivilegeLevel = 100
-		}
+	grpID := ""
+	if ctx.Group != nil {
+		grpID = ctx.Group.GroupID
+	}
+	// master 权限大于黑名单权限
+	if ctx.Dice.MasterCheck(grpID, ctx.Player.UserID) {
+		ctx.PrivilegeLevel = 100
 	}
 
 	return ctx.PrivilegeLevel
