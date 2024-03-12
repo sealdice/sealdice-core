@@ -409,7 +409,7 @@ func SealCodeToCqCode(text string) string {
 		}
 		u := url.URL{
 			Scheme: "file",
-			Path:   afn,
+			Path:   filepath.ToSlash(afn),
 		}
 		cq := CQCommand{
 			Type: cqType,
