@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
 
@@ -57,13 +56,12 @@ func baseInfo(c echo.Context) error {
 	}
 	extraTitle := getName()
 
-	version, _ := semver.NewVersion(dice.VERSION)
 	versionDetail := VersionDetail{
-		Major:         version.Major(),
-		Minor:         version.Minor(),
-		Patch:         version.Patch(),
-		Prerelease:    version.Prerelease(),
-		BuildMetaData: version.Metadata(),
+		Major:         dice.VERSION.Major(),
+		Minor:         dice.VERSION.Minor(),
+		Patch:         dice.VERSION.Patch(),
+		Prerelease:    dice.VERSION.Prerelease(),
+		BuildMetaData: dice.VERSION.Metadata(),
 	}
 
 	return c.JSON(http.StatusOK, struct {
@@ -85,7 +83,7 @@ func baseInfo(c echo.Context) error {
 	}{
 		AppName:        dice.APPNAME,
 		AppChannel:     dice.APP_CHANNEL,
-		Version:        dice.VERSION,
+		Version:        dice.VERSION.String(),
 		VersionSimple:  dice.VERSION_MAIN + dice.VERSION_PRERELEASE,
 		VersionDetail:  versionDetail,
 		VersionNew:     versionNew,

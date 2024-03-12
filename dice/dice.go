@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
@@ -36,7 +37,7 @@ var (
 	// 正式：主版本号+yyyyMMdd，如 1.4.5+20240308
 	// dev：主版本号-dev+yyyyMMdd.7位hash，如 1.4.5-dev+20240308.1a2b3c4
 	// rc：主版本号-rc.序号+yyyyMMdd.7位hash如 1.4.5-rc.0+20240308.1a2b3c4，1.4.5-rc.1+20240309.2a3b4c4，……
-	VERSION = VERSION_MAIN + VERSION_PRERELEASE + VERSION_BUILD_METADATA
+	VERSION = semver.MustParse(VERSION_MAIN + VERSION_PRERELEASE + VERSION_BUILD_METADATA)
 
 	// VERSION_MAIN 主版本号
 	VERSION_MAIN = "1.4.5"
@@ -464,7 +465,7 @@ func (d *Dice) Init() {
 
 			for {
 				time.Sleep(30 * time.Second)
-				text := fmt.Sprintf("升级完成，当前版本: %s", VERSION)
+				text := fmt.Sprintf("升级完成，当前版本: %s", VERSION.String())
 
 				if ep.State == 2 {
 					// 还没好，继续等待
@@ -480,7 +481,7 @@ func (d *Dice) Init() {
 					ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: d.UpgradeWindowID}}, text)
 				}
 
-				d.Logger.Infof("升级完成，当前版本: %s", VERSION)
+				d.Logger.Infof("升级完成，当前版本: %s", VERSION.String())
 				d.UpgradeWindowID = ""
 				d.UpgradeEndpointID = ""
 				d.MarkModified()

@@ -416,17 +416,16 @@ func (d *Dice) JsInit() {
 		_ = seal.Set("gameSystem", gameSystem)
 		_ = seal.Set("getCtxProxyAtPos", GetCtxProxyAtPos)
 		_ = seal.Set("getVersion", func() map[string]interface{} {
-			version, _ := semver.NewVersion(VERSION)
 			return map[string]interface{}{
 				"versionCode":   VERSION_CODE,
-				"version":       VERSION,
+				"version":       VERSION.String(),
 				"versionSimple": VERSION_MAIN + VERSION_PRERELEASE,
 				"versionDetail": map[string]interface{}{
-					"major":         version.Major(),
-					"minor":         version.Minor(),
-					"patch":         version.Patch(),
-					"prerelease":    version.Prerelease(),
-					"buildMetaData": version.Metadata(),
+					"major":         VERSION.Major(),
+					"minor":         VERSION.Minor(),
+					"patch":         VERSION.Patch(),
+					"prerelease":    VERSION.Prerelease(),
+					"buildMetaData": VERSION.Metadata(),
 				},
 			}
 		})

@@ -1816,7 +1816,7 @@ func (d *Dice) GenerateTextMap() {
 	picker, _ := wr.NewChooser(wr.Choice{Item: APPNAME, Weight: 1})
 	d.TextMap["常量:APPNAME"] = picker
 
-	picker, _ = wr.NewChooser(wr.Choice{Item: VERSION, Weight: 1})
+	picker, _ = wr.NewChooser(wr.Choice{Item: VERSION.String(), Weight: 1})
 	d.TextMap["常量:VERSION"] = picker
 }
 
