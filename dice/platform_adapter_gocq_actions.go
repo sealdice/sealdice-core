@@ -664,7 +664,7 @@ func textAssetsConvert(s string) string {
 			}
 			u := url.URL{
 				Scheme: "file",
-				Path:   afn,
+				Path:   filepath.ToSlash(afn),
 			}
 			cq := CQCommand{
 				Type: cqType,
@@ -711,7 +711,7 @@ func textAssetsConvert(s string) string {
 					}
 					u := url.URL{
 						Scheme: "file",
-						Path:   afn,
+						Path:   filepath.ToSlash(afn),
 					}
 					cq.Args["file"] = u.String()
 				}
