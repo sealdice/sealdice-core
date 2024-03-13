@@ -136,7 +136,7 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo) error {
 		return err
 	}
 	for k, value := range rawJsonData {
-		if k == "$schema" || k == "_etag" {
+		if k == "$schema" {
 			continue
 		}
 		if val, ok := value.([]any); ok {
