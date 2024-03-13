@@ -40,7 +40,7 @@ type DeckDiceEFormat struct {
 
 	// 更新支持字段
 	UpdateUrls []string `json:"_updateUrls"`
-	Etag       string   `json:"_etag"`
+	Etag       []string `json:"_etag"`
 }
 
 type DeckSinaNyaFormat struct {
@@ -123,15 +123,33 @@ type DeckInfo struct {
 }
 
 func tryParseDiceE(content []byte, deckInfo *DeckInfo) error {
-	jsonData := map[string][]string{}
+	// 移除注释
 	standardJson, isRFC, err := standardizeJson(content)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(standardJson, &jsonData)
+
+	jsonData := map[string][]string{}
+	rawJsonData := map[string]any{}
+	err = json.Unmarshal(standardJson, &rawJsonData)
 	if err != nil {
 		return err
 	}
+	for k, value := range rawJsonData {
+		if k == "$schema" || k == "_etag" {
+			continue
+		}
+		if val, ok := value.([]any); ok {
+			v := make([]string, 0, len(val))
+			for _, elem := range val {
+				if vv, ok := elem.(string); ok {
+					v = append(v, vv)
+				}
+			}
+			jsonData[k] = v
+		}
+	}
+
 	jsonData2 := DeckDiceEFormat{}
 	err = json.Unmarshal(standardJson, &jsonData2)
 	if err != nil {
@@ -199,7 +217,9 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo) error {
 	}
 	deckInfo.Enable = true
 	deckInfo.UpdateUrls = jsonData2.UpdateUrls
-	deckInfo.Etag = jsonData2.Etag
+	if len(jsonData2.Etag) > 0 {
+		deckInfo.Etag = jsonData2.Etag[0]
+	}
 	deckInfo.RawData = &jsonData
 	return nil
 }
