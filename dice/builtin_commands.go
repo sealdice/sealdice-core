@@ -519,11 +519,15 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					SetBotOnAtGroup(ctx, msg.GroupID)
 					ctx.Group = ctx.Session.ServiceAtNew[msg.GroupID]
 					ctx.IsCurGroupBotOn = true
 
-					// "SealDice 已启用(开发中) " + VERSION
 					text := DiceFormatTmpl(ctx, "核心:骰子开启")
 					if ctx.Group.LogOn {
 						text += "\n请特别注意: 日志记录处于开启状态"
@@ -537,9 +541,13 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					SetBotOffAtGroup(ctx, ctx.Group.GroupID)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
-
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
 					if cmdArgs.GetArgN(2) != "" {
