@@ -35,7 +35,7 @@ require (
 	github.com/phuslu/log v1.0.88
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105
-	github.com/sahilm/fuzzy v0.1.0
+	github.com/sahilm/fuzzy v0.1.1
 	github.com/tidwall/buntdb v1.3.0
 	github.com/xuri/excelize/v2 v2.8.0
 	go.etcd.io/bbolt v1.3.8
