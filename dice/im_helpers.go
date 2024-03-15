@@ -227,7 +227,7 @@ func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag strin
 		ctx.Group.UpdatedAtTime = now
 	}
 	text = strings.TrimSpace(text)
-	for _, i := range strings.Split(text, "###SPLIT###") {
+	for _, i := range ctx.SplitText(text) {
 		if ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
 			doSleepQQ(ctx)
 		}
@@ -294,7 +294,7 @@ func replyPersonRawNoCheck(ctx *MsgContext, msg *Message, text string, flag stri
 		text = "要发送的文本过长"
 	}
 	text = strings.TrimSpace(text)
-	for _, i := range strings.Split(text, "###SPLIT###") {
+	for _, i := range ctx.SplitText(text) {
 		if ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
 			doSleepQQ(ctx)
 		}
@@ -396,11 +396,7 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string { //nolint:revive
 }
 
 func CompatibleReplace(ctx *MsgContext, s string) string {
-	s = strings.ReplaceAll(s, "#{SPLIT}", "###SPLIT###")
-	s = strings.ReplaceAll(s, "{FormFeed}", "###SPLIT###")
-	s = strings.ReplaceAll(s, "{formfeed}", "###SPLIT###")
-	s = strings.ReplaceAll(s, "\f", "###SPLIT###")
-	s = strings.ReplaceAll(s, "\\f", "###SPLIT###")
+	s = ctx.TranslateSplit(s)
 
 	// 匹配 #{DRAW-$1}, 其中$1执行最短匹配且允许左侧右侧各有一个花括号
 	// #{DRAW-aaa} => aaa
