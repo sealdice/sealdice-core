@@ -1,6 +1,8 @@
 package dice
 
 import (
+	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"regexp"
 	"runtime/debug"
@@ -464,10 +466,9 @@ type MsgContext struct {
 	Censored          bool // 已检查过敏感词
 	SpamCheckedGroup  bool
 	SpamCheckedPerson bool
-}
 
-// func (s *IMSession) GroupEnableCheck(ep *EndPointInfo, msg *Message, runInSync bool) {
-// }
+	splitKey string
+}
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
 //   - msg 使用其中的msg.Sender.GroupRole
@@ -1916,6 +1917,39 @@ func (ctx *MsgContext) ChBindGetList(name string) []string {
 		grps = append(grps, k)
 	}
 	return grps
+}
+
+func (ctx *MsgContext) InitSplitKey() {
+	if len(ctx.splitKey) > 0 {
+		return
+	}
+	r := randSource.Uint64()
+	bArray := make([]byte, 12)
+	binary.LittleEndian.PutUint64(bArray[:8], r)
+	r = randSource.Uint64()
+	binary.LittleEndian.PutUint32(bArray[8:], uint32(r))
+
+	s := base64.StdEncoding.EncodeToString(bArray)
+	ctx.splitKey = "<split key='" + s + "'/>"
+}
+
+func (ctx *MsgContext) TranslateSplit(s string) string {
+	if len(ctx.splitKey) == 0 {
+		ctx.InitSplitKey()
+	}
+	s = strings.ReplaceAll(s, "#{SPLIT}", ctx.splitKey)
+	s = strings.ReplaceAll(s, "{FormFeed}", ctx.splitKey)
+	s = strings.ReplaceAll(s, "{formfeed}", ctx.splitKey)
+	s = strings.ReplaceAll(s, "\f", ctx.splitKey)
+	s = strings.ReplaceAll(s, "\\f", ctx.splitKey)
+	return s
+}
+
+func (ctx *MsgContext) SplitText(text string) []string {
+	if len(ctx.splitKey) == 0 {
+		return []string{text}
+	}
+	return strings.Split(text, ctx.splitKey)
 }
 
 var curCommandID int64 = 0
