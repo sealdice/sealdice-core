@@ -520,6 +520,8 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 
 	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: session, Dice: session.Parent}
 
+	ctx.InitSplitKey()
+
 	switch msg.MessageType {
 	case "private":
 		// msg.Sender.UserId 确保存在

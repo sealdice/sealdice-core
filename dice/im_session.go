@@ -523,6 +523,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	mctx.IsPrivate = mctx.MessageType == "private"
 	mctx.Session = s
 	mctx.EndPoint = ep
+	mctx.InitSplitKey()
 	log := d.Logger
 
 	// 处理命令
