@@ -560,7 +560,7 @@ func (d *Dice) JsLoadScripts() {
 			if ok, _ := CheckJsSign(scriptData); ok {
 				jsInfo, err := d.JsParseMeta("./"+path, info.ModTime(), data, true)
 				if err != nil {
-					d.Logger.Error("读取内置脚本失败(错误依赖)", err.Error())
+					d.Logger.Error("读取内置脚本失败(错误依赖):\n", err.Error())
 					return nil
 				}
 				jsInfos = append(jsInfos, jsInfo)
@@ -585,7 +585,7 @@ func (d *Dice) JsLoadScripts() {
 			}
 			jsInfo, err := d.JsParseMeta("./"+path, info.ModTime(), data, false)
 			if err != nil {
-				d.Logger.Error("读取脚本失败(错误依赖)", err.Error())
+				d.Logger.Error("读取脚本失败(错误依赖):\n", err.Error())
 				return nil
 			}
 			jsInfos = append(jsInfos, jsInfo)
@@ -773,6 +773,10 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 	fileText := string(rawData)
 	re := regexp.MustCompile(`(?s)//[ \t]*==UserScript==[ \t]*\r?\n(.*)//[ \t]*==/UserScript==`)
 	m := re.FindStringSubmatch(fileText)
+
+	lowestVersionRe := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)$`)
+	var errMsg []string
+
 	if len(m) > 0 {
 		text := m[0]
 		re2 := regexp.MustCompile(`//[ \t]*@(\S+)\s+([^\r\n]+)`)
@@ -810,7 +814,8 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 			case "depends":
 				dependsStr := strings.SplitN(v, ":", 2)
 				if len(dependsStr) != 2 {
-					return nil, fmt.Errorf("插件「%s」指定依赖格式不正确，应为 作者:插件名:[SemVer版本约束，可选]，现为「%s」", jsInfo.Name, v)
+					errMsg = append(errMsg, fmt.Sprintf("插件「%s」指定依赖格式不正确，应为 作者:插件名:[SemVer版本约束，可选]，现为「%s」", jsInfo.Name, v))
+					continue
 				}
 				author := dependsStr[0]
 				name := dependsStr[1]
@@ -822,7 +827,8 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 					split := strings.SplitN(name, ":", 2)
 					constraint, err := semver.NewConstraint(split[1])
 					if err != nil {
-						return nil, fmt.Errorf("插件「%s」指定依赖格式不正确，应为 作者:插件名:[SemVer版本约束，可选]，现为「%s」", jsInfo.Name, v)
+						errMsg = append(errMsg, fmt.Sprintf("插件「%s」指定依赖格式不正确，应为 作者:插件名:[SemVer版本约束，可选]，现为「%s」", jsInfo.Name, v))
+						continue
 					}
 					dependsInfo.Name = split[0]
 					dependsInfo.Constraint = constraint
@@ -831,9 +837,36 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 					dependsInfo.Constraint, _ = semver.NewConstraint("")
 				}
 				jsInfo.Depends = append(jsInfo.Depends, dependsInfo)
+			case "sealLowestVersion":
+				// 依赖的最低海豹版本，形式只能是 major.minor.patch
+				if !lowestVersionRe.Match([]byte(v)) {
+					errMsg = append(errMsg, fmt.Sprintf("插件「%s」指定最低海豹版本的格式不正确，格式应为 x.x.x，当前指定为「%s」", jsInfo.Name, v))
+					continue
+				}
+				vc, _ := semver.NewConstraint(">=" + v + "-0")
+				if !vc.Check(VERSION) {
+					errMsg = append(errMsg, fmt.Sprintf("插件「%s」依赖的最低海豹版本为 %s，当前海豹版本：%s", jsInfo.Name, v, VERSION.String()))
+					continue
+				}
+			case "sealVersion":
+				vc, err := semver.NewConstraint(v)
+				if err != nil {
+					errMsg = append(errMsg, fmt.Sprintf("插件「%s」限制海豹版本的格式不正确，应满足 semver 版本范围语法", jsInfo.Name))
+					continue
+				}
+				if !vc.Check(VERSION) {
+					errMsg = append(errMsg, fmt.Sprintf("插件「%s」依赖的海豹版本限制在 %s，当前海豹版本：%s", jsInfo.Name, v, VERSION.String()))
+					continue
+				}
 			}
 		}
 		jsInfo.UpdateUrls = updateUrls
+	}
+	if len(errMsg) > 0 {
+		errMsg := strings.Join(errMsg, "\n")
+		jsInfo.Enable = false
+		jsInfo.ErrText = errMsg
+		return nil, fmt.Errorf(errMsg)
 	}
 	jsInfo.Enable = !d.DisabledJsScripts[jsInfo.Name]
 	return jsInfo, nil
