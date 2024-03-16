@@ -50,6 +50,12 @@ var (
 	APP_CHANNEL = "dev" //nolint:revive
 
 	VERSION_CODE = int64(1004004) //nolint:revive
+
+	VERSION_JSAPI_COMPATIBLE = []*semver.Version{
+		VERSION,
+		semver.MustParse("1.4.4"),
+		semver.MustParse("1.4.3"),
+	}
 )
 
 type CmdExecuteResult struct {
