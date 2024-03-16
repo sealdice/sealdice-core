@@ -721,10 +721,18 @@ func (pa *PlatformAdapterSatori) handleEvent(event SatoriPayload[SatoriEvent]) {
 	case "message-deleted": // 消息撤回
 		pa.deleteMessageHandle(event.Body)
 	case "guild-added": // 加入群组
+		// satori 协议有规定该事件，但是 chronocat 目前并未支持，尚未测试
+		// pa.guildAddedHandle(event.Body)
 	case "guild-updated": // 群组被修改
 	case "guild-removed": // 退出群组
+		// satori 协议有规定该事件，但是 chronocat 目前并未支持，尚未测试
+		// pa.guildRemovedHandle(event.Body)
 	case "guild-request": // 收到入群邀请
+		// satori 协议有规定该事件，但是 chronocat 目前并未支持，尚未测试
+		// pa.guildRequestHandle(event.Body)
 	case "friend-request": // 收到好友申请
+		// satori 协议有规定该事件，但是 chronocat 目前并未支持，尚未测试
+		// pa.friendRequestHandle(event.Body)
 	}
 }
 
@@ -767,6 +775,118 @@ func (pa *PlatformAdapterSatori) editMessageHandle(e *SatoriEvent) {
 		Player:      &GroupPlayerInfo{},
 	}
 	pa.Session.OnMessageEdit(mctx, msg)
+}
+
+func (pa *PlatformAdapterSatori) guildAddedHandle(e *SatoriEvent) {
+
+}
+
+func (pa *PlatformAdapterSatori) guildRemovedHandle(e *SatoriEvent) {
+
+}
+
+func (pa *PlatformAdapterSatori) guildRequestHandle(e *SatoriEvent) {
+	d := pa.Session.Parent
+	dm := d.Parent
+	log := d.Logger
+
+	uid := formatDiceIDSatori(pa.Platform, e.User.ID)
+	userName := dm.TryGetUserName(uid)
+	guildID := formatDiceIDSatoriGroup(pa.Platform, e.Guild.ID)
+	guildName := dm.TryGetGroupName(guildID)
+	log.Infof("satori: 收到平台 %s 加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)",
+		pa.Platform, guildName, guildID, userName, uid)
+
+	eid := e.ID.String()
+	// 邀请人在黑名单上
+	banInfo, ok := d.BanList.GetByID(uid)
+	if ok {
+		if banInfo.Rank == BanRankBanned && d.BanList.BanBehaviorRefuseInvite {
+			pa.sendGuildRequestResult(eid, false, "黑名单")
+			return
+		}
+	}
+	// 信任模式，如果不是信任，又不是 master 则拒绝拉群邀请
+	isMaster := d.IsMaster(uid)
+	if d.TrustOnlyMode && ((banInfo != nil && banInfo.Rank != BanRankTrusted) && !isMaster) {
+		pa.sendGuildRequestResult(eid, false, "只允许骰主设置信任的人拉群")
+		return
+	}
+	// 群在黑名单上
+	banInfo, ok = d.BanList.GetByID(guildID)
+	if ok {
+		if banInfo.Rank == BanRankBanned {
+			pa.sendGuildRequestResult(eid, false, "群黑名单")
+			return
+		}
+	}
+	// 拒绝加群
+	if d.RefuseGroupInvite {
+		pa.sendGuildRequestResult(eid, false, "设置拒绝加群")
+		return
+	}
+	pa.sendGuildRequestResult(eid, true, "")
+}
+
+// sendGuildRequestResult 发送入群邀请处理结果
+func (pa *PlatformAdapterSatori) sendGuildRequestResult(id string, approve bool, comment string) {
+	d := pa.Session.Parent
+	log := d.Logger
+	req := map[string]any{
+		"message_id": id,
+		"approve":    approve,
+		"comment":    comment,
+	}
+	reqJson, _ := json.Marshal(req)
+	_, err := pa.post("guild.approve", bytes.NewBuffer(reqJson))
+	if err != nil {
+		log.Error("satori 发送入群邀请处理结果失败:", err)
+		return
+	}
+}
+
+func (pa *PlatformAdapterSatori) friendRequestHandle(e *SatoriEvent) {
+	s := pa.Session
+	d := s.Parent
+	dm := d.Parent
+	log := d.Logger
+
+	uid := formatDiceIDSatori(pa.Platform, e.User.ID)
+	userName := dm.TryGetUserName(uid)
+	log.Infof("satori: 收到平台 %s 好友请求: 申请人:<%s>(%s)", pa.Platform, userName, uid)
+
+	eid := e.ID.String()
+	// 申请人在黑名单上
+	banInfo, ok := d.BanList.GetByID(uid)
+	if ok {
+		if banInfo.Rank == BanRankBanned && d.BanList.BanBehaviorRefuseInvite {
+			pa.sendGuildRequestResult(eid, false, "为被禁止用户，准备自动拒绝")
+			return
+		}
+	}
+
+	if strings.TrimSpace(d.FriendAddComment) == "" {
+		pa.sendFriendRequestResult(eid, true, "")
+	} else {
+		pa.sendFriendRequestResult(eid, false, "存在好友问题校验，准备自动拒绝，请联系骰主")
+	}
+}
+
+// sendFriendRequestResult 发送好友申请处理结果
+func (pa *PlatformAdapterSatori) sendFriendRequestResult(id string, approve bool, comment string) {
+	d := pa.Session.Parent
+	log := d.Logger
+	req := map[string]any{
+		"message_id": id,
+		"approve":    approve,
+		"comment":    comment,
+	}
+	reqJson, _ := json.Marshal(req)
+	_, err := pa.post("friend.approve", bytes.NewBuffer(reqJson))
+	if err != nil {
+		log.Error("satori 发送好友申请处理结果失败:", err)
+		return
+	}
 }
 
 func formatDiceIDSatori(platform string, diceSatori string) string {
