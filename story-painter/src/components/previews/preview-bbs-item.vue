@@ -14,7 +14,7 @@ import dayjs from 'dayjs';
 import { computed } from 'vue';
 import { LogItem, packNameId } from '~/logManager/types';
 import { useStore } from '~/store';
-import { escapeHTML, msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat } from '~/utils';
+import { escapeHTML, msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat, msgAtFormat } from '~/utils';
 
 const store = useStore();
 
@@ -85,6 +85,7 @@ const bbsMessageSolve = (i: LogItem) => {
   msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
   msg = msgCommandFormat(msg, store.exportOptions);
   msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);
+  msg = msgAtFormat(msg, store.pcList);
   msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice); // 再过滤一次
 
   if (i.isDice) {

@@ -157,7 +157,7 @@ import previewTrg from "./components/previews/preview-trg.vue";
 import PreviewItem from './components/previews/preview-main-item.vue'
 import { LogItem, CharItem, packNameId } from "./logManager/types";
 import { setCharInfo } from './logManager/importers/_logImpoter'
-import { msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat } from "./utils";
+import { msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat, msgAtFormat } from "./utils";
 
 // 不用他了 虽然很不错，但是没有屏幕取色
 // import { ColorPicker } from 'vue-color-kit'
@@ -417,6 +417,7 @@ function showPreview() {
     msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
     msg = msgCommandFormat(msg, store.exportOptions);
     msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);
+    msg = msgAtFormat(msg, store.pcList);
     msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice); // 再过滤一次
     if (msg.trim() === '') continue;
 
@@ -452,7 +453,7 @@ const deletePc = (index: number, i: CharItem) => {
   store.pcList.splice(index, 1);
     logMan.deleteByCharItem(i);
   }).catch(() => {
-    i.name = lastPCName;
+    // i.name = lastPCName;
   })
 }
 

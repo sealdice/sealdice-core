@@ -90,8 +90,8 @@ export function msgIMUseridFormat(msg: string, options: any, isDice = false) {
     msg = msg.replaceAll('>', '')
   }
 
-  // 过滤其他任何CQ码
-  msg = msg.replaceAll(/\[CQ:(?!image).+?,[^\]]+\]/g, '')
+  // 过滤其他任何CQ码，除了at与image
+  msg = msg.replaceAll(/\[CQ:(?!image|at).+?,[^\]]+\]/g, "");
   // 过滤mirai
   msg = msg.replaceAll(/\[mirai:(?!image).+?:[^\]]+\]/g, '')
 
@@ -101,6 +101,39 @@ export function msgIMUseridFormat(msg: string, options: any, isDice = false) {
   return msg;
 }
 
+// 替换将回复或@的格式，在染色后的日志中呈现为@对应的玩家名称
+// 在其他平台，回复消息的日志类型也有所不同。
+// QQ的回复是CQ码 [CQ:at,qq=12345678]
+// discord的回复是 <@8181007086111111>
+// kook的回复是 (met)176031111(met)
+export function msgAtFormat(msg: string, pcList: any) {
+  // qq的回复会给出两个连续的相同CQ码，如[CQ:at,qq=123456] [CQ:at,qq=123456]，预先处理只保留一个
+  let qqReplyPattern = new RegExp(
+    `(\\[CQ:at,qq=([0-9]+)\\]) \\[CQ:at,qq=([0-9]+)\\]`,
+    "g"
+  );
+  if (msg.match(qqReplyPattern)) {
+    const match = msg.match(qqReplyPattern);
+    if (match) {
+      msg = msg.replace(qqReplyPattern, "$1");
+    }
+  }
+
+  for (let i of pcList) {
+    // QQ的回复是CQ码 [CQ:at,qq=12345678]
+    let qqAtPattern = new RegExp(`\\[CQ:at,qq=${i.IMUserId}\\]`, "g");
+    msg = msg.replace(qqAtPattern, `@${i.name}`);
+
+    // discord的回复是 <@8181007086111111>
+    let discordAtPattern = new RegExp(`&lt;@${i.IMUserId}&gt;`, "g");
+    msg = msg.replace(discordAtPattern, `@${i.name}`);
+
+    // kook的回复是 (met)17603111(met)
+    let kookAtPattern = new RegExp(`\\(met\\)${i.IMUserId}\\(met\\)`, "g");
+    msg = msg.replace(kookAtPattern, `@${i.name}`);
+  }
+  return msg;
+}
 
 export function escapeHTML(html: string) {
   const div = document.createElement('div');
