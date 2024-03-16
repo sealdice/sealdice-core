@@ -19,6 +19,7 @@ type PlatformAdapterTelegram struct {
 	ProxyURL      string           `yaml:"proxyURL" json:"proxyURL"`
 	EndPoint      *EndPointInfo    `yaml:"-" json:"-"`
 	IntentSession *tgbotapi.BotAPI `yaml:"-" json:"-"`
+	ActiveTime    time.Time        `yaml:"-" json:"-"` // 用于区分adapter关闭时堆积的消息，不进入配置文件
 }
 
 func (pa *PlatformAdapterTelegram) GetGroupInfoAsync(groupID string) {
@@ -82,12 +83,15 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	d := pa.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
-	pa.Session.Parent.Logger.Infof("Telegram 服务连接成功，账号<%s>(%s)", bot.Self.UserName, pa.EndPoint.UserID)
-	updateConfig := tgbotapi.NewUpdate(0)
 
+	pa.Session.Parent.Logger.Infof("Telegram 服务连接成功，账号<%s>(%s)", bot.Self.UserName, pa.EndPoint.UserID)
+
+	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = 30
 
 	updates := bot.GetUpdatesChan(updateConfig)
+	pa.ActiveTime = time.Now()
+
 	go func() {
 		for update := range updates {
 			if pa.IntentSession == nil {
@@ -95,6 +99,11 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 			}
 
 			if update.EditedMessage != nil {
+				if int64(update.EditedMessage.Date) < pa.ActiveTime.Unix() {
+					// This message is edited while pa isn't active.
+					continue
+				}
+
 				msg := pa.toStdMessage(update.EditedMessage)
 				mctx := &MsgContext{
 					Session:     pa.Session,
@@ -110,13 +119,21 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 				go pa.Session.OnMessageEdit(mctx, msg)
 				continue
 			}
+
 			if update.Message == nil {
 				continue
 			}
+
 			msgRaw := update.Message
 			if msgRaw.From.IsBot {
 				continue
 			}
+
+			if int64(msgRaw.Date) < pa.ActiveTime.Unix() {
+				// This message is created while pa isn't active; it should be ignored.
+				continue
+			}
+
 			msg := pa.toStdMessage(msgRaw)
 			if msgRaw.NewChatMembers != nil {
 				for _, member := range msgRaw.NewChatMembers {
