@@ -69,11 +69,10 @@ type QueryCensorLog struct {
 	Level    int    `query:"level"`
 }
 
-func CensorGetLogPage(db *sqlx.DB, params *QueryCensorLog) (int, []*CensorLog, error) {
-	var (
-		total int
-		res   []*CensorLog
-	)
+func CensorGetLogPage(db *sqlx.DB, params QueryCensorLog) (int, []*CensorLog, error) {
+	var total int
+	res := make([]*CensorLog, 0, params.PageSize)
+
 	err := db.QueryRow("SELECT COUNT(*) FROM censor_log").Scan(&total)
 	if err != nil {
 		return 0, nil, err

@@ -506,8 +506,8 @@ func censorGetLogPage(c echo.Context) error {
 		return err
 	}
 
-	v := &model.QueryCensorLog{}
-	err = c.Bind(v)
+	v := model.QueryCensorLog{}
+	err = c.Bind(&v)
 	if err != nil {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, err)
@@ -524,7 +524,9 @@ func censorGetLogPage(c echo.Context) error {
 		return Error(&c, err.Error(), Response{})
 	}
 	return Success(&c, Response{
-		"data":  page,
-		"total": total,
+		"data":     page,
+		"total":    total,
+		"pageNum":  v.PageNum,
+		"pageSize": v.PageSize,
 	})
 }
