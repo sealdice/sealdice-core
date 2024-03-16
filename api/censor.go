@@ -527,6 +527,6 @@ func censorGetLogPage(c echo.Context) error {
 		"data":     page,
 		"total":    total,
 		"pageNum":  v.PageNum,
-		"pageSize": v.PageSize,
+		"pageSize": len(page),
 	})
 }
