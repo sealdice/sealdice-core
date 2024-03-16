@@ -368,7 +368,7 @@ onBeforeMount(() => {
     </template>
 </template>
 
-<style lang="scss">
+<style scoped lang="scss">
 .pagination {
     margin-top: 10px;
     background-color: #f3f5f7;
