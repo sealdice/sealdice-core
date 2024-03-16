@@ -157,13 +157,11 @@
                     </el-space>
                   </div>
                 </template>
-                <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'string'">
+                <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'string'" style="width: 100%; margin-bottom: .5rem;">
                   <el-form-item label="字符串配置项:">{{(c as unknown as JsPluginConfigItem).key}}</el-form-item>
-                  <el-form-item :span="30">
-                    <div style="margin-left: 1rem;">
-                      <el-input type="textarea" v-model="(c as unknown as JsPluginConfigItem).value" @change="doJsConfigChanged()"></el-input>
-                    </div>
-                  </el-form-item>
+                  <div style="width: 100%; margin-bottom: .5rem;">
+                    <el-input type="textarea" v-model="(c as unknown as JsPluginConfigItem).value" @change="doJsConfigChanged()"></el-input>
+                  </div>
                   <template v-if="(c as unknown as JsPluginConfigItem).value !== (c as unknown as JsPluginConfigItem).defaultValue">
                     <el-tooltip content="重置为初始值" placement="bottom-end">
                       <el-icon style="float: right; margin-left: 1rem;" @click="doResetJsConfig((i as unknown as JsPluginConfig)['pluginName'],(c as unknown as JsPluginConfigItem).key)">
@@ -249,8 +247,8 @@
                     </el-tooltip>
                   </template>
                 </el-form-item>
-                <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'template'">
-                  <el-form-item label="模板配置项:">{{(c as unknown as JsPluginConfigItem).key}}</el-form-item>
+                <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'template'" style="width: 100%; margin-bottom: .5rem;">
+                  <el-form-item label="模板配置项:" style="width: 100%; margin-bottom: .5rem;">{{(c as unknown as JsPluginConfigItem).key}}</el-form-item>
                   <template v-if="!isEqual((c as unknown as JsPluginConfigItem).value, (c as unknown as JsPluginConfigItem).defaultValue)">
                     <el-tooltip content="重置为初始值" placement="bottom-end">
                       <el-icon style="float: right; margin-left: 1rem;" @click="doResetJsConfig((i as unknown as JsPluginConfig)['pluginName'],(c as unknown as JsPluginConfigItem).key)">
@@ -266,11 +264,11 @@
                       </el-icon>
                     </el-tooltip>
                   </template>
-                  <el-form-item :span="15">
+                  <el-form-item style="width: 100%; margin-bottom: .5rem;">
                     <div v-for="d, indexd in (c as unknown as JsPluginConfigItem).value" style="width: 100%; margin-bottom: .5rem;">
                       <!-- 这里面是单条修改项 -->
                       <el-row>
-                        <el-col :span="10">
+                        <el-col style="width: 100%; margin-bottom: .5rem;">
                           <span style="width: 100%;">
                             <el-input type="textarea" v-model="((c as unknown as JsPluginConfigItem).value)[indexd]" :autosize="true" @change="doJsConfigChanged()"></el-input>
                           </span>
