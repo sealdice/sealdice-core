@@ -846,7 +846,7 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 
 				var verOK bool
 				// 有特殊符号时，进行严格的版本检查(只检查当前版本)
-				if strings.ContainsAny(v, "~*^<=>|") {
+				if strings.ContainsAny(v, "~*^<=>|") || strings.Contains(v, " - ") {
 					verOK = vc.Check(VERSION)
 				} else {
 					_, verOK = lo.Find(VERSION_JSAPI_COMPATIBLE, func(v *semver.Version) bool {
