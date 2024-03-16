@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/samber/lo"
 	"io"
 	"io/fs"
 	"net/http"
@@ -25,6 +24,7 @@ import (
 	fetch "github.com/fy0/gojax/fetch"
 	"github.com/golang-module/carbon"
 	"github.com/pkg/errors"
+	"github.com/samber/lo"
 	"gopkg.in/elazarl/goproxy.v1"
 	"gopkg.in/yaml.v3"
 
