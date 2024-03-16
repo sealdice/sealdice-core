@@ -837,7 +837,7 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 					dependsInfo.Constraint, _ = semver.NewConstraint("")
 				}
 				jsInfo.Depends = append(jsInfo.Depends, dependsInfo)
-			case "sealLowestVersion":
+			case "sealVersion":
 				// 依赖的最低海豹版本，形式只能是 major.minor.patch
 				if !lowestVersionRe.MatchString(v) {
 					errMsg = append(errMsg, fmt.Sprintf("插件「%s」指定最低海豹版本的格式不正确，格式应为 x.x.x，当前指定为「%s」", jsInfo.Name, v))
@@ -848,7 +848,7 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 					errMsg = append(errMsg, fmt.Sprintf("插件「%s」依赖的最低海豹版本为 %s，当前海豹版本：%s", jsInfo.Name, v, VERSION.String()))
 					continue
 				}
-			case "sealVersion":
+			case "sealVersionExact":
 				vc, err := semver.NewConstraint(v)
 				if err != nil {
 					errMsg = append(errMsg, fmt.Sprintf("插件「%s」限制海豹版本的格式不正确，应满足 semver 版本范围语法，当前为「%s」", jsInfo.Name, v))
