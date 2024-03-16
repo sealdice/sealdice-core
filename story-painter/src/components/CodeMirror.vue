@@ -21,7 +21,7 @@ import {syntaxTree} from "@codemirror/language"
 import { ViewPlugin } from "@codemirror/view"
 import type { DecorationSet } from "@codemirror/view"
 
-const editor = ref(null)
+const editor = ref<HTMLDivElement>()
 const store = useStore()
 
 const emit = defineEmits<(e: 'change', v: ViewUpdate) => void>();
@@ -169,9 +169,9 @@ const createEditor = (editorContainer: any, doc: any) => {
     store.editor.destroy();
   }
 
-  let startState = EditorState.create({
-    //doc为编辑器内容
-    doc: `
+const startState = EditorState.create({
+  //doc为编辑器默认内容
+  doc: `
 海豹一号机(2589922907) 2022/03/21 19:05:05
 新的故事开始了，祝旅途愉快！
 记录已经开启。

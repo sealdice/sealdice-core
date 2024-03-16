@@ -10,7 +10,6 @@ declare module 'vue' {
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
-    HelloWorld: typeof import('./components/HelloWorld.vue')['default']
     PreviewBbs: typeof import('./components/previews/preview-bbs.vue')['default']
     PreviewBbsItem: typeof import('./components/previews/preview-bbs-item.vue')['default']
     PreviewMain: typeof import('./components/previews/preview-main.vue')['default']
