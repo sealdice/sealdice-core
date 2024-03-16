@@ -512,12 +512,21 @@ func censorGetLogPage(c echo.Context) error {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
+	if v.PageNum < 1 {
+		v.PageNum = 1
+	}
+	if v.PageSize < 1 {
+		v.PageSize = 20
+	}
 
-	page, err := model.CensorGetLogPage(myDice.CensorManager.DB, &v)
+	total, page, err := model.CensorGetLogPage(myDice.CensorManager.DB, v)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
 	return Success(&c, Response{
-		"data": page,
+		"data":     page,
+		"total":    total,
+		"pageNum":  v.PageNum,
+		"pageSize": len(page),
 	})
 }
