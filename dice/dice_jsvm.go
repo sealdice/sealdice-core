@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/samber/lo"
 	"io"
 	"io/fs"
 	"net/http"
@@ -773,11 +774,14 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 	fileText := string(rawData)
 	re := regexp.MustCompile(`(?s)//[ \t]*==UserScript==[ \t]*\r?\n(.*)//[ \t]*==/UserScript==`)
 	m := re.FindStringSubmatch(fileText)
+	var errMsg []string
+
 	if len(m) > 0 {
 		text := m[0]
 		re2 := regexp.MustCompile(`//[ \t]*@(\S+)\s+([^\r\n]+)`)
 		data := re2.FindAllStringSubmatch(text, -1)
 		updateUrls := make([]string, 0)
+
 		for _, item := range data {
 			v := strings.TrimSpace(item[2])
 			switch item[1] {
@@ -810,7 +814,8 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 			case "depends":
 				dependsStr := strings.SplitN(v, ":", 2)
 				if len(dependsStr) != 2 {
-					return nil, fmt.Errorf("插件「%s」指定依赖格式不正确，应为 作者:插件名:[SemVer版本约束，可选]，现为「%s」", jsInfo.Name, v)
+					errMsg = append(errMsg, fmt.Sprintf("插件「%s」指定依赖格式不正确，应为 作者:插件名:[SemVer版本约束，可选]，现为「%s」", jsInfo.Name, v))
+					continue
 				}
 				author := dependsStr[0]
 				name := dependsStr[1]
@@ -822,7 +827,8 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 					split := strings.SplitN(name, ":", 2)
 					constraint, err := semver.NewConstraint(split[1])
 					if err != nil {
-						return nil, fmt.Errorf("插件「%s」指定依赖格式不正确，应为 作者:插件名:[SemVer版本约束，可选]，现为「%s」", jsInfo.Name, v)
+						errMsg = append(errMsg, fmt.Sprintf("插件「%s」指定依赖格式不正确，应为 作者:插件名:[SemVer版本约束，可选]，现为「%s」", jsInfo.Name, v))
+						continue
 					}
 					dependsInfo.Name = split[0]
 					dependsInfo.Constraint = constraint
@@ -831,9 +837,29 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 					dependsInfo.Constraint, _ = semver.NewConstraint("")
 				}
 				jsInfo.Depends = append(jsInfo.Depends, dependsInfo)
+			case "sealVersion":
+				vc, err := semver.NewConstraint(v)
+				if err != nil {
+					errMsg = append(errMsg, fmt.Sprintf("插件「%s」限制海豹版本的格式不正确，应满足semver版本范围语法，例如「1.4.0, >=1.4.0, 1.4.5-dev」等，当前为「%s」", jsInfo.Name, v))
+					continue
+				}
+
+				_, verOK := lo.Find(VERSION_JSAPI_COMPATIBLE, func(v *semver.Version) bool {
+					return vc.Check(v)
+				})
+
+				if !verOK {
+					errMsg = append(errMsg, fmt.Sprintf("插件「%s」依赖的海豹版本限制在 %s，与海豹版本(%s)的JSAPI不兼容", jsInfo.Name, v, VERSION.String()))
+				}
 			}
 		}
 		jsInfo.UpdateUrls = updateUrls
+	}
+
+	if len(errMsg) > 0 {
+		jsInfo.Enable = false
+		jsInfo.ErrText = strings.Join(errMsg, "\n")
+		return nil, errors.New(strings.Join(errMsg, "|"))
 	}
 	jsInfo.Enable = !d.DisabledJsScripts[jsInfo.Name]
 	return jsInfo, nil
