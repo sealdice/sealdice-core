@@ -844,9 +844,15 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 					continue
 				}
 
-				_, verOK := lo.Find(VERSION_JSAPI_COMPATIBLE, func(v *semver.Version) bool {
-					return vc.Check(v)
-				})
+				var verOK bool
+				// 有特殊符号时，进行严格的版本检查(只检查当前版本)
+				if strings.ContainsAny(v, "~*^<=>") {
+					verOK = vc.Check(VERSION)
+				} else {
+					_, verOK = lo.Find(VERSION_JSAPI_COMPATIBLE, func(v *semver.Version) bool {
+						return vc.Check(v)
+					})
+				}
 
 				if !verOK {
 					errMsg = append(errMsg, fmt.Sprintf("插件「%s」依赖的海豹版本限制在 %s，与海豹版本(%s)的JSAPI不兼容", jsInfo.Name, v, VERSION.String()))
