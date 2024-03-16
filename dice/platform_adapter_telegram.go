@@ -101,7 +101,6 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 			if update.EditedMessage != nil {
 				if int64(update.EditedMessage.Date) < pa.ActiveTime.Unix() {
 					// This message is edited while pa isn't active.
-					// TODO(Oissevalt): 倘若用户在适配器关闭时修改了 log 中的消息，这是否是预期行为?
 					continue
 				}
 
