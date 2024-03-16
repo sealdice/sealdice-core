@@ -698,19 +698,19 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 账号类型选 QQ 账号，设备选「Android Pad-可共存」（此协议登录手机可同时在线，qsign 仅 Android 协议和 Android Pad 协议可用）：
 
-![](./images/image-005.png)
+![](./images/select-account.png)
 
 版本选择 8.9.70 （如果你的 qsign 是其它版本，请选择对应版本）：
 
-![](./images/image-006.png)
+![](./images/qsign-version.png)
 
 填写 QQ 账号密码：
 
-![](./images/image-007.png)
+![](./images/qq-account-and-pass.png)
 
 选择简易配置：
 
-![](./images/image-008.png)
+![](./images/qsign-select.png)
 
 服务 url 填你的 qsign 服务地址。
 
@@ -718,41 +718,50 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 服务鉴权不填写。
 
-![](./images/image-009.png)
+![](./images/qsign-config.png)
 
 接着点击登录，然后退出海豹（结束进程）。
 
-#### 生成session.token
+#### 分离部署登录流程
 
 1. 将 `go-cqhttp\go-cqhttp.exe` 文件复制到 `海豹目录/data/default/extra/gocqQQ号(你登录骰娘的qq号)` 这个文件夹下。
 
-   ![](./images/image-010.png)
+   ![](./images/gocq-folder.png)
 
 2. 双击运行 `go-cqhttp.exe`，两次确认后出现 `go-cqhttp.bat` 文件。
 
-   ![](./images/image-011.png) ![](./images/image-012.png)
+   ![](./images/gocq-warn1.png) ![](./images/gocq-warn2.png)
 
 3. 双击运行 `go-cqhttp.bat`，出现以下消息后输入 `2`，回车，复制链接到浏览器（终端选中后右键即可复制粘贴，没有选项）。
 
-   ![](./images/image-013.png)
+   ![](./images/gocq-step1.png)
 
    ::: tip 出现 `open image cache db failed`
 
-   出现该报错的原因很可能是未彻底关闭海豹，gocq 依然在运行。你需要打开任务管理器终止 gocq 进程。
+   出现该报错的原因很可能是因为 gocq 的缓存数据库损坏，可以尝试删除 gocq 的 data 目录后重新运行 gocq。（注意是 gocq 的 data 而不是海豹的！）
 
    :::
 
 4. 按照 [手动抓取ticket教程-哔哩哔哩](https://b23.tv/GRGg4GR) 视频教程操作，成功滑条后（需要抓 ticket，不只是滑条）复制 ticket 到终端后回车。
 
-   ![](./images/image-014.png)
+   ![](./images/gocq-step2.png)
 
-5. 复制一份 token 到桌面作为临时备份，避免出现意外。
+5. 如果登录成功，你应当能看到一条类似于 `2022-05-06 20:00:00 [INFO] 登录成功，欢迎使用：XXX` 的日志。
 
-   ![](./images/image-015.png)
+   ![](./images/gocq-success.png)
 
-6. 关闭 `go-cqhttp`，打开海豹，启用账号（不要点重新登录，如果没有启用请先禁用再启用）。
+   同时你应当在下方看到一条类似于 `2022-05-06 20:00:00 [INFO] CQ Websocket 服务器已启动：[::]:8080` 的日志。
+   
+   结尾的 `8080` 即为 gocq 的 ws 端口。你的端口号可能不同，总之请记住这个端口号。
 
-如果登录失败（比如不小心选了重新登录），可将桌面的 token 文件复制一份回原位，再次操作第 6 步。登录成功后无需保留 token 文件。
+6. 打开海豹，删除之前添加的账号，然后重新添加账号，选择 QQ(OneBot11分离部署) 
+
+   ![](./images/onebot11.png)
+
+   在连接地址中填写 `ws://localhost:8080`（请把`8080`替换为你的 gocq 端口号）。填写完成后点击下一步。
+7. 你的账号应当已经成功连接。
+
+   ![](./images/onebot11-success.png)
 
 ### GoCqhttp FAQ
 
