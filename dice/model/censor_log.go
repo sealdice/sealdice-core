@@ -69,9 +69,9 @@ type QueryCensorLog struct {
 	Level    int    `query:"level"`
 }
 
-func CensorGetLogPage(db *sqlx.DB, params QueryCensorLog) (int, []*CensorLog, error) {
+func CensorGetLogPage(db *sqlx.DB, params QueryCensorLog) (int, []CensorLog, error) {
 	var total int
-	res := make([]*CensorLog, 0, params.PageSize)
+	res := make([]CensorLog, 0, params.PageSize)
 
 	err := db.QueryRow("SELECT COUNT(*) FROM censor_log").Scan(&total)
 	if err != nil {
@@ -96,7 +96,7 @@ LIMIT ? OFFSET ?`, params.PageSize, (params.PageNum-1)*params.PageSize)
 	}(rows)
 
 	for rows.Next() {
-		log := &CensorLog{}
+		log := CensorLog{}
 		err := rows.Scan(
 			&log.ID,
 			&log.MsgType,
