@@ -560,7 +560,7 @@ func (d *Dice) JsLoadScripts() {
 			if ok, _ := CheckJsSign(scriptData); ok {
 				jsInfo, err := d.JsParseMeta("./"+path, info.ModTime(), data, true)
 				if err != nil {
-					d.Logger.Error("读取内置脚本失败(错误依赖):\n", err.Error())
+					d.Logger.Error("读取内置脚本失败(错误依赖):", err.Error())
 					return nil
 				}
 				jsInfos = append(jsInfos, jsInfo)
@@ -585,7 +585,7 @@ func (d *Dice) JsLoadScripts() {
 			}
 			jsInfo, err := d.JsParseMeta("./"+path, info.ModTime(), data, false)
 			if err != nil {
-				d.Logger.Error("读取脚本失败(错误依赖):\n", err.Error())
+				d.Logger.Error("读取脚本失败(错误依赖):", err.Error())
 				return nil
 			}
 			jsInfos = append(jsInfos, jsInfo)
@@ -839,11 +839,11 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 				jsInfo.Depends = append(jsInfo.Depends, dependsInfo)
 			case "sealLowestVersion":
 				// 依赖的最低海豹版本，形式只能是 major.minor.patch
-				if !lowestVersionRe.Match([]byte(v)) {
+				if !lowestVersionRe.MatchString(v) {
 					errMsg = append(errMsg, fmt.Sprintf("插件「%s」指定最低海豹版本的格式不正确，格式应为 x.x.x，当前指定为「%s」", jsInfo.Name, v))
 					continue
 				}
-				vc, _ := semver.NewConstraint(">=" + v + "-0")
+				vc, _ := semver.NewConstraint(">=" + v + "-0") // 增加 -0 以接受 dev/rc 版本
 				if !vc.Check(VERSION) {
 					errMsg = append(errMsg, fmt.Sprintf("插件「%s」依赖的最低海豹版本为 %s，当前海豹版本：%s", jsInfo.Name, v, VERSION.String()))
 					continue
@@ -851,7 +851,7 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 			case "sealVersion":
 				vc, err := semver.NewConstraint(v)
 				if err != nil {
-					errMsg = append(errMsg, fmt.Sprintf("插件「%s」限制海豹版本的格式不正确，应满足 semver 版本范围语法", jsInfo.Name))
+					errMsg = append(errMsg, fmt.Sprintf("插件「%s」限制海豹版本的格式不正确，应满足 semver 版本范围语法，当前为「%s」", jsInfo.Name, v))
 					continue
 				}
 				if !vc.Check(VERSION) {
@@ -863,10 +863,9 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 		jsInfo.UpdateUrls = updateUrls
 	}
 	if len(errMsg) > 0 {
-		errMsg := strings.Join(errMsg, "\n")
 		jsInfo.Enable = false
-		jsInfo.ErrText = errMsg
-		return nil, fmt.Errorf(errMsg)
+		jsInfo.ErrText = strings.Join(errMsg, "\n")
+		return nil, errors.New(strings.Join(errMsg, "|"))
 	}
 	jsInfo.Enable = !d.DisabledJsScripts[jsInfo.Name]
 	return jsInfo, nil
