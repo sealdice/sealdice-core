@@ -1930,7 +1930,7 @@ func (ctx *MsgContext) InitSplitKey() {
 	binary.LittleEndian.PutUint32(bArray[8:], uint32(r))
 
 	s := base64.StdEncoding.EncodeToString(bArray)
-	ctx.splitKey = "<split key='" + s + "'/>"
+	ctx.splitKey = "###" + s + "###"
 }
 
 func (ctx *MsgContext) TranslateSplit(s string) string {
