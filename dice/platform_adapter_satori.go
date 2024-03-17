@@ -777,14 +777,17 @@ func (pa *PlatformAdapterSatori) editMessageHandle(e *SatoriEvent) {
 	pa.Session.OnMessageEdit(mctx, msg)
 }
 
+//nolint:unused
 func (pa *PlatformAdapterSatori) guildAddedHandle(e *SatoriEvent) {
 
 }
 
+//nolint:unused
 func (pa *PlatformAdapterSatori) guildRemovedHandle(e *SatoriEvent) {
 
 }
 
+//nolint:unused
 func (pa *PlatformAdapterSatori) guildRequestHandle(e *SatoriEvent) {
 	d := pa.Session.Parent
 	dm := d.Parent
@@ -829,6 +832,8 @@ func (pa *PlatformAdapterSatori) guildRequestHandle(e *SatoriEvent) {
 }
 
 // sendGuildRequestResult 发送入群邀请处理结果
+//
+//nolint:unused
 func (pa *PlatformAdapterSatori) sendGuildRequestResult(id string, approve bool, comment string) {
 	d := pa.Session.Parent
 	log := d.Logger
@@ -845,6 +850,7 @@ func (pa *PlatformAdapterSatori) sendGuildRequestResult(id string, approve bool,
 	}
 }
 
+//nolint:unused
 func (pa *PlatformAdapterSatori) friendRequestHandle(e *SatoriEvent) {
 	s := pa.Session
 	d := s.Parent
@@ -873,6 +879,8 @@ func (pa *PlatformAdapterSatori) friendRequestHandle(e *SatoriEvent) {
 }
 
 // sendFriendRequestResult 发送好友申请处理结果
+//
+//nolint:unused
 func (pa *PlatformAdapterSatori) sendFriendRequestResult(id string, approve bool, comment string) {
 	d := pa.Session.Parent
 	log := d.Logger
