@@ -149,6 +149,7 @@ func (pa *PlatformAdapterSatori) Serve() int {
 					}
 					if pa.CancelFunc != nil {
 						pa.CancelFunc()
+						pa.CancelFunc = nil
 					}
 					return
 				}
