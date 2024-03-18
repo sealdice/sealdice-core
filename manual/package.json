@@ -19,7 +19,7 @@
     "vue": "^3.4.21",
     "vuepress": "2.0.0-rc.8",
     "vuepress-code-copy": "^1.1.0",
-    "vuepress-plugin-md-enhance": "2.0.0-rc.29",
+    "vuepress-plugin-md-enhance": "2.0.0-rc.31",
     "vuepress-plugin-search-pro": "2.0.0-rc.29",
     "vuepress-theme-hope": "2.0.0-rc.29"
   }
