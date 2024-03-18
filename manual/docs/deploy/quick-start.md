@@ -104,6 +104,21 @@ chmod +x ./sealdice-core
 
 ::::
 
+## 连接平台
+
+在完成上面的步骤后，你已经成功启动了海豹核心。接下来请根据你所需要对接平台的接入手册，来连接海豹和对应平台。
+
+见「连接平台」一章，包括：
+
+- [QQ](./platform-qq.md)
+- [KOOK](./platform-kook.md)
+- [DoDo](./platform-dodo.md)
+- [Discord](./platform-discord.md)
+- [Telegram](./platform-telegram.md)
+- [Slack](./platform-slack.md)
+- [钉钉](./platform-dingtalk.md)
+- ……
+
 ## 安装为系统服务（可选）
 
 如果你使用远程 Linux 服务器部署，或者使用终端启动海豹核心，那么，随着终端关闭，通常海豹核心也会一同关闭。
