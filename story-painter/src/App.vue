@@ -414,10 +414,10 @@ function showPreview() {
     //   if (msg.trim() === '') continue;
     // }
     let msg = msgImageFormat(i.message, store.exportOptions);
+    msg = msgAtFormat(msg, store.pcList);
     msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
     msg = msgCommandFormat(msg, store.exportOptions);
     msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);
-    msg = msgAtFormat(msg, store.pcList);
     msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice); // 再过滤一次
     if (msg.trim() === '') continue;
 

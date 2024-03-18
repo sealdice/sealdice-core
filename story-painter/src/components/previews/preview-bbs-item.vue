@@ -82,10 +82,10 @@ const bbsMessageSolve = (i: LogItem) => {
   if (store.pcMap.get(id)?.role === '隐藏') return '';
 
   let msg = msgImageFormat(escapeHTML(i.message), options);
+  msg = msgAtFormat(msg, store.pcList);
   msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice);
   msg = msgCommandFormat(msg, store.exportOptions);
   msg = msgIMUseridFormat(msg, store.exportOptions, i.isDice);
-  msg = msgAtFormat(msg, store.pcList);
   msg = msgOffTopicFormat(msg, store.exportOptions, i.isDice); // 再过滤一次
 
   if (i.isDice) {
