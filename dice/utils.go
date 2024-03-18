@@ -528,7 +528,7 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 			ctx.Player = &GroupPlayerInfo{}
 		}
 		if ctx.Player.Name == "" {
-			ctx.Player.Name = "<未知用户>"
+			ctx.Player.Name = "未知用户"
 		}
 		SetTempVars(ctx, ctx.Player.Name)
 	case "group":
@@ -537,7 +537,7 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 			ctx.Player = &GroupPlayerInfo{}
 		}
 		if ctx.Player.Name == "" {
-			ctx.Player.Name = "<未知用户>"
+			ctx.Player.Name = "未知用户"
 		}
 		SetTempVars(ctx, ctx.Player.Name)
 	default:

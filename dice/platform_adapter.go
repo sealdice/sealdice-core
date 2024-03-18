@@ -42,4 +42,5 @@ var (
 	_ PlatformAdapter = (*PlatformAdapterSlack)(nil)
 	_ PlatformAdapter = (*PlatformAdapterTelegram)(nil)
 	_ PlatformAdapter = (*PlatformAdapterWalleQ)(nil)
+	_ PlatformAdapter = (*PlatformAdapterSatori)(nil)
 )

@@ -477,8 +477,11 @@ func (pa *PlatformAdapterRed) Serve() int {
 		case <-interrupt:
 			log.Debug("red interrupt")
 
-			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			_ = pa.conn.Close()
+			if pa.conn != nil {
+				_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+				_ = pa.conn.Close()
+				pa.conn = nil
+			}
 
 			select {
 			case <-done:
@@ -1032,7 +1035,7 @@ func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 			send.Nickname = nameInfo.Name
 		}
 		if send.Nickname == "" {
-			send.Nickname = "<未知用户>"
+			send.Nickname = "未知用户"
 		}
 	} else {
 		msg.MessageType = "group"

@@ -53,3 +53,13 @@ func (el *Element) ToString() string {
 	})
 	return sb.String()
 }
+
+func FromCQCode(text string) *Element {
+	// TODO
+	return nil
+}
+
+func (el *Element) ToCQCode() string {
+	// TODO
+	return ""
+}
