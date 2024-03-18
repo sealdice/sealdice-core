@@ -194,7 +194,7 @@ export const useStore = defineStore('main', {
 
     async addImConnection(form: addImConnectionForm ) {
       const {
-        accountType, nickname, account, password, protocol, appVersion, token, botToken, appToken, proxyURL, url, host, port, appID, appSecret, clientID, robotCode, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig, reverseAddr,onlyQQGuild } = form
+        accountType, nickname, account, password, protocol, appVersion, token, botToken, appToken, proxyURL, url, host, port, appID, appSecret, clientID, robotCode, implementation, relWorkDir, connectUrl, accessToken, useSignServer, signServerConfig, reverseAddr, onlyQQGuild, platform } = form
       let info = null
       switch (accountType) {
         //QQ
@@ -240,6 +240,9 @@ export const useStore = defineStore('main', {
           break
         case 13:
           info = await backend.post(urlPrefix + '/im_connections/addSealChat', { url, token }, { timeout: 65000 })
+          break
+        case 14:
+          info = await backend.post(urlPrefix + '/im_connections/addSatori', { platform, host, port, token }, { timeout: 65000 })
           break
       }
       return info as any as DiceConnection

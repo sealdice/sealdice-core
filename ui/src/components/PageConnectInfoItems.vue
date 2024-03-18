@@ -63,6 +63,10 @@
         </div>
 
         <el-form ref="formRef" :model="i" label-width="100px">
+          <el-alert v-if="i.platform === 'QQ' && i.protocolType === 'red'" type="error" :closable="false"
+                    style="margin-bottom: 1rem;">
+            新版 Chronocat（0.2.x 以上）不再提供 red 协议，故海豹将在未来移除该支持，请尽快迁移。
+          </el-alert>
           <!-- <el-form-item label="帐号">
             <el-input v-model="i.account"></el-input>
             <div>123456789<el-tag size="small">{{i.platform}}</el-tag></div>
@@ -151,7 +155,7 @@
 
           <template v-if="i.platform === 'QQ' && i.protocolType === 'red'">
             <el-form-item label="协议">
-              <div>[WIP]Red</div>
+              <div>[已弃用]Red</div>
             </el-form-item>
             <el-form-item label="协议版本">
               <div>{{ i.adapter?.redVersion || '未知' }}</div>
@@ -175,6 +179,15 @@
               <el-tooltip content="导出gocq设置，用于转分离部署" placement="top-start">
                 <el-button type="" @click="doGocqExport(i)">导出</el-button>
               </el-tooltip>
+            </el-form-item>
+          </template>
+
+          <template v-if="i.protocolType === 'satori'">
+            <el-form-item label="协议">
+              <div>[WIP]Satori</div>
+            </el-form-item>
+            <el-form-item label="平台">
+              <div>{{ i.platform }}</div>
             </el-form-item>
           </template>
 
@@ -460,10 +473,12 @@
     :show-close="false" class="the-dialog">
     <el-button style="float: right; margin-top: -4rem;" @click="openSocks">辅助工具-13325端口</el-button>
     <template v-if="form.step === 1">
-      <el-alert v-if="form.accountType === 7" type="warning" :closable="false"
-        style="margin-bottom: 1.5rem;">该支持仍处于实验阶段，部分功能尚未完善。海豹不保证该支持的稳定性和持续性，并存在未来移除该支持的可能，请谨慎选择。</el-alert>
+      <el-alert v-if="form.accountType === 7" type="error" :closable="false"
+        style="margin-bottom: 1.5rem;">该支持功能不完善，所适配的目标 Chronocat 版本为 0.0.54，低于该版本不建议使用。<br />同时，新版 Chronocat（0.2.x 以上）不再提供 red 协议，海豹也将在未来移除该支持。</el-alert>
       <el-alert v-if="form.accountType === 10" type="warning" :closable="false"
         style="margin-bottom: 1.5rem;">该支持仍处于实验阶段，部分功能尚未完善。<br />同时，受到腾讯官方提供的 API 能力的限制，一些功能暂时无法实现。</el-alert>
+      <el-alert v-if="form.accountType === 14" type="warning" :closable="false"
+                style="margin-bottom: 1.5rem;">该支持仍处于实验阶段，部分功能尚未完善。<br />- QQ 平台适配目标版本 0.2.x 以上的 Chronocat。</el-alert>
 
       <el-form :model="form">
         <el-form-item label="账号类型" :label-width="formLabelWidth">
@@ -472,7 +487,7 @@
             <el-option label="QQ(onebot11分离部署)" :value="6"></el-option>
             <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
             <el-option label="[WIP]QQ(官方bot)" :value="10"></el-option>
-            <el-option label="[WIP]QQ(red协议)" :value="7"></el-option>
+            <el-option label="[WIP]Satori" :value="14"></el-option>
             <el-option label="[WIP]SealChat" :value="13"></el-option>
             <el-option label="Discord" :value="1"></el-option>
             <el-option label="KOOK(开黑啦)" :value="2"></el-option>
@@ -481,6 +496,7 @@
             <el-option label="Dodo语音" :value="5"></el-option>
             <el-option label="钉钉" :value="8"></el-option>
             <el-option label="Slack" :value="9"></el-option>
+            <el-option label="[已弃用]QQ(red协议)" :value="7"></el-option>
           </el-select>
         </el-form-item>
 
@@ -778,11 +794,26 @@
           <el-input v-model="form.token" type="text" autocomplete="off" placeholder="填入平台管理界面中获取的token"></el-input>
         </el-form-item>
 
+        <el-form-item v-if="form.accountType === 14" label="平台" :label-width="formLabelWidth" required>
+          <el-radio-group v-model="form.platform">
+            <el-radio-button label="QQ"/>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 14" label="主机" :label-width="formLabelWidth" required>
+          <el-input v-model="form.host" placeholder="Satori 服务的地址，如 127.0.0.1" type="text" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 14" label="端口" :label-width="formLabelWidth" required>
+          <el-input-number v-model="form.port" placeholder="如 5500" autocomplete="off"></el-input-number>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 14" label="Token" :label-width="formLabelWidth">
+          <el-input v-model="form.token" type="text" autocomplete="off" placeholder="填入鉴权 token，没有时无需填写"></el-input>
+        </el-form-item>
+
         <el-form-item v-if="form.accountType === 7" label="主机" :label-width="formLabelWidth" required>
           <el-input v-model="form.host" placeholder="Red 服务的地址，如 127.0.0.1" type="text" autocomplete="off"></el-input>
         </el-form-item>
         <el-form-item v-if="form.accountType === 7" label="端口" :label-width="formLabelWidth" required>
-          <el-input-number v-model="form.port" placeholder="16530" autocomplete="off"></el-input-number>
+          <el-input-number v-model="form.port" placeholder="如 16530" autocomplete="off"></el-input-number>
         </el-form-item>
         <el-form-item v-if="form.accountType === 7" label="令牌" :label-width="formLabelWidth" required>
           <el-input v-model="form.token" placeholder="Red 服务的 token" type="text" autocomplete="off"></el-input>
@@ -1527,7 +1558,8 @@ const form = reactive({
   signServerUrl: '',
   signServerKey: '',
 
-  reverseAddr: ':4001'
+  reverseAddr: ':4001',
+  platform: 'QQ',
 })
 
 export type addImConnectionForm = typeof form
