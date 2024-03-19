@@ -612,7 +612,7 @@ func textSplit(input string) []string {
 		}
 	}
 
-	splits := utils.SplitLongText(input, 2000)
+	splits := utils.SplitLongText(input, 2000, utils.DefaultSplitPaginationHint)
 	splits = append(splits, poke...)
 
 	return splits
