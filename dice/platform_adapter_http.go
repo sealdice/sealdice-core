@@ -31,7 +31,7 @@ func (pa *PlatformAdapterHTTP) DoRelogin() bool {
 func (pa *PlatformAdapterHTTP) SetEnable(_ bool) {}
 
 func (pa *PlatformAdapterHTTP) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	sp := utils.SplitLongText(text, 300)
+	sp := utils.SplitLongText(text, 300, utils.DefaultSplitPaginationHint)
 	for _, sub := range sp {
 		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub})
 	}
