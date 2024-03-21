@@ -174,7 +174,7 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
 
 在配置文件按需要正确修改后，在命令行中按任意键，Lagrange 将正式运行。在同一文件夹下会出现一张登录二维码图片 `qr-0.png`，在二维码过期前尽快使用手机 QQ 扫码连接。
 
-::: details Action 版 Lagrange 与 .Net SDK 
+::: details Action 版 Lagrange 与 .Net SDK
 
 Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时出现报错，需要去下载 [.Net SDK](https://dotnet.microsoft.com/zh-cn/download) 并安装。
 
@@ -190,7 +190,7 @@ Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时�
 
 ### 海豹连接 Lagrange
 
-进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebott11分离部署)」。
+进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebot11分离部署)」。
 
 账号填写骰子的 QQ 号，连接地址使用上面记下的 WS 正向服务地址 `ws://{Host}:{Port}`，如 `ws://127.0.0.1:8081`。
 
