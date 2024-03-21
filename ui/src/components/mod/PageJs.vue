@@ -288,7 +288,7 @@
                   </el-form-item>
                 </el-form-item>
                 <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'option'">
-                  <el-form-item label="选项配置项:">{{(c as unknown as JsPluginConfigItem).key}}</el-form-item>
+                  <el-form-item label="选项配置项:" style="width: 100%; margin-bottom: .5rem;">{{(c as unknown as JsPluginConfigItem).key}}</el-form-item>
                   <template v-if="(c as unknown as JsPluginConfigItem).value !== (c as unknown as JsPluginConfigItem).defaultValue">
                     <el-tooltip content="重置为初始值" placement="bottom-end">
                       <el-icon style="float: right; margin-left: 1rem;" @click="doResetJsConfig((i as unknown as JsPluginConfig)['pluginName'],(c as unknown as JsPluginConfigItem).key)">
@@ -304,7 +304,7 @@
                       </el-icon>
                     </el-tooltip>
                   </template>
-                  <div style="margin-left: 1rem;">
+                  <div style="width: 100%; margin-bottom: .5rem;">
                     <el-select v-model="(c as unknown as JsPluginConfigItem).value" @change="doJsConfigChanged()">
                       <el-option v-for="s in (c as unknown as JsPluginConfigItem).option" :value="s">{{s}}</el-option>
                     </el-select>
