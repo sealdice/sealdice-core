@@ -504,10 +504,10 @@ func getCmdStBase() *CmdItemInfo {
 
 				// FIXME: 除非有完美解决 https://github.com/sealdice/sealdice-core/issues/657 的办法，否则不要取消下面的注释
 				// 进行简化卡的尝试解析
-				//input := cmdArgs.CleanArgs
-				//re := regexp.MustCompile(`^(([^\s\-#]{1,25})([-#]))[^\s\d]+\d+`)
-				//matches := re.FindStringSubmatch(input)
-				//if len(matches) > 0 {
+				// input := cmdArgs.CleanArgs
+				// re := regexp.MustCompile(`^(([^\s\-#]{1,25})([-#]))[^\s\d]+\d+`)
+				// matches := re.FindStringSubmatch(input)
+				// if len(matches) > 0 {
 				//	flag := matches[3]
 				//	name := matches[2]
 				//
@@ -545,7 +545,7 @@ func getCmdStBase() *CmdItemInfo {
 				//			_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
 				//		}
 				//	}
-				//}
+				// }
 
 				r, toSetItems, toModItems, err := cmdStReadOrMod(mctx, tmpl, cmdArgs.CleanArgs)
 
