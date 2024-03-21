@@ -942,7 +942,14 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 	}
 
 	// 本地进行一个zip留档，以防万一
-	fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupID+"_"+logName)+".*.zip")
+	fzip, _ := os.OpenFile(
+		filepath.Join(dirpath, FilenameReplace(fmt.Sprintf(
+			"%s_%s.%s.zip",
+			groupID, logName, time.Now().Format("060102150405"),
+		))),
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
+		0o600,
+	)
 	writer := zip.NewWriter(fzip)
 
 	text := ""
