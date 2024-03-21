@@ -95,7 +95,8 @@ type QueryLogPage struct {
 }
 
 // LogGetLogPage 获取分页
-func LogGetLogPage(db *sqlx.DB, param *QueryLogPage) ([]*LogInfo, error) {
+func LogGetLogPage(db *sqlx.DB, param *QueryLogPage) (int, []*LogInfo, error) {
+	countQuery := `SELECT count(*) FROM logs`
 	query := `
 SELECT logs.id         as id,
        logs.name       as name,
@@ -120,15 +121,28 @@ FROM logs
 		conditions = append(conditions, "logs.created_at <= :created_time_end")
 	}
 	if len(conditions) > 0 {
-		query += " WHERE " + strings.Join(conditions, " AND ")
+		where := " WHERE " + strings.Join(conditions, " AND ")
+		query += where
+		countQuery += where
 	}
 
 	query += fmt.Sprintf(" GROUP BY logs.id LIMIT %d, %d", (param.PageNum-1)*param.PageSize, param.PageSize)
 
-	var lst []*LogInfo
+	var total int
+	count, err := db.NamedQuery(countQuery, param)
+	if err != nil {
+		return 0, nil, err
+	}
+	count.Next()
+	err = count.Scan(&total)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	lst := make([]*LogInfo, 0, param.PageSize)
 	rows, err := db.NamedQuery(query, param)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 	for rows.Next() {
 		log := &LogInfo{}
@@ -140,11 +154,11 @@ FROM logs
 			&log.UpdatedAt,
 			&log.Size,
 		); err != nil {
-			return nil, err
+			return 0, nil, err
 		}
 		lst = append(lst, log)
 	}
-	return lst, nil
+	return total, lst, nil
 }
 
 // LogGetList 获取列表

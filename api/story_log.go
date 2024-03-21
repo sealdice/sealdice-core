@@ -39,8 +39,7 @@ func storyGetLogPage(c echo.Context) error {
 	v := model.QueryLogPage{}
 	err := c.Bind(&v)
 	if err != nil {
-		fmt.Println(err)
-		return c.JSON(http.StatusInternalServerError, err)
+		return Error(&c, err.Error(), Response{})
 	}
 
 	if v.PageNum < 1 {
@@ -50,13 +49,17 @@ func storyGetLogPage(c echo.Context) error {
 		v.PageSize = 20
 	}
 
-	logs, err := model.LogGetLogPage(myDice.DBLogs, &v)
+	total, page, err := model.LogGetLogPage(myDice.DBLogs, &v)
 	if err != nil {
-		fmt.Println(err)
-		return c.JSON(http.StatusInternalServerError, err)
+		return Error(&c, err.Error(), Response{})
 	}
 
-	return c.JSON(http.StatusOK, logs)
+	return Success(&c, Response{
+		"data":     page,
+		"total":    total,
+		"pageNum":  v.PageNum,
+		"pageSize": len(page),
+	})
 }
 
 // Deprecated: replaced by page
