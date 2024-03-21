@@ -502,50 +502,7 @@ func getCmdStBase() *CmdItemInfo {
 
 				mctx.SystemTemplate = tmpl
 
-				// FIXME: 除非有完美解决 https://github.com/sealdice/sealdice-core/issues/657 的办法，否则不要取消下面的注释
-				// 进行简化卡的尝试解析
-				// input := cmdArgs.CleanArgs
-				// re := regexp.MustCompile(`^(([^\s\-#]{1,25})([-#]))[^\s\d]+\d+`)
-				// matches := re.FindStringSubmatch(input)
-				// if len(matches) > 0 {
-				//	flag := matches[3]
-				//	name := matches[2]
-				//
-				//	isName := flag == "#"
-				//	if !isName {
-				//		// 尝试作为名字处理
-				//		name = tmpl.GetAlias(name)
-				//		// 注: 这两句逻辑上是对的，但是chVars.Get()第二个值一直返回true，导致永远判定不了是名字
-				//		// _, exists := chVars.Get(name)
-				//		// isName = !exists
-				//		isName = true // 先调整为true
-				//
-				//		if isName {
-				//			// 好像是个名字了，先再看看是不是带默认值的属性
-				//			if _, _, _, exists := tmpl.GetDefaultValueEx0(mctx, name); exists {
-				//				// 有默认值，不能作为名字
-				//				isName = false
-				//			}
-				//		}
-				//	}
-				//
-				//	if isName {
-				//		// 确定不是属性了，现在作为角色名处理
-				//		input = input[len(matches[1]):]
-				//
-				//		p := mctx.Player
-				//		VarSetValueStr(mctx, "$t旧昵称", fmt.Sprintf("<%s>", mctx.Player.Name))
-				//		VarSetValueStr(mctx, "$t旧昵称_RAW", mctx.Player.Name)
-				//		p.Name = name
-				//		VarSetValueStr(mctx, "$t玩家", fmt.Sprintf("<%s>", mctx.Player.Name))
-				//		VarSetValueStr(mctx, "$t玩家_RAW", mctx.Player.Name)
-				//		p.UpdatedAtTime = time.Now().Unix()
-				//
-				//		if mctx.Player.AutoSetNameTemplate != "" {
-				//			_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
-				//		}
-				//	}
-				// }
+				// FIXME: 需要一个完美解决 https://github.com/sealdice/sealdice-core/issues/657 的办法
 
 				r, toSetItems, toModItems, err := cmdStReadOrMod(mctx, tmpl, cmdArgs.CleanArgs)
 
