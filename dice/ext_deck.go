@@ -122,7 +122,7 @@ type DeckInfo struct {
 	CloudDeckItemInfos map[string]*CloudDeckItemInfo `yaml:"-" json:"-"`
 }
 
-func tryParseDiceE(content []byte, deckInfo *DeckInfo) error {
+func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error {
 	// 移除注释
 	standardJson, isRFC, err := standardizeJson(content)
 	if err != nil {
@@ -210,7 +210,7 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo) error {
 	deckInfo.Desc = strings.Join(jsonData2.Brief, "\n")
 	deckInfo.Format = "Dice!"
 	deckInfo.FormatVersion = 1
-	if isRFC {
+	if !jsoncDirectly && isRFC {
 		deckInfo.FileFormat = "json"
 	} else {
 		deckInfo.FileFormat = "jsonc"
@@ -433,15 +433,17 @@ func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
 	var err error
 
 	switch ext {
-	case ".json", ".jsonc":
-		err = tryParseDiceE(content, deckInfo)
+	case ".json":
+		err = tryParseDiceE(content, deckInfo, false)
+	case ".jsonc":
+		err = tryParseDiceE(content, deckInfo, true)
 	case ".yaml", ".yml":
 		err = tryParseSinaNya(content, deckInfo)
 	case ".toml":
 		err = tryParseSeal(content, deckInfo)
 	default:
 		d.Logger.Infof("牌堆文件“%s”是未知格式，尝试以json和yaml格式解析", fn)
-		if tryParseDiceE(content, deckInfo) != nil {
+		if tryParseDiceE(content, deckInfo, false) != nil {
 			err = tryParseSinaNya(content, deckInfo)
 		}
 	}
@@ -497,7 +499,7 @@ func DecksDetect(d *Dice) {
 
 		if !info.IsDir() {
 			ext := filepath.Ext(path)
-			if ext == ".json" || ext == ".yaml" || ext == ".toml" || ext == "" {
+			if ext == ".json" || ext == ".jsonc" || ext == ".yaml" || ext == ".toml" || ext == "" {
 				DeckTryParse(d, path)
 			}
 		}
