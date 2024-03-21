@@ -506,11 +506,12 @@ func getCmdStBase() *CmdItemInfo {
 
 				// 进行简化卡的尝试解析
 				input := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`^(([^\s\-#]{1,25})([-#]))[^\s\d]+\d+`)
+				re := regexp.MustCompile(`^(([^\s\-#]{1,25})([-#]))([^\s\d]+\d+)`)
 				matches := re.FindStringSubmatch(input)
 				if len(matches) > 0 {
 					flag := matches[3]
 					name := matches[2]
+					val := matches[4]
 
 					isName := flag == "#"
 					if !isName {
@@ -520,6 +521,12 @@ func getCmdStBase() *CmdItemInfo {
 						// _, exists := chVars.Get(name)
 						// isName = !exists
 						isName = true // 先调整为true
+
+						// 如果"-"后面跟的句子进行了计算(骰点、符号、变量)，且不剩余文本，此时为值(如d4)，而不是名字
+						r, _, err := ctx.Dice.ExprEval(val, ctx)
+						if err == nil && r.restInput == "" && r.Parser.Calculated {
+							isName = false
+						}
 
 						if isName {
 							// 好像是个名字了，先再看看是不是带默认值的属性
