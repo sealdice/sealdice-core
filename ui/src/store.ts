@@ -89,7 +89,9 @@ interface DiceServer {
 }
 
 interface DiceBaseInfo {
+  appChannel: string
   version: string
+  versionSimple: string
   versionNew: string
   versionNewNote: string
   versionCode: number
@@ -128,7 +130,20 @@ export const useStore = defineStore('main', {
     curDice(): DiceServer {
       if (this.diceServers.length === 0) {
         this.diceServers.push({
-          baseInfo: { version: '0.0', versionNew: '0.0', memoryUsedSys: 0, memoryAlloc: 0, uptime: 0, versionNewNote: '', versionCode: 0, versionNewCode: 0, OS: '', arch: '' },
+          baseInfo: {
+            appChannel: 'stable',
+            version: '0.0',
+            versionSimple: '0.0',
+            versionNew: '0.0',
+            memoryUsedSys: 0,
+            memoryAlloc: 0,
+            uptime: 0,
+            versionNewNote: '',
+            versionCode: 0,
+            versionNewCode: 0,
+            OS: '',
+            arch: ''
+          },
           customTexts: {},
           customTextsHelpInfo: {},
           logs: [],
