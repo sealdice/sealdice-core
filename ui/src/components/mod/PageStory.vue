@@ -48,15 +48,16 @@ async function getInfo() {
 const queryLogPage = ref({
     pageNum: 1,
     pageSize: 20,
+    total: 0,
     name: "",
     groupId: "",
     createdTime: ([undefined, undefined] as unknown) as [Date, Date],
 })
 
 async function getLogPage(params: { pageNum: number, pageSize: number, name?: string, groupId?: string, createdTimeBegin?: number, createdTimeEnd?: number }) {
-    return backend.get(url("logs/page"), {
-        headers: { token: token }, params: params
-    })
+    return await backend.get(url("logs/page"), {
+      headers: {token: token}, params: params
+    }) as any
 }
 
 // async function getItems(v: Log) {
@@ -112,13 +113,24 @@ async function searchLogs() {
         createdTimeBegin: queryLogPage.value.createdTime?.[0] ? dayjs(queryLogPage.value.createdTime?.[0]).startOf('date').unix() : undefined,
         createdTimeEnd: queryLogPage.value.createdTime?.[1] ? dayjs(queryLogPage.value.createdTime?.[1]).endOf('date').unix() : undefined,
     }
-    const page = await getLogPage(params)
-    logs.value = page as unknown as Log[]
+    const result : { result: false, err?: string} | {
+        result: true
+        total: number,
+        data: Log[],
+        pageNum: number,
+        pageSize: number,
+    } = await getLogPage(params)
+    if (result.result) {
+        logs.value = result.data
+        queryLogPage.value.total = result.total
+    } else {
+        ElMessage.error("无法获取跑团日志" + result.err ?? "")
+    }
 }
 
 async function refreshLogs() {
     [sum_log.value, sum_item.value, cur_log.value, cur_item.value] = await getInfo()
-    logs.value = await getLogPage(queryLogPage.value) as unknown as Log[] || []
+    await searchLogs()
     ElMessage({
         message: '刷新日志列表完成',
         type: 'success',
@@ -127,7 +139,13 @@ async function refreshLogs() {
 
 const handleLogPageChange = async (val: number) => {
     queryLogPage.value.pageNum = val
-    await refreshLogs()
+    await searchLogs()
+}
+
+const handlePageSizeChange = async (val: number) => {
+    queryLogPage.value.pageNum = 1
+    queryLogPage.value.pageSize = val
+    await searchLogs()
 }
 
 async function DelLog(v: Log, flag = true) {
@@ -329,8 +347,9 @@ onBeforeMount(() => {
         </main>
         <div style="display: flex; justify-content: center;">
             <el-pagination class="pagination" :page-size="queryLogPage.pageSize" :current-page="queryLogPage.pageNum"
-                :pager-count=5 :total="cur_log" @current-change="handleLogPageChange" layout="prev, pager, next" background
-                hide-on-single-page />
+                :pager-count=3 :total="queryLogPage.total"
+                @current-change="handleLogPageChange" @size-change="handlePageSizeChange"
+                layout="sizes, prev, pager, next" background/>
         </div>
     </template>
     <template v-if="mode == 'items'">
