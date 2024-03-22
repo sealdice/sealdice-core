@@ -514,18 +514,6 @@
       <el-checkbox label="拒绝加群(仅在非强制拉入时起效)" v-model="config.refuseGroupInvite"/>
     </el-form-item>
 
-    <el-form-item label="自动重登录">
-      <template #label>
-        <div>
-          <span>自动重登录</span>
-          <el-tooltip content="当5分钟内连续有两次风控信息，进行重登录(每5分钟最多一次)。现不建议使用">
-            <el-icon><question-filled /></el-icon>
-          </el-tooltip>
-        </div>
-      </template>
-      <el-checkbox label="遭遇风控时自动重登录" v-model="config.autoReloginEnable"/>
-    </el-form-item>
-
     <el-form-item label="指令前缀">
       <template #label>
         <div>
