@@ -844,26 +844,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 			if (pa.IsLoginSuccessed() && strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
 				// 群消息发送失败: 账号可能被风控
-				now := time.Now().Unix()
-				if now-pa.GoCqhttpLastRestrictedTime < 5*60 {
-					// 阈值是5分钟内2次
-					riskCount++
-				}
-				pa.GoCqhttpLastRestrictedTime = now
-				if riskCount >= 2 {
-					riskCount = 0
-					if dice.AutoReloginEnable {
-						// 大于5分钟触发
-						if now-pa.GoCqLastAutoLoginTime > 5*60 {
-							dice.Logger.Warnf("自动重启: 达到风控重启阈值 <%s>(%s)", conn.Nickname, conn.UserID)
-							if pa.InPackGoCqhttpPassword != "" {
-								pa.DoRelogin()
-							} else {
-								dice.Logger.Warnf("自动重启: 未输入密码，放弃")
-							}
-						}
-					}
-				}
+				pa.GoCqhttpLastRestrictedTime = time.Now().Unix()
 			}
 
 			if pa.IsInLogin() || strings.Contains(line, "[WARNING]") || strings.Contains(line, "[ERROR]") || strings.Contains(line, "[FATAL]") {

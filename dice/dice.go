@@ -183,7 +183,6 @@ type Dice struct {
 	MasterUnlockCodeTime    int64                  `yaml:"-"`
 	CustomReplyConfigEnable bool                   `yaml:"customReplyConfigEnable"`
 	CustomReplyConfig       []*ReplyConfig         `yaml:"-"`
-	AutoReloginEnable       bool                   `yaml:"autoReloginEnable"`    // 启用自动重新登录
 	RefuseGroupInvite       bool                   `yaml:"refuseGroupInvite"`    // 拒绝加入新群
 	UpgradeWindowID         string                 `yaml:"upgradeWindowId"`      // 执行升级指令的窗口
 	UpgradeEndpointID       string                 `yaml:"upgradeEndpointId"`    // 执行升级指令的端点

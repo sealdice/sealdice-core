@@ -32,7 +32,6 @@ type DiceConfigInfo struct {
 	MasterUnlockCodeTime    int64    `json:"masterUnlockCodeTime"`
 	LogPageItemLimit        int64    `json:"logPageItemLimit"`
 	FriendAddComment        string   `json:"friendAddComment"`
-	AutoReloginEnable       bool     `json:"autoReloginEnable"`
 	QQChannelAutoOn         bool     `json:"QQChannelAutoOn"`
 	QQChannelLogMessage     bool     `json:"QQChannelLogMessage"`
 	RefuseGroupInvite       bool     `json:"refuseGroupInvite"` // 拒绝群组邀请
@@ -127,7 +126,6 @@ func DiceConfig(c echo.Context) error {
 		WorkInQQChannel:         myDice.WorkInQQChannel,
 		LogPageItemLimit:        limit,
 		FriendAddComment:        myDice.FriendAddComment,
-		AutoReloginEnable:       myDice.AutoReloginEnable,
 		QQChannelAutoOn:         myDice.QQChannelAutoOn,
 		QQChannelLogMessage:     myDice.QQChannelLogMessage,
 		RefuseGroupInvite:       myDice.RefuseGroupInvite,
@@ -318,10 +316,6 @@ func DiceConfigSet(c echo.Context) error {
 
 	if val, ok := jsonMap["onlyLogCommandInPrivate"]; ok {
 		myDice.OnlyLogCommandInPrivate = val.(bool)
-	}
-
-	if val, ok := jsonMap["autoReloginEnable"]; ok {
-		myDice.AutoReloginEnable = val.(bool)
 	}
 
 	if val, ok := jsonMap["refuseGroupInvite"]; ok {
