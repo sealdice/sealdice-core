@@ -487,6 +487,7 @@ func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
 	conn.Adapter = &PlatformAdapterGocq{
 		EndPoint:          conn,
 		UseInPackGoCqhttp: true,
+		BuiltinMode:       "gocq",
 	}
 	return conn
 }
@@ -504,7 +505,7 @@ func GoCqhttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 		if !ok {
 			return
 		}
-		if pa.UseInPackGoCqhttp {
+		if pa.UseInPackGoCqhttp && pa.BuiltinMode == "gocq" {
 			// 重置状态
 			conn.State = 0
 			pa.GoCqhttpState = 0
@@ -580,7 +581,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	loginIndex := pa.CurLoginIndex
 	pa.GoCqhttpState = StateCodeInLogin
 
-	if pa.UseInPackGoCqhttp { //nolint:nestif
+	if pa.UseInPackGoCqhttp && (pa.BuiltinMode == "" || pa.BuiltinMode == "gocq") { //nolint:nestif
 		workDir := gocqGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 

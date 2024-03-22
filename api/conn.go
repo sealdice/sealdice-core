@@ -164,6 +164,7 @@ func ImConnectionsDel(c echo.Context) error {
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					if i.ProtocolType == "onebot" {
 						dice.GoCqhttpServeProcessKill(myDice, i)
+						dice.LagrangeServeProcessKill(myDice, i)
 					}
 					return c.JSON(http.StatusOK, i)
 				case "DISCORD":
@@ -661,7 +662,7 @@ func ImConnectionsAddSlack(c echo.Context) error {
 	return c.String(430, "")
 }
 
-func ImConnectionsAdd(c echo.Context) error {
+func ImConnectionsAddBuiltinGocq(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
@@ -904,4 +905,44 @@ func ImConnectionsAddSatori(c echo.Context) error {
 	myDice.Save(false)
 	go dice.ServeQQ(myDice, conn)
 	return Success(&c, Response{})
+}
+
+func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, Response{"testMode": true})
+	}
+
+	v := struct {
+		Account  string `yaml:"account" json:"account"`
+		Protocol int    `yaml:"protocol" json:"protocol"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		uid := v.Account
+		for _, i := range myDice.ImSession.EndPoints {
+			if i.UserID == dice.FormatDiceIDQQ(uid) {
+				return c.JSON(CodeAlreadyExists, i)
+			}
+		}
+		conn := dice.NewLagrangeConnectInfoItem(v.Account)
+		conn.UserID = dice.FormatDiceIDQQ(uid)
+		conn.Session = myDice.ImSession
+		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
+		pa.InPackGoCqhttpProtocol = v.Protocol
+		pa.Session = myDice.ImSession
+
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+
+		dice.LagrangeServe(myDice, conn, dice.GoCqhttpLoginInfo{
+			Protocol:   v.Protocol,
+			IsAsyncRun: true,
+		})
+		return c.JSON(http.StatusOK, v)
+	}
+
+	return c.String(430, "")
 }

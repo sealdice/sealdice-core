@@ -106,6 +106,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 			if i.ImSession != nil && i.ImSession.EndPoints != nil {
 				for _, j := range i.ImSession.EndPoints {
 					dice.GoCqhttpServeProcessKill(i, j)
+					dice.LagrangeServeProcessKill(i, j)
 				}
 			}
 		}
@@ -469,14 +470,20 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.EndPointInfoBase.ProtocolType == "onebot" {
 						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-						dice.GoCqhttpServe(d, conn, dice.GoCqhttpLoginInfo{
-							Password:         pa.InPackGoCqhttpPassword,
-							Protocol:         pa.InPackGoCqhttpProtocol,
-							AppVersion:       pa.InPackGoCqhttpAppVersion,
-							IsAsyncRun:       true,
-							UseSignServer:    pa.UseSignServer,
-							SignServerConfig: pa.SignServerConfig,
-						})
+						if pa.Implementation == "lagrange" {
+							dice.LagrangeServe(d, conn, dice.GoCqhttpLoginInfo{
+								IsAsyncRun: true,
+							})
+						} else {
+							dice.GoCqhttpServe(d, conn, dice.GoCqhttpLoginInfo{
+								Password:         pa.InPackGoCqhttpPassword,
+								Protocol:         pa.InPackGoCqhttpProtocol,
+								AppVersion:       pa.InPackGoCqhttpAppVersion,
+								IsAsyncRun:       true,
+								UseSignServer:    pa.UseSignServer,
+								SignServerConfig: pa.SignServerConfig,
+							})
+						}
 					}
 					if conn.EndPointInfoBase.ProtocolType == "red" {
 						dice.ServeRed(d, conn)
