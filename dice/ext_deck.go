@@ -499,7 +499,7 @@ func DecksDetect(d *Dice) {
 
 		if !info.IsDir() {
 			ext := filepath.Ext(path)
-			if ext == ".json" || ext == ".jsonc" || ext == ".yaml" || ext == ".toml" || ext == "" {
+			if ext == ".json" || ext == ".jsonc" || ext == ".yml" || ext == ".yaml" || ext == ".toml" || ext == "" {
 				DeckTryParse(d, path)
 			}
 		}
