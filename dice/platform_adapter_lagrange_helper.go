@@ -44,7 +44,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	loginIndex := pa.CurLoginIndex
 	pa.GoCqhttpState = StateCodeInLogin
 
-	if pa.UseInPackGoCqhttp && pa.BuiltinMode == "lagrange" {
+	if pa.UseInPackGoCqhttp && pa.BuiltinMode == "lagrange" { //nolint:nestif
 		workDir := lagrangeGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 
@@ -96,6 +96,10 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 				return
 			}
 			dst, err := os.OpenFile(exeFilePath, os.O_WRONLY|os.O_CREATE, 0o755)
+			if err != nil {
+				log.Error("onebot: 无法复制 Lagrange.OneBot")
+				return
+			}
 
 			writer := bufio.NewWriter(dst)
 			_, _ = io.Copy(writer, lagrangeExe)
@@ -216,7 +220,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		} else {
 			run()
 		}
-
 	} else {
 		pa.GoCqhttpState = StateCodeLoginSuccessed
 		pa.GoCqhttpLoginSucceeded = true
