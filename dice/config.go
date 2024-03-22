@@ -1883,7 +1883,6 @@ func (d *Dice) loads() {
 		d.IgnoreUnaddressedBotCmd = dNew.IgnoreUnaddressedBotCmd
 		d.UILogLimit = dNew.UILogLimit
 		d.FriendAddComment = dNew.FriendAddComment
-		d.AutoReloginEnable = dNew.AutoReloginEnable
 		d.NoticeIDs = dNew.NoticeIDs
 		d.ExtDefaultSettings = dNew.ExtDefaultSettings
 		d.CustomReplyConfigEnable = dNew.CustomReplyConfigEnable
@@ -2092,10 +2091,6 @@ func (d *Dice) loads() {
 			d.CustomReplyConfigEnable = true
 		}
 
-		if d.VersionCode != 0 && d.VersionCode < 10004 {
-			d.AutoReloginEnable = false
-		}
-
 		if d.VersionCode != 0 && d.VersionCode < 10005 {
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 				d.Logger.Info("正在自动升级自定义文案文件")
@@ -2208,7 +2203,6 @@ func (d *Dice) loads() {
 		d.Logger.Info("serve.yaml loaded")
 	} else {
 		// 这里是没有加载到配置文件，所以写默认设置项
-		d.AutoReloginEnable = false
 		d.WorkInQQChannel = true
 		d.CustomReplyConfigEnable = false
 		d.AliveNoticeValue = "@every 3h"
