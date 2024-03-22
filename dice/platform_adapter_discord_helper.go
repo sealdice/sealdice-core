@@ -1,14 +1,17 @@
 package dice
 
 import (
+	"github.com/bwmarrin/discordgo"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type AddDiscordEcho struct {
-	Token    string
-	ProxyURL string
+	Token              string
+	ProxyURL           string
+	ReverseProxyUrl    string
+	ReverseProxyCDNUrl string
 }
 
 // NewDiscordConnItem 本来没必要写这个的，但是不知道为啥依赖出问题
@@ -20,9 +23,11 @@ func NewDiscordConnItem(v AddDiscordEcho) *EndPointInfo {
 	conn.Enable = false
 	conn.RelWorkDir = "extra/discord-" + conn.ID
 	conn.Adapter = &PlatformAdapterDiscord{
-		EndPoint: conn,
-		Token:    v.Token,
-		ProxyURL: v.ProxyURL,
+		EndPoint:           conn,
+		Token:              v.Token,
+		ProxyURL:           v.ProxyURL,
+		ReverseProxyUrl:    v.ReverseProxyUrl,
+		ReverseProxyCDNUrl: v.ReverseProxyCDNUrl,
 	}
 	return conn
 }
@@ -41,4 +46,38 @@ func ServeDiscord(d *Dice, ep *EndPointInfo) {
 			d.Save(false)
 		}
 	}
+}
+
+func regenerateDiscordEndPoint(EndPointDiscord string) {
+	discordgo.EndpointDiscord = EndPointDiscord
+	discordgo.EndpointAPI = discordgo.EndpointDiscord + "api/v" + discordgo.APIVersion + "/"
+	discordgo.EndpointGuilds = discordgo.EndpointAPI + "guilds/"
+	discordgo.EndpointChannels = discordgo.EndpointAPI + "channels/"
+	discordgo.EndpointUsers = discordgo.EndpointAPI + "users/"
+	discordgo.EndpointGateway = discordgo.EndpointAPI + "gateway"
+	discordgo.EndpointGatewayBot = discordgo.EndpointGateway + "/bot"
+	discordgo.EndpointWebhooks = discordgo.EndpointAPI + "webhooks/"
+	discordgo.EndpointStickers = discordgo.EndpointAPI + "stickers/"
+	discordgo.EndpointStageInstances = discordgo.EndpointAPI + "stage-instances"
+
+	discordgo.EndpointVoice = discordgo.EndpointAPI + "/voice/"
+	discordgo.EndpointVoiceRegions = discordgo.EndpointVoice + "regions"
+
+	discordgo.EndpointGuildCreate = discordgo.EndpointAPI + "guilds"
+
+	discordgo.EndpointApplications = discordgo.EndpointAPI + "applications"
+
+	discordgo.EndpointOAuth2 = discordgo.EndpointAPI + "oauth2/"
+	discordgo.EndpointOAuth2Applications = discordgo.EndpointOAuth2 + "applications"
+}
+
+func regenerateDiscordEndPointCDN(EndPointDiscordCDN string) {
+	discordgo.EndpointCDN = EndPointDiscordCDN
+	discordgo.EndpointCDNAttachments = discordgo.EndpointCDN + "attachments/"
+	discordgo.EndpointCDNAvatars = discordgo.EndpointCDN + "avatars/"
+	discordgo.EndpointCDNIcons = discordgo.EndpointCDN + "icons/"
+	discordgo.EndpointCDNSplashes = discordgo.EndpointCDN + "splashes/"
+	discordgo.EndpointCDNChannelIcons = discordgo.EndpointCDN + "channel-icons/"
+	discordgo.EndpointCDNBanners = discordgo.EndpointCDN + "banners/"
+	discordgo.EndpointCDNGuilds = discordgo.EndpointCDN + "guilds/"
 }

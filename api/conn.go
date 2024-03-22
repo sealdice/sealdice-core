@@ -432,8 +432,10 @@ func ImConnectionsGocqConfigDownload(c echo.Context) error {
 }
 
 type AddDiscordEcho struct {
-	Token    string
-	ProxyURL string
+	Token              string
+	ProxyURL           string
+	ReverseProxyUrl    string
+	ReverseProxyCDNUrl string
 }
 
 func ImConnectionsAddDiscord(c echo.Context) error {
