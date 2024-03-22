@@ -5,17 +5,31 @@ title: QQ
 
 # QQ
 
+::: warning 有关 QQ 平台机器人的说明
+
+直至目前，绝大部分群聊中的 QQ 机器人采用「**假用户**」方式，即通过第三方软件接入注册的另一个 QQ 。**QQ 官方一直在对第三方实现进行技术与非技术层面的多重打击。**
+
+从目前的表现看来，QQ 官方会对账号行为进行检测，来区分出账号是否是正常用户（如不正常的登录方式，以不合理的速度在多地区登录等等）。我们无法得知具体的检测细节，但已证实的是，当 QQ 账号用作机器人并被检测到时，该 QQ 会视为风险账号，被官方予以警告，封禁，甚至 **永久冻结** 的惩罚。
+
+因此，*是否在 QQ 平台搭建这样的非官方机器人取决于你的慎重考虑*，复杂的部署方式是**现状下几乎唯一的选择**。海豹官方无法做出任何保证。
+
+倘若出现账号被封禁等情况，海豹官方无力解决此类问题，也不对相应后果负责。
+
+如果有可能，建议迁移到其它平台，或者使用 [QQ 官方提供的机器人服务](#官方机器人)。
+
+:::
+
 ::: info 本节内容
 
 本节将包含你在 QQ 平台接入海豹核心需要了解的特定内容。
 
-由于众所周知的原因，在 QQ 平台部署机器人目前有一定难度。所有支持的途径参见侧边目录，本节提供了多种对接途径的引导：
+所有支持的途径参见侧边目录，本节提供了多种对接途径的引导：
 
 - 如果你有 QQ 官方机器人权限，见 [官方机器人](#官方机器人)；
 - 需要比较简单的部署流程的，见 [LLOneBot API](#llonebot-api)；
 - 需要比较简单的部署流程，且有能力上 Telegram 的，见 [Lagrange](#lagrange)；
-- 能接受复杂部署流程，有能力自行部署 QSign，需要功能支持完整的，见 [Go-cqhttp](#go-cqhttp--mirai)。该部署方式中的常见问题解答见 [FAQ](#gocqhttp-faq)；
 - Android 手机/模拟器用户见 [Shamrock](#shamrock)（需要 Root）或 [Shamrock LSPatch](#shamrock-lspatch)。
+- [Go-cqhttp](#go-cqhttp--mirai) 与 QSign 方案已经接近不可用。我们不建议任何用户再使用此方式部署 QQ 接入。之前的资料保留备查。
 
 不同的对接方式适应不同的情况，可能会存在途径特有的功能缺失和其它问题，请根据自己的情况选择适合的方式。
 
@@ -64,6 +78,64 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 ::: warning 注意
 
 目前官方机器人只响应包含 `@` 的消息，操作时请注意。
+
+:::
+
+## LLOneBot API <Badge type="tip" text="v1.4.2" vertical="middle" />
+
+海豹从 `v1.4.2` 版本开始支持通过 OneBot 协议连接 LLOneBot API。
+
+::: info LLOneBot API
+
+[LiteLoaderQQNT](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)（LiteLoader）是 NTQQ 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能。
+
+[LLOneBot API](https://github.com/LLOneBot/LLOneBot) 则是 Liteloader 的插件之一，可以实现劫持客户端对外开放 API ，可以理解为装在 PC 上的 Shamrock。
+
+:::
+
+### 安装 LiteLoader
+
+社区提供了非常简便的 [安装脚本](https://github.com/Mzdyl/LiteLoaderQQNT_Install/)，安装方法中在文档中，请自行查看。
+
+::: warning 注意
+
+- 使用 Windows 部署时脚本要使用管理员模式运行。
+- 由于脚本使用了 git，请在系统中安装 [git](https://git-scm.com/)。
+- 一定要在安装 QQ 客户端的主机上使用安装脚本。
+- **由于 Windows 平台的 QQ 被添加了文件完整性验证，你需要额外步骤来解除限制，请自行前往 [LLQQNT 文档](https://liteloaderqqnt.github.io/guide/install.html#修补) 查阅方法。**
+
+:::
+
+### 安装 LLOneBot API
+
+在 LiteLoader 中安装 OneBotAPI，具体方法请参考 [LLOneBot API](https://github.com/LLOneBot/LLOneBot) 仓库中的说明。
+
+::: info plugins 文件夹位置
+
+安装完成 LiteLoader 后，如图所示：
+
+![LiteLoader 中的 Plugins 目录](./images/platform-qq-llonebot-1.png)
+
+所指处即插件文件夹，打开这个文件夹并且在 plugins 新建一个文件夹，把 LLOneBot API **Release** 版本的 4 个文件解压到新建的文件夹处，重启 QQ 即可。
+
+:::
+
+### 配置海豹
+
+安装完成后重新登录 QQ，进入 LLOneBot 的设置页：
+
+![LLOneBot 设置页](./images/platform-qq-llonebot-2.png)
+
+支持两种方式与海豹对接：
+
+- 正向连接：默认开放的正向 ws 端口为 3001，在海豹的新添账号选择「OneBot 分离部署」，账号处随便填写，连接地址填 `ws://localhost:3001`。
+- 反向连接：关闭正向连接开关，打开反向连接，点击「添加」，输入 `ws://127.0.0.1:4001/ws`，在海豹的新添账号选择「OneBot 反向连接」，输入账号。
+
+::: warning 注意事项
+
+- 如若想修改端口请在 LLOneBot 的设置 UI 自行修改。
+- 请注意设置中的正向连接和反向连接请 **不要同时打开**，否则会发不出消息。
+- 由于采用劫持路线，暂不清楚多账号登录情况。
 
 :::
 
@@ -372,6 +444,7 @@ Root 即 Android 的超级用户权限，如对 QQ 应用进行注入等的危�
 ![夜神模拟器 adb 端口](./images/platform-qq-shamrock-6.png)
 
 其中：
+
 - `Nox` 是模拟器根路径。
 - `Nox_4` 是模拟器的编号，你可以在多开助手中看到你的编号。
 - 选中的文件就是要找的文件，在 vscode 中（或者其它文本编辑器）中打开。
@@ -476,6 +549,7 @@ Adb 即 [Android 调试桥](https://developer.android.com/studio/command-line/ad
 ```cmd
 adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh
 ```
+
 ![为Shizuku赋予adb权限](.\images\image-018.png)
 
 ### 安装 LSPatch
@@ -525,77 +599,19 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 :::
 
-## LLOneBot API <Badge type="tip" text="v1.4.2" vertical="middle" />
-
-海豹从 `v1.4.2` 版本开始支持通过 OneBot 协议连接 LLOneBot API。
-
-::: info LLOneBot API
-
-[LiteLoaderQQNT](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)（LiteLoader）是 NTQQ 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能。
-
-[LLOneBot API](https://github.com/LLOneBot/LLOneBot) 则是 Liteloader 的插件之一，可以实现劫持客户端对外开放 API ，可以理解为装在 PC 上的 Shamrock。
-
-:::
-
-### 安装 LiteLoader
-
-社区提供了非常简便的 [安装脚本](https://github.com/Mzdyl/LiteLoaderQQNT_Install/)，安装方法中在文档中，请自行查看。
-
-::: warning 注意
-
-- 使用 Windows 部署时脚本要使用管理员模式运行。
-- 由于脚本使用了 git，请在系统中安装 [git](https://git-scm.com/)。
-- 一定要在安装 QQ 客户端的主机上使用安装脚本。
-- **由于 Windows 平台的 QQ 被添加了文件完整性验证，你需要额外步骤来解除限制，请自行前往 [LLQQNT 文档](https://liteloaderqqnt.github.io/guide/install.html#修补) 查阅方法。**
-
-:::
-
-### 安装 LLOneBot API
-
-在 LiteLoader 中安装 OneBotAPI，具体方法请参考 [LLOneBot API](https://github.com/LLOneBot/LLOneBot) 仓库中的说明。
-
-::: info plugins 文件夹位置
-
-安装完成 LiteLoader 后，如图所示：
-
-![LiteLoader 中的 Plugins 目录](./images/platform-qq-llonebot-1.png)
-
-所指处即插件文件夹，打开这个文件夹并且在 plugins 新建一个文件夹，把 LLOneBot API **Release** 版本的 4 个文件解压到新建的文件夹处，重启 QQ 即可。
-
-:::
-
-### 配置海豹
-
-安装完成后重新登录 QQ，进入 LLOneBot 的设置页：
-
-![LLOneBot 设置页](./images/platform-qq-llonebot-2.png)
-
-支持两种方式与海豹对接：
-
-- 正向连接：默认开放的正向 ws 端口为 3001，在海豹的新添账号选择「OneBot 分离部署」，账号处随便填写，连接地址填 `ws://localhost:3001`。
-- 反向连接：关闭正向连接开关，打开反向连接，点击「添加」，输入 `ws://127.0.0.1:4001/ws`，在海豹的新添账号选择「OneBot 反向连接」，输入账号。
-
-::: warning 注意事项
-
-- 如若想修改端口请在 LLOneBot 的设置 UI 自行修改。
-- 请注意设置中的正向连接和反向连接请 **不要同时打开**，否则会发不出消息。
-- 由于采用劫持路线，暂不清楚多账号登录情况。
-
-:::
-
 ## Go-cqhttp / Mirai
 
-::: danger 不被 QQ 官方欢迎的第三方机器人
+::: danger 此方案已经接近不可用
 
-Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https://github.com/Mrs4s/go-cqhttp/issues/2471)）。在未来 sign-server 方案彻底被官方封死之后，Go-cqhttp 将无法继续使用。
+由于 QQ 官方的检测，使用 Go-cqhttp 方案成功连接的成功率已经越来越低。即使成功连接，也可能面临高达每月 2 次的频繁冻结等情况。
 
-直至目前，绝大部分群聊中的 QQ 机器人采用「**假用户**」方式，即通过第三方软件接入注册的另一个 QQ 。**QQ 官方一直在对第三方实现进行技术与非技术层面的多重打击。**
+我们不推荐任何用户再使用此方案连接 QQ 平台。
 
-从目前的表现看来，QQ 官方会对账号行为进行检测，来区分出账号是否是正常用户（如不正常的登录方式，以不合理的速度在多地区登录等等）。我们无法得知具体的检测细节，但已证实的是，当 QQ 账号用作机器人并被检测到时，该 QQ 会视为风险账号，被官方予以警告，封禁，甚至 **永久冻结** 的惩罚。
+:::
 
-因此，*是否在 QQ 平台搭建这样的非官方机器人取决于你的慎重考虑*，复杂的部署方式是**现状下几乎唯一的选择**。海豹官方无法做出任何保证。倘若出现账号被封禁等情况，海豹官方无力解决此类问题，也不对相应后果负责。
+::: danger Go-cqhttp 已停止维护
 
-如果有可能，建议迁移到其它平台，或者使用 [QQ 官方提供的机器人服务](#官方机器人服务)。
+Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https://github.com/Mrs4s/go-cqhttp/issues/2471)）。在未来 qsign 签名服务彻底被官方封死之后，Go-cqhttp 将无法继续使用。
 
 :::
 
@@ -618,12 +634,14 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 如果你的动手能力足够强或者有足够的电脑知识，**强烈推荐** 自己搭建本地签名服务器。
 
 使用他人的签名服务可能会泄漏以下信息 *（截取自 qsign 的说明）*：
+
 > - 登录账号
 > - 登录时间
 > - 登录后发送的消息内容
 > - 登录后发送消息的群号/好友 ID
 
 不会泄露的信息：
+
 > - 账号密码
 > - 账号 `session`
 > - 群列表/好友列表
@@ -751,10 +769,10 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
    ![](./images/gocq-success.png)
 
    同时你应当在下方看到一条类似于 `2022-05-06 20:00:00 [INFO] CQ Websocket 服务器已启动：[::]:8080` 的日志。
-   
+
    结尾的 `8080` 即为 gocq 的 ws 端口。你的端口号可能不同，总之请记住这个端口号。
 
-6. 打开海豹，删除之前添加的账号，然后重新添加账号，选择 QQ(OneBot11分离部署) 
+6. 打开海豹，删除之前添加的账号，然后重新添加账号，选择 QQ(OneBot11分离部署)
 
    ![](./images/onebot11.png)
 
