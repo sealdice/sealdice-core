@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 )
@@ -29,6 +30,19 @@ func StoryLogBackupList(d *Dice) ([]StoryLogBackup, error) {
 		})
 	}
 	return res, nil
+}
+
+func StoryLogBackupDownloadPath(d *Dice, backup string) (string, error) {
+	if backup == "" {
+		return "", errors.New("empty name")
+	}
+	dirpath := filepath.Join(d.BaseConfig.DataDir, "log-exports")
+	backupPath := filepath.Join(dirpath, backup)
+	_, err := os.Stat(backupPath)
+	if err != nil {
+		return "", err
+	}
+	return backupPath, nil
 }
 
 func StoryLogBackupBatchDelete(d *Dice, backups []string) []string {

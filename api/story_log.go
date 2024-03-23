@@ -147,17 +147,16 @@ func storyGetLogBackupList(c echo.Context) error {
 	})
 }
 
-func storyDeleteLogBackup(c echo.Context) error {
+func storyDownloadLogBackup(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	name := c.QueryParam("name")
-	names := []string{name}
-	fail := dice.StoryLogBackupBatchDelete(myDice, names)
-	if len(fail) > 0 {
-		return Error(&c, "备份删除失败", Response{})
+	path, err := dice.StoryLogBackupDownloadPath(myDice, name)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
 	}
-	return Success(&c, Response{})
+	return c.Attachment(path, name)
 }
 
 func storyBatchDeleteLogBackup(c echo.Context) error {

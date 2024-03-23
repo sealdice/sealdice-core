@@ -498,7 +498,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.DELETE(prefix+"/story/log", storyDelLog)
 	e.POST(prefix+"/story/uploadLog", storyUploadLog)
 	e.GET(prefix+"/story/backup/list", storyGetLogBackupList)
-	e.POST(prefix+"/story/backup/delete", storyDeleteLogBackup)
+	e.POST(prefix+"/story/backup/download", storyDownloadLogBackup)
 	e.POST(prefix+"/story/backup/batch_delete", storyBatchDeleteLogBackup)
 
 	e.POST(prefix+"/tool/onebot", onebotTool)
