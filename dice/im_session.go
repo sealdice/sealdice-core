@@ -436,8 +436,8 @@ type IMSession struct {
 	Parent    *Dice           `yaml:"-"`
 	EndPoints []*EndPointInfo `yaml:"endPoints"`
 
-	ServiceAtNew   map[string]*GroupInfo           `json:"servicesAt" yaml:"-"`
-	PlayerVarsData map[string]*PlayerVariablesItem `yaml:"-"` // 感觉似乎没有什么存本地的必要
+	ServiceAtNew   map[string]*GroupInfo                 `json:"servicesAt" yaml:"-"`
+	PlayerVarsData SyncMap[string, *PlayerVariablesItem] `yaml:"-"` // 感觉似乎没有什么存本地的必要
 }
 
 type MsgContext struct {

@@ -266,17 +266,15 @@ func GetValueNameByAlias(s string, alias map[string][]string) string {
 }
 
 func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
-	if s.PlayerVarsData == nil {
-		s.PlayerVarsData = map[string]*PlayerVariablesItem{}
-	}
 
-	if _, exists := s.PlayerVarsData[id]; !exists {
-		s.PlayerVarsData[id] = &PlayerVariablesItem{
+	vd, exists := s.PlayerVarsData.Load(id)
+	if !exists {
+		vd = &PlayerVariablesItem{
 			Loaded: false,
 		}
+		s.PlayerVarsData.Store(id, vd)
 	}
 
-	vd := s.PlayerVarsData[id]
 	if vd.ValueMap == nil {
 		vd.ValueMap = lockfree.NewHashMap()
 	}
