@@ -189,10 +189,10 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
-		if CheckDialErr(err) != syscall.ECONNREFUSED {
-			// refused 不算大事
-			log.Info("Recieved connect error: ", err)
-		}
+		// if CheckDialErr(err) != syscall.ECONNREFUSED {
+		// refused 不算大事
+		log.Error("onebot connection error: ", err)
+		// }
 		pa.InPackWalleQDisconnectedCH <- 2
 	}
 	var lastWelcome *LastWelcomeInfoWQ

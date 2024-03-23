@@ -385,10 +385,10 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
-		if CheckDialErr(err) != syscall.ECONNREFUSED {
-			// refused 不算大事
-			log.Info("Recieved connect error: ", err)
-		}
+		// if CheckDialErr(err) != syscall.ECONNREFUSED {
+		// refused 不算大事
+		log.Error("onebot v11 connection error: ", err)
+		// }
 		pa.InPackGoCqhttpDisconnectedCH <- 2
 	}
 
