@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -131,6 +132,50 @@ func storyUploadLog(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, fmt.Sprintf("跑团日志已上传服务器，链接如下：<br>%s", url))
+}
+
+func storyGetLogBackupList(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	list, err := dice.StoryLogBackupList(myDice)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	return Success(&c, Response{
+		"data": list,
+	})
+}
+
+func storyDownloadLogBackup(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	name := c.QueryParam("name")
+	path, err := dice.StoryLogBackupDownloadPath(myDice, name)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	return c.Attachment(path, name)
+}
+
+func storyBatchDeleteLogBackup(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := struct {
+		Names []string `json:"names"`
+	}{}
+	err := c.Bind(&v)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	fails := dice.StoryLogBackupBatchDelete(myDice, v.Names)
+	if len(fails) > 0 {
+		return Error(&c, fmt.Sprintf("部分备份删除失败：%s", strings.Join(fails, "，")), Response{})
+	}
+	return Success(&c, Response{})
 }
 
 func logSendToBackend(groupID string, logName string) (string, error) {
