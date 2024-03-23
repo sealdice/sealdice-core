@@ -266,7 +266,6 @@ func GetValueNameByAlias(s string, alias map[string][]string) string {
 }
 
 func LoadPlayerGlobalVars(s *IMSession, id string) *PlayerVariablesItem {
-
 	vd, exists := s.PlayerVarsData.Load(id)
 	if !exists {
 		vd = &PlayerVariablesItem{
