@@ -87,5 +87,6 @@ declare module 'vue' {
     PageMod: typeof import('./components/PageMod.vue')['default']
     PageStory: typeof import('./components/mod/PageStory.vue')['default']
     PageTest: typeof import('./components/PageTest.vue')['default']
+    StoryBackup: typeof import('./components/mod/story/StoryBackup.vue')['default']
   }
 }
