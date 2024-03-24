@@ -1,6 +1,0 @@
-[submodule "sealdice-ui"]
-	path = sealdice-ui
-	url = https://github.com/sealdice/sealdice-ui
-[submodule "sealdice-builtins"]
-	path = sealdice-builtins
-	url = https://github.com/sealdice/sealdice-builtins
