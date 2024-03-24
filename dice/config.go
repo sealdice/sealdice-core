@@ -2408,7 +2408,7 @@ func (d *Dice) Save(isAuto bool) {
 	// 同步绑定的角色卡数据
 	chPrefix := "$:ch-bind-mtime:"
 	chPrefixData := "$:ch-bind-data:"
-	for _, v := range d.ImSession.PlayerVarsData {
+	d.ImSession.PlayerVarsData.Range(func(key string, v *PlayerVariablesItem) bool {
 		if v.Loaded {
 			if v.LastWriteTime != 0 {
 				var toDelete []string
@@ -2453,10 +2453,11 @@ func (d *Dice) Save(isAuto bool) {
 				}
 			}
 		}
-	}
+		return true
+	})
 
 	// 保存玩家个人全局数据
-	for k, v := range d.ImSession.PlayerVarsData {
+	d.ImSession.PlayerVarsData.Range(func(k string, v *PlayerVariablesItem) bool {
 		if v.Loaded {
 			if v.LastWriteTime != 0 {
 				data, _ := json.Marshal(LockFreeMapToMap(v.ValueMap))
@@ -2464,7 +2465,8 @@ func (d *Dice) Save(isAuto bool) {
 				v.LastWriteTime = 0
 			}
 		}
-	}
+		return true
+	})
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测
