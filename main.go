@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"mime"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -207,7 +205,6 @@ func main() {
 	if runtime.GOOS == "android" {
 		fixTimezone()
 	}
-	dnsHack()
 
 	_ = os.MkdirAll("./data", 0o755)
 	MainLoggerInit("./data/main.log", true)
@@ -573,24 +570,6 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 //	}
 //	return false
 // }
-
-func dnsHack() {
-	var (
-		dnsResolverIP    = "114.114.114.114:53" // Google DNS resolver.
-		dnsResolverProto = "udp"                // Protocol to use for the DNS resolver
-	)
-	var dialer net.Dialer
-	net.DefaultResolver = &net.Resolver{
-		PreferGo: false,
-		Dial: func(context context.Context, _, _ string) (net.Conn, error) {
-			conn, err := dialer.DialContext(context, dnsResolverProto, dnsResolverIP)
-			if err != nil {
-				return nil, err
-			}
-			return conn, nil
-		},
-	}
-}
 
 func mimePatch() {
 	builtinMimeTypesLower := map[string]string{
