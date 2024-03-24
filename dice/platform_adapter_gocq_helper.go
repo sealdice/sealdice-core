@@ -492,12 +492,12 @@ func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
 	return conn
 }
 
-func GoCqhttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
-	defer func() {
+func BuiltinQQServeProcessKill(dice *Dice, conn *EndPointInfo) {
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				dice.Logger.Error("go-cqhttp清理报错: ", r)
-				// go-cqhttp 进程退出: exit status 1
+				dice.Logger.Error("内置 QQ 客户端清理报错: ", r)
+				// go-cqhttp/lagrange 进程退出: exit status 1
 			}
 		}()
 
@@ -505,13 +505,34 @@ func GoCqhttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 		if !ok {
 			return
 		}
-		if pa.UseInPackGoCqhttp && pa.BuiltinMode == "gocq" {
-			// 重置状态
-			conn.State = 0
-			pa.GoCqhttpState = 0
+		if !pa.UseInPackGoCqhttp {
+			return
+		}
 
-			pa.DiceServing = false
-			pa.GoCqhttpQrcodeData = nil
+		// 重置状态
+		conn.State = 0
+		pa.GoCqhttpState = 0
+		pa.DiceServing = false
+		pa.GoCqhttpQrcodeData = nil
+
+		if pa.BuiltinMode == "lagrange" {
+			workDir := lagrangeGetWorkDir(dice, conn)
+			qrcodeFile := filepath.Join(workDir, "qr-0.png")
+			if _, err := os.Stat(qrcodeFile); err == nil {
+				// 如果已经存在二维码文件，将其删除
+				_ = os.Remove(qrcodeFile)
+				dice.Logger.Info("onebot: 删除已存在的二维码文件")
+			}
+
+			// 注意这个会panic，因此recover捕获了
+			if pa.GoCqhttpProcess != nil {
+				p := pa.GoCqhttpProcess
+				pa.GoCqhttpProcess = nil
+				// sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
+				_ = p.Stop()
+				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
+			}
+		} else {
 			pa.GoCqhttpLoginDeviceLockURL = ""
 
 			workDir := gocqGetWorkDir(dice, conn)
@@ -581,7 +602,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	loginIndex := pa.CurLoginIndex
 	pa.GoCqhttpState = StateCodeInLogin
 
-	if pa.UseInPackGoCqhttp && (pa.BuiltinMode == "" || pa.BuiltinMode == "gocq") { //nolint:nestif
+	if pa.UseInPackGoCqhttp && (pa.BuiltinMode != "gocq") { //nolint:nestif
 		workDir := gocqGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 
@@ -949,7 +970,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			isDeviceLockLogin := pa.GoCqhttpState == StateCodeInLoginDeviceLock
 			if !isDeviceLockLogin {
 				// 如果在设备锁流程中，不清空数据
-				GoCqhttpServeProcessKill(dice, conn)
+				BuiltinQQServeProcessKill(dice, conn)
 
 				if isInLogin {
 					conn.State = 3

@@ -163,8 +163,7 @@ func ImConnectionsDel(c echo.Context) error {
 				case "QQ":
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					if i.ProtocolType == "onebot" {
-						dice.GoCqhttpServeProcessKill(myDice, i)
-						dice.LagrangeServeProcessKill(myDice, i)
+						dice.BuiltinQQServeProcessKill(myDice, i)
 					}
 					return c.JSON(http.StatusOK, i)
 				case "DISCORD":

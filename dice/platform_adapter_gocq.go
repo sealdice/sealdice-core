@@ -1138,11 +1138,11 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		if pa.InPackGoCqhttpDisconnectedCH != nil {
 			pa.InPackGoCqhttpDisconnectedCH <- -1
 		}
-		if pa.BuiltinMode != "gocq" {
+		if pa.BuiltinMode == "lagrange" {
 			myDice.Logger.Infof("重新启动 lagrange 进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
 			pa.CurLoginIndex++
 			pa.GoCqhttpState = StateCodeInit
-			go LagrangeServeProcessKill(myDice, ep)
+			go BuiltinQQServeProcessKill(myDice, ep)
 			time.Sleep(10 * time.Second)           // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
 			LagrangeServeRemoveSession(myDice, ep) // 删除 keystore
 			pa.GoCqhttpLastRestrictedTime = 0      // 重置风控时间
@@ -1156,7 +1156,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 			myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
 			pa.CurLoginIndex++
 			pa.GoCqhttpState = StateCodeInit
-			go GoCqhttpServeProcessKill(myDice, ep)
+			go BuiltinQQServeProcessKill(myDice, ep)
 			time.Sleep(10 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
 			GoCqhttpServeRemoveSessionToken(myDice, ep) // 删除session.token
 			pa.GoCqhttpLastRestrictedTime = 0           // 重置风控时间
@@ -1184,14 +1184,14 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		pa.DiceServing = false
 
 		if pa.UseInPackGoCqhttp {
-			if pa.BuiltinMode != "gocq" {
-				LagrangeServeProcessKill(d, c)
+			if pa.BuiltinMode == "lagrange" {
+				BuiltinQQServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
 				LagrangeServe(d, c, GoCqhttpLoginInfo{
 					IsAsyncRun: true,
 				})
 			} else {
-				GoCqhttpServeProcessKill(d, c)
+				BuiltinQQServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
 				GoCqhttpServe(d, c, GoCqhttpLoginInfo{
 					Password:         pa.InPackGoCqhttpPassword,
@@ -1210,11 +1210,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		c.Enable = false
 		pa.DiceServing = false
 		if pa.UseInPackGoCqhttp {
-			if pa.BuiltinMode != "gocq" {
-				LagrangeServeProcessKill(d, c)
-			} else {
-				GoCqhttpServeProcessKill(d, c)
-			}
+			BuiltinQQServeProcessKill(d, c)
 		}
 		if pa.IsReverse && pa.reverseApp != nil {
 			_ = pa.reverseApp.Close()

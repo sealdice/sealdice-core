@@ -105,8 +105,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		for _, i := range diceManager.Dice {
 			if i.ImSession != nil && i.ImSession.EndPoints != nil {
 				for _, j := range i.ImSession.EndPoints {
-					dice.GoCqhttpServeProcessKill(i, j)
-					dice.LagrangeServeProcessKill(i, j)
+					dice.BuiltinQQServeProcessKill(i, j)
 				}
 			}
 		}

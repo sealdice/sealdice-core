@@ -273,47 +273,6 @@ func GenerateLagrangeConfig(port int, info GoCqhttpLoginInfo) string {
 	return conf
 }
 
-func LagrangeServeProcessKill(dice *Dice, conn *EndPointInfo) {
-	defer func() {
-		defer func() {
-			if r := recover(); r != nil {
-				dice.Logger.Error("lagrange 清理报错: ", r)
-				// lagrange 进程退出: exit status 1
-			}
-		}()
-
-		pa, ok := conn.Adapter.(*PlatformAdapterGocq)
-		if !ok {
-			return
-		}
-		if pa.UseInPackGoCqhttp && pa.BuiltinMode == "lagrange" {
-			// 重置状态
-			conn.State = 0
-			pa.GoCqhttpState = 0
-
-			pa.DiceServing = false
-			pa.GoCqhttpQrcodeData = nil
-
-			workDir := lagrangeGetWorkDir(dice, conn)
-			qrcodeFile := filepath.Join(workDir, "qr-0.png")
-			if _, err := os.Stat(qrcodeFile); err == nil {
-				// 如果已经存在二维码文件，将其删除
-				_ = os.Remove(qrcodeFile)
-				dice.Logger.Info("onebot: 删除已存在的二维码文件")
-			}
-
-			// 注意这个会panic，因此recover捕获了
-			if pa.GoCqhttpProcess != nil {
-				p := pa.GoCqhttpProcess
-				pa.GoCqhttpProcess = nil
-				// sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
-				_ = p.Stop()
-				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
-			}
-		}
-	}()
-}
-
 func LagrangeServeRemoveSession(dice *Dice, conn *EndPointInfo) {
 	workDir := gocqGetWorkDir(dice, conn)
 	if _, err := os.Stat(filepath.Join(workDir, "keystore.json")); err == nil {
