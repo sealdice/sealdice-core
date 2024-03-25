@@ -602,7 +602,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	loginIndex := pa.CurLoginIndex
 	pa.GoCqhttpState = StateCodeInLogin
 
-	if pa.UseInPackGoCqhttp && (pa.BuiltinMode != "gocq") { //nolint:nestif
+	if pa.UseInPackGoCqhttp && pa.BuiltinMode == "gocq" { //nolint:nestif
 		workDir := gocqGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 
@@ -658,7 +658,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		// 启动客户端
 		wd, _ := os.Getwd()
 		gocqhttpExePath, _ := filepath.Abs(filepath.Join(wd, "go-cqhttp/go-cqhttp"))
-		gocqhttpExePath = strings.ReplaceAll(gocqhttpExePath, "\\", "/") // windows平台需要这个替换
+		gocqhttpExePath = filepath.ToSlash(gocqhttpExePath) // windows平台需要这个替换
 
 		// 随手执行一下
 		_ = os.Chmod(gocqhttpExePath, 0o755)
@@ -993,7 +993,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		} else {
 			run()
 		}
-	} else {
+	} else if !pa.UseInPackGoCqhttp {
 		pa.GoCqhttpState = StateCodeLoginSuccessed
 		pa.GoCqhttpLoginSucceeded = true
 		dice.Save(false)

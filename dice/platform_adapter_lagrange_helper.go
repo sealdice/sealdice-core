@@ -89,7 +89,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			if runtime.GOOS == "windows" {
 				lagrangeExePath += ".exe"
 			}
-			lagrangeExePath = strings.ReplaceAll(lagrangeExePath, "\\", "/") // windows平台需要这个替换
+			lagrangeExePath = filepath.ToSlash(lagrangeExePath) // windows平台需要这个替换
 			lagrangeExe, err := os.OpenFile(lagrangeExePath, os.O_RDONLY, 0o644)
 			if err != nil {
 				log.Error("onebot: 找不到 Lagrange.OneBot")
@@ -220,7 +220,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		} else {
 			run()
 		}
-	} else {
+	} else if !pa.UseInPackGoCqhttp {
 		pa.GoCqhttpState = StateCodeLoginSuccessed
 		pa.GoCqhttpLoginSucceeded = true
 		dice.Save(false)
