@@ -17,4 +17,5 @@
     <string name="review">问题反馈</string>
     <string name="repo">项目地址</string>
     <string name="action_manual">使用手册</string>
+    <string name="exec_command_hint"><![CDATA[cd sealdice&&./sealdice]]></string>
 </resources>

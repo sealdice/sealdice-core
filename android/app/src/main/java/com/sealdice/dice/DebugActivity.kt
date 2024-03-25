@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.MenuItem
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -18,9 +19,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.BufferedReader
 import java.io.File
+import java.io.InputStreamReader
 
 class DebugActivity : AppCompatActivity() {
+    private var processBuilder: ProcessBuilder = ProcessBuilder("sh").redirectErrorStream(true)
+    private lateinit var process: Process
+    private var shellLogs = ""
+    private var isInit = false
+    private lateinit var outputStream : java.io.OutputStream
+    private var isRunning = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_debug)
@@ -50,7 +59,71 @@ class DebugActivity : AppCompatActivity() {
                 startActivity(intent)
             }
         }
-        findViewById<Button>(R.id.DEBUG_button_force_output_data).setOnClickListener{
+        findViewById<Button>(R.id.DEBUG_button_exec).setOnClickListener {
+            val command = findViewById<EditText>(R.id.DEBUG_edittext_command).text.toString()
+            if (!isInit) {
+                processBuilder.directory(File(this.filesDir.absolutePath))
+//                processBuilder.environment()["LD_LIBRARY_PATH"] = this.filesDir.absolutePath + "/sealdice/lagrange/openssl-1.1"
+//                processBuilder.environment()["CLR_OPENSSL_VERSION_OVERRIDE"] = "1.1"
+
+                GlobalScope.launch(context = Dispatchers.IO) {
+                    isRunning = true
+                    process = processBuilder.start()
+                    outputStream = process.outputStream
+                    outputStream.write(command.toByteArray())
+                    outputStream.write("\n".toByteArray())
+                    outputStream.flush()
+                    val data = process.inputStream
+                    val ir = BufferedReader(InputStreamReader(data))
+                    while (isRunning) {
+                        var line: String?
+                        try {
+                            line = ir.readLine()
+                        } catch (e: Exception) {
+                            break
+                        }
+                        while (line != null && isRunning) {
+                            shellLogs += line
+                            shellLogs += "\n"
+                            try {
+                                line = ir.readLine()
+                            } catch (e: Exception) {
+                                break
+                            }
+                        }
+                        Thread.sleep(1000)
+                    }
+                }
+            }  else {
+                outputStream.write(command.toByteArray())
+                outputStream.write("\n".toByteArray())
+                outputStream.flush()
+            }
+        }
+        findViewById<Button>(R.id.DEBUG_button_get_current_dir).setOnClickListener {
+            val alertDialogBuilder = AlertDialog.Builder(
+                this, R.style.Theme_Mshell_DialogOverlay
+            )
+            alertDialogBuilder.setTitle("当前目录")
+            alertDialogBuilder.setMessage(this.filesDir.absolutePath)
+            alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+            }
+            alertDialogBuilder.create().show()
+        }
+        findViewById<Button>(R.id.DEBUG_button_console).setOnClickListener {
+            val alertDialogBuilder = AlertDialog.Builder(
+                this, R.style.Theme_Mshell_DialogOverlay
+            )
+            alertDialogBuilder.setTitle("DEBUG:Console")
+            alertDialogBuilder.setMessage(shellLogs)
+            alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+            }
+            alertDialogBuilder.create().show()
+        }
+        findViewById<Button>(R.id.DEBUG_button_remove_log).setOnClickListener {
+            shellLogs = ""
+        }
+        findViewById<Button>(R.id.DEBUG_button_force_output_data).setOnClickListener {
             val builder: AlertDialog.Builder = AlertDialog.Builder(this, R.style.Theme_Mshell_DialogOverlay)
             builder.setCancelable(false) // if you want user to wait for some process to finish,
             builder.setView(R.layout.layout_loading_dialog)
@@ -90,12 +163,12 @@ class DebugActivity : AppCompatActivity() {
             for (service in manager.getRunningServices(Int.MAX_VALUE)) {
                 text += service.service.className + "\n"
             }
-            val alertDialogBuilder = androidx.appcompat.app.AlertDialog.Builder(
+            val alertDialogBuilder = AlertDialog.Builder(
                 this, R.style.Theme_Mshell_DialogOverlay
             )
             alertDialogBuilder.setTitle("DEBUG:Running Services")
             alertDialogBuilder.setMessage(text)
-            alertDialogBuilder.setPositiveButton("确定") { _: android.content.DialogInterface, _: Int ->
+            alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->
             }
             alertDialogBuilder.create().show()
         }
@@ -103,12 +176,12 @@ class DebugActivity : AppCompatActivity() {
             throw Exception("DEBUG:Crash")
         }
         findViewById<Button>(R.id.DEBUG_button_info).setOnClickListener {
-            val alertDialogBuilder = androidx.appcompat.app.AlertDialog.Builder(
+            val alertDialogBuilder = AlertDialog.Builder(
                 this, R.style.Theme_Mshell_DialogOverlay
             )
             alertDialogBuilder.setTitle("DEBUG:Info")
             alertDialogBuilder.setMessage("Version:"+BuildConfig.VERSION_NAME+"\nBuild:"+BuildConfig.VERSION_CODE+"\nPackage:"+packageName)
-            alertDialogBuilder.setPositiveButton("确定") { _: android.content.DialogInterface, _: Int ->
+            alertDialogBuilder.setPositiveButton("确定") { _: DialogInterface, _: Int ->
             }
             alertDialogBuilder.create().show()
         }

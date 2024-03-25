@@ -200,8 +200,10 @@ class ProcessService : LifecycleService(){
             } else {
                 processBuilder.environment()["PATH"] = "${this.filesDir.absolutePath}/sealdice"
             }
-            process = processBuilder.start()
             val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
+            processBuilder.environment()["LD_LIBRARY_PATH"] = this.filesDir.absolutePath + sharedPreferences.getString("ld_library_path", "/sealdice/lagrange/openssl-1.1")
+            processBuilder.environment()["CLR_OPENSSL_VERSION_OVERRIDE"] = "1.1"
+            process = processBuilder.start()
             val args = sharedPreferences.getString("launch_args", "")
             val cmd = "cd sealdice&&./sealdice-core $args"
             GlobalScope.launch(context = Dispatchers.IO) {

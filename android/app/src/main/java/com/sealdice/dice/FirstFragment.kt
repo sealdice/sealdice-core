@@ -28,7 +28,9 @@ import com.sealdice.dice.databinding.FragmentFirstBinding
 import com.sealdice.dice.utils.Utils
 import com.sealdice.dice.utils.ViewModelMain
 import kotlinx.coroutines.*
+import java.io.BufferedReader
 import java.io.File
+import java.io.InputStreamReader
 import kotlin.system.exitProcess
 
 
@@ -70,7 +72,7 @@ class FirstFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val versionName = BuildConfig.VERSION_NAME
         val packageName = BuildConfig.APPLICATION_ID
-        val sharedPreferences = context?.let { PreferenceManager.getDefaultSharedPreferences(it) }
+        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
         val nightModeFlags = context?.resources?.configuration?.uiMode?.and(Configuration.UI_MODE_NIGHT_MASK)
         val isNightMode = nightModeFlags == Configuration.UI_MODE_NIGHT_YES
         binding.buttonThird.setOnClickListener {
@@ -108,54 +110,6 @@ class FirstFragment : Fragment() {
             alertDialogBuilder?.setTitle("控制台")
             alertDialogBuilder?.setMessage(processService?.getShellLogs())
             alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
-            }
-            alertDialogBuilder?.create()?.show()
-        }
-        binding.buttonDeviceJson.setOnClickListener {
-            val alertDialogBuilder = context?.let { it1 ->
-                AlertDialog.Builder(
-                    it1, R.style.Theme_Mshell_DialogOverlay
-                )
-            }
-            alertDialogBuilder?.setTitle("提示")
-            alertDialogBuilder?.setMessage("此操作将会生成本机的设备信息用于账号登录，点击“确定”后将申请一些权限，请全部授权否则无法正常工作，如不想使用此功能请删除sealdice文件夹内的my_device.json")
-            alertDialogBuilder?.setNegativeButton("取消") {_: DialogInterface, _: Int ->}
-            alertDialogBuilder?.setPositiveButton("确定") {_: DialogInterface, _: Int ->
-                val permissions = arrayOf(
-                    Manifest.permission.READ_PHONE_STATE,
-                    Manifest.permission.ACCESS_WIFI_STATE,
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                )
-                val permissionList = ArrayList<String>()
-                for (permission in permissions) {
-                    if (ContextCompat.checkSelfPermission(
-                            requireContext(),
-                            permission
-                        ) != PackageManager.PERMISSION_GRANTED
-                    ) {
-                        permissionList.add(permission)
-                    }
-                }
-                if (permissionList.isNotEmpty()) {
-                    ActivityCompat.requestPermissions(
-                        requireActivity(),
-                        permissionList.toTypedArray(),
-                        1
-                    )
-                }
-                File(FileWrite.getPrivateFileDir(requireContext())+"sealdice/my_device.json").writeText(DeviceInfo(context).deviceInfo.toString())
-                val alertDialogBuilder2 = context?.let { it1 ->
-                    AlertDialog.Builder(
-                        it1, R.style.Theme_Mshell_DialogOverlay
-                    )
-                }
-                alertDialogBuilder2?.setTitle("提示")
-                alertDialogBuilder2?.setMessage("已生成my_device.json")
-                alertDialogBuilder2?.setPositiveButton("确定") {_: DialogInterface, _: Int ->
-                }
-                alertDialogBuilder2?.create()?.show()
             }
             alertDialogBuilder?.create()?.show()
         }
@@ -214,7 +168,6 @@ class FirstFragment : Fragment() {
                 binding.buttonThird.visibility = View.VISIBLE
                 binding.buttonConsole.visibility = View.VISIBLE
                 binding.buttonFirst.visibility = View.GONE
-                binding.buttonDeviceJson.visibility = View.GONE
                 if (Build.VERSION.SDK_INT >= 28) {
                     val permissionState =
                         context?.let { it1 -> ContextCompat.checkSelfPermission(it1, Manifest.permission.FOREGROUND_SERVICE) }
