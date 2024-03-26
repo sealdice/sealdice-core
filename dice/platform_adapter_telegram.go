@@ -181,7 +181,7 @@ func (pa *PlatformAdapterTelegram) groupNewMember(msg *Message, msgRaw *tgbotapi
 		groupName := msgRaw.Chat.Title
 		text := DiceFormat(ctx, group.GroupWelcomeMessage)
 		logger.Infof("发送欢迎致辞，群: <%s>(%d),新成员id:%d", groupName, msgRaw.Chat.ID, member.ID)
-		for _, i := range strings.Split(text, "###SPLIT###") {
+		for _, i := range ctx.SplitText(text) {
 			pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 		}
 	}
@@ -199,7 +199,7 @@ func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Mes
 	ctx.Player = &GroupPlayerInfo{}
 	logger.Infof("发送入群致辞，群: <%s>(%d)", groupName, msgRaw.Chat.ID)
 	text := DiceFormatTmpl(ctx, "核心:骰子进群")
-	for _, i := range strings.Split(text, "###SPLIT###") {
+	for _, i := range ctx.SplitText(text) {
 		pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 	}
 	if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
@@ -221,7 +221,7 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 	uid := msg.Sender.UserID
 	welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 	logger.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
-	for _, i := range strings.Split(welcome, "###SPLIT###") {
+	for _, i := range ctx.SplitText(welcome) {
 		pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 	}
 	if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
