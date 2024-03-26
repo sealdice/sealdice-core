@@ -1,10 +1,8 @@
 package dice
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -47,30 +45,20 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	if pa.UseInPackGoCqhttp && pa.BuiltinMode == "lagrange" { //nolint:nestif
 		workDir := lagrangeGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
-
-		exeFilePath, _ := filepath.Abs(filepath.Join(workDir, "Lagrange.OneBot"))
+		wd, _ := os.Getwd()
+		exeFilePath, _ := filepath.Abs(filepath.Join(wd, "lagrange/Lagrange.OneBot"))
 		exeFilePath = strings.ReplaceAll(exeFilePath, "\\", "/") // windows平台需要这个替换
 		if runtime.GOOS == "windows" {
 			exeFilePath += ".exe"
 		}
 		qrcodeFilePath := filepath.Join(workDir, "qr-0.png")
 		configFilePath := filepath.Join(workDir, "appsettings.json")
-		deviceFilePath := filepath.Join(workDir, "device.json")
-		keystoreFilePath := filepath.Join(workDir, "keystore.json")
 
 		log := dice.Logger
 		if _, err := os.Stat(qrcodeFilePath); err == nil {
 			// 如果已经存在二维码文件，将其删除
 			_ = os.Remove(qrcodeFilePath)
 			log.Info("onebot: 删除已存在的二维码文件")
-		}
-
-		if !pa.GoCqhttpLoginSucceeded {
-			// 并未登录成功，删除记录文件
-			_ = os.Remove(exeFilePath)
-			_ = os.Remove(configFilePath)
-			_ = os.Remove(deviceFilePath)
-			_ = os.Remove(keystoreFilePath)
 		}
 
 		// 创建配置文件
@@ -80,32 +68,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			pa.ConnectURL = fmt.Sprintf("ws://localhost:%d", p)
 			c := GenerateLagrangeConfig(p, loginInfo)
 			_ = os.WriteFile(configFilePath, []byte(c), 0o644)
-		}
-
-		if _, err := os.Stat(exeFilePath); errors.Is(err, os.ErrNotExist) {
-			// 拷贝一份到实际目录
-			wd, _ := os.Getwd()
-			lagrangeExePath, _ := filepath.Abs(filepath.Join(wd, "lagrange/Lagrange.OneBot"))
-			if runtime.GOOS == "windows" {
-				lagrangeExePath += ".exe"
-			}
-			lagrangeExePath = filepath.ToSlash(lagrangeExePath) // windows平台需要这个替换
-			lagrangeExe, err := os.OpenFile(lagrangeExePath, os.O_RDONLY, 0o644)
-			if err != nil {
-				log.Error("onebot: 找不到 Lagrange.OneBot")
-				return
-			}
-			dst, err := os.OpenFile(exeFilePath, os.O_WRONLY|os.O_CREATE, 0o755)
-			if err != nil {
-				log.Error("onebot: 无法复制 Lagrange.OneBot")
-				return
-			}
-
-			writer := bufio.NewWriter(dst)
-			_, _ = io.Copy(writer, lagrangeExe)
-
-			lagrangeExe.Close()
-			dst.Close()
 		}
 
 		// 启动客户端
