@@ -47,7 +47,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		_ = os.MkdirAll(workDir, 0o755)
 		wd, _ := os.Getwd()
 		exeFilePath, _ := filepath.Abs(filepath.Join(wd, "lagrange/Lagrange.OneBot"))
-		exeFilePath = strings.ReplaceAll(exeFilePath, "\\", "/") // windows平台需要这个替换
+		exeFilePath = filepath.ToSlash(exeFilePath) // windows平台需要这个替换
 		if runtime.GOOS == "windows" {
 			exeFilePath += ".exe"
 		}
