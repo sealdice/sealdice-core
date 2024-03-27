@@ -23,13 +23,8 @@ type ConsoleWriterShutUp struct {
 	*log.ConsoleWriter
 }
 
-func (c *ConsoleWriterShutUp) Close() (err error)                         { return nil }
-func (c *ConsoleWriterShutUp) write(out io.Writer, p []byte) (int, error) { return 0, nil } //nolint
-func (c *ConsoleWriterShutUp) format(out io.Writer, args *log.FormatterArgs) (n int, err error) { //nolint
-	return 0, nil
-}
-func (c *ConsoleWriterShutUp) WriteEntry(e *log.Entry) (int, error)              { return 0, nil } //nolint
-func (c *ConsoleWriterShutUp) writew(out io.Writer, p []byte) (n int, err error) { return 0, nil } //nolint
+func (c *ConsoleWriterShutUp) Close() (err error)                   { return nil }
+func (c *ConsoleWriterShutUp) WriteEntry(_ *log.Entry) (int, error) { return 0, nil }
 
 // kook go的鉴权目前并不好用，这里重写一遍
 const (
@@ -291,7 +286,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 			mctx.Player = &GroupPlayerInfo{}
 			pa.Session.Parent.Logger.Infof("发送入群致辞，群: <%s>(%s)", guild.Name, msg.GuildID)
 			text := DiceFormatTmpl(mctx, "核心:骰子进群")
-			for _, i := range strings.Split(text, "###SPLIT###") {
+			for _, i := range mctx.SplitText(text) {
 				pa.SendToGroup(mctx, msg.GroupID, strings.TrimSpace(i), "")
 			}
 		}()

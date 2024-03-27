@@ -256,7 +256,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				ctx.Player = &GroupPlayerInfo{}
 				log.Infof("发送入群致辞，群: <%s>(%s)", groupName, event.GroupID)
 				text := DiceFormatTmpl(ctx, "核心:骰子进群")
-				for _, i := range strings.Split(text, "###SPLIT###") {
+				for _, i := range ctx.SplitText(text) {
 					doSleepQQ(ctx)
 					pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 				}
@@ -388,7 +388,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 								VarSetValueStr(ctx, "$t帐号ID", stdID)
 								VarSetValueStr(ctx, "$t账号ID", stdID)
 								text := DiceFormat(ctx, group.GroupWelcomeMessage)
-								for _, i := range strings.Split(text, "###SPLIT###") {
+								for _, i := range ctx.SplitText(text) {
 									doSleepQQ(ctx)
 									pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 								}

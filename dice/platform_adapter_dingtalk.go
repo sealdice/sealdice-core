@@ -178,7 +178,7 @@ func (pa *PlatformAdapterDingTalk) OnGroupJoined(_ *dingtalk.Session, data *ding
 	ctx.Player = &GroupPlayerInfo{}
 	logger.Infof("发送入群致辞，群: <%s>(%d)", "%未知群名%", data.OpenConversationId)
 	text := DiceFormatTmpl(ctx, "核心:骰子进群")
-	for _, i := range strings.Split(text, "###SPLIT###") {
+	for _, i := range ctx.SplitText(text) {
 		pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 	}
 	if ctx.Session.ServiceAtNew[msg.GroupID] != nil {

@@ -735,7 +735,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 				log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
 
-				for _, i := range strings.Split(welcome, "###SPLIT###") {
+				for _, i := range ctx.SplitText(welcome) {
 					doSleepQQ(ctx)
 					pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 				}
@@ -795,7 +795,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				ctx.Player = &GroupPlayerInfo{}
 				log.Infof("发送入群致辞，群: <%s>(%d)", groupName, msgQQ.GroupID)
 				text := DiceFormatTmpl(ctx, "核心:骰子进群")
-				for _, i := range strings.Split(text, "###SPLIT###") {
+				for _, i := range ctx.SplitText(text) {
 					doSleepQQ(ctx)
 					pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 				}
@@ -865,7 +865,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 							VarSetValueStr(ctx, "$t帐号ID", stdID)
 							VarSetValueStr(ctx, "$t账号ID", stdID)
 							text := DiceFormat(ctx, group.GroupWelcomeMessage)
-							for _, i := range strings.Split(text, "###SPLIT###") {
+							for _, i := range ctx.SplitText(text) {
 								doSleepQQ(ctx)
 								pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 							}
@@ -975,7 +975,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				if string(msgQQ.TargetID) == string(msgQQ.SelfID) {
 					// 如果在戳自己
 					text := DiceFormatTmpl(ctx, "其它:戳一戳")
-					for _, i := range strings.Split(text, "###SPLIT###") {
+					for _, i := range ctx.SplitText(text) {
 						doSleepQQ(ctx)
 						switch msg.MessageType {
 						case "group":
