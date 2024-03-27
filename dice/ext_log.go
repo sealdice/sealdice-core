@@ -153,7 +153,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Help:      "日志指令:\n" + helpLog,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			group := ctx.Group
-			cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
+			cmdArgs.ChopPrefixToArgsWith("on", "off", "del", "rm", "masterget",
+				"get", "end", "halt", "list", "new", "stat", "export")
 
 			groupNotActiveCheck := func() bool {
 				if !group.IsActive(ctx) {
