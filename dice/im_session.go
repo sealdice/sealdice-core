@@ -1181,6 +1181,25 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			return false
 		}
 
+		if item.Raw { //nolint:nestif
+			if item.CheckCurrentBotOn {
+				if !(ctx.IsCurGroupBotOn || ctx.IsPrivate) {
+					return false
+				}
+			}
+
+			if item.CheckMentionOthers {
+				if cmdArgs.SomeoneBeMentionedButNotMe {
+					return false
+				}
+			}
+		} else { //nolint:gocritic
+			// 默认模式行为：需要在当前群/私聊开启，或@自己时生效(需要为第一个@目标)
+			if !(ctx.IsCurGroupBotOn || ctx.IsPrivate) {
+				return false
+			}
+		}
+
 		if ext != nil && ext.DefaultSetting.DisabledCommand[item.Name] {
 			ReplyToSender(ctx, msg, fmt.Sprintf("此指令已被骰主禁用: %s:%s", ext.Name, item.Name))
 			return true
@@ -1194,24 +1213,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			VarSetValueInt64(ctx, "$t轮数", int64(cmdArgs.SpecialExecuteTimes))
 		}
 
-		if item.Raw { //nolint:nestif
-			if item.CheckCurrentBotOn {
-				if !(ctx.IsCurGroupBotOn || ctx.IsPrivate) {
-					return false
-				}
-			}
-
-			if item.CheckMentionOthers {
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return false
-				}
-			}
-		} else {
-			// 默认模式行为：需要在当前群/私聊开启，或@自己时生效(需要为第一个@目标)
-			if !(ctx.IsCurGroupBotOn || ctx.IsPrivate) {
-				return false
-			}
-
+		if !item.Raw {
 			if item.DisabledInPrivate && ctx.IsPrivate {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 				return false
