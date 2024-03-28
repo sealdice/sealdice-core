@@ -27,6 +27,7 @@ temp/
 
 dist/
 go-cqhttp/
+lagrange/
 frontend/
 frontend-overwrite/
 backups/
