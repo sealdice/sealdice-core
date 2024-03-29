@@ -951,6 +951,9 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		}
 
 		deckGroup := getDeckGroup(deckInfo, deckName)
+		if len(deckGroup) == 0 {
+			return "", errors.New("牌组为空，请检查格式是否正确")
+		}
 		if ctx.DeckPools[deckInfo][deckName] == nil {
 			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
 		}
@@ -966,6 +969,9 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		key = pool.Pick().(string)
 	} else {
 		deckGroup := getDeckGroup(deckInfo, deckName)
+		if len(deckGroup) == 0 {
+			return "", errors.New("牌组为空，请检查格式是否正确")
+		}
 		pool := DeckToRandomPool(deckGroup)
 		if pool == nil {
 			return "", errors.New("牌组为空，可能尚未加载完成")
