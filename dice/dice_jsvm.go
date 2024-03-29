@@ -373,7 +373,6 @@ func (d *Dice) JsInit() {
 		_ = seal.Set("format", DiceFormat)
 		_ = seal.Set("formatTmpl", DiceFormatTmpl)
 		_ = seal.Set("getCtxProxyFirst", GetCtxProxyFirst)
-		_ = seal.Set("base64ToImage", Base64ToImage)
 
 		// 1.2新增
 		_ = seal.Set("newMessage", func() *Message {
@@ -484,6 +483,7 @@ func (d *Dice) JsInit() {
 		// }
 		// `)
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
+	       _ = seal.Set("base64ToImage", Base64ToImageFunc(d.Logger))
 	})
 	loop.Start()
 	d.JsEnable = true
