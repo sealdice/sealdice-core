@@ -373,6 +373,7 @@ func (d *Dice) JsInit() {
 		_ = seal.Set("format", DiceFormat)
 		_ = seal.Set("formatTmpl", DiceFormatTmpl)
 		_ = seal.Set("getCtxProxyFirst", GetCtxProxyFirst)
+		_ = seal.Set("base64ToImage", Base64ToImage)
 
 		// 1.2新增
 		_ = seal.Set("newMessage", func() *Message {
