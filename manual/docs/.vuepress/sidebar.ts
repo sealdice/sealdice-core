@@ -133,7 +133,12 @@ export default sidebar({
       text: "关于",
       link: "/about/",
       prefix: "/about/",
-      children: ["about.md", "license.md", "develop.md"],
+      children: [
+        "start-from-zero.md",
+        "about.md",
+        "license.md",
+        "develop.md",
+      ],
     },
   ],
 });
