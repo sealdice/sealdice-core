@@ -30,13 +30,13 @@ func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
 		// 将数据写入文件
 		fi, err := os.OpenFile(imageurlPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0664)
 		if err != nil {
-		    logger.Errorf("创建文件出错%s", err)
+		    logger.Errorf("创建文件出错%s", err.Error())
 		    return ""
 		}
 		defer fi.Close()
 		_, err = fi.Write(data)
 		if err != nil {
-		    logger.Errorf("写入文件出错%s", err)
+		    logger.Errorf("写入文件出错%s", err.Error())
 		    return ""
 		}
 		logger.Info("File saved to:", imageurlPath)
