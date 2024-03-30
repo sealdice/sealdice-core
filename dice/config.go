@@ -2373,10 +2373,10 @@ func (d *Dice) ApplyExtDefaultSettings() {
 
 func (d *Dice) Save(isAuto bool) {
 	if d.LastUpdatedTime != 0 {
-		a, err := yaml.Marshal(d)
-		advancedData, err := yaml.Marshal(d.AdvancedConfig)
+		a, err1 := yaml.Marshal(d)
+		advancedData, err2 := yaml.Marshal(d.AdvancedConfig)
 
-		if err == nil {
+		if err1 == nil && err2 == nil {
 			err1 := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0o644)
 			err2 := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "advanced.yaml"), advancedData, 0o644)
 			if err1 == nil && err2 == nil {
