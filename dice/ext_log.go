@@ -900,18 +900,34 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 }
 
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
-	dirPath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
+	dice := ctx.Dice
+	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
+
+	var sealBackends []string
+	for _, sealBackend := range BackendUrls {
+		sealBackends = append(sealBackends, sealBackend+"/dice/api/log")
+	}
+
 	uploadCtx := storylog.UploadContext{
 		Dir:      dirPath,
-		Db:       ctx.Dice.DBLogs,
-		Log:      ctx.Dice.Logger,
-		Backends: BackendUrls,
+		Db:       dice.DBLogs,
+		Log:      dice.Logger,
+		Backends: sealBackends,
 
 		LogName:   logName,
 		UniformID: ctx.EndPoint.UserID,
 		GroupID:   groupID,
 	}
 	uploadCtx.Version = storylog.StoryVersionV1
+
+	if dice.AdvancedConfig.Enable && dice.AdvancedConfig.StoryLogBackendUrl != "" {
+		uploadCtx.Backends = []string{dice.AdvancedConfig.StoryLogBackendUrl}
+		uploadCtx.Token = dice.AdvancedConfig.StoryLogBackendToken
+
+		// 现在只有一个版本的 api，未来这里根据 advancedConfig.StoryLogBackendToken 切换
+		uploadCtx.Version = storylog.StoryVersionV1
+	}
+
 	url, err := storylog.Upload(uploadCtx)
 	if err != nil {
 		return "", err

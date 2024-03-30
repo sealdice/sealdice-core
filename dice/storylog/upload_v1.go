@@ -121,11 +121,11 @@ func filenameReplace(name string) string {
 
 func uploadToSealBackends(ctx UploadContext, data io.Reader) string {
 	// 逐个尝试所有后端地址
-	for _, sealBackend := range ctx.Backends {
-		if sealBackend == "" {
+	for _, backend := range ctx.Backends {
+		if backend == "" {
 			continue
 		}
-		ret := uploadToBackend(ctx, sealBackend+"/dice/api/log", data)
+		ret := uploadToBackend(ctx, backend, data)
 		if ret != "" {
 			return ret
 		}

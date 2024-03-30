@@ -422,6 +422,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.GET(prefix+"/dice/config/get", DiceConfig)
 	e.POST(prefix+"/dice/config/set", DiceConfigSet)
+	e.GET(prefix+"/dice/config/advanced/get", DiceAdvancedConfigGet)
+	e.POST(prefix+"/dice/config/advanced/set", DiceAdvancedConfigSet)
 	e.POST(prefix+"/dice/config/mail_test", DiceMailTest)
 	e.POST(prefix+"/dice/exec", DiceExec)
 	e.GET(prefix+"/dice/recentMessage", DiceRecentMessage)

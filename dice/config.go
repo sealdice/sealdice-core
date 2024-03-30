@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -2266,6 +2267,30 @@ func (d *Dice) loads() {
 	d.MarkModified()
 }
 
+func (d *Dice) loadAdvanced() {
+	d.Logger.Info("开始读取 advanced.yaml")
+	advancedConfig := AdvancedConfig{
+		Enable: false,
+	} // default value
+
+	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "advanced.yaml"))
+	if errors.Is(err, os.ErrNotExist) {
+		d.AdvancedConfig = advancedConfig
+		return
+	} else if err != nil {
+		d.Logger.Error("读取 advanced.yaml 失败 ", err.Error())
+		return
+	}
+
+	err = yaml.Unmarshal(data, &advancedConfig)
+	if err != nil {
+		d.Logger.Error("解析 advanced.yaml 失败 ", err.Error())
+		return
+	}
+
+	d.AdvancedConfig = advancedConfig
+}
+
 func (d *Dice) SaveText() {
 	buf, err := yaml.Marshal(d.TextMapRaw)
 	if err != nil {
@@ -2349,10 +2374,12 @@ func (d *Dice) ApplyExtDefaultSettings() {
 func (d *Dice) Save(isAuto bool) {
 	if d.LastUpdatedTime != 0 {
 		a, err := yaml.Marshal(d)
+		advancedData, err := yaml.Marshal(d.AdvancedConfig)
 
 		if err == nil {
-			err := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0o644)
-			if err == nil {
+			err1 := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0o644)
+			err2 := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "advanced.yaml"), advancedData, 0o644)
+			if err1 == nil && err2 == nil {
 				now := time.Now()
 				d.LastSavedTime = &now
 				if isAuto {
@@ -2361,8 +2388,12 @@ func (d *Dice) Save(isAuto bool) {
 					d.Logger.Info("保存数据")
 				}
 				d.LastUpdatedTime = 0
+			} else if err1 != nil && err2 != nil {
+				d.Logger.Errorln("保存 serve.yaml 和 advanced.yaml 出错", err2)
+			} else if err1 != nil {
+				d.Logger.Errorln("保存 serve.yaml 出错", err1)
 			} else {
-				d.Logger.Errorln("保存serve.yaml出错", err)
+				d.Logger.Errorln("保存 advanced.yaml 出错", err2)
 			}
 		}
 	}
