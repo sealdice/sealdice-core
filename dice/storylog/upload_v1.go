@@ -51,7 +51,7 @@ func uploadV1(ctx UploadContext) (string, error) {
 	}
 	ctx.lines = lines
 
-	err = backupBeforeUpload(ctx)
+	err = backupBeforeUpload(&ctx)
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +72,7 @@ func uploadV1(ctx UploadContext) (string, error) {
 }
 
 // backupBeforeUpload 将导出的日志留档 zip
-func backupBeforeUpload(ctx UploadContext) error {
+func backupBeforeUpload(ctx *UploadContext) error {
 	fzip, _ := os.OpenFile(
 		filepath.Join(ctx.Dir, filenameReplace(fmt.Sprintf(
 			"%s_%s.%s.zip",
