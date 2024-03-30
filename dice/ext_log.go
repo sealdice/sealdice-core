@@ -178,12 +178,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_失败")
 					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
 				} else {
-					url := fn
-					if unofficial {
-						url += "\n[注意：该地址非海豹官方染色器地址]"
-					}
-					VarSetValueStr(ctx, "$t日志链接", url)
+					VarSetValueStr(ctx, "$t日志链接", fn)
 					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
+					if unofficial {
+						tmpl += "\n[注意：该链接非海豹官方染色器]"
+					}
 					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
 				}
 			}

@@ -133,7 +133,7 @@ func storyUploadLog(c echo.Context) error {
 	}
 	ret := fmt.Sprintf("跑团日志已上传服务器，链接如下：<br/>%s", url)
 	if unofficial {
-		ret += "<br/>[注意：该地址非海豹官方染色器地址]"
+		ret += "<br/>[注意：该链接非海豹官方染色器]"
 	}
 	return c.JSON(http.StatusOK, ret)
 }
