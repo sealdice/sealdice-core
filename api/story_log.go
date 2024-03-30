@@ -126,12 +126,16 @@ func storyUploadLog(c echo.Context) error {
 	}
 	v := &model.LogInfo{}
 	_ = c.Bind(&v)
-	url, err := logSendToBackend(v.GroupID, v.Name)
+	unofficial, url, err := logSendToBackend(v.GroupID, v.Name)
 	if err != nil {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
-	return c.JSON(http.StatusOK, fmt.Sprintf("跑团日志已上传服务器，链接如下：<br>%s", url))
+	ret := fmt.Sprintf("跑团日志已上传服务器，链接如下：<br/>%s", url)
+	if unofficial {
+		ret += "<br/>[注意：该地址非海豹官方染色器地址]"
+	}
+	return c.JSON(http.StatusOK, ret)
 }
 
 func storyGetLogBackupList(c echo.Context) error {
@@ -178,7 +182,7 @@ func storyBatchDeleteLogBackup(c echo.Context) error {
 	return Success(&c, Response{})
 }
 
-func logSendToBackend(groupID string, logName string) (string, error) {
+func logSendToBackend(groupID string, logName string) (bool, string, error) {
 	ctx := &dice.MsgContext{
 		Dice:     myDice,
 		EndPoint: myDice.UIEndpoint,

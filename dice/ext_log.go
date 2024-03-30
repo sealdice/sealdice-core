@@ -170,7 +170,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			}
 
 			getAndUpload := func(gid, lname string) {
-				fn, err := LogSendToBackend(ctx, gid, lname)
+				unofficial, fn, err := LogSendToBackend(ctx, gid, lname)
 				if err != nil {
 					reason := strings.TrimPrefix(err.Error(), "#")
 					VarSetValueStr(ctx, "$t错误原因", reason)
@@ -178,7 +178,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_失败")
 					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
 				} else {
-					VarSetValueStr(ctx, "$t日志链接", fn)
+					url := fn
+					if unofficial {
+						url += "\n[注意：该地址非海豹官方染色器地址]"
+					}
+					VarSetValueStr(ctx, "$t日志链接", url)
 					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
 					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
 				}
@@ -899,7 +903,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	return tempLog, nil
 }
 
-func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
+func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
 	dice := ctx.Dice
 	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
@@ -920,7 +924,9 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 	}
 	uploadCtx.Version = storylog.StoryVersionV1
 
+	var unofficial bool
 	if dice.AdvancedConfig.Enable && dice.AdvancedConfig.StoryLogBackendUrl != "" {
+		unofficial = true
 		uploadCtx.Backends = []string{dice.AdvancedConfig.StoryLogBackendUrl}
 		uploadCtx.Token = dice.AdvancedConfig.StoryLogBackendToken
 
@@ -930,12 +936,12 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, 
 
 	url, err := storylog.Upload(uploadCtx)
 	if err != nil {
-		return "", err
+		return unofficial, "", err
 	}
 	if len(url) == 0 {
-		return "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
+		return unofficial, "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
 	}
-	return url, nil
+	return unofficial, url, nil
 }
 
 // LogRollBriefByPC 根据log生成骰点简报
