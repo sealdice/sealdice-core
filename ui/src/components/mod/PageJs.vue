@@ -88,7 +88,7 @@
                 </div>
               </template>
 
-              <el-descriptions>
+              <el-descriptions style="white-space:pre-line;">
                 <template v-if="!i.errText">
                   <el-descriptions-item v-if="!i.official" :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
                   <el-descriptions-item :span="3" label="介绍">{{ i.desc || '&lt;暂无>' }}</el-descriptions-item>

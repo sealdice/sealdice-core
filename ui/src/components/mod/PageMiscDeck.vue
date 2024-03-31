@@ -59,7 +59,7 @@
               </el-space>
             </div>
           </template>
-          <el-descriptions>
+          <el-descriptions style="white-space:pre-line;">
             <el-descriptions-item :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
             <el-descriptions-item :span="3" v-if="i.desc" label="简介">{{ i.desc }}</el-descriptions-item>
             <el-descriptions-item :span="3" label="牌堆列表">

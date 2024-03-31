@@ -41,7 +41,7 @@
       <el-space class="current-reply" direction="vertical">
         <el-space style="justify-content: center" wrap>
           <strong>当前文件</strong>
-          <el-select v-model="curFilename">
+          <el-select v-model="curFilename" style="width: 10rem">
             <el-option v-for="item in fileItems" :key="item.filename" :label="item.filename" :value="item.filename" />
           </el-select>
           <el-checkbox-button :class="cr.enable ? `reply-file-status-open` : `reply-file-status-close`"
