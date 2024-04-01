@@ -63,8 +63,8 @@ class DebugActivity : AppCompatActivity() {
             val command = findViewById<EditText>(R.id.DEBUG_edittext_command).text.toString()
             if (!isInit) {
                 processBuilder.directory(File(this.filesDir.absolutePath))
-//                processBuilder.environment()["LD_LIBRARY_PATH"] = this.filesDir.absolutePath + "/sealdice/lagrange/openssl-1.1"
-//                processBuilder.environment()["CLR_OPENSSL_VERSION_OVERRIDE"] = "1.1"
+                processBuilder.environment()["LD_LIBRARY_PATH"] = this.filesDir.absolutePath + "/sealdice/lagrange/openssl-1.1"
+                processBuilder.environment()["CLR_OPENSSL_VERSION_OVERRIDE"] = "1.1"
 
                 GlobalScope.launch(context = Dispatchers.IO) {
                     isRunning = true

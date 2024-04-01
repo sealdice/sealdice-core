@@ -17,20 +17,17 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.finishAffinity
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
-import com.sealdice.dice.common.DeviceInfo
 import com.sealdice.dice.common.ExtractAssets
 import com.sealdice.dice.common.FileWrite
 import com.sealdice.dice.databinding.FragmentFirstBinding
+import com.sealdice.dice.utils.DecompressUtil
 import com.sealdice.dice.utils.Utils
 import com.sealdice.dice.utils.ViewModelMain
 import kotlinx.coroutines.*
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
 import kotlin.system.exitProcess
 
 
@@ -159,6 +156,8 @@ class FirstFragment : Fragment() {
             } else {
                 if (sharedPreferences?.getBoolean("extract_on_start", true) == true) {
                     ExtractAssets(context).extractResources("sealdice")
+                    ExtractAssets(context).extractResources("runner")
+                    DecompressUtil.decompressTar(FileWrite.getPrivateFileDir(requireContext())+"runner/app-runner-arm64.tar", FileWrite.getPrivateFileDir(requireContext())+"runner/")
                 }
                 binding.buttonTut.visibility = View.GONE
                 binding.buttonInput.visibility = View.GONE
@@ -441,7 +440,7 @@ class FirstFragment : Fragment() {
         // 如果文件路径所对应的文件存在，并且是一个文件，则直接删除
         return if (file.exists() && file.isFile) {
             if (file.delete()) {
-                Log.e(
+                Log.d(
                     "--Method--",
                     "Copy_Delete.deleteSingleFile: 删除单个文件" + filePath + "成功！"
                 )
@@ -487,7 +486,7 @@ class FirstFragment : Fragment() {
         }
         // 删除当前目录
         return if (dirFile.delete()) {
-            Log.e("--Method--", "Copy_Delete.deleteDirectory: 删除目录" + filePath + "成功！")
+            Log.d("--Method--", "Copy_Delete.deleteDirectory: 删除目录" + filePath + "成功！")
             true
         } else {
             false

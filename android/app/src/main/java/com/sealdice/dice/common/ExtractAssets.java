@@ -1,7 +1,7 @@
 package com.sealdice.dice.common;
 
 import android.content.Context;
-
+import android.util.Log;
 
 
 import java.util.HashMap;
@@ -44,6 +44,7 @@ public class ExtractAssets {
 
     public String extractResource(String fileName) {
         if (fileName == null || fileName.isEmpty()) {
+            Log.e("ExtractAssetsResource", "fileName is null or empty");
             return null;
         }
 
