@@ -2,7 +2,7 @@
 home: true
 lang: zh-cn
 title: 首页
-tagline: ✨海豹核心的全新官方使用手册
+tagline: ✨海豹核心的官方使用手册
 heroImage: /images/sealdice.svg
 bgImage: /images/bg/4-light.svg
 bgImageDark: /images/bg/4-dark.svg
@@ -10,11 +10,11 @@ bgImageStyle:
   background-attachment: fixed
 actions:
   - text: 从零开始
-    icon: question
+    icon: interact
     link: /about/start-from-zero
     type: primary
   - text: 了解指令
-    icon: interact
+    icon: question
     link: /use/quick-start
   - text: 特色功能
     icon: categoryselected

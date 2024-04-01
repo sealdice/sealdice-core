@@ -9,13 +9,11 @@ title: 编写牌堆
 
 本节将介绍牌堆的编写，请善用侧边栏和搜索，按需阅读文档。
 
-如果你有编程经验，可以直接跳转到 [此处](#面向有经验用户的快速指南)。
-
 :::
 
 ## 概览
 
-海豹核心目前支持 `toml`*（新）* `json` `yaml` 格式的牌堆。
+海豹核心目前支持 `toml`、`json` 和 `yaml` 格式的牌堆。
 
 如果对其中某种格式的语法有了解，建议选择熟悉的格式。如果都不了解，建议选择使用适用性最广的 `json` 格式。
 
@@ -23,7 +21,7 @@ title: 编写牌堆
 
 ::: warning 牌堆文件的编码
 
-**永远**使用「UTF-8 编码」来编写牌堆。
+**永远** 使用「UTF-8 编码」来编写牌堆。
 
 :::
 
@@ -43,7 +41,7 @@ title: 编写牌堆
 
 ::: warning 务必注意使用半角符号！
 
-下面的语法中涉及到的符号都是**半角符号**，如果你出现了奇怪的问题，记得检查是否在输入法的中文输入状态，导致输入了错误的符号。
+下面的语法中涉及到的符号都是 **半角符号**，如果你出现了奇怪的问题，记得检查是否在输入法的中文输入状态，导致输入了错误的符号。
 
 比如应该为 `,` 却使用了 `，`，应该为 `""` 却使用了 `“”`。
 
@@ -169,15 +167,17 @@ TRPG = [
 
 ::: info JSON with Comment / JWCC <Badge type="tip" text="v1.4.4" vertical="middle"/>
 
-从 `v1.4.4` 起，海豹支持在牌堆中使用 [JSON With Commas and Comments](https://nigeltao.github.io/blog/2021/json-with-commas-comments.html) 。
+从 <Badge type="tip" text="v1.4.4" vertical="middle"/> 起，海豹支持在牌堆中使用 [JSON With Commas and Comments](https://nigeltao.github.io/blog/2021/json-with-commas-comments.html) 。
 
 这是一种对标准 JSON 语法的扩展，允许在文件中使用 C/C++ 风格的注释，并允许 JSON 对象和数组的最后一个键值对和元素后带有逗号。
 
 我们认为这种扩展有益于减少编写者的负担，又不会引入过多的非标准特性造成混乱。
 
+从 <Badge type="tip" text="v1.4.5" vertical="middle"/> 开始，海豹支持读取以 `.jsonc` 为扩展名的牌堆文件。我们推荐采用这种方式，将使用扩展语法的牌堆与标准 JSON 牌堆区分开，以示它们的不同，但是否这样做取决于你的选择。
+
 :::
 
-::: warning 如果你使用 <Badge type="danger" text="v1.4.3" vertical="middle"/> 或更早版本的海豹核心，你仍必须使用 标准 JSON 牌堆。
+::: warning 如果你使用 <Badge type="warning" text="v1.4.3" vertical="middle"/> 或更早版本的海豹核心，你仍必须使用 标准 JSON 牌堆。
 :::
 
 ### JSON 键值
@@ -251,9 +251,9 @@ JSON 键值对以 `"key": value` 的形式表达，需要包裹在 `{}` 或 `[]`
 }
 ```
 
-### JWCC 注释 <Badge type="tip" text="v1.4.4" vertical="middle"/>
+### 注释 <Badge type="tip" text="v1.4.4" vertical="middle"/>
 
-从 `v1.4.4` 版本开始支持 C/C++ 风格的注释。以下为简要说明。
+从 <Badge type="tip" text="v1.4.4" vertical="middle"/> 开始支持 C/C++ 风格的注释。以下为简要说明。
 
 #### 1. 行内注释
 
@@ -938,6 +938,14 @@ options = [
 - `aliases`：牌组的别名，可以使用别名抽取改牌组，如上述示例中可以使用 `.draw 数字论证` 或 `.draw 恶臭论证` 来抽取；
 - `options`：该牌组的项。
 
+::: warning 设置的选项未生效？
+
+注意，对应的选项名需要完全一致，否则海豹将无法正确解析。
+
+如 `aliases` 不要误写成 `alias`，`options` 不要误写成 `option`。
+
+:::
+
 ### 云端内容
 
 某些情况下，我们希望牌堆内容能够自动更新，骰主无需反复更新骰子中装载的牌堆，用户也能抽取到最新内容。例如，一个实时更新的公骰列表牌堆。
@@ -1014,8 +1022,3 @@ options = [
   "514 = (1-1)/4+514"
 ]
 ```
-
-## 面向有经验用户的快速指南
-
-::: note 施工中……
-:::
