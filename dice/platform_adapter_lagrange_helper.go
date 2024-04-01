@@ -51,7 +51,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		if runtime.GOOS == "windows" {
 			exeFilePath += ".exe"
 		}
-		qrcodeFilePath := filepath.Join(workDir, "qr-0.png")
+		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.ID))
 		configFilePath := filepath.Join(workDir, "appsettings.json")
 
 		log := dice.Logger
