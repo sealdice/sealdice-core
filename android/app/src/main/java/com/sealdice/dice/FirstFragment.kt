@@ -156,8 +156,8 @@ class FirstFragment : Fragment() {
             } else {
                 if (sharedPreferences?.getBoolean("extract_on_start", true) == true) {
                     ExtractAssets(context).extractResources("sealdice")
-                    ExtractAssets(context).extractResources("runner")
-                    DecompressUtil.decompressTar(FileWrite.getPrivateFileDir(requireContext())+"runner/app-runner-arm64.tar", FileWrite.getPrivateFileDir(requireContext())+"runner/")
+                    ExtractAssets(context).extractResource("app-runner-arm64.tar")
+                    DecompressUtil.decompressTarSys(FileWrite.getPrivateFileDir(requireContext())+"app-runner-arm64.tar", FileWrite.getPrivateFileDir(requireContext())+"runner/")
                 }
                 binding.buttonTut.visibility = View.GONE
                 binding.buttonInput.visibility = View.GONE
@@ -174,10 +174,18 @@ class FirstFragment : Fragment() {
                         this.activity?.let { it1 -> ActivityCompat.requestPermissions(it1, arrayOf(Manifest.permission.FOREGROUND_SERVICE), 1) }
                     }
                 }
-                launchAliveService(context)
 
                 GlobalScope.launch(context = Dispatchers.IO) {
-                    for (i in 0..10) {
+                    for (i in 0..5) {
+                        withContext(Dispatchers.Main) {
+                            binding.textviewFirst.text = "正在启动...\n请等待${10 - i}s..."
+                        }
+                        Thread.sleep(1000)
+                    }
+                    withContext(Dispatchers.Main){
+                        launchAliveService(context)
+                    }
+                    for (i in 5..10) {
                         withContext(Dispatchers.Main) {
                             binding.textviewFirst.text = "正在启动...\n请等待${10 - i}s..."
                         }
@@ -186,6 +194,7 @@ class FirstFragment : Fragment() {
                     withContext(Dispatchers.Main){
                         binding.textviewFirst.text = "启动完成（或者失败）"
                     }
+
                     if (sharedPreferences?.getBoolean("auto_launch_ui", true) == true) {
                         val address = sharedPreferences.getString("ui_address", "http://127.0.0.1:3211")
                         if (sharedPreferences.getBoolean("use_internal_webview", true)) {

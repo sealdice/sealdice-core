@@ -64,11 +64,6 @@
             android:title="启动参数"
             android:summary="点击输入启动参数"
             android:defaultValue="--address=0.0.0.0:3211" />
-        <androidx.preference.EditTextPreference
-            android:key="ld_library_path"
-            android:title="LD_LIBRARY_PATH"
-            android:summary="如果不清楚作用请不要更改"
-            android:defaultValue="/sealdice/lagrange/openssl-1.1" />
 
     </androidx.preference.PreferenceCategory>
 </PreferenceScreen>

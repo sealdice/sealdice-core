@@ -11,6 +11,7 @@ import android.view.MenuItem
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
@@ -63,8 +64,6 @@ class DebugActivity : AppCompatActivity() {
             val command = findViewById<EditText>(R.id.DEBUG_edittext_command).text.toString()
             if (!isInit) {
                 processBuilder.directory(File(this.filesDir.absolutePath))
-                processBuilder.environment()["LD_LIBRARY_PATH"] = this.filesDir.absolutePath + "/sealdice/lagrange/openssl-1.1"
-                processBuilder.environment()["CLR_OPENSSL_VERSION_OVERRIDE"] = "1.1"
 
                 GlobalScope.launch(context = Dispatchers.IO) {
                     isRunning = true
@@ -186,6 +185,8 @@ class DebugActivity : AppCompatActivity() {
             alertDialogBuilder.create().show()
         }
         findViewById<ImageView>(R.id.DEBUG_app_icon).setOnClickListener {
+            Toast.makeText(this, "海豹 + 1", Toast.LENGTH_SHORT).show()
+
             it.animate().scaleX(1.2f).scaleY(1.2f).setDuration(100).withEndAction {
                 it.animate().scaleX(1f).scaleY(1f).setDuration(100).start()
             }.start()

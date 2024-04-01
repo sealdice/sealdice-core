@@ -3,7 +3,7 @@ package com.sealdice.dice;
 final class JNI {
 
     static {
-        System.loadLibrary("sealjni");
+        System.loadLibrary("seal");
     }
 
     /**

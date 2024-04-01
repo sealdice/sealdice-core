@@ -12,8 +12,8 @@ android {
         minSdk 26
         //noinspection ExpiredTargetSdkVersion
         targetSdk 28
-        versionCode 39
-        versionName "v0.6.1-dev"
+        versionCode 40
+        versionName "v0.6.1-rc1"
         buildConfigField "String", "DOCUMENTS_AUTHORITY", "\"com.sealdice.dice.authorities\""
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         externalNativeBuild {
@@ -71,7 +71,6 @@ dependencies {
     implementation 'androidx.preference:preference:1.2.0'
     implementation 'androidx.lifecycle:lifecycle-service:2.6.1'
     implementation 'com.squareup.okhttp3:okhttp:5.0.0-alpha.11'
-    implementation 'org.apache.commons:commons-compress:1.20'
     api 'com.tencent.tbs:tbssdk:44286'
     implementation 'androidx.core:core-ktx:1.10.0'
 }
