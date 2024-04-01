@@ -71,7 +71,7 @@ func uploadV1(ctx UploadContext) (string, error) {
 	return url, nil
 }
 
-// backupBeforeUpload 将导出的日志留档 zip
+// backupBeforeUpload 将导出的日志留档 zip，会修改 ctx.data
 func backupBeforeUpload(ctx *UploadContext) error {
 	fzip, _ := os.OpenFile(
 		filepath.Join(ctx.Dir, filenameReplace(fmt.Sprintf(
