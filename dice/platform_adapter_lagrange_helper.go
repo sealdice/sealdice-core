@@ -245,7 +245,7 @@ var defaultNTSignServer = ``
 func GenerateLagrangeConfig(port int, info *EndPointInfo) string {
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", fmt.Sprintf("%d", port))
 	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", defaultNTSignServer)
-	conf = strings.ReplaceAll(conf, "{账号UIN}", fmt.Sprintf("%d", info.ID))
+	conf = strings.ReplaceAll(conf, "{账号UIN}", fmt.Sprintf("%s", info.ID))
 	return conf
 }
 
