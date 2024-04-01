@@ -99,10 +99,15 @@ export class LogManager {
   curItems: LogItem[] = [];
   lastIndexInfoList: indexInfoListItem[] = [];
 
+  working = false;
+
   syncChange(curText: string, r1: number[], r2: number[]) {
     if (curText === this.lastText) {
       return
     }
+    if (this.working) return;
+    this.working = true;
+    console.log('syncChange')
 
     if (!this.lastText) {
       const info = this.parse(curText, true);
@@ -247,6 +252,7 @@ export class LogManager {
 
       // this.ev.emit('textSet', newText);
     }
+    this.working = false;
     // console.log(333, textAll.slice(...r1), textAll.slice(...r2));
   }
 }

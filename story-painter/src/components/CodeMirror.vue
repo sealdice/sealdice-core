@@ -202,8 +202,7 @@ const createEditor = (editorContainer: any, doc: any) => {
 
 const startState = EditorState.create({
   //doc为编辑器默认内容
-  doc: `
-海豹一号机(2589922907) 2022/03/21 19:05:05
+  doc: `海豹一号机(2589922907) 2022/03/21 19:05:05
 新的故事开始了，祝旅途愉快！
 记录已经开启。
 

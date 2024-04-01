@@ -1,9 +1,9 @@
 <template>
   <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
     <h2 style="text-align: center;display: flex; align-items: center; justify-content: center; flex-flow: wrap;">
-      <span>海豹TRPG跑团Log着色器 V2.2.1</span>
+      <span>海豹TRPG跑团Log着色器 V2.3.0</span>
       <a style="margin:0 1rem" href="https://github.com/sealdice/story-painter" target="_blank"><img src="./assets/github-mark.svg" style="width: 1.2rem;"/></a>
-      <el-button type="primary" @click="backV1">返回V1</el-button>
+      <el-button type="primary" @click="backV1">官网</el-button>
     </h2>
     <div style="text-align: center;margin-bottom: 1rem;">SealDice骰QQ群 524364253 [群介绍中有其余3群]</div>
     <!-- <div style="text-align: center;"><b><el-link type="primary" target="_blank" href="https://dice.weizaima.com/">新骰系测试中</el-link></b>，快来提需求！</div> -->
@@ -178,7 +178,7 @@ const debounceInput = debounce(function(i) {
 
 const backV1 = () => {
   // location.href = location.origin + '/v1/' + location.search + location.hash;
-  location.href = 'https://log.weizaima.com' + '/v1/' + location.search + location.hash;
+  location.href = 'https://dice.weizaima.com';
 }
 
 // 清空文本
@@ -404,6 +404,7 @@ function showPreview() {
   let tmp = []
   let index = 0;
   const offTopicHide = store.exportOptions.offTopicHide;
+  console.log('当前日志条目数量: ', logMan.curItems.length)
 
   for (let i of logMan.curItems) {
     if (i.isRaw) continue;
