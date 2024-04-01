@@ -74,12 +74,23 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		_ = os.Chmod(exeFilePath, 0o755)
 		log.Info("onebot: 正在启动 onebot 客户端…… ", exeFilePath)
 
-		p := procs.NewProcess(exeFilePath)
-		p.Dir = workDir
-
+		command := ""
 		if runtime.GOOS == "android" {
-			p.Env = os.Environ()
+			for i, s := range os.Environ() {
+				if strings.HasPrefix(s, "RUNNER_PATH=") {
+					log.Infof("RUNNER_PATH: %s", os.Environ()[i][12:])
+					command = os.Environ()[i][12:]
+					break
+				}
+			}
+			command, _ = filepath.Abs(filepath.Join(command, "start.sh"))
+			_ = os.Chmod(command, 0o755)
+			command += " " + exeFilePath
+		} else {
+			command = exeFilePath
 		}
+		p := procs.NewProcess(command)
+		p.Dir = workDir
 
 		chQrCode := make(chan int, 1)
 		isSeldKilling := false
@@ -158,7 +169,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 						dice.Logger.Warn("添加到进程组失败，若主进程崩溃，lagrange 进程可能需要手动结束")
 					}
 				}
-				_ = p.Wait()
+				err = p.Wait()
 			}
 
 			isInLogin := pa.IsInLogin()
