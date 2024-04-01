@@ -66,7 +66,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			// 如果不存在，进行创建
 			p, _ := GetRandomFreePort()
 			pa.ConnectURL = fmt.Sprintf("ws://localhost:%d", p)
-			c := GenerateLagrangeConfig(p, loginInfo)
+			c := GenerateLagrangeConfig(p, conn)
 			_ = os.WriteFile(configFilePath, []byte(c), 0o644)
 		}
 
@@ -124,6 +124,8 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 					go ServeQQ(dice, conn)
 				}
+
+				log.Warn("onebot | ", line)
 			}
 
 			return ""
@@ -212,7 +214,7 @@ var defaultLagrangeConfig = `
     },
     "SignServerUrl": "{NTSignServer地址}",
     "Account": {
-        "Uin": 0,
+        "Uin": {账号UIN},
         "Password": "",
         "Protocol": "Linux",
         "AutoReconnect": true,
@@ -240,9 +242,10 @@ var defaultLagrangeConfig = `
 // 在构建时注入
 var defaultNTSignServer = ``
 
-func GenerateLagrangeConfig(port int, info GoCqhttpLoginInfo) string {
+func GenerateLagrangeConfig(port int, info *EndPointInfo) string {
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", fmt.Sprintf("%d", port))
 	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", defaultNTSignServer)
+	conf = strings.ReplaceAll(conf, "{账号UIN}", fmt.Sprintf("%d", info.ID))
 	return conf
 }
 
