@@ -93,15 +93,15 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		p.Dir = workDir
 
 		chQrCode := make(chan int, 1)
-		isSeldKilling := false
+		isSelfKilling := false
 
 		p.OutputHandler = func(line string) string {
 			if loginIndex != pa.CurLoginIndex {
 				// 当前连接已经无用，进程自杀
-				if !isSeldKilling {
+				if !isSelfKilling {
 					log.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
 					// 注: 这里不要调用kill
-					isSeldKilling = true
+					isSelfKilling = true
 					_ = p.Stop()
 				}
 				return ""
