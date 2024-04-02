@@ -79,6 +79,7 @@ declare module 'vue' {
     PageJs: typeof import('./components/mod/PageJs.vue')['default']
     PageLog: typeof import('./components/PageLog.vue')['default']
     PageMisc: typeof import('./components/PageMisc.vue')['default']
+    PageMiscAdvancedSettings: typeof import('./components/misc/PageMiscAdvancedSettings.vue')['default']
     PageMiscBackup: typeof import('./components/misc/PageMiscBackup.vue')['default']
     PageMiscBanList: typeof import('./components/misc/PageMiscBanList.vue')['default']
     PageMiscDeck: typeof import('./components/mod/PageMiscDeck.vue')['default']

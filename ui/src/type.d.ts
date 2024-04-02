@@ -69,3 +69,10 @@ interface HelpTextItem {
   packageName: string
   keyWords: string
 }
+
+interface AdvancedConfig {
+  enable: boolean,
+  storyLogBackendUrl: string,
+  storyLogApiVersion: string,
+  storyLogBackendToken: string,
+}

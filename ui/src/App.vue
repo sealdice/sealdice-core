@@ -3,9 +3,13 @@
     style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 950px; width: 100%; margin: 0 auto; position: relative;">
     <h3 class="mb-2"
       style="color: #f8ffff; text-align: left; padding-left: 1.2em; font-weight: normal;max-height:60px; height: 60px;">
-      <span :v-show="store.canAccess" style="position: relative;">SealDice<span v-if="store.diceServers.length > 0"
-          style="font-size: .7rem; position: absolute; bottom: -1rem; white-space: nowrap; left: 0;">{{
-            store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}</span></span>
+      <span :v-show="store.canAccess" style="position: relative;">
+        <span @click="enableAdvancedConfig" style="cursor: pointer;">SealDice</span>
+        <span v-if="store.diceServers.length > 0"
+          style="font-size: .7rem; position: absolute; bottom: -1rem; white-space: nowrap; left: 0;">
+          {{ store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}
+        </span>
+      </span>
     </h3>
 
     <div v-show="store.canAccess"
@@ -142,6 +146,9 @@
             </el-menu-item>
             <el-menu-item :index="`7-backup`" @click="switchTo('miscSettings', 'backup')">
               <span>备份</span>
+            </el-menu-item>
+            <el-menu-item v-if="advancedConfigCounter >= 8" :index="`7-advanced`" @click="switchTo('miscSettings', 'advanced')">
+              <span>高级设置</span>
             </el-menu-item>
           </el-sub-menu>
 
@@ -336,6 +343,11 @@ onBeforeMount(async () => {
   }, 5000) as any
 
   await updateNews()
+
+  const conf = await store.diceAdvancedConfigGet()
+  if (conf.enable) {
+    advancedConfigCounter.value = 8
+  }
 })
 
 let timerId: number
@@ -390,6 +402,22 @@ const switchTo = (tab: 'overview' | 'miscSettings' | 'log' | 'customText' | 'mod
 }
 
 let configCustom = {}
+
+let advancedConfigCounter = ref<number>(0)
+const enableAdvancedConfig = async () => {
+  advancedConfigCounter.value++
+  if (advancedConfigCounter.value > 8) {
+    ElMessage.info('高级设置页已经开启')
+    return
+  } else if (advancedConfigCounter.value === 8) {
+    let conf = await store.diceAdvancedConfigGet()
+    conf.enable = true
+    await store.diceAdvancedConfigSet(conf)
+    ElMessage.success('已开启高级设置页')
+  } else if (advancedConfigCounter.value > 2) {
+    ElMessage.info('再按 ' + (8 - advancedConfigCounter.value) + ' 次开启高级设置页')
+  }
+}
 </script>
 
 <style>

@@ -313,6 +313,16 @@ export const useStore = defineStore('main', {
       await this.diceConfigGet()
     },
 
+    async diceAdvancedConfigGet() {
+      const info: AdvancedConfig = await backend.get(urlPrefix + '/dice/config/advanced/get')
+      return info
+    },
+
+    async diceAdvancedConfigSet(data: AdvancedConfig) {
+      await backend.post(urlPrefix + '/dice/config/advanced/set', data, { headers: { token: this.token } })
+      await this.diceAdvancedConfigGet()
+    },
+
     async diceMailTest() {
       const res: { result: true } | {
         result: false,
