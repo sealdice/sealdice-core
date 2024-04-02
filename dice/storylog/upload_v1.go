@@ -16,15 +16,15 @@ import (
 	"sealdice-core/dice/model"
 )
 
-func uploadV1(ctx UploadContext) (string, error) {
-	_ = os.MkdirAll(ctx.Dir, 0o755)
+func uploadV1(env UploadEnv) (string, error) {
+	_ = os.MkdirAll(env.Dir, 0o755)
 
-	url, uploadTS, updateTS, _ := model.LogGetUploadInfo(ctx.Db, ctx.GroupID, ctx.LogName)
+	url, uploadTS, updateTS, _ := model.LogGetUploadInfo(env.Db, env.GroupID, env.LogName)
 	if len(url) > 0 && uploadTS > updateTS {
 		// 已有URL且上传时间晚于Log更新时间（最后录入时间），直接返回
-		ctx.Log.Infof(
+		env.Log.Infof(
 			"查询到之前上传的URL, 直接使用 Log:%s.%s 上传时间:%s 更新时间:%s URL:%s",
-			ctx.GroupID, ctx.LogName,
+			env.GroupID, env.LogName,
 			time.Unix(uploadTS, 0).Format("2006-01-02 15:04:05"),
 			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
 			url,
@@ -32,38 +32,38 @@ func uploadV1(ctx UploadContext) (string, error) {
 		return url, nil
 	}
 	if len(url) == 0 {
-		ctx.Log.Infof("没有查询到之前上传的URL Log:%s.%s", ctx.GroupID, ctx.LogName)
+		env.Log.Infof("没有查询到之前上传的URL Log:%s.%s", env.GroupID, env.LogName)
 	} else {
-		ctx.Log.Infof(
+		env.Log.Infof(
 			"Log上传后又有更新, 重新上传 Log:%s.%s 上传时间:%s 更新时间:%s",
-			ctx.GroupID, ctx.LogName,
+			env.GroupID, env.LogName,
 			time.Unix(uploadTS, 0).Format("2006-01-02 15:04:05"),
 			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
 		)
 	}
 
-	lines, err := model.LogGetAllLines(ctx.Db, ctx.GroupID, ctx.LogName)
+	lines, err := model.LogGetAllLines(env.Db, env.GroupID, env.LogName)
 	if err != nil {
 		return "", err
 	}
 	if len(lines) == 0 {
 		return "", errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
-	ctx.lines = lines
+	env.lines = lines
 
-	err = formatAndBackup(&ctx)
+	err = formatAndBackup(&env)
 	if err != nil {
 		return "", err
 	}
 
 	var zlibBuffer bytes.Buffer
 	w := zlib.NewWriter(&zlibBuffer)
-	_, _ = w.Write(*ctx.data)
+	_, _ = w.Write(*env.data)
 	_ = w.Close()
 
-	url = uploadToSealBackends(ctx, &zlibBuffer)
-	if errDB := model.LogSetUploadInfo(ctx.Db, ctx.GroupID, ctx.LogName, url); errDB != nil {
-		ctx.Log.Errorf("记录Log上传信息失败: %v", errDB)
+	url = uploadToSealBackends(env, &zlibBuffer)
+	if errDB := model.LogSetUploadInfo(env.Db, env.GroupID, env.LogName, url); errDB != nil {
+		env.Log.Errorf("记录Log上传信息失败: %v", errDB)
 	}
 	if len(url) == 0 {
 		return "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
@@ -71,12 +71,12 @@ func uploadV1(ctx UploadContext) (string, error) {
 	return url, nil
 }
 
-// formatAndBackup 将导出的日志序列化到 ctx.data 并存储为本地 zip
-func formatAndBackup(ctx *UploadContext) error {
+// formatAndBackup 将导出的日志序列化到 env.data 并存储为本地 zip
+func formatAndBackup(env *UploadEnv) error {
 	fzip, _ := os.OpenFile(
-		filepath.Join(ctx.Dir, filenameReplace(fmt.Sprintf(
+		filepath.Join(env.Dir, filenameReplace(fmt.Sprintf(
 			"%s_%s.%s.zip",
-			ctx.GroupID, ctx.LogName, time.Now().Format("060102150405"),
+			env.GroupID, env.LogName, time.Now().Format("060102150405"),
 		))),
 		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
 		0o600,
@@ -84,7 +84,7 @@ func formatAndBackup(ctx *UploadContext) error {
 	writer := zip.NewWriter(fzip)
 
 	text := ""
-	for _, i := range ctx.lines {
+	for _, i := range env.lines {
 		timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
 		text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
 	}
@@ -100,12 +100,12 @@ func formatAndBackup(ctx *UploadContext) error {
 
 	data, err := json.Marshal(map[string]interface{}{
 		"version": StoryVersionV1,
-		"items":   ctx.lines,
+		"items":   env.lines,
 	})
 	if err == nil {
 		fileWriter2, _ := writer.Create(ExportJsonFilename)
 		_, _ = fileWriter2.Write(data)
-		ctx.data = &data
+		env.data = &data
 	}
 
 	_ = writer.Close()
@@ -119,13 +119,13 @@ func filenameReplace(name string) string {
 	return re.ReplaceAllString(name, "")
 }
 
-func uploadToSealBackends(ctx UploadContext, data io.Reader) string {
+func uploadToSealBackends(env UploadEnv, data io.Reader) string {
 	// 逐个尝试所有后端地址
-	for _, backend := range ctx.Backends {
+	for _, backend := range env.Backends {
 		if backend == "" {
 			continue
 		}
-		ret := uploadToBackend(ctx, backend, data)
+		ret := uploadToBackend(env, backend, data)
 		if ret != "" {
 			return ret
 		}

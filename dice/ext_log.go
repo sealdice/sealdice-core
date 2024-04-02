@@ -911,7 +911,7 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, st
 		sealBackends = append(sealBackends, sealBackend+"/dice/api/log")
 	}
 
-	uploadCtx := storylog.UploadContext{
+	uploadCtx := storylog.UploadEnv{
 		Dir:      dirPath,
 		Db:       dice.DBLogs,
 		Log:      dice.Logger,
