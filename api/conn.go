@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -935,9 +936,13 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
-
+		uin, err := strconv.ParseInt(v.Account, 10, 64)
+		if err != nil {
+			return err
+		}
 		dice.LagrangeServe(myDice, conn, dice.GoCqhttpLoginInfo{
 			Protocol:   v.Protocol,
+			UIN:        uin,
 			IsAsyncRun: true,
 		})
 		return c.JSON(http.StatusOK, v)

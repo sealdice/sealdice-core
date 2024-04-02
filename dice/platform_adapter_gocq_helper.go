@@ -517,7 +517,7 @@ func BuiltinQQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 
 		if pa.BuiltinMode == "lagrange" {
 			workDir := lagrangeGetWorkDir(dice, conn)
-			qrcodeFile := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID))
+			qrcodeFile := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
 			if _, err := os.Stat(qrcodeFile); err == nil {
 				// 如果已经存在二维码文件，将其删除
 				_ = os.Remove(qrcodeFile)
@@ -568,6 +568,7 @@ func GoCqhttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 }
 
 type GoCqhttpLoginInfo struct {
+	UIN              int64
 	Password         string
 	Protocol         int
 	AppVersion       string

@@ -51,7 +51,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		if runtime.GOOS == "windows" {
 			exeFilePath += ".exe"
 		}
-		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID))
+		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
 		configFilePath := filepath.Join(workDir, "appsettings.json")
 
 		log := dice.Logger
@@ -245,7 +245,7 @@ var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
 func GenerateLagrangeConfig(port int, info *EndPointInfo) string {
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", fmt.Sprintf("%d", port))
 	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", defaultNTSignServer)
-	conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID)
+	conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
 	return conf
 }
 
