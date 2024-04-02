@@ -51,7 +51,7 @@ func uploadV1(ctx UploadContext) (string, error) {
 	}
 	ctx.lines = lines
 
-	err = backupBeforeUpload(&ctx)
+	err = formatAndBackup(&ctx)
 	if err != nil {
 		return "", err
 	}
@@ -71,8 +71,8 @@ func uploadV1(ctx UploadContext) (string, error) {
 	return url, nil
 }
 
-// backupBeforeUpload 将导出的日志留档 zip，会修改 ctx.data
-func backupBeforeUpload(ctx *UploadContext) error {
+// formatAndBackup 将导出的日志序列化到 ctx.data 并存储为本地 zip
+func formatAndBackup(ctx *UploadContext) error {
 	fzip, _ := os.OpenFile(
 		filepath.Join(ctx.Dir, filenameReplace(fmt.Sprintf(
 			"%s_%s.%s.zip",
@@ -105,7 +105,7 @@ func backupBeforeUpload(ctx *UploadContext) error {
 	if err == nil {
 		fileWriter2, _ := writer.Create(ExportJsonFilename)
 		_, _ = fileWriter2.Write(data)
-		ctx.data = &data //nolint:govet
+		ctx.data = &data
 	}
 
 	_ = writer.Close()
