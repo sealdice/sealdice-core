@@ -393,6 +393,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		// if CheckDialErr(err) != syscall.ECONNREFUSED {
 		// refused 不算大事
 		log.Error("onebot v11 connection error: ", err)
+		log.Info("onebot wss connection addr: ", socket.Url)
 		// }
 		pa.InPackGoCqhttpDisconnectedCH <- 2
 	}
