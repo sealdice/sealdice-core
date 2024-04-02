@@ -487,16 +487,17 @@ func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
 	conn.Adapter = &PlatformAdapterGocq{
 		EndPoint:          conn,
 		UseInPackGoCqhttp: true,
+		BuiltinMode:       "gocq",
 	}
 	return conn
 }
 
-func GoCqhttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
-	defer func() {
+func BuiltinQQServeProcessKill(dice *Dice, conn *EndPointInfo) {
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				dice.Logger.Error("go-cqhttp清理报错: ", r)
-				// go-cqhttp 进程退出: exit status 1
+				dice.Logger.Error("内置 QQ 客户端清理报错: ", r)
+				// go-cqhttp/lagrange 进程退出: exit status 1
 			}
 		}()
 
@@ -504,13 +505,34 @@ func GoCqhttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 		if !ok {
 			return
 		}
-		if pa.UseInPackGoCqhttp {
-			// 重置状态
-			conn.State = 0
-			pa.GoCqhttpState = 0
+		if !pa.UseInPackGoCqhttp {
+			return
+		}
 
-			pa.DiceServing = false
-			pa.GoCqhttpQrcodeData = nil
+		// 重置状态
+		conn.State = 0
+		pa.GoCqhttpState = 0
+		pa.DiceServing = false
+		pa.GoCqhttpQrcodeData = nil
+
+		if pa.BuiltinMode == "lagrange" {
+			workDir := lagrangeGetWorkDir(dice, conn)
+			qrcodeFile := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
+			if _, err := os.Stat(qrcodeFile); err == nil {
+				// 如果已经存在二维码文件，将其删除
+				_ = os.Remove(qrcodeFile)
+				dice.Logger.Info("onebot: 删除已存在的二维码文件")
+			}
+
+			// 注意这个会panic，因此recover捕获了
+			if pa.GoCqhttpProcess != nil {
+				p := pa.GoCqhttpProcess
+				pa.GoCqhttpProcess = nil
+				// sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
+				_ = p.Stop()
+				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
+			}
+		} else {
 			pa.GoCqhttpLoginDeviceLockURL = ""
 
 			workDir := gocqGetWorkDir(dice, conn)
@@ -546,6 +568,7 @@ func GoCqhttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 }
 
 type GoCqhttpLoginInfo struct {
+	UIN              int64
 	Password         string
 	Protocol         int
 	AppVersion       string
@@ -580,7 +603,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	loginIndex := pa.CurLoginIndex
 	pa.GoCqhttpState = StateCodeInLogin
 
-	if pa.UseInPackGoCqhttp { //nolint:nestif
+	if pa.UseInPackGoCqhttp && pa.BuiltinMode == "gocq" { //nolint:nestif
 		workDir := gocqGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 
@@ -636,7 +659,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		// 启动客户端
 		wd, _ := os.Getwd()
 		gocqhttpExePath, _ := filepath.Abs(filepath.Join(wd, "go-cqhttp/go-cqhttp"))
-		gocqhttpExePath = strings.ReplaceAll(gocqhttpExePath, "\\", "/") // windows平台需要这个替换
+		gocqhttpExePath = filepath.ToSlash(gocqhttpExePath) // windows平台需要这个替换
 
 		// 随手执行一下
 		_ = os.Chmod(gocqhttpExePath, 0o755)
@@ -650,7 +673,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		}
 		chQrCode := make(chan int, 1)
 		riskCount := 0
-		isSeldKilling := false
+		isSelfKilling := false
 
 		slideMode := 0
 		chSMS := make(chan string, 1)
@@ -659,10 +682,10 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		p.OutputHandler = func(line string) string {
 			if loginIndex != pa.CurLoginIndex {
 				// 当前连接已经无用，进程自杀
-				if !isSeldKilling {
+				if !isSelfKilling {
 					dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
 					// 注: 这里不要调用kill
-					isSeldKilling = true
+					isSelfKilling = true
 					_ = p.Stop()
 				}
 				return ""
@@ -948,7 +971,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			isDeviceLockLogin := pa.GoCqhttpState == StateCodeInLoginDeviceLock
 			if !isDeviceLockLogin {
 				// 如果在设备锁流程中，不清空数据
-				GoCqhttpServeProcessKill(dice, conn)
+				BuiltinQQServeProcessKill(dice, conn)
 
 				if isInLogin {
 					conn.State = 3
@@ -971,7 +994,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		} else {
 			run()
 		}
-	} else {
+	} else if !pa.UseInPackGoCqhttp {
 		pa.GoCqhttpState = StateCodeLoginSuccessed
 		pa.GoCqhttpLoginSucceeded = true
 		dice.Save(false)
