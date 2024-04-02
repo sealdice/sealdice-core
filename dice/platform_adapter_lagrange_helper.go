@@ -65,7 +65,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		if _, err := os.Stat(configFilePath); errors.Is(err, os.ErrNotExist) {
 			// 如果不存在，进行创建
 			p, _ := GetRandomFreePort()
-			pa.ConnectURL = fmt.Sprintf("ws://localhost:%d", p)
+			pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", p)
 			c := GenerateLagrangeConfig(p, conn)
 			_ = os.WriteFile(configFilePath, []byte(c), 0o644)
 		}
