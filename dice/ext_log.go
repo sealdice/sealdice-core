@@ -170,7 +170,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			}
 
 			getAndUpload := func(gid, lname string) {
-				fn, err := LogSendToBackend(ctx, gid, lname)
+				unofficial, fn, err := LogSendToBackend(ctx, gid, lname)
 				if err != nil {
 					reason := strings.TrimPrefix(err.Error(), "#")
 					VarSetValueStr(ctx, "$t错误原因", reason)
@@ -180,6 +180,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				} else {
 					VarSetValueStr(ctx, "$t日志链接", fn)
 					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
+					if unofficial {
+						tmpl += "\n[注意：该链接非海豹官方染色器]"
+					}
 					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
 				}
 			}
@@ -899,27 +902,45 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	return tempLog, nil
 }
 
-func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
-	dirPath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
-	uploadCtx := storylog.UploadContext{
+func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
+	dice := ctx.Dice
+	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
+
+	var sealBackends []string
+	for _, sealBackend := range BackendUrls {
+		sealBackends = append(sealBackends, sealBackend+"/dice/api/log")
+	}
+
+	uploadCtx := storylog.UploadEnv{
 		Dir:      dirPath,
-		Db:       ctx.Dice.DBLogs,
-		Log:      ctx.Dice.Logger,
-		Backends: BackendUrls,
+		Db:       dice.DBLogs,
+		Log:      dice.Logger,
+		Backends: sealBackends,
 
 		LogName:   logName,
 		UniformID: ctx.EndPoint.UserID,
 		GroupID:   groupID,
 	}
 	uploadCtx.Version = storylog.StoryVersionV1
+
+	var unofficial bool
+	if dice.AdvancedConfig.Enable && dice.AdvancedConfig.StoryLogBackendUrl != "" {
+		unofficial = true
+		uploadCtx.Backends = []string{dice.AdvancedConfig.StoryLogBackendUrl}
+		uploadCtx.Token = dice.AdvancedConfig.StoryLogBackendToken
+
+		// 现在只有一个版本的 api，未来这里根据 advancedConfig.StoryLogBackendToken 切换
+		uploadCtx.Version = storylog.StoryVersionV1
+	}
+
 	url, err := storylog.Upload(uploadCtx)
 	if err != nil {
-		return "", err
+		return unofficial, "", err
 	}
 	if len(url) == 0 {
-		return "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
+		return unofficial, "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
 	}
-	return url, nil
+	return unofficial, url, nil
 }
 
 // LogRollBriefByPC 根据log生成骰点简报

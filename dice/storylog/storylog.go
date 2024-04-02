@@ -15,7 +15,7 @@ import (
 	"sealdice-core/dice/model"
 )
 
-type UploadContext struct {
+type UploadEnv struct {
 	Dir      string
 	Db       *sqlx.DB
 	Log      *zap.SugaredLogger
@@ -31,26 +31,26 @@ type UploadContext struct {
 	data  *[]byte
 }
 
-func Upload(ctx UploadContext) (string, error) {
-	if ctx.Version == StoryVersionV1 {
-		return uploadV1(ctx)
+func Upload(env UploadEnv) (string, error) {
+	if env.Version == StoryVersionV1 {
+		return uploadV1(env)
 	}
 	return "", errors.New("未指定日志版本")
 }
 
-func uploadToBackend(ctx UploadContext, backend string, data io.Reader) string {
+func uploadToBackend(env UploadEnv, backend string, data io.Reader) string {
 	client := &http.Client{}
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	field, err := writer.CreateFormField("name")
 	if err == nil {
-		_, _ = field.Write([]byte(ctx.LogName))
+		_, _ = field.Write([]byte(env.LogName))
 	}
 
 	field, err = writer.CreateFormField("uniform_id")
 	if err == nil {
-		_, _ = field.Write([]byte(ctx.UniformID))
+		_, _ = field.Write([]byte(env.UniformID))
 	}
 
 	field, err = writer.CreateFormField("client")
@@ -60,7 +60,7 @@ func uploadToBackend(ctx UploadContext, backend string, data io.Reader) string {
 
 	field, err = writer.CreateFormField("version")
 	if err == nil {
-		_, _ = field.Write([]byte(strconv.Itoa(int(ctx.Version))))
+		_, _ = field.Write([]byte(strconv.Itoa(int(env.Version))))
 	}
 
 	part, _ := writer.CreateFormFile("file", "log-zlib-compressed")
@@ -69,25 +69,25 @@ func uploadToBackend(ctx UploadContext, backend string, data io.Reader) string {
 
 	req, err := http.NewRequest(http.MethodPut, backend, body)
 	if err != nil {
-		ctx.Log.Errorf(err.Error())
+		env.Log.Errorf(err.Error())
 		return ""
 	}
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if len(ctx.Token) > 0 {
-		req.Header.Set("Authorization", "Bearer "+ctx.Token)
+	if len(env.Token) > 0 {
+		req.Header.Set("Authorization", "Bearer "+env.Token)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		ctx.Log.Errorf(err.Error())
+		env.Log.Errorf(err.Error())
 		return ""
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
-		ctx.Log.Errorf(err.Error())
+		env.Log.Errorf(err.Error())
 		return ""
 	}
 
@@ -96,7 +96,7 @@ func uploadToBackend(ctx UploadContext, backend string, data io.Reader) string {
 	}
 	_ = json.Unmarshal(bodyText, &ret)
 	if ret.URL == "" {
-		ctx.Log.Error("日志上传的返回结果异常:", string(bodyText))
+		env.Log.Error("日志上传的返回结果异常:", string(bodyText))
 	}
 	return ret.URL
 }
