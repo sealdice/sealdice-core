@@ -649,6 +649,17 @@ func (d *Dice) registerCoreCommands() {
 		Help:      "退群(映射到bot bye):\n" + helpForDismiss,
 		Raw:       true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.SomeoneBeMentionedButNotMe {
+				// 如果是别人被at，置之不理
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if !cmdArgs.AmIBeMentioned {
+				// 裸指令，如果当前群内开启，予以提示
+				if ctx.IsCurGroupBotOn {
+					ReplyToSender(ctx, msg, "[退群指令] 请@我使用这个命令，以进行确认")
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
 			rest := cmdArgs.GetArgN(1)
 			if rest != "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
