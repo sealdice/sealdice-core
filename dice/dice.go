@@ -262,6 +262,8 @@ type Dice struct {
 	CensorCaseSensitive  bool                   `json:"censorCaseSensitive" yaml:"censorCaseSensitive"`   // 敏感词大小写敏感
 	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
+
+	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
 }
 
 type CensorMode int
@@ -349,6 +351,7 @@ func (d *Dice) Init() {
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
 	d.loads()
+	d.loadAdvanced()
 	d.BanList.Loads()
 	d.BanList.AfterLoads()
 	d.IsAlreadyLoadConfig = true
