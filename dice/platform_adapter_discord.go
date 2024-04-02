@@ -157,7 +157,7 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 	//		mctx.Player = &GroupPlayerInfo{}
 	//		pa.Session.Parent.Logger.Infof("发送入群致辞，群: <%s>(%s)", m.Name, msg.GuildId)
 	//		text := DiceFormatTmpl(mctx, "核心:骰子进群")
-	//		for _, i := range strings.Split(text, "###SPLIT###") {
+	//		for _, i := range mctx.SplitText(text) {
 	//			pa.SendToGroup(mctx, msg.GroupId, strings.TrimSpace(i), "")
 	//		}
 	//	}()

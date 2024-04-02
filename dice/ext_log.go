@@ -1,10 +1,6 @@
 package dice
 
 import (
-	"archive/zip"
-	"bytes"
-	"compress/zlib"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -18,13 +14,11 @@ import (
 	"github.com/golang-module/carbon"
 	"go.uber.org/zap"
 
-	"sealdice-core/dice/constants"
 	"sealdice-core/dice/model"
+	"sealdice-core/dice/storylog"
 )
 
 var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
-
-const StoryVersion = 101
 
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
@@ -153,7 +147,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Help:      "日志指令:\n" + helpLog,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			group := ctx.Group
-			cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
+			cmdArgs.ChopPrefixToArgsWith("on", "off", "del", "rm", "masterget",
+				"get", "end", "halt", "list", "new", "stat", "export")
 
 			groupNotActiveCheck := func() bool {
 				if !group.IsActive(ctx) {
@@ -905,92 +900,21 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 }
 
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
-	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
-	_ = os.MkdirAll(dirpath, 0o755)
+	dirPath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
+	uploadCtx := storylog.UploadContext{
+		Dir:      dirPath,
+		Db:       ctx.Dice.DBLogs,
+		Log:      ctx.Dice.Logger,
+		Backends: BackendUrls,
 
-	url, uploadTS, updateTS, _ := model.LogGetUploadInfo(ctx.Dice.DBLogs, groupID, logName)
-	if len(url) > 0 && uploadTS > updateTS {
-		// 已有URL且上传时间晚于Log更新时间（最后录入时间），直接返回
-		ctx.Dice.Logger.Infof(
-			"查询到之前上传的URL, 直接使用 Log:%s.%s 上传时间:%s 更新时间:%s URL:%s",
-			groupID, logName,
-			time.Unix(uploadTS, 0).Format("2006-01-02 15:04:05"),
-			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
-			url,
-		)
-		return url, nil
+		LogName:   logName,
+		UniformID: ctx.EndPoint.UserID,
+		GroupID:   groupID,
 	}
-	if len(url) == 0 {
-		ctx.Dice.Logger.Infof("没有查询到之前上传的URL Log:%s.%s", groupID, logName)
-	} else {
-		ctx.Dice.Logger.Infof(
-			"Log上传后又有更新, 重新上传 Log:%s.%s 上传时间:%s 更新时间:%s",
-			groupID, logName,
-			time.Unix(uploadTS, 0).Format("2006-01-02 15:04:05"),
-			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
-		)
-	}
-
-	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupID, logName)
-
-	if len(lines) == 0 {
-		return "", errors.New("#此log不存在，或条目数为空，名字是否正确？")
-	}
-
+	uploadCtx.Version = storylog.StoryVersionV1
+	url, err := storylog.Upload(uploadCtx)
 	if err != nil {
 		return "", err
-	}
-
-	// 本地进行一个zip留档，以防万一
-	fzip, _ := os.OpenFile(
-		filepath.Join(dirpath, FilenameReplace(fmt.Sprintf(
-			"%s_%s.%s.zip",
-			groupID, logName, time.Now().Format("060102150405"),
-		))),
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
-		0o600,
-	)
-	writer := zip.NewWriter(fzip)
-
-	text := ""
-	for _, i := range lines {
-		timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-		text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
-	}
-
-	{
-		wr, _ := writer.Create(constants.LogExportReadmeFilename)
-		_, _ = wr.Write([]byte(constants.LogExportReadmeContent))
-	}
-	{
-		fileWriter, _ := writer.Create(constants.LogExportTxtFilename)
-		_, _ = fileWriter.Write([]byte(text))
-	}
-
-	data, err := json.Marshal(map[string]interface{}{
-		"version": StoryVersion,
-		"items":   lines,
-	})
-	if err == nil {
-		fileWriter2, _ := writer.Create(constants.LogExportJsonFilename)
-		_, _ = fileWriter2.Write(data)
-	}
-
-	_ = writer.Close()
-	_ = fzip.Close()
-
-	if err != nil {
-		return "", err
-	}
-
-	var zlibBuffer bytes.Buffer
-	w := zlib.NewWriter(&zlibBuffer)
-	_, _ = w.Write(data)
-	_ = w.Close()
-
-	url = UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserID, &zlibBuffer)
-	if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupID, logName, url); errDB != nil {
-		ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
 	}
 	if len(url) == 0 {
 		return "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
