@@ -51,7 +51,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		if runtime.GOOS == "windows" {
 			exeFilePath += ".exe"
 		}
-		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.ID))
+		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID))
 		configFilePath := filepath.Join(workDir, "appsettings.json")
 
 		log := dice.Logger
@@ -72,7 +72,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 		// 启动客户端
 		_ = os.Chmod(exeFilePath, 0o755)
-		log.Info("onebot: 正在启动 onebot 客户端…… ", exeFilePath)
 
 		command := ""
 		if runtime.GOOS == "android" {
@@ -89,6 +88,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		} else {
 			command = exeFilePath
 		}
+		log.Info("onebot: 正在启动 onebot 客户端…… ", command)
 		p := procs.NewProcess(command)
 		p.Dir = workDir
 
@@ -245,7 +245,7 @@ var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
 func GenerateLagrangeConfig(port int, info *EndPointInfo) string {
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", fmt.Sprintf("%d", port))
 	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", defaultNTSignServer)
-	conf = strings.ReplaceAll(conf, "{账号UIN}", info.ID)
+	conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID)
 	return conf
 }
 
