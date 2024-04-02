@@ -117,7 +117,7 @@
             <div>{{ i.adapter?.reverseAddr }}/ws</div>
           </el-form-item>
 
-          <template v-if="i.platform === 'QQ' && (i.protocolType === 'onebot' || i.protocolType === 'walle-q')">
+          <template v-if="i.platform === 'QQ' && (i.protocolType === 'onebot' || i.protocolType === 'walle-q') && i.adapter.builtinMode !== 'lagrange'">
             <!-- <el-form-item label="忽略好友请求">
               <div>{{i.adapter?.ignoreFriendRequest ? '是' : '否'}}</div>
             </el-form-item> -->
@@ -153,6 +153,12 @@
             </el-form-item>
           </template>
 
+          <template v-if="i.platform === 'QQ' && i.protocolType === 'onebot' && i.adapter.builtinMode === 'lagrange'">
+            <el-form-item label="接入方式">
+              <div>内置客户端</div>
+            </el-form-item>
+          </template>
+
           <template v-if="i.platform === 'QQ' && i.protocolType === 'red'">
             <el-form-item label="协议">
               <div>[已弃用]Red</div>
@@ -174,7 +180,7 @@
             </el-form-item>
           </template>
 
-          <template v-if="i.platform === 'QQ' && i.protocolType === 'onebot'">
+          <template v-if="i.platform === 'QQ' && i.protocolType === 'onebot' && i.adapter.builtinMode !== 'lagrange'">
             <el-form-item label="其他">
               <el-tooltip content="导出gocq设置，用于转分离部署" placement="top-start">
                 <el-button type="" @click="doGocqExport(i)">导出</el-button>
@@ -479,11 +485,17 @@
         style="margin-bottom: 1.5rem;">该支持仍处于实验阶段，部分功能尚未完善。<br />同时，受到腾讯官方提供的 API 能力的限制，一些功能暂时无法实现。</el-alert>
       <el-alert v-if="form.accountType === 14" type="warning" :closable="false"
                 style="margin-bottom: 1.5rem;">该支持仍处于实验阶段，部分功能尚未完善。<br />- QQ 平台适配目标版本 0.2.x 以上的 Chronocat。</el-alert>
+      <el-alert v-if="form.accountType === 0" type="error" :closable="false"
+                style="margin-bottom: 1.5rem;">
+        内置 gocq 方案已不再支持，目前仅为兼容性保留，<strong>新增入口已关闭</strong>。<br/>
+        使用内置方案请切换到新的内置客户端。<br />
+        如果你依然需要使用 gocq，可以切换到分离部署方式进行连接，但我们非常不建议您再继续使用 gocq。
+      </el-alert>
 
       <el-form :model="form">
         <el-form-item label="账号类型" :label-width="formLabelWidth">
           <el-select v-model="form.accountType">
-            <el-option label="QQ(内置gocq)" :value="0"></el-option>
+            <el-option label="[WIP]QQ(内置客户端)" :value="15"></el-option>
             <el-option label="QQ(onebot11分离部署)" :value="6"></el-option>
             <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
             <el-option label="[WIP]QQ(官方bot)" :value="10"></el-option>
@@ -496,6 +508,7 @@
             <el-option label="Dodo语音" :value="5"></el-option>
             <el-option label="钉钉" :value="8"></el-option>
             <el-option label="Slack" :value="9"></el-option>
+            <el-option label="[已弃用]QQ(内置gocq)" :value="0"></el-option>
             <el-option label="[已弃用]QQ(red协议)" :value="7"></el-option>
           </el-select>
         </el-form-item>
@@ -537,7 +550,7 @@
           </el-select>
         </el-form-item> -->
 
-        <el-form-item v-if="form.accountType === 0" label="账号" :label-width="formLabelWidth" required>
+        <el-form-item v-if="form.accountType === 0 || form.accountType === 15" label="账号" :label-width="formLabelWidth" required>
           <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
         </el-form-item>
 
@@ -1060,7 +1073,7 @@
       <span class="dialog-footer">
         <template v-if="form.step === 1">
           <el-button @click="dialogFormVisible = false">取消</el-button>
-          <el-button type="primary" @click="goStepTwo" :disabled="form.accountType === 0 && form.account === '' ||
+          <el-button type="primary" @click="goStepTwo" :disabled="form.accountType === 0 ||
             (form.accountType === 1 || form.accountType === 2 || form.accountType === 3) && form.token === '' ||
             form.accountType === 4 && form.url === '' ||
             form.accountType === 5 && (form.clientID === '' || form.token === '') ||
@@ -1069,7 +1082,8 @@
             form.accountType === 7 && (form.host === '' || form.port === '' || form.token === '') ||
             form.accountType === 9 && (form.botToken === '' || form.appToken === '') ||
             form.accountType === 11 && (form.account === '' || form.reverseAddr === '') ||
-            form.accountType === 13 && (form.token === '' || form.url === '')">
+            form.accountType === 13 && (form.token === '' || form.url === '') ||
+            form.accountType === 15 && form.account === ''">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">
@@ -1507,7 +1521,7 @@ const handleSignServerDelete = (url: string) => {
 const supportedQQVersions = ref<string[]>([])
 
 const form = reactive({
-  accountType: 0,
+  accountType: 15,
   step: 1,
   isEnd: false,
   account: '',

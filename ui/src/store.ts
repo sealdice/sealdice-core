@@ -38,6 +38,7 @@ export interface AdapterQQ {
   appID: number;
   isReverse: boolean;
   reverseAddr: string;
+  builtinMode: 'gocq' | 'lagrange'
 }
 
 interface TalkLogItem {
@@ -258,6 +259,9 @@ export const useStore = defineStore('main', {
           break
         case 14:
           info = await backend.post(urlPrefix + '/im_connections/addSatori', { platform, host, port, token }, { timeout: 65000 })
+          break
+        case 15:
+          info = await backend.post(urlPrefix + '/im_connections/addLagrange', { account, protocol }, { timeout: 65000 })
           break
       }
       return info as any as DiceConnection
