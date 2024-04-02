@@ -240,7 +240,7 @@ var defaultLagrangeConfig = `
 `
 
 // 在构建时注入
-var defaultNTSignServer = ``
+var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
 
 func GenerateLagrangeConfig(port int, info *EndPointInfo) string {
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", fmt.Sprintf("%d", port))
