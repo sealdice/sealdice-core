@@ -79,7 +79,7 @@ e4 <- minus e5 { p.AddOperator(TypeNegation) }
 e5 <- add eDice
     / eDice
 
-dndDiceSuffix <- (('优势' / 'kh') {p.AddValue("1"); p.AddOperator(TypeDiceSetK)} sp / ('劣势' / 'kl') {p.AddValue("1"); p.AddOperator(TypeDiceSetQ)} sp )
+dndDiceSuffix <- (('优势' / '優勢'/ 'kh') {p.AddValue("1"); p.AddOperator(TypeDiceSetK)} sp / ('劣势' / '劣勢' / 'kl') {p.AddValue("1"); p.AddOperator(TypeDiceSetQ)} sp )
 kqDiceOp <- ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? ('dl' eDice2 { p.AddOperatorWithInt64(TypeDiceSetK, 1) } )? ('dh' eDice2 { p.AddOperatorWithInt64(TypeDiceSetQ, 1) } )?
 
 _dnumber <- &( [dD] (number / '(') )  // 独立出来是因为括号会影响IDEA的自动高亮
@@ -136,6 +136,7 @@ number <- < [0-9]+ > sp { p.AddValue(string(text)) }
 
 identifier <- < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^`{|}~0-9 \t\n\r\36] [^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r\36]* > sp // not (punctuation+number)
 // identifier2 <- !'d' ![0-9] < (universalCharacter / [a-zA-Z_])+ > sp // not (punctuation+number)
+// [A-Za-z_]
 sub <- open e0 close
 add <- ('+'/'＋') sp
 minus <- ('-' / '－') sp
