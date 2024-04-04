@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sealdice-core/dice"
 
 	"github.com/alexmullins/zip"
 	"github.com/labstack/echo/v4"
@@ -136,4 +137,31 @@ func compressFile(fn string, zipFn string, zipWriter *zip.Writer) error {
 	}
 	_, _ = fileWriter.Write(data)
 	return nil
+}
+
+func checkUidExists(c echo.Context, uid string) bool {
+	for _, i := range myDice.ImSession.EndPoints {
+		if pa, ok := i.Adapter.(*dice.PlatformAdapterGocq); ok && pa.UseInPackGoCqhttp {
+			var relWorkDir string
+			if pa.BuiltinMode == "lagrange" {
+				relWorkDir = "extra/lagrange-qq" + uid
+			} else {
+				// 默认为gocq
+				relWorkDir = "extra/go-cqhttp-qq" + uid
+			}
+			fmt.Println(relWorkDir, i.RelWorkDir)
+			if relWorkDir == i.RelWorkDir {
+				// 不允许工作路径重复
+				_ = c.JSON(CodeAlreadyExists, i)
+				return true
+			}
+		}
+
+		// 如果存在已经启用的同账号连接，不允许重复
+		if i.Enable && i.UserID == dice.FormatDiceIDQQ(uid) {
+			_ = c.JSON(CodeAlreadyExists, i)
+			return true
+		}
+	}
+	return false
 }
