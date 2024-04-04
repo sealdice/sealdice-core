@@ -53,6 +53,10 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 			d.Logger.Infof("检测到连接关闭，不再进行此onebot服务的重连: <%s>(%s)", ep.Nickname, ep.UserID)
 			return true
 		}
+		if conn.GoCqhttpState == StateCodeLoginFailed {
+			d.Logger.Infof("检测到登录失败，不再进行此onebot服务的重连: <%s>(%s)", ep.Nickname, ep.UserID)
+			return true
+		}
 		return false
 	}
 
@@ -74,10 +78,17 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 			break
 		}
 
+		if conn.GoCqhttpState != StateCodeLoginSuccessed {
+			time.Sleep(15 * time.Second)
+			continue
+		}
+
 		waitTimes++
 		if waitTimes > 5 {
 			d.Logger.Infof("onebot 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
 			conn.DiceServing = false
+			ep.State = 0
+			conn.GoCqhttpState = StateCodeLoginFailed
 			break
 		}
 

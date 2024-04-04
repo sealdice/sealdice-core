@@ -35,6 +35,7 @@ func NewLagrangeConnectInfoItem(account string) *EndPointInfo {
 	}
 	return conn
 }
+
 func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) {
 	pa := conn.Adapter.(*PlatformAdapterGocq)
 
@@ -62,12 +63,17 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		}
 
 		// 创建配置文件
-		if _, err := os.Stat(configFilePath); errors.Is(err, os.ErrNotExist) {
+		if _, err := os.Stat(configFilePath); pa.ConnectURL == "" || errors.Is(err, os.ErrNotExist) {
 			// 如果不存在，进行创建
 			p, _ := GetRandomFreePort()
 			pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", p)
 			c := GenerateLagrangeConfig(p, conn)
 			_ = os.WriteFile(configFilePath, []byte(c), 0o644)
+		}
+
+		if pa.GoCqhttpProcess != nil {
+			// 如果有正在运行的lagrange，先将其杀掉
+			BuiltinQQServeProcessKill(dice, conn)
 		}
 
 		// 启动客户端
@@ -86,7 +92,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			_ = os.Chmod(command, 0o755)
 			command += " " + exeFilePath
 		} else {
-			command = exeFilePath
+			command = fmt.Sprintf(`"%s"`, exeFilePath)
 		}
 		log.Info("onebot: 正在启动 onebot 客户端…… ", command)
 		conn.State = 2
@@ -117,7 +123,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 				}
 
 				// 登录成功
-				if strings.Contains(line, "Success") {
+				if strings.Contains(line, "Success") || strings.Contains(line, "Bot Online: ") {
 					pa.GoCqhttpState = StateCodeLoginSuccessed
 					pa.GoCqhttpLoginSucceeded = true
 					log.Infof("onebot: 登录成功，账号：<%s>(%s)", conn.Nickname, conn.UserID)
@@ -125,6 +131,13 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					dice.Save(false)
 
 					go ServeQQ(dice, conn)
+				}
+
+				if strings.Contains(line, "QrCode Expired, Please Fetch QrCode Again") {
+					// 二维码过期，登录失败，杀掉进程
+					pa.GoCqhttpState = StateCodeLoginFailed
+					log.Infof("onebot: 二维码过期，登录失败，账号：%s", conn.UserID)
+					BuiltinQQServeProcessKill(dice, conn)
 				}
 
 				log.Warn("onebot | ", line)

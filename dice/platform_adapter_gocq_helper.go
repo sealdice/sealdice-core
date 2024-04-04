@@ -492,8 +492,8 @@ func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
 	return conn
 }
 
-func BuiltinQQServeProcessKill(dice *Dice, conn *EndPointInfo) {
-	go func() {
+func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo, isSync bool) {
+	f := func() {
 		defer func() {
 			if r := recover(); r != nil {
 				dice.Logger.Error("内置 QQ 客户端清理报错: ", r)
@@ -552,7 +552,16 @@ func BuiltinQQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
 			}
 		}
-	}()
+	}
+	if isSync {
+		f()
+	} else {
+		go f()
+	}
+}
+
+func BuiltinQQServeProcessKill(dice *Dice, conn *EndPointInfo) {
+	BuiltinQQServeProcessKillBase(dice, conn, false)
 }
 
 func gocqGetWorkDir(dice *Dice, conn *EndPointInfo) string {
@@ -599,11 +608,29 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	//	return
 	//}
 
-	pa.CurLoginIndex++
-	loginIndex := pa.CurLoginIndex
-	pa.GoCqhttpState = StateCodeInLogin
+	if pa.UseInPackGoCqhttp {
+		if pa.BuiltinMode == "gocq" {
+			pa.CurLoginIndex++
+			pa.GoCqhttpState = StateCodeInLogin
+			builtinGoCqhttpServe(dice, conn, loginInfo)
+		}
+		if pa.BuiltinMode == "lagrange" {
+			LagrangeServe(dice, conn, loginInfo)
+		}
+	} else {
+		pa.GoCqhttpState = StateCodeLoginSuccessed
+		pa.GoCqhttpLoginSucceeded = true
+		dice.Save(false)
+		go ServeQQ(dice, conn)
+	}
+}
 
-	if pa.UseInPackGoCqhttp && pa.BuiltinMode == "gocq" { //nolint:nestif
+func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) {
+	pa := conn.Adapter.(*PlatformAdapterGocq)
+	loginIndex := pa.CurLoginIndex
+
+	// 保留此if语句块，使历史可追溯，后续commit可移除if
+	if pa.UseInPackGoCqhttp { //nolint:nestif
 		workDir := gocqGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 
@@ -994,10 +1021,5 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		} else {
 			run()
 		}
-	} else if !pa.UseInPackGoCqhttp {
-		pa.GoCqhttpState = StateCodeLoginSuccessed
-		pa.GoCqhttpLoginSucceeded = true
-		dice.Save(false)
-		go ServeQQ(dice, conn)
 	}
 }
