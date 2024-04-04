@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"sort"
 	"strconv"
@@ -341,10 +342,8 @@ func ImConnectionsAddWalleQ(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		uid := v.Account
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserID == dice.FormatDiceIDQQ(uid) {
-				return c.JSON(CodeAlreadyExists, i)
-			}
+		if checkUidExists(c, uid) {
+			return nil
 		}
 
 		conn := dice.NewWqConnectInfoItem(v.Account)
@@ -689,10 +688,8 @@ func ImConnectionsAddBuiltinGocq(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		uid := v.Account
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserID == dice.FormatDiceIDQQ(uid) {
-				return c.JSON(CodeAlreadyExists, i)
-			}
+		if checkUidExists(c, uid) {
+			return nil
 		}
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
@@ -744,13 +741,11 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		uid := v.Account
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserID == dice.FormatDiceIDQQ(uid) {
-				return c.JSON(CodeAlreadyExists, i)
-			}
+		if checkUidExists(c, uid) {
+			return nil
 		}
 
-		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
+		conn := dice.NewGoCqhttpConnectInfoItem(fmt.Sprintf("uid-%d", rand.Uint64()))
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 
@@ -758,7 +753,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		pa.Session = myDice.ImSession
 
 		// 三项设置
-		conn.RelWorkDir = v.RelWorkDir
+		conn.RelWorkDir = "x" // 此选项已无意义
 		pa.ConnectURL = v.ConnectURL
 		pa.AccessToken = v.AccessToken
 
@@ -792,10 +787,8 @@ func ImConnectionsAddReverseWs(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		uid := v.Account
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserID == dice.FormatDiceIDQQ(uid) {
-				return c.JSON(CodeAlreadyExists, i)
-			}
+		if checkUidExists(c, uid) {
+			return nil
 		}
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
@@ -922,11 +915,10 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		uid := v.Account
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserID == dice.FormatDiceIDQQ(uid) {
-				return c.JSON(CodeAlreadyExists, i)
-			}
+		if checkUidExists(c, uid) {
+			return nil
 		}
+
 		conn := dice.NewLagrangeConnectInfoItem(v.Account)
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
