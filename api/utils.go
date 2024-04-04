@@ -9,11 +9,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sealdice-core/dice"
 
 	"github.com/alexmullins/zip"
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
+
+	"sealdice-core/dice"
 )
 
 type Response map[string]interface{}
