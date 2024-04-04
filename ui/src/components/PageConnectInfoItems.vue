@@ -26,7 +26,7 @@
 
         <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;"
           v-if="(i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode) && store.curDice.qrcodes[i.id]">
-          <div style="margin-left: 2rem">需要同账号的手机QQ扫码登录:</div>
+          <div style="margin-left: 2rem">需要同账号的手机QQ扫码登录 (限2分钟内完成):</div>
           <img
             style="margin-left: -3rem; image-rendering: pixelated; width: 10rem; height:10rem; margin-left: 3.5rem; margin-top: 2rem;"
             :src="store.curDice.qrcodes[i.id]" />
@@ -206,7 +206,8 @@
           </el-form-item> -->
 
           <!-- <el-form-item label=""> -->
-          <div style="display: flex;justify-content: center; margin-bottom: 1rem;">
+          <div style="display: flex;justify-content: center; margin-bottom: 1rem;" 
+            v-if="![goCqHttpStateCode.InLogin, goCqHttpStateCode.InLoginQrCode].includes(i.adapter?.loginState)">
             <el-button-group>
               <el-tooltip content="如果日志中出现帐号被风控，可以试试这个功能" placement="bottom-start">
                 <el-button type="warning" @click="askGocqhttpReLogin(i)">重新登录</el-button>
@@ -496,7 +497,7 @@
         <el-form-item label="账号类型" :label-width="formLabelWidth">
           <el-select v-model="form.accountType">
             <el-option label="[WIP]QQ(内置客户端)" :value="15"></el-option>
-            <el-option label="QQ(onebot11分离部署)" :value="6"></el-option>
+            <el-option label="QQ(onebot11正向WS)" :value="6"></el-option>
             <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
             <el-option label="[WIP]QQ(官方bot)" :value="10"></el-option>
             <el-option label="[WIP]Satori" :value="14"></el-option>
@@ -778,12 +779,9 @@
         <el-form-item v-if="form.accountType === 6" label="账号" :label-width="formLabelWidth" required>
           <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
         </el-form-item>
-        <el-form-item v-if="form.accountType === 6" label="程序目录" :label-width="formLabelWidth">
-          <el-input v-model="form.relWorkDir" type="text" autocomplete="off"
-            placeholder="gocqhttp的程序目录，如 d:/my-gocqhttp"></el-input>
-        </el-form-item>
+
         <el-form-item v-if="form.accountType === 6" label="连接地址" :label-width="formLabelWidth" required>
-          <el-input v-model="form.connectUrl" placeholder="正向WS连接地址，如 ws://localhost:1234" type="text"
+          <el-input v-model="form.connectUrl" placeholder="正向WS连接地址，如 ws://127.0.0.1:1234" type="text"
             autocomplete="off"></el-input>
         </el-form-item>
         <el-form-item v-if="form.accountType === 6" label="访问令牌" :label-width="formLabelWidth">
