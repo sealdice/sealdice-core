@@ -57,9 +57,9 @@ type PlatformAdapterGocq struct {
 	AccessToken string              `yaml:"accessToken" json:"accessToken"` // 访问令牌
 
 	UseInPackGoCqhttp bool   `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
-	BuiltinMode       string `yaml:"builtinMode" json:"builtinMode"`
-	GoCqhttpState     int    `yaml:"-" json:"loginState"`    // 当前状态
-	CurLoginIndex     int    `yaml:"-" json:"curLoginIndex"` // 当前登录序号，如果正在进行的登录不是该Index，证明过时
+	BuiltinMode       string `yaml:"builtinMode" json:"builtinMode"`             // 分为 lagrange 和 gocq
+	GoCqhttpState     int    `yaml:"-" json:"loginState"`                        // 当前状态
+	CurLoginIndex     int    `yaml:"-" json:"curLoginIndex"`                     // 当前登录序号，如果正在进行的登录不是该Index，证明过时
 
 	GoCqhttpProcess           *procs.Process `yaml:"-" json:"-"`
 	GocqhttpLoginFailedReason string         `yaml:"-" json:"curLoginFailedReason"` // 当前登录失败原因
