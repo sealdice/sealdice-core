@@ -43,6 +43,9 @@ class ProcessService : LifecycleService(){
     private var isRunning = false
     private var shellLogs = ""
     private lateinit var player: MediaPlayer
+    private lateinit var wakeLock: PowerManager.WakeLock
+    private lateinit var networkCallback: ConnectivityManager.NetworkCallback
+    private lateinit var notification : Notification
 
     private lateinit var windowManager: WindowManager
     private var floatRootView: View? = null//悬浮窗View
@@ -153,7 +156,7 @@ class ProcessService : LifecycleService(){
             val notificationChannel = NotificationChannel("sealdice","SealDice", NotificationManager.IMPORTANCE_HIGH)
             mNotificationManager.createNotificationChannel(notificationChannel)
             val pendingIntent = PendingIntent.getActivity(applicationContext, 0, Intent(applicationContext, NotificationActivity::class.java), PendingIntent.FLAG_MUTABLE)
-            val notification: Notification = Notification.Builder(this,"sealdice")
+            notification = Notification.Builder(this,"sealdice")
                 .setContentTitle("SealDice is running")
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentIntent(pendingIntent)
@@ -162,7 +165,7 @@ class ProcessService : LifecycleService(){
         }
         else {
             val pendingIntent = PendingIntent.getActivity(applicationContext, 0, Intent(applicationContext, NotificationActivity::class.java), PendingIntent.FLAG_MUTABLE)
-            val notification: Notification = Notification.Builder(this)
+            notification = Notification.Builder(this)
                 .setContentTitle("SealDice is running")
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentIntent(pendingIntent)
@@ -176,14 +179,14 @@ class ProcessService : LifecycleService(){
             }
             if (intent.getBooleanExtra("alive_wakelock", false)) {
                 val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-                val wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "sealdice:LocationManagerService")
+                wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "sealdice:LocationManagerService")
                 wakeLock.acquire()
                 val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
                 val networkRequest = NetworkRequest.Builder()
                     .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                     .build()
 
-                val networkCallback = object : ConnectivityManager.NetworkCallback() {
+                networkCallback = object : ConnectivityManager.NetworkCallback() {
                     override fun onAvailable(network: Network) {
                         // Network is now available
                     }
@@ -243,6 +246,13 @@ class ProcessService : LifecycleService(){
     }
     override fun onDestroy() {
         super.onDestroy()
+        player.stop()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        if (wakeLock.isHeld) {
+            wakeLock.release()
+        }
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        connectivityManager.unregisterNetworkCallback(networkCallback)
         stopProcess()
     }
 }
