@@ -54,13 +54,13 @@ jobs:
       - name: Download
         run: |
           mkdir lag
-          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_linux-arm64_8.0.zip > lag/Lagrange.OneBot.linux-arm64.zip
-          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_linux-x64_8.0.zip > lag/Lagrange.OneBot.linux-amd64.zip
-          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_win-x64_8.0.zip > lag/Lagrange.OneBot.windows-amd64.zip
-          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_win-x86_8.0.zip > lag/Lagrange.OneBot.windows-386.zip
-          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_osx-arm64_8.0.zip > lag/Lagrange.OneBot.darwin-arm64.zip
-          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_osx-x64_8.0.zip > lag/Lagrange.OneBot.darwin-amd64.zip
-          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_linux-musl-arm64_8.0.zip > lag/Lagrange.OneBot.android-arm64.zip
+          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_linux-arm64_7.0.zip > lag/Lagrange.OneBot.linux-arm64.zip
+          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_linux-x64_7.0.zip > lag/Lagrange.OneBot.linux-amd64.zip
+          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_win-x64_7.0.zip > lag/Lagrange.OneBot.windows-amd64.zip
+          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_win-x86_7.0.zip > lag/Lagrange.OneBot.windows-386.zip
+          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_osx-arm64_7.0.zip > lag/Lagrange.OneBot.darwin-arm64.zip
+          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_osx-x64_7.0.zip > lag/Lagrange.OneBot.darwin-amd64.zip
+          curl https://d1.sealdice.com/lagrange/Lagrange.OneBot_linux-musl-arm64_7.0.zip > lag/Lagrange.OneBot.android-arm64.zip
 
       - name: Upload
         uses: actions/upload-artifact@v4
