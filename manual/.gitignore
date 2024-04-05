@@ -4,6 +4,9 @@ node_modules
 /docs/.vuepress/.cache/
 /docs/.vuepress/dist/
 
+/docs/.vitepress/cache/
+/docs/.vitepress/dist/
+
 # lock
 package-lock.json
 yarn.lock

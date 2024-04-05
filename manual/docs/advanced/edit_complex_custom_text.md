@@ -24,7 +24,7 @@ $t计算结果 == 1 ? " 啧！"
 %}
 ```
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.r', send: true},
@@ -37,7 +37,7 @@ $t计算结果 == 1 ? " 啧！"
 
 ### 多套文案的实现
 
-::: note 了解自定义回复的编写
+::: tip 提示：了解自定义回复的编写
 
 多套文案的实现一般需要用到「自定义回复」来提供切换命令，见 [编写自定义回复](./edit_reply.md)。
 
@@ -85,7 +85,7 @@ if $g文案模式 == 2 {$t目标文案 = `（这里填你个性化的模式2文�
 
 以修改了 `.jrrp` 的文案为例：
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: 'mode show', send: true},

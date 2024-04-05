@@ -1,6 +1,6 @@
 # sealdice-manual-next
 
-VuePress2 驱动的海豹骰全新官方使用手册。
+VitePress 驱动的海豹骰官方使用手册。
 
 当前手册预览可见 [海豹手册](https://sealdice.github.io/sealdice-manual-next/)。
 
@@ -8,7 +8,7 @@ VuePress2 驱动的海豹骰全新官方使用手册。
 
 文档写在 `docs` 下的 `.md` 文件中，按文件夹分组。
 
-如需调整导航栏和侧边栏，需要修改 `docs/.vuepress/navbar.ts` 和 `docs/.vuepress/sidebar.ts` 中的配置。
+如需调整导航栏和侧边栏，则涉及到修改 `docs/.vitepress/theme.ts` 和 `docs/.vitepress/catalogue.ts` 中的配置。
 
 ## 排版
 
@@ -26,12 +26,12 @@ VuePress2 驱动的海豹骰全新官方使用手册。
 段落标题的标签应当加在尽可能高等级的标题上，使用以下标签附在标题末尾：
 
 ```markdown
-## 新加入的功能 <Badge type="tip" text="vA.B.C" vertical="middle"/>
+## 新加入的功能 <Badge type="tip" text="vA.B.C"/>
 ```
 
 在紧随以上标题的第一段正文开头，也应该做出文字叙述，例如：
 
-> 从 `vA.B.C` 起，海豹支持某新加入的功能……
+> 从 <Badge type="tip" text="vA.B.C"/> 起，海豹支持某新加入的功能……
 
 ## 本地调试
 
@@ -63,8 +63,6 @@ pnpm run docs:dev
 9. 等待 workflow 完成，左边栏选择 Deployments，应能看到一个对应你分支的 Pages 链接；
 10. 完成以上步骤后，你每次推送新的 commit 到自己的 fork 仓库，都会自动执行构建和部署，**无需再次手动操作**。
 
-## VuePress2 和 Markdown 扩展
+## VitePress
 
-手册使用 VuePress2 驱动，文档见 [VuePress2 文档](https://v2.vuepress.vuejs.org/zh/)，主题为 [vuepress-theme-hope](https://theme-hope.vuejs.press/zh/)。
-
-同时使用了 `vuepress-plugin-md-enhance` 插件为 Markdown 提供更多扩展语法，文档见 [vuepress-plugin-md-enhance 文档](https://plugin-md-enhance.vuejs.press/zh/guide)。
+手册使用 VitePress 驱动，文档见 [VitePress](https://vitepress.dev/zh/)。

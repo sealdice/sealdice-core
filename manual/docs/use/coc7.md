@@ -13,7 +13,7 @@ title: 克苏鲁的呼唤 7 版
 
 :::
 
-::: note 克苏鲁的呼唤
+::: info 克苏鲁的呼唤
 
 **「克苏鲁的呼唤」**（Call of Cthulhu）是一个充满了秘密、神秘和恐怖的游戏。你将扮演一位坚定的侦探，奔波在奇怪而危险的场所之间，揭开邪恶的阴谋，对抗暗夜的恐怖。你将面对令人 SAN 值直葬（令人理智崩溃）的存在、怪物们，还有疯魔的邪教徒们。在被人遗忘的奇异书卷中，你会发现不应当为人类所知晓的秘密。
 
@@ -53,7 +53,7 @@ title: 克苏鲁的呼唤 7 版
 
 将指定属性设定为指定表达式的计算结果。如 `.st 敏捷50 力量3d6*5`。
 
-<Badge type="tip" text="v1.4.2" vertical="middle" /> 从 `v1.4.2` 开始，海豹核心兼容了简化卡格式 `.st <角色名>-<属性><表达式>`，这相当于分别使用 `.nn` 指令设置角色名，然后设定属性值。
+从 <Badge type="tip" text="v1.4.2" /> 开始，海豹核心兼容了简化卡格式 `.st <角色名>-<属性><表达式>`，这相当于分别使用 `.nn` 指令设置角色名，然后设定属性值。
 
 ### 更新属性值
 
@@ -67,7 +67,7 @@ title: 克苏鲁的呼唤 7 版
 
 保存计算表达式，以更方便地计算某些固定骰点。例如
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.st &手枪伤害=1d6+1', send: true},
@@ -88,7 +88,7 @@ title: 克苏鲁的呼唤 7 版
 
 以上功能均可以通过附加 @其他人 来操作对方的属性值。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.st 侦查80 @Szz', send: true},
@@ -121,7 +121,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 另外，直接指明技能名和数值，将以给出的数值进行检定。
 
-::: note 示例
+::: info 示例
 
 假设角色的侦查技能是40
 
@@ -142,7 +142,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 重复进行指定次数的相同检定。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.ra 3# 侦查', send: true},
@@ -157,7 +157,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 进行检定，但只有成功等级达到要求的难度才判定为成功。可以指定的难度有 `困难`（当前判定线的二分之一）、`极难`（当前判定线的五分之一）、`大成功`（根据当前房规确定）
 
-::: note 示例
+::: info 示例
 
 假设角色的侦查技能是40
 
@@ -174,7 +174,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 进行检定，并且使用指定个数（如果不指定，为 1 个）的奖励骰（`b`）或惩罚骰（`p`）。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.ra b2 侦查', send: true},
@@ -187,7 +187,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 以上功能均可以通过附加 `@其他人` 来使用对方的技能进行检定。
 
-::: note 示例
+::: info 示例
 
 假定 Szz 的侦查技能是80
 
@@ -200,7 +200,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 ### 以上功能可以组合使用
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.ra 3# p 困难侦查+10 @Szz', send: true},
@@ -227,20 +227,20 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 一个较为常见的用法是，PL 要求使用心理学技能，由 KP 进行暗中代骰。
 
-:::: note 示例
+:::: info 示例
 
 ::: tabs
 
-@tab 跑团群
+== 跑团群
 
 <ChatBox :messages="[
-{username: 'PL', avatar: '/images/avatar/user1.jpg', content: '我要对这个 NPC 使用心理学'},
-{username: 'KP', avatar: '/images/avatar/user3.jpg', content: '可以', send: true},
-{username: 'KP', avatar: '/images/avatar/user3.jpg', content: '.rah 心理学 @PL', send: true},
+{username: 'PL', avatar: 'user1', content: '我要对这个 NPC 使用心理学'},
+{username: 'KP', avatar: 'user3', content: '可以', send: true},
+{username: 'KP', avatar: 'user3', content: '.rah 心理学 @PL', send: true},
 {content: '由<KP>代骰:\n<PL>悄悄进行了一项心理学检定'}
 ]"/>
 
-@tab KP 收到的私聊信息
+== KP 收到的私聊信息
 
 <ChatBox :messages="[
 {content: '来自群<跑团群>(群号)的暗中检定:\n<PL>的&quot;心理学&quot;检定结果为：D100=70/70 成功'}
@@ -271,7 +271,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 自己与对手均使用相同属性/技能（如果有调整值，也相同应用）进行一次检定，然后比较成功等级。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.rav 侦查+10 @Szz', send: true},
@@ -286,7 +286,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 使用自己的一个属性/技能对抗对手的另一属性/技能，或者相同属性/技能应用不同调整值。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.rav 潜行,b 侦查 @Szz', send: true},
@@ -313,7 +313,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 其中，理智损失均可以是包含骰点的表达式。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.sc 1/1D4+1', send: true},
@@ -338,7 +338,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 此指令支持附加 @其他人，使目标进行指定的理智检定。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.sc 0/1 @Szz', send: true},
@@ -419,7 +419,7 @@ rc 是规则书检定。而 ra 是房规检定。区别主要在于对大成功/
 
 此外，也会计算属性的总值供用户参考。总值包括两个，其一是 8 项基础属性的总值，其二是前者与幸运的总值。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.coc 2', send: true},

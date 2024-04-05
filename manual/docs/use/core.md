@@ -31,7 +31,7 @@ title: 核心指令
 
 `.master unlock <解锁码>` 清空 Master 权限列表，并给自己重新添加 Master 权限。
 
-::: warning 保护好你的骰子
+::: warning 注意：保护好你的骰子
 
 我们认为，拥有海豹核心的最终判定方式是可以接触到 WebUI。因此，该解锁码仅能通过 WebUI 的「综合设置 - 基本设置」获取。
 
@@ -45,7 +45,7 @@ title: 核心指令
 
 **你必须 AT 骰子账号，才能使用 bot 命令**。为了简单，在以下示例中略去 AT 的部分。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.bot on', send: true},
@@ -72,7 +72,7 @@ title: 核心指令
 
 目前，海豹提供 7 个内置扩展，它们的详细信息在本章的后续内容中逐一介绍。同时，海豹核心也支持通过装载 JavaScript 脚本添加第三方扩展。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.ext', send: true},
@@ -97,7 +97,7 @@ title: 核心指令
 
 ### 常用示例
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.r', send: true},
@@ -120,7 +120,7 @@ title: 核心指令
 
 ### 多轮骰点
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.r 2#d10', send: true},
@@ -133,7 +133,7 @@ title: 核心指令
 
 你可在表达式中包含属性值或其他变量。
 
-::: note 示例
+::: info 示例
 
 此时木落的侦查技能点是 53
 
@@ -148,7 +148,7 @@ title: 核心指令
 
 CoC 规则中，对于百分骰的一种补偿骰法，通过额外骰一定数量的十位骰，选择组成的最好结果或最坏结果。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.r b', send: true},
@@ -165,7 +165,7 @@ CoC 规则中，对于百分骰的一种补偿骰法，通过额外骰一定数�
 
 D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或较低结果。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.set 20', send: true},
@@ -180,7 +180,7 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 
 优势骰与劣势骰也可使用通用的表达式表达
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.r 2d20k1 等于优势骰', send: true},
@@ -193,25 +193,25 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 
 ### fvtt 骰点兼容
 
-:::: note 示例
+:::: info 示例
 
 ::: tabs
 
-@tab 优势骰
+== 优势骰
 
 <ChatBox :messages="[
 {content: '.r d20kh', send: true},
 {content: '<木落>掷出了 d20kh=[{10 | 3 }]=10'},
 ]" />
 
-@tab 劣势骰
+== 劣势骰
 
 <ChatBox :messages="[
 {content: '.r d20kl', send: true},
 {content: '<木落>掷出了 d20kl=[{6 | 15 }]=6'},
 ]" />
 
-@tab 排除低值
+== 排除低值
 
 骰 4 个排除 1 个最低值：
 
@@ -220,7 +220,7 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 {content: '<木落>掷出了 4d6dl1=[{5 3 2 | 1 }]=10'},
 ]" />
 
-@tab 排除高值
+== 排除高值
 
 骰 4 个排除 1 个最高值：
 
@@ -239,18 +239,18 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 
 骰点时投掷 4 次，加在一起为结果。
 
-:::: note 示例
+:::: info 示例
 
 ::: tabs
 
-@tab 一般使用
+== 一般使用
 
 <ChatBox :messages="[
 {content: '.r f', send: true},
 {content: '<木落>掷出了 f=[---+]=-2'},
 ]" />
 
-@tab 带补正的情况
+== 带补正的情况
 
 <ChatBox :messages="[
 {content: '.r f+1', send: true},
@@ -275,7 +275,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 表达式形如 `XaY[mZ][kN]`。其中的大写字母用相应参数替换。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.r 5a6', send: true},
@@ -292,7 +292,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 你可将 `kN` 替换成 `qM`，这时，最终计算的是**小于等于 M**的骰子总数。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.r 5a6q4', send: true},
@@ -315,7 +315,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 表达式形如 `XcY[mZ]`。其中的大写字母用相应参数替换。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.r 4c3m7', send: true},
@@ -330,7 +330,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 以上所有骰法，加、减、乘、除、乘方等 5 个数学运算，以及括号 `()` 可以被组合使用，以进行更复杂的运算。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.r 30 + (-1d20) + 49', send: true},
@@ -345,7 +345,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 特别地，上文所述的「骰法」`d` `b` `p` `f` `a` `c` 均可作为运算符使用。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.r 1d1d1d1d1d1d1d1d1d1d1d1d1d1d(20+1d3*4)', send: true},
@@ -370,18 +370,18 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 :::
 
-:::: note 示例
+:::: info 示例
 
 ::: tabs
 
-@tab 群聊
+== 群聊
 
 <ChatBox :messages="[
 {content: '.rh d50', send: true},
 {content: '命运正在低语！'},
 ]" />
 
-@tab 收到的私聊
+== 收到的私聊
 
 <ChatBox :messages="[
 {content: '来自群<群名>(群号)的暗骰:\n<木落>掷出了 d10=[1d10=3]=3'},
@@ -397,7 +397,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 这种操作称为「代骰」，你会在许多其他指令中看到代骰用法。
 
-::: note 示例
+::: info 示例
 
 此时木落的侦查是 75，Szz 的侦查是 80
 
@@ -420,7 +420,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 角色名被用于在进行各种操作和记录 Log 时显示。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.nn 简·拉基·茨德', send: true},
@@ -477,11 +477,11 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 查询功能在不同设备上的实现是不同的。在 x86 设备上，海豹核心使用稍微更多的内存使用全文搜索，这赋予了查询指令强大的获取能力。在其他平台上，由于搜索库的限制，海豹核心使用词条标题模糊搜索。
 
-<Badge type="tip" text="v1.4.2" vertical="middle" /> 从 `v1.4.2` 版本起，你可以在 WebUI 的「扩展功能 - 帮助文档」中设置分组的别名。
+从 <Badge type="tip" text="v1.4.2" /> 版本起，你可以在 WebUI 的「扩展功能 - 帮助文档」中设置分组的别名。
 
-### 指定默认查询分组 <Badge type="tip" text="v1.4.2" vertical="middle" />
+### 指定默认查询分组 <Badge type="tip" text="v1.4.2" />
 
-从 `v1.4.2` 版本起，海豹支持在每个群组中分别设置默认的查询分组。
+从 <Badge type="tip" text="v1.4.2"/> 版本起，海豹支持在每个群组中分别设置默认的查询分组。
 
 `.find config --group` 查看当前群组的默认查询分组。
 
@@ -489,7 +489,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 `.find config --groupclr` 清除当前群组的默认查询分组。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.find config --group=COC', send: true},
@@ -506,7 +506,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ### 全文搜索
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.find 30尺 法术', send: true},
@@ -517,7 +517,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 因为多个文本匹配度相近，因此没有列出最佳匹配条目的正文内容。用这条指令可以查看：
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.find 2212', send: true},
@@ -534,7 +534,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ### 快速文档查找
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.find 测试词条', send: true},
@@ -567,17 +567,17 @@ D&D 系列资料的整理者主要为 DicePP 项目组成员，包括**Farevell*
 
 拥有 Master 权限的用户将看到消息内容和发送者的 IM 账号，如果是来自群组，也能看到群号。
 
-:::: note 示例
+:::: info 示例
 
 ::: tabs
 
-@tab 群聊
+== 群聊
 
 <ChatBox :messages="[
-{username: 'Szz', avatar: '/images/avatar/user2.jpg', content: '.send 骰主你好！'},
+{username: 'Szz', avatar: 'user2', content: '.send 骰主你好！'},
 ]" />
 
-@tab Master 收到的消息
+== Master 收到的消息
 
 <ChatBox :messages="[
 {content: '一条来自群组<群名>(群号)，作者<Szz>(用户 IM 账号)的留言:\n骰主你好！'},
@@ -591,11 +591,11 @@ D&D 系列资料的整理者主要为 DicePP 项目组成员，包括**Farevell*
 
 Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可以是个人的 IM 账号。将收到的消息中的对应 ID 复制到此处即可。
 
-:::: note 示例
+:::: info 示例
 
 ::: tabs
 
-@tab Master 回复
+== Master 回复
 
 <ChatBox :messages="[
 {content: '一条来自群组<群名>(群号)，作者<Szz>(用户 IM 账号)的留言:\n骰主你好！'},
@@ -603,10 +603,10 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 ]" />
 
 
-@tab 群聊
+== 群聊
 
 <ChatBox :messages="[
-{username: 'Szz', avatar: '/images/avatar/user2.jpg', content: '.send 骰主你好！'},
+{username: 'Szz', avatar: 'user2', content: '.send 骰主你好！'},
 {content: '本消息由骰主<木落>通过指令发送:\n我收到了！'},
 ]" />
 
@@ -632,7 +632,7 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 如果通过「规则模板」机制添加了自设规则，并有相关配置，可以使用 `.set <规则名>` 切换为对应规则的默认骰面数。你可以通过 `.set help` 来查看当前可用的关键字。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.set 20', send: true},
@@ -674,9 +674,9 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 `.welcome set <欢迎语>` 设定欢迎语
 
-## `.ping` 指令响应测试 <Badge type="tip" text="v1.4.2" vertical="middle" />
+## `.ping` 指令响应测试 <Badge type="tip" text="v1.4.2" />
 
-从 `v1.4.2` 版本起，海豹支持 `.ping` 指令，用于指示海豹回复你一条消息。
+从 <Badge type="tip" text="v1.4.2"/> 版本起，海豹支持 `.ping` 指令，用于指示海豹回复你一条消息。
 
 `.ping` 海豹回复你一条消息。
 
@@ -691,7 +691,7 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 :::: tabs
 
-@tab 频道私聊
+== 频道私聊
 
 <ChatBox :messages="[
 {content: '我发出第一条消息。', send: true},
@@ -699,7 +699,7 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 {content: '我发出第三条消息，机器人怎么还不理我？', send: true},
 ]" />
 
-::: note
+::: tip
 
 如果出现类似场景，可以发现 QQ 会提示你已经禁止再向骰子发送私聊消息，要求在骰子回应后才能再次发送。
 
@@ -714,7 +714,7 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 {content: '好耶，我又可以发私信给骰子了！', send: true},
 ]" />
 
-@tab 频道公屏
+== 频道公屏
 
 <ChatBox :messages="[
 {content: '@海豹核心 .ping', send: true},
@@ -724,9 +724,9 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 :::::
 
-## `.alias` 定义快捷指令 & `.&` 使用快捷指令 <Badge type="tip" text="v1.4.3" vertical="middle"/>
+## `.alias` 定义快捷指令 & `.&` 使用快捷指令 <Badge type="tip" text="v1.4.3"/>
 
-从 `v1.4.3` 版本起，海豹支持使用`.alias` 定义快捷指令。同时使用 `.&/.a <快捷指令>` 触发快捷指令。
+从 <Badge type="tip" text="v1.4.3"/> 版本起，海豹支持使用`.alias` 定义快捷指令。同时使用 `.&/.a <快捷指令>` 触发快捷指令。
 
 `.alias <别名> <指令>` 将 `.&<别名>` 定义为指定指令的快捷触发方式。在群聊中默认定义群快捷指令。
 
@@ -747,11 +747,11 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 - 个人快捷指令：与用户关联，定义后用户可以在私聊、骰子所在的所有群进行使用。
 - 群快捷指令：与群关联，定义后该群内所有人都可以使用。
 
-:::: note 快捷指令示例
+:::: info 快捷指令示例
 
 ::: tabs
 
-@tab 私聊
+== 私聊
 
 <ChatBox :messages="[
 {content: '.alias 终极答案 .r 11+45-14 计算生命、宇宙以及一切的问题的答案', send: true},

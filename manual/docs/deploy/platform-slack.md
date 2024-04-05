@@ -11,15 +11,15 @@ title: Slack
 
 :::
 
-## Slack 支持 <Badge type="tip" text="v1.4.2" vertical="middle" />
+## Slack 支持 <Badge type="tip" text="v1.4.2" />
 
-海豹从 `v1.4.2` 开始支持对接 Slack。
+海豹从 <Badge type="tip" text="v1.4.2"/> 开始支持对接 Slack。
 
 ## 获取 Token
 
 要获取用于连接海豹的 Token 之前，你需要建立好一个应用。登录 [Slack Api 平台](https://api.slack.com/apps)，点击「Create New App」，再点击「From Scratch」。按照要求填写应用名字，并选择你想要海豹被部署到的工作区后点击「Create App」。
 
-::: warning 私骰模式
+::: tip 提示：私骰模式
 
 Slack 平台的机制使没有公开发布的应用无法加入被指定的单个工作区之外的地方。如有需求，可查看 Slack 提供的[发布指引](https://api.slack.com/authentication/oauth-v2)。
 
@@ -35,7 +35,7 @@ Slack 平台的机制使没有公开发布的应用无法加入被指定的单�
 1. `message.im`
 1. `message.mpim`
 
-::: warning 事件注意
+::: warning 注意
 
 如果这不是你期望的情况，请不要添加 `app_mention`。这个权限会让海豹只接收被 @ 到的指令和消息，导致 log 等功能无法正常工作。
 

@@ -34,14 +34,13 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
-// @ts-ignore
-import { withBase } from 'vuepress/client'
+import { computed } from 'vue'
+import { withBase } from 'vitepress'
 
 interface ChatMessage {
   username: string,
   content: string,
-  avatar: string,
+  avatar?: 'dice' | 'user1' | 'user2' | 'user3',
   send: boolean,
   html: boolean,
 }
@@ -50,34 +49,36 @@ const props = defineProps<{
   title?: string,
   messages?: ChatMessage[],
   noShadow?: boolean,
-  lType?: 'info' | 'note' | 'tip' | 'warning' | 'danger'
-  rType?: 'info' | 'note' | 'tip' | 'warning' | 'danger'
+  lType?: 'info' | 'tip' | 'warning' | 'danger'
+  rType?: 'info' | 'tip' | 'warning' | 'danger'
 }>()
 
 const getColorVar = (type) => {
   switch (type) {
-    case 'info':
-      return 'var(--info-bg-color)'
     case 'tip':
-      return 'var(--tip-bg-color)'
+      return 'var(--vp-c-tip-soft)'
     case 'warning':
-      return 'var(--warning-bg-color)'
+      return 'var(--vp-c-warning-soft)'
     case 'danger':
-      return 'var(--danger-bg-color)'
-    case 'note':
+      return 'var(--vp-c-danger-soft)'
+    case 'info':
     default:
-      return 'var(--note-bg-color)'
+      return 'var(--vp-c-default-soft)'
   }
 }
 
 const getAvatar = (message: ChatMessage) => {
-  if (message.avatar && message.avatar !== '') {
-    return withBase(message.avatar)
+  if (message.avatar) {
+    if (message.avatar === 'dice') {
+      return withBase("/images/avatar/dice.svg")
+    } else {
+      return withBase(`/images/avatar/${message.avatar}.jpg`)
+    }
   }
   if (message.send) {
-    return withBase('/images/avatar/user1.jpg')
+    return withBase("/images/avatar/user1.jpg")
   } else {
-    return withBase('/images/avatar/dice.svg')
+    return withBase("/images/avatar/dice.svg")
   }
 }
 
@@ -93,11 +94,11 @@ const getUsername = (message: ChatMessage) => {
 }
 
 const leftColorVar = computed(() => {
-  return getColorVar(props.rType ?? 'note')
+  return getColorVar(props.rType ?? 'info')
 })
 
 const rightColorVar = computed(() => {
-  return getColorVar(props.lType ?? 'info')
+  return getColorVar(props.lType ?? 'tip')
 })
 
 const saturation = computed(() => {
@@ -125,7 +126,10 @@ const saturation = computed(() => {
   justify-content: center;
   margin: 1px;
   border-radius: 0.25rem;
+
   img {
+    width: 40px;
+    height: 40px;
     border-radius: 0.25rem;
   }
 }
@@ -147,11 +151,12 @@ const saturation = computed(() => {
 .bubble-left, .bubble-right {
   width: fit-content;
   max-width: 80%;
-  margin: 0.2rem 0;
+  margin: 0.1rem 0;
   padding: 0.5rem 1rem;
   filter: brightness(v-bind(saturation));
   position: relative;
   word-break: break-all;
+
   span {
     line-height: 1.5;
   }
@@ -171,7 +176,7 @@ const saturation = computed(() => {
 
   &:before {
     top: 0;
-    left: -0.8rem;
+    left: -1rem;
     border-top: 0;
     border-right: 0.5rem solid v-bind(leftColorVar);
     border-bottom: 1rem solid transparent;
@@ -186,7 +191,7 @@ const saturation = computed(() => {
 
   &:after {
     top: 0;
-    right: -0.8rem;
+    right: -1rem;
     border-top: 0;
     border-right: 0.5rem solid transparent;
     border-bottom: 1rem solid transparent;

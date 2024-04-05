@@ -13,7 +13,7 @@ title: 龙与地下城 5E
 
 :::
 
-::: note 龙与地下城
+::: info 龙与地下城
 
 **「龙与地下城」**（Dungeons & Dragons, D&D, DnD）是一款剑与魔法奇幻背景的叙事性角色扮演游戏。与孩提时代的过家家扮演游戏相似，D&D 依靠的是玩家无穷的想象力。
 
@@ -27,7 +27,7 @@ title: 龙与地下城 5E
 
 `.dndx (<数量>)` 随机生成带属性名的结果。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.dnd 5', send: true},
@@ -50,7 +50,7 @@ title: 龙与地下城 5E
 
 `.ri <单项>, <单项>, ...` 批量设定多个角色的先攻值，每个单项都是 `<先攻值> <角色名>` 形式。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.ri +2', send: true},
@@ -83,7 +83,7 @@ title: 龙与地下城 5E
 
 `.init help` 显示帮助。
 
-::: note 示例
+::: info 示例
 
 已经设置了先攻列表的情况
 
@@ -132,7 +132,7 @@ title: 龙与地下城 5E
 
 `.st hp-1d6 --over` 前一用法的特殊情况，不计算临时生命扣血。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.st 模板', send: true},
@@ -185,7 +185,7 @@ title: 龙与地下城 5E
 
 `.rc (优势|劣势) <表达式>` 进行优势或劣势检定。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.rc 运动', send: true},
@@ -206,7 +206,7 @@ title: 龙与地下城 5E
 
 你可以通过如下方式记录武器的熟练项。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.st 长剑=4', send: true},
@@ -233,7 +233,7 @@ title: 龙与地下城 5E
 
 用于设置临时属性，例如虚假生命：
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.st hp:10', send: true},
@@ -248,7 +248,7 @@ title: 龙与地下城 5E
 
 也可以用来设置其他属性：
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.st 力量:10  运动:0', send: true},
@@ -263,7 +263,7 @@ title: 龙与地下城 5E
 
 临时的技能熟练（装备或法术效果）：
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.st 力量:10  运动:0 熟练:3', send: true},
@@ -278,7 +278,7 @@ title: 龙与地下城 5E
 
 删除和清空
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.buff del hp', send: true},
@@ -311,7 +311,7 @@ title: 龙与地下城 5E
 
 `.ss 3环 -1` 消耗一个 3 环法术位。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.ss init 3 4 5', send: true},
@@ -336,7 +336,7 @@ title: 龙与地下城 5E
 
 `.cast <环数> (<消耗数量>)` 消耗指定数量的指定法术位，省略消耗数量时，消耗 1 个。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.cast 2', send: true},
@@ -353,7 +353,7 @@ title: 龙与地下城 5E
 
 `.longrest` 恢复生命值和法术位。当前角色需已设定最大生命值且当前生命值大于 0。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.长休', send: true},
@@ -382,7 +382,7 @@ title: 龙与地下城 5E
 
 st 指令对 hp 的操作也会自动触发死亡豁免。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.st hp:3 hpmax:12', send: true},

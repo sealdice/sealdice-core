@@ -11,7 +11,7 @@ title: 牌堆 自定义回复
 
 :::
 
-::: tip 如何自定义？
+::: tip 提示：如何自定义？
 
 牌堆和自定义回复都是海豹提供的扩展性功能，此处只展示相关控制指令，如果你想知道如何进行自定义，请转到 [进阶介绍](../advanced/introduce.md)。
 
@@ -33,7 +33,7 @@ title: 牌堆 自定义回复
 
 `.draw desc <牌组名称>` 查看牌组所属牌堆的详细信息。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.draw list', send: true},
@@ -54,7 +54,7 @@ title: 牌堆 自定义回复
 
 `.draw keys` 列出所有可抽取的牌组列表。
 
-::: warning 谨慎使用
+::: warning 注意：谨慎使用
 
 这一指令会将**所有**可抽取的牌组列出，在牌组较多时造成刷屏。
 
@@ -64,7 +64,7 @@ title: 牌堆 自定义回复
 
 `.draw <牌组名称> (<数量>#)` 在指定牌组抽指定数量的牌，默认为抽 1 张。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.draw GRE单词 3#', send: true},
@@ -77,7 +77,7 @@ title: 牌堆 自定义回复
 
 当指定的牌组名称不存在时，将会进行模糊搜索，效果与 `draw search` 类似。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.draw 单词', send: true},

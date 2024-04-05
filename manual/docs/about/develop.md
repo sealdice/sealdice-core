@@ -22,7 +22,7 @@ title: 参与项目
 
 所有的 Bug 和功能建议都可反馈在 [核心](https://github.com/sealdice/sealdice-core) 仓库的 issue 中，按照模板填写可方便开发组快速定位问题。
 
-::: tip 无法访问 GitHub？
+::: tip 提示：无法访问 GitHub？
 
 受限于各种原因，不是所有人都能顺利访问 GitHub，如有 Bug 可以加入官方群进行反馈。但如果有条件，我们还是建议在 GitHub 向开发组反馈问题。
 
@@ -58,19 +58,19 @@ title: 参与项目
 
 点击按钮后进入如下页面：
 
-![创建 fork](./images/develop-fork-2.png =80%x80%)
+<img src="./images/develop-fork-2.png" alt="创建 fork" width="80%">
 
 可不做任何修改，直接点击 `Create fork` 按钮，等待 fork 进度条完成，此时你应当自动跳转到了 fork 出的新仓库。
 
 ### 切出工作分支
 
-::: tip 假如你熟悉 Git 操作
+::: tip 提示：假如你熟悉 Git 操作
 
 如果你熟悉 Git 操作，可以自行 clone 仓库到本地后进行修改。
 
 :::
 
-::: warning 不要修改主分支
+::: warning 注意：不要修改主分支
 
 如果 clone 到本地操作，建议不要在主分支操作，而是新切分支进行编辑。
 
@@ -80,17 +80,17 @@ title: 参与项目
 
 切换到新仓库的分支页面，创建分支：
 
-![进入分支页](./images/develop-new-branch-1.png =45%x45%)
+<img src="./images/develop-new-branch-1.png" alt="进入分支页" width="45%">
 
 ![创建分支](./images/develop-new-branch-2.png)
 
 填写新分支名，建议为形如 `feature/xxx` 的有意义的英文。确认前请务必保证是从主分支切出的。
 
-![新分支信息](./images/develop-new-branch-3.png =65%x65%)
+<img src="./images/develop-new-branch-3.png" alt="新分支信息" width="65%">
 
 创建完毕后点击分支名切换到对应分支页面：
 
-![切换分支](./images/develop-new-branch-4.png =25%x25%)
+<img src="./images/develop-new-branch-4.png" alt="切换分支" width="25%">
 
 点击你想要修改的文件，进行在线编辑：
 
@@ -98,9 +98,9 @@ title: 参与项目
 
 修改完成后点击右上角提交变更，填写变更内容信息：
 
-![提交变更](./images/develop-new-branch-6.png =45%x45%)
+<img src="./images/develop-new-branch-6.png" alt="提交变更" width="45%">
 
-![提交变更信息](./images/develop-new-branch-7.png =65%x65%)
+<img src="./images/develop-new-branch-7.png" alt="提交变更信息" width="65%">
 
 ### 发起 Pull Request 请求
 

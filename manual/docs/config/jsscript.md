@@ -15,21 +15,19 @@ title: JavaScript 插件
 
 为了给有能力的用户提供更大的自定义空间，海豹核心支持使用 `JavaScript` 语言编写扩展插件。
 
-:::: tip JavaScript
+::: info JavaScript
 
 JavaScript（JS）是一门基于原型和头等函数的多范式高级解释型编程语言，它支持面向对象程序设计、指令式编程和函数式编程。它提供方法来操控文本、数组、日期以及正则表达式等。
 
-::: right
 —— [WIKI](https://zh.wikipedia.org/wiki/JavaScript)
-:::
 
-::::
+:::
 
 ## 获取 JS 插件
 
 你可以在 [JS 插件仓库](https://github.com/sealdice/javascript) 或官方群的群文件中找到其他骰主分享的 JS 插件。
 
-::: note 无法访问仓库？
+::: tip 提示：无法访问仓库？
 
 仓库位于 GitHub，访问时请确认你的网络状况。
 

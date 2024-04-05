@@ -24,7 +24,7 @@ VS Code 可以安装 [SealDice Snippets](https://marketplace.visualstudio.com/it
 
 <!-- - 扩展编写示例：https://github.com/sealdice/javascript/tree/main/examples -->
 
-::: tip 使用 TypeScript
+::: tip 提示：使用 TypeScript
 
 我们更推荐使用 TypeScript 来编写插件，编译到 ES6 后使用即可。不过先从 JavaScript 开始也是没有任何问题的。
 
@@ -49,7 +49,7 @@ VS Code 可以安装 [SealDice Snippets](https://marketplace.visualstudio.com/it
 console.log('Hello World!');
 ```
 
-::: note 海豹对 JavaScript 的支持
+::: tip 提示：海豹对 JavaScript 的支持
 
 海豹使用 [goja](https://github.com/dop251/goja) 作为 js 脚本引擎。goja 目前支持了 ES6 基本上全部的特性，包括 `async/await`，`promise` 和 `generator`。
 
@@ -57,7 +57,7 @@ console.log('Hello World!');
 
 :::
 
-::: tip 打印日志
+::: tip 提示：打印日志
 
 console 打印出来的东西不仅会在控制台中出现，在日志中也会显示。
 
@@ -92,12 +92,12 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 | @timestamp                                                       | 可选，最后更新时间，以秒为单位的 unix 时间戳，新版本支持了直接使用时间字符串，如 `2023-10-30`。                         |
 | @license                                                         | 可选，开源协议，示例中的 Apache-2 是一个比较自由的协议，允许任意使用和分发（包括商用），当然你也可以使用其它协议（MIT GPL 等）          |
 | @homepageURL                                                     | 可选，你的扩展的主页链接，有 GitHub 仓库可以填仓库链接，没有则可以填海豹官方插件仓库                                    |
-| @depends <Badge type="tip" text="v1.4.4" vertical="middle"/>     | 可选，从 `v1.4.4` 加入，指定你的扩展依赖的其他扩展，**可以不含此行或含有多行**。详见 [依赖其他扩展](#依赖其他扩展)               |
-| @sealVersion <Badge type="tip" text="v1.4.5" vertical="middle"/> | 可选，从 `v1.4.5` 加入，指定你的扩展的目标海豹版本。详见 [目标海豹版本](#目标海豹版本)                               |
+| @depends <Badge type="tip" text="v1.4.4"/>     | 可选，从 <Badge type="tip" text="v1.4.4"/> 加入，指定你的扩展依赖的其他扩展，**可以不含此行或含有多行**。详见 [依赖其他扩展](#依赖其他扩展)               |
+| @sealVersion <Badge type="tip" text="v1.4.5"/> | 可选，从 <Badge type="tip" text="v1.4.5"/> 加入，指定你的扩展的目标海豹版本。详见 [目标海豹版本](#目标海豹版本)                               |
 
 ## 创建和注册扩展
 
-::: tip 扩展机制
+::: tip 提示：扩展机制
 
 扩展机制可以看做是海豹的 mod 管理机制，可以模块化开关海豹的任意一部分，如常用的开启 dnd 扩展，关闭 coc 扩展，关闭自动回复等。
 
@@ -121,13 +121,13 @@ if (!seal.ext.find('test')) {
 }
 ```
 
-::: warning JS 脚本和扩展
+::: warning 注意：JS 脚本和扩展
 
 在实现上，海豹允许你在一个 JS 脚本文件中注册多个扩展，但我们不建议这样做。一般来说，一个 JS 脚本文件只会注册一个扩展。
 
 :::
 
-::: warning 修改内置功能？
+::: warning 注意：修改内置功能？
 
 出于对公平性的考虑，JS 脚本不能替换内置指令和内置扩展。
 
@@ -155,7 +155,7 @@ cmdSeal.name = 'seal'; // 指令名字，可用中文
 cmdSeal.help = '召唤一只海豹，可用 .seal <名字> 命名';
 ```
 
-::: warning 命令的帮助信息
+::: warning 注意：命令的帮助信息
 
 命令的帮助信息是在使用 `.help <命令>` 时会返回的帮助内容。
 
@@ -210,7 +210,7 @@ cmdSeal.solve = (ctx, msg, cmdArgs) => {
 };
 ```
 
-::: warning 返回执行结果
+::: warning 注意：返回执行结果
 
 在执行完自己的代码之后，需要返回指令结果对象，其参数是是否执行成功。
 
@@ -424,9 +424,9 @@ if (!seal.ext.find('draw-decks-example')) {
 
 **注意：** 部分权限等级仅在群聊中有效。
 
-从 <Badge type="tip" text="v1.4.5" vertical="middle"/> 起，在私聊中，除了**骰主**，**白名单用户**和**黑名单用户**，其他用户被视为拥有与群管理员等同的权限，即权限值 50。
+从 <Badge type="tip" text="v1.4.5"/> 起，在私聊中，除了**骰主**，**白名单用户**和**黑名单用户**，其他用户被视为拥有与群管理员等同的权限，即权限值 50。
 
-在 <Badge type="danger" text="v1.4.4" vertical="middle"/> 或更早版本，私聊中除了**骰主**，**白名单用户**和**黑名单用户**，其他用户的权限等级为普通用户（0）。
+在 <Badge type="danger" text="v1.4.4"/> 或更早版本，私聊中除了**骰主**，**白名单用户**和**黑名单用户**，其他用户的权限等级为普通用户（0）。
 
 :::
 
@@ -440,7 +440,7 @@ if (!seal.ext.find('draw-decks-example')) {
 | 普通用户 | 0   |
 | 黑名单用户 | -30 |
 
-::: tip 关于白名单用户
+::: tip 提示：关于白名单用户
 
 白名单用户即通过骰主手动添加的信任名单用户，可以使用所有需要群管理权限的功能，但不具备 Master 权限。
 
@@ -448,7 +448,7 @@ if (!seal.ext.find('draw-decks-example')) {
 
 :::
 
-::: tip 关于黑名单用户
+::: tip 提示：关于黑名单用户
 
 通常情况下你不需要考虑黑名单用户的情况，因为黑名单用户的消息会被过滤掉，不会触发任何指令。
 
@@ -503,7 +503,7 @@ if (!seal.ext.find('myperm')) {
 }
 ```
 
-## 黑名单 / 信任名单操作 <Badge type="tip" text="v1.4.4" vertical="middle" />
+## 黑名单 / 信任名单操作 <Badge type="tip" text="v1.4.4" />
 
 ### 黑名单操作的函数
 
@@ -521,7 +521,7 @@ if (!seal.ext.find('myperm')) {
 
 移除：`seal.ban.remove(ctx, uid)`
 
-::: tip 相同的移除函数
+::: tip 提示：相同的移除函数
 
 黑名单和信任名单存储在同一个数据库中，因此移除时使用的是同一个函数。
 
@@ -1242,7 +1242,7 @@ if (!seal.ext.find('xxx')){
 }
 ```
 
-## 注册插件配置项 <Badge type="tip" text="v1.4.1" vertical="middle" />
+## 注册插件配置项 <Badge type="tip" text="v1.4.1" />
 
 插件若要在 UI 中注册可供用户修改的配置项，需要在插件注册后调用 `seal.ext.registerXXXConfig()` 函数注册配置项。
 
@@ -1266,7 +1266,7 @@ type ConfigItem struct {
 }
 ```
 
-::: tip 更原始的 API
+::: tip 提示：更原始的 API
 
 `seal.ext.registerConfig()` 函数也是可以使用的，你需要自己通过 `seal.ext.newConfigItem()` 来获取一个新的 `ConfigItem` 对象。
 
@@ -1357,15 +1357,15 @@ TS 插件代码需要编译为 js 文件才能被海豹核心加载。
 
 开始使用模板工程时，需要先将所需依赖包安装好。在确认你所使用的包管理器后，在命令行使用如下命令：
 
-::: tabs#npm
+::: tabs key:npm
 
-@tab npm
+== npm
 
 ```bash
 npm install
 ```
 
-@tab pnpm
+== pnpm
 
 ```bash
 pnpm install
@@ -1375,15 +1375,15 @@ pnpm install
 
 当你写好了代码，需要将 ts 文件转换为 js 文件以便上传到海豹骰时，在命令行使用如下命令：
 
-::: tabs#npm
+::: tabs key:npm
 
-@tab npm
+== npm
 
 ```bash
 npm run build
 ```
 
-@tab pnpm
+== pnpm
 
 ```bash
 pnpm run build
@@ -1417,13 +1417,13 @@ pnpm run build
 
 ## 扩展依赖
 
-### 依赖其他扩展 <Badge type="tip" text="v1.4.4" vertical="middle"/>
+### 依赖其他扩展 <Badge type="tip" text="v1.4.4"/>
 
 有些时候，你的扩展依赖于另一个扩展提供的功能，希望在缺失对应扩展时不进行这个插件的加载。
 
 例如，「SzzRain:每日新闻」依赖于「SzzRain:定时任务」，我们希望在骰主仅安装了「SzzRain:每日新闻」时，提示需要安装其依赖的「SzzRain:定时任务」扩展。
 
-从 <Badge type="tip" text="v1.4.4" vertical="middle"/> 开始，你可以在 [插件元数据](#填写插件信息) 中通过 `@depends` 来指定扩展依赖的其他扩展。
+从 <Badge type="tip" text="v1.4.4"/> 开始，你可以在 [插件元数据](#填写插件信息) 中通过 `@depends` 来指定扩展依赖的其他扩展。
 
 #### 指定依赖的格式
 
@@ -1433,7 +1433,7 @@ pnpm run build
 
 ::: tabs
 
-@tab SzzRain:每日新闻
+== SzzRain:每日新闻
 
 ```javascript
 // ==UserScript==
@@ -1444,7 +1444,7 @@ pnpm run build
 // @depends      SzzRain:定时任务:>=2.0.0
 ```
 
-@tab SzzRain:定时任务
+== SzzRain:定时任务
 
 ```javascript
 // ==UserScript==
@@ -1493,11 +1493,11 @@ pnpm run build
 
 此时，这个插件需要同时安装 `SzzRain:定时任务`（且版本大于等于 `2.0.0`）和 `sealdice:强制依赖` 这两个插件时，才能正常加载。
 
-### 目标海豹版本 <Badge type="tip" text="v1.4.5" vertical="middle"/>
+### 目标海豹版本 <Badge type="tip" text="v1.4.5"/>
 
 新版本的海豹有时会增加更多插件可以调用的 API，但会出现使用旧版本海豹的骰主，去尝试加载使用了新 API 的插件而出错的情况。
 
-为了让插件作者无需反复说明，也更好地提示使用插件的骰主，从 <Badge type="tip" text="v1.4.5" vertical="middle"/> 开始，你可以在 [插件元数据](#填写插件信息) 中通过 `@sealVersion` 来指定插件的目标海豹版本。
+为了让插件作者无需反复说明，也更好地提示使用插件的骰主，从 <Badge type="tip" text="v1.4.5"/> 开始，你可以在 [插件元数据](#填写插件信息) 中通过 `@sealVersion` 来指定插件的目标海豹版本。
 
 例如，当插件使用了在 `1.4.6` 新增的 API，可以指定目标海豹版本 `@sealVersion 1.4.6`。而当加载该插件的海豹版本为 `1.4.5` 时，会向骰主提示海豹版本不兼容而拒绝加载。
 
@@ -1592,7 +1592,7 @@ seal.ban.getUser(id)
 
 ### 部分 api 使用示例
 
-::: note
+::: tip
 
 声明和注册扩展的代码部分已省略。
 

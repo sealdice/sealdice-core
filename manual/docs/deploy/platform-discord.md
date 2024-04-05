@@ -18,7 +18,7 @@ title: Discord
 
 ## 连接海豹
 
-::: tip 代理模式
+::: tip 提示：代理模式
 
 如果你海豹所处的位置直接访问 Discord 服务有困难，我们提供了通过 HTTP 代理访问的途径。
 
@@ -30,7 +30,7 @@ title: Discord
 
 要申请用于邀请海豹至 Discord 服务器的邀请链接，前往侧边导航栏「OAuth2」下方的子目录「URL Generator」，在 `Scope` 中选择 `Bot` 后在下方 `Bot Permissions` 中选择你希望海豹拥有的权限。完成后复制下方生成的 URL，复制到浏览器打开。
 
-::: warning 权限不足
+::: warning 注意：权限不足
 
 如果给予海豹的权限不充分，可能会导致无法发送消息或图片。若你不确定具体应该添加哪些权限，可直接添加 `Administrator`（管理员）权限。
 

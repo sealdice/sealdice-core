@@ -25,7 +25,7 @@ title: 故事
 
 抽取指定种族的随机名字。可以指定数量，默认是 5 个。
 
-::: details 可以选用的种族
+::: details 补充：可以选用的种族
 
 - 达马拉人
 - 卡林珊人
@@ -45,7 +45,7 @@ title: 故事
 
 随机打乱提供的元素。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.who 1 2 3 4 5 6 7 8 9', send: true},

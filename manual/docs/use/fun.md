@@ -21,7 +21,7 @@ title: 娱乐
 
 `.gugu` 或 `.咕咕`
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.gugu', send: true},
@@ -32,7 +32,7 @@ title: 娱乐
 
 `.gugu 来源` 查看鸽子背后的故事。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.gugu 来源', send: true},
@@ -45,7 +45,7 @@ title: 娱乐
 
 `.jsr <次数># <面数> (<原因>)` 投掷指定面数的骰子指定次数，使每一次的结果都不相同。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.jsr 5# 100', send: true},
@@ -64,7 +64,7 @@ title: 娱乐
 
 `.drl` / `.drlh` 从当前骰池抽取一个数值，后者将结果私聊发送。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.drl', send: true},
@@ -85,7 +85,7 @@ title: 娱乐
 
 骰子会将模板内容解析后返回，其中含有的表达式和变量都将被求值。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.text 看看手气 {1d16}', send: true},
@@ -102,7 +102,7 @@ title: 娱乐
 
 特别地，使用 `ww` 指令时允许省略加骰线 `aY`，这时将使用默认值进行骰点。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.ww 5', send: true},
@@ -115,7 +115,7 @@ title: 娱乐
 
 `.ww set clr` 重置默认值为：加骰线 10、面数 10、成功线 8，即 `a10m10k8`。
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.ww set a6m10k9', send: true},

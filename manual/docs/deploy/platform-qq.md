@@ -5,7 +5,7 @@ title: QQ
 
 # QQ
 
-::: warning 有关 QQ 平台机器人的说明
+::: warning 注意：有关 QQ 平台机器人的说明
 
 直至目前，绝大部分群聊中的 QQ 机器人采用「**假用户**」方式，即通过第三方软件接入注册的另一个 QQ 。**QQ 官方一直在对第三方实现进行技术与非技术层面的多重打击。**
 
@@ -35,11 +35,11 @@ title: QQ
 
 :::
 
-## 官方机器人 <Badge type="tip" text="v1.4.2" vertical="middle" />
+## 官方机器人 <Badge type="tip" text="v1.4.2" />
 
-海豹从 `v1.4.2` 开始支持对接 QQ 官方的机器人服务。
+海豹从 <Badge type="tip" text="v1.4.2"/> 开始支持对接 QQ 官方的机器人服务。
 
-::: warning QQ 机器人
+::: tip QQ 机器人
 
 QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https://q.qq.com/#/) 进行申请。
 
@@ -53,7 +53,7 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 如果你想尝试一下这样的机器人，非常欢迎你使用海豹官方的骰子：
 
-![海豹机器人二维码](./images/platform-qq-bot-qrcode.jpg =65%x65%)
+<img src="./images/platform-qq-bot-qrcode.jpg" alt="海豹机器人二维码" width="65%">
 
 ### 获取连接所需信息
 
@@ -61,7 +61,7 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 创建完成后，进入机器人管理后台，切换到「开发设置」页面：
 
-![切换到开发设置](./images/platform-qq-official-1.png =40%x40%)
+<img src="./images/platform-qq-official-1.png" alt="切换到开发设置" width="40%">
 
 在页面中你可以看到这样的信息，其中「机器人ID」「机器人令牌」「机器人密钥」这三项是海豹进行连接所需要的。
 
@@ -71,19 +71,19 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 登录海豹并添加账号，选择「QQ(官方bot)」。填写对应的信息点击连接。你的海豹应该可以正常连接官方机器人运作了！
 
-![连接官方Bot](./images/platform-qq-official-3.png =80%x80%)
+<img src="./images/platform-qq-official-3.png" alt="连接官方Bot" width="80%">
 
 ### 使用海豹
 
-::: warning 注意
+::: warning
 
 目前官方机器人只响应包含 `@` 的消息，操作时请注意。
 
 :::
 
-## LLOneBot API <Badge type="tip" text="v1.4.2" vertical="middle" />
+## LLOneBot API <Badge type="tip" text="v1.4.2" />
 
-海豹从 `v1.4.2` 版本开始支持通过 OneBot 协议连接 LLOneBot API。
+海豹从 <Badge type="tip" text="v1.4.2"/> 版本开始支持通过 OneBot 协议连接 LLOneBot API。
 
 ::: info LLOneBot API
 
@@ -97,7 +97,7 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 社区提供了非常简便的 [安装脚本](https://github.com/Mzdyl/LiteLoaderQQNT_Install/)，安装方法中在文档中，请自行查看。
 
-::: warning 注意
+::: tip
 
 - 使用 Windows 部署时脚本要使用管理员模式运行。
 - 由于脚本使用了 git，请在系统中安装 [git](https://git-scm.com/)。
@@ -131,7 +131,7 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 - 正向连接：默认开放的正向 ws 端口为 3001，在海豹的新添账号选择「OneBot 分离部署」，账号处随便填写，连接地址填 `ws://localhost:3001`。
 - 反向连接：关闭正向连接开关，打开反向连接，点击「添加」，输入 `ws://127.0.0.1:4001/ws`，在海豹的新添账号选择「OneBot 反向连接」，输入账号。
 
-::: warning 注意事项
+::: tip
 
 - 如若想修改端口请在 LLOneBot 的设置 UI 自行修改。
 - 请注意设置中的正向连接和反向连接请 **不要同时打开**，否则会发不出消息。
@@ -139,13 +139,13 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 :::
 
-## Lagrange <Badge type="tip" text="v1.4.2" vertical="middle" />
+## Lagrange <Badge type="tip" text="v1.4.2" />
 
-海豹从 `v1.4.2` 开始适配了 Lagrange（拉格兰）的连接。
+海豹从 <Badge type="tip" text="v1.4.2"/> 开始适配了 Lagrange（拉格兰）的连接。
 
 ::: info Lagrange
 
-Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括目前实现了 Linux NTQQ 协议的 Lagrange.Core，和提供 OneBot-V11 Api 的 Lagrange.Onebot 两部分。
+[Lagrange](https://github.com/KonataDev/Lagrange.Core)（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括目前实现了 Linux NTQQ 协议的 Lagrange.Core，和提供 OneBot-V11 Api 的 Lagrange.Onebot 两部分。
 
 与 GoCqhttp 类似，Lagrange 可以很方便的在多个平台（Windows、Linux、Mac）部署，海豹核心可以对接其提供的 OneBot-V11 Api 来提供 QQ 骰子服务。
 
@@ -162,7 +162,7 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
 
 ![Lagrange Nightly Release](./images/platform-qq-lagrange-release.png)
 
-::: details 使用 Lagrange Action 版本
+::: details 补充：使用 Lagrange Action 版本
 
 你还可以选择使用 Lagrange 在 Action 中自动构建的版本，这些版本是 **最新** 的构建。在使用这些版本时，你需要安装对应版本的 .Net SDK。
 
@@ -170,11 +170,11 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
 
 可以在 [Lagrange Github 仓库](https://github.com/LagrangeDev/Lagrange.Core) 中的 Action 页面，进入位于列表最前一条的最新制品页面，根据你的系统选择相应版本。
 
-![Lagrange Action](./images/platform-qq-lagrange-1.png =80%x80%)
+<img src="./images/platform-qq-lagrange-1.png" alt="Lagrange Action" width="80%">
 
 点击进入页面后拉到最下方，选择相应版本下载。
 
-![Lagrange Action Artifacts](./images/platform-qq-lagrange-2.png =40%x40%)
+<img src="./images/platform-qq-lagrange-2.png" alt="Lagrange Action Artifacts" width="40%">
 
 :::
 
@@ -182,21 +182,21 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
 
 解压下载的 Nightly 版的 Lagrange 压缩文件，你可以看见名如 `Lagrange.OneBot.exe` 的应用程序，双击启动即可。启动时有可能会先弹出如下警告，按步骤允许即可：
 
-![Lagrange 运行警告 1](./images/platform-qq-lagrange-3.png =40%x40%)
+<img src="./images/platform-qq-lagrange-3.png" alt="Lagrange 运行警告 1" width="40%">
 
-![Lagrange 运行警告 2](./images/platform-qq-lagrange-4.png =40%x40%)
+<img src="./images/platform-qq-lagrange-4.png" alt="Lagrange 运行警告 2" width="40%">
 
 成功启动后可以发现打开了如下的命令行窗口，其中提示已创建了一个配置文件：
 
-![Lagrange 启动后提示](./images/platform-qq-lagrange-5.png =80%x80%)
+<img src="./images/platform-qq-lagrange-5.png" alt="Lagrange 启动后提示" width="80%">
 
-可以发现，在程序所在的文件夹中多出了一个 `appsettings.json`，这是 [Lagrange 的配置文件](#lagrange-配置文件)，你需要打开并修改其中的一些项。也可以在启动前直接手动新建 `appsettings.json` 并写入内容。
+可以发现，在程序所在的文件夹中多出了一个 `appsettings.json`，这是 [Lagrange 的配置文件](#lagrange-配置文件)，**你需要打开并修改其中的一些项**。也可以在启动前直接手动新建 `appsettings.json` 并写入内容。
 
 修改后内容大致如下：
 
 `appsettings.json`：
 
-```json
+```json{9,11-12,20-28}
 {
   "Logging": {
     "LogLevel": {
@@ -242,11 +242,11 @@ Lagrange（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括�
 
 修改配置完成后的文件夹如下：
 
-![正式运行前的 Lagrange 文件夹](./images/platform-qq-lagrange-6.png =40%x40%)
+<img src="./images/platform-qq-lagrange-6.png" alt="正式运行前的 Lagrange 文件夹" width="40%">
 
 在配置文件按需要正确修改后，在命令行中按任意键，Lagrange 将正式运行。在同一文件夹下会出现一张登录二维码图片 `qr-0.png`，在二维码过期前尽快使用手机 QQ 扫码连接。
 
-::: details Action 版 Lagrange 与 .Net SDK
+::: details 补充：Action 版 Lagrange 与 .Net SDK
 
 Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时出现报错，需要去下载 [.Net SDK](https://dotnet.microsoft.com/zh-cn/download) 并安装。
 
@@ -256,7 +256,7 @@ Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时�
 
 包括生成的配置文件在内，一个正确的 Action 版 Lagrange 文件夹如下：
 
-![Action 版的 Lagrange 文件夹](./images/platform-qq-lagrange-7.png =40%x40%)
+<img src="./images/platform-qq-lagrange-7.png" alt="Action 版的 Lagrange 文件夹" width="40%">
 
 :::
 
@@ -266,7 +266,7 @@ Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时�
 
 账号填写骰子的 QQ 号，连接地址使用上面记下的 WS 正向服务地址 `ws://{Host}:{Port}`，如 `ws://127.0.0.1:8081`。
 
-![海豹连接 Lagrange](./images/platform-qq-lagrange-8.png =65%x65%)
+<img src="./images/platform-qq-lagrange-8.png" alt="海豹连接 Lagrange" width="65%">
 
 成功连接后即可使用。
 
@@ -278,13 +278,13 @@ Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时�
 
 #### 旧版 Lagrange 配置
 
-::: warning 使用最新的 Lagrange
+::: warning 注意：使用最新的 Lagrange
 
 **我们始终建议你升级到程序的最新版本，而不是为了沿用旧配置而保持旧版本。**
 
 :::
 
-::: warning Lagrange 配置文件版本
+::: warning 注意：Lagrange 配置文件版本
 
 Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024 年 2 月 18 日或之前下载的 Lagrange 程序，请你参考下面的版本。
 
@@ -327,11 +327,11 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 
 配置项的含义与之前的说明相同，可以做相同处理。
 
-## Shamrock <Badge type="tip" text="v1.4.2" vertical="middle" />
+## Shamrock <Badge type="tip" text="v1.4.2" />
 
-海豹从 `v1.4.2` 开始适配了 Shamrock 的连接。
+海豹从 <Badge type="tip" text="v1.4.2"/> 开始适配了 Shamrock 的连接。
 
-::: warning 有难度的操作
+::: warning 注意：有难度的操作
 
 此方式存在一定难度，你可能需要对Root，使用命令行程序等有所了解。
 
@@ -349,13 +349,13 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 
 :::
 
-::: tip 如何 Root 手机
+::: tip 提示：如何 Root 手机
 
 Root 手机可以参阅 [小米手机安装面具教程](https://magiskcn.com)。也可以前往 [酷安](https://www.coolapk.com/) 寻找更详细的教程。
 
 :::
 
-::: warning 低配置设备可能无法使用 Shamrock！
+::: warning 注意：低配置设备可能无法使用 Shamrock！
 
 在尝试通过模拟器使用 Shamrock 的场景下，由于模拟器对性能要求较高，包括 **轻量级服务器**、旧电脑、小主机等配置较低的设备可能无法支持使用。
 
@@ -369,7 +369,7 @@ Root 手机可以参阅 [小米手机安装面具教程](https://magiskcn.com)�
 
 ### 获取 Root 权限
 
-::: tip Magisk
+::: info Magisk
 
 Magisk（面具）是一套开源的 Android 自定义工具，通常用于获取 root 权限。
 
@@ -391,7 +391,7 @@ Root 即 Android 的超级用户权限，如对 QQ 应用进行注入等的危�
 
 ### 安装 LSPosed 模块
 
-::: tip 使用 xposed/edxposed
+::: tip 提示：使用 xposed/edxposed
 
 理论上，使用更为老旧的 xposed/edxposed 或在手机上运行虚拟机的 virtualXposed 的方案也是可行的，但我们不推荐也未尝试过使用它们。
 
@@ -401,7 +401,7 @@ Root 即 Android 的超级用户权限，如对 QQ 应用进行注入等的危�
 
 请于 [LSPosed Releases](https://github.com/LSPosed/LSPosed/releases) 页下载模块。
 
-::: warning zygisk
+::: warning 注意：zygisk
 
 **务必**选择以 `zygisk` 结尾的包。
 
@@ -481,19 +481,19 @@ Root 即 Android 的超级用户权限，如对 QQ 应用进行注入等的危�
 
 在账号添加中，选择「QQ 分离部署」，按照下面的格式进行填写：
 
-![连接 Shamrock](./images/platform-qq-shamrock-9.png =65%x65%)
+<img src="./images/platform-qq-shamrock-9.png" alt="连接 Shamrock" width="65%">
 
 成功连接后即可使用。
 
-## Shamrock LSPatch <Badge type="tip" text="v1.4.2" vertical="middle" />
+## Shamrock LSPatch <Badge type="tip" text="v1.4.2" />
 
-::: warning 有难度的操作
+::: warning 注意：有难度的操作
 
 此方式存在一定难度，你可能需要对使用命令行程序有所了解。
 
 :::
 
-::: warning Andriod 版本要求
+::: warning 注意：Andriod 版本要求
 
 由于 LSPatch 要求安卓版本 9.0 以上，因此你的安卓手机版本必须超过安卓 9。
 
@@ -519,7 +519,7 @@ Adb 即 [Android 调试桥](https://developer.android.com/studio/command-line/ad
 
 ::: tabs
 
-@tab Windows#windows
+== Windows
 
 **在 Windows 中使用 cmd 执行 adb 命令：**
 
@@ -577,7 +577,7 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 首先安装海豹安卓端。
 
-::: warning 确认海豹版本
+::: warning 注意：确认海豹版本
 
 请使用版本为 1.4.2 以上的安卓端海豹。
 
@@ -587,13 +587,13 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 随后在 Shamrock 中的被动 ws 连接地址中写 `ws://localhost:6544/ws`。
 
-## Chronocat <Badge type="tip" text="v1.4.2" vertical="middle" />
+## Chronocat <Badge type="tip" text="v1.4.2" />
 
-海豹从 `v1.4.2` 开始适配了 Chronocat（超时空猫猫）中 Red 协议的连接。
+海豹从 <Badge type="tip" text="v1.4.2"/> 开始适配了 Chronocat（超时空猫猫）中 Red 协议的连接。
 
 在账号添加中，选择「QQ Red 协议」，填写相应信息进行连接。
 
-::: warning Chronocat 已停更
+::: warning 注意：Chronocat 已停更
 
 [Chronocat](https://chronocat.vercel.app/) 已经停止更新，同时作者也不希望互联网上再有其相关教程。因此，海豹核心手册将不提供任何详细说明，请自行寻找相关内容。
 
@@ -601,7 +601,7 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 ## Go-cqhttp / Mirai
 
-::: danger 此方案已经接近不可用
+::: danger 危险：此方案已经接近不可用
 
 由于 QQ 官方的检测，使用 Go-cqhttp 方案成功连接的成功率已经越来越低。即使成功连接，也可能面临高达每月 2 次的频繁冻结等情况。
 
@@ -609,7 +609,7 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 :::
 
-::: danger Go-cqhttp 已停止维护
+::: danger 危险：Go-cqhttp 已停止维护
 
 Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https://github.com/Mrs4s/go-cqhttp/issues/2471)）。在未来 qsign 签名服务彻底被官方封死之后，Go-cqhttp 将无法继续使用。
 
@@ -617,7 +617,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 ### 使用签名服务
 
-::: danger qsign 已停止维护
+::: danger 危险：qsign 已停止维护
 
 原 qsign 作者已因「不可抗力」无法再维护此项目，对应原代码仓库也已删除，该方法会在未来逐渐失效，请做好预期准备。
 
@@ -629,7 +629,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 你可以自己在本地搭一个 qsign 服务，也可以使用别人搭好的。
 
-::: warning 自行搭建签名服务
+::: warning 注意：自行搭建签名服务
 
 如果你的动手能力足够强或者有足够的电脑知识，**强烈推荐** 自己搭建本地签名服务器。
 
@@ -654,17 +654,17 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 在登录账号的时候会看到这样一个界面：
 
-![海豹的qq登录页](./images/platform-qq-qsign-1.png =65%x65%)
+<img src="./images/platform-qq-qsign-1.png" alt="海豹的qq登录页" width="65%">
 
 点击下面的「签名服务」一栏的「简易配置」，可以看到如下配置项：
 
-![配置签名服务](./images/platform-qq-qsign-2.png =65%x65%)
+<img src="./images/platform-qq-qsign-2.png" alt="配置签名服务" width="65%">
 
 - 服务 url：你要链接的 qsign url
 - 服务 key：密码
 - 服务鉴权：默认为空，如果有的服务器要求特定的鉴权，就填上吧
 
-::: note 默认的 qsign 配置
+::: tip 提示：默认的 qsign 配置
 
 没有特殊设置的话，qsign 的 url 通常默认为 `http://localhost:13579`，key 通常默认为 `114514`。
 
@@ -672,7 +672,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 #### 如何搭建签名服务
 
-::: tip 有能力的用户可以自行搭建服务。
+::: tip 提示：有能力的用户可以自行搭建服务。
 :::
 
 ::: warning
@@ -681,20 +681,20 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 :::
 
-::: tabs#os
+::: tabs key:os
 
-@tab Windows#windows
+== Windows
 
 可以尝试使用 [一键qsign](https://github.com/rhwong/unidbg-fetch-qsign-onekey)。
 
 引用自说明：
 > 点开以后删掉文件夹里的 `go-cqhttp.bat` 及 `go-cqhttp_windows_386.exe`，然后运行里面的 `Start_Qsign.bat` 启动qsign，按照提示依次键入 `txlib_version` 参数、设定 `host`、`port`、`key`的值。（如果不知道这些是干什么的，请直接依次按下 Enter）
 
-@tab Linux#linux
+== Linux
 
 参阅 qsign 提供的完整教程，看 [这里](https://github.com/fuqiuluo/unidbg-fetch-qsign/wiki/%E9%83%A8%E7%BD%B2%E5%9C%A8Linux)。
 
-@tab MacOS#macos
+== MacOS
 
 可以尝试使用 [AutoQSignForMac](https://github.com/Verplitic/AutoQSignForMac)。
 
@@ -754,7 +754,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
    ![](./images/gocq-step1.png)
 
-   ::: tip 出现 `open image cache db failed`
+   ::: tip 提示：出现 `open image cache db failed`
 
    出现该报错的原因很可能是因为 gocq 的缓存数据库损坏，可以尝试删除 gocq 的 data 目录后重新运行 gocq。（注意是 gocq 的 data 而不是海豹的！）
 

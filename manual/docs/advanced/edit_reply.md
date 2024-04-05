@@ -19,7 +19,7 @@ title: 编写自定义回复
 
 首先我们打开「自定义回复」页，新建一项自定义回复。
 
-::: tip 使用 .text 帮助测试
+::: tip 提示：使用 .text 帮助测试
 
 `.text <文本>` 将是你的一大助力，它会输出后面文本的执行结果，你可以将它看成不需要触发词的自定义回复。
 
@@ -27,7 +27,7 @@ title: 编写自定义回复
 
 :::
 
-::: tip 嵌入 CQ 码
+::: tip 提示：嵌入 CQ 码
 
 返回内容可以嵌入 CQ 码。CQ 码文档见 [CQ 码列表](https://docs.go-cqhttp.org/cqcode)。
 
@@ -51,7 +51,7 @@ func strCompare(a string, b string) float64 {
 }
 ```
 
-::: tip 模糊匹配未命中
+::: tip 提示：模糊匹配未命中
 
 模糊匹配可能出现感觉能匹配上，但实际上没办法匹配上的情况。我们更建议你使用「包含文本」或「正则匹配」。
 
@@ -68,7 +68,7 @@ func strCompare(a string, b string) float64 {
 输出文本：{$t玩家}购买了{$t1}
 ```
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '购买猫粮', send: true},
@@ -81,13 +81,13 @@ func strCompare(a string, b string) float64 {
 
 如额外存在组名，如 `(?P<A>cc)`，将会额外存入 `$tA`。
 
-::: warning 不要使用某些前缀！
+::: warning 注意：不要使用某些前缀！
 
 由于 `.` `。` `/` `!` 等符号会作为海豹中指令的前缀，因此作为前缀时可能导致将其识别为指令而非自定义回复的情况，建议换成别的前缀。
 
 :::
 
-::: tip 正则中匹配 CQ 码
+::: tip 提示：正则中匹配 CQ 码
 
 海豹支持用正则匹配 CQ 码，但是如果你这么做了，请在 `[` `]` 前面进行转义。  
 
@@ -105,7 +105,7 @@ func strCompare(a string, b string) float64 {
 
 ### 嵌入脚本语言
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.text {$t玩家}进行测试', send: true},
@@ -116,7 +116,7 @@ func strCompare(a string, b string) float64 {
 
 :::
 
-::: tip 未赋值的变量
+::: tip 提示：未赋值的变量
 
 所有变量在未被赋值时被调用的值都为 0。
 
@@ -129,7 +129,7 @@ func strCompare(a string, b string) float64 {
 如果想要输出字符串，则应该用 ``` ` ``` / `"` / `'` 括上。
 - 例：形如 `{% \$t1="114514" %}` 的式子会输出 `114514`。  
 
-::: warning 结果中调用变量
+::: tip 提示：结果中调用变量
 
 若想在结果中调用变量，请用反引号。目前海豹只支持在反引号中调用变量。
 
@@ -160,7 +160,7 @@ if $t测试!=2&&$t测试!=1 {$t输出="群主女装"}
 
 最后，输出变量 `$t输出`。
 
-::: tip 容易误解的 if 使用
+::: tip 提示：容易误解的 if 使用
 
 目前海豹语并不支持 `else if`，`if` 和 `else` 是一对一匹配的。所以当形如：
 
@@ -206,7 +206,7 @@ $mCatFavor<=2500 ? `#{DRAW-第五档猫好感}` ,
 
 在这一脚本中，根据猫好感度 `$mCatFavor `不同，需要输出不同回复的机制。
 
-::: details 其它写法
+::: details 补充：其它写法
 
 除了形如
 
@@ -256,7 +256,7 @@ if 判断3 {$tRand=d10;$t输出=$tRand==1?`内容1`,……};
 
 这是因为如果某一变量可能为空时，如果采用第一种分行的写法，会出现这样的效果：
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '踢海豹', send: true},
@@ -334,7 +334,7 @@ if $tRand==3 {$tDicePlay="布"}
 
 生成骰子出招并获取玩家出招之后，就开始判断。这里除了平局可以使用 `$tDicePlay==$t0` 省事之外，其他的都需要在条件中用多个进行嵌套。
 
-::: warning 条件判断
+::: warning 注意：条件判断
 
 豹语语法中，判断时条件中的 `||` 和 `&&` 是从左往右计算的，如果后面有需要优先计算与或的东西，请加好括号。
 
@@ -364,31 +364,31 @@ if $t0=="石头"&&$tDicePlay=="剪刀"||($t0=="布"&&$tDicePlay=="石头")||($t0
 后缀匹配：`B`
 回复：`怎么辉石呢`
 
-:::: note 示例
+:::: info 示例
 
 ::: tabs
 
-@tab 输入：AB
+== 输入：AB
 
 <ChatBox :messages="[
 {content: 'AB', send: true},
 {content: '怎么辉石呢'},
 ]" />
 
-@tab 输入：A间隔B
+== 输入：A间隔B
 
 <ChatBox :messages="[
 {content: 'A间隔B', send: true},
 {content: '怎么辉石呢'},
 ]" />
 
-@tab 输入：A（无回复）
+== 输入：A（无回复）
 
 <ChatBox :messages="[
 {content: 'A', send: true}
 ]" />
 
-@tab 输入：B（无回复）
+== 输入：B（无回复）
 
 <ChatBox :messages="[
 {content: 'B', send: true}
@@ -406,7 +406,7 @@ if $t0=="石头"&&$tDicePlay=="剪刀"||($t0=="布"&&$tDicePlay=="石头")||($t0
 
 <!-- ![单人模组](./images/edit-reply-single-person-mod.png) -->
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '开始吧 @海豹核心', send: true},

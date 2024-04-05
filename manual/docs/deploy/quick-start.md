@@ -23,7 +23,7 @@ title: 快速开始
 
   这一渠道提供两个版本：以 `版本号+发布日期` 命名的正式版，与官网一致；以 `Latest Dev Build+日期` 命名的最新构建，可能有各种 Bug，不推荐一般用户使用。
 
-::: tip 我该选择从哪里获取？
+::: tip 提示：我该选择从哪里获取？
 
 我们非常建议你使用从**官网**获取的正式版海豹。对于绝大多数用户来说，官网的下载最顺畅和便捷，所提供的正式版也适合绝大多数用户使用。
 
@@ -54,15 +54,15 @@ title: 快速开始
 
 根据系统不同，用以下方法即可启动海豹：
 
-:::: tabs#os
+:::: tabs key:os
 
-@tab Windows#windows
+== Windows
 
 双击运行 `sealdice-core.exe`。数秒钟后，海豹核心将会在后台运行并弹出提示。
 
 在任务栏中找到海豹图标，点击即可打开后台（WebUI）。
 
-@tab Linux#linux
+== Linux
 
 在 `sealdice-core` 所在的目录启动终端，输入以下命令：
 
@@ -72,7 +72,7 @@ chmod +x ./sealdice-core
 
 给予其足够的运行权限。随后，运行 `./sealdice-core` 来启动海豹。在浏览器中输入 `localhost:3211` 来访问后台（WebUI）。
 
-@tab MacOS#macos
+== MacOS
 
 在 `sealdice-core` 所在的目录启动终端，输入以下命令：
 
@@ -92,7 +92,7 @@ chmod +x ./sealdice-core
 
 :::
 
-@tab Android#android
+== Android
 
 安装下载的 APK 包，给予适当的权限。为了保证海豹核心在手机上稳定运行，可以采取以下措施：
 
@@ -126,9 +126,9 @@ chmod +x ./sealdice-core
 
 默认情况下，海豹核心将尝试安装一个由 `root` 用户运行的，名为 `sealdice.service` 的服务。这要求海豹核心拥有 root 权限（通常由 sudo 运行得到）。
 
-::: tabs#os
+::: tabs key:os
 
-@tab Linux#linux
+== Linux
 
 ```bash
 $ ./sealdice-core -i
@@ -140,9 +140,9 @@ $ ./sealdice-core -i
 
 也提供自动卸载：
 
-::: tabs#os
+::: tabs key:os
 
-@tab Linux#linux
+== Linux
 
 ```bash
 $ ./sealdice-core --uninstall
@@ -154,9 +154,9 @@ $ ./sealdice-core --uninstall
 
 安装完成后，可以使用 systemctl 来管理服务：
 
-::: tabs#os
+::: tabs key:os
 
-@tab Linux#linux
+== Linux
 
 ```shell
 systemctl status sealdice   # 查看运行状态

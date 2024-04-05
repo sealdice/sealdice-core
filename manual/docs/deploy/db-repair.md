@@ -23,15 +23,15 @@ title: 数据库检查和修复
 
 随后，使用命令行程序进入海豹的目录，执行以下命令。如果对使用命令行感到困难，后面有一个简化的替代方案。
 
-::: tabs#shell
+::: tabs key:shell
 
-@tab Windows-命令提示符（cmd）#cmd
+== Windows-命令提示符（cmd）
 
 ```shell
 sealdice-core /db-check
 ```
 
-@tab 其他 Shell#others
+== 其他 Shell
 
 ```shell
 ./sealdice-core --db-check

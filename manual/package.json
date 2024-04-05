@@ -1,28 +1,21 @@
 {
   "name": "sealdice-manual-next",
   "version": "1.0.0",
-  "description": "海豹骰全新官方使用手册。",
+  "description": "海豹骰官方使用手册。",
   "main": "index.js",
   "scripts": {
-    "docs:dev": "vuepress dev docs",
-    "docs:build": "vuepress build docs",
-    "docs:clean-dev": "vuepress dev docs --clean-cache"
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:clean-dev": "vuepress dev docs --clean-cache",
+    "docs:preview": "vitepress preview docs"
   },
   "keywords": [],
   "author": "Sealdice Team",
   "license": "MIT",
   "devDependencies": {
-    "@vuepress/bundler-vite": "2.0.0-rc.9",
-    "@vuepress/plugin-register-components": "2.0.0-rc.21",
-    "scss": "^0.2.4",
-    "vue": "^3.4.21",
-    "vuepress": "2.0.0-rc.9",
-    "vuepress-code-copy": "^1.1.0",
-    "vuepress-plugin-md-enhance": "2.0.0-rc.32",
-    "vuepress-plugin-search-pro": "2.0.0-rc.32",
-    "vuepress-theme-hope": "2.0.0-rc.32"
-  },
-  "dependencies": {
-    "@node-rs/jieba": "^1.10.0"
+    "sass": "^1.74.1",
+    "vitepress": "^1.0.2",
+    "vitepress-plugin-tabs": "^0.5.0",
+    "vue": "^3.4.21"
   }
 }

@@ -11,9 +11,12 @@ title: 钉钉
 
 :::
 
-## 钉钉支持 <Badge type="tip" text="v1.4.2" vertical="middle" />
+## 钉钉支持 <Badge type="tip" text="v1.4.2" />
 
-海豹从 `v1.4.2` 开始支持对接钉钉。
+海豹从 <Badge type="tip" text="v1.4.2"/> 开始支持对接钉钉。
 
-::: note 施工中……
+::: info
+
+施工中……
+
 :::

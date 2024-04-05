@@ -19,7 +19,7 @@ title: 编写牌堆
 
 当然，如果你的海豹版本较新，我们也非常推荐你尝试 `toml` 格式的牌堆编写。`toml` 格式诞生较晚，语法支持更多现代特性，海豹为这种格式的牌堆支持了更多功能。
 
-::: warning 牌堆文件的编码
+::: warning 注意：牌堆文件的编码
 
 **永远** 使用「UTF-8 编码」来编写牌堆。
 
@@ -29,7 +29,7 @@ title: 编写牌堆
 
 我们将简单介绍 `toml` `json` `yaml` 的语法，仅说明牌堆编写中会用到的部分，帮助你快速了解它们。
 
-::: tip 深入学习
+::: tip 提示：深入学习
 
 我们也非常建议你系统地学习它们，可以参见这些文档或自行搜索：
 
@@ -39,7 +39,7 @@ title: 编写牌堆
 
 :::
 
-::: warning 务必注意使用半角符号！
+::: warning 注意：务必注意使用半角符号！
 
 下面的语法中涉及到的符号都是 **半角符号**，如果你出现了奇怪的问题，记得检查是否在输入法的中文输入状态，导致输入了错误的符号。
 
@@ -49,9 +49,9 @@ title: 编写牌堆
 
 :::
 
-:::: tabs#deck-format
+:::: tabs key:deck-format
 
-@tab toml
+== toml
 
 ### TOML 注释
 
@@ -91,7 +91,7 @@ key = "value"
 - 裸键只能包含 ASCII 字母，ASCII 数字，下划线和短横线（即只有 `A-Za-z0-9_-`）。
 - 引号键则允许包含任何 Unicode 字符（如中文），支持转义；
 
-::: warning 裸键名不支持中文
+::: warning 注意：裸键名不支持中文
 
 使用中文作为键名时，必须用引号包裹。
 
@@ -163,21 +163,24 @@ TRPG = [
 ]
 ```
 
-@tab json
+== json
 
-::: info JSON with Comment / JWCC <Badge type="tip" text="v1.4.4" vertical="middle"/>
+::: info JSON with Comment / JWCC <Badge type="tip" text="v1.4.4"/>
 
-从 <Badge type="tip" text="v1.4.4" vertical="middle"/> 起，海豹支持在牌堆中使用 [JSON With Commas and Comments](https://nigeltao.github.io/blog/2021/json-with-commas-comments.html) 。
+从 <Badge type="tip" text="v1.4.4"/> 起，海豹支持在牌堆中使用 [JSON With Commas and Comments](https://nigeltao.github.io/blog/2021/json-with-commas-comments.html) 。
 
 这是一种对标准 JSON 语法的扩展，允许在文件中使用 C/C++ 风格的注释，并允许 JSON 对象和数组的最后一个键值对和元素后带有逗号。
 
 我们认为这种扩展有益于减少编写者的负担，又不会引入过多的非标准特性造成混乱。
 
-从 <Badge type="tip" text="v1.4.5" vertical="middle"/> 开始，海豹支持读取以 `.jsonc` 为扩展名的牌堆文件。我们推荐采用这种方式，将使用扩展语法的牌堆与标准 JSON 牌堆区分开，以示它们的不同，但是否这样做取决于你的选择。
+从 <Badge type="tip" text="v1.4.5"/> 开始，海豹支持读取以 `.jsonc` 为扩展名的牌堆文件。我们推荐采用这种方式，将使用扩展语法的牌堆与标准 JSON 牌堆区分开，以示它们的不同，但是否这样做取决于你的选择。
 
 :::
 
-::: warning 如果你使用 <Badge type="warning" text="v1.4.3" vertical="middle"/> 或更早版本的海豹核心，你仍必须使用 标准 JSON 牌堆。
+::: warning
+
+如果你使用 <Badge type="warning" text="v1.4.3"/> 或更早版本的海豹核心，你仍必须使用 标准 JSON 牌堆。
+
 :::
 
 ### JSON 键值
@@ -210,7 +213,7 @@ JSON 键值对以 `"key": value` 的形式表达，需要包裹在 `{}` 或 `[]`
 ]
 ```
 
-从 <Badge type="tip" text="v1.4.4" vertical="middle"/> 版本开始支持尾逗号，即在数组尾部有多余逗号时不再报错。
+从 <Badge type="tip" text="v1.4.4"/> 版本开始支持尾逗号，即在数组尾部有多余逗号时不再报错。
 
 ```json
 [
@@ -236,7 +239,7 @@ JSON 键值对以 `"key": value` 的形式表达，需要包裹在 `{}` 或 `[]`
 }
 ```
 
-从 <Badge type="tip" text="v1.4.4" vertical="middle"/> 版本开始支持尾逗号，即在对象尾部有多余逗号时不再报错。
+从 <Badge type="tip" text="v1.4.4"/> 版本开始支持尾逗号，即在对象尾部有多余逗号时不再报错。
 
 ```json
 {
@@ -251,9 +254,9 @@ JSON 键值对以 `"key": value` 的形式表达，需要包裹在 `{}` 或 `[]`
 }
 ```
 
-### 注释 <Badge type="tip" text="v1.4.4" vertical="middle"/>
+### 注释 <Badge type="tip" text="v1.4.4"/>
 
-从 <Badge type="tip" text="v1.4.4" vertical="middle"/> 开始支持 C/C++ 风格的注释。以下为简要说明。
+从 <Badge type="tip" text="v1.4.4"/> 开始支持 C/C++ 风格的注释。以下为简要说明。
 
 #### 1. 行内注释
 
@@ -263,7 +266,7 @@ JSON 键值对以 `"key": value` 的形式表达，需要包裹在 `{}` 或 `[]`
 
 从序列 `/*` 开始到随后出现的第一个 `*/` 序列为止的所有文本，包括换行，都被视为注释。
 
-@tab yaml
+== yaml
 
 ### YAML 注释
 
@@ -303,7 +306,7 @@ YAML 键值对使用冒号结构表示 `key: value`，冒号后面要加一个�
   状态: 根本不存在
 ```
 
-::: warning 缩进是有含义的
+::: warning 注意：缩进是有含义的
 
 在 YAML 中，缩进是有含义的，缩进的长度表示了层级。
 
@@ -339,7 +342,7 @@ TRPG:
     version: 5e
 ```
 
-::: warning 复杂的 YAML
+::: tip 提示：复杂的 YAML
 
 YAML 的语法极其灵活，同一种形式在 YAML 中可以有多种等价表示方法，这里只列出了常见的。
 
@@ -362,9 +365,9 @@ YAML 的语法极其灵活，同一种形式在 YAML 中可以有多种等价表
 
 这个牌堆编写如下，你可以选择以下任意一种格式来学习：
 
-::: tabs#deck-format
+::: tabs key:deck-format
 
-@tab toml
+== toml
 
 ```toml
 # 元信息表
@@ -403,7 +406,7 @@ desc = "这个示例牌堆怎么这么臭（恼）"
 
 可以将上述内容保存名为 `野兽牌堆.toml`（名称任意，但必须是以 `.toml` 为后缀扩展名）的文件进行测试。
 
-@tab json
+== json
 
 ```json
 {
@@ -437,7 +440,7 @@ desc = "这个示例牌堆怎么这么臭（恼）"
 
 可以将上述内容保存名为 `野兽牌堆.json`（名称任意，但必须是以 `.json` 为后缀扩展名）的文件进行测试。
 
-@tab yaml
+== yaml
 
 ```yaml
 name: 野兽牌堆
@@ -467,7 +470,7 @@ command:
 
 :::
 
-::: warning 牌堆文件扩展名正确吗？
+::: warning 注意：牌堆文件扩展名正确吗？
 
 保存文件时务必确认开启了操作系统的扩展名显示，避免出现看上去保存了 `xxx.json` 文件，但实际上的文件名是 `xxx.json.txt`。
 
@@ -482,9 +485,9 @@ command:
 - `{key}` 表示不放回抽取；
 - `{%key}` 表示放回抽取。
 
-:::: tabs#deck-format
+:::: tabs key:deck-format
 
-@tab toml
+== toml
 
 ```toml
 [decks]
@@ -498,7 +501,7 @@ command:
 ]
 ```
 
-@tab json
+== json
 
 ```json
 {
@@ -513,9 +516,9 @@ command:
 }
 ```
 
-@tab yaml
+== yaml
 
-::: warning YAML 的放回表示
+::: warning 注意：YAML 的放回表示
 
 YAML 牌堆中的表示正好相反：
 
@@ -568,7 +571,7 @@ YAML 牌堆中的表示正好相反：
 
 如：抽取 `企鹅早该爆金币辣！v我[1d10]个金币` 的结果可能是 `企鹅早该爆金币辣！v我1个金币`。
 
-::: details 旧的实现
+::: details 补充：旧的实现
 
 研究旧牌堆，可能会发现有牌堆通过下面这样的写法来实现这个功能，**现在请不要这么做了**。
 
@@ -589,9 +592,9 @@ YAML 牌堆中的表示正好相反：
 
 示例：有 1/10 的几率出现闪光海豹
 
-::: tabs#deck-format
+::: tabs key:deck-format
 
-@tab toml
+== toml
 
 ```toml
 [decks]
@@ -601,7 +604,7 @@ YAML 牌堆中的表示正好相反：
 ]
 ```
 
-@tab json
+== json
 
 ```json
 {
@@ -612,7 +615,7 @@ YAML 牌堆中的表示正好相反：
 }
 ```
 
-@tab yaml
+== yaml
 
 ```yaml
 捕捉海豹:
@@ -630,7 +633,7 @@ YAML 牌堆中的表示正好相反：
 
 在这种情况下，权重影响的是抽出的顺序。你将以 9/10 的概率先抽出「海豹」，以 1/10 的概率先抽出「✨闪光海豹✨」。
 
-::: details 旧的实现
+::: details 补充：旧的实现
 
 研究旧牌堆，可能会发现有牌堆通过下面这样的写法来实现这个功能，**现在请不要这么做了**。
 
@@ -653,8 +656,8 @@ YAML 牌堆中的表示正好相反：
 
 `.draw keys` 指令会列出所有允许抽取的牌组，但在牌堆编写过程中，经常会需要用到辅助的牌组，这些辅助项是不希望暴露给用户的。我们可以通过一定方式来隐藏这些项。
 
-::: tabs#deck-format
-@tab toml
+::: tabs key:deck-format
+== toml
 
 在 TOML 牌堆中，当牌组的名称以 `_` 开头，那么这个牌组将不会暴露在 `.draw keys` 中。
 
@@ -672,7 +675,7 @@ YAML 牌堆中的表示正好相反：
 
 这样在 `.draw keys` 中就不会展示 `_时间点` 这一牌组。
 
-@tab json
+== json
 
 在 JSON 牌堆中，可以通过配置牌堆文件的 `_keys` 指定所有显示的牌组，未指定在列表中的牌组将不会暴露在 `.draw keys` 中。
 
@@ -692,7 +695,7 @@ YAML 牌堆中的表示正好相反：
 
 这样在 `.draw keys` 中就不会展示 `时间点` 这一牌组。
 
-@tab yaml
+== yaml
 
 YAML 牌堆**没有支持**这一功能。
 
@@ -700,9 +703,9 @@ YAML 牌堆**没有支持**这一功能。
 
 被隐藏的项不会在 `.draw keys` 中展示，但依然可以通过指定 `.draw <key>` 的方法抽取。如果你希望某些牌组彻底隐藏，只能在牌堆内部调用，可以通过配置它们的导出来实现：
 
-::: tabs#deck-format
+::: tabs key:deck-format
 
-@tab toml
+== toml
 
 在 TOML 牌堆中，当牌组的名称以 `__`（双下划线）开头，那么这个牌组将不导出，即无法使用 `.draw <key>` 进行抽取，更不会显示在列表中。
 
@@ -718,7 +721,7 @@ YAML 牌堆**没有支持**这一功能。
 ]
 ```
 
-@tab json
+== json
 
 在 JSON 牌堆中，当牌组的名称以 `_` 开头，那么这个牌组将不导出，即无法使用 `.draw <key>` 进行抽取，更不会显示在列表中。
 
@@ -753,7 +756,7 @@ YAML 牌堆**没有支持**这一功能。
 }
 ```
 
-@tab yaml
+== yaml
 
 如果在 YAML 牌堆中定义了 `default` 字段，海豹将以 `command` 字段的值为关键字，`default` 字段的值为内容组成一个牌组。除了这个牌组以外的牌组都被视为不导出。
 
@@ -772,7 +775,7 @@ default:
 
 :::
 
-::: tip UI 中识别隐藏的牌组
+::: tip 提示：UI 中识别隐藏的牌组
 
 你可以通过查看牌堆管理界面中的「牌堆列表」来识别牌组是否隐藏。
 
@@ -790,9 +793,9 @@ default:
 
 我们为牌堆提供了配置更新链接的机制，方便骰主快速获取牌堆更新。有能力的牌堆作者可以配置更新链接，便于分享最新的牌堆内容。
 
-::: tabs#deck-format
+::: tabs key:deck-format
 
-@tab toml
+== toml
 
 配置牌堆文件的 `updateUrls` 以指定对应的更新链接：
 
@@ -815,7 +818,7 @@ updateUrls = [
 ]
 ```
 
-@tab json
+== json
 
 配置牌堆文件的 `_updateUrls` 以指定对应的更新链接：
 
@@ -834,7 +837,7 @@ updateUrls = [
 }
 ```
 
-@tab yaml
+== yaml
 
 配置牌堆文件的 `update_urls` 以指定对应的更新链接：
 
@@ -859,15 +862,15 @@ update_urls:
 
 抽取结果字符串中可以插入 [海豹语](../advanced/script.md) 。
 
-::: warning 特殊的括号
+::: tip 提示：特殊的括号
 
 与在文案和自定义回复中插入海豹语使用 `{}` 不同，在牌堆中 `{}` 有其他含义，需要用 `[]` 代替 `{}` 。
 
 :::
 
-::: tabs#deck-format
+::: tabs key:deck-format
 
-@tab toml
+== toml
 
 ```toml
 [decks]
@@ -877,7 +880,7 @@ update_urls:
 ]
 ```
 
-@tab json
+== json
 
 ```json
 {
@@ -888,7 +891,7 @@ update_urls:
 }
 ```
 
-@tab yaml
+== yaml
 
 ```yaml
 幸运转盘:
@@ -938,7 +941,7 @@ options = [
 - `aliases`：牌组的别名，可以使用别名抽取改牌组，如上述示例中可以使用 `.draw 数字论证` 或 `.draw 恶臭论证` 来抽取；
 - `options`：该牌组的项。
 
-::: warning 设置的选项未生效？
+::: warning 注意：设置的选项未生效？
 
 注意，对应的选项名需要完全一致，否则海豹将无法正确解析。
 
@@ -952,7 +955,7 @@ options = [
 
 海豹支持为牌堆提供云端内容，这需要牌堆作者有能力提供一个 API 接口，**每次** 配置了接口的牌组被抽取的时候，都会调用该接口获取该牌组的最新数据。
 
-::: warning 不受控的云端内容
+::: warning 注意：不受控的云端内容
 
 海豹核心无法核查从接口处获取的数据，骰主需要自行确认数据源不会返回你不希望骰子发出的信息。
 

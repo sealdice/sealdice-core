@@ -46,11 +46,11 @@ title: 自定义文案
 
 在「文案列表」中，每一个文案都以类似下图的格式展示，我们以「大成功」的文案来举例：
 
-![大成功文案](./images/custom-text-great-success.png =65%x65%)
+<img src="./images/custom-text-great-success.png" alt="大成功文案" width="65%">
 
 可以看见，对于「大成功」文案，它归属于 `判定-常规` 这个小类中，结果有两行文案，这意味着骰子会 **随机抽取** 其中的一行文案来使用。例如：
 
-::: note 示例
+::: info 示例
 
 <ChatBox :messages="[
 {content: '.ra 力量', send: true},
@@ -63,17 +63,17 @@ title: 自定义文案
 
 如果想要添加一行，那么点击左侧「加号」按钮：
 
-![增加文案选项](./images/custom-text-add-option.png =65%x65%)
+<img src="./images/custom-text-add-option.png" alt="增加文案选项" width="65%">
 
 如果你觉得某一行不满意，点左侧「删除」按钮。当然，至少需要保留一个选项。
 
-![删除文案选项](./images/custom-text-delete-option.png =65%x65%)
+<img src="./images/custom-text-delete-option.png" alt="删除文案选项" width="65%">
 
 修改好之后，不要忘记保存！
 
 ![等待保存](./images/custom-text-waiting-save.png)
 
-::: warning 尽早保存！
+::: warning 注意：尽早保存！
 
 对文案的修改建议及时保存，同时注意 **保存前不要切换左侧的分类**，否则未保存的修改将丢失！
 
@@ -81,7 +81,7 @@ title: 自定义文案
 
 最后，如果你想回到初始设置，点击右上角的「刷子」图标。
 
-![重置为初始设置](./images/custom-text-reset.png =65%x65%)
+<img src="./images/custom-text-reset.png" alt="重置为初始设置" width="65%">
 
 随后会弹出确认框，点击确定后，一切就是刚开始的样子了。
 
@@ -108,7 +108,7 @@ title: 自定义文案
 
 如果需要导入/导出文案内容，可以点击右上角的「导入/导出」按钮进入页面复制粘贴，就能快速分享相关设置了。
 
-::: warning 确认内容完整再导入
+::: warning 注意：确认内容完整再导入
 
 粘贴文案内容时，注意检查自己导入的内容是不是完整复制进来的。
 
@@ -123,7 +123,7 @@ title: 自定义文案
 
 例如修改骰子进群的文案：
 
-![文案图片示例](./images/custom-text-pic-example.png =65%x65%)
+<img src="./images/custom-text-pic-example.png" alt="文案图片示例" width="65%">
 
 全文案为：
 
@@ -140,7 +140,7 @@ title: 自定义文案
 
 你可能注意到，有些词条下面有这样的内容，如下图的 `$t群组骰子面数`：
 
-![有变量标签的文案](./images/custom-text-with-var.png =65%x65%)
+<img src="./images/custom-text-with-var.png" alt="有变量标签的文案" width="65%">
 
 文案下方的标签代表了被默认文案所使用的特殊变量，你可以使用 `{变量名}` 来插入他们，例如 `{$t群组骰子面数}`。
 
@@ -160,7 +160,7 @@ title: 自定义文案
 这里是海豹，我是一个示例
 ```
 
-::: danger 禁止递归嵌套！
+::: danger 危险：禁止递归嵌套！
 
 千万不要递归嵌套，会发生很糟糕的事情！
 

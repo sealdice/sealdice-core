@@ -25,7 +25,7 @@ title: 黑白名单
 
 点击「添加」按钮，可在后台手动添加黑（白）名单。
 
-![UI 手动添加黑白名单](./images/ban-add-in-ui.png =75%x75%)
+<img src="./images/ban-add-in-ui.png" alt="UI 手动添加黑白名单" width="75%">
 
 ### 指令添加
 
