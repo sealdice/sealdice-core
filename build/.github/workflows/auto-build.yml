@@ -543,7 +543,7 @@ jobs:
 
       - name: Get App-Runner
         run: |
-          curl https://d1.sealdice.com/lagrange/app-runner-arm64.tar.gz > ./sealdice-android/app/src/main/assets/app-runner-arm64.tar.gz
+          curl https://d1.sealdice.com/lagrange/app-runner-std-arm64.tar.gz > ./sealdice-android/app/src/main/assets/app-runner-arm64.tar.gz
 
       - name: Get Lagrange
         uses: actions/download-artifact@v4
@@ -626,7 +626,7 @@ jobs:
 
       - name: Get App-Runner
         run: |
-          curl https://d1.sealdice.com/lagrange/app-runner-trace-arm64.tar.gz > ./sealdice-android/app/src/main/assets/app-runner-arm64.tar.gz
+          curl https://d1.sealdice.com/lagrange/app-runner-dev-arm64.tar.gz > ./sealdice-android/app/src/main/assets/app-runner-arm64.tar.gz
 
       - name: Get Lagrange
         uses: actions/download-artifact@v4
