@@ -7,7 +7,7 @@ title: QQ
 
 ::: warning 注意：有关 QQ 平台机器人的说明
 
-直至目前，绝大部分群聊中的 QQ 机器人采用「**假用户**」方式，即通过第三方软件接入注册的另一个 QQ 。**QQ 官方一直在对第三方实现进行技术与非技术层面的多重打击。**
+直至目前，绝大部分群聊中的 QQ 机器人采用「**假用户**」方式，即通过第三方软件接入注册的另一个 QQ。**QQ 官方一直在对第三方实现进行技术与非技术层面的多重打击。**
 
 从目前的表现看来，QQ 官方会对账号行为进行检测，来区分出账号是否是正常用户（如不正常的登录方式，以不合理的速度在多地区登录等等）。我们无法得知具体的检测细节，但已证实的是，当 QQ 账号用作机器人并被检测到时，该 QQ 会视为风险账号，被官方予以警告，封禁，甚至 **永久冻结** 的惩罚。
 
@@ -63,15 +63,15 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 <img src="./images/platform-qq-official-1.png" alt="切换到开发设置" width="40%">
 
-在页面中你可以看到这样的信息，其中「机器人ID」「机器人令牌」「机器人密钥」这三项是海豹进行连接所需要的。
+在页面中你可以看到这样的信息，其中「机器人 ID」「机器人令牌」「机器人密钥」这三项是海豹进行连接所需要的。
 
 ![开发设置](./images/platform-qq-official-2.png)
 
 ### 连接海豹
 
-登录海豹并添加账号，选择「QQ(官方bot)」。填写对应的信息点击连接。你的海豹应该可以正常连接官方机器人运作了！
+登录海豹并添加账号，选择「QQ(官方 bot)」。填写对应的信息点击连接。你的海豹应该可以正常连接官方机器人运作了！
 
-<img src="./images/platform-qq-official-3.png" alt="连接官方Bot" width="80%">
+<img src="./images/platform-qq-official-3.png" alt="连接官方 Bot" width="80%">
 
 ### 使用海豹
 
@@ -89,7 +89,7 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 [LiteLoaderQQNT](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)（LiteLoader）是 NTQQ 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能。
 
-[LLOneBot API](https://github.com/LLOneBot/LLOneBot) 则是 Liteloader 的插件之一，可以实现劫持客户端对外开放 API ，可以理解为装在 PC 上的 Shamrock。
+[LLOneBot API](https://github.com/LLOneBot/LLOneBot) 则是 Liteloader 的插件之一，可以实现劫持客户端对外开放 API，可以理解为装在 PC 上的 Shamrock。
 
 :::
 
@@ -145,7 +145,7 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 ::: info Lagrange
 
-[Lagrange](https://github.com/KonataDev/Lagrange.Core)（拉格兰） 是一个 NTQQ 协议相关的开源项目。其包括目前实现了 Linux NTQQ 协议的 Lagrange.Core，和提供 OneBot-V11 Api 的 Lagrange.Onebot 两部分。
+[Lagrange](https://github.com/KonataDev/Lagrange.Core)（拉格兰）是一个 NTQQ 协议相关的开源项目。其包括目前实现了 Linux NTQQ 协议的 Lagrange.Core，和提供 OneBot-V11 Api 的 Lagrange.Onebot 两部分。
 
 与 GoCqhttp 类似，Lagrange 可以很方便的在多个平台（Windows、Linux、Mac）部署，海豹核心可以对接其提供的 OneBot-V11 Api 来提供 QQ 骰子服务。
 
@@ -262,7 +262,7 @@ Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时�
 
 ### 海豹连接 Lagrange
 
-进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebot11分离部署)」。
+进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebot11 分离部署)」。
 
 账号填写骰子的 QQ 号，连接地址使用上面记下的 WS 正向服务地址 `ws://{Host}:{Port}`，如 `ws://127.0.0.1:8081`。
 
@@ -333,7 +333,17 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 
 ::: warning 注意：有难度的操作
 
-此方式存在一定难度，你可能需要对Root，使用命令行程序等有所了解。
+此方式存在一定难度，你可能需要对 Root，使用命令行程序等有所了解。
+
+:::
+
+::: danger 危险：`1.1.0` 及以上版本的 Shamrock 不适用以下教程
+
+2024 年 4 月 2 日，OpenShamrock 开发组于 [Discussion#272](https://github.com/whitechi73/OpenShamrock/discussions/272#discussion-6300354) 宣布，Shamrock 将会从 `1.1.0` 版本起弃用 OneBot V11 支持，迁移至新的 [Kritor](https://github.com/KarinJS/kritor) 协议。
+
+**这意味着 `1.1.0` 及之后版本的 Shamrock 将不再支持 OneBot V11，以下教程也不再适用。**请仔细分辨，以免造成麻烦。
+
+海豹开发组也正在着手对新的 Kritor 协议进行适配，请耐心等待。
 
 :::
 
@@ -535,7 +545,7 @@ Adb 即 [Android 调试桥](https://developer.android.com/studio/command-line/ad
     - `win + R` 键启动「运行」；
     - 在运行中输入 `cmd` 并回车；
     - 在打开的黑框框中输入命令 `cd <替换为对应路径>`。
-  ![切换到adb文件夹](.\images\image-017.png)
+  ![切换到 adb 文件夹](.\images\image-017.png)
 - 还可以选择在 `platform-tools` 文件夹中新建`.bat` 文件。
 
 :::
@@ -550,7 +560,7 @@ Adb 即 [Android 调试桥](https://developer.android.com/studio/command-line/ad
 adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh
 ```
 
-![为Shizuku赋予adb权限](.\images\image-018.png)
+![为 Shizuku 赋予 adb 权限](.\images\image-018.png)
 
 ### 安装 LSPatch
 
@@ -654,7 +664,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 在登录账号的时候会看到这样一个界面：
 
-<img src="./images/platform-qq-qsign-1.png" alt="海豹的qq登录页" width="65%">
+<img src="./images/platform-qq-qsign-1.png" alt="海豹的 qq 登录页" width="65%">
 
 点击下面的「签名服务」一栏的「简易配置」，可以看到如下配置项：
 
@@ -685,10 +695,10 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 == Windows
 
-可以尝试使用 [一键qsign](https://github.com/rhwong/unidbg-fetch-qsign-onekey)。
+可以尝试使用 [一键 qsign](https://github.com/rhwong/unidbg-fetch-qsign-onekey)。
 
 引用自说明：
-> 点开以后删掉文件夹里的 `go-cqhttp.bat` 及 `go-cqhttp_windows_386.exe`，然后运行里面的 `Start_Qsign.bat` 启动qsign，按照提示依次键入 `txlib_version` 参数、设定 `host`、`port`、`key`的值。（如果不知道这些是干什么的，请直接依次按下 Enter）
+> 点开以后删掉文件夹里的 `go-cqhttp.bat` 及 `go-cqhttp_windows_386.exe`，然后运行里面的 `Start_Qsign.bat` 启动 qsign，按照提示依次键入 `txlib_version` 参数、设定 `host`、`port`、`key`的值。（如果不知道这些是干什么的，请直接依次按下 Enter）
 
 == Linux
 
@@ -704,7 +714,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 :::
 
-### 手动抓取ticket
+### 手动抓取 ticket
 
 目前，Gocq 的过验证码网站已经停止服务，你需要自行抓取 ticket 进行登录。
 
@@ -712,13 +722,13 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 #### 前置工作
 
-启动海豹，打开海豹的管理ui ，账号设置，添加账号；
+启动海豹，打开海豹的管理 ui，账号设置，添加账号；
 
 账号类型选 QQ 账号，设备选「Android Pad-可共存」（此协议登录手机可同时在线，qsign 仅 Android 协议和 Android Pad 协议可用）：
 
 ![](./images/select-account.png)
 
-版本选择 8.9.70 （如果你的 qsign 是其它版本，请选择对应版本）：
+版本选择 8.9.70（如果你的 qsign 是其它版本，请选择对应版本）：
 
 ![](./images/qsign-version.png)
 
@@ -760,7 +770,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
    :::
 
-4. 按照 [手动抓取ticket教程-哔哩哔哩](https://b23.tv/GRGg4GR) 视频教程操作，成功滑条后（需要抓 ticket，不只是滑条）复制 ticket 到终端后回车。
+4. 按照 [手动抓取 ticket 教程 - 哔哩哔哩](https://b23.tv/GRGg4GR) 视频教程操作，成功滑条后（需要抓 ticket，不只是滑条）复制 ticket 到终端后回车。
 
    ![](./images/gocq-step2.png)
 
@@ -772,7 +782,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
    结尾的 `8080` 即为 gocq 的 ws 端口。你的端口号可能不同，总之请记住这个端口号。
 
-6. 打开海豹，删除之前添加的账号，然后重新添加账号，选择 QQ(OneBot11分离部署)
+6. 打开海豹，删除之前添加的账号，然后重新添加账号，选择 QQ(OneBot11 分离部署)
 
    ![](./images/onebot11.png)
 
@@ -791,7 +801,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 1. 确认没有启动多个 qsign（多个 qsign 需要端口不重复）；
 2. 确认端口没有重复。若重复，请重新配置 qsign，修改 port；
-3. 将 qsign 文件夹放到硬盘根目录试试（如 D盘、C盘）。
+3. 将 qsign 文件夹放到硬盘根目录试试（如 D 盘、C 盘）。
 
 #### 3. 出现 Code 45
 
@@ -807,7 +817,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 #### 5. 出现 Code 237
 
-1. 登录过于频繁 ，请等待一段时间继续；
+1. 登录过于频繁，请等待一段时间继续；
 2. 内置的 ticket 抓取工具失效，需要手动抓取；
 3. 让他人帮助你滑条。
 
