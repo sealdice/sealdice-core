@@ -1,5 +1,6 @@
-export const deploy = {
+export const deployNav = {
   text: "部署",
+  base: "",
   items: [
     {
       text: "基础知识（电脑小白先看我）",
@@ -32,8 +33,57 @@ export const deploy = {
   ],
 }
 
+export const deploySidebar = {
+  text: "部署",
+  base: "",
+  items: [
+    {
+      text: "基础知识（电脑小白先看我）",
+      items: [
+        { text: "计算机相关", link: "/deploy/about_pc" },
+        { text: "开源程序相关", link: "/deploy/about_opensource" },
+      ],
+    },
+    {
+      text: "部署指南",
+      items: [
+        { text: "快速开始", link: "/deploy/quick-start" },
+        { text: "迁移", link: "/deploy/transfer" },
+        { text: "特色功能", link: "/deploy/special_feature" },
+        { text: "数据库检查和修复", link: "/deploy/db-repair" },
+      ]
+    },
+    {
+      text: "连接平台",
+      items: [
+        {
+          text: "QQ",
+          link: "/deploy/platform-qq",
+          items: [
+            { text: "指南", link: "/deploy/platform-qq#%E6%8C%87%E5%8D%97" },
+            { text: "Lagrange", link: "/deploy/platform-qq#lagrange" },
+            { text: "LLOneBot API", link: "/deploy/platform-qq#llonebot-api" },
+            { text: "Shamrock", link: "/deploy/platform-qq#shamrock" },
+            { text: "Shamrock LSPatch", link: "/deploy/platform-qq#shamrock-lspatch" },
+            { text: "Chronocat", link: "/deploy/platform-qq#chronocat" },
+            { text: "官方机器人", link: "/deploy/platform-qq#%E5%AE%98%E6%96%B9%E6%9C%BA%E5%99%A8%E4%BA%BA" },
+            { text: "Go-cqhttp / Mirai", link: "/deploy/platform-qq#go-cqhttp-mirai" },
+          ]
+        },
+        { text: "KOOK", link: "/deploy/platform-kook" },
+        { text: "DoDo", link: "/deploy/platform-dodo" },
+        { text: "Discord", link: "/deploy/platform-discord" },
+        { text: "Telegram", link: "/deploy/platform-telegram" },
+        { text: "Slack", link: "/deploy/platform-slack" },
+        { text: "钉钉", link: "/deploy/platform-dingtalk" },
+      ],
+    },
+  ],
+}
+
 export const config = {
   text: "配置",
+  base: "",
   items: [
     {
       text: "扩展功能",
@@ -56,8 +106,9 @@ export const config = {
   ],
 }
 
-export const use = {
+export const useNav = {
   text: "使用",
+  base: "",
   items: [
     {
       text: "新手入门",
@@ -99,8 +150,63 @@ export const use = {
   ],
 }
 
+export const useSidebar = {
+  text: "使用",
+  base: "",
+  items: [
+    {
+      text: "新手入门",
+      items: [
+        { text: "基础概念", link: "/use/introduce" },
+        { text: "快速上手", link: "/use/quick-start" },
+      ],
+    },
+    {
+      text: "核心指令",
+      items: [
+        { text: "核心指令", link: "/use/core" },
+      ],
+    },
+    {
+      text: "规则扩展",
+      items: [
+        { text: "克苏鲁的呼唤 7 版", link: "/use/coc7" },
+        { text: "龙与地下城 5E", link: "/use/dnd5e" },
+        { text: "属性同义词", link: "/use/attribute_alias" },
+        {
+          text: "其它规则支持",
+          link: "/use/other_rules",
+          items: [
+            { text: "绿色三角洲 Delta Green", link: "/use/other_rules#%E7%BB%BF%E8%89%B2%E4%B8%89%E8%A7%92%E6%B4%B2-delta-green" },
+            { text: "黑暗世界 World of Darkness", link: "/use/other_rules#%E9%BB%91%E6%9A%97%E4%B8%96%E7%95%8C-world-of-darkness" },
+            { text: "双重十字 Double Cross", link: "/use/other_rules#%E5%8F%8C%E9%87%8D%E5%8D%81%E5%AD%97-double-cross" },
+            { text: "暗影狂奔 Shadowrun", link: "/use/other_rules#%E6%9A%97%E5%BD%B1%E7%8B%82%E5%A5%94-shadowrun" },
+            { text: "共鸣性怪异 Emoklore", link: "/use/other_rules#%E5%85%B1%E9%B8%A3%E6%80%A7%E6%80%AA%E5%BC%82-emoklore" },
+          ]
+        },
+      ],
+    },
+    {
+      text: "功能扩展",
+      items: [
+        { text: "故事", link: "/use/story" },
+        { text: "日志", link: "/use/log" },
+        { text: "娱乐", link: "/use/fun" },
+        { text: "牌堆和自定义回复", link: "/use/deck_and_reply" },
+      ],
+    },
+    {
+      text: "常见问题",
+      items: [
+        { text: "常见问题", link: "/use/faq" },
+      ],
+    },
+  ],
+}
+
 export const advanced = {
   text: "进阶",
+  base: "",
   items: [
     { text: "进阶介绍", link: "/advanced/introduce" },
     { text: "内置脚本语言", link: "/advanced/script" },
@@ -121,6 +227,7 @@ export const advanced = {
 
 export const about = {
   text: "关于",
+  base: "",
   items: [
     { text: "从零开始", link: "/about/start-from-zero" },
     { text: "关于", link: "/about/about" },

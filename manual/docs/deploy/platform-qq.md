@@ -23,121 +23,19 @@ title: QQ
 
 本节将包含你在 QQ 平台接入海豹核心需要了解的特定内容。
 
-所有支持的途径参见侧边目录，本节提供了多种对接途径的引导：
+:::
 
-- 如果你有 QQ 官方机器人权限，见 [官方机器人](#官方机器人)；
-- 需要比较简单的部署流程的，见 [LLOneBot API](#llonebot-api)；
-- 需要比较简单的部署流程，且有能力上 Telegram 的，见 [Lagrange](#lagrange)；
+## 指南
+
+所有支持的途径参见目录，本节提供了多种对接途径的引导。
+
+- 需要比较简单的部署流程，希望资源占用低的，见 [Lagrange](#lagrange)；
+- 需要比较简单的部署流程，不是特别在意资源占用的，见 [LLOneBot API](#llonebot-api)；
 - Android 手机/模拟器用户见 [Shamrock](#shamrock)（需要 Root）或 [Shamrock LSPatch](#shamrock-lspatch)。
-- [Go-cqhttp](#go-cqhttp--mirai) 与 QSign 方案已经接近不可用。我们不建议任何用户再使用此方式部署 QQ 接入。之前的资料保留备查。
+- 如果你有 QQ 官方机器人权限，见 [官方机器人](#官方机器人)；
+- [Go-cqhttp](#go-cqhttp--mirai) 与 QSign 方案已经接近不可用。**我们不建议任何用户再使用此方式部署 QQ 接入**。之前的资料保留备查。
 
 不同的对接方式适应不同的情况，可能会存在途径特有的功能缺失和其它问题，请根据自己的情况选择适合的方式。
-
-:::
-
-## 官方机器人 <Badge type="tip" text="v1.4.2" />
-
-海豹从 <Badge type="tip" text="v1.4.2"/> 开始支持对接 QQ 官方的机器人服务。
-
-::: tip QQ 机器人
-
-QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https://q.qq.com/#/) 进行申请。
-
-但截止到目前，**QQ 官方机器人的群聊权限并未对所有人开放**。我们也希望在未来，每个人都能轻松地对接上官方提供的机器人服务。
-
-同时，由于 QQ 官方对机器人能力的严格限制（包括获取 QQ 号、昵称，非 @ 时响应，私聊，群控等大量功能目前不支持），目前**对接官方接口的骰子很多功能无法支持**（如跑团 Log，暗骰，对抗等）。
-
-:::
-
-### 尝试一下
-
-如果你想尝试一下这样的机器人，非常欢迎你使用海豹官方的骰子：
-
-<img src="./images/platform-qq-bot-qrcode.jpg" alt="海豹机器人二维码" width="65%">
-
-### 获取连接所需信息
-
-要获取用于连接海豹的信息之前，你需要建立好一个 QQ 机器人应用。可前往 [QQ 开放平台](https://q.qq.com/#/) 进行申请，进行**实名**注册后，创建一个机器人应用。
-
-创建完成后，进入机器人管理后台，切换到「开发设置」页面：
-
-<img src="./images/platform-qq-official-1.png" alt="切换到开发设置" width="40%">
-
-在页面中你可以看到这样的信息，其中「机器人 ID」「机器人令牌」「机器人密钥」这三项是海豹进行连接所需要的。
-
-![开发设置](./images/platform-qq-official-2.png)
-
-### 连接海豹
-
-登录海豹并添加账号，选择「QQ(官方 bot)」。填写对应的信息点击连接。你的海豹应该可以正常连接官方机器人运作了！
-
-<img src="./images/platform-qq-official-3.png" alt="连接官方 Bot" width="80%">
-
-### 使用海豹
-
-::: warning
-
-目前官方机器人只响应包含 `@` 的消息，操作时请注意。
-
-:::
-
-## LLOneBot API <Badge type="tip" text="v1.4.2" />
-
-海豹从 <Badge type="tip" text="v1.4.2"/> 版本开始支持通过 OneBot 协议连接 LLOneBot API。
-
-::: info LLOneBot API
-
-[LiteLoaderQQNT](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)（LiteLoader）是 NTQQ 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能。
-
-[LLOneBot API](https://github.com/LLOneBot/LLOneBot) 则是 Liteloader 的插件之一，可以实现劫持客户端对外开放 API，可以理解为装在 PC 上的 Shamrock。
-
-:::
-
-### 安装 LiteLoader
-
-社区提供了非常简便的 [安装脚本](https://github.com/Mzdyl/LiteLoaderQQNT_Install/)，安装方法中在文档中，请自行查看。
-
-::: tip
-
-- 使用 Windows 部署时脚本要使用管理员模式运行。
-- 由于脚本使用了 git，请在系统中安装 [git](https://git-scm.com/)。
-- 一定要在安装 QQ 客户端的主机上使用安装脚本。
-- **由于 Windows 平台的 QQ 被添加了文件完整性验证，你需要额外步骤来解除限制，请自行前往 [LLQQNT 文档](https://liteloaderqqnt.github.io/guide/install.html#修补) 查阅方法。**
-
-:::
-
-### 安装 LLOneBot API
-
-在 LiteLoader 中安装 OneBotAPI，具体方法请参考 [LLOneBot API](https://github.com/LLOneBot/LLOneBot) 仓库中的说明。
-
-::: info plugins 文件夹位置
-
-安装完成 LiteLoader 后，如图所示：
-
-![LiteLoader 中的 Plugins 目录](./images/platform-qq-llonebot-1.png)
-
-所指处即插件文件夹，打开这个文件夹并且在 plugins 新建一个文件夹，把 LLOneBot API **Release** 版本的 4 个文件解压到新建的文件夹处，重启 QQ 即可。
-
-:::
-
-### 配置海豹
-
-安装完成后重新登录 QQ，进入 LLOneBot 的设置页：
-
-![LLOneBot 设置页](./images/platform-qq-llonebot-2.png)
-
-支持两种方式与海豹对接：
-
-- 正向连接：默认开放的正向 ws 端口为 3001，在海豹的新添账号选择「OneBot 分离部署」，账号处随便填写，连接地址填 `ws://localhost:3001`。
-- 反向连接：关闭正向连接开关，打开反向连接，点击「添加」，输入 `ws://127.0.0.1:4001/ws`，在海豹的新添账号选择「OneBot 反向连接」，输入账号。
-
-::: tip
-
-- 如若想修改端口请在 LLOneBot 的设置 UI 自行修改。
-- 请注意设置中的正向连接和反向连接请 **不要同时打开**，否则会发不出消息。
-- 由于采用劫持路线，暂不清楚多账号登录情况。
-
-:::
 
 ## Lagrange <Badge type="tip" text="v1.4.2" />
 
@@ -153,7 +51,7 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 ### 准备 Lagrange
 
-可以在 [Lagrange Github Release](https://github.com/LagrangeDev/Lagrange.Core/releases) 中获取到 Nightly 版程序，根据你的系统选择相应版本下载，例如：
+可以在 [Lagrange Github Release](https://github.com/KonataDev/Lagrange.Core/releases) 中获取到 Nightly 版程序，根据你的系统选择相应版本下载，例如：
 
 - Windows 通常选择 `win-x64` 版本；
 - Mac（Intel 芯片）选择 `osx-x64` 的版本；
@@ -168,7 +66,7 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 **除特殊情况外，我们始终建议你选择前面提到的 Nightly 版本。**
 
-可以在 [Lagrange Github 仓库](https://github.com/LagrangeDev/Lagrange.Core) 中的 Action 页面，进入位于列表最前一条的最新制品页面，根据你的系统选择相应版本。
+可以在 [Lagrange Github 仓库](https://github.com/KonataDev/Lagrange.Core) 中的 Action 页面，进入位于列表最前一条的最新制品页面，根据你的系统选择相应版本。
 
 <img src="./images/platform-qq-lagrange-1.png" alt="Lagrange Action" width="80%">
 
@@ -238,6 +136,18 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 由于众所周知的原因，Lagrange 不能提供公共签名服务，海豹官方也不会对相关信息进行说明。请在 Lagrange 的 README 中自行寻找相应 TG 群，寻找由海外热心网友提供的一些帮助。
 
+*或许你也能在其他地方看见/问到链接呢……*
+
+:::
+
+::: warning 警告：保证连接模式匹配
+
+Lagrange 默认生成的配置文件生成的是 `ReverseWebSocket`（即反向 WebSocket），如果你使用该种连接方式，下文海豹对接时应该选择「OneBot 11 反向 WS」模式。
+
+海豹推荐使用正向连接，如果你选择正向连接方式，需要像上述示例中的配置文件一样调整为 `ForwardWebSocket`，下文海豹对接时按引导执行即可。
+
+具体的连接细节还可以参见 Lagrange 文档的 [配置文件](https://lagrangedev.github.io/Lagrange.Doc/Lagrange.OneBot/Config/#%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6) 一节。
+
 :::
 
 修改配置完成后的文件夹如下：
@@ -274,9 +184,7 @@ Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时�
 
 与可执行文件在同级目录下的 `appsettings.json` 文件，是 Lagrange 的配置文件。
 
-最新的 Lagrange 会在没有该文件时自动创建默认配置，如果没有生成该文件，你可以按照 [官方仓库的最新说明](https://github.com/LagrangeDev/Lagrange.Core) 手动创建这一文件。
-
-#### 旧版 Lagrange 配置
+最新的 Lagrange 会在没有该文件时自动创建默认配置，如果没有生成该文件，你可以按照 [官方仓库的最新说明](https://github.com/KonataDev/Lagrange.Core) 手动创建这一文件。
 
 ::: warning 注意：使用最新的 Lagrange
 
@@ -284,13 +192,15 @@ Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时�
 
 :::
 
-::: warning 注意：Lagrange 配置文件版本
+::: warning 注意：Lagrange 配置文件格式变更
 
 Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024 年 2 月 18 日或之前下载的 Lagrange 程序，请你参考下面的版本。
 
 目前最新的 Lagrange 可以识别两个版本的配置文件，但依然建议修改为最新格式。
 
 :::
+
+::: details 补充：旧版 Lagrange 配置
 
 如果你使用的是 2024 年 2 月 18 日或之前下载的 Lagrange 程序，或使用前面提到的配置出现问题，请尝试替换为以下配置：
 
@@ -327,23 +237,84 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 
 配置项的含义与之前的说明相同，可以做相同处理。
 
+:::
+
+## LLOneBot API <Badge type="tip" text="v1.4.2" />
+
+海豹从 <Badge type="tip" text="v1.4.2"/> 版本开始支持通过 OneBot 协议连接 LLOneBot API。
+
+::: info LLOneBot API
+
+[LiteLoaderQQNT](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)（LiteLoader）是 NTQQ 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能。
+
+[LLOneBot API](https://github.com/LLOneBot/LLOneBot) 则是 Liteloader 的插件之一，可以实现劫持客户端对外开放 API ，可以理解为装在 PC 上的 Shamrock。
+
+:::
+
+### 安装 LiteLoader
+
+社区提供了非常简便的 [安装脚本](https://github.com/Mzdyl/LiteLoaderQQNT_Install/)，安装方法中在文档中，请自行查看。
+
+::: tip
+
+- 使用 Windows 部署时脚本要使用管理员模式运行。
+- 由于脚本使用了 git，请在系统中安装 [git](https://git-scm.com/)。
+- 一定要在安装 QQ 客户端的主机上使用安装脚本。
+- **由于 Windows 平台的 QQ 被添加了文件完整性验证，你需要额外步骤来解除限制，请自行前往 [LLQQNT 文档](https://liteloaderqqnt.github.io/guide/install.html#修补) 查阅方法。**
+
+:::
+
+### 安装 LLOneBot API
+
+在 LiteLoader 中安装 OneBotAPI，具体方法请参考 [LLOneBot API](https://github.com/LLOneBot/LLOneBot) 仓库中的说明。
+
+::: info plugins 文件夹位置
+
+安装完成 LiteLoader 后，如图所示：
+
+![LiteLoader 中的 Plugins 目录](./images/platform-qq-llonebot-1.png)
+
+所指处即插件文件夹，打开这个文件夹并且在 plugins 新建一个文件夹，把 LLOneBot API **Release** 版本的 4 个文件解压到新建的文件夹处，重启 QQ 即可。
+
+:::
+
+### 配置海豹
+
+安装完成后重新登录 QQ，进入 LLOneBot 的设置页：
+
+![LLOneBot 设置页](./images/platform-qq-llonebot-2.png)
+
+支持两种方式与海豹对接：
+
+- 正向连接：默认开放的正向 ws 端口为 3001，在海豹的新添账号选择「OneBot 分离部署」，账号处随便填写，连接地址填 `ws://localhost:3001`。
+- 反向连接：关闭正向连接开关，打开反向连接，点击「添加」，输入 `ws://127.0.0.1:4001/ws`，在海豹的新添账号选择「OneBot 反向连接」，输入账号。
+
+::: tip
+
+- 如若想修改端口请在 LLOneBot 的设置 UI 自行修改。
+- 请注意设置中的正向连接和反向连接请 **不要同时打开**，否则会发不出消息。
+- 由于采用劫持路线，暂不清楚多账号登录情况。
+- **如果你是在服务器上部署，可能需要使用 [Mem Reduct](https://memreduct.org/mem-reduct-download/) 之类的工具定时清理过高的内存占用。**
+
+:::
+
 ## Shamrock <Badge type="tip" text="v1.4.2" />
 
 海豹从 <Badge type="tip" text="v1.4.2"/> 开始适配了 Shamrock 的连接。
-
-::: warning 注意：有难度的操作
-
-此方式存在一定难度，你可能需要对 Root，使用命令行程序等有所了解。
-
-:::
 
 ::: danger 危险：`1.1.0` 及以上版本的 Shamrock 不适用以下教程
 
 2024 年 4 月 2 日，OpenShamrock 开发组于 [Discussion#272](https://github.com/whitechi73/OpenShamrock/discussions/272#discussion-6300354) 宣布，Shamrock 将会从 `1.1.0` 版本起弃用 OneBot V11 支持，迁移至新的 [Kritor](https://github.com/KarinJS/kritor) 协议。
 
-**这意味着 `1.1.0` 及之后版本的 Shamrock 将不再支持 OneBot V11，以下教程也不再适用。**请仔细分辨，以免造成麻烦。
+**这意味着 `1.1.0` 及之后版本的 Shamrock 将不再支持 OneBot V11，以下教程也不再适用**。请仔细分辨，以免造成麻烦。
 
 海豹开发组也正在着手对新的 Kritor 协议进行适配，请耐心等待。
+
+:::
+
+::: warning 注意：有难度的操作
+
+此方式存在一定难度，你可能需要对 Root，使用命令行程序等有所了解。
 
 :::
 
@@ -599,13 +570,75 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 ## Chronocat <Badge type="tip" text="v1.4.2" />
 
-海豹从 <Badge type="tip" text="v1.4.2"/> 开始适配了 Chronocat（超时空猫猫）中 Red 协议的连接。
+海豹从 <Badge type="tip" text="v1.4.2"/> 开始适配了 Chronocat（超时空猫猫）中 Red 协议的连接，从 <Badge type="tip" text="v1.4.5"/> 开始适配了与 Chronocat 的 Satori 协议连接。
+
+::: warning 注意：Chronocat 的新旧版本
+
+[Chronocat](https://chronocat.vercel.app/) 主要分为 0.0.x 的旧版本和 0.2.x 及以上的新版本。
+
+在 0.0.x 的旧版本中，海豹主要对接其 Red 协议，使用该版本的见 [Chronocat Red 协议](#chronocat-red-协议)。
+
+在目前的新版本中，Chronocat 移除了 Red 协议，提供 Satori 协议的连接支持，使用该版本的见 [Chronocat Satori 协议](#chronocat-satori-协议)。
+
+:::
+
+### Chronocat Satori 协议 <Badge type="tip" text="v1.4.5" />
+
+在账号添加中，选择「[WIP]Satori」，填写相应信息进行连接。
+
+### Chronocat Red 协议 <Badge type="tip" text="v1.4.2" />
+
+::: danger 警告：支持 Chronocat 为 0.0.54
+
+海豹 Red 协议所适配的目标 Chronocat 版本为 0.0.54，低于该版本（主要为 0.0.52）缺少必要接口，使用时会出现报错，不建议使用。
+
+:::
 
 在账号添加中，选择「QQ Red 协议」，填写相应信息进行连接。
 
-::: warning 注意：Chronocat 已停更
+## 官方机器人 <Badge type="tip" text="v1.4.2" />
 
-[Chronocat](https://chronocat.vercel.app/) 已经停止更新，同时作者也不希望互联网上再有其相关教程。因此，海豹核心手册将不提供任何详细说明，请自行寻找相关内容。
+海豹从 <Badge type="tip" text="v1.4.2"/> 开始支持对接 QQ 官方的机器人服务。
+
+::: tip QQ 机器人
+
+QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https://q.qq.com/#/) 进行申请。
+
+但截止到目前，**QQ 官方机器人的群聊权限并未对所有人开放**。我们也希望在未来，每个人都能轻松地对接上官方提供的机器人服务。
+
+同时，由于 QQ 官方对机器人能力的严格限制（包括获取 QQ 号、昵称，非 @ 时响应，私聊，群控等大量功能目前不支持），目前**对接官方接口的骰子很多功能无法支持**（如跑团 Log，暗骰，对抗等）。
+
+:::
+
+### 尝试一下
+
+如果你想尝试一下这样的机器人，非常欢迎你使用海豹官方的骰子：
+
+<img src="./images/platform-qq-bot-qrcode.jpg" alt="海豹机器人二维码" width="65%">
+
+### 获取连接所需信息
+
+要获取用于连接海豹的信息之前，你需要建立好一个 QQ 机器人应用。可前往 [QQ 开放平台](https://q.qq.com/#/) 进行申请，进行**实名**注册后，创建一个机器人应用。
+
+创建完成后，进入机器人管理后台，切换到「开发设置」页面：
+
+<img src="./images/platform-qq-official-1.png" alt="切换到开发设置" width="40%">
+
+在页面中你可以看到这样的信息，其中「机器人ID」「机器人令牌」「机器人密钥」这三项是海豹进行连接所需要的。
+
+![开发设置](./images/platform-qq-official-2.png)
+
+### 连接海豹
+
+登录海豹并添加账号，选择「QQ(官方bot)」。填写对应的信息点击连接。你的海豹应该可以正常连接官方机器人运作了！
+
+<img src="./images/platform-qq-official-3.png" alt="连接官方Bot" width="80%">
+
+### 使用海豹
+
+::: warning
+
+目前官方机器人只响应包含 `@` 的消息，操作时请注意。
 
 :::
 

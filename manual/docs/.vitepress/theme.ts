@@ -1,6 +1,7 @@
-import { about, advanced, config, deploy, use } from "./catalogue";
+import { about, advanced, config, deploySidebar, deployNav, useNav, useSidebar } from "./catalogue";
+import type { DefaultTheme } from 'vitepress'
 
-export const theme = {
+export const theme: DefaultTheme.Config = {
   // https://vitepress.dev/reference/default-theme-config
   logo: {
     light: '/images/sealdice.svg',
@@ -11,19 +12,19 @@ export const theme = {
       text: "首页",
       link: "/",
     },
-    deploy,
+    deployNav,
     config,
-    use,
+    useNav,
     advanced,
     about,
-  ],
+  ] as DefaultTheme.NavItem[],
   sidebar: {
-    "/deploy/": deploy,
+    "/deploy/": deploySidebar,
     "/config/": config,
-    "/use/": use,
+    "/use/": useSidebar,
     "/advanced/": advanced,
     "/about/": about,
-  },
+  } as DefaultTheme.SidebarMulti,
   outline: {
     label: '页面导航',
   },
@@ -54,14 +55,17 @@ export const theme = {
   search: {
     provider: 'local',
     options: {
+      detailedView: true,
       translations: {
         button: {
           buttonText: '搜索文档',
           buttonAriaLabel: '搜索文档'
         },
         modal: {
-          noResultsText: '无法找到相关结果',
+          displayDetails: '显示详细信息',
           resetButtonTitle: '清除查询条件',
+          backButtonTitle: '返回',
+          noResultsText: '无法找到相关结果',
           footer: {
             selectText: '选择',
             navigateText: '切换',
@@ -69,6 +73,6 @@ export const theme = {
           }
         }
       },
-    }
+    } as DefaultTheme.LocalSearchOptions
   },
 }

@@ -1,3 +1,4 @@
+import type { DefaultTheme, UserConfig } from 'vitepress'
 import { defineConfig } from 'vitepress'
 import { tabsMarkdownPlugin } from "vitepress-plugin-tabs"
 import { theme } from "./theme"
@@ -28,4 +29,4 @@ export default defineConfig({
     }
   },
   vite: {}
-})
+} as UserConfig<DefaultTheme.Config>)
