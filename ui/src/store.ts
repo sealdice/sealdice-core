@@ -216,7 +216,7 @@ export const useStore = defineStore('main', {
         //QQ
         case 0:
           if (implementation === 'gocq') {
-            info = await backend.post(urlPrefix + '/im_connections/add', { account, password, protocol, appVersion, useSignServer, signServerConfig }, { timeout: 65000 })
+            info = await backend.post(urlPrefix + '/im_connections/addGocq', { account, password, protocol, appVersion, useSignServer, signServerConfig }, { timeout: 65000 })
           } else if (implementation === 'walle-q') {
             info = await backend.post(urlPrefix + '/im_connections/addWalleQ', { account, password, protocol }, { timeout: 65000 })
           }
