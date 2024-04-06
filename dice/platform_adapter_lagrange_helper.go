@@ -102,8 +102,9 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 		chQrCode := make(chan int, 1)
 		isSelfKilling := false
+		isPrintLog := true
 
-		p.OutputHandler = func(line string) string {
+		p.OutputHandler = func(line string, _type string) string {
 			if loginIndex != pa.CurLoginIndex {
 				// 当前连接已经无用，进程自杀
 				if !isSelfKilling {
@@ -129,6 +130,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					log.Infof("onebot: 登录成功，账号：<%s>(%s)", conn.Nickname, conn.UserID)
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
+					isPrintLog = false
 
 					go ServeQQ(dice, conn)
 				}
@@ -140,7 +142,9 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					BuiltinQQServeProcessKill(dice, conn)
 				}
 
-				log.Warn("onebot | ", line)
+				if isPrintLog || pa.ForcePrintLog || _type == "stderr" {
+					log.Warn("onebot | ", line)
+				}
 			}
 
 			return ""
