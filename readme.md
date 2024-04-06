@@ -1,16 +1,30 @@
 # SealDice
 
 ![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)
+![Core](https://img.shields.io/badge/SealDice-Core-blue)
 
-海豹TRPG骰点核心
+海豹 TRPG 骰点核心，开源跑团辅助工具，支持 QQ/Kook/Discord 等。
 
-项目的二进制构建见 [sealdice-build](https://github.com/sealdice/sealdice-build/releases) 子项目
+轻量 · 易用 · 全能
 
-注: 如无特殊说明，所有代码文件均遵循MIT开源协议
+## 文档
 
-## 开发环境搭建
+见 [使用手册](https://sealdice.github.io/sealdice-manual-next/)。
 
-### 1. golang 开发环境
+## SealDice Project
+
+- [核心](https://github.com/sealdice/sealdice-core)（本仓库）：Go 后端代码仓库，也作为海豹的主仓库，Bug 可反馈在该仓库的 issue 中；
+- [UI](https://github.com/sealdice/sealdice-ui)：前端代码，基于 Vue3 + ElementPlus 开发；
+- [手册](https://github.com/sealdice/sealdice-manual-next)：官方手册源码，由 VitePress 驱动；
+- [构建](https://github.com/sealdice/sealdice-build)：自动构建仓库，用于自动化发布海豹的每日构建包与 Release；
+- [Android](https://github.com/sealdice/sealdice-android)：Android 应用源码；
+- ……
+
+注：如无特殊说明，所有代码文件均遵循 MIT 开源协议
+
+## Core 开发环境搭建
+
+### golang 开发环境
 
 编译的 golang 版本为 1.20。使用更新版本时需注意不要使用新版本引入的新函数。
 
@@ -38,7 +52,7 @@
 >
 > 以上配置没有写入项目的统一设置，以允许开发者不本地使用 golangci-lint
 
-### 2. 拉取代码并配置数据文件
+### 拉取代码并配置数据文件
 
 使用git拉取项目代码
 
@@ -63,7 +77,7 @@ static
    └─assets
 ```
 
-### 3. 编译运行
+### 编译运行
 
 打开项目，或使用终端访问项目目录，运行：
 
