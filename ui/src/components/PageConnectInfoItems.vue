@@ -496,10 +496,10 @@
       <el-form :model="form">
         <el-form-item label="账号类型" :label-width="formLabelWidth">
           <el-select v-model="form.accountType">
-            <el-option label="[WIP]QQ(内置客户端)" :value="15"></el-option>
+            <el-option label="QQ(内置客户端)" :value="15"></el-option>
             <el-option label="QQ(onebot11正向WS)" :value="6"></el-option>
             <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
-            <el-option label="[WIP]QQ(官方bot)" :value="10"></el-option>
+            <el-option label="QQ(官方机器人)" :value="10"></el-option>
             <el-option label="[WIP]Satori" :value="14"></el-option>
             <el-option label="[WIP]SealChat" :value="13"></el-option>
             <el-option label="Discord" :value="1"></el-option>

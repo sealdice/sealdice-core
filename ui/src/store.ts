@@ -222,10 +222,10 @@ export const useStore = defineStore('main', {
           }
           break
         case 1:
-          info = await backend.post(urlPrefix + '/im_connections/addDiscord', { token, proxyURL }, { timeout: 65000 })
+          info = await backend.post(urlPrefix + '/im_connections/addDiscord', { token: token.trim(), proxyURL }, { timeout: 65000 })
           break
         case 2:
-          info = await backend.post(urlPrefix + '/im_connections/addKook', { token }, { timeout: 65000 })
+          info = await backend.post(urlPrefix + '/im_connections/addKook', { token: token.trim() }, { timeout: 65000 })
           break
         case 3:
           info = await backend.post(urlPrefix + '/im_connections/addTelegram', { token, proxyURL }, { timeout: 65000 })
@@ -234,11 +234,17 @@ export const useStore = defineStore('main', {
           info = await backend.post(urlPrefix + '/im_connections/addMinecraft', { url }, { timeout: 65000 })
           break
         case 5:
-          info = await backend.post(urlPrefix + '/im_connections/addDodo', { clientID, token }, { timeout: 65000 })
+          info = await backend.post(urlPrefix + '/im_connections/addDodo', { clientID: clientID.trim(), token: token.trim() }, { timeout: 65000 })
           break
-        case 6:
-          info = await backend.post(urlPrefix + '/im_connections/addGocqSeparate', { relWorkDir, connectUrl, accessToken, account }, { timeout: 65000 })
+        case 6: {
+          // onebot11 正向
+          let realUrl = connectUrl.trim()
+          if (!realUrl.startsWith('ws://') && !realUrl.startsWith('wss://')) {
+            realUrl = `ws://${realUrl}`
+          }
+          info = await backend.post(urlPrefix + '/im_connections/addGocqSeparate', { relWorkDir, connectUrl: realUrl, accessToken, account }, { timeout: 65000 })
           break
+        }
         case 7:
           info = await backend.post(urlPrefix + '/im_connections/addRed', { host, port, token }, { timeout: 65000 })
           break
@@ -252,10 +258,10 @@ export const useStore = defineStore('main', {
           info = await backend.post(urlPrefix + '/im_connections/addOfficialQQ', { appID: Number(appID), appSecret, token,onlyQQGuild }, { timeout: 65000 })
           break
         case 11:
-          info = await backend.post(urlPrefix + '/im_connections/addOnebot11ReverseWs', { account, reverseAddr }, { timeout: 65000 })
+          info = await backend.post(urlPrefix + '/im_connections/addOnebot11ReverseWs', { account, reverseAddr: reverseAddr?.trim() }, { timeout: 65000 })
           break
         case 13:
-          info = await backend.post(urlPrefix + '/im_connections/addSealChat', { url, token }, { timeout: 65000 })
+          info = await backend.post(urlPrefix + '/im_connections/addSealChat', { url: url.trim(), token: token.trim() }, { timeout: 65000 })
           break
         case 14:
           info = await backend.post(urlPrefix + '/im_connections/addSatori', { platform, host, port, token }, { timeout: 65000 })
