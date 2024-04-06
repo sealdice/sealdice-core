@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -13,14 +12,15 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
-	"sealdice-core/utils"
 	"strings"
 	"time"
 
 	"github.com/ShiraazMoollatjie/goluhn"
 	"github.com/acarl005/stripansi"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
+	"sealdice-core/utils"
 	"sealdice-core/utils/procs"
 )
 
@@ -1058,7 +1058,9 @@ func downloadGoCqhttp(logger *zap.SugaredLogger) {
 		if !isGocqDownloading {
 			isGocqDownloading = true
 			_ = os.MkdirAll("./go-cqhttp", 0755)
-			utils.DownloadFile(fn, url)
+			if err := utils.DownloadFile(fn, url); err != nil && logger != nil {
+				logger.Info("go-cqhttp下载失败，请进行禁用/启用操作以再次下载")
+			}
 			isGocqDownloading = false
 		} else {
 			for {

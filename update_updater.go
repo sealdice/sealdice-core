@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"sealdice-core/utils"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	"sealdice-core/dice"
+	"sealdice-core/utils"
 )
 
 const updaterVersion = "0.1.1"

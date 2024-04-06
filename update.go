@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sealdice-core/utils"
 	"strconv"
 	"syscall"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"go.uber.org/zap"
 
 	"sealdice-core/dice"
+	"sealdice-core/utils"
 )
 
 var binPrefix = "https://sealdice.coding.net/p/sealdice/d/sealdice-binaries/git/raw/master"
