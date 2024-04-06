@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"sealdice-core/utils"
 	"strconv"
 	"strings"
 	"sync"
@@ -137,7 +138,7 @@ func downloadUpdater(dm *dice.DiceManager) error {
 		fn += ".exe"
 		link += ".exe"
 	}
-	err := DownloadFile(fn, link)
+	err := utils.DownloadFile(fn, link)
 	if err != nil {
 		return err
 	}

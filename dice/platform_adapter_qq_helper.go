@@ -60,14 +60,14 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 		return false
 	}
 
-	waitTimes := 0
+	conn.reconnectTimes = 0
 	for {
 		if checkQuit() {
 			break
 		}
 
 		// 骰子开始连接
-		d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
+		d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, conn.reconnectTimes, 5)
 		ret := ep.Adapter.Serve()
 
 		if ret == 0 {
@@ -83,8 +83,8 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 			continue
 		}
 
-		waitTimes++
-		if waitTimes > 5 {
+		conn.reconnectTimes++
+		if conn.reconnectTimes > 5 {
 			d.Logger.Infof("onebot 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
 			conn.DiceServing = false
 			ep.State = 0

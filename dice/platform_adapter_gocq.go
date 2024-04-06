@@ -73,6 +73,8 @@ type PlatformAdapterGocq struct {
 	GoCqLastAutoLoginTime      int64 `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`                             // 上次自动重新登录的时间
 	GoCqhttpLoginSucceeded     bool  `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"`                            // 是否登录成功过
 	GoCqhttpLastRestrictedTime int64 `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
+	ForcePrintLog              bool  `yaml:"forcePrintLog" json:"forcePrintLog"`                               // 是否一定输出日志，隐藏配置项
+	reconnectTimes             int   // 重连次数
 
 	InPackGoCqhttpProtocol       int      `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
 	InPackGoCqhttpAppVersion     string   `yaml:"inPackGoCqHttpAppVersion" json:"inPackGoCqHttpAppVersion"`
@@ -385,6 +387,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		} else {
 			log.Info("onebot v11 连接成功")
 		}
+		pa.reconnectTimes = 0 // 重置连接重试次数
 		//  {"data":{"nickname":"闃斧鐗岃�佽檸鏈�","user_id":1001},"retcode":0,"status":"ok"}
 		pa.GetLoginInfo()
 	}

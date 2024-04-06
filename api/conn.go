@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/base64"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"sort"
 	"strconv"
@@ -735,7 +734,6 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		Account     string `yaml:"account" json:"account"`
 		ConnectURL  string `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
 		AccessToken string `yaml:"accessToken" json:"accessToken"` // 访问令牌
-		RelWorkDir  string `yaml:"relWorkDir" json:"relWorkDir"`   //
 	}{}
 
 	err := c.Bind(&v)
@@ -745,7 +743,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 			return nil
 		}
 
-		conn := dice.NewGoCqhttpConnectInfoItem(fmt.Sprintf("uid-%d", rand.Uint64()))
+		conn := dice.NewGoCqhttpConnectInfoItem("")
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 

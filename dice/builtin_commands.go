@@ -996,7 +996,7 @@ func (d *Dice) registerCoreCommands() {
 
 					bakFn, _ := ctx.Dice.Parent.BackupSimple()
 					tmpPath := path.Join(os.TempDir(), bakFn)
-					_ = os.MkdirAll(tmpPath, 0644)
+					_ = os.MkdirAll(tmpPath, 0755)
 					ctx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
 					_ = cp.Copy(path.Join(BackupDir, bakFn), tmpPath)
 
