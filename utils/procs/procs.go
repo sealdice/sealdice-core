@@ -11,7 +11,7 @@ import (
 	"github.com/fyrchik/go-shlex"
 )
 
-type OutHandler func(string) string
+type OutHandler func(string, string) string
 
 type Process struct {
 	CmdString string
@@ -54,6 +54,10 @@ func (p *Process) Start() error {
 	if err != nil {
 		return err
 	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
 	err = cmd.Start()
 	if err != nil {
 		return err
@@ -61,14 +65,8 @@ func (p *Process) Start() error {
 
 	p.StdIn = stdin
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Println("Recovered from panic:", r)
-			}
-		}()
-
-		scanner := bufio.NewScanner(stdout)
+	setupScanner := func(r io.Reader) *bufio.Scanner {
+		scanner := bufio.NewScanner(r)
 		scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 			if atEOF && len(data) == 0 {
 				return 0, nil, io.EOF
@@ -82,11 +80,42 @@ func (p *Process) Start() error {
 			return len(data), data, err
 			// return 0, nil, nil
 		})
+		return scanner
+	}
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("Recovered from panic:", r)
+			}
+		}()
+
+		scanner := setupScanner(stdout)
 
 		for scanner.Scan() {
 			line := scanner.Text()
 			if p.OutputHandler != nil {
-				back := p.OutputHandler(line)
+				back := p.OutputHandler(line, "stdout")
+				if back != "" {
+					_, _ = stdin.Write([]byte(back))
+				}
+			}
+		}
+	}()
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("Recovered from panic:", r)
+			}
+		}()
+
+		scanner := setupScanner(stderr)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if p.OutputHandler != nil {
+				back := p.OutputHandler(line, "stderr")
 				if back != "" {
 					_, _ = stdin.Write([]byte(back))
 				}

@@ -501,7 +501,7 @@ func (ctx *MsgContext) fillPrivilege(msg *Message) int {
 	}
 
 	// 加入黑名单相关权限
-	if val, exists := ctx.Dice.BanList.Map.Load(ctx.Player.UserID); exists {
+	if val, exists := ctx.Dice.BanList.GetByID(ctx.Player.UserID); exists {
 		switch val.Rank {
 		case BanRankBanned:
 			ctx.PrivilegeLevel = -30
@@ -1070,7 +1070,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	var isBanGroup, isWhiteGroup bool
 	// log.Info("check ban ", msg.MessageType, " ", msg.GroupID, " ", ctx.PrivilegeLevel)
 	if msg.MessageType == "group" {
-		value, exists := d.BanList.Map.Load(msg.GroupID)
+		value, exists := d.BanList.GetByID(msg.GroupID)
 		if exists {
 			if value.Rank == BanRankBanned {
 				isBanGroup = true

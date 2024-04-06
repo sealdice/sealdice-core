@@ -196,7 +196,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	chQrCode := make(chan int, 1)
 	isSeldKilling := false
 
-	p.OutputHandler = func(line string) string {
+	p.OutputHandler = func(line string, _type string) string {
 		fmt.Println(line)
 		if loginIndex != pa.CurLoginIndex {
 			// 当前连接已经无用，进程自杀

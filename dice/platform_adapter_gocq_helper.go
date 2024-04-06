@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -17,7 +18,9 @@ import (
 	"github.com/ShiraazMoollatjie/goluhn"
 	"github.com/acarl005/stripansi"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
+	"sealdice-core/utils"
 	"sealdice-core/utils/procs"
 )
 
@@ -609,7 +612,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	//}
 
 	if pa.UseInPackGoCqhttp {
-		if pa.BuiltinMode == "gocq" {
+		if pa.BuiltinMode == "gocq" || pa.BuiltinMode == "" {
 			pa.CurLoginIndex++
 			pa.GoCqhttpState = StateCodeInLogin
 			builtinGoCqhttpServe(dice, conn, loginInfo)
@@ -633,6 +636,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 	if pa.UseInPackGoCqhttp { //nolint:nestif
 		workDir := gocqGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
+		downloadGoCqhttp(dice.Logger)
 
 		qrcodeFile := filepath.Join(workDir, "qrcode.png")
 		deviceFilePath := filepath.Join(workDir, "device.json")
@@ -706,7 +710,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 		chSMS := make(chan string, 1)
 		chCaptcha := make(chan string, 1)
 
-		p.OutputHandler = func(line string) string {
+		p.OutputHandler = func(line string, _type string) string {
 			if loginIndex != pa.CurLoginIndex {
 				// 当前连接已经无用，进程自杀
 				if !isSelfKilling {
@@ -1020,6 +1024,52 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 			go run()
 		} else {
 			run()
+		}
+	}
+}
+
+var isGocqDownloading = false
+
+func downloadGoCqhttp(logger *zap.SugaredLogger) {
+	fn := "go-cqhttp/go-cqhttp"
+	if runtime.GOOS == "windows" {
+		fn += ".exe"
+	}
+
+	url := fmt.Sprintf("https://d1.sealdice.com/go-cqhttp/go-cqhttp_%s_%s", runtime.GOOS, runtime.GOARCH)
+
+	isExists := false
+	if _, err := os.Stat(fn); err == nil {
+		// 存在，并可执行
+		_ = os.Chmod(fn, 0o755)
+		cmd := exec.Command(fn, "-h")
+		out, err := cmd.Output()
+		if err == nil {
+			if strings.Contains(string(out), "go-cqhttp") {
+				isExists = true
+			}
+		}
+	}
+
+	if !isExists {
+		if logger != nil {
+			logger.Info("go-cqhttp不存在，进行下载")
+		}
+		if !isGocqDownloading {
+			isGocqDownloading = true
+			_ = os.MkdirAll("./go-cqhttp", 0755)
+			if err := utils.DownloadFile(fn, url); err != nil && logger != nil {
+				logger.Info("go-cqhttp下载失败，请进行禁用/启用操作以再次下载")
+			}
+			isGocqDownloading = false
+		} else {
+			for {
+				// 等待到下载完成
+				time.Sleep(2 * time.Second)
+				if !isGocqDownloading {
+					break
+				}
+			}
 		}
 	}
 }

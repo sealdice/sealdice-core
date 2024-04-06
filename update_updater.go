@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	"sealdice-core/dice"
+	"sealdice-core/utils"
 )
 
 const updaterVersion = "0.1.1"
@@ -137,7 +138,7 @@ func downloadUpdater(dm *dice.DiceManager) error {
 		fn += ".exe"
 		link += ".exe"
 	}
-	err := DownloadFile(fn, link)
+	err := utils.DownloadFile(fn, link)
 	if err != nil {
 		return err
 	}
