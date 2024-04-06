@@ -29,10 +29,14 @@ import com.sealdice.dice.utils.ViewModelMain
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 
@@ -46,9 +50,9 @@ class ProcessService : LifecycleService(){
     private lateinit var wakeLock: PowerManager.WakeLock
     private lateinit var networkCallback: ConnectivityManager.NetworkCallback
     private lateinit var notification : Notification
-
     private lateinit var windowManager: WindowManager
     private var floatRootView: View? = null//悬浮窗View
+    private val client = OkHttpClient()
     inner class MyBinder : Binder() {
         fun getService(): ProcessService = this@ProcessService
     }
@@ -59,10 +63,23 @@ class ProcessService : LifecycleService(){
         player.stop()
         isRunning = false
         if (process.isAlive) {
+            val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+            val url = sharedPreferences.getString("ui_address", "http://127.0.0.1:3211")
+            val request = Request.Builder()
+                .url("$url/sd-api/force_stop")
+                .build()
+            try {
+                val response = client.newCall(request).execute()
+                response.close()
+                Log.d("ProcessService","Force stop subprocess")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            process.waitFor(5, TimeUnit.SECONDS)
             process.destroy()
-            process.waitFor(10, TimeUnit.SECONDS)
-//            Log.e("ProcessService", "stopProcess")
+            process.waitFor(3, TimeUnit.SECONDS)
             process.destroyForcibly()
+            process.waitFor(3, TimeUnit.SECONDS)
         }
     }
     override fun onCreate() {
