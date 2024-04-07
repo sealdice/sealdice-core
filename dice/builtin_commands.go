@@ -381,6 +381,7 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["查询"] = cmdFind
+	d.CmdMap["査詢"] = cmdFind
 	d.CmdMap["find"] = cmdFind
 
 	helpForHelp := ".help // 查看本帮助\n" +

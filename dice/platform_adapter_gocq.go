@@ -94,6 +94,7 @@ type PlatformAdapterGocq struct {
 
 	riskAlertShieldCount int  // 风控警告屏蔽次数，一个临时变量
 	useArrayMessage      bool `yaml:"-"` // 使用分段消息
+	lagrangeRebootTimes  int
 }
 
 type Sender struct {
@@ -388,6 +389,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			log.Info("onebot v11 连接成功")
 		}
 		pa.reconnectTimes = 0 // 重置连接重试次数
+		pa.lagrangeRebootTimes = 0
 		//  {"data":{"nickname":"闃斧鐗岃�佽檸鏈�","user_id":1001},"retcode":0,"status":"ok"}
 		pa.GetLoginInfo()
 	}
