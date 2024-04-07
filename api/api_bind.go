@@ -114,9 +114,34 @@ var (
 	dm     *dice.DiceManager
 )
 
+type fStopEcho struct {
+	Key string `json:"key"`
+}
+
 // 这个函数是用来强制停止程序的，只有在Android上才能使用，其他平台会返回403
 func forceStop(c echo.Context) error {
 	if runtime.GOOS != "android" {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	// this is a dangerous api, so we need to check the key
+	haskey := false
+	for _, s := range os.Environ() {
+		if strings.HasPrefix(s, "FSTOP_KEY=") {
+			key := strings.Split(s, "=")[1]
+			v := fStopEcho{}
+			err := c.Bind(&v)
+			if err != nil {
+				return c.JSON(http.StatusBadRequest, nil)
+			}
+			if v.Key == key {
+				haskey = true
+				break
+			} else {
+				return c.JSON(http.StatusForbidden, nil)
+			}
+		}
+	}
+	if !haskey {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	defer func() {
@@ -561,7 +586,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.POST(prefix+"/dice/upgrade", upgrade)
 
-	e.GET(prefix+"/force_stop", forceStop)
+	e.POST(prefix+"/force_stop", forceStop)
 
 	e.POST(prefix+"/js/reload", jsReload)
 	e.POST(prefix+"/js/execute", jsExec)
