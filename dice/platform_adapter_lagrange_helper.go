@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
@@ -204,6 +205,30 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 			if err != nil {
 				log.Info("lagrange 进程异常退出: ", err)
+				pa.GoCqhttpState = StateCodeLoginFailed
+
+				if e, ok := err.(*exec.ExitError); ok {
+					code := e.ExitCode()
+					switch code {
+					case 137:
+						// Failed to create CoreCLR, HRESULT: 0x8007054F
+						// +++ exited with 137 +++
+						log.Info("你的设备尚未被支持，请等待后续更新。")
+					case 134:
+						// Resource temporarily unavailable
+						// System.Net.Dns.GetHostEntryOrAddressesCore(String hostName, Boolean justAddresses, AddressFamily addressFamily, Int64 startingTimestamp)
+						log.Info("当前网络无法进行域名解析，请更换网络。")
+					default:
+						if pa.lagrangeRebootTimes > 5 {
+							log.Info("自动重启次数达到上限，放弃")
+						} else {
+							pa.lagrangeRebootTimes++
+							log.Info("5秒后，尝试对其进行重启")
+							time.Sleep(5 * time.Second)
+							LagrangeServe(dice, conn, loginInfo)
+						}
+					}
+				}
 			} else {
 				log.Info("lagrange 进程退出")
 			}
