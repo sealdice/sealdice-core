@@ -78,7 +78,7 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 			break
 		}
 
-		if conn.GoCqhttpState != StateCodeLoginSuccessed {
+		if conn.GoCqhttpState == StateCodeInLogin || conn.GoCqhttpState == StateCodeInLoginQrCode {
 			time.Sleep(15 * time.Second)
 			continue
 		}
