@@ -143,7 +143,9 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					BuiltinQQServeProcessKill(dice, conn)
 				}
 
-				if isPrintLog || pa.ForcePrintLog || _type == "stderr" {
+				if _type == "stderr" {
+					log.Error("onebot | ", line)
+				} else if isPrintLog || pa.ForcePrintLog {
 					log.Warn("onebot | ", line)
 				}
 			}
@@ -182,6 +184,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			}()
 
 			pa.GoCqhttpProcess = p
+			processStartTime := time.Now().Unix()
 			err := p.Start()
 
 			if err == nil {
@@ -207,8 +210,9 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 				log.Info("lagrange 进程异常退出: ", err)
 				pa.GoCqhttpState = StateCodeLoginFailed
 
-				if e, ok := err.(*exec.ExitError); ok {
-					code := e.ExitCode()
+				var exitErr *exec.ExitError
+				if errors.As(err, &exitErr) {
+					code := exitErr.ExitCode()
 					switch code {
 					case 137:
 						// Failed to create CoreCLR, HRESULT: 0x8007054F
@@ -219,13 +223,17 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 						// System.Net.Dns.GetHostEntryOrAddressesCore(String hostName, Boolean justAddresses, AddressFamily addressFamily, Int64 startingTimestamp)
 						log.Info("当前网络无法进行域名解析，请更换网络。")
 					default:
-						if pa.lagrangeRebootTimes > 5 {
-							log.Info("自动重启次数达到上限，放弃")
+						if time.Now().Unix()-processStartTime < 10 {
+							log.Info("进程在启动后10秒内即退出，请检查配置是否正确")
 						} else {
-							pa.lagrangeRebootTimes++
-							log.Info("5秒后，尝试对其进行重启")
-							time.Sleep(5 * time.Second)
-							LagrangeServe(dice, conn, loginInfo)
+							if pa.lagrangeRebootTimes > 5 {
+								log.Info("自动重启次数达到上限，放弃")
+							} else {
+								pa.lagrangeRebootTimes++
+								log.Info("5秒后，尝试对其进行重启")
+								time.Sleep(5 * time.Second)
+								LagrangeServe(dice, conn, loginInfo)
+							}
 						}
 					}
 				}
