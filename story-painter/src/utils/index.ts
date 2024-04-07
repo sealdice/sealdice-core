@@ -71,7 +71,7 @@ export function msgImageFormat(msg: string, options: any, htmlText = false) {
 export function msgOffTopicFormat(msg: string, options: any, isDice = false) {
   // 替换场外发言
   if (options.offTopicHide && (!isDice)) {
-    msg = msg.replaceAll(/^\s*[(（].+?$/gm, '') // 【
+    msg = msg.replaceAll(/^\s*(?:@\S+\s+)*[（\(].*/gm, "");
   }
   return msg;
 }
