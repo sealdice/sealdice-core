@@ -21,13 +21,27 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Get New Commits
         id: get-commits
         run: echo "NEW_COMMIT_COUNT=$(git log --oneline --since '24 hours ago' | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Get Commit IDs
+        id: get-commit-ids
+        run: |
+          echo "UI_CID=`cd sealdice-ui && git rev-parse HEAD`" >> $GITHUB_OUTPUT;
+          echo "CORE_CID=`cd sealdice-core && git rev-parse HEAD`" >> $GITHUB_OUTPUT;
+          echo "ANDROID_VERSION=`cd sealdice-android && git describe --tags --abbrev=0`" >> $GITHUB_OUTPUT;
+
       - name: Warning
         run: if [ $(git log --oneline --since '24 hours ago' | wc -l) <= 0 ]; then echo $NO_BUILD_PROMPT; fi
+
     outputs:
       commit-count: ${{ steps.get-commits.outputs.NEW_COMMIT_COUNT }}
+      CORE_CID: ${{ steps.get-commit-ids.outputs.CORE_CID }}
+      UI_CID: ${{ steps.get-commit-ids.outputs.UI_CID }}
+      ANDROID_VERSION: ${{ steps.get-commit-ids.outputs.ANDROID_VERSION }}
+      PROJECT_VERSION: ${{ steps.get-version.outputs.PROJECT_VERSION }}
 
   resources-download:
     name: Download Related Resources
@@ -107,126 +121,6 @@ jobs:
         with:
           name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./extract/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}
-
-  # gocqhttp-build:
-  #   name: Build Gocqhttp
-  #   runs-on: ubuntu-20.04
-  #   needs: commit-num-check
-  #   if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
-  #   strategy:
-  #     matrix:
-  #       # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
-  #       goos: [ linux, windows, darwin ]
-  #       goarch: [ '386', amd64, arm64 ]
-  #       exclude:
-  #         - goos: linux
-  #           goarch: '386'
-  #         - goos: windows
-  #           goarch: arm64
-  #         - goos: darwin
-  #           goarch: '386'
-  #     fail-fast: true
-  #   steps:
-  #     - name: Apt-get Update
-  #       run: sudo apt-get update
-  #     - name: Code
-  #       uses: actions/checkout@v4
-  #       with:
-  #         submodules: true
-
-  #     - name: Get Commit ID
-  #       run: |
-  #         cd go-cqhttp
-  #         echo "GOCQ_CID=`git rev-parse --short HEAD`" >> $GITHUB_ENV;
-
-  #     - name: Cache dist get
-  #       id: cache-gocq-dist
-  #       uses: actions/cache@v4
-  #       env:
-  #         cache-name: cache-gocq-${{ matrix.goos }}-${{ matrix.goarch }}-dist
-  #       with:
-  #         path: ./go-cqhttp/output
-  #         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.GOCQ_CID }}
-
-  #     - name: Install Go
-  #       uses: actions/setup-go@v5
-  #       if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-  #       with:
-  #         go-version: '1.20'
-  #         cache-dependency-path: go-cqhttp/go.sum
-  #     - name: Build Binary
-  #       if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-  #       working-directory: ./go-cqhttp
-  #       env:
-  #         GOOS: ${{ matrix.goos }}
-  #         GOARCH: ${{ matrix.goarch }}
-  #         CGO_ENABLE: 0
-  #       run: |
-  #         if [ $GOOS = "windows" ]; then export BINARY_SUFFIX=".exe"; fi
-  #         export BINARY_NAME="go-cqhttp$BINARY_SUFFIX"
-  #         export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${GOCQ_CID}-sealdicefork"
-  #         go build -o "output/$BINARY_NAME" -trimpath -ldflags "$LD_FLAGS" .
-  #     - name: Upload Gocqhttp
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: go-cqhttp_${{ matrix.goos }}_${{ matrix.goarch }}
-  #         path: ./go-cqhttp/output
-
-  # gocqhttp-android-build:
-  #   name: Build Gocqhttp (android, arm64)
-  #   runs-on: ubuntu-20.04
-  #   needs: commit-num-check
-  #   if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
-  #   steps:
-  #     - name: Code
-  #       uses: actions/checkout@v4
-  #       with:
-  #         submodules: true
-
-  #     - name: Get Commit ID
-  #       run: |
-  #         cd go-cqhttp
-  #         echo "GOCQ_CID=`git rev-parse --short HEAD`" >> $GITHUB_ENV;
-
-  #     - name: Cache dist get
-  #       id: cache-gocq-dist
-  #       uses: actions/cache@v4
-  #       env:
-  #         cache-name: cache-gocqa-dist
-  #       with:
-  #         path: ./go-cqhttp/output
-  #         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ env.GOCQ_CID }}
-
-  #     - name: Install Go
-  #       if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-  #       uses: actions/setup-go@v5
-  #       with:
-  #         go-version: '1.20'
-  #         cache-dependency-path: go-cqhttp/go.sum
-  #     - name: Setup Android NDK
-  #       id: setup-ndk
-  #       if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-  #       uses: nttld/setup-ndk@v1.4.2
-  #       with:
-  #         ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-  #         link-to-sdk: true
-  #         local-cache: false
-  #     - name: Build Binary
-  #       if: ${{ steps.cache-gocq-dist.outputs.cache-hit != 'true' }}
-  #       working-directory: ./go-cqhttp
-  #       env:
-  #         GOOS: android
-  #         GOARCH: arm64
-  #         CGO_ENABLE: 0
-  #         CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
-  #       run: |
-  #         export LD_FLAGS="-w -s -X github.com/Mrs4s/go-cqhttp/internal/base.Version=${GOCQ_CID}-sealdicefork"
-  #         go build -o "output/go-cqhttp" -trimpath -ldflags "$LD_FLAGS" .
-  #     - name: Upload Gocqhttp
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: go-cqhttp_android_arm64
-  #         path: ./go-cqhttp/output
 
   ui-build:
     name: Build UI
@@ -506,7 +400,8 @@ jobs:
       - core-android-build
       - resources-download
       - lagrange-setup
-      # - gocqhttp-android-build
+    env:
+      ANDROID_VERSION: ${{needs.commit-num-check.outputs.ANDROID_VERSION}}
     steps:
       - name: Code
         uses: actions/checkout@v4
@@ -535,12 +430,6 @@ jobs:
           name: documents
           path: ./sealdice-android/app/src/main/assets/sealdice/data
 
-      # - name: Get Gocqhttp
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: go-cqhttp_android_arm64
-      #     path: ./sealdice-android/app/src/main/assets/sealdice/go-cqhttp/
-
       - name: Get App-Runner
         run: |
           curl https://d1.sealdice.com/lagrange/app-runner-std-arm64.tar.gz > ./sealdice-android/app/src/main/assets/app-runner-arm64.tar.gz
@@ -568,14 +457,33 @@ jobs:
       - name: Set Version
         working-directory: ./sealdice-android/app
         run: |
-          sed -i 's/versionName ".*"/versionName "${{ env.PROJECT_VERSION }}"/g' build.gradle
+          sed -i 's/versionName ".*"/versionName "${{ env.ANDROID_VERSION }}+${{ env.PROJECT_VERSION }}"/g' build.gradle
         env:
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
       - name: Build Apk
         working-directory: ./sealdice-android
         run: |
           bash ./gradlew assembleDebug --stacktrace
-          mv ./app/build/outputs/apk/debug/app-debug.apk ./app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION_C }}_arm64.apk
+
+      - name: Sign Android release
+        uses: r0adkll/sign-android-release@v1
+        # ID used to access action output
+        id: sign_app
+        with:
+          releaseDirectory: ./sealdice-android/app/build/outputs/apk/debug
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          # override default build-tools version (29.0.3) -- optional
+          BUILD_TOOLS_VERSION: "34.0.0"
+
+      - name: Rename Apk
+        working-directory: ./sealdice-android
+        run: |
+          mv ./app/build/outputs/apk/debug/app-debug-signed.apk ./app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION_C }}_arm64.apk
+
       - name: Upload Apk
         uses: actions/upload-artifact@v4
         with:
@@ -583,7 +491,7 @@ jobs:
           path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION_C }}_arm64.apk
 
   android-build-trace-debug:
-    name: Build Android Apk
+    name: Build Android Apk with trace
     runs-on: ubuntu-20.04
     needs:
       - core-android-build
@@ -617,12 +525,6 @@ jobs:
         with:
           name: documents
           path: ./sealdice-android/app/src/main/assets/sealdice/data
-
-      # - name: Get Gocqhttp
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: go-cqhttp_android_arm64
-      #     path: ./sealdice-android/app/src/main/assets/sealdice/go-cqhttp/
 
       - name: Get App-Runner
         run: |
@@ -658,12 +560,38 @@ jobs:
         working-directory: ./sealdice-android
         run: |
           bash ./gradlew assembleDebug --stacktrace
-          mv ./app/build/outputs/apk/debug/app-debug.apk ./app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION_C }}_arm64.apk
+          ls /usr/local/lib/android/sdk/build-tools
+
+      - name: Sign Android release
+        uses: r0adkll/sign-android-release@v1
+        # ID used to access action output
+        id: sign_app
+        with:
+          releaseDirectory: ./sealdice-android/app/build/outputs/apk/debug
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          # override default build-tools version (29.0.3) -- optional
+          BUILD_TOOLS_VERSION: "34.0.0"
+
+      - name: Rename Apk
+        working-directory: ./sealdice-android
+        run: |
+          mv ./app/build/outputs/apk/debug/app-debug-signed.apk ./app/build/outputs/apk/debug/sealdice_android_${{ env.PROJECT_VERSION_C }}_arm64.apk
+
       - name: Upload Apk
         uses: actions/upload-artifact@v4
         with:
           name: sealdice_${{ env.PROJECT_VERSION_C }}_trace_debug_android_arm64
-          path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION_C }}_arm64.apk
+          path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_android_${{ env.PROJECT_VERSION_C }}_arm64.apk
+
+      # - name: Upload Apk
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: sealdice_${{ env.PROJECT_VERSION_C }}_trace_debug_android_arm64
+      #     path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION_C }}_arm64.apk
 
   pc-pack:
     name: PC Pack
@@ -703,11 +631,6 @@ jobs:
         with:
           name: documents
           path: ./data
-      # - name: Get Gocqhttp
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: go-cqhttp_${{ matrix.goos }}_${{ matrix.goarch }}
-      #     path: ./go-cqhttp/
 
       - name: Get Lagrange
         uses: actions/download-artifact@v4
@@ -735,6 +658,7 @@ jobs:
     needs:
       - pc-pack
       - android-build
+      - commit-num-check
     strategy:
       matrix:
         # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64, android/arm64
@@ -750,6 +674,8 @@ jobs:
         include:
           - goos: android
             goarch: arm64
+    env:
+      ANDROID_VERSION: ${{needs.commit-num-check.outputs.ANDROID_VERSION}}
     steps:
       - name: Get current time
         uses: Kaven-Universe/github-action-current-date-time@v1
@@ -794,8 +720,9 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
         run: |
-          mv ./temp/sealdice_${PROJECT_VERSION_C}_${GOARCH}.apk ./sealdice_${PROJECT_VERSION_C}_${GOARCH}.apk
-          echo "DIST=sealdice_${PROJECT_VERSION_C}_${GOARCH}.apk" >> $GITHUB_ENV;
+          mv ./temp/sealdice_${PROJECT_VERSION_C}_${GOARCH}.apk ./sealdice-android_${ANDROID_VERSION}_core_${PROJECT_VERSION_C}_${GOARCH}.APK
+          echo "DIST=sealdice-android_${PROJECT_VERSION_C}_${GOARCH}.APK" >> $GITHUB_ENV;
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
