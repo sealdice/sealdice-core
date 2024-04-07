@@ -1,7 +1,6 @@
 package com.sealdice.dice
 
 import android.app.*
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
@@ -29,14 +28,17 @@ import com.sealdice.dice.utils.ViewModelMain
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 
@@ -53,6 +55,7 @@ class ProcessService : LifecycleService(){
     private lateinit var windowManager: WindowManager
     private var floatRootView: View? = null//悬浮窗View
     private val client = OkHttpClient()
+    private val fstop_key = UUID.randomUUID()
     inner class MyBinder : Binder() {
         fun getService(): ProcessService = this@ProcessService
     }
@@ -65,8 +68,12 @@ class ProcessService : LifecycleService(){
         if (process.isAlive) {
             val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
             val url = sharedPreferences.getString("ui_address", "http://127.0.0.1:3211")
+            val MEDIA_TYPE: MediaType = "application/json; charset=utf-8".toMediaType()
+            val json = "{\"key\": \"${fstop_key}\"}"
+            val body: RequestBody = json.toRequestBody(MEDIA_TYPE)
             val request = Request.Builder()
                 .url("$url/sd-api/force_stop")
+                .method("POST", body)
                 .build()
             try {
                 val response = client.newCall(request).execute()
@@ -222,6 +229,7 @@ class ProcessService : LifecycleService(){
             }
             val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
             processBuilder.environment()["RUNNER_PATH"] = this.filesDir.absolutePath + "/runner"
+            processBuilder.environment()["FSTOP_KEY"] = fstop_key.toString()
             process = processBuilder.start()
             val args = sharedPreferences.getString("launch_args", "")
             val cmd = "cd sealdice&&./sealdice-core $args"
