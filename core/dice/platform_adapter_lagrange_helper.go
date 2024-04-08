@@ -30,9 +30,9 @@ func NewLagrangeConnectInfoItem(account string) *EndPointInfo {
 	conn.RelWorkDir = "extra/lagrange-qq" + account
 
 	conn.Adapter = &PlatformAdapterGocq{
-		EndPoint:          conn,
-		UseInPackGoCqhttp: true,
-		BuiltinMode:       "lagrange",
+		EndPoint:        conn,
+		UseInPackClient: true,
+		BuiltinMode:     "lagrange",
 	}
 	return conn
 }
@@ -44,7 +44,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	loginIndex := pa.CurLoginIndex
 	pa.GoCqhttpState = StateCodeInLogin
 
-	if pa.UseInPackGoCqhttp && pa.BuiltinMode == "lagrange" { //nolint:nestif
+	if pa.UseInPackClient && pa.BuiltinMode == "lagrange" { //nolint:nestif
 		workDir := lagrangeGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 		wd, _ := os.Getwd()
@@ -247,7 +247,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		} else {
 			run()
 		}
-	} else if !pa.UseInPackGoCqhttp {
+	} else if !pa.UseInPackClient {
 		pa.GoCqhttpState = StateCodeLoginSuccessed
 		pa.GoCqhttpLoginSucceeded = true
 		dice.Save(false)
@@ -273,7 +273,7 @@ var defaultLagrangeConfig = `
         "GetOptimumServer": true
     },
     "Message": {
-        "IgnoreSelf": true, 
+        "IgnoreSelf": true,
         "StringPost": false
     },
     "QrCode": {
