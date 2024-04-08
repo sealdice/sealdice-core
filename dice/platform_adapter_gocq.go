@@ -56,10 +56,10 @@ type PlatformAdapterGocq struct {
 	ConnectURL  string              `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
 	AccessToken string              `yaml:"accessToken" json:"accessToken"` // 访问令牌
 
-	UseInPackGoCqhttp bool   `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
-	BuiltinMode       string `yaml:"builtinMode" json:"builtinMode"`             // 分为 lagrange 和 gocq
-	GoCqhttpState     int    `yaml:"-" json:"loginState"`                        // 当前状态
-	CurLoginIndex     int    `yaml:"-" json:"curLoginIndex"`                     // 当前登录序号，如果正在进行的登录不是该Index，证明过时
+	UseInPackClient bool   `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
+	BuiltinMode     string `yaml:"builtinMode" json:"builtinMode"`             // 分为 lagrange 和 gocq
+	GoCqhttpState   int    `yaml:"-" json:"loginState"`                        // 当前状态
+	CurLoginIndex   int    `yaml:"-" json:"curLoginIndex"`                     // 当前登录序号，如果正在进行的登录不是该Index，证明过时
 
 	GoCqhttpProcess           *procs.Process `yaml:"-" json:"-"`
 	GocqhttpLoginFailedReason string         `yaml:"-" json:"curLoginFailedReason"` // 当前登录失败原因
@@ -1140,7 +1140,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		return true
 	}
 
-	if pa.UseInPackGoCqhttp {
+	if pa.UseInPackClient {
 		if pa.InPackGoCqhttpDisconnectedCH != nil {
 			pa.InPackGoCqhttpDisconnectedCH <- -1
 		}
@@ -1189,7 +1189,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		c.Enable = true
 		pa.DiceServing = false
 
-		if pa.UseInPackGoCqhttp {
+		if pa.UseInPackClient {
 			if pa.BuiltinMode == "lagrange" {
 				BuiltinQQServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
@@ -1215,7 +1215,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 	} else {
 		c.Enable = false
 		pa.DiceServing = false
-		if pa.UseInPackGoCqhttp {
+		if pa.UseInPackClient {
 			BuiltinQQServeProcessKill(d, c)
 		}
 		if pa.IsReverse && pa.reverseApp != nil {
