@@ -142,7 +142,7 @@ func compressFile(fn string, zipFn string, zipWriter *zip.Writer) error {
 
 func checkUidExists(c echo.Context, uid string) bool {
 	for _, i := range myDice.ImSession.EndPoints {
-		if pa, ok := i.Adapter.(*dice.PlatformAdapterGocq); ok && pa.UseInPackGoCqhttp {
+		if pa, ok := i.Adapter.(*dice.PlatformAdapterGocq); ok && pa.UseInPackClient {
 			var relWorkDir string
 			if pa.BuiltinMode == "lagrange" {
 				relWorkDir = "extra/lagrange-qq" + uid

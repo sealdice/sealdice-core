@@ -488,9 +488,9 @@ func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
 	conn.RelWorkDir = "extra/go-cqhttp-qq" + account
 
 	conn.Adapter = &PlatformAdapterGocq{
-		EndPoint:          conn,
-		UseInPackGoCqhttp: true,
-		BuiltinMode:       "gocq",
+		EndPoint:        conn,
+		UseInPackClient: true,
+		BuiltinMode:     "gocq",
 	}
 	return conn
 }
@@ -508,7 +508,7 @@ func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo, isSync bool) 
 		if !ok {
 			return
 		}
-		if !pa.UseInPackGoCqhttp {
+		if !pa.UseInPackClient {
 			return
 		}
 
@@ -611,7 +611,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	//	return
 	//}
 
-	if pa.UseInPackGoCqhttp {
+	if pa.UseInPackClient {
 		if pa.BuiltinMode == "gocq" || pa.BuiltinMode == "" {
 			pa.CurLoginIndex++
 			pa.GoCqhttpState = StateCodeInLogin
@@ -633,7 +633,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 	loginIndex := pa.CurLoginIndex
 
 	// 保留此if语句块，使历史可追溯，后续commit可移除if
-	if pa.UseInPackGoCqhttp { //nolint:nestif
+	if pa.UseInPackClient { //nolint:nestif
 		workDir := gocqGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 		downloadGoCqhttp(dice.Logger)

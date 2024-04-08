@@ -755,7 +755,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		pa.ConnectURL = v.ConnectURL
 		pa.AccessToken = v.AccessToken
 
-		pa.UseInPackGoCqhttp = false
+		pa.UseInPackClient = false
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		conn.SetEnable(myDice, true)
@@ -799,7 +799,7 @@ func ImConnectionsAddReverseWs(c echo.Context) error {
 		pa.IsReverse = true
 		pa.ReverseAddr = v.ReverseAddr
 
-		pa.UseInPackGoCqhttp = false
+		pa.UseInPackClient = false
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		conn.SetEnable(myDice, true)

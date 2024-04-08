@@ -161,10 +161,16 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 		if cfg2.Accounts {
 			for _, i := range d.ImSession.EndPoints {
 				if i.Platform == "QQ" {
-					if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackGoCqhttp {
-						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "config.yml"))
-						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "device.json"))
-						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "session.token"))
+					if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackClient {
+						if pa.BuiltinMode == "lagrange" {
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "appsettings.json"))
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "device.json"))
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "keystore.json"))
+						} else {
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "config.yml"))
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "device.json"))
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "session.token"))
+						}
 					}
 				}
 			}
