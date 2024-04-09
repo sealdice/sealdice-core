@@ -64,6 +64,18 @@ class FirstFragment : Fragment() {
         return binding.root
     }
 
+    fun isPortAvailable(port: Int): Boolean {
+        return try {
+            val socket = java.net.ServerSocket(port)
+            socket.close()
+            Log.d("isPortAvailable", "Port $port is available")
+            true
+        } catch (e: java.lang.Exception) {
+            Log.e("isPortAvailable", e.toString())
+            false
+        }
+    }
+
     @OptIn(DelicateCoroutinesApi::class)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -154,10 +166,25 @@ class FirstFragment : Fragment() {
                 }
                 alertDialogBuilder?.create()?.show()
             } else {
-                if (sharedPreferences?.getBoolean("extract_on_start", true) == true) {
-                    ExtractAssets(context).extractResources("sealdice")
-                    ExtractAssets(context).extractResource("app-runner-arm64.tar")
-                    DecompressUtil.decompressTarSys(FileWrite.getPrivateFileDir(requireContext())+"app-runner-arm64.tar", FileWrite.getPrivateFileDir(requireContext())+"runner/")
+                if (!isPortAvailable(3211)) {
+                    val alertDialogBuilder = context?.let { it1 ->
+                        AlertDialog.Builder(
+                            it1, R.style.Theme_Mshell_DialogOverlay
+                        )
+                    }
+                    alertDialogBuilder?.setTitle("警告")
+                    alertDialogBuilder?.setMessage("默认端口3211被占用，点击“确定”随机设置一个新的端口并修改UI地址（会改变启动参数设置）")
+                    alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
+                        val editor = sharedPreferences?.edit()
+                        val newPort = (1024..65535).random()
+                        editor?.putString("ui_address", "http://127.0.0.1:${newPort}")
+                        editor?.putString("launch_args", "--address=127.0.0.1:${newPort}")
+                        editor?.apply()
+                    }
+                    alertDialogBuilder?.setNegativeButton("取消") { _: DialogInterface, _: Int ->
+                    }
+                    alertDialogBuilder?.create()?.show()
+                    return@setOnClickListener
                 }
                 binding.buttonTut.visibility = View.GONE
                 binding.buttonInput.visibility = View.GONE
@@ -176,16 +203,15 @@ class FirstFragment : Fragment() {
                 }
 
                 GlobalScope.launch(context = Dispatchers.IO) {
-                    for (i in 0..5) {
-                        withContext(Dispatchers.Main) {
-                            binding.textviewFirst.text = "正在启动...\n请等待${10 - i}s..."
-                        }
-                        Thread.sleep(1000)
+                    if (sharedPreferences?.getBoolean("extract_on_start", true) == true) {
+                        ExtractAssets(context).extractResources("sealdice")
+                        ExtractAssets(context).extractResource("app-runner-arm64.tar")
+                        DecompressUtil.decompressTarSys(FileWrite.getPrivateFileDir(requireContext())+"app-runner-arm64.tar", FileWrite.getPrivateFileDir(requireContext())+"runner/")
                     }
                     withContext(Dispatchers.Main){
                         launchAliveService(context)
                     }
-                    for (i in 5..10) {
+                    for (i in 0..10) {
                         withContext(Dispatchers.Main) {
                             binding.textviewFirst.text = "正在启动...\n请等待${10 - i}s..."
                         }

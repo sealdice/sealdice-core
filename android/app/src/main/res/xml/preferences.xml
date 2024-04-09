@@ -63,7 +63,7 @@
             android:key="launch_args"
             android:title="启动参数"
             android:summary="点击输入启动参数"
-            android:defaultValue="--address=0.0.0.0:3211" />
+            android:defaultValue="--address=127.0.0.1:3211" />
 
     </androidx.preference.PreferenceCategory>
 </PreferenceScreen>
