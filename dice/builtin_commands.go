@@ -656,6 +656,10 @@ func (d *Dice) registerCoreCommands() {
 		Raw:               true,
 		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsPrivate {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
 			if cmdArgs.SomeoneBeMentionedButNotMe {
 				// 如果是别人被at，置之不理
 				return CmdExecuteResult{Matched: true, Solved: true}
