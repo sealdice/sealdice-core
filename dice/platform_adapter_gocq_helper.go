@@ -515,7 +515,6 @@ func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo, isSync bool) 
 		// 重置状态
 		conn.State = 0
 		pa.GoCqhttpState = 0
-		pa.DiceServing = false
 		pa.GoCqhttpQrcodeData = nil
 
 		if pa.BuiltinMode == "lagrange" {

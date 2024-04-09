@@ -142,12 +142,12 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					log.Infof("onebot: 二维码过期，登录失败，账号：%s", conn.UserID)
 					BuiltinQQServeProcessKill(dice, conn)
 				}
+			}
 
-				if _type == "stderr" {
-					log.Error("onebot | ", line)
-				} else if isPrintLog || pa.ForcePrintLog {
-					log.Warn("onebot | ", line)
-				}
+			if _type == "stderr" {
+				log.Error("onebot | ", line)
+			} else if isPrintLog || pa.ForcePrintLog {
+				log.Warn("onebot | ", line)
 			}
 
 			return ""
@@ -230,9 +230,13 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 								log.Info("自动重启次数达到上限，放弃")
 							} else {
 								pa.lagrangeRebootTimes++
-								log.Info("5秒后，尝试对其进行重启")
-								time.Sleep(5 * time.Second)
-								LagrangeServe(dice, conn, loginInfo)
+								if conn.Enable {
+									log.Info("5秒后，尝试对其进行重启")
+									time.Sleep(5 * time.Second)
+								}
+								if conn.Enable {
+									LagrangeServe(dice, conn, loginInfo)
+								}
 							}
 						}
 					}

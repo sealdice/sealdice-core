@@ -1,6 +1,8 @@
 package dice
 
-import "time"
+import (
+	"time"
+)
 
 func ServeQQ(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
@@ -30,10 +32,10 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 }
 
 func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
-	if conn.DiceServing {
+	if conn.diceServing {
 		return
 	}
-	conn.DiceServing = true
+	conn.diceServing = true
 
 	ep.Enable = true
 	ep.State = 2 // 连接中
@@ -48,7 +50,7 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 			d.Save(false)
 			return true
 		}
-		if !conn.DiceServing {
+		if !conn.diceServing {
 			// 退出连接
 			d.Logger.Infof("检测到连接关闭，不再进行此onebot服务的重连: <%s>(%s)", ep.Nickname, ep.UserID)
 			return true
@@ -86,7 +88,6 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 		conn.reconnectTimes++
 		if conn.reconnectTimes > 5 {
 			d.Logger.Infof("onebot 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
-			conn.DiceServing = false
 			ep.State = 0
 			conn.GoCqhttpState = StateCodeLoginFailed
 			break
@@ -94,6 +95,8 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 
 		time.Sleep(15 * time.Second)
 	}
+
+	conn.diceServing = false
 }
 
 func serverWalleQ(d *Dice, ep *EndPointInfo, conn *PlatformAdapterWalleQ) {
