@@ -555,6 +555,11 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					if ctx.PrivilegeLevel < 40 {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -645,11 +650,16 @@ func (d *Dice) registerCoreCommands() {
 
 	helpForDismiss := ".dismiss // 退出当前群，主用于QQ，支持机器人的平台可以直接移出成员"
 	cmdDismiss := &CmdItemInfo{
-		Name:      "dismiss",
-		ShortHelp: helpForDismiss,
-		Help:      "退群(映射到bot bye):\n" + helpForDismiss,
-		Raw:       true,
+		Name:              "dismiss",
+		ShortHelp:         helpForDismiss,
+		Help:              "退群(映射到bot bye):\n" + helpForDismiss,
+		Raw:               true,
+		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsPrivate {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
 			if cmdArgs.SomeoneBeMentionedButNotMe {
 				// 如果是别人被at，置之不理
 				return CmdExecuteResult{Matched: true, Solved: true}
