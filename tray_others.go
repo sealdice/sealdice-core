@@ -5,12 +5,11 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -47,19 +46,27 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 		portStr = m[1]
 	}
 
-	ln, err := net.Listen("tcp", ":"+portStr)
-	if err != nil {
-		logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
-		runtime.Goexit()
-	}
-	_ = ln.Close()
+	for {
+		ln, err := net.Listen("tcp", ":"+portStr)
+		_ = ln.Close()
+		if err != nil {
+			logger.Errorf("端口已被占用: %s", dm.ServeAddress)
+			goto _nextRound
+		}
 
-	fmt.Println("如果浏览器没有自动打开，请手动访问:")
-	fmt.Printf(`http://localhost:%s`, portStr) // 默认:3211
-	err = e.Start(dm.ServeAddress)
-	if err != nil {
-		logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
-		return
+		fmt.Println("如果浏览器没有自动打开，请手动访问:")
+		fmt.Printf(`http://localhost:%s`, portStr) // 默认:3211
+		err = e.Start(dm.ServeAddress)
+		if err != nil {
+			logger.Errorf("端口已被占用: %s", dm.ServeAddress)
+			goto _nextRound
+		} else {
+			break
+		}
+
+	_nextRound:
+		time.Sleep(7 * time.Second)
+		continue
 	}
 }
 
