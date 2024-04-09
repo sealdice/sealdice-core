@@ -49,7 +49,7 @@ var (
 	// APP_CHANNEL 更新频道，stable/dev，在 action 构建时自动注入
 	APP_CHANNEL = "dev" //nolint:revive
 
-	VERSION_CODE = int64(1004004) //nolint:revive
+	VERSION_CODE = int64(1004005) //nolint:revive
 
 	VERSION_JSAPI_COMPATIBLE = []*semver.Version{
 		VERSION,
