@@ -159,7 +159,7 @@ func ImConnectionsDel(c echo.Context) error {
 				// 待删除的EPInfo落库，保留其统计数据
 				i.StatsDump(myDice)
 				// TODO: 注意 这个好像很不科学
-				// i.DiceServing = false
+				// i.diceServing = false
 				switch i.Platform {
 				case "QQ":
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
