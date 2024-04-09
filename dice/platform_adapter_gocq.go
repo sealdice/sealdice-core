@@ -79,7 +79,7 @@ type PlatformAdapterGocq struct {
 	InPackGoCqhttpProtocol       int      `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
 	InPackGoCqhttpAppVersion     string   `yaml:"inPackGoCqHttpAppVersion" json:"inPackGoCqHttpAppVersion"`
 	InPackGoCqhttpPassword       string   `yaml:"inPackGoCqHttpPassword" json:"-"`
-	DiceServing                  bool     `yaml:"-"`                                              // 是否正在连接中
+	diceServing                  bool     `yaml:"-"`                                              // 特指 diceServing 是否正在运行
 	InPackGoCqhttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest          bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
@@ -1039,8 +1039,17 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		log.Debug("Recieved pong " + data)
 	}
 
+	var lastDisconnect int64
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
-		log.Info("onebot 服务的连接被对方关闭 ")
+		now := time.Now().Unix()
+		if now-lastDisconnect < 2 {
+			// 存在极端时间内触发两次的情况，且为同一个连接
+			// 其他行为都是正常的，原因不明
+			return
+		}
+		lastDisconnect = now
+
+		log.Info("onebot 服务的连接被对方关闭")
 		_ = pa.Session.Parent.SendMail("", MailTypeConnectClose)
 		pa.InPackGoCqhttpDisconnectedCH <- 1
 	}
@@ -1187,7 +1196,6 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 	c := pa.EndPoint
 	if enable {
 		c.Enable = true
-		pa.DiceServing = false
 
 		if pa.UseInPackClient {
 			if pa.BuiltinMode == "lagrange" {
@@ -1214,7 +1222,6 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		}
 	} else {
 		c.Enable = false
-		pa.DiceServing = false
 		if pa.UseInPackClient {
 			BuiltinQQServeProcessKill(d, c)
 		}
