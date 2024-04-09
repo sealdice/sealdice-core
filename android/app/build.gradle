@@ -12,8 +12,8 @@ android {
         minSdk 26
         //noinspection ExpiredTargetSdkVersion
         targetSdk 28
-        versionCode 44
-        versionName "v0.6.1-rc6"
+        versionCode 45
+        versionName "v0.6.1"
         buildConfigField "String", "DOCUMENTS_AUTHORITY", "\"com.sealdice.dice.authorities\""
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         externalNativeBuild {
