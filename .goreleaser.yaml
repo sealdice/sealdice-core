@@ -6,53 +6,40 @@ before:
     - go mod tidy
     # you may remove this if you don't need go generate
 #    - go generate ./...
+project_name: sealdice-core
 builds:
-  - env:
+  - id: sealdice-core-android-arm64
+    env:
       - GO111MODULE=on
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
       - CGO_FLAGS=-Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+      - CC=C:\Users\MSI-NB\AppData\Local\Android\Sdk\ndk\ndk-bundle\toolchains\llvm\prebuilt\windows-x86_64\bin\aarch64-linux-android28-clang
+      - CXX=C:\Users\MSI-NB\AppData\Local\Android\Sdk\ndk\ndk-bundle\toolchains\llvm\prebuilt\windows-x86_64\bin\aarch64-linux-android28-clang++
     goos:
-      - linux
-      - darwin
+      - android
     goarch:
       - arm64
-      - amd64
     flags:
       - -trimpath
     ldflags:
       - -s -w -X main.build={{.Version}}
     gcflags:
       - all="-l" # -B
-    ignore:
-      - goos: linux
-        goarch: 386
 
-  - id: sealdice-core-win64
+
+  - id: sealdice-core-android-amd64
     env:
       - GO111MODULE=on
       - CGO_ENABLED=1
       - CGO_FLAGS=-Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+      - CC=C:\Users\MSI-NB\AppData\Local\Android\Sdk\ndk\ndk-bundle\toolchains\llvm\prebuilt\windows-x86_64\bin\x86_64-linux-android28-clang
+      - CXX=C:\Users\MSI-NB\AppData\Local\Android\Sdk\ndk\ndk-bundle\toolchains\llvm\prebuilt\windows-x86_64\bin\x86_64-linux-android28-clang++
     goos:
-      - windows
+      - android
     goarch:
       - amd64
     flags:
       - -trimpath
-    ldflags:
-      - -s -w -X main.build={{.Version}}
-    gcflags:
-      - all="-l" # -B
-
-  - id: sealdice-core-win32
-    env:
-      - CGO_ENABLED=1
-      - CGO_FLAGS=-Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
-    #    ldflags:
-    #      -H windowsgui
-    goos:
-      - windows
-    goarch:
-      - 386
     ldflags:
       - -s -w -X main.build={{.Version}}
     gcflags:
@@ -69,7 +56,6 @@ archives:
       - goos: windows
         format: zip
     files:
-      - "SealDice指令手册.html"
       - src: data/helpdoc/COC
         dst: .
       - src: data/helpdoc/DND
@@ -78,10 +64,11 @@ archives:
         dst: .
       - src: data/decks/seal.json
         dst: .
-      - src: frontend
-        dst: .
       - src: temp/go-cqhttp_{{ .Os }}_{{ .Arch }}
         dst: go-cqhttp
+        strip_parent: true
+      - src: temp/lagrange_{{ .Os }}_{{ .Arch }}
+        dst: lagrange
         strip_parent: true
 
 checksum:

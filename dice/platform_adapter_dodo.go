@@ -14,6 +14,8 @@ import (
 	"github.com/Szzrain/dodo-open-go/client"
 	"github.com/Szzrain/dodo-open-go/model"
 	"github.com/Szzrain/dodo-open-go/websocket"
+
+	"sealdice-core/message"
 )
 
 type PlatformAdapterDodo struct {
@@ -358,8 +360,7 @@ func (pa *PlatformAdapterDodo) SendToGroup(ctx *MsgContext, uid string, text str
 }
 
 func (pa *PlatformAdapterDodo) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -368,8 +369,7 @@ func (pa *PlatformAdapterDodo) SendFileToPerson(ctx *MsgContext, userID string, 
 }
 
 func (pa *PlatformAdapterDodo) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -420,8 +420,7 @@ func convertLinksToMarkdown(text string) string {
 
 func (pa *PlatformAdapterDodo) SendToPersonRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
 	instance := pa.Client
-	dice := pa.Session.Parent
-	elem := dice.ConvertStringMessage(text)
+	elem := message.ConvertStringMessage(text)
 	streamToByte := func(stream io.Reader) []byte {
 		buf := new(bytes.Buffer)
 		_, err := buf.ReadFrom(stream)
@@ -432,15 +431,15 @@ func (pa *PlatformAdapterDodo) SendToPersonRaw(ctx *MsgContext, uid string, text
 	}
 	for _, element := range elem {
 		switch e := element.(type) {
-		case *TextElement:
+		case *message.TextElement:
 			err := pa.SendMessageRaw(ctx, &model.TextMessage{Content: e.Content}, uid, isPrivate, "")
 			if err != nil {
 				return err
 			}
-		case *ImageElement:
+		case *message.ImageElement:
 			resourceResp, err := instance.UploadImageByBytes(context.Background(), &model.UploadImageByBytesReq{
-				Filename: e.file.File,
-				Bytes:    streamToByte(e.file.Stream),
+				Filename: e.File.File,
+				Bytes:    streamToByte(e.File.Stream),
 			})
 			if err != nil {
 				return err
@@ -463,8 +462,7 @@ func (pa *PlatformAdapterDodo) SendToPersonRaw(ctx *MsgContext, uid string, text
 func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
 	referenceMessageId := ""
 	instance := pa.Client
-	dice := pa.Session.Parent
-	elem := dice.ConvertStringMessage(text)
+	elem := message.ConvertStringMessage(text)
 	streamToByte := func(stream io.Reader) []byte {
 		buf := new(bytes.Buffer)
 		_, err := buf.ReadFrom(stream)
@@ -484,7 +482,7 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 	}
 	for _, element := range elem {
 		switch e := element.(type) {
-		case *TextElement:
+		case *message.TextElement:
 			if msgSend.Card != nil && len(msgSend.Card.Components) > 0 {
 				component, ok := msgSend.Card.Components[len(msgSend.Card.Components)-1].(*DoDoTextMessageComponent)
 				if ok {
@@ -502,10 +500,10 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 					Type:    "dodo-md",
 				},
 			})
-		case *ImageElement:
+		case *message.ImageElement:
 			resourceResp, err := instance.UploadImageByBytes(context.Background(), &model.UploadImageByBytesReq{
-				Filename: e.file.File,
-				Bytes:    streamToByte(e.file.Stream),
+				Filename: e.File.File,
+				Bytes:    streamToByte(e.File.Stream),
 			})
 			if err != nil {
 				return err
@@ -522,7 +520,7 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 					},
 				},
 			})
-		case *AtElement:
+		case *message.AtElement:
 			if msgSend.Card != nil && len(msgSend.Card.Components) > 0 {
 				component, ok := msgSend.Card.Components[len(msgSend.Card.Components)-1].(*DoDoTextMessageComponent)
 				if ok {
@@ -540,7 +538,7 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 					Type:    "dodo-md",
 				},
 			})
-		case *ReplyElement:
+		case *message.ReplyElement:
 			referenceMessageId = e.Target
 		}
 	}

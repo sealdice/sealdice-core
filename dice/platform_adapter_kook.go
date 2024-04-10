@@ -16,6 +16,8 @@ import (
 	"github.com/lonelyevil/kook/log_adapter/plog"
 	"github.com/phuslu/log"
 	"github.com/yuin/goldmark"
+
+	"sealdice-core/message"
 )
 
 // ConsoleWriterShutUp Kook go的作者要求必须使用他们自己的logger用于构造Intent Session，并且该logger不可缺省，因此这里重新实现一个不干活的logger以保证控制台log的干净整洁
@@ -468,7 +470,7 @@ func (pa *PlatformAdapterKook) RecallMessage(ctx *MsgContext, msgID string) {
 func (pa *PlatformAdapterKook) SendFileToChannelRaw(id string, path string, private bool) {
 	bot := pa.IntentSession
 	dice := pa.Session.Parent
-	e, err := dice.FilepathToFileElement(path)
+	e, err := message.FilepathToFileElement(path)
 	if err != nil {
 		dice.Logger.Errorf("向Kook频道#%s发送文件[path=%s]时出错:%s", id, path, err)
 		return
@@ -518,8 +520,7 @@ func (pa *PlatformAdapterKook) SendFileToChannelRaw(id string, path string, priv
 
 func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private bool) {
 	bot := pa.IntentSession
-	dice := pa.Session.Parent
-	elem := dice.ConvertStringMessage(text)
+	elem := message.ConvertStringMessage(text)
 	// var err error
 	streamToByte := func(stream io.Reader) []byte {
 		buf := new(bytes.Buffer)
@@ -540,7 +541,7 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 	}
 	for _, element := range elem {
 		switch e := element.(type) {
-		case *TextElement:
+		case *message.TextElement:
 			// goldmark.DefaultParser().Parse(txt.NewReader([]byte(e.Content)))
 			// msgb.Content += antiMarkdownFormat(e.Content)
 			cardModule := CardMessageModuleText{
@@ -551,8 +552,8 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 				}{Content: e.Content, Type: "plain-text"},
 			}
 			card.Modules = append(card.Modules, cardModule)
-		case *ImageElement:
-			assert, err := bot.AssetCreate(e.file.File, streamToByte(e.file.Stream))
+		case *message.ImageElement:
+			assert, err := bot.AssetCreate(e.File.File, streamToByte(e.File.Stream))
 			if err != nil {
 				pa.Session.Parent.Logger.Errorf("Kook创建asserts时出错:%s", err)
 				break
@@ -565,19 +566,20 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 				Src  string `json:"src"`
 			}{"image", assert})
 			card.Modules = append(card.Modules, cardModule)
-		case *FileElement:
-			assert, err := bot.AssetCreate(e.File, streamToByte(e.Stream))
-			if err != nil {
-				pa.Session.Parent.Logger.Errorf("Kook创建asserts时出错:%s", err)
-				break
-			}
-			cardModule := CardMessageModuleFile{
-				Type:  "file",
-				Title: e.File,
-				Src:   assert,
-			}
-			card.Modules = append(card.Modules, cardModule)
-		case *AtElement:
+		// Disabled due to Security Concerns
+		//case *message.FileElement:
+		//	assert, err := bot.AssetCreate(e.File, streamToByte(e.Stream))
+		//	if err != nil {
+		//		pa.Session.Parent.Logger.Errorf("Kook创建asserts时出错:%s", err)
+		//		break
+		//	}
+		//	cardModule := CardMessageModuleFile{
+		//		Type:  "file",
+		//		Title: e.File,
+		//		Src:   assert,
+		//	}
+		//	card.Modules = append(card.Modules, cardModule)
+		case *message.AtElement:
 			cardModule := CardMessageModuleText{
 				Type: "section",
 				Text: struct {
@@ -587,9 +589,9 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 			}
 			card.Modules = append(card.Modules, cardModule)
 			// msgb.Content = msgb.Content + fmt.Sprintf("(met)%s(met)", e.Target)
-		case *TTSElement:
+		case *message.TTSElement:
 			// msgb.Content += antiMarkdownFormat(e.Content)
-		case *ReplyElement:
+		case *message.ReplyElement:
 			msgb.Quote = e.Target
 		}
 	}
