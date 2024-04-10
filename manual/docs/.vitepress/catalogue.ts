@@ -60,7 +60,8 @@ export const deploySidebar = {
           text: "QQ",
           link: "/deploy/platform-qq",
           items: [
-            { text: "指南", link: "/deploy/platform-qq#%E6%8C%87%E5%8D%97" },
+            { text: "前言", link: "/deploy/platform-qq#%E5%89%8D%E8%A8%80" },
+            { text: "内置客户端", link: "/deploy/platform-qq#%E5%86%85%E7%BD%AE%E5%AE%A2%E6%88%B7%E7%AB%AF" },
             { text: "Lagrange", link: "/deploy/platform-qq#lagrange" },
             { text: "LLOneBot API", link: "/deploy/platform-qq#llonebot-api" },
             { text: "Shamrock", link: "/deploy/platform-qq#shamrock" },
