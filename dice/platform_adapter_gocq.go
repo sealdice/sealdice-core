@@ -746,19 +746,32 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 				log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
 
-				for _, i := range ctx.SplitText(welcome) {
-					doSleepQQ(ctx)
-					pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
-				}
-				if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
-					for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
-						if i.OnBecomeFriend != nil {
-							i.callWithJsCheck(ctx.Dice, func() {
-								i.OnBecomeFriend(ctx, msg)
-							})
+				go func() {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Errorf("好友致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+						}
+					}()
+
+					// 这是一个polyfill，因为目前版本的lagrange会先发送friend_add事件，后成为好友
+					// 而不是成为好友后，再发送friend_add事件(go-cqhttp行为)，导致好友致辞发不出去
+					// 因此略作延迟，等上游修复后可以移除
+					time.Sleep(5 * time.Second)
+
+					for _, i := range ctx.SplitText(welcome) {
+						doSleepQQ(ctx)
+						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
+					}
+					if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
+						for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+							if i.OnBecomeFriend != nil {
+								i.callWithJsCheck(ctx.Dice, func() {
+									i.OnBecomeFriend(ctx, msg)
+								})
+							}
 						}
 					}
-				}
+				}()
 			}()
 			return
 		}
@@ -781,12 +794,14 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// 判断进群的人是自己，自动启动
 			gi := SetBotOnAtGroup(ctx, msg.GroupID)
 			// 获取邀请人ID
-			uid := FormatDiceIDQQ(string(msgQQ.OperatorID))
 			if tempInviteMap2[msg.GroupID] != "" {
 				// 设置邀请人
 				gi.InviteUserID = tempInviteMap2[msg.GroupID]
 			} else {
-				gi.InviteUserID = uid
+				// 适用场景: 受邀加入无需审核的群时邀请人显示未知的问题 (#710) - llob
+				if string(msgQQ.OperatorID) != "" {
+					gi.InviteUserID = FormatDiceIDQQ(string(msgQQ.OperatorID))
+				}
 			}
 			gi.DiceIDExistsMap.Store(ep.UserID, true)
 			gi.EnteredTime = nowTime // 设置入群时间
