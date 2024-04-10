@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -301,6 +302,9 @@ func (d *Dice) JsInit() {
 		_ = ext.Set("getIntConfig", func(ei *ExtInfo, key string) int64 {
 			if ei.dice == nil || d.ConfigManager.getConfig(ei.Name, key).Type != "int" {
 				panic("配置不存在或类型不匹配")
+			}
+			if reflect.TypeOf(d.ConfigManager.getConfig(ei.Name, key).Value).Kind() == reflect.Float64 {
+				return int64(d.ConfigManager.getConfig(ei.Name, key).Value.(float64))
 			}
 			return d.ConfigManager.getConfig(ei.Name, key).Value.(int64)
 		})
