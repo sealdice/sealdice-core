@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -105,6 +106,8 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		isSelfKilling := false
 		isPrintLog := true
 
+		regFatal := regexp.MustCompile(`\s*\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\]\s+\[[^]]+\]\s+\[(FATAL)\]:`)
+
 		p.OutputHandler = func(line string, _type string) string {
 			if loginIndex != pa.CurLoginIndex {
 				// 当前连接已经无用，进程自杀
@@ -146,8 +149,14 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 			if _type == "stderr" {
 				log.Error("onebot | ", line)
-			} else if isPrintLog || pa.ForcePrintLog {
-				log.Warn("onebot | ", line)
+			} else {
+				isPrint := isPrintLog || pa.ForcePrintLog || strings.HasPrefix(line, "warn:")
+				if isPrint {
+					log.Warn("onebot | ", line)
+				}
+				if regFatal.MatchString(line) {
+					log.Error("onebot | ", line)
+				}
 			}
 
 			return ""
