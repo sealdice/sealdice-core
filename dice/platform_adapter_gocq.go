@@ -797,11 +797,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if tempInviteMap2[msg.GroupID] != "" {
 				// 设置邀请人
 				gi.InviteUserID = tempInviteMap2[msg.GroupID]
-			} else {
+			} else if string(msgQQ.OperatorID) != "" {
 				// 适用场景: 受邀加入无需审核的群时邀请人显示未知的问题 (#710) - llob
-				if string(msgQQ.OperatorID) != "" {
-					gi.InviteUserID = FormatDiceIDQQ(string(msgQQ.OperatorID))
-				}
+				gi.InviteUserID = FormatDiceIDQQ(string(msgQQ.OperatorID))
 			}
 			gi.DiceIDExistsMap.Store(ep.UserID, true)
 			gi.EnteredTime = nowTime // 设置入群时间
