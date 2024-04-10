@@ -780,9 +780,13 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			// 判断进群的人是自己，自动启动
 			gi := SetBotOnAtGroup(ctx, msg.GroupID)
+			// 获取邀请人ID
+			uid := FormatDiceIDQQ(string(msgQQ.OperatorID))
 			if tempInviteMap2[msg.GroupID] != "" {
 				// 设置邀请人
 				gi.InviteUserID = tempInviteMap2[msg.GroupID]
+			} else {
+				gi.InviteUserID = uid
 			}
 			gi.DiceIDExistsMap.Store(ep.UserID, true)
 			gi.EnteredTime = nowTime // 设置入群时间
