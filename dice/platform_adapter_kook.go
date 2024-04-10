@@ -567,7 +567,7 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 			}{"image", assert})
 			card.Modules = append(card.Modules, cardModule)
 		// Disabled due to Security Concerns
-		//case *message.FileElement:
+		// case *message.FileElement:
 		//	assert, err := bot.AssetCreate(e.File, streamToByte(e.Stream))
 		//	if err != nil {
 		//		pa.Session.Parent.Logger.Errorf("Kook创建asserts时出错:%s", err)

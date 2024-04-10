@@ -409,7 +409,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string
 				}
 			}
 			// Note(Szzrain): Disabled due to Security Concerns
-		//case *message.FileElement:
+		// case *message.FileElement:
 		//	msgSend.Files = append(msgSend.Files, &discordgo.File{
 		//		Name:        e.File,
 		//		ContentType: e.ContentType,
