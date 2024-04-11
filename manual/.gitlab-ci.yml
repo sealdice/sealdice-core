@@ -12,7 +12,7 @@ pages:
     - yarn config set cache-folder .yarn
     - yarn
     - BASE_PATH='/' yarn docs:build
-    - cp -R docs/.vuepress/dist ./public
+    - cp -R docs/.vitepress/dist ./public
   artifacts:
     paths:
       # The folder that contains the files to be exposed at the Page URL
