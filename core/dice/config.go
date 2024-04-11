@@ -262,6 +262,10 @@ func (cm *ConfigManager) Load() error {
 	for i := range cm.Plugins {
 		for j := range cm.Plugins[i].Configs {
 			temp := cm.Plugins[i].Configs[j]
+			// 将 json 数值反序列化到 any 类型时，即使数值是整数也会使用 float64。因此新增的配置项（int64）和从文件里恢复的配置项（float64）类型不同。
+			if f64v, ok := temp.Value.(float64); ok && temp.Type == "int" {
+				temp.Value = int64(f64v)
+			}
 			temp.Deprecated = true
 			cm.Plugins[i].Configs[j] = temp
 		}
