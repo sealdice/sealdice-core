@@ -619,7 +619,7 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 ### Chronocat Red 协议 <Badge type="tip" text="v1.4.2" />
 
-::: danger 警告：支持 Chronocat 为 0.0.54
+::: danger 危险：支持 Chronocat 为 0.0.54
 
 海豹 Red 协议所适配的目标 Chronocat 版本为 0.0.54，低于该版本（主要为 0.0.52）缺少必要接口，使用时会出现报错，不建议使用。
 
@@ -631,7 +631,7 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 海豹从 <Badge type="tip" text="v1.4.2"/> 开始支持对接 QQ 官方的机器人服务。
 
-::: tip QQ 机器人
+::: tip 提示：QQ 机器人
 
 QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https://q.qq.com/#/) 进行申请。
 
