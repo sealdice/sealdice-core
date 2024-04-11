@@ -16,6 +16,7 @@ export const deployNav = {
         { text: "迁移", link: "/deploy/transfer" },
         { text: "特色功能", link: "/deploy/special_feature" },
         { text: "数据库检查和修复", link: "/deploy/db-repair" },
+        { text: "配置安卓端保活", link: "/deploy/android_keepalive" },
       ]
     },
     {
@@ -51,6 +52,7 @@ export const deploySidebar = {
         { text: "迁移", link: "/deploy/transfer" },
         { text: "特色功能", link: "/deploy/special_feature" },
         { text: "数据库检查和修复", link: "/deploy/db-repair" },
+        { text: "配置安卓端保活", link: "/deploy/android_keepalive" },
       ]
     },
     {

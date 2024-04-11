@@ -10,6 +10,7 @@ index: false
   - [迁移](./transfer.md)
   - [特色功能](./special_feature.md)
   - [数据库检查和修复](./db-repair.md)
+  - [配置安卓端保活](./android_keepalive.md)
 - 平台
   - [QQ](./platform-qq.md)
   - [KOOK](./platform-kook.md)
