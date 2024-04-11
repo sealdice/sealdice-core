@@ -1,9 +1,9 @@
 package dice
 
 import (
-	"github.com/bwmarrin/discordgo"
 	"time"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
 )
 
@@ -59,7 +59,6 @@ func regenerateDiscordEndPoint(EndPointDiscord string) {
 	discordgo.EndpointWebhooks = discordgo.EndpointAPI + "webhooks/"
 	discordgo.EndpointStickers = discordgo.EndpointAPI + "stickers/"
 	discordgo.EndpointStageInstances = discordgo.EndpointAPI + "stage-instances"
-
 	discordgo.EndpointVoice = discordgo.EndpointAPI + "/voice/"
 	discordgo.EndpointVoiceRegions = discordgo.EndpointVoice + "regions"
 
