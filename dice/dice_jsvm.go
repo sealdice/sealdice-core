@@ -302,12 +302,7 @@ func (d *Dice) JsInit() {
 			if ei.dice == nil || d.ConfigManager.getConfig(ei.Name, key).Type != "int" {
 				panic("配置不存在或类型不匹配")
 			}
-			v := d.ConfigManager.getConfig(ei.Name, key).Value
-			// 将 json 数值反序列化到 any 类型时，即使数值是整数也会使用 float64。因此新增的配置项（int64）和从文件里恢复的配置项（float64）类型不同。
-			if f64v, ok := v.(float64); ok {
-				return int64(f64v)
-			}
-			return v.(int64)
+			return d.ConfigManager.getConfig(ei.Name, key).Value.(int64)
 		})
 		_ = ext.Set("getBoolConfig", func(ei *ExtInfo, key string) bool {
 			if ei.dice == nil || d.ConfigManager.getConfig(ei.Name, key).Type != "bool" {
