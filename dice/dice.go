@@ -40,7 +40,7 @@ var (
 	VERSION = semver.MustParse(VERSION_MAIN + VERSION_PRERELEASE + VERSION_BUILD_METADATA)
 
 	// VERSION_MAIN 主版本号
-	VERSION_MAIN = "1.4.5"
+	VERSION_MAIN = "1.4.6"
 	// VERSION_PRERELEASE 先行版本号
 	VERSION_PRERELEASE = "-dev"
 	// VERSION_BUILD_METADATA 版本编译信息
@@ -53,6 +53,7 @@ var (
 
 	VERSION_JSAPI_COMPATIBLE = []*semver.Version{
 		VERSION,
+		semver.MustParse("1.4.5"),
 		semver.MustParse("1.4.4"),
 		semver.MustParse("1.4.3"),
 	}
