@@ -4,6 +4,7 @@ title: Discord
 ---
 
 # Discord
+
 ::: info 本节内容
 
 本节将包含你在 Discord 平台接入海豹核心需要了解的特定内容。
@@ -27,6 +28,8 @@ title: Discord
 登录海豹并添加账号，选择「Discord账号」。在 `Token` 处粘贴你得到的 Token，点击连接。你的海豹应该可以正常在 Discord 运作了！
 
 ## 邀请海豹
+
+你需要在侧边栏「Installation」选项卡中的「Authorization Methods」选项中选中 `Guild Install` 才能将你的机器人邀请至服务器中。
 
 要申请用于邀请海豹至 Discord 服务器的邀请链接，前往侧边导航栏「OAuth2」下方的子目录「URL Generator」，在 `Scope` 中选择 `Bot` 后在下方 `Bot Permissions` 中选择你希望海豹拥有的权限。完成后复制下方生成的 URL，复制到浏览器打开。
 
