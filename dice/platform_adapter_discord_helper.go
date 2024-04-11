@@ -48,8 +48,8 @@ func ServeDiscord(d *Dice, ep *EndPointInfo) {
 	}
 }
 
-func regenerateDiscordEndPoint(EndPointDiscord string) {
-	discordgo.EndpointDiscord = EndPointDiscord
+func regenerateDiscordEndPoint(endPointDiscord string) {
+	discordgo.EndpointDiscord = endPointDiscord
 	discordgo.EndpointAPI = discordgo.EndpointDiscord + "api/v" + discordgo.APIVersion + "/"
 	discordgo.EndpointGuilds = discordgo.EndpointAPI + "guilds/"
 	discordgo.EndpointChannels = discordgo.EndpointAPI + "channels/"
@@ -70,8 +70,8 @@ func regenerateDiscordEndPoint(EndPointDiscord string) {
 	discordgo.EndpointOAuth2Applications = discordgo.EndpointOAuth2 + "applications"
 }
 
-func regenerateDiscordEndPointCDN(EndPointDiscordCDN string) {
-	discordgo.EndpointCDN = EndPointDiscordCDN
+func regenerateDiscordEndPointCDN(endPointDiscordCDN string) {
+	discordgo.EndpointCDN = endPointDiscordCDN
 	discordgo.EndpointCDNAttachments = discordgo.EndpointCDN + "attachments/"
 	discordgo.EndpointCDNAvatars = discordgo.EndpointCDN + "avatars/"
 	discordgo.EndpointCDNIcons = discordgo.EndpointCDN + "icons/"
