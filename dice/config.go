@@ -170,10 +170,18 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
 
 	configItem, exists := plugin.Configs[key]
 	if exists {
-		// Json 默认解析数字为 float64，需要转换
-		if configItem.Type == "int" {
+		switch configItem.Type {
+		case "int":
+			// Json 默认解析数字为 float64，需要转换
 			configItem.Value = int64(value.(float64))
-		} else {
+		case "template":
+			// 修复无法从[]interface{}断言[]string
+			var strarr []string
+			for _, strv := range value.([]interface{}) {
+				strarr = append(strarr, strv.(string))
+			}
+			configItem.Value = strarr
+		default:
 			configItem.Value = value
 		}
 		plugin.Configs[key] = configItem
@@ -265,6 +273,14 @@ func (cm *ConfigManager) Load() error {
 			// 将 json 数值反序列化到 any 类型时，即使数值是整数也会使用 float64。因此新增的配置项（int64）和从文件里恢复的配置项（float64）类型不同。
 			if f64v, ok := temp.Value.(float64); ok && temp.Type == "int" {
 				temp.Value = int64(f64v)
+			}
+			// 修复无法从[]interface{}断言[]string
+			if infv, ok := temp.Value.([]interface{}); ok && temp.Type == "template" {
+				var strarr []string
+				for _, strv := range infv {
+					strarr = append(strarr, strv.(string))
+				}
+				temp.Value = strarr
 			}
 			temp.Deprecated = true
 			cm.Plugins[i].Configs[j] = temp
