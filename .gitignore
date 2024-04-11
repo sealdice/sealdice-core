@@ -25,6 +25,7 @@ data/
 pegtest/
 temp/
 
+.goreleaser.yaml
 dist/
 go-cqhttp/
 lagrange/

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"sealdice-core/message"
 	"sealdice-core/utils/satori"
 
 	"github.com/google/uuid"
@@ -321,8 +322,7 @@ func (pa *PlatformAdapterSealChat) SendToGroup(ctx *MsgContext, uid string, text
 }
 
 func (pa *PlatformAdapterSealChat) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -331,8 +331,7 @@ func (pa *PlatformAdapterSealChat) SendFileToPerson(ctx *MsgContext, uid string,
 }
 
 func (pa *PlatformAdapterSealChat) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {

@@ -20,6 +20,8 @@ import (
 	"github.com/fy0/lockfree"
 	"github.com/gorilla/websocket"
 	"github.com/samber/lo"
+
+	"sealdice-core/message"
 )
 
 type PlatformAdapterRed struct {
@@ -872,17 +874,16 @@ func (pa *PlatformAdapterRed) httpDo(method, action string, headers map[string]s
 
 // encodeMessage 将带 cq code 的内容转换为 red 所需的格式
 func (pa *PlatformAdapterRed) encodeMessage(ctx *MsgContext, content string) []*RedElement {
-	dice := pa.Session.Parent
-	elems := dice.ConvertStringMessage(content)
+	elems := message.ConvertStringMessage(content)
 	var redElems []*RedElement
 	for _, elem := range elems {
 		switch e := elem.(type) {
-		case *TextElement:
+		case *message.TextElement:
 			redElems = append(redElems, &RedElement{
 				ElementType: 1,
 				TextElement: &RedTextElement{Content: e.Content},
 			})
-		case *AtElement:
+		case *message.AtElement:
 			redElems = append(redElems, &RedElement{
 				ElementType: 1,
 				TextElement: &RedTextElement{
@@ -891,8 +892,8 @@ func (pa *PlatformAdapterRed) encodeMessage(ctx *MsgContext, content string) []*
 					Content: fmt.Sprintf("@%s", e.Target),
 				},
 			})
-		case *ImageElement:
-			fi := e.file
+		case *message.ImageElement:
+			fi := e.File
 			resp := pa.uploadFile(fi.File, fi.Stream)
 			redElem := RedElement{
 				ElementType: 2,
@@ -909,7 +910,7 @@ func (pa *PlatformAdapterRed) encodeMessage(ctx *MsgContext, content string) []*
 				redElem.PicElement.PicHeight = resp.ImageInfo.Height
 			}
 			redElems = append(redElems, &redElem)
-		case *FileElement:
+		case *message.FileElement:
 			resp := pa.uploadFile(e.File, e.Stream)
 			redElems = append(redElems, &RedElement{
 				ElementType: 3,

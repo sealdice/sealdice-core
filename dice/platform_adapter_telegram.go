@@ -11,6 +11,8 @@ import (
 	"unicode/utf16"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	"sealdice-core/message"
 )
 
 type PlatformAdapterTelegram struct {
@@ -410,7 +412,7 @@ func (pa *PlatformAdapterTelegram) SendFileToPerson(_ *MsgContext, uid string, p
 	bot := pa.IntentSession
 	dice := pa.Session.Parent
 
-	e, err := dice.FilepathToFileElement(path)
+	e, err := message.FilepathToFileElement(path)
 	if err != nil {
 		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
 		return
@@ -430,7 +432,7 @@ func (pa *PlatformAdapterTelegram) SendFileToGroup(_ *MsgContext, uid string, pa
 	bot := pa.IntentSession
 	dice := pa.Session.Parent
 
-	e, err := dice.FilepathToFileElement(path)
+	e, err := message.FilepathToFileElement(path)
 	if err != nil {
 		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
 		return
@@ -464,16 +466,15 @@ func (r *RequestFileDataImpl) SendData() string {
 }
 func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 	bot := pa.IntentSession
-	dice := pa.Session.Parent
 	id, _ := strconv.ParseInt(uid, 10, 64)
-	elem := dice.ConvertStringMessage(text)
+	elem := message.ConvertStringMessage(text)
 	msg := tgbotapi.NewMessage(id, "")
 	var err error
 	for _, element := range elem {
 		switch e := element.(type) {
-		case *TextElement:
+		case *message.TextElement:
 			msg.Text += e.Content
-		case *AtElement:
+		case *message.AtElement:
 			leng := len(msg.Text)
 			uid, _ := strconv.ParseInt(e.Target, 10, 64)
 			user := &tgbotapi.User{ID: uid}
@@ -481,7 +482,7 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 			msg.Text += data
 			entity := tgbotapi.MessageEntity{Type: "text_mention", Offset: leng, Length: len(data), User: user}
 			msg.Entities = append(msg.Entities, entity)
-		case *FileElement:
+		case *message.FileElement:
 			if msg.Text != "" {
 				_, err = bot.Send(msg)
 			}
@@ -493,8 +494,8 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 			data := &RequestFileDataImpl{File: e.File, Reader: e.Stream}
 			f := tgbotapi.NewDocument(id, data)
 			_, err = bot.Send(f)
-		case *ImageElement:
-			fi := e.file
+		case *message.ImageElement:
+			fi := e.File
 			data := &RequestFileDataImpl{File: fi.File, Reader: fi.Stream}
 			f := tgbotapi.NewPhoto(id, data)
 			if msg.Text != "" {
@@ -508,9 +509,9 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
 				return
 			}
-		case *TTSElement:
+		case *message.TTSElement:
 			msg.Text += e.Content
-		case *ReplyElement:
+		case *message.ReplyElement:
 			parseInt, errParse := strconv.ParseInt(e.Target, 10, 64)
 			if errParse != nil {
 				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, errParse)

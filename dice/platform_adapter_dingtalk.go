@@ -7,6 +7,8 @@ import (
 
 	dingtalk "github.com/Szzrain/DingTalk-go"
 	"github.com/open-dingtalk/dingtalk-stream-sdk-go/chatbot"
+
+	"sealdice-core/message"
 )
 
 type PlatformAdapterDingTalk struct {
@@ -112,8 +114,7 @@ func (pa *PlatformAdapterDingTalk) SetGroupCardName(ctx *MsgContext, name string
 }
 
 func (pa *PlatformAdapterDingTalk) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -122,8 +123,7 @@ func (pa *PlatformAdapterDingTalk) SendFileToPerson(ctx *MsgContext, uid string,
 }
 
 func (pa *PlatformAdapterDingTalk) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
