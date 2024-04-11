@@ -10,6 +10,8 @@ import (
 	"github.com/slack-go/slack"
 	se "github.com/slack-go/slack/slackevents"
 	sm "github.com/slack-go/slack/socketmode"
+
+	"sealdice-core/message"
 )
 
 type PlatformAdapterSlack struct {
@@ -157,8 +159,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 
 func (pa *PlatformAdapterSlack) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
 	// TODO
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -168,8 +169,7 @@ func (pa *PlatformAdapterSlack) SendFileToPerson(ctx *MsgContext, userID string,
 
 func (pa *PlatformAdapterSlack) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
 	// TODO
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
