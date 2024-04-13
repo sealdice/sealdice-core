@@ -94,9 +94,10 @@ type OnebotGroupInfo struct {
 }
 
 // GetGroupInfo 获取群聊信息
-func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string) *OnebotGroupInfo {
-	type GroupMessageParams struct {
+func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string, noCache bool) *OnebotGroupInfo {
+	type DetailParams struct {
 		GroupID int64 `json:"group_id"`
+		NoCache bool  `json:"no_cache"`
 	}
 	realGroupID, idType := pa.mustExtractID(groupID)
 	if idType != QQUidGroup {
@@ -106,21 +107,29 @@ func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string) *OnebotGroupInfo {
 	echo := pa.getCustomEcho()
 	a, _ := json.Marshal(oneBotCommand{
 		"get_group_info",
-		GroupMessageParams{
+		DetailParams{
 			realGroupID,
+			noCache,
 		},
 		echo,
 	})
-
-	data := &OnebotGroupInfo{}
-	err := pa.waitEcho2(echo, data, func(emi *echoMapInfo) {
+	
+	msg := &MessageQQ{}
+	err := pa.waitEcho2(echo, msg, func(emi *echoMapInfo) {
 		emi.echoOverwrite = -2 // 强制覆盖为获取群信息，与之前兼容
 		socketSendText(pa.Socket, string(a))
 	})
-	if err == nil {
-		return data
+	d := msg.Data
+	if err == nil && d != nil {
+		gid, _ := strconv.ParseInt(string(d.GroupID), 10, 64)
+		return &OnebotGroupInfo{
+			GroupID:        gid,
+			GroupName:      d.GroupName,
+			MemberCount:    int32(d.MemberCount),
+			MaxMemberCount: d.MaxMemberCount,
+		}
 	}
-	return nil
+	return &OnebotGroupInfo{}
 }
 
 func socketSendText(socket *gowebsocket.Socket, s string) {
@@ -400,8 +409,9 @@ func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait
 
 	emi := &echoMapInfo{ch: make(chan string, 1)}
 	beforeWait(emi)
-
-	pa.echoMap2.Store(echo, emi)
+	// 注: 之所以这样是因为echo是json.RawMessage
+	e := lo.Must(json.Marshal(echo))
+	pa.echoMap2.Store(string(e), emi)
 	val := <-emi.ch
 	if val == "" {
 		return errors.New("超时")
