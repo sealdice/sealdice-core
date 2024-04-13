@@ -113,7 +113,6 @@ func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string, noCache bool) *Onebo
 		},
 		echo,
 	})
-	
 	msg := &MessageQQ{}
 	err := pa.waitEcho2(echo, msg, func(emi *echoMapInfo) {
 		emi.echoOverwrite = -2 // 强制覆盖为获取群信息，与之前兼容
