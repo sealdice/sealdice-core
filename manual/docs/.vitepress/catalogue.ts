@@ -16,8 +16,8 @@ export const deployNav = {
         { text: "迁移", link: "/deploy/transfer" },
         { text: "特色功能", link: "/deploy/special_feature" },
         { text: "数据库检查和修复", link: "/deploy/db-repair" },
-        { text: "配置安卓端保活", link: "/deploy/android_keepalive" },
-      ]
+        { text: "配置安卓端保活", link: "/deploy/android_keepalive"},
+      ],
     },
     {
       text: "连接平台",
@@ -52,8 +52,18 @@ export const deploySidebar = {
         { text: "迁移", link: "/deploy/transfer" },
         { text: "特色功能", link: "/deploy/special_feature" },
         { text: "数据库检查和修复", link: "/deploy/db-repair" },
-        { text: "配置安卓端保活", link: "/deploy/android_keepalive" },
-      ]
+        { text: "配置安卓端保活", 
+          link: "/deploy/android_keepalive" ,
+          items: [
+            { text: "授予海豹核心必要权限", link: "/deploy/android_keepalive#%E6%8E%88%E4%BA%88%E6%B5%B7%E8%B1%B9%E6%A0%B8%E5%BF%83%E5%BF%85%E8%A6%81%E6%9D%83%E9%99%90" },
+            { text: "HyperOS", link: "/deploy/android_keepalive#hyperos" },
+            { text: "MIUI", link: "/deploy/android_keepalive#miui" },
+            { text: "鸿蒙系统", link: "/deploy/android_keepalive#%E9%B8%BF%E8%92%99%E7%B3%BB%E7%BB%9F" },
+            { text: "ColorOS", link: "/deploy/android_keepalive#coloros" },
+            { text: "通用设置", link: "/deploy/android_keepalive#%E9%80%9A%E7%94%A8%E8%AE%BE%E7%BD%AE" },
+          ],
+        },
+      ],
     },
     {
       text: "连接平台",
