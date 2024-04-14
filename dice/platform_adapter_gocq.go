@@ -438,18 +438,18 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			if err != nil {
 				// 将 tryParseOneBot11ArrayMessage 认定无法解析的数据再解析一次
-				msgob := struct {
+				msgOB := struct {
 					Echo    json.RawMessage `json:"echo"`
 					Data    json.RawMessage `json:"data"`
 					Retcode int64           `json:"retcode"`
 				}{}
-				err = json.Unmarshal([]byte(message), &msgob)
+				err = json.Unmarshal([]byte(message), &msgOB)
 
 				if err == nil {
 					// 把有效data数据保留给waitEcho2以自定义结构解析
-					if msgob.Data != nil && pa.echoMap2 != nil && msgob.Echo != nil {
-						if v, ok := pa.echoMap2.Load(string(msgQQ.Echo)); ok {
-							v.ch <- string(msgob.Data)
+					if msgOB.Data != nil && pa.echoMap2 != nil && msgOB.Echo != nil {
+						if v, ok := pa.echoMap2.Load(string(msgOB.Echo)); ok {
+							v.ch <- string(msgOB.Data)
 							return
 						}
 					}
