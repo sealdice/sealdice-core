@@ -122,7 +122,30 @@ func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string) *OnebotGroupInfo {
 	}
 	return nil
 }
+func (pa *PlatformAdapterGocq) GetGroupList(noCache bool) []*OnebotGroupInfo {
+	type DetailParams struct {
+		NoCache bool `json:"no_cache"`
+	}
 
+	echo := pa.getCustomEcho()
+	a, _ := json.Marshal(oneBotCommand{
+		"get_group_list",
+		DetailParams{
+			noCache,
+		},
+		echo,
+	})
+
+	gi := []*OnebotGroupInfo{}
+	err := pa.waitEcho2(echo, &gi, func(emi *echoMapInfo) {
+		socketSendText(pa.Socket, string(a))
+	})
+
+	if err == nil {
+		return gi
+	}
+	return nil
+}
 func socketSendText(socket *gowebsocket.Socket, s string) {
 	defer func() {
 		if r := recover(); r != nil { //nolint
