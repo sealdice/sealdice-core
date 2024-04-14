@@ -296,10 +296,10 @@ func (pa *PlatformAdapterLagrangeGo) SetEnable(enable bool) {
 	} else {
 		if pa.QQClient != nil {
 			pa.QQClient.Stop()
-			pa.EndPoint.State = 0
-			pa.CurState = StateCodeInit
 			pa.QQClient = nil
 		}
+		pa.EndPoint.State = 0
+		pa.CurState = StateCodeInit
 	}
 }
 
