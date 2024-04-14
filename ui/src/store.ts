@@ -238,7 +238,7 @@ export const useStore = defineStore('main', {
         reverseAddr,
         onlyQQGuild,
         platform } = form
-        
+
       let info = null
       switch (accountType) {
         //QQ
@@ -297,6 +297,9 @@ export const useStore = defineStore('main', {
         case 15:
           info = await backend.post(urlPrefix + '/im_connections/addLagrange', { account, protocol }, { timeout: 65000 })
           break
+        case 16:
+            info = await backend.post(urlPrefix + '/im_connections/addLagrangeGo', { account }, { timeout: 65000 })
+            break
       }
       return info as any as DiceConnection
     },

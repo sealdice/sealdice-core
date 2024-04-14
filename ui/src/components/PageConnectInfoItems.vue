@@ -206,7 +206,7 @@
           </el-form-item> -->
 
           <!-- <el-form-item label=""> -->
-          <div style="display: flex;justify-content: center; margin-bottom: 1rem;" 
+          <div style="display: flex;justify-content: center; margin-bottom: 1rem;"
             v-if="![goCqHttpStateCode.InLogin, goCqHttpStateCode.InLoginQrCode].includes(i.adapter?.loginState)">
             <el-button-group>
               <el-tooltip content="如果日志中出现帐号被风控，可以试试这个功能" placement="bottom-start">
@@ -497,6 +497,7 @@
         <el-form-item label="账号类型" :label-width="formLabelWidth">
           <el-select v-model="form.accountType">
             <el-option label="QQ(内置客户端)" :value="15"></el-option>
+            <el-option label="[WIP]QQ(LagrangeGo)" :value="16"></el-option>
             <el-option label="QQ(onebot11正向WS)" :value="6"></el-option>
             <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
             <el-option label="QQ(官方机器人)" :value="10"></el-option>
@@ -566,6 +567,11 @@
             <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示: 首次登录时，iPad或者Android手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
           </small>
         </el-form-item>
+
+        <el-form-item v-if=" form.accountType === 16" label="账号" :label-width="formLabelWidth" required>
+          <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
+        </el-form-item>
+
 
         <!-- <el-form-item label="附加参数" :label-width="formLabelWidth">
           <template #label>
