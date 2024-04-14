@@ -381,6 +381,7 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["查询"] = cmdFind
+	d.CmdMap["査詢"] = cmdFind
 	d.CmdMap["find"] = cmdFind
 
 	helpForHelp := ".help // 查看本帮助\n" +
@@ -554,6 +555,11 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 					}
 
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					if ctx.PrivilegeLevel < 40 {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -644,11 +650,27 @@ func (d *Dice) registerCoreCommands() {
 
 	helpForDismiss := ".dismiss // 退出当前群，主用于QQ，支持机器人的平台可以直接移出成员"
 	cmdDismiss := &CmdItemInfo{
-		Name:      "dismiss",
-		ShortHelp: helpForDismiss,
-		Help:      "退群(映射到bot bye):\n" + helpForDismiss,
-		Raw:       true,
+		Name:              "dismiss",
+		ShortHelp:         helpForDismiss,
+		Help:              "退群(映射到bot bye):\n" + helpForDismiss,
+		Raw:               true,
+		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsPrivate {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if cmdArgs.SomeoneBeMentionedButNotMe {
+				// 如果是别人被at，置之不理
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if !cmdArgs.AmIBeMentioned {
+				// 裸指令，如果当前群内开启，予以提示
+				if ctx.IsCurGroupBotOn {
+					ReplyToSender(ctx, msg, "[退群指令] 请@我使用这个命令，以进行确认")
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
 			rest := cmdArgs.GetArgN(1)
 			if rest != "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -985,7 +1007,7 @@ func (d *Dice) registerCoreCommands() {
 
 					bakFn, _ := ctx.Dice.Parent.BackupSimple()
 					tmpPath := path.Join(os.TempDir(), bakFn)
-					_ = os.MkdirAll(tmpPath, 0644)
+					_ = os.MkdirAll(tmpPath, 0755)
 					ctx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
 					_ = cp.Copy(path.Join(BackupDir, bakFn), tmpPath)
 

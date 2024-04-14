@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -158,12 +159,12 @@ func ImConnectionsDel(c echo.Context) error {
 				// 待删除的EPInfo落库，保留其统计数据
 				i.StatsDump(myDice)
 				// TODO: 注意 这个好像很不科学
-				// i.DiceServing = false
+				// i.diceServing = false
 				switch i.Platform {
 				case "QQ":
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					if i.ProtocolType == "onebot" {
-						dice.GoCqhttpServeProcessKill(myDice, i)
+						dice.BuiltinQQServeProcessKill(myDice, i)
 					}
 					return c.JSON(http.StatusOK, i)
 				case "DISCORD":
@@ -340,10 +341,8 @@ func ImConnectionsAddWalleQ(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		uid := v.Account
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserID == dice.FormatDiceIDQQ(uid) {
-				return c.JSON(CodeAlreadyExists, i)
-			}
+		if checkUidExists(c, uid) {
+			return nil
 		}
 
 		conn := dice.NewWqConnectInfoItem(v.Account)
@@ -432,8 +431,10 @@ func ImConnectionsGocqConfigDownload(c echo.Context) error {
 }
 
 type AddDiscordEcho struct {
-	Token    string
-	ProxyURL string
+	Token              string
+	ProxyURL           string
+	ReverseProxyUrl    string
+	ReverseProxyCDNUrl string
 }
 
 func ImConnectionsAddDiscord(c echo.Context) error {
@@ -661,7 +662,7 @@ func ImConnectionsAddSlack(c echo.Context) error {
 	return c.String(430, "")
 }
 
-func ImConnectionsAdd(c echo.Context) error {
+func ImConnectionsAddBuiltinGocq(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
@@ -688,10 +689,8 @@ func ImConnectionsAdd(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		uid := v.Account
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserID == dice.FormatDiceIDQQ(uid) {
-				return c.JSON(CodeAlreadyExists, i)
-			}
+		if checkUidExists(c, uid) {
+			return nil
 		}
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
@@ -737,19 +736,16 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		Account     string `yaml:"account" json:"account"`
 		ConnectURL  string `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
 		AccessToken string `yaml:"accessToken" json:"accessToken"` // 访问令牌
-		RelWorkDir  string `yaml:"relWorkDir" json:"relWorkDir"`   //
 	}{}
 
 	err := c.Bind(&v)
 	if err == nil {
 		uid := v.Account
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserID == dice.FormatDiceIDQQ(uid) {
-				return c.JSON(CodeAlreadyExists, i)
-			}
+		if checkUidExists(c, uid) {
+			return nil
 		}
 
-		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
+		conn := dice.NewGoCqhttpConnectInfoItem("")
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 
@@ -757,11 +753,11 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		pa.Session = myDice.ImSession
 
 		// 三项设置
-		conn.RelWorkDir = v.RelWorkDir
+		conn.RelWorkDir = "x" // 此选项已无意义
 		pa.ConnectURL = v.ConnectURL
 		pa.AccessToken = v.AccessToken
 
-		pa.UseInPackGoCqhttp = false
+		pa.UseInPackClient = false
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		conn.SetEnable(myDice, true)
@@ -791,10 +787,8 @@ func ImConnectionsAddReverseWs(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		uid := v.Account
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.UserID == dice.FormatDiceIDQQ(uid) {
-				return c.JSON(CodeAlreadyExists, i)
-			}
+		if checkUidExists(c, uid) {
+			return nil
 		}
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
@@ -807,7 +801,7 @@ func ImConnectionsAddReverseWs(c echo.Context) error {
 		pa.IsReverse = true
 		pa.ReverseAddr = v.ReverseAddr
 
-		pa.UseInPackGoCqhttp = false
+		pa.UseInPackClient = false
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		conn.SetEnable(myDice, true)
@@ -904,4 +898,47 @@ func ImConnectionsAddSatori(c echo.Context) error {
 	myDice.Save(false)
 	go dice.ServeQQ(myDice, conn)
 	return Success(&c, Response{})
+}
+
+func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, Response{"testMode": true})
+	}
+
+	v := struct {
+		Account  string `yaml:"account" json:"account"`
+		Protocol int    `yaml:"protocol" json:"protocol"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		uid := v.Account
+		if checkUidExists(c, uid) {
+			return nil
+		}
+
+		conn := dice.NewLagrangeConnectInfoItem(v.Account)
+		conn.UserID = dice.FormatDiceIDQQ(uid)
+		conn.Session = myDice.ImSession
+		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
+		pa.InPackGoCqhttpProtocol = v.Protocol
+		pa.Session = myDice.ImSession
+
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		uin, err := strconv.ParseInt(v.Account, 10, 64)
+		if err != nil {
+			return err
+		}
+		dice.LagrangeServe(myDice, conn, dice.GoCqhttpLoginInfo{
+			Protocol:   v.Protocol,
+			UIN:        uin,
+			IsAsyncRun: true,
+		})
+		return c.JSON(http.StatusOK, v)
+	}
+
+	return c.String(430, "")
 }

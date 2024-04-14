@@ -17,6 +17,7 @@ import (
 	"github.com/sacOO7/gowebsocket"
 
 	"sealdice-core/dice/model"
+	"sealdice-core/message"
 	"sealdice-core/utils/procs"
 )
 
@@ -866,8 +867,7 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, te
 
 func (pa *PlatformAdapterWalleQ) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
 	// walleq 依赖的 ricq 尚不支持发送文件
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -877,8 +877,7 @@ func (pa *PlatformAdapterWalleQ) SendFileToPerson(ctx *MsgContext, userID string
 
 func (pa *PlatformAdapterWalleQ) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
 	// walleq 依赖的 ricq 尚不支持发送文件
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -1206,7 +1205,7 @@ func (pa *PlatformAdapterWalleQ) TextToMessageSegment(text string) []MessageSegm
 	// 海豹码 转 cq 码 // 有点麻
 	for _, i := range arr {
 		if strings.HasPrefix(i, "[") { // 是 [ 开头的就转一下
-			i = SealCodeToCqCode(i)
+			i = message.SealCodeToCqCode(i)
 		}
 		isCq := strings.HasPrefix(i, "[CQ")
 		if isCq {

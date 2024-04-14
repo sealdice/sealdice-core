@@ -353,7 +353,9 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 					}
 					key := row[0]
 					for j := 0; j < synonymCount; j++ {
-						key += "/" + row[1+j]
+						if len(row[1+j]) > 0 {
+							key += "/" + row[1+j]
+						}
 					}
 					content := row[synonymCount+1]
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/fy0/lockfree"
 
+	"sealdice-core/message"
 	"sealdice-core/utils/satori"
 
 	"github.com/gorilla/websocket"
@@ -642,20 +643,19 @@ func decodeMessage(text string) string {
 }
 
 func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
-	dice := pa.Session.Parent
-	elems := dice.ConvertStringMessage(content)
+	elems := message.ConvertStringMessage(content)
 	var msg strings.Builder
 	for _, elem := range elems {
 		switch e := elem.(type) {
-		case *TextElement:
+		case *message.TextElement:
 			msg.WriteString(satori.ContentEscape(e.Content))
-		case *AtElement:
+		case *message.AtElement:
 			if e.Target == "all" {
 				msg.WriteString(`<at type="all"/>`)
 			} else {
 				msg.WriteString(fmt.Sprintf(`<at id="%s"/>`, e.Target))
 			}
-		case *FileElement:
+		case *message.FileElement:
 			node := &satori.Element{
 				// Type:  "file",
 				Attrs: make(satori.Dict),
@@ -679,8 +679,8 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 			}
 			// cc 0.2.2 发送 file QQ 会直接爆炸
 			// msg.WriteString(node.ToString())
-		case *ImageElement:
-			file := e.file
+		case *message.ImageElement:
+			file := e.File
 			node := &satori.Element{
 				Type:  "img",
 				Attrs: make(satori.Dict),
@@ -699,8 +699,8 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 					continue
 				}
 				node.Attrs["src"] = "file:///" + temp.Name()
-			} else if e.file.URL != "" {
-				node.Attrs["src"] = e.file.URL
+			} else if e.File.URL != "" {
+				node.Attrs["src"] = e.File.URL
 			}
 			msg.WriteString(node.ToString())
 		}

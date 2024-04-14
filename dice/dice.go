@@ -40,7 +40,7 @@ var (
 	VERSION = semver.MustParse(VERSION_MAIN + VERSION_PRERELEASE + VERSION_BUILD_METADATA)
 
 	// VERSION_MAIN 主版本号
-	VERSION_MAIN = "1.4.5"
+	VERSION_MAIN = "1.4.6"
 	// VERSION_PRERELEASE 先行版本号
 	VERSION_PRERELEASE = "-dev"
 	// VERSION_BUILD_METADATA 版本编译信息
@@ -49,10 +49,11 @@ var (
 	// APP_CHANNEL 更新频道，stable/dev，在 action 构建时自动注入
 	APP_CHANNEL = "dev" //nolint:revive
 
-	VERSION_CODE = int64(1004004) //nolint:revive
+	VERSION_CODE = int64(1004005) //nolint:revive
 
 	VERSION_JSAPI_COMPATIBLE = []*semver.Version{
 		VERSION,
+		semver.MustParse("1.4.5"),
 		semver.MustParse("1.4.4"),
 		semver.MustParse("1.4.3"),
 	}
@@ -262,6 +263,8 @@ type Dice struct {
 	CensorCaseSensitive  bool                   `json:"censorCaseSensitive" yaml:"censorCaseSensitive"`   // 敏感词大小写敏感
 	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
+
+	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
 }
 
 type CensorMode int
@@ -349,6 +352,7 @@ func (d *Dice) Init() {
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
 	d.loads()
+	d.loadAdvanced()
 	d.BanList.Loads()
 	d.BanList.AfterLoads()
 	d.IsAlreadyLoadConfig = true
