@@ -277,7 +277,7 @@ func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeT
 	err := json.Unmarshal([]byte(message), msgQQType2)
 
 	if err != nil {
-		//log.Warn("无法解析 onebot11 字段:", message)
+		// log.Warn("无法解析 onebot11 字段:", message)
 		return err
 	}
 
