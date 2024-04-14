@@ -329,7 +329,6 @@ func (cmdArgs *CmdArgs) commandParse(rawCmd string, currentCmdLst []string, pref
 // commandParseNew for new command parser ExecuteNew func, 干掉了 AtParse 以及一些杂七杂八的东西
 func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseExecuteTimes bool) *CmdArgs {
 	d := ctx.Session.Parent
-	log := d.Logger
 	specialExecuteTimes := 0
 	// Note(Szzrain): 这里的 msg.Message 考虑使用消息段(Message.Segment)进行解析，而不是直接使用 Message 字段
 	rawCmd := strings.ReplaceAll(msg.Message, "\r\n", "\n") // 替换\r\n为\n
@@ -343,7 +342,6 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 	for _, elem := range msg.Segment {
 		// 类型断言
 		if e, ok := elem.(*message.AtElement); ok {
-			log.Infof("AtElement: %s, %s, %t\n", e.Target, ctx.EndPoint.UserID, e.Target == ctx.EndPoint.UserID)
 			if msg.Platform+":"+e.Target == ctx.EndPoint.UserID {
 				cmdArgs.AmIBeMentioned = true
 				cmdArgs.SomeoneBeMentionedButNotMe = false

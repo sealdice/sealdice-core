@@ -34,12 +34,12 @@ func LoadSigInfo(filePath string) (*info.SigInfo, error) {
 	if err = decoder.Decode(&sigInfo); err != nil {
 		return nil, err
 	}
-	fmt.Printf("Loaded SigInfo: %+v\n", sigInfo)
+	// fmt.Printf("Loaded SigInfo: %+v\n", sigInfo)
 	return &sigInfo, nil
 }
 
 func SaveSigInfo(filePath string, sigInfo *info.SigInfo) error {
-	fmt.Printf("Saving SigInfo: %+v\n", sigInfo)
+	// fmt.Printf("Saving SigInfo: %+v\n", sigInfo)
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
@@ -109,9 +109,9 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	appInfo := info.AppList["linux"]
 
 	pa.configDir = filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
-	log.Infof("configDir: %s\n", pa.configDir)
+	// log.Infof("configDir: %s\n", pa.configDir)
 	deviceInfo := LoadDevice(pa.configDir + "/deviceinfo.json")
-	log.Infof("Loaded DeviceInfo: %+v\n", deviceInfo)
+	// log.Infof("Loaded DeviceInfo: %+v\n", deviceInfo)
 	err := SaveDevice(deviceInfo, pa.configDir+"/deviceinfo.json")
 	if err != nil {
 		log.Errorf("Save DeviceInfo failed: %v", err)
@@ -133,7 +133,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 		pa.sig = info.NewSigInfo(8848)
 	} else {
 		pa.sig = sigInfo
-		log.Infof("Loaded SigInfo: %+v\n", sigInfo)
+		// log.Infof("Loaded SigInfo: %+v", sigInfo)
 	}
 
 	pa.CurState = StateCodeInLogin
@@ -146,7 +146,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 			time.Sleep(3 * time.Second)
 			result, err1 := pa.QQClient.GetQrcodeResult()
 			if err1 == nil {
-				log.Infof("QrcodeResult: %+v\n", result)
+				log.Infof("QrcodeResult: %+v", result)
 			} else {
 				log.Errorf("GetQrcodeResult failed: %v", err1)
 			}
@@ -169,7 +169,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 				if err2 != nil {
 					log.Errorf("ReadFile failed: %v", err2)
 				} else {
-					log.Infof("QrcodeData: %v\n", qrdata)
+					log.Infof("QrcodeData: %v", qrdata)
 					pa.QrcodeData = qrdata
 					pa.CurState = StateCodeInLoginQrCode
 					break
@@ -186,7 +186,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 		return 1
 	}
 
-	log.Infof("LagrangeGo Client login success\n")
+	log.Infof("LagrangeGo Client login success")
 
 	pa.EndPoint.State = 1
 	pa.CurState = StateCodeLoginSuccessed
