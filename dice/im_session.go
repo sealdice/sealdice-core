@@ -1126,7 +1126,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 
 	// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
 	if msg.MessageType == "group" {
-		// Note(Szzrain): TODO: 需要优化的写法，不应根据 CommandID 来判断是否是指令，而应该根据 cmdArgs 是否 match 到指令来判断
+		// TODO(Szzrain):  需要优化的写法，不应根据 CommandID 来判断是否是指令，而应该根据 cmdArgs 是否 match 到指令来判断
 		if mctx.CommandID != 0 {
 			// 关闭状态下，如果被@，且是第一个被@的，那么视为开启
 			if !mctx.IsCurGroupBotOn && cmdArgs.AmIBeMentionedFirst {
@@ -1155,7 +1155,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 
 	// Note(Szzrain): 这里的代码本来在敏感词检测下面，会产生预期之外的行为，所以挪到这里
 	if msg.MessageType == "private" {
-		// Note(Szzrain): TODO: 需要优化的写法，不应根据 CommandID 来判断是否是指令，而应该根据 cmdArgs 是否 match 到指令来判断，同上
+		// TODO(Szzrain): 需要优化的写法，不应根据 CommandID 来判断是否是指令，而应该根据 cmdArgs 是否 match 到指令来判断，同上
 		if mctx.CommandID != 0 {
 			log.Infof("收到<%s>(%s)的私聊指令: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 		} else if !d.OnlyLogCommandInPrivate {
