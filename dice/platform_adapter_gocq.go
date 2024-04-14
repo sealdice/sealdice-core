@@ -277,7 +277,7 @@ func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeT
 	err := json.Unmarshal([]byte(message), msgQQType2)
 
 	if err != nil {
-		log.Warn("无法解析 onebot11 字段:", message)
+		//log.Warn("无法解析 onebot11 字段:", message)
 		return err
 	}
 
@@ -437,7 +437,27 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			err = tryParseOneBot11ArrayMessage(log, message, msgQQ)
 
 			if err != nil {
-				log.Error("error" + err.Error())
+				// 将 tryParseOneBot11ArrayMessage 认定无法解析的数据再解析一次
+				msgob := struct {
+					Echo    json.RawMessage `json:"echo"`
+					Data    json.RawMessage `json:"data"`
+					Retcode int64           `json:"retcode"`
+				}{}
+				err = json.Unmarshal([]byte(message), &msgob)
+
+				if err == nil {
+					// 把有效data数据保留给waitEcho2以自定义结构解析
+					if msgob.Data != nil && pa.echoMap2 != nil && msgob.Echo != nil {
+						if v, ok := pa.echoMap2.Load(string(msgQQ.Echo)); ok {
+							v.ch <- string(msgob.Data)
+							return
+						}
+					}
+				} else {
+					log.Error("error" + err.Error())
+				}
+
+				log.Warn("无法解析 onebot11 字段:", message)
 				return
 			}
 			pa.useArrayMessage = true
