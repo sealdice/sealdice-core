@@ -148,6 +148,7 @@ func (pa *PlatformAdapterGocq) GetGroupList(noCache bool) []*OnebotGroupInfo {
 	}
 	return nil
 }
+
 func socketSendText(socket *gowebsocket.Socket, s string) {
 	defer func() {
 		if r := recover(); r != nil { //nolint
