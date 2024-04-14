@@ -38,7 +38,7 @@ func (c *CQCommand) Compile() string {
 }
 
 type (
-	MessageElement interface {
+	IMessageElement interface {
 		Type() ElementType
 	}
 
@@ -58,7 +58,7 @@ const (
 const maxFileSize = 1024 * 1024 * 50 // 50MB
 
 type TextElement struct {
-	Content string
+	Content string `jsbind:"content"`
 }
 
 func (t *TextElement) Type() ElementType {
@@ -66,7 +66,7 @@ func (t *TextElement) Type() ElementType {
 }
 
 type AtElement struct {
-	Target string
+	Target string `jsbind:"target"`
 }
 
 func (t *AtElement) Type() ElementType {
@@ -102,6 +102,7 @@ func (l *FileElement) Type() ElementType {
 
 type ImageElement struct {
 	File *FileElement
+	URL  string
 }
 
 func (l *ImageElement) Type() ElementType {
@@ -120,7 +121,7 @@ func newText(s string) *TextElement {
 	return &TextElement{Content: s}
 }
 
-func CQToText(t string, d map[string]string) MessageElement {
+func CQToText(t string, d map[string]string) IMessageElement {
 	org := "[CQ:" + t
 	for k, v := range d {
 		org += "," + k + "=" + v
@@ -265,7 +266,7 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 	}
 }
 
-func toElement(t string, dMap map[string]string) (MessageElement, error) {
+func toElement(t string, dMap map[string]string) (IMessageElement, error) {
 	switch t {
 	case "file":
 		p := strings.TrimSpace(dMap["file"])
@@ -381,7 +382,7 @@ func SealCodeToCqCode(text string) string {
 	return "[图片/文件指向非当前程序目录，已禁止]"
 }
 
-func ConvertStringMessage(raw string) (r []MessageElement) {
+func ConvertStringMessage(raw string) (r []IMessageElement) {
 	var arg, key string
 	dMap := map[string]string{}
 
