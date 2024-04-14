@@ -1,0 +1,248 @@
+// part of SealDice project
+
+package dice
+
+type DiceRollParser Peg {
+    RollExpression
+}
+
+// 实际操作中发现，不匹配句尾比较好 (没有!.)
+eBase <- e { p.AddOperator(TypeHalt) }
+e <- '^st' st_expr
+   / &{p.flags.DisableBlock} e0
+   / eOne (';' sp { p.AddOperator(TypeClearDetail) } eOne?)*
+eOne <- sp (s0 / e0 / assign_expr)
+
+assign_expr <- &{!p.flags.DisableBlock} identifier { p.AddValueStr(string(text)) } '=' sp e0 { p.AddStore() }
+
+s0 <- stmtIf
+
+block <- ( '{' sp '}' / '{' sp e {p.AddOperator(TypePop)} '}' ) sp
+stmtElse <- 'else' sp block
+stmtIf <- 'if' sp e0 { p.AddOperator(TypeJne); p.PushForOffset() } block { p.AddOperator(TypeJmp); p.PopAndSetOffset(); p.PushForOffset(); } stmtElse? { p.PopAndSetOffset() } { p.AddValueStr(""); }
+
+// e0m <- (e0 ';' sp { p.AddOperator(TypeClearDetail) })* e0
+e0 <- eTernary
+
+eSimpleSwitch <- eBitwise '?' sp { p.AddOperator(TypeJne); p.PushForOffset() } eBitwise { p.AddOperator(TypeJmp); p.PopAndSetOffset(); p.PushForOffset(); } // 这里的Pop对应的是jne，所有jmp将攒到最后
+eTernary <- eBitwise '?' sp { p.AddOperator(TypeJne); p.PushForOffset() } eBitwise ':' sp { p.AddOperator(TypeJmp); p.PopAndSetOffset(); p.PushForOffset() } eBitwise { p.PopAndSetOffset() }
+        / eSimpleSwitch { p.CounterPush() } ( ',' sp eSimpleSwitch {p.CounterAdd(1)} )*  { p.AddValueStr(""); limit:=p.CounterPop()+1; for i:=int64(0); i<limit; i++ { p.PopAndSetOffset() } }
+        / eBitwise
+
+// if ... then .. else
+// push 1
+// jne 2
+// push "ret1"
+// jmp 1
+// push "ret2"
+
+// switch { case 1: ..., case 2: ... }
+// push cond1
+// jne 2
+// push "ret1"
+// jmp 5
+// push cond2
+// jne 2
+// push "ret2"
+// jmp 1
+// push 0 // 默认
+// push "ret3"
+
+eBitwise <- &{p.flags.DisableBitwiseOp} eComp
+          / eBitwise1
+
+eBitwise1 <- eComp ((logicOr / bitwiseOr) { p.AddLeftValueMark() } eComp { p.AddOperator(TypeBitwiseOr) }
+                 / (logicAnd / bitwiseAnd) { p.AddLeftValueMark() } eComp { p.AddOperator(TypeBitwiseAnd) } )*
+
+eComp <- e1 ( lt { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompLT) }
+            / le { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompLE) }
+            / eq { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompEQ) }
+            / ne { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompNE) }
+            / ge { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompGE) }
+            / gt { p.AddLeftValueMark() } e1 { p.AddOperator(TypeCompGT) })*
+
+e1 <- e2 ( add { p.AddLeftValueMark() } e2 { p.AddOperator(TypeAdd) }
+         / minus { p.AddLeftValueMark() } e2 { p.AddOperator(TypeSubtract) }
+         )*
+e2 <- e3 ( multiply { p.AddLeftValueMark() } e3 { p.AddOperator(TypeMultiply) }
+         / divide { p.AddLeftValueMark() } e3 { p.AddOperator(TypeDivide) }
+         / modulus { p.AddLeftValueMark() } e3 { p.AddOperator(TypeModulus) }
+         )*
+
+e3 <- e4 ( exponentiation { p.AddLeftValueMark() } e4 { p.AddOperator(TypeExponentiation) }
+         )*
+
+e4 <- minus e5 { p.AddOperator(TypeNegation) }
+    / e5
+
+// e5 <- eDice
+e5 <- add eDice
+    / eDice
+
+dndDiceSuffix <- (('优势' / 'kh') {p.AddValue("1"); p.AddOperator(TypeDiceSetK)} sp / ('劣势' / 'kl') {p.AddValue("1"); p.AddOperator(TypeDiceSetQ)} sp )
+kqDiceOp <- ('k' eDice2 { p.AddOperator(TypeDiceSetK) })? ('q' eDice2 { p.AddOperator(TypeDiceSetQ) } )? ('dl' eDice2 { p.AddOperatorWithInt64(TypeDiceSetK, 1) } )? ('dh' eDice2 { p.AddOperatorWithInt64(TypeDiceSetQ, 1) } )?
+
+_dnumber <- &( [dD] (number / '(') )  // 独立出来是因为括号会影响IDEA的自动高亮
+// _anumber <- &( [aA] (number / '(') )
+
+simpleDice2 <- &(number / '(') eDice2
+wodDicePool <- { p.AddOperator(TypeWodSetInit) } (simpleDice2 { p.AddOperator(TypeWodSetPool) } )?
+// doubleCrossDicePool <- { p.AddOperator(TypeDCSetInit) } (simpleDice2 { p.AddOperator(TypeDCSetPool) } )?
+doubleCrossDicePool <- { p.AddOperator(TypeDCSetInit) } (simpleDice2 { p.AddOperator(TypeDCSetPool) } ) // 还是不允许为空了
+
+
+eDice <- ( _dnumber [dD] { p.AddValue("2"); p.AddLeftValueMark() } eDice2 dndDiceSuffix { p.AddOperator(TypeDice) } )
+         / ( _dnumber [dD] { p.AddValue("1"); p.AddLeftValueMark() } eDice2 kqDiceOp { p.AddOperator(TypeDice) } )
+
+         / [dD] dndDiceSuffix { p.AddValue("2"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
+         / [dD] !([^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r]) sp { p.AddValue("1"); p.AddLeftValueMark(); p.AddValue("0"); p.AddOperator(TypeDice) }
+
+         // WOD规则，左侧个数，a加骰线，m面数，k阈值
+         / &{!p.flags.DisableDicePool} wodDicePool [aA] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeWodSetPoints) }) / ([kK] simpleDice2 { p.AddOperator(TypeWodSetThreshold) }) / ([qQ] simpleDice2 { p.AddOperator(TypeWodSetThresholdQ) }) )* { p.AddOperator(TypeDiceWod) }
+
+         // 双十字
+         / &{!p.flags.DisableCrossDice} doubleCrossDicePool [cC] simpleDice2 ( ([mM] simpleDice2 { p.AddOperator(TypeDCSetPoints) }) )* { p.AddOperator(TypeDiceDC) }
+
+         / eDice2 ( [dD] { p.AddLeftValueMark() } (simpleDice2 / &{!p.flags.DisableNumDice} sp {p.AddValue("0");} ) kqDiceOp { p.AddOperator(TypeDice) }
+         )*
+
+laNumberOrLeftParen <- &(number / '(')
+
+// 这里故意弄成number，因为出现了 .rab射击 读取了射击的值，结果成为 .rab60 这样子的情况
+eDice2 <- &{!p.flags.DisableBPDice} eDice2x
+         / eDice4
+
+eDice2x <- [pP] laNumberOrLeftParen eDice3 { p.AddOperator(TypeDicePenalty) }
+         / [pP] { p.AddValue("1"); p.AddOperator(TypeDicePenalty) }
+         / eDice3
+
+eDice3 <- [bB] laNumberOrLeftParen value { p.AddOperator(TypeDiceBonus) }
+         / [bB] { p.AddValue("1"); p.AddOperator(TypeDiceBonus) }
+         / eDice4
+
+eDice4 <- [fF] sp { p.AddValue("0"); p.AddValue("0"); p.AddOperator(TypeDiceFate) } // 塞两个垃圾参数，使其不成为unary
+         / value
+
+value <- number
+       / 'this' sp '.' sp identifier sp { p.AddLoadVarnameForThis(text) }
+       / 'int(' sp e0 sp ')' sp { p.WriteCode(TypeConvertInt, 0, "") }
+       / 'str(' sp e0 sp ')' sp { p.WriteCode(TypeConvertStr, 0, "") }
+       / assign_expr
+       / identifier { p.AddLoadVarname(string(text)) }
+       / sub
+       / fstring
+
+number <- < [0-9]+ > sp { p.AddValue(string(text)) }
+
+identifier <- < [^!"#%&\'()*+,-./:;<=>?@\[\\\]^`{|}~0-9 \t\n\r\36] [^!"#$%&\'()*+,-./;<=>?@\[\\\]^`{|}~ \t\n\r\36]* > sp // not (punctuation+number)
+// identifier2 <- !'d' ![0-9] < (universalCharacter / [a-zA-Z_])+ > sp // not (punctuation+number)
+sub <- open e0 close
+add <- ('+'/'＋') sp
+minus <- ('-' / '－') sp
+multiply <- ('*' / '＊') sp
+divide <- ('/' / '／') sp
+modulus <- '%' sp
+exponentiation <- '^' sp / '**' sp
+open <- '(' sp
+close <- ')' sp
+
+bitwiseOr <- '|' sp
+logicOr <- '||' sp
+bitwiseAnd <- ('&' / '&amp;') sp
+logicAnd <- ('&&' / '&amp;&amp;') sp
+sp <- ( ' ' / '\t' / '\n' / '\r' / ('//' [^\n]*) )*
+lt <- ('<' / '＜') sp
+gt <- ('>' / '＞') sp
+le <- ('<=' / '＜＝') sp
+ge <- ('>=' / '＞＝') sp
+eq <- ('==' / '＝＝') sp
+ne <- ('!=' / '！＝') sp
+
+strPart <- < (escape / (![{`\\].))+ > { p.AddValueStr(string(text)); p.CounterAdd(1) }
+strPart1 <- < (escape / (![{\36\\].))+ > { p.AddValueStr(string(text)); p.CounterAdd(1) }
+strPart2 <- < (escape / (!["\\\n\r].))+ > { p.AddValueStr(string(text)); p.CounterAdd(1) }
+strPart3 <- < (escape / (![\'\\\n\r].))+ > { p.AddValueStr(string(text)); p.CounterAdd(1) }
+
+fstring <- (
+          ('`' { p.CounterPush() } < ( ('{' sp e {p.CounterAdd(1)} '}') / ('{{' sp e {p.CounterAdd(1)} '}}') / strPart )* > '`' { p.AddFormatString(string(text), p.CounterPop()) })
+        / ('\36' { p.CounterPush() } < ( ('{' sp e {p.CounterAdd(1)} '}') / ('{%' sp e {p.CounterAdd(1)} '%}') / strPart1 )* > '\36' { p.AddFormatString(string(text), p.CounterPop()) }) // 特殊标记 0x1E
+        / ('"' { p.CounterPush() } < ( strPart2 )* > '"' { p.AddFormatString(string(text), p.CounterPop()) })
+        / ('\'' { p.CounterPush() } < ( strPart3 )* > '\'' { p.AddFormatString(string(text), p.CounterPop()) })
+    ) sp
+escape <- '\\' ([btnfr"'\\])  //  / OctalEscape / UnicodeEscape
+
+// --------------------------
+
+// st 力量60敏捷70
+// st 力量60 敏捷70
+// st 智力:80
+// st 知识=90
+// st 力量+1
+// st 力量+1d4
+// st 力量+1d4+2
+// st 力量-1d4+2  => 力量 = 力量 - (1d4+2)
+// st &手枪=1d6
+// st &手枪=(1d6+2)
+
+// st_expr <- !{p.flags.DisableBitwiseOp = true} st_expr1 !{p.flags.DisableBitwiseOp = false}
+
+st_expr <- st_modify_multi_1
+          / st_assign_multi
+          / st_modify_multi_2
+
+// est <- eDice / &'(' ? e0
+// est <- e0
+est <- ( &'(' e0 )
+     / !{p.flags.DisableBitwiseOp = true}
+       !{p.flags.DisableNumDice = true}
+       !{p.flags.DisableCrossDice = true}
+       !{p.flags.DisableDicePool = true}
+       e0
+       !{p.flags.DisableBitwiseOp = false}
+       !{p.flags.DisableNumDice = false}
+       !{p.flags.DisableCrossDice = false}
+       !{p.flags.DisableDicePool = false}
+
+st_assign_multi <- (st_assign sp ','? sp)+
+
+st_assign <- st_name2 sp (':' / '=') sp est { p.AddStName() } // 射击:弓箭:40 / 射击:弓箭40
+           / st_name1 est { p.AddStName() } // 测试:力量60
+           / st_name2r sp (':' / '=') sp est { p.AddStName() } // 属性2: 70
+           / st_name1r est { p.AddStName() } // 力量60
+           / '&' st_name2 sp (':' / '=') sp { p.CodePush() } < est > { p.CodePop(); p.AddStoreComputed(text); p.AddStName() } // &手枪 = 1d4
+           / '&' st_name2r sp (':' / '=') sp { p.CodePush() } < est > { p.CodePop(); p.AddStoreComputed(text); p.AddStName() } // &手枪 = 1d4
+
+// 第一类:
+// 力量+1d3
+// 力量123+=1d3
+st_modify_multi_1 <- ((st_name2 st_modify_rest1 / st_name2r st_modify_rest1 / st_name1 st_modify_rest / st_name1r st_modify_rest) sp ','? sp ) st_modify_multi_rest
+
+st_modify_rest1 <- sp (
+     '+=' sp < e0 > {p.AddStModify("+", text)} /
+     '-=' sp < e0 > {p.AddStModify("-", text)}
+    )
+
+// 第二类，在第一种基础上增加:
+// 力量123+1d3
+
+st_modify_multi_2 <- (st_modify2 sp ','? sp) st_modify_multi_rest
+
+st_modify_multi_rest <- (st_modify2 sp ','? sp)*
+st_modify2 <- st_name2 st_modify_rest
+            / st_name2r st_modify_rest
+
+st_modify_rest <- sp (
+     '+' '='? sp < e0 > {p.AddStModify("+", text)} /
+     &( '-' ) sp < e0 > {p.AddStModify("-", text)} /
+     '-' '='? sp < e0 > {p.AddStModify("-", text)}
+    )
+
+st_name1 <- < id_ch0+ ':' id_ch0+ > { p.AddValueStr(text) } // 结尾不带数字
+st_name1r <- < id_ch0+ > { p.AddValueStr(text) } // 结尾不带数字
+
+st_name2 <- < id_ch0 id_ch* (':' id_ch+) > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
+st_name2r <- < id_ch0 id_ch* > { p.AddValueStr(text) } // 结尾可带数字，即常规变量名
+           / '\'' < (id_ch0 / [0-9] / ' ' / ':')+ > '\'' { p.AddValueStr(text) } // 任意字符
+
+id_ch0 <- [^!"#$%&\'()*+,-.:;<=>?@\[\\\]^`{|}~ 0-9\t\n\r\36] // 临时去掉一个斜杠，等车卡工具上线
+id_ch <- id_ch0 // / [0-9]
