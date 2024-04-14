@@ -1,7 +1,0 @@
-{
-  "go.useLanguageServer": true,
-  "gopls": {
-    "formatting.local": "sealdice-core",
-  },
-  "go.formatTool": "default",
-}
