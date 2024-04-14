@@ -1002,6 +1002,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		group.GroupName = msg.GroupName
 	}
 
+	// Note(Szzrain): 真的有必要设置 mustLoadUser 这个变量吗？依我看干脆都加载算了，但是为了可能产生的奇奇怪怪兼容性问题，先不改
 	var mustLoadUser bool
 	if group != nil && group.Active {
 		// 开启log时必须加载用户信息
@@ -1036,7 +1037,6 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	}
 
 	// 当文本可能是在发送命令时，必须加载信息
-	// Note(Szzrain): 真的有必要设置 mustLoadUser 这个变量吗？依我看干脆都加载算了，但是为了可能产生的奇奇怪怪兼容性问题，先不改
 	maybeCommand := CommandCheckPrefixNew(msg.Message, d.CommandPrefix)
 	if maybeCommand {
 		mustLoadUser = true
@@ -1097,23 +1097,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		}
 	}
 
-	// Note(Szzrain): 这里的代码被挪到了 cmdArgs.commandParseNew 里面
-	// var cmdLst []string
-	// if maybeCommand {
-	//	for k := range d.CmdMap {
-	//		cmdLst = append(cmdLst, k)
-	//	}
-	//	// 这里不用group是为了私聊
-	//	g := mctx.Group
-	//	if g != nil {
-	//		for _, i := range g.ActivatedExtList {
-	//			for k := range i.CmdMap {
-	//				cmdLst = append(cmdLst, k)
-	//			}
-	//		}
-	//	}
-	//	sort.Sort(ByLength(cmdLst))
-	// }
+	// Note(Szzrain): 兼容模式相关的代码被挪到了 cmdArgs.commandParseNew 里面
 
 	if notReply := checkBan(mctx, msg); notReply {
 		return

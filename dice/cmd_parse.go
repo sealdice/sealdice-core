@@ -345,7 +345,7 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 			if msg.Platform+":"+e.Target == ctx.EndPoint.UserID {
 				cmdArgs.AmIBeMentioned = true
 				cmdArgs.SomeoneBeMentionedButNotMe = false
-				if atInfo == nil {
+				if len(atInfo) == 0 {
 					cmdArgs.AmIBeMentionedFirst = true
 				}
 			} else if !cmdArgs.AmIBeMentioned {
@@ -434,10 +434,6 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 		// 将所有args连接起来，存入一个cleanArgs变量。主要用于兼容非标准参数
 		stText := strings.Join(cmdArgs.Args, " ")
 		cmdArgs.CleanArgs = strings.TrimSpace(stText)
-		// NOTE(Xiangze Li): 不要在解析指令时直接修改轮数
-		// if specialExecuteTimes > 25 {
-		// 	specialExecuteTimes = 25
-		// }
 		cmdArgs.SpecialExecuteTimes = specialExecuteTimes
 
 		// 以下信息用于重组解析使用

@@ -272,10 +272,36 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 }
 
 func (pa *PlatformAdapterLagrangeGo) DoRelogin() bool {
+	log := pa.Session.Parent.Logger
+	if pa.QQClient != nil {
+		pa.QQClient.DisConnect()
+		err := pa.QQClient.Connect()
+		if err != nil {
+			log.Errorf("LagrangeGo Reconnect failed: %v", err)
+			return false
+		}
+		return true
+	}
 	return false
 }
 
-func (pa *PlatformAdapterLagrangeGo) SetEnable(_ bool) {}
+func (pa *PlatformAdapterLagrangeGo) SetEnable(enable bool) {
+	pa.EndPoint.Enable = enable
+	if enable {
+		if pa.QQClient != nil {
+			pa.QQClient.Stop()
+			pa.QQClient = nil
+		}
+		pa.Serve()
+	} else {
+		if pa.QQClient != nil {
+			pa.QQClient.Stop()
+			pa.EndPoint.State = 0
+			pa.CurState = StateCodeInit
+			pa.QQClient = nil
+		}
+	}
+}
 
 func (pa *PlatformAdapterLagrangeGo) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	log := pa.Session.Parent.Logger
