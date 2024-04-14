@@ -122,6 +122,7 @@ func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string) *OnebotGroupInfo {
 	}
 	return nil
 }
+
 // GetGroupList 获取群列表
 func (pa *PlatformAdapterGocq) GetGroupList(noCache bool) []*OnebotGroupInfo {
 	type DetailParams struct {
