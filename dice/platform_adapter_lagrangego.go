@@ -18,7 +18,7 @@ import (
 	"sealdice-core/message"
 )
 
-const DefaultSignUrl = ``
+const DefaultSignUrl = `${SIGN_SERVER_DEFAULT}`
 
 func LoadSigInfo(filePath string) (*info.SigInfo, error) {
 	file, err := os.Open(filePath)
@@ -89,7 +89,7 @@ type PlatformAdapterLagrangeGo struct {
 	Session  *IMSession       `yaml:"-" json:"-"`
 	EndPoint *EndPointInfo    `yaml:"-" json:"-"`
 	UIN      uint32           `yaml:"uin" json:"uin"`
-	SignUrl  string           `yaml:"signUrl" json:"signUrl"`
+	SignUrl  string           `yaml:"-" json:"-"`
 	QQClient *client.QQClient `yaml:"-" json:"-"`
 	CurState int              `yaml:"-" json:"loginState"`
 
