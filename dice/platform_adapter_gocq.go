@@ -56,9 +56,10 @@ type PlatformAdapterGocq struct {
 	ConnectURL  string              `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
 	AccessToken string              `yaml:"accessToken" json:"accessToken"` // 访问令牌
 
-	UseInPackGoCqhttp bool `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
-	GoCqhttpState     int  `yaml:"-" json:"loginState"`                        // 当前状态
-	CurLoginIndex     int  `yaml:"-" json:"curLoginIndex"`                     // 当前登录序号，如果正在进行的登录不是该Index，证明过时
+	UseInPackClient bool   `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
+	BuiltinMode     string `yaml:"builtinMode" json:"builtinMode"`             // 分为 lagrange 和 gocq
+	GoCqhttpState   int    `yaml:"-" json:"loginState"`                        // 当前状态
+	CurLoginIndex   int    `yaml:"-" json:"curLoginIndex"`                     // 当前登录序号，如果正在进行的登录不是该Index，证明过时
 
 	GoCqhttpProcess           *procs.Process `yaml:"-" json:"-"`
 	GocqhttpLoginFailedReason string         `yaml:"-" json:"curLoginFailedReason"` // 当前登录失败原因
@@ -72,11 +73,13 @@ type PlatformAdapterGocq struct {
 	GoCqLastAutoLoginTime      int64 `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`                             // 上次自动重新登录的时间
 	GoCqhttpLoginSucceeded     bool  `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"`                            // 是否登录成功过
 	GoCqhttpLastRestrictedTime int64 `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
+	ForcePrintLog              bool  `yaml:"forcePrintLog" json:"forcePrintLog"`                               // 是否一定输出日志，隐藏配置项
+	reconnectTimes             int   // 重连次数
 
 	InPackGoCqhttpProtocol       int      `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
 	InPackGoCqhttpAppVersion     string   `yaml:"inPackGoCqHttpAppVersion" json:"inPackGoCqHttpAppVersion"`
 	InPackGoCqhttpPassword       string   `yaml:"inPackGoCqHttpPassword" json:"-"`
-	DiceServing                  bool     `yaml:"-"`                                              // 是否正在连接中
+	diceServing                  bool     `yaml:"-"`                                              // 特指 diceServing 是否正在运行
 	InPackGoCqhttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest          bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
@@ -91,6 +94,7 @@ type PlatformAdapterGocq struct {
 
 	riskAlertShieldCount int  // 风控警告屏蔽次数，一个临时变量
 	useArrayMessage      bool `yaml:"-"` // 使用分段消息
+	lagrangeRebootTimes  int
 }
 
 type Sender struct {
@@ -355,7 +359,11 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 }
 
 func (pa *PlatformAdapterGocq) Serve() int {
-	pa.Implementation = "gocq"
+	if pa.BuiltinMode == "lagrange" {
+		pa.Implementation = "lagrange"
+	} else {
+		pa.Implementation = "gocq"
+	}
 	ep := pa.EndPoint
 	s := pa.Session
 	log := s.Parent.Logger
@@ -380,6 +388,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		} else {
 			log.Info("onebot v11 连接成功")
 		}
+		pa.reconnectTimes = 0 // 重置连接重试次数
+		pa.lagrangeRebootTimes = 0
 		//  {"data":{"nickname":"闃斧鐗岃�佽檸鏈�","user_id":1001},"retcode":0,"status":"ok"}
 		pa.GetLoginInfo()
 	}
@@ -388,6 +398,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		// if CheckDialErr(err) != syscall.ECONNREFUSED {
 		// refused 不算大事
 		log.Error("onebot v11 connection error: ", err)
+		log.Info("onebot wss connection addr: ", socket.Url)
 		// }
 		pa.InPackGoCqhttpDisconnectedCH <- 2
 	}
@@ -735,19 +746,32 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 				log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
 
-				for _, i := range ctx.SplitText(welcome) {
-					doSleepQQ(ctx)
-					pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
-				}
-				if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
-					for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
-						if i.OnBecomeFriend != nil {
-							i.callWithJsCheck(ctx.Dice, func() {
-								i.OnBecomeFriend(ctx, msg)
-							})
+				go func() {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Errorf("好友致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+						}
+					}()
+
+					// 这是一个polyfill，因为目前版本的lagrange会先发送friend_add事件，后成为好友
+					// 而不是成为好友后，再发送friend_add事件(go-cqhttp行为)，导致好友致辞发不出去
+					// 因此略作延迟，等上游修复后可以移除
+					time.Sleep(5 * time.Second)
+
+					for _, i := range ctx.SplitText(welcome) {
+						doSleepQQ(ctx)
+						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
+					}
+					if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
+						for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+							if i.OnBecomeFriend != nil {
+								i.callWithJsCheck(ctx.Dice, func() {
+									i.OnBecomeFriend(ctx, msg)
+								})
+							}
 						}
 					}
-				}
+				}()
 			}()
 			return
 		}
@@ -769,9 +793,13 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			// 判断进群的人是自己，自动启动
 			gi := SetBotOnAtGroup(ctx, msg.GroupID)
+			// 获取邀请人ID
 			if tempInviteMap2[msg.GroupID] != "" {
 				// 设置邀请人
 				gi.InviteUserID = tempInviteMap2[msg.GroupID]
+			} else if string(msgQQ.OperatorID) != "" {
+				// 适用场景: 受邀加入无需审核的群时邀请人显示未知的问题 (#710) - llob
+				gi.InviteUserID = FormatDiceIDQQ(string(msgQQ.OperatorID))
 			}
 			gi.DiceIDExistsMap.Store(ep.UserID, true)
 			gi.EnteredTime = nowTime // 设置入群时间
@@ -1028,8 +1056,17 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		log.Debug("Recieved pong " + data)
 	}
 
+	var lastDisconnect int64
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
-		log.Info("onebot 服务的连接被对方关闭 ")
+		now := time.Now().Unix()
+		if now-lastDisconnect < 2 {
+			// 存在极端时间内触发两次的情况，且为同一个连接
+			// 其他行为都是正常的，原因不明
+			return
+		}
+		lastDisconnect = now
+
+		log.Info("onebot 服务的连接被对方关闭")
 		_ = pa.Session.Parent.SendMail("", MailTypeConnectClose)
 		pa.InPackGoCqhttpDisconnectedCH <- 1
 	}
@@ -1129,28 +1166,44 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		return true
 	}
 
-	if pa.UseInPackGoCqhttp {
+	if pa.UseInPackClient {
 		if pa.InPackGoCqhttpDisconnectedCH != nil {
 			pa.InPackGoCqhttpDisconnectedCH <- -1
 		}
-		myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
-		pa.CurLoginIndex++
-		pa.GoCqhttpState = StateCodeInit
-		go GoCqhttpServeProcessKill(myDice, ep)
-		time.Sleep(10 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
-		GoCqhttpServeRemoveSessionToken(myDice, ep) // 删除session.token
-		pa.GoCqhttpLastRestrictedTime = 0           // 重置风控时间
-		myDice.LastUpdatedTime = time.Now().Unix()
-		myDice.Save(false)
-		GoCqhttpServe(myDice, ep, GoCqhttpLoginInfo{
-			Password:         pa.InPackGoCqhttpPassword,
-			Protocol:         pa.InPackGoCqhttpProtocol,
-			AppVersion:       pa.InPackGoCqhttpAppVersion,
-			IsAsyncRun:       true,
-			UseSignServer:    pa.UseSignServer,
-			SignServerConfig: pa.SignServerConfig,
-		})
-		return true
+		if pa.BuiltinMode == "lagrange" {
+			myDice.Logger.Infof("重新启动 lagrange 进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
+			pa.CurLoginIndex++
+			pa.GoCqhttpState = StateCodeInit
+			go BuiltinQQServeProcessKill(myDice, ep)
+			time.Sleep(10 * time.Second)           // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
+			LagrangeServeRemoveSession(myDice, ep) // 删除 keystore
+			pa.GoCqhttpLastRestrictedTime = 0      // 重置风控时间
+			myDice.LastUpdatedTime = time.Now().Unix()
+			myDice.Save(false)
+			GoCqhttpServe(myDice, ep, GoCqhttpLoginInfo{
+				IsAsyncRun: true,
+			})
+			return true
+		} else {
+			myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
+			pa.CurLoginIndex++
+			pa.GoCqhttpState = StateCodeInit
+			go BuiltinQQServeProcessKill(myDice, ep)
+			time.Sleep(10 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
+			GoCqhttpServeRemoveSessionToken(myDice, ep) // 删除session.token
+			pa.GoCqhttpLastRestrictedTime = 0           // 重置风控时间
+			myDice.LastUpdatedTime = time.Now().Unix()
+			myDice.Save(false)
+			GoCqhttpServe(myDice, ep, GoCqhttpLoginInfo{
+				Password:         pa.InPackGoCqhttpPassword,
+				Protocol:         pa.InPackGoCqhttpProtocol,
+				AppVersion:       pa.InPackGoCqhttpAppVersion,
+				IsAsyncRun:       true,
+				UseSignServer:    pa.UseSignServer,
+				SignServerConfig: pa.SignServerConfig,
+			})
+			return true
+		}
 	}
 	return false
 }
@@ -1160,28 +1213,34 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 	c := pa.EndPoint
 	if enable {
 		c.Enable = true
-		pa.DiceServing = false
 
-		if pa.UseInPackGoCqhttp {
-			GoCqhttpServeProcessKill(d, c)
-			time.Sleep(1 * time.Second)
-			GoCqhttpServe(d, c, GoCqhttpLoginInfo{
-				Password:         pa.InPackGoCqhttpPassword,
-				Protocol:         pa.InPackGoCqhttpProtocol,
-				AppVersion:       pa.InPackGoCqhttpAppVersion,
-				IsAsyncRun:       true,
-				UseSignServer:    pa.UseSignServer,
-				SignServerConfig: pa.SignServerConfig,
-			})
+		if pa.UseInPackClient {
+			if pa.BuiltinMode == "lagrange" {
+				BuiltinQQServeProcessKill(d, c)
+				time.Sleep(1 * time.Second)
+				LagrangeServe(d, c, GoCqhttpLoginInfo{
+					IsAsyncRun: true,
+				})
+			} else {
+				BuiltinQQServeProcessKill(d, c)
+				time.Sleep(1 * time.Second)
+				GoCqhttpServe(d, c, GoCqhttpLoginInfo{
+					Password:         pa.InPackGoCqhttpPassword,
+					Protocol:         pa.InPackGoCqhttpProtocol,
+					AppVersion:       pa.InPackGoCqhttpAppVersion,
+					IsAsyncRun:       true,
+					UseSignServer:    pa.UseSignServer,
+					SignServerConfig: pa.SignServerConfig,
+				})
+			}
 			go ServeQQ(d, c)
 		} else {
 			go ServeQQ(d, c)
 		}
 	} else {
 		c.Enable = false
-		pa.DiceServing = false
-		if pa.UseInPackGoCqhttp {
-			GoCqhttpServeProcessKill(d, c)
+		if pa.UseInPackClient {
+			BuiltinQQServeProcessKill(d, c)
 		}
 		if pa.IsReverse && pa.reverseApp != nil {
 			_ = pa.reverseApp.Close()

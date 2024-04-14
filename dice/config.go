@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -169,10 +170,18 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
 
 	configItem, exists := plugin.Configs[key]
 	if exists {
-		// Json 默认解析数字为 float64，需要转换
-		if configItem.Type == "int" {
+		switch configItem.Type {
+		case "int":
+			// Json 默认解析数字为 float64，需要转换
 			configItem.Value = int64(value.(float64))
-		} else {
+		case "template":
+			// 修复无法从[]interface{}断言[]string
+			var strarr []string
+			for _, strv := range value.([]interface{}) {
+				strarr = append(strarr, strv.(string))
+			}
+			configItem.Value = strarr
+		default:
 			configItem.Value = value
 		}
 		plugin.Configs[key] = configItem
@@ -261,6 +270,18 @@ func (cm *ConfigManager) Load() error {
 	for i := range cm.Plugins {
 		for j := range cm.Plugins[i].Configs {
 			temp := cm.Plugins[i].Configs[j]
+			// 将 json 数值反序列化到 any 类型时，即使数值是整数也会使用 float64。因此新增的配置项（int64）和从文件里恢复的配置项（float64）类型不同。
+			if f64v, ok := temp.Value.(float64); ok && temp.Type == "int" {
+				temp.Value = int64(f64v)
+			}
+			// 修复无法从[]interface{}断言[]string
+			if infv, ok := temp.Value.([]interface{}); ok && temp.Type == "template" {
+				var strarr []string
+				for _, strv := range infv {
+					strarr = append(strarr, strv.(string))
+				}
+				temp.Value = strarr
+			}
 			temp.Deprecated = true
 			cm.Plugins[i].Configs[j] = temp
 		}
@@ -2266,6 +2287,30 @@ func (d *Dice) loads() {
 	d.MarkModified()
 }
 
+func (d *Dice) loadAdvanced() {
+	d.Logger.Info("开始读取 advanced.yaml")
+	advancedConfig := AdvancedConfig{
+		Enable: false,
+	} // default value
+
+	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "advanced.yaml"))
+	if errors.Is(err, os.ErrNotExist) {
+		d.AdvancedConfig = advancedConfig
+		return
+	} else if err != nil {
+		d.Logger.Error("读取 advanced.yaml 失败 ", err.Error())
+		return
+	}
+
+	err = yaml.Unmarshal(data, &advancedConfig)
+	if err != nil {
+		d.Logger.Error("解析 advanced.yaml 失败 ", err.Error())
+		return
+	}
+
+	d.AdvancedConfig = advancedConfig
+}
+
 func (d *Dice) SaveText() {
 	buf, err := yaml.Marshal(d.TextMapRaw)
 	if err != nil {
@@ -2348,11 +2393,13 @@ func (d *Dice) ApplyExtDefaultSettings() {
 
 func (d *Dice) Save(isAuto bool) {
 	if d.LastUpdatedTime != 0 {
-		a, err := yaml.Marshal(d)
+		a, err1 := yaml.Marshal(d)
+		advancedData, err2 := yaml.Marshal(d.AdvancedConfig)
 
-		if err == nil {
-			err := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0o644)
-			if err == nil {
+		if err1 == nil && err2 == nil {
+			err1 := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"), a, 0o644)
+			err2 := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "advanced.yaml"), advancedData, 0o644)
+			if err1 == nil && err2 == nil {
 				now := time.Now()
 				d.LastSavedTime = &now
 				if isAuto {
@@ -2361,8 +2408,12 @@ func (d *Dice) Save(isAuto bool) {
 					d.Logger.Info("保存数据")
 				}
 				d.LastUpdatedTime = 0
+			} else if err1 != nil && err2 != nil {
+				d.Logger.Errorln("保存 serve.yaml 和 advanced.yaml 出错", err2)
+			} else if err1 != nil {
+				d.Logger.Errorln("保存 serve.yaml 出错", err1)
 			} else {
-				d.Logger.Errorln("保存serve.yaml出错", err)
+				d.Logger.Errorln("保存 advanced.yaml 出错", err2)
 			}
 		}
 	}

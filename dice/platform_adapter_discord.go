@@ -11,15 +11,19 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gorilla/websocket"
+
+	"sealdice-core/message"
 )
 
 // PlatformAdapterDiscord 只有token需要记录，别的是生成的
 type PlatformAdapterDiscord struct {
-	Session       *IMSession         `yaml:"-" json:"-"`
-	Token         string             `yaml:"token" json:"token"`
-	ProxyURL      string             `yaml:"proxyURL" json:"proxyURL"`
-	EndPoint      *EndPointInfo      `yaml:"-" json:"-"`
-	IntentSession *discordgo.Session `yaml:"-" json:"-"`
+	Session            *IMSession         `yaml:"-" json:"-"`
+	Token              string             `yaml:"token" json:"token"`
+	ProxyURL           string             `yaml:"proxyURL" json:"proxyURL"`
+	ReverseProxyUrl    string             `yaml:"reverseProxyUrl" json:"reverseProxyUrl"`
+	ReverseProxyCDNUrl string             `yaml:"reverseProxyCDNUrl" json:"reverseProxyCDNUrl"`
+	EndPoint           *EndPointInfo      `yaml:"-" json:"-"`
+	IntentSession      *discordgo.Session `yaml:"-" json:"-"`
 }
 
 // GetGroupInfoAsync 同步一下群组信息
@@ -80,6 +84,14 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		}
 		dg.Dialer = &websocket.Dialer{HandshakeTimeout: 45 * time.Second}
 		dg.Dialer.Proxy = http.ProxyURL(u)
+	}
+	if pa.ReverseProxyUrl != "" {
+		pa.Session.Parent.Logger.Infof("Discord代理地址已设置为%s", pa.ReverseProxyUrl)
+		regenerateDiscordEndPoint(pa.ReverseProxyUrl)
+	}
+	if pa.ReverseProxyCDNUrl != "" {
+		pa.Session.Parent.Logger.Infof("Discord CDN代理地址已设置为%s", pa.ReverseProxyCDNUrl)
+		regenerateDiscordEndPointCDN(pa.ReverseProxyCDNUrl)
 	}
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// 忽略自己的消息……以及其他机器人的消息和系统消息
@@ -219,7 +231,6 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		}
 		pa.Session.OnMessageEdit(mctx, msg)
 	})
-
 	// 这里只处理消息，未来根据需要再改这里
 	dg.Identify.Intents = discordgo.IntentsAll
 	pa.IntentSession = dg
@@ -346,7 +357,7 @@ func (pa *PlatformAdapterDiscord) SendFileToGroup(_ *MsgContext, groupID string,
 
 func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelID string, path string) {
 	dice := pa.Session.Parent
-	e, err := dice.FilepathToFileElement(path)
+	e, err := message.FilepathToFileElement(path)
 	id := ExtractDiscordChannelID(channelID)
 	if err != nil {
 		dice.Logger.Errorf("向Discord频道#%s发送文件[path=%s]时出错:%s", id, path, err)
@@ -369,15 +380,14 @@ func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelID string, path st
 }
 
 func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string) {
-	dice := pa.Session.Parent
 	logger := pa.Session.Parent.Logger
-	elem := dice.ConvertStringMessage(text)
+	elem := message.ConvertStringMessage(text)
 	id := ExtractDiscordChannelID(channelID)
 	var err error
 	msgSend := &discordgo.MessageSend{Content: ""}
 	for _, element := range elem {
 		switch e := element.(type) {
-		case *TextElement:
+		case *message.TextElement:
 			// msgSend.Content = msgSend.Content + antiMarkdownFormat(e.Content)
 			if msgSend.Embeds != nil {
 				msgSend.Embeds[len(msgSend.Embeds)-1].Description += antiMarkdownFormat(e.Content)
@@ -387,7 +397,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string
 					Type:        discordgo.EmbedTypeArticle,
 				})
 			}
-		case *AtElement:
+		case *message.AtElement:
 			if msgSend.Embeds != nil {
 				if e.Target == "all" {
 					msgSend.Embeds[len(msgSend.Embeds)-1].Description += "@everyone "
@@ -407,17 +417,18 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string
 					})
 				}
 			}
-		case *FileElement:
-			msgSend.Files = append(msgSend.Files, &discordgo.File{
-				Name:        e.File,
-				ContentType: e.ContentType,
-				Reader:      e.Stream,
-			})
-			// _, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
-			// msgSend = &discordgo.MessageSend{Content: ""}
-		case *ImageElement:
+			// Note(Szzrain): Disabled due to Security Concerns
+		// case *message.FileElement:
+		//	msgSend.Files = append(msgSend.Files, &discordgo.File{
+		//		Name:        e.File,
+		//		ContentType: e.ContentType,
+		//		Reader:      e.Stream,
+		//	})
+		// _, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+		// msgSend = &discordgo.MessageSend{Content: ""}
+		case *message.ImageElement:
 			// var files []*discordgo.File
-			f := e.file
+			f := e.File
 			msgSend.Files = append(msgSend.Files, &discordgo.File{
 				Name:        f.File,
 				ContentType: f.ContentType,
@@ -425,7 +436,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string
 			})
 			// _, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			// msgSend = &discordgo.MessageSend{Content: ""}
-		case *TTSElement:
+		case *message.TTSElement:
 			if msgSend.Content != "" || msgSend.Files != nil || msgSend.Embeds != nil {
 				_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 			}
@@ -438,7 +449,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string
 				Content: e.Content,
 				TTS:     true,
 			})
-		case *ReplyElement:
+		case *message.ReplyElement:
 			channel, errChannel := pa.IntentSession.Channel(id)
 			if errChannel != nil {
 				logger.Errorf("获取Discord频道信息#%s时出错:%s", id, errChannel.Error())

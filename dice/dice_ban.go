@@ -361,6 +361,9 @@ func (i *BanListInfo) AddScoreByCensor(uid string, score int64, place string, le
 }
 
 func (i *BanListInfo) GetByID(uid string) (*BanListInfoItem, bool) {
+	if uid == "" {
+		return nil, false
+	}
 	return i.Map.Load(uid)
 }
 
