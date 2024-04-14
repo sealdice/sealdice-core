@@ -5,13 +5,13 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
+
+	"go.uber.org/zap"
 )
 
 func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
-
 	return func(b64 string) string {
 		// use logger here
 		// 解码 Base64 值
@@ -33,7 +33,13 @@ func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
 			logger.Errorf("创建文件出错%s", err.Error())
 			return ""
 		}
-		defer fi.Close()
+		defer func(fi *os.File) {
+			err := fi.Close()
+			if err != nil {
+
+			}
+		}(fi)
+
 		_, err = fi.Write(data)
 		if err != nil {
 			logger.Errorf("写入文件出错%s", err.Error())
