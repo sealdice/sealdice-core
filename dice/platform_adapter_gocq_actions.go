@@ -424,8 +424,9 @@ func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait
 
 	emi := &echoMapInfo{ch: make(chan string, 1)}
 	beforeWait(emi)
-
-	pa.echoMap2.Store(echo, emi)
+	// 注: 之所以这样是因为echo是json.RawMessage
+	e := lo.Must(json.Marshal(echo))
+	pa.echoMap2.Store(string(e), emi)
 	val := <-emi.ch
 	if val == "" {
 		return errors.New("超时")
