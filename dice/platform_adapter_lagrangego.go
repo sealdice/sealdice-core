@@ -161,7 +161,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 				break
 			}
 			if result == qrcodeState.Expired || result == qrcodeState.Canceled {
-				log.Infof("Qrcode expired or canceled\n")
+				log.Errorf("Qrcode expired or canceled\n")
 				pa.EndPoint.State = 3
 				pa.EndPoint.Enable = false
 				break
@@ -309,7 +309,7 @@ func (pa *PlatformAdapterLagrangeGo) SendToPerson(ctx *MsgContext, uid string, t
 	uidraw := UserIDExtract(uid)
 	userCode, err := strconv.ParseInt(uidraw, 10, 64)
 	if err != nil {
-		log.Infof("ParseInt failed: %v", err)
+		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
 	messageElem := []lagMessage.IMessageElement{&lagMessage.TextElement{Content: text}}
@@ -322,15 +322,16 @@ func (pa *PlatformAdapterLagrangeGo) SendToPerson(ctx *MsgContext, uid string, t
 
 func (pa *PlatformAdapterLagrangeGo) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	uidraw := UserIDExtract(uid)
+	log := pa.Session.Parent.Logger
 	groupCode, err := strconv.ParseInt(uidraw, 10, 64)
 	if err != nil {
-		fmt.Printf("ParseInt failed: %v", err)
+		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
 	messageElem := []lagMessage.IMessageElement{&lagMessage.TextElement{Content: text}}
 	_, err = pa.QQClient.SendGroupMessage(uint32(groupCode), messageElem)
 	if err != nil {
-		fmt.Printf("SendGroupMessage failed: %v", err)
+		log.Errorf("SendGroupMessage failed: %v", err)
 		return
 	}
 }
