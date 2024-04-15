@@ -94,7 +94,7 @@ chmod +x ./sealdice-core
 
 == Android
 
-安装下载的 APK 包，给予适当的权限。为了使海豹在后台运行，请采取[一些措施](./android_keepalive.md)。
+请查看[安卓端登录](./android.html)。
 
 ::::
 
