@@ -10,15 +10,15 @@ import (
 	"time"
 
 	"github.com/LagrangeDev/LagrangeGo/client"
-	"github.com/LagrangeDev/LagrangeGo/client/wtlogin/qrcodeState"
 	"github.com/LagrangeDev/LagrangeGo/info"
 	lagMessage "github.com/LagrangeDev/LagrangeGo/message"
+	"github.com/LagrangeDev/LagrangeGo/packets/wtlogin/qrcodeState"
 	"github.com/LagrangeDev/LagrangeGo/utils"
 
 	"sealdice-core/message"
 )
 
-const DefaultSignUrl = `${SIGN_SERVER_DEFAULT}`
+var DefaultSignUrl = `${SIGN_SERVER_DEFAULT}`
 
 func LoadSigInfo(filePath string) (*info.SigInfo, error) {
 	file, err := os.Open(filePath)
@@ -104,6 +104,9 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	log := pa.Session.Parent.Logger
 	if pa.SignUrl == "" {
 		pa.SignUrl = DefaultSignUrl
+		if pa.SignUrl == `${SIGN_SERVER_DEFAULT}` {
+			panic("SIGN_SERVER_DEFAULT not set")
+		}
 	}
 	pa.EndPoint.ProtocolType = "LagrangeGo"
 	appInfo := info.AppList["linux"]
@@ -197,18 +200,18 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	pa.QQClient.GroupMessageEvent.Subscribe(func(client *client.QQClient, event *lagMessage.GroupMessage) {
 		// log.Infof("GroupMessageEvent: %+v\n", event)
 		// log.Infof("GroupMessageEventSender: %+v\n", event.Sender)
-		if event.Sender.Uin == int64(pa.UIN) {
+		if event.Sender.Uin == pa.UIN {
 			return
 		}
 		msg := &Message{
 			Time:        int64(event.Time),
 			MessageType: "group",
-			GroupID:     "QQ-Group:" + strconv.FormatInt(event.GroupCode, 10),
+			GroupID:     "QQ-Group:" + strconv.FormatInt(int64(event.GroupCode), 10),
 			Platform:    "QQ",
 			GroupName:   event.GroupName,
 			Sender: SenderBase{
 				Nickname: event.Sender.Nickname,
-				UserID:   "QQ:" + strconv.FormatInt(event.Sender.Uin, 10),
+				UserID:   "QQ:" + strconv.FormatInt(int64(event.Sender.Uin), 10),
 			},
 		}
 		var segment []message.IMessageElement
@@ -217,7 +220,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 			case *lagMessage.TextElement:
 				segment = append(segment, &message.TextElement{Content: e.Content})
 			case *lagMessage.AtElement:
-				segment = append(segment, &message.AtElement{Target: strconv.FormatInt(e.Target, 10)})
+				segment = append(segment, &message.AtElement{Target: strconv.FormatInt(int64(e.Target), 10)})
 			case *lagMessage.GroupImageElement:
 				// {ImageId:{98D3AD71-D77C-7A74-6B04-4D1069480ADC}.jpg FileId:2865338180 ImageType:0 Size:240197 Width:1920 Height:1080 Md5:[152 211 173 113 215 124 122 116 107 4 77 16 105 72 10 220] Url:http://gchat.qpic.cn/gchatpic_new/xxxx&is_origin=0 EffectID:0 Flash:false}
 				// log.Infof("GroupImageElement: %+v\n", e)
@@ -232,7 +235,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 
 	// SendToPerson 未完善, 暂时留空
 	pa.QQClient.PrivateMessageEvent.Subscribe(func(client *client.QQClient, event *lagMessage.PrivateMessage) {
-		if event.Sender.Uin == int64(pa.UIN) {
+		if event.Sender.Uin == pa.UIN {
 			return
 		}
 		msg := &Message{
@@ -242,7 +245,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 			Platform:    "QQ",
 			Sender: SenderBase{
 				Nickname: event.Sender.Nickname,
-				UserID:   "QQ:" + strconv.FormatInt(event.Sender.Uin, 10),
+				UserID:   "QQ:" + strconv.FormatInt(int64(event.Sender.Uin), 10),
 			},
 		}
 		var segment []message.IMessageElement
@@ -251,7 +254,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 			case *lagMessage.TextElement:
 				segment = append(segment, &message.TextElement{Content: e.Content})
 			case *lagMessage.AtElement:
-				segment = append(segment, &message.AtElement{Target: strconv.FormatInt(e.Target, 10)})
+				segment = append(segment, &message.AtElement{Target: strconv.FormatInt(int64(e.Target), 10)})
 			case *lagMessage.GroupImageElement:
 				segment = append(segment, &message.ImageElement{URL: e.Url})
 			case *lagMessage.ReplyElement:
@@ -312,9 +315,7 @@ func (pa *PlatformAdapterLagrangeGo) SendToPerson(ctx *MsgContext, uid string, t
 		return
 	}
 	messageElem := []lagMessage.IMessageElement{&lagMessage.TextElement{Content: text}}
-	msgBody := lagMessage.BuildMessageElements(messageElem)
-
-	_, err = pa.QQClient.SendPrivateMessage(uint32(userCode), pa.QQClient.GetUid(uint32(userCode)), msgBody)
+	_, err = pa.QQClient.SendPrivateMessage(uint32(userCode), messageElem)
 	if err != nil {
 		log.Errorf("SendToPerson failed: %v", err)
 		return
@@ -329,8 +330,7 @@ func (pa *PlatformAdapterLagrangeGo) SendToGroup(ctx *MsgContext, uid string, te
 		return
 	}
 	messageElem := []lagMessage.IMessageElement{&lagMessage.TextElement{Content: text}}
-	msgBody := lagMessage.BuildMessageElements(messageElem)
-	_, err = pa.QQClient.SendGroupMessage(uint32(groupCode), msgBody)
+	_, err = pa.QQClient.SendGroupMessage(uint32(groupCode), messageElem)
 	if err != nil {
 		fmt.Printf("SendGroupMessage failed: %v", err)
 		return

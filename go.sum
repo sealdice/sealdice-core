@@ -1,7 +1,7 @@
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/LagrangeDev/LagrangeGo v0.0.0-20240413145243-7669672fd80e h1:ewwhYKic4FS+Tac4zMBPy5EWeWoH7adpKcwlrymRuew=
-github.com/LagrangeDev/LagrangeGo v0.0.0-20240413145243-7669672fd80e/go.mod h1:EAs5nU3Oq/zHsJt2gkWOl8TodHPphI+ELXZaj7ht2ZQ=
+github.com/LagrangeDev/LagrangeGo v0.0.0-20240414143930-c25b34f8ea17 h1:gk1GUJzc08gbXIeBmZ6AT2xt4ygDkNo7qg4hcsznrmg=
+github.com/LagrangeDev/LagrangeGo v0.0.0-20240414143930-c25b34f8ea17/go.mod h1:EAs5nU3Oq/zHsJt2gkWOl8TodHPphI+ELXZaj7ht2ZQ=
 github.com/Masterminds/semver/v3 v3.2.1 h1:RN9w6+7QoMeJVGyfmbcgs28Br8cvmnucEXnY0rYXWg0=
 github.com/Masterminds/semver/v3 v3.2.1/go.mod h1:qvl/7zhW3nngYb5+80sSMF+FG2BjYrf8m9wsX0PNOMQ=
 github.com/RoaringBitmap/roaring v1.2.3 h1:yqreLINqIrX22ErkKI0vY47/ivtJr6n+kMhVOVmhWBY=
