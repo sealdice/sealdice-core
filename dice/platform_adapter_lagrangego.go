@@ -18,7 +18,7 @@ import (
 	"sealdice-core/message"
 )
 
-var DefaultSignUrl = `${SIGN_SERVER_DEFAULT}`
+var DefaultSignUrl = ``
 
 func LoadSigInfo(filePath string) (*info.SigInfo, error) {
 	file, err := os.Open(filePath)
@@ -104,8 +104,8 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	log := pa.Session.Parent.Logger
 	if pa.SignUrl == "" {
 		pa.SignUrl = DefaultSignUrl
-		if pa.SignUrl == `${SIGN_SERVER_DEFAULT}` {
-			panic("SIGN_SERVER_DEFAULT not set")
+		if pa.SignUrl == `` {
+			panic("DefaultSignUrl not set")
 		}
 	}
 	pa.EndPoint.ProtocolType = "LagrangeGo"
@@ -307,6 +307,10 @@ func (pa *PlatformAdapterLagrangeGo) SetEnable(enable bool) {
 
 func (pa *PlatformAdapterLagrangeGo) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	log := pa.Session.Parent.Logger
+	if text == "" {
+		log.Errorf("SendToPerson: text is empty")
+		return
+	}
 	uidraw := UserIDExtract(uid)
 	userCode, err := strconv.ParseInt(uidraw, 10, 64)
 	if err != nil {
@@ -324,6 +328,10 @@ func (pa *PlatformAdapterLagrangeGo) SendToPerson(ctx *MsgContext, uid string, t
 func (pa *PlatformAdapterLagrangeGo) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	uidraw := UserIDExtract(uid)
 	log := pa.Session.Parent.Logger
+	if text == "" {
+		log.Errorf("SendToGroup: text is empty")
+		return
+	}
 	groupCode, err := strconv.ParseInt(uidraw, 10, 64)
 	if err != nil {
 		log.Errorf("ParseInt failed: %v", err)
