@@ -9,6 +9,19 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+var enabledLevel = zap.InfoLevel
+
+func SetEnableLevel(level zapcore.Level) {
+	switch level {
+	case zapcore.DebugLevel, zapcore.InfoLevel, zapcore.WarnLevel, zapcore.ErrorLevel,
+		zapcore.DPanicLevel, zapcore.PanicLevel, zapcore.FatalLevel:
+		{
+			enabledLevel = level
+		}
+	default: // no-op
+	}
+}
+
 type LogItem struct {
 	Level  string  `json:"level"`
 	TS     float64 `json:"ts"`
@@ -59,7 +72,9 @@ func Init(path string, name string, enableConsoleLog bool) *LogInfo {
 	wx := &WriterX{}
 
 	cores := []zapcore.Core{
-		zapcore.NewCore(encoder, zapcore.AddSync(lumlog), zapcore.DebugLevel),
+		zapcore.NewCore(encoder, zapcore.AddSync(lumlog), enabledLevel),
+
+		// This outputs to WebUI, DO NOT apply enabledLevel
 		zapcore.NewCore(zapcore.NewJSONEncoder(pe), zapcore.AddSync(wx), zapcore.InfoLevel),
 	}
 
@@ -69,7 +84,7 @@ func Init(path string, name string, enableConsoleLog bool) *LogInfo {
 
 		consoleEncoder := zapcore.NewConsoleEncoder(pe2)
 		consoleEncoder.AddString("dice", name)
-		cores = append(cores, zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), zapcore.InfoLevel))
+		cores = append(cores, zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), enabledLevel))
 	}
 
 	core := zapcore.NewTee(cores...)
