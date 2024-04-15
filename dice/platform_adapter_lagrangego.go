@@ -12,6 +12,7 @@ import (
 	"github.com/LagrangeDev/LagrangeGo/client"
 	"github.com/LagrangeDev/LagrangeGo/info"
 	lagMessage "github.com/LagrangeDev/LagrangeGo/message"
+	"github.com/LagrangeDev/LagrangeGo/packets/oidb"
 	"github.com/LagrangeDev/LagrangeGo/packets/wtlogin/qrcodeState"
 	"github.com/LagrangeDev/LagrangeGo/utils"
 
@@ -355,7 +356,36 @@ func (pa *PlatformAdapterLagrangeGo) SendFileToGroup(ctx *MsgContext, uid string
 
 func (pa *PlatformAdapterLagrangeGo) QuitGroup(_ *MsgContext, _ string) {}
 
-func (pa *PlatformAdapterLagrangeGo) SetGroupCardName(_ *MsgContext, _ string) {}
+func (pa *PlatformAdapterLagrangeGo) SetGroupCardName(ctx *MsgContext, name string) {
+	log := pa.Session.Parent.Logger
+	groupIdRaw := UserIDExtract(ctx.Group.GroupID)
+	groupCode, err := strconv.ParseInt(groupIdRaw, 10, 64)
+	if err != nil {
+		log.Errorf("ParseInt failed: %v", err)
+		return
+	}
+	uidRaw := UserIDExtract(ctx.Player.UserID)
+	userCode, err := strconv.ParseInt(uidRaw, 10, 64)
+	if err != nil {
+		log.Errorf("ParseInt failed: %v", err)
+		return
+	}
+	pa.QQClient.RefreshGroupCache(uint32(groupCode))
+	req, err := oidb.BuildGroupRenameMemberReq(uint32(groupCode), pa.QQClient.GetUidFromGroup(uint32(userCode), uint32(groupCode)), name)
+	if err != nil {
+		log.Errorf("BuildGroupRenameMemberReq failed: %v", err)
+		return
+	}
+	response, err := pa.QQClient.SendOidbPacketAndWait(req)
+	if err != nil {
+		log.Errorf("SetGroupCardName failed: %v", err)
+	}
+	_, err = oidb.ParseGroupRenameMemberResp(response.Data)
+	if err != nil {
+		log.Errorf("ParseGroupRenameMemberResp failed: %v", err)
+		return
+	}
+}
 
 func (pa *PlatformAdapterLagrangeGo) MemberBan(_ string, _ string, _ int64) {}
 
