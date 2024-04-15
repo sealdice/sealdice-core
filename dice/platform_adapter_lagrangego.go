@@ -222,7 +222,6 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 			case *lagMessage.AtElement:
 				segment = append(segment, &message.AtElement{Target: strconv.FormatInt(int64(e.Target), 10)})
 			case *lagMessage.GroupImageElement:
-				// {ImageId:{98D3AD71-D77C-7A74-6B04-4D1069480ADC}.jpg FileId:2865338180 ImageType:0 Size:240197 Width:1920 Height:1080 Md5:[152 211 173 113 215 124 122 116 107 4 77 16 105 72 10 220] Url:http://gchat.qpic.cn/gchatpic_new/xxxx&is_origin=0 EffectID:0 Flash:false}
 				// log.Infof("GroupImageElement: %+v\n", e)
 				segment = append(segment, &message.ImageElement{URL: e.Url})
 			case *lagMessage.ReplyElement:
@@ -233,7 +232,6 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 		pa.Session.ExecuteNew(pa.EndPoint, msg)
 	})
 
-	// SendToPerson 未完善, 暂时留空
 	pa.QQClient.PrivateMessageEvent.Subscribe(func(client *client.QQClient, event *lagMessage.PrivateMessage) {
 		if event.Sender.Uin == pa.UIN {
 			return
