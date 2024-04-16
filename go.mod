@@ -47,7 +47,7 @@ require (
 )
 
 require (
-	github.com/LagrangeDev/LagrangeGo v0.0.0-20240416023753-ef733eae7b95
+	github.com/LagrangeDev/LagrangeGo v0.0.0-20240416151817-ed03302937ec
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959

@@ -539,7 +539,7 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 				},
 			})
 		case *message.ReplyElement:
-			referenceMessageId = e.Target
+			referenceMessageId = e.ReplySeq
 		}
 	}
 	err := pa.SendMessageRaw(ctx, msgSend, uid, isPrivate, referenceMessageId)

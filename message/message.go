@@ -74,7 +74,10 @@ func (t *AtElement) Type() ElementType {
 }
 
 type ReplyElement struct {
-	Target string
+	ReplySeq string            // 回复的目标消息ID
+	Sender   string            // 回复的目标消息发送者ID
+	GroupID  string            // 回复群聊消息时的群号
+	Elements []IMessageElement // 回复的消息内容
 }
 
 func (t *ReplyElement) Type() ElementType {
@@ -308,7 +311,7 @@ func toElement(t string, dMap map[string]string) (IMessageElement, error) {
 		return &TTSElement{Content: content}, nil
 	case "reply":
 		target := dMap["id"]
-		return &ReplyElement{Target: target}, nil
+		return &ReplyElement{ReplySeq: target}, nil
 	}
 	return CQToText(t, dMap), nil
 }
