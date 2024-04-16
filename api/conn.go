@@ -960,7 +960,7 @@ func ImConnectionsAddLagrangeGO(c echo.Context) error {
 
 	v := struct {
 		Account       string `yaml:"account" json:"account"`
-		CustomSignUrl string `yaml:"customSignUrl" json:"customSignUrl"`
+		CustomSignUrl string `yaml:"signServerUrl" json:"signServerUrl"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
