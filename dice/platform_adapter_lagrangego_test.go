@@ -12,7 +12,7 @@ func TestAdapterLogin(t *testing.T) {
 		Session:   &IMSession{},
 		EndPoint:  &EndPointInfo{},
 		UIN:       0,
-		SignUrl:   "",
+		signUrl:   "",
 		configDir: "../data/default/extra/lagrangeGoTest",
 	}
 	conn.Serve()
