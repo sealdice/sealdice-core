@@ -87,14 +87,15 @@ func SaveDevice(deviceInfo *info.DeviceInfo, path string) error {
 }
 
 type PlatformAdapterLagrangeGo struct {
-	Session  *IMSession       `yaml:"-" json:"-"`
-	EndPoint *EndPointInfo    `yaml:"-" json:"-"`
-	UIN      uint32           `yaml:"uin" json:"uin"`
-	SignUrl  string           `yaml:"-" json:"-"`
-	QQClient *client.QQClient `yaml:"-" json:"-"`
-	CurState int              `yaml:"-" json:"loginState"`
+	Session       *IMSession       `yaml:"-" json:"-"`
+	EndPoint      *EndPointInfo    `yaml:"-" json:"-"`
+	UIN           uint32           `yaml:"uin" json:"uin"`
+	CustomSignUrl string           `yaml:"signUrl" json:"signUrl"`
+	QQClient      *client.QQClient `yaml:"-" json:"-"`
+	CurState      int              `yaml:"-" json:"loginState"`
 
 	QrcodeData []byte `yaml:"-" json:"-"`
+	signUrl    string
 	configDir  string
 	sig        *info.SigInfo
 }
@@ -103,11 +104,16 @@ func (pa *PlatformAdapterLagrangeGo) GetGroupInfoAsync(_ string) {}
 
 func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	log := pa.Session.Parent.Logger
-	if pa.SignUrl == "" {
-		pa.SignUrl = DefaultSignUrl
-		if pa.SignUrl == `` {
-			panic("DefaultSignUrl not set")
+	if pa.CustomSignUrl == "" {
+		// remember to inject the value of DefaultSignUrl in the build process
+		// nolint:gocritic
+		//goland:noinspection GoBoolExpressions
+		if DefaultSignUrl == `` {
+			panic("DefaultSignUrl is empty")
 		}
+		pa.signUrl = DefaultSignUrl
+	} else {
+		pa.signUrl = pa.CustomSignUrl
 	}
 	pa.EndPoint.ProtocolType = "LagrangeGo"
 	appInfo := info.AppList["linux"]
@@ -143,7 +149,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	pa.CurState = StateCodeInLogin
 	pa.EndPoint.State = 2
 	pa.EndPoint.Enable = true
-	pa.QQClient = client.NewQQclient(pa.UIN, pa.SignUrl, appInfo, deviceInfo, pa.sig)
+	pa.QQClient = client.NewQQclient(pa.UIN, pa.signUrl, appInfo, deviceInfo, pa.sig)
 	pa.QQClient.Loop()
 	go func() {
 		for {
