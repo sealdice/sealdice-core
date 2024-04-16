@@ -106,7 +106,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	log := pa.Session.Parent.Logger
 	if pa.CustomSignUrl == "" {
 		// remember to inject the value of DefaultSignUrl in the build process
-		// nolint:gocritic
+		//nolint:gocritic
 		//goland:noinspection GoBoolExpressions
 		if DefaultSignUrl == `` {
 			panic("DefaultSignUrl is empty")
