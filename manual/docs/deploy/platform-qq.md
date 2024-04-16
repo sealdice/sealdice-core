@@ -58,6 +58,14 @@ title: QQ
 
 :::
 
+::: warning 警告
+
+内置客户端暂不支持 Windows 7，Windows Server 2008，Windows 32 位。
+
+Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
+
+:::
+
 进入海豹 Web UI 的「账号设置」新增连接，选择账号类型「QQ（内置客户端）」，这也是默认选项，填写 QQ 号：
 
 <img src="./images/platform-qq-builtin-1.png" alt="内置客户端" width="80%">
@@ -278,7 +286,7 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 
 [LiteLoaderQQNT](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)（LiteLoader）是 NTQQ 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能。
 
-[LLOneBot API](https://github.com/LLOneBot/LLOneBot) 则是 Liteloader 的插件之一，可以实现劫持客户端对外开放 API ，可以理解为装在 PC 上的 Shamrock。
+[LLOneBot API](https://github.com/LLOneBot/LLOneBot) 则是 Liteloader 的插件之一，可以实现劫持客户端对外开放 API，可以理解为装在 PC 上的 Shamrock。
 
 :::
 
@@ -655,7 +663,7 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 <img src="./images/platform-qq-official-1.png" alt="切换到开发设置" width="40%">
 
-在页面中你可以看到这样的信息，其中「机器人ID」「机器人令牌」「机器人密钥」这三项是海豹进行连接所需要的。
+在页面中你可以看到这样的信息，其中「机器人 ID」「机器人令牌」「机器人密钥」这三项是海豹进行连接所需要的。
 
 ![开发设置](./images/platform-qq-official-2.png)
 

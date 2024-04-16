@@ -21,7 +21,7 @@ export const deployNav = {
     {
       text: "安卓相关",
       items: [
-        { text: "安卓端海豹核心常见问题", link: "/deploy/android" },
+        { text: "安卓海豹常见问题", link: "/deploy/android" },
         { text: "配置安卓端保活", link: "/deploy/android_keepalive"},
       ],
     },
@@ -63,7 +63,7 @@ export const deploySidebar = {
     {
       text: "安卓相关",
       items: [
-        { text: "安卓端海豹核心常见问题", link: "/deploy/android" },
+        { text: "安卓海豹常见问题", link: "/deploy/android" },
         { text: "配置安卓端保活", 
           link: "/deploy/android_keepalive" ,
           items: [
@@ -241,7 +241,7 @@ export const advanced = {
         { text: "编写复杂文案", link: "/advanced/edit_complex_custom_text" },
         { text: "编写自定义回复", link: "/advanced/edit_reply" },
         { text: "编写牌堆", link: "/advanced/edit_deck" },
-        { text: "编写JavaScript 插件", link: "/advanced/edit_jsscript" },
+        { text: "编写 JavaScript 插件", link: "/advanced/edit_jsscript" },
         { text: "编写新的 TRPG 规则", link: "/advanced/edit_gamesystem" },
         { text: "编写帮助文档", link: "/advanced/edit_helpdoc" },
         { text: "编写敏感词库", link: "/advanced/edit_sensitive_words" },

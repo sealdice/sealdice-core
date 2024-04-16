@@ -1,9 +1,9 @@
 ---
 lang: zh-cn
-title: 安卓端海豹核心常见问题
+title: 安卓海豹常见问题
 ---
 
-# 安卓端海豹核心常见问题
+# 安卓海豹常见问题
 
 ::: info 本节内容
 
@@ -29,15 +29,15 @@ title: 安卓端海豹核心常见问题
 
 如果你的手机系统支持「应用双开」（或「应用分身」等，不同系统可能名称不同），可以直接使用系统的双开功能。
 
-### 方法二：使用 np 管理器等软件
+### 方法二：使用 NP 管理器等软件
 
-下载**np管理器**修改海豹核心安装包。
+下载「NP 管理器」修改海豹核心安装包。
 
 :::: info
 
-1.下载[np管理器](https://github.com/githubXiaowangzi/NP-Manager)并安装。
+1.下载 [NP 管理器](https://github.com/githubXiaowangzi/NP-Manager)并安装。
 
-2.打开 np 管理器，找到海豹核心安装包。
+2.打开 NP 管理器，找到海豹核心安装包。
 
 3.选择「功能」-「APK 共存」。 
 
@@ -77,7 +77,7 @@ title: 安卓端海豹核心常见问题
 
 1) 利用导入导出功能将图片放入海豹的导出文件夹，然后导入。
 
-2) 使用MT管理的的「[APK一键注入文件提供器功能](https://mt2.cn/guide/reverse/inject-documents-provider.html)」，配合「添加本地储存」这两个功能访问海豹的私有目录。
+2) 使用 [MT 管理器](https://mt2.cn/download/)的「[APK 一键注入文件提供器功能](https://mt2.cn/guide/reverse/inject-documents-provider.html)」，配合「添加本地储存」这两个功能访问海豹的私有目录。
 
 :::: 
 
