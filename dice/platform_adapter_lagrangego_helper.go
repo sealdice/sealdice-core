@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func NewLagrangeGoConnItem(uin uint32) *EndPointInfo {
+func NewLagrangeGoConnItem(uin uint32, customSignUrl string) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.ID = uuid.New().String()
 	conn.Platform = "QQ"
@@ -15,8 +15,9 @@ func NewLagrangeGoConnItem(uin uint32) *EndPointInfo {
 	conn.Enable = false
 	conn.RelWorkDir = "extra/LagrangeGo" + "-qq" + strconv.Itoa(int(uin))
 	conn.Adapter = &PlatformAdapterLagrangeGo{
-		EndPoint: conn,
-		UIN:      uin,
+		EndPoint:      conn,
+		UIN:           uin,
+		CustomSignUrl: customSignUrl,
 	}
 	return conn
 }

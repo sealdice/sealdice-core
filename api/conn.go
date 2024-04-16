@@ -959,7 +959,8 @@ func ImConnectionsAddLagrangeGO(c echo.Context) error {
 	}
 
 	v := struct {
-		Account string `yaml:"account" json:"account"`
+		Account       string `yaml:"account" json:"account"`
+		CustomSignUrl string `yaml:"signServerUrl" json:"signServerUrl"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -971,7 +972,7 @@ func ImConnectionsAddLagrangeGO(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		conn := dice.NewLagrangeGoConnItem(uint32(uin))
+		conn := dice.NewLagrangeGoConnItem(uint32(uin), v.CustomSignUrl)
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterLagrangeGo)
