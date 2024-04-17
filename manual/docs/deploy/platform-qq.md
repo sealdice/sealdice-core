@@ -173,9 +173,7 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 ::: info Linux NTQQ 的签名服务
 
-由于众所周知的原因，Lagrange 不能提供公共签名服务，海豹官方也不会对相关信息进行说明。请在 Lagrange 的 README 中自行寻找相应 TG 群，寻找由海外热心网友提供的一些帮助。
-
-*或许你也能在其他地方看见/问到链接呢……*
+拉格兰项目提供公共签名服务。请访问[拉格兰项目的 GitHub 仓库，在其 README 中](https://github.com/KonataDev/Lagrange.Core?tab=readme-ov-file#signserver)查找。
 
 :::
 
@@ -549,13 +547,13 @@ Adb 即 [Android 调试桥](https://developer.android.com/studio/command-line/ad
   - 其它版本的打开方式请自行搜索。
 3. 你有多种方式使用 adb：
   - 将 adb 添加至系统环境变量，在系统开始一栏中可以直接搜索到该功能，随后将 **解压好的** `platform-tools` 路径填入至系统变量中的 `path`，例如，adb 在 `E:/shamrock achieve/platform-tools` 文件夹中，那么你只需要将该路径填入 `path` 即可。
-  ![adb path](.\images\image-016.png)
+  ![adb path](./images/image-016.png)
     - 如果你是旧版本 Window（如 Win 7），系统未提供对应的 GUI，你需要使用 **`;`** 隔开不同的路径。
   - 也可以选择使用 `cd` 命令切换至 adb 目录，使用此方法请将 adb 放在 C 盘；（由于 Windows 权限问题，使用运行开启的 cmd 实例无法访问 C 盘之外的路径。）
     - `win + R` 键启动「运行」；
     - 在运行中输入 `cmd` 并回车；
     - 在打开的黑框框中输入命令 `cd <替换为对应路径>`。
-  ![切换到 adb 文件夹](.\images\image-017.png)
+  ![切换到 adb 文件夹](./images/image-017.png)
 - 还可以选择在 `platform-tools` 文件夹中新建`.bat` 文件。
 
 :::
@@ -570,7 +568,7 @@ Adb 即 [Android 调试桥](https://developer.android.com/studio/command-line/ad
 adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh
 ```
 
-![为 Shizuku 赋予 adb 权限](.\images\image-018.png)
+![为 Shizuku 赋予 adb 权限](./images/image-018.png)
 
 ### 安装 LSPatch
 
