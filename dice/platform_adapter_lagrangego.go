@@ -143,21 +143,24 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	appInfo := info.AppList["linux"]
 
 	pa.configDir = filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
-	// log.Infof("configDir: %s\n", pa.configDir)
-	deviceInfo := LoadDevice(pa.configDir + "/deviceinfo.json")
-	// log.Infof("Loaded DeviceInfo: %+v\n", deviceInfo)
-	err := SaveDevice(deviceInfo, pa.configDir+"/deviceinfo.json")
-	if err != nil {
-		log.Errorf("Save DeviceInfo failed: %v", err)
-	}
-
+	_, err := os.Stat(pa.configDir)
 	// create config dir
-	if _, err = os.Stat(pa.configDir); os.IsNotExist(err) {
+	if os.IsNotExist(err) {
 		err = os.MkdirAll(pa.configDir, os.ModePerm)
 		if err != nil {
 			log.Errorf("create config dir failed: %v", err)
 			return 1
 		}
+	} else if err != nil {
+		log.Errorf("stat config dir failed: %v", err)
+		return 1
+	}
+
+	deviceInfo := LoadDevice(pa.configDir + "/deviceinfo.json")
+	log.Debugf("Loaded DeviceInfo: %+v\n", deviceInfo)
+	err = SaveDevice(deviceInfo, pa.configDir+"/deviceinfo.json")
+	if err != nil {
+		log.Errorf("Save DeviceInfo failed: %v", err)
 	}
 
 	sigInfo, err := LoadSigInfo(pa.configDir + "/siginfo.gob")
@@ -167,7 +170,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 		pa.sig = info.NewSigInfo(8848)
 	} else {
 		pa.sig = sigInfo
-		// log.Infof("Loaded SigInfo: %+v", sigInfo)
+		log.Debugf("Loaded SigInfo: %+v", sigInfo)
 	}
 
 	pa.CurState = StateCodeInLogin
@@ -182,14 +185,14 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	go func() {
 		for {
 			time.Sleep(3 * time.Second)
+			if pa.EndPoint.State == 3 || !pa.EndPoint.Enable || pa.EndPoint.State == 1 {
+				break
+			}
 			result, err1 := pa.QQClient.GetQrcodeResult()
 			if err1 == nil {
 				log.Infof("QrcodeResult: %+v", result)
 			} else {
 				log.Errorf("GetQrcodeResult failed: %v", err1)
-			}
-			if pa.EndPoint.State == 3 || !pa.EndPoint.Enable || pa.EndPoint.State == 1 {
-				break
 			}
 			if result == qrcodeState.Confirmed {
 				log.Infof("Qrcode confirmed\n")
@@ -233,8 +236,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 
 	// setup event handler
 	pa.QQClient.GroupMessageEvent.Subscribe(func(client *client.QQClient, event *lagMessage.GroupMessage) {
-		// log.Infof("GroupMessageEvent: %+v\n", event)
-		// log.Infof("GroupMessageEventSender: %+v\n", event.Sender)
+		log.Debugf("GroupMessageEvent: %+v\n", event)
 		if event.Sender.Uin == pa.UIN {
 			return
 		}
@@ -383,7 +385,29 @@ func (pa *PlatformAdapterLagrangeGo) SendFileToGroup(ctx *MsgContext, uid string
 	pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", filepath.Base(path)), flag)
 }
 
-func (pa *PlatformAdapterLagrangeGo) QuitGroup(_ *MsgContext, _ string) {}
+func (pa *PlatformAdapterLagrangeGo) QuitGroup(ctx *MsgContext, groupId string) {
+	log := pa.Session.Parent.Logger
+	groupCode, err := strconv.ParseInt(UserIDExtract(groupId), 10, 64)
+	if err != nil {
+		log.Errorf("ParseInt failed: %v", err)
+		return
+	}
+	req, err := oidb.BuildGroupLeaveReq(uint32(groupCode))
+	if err != nil {
+		log.Errorf("BuildGroupLeaveReq failed: %v", err)
+		return
+	}
+	response, err := pa.QQClient.SendOidbPacketAndWait(req)
+	if err != nil {
+		log.Errorf("QuitGroup failed: %v", err)
+		return
+	}
+	_, err = oidb.ParseGroupLeaveResp(response.Data)
+	if err != nil {
+		log.Errorf("ParseGroupLeaveResp failed: %v", err)
+	}
+	log.Debugf("QuitGroup success")
+}
 
 func (pa *PlatformAdapterLagrangeGo) SetGroupCardName(ctx *MsgContext, name string) {
 	log := pa.Session.Parent.Logger
