@@ -272,25 +272,25 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	})
 
 	pa.QQClient.GroupInvitedEvent.Subscribe(func(client *client.QQClient, event *event.GroupInvite) {
-		log.Infof("GroupInvitedEvent: %+v", event)
+		log.Debugf("GroupInvitedEvent: %+v", event)
 	})
 
 	pa.QQClient.GroupMemberLeaveEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberDecrease) {
-		log.Infof("GroupLeaveEvent: %+v", event)
-		log.Infof("GroupLeaveEvent ExitType: %+v", event.ExitType)
-		log.Infof("GroupLeaveEvent IsKicked: %+v", event.IsKicked())
+		log.Debugf("GroupLeaveEvent: %+v", event)
+		log.Debugf("GroupLeaveEvent ExitType: %+v", event.ExitType)
+		log.Debugf("GroupLeaveEvent IsKicked: %+v", event.IsKicked())
 	})
 
 	pa.QQClient.GroupMemberJoinRequestEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberJoinRequest) {
-		log.Infof("GroupMemberJoinRequestEvent: %+v", event)
+		log.Debugf("GroupMemberJoinRequestEvent: %+v", event)
 	})
 
 	pa.QQClient.GroupMemberJoinEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberIncrease) {
-		log.Infof("GroupMemberJoinEvent: %+v", event)
+		log.Debugf("GroupMemberJoinEvent: %+v", event)
 	})
 
 	pa.QQClient.GroupMuteEvent.Subscribe(func(client *client.QQClient, event *event.GroupMute) {
-		log.Infof("GroupMuteEvent: %+v", event)
+		log.Debugf("GroupMuteEvent: %+v", event)
 	})
 
 	err = SaveSigInfo(pa.configDir+"/siginfo.gob", pa.sig)
