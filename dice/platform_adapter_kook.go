@@ -588,11 +588,11 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 				}{Content: "(met)" + e.Target + "(met)", Type: "kmarkdown"},
 			}
 			card.Modules = append(card.Modules, cardModule)
-			// msgb.Content = msgb.Content + fmt.Sprintf("(met)%s(met)", e.Target)
+			// msgb.Content = msgb.Content + fmt.Sprintf("(met)%s(met)", e.ReplySeq)
 		case *message.TTSElement:
 			// msgb.Content += antiMarkdownFormat(e.Content)
 		case *message.ReplyElement:
-			msgb.Quote = e.Target
+			msgb.Quote = e.ReplySeq
 		}
 	}
 	cardArray := []CardMessage{card}

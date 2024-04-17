@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/LagrangeDev/LagrangeGo/client"
+	"github.com/LagrangeDev/LagrangeGo/event"
 	"github.com/LagrangeDev/LagrangeGo/info"
 	lagMessage "github.com/LagrangeDev/LagrangeGo/message"
 	"github.com/LagrangeDev/LagrangeGo/packets/oidb"
@@ -102,6 +103,30 @@ type PlatformAdapterLagrangeGo struct {
 
 func (pa *PlatformAdapterLagrangeGo) GetGroupInfoAsync(_ string) {}
 
+func LagrangeGoMessageElementToSealElements(elements []lagMessage.IMessageElement) []message.IMessageElement {
+	var segment []message.IMessageElement
+	for _, element := range elements {
+		switch e := element.(type) {
+		case *lagMessage.TextElement:
+			segment = append(segment, &message.TextElement{Content: e.Content})
+		case *lagMessage.AtElement:
+			segment = append(segment, &message.AtElement{Target: strconv.FormatInt(int64(e.Target), 10)})
+		case *lagMessage.GroupImageElement:
+			segment = append(segment, &message.ImageElement{URL: e.Url})
+		case *lagMessage.FriendImageElement:
+			segment = append(segment, &message.ImageElement{URL: e.Url})
+		case *lagMessage.ReplyElement:
+			segment = append(segment, &message.ReplyElement{
+				ReplySeq: string(e.ReplySeq),
+				Sender:   strconv.FormatInt(int64(e.Sender), 10),
+				GroupID:  strconv.FormatInt(int64(e.GroupID), 10),
+				Elements: LagrangeGoMessageElementToSealElements(e.Elements),
+			})
+		}
+	}
+	return segment
+}
+
 func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	log := pa.Session.Parent.Logger
 	if pa.CustomSignUrl == "" {
@@ -149,7 +174,11 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	pa.EndPoint.State = 2
 	pa.EndPoint.Enable = true
 	pa.QQClient = client.NewQQclient(pa.UIN, pa.signUrl, appInfo, deviceInfo, pa.sig)
-	pa.QQClient.Loop()
+	err = pa.QQClient.Loop()
+	if err != nil {
+		log.Errorf("LagrangeGo Client loop failed: %v", err)
+		return 1
+	}
 	go func() {
 		for {
 			time.Sleep(3 * time.Second)
@@ -186,7 +215,6 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 			}
 		}
 	}()
-	// 上游会直接 panic 导致程序退出，而且还在另一个 goroutine 里，奶奶滴
 	_, err = pa.QQClient.Login("", pa.configDir+"/qrcode.png")
 	if err != nil {
 		log.Errorf("LagrangeGo Client login failed: %v", err)
@@ -221,21 +249,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 				UserID:   "QQ:" + strconv.FormatInt(int64(event.Sender.Uin), 10),
 			},
 		}
-		var segment []message.IMessageElement
-		for _, element := range event.Elements {
-			switch e := element.(type) {
-			case *lagMessage.TextElement:
-				segment = append(segment, &message.TextElement{Content: e.Content})
-			case *lagMessage.AtElement:
-				segment = append(segment, &message.AtElement{Target: strconv.FormatInt(int64(e.Target), 10)})
-			case *lagMessage.GroupImageElement:
-				// log.Infof("GroupImageElement: %+v\n", e)
-				segment = append(segment, &message.ImageElement{URL: e.Url})
-			case *lagMessage.ReplyElement:
-				// log.Infof("ReplyElement: %d\n", e.ReplySeq)
-			}
-		}
-		msg.Segment = segment
+		msg.Segment = LagrangeGoMessageElementToSealElements(event.Elements)
 		pa.Session.ExecuteNew(pa.EndPoint, msg)
 	})
 
@@ -253,20 +267,30 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 				UserID:   "QQ:" + strconv.FormatInt(int64(event.Sender.Uin), 10),
 			},
 		}
-		var segment []message.IMessageElement
-		for _, element := range event.Elements {
-			switch e := element.(type) {
-			case *lagMessage.TextElement:
-				segment = append(segment, &message.TextElement{Content: e.Content})
-			case *lagMessage.AtElement:
-				segment = append(segment, &message.AtElement{Target: strconv.FormatInt(int64(e.Target), 10)})
-			case *lagMessage.GroupImageElement:
-				segment = append(segment, &message.ImageElement{URL: e.Url})
-			case *lagMessage.ReplyElement:
-			}
-		}
-		msg.Segment = segment
+		msg.Segment = LagrangeGoMessageElementToSealElements(event.Elements)
 		pa.Session.ExecuteNew(pa.EndPoint, msg)
+	})
+
+	pa.QQClient.GroupInvitedEvent.Subscribe(func(client *client.QQClient, event *event.GroupInvite) {
+		log.Debugf("GroupInvitedEvent: %+v", event)
+	})
+
+	pa.QQClient.GroupMemberLeaveEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberDecrease) {
+		log.Debugf("GroupLeaveEvent: %+v", event)
+		log.Debugf("GroupLeaveEvent ExitType: %+v", event.ExitType)
+		log.Debugf("GroupLeaveEvent IsKicked: %+v", event.IsKicked())
+	})
+
+	pa.QQClient.GroupMemberJoinRequestEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberJoinRequest) {
+		log.Debugf("GroupMemberJoinRequestEvent: %+v", event)
+	})
+
+	pa.QQClient.GroupMemberJoinEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberIncrease) {
+		log.Debugf("GroupMemberJoinEvent: %+v", event)
+	})
+
+	pa.QQClient.GroupMuteEvent.Subscribe(func(client *client.QQClient, event *event.GroupMute) {
+		log.Debugf("GroupMuteEvent: %+v", event)
 	})
 
 	err = SaveSigInfo(pa.configDir+"/siginfo.gob", pa.sig)

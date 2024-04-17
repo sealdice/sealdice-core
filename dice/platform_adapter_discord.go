@@ -455,7 +455,7 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string
 				logger.Errorf("获取Discord频道信息#%s时出错:%s", id, errChannel.Error())
 				break
 			}
-			ref := &discordgo.MessageReference{MessageID: e.Target, ChannelID: id, GuildID: channel.GuildID}
+			ref := &discordgo.MessageReference{MessageID: e.ReplySeq, ChannelID: id, GuildID: channel.GuildID}
 			msgSend.Reference = ref
 		}
 		if err != nil {
