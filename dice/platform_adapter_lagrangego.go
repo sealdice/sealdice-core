@@ -174,7 +174,11 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	pa.EndPoint.State = 2
 	pa.EndPoint.Enable = true
 	pa.QQClient = client.NewQQclient(pa.UIN, pa.signUrl, appInfo, deviceInfo, pa.sig)
-	pa.QQClient.Loop()
+	err = pa.QQClient.Loop()
+	if err != nil {
+		log.Errorf("LagrangeGo Client loop failed: %v", err)
+		return 1
+	}
 	go func() {
 		for {
 			time.Sleep(3 * time.Second)
