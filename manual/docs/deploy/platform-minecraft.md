@@ -15,12 +15,6 @@ title: Minecraft
 
 海豹核心支持与安装了 `sealdice-minecraft` 插件的 Minecraft 服务器（如 Paper、Purpur）进行对接。
 
-::: warning
-
-`sealdice-minecraft` 插件不兼容 Spigot 服务端。
-
-:::
-
 ## 架设 Minecraft 服务端
 
 下面以 Windows 平台为例，简单介绍 Minecraft 服务端的架设。
@@ -43,7 +37,21 @@ title: Minecraft
 
 :::: tabs key:mc-server-core
 
-== Spigot
+== Paper
+
+前往 [Paper MC](https://papermc.io) 下载对应版本的服务端核心文件。
+
+== Purpur
+
+前往 [Purpur MC](https://purpurmc.org) 下载对应版本的服务端核心文件。
+
+== Spigot（插件不兼容）
+
+::: danger
+
+`sealdice-minecraft` 插件不兼容 Spigot/Bukkit 服务端。
+
+:::
 
 前往 [Spigot MC](https://www.spigotmc.org) 寻找最新的 BulidTools，选择要构建的版本进行编译，获得服务端核心文件。
 
@@ -55,17 +63,15 @@ title: Minecraft
 
 点击右下角的 `Compile` 进行编译。
 
-== Bukkit
+== Bukkit（插件不兼容）
+
+::: danger
+
+`sealdice-minecraft` 插件不兼容 Spigot/Bukkit 服务端。
+
+:::
 
 在 [Get Bukkit](https://www.getbukkit.org) 直接下载对应版本的服务端核心文件。
-
-== Paper
-
-前往 [Paper MC](https://papermc.io) 下载对应版本的服务端核心文件。
-
-== Purpur
-
-前往 [Purpur MC](https://purpurmc.org) 下载对应版本的服务端核心文件。
 
 ::::
 
@@ -99,7 +105,7 @@ java -Xms2G -Xmx2G -jar spigot-1.20.4.jar nogui
 
 打开在文件夹内新创建的 `eula.txt`，将 `eula=false` 改为 `eula=true`。
 
-```text,{4}
+```text{4}
 ...
 #By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).
 #Fri Feb 30 00:00:01 HKT 2024
@@ -121,7 +127,7 @@ eula=true  # 请把该项修改为 true
 
 在服务器日志中出现：
 
-```cmd.{2}
+```cmd{2}
 [00:00:07 INFO]: [SealDicePlugin] Enabling SealDicePlugin v1.0.2*
 [00:00:07 INFO]: [SealDicePlugin] ChatServer started on port: 8887
 [00:00:07 INFO]: [SealDicePlugin] Server started!
