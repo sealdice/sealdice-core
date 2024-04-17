@@ -3,7 +3,9 @@ package dice
 import (
 	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -143,9 +145,8 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	appInfo := info.AppList["linux"]
 
 	pa.configDir = filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
-	_, err := os.Stat(pa.configDir)
 	// create config dir
-	if os.IsNotExist(err) {
+	if _, err := os.Stat(pa.configDir); errors.Is(err, fs.ErrNotExist) {
 		err = os.MkdirAll(pa.configDir, os.ModePerm)
 		if err != nil {
 			log.Errorf("create config dir failed: %v", err)
@@ -158,7 +159,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 
 	deviceInfo := LoadDevice(pa.configDir + "/deviceinfo.json")
 	log.Debugf("Loaded DeviceInfo: %+v\n", deviceInfo)
-	err = SaveDevice(deviceInfo, pa.configDir+"/deviceinfo.json")
+	err := SaveDevice(deviceInfo, pa.configDir+"/deviceinfo.json")
 	if err != nil {
 		log.Errorf("Save DeviceInfo failed: %v", err)
 	}
