@@ -512,7 +512,7 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 		case *message.TTSElement:
 			msg.Text += e.Content
 		case *message.ReplyElement:
-			parseInt, errParse := strconv.ParseInt(e.Target, 10, 64)
+			parseInt, errParse := strconv.ParseInt(e.ReplySeq, 10, 64)
 			if errParse != nil {
 				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, errParse)
 				break
