@@ -129,3 +129,46 @@ func groupQuit(c echo.Context) error {
 	}
 	return c.String(430, "")
 }
+
+// 检测并清理无效群组 暂时仅支持PlatformAdapterGocq
+func groupDelInv(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(200, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+	// ginv 统计清理的无效群聊个数
+	ginv := 0
+	for _, ep := range myDice.ImSession.EndPoints {
+		if pa, ok := ep.Adapter.(*dice.PlatformAdapterGocq); ok {
+			noCache := true
+			for _, qi := range myDice.ImSession.ServiceAtNew {
+				if qi.DiceIDExistsMap.Exists(ep.UserID) {
+					// realGroupID, _ := strconv.ParseInt(qi.GroupID[len("QQ-Group:"):], 10, 64)
+					// Lagrange支持no_cache，LLOB不支持，当no_cache为true时将获取到最新的群列表信息
+					// true时会强制调用NTQQAPI刷新数据，勿频繁调用；false时无须担心，返回的是OneBot客户端的缓存数据
+					gi := pa.GetGroupInfo(qi.GroupID, noCache)
+					noCache = false
+
+					if gi.MemberCount == 0 {
+						qi.DiceIDExistsMap.Delete(ep.UserID)
+						qi.UpdatedAtTime = time.Now().Unix()
+						ginv++
+					}
+
+				}
+			}
+		}
+	}
+	_txt := fmt.Sprintf("已清理 %d 个无效群组", ginv)
+	if ginv == 0 {
+		_txt = "未检测到无效群组"
+	}
+	myDice.Logger.Info(_txt)
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"count": ginv,
+	})
+}
