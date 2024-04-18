@@ -158,7 +158,6 @@ func groupDelInv(c echo.Context) error {
 						qi.UpdatedAtTime = time.Now().Unix()
 						ginv++
 					}
-
 				}
 			}
 		}
