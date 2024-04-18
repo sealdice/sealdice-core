@@ -21,9 +21,11 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"sealdice-core/api"
 	"sealdice-core/dice"
+	diceLogger "sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
 	"sealdice-core/static"
@@ -170,6 +172,7 @@ func main() {
 		ShowEnv                bool   `long:"show-env" description:"显示环境变量"`
 		VacuumDB               bool   `long:"vacuum" description:"对数据库进行整理, 使其收缩到最小尺寸"`
 		UpdateTest             bool   `long:"update-test" description:"更新测试"`
+		LogLevel               int8   `long:"log-level" description:"设置日志等级" default:"0" choice:"-1" choice:"0" choice:"1" choice:"2" choice:"3" choice:"4" choice:"5"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -208,6 +211,8 @@ func main() {
 
 	_ = os.MkdirAll("./data", 0o755)
 	MainLoggerInit("./data/main.log", true)
+
+	diceLogger.SetEnableLevel(zapcore.Level(opts.LogLevel))
 
 	// 提早初始化是为了读取ServiceName
 	diceManager := &dice.DiceManager{}
