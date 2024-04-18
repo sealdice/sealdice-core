@@ -39,7 +39,7 @@ require (
 	github.com/tidwall/buntdb v1.3.0
 	github.com/xuri/excelize/v2 v2.8.1
 	go.etcd.io/bbolt v1.3.8
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 	golang.org/x/sys v0.19.0
 	golang.org/x/text v0.14.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
@@ -47,7 +47,7 @@ require (
 )
 
 require (
-	github.com/LagrangeDev/LagrangeGo v0.0.0-20240413145243-7669672fd80e
+	github.com/LagrangeDev/LagrangeGo v0.0.0-20240416235247-b81d1b16fda6
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
