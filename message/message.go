@@ -53,6 +53,7 @@ const (
 	TTS                       // 文字转语音
 	Reply                     // 回复
 	Record                    // 语音
+	Face                      // 表情
 )
 
 const maxFileSize = 1024 * 1024 * 50 // 50MB
@@ -74,10 +75,10 @@ func (t *AtElement) Type() ElementType {
 }
 
 type ReplyElement struct {
-	ReplySeq string            // 回复的目标消息ID
-	Sender   string            // 回复的目标消息发送者ID
-	GroupID  string            // 回复群聊消息时的群号
-	Elements []IMessageElement // 回复的消息内容
+	ReplySeq string            `jsbind:"replySeq"` // 回复的目标消息ID
+	Sender   string            `jsbind:"sender"`   // 回复的目标消息发送者ID
+	GroupID  string            `jsbind:"groupID"`  // 回复群聊消息时的群号
+	Elements []IMessageElement `jsbind:"elements"` // 回复的消息内容
 }
 
 func (t *ReplyElement) Type() ElementType {
@@ -118,6 +119,14 @@ type RecordElement struct {
 
 func (r *RecordElement) Type() ElementType {
 	return Record
+}
+
+type FaceElement struct {
+	FaceID string `jsbind:"faceID"`
+}
+
+func (f *FaceElement) Type() ElementType {
+	return Face
 }
 
 func newText(s string) *TextElement {

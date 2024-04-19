@@ -47,7 +47,7 @@ require (
 )
 
 require (
-	github.com/LagrangeDev/LagrangeGo v0.0.0-20240416235247-b81d1b16fda6
+	github.com/LagrangeDev/LagrangeGo v0.0.0-20240419150608-9dc68ba2b5b1
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
@@ -82,7 +82,7 @@ require (
 require (
 	github.com/RoaringBitmap/roaring v1.2.3 // indirect
 	github.com/RomiChan/protobuf v0.1.1-0.20230204044148-2ed269a2e54d // indirect
-	github.com/RomiChan/syncx v0.0.0-20221202055724-5f842c53020e // indirect
+	github.com/RomiChan/syncx v0.0.0-20240418144900-b7402ffdebc7 // indirect
 	github.com/bits-and-blooms/bitset v1.2.2 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.2.0 // indirect
 	github.com/blevesearch/bleve_index_api v1.0.6 // indirect
