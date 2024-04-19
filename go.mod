@@ -47,7 +47,7 @@ require (
 )
 
 require (
-	github.com/LagrangeDev/LagrangeGo v0.0.0-20240413145243-7669672fd80e
+	github.com/LagrangeDev/LagrangeGo v0.0.0-20240416235247-b81d1b16fda6
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
@@ -63,7 +63,7 @@ require (
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.8.0
-	github.com/pelletier/go-toml/v2 v2.1.1
+	github.com/pelletier/go-toml/v2 v2.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/samber/lo v1.39.0
 	github.com/schollz/progressbar/v3 v3.14.2

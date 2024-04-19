@@ -796,6 +796,7 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 			case "version":
 				jsInfo.Version = v
 			case "description":
+				v = strings.ReplaceAll(v, "\\n", "\n")
 				jsInfo.Desc = v
 			case "timestamp":
 				timestamp, errParse := strconv.ParseInt(v, 10, 64)
