@@ -117,9 +117,11 @@ func LagrangeGoMessageElementToSealElements(elements []lagMessage.IMessageElemen
 			segment = append(segment, &message.ImageElement{URL: e.Url})
 		case *lagMessage.FriendImageElement:
 			segment = append(segment, &message.ImageElement{URL: e.Url})
+		case *lagMessage.FaceElement:
+			segment = append(segment, &message.FaceElement{FaceID: strconv.Itoa(int(e.FaceID))})
 		case *lagMessage.ReplyElement:
 			segment = append(segment, &message.ReplyElement{
-				ReplySeq: string(e.ReplySeq),
+				ReplySeq: strconv.FormatInt(int64(e.ReplySeq), 10),
 				Sender:   strconv.FormatInt(int64(e.Sender), 10),
 				GroupID:  strconv.FormatInt(int64(e.GroupID), 10),
 				Elements: LagrangeGoMessageElementToSealElements(e.Elements),
@@ -237,7 +239,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 
 	// setup event handler
 	pa.QQClient.GroupMessageEvent.Subscribe(func(client *client.QQClient, event *lagMessage.GroupMessage) {
-		log.Debugf("GroupMessageEvent: %+v\n", event)
+		log.Debugf("GroupMessageEvent: %+v", event)
 		if event.Sender.Uin == pa.UIN {
 			return
 		}
@@ -424,8 +426,8 @@ func (pa *PlatformAdapterLagrangeGo) SetGroupCardName(ctx *MsgContext, name stri
 		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
-	pa.QQClient.RefreshGroupCache(uint32(groupCode))
-	req, err := oidb.BuildGroupRenameMemberReq(uint32(groupCode), pa.QQClient.GetUidFromGroup(uint32(userCode), uint32(groupCode)), name)
+	pa.QQClient.RefreshGroupMembersCache(uint32(groupCode))
+	req, err := oidb.BuildGroupRenameMemberReq(uint32(groupCode), pa.QQClient.GetUid(uint32(userCode), uint32(groupCode)), name)
 	if err != nil {
 		log.Errorf("BuildGroupRenameMemberReq failed: %v", err)
 		return
