@@ -335,6 +335,79 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 
 :::
 
+## NapCatQQ
+
+::: info NapCatQQ
+
+[NapCatQQ](https://github.com/NapNeko/NapCatQQ) 是在后台低占用运行的无头(没有界面)的 NTQQ，具体占用会因人而异，QQ 群、好友越多占用越高。
+
+**注意同个账号不能同时登录原版 QQ 和 NapCatQQ**。
+
+:::
+
+NapCat 是基于官方 NTQQ 实现的 Bot 框架，因此在开始前，你需要根据 [NapCatQQ](https://github.com/NapNeko/NapCatQQ?tab=readme-ov-file#%E5%AE%89%E8%A3%85) 的 README 安装官方 QQ，若 QQ 版本过低会导致程序无法正常启动。
+
+### 下载 NapCatQQ
+
+前往 [NapCatQQ Release](https://github.com/NapNeko/NapCatQQ/releases) 页面下载最新版本。
+
+### 启动 NapCatQQ
+
+在启动前，你需要修改 `config/onebot11.json` 内容，并重名为 `onebot11_<你的QQ号>.json` ，如 `onebot11_1234567.json` 。
+
+json 配置内容参数解释：
+
+```json{6-9}
+{
+  // 是否启用 http 服务，true 为启动，false 为禁用，如果启用，可以通过 http 接口发送消息
+  "enableHttp": false,
+  // http 服务端口
+  "httpPort": 3000,
+  // 是否启用正向 websocket 服务
+  "enableWs": true,
+  // 正向 websocket 服务端口
+  "wsPort": 3001,
+  // 是否启用反向 websocket 服务
+  "enableWsReverse": false,
+  // 反向 websocket 对接的地址，如 ["ws://127.0.0.1:8080/onebot/v11/ws"]
+  "wsReverseUrls": [],
+  // 是否启用 http 上报服务
+  "enableHttpPost": false,
+  // http 上报地址，如 ["http://127.0.0.1:8080/onebot/v11/http"]
+  "httpPostUrls": [],
+  // 是否启用 http 心跳
+  "enableHttpHeart": false,
+  // http 上报密钥，可为空
+  "httpSecret": "",
+  // 消息上报格式，array 为消息组，string 为 cq 码字符串
+  "messagePostFormat": "array",
+  // 是否上报自己发送的消息
+  "reportSelfMessage": false,
+  // 是否开启调试模式，开启后上报消息会携带一个 raw 字段，为原始消息内容
+  "debug": false,
+  // 调用 get_file 接口时如果获取不到 url 则使用 base64 字段返回文件内容
+  "enableLocalFile2Url": true,
+  // ws 心跳间隔，单位毫秒
+  "heartInterval": 30000,
+  // access_token，可以为空
+  "token": ""
+}
+
+```
+
+其中有几个重要的设置项需要填写和注意：
+
+- `enableWs`：这是 NapCat 的 ws 正向连接配置，你需要将其修改为 `true`，即启用正向 WebSocket 方式连接 NapCatQQ。
+- `wsPort`：这是正向连接端口，请记下以便后续使用。
+
+修改完文件后请根据 [NapCatQQ](https://github.com/NapNeko/NapCatQQ?tab=readme-ov-file#windows-%E5%90%AF%E5%8A%A8) 的教程启动程序，扫码登录即可。
+
+### 海豹连接
+
+进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebot11正向WS)」。 
+
+账号填写骰子的 QQ 号，连接地址使用上面记下的 ws 正向服务地址 `ws://127.0.0.1:{wsPort}`，如 `ws://127.0.0.1:3001`。
+
 ## Shamrock <Badge type="tip" text="v1.4.2" />
 
 海豹从 <Badge type="tip" text="v1.4.2"/> 开始适配了 Shamrock 的连接。

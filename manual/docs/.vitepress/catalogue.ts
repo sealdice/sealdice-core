@@ -89,6 +89,7 @@ export const deploySidebar = {
             { text: "内置客户端", link: "/deploy/platform-qq#%E5%86%85%E7%BD%AE%E5%AE%A2%E6%88%B7%E7%AB%AF" },
             { text: "Lagrange", link: "/deploy/platform-qq#lagrange" },
             { text: "LLOneBot API", link: "/deploy/platform-qq#llonebot-api" },
+            { text: "NapCatQQ", link: "/deploy/platform-qq#napcatqq" },
             { text: "Shamrock", link: "/deploy/platform-qq#shamrock" },
             { text: "Shamrock LSPatch", link: "/deploy/platform-qq#shamrock-lspatch" },
             { text: "Chronocat", link: "/deploy/platform-qq#chronocat" },
