@@ -80,74 +80,78 @@
     </div>
   </el-space>
 
-  <el-row :gutter="20">
-    <el-col :xs="24" :span="12" v-for="[k, v] in reactive(doSort(category))">
-      <el-form ref="form" label-width="auto" label-position="top">
-        <el-form-item>
-          <template #label>
-            <div>
-              <el-tag effect="dark" type="info" style="margin-right: .5rem;" disable-transitions>
-                {{ (store.curDice.customTextsHelpInfo[category][k.toString()]).subType ||
+  <el-collapse class="text-collapse" v-model="activeGroups">
+    <custom-text-box v-for="[group, values] in reactive(doSort(category))" :group="group">
+      <template #values>
+        <el-col :xs="24" :span="12" v-for="[k, v] in values">
+          <el-form ref="form" label-width="auto" label-position="top">
+            <el-form-item>
+              <template #label>
+                <div>
+                  <el-tag effect="dark" type="info" style="margin-right: .5rem;" disable-transitions>
+                    {{ (store.curDice.customTextsHelpInfo[category][k.toString()]).subType ||
                   ((store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin ? '旧版文本' : '其它') }}
-              </el-tag>
+                  </el-tag>
 
-              <span>
-                <span>{{ k.toString() }}</span>
-                <el-tooltip v-if="store.curDice.customTextsHelpInfo[category][k.toString()].extraText"
-                  :content="store.curDice.customTextsHelpInfo[category][k.toString()].extraText" raw-content>
-                  <el-icon><question-filled /></el-icon>
-                </el-tooltip>
-              </span>
+                  <span>
+            <span>{{ k.toString() }}</span>
+            <el-tooltip v-if="store.curDice.customTextsHelpInfo[category][k.toString()].extraText"
+                        :content="store.curDice.customTextsHelpInfo[category][k.toString()].extraText" raw-content>
+              <el-icon><question-filled /></el-icon>
+            </el-tooltip>
+          </span>
 
-              <template v-if="(store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin">
-                <el-tooltip content="移除 - 这个文本在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除" raw-content
-                  placement="bottom-end">
-                  <el-icon style="float: right; margin-left: 1rem;" @click="askDeleteValue(category, k.toString())">
-                    <delete-filled />
-                  </el-icon>
-                </el-tooltip>
+                  <template v-if="(store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin">
+                    <el-tooltip content="移除 - 这个文本在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除" raw-content
+                                placement="bottom-end">
+                      <el-icon style="float: right; margin-left: 1rem;" @click="askDeleteValue(category, k.toString())">
+                        <delete-filled />
+                      </el-icon>
+                    </el-tooltip>
+                  </template>
+
+                  <template v-if="store.curDice.customTextsHelpInfo[category][k.toString()].modified">
+                    <el-tooltip content="重置为初始值" placement="bottom-end">
+                      <el-icon style="float: right; margin-left: 1rem;" @click="askResetValue(category, k.toString())">
+                        <brush-filled />
+                      </el-icon>
+                    </el-tooltip>
+                  </template>
+                  <!-- <el-tooltip content="效果预览" placement="bottom-end">
+                    <el-icon @click="askResetValue(category, k.toString())" style="float: right;"><video-play /></el-icon>
+                  </el-tooltip> -->
+                </div>
               </template>
 
-              <template v-if="store.curDice.customTextsHelpInfo[category][k.toString()].modified">
-                <el-tooltip content="重置为初始值" placement="bottom-end">
-                  <el-icon style="float: right; margin-left: 1rem;" @click="askResetValue(category, k.toString())">
-                    <brush-filled />
-                  </el-icon>
-                </el-tooltip>
-              </template>
-              <!-- <el-tooltip content="效果预览" placement="bottom-end">
-                <el-icon @click="askResetValue(category, k.toString())" style="float: right;"><video-play /></el-icon>
-              </el-tooltip> -->
-            </div>
-          </template>
-
-          <div v-for="k2, index in v" style="width: 100%; margin-bottom: .5rem;">
-            <!-- 这里面是单条修改项 -->
-            <el-row>
-              <el-col :span="2">
-                <el-tooltip :content="index === 0 ? '点击添加一个回复语，SealDice将会随机抽取一个回复' : '点击删除你不想要的回复语'"
-                  placement="bottom-start">
-                  <el-icon>
-                    <circle-plus-filled v-if="index == 0" @click="addItem(k)" />
-                    <circle-close v-else @click="removeItem(v, index)" />
-                  </el-icon>
-                </el-tooltip>
-              </el-col>
-              <el-col :span="22">
-                <!-- :suffix-icon="Management" -->
-                <el-input type="textarea" autosize v-model="k2[0]" @change="doChanged(category, k.toString())"></el-input>
-              </el-col>
-            </el-row>
-          </div>
-          <el-space size="small" wrap>
-            <el-tag size="small" disable-transitions
-              v-for="i in store.curDice.customTextsHelpInfo[category][k.toString()].vars">{{ i }}</el-tag>
-            <!-- {{ store.curDice.customTextsHelpInfo[category][k.toString()] }} -->
-          </el-space>
-        </el-form-item>
-      </el-form>
-    </el-col>
-  </el-row>
+              <div v-for="(k2, index) in v" style="width: 100%; margin-bottom: .5rem;">
+                <!-- 这里面是单条修改项 -->
+                <el-row>
+                  <el-col :span="2">
+                    <el-tooltip :content="index === 0 ? '点击添加一个回复语，SealDice将会随机抽取一个回复' : '点击删除你不想要的回复语'"
+                                placement="bottom-start">
+                      <el-icon>
+                        <circle-plus-filled v-if="index == 0" @click="addItem(k)" />
+                        <circle-close v-else @click="removeItem(v, index)" />
+                      </el-icon>
+                    </el-tooltip>
+                  </el-col>
+                  <el-col :span="22">
+                    <!-- :suffix-icon="Management" -->
+                    <el-input type="textarea" autosize v-model="k2[0]" @change="doChanged(category, k.toString())"></el-input>
+                  </el-col>
+                </el-row>
+              </div>
+              <el-space size="small" wrap>
+                <el-tag size="small" disable-transitions
+                        v-for="i in store.curDice.customTextsHelpInfo[category][k.toString()].vars">{{ i }}</el-tag>
+                <!-- {{ store.curDice.customTextsHelpInfo[category][k.toString()] }} -->
+              </el-space>
+            </el-form-item>
+          </el-form>
+        </el-col>
+      </template>
+    </custom-text-box>
+  </el-collapse>
 
   <el-dialog v-model="dialogImportVisible" title="导入导出" :close-on-click-modal="false" :close-on-press-escape="false"
     :show-close="true" :fullscreen="true" class="the-dialog">
@@ -172,18 +176,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onBeforeMount, watch, nextTick } from "vue";
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { useStore } from '~/store'
-import { DeleteFilled, DocumentChecked, Search } from '@element-plus/icons-vue'
-
+import {nextTick, onBeforeMount, reactive, ref, watch} from "vue";
+import {ElMessage, ElMessageBox} from 'element-plus'
+import {useStore} from '~/store'
 import {
-  CirclePlusFilled,
+  BrushFilled,
   CircleClose,
+  CirclePlusFilled,
+  DeleteFilled,
+  DocumentChecked,
   QuestionFilled,
-  BrushFilled
+  Search
 } from '@element-plus/icons-vue'
-import { cloneDeep, uniq, sortBy, trim, startsWith } from "lodash-es";
+import { cloneDeep, filter, groupBy, map, sortBy, startsWith, trim, uniq, entries, mapValues } from 'lodash-es'
 import ClipboardJS from 'clipboard'
 
 const store = useStore()
@@ -194,6 +199,7 @@ const importOnlyCurrent = ref(true)
 const importImpact = ref(true)
 const dialogImportVisible = ref(false)
 
+const activeGroups = ref(['__others__'])
 const doSort = (category: string) => {
   let items = Object.entries(store.curDice.customTexts[category]);
   const helpInfo = store.curDice.customTextsHelpInfo[category];
@@ -222,7 +228,20 @@ const doSort = (category: string) => {
       break
   }
 
-  const out = items.sort((a, b) => {
+  // 子类别元素超过 4 个的，展示上需要打包
+  const boxedGroups = map(filter(entries(groupBy(map(items, item => {
+    const subType = helpInfo[item[0]].subType;
+    return subType.split(' ')[0];
+  }), group => group)), group => group[1].length >= 4), group => group[0]);
+
+  const outMap = entries(mapValues(groupBy(items, item => {
+    const group = helpInfo[item[0]].subType.split(' ')[0];
+    if (boxedGroups.includes(group)) {
+      return group
+    } else {
+      return '__others__'
+    }
+  }), items => items.sort((a, b) => {
     const ia = helpInfo[a[0]];
     const ib = helpInfo[b[0]];
 
@@ -235,8 +254,19 @@ const doSort = (category: string) => {
     }
 
     return 0;
-  });
-  return out;
+  }))).sort( (a, b) => {
+    const [aGroup, _] = a
+    const [bGroup, _2] = b
+    if (aGroup === '__others__') {
+      return -1
+    } else if (bGroup === '__others__') {
+      return 1
+    } else {
+      return 0
+    }
+  })
+
+  return outMap;
 }
 
 const copied = () => {
@@ -427,5 +457,18 @@ watch(props, () => {
 
 .helptips :deep().el-collapse-item__wrap {
   background-color: #f3f5f7;
+}
+
+.text-collapse {
+  width: 100%;
+  background-color: #f3f5f7;
+
+  :deep(.el-collapse-item__header) {
+    background-color: #f3f5f7;
+  }
+
+  :deep(.el-collapse-item__wrap) {
+    background-color: #f3f5f7;
+  }
 }
 </style>
