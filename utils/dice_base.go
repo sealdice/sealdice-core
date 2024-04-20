@@ -10,14 +10,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string { // nolint:gosec
+func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string { //nolint:gosec
 	return func(b64 string) string {
 		// use logger here
 		// 解码 Base64 值
 		data, err := base64.StdEncoding.DecodeString(b64)
 		if err != nil {
 			logger.Errorf("不合法的base64值：%s", b64)
-			return "" //出现错误，拒绝向下执行
+			return "" // 出现错误，拒绝向下执行
 		}
 		// 计算 MD5 哈希值作为文件名
 		hash := md5.Sum(data)
