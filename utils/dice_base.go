@@ -15,8 +15,8 @@ func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
 	return func(b64 string) string {
 		// use logger here
 		// 解码 Base64 值
-		data, err := base64.URLEncoding.DecodeString(b64)
-		if err != nil {
+		data, e := base64.URLEncoding.DecodeString(b64)
+		if e != nil {
 			logger.Errorf("不合法的base64值：%s", b64)
 			// 出现错误，拒绝向下执行
 		}
