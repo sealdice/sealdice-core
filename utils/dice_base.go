@@ -34,9 +34,9 @@ func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
 			return ""
 		}
 		defer func(fi *os.File) {
-			err := fi.Close()
-			if err != nil {
-				logger.Errorf("创建文件出错%s", err.Error())
+			errClose := fi.Close()
+			if errClose != nil {
+				logger.Errorf("关闭文件出错%s", errClose.Error())
 			}
 		}(fi)
 		_, err = fi.Write(data)
@@ -48,4 +48,3 @@ func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
 		return "file://" + imageurlPath
 	}
 }
-
