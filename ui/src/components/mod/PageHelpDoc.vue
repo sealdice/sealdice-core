@@ -108,8 +108,8 @@
             <el-form-item label="序号">
               <el-input v-model="textItemQuery.id" clearable />
             </el-form-item>
-            <el-form-item label="分组">
-              <el-select v-model="textItemQuery.group" placeholder="选择分组" filterable clearable>
+            <el-form-item label="分组"j>
+              <el-select v-model="textItemQuery.group" placeholder="选择分组" filterable clearable style="width: 10rem">
                 <el-option v-for="group in [{ key: 'builtin', label: '内置' }, ...docGroups]" :key="group.key"
                   :label="group.label" :value="group.key" />
               </el-select>

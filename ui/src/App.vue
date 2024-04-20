@@ -1,212 +1,108 @@
 <template>
   <div id="root"
-    style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 950px; width: 100%; margin: 0 auto; position: relative;">
-    <h3 class="mb-2"
-      style="color: #f8ffff; text-align: left; padding-left: 1.2em; font-weight: normal;max-height:60px; height: 60px;">
-      <span :v-show="store.canAccess" style="position: relative;">
-        <span @click="enableAdvancedConfig" style="cursor: pointer;">SealDice</span>
-        <span v-if="store.diceServers.length > 0"
-          style="font-size: .7rem; position: absolute; bottom: -1rem; white-space: nowrap; left: 0;">
+       style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 950px; width: 100%; margin: 0 auto; position: relative;">
+    <nav class="nav" style="display: flex; color: #fff; justify-content: space-between;">
+      <el-space alignment="center" :size="0" style="height: 60px;">
+        <div class="menu-button-wrapper">
+          <el-button type="text" size="large" @click="drawerMenu = true">
+            <el-icon color="#fff" size="1.5rem">
+              <IconMenu/>
+            </el-icon>
+          </el-button>
+        </div>
+
+        <el-space :v-show="store.canAccess" direction="vertical" alignment="flex-start" :size="0" style="">
+          <span @click="enableAdvancedConfig" style="font-size: 1.2rem; cursor: pointer;">SealDice</span>
+          <span v-if="store.diceServers.length > 0" style="font-size: .7rem;">
           {{ store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}
         </span>
-      </span>
-    </h3>
+        </el-space>
+      </el-space>
 
-    <div v-show="store.canAccess"
-      style="position: absolute; top: 1rem; right: 10px; color: #fff; font-size: small; text-align: right; display: flex;">
-      <div @click="dialogFeed = true"
-           style="margin-right: 1.5rem; cursor: pointer;">
-        <el-badge value="new" :hidden="newsChecked">
-          <img :src="imgNews" alt="news" style="width: 2.3rem;">
-        </el-badge>
-      </div>
-
-      <div style="display: flex; flex-direction: column; align-items: center;">
-        <div style="display: flex; align-items: center;">
-          <el-tag effect="dark" size="small" disable-transitions
-                  style="margin-right: 0.3rem;"
-                  :type="store.curDice.baseInfo.appChannel === 'stable' ? 'success' : 'info'">
-            {{ store.curDice.baseInfo.appChannel === 'stable' ? '正式版' : '测试版' }}
-          </el-tag>
-          <el-tooltip :content="store.curDice.baseInfo.version" placement="bottom">
-            <el-text size="large" style="color: #fff">
-              {{ store.curDice.baseInfo.versionSimple }}
-            </el-text>
-          </el-tooltip>
+      <el-space v-show="store.canAccess" size="large"
+                style="color: #fff; font-size: small; text-align: right;">
+        <div @click="dialogFeed = true"
+             style="cursor: pointer;">
+          <el-badge value="new" :hidden="newsChecked">
+            <img :src="imgNews" alt="news" style="width: 2.3rem;">
+          </el-badge>
         </div>
-        <div v-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode">
-          🆕{{ store.curDice.baseInfo.versionNew }}</div>
-      </div>
-    </div>
+
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <div style="display: flex; align-items: center;">
+            <el-tag effect="dark" size="small" disable-transitions
+                    style="margin-right: 0.3rem;"
+                    :type="store.curDice.baseInfo.appChannel === 'stable' ? 'success' : 'info'">
+              {{ store.curDice.baseInfo.appChannel === 'stable' ? '正式版' : '测试版' }}
+            </el-tag>
+            <el-tooltip :content="store.curDice.baseInfo.version" placement="bottom">
+              <el-text size="large" style="color: #fff">
+                {{ store.curDice.baseInfo.versionSimple }}
+              </el-text>
+            </el-tooltip>
+          </div>
+          <div v-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode">
+            🆕{{ store.curDice.baseInfo.versionNew }}
+          </div>
+        </div>
+      </el-space>
+    </nav>
 
     <div style="display: flex;">
-      <div style="position: relative; background: #545c64">
-        <el-menu :unique-opened="true" :collapse="sideCollapse" style="border-right: 0;" active-text-color="#ffd04b"
-          background-color="#545c64" class="el-menu-vertical-demo" default-active="2" text-color="#fff" @open="handleOpen"
-          @close="handleClose">
-          <!-- <el-menu-item index="1" @click="switchTo('overview')">
-            <el-icon>
-              <setting />
-            </el-icon>
-            <span>总览</span>
-          </el-menu-item>-->
-
-          <el-menu-item index="2" @click="switchTo('log')">
-            <el-icon>
-              <location />
-            </el-icon>
-            <span>日志</span>
-          </el-menu-item>
-
-          <el-menu-item index="3" @click="switchTo('imConns')">
-            <el-icon>
-              <icon-menu />
-            </el-icon>
-            <span>账号设置</span>
-          </el-menu-item>
-
-          <el-sub-menu index="4">
-            <template #title>
-              <el-icon>
-                <setting />
-              </el-icon>
-              <span>自定义文案</span>
-            </template>
-
-            <el-menu-item :index="`5-${k}`" @click="switchTo('customText', k.toString())"
-              v-for="_, k in store.curDice.customTexts">
-              <span>{{ k }}</span>
-            </el-menu-item>
-          </el-sub-menu>
-
-          <el-sub-menu index="5">
-            <template #title>
-              <el-icon>
-                <edit-pen />
-              </el-icon>
-              <span>扩展功能</span>
-            </template>
-            <el-menu-item index="5-reply" @click="switchTo('mod', 'reply')">
-              <!-- <el-icon><setting /></el-icon> -->
-              <span>自定义回复</span>
-            </el-menu-item>
-
-            <el-menu-item :index="`5-deck`" @click="switchTo('mod', 'deck')">
-              <span>牌堆管理</span>
-            </el-menu-item>
-
-            <el-menu-item :index="`5-story`" @click="switchTo('mod', 'story')">
-              <span>跑团日志</span>
-            </el-menu-item>
-
-            <el-menu-item :index="`5-js`" @click="switchTo('mod', 'js')">
-              <span>JS扩展</span>
-            </el-menu-item>
-
-            <el-menu-item :index="`5-helpdoc`" @click="switchTo('mod', 'helpdoc')">
-              <span>帮助文档</span>
-            </el-menu-item>
-
-            <el-menu-item :index="`5-censor`" @click="switchTo('mod', 'censor')">
-              <span>拦截管理</span>
-            </el-menu-item>
-
-          </el-sub-menu>
-
-          <!--
-          <el-menu-item index="4">
-            <el-icon>
-              <setting />
-            </el-icon>
-            <span>扩展管理</span>
-          </el-menu-item>
-
-          <el-menu-item index="5">
-            <el-icon>
-              <setting />
-            </el-icon>
-            <span>黑名单</span>
-          </el-menu-item>-->
-
-          <el-sub-menu index="7">
-            <template #title>
-              <el-icon>
-                <operation />
-              </el-icon>
-              <span>综合设置</span>
-            </template>
-            <el-menu-item :index="`7-base`" @click="switchTo('miscSettings', 'base')">
-              <span>基本设置</span>
-            </el-menu-item>
-            <el-menu-item :index="`7-group`" @click="switchTo('miscSettings', 'group')">
-              <span>群组管理</span>
-            </el-menu-item>
-            <el-menu-item :index="`7-ban`" @click="switchTo('miscSettings', 'ban')">
-              <span>黑白名单</span>
-            </el-menu-item>
-            <el-menu-item :index="`7-backup`" @click="switchTo('miscSettings', 'backup')">
-              <span>备份</span>
-            </el-menu-item>
-            <el-menu-item v-if="advancedConfigCounter >= 8" :index="`7-advanced`" @click="switchTo('miscSettings', 'advanced')">
-              <span>高级设置</span>
-            </el-menu-item>
-          </el-sub-menu>
-
-          <el-menu-item index="8" @click="switchTo('test')">
-            <el-icon>
-              <chat-line-round />
-            </el-icon>
-            <span>指令测试</span>
-          </el-menu-item>
-
-          <el-menu-item index="9" @click="switchTo('about')">
-            <el-icon>
-              <star />
-            </el-icon>
-            <span>关于</span>
-          </el-menu-item>
-        </el-menu>
-
-        <div class="hidden-sm-and-up"
-          style="position: absolute; bottom: 60px; color: #fff; font-size: small; margin-left: 1rem;">
-          <el-button circle type="info" :icon="sideCollapse ? DArrowRight : DArrowLeft"
-            @click="sideCollapse = !sideCollapse"></el-button>
-        </div>
+      <div class="menu" style="position: relative; background: #545c64">
+        <Menu type="dark" v-model:advancedConfigCounter="advancedConfigCounter" @swithch-to="switchTo"/>
       </div>
 
-      <!-- #545c64 -->
       <div style="background-color: #f3f5f7; flex: 1; text-align: left; height: calc(100vh - 4rem); overflow-y: auto;">
-        <!-- <div style="background-color: #f3f5f7; text-align: left; height: 100%;"> -->
         <div class="main-container" :class="[needh100 ? 'h100' : '']" ref="rightbox">
-          <page-misc v-if="tabName === 'miscSettings'" :category="miscSettingsCategory" />
-          <page-log v-if="tabName === 'log'" />
-          <page-connect-info-items v-if="tabName === 'imConns'" />
-          <page-custom-text v-if="tabName === 'customText'" :category="textCategory" />
-          <page-custom-reply v-if="tabName === 'customReply'" />
-          <page-mod v-if="tabName === 'mod'" :category="textCategory" />
-          <page-test v-if="tabName === 'test'" />
-          <page-about v-if="tabName === 'about'" />
+          <page-misc v-if="tabName === 'miscSettings'" :category="miscSettingsCategory"/>
+          <page-log v-if="tabName === 'log'"/>
+          <page-connect-info-items v-if="tabName === 'imConns'"/>
+          <page-custom-text v-if="tabName === 'customText'" :category="textCategory"/>
+          <page-custom-reply v-if="tabName === 'customReply'"/>
+          <page-mod v-if="tabName === 'mod'" :category="textCategory"/>
+          <page-test v-if="tabName === 'test'"/>
+          <page-about v-if="tabName === 'about'"/>
         </div>
-        <!-- </div> -->
       </div>
     </div>
   </div>
 
+  <el-drawer v-model="drawerMenu" direction="ltr" :show-close="false"
+             size="50%" class="drawer-menu">
+    <template #header>
+      <div style="color: #fff; display: flex; align-items: center; justify-content: space-between;">
+        <el-space :v-show="store.canAccess" direction="vertical" alignment="flex-start" :size="0">
+          <span @click="enableAdvancedConfig" style="font-size: 1.2rem; cursor: pointer;">SealDice</span>
+          <span v-if="store.diceServers.length > 0" style="font-size: .7rem;">
+            {{ store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}
+          </span>
+        </el-space>
+
+        <el-tag effect="dark" size="small" disable-transitions
+                :type="store.curDice.baseInfo.appChannel === 'stable' ? 'success' : 'info'">
+          {{ store.curDice.baseInfo.appChannel === 'stable' ? '正式版' : '测试版' }}
+        </el-tag>
+      </div>
+    </template>
+    <Menu type="dark" v-model:advancedConfigCounter="advancedConfigCounter" @swithch-to="switchTo"/>
+  </el-drawer>
+
   <el-dialog v-model="showDialog" title="" :close-on-click-modal="false" :close-on-press-escape="false"
-    :show-close="false" class="the-dialog">
+             :show-close="false" class="the-dialog">
     <h3>输入密码解锁</h3>
     <el-input v-model="password" type="password"></el-input>
     <el-button type="primary" style="padding: 0px 50px; margin-top: 1rem;" @click="doUnlock">确认</el-button>
   </el-dialog>
 
   <el-dialog v-model="dialogLostConnectionVisible" title="主程序离线" :close-on-click-modal="false"
-    :close-on-press-escape="false" :show-close="false" class="the-dialog">
+             :close-on-press-escape="false" :show-close="false" class="the-dialog">
     <div>与主程序断开连接，请耐心等待连接恢复</div>
     <div>如果失去响应过久，请登录服务器处理</div>
   </el-dialog>
 
   <el-dialog v-model="dialogFeed" :close-on-click-modal="false" :close-on-press-escape="false" class="dialog-feed"
-    :show-close="false">
+             :show-close="false">
     <template #header="{ close, titleId, titleClass }">
       <div class="my-header">
         <h4 :id="titleId" :class="titleClass" style="margin: 0.5rem">海豹新闻</h4>
@@ -228,36 +124,23 @@ import PageCustomReply from "./components/mod/PageCustomReply.vue"
 import PageLog from "./components/PageLog.vue";
 import PageAbout from "./components/PageAbout.vue"
 import PageTest from "./components/PageTest.vue"
-import { onBeforeMount, ref, watch, computed } from 'vue'
-import { useStore } from './store'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check } from '@element-plus/icons-vue'
+import {onBeforeMount, ref, watch, computed} from 'vue'
+import {useStore} from './store'
+import {ElMessage, ElMessageBox} from 'element-plus'
 import imgNews from '~/assets/news.png'
 
-
 import {
-  Location,
-  Document,
+  Check,
   Menu as IconMenu,
-  Setting,
-  CirclePlusFilled,
-  CircleClose,
-  Ship,
-  Star,
-  Operation,
-  ChatLineRound,
-  DArrowLeft,
-  DArrowRight,
-  EditPen
 } from '@element-plus/icons-vue'
 
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { CircleCloseFilled } from '@element-plus/icons-vue'
+import {CircleCloseFilled} from '@element-plus/icons-vue'
 
-import { passwordHash } from "./utils"
-import { delay } from "lodash-es"
+import {passwordHash} from "./utils"
+import {delay} from "lodash-es"
 
 dayjs.locale('zh-cn')
 dayjs.extend(relativeTime);
@@ -314,12 +197,11 @@ const doUnlock = async () => {
 
 const checkPassword = async () => {
   if (!await store.checkSecurity()) {
-    ElMessageBox.alert('欢迎使用海豹核心。<br/>如果您的服务开启在公网，为了保证您的安全性，请前往<b>“综合设置->基本设置”</b>界面，设置<b>UI界面密码</b>。<br/>或切换为只有本机可访问。<br><b>如果您不了解上面在说什么，请务必设置一个密码</b>', '提示', { dangerouslyUseHTMLString: true })
+    ElMessageBox.alert('欢迎使用海豹核心。<br/>如果您的服务开启在公网，为了保证您的安全性，请前往<b>“综合设置->基本设置”</b>界面，设置<b>UI界面密码</b>。<br/>或切换为只有本机可访问。<br><b>如果您不了解上面在说什么，请务必设置一个密码</b>', '提示', {dangerouslyUseHTMLString: true})
   }
 }
 
 onBeforeMount(async () => {
-  resetCollapse()
   store.getBaseInfo()
   store.getCustomText()
 
@@ -359,33 +241,13 @@ const handleClose = (key: string, keyPath: string[]) => {
 
 const rightbox = ref(null)
 
-const resetCollapse = () => {
-  if (document.body.clientWidth <= 450) {
-    if (!sideCollapse.value) {
-      sideCollapse.value = true
-      // 似乎不需要下面这段来重置flex了
-      // setTimeout(() => {
-      //   const el = rightbox.value as any
-      //   const tmp = el.style.display;
-      //   el.style.display = 'none';
-      //   el.style.display = tmp;
-      // }, 500)
-    }
-  } else {
-    if (sideCollapse.value) {
-      sideCollapse.value = false
-    }
-  }
-}
-window.addEventListener("resize", resetCollapse)
-
-const sideCollapse = ref(false)
 let tabName = ref("log")
 let textCategory = ref("")
 let miscSettingsCategory = ref("")
 
 const needh100 = ref(false)
 
+const drawerMenu = ref<boolean>(false)
 const switchTo = (tab: 'overview' | 'miscSettings' | 'log' | 'customText' | 'mod' | 'customReply' | 'imConns' | 'banList' | 'test' | 'about', name: string = '') => {
   tabName.value = tab
   textCategory.value = ''
@@ -399,6 +261,7 @@ const switchTo = (tab: 'overview' | 'miscSettings' | 'log' | 'customText' | 'mod
     miscSettingsCategory.value = name
   }
   needh100.value = ['test'].includes(tab)
+  drawerMenu.value = false
 }
 
 let configCustom = {}
@@ -462,9 +325,27 @@ body {
   height: 100%;
 }
 
-@media screen and (max-width: 700px) {
+@media screen and (max-width: 640px) {
+  .nav {
+    margin: 0 0.5rem 0 0;
+  }
+
+  .menu {
+    display: none;
+  }
+
   .main-container {
     padding: 1rem;
+  }
+}
+
+@media screen and (min-width: 640px) {
+  .nav {
+    margin: 0 1rem 0 1.5rem;
+  }
+
+  .menu-button-wrapper {
+    display: none;
   }
 }
 
@@ -476,7 +357,7 @@ body {
 
 #app {
   font-family: "PingFang SC", "Helvetica Neue", "Hiragino Sans GB", "Segoe UI",
-    "Microsoft YaHei", "微软雅黑", sans-serif;
+  "Microsoft YaHei", "微软雅黑", sans-serif;
   /* font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif; */
   text-align: center;
   color: #2c3e50;
@@ -495,9 +376,22 @@ body {
   align-items: center;
 }
 
-@media screen and (max-width: 700px) {
+@media screen and (max-width: 640px) {
   .dialog-feed {
     width: 90% !important;
+  }
+}
+
+.drawer-menu {
+  background-color: #545c64;
+
+  .el-drawer__header {
+    margin: 0;
+    padding: 1rem;
+  }
+
+  .el-drawer__body {
+    padding: 0;
   }
 }
 </style>
