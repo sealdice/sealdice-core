@@ -101,6 +101,7 @@ type CloudDeckItemInfo struct {
 
 type DeckInfo struct {
 	Enable             bool                          `json:"enable" yaml:"enable"`
+	ErrText            string                        `json:"errText" yaml:"errText"`
 	Filename           string                        `json:"filename" yaml:"filename"`
 	Format             string                        `json:"format" yaml:"format"`               // 几种：“SinaNya” ”Dice!“ "Seal"
 	FormatVersion      int64                         `json:"formatVersion" yaml:"formatVersion"` // 格式版本，默认都是1
@@ -138,6 +139,10 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error
 	for k, value := range rawJsonData {
 		if k == "$schema" {
 			continue
+		} else if k == "helpdoc" {
+			if _, ok := value.(map[string]any); ok {
+				return errors.New("该文件疑似为帮助文档，而不是牌堆文件")
+			}
 		}
 		if val, ok := value.([]any); ok {
 			v := make([]string, 0, len(val))
@@ -450,6 +455,8 @@ func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
 
 	if err != nil {
 		d.Logger.Errorf("牌堆文件“%s”解析失败 %v", fn, err)
+		deckInfo.Enable = false
+		deckInfo.ErrText = err.Error()
 		return false
 	}
 	return true
