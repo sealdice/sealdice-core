@@ -61,6 +61,8 @@ type ConfigItem struct {
 	Value        interface{} `json:"value,omitempty" jsbind:"value"`
 	Option       interface{} `json:"option,omitempty" jsbind:"option"`
 	Deprecated   bool        `json:"deprecated,omitempty" jsbind:"deprecated"`
+
+	Description string `json:"description" jsbind:"description"`
 }
 
 type PluginConfig struct {
@@ -81,11 +83,12 @@ func NewConfigManager(filename string) *ConfigManager {
 	}
 }
 
-func (cm *ConfigManager) NewConfigItem(key string, defaultValue interface{}) *ConfigItem {
+func (cm *ConfigManager) NewConfigItem(key string, defaultValue interface{}, description string) *ConfigItem {
 	return &ConfigItem{
 		Key:          key,
 		DefaultValue: defaultValue,
 		Value:        defaultValue,
+		Description:  description,
 	}
 }
 
@@ -118,6 +121,7 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 			if existingItem, itemExists := existingPlugin.Configs[newItem.Key]; itemExists {
 				existingItem.DefaultValue = newItem.DefaultValue
 				existingItem.Option = newItem.Option
+				existingItem.Description = newItem.Description
 				existingItem.Deprecated = false // Reset deprecated flag
 				existingPlugin.Configs[newItem.Key] = existingItem
 			} else {
