@@ -30,47 +30,68 @@
         <el-card class="deck-item" v-for="(i, index) in data" :key="index" shadow="hover">
           <template #header>
             <div class="deck-item-header">
-              <el-space direction="vertical" alignment="normal">
-                <el-space size="small" alignment="center">
-                  <el-text size="large" tag="b">{{ i.name }}</el-text>
-                  <el-text>{{ i.version }}</el-text>
-                  <el-tag size="small" :type="i.fileFormat === 'toml' ? 'success' : 'primary'" disable-transitions>{{ i.fileFormat }}</el-tag>
+              <template v-if="!i.errText">
+                <el-space direction="vertical" alignment="normal">
+                  <el-space size="small" alignment="center">
+                    <el-text size="large" tag="b">{{ i.name }}</el-text>
+                    <el-text>{{ i.version }}</el-text>
+                    <el-tag size="small" :type="i.fileFormat === 'toml' ? 'success' : 'primary'" disable-transitions>{{ i.fileFormat }}</el-tag>
+                  </el-space>
+                  <el-text v-if="i.cloud" type="primary" size="small">
+                    <el-icon><MostlyCloudy /></el-icon>
+                    作者提供云端内容，请自行鉴别安全性
+                  </el-text>
+                  <el-text v-if="i.fileFormat === 'jsonc'" type="warning" size="small">
+                    <el-icon><Warning /></el-icon>
+                    注意：该牌堆的格式并非标准 JSON ，而是允许尾逗号与注释语法的扩展 JSON
+                  </el-text>
                 </el-space>
-                <el-text v-if="i.cloud" type="primary" size="small">
-                  <el-icon><MostlyCloudy /></el-icon>
-                  作者提供云端内容，请自行鉴别安全性
-                </el-text>
-                <el-text v-if="i.fileFormat === 'jsonc'" type="warning" size="small">
-                  <el-icon><Warning /></el-icon>
-                  注意：该牌堆的格式并非标准 JSON ，而是允许尾逗号与注释语法的扩展 JSON
-                </el-text>
-              </el-space>
-              <el-space>
-                <el-popconfirm v-if="i.updateUrls && i.updateUrls.length > 0" width="220"
-                               confirm-button-text="确认"
-                               cancel-button-text="取消"
-                               @confirm="doCheckUpdate(i, index)"
-                               title="更新地址由牌堆作者提供，是否确认要检查该牌堆更新？">
-                  <template #reference>
-                    <el-button :icon="Download" type="success" size="small" plain :loading="diffLoading">更新</el-button>
-                  </template>
-                </el-popconfirm>
-                <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i, index)">删除</el-button>
-              </el-space>
+                <el-space>
+                  <el-popconfirm v-if="i.updateUrls && i.updateUrls.length > 0" width="220"
+                                 confirm-button-text="确认"
+                                 cancel-button-text="取消"
+                                 @confirm="doCheckUpdate(i, index)"
+                                 title="更新地址由牌堆作者提供，是否确认要检查该牌堆更新？">
+                    <template #reference>
+                      <el-button :icon="Download" type="success" size="small" plain :loading="diffLoading">更新</el-button>
+                    </template>
+                  </el-popconfirm>
+                  <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i, index)">删除</el-button>
+                </el-space>
+              </template>
+              <template v-else>
+                <el-space alignment="center">
+                  <el-icon size="20" color="var(--el-color-danger)"><circle-close/></el-icon>
+                  <del>
+                    <el-text size="large" tag="b">{{ i.filename }}</el-text>
+                  </del>
+                </el-space>
+                <el-space>
+                  <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i, index)">删除</el-button>
+                </el-space>
+              </template>
             </div>
           </template>
-          <el-descriptions style="white-space:pre-line;">
-            <el-descriptions-item :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
-            <el-descriptions-item :span="3" v-if="i.desc" label="简介">{{ i.desc }}</el-descriptions-item>
-            <el-descriptions-item :span="3" label="牌堆列表">
-              <el-tag v-for="(visible, c) of i.command" :key="c" size="small" :type="visible ? 'primary' : 'info'" style="margin-right: 0.5rem;" disable-transitions>
-                {{ c }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item v-if="i.license" label="许可协议">{{ i.license }}</el-descriptions-item>
-            <el-descriptions-item v-if="i.date" label="发布时间">{{ i.date }}</el-descriptions-item>
-            <el-descriptions-item v-if="i.updateDate" label="更新时间">{{ i.updateDate }}</el-descriptions-item>
-          </el-descriptions>
+
+            <el-descriptions style="white-space:pre-line;">
+              <template v-if="!i.errText">
+                <el-descriptions-item :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
+                <el-descriptions-item :span="3" v-if="i.desc" label="简介">{{ i.desc }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="牌堆列表">
+                  <el-tag v-for="(visible, c) of i.command" :key="c" size="small" :type="visible ? 'primary' : 'info'" style="margin-right: 0.5rem;" disable-transitions>
+                    {{ c }}
+                  </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item v-if="i.license" label="许可协议">{{ i.license }}</el-descriptions-item>
+                <el-descriptions-item v-if="i.date" label="发布时间">{{ i.date }}</el-descriptions-item>
+                <el-descriptions-item v-if="i.updateDate" label="更新时间">{{ i.updateDate }}</el-descriptions-item>
+              </template>
+              <template v-else>
+                <el-descriptions-item label="错误信息">
+                  <el-text type="danger">{{ i.errText }}</el-text>
+                </el-descriptions-item>
+              </template>
+            </el-descriptions>
         </el-card>
       </main>
     </el-tab-pane>
@@ -101,6 +122,7 @@ import {
   MostlyCloudy,
   DocumentChecked,
   Warning,
+  CircleClose,
 } from '@element-plus/icons-vue'
 import DiffViewer from "~/components/mod/diff-viewer.vue";
 
