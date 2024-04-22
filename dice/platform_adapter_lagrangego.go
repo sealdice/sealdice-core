@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -105,7 +106,7 @@ type PlatformAdapterLagrangeGo struct {
 
 func (pa *PlatformAdapterLagrangeGo) GetGroupInfoAsync(_ string) {}
 
-func LagrangeGoMessageElementToSealElements(elements []lagMessage.IMessageElement) []message.IMessageElement {
+func LagrangeGoMessageElementsToSealElements(elements []lagMessage.IMessageElement) []message.IMessageElement {
 	var segment []message.IMessageElement
 	for _, element := range elements {
 		switch e := element.(type) {
@@ -124,7 +125,51 @@ func LagrangeGoMessageElementToSealElements(elements []lagMessage.IMessageElemen
 				ReplySeq: strconv.FormatInt(int64(e.ReplySeq), 10),
 				Sender:   strconv.FormatInt(int64(e.Sender), 10),
 				GroupID:  strconv.FormatInt(int64(e.GroupID), 10),
-				Elements: LagrangeGoMessageElementToSealElements(e.Elements),
+				Elements: LagrangeGoMessageElementsToSealElements(e.Elements),
+			})
+		}
+	}
+	return segment
+}
+
+func SealMessageElementsToLagrangeGoElements(elements []message.IMessageElement) []lagMessage.IMessageElement {
+	var segment []lagMessage.IMessageElement
+	for _, element := range elements {
+		switch e := element.(type) {
+		case *message.TextElement:
+			segment = append(segment, &lagMessage.TextElement{Content: e.Content})
+		case *message.AtElement:
+			target, _ := strconv.ParseInt(e.Target, 10, 32)
+			segment = append(segment, &lagMessage.AtElement{Target: uint32(target)})
+		case *message.ImageElement:
+			data, err := io.ReadAll(e.File.Stream)
+			if err != nil {
+				continue
+			}
+			segment = append(segment, &lagMessage.GroupImageElement{Stream: data})
+		case *message.FaceElement:
+			faceID, _ := strconv.ParseInt(e.FaceID, 10, 16)
+			segment = append(segment, &lagMessage.FaceElement{FaceID: uint16(faceID)})
+		case *message.ReplyElement:
+			replySeq, err := strconv.ParseInt(e.ReplySeq, 10, 32)
+			if err != nil {
+				continue
+			}
+			senderRaw := UserIDExtract(e.Sender)
+			groupIDRaw := UserIDExtract(e.GroupID)
+			sender, err := strconv.ParseInt(senderRaw, 10, 64)
+			if err != nil {
+				continue
+			}
+			groupID, err := strconv.ParseInt(groupIDRaw, 10, 64)
+			if err != nil {
+				continue
+			}
+			segment = append(segment, &lagMessage.ReplyElement{
+				ReplySeq: int32(replySeq),
+				Sender:   uint64(sender),
+				GroupID:  uint64(groupID),
+				Elements: SealMessageElementsToLagrangeGoElements(e.Elements),
 			})
 		}
 	}
@@ -254,7 +299,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 				UserID:   "QQ:" + strconv.FormatInt(int64(event.Sender.Uin), 10),
 			},
 		}
-		msg.Segment = LagrangeGoMessageElementToSealElements(event.Elements)
+		msg.Segment = LagrangeGoMessageElementsToSealElements(event.Elements)
 		pa.Session.ExecuteNew(pa.EndPoint, msg)
 	})
 
@@ -272,7 +317,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 				UserID:   "QQ:" + strconv.FormatInt(int64(event.Sender.Uin), 10),
 			},
 		}
-		msg.Segment = LagrangeGoMessageElementToSealElements(event.Elements)
+		msg.Segment = LagrangeGoMessageElementsToSealElements(event.Elements)
 		pa.Session.ExecuteNew(pa.EndPoint, msg)
 	})
 
@@ -367,12 +412,13 @@ func (pa *PlatformAdapterLagrangeGo) SendToGroup(ctx *MsgContext, uid string, te
 		log.Errorf("SendToGroup: text is empty")
 		return
 	}
+	elementsRaw := message.ConvertStringMessage(text)
 	groupCode, err := strconv.ParseInt(uidraw, 10, 64)
 	if err != nil {
 		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
-	messageElem := []lagMessage.IMessageElement{&lagMessage.TextElement{Content: text}}
+	messageElem := SealMessageElementsToLagrangeGoElements(elementsRaw)
 	_, err = pa.QQClient.SendGroupMessage(uint32(groupCode), messageElem)
 	if err != nil {
 		log.Errorf("SendGroupMessage failed: %v", err)
