@@ -24,6 +24,7 @@ interface JsPluginConfigItem {
   value: any;
   option: any[];
   deprecated: boolean;
+  description: string;
 }
 interface JsPluginConfig {
   pluginName: string;
