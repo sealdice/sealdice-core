@@ -32,7 +32,7 @@ require (
 	github.com/monaco-io/request v1.0.16
 	github.com/mroth/weightedrand v1.0.0
 	github.com/otiai10/copy v1.14.0
-	github.com/phuslu/log v1.0.88
+	github.com/phuslu/log v1.0.90
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105
 	github.com/sahilm/fuzzy v0.1.1
