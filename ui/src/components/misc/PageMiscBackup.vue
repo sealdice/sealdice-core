@@ -144,7 +144,7 @@ import {
   QuestionFilled,
   BrushFilled, DocumentChecked
 } from '@element-plus/icons-vue'
-import DiffViewer from "~/components/mod/diff-viewer.vue";
+import DiffViewer from "~/components/tools/diff-viewer.vue";
 import {sum} from "lodash-es";
 
 const store = useStore()

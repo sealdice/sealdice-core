@@ -141,7 +141,7 @@
 import { onBeforeMount, onBeforeUnmount, ref, watch, nextTick, computed } from 'vue';
 import { urlBase } from "~/backend";
 import { useStore } from '~/store';
-import nestedDraggable from "./nested.vue";
+import nestedDraggable from "../tools/nested.vue";
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   DocumentChecked,

@@ -314,25 +314,26 @@ onBeforeMount(() => {
                         v-show="logs.filter(v => v.pitch).length > 0">删除所选</ElButton>
                 </ElButtonGroup>
                 <template v-for=" i in logs" :key="i.id">
-                    <ElCard style="margin-top: 10px;" shadow="hover">
-                        <template #header>
-                            <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between;">
-                                <el-space>
-                                    <ElCheckbox v-model="i.pitch" style="float: right;" />
-                                    <el-text size="large" tag="strong">{{ i.name }}</el-text>
-                                    <el-text>({{ i.groupId }})</el-text>
+                    <foldable-card style="margin-top: 10px;">
+                        <template #title>
+                            <el-space>
+                                <ElCheckbox v-model="i.pitch" style="float: right;" />
+                                <el-space wrap>
+                                  <el-text size="large" tag="strong">{{ i.name }}</el-text>
+                                  <el-text>({{ i.groupId }})</el-text>
                                 </el-space>
-                                <el-space>
-                                    <ElButton size="small" plain @click="openItem(i)">查看</ElButton>
-                                    <!--<ElButton>下载到本地</ElButton>-->
-                                    <ElButton size="small" type="primary" :icon="Upload" plain @click="UploadLog(i)">提取日志
-                                    </ElButton>
-                                    <ElButton size="small" type="danger" :icon="Delete" plain
-                                        @click="DelLog(i);">删除
-                                    </ElButton>
-                                </el-space>
-                            </div>
+                            </el-space>
                         </template>
+                        <template #action>
+                            <ElButton size="small" plain @click="openItem(i)">查看</ElButton>
+                            <!--<ElButton>下载到本地</ElButton>-->
+                            <ElButton size="small" type="primary" :icon="Upload" plain @click="UploadLog(i)">提取日志
+                            </ElButton>
+                            <ElButton size="small" type="danger" :icon="Delete" plain
+                                      @click="DelLog(i);">删除
+                            </ElButton>
+                        </template>
+
                         <el-space direction="vertical" alignment="flex-start">
                             <el-space>
                                 <el-text>包含 {{ i.size }} 条消息</el-text>
@@ -346,7 +347,7 @@ onBeforeMount(() => {
                                 <ElTag size="small" disable-transitions>{{ dayjs.unix(i.updatedAt).fromNow() }}</ElTag><br />
                             </el-space>
                         </el-space>
-                    </ElCard>
+                    </foldable-card>
                 </template>
             </main>
             <div style="display: flex; justify-content: center;">

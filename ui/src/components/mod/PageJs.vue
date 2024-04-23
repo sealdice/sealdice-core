@@ -45,67 +45,57 @@
             </el-space>
           </header>
           <main class="js-list-main">
-            <el-card class="js-item" v-for="(i, index) of jsList" :key="index" shadow="hover">
-              <template #header>
-                <div class="js-item-header">
-                  <template v-if="!i.errText">
-                    <el-space>
-                      <el-switch v-model="i.enable" @change="changejsScriptStatus(i.name, i.enable)" :disabled="i.errText !== ''"
-                                 style="--el-switch-on-color: var(--el-color-success); --el-switch-off-color: var(--el-color-danger)" />
-                      <el-text size="large" tag="b">{{ i.name }}</el-text>
-                      <el-text>{{ i.version || '&lt;未定义>' }}</el-text>
-                      <el-tag v-if="i.official" size="small" type="success">官方</el-tag>
-                    </el-space>
-                    <el-space>
-                      <el-button v-if="i.official && i.updateUrls && i.updateUrls.length > 0"
-                                 :icon="Download" type="success" size="small" plain :loading="diffLoading">更新</el-button>
-                      <el-popconfirm v-else-if="i.updateUrls && i.updateUrls.length > 0" width="220"
-                                     confirm-button-text="确认"
-                                     cancel-button-text="取消"
-                                     @confirm="doCheckUpdate(i, index)"
-                                     title="更新地址由插件作者提供，是否确认要检查该插件更新？">
-                        <template #reference>
-                          <el-button :icon="Download" type="success" size="small" plain :loading="diffLoading">更新</el-button>
-                        </template>
-                      </el-popconfirm>
-                      <!--                    <el-button :icon="Setting" type="primary" size="small" plain @click="showSettingDialog = true">设置</el-button>-->
-                      <el-button v-if="i.builtin && i.builtinUpdated" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>卸载更新</el-button>
-                      <el-button v-else-if="!i.builtin" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>删除</el-button>
-                    </el-space>
+            <foldable-card class="js-item" v-for="(i, index) of jsList" :key="index"
+                           :err-title="i.filename" :err-text="i.errText">
+              <template #title>
+                <el-space class="js-item-header">
+                  <el-switch v-model="i.enable" @change="changejsScriptStatus(i.name, i.enable)" :disabled="i.errText !== ''"
+                             style="--el-switch-on-color: var(--el-color-success); --el-switch-off-color: var(--el-color-danger)" />
+                  <el-text size="large" tag="b">{{ i.name }}</el-text>
+                  <el-text>{{ i.version || '&lt;未定义>' }}</el-text>
+                  <el-tag v-if="i.official" size="small" type="success">官方</el-tag>
+                </el-space>
+              </template>
+
+              <template #title-extra>
+                <el-button v-if="i.official && i.updateUrls && i.updateUrls.length > 0"
+                           :icon="Download" type="success" size="small" plain :loading="diffLoading">更新</el-button>
+                <el-popconfirm v-else-if="i.updateUrls && i.updateUrls.length > 0"
+                               confirm-button-text="确认"
+                               cancel-button-text="取消"
+                               @confirm="doCheckUpdate(i, index)"
+                               title="更新地址由插件作者提供，是否确认要检查该插件更新？">
+                  <template #reference>
+                    <el-button :icon="Download" type="success" size="small" plain :loading="diffLoading">更新</el-button>
                   </template>
-                  <template v-else>
-                    <el-space alignment="center">
-                      <el-icon size="20" color="var(--el-color-danger)"><circle-close/></el-icon>
-                      <del>
-                        <el-text size="large" tag="b">{{ i.filename }}</el-text>
-                      </del>
-                    </el-space>
-                    <el-space>
-                      <el-button v-if="i.builtin && i.builtinUpdated" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small">卸载更新</el-button>
-                      <el-button v-else-if="!i.builtin" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small">删除</el-button>
-                    </el-space>
-                  </template>
-                </div>
+                </el-popconfirm>
+                <!--                    <el-button :icon="Setting" type="primary" size="small" plain @click="showSettingDialog = true">设置</el-button>-->
+                <el-button v-if="i.builtin && i.builtinUpdated" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>卸载更新</el-button>
+                <el-button v-if="!i.builtin" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>删除</el-button>
+              </template>
+
+              <template #title-extra-error>
+                <el-space>
+                  <el-button v-if="i.builtin && i.builtinUpdated" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>卸载更新</el-button>
+                  <el-button v-else-if="!i.builtin" @click="doDelete(i, index)" :icon="Delete" type="danger" size="small" plain>删除</el-button>
+                </el-space>
               </template>
 
               <el-descriptions style="white-space:pre-line;">
-                <template v-if="!i.errText">
-                  <el-descriptions-item v-if="!i.official" :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
-                  <el-descriptions-item :span="3" label="介绍">{{ i.desc || '&lt;暂无>' }}</el-descriptions-item>
-                  <el-descriptions-item v-if="!i.official" :span="3" label="主页">{{ i.homepage || '&lt;暂无>' }}</el-descriptions-item>
-                  <el-descriptions-item label="许可协议">{{ i.license || '&lt;暂无>' }}</el-descriptions-item>
-                  <el-descriptions-item label="安装时间">{{ dayjs.unix(i.installTime).fromNow() }}</el-descriptions-item>
-                  <el-descriptions-item label="更新时间">
-                    {{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || '&lt;暂无>' }}
-                  </el-descriptions-item>
-                </template>
-                <template v-else>
-                  <el-descriptions-item label="错误信息">
-                    <el-text type="danger">{{ i.errText }}</el-text>
-                  </el-descriptions-item>
-                </template>
+                <el-descriptions-item v-if="!i.official" :span="3" label="作者">{{ i.author || '&lt;佚名>' }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="介绍">{{ i.desc || '&lt;暂无>' }}</el-descriptions-item>
+                <el-descriptions-item v-if="!i.official" :span="3" label="主页">{{ i.homepage || '&lt;暂无>' }}</el-descriptions-item>
+                <el-descriptions-item label="许可协议">{{ i.license || '&lt;暂无>' }}</el-descriptions-item>
+                <el-descriptions-item label="安装时间">{{ dayjs.unix(i.installTime).fromNow() }}</el-descriptions-item>
+                <el-descriptions-item label="更新时间">
+                  {{ i.updateTime ? dayjs.unix(i.updateTime).fromNow() : '' || '&lt;暂无>' }}
+                </el-descriptions-item>
               </el-descriptions>
-            </el-card>
+
+              <template #unfolded-extra>
+                <el-text truncated>{{ i.desc || '&lt;暂无>' }}</el-text>
+              </template>
+            </foldable-card>
 
             <el-dialog v-model="showDiff" title="插件内容对比" class="diff-dialog">
               <diff-viewer lang="javascript" :old="jsCheck.old" :new="jsCheck.new"/>
@@ -333,7 +323,7 @@ import {
 import * as dayjs from 'dayjs'
 import {basicSetup, EditorView} from "codemirror"
 import {javascript} from "@codemirror/lang-javascript"
-import DiffViewer from "~/components/mod/diff-viewer.vue";
+import DiffViewer from "~/components/tools/diff-viewer.vue";
 import {isEqual, size} from "lodash-es";
 
 const store = useStore()
