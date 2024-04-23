@@ -17,43 +17,67 @@
       <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
     </span>
   </p>
-  <div style=" padding: 0 1rem; background: #fff;" class="hidden-xs-only">
-    <el-table :data="store.curDice.logs">
-      <el-table-column label="时间" width="110" >
+  <div style="padding: 0;" class="hidden-xs-only">
+    <el-table :data="store.curDice.logs"
+              :row-class-name="getLogRowClassName" :header-cell-style="{backgroundColor: '#f3f5f7'}">
+      <el-table-column label="时间" width="90" >
         <template #default="scope">
           <div style="display: flex; align-items: center">
-            <el-icon><timer /></el-icon>
-            <span style="margin-left: 10px">{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
+            <el-icon v-if="scope.row.msg.startsWith('onebot | ')" color="var(--el-color-warning)"><timer /></el-icon>
+            <el-icon v-else-if="scope.row.msg.startsWith('发给')" color="var(--el-color-primary)"><timer /></el-icon>
+            <el-icon v-else-if="scope.row.level === 'warn'" color="var(--el-color-warning)"><timer /></el-icon>
+            <el-icon v-else-if="scope.row.level === 'error'" color="var(--el-color-danger)"><timer /></el-icon>
+            <el-icon v-else><timer /></el-icon>
+            <span style="margin-left: 0.3rem">
+              <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: var(--el-color-warning)">{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
+              <span v-else-if="scope.row.msg.startsWith('发给')" style="color: var(--el-color-primary)">{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
+              <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
+              <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
+              <span v-else>{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
+            </span>
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="level" label="级别" width="85" />
+      <el-table-column prop="level" label="级别" width="55">
+        <template #default="scope">
+          <el-text v-if="scope.row.msg.startsWith('onebot | ')" type="warning">{{ scope.row.level }}</el-text>
+          <el-text v-else-if="scope.row.msg.startsWith('发给')" type="primary">{{ scope.row.level }}</el-text>
+          <el-text v-else-if="scope.row.level === 'warn'" type="warning">{{ scope.row.level }}</el-text>
+          <el-text v-else-if="scope.row.level === 'error'" type="danger">{{ scope.row.level }}</el-text>
+          <el-text v-else>{{ scope.row.level }}</el-text>
+        </template>
+      </el-table-column>
       <el-table-column prop="msg" label="信息">
         <template #default="scope">
-          <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: #DB7E44">{{ scope.row.msg }}</span>
-          <!-- <span v-else-if="scope.row.msg.startsWith('收到') && scope.row.msg.includes('的指令')" style="color: #445ddb">{{ scope.row.msg }}</span> -->
-          <span v-else-if="scope.row.msg.startsWith('发给')" style="color: #445ddb">{{ scope.row.msg }}</span>
-          <span v-else-if="scope.row.level === 'error'" style="color: #c00000">{{ scope.row.msg }}</span>
+          <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: var(--el-color-warning)">{{ scope.row.msg }}</span>
+          <span v-else-if="scope.row.msg.startsWith('发给')" style="color: var(--el-color-primary)">{{ scope.row.msg }}</span>
+          <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">{{ scope.row.msg }}</span>
+          <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">{{ scope.row.msg }}</span>
           <span v-else>{{ scope.row.msg }}</span>
         </template>
       </el-table-column>
     </el-table>
   </div>
 
-  <el-table :data="store.curDice.logs" style="width: 100%;" class="hidden-sm-and-up">
-    <el-table-column label="时间" width="65" >
+  <el-table :data="store.curDice.logs" style="width: 100%;" class="hidden-sm-and-up"
+            :row-class-name="getLogRowClassName" :header-cell-style="{backgroundColor: '#f3f5f7'}">
+    <el-table-column label="时间" width="60" >
       <template #default="scope">
         <div style="display: flex; align-items: center">
-          <!-- <el-icon><timer /></el-icon> -->
-          <span>{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span>
+          <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: var(--el-color-warning)">{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span>
+          <span v-else-if="scope.row.msg.startsWith('发给')" style="color: var(--el-color-primary)">{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span>
+          <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span>
+          <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span>
+          <span v-else>{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span>
         </div>
       </template>
     </el-table-column>
-    <!-- <el-table-column prop="level" label="级别" width="60" /> -->
     <el-table-column prop="msg" label="信息">
       <template #default="scope">
-        <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: #DB7E44">{{ scope.row.msg }}</span>
-        <span v-else-if="scope.row.msg.startsWith('发给')" style="color: #445ddb">{{ scope.row.msg }}</span>
+        <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: var(--el-color-warning)">{{ scope.row.msg }}</span>
+        <span v-else-if="scope.row.msg.startsWith('发给')" style="color: var(--el-color-primary)">{{ scope.row.msg }}</span>
+        <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">{{ scope.row.msg }}</span>
+        <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">{{ scope.row.msg }}</span>
         <span v-else>{{ scope.row.msg }}</span>
       </template>
     </el-table-column>
@@ -136,6 +160,28 @@ const scrollDown = () => {
   }
 }
 
+const getColorByLevel = (level: string) => {
+  switch (level) {
+    case 'warn':
+      return 'var(--el-color-warning)'
+    case 'error':
+      return 'var(--el-color-danger)'
+    default:
+      return ''
+  }
+}
+
+const getLogRowClassName = ({ row }: { row: any }) => {
+  switch (row.level) {
+    case 'warn':
+      return 'no-hover warning-row'
+    case 'error':
+      return 'no-hover danger-row'
+    default:
+      return 'no-hover normal-row'
+  }
+}
+
 onBeforeMount(async () => {
   if (autoRefresh.value) {
     await store.logFetchAndClear()
@@ -174,5 +220,32 @@ onBeforeUnmount(() => {
 .btn-scrolldown:hover {
   transition: all .3s;
   opacity: 1;  
+}
+</style>
+
+<style lang="scss">
+.el-table .warning-row {
+  --el-table-tr-bg-color: var(--el-color-warning-light-8);
+  &:hover {
+    --el-table-tr-bg-color: var(--el-color-warning-light-9);
+  }
+}
+
+.el-table .danger-row {
+  --el-table-tr-bg-color: var(--el-color-danger-light-8);
+  &:hover {
+    --el-table-tr-bg-color: var(--el-color-danger-light-9);
+  }
+}
+
+.el-table .normal-row {
+  --el-table-tr-bg-color: #f3f5f7;
+  &:hover {
+    --el-table-tr-bg-color: var(--el-color-primary-light-9);
+  }
+}
+
+.no-hover:hover > td {
+  background-color: initial !important;
 }
 </style>
