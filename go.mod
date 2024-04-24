@@ -69,7 +69,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.14.2
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
 	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
-	github.com/slack-go/slack v0.12.4
+	github.com/slack-go/slack v0.12.5
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	github.com/tdewolff/minify/v2 v2.20.19
 	github.com/yuin/goldmark v1.7.1
