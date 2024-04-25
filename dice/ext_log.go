@@ -422,6 +422,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					logFile, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
 					if err != nil {
 						ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
 					var emails []string
