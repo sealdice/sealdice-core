@@ -515,14 +515,25 @@ func DecksDetect(d *Dice) {
 }
 
 func DeckDelete(_ *Dice, deck *DeckInfo) {
-	dirpath := filepath.Dir(deck.Filename)
-	dirname := filepath.Base(dirpath)
+	dirPath := filepath.Dir(deck.Filename)
+	dirName := filepath.Base(dirPath)
 
-	if strings.HasPrefix(dirname, "_") && strings.HasSuffix(dirname, ".deck") {
-		// 可能是zip解压出来的，那么删除目录和压缩包
-		_ = os.RemoveAll(dirpath)
-		zipFilename := filepath.Join(filepath.Dir(dirpath), dirname[1:])
-		_ = os.Remove(zipFilename)
+	var topPath, topName string
+	for {
+		if filepath.ToSlash(dirPath) == "data/decks" || dirPath == "." {
+			break
+		}
+		if strings.HasPrefix(dirName, "_") && strings.HasSuffix(dirName, ".deck") {
+			topPath = dirPath
+			topName = dirName
+		}
+		dirPath = filepath.Dir(dirPath)
+		dirName = filepath.Base(dirPath)
+	}
+	if topPath != "" {
+		_ = os.RemoveAll(topPath)
+		zipFilename := filepath.Join(filepath.Dir(topPath), topName[1:])
+		os.Remove(zipFilename)
 	} else {
 		_ = os.Remove(deck.Filename)
 	}
