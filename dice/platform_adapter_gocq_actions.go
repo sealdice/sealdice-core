@@ -289,9 +289,11 @@ func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, 
 	dice := pa.Session.Parent
 	// 路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
 	fileName, temp, err := message.ExtractLocalTempFile(path)
-	defer func(name string) {
-		_ = os.Remove(name)
-	}(temp.Name())
+
+	// 删除文件后 lagrange 发送不出去，先注释掉
+	// defer func(name string) {
+	// 	 _ = os.Remove(name)
+	// }(temp)
 
 	if err != nil {
 		dice.Logger.Errorf("尝试发送文件[path=%s]出错: %s", path, err.Error())
@@ -307,7 +309,7 @@ func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, 
 		Action: "upload_private_file",
 		Params: uploadPrivateFileParams{
 			UserID: rawID,
-			File:   temp.Name(),
+			File:   temp,
 			Name:   fileName,
 		},
 	})
@@ -329,9 +331,11 @@ func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupID string, 
 	dice := pa.Session.Parent
 	// 路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
 	fileName, temp, err := message.ExtractLocalTempFile(path)
-	defer func(name string) {
-		_ = os.Remove(name)
-	}(temp.Name())
+
+	// 删除文件后 lagrange 发送不出去，先注释掉
+	// defer func(name string) {
+	//	  _ = os.Remove(name)
+	// }(temp)
 
 	if err != nil {
 		dice.Logger.Errorf("尝试发送文件[path=%s]出错: %s", path, err.Error())
@@ -347,7 +351,7 @@ func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupID string, 
 		Action: "upload_group_file",
 		Params: uploadGroupFileParams{
 			GroupID: rawID,
-			File:    temp.Name(),
+			File:    temp,
 			Name:    fileName,
 		},
 	})
