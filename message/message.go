@@ -171,27 +171,27 @@ func calculateMD5(header http.Header) string {
 }
 
 // ExtractLocalTempFile 按路径提取临时文件，路径可以是 http/base64/本地路径
-func ExtractLocalTempFile(path string) (string, *os.File, error) {
+func ExtractLocalTempFile(path string) (string, string, error) {
 	fileElement, err := FilepathToFileElement(path)
 	if err != nil {
-		return "", nil, err
+		return "", "", err
 	}
 	temp, err := os.CreateTemp("", "temp-")
-	defer func(name string) {
-		_ = os.Remove(name)
-	}(temp.Name())
+	defer func(temp *os.File) {
+		_ = temp.Close()
+	}(temp)
 	if err != nil {
-		return "", nil, err
+		return "", "", err
 	}
 	data, err := io.ReadAll(fileElement.Stream)
 	if err != nil {
-		return "", nil, err
+		return "", "", err
 	}
 	_, err = temp.Write(data)
 	if err != nil {
-		return "", nil, err
+		return "", "", err
 	}
-	return fileElement.File, temp, nil
+	return fileElement.File, temp.Name(), nil
 }
 
 func FilepathToFileElement(fp string) (*FileElement, error) {
