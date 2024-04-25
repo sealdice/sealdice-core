@@ -515,27 +515,27 @@ func DecksDetect(d *Dice) {
 }
 
 func DeckDelete(_ *Dice, deck *DeckInfo) {
-	dirpath := filepath.Dir(deck.Filename)
-	dirname := filepath.Base(dirpath)
+	dirPath := filepath.Dir(filepath.ToSlash(deck.Filename))
+	dirName := filepath.Base(dirPath)
 
 	var topPath, topName string
 	for {
-		if dirpath == "data\\decks" {
+		if dirPath == "data/decks" {
 			break
 		}
-		if strings.HasPrefix(dirname, "_") && strings.HasSuffix(dirname, ".deck") {
-			toppath = dirpath
-			topname = dirname
+		if strings.HasPrefix(dirName, "_") && strings.HasSuffix(dirName, ".deck") {
+			topPath = dirPath
+			topName = dirName
 		}
-		dirpath = filepath.Dir(dirpath)
-		dirname = filepath.Base(dirpath)
+		dirPath = filepath.Dir(dirPath)
+		dirName = filepath.Base(dirPath)
 	}
-	if toppath != "" {
-		_ = os.RemoveAll(toppath)
-		zipFilename := filepath.Join(filepath.Dir(toppath), topname[1:])
+	if topPath != "" {
+		_ = os.RemoveAll(topPath)
+		zipFilename := filepath.Join(filepath.Dir(topPath), topName[1:])
 		os.Remove(zipFilename)
 	} else {
-		_ = os.Remove(deck.Filename)
+		_ = os.Remove(filepath.ToSlash(deck.Filename))
 	}
 }
 
