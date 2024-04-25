@@ -518,7 +518,7 @@ func DeckDelete(_ *Dice, deck *DeckInfo) {
 	dirpath := filepath.Dir(deck.Filename)
 	dirname := filepath.Base(dirpath)
 
-	var toppath, topname string
+	var topPath, topName string
 	for {
 		if dirpath == "data\\decks" {
 			break
