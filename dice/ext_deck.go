@@ -520,7 +520,7 @@ func DeckDelete(_ *Dice, deck *DeckInfo) {
 
 	var topPath, topName string
 	for {
-		if filepath.ToSlash(dirPath) == "data/decks" {
+		if filepath.ToSlash(dirPath) == "data/decks" || dirPath == "." {
 			break
 		}
 		if strings.HasPrefix(dirName, "_") && strings.HasSuffix(dirName, ".deck") {
