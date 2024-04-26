@@ -206,11 +206,19 @@ func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs) {
 	_, _, _ = ctx.Dice.ExprTextBase(m.Message, ctx, RollExtraFlags{})
 }
 
+type ReplyConditions []ReplyConditionBase
+
+var _ json.Unmarshaler = (*ReplyConditions)(nil)
+var _ yaml.Unmarshaler = (*ReplyConditions)(nil)
+
 type ReplyItem struct {
-	Enable     bool                 `yaml:"enable" json:"enable"`
-	Conditions []ReplyConditionBase `yaml:"conditions" json:"conditions"`
-	Results    []ReplyResultBase    `yaml:"results" json:"results"`
+	Enable     bool              `yaml:"enable" json:"enable"`
+	Conditions ReplyConditions   `yaml:"conditions" json:"conditions"`
+	Results    []ReplyResultBase `yaml:"results" json:"results"`
 }
+
+var _ json.Unmarshaler = (*ReplyItem)(nil)
+var _ yaml.Unmarshaler = (*ReplyItem)(nil)
 
 type ReplyConfig struct {
 	Enable   bool         `yaml:"enable" json:"enable"`
@@ -224,6 +232,9 @@ type ReplyConfig struct {
 	CreateTimestamp int64    `yaml:"createTimestamp" json:"createTimestamp"`
 	UpdateTimestamp int64    `yaml:"updateTimestamp" json:"updateTimestamp"`
 	Desc            string   `yaml:"desc" json:"desc"`
+
+	// 文件级别执行条件
+	Conditions ReplyConditions `yaml:"conditions" json:"conditions"`
 
 	// web专用
 	Filename string `yaml:"-" json:"filename"`
@@ -239,167 +250,10 @@ func (c *ReplyConfig) Save(dice *Dice) {
 	}
 }
 
-func (ri *ReplyItem) UnmarshalJSON(data []byte) error {
-	var err error
-	m := map[string]interface{}{}
-
-	if err = json.Unmarshal(data, &m); err != nil {
-		return err
-	}
-
-	ri.Enable, _ = m["enable"].(bool)
-
-	tryUnmarshal := func(input interface{}, t reflect.Type) (interface{}, error) {
-		valueBytes, err := json.Marshal(input)
-		if err != nil {
-			return nil, err
-		}
-		value := reflect.New(t).Interface()
-		if err = json.Unmarshal(valueBytes, &value); err != nil {
-			return nil, err
-		}
-
-		return value, nil
-	}
-
-	if m["conditions"] != nil {
-		ri.Conditions = []ReplyConditionBase{}
-		cs, ok := m["conditions"].([]interface{})
-		if ok {
-			typeMap := map[string]reflect.Type{
-				"textMatch":    reflect.TypeOf(ReplyConditionTextMatch{}),
-				"exprTrue":     reflect.TypeOf(ReplyConditionExprTrue{}),
-				"textLenLimit": reflect.TypeOf(ReplyConditionTextLenLimit{}),
-			}
-
-			for _, i := range cs {
-				mm, ok := i.(map[string]interface{})
-				if ok && mm["condType"] != nil {
-					name, _ := mm["condType"].(string)
-					theType := typeMap[name]
-					if theType != nil {
-						val, err := tryUnmarshal(i, theType)
-						if err != nil {
-							return err
-						}
-						ri.Conditions = append(ri.Conditions, val.(ReplyConditionBase))
-					}
-				}
-			}
-		}
-	}
-
-	if m["results"] != nil {
-		ri.Results = []ReplyResultBase{}
-		rs, ok := m["results"].([]interface{})
-		if ok {
-			typeMap := map[string]reflect.Type{
-				"replyPrivate":  reflect.TypeOf(ReplyResultReplyPrivate{}),
-				"replyGroup":    reflect.TypeOf(ReplyResultReplyGroup{}),
-				"replyToSender": reflect.TypeOf(ReplyResultReplyToSender{}),
-				"runText":       reflect.TypeOf(ReplyResultRunText{}),
-			}
-
-			for _, i := range rs {
-				m, ok := i.(map[string]interface{})
-				if ok && m["resultType"] != nil {
-					name, _ := m["resultType"].(string)
-					theType := typeMap[name]
-					if theType != nil {
-						val, err := tryUnmarshal(i, theType)
-						if err != nil {
-							return err
-						}
-						ri.Results = append(ri.Results, val.(ReplyResultBase))
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (ri *ReplyItem) UnmarshalYAML(value *yaml.Node) error {
-	var err error
-	m := map[string]interface{}{}
-
-	err = value.Decode(m)
-	if err != nil {
-		return err
-	}
-
-	ri.Enable, _ = m["enable"].(bool)
-
-	tryUnmarshal := func(input interface{}, t reflect.Type) (interface{}, error) {
-		valueBytes, err := yaml.Marshal(input)
-		if err != nil {
-			return nil, err
-		}
-		value := reflect.New(t).Interface()
-		if err = yaml.Unmarshal(valueBytes, value); err != nil {
-			return nil, err
-		}
-		return value, nil
-	}
-
-	if m["conditions"] != nil {
-		ri.Conditions = []ReplyConditionBase{}
-		cs, ok := m["conditions"].([]interface{})
-		if ok {
-			typeMap := map[string]reflect.Type{
-				"textMatch":    reflect.TypeOf(ReplyConditionTextMatch{}),
-				"exprTrue":     reflect.TypeOf(ReplyConditionExprTrue{}),
-				"textLenLimit": reflect.TypeOf(ReplyConditionTextLenLimit{}),
-			}
-
-			for _, i := range cs {
-				mm, ok := i.(map[string]interface{})
-				if ok && mm["condType"] != nil {
-					name, _ := mm["condType"].(string)
-					theType := typeMap[name]
-					if theType != nil {
-						val, err := tryUnmarshal(i, theType)
-						if err != nil {
-							return err
-						}
-						ri.Conditions = append(ri.Conditions, val.(ReplyConditionBase))
-					}
-				}
-			}
-		}
-	}
-
-	if m["results"] != nil {
-		ri.Results = []ReplyResultBase{}
-		rs, ok := m["results"].([]interface{})
-		if ok {
-			typeMap := map[string]reflect.Type{
-				"replyPrivate":  reflect.TypeOf(ReplyResultReplyPrivate{}),
-				"replyGroup":    reflect.TypeOf(ReplyResultReplyGroup{}),
-				"replyToSender": reflect.TypeOf(ReplyResultReplyToSender{}),
-				"runText":       reflect.TypeOf(ReplyResultRunText{}),
-			}
-
-			for _, i := range rs {
-				m, ok := i.(map[string]interface{})
-				if ok && m["resultType"] != nil {
-					name, _ := m["resultType"].(string)
-					theType := typeMap[name]
-					if theType != nil {
-						val, err := tryUnmarshal(i, theType)
-						if err != nil {
-							return err
-						}
-						ri.Results = append(ri.Results, val.(ReplyResultBase))
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
 func (c *ReplyConfig) Clean() {
+	for _, cond := range c.Conditions {
+		cond.Clean()
+	}
 	for _, i := range c.Items {
 		for _, j := range i.Conditions {
 			j.Clean()
@@ -408,4 +262,210 @@ func (c *ReplyConfig) Clean() {
 			j.Clean()
 		}
 	}
+}
+
+func (cond *ReplyConditions) UnmarshalJSON(data []byte) error {
+	var err error
+	var cs = []any{}
+	typeMap := map[string]reflect.Type{
+		"textMatch":    reflect.TypeOf(ReplyConditionTextMatch{}),
+		"exprTrue":     reflect.TypeOf(ReplyConditionExprTrue{}),
+		"textLenLimit": reflect.TypeOf(ReplyConditionTextLenLimit{}),
+	}
+
+	if err = json.Unmarshal(data, &cs); err != nil {
+		return err
+	}
+
+	next := make([]ReplyConditionBase, 0, len(cs))
+
+	for _, condRaw := range cs {
+		condRawMap, ok := condRaw.(map[string]any)
+		if !ok || condRawMap["condType"] == nil {
+			continue
+		}
+		typeName, _ := condRawMap["condType"].(string)
+		theType := typeMap[typeName]
+		if theType != nil {
+			val, err := tryUnmarshalYAML(condRaw, theType)
+			if err != nil {
+				return err
+			}
+			next = append(next, val.(ReplyConditionBase))
+		}
+	}
+
+	*cond = next
+	return nil
+}
+
+func (cond *ReplyConditions) UnmarshalYAML(data *yaml.Node) error {
+	var err error
+	var cs = []any{}
+	typeMap := map[string]reflect.Type{
+		"textMatch":    reflect.TypeOf(ReplyConditionTextMatch{}),
+		"exprTrue":     reflect.TypeOf(ReplyConditionExprTrue{}),
+		"textLenLimit": reflect.TypeOf(ReplyConditionTextLenLimit{}),
+	}
+
+	// HACK: 用更加符合 yaml 库原生设计的方式重新实现
+	if err = data.Decode(&cs); err != nil {
+		return err
+	}
+
+	next := make([]ReplyConditionBase, 0, len(cs))
+
+	for _, condRaw := range cs {
+		condRawMap, ok := condRaw.(map[string]any)
+		if !ok || condRawMap["condType"] == nil {
+			continue
+		}
+		typeName, _ := condRawMap["condType"].(string)
+		theType := typeMap[typeName]
+		if theType != nil {
+			val, err := tryUnmarshalYAML(condRaw, theType)
+			if err != nil {
+				return err
+			}
+			next = append(next, val.(ReplyConditionBase))
+		}
+	}
+
+	*cond = next
+	return nil
+}
+
+func (ri *ReplyItem) UnmarshalJSON(data []byte) error {
+	var err error
+	m := map[string]json.RawMessage{}
+
+	if err = json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+
+	if val, ok := m["enable"]; ok {
+		_ = json.Unmarshal(val, &ri.Enable)
+	}
+
+	if val, ok := m["conditions"]; ok {
+		err = json.Unmarshal(val, &ri.Conditions)
+		if err != nil {
+			return err
+		}
+	}
+
+	if val, ok := m["results"]; ok {
+		ri.Results = []ReplyResultBase{}
+
+		rs := []any{}
+		err = json.Unmarshal(val, &rs)
+		if err != nil {
+			return err
+		}
+
+		typeMap := map[string]reflect.Type{
+			"replyPrivate":  reflect.TypeOf(ReplyResultReplyPrivate{}),
+			"replyGroup":    reflect.TypeOf(ReplyResultReplyGroup{}),
+			"replyToSender": reflect.TypeOf(ReplyResultReplyToSender{}),
+			"runText":       reflect.TypeOf(ReplyResultRunText{}),
+		}
+
+		for _, i := range rs {
+			m, ok := i.(map[string]interface{})
+			if ok && m["resultType"] != nil {
+				name, _ := m["resultType"].(string)
+				theType := typeMap[name]
+				if theType != nil {
+					val, err := tryUnmarshalJSON(i, theType)
+					if err != nil {
+						return err
+					}
+					ri.Results = append(ri.Results, val.(ReplyResultBase))
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (ri *ReplyItem) UnmarshalYAML(value *yaml.Node) error {
+	var err error
+	m := map[string]yaml.Node{}
+
+	err = value.Decode(m)
+	if err != nil {
+		return err
+	}
+
+	if val, ok := m["enable"]; ok {
+		_ = val.Decode(&ri.Enable)
+	}
+
+	if val, ok := m["conditions"]; ok {
+		ri.Conditions = ReplyConditions{}
+		err = val.Decode(&ri.Conditions)
+		if err != nil {
+			return err
+		}
+	}
+
+	if val, ok := m["results"]; ok {
+		ri.Results = []ReplyResultBase{}
+		rs := []any{}
+		err = yaml.Unmarshal([]byte(val.Value), &rs)
+		if err != nil {
+			return err
+		}
+
+		typeMap := map[string]reflect.Type{
+			"replyPrivate":  reflect.TypeOf(ReplyResultReplyPrivate{}),
+			"replyGroup":    reflect.TypeOf(ReplyResultReplyGroup{}),
+			"replyToSender": reflect.TypeOf(ReplyResultReplyToSender{}),
+			"runText":       reflect.TypeOf(ReplyResultRunText{}),
+		}
+
+		for _, i := range rs {
+			m, ok := i.(map[string]interface{})
+			if ok && m["resultType"] != nil {
+				name, _ := m["resultType"].(string)
+				theType := typeMap[name]
+				if theType != nil {
+					val, err := tryUnmarshalYAML(i, theType)
+					if err != nil {
+						return err
+					}
+					ri.Results = append(ri.Results, val.(ReplyResultBase))
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func tryUnmarshalJSON(input any, t reflect.Type) (any, error) {
+	valueBytes, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+	value := reflect.New(t).Interface()
+	if err = json.Unmarshal(valueBytes, &value); err != nil {
+		return nil, err
+	}
+
+	return value, nil
+}
+
+func tryUnmarshalYAML(input any, t reflect.Type) (any, error) {
+	// TODO(Xiangze Li): 真的需要区分json和yaml吗？输入已经是any了，中间格式用任何一种应该都可以
+	valueBytes, err := yaml.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+	value := reflect.New(t).Interface()
+	if err = yaml.Unmarshal(valueBytes, value); err != nil {
+		return nil, err
+	}
+
+	return value, nil
 }

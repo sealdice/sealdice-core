@@ -31,6 +31,9 @@ func CustomReplyConfigRead(dice *Dice, filename string) (*ReplyConfig, error) {
 	if rc.Items == nil {
 		rc.Items = []*ReplyItem{}
 	}
+	if rc.Conditions == nil {
+		rc.Conditions = []ReplyConditionBase{}
+	}
 
 	return rc, nil
 }
@@ -51,7 +54,16 @@ func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 	}
 
 	nowTime := time.Now().Unix()
-	rc := &ReplyConfig{Enable: true, Filename: filename, Name: filename, Items: []*ReplyItem{}, UpdateTimestamp: nowTime, CreateTimestamp: nowTime, Author: []string{"无名海豹"}}
+	rc := &ReplyConfig{
+		Enable:          true,
+		Filename:        filename,
+		Name:            filename,
+		Items:           []*ReplyItem{},
+		UpdateTimestamp: nowTime,
+		CreateTimestamp: nowTime,
+		Author:          []string{"无名海豹"},
+		Conditions:      []ReplyConditionBase{},
+	}
 	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
 	rc.Save(dice)
 	return rc
@@ -152,66 +164,81 @@ func RegisterBuiltinExtReply(dice *Dice) {
 				if executed {
 					break
 				}
-				if rc.Enable {
-					condIndex := -1
-					defer func() {
-						if r := recover(); r != nil {
-							log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
-							if condIndex != -1 {
-								ReplyToSender(ctx, msg, fmt.Sprintf(
-									"自定义回复匹配成功(序号%d)，但回复内容触发异常，请联系骰主修改:\n%s",
-									condIndex, DiceFormatTmpl(ctx, "核心:骰子执行异常")))
-							}
-						}
-					}()
-
-					checkInCoolDown := func() bool {
-						lastTime := ctx.Group.LastCustomReplyTime
-						now := float64(time.Now().UnixMilli()) / 1000
-						interval := rc.Interval
-						if interval < 2 {
-							interval = 2
-						}
-
-						if now-lastTime < interval {
-							return true // 未达到冷却，退出
-						}
-						ctx.Group.LastCustomReplyTime = now
-						return false
-					}
-
-					for index, i := range rc.Items {
-						if i.Enable {
-							checkTrue := true
-							for _, i := range i.Conditions {
-								if !i.Check(ctx, msg, nil, cleanText) {
-									checkTrue = false
-									break
-								}
-							}
-							condIndex = index
-							if len(i.Conditions) > 0 && checkTrue {
-								inCoolDown := checkInCoolDown()
-								if inCoolDown {
-									// 仍在冷却，拒绝回复
-									log.Infof("自定义回复[%s]: 条件满足，但正处于冷却", rc.Filename)
-									return
-								}
-							}
-
-							if len(i.Conditions) > 0 && checkTrue {
-								log.Infof("自定义回复[%s]: 条件满足", rc.Filename)
-
-								SetTempVars(ctx, msg.Sender.Nickname)
-								VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
-								for _, j := range i.Results {
-									j.Execute(ctx, msg, nil)
-								}
-								executed = true
-								break
-							}
+				if !rc.Enable {
+					continue
+				}
+				condIndex := -1
+				defer func() {
+					if r := recover(); r != nil {
+						log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
+						if condIndex != -1 {
+							ReplyToSender(ctx, msg, fmt.Sprintf(
+								"自定义回复匹配成功(序号%d)，但回复内容触发异常，请联系骰主修改:\n%s",
+								condIndex, DiceFormatTmpl(ctx, "核心:骰子执行异常")))
 						}
 					}
+				}()
+
+				{
+					commonCondOK := true
+					for _, cond := range rc.Conditions {
+						if !cond.Check(ctx, msg, nil, cleanText) {
+							commonCondOK = false
+							break
+						}
+					}
+					if !commonCondOK {
+						continue
+					}
+				}
+
+				checkInCoolDown := func() bool {
+					lastTime := ctx.Group.LastCustomReplyTime
+					now := float64(time.Now().UnixMilli()) / 1000
+					interval := rc.Interval
+					if interval < 2 {
+						interval = 2
+					}
+
+					if now-lastTime < interval {
+						return true // 未达到冷却，退出
+					}
+					ctx.Group.LastCustomReplyTime = now
+					return false
+				}
+
+				for index, i := range rc.Items {
+					if !i.Enable {
+						continue
+					}
+
+					checkTrue := true
+					for _, i := range i.Conditions {
+						if !i.Check(ctx, msg, nil, cleanText) {
+							checkTrue = false
+							break
+						}
+					}
+
+					condIndex = index
+					if len(i.Conditions) == 0 || !checkTrue {
+						continue
+					}
+
+					if checkInCoolDown() {
+						// 仍在冷却，拒绝回复
+						log.Infof("自定义回复[%s]: 条件满足，但正处于冷却", rc.Filename)
+						return
+					}
+					log.Infof("自定义回复[%s]: 条件满足", rc.Filename)
+
+					SetTempVars(ctx, msg.Sender.Nickname)
+					VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
+					for _, j := range i.Results {
+						j.Execute(ctx, msg, nil)
+					}
+					executed = true
+					break
 				}
 			}
 		},
