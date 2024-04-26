@@ -531,7 +531,7 @@ func (pa *PlatformAdapterLagrangeGo) SetGroupCardName(ctx *MsgContext, name stri
 		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
-	pa.QQClient.RefreshGroupMembersCache(uint32(groupCode))
+	_ = pa.QQClient.RefreshGroupMembersCache(uint32(groupCode))
 	req, err := oidb.BuildGroupRenameMemberReq(uint32(groupCode), pa.QQClient.GetUid(uint32(userCode), uint32(groupCode)), name)
 	if err != nil {
 		log.Errorf("BuildGroupRenameMemberReq failed: %v", err)
