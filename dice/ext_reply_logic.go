@@ -413,7 +413,7 @@ func (ri *ReplyItem) UnmarshalYAML(value *yaml.Node) error {
 	if val, ok := m["results"]; ok {
 		ri.Results = []ReplyResultBase{}
 		rs := []any{}
-		err = yaml.Unmarshal([]byte(val.Value), &rs)
+		err = val.Decode(&rs)
 		if err != nil {
 			return err
 		}
