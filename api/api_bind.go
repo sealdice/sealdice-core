@@ -158,7 +158,10 @@ func forceStop(c echo.Context) error {
 				i.Save(true)
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
-						_ = j.Storage.Close()
+						err := j.StorageClose()
+						if err != nil {
+							logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
+						}
 					}
 				}
 				i.IsAlreadyLoadConfig = false

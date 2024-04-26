@@ -108,25 +108,54 @@ func (i *ExtInfo) StorageInit() error {
 		return errors.New("请先完成此扩展的注册")
 	}
 	d := i.dice
-	// 注: 这里可能会有极小概率并发问题
-	if i.Storage == nil {
-		dir := d.GetExtDataDir(i.Name)
-		fn := path.Join(dir, "storage.db")
-		i.Storage, err = buntdb.Open(fn)
-		if err != nil {
-			d.Logger.Error("初始化扩展数据库失败", fn)
-			d.Logger.Error(err.Error())
-			return err
-		}
+
+	// 使用互斥锁保护初始化过程，确保只初始化一次
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	// d.Logger.Infof("[插件]：%s 正在尝试获取锁进行初始化", i.Name)
+	if i.init {
+		// d.Logger.Info("[插件]:初始化调用，但数据库已经加载")
+		return nil // 如果已经初始化，则直接返回
 	}
-	return err
+
+	dir := d.GetExtDataDir(i.Name)
+	fn := path.Join(dir, "storage.db")
+	i.Storage, err = buntdb.Open(fn)
+	if err != nil {
+		d.Logger.Error("初始化扩展数据库失败", fn)
+		d.Logger.Error(err.Error())
+		return err
+	}
+	// 否则初始化后使用
+	i.init = true
+	return nil
+}
+
+func (i *ExtInfo) StorageClose() error {
+	// 先上锁
+	i.mu.Lock()
+	// 保证还锁
+	defer i.mu.Unlock()
+	// 检查是否在init中
+	if !i.init {
+
+		// 此时已经关闭了，不需要再次关闭
+		return nil
+	} else {
+		// 说初始化了但没有初始化，应该抛出异常
+		if i.Storage == nil {
+			return errors.New("Storage初始化错误")
+		}
+		err := i.Storage.Close()
+		i.Storage = nil
+		return err
+	}
 }
 
 func (i *ExtInfo) StorageSet(k, v string) error {
 	if err := i.StorageInit(); err != nil {
 		return err
 	}
-
 	db := i.Storage
 	return db.Update(func(tx *buntdb.Tx) error {
 		_, _, err := tx.Set(k, v, nil)
@@ -138,6 +167,7 @@ func (i *ExtInfo) StorageGet(k string) (string, error) {
 	if err := i.StorageInit(); err != nil {
 		return "", err
 	}
+
 	var val string
 	var err error
 
