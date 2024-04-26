@@ -412,7 +412,7 @@ func (ri *ReplyItem) UnmarshalYAML(value *yaml.Node) error {
 
 	if val, ok := m["results"]; ok {
 		ri.Results = []ReplyResultBase{}
-		rs := []any{}
+		var rs []any
 		err = val.Decode(&rs)
 		if err != nil {
 			return err
