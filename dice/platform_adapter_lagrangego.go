@@ -327,8 +327,45 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 
 	pa.QQClient.GroupMemberLeaveEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberDecrease) {
 		log.Debugf("GroupLeaveEvent: %+v", event)
-		log.Debugf("GroupLeaveEvent ExitType: %+v", event.ExitType)
-		log.Debugf("GroupLeaveEvent IsKicked: %+v", event.IsKicked())
+		if event.ExitType == 3 {
+			// targetUin := pa.QQClient.GetUin(event.MemberUid, event.GroupUin)
+			operatorUin := pa.QQClient.GetUin(event.OperatorUid, event.GroupUin)
+			// if targetUin != pa.UIN {
+			//	return
+			// }
+			ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+			opUID := FormatDiceIDQQ(strconv.Itoa(int(operatorUin)))
+			groupID := FormatDiceIDQQGroup(strconv.Itoa(int(event.GroupUin)))
+			dm := pa.Session.Parent.Parent
+			groupName := dm.TryGetGroupName(groupID)
+			userName := dm.TryGetUserName(opUID)
+
+			// Note: 从 gocq 抄过来的，为什么禁言就没有这一段呢？
+			skip := false
+			skipReason := ""
+			banInfo, ok := ctx.Dice.BanList.GetByID(opUID)
+			if ok {
+				if banInfo.Rank == 30 {
+					skip = true
+					skipReason = "信任用户"
+				}
+			}
+			if ctx.Dice.IsMaster(opUID) {
+				skip = true
+				skipReason = "Master"
+			}
+
+			var extra string
+			if skip {
+				extra = fmt.Sprintf("\n取消处罚，原因为%s", skipReason)
+			} else {
+				ctx.Dice.BanList.AddScoreByGroupKicked(opUID, groupID, ctx)
+			}
+
+			txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, groupID, userName, opUID, extra)
+			log.Info(txt)
+			ctx.Notice(txt)
+		}
 	})
 
 	pa.QQClient.GroupMemberJoinRequestEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberJoinRequest) {
@@ -337,10 +374,32 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 
 	pa.QQClient.GroupMemberJoinEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberIncrease) {
 		log.Debugf("GroupMemberJoinEvent: %+v", event)
+		_ = pa.QQClient.RefreshGroupMembersCache(event.GroupUin)
 	})
 
 	pa.QQClient.GroupMuteEvent.Subscribe(func(client *client.QQClient, event *event.GroupMute) {
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
 		log.Debugf("GroupMuteEvent: %+v", event)
+		targetUin := pa.QQClient.GetUin(event.TargetUid, event.GroupUin)
+		operatorUin := pa.QQClient.GetUin(event.OperatorUid, event.GroupUin)
+		if targetUin == pa.UIN {
+			log.Debugf("Muted by %v", operatorUin)
+		} else {
+			return
+		}
+		// 解除禁言
+		if event.Duration == 0 {
+			return
+		}
+		dm := pa.Session.Parent.Parent
+		opUID := FormatDiceIDQQ(strconv.Itoa(int(operatorUin)))
+		groupID := FormatDiceIDQQGroup(strconv.Itoa(int(event.GroupUin)))
+		groupName := dm.TryGetGroupName(groupID)
+		userName := dm.TryGetUserName(opUID)
+		ctx.Dice.BanList.AddScoreByGroupMuted(opUID, groupID, ctx)
+		txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, groupID, event.Duration, userName, opUID)
+		log.Info(txt)
+		ctx.Notice(txt)
 	})
 
 	err = SaveSigInfo(pa.configDir+"/siginfo.gob", pa.sig)
