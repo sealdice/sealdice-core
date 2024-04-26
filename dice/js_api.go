@@ -1,4 +1,3 @@
-//nolint:gosec
 package dice
 
 import (
@@ -19,6 +18,7 @@ func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
 		if e != nil {
 			logger.Errorf("不合法的base64值：%s", b64)
 			// 出现错误，拒绝向下执行
+			return ""
 		}
 		// 计算 MD5 哈希值作为文件名
 		hash := md5.Sum(data)
@@ -65,7 +65,7 @@ func FileWrite(logger *zap.SugaredLogger) func(ei *ExtInfo, name string, ctx str
 		// 没有办法获取插件名称，强制把 ExtInfo 塞进去
 		// 出于安全，仅允许 js 插件文件 io 限制在 plugin 文件夹
 
-		path := filepath.Join("plugin", ei.Name)
+		path := filepath.Join("default", "extensions", ei.Name)
 		path = filepath.ToSlash(path)
 		err := os.MkdirAll(path, 0755)
 		if err != nil {
@@ -87,7 +87,7 @@ func FileWrite(logger *zap.SugaredLogger) func(ei *ExtInfo, name string, ctx str
 
 		_, err = file.WriteString(ctx) // 将内容写入文件
 		if err != nil {
-			logger.Errorf("写入文件出错:", err)
+			logger.Errorf("写入文件出错:%s", err)
 			return
 		}
 	}
