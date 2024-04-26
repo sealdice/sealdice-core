@@ -1,28 +1,58 @@
 <script setup lang="ts">
 import {ArrowDown, ArrowRight, CircleClose} from "@element-plus/icons-vue";
 import {onMounted, ref} from "vue";
+import {ElCard} from "element-plus";
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   shadow?: 'always' | 'never' | 'hover'
+  type: 'card' | 'div' | string
   errTitle?: string,
   errText?: string,
+  defaultFold: 'auto' | boolean
 }>(), {
   shadow: 'hover',
-})
+  type: 'card',
+  defaultFold: 'auto',
+});
+
+const getCardType = (t: string) => {
+  switch (t) {
+    case 'card':
+      return ElCard
+    default:
+      return t
+  }
+}
 
 const folded = ref<boolean>(true)
 
+const open = () => {
+  folded.value = false
+}
+
+const close = () => {
+  folded.value = true
+}
+
 const updateFolded = () => {
-  folded.value = !window.matchMedia("(min-width: 768px)").matches;
+  if (props.defaultFold === 'auto') {
+    folded.value = !window.matchMedia("(min-width: 768px)").matches;
+    console.log('auto fold')
+  } else {
+    folded.value = props.defaultFold
+    console.log('default fold:', props.defaultFold)
+  }
 }
 window.addEventListener("resize", updateFolded);
 onMounted(() => {
   updateFolded()
 })
+
+defineExpose({open, close})
 </script>
 
 <template>
-  <el-card :shadow="shadow">
+  <component :is="getCardType(type)" :shadow="shadow">
     <main v-if="!errText" class="foldable-card">
       <header class="header">
         <div class="title">
@@ -105,7 +135,7 @@ onMounted(() => {
         </div>
       </div>
     </main>
-  </el-card>
+  </component>
 </template>
 
 <style scoped lang="scss">

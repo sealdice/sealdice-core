@@ -83,6 +83,37 @@
       <el-text type="danger" size="large" style="font-size: 1.5rem;">请先启用总开关！</el-text>
     </template>
     <template v-else>
+      <foldable-card ref="commonConditionsRef" type="div" :default-fold="true">
+        <template #title>
+          <el-space size="large" wrap>
+            <el-space size="small">
+              <strong>公共条件</strong>
+              <el-button type="success" size="small" plain :icon="Plus" @click="addOneCondition(conditions)">添加一项</el-button>
+            </el-space>
+            <el-text type="info" size="small">该文件下所有的回复的执行，都需要先满足以下公共条件（需同时满足，即and）。</el-text>
+          </el-space>
+        </template>
+
+        <template v-if="conditions && conditions.length > 0">
+          <custom-reply-condition v-for="(_, index2) in (conditions || [])" :key="index2"
+                                  v-model="conditions[index2]" @delete="deleteAnyItem(conditions, index2)"/>
+        </template>
+        <template v-else>
+          <el-text type="info">当前无公共条件</el-text>
+        </template>
+
+        <template #unfolded-extra>
+          <template v-if="conditions && conditions.length > 0">
+            <el-text type="info">公共条件数量：{{ conditions.length }}</el-text>
+          </template>
+          <template v-else>
+            <el-text type="info">当前无公共条件</el-text>
+          </template>
+        </template>
+      </foldable-card>
+
+      <el-divider/>
+
       <nested-draggable :tasks="list" :class="cr.enable ? '' : 'disabled'" />
       <div style="display: flex; justify-content: space-between;">
         <el-button type="success" plain :icon="Plus" @click="addOne(list)">添加一项</el-button>
@@ -152,6 +183,7 @@ import {
   Upload,
   Plus
 } from '@element-plus/icons-vue'
+import CustomReplyCondition from "~/components/tools/custom-reply-condition.vue";
 
 const store = useStore()
 const dialogFormVisible = ref(false)
@@ -176,6 +208,10 @@ watch(replyEnable, async (newStatus, oldStatus) => {
 const activeTip = 'basic'
 
 const curFilename = ref('reply.yaml')
+
+const conditions = ref<any>([])
+
+const commonConditionsRef = ref<any>(null)
 
 const list = ref<any>([
   // {"enable":true,"condition":{"condType":"match","matchType":"match_exact","value":"asd"},"results":[{"resultType":"replyToSender","delay":0.3,"message":"text"}]},
@@ -291,8 +327,17 @@ const beforeUpload = async (file: any) => { // UploadRawFile
   }
 }
 
+const addOneCondition = (lst: any) => {
+  lst.push({ "condType": "textMatch", "matchType": "matchExact", "value": "要匹配的文本" })
+  commonConditionsRef.value.open()
+}
+
 const addOne = (lst: any) => {
   lst.push({ "enable": true, "notCollapse": true, "conditions": [{ "condType": "textMatch", "matchType": "matchExact", "value": "要匹配的文本" }], "results": [{ "resultType": "replyToSender", "delay": 0, "message": [["说点什么", 1]] }] },)
+}
+
+const deleteAnyItem = (lst: any[], index: number) => {
+  lst.splice(index, 1);
 }
 
 const doSave = async () => {
@@ -315,6 +360,12 @@ const doSave = async () => {
       }
     }
     cr.value.filename = curFilename.value;
+    cr.value.conditions = conditions.value;
+    for (let cond of cr.value.conditions) {
+      if (cond.condType === 'textLenLimit') {
+        cond.value = parseInt(cond.value) || 0;
+      }
+    }
     await store.setCustomReply(cr.value)
     ElMessage.success('已保存')
     modified.value = false
@@ -418,15 +469,16 @@ onBeforeMount(async () => {
   // 设置调试日志选项
   ret = await store.customReplyDebugModeGet();
   replyDebugMode.value = ret.value;
-  refreshCurrent();
+  await refreshCurrent();
 })
 
 const refreshCurrent = async () => {
   console.log('load', curFilename.value);
   const ret = await store.getCustomReply(curFilename.value) as any
   cr.value = ret
+  conditions.value = ret.conditions
   list.value = ret.items
-  nextTick(() => {
+  await nextTick(() => {
     modified.value = false
   })
 }

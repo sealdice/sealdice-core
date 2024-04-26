@@ -12,6 +12,7 @@ declare module 'vue' {
     CensorLog: typeof import('./components/mod/censor/CensorLog.vue')['default']
     CensorWords: typeof import('./components/mod/censor/CensorWords.vue')['default']
     CensorWordTip: typeof import('./components/mod/censor/CensorWordTip.vue')['default']
+    CustomReplyCondition: typeof import('./components/tools/custom-reply-condition.vue')['default']
     CustomTextBox: typeof import('./components/customText/CustomTextBox.vue')['default']
     DiffViewer: typeof import('./components/tools/diff-viewer.vue')['default']
     ElAffix: typeof import('element-plus/es')['ElAffix']
