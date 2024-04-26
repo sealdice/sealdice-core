@@ -27,6 +27,7 @@ func customReplySave(c echo.Context) error {
 	for index, i := range myDice.CustomReplyConfig {
 		if i.Filename == v.Filename {
 			myDice.CustomReplyConfig[index].Enable = v.Enable
+			myDice.CustomReplyConfig[index].Conditions = v.Conditions
 			myDice.CustomReplyConfig[index].Items = v.Items
 			break
 		}
