@@ -38,7 +38,7 @@ func (c *CQCommand) Compile() string {
 }
 
 type (
-	MessageElement interface {
+	IMessageElement interface {
 		Type() ElementType
 	}
 
@@ -53,12 +53,13 @@ const (
 	TTS                       // 文字转语音
 	Reply                     // 回复
 	Record                    // 语音
+	Face                      // 表情
 )
 
 const maxFileSize = 1024 * 1024 * 50 // 50MB
 
 type TextElement struct {
-	Content string
+	Content string `jsbind:"content"`
 }
 
 func (t *TextElement) Type() ElementType {
@@ -66,7 +67,7 @@ func (t *TextElement) Type() ElementType {
 }
 
 type AtElement struct {
-	Target string
+	Target string `jsbind:"target"`
 }
 
 func (t *AtElement) Type() ElementType {
@@ -74,7 +75,10 @@ func (t *AtElement) Type() ElementType {
 }
 
 type ReplyElement struct {
-	Target string
+	ReplySeq string            `jsbind:"replySeq"` // 回复的目标消息ID
+	Sender   string            `jsbind:"sender"`   // 回复的目标消息发送者ID
+	GroupID  string            `jsbind:"groupID"`  // 回复群聊消息时的群号
+	Elements []IMessageElement `jsbind:"elements"` // 回复的消息内容
 }
 
 func (t *ReplyElement) Type() ElementType {
@@ -102,6 +106,7 @@ func (l *FileElement) Type() ElementType {
 
 type ImageElement struct {
 	File *FileElement
+	URL  string
 }
 
 func (l *ImageElement) Type() ElementType {
@@ -116,11 +121,19 @@ func (r *RecordElement) Type() ElementType {
 	return Record
 }
 
+type FaceElement struct {
+	FaceID string `jsbind:"faceID"`
+}
+
+func (f *FaceElement) Type() ElementType {
+	return Face
+}
+
 func newText(s string) *TextElement {
 	return &TextElement{Content: s}
 }
 
-func CQToText(t string, d map[string]string) MessageElement {
+func CQToText(t string, d map[string]string) IMessageElement {
 	org := "[CQ:" + t
 	for k, v := range d {
 		org += "," + k + "=" + v
@@ -158,27 +171,27 @@ func calculateMD5(header http.Header) string {
 }
 
 // ExtractLocalTempFile 按路径提取临时文件，路径可以是 http/base64/本地路径
-func ExtractLocalTempFile(path string) (string, *os.File, error) {
+func ExtractLocalTempFile(path string) (string, string, error) {
 	fileElement, err := FilepathToFileElement(path)
 	if err != nil {
-		return "", nil, err
+		return "", "", err
 	}
 	temp, err := os.CreateTemp("", "temp-")
-	defer func(name string) {
-		_ = os.Remove(name)
-	}(temp.Name())
+	defer func(temp *os.File) {
+		_ = temp.Close()
+	}(temp)
 	if err != nil {
-		return "", nil, err
+		return "", "", err
 	}
 	data, err := io.ReadAll(fileElement.Stream)
 	if err != nil {
-		return "", nil, err
+		return "", "", err
 	}
 	_, err = temp.Write(data)
 	if err != nil {
-		return "", nil, err
+		return "", "", err
 	}
-	return fileElement.File, temp, nil
+	return fileElement.File, temp.Name(), nil
 }
 
 func FilepathToFileElement(fp string) (*FileElement, error) {
@@ -265,7 +278,7 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 	}
 }
 
-func toElement(t string, dMap map[string]string) (MessageElement, error) {
+func toElement(t string, dMap map[string]string) (IMessageElement, error) {
 	switch t {
 	case "file":
 		p := strings.TrimSpace(dMap["file"])
@@ -307,7 +320,7 @@ func toElement(t string, dMap map[string]string) (MessageElement, error) {
 		return &TTSElement{Content: content}, nil
 	case "reply":
 		target := dMap["id"]
-		return &ReplyElement{Target: target}, nil
+		return &ReplyElement{ReplySeq: target}, nil
 	}
 	return CQToText(t, dMap), nil
 }
@@ -381,7 +394,7 @@ func SealCodeToCqCode(text string) string {
 	return "[图片/文件指向非当前程序目录，已禁止]"
 }
 
-func ConvertStringMessage(raw string) (r []MessageElement) {
+func ConvertStringMessage(raw string) (r []IMessageElement) {
 	var arg, key string
 	dMap := map[string]string{}
 

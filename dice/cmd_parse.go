@@ -3,11 +3,14 @@ package dice
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/fy0/lockfree"
+
+	"sealdice-core/message"
 )
 
 type Kwarg struct {
@@ -222,6 +225,22 @@ func CommandCheckPrefix(rawCmd string, prefix []string, platform string) bool {
 	return prefixStr != ""
 }
 
+// CommandCheckPrefixNew for new command parser ExecuteNew func, 干掉了 AtParse 和 Platform 参数
+func CommandCheckPrefixNew(rawCmd string, prefix []string) bool {
+	restText := strings.TrimSpace(rawCmd)
+	restText, _ = SpecialExecuteTimesParse(restText)
+
+	// 先导符号检测
+	var prefixStr string
+	for _, i := range prefix {
+		if strings.HasPrefix(restText, i) {
+			prefixStr = i
+			break
+		}
+	}
+	return prefixStr != ""
+}
+
 func (cmdArgs *CmdArgs) commandParse(rawCmd string, currentCmdLst []string, prefix []string, platformPrefix string, isParseExecuteTimes bool) *CmdArgs {
 	specialExecuteTimes := 0
 	rawCmd = strings.ReplaceAll(rawCmd, "\r\n", "\n") // 替换\r\n为\n
@@ -307,9 +326,135 @@ func (cmdArgs *CmdArgs) commandParse(rawCmd string, currentCmdLst []string, pref
 	return nil
 }
 
+// commandParseNew for new command parser ExecuteNew func, 干掉了 AtParse 以及一些杂七杂八的东西
+func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseExecuteTimes bool) *CmdArgs {
+	d := ctx.Session.Parent
+	specialExecuteTimes := 0
+	// Note(Szzrain): 这里的 msg.Message 考虑使用消息段(Message.Segment)进行解析，而不是直接使用 Message 字段
+	rawCmd := strings.ReplaceAll(msg.Message, "\r\n", "\n") // 替换\r\n为\n
+	// Note(Szzrain): 使用消息段进行解析，AtParse 弃用
+	// restText, atInfo := AtParse(rawCmd, platformPrefix)
+	// 同时弃用 SetAtInfo 函数，直接在这里解析一步到位，别搞那么多函数了
+	cmdArgs.AmIBeMentioned = false
+	cmdArgs.AmIBeMentionedFirst = false
+	cmdArgs.SomeoneBeMentionedButNotMe = false
+	var atInfo []*AtInfo
+	for _, elem := range msg.Segment {
+		// 类型断言
+		if e, ok := elem.(*message.AtElement); ok {
+			if msg.Platform+":"+e.Target == ctx.EndPoint.UserID {
+				cmdArgs.AmIBeMentioned = true
+				cmdArgs.SomeoneBeMentionedButNotMe = false
+				if len(atInfo) == 0 {
+					cmdArgs.AmIBeMentionedFirst = true
+				}
+			} else if !cmdArgs.AmIBeMentioned {
+				cmdArgs.SomeoneBeMentionedButNotMe = true
+			}
+			atInfo = append(atInfo, &AtInfo{
+				UserID: msg.Platform + ":" + e.Target,
+			})
+		}
+	}
+	restText := strings.TrimSpace(rawCmd)
+	if isParseExecuteTimes {
+		restText, specialExecuteTimes = SpecialExecuteTimesParse(restText)
+	}
+
+	// 先导符号检测
+	var prefixStr string
+	for _, i := range ctx.Session.Parent.CommandPrefix {
+		if strings.HasPrefix(restText, i) {
+			prefixStr = i
+			break
+		}
+	}
+	if prefixStr == "" {
+		return nil
+	}
+	restText = restText[len(prefixStr):]   // 排除先导符号
+	restText = strings.TrimSpace(restText) // 清除剩余文本的空格，以兼容. rd20 形式
+	isSpaceBeforeArgs := false
+
+	// 兼容模式，进行格式化
+	// 之前的 commandCompatibleMode 现在不再有兼容模式的区分
+	if strings.HasPrefix(restText, "bot list") {
+		restText = "botlist" + restText[len("bot list"):]
+	}
+
+	// Note(Szzrain): 这里是从 Execute 函数中提取的代码，我认为更适合放在这里，直接挪过来
+	var cmdLst []string
+	for k := range d.CmdMap {
+		cmdLst = append(cmdLst, k)
+	}
+
+	g := ctx.Group
+	if g != nil {
+		for _, i := range g.ActivatedExtList {
+			for k := range i.CmdMap {
+				cmdLst = append(cmdLst, k)
+			}
+		}
+	}
+	sort.Sort(ByLength(cmdLst))
+	matched := ""
+	for _, i := range cmdLst {
+		if len(i) > len(restText) {
+			continue
+		}
+
+		if strings.EqualFold(restText[:len(i)], i) {
+			matched = i
+			break
+		}
+	}
+	if matched != "" {
+		runes := []rune(restText)
+		restParams := runes[len([]rune(matched)):]
+		// 检查是否有空格，例如.rd 20，以区别于.rd20
+		if len(restParams) > 0 && unicode.IsSpace(restParams[0]) {
+			isSpaceBeforeArgs = true
+		}
+		restText = matched + " " + string(restParams)
+	}
+
+	re := regexp.MustCompile(`^\s*(\S+)\s*([\S\s]*)`)
+	m := re.FindStringSubmatch(restText)
+
+	if len(m) == 3 {
+		cmdArgs.Command = m[1]
+		cmdArgs.RawArgs = m[2]
+		cmdArgs.At = atInfo
+		cmdArgs.IsSpaceBeforeArgs = isSpaceBeforeArgs
+
+		a := ArgsParse(m[2])
+		cmdArgs.Args = a.Args
+		cmdArgs.Kwargs = a.Kwargs
+
+		// 将所有args连接起来，存入一个cleanArgs变量。主要用于兼容非标准参数
+		stText := strings.Join(cmdArgs.Args, " ")
+		cmdArgs.CleanArgs = strings.TrimSpace(stText)
+		cmdArgs.SpecialExecuteTimes = specialExecuteTimes
+
+		// 以下信息用于重组解析使用
+		cmdArgs.RawText = rawCmd
+		cmdArgs.prefixStr = prefixStr
+		cmdArgs.platformPrefix = msg.Platform
+
+		return cmdArgs
+	}
+
+	return nil
+}
+
 func CommandParse(rawCmd string, currentCmdLst []string, prefix []string, platformPrefix string, isParseExecuteTimes bool) *CmdArgs {
 	cmdInfo := new(CmdArgs)
 	return cmdInfo.commandParse(rawCmd, currentCmdLst, prefix, platformPrefix, isParseExecuteTimes)
+}
+
+func CommandParseNew(ctx *MsgContext, msg *Message) *CmdArgs {
+	cmdInfo := new(CmdArgs)
+	return cmdInfo.commandParseNew(ctx, msg, false)
 }
 
 func SpecialExecuteTimesParse(cmd string) (string, int) {

@@ -101,6 +101,7 @@ type CloudDeckItemInfo struct {
 
 type DeckInfo struct {
 	Enable             bool                          `json:"enable" yaml:"enable"`
+	ErrText            string                        `json:"errText" yaml:"errText"`
 	Filename           string                        `json:"filename" yaml:"filename"`
 	Format             string                        `json:"format" yaml:"format"`               // 几种：“SinaNya” ”Dice!“ "Seal"
 	FormatVersion      int64                         `json:"formatVersion" yaml:"formatVersion"` // 格式版本，默认都是1
@@ -138,6 +139,10 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error
 	for k, value := range rawJsonData {
 		if k == "$schema" {
 			continue
+		} else if k == "helpdoc" {
+			if _, ok := value.(map[string]any); ok {
+				return errors.New("该文件疑似为帮助文档，而不是牌堆文件")
+			}
 		}
 		if val, ok := value.([]any); ok {
 			v := make([]string, 0, len(val))
@@ -450,6 +455,8 @@ func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
 
 	if err != nil {
 		d.Logger.Errorf("牌堆文件“%s”解析失败 %v", fn, err)
+		deckInfo.Enable = false
+		deckInfo.ErrText = err.Error()
 		return false
 	}
 	return true
@@ -508,14 +515,25 @@ func DecksDetect(d *Dice) {
 }
 
 func DeckDelete(_ *Dice, deck *DeckInfo) {
-	dirpath := filepath.Dir(deck.Filename)
-	dirname := filepath.Base(dirpath)
+	dirPath := filepath.Dir(deck.Filename)
+	dirName := filepath.Base(dirPath)
 
-	if strings.HasPrefix(dirname, "_") && strings.HasSuffix(dirname, ".deck") {
-		// 可能是zip解压出来的，那么删除目录和压缩包
-		_ = os.RemoveAll(dirpath)
-		zipFilename := filepath.Join(filepath.Dir(dirpath), dirname[1:])
-		_ = os.Remove(zipFilename)
+	var topPath, topName string
+	for {
+		if filepath.ToSlash(dirPath) == "data/decks" || dirPath == "." {
+			break
+		}
+		if strings.HasPrefix(dirName, "_") && strings.HasSuffix(dirName, ".deck") {
+			topPath = dirPath
+			topName = dirName
+		}
+		dirPath = filepath.Dir(dirPath)
+		dirName = filepath.Base(dirPath)
+	}
+	if topPath != "" {
+		_ = os.RemoveAll(topPath)
+		zipFilename := filepath.Join(filepath.Dir(topPath), topName[1:])
+		os.Remove(zipFilename)
 	} else {
 		_ = os.Remove(deck.Filename)
 	}

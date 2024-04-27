@@ -94,9 +94,10 @@ type OnebotGroupInfo struct {
 }
 
 // GetGroupInfo 获取群聊信息
-func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string) *OnebotGroupInfo {
-	type GroupMessageParams struct {
+func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string, noCache bool) *OnebotGroupInfo {
+	type DetailParams struct {
 		GroupID int64 `json:"group_id"`
+		NoCache bool  `json:"no_cache"`
 	}
 	realGroupID, idType := pa.mustExtractID(groupID)
 	if idType != QQUidGroup {
@@ -106,21 +107,28 @@ func (pa *PlatformAdapterGocq) GetGroupInfo(groupID string) *OnebotGroupInfo {
 	echo := pa.getCustomEcho()
 	a, _ := json.Marshal(oneBotCommand{
 		"get_group_info",
-		GroupMessageParams{
+		DetailParams{
 			realGroupID,
+			noCache,
 		},
 		echo,
 	})
-
-	data := &OnebotGroupInfo{}
-	err := pa.waitEcho2(echo, data, func(emi *echoMapInfo) {
+	msg := &MessageQQ{}
+	err := pa.waitEcho2(echo, msg, func(emi *echoMapInfo) {
 		emi.echoOverwrite = -2 // 强制覆盖为获取群信息，与之前兼容
 		socketSendText(pa.Socket, string(a))
 	})
-	if err == nil {
-		return data
+	d := msg.Data
+	if err == nil && d != nil {
+		gid, _ := strconv.ParseInt(string(d.GroupID), 10, 64)
+		return &OnebotGroupInfo{
+			GroupID:        gid,
+			GroupName:      d.GroupName,
+			MemberCount:    int32(d.MemberCount),
+			MaxMemberCount: d.MaxMemberCount,
+		}
 	}
-	return nil
+	return &OnebotGroupInfo{}
 }
 
 func socketSendText(socket *gowebsocket.Socket, s string) {
@@ -281,9 +289,11 @@ func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, 
 	dice := pa.Session.Parent
 	// 路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
 	fileName, temp, err := message.ExtractLocalTempFile(path)
-	defer func(name string) {
-		_ = os.Remove(name)
-	}(temp.Name())
+
+	// 删除文件后 lagrange 发送不出去，先注释掉
+	// defer func(name string) {
+	// 	 _ = os.Remove(name)
+	// }(temp)
 
 	if err != nil {
 		dice.Logger.Errorf("尝试发送文件[path=%s]出错: %s", path, err.Error())
@@ -299,7 +309,7 @@ func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, 
 		Action: "upload_private_file",
 		Params: uploadPrivateFileParams{
 			UserID: rawID,
-			File:   temp.Name(),
+			File:   temp,
 			Name:   fileName,
 		},
 	})
@@ -321,9 +331,11 @@ func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupID string, 
 	dice := pa.Session.Parent
 	// 路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
 	fileName, temp, err := message.ExtractLocalTempFile(path)
-	defer func(name string) {
-		_ = os.Remove(name)
-	}(temp.Name())
+
+	// 删除文件后 lagrange 发送不出去，先注释掉
+	// defer func(name string) {
+	//	  _ = os.Remove(name)
+	// }(temp)
 
 	if err != nil {
 		dice.Logger.Errorf("尝试发送文件[path=%s]出错: %s", path, err.Error())
@@ -339,7 +351,7 @@ func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupID string, 
 		Action: "upload_group_file",
 		Params: uploadGroupFileParams{
 			GroupID: rawID,
-			File:    temp.Name(),
+			File:    temp,
 			Name:    fileName,
 		},
 	})
@@ -400,8 +412,9 @@ func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait
 
 	emi := &echoMapInfo{ch: make(chan string, 1)}
 	beforeWait(emi)
-
-	pa.echoMap2.Store(echo, emi)
+	// 注: 之所以这样是因为echo是json.RawMessage
+	e := lo.Must(json.Marshal(echo))
+	pa.echoMap2.Store(string(e), emi)
 	val := <-emi.ch
 	if val == "" {
 		return errors.New("超时")

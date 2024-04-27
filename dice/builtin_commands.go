@@ -2152,7 +2152,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
 				}
 			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
-				name := getNickname()
+				name := tryConvertIndex2Name(ctx, getNickname())
 				if ctx.ChBindGet(name) != nil {
 					VarSetValueStr(ctx, "$t角色名", name)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_删除失败_已绑定"))
@@ -2164,15 +2164,10 @@ func (d *Dice) registerCoreCommands() {
 				VarSetValueStr(ctx, "$t角色名", name)
 				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
 
-				name = tryConvertIndex2Name(ctx, name)
 				if _, exists := vars.ValueMap.Get("$ch:" + name); !exists {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-
-				// 如果name原是序号，这里将被更新为角色名
-				VarSetValueStr(ctx, "$t角色名", name)
-				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
 
 				vars.ValueMap.Del("$ch:" + name)
 				vars.LastWriteTime = time.Now().Unix()
