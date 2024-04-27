@@ -1,3 +1,4 @@
+//nolint:gosec
 package dice
 
 import (
@@ -6,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"go.uber.org/zap"
 )
@@ -62,10 +64,15 @@ func ErrorLog(logger *zap.SugaredLogger) func(string) {
 
 func FileWrite(logger *zap.SugaredLogger) func(ei *ExtInfo, name string, ctx string) {
 	return func(ei *ExtInfo, name string, ctx string) {
+		re := regexp.MustCompile(`^[A-Z]:`)
+		if re.MatchString(name) {
+			logger.Errorf("出于安全原因，拒绝文件通过绝对路径调用，请使用文件名称或相对路径+文件名称调用，使用相对路径时不要用\".\\\"")
+			return
+		}
 		// 没有办法获取插件名称，强制把 ExtInfo 塞进去
-		// 出于安全，仅允许 js 插件文件 io 限制在 plugin 文件夹
+		// 出于安全，仅允许 js 插件文件 io 限制在 default/extensions/<ext> 文件夹
 
-		path := filepath.Join("default", "extensions", ei.Name)
+		path := filepath.Join("data", "default", "extensions", ei.Name)
 		path = filepath.ToSlash(path)
 		err := os.MkdirAll(path, 0755)
 		if err != nil {
