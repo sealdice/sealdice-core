@@ -132,7 +132,7 @@ func LagrangeGoMessageElementsToSealElements(elements []lagMessage.IMessageEleme
 	return segment
 }
 
-func SealMessageElementsToLagrangeGoElements(elements []message.IMessageElement) []lagMessage.IMessageElement {
+func FormatLagrangeGoElementGroup(elements []message.IMessageElement) []lagMessage.IMessageElement {
 	var segment []lagMessage.IMessageElement
 	for _, element := range elements {
 		switch e := element.(type) {
@@ -169,7 +169,51 @@ func SealMessageElementsToLagrangeGoElements(elements []message.IMessageElement)
 				ReplySeq: int32(replySeq),
 				Sender:   uint64(sender),
 				GroupID:  uint64(groupID),
-				Elements: SealMessageElementsToLagrangeGoElements(e.Elements),
+				Elements: FormatLagrangeGoElementGroup(e.Elements),
+			})
+		}
+	}
+	return segment
+}
+
+func FormatLagrangeGoElementPrivate(elements []message.IMessageElement) []lagMessage.IMessageElement {
+	var segment []lagMessage.IMessageElement
+	for _, element := range elements {
+		switch e := element.(type) {
+		case *message.TextElement:
+			segment = append(segment, &lagMessage.TextElement{Content: e.Content})
+		case *message.AtElement:
+			target, _ := strconv.ParseInt(e.Target, 10, 32)
+			segment = append(segment, &lagMessage.AtElement{Target: uint32(target)})
+		case *message.ImageElement:
+			data, err := io.ReadAll(e.File.Stream)
+			if err != nil {
+				continue
+			}
+			segment = append(segment, &lagMessage.FriendImageElement{Stream: data})
+		case *message.FaceElement:
+			faceID, _ := strconv.ParseInt(e.FaceID, 10, 16)
+			segment = append(segment, &lagMessage.FaceElement{FaceID: uint16(faceID)})
+		case *message.ReplyElement:
+			replySeq, err := strconv.ParseInt(e.ReplySeq, 10, 32)
+			if err != nil {
+				continue
+			}
+			senderRaw := UserIDExtract(e.Sender)
+			groupIDRaw := UserIDExtract(e.GroupID)
+			sender, err := strconv.ParseInt(senderRaw, 10, 64)
+			if err != nil {
+				continue
+			}
+			groupID, err := strconv.ParseInt(groupIDRaw, 10, 64)
+			if err != nil {
+				continue
+			}
+			segment = append(segment, &lagMessage.ReplyElement{
+				ReplySeq: int32(replySeq),
+				Sender:   uint64(sender),
+				GroupID:  uint64(groupID),
+				Elements: FormatLagrangeGoElementPrivate(e.Elements),
 			})
 		}
 	}
@@ -375,6 +419,26 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	pa.QQClient.GroupMemberJoinEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberIncrease) {
 		log.Debugf("GroupMemberJoinEvent: %+v", event)
 		_ = pa.QQClient.RefreshGroupMembersCache(event.GroupUin)
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+		inviterID := FormatDiceIDQQ(strconv.Itoa(int(pa.QQClient.GetUin(event.InvitorUid, event.GroupUin))))
+		msg := &Message{
+			Time:        time.Now().Unix(),
+			MessageType: "group",
+			GroupID:     "QQ-Group:" + strconv.FormatInt(int64(event.GroupUin), 10),
+			Platform:    "QQ",
+			Sender: SenderBase{
+				UserID: inviterID,
+			},
+		}
+		newMemberUID := pa.QQClient.GetUin(event.MemberUid, event.GroupUin)
+		// 自己加群
+		if newMemberUID == pa.UIN {
+			pa.Session.OnGroupJoined(ctx, msg)
+		} else {
+			// 其他人被邀请加群
+			msg.Sender.UserID = FormatDiceIDQQ(strconv.Itoa(int(newMemberUID)))
+			pa.Session.OnGroupMemberJoined(ctx, msg)
+		}
 	})
 
 	pa.QQClient.GroupMuteEvent.Subscribe(func(client *client.QQClient, event *event.GroupMute) {
@@ -456,7 +520,8 @@ func (pa *PlatformAdapterLagrangeGo) SendToPerson(ctx *MsgContext, uid string, t
 		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
-	messageElem := []lagMessage.IMessageElement{&lagMessage.TextElement{Content: text}}
+	elementsRaw := message.ConvertStringMessage(text)
+	messageElem := FormatLagrangeGoElementPrivate(elementsRaw)
 	_, err = pa.QQClient.SendPrivateMessage(uint32(userCode), messageElem)
 	if err != nil {
 		log.Errorf("SendToPerson failed: %v", err)
@@ -477,7 +542,7 @@ func (pa *PlatformAdapterLagrangeGo) SendToGroup(ctx *MsgContext, uid string, te
 		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
-	messageElem := SealMessageElementsToLagrangeGoElements(elementsRaw)
+	messageElem := FormatLagrangeGoElementGroup(elementsRaw)
 	_, err = pa.QQClient.SendGroupMessage(uint32(groupCode), messageElem)
 	if err != nil {
 		log.Errorf("SendGroupMessage failed: %v", err)
