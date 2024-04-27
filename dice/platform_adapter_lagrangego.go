@@ -132,7 +132,7 @@ func LagrangeGoMessageElementsToSealElements(elements []lagMessage.IMessageEleme
 	return segment
 }
 
-func ParseSealElementsGroup(elements []message.IMessageElement) []lagMessage.IMessageElement {
+func FormatLagrangeGoElementGroup(elements []message.IMessageElement) []lagMessage.IMessageElement {
 	var segment []lagMessage.IMessageElement
 	for _, element := range elements {
 		switch e := element.(type) {
@@ -169,14 +169,14 @@ func ParseSealElementsGroup(elements []message.IMessageElement) []lagMessage.IMe
 				ReplySeq: int32(replySeq),
 				Sender:   uint64(sender),
 				GroupID:  uint64(groupID),
-				Elements: ParseSealElementsGroup(e.Elements),
+				Elements: FormatLagrangeGoElementGroup(e.Elements),
 			})
 		}
 	}
 	return segment
 }
 
-func ParseSealElementsPrivate(elements []message.IMessageElement) []lagMessage.IMessageElement {
+func FormatLagrangeGoElementPrivate(elements []message.IMessageElement) []lagMessage.IMessageElement {
 	var segment []lagMessage.IMessageElement
 	for _, element := range elements {
 		switch e := element.(type) {
@@ -213,7 +213,7 @@ func ParseSealElementsPrivate(elements []message.IMessageElement) []lagMessage.I
 				ReplySeq: int32(replySeq),
 				Sender:   uint64(sender),
 				GroupID:  uint64(groupID),
-				Elements: ParseSealElementsPrivate(e.Elements),
+				Elements: FormatLagrangeGoElementPrivate(e.Elements),
 			})
 		}
 	}
@@ -521,7 +521,7 @@ func (pa *PlatformAdapterLagrangeGo) SendToPerson(ctx *MsgContext, uid string, t
 		return
 	}
 	elementsRaw := message.ConvertStringMessage(text)
-	messageElem := ParseSealElementsPrivate(elementsRaw)
+	messageElem := FormatLagrangeGoElementPrivate(elementsRaw)
 	_, err = pa.QQClient.SendPrivateMessage(uint32(userCode), messageElem)
 	if err != nil {
 		log.Errorf("SendToPerson failed: %v", err)
@@ -542,7 +542,7 @@ func (pa *PlatformAdapterLagrangeGo) SendToGroup(ctx *MsgContext, uid string, te
 		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
-	messageElem := ParseSealElementsGroup(elementsRaw)
+	messageElem := FormatLagrangeGoElementGroup(elementsRaw)
 	_, err = pa.QQClient.SendGroupMessage(uint32(groupCode), messageElem)
 	if err != nil {
 		log.Errorf("SendGroupMessage failed: %v", err)
