@@ -110,8 +110,9 @@ type ExtInfo struct {
 	IsJsExt bool          `json:"-"`
 	Source  *JsScriptInfo `yaml:"-" json:"-"`
 	Storage *buntdb.DB    `yaml:"-"  json:"-"`
-	mu       sync.Mutex `yaml:"-" json:"-"` // Storage使用的互斥锁
-	init     bool       `yaml:"-" json:"-"` // 标记Storage是否已初始化
+	// 为Storage使用互斥锁
+	mu   sync.Mutex `yaml:"-"` // 互斥锁
+	init bool       `yaml:"-"` // 标记Storage是否已初始化
 
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
 	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
