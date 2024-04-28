@@ -1,3 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .title-main {
+    @apply text-2xl font-bold my-8;
+  }
+
+  .title-sub {
+    @apply text-xl font-semibold my-6;
+  }
+
+  .title-tertiary {
+    @apply text-lg font-semibold my-4;
+  }
+}
+
+h2 {
+  @apply title-main;
+}
+
+h3 {
+  @apply title-sub;
+}
+
+h4 {
+  @apply title-tertiary;
+}
+
+p {
+  @apply my-3;
+}
+
 // :root {
 //   --el-color-primary: red;
 // }

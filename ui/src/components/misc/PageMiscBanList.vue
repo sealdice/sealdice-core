@@ -331,11 +331,11 @@ onBeforeMount(async () => {
   background-color: #f3f5f7;
 }
 
-.setting-tips :deep().el-collapse-item__header {
+.setting-tips :deep(.el-collapse-item__header) {
   background-color: #f3f5f7;
 }
 
-.setting-tips :deep().el-collapse-item__wrap {
+.setting-tips :deep(.el-collapse-item__wrap) {
   background-color: #f3f5f7;
 }
 </style>

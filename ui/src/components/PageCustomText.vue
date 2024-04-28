@@ -451,11 +451,11 @@ watch(props, () => {
   background-color: #f3f5f7;
 }
 
-.helptips :deep().el-collapse-item__header {
+.helptips :deep(.el-collapse-item__header) {
   background-color: #f3f5f7;
 }
 
-.helptips :deep().el-collapse-item__wrap {
+.helptips :deep(.el-collapse-item__wrap) {
   background-color: #f3f5f7;
 }
 

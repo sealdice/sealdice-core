@@ -205,7 +205,7 @@ watch(replyEnable, async (newStatus, oldStatus) => {
   }
 })
 
-const activeTip = 'basic'
+const activeTip = ref('basic')
 
 const curFilename = ref('reply.yaml')
 
@@ -495,14 +495,14 @@ onBeforeUnmount(() => {
 
 .helptips {
   background-color: #f3f5f7;
-}
 
-.helptips :deep().el-collapse-item__header {
-  background-color: #f3f5f7;
-}
+  :deep(.el-collapse-item__header) {
+    background-color: #f3f5f7;
+  }
 
-.helptips :deep().el-collapse-item__wrap {
-  background-color: #f3f5f7;
+  :deep(.el-collapse-item__wrap) {
+    background-color: #f3f5f7;
+  }
 }
 </style>
 

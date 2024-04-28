@@ -130,7 +130,7 @@ async function searchLogs() {
     }
 }
 
-async function refreshLogs() {
+const refreshLogs = async () => {
     [sum_log.value, sum_item.value, cur_log.value, cur_item.value] = await getInfo()
     await searchLogs()
     ElMessage({
@@ -161,7 +161,7 @@ async function DelLog(v: Log, flag = true) {
         }
     ).then(async () => {
         let info = await delLog(v)
-        if (info === true) {
+        if (info) {
             ElMessage({
                 message: '删除成功',
                 type: 'success',
@@ -267,8 +267,8 @@ const items = computed(() => {
 
 //
 
-onBeforeMount(() => {
-    refreshLogs()
+onBeforeMount(async () => {
+    await refreshLogs()
 })
 
 </script>

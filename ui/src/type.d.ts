@@ -1,4 +1,4 @@
-interface JsScriptInfo {
+export interface JsScriptInfo {
   name: string;
   enable: boolean;
   version: string;
@@ -17,7 +17,7 @@ interface JsScriptInfo {
   builtinUpdated: boolean;
 }
 
-interface JsPluginConfigItem {
+export interface JsPluginConfigItem {
   key: string;
   type: string;
   defaultValue: any;
@@ -26,20 +26,22 @@ interface JsPluginConfigItem {
   deprecated: boolean;
   description: string;
 }
-interface JsPluginConfig {
+
+export interface JsPluginConfig {
   pluginName: string;
   configs: Map<string, JsPluginConfigItem>;
 }
-interface HelpDocData {
+
+export interface HelpDocData {
   helpInfo: HelpDocHelpInfo;
   docTree: HelpDoc[];
 }
 
-interface HelpDocHelpInfo {
+export interface HelpDocHelpInfo {
   [key: string]: number;
 }
 
-interface HelpDoc {
+export interface HelpDoc {
   name: string;
   path: string;
   group: string;
@@ -51,7 +53,7 @@ interface HelpDoc {
   children: HelpDoc[] | null;
 }
 
-interface HelpTextItemQuery {
+export interface HelpTextItemQuery {
   pageNum: number;
   pageSize: number;
   total: number;
@@ -61,7 +63,7 @@ interface HelpTextItemQuery {
   title?: string;
 }
 
-interface HelpTextItem {
+export interface HelpTextItem {
   id: number;
   group: string;
   from: string;
@@ -71,7 +73,7 @@ interface HelpTextItem {
   keyWords: string
 }
 
-interface AdvancedConfig {
+export interface AdvancedConfig {
   enable: boolean,
   storyLogBackendUrl: string,
   storyLogApiVersion: string,

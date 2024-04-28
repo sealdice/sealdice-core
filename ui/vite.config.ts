@@ -25,6 +25,9 @@ export default defineConfig({
       },
     },
   },
+  server: {
+    port: 3000,
+  },
   plugins: [
     vue(),
     Components({
@@ -45,14 +48,24 @@ export default defineConfig({
     }),
   ],
   build: {
-    target: "es6",
     sourcemap: false,
     rollupOptions: {
       output: {
         manualChunks: {
           base: ["vue", "pinia"],
-          library: ["element-plus", "ofetch", "axios", "axios-retry"],
-          util: ["vue-diff", "vuedraggable", "dayjs", "lodash-es"],
+          element: ["element-plus"],
+          lodash: ["lodash-es"],
+          codemirror: ["codemirror", "@codemirror/lang-javascript"],
+          network: ["ofetch", "axios", "axios-retry", "ky"],
+          util: [
+            "@vueuse/core",
+            "asmcrypto.js",
+            "clipboard",
+            "dayjs",
+            "filesize",
+            "vue-diff",
+            "vuedraggable",
+          ],
         },
       },
     },

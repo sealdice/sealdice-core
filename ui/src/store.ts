@@ -1,7 +1,14 @@
 import { apiFetch, backend } from './backend'
 
-import { addImConnectionForm } from '../src/components/PageConnectInfoItems.vue'
+import { addImConnectionForm } from '~/components/PageConnectInfoItems.vue'
 import { defineStore } from 'pinia'
+import type {
+  AdvancedConfig,
+  HelpDoc,
+  HelpTextItem,
+  HelpTextItemQuery,
+  JsScriptInfo,
+} from "~/type";
 
 export enum goCqHttpStateCode {
   Init = 0,

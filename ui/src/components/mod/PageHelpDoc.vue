@@ -78,8 +78,8 @@
           default-expand-all show-checkbox>
           <template #default="{ node, data }">
             <div class="file-line">
-              <div class="file-info">
-                <span style="margin-right: 2px;">
+              <div class="flex file-info">
+                <span class="mr-px">
                   <i-bi-folder2 color="#303133" v-if="data.isDir" />
                   <i-bi-filetype-json color="#E6A23C" v-else-if="data.type === '.json'" />
                   <i-bi-filetype-xlsx color="#67C23A" v-else-if="data.type === '.xlsx'" />
@@ -162,6 +162,7 @@ import { useStore } from '~/store';
 import { Delete, Plus, Refresh, Setting, Upload } from '@element-plus/icons-vue'
 import { trim } from 'lodash-es';
 import { computed } from 'vue';
+import {HelpDoc, HelpTextItem, HelpTextItemQuery} from "~/type";
 
 interface Group {
   key: string,

@@ -68,11 +68,11 @@
   background-color: #f3f5f7;
 }
 
-.wordtips :deep().el-collapse-item__header {
+.wordtips :deep(.el-collapse-item__header) {
   background-color: #f3f5f7;
 }
 
-.wordtips :deep().el-collapse-item__wrap {
+.wordtips :deep(.el-collapse-item__wrap) {
   background-color: #f3f5f7;
 }
 </style>

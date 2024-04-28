@@ -5,7 +5,7 @@
     </div>
   </el-affix>
 
-  <h2>高级设置</h2>
+  <h2 class="h-2">高级设置</h2>
   <div class="tip-danger">
     <el-text>
       此处是面向开发者或进阶用户的隐藏设置页，下列的设置项可能会对海豹核心的功能造成重大影响。<br/>
@@ -66,6 +66,7 @@ import {nextTick, onBeforeMount, ref, watch} from "vue";
 import {QuestionFilled} from "@element-plus/icons-vue";
 import {useStore} from "~/store";
 import {cloneDeep} from "lodash-es";
+import {AdvancedConfig} from "~/type";
 
 const store = useStore()
 
