@@ -138,7 +138,6 @@ func (i *ExtInfo) StorageClose() error {
 	defer i.mu.Unlock()
 	// 检查是否在init中
 	if !i.init {
-
 		// 此时已经关闭了，不需要再次关闭
 		return nil
 	} else {
