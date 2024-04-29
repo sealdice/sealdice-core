@@ -156,7 +156,6 @@ func (i *ExtInfo) StorageClose() error {
 	// 将init放为初始值false
 	i.init = false
 	return nil
-
 }
 
 func (i *ExtInfo) StorageSet(k, v string) error {

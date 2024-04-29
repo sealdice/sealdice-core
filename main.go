@@ -52,7 +52,6 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 			if runtime.GOOS == "windows" {
 				exec.Command("pause") // windows专属
 			}
-
 		}
 
 		for _, i := range diceManager.Dice {
