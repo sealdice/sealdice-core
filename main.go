@@ -48,7 +48,11 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		if err != nil {
 			showWindow()
 			logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
-			exec.Command("pause") // windows专属
+			// 顺便修正一下上面这个，应该是木落忘了。
+			if runtime.GOOS == "windows" {
+				exec.Command("pause") // windows专属
+			}
+
 		}
 
 		for _, i := range diceManager.Dice {
@@ -62,7 +66,9 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 						if err != nil {
 							showWindow()
 							logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
-							exec.Command("pause") // windows专属
+							if runtime.GOOS == "windows" {
+								exec.Command("pause") // windows专属
+							}
 						}
 					}
 				}

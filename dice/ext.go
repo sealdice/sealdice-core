@@ -112,9 +112,9 @@ func (i *ExtInfo) StorageInit() error {
 	// 使用互斥锁保护初始化过程，确保只初始化一次
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	// d.Logger.Infof("[插件]：%s 正在尝试获取锁进行初始化", i.Name)
+	d.Logger.Debugf("[插件]：%s 正在尝试获取锁进行初始化", i.Name)
 	if i.init {
-		// d.Logger.Info("[插件]:初始化调用，但数据库已经加载")
+		d.Logger.Debug("[插件]:初始化调用，但数据库已经加载")
 		return nil // 如果已经初始化，则直接返回
 	}
 
@@ -136,19 +136,19 @@ func (i *ExtInfo) StorageClose() error {
 	i.mu.Lock()
 	// 保证还锁
 	defer i.mu.Unlock()
-	// 检查是否在init中
+	// 检查是否在init中，若已经关闭了就不需要处理了
 	if !i.init {
-		// 此时已经关闭了，不需要再次关闭
 		return nil
-	} else {
-		// 说初始化了但没有初始化，应该抛出异常
-		if i.Storage == nil {
-			return errors.New("Storage初始化错误")
-		}
-		err := i.Storage.Close()
-		i.Storage = nil
-		return err
 	}
+
+	// 说初始化了但没有初始化，应该抛出异常
+	if i.Storage == nil {
+		return errors.New("Storage初始化错误")
+	}
+	err := i.Storage.Close()
+	i.Storage = nil
+	return err
+
 }
 
 func (i *ExtInfo) StorageSet(k, v string) error {
