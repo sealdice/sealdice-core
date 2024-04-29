@@ -105,25 +105,25 @@ func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 func (i *ExtInfo) StorageInit() error {
 	var err error
 	if i.dice == nil {
-		return errors.New("请先完成此扩展的注册")
+		return errors.New("[扩展]:请先完成此扩展的注册")
 	}
 	d := i.dice
 
 	// 使用互斥锁保护初始化过程，确保只初始化一次
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	d.Logger.Debugf("[插件]：%s 正在尝试获取锁进行初始化", i.Name)
+	i.dbMu.Lock()
+	defer i.dbMu.Unlock()
+	d.Logger.Debugf("[扩展]：%s 正在尝试获取锁进行初始化", i.Name)
 	if i.init {
-		d.Logger.Debug("[插件]:初始化调用，但数据库已经加载")
-		return nil // 如果已经初始化，则直接返回
+		d.Logger.Debug("[扩展]:初始化调用，但数据库已经加载")
+		// 如果已经初始化，则直接返回
+		return nil
 	}
 
 	dir := d.GetExtDataDir(i.Name)
 	fn := path.Join(dir, "storage.db")
 	i.Storage, err = buntdb.Open(fn)
 	if err != nil {
-		d.Logger.Error("初始化扩展数据库失败", fn)
-		d.Logger.Error(err.Error())
+		d.Logger.Errorf("[扩展]:初始化扩展数据库失败，原因：%v，路径为：%s", err, fn)
 		return err
 	}
 	// 否则初始化后使用
@@ -133,21 +133,29 @@ func (i *ExtInfo) StorageInit() error {
 
 func (i *ExtInfo) StorageClose() error {
 	// 先上锁
-	i.mu.Lock()
+	i.dbMu.Lock()
 	// 保证还锁
-	defer i.mu.Unlock()
+	defer i.dbMu.Unlock()
 	// 检查是否在init中，若已经关闭了就不需要处理了
 	if !i.init {
 		return nil
 	}
-
 	// 说初始化了但没有初始化，应该抛出异常
 	if i.Storage == nil {
-		return errors.New("Storage初始化错误")
+		return errors.New("[扩展]:Storage初始化错误")
 	}
 	err := i.Storage.Close()
+	// 经Xiangze-Li 佬提示，如果关闭失败，应该直接返回异常
+	// 不过向上是否有正确的err处理逻辑？我暂且蒙在鼓里
+	if err != nil {
+		i.dice.Logger.Errorf("[扩展]:关闭扩展数据库失败，原因：%v", err)
+		return err
+	}
+	// 关闭成功，将Storage放空（实际我也不清楚是否需要该操作），返回nil.
 	i.Storage = nil
-	return err
+	// 将init放为初始值false
+	i.init = false
+	return nil
 
 }
 

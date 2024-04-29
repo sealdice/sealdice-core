@@ -143,7 +143,8 @@ func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
 	if ei.Storage != nil {
 		err := ei.StorageClose()
 		if err != nil {
-			// 暂时不知道用啥Logger
+			// 经过指点使用了ei的logger
+			ei.dice.Logger.Error("扩展Inactive出现错误！")
 			return nil
 		}
 	}
