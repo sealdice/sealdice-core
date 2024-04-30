@@ -141,8 +141,12 @@ func (group *GroupInfo) ExtClear() {
 
 func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
 	if ei.Storage != nil {
-		_ = ei.Storage.Close()
-		ei.Storage = nil
+		err := ei.StorageClose()
+		if err != nil {
+			// 经过指点使用了ei的logger
+			ei.dice.Logger.Error("扩展Inactive出现错误！")
+			return nil
+		}
 	}
 	for index, i := range group.ActivatedExtList {
 		if ei == i {

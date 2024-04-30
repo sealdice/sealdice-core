@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -109,6 +110,9 @@ type ExtInfo struct {
 	IsJsExt bool          `json:"-"`
 	Source  *JsScriptInfo `yaml:"-" json:"-"`
 	Storage *buntdb.DB    `yaml:"-"  json:"-"`
+	// 为Storage使用互斥锁,并根据ID佬的说法修改为合适的名称
+	dbMu sync.Mutex `yaml:"-"` // 互斥锁
+	init bool       `yaml:"-"` // 标记Storage是否已初始化
 
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
 	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
