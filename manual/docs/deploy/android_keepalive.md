@@ -43,69 +43,70 @@ title: 配置安卓端保活
 
 在 HyperOS（澎湃系统）中，启动核心前请全部允许这些权限。「访问存储空间」被拆分为三个权限：「照片和视频」「音乐和音频」「文件和文档」。
 
-<img src="./images/keepalive_hyperos_storage.jpg" width="66%" />
+<img alt="HyperOS 步骤 1" src="./images/keepalive_hyperos_storage.jpg" width="66%" />
 
 请始终开启「锁屏显示」「后台弹出界面」「显示悬浮窗」「动态壁纸服务」四项权限。
 
-<img src="./images/keepalive_hyperos_additional.jpg" width="66%" />
+<img alt="HyperOS 步骤 2" src="./images/keepalive_hyperos_additional.jpg" width="66%" />
 
 长按海豹核心的任务卡片，并点击锁图标。
 
-<img src="./images/keepalive_miui_multitask.jpg" width="66%">
+<img alt="HyperOS 步骤 3" src="./images/keepalive_miui_multitask.jpg" width="66%">
 
 如果保活仍然失效，请尝试在应用信息界面中开启「自启动」。
 
-<img src="./images/keepalive_hyperos_selflaunch.jpg" width="66%" />
+<img alt="HyperOS 步骤 4" src="./images/keepalive_hyperos_selflaunch.jpg" width="66%" />
 
 ## MIUI
 
 初次启动时提示是否运行“海豹核心”发送通知，选择「始终允许」。
 
-<img src="./images/keepalive_miui_permdialog.png" width="66%">
+<img alt="MIUI 步骤 1" src="./images/keepalive_miui_permdialog.png" width="66%">
 
 第二步，在海豹核心的后台配置中选择「无限制」。
 
-<img src="./images/keepalive_miui_unlimit.jpg" width="66%">
+<img alt="MIUI 步骤 2" src="./images/keepalive_miui_unlimit.jpg" width="66%">
 
 第三步，长按海豹核心的任务卡片，并点击锁图标。
 
-<img src="./images/keepalive_miui_multitask.jpg" width="66%">
+<img alt="MIUI 步骤 3" src="./images/keepalive_miui_multitask.jpg" width="66%">
 
 ## 鸿蒙系统
 
 在「应用和服务」中，选择「应用启动管理」，找到海豹核心，关闭其「自动管理」开关，并允许自启动、关联启动和后台活动。
 
-<img src="./images/keepalive_harmonyos_applaunch.jpg" width="66%">
+<img alt="鸿蒙系统步骤 1" src="./images/keepalive_harmonyos_applaunch.jpg" width="66%">
 
 回到「设置」主页，选择「电池」项目，开启性能模式，并进入「更多电池设置」，在新界面中开启「休眠时始终保持网络连接」。
 
-<img src="./images/keepalive_harmonyos_battery.jpg" width="66%">
+<img alt="鸿蒙系统步骤 2" src="./images/keepalive_harmonyos_battery.jpg" width="66%">
 
+<!-- markdownlint-disable-next-line -->
 <br/>
 
-<img src="./images/keepalive_harmonyos_batterymore.jpg" width="66%">
+<img alt="鸿蒙系统步骤 3" src="./images/keepalive_harmonyos_batterymore.jpg" width="66%">
 
 在「设置」>「隐私」>「权限管理」>「特殊访问权限」>「电池优化」项目找到海豹核心，选择「不允许」。
 
-<img src="./images/keepalive_harmonyos_batteryoptimization.jpg" width="66%">
+<img alt="鸿蒙系统步骤 4" src="./images/keepalive_harmonyos_batteryoptimization.jpg" width="66%">
 
 将海豹核心的任务卡片下拉并释放，见到卡片右上角出现锁图标即可。
 
-<img src="./images/keepalive_harmonyos_multitask.jpg" width="66%">
+<img alt="鸿蒙系统步骤 5" src="./images/keepalive_harmonyos_multitask.jpg" width="66%">
 
 ## ColorOS
 
 选择「耗电管理」，优先开启所有选项。
 
-<img src="./images/keepalive_coloros_launch.jpg" width="66%">
+<img alt="ColorOS 步骤 1" src="./images/keepalive_coloros_launch.jpg" width="66%">
 
 已知护眼模式可能会导致海豹核心意外关闭，请不要开启。
 
-<img src="./images/keepalive_coloros_nightshift.jpg" width="66%">
+<img alt="ColorOS 步骤 2" src="./images/keepalive_coloros_nightshift.jpg" width="66%">
 
 选择海豹核心任务卡片右上角的三个点，并选择「锁定」。
 
-<img src="./images/keepalive_coloros_multitask.jpg" width="66%">
+<img alt="ColorOS 步骤 3" src="./images/keepalive_coloros_multitask.jpg" width="66%">
 
 ::::
 
@@ -123,7 +124,7 @@ title: 配置安卓端保活
 
 首次启动海豹核心时，你可能会收到「是否允许海豹核心发送通知」的对话框。请**始终允许**海豹核心发送通知，此后你可能会在通知栏看到「海豹核心正在运行」的消息，这是保活策略的一部分。
 
-<img src="./images/keepalive_miui_permdialog.png" />
+<img alt="通知权限" src="./images/keepalive_miui_permdialog.png" />
 
 如果你不慎拒绝通知权限，可以稍后在系统设置中授予海豹核心相关权限。
 
@@ -131,6 +132,6 @@ title: 配置安卓端保活
 
 在海豹核心应用中，选择右上角的设置图标，可以看到一些保活策略。通常来说，启用上面的系统设置已经足够，但如果你发现海豹核心仍然时常掉线，可以考虑这里的额外手段。
 
-<img src="./images/keepalive_inapp.jpg" width="66%">
+<img alt="应用内设置" src="./images/keepalive_inapp.jpg" width="66%">
 
 前三个策略可能需要相应权限才能生效。

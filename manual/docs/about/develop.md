@@ -10,6 +10,7 @@ title: 参与项目
 海豹的所有源代码都托管在 [海豹开源组织 GitHub](https://github.com/sealdice) 下，每个模块都存放在对应的仓库中，可阅读对应仓库的 Readme 获取更多信息。
 
 几个比较重要的仓库：
+
 - [核心](https://github.com/sealdice/sealdice-core)：海豹的 Go 后端代码仓库，这个仓库也作为海豹的主仓库，Bug 可反馈在该仓库的 issue 中；
 - [UI](https://github.com/sealdice/sealdice-ui)：海豹的前端代码，基于 Vue3 + ElementPlus 开发；
 - [手册（新）](https://github.com/sealdice/sealdice-manual-next)：海豹新版官方手册（即当前的手册）的源码，如对手册有什么改进内容可以在该项目提交 pr；

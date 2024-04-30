@@ -40,6 +40,7 @@ title: QQ
 从 <Badge type="tip" text="v1.4.5" /> 开始，我们推荐使用 [内置客户端](#内置客户端) 进行连接，这是面向一般用户提供的简单对接方式。
 
 对于需要使用更加灵活的方案的用户，我们推荐如下：
+
 - 需要比较简单的部署流程，希望资源占用低的，见 [Lagrange](#lagrange)；
 - 需要比较简单的部署流程，不是特别在意资源占用的，见 [LLOneBot API](#llonebot-api)；
 - Android 手机/模拟器用户见 [Shamrock](#shamrock)（需要 Root）或 [Shamrock LSPatch](#shamrock-lspatch)。
@@ -404,7 +405,7 @@ json 配置内容参数解释：
 
 ### 海豹连接
 
-进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebot11正向WS)」。 
+进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebot11正向WS)」。
 
 账号填写骰子的 QQ 号，连接地址使用上面记下的 ws 正向服务地址 `ws://127.0.0.1:{wsPort}`，如 `ws://127.0.0.1:3001`。
 
@@ -616,16 +617,17 @@ Adb 即 [Android 调试桥](https://developer.android.com/studio/command-line/ad
 
 1. 安装 adb，工具下载见 [上文](#开放模拟器端口供海豹对接)；
 2. 打开 cmd 窗口；
-  - 如果你的电脑是 Window 11 操作系统，你可以直接右键 `platform-tools` 文件夹单击 **在此处打开命令行**；
-  - 其它版本的打开方式请自行搜索。
+    - 如果你的电脑是 Window 11 操作系统，你可以直接右键 `platform-tools` 文件夹单击 **在此处打开命令行**；
+    - 其它版本的打开方式请自行搜索。
 3. 你有多种方式使用 adb：
-  - 将 adb 添加至系统环境变量，在系统开始一栏中可以直接搜索到该功能，随后将 **解压好的** `platform-tools` 路径填入至系统变量中的 `path`，例如，adb 在 `E:/shamrock achieve/platform-tools` 文件夹中，那么你只需要将该路径填入 `path` 即可。
+
+- 将 adb 添加至系统环境变量，在系统开始一栏中可以直接搜索到该功能，随后将 **解压好的** `platform-tools` 路径填入至系统变量中的 `path`，例如，adb 在 `E:/shamrock achieve/platform-tools` 文件夹中，那么你只需要将该路径填入 `path` 即可。
   ![adb path](./images/image-016.png)
-    - 如果你是旧版本 Window（如 Win 7），系统未提供对应的 GUI，你需要使用 **`;`** 隔开不同的路径。
-  - 也可以选择使用 `cd` 命令切换至 adb 目录，使用此方法请将 adb 放在 C 盘；（由于 Windows 权限问题，使用运行开启的 cmd 实例无法访问 C 盘之外的路径。）
-    - `win + R` 键启动「运行」；
-    - 在运行中输入 `cmd` 并回车；
-    - 在打开的黑框框中输入命令 `cd <替换为对应路径>`。
+  - 如果你是旧版本 Window（如 Win 7），系统未提供对应的 GUI，你需要使用 **`;`** 隔开不同的路径。
+- 也可以选择使用 `cd` 命令切换至 adb 目录，使用此方法请将 adb 放在 C 盘；（由于 Windows 权限问题，使用运行开启的 cmd 实例无法访问 C 盘之外的路径。）
+  - `win + R` 键启动「运行」；
+  - 在运行中输入 `cmd` 并回车；
+  - 在打开的黑框框中输入命令 `cd <替换为对应路径>`。
   ![切换到 adb 文件夹](./images/image-017.png)
 - 还可以选择在 `platform-tools` 文件夹中新建`.bat` 文件。
 
@@ -869,19 +871,19 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 账号类型选 QQ 账号，设备选「Android Pad-可共存」（此协议登录手机可同时在线，qsign 仅 Android 协议和 Android Pad 协议可用）：
 
-![](./images/select-account.png)
+![添加账号](./images/select-account.png)
 
 版本选择 8.9.70（如果你的 qsign 是其它版本，请选择对应版本）：
 
-![](./images/qsign-version.png)
+![选择 qsign 版本](./images/qsign-version.png)
 
 填写 QQ 账号密码：
 
-![](./images/qq-account-and-pass.png)
+![填写 QQ 账号密码](./images/qq-account-and-pass.png)
 
 选择简易配置：
 
-![](./images/qsign-select.png)
+![选择简易配置](./images/qsign-select.png)
 
 服务 url 填你的 qsign 服务地址。
 
@@ -889,7 +891,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 服务鉴权不填写。
 
-![](./images/qsign-config.png)
+![服务鉴权](./images/qsign-config.png)
 
 接着点击登录，然后退出海豹（结束进程）。
 
@@ -897,15 +899,15 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 1. 将 `go-cqhttp\go-cqhttp.exe` 文件复制到 `海豹目录/data/default/extra/gocqQQ号(你登录骰娘的qq号)` 这个文件夹下。
 
-   ![](./images/gocq-folder.png)
+   ![文件夹结构](./images/gocq-folder.png)
 
 2. 双击运行 `go-cqhttp.exe`，两次确认后出现 `go-cqhttp.bat` 文件。
 
-   ![](./images/gocq-warn1.png) ![](./images/gocq-warn2.png)
+   ![运行警告 1](./images/gocq-warn1.png) ![运行警告 2](./images/gocq-warn2.png)
 
 3. 双击运行 `go-cqhttp.bat`，出现以下消息后输入 `2`，回车，复制链接到浏览器（终端选中后右键即可复制粘贴，没有选项）。
 
-   ![](./images/gocq-step1.png)
+   ![运行](./images/gocq-step1.png)
 
    ::: tip 提示：出现 `open image cache db failed`
 
@@ -915,11 +917,11 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 4. 按照 [手动抓取 ticket 教程 - 哔哩哔哩](https://b23.tv/GRGg4GR) 视频教程操作，成功滑条后（需要抓 ticket，不只是滑条）复制 ticket 到终端后回车。
 
-   ![](./images/gocq-step2.png)
+   ![滑块 ticket 输入](./images/gocq-step2.png)
 
 5. 如果登录成功，你应当能看到一条类似于 `2022-05-06 20:00:00 [INFO] 登录成功，欢迎使用：XXX` 的日志。
 
-   ![](./images/gocq-success.png)
+   ![登录成功](./images/gocq-success.png)
 
    同时你应当在下方看到一条类似于 `2022-05-06 20:00:00 [INFO] CQ Websocket 服务器已启动：[::]:8080` 的日志。
 
@@ -927,12 +929,12 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 6. 打开海豹，删除之前添加的账号，然后重新添加账号，选择 QQ(OneBot11 分离部署)
 
-   ![](./images/onebot11.png)
+   ![添加账号](./images/onebot11.png)
 
    在连接地址中填写 `ws://localhost:8080`（请把`8080`替换为你的 gocq 端口号）。填写完成后点击下一步。
 7. 你的账号应当已经成功连接。
 
-   ![](./images/onebot11-success.png)
+   ![连接成功](./images/onebot11-success.png)
 
 ### GoCqhttp FAQ
 

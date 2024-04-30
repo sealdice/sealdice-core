@@ -41,7 +41,7 @@ sealdice-core /db-check
 
 你将看到类似的输出
 
-```
+```text
 数据库检查结果：
 data.db: true
 data-logs.db: true
@@ -62,7 +62,7 @@ data-censor.db: true
 
 打开记事本，将以下内容复制进去：
 
-```
+```shell
 sealdice-core /db-check
 pause
 ```
@@ -101,7 +101,7 @@ pause
 
 导出数据：
 
-```
+```shell
 sqlite3.exe data.db
 .output 1.sql
 .recover
@@ -110,7 +110,7 @@ sqlite3.exe data.db
 
 恢复数据到 a.db，并删除无效数据。
 
-```
+```shell
 sqlite3.exe a.db
 .read 1.sql
 delete from attrs_group where id is null;

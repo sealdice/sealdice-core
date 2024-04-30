@@ -42,6 +42,7 @@ Slack 平台的机制使没有公开发布的应用无法加入被指定的单�
 :::
 
 ### Bot Token
+
 在侧边栏点击「OAuth & Permissions」，下滑在「Bot Token Scopes」下，添加海豹运作需要的权限:
 
 1. `channels:history`

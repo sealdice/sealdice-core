@@ -602,7 +602,6 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 {content: '.send to <群号> 我收到了！', send: true},
 ]" />
 
-
 == 群聊
 
 <ChatBox :messages="[

@@ -39,15 +39,15 @@ title: 安卓海豹常见问题
 
 2.打开 NP 管理器，找到海豹核心安装包。
 
-3.选择「功能」-「APK 共存」。 
+3.选择「功能」-「APK 共存」。
 
-<img src="./images/android_np_manager.jpg" width="66%" />
+<img alt="APK 共存" src="./images/android_np_manager.jpg" width="66%" />
 
 4.安装改过的安装包，打开海豹核心。
 
 5.选择右上角小齿轮，修改 UI 界面地址和启动参数，将里面的 3211 改成 3212。
 
-<img src="./images/android_sealdice_port.jpg" width="66%" />
+<img alt="修改 UI 界面地址和启动参数" src="./images/android_sealdice_port.jpg" width="66%" />
 
 6.启动核心。
 
@@ -79,7 +79,7 @@ title: 安卓海豹常见问题
 
 2) 使用 [MT 管理器](https://mt2.cn/download/)的「[APK 一键注入文件提供器功能](https://mt2.cn/guide/reverse/inject-documents-provider.html)」，配合「添加本地储存」这两个功能访问海豹的私有目录。
 
-:::: 
+::::
 
 ## 如何更新
 

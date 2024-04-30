@@ -17,12 +17,14 @@ title: 编写新的 TRPG 规则
 
 ::: details 补充：规则详细内容
 
+<!-- markdownlint-disable-next-line MD001 -->
 #### 角色属性
 
 每个角色有 2 个关键属性，即**脸皮厚度**和**摸鱼技能等级**。取值分别为 1 - 3，通过投掷 D3 来生成。
 
 此外有生命值，生命值上限 = 脸皮厚度 * 2。
 
+<!-- markdownlint-disable-next-line MD001 -->
 #### 游戏规则
 
 简单说：这是一个类 21 点游戏。

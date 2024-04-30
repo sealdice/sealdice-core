@@ -10,6 +10,7 @@ title: 编写 JavaScript 插件
 本节将介绍 JavaScript 脚本的编写，请善用侧边栏和搜索，按需阅读文档。
 
 我们假定你熟悉 JavaScript / TypeScript，编程语言的教学超出了本文档的目的，如果你还不熟悉它们，可以从互联网上寻找到很多优秀的教程。如：
+
 - [现代 JavaScript 教程](https://zh.javascript.info)
 - [JavaScript 教程 - 廖雪峰](https://www.liaoxuefeng.com/wiki/1022910821149312)
 - [JavaScript - 菜鸟教程](https://www.runoob.com/js/js-tutorial.html)
@@ -349,11 +350,13 @@ function randomInt(min, max) {
 ## 抽取牌堆
 
 抽取牌堆的函数是 `seal.deck.draw(ctx, deckName, shufflePool)`
+
 - `ctx`：`MsgContext` 类型，指令上下文，`solve()` 函数传进来的第一个参数
 - `deckName`：牌堆名称，字符串类型，例如 `GRE单词`
 - `shufflePool`：是否放回抽取，布尔类型，`true` 为放回抽取，`false` 为不放回抽取
 
 返回值是一个 `map`，包含以下字段：
+
 - `exists`：布尔类型，是否抽取成功
 - `result`：字符串类型，抽取结果
 - `err`：字符串类型，抽取失败的原因
@@ -510,6 +513,7 @@ if (!seal.ext.find('myperm')) {
 添加：`seal.ban.addBan(ctx, uid, place, reason)`
 
 移除：`seal.ban.remove(ctx, uid)`
+
 - `ctx`：`MsgContext` 类型，指令上下文，`solve()` 函数传进来的第一个参数
 - `uid`：用户 ID，字符串类型，例如 `QQ:123456789`, `TG:123456789`
 - `place`：拉黑的地方，字符串类型，随便写，一般来说在群内拉黑就写群 ID
@@ -534,6 +538,7 @@ if (!seal.ext.find('myperm')) {
 使用 `seal.ban.getList()`
 
 返回值为一个数组，数组中的每一项都是一个 `BanListInfoItem` 对象，包含以下字段：
+
 - `id`：用户 ID，字符串类型
 - `name`：用户昵称，字符串类型
 - `score`：怒气值，整数类型
@@ -544,6 +549,7 @@ if (!seal.ext.find('myperm')) {
 - `banTime`：拉黑/信任的时间，整数时间戳
 
 ### 获取用户在黑名单 / 信任名单中的信息
+
 使用 `seal.ban.getUser(uid)`
 
 如果用户没有在黑名单 / 信任名单中，返回值为空值。
@@ -1257,12 +1263,12 @@ if (!seal.ext.find('xxx')){
 
 ```go
 type ConfigItem struct {
-	Key          string      `json:"key" jsbind:"key"`
-	Type         string      `json:"type" jsbind:"type"`
-	DefaultValue interface{} `json:"defaultValue" jsbind:"defaultValue"`
-	Value        interface{} `json:"value,omitempty" jsbind:"value"`
-	Option       interface{} `json:"option,omitempty" jsbind:"option"`
-	Deprecated   bool        `json:"deprecated,omitempty" jsbind:"deprecated"`
+    Key          string      `json:"key" jsbind:"key"`
+    Type         string      `json:"type" jsbind:"type"`
+    DefaultValue interface{} `json:"defaultValue" jsbind:"defaultValue"`
+    Value        interface{} `json:"value,omitempty" jsbind:"value"`
+    Option       interface{} `json:"option,omitempty" jsbind:"option"`
+    Deprecated   bool        `json:"deprecated,omitempty" jsbind:"deprecated"`
 }
 ```
 
@@ -1273,7 +1279,6 @@ type ConfigItem struct {
 在对你的 `ConfigItem` 对象进行修改后，再调用 `seal.ext.registerConfig()` 函数进行注册。
 
 :::
-
 
 ### 示例代码：注册配置项
 
