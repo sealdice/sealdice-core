@@ -12,13 +12,15 @@ VitePress 驱动的海豹骰官方使用手册。
 
 ## Lint
 
-提交前请务必使用 markdownlint 进行检查：
+提交前请务必使用 markdownlint 进行检查，不满足格式要求的修改无法合并入主仓库。
 
 ```shell
 pnpm install
 pnpm run lint:md
 pnpm run lint:md:fix // 检查并进行部分自动修复
 ```
+
+对于 VS Code 用户，请使用 [markdownlint](https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint) 插件获取编辑器警告。这一插件已经被添加到本项目的推荐插件中，只需在打开本项目时按 VS Code 的提示安装即可。
 
 ## 排版
 
