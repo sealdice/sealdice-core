@@ -11,3 +11,5 @@ index: false
   - [拦截](./censor.md)
 - 综合设置
   - [黑白名单](./ban.md)
+  - [备份](./backup.md)
+  - [自动退出不活跃群](./quit_grp_auto.md)

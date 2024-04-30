@@ -65,7 +65,7 @@ export const deploySidebar = {
       text: "安卓相关",
       items: [
         { text: "安卓海豹常见问题", link: "/deploy/android" },
-        { text: "配置安卓端保活", 
+        { text: "配置安卓端保活",
           link: "/deploy/android_keepalive" ,
           items: [
             { text: "授予海豹核心必要权限", link: "/deploy/android_keepalive#%E6%8E%88%E4%BA%88%E6%B5%B7%E8%B1%B9%E6%A0%B8%E5%BF%83%E5%BF%85%E8%A6%81%E6%9D%83%E9%99%90" },
@@ -128,6 +128,7 @@ export const config = {
       text: "综合设置",
       items: [
         { text: "黑白名单", link: "/config/ban" },
+        { text: "备份", link: "/config/backup" },
         { text: "自动退出不活跃群组", link: "/config/quit_grp_auto" },
       ],
     },
