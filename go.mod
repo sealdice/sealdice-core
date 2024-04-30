@@ -25,7 +25,7 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.2
-	github.com/labstack/echo/v4 v4.11.4
+	github.com/labstack/echo/v4 v4.12.0
 	github.com/lonelyevil/kook v0.0.31
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
@@ -159,7 +159,7 @@ require (
 	github.com/xuri/nfp v0.0.0-20230919160717-d98342af3f05 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/term v0.19.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
