@@ -132,7 +132,7 @@ func LagrangeGoMessageElementsToSealElements(elements []lagMessage.IMessageEleme
 	return segment
 }
 
-func SealMessageElementsToLagrangeGoElements(elements []message.IMessageElement) []lagMessage.IMessageElement {
+func FormatLagrangeGoElementGroup(elements []message.IMessageElement) []lagMessage.IMessageElement {
 	var segment []lagMessage.IMessageElement
 	for _, element := range elements {
 		switch e := element.(type) {
@@ -169,7 +169,51 @@ func SealMessageElementsToLagrangeGoElements(elements []message.IMessageElement)
 				ReplySeq: int32(replySeq),
 				Sender:   uint64(sender),
 				GroupID:  uint64(groupID),
-				Elements: SealMessageElementsToLagrangeGoElements(e.Elements),
+				Elements: FormatLagrangeGoElementGroup(e.Elements),
+			})
+		}
+	}
+	return segment
+}
+
+func FormatLagrangeGoElementPrivate(elements []message.IMessageElement) []lagMessage.IMessageElement {
+	var segment []lagMessage.IMessageElement
+	for _, element := range elements {
+		switch e := element.(type) {
+		case *message.TextElement:
+			segment = append(segment, &lagMessage.TextElement{Content: e.Content})
+		case *message.AtElement:
+			target, _ := strconv.ParseInt(e.Target, 10, 32)
+			segment = append(segment, &lagMessage.AtElement{Target: uint32(target)})
+		case *message.ImageElement:
+			data, err := io.ReadAll(e.File.Stream)
+			if err != nil {
+				continue
+			}
+			segment = append(segment, &lagMessage.FriendImageElement{Stream: data})
+		case *message.FaceElement:
+			faceID, _ := strconv.ParseInt(e.FaceID, 10, 16)
+			segment = append(segment, &lagMessage.FaceElement{FaceID: uint16(faceID)})
+		case *message.ReplyElement:
+			replySeq, err := strconv.ParseInt(e.ReplySeq, 10, 32)
+			if err != nil {
+				continue
+			}
+			senderRaw := UserIDExtract(e.Sender)
+			groupIDRaw := UserIDExtract(e.GroupID)
+			sender, err := strconv.ParseInt(senderRaw, 10, 64)
+			if err != nil {
+				continue
+			}
+			groupID, err := strconv.ParseInt(groupIDRaw, 10, 64)
+			if err != nil {
+				continue
+			}
+			segment = append(segment, &lagMessage.ReplyElement{
+				ReplySeq: int32(replySeq),
+				Sender:   uint64(sender),
+				GroupID:  uint64(groupID),
+				Elements: FormatLagrangeGoElementPrivate(e.Elements),
 			})
 		}
 	}
@@ -280,7 +324,7 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 	pa.CurState = StateCodeLoginSuccessed
 	pa.EndPoint.Enable = true
 	pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", pa.sig.Uin)
-	pa.QQClient.RefreshFriendCache()
+	_ = pa.QQClient.RefreshFriendCache()
 
 	// setup event handler
 	pa.QQClient.GroupMessageEvent.Subscribe(func(client *client.QQClient, event *lagMessage.GroupMessage) {
@@ -327,8 +371,45 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 
 	pa.QQClient.GroupMemberLeaveEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberDecrease) {
 		log.Debugf("GroupLeaveEvent: %+v", event)
-		log.Debugf("GroupLeaveEvent ExitType: %+v", event.ExitType)
-		log.Debugf("GroupLeaveEvent IsKicked: %+v", event.IsKicked())
+		if event.ExitType == 3 {
+			// targetUin := pa.QQClient.GetUin(event.MemberUid, event.GroupUin)
+			operatorUin := pa.QQClient.GetUin(event.OperatorUid, event.GroupUin)
+			// if targetUin != pa.UIN {
+			//	return
+			// }
+			ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+			opUID := FormatDiceIDQQ(strconv.Itoa(int(operatorUin)))
+			groupID := FormatDiceIDQQGroup(strconv.Itoa(int(event.GroupUin)))
+			dm := pa.Session.Parent.Parent
+			groupName := dm.TryGetGroupName(groupID)
+			userName := dm.TryGetUserName(opUID)
+
+			// Note: 从 gocq 抄过来的，为什么禁言就没有这一段呢？
+			skip := false
+			skipReason := ""
+			banInfo, ok := ctx.Dice.BanList.GetByID(opUID)
+			if ok {
+				if banInfo.Rank == 30 {
+					skip = true
+					skipReason = "信任用户"
+				}
+			}
+			if ctx.Dice.IsMaster(opUID) {
+				skip = true
+				skipReason = "Master"
+			}
+
+			var extra string
+			if skip {
+				extra = fmt.Sprintf("\n取消处罚，原因为%s", skipReason)
+			} else {
+				ctx.Dice.BanList.AddScoreByGroupKicked(opUID, groupID, ctx)
+			}
+
+			txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, groupID, userName, opUID, extra)
+			log.Info(txt)
+			ctx.Notice(txt)
+		}
 	})
 
 	pa.QQClient.GroupMemberJoinRequestEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberJoinRequest) {
@@ -337,10 +418,52 @@ func (pa *PlatformAdapterLagrangeGo) Serve() int {
 
 	pa.QQClient.GroupMemberJoinEvent.Subscribe(func(client *client.QQClient, event *event.GroupMemberIncrease) {
 		log.Debugf("GroupMemberJoinEvent: %+v", event)
+		_ = pa.QQClient.RefreshGroupMembersCache(event.GroupUin)
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+		inviterID := FormatDiceIDQQ(strconv.Itoa(int(pa.QQClient.GetUin(event.InvitorUid, event.GroupUin))))
+		msg := &Message{
+			Time:        time.Now().Unix(),
+			MessageType: "group",
+			GroupID:     "QQ-Group:" + strconv.FormatInt(int64(event.GroupUin), 10),
+			Platform:    "QQ",
+			Sender: SenderBase{
+				UserID: inviterID,
+			},
+		}
+		newMemberUID := pa.QQClient.GetUin(event.MemberUid, event.GroupUin)
+		// 自己加群
+		if newMemberUID == pa.UIN {
+			pa.Session.OnGroupJoined(ctx, msg)
+		} else {
+			// 其他人被邀请加群
+			msg.Sender.UserID = FormatDiceIDQQ(strconv.Itoa(int(newMemberUID)))
+			pa.Session.OnGroupMemberJoined(ctx, msg)
+		}
 	})
 
 	pa.QQClient.GroupMuteEvent.Subscribe(func(client *client.QQClient, event *event.GroupMute) {
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
 		log.Debugf("GroupMuteEvent: %+v", event)
+		targetUin := pa.QQClient.GetUin(event.TargetUid, event.GroupUin)
+		operatorUin := pa.QQClient.GetUin(event.OperatorUid, event.GroupUin)
+		if targetUin == pa.UIN {
+			log.Debugf("Muted by %v", operatorUin)
+		} else {
+			return
+		}
+		// 解除禁言
+		if event.Duration == 0 {
+			return
+		}
+		dm := pa.Session.Parent.Parent
+		opUID := FormatDiceIDQQ(strconv.Itoa(int(operatorUin)))
+		groupID := FormatDiceIDQQGroup(strconv.Itoa(int(event.GroupUin)))
+		groupName := dm.TryGetGroupName(groupID)
+		userName := dm.TryGetUserName(opUID)
+		ctx.Dice.BanList.AddScoreByGroupMuted(opUID, groupID, ctx)
+		txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, groupID, event.Duration, userName, opUID)
+		log.Info(txt)
+		ctx.Notice(txt)
 	})
 
 	err = SaveSigInfo(pa.configDir+"/siginfo.gob", pa.sig)
@@ -397,7 +520,8 @@ func (pa *PlatformAdapterLagrangeGo) SendToPerson(ctx *MsgContext, uid string, t
 		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
-	messageElem := []lagMessage.IMessageElement{&lagMessage.TextElement{Content: text}}
+	elementsRaw := message.ConvertStringMessage(text)
+	messageElem := FormatLagrangeGoElementPrivate(elementsRaw)
 	_, err = pa.QQClient.SendPrivateMessage(uint32(userCode), messageElem)
 	if err != nil {
 		log.Errorf("SendToPerson failed: %v", err)
@@ -418,7 +542,7 @@ func (pa *PlatformAdapterLagrangeGo) SendToGroup(ctx *MsgContext, uid string, te
 		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
-	messageElem := SealMessageElementsToLagrangeGoElements(elementsRaw)
+	messageElem := FormatLagrangeGoElementGroup(elementsRaw)
 	_, err = pa.QQClient.SendGroupMessage(uint32(groupCode), messageElem)
 	if err != nil {
 		log.Errorf("SendGroupMessage failed: %v", err)
@@ -472,7 +596,7 @@ func (pa *PlatformAdapterLagrangeGo) SetGroupCardName(ctx *MsgContext, name stri
 		log.Errorf("ParseInt failed: %v", err)
 		return
 	}
-	pa.QQClient.RefreshGroupMembersCache(uint32(groupCode))
+	_ = pa.QQClient.RefreshGroupMembersCache(uint32(groupCode))
 	req, err := oidb.BuildGroupRenameMemberReq(uint32(groupCode), pa.QQClient.GetUid(uint32(userCode), uint32(groupCode)), name)
 	if err != nil {
 		log.Errorf("BuildGroupRenameMemberReq failed: %v", err)

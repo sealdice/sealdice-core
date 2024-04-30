@@ -1357,6 +1357,101 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 	return ret
 }
 
+// OnGroupJoined 群组进群事件处理，其他 Adapter 应当尽快迁移至此方法实现
+func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
+	d := ctx.Dice
+	log := d.Logger
+	ep := ctx.EndPoint
+	dm := d.Parent
+	// 判断进群的人是自己，自动启动
+	group := SetBotOnAtGroup(ctx, msg.GroupID)
+	// 获取邀请人ID，Adapter 应当按照统一格式将邀请人 ID 放入 Sender 字段
+	group.InviteUserID = msg.Sender.UserID
+	group.DiceIDExistsMap.Store(ep.UserID, true)
+	group.EnteredTime = time.Now().Unix() // 设置入群时间
+	group.UpdatedAtTime = time.Now().Unix()
+	ep.Adapter.GetGroupInfoAsync(msg.GroupID)
+	time.Sleep(2 * time.Second)
+	groupName := dm.TryGetGroupName(msg.GroupID)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+
+		// 稍作等待后发送入群致词
+		time.Sleep(2 * time.Second)
+
+		ctx.Player = &GroupPlayerInfo{}
+		log.Infof("发送入群致辞，群: <%s>(%d)", groupName, msg.GroupID)
+		text := DiceFormatTmpl(ctx, "核心:骰子进群")
+		for _, i := range ctx.SplitText(text) {
+			doSleepQQ(ctx)
+			ReplyGroup(ctx, msg, strings.TrimSpace(i))
+		}
+	}()
+	txt := fmt.Sprintf("加入群组: <%s>(%s)", groupName, msg.GroupID)
+	log.Info(txt)
+	ctx.Notice(txt)
+	for _, i := range group.ActivatedExtList {
+		if i.OnGroupJoined != nil {
+			i.callWithJsCheck(d, func() {
+				i.OnGroupJoined(ctx, msg)
+			})
+		}
+	}
+}
+
+var lastWelcome *LastWelcomeInfo
+
+// OnGroupMemberJoined 群成员进群事件处理，除了 bot 自己以外的群成员入群时调用。其他 Adapter 应当尽快迁移至此方法实现
+func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
+	log := s.Parent.Logger
+
+	group := s.ServiceAtNew[msg.GroupID]
+	// 进群的是别人，是否迎新？
+	// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
+	// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
+	if group != nil && group.ShowGroupWelcome {
+		isDouble := false
+		if lastWelcome != nil {
+			isDouble = msg.GroupID == lastWelcome.GroupID &&
+				msg.Sender.UserID == lastWelcome.UserID &&
+				msg.Time == lastWelcome.Time
+		}
+		lastWelcome = &LastWelcomeInfo{
+			GroupID: msg.GroupID,
+			UserID:  msg.Sender.UserID,
+			Time:    msg.Time,
+		}
+
+		if !isDouble {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Errorf("迎新致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+					}
+				}()
+
+				ctx.Player = &GroupPlayerInfo{}
+				// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
+				uidRaw := UserIDExtract(msg.Sender.UserID)
+				VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
+				VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
+				stdID := msg.Sender.UserID
+				VarSetValueStr(ctx, "$t帐号ID", stdID)
+				VarSetValueStr(ctx, "$t账号ID", stdID)
+				text := DiceFormat(ctx, group.GroupWelcomeMessage)
+				for _, i := range ctx.SplitText(text) {
+					doSleepQQ(ctx)
+					ReplyGroup(ctx, msg, strings.TrimSpace(i))
+				}
+			}()
+		}
+	}
+}
+
 // 借助类似操作系统信号量的思路来做一个互斥锁
 var muxAutoQuit sync.Mutex
 var groupLeaveNum int
