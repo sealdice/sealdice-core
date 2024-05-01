@@ -134,7 +134,7 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 `appsettings.json`：
 
-```json{9,11-12,20-28}
+```json{11-12,20-28}
 {
   "Logging": {
     "LogLevel": {
@@ -143,7 +143,7 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
       "Microsoft.Hosting.Lifetime": "Information"
     }
   },
-  "SignServerUrl": "",
+  "SignServerUrl": "https://sign.lagrangecore.org/api/sign",
   "Account": {
     "Uin": 0,
     "Password": "",
@@ -169,12 +169,14 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 其中有几个重要的设置项需要填写和注意：
 
 - `Password` 为空时为扫码，这里请留空。
-- `SignServerUrl`：NTQQ 的签名服务地址，**注意此处的签名服务需要是 Linux NTQQ 签名服务，不可以使用 QSign、Shamrock 等提供的 Android QQ 签名服务**；
+- `SignServerUrl`：NTQQ 的签名服务地址，**注意此处的签名服务需要是 Linux NTQQ 签名服务，不可以使用 QSign、Shamrock 等提供的 Android QQ 签名服务**。
 - `Implementations`：这是 Lagrange 的连接配置，海豹将使用 `ForwardWebSocket`，即正向 WebSocket 方式连接 Lagrange，该方式下的 `Host` 和 `Port` 是 Lagrange 将提供的 **OneBot-V11 正向 WS 服务地址**，记下以供后续使用。如果对应端口已占用请自行调整。
 
 ::: info Linux NTQQ 的签名服务
 
-拉格兰项目提供公共签名服务。请访问[拉格兰项目的 GitHub 仓库，在其 README 中](https://github.com/KonataDev/Lagrange.Core?tab=readme-ov-file#signserver)查找。
+拉格兰项目提供公共签名服务，运行程序后默认生成的配置文件中已经包含了签名地址。
+
+可访问[拉格兰项目的 GitHub 仓库，在其 README 中](https://github.com/KonataDev/Lagrange.Core?tab=readme-ov-file#signserver)验证其是否正确有效。
 
 :::
 
@@ -277,11 +279,11 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 
 :::
 
-## LLOneBot API <Badge type="tip" text="v1.4.2" />
+## LLOneBot <Badge type="tip" text="v1.4.2" />
 
-海豹从 <Badge type="tip" text="v1.4.2"/> 版本开始支持通过 OneBot 协议连接 LLOneBot API。
+海豹从 <Badge type="tip" text="v1.4.2"/> 版本开始支持通过 OneBot 协议连接 LLOneBot。
 
-::: info LLOneBot API
+::: info LLOneBot
 
 [LiteLoaderQQNT](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)（LiteLoader）是 NTQQ 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能。
 
@@ -289,32 +291,9 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 
 :::
 
-### 安装 LiteLoader
+### 安装 LLOneBot
 
-社区提供了非常简便的 [安装脚本](https://github.com/Mzdyl/LiteLoaderQQNT_Install/)，安装方法中在文档中，请自行查看。
-
-::: tip
-
-- 使用 Windows 部署时脚本要使用管理员模式运行。
-- 由于脚本使用了 git，请在系统中安装 [git](https://git-scm.com/)。
-- 一定要在安装 QQ 客户端的主机上使用安装脚本。
-- **由于 Windows 平台的 QQ 被添加了文件完整性验证，你需要额外步骤来解除限制，请自行前往 [LLQQNT 文档](https://liteloaderqqnt.github.io/guide/install.html#修补) 查阅方法。**
-
-:::
-
-### 安装 LLOneBot API
-
-在 LiteLoader 中安装 OneBotAPI，具体方法请参考 [LLOneBot API](https://github.com/LLOneBot/LLOneBot) 仓库中的说明。
-
-::: info plugins 文件夹位置
-
-安装完成 LiteLoader 后，如图所示：
-
-![LiteLoader 中的 Plugins 目录](./images/platform-qq-llonebot-1.png)
-
-所指处即插件文件夹，打开这个文件夹并且在 plugins 新建一个文件夹，把 LLOneBot API **Release** 版本的 4 个文件解压到新建的文件夹处，重启 QQ 即可。
-
-:::
+请参考 [官方文档](https://llonebot.github.io/zh-CN/) 中的说明。
 
 ### 配置海豹
 
@@ -331,7 +310,6 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 
 - 如若想修改端口请在 LLOneBot 的设置 UI 自行修改。
 - 请注意设置中的正向连接和反向连接请 **不要同时打开**，否则会发不出消息。
-- 由于采用劫持路线，暂不清楚多账号登录情况。
 - **如果你是在服务器上部署，可能需要使用 [Mem Reduct](https://memreduct.org/mem-reduct-download/) 之类的工具定时清理过高的内存占用。**
 
 :::
@@ -341,6 +319,8 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 ::: info NapCatQQ
 
 [NapCatQQ](https://github.com/NapNeko/NapCatQQ) 是在后台低占用运行的无头(没有界面)的 NTQQ，具体占用会因人而异，QQ 群、好友越多占用越高。
+
+[NapCat 官方文档](https://napneko.github.io/zh-CN/)
 
 **注意同个账号不能同时登录原版 QQ 和 NapCatQQ**。
 
