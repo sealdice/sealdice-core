@@ -1,4 +1,3 @@
-//nolint:gosec
 package dice
 
 import (
@@ -23,7 +22,7 @@ func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
 			return ""
 		}
 		// 计算 MD5 哈希值作为文件名
-		hash := md5.Sum(data)
+		hash := md5.Sum(data) //nolint:gosec
 		filename := fmt.Sprintf("%x", hash)
 		tempDir := os.TempDir()
 		// 构建文件路径
@@ -110,7 +109,6 @@ func (i *ExtInfo) Filewrite(name string, ctx string) {
 		i.dice.Logger.Errorf("写入文件出错:%s", err)
 		return
 	}
-
 }
 
 func (i *ExtInfo) FileRead(name string) string {
