@@ -29,7 +29,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/static"
-	"sealdice-core/utils"
 	"sealdice-core/utils/crypto"
 )
 
