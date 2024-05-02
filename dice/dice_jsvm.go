@@ -29,7 +29,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/static"
-	"sealdice-core/utils"
 	"sealdice-core/utils/crypto"
 )
 
@@ -461,7 +460,11 @@ func (d *Dice) JsInit() {
 		// 1.2新增结束
 
 		_ = seal.Set("setPlayerGroupCard", SetPlayerGroupCardByTemplate)
-		_ = seal.Set("base64ToImage", utils.Base64ToImageFunc(d.Logger))
+		_ = seal.Set("base64ToImage", Base64ToImageFunc(d.Logger))
+		_ = seal.Set("log", Log(d.Logger))
+		_ = seal.Set("errorlog", ErrorLog(d.Logger))
+		_ = seal.Set("filewrite", FileWrite(d.Logger))
+		_ = seal.Set("fileread", FileRead(d.Logger))
 
 		// Note: Szzrain 暴露dice对象给js会导致js可以调用dice的所有Export的方法
 		// 这是不安全的, 所有需要用到dice实例的函数都可以以传入ctx作为替代
