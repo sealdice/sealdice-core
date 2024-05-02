@@ -63,7 +63,6 @@ func ErrorLog(logger *zap.SugaredLogger) func(string) {
 
 func (i *ExtInfo) Filewrite(name string, ctx string) {
 	re := regexp.MustCompile(`^\.+`)
-	// 以"."开头的文件
 	if re.MatchString(name) {
 		i.dice.Logger.Errorf("出于安全原因，拒绝访问父级文件夹，也不允许创建隐藏文件，请使用文件名称或相对路径+文件名称调用，使用相对路径时不要用\".\\\"")
 		return
@@ -80,7 +79,7 @@ func (i *ExtInfo) Filewrite(name string, ctx string) {
 	reg := regexp.MustCompile(`/`)
 	// 如果检测到分隔符，单独处理
 	if reg.MatchString(name) {
-		err := os.MkdirAll(path+filepath.Dir(name), 0755)
+		err := os.MkdirAll(path+"/"+filepath.Dir(name), 0755)
 		if err != nil {
 			fmt.Println("非法路径:", err)
 			return
@@ -114,21 +113,9 @@ func (i *ExtInfo) Filewrite(name string, ctx string) {
 
 func (i *ExtInfo) FileRead(name string) string {
 	path := filepath.Join("data", "default", "extensions", i.Name, name)
-	openFile, e := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0777)
-	if e != nil {
-		i.dice.Logger.Errorf("打开文件出错%s", e.Error())
-	}
-	buf := make([]byte, 1024)
-	for {
-		leng, _ := openFile.Read(buf)
-		if leng == 0 {
-			break
-		}
-	}
-	err := openFile.Close()
+	content, err := os.ReadFile(path)
 	if err != nil {
-		i.dice.Logger.Errorf("关闭文件出错%s", e.Error())
-		return ""
+		i.dice.Logger.Errorf("打开文件出错%s", err.Error())
 	}
-	return string(buf)
+	return string(content)
 }
