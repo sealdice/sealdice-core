@@ -194,7 +194,7 @@ func (d *Dice) JsInit() {
 				i.ExtActive(ei)
 			}
 		})
-		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string) error {
+		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -203,11 +203,12 @@ func (d *Dice) JsInit() {
 				Type:         "string",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
+				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64) error {
+		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64, description string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -216,11 +217,12 @@ func (d *Dice) JsInit() {
 				Type:         "int",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
+				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool) error {
+		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool, description string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -229,11 +231,12 @@ func (d *Dice) JsInit() {
 				Type:         "bool",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
+				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64) error {
+		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64, description string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -242,11 +245,12 @@ func (d *Dice) JsInit() {
 				Type:         "float",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
+				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string) error {
+		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string, description string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -255,11 +259,12 @@ func (d *Dice) JsInit() {
 				Type:         "template",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
+				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string) error {
+		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string, description string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -269,15 +274,16 @@ func (d *Dice) JsInit() {
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Option:       option,
+				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("newConfigItem", func(ei *ExtInfo, key string, defaultValue interface{}) *ConfigItem {
+		_ = ext.Set("newConfigItem", func(ei *ExtInfo, key string, defaultValue interface{}, description string) *ConfigItem {
 			if ei.dice == nil {
 				panic(errors.New("请先完成此扩展的注册"))
 			}
-			return d.ConfigManager.NewConfigItem(key, defaultValue)
+			return d.ConfigManager.NewConfigItem(key, defaultValue, description)
 		})
 		_ = ext.Set("registerConfig", func(ei *ExtInfo, config ...*ConfigItem) error {
 			if ei.dice == nil {
@@ -801,6 +807,7 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 			case "version":
 				jsInfo.Version = v
 			case "description":
+				v = strings.ReplaceAll(v, "\\n", "\n")
 				jsInfo.Desc = v
 			case "timestamp":
 				timestamp, errParse := strconv.ParseInt(v, 10, 64)
