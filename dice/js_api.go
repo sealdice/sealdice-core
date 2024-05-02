@@ -62,7 +62,8 @@ func ErrorLog(logger *zap.SugaredLogger) func(string) {
 }
 
 func (i *ExtInfo) Filewrite(name string, ctx string) {
-	re := regexp.MustCompile(`\.+`)
+	re := regexp.MustCompile(`^\.+`)
+	// 以"."开头的文件
 	if re.MatchString(name) {
 		i.dice.Logger.Errorf("出于安全原因，拒绝访问父级文件夹，也不允许创建隐藏文件，请使用文件名称或相对路径+文件名称调用，使用相对路径时不要用\".\\\"")
 		return
