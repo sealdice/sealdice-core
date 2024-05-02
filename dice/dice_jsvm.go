@@ -194,7 +194,7 @@ func (d *Dice) JsInit() {
 				i.ExtActive(ei)
 			}
 		})
-		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string) error {
+		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -203,12 +203,11 @@ func (d *Dice) JsInit() {
 				Type:         "string",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
-				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64, description string) error {
+		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -217,12 +216,11 @@ func (d *Dice) JsInit() {
 				Type:         "int",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
-				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool, description string) error {
+		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -231,12 +229,11 @@ func (d *Dice) JsInit() {
 				Type:         "bool",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
-				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64, description string) error {
+		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -245,12 +242,11 @@ func (d *Dice) JsInit() {
 				Type:         "float",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
-				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string, description string) error {
+		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -259,12 +255,11 @@ func (d *Dice) JsInit() {
 				Type:         "template",
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
-				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string, description string) error {
+		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
@@ -274,16 +269,15 @@ func (d *Dice) JsInit() {
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Option:       option,
-				Description:  description,
 			}
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("newConfigItem", func(ei *ExtInfo, key string, defaultValue interface{}, description string) *ConfigItem {
+		_ = ext.Set("newConfigItem", func(ei *ExtInfo, key string, defaultValue interface{}) *ConfigItem {
 			if ei.dice == nil {
 				panic(errors.New("请先完成此扩展的注册"))
 			}
-			return d.ConfigManager.NewConfigItem(key, defaultValue, description)
+			return d.ConfigManager.NewConfigItem(key, defaultValue)
 		})
 		_ = ext.Set("registerConfig", func(ei *ExtInfo, config ...*ConfigItem) error {
 			if ei.dice == nil {
@@ -463,7 +457,8 @@ func (d *Dice) JsInit() {
 		_ = seal.Set("base64ToImage", Base64ToImageFunc(d.Logger))
 		_ = seal.Set("log", Log(d.Logger))
 		_ = seal.Set("errorlog", ErrorLog(d.Logger))
-		_ = seal.Set("writeFile", FileWrite(d.Logger))
+		_ = seal.Set("filewrite", FileWrite(d.Logger))
+		_ = seal.Set("fileread", FileRead(d.Logger))
 
 		// Note: Szzrain 暴露dice对象给js会导致js可以调用dice的所有Export的方法
 		// 这是不安全的, 所有需要用到dice实例的函数都可以以传入ctx作为替代

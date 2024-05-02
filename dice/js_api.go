@@ -1,3 +1,4 @@
+//nolint:gosec
 package dice
 
 import (
@@ -22,7 +23,7 @@ func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
 			return ""
 		}
 		// 计算 MD5 哈希值作为文件名
-		hash := md5.Sum(data) //nolint:gosec
+		hash := md5.Sum(data)
 		filename := fmt.Sprintf("%x", hash)
 		tempDir := os.TempDir()
 		// 构建文件路径
@@ -63,22 +64,37 @@ func ErrorLog(logger *zap.SugaredLogger) func(string) {
 
 func FileWrite(logger *zap.SugaredLogger) func(ei *ExtInfo, name string, ctx string) {
 	return func(ei *ExtInfo, name string, ctx string) {
-		re := regexp.MustCompile(`^[A-Z]:`)
+		re := regexp.MustCompile(`\.+`)
 		if re.MatchString(name) {
-			logger.Errorf("出于安全原因，拒绝文件通过绝对路径调用，请使用文件名称或相对路径+文件名称调用，使用相对路径时不要用\".\\\"")
+			logger.Errorf("出于安全原因，拒绝访问父级文件夹，也不允许创建隐藏文件，请使用文件名称或相对路径+文件名称调用，使用相对路径时不要用\".\\\"")
 			return
 		}
 		// 没有办法获取插件名称，强制把 ExtInfo 塞进去
 		// 出于安全，仅允许 js 插件文件 io 限制在 default/extensions/<ext> 文件夹
 
 		path := filepath.Join("data", "default", "extensions", ei.Name)
-		path = filepath.ToSlash(path)
-		err := os.MkdirAll(path, 0755)
-		if err != nil {
-			fmt.Println("非法路径:", err)
+		if filepath.IsAbs(path) {
+			// 如果路径为绝对路径
+			// 拒绝执行
+			logger.Errorf("出于安全原因，拒绝文件通过绝对路径调用，请使用文件名称或相对路径+文件名称调用，使用相对路径时不要用\".\\\"")
 			return
 		}
-
+		reg := regexp.MustCompile(`/`)
+		// 如果检测到分隔符，单独处理
+		if reg.MatchString(name) {
+			err := os.MkdirAll(path+filepath.Dir(name), 0755)
+			if err != nil {
+				fmt.Println("非法路径:", err)
+				return
+			}
+			// 继续执行
+		} else {
+			err := os.MkdirAll(path, 0755)
+			if err != nil {
+				fmt.Println("非法路径:", err)
+				return
+			}
+		}
 		file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY, 0644) // 创建或打开文件
 		if err != nil {
 			logger.Errorf("创建文件出错%s", err.Error())
@@ -96,5 +112,28 @@ func FileWrite(logger *zap.SugaredLogger) func(ei *ExtInfo, name string, ctx str
 			logger.Errorf("写入文件出错:%s", err)
 			return
 		}
+	}
+}
+
+func FileRead(logger *zap.SugaredLogger) func(ei *ExtInfo, name string) string {
+	return func(ei *ExtInfo, name string) string {
+		path := filepath.Join("data", "default", "extensions", ei.Name, name)
+		openFile, e := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0777)
+		if e != nil {
+			logger.Errorf("打开文件出错%s", e.Error())
+		}
+		buf := make([]byte, 1024)
+		for {
+			leng, _ := openFile.Read(buf)
+			if leng == 0 {
+				break
+			}
+		}
+		err := openFile.Close()
+		if err != nil {
+			logger.Errorf("关闭文件出错%s", e.Error())
+			return ""
+		}
+		return string(buf)
 	}
 }
