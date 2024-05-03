@@ -119,3 +119,8 @@ func (i *ExtInfo) FileRead(name string) string {
 	}
 	return string(content)
 }
+
+func (i *ExtInfo) FileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return !os.IsNotExist(err)
+}
