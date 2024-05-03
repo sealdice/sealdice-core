@@ -461,7 +461,6 @@ func (d *Dice) JsInit() {
 
 		_ = seal.Set("setPlayerGroupCard", SetPlayerGroupCardByTemplate)
 		_ = seal.Set("base64ToImage", Base64ToImageFunc(d.Logger))
-		_ = seal.Set("log", Log(d.Logger))
 		_ = seal.Set("errorlog", ErrorLog(d.Logger))
 
 		// Note: Szzrain 暴露dice对象给js会导致js可以调用dice的所有Export的方法
