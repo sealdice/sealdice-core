@@ -1,9 +1,9 @@
-//nolint:gosec
 package dice
 
 import (
 	"crypto/md5"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,18 +12,16 @@ import (
 	"go.uber.org/zap"
 )
 
-func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
-	return func(b64 string) string {
-		// use logger here
+func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) (string, error) {
+	return func(b64 string) (string, error) {
 		// 解码 Base64 值
 		data, e := base64.StdEncoding.DecodeString(b64)
 		if e != nil {
-			logger.Errorf("不合法的base64值：%s", b64)
 			// 出现错误，拒绝向下执行
-			return ""
+			return "", errors.New("不合法的base64值：" + b64)
 		}
 		// 计算 MD5 哈希值作为文件名
-		hash := md5.Sum(data)
+		hash := md5.Sum(data) //nolint:gosec
 		filename := fmt.Sprintf("%x", hash)
 		tempDir := os.TempDir()
 		// 构建文件路径
@@ -32,108 +30,218 @@ func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
 		// 将数据写入文件
 		fi, err := os.OpenFile(imageurlPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0664)
 		if err != nil {
-			logger.Errorf("创建文件出错%s", err.Error())
-			return ""
+			return "", errors.New("创建文件出错:" + err.Error())
 		}
 		defer func(fi *os.File) {
 			errClose := fi.Close()
 			if errClose != nil {
-				logger.Errorf("关闭文件出错%s", errClose.Error())
+				logger.Errorf("关闭文件出错:%s", errClose.Error())
 			}
 		}(fi)
 		_, err = fi.Write(data)
 		if err != nil {
-			logger.Errorf("写入文件出错%s", err.Error())
-			return ""
+			return "", errors.New("写入文件出错:" + err.Error())
 		}
 		logger.Info("File saved to:", imageurlPath)
-		return "file://" + imageurlPath
+		return "file://" + imageurlPath, nil
 	}
 }
 
-func Log(logger *zap.SugaredLogger) func(string) {
+func ErrorLogFunc(logger *zap.SugaredLogger) func(string) {
 	return func(s string) {
-		logger.Info(s)
-	}
-}
-func ErrorLog(logger *zap.SugaredLogger) func(string) {
-	return func(s string) {
-		logger.Errorf(s)
+		logger.Error(s)
 	}
 }
 
-func FileWrite(logger *zap.SugaredLogger) func(ei *ExtInfo, name string, ctx string) {
-	return func(ei *ExtInfo, name string, ctx string) {
-		re := regexp.MustCompile(`\.+`)
-		if re.MatchString(name) {
-			logger.Errorf("出于安全原因，拒绝访问父级文件夹，也不允许创建隐藏文件，请使用文件名称或相对路径+文件名称调用，使用相对路径时不要用\".\\\"")
-			return
-		}
-		// 没有办法获取插件名称，强制把 ExtInfo 塞进去
-		// 出于安全，仅允许 js 插件文件 io 限制在 default/extensions/<ext> 文件夹
-
-		path := filepath.Join("data", "default", "extensions", ei.Name)
-		if filepath.IsAbs(path) {
-			// 如果路径为绝对路径
-			// 拒绝执行
-			logger.Errorf("出于安全原因，拒绝文件通过绝对路径调用，请使用文件名称或相对路径+文件名称调用，使用相对路径时不要用\".\\\"")
-			return
-		}
-		reg := regexp.MustCompile(`/`)
-		// 如果检测到分隔符，单独处理
-		if reg.MatchString(name) {
-			err := os.MkdirAll(path+filepath.Dir(name), 0755)
-			if err != nil {
-				fmt.Println("非法路径:", err)
-				return
-			}
-			// 继续执行
-		} else {
-			err := os.MkdirAll(path, 0755)
-			if err != nil {
-				fmt.Println("非法路径:", err)
-				return
-			}
-		}
-		file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY, 0644) // 创建或打开文件
+func (i *ExtInfo) FileAppend(name string, ctx string) error {
+	if !isNotABS(name, i.dice.Logger) {
+		// 如果不是绝对路径返回 true
+		// 取否一下
+		return errors.New("")
+		// 拒绝向下执行
+	}
+	reg := regexp.MustCompile(`/`)
+	path := filepath.Join("data", "default", "extensions", i.Name)
+	// 如果检测到分隔符，单独处理
+	if reg.MatchString(name) {
+		err := os.MkdirAll(path+"/"+filepath.Dir(name), 0777)
 		if err != nil {
-			logger.Errorf("创建文件出错%s", err.Error())
-			return
+			return errors.New("非法路径:" + err.Error())
+		}
+		// 继续执行
+	} else {
+		err := os.MkdirAll(path, 0777)
+		if err != nil {
+			return errors.New("非法路径:" + err.Error())
+		}
+	}
+	file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY, 0777) // 创建或打开文件
+	if err != nil {
+		return errors.New("创建文件出错:" + err.Error())
+	}
+	defer func(file *os.File) {
+		errClose := file.Close()
+		if errClose != nil {
+			i.dice.Logger.Errorf("关闭文件出错%s", errClose.Error())
+		}
+	}(file)
+	_, err = file.WriteString(ctx) // 将内容写入文件
+	if err != nil {
+		return errors.New("写入文件出错:" + err.Error())
+	}
+	return nil
+}
+
+func (i *ExtInfo) FileOverwrite(name string, ctx string) error {
+	if !isNotABS(name, i.dice.Logger) {
+		// 如果不是绝对路径返回 true
+		// 取否一下
+		return errors.New("")
+		// 拒绝向下执行
+	}
+	reg := regexp.MustCompile(`/`)
+	path := filepath.Join("data", "default", "extensions", i.Name)
+	// 如果检测到分隔符，单独处理
+	if reg.MatchString(name) {
+		err := os.MkdirAll(path+"/"+filepath.Dir(name), 0777)
+		if err != nil {
+			return errors.New("非法路径:" + err.Error())
+		}
+		// 继续执行
+	} else {
+		err := os.MkdirAll(path, 0777)
+		if err != nil {
+			return errors.New("非法路径:" + err.Error())
+		}
+	}
+	file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777) // 创建或打开文件
+	if err != nil {
+		return errors.New("创建文件出错:" + err.Error())
+	}
+	defer func(file *os.File) {
+		errClose := file.Close()
+		if errClose != nil {
+			i.dice.Logger.Errorf("关闭文件出错%s", errClose.Error())
+		}
+	}(file)
+	_, err = file.WriteString(ctx) // 将内容写入文件
+	if err != nil {
+		return errors.New("写入文件出错:" + err.Error())
+	}
+	return nil
+}
+
+func (i *ExtInfo) FileWrite(name string, mod string, ctx string) error {
+	if !isNotABS(name, i.dice.Logger) {
+		// 如果不是绝对路径返回 true
+		// 取否一下
+		return errors.New("")
+		// 拒绝向下执行
+	}
+	reg := regexp.MustCompile(`/`)
+	path := filepath.Join("data", "default", "extensions", i.Name)
+	// 如果检测到分隔符，单独处理
+	if reg.MatchString(name) {
+		err := os.MkdirAll(path+"/"+filepath.Dir(name), 0777)
+		if err != nil {
+			return errors.New("非法路径:" + err.Error())
+		}
+		// 继续执行
+	} else {
+		err := os.MkdirAll(path, 0777)
+		if err != nil {
+			return errors.New("非法路径:" + err.Error())
+		}
+	}
+	if mod == "append" || mod == "add" {
+		file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY, 0777) // 创建或打开文件
+		if err != nil {
+			return errors.New("创建文件出错:" + err.Error())
 		}
 		defer func(file *os.File) {
 			errClose := file.Close()
 			if errClose != nil {
-				logger.Errorf("关闭文件出错%s", errClose.Error())
+				i.dice.Logger.Errorf("关闭文件出错%s", errClose.Error())
 			}
 		}(file)
-
 		_, err = file.WriteString(ctx) // 将内容写入文件
 		if err != nil {
-			logger.Errorf("写入文件出错:%s", err)
-			return
+			return errors.New("写入文件出错:" + err.Error())
 		}
+	} else if mod == "trunc" || mod == "overwrite" {
+		file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777) // 创建或打开文件
+		if err != nil {
+			return errors.New("创建文件出错:" + err.Error())
+		}
+		defer func(file *os.File) {
+			errClose := file.Close()
+			if errClose != nil {
+				i.dice.Logger.Errorf("关闭文件出错%s", errClose.Error())
+			}
+		}(file)
+		_, err = file.WriteString(ctx) // 将内容写入文件
+		if err != nil {
+			return errors.New("写入文件出错:" + err.Error())
+		}
+	} else {
+		return errors.New("未知模式，允许使用模式追加: add||append,覆写: trunc||overwrite")
 	}
+	return nil
 }
 
-func FileRead(logger *zap.SugaredLogger) func(ei *ExtInfo, name string) string {
-	return func(ei *ExtInfo, name string) string {
-		path := filepath.Join("data", "default", "extensions", ei.Name, name)
-		openFile, e := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0777)
-		if e != nil {
-			logger.Errorf("打开文件出错%s", e.Error())
-		}
-		buf := make([]byte, 1024)
-		for {
-			leng, _ := openFile.Read(buf)
-			if leng == 0 {
-				break
-			}
-		}
-		err := openFile.Close()
-		if err != nil {
-			logger.Errorf("关闭文件出错%s", e.Error())
-			return ""
-		}
-		return string(buf)
+func (i *ExtInfo) FileRead(name string) string {
+	if !isNotABS(name, i.dice.Logger) {
+		// 如果不是绝对路径返回 true
+		// 取否一下
+		return ""
+		// 拒绝向下执行
 	}
+	path := filepath.Join("data", "default", "extensions", i.Name, name)
+	content, err := os.ReadFile(path)
+	if err != nil {
+		i.dice.Logger.Errorf("打开文件出错%s", err.Error())
+	}
+	return string(content)
+}
+
+func (i *ExtInfo) FileExists(name string) bool {
+	if !isNotABS(name, i.dice.Logger) {
+		// 如果不是绝对路径返回 true
+		// 取否一下
+		return false
+		// 拒绝向下执行
+	}
+	path := filepath.Join("data", "default", "extensions", i.Name, name)
+	_, err := os.Stat(path)
+	return os.IsNotExist(err)
+}
+
+func isNotABS(name string, logger *zap.SugaredLogger) bool {
+	if filepath.IsAbs(name) {
+		// 如果路径为绝对路径
+		// 拒绝执行
+		logger.Error("出于安全原因，拒绝文件通过绝对路径调用，请使用文件名称或相对路径+文件名称调用")
+		return false
+	}
+	filelist := filepath.SplitList(name)
+	for i := 0; i < len(filelist); i++ {
+		re := regexp.MustCompile(`^\.+`)
+		if re.MatchString(filelist[i]) {
+			// 被匹配到了
+			// 存在访问父级目录的嫌疑
+			// 返回假
+			logger.Error("存在访问父级目录的嫌疑，拒绝执行")
+			return false
+		}
+	}
+	return true
+}
+
+func (i *ExtInfo) FileDelete(name string) error {
+	path := filepath.Join("data", "default", "extensions", i.Name, name)
+	err := os.Remove(path)
+	if err != nil {
+		return errors.New("删除文件出错:" + err.Error())
+	}
+	return nil
 }
