@@ -3,6 +3,7 @@ package dice
 import (
 	"crypto/md5"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,15 +12,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
-	return func(b64 string) string {
+func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) (string, error) {
+	return func(b64 string) (string, error) {
 		// use logger here
 		// 解码 Base64 值
 		data, e := base64.StdEncoding.DecodeString(b64)
 		if e != nil {
-			logger.Errorf("不合法的base64值：%s", b64)
 			// 出现错误，拒绝向下执行
-			return ""
+			return "", errors.New("不合法的base64值：" + b64)
 		}
 		// 计算 MD5 哈希值作为文件名
 		hash := md5.Sum(data) //nolint:gosec
@@ -31,41 +31,34 @@ func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) string {
 		// 将数据写入文件
 		fi, err := os.OpenFile(imageurlPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0664)
 		if err != nil {
-			logger.Errorf("创建文件出错%s", err.Error())
-			return ""
+			return "", errors.New("创建文件出错:" + err.Error())
 		}
 		defer func(fi *os.File) {
 			errClose := fi.Close()
 			if errClose != nil {
-				logger.Errorf("关闭文件出错%s", errClose.Error())
+				logger.Errorf("关闭文件出错:%s", errClose.Error())
 			}
 		}(fi)
 		_, err = fi.Write(data)
 		if err != nil {
-			logger.Errorf("写入文件出错%s", err.Error())
-			return ""
+			return "", errors.New("写入文件出错:" + err.Error())
 		}
 		logger.Info("File saved to:", imageurlPath)
-		return "file://" + imageurlPath
+		return "file://" + imageurlPath, nil
 	}
 }
 
-func Log(logger *zap.SugaredLogger) func(string) {
-	return func(s string) {
-		logger.Info(s)
-	}
-}
 func ErrorLog(logger *zap.SugaredLogger) func(string) {
 	return func(s string) {
 		logger.Error(s)
 	}
 }
 
-func (i *ExtInfo) FileWrite(name string, mod string, ctx string) {
+func (i *ExtInfo) FileWrite(name string, mod string, ctx string) error {
 	if !isNotABS(name, i.dice.Logger) {
 		// 如果不是绝对路径返回 true
 		// 取否一下
-		return
+		return errors.New("")
 		// 拒绝向下执行
 	}
 	reg := regexp.MustCompile(`/`)
@@ -74,22 +67,19 @@ func (i *ExtInfo) FileWrite(name string, mod string, ctx string) {
 	if reg.MatchString(name) {
 		err := os.MkdirAll(path+"/"+filepath.Dir(name), 0777)
 		if err != nil {
-			fmt.Println("非法路径:", err)
-			return
+			return errors.New("非法路径:" + err.Error())
 		}
 		// 继续执行
 	} else {
 		err := os.MkdirAll(path, 0777)
 		if err != nil {
-			fmt.Println("非法路径:", err)
-			return
+			return errors.New("非法路径:" + err.Error())
 		}
 	}
 	if mod == "append" || mod == "add" {
 		file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY, 0777) // 创建或打开文件
 		if err != nil {
-			i.dice.Logger.Errorf("创建文件出错%s", err.Error())
-			return
+			return errors.New("创建文件出错:" + err.Error())
 		}
 		defer func(file *os.File) {
 			errClose := file.Close()
@@ -99,14 +89,12 @@ func (i *ExtInfo) FileWrite(name string, mod string, ctx string) {
 		}(file)
 		_, err = file.WriteString(ctx) // 将内容写入文件
 		if err != nil {
-			i.dice.Logger.Errorf("写入文件出错:%s", err)
-			return
+			return errors.New("写入文件出错:" + err.Error())
 		}
 	} else if mod == "trunc" || mod == "overwrite" {
 		file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777) // 创建或打开文件
 		if err != nil {
-			i.dice.Logger.Errorf("创建文件出错%s", err.Error())
-			return
+			return errors.New("创建文件出错:" + err.Error())
 		}
 		defer func(file *os.File) {
 			errClose := file.Close()
@@ -116,13 +104,12 @@ func (i *ExtInfo) FileWrite(name string, mod string, ctx string) {
 		}(file)
 		_, err = file.WriteString(ctx) // 将内容写入文件
 		if err != nil {
-			i.dice.Logger.Errorf("写入文件出错:%s", err)
-			return
+			return errors.New("写入文件出错:" + err.Error())
 		}
 	} else {
-		i.dice.Logger.Errorf("未知模式，允许使用模式追加: add||append,覆写: trunc||overwrite")
-		return
+		return errors.New("未知模式，允许使用模式追加: add||append,覆写: trunc||overwrite")
 	}
+	return nil
 }
 func (i *ExtInfo) FileRead(name string) string {
 	if !isNotABS(name, i.dice.Logger) {
@@ -172,10 +159,11 @@ func isNotABS(name string, logger *zap.SugaredLogger) bool {
 	return true
 }
 
-func (i *ExtInfo) FileDelete(name string) {
+func (i *ExtInfo) FileDelete(name string) error {
 	path := filepath.Join("data", "default", "extensions", i.Name, name)
 	err := os.Remove(path)
 	if err != nil {
-		i.dice.Logger.Error(err.Error())
+		return errors.New("删除文件出错:" + err.Error())
 	}
+	return nil
 }
