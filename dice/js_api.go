@@ -57,61 +57,80 @@ func Log(logger *zap.SugaredLogger) func(string) {
 }
 func ErrorLog(logger *zap.SugaredLogger) func(string) {
 	return func(s string) {
-		logger.Errorf(s)
+		logger.Error(s)
 	}
 }
 
-func (i *ExtInfo) Filewrite(name string, ctx string) {
-	re := regexp.MustCompile(`^\.+`)
-	if re.MatchString(name) {
-		i.dice.Logger.Errorf("出于安全原因，拒绝访问父级文件夹，也不允许创建隐藏文件，请使用文件名称或相对路径+文件名称调用，使用相对路径时不要用\".\\\"")
+func (i *ExtInfo) FileWrite(name string, mod string, ctx string) {
+	if !isNotABS(name, i.dice.Logger) {
+		// 如果不是绝对路径返回 true
+		// 取否一下
 		return
-	}
-	// 出于安全，仅允许 js 插件文件 io 限制在 default/extensions/<ext> 文件夹
-
-	path := filepath.Join("data", "default", "extensions", i.Name)
-	if filepath.IsAbs(path) {
-		// 如果路径为绝对路径
-		// 拒绝执行
-		i.dice.Logger.Errorf("出于安全原因，拒绝文件通过绝对路径调用，请使用文件名称或相对路径+文件名称调用，使用相对路径时不要用\".\\\"")
-		return
+		// 拒绝向下执行
 	}
 	reg := regexp.MustCompile(`/`)
+	path := filepath.Join("data", "default", "extensions", i.Name)
 	// 如果检测到分隔符，单独处理
 	if reg.MatchString(name) {
-		err := os.MkdirAll(path+"/"+filepath.Dir(name), 0755)
+		err := os.MkdirAll(path+"/"+filepath.Dir(name), 0777)
 		if err != nil {
 			fmt.Println("非法路径:", err)
 			return
 		}
 		// 继续执行
 	} else {
-		err := os.MkdirAll(path, 0755)
+		err := os.MkdirAll(path, 0777)
 		if err != nil {
 			fmt.Println("非法路径:", err)
 			return
 		}
 	}
-	file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY, 0644) // 创建或打开文件
-	if err != nil {
-		i.dice.Logger.Errorf("创建文件出错%s", err.Error())
-		return
-	}
-	defer func(file *os.File) {
-		errClose := file.Close()
-		if errClose != nil {
-			i.dice.Logger.Errorf("关闭文件出错%s", errClose.Error())
+	if mod == "append" || mod == "add" {
+		file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY, 0777) // 创建或打开文件
+		if err != nil {
+			i.dice.Logger.Errorf("创建文件出错%s", err.Error())
+			return
 		}
-	}(file)
-
-	_, err = file.WriteString(ctx) // 将内容写入文件
-	if err != nil {
-		i.dice.Logger.Errorf("写入文件出错:%s", err)
+		defer func(file *os.File) {
+			errClose := file.Close()
+			if errClose != nil {
+				i.dice.Logger.Errorf("关闭文件出错%s", errClose.Error())
+			}
+		}(file)
+		_, err = file.WriteString(ctx) // 将内容写入文件
+		if err != nil {
+			i.dice.Logger.Errorf("写入文件出错:%s", err)
+			return
+		}
+	} else if mod == "trunc" || mod == "overwrite" {
+		file, err := os.OpenFile(path+"/"+name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777) // 创建或打开文件
+		if err != nil {
+			i.dice.Logger.Errorf("创建文件出错%s", err.Error())
+			return
+		}
+		defer func(file *os.File) {
+			errClose := file.Close()
+			if errClose != nil {
+				i.dice.Logger.Errorf("关闭文件出错%s", errClose.Error())
+			}
+		}(file)
+		_, err = file.WriteString(ctx) // 将内容写入文件
+		if err != nil {
+			i.dice.Logger.Errorf("写入文件出错:%s", err)
+			return
+		}
+	} else {
+		i.dice.Logger.Errorf("未知模式，允许使用模式追加: add||append,覆写: trunc||overwrite")
 		return
 	}
 }
-
 func (i *ExtInfo) FileRead(name string) string {
+	if !isNotABS(name, i.dice.Logger) {
+		// 如果不是绝对路径返回 true
+		// 取否一下
+		return ""
+		// 拒绝向下执行
+	}
 	path := filepath.Join("data", "default", "extensions", i.Name, name)
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -120,7 +139,43 @@ func (i *ExtInfo) FileRead(name string) string {
 	return string(content)
 }
 
-func (i *ExtInfo) FileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
-	return !os.IsNotExist(err)
+func (i *ExtInfo) FileExists(name string) bool {
+	if !isNotABS(name, i.dice.Logger) {
+		// 如果不是绝对路径返回 true
+		// 取否一下
+		return false
+		// 拒绝向下执行
+	}
+	path := filepath.Join("data", "default", "extensions", i.Name, name)
+	_, err := os.Stat(path)
+	return os.IsNotExist(err)
+}
+
+func isNotABS(name string, logger *zap.SugaredLogger) bool {
+	if filepath.IsAbs(name) {
+		// 如果路径为绝对路径
+		// 拒绝执行
+		logger.Error("出于安全原因，拒绝文件通过绝对路径调用，请使用文件名称或相对路径+文件名称调用")
+		return false
+	}
+	filelist := filepath.SplitList(name)
+	for i := 0; i < len(filelist); i++ {
+		re := regexp.MustCompile(`^\.+`)
+		if re.MatchString(filelist[i]) {
+			// 被匹配到了
+			// 存在访问父级目录的嫌疑
+			// 返回假
+			logger.Error("存在访问父级目录的嫌疑，拒绝执行")
+			return false
+		}
+	}
+	return true
+}
+
+func (i *ExtInfo) FileDelete(name string) {
+	path := filepath.Join("data", "default", "extensions", i.Name, name)
+	err := os.Remove(path)
+	if err != nil {
+		i.dice.Logger.Error(err.Error())
+	}
 }
