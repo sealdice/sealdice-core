@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -54,7 +55,7 @@ func ErrorLogFunc(logger *zap.SugaredLogger) func(string) {
 }
 
 func (i *ExtInfo) FileAppend(name string, ctx string) error {
-	if !isNotABS(name, i.dice.Logger) {
+	if !isNotABS(i.Name+name, i.dice.Logger) {
 		// 如果不是绝对路径返回 true
 		// 取否一下
 		return errors.New("")
@@ -93,7 +94,7 @@ func (i *ExtInfo) FileAppend(name string, ctx string) error {
 }
 
 func (i *ExtInfo) FileOverwrite(name string, ctx string) error {
-	if !isNotABS(name, i.dice.Logger) {
+	if !isNotABS(i.Name+name, i.dice.Logger) {
 		// 如果不是绝对路径返回 true
 		// 取否一下
 		return errors.New("")
@@ -132,7 +133,7 @@ func (i *ExtInfo) FileOverwrite(name string, ctx string) error {
 }
 
 func (i *ExtInfo) FileWrite(name string, mod string, ctx string) error {
-	if !isNotABS(name, i.dice.Logger) {
+	if !isNotABS(i.Name+name, i.dice.Logger) {
 		// 如果不是绝对路径返回 true
 		// 取否一下
 		return errors.New("")
@@ -204,40 +205,48 @@ func (i *ExtInfo) FileRead(name string) string {
 	return string(content)
 }
 
-func (i *ExtInfo) FileExists(name string) bool {
-	if !isNotABS(name, i.dice.Logger) {
-		// 如果不是绝对路径返回 true
-		// 取否一下
-		return false
-		// 拒绝向下执行
+func (i *ExtInfo) FileExists(name string) (bool, error) {
+	absolutePath, err := filepath.Abs("data/default/extensions" + i.Name + name)
+	if err != nil {
+		return false, errors.New("Error: " + err.Error())
 	}
-	path := filepath.Join("data", "default", "extensions", i.Name, name)
-	_, err := os.Stat(path)
-	return os.IsNotExist(err)
+	cwd, _ := os.Getwd()
+	cwd = filepath.ToSlash(cwd)
+	absolutePath = filepath.ToSlash(absolutePath)
+	if !strings.HasPrefix(absolutePath, cwd+"/data/default/extensions") {
+		return false, errors.New("越权访问")
+	} else {
+		path := filepath.Join("data", "default", "extensions", i.Name, name)
+		_, statErr := os.Stat(path)
+		return os.IsNotExist(statErr), nil
+	}
 }
-
 func isNotABS(name string, logger *zap.SugaredLogger) bool {
+	// 统一在这里处理相对路径转换为绝对路径
+	// name 需传入 i.Name
 	if filepath.IsAbs(name) {
 		// 如果路径为绝对路径
 		// 拒绝执行
 		logger.Error("出于安全原因，拒绝文件通过绝对路径调用，请使用文件名称或相对路径+文件名称调用")
 		return false
 	}
-	filelist := filepath.SplitList(name)
-	for i := 0; i < len(filelist); i++ {
-		re := regexp.MustCompile(`^\.+`)
-		if re.MatchString(filelist[i]) {
-			// 被匹配到了
-			// 存在访问父级目录的嫌疑
-			// 返回假
-			logger.Error("存在访问父级目录的嫌疑，拒绝执行")
-			return false
-		}
+	name = "data/default/extensions/" + name
+	absolutePath, err := filepath.Abs(name)
+	if err != nil {
+		return false
 	}
-	return true
+	cwd, _ := os.Getwd()
+	cwd = filepath.ToSlash(cwd)
+	absolutePath = filepath.ToSlash(absolutePath)
+
+	return strings.HasPrefix(absolutePath, cwd+"/data/default/extensions")
 }
 
 func (i *ExtInfo) FileDelete(name string) error {
+	if !isNotABS(i.Name+name, i.dice.Logger) {
+		// 如果是绝对路径或者存在越权行为
+		return errors.New("拒绝删除：存在越权行为或所写路径为绝对路径")
+	}
 	path := filepath.Join("data", "default", "extensions", i.Name, name)
 	err := os.Remove(path)
 	if err != nil {
