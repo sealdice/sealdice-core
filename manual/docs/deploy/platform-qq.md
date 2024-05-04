@@ -212,11 +212,11 @@ Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时�
 
 ### 海豹连接 Lagrange
 
-进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebot11 分离部署)」。
+进入海豹 Web UI 的「账号设置」新增链接，选择账号类型「QQ(onebot11正向WS)」。
 
 账号填写骰子的 QQ 号，连接地址使用上面记下的 WS 正向服务地址 `ws://{Host}:{Port}`，如 `ws://127.0.0.1:8081`。
 
-<img src="./images/platform-qq-lagrange-8.png" alt="海豹连接 Lagrange" width="65%">
+<img src="./images/platform-qq-lagrange-8.png" alt="海豹连接 Lagrange" width="100%">
 
 成功连接后即可使用。
 
@@ -303,8 +303,8 @@ Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024
 
 支持两种方式与海豹对接：
 
-- 正向连接：默认开放的正向 ws 端口为 3001，在海豹的新添账号选择「OneBot 分离部署」，账号处随便填写，连接地址填 `ws://localhost:3001`。
-- 反向连接：关闭正向连接开关，打开反向连接，点击「添加」，输入 `ws://127.0.0.1:4001/ws`，在海豹的新添账号选择「OneBot 反向连接」，输入账号。
+- 正向连接：默认开放的正向 ws 端口为 3001，在海豹的新添账号选择「QQ(onebot11正向WS)」，账号处随便填写，连接地址填 `ws://localhost:3001`。
+- 反向连接：关闭正向连接开关，打开反向连接，点击「添加」，输入 `ws://127.0.0.1:4001/ws`，在海豹的新添账号选择「QQ(onebot11反向WS)」，输入账号。
 
 ::: tip
 
@@ -393,7 +393,13 @@ json 配置内容参数解释：
 
 海豹从 <Badge type="tip" text="v1.4.2"/> 开始适配了 Shamrock 的连接。
 
-::: danger 危险：`1.1.0` 及以上版本的 Shamrock 不适用以下教程
+::: danger 危险：Shamrock已停止更新
+
+Shamrock 已于 2024 年 4 月 20 日归档，将不再进行更新。
+
+:::
+
+::: danger 危险：*`1.1.0` 及以上版本的 Shamrock 不适用以下教程
 
 2024 年 4 月 2 日，OpenShamrock 开发组于 [Discussion#272](https://github.com/whitechi73/OpenShamrock/discussions/272#discussion-6300354) 宣布，Shamrock 将会从 `1.1.0` 版本起弃用 OneBot V11 支持，迁移至新的 [Kritor](https://github.com/KarinJS/kritor) 协议。
 
@@ -551,9 +557,9 @@ Root 即 Android 的超级用户权限，如对 QQ 应用进行注入等的危�
 
 ### 连接海豹
 
-在账号添加中，选择「QQ 分离部署」，按照下面的格式进行填写：
+在账号添加中，选择「QQ(onebot11正向WS)」，按照下面的格式进行填写：
 
-<img src="./images/platform-qq-shamrock-9.png" alt="连接 Shamrock" width="65%">
+<img src="./images/platform-qq-shamrock-9.png" alt="连接 Shamrock" width="100%">
 
 成功连接后即可使用。
 
@@ -656,7 +662,7 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 :::
 
-建议使用 **反向 ws** 设置。在海豹中，账号添加中选择「onebot v11 反向 ws」，填入骰子 QQ 号和要开放的 ws 端口（例如 `:6544`）。
+建议使用 **反向 ws** 设置。在海豹中，账号添加中选择「QQ(onebot11反向WS)」，填入骰子 QQ 号和要开放的 ws 端口（例如 `:6544`）。
 
 随后在 Shamrock 中的被动 ws 连接地址中写 `ws://localhost:6544/ws`。
 
@@ -722,9 +728,9 @@ QQ 官方目前已开放了机器人功能，可进入 [QQ 开放平台](https:/
 
 ### 连接海豹
 
-登录海豹并添加账号，选择「QQ(官方bot)」。填写对应的信息点击连接。你的海豹应该可以正常连接官方机器人运作了！
+登录海豹并添加账号，选择「QQ(官方机器人)」。填写对应的信息点击连接。你的海豹应该可以正常连接官方机器人运作了！
 
-<img src="./images/platform-qq-official-3.png" alt="连接官方Bot" width="80%">
+<img src="./images/platform-qq-official-3.png" alt="连接官方Bot" width="100%">
 
 ### 使用海豹
 
