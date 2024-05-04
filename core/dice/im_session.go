@@ -589,50 +589,8 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
-		var mustLoadUser bool
-		if group != nil && group.Active {
-			// 开启log时必须加载用户信息
-			if group.LogOn {
-				mustLoadUser = true
-			}
-			// 开启reply时，必须加载信息
-			// d.CustomReplyConfigEnable
-			extReply := group.ExtGetActive("reply")
-			if extReply != nil {
-				for _, i := range d.CustomReplyConfig {
-					if i.Enable {
-						mustLoadUser = true
-						break
-					}
-				}
-			}
-
-			// 如果非reply扩展存在OnNotCommandReceived功能，那么加载用户数据
-			if !mustLoadUser {
-				for _, i := range group.ActivatedExtList {
-					if i.Name == "reply" {
-						// 跳过reply
-						continue
-					}
-					if i.OnNotCommandReceived != nil {
-						mustLoadUser = true
-						break
-					}
-				}
-			}
-		}
-
 		// 当文本可能是在发送命令时，必须加载信息
 		maybeCommand := CommandCheckPrefix(msg.Message, d.CommandPrefix, msg.Platform)
-		if maybeCommand {
-			mustLoadUser = true
-		}
-
-		// 私聊时，必须加载信息
-		if msg.MessageType == "private" {
-			// 这会使得私聊者的发言能触发自定义回复
-			mustLoadUser = true
-		}
 
 		amIBeMentioned := false
 		if true {
@@ -657,20 +615,15 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					}
 				}
 			}
-			if amIBeMentioned {
-				mustLoadUser = true
-			}
 		}
 
-		if mustLoadUser {
-			mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
-			mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
+		mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+		mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
 
-			if mctx.Group != nil && mctx.Group.System != "" {
-				mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
-				// tmpl, _ := d.GameSystemMap.Load(group.System)
-				// mctx.SystemTemplate = tmpl
-			}
+		if mctx.Group != nil && mctx.Group.System != "" {
+			mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
+			// tmpl, _ := d.GameSystemMap.Load(group.System)
+			// mctx.SystemTemplate = tmpl
 		}
 
 		if group != nil {
@@ -698,24 +651,20 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		var cmdLst []string
 		if maybeCommand {
-			// 兼容模式检查
-			// 是的，永远使用兼容模式
-			if true || d.CommandCompatibleMode {
-				for k := range d.CmdMap {
-					cmdLst = append(cmdLst, k)
-				}
-
-				// 这里不用group是为了私聊
-				g := mctx.Group
-				if g != nil {
-					for _, i := range g.ActivatedExtList {
-						for k := range i.CmdMap {
-							cmdLst = append(cmdLst, k)
-						}
+			// 兼容模式检查已经移除
+			for k := range d.CmdMap {
+				cmdLst = append(cmdLst, k)
+			}
+			// 这里不用group是为了私聊
+			g := mctx.Group
+			if g != nil {
+				for _, i := range g.ActivatedExtList {
+					for k := range i.CmdMap {
+						cmdLst = append(cmdLst, k)
 					}
 				}
-				sort.Sort(ByLength(cmdLst))
 			}
+			sort.Sort(ByLength(cmdLst))
 		}
 
 		if notReply := checkBan(mctx, msg); notReply {
@@ -808,7 +757,8 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				log.Infof("收到<%s>(%s)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 			}
 		}
-
+		// Note(Szzrain): 赋值临时变量，不然有些地方没法用
+		SetTempVars(mctx, msg.Sender.Nickname)
 		if cmdArgs != nil {
 			// 收到信息回调
 			f := func() {
@@ -1006,76 +956,25 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		group.GroupName = msg.GroupName
 	}
 
-	// Note(Szzrain): 真的有必要设置 mustLoadUser 这个变量吗？依我看干脆都加载算了，但是为了可能产生的奇奇怪怪兼容性问题，先不改
-	var mustLoadUser bool
-	if group != nil && group.Active {
-		// 开启log时必须加载用户信息
-		if group.LogOn {
-			mustLoadUser = true
-		}
-		// 开启reply时，必须加载信息
-		// d.CustomReplyConfigEnable
-		extReply := group.ExtGetActive("reply")
-		if extReply != nil {
-			for _, i := range d.CustomReplyConfig {
-				if i.Enable {
-					mustLoadUser = true
-					break
-				}
-			}
-		}
-
-		// 如果非reply扩展存在OnNotCommandReceived功能，那么加载用户数据
-		if !mustLoadUser {
-			for _, i := range group.ActivatedExtList {
-				if i.Name == "reply" {
-					// 跳过reply
-					continue
-				}
-				if i.OnNotCommandReceived != nil {
-					mustLoadUser = true
-					break
-				}
-			}
-		}
-	}
-
-	// 当文本可能是在发送命令时，必须加载信息
-	maybeCommand := CommandCheckPrefixNew(msg.Message, d.CommandPrefix)
-	if maybeCommand {
-		mustLoadUser = true
-	}
-
-	// 私聊时，必须加载信息
-	if msg.MessageType == "private" {
-		// 这会使得私聊者的发言能触发自定义回复
-		mustLoadUser = true
-	}
-
-	// Note(Szzrain): 非常喜欢 fy0 的一句话：这段代码重复了，以后重构。这里的 At 解析仅用于判断是否被@，而不会被塞进 cmdArgs里面，
-	// 所以这里的代码是重复的，但是为了保持兼容性，暂时不删掉，如果 mustLoadUser 是不必要的，那么这里的代码也可以删掉
+	// Note(Szzrain): 判断是否被@
 	amIBeMentioned := false
 	for _, elem := range msg.Segment {
 		// 类型断言
 		if e, ok := elem.(*message.AtElement); ok {
 			if e.Target == ep.UserID {
 				amIBeMentioned = true
-				mustLoadUser = true
 				break
 			}
 		}
 	}
 
-	// Note(Szzrain): 我十分怀疑这段代码的必要性，但是为了保持兼容性，暂时不删掉
-	if mustLoadUser {
-		mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
-		mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
+	mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+	mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
 
-		if mctx.Group != nil && mctx.Group.System != "" {
-			mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
-			// tmpl, _ := d.GameSystemMap.Load(group.System)
-			// mctx.SystemTemplate = tmpl
-		}
+	if mctx.Group != nil && mctx.Group.System != "" {
+		mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
+		// tmpl, _ := d.GameSystemMap.Load(group.System)
+		// mctx.SystemTemplate = tmpl
 	}
 
 	if group != nil {
@@ -1086,7 +985,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		}
 	}
 
-	// 权限号设置
+	// 权限设置
 	_ = mctx.fillPrivilege(msg)
 
 	if mctx.Group != nil && mctx.Group.IsActive(mctx) {
@@ -1196,7 +1095,8 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 			return
 		}
 	}
-
+	// Note(Szzrain): 赋值临时变量，不然有些地方没法用
+	SetTempVars(mctx, msg.Sender.Nickname)
 	if cmdArgs != nil {
 		go s.PreTriggerCommand(mctx, msg, cmdArgs)
 	} else {
