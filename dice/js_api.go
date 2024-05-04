@@ -55,7 +55,7 @@ func ErrorLogFunc(logger *zap.SugaredLogger) func(string) {
 }
 
 func (i *ExtInfo) FileAppend(name string, ctx string) error {
-	if !isNotABS(i.Name+name, i.dice.Logger) {
+	if !isNotABS(name, i.dice.Logger, i.Name) {
 		// 如果不是绝对路径返回 true
 		// 取否一下
 		return errors.New("")
@@ -94,7 +94,7 @@ func (i *ExtInfo) FileAppend(name string, ctx string) error {
 }
 
 func (i *ExtInfo) FileOverwrite(name string, ctx string) error {
-	if !isNotABS(i.Name+name, i.dice.Logger) {
+	if !isNotABS(name, i.dice.Logger, i.Name) {
 		// 如果不是绝对路径返回 true
 		// 取否一下
 		return errors.New("")
@@ -133,7 +133,7 @@ func (i *ExtInfo) FileOverwrite(name string, ctx string) error {
 }
 
 func (i *ExtInfo) FileWrite(name string, mod string, ctx string) error {
-	if !isNotABS(i.Name+name, i.dice.Logger) {
+	if !isNotABS(name, i.dice.Logger, i.Name) {
 		// 如果不是绝对路径返回 true
 		// 取否一下
 		return errors.New("")
@@ -191,7 +191,7 @@ func (i *ExtInfo) FileWrite(name string, mod string, ctx string) error {
 }
 
 func (i *ExtInfo) FileRead(name string) string {
-	if !isNotABS(name, i.dice.Logger) {
+	if !isNotABS(name, i.dice.Logger, i.Name) {
 		// 如果不是绝对路径返回 true
 		// 取否一下
 		return ""
@@ -206,31 +206,25 @@ func (i *ExtInfo) FileRead(name string) string {
 }
 
 func (i *ExtInfo) FileExists(name string) (bool, error) {
-	absolutePath, err := filepath.Abs("data/default/extensions" + i.Name + name)
-	if err != nil {
-		return false, errors.New("Error: " + err.Error())
+	if !isNotABS(name, i.dice.Logger, i.Name) {
+		// 如果是绝对路径或者存在越权行为
+		return false, errors.New("拒绝执行：存在越权行为或所写路径为绝对路径")
 	}
-	cwd, _ := os.Getwd()
-	cwd = filepath.ToSlash(cwd)
-	absolutePath = filepath.ToSlash(absolutePath)
-	if !strings.HasPrefix(absolutePath, cwd+"/data/default/extensions") {
-		return false, errors.New("越权访问")
-	} else {
-		path := filepath.Join("data", "default", "extensions", i.Name, name)
-		_, statErr := os.Stat(path)
-		return os.IsNotExist(statErr), nil
-	}
+	path := filepath.Join("data", "default", "extensions", i.Name, name)
+	_, statErr := os.Stat(path)
+	return os.IsNotExist(statErr), nil
 }
-func isNotABS(name string, logger *zap.SugaredLogger) bool {
+
+func isNotABS(name string, logger *zap.SugaredLogger, extname string) bool {
 	// 统一在这里处理相对路径转换为绝对路径
-	// name 需传入 i.Name
+	//  不传入 i.Name ，单独开个变量接受
 	if filepath.IsAbs(name) {
 		// 如果路径为绝对路径
 		// 拒绝执行
 		logger.Error("出于安全原因，拒绝文件通过绝对路径调用，请使用文件名称或相对路径+文件名称调用")
 		return false
 	}
-	name = "data/default/extensions/" + name
+	name = "data/default/extensions/" + extname + name
 	absolutePath, err := filepath.Abs(name)
 	if err != nil {
 		return false
@@ -243,7 +237,7 @@ func isNotABS(name string, logger *zap.SugaredLogger) bool {
 }
 
 func (i *ExtInfo) FileDelete(name string) error {
-	if !isNotABS(i.Name+name, i.dice.Logger) {
+	if !isNotABS(name, i.dice.Logger, i.Name) {
 		// 如果是绝对路径或者存在越权行为
 		return errors.New("拒绝删除：存在越权行为或所写路径为绝对路径")
 	}
@@ -252,5 +246,19 @@ func (i *ExtInfo) FileDelete(name string) error {
 	if err != nil {
 		return errors.New("删除文件出错:" + err.Error())
 	}
+	return nil
+}
+
+func (i *ExtInfo) DirDelete(name string) error {
+	if !isNotABS(name, i.dice.Logger, i.Name) {
+		// 如果是绝对路径或者存在越权行为
+		return errors.New("拒绝删除：存在越权行为或所写路径为绝对路径")
+	}
+	path := filepath.Join("data", "default", "extensions", i.Name, name)
+	err := os.RemoveAll(path)
+	if err != nil {
+		return errors.New("删除文件出错：" + err.Error())
+	}
+
 	return nil
 }
