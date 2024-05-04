@@ -457,7 +457,6 @@ func (d *Dice) JsInit() {
 			return base64.StdEncoding.EncodeToString([]byte(s))
 		})
 		// 1.2新增结束
-
 		_ = seal.Set("setPlayerGroupCard", SetPlayerGroupCardByTemplate)
 		_ = seal.Set("base64ToImage", Base64ToImageFunc(d.Logger))
 
