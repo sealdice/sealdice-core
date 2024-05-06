@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"sealdice-core/message"
 	"sealdice-core/utils/procs"
 
 	"github.com/gorilla/websocket"
@@ -356,6 +357,12 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 	}
 
 	return lo.Reverse(arr)
+}
+
+func (pa *PlatformAdapterGocq) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterGocq) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
 }
 
 func (pa *PlatformAdapterGocq) Serve() int {

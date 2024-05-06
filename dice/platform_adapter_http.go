@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"sealdice-core/message"
 	"sealdice-core/utils"
 )
 
@@ -16,6 +17,12 @@ type PlatformAdapterHTTP struct {
 	Session       *IMSession
 	EndPoint      *EndPointInfo
 	RecentMessage []HTTPSimpleMessage
+}
+
+func (pa *PlatformAdapterHTTP) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterHTTP) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
 }
 
 func (pa *PlatformAdapterHTTP) GetGroupInfoAsync(_ string) {}

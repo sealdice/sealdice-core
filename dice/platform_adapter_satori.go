@@ -469,6 +469,12 @@ func (pa *PlatformAdapterSatori) sendMsgRaw(ctx *MsgContext, channelID string, t
 	}
 }
 
+func (pa *PlatformAdapterSatori) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterSatori) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterSatori) SetGroupCardName(ctx *MsgContext, name string) {
 	log := pa.Session.Parent.Logger
 	log.Errorf("satori %s 平台暂不支持设置群成员名片", pa.Platform)
