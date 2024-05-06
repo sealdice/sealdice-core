@@ -379,6 +379,12 @@ func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
 	}
 }
 
+func (pa *PlatformAdapterTelegram) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterTelegram) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	pa.SendToChatRaw(ExtractTelegramUserID(uid), text)
 	pa.Session.OnMessageSend(ctx, &Message{

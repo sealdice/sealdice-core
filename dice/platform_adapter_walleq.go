@@ -795,6 +795,12 @@ func (pa *PlatformAdapterWalleQ) GetGroupInfoAsync(id string) {
 	socketSendText(pa.Socket, string(a))
 }
 
+func (pa *PlatformAdapterWalleQ) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterWalleQ) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
 	rawID, idType := pa.mustExtractID(userID)
 	if idType != QQUidPerson {

@@ -401,6 +401,12 @@ func (pa *PlatformAdapterKook) SetEnable(enable bool) {
 	d.Save(false)
 }
 
+func (pa *PlatformAdapterKook) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterKook) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
 	channel, err := pa.IntentSession.UserChatCreate(ExtractKookUserID(userID))
 	if err != nil {

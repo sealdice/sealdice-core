@@ -305,6 +305,12 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 	d.Save(false)
 }
 
+func (pa *PlatformAdapterDiscord) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterDiscord) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 // SendToPerson 这里发送的是私聊（dm）消息，私信对于discord来说也被视为一个频道
 func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
 	is := pa.IntentSession

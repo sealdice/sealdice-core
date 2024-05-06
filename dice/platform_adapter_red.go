@@ -531,6 +531,12 @@ func (pa *PlatformAdapterRed) QuitGroup(_ *MsgContext, id string) {
 	log.Warnf("red: 尝试退出群组(%s)，但尚不支持该功能", id)
 }
 
+func (pa *PlatformAdapterRed) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterRed) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterRed) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	rowId, chatType := pa.mustExtractId(uid)
 	if chatType != PersonChat {
