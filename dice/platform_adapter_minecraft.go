@@ -195,6 +195,12 @@ func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
 	}
 }
 
+func (pa *PlatformAdapterMinecraft) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterMinecraft) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterMinecraft) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	id := ExtractMCUserID(uid)
 	msg := new(SendMessageMinecraft)
