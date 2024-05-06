@@ -211,6 +211,12 @@ func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
 	d.LastUpdatedTime = time.Now().Unix()
 }
 
+func (pa *PlatformAdapterOfficialQQ) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterOfficialQQ) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	userID, idType := pa.mustExtractID(uid)
 	if idType != OpenQQCHUser {

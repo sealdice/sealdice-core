@@ -211,6 +211,12 @@ func (pa *PlatformAdapterSlack) QuitGroup(ctx *MsgContext, id string) {
 	pa.Session.Parent.Logger.Error("Slack 退出群组失败：暂不支持")
 }
 
+func (pa *PlatformAdapterSlack) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterSlack) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterSlack) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
 	pa.send(ctx, ExtractSlackUserID(userID), text, flag)
 	pa.Session.OnMessageSend(ctx, &Message{

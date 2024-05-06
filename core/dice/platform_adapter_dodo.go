@@ -323,6 +323,12 @@ func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 	}
 }
 
+func (pa *PlatformAdapterDodo) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterDodo) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	// pa.Session.Parent.Logger.Infof("send to %s", ExtractDodoUserId(uid))
 	err := pa.SendToPersonRaw(ctx, uid, text, true)

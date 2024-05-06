@@ -71,6 +71,12 @@ func (pa *PlatformAdapterDingTalk) QuitGroup(ctx *MsgContext, id string) {
 	pa.SendToGroup(ctx, id, "不支持此功能, 请手动移除机器人", "")
 }
 
+func (pa *PlatformAdapterDingTalk) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterDingTalk) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	msg := dingtalk.MessageSampleText{Content: text}
 	rawUserID := ExtractDingTalkUserID(uid)

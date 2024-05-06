@@ -508,6 +508,12 @@ func (pa *PlatformAdapterLagrangeGo) SetEnable(enable bool) {
 	}
 }
 
+func (pa *PlatformAdapterLagrangeGo) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterLagrangeGo) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterLagrangeGo) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	log := pa.Session.Parent.Logger
 	if text == "" {
