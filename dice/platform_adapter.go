@@ -36,6 +36,7 @@ type PlatformAdapter interface {
 // 实现检查
 var (
 	_ PlatformAdapter = (*PlatformAdapterGocq)(nil)
+	_ PlatformAdapter = (*PlatformAdapterDiscord)(nil)
 	_ PlatformAdapter = (*PlatformAdapterDingTalk)(nil)
 	_ PlatformAdapter = (*PlatformAdapterDodo)(nil)
 	_ PlatformAdapter = (*PlatformAdapterHTTP)(nil)
