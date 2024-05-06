@@ -1,6 +1,6 @@
 # SealDice
 
-![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-brightgreen.svg)](https://www.gnu.org/licenses/agpl-3.0)
 ![Core](https://img.shields.io/badge/SealDice-Core-blue)
 
 海豹 TRPG 骰点核心，开源跑团辅助工具，支持 QQ/Kook/Discord 等。
@@ -20,7 +20,7 @@
 - [Android](https://github.com/sealdice/sealdice-android)：Android 应用源码；
 - ……
 
-注：如无特殊说明，所有代码文件均遵循 MIT 开源协议
+注：如无特殊说明，所有代码文件均遵循 AGPLv3 开源协议
 
 ## Core 开发环境搭建
 
