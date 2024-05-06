@@ -40,7 +40,7 @@ require (
 	github.com/xuri/excelize/v2 v2.8.1
 	go.etcd.io/bbolt v1.3.9
 	go.uber.org/zap v1.27.0
-	golang.org/x/sys v0.19.0
+	golang.org/x/sys v0.20.0
 	golang.org/x/text v0.14.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/yaml.v3 v3.0.1
