@@ -43,7 +43,13 @@ pnpm run lint:md:fix // 检查并进行部分自动修复
 
 在紧随以上标题的第一段正文开头，也应该做出文字叙述，例如：
 
-> 从 &lt;Badge type="tip" text="vA.B.C"/&gt; 起，海豹支持某新加入的功能……
+```markdown
+> 从 <Badge type="tip" text="vA.B.C"> 起，海豹支持某新加入的功能……
+```
+
+效果应该类似：
+
+> 从 <Badge type="tip" text="vA.B.C"> 起，海豹支持某新加入的功能……
 
 ## 本地调试
 

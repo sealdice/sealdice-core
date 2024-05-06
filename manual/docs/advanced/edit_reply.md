@@ -9,6 +9,8 @@ title: 编写自定义回复
 
 本节将展示自定义回复编写的进阶部分，请善用侧边栏和搜索，按需阅读文档。
 
+我们假定你已经阅读了自定义回复编写的 [基础部分](../config/reply.md)（「配置 - 自定义回复」节）。如果你还没有阅读该章节，请先阅读这一节。
+
 在部分内容中，我们假定你了解海豹变量机制和正则表达式。如果你对正则表达式还很陌生，可以参考以下材料，或在互联网自行搜索学习。
 
 - [正则表达式 - 菜鸟教程](https://www.runoob.com/regexp/regexp-tutorial.html)
@@ -185,9 +187,9 @@ else {xxx}
 
 ```text
 {%
-$t0=1;
-$tRand=d6;
-if $t0==1 {$t0=$t0+$tRand}
+$t0 = 1;
+$tRand = d6;
+if $t0 == 1 { $t0 = $t0 + $tRand }
 %}
 {$t0}
 ```
@@ -203,10 +205,10 @@ if $t0==1 {$t0=$t0+$tRand}
 ```text
 {%
 $mCatFavor<=100 ? `#{DRAW-第一档猫好感}`,
-$mCatFavor<=250 ? `#{DRAW-第二档猫好感}` ,
-$mCatFavor<=600 ? `#{DRAW-第三档猫好感}` ,
-$mCatFavor<=1500 ? `#{DRAW-第四档猫好感}` ,
-$mCatFavor<=2500 ? `#{DRAW-第五档猫好感}` ,
+$mCatFavor<=250 ? `#{DRAW-第二档猫好感}`,
+$mCatFavor<=600 ? `#{DRAW-第三档猫好感}`,
+$mCatFavor<=1500 ? `#{DRAW-第四档猫好感}`,
+$mCatFavor<=2500 ? `#{DRAW-第五档猫好感}`,
 1 ? `#{DRAW-第六档猫好感}`
 %}
 ```
@@ -223,7 +225,7 @@ $mCatFavor<=2500 ? `#{DRAW-第五档猫好感}` ,
 判断2 ? `#{DRAW-牌组2}`,
 判断3 ? `#{DRAW-牌组3}`,
 1 ? `#{DRAW-牌组4}`,
- %}
+%}
 ```
 
 的写法外，还可以使用：
@@ -232,16 +234,16 @@ $mCatFavor<=2500 ? `#{DRAW-第五档猫好感}` ,
 {%
 if 判断1 {
   $tRand=d6;
-  $t输出=$tRand==1?`内容1`,
-  $t输出=$tRand==2?`内容2`,
-  $t输出=$tRand==3?`内容3`,
-  $t输出=$tRand==4?`内容4`,
-  $t输出=$tRand==5?`内容5`,
-  $t输出=$tRand==6?`内容6`
-  };
-if 判断2 {$tRand=d10;$t输出=$tRand==1?`内容1`,……};
-if 判断3 {$tRand=d10;$t输出=$tRand==1?`内容1`,……};
- %}
+  $t输出=$tRand==1 ? `内容1`,
+  $t输出=$tRand==2 ? `内容2`,
+  $t输出=$tRand==3 ? `内容3`,
+  $t输出=$tRand==4 ? `内容4`,
+  $t输出=$tRand==5 ? `内容5`,
+  $t输出=$tRand==6 ? `内容6`
+};
+if 判断2 { $tRand=d10; $t输出 = $tRand==1 ? `内容1`, …… };
+if 判断3 { $tRand=d10; $t输出 = $tRand==1 ? `内容1`, …… };
+%}
 ```
 
 实质上没有太大区别，可根据喜好选择。
@@ -300,13 +302,13 @@ if 判断3 {$tRand=d10;$t输出=$tRand==1?`内容1`,……};
 
 ```text
 {%
-if $m变量!=$tDate {
-  $t输出=`你需要的回复文本`;
-  $m变量=$tDate//对其赋值，作为标记
+if $m变量 != $tDate {
+  $t输出 = `你需要的回复文本`;
+  $m变量 = $tDate //对其赋值，作为标记
 } else {
-  $t输出=`在一天触发多次时的回复`
-  }
- %}
+  $t输出 = `在一天触发多次时的回复`
+}
+%}
 {$t输出}
 ```
 
@@ -324,16 +326,16 @@ if $m变量!=$tDate {
 {% //在同一个if内直接赋值。可以在赋值时使用条件算符。
 if 1 {
     $tRand=d3;
-    $tDicePlay=$tRand==1?"石头",
-                $tRand==2?"剪刀",
-                1?"布"
-    }
+    $tDicePlay = $tRand==1 ? "石头",
+                 $tRand==2 ? "剪刀",
+                 1 ? "布"
+}
 %}
 
 {% //新开一行赋值
 if 1 {
     $tRand=d3;
-    } ;
+};
 if $tRand==1 {$tDicePlay="石头"};
 if $tRand==2 {$tDicePlay="剪刀"};
 if $tRand==3 {$tDicePlay="布"}
@@ -351,21 +353,20 @@ if $tRand==3 {$tDicePlay="布"}
 :::
 
 ```text
-if $t0==$tDicePlay {
-    $t输出=`那我出{$tDicePlay}！{$t玩家}出的是{$t0}啊，我们平局了。`;
-    $mPlayerTime=$mPlayerTime+1
-    };
-if $t0=="剪刀"&&$tDicePlay=="石头"||($t0=="石头"&&$tDicePlay=="布")||($t0=="布"&&$tDicePlay=="剪刀") {
-     //后两个与需要单独计算，加上括号
-    $t输出=`那我出{$tDicePlay}！{$t玩家}出的是{$t0}啊，我赢了。`;
-    $mPlayerTime=$mPlayerTime+1;
-    $mPlayerLose=$mPlayerLose+1
-    };
-if $t0=="石头"&&$tDicePlay=="剪刀"||($t0=="布"&&$tDicePlay=="石头")||($t0=="剪刀"&&$tDicePlay=="布") {
-    $t输出=`那我出{$tDicePlay}！{$t玩家}出的是{$t0}啊，你赢了。`;
-    $mPlayerTime=$mPlayerTime+1;
-    $mPlayerWin=$mPlayerWin+1
-    }
+if $t0 == $tDicePlay {
+    $t输出 = `那我出{$tDicePlay}！{$t玩家}出的是{$t0}啊，我们平局了。`;
+    $mPlayerTime = $mPlayerTime + 1
+};
+if ($t0=="剪刀" && $tDicePlay=="石头") || ($t0=="石头" && $tDicePlay=="布") || ($t0=="布" && $tDicePlay=="剪刀") {
+    $t输出 = `那我出{$tDicePlay}！{$t玩家}出的是{$t0}啊，我赢了。`;
+    $mPlayerTime = $mPlayerTime + 1;
+    $mPlayerLose = $mPlayerLose + 1
+};
+if ($t0=="石头" && $tDicePlay=="剪刀") || ($t0=="布" && $tDicePlay=="石头") || ($t0=="剪刀" && $tDicePlay=="布") {
+    $t输出 = `那我出{$tDicePlay}！{$t玩家}出的是{$t0}啊，你赢了。`;
+    $mPlayerTime = $mPlayerTime + 1;
+    $mPlayerWin = $mPlayerWin + 1
+}
 ```
 
 ### 同时使用前缀和后缀匹配，以匹配 `AxxxxxxxB` 型文本
@@ -451,10 +452,10 @@ if $t0=="石头"&&$tDicePlay=="剪刀"||($t0=="布"&&$tDicePlay=="石头")||($t0
     if $mStory == 3 { $mStory = 4 };
     if $mStory == 2 { $mStory = 3 };
 
-        $mStory == 3 ? '这个村子有一户人家，门前有两棵树',
-        $mStory == 4 ? '一棵是函树，一棵是反函树',
-        $mStory == 5 ? '我讲完了。',
-        1 ? '？'
+    $mStory == 3 ? '这个村子有一户人家，门前有两棵树',
+    $mStory == 4 ? '一棵是函树，一棵是反函树',
+    $mStory == 5 ? '我讲完了。',
+    1 ? '？'
 %}
 
 {% if $mStory == 5 { $mStory=0 } %}
