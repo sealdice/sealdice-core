@@ -242,11 +242,10 @@ export const useStore = defineStore('main', {
         accessToken,
         useSignServer,
         signServerConfig,
-        signServerUrl,
         reverseAddr,
         onlyQQGuild,
         platform } = form
-
+        
       let info = null
       switch (accountType) {
         //QQ
@@ -305,12 +304,6 @@ export const useStore = defineStore('main', {
         case 15:
           info = await backend.post(urlPrefix + '/im_connections/addLagrange', { account, protocol }, { timeout: 65000 })
           break
-        case 16:
-          if (form.useSignServer) {
-            info = await backend.post(urlPrefix + '/im_connections/addLagrangeGo', { account, signServerUrl }, { timeout: 65000 })
-            break
-          }
-          info = await backend.post(urlPrefix + '/im_connections/addLagrangeGo', { account }, { timeout: 65000 })
       }
       return info as any as DiceConnection
     },

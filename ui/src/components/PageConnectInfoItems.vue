@@ -206,7 +206,7 @@
           </el-form-item> -->
 
           <!-- <el-form-item label=""> -->
-          <div style="display: flex;justify-content: center; margin-bottom: 1rem;"
+          <div style="display: flex;justify-content: center; margin-bottom: 1rem;" 
             v-if="![goCqHttpStateCode.InLogin, goCqHttpStateCode.InLoginQrCode].includes(i.adapter?.loginState)">
             <el-button-group>
               <el-tooltip content="如果日志中出现帐号被风控，可以试试这个功能" placement="bottom-start">
@@ -497,7 +497,6 @@
         <el-form-item label="账号类型" :label-width="formLabelWidth">
           <el-select v-model="form.accountType">
             <el-option label="QQ(内置客户端)" :value="15"></el-option>
-            <el-option label="[WIP]QQ(LagrangeGo)" :value="16"></el-option>
             <el-option label="QQ(onebot11正向WS)" :value="6"></el-option>
             <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
             <el-option label="QQ(官方机器人)" :value="10"></el-option>
@@ -568,17 +567,6 @@
           </small>
         </el-form-item>
 
-        <el-form-item v-if=" form.accountType === 16" label="账号" :label-width="formLabelWidth" required>
-          <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
-        </el-form-item>
-
-        <el-form-item v-if=" form.accountType === 16" label="使用自定义签名" :label-width="formLabelWidth" required>
-          <el-switch v-model="form.useSignServer" active-text="启用" inactive-text="关闭" ></el-switch>
-        </el-form-item>
-
-        <el-form-item v-if=" form.accountType === 16 && form.useSignServer" label="自定义签名地址" :label-width="formLabelWidth" required>
-          <el-input v-model="form.signServerUrl" type="text" autocomplete="off"></el-input>
-        </el-form-item>
         <!-- <el-form-item label="附加参数" :label-width="formLabelWidth">
           <template #label>
             <div style="display: flex; align-items: center;">
