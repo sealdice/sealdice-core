@@ -264,5 +264,6 @@ export const about = {
     { text: "关于", link: "/about/about" },
     { text: "许可协议", link: "/about/license" },
     { text: "参与项目", link: "/about/develop" },
+    { text: "归档", link: "/about/archieve" },
   ],
 }

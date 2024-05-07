@@ -51,6 +51,22 @@ pnpm run lint:md:fix // 检查并进行部分自动修复
 
 ![版本标签](README.assets/version_badge.png)
 
+## 归档警告
+
+对于弃用的功能，需要在正文开头注明弃用的版本和归档的时间。
+
+在第一段正文开头，做出以下文字叙述：
+
+```markdown
+::: warning 注意：海豹已于 <Badge type="warning" text="vA.B.C"/> 版本弃用此方案，以下内容归档于 xxxx 年 xx 月 xx 日。
+
+:::
+```
+
+最终的效果应当类似下图：
+
+![归档警告](README.assets/archieve_exanple.png)
+
 ## 本地调试
 
 ```bash
