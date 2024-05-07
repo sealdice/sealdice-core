@@ -508,7 +508,7 @@ func diceServe(d *dice.Dice) {
 						dice.ServeSatori(d, conn)
 					}
 					if conn.EndPointInfoBase.ProtocolType == "LagrangeGo" {
-						dice.ServeLagrangeGo(d, conn)
+						// dice.ServeLagrangeGo(d, conn)
 						return
 					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
