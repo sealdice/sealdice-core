@@ -326,15 +326,15 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 				return err
 			}
 			ep.Adapter = val.Adapter
-		case "LagrangeGo":
-			var val struct {
-				Adapter *PlatformAdapterLagrangeGo `yaml:"adapter"`
-			}
-			err = value.Decode(&val)
-			if err != nil {
-				return err
-			}
-			ep.Adapter = val.Adapter
+			// case "LagrangeGo":
+			//	var val struct {
+			//		Adapter *PlatformAdapterLagrangeGo `yaml:"adapter"`
+			//	}
+			//	err = value.Decode(&val)
+			//	if err != nil {
+			//		return err
+			//	}
+			//	ep.Adapter = val.Adapter
 		}
 	case "DISCORD":
 		var val struct {
@@ -1828,10 +1828,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 			pa := ep.Adapter.(*PlatformAdapterSatori)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
-		case "LagrangeGo":
-			pa := ep.Adapter.(*PlatformAdapterLagrangeGo)
-			pa.Session = ep.Session
-			pa.EndPoint = ep
+			// case "LagrangeGo":
+			//	pa := ep.Adapter.(*PlatformAdapterLagrangeGo)
+			//	pa.Session = ep.Session
+			//	pa.EndPoint = ep
 		}
 	case "DISCORD":
 		pa := ep.Adapter.(*PlatformAdapterDiscord)

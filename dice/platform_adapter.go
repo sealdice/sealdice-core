@@ -49,5 +49,5 @@ var (
 	_ PlatformAdapter = (*PlatformAdapterTelegram)(nil)
 	_ PlatformAdapter = (*PlatformAdapterWalleQ)(nil)
 	_ PlatformAdapter = (*PlatformAdapterSatori)(nil)
-	_ PlatformAdapter = (*PlatformAdapterLagrangeGo)(nil)
+	//_ PlatformAdapter = (*PlatformAdapterLagrangeGo)(nil)
 )
