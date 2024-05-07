@@ -240,13 +240,13 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.WalleQQrcodeData),
 				})
 			}
-		case "LagrangeGo":
-			pa := i.Adapter.(*dice.PlatformAdapterLagrangeGo)
-			if pa.CurState == dice.StateCodeInLoginQrCode {
-				return c.JSON(http.StatusOK, map[string]string{
-					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrcodeData),
-				})
-			}
+			// case "LagrangeGo":
+			//	pa := i.Adapter.(*dice.PlatformAdapterLagrangeGo)
+			//	if pa.CurState == dice.StateCodeInLoginQrCode {
+			//		return c.JSON(http.StatusOK, map[string]string{
+			//			"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrcodeData),
+			//		})
+			//	}
 		}
 		return c.JSON(http.StatusOK, i)
 	}
@@ -950,40 +950,40 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 	return c.String(430, "")
 }
 
-func ImConnectionsAddLagrangeGO(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-	if dm.JustForTest {
-		return Success(&c, Response{"testMode": true})
-	}
-
-	v := struct {
-		Account       string `yaml:"account" json:"account"`
-		CustomSignUrl string `yaml:"signServerUrl" json:"signServerUrl"`
-	}{}
-	err := c.Bind(&v)
-	if err == nil {
-		uid := v.Account
-		if checkUidExists(c, uid) {
-			return nil
-		}
-		uin, err := strconv.ParseInt(v.Account, 10, 64)
-		if err != nil {
-			return err
-		}
-		conn := dice.NewLagrangeGoConnItem(uint32(uin), v.CustomSignUrl)
-		conn.UserID = dice.FormatDiceIDQQ(uid)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterLagrangeGo)
-		pa.Session = myDice.ImSession
-
-		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
-		myDice.LastUpdatedTime = time.Now().Unix()
-
-		dice.ServeLagrangeGo(myDice, conn)
-		return c.JSON(http.StatusOK, v)
-	}
-
-	return c.String(430, "")
-}
+// func ImConnectionsAddLagrangeGO(c echo.Context) error {
+//	if !doAuth(c) {
+//		return c.JSON(http.StatusForbidden, nil)
+//	}
+//	if dm.JustForTest {
+//		return Success(&c, Response{"testMode": true})
+//	}
+//
+//	v := struct {
+//		Account       string `yaml:"account" json:"account"`
+//		CustomSignUrl string `yaml:"signServerUrl" json:"signServerUrl"`
+//	}{}
+//	err := c.Bind(&v)
+//	if err == nil {
+//		uid := v.Account
+//		if checkUidExists(c, uid) {
+//			return nil
+//		}
+//		uin, err := strconv.ParseInt(v.Account, 10, 64)
+//		if err != nil {
+//			return err
+//		}
+//		conn := dice.NewLagrangeGoConnItem(uint32(uin), v.CustomSignUrl)
+//		conn.UserID = dice.FormatDiceIDQQ(uid)
+//		conn.Session = myDice.ImSession
+//		pa := conn.Adapter.(*dice.PlatformAdapterLagrangeGo)
+//		pa.Session = myDice.ImSession
+//
+//		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+//		myDice.LastUpdatedTime = time.Now().Unix()
+//
+//		dice.ServeLagrangeGo(myDice, conn)
+//		return c.JSON(http.StatusOK, v)
+//	}
+//
+//	return c.String(430, "")
+// }
