@@ -3,15 +3,17 @@ on:
     paths:
       - '**.go'
       - 'go.mod'
+      - '.github/workflows/test_and_lint.yml'
   pull_request:
     paths:
       - '**.go'
       - 'go.mod'
+      - '.github/workflows/test_and_lint.yml'
 
 name: Test & Lint
 
 jobs:
-  test:
+  test-and-lint:
     runs-on: ubuntu-latest
     steps:
       - name: Code
@@ -23,22 +25,9 @@ jobs:
           cache: false
       - run: go get
       - run: go generate ./...
-      - run: go test -v -race ./...
 
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Code
-        uses: actions/checkout@v4
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          cache: false
-          go-version: '1.20'
-      - run: go get
-      - run: go generate ./...
-      - name: Go vet
-        run: go vet ./...
+      - run: go test -v -race ./...
+      - run: go vet ./...
 
       - name: GolangCI-Lint
         uses: golangci/golangci-lint-action@v3
