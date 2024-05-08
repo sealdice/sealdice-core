@@ -611,6 +611,16 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	//}
 
 	if pa.UseInPackClient {
+		log := dice.Logger
+
+		if dice.ContainerMode {
+			log.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
+			conn.State = 3
+			pa.GoCqhttpState = StateCodeLoginFailed
+			dice.Save(false)
+			return
+		}
+
 		if pa.BuiltinMode == "gocq" || pa.BuiltinMode == "" {
 			pa.CurLoginIndex++
 			pa.GoCqhttpState = StateCodeInLogin
