@@ -82,6 +82,7 @@ func baseInfo(c echo.Context) error {
 		ExtraTitle     string        `json:"extraTitle"`
 		OS             string        `json:"OS"`
 		Arch           string        `json:"arch"`
+		ContainerMode  bool          `json:"containerMode"`
 	}{
 		AppName:        dice.APPNAME,
 		AppChannel:     dice.APP_CHANNEL,
@@ -98,6 +99,7 @@ func baseInfo(c echo.Context) error {
 		ExtraTitle:     extraTitle,
 		OS:             runtime.GOOS,
 		Arch:           runtime.GOARCH,
+		ContainerMode:  dm.ContainerMode,
 	})
 }
 

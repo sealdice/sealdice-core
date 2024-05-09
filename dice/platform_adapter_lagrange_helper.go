@@ -46,6 +46,16 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	pa.GoCqhttpState = StateCodeInLogin
 
 	if pa.UseInPackClient && pa.BuiltinMode == "lagrange" { //nolint:nestif
+		log := dice.Logger
+
+		if dice.ContainerMode {
+			log.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
+			conn.State = 3
+			pa.GoCqhttpState = StateCodeLoginFailed
+			dice.Save(false)
+			return
+		}
+
 		workDir := lagrangeGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 		wd, _ := os.Getwd()
@@ -57,7 +67,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
 		configFilePath := filepath.Join(workDir, "appsettings.json")
 
-		log := dice.Logger
 		if _, err := os.Stat(qrcodeFilePath); err == nil {
 			// 如果已经存在二维码文件，将其删除
 			_ = os.Remove(qrcodeFilePath)
