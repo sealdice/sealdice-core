@@ -685,7 +685,7 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["dismiss"] = cmdDismiss
 
-	readIDList := func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) []string {
+	readIDList := func(ctx *MsgContext, _ *Message, cmdArgs *CmdArgs) []string {
 		var uidLst []string
 		for _, i := range cmdArgs.At {
 			if i.UserID == ctx.EndPoint.UserID {
@@ -712,7 +712,6 @@ func (d *Dice) registerCoreCommands() {
 		".botlist add @A @B --s  // 同上，不过骰子不会做出回复\n" +
 		".botlist del @A @B @C // 去除机器人标记\n" +
 		".botlist list/show // 查看当前列表"
-
 	cmdBotList := &CmdItemInfo{
 		Name:      "botlist",
 		ShortHelp: botListHelp,
@@ -730,6 +729,9 @@ func (d *Dice) registerCoreCommands() {
 					cmdArgs.GetKwarg("slience") != nil
 			}
 
+			reply := ""
+			showHelp := false
+
 			subCmd := cmdArgs.GetArgN(1)
 			switch subCmd {
 			case "add":
@@ -746,13 +748,10 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 
-				text := fmt.Sprintf("新增标记了%d/%d个帐号，这些账号将被视为机器人。\n因此他们被人@，或主动发出指令时，海豹将不会回复。\n另外对于botlist add/rm，如果群里有多个海豹，只有第一个被@的会回复，其余的执行指令但不回应", newCount, allCount)
-				if !checkSlience() {
-					ReplyToSender(ctx, msg, text)
-				} else {
-					d.Logger.Infof("静默执行: " + text)
-				}
-				return CmdExecuteResult{Matched: true, Solved: true}
+				reply = fmt.Sprintf(
+					"新增标记了%d/%d个帐号，这些账号将被视为机器人。\n因此他们被人@，或主动发出指令时，海豹将不会回复。\n另外对于botlist add/rm，如果群里有多个海豹，只有第一个被@的会回复，其余的执行指令但不回应",
+					newCount, allCount,
+				)
 			case "del", "rm":
 				allCount := 0
 				existsCount := 0
@@ -764,16 +763,13 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 
-				text := fmt.Sprintf("删除标记了%d/%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount, allCount)
-				if !checkSlience() {
-					ReplyToSender(ctx, msg, text)
-				} else {
-					d.Logger.Infof("静默执行: " + text)
-				}
-				return CmdExecuteResult{Matched: true, Solved: true}
+				reply = fmt.Sprintf(
+					"删除标记了%d/%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令",
+					existsCount, allCount,
+				)
 			case "list", "show":
 				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: true, Solved: true}
+					break
 				}
 
 				text := ""
@@ -784,14 +780,26 @@ func (d *Dice) registerCoreCommands() {
 				if text == "" {
 					text = "无"
 				}
-				ReplyToSender(ctx, msg, fmt.Sprintf("群内其他机器人列表:\n%s", text))
-				return CmdExecuteResult{Matched: true, Solved: true}
+				reply = fmt.Sprintf("群内其他机器人列表:\n%s", text)
 			default:
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				showHelp = !cmdArgs.SomeoneBeMentionedButNotMe
 			}
+
+			// NOTE(Xiangze-Li): 不可使用 ctx.IsCurGroupBotOn, 因其将被 at 也视为开启
+			if ctx.Group.IsActive(ctx) {
+				if len(reply) > 0 {
+					if !checkSlience() {
+						ReplyToSender(ctx, msg, reply)
+					} else {
+						d.Logger.Infof("botlist 静默执行: " + reply)
+					}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: showHelp}
+			}
+			if len(reply) > 0 {
+				d.Logger.Infof("botlist 静默执行: " + reply)
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 	d.CmdMap["botlist"] = cmdBotList
