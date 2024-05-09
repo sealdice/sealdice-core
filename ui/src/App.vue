@@ -12,10 +12,18 @@
         </div>
 
         <el-space :v-show="store.canAccess" direction="vertical" alignment="flex-start" :size="0" style="">
-          <span @click="enableAdvancedConfig" style="font-size: 1.2rem; cursor: pointer;">SealDice</span>
-          <span v-if="store.diceServers.length > 0" style="font-size: .7rem;">
-          {{ store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}
-        </span>
+          <el-space size="small" alignment="center">
+            <span @click="enableAdvancedConfig" style="font-size: 1.2rem; cursor: pointer;">SealDice</span>
+            <el-tooltip v-if="store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode" class="flex items-center">
+              <template #content>当前以容器模式启动，部分功能受到限制。</template>
+              <el-icon type="info">
+                <i-carbon-container-software/>
+              </el-icon>
+            </el-tooltip>
+          </el-space>
+          <span v-if="store.diceServers.length > 0" size="small" style="font-size: .7rem;">
+            {{ store.diceServers[0].baseInfo.OS }} - {{ store.diceServers[0].baseInfo.arch }}
+          </span>
         </el-space>
       </el-space>
 

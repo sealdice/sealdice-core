@@ -109,6 +109,7 @@ interface DiceBaseInfo {
   uptime: number
   OS: string
   arch: string
+  containerMode: boolean
 }
 
 
@@ -150,7 +151,8 @@ export const useStore = defineStore('main', {
             versionCode: 0,
             versionNewCode: 0,
             OS: '',
-            arch: ''
+            arch: '',
+            containerMode: false,
           },
           customTexts: {},
           customTextsHelpInfo: {},

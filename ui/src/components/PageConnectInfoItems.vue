@@ -492,11 +492,15 @@
         使用内置方案请切换到新的内置客户端。<br />
         如果你依然需要使用 gocq，可以切换到分离部署方式进行连接，但我们非常不建议您再继续使用 gocq。
       </el-alert>
+      <el-alert v-if="store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode && (form.accountType === 15 || form.accountType === 0)"
+                type="warning" :closable="false" class="mb-6">
+        当前为容器模式，内置客户端被禁用。
+      </el-alert>
 
       <el-form :model="form">
         <el-form-item label="账号类型" :label-width="formLabelWidth">
           <el-select v-model="form.accountType">
-            <el-option label="QQ(内置客户端)" :value="15"></el-option>
+            <el-option label="QQ(内置客户端)" :value="15" :disabled="store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode"></el-option>
             <el-option label="QQ(onebot11正向WS)" :value="6"></el-option>
             <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
             <el-option label="QQ(官方机器人)" :value="10"></el-option>
@@ -509,7 +513,7 @@
             <el-option label="Dodo语音" :value="5"></el-option>
             <el-option label="钉钉" :value="8"></el-option>
             <el-option label="Slack" :value="9"></el-option>
-            <el-option label="[已弃用]QQ(内置gocq)" :value="0"></el-option>
+            <el-option label="[已弃用]QQ(内置gocq)" :value="0" :disabled="store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode"></el-option>
             <el-option label="[已弃用]QQ(red协议)" :value="7"></el-option>
           </el-select>
         </el-form-item>
@@ -1524,8 +1528,9 @@ const handleSignServerDelete = (url: string) => {
 
 const supportedQQVersions = ref<string[]>([])
 
+const defaultAccountType: number = (store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode) ? 6: 15
 const form = reactive({
-  accountType: 15,
+  accountType: defaultAccountType,
   step: 1,
   isEnd: false,
   account: '',
