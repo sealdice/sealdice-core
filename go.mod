@@ -62,7 +62,7 @@ require (
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.8.1
-	github.com/pelletier/go-toml/v2 v2.2.1
+	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/pkg/errors v0.9.1
 	github.com/samber/lo v1.39.0
 	github.com/schollz/progressbar/v3 v3.14.2
