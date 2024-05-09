@@ -270,6 +270,8 @@ type Dice struct {
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
 
 	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
+
+	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 }
 
 type CensorMode int

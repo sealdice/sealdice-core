@@ -185,6 +185,7 @@ func main() {
 		VacuumDB               bool   `long:"vacuum" description:"对数据库进行整理, 使其收缩到最小尺寸"`
 		UpdateTest             bool   `long:"update-test" description:"更新测试"`
 		LogLevel               int8   `long:"log-level" description:"设置日志等级" default:"0" choice:"-1" choice:"0" choice:"1" choice:"2" choice:"3" choice:"4" choice:"5"`
+		ContainerMode          bool   `long:"container-mode" description:"容器模式，该模式下禁用内置客户端"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -228,6 +229,12 @@ func main() {
 
 	// 提早初始化是为了读取ServiceName
 	diceManager := &dice.DiceManager{}
+
+	if opts.ContainerMode {
+		logger.Info("当前为容器模式，内置适配器已被禁用")
+		diceManager.ContainerMode = true
+	}
+
 	diceManager.LoadDice()
 	diceManager.IsReady = true
 
