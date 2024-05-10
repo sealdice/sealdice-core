@@ -74,6 +74,7 @@ export interface HelpTextItem {
 }
 
 export interface AdvancedConfig {
+  show: boolean,
   enable: boolean,
   storyLogBackendUrl: string,
   storyLogApiVersion: string,

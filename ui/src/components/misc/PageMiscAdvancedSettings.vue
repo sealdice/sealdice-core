@@ -19,6 +19,29 @@
   </div>
 
   <el-form label-width="130px">
+    <el-form-item label="显示高级设置页">
+      <template #label>
+        <span>显示高级设置页</span>
+        <el-tooltip raw-content content="设置是否显示高级设置页，只影响展示">
+          <el-icon>
+            <question-filled/>
+          </el-icon>
+        </el-tooltip>
+      </template>
+      <el-switch v-model="config.show"/>
+    </el-form-item>
+    <el-form-item label="启用高级设置">
+      <template #label>
+        <span>启用高级设置</span>
+        <el-tooltip raw-content content="设置是否启用高级设置，关闭时下列设置无效">
+          <el-icon>
+            <question-filled/>
+          </el-icon>
+        </el-tooltip>
+      </template>
+      <el-switch v-model="config.enable"/>
+    </el-form-item>
+
     <h3>跑团日志</h3>
     <el-form-item label="自定义后端 URL">
       <template #label>
@@ -68,9 +91,12 @@ import {useStore} from "~/store";
 import {cloneDeep} from "lodash-es";
 import {AdvancedConfig} from "~/type";
 
+const emit = defineEmits(['update:advanced-settings-show'])
+
 const store = useStore()
 
 const config = ref<AdvancedConfig>({
+  show: false,
   enable: false,
   storyLogBackendUrl: "",
   storyLogApiVersion: "",
@@ -95,6 +121,7 @@ const submit = async () => {
   await store.diceAdvancedConfigSet(config.value)
   config.value = await store.diceAdvancedConfigGet()
   modified.value = false
+  emit('update:advanced-settings-show', config.value.show)
   nextTick(async () => {
     modified.value = false
   })

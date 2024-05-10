@@ -63,7 +63,7 @@
 
       <div style="background-color: #f3f5f7; flex: 1; text-align: left; height: calc(100vh - 4rem); overflow-y: auto;">
         <div class="main-container" :class="[needh100 ? 'h100' : '']" ref="rightbox">
-          <page-misc v-if="tabName === 'miscSettings'" :category="miscSettingsCategory"/>
+          <page-misc v-if="tabName === 'miscSettings'" :category="miscSettingsCategory" @update:advanced-settings-show="(show) => refreshAdvancedSettings(show)"/>
           <page-log v-if="tabName === 'log'"/>
           <page-connect-info-items v-if="tabName === 'imConns'"/>
           <page-custom-text v-if="tabName === 'customText'" :category="textCategory"/>
@@ -235,7 +235,7 @@ onBeforeMount(async () => {
   await updateNews()
 
   const conf = await store.diceAdvancedConfigGet()
-  if (conf.enable) {
+  if (conf.show) {
     advancedConfigCounter.value = 8
   }
 })
@@ -277,16 +277,26 @@ let configCustom = {}
 let advancedConfigCounter = ref<number>(0)
 const enableAdvancedConfig = async () => {
   advancedConfigCounter.value++
-  if (advancedConfigCounter.value > 8) {
+  const counter = advancedConfigCounter.value
+  if (counter > 8) {
     ElMessage.info('高级设置页已经开启')
     return
-  } else if (advancedConfigCounter.value === 8) {
+  } else if (counter === 8) {
     let conf = await store.diceAdvancedConfigGet()
+    conf.show = true
     conf.enable = true
     await store.diceAdvancedConfigSet(conf)
     ElMessage.success('已开启高级设置页')
-  } else if (advancedConfigCounter.value > 2) {
-    ElMessage.info('再按 ' + (8 - advancedConfigCounter.value) + ' 次开启高级设置页')
+  } else if (counter > 2) {
+    ElMessage.info('再按 ' + (8 - counter) + ' 次开启高级设置页')
+  }
+}
+
+const refreshAdvancedSettings = async (show: boolean) => {
+  if (!show) {
+    advancedConfigCounter.value = 0
+    switchTo('log')
+    ElMessage.success('已关闭高级设置页')
   }
 }
 </script>
