@@ -96,7 +96,6 @@ export const deploySidebar = {
             { text: "Shamrock LSPatch", link: "/deploy/platform-qq#shamrock-lspatch" },
             { text: "Chronocat", link: "/deploy/platform-qq#chronocat" },
             { text: "官方机器人", link: "/deploy/platform-qq#%E5%AE%98%E6%96%B9%E6%9C%BA%E5%99%A8%E4%BA%BA" },
-            { text: "Go-cqhttp / Mirai", link: "/deploy/platform-qq#go-cqhttp-mirai" },
           ]
         },
         { text: "KOOK", link: "/deploy/platform-kook" },
