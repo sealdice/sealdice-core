@@ -105,7 +105,7 @@ chmod +x ./lagrange/Lagrange.OneBot && xattr -rd com.apple.quarantine ./lagrange
 docker run -d --name sealdice -p 3211:3211 ghcr.io/sealdice/sealdice:edge
 ```
 
-::: warning 警告：容器模式下功能受限
+::: warning 注意：容器模式下功能受限
 
 Docker 部署的海豹功能有所限制，如无法使用内置客户端登录、无法在线更新等。
 

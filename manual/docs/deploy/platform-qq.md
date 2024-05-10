@@ -188,7 +188,7 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 :::
 
-::: warning 警告：保证连接模式匹配
+::: warning 注意：保证连接模式匹配
 
 Lagrange 默认生成的配置文件生成的是 `ReverseWebSocket`（即反向 WebSocket），如果你使用该种连接方式，下文海豹对接时应该选择「OneBot 11 反向 WS」模式。
 
@@ -407,7 +407,7 @@ Shamrock 已于 2024 年 4 月 20 日归档，将不再进行更新。
 
 :::
 
-::: danger 危险：*`1.1.0` 及以上版本的 Shamrock 不适用以下教程
+::: danger 危险：`1.1.0` 及以上版本的 Shamrock 不适用以下教程
 
 2024 年 4 月 2 日，OpenShamrock 开发组于 [Discussion#272](https://github.com/whitechi73/OpenShamrock/discussions/272#discussion-6300354) 宣布，Shamrock 将会从 `1.1.0` 版本起弃用 OneBot V11 支持，迁移至新的 [Kritor](https://github.com/KarinJS/kritor) 协议。
 
