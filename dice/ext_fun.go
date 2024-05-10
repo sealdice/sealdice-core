@@ -181,6 +181,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 			playerVars := ctx.LoadPlayerGlobalVars()
 			subCmd := cmdArgs.GetArgN(1)
+
+		subParse:
 			switch subCmd {
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -263,6 +265,16 @@ func RegisterBuiltinExtFun(self *Dice) {
 					break
 				}
 				name := subCmd
+				if len(cmdArgs.Args) >= 2 {
+					targetCmd := cmdArgs.GetArgN(2)
+					for _, prefix := range ctx.Session.Parent.CommandPrefix {
+						// 这里依然拦截不了先定义了快捷指令，后添加了新的指令前缀导致出现递归的情况，但是一是这种情况少，二是后面执行阶段也有拦截所以问题不大
+						if targetCmd == prefix+"a" || targetCmd == prefix+"&" {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_禁止"))
+							break subParse
+						}
+					}
+				}
 				_args := cmdArgs.Args[1:]
 				for _, kwa := range cmdArgs.Kwargs {
 					if kwa.Name != "my" {
@@ -1298,9 +1310,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 
 	self.RegisterExtension(&ExtInfo{
-		Name:            "fun", // 扩展的名称，需要用于指令中，写简短点
+		Name:            "fun", // 扩展的名称，需要用于指令中，写简短点      2024.05.10: 目前被看成是 function 的缩写了（
 		Version:         "1.1.0",
-		Brief:           "娱乐扩展，主要提供今日人品、智能鸽子和text指令，以及暂时用于放置小众规则指令",
+		Brief:           "功能扩展，主要提供快捷指令、ping、welcome等额外指令，同时也包括今日人品、智能鸽子等娱乐相关指令。同时，小众规则指令暂时也放在本扩展中",
 		AutoActive:      true, // 是否自动开启
 		ActiveOnPrivate: true,
 		Author:          "木落",
