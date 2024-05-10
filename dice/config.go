@@ -861,6 +861,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"快捷指令_非群聊": {
 				{"不在群聊中，群快捷指令相关命令不可用", 1},
 			},
+			"快捷指令_禁止": {
+				{"不允许定义这样的快捷指令", 1},
+			},
 			"快捷指令触发_前缀": {
 				{`※ {$t指令来源}快捷指令 {$t目标指令}\n`, 1},
 			},
@@ -1540,6 +1543,9 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType: ".alias",
 			},
 			"快捷指令_非群聊": {
+				SubType: ".alias",
+			},
+			"快捷指令_禁止": {
 				SubType: ".alias",
 			},
 			"快捷指令触发_前缀": {
