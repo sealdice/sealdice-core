@@ -10,10 +10,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"time"
 
 	"sealdice-core/dice/model"
+	"sealdice-core/utils"
 )
 
 func uploadV1(env UploadEnv) (string, error) {
@@ -74,7 +74,7 @@ func uploadV1(env UploadEnv) (string, error) {
 // formatAndBackup 将导出的日志序列化到 env.data 并存储为本地 zip
 func formatAndBackup(env *UploadEnv) error {
 	fzip, _ := os.OpenFile(
-		filepath.Join(env.Dir, filenameReplace(fmt.Sprintf(
+		filepath.Join(env.Dir, utils.FilenameClean(fmt.Sprintf(
 			"%s_%s.%s.zip",
 			env.GroupID, env.LogName, time.Now().Format("060102150405"),
 		))),
@@ -112,11 +112,6 @@ func formatAndBackup(env *UploadEnv) error {
 	_ = fzip.Close()
 
 	return err
-}
-
-func filenameReplace(name string) string {
-	re := regexp.MustCompile(`[/:\*\?"<>\|\\]`)
-	return re.ReplaceAllString(name, "")
 }
 
 func uploadToSealBackends(env UploadEnv, data io.Reader) string {
