@@ -2144,53 +2144,6 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["character"] = cmdChar
 	d.CmdMap["pc"] = cmdChar
 
-	botWelcomeHelp := ".welcome on // 开启\n" +
-		".welcome off // 关闭\n" +
-		".welcome show // 查看当前欢迎语\n" +
-		".welcome set <欢迎语> // 设定欢迎语"
-	cmdWelcome := &CmdItemInfo{
-		Name:              "welcome",
-		ShortHelp:         botWelcomeHelp,
-		Help:              "新人入群自动发言设定:\n" + botWelcomeHelp,
-		DisabledInPrivate: true,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			pRequired := 50 // 50管理 60群主 100master
-			if ctx.PrivilegeLevel < pRequired {
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
-				return CmdExecuteResult{Matched: true, Solved: true}
-			}
-
-			if cmdArgs.IsArgEqual(1, "on") {
-				ctx.Group.ShowGroupWelcome = true
-				ctx.Group.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, "入群欢迎语已打开")
-			} else if cmdArgs.IsArgEqual(1, "off") {
-				ctx.Group.ShowGroupWelcome = false
-				ctx.Group.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, "入群欢迎语已关闭")
-			} else if cmdArgs.IsArgEqual(1, "show") {
-				welcome := ctx.Group.GroupWelcomeMessage
-				var info string
-				if ctx.Group.ShowGroupWelcome {
-					info = "\n状态: 开启"
-				} else {
-					info = "\n状态: 关闭"
-				}
-				ReplyToSender(ctx, msg, "当前欢迎语:\n"+welcome+info)
-			} else if _, ok := cmdArgs.EatPrefixWith("set"); ok {
-				text2 := strings.TrimSpace(cmdArgs.RawArgs[len("set"):])
-				ctx.Group.GroupWelcomeMessage = text2
-				ctx.Group.ShowGroupWelcome = true
-				ctx.Group.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, "当前欢迎语设定为:\n"+text2+"\n入群欢迎语已自动打开(注意，会在bot off时起效)")
-			} else {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-			return CmdExecuteResult{Matched: true, Solved: true}
-		},
-	}
-	d.CmdMap["welcome"] = cmdWelcome
-
 	cmdReply := &CmdItemInfo{
 		Name:      "reply",
 		ShortHelp: ".reply on/off",
@@ -2220,7 +2173,6 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["reply"] = cmdReply
-
 }
 
 func getDefaultDicePoints(ctx *MsgContext) int64 {

@@ -473,6 +473,52 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
+	botWelcomeHelp := ".welcome on // 开启\n" +
+		".welcome off // 关闭\n" +
+		".welcome show // 查看当前欢迎语\n" +
+		".welcome set <欢迎语> // 设定欢迎语"
+	cmdWelcome := CmdItemInfo{
+		Name:              "welcome",
+		ShortHelp:         botWelcomeHelp,
+		Help:              "新人入群自动发言设定:\n" + botWelcomeHelp,
+		DisabledInPrivate: true,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			pRequired := 50 // 50管理 60群主 100master
+			if ctx.PrivilegeLevel < pRequired {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			if cmdArgs.IsArgEqual(1, "on") {
+				ctx.Group.ShowGroupWelcome = true
+				ctx.Group.UpdatedAtTime = time.Now().Unix()
+				ReplyToSender(ctx, msg, "入群欢迎语已打开")
+			} else if cmdArgs.IsArgEqual(1, "off") {
+				ctx.Group.ShowGroupWelcome = false
+				ctx.Group.UpdatedAtTime = time.Now().Unix()
+				ReplyToSender(ctx, msg, "入群欢迎语已关闭")
+			} else if cmdArgs.IsArgEqual(1, "show") {
+				welcome := ctx.Group.GroupWelcomeMessage
+				var info string
+				if ctx.Group.ShowGroupWelcome {
+					info = "\n状态: 开启"
+				} else {
+					info = "\n状态: 关闭"
+				}
+				ReplyToSender(ctx, msg, "当前欢迎语:\n"+welcome+info)
+			} else if _, ok := cmdArgs.EatPrefixWith("set"); ok {
+				text2 := strings.TrimSpace(cmdArgs.RawArgs[len("set"):])
+				ctx.Group.GroupWelcomeMessage = text2
+				ctx.Group.ShowGroupWelcome = true
+				ctx.Group.UpdatedAtTime = time.Now().Unix()
+				ReplyToSender(ctx, msg, "当前欢迎语设定为:\n"+text2+"\n入群欢迎语已自动打开(注意，会在bot off时起效)")
+			} else {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
 	cmdGugu := CmdItemInfo{
 		Name:      "gugu",
 		ShortHelp: ".gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
@@ -1265,27 +1311,28 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
-			"alias": &cmdAlias,
-			"&":     &cmdA,
-			"a":     &cmdA,
-			"ping":  &cmdPing,
-			"send":  &cmdSend,
-			"gugu":  &cmdGugu,
-			"咕咕":    &cmdGugu,
-			"jrrp":  &cmdJrrp,
-			"text":  &cmdText,
-			"rsr":   &cmdRsr,
-			"ek":    &cmdEk,
-			"ekgen": &cmdEkgen,
-			"dx":    &cmdDX,
-			"w":     &cmdWW,
-			"ww":    &cmdWW,
-			"dxh":   &cmdDX,
-			"wh":    &cmdWW,
-			"wwh":   &cmdWW,
-			"jsr":   &cmdJsr,
-			"drl":   &cmdDrl,
-			"drlh":  &cmdDrl,
+			"alias":   &cmdAlias,
+			"&":       &cmdA,
+			"a":       &cmdA,
+			"ping":    &cmdPing,
+			"send":    &cmdSend,
+			"welcome": &cmdWelcome,
+			"gugu":    &cmdGugu,
+			"咕咕":      &cmdGugu,
+			"jrrp":    &cmdJrrp,
+			"text":    &cmdText,
+			"rsr":     &cmdRsr,
+			"ek":      &cmdEk,
+			"ekgen":   &cmdEkgen,
+			"dx":      &cmdDX,
+			"w":       &cmdWW,
+			"ww":      &cmdWW,
+			"dxh":     &cmdDX,
+			"wh":      &cmdWW,
+			"wwh":     &cmdWW,
+			"jsr":     &cmdJsr,
+			"drl":     &cmdDrl,
+			"drlh":    &cmdDrl,
 		},
 	})
 }
