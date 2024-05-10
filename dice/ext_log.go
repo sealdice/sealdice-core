@@ -16,6 +16,7 @@ import (
 
 	"sealdice-core/dice/model"
 	"sealdice-core/dice/storylog"
+	"sealdice-core/utils"
 )
 
 var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
@@ -413,62 +414,60 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if newName := cmdArgs.GetArgN(2); newName != "" {
 					logName = newName
 				}
-				if logName != "" {
-					now := carbon.Now()
-					VarSetValueStr(ctx, "$t记录名", logName)
-					VarSetValueStr(ctx, "$t日期", now.ToShortDateString())
-					VarSetValueStr(ctx, "$t时间", now.ToShortTimeString())
-					logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
-					logFile, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
-					if err != nil {
-						ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					var emails []string
-					if len(cmdArgs.Args) > 2 {
-						emails = cmdArgs.Args[2:]
-						// 试图发送邮件
-						dice := ctx.Session.Parent
-						if dice.CanSendMail() {
-							rightEmails := make([]string, 0, len(emails))
-							emailExp := regexp.MustCompile(`.*@.*`)
-							for _, email := range emails {
-								if emailExp.MatchString(email) {
-									rightEmails = append(rightEmails, email)
-								}
-							}
-							if len(rightEmails) > 0 {
-								emailMsg := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
-								dice.SendMailRow(
-									fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
-									rightEmails,
-									emailMsg,
-									[]string{logFile.Name()},
-								)
-								text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
-								ReplyToSenderRaw(ctx, msg, text, "skip")
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
-							ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_无格式有效邮箱"), "skip")
-						}
-						ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
-					}
-
-					var uri string
-					if runtime.GOOS == "windows" {
-						uri = "files:///" + logFile.Name()
-					} else {
-						uri = "files://" + logFile.Name()
-					}
-					SendFileToSenderRaw(ctx, msg, uri, "skip")
-					err = os.Remove(logFile.Name())
-					if err != nil {
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-				} else {
+				if logName == "" {
 					ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_未指定记录"), "skip")
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
+				now := carbon.Now()
+				VarSetValueStr(ctx, "$t记录名", logName)
+				VarSetValueStr(ctx, "$t日期", now.ToShortDateString())
+				VarSetValueStr(ctx, "$t时间", now.ToShortTimeString())
+				logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
+				logFile, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
+				if err != nil {
+					ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				defer os.Remove(logFile.Name())
+
+				var emails []string
+				if len(cmdArgs.Args) > 2 {
+					emails = cmdArgs.Args[2:]
+					// 试图发送邮件
+					dice := ctx.Session.Parent
+					if dice.CanSendMail() {
+						rightEmails := make([]string, 0, len(emails))
+						emailExp := regexp.MustCompile(`.*@.*`)
+						for _, email := range emails {
+							if emailExp.MatchString(email) {
+								rightEmails = append(rightEmails, email)
+							}
+						}
+						if len(rightEmails) > 0 {
+							emailMsg := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
+							dice.SendMailRow(
+								fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
+								rightEmails,
+								emailMsg,
+								[]string{logFile.Name()},
+							)
+							text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
+							ReplyToSenderRaw(ctx, msg, text, "skip")
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_无格式有效邮箱"), "skip")
+					}
+					ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
+				}
+
+				var uri string
+				if runtime.GOOS == "windows" {
+					uri = "files:///" + logFile.Name()
+				} else {
+					uri = "files://" + logFile.Name()
+				}
+				SendFileToSenderRaw(ctx, msg, uri, "skip")
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -882,14 +881,23 @@ func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID in
 }
 
 func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (*os.File, error) {
-	tempLog, err := os.CreateTemp("", fmt.Sprintf("%s(*).txt", fileNamePrefix))
+	tempLog, err := os.CreateTemp("", fmt.Sprintf(
+		"%s(*).txt",
+		utils.FilenameClean(fileNamePrefix),
+	))
 	if err != nil {
 		return nil, errors.New("log导出出现未知错误")
 	}
+	defer func() {
+		if err != nil {
+			_ = os.Remove(tempLog.Name())
+		}
+	}()
 
 	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupID, logName)
 	if len(lines) == 0 {
-		return nil, errors.New("此log不存在，或条目数为空，名字是否正确？")
+		err = errors.New("此log不存在，或条目数为空，名字是否正确？")
+		return nil, err
 	}
 	if err != nil {
 		return nil, err
