@@ -1,6 +1,7 @@
 package dice
 
 type AdvancedConfig struct {
+	Show   bool `json:"show" yaml:"show"`     // 显示高级设置页
 	Enable bool `json:"enable" yaml:"enable"` // 启用高级设置
 
 	// 跑团日志相关
