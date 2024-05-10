@@ -2495,6 +2495,9 @@ func (d *Dice) registerCoreCommands() {
 						targetArgs := CommandParse(targetCmd, []string{}, d.CommandPrefix, msg.Platform, false)
 						if targetArgs != nil {
 							log.Infof("群快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
+							if targetArgs.Command == "a" || targetArgs.Command == "&" {
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
 
 							VarSetValueStr(ctx, "$t指令来源", "群")
 							VarSetValueStr(ctx, "$t目标指令", targetCmd)
@@ -2517,6 +2520,9 @@ func (d *Dice) registerCoreCommands() {
 					targetArgs := CommandParse(targetCmd, []string{}, d.CommandPrefix, msg.Platform, false)
 					if targetArgs != nil {
 						log.Infof("个人快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
+						if targetArgs.Command == "a" || targetArgs.Command == "&" {
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
 
 						VarSetValueStr(ctx, "$t指令来源", "个人")
 						VarSetValueStr(ctx, "$t目标指令", targetCmd)
