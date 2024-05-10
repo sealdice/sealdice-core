@@ -2300,6 +2300,7 @@ func (d *Dice) loads() {
 func (d *Dice) loadAdvanced() {
 	d.Logger.Info("开始读取 advanced.yaml")
 	advancedConfig := AdvancedConfig{
+		Show:   false,
 		Enable: false,
 	} // default value
 
