@@ -157,6 +157,368 @@ type singleRoulette struct {
 var rouletteMap SyncMap[string, singleRoulette]
 
 func RegisterBuiltinExtFun(self *Dice) {
+	aliasHelp := ".alias <别名> <指令> // 将 .&<别名> 定义为指定指令的快捷触发方式\n" +
+		".alias --my <别名> <指令> // 将 .&<别名> 定义为个人快捷指令\n" +
+		".alias del/rm <别名> // 删除群快捷指令\n" +
+		".alias del/rm --my <别名> // 删除个人快捷指令\n" +
+		".alias show/list // 显示目前可用的快捷指令\n" +
+		".alias help // 查看帮助\n" +
+		"// 执行快捷命令见 .& 命令"
+	cmdAlias := CmdItemInfo{
+		Name:      "alias",
+		ShortHelp: aliasHelp,
+		Help:      "可以定义一条指令的快捷方式。\n" + aliasHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if len(cmdArgs.Args) == 0 {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
+			_isPersonal := cmdArgs.GetKwarg("my")
+			isPersonal := ctx.MessageType == "private" || _isPersonal != nil
+			if !isPersonal {
+				ctx.LoadGroupVars()
+			}
+
+			playerVars := ctx.LoadPlayerGlobalVars()
+			subCmd := cmdArgs.GetArgN(1)
+			switch subCmd {
+			case "help":
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			case "del", "rm":
+				name := cmdArgs.GetArgN(2)
+				key := "$g:alias:" + name
+				m := ctx.Group.ValueMap
+				VarSetValueStr(ctx, "$t指令来源", "群")
+				if isPersonal {
+					key = "$m:alias:" + name
+					m = playerVars.ValueMap
+					VarSetValueStr(ctx, "$t指令来源", "个人")
+				}
+				if _cmd, ok := m.Get(key); ok {
+					if cmd, ok := _cmd.(*VMValue); ok && cmd != nil && cmd.TypeID == VMTypeString {
+						VarSetValueStr(ctx, "$t快捷指令名", name)
+						VarSetValueStr(ctx, "$t旧指令", cmd.Value.(string))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除"))
+					}
+					m.Del(key)
+					if isPersonal {
+						playerVars.LastWriteTime = time.Now().Unix()
+					} else if ctx.Group != nil {
+						ctx.Group.UpdatedAtTime = time.Now().Unix()
+					}
+				} else {
+					VarSetValueStr(ctx, "$t快捷指令名", name)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除_未定义"))
+				}
+			case "list", "show":
+				var personCmds, groupCmds []string
+				_ = playerVars.ValueMap.Iterate(func(k interface{}, v interface{}) error {
+					if key, ok := k.(string); ok {
+						if strings.HasPrefix(key, "$m:alias:") {
+							_cmd := key[len("$m:alias:"):]
+							if val, ok := v.(*VMValue); ok && val != nil && val.TypeID == VMTypeString {
+								VarSetValueStr(ctx, "$t快捷指令名", _cmd)
+								VarSetValueStr(ctx, "$t指令", val.Value.(string))
+								VarSetValueStr(ctx, "$t指令来源", "个人")
+								personCmds = append(personCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
+							}
+						}
+					}
+					return nil
+				})
+				if ctx.MessageType == "group" {
+					groupValueMap := ctx.Group.ValueMap
+					_ = groupValueMap.Iterate(func(k interface{}, v interface{}) error {
+						if key, ok := k.(string); ok {
+							if strings.HasPrefix(key, "$g:alias:") {
+								_cmd := key[len("$g:alias:"):]
+								if val, ok := v.(*VMValue); ok && val != nil && val.TypeID == VMTypeString {
+									VarSetValueStr(ctx, "$t快捷指令名", _cmd)
+									VarSetValueStr(ctx, "$t指令", val.Value.(string))
+									VarSetValueStr(ctx, "$t指令来源", "群")
+									groupCmds = append(groupCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
+								}
+							}
+						}
+						return nil
+					})
+				}
+				sep := DiceFormatTmpl(ctx, "核心:快捷指令_列表_分隔符")
+				// 保证群在前个人在后的顺序
+				var totalCmds []string
+				totalCmds = append(totalCmds, groupCmds...)
+				totalCmds = append(totalCmds, personCmds...)
+				if len(totalCmds) > 0 {
+					VarSetValueStr(ctx, "$t列表内容", strings.Join(totalCmds, sep))
+				}
+
+				if len(totalCmds) == 0 {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表_空"))
+				} else {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表"))
+				}
+			default:
+				if len(cmdArgs.Args) < 2 {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_新增_无指令"))
+					break
+				}
+				name := subCmd
+				_args := cmdArgs.Args[1:]
+				for _, kwa := range cmdArgs.Kwargs {
+					if kwa.Name != "my" {
+						_args = append(_args, kwa.String())
+					}
+				}
+				cmd := strings.TrimSpace(strings.Join(_args, " "))
+
+				m := ctx.Group.ValueMap
+				key := "$g:alias:" + name
+				VarSetValueStr(ctx, "$t指令来源", "群")
+				if isPersonal {
+					key = "$m:alias:" + name
+					m = playerVars.ValueMap
+					VarSetValueStr(ctx, "$t指令来源", "个人")
+				}
+
+				if _oldCmd, ok := m.Get(key); ok && _oldCmd != nil {
+					if oldCmd, ok := _oldCmd.(*VMValue); ok && oldCmd.TypeID == VMTypeString {
+						m.Set(key, &VMValue{TypeID: VMTypeString, Value: cmd})
+						if isPersonal {
+							playerVars.LastWriteTime = time.Now().Unix()
+						} else if ctx.Group != nil {
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
+						}
+						VarSetValueStr(ctx, "$t快捷指令名", name)
+						VarSetValueStr(ctx, "$t指令", cmd)
+						VarSetValueStr(ctx, "$t旧指令", oldCmd.Value.(string))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_替换"))
+					} else {
+						// 防止错误的数据一直卡着
+						m.Del(key)
+						if isPersonal {
+							playerVars.LastWriteTime = time.Now().Unix()
+						} else if ctx.Group != nil {
+							ctx.Group.UpdatedAtTime = time.Now().Unix()
+						}
+					}
+				} else {
+					m.Set(key, &VMValue{TypeID: VMTypeString, Value: cmd})
+					if isPersonal {
+						playerVars.LastWriteTime = time.Now().Unix()
+					} else if ctx.Group != nil {
+						ctx.Group.UpdatedAtTime = time.Now().Unix()
+					}
+					VarSetValueStr(ctx, "$t快捷指令名", name)
+					VarSetValueStr(ctx, "$t指令", cmd)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_新增"))
+				}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
+	aHelp := ".&/a <快捷指令名> [参数] // 执行对应快捷指令\n" +
+		".& help // 查看帮助\n" +
+		"// 定义快捷指令见 .alias 命令"
+	cmdA := CmdItemInfo{
+		Name:      "&",
+		ShortHelp: aHelp,
+		Help:      "执行一条快捷指令。\n" + aHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if len(cmdArgs.Args) == 0 {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			name := cmdArgs.GetArgN(1)
+			if name == "help" {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+
+			log := self.Logger
+			args := cmdArgs.Args
+			for _, kwa := range cmdArgs.Kwargs {
+				args = append(args, kwa.String())
+			}
+
+			if msg.MessageType == "group" {
+				ctx.LoadGroupVars()
+				_cmdValue, ok := ctx.Group.ValueMap.Get("$g:alias:" + name)
+				if ok {
+					if cmdValue, ok2 := _cmdValue.(*VMValue); ok2 && cmdValue != nil && cmdValue.TypeID == VMTypeString {
+						args[0] = cmdValue.Value.(string)
+						targetCmd := strings.Join(args, " ")
+						targetArgs := CommandParse(targetCmd, []string{}, self.CommandPrefix, msg.Platform, false)
+						if targetArgs != nil {
+							log.Infof("群快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
+							if targetArgs.Command == "a" || targetArgs.Command == "&" {
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
+
+							VarSetValueStr(ctx, "$t指令来源", "群")
+							VarSetValueStr(ctx, "$t目标指令", targetCmd)
+							ctx.AliasPrefixText = DiceFormatTmpl(ctx, "核心:快捷指令触发_前缀")
+
+							ctx.EndPoint.TriggerCommand(ctx, msg, targetArgs)
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+					}
+				}
+			}
+
+			playerVars := ctx.LoadPlayerGlobalVars()
+			_cmdValue, ok := playerVars.ValueMap.Get("$m:alias:" + name)
+			if ok {
+				if cmdValue, ok := _cmdValue.(*VMValue); ok && cmdValue != nil && cmdValue.TypeID == VMTypeString {
+					args[0] = cmdValue.Value.(string)
+					targetCmd := strings.Join(args, " ")
+					msg.Message = targetCmd
+					targetArgs := CommandParse(targetCmd, []string{}, self.CommandPrefix, msg.Platform, false)
+					if targetArgs != nil {
+						log.Infof("个人快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
+						if targetArgs.Command == "a" || targetArgs.Command == "&" {
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
+						VarSetValueStr(ctx, "$t指令来源", "个人")
+						VarSetValueStr(ctx, "$t目标指令", targetCmd)
+						ctx.AliasPrefixText = DiceFormatTmpl(ctx, "核心:快捷指令触发_前缀")
+
+						ctx.EndPoint.TriggerCommand(ctx, msg, targetArgs)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+				}
+			}
+
+			VarSetValueStr(ctx, "$t目标指令名", name)
+			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令触发_无指令"))
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
+	cmdPing := CmdItemInfo{
+		Name:      "ping",
+		ShortHelp: ".ping // 触发发送一条回复",
+		Help:      "触发回复:\n触发发送一条回复。特别地，如果是qq官方bot，并且是在频道中触发，会以私信消息形式回复",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			if msg.Platform == "OpenQQCH" &&
+				strings.HasPrefix(msg.GuildID, "OpenQQCH-Guild:") &&
+				strings.HasPrefix(msg.GroupID, "OpenQQCH-Channel:") {
+				// 从 official qq 的频道触发的，就触发私信的回复
+				ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "其它:ping响应"))
+			} else {
+				// 其它的情况就直接回复
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:ping响应"))
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
+	cmdSend := CmdItemInfo{
+		Name:      "send",
+		ShortHelp: ".send // 向骰主留言",
+		Help: "留言指令:\n.send XXXXXX // 向骰主留言\n" +
+			".send to <对方ID> 要说的话 // 骰主回复，举例. send to QQ:12345 感谢留言\n" +
+			".send to <群组ID> 要说的话 // 举例. send to QQ-Group:12345 感谢留言\n" +
+			"> 指令.userid可以查看当前群的ID",
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			val := cmdArgs.GetArgN(1)
+			if val == "to" { //nolint:nestif // TODO
+				if ctx.PrivilegeLevel >= 100 {
+					uid := cmdArgs.GetArgN(2)
+					txt := cmdArgs.GetRestArgsFrom(3)
+					if uid != "" && strings.HasPrefix(uid, ctx.EndPoint.Platform) && txt != "" {
+						isGroup := strings.Contains(uid, "-Group:")
+						txt = fmt.Sprintf("本消息由骰主<%s>通过指令发送:\n", ctx.Player.Name) + txt
+						if isGroup {
+							ReplyGroup(ctx, &Message{GroupID: uid}, txt)
+						} else {
+							ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: uid}}, txt)
+						}
+						ReplyToSender(ctx, msg, "信息已经发送至"+uid)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
+				ReplyToSender(ctx, msg, "你不具备Master权限")
+			} else if val == "help" || val == "" {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			} else {
+				if self.MailEnable {
+					_ = ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				for _, uid := range ctx.Dice.DiceMasters {
+					text := ""
+
+					if ctx.IsCurGroupBotOn {
+						text += fmt.Sprintf("一条来自群组<%s>(%s)，作者<%s>(%s)的留言:\n", ctx.Group.GroupName, ctx.Group.GroupID, ctx.Player.Name, ctx.Player.UserID)
+					} else {
+						text += fmt.Sprintf("一条来自私聊，作者<%s>(%s)的留言:\n", ctx.Player.Name, ctx.Player.UserID)
+					}
+
+					text += cmdArgs.CleanArgs
+					if strings.Contains(uid, "Group") {
+						ctx.EndPoint.Adapter.SendToGroup(ctx, uid, text, "")
+					} else {
+						ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")
+					}
+				}
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+		},
+	}
+
+	botWelcomeHelp := ".welcome on // 开启\n" +
+		".welcome off // 关闭\n" +
+		".welcome show // 查看当前欢迎语\n" +
+		".welcome set <欢迎语> // 设定欢迎语"
+	cmdWelcome := CmdItemInfo{
+		Name:              "welcome",
+		ShortHelp:         botWelcomeHelp,
+		Help:              "新人入群自动发言设定:\n" + botWelcomeHelp,
+		DisabledInPrivate: true,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			pRequired := 50 // 50管理 60群主 100master
+			if ctx.PrivilegeLevel < pRequired {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			if cmdArgs.IsArgEqual(1, "on") {
+				ctx.Group.ShowGroupWelcome = true
+				ctx.Group.UpdatedAtTime = time.Now().Unix()
+				ReplyToSender(ctx, msg, "入群欢迎语已打开")
+			} else if cmdArgs.IsArgEqual(1, "off") {
+				ctx.Group.ShowGroupWelcome = false
+				ctx.Group.UpdatedAtTime = time.Now().Unix()
+				ReplyToSender(ctx, msg, "入群欢迎语已关闭")
+			} else if cmdArgs.IsArgEqual(1, "show") {
+				welcome := ctx.Group.GroupWelcomeMessage
+				var info string
+				if ctx.Group.ShowGroupWelcome {
+					info = "\n状态: 开启"
+				} else {
+					info = "\n状态: 关闭"
+				}
+				ReplyToSender(ctx, msg, "当前欢迎语:\n"+welcome+info)
+			} else if _, ok := cmdArgs.EatPrefixWith("set"); ok {
+				text2 := strings.TrimSpace(cmdArgs.RawArgs[len("set"):])
+				ctx.Group.GroupWelcomeMessage = text2
+				ctx.Group.ShowGroupWelcome = true
+				ctx.Group.UpdatedAtTime = time.Now().Unix()
+				ReplyToSender(ctx, msg, "当前欢迎语设定为:\n"+text2+"\n入群欢迎语已自动打开(注意，会在bot off时起效)")
+			} else {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
 	cmdGugu := CmdItemInfo{
 		Name:      "gugu",
 		ShortHelp: ".gugu 来源 // 获取一个随机的咕咕理由，带上来源可以看作者",
@@ -949,22 +1311,28 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
-			"gugu":  &cmdGugu,
-			"咕咕":    &cmdGugu,
-			"jrrp":  &cmdJrrp,
-			"text":  &cmdText,
-			"rsr":   &cmdRsr,
-			"ek":    &cmdEk,
-			"ekgen": &cmdEkgen,
-			"dx":    &cmdDX,
-			"w":     &cmdWW,
-			"ww":    &cmdWW,
-			"dxh":   &cmdDX,
-			"wh":    &cmdWW,
-			"wwh":   &cmdWW,
-			"jsr":   &cmdJsr,
-			"drl":   &cmdDrl,
-			"drlh":  &cmdDrl,
+			"alias":   &cmdAlias,
+			"&":       &cmdA,
+			"a":       &cmdA,
+			"ping":    &cmdPing,
+			"send":    &cmdSend,
+			"welcome": &cmdWelcome,
+			"gugu":    &cmdGugu,
+			"咕咕":      &cmdGugu,
+			"jrrp":    &cmdJrrp,
+			"text":    &cmdText,
+			"rsr":     &cmdRsr,
+			"ek":      &cmdEk,
+			"ekgen":   &cmdEkgen,
+			"dx":      &cmdDX,
+			"w":       &cmdWW,
+			"ww":      &cmdWW,
+			"dxh":     &cmdDX,
+			"wh":      &cmdWW,
+			"wwh":     &cmdWW,
+			"jsr":     &cmdJsr,
+			"drl":     &cmdDrl,
+			"drlh":    &cmdDrl,
 		},
 	})
 }
