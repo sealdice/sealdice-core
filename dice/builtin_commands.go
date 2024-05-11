@@ -969,6 +969,11 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
+				if dm.ContainerMode {
+					ReplyToSender(ctx, msg, "容器模式下禁止指令更新，请手动拉取最新镜像")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				code := cmdArgs.GetArgN(2)
 				if code == "" {
 					var text string

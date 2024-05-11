@@ -231,7 +231,7 @@ func main() {
 	diceManager := &dice.DiceManager{}
 
 	if opts.ContainerMode {
-		logger.Info("当前为容器模式，内置适配器已被禁用")
+		logger.Info("当前为容器模式，内置适配器与更新功能已被禁用")
 		diceManager.ContainerMode = true
 	}
 

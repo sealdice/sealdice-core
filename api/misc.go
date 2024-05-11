@@ -21,6 +21,12 @@ func upgrade(c echo.Context) error {
 		})
 	}
 
+	if dm.ContainerMode {
+		return c.JSON(200, map[string]interface{}{
+			"text": "容器模式下禁止更新，请手动拉取最新镜像",
+		})
+	}
+
 	dm.UpdateCheckRequestChan <- 1
 	time.Sleep(3 * time.Second) // 等待1s，应该能够取得新版本了。如果获取失败也不至于卡住
 

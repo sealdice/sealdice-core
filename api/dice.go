@@ -24,6 +24,10 @@ func DiceNewVersionUpload(c echo.Context) error {
 		return Error(&c, "骰子没有正确初始化，无法使用此功能", Response{})
 	}
 
+	if dm.ContainerMode {
+		return Error(&c, "容器模式下禁止更新，请手动拉取最新镜像", Response{})
+	}
+
 	form, err := c.MultipartForm()
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
