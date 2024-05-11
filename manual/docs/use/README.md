@@ -15,6 +15,6 @@ index: false
 - 功能扩展
   - [故事](./story.md)
   - [日志](./log.md)
-  - [娱乐](./fun.md)
+  - [功能](./fun.md)
   - [牌堆 自定义回复](./deck_and_reply.md)
 - [常见问题](./faq.md)
