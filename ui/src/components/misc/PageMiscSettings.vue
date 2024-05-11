@@ -441,8 +441,13 @@
           </el-tooltip>
         </div>
       </template>
-      <!-- <el-button v-if="!isShowUnlockCode" @click="isShowUnlockCode = true">查看</el-button> -->
-      <el-upload class="upload" action="" multiple :before-upload="beforeUpload" :file-list="fileList" :disabled="!isUploadEnable">
+      <el-space v-if="store.curDice.baseInfo.containerMode" wrap>
+        <el-tooltip content="容器模式下固件升级被禁用，请手动拉取最新镜像">
+          <el-button type="primary" :icon="Upload" disabled>上传压缩包</el-button>
+        </el-tooltip>
+        <el-text type="warning" size="small">容器模式下固件升级被禁用，请手动拉取最新镜像</el-text>
+      </el-space>
+      <el-upload v-else class="upload" action="" multiple :before-upload="beforeUpload" :file-list="fileList" :disabled="!isUploadEnable">
         <el-button type="primary" :icon="Upload" :disabled="!isUploadEnable">上传压缩包</el-button>
       </el-upload>
     </el-form-item>

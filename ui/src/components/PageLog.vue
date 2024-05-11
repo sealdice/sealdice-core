@@ -13,7 +13,14 @@
     </span>
 
     <span style="display: flex; align-self: flex-end; flex-direction: column;">
-      <el-button v-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode" type="primary" @click="upgradeDialogVisible = true">升级新版</el-button>
+      <el-tooltip v-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode && store.curDice.baseInfo.containerMode"
+                  content="容器模式下禁止直接更新，请手动拉取最新镜像">
+        <el-button type="primary" disabled>升级新版</el-button>
+      </el-tooltip>
+      <el-button v-else-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode"
+                 type="primary" @click="upgradeDialogVisible = true">
+        升级新版
+      </el-button>
       <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
     </span>
   </p>
