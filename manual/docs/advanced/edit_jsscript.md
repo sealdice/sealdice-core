@@ -101,9 +101,23 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 | @depends <Badge type="tip" text="v1.4.4"/>     | 可选，从 <Badge type="tip" text="v1.4.4"/> 加入，指定你的扩展依赖的其他扩展，**可以不含此行或含有多行**。详见 [依赖其他扩展](#依赖其他扩展)               |
 | @sealVersion <Badge type="tip" text="v1.4.5"/> | 可选，从 <Badge type="tip" text="v1.4.5"/> 加入，指定你的扩展的目标海豹版本。详见 [目标海豹版本](#目标海豹版本)                               |
 
-## 使用 TS 模板
+## 单 JS 文件编写插件
 
 我们更推荐使用 TypeScript 来编写插件，编译到 ES6 后使用即可。不过先从 JavaScript 开始也是没有任何问题的。
+
+编写插件时，可以下载海豹提供的 [seal.d.ts](https://raw.githubusercontent.com/sealdice/sealdice-js-ext-template/master/types/seal.d.ts) 文件，将其保存在和你要编写的 JS 文件同级的目录下。
+
+`seal.d.ts` 支持了在使用 vscode 等工具编写时，对海豹提供的 API 的代码补全。
+
+![海豹 API 代码补全](./images/edit-jsscript-dts.png)
+
+::: tip
+
+`seal.d.ts` 文件随时可能会有更新，如果你需要的 API 没有提示，可以检查一下是否是最新版本。
+
+:::
+
+## 使用 TS 模板
 
 如果你打算使用 TypeScript，海豹提供了相应的 [模板工程](https://github.com/sealdice/sealdice-js-ext-template)，注册扩展和指令的代码已经写好，可以直接编译出一个可直接装载的 JS 扩展文件。
 
