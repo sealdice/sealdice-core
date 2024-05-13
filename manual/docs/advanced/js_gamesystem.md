@@ -9,7 +9,7 @@ title: 编写新的 TRPG 规则
 
 本节将介绍如何为你的海豹核心编写和添加一个新的 TRPG 规则。包括编写规则模板和编写指令。
 
-本文中将涉及使用 JavaScript 与 TypeScript 编写插件的内容。如果你尚未阅读 [相应章节](./edit_jsscript.md)，请先阅读它。
+本文中将涉及使用 JavaScript 与 TypeScript 编写插件的内容。如果你尚未阅读 [常见用法示例](./js_example.md)，请先阅读它。
 
 :::
 

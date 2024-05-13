@@ -73,7 +73,7 @@ JavaScript（JS）是一门基于原型和头等函数的多范式高级解释�
 
 ### 插件设置
 
-见 [进阶 - 编写 JS 插件 - 注册插件配置项](../advanced/edit_jsscript.md#注册插件配置项)。
+见 [进阶 - 编写 JS 插件 - 注册插件配置项](../advanced/js_example.md#注册插件配置项)。
 
 ## 如何使用 JS 插件？
 
@@ -81,4 +81,4 @@ JavaScript（JS）是一门基于原型和头等函数的多范式高级解释�
 
 ## 如何编写 JS 插件？
 
-见 [进阶 - 编写 JS 插件](../advanced/edit_jsscript.md)。
+见 [进阶 - 编写 JS 插件](../advanced/js_start.md)。

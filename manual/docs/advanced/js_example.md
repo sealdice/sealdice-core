@@ -1,299 +1,11 @@
 ---
 lang: zh-cn
-title: 编写 JavaScript 插件
-outline: [2,6]
+title: 常见用法示例
 ---
 
-# 编写 JavaScript 插件
+# 常见用法示例
 
-::: info 本节内容
-
-本节将介绍 JavaScript 脚本的编写，请善用侧边栏和搜索，按需阅读文档。
-
-我们假定你熟悉 JavaScript / TypeScript，编程语言的教学超出了本文档的目的，如果你还不熟悉它们，可以从互联网上寻找到很多优秀的教程。如：
-
-- [MDN | JavaScript](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript)
-- [现代 JavaScript 教程](https://zh.javascript.info)
-- [JavaScript 教程 - 廖雪峰](https://www.liaoxuefeng.com/wiki/1022910821149312)
-- [JavaScript - 菜鸟教程](https://www.runoob.com/js/js-tutorial.html)
-
-注意：你只需要学习 JavaScript 语言本身，不包括 WebAPI。
-
-:::
-
-## 快速开始
-
-> **JavaScript**（**JS**）虽然作为 Web 页面中的脚本语言被人所熟知，但是它也被用到了很多 [非浏览器环境](https://zh.wikipedia.org/wiki/JavaScript#其他) 中，例如 [Node.js](https://developer.mozilla.org/zh-CN/docs/Glossary/Node.js)、[Apache CouchDB](https://couchdb.apache.org/)、[Adobe Acrobat](https://opensource.adobe.com/dc-acrobat-sdk-docs/acrobatsdk/) 等。
-<!-- > <p style="text-align:right"><i>—— 来自 MDN 文档</i></p> -->
-
-海豹的 JS 插件就是运行在一个非浏览器环境中—— [goja](https://github.com/dop251/goja) 作为 JS 脚本引擎所提供的环境，该环境目前支持了 ES6 基本上全部的特性，包括 `async/await`、`promise` 和 `generator` 等异步编程友好的特性。
-
-除了 JS 语言规范所提供的 [内置对象](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects)，海豹额外在环境中提供了如下全局对象：
-
-- `seal` 用于自定义扩展、增加指令、管理黑白名单……几乎所有与海豹本体有关的 API 都挂载在这个内置对象上。
-- `console` 专门与海豹的日志模块进行交互。
-- `setTimeout/setInterval` 等与事件循环相关的函数。
-- `fetch` 用于网络请求。
-- `atob/btoa` 用于 base64 编解码。
-
-::: warning 警告
-
-需要注意引擎的整型为 32 位，请小心溢出问题。
-
-:::
-
-现在，让我们从最简单的扩展开始，这个扩展只会在日志中打印一条 `Hello World!`。
-
-新建一个 JS 文件，写入如下内容，然后通过海豹的 WebUI 上传并重载 JS 环境（或是直接复制到海豹 WebUI 的调试控制台中运行）。
-
-```javascript
-// ==UserScript==
-// @name         示例：如何开始
-// @author       木落
-// @version      1.0.0
-// @description  这是一个演示脚本，并没有任何实际作用。
-// @timestamp    1671368035
-// 2022-12-18
-// @license      Apache-2
-// @homepageURL  https://github.com/sealdice/javascript
-// ==/UserScript==
-
-console.log('Hello World!');
-```
-
-你应当能在控制台中观察到一条 Hello World 的日志。
-
-::: tip 提示：打印日志
-
-console 打印出来的东西不仅会在控制台中出现，在日志中也会显示。
-
-涉及网络请求或延迟执行的内容，有时候不会在控制台调试面板上显示出来，而在日志中能看到。
-
-:::
-
-### 插件元数据
-
-每个 JS 扩展需要在开头以固定格式注释的形式留下信息，以便使用和分享，这些信息通常被称为「插件元数据」：
-
-```javascript
-// ==UserScript==
-// @name         脚本的名字
-// @author       木落
-// @version      1.0.0
-// @description  这是一个演示脚本，并没有任何实际作用。
-// @timestamp    1672066028
-// @license      Apache-2
-// @homepageURL  https://github.com/sealdice/javascript
-// @depends      SzzRain:demo:1.0.0
-// @sealVersion  1.4.5
-// ==/UserScript==
-```
-
-| 属性                                                               | 含义                                                                                |
-|------------------------------------------------------------------|-----------------------------------------------------------------------------------|
-| @name                                                            | 必填，JS 扩展的名称，会展示在插件列表页面                                                            |
-| @author                                                          | 必填，作者名                                                                            |
-| @version                                                         | 必填，版本号，可以自己定义，但建议遵循 [语义版本控制（Semantic Versioning）](https://semver.org/lang/zh-CN/) |
-| @description                                                     | 可选，对扩展的功能的描述                                                                      |
-| @timestamp                                                       | 可选，最后更新时间，以秒为单位的 unix 时间戳，新版本支持了直接使用时间字符串，如 `2023-10-30`。                         |
-| @license                                                         | 可选，开源协议，示例中的 Apache-2 是一个比较自由的协议，允许任意使用和分发（包括商用），当然你也可以使用其它协议（MIT GPL 等）          |
-| @homepageURL                                                     | 可选，你的扩展的主页链接，有 GitHub 仓库可以填仓库链接，没有则可以填海豹官方插件仓库                                    |
-| @depends <Badge type="tip" text="v1.4.4"/>     | 可选，从 <Badge type="tip" text="v1.4.4"/> 加入，指定你的扩展依赖的其他扩展，**可以不含此行或含有多行**。详见 [依赖其他扩展](#依赖其他扩展)               |
-| @sealVersion <Badge type="tip" text="v1.4.5"/> | 可选，从 <Badge type="tip" text="v1.4.5"/> 加入，指定你的扩展的目标海豹版本。详见 [目标海豹版本](#目标海豹版本)                               |
-
-## 单 JS 文件编写插件
-
-我们更推荐使用 TypeScript 来编写插件，编译到 ES6 后使用即可。不过先从 JavaScript 开始也是没有任何问题的。
-
-编写插件时，可以下载海豹提供的 [seal.d.ts](https://raw.githubusercontent.com/sealdice/sealdice-js-ext-template/master/types/seal.d.ts) 文件，将其保存在和你要编写的 JS 文件同级的目录下。
-
-`seal.d.ts` 支持了在使用 vscode 等工具编写时，对海豹提供的 API 的代码补全。
-
-![海豹 API 代码补全](./images/edit-jsscript-dts.png)
-
-::: tip
-
-`seal.d.ts` 文件随时可能会有更新，如果你需要的 API 没有提示，可以检查一下是否是最新版本。
-
-:::
-
-## 使用 TS 模板
-
-如果你打算使用 TypeScript，海豹提供了相应的 [模板工程](https://github.com/sealdice/sealdice-js-ext-template)，注册扩展和指令的代码已经写好，可以直接编译出一个可直接装载的 JS 扩展文件。
-
-### clone 或下载项目
-
-推荐的流程：
-
-1. 在 [模板项目仓库](https://github.com/sealdice/sealdice-js-ext-template) 点击 Use this template 按钮，使用该模板在自己的 GitHub 上创建一个扩展的仓库，并设置为自己的扩展的名字；
-2. `git clone` 到本地，进行开发。
-
-如果你没有 GitHub 账号，也不会用 git：
-
-1. 在 [模板项目仓库](https://github.com/sealdice/sealdice-js-ext-template) 点击 Code 按钮，在出现的浮窗中选择 Download ZIP，这样就会下载一个压缩包；
-2. 解压后进行开发。
-
-### 使用和编译
-
-TS 插件代码需要编译为 js 文件才能被海豹核心加载。
-
-开始使用模板工程时，需要先将所需依赖包安装好。在确认你所使用的包管理器后，在命令行使用如下命令：
-
-::: tabs key:npm
-
-== npm
-
-```bash
-npm install
-```
-
-== pnpm
-
-```bash
-pnpm install
-```
-
-:::
-
-当你写好了代码，需要将 ts 文件转换为 js 文件以便上传到海豹骰时，在命令行使用如下命令：
-
-::: tabs key:npm
-
-== npm
-
-```bash
-npm run build
-```
-
-== pnpm
-
-```bash
-pnpm run build
-```
-
-:::
-
-编译成功的 js 文件在 `dist` 目录下，默认的名字是 `sealdce-js-ext.js`。
-
-### 补全信息
-
-当插件开发完成后（或者开始开发时），你还需要修改几处地方：
-
-- `header.txt`：这个文件是你插件的描述信息；
-- `tools/build-config.js`：最开头一行 `var filename = 'sealdce-js-ext.js';` 改成你中意的名字，注意不要与现有的重名。
-
-### 目录结构
-
-只列出其中主要的一些文件
-
-- `src`
-  - `index.ts`：你的扩展的代码就写在这个文件里。
-- `tools`
-  - `build-config`：一些编译的配置，影响 `index.ts` 编译成 js 文件的方式；
-  - `build.js`：在命令 `npm run build` 执行时所运行的脚本，用于读取 `build-config` 并按照配置进行编译。
-- `types`
-  - `seal.d.ts`：类型文件，海豹核心提供的扩展 API。
-- `header.txt`：扩展头信息，会在编译时自动加到目标文件头部；
-- `package.json`：命令 `npm install` 时就在安装这个文件里面所指示的依赖包；
-- `tsconfig.json`：typescript 的配置。
-
-### 扩展依赖
-
-#### 依赖其他扩展 <Badge type="tip" text="v1.4.4"/>
-
-有些时候，你的扩展依赖于另一个扩展提供的功能，希望在缺失对应扩展时不进行这个插件的加载。
-
-例如，「SzzRain:每日新闻」依赖于「SzzRain:定时任务」，我们希望在骰主仅安装了「SzzRain:每日新闻」时，提示需要安装其依赖的「SzzRain:定时任务」扩展。
-
-从 <Badge type="tip" text="v1.4.4"/> 开始，你可以在 [插件元数据](#填写插件信息) 中通过 `@depends` 来指定扩展依赖的其他扩展。
-
-#### 指定依赖的格式
-
-指定依赖的格式为 `作者:插件名[:SemVer版本约束，可选]`，其中 `:` 是分隔符，注意必须是半角符号。
-
-例如，使用 `@depends SzzRain:定时任务`，这意味着该插件需要同时安装一个名为 `定时任务`，作者名为 `SzzRain` 的插件才可正常工作。
-
-::: tabs
-
-== SzzRain:每日新闻
-
-```javascript
-// ==UserScript==
-// @name         每日新闻
-// @author       SzzRain
-// @version      2.0.0
-// ...
-// @depends      SzzRain:定时任务:>=2.0.0
-```
-
-== SzzRain:定时任务
-
-```javascript
-// ==UserScript==
-// @name         定时任务
-// @author       SzzRain
-// @version      2.0.0
-```
-
-:::
-
-在上面的示例中，可以看见「SzzRain:每日新闻」通过 `@depends` 指明了其依赖 `SzzRain:定时任务:>=2.0.0`。
-
-版本限制是可选的，比如上面示例中的 `>=2.0.0`，这表示 `SzzRain:每日新闻` 依赖于 `SzzRain:定时任务`，且后者的版本必须大于等于 `2.0.0`。这在你需要依赖高版本插件的情况下很有用。
-
-::: info 插件名、作者、版本号
-
-指定依赖插件涉及到对应的插件名、作者名和版本号，其为插件元数据中的 `@name`、`@author` 和 `@version`。
-
-:::
-
-::: info 有更复杂的指定依赖版本需求？
-
-除了上面提到的 `>=2.0.0` 之外，你还可以参阅海豹所使用的 [go-semver](https://github.com/Masterminds/semver) 库的文档，来进行更复杂的限制。
-
-比如 `1.1.4-5.1.4` 意味着指定的依赖版本需要在 `1.1.4` 和 `5.1.4` 之间。
-
-但是，目标依赖的版本号需要符合 [SemVer](https://semver.org/lang/zh-CN/) 才能更好的支持你进行版本限制。
-
-:::
-
-##### 依赖多个扩展
-
-依赖可以是多个，每一行指定一个 `@depends`，这意味着这个插件需要同时满足所有的依赖才能工作。
-
-例如我们给上面的「SzzRain:每日新闻」增加一个新的依赖：
-
-```javascript
-// ==UserScript==
-// @name         每日新闻
-// @author       SzzRain
-// @version      2.0.0
-// ...
-// @depends      SzzRain:定时任务:>=2.0.0
-// @depends      sealdice:强制依赖
-```
-
-此时，这个插件需要同时安装 `SzzRain:定时任务`（且版本大于等于 `2.0.0`）和 `sealdice:强制依赖` 这两个插件时，才能正常加载。
-
-#### 目标海豹版本 <Badge type="tip" text="v1.4.5"/>
-
-新版本的海豹有时会增加更多插件可以调用的 API，但会出现使用旧版本海豹的骰主，去尝试加载使用了新 API 的插件而出错的情况。
-
-为了让插件作者无需反复说明，也更好地提示使用插件的骰主，从 <Badge type="tip" text="v1.4.5"/> 开始，你可以在 [插件元数据](#填写插件信息) 中通过 `@sealVersion` 来指定插件的目标海豹版本。
-
-例如，当插件使用了在 `1.4.6` 新增的 API，可以指定目标海豹版本 `@sealVersion 1.4.6`。而当加载该插件的海豹版本为 `1.4.5` 时，会向骰主提示海豹版本不兼容而拒绝加载。
-
-::: info 兼容的海豹版本
-
-插件作者只需要指定目标海豹版本即可，如 `1.4.5` 新增的 API 则指定 `@sealVersion 1.4.5`。
-
-海豹会尝试在兼容的情况下尽可能地加载插件，这是由海豹核心自动处理的。
-
-:::
-
-## API 参考
-
-### 创建和注册扩展
+## 创建和注册扩展
 
 ::: tip 提示：扩展机制
 
@@ -333,11 +45,11 @@ if (!seal.ext.find('test')) {
 
 <!-- TODO: 添加 1.4.1 新增的 插件配置项 相关说明 -->
 
-### 自定义指令
+## 自定义指令
 
 想要创建一条自定义指令，首先需要创建一个扩展（`seal.ExtInfo`），写好自定义指令的实现逻辑之后，再注册到扩展中。
 
-#### 创建指令
+### 创建指令
 
 接上面的代码，假定目前已经注册好了一个名为 `test` 的扩展，现在要写一个名为 `seal` 的指令：
 
@@ -379,7 +91,7 @@ cmdSeal.solve = (ctx, msg, cmdArgs) => {
 
 这里仅说明需要用到的接口，详细可见 [插件仓库](https://github.com/sealdice/javascript/tree/main/examples_ts) `examp_ts` 下的 `seal.d.ts` 文件，里面包含了目前开放的接口的定义及其注释说明。
 
-#### 指令参数与返回值
+### 指令参数与返回值
 
 假设用户发送过来的消息是 `.seal A B C`，那么可以用 `cmdArgs.getArgN(1)` 获取到 `A`，`cmdArgs.getArgN(2)` 获取到 `B`，`cmdArgs.getArgN(3)` 获取到 `C`。
 
@@ -414,11 +126,11 @@ cmdSeal.solve = (ctx, msg, cmdArgs) => {
 
 :::
 
-#### 指令核心执行流程
+### 指令核心执行流程
 
 给消息发送者回应，需要使用 `seal.replyToSender()` 函数，前两个参数和 `solve()` 函数接收的参数一致，第三个参数是你要发送的文本。
 
-发送的文本中，可以包含 [变量](./script.md#变量)（例如`{$t玩家}`），也可以包含 [CQ 码](https://docs.go-cqhttp.org/cqcode)，用来实现回复发送者、@发送者、发送图片、发送分享卡片等功能。
+发送的文本中，可以包含 [变量](../advanced/script.md#变量)（例如`{$t玩家}`），也可以包含 [CQ 码](https://docs.go-cqhttp.org/cqcode)，用来实现回复发送者、@发送者、发送图片、发送分享卡片等功能。
 
 在这个例子中，我们需要获取作为海豹名字的参数，获取不到就使用默认值，随后向消息发送者发送回应。
 
@@ -448,7 +160,7 @@ cmdSeal.solve = (ctx, msg, cmdArgs) => {
 };
 ```
 
-#### 注册指令
+### 注册指令
 
 第三步，将命令注册到扩展中。
 
@@ -528,7 +240,7 @@ export {}
 
 这就是最基本的模板了。
 
-### 抽取牌堆
+## 抽取牌堆
 
 抽取牌堆的函数是 `seal.deck.draw(ctx, deckName, shufflePool)`
 
@@ -542,7 +254,7 @@ export {}
 - `result`：字符串类型，抽取结果
 - `err`：字符串类型，抽取失败的原因
 
-#### 示例代码：抽取牌堆
+### 示例代码：抽取牌堆
 
 ```javascript
 // ==UserScript==
@@ -598,7 +310,7 @@ if (!seal.ext.find('draw-decks-example')) {
 }
 ```
 
-### 权限识别
+## 权限识别
 
 海豹中的权限等级，由高到低分别是：**骰主**，**群主**，**管理员**，**邀请者**，**普通用户** 和 **黑名单用户**。
 每一个身份都有一个对应的数字，可以通过 `ctx.privilegeLevel` 获取当前用户的权限等级。
@@ -638,7 +350,7 @@ if (!seal.ext.find('draw-decks-example')) {
 
 :::
 
-#### 示例代码：权限识别
+### 示例代码：权限识别
 
 ```javascript
 // ==UserScript==
@@ -687,9 +399,9 @@ if (!seal.ext.find('myperm')) {
 }
 ```
 
-### 黑名单 / 信任名单操作 <Badge type="tip" text="v1.4.4" />
+## 黑名单 / 信任名单操作 <Badge type="tip" text="v1.4.4" />
 
-#### 黑名单操作的函数
+### 黑名单操作的函数
 
 添加：`seal.ban.addBan(ctx, uid, place, reason)`
 
@@ -700,7 +412,7 @@ if (!seal.ext.find('myperm')) {
 - `place`：拉黑的地方，字符串类型，随便写，一般来说在群内拉黑就写群 ID
 - `reason`：拉黑原因，字符串类型，随便写
 
-#### 信任用户名单
+### 信任用户名单
 
 添加：`seal.ban.addTrust(ctx, uid, place, reason)` 参数说明同上
 
@@ -714,7 +426,7 @@ if (!seal.ext.find('myperm')) {
 
 :::
 
-#### 获取黑名单 / 信任名单列表
+### 获取黑名单 / 信任名单列表
 
 使用 `seal.ban.getList()`
 
@@ -729,7 +441,7 @@ if (!seal.ext.find('myperm')) {
 - `places`：拉黑/信任的发生地点，数组类型，内部元素为字符串
 - `banTime`：拉黑/信任的时间，整数时间戳
 
-#### 获取用户在黑名单 / 信任名单中的信息
+### 获取用户在黑名单 / 信任名单中的信息
 
 使用 `seal.ban.getUser(uid)`
 
@@ -737,7 +449,7 @@ if (!seal.ext.find('myperm')) {
 
 如果有则返回一个 `BanListInfoItem` 对象，字段同上。
 
-#### 示例代码：黑名单 / 信任名单操作
+### 示例代码：黑名单 / 信任名单操作
 
 ```javascript
 // ==UserScript==
@@ -905,7 +617,7 @@ const ext = seal.ext.new('js-ban', 'SzzRain', '1.0.0');
 }
 ```
 
-### 存取数据
+## 存取数据
 
 相关的 API 是两个函数，`ExtInfo.storageSet(key, value)` 函数和 `ExtInfo.storageGet(key)`，一个存，一个取。
 
@@ -921,7 +633,7 @@ const ext = seal.ext.new('js-ban', 'SzzRain', '1.0.0');
 
 答案是使用 `JSON.stringify()` 函数将存储了数据的 JS 对象转换为 [JSON](https://www.runoob.com/json/json-tutorial.html) 字符串，存储起来，需要取出的时候，再使用 `JSON.parse()` 函数将数据再转换为 JS 对象。。
 
-#### 示例代码：投喂插件
+### 示例代码：投喂插件
 
 ```javascript
 // ==UserScript==
@@ -983,7 +695,7 @@ ext.cmdMap['投喂'] = cmdFeed;
 ext.cmdMap['feed'] = cmdFeed;
 ```
 
-#### 示例代码：群内安价收集
+### 示例代码：群内安价收集
 
 这是关于数据的增加、删除、查询等操作的实现示例（修改的话就是删除之后增加）
 
@@ -1144,7 +856,7 @@ ${optStr}`);
 
 ```
 
-### 数据处理模板
+## 数据处理模板
 
 关于取出数据来修改的函数，可以参考如下代码：
 
@@ -1166,11 +878,11 @@ function akAdd(ctx, msg, ext, option) {
 }
 ```
 
-### 读取玩家或群组数据
+## 读取玩家或群组数据
 
 可以查看下文的 [API](#js-扩展-api)。
 
-### 编写暗骰指令
+## 编写暗骰指令
 
 如下：
 
@@ -1220,7 +932,7 @@ ext.cmdMap['hide'] = cmdHide;
 
 可以看到使用`seal.replyPerson`做到暗骰的效果。
 
-### 编写代骰指令
+## 编写代骰指令
 
 ```javascript
 // ==UserScript==
@@ -1272,7 +984,7 @@ ext.cmdMap['catch'] = cmdCatch;
 
 ```
 
-### 网络请求
+## 网络请求
 
 主要使用 [Fetch API](https://developer.mozilla.org/zh-CN/docs/Web/API/Fetch_API) 进行网络请求，详细文档见链接。`fetch` 函数返回一个 Promise，传统的写法是这样：
 
@@ -1342,7 +1054,7 @@ function chatWithBot(ctx,msg,message) {
 }
 ```
 
-### 自定义 COC 规则
+## 自定义 COC 规则
 
 ```javascript
 // ==UserScript==
@@ -1402,7 +1114,7 @@ seal.coc.registerRule(rule);
 
 ```
 
-### 补充：使用非指令关键词
+## 补充：使用非指令关键词
 
 > 你是否因为自定义回复能实现的功能有限而烦恼？你是否因为自定义回复的匹配方式不全而愤怒？你是否因为自定义回复只能调用图片 api 而感到焦头烂额？
 >
@@ -1429,7 +1141,7 @@ if (!seal.ext.find('xxx')){
 }
 ```
 
-### 注册插件配置项 <Badge type="tip" text="v1.4.1" />
+## 注册插件配置项 <Badge type="tip" text="v1.4.1" />
 
 插件若要在 UI 中注册可供用户修改的配置项，需要在插件注册后调用 `seal.ext.registerXXXConfig()` 函数注册配置项。
 
@@ -1461,7 +1173,7 @@ type ConfigItem struct {
 
 :::
 
-#### 示例代码：注册配置项
+### 示例代码：注册配置项
 
 ```js
 // ==UserScript==
@@ -1522,328 +1234,3 @@ if (!seal.ext.find('js-config-example')) {
 注册后的配置项会在 UI 中显示，可以在 UI 中修改配置项的值
 
 ![JS 配置项](./images/js-config-example.png)
-
-### 其他
-
-> 这里只是粗略的整理，具体请看 [jsvm 源码](https://github.com/sealdice/sealdice-core/blob/master/dice/dice_jsvm.go)。
-
-按类别整理。
-
-> 其中 ctx 为信息的 MsgContext，msg 为信息的 Message，一般会在定义指令函数时就声明，如：
-
-```javascript
-cmd.solve = (ctx, msg, cmdArgs) => {
-    someFunction;
-}
-```
-
-下面是 api 的说明（完全了吧......应该？）：
-
-```javascript
-//被注释掉的 api 是可以提供的，但是在源码中被注释。
-//seal.setVarInt(ctx, `$XXX`, valueToSet) //`$XXX`即 rollvm（初阶豹语）中的变量，其会将$XXX 的值设定为 int 类型的 valueToSet。
-//seal.setVarStr(ctx, `$XXX`, valueToSet) //同上，区别是设定的为 str 类型的 valueToSet。
-seal.replyGroup(ctx, msg, something) //向收到指令的群中发送 something。
-seal.replyPerson(ctx, msg, something) //顾名思义，类似暗骰，向指令触发者（若为好友）私信 something。
-seal.replyToSender(ctx, msg, something) //同上，区别是群内收到就群内发送，私聊收到就私聊发送。
-seal.memberBan(ctx, groupID, userID, dur) //将指定群的指定用户封禁指定时间 (似乎只实现了 walleq 协议？)
-seal.memberKick(ctx, groupID, userID)  //将指定群的指定用户踢出 (似乎也只实现了 walleq 协议？)
-seal.format(ctx, something) //将 something 经过一层 rollvm 转译并返回，注意需要配合 replyToSender 才能发送给触发者！
-seal.formatTmpl(ctx, something) //调用自定义文案 something
-seal.getCtxProxyFirst(ctx, cmdArgs)  //获取被 at 的第一个人，等价于 getCtxProxyAtPos(ctx, 0)
-seal.vars.intGet(ctx, `$XXX`) //返回一个数组，其为 `[int 类型的触发者的该变量的值，bool]` 当 strGet 一个 int 或 intGet 一个 str 时 bool 为 false，若一切正常则为 true。（之所以会有这么奇怪的说法是因为 rollvm 的「个人变量」机制）。
-seal.vars.intSet(ctx, `$XXX`, valueToSet) //`$XXX` 即 rollvm（初阶豹语）中的变量，其会将 $XXX 的值设定为 int 类型的 valueToSet。
-seal.vars.strGet(ctx, `$XXX`) //返回一个数组，其为 `[str 类型的触发者的该变量的值，bool]`（之所以会有这么奇怪的说法是因为 rollvm 的「个人变量」机制），当 strGet 一个 int 或 intGet 一个 str 时 bool 为 false，如果一切正常则为 true。
-seal.vars.strSet(ctx, `$XXX`, valueToSet) //`$XXX` 即 rollvm（初阶豹语）中的变量，其会将 $XXX 的值设定为 str 类型的 valueToSet。
-//seal.vars.varSet(ctx, `$XXX`, valueToSet) //可能是根据数据类型自动推断 int 或 str？
-//seal.vars.varGet(ctx, `$XXX`) //同上
-seal.ext.newCmdItemInfo() //用来定义新的指令；没有参数，个人觉得可以视其为类（class）。
-seal.ext.newCmdExecuteResult(bool) //用于判断指令执行结果，true 为成功，false 为失败。
-seal.ext.new(extName, extAuthor, Version) //用于建立一个名为 extName，作者为 extAuthor，版本为 Version 的扩展。注意，extName，extAuthor 和 Version 均为字符串。
-seal.ext.find(extName) //用于查找名为 extname 的扩展，若存在则返回 true，否则返回 false。
-seal.ext.register(newExt) //将扩展 newExt 注册到系统中。注意 newExt 是 seal.ext.new 的返回值，将 register 视为 seal.ext.new() 是错误的。
-seal.coc.newRule() //用来创建自定义 coc 规则，github.com/sealdice/javascript/examples 中已有详细例子，不多赘述。
-seal.coc.newRuleCheckResult() //同上，不多赘述。
-seal.coc.registerRule(rule) //同上，不多赘述。
-seal.deck.draw(ctx, deckname, isShuffle) //他会返回一个抽取牌堆的结果。这里有些复杂：deckname 为需要抽取的牌堆名，而 isShuffle 则是一个布尔值，它决定是否放回抽取；false 为放回，true 为不放回。
-seal.deck.reload() //重新加载牌堆。
-//下面是 1.2 新增 api
-seal.newMessage() //返回一个空白的 Message 对象，结构与收到消息的 msg 相同
-seal.createTempCtx(endpoint, msg) // 制作一个 ctx, 需要 msg.MessageType 和 msg.Sender.UserId
-seal.applyPlayerGroupCardByTemplate(ctx, tmpl) // 设定当前 ctx 玩家的自动名片格式
-seal.gameSystem.newTemplate(string) //从 json 解析新的游戏规则。
-seal.gameSystem.newTemplateByYaml(string) //从 yaml 解析新的游戏规则。
-seal.getCtxProxyAtPos(ctx, pos) //获取第 pos 个被 at 的人，pos 从 0 开始计数
-seal.atob(base64String) //返回被解码的 base64 编码
-seal.btoa(string) //将 string 编码为 base64 并返回
-
-//下面是 1.4.1 新增 api
-seal.ext.newConfigItem() //用于创建一个新的配置项，返回一个 ConfigItem 对象
-seal.ext.registerConfig(configItem) //用于注册一个配置项，参数为 ConfigItem 对象
-seal.ext.getConfig(ext, "key") //用于获取一个配置项的值，参数为扩展对象和配置项的 key
-seal.ext.registerStringConfig(ext, "key", "defaultValue") //用于注册一个 string 类型的配置项，参数为扩展对象、配置项的 key 和默认值
-seal.ext.registerIntConfig(ext, "key", 123) //用于注册一个 int 类型的配置项，参数为扩展对象、配置项的 key 和默认值
-seal.ext.registerFloatConfig(ext, "key", 123.456) //用于注册一个 float 类型的配置项，参数为扩展对象、配置项的 key 和默认值
-seal.ext.registerBoolConfig(ext, "key", true) //用于注册一个 bool 类型的配置项，参数为扩展对象、配置项的 key 和默认值
-seal.ext.registerTemplateConfig(ext, "key", ["1", "2", "3", "4"]) //用于注册一个 template 类型的配置项，参数为扩展对象、配置项的 key 和默认值
-seal.ext.registerOptionConfig(ext, "key", "1", ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]) //用于注册一个 option 类型的配置项，参数为扩展对象、配置项的 key、默认值和可选项
-seal.ext.getStringConfig(ext, "key") //用于获取一个 string 类型配置项的值，参数为扩展对象和配置项的 key
-seal.ext.getIntConfig(ext, "key") //用于获取一个 int 类型配置项的值，参数为扩展对象和配置项的 key
-seal.ext.getFloatConfig(ext, "key") //用于获取一个 float 类型配置项的值，参数为扩展对象和配置项的 key
-seal.ext.getBoolConfig(ext, "key") //用于获取一个 bool 类型配置项的值，参数为扩展对象和配置项的 key
-seal.ext.getTemplateConfig(ext, "key") //用于获取一个 template 类型配置项的值，参数为扩展对象和配置项的 key
-seal.ext.getOptionConfig(ext, "key") //用于获取一个 option 类型配置项的值，参数为扩展对象和配置项的 key
-
-//下面是 1.4.4 新增 api
-seal.setPlayerGroupCard(ctx, tmpl) //设置当前 ctx 玩家的名片
-seal.ban.addBan(ctx, id, place, reason)
-seal.ban.addTrust(ctx, id, place, reason)
-seal.ban.remove(ctx, id)
-seal.ban.getList()
-seal.ban.getUser(id)
-```
-<!-- TODO: 添加 1.4.1 中新增的插件配置项 -->
-
-#### 部分 api 使用示例
-
-::: tip
-
-声明和注册扩展的代码部分已省略。
-
-:::
-
-##### `replyGroup` `replyPerson` `replyToSender`
-
-```javascript
-//在私聊触发 replyGroup 不会回复
-seal.replyGroup(ctx, msg, 'something'); //触发者会收到"something"的回复
-seal.replyPerson(ctx, msg, 'something'); //触发者会收到"something"的私聊回复
-seal.replyToSender(ctx, msg, 'something'); //触发者会收到"something"的回复
-```
-
-##### `memberBan` `memberKick`
-
-> 是否保留待议
-
-```javascript
-//注意这些似乎只能在 WQ 协议上实现;
-seal.memberBan(ctx, groupID, userID, dur) //将群为 groupID，userid 为 userID 的人封禁 dur（单位未知）
-seal.memberKick(ctx, groupID, userID) //将群为 groupID，userid 为 userID 的人踢出那个群
-```
-
-##### `format` `formatTmpl`
-
-```javascript
-//注意 format 不会自动 reply，而是 return，所以请套一层 reply
-seal.replyToSender(ctx, msg, seal.format(`{$t玩家}的人品为：{$t人品}`))
-//{$t人品} 是一个 rollvm 变量，其值等于 .jrrp 出的数值
-//回复：
-//群主的人品为：87
-seal.replyToSender(ctx, msg, seal.formatTmpl(unknown))
-//这里等大佬来了再研究
-```
-
-##### `getCtxProxyFirst` `getCtxProxyAtPos`
-
-```javascript
-cmd.solve = (ctx, msg, cmdArgs) => {
-    let ctxFirst = seal.getCtxProxyFirst(ctx, cmdArgs)
-    seal.replyToSender(ctx, msg, ctxFirst.player,name)
-}
-ext.cmdMap['test'] = cmd
-//输入：.test @A @B
-//返回：A 的名称。这里其实获取的是 A 玩家的 ctx，具体见 ctx 数据结构。
-cmd.solve = (ctx, msg, cmdArgs) => {
-    let ctx3 = seal.getCtxProxyAtPos(ctx, 3)
-    seal.replyToSender(ctx, msg, ctx3.player,name)
-}
-ext.cmdMap['test'] = cmd
-//输入：.test @A @B @C
-//返回：C（第三个被@的人）的名称。这里其实获取的是 C 玩家的 ctx，具体见 ctx 数据结构。
-```
-
-##### `vars`
-
-```javascript
-// 要看懂这里你可能需要学习一下初阶豹语
-seal.vars.intSet(ctx, `$m今日打卡次数`, 8) //将触发者的该个人变量设置为 8
-seal.vars.intGet(ctx, `$m今日打卡次数`) //返回 [8,true]
-seal.vars.strSet(ctx, `$g群友经典语录`, `我要 Git Blame 一下看看是谁写的`) //将群内的该群组变量设置为“我要 Git Blame 一下看看是谁写的”
-seal.vars.strGet(ctx, `$g群友经典语录`) //返回 ["我要 Git Blame 一下看看是谁写的",true]
-```
-
-##### `ext`
-
-```javascript
-//用于注册扩展和定义指令的 api，已有详细示例，不多赘述
-```
-
-##### `coc`
-
-```javascript
-//用于创建 coc 村规的 api，已有详细示例，不多赘述
-```
-
-##### `deck`
-
-```javascript
-seal.deck.draw(ctx, `煤气灯`, false) //返回 放回抽取牌堆“煤气灯”的结果
-seal.deck.draw(ctx, `煤气灯`, true) //返回 不放回抽取牌堆“煤气灯”的结果
-seal.deck.reload() //重新加载牌堆
-```
-
-##### 自定义 TRPG 规则相关
-
-```javascript
-//这里实在不知道如何举例了
-seal.gameSystem.newTemplate(string) //从 json 解析新的游戏规则。
-seal.gameSystem.newTemplateByYaml(string) //从 yaml 解析新的游戏规则。
-seal.applyPlayerGroupCardByTemplate(ctx, tmpl) // 设定当前 ctx 玩家的自动名片格式
-seal.setPlayerGroupCard(ctx, tmpl) // 立刻设定当前 ctx 玩家的名片格式
-```
-
-##### 其他
-
-```javascript
-seal.newMessage() //返回一个空白的 Message 对象，结构与收到消息的 msg 相同
-seal.createTempCtx(endpoint, msg) // 制作一个 ctx, 需要 msg.MessageType 和 msg.Sender.UserId
-seal.getEndPoints() //返回骰子（应该？）的 EndPoints
-seal.getVersion() //返回一个 map，键值为 version 和 versionCode
-```
-
-#### `ctx` 的内容
-
-```javascript
-//在 github.com/sealdice/javascript/examples_ts/seal.d.ts 中有完整内容
-// 成员
-ctx.group // 当前群信息 (对象)
-ctx.player // 当前玩家数据 (对象)
-ctx.endPoint // 接入点数据 (对象)
-// 以上三个对象内容暂略
-ctx.isCurGroupBotOn // bool
-ctx.isPrivate // bool 是否私聊
-ctx.privilegeLevel // int 权限等级：40 邀请者、50 管理、60 群主、70 信任、100 master
-ctx.delegateText // string 代骰附加文本
-// 方法 (太长，懒.)
-chBindCur
-chBindCurGet
-chBindGet
-chBindGetList
-chExists
-chGet
-chLoad
-chNew
-chUnbind
-chUnbindCur
-chVarsClear
-chVarsGet
-chVarsNumGet
-chVarsUpdateTime
-loadGroupVars
-loadPlayerGlobalVars
-loadPlayerGroupVars,notice
-```
-
-##### `ctx.group` 的内容
-
-```javascript
-// 成员
-active
-groupId
-guildId
-groupName
-cocRuleIndex
-logCurName
-logOn
-recentDiceSendTime
-showGroupWelcome
-groupWelcomeMessage
-enteredTime
-inviteUserId
-// 方法
-extActive
-extClear
-extGetActive
-extInactive
-extInactiveByName
-getCharTemplate
-isActive
-playerGet
-```
-
-##### `ctx.player` 的内容
-
-```javascript
-// 成员
-name
-userId
-lastCommandTime
-autoSetNameTemplate
-// 方法
-getValueNameByAlias
-```
-
-##### `ctx.endPoint` 的内容
-
-```javascript
-// 成员
-baseInfo
-id
-nickname
-state
-userId
-groupNum
-cmdExecutedNum
-cmdExecutedLastTime
-onlineTotalTime
-platform
-enable
-// 方法
-adapterSetup
-refreshGroupNum
-setEnable
-unmarshalYAML
-```
-
-#### `msg` 的内容
-
-```javascript
-// 成员
-msg.time // int64 发送时间
-msg.messageType // string group 群聊 private 私聊
-msg.groupId // string 如果是群聊，群号
-msg.guildId // string 服务器群组号，会在 discord,kook,dodo 等平台见到
-msg.sender // 发送者信息 (对象)
-    sender.nickname
-    sender.userId
-msg.message
-msg.rawId // 原始信息 ID, 用于撤回等
-msg.platform // 平台
-// 方法
-// (似乎目前没有？)
-```
-
-#### `cmdArgs` 的内容
-
-```javascript
-// 成员
-.command // string
-.args // []string
-.kwargs // []Kwarg
-.at // []AtInfo
-.rawArgs // string
-.amIBeMentioned // bool (为何要加一个 Be?)
-.cleanArgs // string 一种格式化后的参数，也就是中间所有分隔符都用一个空格替代
-.specialExecuteTimes // 特殊的执行次数，对应 3# 这种
-// 方法
-.isArgEqual(n, ss...) // 返回 bool, 检查第 n 个参数是否在 ss 中
-.eatPrefixWith(ss...) // 似乎是从 cleanArgs 中去除 ss 中第一个匹配的前缀
-.chopPrefixToArgsWith(ss...) // 不懂
-.getArgN(n) // -> string
-.getKwarg(str) // -> Kwarg 如果有名为 str 的 flag，返回对象，否则返回 null/undefined(不确定)
-.getRestArgsFrom(n) // -> string 获取从第 n 个参数之后的所有参数，用空格拼接成一个字符串
-```
-
-## 一些有帮助的资源
-
-VS Code 可以安装 [SealDice Snippets](https://marketplace.visualstudio.com/items?itemName=yxChangingSelf.sealdice-snippets) 插件，提供了一些常见代码片段，帮助快速生成模板代码。

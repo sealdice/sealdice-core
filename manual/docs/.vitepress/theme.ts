@@ -1,5 +1,5 @@
-import { about, advanced, config, deploySidebar, deployNav, useNav, useSidebar } from "./catalogue";
-import type { DefaultTheme } from 'vitepress'
+import type { DefaultTheme } from 'vitepress';
+import { about, advanced, config, deployNav, deploySidebar, useNav, useSidebar } from "./catalogue";
 
 export const theme: DefaultTheme.Config = {
   // https://vitepress.dev/reference/default-theme-config
