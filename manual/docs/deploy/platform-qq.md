@@ -75,7 +75,7 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 :::
 
-进入海豹 Web UI 的「账号设置」新增连接，选择账号类型「QQ（内置客户端）」，这也是默认选项，填写 QQ 号：
+进入海豹 Web UI 的「账号设置」新增连接，选择账号类型「QQ(内置客户端)」，这也是默认选项，填写 QQ 号：
 
 <img src="./images/platform-qq-builtin-1.png" alt="内置客户端" width="80%">
 
@@ -84,6 +84,17 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 <img src="./images/platform-qq-builtin-2.png" alt="内置客户端扫码登录" width="40%">
 
 在手机上确认登录以后，等待状态变为「已连接」即可。
+
+::: info 内置客户端 BUG
+
+由于内置客户端的实现不完全，会有莫名其妙的 bug，所以我们推荐有能力的骰主使用手册中的其他方案。
+
+但如果你仍然决定使用「QQ(内置客户端)」，当遇到无法使用时可以尝试以下解决方案：  
+
+- PC 端：在 WebUI 删除账号，删掉 `data/default/extra/lagrange-QQ号` 目录，重新添加。  
+- 安卓端：停止海豹核心，在右上角设置中将「文件同步模式」打开，返回主界面，点击「导出文件」，到显示的目录删掉 `data/default/extra/lagrange-QQ号` 目录，然后点击「导入文件」，删除账号重新添加。  
+
+:::
 
 ## Lagrange <Badge type="tip" text="v1.4.2" />
 
