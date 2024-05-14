@@ -20,6 +20,12 @@ func (d *Dice) RegisterBuiltinExt() {
 	RegisterBuiltinExtDnd5e(d)
 	RegisterBuiltinStory(d)
 	RegisterBuiltinExtExp(d)
+
+	d.RegisterBuiltinSystemTemplate()
+}
+
+func (d *Dice) RegisterBuiltinSystemTemplate() {
+	d.GameSystemTemplateAdd(getCoc7CharTemplate())
 }
 
 // RegisterExtension 注册扩展
