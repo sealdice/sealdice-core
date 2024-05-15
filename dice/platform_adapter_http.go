@@ -54,7 +54,10 @@ func (pa *PlatformAdapterHTTP) SendToPerson(ctx *MsgContext, uid string, text st
 }
 
 func (pa *PlatformAdapterHTTP) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
-	pa.SendToPerson(nil, uid, text, "")
+	sp := utils.SplitLongText(text, 300, utils.DefaultSplitPaginationHint)
+	for _, sub := range sp {
+		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub})
+	}
 	pa.Session.OnMessageSend(ctx, &Message{
 		MessageType: "group",
 		Platform:    "UI",
