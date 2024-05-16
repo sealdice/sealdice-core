@@ -27,6 +27,7 @@ export const theme: DefaultTheme.Config = {
   } as DefaultTheme.SidebarMulti,
   outline: {
     label: '页面导航',
+    level: [2, 3],
   },
   socialLinks: [
     { icon: 'github', link: 'https://github.com/sealdice' }
