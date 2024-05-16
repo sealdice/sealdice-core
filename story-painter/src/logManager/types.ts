@@ -1,7 +1,7 @@
 
 export interface CharItem {
   name: string,
-  IMUserId: number | string,
+  IMUserId: string,
   role: '主持人' | '角色' | '骰子' | '隐藏',
   color: string
 }
@@ -9,7 +9,7 @@ export interface CharItem {
 export interface LogItem {
   id: number;
   nickname: string;
-  IMUserId: number | string;
+  IMUserId: string;
   time: number;
   timeText?: string;
   message: string;

@@ -3,17 +3,16 @@
   <div style="margin-bottom: .5rem" v-show="isShow">
 
     <div style="text-align: center; margin-bottom: 2rem; margin-top: 0.5rem;">
-      <div>提示: 海豹骰与回声工坊达成了合作，<el-link type="primary" target="_blank" href="https://github.com/DanDDXuanX/TRPG-Replay-Generator">回声工坊</el-link>可以将海豹的log一键转视频哦！</div>
-      <div>回声工坊的介绍和视频教程看这里：<el-link type="primary" target="_blank" href="https://www.bilibili.com/video/BV1PC4y1j7P2/">B站传送门</el-link></div>
+      <div>提示: 海豹骰与回声工坊达成了合作，<n-button type="primary" text tag="a" target="_blank" href="https://github.com/DanDDXuanX/TRPG-Replay-Generator">回声工坊</n-button>可以将海豹的log一键转视频哦！</div>
+      <div>回声工坊的介绍和视频教程看这里：<n-button type="primary" text tag="a" target="_blank" href="https://www.bilibili.com/video/BV1PC4y1j7P2/">B站传送门</n-button></div>
     </div>
 
-    <el-checkbox :border="true" label="添加语音合成标记" v-model="store.trgIsAddVoiceMark" />
-    <!-- <el-checkbox label="回声工坊" v-model="isShowPreviewTRG2" /> -->
+    <n-checkbox label="添加语音合成标记" v-model:checked="store.trgIsAddVoiceMark" />
   </div>
 
   <div class="preview" ref="preview" id="preview" v-show="isShow">
     <div style="position: absolute; right: 2rem; direction: rtl;">
-      <el-button @click="copied" id="btnCopyPreviewTRG" size="large" style="z-index: 100">一键复制</el-button>
+      <n-button @click="copied" id="btnCopyPreviewTRG" size="large" style="z-index: 100">一键复制</n-button>
       <div style="font-size: 0.8rem;">注意: 长文本速度较慢</div>
       <!-- <div v-if="copyCount != 0">进度: {{ copyCount }} / {{ copyCountAll }}</div> -->
     </div>
@@ -40,10 +39,10 @@ import ClipboardJS from 'clipboard';
 import { h, nextTick, onMounted, ref, render, watch } from 'vue';
 import { useStore } from '~/store';
 import { LogItem, packNameId } from '~/logManager/types';
-import { ElLoading, ElMessageBox, ElNotification, ElMessage, ElButton, ElCheckbox, ElLink } from "element-plus";
 import Item from './preview-trg-item.vue'
 // @ts-ignore
 import VirtualList from 'vue3-virtual-scroll-list';
+import { useMessage } from 'naive-ui';
 
 const props = defineProps<{
   isShow: boolean,
@@ -51,10 +50,11 @@ const props = defineProps<{
 }>();
 
 const store = useStore();
+const message = useMessage();
 const isAddVoiceMark = ref(true)
 
 const copied = () => {
-  ElMessage.success('进行了复制！')
+  message.success('进行了复制！')
 }
 
 let clip: ClipboardJS;

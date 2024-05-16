@@ -1,21 +1,25 @@
 <template>
   <div v-show="isShow">
-    <el-tooltip class="box-item" effect="dark" content="注意: 预览中看起来错位的原因是扣去了论坛代码的宽度。但实际能否对其仍取决于论坛使用的字体"
-      placement="top-start">
-      <el-checkbox :border="true" label="对单次发言，从次行进行空格缩进" style="margin-bottom: 0.5rem;"
-        v-model="store.bbsUseSpaceWithMultiLine" />
-    </el-tooltip>
+    <n-tooltip class="box-item" placement="top-start">
+      <template #trigger>
+        <n-checkbox label="对单次发言，从次行进行空格缩进" style="margin-bottom: 0.5rem;"
+                     v-model:checked="store.bbsUseSpaceWithMultiLine" />
+      </template>
+      注意: 预览中看起来错位的原因是扣去了论坛代码的宽度。但实际能否对其仍取决于论坛使用的字体
+    </n-tooltip>
 
-    <el-tooltip class="box-item" effect="dark" content="注意: 这种模式下会随机分配部分颜色，因为无法完成与hex色彩的对应"
-      placement="top-start">
-      <el-checkbox :border="true" label="使用颜色名，而非16进制颜色码" style="margin-bottom: 0.5rem;"
-        v-model="store.bbsUseColorName" />
-    </el-tooltip>
+    <n-tooltip class="box-item" placement="top-start">
+      <template #trigger>
+        <n-checkbox label="使用颜色名，而非16进制颜色码" style="margin-bottom: 0.5rem;"
+                    v-model:checked="store.bbsUseColorName" />
+      </template>
+      注意: 这种模式下会随机分配部分颜色，因为无法完成与hex色彩的对应
+    </n-tooltip>
   </div>
 
   <div class="preview" ref="preview" id="preview" v-show="isShow">
     <div style="position: absolute; right: 2rem; direction: rtl;">
-      <el-button @click="copied" id="btnCopyPreviewBBS" style="z-index: 100">一键复制</el-button>
+      <n-button @click="copied" id="btnCopyPreviewBBS" style="z-index: 100">一键复制</n-button>
       <div style="font-size: 0.8rem;">注意: 长文本速度较慢</div>
     </div>
 
@@ -36,10 +40,10 @@ import ClipboardJS from 'clipboard';
 import { h, nextTick, onMounted, render, watch } from 'vue';
 import { useStore } from '~/store';
 import { LogItem, packNameId } from '~/logManager/types';
-import { ElLoading, ElMessageBox, ElNotification, ElMessage } from "element-plus";
 // @ts-ignore
 import VirtualList from 'vue3-virtual-scroll-list';
 import Item from './preview-bbs-item.vue'
+import { useMessage } from 'naive-ui';
 
 const props = defineProps<{
   isShow: boolean,
@@ -47,9 +51,10 @@ const props = defineProps<{
 }>();
 
 const store = useStore();
+const message = useMessage();
 
 const copied = () => {
-  ElMessage.success('进行了复制！')
+  message.success('进行了复制！')
 }
 
 onMounted(() => {

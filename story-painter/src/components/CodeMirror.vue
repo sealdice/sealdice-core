@@ -57,6 +57,11 @@ function getExts(highlight = false) {
         emit('change', v);
         // temp1.view.state.doc.toString()
       }
+    }),
+    EditorView.theme({
+      ".cm-gutters": {
+        backgroundColor: "#0000",
+      },
     })
   ]
 }
@@ -315,7 +320,6 @@ onMounted(() => {
 
 .codemirror {
   height: 50rem;
-  background: #fff;
 }
 
 .test {

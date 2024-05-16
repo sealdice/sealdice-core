@@ -4,7 +4,7 @@ import vue from '@vitejs/plugin-vue'
 import legacy from '@vitejs/plugin-legacy'
 
 import Components from 'unplugin-vue-components/vite'
-import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
 
 const pathSrc = path.resolve(__dirname, 'src')
 
@@ -13,13 +13,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '~/': `${pathSrc}/`,
-    },
-  },
-  css: {
-    preprocessorOptions: {
-      scss: {
-        additionalData: `@use "~/styles/element/index.scss" as *;`,
-      },
     },
   },
   base: './',
@@ -31,9 +24,7 @@ export default defineConfig({
       // allow auto import and register components used in markdown
       include: [/\.vue$/, /\.vue\?vue/, /\.md$/],
       resolvers: [
-        ElementPlusResolver({
-          importStyle: 'sass',
-        }),
+        NaiveUiResolver(),
       ],
       dts: 'src/components.d.ts',
     }),
