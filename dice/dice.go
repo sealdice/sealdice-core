@@ -9,8 +9,10 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
@@ -29,12 +31,31 @@ import (
 
 var (
 	APPNAME = "SealDice"
-	VERSION = "1.4.4rc0 v20240310"
-)
 
-var (
-	VERSION_CODE = int64(1004003) //nolint:revive
-	APP_BRANCH   = ""             //nolint:revive
+	// VERSION 版本号，按固定格式，action 在构建时可能会自动注入部分信息
+	// 正式：主版本号+yyyyMMdd，如 1.4.5+20240308
+	// dev：主版本号-dev+yyyyMMdd.7位hash，如 1.4.5-dev+20240308.1a2b3c4
+	// rc：主版本号-rc.序号+yyyyMMdd.7位hash如 1.4.5-rc.0+20240308.1a2b3c4，1.4.5-rc.1+20240309.2a3b4c4，……
+	VERSION = semver.MustParse(VERSION_MAIN + VERSION_PRERELEASE + VERSION_BUILD_METADATA)
+
+	// VERSION_MAIN 主版本号
+	VERSION_MAIN = "1.4.6"
+	// VERSION_PRERELEASE 先行版本号
+	VERSION_PRERELEASE = "-dev"
+	// VERSION_BUILD_METADATA 版本编译信息
+	VERSION_BUILD_METADATA = ""
+
+	// APP_CHANNEL 更新频道，stable/dev，在 action 构建时自动注入
+	APP_CHANNEL = "dev" //nolint:revive
+
+	VERSION_CODE = int64(1004005) //nolint:revive
+
+	VERSION_JSAPI_COMPATIBLE = []*semver.Version{
+		VERSION,
+		semver.MustParse("1.4.5"),
+		semver.MustParse("1.4.4"),
+		semver.MustParse("1.4.3"),
+	}
 )
 
 type CmdExecuteResult struct {
@@ -87,21 +108,25 @@ type ExtInfo struct {
 	IsJsExt bool          `json:"-"`
 	Source  *JsScriptInfo `yaml:"-" json:"-"`
 	Storage *buntdb.DB    `yaml:"-"  json:"-"`
+	// 为Storage使用互斥锁,并根据ID佬的说法修改为合适的名称
+	dbMu sync.Mutex `yaml:"-"` // 互斥锁
+	init bool       `yaml:"-"` // 标记Storage是否已初始化
 
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
 	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
 
-	OnCommandReceived func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) `yaml:"-" json:"-" jsbind:"onCommandReceived"`
-	OnMessageReceived func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageReceived"`
-	OnMessageSend     func(ctx *MsgContext, msg *Message, flag string)      `yaml:"-" json:"-" jsbind:"onMessageSend"`
-	OnMessageDeleted  func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageDeleted"`
-	OnMessageEdit     func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageEdit"`
-	OnGroupJoined     func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGroupJoined"`
-	OnGuildJoined     func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGuildJoined"`
-	OnBecomeFriend    func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onBecomeFriend"`
-	GetDescText       func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
-	IsLoaded          bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
-	OnLoad            func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
+	OnCommandReceived   func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) `yaml:"-" json:"-" jsbind:"onCommandReceived"`
+	OnMessageReceived   func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageReceived"`
+	OnMessageSend       func(ctx *MsgContext, msg *Message, flag string)      `yaml:"-" json:"-" jsbind:"onMessageSend"`
+	OnMessageDeleted    func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageDeleted"`
+	OnMessageEdit       func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageEdit"`
+	OnGroupJoined       func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGroupJoined"`
+	OnGroupMemberJoined func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGroupMemberJoined"`
+	OnGuildJoined       func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGuildJoined"`
+	OnBecomeFriend      func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onBecomeFriend"`
+	GetDescText         func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
+	IsLoaded            bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
+	OnLoad              func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
 type RootConfig struct {
@@ -176,6 +201,10 @@ type Dice struct {
 	CensorManager *CensorManager `json:"-" yaml:"-"`
 
 	Config              Config `json:"-" yaml:"-"`
+
+	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
+	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+
 	IsAlreadyLoadConfig bool   `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 }
 
@@ -227,6 +256,7 @@ func (d *Dice) Init() {
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
 	d.loads()
+	d.loadAdvanced()
 	d.Config.BanList.Loads()
 	d.Config.BanList.AfterLoads()
 	d.IsAlreadyLoadConfig = true
@@ -348,7 +378,7 @@ func (d *Dice) Init() {
 
 			for {
 				time.Sleep(30 * time.Second)
-				text := fmt.Sprintf("升级完成，当前版本: %s", VERSION)
+				text := fmt.Sprintf("升级完成，当前版本: %s", VERSION.String())
 
 				if ep.State == 2 {
 					// 还没好，继续等待
@@ -364,7 +394,7 @@ func (d *Dice) Init() {
 					ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: d.Config.UpgradeWindowID}}, text)
 				}
 
-				d.Logger.Infof("升级完成，当前版本: %s", VERSION)
+				d.Logger.Infof("升级完成，当前版本: %s", VERSION.String())
 				d.Config.UpgradeWindowID = ""
 				d.Config.UpgradeEndpointID = ""
 				d.MarkModified()

@@ -381,6 +381,7 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["查询"] = cmdFind
+	d.CmdMap["査詢"] = cmdFind
 	d.CmdMap["find"] = cmdFind
 
 	helpForHelp := ".help // 查看本帮助\n" +
@@ -395,7 +396,7 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			arg := cmdArgs.GetArgN(1)
 			if arg == "" {
-				text := "海豹核心 " + VERSION + "\n"
+				text := "海豹核心 " + VERSION.String() + "\n"
 				text += "官网: sealdice.com" + "\n"
 				text += "海豹群: 524364253" + "\n"
 				text += DiceFormatTmpl(ctx, "核心:骰子帮助文本_附加说明")
@@ -519,11 +520,15 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					SetBotOnAtGroup(ctx, msg.GroupID)
 					ctx.Group = ctx.Session.ServiceAtNew[msg.GroupID]
 					ctx.IsCurGroupBotOn = true
 
-					// "SealDice 已启用(开发中) " + VERSION
 					text := DiceFormatTmpl(ctx, "核心:骰子开启")
 					if ctx.Group.LogOn {
 						text += "\n请特别注意: 日志记录处于开启状态"
@@ -537,13 +542,22 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
 					SetBotOffAtGroup(ctx, ctx.Group.GroupID)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
-
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
 					if cmdArgs.GetArgN(2) != "" {
 						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+					}
+
+					if ctx.IsPrivate {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
 					if ctx.PrivilegeLevel < 40 {
@@ -615,7 +629,7 @@ func (d *Dice) registerCoreCommands() {
 			VarSetValueInt64(ctx, "$t启用群数", int64(activeCount))
 			VarSetValueStr(ctx, "$t群内工作状态", groupWorkInfo)
 			VarSetValueStr(ctx, "$t群内工作状态_仅状态", activeText)
-			ver := VERSION
+			ver := VERSION.String()
 			arch := runtime.GOARCH
 			if arch != "386" && arch != "amd64" {
 				ver = fmt.Sprintf("%s %s", ver, arch)
@@ -636,11 +650,27 @@ func (d *Dice) registerCoreCommands() {
 
 	helpForDismiss := ".dismiss // 退出当前群，主用于QQ，支持机器人的平台可以直接移出成员"
 	cmdDismiss := &CmdItemInfo{
-		Name:      "dismiss",
-		ShortHelp: helpForDismiss,
-		Help:      "退群(映射到bot bye):\n" + helpForDismiss,
-		Raw:       true,
+		Name:              "dismiss",
+		ShortHelp:         helpForDismiss,
+		Help:              "退群(映射到bot bye):\n" + helpForDismiss,
+		Raw:               true,
+		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if ctx.IsPrivate {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if cmdArgs.SomeoneBeMentionedButNotMe {
+				// 如果是别人被at，置之不理
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if !cmdArgs.AmIBeMentioned {
+				// 裸指令，如果当前群内开启，予以提示
+				if ctx.IsCurGroupBotOn {
+					ReplyToSender(ctx, msg, "[退群指令] 请@我使用这个命令，以进行确认")
+				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
 			rest := cmdArgs.GetArgN(1)
 			if rest != "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -655,7 +685,7 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["dismiss"] = cmdDismiss
 
-	readIDList := func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) []string {
+	readIDList := func(ctx *MsgContext, _ *Message, cmdArgs *CmdArgs) []string {
 		var uidLst []string
 		for _, i := range cmdArgs.At {
 			if i.UserID == ctx.EndPoint.UserID {
@@ -682,7 +712,6 @@ func (d *Dice) registerCoreCommands() {
 		".botlist add @A @B --s  // 同上，不过骰子不会做出回复\n" +
 		".botlist del @A @B @C // 去除机器人标记\n" +
 		".botlist list/show // 查看当前列表"
-
 	cmdBotList := &CmdItemInfo{
 		Name:      "botlist",
 		ShortHelp: botListHelp,
@@ -700,6 +729,9 @@ func (d *Dice) registerCoreCommands() {
 					cmdArgs.GetKwarg("slience") != nil
 			}
 
+			reply := ""
+			showHelp := false
+
 			subCmd := cmdArgs.GetArgN(1)
 			switch subCmd {
 			case "add":
@@ -716,13 +748,10 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 
-				text := fmt.Sprintf("新增标记了%d/%d个帐号，这些账号将被视为机器人。\n因此他们被人@，或主动发出指令时，海豹将不会回复。\n另外对于botlist add/rm，如果群里有多个海豹，只有第一个被@的会回复，其余的执行指令但不回应", newCount, allCount)
-				if !checkSlience() {
-					ReplyToSender(ctx, msg, text)
-				} else {
-					d.Logger.Infof("静默执行: " + text)
-				}
-				return CmdExecuteResult{Matched: true, Solved: true}
+				reply = fmt.Sprintf(
+					"新增标记了%d/%d个帐号，这些账号将被视为机器人。\n因此他们被人@，或主动发出指令时，海豹将不会回复。\n另外对于botlist add/rm，如果群里有多个海豹，只有第一个被@的会回复，其余的执行指令但不回应",
+					newCount, allCount,
+				)
 			case "del", "rm":
 				allCount := 0
 				existsCount := 0
@@ -734,16 +763,13 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 
-				text := fmt.Sprintf("删除标记了%d/%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令", existsCount, allCount)
-				if !checkSlience() {
-					ReplyToSender(ctx, msg, text)
-				} else {
-					d.Logger.Infof("静默执行: " + text)
-				}
-				return CmdExecuteResult{Matched: true, Solved: true}
+				reply = fmt.Sprintf(
+					"删除标记了%d/%d个帐号，这些账号将不再被视为机器人。\n海豹将继续回应他们的命令",
+					existsCount, allCount,
+				)
 			case "list", "show":
 				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: true, Solved: true}
+					break
 				}
 
 				text := ""
@@ -754,14 +780,26 @@ func (d *Dice) registerCoreCommands() {
 				if text == "" {
 					text = "无"
 				}
-				ReplyToSender(ctx, msg, fmt.Sprintf("群内其他机器人列表:\n%s", text))
-				return CmdExecuteResult{Matched: true, Solved: true}
+				reply = fmt.Sprintf("群内其他机器人列表:\n%s", text)
 			default:
-				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				showHelp = !cmdArgs.SomeoneBeMentionedButNotMe
 			}
+
+			// NOTE(Xiangze-Li): 不可使用 ctx.IsCurGroupBotOn, 因其将被 at 也视为开启
+			if ctx.Group.IsActive(ctx) {
+				if len(reply) > 0 {
+					if !checkSlience() {
+						ReplyToSender(ctx, msg, reply)
+					} else {
+						d.Logger.Infof("botlist 静默执行: " + reply)
+					}
+				}
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: showHelp}
+			}
+			if len(reply) > 0 {
+				d.Logger.Infof("botlist 静默执行: " + reply)
+			}
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 	d.CmdMap["botlist"] = cmdBotList
@@ -931,6 +969,11 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
+				if dm.ContainerMode {
+					ReplyToSender(ctx, msg, "容器模式下禁止指令更新，请手动拉取最新镜像")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				code := cmdArgs.GetArgN(2)
 				if code == "" {
 					var text string
@@ -946,13 +989,13 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					if dm.AppVersionOnline != nil {
-						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION, dm.AppVersionOnline.VersionLatestDetail)
+						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION.String(), dm.AppVersionOnline.VersionLatestDetail)
 						if dm.AppVersionCode != dm.AppVersionOnline.VersionLatestCode {
 							updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
 							text += fmt.Sprintf("\n如需升级，请输入.master checkupdate %s 确认进行升级\n升级将花费约2分钟，升级失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
 						}
 					} else {
-						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION, "未知")
+						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION.String(), "未知")
 					}
 					ReplyToSender(ctx, msg, text)
 					break
@@ -977,7 +1020,7 @@ func (d *Dice) registerCoreCommands() {
 
 					bakFn, _ := ctx.Dice.Parent.BackupSimple()
 					tmpPath := path.Join(os.TempDir(), bakFn)
-					_ = os.MkdirAll(tmpPath, 0644)
+					_ = os.MkdirAll(tmpPath, 0755)
 					ctx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
 					_ = cp.Copy(path.Join(BackupDir, bakFn), tmpPath)
 
@@ -1095,65 +1138,6 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["master"] = cmdMaster
-
-	cmdSend := &CmdItemInfo{
-		Name:      "send",
-		ShortHelp: ".send // 向骰主留言",
-		Help: "留言指令:\n.send XXXXXX // 向骰主留言\n" +
-			".send to <对方ID> 要说的话 // 骰主回复，举例. send to QQ:12345 感谢留言\n" +
-			".send to <群组ID> 要说的话 // 举例. send to QQ-Group:12345 感谢留言\n" +
-			"> 指令.userid可以查看当前群的ID",
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val := cmdArgs.GetArgN(1)
-			if val == "to" { //nolint:nestif // TODO
-				if ctx.PrivilegeLevel >= 100 {
-					uid := cmdArgs.GetArgN(2)
-					txt := cmdArgs.GetRestArgsFrom(3)
-					if uid != "" && strings.HasPrefix(uid, ctx.EndPoint.Platform) && txt != "" {
-						isGroup := strings.Contains(uid, "-Group:")
-						txt = fmt.Sprintf("本消息由骰主<%s>通过指令发送:\n", ctx.Player.Name) + txt
-						if isGroup {
-							ReplyGroup(ctx, &Message{GroupID: uid}, txt)
-						} else {
-							ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: uid}}, txt)
-						}
-						ReplyToSender(ctx, msg, "信息已经发送至"+uid)
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-				}
-				ReplyToSender(ctx, msg, "你不具备Master权限")
-			} else if val == "help" || val == "" {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			} else {
-				if d.Config.MailEnable {
-					_ = ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-				for _, uid := range ctx.Dice.DiceMasters {
-					text := ""
-
-					if ctx.IsCurGroupBotOn {
-						text += fmt.Sprintf("一条来自群组<%s>(%s)，作者<%s>(%s)的留言:\n", ctx.Group.GroupName, ctx.Group.GroupID, ctx.Player.Name, ctx.Player.UserID)
-					} else {
-						text += fmt.Sprintf("一条来自私聊，作者<%s>(%s)的留言:\n", ctx.Player.Name, ctx.Player.UserID)
-					}
-
-					text += cmdArgs.CleanArgs
-					if strings.Contains(uid, "Group") {
-						ctx.EndPoint.Adapter.SendToGroup(ctx, uid, text, "")
-					} else {
-						ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")
-					}
-				}
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
-				return CmdExecuteResult{Matched: true, Solved: true}
-			}
-			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-		},
-	}
-	d.CmdMap["send"] = cmdSend
 
 	helpRoll := ".r <表达式> <原因> // 骰点指令\n.rh <表达式> <原因> // 暗骰"
 	cmdRoll := &CmdItemInfo{
@@ -1415,13 +1399,8 @@ func (d *Dice) registerCoreCommands() {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if ctx.Dice.Config.TextCmdTrustOnly {
 				// 检查master和信任权限
-				refuse := ctx.PrivilegeLevel != 100
-				if refuse {
-					refuse = ctx.PrivilegeLevel != 70
-				}
-
 				// 拒绝无权限访问
-				if refuse {
+				if ctx.PrivilegeLevel < 70 {
 					ReplyToSender(ctx, msg, "你不具备Master权限")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -2127,7 +2106,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
 				}
 			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
-				name := getNickname()
+				name := tryConvertIndex2Name(ctx, getNickname())
 				if ctx.ChBindGet(name) != nil {
 					VarSetValueStr(ctx, "$t角色名", name)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_删除失败_已绑定"))
@@ -2139,15 +2118,10 @@ func (d *Dice) registerCoreCommands() {
 				VarSetValueStr(ctx, "$t角色名", name)
 				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
 
-				name = tryConvertIndex2Name(ctx, name)
 				if _, exists := vars.ValueMap.Get("$ch:" + name); !exists {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-
-				// 如果name原是序号，这里将被更新为角色名
-				VarSetValueStr(ctx, "$t角色名", name)
-				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
 
 				vars.ValueMap.Del("$ch:" + name)
 				vars.LastWriteTime = time.Now().Unix()
@@ -2174,53 +2148,6 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["char"] = cmdChar
 	d.CmdMap["character"] = cmdChar
 	d.CmdMap["pc"] = cmdChar
-
-	botWelcomeHelp := ".welcome on // 开启\n" +
-		".welcome off // 关闭\n" +
-		".welcome show // 查看当前欢迎语\n" +
-		".welcome set <欢迎语> // 设定欢迎语"
-	cmdWelcome := &CmdItemInfo{
-		Name:              "welcome",
-		ShortHelp:         botWelcomeHelp,
-		Help:              "新人入群自动发言设定:\n" + botWelcomeHelp,
-		DisabledInPrivate: true,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			pRequired := 50 // 50管理 60群主 100master
-			if ctx.PrivilegeLevel < pRequired {
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理"))
-				return CmdExecuteResult{Matched: true, Solved: true}
-			}
-
-			if cmdArgs.IsArgEqual(1, "on") {
-				ctx.Group.ShowGroupWelcome = true
-				ctx.Group.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, "入群欢迎语已打开")
-			} else if cmdArgs.IsArgEqual(1, "off") {
-				ctx.Group.ShowGroupWelcome = false
-				ctx.Group.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, "入群欢迎语已关闭")
-			} else if cmdArgs.IsArgEqual(1, "show") {
-				welcome := ctx.Group.GroupWelcomeMessage
-				var info string
-				if ctx.Group.ShowGroupWelcome {
-					info = "\n状态: 开启"
-				} else {
-					info = "\n状态: 关闭"
-				}
-				ReplyToSender(ctx, msg, "当前欢迎语:\n"+welcome+info)
-			} else if _, ok := cmdArgs.EatPrefixWith("set"); ok {
-				text2 := strings.TrimSpace(cmdArgs.RawArgs[len("set"):])
-				ctx.Group.GroupWelcomeMessage = text2
-				ctx.Group.ShowGroupWelcome = true
-				ctx.Group.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, "当前欢迎语设定为:\n"+text2+"\n入群欢迎语已自动打开(注意，会在bot off时起效)")
-			} else {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-			return CmdExecuteResult{Matched: true, Solved: true}
-		},
-	}
-	d.CmdMap["welcome"] = cmdWelcome
 
 	cmdReply := &CmdItemInfo{
 		Name:      "reply",
@@ -2251,262 +2178,6 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 	d.CmdMap["reply"] = cmdReply
-
-	cmdPing := &CmdItemInfo{
-		Name:      "ping",
-		ShortHelp: ".ping // 触发发送一条回复",
-		Help:      "触发回复:\n触发发送一条回复。特别地，如果是qq官方bot，并且是在频道中触发，会以私信消息形式回复",
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if cmdArgs.IsArgEqual(1, "help") {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-			if msg.Platform == "OpenQQCH" &&
-				strings.HasPrefix(msg.GuildID, "OpenQQCH-Guild:") &&
-				strings.HasPrefix(msg.GroupID, "OpenQQCH-Channel:") {
-				// 从 official qq 的频道触发的，就触发私信的回复
-				ReplyPerson(ctx, msg, DiceFormatTmpl(ctx, "其它:ping响应"))
-			} else {
-				// 其它的情况就直接回复
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:ping响应"))
-			}
-			return CmdExecuteResult{Matched: true, Solved: true}
-		},
-	}
-	d.CmdMap["ping"] = cmdPing
-
-	aliasHelp := ".alias <别名> <指令> // 将 .&<别名> 定义为指定指令的快捷触发方式\n" +
-		".alias --my <别名> <指令> // 将 .&<别名> 定义为个人快捷指令\n" +
-		".alias del/rm <别名> // 删除群快捷指令\n" +
-		".alias del/rm --my <别名> // 删除个人快捷指令\n" +
-		".alias show/list // 显示目前可用的快捷指令\n" +
-		".alias help // 查看帮助\n" +
-		"// 执行快捷命令见 .& 命令"
-	cmdAlias := &CmdItemInfo{
-		Name:      "alias",
-		ShortHelp: aliasHelp,
-		Help:      "可以定义一条指令的快捷方式。\n" + aliasHelp,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if len(cmdArgs.Args) == 0 {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-
-			_isPersonal := cmdArgs.GetKwarg("my")
-			isPersonal := ctx.MessageType == "private" || _isPersonal != nil
-			if !isPersonal {
-				ctx.LoadGroupVars()
-			}
-
-			playerVars := ctx.LoadPlayerGlobalVars()
-			subCmd := cmdArgs.GetArgN(1)
-			switch subCmd {
-			case "help":
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			case "del", "rm":
-				name := cmdArgs.GetArgN(2)
-				key := "$g:alias:" + name
-				m := ctx.Group.ValueMap
-				VarSetValueStr(ctx, "$t指令来源", "群")
-				if isPersonal {
-					key = "$m:alias:" + name
-					m = playerVars.ValueMap
-					VarSetValueStr(ctx, "$t指令来源", "个人")
-				}
-				if _cmd, ok := m.Get(key); ok {
-					if cmd, ok := _cmd.(*VMValue); ok && cmd != nil && cmd.TypeID == VMTypeString {
-						VarSetValueStr(ctx, "$t快捷指令名", name)
-						VarSetValueStr(ctx, "$t旧指令", cmd.Value.(string))
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除"))
-					}
-					m.Del(key)
-					if isPersonal {
-						playerVars.LastWriteTime = time.Now().Unix()
-					} else if ctx.Group != nil {
-						ctx.Group.UpdatedAtTime = time.Now().Unix()
-					}
-				} else {
-					VarSetValueStr(ctx, "$t快捷指令名", name)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除_未定义"))
-				}
-			case "list", "show":
-				var personCmds, groupCmds []string
-				_ = playerVars.ValueMap.Iterate(func(k interface{}, v interface{}) error {
-					if key, ok := k.(string); ok {
-						if strings.HasPrefix(key, "$m:alias:") {
-							_cmd := key[len("$m:alias:"):]
-							if val, ok := v.(*VMValue); ok && val != nil && val.TypeID == VMTypeString {
-								VarSetValueStr(ctx, "$t快捷指令名", _cmd)
-								VarSetValueStr(ctx, "$t指令", val.Value.(string))
-								VarSetValueStr(ctx, "$t指令来源", "个人")
-								personCmds = append(personCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
-							}
-						}
-					}
-					return nil
-				})
-				if ctx.MessageType == "group" {
-					groupValueMap := ctx.Group.ValueMap
-					_ = groupValueMap.Iterate(func(k interface{}, v interface{}) error {
-						if key, ok := k.(string); ok {
-							if strings.HasPrefix(key, "$g:alias:") {
-								_cmd := key[len("$g:alias:"):]
-								if val, ok := v.(*VMValue); ok && val != nil && val.TypeID == VMTypeString {
-									VarSetValueStr(ctx, "$t快捷指令名", _cmd)
-									VarSetValueStr(ctx, "$t指令", val.Value.(string))
-									VarSetValueStr(ctx, "$t指令来源", "群")
-									groupCmds = append(groupCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
-								}
-							}
-						}
-						return nil
-					})
-				}
-				sep := DiceFormatTmpl(ctx, "核心:快捷指令_列表_分隔符")
-				// 保证群在前个人在后的顺序
-				var totalCmds []string
-				totalCmds = append(totalCmds, groupCmds...)
-				totalCmds = append(totalCmds, personCmds...)
-				if len(totalCmds) > 0 {
-					VarSetValueStr(ctx, "$t列表内容", strings.Join(totalCmds, sep))
-				}
-
-				if len(totalCmds) == 0 {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表_空"))
-				} else {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_列表"))
-				}
-			default:
-				if len(cmdArgs.Args) < 2 {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_新增_无指令"))
-					break
-				}
-				name := subCmd
-				_args := cmdArgs.Args[1:]
-				for _, kwa := range cmdArgs.Kwargs {
-					if kwa.Name != "my" {
-						_args = append(_args, kwa.String())
-					}
-				}
-				cmd := strings.TrimSpace(strings.Join(_args, " "))
-
-				m := ctx.Group.ValueMap
-				key := "$g:alias:" + name
-				VarSetValueStr(ctx, "$t指令来源", "群")
-				if isPersonal {
-					key = "$m:alias:" + name
-					m = playerVars.ValueMap
-					VarSetValueStr(ctx, "$t指令来源", "个人")
-				}
-
-				if _oldCmd, ok := m.Get(key); ok && _oldCmd != nil {
-					if oldCmd, ok := _oldCmd.(*VMValue); ok && oldCmd.TypeID == VMTypeString {
-						m.Set(key, &VMValue{TypeID: VMTypeString, Value: cmd})
-						if isPersonal {
-							playerVars.LastWriteTime = time.Now().Unix()
-						} else if ctx.Group != nil {
-							ctx.Group.UpdatedAtTime = time.Now().Unix()
-						}
-						VarSetValueStr(ctx, "$t快捷指令名", name)
-						VarSetValueStr(ctx, "$t指令", cmd)
-						VarSetValueStr(ctx, "$t旧指令", oldCmd.Value.(string))
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_替换"))
-					} else {
-						// 防止错误的数据一直卡着
-						m.Del(key)
-						if isPersonal {
-							playerVars.LastWriteTime = time.Now().Unix()
-						} else if ctx.Group != nil {
-							ctx.Group.UpdatedAtTime = time.Now().Unix()
-						}
-					}
-				} else {
-					m.Set(key, &VMValue{TypeID: VMTypeString, Value: cmd})
-					if isPersonal {
-						playerVars.LastWriteTime = time.Now().Unix()
-					} else if ctx.Group != nil {
-						ctx.Group.UpdatedAtTime = time.Now().Unix()
-					}
-					VarSetValueStr(ctx, "$t快捷指令名", name)
-					VarSetValueStr(ctx, "$t指令", cmd)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_新增"))
-				}
-			}
-			return CmdExecuteResult{Matched: true, Solved: true}
-		},
-	}
-	d.CmdMap["alias"] = cmdAlias
-
-	aHelp := ".&/a <快捷指令名> [参数] // 执行对应快捷指令\n" +
-		".& help // 查看帮助\n" +
-		"// 定义快捷指令见 .alias 命令"
-	cmdA := &CmdItemInfo{
-		Name:      "&",
-		ShortHelp: aHelp,
-		Help:      "执行一条快捷指令。\n" + aHelp,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if len(cmdArgs.Args) == 0 {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-			name := cmdArgs.GetArgN(1)
-			if name == "help" {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-
-			log := d.Logger
-			args := cmdArgs.Args
-			for _, kwa := range cmdArgs.Kwargs {
-				args = append(args, kwa.String())
-			}
-
-			if msg.MessageType == "group" {
-				ctx.LoadGroupVars()
-				_cmdValue, ok := ctx.Group.ValueMap.Get("$g:alias:" + name)
-				if ok {
-					if cmdValue, ok2 := _cmdValue.(*VMValue); ok2 && cmdValue != nil && cmdValue.TypeID == VMTypeString {
-						args[0] = cmdValue.Value.(string)
-						targetCmd := strings.Join(args, " ")
-						targetArgs := CommandParse(targetCmd, []string{}, d.CommandPrefix, msg.Platform, false)
-						if targetArgs != nil {
-							log.Infof("群快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
-
-							VarSetValueStr(ctx, "$t指令来源", "群")
-							VarSetValueStr(ctx, "$t目标指令", targetCmd)
-							ctx.AliasPrefixText = DiceFormatTmpl(ctx, "核心:快捷指令触发_前缀")
-
-							ctx.EndPoint.TriggerCommand(ctx, msg, targetArgs)
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-					}
-				}
-			}
-
-			playerVars := ctx.LoadPlayerGlobalVars()
-			_cmdValue, ok := playerVars.ValueMap.Get("$m:alias:" + name)
-			if ok {
-				if cmdValue, ok := _cmdValue.(*VMValue); ok && cmdValue != nil && cmdValue.TypeID == VMTypeString {
-					args[0] = cmdValue.Value.(string)
-					targetCmd := strings.Join(args, " ")
-					msg.Message = targetCmd
-					targetArgs := CommandParse(targetCmd, []string{}, d.CommandPrefix, msg.Platform, false)
-					if targetArgs != nil {
-						log.Infof("个人快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
-
-						VarSetValueStr(ctx, "$t指令来源", "个人")
-						VarSetValueStr(ctx, "$t目标指令", targetCmd)
-						ctx.AliasPrefixText = DiceFormatTmpl(ctx, "核心:快捷指令触发_前缀")
-
-						ctx.EndPoint.TriggerCommand(ctx, msg, targetArgs)
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-				}
-			}
-
-			VarSetValueStr(ctx, "$t目标指令名", name)
-			ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令触发_无指令"))
-			return CmdExecuteResult{Matched: true, Solved: true}
-		},
-	}
-	d.CmdMap["&"] = cmdA
-	d.CmdMap["a"] = cmdA
 }
 
 func getDefaultDicePoints(ctx *MsgContext) int64 {

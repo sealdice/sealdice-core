@@ -15,6 +15,8 @@ import (
 	qqapi "github.com/sealdice/botgo/openapi"
 	qqtoken "github.com/sealdice/botgo/token"
 	qqws "github.com/sealdice/botgo/websocket"
+
+	"sealdice-core/message"
 )
 
 type PlatformAdapterOfficialQQ struct {
@@ -209,6 +211,12 @@ func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
 	d.LastUpdatedTime = time.Now().Unix()
 }
 
+func (pa *PlatformAdapterOfficialQQ) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterOfficialQQ) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	userID, idType := pa.mustExtractID(uid)
 	if idType != OpenQQCHUser {
@@ -251,9 +259,8 @@ func (pa *PlatformAdapterOfficialQQ) createQQGuildDirectChannel(ctx *MsgContext,
 }
 
 func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw(ctx *MsgContext, rowMsgID string, guildID, channelID string, text string) {
-	dice := pa.Session.Parent
 	qctx := context.Background()
-	elems := dice.ConvertStringMessage(text)
+	elems := message.ConvertStringMessage(text)
 	var (
 		content  string
 		toCreate *dto.MessageToCreate
@@ -261,9 +268,9 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw(ctx *MsgContext, ro
 
 	for _, elem := range elems {
 		switch e := elem.(type) {
-		case *TextElement:
+		case *message.TextElement:
 			content += e.Content
-		case *ImageElement:
+		case *message.ImageElement:
 		}
 	}
 
@@ -300,9 +307,8 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 }
 
 func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID, groupID string, text string) {
-	dice := pa.Session.Parent
 	qctx := context.Background()
-	elems := dice.ConvertStringMessage(text)
+	elems := message.ConvertStringMessage(text)
 	var (
 		content  string
 		toCreate *dto.MessageToCreate
@@ -314,12 +320,13 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 
 	for _, element := range elems {
 		switch elem := element.(type) {
-		case *TextElement:
-			content += elem.Content
-		case *AtElement:
+		case *message.TextElement:
+			// QQ官方API中不能发送链接，所以全部进行转写绕过
+			content += textLinkStrip(elem.Content)
+		case *message.AtElement:
 			pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
-		case *ImageElement:
-			url := elem.file.URL
+		case *message.ImageElement:
+			url := elem.File.URL
 			// 目前不支持本地发送，检查一下url
 			if url == "" ||
 				strings.Contains(url, "localhost") ||
@@ -341,8 +348,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			toCreate.Media = &dto.Media{
 				FileInfo: media.FileInfo,
 			}
-		case *RecordElement:
-			url := elem.file.URL
+		case *message.RecordElement:
+			url := elem.File.URL
 			// 目前不支持本地发送，检查一下url
 			if url == "" ||
 				strings.Contains(url, "localhost") ||
@@ -375,9 +382,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 }
 
 func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw(ctx *MsgContext, rowMsgID, channelID string, text string) {
-	dice := pa.Session.Parent
 	qctx := context.Background()
-	elems := dice.ConvertStringMessage(text)
+	elems := message.ConvertStringMessage(text)
 	var (
 		content  string
 		toCreate *dto.MessageToCreate
@@ -385,15 +391,16 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw(ctx *MsgContext, rowMsg
 
 	for _, elem := range elems {
 		switch e := elem.(type) {
-		case *TextElement:
-			content += e.Content
-		case *AtElement:
+		case *message.TextElement:
+			// QQ官方API中不能发送链接，所以全部进行转写绕过
+			content += textLinkStrip(e.Content)
+		case *message.AtElement:
 			if e.Target == "all" {
 				content += "@everyone"
 			} else {
 				content += fmt.Sprintf("<@%s>", e.Target)
 			}
-		case *ImageElement:
+		case *message.ImageElement:
 		}
 	}
 

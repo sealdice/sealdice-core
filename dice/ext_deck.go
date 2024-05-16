@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/mitchellh/mapstructure"
 	wr "github.com/mroth/weightedrand"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/sahilm/fuzzy"
 	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
@@ -40,7 +40,7 @@ type DeckDiceEFormat struct {
 
 	// 更新支持字段
 	UpdateUrls []string `json:"_updateUrls"`
-	Etag       string   `json:"_etag"`
+	Etag       []string `json:"_etag"`
 }
 
 type DeckSinaNyaFormat struct {
@@ -101,6 +101,7 @@ type CloudDeckItemInfo struct {
 
 type DeckInfo struct {
 	Enable             bool                          `json:"enable" yaml:"enable"`
+	ErrText            string                        `json:"errText" yaml:"errText"`
 	Filename           string                        `json:"filename" yaml:"filename"`
 	Format             string                        `json:"format" yaml:"format"`               // 几种：“SinaNya” ”Dice!“ "Seal"
 	FormatVersion      int64                         `json:"formatVersion" yaml:"formatVersion"` // 格式版本，默认都是1
@@ -122,16 +123,38 @@ type DeckInfo struct {
 	CloudDeckItemInfos map[string]*CloudDeckItemInfo `yaml:"-" json:"-"`
 }
 
-func tryParseDiceE(content []byte, deckInfo *DeckInfo) error {
-	jsonData := map[string][]string{}
+func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error {
+	// 移除注释
 	standardJson, isRFC, err := standardizeJson(content)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(standardJson, &jsonData)
+
+	jsonData := map[string][]string{}
+	rawJsonData := map[string]any{}
+	err = json.Unmarshal(standardJson, &rawJsonData)
 	if err != nil {
 		return err
 	}
+	for k, value := range rawJsonData {
+		if k == "$schema" {
+			continue
+		} else if k == "helpdoc" {
+			if _, ok := value.(map[string]any); ok {
+				return errors.New("该文件疑似为帮助文档，而不是牌堆文件")
+			}
+		}
+		if val, ok := value.([]any); ok {
+			v := make([]string, 0, len(val))
+			for _, elem := range val {
+				if vv, ok := elem.(string); ok {
+					v = append(v, vv)
+				}
+			}
+			jsonData[k] = v
+		}
+	}
+
 	jsonData2 := DeckDiceEFormat{}
 	err = json.Unmarshal(standardJson, &jsonData2)
 	if err != nil {
@@ -192,14 +215,16 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo) error {
 	deckInfo.Desc = strings.Join(jsonData2.Brief, "\n")
 	deckInfo.Format = "Dice!"
 	deckInfo.FormatVersion = 1
-	if isRFC {
+	if !jsoncDirectly && isRFC {
 		deckInfo.FileFormat = "json"
 	} else {
 		deckInfo.FileFormat = "jsonc"
 	}
 	deckInfo.Enable = true
 	deckInfo.UpdateUrls = jsonData2.UpdateUrls
-	deckInfo.Etag = jsonData2.Etag
+	if len(jsonData2.Etag) > 0 {
+		deckInfo.Etag = jsonData2.Etag[0]
+	}
 	deckInfo.RawData = &jsonData
 	return nil
 }
@@ -413,21 +438,25 @@ func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
 	var err error
 
 	switch ext {
-	case ".json", ".jsonc":
-		err = tryParseDiceE(content, deckInfo)
+	case ".json":
+		err = tryParseDiceE(content, deckInfo, false)
+	case ".jsonc":
+		err = tryParseDiceE(content, deckInfo, true)
 	case ".yaml", ".yml":
 		err = tryParseSinaNya(content, deckInfo)
 	case ".toml":
 		err = tryParseSeal(content, deckInfo)
 	default:
 		d.Logger.Infof("牌堆文件“%s”是未知格式，尝试以json和yaml格式解析", fn)
-		if tryParseDiceE(content, deckInfo) != nil {
+		if tryParseDiceE(content, deckInfo, false) != nil {
 			err = tryParseSinaNya(content, deckInfo)
 		}
 	}
 
 	if err != nil {
 		d.Logger.Errorf("牌堆文件“%s”解析失败 %v", fn, err)
+		deckInfo.Enable = false
+		deckInfo.ErrText = err.Error()
 		return false
 	}
 	return true
@@ -477,7 +506,7 @@ func DecksDetect(d *Dice) {
 
 		if !info.IsDir() {
 			ext := filepath.Ext(path)
-			if ext == ".json" || ext == ".yaml" || ext == ".toml" || ext == "" {
+			if ext == ".json" || ext == ".jsonc" || ext == ".yml" || ext == ".yaml" || ext == ".toml" || ext == "" {
 				DeckTryParse(d, path)
 			}
 		}
@@ -486,14 +515,25 @@ func DecksDetect(d *Dice) {
 }
 
 func DeckDelete(_ *Dice, deck *DeckInfo) {
-	dirpath := filepath.Dir(deck.Filename)
-	dirname := filepath.Base(dirpath)
+	dirPath := filepath.Dir(deck.Filename)
+	dirName := filepath.Base(dirPath)
 
-	if strings.HasPrefix(dirname, "_") && strings.HasSuffix(dirname, ".deck") {
-		// 可能是zip解压出来的，那么删除目录和压缩包
-		_ = os.RemoveAll(dirpath)
-		zipFilename := filepath.Join(filepath.Dir(dirpath), dirname[1:])
-		_ = os.Remove(zipFilename)
+	var topPath, topName string
+	for {
+		if filepath.ToSlash(dirPath) == "data/decks" || dirPath == "." {
+			break
+		}
+		if strings.HasPrefix(dirName, "_") && strings.HasSuffix(dirName, ".deck") {
+			topPath = dirPath
+			topName = dirName
+		}
+		dirPath = filepath.Dir(dirPath)
+		dirName = filepath.Base(dirPath)
+	}
+	if topPath != "" {
+		_ = os.RemoveAll(topPath)
+		zipFilename := filepath.Join(filepath.Dir(topPath), topName[1:])
+		os.Remove(zipFilename)
 	} else {
 		_ = os.Remove(deck.Filename)
 	}
@@ -929,6 +969,9 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		}
 
 		deckGroup := getDeckGroup(deckInfo, deckName)
+		if len(deckGroup) == 0 {
+			return "", errors.New("牌组为空，请检查格式是否正确")
+		}
 		if ctx.DeckPools[deckInfo][deckName] == nil {
 			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
 		}
@@ -944,6 +987,9 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		key = pool.Pick().(string)
 	} else {
 		deckGroup := getDeckGroup(deckInfo, deckName)
+		if len(deckGroup) == 0 {
+			return "", errors.New("牌组为空，请检查格式是否正确")
+		}
 		pool := DeckToRandomPool(deckGroup)
 		if pool == nil {
 			return "", errors.New("牌组为空，可能尚未加载完成")

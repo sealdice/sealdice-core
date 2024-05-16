@@ -20,6 +20,8 @@ import (
 	"github.com/fy0/lockfree"
 	"github.com/gorilla/websocket"
 	"github.com/samber/lo"
+
+	"sealdice-core/message"
 )
 
 type PlatformAdapterRed struct {
@@ -477,8 +479,11 @@ func (pa *PlatformAdapterRed) Serve() int {
 		case <-interrupt:
 			log.Debug("red interrupt")
 
-			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			_ = pa.conn.Close()
+			if pa.conn != nil {
+				_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+				_ = pa.conn.Close()
+				pa.conn = nil
+			}
 
 			select {
 			case <-done:
@@ -524,6 +529,12 @@ func (pa *PlatformAdapterRed) SetEnable(enable bool) {
 func (pa *PlatformAdapterRed) QuitGroup(_ *MsgContext, id string) {
 	log := pa.Session.Parent.Logger
 	log.Warnf("red: 尝试退出群组(%s)，但尚不支持该功能", id)
+}
+
+func (pa *PlatformAdapterRed) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterRed) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
 }
 
 func (pa *PlatformAdapterRed) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
@@ -869,17 +880,16 @@ func (pa *PlatformAdapterRed) httpDo(method, action string, headers map[string]s
 
 // encodeMessage 将带 cq code 的内容转换为 red 所需的格式
 func (pa *PlatformAdapterRed) encodeMessage(ctx *MsgContext, content string) []*RedElement {
-	dice := pa.Session.Parent
-	elems := dice.ConvertStringMessage(content)
+	elems := message.ConvertStringMessage(content)
 	var redElems []*RedElement
 	for _, elem := range elems {
 		switch e := elem.(type) {
-		case *TextElement:
+		case *message.TextElement:
 			redElems = append(redElems, &RedElement{
 				ElementType: 1,
 				TextElement: &RedTextElement{Content: e.Content},
 			})
-		case *AtElement:
+		case *message.AtElement:
 			redElems = append(redElems, &RedElement{
 				ElementType: 1,
 				TextElement: &RedTextElement{
@@ -888,8 +898,8 @@ func (pa *PlatformAdapterRed) encodeMessage(ctx *MsgContext, content string) []*
 					Content: fmt.Sprintf("@%s", e.Target),
 				},
 			})
-		case *ImageElement:
-			fi := e.file
+		case *message.ImageElement:
+			fi := e.File
 			resp := pa.uploadFile(fi.File, fi.Stream)
 			redElem := RedElement{
 				ElementType: 2,
@@ -906,7 +916,7 @@ func (pa *PlatformAdapterRed) encodeMessage(ctx *MsgContext, content string) []*
 				redElem.PicElement.PicHeight = resp.ImageInfo.Height
 			}
 			redElems = append(redElems, &redElem)
-		case *FileElement:
+		case *message.FileElement:
 			resp := pa.uploadFile(e.File, e.Stream)
 			redElems = append(redElems, &RedElement{
 				ElementType: 3,
@@ -1032,7 +1042,7 @@ func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 			send.Nickname = nameInfo.Name
 		}
 		if send.Nickname == "" {
-			send.Nickname = "<未知用户>"
+			send.Nickname = "未知用户"
 		}
 	} else {
 		msg.MessageType = "group"

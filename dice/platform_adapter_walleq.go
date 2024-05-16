@@ -17,6 +17,7 @@ import (
 	"github.com/sacOO7/gowebsocket"
 
 	"sealdice-core/dice/model"
+	"sealdice-core/message"
 	"sealdice-core/utils/procs"
 )
 
@@ -189,10 +190,10 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
-		if CheckDialErr(err) != syscall.ECONNREFUSED {
-			// refused 不算大事
-			log.Info("Recieved connect error: ", err)
-		}
+		// if CheckDialErr(err) != syscall.ECONNREFUSED {
+		// refused 不算大事
+		log.Error("onebot connection error: ", err)
+		// }
 		pa.InPackWalleQDisconnectedCH <- 2
 	}
 	var lastWelcome *LastWelcomeInfoWQ
@@ -256,7 +257,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				ctx.Player = &GroupPlayerInfo{}
 				log.Infof("发送入群致辞，群: <%s>(%s)", groupName, event.GroupID)
 				text := DiceFormatTmpl(ctx, "核心:骰子进群")
-				for _, i := range strings.Split(text, "###SPLIT###") {
+				for _, i := range ctx.SplitText(text) {
 					doSleepQQ(ctx)
 					pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 				}
@@ -388,7 +389,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 								VarSetValueStr(ctx, "$t帐号ID", stdID)
 								VarSetValueStr(ctx, "$t账号ID", stdID)
 								text := DiceFormat(ctx, group.GroupWelcomeMessage)
-								for _, i := range strings.Split(text, "###SPLIT###") {
+								for _, i := range ctx.SplitText(text) {
 									doSleepQQ(ctx)
 									pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 								}
@@ -794,6 +795,12 @@ func (pa *PlatformAdapterWalleQ) GetGroupInfoAsync(id string) {
 	socketSendText(pa.Socket, string(a))
 }
 
+func (pa *PlatformAdapterWalleQ) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterWalleQ) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
 	rawID, idType := pa.mustExtractID(userID)
 	if idType != QQUidPerson {
@@ -866,8 +873,7 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, te
 
 func (pa *PlatformAdapterWalleQ) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
 	// walleq 依赖的 ricq 尚不支持发送文件
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -877,8 +883,7 @@ func (pa *PlatformAdapterWalleQ) SendFileToPerson(ctx *MsgContext, userID string
 
 func (pa *PlatformAdapterWalleQ) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
 	// walleq 依赖的 ricq 尚不支持发送文件
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToGroup(ctx, groupID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -1206,7 +1211,7 @@ func (pa *PlatformAdapterWalleQ) TextToMessageSegment(text string) []MessageSegm
 	// 海豹码 转 cq 码 // 有点麻
 	for _, i := range arr {
 		if strings.HasPrefix(i, "[") { // 是 [ 开头的就转一下
-			i = SealCodeToCqCode(i)
+			i = message.SealCodeToCqCode(i)
 		}
 		isCq := strings.HasPrefix(i, "[CQ")
 		if isCq {

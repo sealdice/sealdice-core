@@ -1,5 +1,7 @@
 package dice
 
+import "sealdice-core/message"
+
 type PlatformAdapter interface {
 	Serve() int
 	DoRelogin() bool
@@ -9,6 +11,9 @@ type PlatformAdapter interface {
 	SendToPerson(ctx *MsgContext, userID string, text string, flag string)
 	SendToGroup(ctx *MsgContext, groupID string, text string, flag string)
 	SetGroupCardName(ctx *MsgContext, name string)
+
+	SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string)
+	SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string)
 
 	SendFileToPerson(ctx *MsgContext, userID string, path string, flag string)
 	SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string)
@@ -31,6 +36,7 @@ type PlatformAdapter interface {
 // 实现检查
 var (
 	_ PlatformAdapter = (*PlatformAdapterGocq)(nil)
+	_ PlatformAdapter = (*PlatformAdapterDiscord)(nil)
 	_ PlatformAdapter = (*PlatformAdapterDingTalk)(nil)
 	_ PlatformAdapter = (*PlatformAdapterDodo)(nil)
 	_ PlatformAdapter = (*PlatformAdapterHTTP)(nil)
@@ -42,4 +48,6 @@ var (
 	_ PlatformAdapter = (*PlatformAdapterSlack)(nil)
 	_ PlatformAdapter = (*PlatformAdapterTelegram)(nil)
 	_ PlatformAdapter = (*PlatformAdapterWalleQ)(nil)
+	_ PlatformAdapter = (*PlatformAdapterSatori)(nil)
+	// _ PlatformAdapter = (*PlatformAdapterLagrangeGo)(nil)
 )

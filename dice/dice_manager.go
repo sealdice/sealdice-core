@@ -74,6 +74,8 @@ type DiceManager struct { //nolint:revive
 	JustForTest          bool
 	JsRegistry           *require.Registry
 	UpdateSealdiceByFile func(packName string, log *zap.SugaredLogger) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
+
+	ContainerMode bool // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 }
 
 type Configs struct { //nolint:revive
@@ -185,6 +187,7 @@ func (dm *DiceManager) LoadDice() {
 	for _, i := range dc.DiceConfigs {
 		newDice := new(Dice)
 		newDice.BaseConfig = i
+		newDice.ContainerMode = dm.ContainerMode
 		dm.Dice = append(dm.Dice, newDice)
 	}
 }
@@ -323,6 +326,7 @@ func (dm *DiceManager) TryCreateDefault() {
 		defaultDice.Config.MessageDelayRangeStart = DefaultConfig.MessageDelayRangeStart
 		defaultDice.Config.MessageDelayRangeEnd = DefaultConfig.MessageDelayRangeEnd
 		defaultDice.MarkModified()
+		defaultDice.ContainerMode = dm.ContainerMode
 		dm.Dice = append(dm.Dice, defaultDice)
 	}
 }

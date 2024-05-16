@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/google/uuid"
+	"github.com/pelletier/go-toml/v2"
 
 	"sealdice-core/utils/procs"
 )
@@ -196,7 +196,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	chQrCode := make(chan int, 1)
 	isSeldKilling := false
 
-	p.OutputHandler = func(line string) string {
+	p.OutputHandler = func(line string, _type string) string {
 		fmt.Println(line)
 		if loginIndex != pa.CurLoginIndex {
 			// 当前连接已经无用，进程自杀
@@ -296,8 +296,13 @@ func (pa *PlatformAdapterWalleQ) SetQQProtocol(protocol int) bool {
 	log := pa.EndPoint.Session.Parent.Logger
 
 	wd := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
+	wdData, err := os.ReadFile(wd)
+	if err != nil {
+		log.Error("读取 Walle-q 配置文件失败，请检查！")
+		return false
+	}
 	wqc := new(WalleQConfig)
-	_, err := toml.DecodeFile(wd, wqc)
+	err = toml.Unmarshal(wdData, wqc)
 	if err != nil {
 		log.Error("读取 Walle-q 配置文件失败，请检查！")
 		return false

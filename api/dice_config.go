@@ -234,10 +234,6 @@ func DiceConfigSet(c echo.Context) error {
 		myDice.Config.OnlyLogCommandInPrivate = val.(bool)
 	}
 
-	if val, ok := jsonMap["autoReloginEnable"]; ok {
-		myDice.Config.AutoReloginEnable = val.(bool)
-	}
-
 	if val, ok := jsonMap["refuseGroupInvite"]; ok {
 		myDice.Config.RefuseGroupInvite = val.(bool)
 	}

@@ -1,10 +1,6 @@
 package dice
 
 import (
-	"archive/zip"
-	"bytes"
-	"compress/zlib"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -18,13 +14,12 @@ import (
 	"github.com/golang-module/carbon"
 	"go.uber.org/zap"
 
-	"sealdice-core/dice/constants"
 	"sealdice-core/dice/model"
+	"sealdice-core/dice/storylog"
+	"sealdice-core/utils"
 )
 
 var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
-
-const StoryVersion = 101
 
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
@@ -153,7 +148,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Help:      "日志指令:\n" + helpLog,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			group := ctx.Group
-			cmdArgs.ChopPrefixToArgsWith("on", "off", "new", "end", "del", "halt")
+			cmdArgs.ChopPrefixToArgsWith("on", "off", "del", "rm", "masterget",
+				"get", "end", "halt", "list", "new", "stat", "export")
 
 			groupNotActiveCheck := func() bool {
 				if !group.IsActive(ctx) {
@@ -175,7 +171,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			}
 
 			getAndUpload := func(gid, lname string) {
-				fn, err := LogSendToBackend(ctx, gid, lname)
+				unofficial, fn, err := LogSendToBackend(ctx, gid, lname)
 				if err != nil {
 					reason := strings.TrimPrefix(err.Error(), "#")
 					VarSetValueStr(ctx, "$t错误原因", reason)
@@ -185,6 +181,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				} else {
 					VarSetValueStr(ctx, "$t日志链接", fn)
 					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
+					if unofficial {
+						tmpl += "\n[注意：该链接非海豹官方染色器]"
+					}
 					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
 				}
 			}
@@ -415,61 +414,60 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if newName := cmdArgs.GetArgN(2); newName != "" {
 					logName = newName
 				}
-				if logName != "" {
-					now := carbon.Now()
-					VarSetValueStr(ctx, "$t记录名", logName)
-					VarSetValueStr(ctx, "$t日期", now.ToShortDateString())
-					VarSetValueStr(ctx, "$t时间", now.ToShortTimeString())
-					logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
-					logFile, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
-					if err != nil {
-						ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
-					}
-
-					var emails []string
-					if len(cmdArgs.Args) > 2 {
-						emails = cmdArgs.Args[2:]
-						// 试图发送邮件
-						dice := ctx.Session.Parent
-						if dice.CanSendMail() {
-							rightEmails := make([]string, 0, len(emails))
-							emailExp := regexp.MustCompile(`.*@.*`)
-							for _, email := range emails {
-								if emailExp.MatchString(email) {
-									rightEmails = append(rightEmails, email)
-								}
-							}
-							if len(rightEmails) > 0 {
-								emailMsg := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
-								dice.SendMailRow(
-									fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
-									rightEmails,
-									emailMsg,
-									[]string{logFile.Name()},
-								)
-								text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
-								ReplyToSenderRaw(ctx, msg, text, "skip")
-								return CmdExecuteResult{Matched: true, Solved: true}
-							}
-							ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_无格式有效邮箱"), "skip")
-						}
-						ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
-					}
-
-					var uri string
-					if runtime.GOOS == "windows" {
-						uri = "files:///" + logFile.Name()
-					} else {
-						uri = "files://" + logFile.Name()
-					}
-					SendFileToSenderRaw(ctx, msg, uri, "skip")
-					err = os.Remove(logFile.Name())
-					if err != nil {
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-				} else {
+				if logName == "" {
 					ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_未指定记录"), "skip")
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
+				now := carbon.Now()
+				VarSetValueStr(ctx, "$t记录名", logName)
+				VarSetValueStr(ctx, "$t日期", now.ToShortDateString())
+				VarSetValueStr(ctx, "$t时间", now.ToShortTimeString())
+				logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
+				logFile, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
+				if err != nil {
+					ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				defer os.Remove(logFile.Name())
+
+				var emails []string
+				if len(cmdArgs.Args) > 2 {
+					emails = cmdArgs.Args[2:]
+					// 试图发送邮件
+					dice := ctx.Session.Parent
+					if dice.CanSendMail() {
+						rightEmails := make([]string, 0, len(emails))
+						emailExp := regexp.MustCompile(`.*@.*`)
+						for _, email := range emails {
+							if emailExp.MatchString(email) {
+								rightEmails = append(rightEmails, email)
+							}
+						}
+						if len(rightEmails) > 0 {
+							emailMsg := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
+							dice.SendMailRow(
+								fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
+								rightEmails,
+								emailMsg,
+								[]string{logFile.Name()},
+							)
+							text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
+							ReplyToSenderRaw(ctx, msg, text, "skip")
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_无格式有效邮箱"), "skip")
+					}
+					ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
+				}
+
+				var uri string
+				if runtime.GOOS == "windows" {
+					uri = "files:///" + logFile.Name()
+				} else {
+					uri = "files://" + logFile.Name()
+				}
+				SendFileToSenderRaw(ctx, msg, uri, "skip")
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -883,14 +881,23 @@ func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID in
 }
 
 func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (*os.File, error) {
-	tempLog, err := os.CreateTemp("", fmt.Sprintf("%s(*).txt", fileNamePrefix))
+	tempLog, err := os.CreateTemp("", fmt.Sprintf(
+		"%s(*).txt",
+		utils.FilenameClean(fileNamePrefix),
+	))
 	if err != nil {
 		return nil, errors.New("log导出出现未知错误")
 	}
+	defer func() {
+		if err != nil {
+			_ = os.Remove(tempLog.Name())
+		}
+	}()
 
 	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupID, logName)
 	if len(lines) == 0 {
-		return nil, errors.New("此log不存在，或条目数为空，名字是否正确？")
+		err = errors.New("此log不存在，或条目数为空，名字是否正确？")
+		return nil, err
 	}
 	if err != nil {
 		return nil, err
@@ -904,91 +911,45 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	return tempLog, nil
 }
 
-func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (string, error) {
-	dirpath := filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports")
-	_ = os.MkdirAll(dirpath, 0o755)
+func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
+	dice := ctx.Dice
+	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
-	url, uploadTS, updateTS, _ := model.LogGetUploadInfo(ctx.Dice.DBLogs, groupID, logName)
-	if len(url) > 0 && uploadTS > updateTS {
-		// 已有URL且上传时间晚于Log更新时间（最后录入时间），直接返回
-		ctx.Dice.Logger.Infof(
-			"查询到之前上传的URL, 直接使用 Log:%s.%s 上传时间:%s 更新时间:%s URL:%s",
-			groupID, logName,
-			time.Unix(uploadTS, 0).Format("2006-01-02 15:04:05"),
-			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
-			url,
-		)
-		return url, nil
+	var sealBackends []string
+	for _, sealBackend := range BackendUrls {
+		sealBackends = append(sealBackends, sealBackend+"/dice/api/log")
+	}
+
+	uploadCtx := storylog.UploadEnv{
+		Dir:      dirPath,
+		Db:       dice.DBLogs,
+		Log:      dice.Logger,
+		Backends: sealBackends,
+
+		LogName:   logName,
+		UniformID: ctx.EndPoint.UserID,
+		GroupID:   groupID,
+	}
+	uploadCtx.Version = storylog.StoryVersionV1
+
+	var unofficial bool
+	if dice.AdvancedConfig.Enable && dice.AdvancedConfig.StoryLogBackendUrl != "" {
+		unofficial = true
+		uploadCtx.Backends = []string{dice.AdvancedConfig.StoryLogBackendUrl}
+		uploadCtx.Token = dice.AdvancedConfig.StoryLogBackendToken
+
+		// 现在只有一个版本的 api，未来这里根据 advancedConfig.StoryLogBackendToken 切换
+		uploadCtx.Version = storylog.StoryVersionV1
+	}
+
+	url, err := storylog.Upload(uploadCtx)
+	if err != nil {
+		return unofficial, "", err
 	}
 	if len(url) == 0 {
-		ctx.Dice.Logger.Infof("没有查询到之前上传的URL Log:%s.%s", groupID, logName)
-	} else {
-		ctx.Dice.Logger.Infof(
-			"Log上传后又有更新, 重新上传 Log:%s.%s 上传时间:%s 更新时间:%s",
-			groupID, logName,
-			time.Unix(uploadTS, 0).Format("2006-01-02 15:04:05"),
-			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
-		)
+		return unofficial, "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
 	}
-
-	lines, err := model.LogGetAllLines(ctx.Dice.DBLogs, groupID, logName)
-
-	if len(lines) == 0 {
-		return "", errors.New("#此log不存在，或条目数为空，名字是否正确？")
-	}
-
-	if err != nil {
-		return "", err
-	}
-
-	// 本地进行一个zip留档，以防万一
-	fzip, _ := os.CreateTemp(dirpath, FilenameReplace(groupID+"_"+logName)+".*.zip")
-	writer := zip.NewWriter(fzip)
-
-	text := ""
-	for _, i := range lines {
-		timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-		text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
-	}
-
-	{
-		wr, _ := writer.Create(constants.LogExportReadmeFilename)
-		_, _ = wr.Write([]byte(constants.LogExportReadmeContent))
-	}
-	{
-		fileWriter, _ := writer.Create(constants.LogExportTxtFilename)
-		_, _ = fileWriter.Write([]byte(text))
-	}
-
-	data, err := json.Marshal(map[string]interface{}{
-		"version": StoryVersion,
-		"items":   lines,
-	})
-	if err == nil {
-		fileWriter2, _ := writer.Create(constants.LogExportJsonFilename)
-		_, _ = fileWriter2.Write(data)
-	}
-
-	_ = writer.Close()
-	_ = fzip.Close()
-
-	if err != nil {
-		return "", err
-	}
-
-	var zlibBuffer bytes.Buffer
-	w := zlib.NewWriter(&zlibBuffer)
-	_, _ = w.Write(data)
-	_ = w.Close()
-
-	url = UploadFileToWeizaima(ctx.Dice.Logger, logName, ctx.EndPoint.UserID, &zlibBuffer)
-	if errDB := model.LogSetUploadInfo(ctx.Dice.DBLogs, groupID, logName, url); errDB != nil {
-		ctx.Dice.Logger.Errorf("记录Log上传信息失败: %v", errDB)
-	}
-	if len(url) == 0 {
-		return "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
-	}
-	return url, nil
+	return unofficial, url, nil
 }
 
 // LogRollBriefByPC 根据log生成骰点简报

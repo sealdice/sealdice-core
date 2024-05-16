@@ -7,6 +7,8 @@ import (
 
 	dingtalk "github.com/Szzrain/DingTalk-go"
 	"github.com/open-dingtalk/dingtalk-stream-sdk-go/chatbot"
+
+	"sealdice-core/message"
 )
 
 type PlatformAdapterDingTalk struct {
@@ -69,6 +71,12 @@ func (pa *PlatformAdapterDingTalk) QuitGroup(ctx *MsgContext, id string) {
 	pa.SendToGroup(ctx, id, "不支持此功能, 请手动移除机器人", "")
 }
 
+func (pa *PlatformAdapterDingTalk) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterDingTalk) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	msg := dingtalk.MessageSampleText{Content: text}
 	rawUserID := ExtractDingTalkUserID(uid)
@@ -112,8 +120,7 @@ func (pa *PlatformAdapterDingTalk) SetGroupCardName(ctx *MsgContext, name string
 }
 
 func (pa *PlatformAdapterDingTalk) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -122,8 +129,7 @@ func (pa *PlatformAdapterDingTalk) SendFileToPerson(ctx *MsgContext, uid string,
 }
 
 func (pa *PlatformAdapterDingTalk) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -178,7 +184,7 @@ func (pa *PlatformAdapterDingTalk) OnGroupJoined(_ *dingtalk.Session, data *ding
 	ctx.Player = &GroupPlayerInfo{}
 	logger.Infof("发送入群致辞，群: <%s>(%d)", "%未知群名%", data.OpenConversationId)
 	text := DiceFormatTmpl(ctx, "核心:骰子进群")
-	for _, i := range strings.Split(text, "###SPLIT###") {
+	for _, i := range ctx.SplitText(text) {
 		pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 	}
 	if ctx.Session.ServiceAtNew[msg.GroupID] != nil {

@@ -65,6 +65,11 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 		_ = writer.Close()
 	}(writer)
 
+	fileOK := func(fn string) bool {
+		stat, err := os.Stat(fn)
+		return err == nil && !stat.IsDir()
+	}
+
 	backup := func(d *Dice, fn string) {
 		data, err := os.ReadFile(fn)
 		if err != nil {
@@ -124,6 +129,12 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 
 		if cfg2.MiscConfig {
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
+			if fn := filepath.Join(d.BaseConfig.DataDir, "advanced.yaml"); fileOK(fn) {
+				backup(d, fn)
+			}
+			if fn := filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"); fileOK(fn) {
+				backup(d, fn)
+			}
 		}
 
 		if cfg2.PlayerData {
@@ -144,27 +155,46 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "data.db"))
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "data-logs.db"))
-			if _, err = os.Stat(filepath.Join(d.BaseConfig.DataDir, "data-censor.db")); err == nil {
-				backup(d, filepath.Join(d.BaseConfig.DataDir, "data-censor.db"))
+			if fn := filepath.Join(d.BaseConfig.DataDir, "data-censor.db"); fileOK(fn) {
+				backup(d, fn)
 			}
-
-			// bakTestPath, _ := filepath.Abs("./data-logs-bak.db")
-			// model.Backup(d.DBData)
-			// backup(d, filepath.Join(d.BaseConfig.DataDir, "data.bdb"))
 		}
 		if cfg2.CustomReply {
 			backup(d, filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"))
 		}
 		if cfg2.CustomText {
-			backup(d, filepath.Join(d.BaseConfig.DataDir, "extensions/reply/reply.yaml"))
+			_ = filepath.WalkDir(filepath.Join(d.BaseConfig.DataDir, "extensions/reply"), func(path string, info fs.DirEntry, _ error) error {
+				// NOTE(Xiangze Li): copied from dice.ReplyReload. Should extract as function, but I'm lazy
+				if info.IsDir() {
+					if strings.EqualFold(info.Name(), "assets") || strings.EqualFold(info.Name(), "images") {
+						return fs.SkipDir
+					}
+					return nil
+				}
+				if strings.HasPrefix(info.Name(), ".reply") || info.Name() == "info.yaml" {
+					return nil
+				}
+
+				ext := filepath.Ext(path)
+				if ext == ".yaml" || ext == "" {
+					backup(d, path)
+				}
+				return nil
+			})
 		}
 		if cfg2.Accounts {
 			for _, i := range d.ImSession.EndPoints {
 				if i.Platform == "QQ" {
-					if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackGoCqhttp {
-						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "config.yml"))
-						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "device.json"))
-						backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "session.token"))
+					if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackClient {
+						if pa.BuiltinMode == "lagrange" {
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "appsettings.json"))
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "device.json"))
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "keystore.json"))
+						} else {
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "config.yml"))
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "device.json"))
+							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "session.token"))
+						}
 					}
 				}
 			}
@@ -174,7 +204,7 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 	// 写入文件信息
 	data, _ := json.Marshal(map[string]interface{}{
 		"config":      cfg,
-		"version":     VERSION,
+		"version":     VERSION.String(),
 		"versionCode": VERSION_CODE,
 	})
 

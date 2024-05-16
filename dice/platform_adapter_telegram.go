@@ -11,6 +11,8 @@ import (
 	"unicode/utf16"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	"sealdice-core/message"
 )
 
 type PlatformAdapterTelegram struct {
@@ -19,6 +21,7 @@ type PlatformAdapterTelegram struct {
 	ProxyURL      string           `yaml:"proxyURL" json:"proxyURL"`
 	EndPoint      *EndPointInfo    `yaml:"-" json:"-"`
 	IntentSession *tgbotapi.BotAPI `yaml:"-" json:"-"`
+	ActiveTime    time.Time        `yaml:"-" json:"-"` // 用于区分adapter关闭时堆积的消息，不进入配置文件
 }
 
 func (pa *PlatformAdapterTelegram) GetGroupInfoAsync(groupID string) {
@@ -82,12 +85,15 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	d := pa.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
-	pa.Session.Parent.Logger.Infof("Telegram 服务连接成功，账号<%s>(%s)", bot.Self.UserName, pa.EndPoint.UserID)
-	updateConfig := tgbotapi.NewUpdate(0)
 
+	pa.Session.Parent.Logger.Infof("Telegram 服务连接成功，账号<%s>(%s)", bot.Self.UserName, pa.EndPoint.UserID)
+
+	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = 30
 
 	updates := bot.GetUpdatesChan(updateConfig)
+	pa.ActiveTime = time.Now()
+
 	go func() {
 		for update := range updates {
 			if pa.IntentSession == nil {
@@ -95,6 +101,11 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 			}
 
 			if update.EditedMessage != nil {
+				if int64(update.EditedMessage.Date) < pa.ActiveTime.Unix() {
+					// This message is edited while pa isn't active.
+					continue
+				}
+
 				msg := pa.toStdMessage(update.EditedMessage)
 				mctx := &MsgContext{
 					Session:     pa.Session,
@@ -110,13 +121,21 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 				go pa.Session.OnMessageEdit(mctx, msg)
 				continue
 			}
+
 			if update.Message == nil {
 				continue
 			}
+
 			msgRaw := update.Message
 			if msgRaw.From.IsBot {
 				continue
 			}
+
+			if int64(msgRaw.Date) < pa.ActiveTime.Unix() {
+				// This message is created while pa isn't active; it should be ignored.
+				continue
+			}
+
 			msg := pa.toStdMessage(msgRaw)
 			if msgRaw.NewChatMembers != nil {
 				for _, member := range msgRaw.NewChatMembers {
@@ -164,7 +183,7 @@ func (pa *PlatformAdapterTelegram) groupNewMember(msg *Message, msgRaw *tgbotapi
 		groupName := msgRaw.Chat.Title
 		text := DiceFormat(ctx, group.GroupWelcomeMessage)
 		logger.Infof("发送欢迎致辞，群: <%s>(%d),新成员id:%d", groupName, msgRaw.Chat.ID, member.ID)
-		for _, i := range strings.Split(text, "###SPLIT###") {
+		for _, i := range ctx.SplitText(text) {
 			pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 		}
 	}
@@ -182,7 +201,7 @@ func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Mes
 	ctx.Player = &GroupPlayerInfo{}
 	logger.Infof("发送入群致辞，群: <%s>(%d)", groupName, msgRaw.Chat.ID)
 	text := DiceFormatTmpl(ctx, "核心:骰子进群")
-	for _, i := range strings.Split(text, "###SPLIT###") {
+	for _, i := range ctx.SplitText(text) {
 		pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 	}
 	if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
@@ -204,7 +223,7 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 	uid := msg.Sender.UserID
 	welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 	logger.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
-	for _, i := range strings.Split(welcome, "###SPLIT###") {
+	for _, i := range ctx.SplitText(welcome) {
 		pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 	}
 	if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
@@ -360,6 +379,12 @@ func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
 	}
 }
 
+func (pa *PlatformAdapterTelegram) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterTelegram) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	pa.SendToChatRaw(ExtractTelegramUserID(uid), text)
 	pa.Session.OnMessageSend(ctx, &Message{
@@ -393,7 +418,7 @@ func (pa *PlatformAdapterTelegram) SendFileToPerson(_ *MsgContext, uid string, p
 	bot := pa.IntentSession
 	dice := pa.Session.Parent
 
-	e, err := dice.FilepathToFileElement(path)
+	e, err := message.FilepathToFileElement(path)
 	if err != nil {
 		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
 		return
@@ -413,7 +438,7 @@ func (pa *PlatformAdapterTelegram) SendFileToGroup(_ *MsgContext, uid string, pa
 	bot := pa.IntentSession
 	dice := pa.Session.Parent
 
-	e, err := dice.FilepathToFileElement(path)
+	e, err := message.FilepathToFileElement(path)
 	if err != nil {
 		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
 		return
@@ -447,16 +472,15 @@ func (r *RequestFileDataImpl) SendData() string {
 }
 func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 	bot := pa.IntentSession
-	dice := pa.Session.Parent
 	id, _ := strconv.ParseInt(uid, 10, 64)
-	elem := dice.ConvertStringMessage(text)
+	elem := message.ConvertStringMessage(text)
 	msg := tgbotapi.NewMessage(id, "")
 	var err error
 	for _, element := range elem {
 		switch e := element.(type) {
-		case *TextElement:
+		case *message.TextElement:
 			msg.Text += e.Content
-		case *AtElement:
+		case *message.AtElement:
 			leng := len(msg.Text)
 			uid, _ := strconv.ParseInt(e.Target, 10, 64)
 			user := &tgbotapi.User{ID: uid}
@@ -464,7 +488,7 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 			msg.Text += data
 			entity := tgbotapi.MessageEntity{Type: "text_mention", Offset: leng, Length: len(data), User: user}
 			msg.Entities = append(msg.Entities, entity)
-		case *FileElement:
+		case *message.FileElement:
 			if msg.Text != "" {
 				_, err = bot.Send(msg)
 			}
@@ -476,8 +500,8 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 			data := &RequestFileDataImpl{File: e.File, Reader: e.Stream}
 			f := tgbotapi.NewDocument(id, data)
 			_, err = bot.Send(f)
-		case *ImageElement:
-			fi := e.file
+		case *message.ImageElement:
+			fi := e.File
 			data := &RequestFileDataImpl{File: fi.File, Reader: fi.Stream}
 			f := tgbotapi.NewPhoto(id, data)
 			if msg.Text != "" {
@@ -491,10 +515,10 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
 				return
 			}
-		case *TTSElement:
+		case *message.TTSElement:
 			msg.Text += e.Content
-		case *ReplyElement:
-			parseInt, errParse := strconv.ParseInt(e.Target, 10, 64)
+		case *message.ReplyElement:
+			parseInt, errParse := strconv.ParseInt(e.ReplySeq, 10, 64)
 			if errParse != nil {
 				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, errParse)
 				break

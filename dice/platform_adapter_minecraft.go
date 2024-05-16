@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/sacOO7/gowebsocket"
+
+	"sealdice-core/message"
 )
 
 type PlatformAdapterMinecraft struct {
@@ -193,6 +195,12 @@ func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
 	}
 }
 
+func (pa *PlatformAdapterMinecraft) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+}
+
+func (pa *PlatformAdapterMinecraft) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+}
+
 func (pa *PlatformAdapterMinecraft) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	id := ExtractMCUserID(uid)
 	msg := new(SendMessageMinecraft)
@@ -231,8 +239,7 @@ func (pa *PlatformAdapterMinecraft) SendToGroup(ctx *MsgContext, uid string, tex
 }
 
 func (pa *PlatformAdapterMinecraft) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {
@@ -241,8 +248,7 @@ func (pa *PlatformAdapterMinecraft) SendFileToPerson(ctx *MsgContext, uid string
 }
 
 func (pa *PlatformAdapterMinecraft) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
-	dice := pa.Session.Parent
-	fileElement, err := dice.FilepathToFileElement(path)
+	fileElement, err := message.FilepathToFileElement(path)
 	if err == nil {
 		pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
 	} else {

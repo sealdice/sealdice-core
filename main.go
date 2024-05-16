@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"mime"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -23,12 +21,15 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"sealdice-core/api"
 	"sealdice-core/dice"
+	diceLogger "sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
 	"sealdice-core/static"
+	"sealdice-core/utils/crypto"
 )
 
 /**
@@ -47,7 +48,10 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		if err != nil {
 			showWindow()
 			logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
-			exec.Command("pause") // windows专属
+			// 顺便修正一下上面这个，应该是木落忘了。
+			if runtime.GOOS == "windows" {
+				exec.Command("pause") // windows专属
+			}
 		}
 
 		for _, i := range diceManager.Dice {
@@ -56,7 +60,16 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 				i.Save(true)
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
-						_ = j.Storage.Close()
+						// 关闭
+						err := j.StorageClose()
+						if err != nil {
+							showWindow()
+							logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
+							// 木落没有加该检查 补充上
+							if runtime.GOOS == "windows" {
+								exec.Command("pause") // windows专属
+							}
+						}
 					}
 				}
 				i.IsAlreadyLoadConfig = false
@@ -104,7 +117,7 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 		for _, i := range diceManager.Dice {
 			if i.ImSession != nil && i.ImSession.EndPoints != nil {
 				for _, j := range i.ImSession.EndPoints {
-					dice.GoCqhttpServeProcessKill(i, j)
+					dice.BuiltinQQServeProcessKill(i, j)
 				}
 			}
 		}
@@ -171,6 +184,8 @@ func main() {
 		ShowEnv                bool   `long:"show-env" description:"显示环境变量"`
 		VacuumDB               bool   `long:"vacuum" description:"对数据库进行整理, 使其收缩到最小尺寸"`
 		UpdateTest             bool   `long:"update-test" description:"更新测试"`
+		LogLevel               int8   `long:"log-level" description:"设置日志等级" default:"0" choice:"-1" choice:"0" choice:"1" choice:"2" choice:"3" choice:"4" choice:"5"`
+		ContainerMode          bool   `long:"container-mode" description:"容器模式，该模式下禁用内置客户端"`
 	}
 
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -179,7 +194,7 @@ func main() {
 	}
 
 	if opts.Version {
-		fmt.Println(dice.VERSION)
+		fmt.Println(dice.VERSION.String())
 		return
 	}
 	if opts.DBCheck {
@@ -206,13 +221,20 @@ func main() {
 	if runtime.GOOS == "android" {
 		fixTimezone()
 	}
-	dnsHack()
 
 	_ = os.MkdirAll("./data", 0o755)
 	MainLoggerInit("./data/main.log", true)
 
+	diceLogger.SetEnableLevel(zapcore.Level(opts.LogLevel))
+
 	// 提早初始化是为了读取ServiceName
 	diceManager := &dice.DiceManager{}
+
+	if opts.ContainerMode {
+		logger.Info("当前为容器模式，内置适配器与更新功能已被禁用")
+		diceManager.ContainerMode = true
+	}
+
 	diceManager.LoadDice()
 	diceManager.IsReady = true
 
@@ -246,8 +268,8 @@ func main() {
 	if _, err1 := os.Stat("./auto_update.exe"); err1 == nil {
 		doNext := true
 		if filepath.Base(os.Args[0]) != "auto_update.exe" {
-			a := sha256Checksum("./auto_update.exe")
-			b := sha256Checksum(os.Args[0])
+			a := crypto.Sha256Checksum("./auto_update.exe")
+			b := crypto.Sha256Checksum(os.Args[0])
 			doNext = a != b
 		}
 		if doNext {
@@ -273,8 +295,8 @@ func main() {
 	if _, err2 := os.Stat("./auto_update"); err2 == nil {
 		doNext := true
 		if filepath.Base(os.Args[0]) != "auto_update" {
-			a := sha256Checksum("./auto_update")
-			b := sha256Checksum(os.Args[0])
+			a := crypto.Sha256Checksum("./auto_update")
+			b := crypto.Sha256Checksum(os.Args[0])
 			doNext = a != b
 		}
 
@@ -314,7 +336,7 @@ func main() {
 	}
 
 	cwd, _ := os.Getwd()
-	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION)
+	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION.String())
 	fmt.Println("工作路径: ", cwd)
 
 	if strings.HasPrefix(cwd, os.TempDir()) {
@@ -359,6 +381,10 @@ func main() {
 	if migrateErr := migrate.V141DeprecatedConfigRename(); migrateErr != nil {
 		logger.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
 		return
+	}
+	// v144删除旧的帮助文档
+	if migrateErr := migrate.V144RemoveOldHelpdoc(); migrateErr != nil {
+		logger.Errorf("移除旧帮助文档时出错，%v", migrateErr)
 	}
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
@@ -464,20 +490,33 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.EndPointInfoBase.ProtocolType == "onebot" {
 						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-						dice.GoCqhttpServe(d, conn, dice.GoCqhttpLoginInfo{
-							Password:         pa.InPackGoCqhttpPassword,
-							Protocol:         pa.InPackGoCqhttpProtocol,
-							AppVersion:       pa.InPackGoCqhttpAppVersion,
-							IsAsyncRun:       true,
-							UseSignServer:    pa.UseSignServer,
-							SignServerConfig: pa.SignServerConfig,
-						})
+						if pa.Implementation == "lagrange" {
+							dice.LagrangeServe(d, conn, dice.GoCqhttpLoginInfo{
+								IsAsyncRun: true,
+							})
+						} else {
+							dice.GoCqhttpServe(d, conn, dice.GoCqhttpLoginInfo{
+								Password:         pa.InPackGoCqhttpPassword,
+								Protocol:         pa.InPackGoCqhttpProtocol,
+								AppVersion:       pa.InPackGoCqhttpAppVersion,
+								IsAsyncRun:       true,
+								UseSignServer:    pa.UseSignServer,
+								SignServerConfig: pa.SignServerConfig,
+							})
+						}
 					}
 					if conn.EndPointInfoBase.ProtocolType == "red" {
 						dice.ServeRed(d, conn)
 					}
 					if conn.EndPointInfoBase.ProtocolType == "official" {
 						dice.ServerOfficialQQ(d, conn)
+					}
+					if conn.EndPointInfoBase.ProtocolType == "satori" {
+						dice.ServeSatori(d, conn)
+					}
+					if conn.EndPointInfoBase.ProtocolType == "LagrangeGo" {
+						// dice.ServeLagrangeGo(d, conn)
+						return
 					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
 					dice.ServeQQ(d, conn)
@@ -565,24 +604,6 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 //	}
 //	return false
 // }
-
-func dnsHack() {
-	var (
-		dnsResolverIP    = "114.114.114.114:53" // Google DNS resolver.
-		dnsResolverProto = "udp"                // Protocol to use for the DNS resolver
-	)
-	var dialer net.Dialer
-	net.DefaultResolver = &net.Resolver{
-		PreferGo: false,
-		Dial: func(context context.Context, _, _ string) (net.Conn, error) {
-			conn, err := dialer.DialContext(context, dnsResolverProto, dnsResolverIP)
-			if err != nil {
-				return nil, err
-			}
-			return conn, nil
-		},
-	}
-}
 
 func mimePatch() {
 	builtinMimeTypesLower := map[string]string{

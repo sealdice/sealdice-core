@@ -1,12 +1,9 @@
 package main
 
 import (
-	"compress/gzip"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"os"
@@ -20,6 +17,7 @@ import (
 	"go.uber.org/zap"
 
 	"sealdice-core/dice"
+	"sealdice-core/utils"
 )
 
 var binPrefix = "https://sealdice.coding.net/p/sealdice/d/sealdice-binaries/git/raw/master"
@@ -66,7 +64,7 @@ func downloadUpdate(dm *dice.DiceManager, log *zap.SugaredLogger) (string, error
 
 			_ = os.MkdirAll("./update", 0o755)
 			fn2 := "./update/update." + ext
-			err = DownloadFile(fn2, fileUrl)
+			err = utils.DownloadFile(fn2, fileUrl)
 			if err != nil {
 				return "", errors.New("更新: 下载更新文件失败")
 			}
@@ -171,67 +169,4 @@ func CheckVersion(dm *dice.DiceManager) *dice.VersionInfo {
 		}
 	}
 	return nil
-}
-
-func DownloadFile(filepath string, url string) error {
-	// Get the data
-	// resp, err := http.Get(url)
-	client := new(http.Client)
-	request, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-
-	request.Header.Add("Accept-Encoding", "gzip")
-	resp, err := client.Do(request)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	// Create the file
-	out, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer func(out *os.File) {
-		_ = out.Close()
-	}(out)
-
-	if resp.StatusCode == http.StatusOK {
-		// Write the body to file
-		if resp.Header.Get("Content-Encoding") == "gzip" {
-			// 如果响应使用了GZIP压缩，需要解压缩
-			var reader io.ReadCloser
-			reader, err = gzip.NewReader(resp.Body)
-			if err != nil {
-				fmt.Println("GZIP解压出错:", err)
-				return err
-			}
-			defer reader.Close()
-			_, err = io.Copy(out, reader)
-		} else {
-			_, err = io.Copy(out, resp.Body)
-		}
-
-		return err
-	}
-
-	return errors.New("http status:" + resp.Status)
-}
-
-func sha256Checksum(fn string) string {
-	f, err := os.Open(fn)
-	if err != nil {
-		return ""
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return ""
-	}
-
-	// bytes 比较需要使用 bytes.Equal 这里直接转文本了
-	return fmt.Sprintf("%x", h.Sum(nil))
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -17,7 +18,9 @@ import (
 	"github.com/ShiraazMoollatjie/goluhn"
 	"github.com/acarl005/stripansi"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
+	"sealdice-core/utils"
 	"sealdice-core/utils/procs"
 )
 
@@ -485,18 +488,19 @@ func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
 	conn.RelWorkDir = "extra/go-cqhttp-qq" + account
 
 	conn.Adapter = &PlatformAdapterGocq{
-		EndPoint:          conn,
-		UseInPackGoCqhttp: true,
+		EndPoint:        conn,
+		UseInPackClient: true,
+		BuiltinMode:     "gocq",
 	}
 	return conn
 }
 
-func GoCqhttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
-	defer func() {
+func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo, isSync bool) {
+	f := func() {
 		defer func() {
 			if r := recover(); r != nil {
-				dice.Logger.Error("go-cqhttp清理报错: ", r)
-				// go-cqhttp 进程退出: exit status 1
+				dice.Logger.Error("内置 QQ 客户端清理报错: ", r)
+				// go-cqhttp/lagrange 进程退出: exit status 1
 			}
 		}()
 
@@ -504,13 +508,33 @@ func GoCqhttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 		if !ok {
 			return
 		}
-		if pa.UseInPackGoCqhttp {
-			// 重置状态
-			conn.State = 0
-			pa.GoCqhttpState = 0
+		if !pa.UseInPackClient {
+			return
+		}
 
-			pa.DiceServing = false
-			pa.GoCqhttpQrcodeData = nil
+		// 重置状态
+		conn.State = 0
+		pa.GoCqhttpState = 0
+		pa.GoCqhttpQrcodeData = nil
+
+		if pa.BuiltinMode == "lagrange" {
+			workDir := lagrangeGetWorkDir(dice, conn)
+			qrcodeFile := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
+			if _, err := os.Stat(qrcodeFile); err == nil {
+				// 如果已经存在二维码文件，将其删除
+				_ = os.Remove(qrcodeFile)
+				dice.Logger.Info("onebot: 删除已存在的二维码文件")
+			}
+
+			// 注意这个会panic，因此recover捕获了
+			if pa.GoCqhttpProcess != nil {
+				p := pa.GoCqhttpProcess
+				pa.GoCqhttpProcess = nil
+				// sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
+				_ = p.Stop()
+				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
+			}
+		} else {
 			pa.GoCqhttpLoginDeviceLockURL = ""
 
 			workDir := gocqGetWorkDir(dice, conn)
@@ -530,7 +554,16 @@ func GoCqhttpServeProcessKill(dice *Dice, conn *EndPointInfo) {
 				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
 			}
 		}
-	}()
+	}
+	if isSync {
+		f()
+	} else {
+		go f()
+	}
+}
+
+func BuiltinQQServeProcessKill(dice *Dice, conn *EndPointInfo) {
+	BuiltinQQServeProcessKillBase(dice, conn, false)
 }
 
 func gocqGetWorkDir(dice *Dice, conn *EndPointInfo) string {
@@ -546,6 +579,7 @@ func GoCqhttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 }
 
 type GoCqhttpLoginInfo struct {
+	UIN              int64
 	Password         string
 	Protocol         int
 	AppVersion       string
@@ -576,13 +610,42 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	//	return
 	//}
 
-	pa.CurLoginIndex++
-	loginIndex := pa.CurLoginIndex
-	pa.GoCqhttpState = StateCodeInLogin
+	if pa.UseInPackClient {
+		log := dice.Logger
 
-	if pa.UseInPackGoCqhttp { //nolint:nestif
+		if dice.ContainerMode {
+			log.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
+			conn.State = 3
+			pa.GoCqhttpState = StateCodeLoginFailed
+			dice.Save(false)
+			return
+		}
+
+		if pa.BuiltinMode == "gocq" || pa.BuiltinMode == "" {
+			pa.CurLoginIndex++
+			pa.GoCqhttpState = StateCodeInLogin
+			builtinGoCqhttpServe(dice, conn, loginInfo)
+		}
+		if pa.BuiltinMode == "lagrange" {
+			LagrangeServe(dice, conn, loginInfo)
+		}
+	} else {
+		pa.GoCqhttpState = StateCodeLoginSuccessed
+		pa.GoCqhttpLoginSucceeded = true
+		dice.Save(false)
+		go ServeQQ(dice, conn)
+	}
+}
+
+func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) {
+	pa := conn.Adapter.(*PlatformAdapterGocq)
+	loginIndex := pa.CurLoginIndex
+
+	// 保留此if语句块，使历史可追溯，后续commit可移除if
+	if pa.UseInPackClient { //nolint:nestif
 		workDir := gocqGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
+		downloadGoCqhttp(dice.Logger)
 
 		qrcodeFile := filepath.Join(workDir, "qrcode.png")
 		deviceFilePath := filepath.Join(workDir, "device.json")
@@ -636,7 +699,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		// 启动客户端
 		wd, _ := os.Getwd()
 		gocqhttpExePath, _ := filepath.Abs(filepath.Join(wd, "go-cqhttp/go-cqhttp"))
-		gocqhttpExePath = strings.ReplaceAll(gocqhttpExePath, "\\", "/") // windows平台需要这个替换
+		gocqhttpExePath = filepath.ToSlash(gocqhttpExePath) // windows平台需要这个替换
 
 		// 随手执行一下
 		_ = os.Chmod(gocqhttpExePath, 0o755)
@@ -650,19 +713,19 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		}
 		chQrCode := make(chan int, 1)
 		riskCount := 0
-		isSeldKilling := false
+		isSelfKilling := false
 
 		slideMode := 0
 		chSMS := make(chan string, 1)
 		chCaptcha := make(chan string, 1)
 
-		p.OutputHandler = func(line string) string {
+		p.OutputHandler = func(line string, _type string) string {
 			if loginIndex != pa.CurLoginIndex {
 				// 当前连接已经无用，进程自杀
-				if !isSeldKilling {
+				if !isSelfKilling {
 					dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
 					// 注: 这里不要调用kill
-					isSeldKilling = true
+					isSelfKilling = true
 					_ = p.Stop()
 				}
 				return ""
@@ -844,26 +907,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 			if (pa.IsLoginSuccessed() && strings.Contains(line, "WARNING") && strings.Contains(line, "账号可能被风控")) || strings.Contains(line, "账号可能被风控####测试触发语句") {
 				// 群消息发送失败: 账号可能被风控
-				now := time.Now().Unix()
-				if now-pa.GoCqhttpLastRestrictedTime < 5*60 {
-					// 阈值是5分钟内2次
-					riskCount++
-				}
-				pa.GoCqhttpLastRestrictedTime = now
-				if riskCount >= 2 {
-					riskCount = 0
-					if dice.Config.AutoReloginEnable {
-						// 大于5分钟触发
-						if now-pa.GoCqLastAutoLoginTime > 5*60 {
-							dice.Logger.Warnf("自动重启: 达到风控重启阈值 <%s>(%s)", conn.Nickname, conn.UserID)
-							if pa.InPackGoCqhttpPassword != "" {
-								pa.DoRelogin()
-							} else {
-								dice.Logger.Warnf("自动重启: 未输入密码，放弃")
-							}
-						}
-					}
-				}
+				pa.GoCqhttpLastRestrictedTime = time.Now().Unix()
 			}
 
 			if pa.IsInLogin() || strings.Contains(line, "[WARNING]") || strings.Contains(line, "[ERROR]") || strings.Contains(line, "[FATAL]") {
@@ -967,7 +1011,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			isDeviceLockLogin := pa.GoCqhttpState == StateCodeInLoginDeviceLock
 			if !isDeviceLockLogin {
 				// 如果在设备锁流程中，不清空数据
-				GoCqhttpServeProcessKill(dice, conn)
+				BuiltinQQServeProcessKill(dice, conn)
 
 				if isInLogin {
 					conn.State = 3
@@ -990,10 +1034,51 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		} else {
 			run()
 		}
-	} else {
-		pa.GoCqhttpState = StateCodeLoginSuccessed
-		pa.GoCqhttpLoginSucceeded = true
-		dice.Save(false)
-		go ServeQQ(dice, conn)
+	}
+}
+
+var isGocqDownloading = false
+
+func downloadGoCqhttp(logger *zap.SugaredLogger) {
+	fn := "go-cqhttp/go-cqhttp"
+	if runtime.GOOS == "windows" {
+		fn += ".exe"
+	}
+
+	url := fmt.Sprintf("https://d1.sealdice.com/go-cqhttp/go-cqhttp_%s_%s", runtime.GOOS, runtime.GOARCH)
+
+	isExists := false
+	if _, err := os.Stat(fn); err == nil {
+		// 存在，并可执行
+		_ = os.Chmod(fn, 0o755)
+		cmd := exec.Command(fn, "-h")
+		out, err := cmd.Output()
+		if err == nil {
+			if strings.Contains(string(out), "go-cqhttp") {
+				isExists = true
+			}
+		}
+	}
+
+	if !isExists {
+		if logger != nil {
+			logger.Info("go-cqhttp不存在，进行下载")
+		}
+		if !isGocqDownloading {
+			isGocqDownloading = true
+			_ = os.MkdirAll("./go-cqhttp", 0755)
+			if err := utils.DownloadFile(fn, url); err != nil && logger != nil {
+				logger.Info("go-cqhttp下载失败，请进行禁用/启用操作以再次下载")
+			}
+			isGocqDownloading = false
+		} else {
+			for {
+				// 等待到下载完成
+				time.Sleep(2 * time.Second)
+				if !isGocqDownloading {
+					break
+				}
+			}
+		}
 	}
 }
