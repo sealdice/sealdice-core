@@ -19,72 +19,7 @@
     <n-layout-content>
       <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
         <n-text type="info" italic class="block text-center my-1">SealDice骰QQ群 524364253 [群介绍中有其余3群]</n-text>
-        <div class="options" style="display: flex; flex-wrap: wrap; text-align: center;">
-          <div>
-            <div class="switch">
-              <n-switch v-model:value="exportOptions.commandHide"/>
-              <h4>骰子指令过滤</h4>
-            </div>
-            <div>开启后，不显示pc指令，正常显示指令结果</div>
-          </div>
-
-          <div>
-            <div class="switch">
-              <n-switch v-model:value="exportOptions.imageHide"/>
-              <h4>表情包和图片过滤</h4>
-            </div>
-            <div>开启后，文本内所有的表情包和图片将被豹豹藏起来不显示</div>
-          </div>
-
-          <div>
-            <div class="switch">
-              <n-switch v-model:value="exportOptions.offTopicHide"/>
-              <h4>场外发言过滤</h4>
-            </div>
-            <div>开启后，所有以(和（为开头的发言将被豹豹吃掉不显示</div>
-          </div>
-
-          <div>
-            <div class="switch">
-              <n-switch v-model:value="exportOptions.timeHide"/>
-              <h4>时间显示过滤</h4>
-            </div>
-            <div>开启后，日期和时间会被豹豹丢入海里不显示</div>
-          </div>
-
-          <div>
-            <div class="switch">
-              <n-switch v-model:value="exportOptions.userIdHide"/>
-              <h4>隐藏帐号</h4>
-            </div>
-            <div>开启后，QQ号将在导出结果中不显示</div>
-          </div>
-
-          <div>
-            <div class="switch">
-              <n-switch v-model:value="exportOptions.yearHide"/>
-              <h4>隐藏年月日</h4>
-            </div>
-            <div>开启后，导出结果的日期将只显示几点几分(如果可能)</div>
-          </div>
-
-          <div>
-            <div class="switch">
-              <n-switch v-model:value="exportOptions.textIndentFirst"/>
-              <h4>首行缩进</h4>
-            </div>
-            <div>开启后，缩进将以名字为基准进行对齐</div>
-          </div>
-
-          <div>
-            <div class="switch">
-              <n-switch v-model:value="isDark" @change="useToggle"/>
-              <h4>深色模式</h4>
-            </div>
-            <div>启用深色模式，适合夜间使用</div>
-          </div>
-        </div>
-
+        <option-view></option-view>
         <n-spin :show="loading">
           <template #description>
             正在试图加载远程记录……
@@ -179,6 +114,7 @@ import { msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat,
 import { NButton, NText, useMessage, useModal, useNotification } from "naive-ui";
 import { User, LogoGithub } from '@vicons/carbon'
 import { useDark, useToggle } from '@vueuse/core'
+import OptionView from "./components/OptionView.vue";
 
 const isDark = useDark()
 const toggleDark = useToggle(isDark)
