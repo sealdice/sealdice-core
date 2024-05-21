@@ -44,7 +44,7 @@ services:
     restart: unless-stopped
 ```
 
-此文件参考了 [通过 docker 部署海豹](./quick-start.md#启动) 与 [通过 docker 部署 Lagrange](https://github.com/LagrangeDev/Lagrange.Core/blob/master/Docker.md?tab=readme-ov-file) 相关内容。
+此文件参考了[通过 docker 部署海豹](./quick-start.md#启动)与[通过 docker 部署 Lagrange](https://github.com/LagrangeDev/Lagrange.Core/blob/master/Docker.md?tab=readme-ov-file) 相关内容。
 
 此文件将宿主机 3211 端口映射到海豹容器的 3211 端口，如有需要，请根据实际情况自行调整端口映射。
 
@@ -66,7 +66,6 @@ name: sealdice
 services:
   sealdice:
     image: ghcr.io/sealdice/sealdice:edge
-    user: <uid>:<gid>
     ports:
       - 3211:3211
     volumes:
@@ -76,20 +75,16 @@ services:
 
   lagrange-1:
     image: ghcr.io/konatadev/lagrange.onebot:edge
-    environment:
-      - UID=<uid>
-      - GID=<gid>
     volumes:
       - ./lagrange_data_1:/app/data
+      - ./seal_data:/data
     restart: unless-stopped
 
   lagrange-2:
     image: ghcr.io/konatadev/lagrange.onebot:edge
-    environment:
-      - UID=<uid>
-      - GID=<gid>
     volumes:
       - ./lagrange_data_2:/app/data
+      - ./seal_data:/data
     restart: unless-stopped
 ```
 
@@ -115,7 +110,7 @@ docker compose up -d
 docker compose stop
 ```
 
-随后，按照 [QQ](./platform-qq) 一节中 [运行 Lagrange](./platform-qq#运行-lagrange) 部分修改 `lagrange_data/appsettings.json` 文件。需要特别注意的是，为了允许海豹容器正常访问 Lagrange 端口，需要将监听地址修改为 `0.0.0.0`：
+随后，按照 [QQ](./platform-qq) 一节中[运行 Lagrange](./platform-qq#运行-lagrange) 部分修改 `lagrange_data/appsettings.json` 文件。需要特别注意的是，为了允许海豹容器正常访问 Lagrange 端口，需要将监听地址修改为 `0.0.0.0`：
 
 `appsettings.json`：
 
@@ -137,7 +132,7 @@ docker compose stop
 
 ### 海豹连接 Lagrange
 
-请参见 [QQ](./platform-qq) 一节中 [海豹连接 Lagrange](./platform-qq#海豹连接-lagrange) 部分。在填写 WS 正向服务地址 `ws://{Host}:{Port}` 时，`{Host}` 填写为 `lagrange` 即可，如果配置了多个 Lagrange 容器，填入对应服务的名称，`docker compose` 会自动处理主机名解析。`{Port}` 正常填写配置文件中设定的监听地址，在上文的例子中为 8081。
+请参见 [QQ](./platform-qq) 一节中[海豹连接 Lagrange](./platform-qq#海豹连接-lagrange) 部分。在填写 WS 正向服务地址 `ws://{Host}:{Port}` 时，`{Host}` 填写为 `lagrange` 即可，如果配置了多个 Lagrange 容器，填入对应服务的名称，`docker compose` 会自动处理主机名解析。`{Port}` 正常填写配置文件中设定的监听地址，在上文的例子中为 8081。
 
 ### 更新海豹容器或 Lagrange 容器
 
