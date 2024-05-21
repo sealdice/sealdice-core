@@ -43,6 +43,7 @@ title: QQ
 
 - 需要比较简单的部署流程，希望资源占用低的，见 [Lagrange](#lagrange) 或 [NapCat](#napcatqq)；
 - 需要比较简单的部署流程，不是特别在意资源占用的，见 [LLOneBot](#llonebot)；
+- 通过 docker 部署海豹的，见[QQ - Docker 中的海豹](./platform-qq-docker)；
 - Android 手机/模拟器用户见 [Shamrock](#shamrock)（需要 Root）或 [Shamrock LSPatch](#shamrock-lspatch)。
 - 如果你有 QQ 官方机器人权限，见 [官方机器人](#官方机器人)；
 - Go-cqhttp 与 QSign 方案因可用性原因已被弃用。**我们不建议任何用户再使用此方式部署 QQ 接入，同时强烈建议正在使用该方案的用户迁移**。[之前的资料](/about/archieve.md#Go-cqhttp/Mirai)保留备查。

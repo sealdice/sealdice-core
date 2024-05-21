@@ -30,6 +30,7 @@ export const deployNav = {
       text: "连接平台",
       items: [
         { text: "QQ", link: "/deploy/platform-qq" },
+        { text: "QQ - Docker 中的海豹", link: "/deploy/platform-qq-docker" },
         { text: "KOOK", link: "/deploy/platform-kook" },
         { text: "DoDo", link: "/deploy/platform-dodo" },
         { text: "Discord", link: "/deploy/platform-discord" },
@@ -98,6 +99,7 @@ export const deploySidebar = {
             { text: "官方机器人", link: "/deploy/platform-qq#%E5%AE%98%E6%96%B9%E6%9C%BA%E5%99%A8%E4%BA%BA" },
           ]
         },
+        { text: "QQ - Docker 中的海豹", link: "/deploy/platform-qq-docker" },
         { text: "KOOK", link: "/deploy/platform-kook" },
         { text: "DoDo", link: "/deploy/platform-dodo" },
         { text: "Discord", link: "/deploy/platform-discord" },
