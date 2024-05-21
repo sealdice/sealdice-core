@@ -13,7 +13,7 @@ title: 海豹的本地文件
 
 ## SealDice 文件目录树
 
-``` tree
+```text
 ├─backups                    // 备份文件目录，里面是备份的压缩包
 ├─data                       // 数据目录
 │  ├─censor                  // 敏感词库文件
