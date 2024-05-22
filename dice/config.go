@@ -66,9 +66,9 @@ type ConfigItem struct {
 }
 
 type PluginConfig struct {
-	PluginName string                 `json:"pluginName"`
-	Configs    map[string]*ConfigItem `json:"configs" jsbind:"configs"`
-	OrderedConfigs []*ConfigItem `json:"orderedConfigs" jsbind:"orderedConfigs"`
+	PluginName     string                 `json:"pluginName"`
+	Configs        map[string]*ConfigItem `json:"configs" jsbind:"configs"`
+	OrderedConfigs []*ConfigItem          `json:"orderedConfigs" jsbind:"orderedConfigs"`
 }
 
 type ConfigManager struct {
@@ -149,8 +149,8 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 			orderedConfigs = append(orderedConfigs, item)
 		}
 		cm.Plugins[pluginName] = &PluginConfig{
-			PluginName: pluginName,
-			Configs:    configs,
+			PluginName:     pluginName,
+			Configs:        configs,
 			OrderedConfigs: orderedConfigs,
 		}
 	}
@@ -172,9 +172,9 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	// Remove from orderedConfigs
 	newOrderedConfigs := make([]*ConfigItem, 0)
 	for _, config := range plugin.OrderedConfigs {
-	    if _, ok := plugin.Configs[config.Key]; ok {
-	        newOrderedConfigs = append(newOrderedConfigs, config)
-	    }
+		if _, ok := plugin.Configs[config.Key]; ok {
+			newOrderedConfigs = append(newOrderedConfigs, config)
+		}
 	}
 	plugin.OrderedConfigs = newOrderedConfigs
 	if cm.Plugins[pluginName] == nil || len(cm.Plugins[pluginName].Configs) == 0 {
