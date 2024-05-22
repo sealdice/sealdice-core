@@ -68,6 +68,7 @@ type ConfigItem struct {
 type PluginConfig struct {
 	PluginName string                 `json:"pluginName"`
 	Configs    map[string]*ConfigItem `json:"configs" jsbind:"configs"`
+	OrderedConfigs []*ConfigItem `json:"orderedConfigs" jsbind:"orderedConfigs"`
 }
 
 type ConfigManager struct {
@@ -124,20 +125,33 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 				existingItem.Description = newItem.Description
 				existingItem.Deprecated = false // Reset deprecated flag
 				existingPlugin.Configs[newItem.Key] = existingItem
+				// Extension can reorder config by re-registering it
+				// Time complexity of removing the old position is O(1) if the order doesn't change
+				for i, config := range existingPlugin.OrderedConfigs {
+					if config.Key == newItem.Key {
+						existingPlugin.OrderedConfigs = append(existingPlugin.OrderedConfigs[:i], existingPlugin.OrderedConfigs[i+1:]...)
+						break
+					}
+				}
+				existingPlugin.OrderedConfigs = append(existingPlugin.OrderedConfigs, existingItem)
 			} else {
 				existingPlugin.Configs[newItem.Key] = newItem
+				existingPlugin.OrderedConfigs = append(existingPlugin.OrderedConfigs, newItem)
 			}
 		}
 
 		cm.Plugins[pluginName] = existingPlugin
 	} else {
 		configs := make(map[string]*ConfigItem)
+		orderedConfigs := make([]*ConfigItem, 0, len(configItems))
 		for _, item := range configItems {
 			configs[item.Key] = item
+			orderedConfigs = append(orderedConfigs, item)
 		}
 		cm.Plugins[pluginName] = &PluginConfig{
 			PluginName: pluginName,
 			Configs:    configs,
+			OrderedConfigs: orderedConfigs,
 		}
 	}
 	_ = cm.save()
@@ -155,6 +169,14 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	for _, key := range keys {
 		delete(plugin.Configs, key)
 	}
+	// Remove from orderedConfigs
+	newOrderedConfigs := make([]*ConfigItem, 0)
+	for _, config := range plugin.OrderedConfigs {
+	    if _, ok := plugin.Configs[config.Key]; ok {
+	        newOrderedConfigs = append(newOrderedConfigs, config)
+	    }
+	}
+	plugin.OrderedConfigs = newOrderedConfigs
 	if cm.Plugins[pluginName] == nil || len(cm.Plugins[pluginName].Configs) == 0 {
 		delete(cm.Plugins, pluginName)
 	} else {
@@ -288,6 +310,9 @@ func (cm *ConfigManager) Load() error {
 			}
 			temp.Deprecated = true
 			cm.Plugins[i].Configs[j] = temp
+		}
+		for j := range cm.Plugins[i].OrderedConfigs {
+			cm.Plugins[i].OrderedConfigs[j] = cm.Plugins[i].Configs[cm.Plugins[i].OrderedConfigs[j].Key]
 		}
 	}
 	return nil
