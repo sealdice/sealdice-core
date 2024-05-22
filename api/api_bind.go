@@ -415,7 +415,18 @@ func handleGetConfigs(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	data, err := json.Marshal(myDice.ConfigManager.Plugins)
+	resp := getConfigResp{}
+	for k, v := range myDice.ConfigManager.Plugins {
+		configs := make([]*dice.ConfigItem, 0, len(v.OrderedConfigKeys))
+		for _, key := range v.OrderedConfigKeys {
+			configs = append(configs, v.Configs[key])
+		}
+		resp[k] = &apiPluginConfig{
+			PluginName: v.PluginName,
+			Configs:    configs,
+		}
+	}
+	data, err := json.Marshal(resp)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to marshal data")
 	}
@@ -427,7 +438,7 @@ func handleSetConfigs(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	var data map[string]dice.PluginConfig
+	var data setConfigReq
 	err := c.Bind(&data)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")

@@ -66,9 +66,9 @@ type ConfigItem struct {
 }
 
 type PluginConfig struct {
-	PluginName     string                 `json:"pluginName"`
-	Configs        map[string]*ConfigItem `json:"configs" jsbind:"configs"`
-	OrderedConfigs []*ConfigItem          `json:"orderedConfigs" jsbind:"orderedConfigs"`
+	PluginName        string                 `json:"pluginName"`
+	Configs           map[string]*ConfigItem `json:"configs" jsbind:"configs"`
+	OrderedConfigKeys []string               `json:"orderedConfigKeys" jsbind:"orderedConfigKeys"`
 }
 
 type ConfigManager struct {
@@ -127,31 +127,31 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 				existingPlugin.Configs[newItem.Key] = existingItem
 				// Extension can reorder config by re-registering it
 				// Time complexity of removing the old position is O(1) if the order doesn't change
-				for i, config := range existingPlugin.OrderedConfigs {
-					if config.Key == newItem.Key {
-						existingPlugin.OrderedConfigs = append(existingPlugin.OrderedConfigs[:i], existingPlugin.OrderedConfigs[i+1:]...)
+				for i, configKey := range existingPlugin.OrderedConfigKeys {
+					if configKey == existingItem.Key {
+						existingPlugin.OrderedConfigKeys = append(existingPlugin.OrderedConfigKeys[:i], existingPlugin.OrderedConfigKeys[i+1:]...)
 						break
 					}
 				}
-				existingPlugin.OrderedConfigs = append(existingPlugin.OrderedConfigs, existingItem)
+				existingPlugin.OrderedConfigKeys = append(existingPlugin.OrderedConfigKeys, existingItem.Key)
 			} else {
 				existingPlugin.Configs[newItem.Key] = newItem
-				existingPlugin.OrderedConfigs = append(existingPlugin.OrderedConfigs, newItem)
+				existingPlugin.OrderedConfigKeys = append(existingPlugin.OrderedConfigKeys, newItem.Key)
 			}
 		}
 
 		cm.Plugins[pluginName] = existingPlugin
 	} else {
 		configs := make(map[string]*ConfigItem)
-		orderedConfigs := make([]*ConfigItem, 0, len(configItems))
+		orderedConfigKeys := make([]string, 0, len(configItems))
 		for _, item := range configItems {
 			configs[item.Key] = item
-			orderedConfigs = append(orderedConfigs, item)
+			orderedConfigKeys = append(orderedConfigKeys, item.Key)
 		}
 		cm.Plugins[pluginName] = &PluginConfig{
-			PluginName:     pluginName,
-			Configs:        configs,
-			OrderedConfigs: orderedConfigs,
+			PluginName:        pluginName,
+			Configs:           configs,
+			OrderedConfigKeys: orderedConfigKeys,
 		}
 	}
 	_ = cm.save()
@@ -170,13 +170,13 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 		delete(plugin.Configs, key)
 	}
 	// Remove from orderedConfigs
-	newOrderedConfigs := make([]*ConfigItem, 0)
-	for _, config := range plugin.OrderedConfigs {
-		if _, ok := plugin.Configs[config.Key]; ok {
-			newOrderedConfigs = append(newOrderedConfigs, config)
+	newOrderedConfigKeys := make([]string, 0)
+	for _, configKey := range plugin.OrderedConfigKeys {
+		if _, ok := plugin.Configs[configKey]; ok {
+			newOrderedConfigKeys = append(newOrderedConfigKeys, configKey)
 		}
 	}
-	plugin.OrderedConfigs = newOrderedConfigs
+	plugin.OrderedConfigKeys = newOrderedConfigKeys
 	if cm.Plugins[pluginName] == nil || len(cm.Plugins[pluginName].Configs) == 0 {
 		delete(cm.Plugins, pluginName)
 	} else {
@@ -310,9 +310,6 @@ func (cm *ConfigManager) Load() error {
 			}
 			temp.Deprecated = true
 			cm.Plugins[i].Configs[j] = temp
-		}
-		for j := range cm.Plugins[i].OrderedConfigs {
-			cm.Plugins[i].OrderedConfigs[j] = cm.Plugins[i].Configs[cm.Plugins[i].OrderedConfigs[j].Key]
 		}
 	}
 	return nil
