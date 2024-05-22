@@ -515,6 +515,9 @@ func (d *Dice) jsClear() {
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 	// 清理脚本列表
 	d.JsScriptList = []*JsScriptInfo{}
+	// 清理规则模板
+	d.GameSystemMap = &SyncMap[string, *GameSystemTemplate]{}
+	d.RegisterBuiltinSystemTemplate()
 	// 关闭js vm
 	if d.JsLoop != nil {
 		d.JsLoop.Stop()

@@ -260,9 +260,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		maniaMap[n] = i[2]
 	}
 
-	// 初始化规则模板
-	self.GameSystemTemplateAdd(getCoc7CharTemplate())
-
 	helpRc := "" +
 		".ra/rc <属性表达式> // 属性检定指令，当前者小于等于后者，检定通过\n" +
 		".ra <难度><属性> // 如 .ra 困难侦查\n" +
