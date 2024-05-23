@@ -143,7 +143,7 @@ func onReady() {
 		case <-mQuit.ClickedCh:
 			systray.Quit()
 			systrayQuited = true
-			cleanUpCreate(theDM)()
+			cleanupCreate(theDM)()
 			time.Sleep(3 * time.Second)
 			os.Exit(0)
 		case <-mAutoBoot.ClickedCh:
