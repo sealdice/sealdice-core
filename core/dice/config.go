@@ -66,8 +66,9 @@ type ConfigItem struct {
 }
 
 type PluginConfig struct {
-	PluginName string                 `json:"pluginName"`
-	Configs    map[string]*ConfigItem `json:"configs" jsbind:"configs"`
+	PluginName        string                 `json:"pluginName"`
+	Configs           map[string]*ConfigItem `json:"configs" jsbind:"configs"`
+	OrderedConfigKeys []string               `json:"orderedConfigKeys" jsbind:"orderedConfigKeys"`
 }
 
 type ConfigManager struct {
@@ -124,20 +125,33 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 				existingItem.Description = newItem.Description
 				existingItem.Deprecated = false // Reset deprecated flag
 				existingPlugin.Configs[newItem.Key] = existingItem
+				// Extension can reorder config by re-registering it
+				// Time complexity of removing the old position is O(1) if the order doesn't change
+				for i, configKey := range existingPlugin.OrderedConfigKeys {
+					if configKey == existingItem.Key {
+						existingPlugin.OrderedConfigKeys = append(existingPlugin.OrderedConfigKeys[:i], existingPlugin.OrderedConfigKeys[i+1:]...)
+						break
+					}
+				}
+				existingPlugin.OrderedConfigKeys = append(existingPlugin.OrderedConfigKeys, existingItem.Key)
 			} else {
 				existingPlugin.Configs[newItem.Key] = newItem
+				existingPlugin.OrderedConfigKeys = append(existingPlugin.OrderedConfigKeys, newItem.Key)
 			}
 		}
 
 		cm.Plugins[pluginName] = existingPlugin
 	} else {
 		configs := make(map[string]*ConfigItem)
+		orderedConfigKeys := make([]string, 0, len(configItems))
 		for _, item := range configItems {
 			configs[item.Key] = item
+			orderedConfigKeys = append(orderedConfigKeys, item.Key)
 		}
 		cm.Plugins[pluginName] = &PluginConfig{
-			PluginName: pluginName,
-			Configs:    configs,
+			PluginName:        pluginName,
+			Configs:           configs,
+			OrderedConfigKeys: orderedConfigKeys,
 		}
 	}
 	_ = cm.save()
@@ -155,6 +169,14 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	for _, key := range keys {
 		delete(plugin.Configs, key)
 	}
+	// Remove from orderedConfigKeys
+	newOrderedConfigKeys := make([]string, 0, len(plugin.OrderedConfigKeys))
+	for _, configKey := range plugin.OrderedConfigKeys {
+		if _, ok := plugin.Configs[configKey]; ok {
+			newOrderedConfigKeys = append(newOrderedConfigKeys, configKey)
+		}
+	}
+	plugin.OrderedConfigKeys = newOrderedConfigKeys
 	if cm.Plugins[pluginName] == nil || len(cm.Plugins[pluginName].Configs) == 0 {
 		delete(cm.Plugins, pluginName)
 	} else {
