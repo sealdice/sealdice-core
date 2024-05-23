@@ -649,4 +649,10 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/censor/files/template/toml", censorGetTomlFileTemplate)
 	e.GET(prefix+"/censor/files/template/txt", censorGetTxtFileTemplate)
 	e.GET(prefix+"/censor/logs/page", censorGetLogPage)
+
+	e.GET(prefix+"/resource/page", resourceGetList)
+	e.GET(prefix+"/resource/download", resourceDownload)
+	e.POST(prefix+"/resource", resourceUpload)
+	e.DELETE(prefix+"/resource", resourceDelete)
+	e.GET(prefix+"/resource/data", resourceGetData)
 }
