@@ -117,7 +117,7 @@ func doReboot(dm *dice.DiceManager) {
 	}
 	platform := runtime.GOOS
 	if platform == "windows" {
-		cleanUpCreate(dm)()
+		cleanupCreate(dm)()
 
 		// name, _ := filepath.Abs(binary)
 		// err = exec.Command(`cmd`, `/C`, "start", name, "--delay=15").Start()
@@ -128,7 +128,7 @@ func doReboot(dm *dice.DiceManager) {
 		}
 	} else {
 		// 手动cleanup
-		cleanUpCreate(dm)()
+		cleanupCreate(dm)()
 		// os.Args[1:]...
 		execErr := syscall.Exec(binary, []string{os.Args[0], "--delay=25"}, os.Environ())
 		if execErr != nil {

@@ -189,7 +189,7 @@ func UpdateByFile(dm *dice.DiceManager, log *zap.SugaredLogger, packName string,
 				}
 
 				time.Sleep(5 * time.Second)
-				cleanUpCreate(dm)()
+				cleanupCreate(dm)()
 				os.Exit(0)
 			}
 			if syncMode {

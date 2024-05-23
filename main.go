@@ -41,7 +41,7 @@ data/logs
 extensions/
 */
 
-func cleanUpCreate(diceManager *dice.DiceManager) func() {
+func cleanupCreate(diceManager *dice.DiceManager) func() {
 	return func() {
 		logger.Info("程序即将退出，进行清理……")
 		err := recover()
@@ -52,6 +52,11 @@ func cleanUpCreate(diceManager *dice.DiceManager) func() {
 			if runtime.GOOS == "windows" {
 				exec.Command("pause") // windows专属
 			}
+		}
+
+		if !diceManager.CleanupFlag.CompareAndSwap(0, 1) {
+			// 尝试更新cleanup标记，如果已经为1则退出
+			return
 		}
 
 		for _, i := range diceManager.Dice {
@@ -393,7 +398,7 @@ func main() {
 
 	go dice.TryGetBackendURL()
 
-	cleanUp := cleanUpCreate(diceManager)
+	cleanUp := cleanupCreate(diceManager)
 	defer dice.CrashLog()
 	defer cleanUp()
 
