@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/dop251/goja_nodejs/require"
@@ -75,7 +76,8 @@ type DiceManager struct { //nolint:revive
 	JsRegistry           *require.Registry
 	UpdateSealdiceByFile func(packName string, log *zap.SugaredLogger) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
 
-	ContainerMode bool // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+	ContainerMode bool          // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+	CleanupFlag   atomic.Uint32 // 1 为正在清理，0为普通状态
 }
 
 type DiceConfigs struct { //nolint:revive
