@@ -29,7 +29,7 @@ export interface JsPluginConfigItem {
 
 export interface JsPluginConfig {
   pluginName: string;
-  configs: Map<string, JsPluginConfigItem>;
+  configs: JsPluginConfigItem[];
 }
 
 export interface HelpDocData {
