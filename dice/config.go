@@ -169,8 +169,8 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	for _, key := range keys {
 		delete(plugin.Configs, key)
 	}
-	// Remove from orderedConfigs
-	newOrderedConfigKeys := make([]string, 0)
+	// Remove from orderedConfigKeys
+	newOrderedConfigKeys := make([]string, 0, len(plugin.OrderedConfigKeys))
 	for _, configKey := range plugin.OrderedConfigKeys {
 		if _, ok := plugin.Configs[configKey]; ok {
 			newOrderedConfigKeys = append(newOrderedConfigKeys, configKey)

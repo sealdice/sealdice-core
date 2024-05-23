@@ -411,6 +411,15 @@ func onebotTool(c echo.Context) error {
 	return resp
 }
 
+type apiPluginConfig struct {
+	PluginName string             `json:"pluginName"`
+	Configs    []*dice.ConfigItem `json:"configs" jsbind:"configs"`
+}
+
+type getConfigResp map[string]*apiPluginConfig
+
+type setConfigReq map[string]*apiPluginConfig
+
 func handleGetConfigs(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
