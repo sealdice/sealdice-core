@@ -572,7 +572,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 		XSSProtection:         "1; mode=block",
 		ContentTypeNosniff:    "nosniff",
 		HSTSMaxAge:            3600,
-		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
+		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
 		// XFrameOptions:         "ALLOW-FROM https://captcha.go-cqhttp.org/",
 	}))
 	// X-Content-Type-Options: nosniff
