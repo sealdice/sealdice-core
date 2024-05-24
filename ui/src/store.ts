@@ -52,6 +52,7 @@ interface TalkLogItem {
   name?: string
   content: string
   isSeal?: boolean
+  mode: 'private' | 'group'
 }
 
 export interface DiceConnection {
@@ -134,12 +135,24 @@ export const useStore = defineStore('main', {
 
       talkLogs: [
         {
-          content: '海豹已就绪。此界面可视为私聊窗口。\n设置中添加Master名为UI:1001\n即可在此界面使用master命令!',
-          isSeal: true
+          content: '海豹已就绪。此界面可视为私聊窗口。\n设置中添加 Master 名为 UI:1001\n即可在此界面使用 master 命令!',
+          isSeal: true,
+          mode: 'private',
+        },
+        {
+          content: '海豹已就绪。此界面可视为群聊窗口。\n设置中添加 Master 名为 UI:1002\n即可在此界面使用 master 命令!',
+          isSeal: true,
+          mode: 'group',
         },
         {
           content: '（请注意，当前会话记录在刷新页面后会消失）',
-          isSeal: true
+          isSeal: true,
+          mode: 'private',
+        },
+        {
+          content: '（请注意，当前会话记录在刷新页面后会消失）',
+          isSeal: true,
+          mode: 'group',
         },
       ] as TalkLogItem[]
     }
@@ -383,8 +396,8 @@ export const useStore = defineStore('main', {
       return res
     },
 
-    async diceExec(text: string) {
-      const info = await backend.post(urlPrefix + '/dice/exec', { message: text })
+    async diceExec(text: string, messageType: 'private' | 'group') {
+      const info = await backend.post(urlPrefix + '/dice/exec', { message: text, messageType })
       return info as any
     },
 

@@ -1,8 +1,17 @@
 <template>
-  <div style="display: flex; display: flex; flex-direction: column; height: 100%;">
+  <div class="flex flex-col h-full">
+    <div class="mb-3 flex justify-end">
+      <div class="flex justify-center">
+        <el-text>测试模式：</el-text>
+        <el-radio-group v-model="mode" size="small">
+          <el-radio-button value="private">私聊</el-radio-button>
+          <el-radio-button value="group">群</el-radio-button>
+        </el-radio-group>
+      </div>
+    </div>
 
-    <div style="flex: 1; overflow-y: auto;" ref="chat">
-      <div class="talk-item" v-for="i in store.talkLogs" :class="!i.isSeal ? 'mine' : ''">
+    <div class="flex-1 overflow-y-auto" ref="chat">
+      <div class="talk-item" v-for="i in store.talkLogs" :class="!i.isSeal ? 'mine' : ''" v-show="i.mode === mode">
         <div class="left">
           <el-avatar
             :shape="i.isSeal ? 'circle' : 'square'"
@@ -17,17 +26,20 @@
       </div>
     </div>
 
-    <!-- style="position: absolute; bottom: 0;" -->
-    <div style="display:flex; align-items: center;">
-      <el-autocomplete ref="autocomplete" v-model="input" :fetch-suggestions="querySearch" placeholder="来试一试，回车键发送" :trigger-on-focus="false" @select="inputChanged" @keyup.enter="doSend" style="flex: 1;" />
-      <el-button type="primary" style="margin-left: .6rem; min-width: 3rem" @click="doSend">发送</el-button>
-      <el-popover class="reload-control" placement="top" trigger="click">
+    <div class="flex items-center">
+      <el-autocomplete class="flex-1" ref="autocomplete" v-model="input"
+                       :fetch-suggestions="querySearch" :trigger-on-focus="false" @select="inputChanged" @keyup.enter="doSend"
+                       placeholder="来试一试，回车键发送"/>
+      <el-button class="ml-2.5 min-w-12" type="primary" @click="doSend">发送</el-button>
+      <el-popover placement="top" trigger="click">
         <template #reference>
-          <el-button :icon="Plus" circle />
+          <el-button :icon="Plus" circle/>
         </template>
-        <el-button class="reload-button" text @click="reloadDeck" :disabled="deckReloading">重载牌堆</el-button>
-        <el-button class="reload-button" style="margin-left: 0;" text @click="reloadJs" :disabled="jsReloading">重载JS</el-button>
-        <el-button class="reload-button" style="margin-left: 0;" text @click="reloadHelpdoc" :disabled="helpdocReloading">重载帮助文件</el-button>
+        <el-space class="w-full flex flex-col justify-center" fill>
+          <el-button text @click="reloadDeck" :disabled="deckReloading">重载牌堆</el-button>
+          <el-button text @click="reloadJs" :disabled="jsReloading">重载JS</el-button>
+          <el-button text @click="reloadHelpdoc" :disabled="helpdocReloading">重载帮助文件</el-button>
+        </el-space>
       </el-popover>
     </div>
   </div>
@@ -42,16 +54,21 @@ import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus';
 
 const store = useStore()
+
+const mode = ref<'private' | 'group'>('private')
+
 let timerMsg: number
 onBeforeMount(async () => {
   restaurants.value = loadAll()
     timerMsg = setInterval(async () => {
         try {
             let msg = await store.getRecentMessage()
+          console.log('msg:', msg)
             for (let i of msg) {
                 store.talkLogs.push({
                     content: i.message,
-                    isSeal: true
+                    isSeal: true,
+                    mode: i.messageType,
                 })
             }
             if (msg.length) {
@@ -101,10 +118,11 @@ const doSend = async () => {
     store.talkLogs.push({
       name: '',
       content: text,
-      isSeal: false
+      isSeal: false,
+      mode: mode.value
     })
     try {
-      await store.diceExec(text)
+      await store.diceExec(text, mode.value)
       // for (let i of ret) {
       //   store.talkLogs.push({
       //     content: i.message,
@@ -115,7 +133,8 @@ const doSend = async () => {
       store.talkLogs.push({
         name: '',
         content: '消息过于频繁',
-        isSeal: true
+        isSeal: true,
+        mode: mode.value
       })
     }
 
@@ -236,15 +255,5 @@ const reloadHelpdoc = async () => {
       overflow-wrap: anywhere;
     }
   }
-}
-
-.reload-control {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.reload-button {
-  width: 100%;
 }
 </style>
