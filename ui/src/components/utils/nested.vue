@@ -111,7 +111,7 @@ import {
 } from '@element-plus/icons-vue'
 import draggable from "vuedraggable";
 import { ElMessageBox } from 'element-plus'
-import CustomReplyCondition from "~/components/tools/custom-reply-condition.vue";
+import CustomReplyCondition from "~/components/utils/custom-reply-condition.vue";
 
 const props = defineProps<{ tasks: Array<any> }>();
 

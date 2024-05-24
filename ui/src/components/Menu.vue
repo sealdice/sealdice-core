@@ -88,12 +88,20 @@
       </el-menu-item>
     </el-sub-menu>
 
-    <el-menu-item index="8" @click="switchTo('test')">
-      <el-icon>
-        <chat-line-round/>
-      </el-icon>
-      <span>指令测试</span>
-    </el-menu-item>
+    <el-sub-menu index="8">
+      <template #title>
+        <el-icon>
+          <tools/>
+        </el-icon>
+        <span>辅助工具</span>
+      </template>
+      <el-menu-item :index="`8-test`" @click="switchTo('toolSettings', 'test')">
+        <span>指令测试</span>
+      </el-menu-item>
+      <el-menu-item :index="`8-upload`" @click="switchTo('toolSettings', 'upload')">
+        <span>资源管理</span>
+      </el-menu-item>
+    </el-sub-menu>
 
     <el-menu-item index="9" @click="switchTo('about')">
       <el-icon>
@@ -111,7 +119,7 @@ import {
   Setting,
   Star,
   Operation,
-  ChatLineRound,
+  Tools,
   EditPen
 } from '@element-plus/icons-vue'
 

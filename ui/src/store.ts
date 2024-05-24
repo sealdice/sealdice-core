@@ -112,6 +112,15 @@ interface DiceBaseInfo {
   containerMode: boolean
 }
 
+export type ResourceType = 'image' | 'audio' | 'video'
+
+export interface Resource {
+  type: ResourceType | 'unknown',
+  name: string
+  ext: string,
+  path: string,
+  size: number,
+}
 
 
 export const useStore = defineStore('main', {
@@ -247,7 +256,7 @@ export const useStore = defineStore('main', {
         reverseAddr,
         onlyQQGuild,
         platform } = form
-        
+
       let info = null
       switch (accountType) {
         //QQ
@@ -774,5 +783,54 @@ export const useStore = defineStore('main', {
         body: param
       })
     },
+
+
+    async resourceList(type: ResourceType) {
+      const info: { result: false, err: string } | {
+        result: true,
+        total?: number,
+        data: Resource[]
+      } = await backend.get(urlPrefix + '/resource/page', {
+        headers: {
+          token: this.token
+        },
+        params: {
+          type
+        }
+      })
+      return info
+    },
+
+    async resourceUpload({ form }: any) {
+      const info: { result: false, err: string } | { result: true }
+          = await backend.post(urlPrefix + '/resource', form, {
+        headers: {
+          token: this.token,
+          "Content-Type": "multipart/form-data"
+        },
+      })
+      return info
+    },
+
+    async resourceDelete(path: string) {
+      const info: { result: false, err: string } | { result: true }
+          = await backend.delete(urlPrefix + '/resource', {
+        headers: {
+          token: this.token
+        },
+        params: {
+          path
+        }
+      })
+      return info
+    },
+
+    async resourceData(path: string, thumbnail: boolean = false)  {
+      const response = await backend.get(urlPrefix + '/resource/data', {
+        params: { path, thumbnail },
+        responseType: "blob",
+      })
+      return response as unknown as Blob;
+    }
   }
 })

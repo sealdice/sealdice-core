@@ -121,8 +121,8 @@ import {
   Warning,
   CircleClose,
 } from '@element-plus/icons-vue'
-import DiffViewer from "~/components/tools/diff-viewer.vue";
-import FoldableCard from "~/components/tools/foldable-card.vue";
+import DiffViewer from "~/components/utils/diff-viewer.vue";
+import FoldableCard from "~/components/utils/foldable-card.vue";
 
 const store = useStore()
 

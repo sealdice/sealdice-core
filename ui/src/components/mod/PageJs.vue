@@ -323,7 +323,7 @@ import {
 import * as dayjs from 'dayjs'
 import {basicSetup, EditorView} from "codemirror"
 import {javascript} from "@codemirror/lang-javascript"
-import DiffViewer from "~/components/tools/diff-viewer.vue";
+import DiffViewer from "~/components/utils/diff-viewer.vue";
 import {isEqual, size} from "lodash-es";
 import {JsPluginConfig, JsPluginConfigItem, JsScriptInfo} from "~/type";
 

@@ -69,7 +69,7 @@
           <page-custom-text v-if="tabName === 'customText'" :category="textCategory"/>
           <page-custom-reply v-if="tabName === 'customReply'"/>
           <page-mod v-if="tabName === 'mod'" :category="textCategory"/>
-          <page-test v-if="tabName === 'test'"/>
+          <page-tool v-if="tabName === 'toolSettings'" :category="toolCategory"/>
           <page-about v-if="tabName === 'about'"/>
         </div>
       </div>
@@ -131,7 +131,6 @@ import PageMod from "./components/PageMod.vue"
 import PageCustomReply from "./components/mod/PageCustomReply.vue"
 import PageLog from "./components/PageLog.vue";
 import PageAbout from "./components/PageAbout.vue"
-import PageTest from "./components/PageTest.vue"
 import {onBeforeMount, ref, watch, computed} from 'vue'
 import {useStore} from './store'
 import {ElMessage, ElMessageBox} from 'element-plus'
@@ -252,11 +251,12 @@ const rightbox = ref(null)
 let tabName = ref("log")
 let textCategory = ref("")
 let miscSettingsCategory = ref("")
+let toolCategory = ref("")
 
 const needh100 = ref(false)
 
 const drawerMenu = ref<boolean>(false)
-const switchTo = (tab: 'overview' | 'miscSettings' | 'log' | 'customText' | 'mod' | 'customReply' | 'imConns' | 'banList' | 'test' | 'about', name: string = '') => {
+const switchTo = (tab: 'overview' | 'miscSettings' | 'log' | 'customText' | 'mod' | 'customReply' | 'imConns' | 'banList' | 'toolSettings' | 'about', name: string = '') => {
   tabName.value = tab
   textCategory.value = ''
   if (tab === 'customText') {
@@ -268,7 +268,10 @@ const switchTo = (tab: 'overview' | 'miscSettings' | 'log' | 'customText' | 'mod
   if (tab === 'miscSettings') {
     miscSettingsCategory.value = name
   }
-  needh100.value = ['test'].includes(tab)
+  if (tab === 'toolSettings') {
+    toolCategory.value = name
+  }
+  needh100.value = ['toolSettings'].includes(tab)
   drawerMenu.value = false
 }
 
