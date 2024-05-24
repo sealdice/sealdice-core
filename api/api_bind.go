@@ -321,9 +321,11 @@ func DiceExec(c echo.Context) error {
 	now := time.Now().UnixMilli()
 	userID := "UI:1001"
 	messageType := "private"
+	groupRole := ""
 	if v.MessageType == "group" {
 		userID = "UI:1002"
 		messageType = "group"
+		groupRole = "owner"
 		if now-lastGroupExecTime < timeNeed {
 			return c.JSON(400, "过于频繁")
 		}
@@ -340,8 +342,9 @@ func DiceExec(c echo.Context) error {
 		Message:     v.Message,
 		Platform:    "UI",
 		Sender: dice.SenderBase{
-			Nickname: "User",
-			UserID:   userID,
+			Nickname:  "User",
+			UserID:    userID,
+			GroupRole: groupRole,
 		},
 		GroupID: userID,
 	}
