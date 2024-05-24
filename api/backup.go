@@ -202,5 +202,6 @@ func backupConfigSave(c echo.Context) error {
 
 	dm.ResetAutoBackup()
 	dm.ResetBackupClean()
+	dm.Save()
 	return c.String(http.StatusOK, "")
 }
