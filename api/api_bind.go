@@ -291,7 +291,10 @@ func logFetchAndClear(c echo.Context) error {
 	return info
 }
 
-var lastExecTime int64
+var (
+	lastPrivateExecTime int64
+	lastGroupExecTime   int64
+)
 
 func DiceExec(c echo.Context) error {
 	if !doAuth(c) {
@@ -299,8 +302,9 @@ func DiceExec(c echo.Context) error {
 	}
 
 	v := struct {
-		ID      string `form:"id" json:"id"`
-		Message string `form:"message"`
+		ID          string `form:"id" json:"id"`
+		Message     string `form:"message"`
+		MessageType string `form:"messageType"`
 	}{}
 	err := c.Bind(&v)
 	if err != nil {
@@ -309,40 +313,38 @@ func DiceExec(c echo.Context) error {
 	if v.Message == "" {
 		return c.JSON(400, "格式错误")
 	}
-	now := time.Now().UnixMilli()
 	timeNeed := int64(500)
 	if dm.JustForTest {
 		timeNeed = 80
 	}
-	if now-lastExecTime < timeNeed {
-		return c.JSON(400, "过于频繁")
-	}
-	lastExecTime = now
 
-	// pa := dice.PlatformAdapterHttp{
-	// 	RecentMessage: []dice.HttpSimpleMessage{},
-	// }
-	// tmpEp := &dice.EndPointInfo{
-	// 	EndPointInfoBase: dice.EndPointInfoBase{
-	// 		Id:       "1",
-	// 		Nickname: "海豹核心",
-	// 		State:    2,
-	// 		UserId:   "UI:1000",
-	// 		Platform: "UI",
-	// 		Enable:   true,
-	// 	},
-	// 	Adapter: &pa,
-	// }
+	now := time.Now().UnixMilli()
+	userID := "UI:1001"
+	messageType := "private"
+	if v.MessageType == "group" {
+		userID = "UI:1002"
+		messageType = "group"
+		if now-lastGroupExecTime < timeNeed {
+			return c.JSON(400, "过于频繁")
+		}
+		lastGroupExecTime = now
+	} else {
+		if now-lastPrivateExecTime < timeNeed {
+			return c.JSON(400, "过于频繁")
+		}
+		lastPrivateExecTime = now
+	}
+
 	msg := &dice.Message{
-		MessageType: "private",
+		MessageType: messageType,
 		Message:     v.Message,
 		Platform:    "UI",
 		Sender: dice.SenderBase{
 			Nickname: "User",
-			UserID:   "UI:1001",
+			UserID:   userID,
 		},
+		GroupID: userID,
 	}
-	// pa := myDice.UIEndpoint.Adapter.(*dice.PlatformAdapterHttp)
 	myDice.ImSession.Execute(myDice.UIEndpoint, msg, false)
 	return c.JSON(200, "ok")
 }

@@ -9,8 +9,9 @@ import (
 )
 
 type HTTPSimpleMessage struct {
-	UID     string `json:"uid"`
-	Message string `json:"message"`
+	UID         string `json:"uid"`
+	Message     string `json:"message"`
+	MessageType string `json:"messageType"`
 }
 
 type PlatformAdapterHTTP struct {
@@ -40,7 +41,7 @@ func (pa *PlatformAdapterHTTP) SetEnable(_ bool) {}
 func (pa *PlatformAdapterHTTP) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	sp := utils.SplitLongText(text, 300, utils.DefaultSplitPaginationHint)
 	for _, sub := range sp {
-		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub})
+		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub, "private"})
 	}
 	pa.Session.OnMessageSend(ctx, &Message{
 		MessageType: "private",
@@ -56,7 +57,7 @@ func (pa *PlatformAdapterHTTP) SendToPerson(ctx *MsgContext, uid string, text st
 func (pa *PlatformAdapterHTTP) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	sp := utils.SplitLongText(text, 300, utils.DefaultSplitPaginationHint)
 	for _, sub := range sp {
-		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub})
+		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub, "group"})
 	}
 	pa.Session.OnMessageSend(ctx, &Message{
 		MessageType: "group",

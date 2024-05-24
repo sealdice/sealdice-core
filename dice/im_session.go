@@ -179,6 +179,9 @@ func (group *GroupInfo) ExtGetActive(name string) *ExtInfo {
 }
 
 func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
+	if strings.HasPrefix(group.GroupID, "UI:") {
+		return true
+	}
 	firstCheck := group.Active && group.DiceIDActiveMap.Len() >= 1
 	if firstCheck {
 		v, _ := group.DiceIDActiveMap.Load(ctx.EndPoint.UserID)
@@ -626,7 +629,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// mctx.SystemTemplate = tmpl
 		}
 
-		if group != nil {
+		if group != nil && !strings.HasPrefix(group.GroupID, "UI:") {
 			// 自动激活存在状态
 			if _, exists := group.DiceIDExistsMap.Load(ep.UserID); !exists {
 				group.DiceIDExistsMap.Store(ep.UserID, true)
