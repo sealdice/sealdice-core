@@ -346,7 +346,7 @@ func DiceExec(c echo.Context) error {
 			UserID:    userID,
 			GroupRole: groupRole,
 		},
-		GroupID: userID,
+		GroupID: "UI-Group:2001",
 	}
 	myDice.ImSession.Execute(myDice.UIEndpoint, msg, false)
 	return c.JSON(200, "ok")

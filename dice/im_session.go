@@ -179,7 +179,7 @@ func (group *GroupInfo) ExtGetActive(name string) *ExtInfo {
 }
 
 func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
-	if strings.HasPrefix(group.GroupID, "UI:") {
+	if strings.HasPrefix(group.GroupID, "UI-Group:") {
 		return true
 	}
 	firstCheck := group.Active && group.DiceIDActiveMap.Len() >= 1
@@ -557,7 +557,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	if msg.MessageType == "group" || msg.MessageType == "private" { //nolint:nestif
 		// GroupEnableCheck TODO: 后续看看是否需要
 		group := s.ServiceAtNew[msg.GroupID]
-		if group == nil && msg.GroupID != "" {
+		if group == nil && msg.GroupID != "" && !strings.HasPrefix(msg.GroupID, "UI-Group:") {
 			// 注意: 此处必须开启，不然下面mctx.player取不到
 			autoOn := true
 			if msg.Platform == "QQ-CH" {
@@ -629,7 +629,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// mctx.SystemTemplate = tmpl
 		}
 
-		if group != nil && !strings.HasPrefix(group.GroupID, "UI:") {
+		if group != nil && !strings.HasPrefix(group.GroupID, "UI-Group:") {
 			// 自动激活存在状态
 			if _, exists := group.DiceIDExistsMap.Load(ep.UserID); !exists {
 				group.DiceIDExistsMap.Store(ep.UserID, true)

@@ -63,7 +63,7 @@ func (pa *PlatformAdapterHTTP) SendToGroup(ctx *MsgContext, uid string, text str
 		MessageType: "group",
 		Platform:    "UI",
 		Message:     text,
-		GroupID:     uid,
+		GroupID:     "UI-Group:2001",
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
