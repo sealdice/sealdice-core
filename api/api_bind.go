@@ -321,10 +321,12 @@ func DiceExec(c echo.Context) error {
 	now := time.Now().UnixMilli()
 	userID := "UI:1001"
 	messageType := "private"
+	groupID := ""
 	groupRole := ""
 	if v.MessageType == "group" {
 		userID = "UI:1002"
 		messageType = "group"
+		groupID = "UI-Group:2001"
 		groupRole = "owner"
 		if now-lastGroupExecTime < timeNeed {
 			return c.JSON(400, "过于频繁")
@@ -346,7 +348,7 @@ func DiceExec(c echo.Context) error {
 			UserID:    userID,
 			GroupRole: groupRole,
 		},
-		GroupID: "UI-Group:2001",
+		GroupID: groupID,
 	}
 	myDice.ImSession.Execute(myDice.UIEndpoint, msg, false)
 	return c.JSON(200, "ok")
