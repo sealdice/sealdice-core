@@ -59,7 +59,7 @@ require (
 	github.com/sunshineplan/imgconv v1.1.4
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	github.com/tdewolff/minify/v2 v2.20.21
-	github.com/tidwall/buntdb v1.3.0
+	github.com/tidwall/buntdb v1.3.1
 	github.com/xuri/excelize/v2 v2.8.1
 	github.com/yuin/goldmark v1.7.1
 	go.etcd.io/bbolt v1.3.9
