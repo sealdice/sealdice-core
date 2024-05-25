@@ -7,6 +7,7 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import StoryBackup from "~/components/mod/story/StoryBackup.vue";
+import randomColor from "randomcolor";
 
 interface Log {
     id: number
@@ -256,7 +257,7 @@ const items = computed(() => {
     item_data.value.forEach(v => {
         if (!users.value[v.IMUserId]) {
             users.value[v.IMUserId] = [
-                '#' + (Math.random() + 0.01).toString(16).substring(2, 8).toUpperCase(),
+                randomColor(),
                 v.nickname
             ]
         }
@@ -369,7 +370,7 @@ onBeforeMount(async () => {
                     <ElCollapseItem title="颜色设置">
                         <template v-for="(_, id) in users" :key="id">
                             <div style="padding: 0.5rem;">
-                                <input type="color" v-model="users[id][0]" />
+                                <el-color-picker v-model="users[id][0]" color-format="hex" :predefine="randomColor({count: 10})"/>
                                 <span style="padding-left: 1rem;">{{ users[id][1] }}</span>
                             </div>
                         </template>
