@@ -17,7 +17,7 @@
       </n-flex>
     </n-layout-header>
     <n-layout-content class="bg-slate-100 dark:bg-inherit">
-      <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
+      <div style="width: 1000px; margin: 0 auto; max-width: 100%; padding-bottom: 3rem">
         <n-text type="info" italic class="block text-center my-1">SealDice骰QQ群 524364253 [群介绍中有其余3群]</n-text>
         <option-view></option-view>
         <n-spin :show="loading">
@@ -81,7 +81,7 @@
           </n-flex>
 
           <code-mirror v-show="!(isShowPreview || isShowPreviewBBS || isShowPreviewTRG)" ref="editor"
-                       class="mt-4 mb-6"
+                       class="mt-4"
                        @change="onChange">
             <div class="z-50 absolute right-2 flex flex-col items-center">
               <div class="">
