@@ -1,6 +1,6 @@
 <template>
   <n-layout>
-    <n-layout-header>
+    <n-layout-header class="bg-slate-100 dark:bg-inherit">
       <n-flex class="py-3 text-2xl" size="large" align="center" justify="center" wrap>
         <n-flex align="center" justify="center">
           <strong>海豹TRPG跑团Log着色器</strong>
@@ -16,7 +16,7 @@
         </n-flex>
       </n-flex>
     </n-layout-header>
-    <n-layout-content>
+    <n-layout-content class="bg-slate-100 dark:bg-inherit">
       <div style="width: 1000px; margin: 0 auto; max-width: 100%;">
         <n-text type="info" italic class="block text-center my-1">SealDice骰QQ群 524364253 [群介绍中有其余3群]</n-text>
         <option-view></option-view>
@@ -27,7 +27,7 @@
           <div class="pc-list">
             <div v-for="(i, index) in store.pcList">
               <div style="display: flex; align-items: center; width: 26rem;">
-                <n-button type="error" size="small" tertiary style="padding: 0 1rem " @click="deletePc(index, i)"
+                <n-button type="error" size="small" secondary style="padding: 0 1rem " @click="deletePc(index, i)"
                           :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG">
                   <template #icon>
                     <n-icon>
@@ -48,7 +48,7 @@
 
                 <n-color-picker v-model:value="i.color" :show-alpha="false" show-preview
                                 :swatches="colors"
-                                @change="debounceInput(i)"/>
+                                :on-update:value="(v) => colorChanged(v, i)"/>
               </div>
             </div>
           </div>
@@ -89,7 +89,7 @@
                 </n-button>
               </div>
               <div class="mt-1">
-                <n-button secondary @click="doFlush" type="primary" class="w-full">手动刷新</n-button>
+                <n-button secondary @click="doFlush" type="primary" class="w-full">强制刷新</n-button>
               </div>
               <div class="mt-1">
                 <n-checkbox label="编辑器染色" v-model:checked="store.doEditorHighlight" :border="false" class="w-full"
@@ -110,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, onMounted, watch, h, render, renderList } from "vue";
+import { nextTick, ref, onMounted, watch, h, render, renderList, computed } from "vue";
 import { useStore } from './store'
 import CodeMirror from './components/CodeMirror.vue'
 import { debounce, delay } from 'lodash-es'
@@ -130,7 +130,7 @@ import { setCharInfo } from './logManager/importers/_logImpoter'
 import { msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat, msgAtFormat } from "./utils";
 import { NButton, NText, useMessage, useModal, useNotification } from "naive-ui";
 import { User, LogoGithub, Delete as IconDelete } from '@vicons/carbon'
-import {  breakpointsTailwind, useBreakpoints, useDark, useToggle } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, useDark, useToggle } from '@vueuse/core'
 import OptionView from "./components/OptionView.vue";
 import randomColor from "randomcolor";
 
@@ -163,11 +163,11 @@ const refreshColors = () => {
   message.success("色板刷新成功！", { duration: 800 })
 }
 
-const debounceInput = debounce(function (i) {
-  store.pcNameColorMap.set(i.name, i.color)
+const colorChanged = debounce((v: string, i: CharItem) => {
+  i.color = v
+  store.pcNameColorMap.set(i.name, v)
   store.colorMapSave();
-  // console.log(i.color, i.name)
-}, 1000)
+}, 300)
 
 const backV1 = () => {
   // location.href = location.origin + '/v1/' + location.search + location.hash;
@@ -650,15 +650,14 @@ const doEditorHighlightClick = (e: any) => {
   doHl()
 }
 
-
-const reloadFunc = debounce(() => {
+const reloadFunc = () => {
   store.reloadEditor()
-}, 500)
+}
+const pcList = computed(() => store.pcList)
+watch(pcList, reloadFunc, { deep: true })
 
-watch(store.pcList, reloadFunc, { deep: true })
-watch(store.exportOptions, reloadFunc, { deep: true })
-
-const exportOptions = store.exportOptions
+const exportOptions = computed(() => store.exportOptions)
+watch(exportOptions, reloadFunc, { deep: true })
 
 const code = ref("")
 

@@ -1,5 +1,5 @@
 <template>
-  <div id="e" ref="editor" class="codemirror" style="position: relative;">
+  <div id="e" ref="editor" class="codemirror relative border dark:border-0">
     <slot></slot>
   </div>
 </template>
