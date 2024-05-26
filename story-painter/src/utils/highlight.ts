@@ -1,19 +1,24 @@
-import { styleTags, tags as t, Tag } from "@codemirror/highlight"
-import { LanguageSupport } from "@codemirror/language"
-import { StreamLanguage } from "@codemirror/stream-parser"
+import { Tag } from "@lezer/highlight"
+import {
+  LanguageSupport,
+  StreamLanguage,
+  HighlightStyle,
+  TagStyle,
+  syntaxHighlighting,
+} from "@codemirror/language"
+import { completeFromList } from "@codemirror/autocomplete"
+import { CharItem } from "~/logManager/types"
+import { Extension } from "@codemirror/state";
+import * as twColors from 'tailwindcss/colors'
 
 export const reNameLine = /^([^(<\n]+)(\([^(\n]+\)|\<[^(\n]+\>)?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?/
 export const reNameLine2 = /([^(<\n]+)(\([^(\n]+\)|\<[^(\n]+\>)?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?/g
-
-import { HighlightStyle, TagStyle } from "@codemirror/highlight"
-import { completeFromList } from "@codemirror/autocomplete"
-import { CharItem } from "~/logManager/types"
 
 let nameReplace = (n: string) => {
   return n.replaceAll('.', '·').replaceAll(' ', '_').replaceAll(`/`, '_') //.replaceAll('(', '（').replaceAll(')', '）')
 }
 
-export function generateLang(pcList: CharItem[], options: any = undefined) {
+export function generateLang(pcList: CharItem[], options: any = undefined): Extension[] {
   let tagNameLine = Tag.define()
   let tagNameLineHost = Tag.define()
   let tagNameLineDice = Tag.define()
@@ -27,13 +32,19 @@ export function generateLang(pcList: CharItem[], options: any = undefined) {
   }
 
   const highLights: TagStyle[] = [
-    { tag: tagNameLine, color: "#3255ca", fontWeight: '500' }, // 青蓝色
-    { tag: tagNameLineHost, color: "#a9147a", fontWeight: '500' }, // 深粉色
-    { tag: tagNameLineDice, color: "#a79c9e", fontWeight: '500' }, // 深灰色
-    { tag: tagNameLineHide, color: "#cccccc", fontWeight: '500', fontStyle: 'italic', 'text-decoration': 'line-through' }, // 浅灰色带斜杠
+    { tag: tagNameLine, color: twColors.blue['500'], fontWeight: '500' }, // 表示角色
+    { tag: tagNameLineHost, color: twColors.pink['500'], fontWeight: '500' }, // 表示主持人
+    { tag: tagNameLineDice, color: twColors.zinc['500'], fontWeight: '500' }, // 表示骰子
+    {
+      tag: tagNameLineHide,
+      color: twColors.gray['500'],
+      fontWeight: '500',
+      fontStyle: 'italic',
+      'text-decoration': 'line-through'
+    }, // 带斜杠，表示隐藏
   ]
 
-  const pcMap: { [name:string]: CharItem } = {}
+  const pcMap: { [name: string]: CharItem } = {}
 
   for (let i of pcList) {
     i.name = i.name.replaceAll('(', '（').replaceAll(')', '）');
@@ -71,6 +82,7 @@ export function generateLang(pcList: CharItem[], options: any = undefined) {
   }
 
   const language = StreamLanguage.define<{ mode: number, name: string, nextN: string[], text: string, pc: CharItem }>({
+    name: 'story-log',
     startState() {
       return {
         mode: 0,
@@ -171,11 +183,10 @@ export function generateLang(pcList: CharItem[], options: any = undefined) {
   })
 
   const exampleCompletion = language.data.of({
-    autocomplete: completeFromList([
-    ])
+    autocomplete: completeFromList([])
   })
 
-  const myHighlightStyle = HighlightStyle.define(highLights)
+  const myHighlightStyle = syntaxHighlighting(HighlightStyle.define(highLights))
 
   return [
     new LanguageSupport(language, [exampleCompletion]),

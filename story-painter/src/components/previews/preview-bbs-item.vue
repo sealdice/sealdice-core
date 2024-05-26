@@ -15,6 +15,7 @@ import { computed } from 'vue';
 import { LogItem, packNameId } from '~/logManager/types';
 import { useStore } from '~/store';
 import { escapeHTML, msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat, msgAtFormat } from '~/utils';
+import * as twColors from 'tailwindcss/colors';
 
 const store = useStore();
 
@@ -27,7 +28,7 @@ defineProps({
 
 const getTimeColor = () => {
   if (store.bbsUseColorName) return 'silver';
-  return '#aaaaaa'
+  return twColors.gray['400']
 }
 
 const colorByName = (i: LogItem) => {

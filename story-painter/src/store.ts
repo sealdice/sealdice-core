@@ -2,9 +2,9 @@
 import { defineStore } from 'pinia'
 import { EditorView } from '@codemirror/view';
 import axios from 'axios';
-import { TextInfo } from './logManager/importers/_logImpoter';
 import { CharItem, LogItem, packNameId } from './logManager/types';
 import { random } from 'lodash-es';
+import * as twColors from 'tailwindcss/colors';
 
 export const useStore = defineStore('main', {
   state: () => {
@@ -13,7 +13,7 @@ export const useStore = defineStore('main', {
       editor: null as any as EditorView,
       pcList: [] as CharItem[],
       pcNameColorMap: new Map<string, string>(), // 只以名字记录
-      palette: ['#cb4d68', '#f99252', '#f48cb6', '#9278b9', '#3e80cc', '#84a59d', '#5b5e71'],
+      palette: [twColors.pink['600'], twColors.orange['600'], twColors.pink['400'], twColors.purple['400'], twColors.sky['600'], twColors.slate['400'], twColors.gray['600']],
       paletteStack: [] as string[],
       items: [] as LogItem[],
       doEditorHighlight: false,
@@ -56,28 +56,28 @@ export const useStore = defineStore('main', {
       // nga全部可用颜色
       // "skyblue", "royalblue", "blue", "darkblue", "orange", "orangered", "crimson", "red", "firebrick", "darkred", "green", "limegreen", "seagreen", "teal", "deeppink", "tomato", "coral", "purple", "indigo", "burlywood", "sandybrown", "sienna", "chocolate", "silver"
       switch (color) {
-        case '#ba652c':
+        case twColors.amber['600']:
           // 深棕色
           return 'sienna';
-        case '#cb4d68':
+        case twColors.pink['600']:
           // 深粉色，没有类似的，用深红色替代了
           return 'crimson';
-        case '#f99252':
+        case twColors.orange['600']:
           // 棕色 / 橙色
           return 'orange';
-        case '#f48cb6':
+        case twColors.pink['400']:
           // 淡粉色
           return 'deeppink';
-        case '#9278b9':
+        case twColors.purple['400']:
           // 紫色
           return 'purple';
-        case '#3e80cc':
+        case twColors.sky['600']:
           // 靛蓝色
           return 'blue';
-        case '#84a59d':
+        case twColors.slate['400']:
           // 青绿色
           return 'teal';
-        case '#5b5e71': case '#aaaaaa':
+        case twColors.gray['600']: case twColors.gray['400']:
           // 深灰色
           return 'silver';
       }

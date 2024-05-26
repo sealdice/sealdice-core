@@ -19,8 +19,8 @@
 
   <div class="preview" ref="preview" id="preview" v-show="isShow">
     <div style="position: absolute; right: 2rem; direction: rtl;">
-      <n-button @click="copied" id="btnCopyPreviewBBS" style="z-index: 100">一键复制</n-button>
-      <div style="font-size: 0.8rem;">注意: 长文本速度较慢</div>
+      <n-button secondary type="primary" @click="copied" id="btnCopyPreviewBBS" style="z-index: 100">一键复制</n-button>
+      <div class="mt-0.5 text-xs">注意: 长文本速度较慢</div>
     </div>
 
     <div v-if="previewItems.length === 0">

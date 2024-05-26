@@ -12,8 +12,8 @@
 
   <div class="preview" ref="preview" id="preview" v-show="isShow">
     <div style="position: absolute; right: 2rem; direction: rtl;">
-      <n-button @click="copied" id="btnCopyPreviewTRG" size="large" style="z-index: 100">一键复制</n-button>
-      <div style="font-size: 0.8rem;">注意: 长文本速度较慢</div>
+      <n-button secondary type="primary" @click="copied" id="btnCopyPreviewTRG" style="z-index: 100">一键复制</n-button>
+      <div class="mt-0.5 text-xs">注意: 长文本速度较慢</div>
       <!-- <div v-if="copyCount != 0">进度: {{ copyCount }} / {{ copyCountAll }}</div> -->
     </div>
     <div v-if="previewItems.length === 0">

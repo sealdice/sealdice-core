@@ -66,7 +66,7 @@ const list: Option[] = [
     <n-grid-item>
       <n-flex align="center" justify="center" vertical>
         <n-flex align="center" justify="center">
-          <n-switch v-model:value="isDark" @change="useToggle"></n-switch>
+          <n-switch v-model:value="isDark" @on-update:value="useToggle"></n-switch>
           <strong>深色模式展示</strong>
         </n-flex>
         <p>开启后，以深色模式展示，适合夜间使用</p>

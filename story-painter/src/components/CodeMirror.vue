@@ -5,24 +5,28 @@
 </template>
 
 <script setup lang="ts">
-import { EditorView, keymap, ViewUpdate, WidgetType, Decoration } from '@codemirror/view';
+import { ref, onMounted } from 'vue';
+import { DecorationSet } from "@codemirror/view"
+import {
+  ViewPlugin,
+  EditorView,
+  keymap,
+  ViewUpdate,
+  WidgetType,
+  Decoration,
+} from '@codemirror/view';
 import { EditorState, StateEffect } from '@codemirror/state';
-import { history, historyKeymap } from '@codemirror/history';
-import { standardKeymap, insertTab } from '@codemirror/commands';
-import { lineNumbers } from '@codemirror/gutter';
-import { basicSetup } from '@codemirror/basic-setup';
-// import { oneDarkTheme, oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
-import { autocompletion } from '@codemirror/autocomplete';
-import { getCurrentInstance, ref, watch, onMounted } from 'vue';
+import { standardKeymap, insertTab, history, historyKeymap } from '@codemirror/commands';
+import { syntaxTree } from "@codemirror/language"
+import { materialDark, materialLight } from '@uiw/codemirror-theme-material';
 import { generateLang } from '~/utils/highlight';
-import { useStore } from '../store'
-import {syntaxTree} from "@codemirror/language"
-
-import { ViewPlugin } from "@codemirror/view"
-import type { DecorationSet } from "@codemirror/view"
+import { useStore } from '~/store'
+import { useDark } from "@vueuse/core";
+import { basicSetup } from "codemirror";
 
 const editor = ref<HTMLDivElement>()
 const store = useStore()
+const isDark = useDark()
 
 const emit = defineEmits<(e: 'change', v: ViewUpdate) => void>();
 
@@ -37,9 +41,8 @@ store._reloadEditor = reloadEditor
 function getExts(highlight = false) {
   return [
     basicSetup,
-    history(),
     EditorView.lineWrapping,
-    // oneDarkTheme,
+    history(),
     keymap.of([
       ...standardKeymap,
       ...historyKeymap,
@@ -49,8 +52,7 @@ function getExts(highlight = false) {
         run: insertTab,
       },
     ]),
-    checkboxPlugin,
-
+    imagePreviewPlugin,
     ...highlight ? generateLang(store.pcList, store.exportOptions) : [],
     EditorView.updateListener.of((v: ViewUpdate) => {
       if (v.docChanged) {
@@ -58,17 +60,18 @@ function getExts(highlight = false) {
         // temp1.view.state.doc.toString()
       }
     }),
-    EditorView.theme({
-      ".cm-gutters": {
-        backgroundColor: "#0000",
-      },
-    })
+    isDark.value ? materialDark : materialLight,
   ]
 }
-class CheckboxWidget extends WidgetType {
-  constructor(readonly url: string) { super() }
 
-  eq(other: CheckboxWidget) { return other.url == this.url }
+class ImagePreviewWidget extends WidgetType {
+  constructor(readonly url: string) {
+    super()
+  }
+
+  eq(other: ImagePreviewWidget) {
+    return other.url == this.url
+  }
 
   toDOM() {
     let wrap = document.createElement("span")
@@ -81,23 +84,26 @@ class CheckboxWidget extends WidgetType {
     return wrap
   }
 
-  ignoreEvent() { return false }
+  ignoreEvent() {
+    return false
+  }
 }
 
 
-function checkboxes(view: EditorView) {
+function imagePreviews(view: EditorView): DecorationSet {
   let widgets: any = []
-  for (let {from, to} of view.visibleRanges) {
+  for (let { from, to } of view.visibleRanges) {
     syntaxTree(view.state).iterate({
       from, to,
-      enter: (type, from, to) => {
-        if (type.name.startsWith("image-")) {
+      enter: (node) => {
+        let { from, to } = node
+        if (node.name.startsWith("image-")) {
           const text = view.state.doc.sliceString(from, to)
           // ob11 - gocq
           let m = /url=([^\]]+)]/.exec(text) as RegExpExecArray
           if (m) {
             let deco = Decoration.widget({
-              widget: new CheckboxWidget(m[1]),
+              widget: new ImagePreviewWidget(m[1]),
               side: 0
             })
             widgets.push(deco.range(to))
@@ -106,7 +112,7 @@ function checkboxes(view: EditorView) {
           m = /\[(?:image|图):([^\]]+)?([^\]]+)\]/.exec(text) as RegExpExecArray
           if (m) {
             let deco = Decoration.widget({
-              widget: new CheckboxWidget(m[1]),
+              widget: new ImagePreviewWidget(m[1]),
               side: 0
             })
             widgets.push(deco.range(to))
@@ -116,7 +122,7 @@ function checkboxes(view: EditorView) {
           m = /file=(https?:\/\/[^\]]+)\]/.exec(text) as RegExpExecArray
           if (m) {
             let deco = Decoration.widget({
-              widget: new CheckboxWidget(m[1]),
+              widget: new ImagePreviewWidget(m[1]),
               side: 0
             })
             widgets.push(deco.range(to))
@@ -126,7 +132,7 @@ function checkboxes(view: EditorView) {
           m = /file=([A-Za-z0-9]{32,64})(\.[a-zA-Z]+?)\]/.exec(text) as RegExpExecArray
           if (m) {
             let deco = Decoration.widget({
-              widget: new CheckboxWidget(`https://gchat.qpic.cn/gchatpic_new/0/0-0-${m[1]}/0?term=2,subType=1`),
+              widget: new ImagePreviewWidget(`https://gchat.qpic.cn/gchatpic_new/0/0-0-${m[1]}/0?term=2,subType=1`),
               side: 0
             })
             widgets.push(deco.range(to))
@@ -136,7 +142,7 @@ function checkboxes(view: EditorView) {
           m = /file=file:\/\/[^\]]+([A-Za-z0-9]{32})(\.[a-zA-Z]+?)\]/.exec(text) as RegExpExecArray
           if (m) {
             let deco = Decoration.widget({
-              widget: new CheckboxWidget(`https://gchat.qpic.cn/gchatpic_new/0/0-0-${m[1].toUpperCase()}/0?term=2,subType=1`),
+              widget: new ImagePreviewWidget(`https://gchat.qpic.cn/gchatpic_new/0/0-0-${m[1].toUpperCase()}/0?term=2,subType=1`),
               side: 0
             })
             widgets.push(deco.range(to))
@@ -146,7 +152,7 @@ function checkboxes(view: EditorView) {
           if (m) {
             const url = `https://gchat.qpic.cn/gchatpic_new/0/0-0-${m[1]}${m[2]}${m[3]}${m[4]}${m[5]}/0?term=2`
             let deco = Decoration.widget({
-              widget: new CheckboxWidget(url),
+              widget: new ImagePreviewWidget(url),
               side: 0
             })
             widgets.push(deco.range(to))
@@ -158,20 +164,16 @@ function checkboxes(view: EditorView) {
   return Decoration.set(widgets)
 }
 
-const checkboxPlugin = ViewPlugin.fromClass(class {
+const imagePreviewPlugin = ViewPlugin.fromClass(class {
   decorations: DecorationSet
 
   constructor(view: EditorView) {
-    this.decorations = checkboxes(view)
-
-    // store.reloadEditor2 = () => {
-    //   this.decorations = checkboxes(view)
-    // }
+    this.decorations = imagePreviews(view)
   }
 
   update(update: ViewUpdate) {
     if (update.docChanged || update.viewportChanged) {
-      this.decorations = checkboxes(update.view)
+      this.decorations = imagePreviews(update.view)
     }
   }
 }, {
@@ -179,35 +181,18 @@ const checkboxPlugin = ViewPlugin.fromClass(class {
 
   eventHandlers: {
     mousedown: (e, view) => {
-      // let target = e.target as HTMLElement
-      // if (target.nodeName == "INPUT" &&
-      //     target.parentElement!.classList.contains("cm-boolean-toggle"))
-      //   return toggleBoolean(view, view.posAtDOM(target))
     }
   }
 })
-
-function toggleBoolean(view: EditorView, pos: number) {
-  // let before = view.state.doc.sliceString(Math.max(0, pos - 5), pos)
-  // let change
-  // if (before == "false")
-  //   change = {from: pos - 5, to: pos, insert: "true"}
-  // else if (before.endsWith("true"))
-  //   change = {from: pos - 4, to: pos, insert: "false"}
-  // else
-  //   return false
-  // view.dispatch({changes: change})
-  return true
-}
 
 const createEditor = (editorContainer: any, doc: any) => {
   if (store.editor) {
     store.editor.destroy();
   }
 
-const startState = EditorState.create({
-  //doc为编辑器默认内容
-  doc: `海豹一号机(2589922907) 2022/03/21 19:05:05
+  const startState = EditorState.create({
+    //doc为编辑器默认内容
+    doc: `海豹一号机(2589922907) 2022/03/21 19:05:05
 新的故事开始了，祝旅途愉快！
 记录已经开启。
 

@@ -1,10 +1,10 @@
 <template>
   <n-layout>
     <n-layout-header>
-      <n-flex class="py-2 text-2xl" size="large" align="center" justify="center" wrap>
+      <n-flex class="py-3 text-2xl" size="large" align="center" justify="center" wrap>
         <n-flex align="center" justify="center">
           <strong>海豹TRPG跑团Log着色器</strong>
-          <n-tag type="success" size="small" :bordered="false">v2.4.1</n-tag>
+          <n-tag type="success" size="small" :bordered="false">v2.5.0</n-tag>
         </n-flex>
         <n-flex align="center" justify="center">
           <n-icon>
@@ -28,7 +28,13 @@
             <div v-for="(i, index) in store.pcList">
               <div style="display: flex; align-items: center; width: 26rem;">
                 <n-button type="error" size="small" tertiary style="padding: 0 1rem " @click="deletePc(index, i)"
-                          :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG">删除
+                          :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG">
+                  <template #icon>
+                    <n-icon>
+                      <icon-delete></icon-delete>
+                    </n-icon>
+                  </template>
+                  <span v-if="notMobile">删除</span>
                 </n-button>
 
                 <n-input :disabled="isShowPreview || isShowPreviewBBS || isShowPreviewTRG" v-model:value="i.name"
@@ -40,23 +46,22 @@
                 <n-select v-model:value="i.role" class="m-2 w-60" style="width: 24rem"
                           :options="[{value: '主持人', label: '主持人'}, {value: '角色', label: '角色'}, {value: '骰子', label: '骰子'}, {value: '隐藏', label: '隐藏'}]"/>
 
-                <input type="color" v-model.lazy="i.color"
-                       style="min-width: 2.5rem; margin-left: 0.2rem; border-color: #aaa; border-radius: 3px;"
-                       @change="debounceInput(i)"/>
+                <n-color-picker v-model:value="i.color" :show-alpha="false" show-preview
+                                :swatches="colors"
+                                @change="debounceInput(i)"/>
               </div>
             </div>
           </div>
 
-          <div
-              style="margin-bottom: 1rem; margin-top: 1rem; display: flex; justify-content: center; align-items: center; flex-wrap: wrap;">
-            <div>
-              <n-button @click="exportRecordRaw">下载原始文件</n-button>
-              <n-button v-show="false" @click="exportRecordQQ">下载QQ风格记录</n-button>
-              <n-button v-show="false" @click="exportRecordIRC">下载IRC风格记录</n-button>
-              <n-button @click="exportRecordDOC">下载Word</n-button>
-            </div>
+          <n-flex size="small" justify="center" align="center" class="my-4">
+            <n-flex size="small" justify="center" align="center" class="mr-2">
+              <n-button secondary type="primary" @click="exportRecordRaw">下载原始文件</n-button>
+              <!-- <n-button secondary type="primary" v-show="false" @click="exportRecordQQ">下载QQ风格记录</n-button>-->
+              <!-- <n-button secondary type="primary" v-show="false" @click="exportRecordIRC">下载IRC风格记录</n-button>-->
+              <n-button secondary type="primary" @click="exportRecordDOC">下载Word</n-button>
+            </n-flex>
             <!-- <n-button @click="showPreview">预览</n-button> -->
-            <div style="margin-left: 1rem; ">
+            <div>
               <n-checkbox label="预览" v-model:checked="isShowPreview" :border="true"
                           @click="previewClick('preview')"/>
               <n-checkbox label="论坛代码" v-model:checked="isShowPreviewBBS" :border="true"
@@ -64,20 +69,32 @@
               <n-checkbox label="回声工坊" v-model:checked="isShowPreviewTRG" :border="true"
                           @click="previewClick('trg')"/>
             </div>
-          </div>
+            <n-divider vertical/>
+            <div>
+              <n-tooltip class="box-item" placement="top-start">
+                <template #trigger>
+                  <n-button type="primary" text @click="refreshColors">刷新色板</n-button>
+                </template>
+                重新随机生成上方颜色选择中的预置颜色
+              </n-tooltip>
+            </div>
+          </n-flex>
 
           <code-mirror v-show="!(isShowPreview || isShowPreviewBBS || isShowPreviewTRG)" ref="editor"
+                       class="mt-4 mb-6"
                        @change="onChange">
-            <div style="z-index: 1000; position: absolute; right: 1rem">
-              <div>
-                <n-button @click="clearText" id="btnCopyPreviewBBS" style="" size="large" type="primary">清空内容
+            <div class="z-50 absolute right-2 flex flex-col items-center">
+              <div class="">
+                <n-button secondary @click="clearText" id="btnCopyPreviewBBS" type="primary" class="w-full">清空内容
                 </n-button>
               </div>
-              <div>
-                <n-button @click="doFlush" style="" size="large" type="primary">调试:Flush</n-button>
+              <div class="mt-1">
+                <n-button secondary @click="doFlush" type="primary" class="w-full">手动刷新</n-button>
               </div>
-              <n-checkbox label="编辑器染色" v-model:checked="store.doEditorHighlight" :border="false"
-                          @click.native="doEditorHighlightClick($event)"/>
+              <div class="mt-1">
+                <n-checkbox label="编辑器染色" v-model:checked="store.doEditorHighlight" :border="false" class="w-full"
+                            @click.native="doEditorHighlightClick($event)"/>
+              </div>
             </div>
           </code-mirror>
 
@@ -112,9 +129,13 @@ import { LogItem, CharItem, packNameId } from "./logManager/types";
 import { setCharInfo } from './logManager/importers/_logImpoter'
 import { msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat, msgAtFormat } from "./utils";
 import { NButton, NText, useMessage, useModal, useNotification } from "naive-ui";
-import { User, LogoGithub } from '@vicons/carbon'
-import { useDark, useToggle } from '@vueuse/core'
+import { User, LogoGithub, Delete as IconDelete } from '@vicons/carbon'
+import {  breakpointsTailwind, useBreakpoints, useDark, useToggle } from '@vueuse/core'
 import OptionView from "./components/OptionView.vue";
+import randomColor from "randomcolor";
+
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const notMobile = breakpoints.greater('sm')
 
 const isDark = useDark()
 const toggleDark = useToggle(isDark)
@@ -136,6 +157,12 @@ const isShowPreview = ref(false)
 const isShowPreviewBBS = ref(false)
 const isShowPreviewTRG = ref(false)
 
+const colors = ref<string[]>([])
+const refreshColors = () => {
+  colors.value = randomColor({ count: 16 })
+  message.success("色板刷新成功！", { duration: 800 })
+}
+
 const debounceInput = debounce(function (i) {
   store.pcNameColorMap.set(i.name, i.color)
   store.colorMapSave();
@@ -155,6 +182,7 @@ const clearText = () => {
 }
 
 const doFlush = () => {
+  console.log('flush')
   logMan.flush();
 }
 
@@ -288,7 +316,13 @@ onMounted(async () => {
   // cminstance.value = cmRefDom.value?.cminstance;
   // cminstance.value?.focus();
   // console.log(cminstance.value)
+  colors.value = randomColor({ count: 16 })
   browserAlert()
+  await nextTick(() => {
+    setTimeout(() => {
+      doFlush()
+    }, 3000)
+  })
 });
 
 function exportRecordRaw() {
@@ -384,11 +418,16 @@ function showPreview() {
 }
 
 const store = useStore()
-const color2 = ref('#409EFF')
 store.colorMapLoad();
 
 // 修改ot选项后重建items
 watch(() => store.exportOptions.offTopicHide, showPreview)
+
+const editor = ref()
+watch(isDark, () => {
+  console.log('dark watch')
+  store.reloadEditor()
+})
 
 const deletePc = (index: number, i: CharItem) => {
   const now = Date.now();
@@ -574,6 +613,9 @@ const doEditorHighlightClick = (e: any) => {
                 onClick: () => {
                   store.doEditorHighlight = false
                   m.destroy()
+                  setTimeout(() => {
+                    doFlush()
+                  }, 3000)
                 },
                 style: { marginRight: '1rem' }
               },

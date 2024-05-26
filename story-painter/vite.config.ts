@@ -46,7 +46,4 @@ export default defineConfig({
       },
     }
   },
-  build: {
-    target: "es6"
-  }
 })
