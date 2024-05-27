@@ -8,11 +8,13 @@ const props = withDefaults(defineProps<{
   type: 'card' | 'div' | string
   errTitle?: string,
   errText?: string,
-  defaultFold: 'auto' | boolean
+  defaultFold: 'auto' | boolean,
+  compact: boolean
 }>(), {
   shadow: 'hover',
   type: 'card',
   defaultFold: 'auto',
+  compact: false
 });
 
 const getCardType = (t: string) => {
@@ -54,7 +56,7 @@ defineExpose({open, close})
 <template>
   <component :is="getCardType(type)" :shadow="shadow">
     <main v-if="!errText" class="foldable-card">
-      <header class="header">
+      <header :class="props.compact ? 'header' : 'header mb-4'">
         <div class="title">
           <div class="title-warp">
             <slot name="title"/>
@@ -145,7 +147,6 @@ defineExpose({open, close})
 }
 
 .header {
-  margin-bottom: 1rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;

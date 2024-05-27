@@ -333,7 +333,7 @@ const addOneCondition = (lst: any) => {
 }
 
 const addOne = (lst: any) => {
-  lst.push({ "enable": true, "notCollapse": true, "conditions": [{ "condType": "textMatch", "matchType": "matchExact", "value": "要匹配的文本" }], "results": [{ "resultType": "replyToSender", "delay": 0, "message": [["说点什么", 1]] }] },)
+  lst.push({ "enable": true, "conditions": [{ "condType": "textMatch", "matchType": "matchExact", "value": "要匹配的文本" }], "results": [{ "resultType": "replyToSender", "delay": 0, "message": [["说点什么", 1]] }] },)
 }
 
 const deleteAnyItem = (lst: any[], index: number) => {
