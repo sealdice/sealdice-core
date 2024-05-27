@@ -7,6 +7,7 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import StoryBackup from "~/components/mod/story/StoryBackup.vue";
+import * as twColors from 'tailwindcss/colors'
 import randomColor from "randomcolor";
 
 interface Log {
@@ -252,12 +253,41 @@ function closeItem() {
     users.value = {}
 }
 
+const randomColorWithIndex = (i: number): string => {
+    const presets = [
+        twColors.red[600],
+        twColors.orange[600],
+        twColors.yellow[600],
+        twColors.green[600],
+        twColors.cyan[600],
+        twColors.blue[600],
+        twColors.purple[600],
+        twColors.pink[600],
+        twColors.slate[600],
+    ]
+    const randomColorSystems = [
+        'red',
+        'orange',
+        'yellow',
+        'green',
+        'blue',
+        'purple',
+        'pink',
+        'monochrome',
+    ]
+    if (i < presets.length) {
+        return presets[i]
+    } else {
+        return randomColor({ hue: randomColorSystems[i % randomColorSystems.length], luminosity: 'dark' })
+    }
+}
+
 const items = computed(() => {
     let items: Item[] = []
-    item_data.value.forEach(v => {
+    item_data.value.forEach((v, i) => {
         if (!users.value[v.IMUserId]) {
             users.value[v.IMUserId] = [
-                randomColor(),
+                randomColorWithIndex(i),
                 v.nickname
             ]
         }
