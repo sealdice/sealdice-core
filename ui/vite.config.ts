@@ -1,10 +1,11 @@
 import path from "path";
-import { defineConfig } from "vite";
+import {defineConfig} from "vite";
 import vue from "@vitejs/plugin-vue";
 import legacy from "@vitejs/plugin-legacy";
 
+import AutoImport from 'unplugin-auto-import/vite'
 import Components from "unplugin-vue-components/vite";
-import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
+import {ElementPlusResolver} from "unplugin-vue-components/resolvers";
 import Icons from "unplugin-icons/vite";
 import IconsResolver from "unplugin-icons/resolver";
 
@@ -30,6 +31,25 @@ export default defineConfig({
   },
   plugins: [
     vue(),
+    AutoImport({
+      include: [
+        /\.[tj]sx?$/, // .ts, .tsx, .js, .jsx
+        /\.vue$/,
+        /\.vue\?vue/, // .vue
+      ],
+      imports: ["vue", "pinia", "@vueuse/core"],
+      dts: true,
+      vueTemplate: true,
+      eslintrc: {
+        enabled: true,
+      },
+      resolvers: [
+        ElementPlusResolver({
+          importStyle: "sass",
+        }),
+        IconsResolver(),
+      ],
+    }),
     Components({
       resolvers: [
         ElementPlusResolver({
@@ -37,7 +57,6 @@ export default defineConfig({
         }),
         IconsResolver(),
       ],
-      dts: path.resolve(pathSrc, "components.d.ts"),
     }),
     Icons({
       compiler: "vue3",
@@ -49,6 +68,7 @@ export default defineConfig({
   ],
   build: {
     sourcemap: false,
+    chunkSizeWarningLimit: 1024,
     rollupOptions: {
       output: {
         manualChunks: {

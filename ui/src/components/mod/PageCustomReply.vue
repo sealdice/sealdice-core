@@ -169,11 +169,9 @@
 </template>
 
 <script lang="ts" setup>
-import { onBeforeMount, onBeforeUnmount, ref, watch, nextTick, computed } from 'vue';
 import { urlBase } from "~/backend";
 import { useStore } from '~/store';
 import nestedDraggable from "../utils/nested.vue";
-import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   DocumentChecked,
   Delete,
@@ -183,7 +181,6 @@ import {
   Upload,
   Plus
 } from '@element-plus/icons-vue'
-import CustomReplyCondition from "~/components/utils/custom-reply-condition.vue";
 
 const store = useStore()
 const dialogFormVisible = ref(false)

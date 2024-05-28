@@ -24,8 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import {nextTick, ref} from "vue";
-import {ElInput, ElSpace} from "element-plus";
+import type {ElInput, ElSpace} from "element-plus";
 import {Plus} from "@element-plus/icons-vue";
 
 const {group, aliases} = defineProps<{

@@ -126,7 +126,6 @@
 
 <script lang="ts" setup>
 import { Timer, CaretBottom } from '@element-plus/icons-vue'
-import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useStore } from '~/store';
 import * as dayjs from 'dayjs'
 import {filesize} from 'filesize'
@@ -140,7 +139,6 @@ import {
   QuestionFilled,
   BrushFilled
 } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 
 const store = useStore()
 

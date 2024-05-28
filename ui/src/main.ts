@@ -16,9 +16,8 @@ import "element-plus/theme-chalk/src/message.scss"
 import "element-plus/es/components/message-box/style/css"
 import "element-plus/es/components/dialog/style/css"
 import 'element-plus/theme-chalk/display.css'
-import './str.polyfill.ts'
+import './str.polyfill'
 
-import { createPinia } from 'pinia'
 import { useStore } from "./store";
 
 import VueDiff from 'vue-diff'

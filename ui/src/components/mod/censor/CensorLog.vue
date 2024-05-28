@@ -37,13 +37,11 @@
 </template>
 
 <script lang="ts" setup>
-import {onMounted, ref} from "vue";
 import {backend} from "~/backend";
 import {urlPrefix, useStore} from "~/store";
 import dayjs from "dayjs";
 import {useCensorStore} from "~/components/mod/censor/censor";
 import {Refresh} from "@element-plus/icons-vue";
-import {ElMessage} from "element-plus";
 
 const url = (p: string) => urlPrefix + "/censor/" + p;
 const censorStore = useCensorStore()

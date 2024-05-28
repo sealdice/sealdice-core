@@ -98,7 +98,7 @@
       <el-menu-item :index="`8-test`" @click="switchTo('toolSettings', 'test')">
         <span>指令测试</span>
       </el-menu-item>
-      <el-menu-item :index="`8-upload`" @click="switchTo('toolSettings', 'upload')">
+      <el-menu-item :index="`8-upload`" @click="switchTo('toolSettings', 'resource')">
         <span>资源管理</span>
       </el-menu-item>
     </el-sub-menu>
@@ -124,7 +124,7 @@ import {
 } from '@element-plus/icons-vue'
 
 import {useStore} from "~/store";
-import {ModelRef} from "vue";
+import type {ModelRef} from "vue";
 
 const props = defineProps<{
   type: 'light' | 'dark'

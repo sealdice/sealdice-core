@@ -50,12 +50,11 @@
 </template>
 
 <script setup lang="ts">
+import type {UploadUserFile} from "element-plus";
 import {Delete, Download, Upload} from "@element-plus/icons-vue";
 import {urlPrefix, useStore} from "~/store";
 import {backend, urlBase} from "~/backend";
-import {onBeforeMount, ref} from "vue";
 import {useCensorStore} from "~/components/mod/censor/censor";
-import {ElMessage, ElMessageBox, UploadUserFile} from "element-plus";
 
 onBeforeMount(() => {
   refreshFiles()

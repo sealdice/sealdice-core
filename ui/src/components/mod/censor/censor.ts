@@ -1,5 +1,4 @@
 import {defineStore} from "pinia";
-import {ref} from "vue";
 import {backend} from "~/backend";
 import {urlPrefix, useStore} from "~/store";
 

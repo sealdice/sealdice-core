@@ -176,8 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import {nextTick, onBeforeMount, reactive, ref, watch} from "vue";
-import {ElMessage, ElMessageBox} from 'element-plus'
+import {reactive} from "vue";
 import {useStore} from '~/store'
 import {
   BrushFilled,

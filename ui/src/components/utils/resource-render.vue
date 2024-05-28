@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {Resource, useStore} from "~/store";
-import {onMounted, ref} from "vue";
 import {Microphone, Picture, VideoCamera} from '@element-plus/icons-vue'
 
 const store = useStore()

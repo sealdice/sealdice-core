@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import {nextTick, onBeforeMount, ref, getCurrentInstance } from "vue";
 import type {Resource} from "~/store";
 import {useStore} from "~/store";
-import {ElMessage, ElMessageBox} from "element-plus";
-import ResourceRender from "~/components/utils/resource-render.vue";
 import {filesize} from "filesize";
 import {urlBase} from "~/backend";
 import {Delete, Download, Search, Upload} from "@element-plus/icons-vue";

@@ -46,12 +46,10 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onBeforeMount, onBeforeUnmount, ref } from 'vue';
 import { useStore } from '~/store';
 import imgSeal from '~/assets/seal.png'
 import imgMe from '~/assets/me.jpg'
 import { Plus } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus';
 
 const store = useStore()
 

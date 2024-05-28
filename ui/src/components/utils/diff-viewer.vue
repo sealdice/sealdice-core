@@ -39,7 +39,6 @@ import {
   QuestionFilled,
   ArrowRightBold,
 } from '@element-plus/icons-vue'
-import {computed, ref} from "vue";
 
 interface Props {
   old: string,

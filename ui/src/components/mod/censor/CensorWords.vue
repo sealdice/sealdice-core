@@ -29,7 +29,6 @@
 <script setup lang="ts">
 import {urlPrefix, useStore} from "~/store";
 import {backend} from "~/backend";
-import {onMounted, ref} from "vue";
 import {useCensorStore} from "~/components/mod/censor/censor";
 
 onMounted(() => {

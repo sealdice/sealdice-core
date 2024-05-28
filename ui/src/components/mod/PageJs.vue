@@ -304,9 +304,7 @@
 </template>
 
 <script lang="ts" setup>
-import {onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import {useStore} from '~/store'
-import {ElMessage, ElMessageBox} from 'element-plus'
 import {
   BrushFilled,
   CaretRight,
@@ -323,7 +321,6 @@ import {
 import * as dayjs from 'dayjs'
 import {basicSetup, EditorView} from "codemirror"
 import {javascript} from "@codemirror/lang-javascript"
-import DiffViewer from "~/components/utils/diff-viewer.vue";
 import {isEqual, size} from "lodash-es";
 import {JsPluginConfig, JsPluginConfigItem, JsScriptInfo} from "~/type";
 

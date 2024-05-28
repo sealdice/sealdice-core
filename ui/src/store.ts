@@ -1,7 +1,6 @@
 import { apiFetch, backend } from './backend'
 
 import { addImConnectionForm } from '~/components/PageConnectInfoItems.vue'
-import { defineStore } from 'pinia'
 import type {
   AdvancedConfig,
   HelpDoc,

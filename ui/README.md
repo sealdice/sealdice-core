@@ -4,7 +4,7 @@
 
 ## 说明
 
-本仓库为海豹核心的前端实现，使用 Vue3 + ElementPlus 开发。
+本仓库为海豹核心的前端实现，使用 Vue3 + ElementPlus + tailwindcss 开发。
 
 后端仓库：[sealdice-core](https://github.com/sealdice/sealdice-core)
 

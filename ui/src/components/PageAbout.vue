@@ -128,7 +128,6 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, onBeforeUnmount } from 'vue';
 import { useStore } from '~/store';
 import imgHaibao from '~/assets/haibao1.png'
 import { urlBase } from '~/backend';

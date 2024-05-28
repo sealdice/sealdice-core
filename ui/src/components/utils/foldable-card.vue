@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import {ArrowDown, ArrowRight, CircleClose} from "@element-plus/icons-vue";
-import {onMounted, ref} from "vue";
-import {ElCard} from "element-plus";
 
 const props = withDefaults(defineProps<{
   shadow?: 'always' | 'never' | 'hover'

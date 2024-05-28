@@ -8,11 +8,5 @@
 </template>
 
 <script lang="ts" setup>
-import PageJs from "./mod/PageJs.vue"
-import PageMiscDeck from "./mod/PageMiscDeck.vue"
-import PageHelpDoc from "./mod/PageHelpDoc.vue";
-import PageStory from "./mod/PageStory.vue";
-import PageCensor from "./mod/PageCensor.vue";
-
 const props = defineProps<{ category: string }>();
 </script>

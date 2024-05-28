@@ -136,9 +136,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, ref, h } from 'vue';
 import { useStore } from '~/store'
-import { ElMessage, ElMessageBox, ElSwitch } from 'element-plus'
 import {
   DocumentChecked,
   Close,
@@ -146,7 +144,6 @@ import {
 import * as dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { now, sortBy } from 'lodash-es'
-import { useVirtualList } from '@vueuse/core'
 
 dayjs.extend(relativeTime)
 

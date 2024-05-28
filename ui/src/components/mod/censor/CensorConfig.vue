@@ -166,10 +166,8 @@
 
 <script lang="ts" setup>
 
-import {nextTick, onBeforeMount, onBeforeUnmount, ref, watch} from "vue";
 import {DocumentChecked, QuestionFilled} from "@element-plus/icons-vue";
 import {isArray, isEqual, isObject, transform} from "lodash-es";
-import {ElMessage} from "element-plus";
 import {useCensorStore} from "~/components/mod/censor/censor";
 
 onBeforeMount(async () => {

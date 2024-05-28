@@ -170,10 +170,9 @@
 </template>
 
 <script lang="ts" setup>
-import {computed, nextTick, onBeforeMount, ref} from 'vue';
+import type {UploadUserFile} from "element-plus";
 import { useStore } from '~/store'
 import { urlBase } from '~/backend'
-import {ElMessage, ElMessageBox, UploadUserFile} from 'element-plus'
 import {
   DocumentChecked,
   Download,

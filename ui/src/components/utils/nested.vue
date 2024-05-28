@@ -118,9 +118,7 @@ import {
   Plus
 } from '@element-plus/icons-vue'
 import draggable from "vuedraggable";
-import { ElMessageBox } from 'element-plus'
-import CustomReplyCondition from "~/components/utils/custom-reply-condition.vue";
-import {breakpointsTailwind, useBreakpoints} from "@vueuse/core";
+import {breakpointsTailwind} from "@vueuse/core";
 
 const props = defineProps<{ tasks: Array<any> }>();
 

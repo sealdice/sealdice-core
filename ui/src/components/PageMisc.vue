@@ -7,12 +7,6 @@
 </template>
 
 <script lang="ts" setup>
-import PageMiscSettings from "./misc/PageMiscSettings.vue"
-import PageMiscBackup from "./misc/PageMiscBackup.vue"
-import PageMiscGroup from "./misc/PageMiscGroup.vue"
-import PageMiscBanList from "./misc/PageMiscBanList.vue"
-import PageMiscAdvancedSettings from "~/components/misc/PageMiscAdvancedSettings.vue";
-
 const props = defineProps<{ category: string }>();
 
 const emit = defineEmits(['update:advanced-settings-show']);

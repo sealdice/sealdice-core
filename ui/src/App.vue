@@ -124,16 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import PageCustomText from "./components/PageCustomText.vue";
-import PageConnectInfoItems from "./components/PageConnectInfoItems.vue";
-import PageMisc from "./components/PageMisc.vue"
-import PageMod from "./components/PageMod.vue"
-import PageCustomReply from "./components/mod/PageCustomReply.vue"
-import PageLog from "./components/PageLog.vue";
-import PageAbout from "./components/PageAbout.vue"
-import {onBeforeMount, ref, watch, computed} from 'vue'
 import {useStore} from './store'
-import {ElMessage, ElMessageBox} from 'element-plus'
 import imgNews from '~/assets/news.png'
 
 import {

@@ -106,9 +106,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onBeforeMount, ref } from 'vue';
 import { useStore } from '~/store'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   QuestionFilled,
   Upload,
@@ -121,8 +119,6 @@ import {
   Warning,
   CircleClose,
 } from '@element-plus/icons-vue'
-import DiffViewer from "~/components/utils/diff-viewer.vue";
-import FoldableCard from "~/components/utils/foldable-card.vue";
 
 const store = useStore()
 

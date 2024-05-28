@@ -1117,10 +1117,9 @@
 </template>
 
 <script lang="ts" setup>
-import { h, reactive, onBeforeMount, onBeforeUnmount, onMounted, ref, nextTick, Ref, computed } from 'vue';
+import { reactive } from 'vue'
 import { useStore, goCqHttpStateCode } from '~/store';
 import type { DiceConnection } from '~/store';
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, QuestionFilled, Delete } from '@element-plus/icons-vue'
 import { sleep } from '~/utils'
 import * as dayjs from 'dayjs'

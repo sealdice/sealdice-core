@@ -85,7 +85,6 @@
 </template>
 
 <script setup lang="ts">
-import {nextTick, onBeforeMount, ref, watch} from "vue";
 import {QuestionFilled} from "@element-plus/icons-vue";
 import {useStore} from "~/store";
 import {cloneDeep} from "lodash-es";

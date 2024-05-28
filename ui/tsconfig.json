@@ -17,5 +17,14 @@
     },
     "skipLibCheck": true
   },
-  "include": ["vite.config.*", "tailwind.config.*", "src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": [
+    "vite.config.*",
+    "tailwind.config.*",
+    "components.d.ts",
+    "auto-imports.d.ts",
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue"
+  ]
 }

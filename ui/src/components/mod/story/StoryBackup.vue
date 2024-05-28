@@ -47,11 +47,9 @@
 
 <script setup lang="ts">
 import type {Backup} from "./story";
-
-import {onBeforeMount, ref} from "vue";
+import type {CheckboxValueType} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
 import {filesize} from "filesize";
-import {CheckboxValueType, ElMessage, ElMessageBox} from "element-plus";
 import {useStoryStore} from "./story";
 import {urlBase} from "~/backend";
 

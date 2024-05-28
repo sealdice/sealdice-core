@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {Delete, QuestionFilled} from "@element-plus/icons-vue";
-import {breakpointsTailwind, useBreakpoints} from "@vueuse/core";
+import {breakpointsTailwind} from "@vueuse/core";
 
 const condModel = defineModel();
 const cond: any = condModel.value

@@ -155,13 +155,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormRules, FormInstance, ElTree } from 'element-plus';
-import {nextTick, onBeforeMount, reactive, ref} from 'vue';
 import { useStore } from '~/store';
 import { Delete, Plus, Refresh, Setting, Upload } from '@element-plus/icons-vue'
 import { trim } from 'lodash-es';
-import { computed } from 'vue';
 import {HelpDoc, HelpTextItem, HelpTextItemQuery} from "~/type";
 
 interface Group {

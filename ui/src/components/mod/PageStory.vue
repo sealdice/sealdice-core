@@ -1,12 +1,9 @@
 <script lang="ts" setup>
 import { Back, Delete, Select, Upload } from '@element-plus/icons-vue'
-import { Ref, ref, onBeforeMount, computed } from 'vue'
 import { useStore, urlPrefix } from '~/store'
 import { apiFetch, backend } from '~/backend'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import StoryBackup from "~/components/mod/story/StoryBackup.vue";
 import * as twColors from 'tailwindcss/colors'
 import randomColor from "randomcolor";
 
@@ -128,7 +125,7 @@ async function searchLogs() {
         logs.value = result.data
         queryLogPage.value.total = result.total
     } else {
-        ElMessage.error("无法获取跑团日志" + result.err ?? "")
+        ElMessage.error("无法获取跑团日志" + result.err)
     }
 }
 

@@ -128,11 +128,10 @@
 </template>
 
 <script lang="ts" setup>
-import {computed, onBeforeMount, onBeforeUnmount, onMounted, ref, watch} from 'vue';
+import type {CheckboxValueType} from "element-plus";
 import {useStore} from '~/store'
 import {urlBase} from '~/backend'
 import {filesize} from 'filesize'
-import {CheckboxValueType, ElMessage, ElMessageBox} from 'element-plus'
 import {
   Location,
   Document,
@@ -144,7 +143,6 @@ import {
   QuestionFilled,
   BrushFilled, DocumentChecked
 } from '@element-plus/icons-vue'
-import DiffViewer from "~/components/utils/diff-viewer.vue";
 import {sum} from "lodash-es";
 
 const store = useStore()
