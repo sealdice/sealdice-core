@@ -7,7 +7,7 @@ import customParseFormat from 'dayjs/plugin/customParseFormat';
 dayjs.extend(customParseFormat);
 
 export const reFvttExportLineTest = /^\[(\d+\/\d+\/\d+, \d+:\d+:\d+ [AP]M)\] (.+)$/m;
-export const reFvttExport = /^\[(\d+\/\d+\/\d+, \d+:\d+:\d+ [AP]M)\] ([^\n]+)\n(.*)/sg;
+export const reFvttExport = /^\[(\d+\/\d+\/\d+, \d+:\d+:\d+ [AP]M)\] ([^\n]+)\n(.*)/s;
 
 
 export class FvttLogImporter extends LogImporter {
@@ -61,8 +61,8 @@ export class FvttLogImporter extends LogImporter {
     const items = [] as LogItem[];
     let startText = '';
 
-    for (let i of text.split('---------------------------\n')) {
-      const m = reFvttExport.exec(i);
+    for (let i of text.split('---------------------------')) {
+      const m = reFvttExport.exec(i.trim());
       if (m) {
         if (m[3].trim() === '') continue;
         const item = {} as LogItem;
@@ -70,7 +70,7 @@ export class FvttLogImporter extends LogImporter {
         item.IMUserId = this.getAutoIMUserId(store.pcList.length, item.nickname);
         this.setCharInfo(charInfo, item);
         item.time = dayjs(m[1], 'M/D/YYYY, h:m:s A').unix();
-        item.message = m[3] + '\n';
+        item.message = m[3].trimStart() + '\n\n';
         items.push(item);
       }
     }
