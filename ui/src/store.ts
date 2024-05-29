@@ -470,8 +470,8 @@ export const useStore = defineStore('main', {
       return info as any
     },
 
-    async backupDoSimple() {
-      const info = await backend.post(urlPrefix + '/backup/do_backup')
+    async backupDoSimple(params: { selection: number }) {
+      const info = await backend.post(urlPrefix + '/backup/do_backup', params)
       return info as any
     },
 

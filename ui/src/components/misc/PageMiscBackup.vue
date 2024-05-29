@@ -3,7 +3,7 @@
     <h2>备份</h2>
     <div>
       <el-button type="success" :icon="DocumentChecked" @click="doSave">保存设置</el-button>
-      <el-button type="primary" @click="doBackup">立即备份</el-button>
+      <el-button type="primary" @click="showBackup = true">立即备份</el-button>
     </div>
   </div>
   <div>
@@ -21,6 +21,20 @@
           </span>
         </template>
         <el-input v-model="cfg.autoBackupTime" style="width: 12rem;"></el-input>
+      </el-form-item>
+      <el-form-item label="备份范围">
+        <el-checkbox-group v-model="cfg.autoBackupSelectionList">
+          <el-checkbox label="基础（含自定义回复）" value="base" checked disabled/>
+          <el-checkbox label="JS 插件" value="js"/>
+          <el-checkbox label="牌堆" value="deck"/>
+          <el-checkbox label="帮助文档" value="helpdoc"/>
+          <el-checkbox label="敏感词库" value="censor"/>
+          <el-checkbox label="人名信息" value="name"/>
+          <el-checkbox label="图片" value="image"/>
+        </el-checkbox-group>
+      </el-form-item>
+      <el-form-item label="备份文件名预览">
+        <el-text type="info">bak_{{ now }}_auto_r{{ cfg.autoBackupSelection.toString(16) }}_&lt;随机值&gt;.zip</el-text>
       </el-form-item>
     </div>
     <h3>自动清理</h3>
@@ -87,9 +101,13 @@
   </div>
 
   <div size="small" direction="vertical" class="backup-list" fill>
-    <div class="backup-line" v-for="i in data.items" :key="i.name" style="display: flex; justify-content: space-between;">
-      <el-text size="large">{{ i.name }}</el-text>
-      <el-space size="small" wrap style="margin-left: 1px; justify-content: flex-end;">
+    <div class="backup-line flex flex-wrap justify-between gap-2" v-for="i in data.items" :key="i.name">
+      <div class="flex flex-col">
+        <el-text class="self-start" size="large">{{ i.name }}</el-text>
+        <el-text class="self-start" v-if="(i?.selection ?? 0) >= 0" size="small" type="info">此备份包含：{{ parseSelectionDesc(i.selection).join('、') }}</el-text>
+        <el-text class="self-start" v-else size="small" type="warning">此备份内容无法识别</el-text>
+      </div>
+      <el-space size="small" wrap class="justify-end">
         <el-button size="small" tag="a" style="text-decoration: none; width: 8rem;"
                    :href="`${urlBase}/sd-api/backup/download?name=${encodeURIComponent(i.name)}&token=${encodeURIComponent(store.token)}`">
           下载 - {{ filesize(i.fileSize) }}
@@ -125,6 +143,33 @@
       </el-space>
     </template>
   </el-dialog>
+
+  <el-dialog v-model="showBackup" title="立即备份" class="diff-dialog">
+    <el-space direction="vertical" alignment="flex-start">
+      <div>
+        <span>备份范围：</span>
+        <el-checkbox-group v-model="backupSelections">
+          <el-checkbox label="基础（含自定义回复）" value="base" checked disabled/>
+          <el-checkbox label="JS 插件" value="js"/>
+          <el-checkbox label="牌堆" value="deck"/>
+          <el-checkbox label="帮助文档" value="helpdoc"/>
+          <el-checkbox label="敏感词库" value="censor"/>
+          <el-checkbox label="人名信息" value="name"/>
+          <el-checkbox label="图片" value="image"/>
+        </el-checkbox-group>
+      </div>
+      <div class="flex flex-wrap">
+        <span>备份文件名预览：</span>
+        <el-text type="info">bak_{{ now }}_r{{ formatSelection(backupSelections).toString(16) }}_&lt;随机值&gt;.zip</el-text>
+      </div>
+    </el-space>
+    <template #footer>
+      <el-space wrap>
+        <el-button @click="showBackup = false">取消</el-button>
+        <el-button type="primary" @click="doBackup">立即备份</el-button>
+      </el-space>
+    </template>
+  </el-dialog>
 </template>
 
 <script lang="ts" setup>
@@ -133,17 +178,12 @@ import {useStore} from '~/store'
 import {urlBase} from '~/backend'
 import {filesize} from 'filesize'
 import {
-  Location,
-  Document,
-  Menu as IconMenu,
-  Setting,
-  CirclePlusFilled,
-  CircleClose,
   Delete,
   QuestionFilled,
-  BrushFilled, DocumentChecked
+  DocumentChecked
 } from '@element-plus/icons-vue'
 import {sum} from "lodash-es";
+import { dayjs } from 'element-plus'
 
 const store = useStore()
 
@@ -154,6 +194,94 @@ const data = ref<{
 })
 
 const cfg = ref<any>({})
+const now = ref(dayjs().format('YYMMDD_HHmmss'))
+const showBackup = ref<boolean>(false)
+const backupSelections = ref<string[]>(['base', 'js', 'deck', 'helpdoc', 'censor', 'name', 'image'])
+
+const parseSelection = (selection: number): string[] => {
+  const list = ['base']
+  const jsMark = selection & 0b000001
+  if (jsMark) {
+    list.push('js')
+  }
+  const deckMark = selection & 0b000010
+  if (deckMark) {
+    list.push('deck')
+  }
+  const helpdocMark = selection & 0b000100
+  if (helpdocMark) {
+    list.push('helpdoc')
+  }
+  const censorMark = selection & 0b001000
+  if (censorMark) {
+    list.push('censor')
+  }
+  const nameMark = selection & 0b010000
+  if (nameMark) {
+    list.push('name')
+  }
+  const resourceMark = selection & 0b100000
+  if (resourceMark) {
+    list.push('image')
+  }
+  return list
+}
+
+const parseSelectionDesc = (selection: number): string[] => {
+  const list = ['基础']
+  const jsMark = selection & 0b000001
+  if (jsMark) {
+    list.push('JS 插件')
+  }
+  const deckMark = selection & 0b000010
+  if (deckMark) {
+    list.push('牌堆')
+  }
+  const helpdocMark = selection & 0b000100
+  if (helpdocMark) {
+    list.push('帮助文档')
+  }
+  const censorMark = selection & 0b001000
+  if (censorMark) {
+    list.push('敏感词库')
+  }
+  const nameMark = selection & 0b010000
+  if (nameMark) {
+    list.push('人名信息')
+  }
+  const resourceMark = selection & 0b100000
+  if (resourceMark) {
+    list.push('图片')
+  }
+  return list
+}
+
+const formatSelection = (selections: string[]): number => {
+  let mark = 0
+  if (selections.includes('js')) {
+    mark |= 0b000001
+  }
+  if (selections.includes('deck')) {
+    mark |= 0b000010
+  }
+  if (selections.includes('helpdoc')) {
+    mark |= 0b000100
+  }
+  if (selections.includes('censor')) {
+    mark |= 0b001000
+  }
+  if (selections.includes('name')) {
+    mark |= 0b010000
+  }
+  if (selections.includes('image')) {
+    mark |= 0b100000
+  }
+  return mark
+}
+
+watch(() => cfg.value.autoBackupSelectionList, (v) => {
+  cfg.value.autoBackupSelection = formatSelection(v)
+})
 
 const refreshList = async () => {
   const lst = await store.backupList()
@@ -163,6 +291,7 @@ const refreshList = async () => {
 const configGet = async () => {
   const data = await store.backupConfigGet()
   cfg.value = data
+  cfg.value.autoBackupSelectionList = parseSelection(data.autoBackupSelection)
   if (data.backupCleanTrigger) {
     let triggers: CleanTrigger[] = []
     if (data.backupCleanTrigger & CleanTrigger.Cron) {
@@ -232,7 +361,10 @@ const bakBatchDeleteConfirm = async () => {
 }
 
 const doBackup = async () => {
-  const ret = await store.backupDoSimple()
+  const ret = await store.backupDoSimple({
+    selection: formatSelection(backupSelections.value)
+  })
+  showBackup.value = false
   await refreshList()
   if (ret.testMode) {
     ElMessage.success('展示模式无法备份')
@@ -259,9 +391,15 @@ watch(backupCleanTriggers, (newStrategies) => {
   cfg.value.backupCleanTrigger = sum(newStrategies)
 })
 
+const refreshNow = async () => {
+    now.value = dayjs().format('YYMMDD_HHmmss');
+    await setTimeout(refreshNow, 1000);
+ };
+
 onBeforeMount(async () => {
   await configGet()
   await refreshList()
+  await refreshNow()
 })
 </script>
 
