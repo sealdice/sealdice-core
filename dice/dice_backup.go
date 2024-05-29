@@ -296,10 +296,13 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 				}
 				return nil
 			})
-			_ = filepath.WalkDir(filepath.Join(dataDir, "extensions"), func(path string, info fs.DirEntry, err error) error {
+			extDataDir := filepath.Join(dataDir, "extensions")
+			_ = filepath.WalkDir(extDataDir, func(path string, info fs.DirEntry, err error) error {
 				if info.IsDir() {
-					if ext := d.ExtFind(info.Name()); ext == nil || !ext.IsJsExt {
-						return filepath.SkipDir
+					if filepath.Dir(path) == extDataDir {
+						if ext := d.ExtFind(info.Name()); ext == nil || !ext.IsJsExt {
+							return filepath.SkipDir
+						}
 					}
 					return nil
 				}
