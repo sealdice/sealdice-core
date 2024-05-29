@@ -6,17 +6,21 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
+	"sealdice-core/utils/crypto"
 )
 
 type backupFileItem struct {
-	Name     string `json:"name"`
-	FileSize int64  `json:"fileSize"`
+	Name      string `json:"name"`
+	FileSize  int64  `json:"fileSize"`
+	Selection int64  `json:"selection"`
 }
 
 func ReverseSlice(s interface{}) {
@@ -32,12 +36,27 @@ func backupGetList(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
+	reFn := regexp.MustCompile(`^(bak_\d{6}_\d{6}(?:_auto)?_r([0-9a-f]+))_([0-9a-f]{8})\.zip$`)
+
 	var items []*backupFileItem
 	_ = filepath.Walk(dice.BackupDir, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() {
+			fn := info.Name()
+			matches := reFn.FindStringSubmatch(fn)
+			selection := int64(0)
+			if len(matches) == 4 {
+				hashed := crypto.CalculateSHA512Str([]byte(matches[1]))
+				if hashed[:8] == matches[3] {
+					selection, _ = strconv.ParseInt(matches[2], 16, 64)
+				} else {
+					selection = -1
+				}
+			}
+
 			items = append(items, &backupFileItem{
-				Name:     info.Name(),
-				FileSize: info.Size(),
+				Name:      fn,
+				FileSize:  info.Size(),
+				Selection: selection,
 			})
 		}
 		return err
