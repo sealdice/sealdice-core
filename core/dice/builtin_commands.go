@@ -950,7 +950,7 @@ func (d *Dice) registerCoreCommands() {
 			case "backup":
 				ReplyToSender(ctx, msg, "开始备份数据")
 
-				_, err := ctx.Dice.Parent.BackupSimple()
+				_, err := ctx.Dice.Parent.Backup(ctx.Dice.Parent.AutoBackupSelection, false)
 				if err == nil {
 					ReplyToSender(ctx, msg, "备份成功！请到UI界面(综合设置-备份)处下载备份，或在骰子backup目录下读取")
 				} else {
@@ -1018,7 +1018,7 @@ func (d *Dice) registerCoreCommands() {
 					ctx.Dice.UpgradeEndpointID = ctx.EndPoint.ID
 					ctx.Dice.Save(true)
 
-					bakFn, _ := ctx.Dice.Parent.BackupSimple()
+					bakFn, _ := ctx.Dice.Parent.Backup(BackupSelectionAll, false)
 					tmpPath := path.Join(os.TempDir(), bakFn)
 					_ = os.MkdirAll(tmpPath, 0755)
 					ctx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
