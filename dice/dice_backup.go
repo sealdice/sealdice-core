@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 
 	"sealdice-core/dice/model"
 	"sealdice-core/utils"
+	"sealdice-core/utils/crypto"
 )
 
 const BackupDir = "./backups"
@@ -35,31 +37,77 @@ const (
 	BackupCleanTriggerRotate
 )
 
-// 可勾选自定义文本、自定义回复、QQ帐号信息、牌堆等
-
-type AllBackupConfig struct {
-	Decks   bool                        `json:"decks"`
-	HelpDoc bool                        `json:"helpDoc"`
-	Dices   map[string]*OneBackupConfig `json:"dices"`
-	Global  bool                        `json:"global"`
+type backupConfigGlobal struct {
+	Global  bool                         `json:"global"`
+	Decks   bool                         `json:"decks"`
+	HelpDoc bool                         `json:"helpDoc"`
+	Censor  bool                         `json:"censor"`
+	Names   bool                         `json:"names"`
+	Images  bool                         `json:"images"`
+	Dices   map[string]*backupConfigDice `json:"dices"`
 }
 
-type OneBackupConfig struct {
+type backupConfigDice struct {
+	Accounts    bool `json:"accounts"`    // 帐号
 	MiscConfig  bool `json:"miscConfig"`  // 综合设置
 	PlayerData  bool `json:"playerData"`  // 用户数据
-	CustomReply bool `json:"customReply"` // 自定义回复
-	CustomText  bool `json:"customText"`  // 自定义文本
-	Accounts    bool `json:"accounts"`    // 帐号
+	CustomReply bool `json:"customReply"` // 文案模板
+	CustomText  bool `json:"customText"`  // 自定义回复
+	JSScripts   bool `json:"jsScripts"`   // JS脚本
 }
 
-func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, error) {
-	_ = os.MkdirAll(BackupDir, 0o755)
+type BackupSelection uint64
 
-	fzip, err := os.CreateTemp(BackupDir, bakFilename)
+const (
+	BackupSelectionJS BackupSelection = 1 << iota
+	BackupSelectionDecks
+	BackupSelectionHelpDoc
+	BackupSelectionCensor
+	BackupSelectionNames
+	BackupSelectionImages
+
+	BackupSelectionBasic     BackupSelection = 0
+	BackupSelectionResources BackupSelection = BackupSelectionImages
+	BackupSelectionAll       BackupSelection = BackupSelectionBasic |
+		BackupSelectionJS |
+		BackupSelectionDecks |
+		BackupSelectionHelpDoc |
+		BackupSelectionCensor |
+		BackupSelectionNames |
+		BackupSelectionResources
+)
+
+func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error) {
+	_ = os.MkdirAll(BackupDir, 0o755)
+	logger := dm.Dice[0].Logger
+
+	cfgGlb := backupConfigGlobal{
+		Global: true,
+		Dices:  map[string]*backupConfigDice{},
+	}
+	cfgDice := backupConfigDice{
+		Accounts:    true,
+		MiscConfig:  true,
+		PlayerData:  true,
+		CustomReply: true,
+		CustomText:  true,
+	}
+
+	bakFn := "bak_" + time.Now().Format("060102_150405")
+	if fromAuto {
+		bakFn += "_auto"
+	}
+	bakFn += "_r" + strconv.FormatUint(uint64(sel), 16)
+	fnHashed := crypto.CalculateSHA512Str([]byte(bakFn))[:8]
+	bakFn += "_" + fnHashed + ".zip"
+
+	fzip, err := os.OpenFile(filepath.Join(BackupDir, bakFn),
+		os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
 	if err != nil {
 		return "", err
 	}
 	defer func() { _ = fzip.Close() }()
+
 	writer := zip.NewWriter(fzip)
 	defer func(writer *zip.Writer) {
 		_ = writer.Close()
@@ -69,14 +117,18 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 		stat, err := os.Stat(fn)
 		return err == nil && !stat.IsDir()
 	}
+	dirOK := func(fn string) bool {
+		stat, err := os.Stat(fn)
+		return err == nil && stat.IsDir()
+	}
 
 	backup := func(d *Dice, fn string) {
 		data, err := os.ReadFile(fn)
-		if err != nil {
+		if err != nil && !strings.Contains(fn, "session.token") {
 			if d != nil {
-				if !strings.Contains(fn, "session.token") {
-					d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
-				}
+				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+			} else {
+				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
 			}
 			return
 		}
@@ -86,124 +138,180 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 		if err != nil {
 			if d != nil {
 				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+			} else {
+				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
 			}
 			return
 		}
 		_, _ = fileWriter.Write(data)
 	}
 
-	if cfg.Decks {
-		_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+	backupDir := func(path string, info fs.FileInfo, _ error) error {
+		if !info.IsDir() {
+			backup(nil, path)
+		}
+		return nil
+	}
+
+	backup(nil, "data/dice.yaml")
+
+	if sel&BackupSelectionDecks != 0 {
+		cfgGlb.Decks = true
+		_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, _ error) error {
 			if !info.IsDir() {
 				backup(nil, path)
+				return nil
 			}
-			return nil
-		})
-	}
-
-	if cfg.HelpDoc {
-		_ = filepath.Walk("data/helpdoc", func(path string, info fs.FileInfo, err error) error {
-			if !info.IsDir() {
-				backup(nil, path)
-			}
-			return nil
-		})
-	}
-
-	if cfg.Global {
-		backup(nil, "data/dice.yaml")
-	}
-
-	for k, cfg2 := range cfg.Dices {
-		var d *Dice
-		for _, i := range dm.Dice {
-			if i.BaseConfig.Name == k {
-				d = dm.Dice[0]
-				break
-			}
-		}
-
-		if d == nil {
-			continue
-		}
-
-		if cfg2.MiscConfig {
-			backup(d, filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
-			if fn := filepath.Join(d.BaseConfig.DataDir, "advanced.yaml"); fileOK(fn) {
-				backup(d, fn)
-			}
-			if fn := filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"); fileOK(fn) {
-				backup(d, fn)
-			}
-		}
-
-		if cfg2.PlayerData {
-			err := model.FlushWAL(d.DBData)
-			if err != nil {
-				d.Logger.Warnln("备份时data数据库flush出错", err.Error())
-			}
-			err = model.FlushWAL(d.DBLogs)
-			if err != nil {
-				d.Logger.Warnln("备份时logs数据库flush出错", err.Error())
-			}
-			if d.CensorManager != nil && d.CensorManager.DB != nil {
-				err = model.FlushWAL(d.CensorManager.DB)
-				if err != nil {
-					d.Logger.Warnln("备份时censor数据库flush出错", err.Error())
+			base := filepath.Base(path)
+			// 跳过 deck 压缩包解压出的目录
+			if strings.HasPrefix(base, "_") && strings.HasSuffix(base, ".deck") {
+				if fileOK(filepath.Join(filepath.Dir(path), base[1:])) {
+					return filepath.SkipDir
 				}
 			}
+			return nil
+		})
+	}
 
-			backup(d, filepath.Join(d.BaseConfig.DataDir, "data.db"))
-			backup(d, filepath.Join(d.BaseConfig.DataDir, "data-logs.db"))
-			if fn := filepath.Join(d.BaseConfig.DataDir, "data-censor.db"); fileOK(fn) {
-				backup(d, fn)
+	if sel&BackupSelectionHelpDoc != 0 {
+		if !dirOK("data/helpdoc") {
+			logger.Warn("备份 helpdoc 失败: 不存在或不是目录")
+		} else {
+			cfgGlb.HelpDoc = true
+			_ = filepath.Walk("data/helpdoc", backupDir)
+		}
+	}
+
+	if sel&BackupSelectionCensor != 0 {
+		if !dirOK("data/censor") {
+			logger.Warn("备份 censor 失败: 不存在或不是目录")
+		} else {
+			cfgGlb.Censor = true
+			_ = filepath.Walk("data/censor", backupDir)
+		}
+	}
+
+	if sel&BackupSelectionNames != 0 {
+		if !dirOK("data/names") {
+			logger.Warn("备份 names 失败: 不存在或不是目录")
+		} else {
+			cfgGlb.Names = true
+			_ = filepath.Walk("data/names", backupDir)
+		}
+	}
+
+	if sel&BackupSelectionImages != 0 {
+		if !dirOK("data/images") {
+			logger.Warn("备份 images 失败: 不存在或不是目录")
+		} else {
+			cfgGlb.Images = true
+			_ = filepath.Walk("data/images", backupDir)
+		}
+	}
+
+	withJS := sel&BackupSelectionJS != 0
+	cfgDice.JSScripts = withJS
+
+	for _, d := range dm.Dice {
+		cfgGlb.Dices[d.BaseConfig.Name] = &cfgDice
+		dataDir := d.BaseConfig.DataDir
+
+		backup(d, filepath.Join(dataDir, "serve.yaml"))
+		if fn := filepath.Join(dataDir, "advanced.yaml"); fileOK(fn) {
+			backup(d, fn)
+		}
+		if fn := filepath.Join(dataDir, "configs", "plugin-configs.json"); fileOK(fn) {
+			backup(d, fn)
+		}
+
+		err := model.FlushWAL(d.DBData)
+		if err != nil {
+			d.Logger.Warnln("备份时data数据库flush出错", err.Error())
+		} else {
+			backup(d, filepath.Join(dataDir, "data.db"))
+		}
+		err = model.FlushWAL(d.DBLogs)
+		if err != nil {
+			d.Logger.Warnln("备份时logs数据库flush出错", err.Error())
+		} else {
+			backup(d, filepath.Join(dataDir, "data-logs.db"))
+		}
+		if d.CensorManager != nil && d.CensorManager.DB != nil {
+			err = model.FlushWAL(d.CensorManager.DB)
+			if err != nil {
+				d.Logger.Warnln("备份时censor数据库flush出错", err.Error())
+			} else {
+				backup(d, filepath.Join(dataDir, "data-censor.db"))
 			}
 		}
-		if cfg2.CustomReply {
-			backup(d, filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"))
+
+		backup(d, filepath.Join(dataDir, "configs/text-template.yaml"))
+
+		_ = filepath.WalkDir(filepath.Join(dataDir, "extensions/reply"), func(path string, info fs.DirEntry, _ error) error {
+			// NOTE(Xiangze Li): copied from dice.ReplyReload. Should extract as function, but I'm lazy
+			if info.IsDir() {
+				if strings.EqualFold(info.Name(), "assets") || strings.EqualFold(info.Name(), "images") {
+					return fs.SkipDir
+				}
+				return nil
+			}
+			if strings.HasPrefix(info.Name(), ".reply") || info.Name() == "info.yaml" {
+				return nil
+			}
+
+			ext := filepath.Ext(path)
+			if ext == ".yaml" || ext == "" {
+				backup(d, path)
+			}
+			return nil
+		})
+
+		for _, i := range d.ImSession.EndPoints {
+			if i.Platform == "QQ" {
+				if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackClient {
+					workDir := i.RelWorkDir
+					if pa.BuiltinMode == "lagrange" {
+						backup(d, filepath.Join(dataDir, workDir, "appsettings.json"))
+						backup(d, filepath.Join(dataDir, workDir, "device.json"))
+						backup(d, filepath.Join(dataDir, workDir, "keystore.json"))
+					} else {
+						backup(d, filepath.Join(dataDir, workDir, "config.yml"))
+						backup(d, filepath.Join(dataDir, workDir, "device.json"))
+						backup(d, filepath.Join(dataDir, workDir, "session.token"))
+					}
+				}
+			}
 		}
-		if cfg2.CustomText {
-			_ = filepath.WalkDir(filepath.Join(d.BaseConfig.DataDir, "extensions/reply"), func(path string, info fs.DirEntry, _ error) error {
-				// NOTE(Xiangze Li): copied from dice.ReplyReload. Should extract as function, but I'm lazy
+
+		if withJS {
+			_ = filepath.WalkDir(filepath.Join(dataDir, "scripts"), func(path string, info fs.DirEntry, _ error) error {
 				if info.IsDir() {
-					if strings.EqualFold(info.Name(), "assets") || strings.EqualFold(info.Name(), "images") {
-						return fs.SkipDir
+					if info.Name() == "_builtin" {
+						return filepath.SkipDir
 					}
 					return nil
 				}
-				if strings.HasPrefix(info.Name(), ".reply") || info.Name() == "info.yaml" {
-					return nil
-				}
-
-				ext := filepath.Ext(path)
-				if ext == ".yaml" || ext == "" {
+				if filepath.Ext(info.Name()) == ".js" {
 					backup(d, path)
 				}
 				return nil
 			})
-		}
-		if cfg2.Accounts {
-			for _, i := range d.ImSession.EndPoints {
-				if i.Platform == "QQ" {
-					if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackClient {
-						if pa.BuiltinMode == "lagrange" {
-							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "appsettings.json"))
-							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "device.json"))
-							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "keystore.json"))
-						} else {
-							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "config.yml"))
-							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "device.json"))
-							backup(d, filepath.Join(d.BaseConfig.DataDir, i.RelWorkDir, "session.token"))
-						}
+			_ = filepath.WalkDir(filepath.Join(dataDir, "extensions"), func(path string, info fs.DirEntry, err error) error {
+				if info.IsDir() {
+					if ext := d.ExtFind(info.Name()); ext == nil || !ext.IsJsExt {
+						return filepath.SkipDir
 					}
+					return nil
 				}
-			}
+				backup(d, path)
+				return nil
+			})
 		}
 	}
 
 	// 写入文件信息
 	data, _ := json.Marshal(map[string]interface{}{
-		"config":      cfg,
+		"config":      cfgGlb,
 		"version":     VERSION.String(),
 		"versionCode": VERSION_CODE,
 	})
@@ -216,39 +324,8 @@ func (dm *DiceManager) Backup(cfg AllBackupConfig, bakFilename string) (string, 
 }
 
 func (dm *DiceManager) BackupAuto() error {
-	_, err := dm.Backup(AllBackupConfig{
-		Global:  true,
-		Decks:   false,
-		HelpDoc: false,
-		Dices: map[string]*OneBackupConfig{
-			"default": {
-				MiscConfig:  true,
-				PlayerData:  true,
-				CustomReply: true,
-				CustomText:  true,
-				Accounts:    true,
-			},
-		},
-	}, "bak-"+time.Now().Format("060102_150405")+"_auto_"+"*.zip")
+	_, err := dm.Backup(dm.AutoBackupSelection, true)
 	return err
-}
-
-func (dm *DiceManager) BackupSimple() (string, error) {
-	fn := "bak-" + time.Now().Format("060102_150405") + "_" + "*.zip"
-	return dm.Backup(AllBackupConfig{
-		Global:  true,
-		Decks:   false,
-		HelpDoc: false,
-		Dices: map[string]*OneBackupConfig{
-			"default": {
-				MiscConfig:  true,
-				PlayerData:  true,
-				CustomReply: true,
-				CustomText:  true,
-				Accounts:    true,
-			},
-		},
-	}, fn)
 }
 
 func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
