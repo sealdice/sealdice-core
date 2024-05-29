@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"sealdice-core/dice"
+
 	"github.com/labstack/echo/v4"
 	cp "github.com/otiai10/copy"
 )
@@ -36,7 +38,7 @@ func upgrade(c echo.Context) error {
 			ret := <-dm.UpdateDownloadedChan
 			if ret == "" {
 				myDice.Save(true)
-				bakFn, _ := myDice.Parent.BackupSimple()
+				bakFn, _ := myDice.Parent.Backup(dice.BackupSelectionAll, false)
 				tmpParent := os.TempDir()
 				tmpPath := path.Join(tmpParent, bakFn)
 				_ = os.MkdirAll(filepath.Join(tmpParent, "backups"), 0644)

@@ -6,17 +6,21 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
+	"sealdice-core/utils/crypto"
 )
 
 type backupFileItem struct {
-	Name     string `json:"name"`
-	FileSize int64  `json:"fileSize"`
+	Name      string `json:"name"`
+	FileSize  int64  `json:"fileSize"`
+	Selection int64  `json:"selection"`
 }
 
 func ReverseSlice(s interface{}) {
@@ -32,12 +36,27 @@ func backupGetList(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
+	reFn := regexp.MustCompile(`^(bak_\d{6}_\d{6}(?:_auto)?_r([0-9a-f]+))_([0-9a-f]{8})\.zip$`)
+
 	var items []*backupFileItem
 	_ = filepath.Walk(dice.BackupDir, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() {
+			fn := info.Name()
+			matches := reFn.FindStringSubmatch(fn)
+			selection := int64(0)
+			if len(matches) == 4 {
+				hashed := crypto.CalculateSHA512Str([]byte(matches[1]))
+				if hashed[:8] == matches[3] {
+					selection, _ = strconv.ParseInt(matches[2], 16, 64)
+				} else {
+					selection = -1
+				}
+			}
+
 			items = append(items, &backupFileItem{
-				Name:     info.Name(),
-				FileSize: info.Size(),
+				Name:      fn,
+				FileSize:  info.Size(),
+				Selection: selection,
 			})
 		}
 		return err
@@ -122,7 +141,7 @@ func backupBatchDelete(c echo.Context) error {
 }
 
 // 快速备份
-func backupSimple(c echo.Context) error {
+func backupExec(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
@@ -132,15 +151,24 @@ func backupSimple(c echo.Context) error {
 		})
 	}
 
-	_, err := dm.BackupSimple()
+	v := struct {
+		Selection uint64 `json:"selection"`
+	}{}
+	err := c.Bind(&v)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	_, err = dm.Backup(dice.BackupSelection(v.Selection), false)
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success": err == nil,
 	})
 }
 
 type backupConfig struct {
-	AutoBackupEnable bool   `json:"autoBackupEnable"`
-	AutoBackupTime   string `json:"autoBackupTime"`
+	AutoBackupEnable    bool   `json:"autoBackupEnable"`
+	AutoBackupTime      string `json:"autoBackupTime"`
+	AutoBackupSelection uint64 `json:"autoBackupSelection"`
 
 	BackupCleanStrategy  int    `json:"backupCleanStrategy"`
 	BackupCleanKeepCount int    `json:"backupCleanKeepCount"`
@@ -153,6 +181,7 @@ func backupConfigGet(c echo.Context) error {
 	bc := backupConfig{}
 	bc.AutoBackupEnable = dm.AutoBackupEnable
 	bc.AutoBackupTime = dm.AutoBackupTime
+	bc.AutoBackupSelection = uint64(dm.AutoBackupSelection)
 	bc.BackupCleanStrategy = int(dm.BackupCleanStrategy)
 	bc.BackupCleanKeepCount = dm.BackupCleanKeepCount
 	bc.BackupCleanKeepDur = dm.BackupCleanKeepDur.String()
@@ -179,6 +208,7 @@ func backupConfigSave(c echo.Context) error {
 
 	dm.AutoBackupEnable = v.AutoBackupEnable
 	dm.AutoBackupTime = v.AutoBackupTime
+	dm.AutoBackupSelection = dice.BackupSelection(v.AutoBackupSelection)
 
 	if int(dice.BackupCleanStrategyDisabled) <= v.BackupCleanStrategy && v.BackupCleanStrategy <= int(dice.BackupCleanStrategyByTime) {
 		dm.BackupCleanStrategy = dice.BackupCleanStrategy(v.BackupCleanStrategy)

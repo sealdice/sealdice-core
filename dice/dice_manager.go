@@ -46,9 +46,11 @@ type DiceManager struct { //nolint:revive
 	AccessTokens   map[string]bool
 	IsReady        bool
 
-	AutoBackupEnable bool
-	AutoBackupTime   string
-	backupEntryID    cron.EntryID
+	AutoBackupEnable    bool
+	AutoBackupTime      string
+	AutoBackupSelection BackupSelection
+	backupEntryID       cron.EntryID
+
 	// 备份自动清理配置
 	BackupCleanStrategy  BackupCleanStrategy // 关闭 / 保留一定数量 / 保留一定时间
 	BackupCleanKeepCount int                 // 保留的数量
@@ -90,8 +92,9 @@ type DiceConfigs struct { //nolint:revive
 	UIPasswordHash string   `yaml:"uiPasswordHash"`
 	AccessTokens   []string `yaml:"accessTokens"`
 
-	AutoBackupEnable bool   `yaml:"autoBackupEnable"`
-	AutoBackupTime   string `yaml:"autoBackupTime"`
+	AutoBackupEnable    bool   `yaml:"autoBackupEnable"`
+	AutoBackupTime      string `yaml:"autoBackupTime"`
+	AutoBackupSelection uint64 `yaml:"autoBackupSelection"`
 
 	BackupClean struct {
 		Strategy  int    `yaml:"strategy"`
@@ -169,6 +172,7 @@ func (dm *DiceManager) LoadDice() {
 
 	dm.AutoBackupTime = dc.AutoBackupTime
 	dm.AutoBackupEnable = dc.AutoBackupEnable
+	dm.AutoBackupSelection = BackupSelection(dc.AutoBackupSelection)
 
 	if dc.AutoBackupTime == "" {
 		// 从旧版升级
@@ -203,6 +207,7 @@ func (dm *DiceManager) Save() {
 	dc.AccessTokens = []string{}
 	dc.AutoBackupTime = dm.AutoBackupTime
 	dc.AutoBackupEnable = dm.AutoBackupEnable
+	dc.AutoBackupSelection = uint64(dm.AutoBackupSelection)
 	dc.BackupClean.Strategy = int(dm.BackupCleanStrategy)
 	dc.BackupClean.KeepCount = dm.BackupCleanKeepCount
 	dc.BackupClean.KeepDur = int64(dm.BackupCleanKeepDur)
