@@ -66,7 +66,7 @@ func (am *AttrsManager) CharNew(userId string, name string, sheetType string) (*
 	}
 
 	return model.AttrsNewItem(am.parent.DBData, &model.AttributesItemModel{
-		Nickname:  name,
+		Name:      name,
 		OwnerId:   userId,
 		SheetType: sheetType,
 		Data:      json,
@@ -99,7 +99,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 				i = &AttributesItem{
 					ID:           id,
 					valueMap:     dd.Dict,
-					NickName:     data.Nickname,
+					Name:         data.Name,
 					LastUsedTime: time.Now().Unix(),
 				}
 				am.m.Store(id, i)
@@ -275,7 +275,7 @@ type AttributesItem struct {
 	LastModifiedTime int64        // 上次修改时间
 	LastUsedTime     int64        // 上次使用时间
 	IsSaved          bool
-	NickName         string
+	Name             string
 }
 
 func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
@@ -284,7 +284,7 @@ func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
 	if err != nil {
 		return
 	}
-	err = model.AttrsPutById(db, tx, i.ID, rawData, i.NickName)
+	err = model.AttrsPutById(db, tx, i.ID, rawData, i.Name)
 	if err != nil {
 		fmt.Println("保存数据失败", err.Error())
 		return

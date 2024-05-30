@@ -5,22 +5,31 @@ import (
 	"errors"
 	"time"
 
+	"sealdice-core/utils"
+
 	"github.com/jmoiron/sqlx"
 
-	nanoid "github.com/matoous/go-nanoid/v2"
 	ds "github.com/sealdice/dicescript"
 )
 
-// AttributesItemModel 新版人物卡
+const (
+	AttrsTypeCharacter = "character"
+	AttrsTypeGroupUser = "group_user"
+	AttrsTypeGroup     = "group"
+	AttrsTypeUser      = "user"
+)
+
+// AttributesItemModel 新版人物卡。说明一下，这里带s的原因是attrs指的是一个map
 type AttributesItemModel struct {
-	Id   string `json:"id" db:"id"`     // 如果是群内，那么是类似 QQ-Group:12345-QQ:678910，群外是nanoid
-	Data []byte `json:"data" db:"data"` // 序列化后的卡数据，理论上[]byte不会进入字符串缓存，要更好些？
+	Id        string `json:"id" db:"id"`                // 如果是群内，那么是类似 QQ-Group:12345-QQ:678910，群外是nanoid
+	Data      []byte `json:"data" db:"data"`            // 序列化后的卡数据，理论上[]byte不会进入字符串缓存，要更好些？
+	AttrsType string `json:"attrsType" db:"attrs_type"` // 分为: 角色卡(character)、组内用户(group_user)、群组(group)、用户(user)
 
 	// 这些是群组内置卡专用的，其实就是替代了绑卡关系表，作为群组内置卡时，这个字段用于存放绑卡关系
 	BindingSheetId string `json:"bindingSheetId" db:"binding_sheet_id"` // 绑定的卡片ID
 
 	// 这些是角色卡专用的
-	Nickname  string `json:"nickname" db:"nickname"`    // 卡片名称
+	Name      string `json:"name" db:"name"`            // 卡片名称
 	OwnerId   string `json:"ownerId" db:"owner_id"`     // 若有明确归属，就是对应的UniformID
 	SheetType string `json:"sheetType" db:"sheet_type"` // 卡片类型，如dnd5e coc7
 	IsHidden  bool   `json:"isHidden" db:"is_hidden"`   // 隐藏的卡片不出现在 pc list 中
@@ -66,21 +75,21 @@ func AttrsGetBindingSheetIdByGroupId(db *sqlx.DB, id string) (string, error) {
 
 func AttrsGetIdByUidAndName(db *sqlx.DB, userId string, name string) (string, error) {
 	var item AttributesItemModel
-	err := db.Get(&item, "select id from attrs where owner_id = $1 and nickname = $2", userId, name)
+	err := db.Get(&item, "select id from attrs where owner_id = $1 and name = $2", userId, name)
 	if err != nil && err != sql.ErrNoRows {
 		return "", err
 	}
 	return item.Id, nil
 }
 
-func AttrsPutById(db *sqlx.DB, tx *sql.Tx, id string, data []byte, nickname string) error {
+func AttrsPutById(db *sqlx.DB, tx *sql.Tx, id string, data []byte, name string) error {
 	// TODO: 好像还不够，需要nickname 需要sheetType，还有别的吗
 	var err error
 	now := time.Now().Unix()
-	query := `insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at, nickname)
+	query := `insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at, name)
 			  values ($1, $2, true, '', $3, $3, $4)
-			  on conflict (id) do update set data = $2, updated_at = $3, nickname = $4`
-	args := []any{id, data, now, nickname}
+			  on conflict (id) do update set data = $2, updated_at = $3, name = $4`
+	args := []any{id, data, now, name}
 
 	if tx != nil {
 		_, err = tx.Exec(query, args...)
@@ -123,15 +132,15 @@ func AttrsCharUnbindAll(db *sqlx.DB, id string) (int64, error) {
 
 // AttrsNewItem 新建一个角色卡/属性容器
 func AttrsNewItem(db *sqlx.DB, item *AttributesItemModel) (*AttributesItemModel, error) {
-	id, _ := nanoid.New()
+	id := utils.NewID()
 	now := time.Now().Unix()
 	item.Id, item.CreatedAt, item.UpdatedAt = id, now, now
 
 	var err error
 	_, err = db.Exec(`
-		insert into attrs (id, data, nickname, owner_id, sheet_type, is_hidden, created_at, updated_at)
+		insert into attrs (id, data, name, owner_id, sheet_type, is_hidden, created_at, updated_at)
 		values ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		item.Id, item.Data, item.Nickname, item.OwnerId, item.SheetType, item.IsHidden, item.CreatedAt, item.UpdatedAt)
+		item.Id, item.Data, item.Name, item.OwnerId, item.SheetType, item.IsHidden, item.CreatedAt, item.UpdatedAt)
 	return item, err
 }
 
@@ -158,7 +167,7 @@ func AttrsBindCharacter(db *sqlx.DB, charId string, id string) error {
 
 func AttrsGetCharacterListByUserId(db *sqlx.DB, userId string) (lst []*AttributesItemModel, err error) {
 	rows, err := db.Queryx(`
-	select id, nickname, sheet_type,
+	select id, name, sheet_type,
 	       (select count(id) from attrs where binding_sheet_id = id)
 	from attrs where owner_id = $1 and is_hidden is false
 	`, userId)
@@ -170,7 +179,7 @@ func AttrsGetCharacterListByUserId(db *sqlx.DB, userId string) (lst []*Attribute
 		item := &AttributesItemModel{}
 		err := rows.Scan(
 			&item.Id,
-			&item.Nickname,
+			&item.Name,
 			&item.SheetType,
 			&item.BindingGroupsNum,
 		)

@@ -150,7 +150,7 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 	//		return
 	//	}
 	//
-	//	msg.Sender.Nickname = "系统"
+	//	msg.Sender.Name = "系统"
 	//	// GuildCreate 似乎不会在私聊消息时触发
 	//	msg.MessageType = "group"
 	//

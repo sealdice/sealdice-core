@@ -744,7 +744,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// d := pa.GetStrangerInfo(msgQQ.UserId) // 先获取个人信息，避免不存在id
 				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 				// if ctx.Player.Name == "" {
-				//	ctx.Player.Name = d.Nickname
+				//	ctx.Player.Name = d.Name
 				//	ctx.Player.UpdatedAtTime = time.Now().Unix()
 				//}
 
@@ -813,7 +813,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			gi.UpdatedAtTime = time.Now().Unix()
 			// 立即获取群信息
 			pa.GetGroupInfoAsync(msg.GroupID)
-			// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname)
+			// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Name)
 
 			time.Sleep(2 * time.Second)
 			groupName := dm.TryGetGroupName(msg.GroupID)
@@ -892,7 +892,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 							}()
 
 							ctx.Player = &GroupPlayerInfo{}
-							// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
+							// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Name+">")
 							uidRaw := string(msgQQ.UserID)
 							VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
 							VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)

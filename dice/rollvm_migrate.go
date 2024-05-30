@@ -9,7 +9,7 @@ import (
 func (v *VMValue) ConvertToV2() *ds.VMValue {
 	switch v.TypeID {
 	case VMTypeInt64:
-		return ds.VMValueNewInt(v.Value.(ds.IntType))
+		return ds.VMValueNewInt(ds.IntType(v.Value.(int64)))
 	case VMTypeString:
 		return ds.VMValueNewStr(v.Value.(string))
 	case VMTypeNone:
@@ -33,10 +33,12 @@ func (v *VMValue) ConvertToV2() *ds.VMValue {
 		oldCd, _ := v.ReadComputed()
 
 		m := &ds.ValueMap{}
-		oldCd.Attrs.Range(func(key string, value *VMValue) bool {
-			m.Store(key, value.ConvertToV2())
-			return true
-		})
+		if oldCd.Attrs != nil {
+			oldCd.Attrs.Range(func(key string, value *VMValue) bool {
+				m.Store(key, value.ConvertToV2())
+				return true
+			})
+		}
 		cd := &ds.ComputedData{
 			Expr:  oldCd.Expr,
 			Attrs: m,

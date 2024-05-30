@@ -255,11 +255,12 @@ CREATE INDEX IF NOT EXISTS idx_censor_log_level
 CREATE TABLE IF NOT EXISTS attrs (
     id TEXT PRIMARY KEY,
     data BYTEA,
+    attrs_type TEXT,
 
 	-- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
 	binding_sheet_id TEXT default '',
 
-    nickname TEXT default '',
+    name TEXT default '',
     owner_id TEXT default '',
     sheet_type TEXT default '',
     is_hidden BOOLEAN default FALSE,
@@ -270,6 +271,7 @@ CREATE TABLE IF NOT EXISTS attrs (
 `,
 		`create index if not exists idx_attrs_binding_sheet_id on ban_info (binding_sheet_id);`,
 		`create index if not exists idx_attrs_owner_id_id on ban_info (owner_id);`,
+		`create index if not exists idx_attrs_attrs_type_id on ban_info (attrs_type);`,
 	}
 
 	for _, i := range texts {
