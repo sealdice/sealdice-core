@@ -347,6 +347,8 @@ func (d *Dice) Init() {
 	d.BanList = &BanListInfo{Parent: d}
 	d.BanList.Init()
 
+	initVerify()
+
 	d.CommandCompatibleMode = true
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
