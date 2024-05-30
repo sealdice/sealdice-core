@@ -282,8 +282,9 @@ jobs:
           CGO_ENABLED: ${{ matrix.goos == 'windows' && 1 || 0 }}
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
+          SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
         working-directory: ./sealdice-core
-        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}'" .
+        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
       - name: Build Binary (musl)
         if: matrix.musl == 'musl'
         env:
@@ -369,8 +370,9 @@ jobs:
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -mmacosx-version-min=10.12
           CGO_CFLAGS: -mmacosx-version-min=10.12
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
+          SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
         working-directory: ./sealdice-core
-        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev  -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}'" .
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev  -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
@@ -431,9 +433,10 @@ jobs:
           CC: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang
           CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
+          SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
         working-directory: ./sealdice-core
         run: |
-          go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev  -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}'" .
+          go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev  -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
       - name: Upload Core
         uses: actions/upload-artifact@v4
         with:
