@@ -682,4 +682,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/resource", resourceUpload)
 	e.DELETE(prefix+"/resource", resourceDelete)
 	e.GET(prefix+"/resource/data", resourceGetData)
+
+	e.GET(prefix+"/verify/generate_code", verifyGenerateCode)
 }

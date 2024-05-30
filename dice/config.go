@@ -942,6 +942,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"ping响应": {
 				{"pong！这里是{核心:骰子名字}", 1},
 			},
+			"校验_成功": {
+				{"本次生成的神秘海豹码：\n{$t校验码}", 1},
+			},
 		},
 		"日志": {
 			"记录_新建": {
@@ -1628,6 +1631,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"ping响应": {
 				SubType:   ".ping",
 				ExtraText: ".ping命令的响应语",
+			},
+			"校验_成功": {
+				SubType: ".check",
 			},
 		},
 		"日志": {

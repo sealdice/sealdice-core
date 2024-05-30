@@ -60,6 +60,7 @@ require (
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	github.com/tdewolff/minify/v2 v2.20.31
 	github.com/tidwall/buntdb v1.3.1
+	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/xuri/excelize/v2 v2.8.1
 	github.com/yuin/goldmark v1.7.1
 	go.etcd.io/bbolt v1.3.9
@@ -75,6 +76,7 @@ require (
 )
 
 require (
+	github.com/Milly/go-base2048 v0.1.0 // indirect
 	github.com/RoaringBitmap/roaring v1.2.3 // indirect
 	github.com/bits-and-blooms/bitset v1.2.2 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.2.0 // indirect
@@ -164,6 +166,7 @@ require (
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/term v0.20.0 // indirect
+	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
