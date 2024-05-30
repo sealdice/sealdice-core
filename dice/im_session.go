@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	ds "github.com/sealdice/dicescript"
+
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
 
@@ -496,6 +498,7 @@ type MsgContext struct {
 	SpamCheckedPerson bool
 
 	splitKey string
+	vm       *ds.Context
 }
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级

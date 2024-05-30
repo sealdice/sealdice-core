@@ -2,9 +2,6 @@ package dice
 
 import (
 	"strconv"
-	"strings"
-
-	ds "github.com/sealdice/dicescript"
 )
 
 type VMValueType int
@@ -61,7 +58,7 @@ func VMValueNewComputed(expr string) *VMValue {
 
 type VMValue struct {
 	TypeID      VMValueType `json:"typeId"`
-	Value       interface{} `json:"value"`
+	Value       any         `json:"value"`
 	ExpiredTime int64       `json:"expiredTime"`
 }
 
@@ -130,45 +127,4 @@ func (v *VMValue) ComputedExecute(ctx *MsgContext, curDepth int64) (*VMResult, s
 	realV, detail, err := ctx.Dice.ExprEvalBase(cd.Expr, ctx, RollExtraFlags{vmDepth: curDepth + 1})
 
 	return realV, detail, err
-}
-
-func (v *VMValue) ConvertToDiceScriptValue() *ds.VMValue {
-	switch v.TypeID {
-	case VMTypeInt64:
-		return ds.VMValueNewInt(v.Value.(ds.IntType))
-	case VMTypeString:
-		return ds.VMValueNewStr(v.Value.(string))
-	case VMTypeNone:
-		return ds.VMValueNewNull()
-	case VMTypeDNDComputedValue:
-		oldCD := v.Value.(*VMDndComputedValueData)
-		m := &ds.ValueMap{}
-		base := oldCD.BaseValue.ConvertToDiceScriptValue()
-		if base.TypeId == ds.VMTypeUndefined {
-			base = ds.VMValueNewInt(0)
-		}
-		m.Store("base", base)
-		expr := strings.ReplaceAll(oldCD.Expr, "$tVal", "this.base")
-		expr = strings.ReplaceAll(expr, "熟练", "(熟练||0)")
-		cd := &ds.ComputedData{
-			Expr:  expr,
-			Attrs: m,
-		}
-		return ds.VMValueNewComputedRaw(cd)
-	case VMTypeComputedValue:
-		oldCd, _ := v.ReadComputed()
-
-		m := &ds.ValueMap{}
-		oldCd.Attrs.Range(func(key string, value *VMValue) bool {
-			m.Store(key, value.ConvertToDiceScriptValue())
-			return true
-		})
-		cd := &ds.ComputedData{
-			Expr:  oldCd.Expr,
-			Attrs: m,
-		}
-		return ds.VMValueNewComputedRaw(cd)
-	default:
-		return ds.VMValueNewUndefined()
-	}
 }

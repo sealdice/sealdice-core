@@ -1430,7 +1430,7 @@ func (d *Dice) registerCoreCommands() {
 				if val == nil {
 					return nil
 				}
-				return val.ConvertToDiceScriptValue()
+				return val.ConvertToV2()
 			}
 
 			vm.GlobalValueLoadFunc = loadValueFromRollVMv1
@@ -1475,7 +1475,7 @@ func (d *Dice) registerCoreCommands() {
 						items := []*ds.VMValue{}
 						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
 							v := (_v).(*VMValue)
-							items = append(items, v.ConvertToDiceScriptValue())
+							items = append(items, v.ConvertToV2())
 							return nil
 						})
 						return funcWrap("values", ds.VMValueNewArrayRaw(items))
@@ -1483,7 +1483,7 @@ func (d *Dice) registerCoreCommands() {
 						vars, _ := ctx.ChVarsGet()
 						items := []*ds.VMValue{}
 						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-							items = append(items, ds.VMValueNewArray(ds.VMValueNewStr(_k.(string)), (_v).(*VMValue).ConvertToDiceScriptValue()))
+							items = append(items, ds.VMValueNewArray(ds.VMValueNewStr(_k.(string)), (_v).(*VMValue).ConvertToV2()))
 							return nil
 						})
 						return funcWrap("items", ds.VMValueNewArrayRaw(items))
