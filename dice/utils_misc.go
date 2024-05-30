@@ -135,7 +135,7 @@ func (v *VMValue) ComputedExecute(ctx *MsgContext, curDepth int64) (*VMResult, s
 func (v *VMValue) ConvertToDiceScriptValue() *ds.VMValue {
 	switch v.TypeID {
 	case VMTypeInt64:
-		return ds.VMValueNewInt(v.Value.(int64))
+		return ds.VMValueNewInt(v.Value.(ds.IntType))
 	case VMTypeString:
 		return ds.VMValueNewStr(v.Value.(string))
 	case VMTypeNone:
