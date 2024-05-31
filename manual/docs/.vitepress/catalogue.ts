@@ -135,6 +135,7 @@ export const config = {
         { text: "自动退出不活跃群组", link: "/config/quit_grp_auto" },
       ],
     },
+    { text: "辅助功能", link: "/config/utilities" },
   ],
 }
 
