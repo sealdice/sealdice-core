@@ -82,6 +82,7 @@ func baseInfo(c echo.Context) error {
 		ExtraTitle     string        `json:"extraTitle"`
 		OS             string        `json:"OS"`
 		Arch           string        `json:"arch"`
+		JustForTest    bool          `json:"justForTest"`
 		ContainerMode  bool          `json:"containerMode"`
 	}{
 		AppName:        dice.APPNAME,
@@ -99,6 +100,7 @@ func baseInfo(c echo.Context) error {
 		ExtraTitle:     extraTitle,
 		OS:             runtime.GOOS,
 		Arch:           runtime.GOARCH,
+		JustForTest:    dm.JustForTest,
 		ContainerMode:  dm.ContainerMode,
 	})
 }
