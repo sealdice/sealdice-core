@@ -69,6 +69,7 @@ declare module 'vue' {
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElTree: typeof import('element-plus/es')['ElTree']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    ElWatermark: typeof import('element-plus/es')['ElWatermark']
     FoldableCard: typeof import('./src/components/utils/foldable-card.vue')['default']
     HelpConfigTags: typeof import('./src/components/mod/helpdoc/HelpConfigTags.vue')['default']
     IBiFileBreak: typeof import('~icons/bi/file-break')['default']
