@@ -9,17 +9,17 @@ import (
 func (v *VMValue) ConvertToV2() *ds.VMValue {
 	switch v.TypeID {
 	case VMTypeInt64:
-		return ds.VMValueNewInt(ds.IntType(v.Value.(int64)))
+		return ds.NewIntVal(ds.IntType(v.Value.(int64)))
 	case VMTypeString:
-		return ds.VMValueNewStr(v.Value.(string))
+		return ds.NewStrVal(v.Value.(string))
 	case VMTypeNone:
-		return ds.VMValueNewNull()
+		return ds.NewNullVal()
 	case VMTypeDNDComputedValue:
 		oldCD := v.Value.(*VMDndComputedValueData)
 		m := &ds.ValueMap{}
 		base := oldCD.BaseValue.ConvertToV2()
 		if base.TypeId == ds.VMTypeUndefined {
-			base = ds.VMValueNewInt(0)
+			base = ds.NewIntVal(0)
 		}
 		m.Store("base", base)
 		expr := strings.ReplaceAll(oldCD.Expr, "$tVal", "this.base")
@@ -28,7 +28,7 @@ func (v *VMValue) ConvertToV2() *ds.VMValue {
 			Expr:  expr,
 			Attrs: m,
 		}
-		return ds.VMValueNewComputedRaw(cd)
+		return ds.NewComputedValRaw(cd)
 	case VMTypeComputedValue:
 		oldCd, _ := v.ReadComputed()
 
@@ -43,9 +43,9 @@ func (v *VMValue) ConvertToV2() *ds.VMValue {
 			Expr:  oldCd.Expr,
 			Attrs: m,
 		}
-		return ds.VMValueNewComputedRaw(cd)
+		return ds.NewComputedValRaw(cd)
 	default:
-		return ds.VMValueNewUndefined()
+		return ds.NewNullVal()
 	}
 }
 

@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/Milly/go-base2048 v0.1.0
 	github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/Szzrain/dodo-open-go v0.2.8
@@ -25,6 +26,7 @@ require (
 	github.com/go-creed/sat v1.0.3
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang-module/carbon v1.7.3
+	github.com/gonutz/w32/v2 v2.11.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/grokify/html-strip-tags-go v0.0.1
@@ -54,7 +56,7 @@ require (
 	github.com/samber/lo v1.39.0
 	github.com/schollz/progressbar/v3 v3.14.3
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
-	github.com/sealdice/dicescript v0.0.0-20240516053224-ff0dfce6f314
+	github.com/sealdice/dicescript v0.0.0-20240603150146-a0c5b36553c1
 	github.com/slack-go/slack v0.13.0
 	github.com/sunshineplan/imgconv v1.1.4
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
@@ -76,7 +78,6 @@ require (
 )
 
 require (
-	github.com/Milly/go-base2048 v0.1.0 // indirect
 	github.com/RoaringBitmap/roaring v1.2.3 // indirect
 	github.com/bits-and-blooms/bitset v1.2.2 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.2.0 // indirect

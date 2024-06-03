@@ -29,14 +29,29 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 		// 当前绑定: ctx.ChBindCur: 卡片角色名: $:ch-bind-data:name
 
 		m2 := &ds.ValueMap{}
+		//if name == "测试3" {
+		//	fmt.Println(m2)
+		//}
 		for k, v := range mapData {
 			if k == "$cardType" {
 				continue
 			}
+			if k == "$:cardName" {
+				continue
+			}
+
+			//if name == "测试3" {
+			//	fmt.Println(k, v)
+			//}
 			m2.Store(k, v.ConvertToV2())
 		}
 
-		rawData, err := ds.VMValueNewDict(m2).V().ToJSON()
+		rawData, err := ds.NewDictVal(m2).V().ToJSON()
+
+		// if name == "测试3" {
+		// 	fmt.Println("!!!!!", string(rawData))
+		// 	fmt.Println(ds.NewDictVal(m2).V().ToString())
+		// }
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +154,7 @@ func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
 			m.Store(k, v.ConvertToV2())
 		}
 
-		rawData, err := ds.VMValueNewDict(m).V().ToJSON()
+		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
 			fmt.Printf("群-用户 %s 的数据无法转换\n", id)
@@ -218,7 +233,7 @@ func attrsGroupMigrate(db *sqlx.DB) (int, int, error) {
 			m.Store(k, v.ConvertToV2())
 		}
 
-		rawData, err := ds.VMValueNewDict(m).V().ToJSON()
+		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
 			fmt.Printf("群 %s 的数据无法转换\n", id)
@@ -284,7 +299,7 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 			continue
 		}
 
-		fmt.Println("数据转换-用户:", ownerId)
+		// fmt.Println("数据转换-用户:", ownerId)
 		var newSheetsList []*model.AttributesItemModel
 		var sheetNameBindByGroupId = map[string]string{}
 
@@ -292,6 +307,9 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 		m := &ds.ValueMap{}
 		for k, v := range mapData {
 			if k == "$cardType" {
+				continue
+			}
+			if k == "$:cardName" {
 				continue
 			}
 			if strings.HasPrefix(k, "$:group-bind:") {
@@ -337,7 +355,7 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 		}
 
 		countSheetsNum += len(newSheetsList)
-		rawData, err := ds.VMValueNewDict(m).V().ToJSON()
+		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
 			fmt.Printf("用户 %s 的个人数据无法转换\n", ownerId)

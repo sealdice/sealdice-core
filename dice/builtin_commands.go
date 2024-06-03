@@ -1426,7 +1426,7 @@ func (d *Dice) registerCoreCommands() {
 				val, err := tmpl.getShowAsBase(ctx, name)
 				if err != nil {
 					vm.Error = err
-					return ds.VMValueNewUndefined()
+					return ds.NewNullVal()
 				}
 				if val == nil {
 					return nil
@@ -1449,7 +1449,7 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			funcWrap := func(name string, val *ds.VMValue) *ds.VMValue {
-				return ds.VMValueNewNativeFunction(&ds.NativeFunctionData{
+				return ds.NewNativeFunctionVal(&ds.NativeFunctionData{
 					Name:   name,
 					Params: []string{},
 					NativeFunc: func(vm *ds.Context, this *ds.VMValue, params []*ds.VMValue) *ds.VMValue {
@@ -1467,10 +1467,10 @@ func (d *Dice) registerCoreCommands() {
 						vars, _ := ctx.ChVarsGet()
 						items := []*ds.VMValue{}
 						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-							items = append(items, ds.VMValueNewStr(_k.(string)))
+							items = append(items, ds.NewStrVal(_k.(string)))
 							return nil
 						})
-						return funcWrap("keys", ds.VMValueNewArrayRaw(items))
+						return funcWrap("keys", ds.NewArrayValRaw(items))
 					case "values":
 						vars, _ := ctx.ChVarsGet()
 						items := []*ds.VMValue{}
@@ -1479,15 +1479,15 @@ func (d *Dice) registerCoreCommands() {
 							items = append(items, v.ConvertToV2())
 							return nil
 						})
-						return funcWrap("values", ds.VMValueNewArrayRaw(items))
+						return funcWrap("values", ds.NewArrayValRaw(items))
 					case "items":
 						vars, _ := ctx.ChVarsGet()
 						items := []*ds.VMValue{}
 						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-							items = append(items, ds.VMValueNewArray(ds.VMValueNewStr(_k.(string)), (_v).(*VMValue).ConvertToV2()))
+							items = append(items, ds.NewArrayVal(ds.NewStrVal(_k.(string)), (_v).(*VMValue).ConvertToV2()))
 							return nil
 						})
-						return funcWrap("items", ds.VMValueNewArrayRaw(items))
+						return funcWrap("items", ds.NewArrayValRaw(items))
 					}
 					return loadValueFromRollVMv1(name)
 				},
@@ -1513,14 +1513,14 @@ func (d *Dice) registerCoreCommands() {
 					vars, _ := ctx.ChVarsGet()
 					items := []*ds.VMValue{}
 					_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-						items = append(items, ds.VMValueNewStr(_k.(string)))
+						items = append(items, ds.NewStrVal(_k.(string)))
 						return nil
 					})
 					return items
 				},
 			}
 
-			vPlayer := ds.VMValueNewNativeObject(od)
+			vPlayer := ds.NewNativeObjectVal(od)
 			vm.StoreNameLocal("player", vPlayer)
 			vm.StoreNameLocal("玩家", vPlayer)
 
@@ -1541,10 +1541,10 @@ func (d *Dice) registerCoreCommands() {
 
 			var text string
 			if err := vm.Run(expr); err == nil {
-				storeName("$t表达式文本", ds.VMValueNewStr(expr))
-				storeName("$t计算过程", ds.VMValueNewStr(vm.Detail))
+				storeName("$t表达式文本", ds.NewStrVal(expr))
+				storeName("$t计算过程", ds.NewStrVal(vm.Detail))
 				storeName("$t计算结果", vm.Ret)
-				storeName("$t剩余文本", ds.VMValueNewStr(vm.RestInput))
+				storeName("$t剩余文本", ds.NewStrVal(vm.RestInput))
 				// text = fmt.Sprintf("%s=%s=%s", expr, vm.Detail, vm.Ret.ToString())
 				// 注: 加一个format
 				expr := "过程: {$t计算过程}\n结果: {$t计算结果}"
@@ -2178,7 +2178,11 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			getNickname := func() string {
-				return getNicknameRaw(true)
+				name := getNicknameRaw(true)
+				if len(name) > 90 {
+					name = name[:90]
+				}
+				return name
 			}
 
 			switch val1 {
@@ -2216,11 +2220,26 @@ func (d *Dice) registerCoreCommands() {
 				} else {
 					ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的角色列表为:\n%s\n[√]已绑 [×]未绑 [★]其他群绑定", ctx.Player.Name, strings.Join(newChars, "\n")))
 				}
+			case "attr":
+				// 提示: 仅用于1.5前的一致性测试
+				name := getNickname()
+				charId := lo.Must(am.CharIdGetByName(ctx.Player.UserID, name))
+				attrs := lo.Must(am.LoadById(charId))
+
+				buf := strings.Builder{}
+				first := true
+				attrs.valueMap.Range(func(key string, value *ds.VMValue) bool {
+					if !first {
+						buf.WriteString("\t")
+					}
+					first = false
+					buf.WriteString(fmt.Sprintf("%v:%v", key, value.ToString()))
+					return true
+				})
+				ReplyToSender(ctx, msg, "属性:\n"+buf.String())
+
 			case "new":
 				name := getNickname()
-				if len(name) > 90 {
-					name = name[:90]
-				}
 
 				VarSetValueStr(ctx, "$t角色名", name)
 				if !am.CharCheckExists(name, ctx.Group.GroupID) {
@@ -2318,9 +2337,6 @@ func (d *Dice) registerCoreCommands() {
 				}
 			case "save":
 				name := getNickname()
-				if len(name) > 90 {
-					name = name[:90]
-				}
 
 				newItem := lo.Must(am.CharNew(ctx.Player.UserID, name, ctx.Group.System))
 				attrs := lo.Must(am.Load(ctx.Group.GroupID, ctx.Player.UserID))
@@ -2385,8 +2401,8 @@ func (d *Dice) registerCoreCommands() {
 
 				lst := am.CharGetBindingGroupIdList(charId)
 				if len(lst) > 0 {
-					//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_删除失败_已绑定"))
-					ReplyToSender(ctx, msg, "角色已绑定到以下群:\n"+strings.Join(lst, "\n"))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_删除失败_已绑定"))
+					// ReplyToSender(ctx, msg, "角色已绑定到以下群:\n"+strings.Join(lst, "\n"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 

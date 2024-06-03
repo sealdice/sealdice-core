@@ -59,8 +59,8 @@ func (am *AttrsManager) GetCharacterList(userId string) ([]*model.AttributesItem
 func (am *AttrsManager) CharNew(userId string, name string, sheetType string) (*model.AttributesItemModel, error) {
 	userId = am.UIDConvert(userId)
 	dict := &ds.ValueMap{}
-	dict.Store("$sheetType", ds.VMValueNewStr(sheetType))
-	json, err := ds.VMValueNewDict(dict).V().ToJSON()
+	dict.Store("$sheetType", ds.NewStrVal(sheetType))
+	json, err := ds.NewDictVal(dict).V().ToJSON()
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +321,7 @@ func (i *AttributesItem) Store(name string, value *ds.VMValue) {
 
 func (i *AttributesItem) toDict() *ds.VMDictValue {
 	// 这里有一个风险，就是对dict的改动可能不会影响修改时间和使用时间，从而被丢弃
-	return ds.VMValueNewDict(i.valueMap)
+	return ds.NewDictVal(i.valueMap)
 }
 
 func (i *AttributesItem) Clear() {
@@ -340,7 +340,7 @@ func (i *AttributesItem) Clear() {
 func (i *AttributesItem) toArrayKeys() []*ds.VMValue {
 	var items []*ds.VMValue
 	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
-		items = append(items, ds.VMValueNewStr(key))
+		items = append(items, ds.NewStrVal(key))
 		return true
 	})
 	return items
@@ -360,7 +360,7 @@ func (i *AttributesItem) toArrayItems() []*ds.VMValue {
 	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
 		items = append(
 			items,
-			ds.VMValueNewArray(ds.VMValueNewStr(key), value),
+			ds.NewArrayVal(ds.NewStrVal(key), value),
 		)
 		return true
 	})

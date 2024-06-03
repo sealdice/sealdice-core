@@ -158,7 +158,7 @@ func AttrsNewItem(db *sqlx.DB, item *AttributesItemModel) (*AttributesItemModel,
 }
 
 func AttrsBindCharacter(db *sqlx.DB, charId string, id string) error {
-	json, err := ds.VMValueNewDict(nil).V().ToJSON()
+	json, err := ds.NewDictVal(nil).V().ToJSON()
 	if err != nil {
 		return err
 	}

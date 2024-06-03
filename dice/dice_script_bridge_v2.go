@@ -87,7 +87,7 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 					if m[3] != "" {
 						v, _ := strconv.ParseInt(m[3], 10, 64)
 						//fmt.Println("COC值:", name, cocFlagVarPrefix)
-						return name, ds.VMValueNewInt(ds.IntType(v))
+						return name, ds.NewIntVal(ds.IntType(v))
 					}
 				}
 			}
