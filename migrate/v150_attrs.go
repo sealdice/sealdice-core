@@ -349,6 +349,7 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 			Data:      rawData,
 			AttrsType: model.AttrsTypeUser,
 
+			IsHidden:  true,
 			CreatedAt: updatedAt,
 			UpdatedAt: updatedAt,
 		}

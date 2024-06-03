@@ -550,15 +550,18 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 // UnpackGroupUserId 分离群组ID和用户ID的连写
 func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 	prefixMap := map[string]string{
-		"QQ-Group:":       "QQ:",
-		"QQ-CH-Group:":    "QQ-CH:", // QQ-CH-Group:33845581638279358-3047284-QQ-CH:144115218744389299
-		"KOOK-CH-Group:":  "KOOK:",
-		"DODO-Group:":     "DODO:",
-		"SEALCHAT-Group:": "SEALCHAT:",
-		"PG-UI:":          "UI:",
+		"QQ-Group:":         "QQ:",
+		"QQ-CH-Group:":      "QQ-CH:", // QQ-CH-Group:33845581638279358-3047284-QQ-CH:144115218744389299
+		"KOOK-CH-Group:":    "KOOK:",
+		"DODO-Group:":       "DODO:",
+		"TG-Group:":         "TG:",
+		"DISCORD-CH-Group:": "DISCORD:",
+		"SEALCHAT-Group:":   "SEALCHAT:",
+		"PG-UI:":            "UI:",
+		"UI-Group:":         "UI:",
 	}
 
-	// 我们是否能做这样的假设：XX-Group:123 的用户ID形式是 XX:123 ？
+	// 我们是否能做这样的假设：XX-Group:123 的用户ID形式是 XX:456 ？
 	// 但是 KOOK 就例外了
 	for groupPrefix, userPrefix := range prefixMap {
 		if strings.HasPrefix(id, groupPrefix) {
