@@ -195,6 +195,13 @@ export const useStore = defineStore('main', {
       await backend.post(urlPrefix + '/configs/customText/save', { data: this.curDice.customTexts[category], category })
     },
 
+    async getPreInfo() {
+      const info: {
+        testMode: boolean
+      } = await backend.get(urlPrefix + '/preInfo', {timeout: 5000})
+      return info
+    },
+
     async getBaseInfo() {
       const info = await backend.get(urlPrefix + '/baseInfo', { timeout: 5000 })
       if (!document.title.includes('-')) {
