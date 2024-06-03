@@ -269,6 +269,8 @@ type Dice struct {
 	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
 
+	AttrsManager *AttrsManager `json:"-" yaml:"-"`
+
 	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
 
 	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
@@ -331,6 +333,9 @@ func (d *Dice) Init() {
 
 	d.Cron = cron.New()
 	d.Cron.Start()
+
+	d.AttrsManager = &AttrsManager{parent: d}
+	d.AttrsManager.Init()
 
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 

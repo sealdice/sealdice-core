@@ -107,6 +107,7 @@ func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
 		groupIdPart, userIdPart, ok := dice.UnpackGroupUserId(id)
 		if !ok {
 			countFailed += 1
+			fmt.Println("数据库读取出错，退出转换")
 			fmt.Println("ID解析失败: ", string(id))
 			continue
 		}
@@ -140,7 +141,9 @@ func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
 
 		rawData, err := ds.VMValueNewDict(m).V().ToJSON()
 		if err != nil {
-			return count, countFailed, err
+			countFailed += 1
+			fmt.Printf("群-用户 %s 的数据无法转换\n", id)
+			continue
 		}
 
 		item := &model.AttributesItemModel{
@@ -160,8 +163,14 @@ func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
 			CreatedAt: updatedAt,
 			UpdatedAt: updatedAt,
 		}
-		items = append(items, item)
-		count += 1
+
+		_, err = model.AttrsNewItem(db, item)
+		if err != nil {
+			countFailed += 1
+		} else {
+			items = append(items, item)
+			count += 1
+		}
 	}
 
 	return count, countFailed, nil
@@ -190,6 +199,7 @@ func attrsGroupMigrate(db *sqlx.DB) (int, int, error) {
 		)
 
 		if err != nil {
+			fmt.Println("数据库读取出错，退出转换")
 			return count, countFailed, err
 		}
 
@@ -210,7 +220,9 @@ func attrsGroupMigrate(db *sqlx.DB) (int, int, error) {
 
 		rawData, err := ds.VMValueNewDict(m).V().ToJSON()
 		if err != nil {
-			return count, countFailed, err
+			countFailed += 1
+			fmt.Printf("群 %s 的数据无法转换\n", id)
+			continue
 		}
 
 		item := &model.AttributesItemModel{
@@ -223,22 +235,29 @@ func attrsGroupMigrate(db *sqlx.DB) (int, int, error) {
 			CreatedAt: updatedAt,
 			UpdatedAt: updatedAt,
 		}
-		items = append(items, item)
-		count += 1
+
+		_, err = model.AttrsNewItem(db, item)
+		if err != nil {
+			countFailed += 1
+		} else {
+			items = append(items, item)
+			count += 1
+		}
 	}
 
 	return count, countFailed, nil
 }
 
-// 全局个人数据转换
-func attrsUserMigrate(db *sqlx.DB) (int, int, error) {
+// 全局个人数据转换、对应attrs_user和玩家人物卡
+func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 	rows, err := db.NamedQuery("select id, updated_at, data from attrs_user where length(data) < 9000000", map[string]any{})
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	defer rows.Close()
 
 	count := 0
+	countSheetsNum := 0
 	countFailed := 0
 	var items []*model.AttributesItemModel
 	for rows.Next() {
@@ -253,7 +272,8 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, error) {
 		)
 
 		if err != nil {
-			return count, countFailed, err
+			fmt.Println("数据库读取出错，退出转换")
+			return count, countSheetsNum, countFailed, err
 		}
 
 		mapData := make(map[string]*dice.VMValue)
@@ -280,7 +300,7 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, error) {
 				groupId := k[len("$:group-bind:"):]
 				name, _ := v.ReadString()
 				sheetNameBindByGroupId[groupId] = name
-				fmt.Println("绑卡关联:", groupId, name)
+				//fmt.Println("绑卡关联:", groupId, name)
 				continue
 			}
 			if strings.HasPrefix(k, "$ch:") {
@@ -289,7 +309,8 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, error) {
 
 				toNew, err := convertToNew(name, ownerId, []byte(v.ToString()), updatedAt)
 				if err != nil {
-					return count, countFailed, err
+					fmt.Printf("用户 %s 的角色卡 %s 无法转换", ownerId, name)
+					continue
 				}
 				newSheetsList = append(newSheetsList, toNew)
 				continue
@@ -307,9 +328,20 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, error) {
 			}
 		}
 
+		// 保存用户人物卡
+		for _, i := range newSheetsList {
+			_, err := model.AttrsNewItem(db, i)
+			if err != nil {
+				fmt.Printf("用户 %s 的角色卡 %s 无法写入数据库: %s\n", ownerId, i.Name, err.Error())
+			}
+		}
+
+		countSheetsNum += len(newSheetsList)
 		rawData, err := ds.VMValueNewDict(m).V().ToJSON()
 		if err != nil {
-			return count, countFailed, err
+			countFailed += 1
+			fmt.Printf("用户 %s 的个人数据无法转换\n", ownerId)
+			continue
 		}
 
 		item := &model.AttributesItemModel{
@@ -320,15 +352,21 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, error) {
 			CreatedAt: updatedAt,
 			UpdatedAt: updatedAt,
 		}
-		items = append(items, item)
-		count += 1
+
+		_, err = model.AttrsNewItem(db, item)
+		if err != nil {
+			countFailed += 1
+		} else {
+			items = append(items, item)
+			count += 1
+		}
 	}
 
-	return count, countFailed, nil
+	return count, countSheetsNum, countFailed, nil
 }
 
 func V150Upgrade() {
-	fmt.Println("1.5 数据转换迁移测试(不进行数据库写入)")
+	fmt.Println("1.5 数据转换迁移测试(测试性写入，带删档)")
 	dbDataPath, _ := filepath.Abs("./data/default/data.db")
 
 	db, err := openDB(dbDataPath)
@@ -337,8 +375,45 @@ func V150Upgrade() {
 		return
 	}
 
-	count, countFailed, err := attrsUserMigrate(db)
-	fmt.Printf("数据卡转换 - 角色卡，成功%d 失败 %d\n", count, countFailed)
+	// 删档
+	db.Exec("drop table attrs")
+	sqls := []string{
+		`CREATE TABLE IF NOT EXISTS endpoint_info (
+user_id TEXT PRIMARY KEY,
+cmd_num INTEGER,
+cmd_last_time INTEGER,
+online_time INTEGER,
+updated_at INTEGER
+);`,
+
+		`
+CREATE TABLE IF NOT EXISTS attrs (
+    id TEXT PRIMARY KEY,
+    data BYTEA,
+    attrs_type TEXT,
+
+	-- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
+	binding_sheet_id TEXT default '',
+
+    name TEXT default '',
+    owner_id TEXT default '',
+    sheet_type TEXT default '',
+    is_hidden BOOLEAN default FALSE,
+
+    created_at INTEGER default 0,
+    updated_at INTEGER  default 0
+);
+`,
+		`create index if not exists idx_attrs_binding_sheet_id on attrs (binding_sheet_id);`,
+		`create index if not exists idx_attrs_owner_id_id on attrs (owner_id);`,
+		`create index if not exists idx_attrs_attrs_type_id on attrs (attrs_type);`,
+	}
+	for _, i := range sqls {
+		_, _ = db.Exec(i)
+	}
+
+	count, countSheetsNum, countFailed, err := attrsUserMigrate(db)
+	fmt.Printf("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
 	if err != nil {
 		fmt.Println("异常", err.Error())
 	}

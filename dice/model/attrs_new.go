@@ -134,13 +134,17 @@ func AttrsCharUnbindAll(db *sqlx.DB, id string) (int64, error) {
 func AttrsNewItem(db *sqlx.DB, item *AttributesItemModel) (*AttributesItemModel, error) {
 	id := utils.NewID()
 	now := time.Now().Unix()
-	item.Id, item.CreatedAt, item.UpdatedAt = id, now, now
+	item.CreatedAt, item.UpdatedAt = now, now
+	if item.Id == "" {
+		item.Id = id
+	}
 
 	var err error
 	_, err = db.Exec(`
-		insert into attrs (id, data, name, owner_id, sheet_type, is_hidden, created_at, updated_at)
-		values ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		item.Id, item.Data, item.Name, item.OwnerId, item.SheetType, item.IsHidden, item.CreatedAt, item.UpdatedAt)
+		insert into attrs (id, data, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at, attrs_type)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		item.Id, item.Data, item.BindingSheetId, item.Name, item.OwnerId, item.SheetType, item.IsHidden,
+		item.CreatedAt, item.UpdatedAt, item.AttrsType)
 	return item, err
 }
 

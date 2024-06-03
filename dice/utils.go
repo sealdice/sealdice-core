@@ -551,9 +551,11 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 	prefixMap := map[string]string{
 		"QQ-Group:":       "QQ:",
+		"QQ-CH-Group:":    "QQ-CH:", // QQ-CH-Group:33845581638279358-3047284-QQ-CH:144115218744389299
 		"KOOK-CH-Group:":  "KOOK:",
 		"DODO-Group:":     "DODO:",
 		"SEALCHAT-Group:": "SEALCHAT:",
+		"PG-UI:":          "UI:",
 	}
 
 	// 我们是否能做这样的假设：XX-Group:123 的用户ID形式是 XX:123 ？
@@ -573,7 +575,6 @@ func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 	prefixMap2 := map[string]string{
 		"PG-QQ:":   "",
 		"PG-KOOK:": "",
-		"PG-UI:":   "",
 	}
 	for userPrefix := range prefixMap2 {
 		if strings.HasPrefix(id, userPrefix) {
