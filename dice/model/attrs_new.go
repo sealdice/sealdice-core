@@ -99,6 +99,15 @@ func AttrsPutById(db *sqlx.DB, tx *sql.Tx, id string, data []byte, name string) 
 	return err
 }
 
+func AttrsDeleteById(db *sqlx.DB, id string) error {
+	var err error
+	query := `delete from attrs where id = ?`
+	args := []any{id}
+
+	_, err = db.Exec(query, args...)
+	return err
+}
+
 func AttrsCharGetBindingList(db *sqlx.DB, id string) ([]string, error) {
 	rows, err := db.Query(`select id from attrs where binding_sheet_id = $1`, id)
 	if err != nil {

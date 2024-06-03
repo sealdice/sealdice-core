@@ -73,6 +73,15 @@ func (am *AttrsManager) CharNew(userId string, name string, sheetType string) (*
 	})
 }
 
+func (am *AttrsManager) CharDelete(id string) error {
+	if err := model.AttrsDeleteById(am.parent.DBData, id); err != nil {
+		return err
+	}
+	// 从缓存中删除
+	am.m.Delete(id)
+	return nil
+}
+
 // LoadById 数据加载，负责以下数据
 // 1. 群内用户的默认卡(id格式为：群id:用户id)
 // 2. 用户创建出的角色卡（指定id）

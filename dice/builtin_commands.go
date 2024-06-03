@@ -2390,6 +2390,12 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
+				err := am.CharDelete(charId)
+				if err != nil {
+					ReplyToSender(ctx, msg, "角色删除失败")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				VarSetValueStr(ctx, "$t角色名", name)
 				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
 
@@ -2403,9 +2409,6 @@ func (d *Dice) registerCoreCommands() {
 					text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
 					p := ctx.Player
 					p.Name = msg.Sender.Nickname
-					p.UpdatedAtTime = time.Now().Unix()
-					p.Vars.ValueMap = lockfree.NewHashMap()
-					p.Vars.LastWriteTime = time.Now().Unix()
 				}
 				ReplyToSender(ctx, msg, text)
 			}
