@@ -30,6 +30,12 @@ type VersionDetail struct {
 	BuildMetaData string `json:"buildMetaData"`
 }
 
+func preInfo(c echo.Context) error {
+	return c.JSON(200, map[string]interface{}{
+		"testMode": dm.JustForTest,
+	})
+}
+
 func baseInfo(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -525,6 +531,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	prefix := "/sd-api"
 
+	e.GET(prefix+"/preInfo", preInfo)
 	e.GET(prefix+"/baseInfo", baseInfo)
 	e.GET(prefix+"/hello", hello2)
 	e.GET(prefix+"/log/fetchAndClear", logFetchAndClear)
