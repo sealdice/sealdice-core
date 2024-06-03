@@ -1,5 +1,6 @@
 <template>
-  <div style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 950px; width: 100%; margin: 0 auto; position: relative;">
+  <div id="root"
+       style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 950px; width: 100%; margin: 0 auto; position: relative;">
     <nav class="nav" style="display: flex; color: #fff; justify-content: space-between;">
       <el-space alignment="center" :size="0" style="height: 60px;">
         <div class="menu-button-wrapper">

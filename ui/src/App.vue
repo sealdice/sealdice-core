@@ -13,14 +13,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div id="root" class="w-full h-full">
-    <el-watermark v-if="testMode"
-                  class="mx-auto max-w-[950px]"
-                  content="仅用于展示，修改无效"
+  <div class="mx-auto w-full max-w-[950px] h-full">
+    <el-watermark :content="testMode ? '仅用于展示，修改无效' : ''"
                   :font="{fontSize: 24}"
                   :gap="[100, 32]">
-      <Main/>
+      <Main />
     </el-watermark>
-    <Main v-else/>
   </div>
 </template>
