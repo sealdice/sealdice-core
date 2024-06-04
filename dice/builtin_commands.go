@@ -2,7 +2,6 @@ package dice
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -16,7 +15,6 @@ import (
 	"github.com/golang-module/carbon"
 	"github.com/samber/lo"
 
-	"github.com/fy0/lockfree"
 	"github.com/juliangruber/go-intersect"
 	cp "github.com/otiai10/copy"
 	ds "github.com/sealdice/dicescript"
@@ -1169,39 +1167,42 @@ func (d *Dice) registerCoreCommands() {
 				}
 			}
 
-			var r *VMResult
-			var commandInfoItems []interface{}
+			var r *VMResultV2
+			var commandInfoItems []any
 
 			rollOne := func() *CmdExecuteResult {
 				forWhat := ""
+				var matched string
+
 				if len(cmdArgs.Args) >= 1 { //nolint:nestif
 					var err error
-					r, detail, err = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{
+					r, detail, err = DiceExprEvalBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{
 						DefaultDiceSideNum: getDefaultDicePoints(ctx),
 						DisableBlock:       true,
 					})
 
-					if r != nil && !r.Parser.Calculated {
+					if r != nil && !r.IsCalculated() {
 						forWhat = cmdArgs.CleanArgs
 
 						defExpr := "d"
 						if ctx.diceExprOverwrite != "" {
 							defExpr = ctx.diceExprOverwrite
 						}
-						r, detail, err = ctx.Dice.ExprEvalBase(defExpr, ctx, RollExtraFlags{
+						r, detail, err = DiceExprEvalBase(ctx, defExpr, RollExtraFlags{
 							DefaultDiceSideNum: getDefaultDicePoints(ctx),
 							DisableBlock:       true,
 						})
 					}
 
-					if r != nil && r.TypeID == 0 {
-						diceResult = r.Value.(int64)
+					if r != nil && r.TypeId == ds.VMTypeInt {
+						diceResult = int64(r.MustReadInt())
 						diceResultExists = true
 					}
 
 					if err == nil {
+						matched = r.GetMatched()
 						if forWhat == "" {
-							forWhat = r.restInput
+							forWhat = r.GetRestInput()
 						}
 					} else {
 						errs := err.Error()
@@ -1229,7 +1230,7 @@ func (d *Dice) registerCoreCommands() {
 						match := re.FindStringSubmatch(detail)
 						if len(match) > 0 {
 							num := match[2]
-							if num == "1" && (match[1] == r.Matched || match[1] == "1"+r.Matched) {
+							if num == "1" && (match[1] == matched || match[1] == "1"+matched) {
 								detailWrap = ""
 							}
 						}
@@ -1237,7 +1238,7 @@ func (d *Dice) registerCoreCommands() {
 
 					// 指令信息标记
 					item := map[string]interface{}{
-						"expr":   r.Matched,
+						"expr":   matched,
 						"result": diceResult,
 						"reason": forWhat,
 					}
@@ -1246,7 +1247,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 					commandInfoItems = append(commandInfoItems, item)
 
-					VarSetValueStr(ctx, "$t表达式文本", r.Matched)
+					VarSetValueStr(ctx, "$t表达式文本", matched)
 					VarSetValueStr(ctx, "$t计算过程", detailWrap)
 					VarSetValueInt64(ctx, "$t计算结果", diceResult)
 				} else {
@@ -1254,19 +1255,20 @@ func (d *Dice) registerCoreCommands() {
 					var detail string
 					dicePoints := getDefaultDicePoints(ctx)
 					if ctx.diceExprOverwrite != "" {
-						r, detail, _ = ctx.Dice.ExprEvalBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{
+						r, detail, _ = DiceExprEvalBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{
 							DefaultDiceSideNum: dicePoints,
 							DisableBlock:       true,
 						})
-						if r != nil && r.TypeID == 0 {
-							val, _ = r.ReadInt64()
+						if r != nil && r.TypeId == ds.VMTypeInt {
+							valX, _ := r.ReadInt()
+							val = int64(valX)
 						}
 					} else {
 						val = DiceRoll64(dicePoints)
 					}
 
 					// 指令信息标记
-					item := map[string]interface{}{
+					item := map[string]any{
 						"expr":       fmt.Sprintf("D%d", dicePoints),
 						"reason":     forWhat,
 						"dicePoints": dicePoints,
@@ -1312,7 +1314,7 @@ func (d *Dice) registerCoreCommands() {
 			isHide := strings.Contains(cmdArgs.Command, "h")
 
 			// 指令信息
-			commandInfo := map[string]interface{}{
+			commandInfo := map[string]any{
 				"cmd":    "roll",
 				"pcName": ctx.Player.Name,
 				"items":  commandInfoItems,
@@ -1324,7 +1326,7 @@ func (d *Dice) registerCoreCommands() {
 
 			if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
 				if ctx.PrivilegeLevel >= 40 {
-					asm := r.Parser.GetAsmText()
+					asm := r.GetAsmText()
 					text += "\n" + asm
 				}
 			}
@@ -1385,186 +1387,6 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["rx"] = cmdRollX
 	d.CmdMap["rxh"] = cmdRollX
 	d.CmdMap["rhx"] = cmdRollX
-
-	vm := ds.NewVM()
-	vm.Config.EnableDiceWoD = true
-	vm.Config.EnableDiceCoC = true
-	vm.Config.EnableDiceFate = true
-	vm.Config.EnableDiceDoubleCross = true
-
-	helpRollNew := ".fox <表达式> <原因> // 使用dicescript的骰点，测试用"
-	cmdFox := &CmdItemInfo{
-		Name:      "roll",
-		ShortHelp: helpRollNew,
-		Help:      "骰点:\n" + helpRollNew,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.Dice.TextCmdTrustOnly {
-				// 检查master和信任权限
-				// 拒绝无权限访问
-				if ctx.PrivilegeLevel < 70 {
-					ReplyToSender(ctx, msg, "你不具备Master权限")
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-			}
-			if cmdArgs.IsArgEqual(1, "help") {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-
-			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
-
-			expr := cmdArgs.GetRestArgsFrom(1)
-			if expr == "" {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-
-			tmpl := cardRuleCheck(ctx, msg)
-			if tmpl == nil {
-				return CmdExecuteResult{Matched: true, Solved: true}
-			}
-
-			loadValueFromRollVMv1 := func(name string) *ds.VMValue {
-				val, err := tmpl.getShowAsBase(ctx, name)
-				if err != nil {
-					vm.Error = err
-					return ds.NewNullVal()
-				}
-				if val == nil {
-					return nil
-				}
-				return val.ConvertToV2()
-			}
-
-			vm.GlobalValueLoadFunc = loadValueFromRollVMv1
-			valueToRollVMv1 := func(v *ds.VMValue) *VMValue {
-				var v2 *VMValue
-				switch v.TypeId {
-				case ds.VMTypeInt:
-					v2 = &VMValue{TypeID: VMTypeInt64, Value: v.MustReadInt()}
-				case ds.VMTypeFloat:
-					v2 = &VMValue{TypeID: VMTypeInt64, Value: int64(v.MustReadFloat())}
-				default:
-					v2 = &VMValue{TypeID: VMTypeString, Value: v.ToString()}
-				}
-				return v2
-			}
-
-			funcWrap := func(name string, val *ds.VMValue) *ds.VMValue {
-				return ds.NewNativeFunctionVal(&ds.NativeFunctionData{
-					Name:   name,
-					Params: []string{},
-					NativeFunc: func(vm *ds.Context, this *ds.VMValue, params []*ds.VMValue) *ds.VMValue {
-						return val
-					},
-				})
-			}
-
-			od := &ds.NativeObjectData{
-				Name: "player",
-				AttrGet: func(vm *ds.Context, name string) *ds.VMValue {
-					// 注: 未来切换人物卡时，角色数据会被转换为ds版本，所以这里写的丑陋了一些
-					switch name {
-					case "keys":
-						vars, _ := ctx.ChVarsGet()
-						items := []*ds.VMValue{}
-						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-							items = append(items, ds.NewStrVal(_k.(string)))
-							return nil
-						})
-						return funcWrap("keys", ds.NewArrayValRaw(items))
-					case "values":
-						vars, _ := ctx.ChVarsGet()
-						items := []*ds.VMValue{}
-						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-							v := (_v).(*VMValue)
-							items = append(items, v.ConvertToV2())
-							return nil
-						})
-						return funcWrap("values", ds.NewArrayValRaw(items))
-					case "items":
-						vars, _ := ctx.ChVarsGet()
-						items := []*ds.VMValue{}
-						_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-							items = append(items, ds.NewArrayVal(ds.NewStrVal(_k.(string)), (_v).(*VMValue).ConvertToV2()))
-							return nil
-						})
-						return funcWrap("items", ds.NewArrayValRaw(items))
-					}
-					return loadValueFromRollVMv1(name)
-				},
-				ItemGet: func(vm *ds.Context, index *ds.VMValue) *ds.VMValue {
-					if index.TypeId != ds.VMTypeString {
-						vm.Error = errors.New("index must be string")
-						return nil
-					}
-					return loadValueFromRollVMv1(index.ToString())
-				},
-				AttrSet: func(vm *ds.Context, name string, v *ds.VMValue) {
-					VarSetValue(ctx, tmpl.GetAlias(name), valueToRollVMv1(v))
-				},
-				ItemSet: func(vm *ds.Context, index *ds.VMValue, v *ds.VMValue) {
-					if index.TypeId != ds.VMTypeString {
-						vm.Error = errors.New("index must be string")
-						return
-					}
-					name := index.ToString()
-					VarSetValue(ctx, tmpl.GetAlias(name), valueToRollVMv1(v))
-				},
-				DirFunc: func(vm *ds.Context) []*ds.VMValue {
-					vars, _ := ctx.ChVarsGet()
-					items := []*ds.VMValue{}
-					_ = vars.Iterate(func(_k interface{}, _v interface{}) error {
-						items = append(items, ds.NewStrVal(_k.(string)))
-						return nil
-					})
-					return items
-				},
-			}
-
-			vPlayer := ds.NewNativeObjectVal(od)
-			vm.StoreNameLocal("player", vPlayer)
-			vm.StoreNameLocal("玩家", vPlayer)
-
-			vm.ValueStoreHookFunc = func(vm *ds.Context, name string, v *ds.VMValue) (solved bool) {
-				if strings.HasPrefix(name, "$") {
-					VarSetValue(ctx, name, valueToRollVMv1(v))
-					return true
-				}
-				return false
-			}
-
-			storeName := func(name string, v *ds.VMValue) {
-				if strings.HasPrefix(name, "$") {
-					vm.StoreName(name, v) // 走hook
-				}
-				vm.StoreNameLocal(name, v)
-			}
-
-			var text string
-			if err := vm.Run(expr); err == nil {
-				storeName("$t表达式文本", ds.NewStrVal(expr))
-				storeName("$t计算过程", ds.NewStrVal(vm.Detail))
-				storeName("$t计算结果", vm.Ret)
-				storeName("$t剩余文本", ds.NewStrVal(vm.RestInput))
-				// text = fmt.Sprintf("%s=%s=%s", expr, vm.Detail, vm.Ret.ToString())
-				// 注: 加一个format
-				expr := "过程: {$t计算过程}\n结果: {$t计算结果}"
-				if vm.RestInput != "" {
-					expr += "\n剩余: {$t剩余文本}"
-				}
-				err = vm.Run("\x1e" + expr + "\x1e")
-				if err == nil {
-					text = vm.Ret.ToString()
-				} else {
-					text = fmt.Sprintf("错误: %s\n", err.Error())
-				}
-			} else {
-				text = fmt.Sprintf("错误: %s\n", err.Error())
-			}
-			ReplyToSender(ctx, msg, text)
-			return CmdExecuteResult{Matched: true, Solved: true}
-		},
-	}
-	d.CmdMap["fox"] = cmdFox
 
 	helpExt := ".ext // 查看扩展列表"
 	cmdExt := &CmdItemInfo{
@@ -1909,246 +1731,6 @@ func (d *Dice) registerCoreCommands() {
 		".pc load <角色名> | <角色序号> // [不绑卡]加载角色\n" +
 		".pc del/rm <角色名> | <角色序号> // 删除角色 角色序号可用pc list查询\n" +
 		"> 注: 海豹各群数据独立(多张空白卡)，单群游戏不需要存角色。"
-	cmdChar := &CmdItemInfo{
-		Name:      "pc",
-		ShortHelp: helpCh,
-		Help:      "角色管理:\n" + helpCh,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "group1", "grp1")
-
-			getNicknameRaw := func(usePlayerName bool) string {
-				name := cmdArgs.CleanArgsChopRest
-				if usePlayerName && name == "" {
-					name = ctx.Player.Name
-				}
-				name = strings.ReplaceAll(name, "\n", "")
-				name = strings.ReplaceAll(name, "\r", "")
-				return name
-			}
-
-			getNickname := func() string {
-				return getNicknameRaw(true)
-			}
-
-			if cmdArgs.IsArgEqual(1, "list") { //nolint:nestif
-				vars := ctx.LoadPlayerGlobalVars()
-				var characters []string
-				curBind := ctx.ChBindCurGet()
-
-				_ = vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
-					k := _k.(string)
-					if strings.HasPrefix(k, "$ch:") {
-						name := k[4:]
-						characters = append(characters, name)
-					}
-					return nil
-				})
-
-				// 分两次防止死锁
-				var newChars []string
-				for idx, name := range characters {
-					// HACK(Xiangze Li): lockfree.HashMap的迭代顺序在每次启动中是稳定的, 可以加序号
-					// 但是, 骰子重启之后顺序是会变化的. 如果用户记录了这个序号, 并且跨重启使用, 会出现问题
-					idxStr := fmt.Sprintf("%2d ", idx+1)
-					prefix := "[×] "
-					if ctx.ChBindGet(name) != nil {
-						prefix = "[★] "
-					}
-					if curBind == name {
-						prefix = "[√] "
-					}
-					var cardType string
-					vars2 := ctx.ChGet(name)
-					if _cardType, ok := vars2.Get("$cardType"); ok {
-						v := _cardType.(*VMValue)
-						cardType = v.ToString()
-					}
-					suffix := ""
-					if cardType != "" {
-						suffix = fmt.Sprintf(" #%s", cardType)
-					}
-
-					newChars = append(newChars, idxStr+prefix+name+suffix)
-				}
-
-				if len(characters) == 0 {
-					ReplyToSender(ctx, msg, fmt.Sprintf("<%s>当前还没有角色列表", ctx.Player.Name))
-				} else {
-					ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的角色列表为:\n%s\n[√]已绑 [×]未绑 [★]其他群绑定", ctx.Player.Name, strings.Join(newChars, "\n")))
-				}
-			} else if cmdArgs.IsArgEqual(1, "new") {
-				name := getNickname()
-				if len(name) > 90 {
-					name = name[:90]
-				}
-				if ctx.ChNew(name) {
-					ctx.ChUnbindCur() // 先移除绑定
-					ctx.ChBindCur(name)
-					VarSetValueStr(ctx, "$t角色名", name)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_新建"))
-				} else {
-					VarSetValueStr(ctx, "$t角色名", name)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_新建_已存在"))
-				}
-				if ctx.Player.AutoSetNameTemplate != "" {
-					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-				}
-			} else if cmdArgs.IsArgEqual(1, "load") {
-				cur := ctx.ChBindCurGet()
-				if cur != "" {
-					VarSetValueStr(ctx, "$t角色名", cur)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载失败_已绑定"))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				name := getNickname()
-				name = tryConvertIndex2Name(ctx, name)
-				ret := ctx.ChLoad(name)
-				VarSetValueStr(ctx, "$t角色名", name)
-				if ret != nil {
-					VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
-					// ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
-					if ctx.Player.AutoSetNameTemplate != "" {
-						_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-					}
-				} else {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
-				}
-			} else if cmdArgs.IsArgEqual(1, "tag") {
-				// 当不输入角色的时候，不用当前角色填充，因此做到不写角色名就取消绑定的效果
-				name := getNicknameRaw(false)
-				VarSetValueStr(ctx, "$t角色名", name)
-				if name != "" {
-					name = tryConvertIndex2Name(ctx, name)
-					VarSetValueStr(ctx, "$t角色名", name)
-					curBind := ctx.ChBindCurGet()
-					if curBind == name {
-						// 已经绑定，直接成功
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_成功"))
-					} else {
-						ctx.ChUnbindCur() // 先移除绑定
-						ok := ctx.ChBindCur(name)
-						if ok {
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_成功"))
-						} else {
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_失败"))
-						}
-					}
-				} else {
-					if name, success := ctx.ChUnbindCur(); success {
-						ctx.Player.Name = msg.Sender.Nickname
-						ctx.Player.UpdatedAtTime = time.Now().Unix()
-						VarSetValueStr(ctx, "$t角色名", name)
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_解除"))
-					} else {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_并未绑定"))
-					}
-				}
-				if ctx.Player.AutoSetNameTemplate != "" {
-					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-				}
-			} else if cmdArgs.IsArgEqual(1, "group1", "grp1") {
-				name := getNickname()
-				lst := ctx.ChBindGetList(name)
-				ReplyToSender(ctx, msg, "卡片绑定: "+strings.Join(lst, " "))
-			} else if cmdArgs.IsArgEqual(1, "untagAll") {
-				name := getNickname()
-				name = tryConvertIndex2Name(ctx, name)
-				lst := ctx.ChUnbind(name)
-
-				for _, i := range lst {
-					if i == ctx.Group.GroupID {
-						ctx.Player.Name = msg.Sender.Nickname
-						ctx.Player.UpdatedAtTime = time.Now().Unix()
-
-						// TODO: 其他群的设置sn的怎么办？先不管了。。
-						if ctx.Player.AutoSetNameTemplate != "" {
-							_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
-						}
-					}
-				}
-
-				if len(lst) > 0 {
-					ReplyToSender(ctx, msg, "绑定已全部解除:\n"+strings.Join(lst, "\n"))
-				} else {
-					ReplyToSender(ctx, msg, "这张卡片并未绑定到任何群")
-				}
-			} else if cmdArgs.IsArgEqual(1, "save") {
-				name := getNickname()
-				if len(name) > 90 {
-					name = name[:90]
-				}
-
-				card := ctx.ChBindGet(name)
-				if card == nil {
-					// TODO: 改到ctx里
-					chVars, _ := ctx.ChVarsGet()
-					v, err := json.Marshal(LockFreeMapToMap(chVars))
-
-					if err == nil {
-						vars := ctx.LoadPlayerGlobalVars()
-						vars.ValueMap.Set("$ch:"+name, &VMValue{
-							TypeID: VMTypeString,
-							Value:  string(v),
-						})
-						vars.LastWriteTime = time.Now().Unix()
-
-						VarSetValueStr(ctx, "$t角色名", name)
-						VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
-						// replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", Name))
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
-					} else {
-						// replyToSender(ctx, msg, "无法储存角色：序列化失败")
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
-					}
-				} else {
-					VarSetValueStr(ctx, "$t角色名", name)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
-				}
-			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
-				name := tryConvertIndex2Name(ctx, getNickname())
-				if ctx.ChBindGet(name) != nil {
-					VarSetValueStr(ctx, "$t角色名", name)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_删除失败_已绑定"))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				vars := ctx.LoadPlayerGlobalVars()
-
-				VarSetValueStr(ctx, "$t角色名", name)
-				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
-
-				if _, exists := vars.ValueMap.Get("$ch:" + name); !exists {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				vars.ValueMap.Del("$ch:" + name)
-				vars.LastWriteTime = time.Now().Unix()
-
-				text := DiceFormatTmpl(ctx, "核心:角色管理_删除成功")
-				if name == ctx.Player.Name {
-					VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", msg.Sender.Nickname))
-					text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
-					p := ctx.Player
-					p.Name = msg.Sender.Nickname
-					p.UpdatedAtTime = time.Now().Unix()
-					p.Vars.ValueMap = lockfree.NewHashMap()
-					p.Vars.LastWriteTime = time.Now().Unix()
-				}
-				ReplyToSender(ctx, msg, text)
-			} else {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-			return CmdExecuteResult{Matched: true, Solved: true}
-		},
-	}
-	d.CmdMap["角色"] = cmdChar
-	d.CmdMap["ch"] = cmdChar
-	d.CmdMap["char"] = cmdChar
-	d.CmdMap["character"] = cmdChar
-	d.CmdMap["pc"] = cmdChar
 
 	cmdFoxChar := &CmdItemInfo{
 		Name:      "fch",
@@ -2167,7 +1749,7 @@ func (d *Dice) registerCoreCommands() {
 			}()
 
 			getNicknameRaw := func(usePlayerName bool) string {
-				//name := cmdArgs.GetArgN(2)
+				// name := cmdArgs.GetArgN(2)
 				name := cmdArgs.CleanArgsChopRest
 				if usePlayerName && name == "" {
 					name = ctx.Player.Name
@@ -2271,7 +1853,7 @@ func (d *Dice) registerCoreCommands() {
 			case "tag":
 				// 当不输入角色的时候，不用当前角色填充，因此做到不写角色名就取消绑定的效果
 				name := getNicknameRaw(false)
-				//name = tryConvertIndex2Name(ctx, name)
+				// name = tryConvertIndex2Name(ctx, name)
 				// 这个转换回头写
 
 				VarSetValueStr(ctx, "$t角色名", name)
@@ -2306,7 +1888,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 			case "load":
 				name := getNicknameRaw(false)
-				//name = tryConvertIndex2Name(ctx, name)
+				// name = tryConvertIndex2Name(ctx, name)
 				// 这个转换回头写
 				VarSetValueStr(ctx, "$t角色名", name)
 
@@ -2315,7 +1897,7 @@ func (d *Dice) registerCoreCommands() {
 
 				if attrsCur == nil {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
-					//ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
+					// ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
 				} else {
 					attrs := lo.Must(am.LoadById(charId))
 
@@ -2344,7 +1926,7 @@ func (d *Dice) registerCoreCommands() {
 				if newItem == nil {
 					attrsNew, err := am.LoadById(newItem.Id)
 					if err != nil {
-						//ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+						// ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -2356,7 +1938,7 @@ func (d *Dice) registerCoreCommands() {
 
 					VarSetValueStr(ctx, "$t角色名", name)
 					VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
-					//replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", Name))
+					// replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", Name))
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
 				} else {
 					VarSetValueStr(ctx, "$t角色名", name)
@@ -2390,7 +1972,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 			case "del", "rm":
 				name := getNickname()
-				//name = tryConvertIndex2Name(ctx, name)
+				// name = tryConvertIndex2Name(ctx, name)
 				VarSetValueStr(ctx, "$t角色名", name)
 
 				charId := lo.Must(am.CharIdGetByName(ctx.Player.UserID, name))
@@ -2432,6 +2014,13 @@ func (d *Dice) registerCoreCommands() {
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
+
+	d.CmdMap["角色"] = cmdFoxChar
+	d.CmdMap["ch"] = cmdFoxChar
+	d.CmdMap["char"] = cmdFoxChar
+	d.CmdMap["character"] = cmdFoxChar
+	d.CmdMap["pc"] = cmdFoxChar
+
 	d.CmdMap["fch"] = cmdFoxChar
 	d.CmdMap["fpc"] = cmdFoxChar
 	d.CmdMap["foxpc"] = cmdFoxChar
@@ -2554,22 +2143,6 @@ func setRuleByName(ctx *MsgContext, name string) {
 //   - name不存在, name是数字, 且小于等于用户的角色卡数, 返回对应序号的卡名
 func tryConvertIndex2Name(ctx *MsgContext, name string) string {
 	// 确认name是否存在, 如果不存在, 尝试解析为序号并查出对应name
-	vars := ctx.LoadPlayerGlobalVars()
-	_, exists := vars.ValueMap.Get("$ch:" + name)
-	if !exists {
-		if idx, errInt := strconv.ParseInt(name, 10, 64); errInt == nil && idx > 0 {
-			_ = vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
-				k := _k.(string)
-				if strings.HasPrefix(k, "$ch:") {
-					idx--
-					if idx == 0 {
-						name = k[4:]
-						return fmt.Errorf("break")
-					}
-				}
-				return nil
-			})
-		}
-	}
-	return name
+	// 已经完全不适用于基于数据库的新版本，等待之后重写
+	return ""
 }

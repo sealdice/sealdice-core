@@ -18,6 +18,7 @@ type AttrsManager struct {
 	m      SyncMap[string, *AttributesItem]
 }
 
+// LoadByCtx 获取当前角色，如有绑定，则获取绑定的角色，若无绑定，获取群内默认卡
 func (am *AttrsManager) LoadByCtx(ctx *MsgContext) (*AttributesItem, error) {
 	return am.Load(ctx.Group.GroupID, ctx.Player.UserID)
 }
@@ -39,6 +40,7 @@ func (am *AttrsManager) Load(groupId string, userId string) (*AttributesItem, er
 	if id == "" {
 		id = gid
 	}
+
 	return am.LoadById(id)
 }
 
@@ -59,7 +61,7 @@ func (am *AttrsManager) GetCharacterList(userId string) ([]*model.AttributesItem
 func (am *AttrsManager) CharNew(userId string, name string, sheetType string) (*model.AttributesItemModel, error) {
 	userId = am.UIDConvert(userId)
 	dict := &ds.ValueMap{}
-	dict.Store("$sheetType", ds.NewStrVal(sheetType))
+	// dict.Store("$sheetType", ds.NewStrVal(sheetType))
 	json, err := ds.NewDictVal(dict).V().ToJSON()
 	if err != nil {
 		return nil, err
@@ -109,6 +111,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 					ID:           id,
 					valueMap:     dd.Dict,
 					Name:         data.Name,
+					SheetType:    data.SheetType,
 					LastUsedTime: time.Now().Unix(),
 				}
 				am.m.Store(id, i)
@@ -125,8 +128,8 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 	// 3. 从老数据库读取 - 群用户数据
 	// （其实还有一种，但是读不了，就是玩家的卡数据，因为没有id）
 	// 暂时先不弄这种了，太容易出问题
-	//dataOld := model.AttrGroupUserGetAllBase(d.DBData, id)
-	//if dataOld != nil {
+	// dataOld := model.AttrGroupUserGetAllBase(d.DBData, id)
+	// if dataOld != nil {
 	//	mapData := make(map[string]*VMValue)
 	//	err := JsonValueMapUnmarshal(dataOld, &mapData)
 	//	if err != nil {
@@ -147,7 +150,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 	//	}
 	//	am.m.Store(id, i)
 	//	return i, nil
-	//}
+	// }
 
 	// 4. 创建一个新的
 	// 注: 缺 created_at、updated_at、sheet_type、owner_id、is_hidden、nickname等各项
@@ -247,7 +250,7 @@ func (am *AttrsManager) CharIdGetByName(userId string, name string) (string, err
 
 func (am *AttrsManager) CharCheckExists(name string, groupId string) bool {
 	// TODO: xxxx
-	//model.AttrsCharCheckExists(am.parent.DBData, name, id)
+	// model.AttrsCharCheckExists(am.parent.DBData, name, id)
 	return false
 }
 
@@ -285,6 +288,7 @@ type AttributesItem struct {
 	LastUsedTime     int64        // 上次使用时间
 	IsSaved          bool
 	Name             string
+	SheetType        string
 }
 
 func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
@@ -293,7 +297,7 @@ func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
 	if err != nil {
 		return
 	}
-	err = model.AttrsPutById(db, tx, i.ID, rawData, i.Name)
+	err = model.AttrsPutById(db, tx, i.ID, rawData, i.Name, i.SheetType)
 	if err != nil {
 		fmt.Println("保存数据失败", err.Error())
 		return
@@ -307,9 +311,19 @@ func (i *AttributesItem) Load(name string) *ds.VMValue {
 	return v
 }
 
+func (i *AttributesItem) LoadX(name string) (*ds.VMValue, bool) {
+	v, exists := i.valueMap.Load(name)
+	i.LastUsedTime = time.Now().Unix()
+	return v, exists
+}
+
 func (i *AttributesItem) Delete(name string) {
 	i.valueMap.Delete(name)
-	i.LastUsedTime = time.Now().Unix()
+	i.LastModifiedTime = time.Now().Unix()
+}
+
+func (i *AttributesItem) SetModified() {
+	i.LastModifiedTime = time.Now().Unix()
 }
 
 func (i *AttributesItem) Store(name string, value *ds.VMValue) {
@@ -324,8 +338,9 @@ func (i *AttributesItem) toDict() *ds.VMDictValue {
 	return ds.NewDictVal(i.valueMap)
 }
 
-func (i *AttributesItem) Clear() {
+func (i *AttributesItem) Clear() int {
 	// TODO: 塞进函数里
+	// 后记：这个TODO是什么意思？
 	var keys []string
 	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
 		keys = append(keys, key)
@@ -335,6 +350,8 @@ func (i *AttributesItem) Clear() {
 	for _, key := range keys {
 		i.valueMap.Delete(key)
 	}
+	i.LastModifiedTime = time.Now().Unix()
+	return len(keys)
 }
 
 func (i *AttributesItem) toArrayKeys() []*ds.VMValue {
@@ -369,4 +386,19 @@ func (i *AttributesItem) toArrayItems() []*ds.VMValue {
 
 func (i *AttributesItem) Range(f func(key string, value *ds.VMValue) bool) {
 	i.valueMap.Range(f)
+}
+
+func (i *AttributesItem) SetSheetType(system string) {
+	i.SheetType = system
+	i.LastModifiedTime = time.Now().Unix()
+}
+
+func (i *AttributesItem) Len() int {
+	// TODO: 优化
+	var count int
+	i.Range(func(key string, value *ds.VMValue) bool {
+		count += 1
+		return true
+	})
+	return count
 }

@@ -53,26 +53,26 @@ func attrSave(db *sqlx.DB, bucket string, key string, data []byte) {
 	}
 }
 
-func AttrGroupUserGetAll(db *sqlx.DB, groupID string, userID string) []byte {
-	return attrGetAllBase(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupID, userID))
-}
+// func AttrGroupUserGetAll(db *sqlx.DB, groupID string, userID string) []byte {
+// 	return attrGetAllBase(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupID, userID))
+// }
+//
+// func AttrGroupUserSave(db *sqlx.DB, groupID string, userID string, data []byte) {
+// 	attrSave(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupID, userID), data)
+// }
 
-func AttrGroupUserSave(db *sqlx.DB, groupID string, userID string, data []byte) {
-	attrSave(db, "attrs_group_user", fmt.Sprintf("%s-%s", groupID, userID), data)
-}
+// func AttrGroupGetAll(db *sqlx.DB, groupID string) []byte {
+// 	return attrGetAllBase(db, "attrs_group", groupID)
+// }
 
-func AttrGroupGetAll(db *sqlx.DB, groupID string) []byte {
-	return attrGetAllBase(db, "attrs_group", groupID)
-}
-
-func AttrGroupSave(db *sqlx.DB, groupID string, data []byte) {
-	attrSave(db, "attrs_group", groupID, data)
-}
+// func AttrGroupSave(db *sqlx.DB, groupID string, data []byte) {
+// 	attrSave(db, "attrs_group", groupID, data)
+// }
 
 func AttrUserGetAll(db *sqlx.DB, userID string) []byte {
 	return attrGetAllBase(db, "attrs_user", userID)
 }
 
-func AttrUserSave(db *sqlx.DB, userID string, data []byte) {
-	attrSave(db, "attrs_user", userID, data)
-}
+// func AttrUserSave(db *sqlx.DB, userID string, data []byte) {
+// 	attrSave(db, "attrs_user", userID, data)
+// }

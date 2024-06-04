@@ -17,11 +17,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fy0/lockfree"
+	"sealdice-core/message"
+
 	"github.com/gorilla/websocket"
 	"github.com/samber/lo"
 
-	"sealdice-core/message"
+	ds "github.com/sealdice/dicescript"
 )
 
 type PlatformAdapterRed struct {
@@ -692,7 +693,7 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 					p = &GroupPlayerInfo{
 						Name:          name,
 						UserID:        userID,
-						ValueMapTemp:  lockfree.NewHashMap(),
+						ValueMapTemp:  &ds.ValueMap{},
 						UpdatedAtTime: 0,
 					}
 					groupInfo.Players.Store(userID, p)

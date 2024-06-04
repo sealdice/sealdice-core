@@ -3,6 +3,7 @@ package dice
 import (
 	"errors"
 	"fmt"
+	"github.com/samber/lo"
 	"math"
 	"math/rand"
 	"regexp"
@@ -501,15 +502,14 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 		wodState.threshold = &VMValue{TypeID: VMTypeInt64, Value: int64(8)} // 成功线，默认9
 		wodState.isGE = true
 
-		if threshold, exists := ctx.Group.ValueMap.Get("wodThreshold"); exists {
-			if t, ok := threshold.(*VMValue); ok {
-				wodState.threshold = t
-			}
+		am := ctx.Dice.AttrsManager
+		groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
+
+		if threshold, exists := groupAttrs.LoadX("wodThreshold"); exists {
+			wodState.threshold = dsValueToRollVMv1(threshold)
 		}
-		if threshold, exists := ctx.Group.ValueMap.Get("wodPoints"); exists {
-			if t, ok := threshold.(*VMValue); ok {
-				wodState.points = t
-			}
+		if wodPoints, exists := groupAttrs.LoadX("wodPoints"); exists {
+			wodState.points = dsValueToRollVMv1(wodPoints)
 		}
 	}
 
@@ -574,7 +574,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			//		val = stack[top-len(parts)+index]
 			//	}
 			//	str = strings.Replace(str, i, val.ToString(), 1)
-			//}
+			// }
 
 			top -= num
 			stack[top].TypeID = VMTypeString
@@ -895,13 +895,13 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 				if ctx.SystemTemplate != nil {
 					name2 = ctx.SystemTemplate.GetAlias(varname)
 				}
-				v2, exists := VarGetValue(ctx, name2)
+				v2, exists := _VarGetValueV1(ctx, name2)
 
 				if !exists {
 					if ctx.SystemTemplate != nil {
 						v2n, detail, calculated, exists2 := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
 						if exists2 {
-							v2 = v2n
+							v2 = dsValueToRollVMv1(v2n)
 							if calculated && !e.Calculated {
 								e.Calculated = calculated
 							}
@@ -929,7 +929,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			if vType == VMTypeDNDComputedValue {
 				// 解包计算属性
 				vd := v.(*VMDndComputedValueData)
-				VarSetValue(ctx, "$tVal", &vd.BaseValue)
+				_VarSetValueV1(ctx, "$tVal", &vd.BaseValue)
 				realV, _, err := ctx.Dice.ExprEvalBase(vd.Expr, ctx, RollExtraFlags{vmDepth: e.flags.vmDepth + 1})
 				if err != nil {
 					return nil, "", errors.New("E3: 获取计算属性异常: " + vd.Expr)
@@ -965,7 +965,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			}
 
 			if !e.flags.DisableValueBuff {
-				_, exists := VarGetValue(ctx, "$buff_"+varname)
+				_, exists := _VarGetValueV1(ctx, "$buff_"+varname)
 				if exists {
 					if vType == VMTypeInt64 {
 						buffV, _, err := ctx.Dice.ExprEvalBase("$buff_"+varname, ctx, RollExtraFlags{})
@@ -998,7 +998,8 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 
 			if v == nil {
 				if ctx.SystemTemplate != nil {
-					v2, detail, calculated, _ := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+					_v2, detail, calculated, _ := ctx.SystemTemplate.GetDefaultValueEx0(ctx, varname)
+					v2 := dsValueToRollVMv1(_v2)
 					if calculated && !e.Calculated {
 						e.Calculated = calculated
 					}
@@ -1252,7 +1253,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			e.Calculated = true
 			top--
 			if ctx != nil {
-				VarSetValue(ctx, a.Value.(string), b)
+				_VarSetValueV1(ctx, a.Value.(string), b)
 				// p.SetValueInt64(a.value.(string), b.value.(int64), nil)
 			}
 			stack[top].TypeID = b.TypeID

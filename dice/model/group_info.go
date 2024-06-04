@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	ds "github.com/sealdice/dicescript"
 
 	"github.com/fy0/lockfree"
 	"github.com/jmoiron/sqlx"
@@ -81,9 +82,8 @@ type GroupPlayerInfoBase struct {
 	AutoSetNameTemplate string        `yaml:"autoSetNameTemplate" jsbind:"autoSetNameTemplate"` // 名片模板
 
 	// level int 权限
-	DiceSideNum  int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
-	Vars         *PlayerVariablesItem `yaml:"-"`           // 玩家的群内变量
-	ValueMapTemp lockfree.HashMap     `yaml:"-"`           // 玩家的群内临时变量
+	DiceSideNum  int          `yaml:"diceSideNum"` // 面数，为0时等同于d100
+	ValueMapTemp *ds.ValueMap `yaml:"-"`           // 玩家的群内临时变量
 	// ValueMapTemp map[string]*VMValue  `yaml:"-"`           // 玩家的群内临时变量
 
 	TempValueAlias *map[string][]string `yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的，为什么在这里？
@@ -107,11 +107,11 @@ func GroupPlayerInfoGet(db *sqlx.DB, groupID string, playerID string) *GroupPlay
 
 	defer rows.Close()
 
-	//Name:                stmt.ColumnText(0),
-	//UserId:              playerId,
-	//LastCommandTime:     stmt.ColumnInt64(2),
-	//AutoSetNameTemplate: stmt.ColumnText(3),
-	//DiceSideNum:         int(stmt.ColumnInt64(4)),
+	// Name:                stmt.ColumnText(0),
+	// UserId:              playerId,
+	// LastCommandTime:     stmt.ColumnInt64(2),
+	// AutoSetNameTemplate: stmt.ColumnText(3),
+	// DiceSideNum:         int(stmt.ColumnInt64(4)),
 
 	exists := false
 	for rows.Next() {

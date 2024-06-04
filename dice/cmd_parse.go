@@ -2,13 +2,12 @@ package dice
 
 import (
 	"fmt"
+	ds "github.com/sealdice/dicescript"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode"
-
-	"github.com/fy0/lockfree"
 
 	"sealdice-core/message"
 )
@@ -46,7 +45,7 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 			mctx.Player = &GroupPlayerInfo{
 				Name:          "",
 				UserID:        i.UserID,
-				ValueMapTemp:  lockfree.NewHashMap(),
+				ValueMapTemp:  &ds.ValueMap{},
 				UpdatedAtTime: 0,
 			}
 			// 特殊处理 official qq

@@ -2,12 +2,12 @@ package dice
 
 import (
 	"fmt"
+	ds "github.com/sealdice/dicescript"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/fy0/lockfree"
 	"golang.org/x/time/rate"
 )
 
@@ -73,7 +73,6 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			ActivatedExtList: extLst,
 			Players:          new(SyncMap[string, *GroupPlayerInfo]),
 			GroupID:          groupID,
-			ValueMap:         lockfree.NewHashMap(),
 			DiceIDActiveMap:  new(SyncMap[string, bool]),
 			DiceIDExistsMap:  new(SyncMap[string, bool]),
 			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
@@ -125,16 +124,15 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		p = &GroupPlayerInfo{
 			Name:          msg.Sender.Nickname,
 			UserID:        msg.Sender.UserID,
-			ValueMapTemp:  lockfree.NewHashMap(),
+			ValueMapTemp:  &ds.ValueMap{},
 			UpdatedAtTime: 0, // 新创建时不赋值，这样不会入库保存，减轻数据库负担
 		}
 		group.Players.Store(msg.Sender.UserID, p)
 	}
 	if p.ValueMapTemp == nil {
-		p.ValueMapTemp = lockfree.NewHashMap()
+		p.ValueMapTemp = &ds.ValueMap{}
 	}
 	p.InGroup = true
-	ctx.LoadPlayerGroupVars(group, p)
 	return group, p
 }
 
@@ -384,17 +382,6 @@ func (s ByLength) Less(i, j int) bool {
 	return len(s[i]) > len(s[j])
 }
 
-func DiceFormatTmpl(ctx *MsgContext, s string) string { //nolint:revive
-	var text string
-	a := ctx.Dice.TextMap[s]
-	if a == nil {
-		text = "<%未知项-" + s + "%>"
-	} else {
-		text = ctx.Dice.TextMap[s].Pick().(string)
-	}
-	return DiceFormat(ctx, text)
-}
-
 func CompatibleReplace(ctx *MsgContext, s string) string {
 	s = ctx.TranslateSplit(s)
 
@@ -424,13 +411,6 @@ func CompatibleReplace(ctx *MsgContext, s string) string {
 		})
 	}
 	return s
-}
-
-func DiceFormat(ctx *MsgContext, s string) string { //nolint:revive
-	s = CompatibleReplace(ctx, s)
-
-	r, _, _ := ctx.Dice.ExprText(s, ctx)
-	return r
 }
 
 func FormatDiceID(ctx *MsgContext, id interface{}, isGroup bool) string {

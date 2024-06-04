@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fy0/lockfree"
 	wr "github.com/mroth/weightedrand"
 	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
@@ -2108,22 +2107,6 @@ func (d *Dice) loads() {
 
 		// 读取群变量
 		for _, g := range d.ImSession.ServiceAtNew {
-			// 群组数据
-			if g.ValueMap == nil {
-				g.ValueMap = lockfree.NewHashMap()
-			}
-
-			data := model.AttrGroupGetAll(d.DBData, g.GroupID)
-			if len(data) != 0 {
-				mapData := make(map[string]*VMValue)
-				err := JSONValueMapUnmarshal(data, &mapData)
-				if err != nil {
-					d.Logger.Error("读取群变量失败: ", err)
-				}
-				for k, v := range mapData {
-					g.ValueMap.Set(k, v)
-				}
-			}
 			if g.DiceIDActiveMap == nil {
 				g.DiceIDActiveMap = new(SyncMap[string, bool])
 			}
@@ -2465,16 +2448,6 @@ func (d *Dice) Save(isAuto bool) {
 					_ = model.GroupPlayerInfoSave(d.DBData, g.GroupID, key, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
-
-				// 保存群组卡
-				if value.Vars != nil && value.Vars.Loaded {
-					if value.Vars.LastWriteTime != 0 {
-						data, _ := json.Marshal(LockFreeMapToMap(value.Vars.ValueMap))
-						model.AttrGroupUserSave(d.DBData, g.GroupID, key, data)
-						value.Vars.LastWriteTime = 0
-					}
-				}
-
 				return true
 			})
 		}
@@ -2489,74 +2462,10 @@ func (d *Dice) Save(isAuto bool) {
 				g.UpdatedAtTime = 0
 			}
 		}
-
-		// TODO: 这里其实还能优化
-		data, _ := json.Marshal(LockFreeMapToMap(g.ValueMap))
-		model.AttrGroupSave(d.DBData, g.GroupID, data)
 	}
 
-	// 同步绑定的角色卡数据
-	chPrefix := "$:ch-bind-mtime:"
-	chPrefixData := "$:ch-bind-data:"
-	d.ImSession.PlayerVarsData.Range(func(key string, v *PlayerVariablesItem) bool {
-		if v.Loaded {
-			if v.LastWriteTime != 0 {
-				var toDelete []string
-				syncMap := map[string]bool{}
-				allCh := map[string]lockfree.HashMap{}
-
-				_ = v.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
-					if k, ok := _k.(string); ok {
-						if strings.HasPrefix(k, chPrefixData) {
-							v := _v.(lockfree.HashMap)
-							allCh[k[len(chPrefixData):]] = v
-						}
-						if strings.HasPrefix(k, chPrefix) {
-							// 只要存在，就是修改过，数值多少不重要
-							syncMap[k[len(chPrefix):]] = true
-							toDelete = append(toDelete, k)
-						}
-					}
-					return nil
-				})
-
-				for _, i := range toDelete {
-					v.ValueMap.Del(i)
-				}
-
-				// 这里面的角色是需要同步的
-				for name := range syncMap {
-					chData := allCh[name]
-					if chData != nil {
-						val, err := json.Marshal(LockFreeMapToMap(chData))
-						if err == nil {
-							varName := "$ch:" + name
-							v.ValueMap.Set(varName, &VMValue{
-								TypeID: VMTypeString,
-								Value:  string(val),
-							})
-						}
-					} else {
-						// 过期了，可能该角色已经被删除
-						v.ValueMap.Del("$:ch-bind-data:" + name)
-					}
-				}
-			}
-		}
-		return true
-	})
-
-	// 保存玩家个人全局数据
-	d.ImSession.PlayerVarsData.Range(func(k string, v *PlayerVariablesItem) bool {
-		if v.Loaded {
-			if v.LastWriteTime != 0 {
-				data, _ := json.Marshal(LockFreeMapToMap(v.ValueMap))
-				model.AttrUserSave(d.DBData, k, data)
-				v.LastWriteTime = 0
-			}
-		}
-		return true
-	})
+	// 同步全部属性数据：个人角色卡、群内角色卡、群数据、个人全局数据
+	d.AttrsManager.CheckForSave()
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测

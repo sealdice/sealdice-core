@@ -19,6 +19,8 @@ const (
 	AttrsTypeUser      = "user"
 )
 
+// 注: 角色表有用sheet也有用sheets的，这里数据结构中使用sheet
+
 // AttributesItemModel 新版人物卡。说明一下，这里带s的原因是attrs指的是一个map
 type AttributesItemModel struct {
 	Id        string `json:"id" db:"id"`                // 如果是群内，那么是类似 QQ-Group:12345-QQ:678910，群外是nanoid
@@ -82,14 +84,14 @@ func AttrsGetIdByUidAndName(db *sqlx.DB, userId string, name string) (string, er
 	return item.Id, nil
 }
 
-func AttrsPutById(db *sqlx.DB, tx *sql.Tx, id string, data []byte, name string) error {
+func AttrsPutById(db *sqlx.DB, tx *sql.Tx, id string, data []byte, name, sheetType string) error {
 	// TODO: 好像还不够，需要nickname 需要sheetType，还有别的吗
 	var err error
 	now := time.Now().Unix()
-	query := `insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at, name)
-			  values ($1, $2, true, '', $3, $3, $4)
-			  on conflict (id) do update set data = $2, updated_at = $3, name = $4`
-	args := []any{id, data, now, name}
+	query := `insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at, name, sheet_type)
+			  values ($1, $2, true, '', $3, $3, $4, $5)
+			  on conflict (id) do update set data = $2, updated_at = $3, name = $4, sheet_type = $5`
+	args := []any{id, data, now, name, sheetType}
 
 	if tx != nil {
 		_, err = tx.Exec(query, args...)

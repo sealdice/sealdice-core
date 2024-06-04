@@ -2,6 +2,8 @@ package dice
 
 import (
 	"fmt"
+	"github.com/samber/lo"
+	ds "github.com/sealdice/dicescript"
 	"hash/fnv"
 	"math/rand"
 	"regexp"
@@ -175,11 +177,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 			_isPersonal := cmdArgs.GetKwarg("my")
 			isPersonal := ctx.MessageType == "private" || _isPersonal != nil
-			if !isPersonal {
-				ctx.LoadGroupVars()
-			}
 
-			playerVars := ctx.LoadPlayerGlobalVars()
+			playerAttrs := lo.Must(ctx.Dice.AttrsManager.LoadById(ctx.Player.UserID))
+			groupAttrs := lo.Must(ctx.Dice.AttrsManager.LoadById(ctx.Group.GroupID))
 			subCmd := cmdArgs.GetArgN(1)
 
 		subParse:
@@ -189,60 +189,52 @@ func RegisterBuiltinExtFun(self *Dice) {
 			case "del", "rm":
 				name := cmdArgs.GetArgN(2)
 				key := "$g:alias:" + name
-				m := ctx.Group.ValueMap
+				m := lo.Must(ctx.Dice.AttrsManager.LoadById(ctx.Group.GroupID))
 				VarSetValueStr(ctx, "$t指令来源", "群")
 				if isPersonal {
 					key = "$m:alias:" + name
-					m = playerVars.ValueMap
+					m = playerAttrs
 					VarSetValueStr(ctx, "$t指令来源", "个人")
 				}
-				if _cmd, ok := m.Get(key); ok {
-					if cmd, ok := _cmd.(*VMValue); ok && cmd != nil && cmd.TypeID == VMTypeString {
+				if cmd, ok := m.LoadX(key); ok {
+					if cmd != nil && cmd.TypeId == ds.VMTypeString {
 						VarSetValueStr(ctx, "$t快捷指令名", name)
 						VarSetValueStr(ctx, "$t旧指令", cmd.Value.(string))
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除"))
 					}
-					m.Del(key)
-					if isPersonal {
-						playerVars.LastWriteTime = time.Now().Unix()
-					} else if ctx.Group != nil {
-						ctx.Group.UpdatedAtTime = time.Now().Unix()
-					}
+					m.Delete(key)
 				} else {
 					VarSetValueStr(ctx, "$t快捷指令名", name)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_删除_未定义"))
 				}
 			case "list", "show":
 				var personCmds, groupCmds []string
-				_ = playerVars.ValueMap.Iterate(func(k interface{}, v interface{}) error {
-					if key, ok := k.(string); ok {
-						if strings.HasPrefix(key, "$m:alias:") {
-							_cmd := key[len("$m:alias:"):]
-							if val, ok := v.(*VMValue); ok && val != nil && val.TypeID == VMTypeString {
-								VarSetValueStr(ctx, "$t快捷指令名", _cmd)
-								VarSetValueStr(ctx, "$t指令", val.Value.(string))
-								VarSetValueStr(ctx, "$t指令来源", "个人")
-								personCmds = append(personCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
-							}
+				playerAttrs.Range(func(key string, value *ds.VMValue) bool {
+					if strings.HasPrefix(key, "$m:alias:") {
+						_cmd := key[len("$m:alias:"):]
+						if value.TypeId == ds.VMTypeString {
+							VarSetValueStr(ctx, "$t快捷指令名", _cmd)
+							VarSetValueStr(ctx, "$t指令", value.ToString())
+							VarSetValueStr(ctx, "$t指令来源", "个人")
+							personCmds = append(personCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
 						}
 					}
-					return nil
+					return true
 				})
+
 				if ctx.MessageType == "group" {
-					groupValueMap := ctx.Group.ValueMap
-					_ = groupValueMap.Iterate(func(k interface{}, v interface{}) error {
-						if key, ok := k.(string); ok {
-							if strings.HasPrefix(key, "$g:alias:") {
-								_cmd := key[len("$g:alias:"):]
-								if val, ok := v.(*VMValue); ok && val != nil && val.TypeID == VMTypeString {
-									VarSetValueStr(ctx, "$t快捷指令名", _cmd)
-									VarSetValueStr(ctx, "$t指令", val.Value.(string))
-									VarSetValueStr(ctx, "$t指令来源", "群")
-									groupCmds = append(groupCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
-								}
+					groupAttrs.Range(func(key string, value *ds.VMValue) bool {
+						if strings.HasPrefix(key, "$g:alias:") {
+							_cmd := key[len("$g:alias:"):]
+							if value.TypeId == ds.VMTypeString {
+								VarSetValueStr(ctx, "$t快捷指令名", _cmd)
+								VarSetValueStr(ctx, "$t指令", value.ToString())
+								VarSetValueStr(ctx, "$t指令来源", "群")
+								groupCmds = append(groupCmds, DiceFormatTmpl(ctx, "核心:快捷指令_列表_单行"))
 							}
 						}
-						return nil
+
+						return false
 					})
 				}
 				sep := DiceFormatTmpl(ctx, "核心:快捷指令_列表_分隔符")
@@ -283,43 +275,28 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 				cmd := strings.TrimSpace(strings.Join(_args, " "))
 
-				m := ctx.Group.ValueMap
+				m := groupAttrs
 				key := "$g:alias:" + name
 				VarSetValueStr(ctx, "$t指令来源", "群")
 				if isPersonal {
 					key = "$m:alias:" + name
-					m = playerVars.ValueMap
+					m = playerAttrs
 					VarSetValueStr(ctx, "$t指令来源", "个人")
 				}
 
-				if _oldCmd, ok := m.Get(key); ok && _oldCmd != nil {
-					if oldCmd, ok := _oldCmd.(*VMValue); ok && oldCmd.TypeID == VMTypeString {
-						m.Set(key, &VMValue{TypeID: VMTypeString, Value: cmd})
-						if isPersonal {
-							playerVars.LastWriteTime = time.Now().Unix()
-						} else if ctx.Group != nil {
-							ctx.Group.UpdatedAtTime = time.Now().Unix()
-						}
+				if oldCmd, ok := m.LoadX(key); ok {
+					if oldCmd.TypeId == ds.VMTypeString {
+						m.Store(key, ds.NewStrVal(cmd))
 						VarSetValueStr(ctx, "$t快捷指令名", name)
 						VarSetValueStr(ctx, "$t指令", cmd)
 						VarSetValueStr(ctx, "$t旧指令", oldCmd.Value.(string))
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_替换"))
 					} else {
 						// 防止错误的数据一直卡着
-						m.Del(key)
-						if isPersonal {
-							playerVars.LastWriteTime = time.Now().Unix()
-						} else if ctx.Group != nil {
-							ctx.Group.UpdatedAtTime = time.Now().Unix()
-						}
+						m.Delete(key)
 					}
 				} else {
-					m.Set(key, &VMValue{TypeID: VMTypeString, Value: cmd})
-					if isPersonal {
-						playerVars.LastWriteTime = time.Now().Unix()
-					} else if ctx.Group != nil {
-						ctx.Group.UpdatedAtTime = time.Now().Unix()
-					}
+					m.Store(key, ds.NewStrVal(cmd))
 					VarSetValueStr(ctx, "$t快捷指令名", name)
 					VarSetValueStr(ctx, "$t指令", cmd)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:快捷指令_新增"))
@@ -352,10 +329,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 			}
 
 			if msg.MessageType == "group" {
-				ctx.LoadGroupVars()
-				_cmdValue, ok := ctx.Group.ValueMap.Get("$g:alias:" + name)
+				groupAttrs := lo.Must(ctx.Dice.AttrsManager.LoadById(ctx.Group.GroupID))
+				cmdValue, ok := groupAttrs.LoadX("$g:alias:" + name)
 				if ok {
-					if cmdValue, ok2 := _cmdValue.(*VMValue); ok2 && cmdValue != nil && cmdValue.TypeID == VMTypeString {
+					if cmdValue != nil && cmdValue.TypeId == ds.VMTypeString {
 						args[0] = cmdValue.Value.(string)
 						targetCmd := strings.Join(args, " ")
 						targetArgs := CommandParse(targetCmd, []string{}, self.CommandPrefix, msg.Platform, false)
@@ -376,10 +353,10 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 			}
 
-			playerVars := ctx.LoadPlayerGlobalVars()
-			_cmdValue, ok := playerVars.ValueMap.Get("$m:alias:" + name)
+			playerAttrs := lo.Must(ctx.Dice.AttrsManager.LoadById(ctx.Player.UserID))
+			cmdValue, ok := playerAttrs.LoadX("$m:alias:" + name)
 			if ok {
-				if cmdValue, ok := _cmdValue.(*VMValue); ok && cmdValue != nil && cmdValue.TypeID == VMTypeString {
+				if cmdValue != nil && cmdValue.TypeId == ds.VMTypeString {
 					args[0] = cmdValue.Value.(string)
 					targetCmd := strings.Join(args, " ")
 					msg.Message = targetCmd
@@ -970,16 +947,16 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: helpWW,
 		Help:      "骰池(WOD/无限规则骰点):\n" + helpWW,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			groupAttrs := lo.Must(ctx.Dice.AttrsManager.LoadById(ctx.Group.GroupID))
 			switch cmdArgs.GetArgN(1) {
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			case "set":
 				arg2 := cmdArgs.GetArgN(2)
 				if arg2 == "clr" || arg2 == "clear" {
-					ctx.Group.ValueMap.Del("wodThreshold")
-					ctx.Group.ValueMap.Del("wodPoints")
-					ctx.Group.ValueMap.Del("wodAdd")
-					ctx.Group.UpdatedAtTime = time.Now().Unix()
+					groupAttrs.Delete("wodThreshold")
+					groupAttrs.Delete("wodPoints")
+					groupAttrs.Delete("wodAdd")
 					ReplyToSender(ctx, msg, "骰池设定已恢复默认")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -990,8 +967,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				if m := reK.FindStringSubmatch(arg2); len(m) > 0 {
 					if v, err := strconv.ParseInt(m[1], 10, 64); err == nil {
 						if v >= 1 {
-							ctx.Group.ValueMap.Set("wodThreshold", &VMValue{TypeID: VMTypeInt64, Value: v})
-							ctx.Group.UpdatedAtTime = time.Now().Unix()
+							groupAttrs.Store("wodThreshold", ds.NewIntVal(ds.IntType(v)))
 							texts = append(texts, fmt.Sprintf("成功线k: 已修改为%d", v))
 						} else {
 							texts = append(texts, "成功线k: 需要至少为1")
@@ -1002,8 +978,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				if m := reM.FindStringSubmatch(arg2); len(m) > 0 {
 					if v, err := strconv.ParseInt(m[1], 10, 64); err == nil {
 						if v >= 1 && v <= 2000 {
-							ctx.Group.ValueMap.Set("wodPoints", &VMValue{TypeID: VMTypeInt64, Value: v})
-							ctx.Group.UpdatedAtTime = time.Now().Unix()
+							groupAttrs.Store("wodPoints", ds.NewIntVal(ds.IntType(v)))
 							texts = append(texts, fmt.Sprintf("骰子面数m: 已修改为%d", v))
 						} else {
 							texts = append(texts, "骰子面数m: 需要在1-2000之间")
@@ -1014,8 +989,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				if m := reA.FindStringSubmatch(arg2); len(m) > 0 {
 					if v, err := strconv.ParseInt(m[1], 10, 64); err == nil {
 						if v >= 2 {
-							ctx.Group.ValueMap.Set("wodAdd", &VMValue{TypeID: VMTypeInt64, Value: v})
-							ctx.Group.UpdatedAtTime = time.Now().Unix()
+							groupAttrs.Store("wodAdd", ds.NewIntVal(ds.IntType(v)))
 							texts = append(texts, fmt.Sprintf("加骰线a: 已修改为%d", v))
 						} else {
 							texts = append(texts, "加骰线a: 需要至少为2")
@@ -1031,10 +1005,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 			}
 
 			addNum := int64(10)
-			if adding, exists := ctx.Group.ValueMap.Get("wodAdd"); exists {
-				if t, ok := adding.(*VMValue); ok {
-					addNum, _ = t.ReadInt64()
-				}
+			if adding, exists := groupAttrs.LoadX("wodAdd"); exists {
+				addNumX, _ := adding.ReadInt()
+				addNum = int64(addNumX)
 			}
 
 			txt := readNumber(cmdArgs.CleanArgs, fmt.Sprintf("a%d", addNum))

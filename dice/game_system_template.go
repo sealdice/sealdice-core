@@ -1,7 +1,10 @@
 package dice
 
 import (
+	"github.com/samber/lo"
 	"strings"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 type AttributeOrderOthers struct {
@@ -23,7 +26,7 @@ type AttributeConfigs struct {
 type AttrConfig struct {
 	Display string `yaml:"display" json:"display"` // 展示形式，即st show时格式，默认为顺序展示
 
-	Top          []string          `yaml:"top,flow" json:"top,flow"`         //nolint
+	Top          []string          `yaml:"top,flow" json:"top,flow"`         // nolint
 	SortBy       string            `yaml:"sortBy" json:"sortBy"`             // time | Name | value desc
 	Ignores      []string          `yaml:"ignores" json:"ignores"`           // 这里面的属性将不被显示
 	ShowAs       map[string]string `yaml:"showAs" json:"showAs"`             // 展示形式，即st show时格式
@@ -82,14 +85,14 @@ func (t *GameSystemTemplate) GetAlias(varname string) string {
 	return varname
 }
 
-func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*VMValue, string, bool, bool) {
+func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*ds.VMValue, string, bool, bool) {
 	name := t.GetAlias(varname)
 	var detail string
 
 	// 先计算computed
 	if expr, exists := t.DefaultsComputed[name]; exists {
 		ctx.SystemTemplate = t
-		r, detail2, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{
+		r, detail2, err := DiceExprEvalBase(ctx, expr, RollExtraFlags{
 			DefaultDiceSideNum: getDefaultDicePoints(ctx),
 		})
 
@@ -103,37 +106,39 @@ func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string)
 		}
 
 		if err == nil {
-			return &r.VMValue, detail, r.Parser.Calculated, true
+			return r.VMValue, detail, r.IsCalculated(), true
 		}
 	}
 
 	if val, exists := t.Defaults[name]; exists {
-		return VMValueNew(VMTypeInt64, val), detail, false, true
+		return ds.NewIntVal(ds.IntType(val)), detail, false, true
 	}
 
-	return VMValueNew(VMTypeInt64, int64(0)), detail, false, false
+	// TODO: 以空值填充，这是vm v1的行为，未来需要再次评估其合理性
+	return ds.NewIntVal(0), detail, false, false
 }
 
-func (t *GameSystemTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) *VMValue {
+func (t *GameSystemTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) *ds.VMValue {
 	a, _, _, _ := t.GetDefaultValueEx0(ctx, varname)
 	return a
 }
-func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (*VMValue, error) {
+
+func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (*ds.VMValue, error) {
 	// 有showas的情况
 	if expr, exists := t.AttrConfig.ShowAs[k]; exists {
 		ctx.SystemTemplate = t
-		r, _, err := ctx.Dice.ExprTextBase(expr, ctx, RollExtraFlags{
+		r, _, err := DiceExprTextBase(ctx, expr, RollExtraFlags{
 			DefaultDiceSideNum: getDefaultDicePoints(ctx),
 		})
 		if err == nil {
-			return &r.VMValue, nil
+			return r.VMValue, nil
 		}
 		return nil, err
 	}
 	return nil, nil //nolint:nilnil
 }
 
-func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (*VMValue, error) {
+func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (*ds.VMValue, error) {
 	// 有showas的情况
 	v, err := t.getShowAs0(ctx, k)
 	if v != nil || err != nil {
@@ -141,10 +146,12 @@ func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (*VMValue,
 	}
 
 	// 显示本体
-	ch, _ := ctx.ChVarsGet()
-	_v, exists := ch.Get(k)
+	curAttrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+
+	var exists bool
+	v, exists = curAttrs.LoadX(k)
 	if exists {
-		return _v.(*VMValue), nil
+		return v, nil
 	}
 
 	// 默认值
@@ -157,7 +164,7 @@ func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (*VMValue,
 	return nil, nil //nolint:nilnil
 }
 
-func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, error) {
+func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*ds.VMValue, error) {
 	r, err := t.getShowAsBase(ctx, k)
 	if err != nil {
 		return r, err
@@ -166,24 +173,25 @@ func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*VMValue, err
 		return r, err
 	}
 	// 返回值不存在，强行补0
-	return &VMValue{TypeID: VMTypeInt64, Value: int64(0)}, nil
+	return ds.NewIntVal(0), nil
 }
 
-func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*VMValue, error) {
+func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*ds.VMValue, error) {
 	// 跟 showas 一样，但是不采用showas而是返回实际值1
 	// 显示本体
-	ch, _ := ctx.ChVarsGet()
-	_v, exists := ch.Get(k)
+	am := ctx.Dice.AttrsManager
+	curAttrs := lo.Must(am.LoadByCtx(ctx))
+	v, exists := curAttrs.LoadX(k)
 	if exists {
-		return _v.(*VMValue), nil
+		return v, nil
 	}
 
 	// 默认值
-	v := t.GetDefaultValueEx(ctx, k)
+	v = t.GetDefaultValueEx(ctx, k)
 	if v != nil {
 		return v, nil
 	}
 
 	// 不存在的值，强行补0
-	return &VMValue{TypeID: VMTypeInt64, Value: int64(0)}, nil
+	return ds.NewIntVal(0), nil
 }

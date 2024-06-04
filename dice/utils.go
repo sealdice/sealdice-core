@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/samber/lo"
 	"io"
 	"math/rand"
 	"net"
@@ -213,30 +214,26 @@ func GetRandomFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
+// SetCardType 这几个先不动，后面改名字或者移除
 func SetCardType(mctx *MsgContext, curType string) {
-	VarSetValueStr(mctx, "$cardType", curType)
+	am := mctx.Dice.AttrsManager
+	curAttrs := lo.Must(am.LoadByCtx(mctx))
+	curAttrs.SetSheetType(curType)
 }
 
 func ReadCardType(mctx *MsgContext) string {
-	var cardType string
-	vCardType, exists := VarGetValue(mctx, "$cardType")
-	if exists {
-		cardType = vCardType.ToString()
-	} else {
-		cardType = ""
-	}
-	return cardType
+	am := mctx.Dice.AttrsManager
+	curAttrs := lo.Must(am.LoadByCtx(mctx))
+	return curAttrs.SheetType
 }
 
 func ReadCardTypeEx(mctx *MsgContext, curType string) string {
 	var extra string
-	var cardType string
-	vCardType, exists := VarGetValue(mctx, "$cardType")
-	if exists {
-		cardType = vCardType.ToString()
-	} else {
-		cardType = ""
-	}
+
+	am := mctx.Dice.AttrsManager
+	curAttrs := lo.Must(am.LoadByCtx(mctx))
+	cardType := curAttrs.SheetType
+
 	if cardType != "" {
 		if cardType != curType {
 			extra = fmt.Sprintf("\n这似乎是一张 %s 人物卡，请确认当前游戏类型", cardType)
@@ -294,12 +291,11 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 		mctx, _ := i.CopyCtx(ctx)
 		// if exists {
 		if mctx.Player != ctx.Player {
-			mctx.LoadPlayerGroupVars(mctx.Group, mctx.Player)
 			if setTempVar {
 				SetTempVars(mctx, "???")
 			}
 		}
-		//}
+		// }
 
 		if mctx.Player.UserID == ctx.Player.UserID {
 			// 并非代骰

@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fy0/lockfree"
-
 	"sealdice-core/message"
 	"sealdice-core/utils/satori"
 
 	"github.com/gorilla/websocket"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 const SatoriProtocolVersion = "v1"
@@ -378,7 +378,7 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 					p = &GroupPlayerInfo{
 						Name:          name,
 						UserID:        userID,
-						ValueMapTemp:  lockfree.NewHashMap(),
+						ValueMapTemp:  &ds.ValueMap{},
 						UpdatedAtTime: 0,
 					}
 					groupInfo.Players.Store(userID, p)
