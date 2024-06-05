@@ -1201,13 +1201,43 @@ if (!seal.ext.find('js-config-example')) {
                 return ret;
             }
             default: {
-                if (ctx.privilegeLevel === 100) {
-                    let config = seal.ext.getConfig(ext, val);
-                    if (config) {
-                        seal.replyToSender(ctx, msg, config.value);
-                    }
-                } else {
+                if (ctx.privilegeLevel !== 100) {
                     seal.replyToSender(ctx, msg, "你没有权限执行此命令");
+                    return seal.ext.newCmdExecuteResult(true);
+                }
+                switch (val) {
+                    case "1":
+                        strVal = seal.ext.getStringConfig(ext, "testkey1");
+                        seal.replyToSender(ctx, msg, strVal);
+                        break;
+                    case "2":
+                        intVal = seal.ext.getIntConfig(ext, "testkey2");
+                        seal.replyToSender(ctx, msg, intVal);
+                        break;
+                    case "3":
+                        floatVal = seal.ext.getFloatConfig(ext, "testkey3");
+                        seal.replyToSender(ctx, msg, floatVal);
+                        break;
+                    case "4":
+                        boolVal = seal.ext.getBoolConfig(ext, "testkey4");
+                        seal.replyToSender(ctx, msg, boolVal);
+                        break;
+                    case "5":
+                        tmplVal = seal.ext.getTemplateConfig(ext, "testkey5");
+                        seal.replyToSender(ctx, msg, tmplVal);
+                        break;
+                    case "6":
+                        optVal = seal.ext.getOptionConfig(ext, "testkey6");
+                        seal.replyToSender(ctx, msg, optVal);
+                        break;
+                    default:
+                        let config = seal.ext.getConfig(ext, val);
+                        if (config) {
+                            seal.replyToSender(ctx, msg, config.value);
+                        } else {
+                            seal.replyToSender(ctx, msg, "配置项不存在");
+                        }
+                        break;
                 }
                 return seal.ext.newCmdExecuteResult(true);
             }
@@ -1221,11 +1251,11 @@ if (!seal.ext.find('js-config-example')) {
 
     // 注册配置项需在 ext 注册后进行
     // 通常来说，register 函数的参数为 ext, key, defaultValue
-    seal.ext.registerStringConfig(ext,"testkey1","testvalue");
-    seal.ext.registerIntConfig(ext,"testkey2", 123);
-    seal.ext.registerFloatConfig(ext,"testkey3", 123.456);
-    seal.ext.registerBoolConfig(ext,"testkey4", true);
-    seal.ext.registerTemplateConfig(ext,"testkey5", ["1","2","3","4"]);
+    seal.ext.registerStringConfig(ext, "testkey1", "testvalue");
+    seal.ext.registerIntConfig(ext, "testkey2", 123);
+    seal.ext.registerFloatConfig(ext, "testkey3", 123.456);
+    seal.ext.registerBoolConfig(ext, "testkey4", true);
+    seal.ext.registerTemplateConfig(ext, "testkey5", ["1", "2", "3", "4"]);
     // 注册单选项函数的参数为 ext, key, defaultValue, options
     seal.ext.registerOptionConfig(ext, "testkey6", "1", ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
 }
