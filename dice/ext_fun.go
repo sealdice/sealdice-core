@@ -2,8 +2,6 @@ package dice
 
 import (
 	"fmt"
-	"github.com/samber/lo"
-	ds "github.com/sealdice/dicescript"
 	"hash/fnv"
 	"math/rand"
 	"regexp"
@@ -11,6 +9,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/samber/lo"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 var guguText = `

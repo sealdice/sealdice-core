@@ -2,13 +2,14 @@ package dice
 
 import (
 	"fmt"
-	ds "github.com/sealdice/dicescript"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 var (

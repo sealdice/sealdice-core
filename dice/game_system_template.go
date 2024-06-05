@@ -1,8 +1,9 @@
 package dice
 
 import (
-	"github.com/samber/lo"
 	"strings"
+
+	"github.com/samber/lo"
 
 	ds "github.com/sealdice/dicescript"
 )

@@ -29,9 +29,9 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 		// 当前绑定: ctx.ChBindCur: 卡片角色名: $:ch-bind-data:name
 
 		m2 := &ds.ValueMap{}
-		//if name == "测试3" {
-		//	fmt.Println(m2)
-		//}
+		// if name == "测试3" {
+		// 	fmt.Println(m2)
+		// }
 		for k, v := range mapData {
 			if k == "$cardType" {
 				continue
@@ -40,9 +40,9 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 				continue
 			}
 
-			//if name == "测试3" {
+			// if name == "测试3" {
 			//	fmt.Println(k, v)
-			//}
+			// }
 			m2.Store(k, v.ConvertToV2())
 		}
 
@@ -318,7 +318,7 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 				groupId := k[len("$:group-bind:"):]
 				name, _ := v.ReadString()
 				sheetNameBindByGroupId[groupId] = name
-				//fmt.Println("绑卡关联:", groupId, name)
+				// fmt.Println("绑卡关联:", groupId, name)
 				continue
 			}
 			if strings.HasPrefix(k, "$ch:") {

@@ -2,7 +2,6 @@ package dice
 
 import (
 	"fmt"
-	ds "github.com/sealdice/dicescript"
 	"regexp"
 	"sort"
 	"strconv"
@@ -10,6 +9,8 @@ import (
 	"unicode"
 
 	"sealdice-core/message"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 type Kwarg struct {

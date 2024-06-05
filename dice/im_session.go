@@ -17,7 +17,6 @@ import (
 	"sealdice-core/message"
 
 	"github.com/dop251/goja"
-	"github.com/fy0/lockfree"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
@@ -58,9 +57,8 @@ type GroupPlayerInfoBase struct {
 	LastCommandTime     int64  `yaml:"lastCommandTime" jsbind:"lastCommandTime"`         // 上次发送指令时间
 	AutoSetNameTemplate string `yaml:"autoSetNameTemplate" jsbind:"autoSetNameTemplate"` // 名片模板
 
-	DiceSideNum  int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
-	Vars         *PlayerVariablesItem `yaml:"-"`           // 玩家的群内变量
-	ValueMapTemp lockfree.HashMap     `yaml:"-"`           // 玩家的群内临时变量
+	DiceSideNum  int    `yaml:"diceSideNum"`  // 面数，为0时等同于d100
+	DiceSideExpr string `yaml:"diceSideExpr"` // 面数，准备替代数字版本
 
 	TempValueAlias *map[string][]string `yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的，为什么在这里？
 
@@ -88,6 +86,7 @@ type GroupInfo struct {
 	DiceIDExistsMap *SyncMap[string, bool] `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
 	BotList         *SyncMap[string, bool] `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
 	DiceSideNum     int64                  `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
+	DiceSideExpr    string                 `yaml:"diceSideExpr" json:"diceSideExpr"`    //
 	System          string                 `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
 	HelpPackages []string `yaml:"-" json:"helpPackages"`
@@ -457,8 +456,6 @@ func (ep *EndPointInfo) StatsDump(d *Dice) {
 		d.Logger.Errorf("保存endpoint数据到数据库失败 %v : %v", ep.UserID, err)
 	}
 }
-
-type PlayerVariablesItem model.PlayerVariablesItem
 
 type IMSession struct {
 	Parent    *Dice           `yaml:"-"`

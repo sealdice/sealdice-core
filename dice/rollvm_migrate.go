@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -119,8 +120,7 @@ func (r *VMResultV2) IsCalculated() bool {
 	if r.legacy != nil {
 		return r.legacy.Parser.Calculated
 	}
-	// TODO: 不应总为true
-	return true
+	return r.vm.IsDiceCalculateExists()
 }
 
 func (r *VMResultV2) GetRestInput() string {
@@ -151,7 +151,7 @@ func (r *VMResultV2) GetVersion() int64 {
 	return 2
 }
 
-// 不建议用，纯兼容旧版
+// DiceExprEvalBase 不建议用，纯兼容旧版
 func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2, string, error) {
 	ctx.CreateVmIfNotExists()
 	vm := ctx.vm
@@ -201,14 +201,20 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 
 		return &VMResultV2{val.ConvertToV2(), ctx.vm, val, cocFlagVarPrefix}, detail, err
 	} else {
-		return &VMResultV2{ctx.vm.Ret, ctx.vm, nil, cocFlagVarPrefix}, ctx.vm.Detail, nil
+		return &VMResultV2{ctx.vm.Ret, ctx.vm, nil, cocFlagVarPrefix}, ctx.vm.GetDetailText(), nil
 	}
 }
 
-// 不建议用，纯兼容旧版
+// DiceExprTextBase 不建议用，纯兼容旧版
 func DiceExprTextBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2, string, error) {
 	return DiceExprEvalBase(ctx, "\x1e"+s+"\x1e", flags)
 }
+
+type spanByEnd []ds.BufferSpan
+
+func (a spanByEnd) Len() int           { return len(a) }
+func (a spanByEnd) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a spanByEnd) Less(i, j int) bool { return a[i].End < a[j].End }
 
 func (ctx *MsgContext) CreateVmIfNotExists() {
 	if ctx.vm == nil {
@@ -220,6 +226,78 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		ctx.vm.Config.EnableDiceCoC = true
 		ctx.vm.Config.EnableDiceFate = true
 		ctx.vm.Config.EnableDiceDoubleCross = true
+
+		ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
+			detailResult := dataBuffer
+
+			curPoint := ds.IntType(-1) // nolint
+			lastEnd := ds.IntType(-1)  // nolint
+
+			var m []struct {
+				begin ds.IntType
+				end   ds.IntType
+				spans []ds.BufferSpan
+			}
+
+			for _, i := range details {
+				// fmt.Println("?", i, lastEnd)
+				if i.Begin > lastEnd {
+					curPoint = i.Begin
+					m = append(m, struct {
+						begin ds.IntType
+						end   ds.IntType
+						spans []ds.BufferSpan
+					}{begin: curPoint, end: i.End, spans: []ds.BufferSpan{i}})
+				} else {
+					m[len(m)-1].spans = append(m[len(m)-1].spans, i)
+					if i.End > m[len(m)-1].end {
+						m[len(m)-1].end = i.End
+					}
+				}
+
+				if i.End > lastEnd {
+					lastEnd = i.End
+				}
+			}
+
+			for i := len(m) - 1; i >= 0; i-- {
+				// for i := 0; i < len(m); i++ {
+				item := m[i]
+				size := len(item.spans)
+				sort.Sort(spanByEnd(item.spans))
+				last := item.spans[size-1]
+
+				subDetailsText := ""
+				if size > 1 {
+					// 次级结果，如 (10d3)d5 中，此处为10d3的结果
+					// 例如 (10d3)d5=63[(10d3)d5=...,10d3=19]
+					for j := 0; j < len(item.spans)-1; j++ {
+						span := item.spans[j]
+						subDetailsText += "," + string(detailResult[span.Begin:span.End]) + "=" + span.Ret.ToString()
+					}
+				}
+
+				exprText := string(detailResult[item.begin:item.end])
+
+				var r []byte
+				r = append(r, detailResult[:item.begin]...)
+
+				part1 := last.Ret.ToString()
+				// 主体结果部分，如 (10d3)d5=63[(10d3)d5=63=2+2+2+5+2+5+5+4+1+3+4+1+4+5+4+3+4+5+2,10d3=19]
+				detail := "[" + exprText + "=" + part1
+				if last.Text != "" && part1 != last.Text {
+					detail += "=" + last.Text
+				}
+				subDetailsText = ""
+				detail += subDetailsText + "]"
+
+				r = append(r, ([]byte)(last.Ret.ToString()+detail)...)
+				r = append(r, detailResult[item.end:]...)
+				detailResult = r
+			}
+
+			return string(detailResult)
+		}
 
 		// 设置默认骰子面数
 		ctx.vm.Config.DefaultDiceSideExpr = fmt.Sprintf("%d", ctx.Group.DiceSideNum)

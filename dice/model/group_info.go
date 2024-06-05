@@ -2,11 +2,11 @@ package model
 
 import (
 	"fmt"
-	ds "github.com/sealdice/dicescript"
 
-	"github.com/fy0/lockfree"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/time/rate"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 func GroupInfoListGet(db *sqlx.DB, callback func(id string, updatedAt int64, data []byte)) error {
@@ -64,12 +64,12 @@ func GroupPlayerNumGet(db *sqlx.DB, groupID string) (int64, error) {
 	return count, nil
 }
 
-type PlayerVariablesItem struct {
-	Loaded        bool             `yaml:"-"`
-	ValueMap      lockfree.HashMap `yaml:"-"`
-	LastWriteTime int64            `yaml:"lastUsedTime"`
-	// ValueMap            map[string]*VMValue `yaml:"-"`
-}
+// type PlayerVariablesItem struct {
+// 	Loaded        bool             `yaml:"-"`
+// 	ValueMap      lockfree.HashMap `yaml:"-"`
+// 	LastWriteTime int64            `yaml:"lastUsedTime"`
+// 	// ValueMap            map[string]*VMValue `yaml:"-"`
+// }
 
 // GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
