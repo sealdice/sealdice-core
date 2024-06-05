@@ -40,9 +40,9 @@
     <h3>自动清理</h3>
       <el-form-item label="清理模式">
         <el-radio-group v-model="cfg.backupCleanStrategy">
-          <el-radio-button :label="0">关闭</el-radio-button>
-          <el-radio-button :label="1">保留一定数量</el-radio-button>
-          <el-radio-button :label="2">保留一定时间内</el-radio-button>
+          <el-radio-button :value="0">关闭</el-radio-button>
+          <el-radio-button :value="1">保留一定数量</el-radio-button>
+          <el-radio-button :value="2">保留一定时间内</el-radio-button>
         </el-radio-group>
       </el-form-item>
       <el-form-item label="保留数量" v-if="cfg.backupCleanStrategy === 1">

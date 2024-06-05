@@ -4,6 +4,9 @@
     "ComponentPublicInstance": true,
     "ComputedRef": true,
     "EffectScope": true,
+    "ElCard": true,
+    "ElMessage": true,
+    "ElMessageBox": true,
     "ExtractDefaultPropTypes": true,
     "ExtractPropTypes": true,
     "ExtractPublicPropTypes": true,
@@ -63,6 +66,8 @@
     "nextTick": true,
     "onActivated": true,
     "onBeforeMount": true,
+    "onBeforeRouteLeave": true,
+    "onBeforeRouteUpdate": true,
     "onBeforeUnmount": true,
     "onBeforeUpdate": true,
     "onClickOutside": true,
@@ -197,6 +202,7 @@
     "useIntervalFn": true,
     "useKeyModifier": true,
     "useLastChanged": true,
+    "useLink": true,
     "useLocalStorage": true,
     "useMagicKeys": true,
     "useManualRefHistory": true,
@@ -232,6 +238,8 @@
     "useRafFn": true,
     "useRefHistory": true,
     "useResizeObserver": true,
+    "useRoute": true,
+    "useRouter": true,
     "useScreenOrientation": true,
     "useScreenSafeArea": true,
     "useScriptTag": true,
@@ -295,9 +303,6 @@
     "watchThrottled": true,
     "watchTriggerable": true,
     "watchWithFilter": true,
-    "whenever": true,
-    "ElMessage": true,
-    "ElMessageBox": true,
-    "ElCard": true
+    "whenever": true
   }
 }

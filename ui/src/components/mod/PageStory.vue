@@ -4,8 +4,11 @@ import { useStore, urlPrefix } from '~/store'
 import { apiFetch, backend } from '~/backend'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import * as twColors from 'tailwindcss/colors'
 import randomColor from "randomcolor";
+import resolveConfig from 'tailwindcss/resolveConfig'
+import tailwindConfig from '../../../tailwind.config'
+
+const twColors = resolveConfig(tailwindConfig).theme.colors
 
 interface Log {
     id: number
@@ -132,10 +135,6 @@ async function searchLogs() {
 const refreshLogs = async () => {
     [sum_log.value, sum_item.value, cur_log.value, cur_item.value] = await getInfo()
     await searchLogs()
-    ElMessage({
-        message: '刷新日志列表完成',
-        type: 'success',
-    })
 }
 
 const handleLogPageChange = async (val: number) => {

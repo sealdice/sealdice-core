@@ -1,4 +1,4 @@
-import { apiFetch, backend } from './backend'
+import { apiFetch, backend } from '~/backend'
 
 import { addImConnectionForm } from '~/components/PageConnectInfoItems.vue'
 import type {

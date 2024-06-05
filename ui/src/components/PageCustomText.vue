@@ -68,7 +68,7 @@
 
   <el-space style="margin: 1rem 0" wrap>
     <el-radio-group v-model="filterMode" @change="handleFilterModeChange">
-      <el-radio v-for="mode of filterModes" :key="mode.value" :label="mode.value">
+      <el-radio v-for="mode of filterModes" :key="mode.value" :value="mode.value">
         <template #default>{{ mode.desc }}</template>
       </el-radio>
     </el-radio-group>
@@ -176,7 +176,6 @@
 </template>
 
 <script setup lang="ts">
-import {reactive} from "vue";
 import {useStore} from '~/store'
 import {
   BrushFilled,
@@ -200,7 +199,7 @@ const dialogImportVisible = ref(false)
 
 const activeGroups = ref(['__others__'])
 const doSort = (category: string) => {
-  let items = Object.entries(store.curDice.customTexts[category]);
+  let items = Object.entries(store.curDice?.customTexts?.[category] ?? {});
   const helpInfo = store.curDice.customTextsHelpInfo[category];
 
   if (currentFilterName.value != "") {

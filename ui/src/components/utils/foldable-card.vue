@@ -3,11 +3,11 @@ import {ArrowDown, ArrowRight, CircleClose} from "@element-plus/icons-vue";
 
 const props = withDefaults(defineProps<{
   shadow?: 'always' | 'never' | 'hover'
-  type: 'card' | 'div' | string
+  type?: 'card' | 'div' | string
   errTitle?: string,
   errText?: string,
-  defaultFold: 'auto' | boolean,
-  compact: boolean
+  defaultFold?: 'auto' | boolean,
+  compact?: boolean
 }>(), {
   shadow: 'hover',
   type: 'card',
@@ -37,10 +37,8 @@ const close = () => {
 const updateFolded = () => {
   if (props.defaultFold === 'auto') {
     folded.value = !window.matchMedia("(min-width: 768px)").matches;
-    console.log('auto fold')
   } else {
     folded.value = props.defaultFold
-    console.log('default fold:', props.defaultFold)
   }
 }
 window.addEventListener("resize", updateFolded);
@@ -64,8 +62,8 @@ defineExpose({open, close})
             <div class="title-extra-warp">
               <slot name="title-extra"/>
             </div>
-            <div>
-              <el-button type="text" size="small" @click="folded = !folded">
+            <div class="mx-2">
+              <el-button link size="small" @click="folded = !folded">
                 <template #icon>
                   <el-icon color="var(--el-color-info)">
                     <component :is="folded ? ArrowRight : ArrowDown"/>

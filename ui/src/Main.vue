@@ -1,10 +1,10 @@
 <template>
-  <div id="root"
-       style="background: #545c64; height: 100%; display: flex; flex-direction: column; max-width: 950px; width: 100%; margin: 0 auto; position: relative;">
-    <nav class="nav" style="display: flex; color: #fff; justify-content: space-between;">
+  <el-container id="root"
+       class="bg-[#545c64] mx-auto my-0 h-screen flex flex-col">
+    <el-header class="nav bg-inherit flex-none text-white flex justify-between">
       <el-space alignment="center" :size="0" style="height: 60px;">
-        <div class="menu-button-wrapper">
-          <el-button type="text" size="large" @click="drawerMenu = true">
+        <div class="menu-button-wrapper mx-2">
+          <el-button link size="large" @click="drawerMenu = true">
             <el-icon color="#fff" size="1.5rem">
               <IconMenu/>
             </el-icon>
@@ -54,32 +54,26 @@
           </div>
         </div>
       </el-space>
-    </nav>
+    </el-header>
 
-    <div style="display: flex;">
-      <div class="menu" style="position: relative; background: #545c64">
-        <Menu type="dark" v-model:advancedConfigCounter="advancedConfigCounter" @swithch-to="switchTo"/>
+    <div class="flex-grow overflow-y-auto flex">
+      <div class="menu bg-inherit flex-none overflow-y-auto no-scrollbar">
+        <Menu type="dark" v-model:advancedConfigCounter="advancedConfigCounter"/>
       </div>
 
-      <div style="background-color: #f3f5f7; flex: 1; text-align: left; height: calc(100vh - 4rem); overflow-y: auto;">
-        <div class="main-container" :class="[needh100 ? 'h100' : '']" ref="rightbox">
-          <page-misc v-if="tabName === 'miscSettings'" :category="miscSettingsCategory" @update:advanced-settings-show="(show) => refreshAdvancedSettings(show)"/>
-          <page-log v-if="tabName === 'log'"/>
-          <page-connect-info-items v-if="tabName === 'imConns'"/>
-          <page-custom-text v-if="tabName === 'customText'" :category="textCategory"/>
-          <page-custom-reply v-if="tabName === 'customReply'"/>
-          <page-mod v-if="tabName === 'mod'" :category="textCategory"/>
-          <page-tool v-if="tabName === 'toolSettings'" :category="toolCategory"/>
-          <page-about v-if="tabName === 'about'"/>
-        </div>
+      <div class="bg-gray-100 h-auto text-left flex-1 overflow-y-auto">
+        <el-main v-loading="loading" class="main-container w-full h-full" ref="rightbox">
+          <router-view v-if="!loading"
+                       @update:advanced-settings-show="(show: boolean) => refreshAdvancedSettings(show)"/>
+        </el-main>
       </div>
     </div>
-  </div>
+  </el-container>
 
   <el-drawer v-model="drawerMenu" direction="ltr" :show-close="false"
              size="50%" class="drawer-menu">
     <template #header>
-      <div style="color: #fff; display: flex; align-items: center; justify-content: space-between;">
+      <div class="text-white flex items-center justify-between">
         <el-space :v-show="store.canAccess" direction="vertical" alignment="flex-start" :size="0">
           <span @click="enableAdvancedConfig" style="font-size: 1.2rem; cursor: pointer;">SealDice</span>
           <span v-if="store.diceServers.length > 0" style="font-size: .7rem;">
@@ -93,7 +87,7 @@
         </el-tag>
       </div>
     </template>
-    <Menu type="dark" v-model:advancedConfigCounter="advancedConfigCounter" @swithch-to="switchTo"/>
+    <Menu type="dark" v-model:advancedConfigCounter="advancedConfigCounter"/>
   </el-drawer>
 
   <el-dialog v-model="showDialog" title="" :close-on-click-modal="false" :close-on-press-escape="false"
@@ -138,10 +132,12 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import {CircleCloseFilled} from '@element-plus/icons-vue'
 
 import {passwordHash} from "./utils"
-import {delay} from "lodash-es"
+import { delay, replace } from "lodash-es"
 
 dayjs.locale('zh-cn')
 dayjs.extend(relativeTime);
+
+const loading = useStorage('router-view-loading', true)
 
 const store = useStore()
 const password = ref('')
@@ -239,34 +235,7 @@ const handleClose = (key: string, keyPath: string[]) => {
 
 const rightbox = ref(null)
 
-let tabName = ref("log")
-let textCategory = ref("")
-let miscSettingsCategory = ref("")
-let toolCategory = ref("")
-
-const needh100 = ref(false)
-
 const drawerMenu = ref<boolean>(false)
-const switchTo = (tab: 'overview' | 'miscSettings' | 'log' | 'customText' | 'mod' | 'customReply' | 'imConns' | 'banList' | 'toolSettings' | 'about', name: string = '') => {
-  tabName.value = tab
-  textCategory.value = ''
-  if (tab === 'customText') {
-    textCategory.value = name
-  }
-  if (tab === 'mod') {
-    textCategory.value = name
-  }
-  if (tab === 'miscSettings') {
-    miscSettingsCategory.value = name
-  }
-  if (tab === 'toolSettings') {
-    toolCategory.value = name
-  }
-  needh100.value = ['toolSettings'].includes(tab)
-  drawerMenu.value = false
-}
-
-let configCustom = {}
 
 let advancedConfigCounter = ref<number>(0)
 const enableAdvancedConfig = async () => {
@@ -274,22 +243,25 @@ const enableAdvancedConfig = async () => {
   const counter = advancedConfigCounter.value
   if (counter > 8) {
     ElMessage.info('高级设置页已经开启')
+    await router.push({ path: '/misc/advanced-setting' })
     return
   } else if (counter === 8) {
     let conf = await store.diceAdvancedConfigGet()
     conf.show = true
     conf.enable = true
     await store.diceAdvancedConfigSet(conf)
+    await router.push({ path: '/misc/advanced-setting' })
     ElMessage.success('已开启高级设置页')
   } else if (counter > 2) {
     ElMessage.info('再按 ' + (8 - counter) + ' 次开启高级设置页')
   }
 }
 
+const router = useRouter()
 const refreshAdvancedSettings = async (show: boolean) => {
   if (!show) {
     advancedConfigCounter.value = 0
-    switchTo('log')
+    await router.push({ path: '/log', replace: true })
     ElMessage.success('已关闭高级设置页')
   }
 }
@@ -328,7 +300,6 @@ body {
 
 .main-container {
   padding: 2rem;
-  position: relative;
   box-sizing: border-box;
   min-height: 100%;
 }
@@ -339,7 +310,7 @@ body {
 
 @media screen and (max-width: 640px) {
   .nav {
-    margin: 0 0.5rem 0 0;
+    padding: 0 0.5rem 0 0;
   }
 
   .menu {
@@ -353,7 +324,7 @@ body {
 
 @media screen and (min-width: 640px) {
   .nav {
-    margin: 0 1rem 0 1.5rem;
+    padding: 0 1rem 0 1.5rem;
   }
 
   .menu-button-wrapper {

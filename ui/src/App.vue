@@ -4,7 +4,7 @@ import Main from "~/Main.vue";
 
 const store = useStore()
 
-const testMode = ref<boolean>(true)
+const testMode = ref<boolean>(false)
 
 onMounted(async () => {
   const info = await store.getPreInfo()
