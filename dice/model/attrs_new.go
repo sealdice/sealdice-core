@@ -59,7 +59,7 @@ type PlatformMappingModel struct {
 func AttrsGetById(db *sqlx.DB, id string) (*AttributesItemModel, error) {
 	var item AttributesItemModel
 	err := db.Get(&item, "select * from attrs where id = $1", id)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
 	return &item, nil
@@ -69,7 +69,7 @@ func AttrsGetById(db *sqlx.DB, id string) (*AttributesItemModel, error) {
 func AttrsGetBindingSheetIdByGroupId(db *sqlx.DB, id string) (string, error) {
 	var item AttributesItemModel
 	err := db.Get(&item, "select binding_sheet_id from attrs where id = $1", id)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
 	return item.BindingSheetId, nil
@@ -78,7 +78,7 @@ func AttrsGetBindingSheetIdByGroupId(db *sqlx.DB, id string) (string, error) {
 func AttrsGetIdByUidAndName(db *sqlx.DB, userId string, name string) (string, error) {
 	var item AttributesItemModel
 	err := db.Get(&item, "select id from attrs where owner_id = $1 and name = $2", userId, name)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
 	return item.Id, nil

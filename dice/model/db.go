@@ -113,29 +113,6 @@ create table if not exists group_info
 );`,
 
 		`
-create table if not exists attrs_group
-(
-    id         TEXT primary key,
-    updated_at INTEGER,
-    data       BLOB
-);`,
-		`create index if not exists idx_attrs_group_updated_at on attrs_group (updated_at);`,
-		`create table if not exists attrs_group_user
-(
-    id         TEXT primary key,
-    updated_at INTEGER,
-    data       BLOB
-);`,
-		`create index if not exists idx_attrs_group_user_updated_at on attrs_group_user (updated_at);`,
-		`create table if not exists attrs_user
-(
-    id         TEXT primary key,
-    updated_at INTEGER,
-    data       BLOB
-);`,
-		`create index if not exists idx_attrs_user_updated_at on attrs_user (updated_at);`,
-
-		`
 create table if not exists ban_info
 (
     id         TEXT primary key,

@@ -2135,14 +2135,3 @@ func setRuleByName(ctx *MsgContext, name string) {
 		}
 	}
 }
-
-// tryConvertIndex2Name 确认name是否存在, 如果不存在, 尝试将name解析为序号并查出对应name
-//   - 如果name存在, 直接返回name
-//   - name不存在, name不是数字, 返回原name
-//   - name不存在, name是数字, 且超过用户的角色卡数, 返回原name
-//   - name不存在, name是数字, 且小于等于用户的角色卡数, 返回对应序号的卡名
-func tryConvertIndex2Name(ctx *MsgContext, name string) string {
-	// 确认name是否存在, 如果不存在, 尝试解析为序号并查出对应name
-	// 已经完全不适用于基于数据库的新版本，等待之后重写
-	return ""
-}

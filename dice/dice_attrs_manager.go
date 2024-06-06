@@ -21,6 +21,12 @@ type AttrsManager struct {
 // LoadByCtx 获取当前角色，如有绑定，则获取绑定的角色，若无绑定，获取群内默认卡
 func (am *AttrsManager) LoadByCtx(ctx *MsgContext) (*AttributesItem, error) {
 	return am.Load(ctx.Group.GroupID, ctx.Player.UserID)
+	// if ctx.AttrsCurCache == nil {
+	// 	var err error
+	// 	ctx.AttrsCurCache, err = am.Load(ctx.Group.GroupID, ctx.Player.UserID)
+	// 	return ctx.AttrsCurCache, err
+	// }
+	// return ctx.AttrsCurCache, nil
 }
 
 func (am *AttrsManager) Load(groupId string, userId string) (*AttributesItem, error) {
@@ -354,7 +360,7 @@ func (i *AttributesItem) Clear() int {
 	return len(keys)
 }
 
-func (i *AttributesItem) toArrayKeys() []*ds.VMValue {
+func (i *AttributesItem) ToArrayKeys() []*ds.VMValue {
 	var items []*ds.VMValue
 	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
 		items = append(items, ds.NewStrVal(key))
@@ -363,7 +369,7 @@ func (i *AttributesItem) toArrayKeys() []*ds.VMValue {
 	return items
 }
 
-func (i *AttributesItem) toArrayValues() []*ds.VMValue {
+func (i *AttributesItem) ToArrayValues() []*ds.VMValue {
 	var items []*ds.VMValue
 	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
 		items = append(items, value)
@@ -372,7 +378,7 @@ func (i *AttributesItem) toArrayValues() []*ds.VMValue {
 	return items
 }
 
-func (i *AttributesItem) toArrayItems() []*ds.VMValue {
+func (i *AttributesItem) ToArrayItems() []*ds.VMValue {
 	var items []*ds.VMValue
 	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
 		items = append(

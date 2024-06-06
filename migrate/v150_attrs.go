@@ -1,6 +1,8 @@
 package migrate
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -372,7 +374,6 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 }
 
 func V150Upgrade() {
-	fmt.Println("1.5 数据转换迁移测试(测试性写入，带删档)")
 	dbDataPath, _ := filepath.Abs("./data/default/data.db")
 
 	db, err := openDB(dbDataPath)
@@ -380,9 +381,25 @@ func V150Upgrade() {
 		fmt.Println("升级失败，无法打开数据库:", err)
 		return
 	}
+	defer func() {
+		_ = db.Close()
+	}()
 
-	// 删档
-	_, _ = db.Exec("drop table attrs")
+	var name string
+	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='attrs';").Scan(&name)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		// 表格不存在，继续执行
+	case err != nil:
+		fmt.Println("V150数据转换未知错误:", err.Error())
+		return
+	default:
+		// 表格已经存在，说明转换完成，退出
+		return
+	}
+
+	fmt.Println("1.5 数据迁移")
+
 	sqls := []string{
 		`CREATE TABLE IF NOT EXISTS endpoint_info (
 user_id TEXT PRIMARY KEY,
@@ -435,4 +452,12 @@ CREATE TABLE IF NOT EXISTS attrs (
 	if err != nil {
 		fmt.Println("异常", err.Error())
 	}
+
+	// 删档
+	fmt.Println("删除旧版本数据")
+	_, _ = db.Exec("drop table attrs_group")
+	_, _ = db.Exec("drop table attrs_group_user")
+	_, _ = db.Exec("drop table attrs_user")
+	_, err = db.Exec("VACUUM;") // 收尾
+	fmt.Println("V150 数据转换完成")
 }

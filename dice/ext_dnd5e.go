@@ -123,44 +123,6 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 	return defaultVals
 }
 
-func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Regexp) map[string]string {
-	exportMap := map[string]string{}
-	m, _ := mctx.Dice.AttrsManager.LoadByCtx(mctx)
-
-	callback := func(k string, v *ds.VMValue) bool {
-		doIt := whiteList[k]
-		if !doIt && regexps != nil {
-			for _, i := range regexps {
-				if i.MatchString(k) {
-					doIt = true
-					// break
-				}
-			}
-		}
-
-		if doIt {
-			exportMap[k] = v.ToRepr()
-			// switch v.TypeId {
-			// case ds.VMTypeComputedValue:
-			//	vd := v.Value.(*VMDndComputedValueData)
-			//	if strings.Contains(vd.Expr, "熟练") {
-			//		k += "*"
-			//	}
-			//	val, ok := vd.ReadBaseInt64()
-			//	if ok {
-			//		exportMap[k] = strconv.FormatInt(val, 10)
-			//	}
-			// default: /* no-op */
-			//	exportMap[k] = v.ToRepr()
-			// }
-		}
-		return true
-	}
-
-	m.Range(callback)
-	return exportMap
-}
-
 func getPlayerNameTempFunc(mctx *MsgContext) string {
 	if mctx.Dice.PlayerNameWrapEnable {
 		return fmt.Sprintf("<%s>", mctx.Player.Name)
