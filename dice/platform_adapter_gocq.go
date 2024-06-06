@@ -427,7 +427,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		// if strings.Contains(message, `.`) {
 		//	log.Info("...", message)
-		//}
+		// }
 		if strings.Contains(message, `"guild_id"`) {
 			// log.Info("!!!", message, s.Parent.WorkInQQChannel)
 			// 暂时忽略频道消息
@@ -468,7 +468,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if msg.Sender.UserID != "" {
 			// 用户名缓存
 			if msg.Sender.Nickname != "" {
-				dm.UserNameCache.Set(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+				dm.UserNameCache.Store(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
 			}
 		}
 
@@ -507,7 +507,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if string(msgQQ.Echo) == "-2" { //nolint:nestif
 			if msgQQ.Data != nil {
 				groupID := FormatDiceIDQQGroup(string(msgQQ.Data.GroupID))
-				dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
+				dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 					Name: msgQQ.Data.GroupName,
 					time: time.Now().Unix(),
 				}) // 不论如何，先试图取一下群名
@@ -746,7 +746,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// if ctx.Player.Name == "" {
 				//	ctx.Player.Name = d.Name
 				//	ctx.Player.UpdatedAtTime = time.Now().Unix()
-				//}
+				// }
 
 				uid := FormatDiceIDQQ(string(msgQQ.UserID))
 
@@ -1127,7 +1127,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		// fmt.Println("socket close")
 		go func() {
 			defer func() {
-				if r := recover(); r != nil { //nolint
+				if r := recover(); r != nil { // nolint
 					// 太频繁了 不输出了
 					// fmt.Println("关闭连接时遭遇异常")
 					// core.GetLogger().Error(r)

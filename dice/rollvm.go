@@ -3,13 +3,14 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"github.com/samber/lo"
 	"math"
 	"math/rand"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 type Type uint8

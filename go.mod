@@ -18,7 +18,6 @@ require (
 	github.com/dop251/goja_nodejs v0.0.0-20231022114343-5c1f9037c9ab
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd
-	github.com/fy0/lockfree v0.0.0-20220407095241-e3799de5fa34
 	github.com/fy0/systray v1.2.2
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/gen2brain/beeep v0.0.0-20230907135156-1a38885a97fc
@@ -96,7 +95,6 @@ require (
 	github.com/blevesearch/zapx/v13 v13.3.10 // indirect
 	github.com/blevesearch/zapx/v14 v14.3.10 // indirect
 	github.com/blevesearch/zapx/v15 v15.3.13 // indirect
-	github.com/dchest/siphash v1.2.2 // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect

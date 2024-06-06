@@ -77,19 +77,6 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 	return nil, err
 }
 
-var uVarCache = map[string]map[string]*dice.VMValue{}
-
-func getUserVarsByUid(db *sqlx.DB, id string) map[string]*dice.VMValue {
-	if v, ok := uVarCache[id]; ok {
-		return v
-	}
-	data := model.AttrUserGetAll(db, id)
-	mapData := make(map[string]*dice.VMValue)
-	_ = dice.JSONValueMapUnmarshal(data, &mapData)
-	uVarCache[id] = mapData
-	return mapData
-}
-
 var sheetIdBindByGroupId = map[string]string{}
 
 // 群组个人数据转换
@@ -123,7 +110,7 @@ func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
 		if !ok {
 			countFailed += 1
 			fmt.Println("数据库读取出错，退出转换")
-			fmt.Println("ID解析失败: ", string(id))
+			fmt.Println("ID解析失败: ", id)
 			continue
 		}
 
@@ -395,7 +382,7 @@ func V150Upgrade() {
 	}
 
 	// 删档
-	db.Exec("drop table attrs")
+	_, _ = db.Exec("drop table attrs")
 	sqls := []string{
 		`CREATE TABLE IF NOT EXISTS endpoint_info (
 user_id TEXT PRIMARY KEY,

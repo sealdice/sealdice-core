@@ -332,7 +332,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			msg.Message = MessageSegmentToText(msgQQ.Message)
 			if msg.Sender.UserID != "" {
 				if msg.Sender.Nickname != "" {
-					dm.UserNameCache.Set(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+					dm.UserNameCache.Store(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
 				}
 			}
 
@@ -626,7 +626,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				groupID := FormatDiceIDQQGroupV12(m["group_id"].(string))
 				GroupName := m["group_name"].(string)
 				ctx := &MsgContext{MessageType: "group", EndPoint: ep, Session: s, Dice: s.Parent}
-				dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
+				dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 					Name: GroupName,
 					time: time.Now().Unix(),
 				}) // 不论如何，先试图取一下群名
@@ -669,7 +669,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 							return
 						}
 					}
-				} else { //nolint
+				} else { // nolint
 					// TODO: 这玩意的创建是个专业活，等下来弄
 					// session.ServiceAtNew[groupId] = GroupInfo{}
 				}
@@ -976,7 +976,7 @@ func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait
 //		return errors.New("超时")
 //	}
 //	return json.Unmarshal([]byte(val), value)
-//}
+// }
 
 // SendMessage 原始的发消息 API
 func (pa *PlatformAdapterWalleQ) SendMessage(text string, ty string, id string, cid string) {

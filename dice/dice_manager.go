@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/fy0/lockfree"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -68,9 +67,9 @@ type DiceManager struct { //nolint:revive
 	RebootRequestChan      chan int
 	UpdateCheckRequestChan chan int
 
-	GroupNameCache lockfree.HashMap // 群名缓存，全局共享, key string value *GroupNameCacheItem
-	UserNameCache  lockfree.HashMap // 用户缓存，全局共享, key string value *GroupNameCacheItem
-	UserIDCache    lockfree.HashMap // 用户id缓存 key username (string) value int64 目前仅Telegram adapter使用
+	GroupNameCache SyncMap[string, *GroupNameCacheItem] // 群名缓存，全局共享, key string value *GroupNameCacheItem
+	UserNameCache  SyncMap[string, *GroupNameCacheItem] // 用户缓存，全局共享, key string value *GroupNameCacheItem
+	UserIDCache    SyncMap[string, int64]               // 用户id缓存 key username (string) value int64 目前仅Telegram adapter使用
 
 	Cron                 *cron.Cron
 	ServiceName          string
@@ -123,9 +122,6 @@ func (dm *DiceManager) InitHelp() {
 func (dm *DiceManager) LoadDice() {
 	dm.AppVersionCode = VERSION_CODE
 	dm.AppBootTime = time.Now().Unix()
-	dm.GroupNameCache = lockfree.NewHashMap()
-	dm.UserNameCache = lockfree.NewHashMap()
-	dm.UserIDCache = lockfree.NewHashMap()
 
 	_ = os.MkdirAll(BackupDir, 0755)
 	_ = os.MkdirAll("./data/images", 0755)
@@ -346,23 +342,17 @@ func (dm *DiceManager) LoadNames() {
 }
 
 func (dm *DiceManager) TryGetGroupName(id string) string {
-	item, exists := dm.GroupNameCache.Get(id)
+	item, exists := dm.GroupNameCache.Load(id)
 	if exists {
-		realItem, ok := item.(*GroupNameCacheItem)
-		if ok {
-			return realItem.Name
-		}
+		return item.Name
 	}
 	return "%未知群名%"
 }
 
 func (dm *DiceManager) TryGetUserName(id string) string {
-	item, exists := dm.UserNameCache.Get(id)
+	item, exists := dm.UserNameCache.Load(id)
 	if exists {
-		realItem, ok := item.(*GroupNameCacheItem)
-		if ok {
-			return realItem.Name
-		}
+		return item.Name
 	}
 	return "%未知用户%"
 }

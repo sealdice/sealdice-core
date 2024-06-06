@@ -40,7 +40,7 @@ func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupID string) {
 		logger.Errorf("获取Discord频道信息#%s时出错:%s", groupID, err.Error())
 		return
 	}
-	dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
+	dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 		Name: channel.Name,
 		time: time.Now().Unix(),
 	})

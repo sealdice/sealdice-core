@@ -2239,7 +2239,7 @@ func (d *Dice) loads() {
 		dm := d.Parent
 		now := time.Now().Unix()
 		for k, v := range d.ImSession.ServiceAtNew {
-			dm.GroupNameCache.Set(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
+			dm.GroupNameCache.Store(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
 		}
 
 		d.Logger.Info("serve.yaml loaded")

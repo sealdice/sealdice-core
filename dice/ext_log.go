@@ -10,13 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fy0/lockfree"
-	"github.com/golang-module/carbon"
-	"go.uber.org/zap"
-
 	"sealdice-core/dice/model"
 	"sealdice-core/dice/storylog"
 	"sealdice-core/utils"
+
+	"github.com/golang-module/carbon"
+	"go.uber.org/zap"
 )
 
 var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
@@ -63,7 +62,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 	}
 
 	// 避免群信息重复记录
-	groupMsgInfo := lockfree.NewHashMap()
+	groupMsgInfo := SyncMap[any, int64]{}
 	groupMsgInfoLastClean := int64(0)
 	groupMsgInfoClean := func() {
 		// 清理过久的消息
@@ -75,21 +74,16 @@ func RegisterBuiltinExtLog(self *Dice) {
 		}
 
 		groupMsgInfoLastClean = now
-		var toDelete []interface{}
-		_ = groupMsgInfo.Iterate(func(_k interface{}, _v interface{}) error {
-			t, ok := _v.(int64)
-			if ok {
-				if now-t > 5 { // 5秒内如果有此消息，那么不记录
-					toDelete = append(toDelete, _k)
-				}
-			} else {
-				toDelete = append(toDelete, _k)
+		var toDelete []any
+		groupMsgInfo.Range(func(key any, t int64) bool {
+			if now-t > 5 { // 5秒内如果有此消息，那么不记录
+				toDelete = append(toDelete, key)
 			}
-			return nil
+			return true
 		})
 
 		for _, i := range toDelete {
-			groupMsgInfo.Del(i)
+			groupMsgInfo.Delete(i)
 		}
 	}
 
@@ -99,20 +93,17 @@ func RegisterBuiltinExtLog(self *Dice) {
 		if _k == nil {
 			return false
 		}
-		_val, exists := groupMsgInfo.Get(_k)
+		t, exists := groupMsgInfo.Load(_k)
 		if exists {
-			t, ok := _val.(int64)
-			if ok {
-				now := time.Now().Unix()
-				return now-t > 5 // 5秒内如果有此消息，那么不记录
-			}
+			now := time.Now().Unix()
+			return now-t > 5 // 5秒内如果有此消息，那么不记录
 		}
 		return true
 	}
 
-	groupMsgInfoSet := func(_k interface{}) {
+	groupMsgInfoSet := func(_k any) {
 		if _k != nil {
-			groupMsgInfo.Set(_k, time.Now().Unix())
+			groupMsgInfo.Store(_k, time.Now().Unix())
 		}
 	}
 
