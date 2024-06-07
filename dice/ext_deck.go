@@ -39,6 +39,7 @@ type DeckDiceEFormat struct {
 	// 一组牌        []string `json:"一组牌"`
 
 	// 更新支持字段
+	StoreID    []string `json:"_storeID"`
 	UpdateUrls []string `json:"_updateUrls"`
 	Etag       []string `json:"_etag"`
 }
@@ -55,8 +56,9 @@ type DeckSinaNyaFormat struct {
 	// 一组牌        []string `json:"一组牌"`
 
 	// 更新支持字段
-	UpdateUrls []string `json:"update_urls"`
-	Etag       string   `json:"etag"`
+	StoreID    string   `json:"store_id" yaml:"store_id"`
+	UpdateUrls []string `json:"update_urls" yaml:"update_urls"`
+	Etag       string   `json:"etag" yaml:"etag"`
 }
 
 type SealMeta struct {
@@ -70,6 +72,7 @@ type SealMeta struct {
 	Desc          string    `toml:"desc"`
 	FormatVersion int64     `toml:"format_version"`
 
+	StoreID    string   `toml:"store_id"`
 	UpdateUrls []string `toml:"update_urls"`
 	Etag       string   `toml:"etag"`
 }
@@ -121,6 +124,7 @@ type DeckInfo struct {
 	Etag               string                        `yaml:"etag" json:"etag"`
 	Cloud              bool                          `yaml:"cloud" json:"cloud"` // 含有云端内容
 	CloudDeckItemInfos map[string]*CloudDeckItemInfo `yaml:"-" json:"-"`
+	StoreID            string                        `yaml:"storeID" json:"storeID"`
 }
 
 func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error {
@@ -221,6 +225,9 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error
 		deckInfo.FileFormat = "jsonc"
 	}
 	deckInfo.Enable = true
+	if len(jsonData2.StoreID) > 0 {
+		deckInfo.StoreID = jsonData2.StoreID[0]
+	}
 	deckInfo.UpdateUrls = jsonData2.UpdateUrls
 	if len(jsonData2.Etag) > 0 {
 		deckInfo.Etag = jsonData2.Etag[0]
@@ -290,6 +297,7 @@ func tryParseSinaNya(content []byte, deckInfo *DeckInfo) error {
 	deckInfo.FormatVersion = 1
 	deckInfo.FileFormat = "yaml"
 	deckInfo.Enable = true
+	deckInfo.StoreID = yamlData2.StoreID
 	deckInfo.UpdateUrls = yamlData2.UpdateUrls
 	deckInfo.Etag = yamlData2.Etag
 	return nil
@@ -393,6 +401,7 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) error {
 	deckInfo.FormatVersion = meta.FormatVersion
 	deckInfo.FileFormat = "toml"
 	deckInfo.Enable = true
+	deckInfo.StoreID = meta.StoreID
 	deckInfo.UpdateUrls = meta.UpdateUrls
 	deckInfo.Etag = meta.Etag
 	deckInfo.RawData = &tomlDataFix
@@ -427,6 +436,9 @@ func DeckTryParse(d *Dice, fn string) {
 	}
 
 	d.DeckList = append(d.DeckList, deckInfo)
+	if len(deckInfo.StoreID) > 0 {
+		d.InstalledDecks[deckInfo.StoreID] = true
+	}
 	d.MarkModified()
 }
 
@@ -565,6 +577,7 @@ func DeckReload(d *Dice) {
 	}
 	d.IsDeckLoading = true
 	d.DeckList = d.DeckList[:0]
+	d.InstalledDecks = map[string]bool{}
 	d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
 	DecksDetect(d)
 	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
