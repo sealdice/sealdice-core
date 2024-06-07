@@ -80,6 +80,9 @@ type ExtInfo struct {
 	// 为Storage使用互斥锁,并根据ID佬的说法修改为合适的名称
 	dbMu sync.Mutex `yaml:"-"` // 互斥锁
 	init bool       `yaml:"-"` // 标记Storage是否已初始化
+	// 向插件提供落锁能力
+	lockMu sync.Mutex             `yaml:"-" json:"-"`
+	locks  map[string]*sync.Mutex `yaml:"-" json:"-"`
 
 	// 定时任务列表，用于避免 task 失去引用
 	taskList []*JsScriptTask `yaml:"-" json:"-"`
