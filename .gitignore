@@ -45,3 +45,5 @@ _help_cache
 !.vscode/extensions.json
 sealdice-lock.lock
 upgrade_metadata.json
+
+/signature/**/*

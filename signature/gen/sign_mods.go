@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -11,18 +12,35 @@ import (
 )
 
 func main() {
-	key := os.Getenv("SEAL_MOD_PRIVATE_KEY")
-	if key == "" {
-		// 环境变量优先，没有时尝试读取文件夹中的私钥文件
+	modKey := os.Getenv("SEAL_MOD_PRIVATE_KEY")
+	storeKey := os.Getenv("SEAL_STORE_PRIVATE_KEY")
+
+	// 环境变量优先，没有时尝试读取文件夹中的私钥文件
+	if modKey == "" {
 		keyData, err := os.ReadFile("seal_mod.private.pem")
 		if err != nil {
 			log.Println("SEAL_MOD_PRIVATE_KEY in env or seal_mod.private.pem not found")
-			return
 		}
-		key = string(keyData)
+		modKey = string(keyData)
+	}
+	if storeKey == "" {
+		keyData, err := os.ReadFile("seal_store.private.pem")
+		if err != nil {
+			log.Println("SEAL_STORE_PRIVATE_KEY in env or seal_store.private.pem not found")
+		}
+		storeKey = string(keyData)
 	}
 
-	entries, err := os.ReadDir(".")
+	if len(modKey) != 0 {
+		signDir("official", modKey)
+	}
+	if len(storeKey) != 0 {
+		signDir("store", storeKey)
+	}
+}
+
+func signDir(dir string, privateKey string) {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,28 +50,41 @@ func main() {
 		if entry.IsDir() || strings.HasPrefix(pureName, "[signed]") {
 			continue
 		}
-		// 对文件夹中的 js/json/yaml/toml 文件签名
+		// 对文件夹中的 js/json/jsonc/yaml/toml 文件签名
 		ext := filepath.Ext(entry.Name())
 		switch ext {
-		case ".js", ".json":
-			signModFile(key, entry.Name(), pureName, "// sign %s\n")
+		case ".js", ".json", ".jsonc":
+			signModFile(dir, privateKey, entry.Name(), pureName, "// sign ")
 		case ".yml", ".yaml", ".toml":
-			signModFile(key, entry.Name(), pureName, "# sign %s\n")
+			signModFile(dir, privateKey, entry.Name(), pureName, "# sign ")
 		}
 	}
 }
 
-func signModFile(privateKey string, path, name string, signStrTmpl string) {
+func signModFile(root, privateKey string, path, name string, signStrTmpl string) {
 	if privateKey == "" {
 		return
 	}
-	data, _ := os.ReadFile(path)
-	sign, err := sealcrypto.RSASign(data, privateKey)
-	if err != nil {
+	data, _ := os.ReadFile(filepath.Join(root, path))
+	data = bytes.Trim(data, "\xef\xbb\xbf")
+	if len(data) == 0 {
+		log.Printf("%s 文件为空，跳过\n", name)
 		return
 	}
-	newData := []byte(fmt.Sprintf(signStrTmpl, sign) + string(data))
-	err = os.WriteFile("[signed]"+name, newData, 0644)
+	sign, err := sealcrypto.RSASign(data, privateKey)
+	if err != nil {
+		log.Printf("%s 文件签名失败，跳过\n", name)
+		return
+	}
+
+	dir := filepath.Join(root, "signed")
+	_ = os.MkdirAll(dir, 0755)
+	newData := []byte(fmt.Sprintln(signStrTmpl+sign) + string(data))
+	target := filepath.Join(dir, name)
+	if filepath.Ext(target) == ".json" {
+		target = target + "c" // json 转为 jsonc
+	}
+	err = os.WriteFile(target, newData, 0644)
 	if err != nil {
 		return
 	}
