@@ -14,6 +14,6 @@ func NewID() string {
 
 var codeAlphabet = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
 
-func RandStr(len int) string {
-	return lo.Must1(gonanoid.Generate(codeAlphabet, len))
+func RandStr(length int) string {
+	return lo.Must1(gonanoid.Generate(codeAlphabet, length))
 }

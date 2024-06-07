@@ -48,7 +48,8 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 			m2.Store(k, v.ConvertToV2())
 		}
 
-		rawData, err := ds.NewDictVal(m2).V().ToJSON()
+		var rawData []byte
+		rawData, err = ds.NewDictVal(m2).V().ToJSON()
 
 		// if name == "测试3" {
 		// 	fmt.Println("!!!!!", string(rawData))
@@ -312,9 +313,10 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 			}
 			if strings.HasPrefix(k, "$ch:") {
 				// 处理角色卡，这里 v 是 string
+				var toNew *model.AttributesItemModel
 				name := k[4:]
 
-				toNew, err := convertToNew(name, ownerId, []byte(v.ToString()), updatedAt)
+				toNew, err = convertToNew(name, ownerId, []byte(v.ToString()), updatedAt)
 				if err != nil {
 					fmt.Printf("用户 %s 的角色卡 %s 无法转换", ownerId, name)
 					continue
@@ -337,7 +339,7 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 
 		// 保存用户人物卡
 		for _, i := range newSheetsList {
-			_, err := model.AttrsNewItem(db, i)
+			_, err = model.AttrsNewItem(db, i)
 			if err != nil {
 				fmt.Printf("用户 %s 的角色卡 %s 无法写入数据库: %s\n", ownerId, i.Name, err.Error())
 			}

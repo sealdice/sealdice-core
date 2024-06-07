@@ -418,7 +418,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						}
 
 						tick++
-						var vText string
+						// var vText string
 						// TODO: 重新弄一下
 						// if v.TypeID == VMTypeDNDComputedValue {
 						// 	vd := v.Value.(*VMDndComputedValueData)
@@ -433,7 +433,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						// } else {
 						// 	vText = v.ToString()
 						// }
-						vText = v.ToString()
+						vText := v.ToString()
 						k = k[len("$buff_"):]
 						info += fmt.Sprintf("%s:%s\t", k, vText) // 单个文本
 						if tick%4 == 0 {

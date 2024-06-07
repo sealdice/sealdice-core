@@ -227,6 +227,13 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		ctx.vm.Config.EnableDiceFate = true
 		ctx.vm.Config.EnableDiceDoubleCross = true
 
+		ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
+			if curVal == nil {
+				return ds.NewIntVal(0)
+			}
+			return curVal
+		}
+
 		ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
 			detailResult := dataBuffer
 

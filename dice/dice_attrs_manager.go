@@ -108,7 +108,8 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 	data, err := model.AttrsGetById(d.DBData, id)
 	if err == nil {
 		if data.IsDataExists() {
-			v, err := ds.VMValueFromJSON(data.Data)
+			var v *ds.VMValue
+			v, err = ds.VMValueFromJSON(data.Data)
 			if err != nil {
 				return nil, err
 			}

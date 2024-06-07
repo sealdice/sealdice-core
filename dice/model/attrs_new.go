@@ -119,7 +119,7 @@ func AttrsCharGetBindingList(db *sqlx.DB, id string) ([]string, error) {
 	lst := []string{}
 	for rows.Next() {
 		item := ""
-		err := rows.Scan(&item)
+		err = rows.Scan(&item)
 		if err != nil {
 			return nil, err
 		}
@@ -169,7 +169,8 @@ func AttrsBindCharacter(db *sqlx.DB, charId string, id string) error {
 
 	ret, err := db.Exec(`update attrs set binding_sheet_id = $1 where id = $2`, charId, id)
 	if err == nil {
-		affected, err := ret.RowsAffected()
+		var affected int64
+		affected, err = ret.RowsAffected()
 		if err != nil {
 			return err
 		}
