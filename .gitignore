@@ -42,3 +42,5 @@ _help_cache
 
 .vscode/
 !.vscode/settings.json
+
+/signature/**/*
