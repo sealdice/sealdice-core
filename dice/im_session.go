@@ -555,7 +555,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	if msg.MessageType == "group" || msg.MessageType == "private" { //nolint:nestif
 		// GroupEnableCheck TODO: 后续看看是否需要
 		group := s.ServiceAtNew[msg.GroupID]
-		if group == nil && msg.GroupID != "" && !strings.HasPrefix(msg.GroupID, "UI-Group:") {
+		if group == nil && msg.GroupID != "" {
 			// 注意: 此处必须开启，不然下面mctx.player取不到
 			autoOn := true
 			if msg.Platform == "QQ-CH" {

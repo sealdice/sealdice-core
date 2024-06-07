@@ -30,6 +30,12 @@ type VersionDetail struct {
 	BuildMetaData string `json:"buildMetaData"`
 }
 
+func preInfo(c echo.Context) error {
+	return c.JSON(200, map[string]interface{}{
+		"testMode": dm.JustForTest,
+	})
+}
+
 func baseInfo(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -82,6 +88,7 @@ func baseInfo(c echo.Context) error {
 		ExtraTitle     string        `json:"extraTitle"`
 		OS             string        `json:"OS"`
 		Arch           string        `json:"arch"`
+		JustForTest    bool          `json:"justForTest"`
 		ContainerMode  bool          `json:"containerMode"`
 	}{
 		AppName:        dice.APPNAME,
@@ -99,6 +106,7 @@ func baseInfo(c echo.Context) error {
 		ExtraTitle:     extraTitle,
 		OS:             runtime.GOOS,
 		Arch:           runtime.GOARCH,
+		JustForTest:    dm.JustForTest,
 		ContainerMode:  dm.ContainerMode,
 	})
 }
@@ -322,11 +330,13 @@ func DiceExec(c echo.Context) error {
 	userID := "UI:1001"
 	messageType := "private"
 	groupID := ""
+	groupName := ""
 	groupRole := ""
 	if v.MessageType == "group" {
 		userID = "UI:1002"
 		messageType = "group"
 		groupID = "UI-Group:2001"
+		groupName = "UI-Group 2001"
 		groupRole = "owner"
 		if now-lastGroupExecTime < timeNeed {
 			return c.JSON(400, "过于频繁")
@@ -348,7 +358,8 @@ func DiceExec(c echo.Context) error {
 			UserID:    userID,
 			GroupRole: groupRole,
 		},
-		GroupID: groupID,
+		GroupID:   groupID,
+		GroupName: groupName,
 	}
 	myDice.ImSession.Execute(myDice.UIEndpoint, msg, false)
 	return c.JSON(200, "ok")
@@ -520,6 +531,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	prefix := "/sd-api"
 
+	e.GET(prefix+"/preInfo", preInfo)
 	e.GET(prefix+"/baseInfo", baseInfo)
 	e.GET(prefix+"/hello", hello2)
 	e.GET(prefix+"/log/fetchAndClear", logFetchAndClear)
