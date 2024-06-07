@@ -15,14 +15,6 @@
 
 ## 细节
 
-### 自动更新
-
-通过 dependabot 实现自动检查子模块更新，bot 提交的 pr 会被 action 自动批准合并。
-
-dependabot 的配置在 [dependabot.yml](.github/dependabot.yml)，自动批准合并的工作流在 [auto-approve-and-mr.yml](.github/workflows/auto-approve-and-mr.yml)
-
-允许自动合并需要配置相关权限，在仓库的 Settings > Actions > Workflow permissions 中设置。
-
 ### 自动构建
 
 工作流为 [auto-build.yml](.github/workflows/auto-build.yml)，相关 jobs 功能：
@@ -38,3 +30,4 @@ dependabot 的配置在 [dependabot.yml](.github/dependabot.yml)，自动批准�
 ## 关于 issue 和 pull request
 
 你可以通过 fork 本项目并提交 pull request 的形式贡献代码
+
