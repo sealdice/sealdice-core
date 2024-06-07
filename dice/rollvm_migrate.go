@@ -80,7 +80,7 @@ func DiceFormatTmplV1(ctx *MsgContext, s string) string { //nolint:revive
 func DiceFormatV1(ctx *MsgContext, s string) string { //nolint:revive
 	s = CompatibleReplace(ctx, s)
 
-	r, _, _ := ctx.Dice.ExprText(s, ctx)
+	r, _, _ := ctx.Dice._ExprTextV1(s, ctx)
 	return r
 }
 
@@ -102,57 +102,88 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 	return ret
 }
 
-type VMResultV2 struct {
+func (ctx *MsgContext) Eval(expr string, flags ds.RollConfig) *VMResultV2 {
+	ctx.CreateVmIfNotExists()
+	vm := ctx.vm
+	vm.Config = flags
+	err := vm.Run(expr)
+
+	if err != nil {
+		return &VMResultV2{vm: vm}
+	}
+	return &VMResultV2{VMValue: *vm.Ret, vm: vm}
+}
+
+// EvalFString TODO: 这个名字得换一个
+func (ctx *MsgContext) EvalFString(expr string, flags ds.RollConfig) *VMResultV2 {
+	expr = CompatibleReplace(ctx, expr)
+
+	// 隐藏的内置字符串符号 \x1e
+	r := ctx.Eval("\x1e"+expr+"\x1e", flags)
+	if r.vm.Error != nil {
+		fmt.Println("脚本执行出错: ", expr, "->", r.vm.Error)
+	}
+	return r
+}
+
+type VMResultV2m struct {
 	*ds.VMValue
 	vm        *ds.Context
 	legacy    *VMResult
 	cocPrefix string
 }
 
-func (r *VMResultV2) GetAsmText() string {
+func (r *VMResultV2m) GetAsmText() string {
 	if r.legacy != nil {
 		return r.legacy.Parser.GetAsmText()
 	}
 	return r.vm.GetAsmText()
 }
 
-func (r *VMResultV2) IsCalculated() bool {
+func (r *VMResultV2m) IsCalculated() bool {
 	if r.legacy != nil {
 		return r.legacy.Parser.Calculated
 	}
 	return r.vm.IsDiceCalculateExists()
 }
 
-func (r *VMResultV2) GetRestInput() string {
+func (r *VMResultV2m) GetRestInput() string {
 	if r.legacy != nil {
 		return r.legacy.restInput
 	}
 	return r.vm.RestInput
 }
 
-func (r *VMResultV2) GetMatched() string {
+func (r *VMResultV2m) GetMatched() string {
 	if r.legacy != nil {
 		return r.legacy.Matched
 	}
 	return r.vm.Matched
 }
 
-func (r *VMResultV2) GetCocPrefix() string {
+func (r *VMResultV2m) GetCocPrefix() string {
 	if r.legacy != nil {
 		return r.legacy.Parser.CocFlagVarPrefix
 	}
 	return r.cocPrefix
 }
 
-func (r *VMResultV2) GetVersion() int64 {
+func (r *VMResultV2m) GetVersion() int64 {
 	if r.legacy != nil {
 		return 1
 	}
 	return 2
 }
 
+func (r *VMResultV2m) ToString() string {
+	if r.legacy != nil {
+		return r.legacy.ToString()
+	}
+	return r.VMValue.ToString()
+}
+
 // DiceExprEvalBase 不建议用，纯兼容旧版
-func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2, string, error) {
+func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2m, string, error) {
 	ctx.CreateVmIfNotExists()
 	vm := ctx.vm
 	vm.Ret = nil
@@ -191,22 +222,22 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 
 	err := ctx.vm.Run(s)
 	if err != nil || ctx.vm.Ret == nil {
-		fmt.Println("脚本执行出错V2: ", s, "->", err)
+		fmt.Println("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
 
 		// 尝试一下V1
-		val, detail, err := ctx.Dice.ExprEvalBase(s, ctx, flags)
+		val, detail, err := ctx.Dice._ExprEvalBaseV1(s, ctx, flags)
 		if err != nil {
 			return nil, detail, err
 		}
 
-		return &VMResultV2{val.ConvertToV2(), ctx.vm, val, cocFlagVarPrefix}, detail, err
+		return &VMResultV2m{val.ConvertToV2(), ctx.vm, val, cocFlagVarPrefix}, detail, err
 	} else {
-		return &VMResultV2{ctx.vm.Ret, ctx.vm, nil, cocFlagVarPrefix}, ctx.vm.GetDetailText(), nil
+		return &VMResultV2m{ctx.vm.Ret, ctx.vm, nil, cocFlagVarPrefix}, ctx.vm.GetDetailText(), nil
 	}
 }
 
 // DiceExprTextBase 不建议用，纯兼容旧版
-func DiceExprTextBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2, string, error) {
+func DiceExprTextBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2m, string, error) {
 	return DiceExprEvalBase(ctx, "\x1e"+s+"\x1e", flags)
 }
 
@@ -229,7 +260,16 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 
 		ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
 			if curVal == nil {
-				return ds.NewIntVal(0)
+				// 从模板取值，模板中的设定是如果取不到获得0
+				// TODO: ctx2为临时方法
+				ctx2 := *ctx
+				ctx2.vm = nil
+
+				v, err := ctx.SystemTemplate.GetRealValue(&ctx2, name)
+				if err != nil {
+					return ds.NewNullVal()
+				}
+				return v
 			}
 			return curVal
 		}
@@ -307,7 +347,12 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		}
 
 		// 设置默认骰子面数
-		ctx.vm.Config.DefaultDiceSideExpr = fmt.Sprintf("%d", ctx.Group.DiceSideNum)
+		if ctx.Group != nil {
+			// 情况不明，在sealchat的第一次测试中出现Group为nil
+			ctx.vm.Config.DefaultDiceSideExpr = fmt.Sprintf("%d", ctx.Group.DiceSideNum)
+		} else {
+			ctx.vm.Config.DefaultDiceSideExpr = "d100"
+		}
 	}
 }
 

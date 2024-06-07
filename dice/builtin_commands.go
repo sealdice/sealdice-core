@@ -1167,7 +1167,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 			}
 
-			var r *VMResultV2
+			var r *VMResultV2m
 			var commandInfoItems []any
 
 			rollOne := func() *CmdExecuteResult {
@@ -2009,6 +2009,8 @@ func (d *Dice) registerCoreCommands() {
 					p.Name = msg.Sender.Nickname
 				}
 				ReplyToSender(ctx, msg, text)
+			default:
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 
 			return CmdExecuteResult{Matched: true, Solved: true}
@@ -2020,10 +2022,6 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["char"] = cmdFoxChar
 	d.CmdMap["character"] = cmdFoxChar
 	d.CmdMap["pc"] = cmdFoxChar
-
-	d.CmdMap["fch"] = cmdFoxChar
-	d.CmdMap["fpc"] = cmdFoxChar
-	d.CmdMap["foxpc"] = cmdFoxChar
 
 	cmdReply := &CmdItemInfo{
 		Name:      "reply",

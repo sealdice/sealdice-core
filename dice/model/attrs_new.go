@@ -58,7 +58,8 @@ type PlatformMappingModel struct {
 
 func AttrsGetById(db *sqlx.DB, id string) (*AttributesItemModel, error) {
 	var item AttributesItemModel
-	err := db.Get(&item, "select * from attrs where id = $1", id)
+	err := db.Get(&item, `select id, data, COALESCE(attrs_type, '') as attrs_type, binding_sheet_id, name, owner_id,
+       sheet_type, is_hidden, created_at, updated_at from attrs where id = $1`, id)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}

@@ -552,7 +552,7 @@ func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 	prefixMap2 := map[string]string{
 		"PG-QQ:":       "",
 		"PG-KOOK:":     "",
-		"PG-SEALCHAT:": "",
+		"PG-SEALCHAT:": "", // PG-SEALCHAT:LJMmncRk4Kh_yPNjCNIhX:xK7iDQ13ypAw7GHiGBzHM
 		"PG-UI:":       "",
 	}
 	for userPrefix := range prefixMap2 {

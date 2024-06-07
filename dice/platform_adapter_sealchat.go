@@ -425,7 +425,9 @@ func (pa *PlatformAdapterSealChat) toStdMessage(scMsg *satori.Message) *Message 
 
 	msg.RawID = scMsg.ID
 	send := new(SenderBase)
-	send.UserID = FormatDiceIDSealChat(scMsg.User.ID)
+	if scMsg.User != nil {
+		send.UserID = FormatDiceIDSealChat(scMsg.User.ID)
+	}
 
 	if scMsg.Member != nil {
 		// 注: 部分消息，比如message-deleted没有member

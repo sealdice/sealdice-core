@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -371,6 +372,9 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 
 func V150Upgrade() {
 	dbDataPath, _ := filepath.Abs("./data/default/data.db")
+	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
+		return
+	}
 
 	db, err := openDB(dbDataPath)
 	if err != nil {

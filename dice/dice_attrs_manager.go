@@ -76,6 +76,7 @@ func (am *AttrsManager) CharNew(userId string, name string, sheetType string) (*
 	return model.AttrsNewItem(am.parent.DBData, &model.AttributesItemModel{
 		Name:      name,
 		OwnerId:   userId,
+		AttrsType: "character",
 		SheetType: sheetType,
 		Data:      json,
 	})
@@ -173,9 +174,10 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 func (am *AttrsManager) Init() {
 	go func() {
 		for {
+			// fmt.Println(am.CheckForSave())
 			am.CheckForSave()
 			am.CheckAndFreeUnused()
-			time.Sleep(30 * time.Second)
+			time.Sleep(15 * time.Second)
 		}
 	}()
 }

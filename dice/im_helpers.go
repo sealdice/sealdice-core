@@ -399,7 +399,10 @@ func CompatibleReplace(ctx *MsgContext, s string) string {
 		s = DeckRewrite(s, func(deckName string) string {
 			// 如果牌组名中含有表达式, 在此进行求值
 			// 不含表达式也无妨, 求值完还是原来的字符串
-			deckName, _, _ = ctx.Dice.ExprText(deckName, ctx)
+			r, _, err := DiceExprTextBase(ctx, deckName, RollExtraFlags{})
+			if err == nil {
+				deckName = r.ToString()
+			}
 
 			exists, result, err := deckDraw(ctx, deckName, false)
 			if !exists {

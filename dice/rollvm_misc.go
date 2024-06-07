@@ -124,7 +124,7 @@ func (v *VMValue) ReadString() (string, bool) {
 func (v *VMValue) ComputedExecute(ctx *MsgContext, curDepth int64) (*VMResult, string, error) {
 	cd, _ := v.ReadComputed()
 
-	realV, detail, err := ctx.Dice.ExprEvalBase(cd.Expr, ctx, RollExtraFlags{vmDepth: curDepth + 1})
+	realV, detail, err := ctx.Dice._ExprEvalBaseV1(cd.Expr, ctx, RollExtraFlags{vmDepth: curDepth + 1})
 
 	return realV, detail, err
 }

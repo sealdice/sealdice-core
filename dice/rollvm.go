@@ -866,7 +866,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 				switch varname {
 				case "力量豁免", "敏捷豁免", "体质豁免", "智力豁免", "感知豁免", "魅力豁免":
 					vName := strings.TrimSuffix(varname, "豁免")
-					realV, _, err := ctx.Dice.ExprEvalBase(fmt.Sprintf("$豁免_%s", vName), ctx, RollExtraFlags{})
+					realV, _, err := ctx.Dice._ExprEvalBaseV1(fmt.Sprintf("$豁免_%s", vName), ctx, RollExtraFlags{})
 					if err == nil {
 						vType = realV.TypeID
 						v = realV.Value
@@ -931,7 +931,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 				// 解包计算属性
 				vd := v.(*VMDndComputedValueData)
 				_VarSetValueV1(ctx, "$tVal", &vd.BaseValue)
-				realV, _, err := ctx.Dice.ExprEvalBase(vd.Expr, ctx, RollExtraFlags{vmDepth: e.flags.vmDepth + 1})
+				realV, _, err := ctx.Dice._ExprEvalBaseV1(vd.Expr, ctx, RollExtraFlags{vmDepth: e.flags.vmDepth + 1})
 				if err != nil {
 					return nil, "", errors.New("E3: 获取计算属性异常: " + vd.Expr)
 				}
@@ -969,7 +969,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 				_, exists := _VarGetValueV1(ctx, "$buff_"+varname)
 				if exists {
 					if vType == VMTypeInt64 {
-						buffV, _, err := ctx.Dice.ExprEvalBase("$buff_"+varname, ctx, RollExtraFlags{})
+						buffV, _, err := ctx.Dice._ExprEvalBaseV1("$buff_"+varname, ctx, RollExtraFlags{})
 						if err == nil {
 							if buffV.TypeID == VMTypeInt64 {
 								lastDetail += fmt.Sprintf("+%d", buffV.Value.(int64))

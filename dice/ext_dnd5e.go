@@ -251,7 +251,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					restText = strings.TrimSpace(restText[len(m):])
 				}
 				expr := fmt.Sprintf("D20%s + %s", m, restText)
-				r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
+				r, detail, err := mctx.Dice._ExprEvalBaseV1(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
 				if err != nil {
 					ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -423,7 +423,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						// TODO: 重新弄一下
 						// if v.TypeID == VMTypeDNDComputedValue {
 						// 	vd := v.Value.(*VMDndComputedValueData)
-						// 	val, _, _ := mctx.Dice.ExprEvalBase(k, mctx, RollExtraFlags{})
+						// 	val, _, _ := mctx.Dice._ExprEvalBaseV1(k, mctx, RollExtraFlags{})
 						// 	a := val.ToString()
 						// 	b := vd.BaseValue.ToString()
 						// 	if a != b {
@@ -481,7 +481,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if m[3] == "+" || m[3] == "-" || m[3] == "＋" || m[3] == "－" {
 						text = m[3] + text
 					}
-					r, _, err := mctx.Dice.ExprEvalBase(text, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
+					r, _, err := mctx.Dice._ExprEvalBaseV1(text, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
 					if err != nil {
 						ReplyToSender(mctx, msg, "无法解析属性: "+attrNameRaw)
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -543,12 +543,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 						newVal = leftValue.Value.(int64) + r.Value.(int64)
 
-						vOld, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
+						vOld, _, _ := mctx.Dice._ExprEvalBaseV1(attrNameBuff, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
 						theOldValue := vOld.Value.(int64)
 
 						leftValue.Value = newVal
 
-						vNew, _, _ := mctx.Dice.ExprEvalBase(attrNameBuff, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
+						vNew, _, _ := mctx.Dice._ExprEvalBaseV1(attrNameBuff, mctx, RollExtraFlags{DisableNumDice: true, DisableBPDice: true, DisableCrossDice: true, DisableDicePool: true, DisableBlock: true, DisableBitwiseOp: true})
 						theNewValue := vNew.Value.(int64)
 
 						baseValue := ""
@@ -872,7 +872,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			if len(m) > 0 {
 				restText = strings.TrimSpace(restText[len(m[0]):])
 				isNeg := m[2] == "-" || m[2] == "－"
-				r, _, err := ctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{})
+				r, _, err := ctx.Dice._ExprEvalBaseV1(restText, mctx, RollExtraFlags{})
 				if err != nil {
 					ReplyToSender(mctx, msg, "错误: 无法解析表达式: "+restText)
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -927,7 +927,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					restText = strings.TrimSpace(restText[len(m):])
 				}
 				expr := fmt.Sprintf("D20%s%s", m, restText)
-				r, detail, err := mctx.Dice.ExprEvalBase(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
+				r, detail, err := mctx.Dice._ExprEvalBaseV1(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
 				if err != nil {
 					ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -1006,14 +1006,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			var ss []string
 			for i = 0; i < val; i++ {
 				if isMode2 {
-					result, _, err := self.ExprText(`力量:{$t1=4d6k3} 体质:{$t2=4d6k3} 敏捷:{$t3=4d6k3} 智力:{$t4=4d6k3} 感知:{$t5=4d6k3} 魅力:{$t6=4d6k3} 共计:{$tT=$t1+$t2+$t3+$t4+$t5+$t6}`, ctx)
+					result, _, err := self._ExprTextV1(`力量:{$t1=4d6k3} 体质:{$t2=4d6k3} 敏捷:{$t3=4d6k3} 智力:{$t4=4d6k3} 感知:{$t5=4d6k3} 魅力:{$t6=4d6k3} 共计:{$tT=$t1+$t2+$t3+$t4+$t5+$t6}`, ctx)
 					if err != nil {
 						break
 					}
 					result = strings.ReplaceAll(result, `\n`, "\n")
 					ss = append(ss, result)
 				} else {
-					result, _, err := self.ExprText(`{4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}`, ctx)
+					result, _, err := self._ExprTextV1(`{4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}`, ctx)
 					if err != nil {
 						break
 					}
@@ -1076,7 +1076,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				if strings.HasPrefix(text, "+") {
 					// 加值情况1，D20+
-					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
+					r, _detail, err := ctx.Dice._ExprEvalBaseV1("D20"+text, mctx, RollExtraFlags{})
 					if err != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
@@ -1087,7 +1087,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					exprExists = true
 				} else if strings.HasPrefix(text, "-") {
 					// 加值情况1.1，D20-
-					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
+					r, _detail, err := ctx.Dice._ExprEvalBaseV1("D20"+text, mctx, RollExtraFlags{})
 					if err != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
@@ -1098,7 +1098,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					exprExists = true
 				} else if strings.HasPrefix(text, "=") {
 					// 加值情况1，=表达式
-					r, _, err := ctx.Dice.ExprEvalBase(text[1:], mctx, RollExtraFlags{})
+					r, _, err := ctx.Dice._ExprEvalBaseV1(text[1:], mctx, RollExtraFlags{})
 					if err != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
@@ -1108,7 +1108,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					exprExists = true
 				} else if strings.HasPrefix(text, "优势") || strings.HasPrefix(text, "劣势") {
 					// 优势/劣势
-					r, _detail, err := ctx.Dice.ExprEvalBase("D20"+text, mctx, RollExtraFlags{})
+					r, _detail, err := ctx.Dice._ExprEvalBaseV1("D20"+text, mctx, RollExtraFlags{})
 					if err != nil {
 						// 优势劣势输入错误
 						return 2, name, val, detail, ""
@@ -1318,7 +1318,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				expr := strings.Join(cmdArgs.Args[2:], "")
-				r, _detail, err := ctx.Dice.ExprEvalBase(expr, ctx, RollExtraFlags{})
+				r, _detail, err := ctx.Dice._ExprEvalBaseV1(expr, ctx, RollExtraFlags{})
 				if err != nil || r.TypeID != VMTypeInt64 {
 					ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
 					return CmdExecuteResult{Matched: true, Solved: true}

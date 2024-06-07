@@ -717,7 +717,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 			}
 
-			r, detail, err := mctx.Dice.ExprEvalBase(restText, mctx, RollExtraFlags{
+			r, detail, err := mctx.Dice._ExprEvalBaseV1(restText, mctx, RollExtraFlags{
 				CocVarNumberMode: true,
 				DisableBlock:     true,
 			})
@@ -1046,19 +1046,20 @@ func RegisterBuiltinExtFun(self *Dice) {
 			val := cmdArgs.GetArgN(1)
 			if val != "" {
 				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-				r, _, err := ctx.Dice.ExprTextBase(cmdArgs.CleanArgs, ctx, RollExtraFlags{DisableBlock: false})
+				r, _, err := DiceExprTextBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{DisableBlock: false})
 
-				if err == nil && (r.TypeID == VMTypeString || r.TypeID == VMTypeNone) {
-					var text string
-					if r != nil {
-						text = r.Value.(string)
-					}
+				if err == nil {
+					text := r.ToString()
 
 					if kw := cmdArgs.GetKwarg("asm"); r != nil && kw != nil {
 						if ctx.PrivilegeLevel >= 40 {
-							asm := r.Parser.GetAsmText()
+							asm := r.GetAsmText()
 							text += "\n" + asm
 						}
+					}
+
+					if r.legacy != nil {
+						text += "\n" + "*当前表达式在RollVM V2中无法运行，建议修改"
 					}
 
 					seemsCommand := false

@@ -19,6 +19,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
+	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
 	"go.uber.org/zap"
 
@@ -526,7 +527,12 @@ func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
 	return p
 }
 
-func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
+type VMResultV2 struct {
+	ds.VMValue
+	vm *ds.Context
+}
+
+func (d *Dice) _ExprEvalBaseV1(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
 	parser := d.rebuildParser(buffer)
 	parser.RollExpression.flags = flags // 千万记得在parse之前赋值
 	err := parser.Parse()
@@ -562,15 +568,15 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 	return nil, "", err
 }
 
-func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VMResult, string, error) {
-	return d.ExprEvalBase(buffer, ctx, RollExtraFlags{})
+func (d *Dice) _ExprEvalV1(buffer string, ctx *MsgContext) (*VMResult, string, error) {
+	return d._ExprEvalBaseV1(buffer, ctx, RollExtraFlags{})
 }
 
-func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
+func (d *Dice) _ExprTextBaseV1(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
 	buffer = CompatibleReplace(ctx, buffer)
 
 	// 隐藏的内置字符串符号 \x1e
-	val, detail, err := d.ExprEvalBase("\x1e"+buffer+"\x1e", ctx, flags)
+	val, detail, err := d._ExprEvalBaseV1("\x1e"+buffer+"\x1e", ctx, flags)
 	if err != nil {
 		fmt.Println("脚本执行出错: ", buffer, "->", err)
 	}
@@ -582,8 +588,8 @@ func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 	return nil, "", errors.New("错误的表达式")
 }
 
-func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) {
-	val, detail, err := d.ExprTextBase(buffer, ctx, RollExtraFlags{})
+func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, error) {
+	val, detail, err := d._ExprTextBaseV1(buffer, ctx, RollExtraFlags{})
 
 	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {
 		return val.Value.(string), detail, err
