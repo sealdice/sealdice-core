@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHashHistory } from 'vue-router';
 import PageAbout from '~/components/PageAbout.vue';
 import PageLog from '~/components/PageLog.vue';
 import PageConnectInfoItems from '~/components/PageConnectInfoItems.vue';
@@ -18,7 +18,7 @@ import PageMiscBanList from '~/components/misc/PageMiscBanList.vue';
 import PageMiscAdvancedSettings from '~/components/misc/PageMiscAdvancedSettings.vue';
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/log', name: 'log', component: PageLog },
     { path: '/connect', component: PageConnectInfoItems },

@@ -24,7 +24,7 @@
       <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
     </span>
   </p>
-  <div style="padding: 0;" class="hidden-xs-only">
+  <div style="padding: 0;" class="hidden-xs-only logs">
     <el-table :data="store.curDice.logs"
               :row-class-name="getLogRowClassName" :header-cell-style="{backgroundColor: '#f3f5f7'}">
       <el-table-column label="时间" width="90" >
@@ -159,7 +159,7 @@ const doUpgrade = async () => {
 }
 
 const scrollDown = () => {
-  const panel = document.querySelector<HTMLElement>('.main-container')?.parentElement;
+  const panel = document.querySelector<HTMLElement>('.logs')?.parentElement;
   if (panel) {
     panel.scrollTop = panel.scrollHeight;
   }
