@@ -92,7 +92,6 @@ func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
 
 	count := 0
 	countFailed := 0
-	var items []*model.AttributesItemModel
 	for rows.Next() {
 		var id string
 		var updatedAt int64
@@ -173,7 +172,6 @@ func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
 		if err != nil {
 			countFailed += 1
 		} else {
-			items = append(items, item)
 			count += 1
 		}
 	}
@@ -191,7 +189,6 @@ func attrsGroupMigrate(db *sqlx.DB) (int, int, error) {
 
 	count := 0
 	countFailed := 0
-	var items []*model.AttributesItemModel
 	for rows.Next() {
 		var id string
 		var updatedAt int64
@@ -245,7 +242,6 @@ func attrsGroupMigrate(db *sqlx.DB) (int, int, error) {
 		if err != nil {
 			countFailed += 1
 		} else {
-			items = append(items, item)
 			count += 1
 		}
 	}
@@ -264,7 +260,6 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 	count := 0
 	countSheetsNum := 0
 	countFailed := 0
-	var items []*model.AttributesItemModel
 	for rows.Next() {
 		var ownerId string
 		var updatedAt int64
@@ -367,7 +362,6 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 		if err != nil {
 			countFailed += 1
 		} else {
-			items = append(items, item)
 			count += 1
 		}
 	}
@@ -460,6 +454,6 @@ CREATE TABLE IF NOT EXISTS attrs (
 	_, _ = db.Exec("drop table attrs_group")
 	_, _ = db.Exec("drop table attrs_group_user")
 	_, _ = db.Exec("drop table attrs_user")
-	_, err = db.Exec("VACUUM;") // 收尾
+	_, _ = db.Exec("VACUUM;") // 收尾
 	fmt.Println("V150 数据转换完成")
 }

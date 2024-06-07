@@ -379,7 +379,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				if swap {
 					r1, r2 = r2, r1
-					detail1, detail2 = detail2, detail1 // nolint
+					detail1, detail2 = detail2, detail1 //nolint
 					expr1Text, expr2Text = expr2Text, expr1Text
 				}
 

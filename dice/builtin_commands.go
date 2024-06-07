@@ -1920,10 +1920,10 @@ func (d *Dice) registerCoreCommands() {
 			case "save":
 				name := getNickname()
 
-				newItem := lo.Must(am.CharNew(ctx.Player.UserID, name, ctx.Group.System))
+				newItem, _ := am.CharNew(ctx.Player.UserID, name, ctx.Group.System)
 				attrs := lo.Must(am.Load(ctx.Group.GroupID, ctx.Player.UserID))
 
-				if newItem == nil {
+				if newItem != nil {
 					attrsNew, err := am.LoadById(newItem.Id)
 					if err != nil {
 						// ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))

@@ -366,21 +366,24 @@ func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
 type CmdStOverrideInfo struct {
 	ToSet        func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate)
 	CommandSolve func(ctx *MsgContext, msg *Message, args *CmdArgs) *CmdExecuteResult
+	HelpSt       string
 }
 
 func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
-	helpSt := ""
-	helpSt += ".st show // 展示个人属性\n"
-	helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
-	helpSt += ".st show <数字> // 展示高于<数字>的属性，如.st show 30\n"
-	helpSt += ".st clr // 清除属性\n"
-	helpSt += ".st fmt // 强制转卡为当前规则(改变卡片类型，转换同义词)\n"
-	helpSt += ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"
-	helpSt += ".st export // 导出\n"
-	helpSt += ".st help // 帮助\n"
-	helpSt += ".st <属性><值> // 例：.st 敏捷50 力量3d6*5\n"
-	helpSt += ".st &<属性>=<式子> // 例：.st &手枪=1d6\n"
-	helpSt += ".st <属性>±<表达式> // 例：.st 敏捷+2 hp+1d3 "
+	helpSt := soi.HelpSt
+	if helpSt == "" {
+		helpSt += ".st show // 展示个人属性\n"
+		helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
+		helpSt += ".st show <数字> // 展示高于<数字>的属性，如.st show 30\n"
+		helpSt += ".st clr // 清除属性\n"
+		helpSt += ".st fmt // 强制转卡为当前规则(改变卡片类型，转换同义词)\n"
+		helpSt += ".st del <属性1> <属性2> ... // 删除属性，可多项，以空格间隔\n"
+		helpSt += ".st export // 导出\n"
+		helpSt += ".st help // 帮助\n"
+		helpSt += ".st <属性><值> // 例：.st 敏捷50 力量3d6*5\n"
+		helpSt += ".st &<属性>=<式子> // 例：.st &手枪=1d6\n"
+		helpSt += ".st <属性>±<表达式> // 例：.st 敏捷+2 hp+1d3 "
+	}
 
 	cmdNewSt := &CmdItemInfo{
 		Name:          "st",

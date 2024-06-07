@@ -669,7 +669,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 							return
 						}
 					}
-				} else { // nolint
+				} else { //nolint
 					// TODO: 这玩意的创建是个专业活，等下来弄
 					// session.ServiceAtNew[groupId] = GroupInfo{}
 				}

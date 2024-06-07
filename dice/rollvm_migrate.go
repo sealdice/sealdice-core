@@ -237,8 +237,8 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
 			detailResult := dataBuffer
 
-			curPoint := ds.IntType(-1) // nolint
-			lastEnd := ds.IntType(-1)  // nolint
+			curPoint := ds.IntType(-1) //nolint
+			lastEnd := ds.IntType(-1)  //nolint
 
 			var m []struct {
 				begin ds.IntType

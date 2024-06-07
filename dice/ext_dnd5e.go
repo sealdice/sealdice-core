@@ -204,6 +204,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	helpSt += "需要使用coc版本st，请执行.set coc"
 
 	cmdSt := getCmdStBase(CmdStOverrideInfo{
+		HelpSt: helpSt,
 		CommandSolve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) *CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
 			switch val {

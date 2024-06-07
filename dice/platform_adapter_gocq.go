@@ -1127,7 +1127,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		// fmt.Println("socket close")
 		go func() {
 			defer func() {
-				if r := recover(); r != nil { // nolint
+				if r := recover(); r != nil { //nolint
 					// 太频繁了 不输出了
 					// fmt.Println("关闭连接时遭遇异常")
 					// core.GetLogger().Error(r)
