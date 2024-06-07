@@ -113,6 +113,9 @@ type ExtInfo struct {
 	// 为Storage使用互斥锁,并根据ID佬的说法修改为合适的名称
 	dbMu sync.Mutex `yaml:"-"` // 互斥锁
 	init bool       `yaml:"-"` // 标记Storage是否已初始化
+	// 向插件提供落锁能力
+	lockMu sync.Mutex             `yaml:"-" json:"-"`
+	locks  map[string]*sync.Mutex `yaml:"-" json:"-"`
 
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
 	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
