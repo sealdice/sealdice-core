@@ -255,6 +255,15 @@ type Dice struct {
 	ContainerMode bool `json:"-" yaml:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 
 	IsAlreadyLoadConfig bool `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
+
+	// 用于检查是否需要插入到数据库的哈希表 150因为没有对应插入 到时候这个就没用了
+	SaveDatabaseInsertCheckMapFlag sync.Once                `json:"-" yaml:"-"`
+	SaveDatabaseInsertCheckMap     *SyncMap[string, string] `json:"-" yaml:"-"`
+
+	/* 已安装的商店扩展。记录各扩展读取时识别到的商店ID，用于扩展商店判断是否已安装对应扩展（用 map 代替 set） */
+	InstalledJsScripts map[string]bool `yaml:"-" json:"-"`
+	InstalledDecks     map[string]bool `yaml:"-" json:"-"`
+	InstalledReplies   map[string]bool `yaml:"-" json:"-"`
 }
 
 func (d *Dice) MarkModified() {
@@ -286,6 +295,9 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 	d.Cron.Start()
 
 	d.CocExtraRules = map[int]*CocRuleInfo{}
+	d.InstalledJsScripts = map[string]bool{}
+	d.InstalledDecks = map[string]bool{}
+	d.InstalledReplies = map[string]bool{}
 
 	var err error
 	d.DBOperator = operator

@@ -294,6 +294,9 @@ type ReplyConfig struct {
 	UpdateTimestamp int64    `json:"updateTimestamp" yaml:"updateTimestamp"`
 	Desc            string   `json:"desc"            yaml:"desc"`
 
+	// 扩展商店标识
+	StoreID string `yaml:"storeID" json:"storeID"`
+
 	// 文件级别执行条件
 	Conditions ReplyConditions `json:"conditions" yaml:"conditions"`
 
