@@ -3,7 +3,8 @@ import type {Resource} from "~/store";
 import {useStore} from "~/store";
 import {filesize} from "filesize";
 import {urlBase} from "~/backend";
-import {Delete, Download, Search, Upload} from "@element-plus/icons-vue";
+import {CopyDocument, Delete, Download, Search, Upload} from "@element-plus/icons-vue";
+import ClipboardJS from 'clipboard'
 
 const store = useStore();
 
@@ -78,9 +79,14 @@ const beforeUpload = async (file: any) => { // UploadRawFile
   }
 }
 
+const copySealCode = async () => {
+  ElMessage.success('复制海豹码成功！')
+}
+
 onBeforeMount(async () => {
   loading.value = true
   await refreshResources()
+  new ClipboardJS('.resource-seal-code-copy-btn')
 })
 
 </script>
@@ -124,6 +130,12 @@ onBeforeMount(async () => {
       <el-table-column fixed="right">
         <template #default="scope">
           <el-space size="small" direction="vertical">
+            <el-button type="primary" link size="small" :icon="CopyDocument" plain
+                       v-if="scope.row.type === 'image'"
+                       class="resource-seal-code-copy-btn" :data-clipboard-text="`[图:${scope.row.path}]`"
+                       @click="copySealCode()">
+              复制海豹码
+            </el-button>
             <el-button type="primary" link size="small" :icon="Search" plain
                        @click="handleShow(scope.row)">
               详情
