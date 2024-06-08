@@ -146,7 +146,7 @@ func (r *VMResultV2m) IsCalculated() bool {
 	if r.legacy != nil {
 		return r.legacy.Parser.Calculated
 	}
-	return r.vm.IsDiceCalculateExists()
+	return r.vm.IsCalculateExists()
 }
 
 func (r *VMResultV2m) GetRestInput() string {
@@ -239,7 +239,8 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 	}
 }
 
-// DiceExprTextBase 不建议用，纯兼容旧版
+// DiceExprTextBase
+// Deprecated: 不建议用，纯兼容旧版
 func DiceExprTextBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2m, string, error) {
 	return DiceExprEvalBase(ctx, "\x1e"+s+"\x1e", flags)
 }
@@ -268,17 +269,30 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				ctx2 := *ctx
 				ctx2.vm = nil
 
+				name = ctx.SystemTemplate.GetAlias(name)
 				v, err := ctx.SystemTemplate.GetRealValue(&ctx2, name)
 				if err != nil {
 					return ds.NewNullVal()
 				}
+
+				if strings.Contains(name, ":") {
+					textTmpl := ctx.Dice.TextMap[name]
+					if textTmpl != nil {
+						if v2, err := DiceFormatV2(ctx, textTmpl.Pick().(string)); err == nil {
+							return ds.NewStrVal(v2)
+						}
+					} else {
+						return ds.NewStrVal("<%未定义值-" + name + "%>")
+					}
+				}
+
 				return v
 			}
 			return curVal
 		}
 
 		ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
-			detailResult := dataBuffer
+			detailResult := dataBuffer[:len(ctx.Matched)]
 
 			curPoint := ds.IntType(-1) //nolint
 			lastEnd := ds.IntType(-1)  //nolint
@@ -336,6 +350,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				// 主体结果部分，如 (10d3)d5=63[(10d3)d5=63=2+2+2+5+2+5+5+4+1+3+4+1+4+5+4+3+4+5+2,10d3=19]
 				detail := "[" + exprText + "=" + part1
 				if last.Text != "" && part1 != last.Text {
+					// 如果 part1 和相关文本完全相同，直接跳过
 					detail += "=" + last.Text
 				}
 				subDetailsText = ""
@@ -367,12 +382,13 @@ func DiceFormatV2(ctx *MsgContext, s string) (string, error) { //nolint:revive
 	s = CompatibleReplace(ctx, s)
 
 	// 隐藏的内置字符串符号 \x1e
-	err := ctx.vm.Run("\x1e" + s + "\x1e")
-	if err != nil || ctx.vm.Ret == nil {
+	// err := ctx.vm.Run("\x1e" + s + "\x1e")
+	v, err := ctx.vm.RunExpr("\x1e" + s + "\x1e")
+	if err != nil || v == nil {
 		fmt.Println("脚本执行出错V2f: ", s, "->", err)
 		return "", err
 	} else {
-		return ctx.vm.Ret.ToString(), nil
+		return v.ToString(), nil
 	}
 }
 

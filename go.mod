@@ -55,7 +55,7 @@ require (
 	github.com/samber/lo v1.39.0
 	github.com/schollz/progressbar/v3 v3.14.3
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
-	github.com/sealdice/dicescript v0.0.0-20240608075635-598f77d66351
+	github.com/sealdice/dicescript v0.0.0-20240608121936-655f62cd6bb0
 	github.com/slack-go/slack v0.13.0
 	github.com/sunshineplan/imgconv v1.1.4
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a

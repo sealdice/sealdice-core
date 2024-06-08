@@ -411,7 +411,7 @@ func (d *Dice) Init() {
 			if d.IsAlreadyLoadConfig {
 				count++
 				d.Save(true)
-				if count%5 == 0 {
+				if count%2 == 0 {
 					// d.Logger.Info("测试: flush wal")
 					_ = model.FlushWAL(d.DBData)
 					_ = model.FlushWAL(d.DBLogs)

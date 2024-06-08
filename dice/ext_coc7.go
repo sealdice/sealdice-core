@@ -311,9 +311,21 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				if len(restText) > 1 {
 					// 为了避免一种分支情况: .ra  b 50 测试，b和50中间的空格被消除
 					ch2 := restText[1]
-					if unicode.IsSpace(rune(ch2)) { // 暂不考虑太过奇葩的空格
+					r := rune(ch2)
+					if unicode.IsSpace(r) { // 暂不考虑太过奇葩的空格
 						replaced = true
 						restText = restText[:1] + " " + re2.ReplaceAllString(restText[2:], "$1$2")
+					} else if !(unicode.IsNumber(r) || r == '(') {
+						// 将 .rab测试 切开为 "b 测试"
+						ok := false
+						lst := []*unicode.RangeTable{unicode.L, unicode.Other_ID_Start, unicode.Nl, unicode.Mn, unicode.Mc, unicode.Nd, unicode.Pc, unicode.Other_ID_Continue}
+						for _, i := range lst {
+							ok = unicode.Is(i, r)
+							if ok {
+								restText = restText[:1] + " " + restText[1:]
+								break
+							}
+						}
 					}
 				}
 
