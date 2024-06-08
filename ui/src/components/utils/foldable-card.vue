@@ -24,7 +24,7 @@ const getCardType = (t: string) => {
   }
 }
 
-const folded = ref<boolean>(true)
+const folded = ref<boolean | undefined>(undefined)
 
 const open = () => {
   folded.value = false
@@ -36,9 +36,9 @@ const close = () => {
 
 const updateFolded = () => {
   if (props.defaultFold === 'auto') {
-    folded.value = !window.matchMedia("(min-width: 768px)").matches;
+    folded.value = folded.value ?? !window.matchMedia("(min-width: 768px)").matches;
   } else {
-    folded.value = props.defaultFold
+    folded.value = folded.value ?? props.defaultFold
   }
 }
 window.addEventListener("resize", updateFolded);
