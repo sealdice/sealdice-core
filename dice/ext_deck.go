@@ -4,6 +4,7 @@
 package dice
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1234,5 +1235,44 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 		return err
 	}
 	d.Logger.Infof("牌堆“%s”更新成功", deckInfo.Name)
+	return nil
+}
+
+func (d *Dice) DeckDownload(name string, ext string, url string, hash map[string]string) error {
+	if len(url) == 0 {
+		return fmt.Errorf("未提供下载链接")
+	}
+	statusCode, data, err := GetCloudContent([]string{url}, "")
+	if err != nil {
+		return err
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("无法获取牌堆内容")
+	}
+
+	// TODO 检查 hash
+
+	// 内容预处理
+	if isPrefixWithUtf8Bom(data) {
+		data = data[3:]
+	}
+	deck := bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
+
+	// TODO 检查签名
+
+	target := filepath.Join("data/decks", name+ext)
+	_, err = os.Stat(target)
+	if !errors.Is(err, os.ErrNotExist) {
+		d.Logger.Errorf("牌堆“%s”下载时检查到同名文件", name)
+		return fmt.Errorf("存在文件名相同的牌堆")
+	}
+	err = os.WriteFile(target, deck, 0755)
+	if err != nil {
+		d.Logger.Errorf("牌堆“%s”下载时保存文件出错，%s", name, err.Error())
+		return err
+	}
+	d.Logger.Infof("牌堆“%s”下载成功", name)
+	DeckReload(d)
+	d.MarkModified()
 	return nil
 }

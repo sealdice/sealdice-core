@@ -4,16 +4,26 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+var storeCache = make(map[string]*storeElem)
+
+type storeElemType string
+
+const (
+	storeElemTypePlugin storeElemType = "plugin"
+	storeElemTypeDeck   storeElemType = "deck"
+	storeElemTypeReply  storeElemType = "reply"
+)
+
 type storeElem struct {
+	ID        string `json:"id"` // @<namespace>/<key>@<version>, e.g. @seal/example@1.0.0
+	Key       string `json:"key"`
 	Namespace string `json:"namespace"`
-	ID        string `json:"id"`
 	Version   string `json:"version"`
-	Key       string `json:"key"` // @<namespace>/<id>@<version>, e.g. @seal/example@1.0.0
 	Installed bool   `json:"installed"`
 
-	Source string `json:"source"` // official
-	Type   string `json:"type"`   // plugin | deck | reply
-	Ext    string `json:"ext"`    // .js | .json |...
+	Source string        `json:"source"` // official
+	Type   storeElemType `json:"type"`   // plugin | deck | reply
+	Ext    string        `json:"ext"`    // .js | .json |...
 
 	Name         string            `json:"name"`
 	Authors      []string          `json:"authors"`
@@ -32,50 +42,110 @@ type storeElem struct {
 	Dependencies map[string]string `json:"dependencies"`
 }
 
-var demos = []storeElem{
-	{
-		Source:    "official",
-		Type:      "plugin",
-		Ext:       ".js",
-		Key:       "js-1",
-		Namespace: "JustAnotherID",
-		Name:      "野兽插件",
-		Authors:   []string{"JustAnotherID"},
-		Version:   "1.0.0",
-		License:   "MIT",
-		Desc:      "测试用占位插件",
-		Tags: []string{
-			"下北泽",
-			"会员制插件",
-			"逸一时误一世",
-			"逸久逸久罢已龄",
-		},
-		Rate:        5,
-		ReleaseTime: 1716867914,
-		UpdateTime:  1716867914,
-		Extra:       nil,
-		DownloadNum: 114514,
-		DownloadUrl: "",
-	},
+var demos = []storeElem{{
+	Source:      "JustAnotherID",
+	Type:        storeElemTypeDeck,
+	Ext:         ".toml",
+	ID:          "@id/toml牌堆样例@1.0.0",
+	Name:        "toml牌堆样例",
+	Version:     "1.0.0",
+	Authors:     []string{"JustAnotherID"},
+	License:     "MIT",
+	Desc:        "这是一个toml牌堆的样例",
+	ReleaseTime: 1693670400,
+	UpdateTime:  1693670400,
+	DownloadUrl: "https://ghproxy.com/https://raw.githubusercontent.com/JustAnotherID/just-another-seal-mod-repo/master/deck/toml%E7%89%8C%E5%A0%86%E6%A0%B7%E4%BE%8B.toml",
+}}
+
+func checkInstalled(exts []*storeElem) {
+	for _, ext := range exts {
+		switch ext.Type {
+		case storeElemTypeDeck:
+			ext.Installed = myDice.InstalledDecks[ext.ID]
+		case storeElemTypePlugin:
+			ext.Installed = myDice.InstalledPlugins[ext.ID]
+		}
+		if len(ext.ID) > 0 {
+			storeCache[ext.ID] = ext
+		}
+	}
 }
 
 func storeRecommend(c echo.Context) error {
+	var data []*storeElem
+	for _, ext := range demos {
+		temp := ext
+		data = append(data, &temp)
+	}
+	checkInstalled(data)
+	for _, elem := range data {
+		storeCache[elem.ID] = elem
+	}
 	return Success(&c, Response{
-		"data": demos,
+		"data": data,
 	})
 }
 
 func storeGetPage(c echo.Context) error {
+	query := struct {
+		PageNum  int    `query:"pageNum"`
+		PageSize int    `query:"pageSize"`
+		Author   string `query:"author"`
+		Name     string `query:"name"`
+		SortBy   string `query:"sortBy"`
+		Order    string `query:"order"`
+	}{}
+	_ = c.Bind(&query)
+
+	var data []*storeElem
+	for _, ext := range demos {
+		temp := ext
+		data = append(data, &temp)
+	}
+	checkInstalled(data)
+	for _, elem := range data {
+		storeCache[elem.ID] = elem
+	}
+
 	return Success(&c, Response{
-		"data":     demos,
-		"total":    2,
-		"pageNum":  1,
-		"pageSize": 2,
+		"data":     data,
+		"pageNum":  query.PageNum,
+		"pageSize": 5,
+		"next":     query.PageNum < 10,
 	})
 }
 
 func storeDownload(c echo.Context) error {
-	return Error(&c, "not implemented", Response{})
+	var params struct {
+		ID string `json:"id"`
+	}
+	err := c.Bind(&params)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	target := storeCache[params.ID]
+	if target.Installed {
+		return Error(&c, "请勿重复安装", Response{})
+	}
+	switch target.Type {
+	case storeElemTypeDeck:
+		err = myDice.DeckDownload(target.Name, target.Ext, target.DownloadUrl, target.Hash)
+		if err != nil {
+			return Error(&c, err.Error(), Response{})
+		}
+		target.Installed = true
+		return Success(&c, Response{})
+	case storeElemTypePlugin:
+		err = myDice.JsDownload(target.Name, target.DownloadUrl, target.Hash)
+		if err != nil {
+			return Error(&c, err.Error(), Response{})
+		}
+		target.Installed = true
+		return Success(&c, Response{})
+	default:
+		return Error(&c, "该类型的扩展目前不支持下载", Response{})
+	}
 }
 
 func storeRating(c echo.Context) error {

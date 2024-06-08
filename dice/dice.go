@@ -277,9 +277,9 @@ type Dice struct {
 	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 
 	/* 已安装的商店扩展。记录各扩展读取时识别到的商店ID，用于扩展商店判断是否已安装对应扩展（用 map 代替 set） */
-	InstalledJsScripts map[string]bool `yaml:"-" json:"-"`
-	InstalledDecks     map[string]bool `yaml:"-" json:"-"`
-	InstalledReplies   map[string]bool `yaml:"-" json:"-"`
+	InstalledPlugins map[string]bool `yaml:"-" json:"-"`
+	InstalledDecks   map[string]bool `yaml:"-" json:"-"`
+	InstalledReplies map[string]bool `yaml:"-" json:"-"`
 }
 
 type CensorMode int
@@ -341,7 +341,7 @@ func (d *Dice) Init() {
 	d.Cron.Start()
 
 	d.CocExtraRules = map[int]*CocRuleInfo{}
-	d.InstalledJsScripts = map[string]bool{}
+	d.InstalledPlugins = map[string]bool{}
 	d.InstalledDecks = map[string]bool{}
 	d.InstalledReplies = map[string]bool{}
 
