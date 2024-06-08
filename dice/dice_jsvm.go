@@ -646,7 +646,7 @@ func (d *Dice) jsClear() {
 	// Pinenutn: 由于切换成了其他的syncMap，所以初始化策略需要修改
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.RegisterBuiltinSystemTemplate()
-	d.InstalledJsScripts = map[string]bool{}
+	d.InstalledPlugins = map[string]bool{}
 	d.ExtLoopManager.SetLoop(nil)
 }
 
@@ -704,7 +704,7 @@ func (d *Dice) JsLoadScripts() {
 				}
 				jsInfos = append(jsInfos, jsInfo)
 				if len(jsInfo.StoreID) > 0 {
-					d.InstalledJsScripts[jsInfo.StoreID] = true
+					d.InstalledPlugins[jsInfo.StoreID] = true
 				}
 			} else {
 				d.Logger.Warnf("内置脚本「%s」校验未通过，拒绝加载", path)
@@ -732,7 +732,7 @@ func (d *Dice) JsLoadScripts() {
 			}
 			jsInfos = append(jsInfos, jsInfo)
 			if len(jsInfo.StoreID) > 0 {
-				d.InstalledJsScripts[jsInfo.StoreID] = true
+				d.InstalledPlugins[jsInfo.StoreID] = true
 			}
 		}
 		return nil
@@ -1455,4 +1455,43 @@ func parseTaskTime(taskTimeStr string) (string, error) {
 	}
 	cronExpr := fmt.Sprintf("%d %d * * *", time.Minute(), time.Hour())
 	return cronExpr, nil
+}
+
+func (d *Dice) JsDownload(name string, url string, hash map[string]string) error {
+	if len(url) == 0 {
+		return fmt.Errorf("未提供下载链接")
+	}
+	statusCode, data, err := GetCloudContent([]string{url}, "")
+	if err != nil {
+		return err
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("无法获取插件内容")
+	}
+
+	// TODO 检查 hash
+
+	// 内容预处理
+	if isPrefixWithUtf8Bom(data) {
+		data = data[3:]
+	}
+	deck := bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
+
+	// TODO 检查签名
+
+	target := filepath.Join(d.BaseConfig.DataDir, "scripts", name+".js")
+	_, err = os.Stat(target)
+	if !errors.Is(err, os.ErrNotExist) {
+		d.Logger.Errorf("JS 插件“%s”下载时检查到同名文件", name)
+		return fmt.Errorf("存在文件名相同的 JS 插件")
+	}
+	err = os.WriteFile(target, deck, 0755)
+	if err != nil {
+		d.Logger.Errorf("JS 插件“%s”下载时保存文件出错，%s", name, err.Error())
+		return err
+	}
+	d.Logger.Infof("JS 插件“%s”下载成功", name)
+	d.JsReload()
+	d.MarkModified()
+	return nil
 }
