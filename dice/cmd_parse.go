@@ -8,9 +8,9 @@ import (
 	"strings"
 	"unicode"
 
-	"sealdice-core/message"
-
 	ds "github.com/sealdice/dicescript"
+
+	"sealdice-core/message"
 )
 
 type Kwarg struct {

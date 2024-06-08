@@ -102,10 +102,12 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 	return ret
 }
 
-func (ctx *MsgContext) Eval(expr string, flags ds.RollConfig) *VMResultV2 {
+func (ctx *MsgContext) Eval(expr string, flags *ds.RollConfig) *VMResultV2 {
 	ctx.CreateVmIfNotExists()
 	vm := ctx.vm
-	vm.Config = flags
+	if flags != nil {
+		vm.Config = *flags
+	}
 	err := vm.Run(expr)
 
 	if err != nil {
@@ -115,7 +117,7 @@ func (ctx *MsgContext) Eval(expr string, flags ds.RollConfig) *VMResultV2 {
 }
 
 // EvalFString TODO: 这个名字得换一个
-func (ctx *MsgContext) EvalFString(expr string, flags ds.RollConfig) *VMResultV2 {
+func (ctx *MsgContext) EvalFString(expr string, flags *ds.RollConfig) *VMResultV2 {
 	expr = CompatibleReplace(ctx, expr)
 
 	// 隐藏的内置字符串符号 \x1e
@@ -182,7 +184,8 @@ func (r *VMResultV2m) ToString() string {
 	return r.VMValue.ToString()
 }
 
-// DiceExprEvalBase 不建议用，纯兼容旧版
+// DiceExprEvalBase 向下兼容执行，首先尝试使用V2执行表达式，如果V2失败，fallback到V1
+// Deprecated: 不建议用，纯兼容旧版
 func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2m, string, error) {
 	ctx.CreateVmIfNotExists()
 	vm := ctx.vm
@@ -261,7 +264,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
 			if curVal == nil {
 				// 从模板取值，模板中的设定是如果取不到获得0
-				// TODO: ctx2为临时方法
+				// TODO: 目前没有好的方法去复制ctx，实际上这个行为应当类似于ds中的函数调用
 				ctx2 := *ctx
 				ctx2.vm = nil
 

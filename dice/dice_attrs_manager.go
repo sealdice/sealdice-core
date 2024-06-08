@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	ds "github.com/sealdice/dicescript"
+	"go.uber.org/zap"
 
 	"sealdice-core/dice/model"
-
-	ds "github.com/sealdice/dicescript"
 )
 
 type AttrsManager struct {
-	parent *Dice
+	db     *sqlx.DB
+	logger *zap.SugaredLogger
 	m      SyncMap[string, *AttributesItem]
 }
 
@@ -37,7 +38,7 @@ func (am *AttrsManager) Load(groupId string, userId string) (*AttributesItem, er
 
 	//	1. 首先获取当前群+用户所绑定的卡
 	// 绑定卡的id是nanoid
-	id, err := model.AttrsGetBindingSheetIdByGroupId(am.parent.DBData, gid)
+	id, err := model.AttrsGetBindingSheetIdByGroupId(am.db, gid)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +58,7 @@ func (am *AttrsManager) UIDConvert(userId string) string {
 
 func (am *AttrsManager) GetCharacterList(userId string) ([]*model.AttributesItemModel, error) {
 	userId = am.UIDConvert(userId)
-	lst, err := model.AttrsGetCharacterListByUserId(am.parent.DBData, userId)
+	lst, err := model.AttrsGetCharacterListByUserId(am.db, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +74,7 @@ func (am *AttrsManager) CharNew(userId string, name string, sheetType string) (*
 		return nil, err
 	}
 
-	return model.AttrsNewItem(am.parent.DBData, &model.AttributesItemModel{
+	return model.AttrsNewItem(am.db, &model.AttributesItemModel{
 		Name:      name,
 		OwnerId:   userId,
 		AttrsType: "character",
@@ -83,7 +84,7 @@ func (am *AttrsManager) CharNew(userId string, name string, sheetType string) (*
 }
 
 func (am *AttrsManager) CharDelete(id string) error {
-	if err := model.AttrsDeleteById(am.parent.DBData, id); err != nil {
+	if err := model.AttrsDeleteById(am.db, id); err != nil {
 		return err
 	}
 	// 从缓存中删除
@@ -105,8 +106,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 	}
 
 	// 2. 从新数据库加载
-	d := am.parent
-	data, err := model.AttrsGetById(d.DBData, id)
+	data, err := model.AttrsGetById(am.db, id)
 	if err == nil {
 		if data.IsDataExists() {
 			var v *ds.VMValue
@@ -171,7 +171,9 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 	return i, nil
 }
 
-func (am *AttrsManager) Init() {
+func (am *AttrsManager) Init(d *Dice) {
+	am.db = d.DBData
+	am.logger = d.Logger
 	go func() {
 		for {
 			// fmt.Println(am.CheckForSave())
@@ -186,8 +188,7 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 	times := 0
 	saved := 0
 
-	dice := am.parent
-	db := am.parent.DBData
+	db := am.db
 	if db == nil {
 		// 尚未初始化
 		return 0, 0
@@ -195,7 +196,7 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 
 	tx, err := db.Begin()
 	if err != nil {
-		dice.Logger.Errorf("定期写入用户数据出错(创建事务): %v", err)
+		am.logger.Errorf("定期写入用户数据出错(创建事务): %v", err)
 		return 0, 0
 	}
 
@@ -210,7 +211,7 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 
 	err = tx.Commit()
 	if err != nil {
-		dice.Logger.Errorf("定期写入用户数据出错(提交事务): %v", err)
+		am.logger.Errorf("定期写入用户数据出错(提交事务): %v", err)
 		_ = tx.Rollback()
 		return times, 0
 	}
@@ -219,7 +220,7 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 
 // CheckAndFreeUnused 此函数会被定期调用，释放最近不用的对象
 func (am *AttrsManager) CheckAndFreeUnused() {
-	db := am.parent.DBData
+	db := am.db
 	if db == nil {
 		// 尚未初始化
 		return
@@ -230,7 +231,7 @@ func (am *AttrsManager) CheckAndFreeUnused() {
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if value.LastUsedTime-currentTime > 60*10 {
 			prepareToFree[key] = 1
-			value.SaveToDB(am.parent.DBData, nil)
+			value.SaveToDB(am.db, nil)
 		}
 		return true
 	})
@@ -243,28 +244,28 @@ func (am *AttrsManager) CheckAndFreeUnused() {
 func (am *AttrsManager) CharBind(charId string, groupId string, userId string) error {
 	userId = am.UIDConvert(userId)
 	id := fmt.Sprintf("%s-%s", groupId, userId)
-	return model.AttrsBindCharacter(am.parent.DBData, charId, id)
+	return model.AttrsBindCharacter(am.db, charId, id)
 }
 
 // CharGetBindingId 获取当前群绑定的角色ID
 func (am *AttrsManager) CharGetBindingId(groupId string, userId string) (string, error) {
 	userId = am.UIDConvert(userId)
 	id := fmt.Sprintf("%s-%s", groupId, userId)
-	return model.AttrsGetBindingSheetIdByGroupId(am.parent.DBData, id)
+	return model.AttrsGetBindingSheetIdByGroupId(am.db, id)
 }
 
 func (am *AttrsManager) CharIdGetByName(userId string, name string) (string, error) {
-	return model.AttrsGetIdByUidAndName(am.parent.DBData, userId, name)
+	return model.AttrsGetIdByUidAndName(am.db, userId, name)
 }
 
 func (am *AttrsManager) CharCheckExists(name string, groupId string) bool {
 	// TODO: xxxx
-	// model.AttrsCharCheckExists(am.parent.DBData, name, id)
+	// model.AttrsCharCheckExists(am.db, name, id)
 	return false
 }
 
 func (am *AttrsManager) CharGetBindingGroupIdList(id string) []string {
-	all, err := model.AttrsCharGetBindingList(am.parent.DBData, id)
+	all, err := model.AttrsCharGetBindingList(am.db, id)
 	if err != nil {
 		return []string{}
 	}
@@ -282,7 +283,7 @@ func (am *AttrsManager) CharGetBindingGroupIdList(id string) []string {
 
 func (am *AttrsManager) CharUnbindAll(id string) []string {
 	all := am.CharGetBindingGroupIdList(id)
-	_, err := model.AttrsCharUnbindAll(am.parent.DBData, id)
+	_, err := model.AttrsCharUnbindAll(am.db, id)
 	if err != nil {
 		return []string{}
 	}
@@ -343,7 +344,7 @@ func (i *AttributesItem) Store(name string, value *ds.VMValue) {
 }
 
 func (i *AttributesItem) toDict() *ds.VMDictValue {
-	// 这里有一个风险，就是对dict的改动可能不会影响修改时间和使用时间，从而被丢弃
+	// 不建议直接修改转换出来的vmDict，如果你没有手动更新写入时间，那么不会落盘
 	return ds.NewDictVal(i.valueMap)
 }
 

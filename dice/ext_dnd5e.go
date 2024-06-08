@@ -1006,17 +1006,18 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			var ss []string
 			for i = 0; i < val; i++ {
 				if isMode2 {
-					result, _, err := self._ExprTextV1(`力量:{$t1=4d6k3} 体质:{$t2=4d6k3} 敏捷:{$t3=4d6k3} 智力:{$t4=4d6k3} 感知:{$t5=4d6k3} 魅力:{$t6=4d6k3} 共计:{$tT=$t1+$t2+$t3+$t4+$t5+$t6}`, ctx)
-					if err != nil {
+					r := ctx.EvalFString(`力量:{$t1=4d6k3} 体质:{$t2=4d6k3} 敏捷:{$t3=4d6k3} 智力:{$t4=4d6k3} 感知:{$t5=4d6k3} 魅力:{$t6=4d6k3} 共计:{$tT=$t1+$t2+$t3+$t4+$t5+$t6}`, nil)
+					if r.vm.Error != nil {
 						break
 					}
-					result = strings.ReplaceAll(result, `\n`, "\n")
+					result := r.ToString() + "\n"
 					ss = append(ss, result)
 				} else {
-					result, _, err := self._ExprTextV1(`{4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}`, ctx)
-					if err != nil {
+					r := ctx.EvalFString(`{4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}, {4d6k3}`, nil)
+					if r.vm.Error != nil {
 						break
 					}
+					result := r.ToString()
 
 					var nums Int64SliceDesc
 					total := int64(0)
@@ -1032,7 +1033,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						items = append(items, strconv.FormatInt(i, 10))
 					}
 
-					ret := fmt.Sprintf("[%s] = %d", strings.Join(items, ", "), total)
+					ret := fmt.Sprintf("[%s] = %d\n", strings.Join(items, ", "), total)
 					ss = append(ss, ret)
 				}
 			}

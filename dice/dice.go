@@ -335,9 +335,6 @@ func (d *Dice) Init() {
 	d.Cron = cron.New()
 	d.Cron.Start()
 
-	d.AttrsManager = &AttrsManager{parent: d}
-	d.AttrsManager.Init()
-
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 
 	var err error
@@ -346,6 +343,9 @@ func (d *Dice) Init() {
 		// TODO:
 		fmt.Println(err)
 	}
+
+	d.AttrsManager = &AttrsManager{}
+	d.AttrsManager.Init(d)
 
 	log := logger.Init(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
 	d.Logger = log.Logger
@@ -566,10 +566,6 @@ func (d *Dice) _ExprEvalBaseV1(buffer string, ctx *MsgContext, flags RollExtraFl
 		return &ret, detail, nil
 	}
 	return nil, "", err
-}
-
-func (d *Dice) _ExprEvalV1(buffer string, ctx *MsgContext) (*VMResult, string, error) {
-	return d._ExprEvalBaseV1(buffer, ctx, RollExtraFlags{})
 }
 
 func (d *Dice) _ExprTextBaseV1(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {

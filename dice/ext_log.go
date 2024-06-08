@@ -10,14 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"sealdice-core/dice/model"
-	"sealdice-core/dice/storylog"
-	"sealdice-core/utils"
-
 	"github.com/golang-module/carbon"
 	"go.uber.org/zap"
 
-	ds "github.com/sealdice/dicescript"
+	"sealdice-core/dice/model"
+	"sealdice-core/dice/storylog"
+	"sealdice-core/utils"
 )
 
 var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
@@ -25,7 +23,7 @@ var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 
-	v := ctx.EvalFString(tmpl, ds.RollConfig{})
+	v := ctx.EvalFString(tmpl, nil)
 	if v.vm.Error != nil {
 		ctx.Dice.Logger.Infof("SN指令模板错误: %v", v.vm.Error.Error())
 		return "", v.vm.Error
