@@ -82,7 +82,7 @@ func signModFile(root, privateKey string, path, name string, signStrTmpl string)
 	newData := []byte(fmt.Sprintln(signStrTmpl+sign) + string(data))
 	target := filepath.Join(dir, name)
 	if filepath.Ext(target) == ".json" {
-		target = target + "c" // json 转为 jsonc
+		target += "c" // json 转为 jsonc
 	}
 	err = os.WriteFile(target, newData, 0644)
 	if err != nil {

@@ -15,6 +15,8 @@ func checkInstalled(exts []*dice.StoreExt) {
 			ext.Installed = myDice.InstalledDecks[ext.ID]
 		case dice.StoreExtTypePlugin:
 			ext.Installed = myDice.InstalledPlugins[ext.ID]
+		default:
+			// pass
 		}
 		if len(ext.ID) > 0 {
 			storeCache[ext.ID] = ext

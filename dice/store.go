@@ -74,9 +74,7 @@ func (d *Dice) getRecommendFromBackend(backend string) ([]*StoreExt, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	defer resp.Body.Close()
 
 	respData, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -162,9 +160,7 @@ func (d *Dice) getStorePageFromBackend(backend string, params StoreQueryPagePara
 	if err != nil {
 		return nil, err
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	defer resp.Body.Close()
 
 	respData, err := io.ReadAll(resp.Body)
 	if err != nil {
