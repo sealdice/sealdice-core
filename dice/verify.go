@@ -36,8 +36,8 @@ type payload struct {
 }
 
 type data struct {
-	Payload payload `msgpack:"payload,omitempty"`
-	Sign    []byte  `msgpack:"sign,omitempty"`
+	Payload []byte `msgpack:"payload,omitempty"`
+	Sign    []byte `msgpack:"sign,omitempty"`
 }
 
 // GenerateVerificationCode 生成海豹校验码
@@ -60,13 +60,13 @@ func GenerateVerificationCode(platform string, userID string, username string, u
 	}
 
 	d := data{
-		Payload: p,
+		Payload: pp,
 		Sign:    sign,
 	}
 	dp, _ := msgpack.Marshal(d)
 	if useBase64 {
-		return fmt.Sprintf("SEAL-%s", base64.StdEncoding.EncodeToString(dp))
+		return fmt.Sprintf("SEAL#%s", base64.StdEncoding.EncodeToString(dp))
 	} else {
-		return fmt.Sprintf("SEAL%s", base2048.DefaultEncoding.EncodeToString(dp))
+		return fmt.Sprintf("SEAL%%%s", base2048.DefaultEncoding.EncodeToString(dp))
 	}
 }
