@@ -18,10 +18,10 @@ declare module 'vue' {
     NLayoutContent: typeof import('naive-ui')['NLayoutContent']
     NLayoutHeader: typeof import('naive-ui')['NLayoutHeader']
     NSwitch: typeof import('naive-ui')['NSwitch']
+    NTag: typeof import('naive-ui')['NTag']
     NText: typeof import('naive-ui')['NText']
     VerifyControl: typeof import('./src/components/VerifyControl.vue')['default']
     VerifyHeader: typeof import('./src/components/VerifyHeader.vue')['default']
     VerifyInput: typeof import('./src/components/VerifyInput.vue')['default']
-    VerigyControl: typeof import('@/components/VerifyControl.vue')['default']
   }
 }

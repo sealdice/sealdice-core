@@ -284,6 +284,8 @@
     "watchTriggerable": true,
     "watchWithFilter": true,
     "whenever": true,
-    "types": true
+    "types": true,
+    "decode": true,
+    "encode": true
   }
 }

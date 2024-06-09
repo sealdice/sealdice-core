@@ -15,12 +15,18 @@
   },
   "dependencies": {
     "@vueuse/core": "^10.10.0",
+    "dayjs": "^1.11.11",
+    "jsrsasign": "^11.1.0",
+    "msgpack-lite": "^0.1.26",
     "vue": "^3.4.21"
   },
   "devDependencies": {
     "@iconify-json/carbon": "^1.1.33",
     "@rushstack/eslint-patch": "^1.8.0",
     "@tsconfig/node20": "^20.1.4",
+    "@types/jsrsasign": "^10.5.14",
+    "@types/lodash-es": "^4.17.12",
+    "@types/msgpack-lite": "^0.1.11",
     "@types/node": "^20.12.5",
     "@vitejs/plugin-legacy": "^5.4.0",
     "@vitejs/plugin-vue": "^5.0.4",
