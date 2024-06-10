@@ -7,6 +7,8 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ICarbonCheckmarkFilled: typeof import('~icons/carbon/checkmark-filled')['default']
+    ICarbonErrorFilled: typeof import('~icons/carbon/error-filled')['default']
     ICarbonMoon: typeof import('~icons/carbon/moon')['default']
     ICarbonSun: typeof import('~icons/carbon/sun')['default']
     MainPage: typeof import('./src/pages/MainPage.vue')['default']

@@ -103,7 +103,10 @@ const verify = async () => {
   <n-flex v-if="result" vertical align="center"
           class="mt-8 text-base">
     <template v-if="result.success">
-      <n-text type="success" class="my-4 text-xl">校验通过</n-text>
+      <n-text type="success" class="my-4 text-xl flex items-center gap-2">
+        <n-icon size="32"><i-carbon-checkmark-filled/></n-icon>
+        校验通过
+      </n-text>
 
       <div class="max-w-xl">
         <n-text class="break-all">由 &lt;{{ result.username }}&gt;({{ result.uid }}) 于 {{ result.platform }} 生成</n-text>
@@ -122,7 +125,10 @@ const verify = async () => {
       </n-flex>
     </template>
     <template v-else>
-      <n-text type="error" class="text-lg">校验失败！{{ result.err }}</n-text>
+      <n-text type="error" class="text-lg flex items-center gap-2">
+        <n-icon size="32"><i-carbon-error-filled/></n-icon>
+        校验失败！{{ result.err }}
+      </n-text>
     </template>
   </n-flex>
 </template>
