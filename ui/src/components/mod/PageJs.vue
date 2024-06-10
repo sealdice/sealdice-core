@@ -40,12 +40,16 @@
                 :before-upload="beforeUpload" :file-list="uploadFileList">
                 <el-button type="primary" :icon="Upload">上传插件</el-button>
               </el-upload>
-              <el-button type="info" :icon="Search" size="small" link tag="a" target="_blank"
+              <el-input v-model="jsFilter" :prefix-icon="Search" size="small" clearable/>
+              <el-button type="info" :icon="Link" size="small" link tag="a" target="_blank"
                 style="text-decoration: none;" href="https://github.com/sealdice/javascript">获取插件</el-button>
             </el-space>
           </header>
+          <aside v-if="jsFilterCount > 0" class="mb-4">
+            <el-text size="small" type="info">已过滤 {{ jsFilterCount }} 条</el-text>
+          </aside>
           <main class="js-list-main">
-            <foldable-card class="js-item" v-for="(i, index) of jsList" :key="index"
+            <foldable-card class="js-item" v-for="(i, index) of filteredJsList" :key="index"
                            :err-title="i.filename" :err-text="i.errText">
               <template #title>
                 <el-space class="js-item-header">
@@ -314,6 +318,7 @@ import {
   DeleteFilled,
   DocumentChecked,
   Download,
+  Link,
   Refresh,
   Search,
   Upload
@@ -495,6 +500,17 @@ onBeforeUnmount(() => {
 
 
 const jsList = ref<JsScriptInfo[]>([]);
+const jsFilter = ref<string>('')
+const jsFilterCount = computed(() => jsList.value.length - filteredJsList.value.length)
+const filteredJsList = computed(() => jsList.value.filter((js) => {
+  if (jsFilter.value === '') {
+    return true
+  }
+  const val = jsFilter.value.toLowerCase();
+  return js.name?.toLowerCase()?.includes(val)
+      || js.desc?.toLowerCase()?.includes(val)
+      || js.author?.toLowerCase()?.includes(val)
+}))
 const jsConfig = ref<Map<string, JsPluginConfig>>(new Map<string, JsPluginConfig>());
 const uploadFileList = ref<any[]>([]);
 

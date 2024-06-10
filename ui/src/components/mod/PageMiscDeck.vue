@@ -10,7 +10,8 @@
           <el-upload class="upload" action="" multiple :before-upload="beforeUpload" :file-list="fileList">
             <el-button type="primary" :icon="Upload">上传牌堆</el-button>
           </el-upload>
-          <el-button class="link-button" type="info" :icon="Search" size="small" link tag="a" target="_blank"
+          <el-input v-model="filter" :prefix-icon="Search" size="small" clearable/>
+          <el-button class="link-button" type="info" :icon="Link" size="small" link tag="a" target="_blank"
             href="https://github.com/sealdice/draw">获取牌堆</el-button>
         </el-space>
         <el-space>
@@ -26,8 +27,11 @@
           </el-tooltip>
         </el-space>
       </header>
+      <aside v-if="filterCount > 0" class="mb-4">
+        <el-text size="small" type="info">已过滤 {{ filterCount }} 条</el-text>
+      </aside>
       <main class="deck-list-main">
-        <foldable-card class="deck-item" v-for="(i, index) in data" :key="index"
+        <foldable-card class="deck-item" v-for="(i, index) in filtered" :key="index"
                        :err-title="i.filename" :err-text="i.errText">
           <template #title>
             <el-space size="small" alignment="center">
@@ -113,18 +117,32 @@ import {
   Download,
   Refresh,
   Search,
+  Link,
   Delete,
   MostlyCloudy,
   DocumentChecked,
   Warning,
-  CircleClose,
 } from '@element-plus/icons-vue'
 
 const store = useStore()
 
 const mode = ref<string>('list')
 
+const filter = ref<string>('')
+const filterCount = computed(() => data.value.length - filtered.value.length)
 const data = ref<any[]>([])
+const filtered = computed(() => data.value.filter((deck) => {
+  if (filter.value === '') {
+    return true
+  }
+  const val = filter.value.toLowerCase();
+  return deck.name?.toLowerCase()?.includes(val)
+      || deck.desc?.toLowerCase()?.includes(val)
+      || deck.author?.toLowerCase()?.includes(val)
+      || Object.keys(deck.command)
+          .map(tag => tag?.toLowerCase()?.includes(val))
+          .includes(true);
+}))
 
 const cfg = ref<any>({})
 
