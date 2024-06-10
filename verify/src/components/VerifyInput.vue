@@ -105,7 +105,9 @@ const verify = async () => {
     <template v-if="result.success">
       <n-text type="success" class="my-4 text-xl">校验通过</n-text>
 
-      <n-text>由 &lt;{{ result.username }}&gt;({{ result.uid }}) 于 {{ result.platform }} 生成</n-text>
+      <div class="max-w-xl">
+        <n-text class="break-all">由 &lt;{{ result.username }}&gt;({{ result.uid }}) 于 {{ result.platform }} 生成</n-text>
+      </div>
 
       <n-flex justify="center" align="center">
         <n-text>
