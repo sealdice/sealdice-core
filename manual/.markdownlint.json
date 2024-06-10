@@ -9,7 +9,8 @@
     "allowed_elements": [
       "Badge",
       "ChatBox",
-      "img"
+      "img",
+      "br"
     ]
   },
   "MD051": false,
