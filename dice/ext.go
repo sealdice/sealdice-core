@@ -196,9 +196,11 @@ func (i *ExtInfo) StorageGet(k string) (string, error) {
 	return val, err
 }
 
-func (i *ExtInfo) TryLock(k string) bool {
-	i.lockMu.Lock()
-	defer i.lockMu.Unlock()
+func (i *ExtInfo) TryRegisterLock(k string) bool {
+	if ok := i.lockRWMu.TryLock(); !ok {
+		return false
+	}
+	defer i.lockRWMu.Unlock()
 
 	if i.locks == nil {
 		i.locks = make(map[string]*sync.Mutex)
@@ -208,29 +210,30 @@ func (i *ExtInfo) TryLock(k string) bool {
 		i.locks[k] = &sync.Mutex{}
 	}
 
-	res := i.locks[k].TryLock()
-	if res {
-		i.dice.Logger.Debugf("[扩展]：%s 成功获取锁 %s", i.Name, k)
-	} else {
-		i.dice.Logger.Debugf("[扩展]：%s 未能获取锁 %s", i.Name, k)
-	}
-
-	return res
+	return true
 }
 
-func (i *ExtInfo) Unlock(k string) error {
-	i.lockMu.Lock()
-	defer i.lockMu.Unlock()
+func (i *ExtInfo) TryRunLocked(k string, f func()) bool {
+	if ok := i.lockRWMu.TryRLock(); !ok {
+		return false
+	}
+	defer i.lockRWMu.RUnlock()
 
 	if i.locks == nil {
-		return fmt.Errorf("[扩展]：%s 试图释放的锁 %s 不存在", i.Name, k)
+		i.dice.Logger.Debugf("[扩展]：%s 试图获取的锁 %s 不存在", i.Name, k)
+		return false
 	}
 	if _, ok := i.locks[k]; !ok {
-		return fmt.Errorf("[扩展]：%s 试图释放的锁 %s 不存在", i.Name, k)
+		i.dice.Logger.Debugf("[扩展]：%s 试图获取的锁 %s 不存在", i.Name, k)
+		return false
 	}
 
-	i.locks[k].Unlock()
-	i.dice.Logger.Debugf("[扩展]：%s 成功释放锁 %s", i.Name, k)
+	if ok := i.locks[k].TryLock(); !ok {
+		return false
+	}
+	defer i.locks[k].Unlock()
 
-	return nil
+	f()
+
+	return true
 }
