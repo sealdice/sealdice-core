@@ -13,6 +13,7 @@
   "type": "module",
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.2",
+    "@vitejs/plugin-vue-jsx": "^4.0.0",
     "@vueuse/core": "^10.10.0",
     "asmcrypto.js": "^2.3.2",
     "axios": "^1.7.2",
