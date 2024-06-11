@@ -338,12 +338,8 @@ github.com/schollz/progressbar/v3 v3.14.3 h1:oOuWW19ka12wxYU1XblR4n16wF/2Y1dBLMa
 github.com/schollz/progressbar/v3 v3.14.3/go.mod h1:aT3UQ7yGm+2ZjeXPqsjTenwL3ddUiuZ0kfQ/2tHlyNI=
 github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 h1:s/jzCGYlM/0+TYTXwva5574EFnIv/ggPCoXHFpdbSUw=
 github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083/go.mod h1:MGtR0REQDslBwQE+Rln4P9iDjH/ZInlu5qzOLdvBWJU=
-github.com/sealdice/dicescript v0.0.0-20240608024647-2c3b99370876 h1:SInRHF5tQR9lxLvYFq5eVg8IjqSMFdfM5aSbvJrljLk=
-github.com/sealdice/dicescript v0.0.0-20240608024647-2c3b99370876/go.mod h1:uof752qJvEQ4Kze+NVag+RKGgj5C4K3kMHoK3e2vOLg=
-github.com/sealdice/dicescript v0.0.0-20240608075635-598f77d66351 h1:iB9AXkqExz+EuKfsM0r3pPrtRlT5JLjYSqM6op39w3M=
-github.com/sealdice/dicescript v0.0.0-20240608075635-598f77d66351/go.mod h1:uof752qJvEQ4Kze+NVag+RKGgj5C4K3kMHoK3e2vOLg=
-github.com/sealdice/dicescript v0.0.0-20240608121936-655f62cd6bb0 h1:R2WgWG8j5aiqvFReJdE3oAR6ObnatQ9FUQiSnjEGlss=
-github.com/sealdice/dicescript v0.0.0-20240608121936-655f62cd6bb0/go.mod h1:uof752qJvEQ4Kze+NVag+RKGgj5C4K3kMHoK3e2vOLg=
+github.com/sealdice/dicescript v0.0.0-20240611074000-942ef9341eb4 h1:Z2/sLY/jgDsfBILTV58mk6vXxpdWeAtuvsaaX2RolnQ=
+github.com/sealdice/dicescript v0.0.0-20240611074000-942ef9341eb4/go.mod h1:uof752qJvEQ4Kze+NVag+RKGgj5C4K3kMHoK3e2vOLg=
 github.com/sealdice/kook v0.0.3 h1:STMtiKRMFjhSFmUxi0BU5ktNkCQ8qi7Y5EEfrmYKvWY=
 github.com/sealdice/kook v0.0.3/go.mod h1:WjHC7AmbmNjInT/U/etBVOmAw7T6EqdCwApceRGs1sk=
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=

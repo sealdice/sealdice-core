@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/samber/lo"
 	ds "github.com/sealdice/dicescript"
 )
 
@@ -22,7 +23,7 @@ func (v *VMValue) ConvertToV2() *ds.VMValue {
 		oldCD := v.Value.(*VMDndComputedValueData)
 		m := &ds.ValueMap{}
 		base := oldCD.BaseValue.ConvertToV2()
-		if base.TypeId == ds.VMTypeUndefined {
+		if base.TypeId == ds.VMTypeNull {
 			base = ds.NewIntVal(0)
 		}
 		m.Store("base", base)
@@ -192,35 +193,14 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 	vm.Ret = nil
 	vm.Error = nil
 
-	s = CompatibleReplace(ctx, s)
-
 	vm.Config.DisableStmts = flags.DisableBlock
 	vm.Config.IgnoreDiv0 = flags.IgnoreDiv0
 
 	var cocFlagVarPrefix string
 	if flags.CocVarNumberMode {
-		vm.Config.CallbackLoadVar = func(name string) (string, *ds.VMValue) {
-			re := regexp.MustCompile(`^(困难|极难|大成功|常规|失败|困難|極難|常規|失敗)?([^\d]+)(\d+)?$`)
-			m := re.FindStringSubmatch(name)
-
-			if len(m) > 0 {
-				if m[1] != "" {
-					cocFlagVarPrefix = chsS2T.Read(m[1])
-					name = name[len(m[1]):]
-				}
-
-				if !strings.HasPrefix(name, "$") {
-					// 有末值时覆盖，有初值时
-					if m[3] != "" {
-						v, _ := strconv.ParseInt(m[3], 10, 64)
-						// fmt.Println("COC值:", name, cocFlagVarPrefix)
-						return name, ds.NewIntVal(ds.IntType(v))
-					}
-				}
-			}
-
-			return name, nil
-		}
+		ctx.setCocPrefixReadForVM(func(val string) {
+			cocFlagVarPrefix = val
+		})
 	}
 
 	err := ctx.vm.Run(s)
@@ -251,8 +231,35 @@ func (a spanByEnd) Len() int           { return len(a) }
 func (a spanByEnd) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a spanByEnd) Less(i, j int) bool { return a[i].End < a[j].End }
 
+func (ctx *MsgContext) setCocPrefixReadForVM(cb func(cocFlagVarPrefix string)) {
+	ctx.vm.Config.HookFuncValueLoad = func(name string) (string, *ds.VMValue) {
+		re := regexp.MustCompile(`^(困难|极难|大成功|常规|失败|困難|極難|常規|失敗)?([^\d]+)(\d+)?$`)
+		m := re.FindStringSubmatch(name)
+
+		if len(m) > 0 {
+			if m[1] != "" {
+				if cb != nil {
+					cb(chsS2T.Read(m[1]))
+				}
+				name = name[len(m[1]):]
+			}
+
+			if !strings.HasPrefix(name, "$") {
+				// 有末值时覆盖，有初值时
+				if m[3] != "" {
+					v, _ := strconv.ParseInt(m[3], 10, 64)
+					// fmt.Println("COC值:", name, cocFlagVarPrefix)
+					return name, ds.NewIntVal(ds.IntType(v))
+				}
+			}
+		}
+
+		return name, nil
+	}
+}
+
 func (ctx *MsgContext) CreateVmIfNotExists() {
-	if ctx.vm == nil {
+	if ctx.vm == nil { //nolint:nestif
 		// 初始化骰子
 		ctx.vm = ds.NewVM()
 
@@ -262,8 +269,54 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		ctx.vm.Config.EnableDiceFate = true
 		ctx.vm.Config.EnableDiceDoubleCross = true
 
+		am := ctx.Dice.AttrsManager
+		ctx.vm.Config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
+			// 临时变量，直接忽略
+			// 个人变量
+			if strings.HasPrefix(name, "$m") {
+				if ctx.Session != nil && ctx.Player != nil {
+					playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
+					playerAttrs.Store(name, v)
+				}
+				return nil, true
+			}
+
+			// 群变量
+			if ctx.Group != nil && strings.HasPrefix(name, "$g") {
+				groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
+				groupAttrs.Store(name, v)
+				return nil, true
+			}
+			return nil, false
+		}
+
 		ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
 			if curVal == nil {
+				if strings.HasPrefix(name, "$") {
+					am := ctx.Dice.AttrsManager
+					// 个人变量
+					if strings.HasPrefix(name, "$m") {
+						if ctx.Session != nil && ctx.Player != nil {
+							playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
+							v := playerAttrs.Load(name)
+							if v == nil {
+								return ds.NewIntVal(0)
+							}
+							return v
+						}
+					}
+
+					// 群变量
+					if ctx.Group != nil && strings.HasPrefix(name, "$g") {
+						groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
+						v := groupAttrs.Load(name)
+						if v == nil {
+							return ds.NewIntVal(0)
+						}
+						return v
+					}
+				}
+
 				// 从模板取值，模板中的设定是如果取不到获得0
 				// TODO: 目前没有好的方法去复制ctx，实际上这个行为应当类似于ds中的函数调用
 				ctx2 := *ctx
@@ -378,6 +431,7 @@ func DiceFormatV2(ctx *MsgContext, s string) (string, error) { //nolint:revive
 	ctx.CreateVmIfNotExists()
 	ctx.vm.Ret = nil
 	ctx.vm.Error = nil
+	ctx.vm.Config.DisableStmts = false
 
 	s = CompatibleReplace(ctx, s)
 

@@ -485,10 +485,9 @@ func CheckDialErr(err error) syscall.Errno {
 // CreateTempCtx 制作ctx，需要msg.MessageType和msg.Sender.UserId，以及ep.Session
 func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 	session := ep.Session
-
-	if msg.Sender.UserID == "" {
-		return nil
-	}
+	// if msg.Sender.UserID == "" {
+	//	return nil
+	// }
 
 	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: session, Dice: session.Parent}
 
@@ -513,7 +512,8 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 		}
 		SetTempVars(ctx, ctx.Player.Name)
 	default:
-		return nil
+		SetTempVars(ctx, ctx.Player.Name)
+		return ctx
 	}
 
 	return ctx

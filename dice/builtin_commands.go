@@ -1726,13 +1726,14 @@ func (d *Dice) registerCoreCommands() {
 		".pc tag <角色名> | <角色序号> // 当前群绑卡/解除绑卡(不填角色名)\n" +
 		".pc untagAll <角色名> | <角色序号> // 全部群解绑\n" +
 		".pc list // 列出当前角色和序号\n" +
+		".pc rename <角色名> <新角色名>\n" +
 		// ".ch group // 列出各群当前绑卡\n" +
 		".pc save <角色名> // [不绑卡]保存角色，角色名可省略\n" +
 		".pc load <角色名> | <角色序号> // [不绑卡]加载角色\n" +
 		".pc del/rm <角色名> | <角色序号> // 删除角色 角色序号可用pc list查询\n" +
 		"> 注: 海豹各群数据独立(多张空白卡)，单群游戏不需要存角色。"
 
-	cmdFoxChar := &CmdItemInfo{
+	cmdChar := &CmdItemInfo{
 		Name:      "fch",
 		ShortHelp: helpCh,
 		Help:      "角色管理:\n" + helpCh,
@@ -1744,27 +1745,39 @@ func (d *Dice) registerCoreCommands() {
 			defer func() {
 				if err, ok := recover().(error); ok {
 					ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+					result = CmdExecuteResult{Matched: true, Solved: true}
 				}
-				result = CmdExecuteResult{Matched: true, Solved: true}
 			}()
 
-			getNicknameRaw := func(usePlayerName bool) string {
+			getNicknameRaw := func(usePlayerName bool, tryIndex bool) string {
 				// name := cmdArgs.GetArgN(2)
 				name := cmdArgs.CleanArgsChopRest
+
+				if tryIndex {
+					index, err := strconv.ParseInt(name, 10, 64)
+					if err == nil && index > 0 {
+						items, _ := am.GetCharacterList(ctx.Player.UserID)
+						if index <= int64(len(items)) {
+							item := items[index-1]
+							return item.Name
+						}
+					}
+				}
+
 				if usePlayerName && name == "" {
 					name = ctx.Player.Name
 				}
 				name = strings.ReplaceAll(name, "\n", "")
 				name = strings.ReplaceAll(name, "\r", "")
-				return name
-			}
 
-			getNickname := func() string {
-				name := getNicknameRaw(true)
 				if len(name) > 90 {
 					name = name[:90]
 				}
 				return name
+			}
+
+			getNickname := func() string {
+				return getNicknameRaw(true, true)
 			}
 
 			switch val1 {
@@ -1774,9 +1787,6 @@ func (d *Dice) registerCoreCommands() {
 
 				var newChars []string
 				for idx, item := range list {
-					// HACK(Xiangze Li): lockfree.HashMap的迭代顺序在每次启动中是稳定的, 可以加序号
-					// 但是, 骰子重启之后顺序是会变化的. 如果用户记录了这个序号, 并且跨重启使用, 会出现问题
-					// 1.5: 现在不受影响，除非连续操作
 					prefix := "[×]"
 					if item.BindingGroupsNum > 0 {
 						prefix = "[★]"
@@ -1802,29 +1812,13 @@ func (d *Dice) registerCoreCommands() {
 				} else {
 					ReplyToSender(ctx, msg, fmt.Sprintf("<%s>的角色列表为:\n%s\n[√]已绑 [×]未绑 [★]其他群绑定", ctx.Player.Name, strings.Join(newChars, "\n")))
 				}
-			case "attr":
-				// 提示: 仅用于1.5前的一致性测试
-				name := getNickname()
-				charId := lo.Must(am.CharIdGetByName(ctx.Player.UserID, name))
-				attrs := lo.Must(am.LoadById(charId))
-
-				buf := strings.Builder{}
-				first := true
-				attrs.valueMap.Range(func(key string, value *ds.VMValue) bool {
-					if !first {
-						buf.WriteString("\t")
-					}
-					first = false
-					buf.WriteString(fmt.Sprintf("%v:%v", key, value.ToString()))
-					return true
-				})
-				ReplyToSender(ctx, msg, "属性:\n"+buf.String())
+				return CmdExecuteResult{Matched: true, Solved: true}
 
 			case "new":
-				name := getNickname()
+				name := getNicknameRaw(true, false)
 
 				VarSetValueStr(ctx, "$t角色名", name)
-				if !am.CharCheckExists(name, ctx.Group.GroupID) {
+				if !am.CharCheckExists(ctx.Player.UserID, name) {
 					item := lo.Must(am.CharNew(ctx.Player.UserID, name, ctx.Group.System))
 					lo.Must0(am.CharBind(item.Id, ctx.Group.GroupID, ctx.Player.UserID))
 
@@ -1836,25 +1830,38 @@ func (d *Dice) registerCoreCommands() {
 				if ctx.Player.AutoSetNameTemplate != "" {
 					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			case "rename":
-				a := cmdArgs.GetArgN(1)
-				b := cmdArgs.GetArgN(2)
+				a := cmdArgs.GetArgN(2)
+				b := cmdArgs.GetArgN(3)
+
+				if b == "" {
+					b = a
+					a = getNickname()
+				}
 
 				if a != "" && b != "" {
 					charId := lo.Must(am.CharIdGetByName(ctx.Player.UserID, a))
 
 					if charId != "" {
-						attrs := lo.Must(am.LoadById(charId))
-						attrs.Name = b
-						ctx.Player.Name = b
-						attrs.LastModifiedTime = time.Now().Unix()
+						if !am.CharCheckExists(ctx.Player.UserID, b) {
+							attrs := lo.Must(am.LoadById(charId))
+							attrs.Name = b
+							ctx.Player.Name = b
+							attrs.LastModifiedTime = time.Now().Unix()
+							attrs.SaveToDB(am.db, nil) // 直接保存
+							ReplyToSender(ctx, msg, "操作完成")
+						} else {
+							ReplyToSender(ctx, msg, "此角色名已存在")
+						}
+					} else {
+						ReplyToSender(ctx, msg, "未找到此角色")
 					}
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 			case "tag":
 				// 当不输入角色的时候，不用当前角色填充，因此做到不写角色名就取消绑定的效果
-				name := getNicknameRaw(false)
-				// name = tryConvertIndex2Name(ctx, name)
-				// 这个转换回头写
+				name := getNicknameRaw(false, true)
 
 				VarSetValueStr(ctx, "$t角色名", name)
 				if name != "" {
@@ -1886,10 +1893,9 @@ func (d *Dice) registerCoreCommands() {
 				if ctx.Player.AutoSetNameTemplate != "" {
 					_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			case "load":
-				name := getNicknameRaw(false)
-				// name = tryConvertIndex2Name(ctx, name)
-				// 这个转换回头写
+				name := getNicknameRaw(false, true)
 				VarSetValueStr(ctx, "$t角色名", name)
 
 				charId := lo.Must(am.CharIdGetByName(ctx.Player.UserID, name))
@@ -1917,33 +1923,39 @@ func (d *Dice) registerCoreCommands() {
 					VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_加载成功"))
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			case "save":
 				name := getNickname()
 
-				newItem, _ := am.CharNew(ctx.Player.UserID, name, ctx.Group.System)
-				attrs := lo.Must(am.Load(ctx.Group.GroupID, ctx.Player.UserID))
+				if !am.CharCheckExists(ctx.Player.UserID, name) {
+					newItem, _ := am.CharNew(ctx.Player.UserID, name, ctx.Group.System)
+					attrs := lo.Must(am.Load(ctx.Group.GroupID, ctx.Player.UserID))
 
-				if newItem != nil {
-					attrsNew, err := am.LoadById(newItem.Id)
-					if err != nil {
-						// ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
-						return CmdExecuteResult{Matched: true, Solved: true}
+					if newItem != nil {
+						attrsNew, err := am.LoadById(newItem.Id)
+						if err != nil {
+							// ReplyToSender(ctx, msg, fmt.Sprintf("错误: %s\n", err.Error()))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_序列化失败"))
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+
+						attrs.Range(func(key string, value *ds.VMValue) bool {
+							attrsNew.Store(key, value)
+							return true
+						})
+
+						VarSetValueStr(ctx, "$t角色名", name)
+						VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
+						// replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", Name))
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
+					} else {
+						VarSetValueStr(ctx, "$t角色名", name)
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
 					}
-
-					attrs.Range(func(key string, value *ds.VMValue) bool {
-						attrsNew.Store(key, value)
-						return true
-					})
-
-					VarSetValueStr(ctx, "$t角色名", name)
-					VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
-					// replyToSender(ctx, msg, fmt.Sprintf("角色<%s>储存成功", Name))
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
 				} else {
-					VarSetValueStr(ctx, "$t角色名", name)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
+					ReplyToSender(ctx, msg, "此角色名已存在")
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			case "untagAll":
 				name := getNickname()
 				charId := lo.Must(am.CharIdGetByName(ctx.Player.UserID, name))
@@ -1970,9 +1982,9 @@ func (d *Dice) registerCoreCommands() {
 				} else {
 					ReplyToSender(ctx, msg, "这张卡片并未绑定到任何群")
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			case "del", "rm":
 				name := getNickname()
-				// name = tryConvertIndex2Name(ctx, name)
 				VarSetValueStr(ctx, "$t角色名", name)
 
 				charId := lo.Must(am.CharIdGetByName(ctx.Player.UserID, name))
@@ -2009,19 +2021,17 @@ func (d *Dice) registerCoreCommands() {
 					p.Name = msg.Sender.Nickname
 				}
 				ReplyToSender(ctx, msg, text)
-			default:
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-
-			return CmdExecuteResult{Matched: true, Solved: true}
+			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 		},
 	}
 
-	d.CmdMap["角色"] = cmdFoxChar
-	d.CmdMap["ch"] = cmdFoxChar
-	d.CmdMap["char"] = cmdFoxChar
-	d.CmdMap["character"] = cmdFoxChar
-	d.CmdMap["pc"] = cmdFoxChar
+	d.CmdMap["角色"] = cmdChar
+	d.CmdMap["ch"] = cmdChar
+	d.CmdMap["char"] = cmdChar
+	d.CmdMap["character"] = cmdChar
+	d.CmdMap["pc"] = cmdChar
 
 	cmdReply := &CmdItemInfo{
 		Name:      "reply",

@@ -185,8 +185,8 @@ func AttrsBindCharacter(db *sqlx.DB, charId string, id string) error {
 func AttrsGetCharacterListByUserId(db *sqlx.DB, userId string) (lst []*AttributesItemModel, err error) {
 	rows, err := db.Queryx(`
 	select id, name, sheet_type,
-	       (select count(id) from attrs where binding_sheet_id = id)
-	from attrs where owner_id = $1 and is_hidden is false
+	       (select count(id) from attrs where binding_sheet_id = t1.id)
+	from attrs as t1 where owner_id = $1 and is_hidden is false
 	`, userId)
 	if err != nil {
 		return nil, err

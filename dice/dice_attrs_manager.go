@@ -258,10 +258,9 @@ func (am *AttrsManager) CharIdGetByName(userId string, name string) (string, err
 	return model.AttrsGetIdByUidAndName(am.db, userId, name)
 }
 
-func (am *AttrsManager) CharCheckExists(name string, groupId string) bool {
-	// TODO: xxxx
-	// model.AttrsCharCheckExists(am.db, name, id)
-	return false
+func (am *AttrsManager) CharCheckExists(userId string, name string) bool {
+	id, _ := am.CharIdGetByName(userId, name)
+	return id != ""
 }
 
 func (am *AttrsManager) CharGetBindingGroupIdList(id string) []string {

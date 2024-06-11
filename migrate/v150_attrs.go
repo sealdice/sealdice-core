@@ -370,16 +370,16 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 	return count, countSheetsNum, countFailed, nil
 }
 
-func V150Upgrade() {
+func V150Upgrade() bool {
 	dbDataPath, _ := filepath.Abs("./data/default/data.db")
 	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
-		return
+		return false
 	}
 
 	db, err := openDB(dbDataPath)
 	if err != nil {
 		fmt.Println("升级失败，无法打开数据库:", err)
-		return
+		return false
 	}
 	defer func() {
 		_ = db.Close()
@@ -392,10 +392,10 @@ func V150Upgrade() {
 		// 表格不存在，继续执行
 	case err != nil:
 		fmt.Println("V150数据转换未知错误:", err.Error())
-		return
+		return false
 	default:
 		// 表格已经存在，说明转换完成，退出
-		return
+		return true
 	}
 
 	fmt.Println("1.5 数据迁移")
@@ -439,18 +439,21 @@ CREATE TABLE IF NOT EXISTS attrs (
 	fmt.Printf("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
 	if err != nil {
 		fmt.Println("异常", err.Error())
+		return false
 	}
 
 	count, countFailed, err = attrsGroupUserMigrate(db)
 	fmt.Printf("数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
 	if err != nil {
 		fmt.Println("异常", err.Error())
+		return false
 	}
 
 	count, countFailed, err = attrsGroupMigrate(db)
 	fmt.Printf("数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
 	if err != nil {
 		fmt.Println("异常", err.Error())
+		return false
 	}
 
 	// 删档
@@ -460,4 +463,5 @@ CREATE TABLE IF NOT EXISTS attrs (
 	_, _ = db.Exec("drop table attrs_user")
 	_, _ = db.Exec("VACUUM;") // 收尾
 	fmt.Println("V150 数据转换完成")
+	return true
 }

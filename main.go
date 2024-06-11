@@ -392,7 +392,9 @@ func main() {
 		logger.Errorf("移除旧帮助文档时出错，%v", migrateErr)
 	}
 	// v150升级
-	migrate.V150Upgrade()
+	if !migrate.V150Upgrade() {
+		return
+	}
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 		hideWindow()
