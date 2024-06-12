@@ -91,6 +91,27 @@ const verify = async () => {
     ...payload
   }
 }
+
+const getTimeDiffLevel = (t: dayjs.Dayjs) => {
+  const now = dayjs()
+  const diff = Math.abs(now.diff(t, 'minute'))
+  if (diff >= 24 * 60) {
+    return 2
+  } else if (diff >= 5) {
+    return 1
+  }
+  return 0
+}
+
+const getTimeTagType = (t: dayjs.Dayjs) => {
+  const diffLevel = getTimeDiffLevel(t)
+  if (diffLevel >= 2) {
+    return 'error'
+  } else if (diffLevel >= 1) {
+    return 'warning'
+  }
+  return 'success'
+}
 </script>
 
 <template>
@@ -103,20 +124,21 @@ const verify = async () => {
   <n-flex v-if="result" vertical align="center"
           class="mt-8 text-base">
     <template v-if="result.success">
-      <n-text type="success" class="my-4 text-xl flex items-center gap-2">
+      <n-text :type="getTimeDiffLevel(time!) >= 2 ? 'warning' : 'success'" class="my-4 text-xl flex items-center gap-2">
         <n-icon size="32"><i-carbon-checkmark-filled/></n-icon>
         校验通过
+        <span v-if="getTimeDiffLevel(time!) >= 2">，但……</span>
       </n-text>
 
       <div class="max-w-xl">
         <n-text class="break-all">由 &lt;{{ result.username }}&gt;({{ result.uid }}) 于 {{ result.platform }} 生成</n-text>
       </div>
 
-      <n-flex justify="center" align="center">
-        <n-text>
-          生成时间：{{ time?.format('YYYY-MM-DD HH:mm:ss') }}
+      <n-flex v-if="time" justify="center" align="center">
+        <n-text :type="getTimeTagType(time)">
+          生成时间：{{ time.format('YYYY-MM-DD HH:mm:ss') }}
         </n-text>
-        <n-tag :bordered="false" type="info">{{ time?.fromNow() }}</n-tag>
+        <n-tag :bordered="false" :type="getTimeTagType(time)">{{ time.fromNow() }}</n-tag>
       </n-flex>
 
       <n-flex justify="center" align="center">
