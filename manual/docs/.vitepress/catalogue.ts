@@ -130,9 +130,9 @@ export const config = {
     {
       text: "综合设置",
       items: [
+        { text: "基础设置", link: "/config/basic" },
         { text: "黑白名单", link: "/config/ban" },
         { text: "备份", link: "/config/backup" },
-        { text: "自动退出不活跃群组", link: "/config/quit_grp_auto" },
       ],
     },
     { text: "辅助功能", link: "/config/utilities" },

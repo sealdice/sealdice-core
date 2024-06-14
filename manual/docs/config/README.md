@@ -11,7 +11,7 @@ index: false
   - [帮助文档](./helpdoc.md)
   - [拦截](./censor.md)
 - 综合设置
+  - [基础设置](./basic.md)
   - [黑白名单](./ban.md)
   - [备份](./backup.md)
-  - [自动退出不活跃群](./quit_grp_auto.md)
 - [辅助工具](./utilities.md)
