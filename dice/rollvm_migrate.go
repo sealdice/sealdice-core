@@ -268,6 +268,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		ctx.vm.Config.EnableDiceCoC = true
 		ctx.vm.Config.EnableDiceFate = true
 		ctx.vm.Config.EnableDiceDoubleCross = true
+		ctx.vm.Config.EnableV1IfCompatible = true
 
 		am := ctx.Dice.AttrsManager
 		ctx.vm.Config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
