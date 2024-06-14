@@ -39,17 +39,18 @@ export const decode = (src: string): Uint8Array => {
     let newBitsCount = 0
     let newBits = decodeMap.get(c)
     if (newBits === undefined) {
-      newBitsCount = 11 - remaining
+      newBitsCount = 8 - remaining
       newBits = tailMap.get(c)
-      if (!newBits || si < se || newBits >= (1 << newBitsCount)) {
+      if (newBits === undefined || si < se || newBits >= (1 << newBitsCount)) {
         throw new DecodeError(`Invalid character: ${c}`)
       }
     }
-
-    if (si == se) {
-      newBitsCount = 11 - residue
-    } else {
-      newBitsCount = 11
+    else {
+      if (si == se) {
+        newBitsCount = 11 - residue
+      } else {
+        newBitsCount = 11
+      }
     }
 
     stage = (stage << newBitsCount) | newBits
