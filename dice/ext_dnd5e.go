@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	ds "github.com/sealdice/dicescript"
-	"gopkg.in/yaml.v3"
 )
 
 type RIListItem struct {
@@ -21,15 +20,15 @@ type RIListItem struct {
 	uid    string
 }
 
-type ByRIListValue []*RIListItem
+type RIList []*RIListItem
 
-func (lst ByRIListValue) Len() int {
+func (lst RIList) Len() int {
 	return len(lst)
 }
-func (lst ByRIListValue) Swap(i, j int) {
+func (lst RIList) Swap(i, j int) {
 	lst[i], lst[j] = lst[j], lst[i]
 }
-func (lst ByRIListValue) Less(i, j int) bool {
+func (lst RIList) Less(i, j int) bool {
 	if lst[i].val == lst[j].val {
 		return lst[i].name > lst[j].name
 	}
@@ -62,63 +61,13 @@ var dndAttrParent = map[string]string{
 }
 
 func setupConfigDND(d *Dice) AttributeConfigs {
-	attrConfigFn := d.GetExtConfigFilePath("dnd5e", "attribute.yaml")
-
-	_, _ = os.Stat(attrConfigFn)
 	// 如果不存在，新建
 	defaultVals := AttributeConfigs{
-		Alias: map[string][]string{
-			"力量": {"str", "Strength"},
-			"敏捷": {"dex", "Dexterity"},
-			"体质": {"con", "Constitution", "體質", "體魄", "体魄"},
-			"智力": {"int", "Intelligence"},
-			"感知": {"wis", "Wisdom"},
-			"魅力": {"cha", "Charisma"},
-
-			"ac":    {"AC", "护甲等级", "护甲值", "护甲", "護甲等級", "護甲值", "護甲", "装甲", "裝甲"},
-			"hp":    {"HP", "生命值", "生命", "血量", "体力", "體力", "耐久值"},
-			"hpmax": {"HPMAX", "生命值上限", "生命上限", "血量上限", "耐久上限"},
-			"dc":    {"DC", "难度等级", "法术豁免", "難度等級", "法術豁免"},
-			"hd":    {"HD", "生命骰"},
-			"pp":    {"PP", "被动察觉", "被动感知", "被動察覺", "被动感知", "PW"},
-
-			"熟练": {"熟练加值", "熟練", "熟練加值"},
-			"体型": {"siz", "size", "體型", "体型", "体形", "體形"},
-
-			// 技能
-			"运动": {"Athletics", "運動"},
-
-			"体操": {"Acrobatics", "杂技", "特技", "體操", "雜技", "特技動作", "特技动作"},
-			"巧手": {"Sleight of Hand", "上手把戲", "上手把戏"},
-			"隐匿": {"Stealth", "隱匿", "潜行", "潛行"},
-
-			"调查": {"Investigation", "調查"},
-			"奥秘": {"Arcana", "奧秘"},
-			"历史": {"History", "歷史"},
-			"自然": {"Nature"},
-			"宗教": {"Religion"},
-
-			"察觉": {"Perception", "察覺", "觉察", "覺察"},
-			"洞悉": {"Insight", "洞察", "察言觀色", "察言观色"},
-			"驯兽": {"Animal Handling", "馴獸", "驯养", "馴養", "動物馴服", "動物馴養", "动物驯服", "动物驯养"},
-			"医药": {"Medicine", "醫藥", "医疗", "醫療"},
-			"求生": {"Survival", "生存"},
-
-			"游说": {"Persuasion", "说服", "话术", "遊說", "說服", "話術"},
-			"欺瞒": {"Deception", "唬骗", "欺诈", "欺骗", "诈骗", "欺瞞", "唬騙", "欺詐", "欺騙", "詐騙"},
-			"威吓": {"Intimidation", "恐吓", "威嚇", "恐嚇"},
-			"表演": {"Performance"},
-		},
+		Alias: map[string][]string{},
 		Order: AttributeOrder{
 			Top:    []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
 			Others: AttributeOrderOthers{SortBy: "Name"},
 		},
-	}
-	buf, err2 := yaml.Marshal(defaultVals)
-	if err2 != nil {
-		fmt.Println(err2)
-	} else {
-		_ = os.WriteFile(attrConfigFn, buf, 0644)
 	}
 	return defaultVals
 }
@@ -1077,46 +1026,46 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				if strings.HasPrefix(text, "+") {
 					// 加值情况1，D20+
-					r, _detail, err := ctx.Dice._ExprEvalBaseV1("D20"+text, mctx, RollExtraFlags{})
-					if err != nil {
+					r := ctx.Eval("D20"+text, nil)
+					if r.vm.Error != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
 					}
-					detail = _detail
-					val = r.Value.(int64)
-					text = r.restInput
+					detail = r.vm.GetDetailText()
+					val = int64(r.MustReadInt())
+					text = r.vm.RestInput
 					exprExists = true
 				} else if strings.HasPrefix(text, "-") {
 					// 加值情况1.1，D20-
-					r, _detail, err := ctx.Dice._ExprEvalBaseV1("D20"+text, mctx, RollExtraFlags{})
-					if err != nil {
+					r := ctx.Eval("D20"+text, nil)
+					if r.vm.Error != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
 					}
-					detail = _detail
-					val = r.Value.(int64)
-					text = r.restInput
+					detail = r.vm.GetDetailText()
+					val = int64(r.MustReadInt())
+					text = r.vm.RestInput
 					exprExists = true
 				} else if strings.HasPrefix(text, "=") {
 					// 加值情况1，=表达式
-					r, _, err := ctx.Dice._ExprEvalBaseV1(text[1:], mctx, RollExtraFlags{})
-					if err != nil {
+					r := ctx.Eval(text[1:], nil)
+					if r.vm.Error != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
 					}
-					val = r.Value.(int64)
-					text = r.restInput
+					val = int64(r.MustReadInt())
+					text = r.vm.GetDetailText()
 					exprExists = true
 				} else if strings.HasPrefix(text, "优势") || strings.HasPrefix(text, "劣势") {
 					// 优势/劣势
-					r, _detail, err := ctx.Dice._ExprEvalBaseV1("D20"+text, mctx, RollExtraFlags{})
-					if err != nil {
+					r := ctx.Eval("D20"+text, nil)
+					if r.vm.Error != nil {
 						// 优势劣势输入错误
 						return 2, name, val, detail, ""
 					}
-					detail = _detail
-					val = r.Value.(int64)
-					text = r.restInput
+					detail = r.vm.GetDetailText()
+					val = int64(r.MustReadInt())
+					text = r.vm.RestInput
 					exprExists = true
 				} else {
 					// 加值情况3，数字
@@ -1140,7 +1089,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					name = mctx.Player.Name
 					// 情况2，名字是自己，没有加值
 					if !exprExists {
-						val = DiceRoll64(20)
+						val = int64(ds.Roll(nil, 20))
 					}
 					uid = mctx.Player.UserID
 					return 0, name, val, detail, uid
@@ -1153,7 +1102,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					name = m[1]
 					text = text[len(m[0]):]
 					if !exprExists {
-						val = DiceRoll64(20)
+						val = int64(ds.Roll(nil, 20))
 					}
 				} else {
 					// 不知道是啥，报错
@@ -1165,7 +1114,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 			solved := true
 			tryOnce := true
-			var items ByRIListValue
+			var items RIList
 
 			for tryOnce || text != "" {
 				code, name, val, detail, uid := readOne()
@@ -1179,20 +1128,27 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			}
 
 			if solved {
-				riMap, uidMap := dndGetRiMapList(ctx)
+				riList := (RIList{}).LoadByCurGroup(ctx)
+
 				textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
 				sort.Sort(items)
 				for order, i := range items {
 					var detail string
-					riMap[i.name] = i.val
-					uidMap[i.name] = i.uid
 					if i.detail != "" {
 						detail = i.detail + "="
 					}
 					textOut += fmt.Sprintf("%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
+
+					item := riList.GetExists(i.name)
+					if item == nil {
+						riList = append(riList, i)
+					} else {
+						item.val = i.val
+					}
 				}
 
-				dndSetRiMapList(mctx, riMap, uidMap)
+				sort.Sort(riList)
+				riList.SaveToGroup(ctx)
 				ReplyToSender(ctx, msg, textOut)
 			} else {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "DND:先攻_设置_格式错误"))
@@ -1215,29 +1171,28 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			switch n {
 			case "", "list":
 				textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
-				riMap, uidMap := dndGetRiMapList(ctx)
-				round, _ := VarGetValueInt64(ctx, "$g回合数")
-				lst := dndRiMapToList(riMap, uidMap)
+				riList := (RIList{}).LoadByCurGroup(ctx)
 
-				for order, i := range lst {
+				round, _ := VarGetValueInt64(ctx, "$g回合数")
+
+				for order, i := range riList {
 					textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i.name, i.val)
 				}
 
-				if len(lst) == 0 {
+				if len(riList) == 0 {
 					textOut += "- 没有找到任何单位"
 				} else {
-					if len(lst) <= int(round) || round < 0 {
+					if len(riList) <= int(round) || round < 0 {
 						round = 0
 					}
-					rounder := lst[round]
+					rounder := riList[round]
 					textOut += fmt.Sprintf("当前回合：%s", rounder.name)
 				}
 
 				ReplyToSender(ctx, msg, textOut)
 			case "ed", "end":
-				riMap, uidMap := dndGetRiMapList(ctx)
+				lst := (RIList{}).LoadByCurGroup(ctx)
 				round, _ := VarGetValueInt64(ctx, "$g回合数")
-				lst := dndRiMapToList(riMap, uidMap)
 				if len(lst) == 0 {
 					ReplyToSender(ctx, msg, "先攻列表为空")
 					break
@@ -1269,44 +1224,41 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
 			case "del", "rm":
 				names := cmdArgs.Args[1:]
-				riMap, uidMap := dndGetRiMapList(ctx)
-				riList := dndRiMapToList(riMap, uidMap)
-
-				deleted := map[string]bool{}
-				for _, i := range names {
-					deleted[i] = false
-				}
+				riList := (RIList{}).LoadByCurGroup(ctx)
+				newList := RIList{}
 
 				round, _ := VarGetValueInt64(ctx, "$g回合数")
 				round %= int64(len(riList))
 
+				toDeleted := map[string]bool{}
+				for _, i := range names {
+					toDeleted[i] = true
+				}
+
+				textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
+				delCounter := 0
+
 				preCurrent := 0 // 每有一个在当前单位前面的单位被删除, 当前单位下标需要减 1
-				for i, v := range riList {
-					if _, exist := deleted[v.name]; exist {
-						deleted[v.name] = true
-						if int64(i) < round {
+				for index, i := range riList {
+					if !toDeleted[i.name] {
+						newList = append(newList, i)
+						delCounter++
+						textOut += fmt.Sprintf("%2d. %s\n", delCounter, i.name)
+					} else {
+						if int64(index) < round {
 							preCurrent++
 						}
-						delete(riMap, v.name)
 					}
 				}
 
 				round -= int64(preCurrent)
 				VarSetValueInt64(ctx, "$g回合数", round)
 
-				textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
-				delCounter := 0
-				for _, name := range names {
-					if deleted[name] {
-						delCounter++
-						textOut += fmt.Sprintf("%2d. %s\n", delCounter, name)
-					}
-				}
 				if delCounter == 0 {
 					textOut += "- 没有找到任何单位"
 				}
 
-				dndSetRiMapList(ctx, riMap, uidMap)
+				newList.SaveToGroup(ctx)
 				ReplyToSender(ctx, msg, textOut)
 			case "set":
 				name := cmdArgs.GetArgN(2)
@@ -1319,25 +1271,30 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				expr := strings.Join(cmdArgs.Args[2:], "")
-				r, _detail, err := ctx.Dice._ExprEvalBaseV1(expr, ctx, RollExtraFlags{})
-				if err != nil || r.TypeID != VMTypeInt64 {
+				r := ctx.Eval(expr, nil)
+				if r.vm.Error != nil || r.TypeId != ds.VMTypeInt {
 					ReplyToSender(ctx, msg, "错误的格式，应为: .init set <单位名称> <先攻表达式>")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				riMap, uidMap := dndGetRiMapList(ctx)
-				riMap[name] = r.Value.(int64)
+				riList := (RIList{}).LoadByCurGroup(ctx)
+				for _, i := range riList {
+					if i.name == name {
+						i.val = int64(r.MustReadInt())
+						break
+					}
+				}
 
 				VarSetValueStr(ctx, "$t表达式", expr)
 				VarSetValueStr(ctx, "$t目标", name)
-				VarSetValueStr(ctx, "$t计算过程", _detail)
-				_VarSetValueV1(ctx, "$t点数", &r.VMValue)
+				VarSetValueStr(ctx, "$t计算过程", r.vm.GetDetailText())
+				VarSetValue(ctx, "$t点数", &r.VMValue)
 				textOut := DiceFormatTmpl(ctx, "DND:先攻_设置_指定单位")
 
-				dndSetRiMapList(ctx, riMap, uidMap)
+				riList.SaveToGroup(ctx)
 				ReplyToSender(ctx, msg, textOut)
 			case "clr", "clear":
-				dndClearRiMapList(ctx)
+				(RIList{}).SaveToGroup(ctx)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
 				VarSetValueInt64(ctx, "$g回合数", 0)
 			case "help":
@@ -1391,58 +1348,82 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	self.RegisterExtension(theExt)
 }
 
-func dndGetRiMapList(ctx *MsgContext) (map[string]int64, map[string]string) {
-	// TODO: 类型对不上，先屏蔽了，等待重写
-	return map[string]int64{}, map[string]string{}
-	// am := ctx.Dice.AttrsManager
-	// attrs, _ := am.LoadById(ctx.Group.GroupID)
-	//
-	// riMapName := "riMapList"
-	// _, exists := attrs.LoadX(riMapName)
-	// if !exists {
-	//	attrs.Store(riMapName, &VMValue{TypeID: -1, Value: map[string]int64{}})
-	// } else {
-	//	a, _ := attrs.LoadX(riMapName)
-	//	attrs.Set(riMapName, VMValueConvert(a.(*VMValue), nil, ""))
-	// }
-	// uidMapName := "uidMapList"
-	// _, exists = attrs.LoadX(uidMapName)
-	// if !exists {
-	//	attrs.Set(uidMapName, &VMValue{TypeID: -2, Value: map[string]string{}})
-	// } else {
-	//	b, _ := attrs.LoadX(uidMapName)
-	//	attrs.Set(uidMapName, VMValueConvert(b.(*VMValue), nil, ""))
-	// }
-	//
-	// var riList, uidList *VMValue
-	// v, e := attrs.Get(riMapName)
-	// if e {
-	//	riList = v.(*VMValue)
-	// }
-	// v2, e := attrs.LoadX(uidMapName)
-	// if e {
-	//	uidList = v2.(*VMValue)
-	// }
-	// return riList.Value.(map[string]int64), uidList.Value.(map[string]string)
-}
+var dndRiLock sync.Mutex
 
-func dndSetRiMapList(ctx *MsgContext, riMap map[string]int64, uidMap map[string]string) {
-	// riMapName := "riMapList"
-	// attrs.Set(riMapName, &VMValue{TypeID: -1, Value: riMap})
-	//
-	// uidMapName := "uidMapList"
-	// attrs.Set(uidMapName, &VMValue{TypeID: -2, Value: uidMap})
-}
+// LoadByCurGroup 从群信息中加载
+func (lst RIList) LoadByCurGroup(ctx *MsgContext) RIList {
+	am := ctx.Dice.AttrsManager
+	attrs, _ := am.LoadById(ctx.Group.GroupID)
 
-func dndClearRiMapList(ctx *MsgContext) {
-	dndSetRiMapList(ctx, map[string]int64{}, map[string]string{})
-}
-
-func dndRiMapToList(riMap map[string]int64, uidMap map[string]string) ByRIListValue {
-	var lst ByRIListValue
-	for k, v := range riMap {
-		lst = append(lst, &RIListItem{name: k, val: v, uid: uidMap[k]})
+	dndRiLock.Lock()
+	riList := attrs.Load("riList")
+	if riList == nil || riList.TypeId != ds.VMTypeArray {
+		riList = ds.NewArrayVal()
+		attrs.Store("riList", riList)
 	}
-	sort.Sort(lst)
-	return lst
+	dndRiLock.Unlock()
+
+	ret := RIList{}
+	for _, i := range riList.MustReadArray().List {
+		if i.TypeId != ds.VMTypeDict {
+			continue
+		}
+
+		dd := i.MustReadDictData()
+		readStr := func(key string) string {
+			v, ok := dd.Dict.Load(key)
+			if !ok {
+				return ""
+			}
+			return v.ToString()
+		}
+		readInt := func(key string) ds.IntType {
+			v, ok := dd.Dict.Load(key)
+			if !ok {
+				return 0
+			}
+			ret, _ := v.ReadInt()
+			return ret
+		}
+
+		ret = append(ret, &RIListItem{
+			name:   readStr("name"),
+			val:    int64(readInt("val")),
+			uid:    readStr("uid"),
+			detail: readStr("detail"),
+		})
+	}
+
+	return ret
+}
+
+// SaveToGroup 写入群信息中
+func (lst RIList) SaveToGroup(ctx *MsgContext) {
+	am := ctx.Dice.AttrsManager
+	attrs, _ := am.LoadById(ctx.Group.GroupID)
+	riList := ds.NewArrayVal()
+
+	ad := riList.MustReadArray()
+	for _, i := range lst {
+		v := ds.NewDictValWithArrayMust(
+			ds.NewStrVal("name"), ds.NewStrVal(i.name),
+			ds.NewStrVal("val"), ds.NewIntVal(ds.IntType(i.val)),
+			ds.NewStrVal("uid"), ds.NewStrVal(i.uid),
+			ds.NewStrVal("detail"), ds.NewStrVal(i.detail),
+		)
+		ad.List = append(ad.List, v.V())
+	}
+
+	dndRiLock.Lock()
+	attrs.Store("riList", riList)
+	dndRiLock.Unlock()
+}
+
+func (lst RIList) GetExists(name string) *RIListItem {
+	for _, i := range lst {
+		if i.name == name {
+			return i
+		}
+	}
+	return nil
 }

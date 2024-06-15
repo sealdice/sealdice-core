@@ -43,6 +43,7 @@ type NameTemplateItem struct {
 type SetConfig struct {
 	RelatedExt []string `yaml:"relatedExt" json:"relatedExt"` // 关联扩展
 	DiceSides  int64    `yaml:"diceSides" json:"diceSides"`   // 骰子面数
+	DiceExpr   string   `yaml:"diceExpr" json:"diceExpr"`     // 基础骰表达式 可替代骰子面数
 	Keys       []string `yaml:"keys" json:"keys"`             // 可用于 .set xxx 的key
 	EnableTip  string   `yaml:"enableTip" json:"enableTip"`   // 启用提示
 }

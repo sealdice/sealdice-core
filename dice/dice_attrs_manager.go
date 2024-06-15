@@ -333,6 +333,7 @@ func (i *AttributesItem) Delete(name string) {
 
 func (i *AttributesItem) SetModified() {
 	i.LastModifiedTime = time.Now().Unix()
+	i.IsSaved = false
 }
 
 func (i *AttributesItem) Store(name string, value *ds.VMValue) {
@@ -340,6 +341,7 @@ func (i *AttributesItem) Store(name string, value *ds.VMValue) {
 	i.valueMap.Store(name, value)
 	i.LastModifiedTime = now
 	i.LastUsedTime = now
+	i.IsSaved = false
 }
 
 func (i *AttributesItem) toDict() *ds.VMDictValue {
@@ -360,6 +362,7 @@ func (i *AttributesItem) Clear() int {
 		i.valueMap.Delete(key)
 	}
 	i.LastModifiedTime = time.Now().Unix()
+	i.IsSaved = false
 	return len(keys)
 }
 

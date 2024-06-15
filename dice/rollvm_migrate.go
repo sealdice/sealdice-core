@@ -203,8 +203,13 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 		})
 	}
 
+	s = CompatibleReplace(ctx, s)
+
 	err := ctx.vm.Run(s)
 	if err != nil || ctx.vm.Ret == nil {
+		if flags.V2Only {
+			return nil, "", err
+		}
 		fmt.Println("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
 
 		// 尝试一下V1
@@ -320,8 +325,12 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 
 				// 从模板取值，模板中的设定是如果取不到获得0
 				// TODO: 目前没有好的方法去复制ctx，实际上这个行为应当类似于ds中的函数调用
+				ctx.CreateVmIfNotExists()
 				ctx2 := *ctx
 				ctx2.vm = nil
+				ctx2.CreateVmIfNotExists()
+				ctx2.vm.UpCtx = ctx.vm
+				ctx2.vm.Attrs = ctx.vm.Attrs
 
 				name = ctx.SystemTemplate.GetAlias(name)
 				v, err := ctx.SystemTemplate.GetRealValue(&ctx2, name)
@@ -438,7 +447,7 @@ func DiceFormatV2(ctx *MsgContext, s string) (string, error) { //nolint:revive
 
 	// 隐藏的内置字符串符号 \x1e
 	// err := ctx.vm.Run("\x1e" + s + "\x1e")
-	v, err := ctx.vm.RunExpr("\x1e" + s + "\x1e")
+	v, err := ctx.vm.RunExpr("\x1e"+s+"\x1e", true)
 	if err != nil || v == nil {
 		fmt.Println("脚本执行出错V2f: ", s, "->", err)
 		return "", err

@@ -254,6 +254,7 @@ type RollExtraFlags struct {
 	DisableCrossDice   bool  // 禁用双十字骰
 	DisableDicePool    bool  // 禁用骰池
 
+	V2Only     bool                                                                    // 仅使用v2
 	vmDepth    int64                                                                   // 层数
 	StCallback func(_type string, name string, val *VMValue, op string, detail string) // st回调
 }

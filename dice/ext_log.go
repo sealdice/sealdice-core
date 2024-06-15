@@ -603,7 +603,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "dnd", "dnd5e":
 				// PW{pw}
-				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PP{_pp}"
+				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PP{pp}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				if errors.Is(err, ErrGroupCardOverlong) {

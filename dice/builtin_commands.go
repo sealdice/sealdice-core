@@ -1629,14 +1629,6 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			tipText := "\n提示:"
-			if strings.EqualFold(arg1, "dnd") {
-				cmdArgs.Args[0] = "20"
-				ctx.Group.ExtActive(d.ExtFind("dnd5e"))
-				tipText += "已切换至20面骰，并自动开启dnd5e扩展。"
-				modSwitch = true
-				ctx.Group.System = "dnd5e"
-				ctx.Group.UpdatedAtTime = time.Now().Unix()
-			}
 			ctx.Dice.GameSystemMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
 				isMatch := false
 				for _, k := range tmpl.SetConfig.Keys {
@@ -2083,17 +2075,8 @@ func setRuleByName(ctx *MsgContext, name string) {
 	d := ctx.Dice
 
 	modSwitch := false
-
 	tipText := "\n提示:"
 
-	if strings.EqualFold(name, "dnd") {
-		diceFaces = "20"
-		ctx.Group.ExtActive(d.ExtFind("dnd5e"))
-		tipText += "已切换至20面骰，并自动开启dnd5e扩展。若不希望，请执行.ext dnd5e off"
-		modSwitch = true
-		ctx.Group.System = "dnd5e"
-		ctx.Group.UpdatedAtTime = time.Now().Unix()
-	}
 	d.GameSystemMap.Range(func(key string, tmpl *GameSystemTemplate) bool {
 		isMatch := false
 		for _, k := range tmpl.SetConfig.Keys {

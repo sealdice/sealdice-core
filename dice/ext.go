@@ -26,6 +26,7 @@ func (d *Dice) RegisterBuiltinExt() {
 
 func (d *Dice) RegisterBuiltinSystemTemplate() {
 	d.GameSystemTemplateAdd(getCoc7CharTemplate())
+	d.GameSystemTemplateAdd(_dnd5eTmpl)
 }
 
 // RegisterExtension 注册扩展
