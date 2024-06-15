@@ -1117,6 +1117,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			err := e.Start(pa.ReverseAddr)
 			if err != nil {
 				log.Error("Onebot v11 反向WS服务关闭: ", err)
+				pa.diceServing = false
 			}
 		}()
 	} else {
