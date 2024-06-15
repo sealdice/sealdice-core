@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/Milly/go-base2048 v0.1.0
 	github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/Szzrain/dodo-open-go v0.2.8
@@ -68,7 +69,7 @@ require (
 	golang.org/x/crypto v0.23.0
 	golang.org/x/exp v0.0.0-20231108232855-2478ac86f678
 	golang.org/x/sys v0.20.0
-	golang.org/x/text v0.15.0
+	golang.org/x/text v0.16.0
 	golang.org/x/time v0.5.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
@@ -76,7 +77,6 @@ require (
 )
 
 require (
-	github.com/Milly/go-base2048 v0.1.0 // indirect
 	github.com/RoaringBitmap/roaring v1.2.3 // indirect
 	github.com/bits-and-blooms/bitset v1.2.2 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.2.0 // indirect
@@ -162,9 +162,9 @@ require (
 	github.com/xuri/nfp v0.0.0-20230919160717-d98342af3f05 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/image v0.14.0 // indirect
-	golang.org/x/mod v0.14.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
-	golang.org/x/sync v0.5.0 // indirect
+	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/term v0.20.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
