@@ -1242,6 +1242,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 			}
 			go ServeQQ(d, c)
 		} else {
+			pa.GoCqhttpState = StateCodeLoginSuccessed
 			go ServeQQ(d, c)
 		}
 	} else {
