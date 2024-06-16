@@ -499,6 +499,7 @@ func diceServe(d *dice.Dice) {
 							dice.LagrangeServe(d, conn, dice.GoCqhttpLoginInfo{
 								IsAsyncRun: true,
 							})
+							return
 						} else {
 							dice.GoCqhttpServe(d, conn, dice.GoCqhttpLoginInfo{
 								Password:         pa.InPackGoCqhttpPassword,
