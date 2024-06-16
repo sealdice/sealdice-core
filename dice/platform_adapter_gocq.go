@@ -1239,8 +1239,8 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 					UseSignServer:    pa.UseSignServer,
 					SignServerConfig: pa.SignServerConfig,
 				})
+				go ServeQQ(d, c)
 			}
-			go ServeQQ(d, c)
 		} else {
 			go ServeQQ(d, c)
 		}
