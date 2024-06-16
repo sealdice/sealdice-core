@@ -7,13 +7,13 @@ title: 关于
 
 ## 官方站点
 
-[官网](http://sealdice.com)：海豹官网，新版本发布的正式地址，还提供试用，[log 染色](https://log.sealdice.com) 等多项功能。
+[官网](http://dice.weizaima.com)：海豹官网，新版本发布的正式地址，还提供试用，[log 染色](https://log.weizaima.com/) 等多项功能。
 
 [海豹开源组织 GitHub](https://github.com/sealdice)：海豹核心源码的托管地址。
 
 ## 投喂
 
-请参见 [官网—投喂](https://sealdice.com/feed)，目前尚未更新蓝绿修改器（暂时顾不上）。
+请参见 [官网—投喂](https://dice.weizaima.com/feed)，目前尚未更新蓝绿修改器（暂时顾不上）。
 
 你的投喂将用于支付服务器费用，以及帮助社畜制作者们稍微抵抗来自现实的引力。
 

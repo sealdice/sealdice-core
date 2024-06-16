@@ -9,6 +9,10 @@ export const theme: DefaultTheme.Config = {
   },
   nav: [
     {
+      text: "官网",
+      link: "https://dice.weizaima.com/",
+    },
+    {
       text: "首页",
       link: "/",
     },
