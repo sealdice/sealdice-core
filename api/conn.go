@@ -164,7 +164,17 @@ func ImConnectionsDel(c echo.Context) error {
 				case "QQ":
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					if i.ProtocolType == "onebot" {
-						dice.BuiltinQQServeProcessKill(myDice, i)
+						pa := i.Adapter.(*dice.PlatformAdapterGocq)
+						if pa.BuiltinMode == "lagrange" {
+							dice.BuiltinQQServeProcessKillBase(myDice, i, true)
+							workDir := dice.LagrangeGetWorkDir(myDice, i)
+							err := os.RemoveAll(workDir)
+							if err != nil {
+								myDice.Logger.Errorf("清理内置客户端文件失败, 原因: %s, 请手动删除目录: %s", err.Error(), workDir)
+							}
+						} else {
+							dice.BuiltinQQServeProcessKill(myDice, i)
+						}
 					}
 					return c.JSON(http.StatusOK, i)
 				case "DISCORD":
