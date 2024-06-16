@@ -66,6 +66,7 @@ type GameSystemTemplate struct {
 	TextMap         *TextTemplateWithWeightDict `yaml:"textMap" json:"textMap"` // UI文本
 	TextMapHelpInfo *TextTemplateWithHelpDict   `yaml:"TextMapHelpInfo" json:"textMapHelpInfo"`
 
+	PreloadCode string `yaml:"preloadCode" json:"preloadCode"` // 预加载代码，js
 	// BasedOn           string                 `yaml:"based-on"`           // 基于规则
 
 	AliasMap *SyncMap[string, string] `yaml:"-" json:"-"` // 别名/同义词
@@ -94,9 +95,9 @@ func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string)
 	// 先计算computed
 	if expr, exists := t.DefaultsComputed[name]; exists {
 		ctx.SystemTemplate = t
-		r, detail2, err := DiceExprEvalBase(ctx, expr, RollExtraFlags{
-			DefaultDiceSideNum: getDefaultDicePoints(ctx),
-		})
+		r := ctx.Eval(expr, nil)
+		detail2 := r.vm.GetDetailText()
+		err := r.vm.Error
 
 		// 使用showAs的值覆盖detail
 		v, _ := t.getShowAs0(ctx, name)
@@ -108,7 +109,7 @@ func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string)
 		}
 
 		if err == nil {
-			return r.VMValue, detail, r.IsCalculated(), true
+			return &r.VMValue, detail, r.vm.IsCalculateExists() || r.vm.IsComputedLoaded, true
 		}
 	}
 
@@ -131,6 +132,7 @@ func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (*ds.VMValue,
 		ctx.SystemTemplate = t
 		r, _, err := DiceExprTextBase(ctx, expr, RollExtraFlags{
 			DefaultDiceSideNum: getDefaultDicePoints(ctx),
+			V2Only:             true,
 		})
 		if err == nil {
 			return r.VMValue, nil

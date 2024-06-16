@@ -22,10 +22,40 @@ var _dnd5eTmpl = &GameSystemTemplate{
 		},
 	},
 
+	PreloadCode: "func showAs(val) {" +
+		"return `{val ? `{val}[{&val.factor ? '*'+ (&val.factor == 1 ? '' : str(&val.factor))+','}{&val.base}]` : 0}`" +
+		"}",
+
 	AttrConfig: AttrConfig{
 		Top: []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
 		// SortBy: "Name",
+		ShowAs: map[string]string{
+			"运动": "{showAs(&运动)}",
+
+			"体操": "{showAs(&体操)}",
+			"巧手": "{showAs(&巧手)}",
+			"隐匿": "{showAs(&隐匿)}",
+
+			"调查": "{showAs(&调查)}",
+			"奥秘": "{showAs(&奥秘)}",
+			"历史": "{showAs(&历史)}",
+			"自然": "{showAs(&自然)}",
+			"宗教": "{showAs(&宗教)}",
+
+			"察觉": "{showAs(&察觉)}",
+			"洞悉": "{showAs(&洞悉)}",
+			"驯兽": "{showAs(&驯兽)}",
+			"医药": "{showAs(&医药)}",
+			"求生": "{showAs(&求生)}",
+
+			"游说": "{showAs(&游说)}",
+			"欺瞒": "{showAs(&欺瞒)}",
+			"威吓": "{showAs(&威吓)}",
+			"表演": "{showAs(&表演)}",
+		},
 	},
+
+	DefaultsComputed: map[string]string{},
 
 	Alias: map[string][]string{
 		"力量": {"str", "Strength"},

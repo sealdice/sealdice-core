@@ -64,13 +64,6 @@ func GroupPlayerNumGet(db *sqlx.DB, groupID string) (int64, error) {
 	return count, nil
 }
 
-// type PlayerVariablesItem struct {
-// 	Loaded        bool             `yaml:"-"`
-// 	ValueMap      lockfree.HashMap `yaml:"-"`
-// 	LastWriteTime int64            `yaml:"lastUsedTime"`
-// 	// ValueMap            map[string]*VMValue `yaml:"-"`
-// }
-
 // GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
 	Name                string        `yaml:"name" jsbind:"name"` // 玩家昵称

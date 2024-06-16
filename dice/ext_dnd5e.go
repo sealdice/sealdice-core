@@ -166,6 +166,45 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			}
 			return nil
 		},
+		ToExport: func(ctx *MsgContext, key string, val *ds.VMValue, tmpl *GameSystemTemplate) string {
+			if dndAttrParent[key] != "" && val.TypeId == ds.VMTypeComputedValue {
+				cd, _ := val.ReadComputed()
+				base, _ := cd.Attrs.Load("base")
+				factor, _ := cd.Attrs.Load("factor")
+				if base != nil {
+					if factor != nil {
+						if ds.ValueEqual(factor, ds.NewIntVal(1), true) {
+							return fmt.Sprintf("%s*:%s", key, base.ToRepr())
+						} else {
+							return fmt.Sprintf("%s*%s:%s", key, factor.ToRepr(), base.ToRepr())
+						}
+					} else {
+						return fmt.Sprintf("%s:%s", key, base.ToRepr())
+					}
+
+				}
+			}
+			return ""
+		},
+		ToSet: func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) {
+			attrName := tmpl.GetAlias(i.name)
+			parent := dndAttrParent[attrName]
+			if parent != "" {
+				exprTmpl := fmt.Sprintf("this.base + ((%s)??0)/2) - 5", parent)
+
+				m := ds.ValueMap{}
+				m.Store("base", i.value)
+
+				if i.extra != nil {
+					m.Store("factor", i.extra)
+					exprTmpl = fmt.Sprintf("this.base + ((%s)??0)/2 - 5 + (熟练??0) * this.factor", parent)
+				}
+				i.value = ds.NewComputedValRaw(&ds.ComputedData{
+					Expr:  exprTmpl,
+					Attrs: &m,
+				})
+			}
+		},
 	})
 
 	helpRc := "" +
@@ -1242,9 +1281,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				for index, i := range riList {
 					if !toDeleted[i.name] {
 						newList = append(newList, i)
+					} else {
 						delCounter++
 						textOut += fmt.Sprintf("%2d. %s\n", delCounter, i.name)
-					} else {
+
 						if int64(index) < round {
 							preCurrent++
 						}

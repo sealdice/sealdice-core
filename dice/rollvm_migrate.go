@@ -447,6 +447,9 @@ func DiceFormatV2(ctx *MsgContext, s string) (string, error) { //nolint:revive
 
 	// 隐藏的内置字符串符号 \x1e
 	// err := ctx.vm.Run("\x1e" + s + "\x1e")
+	if strings.Contains(s, "处于开启状") {
+		ctx.vm.Config.PrintBytecode = true
+	}
 	v, err := ctx.vm.RunExpr("\x1e"+s+"\x1e", true)
 	if err != nil || v == nil {
 		fmt.Println("脚本执行出错V2f: ", s, "->", err)

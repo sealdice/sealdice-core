@@ -167,7 +167,7 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 
 			v, err := tmpl.GetShowAs(mctx, k)
 			if err != nil {
-				return nil, 0, errors.New("模板卡异常, 属性: " + k)
+				return nil, 0, errors.New("模板卡异常, 属性: " + k + "\n报错: " + err.Error())
 			}
 
 			if index >= topNum {
@@ -184,7 +184,7 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 	return items, limitSkipCount, nil
 }
 
-func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate) (items []string, droppedByLimit int, err error) {
+func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate, stInfo *CmdStOverrideInfo) (items []string, droppedByLimit int, err error) {
 	// 修改自 cmdStGetItemsForShow
 	limitSkipCount := 0
 	items = []string{}
@@ -203,10 +203,19 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate) (items [
 				return nil, 0, errors.New("模板卡异常, 属性: " + k)
 			}
 
-			if v.TypeId == ds.VMTypeComputedValue {
-				items = append(items, fmt.Sprintf("&%s:%s", k, v.ToString()))
+			var text string
+			if stInfo != nil && stInfo.ToExport != nil {
+				text = stInfo.ToExport(mctx, k, v, tmpl)
+			}
+
+			if text != "" {
+				items = append(items, text)
 			} else {
-				items = append(items, fmt.Sprintf("%s:%s", k, v.ToString()))
+				if v.TypeId == ds.VMTypeComputedValue {
+					items = append(items, fmt.Sprintf("&%s:%s", k, v.ToString()))
+				} else {
+					items = append(items, fmt.Sprintf("%s:%s", k, v.ToString()))
+				}
 			}
 		}
 	}
@@ -298,7 +307,7 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 			toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val, extra: extra})
 		case "set.x0":
 			newname := tmpl.GetAlias(name)
-			toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val, extra: ds.NewIntVal(2)})
+			toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val, extra: ds.NewIntVal(1)})
 		case "mod":
 			newname := tmpl.GetAlias(name)
 			if val.TypeId != ds.VMTypeInt {
@@ -365,6 +374,7 @@ func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
 
 type CmdStOverrideInfo struct {
 	ToSet        func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate)
+	ToExport     func(ctx *MsgContext, key string, val *ds.VMValue, tmpl *GameSystemTemplate) string
 	CommandSolve func(ctx *MsgContext, msg *Message, args *CmdArgs) *CmdExecuteResult
 	HelpSt       string
 }
@@ -396,6 +406,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 			val := cmdArgs.GetArgN(1)
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			tmpl := ctx.Group.GetCharTemplate(dice)
+			mctx.Eval(tmpl.PreloadCode, nil)
 
 			attrs := lo.Must(dice.AttrsManager.LoadByCtx(mctx))
 			cardType := ReadCardType(mctx)
@@ -454,7 +465,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
 
 			case "export":
-				items, _, err := cmdStGetItemsForExport(mctx, tmpl)
+				items, _, err := cmdStGetItemsForExport(mctx, tmpl, &soi)
 				if err != nil {
 					ReplyToSender(mctx, msg, err.Error())
 					return CmdExecuteResult{Matched: true, Solved: true}
