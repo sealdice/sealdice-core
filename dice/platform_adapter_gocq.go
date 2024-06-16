@@ -1160,6 +1160,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 				_ = recover()
 			}()
 			pa.Socket.Close()
+			pa.diceServing = false
 		}()
 	}
 
