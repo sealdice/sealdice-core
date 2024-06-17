@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
