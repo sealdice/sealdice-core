@@ -14,6 +14,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
+	"github.com/samber/lo"
 
 	"sealdice-core/dice"
 )
@@ -470,10 +471,20 @@ func handleSetConfigs(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
 	}
+	var errors []error
 	for k, v := range data {
 		for _, i := range v.Configs {
-			myDice.ConfigManager.SetConfig(k, i.Key, i.Value)
+			err := myDice.ConfigManager.SetConfig(k, i.Key, i.Value)
+			if err != nil {
+				errors = append(errors, err)
+			}
 		}
+	}
+	if len(errors) > 0 {
+		errMsg := strings.Join(lo.Map(errors, func(e error, _ int) string {
+			return e.Error()
+		}), "\n")
+		return c.JSON(http.StatusInternalServerError, errMsg)
 	}
 	return c.JSON(http.StatusOK, nil)
 }
