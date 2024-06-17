@@ -34,9 +34,15 @@ func pbCalc(base, factor, ab) {
 `,
 
 	AttrConfig: AttrConfig{
-		Top: []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
-		// SortBy: "Name",
+		Top:    []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
+		SortBy: "Name",
+		Ignores: []string{
+			"DSS", "DSF", // 死亡豁免的两个标记
+			"hpmax",
+		},
 		ShowAs: map[string]string{
+			"hp": "{hp}/{hpmax}",
+
 			"运动": "{skillShowAs(&运动)}",
 
 			"体操": "{skillShowAs(&体操)}",

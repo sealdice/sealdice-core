@@ -107,9 +107,9 @@ func VarDelValue(ctx *MsgContext, s string) {
 }
 
 func VarGetValueInt64(ctx *MsgContext, s string) (int64, bool) {
-	v, exists := _VarGetValueV1(ctx, s)
-	if exists && v.TypeID == VMTypeInt64 {
-		return v.Value.(int64), true
+	v, exists := VarGetValue(ctx, s)
+	if exists && v.TypeId == ds.VMTypeInt {
+		return int64(v.MustReadInt()), true
 	}
 	return 0, false
 }

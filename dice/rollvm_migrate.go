@@ -263,6 +263,61 @@ func (ctx *MsgContext) setCocPrefixReadForVM(cb func(cocFlagVarPrefix string)) {
 	}
 }
 
+func (ctx *MsgContext) setDndReadForVM() {
+	var skip bool
+	ctx.vm.Config.HookFuncValueLoadOverwrite = func(varname string, curVal *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
+		if !skip && isAbilityScores(varname) {
+			if curVal != nil && curVal.TypeId == ds.VMTypeInt {
+				mod := curVal.MustReadInt()/2 - 5
+				detail.Tag = "dnd-rc"
+				detail.Text = fmt.Sprintf("%s调整值%d", varname, mod)
+				return ds.NewIntVal(mod)
+			}
+		}
+
+		switch varname {
+		case "力量豁免", "敏捷豁免", "体质豁免", "智力豁免", "感知豁免", "魅力豁免":
+			vName := strings.TrimSuffix(varname, "豁免")
+			if ctx.SystemTemplate != nil && strings.HasSuffix(varname, "豁免") {
+				// NOTE: 1.4.4 版本新增，此处逻辑是为了使 "XX豁免" 中的 XX 能被同义词所替换
+				name := strings.TrimSuffix(varname, "豁免")
+				name = ctx.SystemTemplate.GetAlias(name)
+				vName = name
+			}
+			stpName := stpFormat(vName) // saving throw proficiency
+
+			expr := fmt.Sprintf("pbCalc(0, %s ?? 0, %s ?? 0)", stpName, vName)
+			skip = true
+			ret, err := ctx.vm.RunExpr(expr, false)
+			skip = false
+			if err != nil {
+				return curVal
+			}
+
+			if detail.Tag != "" {
+				detail.Ret = ret
+				if ret2, _ := ctx.vm.RunExpr(stpName+" * (熟练??0)", false); ret2 != nil {
+					if ret2.TypeId == ds.VMTypeInt {
+						v := ret2.MustReadInt()
+						if v != 0 {
+							detail.Text = fmt.Sprintf("熟练+%d", v)
+						}
+					} else if ret2.TypeId == ds.VMTypeFloat {
+						v := ret2.MustReadFloat()
+						if v != 0 {
+							// 这里用toStr的原因是%f会打出末尾一大串0
+							detail.Text = fmt.Sprintf("熟练+%s", ret2.ToString())
+						}
+					}
+				}
+			}
+			return ret
+		}
+
+		return curVal
+	}
+}
+
 func (ctx *MsgContext) CreateVmIfNotExists() {
 	if ctx.vm == nil { //nolint:nestif
 		// 初始化骰子

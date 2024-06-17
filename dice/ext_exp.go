@@ -165,7 +165,8 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 				}
 			}
 
-			k, v, err := tmpl.GetShowAs(mctx, k)
+			var v *ds.VMValue
+			k, v, err = tmpl.GetShowAs(mctx, k)
 			if err != nil {
 				return nil, 0, errors.New("模板卡异常, 属性: " + k + "\n报错: " + err.Error())
 			}
