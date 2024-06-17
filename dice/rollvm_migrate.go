@@ -363,6 +363,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			var m []struct {
 				begin ds.IntType
 				end   ds.IntType
+				tag   string
 				spans []ds.BufferSpan
 			}
 
@@ -373,8 +374,9 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 					m = append(m, struct {
 						begin ds.IntType
 						end   ds.IntType
+						tag   string
 						spans []ds.BufferSpan
-					}{begin: curPoint, end: i.End, spans: []ds.BufferSpan{i}})
+					}{begin: curPoint, end: i.End, tag: i.Tag, spans: []ds.BufferSpan{i}})
 				} else {
 					m[len(m)-1].spans = append(m[len(m)-1].spans, i)
 					if i.End > m[len(m)-1].end {
@@ -414,7 +416,13 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				detail := "[" + exprText + "=" + part1
 				if last.Text != "" && part1 != last.Text {
 					// 如果 part1 和相关文本完全相同，直接跳过
-					detail += "=" + last.Text
+					if item.tag == "load" {
+						detail += "," + last.Text
+					} else if item.tag == "dnd-rc" {
+						detail = "[" + last.Text
+					} else {
+						detail += "=" + last.Text
+					}
 				}
 				subDetailsText = ""
 				detail += subDetailsText + "]"

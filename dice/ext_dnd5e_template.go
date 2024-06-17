@@ -22,39 +22,73 @@ var _dnd5eTmpl = &GameSystemTemplate{
 		},
 	},
 
-	PreloadCode: "func showAs(val) {" +
-		"return `{val ? `{val}[{&val.factor ? '*'+ (&val.factor == 1 ? '' : str(&val.factor))+','}{&val.base}]` : 0}`" +
-		"}",
+	PreloadCode: "func skillShowAs(val) {" +
+		"  return `{val}{&val.base ? `[{&val.base}]`}`" +
+		"}" +
+		"func skillShowAsKey(key, val) {" +
+		"  return `{key}{&val.factor ? '*'+ (&val.factor == 1 ? '' : str(&val.factor)) }`" +
+		"}" + `
+func pbCalc(base, factor, ab) {
+	return base + (ab??0)/2 - 5 + floor((熟练??0) * (factor??0));
+}
+`,
 
 	AttrConfig: AttrConfig{
 		Top: []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
 		// SortBy: "Name",
 		ShowAs: map[string]string{
-			"运动": "{showAs(&运动)}",
+			"运动": "{skillShowAs(&运动)}",
 
-			"体操": "{showAs(&体操)}",
-			"巧手": "{showAs(&巧手)}",
-			"隐匿": "{showAs(&隐匿)}",
+			"体操": "{skillShowAs(&体操)}",
+			"巧手": "{skillShowAs(&巧手)}",
+			"隐匿": "{skillShowAs(&隐匿)}",
 
-			"调查": "{showAs(&调查)}",
-			"奥秘": "{showAs(&奥秘)}",
-			"历史": "{showAs(&历史)}",
-			"自然": "{showAs(&自然)}",
-			"宗教": "{showAs(&宗教)}",
+			"调查": "{skillShowAs(&调查)}",
+			"奥秘": "{skillShowAs(&奥秘)}",
+			"历史": "{skillShowAs(&历史)}",
+			"自然": "{skillShowAs(&自然)}",
+			"宗教": "{skillShowAs(&宗教)}",
 
-			"察觉": "{showAs(&察觉)}",
-			"洞悉": "{showAs(&洞悉)}",
-			"驯兽": "{showAs(&驯兽)}",
-			"医药": "{showAs(&医药)}",
-			"求生": "{showAs(&求生)}",
+			"察觉": "{skillShowAs(&察觉)}",
+			"洞悉": "{skillShowAs(&洞悉)}",
+			"驯兽": "{skillShowAs(&驯兽)}",
+			"医药": "{skillShowAs(&医药)}",
+			"求生": "{skillShowAs(&求生)}",
 
-			"游说": "{showAs(&游说)}",
-			"欺瞒": "{showAs(&欺瞒)}",
-			"威吓": "{showAs(&威吓)}",
-			"表演": "{showAs(&表演)}",
+			"游说": "{skillShowAs(&游说)}",
+			"欺瞒": "{skillShowAs(&欺瞒)}",
+			"威吓": "{skillShowAs(&威吓)}",
+			"表演": "{skillShowAs(&表演)}",
+		},
+		ShowAsKey: map[string]string{
+			"运动": "{skillShowAsKey('运动', &运动)}",
+
+			"体操": "{skillShowAsKey('体操', &体操)}",
+			"巧手": "{skillShowAsKey('巧手', &巧手)}",
+			"隐匿": "{skillShowAsKey('隐匿', &隐匿)}",
+
+			"调查": "{skillShowAsKey('调查', &调查)}",
+			"奥秘": "{skillShowAsKey('奥秘', &奥秘)}",
+			"历史": "{skillShowAsKey('历史', &历史)}",
+			"自然": "{skillShowAsKey('自然', &自然)}",
+			"宗教": "{skillShowAsKey('宗教', &宗教)}",
+
+			"察觉": "{skillShowAsKey('察觉', &察觉)}",
+			"洞悉": "{skillShowAsKey('洞悉', &洞悉)}",
+			"驯兽": "{skillShowAsKey('驯兽', &驯兽)}",
+			"医药": "{skillShowAsKey('医药', &医药)}",
+			"求生": "{skillShowAsKey('求生', &求生)}",
+
+			"游说": "{skillShowAsKey('游说', &游说)}",
+			"欺瞒": "{skillShowAsKey('欺瞒', &欺瞒)}",
+			"威吓": "{skillShowAsKey('威吓', &威吓)}",
+			"表演": "{skillShowAsKey('表演', &表演)}",
 		},
 	},
 
+	Defaults: map[string]int64{
+		"熟练": 2,
+	},
 	DefaultsComputed: map[string]string{},
 
 	Alias: map[string][]string{

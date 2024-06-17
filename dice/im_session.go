@@ -203,6 +203,7 @@ func (group *GroupInfo) PlayerGet(db *sqlx.DB, id string) *GroupPlayerInfo {
 	return p
 }
 
+// GetCharTemplate 这个函数最好给ctx，在group下不合理，传入dice就很滑稽了
 func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	// 有system优先system
 	if group.System != "" {

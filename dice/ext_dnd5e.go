@@ -136,6 +136,19 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		return text
 	}
 
+	isAbilityScores := func(name string) bool {
+		for _, i := range []string{"力量", "敏捷", "体质", "智力", "感知", "魅力"} {
+			if i == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	stpFormat := func(attrName string) string {
+		return "$stp_" + attrName
+	}
+
 	helpSt := ".st 模板 // 录卡模板\n"
 	helpSt += ".st show // 展示个人属性\n"
 	helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
@@ -152,8 +165,43 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 	helpSt += "特别的，扣除hp时，会先将其buff值扣除到0。以及增加hp时，hp的值不会超过hpmax\n"
 	helpSt += "需要使用coc版本st，请执行.set coc"
 
+	toExport := func(ctx *MsgContext, key string, val *ds.VMValue, tmpl *GameSystemTemplate) string {
+		if dndAttrParent[key] != "" && val.TypeId == ds.VMTypeComputedValue {
+			cd, _ := val.ReadComputed()
+			base, _ := cd.Attrs.Load("base")
+			factor, _ := cd.Attrs.Load("factor")
+			if base != nil {
+				if factor != nil {
+					if ds.ValueEqual(factor, ds.NewIntVal(1), true) {
+						return fmt.Sprintf("%s*:%s", key, base.ToRepr())
+					} else {
+						return fmt.Sprintf("%s*%s:%s", key, factor.ToRepr(), base.ToRepr())
+					}
+				} else {
+					return fmt.Sprintf("%s:%s", key, base.ToRepr())
+				}
+
+			}
+		}
+		if isAbilityScores(key) {
+			// 如果为主要属性，同时读取豁免值
+			attrs, _ := ctx.Dice.AttrsManager.LoadByCtx(ctx)
+			stpKey := stpFormat(key)
+			// 注: 如果这里改成 eval，是不是即使原始值为computed也可以？
+			if v, exists := attrs.LoadX(stpKey); exists && (v.TypeId == ds.VMTypeInt || v.TypeId == ds.VMTypeFloat) {
+				if ds.ValueEqual(v, ds.NewIntVal(1), true) {
+					return fmt.Sprintf("%s*:%s", key, val.ToRepr())
+				} else {
+					return fmt.Sprintf("%s*%s:%s", key, v.ToRepr(), val.ToRepr())
+				}
+			}
+		}
+		return ""
+	}
+
 	cmdSt := getCmdStBase(CmdStOverrideInfo{
-		HelpSt: helpSt,
+		HelpSt:       helpSt,
+		TemplateName: "dnd5e",
 		CommandSolve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) *CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
 			switch val {
@@ -166,43 +214,27 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			}
 			return nil
 		},
-		ToExport: func(ctx *MsgContext, key string, val *ds.VMValue, tmpl *GameSystemTemplate) string {
-			if dndAttrParent[key] != "" && val.TypeId == ds.VMTypeComputedValue {
-				cd, _ := val.ReadComputed()
-				base, _ := cd.Attrs.Load("base")
-				factor, _ := cd.Attrs.Load("factor")
-				if base != nil {
-					if factor != nil {
-						if ds.ValueEqual(factor, ds.NewIntVal(1), true) {
-							return fmt.Sprintf("%s*:%s", key, base.ToRepr())
-						} else {
-							return fmt.Sprintf("%s*%s:%s", key, factor.ToRepr(), base.ToRepr())
-						}
-					} else {
-						return fmt.Sprintf("%s:%s", key, base.ToRepr())
-					}
-
-				}
-			}
-			return ""
-		},
+		ToExport: toExport,
 		ToSet: func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) {
 			attrName := tmpl.GetAlias(i.name)
 			parent := dndAttrParent[attrName]
 			if parent != "" {
-				exprTmpl := fmt.Sprintf("this.base + ((%s)??0)/2) - 5", parent)
-
 				m := ds.ValueMap{}
 				m.Store("base", i.value)
 
 				if i.extra != nil {
 					m.Store("factor", i.extra)
-					exprTmpl = fmt.Sprintf("this.base + ((%s)??0)/2 - 5 + (熟练??0) * this.factor", parent)
 				}
 				i.value = ds.NewComputedValRaw(&ds.ComputedData{
-					Expr:  exprTmpl,
+					// Expr: fmt.Sprintf("this.base + ((%s)??0)/2 - 5 + (熟练??0) * this.factor", parent)
+					Expr:  fmt.Sprintf("pbCalc(this.base, this.factor, %s)", parent),
 					Attrs: &m,
 				})
+			} else if isAbilityScores(attrName) {
+				// 如果为主要属性，同时读取豁免值
+				if i.extra != nil {
+					attrs.Store(stpFormat(attrName), i.extra)
+				}
 			}
 		},
 	})
@@ -239,15 +271,76 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					restText = strings.TrimSpace(restText[len(m):])
 				}
 				expr := fmt.Sprintf("D20%s + %s", m, restText)
-				r, detail, err := mctx.Dice._ExprEvalBaseV1(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
-				if err != nil {
+				ctx.CreateVmIfNotExists()
+
+				tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
+				mctx.Eval(tmpl.PreloadCode, nil)
+
+				var skip bool
+				ctx.vm.Config.HookFuncValueLoadOverwrite = func(varname string, curVal *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
+					if !skip && isAbilityScores(varname) {
+						if curVal != nil && curVal.TypeId == ds.VMTypeInt {
+							mod := curVal.MustReadInt()/2 - 5
+							detail.Tag = "dnd-rc"
+							detail.Text = fmt.Sprintf("%s调整值%d", varname, mod)
+							return ds.NewIntVal(mod)
+						}
+					}
+
+					switch varname {
+					case "力量豁免", "敏捷豁免", "体质豁免", "智力豁免", "感知豁免", "魅力豁免":
+						vName := strings.TrimSuffix(varname, "豁免")
+						if ctx.SystemTemplate != nil && strings.HasSuffix(varname, "豁免") {
+							// NOTE: 1.4.4 版本新增，此处逻辑是为了使 "XX豁免" 中的 XX 能被同义词所替换
+							name := strings.TrimSuffix(varname, "豁免")
+							name = ctx.SystemTemplate.GetAlias(name)
+							varname = name + "豁免"
+						}
+						stpName := stpFormat(vName) // saving throw proficiency
+
+						expr := fmt.Sprintf("pbCalc(0, %s ?? 0, %s ?? 0)", stpName, vName)
+						skip = true
+						ret, err := ctx.vm.RunExpr(expr, false)
+						skip = false
+						if err != nil {
+							return curVal
+						}
+
+						if detail.Tag != "" {
+							detail.Ret = ret
+							if ret2, _ := ctx.vm.RunExpr(stpName+" * (熟练??0)", false); ret2 != nil {
+								if ret2.TypeId == ds.VMTypeInt {
+									v := ret2.MustReadInt()
+									if v != 0 {
+										detail.Text = fmt.Sprintf("熟练+%d", v)
+									}
+								} else if ret2.TypeId == ds.VMTypeFloat {
+									v := ret2.MustReadFloat()
+									if v != 0 {
+										// 这里用toStr的原因是%f会打出末尾一大串0
+										detail.Text = fmt.Sprintf("熟练+%s", ret2.ToString())
+									}
+								}
+							}
+						}
+						return ret
+					}
+
+					return curVal
+				}
+
+				r := ctx.Eval(expr, nil)
+				// r, detail, err := mctx.Dice._ExprEvalBaseV1(expr, mctx, RollExtraFlags{DNDAttrReadMod: true, DNDAttrReadDC: true})
+				if r.vm.Error != nil {
+					fmt.Println("xxx", restText)
 					ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				reason := r.restInput
+				reason := r.vm.RestInput
 				if reason == "" {
 					reason = restText
 				}
+				detail := r.vm.GetDetailText()
 
 				text := fmt.Sprintf("%s的“%s”检定(dnd5e)结果为:\n%s = %s", getPlayerNameTempFunc(mctx), reason, detail, r.ToString())
 

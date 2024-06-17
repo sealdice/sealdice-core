@@ -31,6 +31,7 @@ type AttrConfig struct {
 	SortBy       string            `yaml:"sortBy" json:"sortBy"`             // time | Name | value desc
 	Ignores      []string          `yaml:"ignores" json:"ignores"`           // 这里面的属性将不被显示
 	ShowAs       map[string]string `yaml:"showAs" json:"showAs"`             // 展示形式，即st show时格式
+	ShowAsKey    map[string]string `yaml:"showAsKey" json:"showAsKey"`       // 展示形式，即st show时格式
 	Setter       map[string]string `yaml:"setter" json:"setter"`             // st写入时执行这个，未实装
 	ItemsPerLine int               `yaml:"itemsPerLine" json:"itemsPerLine"` // 每行显示几个属性，默认4
 }
@@ -100,7 +101,7 @@ func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string)
 		err := r.vm.Error
 
 		// 使用showAs的值覆盖detail
-		v, _ := t.getShowAs0(ctx, name)
+		_, v, _ := t.getShowAs0(ctx, name)
 		if v != nil {
 			detail = v.ToString()
 		}
@@ -126,27 +127,39 @@ func (t *GameSystemTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) 
 	return a
 }
 
-func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (*ds.VMValue, error) {
+func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (string, *ds.VMValue, error) {
 	// 有showas的情况
-	if expr, exists := t.AttrConfig.ShowAs[k]; exists {
+	baseK := k
+	if expr, exists := t.AttrConfig.ShowAsKey[k]; exists {
 		ctx.SystemTemplate = t
 		r, _, err := DiceExprTextBase(ctx, expr, RollExtraFlags{
 			DefaultDiceSideNum: getDefaultDicePoints(ctx),
 			V2Only:             true,
 		})
 		if err == nil {
-			return r.VMValue, nil
+			k = r.ToString()
 		}
-		return nil, err
 	}
-	return nil, nil //nolint:nilnil
+
+	if expr, exists := t.AttrConfig.ShowAs[baseK]; exists {
+		ctx.SystemTemplate = t
+		r, _, err := DiceExprTextBase(ctx, expr, RollExtraFlags{
+			DefaultDiceSideNum: getDefaultDicePoints(ctx),
+			V2Only:             true,
+		})
+		if err == nil {
+			return k, r.VMValue, nil
+		}
+		return k, nil, err
+	}
+	return k, nil, nil //nolint:nilnil
 }
 
-func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (*ds.VMValue, error) {
+func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (string, *ds.VMValue, error) {
 	// 有showas的情况
-	v, err := t.getShowAs0(ctx, k)
+	k, v, err := t.getShowAs0(ctx, k)
 	if v != nil || err != nil {
-		return v, err
+		return k, v, err
 	}
 
 	// 显示本体
@@ -155,29 +168,29 @@ func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (*ds.VMVal
 	var exists bool
 	v, exists = curAttrs.LoadX(k)
 	if exists {
-		return v, nil
+		return k, v, nil
 	}
 
 	// 默认值
 	v, _, _, exists = t.GetDefaultValueEx0(ctx, k)
 	if v != nil && exists {
-		return v, nil
+		return k, v, nil
 	}
 
 	// 不存在的值，返回nil
-	return nil, nil //nolint:nilnil
+	return k, nil, nil //nolint:nilnil
 }
 
-func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (*ds.VMValue, error) {
-	r, err := t.getShowAsBase(ctx, k)
+func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (string, *ds.VMValue, error) {
+	k, r, err := t.getShowAsBase(ctx, k)
 	if err != nil {
-		return r, err
+		return k, r, err
 	}
 	if r != nil {
-		return r, err
+		return k, r, err
 	}
 	// 返回值不存在，强行补0
-	return ds.NewIntVal(0), nil
+	return k, ds.NewIntVal(0), nil
 }
 
 func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*ds.VMValue, error) {

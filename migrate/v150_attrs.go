@@ -373,7 +373,7 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 func V150Upgrade() bool {
 	dbDataPath, _ := filepath.Abs("./data/default/data.db")
 	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
-		return false
+		return true
 	}
 
 	db, err := openDB(dbDataPath)

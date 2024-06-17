@@ -142,7 +142,7 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 	return -1, []string{}
 }
 
-func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, limit int64) (items []string, droppedByLimit int, err error) {
+func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, limit int64, stInfo *CmdStOverrideInfo) (items []string, droppedByLimit int, err error) {
 	usePickItem := len(pickItems) > 0
 	useLimit := limit > 0
 	limitSkipCount := 0
@@ -165,7 +165,7 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 				}
 			}
 
-			v, err := tmpl.GetShowAs(mctx, k)
+			k, v, err := tmpl.GetShowAs(mctx, k)
 			if err != nil {
 				return nil, 0, errors.New("模板卡异常, 属性: " + k + "\n报错: " + err.Error())
 			}
@@ -177,7 +177,16 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 				}
 			}
 
-			items = append(items, fmt.Sprintf("%s:%s", k, v.ToString()))
+			var text string
+			if stInfo.ToShow != nil {
+				text = stInfo.ToShow(mctx, k, v, tmpl)
+			}
+
+			if text != "" {
+				items = append(items, text)
+			} else {
+				items = append(items, fmt.Sprintf("%s:%s", k, v.ToString()))
+			}
 		}
 	}
 
@@ -225,7 +234,7 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate, stInfo *
 
 func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *ds.ValueMap, commandInfo map[string]any, i *stSetOrModInfoItem) {
 	// 获取当前值
-	curVal := lo.Must(attrs.Load(i.name))
+	curVal, _ := attrs.Load(i.name)
 	if curVal == nil {
 		curVal = tmpl.GetDefaultValueEx(mctx, i.name)
 	}
@@ -250,7 +259,7 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *ds.ValueMa
 		theNewValue = theOldValue + theModValue
 	case "-":
 		signText = "扣除"
-		theNewValue = theOldValue + theModValue
+		theNewValue = theOldValue - theModValue
 	}
 
 	// 指令信息
@@ -374,9 +383,11 @@ func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
 
 type CmdStOverrideInfo struct {
 	ToSet        func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate)
+	ToShow       func(ctx *MsgContext, key string, val *ds.VMValue, tmpl *GameSystemTemplate) string
 	ToExport     func(ctx *MsgContext, key string, val *ds.VMValue, tmpl *GameSystemTemplate) string
 	CommandSolve func(ctx *MsgContext, msg *Message, args *CmdArgs) *CmdExecuteResult
 	HelpSt       string
+	TemplateName string // 如果存在，使用此名字加载规则模板。一个用途是coc模式下可以调用dst
 }
 
 func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
@@ -405,11 +416,29 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 			dice := ctx.Dice
 			val := cmdArgs.GetArgN(1)
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			tmpl := ctx.Group.GetCharTemplate(dice)
-			mctx.Eval(tmpl.PreloadCode, nil)
 
 			attrs := lo.Must(dice.AttrsManager.LoadByCtx(mctx))
 			cardType := ReadCardType(mctx)
+
+			tmpl := ctx.Group.GetCharTemplate(dice)
+			tmplShow := tmpl // 用于st show的模板，如果show不同规则的模板，可以以其他规则格式显示
+			if cardType != tmplShow.Name {
+				if tmpl2, _ := dice.GameSystemMap.Load(cardType); tmpl2 != nil {
+					tmplShow = tmpl2
+				}
+			}
+
+			if soi.TemplateName != "" {
+				if tmpl2, _ := dice.GameSystemMap.Load(soi.TemplateName); tmpl2 != nil {
+					tmpl = tmpl2
+					tmplShow = tmpl2
+				}
+			}
+
+			mctx.Eval(tmpl.PreloadCode, nil)
+			if tmplShow != tmpl {
+				mctx.Eval(tmplShow.PreloadCode, nil)
+			}
 
 			if soi.CommandSolve != nil {
 				ret := soi.CommandSolve(ctx, msg, cmdArgs)
@@ -423,15 +452,15 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 
 			case "show", "list":
-				pickItems, limit := cmdStGetPickItemAndLimit(tmpl, cmdArgs)
-				items, droppedByLimit, err := cmdStGetItemsForShow(mctx, tmpl, pickItems, limit)
+				pickItems, limit := cmdStGetPickItemAndLimit(tmplShow, cmdArgs)
+				items, droppedByLimit, err := cmdStGetItemsForShow(mctx, tmplShow, pickItems, limit, &soi)
 				if err != nil {
 					ReplyToSender(mctx, msg, err.Error())
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
 				// 每四个一行，拼起来
-				itemsPerLine := tmpl.AttrConfig.ItemsPerLine
+				itemsPerLine := tmplShow.AttrConfig.ItemsPerLine
 				if itemsPerLine <= 1 {
 					itemsPerLine = 4
 				}
@@ -461,7 +490,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				}
 
 				VarSetValueStr(mctx, "$t属性信息", info)
-				extra := ReadCardTypeEx(mctx, ctx.Group.System)
+				extra := ReadCardTypeEx(mctx, tmpl.Name)
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
 
 			case "export":
