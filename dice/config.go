@@ -62,6 +62,8 @@ type ConfigItem struct {
 	Deprecated   bool        `json:"deprecated,omitempty" jsbind:"deprecated"`
 
 	Description string `json:"description" jsbind:"description"`
+
+	task *JsScriptTask
 }
 
 type PluginConfig struct {
@@ -184,13 +186,13 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	_ = cm.save()
 }
 
-func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
+func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) error {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
 
 	plugin, ok := cm.Plugins[pluginName]
 	if !ok {
-		return
+		return nil
 	}
 
 	configItem, exists := plugin.Configs[key]
@@ -206,13 +208,24 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
 				strarr = append(strarr, strv.(string))
 			}
 			configItem.Value = strarr
+		case "task:cron":
+			fallthrough
+		case "task:daily":
+			val := value.(string)
+			configItem.Value = val
+			// 立即生效
+			task := configItem.task
+			err := task.reset(val)
+			if err != nil {
+				return err
+			}
 		default:
 			configItem.Value = value
 		}
 		plugin.Configs[key] = configItem
 		cm.Plugins[pluginName] = plugin
 	}
-	_ = cm.save()
+	return cm.save()
 }
 
 func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
@@ -247,6 +260,11 @@ func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 		fmt.Println("reset config to default", pluginName, key)
 		configItem.Value = configItem.DefaultValue
 		plugin.Configs[key] = configItem
+		if strings.HasPrefix(configItem.Type, "task:") {
+			if configItem.task != nil {
+				_ = configItem.task.reset(configItem.Value.(string))
+			}
+		}
 		cm.Plugins[pluginName] = plugin
 	}
 	_ = cm.save()
