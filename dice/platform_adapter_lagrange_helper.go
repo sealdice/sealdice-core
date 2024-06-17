@@ -81,7 +81,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			defer func(file *os.File) {
 				_ = file.Close()
 			}(file)
-
 			decoder := json.NewDecoder(file)
 			var result map[string]interface{}
 			err := decoder.Decode(&result)
@@ -90,7 +89,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", int(val))
 				}
 			}
-
 		}
 		if pa.ConnectURL == "" {
 			p, _ := GetRandomFreePort()
