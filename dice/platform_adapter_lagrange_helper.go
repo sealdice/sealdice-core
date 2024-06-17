@@ -74,8 +74,24 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		}
 
 		// 创建配置文件
-		if _, err := os.Stat(configFilePath); pa.ConnectURL == "" || errors.Is(err, os.ErrNotExist) {
-			// 如果不存在，进行创建
+		file, err := os.Open(configFilePath)
+		pa.ConnectURL = ""
+		if err == nil {
+			defer func(file *os.File) {
+				_ = file.Close()
+			}(file)
+
+			decoder := json.NewDecoder(file)
+			var result map[string]interface{}
+			err := decoder.Decode(&result)
+			if err == nil {
+				if val, ok := result["Implementations"].([]interface{})[0].(map[string]interface{})["Port"].(float64); ok {
+					pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", int(val))
+				}
+			}
+
+		}
+		if pa.ConnectURL == "" {
 			p, _ := GetRandomFreePort()
 			pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", p)
 			c := GenerateLagrangeConfig(p, conn)
