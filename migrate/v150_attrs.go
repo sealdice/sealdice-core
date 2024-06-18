@@ -453,5 +453,7 @@ CREATE TABLE IF NOT EXISTS attrs (
 	_, _ = db.Exec("drop table attrs_user")
 	_, _ = db.Exec("VACUUM;") // 收尾
 	fmt.Println("V150 数据转换完成")
+
+	sheetIdBindByGroupId = nil
 	return true
 }
