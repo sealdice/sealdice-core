@@ -218,11 +218,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			over := args.GetKwarg("over")
 			attrName := tmpl.GetAlias(i.name)
 			if attrName == "hp" && over != nil {
-				hp := attrs.Load("hp")
 				hpBuff := attrs.Load("$buff_hp")
-				if hp == nil {
-					hp = ds.NewIntVal(0)
-				}
 				if hpBuff == nil {
 					hpBuff = ds.NewIntVal(0)
 				}
@@ -441,7 +437,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				var items []string
 				// 或者有pickItems，或者当前的变量数量大于0
 				if len(pickItems) > 0 {
-					for key, _ := range pickItems {
+					for key := range pickItems {
 						if value, exists := attrs.LoadX("$buff_" + key); exists {
 							items = append(items, fmt.Sprintf("%s:%s", key, value.ToString()))
 						} else {

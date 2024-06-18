@@ -32,9 +32,6 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 		// 当前绑定: ctx.ChBindCur: 卡片角色名: $:ch-bind-data:name
 
 		m2 := &ds.ValueMap{}
-		// if name == "测试3" {
-		// 	fmt.Println(m2)
-		// }
 		for k, v := range mapData {
 			if k == "$cardType" {
 				continue
@@ -43,19 +40,12 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 				continue
 			}
 
-			// if name == "测试3" {
-			//	fmt.Println(k, v)
-			// }
 			m2.Store(k, v.ConvertToV2())
 		}
 
 		var rawData []byte
 		rawData, err = ds.NewDictVal(m2).V().ToJSON()
 
-		// if name == "测试3" {
-		// 	fmt.Println("!!!!!", string(rawData))
-		// 	fmt.Println(ds.NewDictVal(m2).V().ToString())
-		// }
 		if err != nil {
 			return nil, err
 		}

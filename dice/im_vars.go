@@ -17,17 +17,6 @@ func VarSetValueStr(ctx *MsgContext, s string, v string) {
 	VarSetValue(ctx, s, ds.NewStrVal(v))
 }
 
-func _VarSetValueDNDComputedV1(ctx *MsgContext, s string, val int64, expr string) {
-	vd := &VMDndComputedValueData{
-		BaseValue: VMValue{
-			TypeID: VMTypeInt64,
-			Value:  val,
-		},
-		Expr: expr,
-	}
-	_VarSetValueV1(ctx, s, &VMValue{TypeID: VMTypeDNDComputedValue, Value: vd})
-}
-
 func VarSetValueInt64(ctx *MsgContext, s string, v int64) {
 	VarSetValue(ctx, s, ds.NewIntVal(ds.IntType(v)))
 }
