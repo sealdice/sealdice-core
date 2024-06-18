@@ -89,7 +89,34 @@ func (t *GameSystemTemplate) GetAlias(varname string) string {
 	return varname
 }
 
+// GetDefaultValueEx0 获取默认值
 func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*ds.VMValue, string, bool, bool) {
+	name := t.GetAlias(varname)
+	var detail string
+
+	// 先计算computed
+	if expr, exists := t.DefaultsComputed[name]; exists {
+		ctx.SystemTemplate = t
+		r := ctx.Eval(expr, nil)
+
+		if r.vm.Error == nil {
+			detail = r.vm.GetDetailText()
+			return &r.VMValue, detail, r.vm.IsCalculateExists() || r.vm.IsComputedLoaded, true
+		} else {
+			return ds.NewStrVal("报错:" + r.vm.Error.Error()), "", true, true
+		}
+	}
+
+	if val, exists := t.Defaults[name]; exists {
+		return ds.NewIntVal(ds.IntType(val)), detail, false, true
+	}
+
+	// TODO: 以空值填充，这是vm v1的行为，未来需要再次评估其合理性
+	return ds.NewIntVal(0), detail, false, false
+}
+
+// GetDefaultValueEx0V1 获取默认值，与现行版本不同的是里面调用了 getShowAs0，唯一的使用地点是 RollVM v1
+func (t *GameSystemTemplate) GetDefaultValueEx0V1(ctx *MsgContext, varname string) (*ds.VMValue, string, bool, bool) {
 	name := t.GetAlias(varname)
 	var detail string
 
@@ -152,14 +179,27 @@ func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (string, *ds.
 		}
 		return k, nil, err
 	}
+
+	// 基础值
+	if expr, exists := t.AttrConfig.ShowAs["*"]; exists {
+		ctx.SystemTemplate = t
+		ctx.CreateVmIfNotExists()
+		ctx.vm.StoreNameLocal("name", ds.NewStrVal(baseK))
+		r := ctx.Eval(expr, nil)
+		if r.vm.Error == nil {
+			return k, &r.VMValue, nil
+		}
+		return k, nil, r.vm.Error
+	}
+
 	return k, nil, nil //nolint:nilnil
 }
 
 func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (string, *ds.VMValue, error) {
 	// 有showas的情况
-	k, v, err := t.getShowAs0(ctx, k)
+	newK, v, err := t.getShowAs0(ctx, k)
 	if v != nil || err != nil {
-		return k, v, err
+		return newK, v, err
 	}
 
 	// 显示本体
@@ -168,13 +208,13 @@ func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (string, *
 	var exists bool
 	v, exists = curAttrs.LoadX(k)
 	if exists {
-		return k, v, nil
+		return newK, v, nil
 	}
 
 	// 默认值
 	v, _, _, exists = t.GetDefaultValueEx0(ctx, k)
 	if v != nil && exists {
-		return k, v, nil
+		return newK, v, nil
 	}
 
 	// 不存在的值，返回nil

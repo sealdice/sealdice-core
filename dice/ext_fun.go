@@ -1043,6 +1043,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 
+			tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
+			ctx.Eval(tmpl.PreloadCode, nil)
+
 			val := cmdArgs.GetArgN(1)
 			if val != "" {
 				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”

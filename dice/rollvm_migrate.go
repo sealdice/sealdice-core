@@ -263,14 +263,36 @@ func (ctx *MsgContext) setCocPrefixReadForVM(cb func(cocFlagVarPrefix string)) {
 	}
 }
 
-func (ctx *MsgContext) setDndReadForVM() {
+func tryLoadByBuff(ctx *MsgContext, varname string, curVal *ds.VMValue) *ds.VMValue {
+	buffName := "$buff_" + varname
+	am := ctx.Dice.AttrsManager
+	if attrs, _ := am.LoadByCtx(ctx); attrs != nil {
+		v := attrs.Load(buffName)
+		if v != nil {
+			newVal := curVal.OpAdd(ctx.vm, v)
+			if newVal != nil {
+				curVal = newVal
+			}
+		}
+	}
+	return curVal
+}
+
+// setDndReadForVM 主要是为rc设定属性豁免，暂时没有写在规则模板的原因是可以自定义detail输出
+func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 	var skip bool
 	ctx.vm.Config.HookFuncValueLoadOverwrite = func(varname string, curVal *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
-		if !skip && isAbilityScores(varname) {
+		// if !skip {
+		// curVal = tryLoadByBuff(ctx, varname, curVal)
+		// }
+		if !skip && rcMode && isAbilityScores(varname) {
 			if curVal != nil && curVal.TypeId == ds.VMTypeInt {
+				curVal = tryLoadByBuff(ctx, varname, curVal)
 				mod := curVal.MustReadInt()/2 - 5
-				detail.Tag = "dnd-rc"
-				detail.Text = fmt.Sprintf("%s调整值%d", varname, mod)
+				if detail != nil {
+					detail.Tag = "dnd-rc"
+					detail.Text = fmt.Sprintf("%s调整值%d", varname, mod)
+				}
 				return ds.NewIntVal(mod)
 			}
 		}
@@ -278,15 +300,13 @@ func (ctx *MsgContext) setDndReadForVM() {
 		switch varname {
 		case "力量豁免", "敏捷豁免", "体质豁免", "智力豁免", "感知豁免", "魅力豁免":
 			vName := strings.TrimSuffix(varname, "豁免")
-			if ctx.SystemTemplate != nil && strings.HasSuffix(varname, "豁免") {
+			if ctx.SystemTemplate != nil {
 				// NOTE: 1.4.4 版本新增，此处逻辑是为了使 "XX豁免" 中的 XX 能被同义词所替换
-				name := strings.TrimSuffix(varname, "豁免")
-				name = ctx.SystemTemplate.GetAlias(name)
-				vName = name
+				vName = ctx.SystemTemplate.GetAlias(vName)
 			}
 			stpName := stpFormat(vName) // saving throw proficiency
 
-			expr := fmt.Sprintf("pbCalc(0, %s ?? 0, %s ?? 0)", stpName, vName)
+			expr := fmt.Sprintf("pbCalc(0, %s ?? 0, %s ?? 0 + %s ?? 0)", stpName, vName, "$buff_"+vName)
 			skip = true
 			ret, err := ctx.vm.RunExpr(expr, false)
 			skip = false
@@ -294,7 +314,7 @@ func (ctx *MsgContext) setDndReadForVM() {
 				return curVal
 			}
 
-			if detail.Tag != "" {
+			if detail != nil && detail.Tag != "" {
 				detail.Ret = ret
 				if ret2, _ := ctx.vm.RunExpr(stpName+" * (熟练??0)", false); ret2 != nil {
 					if ret2.TypeId == ds.VMTypeInt {
@@ -313,7 +333,6 @@ func (ctx *MsgContext) setDndReadForVM() {
 			}
 			return ret
 		}
-
 		return curVal
 	}
 }
@@ -329,6 +348,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		ctx.vm.Config.EnableDiceFate = true
 		ctx.vm.Config.EnableDiceDoubleCross = true
 		ctx.vm.Config.EnableV1IfCompatible = true
+		ctx.vm.Config.OpCountLimit = 30000
 
 		am := ctx.Dice.AttrsManager
 		ctx.vm.Config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
@@ -420,6 +440,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				end   ds.IntType
 				tag   string
 				spans []ds.BufferSpan
+				val   *ds.VMValue
 			}
 
 			for _, i := range details {
@@ -431,7 +452,8 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 						end   ds.IntType
 						tag   string
 						spans []ds.BufferSpan
-					}{begin: curPoint, end: i.End, tag: i.Tag, spans: []ds.BufferSpan{i}})
+						val   *ds.VMValue
+					}{begin: curPoint, end: i.End, tag: i.Tag, spans: []ds.BufferSpan{i}, val: i.Ret})
 				} else {
 					m[len(m)-1].spans = append(m[len(m)-1].spans, i)
 					if i.End > m[len(m)-1].end {
@@ -444,6 +466,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				}
 			}
 
+			var detailArr []*ds.VMValue
 			for i := len(m) - 1; i >= 0; i-- {
 				// for i := 0; i < len(m); i++ {
 				item := m[i]
@@ -485,8 +508,16 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				r = append(r, ([]byte)(last.Ret.ToString()+detail)...)
 				r = append(r, detailResult[item.end:]...)
 				detailResult = r
+
+				d := ds.NewDictValWithArrayMust(
+					ds.NewStrVal("tag"), ds.NewStrVal(item.tag),
+					ds.NewStrVal("expr"), ds.NewStrVal(string(detailResult[item.begin:item.end])),
+					ds.NewStrVal("val"), item.val,
+				)
+				detailArr = append(detailArr, d.V())
 			}
 
+			ctx.StoreNameLocal("details", ds.NewArrayValRaw(detailArr))
 			return string(detailResult)
 		}
 

@@ -176,6 +176,9 @@ func (am *AttrsManager) Init(d *Dice) {
 	am.logger = d.Logger
 	go func() {
 		for {
+			if am.logger == nil {
+				return
+			}
 			// fmt.Println(am.CheckForSave())
 			am.CheckForSave()
 			am.CheckAndFreeUnused()
@@ -195,7 +198,7 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 	}
 
 	tx, err := db.Begin()
-	if err != nil {
+	if err != nil && am.logger != nil {
 		am.logger.Errorf("定期写入用户数据出错(创建事务): %v", err)
 		return 0, 0
 	}

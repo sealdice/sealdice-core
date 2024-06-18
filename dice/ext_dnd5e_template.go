@@ -27,9 +27,19 @@ var _dnd5eTmpl = &GameSystemTemplate{
 		"}" +
 		"func skillShowAsKey(key, val) {" +
 		"  return `{key}{&val.factor ? '*'+ (&val.factor == 1 ? '' : str(&val.factor)) }`" +
+		"}" +
+		"func abilityShowAsKey(key, keyFactor) {" +
+		"  return `{key}{keyFactor ? '*'+ (keyFactor == 1 ? '' : str(keyFactor)) }`" +
+		"}" +
+		"func abilityShowAs(base, buff) {" +
+		"  return `{base??0 + buff??0}{buff ? '[buff+'+ str(buff) + ']' }`" +
 		"}" + `
-func pbCalc(base, factor, ab) {
+func pbCalc(base, factor, ab) { // 基础值，熟练系数，属性值
 	return base + (ab??0)/2 - 5 + floor((熟练??0) * (factor??0));
+}
+` + `
+func abilityModifier(name) { // 计算调整值
+	return (load(name) ?? 0 + load('$buff_' + name) ?? 0) / 2 - 5
 }
 `,
 
@@ -41,7 +51,9 @@ func pbCalc(base, factor, ab) {
 			"hpmax",
 		},
 		ShowAs: map[string]string{
-			"hp": "{hp}/{hpmax}",
+			"hp": "{hp??0 + $buff_hp??0}/{hpmax??0 + $buff_hpmax??0}",
+
+			"*": "abilityShowAs(load(name), load('$buff_' + name))",
 
 			"运动": "{skillShowAs(&运动)}",
 
@@ -67,6 +79,13 @@ func pbCalc(base, factor, ab) {
 			"表演": "{skillShowAs(&表演)}",
 		},
 		ShowAsKey: map[string]string{
+			"力量": "{abilityShowAsKey('力量', $stp_力量)}",
+			"体质": "{abilityShowAsKey('体质', $stp_体质)}",
+			"敏捷": "{abilityShowAsKey('敏捷', $stp_敏捷)}",
+			"智力": "{abilityShowAsKey('智力', $stp_智力)}",
+			"感知": "{abilityShowAsKey('感知', $stp_感知)}",
+			"魅力": "{abilityShowAsKey('魅力', $stp_魅力)}",
+
 			"运动": "{skillShowAsKey('运动', &运动)}",
 
 			"体操": "{skillShowAsKey('体操', &体操)}",
@@ -95,7 +114,14 @@ func pbCalc(base, factor, ab) {
 	Defaults: map[string]int64{
 		"熟练": 2,
 	},
-	DefaultsComputed: map[string]string{},
+	DefaultsComputed: map[string]string{
+		"力量调整值": "abilityModifier('力量')",
+		"体质调整值": "abilityModifier('体质')",
+		"敏捷调整值": "abilityModifier('敏捷')",
+		"智力调整值": "abilityModifier('智力')",
+		"感知调整值": "abilityModifier('感知')",
+		"魅力调整值": "abilityModifier('魅力')",
+	},
 
 	Alias: map[string][]string{
 		"力量": {"str", "Strength"},

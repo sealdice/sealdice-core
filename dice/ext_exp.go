@@ -13,6 +13,7 @@ import (
 	ds "github.com/sealdice/dicescript"
 )
 
+// 如果参数中存在指定的属性，将其选出作为展示项
 func cmdStGetPickItemAndLimit(tmpl *GameSystemTemplate, cmdArgs *CmdArgs) (pickItems map[string]int, limit int64) {
 	var usePickItem bool
 	if len(cmdArgs.Args) >= 2 {
@@ -154,8 +155,10 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 	if len(attrKeys) > 0 {
 		// 遍历输出
 		for index, k := range attrKeys {
-			if strings.HasPrefix(k, "$") {
-				continue
+			if !usePickItem {
+				if strings.HasPrefix(k, "$") {
+					continue
+				}
 			}
 
 			if usePickItem {
@@ -383,16 +386,18 @@ func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
 }
 
 type CmdStOverrideInfo struct {
-	ToSet        func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate)
+	ToSet        func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool
+	ToMod        func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool
 	ToShow       func(ctx *MsgContext, key string, val *ds.VMValue, tmpl *GameSystemTemplate) string
 	ToExport     func(ctx *MsgContext, key string, val *ds.VMValue, tmpl *GameSystemTemplate) string
 	CommandSolve func(ctx *MsgContext, msg *Message, args *CmdArgs) *CmdExecuteResult
-	HelpSt       string
+	Help         string
+	HelpPrefix   string
 	TemplateName string // 如果存在，使用此名字加载规则模板。一个用途是coc模式下可以调用dst
 }
 
 func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
-	helpSt := soi.HelpSt
+	helpSt := soi.Help
 	if helpSt == "" {
 		helpSt += ".st show // 展示个人属性\n"
 		helpSt += ".st show <属性1> <属性2> ... // 展示特定的属性数值\n"
@@ -406,11 +411,14 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 		helpSt += ".st &<属性>=<式子> // 例：.st &手枪=1d6\n"
 		helpSt += ".st <属性>±<表达式> // 例：.st 敏捷+2 hp+1d3 "
 	}
+	if soi.HelpPrefix == "" {
+		soi.HelpPrefix = "属性修改指令，支持分支指令如下:\n"
+	}
 
 	cmdNewSt := &CmdItemInfo{
 		Name:          "st",
 		ShortHelp:     helpSt,
-		Help:          "属性修改指令，支持分支指令如下:\n" + helpSt,
+		Help:          soi.HelpPrefix + helpSt,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			cmdArgs.ChopPrefixToArgsWith("del", "rm", "show", "list", "export")
@@ -552,7 +560,6 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				}
 
 				cmdStCharFormat(mctx, tmpl) // 转一下卡
-
 				mctx.SystemTemplate = tmpl
 
 				// 进行简化卡的尝试解析
@@ -619,22 +626,25 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				if len(toSetItems) > 0 {
 					// 是 set
 					for _, i := range toSetItems {
+						var skip bool
 						if soi.ToSet != nil {
-							soi.ToSet(ctx, i, attrs, tmpl)
+							skip = soi.ToSet(ctx, i, attrs, tmpl)
 						}
 
-						def := tmpl.GetDefaultValueEx(ctx, i.name)
-						if ds.ValueEqual(i.value, def, true) {
-							curVal := attrs.Load(i.name)
-							// 如果当前有值
-							if curVal == nil {
-								// 与预设相同，放弃
-								continue
+						if skip {
+							def := tmpl.GetDefaultValueEx(ctx, i.name)
+							if ds.ValueEqual(i.value, def, true) {
+								curVal := attrs.Load(i.name)
+								// 如果当前有值
+								if curVal == nil {
+									// 与预设相同，放弃
+									continue
+								}
 							}
-						}
 
+							attrs.Store(i.name, i.value)
+						}
 						validNum++
-						attrs.Store(i.name, i.value)
 					}
 					VarSetValueInt64(mctx, "$t数量", int64(len(toSetItems))) // 废弃
 					VarSetValueInt64(mctx, "$t有效数量", validNum)
@@ -658,6 +668,10 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 					var textItems []string
 					chName := lo.Must(mctx.Dice.AttrsManager.LoadByCtx(mctx)).Name
 					for _, i := range toModItems {
+						if soi.ToMod != nil {
+							soi.ToMod(ctx, cmdArgs, i, attrs, tmpl)
+						}
+
 						cmdStValueMod(mctx, tmpl, attrs.valueMap, commandInfo, i)
 						VarSetValueStr(mctx, "$t当前绑定角色", chName)
 						text2 := DiceFormatTmpl(mctx, "COC:属性设置_增减_单项")
