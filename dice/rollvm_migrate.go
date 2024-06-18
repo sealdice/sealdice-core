@@ -67,7 +67,7 @@ func dsValueToRollVMv1(v *ds.VMValue) *VMValue {
 	return v2
 }
 
-func DiceFormatTmplV1(ctx *MsgContext, s string) string { //nolint:revive
+func DiceFormatTmplV1(ctx *MsgContext, s string) string {
 	var text string
 	a := ctx.Dice.TextMap[s]
 	if a == nil {
@@ -186,6 +186,7 @@ func (r *VMResultV2m) ToString() string {
 }
 
 // DiceExprEvalBase 向下兼容执行，首先尝试使用V2执行表达式，如果V2失败，fallback到V1
+//
 // Deprecated: 不建议用，纯兼容旧版
 func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2m, string, error) {
 	ctx.CreateVmIfNotExists()
@@ -225,6 +226,7 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 }
 
 // DiceExprTextBase
+//
 // Deprecated: 不建议用，纯兼容旧版
 func DiceExprTextBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResultV2m, string, error) {
 	return DiceExprEvalBase(ctx, "\x1e"+s+"\x1e", flags)
@@ -434,8 +436,8 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
 		detailResult := dataBuffer[:len(ctx.Matched)]
 
-		curPoint := ds.IntType(-1) //nolint
-		lastEnd := ds.IntType(-1)  //nolint
+		curPoint := ds.IntType(-1) //nolint:ineffectassign
+		lastEnd := ds.IntType(-1)  //nolint:ineffectassign
 
 		var m []struct {
 			begin ds.IntType
