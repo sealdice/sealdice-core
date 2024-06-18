@@ -9,12 +9,11 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	ds "github.com/sealdice/dicescript"
 
 	"sealdice-core/dice"
 	"sealdice-core/dice/model"
 	"sealdice-core/utils"
-
-	ds "github.com/sealdice/dicescript"
 )
 
 func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*model.AttributesItemModel, error) {
@@ -71,7 +70,7 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 	return nil, err
 }
 
-var sheetIdBindByGroupId = map[string]string{}
+var sheetIdBindByGroupId map[string]string
 
 // 群组个人数据转换
 func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
@@ -389,6 +388,7 @@ func V150Upgrade() bool {
 	}
 
 	fmt.Println("1.5 数据迁移")
+	sheetIdBindByGroupId = map[string]string{}
 
 	sqls := []string{
 		`CREATE TABLE IF NOT EXISTS endpoint_info (

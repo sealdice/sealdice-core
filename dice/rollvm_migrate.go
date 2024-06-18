@@ -338,59 +338,50 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 }
 
 func (ctx *MsgContext) CreateVmIfNotExists() {
-	if ctx.vm == nil { //nolint:nestif
-		// 初始化骰子
-		ctx.vm = ds.NewVM()
+	if ctx.vm != nil {
+		return
+	}
+	// 初始化骰子
+	ctx.vm = ds.NewVM()
 
-		// 根据当前规则开语法 - 暂时是都开
-		ctx.vm.Config.EnableDiceWoD = true
-		ctx.vm.Config.EnableDiceCoC = true
-		ctx.vm.Config.EnableDiceFate = true
-		ctx.vm.Config.EnableDiceDoubleCross = true
-		ctx.vm.Config.EnableV1IfCompatible = true
-		ctx.vm.Config.OpCountLimit = 30000
+	// 根据当前规则开语法 - 暂时是都开
+	ctx.vm.Config.EnableDiceWoD = true
+	ctx.vm.Config.EnableDiceCoC = true
+	ctx.vm.Config.EnableDiceFate = true
+	ctx.vm.Config.EnableDiceDoubleCross = true
+	ctx.vm.Config.EnableV1IfCompatible = true
+	ctx.vm.Config.OpCountLimit = 30000
 
-		am := ctx.Dice.AttrsManager
-		ctx.vm.Config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
-			// 临时变量，直接忽略
-			// 个人变量
-			if strings.HasPrefix(name, "$m") {
-				if ctx.Session != nil && ctx.Player != nil {
-					playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
-					playerAttrs.Store(name, v)
-				}
-				return nil, true
+	am := ctx.Dice.AttrsManager
+	ctx.vm.Config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
+		// 临时变量，直接忽略
+		// 个人变量
+		if strings.HasPrefix(name, "$m") {
+			if ctx.Session != nil && ctx.Player != nil {
+				playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
+				playerAttrs.Store(name, v)
 			}
-
-			// 群变量
-			if ctx.Group != nil && strings.HasPrefix(name, "$g") {
-				groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
-				groupAttrs.Store(name, v)
-				return nil, true
-			}
-			return nil, false
+			return nil, true
 		}
 
-		ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
-			if curVal == nil {
-				if strings.HasPrefix(name, "$") {
-					am := ctx.Dice.AttrsManager
-					// 个人变量
-					if strings.HasPrefix(name, "$m") {
-						if ctx.Session != nil && ctx.Player != nil {
-							playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
-							v := playerAttrs.Load(name)
-							if v == nil {
-								return ds.NewIntVal(0)
-							}
-							return v
-						}
-					}
+		// 群变量
+		if ctx.Group != nil && strings.HasPrefix(name, "$g") {
+			groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
+			groupAttrs.Store(name, v)
+			return nil, true
+		}
+		return nil, false
+	}
 
-					// 群变量
-					if ctx.Group != nil && strings.HasPrefix(name, "$g") {
-						groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
-						v := groupAttrs.Load(name)
+	ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
+		if curVal == nil {
+			if strings.HasPrefix(name, "$") {
+				am := ctx.Dice.AttrsManager
+				// 个人变量
+				if strings.HasPrefix(name, "$m") {
+					if ctx.Session != nil && ctx.Player != nil {
+						playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
+						v := playerAttrs.Load(name)
 						if v == nil {
 							return ds.NewIntVal(0)
 						}
@@ -398,136 +389,146 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 					}
 				}
 
-				// 从模板取值，模板中的设定是如果取不到获得0
-				// TODO: 目前没有好的方法去复制ctx，实际上这个行为应当类似于ds中的函数调用
-				ctx.CreateVmIfNotExists()
-				ctx2 := *ctx
-				ctx2.vm = nil
-				ctx2.CreateVmIfNotExists()
-				ctx2.vm.UpCtx = ctx.vm
-				ctx2.vm.Attrs = ctx.vm.Attrs
-
-				name = ctx.SystemTemplate.GetAlias(name)
-				v, err := ctx.SystemTemplate.GetRealValue(&ctx2, name)
-				if err != nil {
-					return ds.NewNullVal()
-				}
-
-				if strings.Contains(name, ":") {
-					textTmpl := ctx.Dice.TextMap[name]
-					if textTmpl != nil {
-						if v2, err := DiceFormatV2(ctx, textTmpl.Pick().(string)); err == nil {
-							return ds.NewStrVal(v2)
-						}
-					} else {
-						return ds.NewStrVal("<%未定义值-" + name + "%>")
+				// 群变量
+				if ctx.Group != nil && strings.HasPrefix(name, "$g") {
+					groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
+					v := groupAttrs.Load(name)
+					if v == nil {
+						return ds.NewIntVal(0)
 					}
+					return v
 				}
-
-				return v
-			}
-			return curVal
-		}
-
-		ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
-			detailResult := dataBuffer[:len(ctx.Matched)]
-
-			curPoint := ds.IntType(-1) //nolint
-			lastEnd := ds.IntType(-1)  //nolint
-
-			var m []struct {
-				begin ds.IntType
-				end   ds.IntType
-				tag   string
-				spans []ds.BufferSpan
-				val   *ds.VMValue
 			}
 
-			for _, i := range details {
-				// fmt.Println("?", i, lastEnd)
-				if i.Begin > lastEnd {
-					curPoint = i.Begin
-					m = append(m, struct {
-						begin ds.IntType
-						end   ds.IntType
-						tag   string
-						spans []ds.BufferSpan
-						val   *ds.VMValue
-					}{begin: curPoint, end: i.End, tag: i.Tag, spans: []ds.BufferSpan{i}, val: i.Ret})
+			// 从模板取值，模板中的设定是如果取不到获得0
+			// TODO: 目前没有好的方法去复制ctx，实际上这个行为应当类似于ds中的函数调用
+			ctx.CreateVmIfNotExists()
+			ctx2 := *ctx
+			ctx2.vm = nil
+			ctx2.CreateVmIfNotExists()
+			ctx2.vm.UpCtx = ctx.vm
+			ctx2.vm.Attrs = ctx.vm.Attrs
+
+			name = ctx.SystemTemplate.GetAlias(name)
+			v, err := ctx.SystemTemplate.GetRealValue(&ctx2, name)
+			if err != nil {
+				return ds.NewNullVal()
+			}
+
+			if strings.Contains(name, ":") {
+				textTmpl := ctx.Dice.TextMap[name]
+				if textTmpl != nil {
+					if v2, err := DiceFormatV2(ctx, textTmpl.Pick().(string)); err == nil {
+						return ds.NewStrVal(v2)
+					}
 				} else {
-					m[len(m)-1].spans = append(m[len(m)-1].spans, i)
-					if i.End > m[len(m)-1].end {
-						m[len(m)-1].end = i.End
-					}
-				}
-
-				if i.End > lastEnd {
-					lastEnd = i.End
+					return ds.NewStrVal("<%未定义值-" + name + "%>")
 				}
 			}
 
-			var detailArr []*ds.VMValue
-			for i := len(m) - 1; i >= 0; i-- {
-				// for i := 0; i < len(m); i++ {
-				item := m[i]
-				size := len(item.spans)
-				sort.Sort(spanByEnd(item.spans))
-				last := item.spans[size-1]
+			return v
+		}
+		return curVal
+	}
 
-				subDetailsText := ""
-				if size > 1 {
-					// 次级结果，如 (10d3)d5 中，此处为10d3的结果
-					// 例如 (10d3)d5=63[(10d3)d5=...,10d3=19]
-					for j := 0; j < len(item.spans)-1; j++ {
-						span := item.spans[j]
-						subDetailsText += "," + string(detailResult[span.Begin:span.End]) + "=" + span.Ret.ToString()
-					}
+	ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
+		detailResult := dataBuffer[:len(ctx.Matched)]
+
+		curPoint := ds.IntType(-1) //nolint
+		lastEnd := ds.IntType(-1)  //nolint
+
+		var m []struct {
+			begin ds.IntType
+			end   ds.IntType
+			tag   string
+			spans []ds.BufferSpan
+			val   *ds.VMValue
+		}
+
+		for _, i := range details {
+			// fmt.Println("?", i, lastEnd)
+			if i.Begin > lastEnd {
+				curPoint = i.Begin
+				m = append(m, struct {
+					begin ds.IntType
+					end   ds.IntType
+					tag   string
+					spans []ds.BufferSpan
+					val   *ds.VMValue
+				}{begin: curPoint, end: i.End, tag: i.Tag, spans: []ds.BufferSpan{i}, val: i.Ret})
+			} else {
+				m[len(m)-1].spans = append(m[len(m)-1].spans, i)
+				if i.End > m[len(m)-1].end {
+					m[len(m)-1].end = i.End
 				}
-
-				exprText := string(detailResult[item.begin:item.end])
-
-				var r []byte
-				r = append(r, detailResult[:item.begin]...)
-
-				part1 := last.Ret.ToString()
-				// 主体结果部分，如 (10d3)d5=63[(10d3)d5=63=2+2+2+5+2+5+5+4+1+3+4+1+4+5+4+3+4+5+2,10d3=19]
-				detail := "[" + exprText + "=" + part1
-				if last.Text != "" && part1 != last.Text {
-					// 如果 part1 和相关文本完全相同，直接跳过
-					if item.tag == "load" {
-						detail += "," + last.Text
-					} else if item.tag == "dnd-rc" {
-						detail = "[" + last.Text
-					} else {
-						detail += "=" + last.Text
-					}
-				}
-				subDetailsText = ""
-				detail += subDetailsText + "]"
-
-				r = append(r, ([]byte)(last.Ret.ToString()+detail)...)
-				r = append(r, detailResult[item.end:]...)
-				detailResult = r
-
-				d := ds.NewDictValWithArrayMust(
-					ds.NewStrVal("tag"), ds.NewStrVal(item.tag),
-					ds.NewStrVal("expr"), ds.NewStrVal(string(detailResult[item.begin:item.end])),
-					ds.NewStrVal("val"), item.val,
-				)
-				detailArr = append(detailArr, d.V())
 			}
 
-			ctx.StoreNameLocal("details", ds.NewArrayValRaw(detailArr))
-			return string(detailResult)
+			if i.End > lastEnd {
+				lastEnd = i.End
+			}
 		}
 
-		// 设置默认骰子面数
-		if ctx.Group != nil {
-			// 情况不明，在sealchat的第一次测试中出现Group为nil
-			ctx.vm.Config.DefaultDiceSideExpr = fmt.Sprintf("%d", ctx.Group.DiceSideNum)
-		} else {
-			ctx.vm.Config.DefaultDiceSideExpr = "d100"
+		var detailArr []*ds.VMValue
+		for i := len(m) - 1; i >= 0; i-- {
+			// for i := 0; i < len(m); i++ {
+			item := m[i]
+			size := len(item.spans)
+			sort.Sort(spanByEnd(item.spans))
+			last := item.spans[size-1]
+
+			subDetailsText := ""
+			if size > 1 {
+				// 次级结果，如 (10d3)d5 中，此处为10d3的结果
+				// 例如 (10d3)d5=63[(10d3)d5=...,10d3=19]
+				for j := 0; j < len(item.spans)-1; j++ {
+					span := item.spans[j]
+					subDetailsText += "," + string(detailResult[span.Begin:span.End]) + "=" + span.Ret.ToString()
+				}
+			}
+
+			exprText := string(detailResult[item.begin:item.end])
+
+			var r []byte
+			r = append(r, detailResult[:item.begin]...)
+
+			part1 := last.Ret.ToString()
+			// 主体结果部分，如 (10d3)d5=63[(10d3)d5=63=2+2+2+5+2+5+5+4+1+3+4+1+4+5+4+3+4+5+2,10d3=19]
+			detail := "[" + exprText + "=" + part1
+			if last.Text != "" && part1 != last.Text {
+				// 如果 part1 和相关文本完全相同，直接跳过
+				if item.tag == "load" {
+					detail += "," + last.Text
+				} else if item.tag == "dnd-rc" {
+					detail = "[" + last.Text
+				} else {
+					detail += "=" + last.Text
+				}
+			}
+			subDetailsText = ""
+			detail += subDetailsText + "]"
+
+			r = append(r, ([]byte)(last.Ret.ToString()+detail)...)
+			r = append(r, detailResult[item.end:]...)
+			detailResult = r
+
+			d := ds.NewDictValWithArrayMust(
+				ds.NewStrVal("tag"), ds.NewStrVal(item.tag),
+				ds.NewStrVal("expr"), ds.NewStrVal(string(detailResult[item.begin:item.end])),
+				ds.NewStrVal("val"), item.val,
+			)
+			detailArr = append(detailArr, d.V())
 		}
+
+		ctx.StoreNameLocal("details", ds.NewArrayValRaw(detailArr))
+		return string(detailResult)
+	}
+
+	// 设置默认骰子面数
+	if ctx.Group != nil {
+		// 情况不明，在sealchat的第一次测试中出现Group为nil
+		ctx.vm.Config.DefaultDiceSideExpr = fmt.Sprintf("%d", ctx.Group.DiceSideNum)
+	} else {
+		ctx.vm.Config.DefaultDiceSideExpr = "d100"
 	}
 }
 
