@@ -128,6 +128,11 @@ func VarGetValue(ctx *MsgContext, s string) (*ds.VMValue, bool) {
 		if v, ok := ctx.Player.ValueMapTemp.Load(s); ok {
 			return v, ok
 		}
+		if ctx.vm != nil {
+			if v, ok := ctx.vm.Attrs.Load(s); ok {
+				return v, ok
+			}
+		}
 	}
 
 	// 个人全局变量
