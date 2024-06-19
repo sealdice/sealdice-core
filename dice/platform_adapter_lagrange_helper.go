@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -77,16 +76,13 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 		// 创建配置文件
 		pa.ConnectURL = ""
-		if file, err := os.Open(configFilePath); err == nil {
-			if settings, err := io.ReadAll(file); err == nil {
-				var result map[string]interface{}
-				if err := json.Unmarshal(settings, &result); err == nil {
-					if val, ok := result["Implementations"].([]interface{})[0].(map[string]interface{})["Port"].(float64); ok {
-						pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", int(val))
-					}
+		if file, err := os.ReadFile(configFilePath); err == nil {
+			var result map[string]interface{}
+			if err := json.Unmarshal(file, &result); err == nil {
+				if val, ok := result["Implementations"].([]interface{})[0].(map[string]interface{})["Port"].(float64); ok {
+					pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", int(val))
 				}
 			}
-			_ = file.Close()
 		}
 		if pa.ConnectURL == "" {
 			p, _ := GetRandomFreePort()
