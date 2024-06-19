@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	ds "github.com/sealdice/dicescript"
@@ -72,8 +73,26 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 
 var sheetIdBindByGroupId map[string]string
 
+// AttrsNewItem 新建一个角色卡/属性容器
+func AttrsNewItem(db *sqlx.Tx, item *model.AttributesItemModel) (*model.AttributesItemModel, error) {
+	id := utils.NewID()
+	now := time.Now().Unix()
+	item.CreatedAt, item.UpdatedAt = now, now
+	if item.Id == "" {
+		item.Id = id
+	}
+
+	var err error
+	_, err = db.Exec(`
+		insert into attrs (id, data, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at, attrs_type)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		item.Id, item.Data, item.BindingSheetId, item.Name, item.OwnerId, item.SheetType, item.IsHidden,
+		item.CreatedAt, item.UpdatedAt, item.AttrsType)
+	return item, err
+}
+
 // 群组个人数据转换
-func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
+func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 	rows, err := db.NamedQuery("select id, updated_at, data from attrs_group_user", map[string]any{})
 	if err != nil {
 		return 0, 0, err
@@ -158,7 +177,7 @@ func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
 			UpdatedAt: updatedAt,
 		}
 
-		_, err = model.AttrsNewItem(db, item)
+		_, err = AttrsNewItem(db, item)
 		if err != nil {
 			countFailed += 1
 		} else {
@@ -170,7 +189,7 @@ func attrsGroupUserMigrate(db *sqlx.DB) (int, int, error) {
 }
 
 // 群数据转换
-func attrsGroupMigrate(db *sqlx.DB) (int, int, error) {
+func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 	rows, err := db.NamedQuery("select id, updated_at, data from main.attrs_group", map[string]any{})
 	if err != nil {
 		return 0, 0, err
@@ -228,7 +247,7 @@ func attrsGroupMigrate(db *sqlx.DB) (int, int, error) {
 			UpdatedAt: updatedAt,
 		}
 
-		_, err = model.AttrsNewItem(db, item)
+		_, err = AttrsNewItem(db, item)
 		if err != nil {
 			countFailed += 1
 		} else {
@@ -240,7 +259,7 @@ func attrsGroupMigrate(db *sqlx.DB) (int, int, error) {
 }
 
 // 全局个人数据转换、对应attrs_user和玩家人物卡
-func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
+func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 	rows, err := db.NamedQuery("select id, updated_at, data from attrs_user where length(data) < 9000000", map[string]any{})
 	if err != nil {
 		return 0, 0, 0, err
@@ -324,7 +343,7 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 
 		// 保存用户人物卡
 		for _, i := range newSheetsList {
-			_, err = model.AttrsNewItem(db, i)
+			_, err = AttrsNewItem(db, i)
 			if err != nil {
 				fmt.Printf("用户 %s 的角色卡 %s 无法写入数据库: %s\n", ownerId, i.Name, err.Error())
 			}
@@ -348,7 +367,7 @@ func attrsUserMigrate(db *sqlx.DB) (int, int, int, error) {
 			UpdatedAt: updatedAt,
 		}
 
-		_, err = model.AttrsNewItem(db, item)
+		_, err = AttrsNewItem(db, item)
 		if err != nil {
 			countFailed += 1
 		} else {
@@ -417,21 +436,27 @@ CREATE TABLE IF NOT EXISTS attrs (
 		_, _ = db.Exec(i)
 	}
 
-	count, countSheetsNum, countFailed, err := attrsUserMigrate(db)
+	tx, err := db.Beginx()
+	if err != nil {
+		fmt.Println("V150数据转换创建事务失败:", err.Error())
+		return false
+	}
+
+	count, countSheetsNum, countFailed, err := attrsUserMigrate(tx)
 	fmt.Printf("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
 	if err != nil {
 		fmt.Println("异常", err.Error())
 		return false
 	}
 
-	count, countFailed, err = attrsGroupUserMigrate(db)
+	count, countFailed, err = attrsGroupUserMigrate(tx)
 	fmt.Printf("数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
 	if err != nil {
 		fmt.Println("异常", err.Error())
 		return false
 	}
 
-	count, countFailed, err = attrsGroupMigrate(db)
+	count, countFailed, err = attrsGroupMigrate(tx)
 	fmt.Printf("数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
 	if err != nil {
 		fmt.Println("异常", err.Error())
@@ -440,12 +465,19 @@ CREATE TABLE IF NOT EXISTS attrs (
 
 	// 删档
 	fmt.Println("删除旧版本数据")
-	_, _ = db.Exec("drop table attrs_group")
-	_, _ = db.Exec("drop table attrs_group_user")
-	_, _ = db.Exec("drop table attrs_user")
-	_, _ = db.Exec("VACUUM;") // 收尾
-	fmt.Println("V150 数据转换完成")
+	_, _ = tx.Exec("drop table attrs_group")
+	_, _ = tx.Exec("drop table attrs_group_user")
+	_, _ = tx.Exec("drop table attrs_user")
+	_, _ = tx.Exec("VACUUM;") // 收尾
 
 	sheetIdBindByGroupId = nil
+
+	err = tx.Commit()
+	if err != nil {
+		fmt.Println("V150 数据转换失败:", err.Error())
+		return false
+	}
+
+	fmt.Println("V150 数据转换完成")
 	return true
 }

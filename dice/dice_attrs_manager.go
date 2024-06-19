@@ -24,7 +24,8 @@ func (am *AttrsManager) LoadByCtx(ctx *MsgContext) (*AttributesItem, error) {
 	return am.Load(ctx.Group.GroupID, ctx.Player.UserID)
 	// if ctx.AttrsCurCache == nil {
 	// 	var err error
-	// 	ctx.AttrsCurCache, err = am.Load(ctx.Group.GroupID, ctx.Player.UserID)
+	// 	ctx.AttrsCurC
+	//	ache, err = am.Load(ctx.Group.GroupID, ctx.Player.UserID)
 	// 	return ctx.AttrsCurCache, err
 	// }
 	// return ctx.AttrsCurCache, nil
@@ -133,34 +134,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 		return nil, err
 	}
 
-	// 3. 从老数据库读取 - 群用户数据
-	// （其实还有一种，但是读不了，就是玩家的卡数据，因为没有id）
-	// 暂时先不弄这种了，太容易出问题
-	// dataOld := model.AttrGroupUserGetAllBase(d.DBData, id)
-	// if dataOld != nil {
-	//	mapData := make(map[string]*VMValue)
-	//	err := JsonValueMapUnmarshal(dataOld, &mapData)
-	//	if err != nil {
-	//		d.Logger.Errorf("读取玩家数据失败！错误 %v 原数据 %v", err, data)
-	//	}
-	//
-	//	m := &ds.ValueMap{}
-	//	for k, v := range mapData {
-	//		m.Store(k, v.ConvertToDiceScriptValue())
-	//	}
-	//
-	//	now := time.Now().Unix()
-	//	i = &AttributesItem{
-	//		ID:               id,
-	//		valueMap:         m,
-	//		LastUsedTime:     now,
-	//		LastModifiedTime: now,
-	//	}
-	//	am.m.Store(id, i)
-	//	return i, nil
-	// }
-
-	// 4. 创建一个新的
+	// 3. 创建一个新的
 	// 注: 缺 created_at、updated_at、sheet_type、owner_id、is_hidden、nickname等各项
 	// 可能需要ctx了
 	i = &AttributesItem{
