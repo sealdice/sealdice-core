@@ -33,10 +33,11 @@ func VarSetValue(ctx *MsgContext, s string, v *ds.VMValue) {
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
-		if ctx.Player.ValueMapTemp == nil {
-			ctx.Player.ValueMapTemp = &ds.ValueMap{}
-		}
-		ctx.Player.ValueMapTemp.Store(s, vClone)
+		// 如果是内部设置的临时变量，不需要长期存活
+		//  if ctx.Player.ValueMapTemp == nil {
+		//  	ctx.Player.ValueMapTemp = &ds.ValueMap{}
+		//  }
+		//  ctx.Player.ValueMapTemp.Store(s, vClone)
 		// 用这个替代 temp 吗？我不太确定
 		ctx.vm.StoreNameLocal(s, vClone)
 		return
@@ -72,6 +73,8 @@ func VarDelValue(ctx *MsgContext, s string) {
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
 		ctx.Player.ValueMapTemp.Delete(s)
+		curAttrs := lo.Must(am.LoadByCtx(ctx))
+		curAttrs.Delete(name)
 		return
 	}
 
@@ -122,7 +125,9 @@ func VarGetValue(ctx *MsgContext, s string) (*ds.VMValue, bool) {
 			ctx.Player.ValueMapTemp = &ds.ValueMap{}
 			return nil, false
 		}
-		return ctx.Player.ValueMapTemp.Load(s)
+		if v, ok := ctx.Player.ValueMapTemp.Load(s); ok {
+			return v, ok
+		}
 	}
 
 	// 个人全局变量

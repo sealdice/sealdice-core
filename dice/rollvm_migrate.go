@@ -356,7 +356,16 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 
 	am := ctx.Dice.AttrsManager
 	ctx.vm.Config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
-		// 临时变量，直接忽略
+		// 临时变量
+		if strings.HasPrefix(name, "$t") {
+			if ctx.Player.ValueMapTemp == nil {
+				ctx.Player.ValueMapTemp = &ds.ValueMap{}
+			}
+			ctx.Player.ValueMapTemp.Store(name, v)
+			// 继续存入local 因此solved为false
+			return nil, false
+		}
+
 		// 个人变量
 		if strings.HasPrefix(name, "$m") {
 			if ctx.Session != nil && ctx.Player != nil {
@@ -377,6 +386,16 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 
 	ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
 		if curVal == nil {
+			// 临时变量
+			if strings.HasPrefix(name, "$t") {
+				if ctx.Player.ValueMapTemp == nil {
+					ctx.Player.ValueMapTemp = &ds.ValueMap{}
+				}
+				if v, ok := ctx.Player.ValueMapTemp.Load(name); ok {
+					return v
+				}
+			}
+
 			if strings.HasPrefix(name, "$") {
 				am := ctx.Dice.AttrsManager
 				// 个人变量

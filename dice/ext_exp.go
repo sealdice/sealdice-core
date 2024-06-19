@@ -546,6 +546,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_删除"))
 			case "clr", "clear":
 				num := attrs.Clear()
+				attrs.SetSheetType("")
 				VarSetValueInt64(mctx, "$t数量", int64(num))
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_清除"))
 
@@ -631,7 +632,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 							skip = soi.ToSet(ctx, i, attrs, tmpl)
 						}
 
-						if skip {
+						if !skip {
 							def := tmpl.GetDefaultValueEx(ctx, i.name)
 							if ds.ValueEqual(i.value, def, true) {
 								curVal := attrs.Load(i.name)

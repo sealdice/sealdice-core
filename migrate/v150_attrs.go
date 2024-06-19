@@ -391,14 +391,6 @@ func V150Upgrade() bool {
 	sheetIdBindByGroupId = map[string]string{}
 
 	sqls := []string{
-		`CREATE TABLE IF NOT EXISTS endpoint_info (
-user_id TEXT PRIMARY KEY,
-cmd_num INTEGER,
-cmd_last_time INTEGER,
-online_time INTEGER,
-updated_at INTEGER
-);`,
-
 		`
 CREATE TABLE IF NOT EXISTS attrs (
     id TEXT PRIMARY KEY,
