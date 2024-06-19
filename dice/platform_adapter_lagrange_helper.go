@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -74,8 +75,16 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		}
 
 		// 创建配置文件
-		if _, err := os.Stat(configFilePath); pa.ConnectURL == "" || errors.Is(err, os.ErrNotExist) {
-			// 如果不存在，进行创建
+		pa.ConnectURL = ""
+		if file, err := os.ReadFile(configFilePath); err == nil {
+			var result map[string]interface{}
+			if err := json.Unmarshal(file, &result); err == nil {
+				if val, ok := result["Implementations"].([]interface{})[0].(map[string]interface{})["Port"].(float64); ok {
+					pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", int(val))
+				}
+			}
+		}
+		if pa.ConnectURL == "" {
 			p, _ := GetRandomFreePort()
 			pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", p)
 			c := GenerateLagrangeConfig(p, conn)
