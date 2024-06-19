@@ -59,6 +59,10 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 			d.Logger.Infof("检测到登录失败，不再进行此onebot服务的重连: <%s>(%s)", ep.Nickname, ep.UserID)
 			return true
 		}
+		if !ep.Enable {
+			d.Logger.Infof("检测到账号被禁用，不再进行此onebot服务的重连: <%s>(%s)", ep.Nickname, ep.UserID)
+			return true
+		}
 		return false
 	}
 
