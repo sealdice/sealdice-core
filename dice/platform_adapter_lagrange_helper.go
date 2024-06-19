@@ -78,9 +78,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		// 创建配置文件
 		pa.ConnectURL = ""
 		if file, err := os.Open(configFilePath); err == nil {
-			defer func(file *os.File) {
-				_ = file.Close()
-			}(file)
 			if settings, err := io.ReadAll(file); err == nil {
 				var result map[string]interface{}
 				if err := json.Unmarshal(settings, &result); err == nil {
@@ -89,6 +86,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					}
 				}
 			}
+			_ = file.Close()
 		}
 		if pa.ConnectURL == "" {
 			p, _ := GetRandomFreePort()
