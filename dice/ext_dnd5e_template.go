@@ -34,12 +34,12 @@ var _dnd5eTmpl = &GameSystemTemplate{
 		"func abilityShowAs(base, buff) {" +
 		"  return `{base??0 + buff??0}{buff ? '[buff+'+ str(buff) + ']' }`" +
 		"}" +
-		"func pbCalc(base, factor, ab) { // 基础值，熟练系数，属性值" +
-		"  return base + (ab??0)/2 - 5 + floor((熟练??0) * (factor??0));" +
-		"}" +
-		"func abilityModifier(name) { // 计算调整值" +
-		"  return (load(name) ?? 0 + load('$buff_' + name) ?? 0) / 2 - 5" +
-		"}",
+		"func pbCalc(base, factor, ab) { // 基础值，熟练系数，属性值\n" +
+		"  return base + (ab??0)/2 - 5 + floor((熟练??0) * (factor??0));\n" +
+		"}\n" +
+		"func abilityModifier(name) { // 计算调整值\n" +
+		"  return (load(name) ?? 0 + load('$buff_' + name) ?? 0) / 2 - 5\n" +
+		"}\n",
 
 	AttrConfig: AttrConfig{
 		Top:    []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
