@@ -1383,7 +1383,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				if err == nil && r.TypeId == ds.VMTypeInt {
 					san = int64(r.MustReadInt())
 				}
-				_san, err := strconv.ParseInt(argText, 10, 64)
+				_san, err := strconv.ParseInt(strings.TrimSpace(argText), 10, 64)
 				if err == nil {
 					san = _san
 				}
