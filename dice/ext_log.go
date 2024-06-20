@@ -111,16 +111,16 @@ func RegisterBuiltinExtLog(self *Dice) {
 		return bakLogCurName, bakLogCurName
 	}
 
-	const helpLog = `.log new (<日志名>) // 新建日志并开始记录，注意new后跟空格！
-.log on (<日志名>)  // 开始记录，不写日志名则开启最近一次日志，注意on后跟空格！
+	const helpLog = `.log new [<日志名>] // 新建日志并开始记录，注意new后跟空格！
+.log on [<日志名>]  // 开始记录，不写日志名则开启最近一次日志，注意on后跟空格！
 .log off // 暂停记录
 .log end // 完成记录并发送日志文件
-.log get (<日志名>) // 重新上传日志，并获取链接
+.log get [<日志名>] // 重新上传日志，并获取链接
 .log halt // 强行关闭当前log，不上传日志
 .log list // 查看当前群的日志列表
 .log del <日志名> // 删除一份日志
-.log stat (<日志名>) // 查看统计
-.log stat (<日志名>) --all // 查看统计(全团)，--all前必须有空格
+.log stat [<日志名>] // 查看统计
+.log stat [<日志名>] --all // 查看统计(全团)，--all前必须有空格
 .log list <群号> // 查看指定群的日志列表(无法取得日志时，找骰主做这个操作)
 .log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)
 .log export <日志名> // 直接取得日志txt(服务出问题或有其他需要时使用)
@@ -461,8 +461,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 		},
 	}
 
-	helpStat := `.stat log (<日志名>) // 查看当前或指定日志的骰点统计
-.stat log (<日志名>) --all // 查看全团
+	helpStat := `.stat log [<日志名>] // 查看当前或指定日志的骰点统计
+.stat log [<日志名>] --all // 查看全团
 .stat help // 帮助
 `
 	cmdStat := &CmdItemInfo{

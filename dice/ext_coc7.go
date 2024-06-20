@@ -269,7 +269,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		".ra b <属性表达式> // 奖励骰或惩罚骰\n" +
 		".ra p2 <属性表达式> // 多个奖励骰或惩罚骰\n" +
 		".ra 3#p <属性表达式> // 多重检定\n" +
-		".ra <属性表达式> (@某人) // 对某人做检定(使用他的属性)\n" +
+		".ra <属性表达式> @某人 // 对某人做检定(使用他的属性)\n" +
 		".rch/rah // 暗中检定，和检定指令用法相同"
 
 	cmdRc := &CmdItemInfo{
@@ -866,11 +866,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	cmdSt := getCmdStBase(CmdStOverrideInfo{})
 
-	helpEn := `.en <技能名称>(技能点数) (+(<失败成长值>/)<成功成长值>) // 整体格式，可以直接看下面几个分解格式
+	helpEn := `.en <技能名称>[<技能点数>] [+[<失败成长值>/]<成功成长值>] // 整体格式，可以直接看下面几个分解格式
 .en <技能名称> // 骰D100，若点数大于当前值，属性成长1d10
-.en <技能名称>(技能点数) // 骰D100，若点数大于技能点数，属性=技能点数+1d10
-.en <技能名称>(技能点数) +<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点
-.en <技能名称>(技能点数) +<失败成长值>/<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点，否则增加失败
+.en <技能名称>[<技能点数>] // 骰D100，若点数大于技能点数，属性=技能点数+1d10
+.en <技能名称>[<技能点数>] +<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点
+.en <技能名称>[<技能点数>] +<失败成长值>/<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点，否则增加失败
 .en <技能名称1> <技能名称2> // 批量技能成长，支持上述多种格式，复杂情况建议用|隔开每个技能`
 
 	cmdEn := &CmdItemInfo{
@@ -1250,7 +1250,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	helpSc := ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
 		".sc <失败时掉san> //同上，简易写法 \n" +
-		".sc (b/p) (<成功时掉san>/)<失败时掉san> // 加上奖惩骰"
+		".sc [b|p] [<成功时掉san>/]<失败时掉san> // 加上奖惩骰"
 	cmdSc := &CmdItemInfo{
 		Name:          "sc",
 		ShortHelp:     helpSc,
@@ -1505,8 +1505,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	cmdCoc := &CmdItemInfo{
 		Name:      "coc",
-		ShortHelp: ".coc (<数量>) // 制卡指令，返回<数量>组人物属性",
-		Help:      "COC制卡指令:\n.coc (<数量>) // 制卡指令，返回<数量>组人物属性",
+		ShortHelp: ".coc [<数量>] // 制卡指令，返回<数量>组人物属性",
+		Help:      "COC制卡指令:\n.coc [<数量>] // 制卡指令，返回<数量>组人物属性",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n := cmdArgs.GetArgN(1)
 			val, err := strconv.ParseInt(n, 10, 64)
