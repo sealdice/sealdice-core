@@ -901,8 +901,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 	}
 
-	helpDnd := ".dnd (<数量>) // 制卡指令，返回<数量>组人物属性，最高为10次\n" +
-		".dndx (<数量>) // 制卡指令，但带有属性名，最高为10次"
+	helpDnd := ".dnd [<数量>] // 制卡指令，返回<数量>组人物属性，最高为10次\n" +
+		".dndx [<数量>] // 制卡指令，但带有属性名，最高为10次"
 
 	cmdDnd := &CmdItemInfo{
 		Name:      "dnd",

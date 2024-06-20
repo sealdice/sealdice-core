@@ -866,7 +866,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	cmdSt := getCmdStBase(CmdStOverrideInfo{})
 
-	helpEn := `.en <技能名称>(技能点数) (+(<失败成长值>/)<成功成长值>) // 整体格式，可以直接看下面几个分解格式
+	helpEn := `.en <技能名称>(技能点数) [+[<失败成长值>/]<成功成长值>] // 整体格式，可以直接看下面几个分解格式
 .en <技能名称> // 骰D100，若点数大于当前值，属性成长1d10
 .en <技能名称>(技能点数) // 骰D100，若点数大于技能点数，属性=技能点数+1d10
 .en <技能名称>(技能点数) +<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点
@@ -1505,8 +1505,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	cmdCoc := &CmdItemInfo{
 		Name:      "coc",
-		ShortHelp: ".coc (<数量>) // 制卡指令，返回<数量>组人物属性",
-		Help:      "COC制卡指令:\n.coc (<数量>) // 制卡指令，返回<数量>组人物属性",
+		ShortHelp: ".coc [<数量>] // 制卡指令，返回<数量>组人物属性",
+		Help:      "COC制卡指令:\n.coc [<数量>] // 制卡指令，返回<数量>组人物属性",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n := cmdArgs.GetArgN(1)
 			val, err := strconv.ParseInt(n, 10, 64)

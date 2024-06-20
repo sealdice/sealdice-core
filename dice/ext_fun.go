@@ -804,7 +804,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
-	helpEkGen := ".ekgen (<数量>) // 制卡指令，生成<数量>组人物属性，最高为10次"
+	helpEkGen := ".ekgen [<数量>] // 制卡指令，生成<数量>组人物属性，最高为10次"
 	cmdEkgen := CmdItemInfo{
 		Name:      "ekgen",
 		ShortHelp: helpEkGen,

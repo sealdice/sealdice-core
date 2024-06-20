@@ -22,8 +22,8 @@ import (
 
 /** 这几条指令不能移除 */
 func (d *Dice) registerCoreCommands() {
-	helpForBlack := ".ban add user <帐号> (<原因>) //添加个人\n" +
-		".ban add group <群号> (<原因>) //添加群组\n" +
+	helpForBlack := ".ban add user <帐号> [<原因>] //添加个人\n" +
+		".ban add group <群号> [<原因>] //添加群组\n" +
 		".ban add <统一ID>\n" +
 		".ban rm user <帐号> //解黑/移出信任\n" +
 		".ban rm group <群号>\n" +
