@@ -1716,7 +1716,7 @@ func (d *Dice) registerCoreCommands() {
 
 	helpCh := ".pc new <角色名> // 新建角色并绑卡\n" +
 		".pc tag [<角色名> | <角色序号>] // 当前群绑卡/解除绑卡(不填角色名)\n" +
-		".pc untagAll [<角色名> | <角色序号>] // 全部群解绑[不填即当前卡]\n" +
+		".pc untagAll [<角色名> | <角色序号>] // 全部群解绑(不填即当前卡)\n" +
 		".pc list // 列出当前角色和序号\n" +
 		".pc rename <角色名> <新角色名>\n" +
 		// ".ch group // 列出各群当前绑卡\n" +
