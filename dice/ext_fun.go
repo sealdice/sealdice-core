@@ -1091,7 +1091,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		EnableExecuteTimesParse: true,
 		Name:                    "jsr",
 		ShortHelp:               ".jsr 3# 10 // 投掷 10 面骰 3 次，结果不重复。结果存入骰池并可用 .drl 抽取。",
-		Help: "不重复骰点(Jetter sans répéter):\n.jsr 次数# 投骰表达式 [名字]" +
+		Help: "不重复骰点(Jetter sans répéter):\n.jsr <次数># <投骰表达式> [<名字>]" +
 			"\n用例：.jsr 3# 10 // 投掷 10 面骰 3 次，结果不重复，结果存入骰池并可用 .drl 抽取。",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "help") {
@@ -1174,7 +1174,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		Name:                    "drl",
 		ShortHelp: ".drl new 10 5# // 在当前群组创建一个面数为 10，能抽取 5 次的骰池\n.drl // 抽取当前群组的骰池\n" +
 			".drlh //抽取当前群组的骰池，结果私聊发送",
-		Help: "drl（Draw Lot）：.drl new 次数 投骰表达式 [名字] // 在当前群组创建一个骰池\n" +
+		Help: "drl（Draw Lot）：.drl new <次数> <投骰表达式> [<名字>] // 在当前群组创建一个骰池\n" +
 			"用例：.drl new 10 5# // 在当前群组创建一个面数为 10，能抽取 5 次的骰池\n\n.drl // 抽取当前群组的骰池\n" +
 			".drlh //抽取当前群组的骰池，结果私聊发送",
 		DisabledInPrivate: true,
