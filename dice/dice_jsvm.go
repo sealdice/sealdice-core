@@ -40,7 +40,7 @@ var (
 	signRe = regexp.MustCompile(`^// sign\s+([^\r\n]+)?[\r\n]+$`)
 )
 
-var taskTimeRe = regexp.MustCompile(`^([0-9]|1[0-9]|2[0-3]):([0-5][0-9])$`)
+var taskTimeRe = regexp.MustCompile(`^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$`)
 
 type PrinterFunc struct {
 	d        *Dice
