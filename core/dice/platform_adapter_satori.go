@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fy0/lockfree"
-
 	"sealdice-core/message"
 	"sealdice-core/utils/satori"
 
 	"github.com/gorilla/websocket"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 const SatoriProtocolVersion = "v1"
@@ -254,7 +254,7 @@ func (pa *PlatformAdapterSatori) refreshFriends() {
 				continue
 			}
 			userID := formatDiceIDSatori(pa.Platform, friend.ID)
-			dm.UserNameCache.Set(userID, &GroupNameCacheItem{
+			dm.UserNameCache.Store(userID, &GroupNameCacheItem{
 				Name: name,
 				time: time.Now().Unix(),
 			})
@@ -299,7 +299,7 @@ func (pa *PlatformAdapterSatori) refreshGroups() {
 				continue
 			}
 			groupID := formatDiceIDSatoriGroup(pa.Platform, group.ID)
-			dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
+			dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 				Name: group.Name,
 				time: time.Now().Unix(),
 			})
@@ -378,7 +378,7 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 					p = &GroupPlayerInfo{
 						Name:          name,
 						UserID:        userID,
-						ValueMapTemp:  lockfree.NewHashMap(),
+						ValueMapTemp:  &ds.ValueMap{},
 						UpdatedAtTime: 0,
 					}
 					groupInfo.Players.Store(userID, p)
@@ -599,9 +599,9 @@ func (pa *PlatformAdapterSatori) toStdMessage(messageEvent *SatoriEvent) *Messag
 
 	sender := SenderBase{}
 	sender.UserID = formatDiceIDSatori(pa.Platform, messageEvent.User.ID)
-	userName, _ := dm.UserNameCache.Get(sender.UserID)
+	userName, _ := dm.UserNameCache.Load(sender.UserID)
 	if userName != nil {
-		sender.Nickname = userName.(*GroupNameCacheItem).Name
+		sender.Nickname = userName.Name
 	}
 	if messageEvent.User.Name != "" {
 		sender.Nickname = messageEvent.User.Name

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/fy0/lockfree"
+	ds "github.com/sealdice/dicescript"
 
 	"sealdice-core/message"
 )
@@ -46,7 +46,7 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 			mctx.Player = &GroupPlayerInfo{
 				Name:          "",
 				UserID:        i.UserID,
-				ValueMapTemp:  lockfree.NewHashMap(),
+				ValueMapTemp:  &ds.ValueMap{},
 				UpdatedAtTime: 0,
 			}
 			// 特殊处理 official qq

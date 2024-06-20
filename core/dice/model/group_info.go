@@ -3,9 +3,10 @@ package model
 import (
 	"fmt"
 
-	"github.com/fy0/lockfree"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/time/rate"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 func GroupInfoListGet(db *sqlx.DB, callback func(id string, updatedAt int64, data []byte)) error {
@@ -63,13 +64,6 @@ func GroupPlayerNumGet(db *sqlx.DB, groupID string) (int64, error) {
 	return count, nil
 }
 
-type PlayerVariablesItem struct {
-	Loaded        bool             `yaml:"-"`
-	ValueMap      lockfree.HashMap `yaml:"-"`
-	LastWriteTime int64            `yaml:"lastUsedTime"`
-	// ValueMap            map[string]*VMValue `yaml:"-"`
-}
-
 // GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
 	Name                string        `yaml:"name" jsbind:"name"` // 玩家昵称
@@ -81,9 +75,8 @@ type GroupPlayerInfoBase struct {
 	AutoSetNameTemplate string        `yaml:"autoSetNameTemplate" jsbind:"autoSetNameTemplate"` // 名片模板
 
 	// level int 权限
-	DiceSideNum  int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
-	Vars         *PlayerVariablesItem `yaml:"-"`           // 玩家的群内变量
-	ValueMapTemp lockfree.HashMap     `yaml:"-"`           // 玩家的群内临时变量
+	DiceSideNum  int          `yaml:"diceSideNum"` // 面数，为0时等同于d100
+	ValueMapTemp *ds.ValueMap `yaml:"-"`           // 玩家的群内临时变量
 	// ValueMapTemp map[string]*VMValue  `yaml:"-"`           // 玩家的群内临时变量
 
 	TempValueAlias *map[string][]string `yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的，为什么在这里？
@@ -107,11 +100,11 @@ func GroupPlayerInfoGet(db *sqlx.DB, groupID string, playerID string) *GroupPlay
 
 	defer rows.Close()
 
-	//Name:                stmt.ColumnText(0),
-	//UserId:              playerId,
-	//LastCommandTime:     stmt.ColumnInt64(2),
-	//AutoSetNameTemplate: stmt.ColumnText(3),
-	//DiceSideNum:         int(stmt.ColumnInt64(4)),
+	// Name:                stmt.ColumnText(0),
+	// UserId:              playerId,
+	// LastCommandTime:     stmt.ColumnInt64(2),
+	// AutoSetNameTemplate: stmt.ColumnText(3),
+	// DiceSideNum:         int(stmt.ColumnInt64(4)),
 
 	exists := false
 	for rows.Next() {
