@@ -95,8 +95,8 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 func RegisterBuiltinStory(self *Dice) {
 	cmdName := &CmdItemInfo{
 		Name:      "name",
-		ShortHelp: ".name cn/en/jp (<数量>) (<性别>)",
-		Help:      "生成随机名字:\n.name cn/en/jp (<数量>) (<性别>)",
+		ShortHelp: ".name cn/en/jp [<数量>] [<性别>]",
+		Help:      "生成随机名字:\n.name cn/en/jp [<数量>] [<性别>]",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			return cmdRandomName(ctx, msg, cmdArgs, [][]string{
 				{"cn", "中文", "zh", "中国"},
@@ -246,10 +246,10 @@ func RegisterBuiltinStory(self *Dice) {
 		},
 	}
 
-	helpCnmods := ".modu search <关键字> (<页码>) // 搜索关键字\n" +
-		".modu rec <关键字> (<页码>) // 搜索编辑推荐\n" +
-		".modu author <关键字> (<页码>) // 搜索指定作者\n" +
-		".modu luck (<页码>) // 查看编辑推荐\n" +
+	helpCnmods := ".modu search <关键字> [<页码>] // 搜索关键字\n" +
+		".modu rec <关键字> [<页码>] // 搜索编辑推荐\n" +
+		".modu author <关键字> [<页码>] // 搜索指定作者\n" +
+		".modu luck [<页码>] // 查看编辑推荐\n" +
 		".modu get <编号> // 查看指定详情\n" +
 		".modu roll // 随机抽取\n" +
 		".modu help // 显示帮助"
