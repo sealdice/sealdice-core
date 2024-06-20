@@ -279,7 +279,7 @@ type AttributesItem struct {
 
 func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
 	// 使用事务写入
-	rawData, err := i.toDict().V().ToJSON()
+	rawData, err := ds.NewDictVal(i.valueMap).V().ToJSON()
 	if err != nil {
 		return
 	}
@@ -321,26 +321,12 @@ func (i *AttributesItem) Store(name string, value *ds.VMValue) {
 	i.IsSaved = false
 }
 
-func (i *AttributesItem) toDict() *ds.VMDictValue {
-	// 不建议直接修改转换出来的vmDict，如果你没有手动更新写入时间，那么不会落盘
-	return ds.NewDictVal(i.valueMap)
-}
-
 func (i *AttributesItem) Clear() int {
-	// TODO: 塞进函数里
-	// 后记：这个TODO是什么意思？
-	var keys []string
-	i.valueMap.Range(func(key string, value *ds.VMValue) bool {
-		keys = append(keys, key)
-		return true
-	})
-
-	for _, key := range keys {
-		i.valueMap.Delete(key)
-	}
+	size := i.valueMap.Length()
+	i.valueMap.Clear()
 	i.LastModifiedTime = time.Now().Unix()
 	i.IsSaved = false
-	return len(keys)
+	return size
 }
 
 func (i *AttributesItem) ToArrayKeys() []*ds.VMValue {
