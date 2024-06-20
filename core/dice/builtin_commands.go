@@ -22,8 +22,8 @@ import (
 
 /** 这几条指令不能移除 */
 func (d *Dice) registerCoreCommands() {
-	helpForBlack := ".ban add user <帐号> (<原因>) //添加个人\n" +
-		".ban add group <群号> (<原因>) //添加群组\n" +
+	helpForBlack := ".ban add user <帐号> [<原因>] //添加个人\n" +
+		".ban add group <群号> [<原因>] //添加群组\n" +
 		".ban add <统一ID>\n" +
 		".ban rm user <帐号> //解黑/移出信任\n" +
 		".ban rm group <群号>\n" +
@@ -819,7 +819,7 @@ func (d *Dice) registerCoreCommands() {
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
 .master backup // 做一次备份
 .master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档
-.master quitgroup <群组ID> <理由(可选)> // 从指定群组中退出，必须在同一平台使用`
+.master quitgroup <群组ID> [<理由>] // 从指定群组中退出，必须在同一平台使用`
 
 	cmdMaster := &CmdItemInfo{
 		Name:          "master",
@@ -1138,7 +1138,7 @@ func (d *Dice) registerCoreCommands() {
 	}
 	d.CmdMap["master"] = cmdMaster
 
-	helpRoll := ".r <表达式> <原因> // 骰点指令\n.rh <表达式> <原因> // 暗骰"
+	helpRoll := ".r <表达式> [<原因>] // 骰点指令\n.rh <表达式> <原因> // 暗骰"
 	cmdRoll := &CmdItemInfo{
 		EnableExecuteTimesParse: true,
 		Name:                    "roll",
@@ -1715,14 +1715,14 @@ func (d *Dice) registerCoreCommands() {
 	d.CmdMap["set"] = cmdSet
 
 	helpCh := ".pc new <角色名> // 新建角色并绑卡\n" +
-		".pc tag <角色名> | <角色序号> // 当前群绑卡/解除绑卡(不填角色名)\n" +
-		".pc untagAll <角色名> | <角色序号> // 全部群解绑\n" +
+		".pc tag [<角色名> | <角色序号>] // 当前群绑卡/解除绑卡(不填角色名)\n" +
+		".pc untagAll [<角色名> | <角色序号>] // 全部群解绑(不填即当前卡)\n" +
 		".pc list // 列出当前角色和序号\n" +
 		".pc rename <角色名> <新角色名>\n" +
 		// ".ch group // 列出各群当前绑卡\n" +
-		".pc save <角色名> // [不绑卡]保存角色，角色名可省略\n" +
-		".pc load <角色名> | <角色序号> // [不绑卡]加载角色\n" +
-		".pc del/rm <角色名> | <角色序号> // 删除角色 角色序号可用pc list查询\n" +
+		".pc save [<角色名>] // [不绑卡]保存角色，角色名可省略\n" +
+		".pc load (<角色名> | <角色序号>) // [不绑卡]加载角色\n" +
+		".pc del/rm (<角色名> | <角色序号>) // 删除角色 角色序号可用pc list查询\n" +
 		"> 注: 海豹各群数据独立(多张空白卡)，单群游戏不需要存角色。"
 
 	cmdChar := &CmdItemInfo{
