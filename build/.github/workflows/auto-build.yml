@@ -1,8 +1,8 @@
 name: Auto Build
 on:
-  schedule:
-    # 每天 UTC 12:00（即北京时间 20:00）自动执行
-    - cron: '0 12 * * *'
+  # schedule:
+  #   # 每天 UTC 12:00（即北京时间 20:00）自动执行
+  #   - cron: '0 12 * * *'
   push:
     branches:
       - dev
@@ -89,7 +89,7 @@ jobs:
     needs: lagrange-download
     strategy:
       matrix:
-        # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
+        # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64
         goos: [ linux, windows, darwin, android ]
         goarch: [ '386', amd64, arm64 ]
         exclude:
@@ -97,6 +97,8 @@ jobs:
             goarch: '386'
           - goos: windows
             goarch: arm64
+          - goos: windows
+            goarch: '386'
           - goos: darwin
             goarch: '386'
           - goos: android
@@ -179,7 +181,7 @@ jobs:
     needs: ui-build
     strategy:
       matrix:
-        # target: linux/amd64, linux/arm64, windows/386, windows/amd64
+        # target: linux/amd64, linux/arm64, windows/amd64
         goos: [ linux, windows ]
         goarch: [ '386', amd64, arm64 ]
         musl: [ '' ]
@@ -196,6 +198,9 @@ jobs:
             musl: ''
           - goos: windows
             goarch: arm64
+            musl: ''
+          - goos: windows
+            goarch: '386'
             musl: ''
       fail-fast: true
     steps:
@@ -655,7 +660,7 @@ jobs:
       - lagrange-setup
     strategy:
       matrix:
-        # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
+        # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64
         goos: [ linux, windows, darwin ]
         goarch: [ '386', amd64, arm64 ]
         musl: [ '' ]
@@ -672,6 +677,9 @@ jobs:
             musl: ''
           - goos: windows
             goarch: arm64
+            musl: ''
+          - goos: windows
+            goarch: '386'
             musl: ''
           - goos: darwin
             goarch: '386'
@@ -740,7 +748,7 @@ jobs:
       - commit-num-check
     strategy:
       matrix:
-        # target: linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64, android/arm64
+        # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64, android/arm64
         goos: [ linux, windows, darwin ]
         goarch: [ '386', amd64, arm64 ]
         exclude:
@@ -748,6 +756,8 @@ jobs:
             goarch: '386'
           - goos: windows
             goarch: arm64
+          - goos: windows
+            goarch: '386'
           - goos: darwin
             goarch: '386'
         include:
