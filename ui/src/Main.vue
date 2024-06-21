@@ -1,6 +1,6 @@
 <template>
   <el-container id="root"
-       class="bg-[#545c64] mx-auto my-0 h-screen flex flex-col">
+       class="bg-gray-600 mx-auto my-0 h-screen flex flex-col">
     <el-header class="nav bg-inherit flex-none text-white flex justify-between">
       <el-space alignment="center" :size="0" style="height: 60px;">
         <div class="menu-button-wrapper mx-2">

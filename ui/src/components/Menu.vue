@@ -1,6 +1,6 @@
 <template>
-  <el-menu :unique-opened="true" style="border-right: 0;" active-text-color="#ffd04b"
-           :background-color="props.type === 'dark' ? '#545c64' : undefined"
+  <el-menu :unique-opened="true" style="border-right: 0;" :active-text-color="twColors.amber[300]"
+           :background-color="props.type === 'dark' ? twColors.gray[600] : undefined"
            :text-color="props.type === 'dark' ? '#fff' : undefined"
            router :default-active="route.path">
     <el-menu-item index="/log">
@@ -129,9 +129,12 @@ import {
   Tools,
   EditPen
 } from '@element-plus/icons-vue'
-
 import { useStore } from "~/store";
 import type { ModelRef } from "vue";
+import resolveConfig from 'tailwindcss/resolveConfig'
+import tailwindConfig from '../../tailwind.config'
+
+const twColors = resolveConfig(tailwindConfig).theme.colors
 
 const props = defineProps<{
   type: 'light' | 'dark'

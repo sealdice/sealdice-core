@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { Back, Delete, Select, Upload } from '@element-plus/icons-vue'
 import { useStore, urlPrefix } from '~/store'
-import { apiFetch, backend } from '~/backend'
+import { backend } from '~/backend'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import randomColor from "randomcolor";
@@ -37,9 +37,7 @@ const token = store.token
 const url = (p: string) => urlPrefix + "/story/" + p;
 
 async function getInfo() {
-    return apiFetch(url("info"), {
-        method: "get"
-    })
+  return backend.get(url("info")) as any
 }
 
 // async function getLogs() {
@@ -97,9 +95,7 @@ async function uploadLog(v: Log) {
             type: 'warning',
         }
     );
-    return apiFetch(url("uploadLog"), {
-        method: "post", body: v, headers: { token: token }
-    })
+    return backend.post(url("uploadLog"), v,{ headers: { token }}) as any
 }
 
 //
@@ -403,14 +399,16 @@ onBeforeMount(async () => {
                     </ElCollapseItem>
                 </ElCollapse>
             </ElCard>
-            <template v-for="v, i1 in items" :key="i1">
-                <p :style="{ color: users[v.IMUserId][0] }">
-                    <span>{{ v.nickname }}：</span>
-                    <template v-for="p1, i2 in v.message.split('\n')" :key="i2">
-                        <span>{{ p1 }}</span><br>
-                    </template>
-                </p>
-            </template>
+            <div class="my-4 px-4">
+                <template v-for="(v, i1) in items" :key="i1">
+                    <p :style="{ color: users[v.IMUserId][0] }">
+                        <span>{{ v.nickname }}：</span>
+                        <template v-for="(p1, i2) in v.message.split('\n')" :key="i2">
+                          <span>{{ p1 }}</span><br>
+                        </template>
+                    </p>
+                </template>
+            </div>
             <div style="display: flex; justify-content: center;">
                 <el-pagination class="pagination" :page-size="logItemPage.pageSize" :current-page="logItemPage.pageNum"
                     :pager-count=5 :total="logItemPage.size" @current-change="handleItemPageChange" layout="prev, pager, next"

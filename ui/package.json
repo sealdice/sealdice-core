@@ -13,7 +13,6 @@
   "type": "module",
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.2",
-    "@vitejs/plugin-vue-jsx": "^4.0.0",
     "@vueuse/core": "^10.10.0",
     "asmcrypto.js": "^2.3.2",
     "axios": "^1.7.2",
@@ -23,13 +22,12 @@
     "dayjs": "^1.11.11",
     "element-plus": "^2.7.5",
     "filesize": "^10.1.2",
-    "ky": "^0.33.3",
-    "ofetch": "^1.3.4",
+    "lodash-es": "^4.17.21",
     "pinia": "^2.1.7",
     "randomcolor": "^0.6.2",
     "vue": "^3.4.27",
     "vue-diff": "^1.2.4",
-    "vue-router": "^4.3.2",
+    "vue-router": "^4.3.3",
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
@@ -42,6 +40,7 @@
     "@typescript-eslint/parser": "^6.21.0",
     "@vitejs/plugin-legacy": "^5.4.1",
     "@vitejs/plugin-vue": "^5.0.5",
+    "@vitejs/plugin-vue-jsx": "^4.0.0",
     "@vue/compiler-sfc": "^3.4.27",
     "autoprefixer": "^10.4.19",
     "eslint": "^8.57.0",
@@ -55,6 +54,6 @@
     "unplugin-icons": "^0.17.4",
     "unplugin-vue-components": "^0.26.0",
     "vite": "^5.2.13",
-    "vue-tsc": "^2.0.20"
+    "vue-tsc": "^2.0.21"
   }
 }

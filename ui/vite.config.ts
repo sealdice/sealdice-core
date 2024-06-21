@@ -73,17 +73,18 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          base: ["vue", "pinia"],
+          base: ["vue", "pinia", "vue-router"],
           element: ["element-plus"],
-          lodash: ["lodash-es"],
           codemirror: ["codemirror", "@codemirror/lang-javascript"],
-          network: ["ofetch", "axios", "axios-retry", "ky"],
-          util: [
+          network: ["axios", "axios-retry"],
+          utils: [
             "@vueuse/core",
             "asmcrypto.js",
             "clipboard",
             "dayjs",
             "filesize",
+            "lodash-es",
+            "randomcolor",
             "vue-diff",
             "vuedraggable",
           ],

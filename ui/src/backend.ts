@@ -1,7 +1,5 @@
 import axios from 'axios'
 import axiosRetry from 'axios-retry'
-import { ofetch } from 'ofetch'
-
 
 axiosRetry(axios, {
   retries: 3,
@@ -37,10 +35,6 @@ export const urlBase = process.env.NODE_ENV == 'development' ?
 
 // 逐渐使用ofetch替换axios
 // 后记：发现ofetch也是一团糟，ky也是一团糟，还是axios好用
-export const apiFetch = ofetch.create({
-  baseURL: urlBase,
-  retry: 3,
-  method: 'POST'
-})
+// 2024.6.12 全都鲨了，只留下 axios
 
 export const backend = newRequestClient(urlBase)

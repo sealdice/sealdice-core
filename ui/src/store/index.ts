@@ -1,4 +1,4 @@
-import { apiFetch, backend } from '~/backend'
+import { backend } from '~/backend'
 
 import { addImConnectionForm } from '~/components/PageConnectInfoItems.vue'
 import type {
@@ -596,38 +596,33 @@ export const useStore = defineStore('main', {
     },
 
     async jsStatus(): Promise<boolean> {
-      const resp = await apiFetch(urlPrefix + '/js/status', { method: 'GET' })
-      return resp.status
+      const resp: { result: true, status: boolean } | {
+        result: false, err: string
+      } = await backend.get(urlPrefix + '/js/status' )
+      if (resp.result) {
+        return resp.status
+      }
+      return false
     },
     async jsList(): Promise<JsScriptInfo[]> {
-      return await apiFetch(urlPrefix + '/js/list', {
-        method: 'GET', headers: {
-          token: this.token
-        }
-      })
+      return await backend.get(urlPrefix + '/js/list', { headers: { token: this.token } }) as any
     },
     async jsGetConfig() {
-      return await apiFetch(urlPrefix + '/js/get_configs', {
-        method: 'GET', headers: {
-          token: this.token
-        }
-      })
+      return await backend.get(urlPrefix + '/js/get_configs', { headers: { token: this.token } }) as any
     },
     async jsSetConfig(configs: any) {
-      return await backend.post(urlPrefix + '/js/set_configs', configs)
+      return await backend.post(urlPrefix + '/js/set_configs', configs) as any
     },
     async jsResetConfig(pluginName: any, key: any) {
-      return await backend.post(urlPrefix + '/js/reset_config', { pluginName, key })
+      return await backend.post(urlPrefix + '/js/reset_config', { pluginName, key }) as any
     },
     async jsDeleteUnusedConfig(pluginName: any, key: any) {
-      return await backend.post(urlPrefix + '/js/delete_unused_config', { pluginName, key })
+      return await backend.post(urlPrefix + '/js/delete_unused_config', { pluginName, key }) as any
     },
     async jsGetRecord() {
-      return await apiFetch(urlPrefix + '/js/get_record', {
-        method: 'GET', headers: {
-          token: this.token
-        }
-      }) as {
+      return await backend.get(urlPrefix + '/js/get_record',
+        { headers: { token: this.token } }
+      ) as {
         outputs: string[]
       }
     },
@@ -640,41 +635,42 @@ export const useStore = defineStore('main', {
       return info as any
     },
     async jsReload() {
-      return await apiFetch(urlPrefix + '/js/reload', {
-        headers: {
-          token: this.token
-        }
-      })
+      return await backend.post(
+        urlPrefix + '/js/reload',
+        undefined,
+        { headers: { token: this.token } }
+      ) as any
     },
     async jsShutdown() {
-      return await apiFetch(urlPrefix + '/js/shutdown', {
-        headers: {
-          token: this.token
-        }
-      })
+      return await backend.post(
+        urlPrefix + '/js/shutdown',
+        undefined,
+        { headers: { token: this.token } }
+      ) as any
     },
     async jsExec(code: string) {
-      return await apiFetch(urlPrefix + '/js/execute', { body: { value: code } }) as {
+      return await backend.post(
+        urlPrefix + '/js/execute',
+        { value: code } ,
+      ) as {
         ret: any,
         outputs: string[],
         err: string,
       }
     },
     async jsEnable(body: any) {
-      return await apiFetch(urlPrefix + '/js/enable', {
-        headers: {
-          token: this.token
-        },
-        body
-      })
+      return await backend.post(
+        urlPrefix + '/js/enable',
+        body,
+        { headers: { token: this.token } }
+      ) as any
     },
     async jsDisable(body: any) {
-      return await apiFetch(urlPrefix + '/js/disable', {
-        headers: {
-          token: this.token
-        },
-        body
-      })
+      return await backend.post(
+        urlPrefix + '/js/disable',
+        body,
+        { headers: { token: this.token } }
+      ) as any
     },
 
     async jsCheckUpdate({ index }: any) {
@@ -695,11 +691,11 @@ export const useStore = defineStore('main', {
     },
 
     async toolOnebot() {
-      return await apiFetch(urlPrefix + '/tool/onebot', {
-        headers: {
-          token: this.token
-        }
-      }) as {
+      return await backend.post(
+        urlPrefix + '/tool/onebot',
+        undefined,
+        { headers: { token: this.token } }
+      ) as {
         ok: boolean,
         ip: string,
         errText: string
@@ -747,62 +743,31 @@ export const useStore = defineStore('main', {
     },
 
     async helpDocTree(): Promise<{ result: true, data: HelpDoc[] } | { result: false, err?: string }> {
-      return await apiFetch(urlPrefix + '/helpdoc/tree', {
-        method: 'GET', headers: {
-          token: this.token
-        }
-      })
+      return await backend.get(urlPrefix + '/helpdoc/tree', { headers: { token: this.token } })
     },
 
     async helpDocReload(): Promise<{ result: true } | { result: false, err?: string }> {
-      return await apiFetch(urlPrefix + '/helpdoc/reload', {
-        method: 'POST', headers: {
-          token: this.token
-        }
-      })
+      return await backend.post(urlPrefix + '/helpdoc/reload', undefined,{ headers: { token: this.token } })
     },
 
     async helpDocUpload(form: any): Promise<{ result: true } | { result: false, err?: string }> {
-      return await apiFetch(urlPrefix + '/helpdoc/upload', {
-        method: 'POST', headers: {
-          token: this.token,
-        }, body: form
-      })
+      return await backend.post(urlPrefix + '/helpdoc/upload', form, { headers: { token: this.token } })
     },
 
     async helpDocDelete(keys: string[]): Promise<{ result: true } | { result: false, err?: string }> {
-      return await apiFetch(urlPrefix + '/helpdoc/delete', {
-        method: 'POST',
-        headers: { token: this.token },
-        body: { keys: keys }
-      })
+      return await backend.post(urlPrefix + '/helpdoc/delete', { keys: keys }, { headers: { token: this.token } })
     },
 
     async helpGetTextItemPage(param: HelpTextItemQuery): Promise<{ result: true; total: number; data: HelpTextItem[] } | { result: false; err?: string }> {
-      return await apiFetch(urlPrefix + "/helpdoc/textitem/get_page", {
-        method: "POST",
-        body: param,
-      });
+      return await backend.post(urlPrefix + "/helpdoc/textitem/get_page", param)
     },
 
     async helpGetConfig(): Promise<{ aliases: { [key: string]: string[] } }> {
-      return await apiFetch(urlPrefix + "/helpdoc/config", {
-        method: "GET",
-        headers: {
-          token: this.token
-        }
-      })
+      return await backend.get(urlPrefix + "/helpdoc/config", { headers: { token: this.token } })
     },
 
     async helpSetConfig(param: { aliases: { [key: string]: string[] } }): Promise<{ result: true } | { result: false, err?: string }> {
-      console.log("param=", param)
-      return await apiFetch(urlPrefix + "/helpdoc/config", {
-        method: "POST",
-        headers: {
-          token: this.token
-        },
-        body: param
-      })
+      return await backend.post(urlPrefix + "/helpdoc/config", param, { headers: { token: this.token } })
     },
 
 
