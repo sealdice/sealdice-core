@@ -135,18 +135,14 @@ GroupPlayerInfo 是玩家信息
 
 ### 暂不建议修改的地方
 
-#### 1. 表达式解析器
+#### 表达式解析器
 
 dice/roll.peg 是海豹的骰点指令文法文件
 
 dice/rollvm.go 是骰点指令虚拟机
 
-预计将于1.5版本上线重构后的 dicescript (RollVM V2) 作为表达式解释器
+1.5后，已经替换使用 dicescript (RollVM V2) 作为表达式解释器，现有版本不宜轻动。
 
-请移步 <https://github.com/sealdice/dicescript>
+关于 dicescript 的信息，请移步 <https://github.com/sealdice/dicescript>
 
 而出于兼容性的考虑，V1版本的解释器将继续保留，直到2.0版本。
-
-#### 2. 角色卡
-
-角色数据相关，包括存取机制和相关API，这部分代码将于1.5版本进行重制。

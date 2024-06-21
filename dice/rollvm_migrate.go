@@ -147,7 +147,7 @@ func (r *VMResultV2m) IsCalculated() bool {
 	if r.legacy != nil {
 		return r.legacy.Parser.Calculated
 	}
-	return r.vm.IsCalculateExists()
+	return r.vm.IsCalculateExists() || r.vm.IsComputedLoaded
 }
 
 func (r *VMResultV2m) GetRestInput() string {

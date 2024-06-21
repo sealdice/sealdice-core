@@ -1718,7 +1718,8 @@ func (d *Dice) registerCoreCommands() {
 		".pc tag [<角色名> | <角色序号>] // 当前群绑卡/解除绑卡(不填角色名)\n" +
 		".pc untagAll [<角色名> | <角色序号>] // 全部群解绑(不填即当前卡)\n" +
 		".pc list // 列出当前角色和序号\n" +
-		".pc rename <角色名> <新角色名>\n" +
+		".pc rename <新角色名> // 将当前绑定角色改名\n" +
+		".pc rename <角色名|序号> <新角色名> // 将指定角色改名 \n" +
 		// ".ch group // 列出各群当前绑卡\n" +
 		".pc save [<角色名>] // [不绑卡]保存角色，角色名可省略\n" +
 		".pc load (<角色名> | <角色序号>) // [不绑卡]加载角色\n" +
@@ -1726,11 +1727,11 @@ func (d *Dice) registerCoreCommands() {
 		"> 注: 海豹各群数据独立(多张空白卡)，单群游戏不需要存角色。"
 
 	cmdChar := &CmdItemInfo{
-		Name:      "fch",
+		Name:      "pc",
 		ShortHelp: helpCh,
 		Help:      "角色管理:\n" + helpCh,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) (result CmdExecuteResult) {
-			cmdArgs.ChopPrefixToArgsWith("list", "load", "save", "del", "rm", "new", "tag", "untagAll", "rename")
+			cmdArgs.ChopPrefixToArgsWith("list", "lst", "load", "save", "del", "rm", "new", "tag", "untagAll", "rename")
 			val1 := cmdArgs.GetArgN(1)
 			am := d.AttrsManager
 
@@ -1772,10 +1773,15 @@ func (d *Dice) registerCoreCommands() {
 				return getNicknameRaw(true, true)
 			}
 
+			getBindingId := func() string {
+				id, _ := am.CharGetBindingId(ctx.Group.GroupID, ctx.Player.UserID)
+				return id
+			}
+
 			switch val1 {
-			case "list":
+			case "list", "lst":
 				list := lo.Must(am.GetCharacterList(ctx.Player.UserID))
-				bindingId := lo.Must(am.CharGetBindingId(ctx.Group.GroupID, ctx.Player.UserID))
+				bindingId := getBindingId()
 
 				var newChars []string
 				for idx, item := range list {
@@ -1824,17 +1830,18 @@ func (d *Dice) registerCoreCommands() {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			case "rename":
+				var charId string
 				a := cmdArgs.GetArgN(2)
 				b := cmdArgs.GetArgN(3)
 
 				if b == "" {
 					b = a
-					a = getNickname()
+					charId = getBindingId()
+				} else {
+					charId, _ = am.CharIdGetByName(ctx.Player.UserID, a)
 				}
 
 				if a != "" && b != "" {
-					charId := lo.Must(am.CharIdGetByName(ctx.Player.UserID, a))
-
 					if charId != "" {
 						if !am.CharCheckExists(ctx.Player.UserID, b) {
 							attrs := lo.Must(am.LoadById(charId))
@@ -1852,7 +1859,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 			case "tag":
-				// 当不输入角色的时候，不用当前角色填充，因此做到不写角色名就取消绑定的效果
+				// 当不输入角色的时候，用当前角色填充，因此做到不写角色名就取消绑定的效果
 				name := getNicknameRaw(false, true)
 
 				VarSetValueStr(ctx, "$t角色名", name)
@@ -1867,7 +1874,7 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_成功"))
 					}
 				} else {
-					charId := lo.Must(am.CharGetBindingId(ctx.Group.GroupID, ctx.Player.UserID))
+					charId := getBindingId()
 
 					if charId == "" {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_并未绑定"))
@@ -1949,8 +1956,13 @@ func (d *Dice) registerCoreCommands() {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			case "untagAll":
-				name := getNickname()
-				charId := lo.Must(am.CharIdGetByName(ctx.Player.UserID, name))
+				var charId string
+				name := getNicknameRaw(false, true)
+				if name == "" {
+					charId = getBindingId()
+				} else {
+					charId, _ = am.CharIdGetByName(ctx.Player.UserID, name)
+				}
 
 				var lst []string
 				if charId != "" {
@@ -1976,10 +1988,13 @@ func (d *Dice) registerCoreCommands() {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			case "del", "rm":
-				name := getNickname()
+				name := getNicknameRaw(false, true)
+				if name == "" {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
 				VarSetValueStr(ctx, "$t角色名", name)
 
-				charId := lo.Must(am.CharIdGetByName(ctx.Player.UserID, name))
+				charId, _ := am.CharIdGetByName(ctx.Player.UserID, name)
 				if charId == "" {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -2006,7 +2021,8 @@ func (d *Dice) registerCoreCommands() {
 				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
 
 				text := DiceFormatTmpl(ctx, "核心:角色管理_删除成功")
-				if name == ctx.Player.Name {
+				bindingCharId := getBindingId()
+				if bindingCharId == charId {
 					VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", msg.Sender.Nickname))
 					text += "\n" + DiceFormatTmpl(ctx, "核心:角色管理_删除成功_当前卡")
 					p := ctx.Player
