@@ -357,31 +357,32 @@ func (d *Dice) JsInit() {
 			}
 
 			task := JsScriptTask{cron: scriptCron, key: key, task: fn}
-			expr := value
 			if key != "" {
 				config := d.ConfigManager.getConfig(ei.Name, key)
 				if config != nil {
-					expr = config.Value.(string)
+					if config.task != nil {
+						config.task.Off()
+					}
 					config.task = &task
 				}
 			}
 
 			switch taskType {
 			case "cron":
-				entryID, err := scriptCron.AddFunc(expr, func() {
+				entryID, err := scriptCron.AddFunc(value, func() {
 					task.run()
 				})
 				if err != nil {
 					panic("插件注册定时任务失败：" + err.Error())
 				}
 				task.taskType = taskType
-				task.rawValue = expr
-				task.cronExpr = expr
+				task.rawValue = value
+				task.cronExpr = value
 				task.entryID = &entryID
-				ei.dice.Logger.Infof("插件注册定时任务：cron=%s", expr)
+				ei.dice.Logger.Infof("插件注册定时任务：cron=%s", value)
 			case "daily":
 				// 支持每天定时触发，24 小时表示
-				cronExpr, err := parseTaskTime(expr)
+				cronExpr, err := parseTaskTime(value)
 				if err != nil {
 					panic("插件注册定时任务失败：" + err.Error())
 				}
@@ -393,10 +394,10 @@ func (d *Dice) JsInit() {
 					panic("插件注册定时任务失败：" + err.Error())
 				}
 				task.taskType = taskType
-				task.rawValue = expr
+				task.rawValue = value
 				task.cronExpr = cronExpr
 				task.entryID = &entryID
-				ei.dice.Logger.Infof("插件注册定时任务：daily=%s", expr)
+				ei.dice.Logger.Infof("插件注册定时任务：daily=%s", value)
 			default:
 				panic(fmt.Sprintf("错误的任务类型：%s，当前仅支持 cron|daily", taskType))
 			}
@@ -408,7 +409,7 @@ func (d *Dice) JsInit() {
 					config = &ConfigItem{
 						Key:          key,
 						Type:         "task:cron",
-						Value:        expr,
+						Value:        value,
 						DefaultValue: value,
 						Description:  desc,
 						task:         &task,
@@ -417,7 +418,7 @@ func (d *Dice) JsInit() {
 					config = &ConfigItem{
 						Key:          key,
 						Type:         "task:daily",
-						Value:        expr,
+						Value:        value,
 						DefaultValue: value,
 						Description:  desc,
 						task:         &task,
