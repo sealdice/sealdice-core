@@ -705,7 +705,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/utils/news", getNews)
 	e.POST(prefix+"/utils/check_news", checkNews)
 	e.GET(prefix+"/utils/get_token", getToken)
-	e.GET(prefix+"/utils/check_cron_expr", checkCronExpr)
+	e.POST(prefix+"/utils/check_cron_expr", checkCronExpr)
 
 	e.POST(prefix+"/censor/restart", censorRestart)
 	e.POST(prefix+"/censor/stop", censorStop)
