@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
+	"go.uber.org/zap"
 	"gopkg.in/elazarl/goproxy.v1"
 	"gopkg.in/yaml.v3"
 
@@ -356,7 +357,7 @@ func (d *Dice) JsInit() {
 				panic(errors.New("插件cron未成功初始化")) // 按理是不会发生的
 			}
 
-			task := JsScriptTask{cron: scriptCron, key: key, task: fn}
+			task := JsScriptTask{cron: scriptCron, key: key, task: fn, logger: ei.dice.Logger}
 			if key != "" {
 				config := d.ConfigManager.getConfig(ei.Name, key)
 				if config != nil {
@@ -1253,6 +1254,8 @@ type JsScriptTask struct {
 	cronExpr string
 	task     func(JsScriptTaskCtx)
 	entryID  *cron.EntryID
+
+	logger *zap.SugaredLogger
 }
 
 type JsScriptTaskCtx struct {
@@ -1261,6 +1264,11 @@ type JsScriptTaskCtx struct {
 }
 
 func (t *JsScriptTask) run() {
+	defer func() {
+		if r := recover(); r != nil {
+			t.logger.Errorf("插件定时任务异常: %v", r)
+		}
+	}()
 	taskCtx := JsScriptTaskCtx{
 		Now: time.Now().Unix(),
 		Key: t.key,
