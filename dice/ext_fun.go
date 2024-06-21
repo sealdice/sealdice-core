@@ -1062,7 +1062,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					}
 
 					if r.legacy != nil {
-						text += "\n" + "*当前表达式在RollVM V2中无法运行，建议修改"
+						text += "\n" + "* 当前表达式在RollVM V2中无法报错，建议修改：" + r.vm.Error.Error()
 					}
 
 					seemsCommand := false
@@ -1079,7 +1079,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 						ReplyToSender(ctx, msg, text)
 					}
 				} else {
-					ReplyToSender(ctx, msg, "格式错误")
+					ReplyToSender(ctx, msg, "执行出错:"+err.Error())
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}

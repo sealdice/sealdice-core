@@ -134,6 +134,7 @@ type VMResultV2m struct {
 	vm        *ds.Context
 	legacy    *VMResult
 	cocPrefix string
+	errV2     error
 }
 
 func (r *VMResultV2m) GetAsmText() string {
@@ -212,16 +213,18 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 			return nil, "", err
 		}
 		fmt.Println("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
+		errV2 := err // 某种情况下没有这个值，很奇怪
 
 		// 尝试一下V1
 		val, detail, err := ctx.Dice._ExprEvalBaseV1(s, ctx, flags)
 		if err != nil {
-			return nil, detail, err
+			// 我们不关心 v1 的报错
+			return nil, detail, errV2
 		}
 
-		return &VMResultV2m{val.ConvertToV2(), ctx.vm, val, cocFlagVarPrefix}, detail, err
+		return &VMResultV2m{val.ConvertToV2(), ctx.vm, val, cocFlagVarPrefix, errV2}, detail, err
 	} else {
-		return &VMResultV2m{ctx.vm.Ret, ctx.vm, nil, cocFlagVarPrefix}, ctx.vm.GetDetailText(), nil
+		return &VMResultV2m{ctx.vm.Ret, ctx.vm, nil, cocFlagVarPrefix, nil}, ctx.vm.GetDetailText(), nil
 	}
 }
 
@@ -534,13 +537,13 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 
 			d := ds.NewDictValWithArrayMust(
 				ds.NewStrVal("tag"), ds.NewStrVal(item.tag),
-				ds.NewStrVal("expr"), ds.NewStrVal(string(detailResult[item.begin:item.end])),
+				ds.NewStrVal("expr"), ds.NewStrVal(string(dataBuffer[item.begin:item.end])),
 				ds.NewStrVal("val"), item.val,
 			)
 			detailArr = append(detailArr, d.V())
 		}
 
-		ctx.StoreNameLocal("details", ds.NewArrayValRaw(detailArr))
+		ctx.StoreNameLocal("details", ds.NewArrayValRaw(lo.Reverse(detailArr)))
 		return string(detailResult)
 	}
 
