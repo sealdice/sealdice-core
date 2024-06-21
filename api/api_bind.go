@@ -14,6 +14,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
+	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
 
 	"sealdice-core/dice"
@@ -537,6 +538,23 @@ func getToken(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{})
 }
 
+func checkCronExpr(c echo.Context) error {
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+	req := make(map[string]string)
+	err := c.Bind(&req)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
+	}
+	if _, exist := req["expr"]; !exist {
+		return echo.NewHTTPError(http.StatusBadRequest, "No expression")
+	}
+	_, err = parser.Parse(req["expr"])
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid expression")
+	}
+	return c.JSON(http.StatusOK, nil)
+}
+
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
@@ -687,6 +705,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/utils/news", getNews)
 	e.POST(prefix+"/utils/check_news", checkNews)
 	e.GET(prefix+"/utils/get_token", getToken)
+	e.GET(prefix+"/utils/check_cron_expr", checkCronExpr)
 
 	e.POST(prefix+"/censor/restart", censorRestart)
 	e.POST(prefix+"/censor/stop", censorStop)
