@@ -358,32 +358,33 @@ func (d *Dice) JsInit() {
 			}
 
 			task := JsScriptTask{cron: scriptCron, key: key, task: fn, logger: ei.dice.Logger}
+			expr := value
 			if key != "" {
-				config := d.ConfigManager.getConfig(ei.Name, key)
-				if config != nil {
+				if config := d.ConfigManager.getConfig(ei.Name, key); config != nil {
+					expr = config.Value.(string)
+					// Stop old task
 					if config.task != nil {
 						config.task.Off()
 					}
-					config.task = &task
 				}
 			}
 
 			switch taskType {
 			case "cron":
-				entryID, err := scriptCron.AddFunc(value, func() {
+				entryID, err := scriptCron.AddFunc(expr, func() {
 					task.run()
 				})
 				if err != nil {
 					panic("插件注册定时任务失败：" + err.Error())
 				}
 				task.taskType = taskType
-				task.rawValue = value
-				task.cronExpr = value
+				task.rawValue = expr
+				task.cronExpr = expr
 				task.entryID = &entryID
-				ei.dice.Logger.Infof("插件注册定时任务：cron=%s", value)
+				ei.dice.Logger.Infof("插件注册定时任务：cron=%s", expr)
 			case "daily":
 				// 支持每天定时触发，24 小时表示
-				cronExpr, err := parseTaskTime(value)
+				cronExpr, err := parseTaskTime(expr)
 				if err != nil {
 					panic("插件注册定时任务失败：" + err.Error())
 				}
@@ -395,22 +396,23 @@ func (d *Dice) JsInit() {
 					panic("插件注册定时任务失败：" + err.Error())
 				}
 				task.taskType = taskType
-				task.rawValue = value
+				task.rawValue = expr
 				task.cronExpr = cronExpr
 				task.entryID = &entryID
-				ei.dice.Logger.Infof("插件注册定时任务：daily=%s", value)
+				ei.dice.Logger.Infof("插件注册定时任务：daily=%s", expr)
 			default:
 				panic(fmt.Sprintf("错误的任务类型：%s，当前仅支持 cron|daily", taskType))
 			}
 
 			if key != "" {
-				var config *ConfigItem
+				config := d.ConfigManager.getConfig(ei.Name, key)
+
 				switch taskType {
 				case "cron":
 					config = &ConfigItem{
 						Key:          key,
 						Type:         "task:cron",
-						Value:        value,
+						Value:        expr,
 						DefaultValue: value,
 						Description:  desc,
 						task:         &task,
@@ -419,7 +421,7 @@ func (d *Dice) JsInit() {
 					config = &ConfigItem{
 						Key:          key,
 						Type:         "task:daily",
-						Value:        value,
+						Value:        expr,
 						DefaultValue: value,
 						Description:  desc,
 						task:         &task,

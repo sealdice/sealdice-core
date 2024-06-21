@@ -125,6 +125,7 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 				existingItem.Option = newItem.Option
 				existingItem.Description = newItem.Description
 				existingItem.Deprecated = false // Reset deprecated flag
+				existingItem.task = newItem.task
 				existingPlugin.Configs[newItem.Key] = existingItem
 				// Extension can reorder config by re-registering it
 				// Time complexity of removing the old position is O(1) if the order doesn't change
@@ -168,6 +169,9 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	}
 
 	for _, key := range keys {
+		if config, exist := plugin.Configs[key]; exist && strings.HasPrefix(config.Type, "task:") && config.task != nil {
+			config.task.Off()
+		}
 		delete(plugin.Configs, key)
 	}
 	// Remove from orderedConfigKeys
@@ -214,10 +218,11 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) er
 			val := value.(string)
 			configItem.Value = val
 			// 立即生效
-			task := configItem.task
-			err := task.reset(val)
-			if err != nil {
-				return err
+			if configItem.task != nil {
+				err := configItem.task.reset(val)
+				if err != nil {
+					return err
+				}
 			}
 		default:
 			configItem.Value = value
