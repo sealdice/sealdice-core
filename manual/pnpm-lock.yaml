@@ -9,11 +9,11 @@ devDependencies:
     specifier: ^0.13.0
     version: 0.13.0
   sass:
-    specifier: ^1.77.4
-    version: 1.77.4
+    specifier: ^1.77.6
+    version: 1.77.6
   vitepress:
     specifier: ^1.2.3
-    version: 1.2.3(@algolia/client-search@4.23.3)(sass@1.77.4)(search-insights@2.13.0)
+    version: 1.2.3(@algolia/client-search@4.23.3)(sass@1.77.6)(search-insights@2.13.0)
   vitepress-plugin-tabs:
     specifier: ^0.5.0
     version: 0.5.0(vitepress@1.2.3)(vue@3.4.29)
@@ -648,7 +648,7 @@ packages:
       vite: ^5.0.0
       vue: ^3.2.25
     dependencies:
-      vite: 5.2.13(sass@1.77.4)
+      vite: 5.2.13(sass@1.77.6)
       vue: 3.4.29
     dev: true
 
@@ -1226,8 +1226,8 @@ packages:
       queue-microtask: 1.2.3
     dev: true
 
-  /sass@1.77.4:
-    resolution: {integrity: sha512-vcF3Ckow6g939GMA4PeU7b2K/9FALXk2KF9J87txdHzXbUF9XRQRwSxcAs/fGaTnJeBFd7UoV22j3lzMLdM0Pw==}
+  /sass@1.77.6:
+    resolution: {integrity: sha512-ByXE1oLD79GVq9Ht1PeHWCPMPB8XHpBuz1r85oByKHjZY6qV6rWnQovQzXJXuQ/XyE1Oj3iPk3lo28uzaRA2/Q==}
     engines: {node: '>=14.0.0'}
     hasBin: true
     dependencies:
@@ -1286,7 +1286,7 @@ packages:
     engines: {node: '>=18'}
     dev: true
 
-  /vite@5.2.13(sass@1.77.4):
+  /vite@5.2.13(sass@1.77.6):
     resolution: {integrity: sha512-SSq1noJfY9pR3I1TUENL3rQYDQCFqgD+lM6fTRAM8Nv6Lsg5hDLaXkjETVeBt+7vZBCMoibD+6IWnT2mJ+Zb/A==}
     engines: {node: ^18.0.0 || >=20.0.0}
     hasBin: true
@@ -1317,7 +1317,7 @@ packages:
       esbuild: 0.20.2
       postcss: 8.4.38
       rollup: 4.17.2
-      sass: 1.77.4
+      sass: 1.77.6
     optionalDependencies:
       fsevents: 2.3.3
     dev: true
@@ -1328,11 +1328,11 @@ packages:
       vitepress: ^1.0.0-rc.27
       vue: ^3.3.8
     dependencies:
-      vitepress: 1.2.3(@algolia/client-search@4.23.3)(sass@1.77.4)(search-insights@2.13.0)
+      vitepress: 1.2.3(@algolia/client-search@4.23.3)(sass@1.77.6)(search-insights@2.13.0)
       vue: 3.4.29
     dev: true
 
-  /vitepress@1.2.3(@algolia/client-search@4.23.3)(sass@1.77.4)(search-insights@2.13.0):
+  /vitepress@1.2.3(@algolia/client-search@4.23.3)(sass@1.77.6)(search-insights@2.13.0):
     resolution: {integrity: sha512-GvEsrEeNLiDE1+fuwDAYJCYLNZDAna+EtnXlPajhv/MYeTjbNK6Bvyg6NoTdO1sbwuQJ0vuJR99bOlH53bo6lg==}
     hasBin: true
     peerDependencies:
@@ -1358,7 +1358,7 @@ packages:
       mark.js: 8.11.1
       minisearch: 6.3.0
       shiki: 1.6.2
-      vite: 5.2.13(sass@1.77.4)
+      vite: 5.2.13(sass@1.77.6)
       vue: 3.4.29
     transitivePeerDependencies:
       - '@algolia/client-search'
