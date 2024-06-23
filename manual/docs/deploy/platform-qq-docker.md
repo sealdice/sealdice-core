@@ -37,7 +37,7 @@ services:
     restart: unless-stopped
 
   lagrange:
-    image: ghcr.io/konatadev/lagrange.onebot:edge
+    image: ghcr.io/lagrangedev/lagrange.onebot:edge
     volumes:
       - ./lagrange_data:/app/data
       - ./seal_data:/data
@@ -74,14 +74,14 @@ services:
     restart: unless-stopped
 
   lagrange-1:
-    image: ghcr.io/konatadev/lagrange.onebot:edge
+    image: ghcr.io/lagrangedev/lagrange.onebot:edge
     volumes:
       - ./lagrange_data_1:/app/data
       - ./seal_data:/data
     restart: unless-stopped
 
   lagrange-2:
-    image: ghcr.io/konatadev/lagrange.onebot:edge
+    image: ghcr.io/lagrangedev/lagrange.onebot:edge
     volumes:
       - ./lagrange_data_2:/app/data
       - ./seal_data:/data
