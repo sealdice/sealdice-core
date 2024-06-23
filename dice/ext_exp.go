@@ -261,7 +261,7 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *ds.ValueMa
 	case "+":
 		signText = "增加"
 		theNewValue = theOldValue + theModValue
-	case "-":
+	case "-", "-=":
 		signText = "扣除"
 		theNewValue = theOldValue - theModValue
 	}
@@ -565,7 +565,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 
 				// 进行简化卡的尝试解析
 				input := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`^(([^\s\-#]{1,25})([-#]))([^\s\d]+\d+)`)
+				re := regexp.MustCompile(`^(([^\s\-#]{1,25})([-#]))([^=\s\d]+\d+)`)
 				matches := re.FindStringSubmatch(input)
 				if len(matches) > 0 {
 					flag := matches[3]
