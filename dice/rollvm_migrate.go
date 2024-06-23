@@ -532,7 +532,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				if last.Text != "" {
 					detail += "," + last.Text
 				}
-				//case "load.computed":
+				// case "load.computed":
 				//	detail += "=" + partRet
 			}
 
