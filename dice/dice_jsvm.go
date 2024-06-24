@@ -429,7 +429,7 @@ func (d *Dice) JsInit() {
 				}
 				d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			}
-			
+
 			if key == "" {
 				// 如果不提供 key，手动避免 task 失去引用
 				if ei.taskList == nil {
@@ -753,6 +753,10 @@ func (d *Dice) JsLoadScripts() {
 }
 
 func (d *Dice) JsReload() {
+	if d.JsScriptCron != nil {
+		d.JsScriptCron.Stop()
+		d.JsScriptCron = nil
+	}
 	d.JsInit()
 	_ = d.ConfigManager.Load()
 	d.JsLoadScripts()
