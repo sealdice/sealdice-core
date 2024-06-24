@@ -429,6 +429,17 @@ func (d *Dice) JsInit() {
 				}
 				d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			}
+			
+			if key == "" {
+				// 如果不提供 key，手动避免 task 失去引用
+				if ei.taskList == nil {
+					ei.taskList = make([]*JsScriptTask, 0)
+					ei.taskList = append(ei.taskList, &task)
+				} else {
+					ei.taskList = append(ei.taskList, &task)
+				}
+			}
+
 			return &task
 		})
 
