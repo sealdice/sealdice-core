@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -94,6 +95,7 @@ func (d *Dice) JsInit() {
 	reg.RegisterNativeModule("console", console.RequireWithPrinter(printer))
 
 	d.JsScriptCron = cron.New()
+	d.JsScriptCronLock = &sync.Mutex{}
 	d.JsScriptCron.Start()
 
 	// 初始化
@@ -357,7 +359,7 @@ func (d *Dice) JsInit() {
 				panic(errors.New("插件cron未成功初始化")) // 按理是不会发生的
 			}
 
-			task := JsScriptTask{cron: scriptCron, key: key, task: fn, logger: ei.dice.Logger}
+			task := JsScriptTask{cron: scriptCron, key: key, task: fn, lock: ei.dice.JsScriptCronLock, logger: ei.dice.Logger}
 			expr := value
 			if key != "" {
 				if config := d.ConfigManager.getConfig(ei.Name, key); config != nil {
@@ -1271,6 +1273,7 @@ type JsScriptTask struct {
 	cronExpr string
 	task     func(JsScriptTaskCtx)
 	entryID  *cron.EntryID
+	lock     *sync.Mutex
 
 	logger *zap.SugaredLogger
 }
@@ -1290,6 +1293,8 @@ func (t *JsScriptTask) run() {
 		Now: time.Now().Unix(),
 		Key: t.key,
 	}
+	defer t.lock.Unlock()
+	t.lock.Lock()
 	t.task(taskCtx)
 }
 
