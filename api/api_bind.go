@@ -539,7 +539,6 @@ func getToken(c echo.Context) error {
 }
 
 func checkCronExpr(c echo.Context) error {
-	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 	req := make(map[string]string)
 	err := c.Bind(&req)
 	if err != nil {
@@ -548,7 +547,7 @@ func checkCronExpr(c echo.Context) error {
 	if _, exist := req["expr"]; !exist {
 		return echo.NewHTTPError(http.StatusBadRequest, "No expression")
 	}
-	_, err = parser.Parse(req["expr"])
+	_, err = cron.ParseStandard(req["expr"])
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid expression")
 	}
