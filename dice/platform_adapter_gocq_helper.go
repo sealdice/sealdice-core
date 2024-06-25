@@ -518,7 +518,7 @@ func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo, isSync bool) 
 		pa.GoCqhttpQrcodeData = nil
 
 		if pa.BuiltinMode == "lagrange" {
-			workDir := lagrangeGetWorkDir(dice, conn)
+			workDir := LagrangeGetWorkDir(dice, conn)
 			qrcodeFile := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
 			if _, err := os.Stat(qrcodeFile); err == nil {
 				// 如果已经存在二维码文件，将其删除
