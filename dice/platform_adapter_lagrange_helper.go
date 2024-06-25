@@ -18,7 +18,7 @@ import (
 	"sealdice-core/utils/procs"
 )
 
-func lagrangeGetWorkDir(dice *Dice, conn *EndPointInfo) string {
+func LagrangeGetWorkDir(dice *Dice, conn *EndPointInfo) string {
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 	return workDir
 }
@@ -57,7 +57,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			return
 		}
 
-		workDir := lagrangeGetWorkDir(dice, conn)
+		workDir := LagrangeGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 		wd, _ := os.Getwd()
 		exeFilePath, _ := filepath.Abs(filepath.Join(wd, "lagrange/Lagrange.OneBot"))
