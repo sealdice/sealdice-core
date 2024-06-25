@@ -1161,6 +1161,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 				_ = recover()
 			}()
 			pa.Socket.Close()
+			pa.diceServing = false
 		}()
 	}
 
@@ -1240,8 +1241,8 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 					UseSignServer:    pa.UseSignServer,
 					SignServerConfig: pa.SignServerConfig,
 				})
+				go ServeQQ(d, c)
 			}
-			go ServeQQ(d, c)
 		} else {
 			pa.GoCqhttpState = StateCodeLoginSuccessed
 			go ServeQQ(d, c)
