@@ -194,48 +194,50 @@ ext.cmdMap['海豹'] = cmdSeal; // 注册 .海豹 指令，等效于 .seal
 let ext = seal.ext.find('test');
 if (!ext) {
   ext = seal.ext.new('test', '木落', '1.0.0');
+
+  // 创建指令 .seal
+  // 这个命令的功能为，显示「抓到一只海豹」的文案；
+  // 如果命令写 .seal ABC，那么文案中将海豹命名为「ABC」；
+  // 如果命令中没写名字，那么命名为默认值「氪豹」。
+  const cmdSeal = seal.ext.newCmdItemInfo();
+  cmdSeal.name = 'seal'; // 指令名字，可用中文
+  cmdSeal.help = '召唤一只海豹，可用 .seal <名字> 命名';
+
+  // 主函数，指令解析器会将指令信息解析，并储存在几个参数中
+  // ctx 主要是和当前环境以及用户相关的内容，如当前发指令用户，当前群组信息等
+  // msg 为原生态的指令内容，如指令文本，发送平台，发送时间等
+  // cmdArgs 为指令信息，会将用户发的信息进行分段，方便快速取用
+  cmdSeal.solve = (ctx, msg, cmdArgs) => {
+    // 获取第一个参数，例如 .seal A B C
+    // 这里 cmdArgs.getArgN(1) 的结果即是 A，传参为 2 的话结果是 B
+    let val = cmdArgs.getArgN(1);
+    switch (val) {
+      case 'help': {
+        // 命令为 .seal help
+        // 创建一个结果对象，并将 showHelp 标记为 true，这会自动给用户发送帮助
+        const ret = seal.ext.newCmdExecuteResult(true);
+        ret.showHelp = true;
+        return ret;
+      }
+      default: {
+        // 命令为 .seal XXXX，取第一个参数为名字
+        if (!val) val = '氪豹';
+        // 进行回复，如果是群聊发送那么在群里回复，私聊发送则在私聊回复 (听起来是废话文学，但详细区别见暗骰例子)
+        seal.replyToSender(ctx, msg, `你抓到一只海豹！取名为${val}\n它的逃跑意愿为${Math.ceil(Math.random() * 100)}`);
+        return seal.ext.newCmdExecuteResult(true);
+      }
+    }
+  };
+
+  // 将命令注册到扩展中
+  ext.cmdMap['seal'] = cmdSeal;
+
+  // 无实际意义，用于消除编译报错
+  export {}
+
   seal.ext.register(ext);
 }
 
-// 创建指令 .seal
-// 这个命令的功能为，显示「抓到一只海豹」的文案；
-// 如果命令写 .seal ABC，那么文案中将海豹命名为「ABC」；
-// 如果命令中没写名字，那么命名为默认值「氪豹」。
-const cmdSeal = seal.ext.newCmdItemInfo();
-cmdSeal.name = 'seal'; // 指令名字，可用中文
-cmdSeal.help = '召唤一只海豹，可用 .seal <名字> 命名';
-
-// 主函数，指令解析器会将指令信息解析，并储存在几个参数中
-// ctx 主要是和当前环境以及用户相关的内容，如当前发指令用户，当前群组信息等
-// msg 为原生态的指令内容，如指令文本，发送平台，发送时间等
-// cmdArgs 为指令信息，会将用户发的信息进行分段，方便快速取用
-cmdSeal.solve = (ctx, msg, cmdArgs) => {
-  // 获取第一个参数，例如 .seal A B C
-  // 这里 cmdArgs.getArgN(1) 的结果即是 A，传参为 2 的话结果是 B
-  let val = cmdArgs.getArgN(1);
-  switch (val) {
-    case 'help': {
-      // 命令为 .seal help
-      // 创建一个结果对象，并将 showHelp 标记为 true，这会自动给用户发送帮助
-      const ret = seal.ext.newCmdExecuteResult(true);
-      ret.showHelp = true;
-      return ret;
-    }
-    default: {
-      // 命令为 .seal XXXX，取第一个参数为名字
-      if (!val) val = '氪豹';
-      // 进行回复，如果是群聊发送那么在群里回复，私聊发送则在私聊回复 (听起来是废话文学，但详细区别见暗骰例子)
-      seal.replyToSender(ctx, msg, `你抓到一只海豹！取名为${val}\n它的逃跑意愿为${Math.ceil(Math.random() * 100)}`);
-      return seal.ext.newCmdExecuteResult(true);
-    }
-  }
-};
-
-// 将命令注册到扩展中
-ext.cmdMap['seal'] = cmdSeal;
-
-// 无实际意义，用于消除编译报错
-export {}
 ```
 
 这就是最基本的模板了。
@@ -651,48 +653,52 @@ const ext = seal.ext.new('js-ban', 'SzzRain', '1.0.0');
 let ext = seal.ext.find('test');
 if (!ext) {
   ext = seal.ext.new('test', '木落', '1.0.0');
+
+  const cmdFeed = seal.ext.newCmdItemInfo();
+  cmdFeed.name = '投喂';
+  cmdFeed.help = '投喂，格式：.投喂 <物品>\n.投喂 记录 // 查看记录';
+  cmdFeed.solve = (ctx, msg, cmdArgs) => {
+    let val = cmdArgs.getArgN(1);
+    switch (val) {
+      case 'help':
+      case '': {
+        // .投喂 help
+        const ret = seal.ext.newCmdExecuteResult(true);
+        ret.showHelp = true;
+        return ret;
+      }
+      case '列表':
+      case '记录':
+      case 'list': {
+        const data = JSON.parse(ext.storageGet('feedInfo') || '{}');
+        const lst = [];
+        for (let [k, v] of Object.entries(data)) {
+          lst.push(`- ${k}: 数量 ${v}`);
+        }
+        seal.replyToSender(ctx, msg, `投喂记录:\n${lst.join('\n')}`);
+        return seal.ext.newCmdExecuteResult(true);
+      }
+      default: {
+        const data = JSON.parse(ext.storageGet('feedInfo') || '{}');
+        const name = val || '空气';
+        if (data[name] === undefined) {
+          data[name] = 0;
+        }
+        data[name] += 1;
+        ext.storageSet('feedInfo', JSON.stringify(data));
+        seal.replyToSender(ctx, msg, `你给海豹投喂了${name}，要爱护动物！`);
+        return seal.ext.newCmdExecuteResult(true);
+      }
+    }
+  };
+
+  // 将命令注册到扩展中
+  ext.cmdMap['投喂'] = cmdFeed;
+  ext.cmdMap['feed'] = cmdFeed;
+
   seal.ext.register(ext);
 }
-const cmdFeed = seal.ext.newCmdItemInfo();
-cmdFeed.name = '投喂';
-cmdFeed.help = '投喂，格式：.投喂 <物品>\n.投喂 记录 // 查看记录';
-cmdFeed.solve = (ctx, msg, cmdArgs) => {
-  let val = cmdArgs.getArgN(1);
-  switch (val) {
-    case 'help':
-    case '': {
-      // .投喂 help
-      const ret = seal.ext.newCmdExecuteResult(true);
-      ret.showHelp = true;
-      return ret;
-    }
-    case '列表':
-    case '记录':
-    case 'list': {
-      const data = JSON.parse(ext.storageGet('feedInfo') || '{}');
-      const lst = [];
-      for (let [k, v] of Object.entries(data)) {
-        lst.push(`- ${k}: 数量 ${v}`);
-      }
-      seal.replyToSender(ctx, msg, `投喂记录:\n${lst.join('\n')}`);
-      return seal.ext.newCmdExecuteResult(true);
-    }
-    default: {
-      const data = JSON.parse(ext.storageGet('feedInfo') || '{}');
-      const name = val || '空气';
-      if (data[name] === undefined) {
-        data[name] = 0;
-      }
-      data[name] += 1;
-      ext.storageSet('feedInfo', JSON.stringify(data));
-      seal.replyToSender(ctx, msg, `你给海豹投喂了${name}，要爱护动物！`);
-      return seal.ext.newCmdExecuteResult(true);
-    }
-  }
-};
-// 将命令注册到扩展中
-ext.cmdMap['投喂'] = cmdFeed;
-ext.cmdMap['feed'] = cmdFeed;
+
 ```
 
 ### 示例代码：群内安价收集
@@ -799,57 +805,59 @@ ${optStr}`);
     let ext = seal.ext.find("anchor");
     if (!ext) {
       ext = seal.ext.new("anchor", "憧憬少", "1.0.0");
+      
+      const cmdSeal = seal.ext.newCmdItemInfo();
+      cmdSeal.name = "安价";
+      cmdSeal.help = HELP;
+      cmdSeal.solve = (ctx, msg, cmdArgs) => {
+        try {
+          let val = cmdArgs.getArgN(1);
+          switch (val) {
+            case "#": {
+              const title = cmdArgs.getArgN(2);
+              akNew(ctx, msg, ext, title);
+              return seal.ext.newCmdExecuteResult(true);
+            }
+            case "+": {
+              const option = cmdArgs.getArgN(2);
+              akAdd(ctx, msg, ext, option);
+              return seal.ext.newCmdExecuteResult(true);
+            }
+            case "-": {
+              const index = Number(cmdArgs.getArgN(2));
+              akDel(ctx, msg, ext, index);
+              return seal.ext.newCmdExecuteResult(true);
+            }
+            case "?":
+            case "？": {
+              akList(ctx, msg, ext);
+              return seal.ext.newCmdExecuteResult(true);
+            }
+            case "=": {
+              let num = 1;
+              if (cmdArgs.args.length >= 2) {
+                num = Number(cmdArgs.getArgN(2));
+              }
+              akGet(ctx, msg, ext, num);
+              return seal.ext.newCmdExecuteResult(true);
+            }
+            case "help":
+            default: {
+              const ret = seal.ext.newCmdExecuteResult(true);
+              ret.showHelp = true;
+              return ret;
+            }
+          }
+        } catch (error) {
+          seal.replyToSender(ctx, msg, error.Message);
+          return seal.ext.newCmdExecuteResult(true);
+        }
+      };
+      ext.cmdMap["安价"] = cmdSeal;
+      ext.cmdMap["ak"] = cmdSeal;
+
       seal.ext.register(ext);
     }
-    const cmdSeal = seal.ext.newCmdItemInfo();
-    cmdSeal.name = "安价";
-    cmdSeal.help = HELP;
-    cmdSeal.solve = (ctx, msg, cmdArgs) => {
-      try {
-        let val = cmdArgs.getArgN(1);
-        switch (val) {
-          case "#": {
-            const title = cmdArgs.getArgN(2);
-            akNew(ctx, msg, ext, title);
-            return seal.ext.newCmdExecuteResult(true);
-          }
-          case "+": {
-            const option = cmdArgs.getArgN(2);
-            akAdd(ctx, msg, ext, option);
-            return seal.ext.newCmdExecuteResult(true);
-          }
-          case "-": {
-            const index = Number(cmdArgs.getArgN(2));
-            akDel(ctx, msg, ext, index);
-            return seal.ext.newCmdExecuteResult(true);
-          }
-          case "?":
-          case "？": {
-            akList(ctx, msg, ext);
-            return seal.ext.newCmdExecuteResult(true);
-          }
-          case "=": {
-            let num = 1;
-            if (cmdArgs.args.length >= 2) {
-              num = Number(cmdArgs.getArgN(2));
-            }
-            akGet(ctx, msg, ext, num);
-            return seal.ext.newCmdExecuteResult(true);
-          }
-          case "help":
-          default: {
-            const ret = seal.ext.newCmdExecuteResult(true);
-            ret.showHelp = true;
-            return ret;
-          }
-        }
-      } catch (error) {
-        seal.replyToSender(ctx, msg, error.Message);
-        return seal.ext.newCmdExecuteResult(true);
-      }
-    };
-    ext.cmdMap["安价"] = cmdSeal;
-    ext.cmdMap["ak"] = cmdSeal;
   }
   main();
 })();
@@ -900,34 +908,36 @@ function akAdd(ctx, msg, ext, option) {
 ext = seal.ext.find('hide');
 if (!ext){
     ext = seal.ext.new('hide','流溪','0.0.1');
-    seal.ext.register(ext);
+
+    const cmdHide = seal.ext.newCmdItemInfo;
+    cmdHide.name = 'hide';
+    cmdHide.help = '暗骰，使用 .hide 面数 暗骰';
+    cmdHide.solve = (ctx, msg, cmdArgs) => {
+      if (msg.messageType !== 'group'){
+          seal.replyToSender(ctx, msg, '暗骰只能在群内触发');
+          return seal.ext.newCmdExecuteResult(true);
+      }
+      function rd(x){
+          // 这里写的时候有点不清醒了，感觉是对的，如果不对请拷打我
+          return Math.round(Math.random() * (x - 1) + 1);
+      }
+      let x = cmdArgs.getArgN(1);
+      if (x === 'help'){
+          return seal.ext.newCmdExecuteResult(true).showhelp = true;
+      } else if (isNaN(Number(x))){
+          // 我知道这里有更好的判断是否为数字的方法但是我不会.jpg
+          seal.replyToSender(ctx, msg, `骰子面数应是数字`);
+          return seal.ext.newCmdExecuteResult(true);
+      } else {
+          // 这就是暗骰 api 哒！
+          seal.replyPerson(ctx, msg, `你在群${msg.groupId}的掷骰结果为：${rd(x)}`);
+          return seal.ext.newCmdExecuteResult(true);
+      }
+    }
+  ext.cmdMap['hide'] = cmdHide;
+
+  seal.ext.register(ext);
 }
-const cmdHide = seal.ext.newCmdItemInfo;
-cmdHide.name = 'hide';
-cmdHide.help = '暗骰，使用 .hide 面数 暗骰';
-cmdHide.solve = (ctx, msg, cmdArgs) => {
-    if (msg.messageType !== 'group'){
-        seal.replyToSender(ctx, msg, '暗骰只能在群内触发');
-        return seal.ext.newCmdExecuteResult(true);
-    }
-    function rd(x){
-        // 这里写的时候有点不清醒了，感觉是对的，如果不对请拷打我
-        return Math.round(Math.random() * (x - 1) + 1);
-    }
-    let x = cmdArgs.getArgN(1);
-    if (x === 'help'){
-        return seal.ext.newCmdExecuteResult(true).showhelp = true;
-    } else if (isNaN(Number(x))){
-        // 我知道这里有更好的判断是否为数字的方法但是我不会.jpg
-        seal.replyToSender(ctx, msg, `骰子面数应是数字`);
-        return seal.ext.newCmdExecuteResult(true);
-    } else {
-        // 这就是暗骰 api 哒！
-        seal.replyPerson(ctx, msg, `你在群${msg.groupId}的掷骰结果为：${rd(x)}`);
-        return seal.ext.newCmdExecuteResult(true);
-    }
-}
-ext.cmdMap['hide'] = cmdHide;
 ```
 
 可以看到使用`seal.replyPerson`做到暗骰的效果。
@@ -951,37 +961,38 @@ ext.cmdMap['hide'] = cmdHide;
 let ext = seal.ext.find('test');
 if (!ext) {
   ext = seal.ext.new('test', '木落', '1.0.0');
+
+  // 创建指令 .catch
+  // 这个命令的功能为，显示“试图捕捉某人”，并给出成功率
+  // 如果命令写“.catch @张三”，那么就会试着捕捉张三
+  const cmdCatch = seal.ext.newCmdItemInfo();
+  cmdCatch.name = 'catch';
+  cmdCatch.help = '捕捉某人，格式.catch <@名字>';
+  // 对这个指令启用使用代骰功能，即@某人时，可获取对方的数据，以对方身份进行骰点
+  cmdCatch.allowDelegate = true;
+  cmdCatch.solve = (ctx, msg, cmdArgs) => {
+    // 获取对方数据，之后用 mctx 替代 ctx，mctx 下读出的数据即被代骰者的个人数据
+    const mctx = seal.getCtxProxyFirst(ctx, cmdArgs);
+    let val = cmdArgs.getArgN(1);
+    switch (val) {
+      case 'help': {
+        // 命令为 .catch help
+        const ret = seal.ext.newCmdExecuteResult(true);
+        ret.showHelp = true;
+        return ret;
+      }
+      default: {
+        const text = `正在试图捕捉${mctx.player.name}，成功率为${Math.ceil(Math.random() * 100)}%`;
+        seal.replyToSender(mctx, msg, text);
+        return seal.ext.newCmdExecuteResult(true);
+      }
+    }
+  };
+  // 将命令注册到扩展中
+  ext.cmdMap['catch'] = cmdCatch;
+
   seal.ext.register(ext);
 }
-// 创建指令 .catch
-// 这个命令的功能为，显示“试图捕捉某人”，并给出成功率
-// 如果命令写“.catch @张三”，那么就会试着捕捉张三
-const cmdCatch = seal.ext.newCmdItemInfo();
-cmdCatch.name = 'catch';
-cmdCatch.help = '捕捉某人，格式.catch <@名字>';
-// 对这个指令启用使用代骰功能，即@某人时，可获取对方的数据，以对方身份进行骰点
-cmdCatch.allowDelegate = true;
-cmdCatch.solve = (ctx, msg, cmdArgs) => {
-  // 获取对方数据，之后用 mctx 替代 ctx，mctx 下读出的数据即被代骰者的个人数据
-  const mctx = seal.getCtxProxyFirst(ctx, cmdArgs);
-  let val = cmdArgs.getArgN(1);
-  switch (val) {
-    case 'help': {
-      // 命令为 .catch help
-      const ret = seal.ext.newCmdExecuteResult(true);
-      ret.showHelp = true;
-      return ret;
-    }
-    default: {
-      const text = `正在试图捕捉${mctx.player.name}，成功率为${Math.ceil(Math.random() * 100)}%`;
-      seal.replyToSender(mctx, msg, text);
-      return seal.ext.newCmdExecuteResult(true);
-    }
-  }
-};
-// 将命令注册到扩展中
-ext.cmdMap['catch'] = cmdCatch;
-
 ```
 
 ## 网络请求
