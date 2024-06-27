@@ -64,6 +64,71 @@ type ConfigItem struct {
 	Description string `json:"description" jsbind:"description"`
 }
 
+func (i *ConfigItem) UnmarshalJSON(data []byte) error {
+	raw := map[string]any{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	var ok bool
+	if i.Key, ok = raw["key"].(string); !ok {
+		return errors.New("'key' must be a string")
+	}
+	if i.Type, ok = raw["type"].(string); !ok {
+		return errors.New("'type' must be a string")
+	}
+	if i.Description, ok = raw["description"].(string); !ok {
+		return errors.New("'description' must be a string")
+	}
+	if v, ok := raw["deprecated"]; ok {
+		if i.Deprecated, ok = v.(bool); !ok {
+			return errors.New("'deprecated' must be a bool")
+		}
+	}
+
+	switch i.Type {
+	case "string", "bool", "float":
+		i.DefaultValue = raw["defaultValue"]
+		i.Value = raw["value"]
+	case "int":
+		i.DefaultValue = int64(raw["defaultValue"].(float64))
+		if v, ok := raw["value"]; ok {
+			i.Value = int64(v.(float64))
+		}
+	case "template":
+		{
+			v := raw["defaultValue"].([]interface{})
+			strarr := make([]string, len(v))
+			for i, vv := range v {
+				strarr[i] = vv.(string)
+			}
+			i.DefaultValue = strarr
+		}
+		if v, ok := raw["value"]; ok {
+			vv := v.([]interface{})
+			strarr := make([]string, len(vv))
+			for i, vv := range vv {
+				strarr[i] = vv.(string)
+			}
+			i.Value = strarr
+		}
+	case "option":
+		i.DefaultValue = raw["defaultValue"]
+		i.Value = raw["value"]
+		v := raw["option"].([]interface{})
+		strarr := make([]string, len(v))
+		for i, vv := range v {
+			strarr[i] = vv.(string)
+		}
+		i.Option = strarr
+	default:
+		return errors.New("unsupported type " + i.Type)
+	}
+
+	return nil
+}
+
+var _ json.Unmarshaler = (*ConfigItem)(nil)
+
 type PluginConfig struct {
 	PluginName        string                 `json:"pluginName"`
 	Configs           map[string]*ConfigItem `json:"configs" jsbind:"configs"`
@@ -286,32 +351,7 @@ func (cm *ConfigManager) Load() error {
 	}(file)
 
 	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&cm.Plugins)
-	if err != nil {
-		return err
-	}
-
-	// Mark all loaded configs as deprecated
-	for i := range cm.Plugins {
-		for j := range cm.Plugins[i].Configs {
-			temp := cm.Plugins[i].Configs[j]
-			// 将 json 数值反序列化到 any 类型时，即使数值是整数也会使用 float64。因此新增的配置项（int64）和从文件里恢复的配置项（float64）类型不同。
-			if f64v, ok := temp.Value.(float64); ok && temp.Type == "int" {
-				temp.Value = int64(f64v)
-			}
-			// 修复无法从[]interface{}断言[]string
-			if infv, ok := temp.Value.([]interface{}); ok && temp.Type == "template" {
-				var strarr []string
-				for _, strv := range infv {
-					strarr = append(strarr, strv.(string))
-				}
-				temp.Value = strarr
-			}
-			temp.Deprecated = true
-			cm.Plugins[i].Configs[j] = temp
-		}
-	}
-	return nil
+	return decoder.Decode(&cm.Plugins)
 }
 
 func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
