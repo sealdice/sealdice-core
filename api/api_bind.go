@@ -697,4 +697,9 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/resource/data", resourceGetData)
 
 	e.GET(prefix+"/verify/generate_code", verifyGenerateCode)
+
+	e.GET(prefix+"/store/recommend", storeRecommend)
+	e.GET(prefix+"/store/page", storeGetPage)
+	e.POST(prefix+"/store/download", storeDownload)
+	e.POST(prefix+"/store/rating", storeRating)
 }
