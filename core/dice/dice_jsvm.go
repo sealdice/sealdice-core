@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -24,7 +25,9 @@ import (
 	fetch "github.com/fy0/gojax/fetch"
 	"github.com/golang-module/carbon"
 	"github.com/pkg/errors"
+	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
+	"go.uber.org/zap"
 	"gopkg.in/elazarl/goproxy.v1"
 	"gopkg.in/yaml.v3"
 
@@ -38,6 +41,8 @@ var (
 
 	signRe = regexp.MustCompile(`^// sign\s+([^\r\n]+)?[\r\n]+$`)
 )
+
+var taskTimeRe = regexp.MustCompile(`^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$`)
 
 type PrinterFunc struct {
 	d        *Dice
@@ -88,6 +93,10 @@ func (d *Dice) JsInit() {
 	printer := &PrinterFunc{d, false, []string{}}
 	d.JsPrinter = printer
 	reg.RegisterNativeModule("console", console.RequireWithPrinter(printer))
+
+	d.JsScriptCron = cron.New()
+	d.JsScriptCronLock = &sync.Mutex{}
+	d.JsScriptCron.Start()
 
 	// 初始化
 	loop.Run(func(vm *goja.Runtime) {
@@ -340,6 +349,102 @@ func (d *Dice) JsInit() {
 			}
 			d.ConfigManager.UnregisterConfig(ei.Name, key...)
 		})
+
+		_ = ext.Set("registerTask", func(ei *ExtInfo, taskType string, value string, fn func(taskCtx JsScriptTaskCtx), key string, desc string) *JsScriptTask {
+			if ei.dice == nil {
+				panic(errors.New("请先完成此扩展的注册"))
+			}
+			scriptCron := ei.dice.JsScriptCron
+			if scriptCron == nil {
+				panic(errors.New("插件cron未成功初始化")) // 按理是不会发生的
+			}
+
+			task := JsScriptTask{cron: scriptCron, key: key, task: fn, lock: ei.dice.JsScriptCronLock, logger: ei.dice.Logger}
+			expr := value
+			if key != "" {
+				if config := d.ConfigManager.getConfig(ei.Name, key); config != nil {
+					expr = config.Value.(string)
+					// Stop old task
+					if config.task != nil {
+						config.task.Off()
+					}
+				}
+			}
+
+			switch taskType {
+			case "cron":
+				entryID, err := scriptCron.AddFunc(expr, func() {
+					task.run()
+				})
+				if err != nil {
+					panic("插件注册定时任务失败：" + err.Error())
+				}
+				task.taskType = taskType
+				task.rawValue = expr
+				task.cronExpr = expr
+				task.entryID = &entryID
+				ei.dice.Logger.Infof("插件注册定时任务：cron=%s", expr)
+			case "daily":
+				// 支持每天定时触发，24 小时表示
+				cronExpr, err := parseTaskTime(expr)
+				if err != nil {
+					panic("插件注册定时任务失败：" + err.Error())
+				}
+
+				entryID, err := scriptCron.AddFunc(cronExpr, func() {
+					task.run()
+				})
+				if err != nil {
+					panic("插件注册定时任务失败：" + err.Error())
+				}
+				task.taskType = taskType
+				task.rawValue = expr
+				task.cronExpr = cronExpr
+				task.entryID = &entryID
+				ei.dice.Logger.Infof("插件注册定时任务：daily=%s", expr)
+			default:
+				panic(fmt.Sprintf("错误的任务类型：%s，当前仅支持 cron|daily", taskType))
+			}
+
+			if key != "" {
+				config := d.ConfigManager.getConfig(ei.Name, key)
+
+				switch taskType {
+				case "cron":
+					config = &ConfigItem{
+						Key:          key,
+						Type:         "task:cron",
+						Value:        expr,
+						DefaultValue: value,
+						Description:  desc,
+						task:         &task,
+					}
+				case "daily":
+					config = &ConfigItem{
+						Key:          key,
+						Type:         "task:daily",
+						Value:        expr,
+						DefaultValue: value,
+						Description:  desc,
+						task:         &task,
+					}
+				}
+				d.ConfigManager.RegisterPluginConfig(ei.Name, config)
+			}
+
+			if key == "" {
+				// 如果不提供 key，手动避免 task 失去引用
+				if ei.taskList == nil {
+					ei.taskList = make([]*JsScriptTask, 0)
+					ei.taskList = append(ei.taskList, &task)
+				} else {
+					ei.taskList = append(ei.taskList, &task)
+				}
+			}
+
+			return &task
+		})
+
 		// COC规则自定义
 		coc := vm.NewObject()
 		_ = coc.Set("newRule", func() *CocRuleInfo {
@@ -650,6 +755,10 @@ func (d *Dice) JsLoadScripts() {
 }
 
 func (d *Dice) JsReload() {
+	if d.JsScriptCron != nil {
+		d.JsScriptCron.Stop()
+		d.JsScriptCron = nil
+	}
 	d.JsInit()
 	_ = d.ConfigManager.Load()
 	d.JsLoadScripts()
@@ -1153,4 +1262,97 @@ func sortJsScripts(jsScripts []*JsScriptInfo) ([]*JsScriptInfo, map[string][]str
 		}
 	}
 	return result, infos
+}
+
+type JsScriptTask struct {
+	taskType string
+	key      string
+	rawValue string
+
+	cron     *cron.Cron
+	cronExpr string
+	task     func(JsScriptTaskCtx)
+	entryID  *cron.EntryID
+	lock     *sync.Mutex
+
+	logger *zap.SugaredLogger
+}
+
+type JsScriptTaskCtx struct {
+	Now int64  `jsbind:"now"`
+	Key string `jsbind:"key"`
+}
+
+func (t *JsScriptTask) run() {
+	defer func() {
+		if r := recover(); r != nil {
+			t.logger.Errorf("插件定时任务异常: %v", r)
+		}
+	}()
+	taskCtx := JsScriptTaskCtx{
+		Now: time.Now().Unix(),
+		Key: t.key,
+	}
+	defer t.lock.Unlock()
+	t.lock.Lock()
+	t.task(taskCtx)
+}
+
+func (t *JsScriptTask) On() bool {
+	if t.entryID != nil {
+		return true
+	}
+	entryID, err := t.cron.AddFunc(t.cronExpr, func() {
+		t.run()
+	})
+	if err != nil {
+		return false
+	}
+	t.entryID = &entryID
+	return true
+}
+
+func (t *JsScriptTask) Off() bool {
+	if t.entryID == nil {
+		return true
+	}
+	t.cron.Remove(*t.entryID)
+	t.entryID = nil
+	return true
+}
+
+func (t *JsScriptTask) reset(expr string) error {
+	if t.entryID != nil {
+		t.Off()
+		defer t.On()
+	}
+
+	t.rawValue = expr
+	switch t.taskType {
+	case "cron":
+		t.cronExpr = expr
+	case "daily":
+		cronExpr, err := parseTaskTime(expr)
+		if err != nil {
+			return err
+		}
+		t.cronExpr = cronExpr
+	default:
+		return fmt.Errorf("unknown task type %s", t.taskType)
+	}
+	return nil
+}
+
+// parseTaskTime 将 24 小时时间转换为 cron 表达式
+func parseTaskTime(taskTimeStr string) (string, error) {
+	match := taskTimeRe.MatchString(taskTimeStr)
+	if !match {
+		return "", fmt.Errorf("仅接受 24 小时表示的时间作为每天的执行时间，如 0:05 13:30")
+	}
+	time, err := time.Parse("15:04", taskTimeStr)
+	if err != nil {
+		return "", err
+	}
+	cronExpr := fmt.Sprintf("%d %d * * *", time.Minute(), time.Hour())
+	return cronExpr, nil
 }
