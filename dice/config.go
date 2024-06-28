@@ -63,6 +63,8 @@ type ConfigItem struct {
 	Deprecated   bool        `json:"deprecated,omitempty" jsbind:"deprecated"`
 
 	Description string `json:"description" jsbind:"description"`
+
+	task *JsScriptTask
 }
 
 func (i *ConfigItem) UnmarshalJSON(data []byte) error {
@@ -189,6 +191,7 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 				existingItem.Option = newItem.Option
 				existingItem.Description = newItem.Description
 				existingItem.Deprecated = false // Reset deprecated flag
+				existingItem.task = newItem.task
 				existingPlugin.Configs[newItem.Key] = existingItem
 				// Extension can reorder config by re-registering it
 				// Time complexity of removing the old position is O(1) if the order doesn't change
@@ -232,6 +235,9 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	}
 
 	for _, key := range keys {
+		if config, exist := plugin.Configs[key]; exist && strings.HasPrefix(config.Type, "task:") && config.task != nil {
+			config.task.Off()
+		}
 		delete(plugin.Configs, key)
 	}
 	// Remove from orderedConfigKeys
@@ -250,13 +256,13 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	_ = cm.save()
 }
 
-func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
+func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) error {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
 
 	plugin, ok := cm.Plugins[pluginName]
 	if !ok {
-		return
+		return fmt.Errorf("plugin: %v not found", pluginName)
 	}
 
 	configItem, exists := plugin.Configs[key]
@@ -272,13 +278,23 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
 				strarr = append(strarr, strv.(string))
 			}
 			configItem.Value = strarr
+		case "task:cron", "task:daily":
+			val := value.(string)
+			configItem.Value = val
+			// 立即生效
+			if configItem.task != nil {
+				err := configItem.task.reset(val)
+				if err != nil {
+					return err
+				}
+			}
 		default:
 			configItem.Value = value
 		}
 		plugin.Configs[key] = configItem
 		cm.Plugins[pluginName] = plugin
 	}
-	_ = cm.save()
+	return cm.save()
 }
 
 func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
@@ -313,6 +329,11 @@ func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 		fmt.Println("reset config to default", pluginName, key)
 		configItem.Value = configItem.DefaultValue
 		plugin.Configs[key] = configItem
+		if strings.HasPrefix(configItem.Type, "task:") {
+			if configItem.task != nil {
+				_ = configItem.task.reset(configItem.Value.(string))
+			}
+		}
 		cm.Plugins[pluginName] = plugin
 	}
 	_ = cm.save()
