@@ -14,6 +14,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
+	"github.com/robfig/cron/v3"
+	"github.com/samber/lo"
 
 	"sealdice-core/dice"
 )
@@ -471,10 +473,20 @@ func handleSetConfigs(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
 	}
+	var errors []error
 	for k, v := range data {
 		for _, i := range v.Configs {
-			myDice.ConfigManager.SetConfig(k, i.Key, i.Value)
+			err := myDice.ConfigManager.SetConfig(k, i.Key, i.Value)
+			if err != nil {
+				errors = append(errors, err)
+			}
 		}
+	}
+	if len(errors) > 0 {
+		errMsg := strings.Join(lo.Map(errors, func(e error, _ int) string {
+			return e.Error()
+		}), "\n")
+		return c.JSON(http.StatusInternalServerError, errMsg)
 	}
 	return c.JSON(http.StatusOK, nil)
 }
@@ -524,6 +536,22 @@ func getToken(c echo.Context) error {
 		return c.String(http.StatusOK, text)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{})
+}
+
+func checkCronExpr(c echo.Context) error {
+	req := make(map[string]string)
+	err := c.Bind(&req)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
+	}
+	if _, exist := req["expr"]; !exist {
+		return echo.NewHTTPError(http.StatusBadRequest, "No expression")
+	}
+	_, err = cron.ParseStandard(req["expr"])
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid expression")
+	}
+	return c.JSON(http.StatusOK, nil)
 }
 
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
@@ -676,6 +704,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/utils/news", getNews)
 	e.POST(prefix+"/utils/check_news", checkNews)
 	e.GET(prefix+"/utils/get_token", getToken)
+	e.POST(prefix+"/utils/check_cron_expr", checkCronExpr)
 
 	e.POST(prefix+"/censor/restart", censorRestart)
 	e.POST(prefix+"/censor/stop", censorStop)
