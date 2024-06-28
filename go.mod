@@ -62,7 +62,7 @@ require (
 	github.com/tidwall/buntdb v1.3.1
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/xuri/excelize/v2 v2.8.1
-	github.com/yuin/goldmark v1.7.1
+	github.com/yuin/goldmark v1.7.3
 	go.etcd.io/bbolt v1.3.9
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.24.0
