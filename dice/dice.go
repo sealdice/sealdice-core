@@ -115,6 +115,9 @@ type ExtInfo struct {
 	dbMu sync.Mutex `yaml:"-"` // 互斥锁
 	init bool       `yaml:"-"` // 标记Storage是否已初始化
 
+	// 定时任务列表，用于避免 task 失去引用
+	taskList []*JsScriptTask `yaml:"-" json:"-"`
+
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
 	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
 
@@ -235,6 +238,8 @@ type Dice struct {
 	JsRequire         *require.RequireModule `yaml:"-" json:"-"`
 	JsLoop            *eventloop.EventLoop   `yaml:"-" json:"-"`
 	JsScriptList      []*JsScriptInfo        `yaml:"-" json:"-"`
+	JsScriptCron      *cron.Cron             `yaml:"-" json:"-"`
+	JsScriptCronLock  *sync.Mutex            `yaml:"-" json:"-"`
 	// 内置脚本摘要表，用于判断内置脚本是否有更新
 	JsBuiltinDigestSet map[string]bool `yaml:"-" json:"-"`
 	// 当前在加载的脚本路径，用于关联 jsScriptInfo 和 ExtInfo
