@@ -345,17 +345,17 @@ func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion st
 	switch signServerUrl {
 	case "":
 		signServerUrl = defaultNTSignServer
-		if signServerVersion != "" && signServerVersion != "old" {
+		if signServerVersion != "" && signServerVersion != "13107" {
 			signServerUrl += "/" + signServerVersion
 		}
 	case "sealdice":
 		signServerUrl = defaultNTSignServer
-		if signServerVersion != "" && signServerVersion != "old" {
+		if signServerVersion != "" && signServerVersion != "13107" {
 			signServerUrl += "/" + signServerVersion
 		}
 	case "lagrange":
 		signServerUrl = lagrangeNTSignServer
-		if signServerVersion != "" && signServerVersion != "old" {
+		if signServerVersion != "" && signServerVersion != "13107" {
 			signServerUrl += "/" + signServerVersion
 		}
 	}
@@ -387,12 +387,12 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 	switch signServerUrl {
 	case "sealdice":
 		signServerUrl = defaultNTSignServer
-		if signServerVersion != "" && signServerVersion != "old" {
+		if signServerVersion != "" && signServerVersion != "13107" {
 			signServerUrl += "/" + signServerVersion
 		}
 	case "lagrange":
 		signServerUrl = "https://sign.lagrangecore.org/api/sign"
-		if signServerVersion != "" && signServerVersion != "old" {
+		if signServerVersion != "" && signServerVersion != "13107" {
 			signServerUrl += "/" + signServerVersion
 		}
 	}
@@ -426,7 +426,7 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 					val = "lagrange"
 				}
 				if version == "" {
-					version = "old"
+					version = "13107"
 				}
 				return val, version
 			}
