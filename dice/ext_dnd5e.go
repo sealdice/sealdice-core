@@ -59,7 +59,7 @@ var dndAttrParent = map[string]string{
 	"表演": "魅力",
 }
 
-func setupConfigDND(d *Dice) AttributeConfigs {
+func setupConfigDND(_ *Dice) AttributeConfigs {
 	// 如果不存在，新建
 	defaultVals := AttributeConfigs{
 		Alias: map[string][]string{},
@@ -1175,9 +1175,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					round = 0
 				}
 				if round == 0 {
+					VarSetValueStr(ctx, "$t新轮开始提示", DiceFormatTmpl(ctx, "DND:先攻_新轮开始提示"))
 					VarSetValueStr(ctx, "$t当前回合角色名", lst[l-1].name)
 					VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[l-1].uid))
 				} else {
+					VarSetValueStr(ctx, "$t新轮开始提示", "")
 					VarSetValueStr(ctx, "$t当前回合角色名", lst[round-1].name)
 					VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[round-1].uid))
 				}
