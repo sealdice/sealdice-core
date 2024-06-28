@@ -1349,9 +1349,10 @@ func parseTaskTime(taskTimeStr string) (string, error) {
 	if !match {
 		return "", fmt.Errorf("仅接受 24 小时表示的时间作为每天的执行时间，如 0:05 13:30")
 	}
-	sub := taskTimeRe.FindStringSubmatch(taskTimeStr)
-	hours, _ := strconv.ParseInt(sub[1], 10, 64)
-	minutes, _ := strconv.ParseInt(sub[2], 10, 64)
-	cronExpr := fmt.Sprintf("%d %d * * *", minutes, hours)
+	time, err := time.Parse("15:04", taskTimeStr)
+	if err != nil {
+		return "", err
+	}
+	cronExpr := fmt.Sprintf("%d %d * * *", time.Minute(), time.Hour())
 	return cronExpr, nil
 }

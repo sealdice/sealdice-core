@@ -196,7 +196,7 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) er
 
 	plugin, ok := cm.Plugins[pluginName]
 	if !ok {
-		return nil
+		return fmt.Errorf("plugin: %v not found", pluginName)
 	}
 
 	configItem, exists := plugin.Configs[key]
@@ -212,9 +212,7 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) er
 				strarr = append(strarr, strv.(string))
 			}
 			configItem.Value = strarr
-		case "task:cron":
-			fallthrough
-		case "task:daily":
+		case "task:cron", "task:daily":
 			val := value.(string)
 			configItem.Value = val
 			// 立即生效
