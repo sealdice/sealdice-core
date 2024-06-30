@@ -287,7 +287,7 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueStr(ctx, "$tSystem", ctx.Group.System)
 		VarSetValueStr(ctx, "$t当前记录", ctx.Group.LogCurName)
 
-		var isLogOn int64 = 0
+		var isLogOn int64
 		if ctx.Group.LogOn {
 			isLogOn = 1
 		}
