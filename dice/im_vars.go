@@ -286,6 +286,12 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueStr(ctx, "$t规则模板", ctx.Group.System)
 		VarSetValueStr(ctx, "$tSystem", ctx.Group.System)
 		VarSetValueStr(ctx, "$t当前记录", ctx.Group.LogCurName)
+
+		var isLogOn int64 = 0
+		if ctx.Group.LogOn {
+			isLogOn = 1
+		}
+		VarSetValueInt64(ctx, "$t日志开启", isLogOn)
 	}
 
 	if ctx.MessageType == "group" {
