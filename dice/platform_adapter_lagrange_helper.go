@@ -338,3 +338,14 @@ func LagrangeServeRemoveSession(dice *Dice, conn *EndPointInfo) {
 		_ = os.Remove(filepath.Join(workDir, "keystore.json"))
 	}
 }
+
+// 清理内置客户端配置文件目录
+func LagrangeServeRemoveConfig(dice *Dice, conn *EndPointInfo) {
+	workDir := LagrangeGetWorkDir(dice, conn)
+	err := os.RemoveAll(workDir)
+	if err != nil {
+		dice.Logger.Errorf("清理内置客户端文件失败, 原因: %s, 请手动删除目录: %s", err.Error(), workDir)
+	} else {
+		dice.Logger.Infof("已自动清理内置客户端目录: %s", workDir)
+	}
+}
