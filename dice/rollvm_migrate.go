@@ -311,8 +311,7 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 				vName = ctx.SystemTemplate.GetAlias(vName)
 			}
 			stpName := stpFormat(vName) // saving throw proficiency
-
-			expr := fmt.Sprintf("pbCalc(0, %s ?? 0, %s ?? 0 + %s ?? 0)", stpName, vName, "$buff_"+vName)
+			expr := fmt.Sprintf("pbCalc(0, %s ?? 0, (%s ?? 0 + %s ?? 0)/2-5)", stpName, vName, "$buff_"+vName)
 			skip = true
 			ret, err := ctx.vm.RunExpr(expr, false)
 			skip = false
