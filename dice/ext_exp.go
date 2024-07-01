@@ -642,7 +642,6 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 									continue
 								}
 							}
-
 							attrs.Store(i.name, i.value)
 						}
 						validNum++
