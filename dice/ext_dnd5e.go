@@ -277,6 +277,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					Expr:  fmt.Sprintf("pbCalc(this.base, this.factor, %s)", parent),
 					Attrs: &m,
 				})
+				attrs.Store(attrName, i.value)
 				return true
 			} else if isAbilityScores(attrName) {
 				// 如果为主要属性，同时读取豁免值
@@ -285,6 +286,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				} else {
 					attrs.Delete(stpFormat(attrName))
 				}
+				attrs.Store(attrName, i.value)
 				return true
 			}
 			return false

@@ -1691,6 +1691,24 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	}
 
 	group := ctx.Group
+	builtinSolve := func() bool {
+		item := ctx.Session.Parent.CmdMap[cmdArgs.Command]
+		if tryItemSolve(nil, item) {
+			return true
+		}
+
+		if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
+			for _, i := range group.ActivatedExtList {
+				item := i.CmdMap[cmdArgs.Command]
+				if tryItemSolve(i, item) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	solved := builtinSolve()
 	if group.Active || ctx.IsCurGroupBotOn {
 		for _, i := range group.ActivatedExtList {
 			if i.OnCommandReceived != nil {
@@ -1701,20 +1719,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		}
 	}
 
-	item := ctx.Session.Parent.CmdMap[cmdArgs.Command]
-	if tryItemSolve(nil, item) {
-		return true
-	}
-
-	if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
-		for _, i := range group.ActivatedExtList {
-			item := i.CmdMap[cmdArgs.Command]
-			if tryItemSolve(i, item) {
-				return true
-			}
-		}
-	}
-	return false
+	return solved
 }
 
 func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {

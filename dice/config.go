@@ -44,7 +44,9 @@ type TextTemplateHelpItem = struct {
 	ExampleCommands []string           `json:"exampleCommands"` // 案例命令
 	NotBuiltin      bool               `json:"notBuiltin"`      // 非内置
 	TopOrder        int                `json:"topOrder"`        // 置顶序号，越高越靠前
+	V2Compatible    int                `json:"v2Compatible"`    // 对v2的兼容描述，0代表兼容，1代表有if潜在不兼容，2代表不兼容
 }
+
 type (
 	TextTemplateHelpGroup    = map[string]*TextTemplateHelpItem
 	TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
