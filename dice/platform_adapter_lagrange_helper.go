@@ -382,7 +382,8 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 			if val, ok := result["SignServerUrl"].(string); ok {
 				if w {
 					result["SignServerUrl"] = signServerUrl
-					if c, err := json.MarshalIndent(result, "", "    "); err == nil {
+					var c []byte
+					if c, err = json.MarshalIndent(result, "", "    "); err == nil {
 						_ = os.WriteFile(configFilePath, c, 0o644)
 					} else {
 						dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
@@ -395,7 +396,6 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 					val = "lagrange"
 				}
 				return val
-
 			}
 			err = errors.New("SignServerUrl字段无法正常读取")
 		}

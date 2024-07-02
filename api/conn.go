@@ -171,7 +171,6 @@ func ImConnectionsRWSignServerUrl(c echo.Context) error {
 				}
 			}
 		}
-
 	}
 	return Error(&c, "读取signServerUrl字段失败", Response{})
 }
