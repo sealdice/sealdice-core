@@ -626,9 +626,6 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			pa.GoCqhttpState = StateCodeInLogin
 			builtinGoCqhttpServe(dice, conn, loginInfo)
 		}
-		// if pa.BuiltinMode == "lagrange" {
-		// 	LagrangeServe(dice, conn, loginInfo)
-		// }
 	} else {
 		pa.GoCqhttpState = StateCodeLoginSuccessed
 		pa.GoCqhttpLoginSucceeded = true
