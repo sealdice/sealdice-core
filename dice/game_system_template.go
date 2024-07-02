@@ -42,11 +42,11 @@ type NameTemplateItem struct {
 }
 
 type SetConfig struct {
-	RelatedExt []string `yaml:"relatedExt" json:"relatedExt"` // 关联扩展
-	DiceSides  int64    `yaml:"diceSides" json:"diceSides"`   // 骰子面数
-	DiceExpr   string   `yaml:"diceExpr" json:"diceExpr"`     // 基础骰表达式 可替代骰子面数
-	Keys       []string `yaml:"keys" json:"keys"`             // 可用于 .set xxx 的key
-	EnableTip  string   `yaml:"enableTip" json:"enableTip"`   // 启用提示
+	RelatedExt    []string `yaml:"relatedExt" json:"relatedExt"`       // 关联扩展
+	DiceSides     int64    `yaml:"diceSides" json:"diceSides"`         // 骰子面数
+	DiceSidesExpr string   `yaml:"diceSidesExpr" json:"diceSidesExpr"` // 骰子面数表达式
+	Keys          []string `yaml:"keys" json:"keys"`                   // 可用于 .set xxx 的key
+	EnableTip     string   `yaml:"enableTip" json:"enableTip"`         // 启用提示
 }
 
 type GameSystemTemplate struct {
@@ -234,7 +234,7 @@ func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (string, *ds.V
 }
 
 func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*ds.VMValue, error) {
-	// 跟 showas 一样，但是不采用showas而是返回实际值1
+	// 跟 showas 一样，但是不采用showas而是返回实际值
 	// 显示本体
 	am := ctx.Dice.AttrsManager
 	curAttrs := lo.Must(am.LoadByCtx(ctx))

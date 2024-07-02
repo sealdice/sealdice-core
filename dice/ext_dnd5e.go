@@ -214,6 +214,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			ctx.setDndReadForVM(false)
 			return nil
 		},
+		ToExport: toExport,
 		ToMod: func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool {
 			over := args.GetKwarg("over")
 			attrName := tmpl.GetAlias(i.name)
@@ -277,8 +278,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					Expr:  fmt.Sprintf("pbCalc(this.base, this.factor, %s)", parent),
 					Attrs: &m,
 				})
-				attrs.Store(attrName, i.value)
-				return true
 			} else if isAbilityScores(attrName) {
 				// 如果为主要属性，同时读取豁免值
 				if i.extra != nil {
@@ -286,8 +285,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				} else {
 					attrs.Delete(stpFormat(attrName))
 				}
-				attrs.Store(attrName, i.value)
-				return true
 			}
 			return false
 		},
@@ -332,7 +329,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				r := ctx.Eval(expr, nil)
 				if r.vm.Error != nil {
-					fmt.Println("xxx", restText)
 					ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -488,7 +484,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			ctx.setDndReadForVM(false)
 			return nil
 		},
-		ToExport: toExport,
 		ToSet: func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool {
 			attrName := tmpl.GetAlias(i.name)
 			i.name = "$buff_" + attrName
@@ -1063,7 +1058,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					name = mctx.Player.Name
 					// 情况2，名字是自己，没有加值
 					if !exprExists {
-						val = int64(ds.Roll(nil, 20))
+						val = int64(ds.Roll(nil, 20, 0))
 					}
 					uid = mctx.Player.UserID
 					return 0, name, val, detail, uid
@@ -1076,7 +1071,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					name = m[1]
 					text = text[len(m[0]):]
 					if !exprExists {
-						val = int64(ds.Roll(nil, 20))
+						val = int64(ds.Roll(nil, 20, 0))
 					}
 				} else {
 					// 不知道是啥，报错
