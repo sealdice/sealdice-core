@@ -308,7 +308,7 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 					mod := ab.MustReadInt()/2 - 5
 
 					detail.Tag = "dnd-rc"
-					detail.Text = fmt.Sprintf("调整值%d", mod)
+					detail.Text = fmt.Sprintf("%s调整值%d", name, mod)
 				}
 			}
 		}
