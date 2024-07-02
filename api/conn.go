@@ -965,7 +965,6 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 		SignServerUrl string `yaml:"signServerUrl" json:"signServerUrl"`
 	}{}
 	err := c.Bind(&v)
-	fmt.Println(v.SignServerUrl)
 	if err == nil {
 		uid := v.Account
 		if checkUidExists(c, uid) {
