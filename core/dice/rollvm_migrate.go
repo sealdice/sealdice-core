@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"sort"
@@ -310,8 +311,7 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 				vName = ctx.SystemTemplate.GetAlias(vName)
 			}
 			stpName := stpFormat(vName) // saving throw proficiency
-
-			expr := fmt.Sprintf("pbCalc(0, %s ?? 0, %s ?? 0 + %s ?? 0)", stpName, vName, "$buff_"+vName)
+			expr := fmt.Sprintf("pbCalc(0, %s ?? 0, (%s ?? 0 + %s ?? 0)/2-5)", stpName, vName, "$buff_"+vName)
 			skip = true
 			ret, err := ctx.vm.RunExpr(expr, false)
 			skip = false
@@ -461,7 +461,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		var curPoint ds.IntType
 		lastEnd := ds.IntType(-1) //nolint:ineffassign
 
-		var m []struct {
+		type Group struct {
 			begin ds.IntType
 			end   ds.IntType
 			tag   string
@@ -469,17 +469,12 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			val   *ds.VMValue
 		}
 
+		var m []Group
 		for _, i := range details {
 			// fmt.Println("?", i, lastEnd)
 			if i.Begin > lastEnd {
 				curPoint = i.Begin
-				m = append(m, struct {
-					begin ds.IntType
-					end   ds.IntType
-					tag   string
-					spans []ds.BufferSpan
-					val   *ds.VMValue
-				}{begin: curPoint, end: i.End, tag: i.Tag, spans: []ds.BufferSpan{i}, val: i.Ret})
+				m = append(m, Group{begin: curPoint, end: i.End, tag: i.Tag, spans: []ds.BufferSpan{i}, val: i.Ret})
 			} else {
 				m[len(m)-1].spans = append(m[len(m)-1].spans, i)
 				if i.End > m[len(m)-1].end {
@@ -494,7 +489,14 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 
 		var detailArr []*ds.VMValue
 		for i := len(m) - 1; i >= 0; i-- {
-			// for i := 0; i < len(m); i++ {
+			buf := bytes.Buffer{}
+			writeBuf := func(p []byte) {
+				buf.Write(p)
+			}
+			writeBufStr := func(s string) {
+				buf.WriteString(s)
+			}
+
 			item := m[i]
 			size := len(item.spans)
 			sort.Sort(spanByEnd(item.spans))
@@ -511,33 +513,42 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			}
 
 			exprText := string(detailResult[item.begin:item.end])
+			writeBuf(detailResult[:item.begin])
 
-			var r []byte
-			r = append(r, detailResult[:item.begin]...)
+			// 主体结果部分，如 (10d3)d5=63[(10d3)d5=2+2+2+5+2+5+5+4+1+3+4+1+4+5+4+3+4+5+2,10d3=19]
+			partRet := last.Ret.ToString()
 
-			part1 := last.Ret.ToString()
-			// 主体结果部分，如 (10d3)d5=63[(10d3)d5=63=2+2+2+5+2+5+5+4+1+3+4+1+4+5+4+3+4+5+2,10d3=19]
-			detail := "[" + exprText + "=" + part1
-			if last.Text != "" && part1 != last.Text {
-				// 如果 part1 和相关文本完全相同，直接跳过
-				if item.tag == "load" {
-					detail += "," + last.Text
-				} else if item.tag == "dnd-rc" {
-					detail = "[" + last.Text
-				} else {
-					detail += "=" + last.Text
-				}
+			detail := "[" + exprText
+			if last.Text != "" && partRet != last.Text { // 规则1.1
+				detail += "=" + last.Text
 			}
-			subDetailsText = ""
-			detail += subDetailsText + "]"
 
-			r = append(r, ([]byte)(last.Ret.ToString()+detail)...)
-			r = append(r, detailResult[item.end:]...)
-			detailResult = r
+			switch item.tag {
+			case "dnd-rc":
+				detail = "[" + last.Text
+			case "load":
+				detail = "[" + exprText
+				if last.Text != "" {
+					detail += "," + last.Text
+				}
+				// case "load.computed":
+				//	detail += "=" + partRet
+			}
+
+			detail += subDetailsText + "]"
+			if len(m) == 1 && detail == "["+exprText+"]" {
+				detail = "" // 规则1.3
+			}
+			if len(detail) > 400 {
+				detail = "[略]"
+			}
+			writeBufStr(partRet + detail)
+			writeBuf(detailResult[item.end:])
+			detailResult = buf.Bytes()
 
 			d := ds.NewDictValWithArrayMust(
 				ds.NewStrVal("tag"), ds.NewStrVal(item.tag),
-				ds.NewStrVal("expr"), ds.NewStrVal(string(dataBuffer[item.begin:item.end])),
+				ds.NewStrVal("expr"), ds.NewStrVal(exprText),
 				ds.NewStrVal("val"), item.val,
 			)
 			detailArr = append(detailArr, d.V())

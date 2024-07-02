@@ -120,6 +120,12 @@ func VarGetValue(ctx *MsgContext, s string) (*ds.VMValue, bool) {
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
+		if ctx.vm != nil {
+			v, ok := ctx.vm.Attrs.Load(s)
+			if ok {
+				return v, ok
+			}
+		}
 		// 跟入群致辞闪退的一个bug有关，当时是报 _v, exists := ctx.Player.ValueMapTemp.Get(s) 这一行 nil pointer
 		if ctx.Player.ValueMapTemp == nil {
 			ctx.Player.ValueMapTemp = &ds.ValueMap{}
@@ -127,11 +133,6 @@ func VarGetValue(ctx *MsgContext, s string) (*ds.VMValue, bool) {
 		}
 		if v, ok := ctx.Player.ValueMapTemp.Load(s); ok {
 			return v, ok
-		}
-		if ctx.vm != nil {
-			if v, ok := ctx.vm.Attrs.Load(s); ok {
-				return v, ok
-			}
 		}
 	}
 
