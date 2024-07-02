@@ -43,7 +43,7 @@ require (
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/mroth/weightedrand v1.0.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
-	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.8.1
+	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.0
 	github.com/otiai10/copy v1.14.0
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/phuslu/log v1.0.88
