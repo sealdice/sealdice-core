@@ -503,7 +503,6 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
 
 			case "export":
-				fmt.Println("xxx", tmpl.Name, tmpl.FullName, "wwww")
 				items, _, err := cmdStGetItemsForExport(mctx, tmpl, &soi)
 				if err != nil {
 					ReplyToSender(mctx, msg, err.Error())
