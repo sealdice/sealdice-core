@@ -71,14 +71,20 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		if runtime.GOOS == "windows" {
 			exeFilePath += ".exe"
 		}
-		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.RelWorkDir[17:]))
+		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
 		configFilePath := filepath.Join(workDir, "appsettings.json")
 
 		if _, err := os.Stat(qrcodeFilePath); err == nil {
 			// 如果已经存在二维码文件，将其删除
 			_ = os.Remove(qrcodeFilePath)
-			log.Info("onebot: 删除已存在的二维码文件")
+		} else {
+			// 如果找不到二维码文件，有一种可能是用户添加账号时写错了账号，这里做个兼容让错误的账号依旧能获取到二维码
+			qrcodeFilePath = filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.RelWorkDir[17:]))
+			if _, err := os.Stat(qrcodeFilePath); err == nil {
+				_ = os.Remove(qrcodeFilePath)
+			}
 		}
+		log.Info("onebot: 删除已存在的二维码文件")
 
 		// 创建配置文件
 		pa.ConnectURL = ""
