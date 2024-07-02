@@ -9,11 +9,11 @@ var _dnd5eTmpl = &GameSystemTemplate{
 	TemplateVer: "1.0",
 
 	SetConfig: SetConfig{
-		DiceExpr:   "d20",
-		DiceSides:  20,
-		Keys:       []string{"dnd", "dnd5e"},
-		EnableTip:  "已切换至20面骰，并自动开启dnd5e扩展",
-		RelatedExt: []string{"dnd5e"},
+		DiceSidesExpr: "20",
+		DiceSides:     20,
+		Keys:          []string{"dnd", "dnd5e"},
+		EnableTip:     "已切换至20面骰，并自动开启dnd5e扩展",
+		RelatedExt:    []string{"dnd5e"},
 	},
 
 	NameTemplate: map[string]NameTemplateItem{
@@ -35,8 +35,8 @@ var _dnd5eTmpl = &GameSystemTemplate{
 		"func abilityShowAs(base, buff) {" +
 		"  return `{base??0 + buff??0}{buff ? '[buff+'+ str(buff) + ']' }`" +
 		"}" +
-		"func pbCalc(base, factor, abMod) { // 基础值，熟练系数，属性调整值（Szz注：直接读取属性得到的是调整值）\n" +
-		"  return base + (abMod??0) + floor((熟练??0) * (factor??0));\n" +
+		"func pbCalc(base, factor, ab) { // 基础值，熟练系数，属性值\n" +
+		"  return base + (ab??0)/2 - 5 + floor((熟练??0) * (factor??0));\n" +
 		"}\n" +
 		"func abilityModifier(name) { // 计算调整值\n" +
 		"  return (load(name) ?? 0 + load('$buff_' + name) ?? 0) / 2 - 5\n" +

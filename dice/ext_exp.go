@@ -307,7 +307,7 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 	ctx.CreateVmIfNotExists()
 	vm := ctx.vm
 	vm.Config.DisableStmts = true
-	vm.Config.DefaultDiceSideExpr = "d" + strconv.FormatInt(getDefaultDicePoints(ctx), 10)
+	vm.Config.DefaultDiceSideExpr = strconv.FormatInt(getDefaultDicePoints(ctx), 10)
 
 	vm.Config.CallbackSt = func(_type string, name string, val *ds.VMValue, extra *ds.VMValue, op string, detail string) {
 		// fmt.Println("!!", _type, name, val, extra, op, detail)
@@ -503,6 +503,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
 
 			case "export":
+				fmt.Println("xxx", tmpl.Name, tmpl.FullName, "wwww")
 				items, _, err := cmdStGetItemsForExport(mctx, tmpl, &soi)
 				if err != nil {
 					ReplyToSender(mctx, msg, err.Error())
