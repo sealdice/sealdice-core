@@ -71,7 +71,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		if runtime.GOOS == "windows" {
 			exeFilePath += ".exe"
 		}
-		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
+		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.RelWorkDir[17:]))
 		configFilePath := filepath.Join(workDir, "appsettings.json")
 
 		if _, err := os.Stat(qrcodeFilePath); err == nil {
