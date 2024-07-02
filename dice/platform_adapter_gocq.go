@@ -1189,7 +1189,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 			pa.GoCqhttpLastRestrictedTime = 0      // 重置风控时间
 			myDice.LastUpdatedTime = time.Now().Unix()
 			myDice.Save(false)
-			GoCqhttpServe(myDice, ep, GoCqhttpLoginInfo{
+			LagrangeServe(myDice, ep, LagrangeLoginInfo{
 				IsAsyncRun: true,
 			})
 			return true
@@ -1227,7 +1227,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 			if pa.BuiltinMode == "lagrange" {
 				BuiltinQQServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
-				LagrangeServe(d, c, GoCqhttpLoginInfo{
+				LagrangeServe(d, c, LagrangeLoginInfo{
 					IsAsyncRun: true,
 				})
 			} else {
