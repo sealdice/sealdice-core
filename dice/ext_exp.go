@@ -307,7 +307,7 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 	ctx.CreateVmIfNotExists()
 	vm := ctx.vm
 	vm.Config.DisableStmts = true
-	vm.Config.DefaultDiceSideExpr = "d" + strconv.FormatInt(getDefaultDicePoints(ctx), 10)
+	vm.Config.DefaultDiceSideExpr = strconv.FormatInt(getDefaultDicePoints(ctx), 10)
 
 	vm.Config.CallbackSt = func(_type string, name string, val *ds.VMValue, extra *ds.VMValue, op string, detail string) {
 		// fmt.Println("!!", _type, name, val, extra, op, detail)

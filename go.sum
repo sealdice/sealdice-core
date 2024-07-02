@@ -175,6 +175,8 @@ github.com/golang/protobuf v1.5.3 h1:KhyjKVUg7Usr/dYsdSqoFveMYd5ko72D+zANwlG1mmg
 github.com/golang/protobuf v1.5.3/go.mod h1:XVQd3VNwM+JqD3oG2Ue2ip4fOMUkwXdXDdiuN0vRsmY=
 github.com/golang/snappy v0.0.4 h1:yAGX7huGHXlcLOEtBnF4w7FQwA26wojNCwOYAEhLjQM=
 github.com/golang/snappy v0.0.4/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
+github.com/gonutz/w32/v2 v2.11.1 h1:plG738ZY7VIkPGf3adZ6lFeAf2evCKrULKyZT5GrPoc=
+github.com/gonutz/w32/v2 v2.11.1/go.mod h1:MgtHx0AScDVNKyB+kjyPder4xIi3XAcHS6LDDU2DmdE=
 github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/go-cmp v0.4.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
@@ -335,8 +337,8 @@ github.com/schollz/progressbar/v3 v3.14.4 h1:W9ZrDSJk7eqmQhd3uxFNNcTr0QL+xuGNI9d
 github.com/schollz/progressbar/v3 v3.14.4/go.mod h1:aT3UQ7yGm+2ZjeXPqsjTenwL3ddUiuZ0kfQ/2tHlyNI=
 github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 h1:s/jzCGYlM/0+TYTXwva5574EFnIv/ggPCoXHFpdbSUw=
 github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083/go.mod h1:MGtR0REQDslBwQE+Rln4P9iDjH/ZInlu5qzOLdvBWJU=
-github.com/sealdice/dicescript v0.0.0-20240623065436-0e5e379b722e h1:2apGNWBOR6FzYTLgPzdaGjuTlx+okdV5N3Hplqu7lkM=
-github.com/sealdice/dicescript v0.0.0-20240623065436-0e5e379b722e/go.mod h1:uof752qJvEQ4Kze+NVag+RKGgj5C4K3kMHoK3e2vOLg=
+github.com/sealdice/dicescript v0.0.0-20240702175100-960b24bd2054 h1:/x8mmT4MBPS1V32BrVc8yEXSn6XQ6H/4c1qCurN/tjo=
+github.com/sealdice/dicescript v0.0.0-20240702175100-960b24bd2054/go.mod h1:uof752qJvEQ4Kze+NVag+RKGgj5C4K3kMHoK3e2vOLg=
 github.com/sealdice/kook v0.0.3 h1:STMtiKRMFjhSFmUxi0BU5ktNkCQ8qi7Y5EEfrmYKvWY=
 github.com/sealdice/kook v0.0.3/go.mod h1:WjHC7AmbmNjInT/U/etBVOmAw7T6EqdCwApceRGs1sk=
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=
