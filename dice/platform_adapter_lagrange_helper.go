@@ -367,8 +367,6 @@ func LagrangeServeRemoveConfig(dice *Dice, conn *EndPointInfo) {
 
 func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl string, w bool) string {
 	switch signServerUrl {
-	case "":
-		signServerUrl = defaultNTSignServer
 	case "sealdice":
 		signServerUrl = defaultNTSignServer
 	case "lagrange":

@@ -166,7 +166,9 @@ func ImConnectionsRWSignServerUrl(c echo.Context) error {
 			pa := i.Adapter.(*dice.PlatformAdapterGocq)
 			if pa.BuiltinMode == "lagrange" {
 				signServerUrl := dice.RWLagrangeSignServerUrl(myDice, i, v.SignServerUrl, v.W)
-				return Success(&c, Response{"signServerUrl": signServerUrl})
+				if signServerUrl != "" {
+					return Success(&c, Response{"signServerUrl": signServerUrl})
+				}
 			}
 		}
 
