@@ -18,7 +18,13 @@ import (
 	"sealdice-core/utils/procs"
 )
 
-func LagrangeGetWorkDir(dice *Dice, conn *EndPointInfo) string {
+type LagrangeLoginInfo struct {
+	UIN           int64
+	SignServerUrl string
+	IsAsyncRun    bool
+}
+
+func lagrangeGetWorkDir(dice *Dice, conn *EndPointInfo) string {
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 	return workDir
 }
@@ -39,7 +45,7 @@ func NewLagrangeConnectInfoItem(account string) *EndPointInfo {
 	return conn
 }
 
-func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) {
+func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) {
 	pa := conn.Adapter.(*PlatformAdapterGocq)
 
 	pa.CurLoginIndex++
@@ -57,7 +63,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			return
 		}
 
-		workDir := LagrangeGetWorkDir(dice, conn)
+		workDir := lagrangeGetWorkDir(dice, conn)
 		_ = os.MkdirAll(workDir, 0o755)
 		wd, _ := os.Getwd()
 		exeFilePath, _ := filepath.Abs(filepath.Join(wd, "lagrange/Lagrange.OneBot"))
@@ -87,7 +93,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		if pa.ConnectURL == "" {
 			p, _ := GetRandomFreePort()
 			pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", p)
-			c := GenerateLagrangeConfig(p, conn)
+			c := GenerateLagrangeConfig(p, loginInfo.SignServerUrl, conn)
 			_ = os.WriteFile(configFilePath, []byte(c), 0o644)
 		}
 
@@ -154,6 +160,8 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					dice.Save(false)
 					isPrintLog = false
 
+					// 经测试，若不延时，登录成功的同一时刻进行ws正向连接有几率导致第一次连接失败
+					time.Sleep(1 * time.Second)
 					go ServeQQ(dice, conn)
 				}
 
@@ -324,10 +332,17 @@ var defaultLagrangeConfig = `
 
 // 在构建时注入
 var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
+var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
 
-func GenerateLagrangeConfig(port int, info *EndPointInfo) string {
+func GenerateLagrangeConfig(port int, signServerUrl string, info *EndPointInfo) string {
+	switch signServerUrl {
+	case "sealdice":
+		signServerUrl = defaultNTSignServer
+	case "lagrange":
+		signServerUrl = lagrangeNTSignServer
+	}
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", fmt.Sprintf("%d", port))
-	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", defaultNTSignServer)
+	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
 	conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
 	return conf
 }
@@ -341,11 +356,52 @@ func LagrangeServeRemoveSession(dice *Dice, conn *EndPointInfo) {
 
 // 清理内置客户端配置文件目录
 func LagrangeServeRemoveConfig(dice *Dice, conn *EndPointInfo) {
-	workDir := LagrangeGetWorkDir(dice, conn)
+	workDir := lagrangeGetWorkDir(dice, conn)
 	err := os.RemoveAll(workDir)
 	if err != nil {
 		dice.Logger.Errorf("清理内置客户端文件失败, 原因: %s, 请手动删除目录: %s", err.Error(), workDir)
 	} else {
 		dice.Logger.Infof("已自动清理内置客户端目录: %s", workDir)
 	}
+}
+
+func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl string, w bool) string {
+	switch signServerUrl {
+	case "":
+		signServerUrl = defaultNTSignServer
+	case "sealdice":
+		signServerUrl = defaultNTSignServer
+	case "lagrange":
+		signServerUrl = "https://sign.lagrangecore.org/api/sign"
+	}
+	workDir := lagrangeGetWorkDir(dice, conn)
+	configFilePath := filepath.Join(workDir, "appsettings.json")
+	file, err := os.ReadFile(configFilePath)
+	if err == nil {
+		var result map[string]interface{}
+		err = json.Unmarshal(file, &result)
+		if err == nil {
+			if val, ok := result["SignServerUrl"].(string); ok {
+				if w {
+					result["SignServerUrl"] = signServerUrl
+					if c, err := json.MarshalIndent(result, "", "    "); err == nil {
+						_ = os.WriteFile(configFilePath, c, 0o644)
+					} else {
+						dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
+					}
+				}
+				switch val {
+				case defaultNTSignServer:
+					val = "sealdice"
+				case lagrangeNTSignServer:
+					val = "lagrange"
+				}
+				return val
+
+			}
+			err = errors.New("SignServerUrl字段无法正常读取")
+		}
+	}
+	dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
+	return ""
 }
