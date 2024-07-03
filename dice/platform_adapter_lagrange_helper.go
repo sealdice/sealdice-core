@@ -342,6 +342,8 @@ var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
 
 func GenerateLagrangeConfig(port int, signServerUrl string, info *EndPointInfo) string {
 	switch signServerUrl {
+	case "":
+		signServerUrl = defaultNTSignServer
 	case "sealdice":
 		signServerUrl = defaultNTSignServer
 	case "lagrange":
