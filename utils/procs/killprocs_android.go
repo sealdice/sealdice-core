@@ -10,7 +10,6 @@ import (
 func (p *Process) KillProcess() error {
 	cmd := p.Cmd
 	return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-
 }
 func (p *Process) Setpgid() {
 	cmd := p.Cmd
