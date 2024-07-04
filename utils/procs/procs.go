@@ -136,7 +136,7 @@ func (p *Process) Stop() error {
 		return nil
 	}
 
-	err := cmd.Process.Kill()
+	err := p.KillProcess()
 	if err != nil {
 		return err
 	}
