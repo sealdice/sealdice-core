@@ -175,8 +175,6 @@ github.com/golang/protobuf v1.5.3 h1:KhyjKVUg7Usr/dYsdSqoFveMYd5ko72D+zANwlG1mmg
 github.com/golang/protobuf v1.5.3/go.mod h1:XVQd3VNwM+JqD3oG2Ue2ip4fOMUkwXdXDdiuN0vRsmY=
 github.com/golang/snappy v0.0.4 h1:yAGX7huGHXlcLOEtBnF4w7FQwA26wojNCwOYAEhLjQM=
 github.com/golang/snappy v0.0.4/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
-github.com/gonutz/w32/v2 v2.11.1 h1:plG738ZY7VIkPGf3adZ6lFeAf2evCKrULKyZT5GrPoc=
-github.com/gonutz/w32/v2 v2.11.1/go.mod h1:MgtHx0AScDVNKyB+kjyPder4xIi3XAcHS6LDDU2DmdE=
 github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/go-cmp v0.4.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
@@ -378,8 +376,8 @@ github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af h1:6yITBqGTE2lEeTPG0
 github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af/go.mod h1:4F09kP5F+am0jAwlQLddpoMDM+iewkxxt6nxUQ5nq5o=
 github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a h1:SJy1Pu0eH1C29XwJucQo73FrleVK6t4kYz4NVhp34Yw=
 github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a/go.mod h1:DFSS3NAGHthKo1gTlmEcSBiZrRJXi28rLNd/1udP1c8=
-github.com/tdewolff/minify/v2 v2.20.34 h1:XueI6sQtgS7du45fyBCNkNfPQ9SINaYavMFNOxp37SA=
-github.com/tdewolff/minify/v2 v2.20.34/go.mod h1:L1VYef/jwKw6Wwyk5A+T0mBjjn3mMPgmjjA688RNsxU=
+github.com/tdewolff/minify/v2 v2.20.36 h1:uhbCO5NNS0UgJfEyE/ZR+xU5DL9Dz0ngrJ8W9A6coCQ=
+github.com/tdewolff/minify/v2 v2.20.36/go.mod h1:L1VYef/jwKw6Wwyk5A+T0mBjjn3mMPgmjjA688RNsxU=
 github.com/tdewolff/parse/v2 v2.7.15 h1:hysDXtdGZIRF5UZXwpfn3ZWRbm+ru4l53/ajBRGpCTw=
 github.com/tdewolff/parse/v2 v2.7.15/go.mod h1:3FbJWZp3XT9OWVN3Hmfp0p/a08v4h8J9W1aghka0soA=
 github.com/tdewolff/test v1.0.11-0.20231101010635-f1265d231d52/go.mod h1:6DAvZliBAAnD7rhVgwaM7DE5/d9NMOAJ09SqYqeK4QE=
