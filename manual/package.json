@@ -15,9 +15,18 @@
   "license": "MIT",
   "devDependencies": {
     "markdownlint-cli2": "^0.13.0",
+    "mermaid": "^10.9.1",
     "sass": "^1.77.6",
     "vitepress": "^1.2.3",
+    "vitepress-plugin-mermaid": "^2.0.16",
     "vitepress-plugin-tabs": "^0.5.0",
-    "vue": "^3.4.30"
+    "vue": "^3.4.31"
+  },
+  "dependencies": {
+    "@braintree/sanitize-url": "^7.0.4",
+    "cytoscape": "^3.30.0",
+    "cytoscape-cose-bilkent": "^4.1.0",
+    "dayjs": "^1.11.11",
+    "debug": "^4.3.5"
   }
 }

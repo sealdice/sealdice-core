@@ -5,8 +5,10 @@ export const deployNav = {
     {
       text: "基础知识（电脑小白先看我）",
       items: [
-        { text: "计算机相关", link: "/deploy/about_pc" },
-        { text: "开源程序相关", link: "/deploy/about_opensource" },
+        { text: "如何正确提问", link: "/deploy/newbie_question" },
+        { text: "如何高效学习", link: "/deploy/newbie_learn" },
+        { text: "计算机小白常见问题", link: "/deploy/newbie_faq" },
+        { text: "名词/术语速查表", link: "/deploy/newbie_terms" },
       ],
     },
     {
@@ -50,8 +52,10 @@ export const deploySidebar = {
     {
       text: "基础知识（电脑小白先看我）",
       items: [
-        { text: "计算机相关", link: "/deploy/about_pc" },
-        { text: "开源程序相关", link: "/deploy/about_opensource" },
+        { text: "如何正确提问", link: "/deploy/newbie_question" },
+        { text: "如何高效学习", link: "/deploy/newbie_learn" },
+        { text: "计算机小白常见问题", link: "/deploy/newbie_faq" },
+        { text: "名词/术语速查表", link: "/deploy/newbie_terms" },
       ],
     },
     {
