@@ -71,7 +71,8 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 	return nil, err
 }
 
-var sheetIdBindByGroupId map[string]string
+// Key: GUID, Value: CardBindingID
+var sheetIdBindByGroupUserId map[string]string
 
 // AttrsNewItem 新建一个角色卡/属性容器
 func AttrsNewItem(db *sqlx.Tx, item *model.AttributesItemModel) (*model.AttributesItemModel, error) {
@@ -116,7 +117,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 			return count, countFailed, err
 		}
 
-		// groupIdPart
+		// id 为 GUID 即 GroupID-UserID
 		_, userIdPart, ok := dice.UnpackGroupUserId(id)
 		if !ok {
 			countFailed += 1
@@ -159,13 +160,14 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 			continue
 		}
 
+		// fmt.Println("UnpackID:", id, " UserPart:", userIdPart, " Sheet:", sheetIdBindByGroupUserId[id])
 		item := &model.AttributesItemModel{
 			Id:        id,
 			Data:      rawData,
 			AttrsType: model.AttrsTypeGroupUser,
 
 			// 当前组内绑定的卡
-			BindingSheetId: sheetIdBindByGroupId[id],
+			BindingSheetId: sheetIdBindByGroupUserId[id],
 
 			// 这些是角色卡专用的
 			Name:      "", // 群内默认卡，无名字，还是说以后弄成和nn的名字一致？
@@ -333,10 +335,10 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 
 		for _, i := range newSheetsList {
 			// 一次性，双循环罢
-			for _, j := range sheetNameBindByGroupId {
+			for groupID, j := range sheetNameBindByGroupId {
 				if j == i.Name {
-					// 这个东西等下群卡片迁移的时候使用，因此顺序不要错
-					sheetIdBindByGroupId[ownerId] = i.Id
+					// fmt.Println("GUID:", fmt.Sprintf("%s-%s", groupID, ownerId), " sheetID:", i.Id)
+					sheetIdBindByGroupUserId[fmt.Sprintf("%s-%s", groupID, ownerId)] = i.Id
 				}
 			}
 		}
@@ -407,7 +409,7 @@ func V150Upgrade() bool {
 	}
 
 	fmt.Println("1.5 数据迁移")
-	sheetIdBindByGroupId = map[string]string{}
+	sheetIdBindByGroupUserId = map[string]string{}
 
 	sqls := []string{
 		`
@@ -470,7 +472,7 @@ CREATE TABLE IF NOT EXISTS attrs (
 	_, _ = tx.Exec("drop table attrs_user")
 	_, _ = tx.Exec("VACUUM;") // 收尾
 
-	sheetIdBindByGroupId = nil
+	sheetIdBindByGroupUserId = nil
 
 	err = tx.Commit()
 	if err != nil {
