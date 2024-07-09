@@ -117,7 +117,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 		}
 
 		// groupIdPart
-		groupIdPart, userIdPart, ok := dice.UnpackGroupUserId(id)
+		_, userIdPart, ok := dice.UnpackGroupUserId(id)
 		if !ok {
 			countFailed += 1
 			fmt.Println("数据库读取出错，退出转换")
@@ -165,7 +165,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 			AttrsType: model.AttrsTypeGroupUser,
 
 			// 当前组内绑定的卡
-			BindingSheetId: sheetIdBindByGroupId[groupIdPart],
+			BindingSheetId: sheetIdBindByGroupId[id],
 
 			// 这些是角色卡专用的
 			Name:      "", // 群内默认卡，无名字，还是说以后弄成和nn的名字一致？
@@ -333,10 +333,10 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 
 		for _, i := range newSheetsList {
 			// 一次性，双循环罢
-			for groupId, j := range sheetNameBindByGroupId {
+			for _, j := range sheetNameBindByGroupId {
 				if j == i.Name {
 					// 这个东西等下群卡片迁移的时候使用，因此顺序不要错
-					sheetIdBindByGroupId[groupId] = i.Id
+					sheetIdBindByGroupId[ownerId] = i.Id
 				}
 			}
 		}
