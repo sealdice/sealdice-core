@@ -1183,13 +1183,15 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 			myDice.Logger.Infof("重新启动 lagrange 进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
 			pa.CurLoginIndex++
 			pa.GoCqhttpState = StateCodeInit
+			ep.Enable = false // 拉格朗进程杀死前应先禁用账号，否则拉格朗会自动重启（该行为在LagrangeServe中）
 			go BuiltinQQServeProcessKill(myDice, ep)
 			time.Sleep(10 * time.Second)           // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
 			LagrangeServeRemoveSession(myDice, ep) // 删除 keystore
 			pa.GoCqhttpLastRestrictedTime = 0      // 重置风控时间
+			ep.Enable = true
 			myDice.LastUpdatedTime = time.Now().Unix()
 			myDice.Save(false)
-			GoCqhttpServe(myDice, ep, GoCqhttpLoginInfo{
+			LagrangeServe(myDice, ep, LagrangeLoginInfo{
 				IsAsyncRun: true,
 			})
 			return true
@@ -1227,7 +1229,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 			if pa.BuiltinMode == "lagrange" {
 				BuiltinQQServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
-				LagrangeServe(d, c, GoCqhttpLoginInfo{
+				LagrangeServe(d, c, LagrangeLoginInfo{
 					IsAsyncRun: true,
 				})
 			} else {
