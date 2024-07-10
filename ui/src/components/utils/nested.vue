@@ -160,7 +160,7 @@ const removeItem = (v: any[], index: number | any) => {
 }
 </script>
 
-<style scoped lang="scss">
+<style scoped lang="css">
 .dragArea {
   min-height: 50px;
   /* outline: 1px dashed; */

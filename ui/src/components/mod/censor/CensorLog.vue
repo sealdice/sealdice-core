@@ -108,7 +108,7 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped lang="css">
 .censor-log-container {
   display: flex;
   flex-direction: column;

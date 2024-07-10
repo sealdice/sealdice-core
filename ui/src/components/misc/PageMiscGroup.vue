@@ -275,7 +275,7 @@ onBeforeMount(async () => {
 })
 </script>
 
-<style lang="scss">
+<style lang="css">
 span.left {
   display: inline-block;
   min-width: 5rem;

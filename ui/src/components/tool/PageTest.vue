@@ -215,7 +215,7 @@ const reloadHelpdoc = async () => {
 }
 </script>
 
-<style scoped lang="scss">
+<style scoped lang="css">
 .about {
   background-color: #fff;
   padding: 2rem;

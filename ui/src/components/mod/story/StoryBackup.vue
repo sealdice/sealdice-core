@@ -129,7 +129,7 @@ onBeforeMount(async () => {
 
 </script>
 
-<style scoped lang="scss">
+<style scoped lang="css">
 .backup-list {
   display: flex;
   flex-direction: column;
