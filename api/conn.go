@@ -137,6 +137,44 @@ func ImConnectionsSetData(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
+func ImConnectionsRWSignServerUrl(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	v := struct {
+		ID            string `form:"id" json:"id"`
+		SignServerUrl string `form:"signServerUrl" json:"signServerUrl"`
+		W             bool   `form:"w" json:"w"`
+	}{}
+
+	err := c.Bind(&v)
+	if err != nil {
+		myDice.Save(false)
+		return c.JSON(http.StatusNotFound, nil)
+	}
+	for _, i := range myDice.ImSession.EndPoints {
+		if i.ID != v.ID {
+			continue
+		}
+		if i.ProtocolType == "onebot" {
+			pa := i.Adapter.(*dice.PlatformAdapterGocq)
+			if pa.BuiltinMode == "lagrange" {
+				signServerUrl := dice.RWLagrangeSignServerUrl(myDice, i, v.SignServerUrl, v.W)
+				if signServerUrl != "" {
+					return Success(&c, Response{"signServerUrl": signServerUrl})
+				}
+			}
+		}
+	}
+	return Error(&c, "读取signServerUrl字段失败", Response{})
+}
+
 func ImConnectionsDel(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -924,8 +962,8 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 	}
 
 	v := struct {
-		Account  string `yaml:"account" json:"account"`
-		Protocol int    `yaml:"protocol" json:"protocol"`
+		Account       string `yaml:"account" json:"account"`
+		SignServerUrl string `yaml:"signServerUrl" json:"signServerUrl"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -938,7 +976,7 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-		pa.InPackGoCqhttpProtocol = v.Protocol
+		// pa.InPackGoCqhttpProtocol = v.Protocol
 		pa.Session = myDice.ImSession
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
@@ -947,10 +985,10 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		dice.LagrangeServe(myDice, conn, dice.GoCqhttpLoginInfo{
-			Protocol:   v.Protocol,
-			UIN:        uin,
-			IsAsyncRun: true,
+		dice.LagrangeServe(myDice, conn, dice.LagrangeLoginInfo{
+			UIN:           uin,
+			SignServerUrl: v.SignServerUrl,
+			IsAsyncRun:    true,
 		})
 		return c.JSON(http.StatusOK, v)
 	}
