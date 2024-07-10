@@ -157,6 +157,13 @@
             <el-form-item label="接入方式">
               <div>内置客户端</div>
             </el-form-item>
+            <el-form-item label="签名地址">
+              <el-tooltip class="item" effect="dark" :content="i.enable ? '禁用账号后方可修改签名服务地址' : '单击修改签名服务地址'"
+                placement="bottom">
+                <el-button :icon="Edit" size="small" circle :disabled="i.enable" style="margin-left: 0.5rem"
+                  @click="showSetSignServerDialog(i)" />
+              </el-tooltip>
+            </el-form-item>
           </template>
 
           <template v-if="i.platform === 'QQ' && i.protocolType === 'red'">
@@ -475,7 +482,26 @@
       </span>
     </template>
   </el-dialog>
-
+  <el-dialog v-model="dialogSetSignServerVisible" title="签名地址修改" :close-on-click-modal="false"
+    :close-on-press-escape="false" :show-close="false" class="the-dialog">
+    <el-form-item label="签名地址" :label-width="formLabelWidth" required>
+      <el-radio-group v-model="form.signServerType">
+        <el-radio :value="0">海豹</el-radio>
+        <el-radio :value="1">Lagrange</el-radio>
+        <el-radio :value="2">自定义地址</el-radio>
+      </el-radio-group>
+    </el-form-item>
+    <el-form-item v-if="form.signServerType === 2" label="自定义签名地址" :label-width="formLabelWidth" required>
+      <el-input v-model="form.signServerUrl" type="text" autocomplete="off"></el-input>
+    </el-form-item>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="dialogSetSignServerVisible = false">取消</el-button>
+        <el-button type="primary" @click="doSetSignServer"
+          :disabled="form.signServerType === 2 && form.signServerUrl === ''">确定</el-button>
+      </span>
+    </template>
+  </el-dialog>
   <el-dialog v-model="dialogFormVisible" title="帐号登录" :close-on-click-modal="false" :close-on-press-escape="false"
     :show-close="false" class="the-dialog">
     <el-button style="float: right; margin-top: -4rem;" @click="openSocks">辅助工具-13325端口</el-button>
@@ -555,7 +581,22 @@
           </el-select>
         </el-form-item> -->
 
-        <el-form-item v-if="form.accountType === 0 || form.accountType === 15" label="账号" :label-width="formLabelWidth" required>
+        <el-form-item v-if="form.accountType === 15" label="账号" :label-width="formLabelWidth" required>
+          <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 15" label="签名服务" :label-width="formLabelWidth" required>
+          <el-radio-group v-model="form.signServerType">
+            <el-radio :value="0">海豹</el-radio>
+            <el-radio :value="1">Lagrange</el-radio>
+            <el-radio :value="2">自定义地址</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="form.accountType === 15 && form.signServerType === 2" label="自定义签名地址"
+          :label-width="formLabelWidth" required>
+          <el-input v-model="form.signServerUrl" type="text" autocomplete="off"></el-input>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 0" label="账号" :label-width="formLabelWidth" required>
           <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
         </el-form-item>
 
@@ -1091,7 +1132,7 @@
             form.accountType === 9 && (form.botToken === '' || form.appToken === '') ||
             form.accountType === 11 && (form.account === '' || form.reverseAddr === '') ||
             form.accountType === 13 && (form.token === '' || form.url === '') ||
-            form.accountType === 15 && form.account === ''">
+            form.accountType === 15 && (form.account === '' || form.signServerType === 2 && form.signServerUrl === '')">
             下一步</el-button>
         </template>
         <template v-if="form.isEnd">
@@ -1172,6 +1213,7 @@ const isRecentLogin = ref(false)
 const duringRelogin = ref(false)
 const dialogFormVisible = ref(false)
 const dialogSetDataFormVisible = ref(false)
+const dialogSetSignServerVisible = ref(false)
 const dialogSlideVisible = ref(false)
 const formLabelWidth = '120px'
 const isTestMode = ref(false)
@@ -1302,6 +1344,17 @@ const goStepTwo = async () => {
   setRecentLogin()
   duringRelogin.value = false;
 
+  if (form.accountType === 15) {
+    switch (form.signServerType) {
+      case 0:
+        form.signServerUrl = "sealdice";
+        break;
+      case 1:
+        form.signServerUrl = "lagrange";
+        break;
+    }
+  }
+
   store.addImConnection(form as any).then((conn) => {
     if ((conn as any).testMode) {
       isTestMode.value = true
@@ -1316,6 +1369,7 @@ const goStepTwo = async () => {
   if (form.accountType > 0) {
     dialogFormVisible.value = false
     form.step = 1
+    form.signServerUrl=""
     return
   }
   activities.value = []
@@ -1405,7 +1459,47 @@ const doSetData = async () => {
   ElMessage.success('修改完成，请手动重新登录');
   dialogSetDataFormVisible.value = false;
 }
+const showSetSignServerDialog = async (i: DiceConnection) => {
+  form.endpoint = i;
+  const ret = await store.getImConnectionsSetSignServerUrl(form.endpoint, "",false);
+  if (ret.result) {
+    form.signServerUrl = ret.signServerUrl
+    switch (form.signServerUrl) {
+      case "sealdice":
+        form.signServerType = 0;
+        form.signServerUrl = "";
+        break;
+      case "lagrange":
+        form.signServerType = 1;
+        form.signServerUrl = "";
+        break;
+      default:
+        form.signServerType = 2;
+        break;
+    }
+    dialogSetSignServerVisible.value = true;
+  } else {
+    ElMessage.error(ret.err)
+  }
+}
 
+const doSetSignServer = async() =>{
+  switch (form.signServerType) {
+    case 0:
+      form.signServerUrl = "sealdice";
+      break;
+    case 1:
+      form.signServerUrl = "lagrange";
+      break;
+  }
+  const ret = await store.getImConnectionsSetSignServerUrl(form.endpoint, form.signServerUrl,true);
+  if (ret.result) {
+    ElMessage.success('修改完成，请手动启用账号以生效');
+  } else {
+    ElMessage.error(ret.err)
+  }
+  dialogSetSignServerVisible.value = false;
+}
 
 const askSetEnable = async (i: DiceConnection, val: boolean) => {
   ElMessageBox.confirm(
@@ -1478,7 +1572,6 @@ const gocqhttpReLogin = async (i: DiceConnection) => {
     form.step = 4
   }
 }
-
 const signConfigType: Ref<'none' | 'simple' | 'advanced'> = ref('none')
 const signConfigTypeChange = (value: any) => {
   switch (value) {
@@ -1579,6 +1672,7 @@ const form = reactive({
     autoRefreshToken: false,
     refreshInterval: 40
   },
+  signServerType: 0,
   signServerUrl: '',
   signServerKey: '',
 

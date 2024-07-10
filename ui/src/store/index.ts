@@ -278,6 +278,7 @@ export const useStore = defineStore('main', {
         accessToken,
         useSignServer,
         signServerConfig,
+        signServerUrl,
         reverseAddr,
         onlyQQGuild,
         platform } = form
@@ -338,7 +339,7 @@ export const useStore = defineStore('main', {
           info = await backend.post(urlPrefix + '/im_connections/addSatori', { platform, host, port, token }, { timeout: 65000 })
           break
         case 15:
-          info = await backend.post(urlPrefix + '/im_connections/addLagrange', { account, protocol }, { timeout: 65000 })
+          info = await backend.post(urlPrefix + '/im_connections/addLagrange', { account, signServerUrl }, { timeout: 65000 })
           break
       }
       return info as any as DiceConnection
@@ -373,6 +374,11 @@ export const useStore = defineStore('main', {
     async getImConnectionsSetData(i: DiceConnection, { protocol, appVersion, ignoreFriendRequest, useSignServer, signServerConfig }: { protocol: number, appVersion: string, ignoreFriendRequest: boolean, useSignServer?: boolean, signServerConfig?: any }) {
       const info = await backend.post(urlPrefix + '/im_connections/set_data', { id: i.id, protocol, appVersion, ignoreFriendRequest, useSignServer, signServerConfig })
       return info as any as DiceConnection
+    },
+
+    async getImConnectionsSetSignServerUrl(i: DiceConnection, signServerUrl: string, w: boolean) {
+      const info: { result: false, err: string } | { result: true ,signServerUrl:string} = await backend.post(urlPrefix + '/im_connections/set_sign_server', { id: i.id, signServerUrl, w })
+      return info
     },
 
     async logFetchAndClear() {
