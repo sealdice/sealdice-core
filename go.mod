@@ -43,7 +43,7 @@ require (
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/mroth/weightedrand v1.0.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
-	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.8.1
+	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.0
 	github.com/otiai10/copy v1.14.0
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/phuslu/log v1.0.88
@@ -54,7 +54,7 @@ require (
 	github.com/samber/lo v1.44.0
 	github.com/schollz/progressbar/v3 v3.14.4
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
-	github.com/sealdice/dicescript v0.0.0-20240623065436-0e5e379b722e
+	github.com/sealdice/dicescript v0.0.0-20240702175100-960b24bd2054
 	github.com/slack-go/slack v0.13.0
 	github.com/sunshineplan/imgconv v1.1.4
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
@@ -65,9 +65,9 @@ require (
 	github.com/yuin/goldmark v1.7.4
 	go.etcd.io/bbolt v1.3.9
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.24.0
+	golang.org/x/crypto v0.25.0
 	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8
-	golang.org/x/sys v0.21.0
+	golang.org/x/sys v0.22.0
 	golang.org/x/text v0.16.0
 	golang.org/x/time v0.5.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
@@ -162,7 +162,7 @@ require (
 	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/term v0.21.0 // indirect
+	golang.org/x/term v0.22.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect

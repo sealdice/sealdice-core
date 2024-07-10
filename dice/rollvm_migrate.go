@@ -243,7 +243,7 @@ func (a spanByEnd) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a spanByEnd) Less(i, j int) bool { return a[i].End < a[j].End }
 
 func (ctx *MsgContext) setCocPrefixReadForVM(cb func(cocFlagVarPrefix string)) {
-	ctx.vm.Config.HookFuncValueLoad = func(name string) (string, *ds.VMValue) {
+	ctx.vm.Config.HookFuncValueLoad = func(ctx *ds.Context, name string) (string, *ds.VMValue) {
 		re := regexp.MustCompile(`^(困难|极难|大成功|常规|失败|困難|極難|常規|失敗)?([^\d]+)(\d+)?$`)
 		m := re.FindStringSubmatch(name)
 
@@ -287,19 +287,29 @@ func tryLoadByBuff(ctx *MsgContext, varname string, curVal *ds.VMValue) *ds.VMVa
 // setDndReadForVM 主要是为rc设定属性豁免，暂时没有写在规则模板的原因是可以自定义detail输出
 func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 	var skip bool
-	ctx.vm.Config.HookFuncValueLoadOverwrite = func(varname string, curVal *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
-		// if !skip {
-		// curVal = tryLoadByBuff(ctx, varname, curVal)
-		// }
-		if !skip && rcMode && isAbilityScores(varname) {
-			if curVal != nil && curVal.TypeId == ds.VMTypeInt {
-				curVal = tryLoadByBuff(ctx, varname, curVal)
-				mod := curVal.MustReadInt()/2 - 5
-				if detail != nil {
-					detail.Tag = "dnd-rc"
-					detail.Text = fmt.Sprintf("%s调整值%d", varname, mod)
+	ctx.vm.Config.HookFuncValueLoadOverwrite = func(vm *ds.Context, varname string, curVal *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
+		if !skip && rcMode {
+			// rc时将属性替换为调整值，只在0级起作用，避免在函数调用等地方造成影响
+			if isAbilityScores(varname) && vm.Depth() == 0 && vm.UpCtx == nil {
+				if curVal != nil && curVal.TypeId == ds.VMTypeInt {
+					curVal = tryLoadByBuff(ctx, varname, curVal)
+					mod := curVal.MustReadInt()/2 - 5
+					if detail != nil {
+						detail.Tag = "dnd-rc"
+						detail.Text = fmt.Sprintf("%s调整值%d", varname, mod)
+					}
+					return ds.NewIntVal(mod)
 				}
-				return ds.NewIntVal(mod)
+			} else if dndAttrParent[varname] != "" && curVal.TypeId == ds.VMTypeInt {
+				name := dndAttrParent[varname]
+				base, err := ctx.SystemTemplate.GetRealValue(ctx, name)
+				if err == nil {
+					ab := tryLoadByBuff(ctx, name, base)
+					mod := ab.MustReadInt()/2 - 5
+
+					detail.Tag = "dnd-rc"
+					detail.Text = fmt.Sprintf("%s调整值%d", name, mod)
+				}
 			}
 		}
 
@@ -338,6 +348,7 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 			}
 			return ret
 		}
+
 		return curVal
 	}
 }
@@ -425,7 +436,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			}
 
 			// 从模板取值，模板中的设定是如果取不到获得0
-			// TODO: 目前没有好的方法去复制ctx，实际上这个行为应当类似于ds中的函数调用
+			// TODO: 目前没有好的方法去复制vm，实际上这个行为应当类似于ds中的函数调用
 			ctx.CreateVmIfNotExists()
 			ctx2 := *ctx
 			ctx2.vm = nil
@@ -512,7 +523,12 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				}
 			}
 
-			exprText := string(detailResult[item.begin:item.end])
+			exprText := last.Expr
+			baseExprText := string(detailResult[item.begin:item.end])
+			if last.Expr == "" {
+				exprText = baseExprText
+			}
+
 			writeBuf(detailResult[:item.begin])
 
 			// 主体结果部分，如 (10d3)d5=63[(10d3)d5=2+2+2+5+2+5+5+4+1+3+4+1+4+5+4+3+4+5+2,10d3=19]
@@ -536,7 +552,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			}
 
 			detail += subDetailsText + "]"
-			if len(m) == 1 && detail == "["+exprText+"]" {
+			if len(m) == 1 && detail == "["+baseExprText+"]" {
 				detail = "" // 规则1.3
 			}
 			if len(detail) > 400 {
@@ -563,7 +579,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		// 情况不明，在sealchat的第一次测试中出现Group为nil
 		ctx.vm.Config.DefaultDiceSideExpr = fmt.Sprintf("%d", ctx.Group.DiceSideNum)
 	} else {
-		ctx.vm.Config.DefaultDiceSideExpr = "d100"
+		ctx.vm.Config.DefaultDiceSideExpr = "100"
 	}
 }
 
