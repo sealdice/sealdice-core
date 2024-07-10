@@ -569,10 +569,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 				return true
 			})
-			text += `.sn dnd // 自动设置dnd名片
-.sn expr {$t玩家_RAW} HP{hp}/{hpmax} // 自设格式
-.sn none // 设置为空白格式
-.sn off // 取消自动设置`
+			text += ".sn expr {$t玩家_RAW} HP{hp}/{hpmax} // 自设格式\n" +
+				".sn none // 设置为空白格式\n" +
+				".sn off // 取消自动设置"
 			if isShort {
 				return text
 			}
