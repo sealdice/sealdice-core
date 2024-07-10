@@ -761,7 +761,7 @@ export const useStore = defineStore('main', {
     },
 
     async helpDocUpload(form: any): Promise<{ result: true } | { result: false, err?: string }> {
-      return await backend.post(urlPrefix + '/helpdoc/upload', form, { headers: { token: this.token } })
+      return await backend.post(urlPrefix + '/helpdoc/upload', form, { headers: { token: this.token, "Content-Type": "multipart/form-data" } })
     },
 
     async helpDocDelete(keys: string[]): Promise<{ result: true } | { result: false, err?: string }> {
