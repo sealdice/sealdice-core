@@ -550,14 +550,24 @@ func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 	}
 
 	prefixMap2 := map[string]string{
-		"PG-QQ:":       "",
-		"PG-KOOK:":     "",
-		"PG-SEALCHAT:": "", // PG-SEALCHAT:LJMmncRk4Kh_yPNjCNIhX:xK7iDQ13ypAw7GHiGBzHM
-		"PG-UI:":       "",
+		"PG-QQ:":       "QQ:",
+		"PG-KOOK:":     "KOOK:",
+		"PG-SEALCHAT:": "SEALCHAT:", // PG-SEALCHAT:LJMmncRk4Kh_yPNjCNIhX:xK7iDQ13ypAw7GHiGBzHM
+		"PG-UI:":       "UI:",
+		"PG-DISCORD:":  "DISCORD:",
+		"PG-DODO:":     "DODO:",
+		"PG-SLACK:":    "SLACK:",
+		"PG-TG:":       "TG:",
+		"PG-DINGTALK:": "DINGTALK:",
 	}
-	for userPrefix := range prefixMap2 {
-		if strings.HasPrefix(id, userPrefix) {
-			return "", id, true
+	for userPrivateGroupPrefix, userPrefix := range prefixMap2 {
+		if strings.HasPrefix(id, userPrivateGroupPrefix) {
+			lenX := len(userPrivateGroupPrefix)
+			idx := strings.Index(id[lenX:], "-"+userPrefix)
+			if idx != -1 {
+				idx += lenX
+				return id[:idx], id[idx+1:], true
+			}
 		}
 	}
 
