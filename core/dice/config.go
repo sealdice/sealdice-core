@@ -268,16 +268,6 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) er
 	configItem, exists := plugin.Configs[key]
 	if exists {
 		switch configItem.Type {
-		case "int":
-			// Json 默认解析数字为 float64，需要转换
-			configItem.Value = int64(value.(float64))
-		case "template":
-			// 修复无法从[]interface{}断言[]string
-			var strarr []string
-			for _, strv := range value.([]interface{}) {
-				strarr = append(strarr, strv.(string))
-			}
-			configItem.Value = strarr
 		case "task:cron", "task:daily":
 			val := value.(string)
 			configItem.Value = val
