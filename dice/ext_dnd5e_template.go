@@ -24,7 +24,7 @@ var _dnd5eTmpl = &GameSystemTemplate{
 	},
 
 	PreloadCode: "func skillShowAs(val) {" +
-		"  return `{val}{&val.base ? `[{&val.base}]`}`" +
+		"  return `{val}[{&val.base}]`" +
 		"}" +
 		"func skillShowAsKey(key, val) {" +
 		"  return `{key}{&val.factor ? '*'+ (&val.factor == 1 ? '' : str(&val.factor)) }`" +
@@ -120,6 +120,29 @@ var _dnd5eTmpl = &GameSystemTemplate{
 		"智力调整值": "abilityModifier('智力')",
 		"感知调整值": "abilityModifier('感知')",
 		"魅力调整值": "abilityModifier('魅力')",
+
+		"运动": "力量调整值",
+
+		"体操": "{敏捷调整值}",
+		"巧手": "{敏捷调整值}",
+		"隐匿": "{敏捷调整值}",
+
+		"调查": "智力调整值",
+		"奥秘": "智力调整值",
+		"历史": "智力调整值",
+		"自然": "智力调整值",
+		"宗教": "智力调整值",
+
+		"察觉": "感知调整值",
+		"洞悉": "感知调整值",
+		"驯兽": "感知调整值",
+		"医药": "感知调整值",
+		"求生": "感知调整值",
+
+		"游说": "{魅力调整值}",
+		"欺瞒": "{魅力调整值}",
+		"威吓": "{魅力调整值}",
+		"表演": "{魅力调整值}",
 	},
 
 	Alias: map[string][]string{
