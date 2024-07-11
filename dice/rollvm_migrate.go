@@ -315,7 +315,7 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 					exprProficiency := fmt.Sprintf("&%s.factor * 熟练", varname)
 					skip = true
 					if ret2, _ := ctx.vm.RunExpr(exprProficiency, false); ret2 != nil {
-						// 注意: 这个值存在err不为nil的可能，假如没有st这个值的话
+						// 注意: 这个值未必总能读到，如果ret2为nil，那么我们可以忽略这个加值的存在
 						detail.Text += fmt.Sprintf("+熟练%s", ret2.ToString())
 						if ret2.TypeId == ds.VMTypeInt {
 							v -= ret2.MustReadInt()
@@ -346,27 +346,19 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 
 			if detail != nil && detail.Tag != "" {
 				detail.Ret = ret
-				detail.Text = ""
-				firstAppend := true
+
+				var detailParts []string
 				checkAndAppend := func(detailName string, ret2 *ds.VMValue) {
-					setAppend := func() {
-						if !firstAppend {
-							detail.Text += "+"
-						}
-						firstAppend = false
-					}
 					if ret2.TypeId == ds.VMTypeInt {
 						v := ret2.MustReadInt()
 						if v != 0 {
-							setAppend()
-							detail.Text += fmt.Sprintf("%s%d", detailName, v)
+							detailParts = append(detailParts, fmt.Sprintf("%s%d", detailName, v))
 						}
 					} else if ret2.TypeId == ds.VMTypeFloat {
 						v := ret2.MustReadFloat()
 						if v != 0 {
-							setAppend()
 							// 这里用toStr的原因是%f会打出末尾一大串0
-							detail.Text += fmt.Sprintf("%s%s", detailName, ret2.ToString())
+							detailParts = append(detailParts, fmt.Sprintf("%s%s", detailName, ret2.ToString()))
 						}
 					}
 				}
@@ -378,6 +370,8 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 				if ret2, _ := ctx.vm.RunExpr(stpName+" * (熟练??0)", false); ret2 != nil {
 					checkAndAppend("熟练", ret2)
 				}
+
+				detail.Text = strings.Join(detailParts, "+")
 				ctx.vm.Error = nil
 			}
 			return ret
