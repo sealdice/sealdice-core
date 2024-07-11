@@ -303,12 +303,27 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 			} else if dndAttrParent[varname] != "" && curVal.TypeId == ds.VMTypeInt {
 				name := dndAttrParent[varname]
 				base, err := ctx.SystemTemplate.GetRealValue(ctx, name)
+				v := curVal.MustReadInt()
 				if err == nil {
 					ab := tryLoadByBuff(ctx, name, base)
 					mod := ab.MustReadInt()/2 - 5
 
 					detail.Tag = "dnd-rc"
 					detail.Text = fmt.Sprintf("%s调整值%d", name, mod)
+					v -= mod
+
+					exprProficiency := fmt.Sprintf("&%s.factor * 熟练", varname)
+					skip = true
+					if ret2, _ := ctx.vm.RunExpr(exprProficiency, false); ret2 != nil {
+						// 注意: 这个值未必总能读到，如果ret2为nil，那么我们可以忽略这个加值的存在
+						detail.Text += fmt.Sprintf("+熟练%s", ret2.ToString())
+						if ret2.TypeId == ds.VMTypeInt {
+							v -= ret2.MustReadInt()
+						}
+					}
+					ctx.vm.Error = nil
+					skip = false
+					detail.Text += fmt.Sprintf("+%s%d", varname, v)
 				}
 			}
 		}
@@ -331,20 +346,33 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 
 			if detail != nil && detail.Tag != "" {
 				detail.Ret = ret
-				if ret2, _ := ctx.vm.RunExpr(stpName+" * (熟练??0)", false); ret2 != nil {
+
+				var detailParts []string
+				checkAndAppend := func(detailName string, ret2 *ds.VMValue) {
 					if ret2.TypeId == ds.VMTypeInt {
 						v := ret2.MustReadInt()
 						if v != 0 {
-							detail.Text = fmt.Sprintf("熟练+%d", v)
+							detailParts = append(detailParts, fmt.Sprintf("%s%d", detailName, v))
 						}
 					} else if ret2.TypeId == ds.VMTypeFloat {
 						v := ret2.MustReadFloat()
 						if v != 0 {
 							// 这里用toStr的原因是%f会打出末尾一大串0
-							detail.Text = fmt.Sprintf("熟练+%s", ret2.ToString())
+							detailParts = append(detailParts, fmt.Sprintf("%s%s", detailName, ret2.ToString()))
 						}
 					}
 				}
+
+				if ret2, _ := ctx.vm.RunExpr(fmt.Sprintf("(%s ?? 0 + %s ?? 0)/2-5", vName, "$buff_"+vName), false); ret2 != nil {
+					checkAndAppend("调整值", ret2)
+				}
+				ctx.vm.Error = nil
+				if ret2, _ := ctx.vm.RunExpr(stpName+" * (熟练??0)", false); ret2 != nil {
+					checkAndAppend("熟练", ret2)
+				}
+
+				detail.Text = strings.Join(detailParts, "+")
+				ctx.vm.Error = nil
 			}
 			return ret
 		}

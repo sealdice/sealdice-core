@@ -1778,6 +1778,11 @@ func (d *Dice) registerCoreCommands() {
 				return id
 			}
 
+			setCurPlayerName := func(name string) {
+				ctx.Player.Name = name
+				ctx.Player.UpdatedAtTime = time.Now().Unix()
+			}
+
 			switch val1 {
 			case "list", "lst":
 				list := lo.Must(am.GetCharacterList(ctx.Player.UserID))
@@ -1819,6 +1824,7 @@ func (d *Dice) registerCoreCommands() {
 				if !am.CharCheckExists(ctx.Player.UserID, name) {
 					item := lo.Must(am.CharNew(ctx.Player.UserID, name, ctx.Group.System))
 					lo.Must0(am.CharBind(item.Id, ctx.Group.GroupID, ctx.Player.UserID))
+					setCurPlayerName(name) // 修改当前角色名
 
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_新建"))
 				} else {
@@ -1846,7 +1852,10 @@ func (d *Dice) registerCoreCommands() {
 						if !am.CharCheckExists(ctx.Player.UserID, b) {
 							attrs := lo.Must(am.LoadById(charId))
 							attrs.Name = b
-							ctx.Player.Name = b
+							if charId == getBindingId() {
+								// 如果是当前绑定的ID，连名字一起改
+								setCurPlayerName(b)
+							}
 							attrs.LastModifiedTime = time.Now().Unix()
 							attrs.SaveToDB(am.db, nil) // 直接保存
 							ReplyToSender(ctx, msg, "操作完成")
@@ -1871,6 +1880,7 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_失败"))
 					} else {
 						lo.Must0(am.CharBind(charId, ctx.Group.GroupID, ctx.Player.UserID))
+						setCurPlayerName(name)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_成功"))
 					}
 				} else {
@@ -1879,12 +1889,11 @@ func (d *Dice) registerCoreCommands() {
 					if charId == "" {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_并未绑定"))
 					} else {
-						ctx.Player.Name = name
-						ctx.Player.UpdatedAtTime = time.Now().Unix()
 						lo.Must0(am.CharBind("", ctx.Group.GroupID, ctx.Player.UserID))
 						attrs := lo.Must(am.LoadById(charId))
 
 						name := attrs.Name
+						setCurPlayerName(name)
 						VarSetValueStr(ctx, "$t角色名", name)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_绑定_解除"))
 					}
@@ -1912,8 +1921,7 @@ func (d *Dice) registerCoreCommands() {
 						return true
 					})
 
-					ctx.Player.Name = name
-					ctx.Player.UpdatedAtTime = time.Now().Unix()
+					setCurPlayerName(name)
 
 					if ctx.Player.AutoSetNameTemplate != "" {
 						_, _ = SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
