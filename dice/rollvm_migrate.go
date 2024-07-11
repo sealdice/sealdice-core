@@ -366,7 +366,7 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 						if v != 0 {
 							setAppend()
 							// 这里用toStr的原因是%f会打出末尾一大串0
-							detail.Text += fmt.Sprintf("%s+%s", detailName, ret2.ToString())
+							detail.Text += fmt.Sprintf("%s%s", detailName, ret2.ToString())
 						}
 					}
 				}
