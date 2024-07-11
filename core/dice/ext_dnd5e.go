@@ -322,12 +322,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					restText = strings.TrimSpace(restText[len(m):])
 				}
 				expr := fmt.Sprintf("D20%s + %s", m, restText)
-				ctx.CreateVmIfNotExists()
-				tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
+				mctx.CreateVmIfNotExists()
+				tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
 				mctx.Eval(tmpl.PreloadCode, nil)
-				ctx.setDndReadForVM(true)
+				mctx.setDndReadForVM(true)
 
-				r := ctx.Eval(expr, nil)
+				r := mctx.Eval(expr, nil)
 				if r.vm.Error != nil {
 					ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
 					return CmdExecuteResult{Matched: true, Solved: true}

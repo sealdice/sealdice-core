@@ -41,7 +41,7 @@ func cmdStGetPickItemAndLimit(tmpl *GameSystemTemplate, cmdArgs *CmdArgs) (pickI
 	return pickItems, limit
 }
 
-func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, _ int64) (topNum int, items []string) {
+func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems map[string]int, _ int64, isExport bool) (topNum int, items []string) {
 	attrs, _ := mctx.Dice.AttrsManager.LoadByCtx(mctx)
 	// 或者有pickItems，或者当前的变量数量大于0
 	if len(pickItems) > 0 || attrs.Len() > 0 {
@@ -66,10 +66,12 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 			if used[key] {
 				return true
 			}
-			for _, n := range tmpl.AttrConfig.Ignores {
-				// 跳过忽略项
-				if n == key {
-					return true
+			if !isExport {
+				for _, n := range tmpl.AttrConfig.Ignores {
+					// 跳过忽略项
+					if n == key {
+						return true
+					}
 				}
 			}
 			attrKeys2 = append(attrKeys2, key)
@@ -149,7 +151,7 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 	limitSkipCount := 0
 	items = []string{}
 
-	topNum, attrKeys := cmdStSortNamesByTmpl(mctx, tmpl, pickItems, limit)
+	topNum, attrKeys := cmdStSortNamesByTmpl(mctx, tmpl, pickItems, limit, false)
 
 	// 或者有pickItems，或者当前的变量数量大于0
 	if len(attrKeys) > 0 {
@@ -201,7 +203,7 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate, stInfo *
 	// 修改自 cmdStGetItemsForShow
 	limitSkipCount := 0
 	items = []string{}
-	_, attrKeys := cmdStSortNamesByTmpl(mctx, tmpl, map[string]int{}, 0)
+	_, attrKeys := cmdStSortNamesByTmpl(mctx, tmpl, map[string]int{}, 0, true)
 
 	// 或者有pickItems，或者当前的变量数量大于0
 	if len(attrKeys) > 0 {
@@ -638,6 +640,10 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 								curVal := attrs.Load(i.name)
 								// 如果当前有值
 								if curVal == nil {
+									if i.extra != nil {
+										// 如果与预设相同，但有附加值，不排除有额外用途，因此计数+1
+										validNum++
+									}
 									// 与预设相同，放弃
 									continue
 								}
