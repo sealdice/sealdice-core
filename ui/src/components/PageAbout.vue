@@ -143,7 +143,7 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped lang="css">
+<style scoped lang="scss">
 .img-box {
   height: 250px;
   margin-right: 3rem;

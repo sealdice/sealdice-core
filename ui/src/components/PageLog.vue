@@ -228,7 +228,7 @@ onBeforeUnmount(() => {
 }
 </style>
 
-<style lang="css">
+<style lang="scss">
 .el-table .warning-row {
   --el-table-tr-bg-color: var(--el-color-warning-light-8);
   &:hover {

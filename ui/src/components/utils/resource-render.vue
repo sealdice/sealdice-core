@@ -57,5 +57,5 @@ const props = withDefaults(defineProps<{
   </template>
 </template>
 
-<style scoped lang="css">
+<style scoped lang="scss">
 </style>

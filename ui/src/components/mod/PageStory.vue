@@ -422,7 +422,7 @@ onBeforeMount(async () => {
     </el-tabs>
 </template>
 
-<style scoped lang="css">
+<style scoped lang="scss">
 .pagination {
     margin-top: 10px;
     background-color: #f3f5f7;

@@ -503,7 +503,7 @@ onBeforeUnmount(() => {
 }
 </style>
 
-<style scoped lang="css">
+<style scoped lang="scss">
 @media screen and (max-width: 700px) {
   .bak-item {
     flex-direction: column;

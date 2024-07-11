@@ -147,6 +147,6 @@ const store = useStore()
 const route = useRoute()
 </script>
 
-<style scoped lang="css">
+<style scoped lang="scss">
 
 </style>

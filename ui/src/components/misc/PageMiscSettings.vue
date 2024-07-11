@@ -742,7 +742,7 @@ const mailTest = async () => {
 
 </script>
 
-<style scoped lang="css">
+<style scoped lang="scss">
 .about {
   background-color: #fff;
   padding: 2rem;

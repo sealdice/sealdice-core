@@ -136,7 +136,7 @@ defineExpose({open, close})
   </component>
 </template>
 
-<style scoped lang="css">
+<style scoped lang="scss">
 .foldable-card {
   display: flex;
   flex-direction: column;

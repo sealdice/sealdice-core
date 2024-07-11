@@ -135,5 +135,5 @@ const submitGiveup = async () => {
 }
 </script>
 
-<style scoped lang="css">
+<style scoped lang="scss">
 </style>

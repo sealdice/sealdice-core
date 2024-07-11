@@ -403,7 +403,7 @@ onBeforeMount(async () => {
 })
 </script>
 
-<style lang="css">
+<style lang="scss">
 .backup-list {
   display: flex;
   flex-direction: column;
