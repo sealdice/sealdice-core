@@ -1256,6 +1256,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						break
 					}
 				}
+				sort.Sort(riList)
 
 				VarSetValueStr(ctx, "$t表达式", expr)
 				VarSetValueStr(ctx, "$t目标", name)
