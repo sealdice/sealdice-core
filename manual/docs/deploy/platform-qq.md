@@ -50,6 +50,14 @@ title: QQ
 
 不同的对接方式适应不同的情况，可能会存在途径特有的功能缺失和其它问题，请根据自己的情况选择适合的方式。
 
+::: warning 注意：对接内置客户端、Lagrange、LLOneBot 和 Napcat 等 PC 端协议时最好关闭 `戳一戳` 功能
+
+由于内置客户端、Lagrange、LLOneBot 和 Napcat **并未完全实现**戳一戳功能。请使用上述客户端连接 QQ 的用户关闭海豹核心后台位于 `综合设置` - `基本设置` 的 `启用戳一戳` 开关，以免产生不必要的报错和麻烦。
+
+<img src="./images/platform-qq-turnoff.png" alt="关闭戳一戳开关" width="80%">
+
+:::
+
 ::: warning 注意
 
 内置客户端、Lagrange、LLOneBot 和 Napcat 都占用 PC 端协议。在使用这些连接方式时，不可同时登录 PC 端 QQ，否则将导致挤占下线。

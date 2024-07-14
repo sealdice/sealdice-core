@@ -61,7 +61,7 @@ title: 基础设置
 
 仅 QQ 平台，关闭后不回应戳一戳。
 
-由于最新版 NTQQ 暂不支持戳一戳，所以 内置客户端/Lagrange/NapCat/LLOneBot 等基于 NTQQ 的连接方案均无法回应戳一戳。
+由于最新版 NTQQ 暂不支持戳一戳，所以 内置客户端/Lagrange/NapCat/LLOneBot 等基于 NTQQ 的连接方案均无法回应戳一戳，同时建议使用上述客户端连接 QQ 的用户**关闭此开关**，以免产生不必要的报错和麻烦。
 
 ## 限制 .text 指令
 
