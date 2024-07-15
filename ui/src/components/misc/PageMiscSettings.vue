@@ -183,12 +183,12 @@
       <template #label>
         <div>
           <span>启用戳一戳</span>
-          <el-tooltip raw-content content="默认开启。仅QQ平台，关闭后不回应戳一戳。">
+          <el-tooltip raw-content content="默认开启。仅QQ平台，关闭后不回应戳一戳。若使用PC端QQNT协议建议关闭此功能，以避免不必要的报错。">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
         </div>
       </template>
-      <el-checkbox label="开启" v-model="config.QQEnablePoke"/>
+      <el-checkbox label="开启，若使用PC端QQNT协议建议关闭" v-model="config.QQEnablePoke"/>
     </el-form-item>
 
     <el-form-item>
