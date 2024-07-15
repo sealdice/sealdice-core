@@ -245,13 +245,34 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			parent := dndAttrParent[attrName]
 			if parent != "" {
 				val := attrs.Load(attrName)
+
+				if val == nil {
+					// 如果不存在，先创建
+					m := ds.ValueMap{}
+					m.Store("base", ds.NewIntVal(0))
+					m.Store("factor", ds.NewIntVal(0))
+
+					val = ds.NewComputedValRaw(&ds.ComputedData{
+						// Expr: fmt.Sprintf("this.base + ((%s)??0)/2 - 5 + (熟练??0) * this.factor", parent)
+						Expr:  fmt.Sprintf("pbCalc(this.base, this.factor, %s)", parent),
+						Attrs: &m,
+					})
+					attrs.Store(attrName, val)
+				}
+
 				if val.TypeId == ds.VMTypeComputedValue {
 					cd, _ := val.ReadComputed()
 					base, _ := cd.Attrs.Load("base")
 					if base == nil {
 						base = ds.NewIntVal(0)
 					}
-					vNew := base.OpAdd(ctx.vm, i.value)
+					var vNew *ds.VMValue
+					if i.op == "+" {
+						vNew = base.OpAdd(ctx.vm, i.value)
+					}
+					if i.op == "-" {
+						vNew = base.OpSub(ctx.vm, i.value)
+					}
 					if vNew != nil {
 						cd.Attrs.Store("base", vNew)
 						return true
@@ -314,7 +335,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
 				restText := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`^优势|劣势|優勢|劣勢`)
+				re := regexp.MustCompile(`^(优势|劣势|優勢|劣勢)`)
 				m := re.FindString(restText)
 				if m != "" {
 					m = strings.Replace(m, "優勢", "优势", 1)
@@ -836,7 +857,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				restText := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`^优势|劣势`)
+				re := regexp.MustCompile(`^(优势|劣势|優勢|劣勢)`)
 				m := re.FindString(restText)
 				if m != "" {
 					restText = strings.TrimSpace(restText[len(m):])
@@ -1023,7 +1044,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						return 1, name, val, detail, ""
 					}
 					val = int64(r.MustReadInt())
-					text = r.vm.GetDetailText()
+					detail = r.vm.GetDetailText()
+					text = r.vm.RestInput
 					exprExists = true
 				} else if strings.HasPrefix(text, "优势") || strings.HasPrefix(text, "劣势") {
 					// 优势/劣势
