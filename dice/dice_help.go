@@ -646,44 +646,50 @@ func (m *HelpManager) GetContent(item *HelpTextItem, depth int) string {
 		return "{递归层数过多，不予显示}"
 	}
 	txt := item.Content
-	finalTxt := ""
 	re := regexp.MustCompile(`\{[^}\n]+\}`)
 	matched := re.FindAllStringSubmatchIndex(txt, -1)
+	if len(matched) == 0 {
+		return txt
+	}
 
+	replaced := strings.Builder{}
+	handledRight := 0
 	for _, i := range matched {
 		left := i[0]
 		right := i[1]
 
-		skip := false
-		if left != 0 {
-			if txt[left-1] == '\\' {
-				skip = true
+		if left != 0 && txt[left-1] == '\\' {
+			replaced.WriteString(txt[handledRight : left-1])
+			if right > 1 && txt[right-2] == '\\' {
+				replaced.WriteString(txt[left : right-2])
+				replaced.WriteByte('}')
+			} else {
+				replaced.WriteString(txt[left:right])
 			}
+			handledRight = right
+			continue
 		}
 
-		if !skip {
-			finalTxt += txt[:left]
-			name := txt[left+1 : right-1]
-			matched := false
-			// 注意: 效率不高
-			for _, v := range m.TextMap {
-				if v.Title == name {
-					finalTxt += m.GetContent(v, depth+1)
-					matched = true
-					break
-				}
+		replaced.WriteString(txt[handledRight:left])
+		handledRight = right
+		name := txt[left+1 : right-1]
+		matched := false
+		// 注意: 效率不高
+		for _, v := range m.TextMap {
+			if v.Title == name {
+				replaced.WriteString(m.GetContent(v, depth+1))
+				matched = true
+				break
 			}
-			if !matched {
-				finalTxt += txt[left:right-1] + " - 未能找到" + "}"
-			}
-			finalTxt += txt[right:]
+		}
+		if !matched {
+			replaced.WriteByte('{')
+			replaced.WriteString(name)
+			replaced.WriteString(" - 未能找到}")
 		}
 	}
-
-	if len(matched) == 0 {
-		return txt
-	}
-	return finalTxt
+	replaced.WriteString(txt[handledRight:])
+	return replaced.String()
 }
 
 func generateHelpDocKey() string {
