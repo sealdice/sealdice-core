@@ -155,19 +155,25 @@ jobs:
         continue-on-error: true
         run: ls ./sealdice-ui/dist
 
+      - name: Install Pnpm
+        uses: pnpm/action-setup@v4
+        if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
+        with:
+          version: 9
+          run_install: false
       - name: Install Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
         with:
           node-version: 20
       - name: Install Dependencies
         if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
         working-directory: ./sealdice-ui
-        run: npm install
+        run: pnpm install
       - name: Build WebUI
         if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
         working-directory: ./sealdice-ui
-        run: npm run build
+        run: pnpm run build
 
       - name: Upload UI
         uses: actions/upload-artifact@v4
