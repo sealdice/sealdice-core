@@ -76,10 +76,11 @@ export default defineConfig({
           base: ["vue", "pinia", "vue-router"],
           element: ["element-plus"],
           codemirror: ["codemirror", "@codemirror/lang-javascript"],
-          network: ["axios", "axios-retry"],
           utils: [
             "@vueuse/core",
             "asmcrypto.js",
+            "axios",
+            "axios-retry",
             "clipboard",
             "dayjs",
             "filesize",

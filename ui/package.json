@@ -8,7 +8,8 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "build-only": "vite build",
-    "lint": "vue-tsc --noEmit && eslint . --ext .vue,.js,.ts,.jsx,.tsx --fix"
+    "lint": "vue-tsc --noEmit && eslint . --ext .vue,.js,.ts,.jsx,.tsx --fix",
+    "check": "vue-tsc --noEmit"
   },
   "type": "module",
   "dependencies": {

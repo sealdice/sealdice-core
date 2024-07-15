@@ -13,19 +13,19 @@
 ## 部署
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 开发环境
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ### 生产环境
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 其他内容待补充
