@@ -1157,7 +1157,6 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "清除数据失败，请查看日志")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				d.JsReload()
 				ReplyToSender(ctx, msg, fmt.Sprintf("已经清除%s数据，重新加载JS插件", extName))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			default:
