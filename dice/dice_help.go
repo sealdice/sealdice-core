@@ -652,44 +652,44 @@ func (m *HelpManager) GetContent(item *HelpTextItem, depth int) string {
 		return txt
 	}
 
-	replaced := strings.Builder{}
-	handledRight := 0
+	result := strings.Builder{}
+	formattedIdx := 0
 	for _, i := range matched {
 		left := i[0]
 		right := i[1]
 
 		if left != 0 && txt[left-1] == '\\' {
-			replaced.WriteString(txt[handledRight : left-1])
+			result.WriteString(txt[formattedIdx : left-1])
 			if right > 1 && txt[right-2] == '\\' {
-				replaced.WriteString(txt[left : right-2])
-				replaced.WriteByte('}')
+				result.WriteString(txt[left : right-2])
+				result.WriteByte('}')
 			} else {
-				replaced.WriteString(txt[left:right])
+				result.WriteString(txt[left:right])
 			}
-			handledRight = right
+			formattedIdx = right
 			continue
 		}
 
-		replaced.WriteString(txt[handledRight:left])
-		handledRight = right
+		result.WriteString(txt[formattedIdx:left])
+		formattedIdx = right
 		name := txt[left+1 : right-1]
 		matched := false
 		// 注意: 效率不高
 		for _, v := range m.TextMap {
 			if v.Title == name {
-				replaced.WriteString(m.GetContent(v, depth+1))
+				result.WriteString(m.GetContent(v, depth+1))
 				matched = true
 				break
 			}
 		}
 		if !matched {
-			replaced.WriteByte('{')
-			replaced.WriteString(name)
-			replaced.WriteString(" - 未能找到}")
+			result.WriteByte('{')
+			result.WriteString(name)
+			result.WriteString(" - 未能找到}")
 		}
 	}
-	replaced.WriteString(txt[handledRight:])
-	return replaced.String()
+	result.WriteString(txt[formattedIdx:])
+	return result.String()
 }
 
 func generateHelpDocKey() string {
