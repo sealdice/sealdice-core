@@ -266,7 +266,13 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if base == nil {
 						base = ds.NewIntVal(0)
 					}
-					vNew := base.OpAdd(ctx.vm, i.value)
+					var vNew *ds.VMValue
+					if i.op == "+" {
+						vNew = base.OpAdd(ctx.vm, i.value)
+					}
+					if i.op == "-" {
+						vNew = base.OpSub(ctx.vm, i.value)
+					}
 					if vNew != nil {
 						cd.Attrs.Store("base", vNew)
 						return true

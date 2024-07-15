@@ -238,14 +238,28 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate, stInfo *
 	return items, limitSkipCount, nil
 }
 
-func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *ds.ValueMap, commandInfo map[string]any, i *stSetOrModInfoItem) {
+func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *AttributesItem, commandInfo map[string]any, i *stSetOrModInfoItem, cmdArgs *CmdArgs, stInfo *CmdStOverrideInfo) {
 	// 获取当前值
-	curVal, _ := attrs.Load(i.name)
+	curVal, _ := attrs.valueMap.Load(i.name)
 	if curVal == nil {
 		curVal = tmpl.GetDefaultValueEx(mctx, i.name)
 	}
 	if curVal == nil {
 		curVal = ds.NewIntVal(0)
+	}
+
+	isSetNew := true
+	if curVal.TypeId == ds.VMTypeComputedValue {
+		cd, _ := curVal.ReadComputed()
+		// dnd5e专属
+		if v, ok := cd.Attrs.Load("base"); ok {
+			curVal = v
+			isSetNew = false
+		}
+	}
+
+	if stInfo.ToMod != nil {
+		stInfo.ToMod(mctx, cmdArgs, i, attrs, tmpl)
 	}
 
 	// 进行变更
@@ -278,7 +292,9 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *ds.ValueMa
 		"op":      i.op,
 	})
 
-	attrs.Store(i.name, theNewValue)
+	if isSetNew {
+		attrs.Store(i.name, theNewValue)
+	}
 
 	VarSetValueStr(mctx, "$t属性", i.name)
 	VarSetValue(mctx, "$t旧值", theOldValue)
@@ -672,11 +688,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 					var textItems []string
 					chName := lo.Must(mctx.Dice.AttrsManager.LoadByCtx(mctx)).Name
 					for _, i := range toModItems {
-						if soi.ToMod != nil {
-							soi.ToMod(ctx, cmdArgs, i, attrs, tmpl)
-						}
-
-						cmdStValueMod(mctx, tmpl, attrs.valueMap, commandInfo, i)
+						cmdStValueMod(mctx, tmpl, attrs, commandInfo, i, cmdArgs, &soi)
 						VarSetValueStr(mctx, "$t当前绑定角色", chName)
 						text2 := DiceFormatTmpl(mctx, "COC:属性设置_增减_单项")
 						textItems = append(textItems, text2)
