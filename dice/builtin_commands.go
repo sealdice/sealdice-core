@@ -819,7 +819,8 @@ func (d *Dice) registerCoreCommands() {
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
 .master backup // 做一次备份
 .master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档
-.master quitgroup <群组ID> [<理由>] // 从指定群组中退出，必须在同一平台使用`
+.master quitgroup <群组ID> [<理由>] // 从指定群组中退出，必须在同一平台使用
+.master jsclear <插件ID> // 清除指定插件的存储，随后重载JS环境`
 
 	cmdMaster := &CmdItemInfo{
 		Name:          "master",
@@ -1086,7 +1087,7 @@ func (d *Dice) registerCoreCommands() {
 			case "quitgroup":
 				gid := cmdArgs.GetArgN(2)
 				if gid == "" {
-					return CmdExecuteResult{Matched: true, Solved: true}
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
 				n := strings.Split(gid, ":") // 不验证是否合法，反正下面会检查是否在 ServiceAtNew
@@ -1129,6 +1130,35 @@ func (d *Dice) registerCoreCommands() {
 				gp.UpdatedAtTime = time.Now().Unix()
 				mctx.EndPoint.Adapter.QuitGroup(mctx, gp.GroupID)
 
+				return CmdExecuteResult{Matched: true, Solved: true}
+			case "jsclear":
+				extName := cmdArgs.GetArgN(2)
+				if extName == "" {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
+				// Cannot use sort.Search; requires sorting for binary search.
+				index := -1
+				for i, ext := range ctx.Dice.ExtList {
+					if ext.Name == extName {
+						if !ext.IsJsExt {
+							ReplyToSender(ctx, msg, fmt.Sprintf("%s是内置模块，为了骰子的正常运行，暂不支持清除", extName))
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						index = i
+						break
+					}
+				}
+				if index == -1 {
+					ReplyToSender(ctx, msg, "没有找到插件"+extName)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				if err := ctx.Dice.ClearExtStorage(extName); err != nil {
+					ctx.Dice.Logger.Errorf("jsclear: %v", err)
+					ReplyToSender(ctx, msg, "清除数据失败，请查看日志")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				d.JsReload()
+				ReplyToSender(ctx, msg, fmt.Sprintf("已经清除%s数据，重新加载JS插件", extName))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 
 	"github.com/dop251/goja"
@@ -56,6 +57,15 @@ func (d *Dice) GetDiceDataPath(name string) string {
 
 func (d *Dice) GetExtConfigFilePath(extName string, filename string) string {
 	return path.Join(d.GetExtDataDir(extName), filename)
+}
+
+func (d *Dice) ClearExtStorage(name string) error {
+	dbPath := filepath.Join(d.BaseConfig.DataDir, "extensions", name, "storage.db")
+	err := os.Remove(dbPath)
+	if errors.Is(err, os.ErrNotExist) {
+		err = nil
+	}
+	return err
 }
 
 func GetExtensionDesc(ei *ExtInfo) string {
