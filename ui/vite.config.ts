@@ -19,13 +19,6 @@ export default defineConfig({
       "~/": `${pathSrc}/`,
     },
   },
-  css: {
-    preprocessorOptions: {
-      scss: {
-        additionalData: `@use "~/styles/element/index.scss" as *;`,
-      },
-    },
-  },
   server: {
     port: 3000,
   },
@@ -46,7 +39,7 @@ export default defineConfig({
       },
       resolvers: [
         ElementPlusResolver({
-          importStyle: "sass",
+          importStyle: "css",
         }),
         IconsResolver(),
       ],
@@ -54,7 +47,7 @@ export default defineConfig({
     Components({
       resolvers: [
         ElementPlusResolver({
-          importStyle: "sass",
+          importStyle: "css",
         }),
         IconsResolver(),
       ],
@@ -64,7 +57,7 @@ export default defineConfig({
       autoInstall: true,
     }),
     legacy({
-      targets: ["defaults", "not IE 11"],
+      targets: ["defaults"],
     }),
   ],
   build: {

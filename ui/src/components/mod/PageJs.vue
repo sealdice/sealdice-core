@@ -761,11 +761,11 @@ const jsUpdate = async () => {
 }
 </script>
 
-<style lang="scss">
+<style lang="css">
 .cm-editor {
   /* height: v-bind("$props.initHeight"); */
   height: 20rem;
-  // font-size: 18px;
+  /* font-size: 18px; */
 
   outline: 0 !important;
   /* height: 50rem; */
@@ -790,7 +790,7 @@ const jsUpdate = async () => {
 
   &>span {
     margin-right: 1rem;
-    // width: fit-content;
+    /* width: fit-content; */
   }
 }
 

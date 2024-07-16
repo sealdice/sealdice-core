@@ -21,7 +21,7 @@ defineProps<{
 }>()
 </script>
 
-<style scoped lang="scss">
+<style scoped lang="css">
 .text-group-title {
   border-top: 1px solid var(--el-border-color);
 }

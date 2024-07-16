@@ -44,9 +44,9 @@ p {
   @apply my-3;
 }
 
-// :root {
-//   --el-color-primary: red;
-// }
+/*:root {*/
+/*  --el-color-primary: red;*/
+/*}*/
 
 body {
   margin: 0;
@@ -81,13 +81,13 @@ code {
   }
   padding: 8px 16px;
   border-radius: 4px;
-  // border: 1px solid #dadada;
+  /*border: 1px solid #dadada;*/
   border-left: 3px solid var(--el-color-primary);
   margin: 0px 0;
 }
 
 
-// 弹窗优化
+/* 弹窗优化 */
 @media screen and (max-width: 750px) {
   .el-message-box {
     width: 80% !important;

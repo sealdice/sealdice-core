@@ -172,7 +172,7 @@ onBeforeMount(async () => {
   </el-drawer>
 </template>
 
-<style scoped lang="scss">
+<style scoped lang="css">
 .helptips {
   background-color: #f3f5f7;
 

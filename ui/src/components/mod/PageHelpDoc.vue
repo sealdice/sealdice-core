@@ -429,7 +429,7 @@ onBeforeMount(async () => {
 
 </script>
 
-<style lang="scss">
+<style lang="css">
 @media screen and (max-width: 700px) {
   .bak-item {
     flex-direction: column;

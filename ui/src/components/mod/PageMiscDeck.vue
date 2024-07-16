@@ -259,7 +259,7 @@ const deckUpdate = async () => {
 
 </script>
 
-<style lang="scss">
+<style lang="css">
 @media screen and (max-width: 700px) {
   .bak-item {
     flex-direction: column;
@@ -302,7 +302,7 @@ const deckUpdate = async () => {
 
   &>span {
     margin-right: 1rem;
-    // width: fit-content;
+    /* width: fit-content; */
   }
 }
 
