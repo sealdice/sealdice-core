@@ -74,8 +74,11 @@ export default defineConfig({
       output: {
         manualChunks: {
           base: ["vue", "pinia", "vue-router"],
-          element: ["element-plus"],
           codemirror: ["codemirror", "@codemirror/lang-javascript"],
+          common: [
+            "element-plus",
+            "lodash-es",
+          ],
           utils: [
             "@vueuse/core",
             "asmcrypto.js",
@@ -84,7 +87,6 @@ export default defineConfig({
             "clipboard",
             "dayjs",
             "filesize",
-            "lodash-es",
             "randomcolor",
             "vue-diff",
             "vuedraggable",
