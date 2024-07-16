@@ -1152,7 +1152,7 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "没有找到插件"+extName)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				if err := ctx.Dice.ClearExtStorage(extName); err != nil {
+				if err := ClearExtStorage(ctx.Dice, extName); err != nil {
 					ctx.Dice.Logger.Errorf("jsclear: %v", err)
 					ReplyToSender(ctx, msg, "清除数据失败，请查看日志")
 					return CmdExecuteResult{Matched: true, Solved: true}
