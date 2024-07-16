@@ -67,7 +67,7 @@ type GameSystemTemplate struct {
 	TextMap         *TextTemplateWithWeightDict `yaml:"textMap" json:"textMap"` // UI文本
 	TextMapHelpInfo *TextTemplateWithHelpDict   `yaml:"TextMapHelpInfo" json:"textMapHelpInfo"`
 
-	PreloadCode string `yaml:"preloadCode" json:"preloadCode"` // 预加载代码，js
+	PreloadCode string `yaml:"preloadCode" json:"preloadCode"` // 预加载代码
 	// BasedOn           string                 `yaml:"based-on"`           // 基于规则
 
 	AliasMap *SyncMap[string, string] `yaml:"-" json:"-"` // 别名/同义词
@@ -97,6 +97,8 @@ func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string)
 	// 先计算computed
 	if expr, exists := t.DefaultsComputed[name]; exists {
 		ctx.SystemTemplate = t
+		// 也许有点依赖这个东西？有更好的方式吗？可以更加全局的去加载吗（比如和vm创建伴生加载）？
+		ctx.Eval(t.PreloadCode, nil)
 		r := ctx.Eval(expr, nil)
 
 		if r.vm.Error == nil {

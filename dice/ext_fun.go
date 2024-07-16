@@ -1047,9 +1047,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 			ctx.Eval(tmpl.PreloadCode, nil)
 
 			val := cmdArgs.GetArgN(1)
+			xx := DiceFormat(ctx, val)
+			fmt.Println("wwww", xx)
+
 			if val != "" {
 				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-				r, _, err := DiceExprTextBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{DisableBlock: false})
+				r, _, err := DiceExprTextBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{DisableBlock: false, V2Only: true})
 
 				if err == nil {
 					text := r.ToString()

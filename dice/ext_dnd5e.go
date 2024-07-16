@@ -877,15 +877,15 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				detail := r.vm.GetDetailText()
+				exprToShow := fmt.Sprintf("[%s]", expr)
 				if d20 == 20 {
 					deathSavingStable(mctx)
 					VarSetValueInt64(mctx, "hp", 1)
 					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_D20_附加语")
-					ReplyToSender(mctx, msg, fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), detail, d20, suffix))
+					ReplyToSender(mctx, msg, fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), exprToShow, d20, suffix))
 				} else if d20 == 1 {
 					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_D1_附加语")
-					text := fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), detail, d20, suffix)
+					text := fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), exprToShow, d20, suffix)
 					a, b := deathSaving(mctx, 0, 2)
 					exText := deathSavingResultCheck(mctx, a, b)
 					if exText != "" {
@@ -895,7 +895,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, text)
 				} else if d20 >= 10 {
 					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_成功_附加语")
-					text := fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), detail, d20, suffix)
+					text := fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), exprToShow, d20, suffix)
 					a, b := deathSaving(mctx, 1, 0)
 					exText := deathSavingResultCheck(mctx, a, b)
 					if exText != "" {
@@ -905,7 +905,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(mctx, msg, text)
 				} else {
 					suffix := DiceFormatTmpl(mctx, "DND:死亡豁免_失败_附加语")
-					text := fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), detail, d20, suffix)
+					text := fmt.Sprintf(`%s的死亡豁免检定: %s=%d %s`, getPlayerNameTempFunc(mctx), exprToShow, d20, suffix)
 					a, b := deathSaving(mctx, 0, 1)
 					exText := deathSavingResultCheck(mctx, a, b)
 					if exText != "" {
