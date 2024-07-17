@@ -238,9 +238,9 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate, stInfo *
 	return items, limitSkipCount, nil
 }
 
-func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *ds.ValueMap, commandInfo map[string]any, i *stSetOrModInfoItem) {
+func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *AttributesItem, commandInfo map[string]any, i *stSetOrModInfoItem, cmdArgs *CmdArgs, stInfo *CmdStOverrideInfo) {
 	// 获取当前值
-	curVal, _ := attrs.Load(i.name)
+	curVal, _ := attrs.valueMap.Load(i.name)
 	if curVal == nil {
 		curVal = tmpl.GetDefaultValueEx(mctx, i.name)
 	}
@@ -248,24 +248,37 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *ds.ValueMa
 		curVal = ds.NewIntVal(0)
 	}
 
-	if curVal.TypeId != ds.VMTypeInt {
-		// 跳过非数字
-		return
+	isSetNew := true
+	if curVal.TypeId == ds.VMTypeComputedValue {
+		cd, _ := curVal.ReadComputed()
+		// dnd5e专属
+		if v, ok := cd.Attrs.Load("base"); ok {
+			curVal = v
+			isSetNew = false
+		}
+	}
+
+	if stInfo.ToMod != nil {
+		stInfo.ToMod(mctx, cmdArgs, i, attrs, tmpl)
 	}
 
 	// 进行变更
-	theOldValue, _ := curVal.ReadInt()
-	theModValue, _ := i.value.ReadInt()
-	var theNewValue ds.IntType
+	theOldValue := curVal
+	theModValue := i.value
+	var theNewValue *ds.VMValue
 
 	signText := ""
 	switch i.op {
 	case "+":
 		signText = "增加"
-		theNewValue = theOldValue + theModValue
+		theNewValue = theOldValue.OpAdd(mctx.vm, theModValue)
 	case "-", "-=":
 		signText = "扣除"
-		theNewValue = theOldValue - theModValue
+		theNewValue = theOldValue.OpSub(mctx.vm, theModValue)
+	}
+
+	if theNewValue == nil {
+		theNewValue = theOldValue // 占位符，避免报错
 	}
 
 	// 指令信息
@@ -279,12 +292,14 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *ds.ValueMa
 		"op":      i.op,
 	})
 
-	attrs.Store(i.name, ds.NewIntVal(theNewValue))
+	if isSetNew {
+		attrs.Store(i.name, theNewValue)
+	}
 
 	VarSetValueStr(mctx, "$t属性", i.name)
-	VarSetValueInt64(mctx, "$t旧值", int64(theOldValue))
-	VarSetValueInt64(mctx, "$t新值", int64(theNewValue))
-	VarSetValueInt64(mctx, "$t变化量", int64(theModValue))
+	VarSetValue(mctx, "$t旧值", theOldValue)
+	VarSetValue(mctx, "$t新值", theNewValue)
+	VarSetValue(mctx, "$t变化量", theModValue)
 	VarSetValueStr(mctx, "$t增加或扣除", signText)
 	VarSetValueStr(mctx, "$t表达式文本", i.expr)
 }
@@ -310,6 +325,7 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 	vm := ctx.vm
 	vm.Config.DisableStmts = true
 	vm.Config.DefaultDiceSideExpr = strconv.FormatInt(getDefaultDicePoints(ctx), 10)
+	// vm.Config.PrintBytecode = true
 
 	vm.Config.CallbackSt = func(_type string, name string, val *ds.VMValue, extra *ds.VMValue, op string, detail string) {
 		// fmt.Println("!!", _type, name, val, extra, op, detail)
@@ -325,9 +341,6 @@ func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *
 			toSetItems = append(toSetItems, &stSetOrModInfoItem{name: newname, value: val, extra: ds.NewIntVal(1)})
 		case "mod":
 			newname := tmpl.GetAlias(name)
-			if val.TypeId != ds.VMTypeInt {
-				return
-			}
 			toModItems = append(toModItems, &stSetOrModInfoItem{name: newname, value: val, op: op, expr: detail})
 		}
 	}
@@ -350,6 +363,7 @@ func cmdStCharFormat1(mctx *MsgContext, tmpl *GameSystemTemplate, vars *ds.Value
 
 		for key, v := range backups {
 			newKey := tmpl.GetAlias(key)
+			// TODO: 打个标记，这里是否在默认模板卡的属性只能为整数？
 			if v.TypeId == ds.VMTypeInt {
 				// val, detail, calculated, exists2
 				val, _, _, exists := tmpl.GetDefaultValueEx0(mctx, newKey)
@@ -674,11 +688,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 					var textItems []string
 					chName := lo.Must(mctx.Dice.AttrsManager.LoadByCtx(mctx)).Name
 					for _, i := range toModItems {
-						if soi.ToMod != nil {
-							soi.ToMod(ctx, cmdArgs, i, attrs, tmpl)
-						}
-
-						cmdStValueMod(mctx, tmpl, attrs.valueMap, commandInfo, i)
+						cmdStValueMod(mctx, tmpl, attrs, commandInfo, i, cmdArgs, &soi)
 						VarSetValueStr(mctx, "$t当前绑定角色", chName)
 						text2 := DiceFormatTmpl(mctx, "COC:属性设置_增减_单项")
 						textItems = append(textItems, text2)
