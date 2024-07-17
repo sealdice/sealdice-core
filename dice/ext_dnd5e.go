@@ -877,7 +877,13 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
+				detail := r.vm.GetDetailText()
 				exprToShow := fmt.Sprintf("[%s]", expr)
+				if detail != r.ToString() {
+					s := r.ToString()
+					exprToShow, _ = strings.CutPrefix(detail, s)
+				}
+
 				if d20 == 20 {
 					deathSavingStable(mctx)
 					VarSetValueInt64(mctx, "hp", 1)

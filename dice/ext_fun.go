@@ -1045,10 +1045,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 			tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
 			ctx.Eval(tmpl.PreloadCode, nil)
-
 			val := cmdArgs.GetArgN(1)
-			xx := DiceFormat(ctx, val)
-			fmt.Println("wwww", xx)
 
 			if val != "" {
 				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
