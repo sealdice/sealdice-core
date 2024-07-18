@@ -24,7 +24,7 @@
       <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
     </span>
   </p>
-  <div style="padding: 0;" class="hidden-xs-only logs">
+  <div class="hidden md:block p-0 logs">
     <el-table :data="store.curDice.logs"
               :row-class-name="getLogRowClassName" :header-cell-style="{backgroundColor: '#f3f5f7'}">
       <el-table-column label="时间" width="90" >
@@ -65,8 +65,7 @@
       </el-table-column>
     </el-table>
   </div>
-
-  <el-table :data="store.curDice.logs" style="width: 100%;" class="hidden-sm-and-up"
+  <el-table :data="store.curDice.logs" class="md:hidden w-full logs"
             :row-class-name="getLogRowClassName" :header-cell-style="{backgroundColor: '#f3f5f7'}">
     <el-table-column label="时间" width="60" >
       <template #default="scope">
