@@ -1136,28 +1136,24 @@ func (d *Dice) registerCoreCommands() {
 				if extName == "" {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
-				// Cannot use sort.Search; requires sorting for binary search.
-				var ext *ExtInfo
-				for _, e := range ctx.Dice.ExtList {
-					if e.Name == extName {
-						if !e.IsJsExt {
-							ReplyToSender(ctx, msg, fmt.Sprintf("%s是内置模块，为了骰子的正常运行，暂不支持清除", extName))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-						ext = e
-						break
-					}
-				}
+
+				ext := ctx.Dice.ExtFind(extName)
 				if ext == nil {
 					ReplyToSender(ctx, msg, "没有找到插件"+extName)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				if !ext.IsJsExt {
+					ReplyToSender(ctx, msg, fmt.Sprintf("%s是内置模块，为了骰子的正常运行，暂不支持清除", extName))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				err := ClearExtStorage(ctx.Dice, ext, extName)
 				if err != nil {
 					ctx.Dice.Logger.Errorf("jsclear: %v", err)
 					ReplyToSender(ctx, msg, "清除数据失败，请查看日志")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
 				d.JsReload()
 				ReplyToSender(ctx, msg, fmt.Sprintf("已经清除%s数据，重新加载JS插件", extName))
 				return CmdExecuteResult{Matched: true, Solved: true}
