@@ -259,6 +259,7 @@ export const advanced = {
       text: "Javascript 插件",
       items: [
         { text: "前言", link: "/advanced/js_start" },
+        { text: "插件的工程化编写", link: "/advanced/js_project" },
         { text: "常见用法示例", link: "/advanced/js_example" },
         { text: "编写新的 TRPG 规则", link: "/advanced/js_gamesystem" },
         { text: "API 列表", link: "/advanced/js_api_list" },

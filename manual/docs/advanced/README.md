@@ -12,6 +12,7 @@ index: false
   - [编写敏感词库](./edit_sensitive_words.md)
 - Javascript 插件
   - [前言](./js_start.md)
+  - [插件的工程化编写](./js_project.md)
   - [常见用法示例](./js_example.md)
   - [编写新的 TRPG 规则](./js_gamesystem.md)
   - [API 列表](./js_api_list.md)

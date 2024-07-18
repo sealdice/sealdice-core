@@ -103,6 +103,7 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 ## 单 JS 文件编写插件
 
 我们更推荐使用 TypeScript 来编写插件，编译到 ES6 后使用即可。不过先从 JavaScript 开始也是没有任何问题的。
+
 编写插件时，可以下载海豹提供的 [seal.d.ts](https://raw.githubusercontent.com/sealdice/sealdice-js-ext-template/master/types/seal.d.ts) 文件，将其保存在和你要编写的 JS 文件同级的目录下。
 
 `seal.d.ts` 支持了在使用 vscode 等工具编写时，对海豹提供的 API 的代码补全。
@@ -115,85 +116,19 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 
 :::
 
-## 使用 TS 模板
+## 插件的工程化编写
 
-如果你打算使用 TypeScript，海豹提供了相应的 [模板工程](https://github.com/sealdice/sealdice-js-ext-template)，注册扩展和指令的代码已经写好，可以直接编译出一个可直接装载的 JS 扩展文件。
+如果你打算使用 TypeScript，或者需要编写大型插件，希望更加工程化以方便维护，见 [插件的工程化编写](./js_template.md)。
 
-### clone 或下载项目
+::: tip 插件的工程化编写
 
-推荐的流程：
+插件的工程化编写是 **为有一定经验的开发者准备的**。相关文档默认你了解如何使用前端工具链，你应当具备诸如命令行、Node.js、npm/pnpm 等工具的使用知识。
 
-1. 在 [模板项目仓库](https://github.com/sealdice/sealdice-js-ext-template) 点击 Use this template 按钮，使用该模板在自己的 GitHub 上创建一个扩展的仓库，并设置为自己的扩展的名字；
-2. `git clone` 到本地，进行开发。
+如果你对上面的内容感到陌生，请自行了解或放弃使用，手册不会介绍相关内容。
 
-如果你没有 GitHub 账号，也不会用 git：
-
-1. 在 [模板项目仓库](https://github.com/sealdice/sealdice-js-ext-template) 点击 Code 按钮，在出现的浮窗中选择 Download ZIP，这样就会下载一个压缩包；
-2. 解压后进行开发。
-
-### 使用和编译
-
-TS 插件代码需要编译为 js 文件才能被海豹核心加载。
-
-开始使用模板工程时，需要先将所需依赖包安装好。在确认你所使用的包管理器后，在命令行使用如下命令：
-
-::: tabs key:npm
-
-== npm
-
-```bash
-npm install
-```
-
-== pnpm
-
-```bash
-pnpm install
-```
+使用单 JS 文件编写插件与使用模板工程编写本质上是没有区别的，并不会出现某些功能无法使用的差异。
 
 :::
-
-当你写好了代码，需要将 ts 文件转换为 js 文件以便上传到海豹骰时，在命令行使用如下命令：
-
-::: tabs key:npm
-
-== npm
-
-```bash
-npm run build
-```
-
-== pnpm
-
-```bash
-pnpm run build
-```
-
-:::
-
-编译成功的 js 文件在 `dist` 目录下，默认的名字是 `sealdce-js-ext.js`。
-
-### 补全信息
-
-当插件开发完成后（或者开始开发时），你还需要修改几处地方：
-
-- `header.txt`：这个文件是你插件的描述信息；
-- `tools/build-config.js`：最开头一行 `var filename = 'sealdce-js-ext.js';` 改成你中意的名字，注意不要与现有的重名。
-
-### 目录结构
-
-只列出其中主要的一些文件
-
-- `src`
-  - `index.ts`：你的扩展的代码就写在这个文件里。
-- `tools`
-  - `build-config`：一些编译的配置，影响 `index.ts` 编译成 js 文件的方式；
-  - `build.js`：在命令 `npm run build` 执行时所运行的脚本，用于读取 `build-config` 并按照配置进行编译。
-- `types`
-  - `seal.d.ts`：类型文件，海豹核心提供的扩展 API。
-- `header.txt`：扩展头信息，会在编译时自动加到目标文件头部；
-- `package.json`：命令 `npm install` 时就在安装这个文件里面所指示的依赖包；
-- `tsconfig.json`：typescript 的配置。
 
 ### 扩展依赖
 
