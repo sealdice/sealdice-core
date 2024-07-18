@@ -465,7 +465,6 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 
 			// 从模板取值，模板中的设定是如果取不到获得0
 			// TODO: 目前没有好的方法去复制vm，实际上这个行为应当类似于ds中的函数调用
-			ctx.CreateVmIfNotExists()
 			ctx2 := *ctx
 			ctx2.vm = nil
 			ctx2.CreateVmIfNotExists()

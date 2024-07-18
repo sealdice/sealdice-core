@@ -114,6 +114,8 @@ var _dnd5eTmpl = &GameSystemTemplate{
 		"熟练": 2,
 	},
 	DefaultsComputed: map[string]string{
+		"pp": "10 + 察觉",
+
 		"力量调整值": "abilityModifier('力量')",
 		"体质调整值": "abilityModifier('体质')",
 		"敏捷调整值": "abilityModifier('敏捷')",

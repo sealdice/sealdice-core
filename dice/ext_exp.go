@@ -227,9 +227,12 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate, stInfo *
 				items = append(items, text)
 			} else {
 				if v.TypeId == ds.VMTypeComputedValue {
-					items = append(items, fmt.Sprintf("&%s:%s", k, v.ToString()))
+					// 我认为上游的 computed 类型的 repr 在这种情况下比较矛盾，因为计算类型需要使用赋值语句来创建
+					// repr 从设定上来讲是 value，单独的value不足以表示一个 computed，所以这里自己切一下vStr
+					vStr := v.ToString()
+					items = append(items, fmt.Sprintf("&%s:%s", k, vStr[2:len(vStr)-1]))
 				} else {
-					items = append(items, fmt.Sprintf("%s:%s", k, v.ToString()))
+					items = append(items, fmt.Sprintf("%s:%s", k, v.ToRepr()))
 				}
 			}
 		}
