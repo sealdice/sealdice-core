@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 
 	"github.com/dop251/goja"
@@ -56,6 +57,28 @@ func (d *Dice) GetDiceDataPath(name string) string {
 
 func (d *Dice) GetExtConfigFilePath(extName string, filename string) string {
 	return path.Join(d.GetExtDataDir(extName), filename)
+}
+
+// ClearExtStorage closes the extension's storage connections, deletes the extension's
+// storage.db file and restarts the database. It does not return an error if the file
+// does not exist.
+func ClearExtStorage(d *Dice, ext *ExtInfo, name string) error {
+	err := ext.StorageClose()
+	if err != nil {
+		return err
+	}
+
+	dbPath := filepath.Join(d.BaseConfig.DataDir, "extensions", name, "storage.db")
+	err = os.Remove(dbPath)
+	if errors.Is(err, os.ErrNotExist) {
+		err = nil
+	}
+	if err != nil {
+		return err
+	}
+
+	err = ext.StorageInit()
+	return err
 }
 
 func GetExtensionDesc(ei *ExtInfo) string {
