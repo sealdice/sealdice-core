@@ -59,17 +59,25 @@ func (d *Dice) GetExtConfigFilePath(extName string, filename string) string {
 	return path.Join(d.GetExtDataDir(extName), filename)
 }
 
-// ClearExtStorage stops the JS environment, deletes the extension's
-// storage.db file and restarts the JS environment. It does not return an error
-// if the file does not exist.
-func ClearExtStorage(d *Dice, name string) error {
+// ClearExtStorage closes the extension's storage connections, deletes the extension's
+// storage.db file and restarts the database. It does not return an error if the file
+// does not exist.
+func ClearExtStorage(d *Dice, ext *ExtInfo, name string) error {
+	err := ext.StorageClose()
+	if err != nil {
+		return err
+	}
+
 	dbPath := filepath.Join(d.BaseConfig.DataDir, "extensions", name, "storage.db")
-	d.JsShutdown()
-	defer d.JsInit()
-	err := os.Remove(dbPath)
+	err = os.Remove(dbPath)
 	if errors.Is(err, os.ErrNotExist) {
 		err = nil
 	}
+	if err != nil {
+		return err
+	}
+
+	err = ext.StorageInit()
 	return err
 }
 
