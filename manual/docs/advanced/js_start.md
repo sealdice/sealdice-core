@@ -23,7 +23,7 @@ title: 前言
 ## 快速开始
 
 > **JavaScript**（**JS**）虽然作为 Web 页面中的脚本语言被人所熟知，但是它也被用到了很多 [非浏览器环境](https://zh.wikipedia.org/wiki/JavaScript#其他) 中，例如 [Node.js](https://developer.mozilla.org/zh-CN/docs/Glossary/Node.js)、[Apache CouchDB](https://couchdb.apache.org/)、[Adobe Acrobat](https://opensource.adobe.com/dc-acrobat-sdk-docs/acrobatsdk/) 等。
-<!-- > <p style="text-align:right"><i>—— 来自 MDN 文档</i></p> -->
+> <p style="text-align:right"><i>—— 来自 MDN 文档</i></p> <!-- markdownlint-disable-line MD033 -->
 
 海豹的 JS 插件就是运行在一个非浏览器环境中—— [goja](https://github.com/dop251/goja) 作为 JS 脚本引擎所提供的环境，该环境目前支持了 ES6 基本上全部的特性，包括 `async/await`、`promise` 和 `generator` 等异步编程友好的特性。
 
@@ -70,7 +70,7 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 
 :::
 
-### 插件元数据
+## 插件元数据
 
 每个 JS 扩展需要在开头以固定格式注释的形式留下信息，以便使用和分享，这些信息通常被称为「插件元数据」：
 
@@ -100,7 +100,9 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 | @depends <Badge type="tip" text="v1.4.4"/>     | 可选，从 <Badge type="tip" text="v1.4.4"/> 加入，指定你的扩展依赖的其他扩展，**可以不含此行或含有多行**。详见 [依赖其他扩展](#依赖其他扩展)               |
 | @sealVersion <Badge type="tip" text="v1.4.5"/> | 可选，从 <Badge type="tip" text="v1.4.5"/> 加入，指定你的扩展的目标海豹版本。详见 [目标海豹版本](#目标海豹版本)                               |
 
-## 单 JS 文件编写插件
+## 插件编写
+
+### 单 JS 文件编写插件
 
 我们更推荐使用 TypeScript 来编写插件，编译到 ES6 后使用即可。不过先从 JavaScript 开始也是没有任何问题的。
 
@@ -116,7 +118,7 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 
 :::
 
-## 插件的工程化编写
+### 插件的工程化编写
 
 如果你打算使用 TypeScript，或者需要编写大型插件，希望更加工程化以方便维护，见 [插件的工程化编写](./js_project.md)。
 
@@ -130,9 +132,9 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 
 :::
 
-### 扩展依赖
+## 扩展依赖
 
-#### 依赖其他扩展 <Badge type="tip" text="v1.4.4"/>
+### 依赖其他扩展 <Badge type="tip" text="v1.4.4"/>
 
 有些时候，你的扩展依赖于另一个扩展提供的功能，希望在缺失对应扩展时不进行这个插件的加载。
 
@@ -140,7 +142,7 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 
 从 <Badge type="tip" text="v1.4.4"/> 开始，你可以在 [插件元数据](#填写插件信息) 中通过 `@depends` 来指定扩展依赖的其他扩展。
 
-#### 指定依赖的格式
+### 指定依赖的格式
 
 指定依赖的格式为 `作者:插件名[:SemVer版本约束，可选]`，其中 `:` 是分隔符，注意必须是半角符号。
 
@@ -190,7 +192,7 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 
 :::
 
-##### 依赖多个扩展
+### 依赖多个扩展
 
 依赖可以是多个，每一行指定一个 `@depends`，这意味着这个插件需要同时满足所有的依赖才能工作。
 
@@ -208,7 +210,7 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 
 此时，这个插件需要同时安装 `SzzRain:定时任务`（且版本大于等于 `2.0.0`）和 `sealdice:强制依赖` 这两个插件时，才能正常加载。
 
-#### 目标海豹版本 <Badge type="tip" text="v1.4.5"/>
+## 目标海豹版本 <Badge type="tip" text="v1.4.5"/>
 
 新版本的海豹有时会增加更多插件可以调用的 API，但会出现使用旧版本海豹的骰主，去尝试加载使用了新 API 的插件而出错的情况。
 
@@ -227,3 +229,11 @@ console 打印出来的东西不仅会在控制台中出现，在日志中也会
 ## 一些有帮助的资源
 
 VS Code 可以安装 [SealDice Snippets](https://marketplace.visualstudio.com/items?itemName=yxChangingSelf.sealdice-snippets) 插件，提供了一些常见代码片段，帮助快速生成模板代码。
+
+## 其他问题
+
+### 我不会 JavaScript，海豹支持其他编程语言编写插件吗？
+
+这个问题分为两个部分，如果你所说的其他编程语言为 **Python、Lua 等与 JavaScript 无关的编程语言，那么目前是无法使用这些语言编写海豹插件的**。如果你有一些其它骰系的插件（比如一些 Lua 插件），你只能通过按原逻辑重写为海豹 JavaScript 插件的方式来在海豹中使用。
+
+但是有些编程语言是可以编译为 JavaScript 的，典型的像 TypeScript、CoffeeScript。这些语言在编写时使用它们自己，最后只要编译成 JavaScript 就可以在海豹中使用了。

@@ -5,7 +5,16 @@ title: API 列表
 
 # API 列表
 
-> 这里只是粗略的整理，具体请看 [jsvm 源码](https://github.com/sealdice/sealdice-core/blob/master/dice/dice_jsvm.go)。
+::: info 本节内容
+
+本节为海豹提供的 JS API 列表。目前的内容是从上古文档中直接迁移过来的，难免存在错误和缺失，参考本节时请注意识别。
+
+更好的方式是参考海豹提供的 [seal.d.ts](https://raw.githubusercontent.com/sealdice/sealdice-js-ext-template/master/types/seal.d.ts) 文件。（但同样存在缺失）
+
+如果你需要最准确的内容，当前只能查阅海豹源码。主要查看 [dice_jsvm.go](https://github.com/sealdice/sealdice-core/blob/master/dice/dice_jsvm.go)，还有一些 API 以结构体方法的形式存在。
+
+:::
+
 > 其中 ctx 为信息的 MsgContext，msg 为信息的 Message，一般会在定义指令函数时就声明，如：
 
 ```javascript
@@ -51,8 +60,8 @@ seal.applyPlayerGroupCardByTemplate(ctx, tmpl) // 设定当前 ctx 玩家的自�
 seal.gameSystem.newTemplate(string) //从 json 解析新的游戏规则。
 seal.gameSystem.newTemplateByYaml(string) //从 yaml 解析新的游戏规则。
 seal.getCtxProxyAtPos(ctx, pos) //获取第 pos 个被 at 的人，pos 从 0 开始计数
-seal.atob(base64String) //返回被解码的 base64 编码
-seal.btoa(string) //将 string 编码为 base64 并返回
+atob(base64String) //返回被解码的 base64 编码
+btoa(string) //将 string 编码为 base64 并返回
 
 //下面是 1.4.1 新增 api
 seal.ext.newConfigItem() //用于创建一个新的配置项，返回一个 ConfigItem 对象
