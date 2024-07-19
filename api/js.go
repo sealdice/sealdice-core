@@ -137,9 +137,13 @@ func jsReload(c echo.Context) error {
 			"testMode": true,
 		})
 	}
-
-	// myDice.JsLock.Lock()
-	// defer myDice.JsLock.Unlock()
+	// 尝试取锁，如果取不到，说明正在后台重载中
+	// TODO:用户提示模式？
+	locked := myDice.JsReloadLock.TryLock()
+	if !locked {
+		return c.JSON(400, nil)
+	}
+	defer myDice.JsReloadLock.Unlock()
 	myDice.JsReload()
 	return c.JSON(200, nil)
 }
