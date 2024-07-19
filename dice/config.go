@@ -363,7 +363,16 @@ func (cm *ConfigManager) Load() error {
 	}(file)
 
 	decoder := json.NewDecoder(file)
-	return decoder.Decode(&cm.Plugins)
+	err = decoder.Decode(&cm.Plugins)
+	if err != nil {
+		return err
+	}
+	for i := range cm.Plugins {
+		for j := range cm.Plugins[i].Configs {
+			cm.Plugins[i].Configs[j].Deprecated = true
+		}
+	}
+	return nil
 }
 
 func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
