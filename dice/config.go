@@ -1386,6 +1386,15 @@ func setupBaseTextTemplate(d *Dice) {
 			"死亡豁免_结局_角色死亡": {
 				SubType: ".ds/死亡豁免",
 			},
+			"受到伤害_超过HP上限_附加语": {
+				SubType: ".st hp-3",
+			},
+			"受到伤害_昏迷中_附加语": {
+				SubType: ".st hp-3",
+			},
+			"受到伤害_进入昏迷_附加语": {
+				SubType: ".st hp-3",
+			},
 			"制卡_分隔符": {
 				SubType: ".dnd 2/.dndx 3",
 			},
