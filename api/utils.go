@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/alexmullins/zip"
 	"github.com/labstack/echo/v4"
@@ -165,4 +166,51 @@ func checkUidExists(c echo.Context, uid string) bool {
 		}
 	}
 	return false
+}
+
+var timeout = 5 * time.Second
+
+func checkNetworkHealth(c echo.Context) error {
+	total := 5 // baidu, seal, sign, google, github
+	var ok []string
+	baiduOk := checkHTTPConnectivity([]string{"https://baidu.com"}, timeout)
+	if baiduOk {
+		ok = append(ok, "baidu")
+	}
+	sealOk := checkHTTPConnectivity(dice.BackendUrls, timeout)
+	if sealOk {
+		ok = append(ok, "seal")
+	}
+	signOk := checkHTTPConnectivity([]string{"https://sign.lagrangecore.org/api/sign/ping"}, timeout)
+	if signOk {
+		ok = append(ok, "sign")
+	}
+	googleOk := checkHTTPConnectivity([]string{"https://google.com"}, timeout)
+	if googleOk {
+		ok = append(ok, "google")
+	}
+	githubOk := checkHTTPConnectivity([]string{"https://github.com"}, timeout)
+	if githubOk {
+		ok = append(ok, "github")
+	}
+	return Success(&c, Response{
+		"total":     total,
+		"ok":        ok,
+		"timestamp": time.Now().Unix(),
+	})
+}
+
+func checkHTTPConnectivity(urls []string, timeout time.Duration) bool {
+	client := http.Client{
+		Timeout: timeout,
+	}
+	ok := false
+	for _, url := range urls {
+		_, err := client.Get(url)
+		if err == nil {
+			ok = true
+			break
+		}
+	}
+	return ok
 }
