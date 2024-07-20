@@ -128,6 +128,17 @@ function imagePreviews(view: EditorView): DecorationSet {
             widgets.push(deco.range(to))
           }
 
+          // ob11 - llob(new2)
+          m = /file=\{([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)}([^\]]+?)\]/.exec(text) as RegExpExecArray
+          if (m) {
+            const url = `https://gchat.qpic.cn/gchatpic_new/0/0-0-${m[1]}${m[2]}${m[3]}${m[4]}${m[5]}/0?term=2,subType=1`
+            let deco = Decoration.widget({
+              widget: new CheckboxWidget(url),
+              side: 0
+            })
+            widgets.push(deco.range(to))
+          }
+
           // ob11 - llob(new)
           m = /file=([A-Za-z0-9]{32,64})(\.[a-zA-Z]+?)\]/.exec(text) as RegExpExecArray
           if (m) {

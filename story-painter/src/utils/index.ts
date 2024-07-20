@@ -46,6 +46,7 @@ export function msgImageFormat(msg: string, options: any, htmlText = false) {
       msg = msg.replaceAll(/\[CQ:image,file=file:\/\/[^\]]+([A-Za-z0-9]{32})(\.[a-zA-Z]+?)\]/g, (m, p1) => {
         return `<img style="max-width: 300px" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-${p1.toUpperCase()}/0?term=2,subType=1" />`
       })
+      msg = msg.replaceAll(/\[CQ:image,file=\{([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)}([^\]]+?)\]/g, '<img style="max-width: 300px" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$1$2$3$4$5/0?term=2" />')
     }
   }
 
