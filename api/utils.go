@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/alexmullins/zip"
@@ -173,45 +174,42 @@ var timeout = 5 * time.Second
 func checkNetworkHealth(c echo.Context) error {
 	total := 5 // baidu, seal, sign, google, github
 	var ok []string
-	baiduOk := checkHTTPConnectivity([]string{"https://baidu.com"}, timeout)
-	if baiduOk {
-		ok = append(ok, "baidu")
+	var wg sync.WaitGroup
+	wg.Add(total)
+	rsChan := make(chan string, 5)
+
+	checkHTTPConnectivity := func(target string, urls []string) {
+		defer wg.Done()
+		client := http.Client{
+			Timeout: timeout,
+		}
+		for _, url := range urls {
+			resp, err := client.Get(url)
+			if err == nil {
+				_ = resp.Body.Close()
+				rsChan <- target
+				break
+			}
+		}
 	}
-	sealOk := checkHTTPConnectivity(dice.BackendUrls, timeout)
-	if sealOk {
-		ok = append(ok, "seal")
+	go checkHTTPConnectivity("baidu", []string{"https://baidu.com"})
+	go checkHTTPConnectivity("seal", dice.BackendUrls)
+	go checkHTTPConnectivity("sign", []string{"https://sign.lagrangecore.org/api/sign/ping"})
+	go checkHTTPConnectivity("google", []string{"https://google.com"})
+	go checkHTTPConnectivity("github", []string{"https://github.com"})
+
+	go func() {
+		wg.Wait()
+		close(rsChan)
+	}()
+
+	for targetOk := range rsChan {
+		ok = append(ok, targetOk)
 	}
-	signOk := checkHTTPConnectivity([]string{"https://sign.lagrangecore.org/api/sign/ping"}, timeout)
-	if signOk {
-		ok = append(ok, "sign")
-	}
-	googleOk := checkHTTPConnectivity([]string{"https://google.com"}, timeout)
-	if googleOk {
-		ok = append(ok, "google")
-	}
-	githubOk := checkHTTPConnectivity([]string{"https://github.com"}, timeout)
-	if githubOk {
-		ok = append(ok, "github")
-	}
+
 	return Success(&c, Response{
 		"total":     total,
 		"ok":        ok,
 		"timestamp": time.Now().Unix(),
 	})
-}
-
-func checkHTTPConnectivity(urls []string, timeout time.Duration) bool {
-	client := http.Client{
-		Timeout: timeout,
-	}
-	ok := false
-	for _, url := range urls {
-		resp, err := client.Get(url)
-		if err == nil {
-			ok = true
-			break
-		}
-		_ = resp.Body.Close()
-	}
-	return ok
 }
