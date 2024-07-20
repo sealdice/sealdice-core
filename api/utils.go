@@ -206,11 +206,12 @@ func checkHTTPConnectivity(urls []string, timeout time.Duration) bool {
 	}
 	ok := false
 	for _, url := range urls {
-		_, err := client.Get(url)
+		resp, err := client.Get(url)
 		if err == nil {
 			ok = true
 			break
 		}
+		_ = resp.Body.Close()
 	}
 	return ok
 }
