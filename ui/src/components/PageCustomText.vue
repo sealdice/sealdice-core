@@ -123,6 +123,10 @@
                 </div>
               </template>
 
+              <el-text v-if="k.toString() === '戳一戳'" type="warning" size="small" class="mb-1">
+                请确认你使用的 QQ 连接方式支持该功能，若不支持请于「基本设置」中关闭戳一戳来避免日志中出现相关报错。
+              </el-text>
+
               <div v-for="(k2, index) in v" style="width: 100%; margin-bottom: .5rem;">
                 <!-- 这里面是单条修改项 -->
                 <el-row>
