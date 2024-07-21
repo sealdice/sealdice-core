@@ -251,6 +251,16 @@ export const useStore = defineStore('main', {
       return await backend.post(urlPrefix + '/utils/check_cron_expr', {expr: expr}) as any
     },
 
+    async checkNetworkHealth() {
+      const result: {
+        result: true,
+        total: number,
+        ok: string[],
+        timestamp: number
+      } | { result: false } =  await backend.get(urlPrefix + '/utils/check_network_health') 
+      return result
+    },
+
     async addImConnection(form: addImConnectionForm ) {
       const {
         accountType,

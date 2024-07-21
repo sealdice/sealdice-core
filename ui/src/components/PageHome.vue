@@ -3,16 +3,8 @@
     <el-button type="default" class="btn-scrolldown" :icon="CaretBottom" circle @click="scrollDown"></el-button>
   </Teleport>
 
-  <p style="display: flex;justify-content: space-between;">
-    <span style="display: flex; align-items: center;">
-      <span>内存占用: </span>
-      <span>{{filesize(store.curDice.baseInfo.memoryUsedSys || 0)}}</span>
-      <el-tooltip raw-content content="理论内存占用，偏大。任务管理器中的“活动内存”为实际使用的系统内存">
-        <el-icon><question-filled /></el-icon>
-      </el-tooltip>
-    </span>
-
-    <span style="display: flex; align-self: flex-end; flex-direction: column;">
+  <div style="display: flex; justify-content: flex-end; align-items: center">
+    <div style="display: flex; flex-direction: column;">
       <el-tooltip v-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode && store.curDice.baseInfo.containerMode"
                   content="容器模式下禁止直接更新，请手动拉取最新镜像">
         <el-button type="primary" disabled>升级新版</el-button>
@@ -21,9 +13,52 @@
                  type="primary" @click="upgradeDialogVisible = true">
         升级新版
       </el-button>
-      <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
-    </span>
-  </p>
+    </div>
+  </div>
+
+  <h4>状态</h4>
+  <div class="flex flex-col justify-center gap-4">
+    <div class="flex items-center flex-wrap gap-1">
+      <span>内存占用：</span>
+      <span class="mr-2">{{filesize(store.curDice.baseInfo.memoryUsedSys || 0)}}</span>
+      <el-text size="small" type="info">理论内存占用，数值偏大。系统任务管理器中的「活动内存」才是实际使用的系统内存。</el-text>
+    </div>
+
+    <div class="flex items-center flex-wrap gap-1" @click="refreshNetworkHealth">
+      <el-tooltip raw-content content="点击重新进行检测">
+        <span>网络质量：</span>
+      </el-tooltip>
+
+      <el-text type="primary" v-if="networkHealth.timestamp === 0">检测中…… 🤔</el-text>
+      <el-text type="success" v-else-if="networkHealth.total !== 0 && networkHealth.total === networkHealth.ok?.length">优 😄</el-text>
+      <el-text type="primary" v-else-if="networkHealth.ok?.includes('sign') && networkHealth.ok?.includes('seal')">一般 😐️</el-text>
+      <el-text type="danger" v-else-if="networkHealth.total !== 0 && (networkHealth.ok ?? []).length === 0">网络中断 😱</el-text>
+      <template v-else>
+        <el-text type="warning" class="mr-4">差 ☹️</el-text>
+        <el-text type="warning" size="small">这意味着你可能无法正常使用内置客户端/Lagrange 连接 QQ 平台，有时会出现消息无法正常发送的现象。</el-text>
+      </template>
+    
+      <el-tooltip v-if="networkHealth.timestamp !== 0">
+        <template #content>
+          {{ dayjs.unix(networkHealth.timestamp).format('YYYY-MM-DD HH:mm:ss') }}
+        </template>
+        <el-text class="ml-auto" type="info" size="small">检测于 {{ dayjs.unix(networkHealth.timestamp).from(now) }}</el-text>
+      </el-tooltip>
+    </div>
+
+    <div v-if="networkHealth.timestamp !== 0" class="mx-2 flex items-center gap-4">
+      <el-text size="small">官网 <component :is="getWebsiteHealthComponent(networkHealth.ok?.includes('seal'))"></component></el-text>
+      <el-text size="small">Lagrange Sign <component :is="getWebsiteHealthComponent(networkHealth.ok?.includes('sign'))"></component></el-text>
+      <el-text size="small">Google <component :is="getWebsiteHealthComponent(networkHealth.ok?.includes('google'))"></component></el-text>
+      <el-text size="small">GitHub <component :is="getWebsiteHealthComponent(networkHealth.ok?.includes('github'))"></component></el-text>
+    </div>
+  </div>
+
+  <div class="flex justify-between items-center">
+    <h4>日志</h4>
+    <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
+  </div>
+
   <div class="hidden md:block p-0 logs">
     <el-table :data="store.curDice.logs"
               :row-class-name="getLogRowClassName" :header-cell-style="{backgroundColor: '#f3f5f7'}">
@@ -123,28 +158,33 @@
   </div> -->
 </template>
 
-<script lang="ts" setup>
+<script lang="tsx" setup>
 import { Timer, CaretBottom } from '@element-plus/icons-vue'
 import { useStore } from '~/store';
-import * as dayjs from 'dayjs'
+import dayjs from 'dayjs';
 import {filesize} from 'filesize'
 import {
-  Location,
-  Document,
-  Menu as IconMenu,
-  Setting,
-  CirclePlusFilled,
-  CircleClose,
-  QuestionFilled,
-  BrushFilled
+  CircleCheckFilled,
+  CircleCloseFilled,
 } from '@element-plus/icons-vue'
 
 const store = useStore()
 
 const upgradeDialogVisible = ref(false)
 const autoRefresh = ref(true)
+const now = ref<dayjs.Dayjs>(dayjs())
+const networkHealth = ref({
+  total: 0,
+  ok: [],
+  timestamp: 0
+} as {
+  total: number,
+  ok: string[],
+  timestamp: number
+})
 
 let timerId: number
+let checkTimerId: number
 
 const doUpgrade = async () => {
   upgradeDialogVisible.value = false
@@ -186,20 +226,38 @@ const getLogRowClassName = ({ row }: { row: any }) => {
   }
 }
 
+const getWebsiteHealthComponent = (ok: boolean): VNode => <>
+  {ok ? <el-icon color={'var(--el-color-success)'}><CircleCheckFilled /></el-icon> : <el-icon color={'var(--el-color-danger)'}><CircleCloseFilled /></el-icon>}
+</>
+
+const refreshNetworkHealth = async () => {
+  networkHealth.value.timestamp = 0
+  const ret = await store.checkNetworkHealth()
+  if (ret.result) {
+    networkHealth.value = ret
+  }
+}
+
 onBeforeMount(async () => {
   if (autoRefresh.value) {
     await store.logFetchAndClear()
+    await refreshNetworkHealth()
   }
 
   timerId = setInterval(() => {
     if (autoRefresh.value) {
       store.logFetchAndClear()
     }
+    now.value = dayjs()
   }, 5000) as any
+  checkTimerId = setInterval(async () => {
+    await refreshNetworkHealth()
+  }, 5 * 60 * 1000) as any // 5 min 一次
 })
 
 onBeforeUnmount(() => {
   clearInterval(timerId)
+  clearInterval(checkTimerId)
 })
 </script>
 

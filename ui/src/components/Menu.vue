@@ -3,11 +3,9 @@
            :background-color="props.type === 'dark' ? twColors.gray[600] : undefined"
            :text-color="props.type === 'dark' ? '#fff' : undefined"
            router :default-active="route.path">
-    <el-menu-item index="/log">
-      <el-icon>
-        <location/>
-      </el-icon>
-      <span>日志</span>
+    <el-menu-item index="/home">
+      <el-icon><home-filled /></el-icon>
+      <span>主页</span>
     </el-menu-item>
 
     <el-menu-item index="/connect">
@@ -121,7 +119,7 @@
 
 <script setup lang="ts">
 import {
-  Location,
+  HomeFilled,
   Connection,
   Setting,
   Star,

@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import PageAbout from '~/components/PageAbout.vue';
-import PageLog from '~/components/PageLog.vue';
+import PageHome from '~/components/PageHome.vue';
 import PageConnectInfoItems from '~/components/PageConnectInfoItems.vue';
 import PageCustomText from '~/components/PageCustomText.vue';
 import PageCustomReply from '~/components/mod/PageCustomReply.vue';
@@ -20,7 +20,7 @@ import PageMiscAdvancedSettings from '~/components/misc/PageMiscAdvancedSettings
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/log', name: 'log', component: PageLog },
+    { path: '/home', name: 'home', component: PageHome },
     { path: '/connect', component: PageConnectInfoItems },
     { path: '/custom-text/:category', component: PageCustomText, props: true },
     {
@@ -52,7 +52,7 @@ const router = createRouter({
       ]
     },
     { path: '/about', component: PageAbout },
-    { path: '/:catchAll(.*)', name: 'default', redirect: { name: 'log' } },
+    { path: '/:catchAll(.*)', name: 'default', redirect: { name: 'home' } },
   ]
 })
 
