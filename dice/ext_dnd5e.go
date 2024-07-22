@@ -215,6 +215,28 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			return nil
 		},
 		ToExport: toExport,
+		ToShow: func(ctx *MsgContext, k string, v *ds.VMValue, tmpl *GameSystemTemplate) string {
+			// 附加文本，用于处理buff值
+			// 对于带buff的值，st show值后面带上 [x] 其中x为本值
+			suffixText := ""
+			ctx.CreateVmIfNotExists()
+			orgV, err := ctx.vm.RunExpr("$org_"+k, true)
+			if orgV != nil {
+				if orgV.TypeId == ds.VMTypeComputedValue {
+					return "" // 一般有特殊的处理，直接放弃
+				}
+
+				vOut := orgV.ToString() // 这是原始值，未经buff的
+				if vOut != v.ToString() {
+					suffixText = fmt.Sprintf("[%s]", vOut)
+				}
+				if err != nil {
+					suffixText = fmt.Sprintf("[%s]", err.Error())
+				}
+			}
+
+			return fmt.Sprintf("%s:%s%s", k, v.ToString(), suffixText)
+		},
 		ToMod: func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool {
 			over := args.GetKwarg("over")
 			attrName := tmpl.GetAlias(i.name)

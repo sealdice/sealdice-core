@@ -269,30 +269,82 @@ func (ctx *MsgContext) setCocPrefixReadForVM(cb func(cocFlagVarPrefix string)) {
 	}
 }
 
-func tryLoadByBuff(ctx *MsgContext, varname string, curVal *ds.VMValue) *ds.VMValue {
+func tryLoadByBuff(ctx *MsgContext, varname string, curVal *ds.VMValue, computedOnly bool, detail *ds.BufferSpan) (*ds.VMValue, bool) {
 	buffName := "$buff_" + varname
+	replaced := false
+
 	am := ctx.Dice.AttrsManager
 	if attrs, _ := am.LoadByCtx(ctx); attrs != nil {
-		v := attrs.Load(buffName)
-		if v != nil {
-			newVal := curVal.OpAdd(ctx.vm, v)
+		buffVal := attrs.Load(buffName)
+		if buffVal != nil {
+			if curVal.TypeId == ds.VMTypeComputedValue && buffVal.TypeId == ds.VMTypeComputedValue {
+				// 当buff值也是computed的情况下，进行叠加
+				newVal := curVal.Clone()
+				cdCur, _ := newVal.ReadComputed()
+				cdBuff, _ := curVal.ReadComputed()
+				// 将computed的内部值进行相加
+				cdBuff.Attrs.Range(func(key string, value *ds.VMValue) bool {
+					if v, ok := cdCur.Attrs.Load(key); ok {
+						vAddRet := v.OpAdd(ctx.vm, value)
+						ctx.vm.Error = nil
+						if vAddRet != nil {
+							cdCur.Attrs.Store(key, vAddRet)
+						}
+					}
+					return true
+				})
+
+				return newVal, true // 读取完成后使用新的值，对这个值的修改不会反馈到原值
+			}
+
+			if computedOnly {
+				return curVal, false
+			}
+
+			detail.Text += fmt.Sprintf("buff+%s", buffVal.ToString())
+			newVal := curVal.OpAdd(ctx.vm, buffVal)
+			ctx.vm.Error = nil
 			if newVal != nil {
 				curVal = newVal
+				detail.Ret = newVal
+				replaced = true
 			}
 		}
 	}
-	return curVal
+	return curVal, replaced
 }
 
-// setDndReadForVM 主要是为rc设定属性豁免，暂时没有写在规则模板的原因是可以自定义detail输出
+// setDndReadForVM 主要是为rc设定属性豁免，暂时没有写在规则模板的原因是可以自定义detail输出。
+// 更新: 属性豁免已经能被规则模板描述，现在是为了buff机制、属性和技能检定，希望能逐渐移动到规则模板
 func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 	var skip bool
-	ctx.vm.Config.HookFuncValueLoadOverwrite = func(vm *ds.Context, varname string, curVal *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
+	loadBuff := true
+
+	ctx.vm.Config.HookFuncValueLoadOverwrite = func(vm *ds.Context, varname string, curVal *ds.VMValue, doCompute func(curVal *ds.VMValue) *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
+		if strings.HasPrefix(varname, "$org_") {
+			varname, _ = strings.CutPrefix(varname, "$org_")
+			curVal = vm.LoadName(varname, true, false)
+			return curVal
+		}
+
+		if loadBuff {
+			// 这里只处理一种情况：原值是computed，buff也是computed
+			curVal, _ = tryLoadByBuff(ctx, varname, curVal, true, detail)
+		}
+
+		curVal = doCompute(curVal)
+		if curVal == nil {
+			return nil
+		}
+
+		if loadBuff {
+			curVal, _ = tryLoadByBuff(ctx, varname, curVal, false, detail)
+		}
+
 		if !skip && rcMode {
 			// rc时将属性替换为调整值，只在0级起作用，避免在函数调用等地方造成影响
-			if isAbilityScores(varname) && vm.Depth() == 0 && vm.UpCtx == nil {
+			if isAbilityScores(varname) && vm.Depth() == 0 {
 				if curVal != nil && curVal.TypeId == ds.VMTypeInt {
-					curVal = tryLoadByBuff(ctx, varname, curVal)
 					mod := curVal.MustReadInt()/2 - 5
 					if detail != nil {
 						detail.Tag = "dnd-rc"
@@ -305,7 +357,8 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 				base, err := ctx.SystemTemplate.GetRealValue(ctx, name)
 				v := curVal.MustReadInt()
 				if err == nil {
-					ab := tryLoadByBuff(ctx, name, base)
+					// ab := tryLoadByBuff(ctx, name, base)
+					ab := base
 					mod := ab.MustReadInt()/2 - 5
 
 					detail.Tag = "dnd-rc"
@@ -326,55 +379,6 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 					detail.Text += fmt.Sprintf("+%s%d", varname, v)
 				}
 			}
-		}
-
-		switch varname {
-		case "力量豁免", "敏捷豁免", "体质豁免", "智力豁免", "感知豁免", "魅力豁免":
-			vName := strings.TrimSuffix(varname, "豁免")
-			if ctx.SystemTemplate != nil {
-				// NOTE: 1.4.4 版本新增，此处逻辑是为了使 "XX豁免" 中的 XX 能被同义词所替换
-				vName = ctx.SystemTemplate.GetAlias(vName)
-			}
-			stpName := stpFormat(vName) // saving throw proficiency
-			expr := fmt.Sprintf("pbCalc(0, %s ?? 0, (%s ?? 0 + %s ?? 0))", stpName, vName, "$buff_"+vName)
-			skip = true
-			ret, err := ctx.vm.RunExpr(expr, false)
-			skip = false
-			if err != nil {
-				return curVal
-			}
-
-			if detail != nil && detail.Tag != "" {
-				detail.Ret = ret
-
-				var detailParts []string
-				checkAndAppend := func(detailName string, ret2 *ds.VMValue) {
-					if ret2.TypeId == ds.VMTypeInt {
-						v := ret2.MustReadInt()
-						if v != 0 {
-							detailParts = append(detailParts, fmt.Sprintf("%s%d", detailName, v))
-						}
-					} else if ret2.TypeId == ds.VMTypeFloat {
-						v := ret2.MustReadFloat()
-						if v != 0 {
-							// 这里用toStr的原因是%f会打出末尾一大串0
-							detailParts = append(detailParts, fmt.Sprintf("%s%s", detailName, ret2.ToString()))
-						}
-					}
-				}
-
-				if ret2, _ := ctx.vm.RunExpr(fmt.Sprintf("(%s ?? 0 + %s ?? 0)/2-5", vName, "$buff_"+vName), false); ret2 != nil {
-					checkAndAppend("调整值", ret2)
-				}
-				ctx.vm.Error = nil
-				if ret2, _ := ctx.vm.RunExpr(stpName+" * (熟练??0)", false); ret2 != nil {
-					checkAndAppend("熟练", ret2)
-				}
-
-				detail.Text = strings.Join(detailParts, "+")
-				ctx.vm.Error = nil
-			}
-			return ret
 		}
 
 		return curVal
@@ -493,6 +497,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		return curVal
 	}
 
+	mctx := ctx
 	ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
 		detailResult := dataBuffer[:len(ctx.Matched)]
 
@@ -505,6 +510,31 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			tag   string
 			spans []ds.BufferSpan
 			val   *ds.VMValue
+		}
+
+		// 特殊机制: 从模板读取detail进行覆盖
+		for index, i := range details {
+			if i.Tag == "load" && mctx.SystemTemplate != nil && ctx.UpCtx == nil {
+				expr := string(detailResult[i.Begin:i.End])
+				detailExpr := mctx.SystemTemplate.DetailOverwrite[expr]
+				if detailExpr == "" {
+					// 如果没有，尝试使用通配
+					detailExpr = mctx.SystemTemplate.DetailOverwrite["*"]
+					if detailExpr != "" {
+						// key 应该是等于expr的
+						ctx.StoreNameLocal("name", ds.NewStrVal(expr))
+					}
+				}
+				if detailExpr != "" {
+					v, err := ctx.RunExpr(detailExpr, true)
+					if v != nil {
+						details[index].Text = v.ToString()
+					}
+					if err != nil {
+						details[index].Text = err.Error()
+					}
+				}
+			}
 		}
 
 		var m []Group
