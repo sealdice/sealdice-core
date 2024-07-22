@@ -530,11 +530,74 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		ToSet: func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool {
 			attrName := tmpl.GetAlias(i.name)
 			i.name = "$buff_" + attrName
+
+			parent := dndAttrParent[attrName]
+			if parent != "" {
+				m := ds.ValueMap{}
+				m.Store("base", i.value)
+
+				if i.extra != nil {
+					m.Store("factor", i.extra)
+				} else {
+					m.Delete("factor")
+				}
+				i.value = ds.NewComputedValRaw(&ds.ComputedData{
+					Expr:  "[this.base, this.factor]", // 他的expr无意义
+					Attrs: &m,
+				})
+			} else if isAbilityScores(attrName) {
+				// 如果为主要属性，同时读取豁免值
+				if i.extra != nil {
+					attrs.Store("$buff_"+stpFormat(attrName), i.extra)
+				} else {
+					attrs.Delete("$buff_" + stpFormat(attrName))
+				}
+			}
+
 			return false
 		},
 		ToMod: func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool {
 			attrName := tmpl.GetAlias(i.name)
 			i.name = "$buff_" + attrName
+
+			// 处理技能
+			parent := dndAttrParent[attrName]
+			if parent != "" {
+				val := attrs.Load(attrName)
+
+				if val == nil {
+					// 如果不存在，先创建
+					m := ds.ValueMap{}
+					m.Store("base", ds.NewIntVal(0))
+					m.Store("factor", ds.NewIntVal(0))
+
+					val = ds.NewComputedValRaw(&ds.ComputedData{
+						Expr:  "[this.base, this.factor]",
+						Attrs: &m,
+					})
+					attrs.Store(attrName, val)
+				}
+
+				if val.TypeId == ds.VMTypeComputedValue {
+					cd, _ := val.ReadComputed()
+					base, _ := cd.Attrs.Load("base")
+					if base == nil {
+						base = ds.NewIntVal(0)
+					}
+					var vNew *ds.VMValue
+					if i.op == "+" {
+						vNew = base.OpAdd(ctx.vm, i.value)
+					}
+					if i.op == "-" {
+						vNew = base.OpSub(ctx.vm, i.value)
+					}
+					if vNew != nil {
+						cd.Attrs.Store("base", vNew)
+						return true
+					}
+				}
+			}
+
 			return false
 		},
 	})

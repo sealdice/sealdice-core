@@ -277,31 +277,36 @@ func tryLoadByBuff(ctx *MsgContext, varname string, curVal *ds.VMValue, computed
 	if attrs, _ := am.LoadByCtx(ctx); attrs != nil {
 		buffVal := attrs.Load(buffName)
 		if buffVal != nil {
-			if curVal.TypeId == ds.VMTypeComputedValue && buffVal.TypeId == ds.VMTypeComputedValue {
-				// 当buff值也是computed的情况下，进行叠加
-				newVal := curVal.Clone()
-				cdCur, _ := newVal.ReadComputed()
-				cdBuff, _ := curVal.ReadComputed()
-				// 将computed的内部值进行相加
-				cdBuff.Attrs.Range(func(key string, value *ds.VMValue) bool {
-					if v, ok := cdCur.Attrs.Load(key); ok {
-						vAddRet := v.OpAdd(ctx.vm, value)
-						ctx.vm.Error = nil
-						if vAddRet != nil {
-							cdCur.Attrs.Store(key, vAddRet)
-						}
-					}
-					return true
-				})
-
-				return newVal, true // 读取完成后使用新的值，对这个值的修改不会反馈到原值
-			}
-
 			if computedOnly {
+				if curVal.TypeId == ds.VMTypeComputedValue && buffVal.TypeId == ds.VMTypeComputedValue {
+					// 当buff值也是computed的情况下，进行叠加
+					x, _ := curVal.ToJSON()
+					newVal := curVal.Clone() // 注: Clone的实现有问题，computed没被正确复制，此处用反序列化绕过
+					_ = newVal.UnmarshalJSON(x)
+					cdCur, _ := newVal.ReadComputed()
+					cdBuff, _ := buffVal.ReadComputed()
+
+					// 将computed的内部值进行相加
+					cdBuff.Attrs.Range(func(key string, value *ds.VMValue) bool {
+						if v, ok := cdCur.Attrs.Load(key); ok {
+							vAddRet := v.OpAdd(ctx.vm, value)
+							ctx.vm.Error = nil
+							if vAddRet != nil {
+								cdCur.Attrs.Store(key, vAddRet)
+							}
+						} else {
+							cdCur.Attrs.Store(key, value.Clone())
+						}
+						return true
+					})
+
+					return newVal, true // 读取完成后使用新的值，对这个值的修改不会反馈到原值
+				}
+
 				return curVal, false
 			}
 
-			detail.Text += fmt.Sprintf("buff+%s", buffVal.ToString())
+			detail.Text += fmt.Sprintf("%s+buff%s", curVal.ToString(), buffVal.ToString())
 			newVal := curVal.OpAdd(ctx.vm, buffVal)
 			ctx.vm.Error = nil
 			if newVal != nil {
@@ -343,7 +348,7 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 
 		if !skip && rcMode {
 			// rc时将属性替换为调整值，只在0级起作用，避免在函数调用等地方造成影响
-			if isAbilityScores(varname) && vm.Depth() == 0 {
+			if isAbilityScores(varname) && vm.Depth() == 0 && vm.UpCtx == nil {
 				if curVal != nil && curVal.TypeId == ds.VMTypeInt {
 					mod := curVal.MustReadInt()/2 - 5
 					if detail != nil {
@@ -474,6 +479,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			ctx2.CreateVmIfNotExists()
 			ctx2.vm.UpCtx = ctx.vm
 			ctx2.vm.Attrs = ctx.vm.Attrs
+			ctx2.vm.Config = ctx.vm.Config
 
 			name = ctx.SystemTemplate.GetAlias(name)
 			v, err := ctx.SystemTemplate.GetRealValue(&ctx2, name)
