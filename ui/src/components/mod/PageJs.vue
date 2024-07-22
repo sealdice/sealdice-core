@@ -385,7 +385,7 @@ import * as dayjs from 'dayjs'
 import {basicSetup, EditorView} from "codemirror"
 import {javascript} from "@codemirror/lang-javascript"
 import {isEqual, size} from "lodash-es";
-import {JsPluginConfig, JsPluginConfigItem, JsScriptInfo} from "~/type";
+import type {JsPluginConfig, JsPluginConfigItem, JsScriptInfo} from "~/type.d.ts";
 
 const store = useStore()
 const jsEnable = ref(false)

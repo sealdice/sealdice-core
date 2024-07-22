@@ -88,7 +88,7 @@
 import {QuestionFilled} from "@element-plus/icons-vue";
 import {useStore} from "~/store";
 import {cloneDeep} from "lodash-es";
-import {AdvancedConfig} from "~/type";
+import type {AdvancedConfig} from "~/type.d.ts";
 
 const emit = defineEmits(['update:advanced-settings-show'])
 

@@ -159,7 +159,7 @@ import type { FormRules, FormInstance, ElTree } from 'element-plus';
 import { useStore } from '~/store';
 import { Delete, Plus, Refresh, Setting, Upload } from '@element-plus/icons-vue'
 import { trim } from 'lodash-es';
-import {HelpDoc, HelpTextItem, HelpTextItemQuery} from "~/type";
+import type {HelpDoc, HelpTextItem, HelpTextItemQuery} from "~/type.d.ts";
 
 interface Group {
   key: string,

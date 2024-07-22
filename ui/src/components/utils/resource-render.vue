@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import {Resource, useStore} from "~/store";
+import type {Resource} from "~/store";
+import {useStore} from "~/store";
 import {Microphone, Picture, VideoCamera} from '@element-plus/icons-vue'
 
 const store = useStore()

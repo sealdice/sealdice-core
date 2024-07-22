@@ -14,7 +14,7 @@ import PageResource from '~/components/tool/PageResource.vue';
 import PageMiscSettings from '~/components/misc/PageMiscSettings.vue';
 import PageMiscBackup from '~/components/misc/PageMiscBackup.vue';
 import PageMiscGroup from '~/components/misc/PageMiscGroup.vue';
-import PageMiscBanList from '~/components/misc/PageMiscBanList.vue';
+import PageMiscBan from '~/components/misc/PageMiscBan.vue';
 import PageMiscAdvancedSettings from '~/components/misc/PageMiscAdvancedSettings.vue';
 
 const router = createRouter({
@@ -47,7 +47,7 @@ const router = createRouter({
         { path: 'base-setting', component: PageMiscSettings },
         { path: 'backup', component: PageMiscBackup },
         { path: 'group', component: PageMiscGroup },
-        { path: 'ban', component: PageMiscBanList },
+        { path: 'ban', component: PageMiscBan },
         { path: 'advanced-setting', component: PageMiscAdvancedSettings },
       ]
     },

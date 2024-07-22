@@ -1,3 +1,5 @@
+import type BanConfig from "./components/misc/banList/BanConfig.vue";
+
 export interface JsScriptInfo {
   name: string;
   enable: boolean;
@@ -79,4 +81,21 @@ export interface AdvancedConfig {
   storyLogBackendUrl: string,
   storyLogApiVersion: string,
   storyLogBackendToken: string,
+}
+
+export interface BanConfig {
+  banBehaviorRefuseReply: boolean,
+  banBehaviorRefuseInvite: boolean,
+  banBehaviorQuitLastPlace: boolean,
+  banBehaviorQuitPlaceImmediately: boolean,
+  banBehaviorQuitIfAdmin: boolean,
+
+  thresholdWarn: number,
+  thresholdBan: number,
+  scoreGroupMuted: number,
+  scoreGroupKicked: number,
+  scoreTooManyCommand: number,
+  scoreReducePerMinute: number,
+  jointScorePercentOfGroup: number,
+  jointScorePercentOfInviter: number,
 }

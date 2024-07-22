@@ -7,6 +7,8 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    BanConfig: typeof import('./src/components/misc/banList/BanConfig.vue')['default']
+    BanList: typeof import('./src/components/misc/banList/BanList.vue')['default']
     CensorConfig: typeof import('./src/components/mod/censor/CensorConfig.vue')['default']
     CensorFiles: typeof import('./src/components/mod/censor/CensorFiles.vue')['default']
     CensorLog: typeof import('./src/components/mod/censor/CensorLog.vue')['default']
@@ -94,7 +96,7 @@ declare module 'vue' {
     PageJs: typeof import('./src/components/mod/PageJs.vue')['default']
     PageMiscAdvancedSettings: typeof import('./src/components/misc/PageMiscAdvancedSettings.vue')['default']
     PageMiscBackup: typeof import('./src/components/misc/PageMiscBackup.vue')['default']
-    PageMiscBanList: typeof import('./src/components/misc/PageMiscBanList.vue')['default']
+    PageMiscBan: typeof import('./src/components/misc/PageMiscBan.vue')['default']
     PageMiscDeck: typeof import('./src/components/mod/PageMiscDeck.vue')['default']
     PageMiscGroup: typeof import('./src/components/misc/PageMiscGroup.vue')['default']
     PageMiscSettings: typeof import('./src/components/misc/PageMiscSettings.vue')['default']
