@@ -19,7 +19,6 @@ var (
 )
 
 func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType string, groupID string) bool {
-
 	// Pinenutn: 总觉得这里还能优化，但是又想不到怎么优化，可恶，要长脑子了
 	a := messageType == "group" && session.ServiceAtNew.Exists(groupID)
 	if !a {
