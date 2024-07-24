@@ -16,6 +16,7 @@ import (
 
 	"sealdice-core/message"
 	"sealdice-core/utils/procs"
+	"sealdice-core/utils/syncmap"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
@@ -84,10 +85,10 @@ type PlatformAdapterGocq struct {
 	InPackGoCqhttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest          bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	customEcho     int64                          `yaml:"-"` // 自定义返回标记
-	echoMap        *SyncMap[any, chan *MessageQQ] `yaml:"-"`
-	echoMap2       *SyncMap[any, *echoMapInfo]    `yaml:"-"`
-	Implementation string                         `yaml:"implementation" json:"implementation"`
+	customEcho     int64                                  `yaml:"-"` // 自定义返回标记
+	echoMap        *syncmap.SyncMap[any, chan *MessageQQ] `yaml:"-"`
+	echoMap2       *syncmap.SyncMap[any, *echoMapInfo]    `yaml:"-"`
+	Implementation string                                 `yaml:"implementation" json:"implementation"`
 
 	UseSignServer    bool              `yaml:"useSignServer" json:"useSignServer"`
 	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`

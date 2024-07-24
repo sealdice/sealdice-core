@@ -1,4 +1,4 @@
-package dice
+package syncmap
 
 import (
 	cmap "github.com/smallnest/safemap"
@@ -78,7 +78,7 @@ func (m *SyncMap[K, V]) UnmarshalJSON(b []byte) error {
 	return m.m.UnmarshalJSON(b)
 }
 
-// InitializeSyncMap 工厂函数，用于创建和初始化 SyncMap 实例
+// InitializeSyncMap 一个其实没有任何用的工厂函数，用于创建和初始化 SyncMap 实例，我感觉这玩意都多余……
 func InitializeSyncMap[K comparable, V any]() *SyncMap[K, V] {
 	return NewSyncMap[K, V]()
 }

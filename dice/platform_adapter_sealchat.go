@@ -8,6 +8,7 @@ import (
 
 	"sealdice-core/message"
 	"sealdice-core/utils/satori"
+	"sealdice-core/utils/syncmap"
 
 	"github.com/google/uuid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -18,11 +19,11 @@ type PlatformAdapterSealChat struct {
 	Session  *IMSession    `yaml:"-" json:"-"`
 	EndPoint *EndPointInfo `yaml:"-" json:"-"`
 
-	ConnectURL string                    `yaml:"connectUrl" json:"connectUrl"` // 连接地址
-	Token      string                    `yaml:"token" json:"token"`
-	Socket     *gowebsocket.Socket       `yaml:"-" json:"-"`
-	EchoMap    SyncMap[string, chan any] `yaml:"-" json:"-"`
-	UserID     string                    `yaml:"-" json:"-"`
+	ConnectURL string                            `yaml:"connectUrl" json:"connectUrl"` // 连接地址
+	Token      string                            `yaml:"token" json:"token"`
+	Socket     *gowebsocket.Socket               `yaml:"-" json:"-"`
+	EchoMap    syncmap.SyncMap[string, chan any] `yaml:"-" json:"-"`
+	UserID     string                            `yaml:"-" json:"-"`
 
 	Reconnecting bool `yaml:"-" json:"-"`
 	RetryTimes   int  `yaml:"-" json:"-"`

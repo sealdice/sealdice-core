@@ -29,6 +29,7 @@ import (
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
+	"sealdice-core/utils/syncmap"
 )
 
 var (
@@ -245,7 +246,7 @@ type Dice struct {
 	JsLoadingScript *JsScriptInfo `yaml:"-" json:"-"`
 
 	// 游戏系统规则模板
-	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
+	GameSystemMap *syncmap.SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
 
 	RunAfterLoaded []func() `yaml:"-" json:"-"`
 
@@ -359,7 +360,7 @@ func (d *Dice) Init() {
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
 	d.CmdMap = CmdMapCls{}
-	d.GameSystemMap = InitializeSyncMap[string, *GameSystemTemplate]()
+	d.GameSystemMap = syncmap.InitializeSyncMap[string, *GameSystemTemplate]()
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	_ = d.ConfigManager.Load()
 
@@ -732,7 +733,7 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 		// set 时从这里读取对应System名字的模板
 
 		// 同义词缓存
-		tmpl.AliasMap = InitializeSyncMap[string, string]()
+		tmpl.AliasMap = syncmap.InitializeSyncMap[string, string]()
 		alias := tmpl.Alias
 		for k, v := range alias {
 			for _, i := range v {
