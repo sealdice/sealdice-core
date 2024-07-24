@@ -262,8 +262,10 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					doSleepQQ(ctx)
 					pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 				}
-				if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
-					for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+				// Pinenutn ActivatedExtList模板
+				groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+				if ok {
+					for _, i := range groupInfo.ActivatedExtList {
 						if i.OnGroupJoined != nil {
 							i.callWithJsCheck(ctx.Dice, func() {
 								i.OnGroupJoined(ctx, msg)
@@ -278,8 +280,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 		}
 
 		// 入群的另一种情况: 管理员审核
-		group := s.ServiceAtNew[msg.GroupID]
-		if group == nil && msg.GroupID != "" {
+		isGroupExists := s.ServiceAtNew.Exists(msg.GroupID)
+		if !isGroupExists && msg.GroupID != "" {
 			now := time.Now().Unix()
 			if tempInviteMap[msg.GroupID] != 0 && now > tempInviteMap[msg.GroupID] {
 				delete(tempInviteMap, msg.GroupID)
@@ -358,11 +360,11 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				if event.UserID == event.Self.UserID {
 					groupEntered()
 				} else {
-					group := s.ServiceAtNew[msg.GroupID]
+					groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 					// 进群的是别人，是否迎新？
 					// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 					// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词 // 如果是 TX BUG 这里就不改了
-					if group != nil && group.ShowGroupWelcome {
+					if ok && groupInfo.ShowGroupWelcome {
 						isDouble := false
 						if lastWelcome != nil {
 							isDouble = event.GroupID == lastWelcome.GroupID &&
@@ -389,7 +391,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 								stdID := FormatDiceIDQQV12(event.UserID)
 								VarSetValueStr(ctx, "$t帐号ID", stdID)
 								VarSetValueStr(ctx, "$t账号ID", stdID)
-								text := DiceFormat(ctx, group.GroupWelcomeMessage)
+								text := DiceFormat(ctx, groupInfo.GroupWelcomeMessage)
 								for _, i := range ctx.SplitText(text) {
 									doSleepQQ(ctx)
 									pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
@@ -435,10 +437,10 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				}
 				return
 			case "group_message_delete": // 消息撤回
-				group := s.ServiceAtNew[msg.GroupID]
-				if group != nil {
-					if group.LogOn {
-						_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBLogs, group.GroupID, group.LogCurName, n.MessageID)
+				groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
+				if ok {
+					if groupInfo.LogOn {
+						_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBLogs, groupInfo.GroupID, groupInfo.LogCurName, n.MessageID)
 					}
 				}
 				return
@@ -632,22 +634,22 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					time: time.Now().Unix(),
 				}) // 不论如何，先试图取一下群名
 
-				group := s.ServiceAtNew[groupID]
-				if group != nil {
+				groupInfo, ok := s.ServiceAtNew.Load(groupID)
+				if ok {
 					// 更新群名
-					if GroupName != group.GroupName {
-						group.GroupName = GroupName
-						group.UpdatedAtTime = time.Now().Unix()
+					if GroupName != groupInfo.GroupName {
+						groupInfo.GroupName = GroupName
+						groupInfo.UpdatedAtTime = time.Now().Unix()
 					}
 
 					// 处理被强制拉群的情况
-					uid := group.InviteUserID
+					uid := groupInfo.InviteUserID
 					banInfo, ok := ctx.Dice.BanList.GetByID(uid)
 					if ok {
 						if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
 							// 如果是被ban之后拉群，判定为强制拉群
-							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
-								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", group.InviteUserID)
+							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
+								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
 								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 								time.Sleep(1 * time.Second)
 								pa.QuitGroup(ctx, groupID)
@@ -661,7 +663,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					if ok {
 						if banInfo.Rank == BanRankBanned {
 							// 如果是被ban之后拉群，判定为强制拉群
-							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
+							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
 								text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
 								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 								time.Sleep(1 * time.Second)
@@ -842,8 +844,10 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, te
 		return
 	}
 
-	if ctx.Session.ServiceAtNew[groupID] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[groupID].ActivatedExtList {
+	// Pinenutn ActivatedExtList模板
+	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
+	if ok {
+		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnMessageSend(ctx, &Message{
@@ -955,7 +959,7 @@ func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait
 	ch := make(chan *EventWalleQBase, 1)
 
 	if pa.echoMap == nil {
-		pa.echoMap = syncmap.InitializeSyncMap[string, chan *EventWalleQBase]()
+		pa.echoMap = syncmap.NewSyncMap[string, chan *EventWalleQBase]()
 	}
 	pa.echoMap.Store(echo, ch)
 

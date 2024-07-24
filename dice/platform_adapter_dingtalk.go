@@ -152,8 +152,9 @@ func (pa *PlatformAdapterDingTalk) GetGroupInfoAsync(groupID string) {
 }
 
 func (pa *PlatformAdapterDingTalk) OnChatReceive(_ *dingtalk.Session, data *chatbot.BotCallbackDataModel) {
-	if pa.Session.ServiceAtNew[FormatDiceIDDingTalkGroup(data.ConversationId)] != nil {
-		pa.Session.ServiceAtNew[FormatDiceIDDingTalkGroup(data.ConversationId)].GroupName = data.ConversationTitle
+	groupInfo, ok := pa.Session.ServiceAtNew.Load(FormatDiceIDDingTalkGroup(data.ConversationId))
+	if ok {
+		groupInfo.GroupName = data.ConversationTitle
 	}
 	msg := pa.toStdMessage(data)
 	pa.Session.Execute(pa.EndPoint, msg, false)
@@ -187,8 +188,10 @@ func (pa *PlatformAdapterDingTalk) OnGroupJoined(_ *dingtalk.Session, data *ding
 	for _, i := range ctx.SplitText(text) {
 		pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 	}
-	if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+	// Pinenutn ActivatedExtList模板
+	groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+	if ok {
+		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnGroupJoined != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnGroupJoined(ctx, msg)

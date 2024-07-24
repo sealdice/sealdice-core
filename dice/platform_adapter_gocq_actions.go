@@ -222,8 +222,9 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 		return
 	}
 
-	if ctx.Session.ServiceAtNew[groupID] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[groupID].ActivatedExtList {
+	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
+	if ok {
+		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnMessageSend(ctx, &Message{
@@ -395,7 +396,7 @@ func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ 
 	ch := make(chan *MessageQQ, 1)
 
 	if pa.echoMap == nil {
-		pa.echoMap = syncmap.InitializeSyncMap[any, chan *MessageQQ]()
+		pa.echoMap = syncmap.NewSyncMap[any, chan *MessageQQ]()
 	}
 
 	// 注: 之所以这样是因为echo是json.RawMessage
@@ -408,7 +409,7 @@ func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ 
 
 func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait func(emi *echoMapInfo)) error {
 	if pa.echoMap2 == nil {
-		pa.echoMap2 = syncmap.InitializeSyncMap[any, *echoMapInfo]()
+		pa.echoMap2 = syncmap.NewSyncMap[any, *echoMapInfo]()
 	}
 
 	emi := &echoMapInfo{ch: make(chan string, 1)}
