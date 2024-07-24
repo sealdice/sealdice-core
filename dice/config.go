@@ -2194,13 +2194,13 @@ func (d *Dice) loads() {
 				}
 			}
 			if g.DiceIDActiveMap == nil {
-				g.DiceIDActiveMap = new(SyncMap[string, bool])
+				g.DiceIDActiveMap = InitializeSyncMap[string, bool]()
 			}
 			if g.DiceIDExistsMap == nil {
-				g.DiceIDExistsMap = new(SyncMap[string, bool])
+				g.DiceIDExistsMap = InitializeSyncMap[string, bool]()
 			}
 			if g.BotList == nil {
-				g.BotList = new(SyncMap[string, bool])
+				g.BotList = InitializeSyncMap[string, bool]()
 			}
 		}
 

@@ -362,7 +362,7 @@ func (d *Dice) Init() {
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
 	d.CmdMap = CmdMapCls{}
-	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
+	d.GameSystemMap = InitializeSyncMap[string, *GameSystemTemplate]()
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	_ = d.ConfigManager.Load()
 
@@ -735,7 +735,7 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 		// set 时从这里读取对应System名字的模板
 
 		// 同义词缓存
-		tmpl.AliasMap = new(SyncMap[string, string])
+		tmpl.AliasMap = InitializeSyncMap[string, string]()
 		alias := tmpl.Alias
 		for k, v := range alias {
 			for _, i := range v {

@@ -275,7 +275,7 @@ func (pa *PlatformAdapterSlack) send(_ *MsgContext, id string, text string, _ st
 
 func (pa *PlatformAdapterSlack) getUser(user string) *slack.User {
 	if pa.userCache == nil {
-		pa.userCache = new(SyncMap[string, *slack.User])
+		pa.userCache = InitializeSyncMap[string, *slack.User]()
 	}
 	if u, ok := pa.userCache.Load(user); ok {
 		return u

@@ -1,4 +1,4 @@
-package syncmap
+package dice
 
 import (
 	cmap "github.com/smallnest/safemap"
@@ -76,4 +76,9 @@ func (m *SyncMap[K, V]) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON 反序列化 JSON 格式为 SyncMap
 func (m *SyncMap[K, V]) UnmarshalJSON(b []byte) error {
 	return m.m.UnmarshalJSON(b)
+}
+
+// InitializeSyncMap 工厂函数，用于创建和初始化 SyncMap 实例
+func InitializeSyncMap[K comparable, V any]() *SyncMap[K, V] {
+	return NewSyncMap[K, V]()
 }

@@ -91,7 +91,7 @@ func (i *BanListInfo) Init() {
 
 	i.JointScorePercentOfGroup = 0.5
 	i.JointScorePercentOfInviter = 0.3
-	i.Map = new(SyncMap[string, *BanListInfoItem])
+	i.Map = InitializeSyncMap[string, *BanListInfoItem]()
 }
 
 func (i *BanListInfo) Loads() {

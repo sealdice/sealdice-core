@@ -192,7 +192,7 @@ func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
 
 func (group *GroupInfo) PlayerGet(db *sqlx.DB, id string) *GroupPlayerInfo {
 	if group.Players == nil {
-		group.Players = new(SyncMap[string, *GroupPlayerInfo])
+		group.Players = InitializeSyncMap[string, *GroupPlayerInfo]()
 	}
 	p, exists := group.Players.Load(id)
 	if !exists {
