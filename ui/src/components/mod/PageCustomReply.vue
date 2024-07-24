@@ -55,9 +55,9 @@
             :href="`${urlBase}/sd-api/configs/custom_reply/file_download?name=${encodeURIComponent(curFilename)}&token=${encodeURIComponent(store.token)}`">下载
           </el-button>
         </el-space>
-        <el-checkbox v-model="replyDebugMode">开启回复调试日志（打印字符细节）</el-checkbox>
+        <el-text class="mt-2" v-if="!cr.enable" type="warning">注意：启用后该文件中的自定义回复才会生效</el-text>
       </el-space>
-      <div class="reply-operation">
+      <div class="mt-4 sm:mt-0 reply-operation">
         <div>
           <el-tooltip content="新建一个自定义回复文件。">
             <el-button type="success" plain :icon="DocumentAdd" @click="customReplyFileNew">新建</el-button>
@@ -83,7 +83,8 @@
       <el-text type="danger" size="large" style="font-size: 1.5rem;">请先启用总开关！</el-text>
     </template>
     <template v-else>
-      <foldable-card ref="commonConditionsRef" type="div" :default-fold="true">
+      <foldable-card ref="commonConditionsRef" type="div" :default-fold="true"
+                     :class="cr.enable ? '' : 'disabled'">
         <template #title>
           <el-space size="large" wrap>
             <el-space size="small">
@@ -223,7 +224,6 @@ const fileItems = ref<any>([
 const uploadFileList = ref<any[]>([])
 
 const cr = ref<any>({ enable: true })
-const replyDebugMode = ref(false);
 
 const switchClick = () => {
   if (!store.curDice.config.customReplyConfigEnable) {
@@ -244,11 +244,6 @@ const modified = ref(false)
 watch(() => cr.value, (newValue, oldValue) => { //直接监听
   modified.value = true
 }, { deep: true });
-
-watch(() => replyDebugMode.value, (newValue, oldValue) => {
-  store.customReplyDebugModeSet(newValue);
-}, { deep: true });
-
 
 watch(() => curFilename.value, (newValue, oldValue) => { //直接监听
   nextTick(() => {
@@ -463,9 +458,6 @@ onBeforeMount(async () => {
   fileItems.value = ret.items;
   curFilename.value = ret.items[0].filename;
   await store.diceConfigGet();
-  // 设置调试日志选项
-  ret = await store.customReplyDebugModeGet();
-  replyDebugMode.value = ret.value;
   await refreshCurrent();
 })
 

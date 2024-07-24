@@ -476,7 +476,7 @@ export const useStore = defineStore('main', {
     },
 
     async customReplyDebugModeGet() {
-      const info = await backend.get(urlPrefix + '/configs/custom_reply/debug_mode')
+      const info: { value: boolean } = await backend.get(urlPrefix + '/configs/custom_reply/debug_mode')
       return info
     },
 

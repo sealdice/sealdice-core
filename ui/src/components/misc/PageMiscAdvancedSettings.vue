@@ -42,6 +42,19 @@
       <el-switch v-model="config.enable"/>
     </el-form-item>
 
+    <h3>自定义回复</h3>
+    <el-form-item label="开启回复调试日志">
+      <template #label>
+        <span>回复调试日志</span>
+        <el-tooltip raw-content content="开启自定义回复调试日志，打印字符细节">
+          <el-icon>
+            <question-filled/>
+          </el-icon>
+        </el-tooltip>
+      </template>
+      <el-checkbox v-model="replyDebugMode">开启</el-checkbox>
+    </el-form-item>
+
     <h3>跑团日志</h3>
     <el-form-item label="自定义后端 URL">
       <template #label>
@@ -101,9 +114,11 @@ const config = ref<AdvancedConfig>({
   storyLogApiVersion: "",
   storyLogBackendToken: "",
 })
+const replyDebugMode = ref(false);
 
 onBeforeMount(async () => {
   config.value = await store.diceAdvancedConfigGet()
+  replyDebugMode.value = (await store.customReplyDebugModeGet()).value
   nextTick(() => {
     modified.value = false
   })
@@ -115,9 +130,13 @@ watch(() => config, (newValue, oldValue) => { //直接监听
 }, {
   deep: true
 });
+watch(() => replyDebugMode.value, (newValue, oldValue) => { //直接监听
+  modified.value = true
+});
 
 const submit = async () => {
   await store.diceAdvancedConfigSet(config.value)
+  store.customReplyDebugModeSet(replyDebugMode.value);
   config.value = await store.diceAdvancedConfigGet()
   modified.value = false
   emit('update:advanced-settings-show', config.value.show)
@@ -128,6 +147,7 @@ const submit = async () => {
 
 const submitGiveup = async () => {
   config.value = await store.diceAdvancedConfigGet()
+  replyDebugMode.value = (await store.customReplyDebugModeGet()).value
   modified.value = false
   nextTick(() => {
     modified.value = false
