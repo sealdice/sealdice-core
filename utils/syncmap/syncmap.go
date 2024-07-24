@@ -92,7 +92,6 @@ func (m *SyncMap[K, V]) Range(f func(key K, value V) bool) {
 
 // MarshalJSON 序列化 SyncMap 为 JSON 格式
 func (m *SyncMap[K, V]) MarshalJSON() ([]byte, error) {
-
 	// 怀疑是因为原本的实现方式下，sync.Map默认就是存在的不需要初始化
 	// 而如果在这种情况下，默认m是不会被初始化的
 	// 所以导致问题，或许应该得手动初始化一个？
