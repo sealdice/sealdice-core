@@ -62,6 +62,7 @@ type GameSystemTemplate struct {
 
 	Defaults         map[string]int64    `yaml:"defaults" json:"defaults"`                 // 默认值
 	DefaultsComputed map[string]string   `yaml:"defaultsComputed" json:"defaultsComputed"` // 计算类型
+	DetailOverwrite  map[string]string   `yaml:"detailOverwrite" json:"detailOverwrite"`   // 计算过程，如果有的话附加在st show或者计算中。用例见dnd5e模板
 	Alias            map[string][]string `yaml:"alias" json:"alias"`                       // 别名/同义词
 
 	TextMap         *TextTemplateWithWeightDict `yaml:"textMap" json:"textMap"` // UI文本
@@ -105,7 +106,7 @@ func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string)
 			detail = r.vm.GetDetailText()
 			return &r.VMValue, detail, r.vm.IsCalculateExists() || r.vm.IsComputedLoaded, true
 		} else {
-			return ds.NewStrVal("报错:" + r.vm.Error.Error()), "", true, true
+			return ds.NewStrVal("代码:" + expr + "\n" + "报错:" + r.vm.Error.Error()), "", true, true
 		}
 	}
 
@@ -187,7 +188,7 @@ func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (string, *ds.
 		ctx.SystemTemplate = t
 		ctx.CreateVmIfNotExists()
 		ctx.vm.StoreNameLocal("name", ds.NewStrVal(baseK))
-		r := ctx.Eval(expr, nil)
+		r := ctx.EvalFString(expr, nil)
 		if r.vm.Error == nil {
 			return k, &r.VMValue, nil
 		}
@@ -224,12 +225,12 @@ func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (string, *
 }
 
 func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (string, *ds.VMValue, error) {
-	k, r, err := t.getShowAsBase(ctx, k)
+	k, v, err := t.getShowAsBase(ctx, k)
 	if err != nil {
-		return k, r, err
+		return k, v, err
 	}
-	if r != nil {
-		return k, r, err
+	if v != nil {
+		return k, v, err
 	}
 	// 返回值不存在，强行补0
 	return k, ds.NewIntVal(0), nil

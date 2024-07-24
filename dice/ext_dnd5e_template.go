@@ -32,14 +32,16 @@ var _dnd5eTmpl = &GameSystemTemplate{
 		"func abilityShowAsKey(key, keyFactor) {" +
 		"  return `{key}{keyFactor ? '*'+ (keyFactor == 1 ? '' : str(keyFactor)) }`" +
 		"}" +
-		"func abilityShowAs(base, buff) {" +
-		"  return `{base??0 + buff??0}{buff ? '[buff+'+ str(buff) + ']' }`" +
-		"}" +
 		"func pbCalc(base, factor, ab) { // 基础值，熟练系数，属性值\n" +
 		"  return base + (ab??0)/2 - 5 + floor((熟练??0) * (factor??0));\n" +
 		"}\n" +
 		"func abilityModifier(name) { // 计算调整值\n" +
-		"  return (load(name) ?? 0 + load('$buff_' + name) ?? 0) / 2 - 5\n" +
+		"  return (load(name) ?? 0) / 2 - 5\n" +
+		"}\n" +
+		"func savingDetail(name) {\n" + // 感觉这个格式还可以，先不写proPart了
+		"  buffPart = load(`$buff_{name}豁免`) ?? 0;\n" +
+		"  buffPart = buffPart ? `+buff{buffPart}` : ''; \n" +
+		"  return `调整值{abilityModifier(name)}+熟练{熟练 * load('$stp_'+name)}{buffPart}`\n" +
 		"}\n",
 
 	AttrConfig: AttrConfig{
@@ -50,9 +52,8 @@ var _dnd5eTmpl = &GameSystemTemplate{
 			"hpmax",
 		},
 		ShowAs: map[string]string{
-			"hp": "{hp??0 + $buff_hp??0}/{hpmax??0 + $buff_hpmax??0}",
-
-			"*": "abilityShowAs(load(name), load('$buff_' + name))",
+			"hp": "{hp??0}/{hpmax??0}",
+			"*":  "{loadRaw(name)}", // 这样做是为了走值加载流程，这样能够被钩子函数重写
 
 			"运动": "{skillShowAs(&运动)}",
 
@@ -145,6 +146,23 @@ var _dnd5eTmpl = &GameSystemTemplate{
 		"欺瞒": "魅力调整值",
 		"威吓": "魅力调整值",
 		"表演": "魅力调整值",
+
+		"力量豁免": "pbCalc(0, load('$stp_力量') ?? 0, 力量)",
+		"体质豁免": "pbCalc(0, load('$stp_体质') ?? 0, 体质)",
+		"敏捷豁免": "pbCalc(0, load('$stp_敏捷') ?? 0, 敏捷)",
+		"智力豁免": "pbCalc(0, load('$stp_智力') ?? 0, 智力)",
+		"感知豁免": "pbCalc(0, load('$stp_感知') ?? 0, 感知)",
+		"魅力豁免": "pbCalc(0, load('$stp_魅力') ?? 0, 魅力)",
+	},
+	DetailOverwrite: map[string]string{
+		// TODO: 作为备选方案先留档，这种是完全替换，当前方案是不完全替换，会自带 [xxx, ] 表达式补充里面的部分
+		// "_力量豁免": "`[力量豁免,调整值{abilityModifier('力量')}+熟练{熟练 * $stp_力量}]`",
+		"力量豁免": "savingDetail('力量')",
+		"体质豁免": "savingDetail('体质')",
+		"敏捷豁免": "savingDetail('敏捷')",
+		"智力豁免": "savingDetail('智力')",
+		"感知豁免": "savingDetail('感知')",
+		"魅力豁免": "savingDetail('魅力')",
 	},
 
 	Alias: map[string][]string{
