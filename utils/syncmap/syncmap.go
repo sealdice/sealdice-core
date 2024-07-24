@@ -1,13 +1,32 @@
 package syncmap
 
 import (
+	"sync"
+
 	cmap "github.com/smallnest/safemap"
 )
+
+// 在Go 1.9之前，go语言标准库中并没有实现并发map。
+// 在Go 1.9中，引入了sync.Map。新的sync.Map与此concurrent-map有几个关键区别。
+// 标准库中的sync.Map是专为append-only场景设计的。
+// 因此，如果您想将Map用于一个类似内存数据库，那么使用我们的版本可能会受益。
+// 译注:sync.Map在读多写少性能比较好，否则并发性能很差
+// 实话说，我也不知道咱们到底是不是读多写少，不过反正下面的函数是做了兼容的，可以方便回退……
 
 // SyncMap 是一个线程安全的 map，提供了对并发读写的支持
 // 它封装了 safemap 提供的 SafeMap 实现
 type SyncMap[K comparable, V any] struct {
-	m *cmap.SafeMap[K, V]
+	m    *cmap.SafeMap[K, V]
+	once sync.Once
+}
+
+// ensureInitialized 确保 m 已初始化
+func (m *SyncMap[K, V]) ensureInitialized() {
+	m.once.Do(func() {
+		if m.m == nil {
+			m.m = cmap.New[K, V]()
+		}
+	})
 }
 
 // NewSyncMap 创建一个新的 SyncMap 实例
@@ -68,13 +87,21 @@ func (m *SyncMap[K, V]) Range(f func(key K, value V) bool) {
 	})
 }
 
+// 似乎除了这种情况以外，别的时候都能通过直接New一个来规避
+// TODO: 如果全部都加上Once是否会影响性能呢？
+// 怀疑是因为原本的实现方式下，sync.Map默认就是存在的不需要初始化
+// 而如果在这种情况下，默认m是不会被初始化的
+// 所以导致问题，或许应该得手动初始化一个？
+// TODO： 初始化应该不太对劲，有高人指点一下吗
 // MarshalJSON 序列化 SyncMap 为 JSON 格式
 func (m *SyncMap[K, V]) MarshalJSON() ([]byte, error) {
+	m.ensureInitialized()
 	return m.m.MarshalJSON()
 }
 
 // UnmarshalJSON 反序列化 JSON 格式为 SyncMap
 func (m *SyncMap[K, V]) UnmarshalJSON(b []byte) error {
+	m.ensureInitialized()
 	return m.m.UnmarshalJSON(b)
 }
 
