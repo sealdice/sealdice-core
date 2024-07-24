@@ -954,7 +954,7 @@ func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait
 	ch := make(chan *EventWalleQBase, 1)
 
 	if pa.echoMap == nil {
-		pa.echoMap = new(SyncMap[string, chan *EventWalleQBase])
+		pa.echoMap = InitializeSyncMap[string, chan *EventWalleQBase]()
 	}
 	pa.echoMap.Store(echo, ch)
 
@@ -964,7 +964,7 @@ func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait
 
 // func (pa *PlatformAdapterWalleQ) waitEcho2(echo string, value interface{}, beforeWait func(emi *echoMapInfo)) error {
 //	if pa.echoMap2 == nil {
-//		pa.echoMap2 = new(SyncMap[string, *echoMapInfo])
+//		pa.echoMap2 = InitializeSyncMap[string, *echoMapInfo]()
 //	}
 //
 //	emi := &echoMapInfo{ch: make(chan string, 1)}

@@ -31,7 +31,7 @@ func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 	group := session.ServiceAtNew[groupID]
 	if group != nil {
 		if group.DiceIDActiveMap == nil {
-			group.DiceIDActiveMap = new(SyncMap[string, bool])
+			group.DiceIDActiveMap = InitializeSyncMap[string, bool]()
 		}
 
 		// TODO: 进行更好的是否变更的检查
@@ -49,10 +49,10 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	group := session.ServiceAtNew[groupID]
 	if group != nil {
 		if group.DiceIDActiveMap == nil {
-			group.DiceIDActiveMap = new(SyncMap[string, bool])
+			group.DiceIDActiveMap = InitializeSyncMap[string, bool]()
 		}
 		if group.DiceIDExistsMap == nil {
-			group.DiceIDActiveMap = new(SyncMap[string, bool])
+			group.DiceIDActiveMap = InitializeSyncMap[string, bool]()
 		}
 		group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
 		group.Active = true
@@ -71,11 +71,11 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		session.ServiceAtNew[groupID] = &GroupInfo{
 			Active:           true,
 			ActivatedExtList: extLst,
-			Players:          new(SyncMap[string, *GroupPlayerInfo]),
+			Players:          InitializeSyncMap[string, *GroupPlayerInfo](),
 			GroupID:          groupID,
 			ValueMap:         lockfree.NewHashMap(),
-			DiceIDActiveMap:  new(SyncMap[string, bool]),
-			DiceIDExistsMap:  new(SyncMap[string, bool]),
+			DiceIDActiveMap:  InitializeSyncMap[string, bool](),
+			DiceIDExistsMap:  InitializeSyncMap[string, bool](),
 			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
 			UpdatedAtTime:    time.Now().Unix(),
 		}
@@ -83,13 +83,13 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	}
 
 	if group.DiceIDActiveMap == nil {
-		group.DiceIDActiveMap = new(SyncMap[string, bool])
+		group.DiceIDActiveMap = InitializeSyncMap[string, bool]()
 	}
 	if group.DiceIDExistsMap == nil {
-		group.DiceIDExistsMap = new(SyncMap[string, bool])
+		group.DiceIDExistsMap = InitializeSyncMap[string, bool]()
 	}
 	if group.BotList == nil {
-		group.BotList = new(SyncMap[string, bool])
+		group.BotList = InitializeSyncMap[string, bool]()
 	}
 
 	group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
