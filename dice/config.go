@@ -20,6 +20,7 @@ import (
 
 	"sealdice-core/dice/model"
 	"sealdice-core/utils"
+	"sealdice-core/utils/syncmap"
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint
@@ -2194,13 +2195,13 @@ func (d *Dice) loads() {
 				}
 			}
 			if g.DiceIDActiveMap == nil {
-				g.DiceIDActiveMap = InitializeSyncMap[string, bool]()
+				g.DiceIDActiveMap = syncmap.InitializeSyncMap[string, bool]()
 			}
 			if g.DiceIDExistsMap == nil {
-				g.DiceIDExistsMap = InitializeSyncMap[string, bool]()
+				g.DiceIDExistsMap = syncmap.InitializeSyncMap[string, bool]()
 			}
 			if g.BotList == nil {
-				g.BotList = InitializeSyncMap[string, bool]()
+				g.BotList = syncmap.InitializeSyncMap[string, bool]()
 			}
 		}
 

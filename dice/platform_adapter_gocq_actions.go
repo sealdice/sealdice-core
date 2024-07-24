@@ -16,6 +16,7 @@ import (
 
 	"sealdice-core/message"
 	"sealdice-core/utils"
+	"sealdice-core/utils/syncmap"
 
 	"github.com/sacOO7/gowebsocket"
 	"github.com/samber/lo"
@@ -394,7 +395,7 @@ func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ 
 	ch := make(chan *MessageQQ, 1)
 
 	if pa.echoMap == nil {
-		pa.echoMap = InitializeSyncMap[any, chan *MessageQQ]()
+		pa.echoMap = syncmap.InitializeSyncMap[any, chan *MessageQQ]()
 	}
 
 	// 注: 之所以这样是因为echo是json.RawMessage
@@ -407,7 +408,7 @@ func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ 
 
 func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait func(emi *echoMapInfo)) error {
 	if pa.echoMap2 == nil {
-		pa.echoMap2 = InitializeSyncMap[any, *echoMapInfo]()
+		pa.echoMap2 = syncmap.InitializeSyncMap[any, *echoMapInfo]()
 	}
 
 	emi := &echoMapInfo{ch: make(chan string, 1)}

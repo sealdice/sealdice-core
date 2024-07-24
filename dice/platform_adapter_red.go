@@ -22,6 +22,7 @@ import (
 	"github.com/samber/lo"
 
 	"sealdice-core/message"
+	"sealdice-core/utils/syncmap"
 )
 
 type PlatformAdapterRed struct {
@@ -39,7 +40,7 @@ type PlatformAdapterRed struct {
 
 	conn      *websocket.Conn
 	muxSend   sync.Mutex
-	memberMap *SyncMap[string, *SyncMap[string, *GroupMember]]
+	memberMap *syncmap.SyncMap[string, *syncmap.SyncMap[string, *GroupMember]]
 }
 
 type RedPack[T interface{}] struct {
@@ -671,14 +672,14 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 	s := pa.Session
 	session := s
 	if pa.memberMap == nil {
-		pa.memberMap = &SyncMap[string, *SyncMap[string, *GroupMember]]{}
+		pa.memberMap = &syncmap.SyncMap[string, *syncmap.SyncMap[string, *GroupMember]]{}
 	}
 
 	refreshMembers := func(group *Group) {
 		groupID := formatDiceIDRedGroup(group.GroupCode)
 		members := pa.getMemberList(group.GroupCode, group.MemberCount)
 		groupInfo := session.ServiceAtNew[groupID]
-		groupMemberMap := &SyncMap[string, *GroupMember]{}
+		groupMemberMap := &syncmap.SyncMap[string, *GroupMember]{}
 		for _, member := range members {
 			userID := formatDiceIDRed(member.Uin)
 			groupMemberMap.Store(userID, member)

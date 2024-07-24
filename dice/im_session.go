@@ -13,6 +13,7 @@ import (
 
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
+	"sealdice-core/utils/syncmap"
 
 	"github.com/dop251/goja"
 	"github.com/fy0/lockfree"
@@ -74,19 +75,19 @@ type GroupPlayerInfoBase struct {
 type GroupPlayerInfo model.GroupPlayerInfoBase
 
 type GroupInfo struct {
-	Active           bool                               `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
-	ActivatedExtList []*ExtInfo                         `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
-	Players          *SyncMap[string, *GroupPlayerInfo] `yaml:"-" json:"-"`                                    // 群员角色数据
+	Active           bool                                       `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
+	ActivatedExtList []*ExtInfo                                 `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
+	Players          *syncmap.SyncMap[string, *GroupPlayerInfo] `yaml:"-" json:"-"`                                    // 群员角色数据
 
-	GroupID         string                 `yaml:"groupId" json:"groupId" jsbind:"groupId"`
-	GuildID         string                 `yaml:"guildId" json:"guildId" jsbind:"guildId"`
-	ChannelID       string                 `yaml:"channelId" json:"channelId" jsbind:"channelId"`
-	GroupName       string                 `yaml:"groupName" json:"groupName" jsbind:"groupName"`
-	DiceIDActiveMap *SyncMap[string, bool] `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
-	DiceIDExistsMap *SyncMap[string, bool] `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
-	BotList         *SyncMap[string, bool] `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
-	DiceSideNum     int64                  `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
-	System          string                 `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
+	GroupID         string                         `yaml:"groupId" json:"groupId" jsbind:"groupId"`
+	GuildID         string                         `yaml:"guildId" json:"guildId" jsbind:"guildId"`
+	ChannelID       string                         `yaml:"channelId" json:"channelId" jsbind:"channelId"`
+	GroupName       string                         `yaml:"groupName" json:"groupName" jsbind:"groupName"`
+	DiceIDActiveMap *syncmap.SyncMap[string, bool] `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	DiceIDExistsMap *syncmap.SyncMap[string, bool] `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
+	BotList         *syncmap.SyncMap[string, bool] `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
+	DiceSideNum     int64                          `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
+	System          string                         `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
 	// ValueMap     map[string]*VMValue `yaml:"-"`
 	ValueMap     lockfree.HashMap `yaml:"-" json:"-"`
@@ -192,7 +193,7 @@ func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
 
 func (group *GroupInfo) PlayerGet(db *sqlx.DB, id string) *GroupPlayerInfo {
 	if group.Players == nil {
-		group.Players = InitializeSyncMap[string, *GroupPlayerInfo]()
+		group.Players = syncmap.InitializeSyncMap[string, *GroupPlayerInfo]()
 	}
 	p, exists := group.Players.Load(id)
 	if !exists {
@@ -216,7 +217,7 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 		return &GameSystemTemplate{
 			Name:     group.System,
 			FullName: "空白模板",
-			AliasMap: &SyncMap[string, string]{},
+			AliasMap: &syncmap.SyncMap[string, string]{},
 		}
 	}
 	// 没有system，查看扩展的启动情况
@@ -235,7 +236,7 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	blankTmpl := &GameSystemTemplate{
 		Name:     "空白模板",
 		FullName: "空白模板",
-		AliasMap: &SyncMap[string, string]{},
+		AliasMap: &syncmap.SyncMap[string, string]{},
 	}
 	return blankTmpl
 }
@@ -464,8 +465,8 @@ type IMSession struct {
 	Parent    *Dice           `yaml:"-"`
 	EndPoints []*EndPointInfo `yaml:"endPoints"`
 
-	ServiceAtNew   map[string]*GroupInfo                 `json:"servicesAt" yaml:"-"`
-	PlayerVarsData SyncMap[string, *PlayerVariablesItem] `yaml:"-"` // 感觉似乎没有什么存本地的必要
+	ServiceAtNew   map[string]*GroupInfo                         `json:"servicesAt" yaml:"-"`
+	PlayerVarsData syncmap.SyncMap[string, *PlayerVariablesItem] `yaml:"-"` // 感觉似乎没有什么存本地的必要
 }
 
 type MsgContext struct {

@@ -19,6 +19,7 @@ import (
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
 	"sealdice-core/utils/procs"
+	"sealdice-core/utils/syncmap"
 )
 
 /* 定义结构体 */
@@ -49,9 +50,9 @@ type PlatformAdapterWalleQ struct {
 	InPackWalleQDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest        bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	echoMap        *SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
-	FileMap        *SyncMap[string, string]                // 记录上传文件后得到的 id
-	Implementation string                                  `yaml:"implementation" json:"implementation"`
+	echoMap        *syncmap.SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
+	FileMap        *syncmap.SyncMap[string, string]                // 记录上传文件后得到的 id
+	Implementation string                                          `yaml:"implementation" json:"implementation"`
 }
 
 type EventWalleQBase struct {
@@ -954,7 +955,7 @@ func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait
 	ch := make(chan *EventWalleQBase, 1)
 
 	if pa.echoMap == nil {
-		pa.echoMap = InitializeSyncMap[string, chan *EventWalleQBase]()
+		pa.echoMap = syncmap.InitializeSyncMap[string, chan *EventWalleQBase]()
 	}
 	pa.echoMap.Store(echo, ch)
 

@@ -33,6 +33,7 @@ import (
 
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
+	"sealdice-core/utils/syncmap"
 )
 
 var (
@@ -621,7 +622,7 @@ func (d *Dice) jsClear() {
 	// 清理脚本列表
 	d.JsScriptList = []*JsScriptInfo{}
 	// 清理规则模板
-	d.GameSystemMap = &SyncMap[string, *GameSystemTemplate]{}
+	d.GameSystemMap = &syncmap.SyncMap[string, *GameSystemTemplate]{}
 	d.RegisterBuiltinSystemTemplate()
 	// 关闭js vm
 	if d.JsLoop != nil {
