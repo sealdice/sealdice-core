@@ -89,23 +89,24 @@ func (m *SyncMap[K, V]) Range(f func(key K, value V) bool) {
 
 // 似乎除了这种情况以外，别的时候都能通过直接New一个来规避
 // TODO: 如果全部都加上Once是否会影响性能呢？
-// 怀疑是因为原本的实现方式下，sync.Map默认就是存在的不需要初始化
-// 而如果在这种情况下，默认m是不会被初始化的
-// 所以导致问题，或许应该得手动初始化一个？
-// TODO： 初始化应该不太对劲，有高人指点一下吗
+
 // MarshalJSON 序列化 SyncMap 为 JSON 格式
 func (m *SyncMap[K, V]) MarshalJSON() ([]byte, error) {
+
+	// 怀疑是因为原本的实现方式下，sync.Map默认就是存在的不需要初始化
+	// 而如果在这种情况下，默认m是不会被初始化的
+	// 所以导致问题，或许应该得手动初始化一个？
+	// TODO： 初始化应该不太对劲，有高人指点一下吗
 	m.ensureInitialized()
 	return m.m.MarshalJSON()
 }
 
 // UnmarshalJSON 反序列化 JSON 格式为 SyncMap
 func (m *SyncMap[K, V]) UnmarshalJSON(b []byte) error {
+	// 怀疑是因为原本的实现方式下，sync.Map默认就是存在的不需要初始化
+	// 而如果在这种情况下，默认m是不会被初始化的
+	// 所以导致问题，或许应该得手动初始化一个？
+	// TODO： 初始化应该不太对劲，有高人指点一下吗
 	m.ensureInitialized()
 	return m.m.UnmarshalJSON(b)
-}
-
-// InitializeSyncMap 一个其实没有任何用的工厂函数，用于创建和初始化 SyncMap 实例，我感觉这玩意都多余……
-func InitializeSyncMap[K comparable, V any]() *SyncMap[K, V] {
-	return NewSyncMap[K, V]()
 }
