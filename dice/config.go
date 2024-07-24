@@ -2132,8 +2132,9 @@ func (d *Dice) loads() {
 			}
 		}
 		d.DiceMasters = newDiceMasters
-		// 装载ServiceAt
-		d.ImSession.ServiceAtNew = map[string]*GroupInfo{}
+		// 装载ServiceAtNew
+		// Pinenutn: So,我还是不知道ServiceAtNew到底是个什么鬼东西……太反直觉了……
+		d.ImSession.ServiceAtNew = syncmap.NewSyncMap[string, *GroupInfo]()
 		_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
 			var groupInfo GroupInfo
 			err := json.Unmarshal(data, &groupInfo)
@@ -2154,7 +2155,7 @@ func (d *Dice) loads() {
 						groupInfo.DiceIDExistsMap.Delete(i)
 					}
 				}
-				d.ImSession.ServiceAtNew[id] = &groupInfo
+				d.ImSession.ServiceAtNew.Store(id, &groupInfo)
 			} else {
 				d.Logger.Errorf("加载群信息失败: %s", id)
 			}
@@ -2164,26 +2165,30 @@ func (d *Dice) loads() {
 		for _, i := range d.ExtList {
 			m[i.Name] = i
 		}
-
 		// 设置群扩展
-		for _, v := range d.ImSession.ServiceAtNew {
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		d.ImSession.ServiceAtNew.Range(func(_ string, groupInfo *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
 			var tmp []*ExtInfo
-			for _, i := range v.ActivatedExtList {
+			for _, i := range groupInfo.ActivatedExtList {
 				if m[i.Name] != nil {
 					tmp = append(tmp, m[i.Name])
 				}
 			}
-			v.ActivatedExtList = tmp
-		}
+			groupInfo.ActivatedExtList = tmp
+			return true
+		})
 
 		// 读取群变量
-		for _, g := range d.ImSession.ServiceAtNew {
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
 			// 群组数据
-			if g.ValueMap == nil {
-				g.ValueMap = lockfree.NewHashMap()
+			if groupInfo.ValueMap == nil {
+				groupInfo.ValueMap = lockfree.NewHashMap()
 			}
 
-			data := model.AttrGroupGetAll(d.DBData, g.GroupID)
+			data := model.AttrGroupGetAll(d.DBData, groupInfo.GroupID)
 			if len(data) != 0 {
 				mapData := make(map[string]*VMValue)
 				err := JSONValueMapUnmarshal(data, &mapData)
@@ -2191,19 +2196,20 @@ func (d *Dice) loads() {
 					d.Logger.Error("读取群变量失败: ", err)
 				}
 				for k, v := range mapData {
-					g.ValueMap.Set(k, v)
+					groupInfo.ValueMap.Set(k, v)
 				}
 			}
-			if g.DiceIDActiveMap == nil {
-				g.DiceIDActiveMap = syncmap.InitializeSyncMap[string, bool]()
+			if groupInfo.DiceIDActiveMap == nil {
+				groupInfo.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
 			}
-			if g.DiceIDExistsMap == nil {
-				g.DiceIDExistsMap = syncmap.InitializeSyncMap[string, bool]()
+			if groupInfo.DiceIDExistsMap == nil {
+				groupInfo.DiceIDExistsMap = syncmap.NewSyncMap[string, bool]()
 			}
-			if g.BotList == nil {
-				g.BotList = syncmap.InitializeSyncMap[string, bool]()
+			if groupInfo.BotList == nil {
+				groupInfo.BotList = syncmap.NewSyncMap[string, bool]()
 			}
-		}
+			return true
+		})
 
 		if d.VersionCode != 0 && d.VersionCode < 10000 {
 			d.CustomReplyConfigEnable = false
@@ -2325,9 +2331,13 @@ func (d *Dice) loads() {
 		// 设置全局群名缓存和用户名缓存
 		dm := d.Parent
 		now := time.Now().Unix()
-		for k, v := range d.ImSession.ServiceAtNew {
-			dm.GroupNameCache.Set(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
-		}
+
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
+			dm.GroupNameCache.Set(key, &GroupNameCacheItem{Name: groupInfo.GroupName, time: now})
+			return true
+		})
 
 		d.Logger.Info("serve.yaml loaded")
 	} else {
@@ -2526,13 +2536,14 @@ func (d *Dice) Save(isAuto bool) {
 			}
 		}
 	}
-
-	for _, g := range d.ImSession.ServiceAtNew {
+	// Pinenutn: Range模板 ServiceAtNew重构代码
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		// Pinenutn: ServiceAtNew重构
 		// 保存群内玩家信息
-		if g.Players != nil {
-			g.Players.Range(func(key string, value *GroupPlayerInfo) bool {
+		if groupInfo.Players != nil {
+			groupInfo.Players.Range(func(key string, value *GroupPlayerInfo) bool {
 				if value.UpdatedAtTime != 0 {
-					_ = model.GroupPlayerInfoSave(d.DBData, g.GroupID, key, (*model.GroupPlayerInfoBase)(value))
+					_ = model.GroupPlayerInfoSave(d.DBData, groupInfo.GroupID, key, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
 
@@ -2540,7 +2551,7 @@ func (d *Dice) Save(isAuto bool) {
 				if value.Vars != nil && value.Vars.Loaded {
 					if value.Vars.LastWriteTime != 0 {
 						data, _ := json.Marshal(LockFreeMapToMap(value.Vars.ValueMap))
-						model.AttrGroupUserSave(d.DBData, g.GroupID, key, data)
+						model.AttrGroupUserSave(d.DBData, groupInfo.GroupID, key, data)
 						value.Vars.LastWriteTime = 0
 					}
 				}
@@ -2549,21 +2560,23 @@ func (d *Dice) Save(isAuto bool) {
 			})
 		}
 
-		if g.UpdatedAtTime != 0 {
-			data, err := json.Marshal(g)
+		if groupInfo.UpdatedAtTime != 0 {
+			data, err := json.Marshal(groupInfo)
 			if err == nil {
-				err := model.GroupInfoSave(d.DBData, g.GroupID, g.UpdatedAtTime, data)
+				err := model.GroupInfoSave(d.DBData, groupInfo.GroupID, groupInfo.UpdatedAtTime, data)
 				if err != nil {
-					d.Logger.Warnf("保存群组数据失败 %v : %v", g.GroupID, err.Error())
+					d.Logger.Warnf("保存群组数据失败 %v : %v", groupInfo.GroupID, err.Error())
 				}
-				g.UpdatedAtTime = 0
+				groupInfo.UpdatedAtTime = 0
 			}
 		}
 
 		// TODO: 这里其实还能优化
-		data, _ := json.Marshal(LockFreeMapToMap(g.ValueMap))
-		model.AttrGroupSave(d.DBData, g.GroupID, data)
-	}
+		// Pinenutn: 话说这都一年多了，这里其实还能优化到哪儿去了:( ->等待木落优化
+		data, _ := json.Marshal(LockFreeMapToMap(groupInfo.ValueMap))
+		model.AttrGroupSave(d.DBData, groupInfo.GroupID, data)
+		return true
+	})
 
 	// 同步绑定的角色卡数据
 	chPrefix := "$:ch-bind-mtime:"

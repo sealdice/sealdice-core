@@ -359,11 +359,14 @@ func (d *Dice) Init() {
 	initVerify()
 
 	d.CommandCompatibleMode = true
-	d.ImSession = &IMSession{}
+	// Pinenutn: 预先初始化对应的SyncMap
+	d.ImSession = &IMSession{
+		PlayerVarsData: syncmap.NewSyncMap[string, *PlayerVariablesItem](),
+	}
 	d.ImSession.Parent = d
-	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
+	d.ImSession.ServiceAtNew = syncmap.NewSyncMap[string, *GroupInfo]()
 	d.CmdMap = CmdMapCls{}
-	d.GameSystemMap = syncmap.InitializeSyncMap[string, *GameSystemTemplate]()
+	d.GameSystemMap = syncmap.NewSyncMap[string, *GameSystemTemplate]()
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	_ = d.ConfigManager.Load()
 
@@ -442,23 +445,27 @@ func (d *Dice) Init() {
 			// 自动更新群信息
 			for _, i := range d.ImSession.EndPoints {
 				if i.Enable {
-					for k, v := range d.ImSession.ServiceAtNew {
+					// Pinenutn: Range模板 ServiceAtNew重构代码
+					d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+						// Pinenutn: ServiceAtNew重构
 						// TODO: 注意这里的Active可能不需要改
-						if !strings.HasPrefix(k, "PG-") && v.Active {
+						if !strings.HasPrefix(key, "PG-") && groupInfo.Active {
 							diceID := i.UserID
 							now := time.Now().Unix()
 
 							// 上次被人使用小于60s
-							if now-v.RecentDiceSendTime < 60 {
+							// Pinenutn: 这个减号让我懵了一秒，我还以为凑了个新变量草
+							if now-groupInfo.RecentDiceSendTime < 60 {
 								// 在群内存在，且开启时
-								if _, exists := v.DiceIDExistsMap.Load(diceID); exists {
-									if _, exists := v.DiceIDActiveMap.Load(diceID); exists {
-										i.Adapter.GetGroupInfoAsync(k)
+								if _, exists := groupInfo.DiceIDExistsMap.Load(diceID); exists {
+									if _, exists := groupInfo.DiceIDActiveMap.Load(diceID); exists {
+										i.Adapter.GetGroupInfoAsync(key)
 									}
 								}
 							}
 						}
-					}
+						return true
+					})
 				}
 			}
 		}
@@ -629,9 +636,13 @@ func (d *Dice) ExtAliasToName(s string) string {
 }
 
 func (d *Dice) ExtRemove(ei *ExtInfo) bool {
-	for _, i := range d.ImSession.ServiceAtNew {
-		i.ExtInactive(ei)
-	}
+
+	// Pinenutn: Range模板 ServiceAtNew重构代码
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		// Pinenutn: ServiceAtNew重构
+		groupInfo.ExtInactive(ei)
+		return true
+	})
 
 	for index, i := range d.ExtList {
 		if i == ei {
@@ -736,7 +747,7 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 		// set 时从这里读取对应System名字的模板
 
 		// 同义词缓存
-		tmpl.AliasMap = syncmap.InitializeSyncMap[string, string]()
+		tmpl.AliasMap = syncmap.NewSyncMap[string, string]()
 		alias := tmpl.Alias
 		for k, v := range alias {
 			for _, i := range v {

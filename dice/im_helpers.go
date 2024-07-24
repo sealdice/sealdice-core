@@ -19,42 +19,48 @@ var (
 )
 
 func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType string, groupID string) bool {
-	a := messageType == "group" &&
-		session.ServiceAtNew[groupID] != nil
+
+	// Pinenutn: 总觉得这里还能优化，但是又想不到怎么优化，可恶，要长脑子了
+	a := messageType == "group" && session.ServiceAtNew.Exists(groupID)
 	if !a {
 		return false
 	}
-	_, exists := session.ServiceAtNew[groupID].DiceIDActiveMap.Load(ep.UserID)
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
+	if !ok {
+		// Pinenutn: 这里是否要打一下日志呢……
+		return false
+	}
+	_, exists := groupInfo.DiceIDActiveMap.Load(ep.UserID)
 	return exists
 }
 
 func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 	session := ctx.Session
-	group := session.ServiceAtNew[groupID]
-	if group != nil {
-		if group.DiceIDActiveMap == nil {
-			group.DiceIDActiveMap = syncmap.InitializeSyncMap[string, bool]()
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
+	if ok {
+		if groupInfo.DiceIDActiveMap == nil {
+			groupInfo.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
 		}
 
 		// TODO: 进行更好的是否变更的检查
-		group.DiceIDActiveMap.Delete(ctx.EndPoint.UserID)
-		if group.DiceIDActiveMap.Len() == 0 {
-			group.Active = false
+		groupInfo.DiceIDActiveMap.Delete(ctx.EndPoint.UserID)
+		if groupInfo.DiceIDActiveMap.Len() == 0 {
+			groupInfo.Active = false
 		}
-		group.UpdatedAtTime = time.Now().Unix()
+		groupInfo.UpdatedAtTime = time.Now().Unix()
 	}
 }
 
 // SetBotOnAtGroup 在群内开启
 func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	session := ctx.Session
-	group := session.ServiceAtNew[groupID]
-	if group != nil {
+	group, ok := session.ServiceAtNew.Load(groupID)
+	if ok {
 		if group.DiceIDActiveMap == nil {
-			group.DiceIDActiveMap = syncmap.InitializeSyncMap[string, bool]()
+			group.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
 		}
 		if group.DiceIDExistsMap == nil {
-			group.DiceIDActiveMap = syncmap.InitializeSyncMap[string, bool]()
+			group.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
 		}
 		group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
 		group.Active = true
@@ -70,28 +76,29 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			}
 		}
 
-		session.ServiceAtNew[groupID] = &GroupInfo{
+		session.ServiceAtNew.Store(groupID, &GroupInfo{
 			Active:           true,
 			ActivatedExtList: extLst,
-			Players:          syncmap.InitializeSyncMap[string, *GroupPlayerInfo](),
+			Players:          syncmap.NewSyncMap[string, *GroupPlayerInfo](),
 			GroupID:          groupID,
 			ValueMap:         lockfree.NewHashMap(),
-			DiceIDActiveMap:  syncmap.InitializeSyncMap[string, bool](),
-			DiceIDExistsMap:  syncmap.InitializeSyncMap[string, bool](),
+			DiceIDActiveMap:  syncmap.NewSyncMap[string, bool](),
+			DiceIDExistsMap:  syncmap.NewSyncMap[string, bool](),
 			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
 			UpdatedAtTime:    time.Now().Unix(),
-		}
-		group = session.ServiceAtNew[groupID]
+		})
+		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
+		group, _ = session.ServiceAtNew.Load(groupID)
 	}
 
 	if group.DiceIDActiveMap == nil {
-		group.DiceIDActiveMap = syncmap.InitializeSyncMap[string, bool]()
+		group.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
 	}
 	if group.DiceIDExistsMap == nil {
-		group.DiceIDExistsMap = syncmap.InitializeSyncMap[string, bool]()
+		group.DiceIDExistsMap = syncmap.NewSyncMap[string, bool]()
 	}
 	if group.BotList == nil {
-		group.BotList = syncmap.InitializeSyncMap[string, bool]()
+		group.BotList = syncmap.NewSyncMap[string, bool]()
 	}
 
 	group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
@@ -111,18 +118,19 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		groupID = "PG-" + msg.Sender.UserID
 		SetBotOnAtGroup(ctx, groupID)
 	}
-	group := session.ServiceAtNew[groupID]
-	if msg.GuildID != "" {
-		group.GuildID = msg.GuildID
-	}
-	if msg.ChannelID != "" {
-		group.ChannelID = msg.ChannelID
-	}
-	if group == nil {
+	// Pinenutn:ServiceAtNew
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
+	if !ok {
 		return nil, nil
 	}
+	if msg.GuildID != "" {
+		groupInfo.GuildID = msg.GuildID
+	}
+	if msg.ChannelID != "" {
+		groupInfo.ChannelID = msg.ChannelID
+	}
 
-	p := group.PlayerGet(ctx.Dice.DBData, msg.Sender.UserID)
+	p := groupInfo.PlayerGet(ctx.Dice.DBData, msg.Sender.UserID)
 	if p == nil {
 		p = &GroupPlayerInfo{
 			Name:          msg.Sender.Nickname,
@@ -130,14 +138,14 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 			ValueMapTemp:  lockfree.NewHashMap(),
 			UpdatedAtTime: 0, // 新创建时不赋值，这样不会入库保存，减轻数据库负担
 		}
-		group.Players.Store(msg.Sender.UserID, p)
+		groupInfo.Players.Store(msg.Sender.UserID, p)
 	}
 	if p.ValueMapTemp == nil {
 		p.ValueMapTemp = lockfree.NewHashMap()
 	}
 	p.InGroup = true
-	ctx.LoadPlayerGroupVars(group, p)
-	return group, p
+	ctx.LoadPlayerGroupVars(groupInfo, p)
+	return groupInfo, p
 }
 
 func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
@@ -318,9 +326,9 @@ func CrossMsgBySearch(se *IMSession, p, t, txt string, pr bool) bool {
 		Dice:     ep.Session.Parent,
 	}
 
-	if g, ok := mctx.Session.ServiceAtNew[t]; ok {
-		mctx.IsCurGroupBotOn = g.Active
-		mctx.Group = g
+	if groupInfo, ok := mctx.Session.ServiceAtNew.Load(t); ok {
+		mctx.IsCurGroupBotOn = groupInfo.Active
+		mctx.Group = groupInfo
 	}
 
 	if !pr {

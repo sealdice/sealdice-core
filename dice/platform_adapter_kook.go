@@ -149,11 +149,11 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupID string) {
 		Name: channel.Name,
 		time: time.Now().Unix(),
 	})
-	group := pa.Session.ServiceAtNew[groupID]
-	if group != nil {
-		if channel.Name != group.GroupName {
-			group.GroupName = channel.Name
-			group.UpdatedAtTime = time.Now().Unix()
+	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
+	if ok {
+		if channel.Name != groupInfo.GroupName {
+			groupInfo.GroupName = channel.Name
+			groupInfo.UpdatedAtTime = time.Now().Unix()
 		}
 	}
 }
@@ -294,8 +294,10 @@ func (pa *PlatformAdapterKook) Serve() int {
 		}()
 
 		// 此时 ServiceAtNew 中这个频道一般为空，照 im_session.go 中的方法处理
-		channel := mctx.Session.ServiceAtNew[msg.GroupID]
-		if channel == nil {
+		// Pinenutn: 此处的逻辑似乎是：初始化了之后，默认的channel是个nil,所以如果初始化了要手动赋值？
+		channel, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
+		// 尝试覆盖所有可能情况
+		if !ok {
 			channel = SetBotOnAtGroup(mctx, msg.GroupID)
 			channel.Active = true
 			channel.DiceIDExistsMap.Store(pa.EndPoint.UserID, true)
@@ -304,8 +306,9 @@ func (pa *PlatformAdapterKook) Serve() int {
 			channel.EnteredTime = now
 		}
 
-		if mctx.Session.ServiceAtNew[msg.GroupID] != nil {
-			for _, i := range mctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+		groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
+		if ok {
+			for _, i := range groupInfo.ActivatedExtList {
 				if i.OnGuildJoined != nil {
 					i.callWithJsCheck(mctx.Dice, func() {
 						i.OnGuildJoined(mctx, msg)
