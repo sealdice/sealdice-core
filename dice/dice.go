@@ -241,8 +241,6 @@ type Dice struct {
 	JsScriptCronLock  *sync.Mutex            `yaml:"-" json:"-"`
 	// 重载使用的互斥锁
 	JsReloadLock sync.RWMutex `yaml:"-" json:"-"`
-	//HelpDocReloadLock *sync.Mutex  `yaml:"-" json:"-"`
-	//JsReloadLock *sync.Mutex `yaml:"-" json:"-"`
 
 	// 内置脚本摘要表，用于判断内置脚本是否有更新
 	JsBuiltinDigestSet map[string]bool `yaml:"-" json:"-"`
