@@ -519,7 +519,7 @@ jobs:
       - name: Set Version
         working-directory: ./sealdice-android/app
         run: |
-          sed -i 's/versionName ".*"/versionName "${{ env.ANDROID_VERSION }}+${{ env.PROJECT_VERSION }}"/g' build.gradle
+          sed -i 's/versionName ".*"/versionName "${{ env.PROJECT_VERSION }}"/g' build.gradle
         env:
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
       - name: Build Apk
@@ -551,109 +551,6 @@ jobs:
         with:
           name: sealdice_${{ env.PROJECT_VERSION_C }}_android_arm64
           path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION_C }}_arm64.apk
-
-  android-build-trace-debug:
-    name: Build Android Apk with trace
-    runs-on: ubuntu-20.04
-    needs:
-      - core-android-build
-      - resources-download
-      - lagrange-setup
-      # - gocqhttp-android-build
-    steps:
-      - name: Code
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Get current time
-        uses: Kaven-Universe/github-action-current-date-time@v1
-        id: currentTime
-        with:
-          format: YYYYMMDD
-          timezone-offset: -480
-      - name: Set Env
-        run: |
-          echo "PROJECT_VERSION=dev-${CUR_TIME}.${COMMIT_ID::7}" >> $GITHUB_ENV;
-          echo "PROJECT_VERSION_C=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
-        env:
-          CUR_TIME: ${{ steps.currentTime.outputs.time }}
-      - name: Get Core-android
-        uses: actions/download-artifact@v4
-        with:
-          name: sealdice-core_${{ env.PROJECT_VERSION_C }}_android_arm64
-          path: ./sealdice-android/app/src/main/assets/sealdice
-      - name: Get Documents
-        uses: actions/download-artifact@v4
-        with:
-          name: documents
-          path: ./sealdice-android/app/src/main/assets/sealdice/data
-
-      - name: Get App-Runner
-        run: |
-          curl https://d1.sealdice.com/lagrange/app-runner-dev-arm64.tar.gz > ./sealdice-android/app/src/main/assets/app-runner-arm64.tar.gz
-
-      - name: Get Lagrange
-        uses: actions/download-artifact@v4
-        with:
-          name: lagrange.android-arm64
-          path: ./sealdice-android/app/src/main/assets/sealdice/lagrange/
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
-      - name: Set Execution Flag
-        working-directory: ./sealdice-android
-        run: chmod +x gradlew
-      - name: Remove ARCA Config
-        working-directory: ./sealdice-android/app/src/main/java/com/sealdice/dice
-        run: |
-          sed -i '/secrets.Auth.*/d' MyApplication.kt
-          sed -i '/httpSender {/,/}/d' MyApplication.kt
-      - name: Set Version
-        working-directory: ./sealdice-android/app
-        run: |
-          sed -i 's/versionName ".*"/versionName "${{ env.PROJECT_VERSION }}"/g' build.gradle
-        env:
-          CUR_TIME: ${{ steps.currentTime.outputs.time }}
-      - name: Build Apk
-        working-directory: ./sealdice-android
-        run: |
-          bash ./gradlew assembleDebug --stacktrace
-          ls /usr/local/lib/android/sdk/build-tools
-
-      - name: Sign Android release
-        uses: r0adkll/sign-android-release@v1
-        # ID used to access action output
-        id: sign_app
-        with:
-          releaseDirectory: ./sealdice-android/app/build/outputs/apk/debug
-          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-          alias: ${{ secrets.ALIAS }}
-          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-        env:
-          # override default build-tools version (29.0.3) -- optional
-          BUILD_TOOLS_VERSION: "34.0.0"
-
-      - name: Rename Apk
-        working-directory: ./sealdice-android
-        run: |
-          mv ./app/build/outputs/apk/debug/app-debug-signed.apk ./app/build/outputs/apk/debug/sealdice_android_${{ env.PROJECT_VERSION_C }}_arm64.apk
-
-      - name: Upload Apk
-        uses: actions/upload-artifact@v4
-        with:
-          name: sealdice_${{ env.PROJECT_VERSION_C }}_trace_debug_android_arm64
-          path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_android_${{ env.PROJECT_VERSION_C }}_arm64.apk
-
-      # - name: Upload Apk
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: sealdice_${{ env.PROJECT_VERSION_C }}_trace_debug_android_arm64
-      #     path: ./sealdice-android/app/build/outputs/apk/debug/sealdice_${{ env.PROJECT_VERSION_C }}_arm64.apk
 
   pc-pack:
     name: PC Pack
