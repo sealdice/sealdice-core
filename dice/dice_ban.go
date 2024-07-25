@@ -206,7 +206,7 @@ func (i *BanListInfo) addJointScore(_ string, score int64, place string, reason 
 		i.AddScoreBase(place, int64(score), place, reason, ctx)
 	}
 	if i.JointScorePercentOfInviter > 0 {
-		groupInfo, ok := d.ImSession.ServiceAtNew.Load(place)
+		groupInfo, ok := d.ImSession.ServiceAt.Load(place)
 		if ok && groupInfo.InviteUserID != "" {
 			rank := i.NoticeCheckPrepare(groupInfo.InviteUserID)
 			score := i.JointScorePercentOfInviter * float64(score)
@@ -268,7 +268,7 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 
 		// 发给邀请者
 		time.Sleep(1 * time.Second)
-		groupInfo, ok := i.Parent.ImSession.ServiceAtNew.Load(place)
+		groupInfo, ok := i.Parent.ImSession.ServiceAt.Load(place)
 		if ok && groupInfo.InviteUserID != "" {
 			VarSetValueStr(ctx, "$t事发群名", groupInfo.GroupName)
 			VarSetValueStr(ctx, "$t事发群号", groupInfo.GroupID)

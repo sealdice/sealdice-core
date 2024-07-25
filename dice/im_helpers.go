@@ -20,11 +20,11 @@ var (
 
 func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType string, groupID string) bool {
 	// Pinenutn: 总觉得这里还能优化，但是又想不到怎么优化，可恶，要长脑子了
-	a := messageType == "group" && session.ServiceAtNew.Exists(groupID)
+	a := messageType == "group" && session.ServiceAt.Exists(groupID)
 	if !a {
 		return false
 	}
-	groupInfo, ok := session.ServiceAtNew.Load(groupID)
+	groupInfo, ok := session.ServiceAt.Load(groupID)
 	if !ok {
 		// Pinenutn: 这里是否要打一下日志呢……
 		return false
@@ -35,7 +35,7 @@ func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType strin
 
 func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 	session := ctx.Session
-	groupInfo, ok := session.ServiceAtNew.Load(groupID)
+	groupInfo, ok := session.ServiceAt.Load(groupID)
 	if ok {
 		if groupInfo.DiceIDActiveMap == nil {
 			groupInfo.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
@@ -53,7 +53,7 @@ func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 // SetBotOnAtGroup 在群内开启
 func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	session := ctx.Session
-	group, ok := session.ServiceAtNew.Load(groupID)
+	group, ok := session.ServiceAt.Load(groupID)
 	if ok {
 		if group.DiceIDActiveMap == nil {
 			group.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
@@ -75,7 +75,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			}
 		}
 
-		session.ServiceAtNew.Store(groupID, &GroupInfo{
+		session.ServiceAt.Store(groupID, &GroupInfo{
 			Active:           true,
 			ActivatedExtList: extLst,
 			Players:          syncmap.NewSyncMap[string, *GroupPlayerInfo](),
@@ -87,7 +87,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			UpdatedAtTime:    time.Now().Unix(),
 		})
 		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
-		group, _ = session.ServiceAtNew.Load(groupID)
+		group, _ = session.ServiceAt.Load(groupID)
 	}
 
 	if group.DiceIDActiveMap == nil {
@@ -117,8 +117,8 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		groupID = "PG-" + msg.Sender.UserID
 		SetBotOnAtGroup(ctx, groupID)
 	}
-	// Pinenutn:ServiceAtNew
-	groupInfo, ok := session.ServiceAtNew.Load(groupID)
+	// Pinenutn:ServiceAt
+	groupInfo, ok := session.ServiceAt.Load(groupID)
 	if !ok {
 		return nil, nil
 	}
@@ -325,7 +325,7 @@ func CrossMsgBySearch(se *IMSession, p, t, txt string, pr bool) bool {
 		Dice:     ep.Session.Parent,
 	}
 
-	if groupInfo, ok := mctx.Session.ServiceAtNew.Load(t); ok {
+	if groupInfo, ok := mctx.Session.ServiceAt.Load(t); ok {
 		mctx.IsCurGroupBotOn = groupInfo.Active
 		mctx.Group = groupInfo
 	}
