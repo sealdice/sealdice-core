@@ -441,7 +441,9 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	}
 
 	ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
-		if curVal == nil {
+		if curVal == nil { //nolint:nestif
+			// 注: if复杂度为31，触发nestif，但是逻辑并不复杂。我尝试将其中一个if封装成函数放到顶上过，虽然解决了lint但反而更难读了
+			// 翻转if同样可以减一层复杂度，但我希望的是体现出overwrite函数默认行为是返回curVal，所以最好还是写在流程最后
 			// 临时变量
 			if strings.HasPrefix(name, "$t") {
 				if ctx.Player.ValueMapTemp == nil {
@@ -453,7 +455,6 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			}
 
 			if strings.HasPrefix(name, "$") {
-				am := ctx.Dice.AttrsManager
 				// 个人变量
 				if strings.HasPrefix(name, "$m") {
 					if ctx.Session != nil && ctx.Player != nil {
