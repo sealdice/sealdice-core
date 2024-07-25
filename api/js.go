@@ -141,11 +141,11 @@ func jsReload(c echo.Context) error {
 	// TODO:用户提示模式？
 	locked := myDice.JsReloadLock.TryLock()
 	if !locked {
-		return c.JSON(400, nil)
+		return c.NoContent(400)
 	}
 	defer myDice.JsReloadLock.Unlock()
 	myDice.JsReload()
-	return c.JSON(200, nil)
+	return c.NoContent(200)
 }
 
 func jsUpload(c echo.Context) error {
