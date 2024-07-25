@@ -521,30 +521,41 @@ func RegisterBuiltinExtLog(self *Dice) {
 .stat help // 帮助
 `
 	cmdOb := &CmdItemInfo{
-		Name:      "ob",
-		ShortHelp: helpOb,
-		Help:      "观众指令:\n" + helpOb,
+		Name:          "ob",
+		ShortHelp:     helpOb,
+		Help:          "观众指令:\n" + helpOb,
+		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			val := cmdArgs.GetArgN(1)
-			switch strings.ToLower(val) {
+			ctx.DelegateText = ""
+			mctx := GetCtxProxyFirst(ctx, cmdArgs)
+			subcommand := cmdArgs.GetArgN(1)
+
+			c := ctx
+			if mctx != nil && mctx.Player.UserID != ctx.Player.UserID {
+				if ctx.PrivilegeLevel < 50 && subcommand != "help" {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "通用:提示_无权限_非master/管理"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				c = mctx
+			}
+			
+			switch strings.ToLower(subcommand) {
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			case "exit":
-				if strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
-					ctx.Player.Name = ctx.Player.Name[len("ob"):]
-					ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if strings.HasPrefix(strings.ToLower(c.Player.Name), "ob") {
+					c.Player.Name = c.Player.Name[len("ob"):]
+					c.Player.UpdatedAtTime = time.Now().Unix()
 				}
-				ctx.EndPoint.Adapter.SetGroupCardName(ctx, ctx.Player.Name)
-				text := DiceFormatTmpl(ctx, "日志:OB_关闭")
-				ReplyToSender(ctx, msg, text)
+				ctx.EndPoint.Adapter.SetGroupCardName(ctx, c.Player.Name)
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:OB_关闭"))
 			default:
-				if !strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
-					ctx.Player.Name = "ob" + ctx.Player.Name
-					ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if !strings.HasPrefix(strings.ToLower(c.Player.Name), "ob") {
+					c.Player.Name = "ob" + c.Player.Name
+					c.Player.UpdatedAtTime = time.Now().Unix()
 				}
-				ctx.EndPoint.Adapter.SetGroupCardName(ctx, ctx.Player.Name)
-				text := DiceFormatTmpl(ctx, "日志:OB_开启")
-				ReplyToSender(ctx, msg, text)
+				ctx.EndPoint.Adapter.SetGroupCardName(ctx, c.Player.Name)
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:OB_开启"))
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
