@@ -454,13 +454,10 @@ func (d *Dice) Init() {
 							now := time.Now().Unix()
 
 							// 上次被人使用小于60s
-							// Pinenutn: 这个减号让我懵了一秒，我还以为凑了个新变量草
 							if now-groupInfo.RecentDiceSendTime < 60 {
 								// 在群内存在，且开启时
-								if _, exists := groupInfo.DiceIDExistsMap.Load(diceID); exists {
-									if _, exists := groupInfo.DiceIDActiveMap.Load(diceID); exists {
-										i.Adapter.GetGroupInfoAsync(key)
-									}
+								if groupInfo.DiceIDExistsMap.Exists(diceID) && groupInfo.DiceIDActiveMap.Exists(diceID) {
+									i.Adapter.GetGroupInfoAsync(key)
 								}
 							}
 						}
