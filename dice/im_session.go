@@ -593,7 +593,6 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 						}
 					}
 				}
-
 			}
 		}
 
@@ -948,7 +947,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		mctx.Notice(txt)
 
 		if msg.Platform == "QQ" || msg.Platform == "TG" {
-			groupInfo, ok := mctx.Session.ServiceAt.Load(msg.GroupID)
+			groupInfo, ok = mctx.Session.ServiceAt.Load(msg.GroupID)
 			if ok {
 				for _, i := range groupInfo.ActivatedExtList {
 					if i.OnGroupJoined != nil {
