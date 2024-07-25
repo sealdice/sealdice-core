@@ -52,7 +52,7 @@ func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupID string) {
 		Name: info.ChannelName,
 		time: time.Now().Unix(),
 	})
-	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
+	groupInfo, ok := pa.Session.ServiceAt.Load(groupID)
 	if ok {
 		groupInfo.GroupName = info.ChannelName
 	}

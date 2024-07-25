@@ -580,7 +580,7 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 		return
 	}
 
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
+	groupInfo, ok := ctx.Session.ServiceAt.Load(groupId)
 	if ok {
 		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnMessageSend != nil {
@@ -681,7 +681,7 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 	refreshMembers := func(group *Group) {
 		groupID := formatDiceIDRedGroup(group.GroupCode)
 		members := pa.getMemberList(group.GroupCode, group.MemberCount)
-		groupInfo, ok := session.ServiceAtNew.Load(groupID)
+		groupInfo, ok := session.ServiceAt.Load(groupID)
 		groupMemberMap := syncmap.NewSyncMap[string, *GroupMember]()
 		for _, member := range members {
 			userID := formatDiceIDRed(member.Uin)
@@ -716,7 +716,7 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 					time: time.Now().Unix(),
 				})
 
-				groupInfo, ok := session.ServiceAtNew.Load(groupId)
+				groupInfo, ok := session.ServiceAt.Load(groupId)
 				if !ok {
 					// 新检测到群
 					ctx := &MsgContext{

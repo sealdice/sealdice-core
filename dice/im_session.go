@@ -465,7 +465,7 @@ type IMSession struct {
 	Parent    *Dice           `yaml:"-"`
 	EndPoints []*EndPointInfo `yaml:"endPoints"`
 
-	ServiceAtNew   *syncmap.SyncMap[string, *GroupInfo]           `json:"servicesAt" yaml:"-"`
+	ServiceAt      *syncmap.SyncMap[string, *GroupInfo]           `json:"servicesAt" yaml:"-"`
 	PlayerVarsData *syncmap.SyncMap[string, *PlayerVariablesItem] `yaml:"-"` // 感觉似乎没有什么存本地的必要
 }
 
@@ -557,7 +557,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	// 处理命令
 	if msg.MessageType == "group" || msg.MessageType == "private" { //nolint:nestif
 		// GroupEnableCheck TODO: 后续看看是否需要
-		groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
+		groupInfo, ok := s.ServiceAt.Load(msg.GroupID)
 		if !ok && msg.GroupID != "" {
 			// 注意: 此处必须开启，不然下面mctx.player取不到
 			autoOn := true
@@ -581,9 +581,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			mctx.Notice(txt)
 
 			if msg.Platform == "QQ" || msg.Platform == "TG" {
-				// ServiceAtNew changed
+				// ServiceAt changed
 				// Pinenutn:这个i不知道是啥，放你一马（
-				activatedList, _ := mctx.Session.ServiceAtNew.Load(msg.GroupID)
+				activatedList, _ := mctx.Session.ServiceAt.Load(msg.GroupID)
 				if ok {
 					for _, i := range activatedList.ActivatedExtList {
 						if i.OnGroupJoined != nil {
@@ -921,7 +921,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	}
 
 	// 处理命令
-	groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
+	groupInfo, ok := s.ServiceAt.Load(msg.GroupID)
 	if !ok && msg.GroupID != "" {
 		// 注意: 此处必须开启，不然下面mctx.player取不到
 		autoOn := true
@@ -948,7 +948,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		mctx.Notice(txt)
 
 		if msg.Platform == "QQ" || msg.Platform == "TG" {
-			groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
+			groupInfo, ok := mctx.Session.ServiceAt.Load(msg.GroupID)
 			if ok {
 				for _, i := range groupInfo.ActivatedExtList {
 					if i.OnGroupJoined != nil {
@@ -1318,7 +1318,7 @@ var lastWelcome *LastWelcomeInfo
 func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 	log := s.Parent.Logger
 
-	groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
+	groupInfo, ok := s.ServiceAt.Load(msg.GroupID)
 	// 进群的是别人，是否迎新？
 	// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 	// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
@@ -1391,7 +1391,7 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 		selectedGroupEndpoints := []*GroupEndpointPair{} // 创建一个存放 grp 和 ep 组合的切片
 
 		// Pinenutn: Range模板 ServiceAtNew重构代码
-		s.ServiceAtNew.Range(func(key string, grp *GroupInfo) bool {
+		s.ServiceAt.Range(func(key string, grp *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			if strings.HasPrefix(grp.GroupID, "PG-") {
 				return true
@@ -1732,7 +1732,7 @@ func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
 	d := mctx.Dice
 	mctx.MessageType = msg.MessageType
 	mctx.IsPrivate = mctx.MessageType == "private"
-	group, ok := s.ServiceAtNew.Load(msg.GroupID)
+	group, ok := s.ServiceAt.Load(msg.GroupID)
 	if !ok {
 		return
 	}
@@ -1780,7 +1780,7 @@ func (s *IMSession) OnMessageEdit(ctx *MsgContext, msg *Message) {
 	)
 	s.Parent.Logger.Info(m)
 
-	if group, ok := s.ServiceAtNew.Load(msg.GroupID); ok {
+	if group, ok := s.ServiceAt.Load(msg.GroupID); ok {
 		ctx.Group = group
 	} else {
 		return
@@ -1884,9 +1884,9 @@ func (ep *EndPointInfo) AdapterSetup() {
 func (ep *EndPointInfo) RefreshGroupNum() {
 	serveCount := 0
 	session := ep.Session
-	if session != nil && session.ServiceAtNew != nil {
+	if session != nil && session.ServiceAt != nil {
 		// Pinenutn: Range模板 ServiceAtNew重构代码
-		session.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		session.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			if groupInfo.GroupID != "" {
 				if strings.HasPrefix(groupInfo.GroupID, "PG-") {
@@ -2301,7 +2301,7 @@ func (ctx *MsgContext) ChUnbind(name string) []string {
 	lst := ctx.ChBindGetList(name)
 
 	for _, groupID := range lst {
-		groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
+		groupInfo, ok := ctx.Session.ServiceAt.Load(groupID)
 		if ok {
 			p := groupInfo.PlayerGet(ctx.Dice.DBData, ctx.Player.UserID)
 			if p.Vars == nil || !p.Vars.Loaded {

@@ -201,7 +201,7 @@ func (d *Dice) JsInit() {
 			}
 			d.ApplyExtDefaultSettings()
 			// Pinenutn: Range模板 ServiceAtNew重构代码
-			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			d.ImSession.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
 				// Pinenutn: ServiceAtNew重构
 				groupInfo.ExtActive(ei)
 				return true

@@ -361,7 +361,7 @@ func (d *Dice) Init() {
 		PlayerVarsData: syncmap.NewSyncMap[string, *PlayerVariablesItem](),
 	}
 	d.ImSession.Parent = d
-	d.ImSession.ServiceAtNew = syncmap.NewSyncMap[string, *GroupInfo]()
+	d.ImSession.ServiceAt = syncmap.NewSyncMap[string, *GroupInfo]()
 	d.CmdMap = CmdMapCls{}
 	d.GameSystemMap = syncmap.NewSyncMap[string, *GameSystemTemplate]()
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
@@ -443,7 +443,7 @@ func (d *Dice) Init() {
 			for _, i := range d.ImSession.EndPoints {
 				if i.Enable {
 					// Pinenutn: Range模板 ServiceAtNew重构代码
-					d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+					d.ImSession.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
 						// Pinenutn: ServiceAtNew重构
 						// TODO: 注意这里的Active可能不需要改
 						if !strings.HasPrefix(key, "PG-") && groupInfo.Active {
@@ -631,7 +631,7 @@ func (d *Dice) ExtAliasToName(s string) string {
 
 func (d *Dice) ExtRemove(ei *ExtInfo) bool {
 	// Pinenutn: Range模板 ServiceAtNew重构代码
-	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+	d.ImSession.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
 		// Pinenutn: ServiceAtNew重构
 		groupInfo.ExtInactive(ei)
 		return true

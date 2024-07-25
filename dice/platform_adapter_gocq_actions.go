@@ -222,7 +222,7 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 		return
 	}
 
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
+	groupInfo, ok := ctx.Session.ServiceAt.Load(groupID)
 	if ok {
 		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnMessageSend != nil {

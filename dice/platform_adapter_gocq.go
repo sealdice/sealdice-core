@@ -513,7 +513,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					time: time.Now().Unix(),
 				}) // 不论如何，先试图取一下群名
 
-				groupInfo, ok := session.ServiceAtNew.Load(groupID)
+				groupInfo, ok := session.ServiceAt.Load(groupID)
 				if ok {
 					if msgQQ.Data.MaxMemberCount == 0 {
 						diceID := ep.UserID
@@ -560,7 +560,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					}
 				} else {
 					// TODO: 这玩意的创建是个专业活，等下来弄
-					// session.ServiceAtNew[groupId] = GroupInfo{}
+					// session.ServiceAt[groupId] = GroupInfo{}
 					fmt.Println("TODO create group")
 				}
 				// 这句话太吵了
@@ -770,7 +770,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						doSleepQQ(ctx)
 						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 					}
-					groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+					groupInfo, ok := ctx.Session.ServiceAt.Load(msg.GroupID)
 					if ok {
 						for _, i := range groupInfo.ActivatedExtList {
 							if i.OnBecomeFriend != nil {
@@ -840,7 +840,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, msgQQ.GroupID)
 			log.Info(txt)
 			ctx.Notice(txt)
-			groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+			groupInfo, ok := ctx.Session.ServiceAt.Load(msg.GroupID)
 			if ok {
 				for _, i := range groupInfo.ActivatedExtList {
 					if i.OnGroupJoined != nil {
@@ -853,7 +853,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 入群的另一种情况: 管理员审核
-		isGroupExist := s.ServiceAtNew.Exists(msg.GroupID)
+		isGroupExist := s.ServiceAt.Exists(msg.GroupID)
 		// Pinenutn: 如果不存在这个群聊，但GroupID存在
 		if !isGroupExist && msg.GroupID != "" {
 			now := time.Now().Unix()
@@ -870,7 +870,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
 				groupEntered()
 			} else {
-				group, ok := session.ServiceAtNew.Load(msg.GroupID)
+				group, ok := session.ServiceAt.Load(msg.GroupID)
 				// 进群的是别人，是否迎新？
 				// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 				// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
@@ -959,6 +959,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// {"group_id":564808710,"notice_type":"group_decrease","operator_id":2589922907,"post_type":"notice","self_id":2589922907,"sub_type":"leave","time":1651584460,"user_id":2589922907}
 			groupName := dm.TryGetGroupName(msg.GroupID)
 			txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, msgQQ.GroupID)
+			// 解散之后，是否要删除对应的痕迹
+
 			log.Info(txt)
 			ctx.Notice(txt)
 			return

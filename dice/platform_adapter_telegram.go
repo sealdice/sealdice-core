@@ -42,7 +42,7 @@ func (pa *PlatformAdapterTelegram) GetGroupInfoAsync(groupID string) {
 		Name: chat.Title,
 		time: time.Now().Unix(),
 	})
-	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
+	groupInfo, ok := pa.Session.ServiceAt.Load(groupID)
 	if ok {
 		groupInfo.GroupName = chat.Title
 	}
@@ -113,7 +113,7 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 					Dice:        pa.Session.Parent,
 					MessageType: msg.MessageType,
 				}
-				if groupInfo, ok := pa.Session.ServiceAtNew.Load(msg.GroupID); ok {
+				if groupInfo, ok := pa.Session.ServiceAt.Load(msg.GroupID); ok {
 					if p, ok2 := groupInfo.Players.Load(msg.Sender.UserID); ok2 {
 						mctx.Player = p
 					}
@@ -164,7 +164,7 @@ func (pa *PlatformAdapterTelegram) groupNewMember(msg *Message, msgRaw *tgbotapi
 	ucache := pa.Session.Parent.Parent.UserIDCache
 	logger := pa.Session.Parent.Logger
 	ep := pa.EndPoint
-	groupInfo, ok := pa.Session.ServiceAtNew.Load(msg.GroupID)
+	groupInfo, ok := pa.Session.ServiceAt.Load(msg.GroupID)
 	if member.UserName != "" {
 		_, cacheExist := ucache.Get(member.UserName)
 		if !cacheExist {
@@ -205,7 +205,7 @@ func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Mes
 		pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 	}
 	// Pinenutn ActivatedExtList模板
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+	groupInfo, ok := ctx.Session.ServiceAt.Load(msg.GroupID)
 	if ok {
 		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnGroupJoined != nil {
@@ -228,7 +228,7 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 	for _, i := range ctx.SplitText(welcome) {
 		pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 	}
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+	groupInfo, ok := ctx.Session.ServiceAt.Load(msg.GroupID)
 	if ok {
 		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnBecomeFriend != nil {

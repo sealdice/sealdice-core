@@ -149,7 +149,7 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupID string) {
 		Name: channel.Name,
 		time: time.Now().Unix(),
 	})
-	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
+	groupInfo, ok := pa.Session.ServiceAt.Load(groupID)
 	if ok {
 		if channel.Name != groupInfo.GroupName {
 			groupInfo.GroupName = channel.Name
@@ -293,10 +293,10 @@ func (pa *PlatformAdapterKook) Serve() int {
 			}
 		}()
 
-		// 此时 ServiceAtNew 中这个频道一般为空，照 im_session.go 中的方法处理
+		// 此时 ServiceAt 中这个频道一般为空，照 im_session.go 中的方法处理
 		// Pinenutn: 不清楚此处的逻辑，修改为Exists检查
-		//channel, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
-		ok := mctx.Session.ServiceAtNew.Exists(msg.GroupID)
+		// channel, ok := mctx.Session.ServiceAt.Load(msg.GroupID)
+		ok := mctx.Session.ServiceAt.Exists(msg.GroupID)
 		if !ok {
 			channel := SetBotOnAtGroup(mctx, msg.GroupID)
 			channel.Active = true
@@ -304,10 +304,10 @@ func (pa *PlatformAdapterKook) Serve() int {
 			now := time.Now().Unix()
 			channel.UpdatedAtTime = now
 			channel.EnteredTime = now
-			mctx.Session.ServiceAtNew.Store(msg.GroupID, channel)
+			mctx.Session.ServiceAt.Store(msg.GroupID, channel)
 		}
 
-		groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
+		groupInfo, ok := mctx.Session.ServiceAt.Load(msg.GroupID)
 		if ok {
 			for _, i := range groupInfo.ActivatedExtList {
 				if i.OnGuildJoined != nil {
