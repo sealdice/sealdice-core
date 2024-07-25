@@ -20,8 +20,9 @@ import (
 )
 
 type PlatformAdapterOfficialQQ struct {
-	Session  *IMSession    `yaml:"-" json:"-"`
-	EndPoint *EndPointInfo `yaml:"-" json:"-"`
+	Session     *IMSession    `yaml:"-" json:"-"`
+	EndPoint    *EndPointInfo `yaml:"-" json:"-"`
+	DiceServing bool          `yaml:"-"`
 
 	AppID       uint64 `yaml:"appID" json:"appID"`
 	AppSecret   string `yaml:"appSecret" json:"appSecret"`
@@ -193,6 +194,7 @@ func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
 	if enable {
 		if pa.Ctx == nil {
 			ep.Enable = false
+			pa.DiceServing = false
 			ep.State = 2
 			ServerOfficialQQ(d, ep)
 		} else {
