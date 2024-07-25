@@ -294,11 +294,11 @@ func (pa *PlatformAdapterKook) Serve() int {
 		}()
 
 		// 此时 ServiceAtNew 中这个频道一般为空，照 im_session.go 中的方法处理
-		// Pinenutn: 此处的逻辑似乎是：初始化了之后，默认的channel是个nil,所以如果初始化了要手动赋值？
-		channel, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
-		// 如果不OK，我决定处理完之后直接存储
+		// Pinenutn: 不清楚此处的逻辑，修改为Exists检查
+		//channel, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
+		ok := mctx.Session.ServiceAtNew.Exists(msg.GroupID)
 		if !ok {
-			channel = SetBotOnAtGroup(mctx, msg.GroupID)
+			channel := SetBotOnAtGroup(mctx, msg.GroupID)
 			channel.Active = true
 			channel.DiceIDExistsMap.Store(pa.EndPoint.UserID, true)
 			now := time.Now().Unix()
