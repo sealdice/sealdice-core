@@ -959,8 +959,6 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// {"group_id":564808710,"notice_type":"group_decrease","operator_id":2589922907,"post_type":"notice","self_id":2589922907,"sub_type":"leave","time":1651584460,"user_id":2589922907}
 			groupName := dm.TryGetGroupName(msg.GroupID)
 			txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, msgQQ.GroupID)
-			// 解散之后，是否要删除对应的痕迹
-
 			log.Info(txt)
 			ctx.Notice(txt)
 			return
