@@ -76,6 +76,9 @@ type GameSystemTemplate struct {
 
 func (t *GameSystemTemplate) GetAlias(varname string) string {
 	k := strings.ToLower(varname)
+	if t == nil {
+		return varname
+	}
 	v2, exists := t.AliasMap.Load(k)
 	if exists {
 		varname = v2
