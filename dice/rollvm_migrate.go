@@ -326,6 +326,11 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 	loadBuff := true
 
 	ctx.vm.Config.HookFuncValueLoadOverwrite = func(vm *ds.Context, varname string, curVal *ds.VMValue, doCompute func(curVal *ds.VMValue) *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
+		if ctx.SystemTemplate == nil {
+			curVal = doCompute(curVal)
+			return curVal
+		}
+
 		if strings.HasPrefix(varname, "$org_") {
 			varname, _ = strings.CutPrefix(varname, "$org_")
 			curVal = vm.LoadName(varname, true, false)
@@ -436,7 +441,9 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	}
 
 	ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
-		if curVal == nil {
+		if curVal == nil { //nolint:nestif
+			// 注: if复杂度为31，触发nestif，但是逻辑并不复杂。我尝试将其中一个if封装成函数放到顶上过，虽然解决了lint但反而更难读了
+			// 翻转if同样可以减一层复杂度，但我希望的是体现出overwrite函数默认行为是返回curVal，所以最好还是写在流程最后
 			// 临时变量
 			if strings.HasPrefix(name, "$t") {
 				if ctx.Player.ValueMapTemp == nil {
@@ -448,7 +455,6 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			}
 
 			if strings.HasPrefix(name, "$") {
-				am := ctx.Dice.AttrsManager
 				// 个人变量
 				if strings.HasPrefix(name, "$m") {
 					if ctx.Session != nil && ctx.Player != nil {
@@ -481,10 +487,17 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			ctx2.vm.Attrs = ctx.vm.Attrs
 			ctx2.vm.Config = ctx.vm.Config
 
-			name = ctx.SystemTemplate.GetAlias(name)
-			v, err := ctx.SystemTemplate.GetRealValue(&ctx2, name)
-			if err != nil {
-				return ds.NewNullVal()
+			var v *ds.VMValue
+			var err error
+			if ctx.SystemTemplate != nil {
+				name = ctx.SystemTemplate.GetAlias(name)
+				v, err = ctx.SystemTemplate.GetRealValue(&ctx2, name)
+				if err != nil {
+					return ds.NewNullVal()
+				}
+			} else {
+				playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
+				v = playerAttrs.Load(name)
 			}
 
 			if strings.Contains(name, ":") {

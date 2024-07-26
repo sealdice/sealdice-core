@@ -1434,12 +1434,12 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 				}
 				hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
 				s.Parent.Logger.Info(hint)
-				msgText := DiceFormatTmpl(&MsgContext{Dice: s.Parent}, "核心:骰子自动退群告别语")
 				msgCtx := CreateTempCtx(ep, &Message{
 					MessageType: "group",
 					Sender:      SenderBase{UserID: ep.UserID},
 					GroupID:     grp.GroupID,
 				})
+				msgText := DiceFormatTmpl(msgCtx, "核心:骰子自动退群告别语")
 				ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
 				// 和我自制的鲨群机时间同步
 				time.Sleep(10 * time.Second)
