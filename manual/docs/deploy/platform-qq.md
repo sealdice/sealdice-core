@@ -51,7 +51,7 @@ title: QQ
 
 ::: warning 注意：PC 端 QQNT 协议框架对 `戳一戳` 功能的实现
 
-由于内置客户端、<Badge type="tip" text="6e350b0" /> 之前的 Lagrange、<Badge type="tip" text="v3.27.0" /> 之前的 LLOneBot 和 <Badge type="tip" text="v1.6.7" /> 之前的 Napcat **并未完全实现**戳一戳功能。请使用上述客户端连接 QQ 的用户请注意自己版本的框架是否支持戳一戳功能，若不支持请及时更新或关闭海豹核心后台位于 `综合设置` - `基本设置` 的 `启用戳一戳` 开关，以免产生不必要的报错和麻烦。
+由于内置客户端、<Badge type="tip" text="6e350b0" /> 之前的 Lagrange、<Badge type="tip" text="v3.27.0" /> 之前的 LLOneBot 和 <Badge type="tip" text="v1.6.7" /> 之前的 Napcat **无法使用**戳一戳功能。请使用上述客户端连接 QQ 的用户请注意自己版本的框架是否支持戳一戳功能，若不支持请及时更新或关闭海豹核心后台位于 `综合设置` - `基本设置` 的 `启用戳一戳` 开关，以免产生不必要的报错和麻烦。
 
 <img src="./images/platform-qq-turnoff.png" alt="关闭戳一戳开关" width="80%">
 

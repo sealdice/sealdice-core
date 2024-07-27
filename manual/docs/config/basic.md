@@ -61,7 +61,7 @@ title: 基础设置
 
 仅 QQ 平台，关闭后不回应戳一戳。
 
-内置客户端、<Badge type="tip" text="6e350b0" /> 之前的 Lagrange、<Badge type="tip" text="v3.27.0" /> 之前的 LLOneBot 和 <Badge type="tip" text="v1.6.7" /> 之前的 Napcat 等基于 NTQQ 的连接方案均识别群组戳一戳，建议使用上述客户端连接 QQ 的用户及时更新或**关闭此开关**，以免产生不必要的报错和麻烦。
+内置客户端、<Badge type="tip" text="6e350b0" /> 之前的 Lagrange、<Badge type="tip" text="v3.27.0" /> 之前的 LLOneBot 和 <Badge type="tip" text="v1.6.7" /> 之前的 Napcat 等基于 NTQQ 的连接方案均**无法使用**戳一戳，建议使用上述客户端连接 QQ 的用户及时更新或**关闭此开关**，以免产生不必要的报错和麻烦。
 
 ## 限制 .text 指令
 

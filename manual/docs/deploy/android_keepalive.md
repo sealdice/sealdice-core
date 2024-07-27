@@ -39,7 +39,9 @@ title: 配置安卓端保活
 
 :::
 
-## HyperOS
+对于以下未提及的系统/品牌手机，请参考以下内容自行配置保活。
+
+## HyperOS（小米/红米）
 
 在 HyperOS（澎湃系统）中，启动核心前请全部允许这些权限。「访问存储空间」被拆分为三个权限：「照片和视频」「音乐和音频」「文件和文档」。
 
@@ -57,7 +59,7 @@ title: 配置安卓端保活
 
 <img alt="HyperOS 步骤 4" src="./images/keepalive_hyperos_selflaunch.jpg" width="66%" />
 
-## MIUI
+## MIUI（小米/红米）
 
 初次启动时提示是否运行“海豹核心”发送通知，选择「始终允许」。
 
@@ -71,7 +73,7 @@ title: 配置安卓端保活
 
 <img alt="MIUI 步骤 3" src="./images/keepalive_miui_multitask.jpg" width="66%">
 
-## 鸿蒙系统
+## 鸿蒙系统（华为）
 
 在「应用和服务」中，选择「应用启动管理」，找到海豹核心，关闭其「自动管理」开关，并允许自启动、关联启动和后台活动。
 
@@ -94,7 +96,7 @@ title: 配置安卓端保活
 
 <img alt="鸿蒙系统步骤 5" src="./images/keepalive_harmonyos_multitask.jpg" width="66%">
 
-## ColorOS
+## ColorOS（OPPO/一加）
 
 选择「耗电管理」，优先开启所有选项。
 
