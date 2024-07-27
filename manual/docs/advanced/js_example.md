@@ -465,157 +465,157 @@ if (!seal.ext.find('myperm')) {
 // ==/UserScript==
 
 if (!seal.ext.find('js-ban')) {
-const ext = seal.ext.new('js-ban', 'SzzRain', '1.0.0');
-    // 创建一个命令
-    const cmdcban = seal.ext.newCmdItemInfo();
-    cmdcban.name = 'cban';
-    cmdcban.help = '使用.cban <用户id> 来拉黑目标用户，仅master可用';
-    cmdcban.solve = (ctx, msg, cmdArgs) => {
-        let val = cmdArgs.getArgN(1);
-        switch (val) {
-            case 'help': {
-                const ret = seal.ext.newCmdExecuteResult(true);
-                ret.showHelp = true;
-                return ret;
-            }
-            default: {
-                if (ctx.privilegeLevel === 100) {
-                    seal.ban.addBan(ctx, val, "JS扩展拉黑", "JS扩展拉黑测试");
-                    seal.replyToSender(ctx, msg, "已拉黑用户" + val);
-                } else {
-                    seal.replyToSender(ctx, msg, "你没有权限执行此命令");
-                }
-                return seal.ext.newCmdExecuteResult(true);
-            }
-        }
-    }
-    // 注册命令
-    ext.cmdMap['cban'] = cmdcban;
+  const ext = seal.ext.new('js-ban', 'SzzRain', '1.0.0');
+  // 创建一个命令
+  const cmdcban = seal.ext.newCmdItemInfo();
+  cmdcban.name = 'cban';
+  cmdcban.help = '使用.cban <用户id> 来拉黑目标用户，仅master可用';
+  cmdcban.solve = (ctx, msg, cmdArgs) => {
+      let val = cmdArgs.getArgN(1);
+      switch (val) {
+          case 'help': {
+              const ret = seal.ext.newCmdExecuteResult(true);
+              ret.showHelp = true;
+              return ret;
+          }
+          default: {
+              if (ctx.privilegeLevel === 100) {
+                  seal.ban.addBan(ctx, val, "JS扩展拉黑", "JS扩展拉黑测试");
+                  seal.replyToSender(ctx, msg, "已拉黑用户" + val);
+              } else {
+                  seal.replyToSender(ctx, msg, "你没有权限执行此命令");
+              }
+              return seal.ext.newCmdExecuteResult(true);
+          }
+      }
+  }
+  // 注册命令
+  ext.cmdMap['cban'] = cmdcban;
 
-    // 创建一个命令
-    const cmdcunban = seal.ext.newCmdItemInfo();
-    cmdcunban.name = 'cunban';
-    cmdcunban.help = '使用.cunban <用户id> 来解除拉黑/移除信任目标用户，仅master可用';
-    cmdcunban.solve = (ctx, msg, cmdArgs) => {
-        let val = cmdArgs.getArgN(1);
-        switch (val) {
-            case 'help': {
-                const ret = seal.ext.newCmdExecuteResult(true);
-                ret.showHelp = true;
-                return ret;
-            }
-            default: {
-                if (ctx.privilegeLevel === 100) {
-                    // 信任用户和拉黑用户存在同一个列表中，remove 前请先判断是否符合预期
-                    seal.ban.remove(ctx, val);
-                    seal.replyToSender(ctx, msg, "已解除拉黑/信任用户" + val);
-                } else {
-                    seal.replyToSender(ctx, msg, "你没有权限执行此命令");
-                }
-                return seal.ext.newCmdExecuteResult(true);
-            }
-        }
-    }
-    // 注册命令
-    ext.cmdMap['cunban'] = cmdcunban;
+  // 创建一个命令
+  const cmdcunban = seal.ext.newCmdItemInfo();
+  cmdcunban.name = 'cunban';
+  cmdcunban.help = '使用.cunban <用户id> 来解除拉黑/移除信任目标用户，仅master可用';
+  cmdcunban.solve = (ctx, msg, cmdArgs) => {
+      let val = cmdArgs.getArgN(1);
+      switch (val) {
+          case 'help': {
+              const ret = seal.ext.newCmdExecuteResult(true);
+              ret.showHelp = true;
+              return ret;
+          }
+          default: {
+              if (ctx.privilegeLevel === 100) {
+                  // 信任用户和拉黑用户存在同一个列表中，remove 前请先判断是否符合预期
+                  seal.ban.remove(ctx, val);
+                  seal.replyToSender(ctx, msg, "已解除拉黑/信任用户" + val);
+              } else {
+                  seal.replyToSender(ctx, msg, "你没有权限执行此命令");
+              }
+              return seal.ext.newCmdExecuteResult(true);
+          }
+      }
+  }
+  // 注册命令
+  ext.cmdMap['cunban'] = cmdcunban;
 
-    // 创建一个命令
-    const cmdctrust = seal.ext.newCmdItemInfo();
-    cmdctrust.name = 'ctrust';
-    cmdctrust.help = '使用.ctrust <用户id> 来信任目标用户，仅master可用';
-    cmdctrust.solve = (ctx, msg, cmdArgs) => {
-        let val = cmdArgs.getArgN(1);
-        switch (val) {
-            case 'help': {
-                const ret = seal.ext.newCmdExecuteResult(true);
-                ret.showHelp = true;
-                return ret;
-            }
-            default: {
-                if (ctx.privilegeLevel === 100) {
-                    seal.ban.addTrust(ctx, val, "JS扩展信任", "JS扩展信任测试");
-                    seal.replyToSender(ctx, msg, "已信任用户" + val);
-                } else {
-                    seal.replyToSender(ctx, msg, "你没有权限执行此命令");
-                }
-                return seal.ext.newCmdExecuteResult(true);
-            }
+  // 创建一个命令
+  const cmdctrust = seal.ext.newCmdItemInfo();
+  cmdctrust.name = 'ctrust';
+  cmdctrust.help = '使用.ctrust <用户id> 来信任目标用户，仅master可用';
+  cmdctrust.solve = (ctx, msg, cmdArgs) => {
+    let val = cmdArgs.getArgN(1);
+    switch (val) {
+      case 'help': {
+        const ret = seal.ext.newCmdExecuteResult(true);
+        ret.showHelp = true;
+        return ret;
+      }
+      default: {
+        if (ctx.privilegeLevel === 100) {
+          seal.ban.addTrust(ctx, val, "JS扩展信任", "JS扩展信任测试");
+          seal.replyToSender(ctx, msg, "已信任用户" + val);
+        } else {
+          seal.replyToSender(ctx, msg, "你没有权限执行此命令");
         }
+        return seal.ext.newCmdExecuteResult(true);
+      }
     }
-    // 注册命令
-    ext.cmdMap['ctrust'] = cmdctrust;
+  }
+  // 注册命令
+  ext.cmdMap['ctrust'] = cmdctrust;
 
-    // 创建一个命令
-    const cmdcbanlist = seal.ext.newCmdItemInfo();
-    cmdcbanlist.name = 'cbanlist';
-    cmdcbanlist.help = '使用.cbanlist 来查看黑名单和信任列表，仅master可用';
-    cmdcbanlist.solve = (ctx, msg, cmdArgs) => {
-        let val = cmdArgs.getArgN(1);
-        switch (val) {
-            case 'help': {
-                const ret = seal.ext.newCmdExecuteResult(true);
-                ret.showHelp = true;
-                return ret;
-            }
-            default: {
-                if (ctx.privilegeLevel === 100) {
-                    let text = "黑名单/信任列表：\n";
-                    seal.ban.getList().forEach((v) => {
-                        text += `${v.name}(${v.id}) 当前等级:${v.rank} 怒气值:${v.score}\n`;
-                    });
-                    seal.replyToSender(ctx, msg, text);
-                } else {
-                    seal.replyToSender(ctx, msg, "你没有权限执行此命令");
-                }
-                return seal.ext.newCmdExecuteResult(true);
-            }
+  // 创建一个命令
+  const cmdcbanlist = seal.ext.newCmdItemInfo();
+  cmdcbanlist.name = 'cbanlist';
+  cmdcbanlist.help = '使用.cbanlist 来查看黑名单和信任列表，仅master可用';
+  cmdcbanlist.solve = (ctx, msg, cmdArgs) => {
+    let val = cmdArgs.getArgN(1);
+    switch (val) {
+      case 'help': {
+        const ret = seal.ext.newCmdExecuteResult(true);
+        ret.showHelp = true;
+        return ret;
+      }
+      default: {
+        if (ctx.privilegeLevel === 100) {
+          let text = "黑名单/信任列表：\n";
+          seal.ban.getList().forEach((v) => {
+            text += `${v.name}(${v.id}) 当前等级:${v.rank} 怒气值:${v.score}\n`;
+          });
+          seal.replyToSender(ctx, msg, text);
+        } else {
+          seal.replyToSender(ctx, msg, "你没有权限执行此命令");
         }
+        return seal.ext.newCmdExecuteResult(true);
+      }
     }
-    // 注册命令
-    ext.cmdMap['cbanlist'] = cmdcbanlist;
+  }
+  // 注册命令
+  ext.cmdMap['cbanlist'] = cmdcbanlist;
 
-    // 创建一个命令
-    const cmdcget = seal.ext.newCmdItemInfo();
-    cmdcget.name = 'cget';
-    cmdcget.help = '使用.cget <用户id> 来查看目标用户的黑名单/信任信息，仅master可用';
-    cmdcget.solve = (ctx, msg, cmdArgs) => {
-        let val = cmdArgs.getArgN(1);
-        switch (val) {
-            case 'help': {
-                const ret = seal.ext.newCmdExecuteResult(true);
-                ret.showHelp = true;
-                return ret;
-            }
-            default: {
-                if (ctx.privilegeLevel === 100) {
-                    let info = seal.ban.getUser(val);
-                    if (!info) {
-                        seal.replyToSender(ctx, msg, "用户不存在或未被拉黑/信任");
-                        return seal.ext.newCmdExecuteResult(true);
-                    }
-                    let level = info.rank;
-                    // 不知道为什么，用 === 是 false
-                    if (info.rank == 30) {
-                        level = "信任"
-                    } else if (info.rank == -30) {
-                        level = "拉黑"
-                    } else if (info.rank == -10) {
-                        level = "警告"
-                    }
-                    let text = `用户${info.name}(${info.id}) 当前等级:${level} 怒气值:${info.score}`;
-                    seal.replyToSender(ctx, msg, text);
-                } else {
-                    seal.replyToSender(ctx, msg, "你没有权限执行此命令");
-                }
-                return seal.ext.newCmdExecuteResult(true);
-            }
+  // 创建一个命令
+  const cmdcget = seal.ext.newCmdItemInfo();
+  cmdcget.name = 'cget';
+  cmdcget.help = '使用.cget <用户id> 来查看目标用户的黑名单/信任信息，仅master可用';
+  cmdcget.solve = (ctx, msg, cmdArgs) => {
+    let val = cmdArgs.getArgN(1);
+    switch (val) {
+      case 'help': {
+        const ret = seal.ext.newCmdExecuteResult(true);
+        ret.showHelp = true;
+        return ret;
+      }
+      default: {
+        if (ctx.privilegeLevel === 100) {
+          let info = seal.ban.getUser(val);
+          if (!info) {
+            seal.replyToSender(ctx, msg, "用户不存在或未被拉黑/信任");
+            return seal.ext.newCmdExecuteResult(true);
+          }
+          let level = info.rank;
+          // 不知道为什么，用 === 是 false
+          if (info.rank == 30) {
+            level = "信任"
+          } else if (info.rank == -30) {
+            level = "拉黑"
+          } else if (info.rank == -10) {
+            level = "警告"
+          }
+          let text = `用户${info.name}(${info.id}) 当前等级:${level} 怒气值:${info.score}`;
+          seal.replyToSender(ctx, msg, text);
+        } else {
+          seal.replyToSender(ctx, msg, "你没有权限执行此命令");
         }
+        return seal.ext.newCmdExecuteResult(true);
+      }
     }
-    // 注册命令
-    ext.cmdMap['cget'] = cmdcget;
+  }
+  // 注册命令
+  ext.cmdMap['cget'] = cmdcget;
 
-    // 注册扩展
-    seal.ext.register(ext);
+  // 注册扩展
+  seal.ext.register(ext);
 }
 ```
 
@@ -650,9 +650,8 @@ const ext = seal.ext.new('js-ban', 'SzzRain', '1.0.0');
 // ==/UserScript==
 
 // 先将扩展模块创建出来，如果已创建就直接使用
-let ext = seal.ext.find('test');
-if (!ext) {
-  ext = seal.ext.new('test', '木落', '1.0.0');
+if (!seal.ext.find('test')) {
+  const ext = seal.ext.new('test', '木落', '1.0.0');
 
   const cmdFeed = seal.ext.newCmdItemInfo();
   cmdFeed.name = '投喂';
@@ -805,7 +804,7 @@ ${optStr}`);
     let ext = seal.ext.find("anchor");
     if (!ext) {
       ext = seal.ext.new("anchor", "憧憬少", "1.0.0");
-      
+
       const cmdSeal = seal.ext.newCmdItemInfo();
       cmdSeal.name = "安价";
       cmdSeal.help = HELP;
@@ -905,9 +904,8 @@ function akAdd(ctx, msg, ext, option) {
 // @license      Apache-2
 // @homepageURL  https://github.com/sealdice/javascript
 // ==/UserScript==
-ext = seal.ext.find('hide');
-if (!ext){
-    ext = seal.ext.new('hide','流溪','0.0.1');
+if (!seal.ext.find('hide')){
+    const ext = seal.ext.new('hide','流溪','0.0.1');
 
     const cmdHide = seal.ext.newCmdItemInfo;
     cmdHide.name = 'hide';
@@ -958,9 +956,8 @@ if (!ext){
 
 // 编写代骰指令
 // 先将扩展模块创建出来，如果已创建就直接使用
-let ext = seal.ext.find('test');
-if (!ext) {
-  ext = seal.ext.new('test', '木落', '1.0.0');
+if (!seal.ext.find('test')) {
+  const ext = seal.ext.new('test', '木落', '1.0.0');
 
   // 创建指令 .catch
   // 这个命令的功能为，显示“试图捕捉某人”，并给出成功率
@@ -1050,18 +1047,18 @@ const KEY = ''; // 填入你的 key
  * @param message 要发送给骰娘的具体消息
  */
 function chatWithBot(ctx,msg,message) {
-    fetch(`http://api.brainshop.ai/get?bid=${BID}&key=${KEY}&uid=${msg.sender.userId}&msg=${message}`).then(response => {
-      if (!response.ok) {
-        seal.replyToSender(ctx, msg, `抱歉，我连接不上主脑了。它传递过来的信息是：${response.status}`);
-        return seal.ext.newCmdExecuteResult(false);
-      } else {
-        response.json().then(data => {
-          seal.replyToSender(ctx, msg, data["cnt"]);
-          return seal.ext.newCmdExecuteResult(true);
-        });
+  fetch(`http://api.brainshop.ai/get?bid=${BID}&key=${KEY}&uid=${msg.sender.userId}&msg=${message}`).then(response => {
+    if (!response.ok) {
+      seal.replyToSender(ctx, msg, `抱歉，我连接不上主脑了。它传递过来的信息是：${response.status}`);
+      return seal.ext.newCmdExecuteResult(false);
+    } else {
+      response.json().then(data => {
+        seal.replyToSender(ctx, msg, data["cnt"]);
         return seal.ext.newCmdExecuteResult(true);
-      }
-    });
+      });
+      return seal.ext.newCmdExecuteResult(true);
+    }
+  });
 }
 ```
 
@@ -1138,17 +1135,17 @@ seal.coc.registerRule(rule);
 ```javascript
 // 必要流程，注册扩展，注意即使是非指令关键词也是依附于扩展的
 if (!seal.ext.find('xxx')){
-    ext = seal.ext.new('xxx','xxx','x.x.x');
-    seal.ext.register(ext);
-    // 这里其实是编写处理函数
-    ext.onNotCommandReceived = (ctx, msg) => {
-        let message = msg.message;
-        // 这里请自己处理要如何达成 message 的匹配条件，js 那么多的匹配方法，足够你玩出花来。
-        if(xxx){
-          // 匹配到关键词了，要干什么？
-          xxx;
-        }
+  const ext = seal.ext.new('xxx','xxx','x.x.x');
+  seal.ext.register(ext);
+  // 这里其实是编写处理函数
+  ext.onNotCommandReceived = (ctx, msg) => {
+    let message = msg.message;
+    // 这里请自己处理要如何达成 message 的匹配条件，js 那么多的匹配方法，足够你玩出花来。
+    if(xxx){
+      // 匹配到关键词了，要干什么？
+      xxx;
     }
+  }
 }
 ```
 
@@ -1197,78 +1194,78 @@ type ConfigItem struct {
 // ==/UserScript==
 
 if (!seal.ext.find('js-config-example')) {
-    const ext = seal.ext.new('js-config-example', 'SzzRain', '1.0.0');
-    // 创建一个命令
-    const cmdgetConfig = seal.ext.newCmdItemInfo();
-    cmdgetConfig.name = 'getconfig';
-    cmdgetConfig.help = '使用.getconfig <key> 来获取配置项，仅 master 可用';
-    cmdgetConfig.allowDelegate = true;
-    cmdgetConfig.solve = (ctx, msg, cmdArgs) => {
-        let val = cmdArgs.getArgN(1);
-        switch (val) {
-            case 'help': {
-                const ret = seal.ext.newCmdExecuteResult(true);
-                ret.showHelp = true;
-                return ret;
-            }
-            default: {
-                if (ctx.privilegeLevel !== 100) {
-                    seal.replyToSender(ctx, msg, "你没有权限执行此命令");
-                    return seal.ext.newCmdExecuteResult(true);
-                }
-                switch (val) {
-                    case "1":
-                        strVal = seal.ext.getStringConfig(ext, "testkey1");
-                        seal.replyToSender(ctx, msg, strVal);
-                        break;
-                    case "2":
-                        intVal = seal.ext.getIntConfig(ext, "testkey2");
-                        seal.replyToSender(ctx, msg, intVal);
-                        break;
-                    case "3":
-                        floatVal = seal.ext.getFloatConfig(ext, "testkey3");
-                        seal.replyToSender(ctx, msg, floatVal);
-                        break;
-                    case "4":
-                        boolVal = seal.ext.getBoolConfig(ext, "testkey4");
-                        seal.replyToSender(ctx, msg, boolVal);
-                        break;
-                    case "5":
-                        tmplVal = seal.ext.getTemplateConfig(ext, "testkey5");
-                        seal.replyToSender(ctx, msg, tmplVal);
-                        break;
-                    case "6":
-                        optVal = seal.ext.getOptionConfig(ext, "testkey6");
-                        seal.replyToSender(ctx, msg, optVal);
-                        break;
-                    default:
-                        let config = seal.ext.getConfig(ext, val);
-                        if (config) {
-                            seal.replyToSender(ctx, msg, config.value);
-                        } else {
-                            seal.replyToSender(ctx, msg, "配置项不存在");
-                        }
-                        break;
-                }
-                return seal.ext.newCmdExecuteResult(true);
-            }
+  const ext = seal.ext.new('js-config-example', 'SzzRain', '1.0.0');
+  // 创建一个命令
+  const cmdgetConfig = seal.ext.newCmdItemInfo();
+  cmdgetConfig.name = 'getconfig';
+  cmdgetConfig.help = '使用.getconfig <key> 来获取配置项，仅 master 可用';
+  cmdgetConfig.allowDelegate = true;
+  cmdgetConfig.solve = (ctx, msg, cmdArgs) => {
+    let val = cmdArgs.getArgN(1);
+    switch (val) {
+      case 'help': {
+        const ret = seal.ext.newCmdExecuteResult(true);
+        ret.showHelp = true;
+        return ret;
+      }
+      default: {
+        if (ctx.privilegeLevel !== 100) {
+          seal.replyToSender(ctx, msg, "你没有权限执行此命令");
+          return seal.ext.newCmdExecuteResult(true);
         }
+        switch (val) {
+          case "1":
+            strVal = seal.ext.getStringConfig(ext, "testkey1");
+            seal.replyToSender(ctx, msg, strVal);
+            break;
+          case "2":
+            intVal = seal.ext.getIntConfig(ext, "testkey2");
+            seal.replyToSender(ctx, msg, intVal);
+            break;
+          case "3":
+            floatVal = seal.ext.getFloatConfig(ext, "testkey3");
+            seal.replyToSender(ctx, msg, floatVal);
+            break;
+          case "4":
+            boolVal = seal.ext.getBoolConfig(ext, "testkey4");
+            seal.replyToSender(ctx, msg, boolVal);
+            break;
+          case "5":
+            tmplVal = seal.ext.getTemplateConfig(ext, "testkey5");
+            seal.replyToSender(ctx, msg, tmplVal);
+            break;
+          case "6":
+            optVal = seal.ext.getOptionConfig(ext, "testkey6");
+            seal.replyToSender(ctx, msg, optVal);
+            break;
+          default:
+            let config = seal.ext.getConfig(ext, val);
+            if (config) {
+              seal.replyToSender(ctx, msg, config.value);
+            } else {
+              seal.replyToSender(ctx, msg, "配置项不存在");
+            }
+            break;
+        }
+        return seal.ext.newCmdExecuteResult(true);
+      }
     }
-    // 注册命令
-    ext.cmdMap['getconfig'] = cmdgetConfig;
+  }
+  // 注册命令
+  ext.cmdMap['getconfig'] = cmdgetConfig;
 
-    // 注册扩展
-    seal.ext.register(ext);
+  // 注册扩展
+  seal.ext.register(ext);
 
-    // 注册配置项需在 ext 注册后进行
-    // 通常来说，register 函数的参数为 ext, key, defaultValue
-    seal.ext.registerStringConfig(ext, "testkey1", "testvalue");
-    seal.ext.registerIntConfig(ext, "testkey2", 123);
-    seal.ext.registerFloatConfig(ext, "testkey3", 123.456);
-    seal.ext.registerBoolConfig(ext, "testkey4", true);
-    seal.ext.registerTemplateConfig(ext, "testkey5", ["1", "2", "3", "4"]);
-    // 注册单选项函数的参数为 ext, key, defaultValue, options
-    seal.ext.registerOptionConfig(ext, "testkey6", "1", ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
+  // 注册配置项需在 ext 注册后进行
+  // 通常来说，register 函数的参数为 ext, key, defaultValue
+  seal.ext.registerStringConfig(ext, "testkey1", "testvalue");
+  seal.ext.registerIntConfig(ext, "testkey2", 123);
+  seal.ext.registerFloatConfig(ext, "testkey3", 123.456);
+  seal.ext.registerBoolConfig(ext, "testkey4", true);
+  seal.ext.registerTemplateConfig(ext, "testkey5", ["1", "2", "3", "4"]);
+  // 注册单选项函数的参数为 ext, key, defaultValue, options
+  seal.ext.registerOptionConfig(ext, "testkey6", "1", ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
 }
 ```
 
