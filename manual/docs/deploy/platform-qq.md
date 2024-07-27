@@ -37,7 +37,7 @@ title: QQ
 
 所有支持的途径参见目录，本节提供了多种对接途径的引导。
 
-从 <Badge type="tip" text="v1.4.5" /> 开始，我们推荐使用 [内置客户端](#内置客户端) 进行连接，这是面向一般用户提供的简单对接方式。
+从 <Badge type="tip" text="v1.4.5" /> 开始，我们推荐使用 [内置客户端](#内置客户端) 进行连接，这是面向一般用户提供的简单对接方式，对于有能力的骰主，我们更推荐其他的分离部署方案。
 
 对于需要使用更加灵活的方案的用户，我们推荐如下：
 
@@ -49,9 +49,9 @@ title: QQ
 
 不同的对接方式适应不同的情况，可能会存在途径特有的功能缺失和其它问题，请根据自己的情况选择适合的方式。
 
-::: warning 注意：对接内置客户端、Lagrange、LLOneBot 和 Napcat 等 PC 端协议时最好关闭 `戳一戳` 功能
+::: warning 注意：PC 端 QQNT 协议框架对 `戳一戳` 功能的实现
 
-由于内置客户端、Lagrange、LLOneBot 和 Napcat **并未完全实现**戳一戳功能。请使用上述客户端连接 QQ 的用户关闭海豹核心后台位于 `综合设置` - `基本设置` 的 `启用戳一戳` 开关，以免产生不必要的报错和麻烦。
+由于内置客户端、<Badge type="tip" text="6e350b0" /> 之前的 Lagrange、<Badge type="tip" text="v3.27.0" /> 之前的 LLOneBot 和 <Badge type="tip" text="v1.6.7" /> 之前的 Napcat **并未完全实现**戳一戳功能。请使用上述客户端连接 QQ 的用户请注意自己版本的框架是否支持戳一戳功能，若不支持请及时更新或关闭海豹核心后台位于 `综合设置` - `基本设置` 的 `启用戳一戳` 开关，以免产生不必要的报错和麻烦。
 
 <img src="./images/platform-qq-turnoff.png" alt="关闭戳一戳开关" width="80%">
 
@@ -268,53 +268,6 @@ Action 中获取的 Lagrange 依赖 .Net SDK，如果你在运行 Lagrange 时�
 
 :::
 
-::: warning 注意：Lagrange 配置文件格式变更
-
-Lagrange 项目对其配置文件的格式进行过更改。如果你是在 2024 年 2 月 18 日或之前下载的 Lagrange 程序，请你参考下面的版本。
-
-目前最新的 Lagrange 可以识别两个版本的配置文件，但依然建议修改为最新格式。
-
-:::
-
-::: details 补充：旧版 Lagrange 配置
-
-如果你使用的是 2024 年 2 月 18 日或之前下载的 Lagrange 程序，或使用前面提到的配置出现问题，请尝试替换为以下配置：
-
-```json
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Trace",
-      "Microsoft": "Warning",
-      "Microsoft.Hosting.Lifetime": "Information"
-    }
-  },
-  "SignServerUrl": "",
-  "Account": {
-    "Uin": 0,
-    "Password": "",
-    "Protocol": "Linux",
-    "AutoReconnect": true,
-    "GetOptimumServer": true
-  },
-  "Message": {
-    "IgnoreSelf": true
-  },
-  "Implementation": {
-    "ForwardWebSocket": {
-      "Host": "127.0.0.1",
-      "Port": 8081,
-      "HeartBeatInterval": 5000,
-      "AccessToken": ""
-    }
-  }
-}
-```
-
-配置项的含义与之前的说明相同，可以做相同处理。
-
-:::
-
 ## LLOneBot <Badge type="tip" text="v1.4.2" />
 
 海豹从 <Badge type="tip" text="v1.4.2"/> 版本开始支持通过 OneBot 协议连接 LLOneBot。
@@ -366,13 +319,13 @@ NapCat 是基于官方 NTQQ 实现的 Bot 框架，因此在开始前，你需�
 
 ### 下载 NapCatQQ
 
-前往 [NapCatQQ Release](https://github.com/NapNeko/NapCatQQ/releases) 页面下载最新版本。
+请按照 [NapCat 官方手册](https://napneko.github.io/zh-CN/guide/getting-started)下载安装，如果你不确定自己可以完全理解 NapCat 官方手册并操作，请不要安装 9.9.12 版本 QQ。
 
 ### 启动 NapCatQQ
 
 在启动前，你需要修改 `config/onebot11.json` 内容，并重名为 `onebot11_<你的QQ号>.json` ，如 `onebot11_1234567.json` 。
 
-json 配置内容参数解释：
+json 配置内容参数解释（请不要复制以下内容到 NapCat 的配置文件，如复制请删除注释）：
 
 ```json{18-25}
 {
