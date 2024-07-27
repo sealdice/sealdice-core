@@ -538,7 +538,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 				c = mctx
 			}
-			
+
 			switch strings.ToLower(subcommand) {
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -547,14 +547,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 					c.Player.Name = c.Player.Name[len("ob"):]
 					c.Player.UpdatedAtTime = time.Now().Unix()
 				}
-				ctx.EndPoint.Adapter.SetGroupCardName(ctx, c.Player.Name)
+				c.EndPoint.Adapter.SetGroupCardName(c, c.Player.Name)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:OB_关闭"))
 			default:
 				if !strings.HasPrefix(strings.ToLower(c.Player.Name), "ob") {
 					c.Player.Name = "ob" + c.Player.Name
 					c.Player.UpdatedAtTime = time.Now().Unix()
 				}
-				ctx.EndPoint.Adapter.SetGroupCardName(ctx, c.Player.Name)
+				c.EndPoint.Adapter.SetGroupCardName(c, c.Player.Name)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:OB_开启"))
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
