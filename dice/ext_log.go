@@ -526,7 +526,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Help:          "观众指令:\n" + helpOb,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			ctx.DelegateText = ""
+			ctx.DelegateText = fmt.Sprintf("由<%s>操作:\n", ctx.Player.Name)
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			subcommand := cmdArgs.GetArgN(1)
 
