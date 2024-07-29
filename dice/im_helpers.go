@@ -116,8 +116,7 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		group.ChannelID = msg.ChannelID
 	}
 	if group == nil {
-		SetBotOnAtGroup(ctx, groupID)
-		group = session.ServiceAtNew[groupID]
+		group = SetBotOnAtGroup(ctx, groupID)
 	}
 
 	p := group.PlayerGet(ctx.Dice.DBData, msg.Sender.UserID)
