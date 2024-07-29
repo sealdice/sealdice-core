@@ -107,6 +107,7 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	} else {
 		// 私聊信息 PrivateGroup
 		groupID = "PG-" + msg.Sender.UserID
+		SetBotOnAtGroup(ctx, groupID)
 	}
 	group := session.ServiceAtNew[groupID]
 	if msg.GuildID != "" {
@@ -116,7 +117,7 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		group.ChannelID = msg.ChannelID
 	}
 	if group == nil {
-		group = SetBotOnAtGroup(ctx, groupID)
+		return nil, nil
 	}
 
 	p := group.PlayerGet(ctx.Dice.DBData, msg.Sender.UserID)

@@ -1347,8 +1347,15 @@ func (pa *PlatformAdapterGocq) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgC
 		d := pa.GetGroupMemberInfo(string(msgQQ.GroupID), string(msgQQ.UserID)) // 先获取个人信息，避免不存在id
 		msg.Sender.UserID = FormatDiceIDQQ(string(msgQQ.UserID))
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		if ctx.Player == nil {
+			ctx.Player = &GroupPlayerInfo{}
+		}
 		if ctx.Player.Name == "" {
-			ctx.Player.Name = d.Card
+			if d.Card == "" {
+				ctx.Player.Name = d.Nickname
+			} else {
+				ctx.Player.Name = d.Card
+			}
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
 		}
 		SetTempVars(ctx, ctx.Player.Name)
