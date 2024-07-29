@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -14,8 +15,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	// _ "net/http/pprof"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
@@ -441,9 +440,14 @@ func main() {
 	}
 
 	// pprof
-	// go func() {
-	//	http.ListenAndServe("0.0.0.0:8899", nil)
-	// }()
+	// 启用 block profiling
+	runtime.SetBlockProfileRate(1)
+
+	// 启用 mutex profiling
+	runtime.SetMutexProfileFraction(1)
+	go func() {
+		http.ListenAndServe("0.0.0.0:8899", nil)
+	}()
 
 	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
 	// OOM分析工具
