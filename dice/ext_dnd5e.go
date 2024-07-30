@@ -1296,7 +1296,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					toDeleted[i] = true
 				}
 
-				textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
+				textOut := strings.Builder{}
+				textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_移除_前缀"))
 				delCounter := 0
 
 				preCurrent := 0 // 每有一个在当前单位前面的单位被删除, 当前单位下标需要减 1
@@ -1305,7 +1306,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						newList = append(newList, i)
 					} else {
 						delCounter++
-						textOut += fmt.Sprintf("%2d. %s\n", delCounter, i.name)
+						textOut.WriteString(fmt.Sprintf("%2d. %s\n", delCounter, i.name))
 
 						if int64(index) < round {
 							preCurrent++
@@ -1322,22 +1323,22 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				VarSetValueInt64(ctx, "$g回合数", round)
 
 				if delCounter == 0 {
-					textOut += "- 没有找到任何单位"
+					textOut.WriteString("- 没有找到任何单位\n")
 				}
 
 				newList.SaveToGroup(ctx)
-				ReplyToSender(ctx, msg, textOut)
 				if currentDeleted {
 					if len(newList) == 0 {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
+						textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
 					} else {
 						setInitNextRoundVars(ctx, newList, round)
 						// Note(Xiangze Li): 这是为了让回合结束的角色显示为被删除的角色，而不是当前角色的上一个
 						VarSetValueStr(ctx, "$t当前回合角色名", current.name)
 						VarSetValueStr(ctx, "$t当前回合at", AtBuild(current.uid))
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
+						textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
 					}
 				}
+				ReplyToSender(ctx, msg, textOut.String())
 			case "set":
 				name := cmdArgs.GetArgN(2)
 				exists := name != ""
