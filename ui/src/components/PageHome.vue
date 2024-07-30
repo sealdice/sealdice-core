@@ -1,6 +1,6 @@
 <template>
   <Teleport v-if="store.curDice.logs.length" to="#root">
-    <el-button type="default" class="btn-scrolldown" :icon="CaretBottom" circle @click="scrollDown"></el-button>
+    <el-button type="default" class="btn-scrolldown" :icon="CaretBottom" circle @click="scrollDown" content="最新日志"></el-button>
   </Teleport>
 
   <div style="display: flex; justify-content: flex-end; align-items: center">
@@ -58,6 +58,10 @@
     <h4>日志</h4>
     <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
   </div>
+
+  <el-divider class="latest-log-warn">
+    <el-text type="warning" size="small" class="hover:cursor-pointer" @click="scrollDown">点击下拉到底查看最新日志</el-text>
+  </el-divider>
 
   <div class="hidden md:block p-0 logs">
     <el-table :data="store.curDice.logs"
@@ -279,9 +283,18 @@ onBeforeUnmount(() => {
   z-index: 5;
   opacity: .4;
 }
+
 .btn-scrolldown:hover {
   transition: all .3s;
   opacity: 1;  
+}
+
+.latest-log-warn {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  :deep(.el-divider__text) {
+    background: #f3f4f6;
+  }
 }
 </style>
 
