@@ -179,7 +179,7 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
       "Microsoft.Hosting.Lifetime": "Information"
     }
   },
-  "SignServerUrl": "https://sign.lagrangecore.org/api/sign",
+  "SignServerUrl": "https://sign.lagrangecore.org/api/sign/25765",
   "Account": {
     "Uin": 0,
     "Password": "",
