@@ -19,9 +19,10 @@ import (
 )
 
 type LagrangeLoginInfo struct {
-	UIN           int64
-	SignServerUrl string
-	IsAsyncRun    bool
+	UIN               int64
+	SignServerUrl     string
+	SignServerVersion string
+	IsAsyncRun        bool
 }
 
 func lagrangeGetWorkDir(dice *Dice, conn *EndPointInfo) string {
@@ -99,7 +100,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		if pa.ConnectURL == "" {
 			p, _ := GetRandomFreePort()
 			pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", p)
-			c := GenerateLagrangeConfig(p, loginInfo.SignServerUrl, conn)
+			c := GenerateLagrangeConfig(p, loginInfo.SignServerUrl, loginInfo.SignServerVersion, conn)
 			_ = os.WriteFile(configFilePath, []byte(c), 0o644)
 		}
 
@@ -340,14 +341,23 @@ var defaultLagrangeConfig = `
 var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
 var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
 
-func GenerateLagrangeConfig(port int, signServerUrl string, info *EndPointInfo) string {
+func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion string, info *EndPointInfo) string {
 	switch signServerUrl {
 	case "":
 		signServerUrl = defaultNTSignServer
+		if signServerVersion != "" && signServerVersion != "old" {
+			signServerUrl += "/" + signServerVersion
+		}
 	case "sealdice":
 		signServerUrl = defaultNTSignServer
+		if signServerVersion != "" && signServerVersion != "old" {
+			signServerUrl += "/" + signServerVersion
+		}
 	case "lagrange":
 		signServerUrl = lagrangeNTSignServer
+		if signServerVersion != "" && signServerVersion != "old" {
+			signServerUrl += "/" + signServerVersion
+		}
 	}
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", fmt.Sprintf("%d", port))
 	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
@@ -373,12 +383,18 @@ func LagrangeServeRemoveConfig(dice *Dice, conn *EndPointInfo) {
 	}
 }
 
-func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl string, w bool) string {
+func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl string, w bool, signServerVersion string) (string, string) {
 	switch signServerUrl {
 	case "sealdice":
 		signServerUrl = defaultNTSignServer
+		if signServerVersion != "" && signServerVersion != "old" {
+			signServerUrl += "/" + signServerVersion
+		}
 	case "lagrange":
 		signServerUrl = "https://sign.lagrangecore.org/api/sign"
+		if signServerVersion != "" && signServerVersion != "old" {
+			signServerUrl += "/" + signServerVersion
+		}
 	}
 	workDir := lagrangeGetWorkDir(dice, conn)
 	configFilePath := filepath.Join(workDir, "appsettings.json")
@@ -390,6 +406,7 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 			if val, ok := result["SignServerUrl"].(string); ok {
 				if w {
 					result["SignServerUrl"] = signServerUrl
+					result["SignServerVersion"] = signServerVersion
 					var c []byte
 					if c, err = json.MarshalIndent(result, "", "    "); err == nil {
 						_ = os.WriteFile(configFilePath, c, 0o644)
@@ -397,17 +414,25 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 						dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
 					}
 				}
-				switch val {
-				case defaultNTSignServer:
+
+				var version string
+				if strings.HasPrefix(val, defaultNTSignServer) {
+					version, _ = strings.CutPrefix(val, defaultNTSignServer)
+					version, _ = strings.CutPrefix(version, "/")
 					val = "sealdice"
-				case lagrangeNTSignServer:
+				} else if strings.HasPrefix(val, lagrangeNTSignServer) {
+					version, _ = strings.CutPrefix(val, lagrangeNTSignServer)
+					version, _ = strings.CutPrefix(version, "/")
 					val = "lagrange"
 				}
-				return val
+				if version == "" {
+					version = "old"
+				}
+				return val, version
 			}
 			err = errors.New("SignServerUrl字段无法正常读取")
 		}
 	}
 	dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
-	return ""
+	return "", ""
 }
