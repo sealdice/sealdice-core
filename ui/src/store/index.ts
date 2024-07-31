@@ -290,6 +290,7 @@ export const useStore = defineStore('main', {
         useSignServer,
         signServerConfig,
         signServerUrl,
+        signServerVersion,
         reverseAddr,
         onlyQQGuild,
         platform } = form
@@ -350,7 +351,11 @@ export const useStore = defineStore('main', {
           info = await backend.post(urlPrefix + '/im_connections/addSatori', { platform, host, port, token }, { timeout: 65000 })
           break
         case 15:
-          info = await backend.post(urlPrefix + '/im_connections/addLagrange', { account, signServerUrl }, { timeout: 65000 })
+          let version = ""
+          if (signServerUrl === "sealdice" || signServerUrl === "lagrange") {
+            version = signServerVersion
+          }
+          info = await backend.post(urlPrefix + '/im_connections/addLagrange', { account, signServerUrl, signServerVersion: version }, { timeout: 65000 })
           break
       }
       return info as any as DiceConnection
@@ -387,8 +392,13 @@ export const useStore = defineStore('main', {
       return info as any as DiceConnection
     },
 
-    async getImConnectionsSetSignServerUrl(i: DiceConnection, signServerUrl: string, w: boolean) {
-      const info: { result: false, err: string } | { result: true ,signServerUrl:string} = await backend.post(urlPrefix + '/im_connections/set_sign_server', { id: i.id, signServerUrl, w })
+    async getImConnectionsSetSignServerUrl(i: DiceConnection, signServerUrl: string, w: boolean, signServerVersion: string) {
+      let version = ""
+      if (signServerUrl === "sealdice" || signServerUrl === "lagrange") {
+        version = signServerVersion
+      }
+      const info: { result: false, err: string } | { result: true ,signServerUrl:string, signServerVersion: string} =
+        await backend.post(urlPrefix + '/im_connections/set_sign_server', { id: i.id, signServerUrl, w, signServerVersion: version })
       return info
     },
 

@@ -60,7 +60,7 @@
   </div>
 
   <el-divider class="latest-log-warn">
-    <el-text type="warning" size="small" class="hover:cursor-pointer" @click="scrollDown">点击下拉到底查看最新日志</el-text>
+    <el-text type="warning" size="small" class="hover:cursor-pointer" @click="scrollDown">点击下拉到底查看最新</el-text>
   </el-divider>
 
   <div class="hidden md:block p-0 logs">

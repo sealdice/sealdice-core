@@ -494,6 +494,15 @@
     <el-form-item v-if="form.signServerType === 2" label="自定义签名地址" :label-width="formLabelWidth" required>
       <el-input v-model="form.signServerUrl" type="text" autocomplete="off"></el-input>
     </el-form-item>
+    <el-form-item v-else label="签名版本" :label-width="formLabelWidth" required>
+      <el-space direction="vertical" alignment="flex-start">
+        <el-radio-group v-model="form.signServerVersion">
+          <el-radio value="13107">13107</el-radio>
+          <el-radio value="25765">25765</el-radio>
+        </el-radio-group>
+        <el-text type="warning" size="small">如果不知道这是什么，请保持默认选中的最新版本</el-text>
+      </el-space>
+    </el-form-item>
     <template #footer>
       <span class="dialog-footer">
         <el-button @click="dialogSetSignServerVisible = false">取消</el-button>
@@ -594,6 +603,15 @@
         <el-form-item v-if="form.accountType === 15 && form.signServerType === 2" label="自定义签名地址"
           :label-width="formLabelWidth" required>
           <el-input v-model="form.signServerUrl" type="text" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item v-else-if="form.accountType === 15" label="签名版本" :label-width="formLabelWidth" required>
+          <el-space direction="vertical" alignment="flex-start">
+            <el-radio-group v-model="form.signServerVersion">
+              <el-radio value="13107">13107</el-radio>
+              <el-radio value="25765">25765</el-radio>
+            </el-radio-group>
+            <el-text type="warning" size="small">如果不知道这是什么，请保持默认选中的最新版本</el-text>
+          </el-space>
         </el-form-item>
 
         <el-form-item v-if="form.accountType === 0" label="账号" :label-width="formLabelWidth" required>
@@ -1461,7 +1479,7 @@ const doSetData = async () => {
 }
 const showSetSignServerDialog = async (i: DiceConnection) => {
   form.endpoint = i;
-  const ret = await store.getImConnectionsSetSignServerUrl(form.endpoint, "",false);
+  const ret = await store.getImConnectionsSetSignServerUrl(form.endpoint, "",false, form.signServerVersion);
   if (ret.result) {
     form.signServerUrl = ret.signServerUrl
     switch (form.signServerUrl) {
@@ -1477,6 +1495,7 @@ const showSetSignServerDialog = async (i: DiceConnection) => {
         form.signServerType = 2;
         break;
     }
+    form.signServerVersion = ret.signServerVersion
     dialogSetSignServerVisible.value = true;
   } else {
     ElMessage.error(ret.err)
@@ -1492,7 +1511,7 @@ const doSetSignServer = async() =>{
       form.signServerUrl = "lagrange";
       break;
   }
-  const ret = await store.getImConnectionsSetSignServerUrl(form.endpoint, form.signServerUrl,true);
+  const ret = await store.getImConnectionsSetSignServerUrl(form.endpoint, form.signServerUrl, true, form.signServerVersion);
   if (ret.result) {
     ElMessage.success('修改完成，请手动启用账号以生效');
   } else {
@@ -1675,6 +1694,7 @@ const form = reactive({
   signServerType: 0,
   signServerUrl: '',
   signServerKey: '',
+  signServerVersion: '25765',
 
   reverseAddr: ':4001',
   platform: 'QQ',
