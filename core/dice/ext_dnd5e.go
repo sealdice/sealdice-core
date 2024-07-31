@@ -1279,32 +1279,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					ReplyToSender(ctx, msg, "先攻列表为空")
 					break
 				}
-				round++
-				l := len(lst)
-				if l <= int(round) || round < 0 {
-					round = 0
-				}
-				if round == 0 {
-					VarSetValueStr(ctx, "$t新轮开始提示", DiceFormatTmpl(ctx, "DND:先攻_新轮开始提示"))
-					VarSetValueStr(ctx, "$t当前回合角色名", lst[l-1].name)
-					VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[l-1].uid))
-				} else {
-					VarSetValueStr(ctx, "$t新轮开始提示", "")
-					VarSetValueStr(ctx, "$t当前回合角色名", lst[round-1].name)
-					VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[round-1].uid))
-				}
-				VarSetValueStr(ctx, "$t下一回合角色名", lst[round].name)
-				VarSetValueStr(ctx, "$t下一回合at", AtBuild(lst[round].uid))
+				round = (round + 1) % int64(len(lst))
 
-				nextRound := round + 1
-				if l <= int(nextRound) || nextRound < 0 {
-					nextRound = 0
-				}
-				VarSetValueStr(ctx, "$t下下一回合角色名", lst[nextRound].name)
-				VarSetValueStr(ctx, "$t下下一回合at", AtBuild(lst[nextRound].uid))
-
-				VarSetValueInt64(ctx, "$g回合数", round)
-
+				setInitNextRoundVars(ctx, lst, round)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
 			case "del", "rm":
 				names := cmdArgs.Args[1:]
@@ -1319,7 +1296,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					toDeleted[i] = true
 				}
 
-				textOut := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀")
+				textOut := strings.Builder{}
+				textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_移除_前缀"))
 				delCounter := 0
 
 				preCurrent := 0 // 每有一个在当前单位前面的单位被删除, 当前单位下标需要减 1
@@ -1328,23 +1306,39 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						newList = append(newList, i)
 					} else {
 						delCounter++
-						textOut += fmt.Sprintf("%2d. %s\n", delCounter, i.name)
+						textOut.WriteString(fmt.Sprintf("%2d. %s\n", delCounter, i.name))
 
 						if int64(index) < round {
 							preCurrent++
 						}
 					}
 				}
+				current := *riList[round]
+				currentDeleted := toDeleted[current.name]
 
 				round -= int64(preCurrent)
+				if round >= int64(len(newList)) {
+					round = 0
+				}
 				VarSetValueInt64(ctx, "$g回合数", round)
 
 				if delCounter == 0 {
-					textOut += "- 没有找到任何单位"
+					textOut.WriteString("- 没有找到任何单位\n")
 				}
 
 				newList.SaveToGroup(ctx)
-				ReplyToSender(ctx, msg, textOut)
+				if currentDeleted {
+					if len(newList) == 0 {
+						textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
+					} else {
+						setInitNextRoundVars(ctx, newList, round)
+						// Note(Xiangze Li): 这是为了让回合结束的角色显示为被删除的角色，而不是当前角色的上一个
+						VarSetValueStr(ctx, "$t当前回合角色名", current.name)
+						VarSetValueStr(ctx, "$t当前回合at", AtBuild(current.uid))
+						textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
+					}
+				}
+				ReplyToSender(ctx, msg, textOut.String())
 			case "set":
 				name := cmdArgs.GetArgN(2)
 				exists := name != ""
@@ -1512,4 +1506,27 @@ func (lst RIList) GetExists(name string) *RIListItem {
 		}
 	}
 	return nil
+}
+
+func setInitNextRoundVars(ctx *MsgContext, lst RIList, round int64) {
+	l := len(lst)
+	if round == 0 {
+		VarSetValueStr(ctx, "$t新轮开始提示", DiceFormatTmpl(ctx, "DND:先攻_新轮开始提示"))
+		VarSetValueStr(ctx, "$t当前回合角色名", lst[l-1].name)
+		VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[l-1].uid))
+	} else {
+		VarSetValueStr(ctx, "$t新轮开始提示", "")
+		VarSetValueStr(ctx, "$t当前回合角色名", lst[round-1].name)
+		VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[round-1].uid))
+	}
+	VarSetValueStr(ctx, "$t下一回合角色名", lst[round].name)
+	VarSetValueStr(ctx, "$t下一回合at", AtBuild(lst[round].uid))
+
+	nextRound := round + 1
+	if l <= int(nextRound) || nextRound < 0 {
+		nextRound = 0
+	}
+	VarSetValueStr(ctx, "$t下下一回合角色名", lst[nextRound].name)
+	VarSetValueStr(ctx, "$t下下一回合at", AtBuild(lst[nextRound].uid))
+	VarSetValueInt64(ctx, "$g回合数", round)
 }
