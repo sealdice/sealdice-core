@@ -397,7 +397,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return &CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				if r1.GetMatched() == "d100" || r1.GetMatched() == "D100" {
+				// 注: GetMatched()只能使用一次，因为第二次执行后就会变成新的，因此改为读取之前的值
+				if expr1Text == "d100" || expr1Text == "D100" {
 					// 此时没有必要
 					detail1 = ""
 				}
