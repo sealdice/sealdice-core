@@ -304,6 +304,67 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 			return false
 		},
+		ToModResult: func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate, theOldValue, theNewValue *ds.VMValue) *ds.VMValue {
+			attrName := tmpl.GetAlias(i.name)
+			if attrName == "hp" {
+				// 获取hpmax
+				var curHpMax ds.IntType
+				hpMax, maxExists := attrs.LoadX("hpmax")
+				if maxExists && hpMax.TypeId == ds.VMTypeInt {
+					curHpMax, _ = hpMax.ReadInt()
+				}
+
+				// 注: 暂时只考虑简单形式的hpmax的buff
+				if hpmaxBuff, exits := attrs.LoadX("$buff_hpmax"); exits {
+					maxVal, _ := hpmaxBuff.ReadInt()
+					curHpMax += maxVal
+					maxExists = true // 任意一个存在，就视为上限存在，即使为0
+				}
+
+				newHp, _ := theNewValue.ReadInt()
+
+				if newHp <= 0 {
+					var oldValue ds.IntType
+					if theOldValue != nil {
+						oldValue, _ = theOldValue.ReadInt()
+					}
+
+					// 情况1: 超过生命上限，寄了
+					if maxExists && -newHp >= curHpMax {
+						deathSavingStable(ctx)
+						VarSetValue(ctx, "$t伤害点数", ds.NewIntVal(-newHp))
+						i.appendedText = DiceFormatTmpl(ctx, "DND:受到伤害_超过HP上限_附加语")
+						return ds.NewIntVal(0)
+					}
+
+					if oldValue == 0 {
+						// 情况2: 已经在昏迷了
+						VarSetValue(ctx, "$t伤害点数", ds.NewIntVal(-newHp))
+						i.appendedText = DiceFormatTmpl(ctx, "DND:受到伤害_昏迷中_附加语")
+						a, b := deathSaving(ctx, 0, 1)
+						exText := deathSavingResultCheck(ctx, a, b)
+						if exText != "" {
+							i.appendedText += "\n" + exText
+						}
+						return ds.NewIntVal(0)
+					} else {
+						// 情况3: 进入昏迷
+						VarSetValue(ctx, "$t伤害点数", ds.NewIntVal(-newHp))
+						i.appendedText = DiceFormatTmpl(ctx, "DND:受到伤害_进入昏迷_附加语")
+						return ds.NewIntVal(0)
+					}
+				} else {
+					// 生命值变为大于0，移除死亡豁免标记
+					deathSavingStable(ctx)
+					if newHp > curHpMax {
+						// 限制不超过hpmax
+						return ds.NewIntVal(curHpMax)
+					}
+				}
+			}
+
+			return theNewValue
+		},
 		ToSet: func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool {
 			attrName := tmpl.GetAlias(i.name)
 			parent := dndAttrParent[attrName]

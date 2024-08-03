@@ -93,7 +93,7 @@ func (t *GameSystemTemplate) GetAlias(varname string) string {
 	return varname
 }
 
-// GetDefaultValueEx0 获取默认值
+// GetDefaultValueEx0 获取默认值 四个返回值 val, detail, computed, exists
 func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*ds.VMValue, string, bool, bool) {
 	name := t.GetAlias(varname)
 	var detail string
@@ -239,7 +239,7 @@ func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (string, *ds.V
 	return k, ds.NewIntVal(0), nil
 }
 
-func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*ds.VMValue, error) {
+func (t *GameSystemTemplate) GetRealValueBase(ctx *MsgContext, k string) (*ds.VMValue, error) {
 	// 跟 showas 一样，但是不采用showas而是返回实际值
 	// 显示本体
 	am := ctx.Dice.AttrsManager
@@ -250,11 +250,20 @@ func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*ds.VMValu
 	}
 
 	// 默认值
-	v = t.GetDefaultValueEx(ctx, k)
-	if v != nil {
+	v, _, _, exists = t.GetDefaultValueEx0(ctx, k)
+	if exists {
 		return v, nil
 	}
 
-	// 不存在的值，强行补0
-	return ds.NewIntVal(0), nil
+	// 不存在的值
+	return nil, nil
+}
+
+func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*ds.VMValue, error) {
+	v, err := t.GetRealValueBase(ctx, k)
+	if v == nil && err == nil {
+		// 不存在的值，强行补0
+		return ds.NewIntVal(0), nil
+	}
+	return v, err
 }

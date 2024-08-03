@@ -488,7 +488,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			ctx2.vm.Config = ctx.vm.Config
 
 			name = ctx.SystemTemplate.GetAlias(name)
-			v, _ = ctx.SystemTemplate.GetRealValue(&ctx2, name)
+			v, _ = ctx.SystemTemplate.GetRealValueBase(&ctx2, name)
 		} else {
 			playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
 			v = playerAttrs.Load(name)
@@ -512,6 +512,8 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 
 		return curVal
 	}
+
+	reSimpleBP := regexp.MustCompile("^[bpBP]\\d*$")
 
 	mctx := ctx
 	ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
@@ -622,7 +624,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				}
 			case "dice-coc-bonus", "dice-coc-penalty":
 				// 对简单式子进行结果简化，未来或许可以做成通配规则(给左式加个规则进行消除)
-				if matched, _ := regexp.MatchString("^[bpBP]\\d*$", exprText); matched {
+				if reSimpleBP.MatchString(exprText) {
 					detail = "[" + last.Text[1:len(last.Text)-1]
 				}
 			}
