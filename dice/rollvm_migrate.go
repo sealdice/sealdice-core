@@ -513,7 +513,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		return curVal
 	}
 
-	reSimpleBP := regexp.MustCompile("^[bpBP]\\d*$")
+	reSimpleBP := regexp.MustCompile(`^[bpBP]\d*$`)
 
 	mctx := ctx
 	ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {

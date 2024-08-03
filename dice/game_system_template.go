@@ -256,7 +256,7 @@ func (t *GameSystemTemplate) GetRealValueBase(ctx *MsgContext, k string) (*ds.VM
 	}
 
 	// 不存在的值
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*ds.VMValue, error) {
