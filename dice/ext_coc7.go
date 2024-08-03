@@ -359,7 +359,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					difficultyRequire = difficultyRequire2
 				}
 				expr1Text := r1.GetMatched()
-				expr2Text := r1.GetRestInput()
+				expr2Text := strings.TrimSpace(r1.GetRestInput())
 
 				// 如果读取完了，那么说明刚才读取的实际上是属性表达式
 				if expr2Text == "" {

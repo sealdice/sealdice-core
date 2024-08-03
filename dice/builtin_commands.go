@@ -1291,7 +1291,14 @@ func (d *Dice) registerCoreCommands() {
 							val = int64(valX)
 						}
 					} else {
-						val = DiceRoll64(dicePoints)
+						r, _, _ = DiceExprEvalBase(ctx, "d", RollExtraFlags{
+							DefaultDiceSideNum: dicePoints,
+							DisableBlock:       true,
+						})
+						if r != nil && r.TypeId == ds.VMTypeInt {
+							valX, _ := r.ReadInt()
+							val = int64(valX)
+						}
 					}
 
 					// 指令信息标记

@@ -620,8 +620,11 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				if last.Text != "" {
 					detail += "," + last.Text
 				}
-				// case "load.computed":
-				//	detail += "=" + partRet
+			case "dice-coc-bonus", "dice-coc-penalty":
+				// 对简单式子进行结果简化，未来或许可以做成通配规则(给左式加个规则进行消除)
+				if matched, _ := regexp.MatchString("^[bpBP]\\d*$", exprText); matched {
+					detail = "[" + last.Text[1:len(last.Text)-1]
+				}
 			}
 
 			detail += subDetailsText + "]"
@@ -643,8 +646,12 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			detailArr = append(detailArr, d.V())
 		}
 
+		detailStr := string(detailResult)
+		if detailStr == ctx.Ret.ToString() {
+			detailStr = "" // 如果detail和结果值完全一致，那么将其置空
+		}
 		ctx.StoreNameLocal("details", ds.NewArrayValRaw(lo.Reverse(detailArr)))
-		return string(detailResult)
+		return detailStr
 	}
 
 	// 设置默认骰子面数
