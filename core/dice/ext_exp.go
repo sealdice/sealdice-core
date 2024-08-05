@@ -284,6 +284,10 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *Attributes
 		theNewValue = theOldValue // 占位符，避免报错
 	}
 
+	if stInfo.ToModResult != nil {
+		theNewValue = stInfo.ToModResult(mctx, cmdArgs, i, attrs, tmpl, theOldValue, theNewValue)
+	}
+
 	// 指令信息
 	commandInfo["items"] = append(commandInfo["items"].([]interface{}), map[string]interface{}{
 		"type":    "mod",
@@ -308,11 +312,12 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *Attributes
 }
 
 type stSetOrModInfoItem struct {
-	name  string
-	value *ds.VMValue
-	extra *ds.VMValue
-	op    string
-	expr  string
+	name         string
+	value        *ds.VMValue
+	extra        *ds.VMValue
+	op           string
+	expr         string
+	appendedText string
 }
 
 func cmdStReadOrMod(ctx *MsgContext, tmpl *GameSystemTemplate, text string) (r *ds.VMValue, toSetItems []*stSetOrModInfoItem, toModItems []*stSetOrModInfoItem, err error) {
@@ -407,6 +412,7 @@ func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
 type CmdStOverrideInfo struct {
 	ToSet        func(ctx *MsgContext, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool
 	ToMod        func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool
+	ToModResult  func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate, theOldValue, theNewValue *ds.VMValue) *ds.VMValue
 	ToShow       func(ctx *MsgContext, key string, val *ds.VMValue, tmpl *GameSystemTemplate) string
 	ToExport     func(ctx *MsgContext, key string, val *ds.VMValue, tmpl *GameSystemTemplate) string
 	CommandSolve func(ctx *MsgContext, msg *Message, args *CmdArgs) *CmdExecuteResult
@@ -689,17 +695,24 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 					}
 
 					var textItems []string
+					var appendedText []string
 					chName := lo.Must(mctx.Dice.AttrsManager.LoadByCtx(mctx)).Name
 					for _, i := range toModItems {
 						cmdStValueMod(mctx, tmpl, attrs, commandInfo, i, cmdArgs, &soi)
 						VarSetValueStr(mctx, "$t当前绑定角色", chName)
 						text2 := DiceFormatTmpl(mctx, "COC:属性设置_增减_单项")
 						textItems = append(textItems, text2)
+						if i.appendedText != "" {
+							appendedText = append(appendedText, i.appendedText)
+						}
 					}
 
 					// text = DiceFormatTmpl(mctx, "COC:属性设置_增减")
 					VarSetValueStr(mctx, "$t变更列表", strings.Join(textItems, "\n"))
 					text = DiceFormatTmpl(mctx, "COC:属性设置_增减")
+					if len(appendedText) > 0 {
+						text = strings.TrimSpace(text) + strings.Join(appendedText, "\n")
+					}
 
 					ctx.CommandInfo = commandInfo
 					attrs.SetModified()
