@@ -1176,7 +1176,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			case 7:
 				desc += fmt.Sprintf("逃避行为：调查员会用任何的手段试图逃离现在所处的位置，即使这意味着开走唯一一辆交通工具并将其它人抛诸脑后，调查员会试图逃离 1D10=%d 轮。", extraNum1)
 			case 8:
-				desc += fmt.Sprintf("竭嘶底里：调查员表现出大笑，哭泣，嘶吼，害怕等的极端情绪表现，持续 1D10=%d 轮。", extraNum1)
+				desc += fmt.Sprintf("歇斯底里：调查员表现出大笑，哭泣，嘶吼，害怕等的极端情绪表现，持续 1D10=%d 轮。", extraNum1)
 			case 9:
 				desc += fmt.Sprintf("恐惧：调查员通过一次 D100 或者由守秘人选择，来从恐惧症状表中选择一个恐惧源，就算这一恐惧的事物是并不存在的，调查员的症状会持续 1D10=%d 轮。", extraNum1)
 				extraNum2 := DiceRoll(100)
