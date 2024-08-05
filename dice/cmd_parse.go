@@ -563,7 +563,7 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	re := regexp.MustCompile("")
 	switch prefix {
 	case "QQ":
-		re = regexp.MustCompile(`\[CQ:at,qq=(\d+?)]`)
+		re = regexp.MustCompile(`\[CQ:at,qq=(\d+)(?:,name=(.*?))?\]`)
 	case "OpenQQ", "OpenQQCH":
 		re = regexp.MustCompile(`<@!?(\S+?)>`)
 	case "DISCORD":
