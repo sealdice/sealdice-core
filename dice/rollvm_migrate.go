@@ -198,6 +198,7 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 
 	vm.Config.DisableStmts = flags.DisableBlock
 	vm.Config.IgnoreDiv0 = flags.IgnoreDiv0
+	vm.Config.DiceMaxMode = flags.BigFailDiceOn
 
 	var cocFlagVarPrefix string
 	if flags.CocVarNumberMode {
@@ -441,36 +442,22 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	}
 
 	ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
-		if curVal == nil { //nolint:nestif
-			// 注: if复杂度为31，触发nestif，但是逻辑并不复杂。我尝试将其中一个if封装成函数放到顶上过，虽然解决了lint但反而更难读了
-			// 翻转if同样可以减一层复杂度，但我希望的是体现出overwrite函数默认行为是返回curVal，所以最好还是写在流程最后
-			// 临时变量
-			if strings.HasPrefix(name, "$t") {
-				if ctx.Player.ValueMapTemp == nil {
-					ctx.Player.ValueMapTemp = &ds.ValueMap{}
-				}
-				if v, ok := ctx.Player.ValueMapTemp.Load(name); ok {
-					return v
-				}
+		// 临时变量
+		if strings.HasPrefix(name, "$t") {
+			if ctx.Player.ValueMapTemp == nil {
+				ctx.Player.ValueMapTemp = &ds.ValueMap{}
 			}
+			if v, ok := ctx.Player.ValueMapTemp.Load(name); ok {
+				return v
+			}
+		}
 
-			if strings.HasPrefix(name, "$") {
-				// 个人变量
-				if strings.HasPrefix(name, "$m") {
-					if ctx.Session != nil && ctx.Player != nil {
-						playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
-						v := playerAttrs.Load(name)
-						if v == nil {
-							return ds.NewIntVal(0)
-						}
-						return v
-					}
-				}
-
-				// 群变量
-				if ctx.Group != nil && strings.HasPrefix(name, "$g") {
-					groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
-					v := groupAttrs.Load(name)
+		if strings.HasPrefix(name, "$") {
+			// 个人变量
+			if strings.HasPrefix(name, "$m") {
+				if ctx.Session != nil && ctx.Player != nil {
+					playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
+					v := playerAttrs.Load(name)
 					if v == nil {
 						return ds.NewIntVal(0)
 					}
@@ -478,6 +465,19 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				}
 			}
 
+			// 群变量
+			if ctx.Group != nil && strings.HasPrefix(name, "$g") {
+				groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
+				v := groupAttrs.Load(name)
+				if v == nil {
+					return ds.NewIntVal(0)
+				}
+				return v
+			}
+		}
+
+		var v *ds.VMValue
+		if ctx.SystemTemplate != nil {
 			// 从模板取值，模板中的设定是如果取不到获得0
 			// TODO: 目前没有好的方法去复制vm，实际上这个行为应当类似于ds中的函数调用
 			ctx2 := *ctx
@@ -487,34 +487,33 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			ctx2.vm.Attrs = ctx.vm.Attrs
 			ctx2.vm.Config = ctx.vm.Config
 
-			var v *ds.VMValue
-			var err error
-			if ctx.SystemTemplate != nil {
-				name = ctx.SystemTemplate.GetAlias(name)
-				v, err = ctx.SystemTemplate.GetRealValue(&ctx2, name)
-				if err != nil {
-					return ds.NewNullVal()
+			name = ctx.SystemTemplate.GetAlias(name)
+			v, _ = ctx.SystemTemplate.GetRealValueBase(&ctx2, name)
+		} else {
+			playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
+			v = playerAttrs.Load(name)
+		}
+
+		// 注: 如果已经有值，就不再覆盖，因此v要判空
+		if v == nil && strings.Contains(name, ":") {
+			textTmpl := ctx.Dice.TextMap[name]
+			if textTmpl != nil {
+				if v2, err := DiceFormatV2(ctx, textTmpl.Pick().(string)); err == nil {
+					return ds.NewStrVal(v2)
 				}
 			} else {
-				playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
-				v = playerAttrs.Load(name)
+				return ds.NewStrVal("<%未定义值-" + name + "%>")
 			}
+		}
 
-			if strings.Contains(name, ":") {
-				textTmpl := ctx.Dice.TextMap[name]
-				if textTmpl != nil {
-					if v2, err := DiceFormatV2(ctx, textTmpl.Pick().(string)); err == nil {
-						return ds.NewStrVal(v2)
-					}
-				} else {
-					return ds.NewStrVal("<%未定义值-" + name + "%>")
-				}
-			}
-
+		if v != nil {
 			return v
 		}
+
 		return curVal
 	}
+
+	reSimpleBP := regexp.MustCompile(`^[bpBP]\d*$`)
 
 	mctx := ctx
 	ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
@@ -623,8 +622,11 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				if last.Text != "" {
 					detail += "," + last.Text
 				}
-				// case "load.computed":
-				//	detail += "=" + partRet
+			case "dice-coc-bonus", "dice-coc-penalty":
+				// 对简单式子进行结果简化，未来或许可以做成通配规则(给左式加个规则进行消除)
+				if reSimpleBP.MatchString(exprText) {
+					detail = "[" + last.Text[1:len(last.Text)-1]
+				}
 			}
 
 			detail += subDetailsText + "]"
@@ -646,8 +648,12 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			detailArr = append(detailArr, d.V())
 		}
 
+		detailStr := string(detailResult)
+		if detailStr == ctx.Ret.ToString() {
+			detailStr = "" // 如果detail和结果值完全一致，那么将其置空
+		}
 		ctx.StoreNameLocal("details", ds.NewArrayValRaw(lo.Reverse(detailArr)))
-		return string(detailResult)
+		return detailStr
 	}
 
 	// 设置默认骰子面数

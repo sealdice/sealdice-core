@@ -1398,6 +1398,18 @@ func setupBaseTextTemplate(d *Dice) {
 			"制卡_分隔符": {
 				SubType: ".dnd 2/.dndx 3",
 			},
+			"受到伤害_昏迷中_附加语": {
+				SubType:   ".st hp-1d4",
+				ExtraText: "hp已经为0时扣血",
+			},
+			"受到伤害_超过HP上限_附加语": {
+				SubType:   ".st hp-50",
+				ExtraText: "造成伤害大于生命上限",
+			},
+			"受到伤害_进入昏迷_附加语": {
+				SubType:   ".st hp-1d4",
+				ExtraText: "hp在st后从正数变为0",
+			},
 		},
 		"核心": {
 			"骰子名字": {
