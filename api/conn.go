@@ -148,9 +148,10 @@ func ImConnectionsRWSignServerUrl(c echo.Context) error {
 	}
 
 	v := struct {
-		ID            string `form:"id" json:"id"`
-		SignServerUrl string `form:"signServerUrl" json:"signServerUrl"`
-		W             bool   `form:"w" json:"w"`
+		ID                string `form:"id" json:"id"`
+		SignServerUrl     string `form:"signServerUrl" json:"signServerUrl"`
+		W                 bool   `form:"w" json:"w"`
+		SignServerVersion string `form:"signServerVersion" json:"signServerVersion"`
 	}{}
 
 	err := c.Bind(&v)
@@ -165,9 +166,12 @@ func ImConnectionsRWSignServerUrl(c echo.Context) error {
 		if i.ProtocolType == "onebot" {
 			pa := i.Adapter.(*dice.PlatformAdapterGocq)
 			if pa.BuiltinMode == "lagrange" {
-				signServerUrl := dice.RWLagrangeSignServerUrl(myDice, i, v.SignServerUrl, v.W)
+				signServerUrl, signServerVersion := dice.RWLagrangeSignServerUrl(myDice, i, v.SignServerUrl, v.W, v.SignServerVersion)
 				if signServerUrl != "" {
-					return Success(&c, Response{"signServerUrl": signServerUrl})
+					return Success(&c, Response{
+						"signServerUrl":     signServerUrl,
+						"signServerVersion": signServerVersion,
+					})
 				}
 			}
 		}
@@ -962,8 +966,9 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 	}
 
 	v := struct {
-		Account       string `yaml:"account" json:"account"`
-		SignServerUrl string `yaml:"signServerUrl" json:"signServerUrl"`
+		Account           string `yaml:"account" json:"account"`
+		SignServerUrl     string `yaml:"signServerUrl" json:"signServerUrl"`
+		SignServerVersion string `yaml:"signServerVersion" json:"signServerVersion"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -986,9 +991,10 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 			return err
 		}
 		dice.LagrangeServe(myDice, conn, dice.LagrangeLoginInfo{
-			UIN:           uin,
-			SignServerUrl: v.SignServerUrl,
-			IsAsyncRun:    true,
+			UIN:               uin,
+			SignServerUrl:     v.SignServerUrl,
+			SignServerVersion: v.SignServerVersion,
+			IsAsyncRun:        true,
 		})
 		return c.JSON(http.StatusOK, v)
 	}
