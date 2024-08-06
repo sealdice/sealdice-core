@@ -130,8 +130,10 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 			}
 		}
 	} else {
-		// 啊？表读不了？
-		return nil, err
+		// 读不出时返回报错
+		// return nil, err
+		// 改为创建新数据集。因为遇到一个特别案例：因为clr前会读取当前角色数据，因为读不出来所以无法st clr
+		// 从而永久卡死
 	}
 
 	// 3. 创建一个新的
@@ -369,11 +371,5 @@ func (i *AttributesItem) SetSheetType(system string) {
 }
 
 func (i *AttributesItem) Len() int {
-	// TODO: 优化
-	var count int
-	i.Range(func(key string, value *ds.VMValue) bool {
-		count += 1
-		return true
-	})
-	return count
+	return i.valueMap.Length()
 }
