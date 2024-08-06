@@ -271,6 +271,7 @@ func (d *Dice) registerCoreCommands() {
 			if id != "" {
 				text, exists := d.Parent.Help.TextMap[id]
 				if exists {
+					text.Content = ctx.TranslateSplit(text.Content)
 					content := d.Parent.Help.GetContent(text, 0)
 					ReplyToSender(ctx, msg, fmt.Sprintf("词条: %s:%s\n%s", text.PackageName, text.Title, content))
 				} else {
@@ -366,6 +367,7 @@ func (d *Dice) registerCoreCommands() {
 
 			var bestResult string
 			if showBest {
+				best.Content = ctx.TranslateSplit(best.Content)
 				content := d.Parent.Help.GetContent(best, 0)
 				bestResult = fmt.Sprintf("最优先结果%s:\n词条: %s:%s\n%s\n\n", groupStr, best.PackageName, best.Title, content)
 			}
@@ -460,6 +462,7 @@ func (d *Dice) registerCoreCommands() {
 					// 居然会出现 hits[0] 为nil的情况？？
 					// a := d.Parent.ShortHelp.GetContent(search.Hits[0].ID)
 					a := d.Parent.Help.TextMap[search.Hits[0].ID]
+					a.Content = ctx.TranslateSplit(a.Content)
 					content := d.Parent.Help.GetContent(a, 0)
 					ReplyToSender(ctx, msg, fmt.Sprintf("%s:%s\n%s", a.PackageName, a.Title, content))
 				} else {
