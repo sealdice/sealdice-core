@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@braintree/sanitize-url':
-        specifier: ^7.0.4
-        version: 7.0.4
+        specifier: ^7.1.0
+        version: 7.1.0
       cytoscape:
         specifier: ^3.30.1
         version: 3.30.1
@@ -133,8 +133,8 @@ packages:
   '@braintree/sanitize-url@6.0.4':
     resolution: {integrity: sha512-s3jaWicZd0pkP0jf5ysyHUI/RE7MHos6qlToFcGWXVp+ykHOy77OUMrfbgJ9it2C5bow7OIQwYYaHjk9XlBQ2A==}
 
-  '@braintree/sanitize-url@7.0.4':
-    resolution: {integrity: sha512-hPYRrKFoI+nuckPgDJfyYAkybFvheo4usS0Vw0HNAe+fmGBQA5Az37b/yStO284atBoqqdOUhKJ3d9Zw3PQkcQ==}
+  '@braintree/sanitize-url@7.1.0':
+    resolution: {integrity: sha512-o+UlMLt49RvtCASlOMW0AkHnabN9wR9rwCCherxO0yG4Npy34GkvrAqdXQvrhNs+jh+gkK8gB8Lf05qL/O7KWg==}
 
   '@docsearch/css@3.6.0':
     resolution: {integrity: sha512-+sbxb71sWre+PwDK7X2T8+bhS6clcVMLwBPznX45Qu6opJcgRjAp7gYSDzVFp187J+feSj5dNBN1mJoi6ckkUQ==}
@@ -1352,7 +1352,7 @@ snapshots:
 
   '@braintree/sanitize-url@6.0.4': {}
 
-  '@braintree/sanitize-url@7.0.4': {}
+  '@braintree/sanitize-url@7.1.0': {}
 
   '@docsearch/css@3.6.0': {}
 
