@@ -15,8 +15,9 @@ func customText(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"texts":    myDice.TextMapRaw,
-		"helpInfo": myDice.TextMapHelpInfo,
+		"texts":          myDice.TextMapRaw,
+		"helpInfo":       myDice.TextMapHelpInfo,
+		"compatibleInfo": &myDice.TextMapCompatible,
 	})
 }
 
