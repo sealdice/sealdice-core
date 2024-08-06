@@ -1,23 +1,30 @@
 package syncmap
 
 import (
+	"encoding/json"
 	"errors"
 	"sync"
 
-	cmap "github.com/smallnest/safemap"
+	"github.com/puzpuzpuz/xsync/v3"
 )
 
-// 在Go 1.9之前，go语言标准库中并没有实现并发map。
-// 在Go 1.9中，引入了sync.Map。新的sync.Map与此concurrent-map有几个关键区别。
-// 标准库中的sync.Map是专为append-only场景设计的。
-// 因此，如果您想将Map用于一个类似内存数据库，那么使用我们的版本可能会受益。
-// 译注:sync.Map在读多写少性能比较好，否则并发性能很差
-// 实话说，我也不知道咱们到底是不是读多写少，不过反正下面的函数是做了兼容的，可以方便回退……
-
 // SyncMap 是一个线程安全的 map，提供了对并发读写的支持
-// 它封装了 safemap 提供的 SafeMap 实现
+// 它封装了 xsync 提供的 Map 实现
+// BenchMark:
+// BenchmarkXsyncMapReadsOnly
+// BenchmarkXsyncMapReadsOnly-12                     320460              3805 ns/op
+// BenchmarkXsyncMapReadsWithWrites
+// BenchmarkXsyncMapReadsWithWrites-12               119052             11138 ns/op
+// BenchmarkGoSyncMapReadsOnly
+// BenchmarkGoSyncMapReadsOnly-12                     78333             15131 ns/op
+// BenchmarkGoSyncMapReadsWithWrites
+// BenchmarkGoSyncMapReadsWithWrites-12               40977             31248 ns/op
+// BenchmarkSafeMapReadsOnly
+// BenchmarkSafeMapReadsOnly-12                       12453             90218 ns/op
+// BenchmarkSafeMapReadsWithWrites
+// BenchmarkSafeMapReadsWithWrites-12                  7665            157391 ns/op
 type SyncMap[K comparable, V any] struct {
-	m    *cmap.SafeMap[K, V]
+	m    *xsync.MapOf[K, V]
 	once sync.Once
 }
 
@@ -25,24 +32,28 @@ type SyncMap[K comparable, V any] struct {
 func (m *SyncMap[K, V]) ensureInitialized() {
 	m.once.Do(func() {
 		if m.m == nil {
-			m.m = cmap.New[K, V]()
+			m.m = xsync.NewMapOf[K, V]()
 		}
 	})
 }
 
 // NewSyncMap 创建一个新的 SyncMap 实例
 func NewSyncMap[K comparable, V any]() *SyncMap[K, V] {
-	return &SyncMap[K, V]{m: cmap.New[K, V]()}
+	return &SyncMap[K, V]{m: xsync.NewMapOf[K, V]()}
 }
 
 // Delete 删除指定的键及其值
 func (m *SyncMap[K, V]) Delete(key K) {
-	m.m.Remove(key)
+	m.m.Delete(key)
 }
 
 // Load 返回指定键的值。如果键存在，则返回值和 true；否则返回零值和 false
 func (m *SyncMap[K, V]) Load(key K) (value V, ok bool) {
-	return m.m.Get(key)
+	val, ok := m.m.Load(key)
+	if ok {
+		value = val
+	}
+	return
 }
 
 // Exists 检查指定的键是否存在
@@ -52,61 +63,61 @@ func (m *SyncMap[K, V]) Exists(key K) bool {
 }
 
 func (m *SyncMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
-	// 使用 Upsert 方法，回调函数中根据键是否存在来设置 loaded 标志
-	actual = m.m.Upsert(key, value, func(exist bool, valueInMap V, newValue V) V {
-		loaded = exist
-		if exist {
-			return valueInMap
-		}
-		return newValue
-	})
+	actual, loaded = m.m.LoadOrStore(key, value)
 	return
 }
 
 // LoadAndDelete 加载并删除指定的键。如果键存在，则返回值和 true；否则返回零值和 false
 func (m *SyncMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
-	return m.m.Pop(key)
+	val, ok := m.m.LoadAndDelete(key)
+	if ok {
+		value = val
+	}
+	return
 }
 
 // Store 存储指定的键和值
 func (m *SyncMap[K, V]) Store(key K, value V) {
-	m.m.Set(key, value)
+	m.m.Store(key, value)
 }
 
 // Len 返回 map 中的元素数量
 func (m *SyncMap[K, V]) Len() int {
-	return m.m.Count()
+	return m.m.Size()
 }
 
 // Range 遍历 map 中的所有键值对，并对每个键值对调用提供的函数
 // 如果函数返回 false，则停止遍历
 func (m *SyncMap[K, V]) Range(f func(key K, value V) bool) {
-	m.m.IterCb(func(key K, value V) {
-		if !f(key, value) {
-			return
-		}
+	m.m.Range(func(key K, value V) bool {
+		return f(key, value)
 	})
 }
 
-// 似乎除了这种情况以外，别的时候都能通过直接New一个来规避
-// TODO: 如果全部都加上Once是否会影响性能呢？
-
 // MarshalJSON 序列化 SyncMap 为 JSON 格式
 func (m *SyncMap[K, V]) MarshalJSON() ([]byte, error) {
-	// 最后参考了一下json.Marshal代码，感觉可以考虑返回一个异常
-	// TODO：需要测试
 	if m.m == nil {
 		return nil, errors.New("SyncMap未初始化")
 	}
-	return m.m.MarshalJSON()
+	data := make(map[K]V)
+	m.Range(func(key K, value V) bool {
+		data[key] = value
+		return true
+	})
+	return json.Marshal(data)
 }
 
 // UnmarshalJSON 反序列化 JSON 格式为 SyncMap
 func (m *SyncMap[K, V]) UnmarshalJSON(b []byte) error {
-	// 怀疑是因为原本的实现方式下，sync.Map默认就是存在的不需要初始化
-	// 而如果在这种情况下，默认m是不会被初始化的
-	// 所以导致问题，或许应该得手动初始化一个？
-	// TODO： 初始化应该不太对劲，有高人指点一下吗
 	m.ensureInitialized()
-	return m.m.UnmarshalJSON(b)
+
+	var data map[K]V
+	if err := json.Unmarshal(b, &data); err != nil {
+		return err
+	}
+
+	for key, value := range data {
+		m.Store(key, value)
+	}
+	return nil
 }
