@@ -129,12 +129,11 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 				return nil, errors.New("角色数据类型不正确")
 			}
 		}
-	} else {
-		// 读不出时返回报错
-		// return nil, err
-		// 改为创建新数据集。因为遇到一个特别案例：因为clr前会读取当前角色数据，因为读不出来所以无法st clr
-		// 从而永久卡死
 	}
+	// 之前 else 是读不出时返回报错
+	// return nil, err
+	// 改为创建新数据集。因为遇到一个特别案例：因为clr前会读取当前角色数据，因为读不出来所以无法st clr
+	// 从而永久卡死
 
 	// 3. 创建一个新的
 	// 注: 缺 created_at、updated_at、sheet_type、owner_id、is_hidden、nickname等各项
