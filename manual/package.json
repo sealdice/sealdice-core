@@ -27,6 +27,6 @@
     "cytoscape": "^3.30.0",
     "cytoscape-cose-bilkent": "^4.1.0",
     "dayjs": "^1.11.11",
-    "debug": "^4.3.5"
+    "debug": "^4.3.6"
   }
 }
