@@ -1947,7 +1947,7 @@ func setupTextTemplate(d *Dice) {
 
 func (d *Dice) GenerateTextMap() {
 	// 生成TextMap
-	d.TextMap = map[string]*wr.Chooser{}
+	newTextMap := map[string]*wr.Chooser{}
 
 	for category, item := range d.TextMapRaw {
 		for k, v := range item {
@@ -1957,15 +1957,17 @@ func (d *Dice) GenerateTextMap() {
 			}
 
 			pool, _ := wr.NewChooser(choices...)
-			d.TextMap[fmt.Sprintf("%s:%s", category, k)] = pool
+			newTextMap[fmt.Sprintf("%s:%s", category, k)] = pool
 		}
 	}
 
 	picker, _ := wr.NewChooser(wr.Choice{Item: APPNAME, Weight: 1})
-	d.TextMap["常量:APPNAME"] = picker
+	newTextMap["常量:APPNAME"] = picker
 
 	picker, _ = wr.NewChooser(wr.Choice{Item: VERSION.String(), Weight: 1})
-	d.TextMap["常量:VERSION"] = picker
+	newTextMap["常量:VERSION"] = picker
+
+	d.TextMap = newTextMap
 }
 
 func getNumVal(i interface{}) uint {
