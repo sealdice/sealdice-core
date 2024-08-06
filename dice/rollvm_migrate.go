@@ -768,8 +768,7 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		}
 		text1, _ := DiceFormatV1(ctx, formatExpr)
 
-		// 情况分支: v2无语法错
-		ver := "v2"
+		var ver string
 		extra := ""
 
 		if err2 == nil {
