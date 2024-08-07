@@ -1416,12 +1416,14 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 				r, _, err = DiceExprEvalBase(mctx, expr2, RollExtraFlags{DisableBlock: true})
 				if err == nil {
-					reduceSuccess = int64(r.MustReadInt())
+					v, _ := r.ReadInt()
+					reduceSuccess = int64(v)
 				}
 
 				r, _, err = DiceExprEvalBase(mctx, expr3, RollExtraFlags{BigFailDiceOn: successRank == -2, DisableBlock: true})
 				if err == nil {
-					reduceFail = int64(r.MustReadInt())
+					v, _ := r.ReadInt()
+					reduceFail = int64(v)
 				}
 
 				if successRank > 0 {

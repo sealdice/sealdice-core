@@ -224,10 +224,12 @@ type Dice struct {
 
 	BanList *BanListInfo `yaml:"banList"` //
 
-	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
-	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
-	ConfigManager   *ConfigManager             `yaml:"-"`
-	Parent          *DiceManager               `yaml:"-"`
+	TextMapRaw        TextTemplateWithWeightDict `yaml:"-"`
+	TextMapHelpInfo   TextTemplateWithHelpDict   `yaml:"-"`
+	TextMapCompatible TextTemplateCompatibleDict `yaml:"-"` // 兼容信息，格式 { "COC:测试": { "回复A": {...}, "回复B": ... } } 这样字符串可以不占据新的内存
+
+	ConfigManager *ConfigManager `yaml:"-"`
+	Parent        *DiceManager   `yaml:"-"`
 
 	CocExtraRules     map[int]*CocRuleInfo   `yaml:"-" json:"cocExtraRules"`
 	Cron              *cron.Cron             `yaml:"-" json:"-"`
@@ -599,7 +601,7 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 		return val.Value.(string), detail, err
 	}
 
-	return "格式化错误:" + strconv.Quote(buffer), "", errors.New("错误的表达式")
+	return "格式化错误:" + strconv.Quote(buffer), "", errors.New("格式化错误:" + strconv.Quote(buffer))
 }
 
 // ExtFind 根据名称或别名查找扩展
