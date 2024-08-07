@@ -23,13 +23,23 @@ import (
 
 // type TextTemplateWithWeight = map[string]map[string]uint
 type (
-	TextTemplateItem     = []interface{} // 实际上是 [](string | int) 类型
+	TextTemplateItem     = []any // 实际上是 [](string | int) 类型
 	TextTemplateItemList []TextTemplateItem
 )
+
+type TextItemCompatibleInfo struct {
+	Version      string `json:"version"` // v1 v2 默认为v2(如果为空)
+	TextV2       string `json:"textV2"`
+	TextV1       string `json:"textV1"`
+	ErrV1        string `json:"errV1"`
+	ErrV2        string `json:"errV2"`
+	PresetExists bool   `json:"presetExists"` // 是否存在预设变量(即指令执行后环境的模拟)
+}
 
 type (
 	TextTemplateWithWeight     = map[string][]TextTemplateItem
 	TextTemplateWithWeightDict = map[string]TextTemplateWithWeight
+	TextTemplateCompatibleDict = SyncMap[string, *SyncMap[string, TextItemCompatibleInfo]]
 )
 
 // TextTemplateHelpItem 辅助信息，用于UI中，大部分自动生成
@@ -44,7 +54,6 @@ type TextTemplateHelpItem = struct {
 	ExampleCommands []string           `json:"exampleCommands"` // 案例命令
 	NotBuiltin      bool               `json:"notBuiltin"`      // 非内置
 	TopOrder        int                `json:"topOrder"`        // 置顶序号，越高越靠前
-	V2Compatible    int                `json:"v2Compatible"`    // 对v2的兼容描述，0代表兼容，1代表有if潜在不兼容，2代表不兼容
 }
 
 type (
@@ -1939,7 +1948,7 @@ func setupTextTemplate(d *Dice) {
 
 func (d *Dice) GenerateTextMap() {
 	// 生成TextMap
-	d.TextMap = map[string]*wr.Chooser{}
+	newTextMap := map[string]*wr.Chooser{}
 
 	for category, item := range d.TextMapRaw {
 		for k, v := range item {
@@ -1949,15 +1958,17 @@ func (d *Dice) GenerateTextMap() {
 			}
 
 			pool, _ := wr.NewChooser(choices...)
-			d.TextMap[fmt.Sprintf("%s:%s", category, k)] = pool
+			newTextMap[fmt.Sprintf("%s:%s", category, k)] = pool
 		}
 	}
 
 	picker, _ := wr.NewChooser(wr.Choice{Item: APPNAME, Weight: 1})
-	d.TextMap["常量:APPNAME"] = picker
+	newTextMap["常量:APPNAME"] = picker
 
 	picker, _ = wr.NewChooser(wr.Choice{Item: VERSION.String(), Weight: 1})
-	d.TextMap["常量:VERSION"] = picker
+	newTextMap["常量:VERSION"] = picker
+
+	d.TextMap = newTextMap
 }
 
 func getNumVal(i interface{}) uint {
