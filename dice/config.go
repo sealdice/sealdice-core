@@ -29,9 +29,10 @@ type (
 
 type TextItemCompatibleInfo struct {
 	Version      string `json:"version"` // v1 v2 默认为v2(如果为空)
-	Extra        string `json:"extra"`
 	TextV2       string `json:"textV2"`
 	TextV1       string `json:"textV1"`
+	ErrV1        string `json:"errV1"`
+	ErrV2        string `json:"errV2"`
 	PresetExists bool   `json:"presetExists"` // 是否存在预设变量(即指令执行后环境的模拟)
 }
 

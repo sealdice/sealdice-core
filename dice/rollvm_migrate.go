@@ -420,7 +420,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	ctx.vm.Config.EnableDiceCoC = true
 	ctx.vm.Config.EnableDiceFate = true
 	ctx.vm.Config.EnableDiceDoubleCross = true
-	ctx.vm.Config.EnableV1IfCompatible = true
+	ctx.vm.Config.EnableV1IfCompatible = false
 	ctx.vm.Config.OpCountLimit = 30000
 
 	am := ctx.Dice.AttrsManager
@@ -747,7 +747,7 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		ctx := CreateTempCtx(d.UIEndpoint, msg)
 		ctx.CreateVmIfNotExists()
 		if a, exists := _textMapTestData2[key]; exists {
-			if x, err := a.ToJSON(); err != nil {
+			if x, err := a.ToJSON(); err == nil {
 				_ = json.Unmarshal(x, ctx.vm.Attrs) // TODO: 性能好一点的clone
 			}
 			for k, v := range _textMapBuiltin {
@@ -759,18 +759,20 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		ctx = CreateTempCtx(d.UIEndpoint, msg)
 		_, presetExists := _textMapTestData2[key]
 		if a, exists := _textMapTestData2[key]; exists {
-			if x, err := a.ToJSON(); err != nil {
+			if x, err := a.ToJSON(); err == nil {
 				_ = json.Unmarshal(x, ctx.vm.Attrs) // TODO: 性能好一点的clone
 			}
 			for k, v := range _textMapBuiltin {
 				ctx.vm.Attrs.Store(k, v.Clone())
 			}
 		}
-		text1, _ := DiceFormatV1(ctx, formatExpr)
+
+		text1, err1 := DiceFormatV1(ctx, formatExpr)
+		if err1 != nil {
+			text1 = "" // 因为 formatV1 没有值的时候会返回东西，这样使得两版本一致
+		}
 
 		var ver string
-		extra := ""
-
 		if err2 == nil {
 			if text1 == text2 {
 				// 情况1: 两版输出完全相同
@@ -780,12 +782,23 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 				ver = "v1"
 			}
 		} else {
-			// 情况3: v2编译不通过
-			ver = "v1"
-			extra = "v2error"
+			if err1 == nil {
+				// 情况3: v2编译不通过
+				ver = "v1"
+			} else {
+				// 情况4: v2编译不通过，v1也编译不通过
+				ver = "v2"
+			}
 		}
 
-		x.Store(formatExpr, TextItemCompatibleInfo{Version: ver, TextV2: text2, TextV1: text1, PresetExists: presetExists, Extra: extra})
+		info := TextItemCompatibleInfo{Version: ver, TextV2: text2, TextV1: text1, PresetExists: presetExists}
+		if err2 != nil {
+			info.ErrV2 = err2.Error()
+		}
+		if err1 != nil {
+			info.ErrV1 = err1.Error()
+		}
+		x.Store(formatExpr, info)
 	}
 }
 
@@ -874,7 +887,7 @@ var _textMapTestData = map[string]string{
 	"DND:死亡豁免_成功_附加语":     "{\"details\":{\"t\":6,\"v\":{\"List\":[{\"t\":7,\"v\":{\"Dict\":{}}}]}}}",
 	"DND:死亡豁免_结局_角色死亡":    "{\"details\":{\"t\":6,\"v\":{\"List\":[{\"t\":7,\"v\":{\"Dict\":{}}}]}}}",
 	"其它:ping响应":           "{}",
-	"其它:抽牌_列表":            "{\"$t原始列表\":{\"t\":2,\"v\":\"导出牌组/可见牌组/击中部位/煤气灯/调查员/克苏鲁神话/万象无常牌/魔豆之袋/狂野魔法浪涌/杂货法袍/人偶依恋/人偶暗示/人偶记忆碎片/人偶宝物/人偶双记忆碎片/青果寻访/随机骰娘寻访/溯洄寻访/惠惠寻访/海豹寻访\"}}",
+	"其它:抽牌_列表":            "{\"$t原始列表\":{\"t\":2,\"v\":\"导出牌组/可见牌组/击中部位/煤气灯/调查员/克苏鲁神话/万象无常牌/魔豆之袋/狂野魔法浪涌/杂货法袍/人偶依恋/人偶暗示/人偶记忆碎片/人偶宝物/人偶双记忆碎片\"}}",
 	"其它:抽牌_找不到牌组":         "{\"$t牌组\":{\"t\":2,\"v\":\"不存在的牌组\"}}",
 	"其它:抽牌_找不到牌组_存在类似":    "{\"$t牌组\":{\"t\":2,\"v\":\"煤气\"}}",
 	"其它:随机名字":             "{\"$t随机名字文本\":{\"t\":2,\"v\":\"张茜、陈雪芬、空灿飞、孙实、周碧侠\"}}",

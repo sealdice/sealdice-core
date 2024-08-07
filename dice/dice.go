@@ -598,10 +598,12 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 	val, detail, err := d._ExprTextBaseV1(buffer, ctx, RollExtraFlags{})
 
 	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {
+		x := val.Value.(string)
+		fmt.Println("xxx", x, err)
 		return val.Value.(string), detail, err
 	}
 
-	return "格式化错误:" + strconv.Quote(buffer), "", errors.New("错误的表达式")
+	return "格式化错误:" + strconv.Quote(buffer), "", errors.New("格式化错误:" + strconv.Quote(buffer))
 }
 
 // ExtFind 根据名称或别名查找扩展
