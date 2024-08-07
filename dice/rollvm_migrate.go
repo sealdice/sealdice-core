@@ -357,11 +357,13 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 			if isAbilityScores(varname) && vm.Depth() == 0 && vm.UpCtx == nil {
 				if curVal != nil && curVal.TypeId == ds.VMTypeInt {
 					mod := curVal.MustReadInt()/2 - 5
+					v := ds.NewIntVal(mod)
 					if detail != nil {
 						detail.Tag = "dnd-rc"
 						detail.Text = fmt.Sprintf("%s调整值%d", varname, mod)
+						detail.Ret = v
 					}
-					return ds.NewIntVal(mod)
+					return v
 				}
 			} else if dndAttrParent[varname] != "" && curVal.TypeId == ds.VMTypeInt {
 				name := dndAttrParent[varname]
