@@ -1334,7 +1334,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 					texts = append(texts, DiceFormatTmpl(ctx, "核心:骰点_单项结果文本"))
 				}
-				VarSetValueStr(ctx, "$t结果文本", strings.Join(texts, `\n`))
+				VarSetValueStr(ctx, "$t结果文本", strings.Join(texts, "\n"))
 				text = DiceFormatTmpl(ctx, "核心:骰点_多轮")
 			} else {
 				ret := rollOne()
