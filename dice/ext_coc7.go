@@ -486,7 +486,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				}
 
 				VarSetValueStr(mctx, "$t原因", reason)
-				VarSetValueStr(mctx, "$t结果文本", strings.Join(texts, `\n`))
+				VarSetValueStr(mctx, "$t结果文本", strings.Join(texts, "\n"))
 				text = DiceFormatTmpl(mctx, "COC:检定_多轮")
 			} else {
 				ret := rollOne(false)
