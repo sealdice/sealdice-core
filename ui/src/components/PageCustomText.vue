@@ -94,12 +94,12 @@
                   </el-tag>
 
                   <span>
-            <span>{{ k.toString() }}</span>
-            <el-tooltip v-if="store.curDice.customTextsHelpInfo[category][k.toString()].extraText"
-                        :content="store.curDice.customTextsHelpInfo[category][k.toString()].extraText" raw-content>
-              <el-icon><question-filled /></el-icon>
-            </el-tooltip>
-          </span>
+                    <span>{{ k.toString() }}</span>
+                    <el-tooltip v-if="store.curDice.customTextsHelpInfo[category][k.toString()].extraText"
+                                :content="store.curDice.customTextsHelpInfo[category][k.toString()].extraText" raw-content>
+                      <el-icon><question-filled /></el-icon>
+                    </el-tooltip>
+                  </span>
 
                   <template v-if="(store.curDice.customTextsHelpInfo[category][k.toString()]).notBuiltin">
                     <el-tooltip content="移除 - 这个文本在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除" raw-content
@@ -139,9 +139,30 @@
                       </el-icon>
                     </el-tooltip>
                   </el-col>
-                  <el-col :span="22">
+                  <el-col :span="22" class="relative">
                     <!-- :suffix-icon="Management" -->
                     <el-input type="textarea" autosize v-model="k2[0]" @change="doChanged(category, k.toString())"></el-input>
+
+                    <div class="absolute right-1 bottom-0" v-if="getPreview(k, k2[0])">
+                      <el-tooltip placement="bottom-start">
+                        <template #content>
+                          <component :is="getPreviewInfo(k, k2[0])"></component>
+                        </template>
+
+                        <span v-if="getPreviewCheckErr(k, k2[0])" class=" text-red-500" style=" margin-left: 0.1rem; margin-top: 0.1rem">
+                          <el-icon><CircleCloseFilled /></el-icon>
+                        </span>
+                        <template v-else>
+                          <span v-if="getPreview(k, k2[0]).version == 'v2'" class=" text-blue-500" style=" margin-left: 0.1rem; margin-top: 0.1rem">
+                            <el-icon><SuccessFilled /></el-icon>
+                          </span>
+
+                          <span v-if="getPreview(k, k2[0]).version == 'v1'" class=" text-yellow-500" style=" margin-left: 0.1rem; margin-top: 0.1rem">
+                            <el-icon><SuccessFilled /></el-icon>
+                          </span>
+                        </template>
+                      </el-tooltip>
+                    </div>
                   </el-col>
                 </el-row>
               </div>
@@ -179,7 +200,7 @@
   </el-dialog>
 </template>
 
-<script setup lang="ts">
+<script setup lang="tsx">
 import {useStore} from '~/store'
 import {
   BrushFilled,
@@ -188,7 +209,9 @@ import {
   DeleteFilled,
   DocumentChecked,
   QuestionFilled,
-  Search
+  Search,
+  SuccessFilled,
+  CircleCloseFilled,
 } from '@element-plus/icons-vue'
 import { cloneDeep, filter, groupBy, map, sortBy, startsWith, trim, uniq, entries, mapValues } from 'lodash-es'
 import ClipboardJS from 'clipboard'
@@ -353,6 +376,58 @@ const save = async () => {
   modified.value = false
   ElMessage.success('已保存')
 }
+
+const getPreview = (k: string, text: string) => {
+  const x = store.curDice.previewInfo;
+  if (x) {
+    return x[`${props.category}:${k}`][text];
+  }
+}
+
+const getPreviewCheckErr = (k: string, text: string) => {
+  const info = getPreview(k, text);
+  if (info) {
+    if (info.version == 'v2') return Boolean(info.errV2);
+    if (info.version == 'v1') return Boolean(info.errV1);
+  }
+  return false;
+}
+
+const getPreviewInfo = (k: string, text: string) => {
+  const info = getPreview(k, text);
+  if (info) {
+    let version = info.version;
+
+    if (version === 'v1') {
+      version = "v1 [建议修改]"
+    }
+    const exists = info.presetExists ? '是' : '否';
+
+    return <div>
+      <div>
+        <span class="bg-white text-black rounded-sm px-1 mr-1">引擎版本</span>
+        {version}
+      </div>
+      <div class="whitespace-pre">
+        <span class="bg-white text-black rounded-sm px-1 mr-1">V2预览</span>
+         {info.textV2 || info.errV2}
+      </div>
+      <div class="whitespace-pre">
+        <span class="bg-white text-black rounded-sm px-1 mr-1">V1预览</span>
+        {info.textV1 || info.errV1}
+      </div>
+      <div>
+        <span class="bg-white text-black rounded-sm px-1 mr-1">存在预设</span>
+        {exists} [存在时预览较为可靠]
+      </div>
+      <div>
+        {/* {JSON.stringify(info)} */}
+        {/* <el-button type="primary" class="mt-2" size="small">刷新</el-button> */}
+      </div>
+    </div>
+  }
+}
+
 
 const deleteValue = async (category: string, keyName: string) => {
   const helpInfo = store.curDice.customTextsHelpInfo[category][keyName]

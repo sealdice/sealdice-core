@@ -7,7 +7,7 @@
     </el-collapse-item>
   </template>
   <template v-else>
-    <el-collapse-item title="不分组展示" :name="group">
+    <el-collapse-item title="无分组" :name="group">
       <el-row :gutter="20">
         <slot name="values"/>
       </el-row>

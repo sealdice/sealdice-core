@@ -91,6 +91,7 @@ interface DiceServer {
     }
   }
   customTexts: { [k: string]: { [k: string]: (string[])[] } }
+  previewInfo: { [key:string]: { version: string, textV2: string, textV1: string, presetExists: boolean, errV1: string, errV2: string } }
   logs: { level: string, ts: number, caller: string, msg: string }[]
   conns: DiceConnection[]
   baseInfo: DiceBaseInfo
@@ -180,6 +181,7 @@ export const useStore = defineStore('main', {
           },
           customTexts: {},
           customTextsHelpInfo: {},
+          previewInfo: {},
           logs: [],
           conns: [],
           qrcodes: {},
@@ -219,6 +221,7 @@ export const useStore = defineStore('main', {
       const data = info as any;
       this.curDice.customTexts = data.texts;
       this.curDice.customTextsHelpInfo = data.helpInfo;
+      this.curDice.previewInfo = data.previewInfo;
       return info
     },
 
