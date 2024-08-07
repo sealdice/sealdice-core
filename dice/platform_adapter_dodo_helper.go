@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"sealdice-core/utils/syncmap"
 )
 
 func NewDodoConnItem(clientID string, token string) *EndPointInfo {
@@ -13,10 +15,12 @@ func NewDodoConnItem(clientID string, token string) *EndPointInfo {
 	conn.ProtocolType = ""
 	conn.Enable = false
 	conn.RelWorkDir = "extra/dodo-" + conn.ID
+	// Pinenutn: 初始化新的syncMap
 	conn.Adapter = &PlatformAdapterDodo{
-		EndPoint: conn,
-		ClientID: clientID,
-		Token:    token,
+		EndPoint:      conn,
+		ClientID:      clientID,
+		Token:         token,
+		UserPermCache: syncmap.NewSyncMap[string, *syncmap.SyncMap[string, *GuildPermCacheItem]](),
 	}
 	return conn
 }

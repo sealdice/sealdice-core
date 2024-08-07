@@ -9,6 +9,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	"sealdice-core/dice/model"
+	"sealdice-core/utils/syncmap"
 )
 
 type BanRankType int
@@ -53,16 +54,16 @@ func (i *BanListInfoItem) toText(_ *Dice) string {
 }
 
 type BanListInfo struct {
-	Parent                          *Dice                              `yaml:"-" json:"-"`
-	Map                             *SyncMap[string, *BanListInfoItem] `yaml:"-" json:"-"`
-	BanBehaviorRefuseReply          bool                               `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`                   // 拉黑行为: 拒绝回复
-	BanBehaviorRefuseInvite         bool                               `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`                 // 拉黑行为: 拒绝邀请
-	BanBehaviorQuitLastPlace        bool                               `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"`               // 拉黑行为: 退出事发群
-	BanBehaviorQuitPlaceImmediately bool                               `yaml:"banBehaviorQuitPlaceImmediately" json:"banBehaviorQuitPlaceImmediately"` // 拉黑行为: 使用时立即退出群
-	BanBehaviorQuitIfAdmin          bool                               `yaml:"banBehaviorQuitIfAdmin" json:"banBehaviorQuitIfAdmin"`                   // 拉黑行为: 邀请者以上权限使用时立即退群，否则发出警告信息
-	ThresholdWarn                   int64                              `yaml:"thresholdWarn" json:"thresholdWarn"`                                     // 警告阈值
-	ThresholdBan                    int64                              `yaml:"thresholdBan" json:"thresholdBan"`                                       // 错误阈值
-	AutoBanMinutes                  int64                              `yaml:"autoBanMinutes" json:"autoBanMinutes"`                                   // 自动禁止时长
+	Parent                          *Dice                                      `yaml:"-" json:"-"`
+	Map                             *syncmap.SyncMap[string, *BanListInfoItem] `yaml:"-" json:"-"`
+	BanBehaviorRefuseReply          bool                                       `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`                   // 拉黑行为: 拒绝回复
+	BanBehaviorRefuseInvite         bool                                       `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`                 // 拉黑行为: 拒绝邀请
+	BanBehaviorQuitLastPlace        bool                                       `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"`               // 拉黑行为: 退出事发群
+	BanBehaviorQuitPlaceImmediately bool                                       `yaml:"banBehaviorQuitPlaceImmediately" json:"banBehaviorQuitPlaceImmediately"` // 拉黑行为: 使用时立即退出群
+	BanBehaviorQuitIfAdmin          bool                                       `yaml:"banBehaviorQuitIfAdmin" json:"banBehaviorQuitIfAdmin"`                   // 拉黑行为: 邀请者以上权限使用时立即退群，否则发出警告信息
+	ThresholdWarn                   int64                                      `yaml:"thresholdWarn" json:"thresholdWarn"`                                     // 警告阈值
+	ThresholdBan                    int64                                      `yaml:"thresholdBan" json:"thresholdBan"`                                       // 错误阈值
+	AutoBanMinutes                  int64                                      `yaml:"autoBanMinutes" json:"autoBanMinutes"`                                   // 自动禁止时长
 
 	ScoreReducePerMinute int64 `yaml:"scoreReducePerMinute" json:"scoreReducePerMinute"` // 每分钟下降
 	ScoreGroupMuted      int64 `yaml:"scoreGroupMuted" json:"scoreGroupMuted"`           // 群组禁言
@@ -91,7 +92,7 @@ func (i *BanListInfo) Init() {
 
 	i.JointScorePercentOfGroup = 0.5
 	i.JointScorePercentOfInviter = 0.3
-	i.Map = new(SyncMap[string, *BanListInfoItem])
+	i.Map = syncmap.NewSyncMap[string, *BanListInfoItem]()
 }
 
 func (i *BanListInfo) Loads() {
@@ -205,15 +206,15 @@ func (i *BanListInfo) addJointScore(_ string, score int64, place string, reason 
 		i.AddScoreBase(place, int64(score), place, reason, ctx)
 	}
 	if i.JointScorePercentOfInviter > 0 {
-		group := d.ImSession.ServiceAtNew[place]
-		if group != nil && group.InviteUserID != "" {
-			rank := i.NoticeCheckPrepare(group.InviteUserID)
+		groupInfo, ok := d.ImSession.ServiceAt.Load(place)
+		if ok && groupInfo.InviteUserID != "" {
+			rank := i.NoticeCheckPrepare(groupInfo.InviteUserID)
 			score := i.JointScorePercentOfInviter * float64(score)
-			i.AddScoreBase(group.InviteUserID, int64(score), place, reason, ctx)
+			i.AddScoreBase(groupInfo.InviteUserID, int64(score), place, reason, ctx)
 
-			// text := fmt.Sprintf("提醒: 你邀请的骰子在群组<%s>中被禁言/踢出/指令刷屏了", group.GroupName)
-			// ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserId: group.InviteUserId}}, text, "")
-			return group.InviteUserID, rank
+			// text := fmt.Sprintf("提醒: 你邀请的骰子在群组<%s>中被禁言/踢出/指令刷屏了", groupInfo.GroupName)
+			// ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserId: groupInfo.InviteUserId}}, text, "")
+			return groupInfo.InviteUserID, rank
 		}
 	}
 	return "", BanRankNormal
@@ -267,12 +268,12 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 
 		// 发给邀请者
 		time.Sleep(1 * time.Second)
-		group := i.Parent.ImSession.ServiceAtNew[place]
-		if group != nil && group.InviteUserID != "" {
-			VarSetValueStr(ctx, "$t事发群名", group.GroupName)
-			VarSetValueStr(ctx, "$t事发群号", group.GroupID)
+		groupInfo, ok := i.Parent.ImSession.ServiceAt.Load(place)
+		if ok && groupInfo.InviteUserID != "" {
+			VarSetValueStr(ctx, "$t事发群名", groupInfo.GroupName)
+			VarSetValueStr(ctx, "$t事发群号", groupInfo.GroupID)
 			text := DiceFormatTmpl(ctx, "核心:黑名单触发_邀请人")
-			ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserID: group.InviteUserID}}, text, "")
+			ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserID: groupInfo.InviteUserID}}, text, "")
 		}
 	}
 

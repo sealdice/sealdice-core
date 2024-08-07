@@ -16,6 +16,7 @@ import (
 
 	"sealdice-core/message"
 	"sealdice-core/utils"
+	"sealdice-core/utils/syncmap"
 
 	"github.com/sacOO7/gowebsocket"
 	"github.com/samber/lo"
@@ -221,8 +222,9 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 		return
 	}
 
-	if ctx.Session.ServiceAtNew[groupID] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[groupID].ActivatedExtList {
+	groupInfo, ok := ctx.Session.ServiceAt.Load(groupID)
+	if ok {
+		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnMessageSend(ctx, &Message{
@@ -394,7 +396,7 @@ func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ 
 	ch := make(chan *MessageQQ, 1)
 
 	if pa.echoMap == nil {
-		pa.echoMap = new(SyncMap[any, chan *MessageQQ])
+		pa.echoMap = syncmap.NewSyncMap[any, chan *MessageQQ]()
 	}
 
 	// 注: 之所以这样是因为echo是json.RawMessage
@@ -407,7 +409,7 @@ func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ 
 
 func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait func(emi *echoMapInfo)) error {
 	if pa.echoMap2 == nil {
-		pa.echoMap2 = new(SyncMap[any, *echoMapInfo])
+		pa.echoMap2 = syncmap.NewSyncMap[any, *echoMapInfo]()
 	}
 
 	emi := &echoMapInfo{ch: make(chan string, 1)}

@@ -713,8 +713,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 			if msg.MessageType == "private" && ctx.CommandHideFlag != "" {
 				if _, exists := privateCommandListen[ctx.CommandID]; exists {
 					session := ctx.Session
-					group := session.ServiceAtNew[ctx.CommandHideFlag]
-
+					// TODO： 这里的OK被忽略了，没问题？
+					groupInfo, ok := session.ServiceAt.Load(ctx.CommandHideFlag)
+					if !ok {
+						ctx.Dice.Logger.Warn("ServiceAt ext_log加载groupInfo异常")
+						return
+					}
 					a := model.LogOneItem{
 						Nickname:    ctx.EndPoint.Nickname,
 						IMUserID:    UserIDExtract(ctx.EndPoint.UserID),
@@ -726,14 +730,18 @@ func RegisterBuiltinExtLog(self *Dice) {
 						CommandInfo: ctx.CommandInfo,
 					}
 
-					LogAppend(ctx, group.GroupID, group.LogCurName, &a)
+					LogAppend(ctx, groupInfo.GroupID, groupInfo.LogCurName, &a)
 				}
 			}
 
 			if IsCurGroupBotOnByID(ctx.Session, ctx.EndPoint, msg.MessageType, msg.GroupID) {
 				session := ctx.Session
-				group := session.ServiceAtNew[msg.GroupID]
-				if group.LogOn {
+				groupInfo, ok := session.ServiceAt.Load(msg.GroupID)
+				if !ok {
+					ctx.Dice.Logger.Warn("ServiceAt ext_log加载groupInfo异常")
+					return
+				}
+				if groupInfo.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					if ctx.CommandHideFlag != "" {
 						// 记录当前指令和时间
@@ -750,7 +758,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						CommandID:   ctx.CommandID,
 						CommandInfo: ctx.CommandInfo,
 					}
-					LogAppend(ctx, group.GroupID, group.LogCurName, &a)
+					LogAppend(ctx, groupInfo.GroupID, groupInfo.LogCurName, &a)
 				}
 			}
 		},
@@ -823,7 +831,7 @@ func getSpecifiedGroupIfMaster(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) 
 			data = prefix + ":" + data
 		}
 
-		// _newGroup := ctx.Session.ServiceAtNew[data]
+		// _newGroup := ctx.Session.ServiceAt[data]
 		// if _newGroup == nil {
 		// 	ReplyToSender(ctx, msg, "找不到指定的群组，请输入正确群号。如在非QQ平台取log，群号请写 QQ-Group:12345")
 		// 	return nil, true

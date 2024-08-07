@@ -44,11 +44,11 @@ func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupID string) {
 		Name: channel.Name,
 		time: time.Now().Unix(),
 	})
-	group := pa.Session.ServiceAtNew[groupID]
-	if group != nil {
-		if channel.Name != group.GroupName {
-			group.GroupName = channel.Name
-			group.UpdatedAtTime = time.Now().Unix()
+	groupInfo, ok := pa.Session.ServiceAt.Load(groupID)
+	if ok {
+		if channel.Name != groupInfo.GroupName {
+			groupInfo.GroupName = channel.Name
+			groupInfo.UpdatedAtTime = time.Now().Unix()
 		}
 	}
 }
@@ -174,8 +174,8 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 	//		}
 	//	}()
 	//
-	//	// 此时 ServiceAtNew 中这个频道一般为空，照 im_session.go 中的方法处理
-	//	channel := mctx.Session.ServiceAtNew[msg.GroupId]
+	//	// 此时 ServiceAt 中这个频道一般为空，照 im_session.go 中的方法处理
+	//	channel := mctx.Session.ServiceAt[msg.GroupId]
 	//	if channel == nil {
 	//		channel = SetBotOnAtGroup(mctx, msg.GroupId)
 	//		channel.Active = true
@@ -183,8 +183,8 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 	//		channel.UpdatedAtTime = time.Now().Unix()
 	//	}
 	//
-	//	if mctx.Session.ServiceAtNew[msg.GroupId] != nil {
-	//		for _, i := range mctx.Session.ServiceAtNew[msg.GroupId].ActivatedExtList {
+	//	if mctx.Session.ServiceAt[msg.GroupId] != nil {
+	//		for _, i := range mctx.Session.ServiceAt[msg.GroupId].ActivatedExtList {
 	//			if i.OnGuildJoined != nil {
 	//				i.callWithJsCheck(mctx.Dice, func() {
 	//					i.OnGuildJoined(mctx, msg)
