@@ -598,8 +598,6 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 	val, detail, err := d._ExprTextBaseV1(buffer, ctx, RollExtraFlags{})
 
 	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {
-		x := val.Value.(string)
-		fmt.Println("xxx", x, err)
 		return val.Value.(string), detail, err
 	}
 
