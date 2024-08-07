@@ -117,7 +117,8 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		group.ChannelID = msg.ChannelID
 	}
 	if group == nil {
-		return nil, nil
+		// 没有group信息，临时创建
+		group = SetBotOnAtGroup(ctx, groupID)
 	}
 
 	p := group.PlayerGet(ctx.Dice.DBData, msg.Sender.UserID)
