@@ -357,11 +357,13 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 			if isAbilityScores(varname) && vm.Depth() == 0 && vm.UpCtx == nil {
 				if curVal != nil && curVal.TypeId == ds.VMTypeInt {
 					mod := curVal.MustReadInt()/2 - 5
+					v := ds.NewIntVal(mod)
 					if detail != nil {
 						detail.Tag = "dnd-rc"
 						detail.Text = fmt.Sprintf("%s调整值%d", varname, mod)
+						detail.Ret = v
 					}
-					return ds.NewIntVal(mod)
+					return v
 				}
 			} else if dndAttrParent[varname] != "" && curVal.TypeId == ds.VMTypeInt {
 				name := dndAttrParent[varname]
@@ -508,6 +510,10 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 
 		if v != nil {
 			return v
+		}
+
+		if curVal == nil {
+			return ds.NewIntVal(0)
 		}
 
 		return curVal
@@ -675,9 +681,6 @@ func DiceFormatV2(ctx *MsgContext, s string) (string, error) { //nolint:revive
 
 	// 隐藏的内置字符串符号 \x1e
 	// err := ctx.vm.Run("\x1e" + s + "\x1e")
-	if strings.Contains(s, "处于开启状") {
-		ctx.vm.Config.PrintBytecode = true
-	}
 	v, err := ctx.vm.RunExpr("\x1e"+s+"\x1e", true)
 	if err != nil || v == nil {
 		fmt.Println("脚本执行出错V2f: ", s, "->", err)
