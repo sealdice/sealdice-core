@@ -75,13 +75,14 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 			"魅力": {"cha", "Charisma"},
 
 			"ac":    {"AC", "护甲等级", "护甲值", "护甲", "護甲等級", "護甲值", "護甲", "装甲", "裝甲"},
-			"hp":    {"HP", "生命值", "生命", "血量", "体力", "體力", "耐久值"},
+			"hp":    {"HP", "生命值", "生命", "血量", "体力", "體力", "耐久值","hitpoint"},
 			"hpmax": {"HPMAX", "生命值上限", "生命上限", "血量上限", "耐久上限"},
 			"dc":    {"DC", "难度等级", "法术豁免", "難度等級", "法術豁免"},
 			"hd":    {"HD", "生命骰"},
-			"pp":    {"PP", "被动察觉", "被动感知", "被動察覺", "被动感知", "PW"},
+			"pp":    {"PP", "被动察觉", "被动感知", "被動察覺", "被动感知", "PW", "被察"},
+			"力竭层数":    {"力竭等级","Exhaustion","Exhaustion Level","力竭層數","力竭等級","力竭"},
 
-			"熟练": {"熟练加值", "熟練", "熟練加值"},
+			"熟练": {"熟练加值", "熟練", "熟練加值", "PB"},
 			"体型": {"siz", "size", "體型", "体型", "体形", "體形"},
 
 			// 技能
@@ -91,7 +92,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 			"巧手": {"Sleight of Hand", "上手把戲", "上手把戏"},
 			"隐匿": {"Stealth", "隱匿", "潜行", "潛行"},
 
-			"调查": {"Investigation", "調查"},
+			"调查": {"Investigation", "調查","侦查","侦察"},
 			"奥秘": {"Arcana", "奧秘"},
 			"历史": {"History", "歷史"},
 			"自然": {"Nature"},
@@ -109,7 +110,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 			"表演": {"Performance"},
 		},
 		Order: AttributeOrder{
-			Top:    []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
+			Top:    []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练", "力竭层数"},
 			Others: AttributeOrderOthers{SortBy: "Name"},
 		},
 	}
@@ -268,7 +269,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			switch val {
 			case "模板":
 				text := "人物卡模板(第二行文本):\n"
-				text += ".dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax:10 熟练:2 运动:0 体操:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯兽:0 医药:0 求生:0 游说:0 欺瞒:0 威吓:0 表演:0\n"
+				text += ".dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax:10 熟练:2 力竭:0 运动:0 体操:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯兽:0 医药:0 求生:0 游说:0 欺瞒:0 威吓:0 表演:0\n"
 				text += "注意: 技能只写修正值，调整值会自动计算。\n熟练写为“运动*:0”，半个熟练“运动*0.5:0”，录卡也可写为.dst 力量=10"
 				ReplyToSender(mctx, msg, text)
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -317,7 +318,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					"游说": true, "欺瞒": true, "威吓": true, "表演": true,
 
 					"hd": true, "hp": true, "hpmax": true,
-					"ac": true, "dc": true,
+					"ac": true, "dc": true, "力竭": true,
 					"DSS": true, "DSF": true,
 					// "$cardType": true,
 				}, []*regexp.Regexp{
@@ -1562,9 +1563,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			sep := DiceFormatTmpl(ctx, "DND:制卡_分隔符")
 			info := strings.Join(ss, sep)
 			if isMode2 {
-				ReplyToSender(ctx, msg, fmt.Sprintf("%s的DnD5e人物作成(预设模式):\n%s\n自由分配模式请用.dnd", getPlayerNameTempFunc(ctx), info))
+				ReplyToSender(ctx, msg, fmt.Sprintf("%s的DnD5e人物作成(预设模式，将数值按次序分配给对应属性):\n%s\n自由分配模式请用.dnd", getPlayerNameTempFunc(ctx), info))
 			} else {
-				ReplyToSender(ctx, msg, fmt.Sprintf("%s的DnD5e人物作成(自由分配模式):\n%s\n获取带属性名的预设请用.dndx", getPlayerNameTempFunc(ctx), info))
+				ReplyToSender(ctx, msg, fmt.Sprintf("%s的DnD5e人物作成(自由分配模式，同一行[]内数值可自行分配给对应属性):\n%s\n获取带属性名的预设请用.dndx", getPlayerNameTempFunc(ctx), info))
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
