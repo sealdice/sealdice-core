@@ -2500,6 +2500,13 @@ func (d *Dice) ApplyExtDefaultSettings() {
 }
 
 func (d *Dice) Save(isAuto bool) {
+	d.SaveDatabaseInsertCheckMapFlag.Do(func() {
+		if d.SaveDatabaseInsertCheckMap == nil {
+			d.Logger.Info("初始化哈希记录表")
+			d.SaveDatabaseInsertCheckMap = new(SyncMap[string, string])
+		}
+	})
+	allCount := 0
 	timestampNow := time.Now().Unix()
 	if d.LastUpdatedTime != 0 {
 		a, err1 := yaml.Marshal(d)
@@ -2533,6 +2540,7 @@ func (d *Dice) Save(isAuto bool) {
 			g.Players.Range(func(key string, value *GroupPlayerInfo) bool {
 				if value.UpdatedAtTime != 0 {
 					_ = model.GroupPlayerInfoSave(d.DBData, g.GroupID, key, (*model.GroupPlayerInfoBase)(value))
+					allCount++
 					value.UpdatedAtTime = 0
 				}
 
@@ -2541,6 +2549,7 @@ func (d *Dice) Save(isAuto bool) {
 					if value.Vars.LastWriteTime != 0 {
 						data, _ := json.Marshal(LockFreeMapToMap(value.Vars.ValueMap))
 						model.AttrGroupUserSave(d.DBData, g.GroupID, key, data)
+						allCount++
 						value.Vars.LastWriteTime = 0
 					}
 				}
@@ -2554,6 +2563,7 @@ func (d *Dice) Save(isAuto bool) {
 			if err == nil {
 				// 修改保存时间为当前时间
 				err := model.GroupInfoSave(d.DBData, g.GroupID, timestampNow, data)
+				allCount++
 				if err != nil {
 					d.Logger.Warnf("保存群组数据失败 %v : %v", g.GroupID, err.Error())
 				}
@@ -2566,7 +2576,7 @@ func (d *Dice) Save(isAuto bool) {
 		// 方案1：循环中的整体作为一个事务，减少提交（由于木落担心可能会导致一次保存插入失败一条就全部回退，放弃）
 		// 方案2：使用哈希记录实际没有修改的，然后只插入修改过的，这种情况下，会导致第一次启动的时候这里的占用很高（因为第一次还会全量插入），以后就少了
 		// 之前想过要不要把事务分块插入，不会做，摆了:(
-		// TODO: 这里其实还能优化
+		// TODO: 这里其实真的还能优化
 		data, _ := json.Marshal(LockFreeMapToMap(g.ValueMap))
 		dataHash := GenerateShortHash(data)
 		oldHash, ok := d.SaveDatabaseInsertCheckMap.Load(g.GroupID)
@@ -2578,8 +2588,10 @@ func (d *Dice) Save(isAuto bool) {
 			//入库
 			model.AttrGroupSave(d.DBData, g.GroupID, data)
 			d.SaveDatabaseInsertCheckMap.Store(g.GroupID, dataHash)
+			allCount++
 		}
 	}
+	d.Logger.Infof("本次ServiceAtNew群组数据，保存影响数据库操作数为: %d", allCount)
 	// 同步绑定的角色卡数据
 	chPrefix := "$:ch-bind-mtime:"
 	chPrefixData := "$:ch-bind-data:"
