@@ -12,6 +12,7 @@ import (
 	"time"
 
 	ds "github.com/sealdice/dicescript"
+	rand2 "golang.org/x/exp/rand"
 
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
@@ -495,6 +496,7 @@ type MsgContext struct {
 	splitKey      string
 	vm            *ds.Context
 	AttrsCurCache *AttributesItem
+	_v1Rand       *rand2.PCGSource
 }
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
@@ -2048,14 +2050,16 @@ func (ctx *MsgContext) Notice(txt string) {
 	go foo()
 }
 
+var randSourceSplitKey = rand2.NewSource(uint64(time.Now().Unix()))
+
 func (ctx *MsgContext) InitSplitKey() {
 	if len(ctx.splitKey) > 0 {
 		return
 	}
-	r := randSource.Uint64()
+	r := randSourceSplitKey.Uint64()
 	bArray := make([]byte, 12)
 	binary.LittleEndian.PutUint64(bArray[:8], r)
-	r = randSource.Uint64()
+	r = randSourceSplitKey.Uint64()
 	binary.LittleEndian.PutUint32(bArray[8:], uint32(r))
 
 	s := base64.StdEncoding.EncodeToString(bArray)
