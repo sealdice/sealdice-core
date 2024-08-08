@@ -57,7 +57,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.14.4
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
 	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
-	github.com/slack-go/slack v0.13.0
+	github.com/slack-go/slack v0.13.1
 	github.com/sunshineplan/imgconv v1.1.4
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	github.com/tdewolff/minify/v2 v2.20.31
