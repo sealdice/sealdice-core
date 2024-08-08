@@ -19,6 +19,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
+	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
 	"go.uber.org/zap"
 
@@ -41,7 +42,7 @@ var (
 	VERSION = semver.MustParse(VERSION_MAIN + VERSION_PRERELEASE + VERSION_BUILD_METADATA)
 
 	// VERSION_MAIN 主版本号
-	VERSION_MAIN = "1.4.6"
+	VERSION_MAIN = "1.5.0"
 	// VERSION_PRERELEASE 先行版本号
 	VERSION_PRERELEASE = "-dev"
 	// VERSION_BUILD_METADATA 版本编译信息
@@ -223,10 +224,12 @@ type Dice struct {
 
 	BanList *BanListInfo `yaml:"banList"` //
 
-	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
-	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
-	ConfigManager   *ConfigManager             `yaml:"-"`
-	Parent          *DiceManager               `yaml:"-"`
+	TextMapRaw        TextTemplateWithWeightDict `yaml:"-"`
+	TextMapHelpInfo   TextTemplateWithHelpDict   `yaml:"-"`
+	TextMapCompatible TextTemplateCompatibleDict `yaml:"-"` // 兼容信息，格式 { "COC:测试": { "回复A": {...}, "回复B": ... } } 这样字符串可以不占据新的内存
+
+	ConfigManager *ConfigManager `yaml:"-"`
+	Parent        *DiceManager   `yaml:"-"`
 
 	CocExtraRules     map[int]*CocRuleInfo   `yaml:"-" json:"cocExtraRules"`
 	Cron              *cron.Cron             `yaml:"-" json:"-"`
@@ -276,6 +279,8 @@ type Dice struct {
 	CensorCaseSensitive  bool                   `json:"censorCaseSensitive" yaml:"censorCaseSensitive"`   // 敏感词大小写敏感
 	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
+
+	AttrsManager *AttrsManager `json:"-" yaml:"-"`
 
 	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
 
@@ -349,6 +354,9 @@ func (d *Dice) Init() {
 		fmt.Println(err)
 	}
 
+	d.AttrsManager = &AttrsManager{}
+	d.AttrsManager.Init(d)
+
 	log := logger.Init(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
 	d.Logger = log.Logger
 	d.LogWriter = log.WX
@@ -413,7 +421,7 @@ func (d *Dice) Init() {
 			if d.IsAlreadyLoadConfig {
 				count++
 				d.Save(true)
-				if count%5 == 0 {
+				if count%2 == 0 {
 					// d.Logger.Info("测试: flush wal")
 					_ = model.FlushWAL(d.DBData)
 					_ = model.FlushWAL(d.DBLogs)
@@ -529,7 +537,12 @@ func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
 	return p
 }
 
-func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
+type VMResultV2 struct {
+	ds.VMValue
+	vm *ds.Context
+}
+
+func (d *Dice) _ExprEvalBaseV1(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
 	parser := d.rebuildParser(buffer)
 	parser.RollExpression.flags = flags // 千万记得在parse之前赋值
 	err := parser.Parse()
@@ -565,15 +578,11 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 	return nil, "", err
 }
 
-func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VMResult, string, error) {
-	return d.ExprEvalBase(buffer, ctx, RollExtraFlags{})
-}
-
-func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
+func (d *Dice) _ExprTextBaseV1(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
 	buffer = CompatibleReplace(ctx, buffer)
 
 	// 隐藏的内置字符串符号 \x1e
-	val, detail, err := d.ExprEvalBase("\x1e"+buffer+"\x1e", ctx, flags)
+	val, detail, err := d._ExprEvalBaseV1("\x1e"+buffer+"\x1e", ctx, flags)
 	if err != nil {
 		fmt.Println("脚本执行出错: ", buffer, "->", err)
 	}
@@ -585,14 +594,14 @@ func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 	return nil, "", errors.New("错误的表达式")
 }
 
-func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) {
-	val, detail, err := d.ExprTextBase(buffer, ctx, RollExtraFlags{})
+func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, error) {
+	val, detail, err := d._ExprTextBaseV1(buffer, ctx, RollExtraFlags{})
 
 	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {
 		return val.Value.(string), detail, err
 	}
 
-	return "格式化错误:" + strconv.Quote(buffer), "", errors.New("错误的表达式")
+	return "格式化错误:" + strconv.Quote(buffer), "", errors.New("格式化错误:" + strconv.Quote(buffer))
 }
 
 // ExtFind 根据名称或别名查找扩展

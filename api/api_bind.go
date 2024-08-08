@@ -167,6 +167,7 @@ func forceStop(c echo.Context) error {
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
 				i.BanList.SaveChanged(i)
+				i.AttrsManager.CheckForSave()
 				i.Save(true)
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
@@ -603,6 +604,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.GET(prefix+"/configs/customText", customText)
 	e.POST(prefix+"/configs/customText/save", customTextSave)
+	e.POST(prefix+"/configs/customText/preview-refresh", customTextPreviewRefresh)
 
 	e.GET(prefix+"/configs/custom_reply", customReplyGet)
 	e.POST(prefix+"/configs/custom_reply/save", customReplySave)
