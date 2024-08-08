@@ -147,3 +147,24 @@ func GroupPlayerInfoSave(db *sqlx.DB, groupID string, playerID string, info *Gro
 	})
 	return err
 }
+
+// GroupPlayerInfoSaveTX 事务保存用户信息
+func GroupPlayerInfoSaveTX(tx *sqlx.Tx, groupID string, playerID string, info *GroupPlayerInfoBase) error {
+	_, err := tx.NamedExec("REPLACE INTO group_player_info (name, updated_at, last_command_time, auto_set_name_template, dice_side_num, group_id, user_id) VALUES (:name, :updated_at, :last_command_time, :auto_set_name_template, :dice_side_num, :group_id, :user_id)", map[string]interface{}{
+		"name":                   info.Name,
+		"updated_at":             info.UpdatedAtTime,
+		"last_command_time":      info.LastCommandTime,
+		"auto_set_name_template": info.AutoSetNameTemplate,
+		"dice_side_num":          info.DiceSideNum,
+		"group_id":               groupID,
+		"user_id":                playerID,
+	})
+	return err
+}
+
+// GroupInfoSaveTX 事务保存群组信息
+func GroupInfoSaveTX(tx *sqlx.Tx, groupID string, updatedAt int64, data []byte) error {
+	// INSERT OR REPLACE 语句可以根据是否已存在对应记录自动插入或更新记录
+	_, err := tx.Exec("INSERT OR REPLACE INTO group_info (id, updated_at, data) VALUES (?, ?, ?)", groupID, updatedAt, data)
+	return err
+}
