@@ -280,6 +280,9 @@ type Dice struct {
 	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
 
 	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+
+	// 用于检查是否需要插入到数据库的哈希表 150因为没有对应插入 到时候这个就没用了
+	SaveDatabaseInsertCheckMap *SyncMap[string, string] `json:"-" yaml:"-"`
 }
 
 type CensorMode int
