@@ -293,22 +293,11 @@ func (pa *PlatformAdapterSealChat) _sendTo(ctx *MsgContext, chId string, text st
 
 	pa._sendJSON(pa.Socket, &satori.Message{})
 	pa.Socket.SendText(string(parse))
-
-	var groupID string
-	if msgType == "private" {
-		groupID = FormatDiceIDSealChatPrivate(chId)
-	} else {
-		groupID = FormatDiceIDSealChatGroup(chId)
-	}
-	text = strings.ReplaceAll(text, "&lt;", "<")
-	text = strings.ReplaceAll(text, "&gt;", ">")
-	text = strings.ReplaceAll(text, "&amp;", "&")
-	text = strings.ReplaceAll(text, "&quot;", "\"")
 	pa.Session.OnMessageSend(ctx, &Message{
 		Platform:    "SEALCHAT",
 		MessageType: msgType,
 		Message:     text,
-		GroupID:     groupID,
+		GroupID:     chId,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -392,7 +381,6 @@ func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 		return
 	case satori.EventMessageDeleted:
 		stdMsg := pa.toStdMessage(ev.Message)
-		// 注; 缺少 User、Channel[导致MessageType出不来]
 		mctx := CreateTempCtx(pa.EndPoint, stdMsg)
 		pa.Session.OnMessageDeleted(mctx, stdMsg)
 		return
@@ -437,9 +425,7 @@ func (pa *PlatformAdapterSealChat) toStdMessage(scMsg *satori.Message) *Message 
 
 	msg.RawID = scMsg.ID
 	send := new(SenderBase)
-	if scMsg.User != nil {
-		send.UserID = FormatDiceIDSealChat(scMsg.User.ID)
-	}
+	send.UserID = FormatDiceIDSealChat(scMsg.User.ID)
 
 	if scMsg.Member != nil {
 		// 注: 部分消息，比如message-deleted没有member

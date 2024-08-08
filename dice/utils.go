@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/samber/lo"
+	"github.com/fy0/lockfree"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 )
@@ -213,26 +213,30 @@ func GetRandomFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-// SetCardType 这几个先不动，后面改名字或者移除
 func SetCardType(mctx *MsgContext, curType string) {
-	am := mctx.Dice.AttrsManager
-	curAttrs := lo.Must(am.LoadByCtx(mctx))
-	curAttrs.SetSheetType(curType)
+	VarSetValueStr(mctx, "$cardType", curType)
 }
 
 func ReadCardType(mctx *MsgContext) string {
-	am := mctx.Dice.AttrsManager
-	curAttrs := lo.Must(am.LoadByCtx(mctx))
-	return curAttrs.SheetType
+	var cardType string
+	vCardType, exists := VarGetValue(mctx, "$cardType")
+	if exists {
+		cardType = vCardType.ToString()
+	} else {
+		cardType = ""
+	}
+	return cardType
 }
 
 func ReadCardTypeEx(mctx *MsgContext, curType string) string {
 	var extra string
-
-	am := mctx.Dice.AttrsManager
-	curAttrs := lo.Must(am.LoadByCtx(mctx))
-	cardType := curAttrs.SheetType
-
+	var cardType string
+	vCardType, exists := VarGetValue(mctx, "$cardType")
+	if exists {
+		cardType = vCardType.ToString()
+	} else {
+		cardType = ""
+	}
 	if cardType != "" {
 		if cardType != curType {
 			extra = fmt.Sprintf("\n这似乎是一张 %s 人物卡，请确认当前游戏类型", cardType)
@@ -290,11 +294,12 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 		mctx, _ := i.CopyCtx(ctx)
 		// if exists {
 		if mctx.Player != ctx.Player {
+			mctx.LoadPlayerGroupVars(mctx.Group, mctx.Player)
 			if setTempVar {
 				SetTempVars(mctx, "???")
 			}
 		}
-		// }
+		//}
 
 		if mctx.Player.UserID == ctx.Player.UserID {
 			// 并非代骰
@@ -312,6 +317,29 @@ func UserIDExtract(uid string) string {
 		return uid[index+1:]
 	}
 	return uid
+}
+
+func LockFreeMapToMap(m lockfree.HashMap) map[string]interface{} {
+	ret := map[string]interface{}{}
+	_ = m.Iterate(func(_k interface{}, _v interface{}) error {
+		k, ok := _k.(string)
+		if strings.HasPrefix(k, "$:ch-bind-mtime:") {
+			return nil
+		}
+		if strings.HasPrefix(k, "$:ch-bind-data:") {
+			return nil
+		}
+		if k == "$:card" {
+			// 不序列化当前绑定的卡
+			return nil
+		}
+		if ok {
+			ret[k] = _v
+		}
+		return nil
+	})
+
+	return ret
 }
 
 var SVGIcon = []byte(`<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><style>.cls-1{fill:#bdccd4;}.cls-2{fill:#fff;}</style></defs><title>icon-s</title><rect class="cls-1" x="6.36" y="7.14" width="498.86" height="498.86" rx="12"/><polygon class="cls-2" points="130.65 58.2 31.9 269.01 183.55 462.82 365.95 427.73 480.24 237.52 336.41 52 130.65 58.2"/><path d="M488.44,230.71,346.28,44.41h0a10.57,10.57,0,0,0-8.87-4.18L133.26,48.62h0a10.61,10.61,0,0,0-9.15,6L22.06,263h0a10.57,10.57,0,0,0,1.14,11.14l150.59,194.6a10.58,10.58,0,0,0,10.53,3.95L373.17,436l1.35-.46a10.59,10.59,0,0,0,5.72-4.71L489.16,242.44a10.6,10.6,0,0,0-.72-11.73ZM186,449.75l-24.1-187.3L385.9,376ZM364.21,107.21,159.67,244,140.55,72.87ZM149.65,248.53l-102.77,12L131.65,87.9ZM392.46,367.38,165.87,252.6l207-138.45,1.2,1.54,18.83,250.94ZM358.79,95.63,178.51,67.86,333,61.44ZM47.71,271.08l103.1-12L173.2,433.22ZM364.32,416l-120,23.36,135.29-49.82Zm38.14-65.88-16.62-219L467.21,238Z"/><polygon class="cls-2" points="157.03 220.4 160.14 249.69 178.19 258.84 374.4 120.32 373.55 108.64 358.48 106.33 157.03 220.4"/><path d="M297.84,193.19h0c-11-3.95-22.25-3.44-29.35,1.3-7.73,3.69-13.91,13-16.18,24.53C249,235.69,255,250.45,266,252.61c9.44,1.87,19.48-6.76,24-20.27,8.76,1.95,17,1,22.68-2.23a15,15,0,0,0,7-7.93C323.42,211.65,313.84,198.92,297.84,193.19Z"/><path d="M221.27,164c-8.94-3.2-18.77-2.18-27.68,2.88l-.08,0a44.16,44.16,0,0,0-19.37,23.68c-7.61,21.25,1.15,43.9,19.53,50.47,8.94,3.2,18.77,2.18,27.68-2.88l.08,0A44.16,44.16,0,0,0,240.8,214.5C248.41,193.25,239.65,170.61,221.27,164Z"/><ellipse class="cls-2" cx="194.6" cy="193" rx="21.33" ry="16.31" transform="translate(-62.71 287.4) rotate(-64.91)"/><circle class="cls-2" cx="225.91" cy="185.74" r="9.96"/><path d="M310.56,113.25a44.14,44.14,0,0,0-30.26,4.47,32.67,32.67,0,0,0-16.76,22.33c-3.78,19.15,11.16,38.29,33.3,42.66a44.15,44.15,0,0,0,30.26-4.47l.08-.05c8.92-5.06,14.84-13,16.68-22.28C347.64,136.76,332.7,117.62,310.56,113.25Z"/><ellipse class="cls-2" cx="286.98" cy="140.6" rx="21.33" ry="16.31" transform="translate(37.95 340.88) rotate(-64.91)"/><circle class="cls-2" cx="320.22" cy="132.25" r="9.96"/><ellipse cx="226.67" cy="154.45" rx="6.5" ry="9.75" transform="translate(-7.12 297.91) rotate(-65.8)"/><ellipse cx="252.33" cy="140.56" rx="9.75" ry="6.5" transform="translate(83.38 374.84) rotate(-83.32)"/></svg>`)
@@ -485,9 +513,10 @@ func CheckDialErr(err error) syscall.Errno {
 // CreateTempCtx 制作ctx，需要msg.MessageType和msg.Sender.UserId，以及ep.Session
 func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 	session := ep.Session
-	// if msg.Sender.UserID == "" {
-	//	return nil
-	// }
+
+	if msg.Sender.UserID == "" {
+		return nil
+	}
 
 	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: session, Dice: session.Parent}
 
@@ -512,64 +541,8 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 		}
 		SetTempVars(ctx, ctx.Player.Name)
 	default:
-		SetTempVars(ctx, ctx.Player.Name)
-		return ctx
+		return nil
 	}
 
 	return ctx
-}
-
-// UnpackGroupUserId 分离群组ID和用户ID的连写
-func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
-	prefixMap := map[string]string{
-		"QQ-Group:":         "QQ:",
-		"QQ-CH-Group:":      "QQ-CH:", // QQ-CH-Group:33845581638279358-3047284-QQ-CH:144115218744389299
-		"KOOK-CH-Group:":    "KOOK:",
-		"DODO-Group:":       "DODO:",
-		"TG-Group:":         "TG:",
-		"DISCORD-CH-Group:": "DISCORD:",
-		"SEALCHAT-Group:":   "SEALCHAT:",
-		"SLACK-CH-Group":    "SLACK:",
-		"DINGTALK-Group":    "DINGTALK:",
-		"OpenQQ-Group-T:":   "OpenQQ-Member-T:",
-		"UI-Group:":         "UI:",
-	}
-
-	// 我们是否能做这样的假设：XX-Group:123 的用户ID形式是 XX:456 ？
-	// 但是 KOOK 就例外了
-	for groupPrefix, userPrefix := range prefixMap {
-		if strings.HasPrefix(id, groupPrefix) {
-			lenX := len(groupPrefix)
-
-			idx := strings.Index(id[lenX:], "-"+userPrefix)
-			if idx != -1 {
-				idx += lenX
-				return id[:idx], id[idx+1:], true
-			}
-		}
-	}
-
-	prefixMap2 := map[string]string{
-		"PG-QQ:":       "QQ:",
-		"PG-KOOK:":     "KOOK:",
-		"PG-SEALCHAT:": "SEALCHAT:", // PG-SEALCHAT:LJMmncRk4Kh_yPNjCNIhX:xK7iDQ13ypAw7GHiGBzHM
-		"PG-UI:":       "UI:",
-		"PG-DISCORD:":  "DISCORD:",
-		"PG-DODO:":     "DODO:",
-		"PG-SLACK:":    "SLACK:",
-		"PG-TG:":       "TG:",
-		"PG-DINGTALK:": "DINGTALK:",
-	}
-	for userPrivateGroupPrefix, userPrefix := range prefixMap2 {
-		if strings.HasPrefix(id, userPrivateGroupPrefix) {
-			lenX := len(userPrivateGroupPrefix)
-			idx := strings.Index(id[lenX:], "-"+userPrefix)
-			if idx != -1 {
-				idx += lenX
-				return id[:idx], id[idx+1:], true
-			}
-		}
-	}
-
-	return "", "", false
 }

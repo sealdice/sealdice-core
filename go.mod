@@ -18,6 +18,7 @@ require (
 	github.com/dop251/goja_nodejs v0.0.0-20231022114343-5c1f9037c9ab
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd
+	github.com/fy0/lockfree v0.0.0-20220407095241-e3799de5fa34
 	github.com/fy0/systray v1.2.2
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/gen2brain/beeep v0.0.0-20230907135156-1a38885a97fc
@@ -28,7 +29,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/grokify/html-strip-tags-go v0.0.1
-	github.com/jessevdk/go-flags v1.6.1
+	github.com/jessevdk/go-flags v1.5.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.2
@@ -36,14 +37,14 @@ require (
 	github.com/lonelyevil/kook v0.0.31
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
-	github.com/matoous/go-nanoid/v2 v2.1.0
+	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/monaco-io/request v1.0.16
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/mroth/weightedrand v1.0.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
-	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.0
+	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.8.1
 	github.com/otiai10/copy v1.14.0
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/phuslu/log v1.0.88
@@ -51,22 +52,22 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105
 	github.com/sahilm/fuzzy v0.1.1
-	github.com/samber/lo v1.44.0
+	github.com/samber/lo v1.39.0
 	github.com/schollz/progressbar/v3 v3.14.4
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
-	github.com/sealdice/dicescript v0.0.0-20240804154241-fe03d285e730
+	github.com/sealdice/dicescript v0.0.0-20231102165212-053ea0992846
 	github.com/slack-go/slack v0.13.0
 	github.com/sunshineplan/imgconv v1.1.4
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
-	github.com/tdewolff/minify/v2 v2.20.34
+	github.com/tdewolff/minify/v2 v2.20.31
 	github.com/tidwall/buntdb v1.3.1
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/xuri/excelize/v2 v2.8.1
-	github.com/yuin/goldmark v1.7.4
+	github.com/yuin/goldmark v1.7.1
 	go.etcd.io/bbolt v1.3.9
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.25.0
-	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8
+	golang.org/x/exp v0.0.0-20231108232855-2478ac86f678
 	golang.org/x/sys v0.22.0
 	golang.org/x/text v0.16.0
 	golang.org/x/time v0.5.0
@@ -94,6 +95,7 @@ require (
 	github.com/blevesearch/zapx/v13 v13.3.10 // indirect
 	github.com/blevesearch/zapx/v14 v14.3.10 // indirect
 	github.com/blevesearch/zapx/v15 v15.3.13 // indirect
+	github.com/dchest/siphash v1.2.2 // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -118,6 +120,7 @@ require (
 	github.com/golang/geo v0.0.0-20230404232722-c4acd7a044dc // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/pprof v0.0.0-20230926050212-f7f687d19a98 // indirect
 	github.com/hhrutter/lzw v0.0.0-20230302233922-b0c9d7de54a7 // indirect
 	github.com/hhrutter/tiff v0.0.0-20230302235510-5b20711894ae // indirect
@@ -145,7 +148,7 @@ require (
 	github.com/sunshineplan/pdf v1.0.3 // indirect
 	github.com/sunshineplan/tiff v0.0.0-20220128141034-29b9d69bd906 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
-	github.com/tdewolff/parse/v2 v2.7.15 // indirect
+	github.com/tdewolff/parse/v2 v2.7.14 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/tidwall/gjson v1.17.0 // indirect
 	github.com/tidwall/grect v0.1.4 // indirect
@@ -159,7 +162,7 @@ require (
 	github.com/xuri/nfp v0.0.0-20230919160717-d98342af3f05 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/image v0.18.0 // indirect
-	golang.org/x/mod v0.18.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/term v0.22.0 // indirect

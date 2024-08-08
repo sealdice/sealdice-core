@@ -17,12 +17,11 @@ import (
 	"sync"
 	"time"
 
-	"sealdice-core/message"
-
+	"github.com/fy0/lockfree"
 	"github.com/gorilla/websocket"
 	"github.com/samber/lo"
 
-	ds "github.com/sealdice/dicescript"
+	"sealdice-core/message"
 )
 
 type PlatformAdapterRed struct {
@@ -426,7 +425,7 @@ func (pa *PlatformAdapterRed) Serve() int {
 	refreshFriends := func() {
 		friends := pa.getFriends()
 		for _, friend := range friends {
-			dm.UserNameCache.Store(friend.Uin, &GroupNameCacheItem{
+			dm.UserNameCache.Set(friend.Uin, &GroupNameCacheItem{
 				Name: friend.Nick,
 				time: time.Now().Unix(),
 			})
@@ -693,7 +692,7 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 					p = &GroupPlayerInfo{
 						Name:          name,
 						UserID:        userID,
-						ValueMapTemp:  &ds.ValueMap{},
+						ValueMapTemp:  lockfree.NewHashMap(),
 						UpdatedAtTime: 0,
 					}
 					groupInfo.Players.Store(userID, p)
@@ -708,7 +707,7 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 		for _, group := range groups {
 			if group != nil {
 				groupId := formatDiceIDRedGroup(group.GroupCode)
-				dm.GroupNameCache.Store(groupId, &GroupNameCacheItem{
+				dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
 					Name: group.GroupName,
 					time: time.Now().Unix(),
 				})
@@ -1038,8 +1037,9 @@ func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 		// 私聊消息
 		msg.MessageType = "private"
 		dm := pa.Session.Parent.Parent
-		if nick, ok := dm.UserNameCache.Load(uid); ok {
-			send.Nickname = nick.Name
+		if nick, ok := dm.UserNameCache.Get(uid); ok {
+			nameInfo := nick.(*GroupNameCacheItem)
+			send.Nickname = nameInfo.Name
 		}
 		if send.Nickname == "" {
 			send.Nickname = "未知用户"

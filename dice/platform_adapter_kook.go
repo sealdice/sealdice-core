@@ -145,7 +145,7 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupID string) {
 		logger.Errorf("获取Kook频道信息#%s时出错:%s", groupID, err.Error())
 		return
 	}
-	dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
+	dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
 		Name: channel.Name,
 		time: time.Now().Unix(),
 	})
@@ -216,7 +216,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 			msg.GuildID = FormatDiceIDKookGuild(ctx.Extra.GuildID)
 			// if pa.checkIfGuildAdmin(ctx) {
 			//	send.GroupRole = "admin"
-			// }
+			//}
 		}
 		msg.Message = fmt.Sprintf("[CQ:image,file=someimage,url=%s]", ctx.Common.Content)
 		msg.Sender = *send

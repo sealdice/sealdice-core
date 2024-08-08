@@ -47,7 +47,7 @@ func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupID string) {
 		return
 	}
 	dm := pa.Session.Parent.Parent
-	dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
+	dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
 		Name: info.ChannelName,
 		time: time.Now().Unix(),
 	})

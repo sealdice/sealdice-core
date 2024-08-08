@@ -124,16 +124,14 @@ func (m *ReplyConditionExprTrue) Clean() {
 }
 
 func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, _ string) bool {
-	// r := ctx.Eval(m.Value, ds.RollConfig{})
-	r, _, err := DiceExprEvalBase(ctx, m.Value, RollExtraFlags{})
-
+	r, _, err := ctx.Dice.ExprEval(m.Value, ctx)
 	if err != nil {
 		ctx.Dice.Logger.Infof("自定义回复表达式执行失败: %s", m.Value)
 		return false
 	}
 
-	if r.GetRestInput() != "" {
-		ctx.Dice.Logger.Infof("自定义回复表达式执行失败(后半部分不能识别 %s): %s", r.GetRestInput(), m.Value)
+	if r.restInput != "" {
+		ctx.Dice.Logger.Infof("自定义回复表达式执行失败(后半部分不能识别 %s): %s", r.restInput, m.Value)
 		return false
 	}
 	// fmt.Println("???", r, err, r.AsBool(), r.Value == int64(0), r.Value != int64(0))
@@ -205,7 +203,7 @@ type ReplyResultRunText struct {
 
 func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-	_, _, _ = DiceExprTextBase(ctx, m.Message, RollExtraFlags{})
+	_, _, _ = ctx.Dice.ExprTextBase(m.Message, ctx, RollExtraFlags{})
 }
 
 type ReplyConditions []ReplyConditionBase

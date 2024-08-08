@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fy0/lockfree"
 	"github.com/golang-module/carbon"
 	"go.uber.org/zap"
 
@@ -22,14 +23,19 @@ var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
 
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-
-	v := ctx.EvalFString(tmpl, nil)
-	if v.vm.Error != nil {
-		ctx.Dice.Logger.Infof("SN指令模板错误: %v", v.vm.Error.Error())
-		return "", v.vm.Error
+	val, _, err := ctx.Dice.ExprTextBase(tmpl, ctx, RollExtraFlags{
+		CocDefaultAttrOn: true,
+	})
+	if err != nil {
+		ctx.Dice.Logger.Infof("SN指令模板错误: %v", err.Error())
+		return "", err
 	}
 
-	text := v.ToString()
+	var text string
+	if val.TypeID == VMTypeString || val.TypeID == VMTypeNone {
+		text = val.Value.(string)
+	}
+
 	if ctx.EndPoint.Platform == "QQ" && len(text) >= 60 { // Note(Xiangze-Li): 2023-08-09实测群名片长度限制为59个英文字符, 20个中文字符是可行的, 但分别判断过于繁琐
 		return text, ErrGroupCardOverlong
 	}
@@ -57,7 +63,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 	}
 
 	// 避免群信息重复记录
-	groupMsgInfo := SyncMap[any, int64]{}
+	groupMsgInfo := lockfree.NewHashMap()
 	groupMsgInfoLastClean := int64(0)
 	groupMsgInfoClean := func() {
 		// 清理过久的消息
@@ -69,16 +75,21 @@ func RegisterBuiltinExtLog(self *Dice) {
 		}
 
 		groupMsgInfoLastClean = now
-		var toDelete []any
-		groupMsgInfo.Range(func(key any, t int64) bool {
-			if now-t > 5 { // 5秒内如果有此消息，那么不记录
-				toDelete = append(toDelete, key)
+		var toDelete []interface{}
+		_ = groupMsgInfo.Iterate(func(_k interface{}, _v interface{}) error {
+			t, ok := _v.(int64)
+			if ok {
+				if now-t > 5 { // 5秒内如果有此消息，那么不记录
+					toDelete = append(toDelete, _k)
+				}
+			} else {
+				toDelete = append(toDelete, _k)
 			}
-			return true
+			return nil
 		})
 
 		for _, i := range toDelete {
-			groupMsgInfo.Delete(i)
+			groupMsgInfo.Del(i)
 		}
 	}
 
@@ -88,17 +99,20 @@ func RegisterBuiltinExtLog(self *Dice) {
 		if _k == nil {
 			return false
 		}
-		t, exists := groupMsgInfo.Load(_k)
+		_val, exists := groupMsgInfo.Get(_k)
 		if exists {
-			now := time.Now().Unix()
-			return now-t > 5 // 5秒内如果有此消息，那么不记录
+			t, ok := _val.(int64)
+			if ok {
+				now := time.Now().Unix()
+				return now-t > 5 // 5秒内如果有此消息，那么不记录
+			}
 		}
 		return true
 	}
 
-	groupMsgInfoSet := func(_k any) {
+	groupMsgInfoSet := func(_k interface{}) {
 		if _k != nil {
-			groupMsgInfo.Store(_k, time.Now().Unix())
+			groupMsgInfo.Set(_k, time.Now().Unix())
 		}
 	}
 
@@ -521,41 +535,30 @@ func RegisterBuiltinExtLog(self *Dice) {
 .stat help // 帮助
 `
 	cmdOb := &CmdItemInfo{
-		Name:          "ob",
-		ShortHelp:     helpOb,
-		Help:          "观众指令:\n" + helpOb,
-		AllowDelegate: true,
+		Name:      "ob",
+		ShortHelp: helpOb,
+		Help:      "观众指令:\n" + helpOb,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			ctx.DelegateText = fmt.Sprintf("由<%s>操作:\n", ctx.Player.Name)
-			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			subcommand := cmdArgs.GetArgN(1)
-
-			c := ctx
-			if mctx != nil && mctx.Player.UserID != ctx.Player.UserID {
-				if ctx.PrivilegeLevel < 50 && subcommand != "help" {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "通用:提示_无权限_非master/管理"))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-				c = mctx
-			}
-
-			switch strings.ToLower(subcommand) {
+			val := cmdArgs.GetArgN(1)
+			switch strings.ToLower(val) {
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			case "exit":
-				if strings.HasPrefix(strings.ToLower(c.Player.Name), "ob") {
-					c.Player.Name = c.Player.Name[len("ob"):]
-					c.Player.UpdatedAtTime = time.Now().Unix()
+				if strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
+					ctx.Player.Name = ctx.Player.Name[len("ob"):]
+					ctx.Player.UpdatedAtTime = time.Now().Unix()
 				}
-				c.EndPoint.Adapter.SetGroupCardName(c, c.Player.Name)
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:OB_关闭"))
+				ctx.EndPoint.Adapter.SetGroupCardName(ctx, ctx.Player.Name)
+				text := DiceFormatTmpl(ctx, "日志:OB_关闭")
+				ReplyToSender(ctx, msg, text)
 			default:
-				if !strings.HasPrefix(strings.ToLower(c.Player.Name), "ob") {
-					c.Player.Name = "ob" + c.Player.Name
-					c.Player.UpdatedAtTime = time.Now().Unix()
+				if !strings.HasPrefix(strings.ToLower(ctx.Player.Name), "ob") {
+					ctx.Player.Name = "ob" + ctx.Player.Name
+					ctx.Player.UpdatedAtTime = time.Now().Unix()
 				}
-				c.EndPoint.Adapter.SetGroupCardName(c, c.Player.Name)
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:OB_开启"))
+				ctx.EndPoint.Adapter.SetGroupCardName(ctx, ctx.Player.Name)
+				text := DiceFormatTmpl(ctx, "日志:OB_开启")
+				ReplyToSender(ctx, msg, text)
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
@@ -580,9 +583,10 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 				return true
 			})
-			text += ".sn expr {$t玩家_RAW} HP{hp}/{hpmax} // 自设格式\n" +
-				".sn none // 设置为空白格式\n" +
-				".sn off // 取消自动设置"
+			text += `.sn dnd // 自动设置dnd名片
+.sn expr {$t玩家_RAW} HP{hp}/{hpmax} // 自设格式
+.sn none // 设置为空白格式
+.sn off // 取消自动设置`
 			if isShort {
 				return text
 			}
@@ -613,7 +617,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
 			case "dnd", "dnd5e":
 				// PW{pw}
-				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PP{pp}"
+				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PP{_pp}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
 				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				if errors.Is(err, ErrGroupCardOverlong) {

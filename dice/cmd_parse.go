@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	ds "github.com/sealdice/dicescript"
+	"github.com/fy0/lockfree"
 
 	"sealdice-core/message"
 )
@@ -37,7 +37,6 @@ type AtInfo struct {
 func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 	c1 := *ctx
 	mctx := &c1 // 复制一个ctx，用于其他用途
-	mctx.vm = nil
 	if ctx.Group != nil {
 		p := ctx.Group.PlayerGet(ctx.Dice.DBData, i.UserID)
 		if p != nil {
@@ -47,7 +46,7 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 			mctx.Player = &GroupPlayerInfo{
 				Name:          "",
 				UserID:        i.UserID,
-				ValueMapTemp:  &ds.ValueMap{},
+				ValueMapTemp:  lockfree.NewHashMap(),
 				UpdatedAtTime: 0,
 			}
 			// 特殊处理 official qq

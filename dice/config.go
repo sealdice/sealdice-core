@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fy0/lockfree"
 	wr "github.com/mroth/weightedrand"
 	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
@@ -23,23 +24,13 @@ import (
 
 // type TextTemplateWithWeight = map[string]map[string]uint
 type (
-	TextTemplateItem     = []any // 实际上是 [](string | int) 类型
+	TextTemplateItem     = []interface{} // 实际上是 [](string | int) 类型
 	TextTemplateItemList []TextTemplateItem
 )
-
-type TextItemCompatibleInfo struct {
-	Version      string `json:"version"` // v1 v2 默认为v2(如果为空)
-	TextV2       string `json:"textV2"`
-	TextV1       string `json:"textV1"`
-	ErrV1        string `json:"errV1"`
-	ErrV2        string `json:"errV2"`
-	PresetExists bool   `json:"presetExists"` // 是否存在预设变量(即指令执行后环境的模拟)
-}
 
 type (
 	TextTemplateWithWeight     = map[string][]TextTemplateItem
 	TextTemplateWithWeightDict = map[string]TextTemplateWithWeight
-	TextTemplateCompatibleDict = SyncMap[string, *SyncMap[string, TextItemCompatibleInfo]]
 )
 
 // TextTemplateHelpItem 辅助信息，用于UI中，大部分自动生成
@@ -55,7 +46,6 @@ type TextTemplateHelpItem = struct {
 	NotBuiltin      bool               `json:"notBuiltin"`      // 非内置
 	TopOrder        int                `json:"topOrder"`        // 置顶序号，越高越靠前
 }
-
 type (
 	TextTemplateHelpGroup    = map[string]*TextTemplateHelpItem
 	TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
@@ -705,10 +695,7 @@ func setupBaseTextTemplate(d *Dice) {
 				{`{$t玩家}的ri格式不正确!`, 1},
 			},
 			"先攻_下一回合": {
-				{"【{$t当前回合角色名}】戏份结束了。\n{$t新轮开始提示}下面该【{$t下一回合角色名}】{$t下一回合at}出场了！\n同时请【{$t下下一回合角色名}】{$t下下一回合at}做好准备", 1},
-			},
-			"先攻_新轮开始提示": {
-				{"新的一轮开始了！\n", 1},
+				{"【{$t当前回合角色名}】{$t当前回合at}戏份结束了，下面该【{$t下一回合角色名}】{$t下一回合at}出场了！同时请【{$t下下一回合角色名}】{$t下下一回合at}做好准备", 1},
 			},
 			"死亡豁免_D20_附加语": {
 				{`你觉得你还可以抢救一下！HP回复1点！`, 1},
@@ -1374,11 +1361,6 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"先攻_下一回合": {
 				SubType: ".init ed",
-				Vars: []string{"$t当前回合角色名", "$t当前回合at", "$t新轮开始提示", "$t下一回合角色名",
-					"$t下一回合at", "$t下下一回合角色名", "$t下下一回合at"},
-			},
-			"先攻_新轮开始提示": {
-				SubType: ".init ed",
 			},
 			"先攻_移除_前缀": {
 				SubType: ".init rm",
@@ -1413,20 +1395,17 @@ func setupBaseTextTemplate(d *Dice) {
 			"死亡豁免_结局_角色死亡": {
 				SubType: ".ds/死亡豁免",
 			},
-			"制卡_分隔符": {
-				SubType: ".dnd 2/.dndx 3",
+			"受到伤害_超过HP上限_附加语": {
+				SubType: ".st hp-3",
 			},
 			"受到伤害_昏迷中_附加语": {
-				SubType:   ".st hp-1d4",
-				ExtraText: "hp已经为0时扣血",
-			},
-			"受到伤害_超过HP上限_附加语": {
-				SubType:   ".st hp-50",
-				ExtraText: "造成伤害大于生命上限",
+				SubType: ".st hp-3",
 			},
 			"受到伤害_进入昏迷_附加语": {
-				SubType:   ".st hp-1d4",
-				ExtraText: "hp在st后从正数变为0",
+				SubType: ".st hp-3",
+			},
+			"制卡_分隔符": {
+				SubType: ".dnd 2/.dndx 3",
 			},
 		},
 		"核心": {
@@ -1948,7 +1927,7 @@ func setupTextTemplate(d *Dice) {
 
 func (d *Dice) GenerateTextMap() {
 	// 生成TextMap
-	newTextMap := map[string]*wr.Chooser{}
+	d.TextMap = map[string]*wr.Chooser{}
 
 	for category, item := range d.TextMapRaw {
 		for k, v := range item {
@@ -1958,17 +1937,15 @@ func (d *Dice) GenerateTextMap() {
 			}
 
 			pool, _ := wr.NewChooser(choices...)
-			newTextMap[fmt.Sprintf("%s:%s", category, k)] = pool
+			d.TextMap[fmt.Sprintf("%s:%s", category, k)] = pool
 		}
 	}
 
 	picker, _ := wr.NewChooser(wr.Choice{Item: APPNAME, Weight: 1})
-	newTextMap["常量:APPNAME"] = picker
+	d.TextMap["常量:APPNAME"] = picker
 
 	picker, _ = wr.NewChooser(wr.Choice{Item: VERSION.String(), Weight: 1})
-	newTextMap["常量:VERSION"] = picker
-
-	d.TextMap = newTextMap
+	d.TextMap["常量:VERSION"] = picker
 }
 
 func getNumVal(i interface{}) uint {
@@ -2200,6 +2177,22 @@ func (d *Dice) loads() {
 
 		// 读取群变量
 		for _, g := range d.ImSession.ServiceAtNew {
+			// 群组数据
+			if g.ValueMap == nil {
+				g.ValueMap = lockfree.NewHashMap()
+			}
+
+			data := model.AttrGroupGetAll(d.DBData, g.GroupID)
+			if len(data) != 0 {
+				mapData := make(map[string]*VMValue)
+				err := JSONValueMapUnmarshal(data, &mapData)
+				if err != nil {
+					d.Logger.Error("读取群变量失败: ", err)
+				}
+				for k, v := range mapData {
+					g.ValueMap.Set(k, v)
+				}
+			}
 			if g.DiceIDActiveMap == nil {
 				g.DiceIDActiveMap = new(SyncMap[string, bool])
 			}
@@ -2332,7 +2325,7 @@ func (d *Dice) loads() {
 		dm := d.Parent
 		now := time.Now().Unix()
 		for k, v := range d.ImSession.ServiceAtNew {
-			dm.GroupNameCache.Store(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
+			dm.GroupNameCache.Set(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
 		}
 
 		d.Logger.Info("serve.yaml loaded")
@@ -2541,6 +2534,16 @@ func (d *Dice) Save(isAuto bool) {
 					_ = model.GroupPlayerInfoSave(d.DBData, g.GroupID, key, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
+
+				// 保存群组卡
+				if value.Vars != nil && value.Vars.Loaded {
+					if value.Vars.LastWriteTime != 0 {
+						data, _ := json.Marshal(LockFreeMapToMap(value.Vars.ValueMap))
+						model.AttrGroupUserSave(d.DBData, g.GroupID, key, data)
+						value.Vars.LastWriteTime = 0
+					}
+				}
+
 				return true
 			})
 		}
@@ -2555,10 +2558,74 @@ func (d *Dice) Save(isAuto bool) {
 				g.UpdatedAtTime = 0
 			}
 		}
+
+		// TODO: 这里其实还能优化
+		data, _ := json.Marshal(LockFreeMapToMap(g.ValueMap))
+		model.AttrGroupSave(d.DBData, g.GroupID, data)
 	}
 
-	// 同步全部属性数据：个人角色卡、群内角色卡、群数据、个人全局数据
-	d.AttrsManager.CheckForSave()
+	// 同步绑定的角色卡数据
+	chPrefix := "$:ch-bind-mtime:"
+	chPrefixData := "$:ch-bind-data:"
+	d.ImSession.PlayerVarsData.Range(func(key string, v *PlayerVariablesItem) bool {
+		if v.Loaded {
+			if v.LastWriteTime != 0 {
+				var toDelete []string
+				syncMap := map[string]bool{}
+				allCh := map[string]lockfree.HashMap{}
+
+				_ = v.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
+					if k, ok := _k.(string); ok {
+						if strings.HasPrefix(k, chPrefixData) {
+							v := _v.(lockfree.HashMap)
+							allCh[k[len(chPrefixData):]] = v
+						}
+						if strings.HasPrefix(k, chPrefix) {
+							// 只要存在，就是修改过，数值多少不重要
+							syncMap[k[len(chPrefix):]] = true
+							toDelete = append(toDelete, k)
+						}
+					}
+					return nil
+				})
+
+				for _, i := range toDelete {
+					v.ValueMap.Del(i)
+				}
+
+				// 这里面的角色是需要同步的
+				for name := range syncMap {
+					chData := allCh[name]
+					if chData != nil {
+						val, err := json.Marshal(LockFreeMapToMap(chData))
+						if err == nil {
+							varName := "$ch:" + name
+							v.ValueMap.Set(varName, &VMValue{
+								TypeID: VMTypeString,
+								Value:  string(val),
+							})
+						}
+					} else {
+						// 过期了，可能该角色已经被删除
+						v.ValueMap.Del("$:ch-bind-data:" + name)
+					}
+				}
+			}
+		}
+		return true
+	})
+
+	// 保存玩家个人全局数据
+	d.ImSession.PlayerVarsData.Range(func(k string, v *PlayerVariablesItem) bool {
+		if v.Loaded {
+			if v.LastWriteTime != 0 {
+				data, _ := json.Marshal(LockFreeMapToMap(v.ValueMap))
+				model.AttrUserSave(d.DBData, k, data)
+				v.LastWriteTime = 0
+			}
+		}
+		return true
+	})
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测

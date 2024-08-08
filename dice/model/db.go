@@ -113,6 +113,29 @@ create table if not exists group_info
 );`,
 
 		`
+create table if not exists attrs_group
+(
+    id         TEXT primary key,
+    updated_at INTEGER,
+    data       BLOB
+);`,
+		`create index if not exists idx_attrs_group_updated_at on attrs_group (updated_at);`,
+		`create table if not exists attrs_group_user
+(
+    id         TEXT primary key,
+    updated_at INTEGER,
+    data       BLOB
+);`,
+		`create index if not exists idx_attrs_group_user_updated_at on attrs_group_user (updated_at);`,
+		`create table if not exists attrs_user
+(
+    id         TEXT primary key,
+    updated_at INTEGER,
+    data       BLOB
+);`,
+		`create index if not exists idx_attrs_user_updated_at on attrs_user (updated_at);`,
+
+		`
 create table if not exists ban_info
 (
     id         TEXT primary key,
@@ -130,28 +153,6 @@ cmd_last_time INTEGER,
 online_time INTEGER,
 updated_at INTEGER
 );`,
-
-		`
-CREATE TABLE IF NOT EXISTS attrs (
-    id TEXT PRIMARY KEY,
-    data BYTEA,
-    attrs_type TEXT,
-
-	-- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
-	binding_sheet_id TEXT default '',
-
-    name TEXT default '',
-    owner_id TEXT default '',
-    sheet_type TEXT default '',
-    is_hidden BOOLEAN default FALSE,
-
-    created_at INTEGER default 0,
-    updated_at INTEGER  default 0
-);
-`,
-		`create index if not exists idx_attrs_binding_sheet_id on attrs (binding_sheet_id);`,
-		`create index if not exists idx_attrs_owner_id_id on attrs (owner_id);`,
-		`create index if not exists idx_attrs_attrs_type_id on attrs (attrs_type);`,
 	}
 	for _, i := range texts {
 		_, _ = dataDB.Exec(i)

@@ -391,10 +391,6 @@ func main() {
 	if migrateErr := migrate.V144RemoveOldHelpdoc(); migrateErr != nil {
 		logger.Errorf("移除旧帮助文档时出错，%v", migrateErr)
 	}
-	// v150升级
-	if !migrate.V150Upgrade() {
-		return
-	}
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 		hideWindow()
@@ -485,9 +481,6 @@ func diceServe(d *dice.Dice) {
 	d.UIEndpoint.State = 1
 	d.UIEndpoint.UserID = "UI:1000"
 	d.UIEndpoint.Adapter = &dice.PlatformAdapterHTTP{Session: d.ImSession, EndPoint: d.UIEndpoint}
-	d.UIEndpoint.Session = d.ImSession
-
-	dice.TextMapCompatibleCheckAll(d)
 
 	for _, _conn := range d.ImSession.EndPoints {
 		if _conn.Enable {
