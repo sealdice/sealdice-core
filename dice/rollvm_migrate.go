@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/samber/lo"
 	ds "github.com/sealdice/dicescript"
@@ -92,7 +93,7 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 	if a == nil {
 		text = "<%未知项-" + s + "%>"
 	} else {
-		text = ctx.Dice.TextMap[s].Pick().(string)
+		text = ctx.Dice.TextMap[s].PickSource(randSourceDrawAndTmplSelect).(string)
 
 		// 找出其兼容情况，以决定使用什么版本的引擎
 		engineVersion := "v2"
@@ -422,7 +423,6 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	ctx.vm.Config.EnableDiceCoC = true
 	ctx.vm.Config.EnableDiceFate = true
 	ctx.vm.Config.EnableDiceDoubleCross = true
-	ctx.vm.Config.EnableV1IfCompatible = true
 	ctx.vm.Config.OpCountLimit = 30000
 
 	am := ctx.Dice.AttrsManager
@@ -512,7 +512,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		if v == nil && strings.Contains(name, ":") {
 			textTmpl := ctx.Dice.TextMap[name]
 			if textTmpl != nil {
-				if v2, err := DiceFormatV2(ctx, textTmpl.Pick().(string)); err == nil {
+				if v2, err := DiceFormatV2(ctx, textTmpl.PickSource(randSourceDrawAndTmplSelect).(string)); err == nil {
 					return ds.NewStrVal(v2)
 				}
 			} else {
@@ -710,15 +710,15 @@ func _MsgCreate(messageType string, message string) *Message {
 		messageType = "private"
 	}
 
-	userID := "UI:1001"
+	userID := "UI:1101"
 	groupID := ""
 	groupName := ""
 	groupRole := ""
 	if messageType == "group" {
-		userID = "UI:1002"
+		userID = "UI:1101"
 		messageType = "group"
-		groupID = "UI-Group:2001"
-		groupName = "UI-Group 2001"
+		groupID = "UI-Group:2101"
+		groupName = "UI-Group 2101"
 		groupRole = "owner"
 	}
 
@@ -743,40 +743,82 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 	key := fmt.Sprintf("%s:%s", category, k)
 	x, _ := d.TextMapCompatible.LoadOrStore(key, &SyncMap[string, TextItemCompatibleInfo]{})
 
+	am := d.AttrsManager
+
 	for _, textItem := range textItems {
 		formatExpr := textItem[0].(string)
 
 		msg := _MsgCreate("group", "")
 
-		// 注: 由于选择了真正执行一遍的方式，可能会有部分影响溢出导致修改到测试用户的数据
-		// 但是这个测试用户是 UI:1001 所以姑且认为没有问题
+		tmpSeed := []byte("1234567890ABCDEF")
+		tmpSeed2 := uint64(time.Now().UnixMicro())
+		randSourceDrawAndTmplSelect.Seed(int64(tmpSeed2))
+
+		setupTestAttrs := func(ctx *MsgContext) {
+			// $g
+			if attrs, _ := am.LoadById("UI-Group:2101"); attrs != nil {
+				attrs.Clear()
+				attrs.IsSaved = true
+			}
+			// $m
+			if attrs, _ := am.LoadById("UI:1101"); attrs != nil {
+				attrs.Clear()
+				attrs.IsSaved = true
+			}
+			// 群内临时人物卡
+			if attrs, _ := am.LoadById("UI-Group:2101-UI:1101"); attrs != nil {
+				attrs.Clear()
+				attrs.IsSaved = true
+			}
+
+			// $t
+			ctx.Player.ValueMapTemp = &ds.ValueMap{}
+		}
+
+		// v2 部分
 		ctx := CreateTempCtx(d.UIEndpoint, msg)
+		setupTestAttrs(ctx)
 		ctx.CreateVmIfNotExists()
+		ctx.vm.Seed = tmpSeed
+		ctx.vm.Init()
+		ctx.splitKey = "###SPLIT-KEY###"
+
 		if a, exists := _textMapTestData2[key]; exists {
 			if x, err := a.ToJSON(); err == nil {
 				_ = json.Unmarshal(x, ctx.vm.Attrs) // TODO: 性能好一点的clone
 			}
-			for k, v := range _textMapBuiltin {
-				ctx.vm.Attrs.Store(k, v.Clone())
-			}
 		}
+		for k, v := range _textMapBuiltin {
+			ctx.vm.Attrs.Store(k, v.Clone())
+		}
+
 		text2, err2 := DiceFormatV2(ctx, formatExpr)
 
+		// v1 部分
 		ctx = CreateTempCtx(d.UIEndpoint, msg)
+		setupTestAttrs(ctx)
+		ctx.CreateVmIfNotExists() // 也要设置，因为牌堆要用
+		ctx.vm.Seed = tmpSeed
+		ctx.vm.Init()
+		ctx.splitKey = "###SPLIT-KEY###"
+		ctx._v1Rand = ctx.vm.RandSrc
+		randSourceDrawAndTmplSelect.Seed(int64(tmpSeed2))
+
 		_, presetExists := _textMapTestData2[key]
 		if a, exists := _textMapTestData2[key]; exists {
 			if x, err := a.ToJSON(); err == nil {
 				_ = json.Unmarshal(x, ctx.vm.Attrs) // TODO: 性能好一点的clone
 			}
-			for k, v := range _textMapBuiltin {
-				ctx.vm.Attrs.Store(k, v.Clone())
-			}
+		}
+		for k, v := range _textMapBuiltin {
+			ctx.vm.Attrs.Store(k, v.Clone())
 		}
 
 		text1, err1 := DiceFormatV1(ctx, formatExpr)
 		if err1 != nil {
 			text1 = "" // 因为 formatV1 没有值的时候会返回东西，这样使得两版本一致
 		}
+		setupTestAttrs(ctx) // 清理
 
 		var ver string
 		if err2 == nil {
