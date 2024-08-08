@@ -14,6 +14,7 @@ require (
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/blevesearch/bleve/v2 v2.3.10
 	github.com/bwmarrin/discordgo v0.28.1
+	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/dop251/goja v0.0.0-20231027120936-b396bb4c349d
 	github.com/dop251/goja_nodejs v0.0.0-20231022114343-5c1f9037c9ab
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
