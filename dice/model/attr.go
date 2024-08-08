@@ -93,8 +93,7 @@ func attrSaveTX(tx *sqlx.Tx, bucket string, key string, data []byte) {
 	})
 	if err != nil {
 		fmt.Println("Failed to execute query:", err)
-		// 根据木落的描述：出错就出错了，不要回滚事务，继续插入即可
-		//_ = tx.Rollback()
+		// _ = tx.Rollback()
 	}
 }
 

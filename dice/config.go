@@ -2585,7 +2585,7 @@ func (d *Dice) Save(isAuto bool) {
 		// 实际上，这并没有解决第一次入库会产生大量插入的问题，但总比没有好……
 		// 如果没修改，请不要入库
 		if !ok || dataHash != oldHash {
-			//入库
+			// 入库
 			model.AttrGroupSave(d.DBData, g.GroupID, data)
 			d.SaveDatabaseInsertCheckMap.Store(g.GroupID, dataHash)
 			allCount++
