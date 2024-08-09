@@ -23,19 +23,6 @@
     <div></div>
     <div class="subtitle">社区协力</div>
 
-    <div style="margin-top: 2rem;" class="subtitle">V1.5 版本</div>
-    <div class="developers">
-      <el-link :underline="false" href="https://github.com/fy0" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/fy0'"/>木落</el-link>
-      <el-link :underline="false" href="https://github.com/JustAnotherID" target="_blank"><el-avatar shape="circle" :size="50" style="border: 1px solid #aaa;" :src="urlBase + '/sd-api/utils/ga/JustAnotherID'"/>只是另一个ID</el-link>
-      <el-link :underline="false" href="https://github.com/Xiangze-Li" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Xiangze-Li'"/>JohNSoN</el-link>
-      <el-link :underline="false" href="https://github.com/Fripine" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Fripine'"/>Fripine</el-link>
-      <el-link :underline="false" href="https://github.com/oissevalt" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/oissevalt'"/>檀轶步棋</el-link>
-      <el-link :underline="false" href="https://github.com/MintCider" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/MintCider'"/>Mint Cider</el-link>
-      <el-link :underline="false" href="https://github.com/PaienNate" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/PaienNate'"/>PaienNate</el-link>
-      <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Szzrain'"/>Szzrain</el-link>
-      <el-link :underline="false" href="https://github.com/MX-fox" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/MX-fox'"/>暮星</el-link>
-    </div>
-
     <div style="margin-top: 2rem;" class="subtitle">V1.4 版本</div>
     <div class="developers">
       <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
@@ -51,6 +38,12 @@
       <el-link :underline="false" href="https://github.com/cherrybird7" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase +'/sd-api/utils/ga/cherrybird7'"/>凤吹风雪(7版怪锤)</el-link>
       <el-link :underline="false" href="javascript:void(0)"><el-avatar shape="circle" :size="50" :src="imgHaibao"/>奈亚猫猫汉化组(7版怪锤)</el-link>
       <el-link :underline="false" href="javascript:void(0)"><el-avatar shape="circle" :size="50" :src="imgHaibao"/>稚鸢音(7版怪锤)</el-link>
+      <el-link :underline="false" href="https://github.com/Fripine" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Fripine'"/>Fripine</el-link>
+      <el-link :underline="false" href="https://github.com/MintCider" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/MintCider'"/>逐风</el-link>
+      <el-link :underline="false" href="https://github.com/yichere" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/yichere'"/>炽热</el-link>
+      <el-link :underline="false" href="https://github.com/MX-fox" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/MX-fox'"/>暮星</el-link>
+      <el-link :underline="false" href="https://github.com/0018cha" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/0018cha'"/>0.018</el-link>
+      <el-link :underline="false" href="https://github.com/shakugannosaints" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/shakugannosaints'"/>冷筱华</el-link>
     </div>
 
     <div style="margin-top: 2rem;" class="subtitle">V1.4 安卓端</div>
