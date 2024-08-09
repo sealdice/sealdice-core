@@ -2607,7 +2607,10 @@ func (d *Dice) Save(isAuto bool) {
 			allCount++
 		}
 	}
-	d.Logger.Infof("本次ServiceAtNew群组数据，保存影响数据库操作数为: %d", allCount)
+	// 会频繁刷屏，改为控制台输出
+	if allCount > 0 {
+		fmt.Printf("本次ServiceAtNew群组数据，保存影响数据库操作数为: %d\n", allCount)
+	}
 	// 同步绑定的角色卡数据
 	chPrefix := "$:ch-bind-mtime:"
 	chPrefixData := "$:ch-bind-data:"
