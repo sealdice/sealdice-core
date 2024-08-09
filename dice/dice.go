@@ -50,7 +50,7 @@ var (
 	// APP_CHANNEL 更新频道，stable/dev，在 action 构建时自动注入
 	APP_CHANNEL = "dev" //nolint:revive
 
-	VERSION_CODE = int64(1004005) //nolint:revive
+	VERSION_CODE = int64(1004006) //nolint:revive
 
 	VERSION_JSAPI_COMPATIBLE = []*semver.Version{
 		VERSION,
@@ -280,6 +280,10 @@ type Dice struct {
 	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
 
 	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+
+	// 用于检查是否需要插入到数据库的哈希表 150因为没有对应插入 到时候这个就没用了
+	SaveDatabaseInsertCheckMapFlag sync.Once                `json:"-" yaml:"-"`
+	SaveDatabaseInsertCheckMap     *SyncMap[string, string] `json:"-" yaml:"-"`
 }
 
 type CensorMode int
