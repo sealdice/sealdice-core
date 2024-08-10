@@ -292,7 +292,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-
+				lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
+				VarSetValueInt64(ctx, "$t当前记录条数", lines)
 				VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
 				// Note: 2024-02-28 经过讨论，日志在 off 的情况下 end 属于合理操作，这里不再检查是否开启
@@ -310,6 +311,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "halt") {
 				if len(group.LogCurName) > 0 {
+					lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
+					VarSetValueInt64(ctx, "$t当前记录条数", lines)
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 				}
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
