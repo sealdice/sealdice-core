@@ -14,9 +14,10 @@ func NewDodoConnItem(clientID string, token string) *EndPointInfo {
 	conn.Enable = false
 	conn.RelWorkDir = "extra/dodo-" + conn.ID
 	conn.Adapter = &PlatformAdapterDodo{
-		EndPoint: conn,
-		ClientID: clientID,
-		Token:    token,
+		EndPoint:      conn,
+		ClientID:      clientID,
+		Token:         token,
+		UserPermCache: new(SyncMap[string, *SyncMap[string, *GuildPermCacheItem]]),
 	}
 	return conn
 }

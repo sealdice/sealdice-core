@@ -44,11 +44,11 @@ func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupID string) {
 		Name: channel.Name,
 		time: time.Now().Unix(),
 	})
-	group := pa.Session.ServiceAtNew[groupID]
-	if group != nil {
-		if channel.Name != group.GroupName {
-			group.GroupName = channel.Name
-			group.UpdatedAtTime = time.Now().Unix()
+	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
+	if ok {
+		if channel.Name != groupInfo.GroupName {
+			groupInfo.GroupName = channel.Name
+			groupInfo.UpdatedAtTime = time.Now().Unix()
 		}
 	}
 }

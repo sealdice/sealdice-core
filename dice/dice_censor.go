@@ -133,7 +133,10 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 	}
 
 	mctx.Censored = true
-	group := mctx.Session.ServiceAtNew[msg.GroupID]
+	groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
+	if !ok {
+		d.Logger.Warn("Dice CenSor获取GroupInfo失败")
+	}
 	thresholds := d.CensorThresholds
 
 	// 保证按程度依次降低来处理
@@ -164,7 +167,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 				if msg.MessageType == "group" {
 					text = fmt.Sprintf(
 						"群(%s)内<%s>(%s)触发<%s>敏感词拦截",
-						group.GroupID,
+						groupInfo.GroupID,
 						msg.Sender.Nickname,
 						msg.Sender.UserID,
 						levelText,
@@ -205,7 +208,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 				// 拉黑邀请人
 				if msg.MessageType == "group" {
 					d.BanList.AddScoreBase(
-						group.InviteUserID,
+						groupInfo.InviteUserID,
 						d.BanList.ThresholdBan,
 						"敏感词审查",
 						"触发<"+levelText+">敏感词",
@@ -223,7 +226,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 					d.BanList.AddScoreByCensor(
 						msg.Sender.UserID,
 						int64(score),
-						group.GroupID,
+						groupInfo.GroupID,
 						levelText,
 						mctx,
 					)

@@ -14,7 +14,9 @@ import (
 
 func groupList(c echo.Context) error {
 	var items []*dice.GroupInfo
-	for groupID, item := range myDice.ImSession.ServiceAtNew {
+	// Pinenutn: Range模板 ServiceAtNew重构代码
+	myDice.ImSession.ServiceAtNew.Range(func(groupID string, item *dice.GroupInfo) bool {
+		// Pinenutn: ServiceAtNew重构
 		item.GroupID = groupID
 		if !strings.HasPrefix(item.GroupID, "PG-") {
 			if item != nil {
@@ -31,7 +33,8 @@ func groupList(c echo.Context) error {
 				}
 			}
 		}
-	}
+		return true
+	})
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"items": items,
@@ -56,7 +59,7 @@ func groupSetOne(c echo.Context) error {
 	err := c.Bind(&v)
 
 	if err == nil {
-		_, exists := myDice.ImSession.ServiceAtNew[v.GroupID]
+		_, exists := myDice.ImSession.ServiceAtNew.Load(v.GroupID)
 		if exists {
 			for _, ep := range myDice.ImSession.EndPoints {
 				// if ep.UserId == v.DiceId {
@@ -95,7 +98,7 @@ func groupQuit(c echo.Context) error {
 	}
 
 	// 不太好弄，主要会出现多个帐号在群的情况
-	group, exists := myDice.ImSession.ServiceAtNew[v.GroupID]
+	group, exists := myDice.ImSession.ServiceAtNew.Load(v.GroupID)
 	if !exists {
 		return c.String(430, "")
 	}

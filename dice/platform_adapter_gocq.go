@@ -14,15 +14,15 @@ import (
 	"syscall"
 	"time"
 
-	"sealdice-core/message"
-	"sealdice-core/utils/procs"
-
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/sacOO7/gowebsocket"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+
+	"sealdice-core/message"
+	"sealdice-core/utils/procs"
 )
 
 // 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
@@ -512,29 +512,29 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					time: time.Now().Unix(),
 				}) // 不论如何，先试图取一下群名
 
-				group := session.ServiceAtNew[groupID]
-				if group != nil {
+				groupInfo, ok := session.ServiceAtNew.Load(groupID)
+				if ok {
 					if msgQQ.Data.MaxMemberCount == 0 {
 						diceID := ep.UserID
-						if _, exists := group.DiceIDExistsMap.Load(diceID); exists {
+						if _, exists := groupInfo.DiceIDExistsMap.Load(diceID); exists {
 							// 不在群里了，更新信息
-							group.DiceIDExistsMap.Delete(diceID)
-							group.UpdatedAtTime = time.Now().Unix()
+							groupInfo.DiceIDExistsMap.Delete(diceID)
+							groupInfo.UpdatedAtTime = time.Now().Unix()
 						}
-					} else if msgQQ.Data.GroupName != group.GroupName {
+					} else if msgQQ.Data.GroupName != groupInfo.GroupName {
 						// 更新群名
-						group.GroupName = msgQQ.Data.GroupName
-						group.UpdatedAtTime = time.Now().Unix()
+						groupInfo.GroupName = msgQQ.Data.GroupName
+						groupInfo.UpdatedAtTime = time.Now().Unix()
 					}
 
 					// 处理被强制拉群的情况
-					uid := group.InviteUserID
+					uid := groupInfo.InviteUserID
 					banInfo, ok := ctx.Dice.BanList.GetByID(uid)
 					if ok {
 						if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
 							// 如果是被ban之后拉群，判定为强制拉群
-							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
-								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", group.InviteUserID)
+							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
+								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
 								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 								time.Sleep(1 * time.Second)
 								pa.QuitGroup(ctx, groupID)
@@ -548,7 +548,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					if ok {
 						if banInfo.Rank == BanRankBanned {
 							// 如果是被ban之后拉群，判定为强制拉群
-							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
+							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
 								text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
 								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 								time.Sleep(1 * time.Second)
@@ -769,8 +769,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						doSleepQQ(ctx)
 						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 					}
-					if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
-						for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+					groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+					if ok {
+						for _, i := range groupInfo.ActivatedExtList {
 							if i.OnBecomeFriend != nil {
 								i.callWithJsCheck(ctx.Dice, func() {
 									i.OnBecomeFriend(ctx, msg)
@@ -838,8 +839,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, msgQQ.GroupID)
 			log.Info(txt)
 			ctx.Notice(txt)
-			if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
-				for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+			groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+			if ok {
+				for _, i := range groupInfo.ActivatedExtList {
 					if i.OnGroupJoined != nil {
 						i.callWithJsCheck(ctx.Dice, func() {
 							i.OnGroupJoined(ctx, msg)
@@ -850,8 +852,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 入群的另一种情况: 管理员审核
-		group := s.ServiceAtNew[msg.GroupID]
-		if group == nil && msg.GroupID != "" {
+		isGroupExist := s.ServiceAtNew.Exists(msg.GroupID)
+		// Pinenutn: 如果不存在这个群聊，但GroupID存在
+		if !isGroupExist && msg.GroupID != "" {
 			now := time.Now().Unix()
 			if tempInviteMap[msg.GroupID] != 0 && now > tempInviteMap[msg.GroupID] {
 				delete(tempInviteMap, msg.GroupID)
@@ -866,11 +869,11 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
 				groupEntered()
 			} else {
-				group := session.ServiceAtNew[msg.GroupID]
+				group, ok := session.ServiceAtNew.Load(msg.GroupID)
 				// 进群的是别人，是否迎新？
 				// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 				// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
-				if group != nil && group.ShowGroupWelcome {
+				if ok && group.ShowGroupWelcome {
 					isDouble := false
 					if lastWelcome != nil {
 						isDouble = string(msgQQ.GroupID) == lastWelcome.GroupID &&
