@@ -158,7 +158,7 @@ type singleRoulette struct {
 	Pool []int
 }
 
-var rouletteMap *SyncMap[string, singleRoulette]
+var rouletteMap SyncMap[string, singleRoulette]
 
 func RegisterBuiltinExtFun(self *Dice) {
 	aliasHelp := ".alias <别名> <指令> // 将 .&<别名> 定义为指定指令的快捷触发方式\n" +
