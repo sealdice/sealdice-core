@@ -14,16 +14,15 @@ import (
 	"syscall"
 	"time"
 
-	"sealdice-core/message"
-	"sealdice-core/utils/procs"
-	"sealdice-core/utils/syncmap"
-
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/sacOO7/gowebsocket"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+
+	"sealdice-core/message"
+	"sealdice-core/utils/procs"
 )
 
 // 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
@@ -85,10 +84,10 @@ type PlatformAdapterGocq struct {
 	InPackGoCqhttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest          bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	customEcho     int64                                  `yaml:"-"` // 自定义返回标记
-	echoMap        *syncmap.SyncMap[any, chan *MessageQQ] `yaml:"-"`
-	echoMap2       *syncmap.SyncMap[any, *echoMapInfo]    `yaml:"-"`
-	Implementation string                                 `yaml:"implementation" json:"implementation"`
+	customEcho     int64                          `yaml:"-"` // 自定义返回标记
+	echoMap        *SyncMap[any, chan *MessageQQ] `yaml:"-"`
+	echoMap2       *SyncMap[any, *echoMapInfo]    `yaml:"-"`
+	Implementation string                         `yaml:"implementation" json:"implementation"`
 
 	UseSignServer    bool              `yaml:"useSignServer" json:"useSignServer"`
 	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`
@@ -513,7 +512,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					time: time.Now().Unix(),
 				}) // 不论如何，先试图取一下群名
 
-				groupInfo, ok := session.ServiceAt.Load(groupID)
+				groupInfo, ok := session.ServiceAtNew.Load(groupID)
 				if ok {
 					if msgQQ.Data.MaxMemberCount == 0 {
 						diceID := ep.UserID
@@ -560,7 +559,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					}
 				} else {
 					// TODO: 这玩意的创建是个专业活，等下来弄
-					// session.ServiceAt[groupId] = GroupInfo{}
+					// session.ServiceAtNew[groupId] = GroupInfo{}
 					fmt.Println("TODO create group")
 				}
 				// 这句话太吵了
@@ -770,7 +769,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						doSleepQQ(ctx)
 						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 					}
-					groupInfo, ok := ctx.Session.ServiceAt.Load(msg.GroupID)
+					groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 					if ok {
 						for _, i := range groupInfo.ActivatedExtList {
 							if i.OnBecomeFriend != nil {
@@ -840,7 +839,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, msgQQ.GroupID)
 			log.Info(txt)
 			ctx.Notice(txt)
-			groupInfo, ok := ctx.Session.ServiceAt.Load(msg.GroupID)
+			groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 			if ok {
 				for _, i := range groupInfo.ActivatedExtList {
 					if i.OnGroupJoined != nil {
@@ -853,7 +852,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 入群的另一种情况: 管理员审核
-		isGroupExist := s.ServiceAt.Exists(msg.GroupID)
+		isGroupExist := s.ServiceAtNew.Exists(msg.GroupID)
 		// Pinenutn: 如果不存在这个群聊，但GroupID存在
 		if !isGroupExist && msg.GroupID != "" {
 			now := time.Now().Unix()
@@ -870,7 +869,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
 				groupEntered()
 			} else {
-				group, ok := session.ServiceAt.Load(msg.GroupID)
+				group, ok := session.ServiceAtNew.Load(msg.GroupID)
 				// 进群的是别人，是否迎新？
 				// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 				// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词

@@ -33,7 +33,6 @@ import (
 
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
-	"sealdice-core/utils/syncmap"
 )
 
 var (
@@ -201,7 +200,7 @@ func (d *Dice) JsInit() {
 			}
 			d.ApplyExtDefaultSettings()
 			// Pinenutn: Range模板 ServiceAtNew重构代码
-			d.ImSession.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
+			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 				// Pinenutn: ServiceAtNew重构
 				groupInfo.ExtActive(ei)
 				return true
@@ -626,7 +625,7 @@ func (d *Dice) jsClear() {
 	d.JsScriptList = []*JsScriptInfo{}
 	// 清理规则模板
 	// Pinenutn: 由于切换成了其他的syncMap，所以初始化策略需要修改
-	d.GameSystemMap = syncmap.NewSyncMap[string, *GameSystemTemplate]()
+	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.RegisterBuiltinSystemTemplate()
 	// 关闭js vm
 	if d.JsLoop != nil {

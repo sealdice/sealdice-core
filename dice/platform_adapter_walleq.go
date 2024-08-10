@@ -19,7 +19,6 @@ import (
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
 	"sealdice-core/utils/procs"
-	"sealdice-core/utils/syncmap"
 )
 
 /* 定义结构体 */
@@ -50,9 +49,9 @@ type PlatformAdapterWalleQ struct {
 	InPackWalleQDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest        bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	echoMap        *syncmap.SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
-	FileMap        *syncmap.SyncMap[string, string]                // 记录上传文件后得到的 id
-	Implementation string                                          `yaml:"implementation" json:"implementation"`
+	echoMap        *SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
+	FileMap        *SyncMap[string, string]                // 记录上传文件后得到的 id
+	Implementation string                                  `yaml:"implementation" json:"implementation"`
 }
 
 type EventWalleQBase struct {
@@ -263,7 +262,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 				}
 				// Pinenutn ActivatedExtList模板
-				groupInfo, ok := ctx.Session.ServiceAt.Load(msg.GroupID)
+				groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 				if ok {
 					for _, i := range groupInfo.ActivatedExtList {
 						if i.OnGroupJoined != nil {
@@ -280,7 +279,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 		}
 
 		// 入群的另一种情况: 管理员审核
-		isGroupExists := s.ServiceAt.Exists(msg.GroupID)
+		isGroupExists := s.ServiceAtNew.Exists(msg.GroupID)
 		if !isGroupExists && msg.GroupID != "" {
 			now := time.Now().Unix()
 			if tempInviteMap[msg.GroupID] != 0 && now > tempInviteMap[msg.GroupID] {
@@ -356,11 +355,11 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			case "friend_decrease": // 好友被删，哀悼一下？
 				return
 			case "group_member_increase":
-				// _ = session.ServiceAt[msg.GroupId]
+				// _ = session.ServiceAtNew[msg.GroupId]
 				if event.UserID == event.Self.UserID {
 					groupEntered()
 				} else {
-					groupInfo, ok := s.ServiceAt.Load(msg.GroupID)
+					groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 					// 进群的是别人，是否迎新？
 					// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 					// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词 // 如果是 TX BUG 这里就不改了
@@ -437,7 +436,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				}
 				return
 			case "group_message_delete": // 消息撤回
-				groupInfo, ok := s.ServiceAt.Load(msg.GroupID)
+				groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 				if ok {
 					if groupInfo.LogOn {
 						_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBLogs, groupInfo.GroupID, groupInfo.LogCurName, n.MessageID)
@@ -634,7 +633,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					time: time.Now().Unix(),
 				}) // 不论如何，先试图取一下群名
 
-				groupInfo, ok := s.ServiceAt.Load(groupID)
+				groupInfo, ok := s.ServiceAtNew.Load(groupID)
 				if ok {
 					// 更新群名
 					if GroupName != groupInfo.GroupName {
@@ -674,7 +673,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					}
 				} else { //nolint
 					// TODO: 这玩意的创建是个专业活，等下来弄
-					// session.ServiceAt[groupId] = GroupInfo{}
+					// session.ServiceAtNew[groupId] = GroupInfo{}
 				}
 				return
 			case "get_group_member_info":
@@ -845,7 +844,7 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, te
 	}
 
 	// Pinenutn ActivatedExtList模板
-	groupInfo, ok := ctx.Session.ServiceAt.Load(groupID)
+	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
 	if ok {
 		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnMessageSend != nil {
@@ -959,7 +958,7 @@ func (pa *PlatformAdapterWalleQ) waitGroupMemberInfoEcho(echo string, beforeWait
 	ch := make(chan *EventWalleQBase, 1)
 
 	if pa.echoMap == nil {
-		pa.echoMap = syncmap.NewSyncMap[string, chan *EventWalleQBase]()
+		pa.echoMap = new(SyncMap[string, chan *EventWalleQBase])
 	}
 	pa.echoMap.Store(echo, ch)
 

@@ -16,18 +16,17 @@ import (
 	"github.com/Szzrain/dodo-open-go/websocket"
 
 	"sealdice-core/message"
-	"sealdice-core/utils/syncmap"
 )
 
 type PlatformAdapterDodo struct {
-	Session           *IMSession                                                              `yaml:"-" json:"-"`
-	ClientID          string                                                                  `yaml:"clientID" json:"clientID"`
-	Token             string                                                                  `yaml:"token" json:"token"`
-	EndPoint          *EndPointInfo                                                           `yaml:"-" json:"-"`
-	Client            client.Client                                                           `yaml:"-" json:"-"`
-	WebSocket         websocket.Client                                                        `yaml:"-" json:"-"`
-	UserPermCache     *syncmap.SyncMap[string, *syncmap.SyncMap[string, *GuildPermCacheItem]] `yaml:"-" json:"-"`
-	RetryConnectTimes int                                                                     `yaml:"-" json:"-"` // 重连次数
+	Session           *IMSession                                              `yaml:"-" json:"-"`
+	ClientID          string                                                  `yaml:"clientID" json:"clientID"`
+	Token             string                                                  `yaml:"token" json:"token"`
+	EndPoint          *EndPointInfo                                           `yaml:"-" json:"-"`
+	Client            client.Client                                           `yaml:"-" json:"-"`
+	WebSocket         websocket.Client                                        `yaml:"-" json:"-"`
+	UserPermCache     *SyncMap[string, *SyncMap[string, *GuildPermCacheItem]] `yaml:"-" json:"-"`
+	RetryConnectTimes int                                                     `yaml:"-" json:"-"` // 重连次数
 }
 
 const (
@@ -52,7 +51,7 @@ func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupID string) {
 		Name: info.ChannelName,
 		time: time.Now().Unix(),
 	})
-	groupInfo, ok := pa.Session.ServiceAt.Load(groupID)
+	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
 	if ok {
 		groupInfo.GroupName = info.ChannelName
 	}
@@ -267,7 +266,8 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 			pa.Session.Parent.Logger.Errorf("Dodo获取群信息失败:%s", err.Error())
 			return
 		}
-		guildIDMap := syncmap.NewSyncMap[string, *GuildPermCacheItem]()
+
+		guildIDMap := new(SyncMap[string, *GuildPermCacheItem])
 		guildIDMap.Store(userID, &GuildPermCacheItem{
 			Perm: aperm,
 			time: time.Now().Unix(),

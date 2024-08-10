@@ -133,7 +133,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 	}
 
 	mctx.Censored = true
-	groupInfo, ok := mctx.Session.ServiceAt.Load(msg.GroupID)
+	groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
 	if !ok {
 		d.Logger.Warn("Dice CenSor获取GroupInfo失败")
 	}

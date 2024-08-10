@@ -12,7 +12,6 @@ import (
 	sm "github.com/slack-go/slack/socketmode"
 
 	"sealdice-core/message"
-	"sealdice-core/utils/syncmap"
 )
 
 type PlatformAdapterSlack struct {
@@ -22,7 +21,7 @@ type PlatformAdapterSlack struct {
 	BotToken  string        `yaml:"botToken" json:"botToken"`
 	AppToken  string        `yaml:"appToken" json:"appToken"`
 	cancel    func()
-	userCache *syncmap.SyncMap[string, *slack.User]
+	userCache *SyncMap[string, *slack.User]
 	// msgCache  *SyncMap[string, int]
 }
 
@@ -276,7 +275,7 @@ func (pa *PlatformAdapterSlack) send(_ *MsgContext, id string, text string, _ st
 
 func (pa *PlatformAdapterSlack) getUser(user string) *slack.User {
 	if pa.userCache == nil {
-		pa.userCache = syncmap.NewSyncMap[string, *slack.User]()
+		pa.userCache = new(SyncMap[string, *slack.User])
 	}
 	if u, ok := pa.userCache.Load(user); ok {
 		return u

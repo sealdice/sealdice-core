@@ -13,7 +13,6 @@ import (
 
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
-	"sealdice-core/utils/syncmap"
 
 	"github.com/dop251/goja"
 	"github.com/fy0/lockfree"
@@ -75,19 +74,19 @@ type GroupPlayerInfoBase struct {
 type GroupPlayerInfo model.GroupPlayerInfoBase
 
 type GroupInfo struct {
-	Active           bool                                       `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
-	ActivatedExtList []*ExtInfo                                 `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
-	Players          *syncmap.SyncMap[string, *GroupPlayerInfo] `yaml:"-" json:"-"`                                    // 群员角色数据
+	Active           bool                               `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
+	ActivatedExtList []*ExtInfo                         `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
+	Players          *SyncMap[string, *GroupPlayerInfo] `yaml:"-" json:"-"`                                    // 群员角色数据
 
-	GroupID         string                         `yaml:"groupId" json:"groupId" jsbind:"groupId"`
-	GuildID         string                         `yaml:"guildId" json:"guildId" jsbind:"guildId"`
-	ChannelID       string                         `yaml:"channelId" json:"channelId" jsbind:"channelId"`
-	GroupName       string                         `yaml:"groupName" json:"groupName" jsbind:"groupName"`
-	DiceIDActiveMap *syncmap.SyncMap[string, bool] `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
-	DiceIDExistsMap *syncmap.SyncMap[string, bool] `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
-	BotList         *syncmap.SyncMap[string, bool] `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
-	DiceSideNum     int64                          `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
-	System          string                         `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
+	GroupID         string                 `yaml:"groupId" json:"groupId" jsbind:"groupId"`
+	GuildID         string                 `yaml:"guildId" json:"guildId" jsbind:"guildId"`
+	ChannelID       string                 `yaml:"channelId" json:"channelId" jsbind:"channelId"`
+	GroupName       string                 `yaml:"groupName" json:"groupName" jsbind:"groupName"`
+	DiceIDActiveMap *SyncMap[string, bool] `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	DiceIDExistsMap *SyncMap[string, bool] `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
+	BotList         *SyncMap[string, bool] `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
+	DiceSideNum     int64                  `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
+	System          string                 `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
 	// ValueMap     map[string]*VMValue `yaml:"-"`
 	ValueMap     lockfree.HashMap `yaml:"-" json:"-"`
@@ -193,7 +192,7 @@ func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
 
 func (group *GroupInfo) PlayerGet(db *sqlx.DB, id string) *GroupPlayerInfo {
 	if group.Players == nil {
-		group.Players = syncmap.NewSyncMap[string, *GroupPlayerInfo]()
+		group.Players = new(SyncMap[string, *GroupPlayerInfo])
 	}
 	p, exists := group.Players.Load(id)
 	if !exists {
@@ -217,7 +216,7 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 		return &GameSystemTemplate{
 			Name:     group.System,
 			FullName: "空白模板",
-			AliasMap: syncmap.NewSyncMap[string, string](),
+			AliasMap: new(SyncMap[string, string]),
 		}
 	}
 	// 没有system，查看扩展的启动情况
@@ -236,7 +235,7 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	blankTmpl := &GameSystemTemplate{
 		Name:     "空白模板",
 		FullName: "空白模板",
-		AliasMap: syncmap.NewSyncMap[string, string](),
+		AliasMap: new(SyncMap[string, string]),
 	}
 	return blankTmpl
 }
@@ -465,8 +464,8 @@ type IMSession struct {
 	Parent    *Dice           `yaml:"-"`
 	EndPoints []*EndPointInfo `yaml:"endPoints"`
 
-	ServiceAt      *syncmap.SyncMap[string, *GroupInfo]           `json:"servicesAt" yaml:"-"`
-	PlayerVarsData *syncmap.SyncMap[string, *PlayerVariablesItem] `yaml:"-"` // 感觉似乎没有什么存本地的必要
+	ServiceAtNew   *SyncMap[string, *GroupInfo]           `json:"servicesAt" yaml:"-"`
+	PlayerVarsData *SyncMap[string, *PlayerVariablesItem] `yaml:"-"` // 感觉似乎没有什么存本地的必要
 }
 
 type MsgContext struct {
@@ -557,7 +556,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	// 处理命令
 	if msg.MessageType == "group" || msg.MessageType == "private" { //nolint:nestif
 		// GroupEnableCheck TODO: 后续看看是否需要
-		groupInfo, ok := s.ServiceAt.Load(msg.GroupID)
+		groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 		if !ok && msg.GroupID != "" {
 			// 注意: 此处必须开启，不然下面mctx.player取不到
 			autoOn := true
@@ -581,9 +580,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			mctx.Notice(txt)
 
 			if msg.Platform == "QQ" || msg.Platform == "TG" {
-				// ServiceAt changed
+				// ServiceAtNew changed
 				// Pinenutn:这个i不知道是啥，放你一马（
-				activatedList, _ := mctx.Session.ServiceAt.Load(msg.GroupID)
+				activatedList, _ := mctx.Session.ServiceAtNew.Load(msg.GroupID)
 				if ok {
 					for _, i := range activatedList.ActivatedExtList {
 						if i.OnGroupJoined != nil {
@@ -920,7 +919,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	}
 
 	// 处理命令
-	groupInfo, ok := s.ServiceAt.Load(msg.GroupID)
+	groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 	if !ok && msg.GroupID != "" {
 		// 注意: 此处必须开启，不然下面mctx.player取不到
 		autoOn := true
@@ -947,7 +946,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		mctx.Notice(txt)
 
 		if msg.Platform == "QQ" || msg.Platform == "TG" {
-			groupInfo, ok = mctx.Session.ServiceAt.Load(msg.GroupID)
+			groupInfo, ok = mctx.Session.ServiceAtNew.Load(msg.GroupID)
 			if ok {
 				for _, i := range groupInfo.ActivatedExtList {
 					if i.OnGroupJoined != nil {
@@ -1317,7 +1316,7 @@ var lastWelcome *LastWelcomeInfo
 func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 	log := s.Parent.Logger
 
-	groupInfo, ok := s.ServiceAt.Load(msg.GroupID)
+	groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 	// 进群的是别人，是否迎新？
 	// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 	// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
@@ -1390,7 +1389,7 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 		selectedGroupEndpoints := []*GroupEndpointPair{} // 创建一个存放 grp 和 ep 组合的切片
 
 		// Pinenutn: Range模板 ServiceAtNew重构代码
-		s.ServiceAt.Range(func(key string, grp *GroupInfo) bool {
+		s.ServiceAtNew.Range(func(key string, grp *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			if strings.HasPrefix(grp.GroupID, "PG-") {
 				return true
@@ -1731,7 +1730,7 @@ func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
 	d := mctx.Dice
 	mctx.MessageType = msg.MessageType
 	mctx.IsPrivate = mctx.MessageType == "private"
-	group, ok := s.ServiceAt.Load(msg.GroupID)
+	group, ok := s.ServiceAtNew.Load(msg.GroupID)
 	if !ok {
 		return
 	}
@@ -1779,7 +1778,7 @@ func (s *IMSession) OnMessageEdit(ctx *MsgContext, msg *Message) {
 	)
 	s.Parent.Logger.Info(m)
 
-	if group, ok := s.ServiceAt.Load(msg.GroupID); ok {
+	if group, ok := s.ServiceAtNew.Load(msg.GroupID); ok {
 		ctx.Group = group
 	} else {
 		return
@@ -1883,9 +1882,9 @@ func (ep *EndPointInfo) AdapterSetup() {
 func (ep *EndPointInfo) RefreshGroupNum() {
 	serveCount := 0
 	session := ep.Session
-	if session != nil && session.ServiceAt != nil {
+	if session != nil && session.ServiceAtNew != nil {
 		// Pinenutn: Range模板 ServiceAtNew重构代码
-		session.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
+		session.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			if groupInfo.GroupID != "" {
 				if strings.HasPrefix(groupInfo.GroupID, "PG-") {
@@ -2300,7 +2299,7 @@ func (ctx *MsgContext) ChUnbind(name string) []string {
 	lst := ctx.ChBindGetList(name)
 
 	for _, groupID := range lst {
-		groupInfo, ok := ctx.Session.ServiceAt.Load(groupID)
+		groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
 		if ok {
 			p := groupInfo.PlayerGet(ctx.Dice.DBData, ctx.Player.UserID)
 			if p.Vars == nil || !p.Vars.Loaded {

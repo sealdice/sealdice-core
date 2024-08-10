@@ -29,7 +29,6 @@ import (
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
-	"sealdice-core/utils/syncmap"
 )
 
 var (
@@ -249,7 +248,7 @@ type Dice struct {
 	JsLoadingScript *JsScriptInfo `yaml:"-" json:"-"`
 
 	// 游戏系统规则模板
-	GameSystemMap *syncmap.SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
+	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
 
 	RunAfterLoaded []func() `yaml:"-" json:"-"`
 
@@ -361,12 +360,12 @@ func (d *Dice) Init() {
 	d.CommandCompatibleMode = true
 	// Pinenutn: 预先初始化对应的SyncMap
 	d.ImSession = &IMSession{
-		PlayerVarsData: syncmap.NewSyncMap[string, *PlayerVariablesItem](),
+		PlayerVarsData: new(SyncMap[string, *PlayerVariablesItem]),
 	}
 	d.ImSession.Parent = d
-	d.ImSession.ServiceAt = syncmap.NewSyncMap[string, *GroupInfo]()
+	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 	d.CmdMap = CmdMapCls{}
-	d.GameSystemMap = syncmap.NewSyncMap[string, *GameSystemTemplate]()
+	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	_ = d.ConfigManager.Load()
 
@@ -446,7 +445,7 @@ func (d *Dice) Init() {
 			for _, i := range d.ImSession.EndPoints {
 				if i.Enable {
 					// Pinenutn: Range模板 ServiceAtNew重构代码
-					d.ImSession.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
+					d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 						// Pinenutn: ServiceAtNew重构
 						// TODO: 注意这里的Active可能不需要改
 						if !strings.HasPrefix(key, "PG-") && groupInfo.Active {
@@ -634,7 +633,7 @@ func (d *Dice) ExtAliasToName(s string) string {
 
 func (d *Dice) ExtRemove(ei *ExtInfo) bool {
 	// Pinenutn: Range模板 ServiceAtNew重构代码
-	d.ImSession.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 		// Pinenutn: ServiceAtNew重构
 		groupInfo.ExtInactive(ei)
 		return true
@@ -743,7 +742,7 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 		// set 时从这里读取对应System名字的模板
 
 		// 同义词缓存
-		tmpl.AliasMap = syncmap.NewSyncMap[string, string]()
+		tmpl.AliasMap = new(SyncMap[string, string])
 		alias := tmpl.Alias
 		for k, v := range alias {
 			for _, i := range v {

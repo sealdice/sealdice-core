@@ -304,7 +304,7 @@ func (pa *PlatformAdapterSatori) refreshGroups() {
 				time: time.Now().Unix(),
 			})
 
-			groupInfo, ok := session.ServiceAt.Load(groupID)
+			groupInfo, ok := session.ServiceAtNew.Load(groupID)
 			if !ok {
 				// 新检测到群
 				ctx := &MsgContext{
@@ -334,7 +334,7 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 	log := d.Logger
 
 	groupID := formatDiceIDSatoriGroup(pa.Platform, group.ID)
-	groupInfo, ok := session.ServiceAt.Load(groupID)
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
 	next := ""
 	for {
 		req := map[string]interface{}{

@@ -20,7 +20,6 @@ import (
 
 	"sealdice-core/dice/model"
 	"sealdice-core/utils"
-	"sealdice-core/utils/syncmap"
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint
@@ -2134,7 +2133,7 @@ func (d *Dice) loads() {
 		d.DiceMasters = newDiceMasters
 		// 装载ServiceAtNew
 		// Pinenutn: So,我还是不知道ServiceAtNew到底是个什么鬼东西……太反直觉了……
-		d.ImSession.ServiceAt = syncmap.NewSyncMap[string, *GroupInfo]()
+		d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 		_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
 			var groupInfo GroupInfo
 			err := json.Unmarshal(data, &groupInfo)
@@ -2155,7 +2154,7 @@ func (d *Dice) loads() {
 						groupInfo.DiceIDExistsMap.Delete(i)
 					}
 				}
-				d.ImSession.ServiceAt.Store(id, &groupInfo)
+				d.ImSession.ServiceAtNew.Store(id, &groupInfo)
 			} else {
 				d.Logger.Errorf("加载群信息失败: %s", id)
 			}
@@ -2167,7 +2166,7 @@ func (d *Dice) loads() {
 		}
 		// 设置群扩展
 		// Pinenutn: Range模板 ServiceAtNew重构代码
-		d.ImSession.ServiceAt.Range(func(_ string, groupInfo *GroupInfo) bool {
+		d.ImSession.ServiceAtNew.Range(func(_ string, groupInfo *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			var tmp []*ExtInfo
 			for _, i := range groupInfo.ActivatedExtList {
@@ -2181,7 +2180,7 @@ func (d *Dice) loads() {
 
 		// 读取群变量
 		// Pinenutn: Range模板 ServiceAtNew重构代码
-		d.ImSession.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			// 群组数据
 			if groupInfo.ValueMap == nil {
@@ -2200,13 +2199,13 @@ func (d *Dice) loads() {
 				}
 			}
 			if groupInfo.DiceIDActiveMap == nil {
-				groupInfo.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
+				groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
 			}
 			if groupInfo.DiceIDExistsMap == nil {
-				groupInfo.DiceIDExistsMap = syncmap.NewSyncMap[string, bool]()
+				groupInfo.DiceIDExistsMap = new(SyncMap[string, bool])
 			}
 			if groupInfo.BotList == nil {
-				groupInfo.BotList = syncmap.NewSyncMap[string, bool]()
+				groupInfo.BotList = new(SyncMap[string, bool])
 			}
 			return true
 		})
@@ -2333,7 +2332,7 @@ func (d *Dice) loads() {
 		now := time.Now().Unix()
 
 		// Pinenutn: Range模板 ServiceAtNew重构代码
-		d.ImSession.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			dm.GroupNameCache.Set(key, &GroupNameCacheItem{Name: groupInfo.GroupName, time: now})
 			return true
@@ -2537,7 +2536,7 @@ func (d *Dice) Save(isAuto bool) {
 		}
 	}
 	// Pinenutn: Range模板 ServiceAtNew重构代码
-	d.ImSession.ServiceAt.Range(func(key string, groupInfo *GroupInfo) bool {
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 		// Pinenutn: ServiceAtNew重构
 		// 保存群内玩家信息
 		if groupInfo.Players != nil {

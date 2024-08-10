@@ -9,8 +9,6 @@ import (
 
 	"github.com/fy0/lockfree"
 	"golang.org/x/time/rate"
-
-	"sealdice-core/utils/syncmap"
 )
 
 var (
@@ -20,11 +18,11 @@ var (
 
 func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType string, groupID string) bool {
 	// Pinenutn: 总觉得这里还能优化，但是又想不到怎么优化，可恶，要长脑子了
-	a := messageType == "group" && session.ServiceAt.Exists(groupID)
+	a := messageType == "group" && session.ServiceAtNew.Exists(groupID)
 	if !a {
 		return false
 	}
-	groupInfo, ok := session.ServiceAt.Load(groupID)
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
 	if !ok {
 		// Pinenutn: 这里是否要打一下日志呢……
 		return false
@@ -35,10 +33,10 @@ func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType strin
 
 func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 	session := ctx.Session
-	groupInfo, ok := session.ServiceAt.Load(groupID)
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
 	if ok {
 		if groupInfo.DiceIDActiveMap == nil {
-			groupInfo.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
+			groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
 
 		// TODO: 进行更好的是否变更的检查
@@ -53,13 +51,13 @@ func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 // SetBotOnAtGroup 在群内开启
 func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	session := ctx.Session
-	group, ok := session.ServiceAt.Load(groupID)
+	group, ok := session.ServiceAtNew.Load(groupID)
 	if ok {
 		if group.DiceIDActiveMap == nil {
-			group.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
+			group.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
 		if group.DiceIDExistsMap == nil {
-			group.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
+			group.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
 		group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
 		group.Active = true
@@ -75,29 +73,29 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			}
 		}
 
-		session.ServiceAt.Store(groupID, &GroupInfo{
+		session.ServiceAtNew.Store(groupID, &GroupInfo{
 			Active:           true,
 			ActivatedExtList: extLst,
-			Players:          syncmap.NewSyncMap[string, *GroupPlayerInfo](),
+			Players:          new(SyncMap[string, *GroupPlayerInfo]),
 			GroupID:          groupID,
 			ValueMap:         lockfree.NewHashMap(),
-			DiceIDActiveMap:  syncmap.NewSyncMap[string, bool](),
-			DiceIDExistsMap:  syncmap.NewSyncMap[string, bool](),
+			DiceIDActiveMap:  new(SyncMap[string, bool]),
+			DiceIDExistsMap:  new(SyncMap[string, bool]),
 			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
 			UpdatedAtTime:    time.Now().Unix(),
 		})
 		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
-		group, _ = session.ServiceAt.Load(groupID)
+		group, _ = session.ServiceAtNew.Load(groupID)
 	}
 
 	if group.DiceIDActiveMap == nil {
-		group.DiceIDActiveMap = syncmap.NewSyncMap[string, bool]()
+		group.DiceIDActiveMap = new(SyncMap[string, bool])
 	}
 	if group.DiceIDExistsMap == nil {
-		group.DiceIDExistsMap = syncmap.NewSyncMap[string, bool]()
+		group.DiceIDExistsMap = new(SyncMap[string, bool])
 	}
 	if group.BotList == nil {
-		group.BotList = syncmap.NewSyncMap[string, bool]()
+		group.BotList = new(SyncMap[string, bool])
 	}
 
 	group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
@@ -117,8 +115,8 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		groupID = "PG-" + msg.Sender.UserID
 		SetBotOnAtGroup(ctx, groupID)
 	}
-	// Pinenutn:ServiceAt
-	groupInfo, ok := session.ServiceAt.Load(groupID)
+	// Pinenutn:ServiceAtNew
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
 	if !ok {
 		return nil, nil
 	}
@@ -325,7 +323,7 @@ func CrossMsgBySearch(se *IMSession, p, t, txt string, pr bool) bool {
 		Dice:     ep.Session.Parent,
 	}
 
-	if groupInfo, ok := mctx.Session.ServiceAt.Load(t); ok {
+	if groupInfo, ok := mctx.Session.ServiceAtNew.Load(t); ok {
 		mctx.IsCurGroupBotOn = groupInfo.Active
 		mctx.Group = groupInfo
 	}

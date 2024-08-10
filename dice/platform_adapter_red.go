@@ -22,7 +22,6 @@ import (
 	"github.com/samber/lo"
 
 	"sealdice-core/message"
-	"sealdice-core/utils/syncmap"
 )
 
 type PlatformAdapterRed struct {
@@ -40,7 +39,7 @@ type PlatformAdapterRed struct {
 
 	conn      *websocket.Conn
 	muxSend   sync.Mutex
-	memberMap *syncmap.SyncMap[string, *syncmap.SyncMap[string, *GroupMember]]
+	memberMap *SyncMap[string, *SyncMap[string, *GroupMember]]
 }
 
 type RedPack[T interface{}] struct {
@@ -580,7 +579,7 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 		return
 	}
 
-	groupInfo, ok := ctx.Session.ServiceAt.Load(groupId)
+	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
 	if ok {
 		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnMessageSend != nil {
@@ -675,14 +674,14 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 	if pa.memberMap == nil {
 		// Pinenutn: 不清楚在这种情况下，内部结构的兼容性如何，只能是走一步看一步
 		// 该说好消息是，似乎只有下面在用……
-		pa.memberMap = syncmap.NewSyncMap[string, *syncmap.SyncMap[string, *GroupMember]]()
+		pa.memberMap = new(SyncMap[string, *SyncMap[string, *GroupMember]])
 	}
 
 	refreshMembers := func(group *Group) {
 		groupID := formatDiceIDRedGroup(group.GroupCode)
 		members := pa.getMemberList(group.GroupCode, group.MemberCount)
-		groupInfo, ok := session.ServiceAt.Load(groupID)
-		groupMemberMap := syncmap.NewSyncMap[string, *GroupMember]()
+		groupInfo, ok := session.ServiceAtNew.Load(groupID)
+		groupMemberMap := new(SyncMap[string, *GroupMember])
 		for _, member := range members {
 			userID := formatDiceIDRed(member.Uin)
 			groupMemberMap.Store(userID, member)
@@ -716,7 +715,7 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 					time: time.Now().Unix(),
 				})
 
-				groupInfo, ok := session.ServiceAt.Load(groupId)
+				groupInfo, ok := session.ServiceAtNew.Load(groupId)
 				if !ok {
 					// 新检测到群
 					ctx := &MsgContext{

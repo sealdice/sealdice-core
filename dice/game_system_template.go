@@ -2,8 +2,6 @@ package dice
 
 import (
 	"strings"
-
-	"sealdice-core/utils/syncmap"
 )
 
 type AttributeOrderOthers struct {
@@ -65,7 +63,7 @@ type GameSystemTemplate struct {
 
 	// BasedOn           string                 `yaml:"based-on"`           // 基于规则
 
-	AliasMap *syncmap.SyncMap[string, string] `yaml:"-" json:"-"` // 别名/同义词
+	AliasMap *SyncMap[string, string] `yaml:"-" json:"-"` // 别名/同义词
 }
 
 func (t *GameSystemTemplate) GetAlias(varname string) string {
