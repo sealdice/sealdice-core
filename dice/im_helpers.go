@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fy0/lockfree"
 	"golang.org/x/time/rate"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 var (
@@ -78,7 +79,6 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			ActivatedExtList: extLst,
 			Players:          new(SyncMap[string, *GroupPlayerInfo]),
 			GroupID:          groupID,
-			ValueMap:         lockfree.NewHashMap(),
 			DiceIDActiveMap:  new(SyncMap[string, bool]),
 			DiceIDExistsMap:  new(SyncMap[string, bool]),
 			CocRuleIndex:     int(session.Parent.DefaultCocRuleIndex),
@@ -115,10 +115,11 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		groupID = "PG-" + msg.Sender.UserID
 		SetBotOnAtGroup(ctx, groupID)
 	}
+
 	// Pinenutn:ServiceAtNew
 	groupInfo, ok := session.ServiceAtNew.Load(groupID)
 	if !ok {
-		return nil, nil
+		groupInfo = SetBotOnAtGroup(ctx, groupID)
 	}
 	if msg.GuildID != "" {
 		groupInfo.GuildID = msg.GuildID
@@ -132,16 +133,15 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		p = &GroupPlayerInfo{
 			Name:          msg.Sender.Nickname,
 			UserID:        msg.Sender.UserID,
-			ValueMapTemp:  lockfree.NewHashMap(),
+			ValueMapTemp:  &ds.ValueMap{},
 			UpdatedAtTime: 0, // 新创建时不赋值，这样不会入库保存，减轻数据库负担
 		}
 		groupInfo.Players.Store(msg.Sender.UserID, p)
 	}
 	if p.ValueMapTemp == nil {
-		p.ValueMapTemp = lockfree.NewHashMap()
+		p.ValueMapTemp = &ds.ValueMap{}
 	}
 	p.InGroup = true
-	ctx.LoadPlayerGroupVars(groupInfo, p)
 	return groupInfo, p
 }
 
@@ -391,17 +391,6 @@ func (s ByLength) Less(i, j int) bool {
 	return len(s[i]) > len(s[j])
 }
 
-func DiceFormatTmpl(ctx *MsgContext, s string) string { //nolint:revive
-	var text string
-	a := ctx.Dice.TextMap[s]
-	if a == nil {
-		text = "<%未知项-" + s + "%>"
-	} else {
-		text = ctx.Dice.TextMap[s].Pick().(string)
-	}
-	return DiceFormat(ctx, text)
-}
-
 func CompatibleReplace(ctx *MsgContext, s string) string {
 	s = ctx.TranslateSplit(s)
 
@@ -418,7 +407,10 @@ func CompatibleReplace(ctx *MsgContext, s string) string {
 		s = DeckRewrite(s, func(deckName string) string {
 			// 如果牌组名中含有表达式, 在此进行求值
 			// 不含表达式也无妨, 求值完还是原来的字符串
-			deckName, _, _ = ctx.Dice.ExprText(deckName, ctx)
+			r, _, err := DiceExprTextBase(ctx, deckName, RollExtraFlags{})
+			if err == nil {
+				deckName = r.ToString()
+			}
 
 			exists, result, err := deckDraw(ctx, deckName, false)
 			if !exists {
@@ -431,13 +423,6 @@ func CompatibleReplace(ctx *MsgContext, s string) string {
 		})
 	}
 	return s
-}
-
-func DiceFormat(ctx *MsgContext, s string) string { //nolint:revive
-	s = CompatibleReplace(ctx, s)
-
-	r, _, _ := ctx.Dice.ExprText(s, ctx)
-	return r
 }
 
 func FormatDiceID(ctx *MsgContext, id interface{}, isGroup bool) string {

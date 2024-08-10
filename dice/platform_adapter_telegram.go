@@ -38,7 +38,7 @@ func (pa *PlatformAdapterTelegram) GetGroupInfoAsync(groupID string) {
 		return
 	}
 	dm := pa.Session.Parent.Parent
-	dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
+	dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 		Name: chat.Title,
 		time: time.Now().Unix(),
 	})
@@ -161,14 +161,14 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 }
 
 func (pa *PlatformAdapterTelegram) groupNewMember(msg *Message, msgRaw *tgbotapi.Message, member *tgbotapi.User) {
-	ucache := pa.Session.Parent.Parent.UserIDCache
+	ucache := &pa.Session.Parent.Parent.UserIDCache
 	logger := pa.Session.Parent.Logger
 	ep := pa.EndPoint
 	groupInfo, ok := pa.Session.ServiceAtNew.Load(msg.GroupID)
 	if member.UserName != "" {
-		_, cacheExist := ucache.Get(member.UserName)
+		_, cacheExist := ucache.Load(member.UserName)
 		if !cacheExist {
-			ucache.Set(member.UserName, member.ID)
+			ucache.Store(member.UserName, member.ID)
 		}
 	}
 	if ok && groupInfo.ShowGroupWelcome {
@@ -241,7 +241,7 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 }
 
 func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
-	ucache := pa.Session.Parent.Parent.UserIDCache
+	ucache := &pa.Session.Parent.Parent.UserIDCache
 	logger := pa.Session.Parent.Logger
 	self := pa.IntentSession.Self
 	msg := new(Message)
@@ -263,7 +263,7 @@ func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
 					} else {
 						// @的不是自己，查看是否能从用户名缓存中找到username
 						name := string(utf16.Decode(u16[entity.Offset+1 : entity.Offset+entity.Length]))
-						v, exist := ucache.Get(name)
+						v, exist := ucache.Load(name)
 						if exist {
 							replacedText += string(utf16.Decode(u16[index:entity.Offset])) + fmt.Sprintf("tg://user?id=%d", v)
 						} else {
@@ -293,9 +293,9 @@ func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
 			send.Nickname = m.From.FirstName
 		} else {
 			send.Nickname = m.From.UserName
-			_, cacheExist := ucache.Get(m.From.UserName)
+			_, cacheExist := ucache.Load(m.From.UserName)
 			if !cacheExist {
-				ucache.Set(m.From.UserName, m.From.ID)
+				ucache.Store(m.From.UserName, m.From.ID)
 			}
 		}
 		if m.From.ID == m.Chat.ID {

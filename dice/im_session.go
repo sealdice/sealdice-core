@@ -11,11 +11,12 @@ import (
 	"sync"
 	"time"
 
+	ds "github.com/sealdice/dicescript"
+
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
 
 	"github.com/dop251/goja"
-	"github.com/fy0/lockfree"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
@@ -56,9 +57,8 @@ type GroupPlayerInfoBase struct {
 	LastCommandTime     int64  `yaml:"lastCommandTime" jsbind:"lastCommandTime"`         // 上次发送指令时间
 	AutoSetNameTemplate string `yaml:"autoSetNameTemplate" jsbind:"autoSetNameTemplate"` // 名片模板
 
-	DiceSideNum  int                  `yaml:"diceSideNum"` // 面数，为0时等同于d100
-	Vars         *PlayerVariablesItem `yaml:"-"`           // 玩家的群内变量
-	ValueMapTemp lockfree.HashMap     `yaml:"-"`           // 玩家的群内临时变量
+	DiceSideNum  int    `yaml:"diceSideNum"`  // 面数，为0时等同于d100
+	DiceSideExpr string `yaml:"diceSideExpr"` // 面数，准备替代数字版本
 
 	TempValueAlias *map[string][]string `yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的，为什么在这里？
 
@@ -86,14 +86,13 @@ type GroupInfo struct {
 	DiceIDExistsMap *SyncMap[string, bool] `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
 	BotList         *SyncMap[string, bool] `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
 	DiceSideNum     int64                  `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
+	DiceSideExpr    string                 `yaml:"diceSideExpr" json:"diceSideExpr"`    //
 	System          string                 `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
-	// ValueMap     map[string]*VMValue `yaml:"-"`
-	ValueMap     lockfree.HashMap `yaml:"-" json:"-"`
-	HelpPackages []string         `yaml:"-" json:"helpPackages"`
-	CocRuleIndex int              `yaml:"cocRuleIndex" json:"cocRuleIndex" jsbind:"cocRuleIndex"`
-	LogCurName   string           `yaml:"logCurFile" json:"logCurName" jsbind:"logCurName"`
-	LogOn        bool             `yaml:"logOn" json:"logOn" jsbind:"logOn"`
+	HelpPackages []string `yaml:"-" json:"helpPackages"`
+	CocRuleIndex int      `yaml:"cocRuleIndex" json:"cocRuleIndex" jsbind:"cocRuleIndex"`
+	LogCurName   string   `yaml:"logCurFile" json:"logCurName" jsbind:"logCurName"`
+	LogOn        bool     `yaml:"logOn" json:"logOn" jsbind:"logOn"`
 
 	QuitMarkAutoClean   bool   `yaml:"-" json:"-"` // 自动清群 - 播报，即将自动退出群组
 	QuitMarkMaster      bool   `yaml:"-" json:"-"` // 骰主命令退群 - 播报，即将自动退出群组
@@ -204,6 +203,7 @@ func (group *GroupInfo) PlayerGet(db *sqlx.DB, id string) *GroupPlayerInfo {
 	return p
 }
 
+// GetCharTemplate 这个函数最好给ctx，在group下不合理，传入dice就很滑稽了
 func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	// 有system优先system
 	if group.System != "" {
@@ -458,14 +458,10 @@ func (ep *EndPointInfo) StatsDump(d *Dice) {
 	}
 }
 
-type PlayerVariablesItem model.PlayerVariablesItem
-
 type IMSession struct {
-	Parent    *Dice           `yaml:"-"`
-	EndPoints []*EndPointInfo `yaml:"endPoints"`
-
-	ServiceAtNew   *SyncMap[string, *GroupInfo]           `json:"servicesAt" yaml:"-"`
-	PlayerVarsData *SyncMap[string, *PlayerVariablesItem] `yaml:"-"` // 感觉似乎没有什么存本地的必要
+	Parent       *Dice                        `yaml:"-"`
+	EndPoints    []*EndPointInfo              `yaml:"endPoints"`
+	ServiceAtNew *SyncMap[string, *GroupInfo] `json:"servicesAt" yaml:"-"`
 }
 
 type MsgContext struct {
@@ -495,7 +491,9 @@ type MsgContext struct {
 	SpamCheckedGroup  bool
 	SpamCheckedPerson bool
 
-	splitKey string
+	splitKey      string
+	vm            *ds.Context
+	AttrsCurCache *AttributesItem
 }
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
@@ -1443,12 +1441,12 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 				}
 				hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
 				s.Parent.Logger.Info(hint)
-				msgText := DiceFormatTmpl(&MsgContext{Dice: s.Parent}, "核心:骰子自动退群告别语")
 				msgCtx := CreateTempCtx(ep, &Message{
 					MessageType: "group",
 					Sender:      SenderBase{UserID: ep.UserID},
 					GroupID:     grp.GroupID,
 				})
+				msgText := DiceFormatTmpl(msgCtx, "核心:骰子自动退群告别语")
 				ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
 				// 和我自制的鲨群机时间同步
 				time.Sleep(10 * time.Second)
@@ -1655,6 +1653,17 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			}
 		}
 
+		// 加载规则模板
+		// TODO: 注意一下这里使用群模板还是个人卡模板，目前群模板，可有情况特殊？
+		tmpl := ctx.SystemTemplate
+		if tmpl != nil {
+			ctx.Eval(tmpl.PreloadCode, nil)
+			if tmpl.Name == "dnd5e" {
+				// 这里面有buff机制的代码，所以需要加载
+				ctx.setDndReadForVM(false)
+			}
+		}
+
 		var ret CmdExecuteResult
 		// 如果是js命令，那么加锁
 		if item.IsJsSolveFunc {
@@ -1700,6 +1709,24 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	}
 
 	group := ctx.Group
+	builtinSolve := func() bool {
+		item := ctx.Session.Parent.CmdMap[cmdArgs.Command]
+		if tryItemSolve(nil, item) {
+			return true
+		}
+
+		if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
+			for _, i := range group.ActivatedExtList {
+				item := i.CmdMap[cmdArgs.Command]
+				if tryItemSolve(i, item) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	solved := builtinSolve()
 	if group.Active || ctx.IsCurGroupBotOn {
 		for _, i := range group.ActivatedExtList {
 			if i.OnCommandReceived != nil {
@@ -1710,20 +1737,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		}
 	}
 
-	item := ctx.Session.Parent.CmdMap[cmdArgs.Command]
-	if tryItemSolve(nil, item) {
-		return true
-	}
-
-	if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
-		for _, i := range group.ActivatedExtList {
-			item := i.CmdMap[cmdArgs.Command]
-			if tryItemSolve(i, item) {
-				return true
-			}
-		}
-	}
-	return false
+	return solved
 }
 
 func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
@@ -2043,308 +2057,6 @@ func (ctx *MsgContext) Notice(txt string) {
 		}
 	}
 	go foo()
-}
-
-// ChVarsGet 获取当前的角色变量
-func (ctx *MsgContext) ChVarsGet() (lockfree.HashMap, bool) {
-	// gvar := ctx.LoadPlayerGlobalVars()
-	_card, exists := ctx.Player.Vars.ValueMap.Get("$:card")
-	if exists {
-		card, ok := _card.(lockfree.HashMap)
-		if ok {
-			// 绑卡
-			// card.Iterate(func(_k interface{}, _v interface{}) error {
-			//	fmt.Println("????", _k, _v)
-			//	return nil
-			// })
-			return card, true
-		}
-	}
-	// 不绑卡
-	return ctx.Player.Vars.ValueMap, false
-}
-
-func (ctx *MsgContext) ChVarsUpdateTime() {
-	_card, exists := ctx.Player.Vars.ValueMap.Get("$:card")
-	if exists {
-		// 绑卡情况
-		if card, ok := _card.(lockfree.HashMap); ok {
-			if _v, ok := card.Get("$:cardName"); ok {
-				if v, ok := _v.(*VMValue); ok {
-					name, _ := v.ReadString()
-
-					if name != "" {
-						vars := ctx.LoadPlayerGlobalVars()
-						key := fmt.Sprintf("$:ch-bind-mtime:%s", name)
-						vars.ValueMap.Set(key, time.Now().Unix())
-						vars.LastWriteTime = time.Now().Unix()
-					}
-				}
-			}
-		}
-	} else {
-		// 不绑卡情况
-		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
-	}
-}
-
-func (ctx *MsgContext) ChVarsClear() int {
-	vars, isBind := ctx.ChVarsGet()
-	num := vars.Len()
-	if isBind {
-		// gvar := ctx.LoadPlayerGlobalVars()
-		num = 0
-		if _card, ok := ctx.Player.Vars.ValueMap.Get("$:card"); ok {
-			// 因为card可能在多个群关联，所以只有通过这种方式清空
-			if card, ok := _card.(lockfree.HashMap); ok {
-				items := []interface{}{}
-				_ = card.Iterate(func(_k interface{}, _v interface{}) error {
-					if _k == "$:cardName" {
-						return nil
-					}
-					if _k == "$cardType" {
-						return nil
-					}
-					items = append(items, _k)
-					return nil
-				})
-
-				num = len(items)
-				for _, i := range items {
-					card.Del(i)
-				}
-			}
-		}
-
-		ctx.ChVarsUpdateTime()
-		// gvar.LastWriteTime = time.Now().Unix()
-	} else {
-		p := ctx.Player
-		p.Vars.ValueMap = lockfree.NewHashMap()
-		p.Vars.LastWriteTime = time.Now().Unix()
-		ctx.ChVarsUpdateTime()
-	}
-	return num
-}
-
-func (ctx *MsgContext) ChVarsNumGet() int {
-	vars, _ := ctx.ChVarsGet()
-	num := vars.Len()
-	return num
-}
-
-func (ctx *MsgContext) ChExists(name string) bool {
-	vars := ctx.LoadPlayerGlobalVars()
-	varName := "$ch:" + name
-
-	if _, exists := vars.ValueMap.Get(varName); exists {
-		return true
-	}
-	return false
-}
-
-func (ctx *MsgContext) ChGet(name string) lockfree.HashMap {
-	vars := ctx.LoadPlayerGlobalVars()
-	varName := "$ch:" + name
-
-	if _data, exists := vars.ValueMap.Get(varName); exists {
-		data := _data.(*VMValue)
-		mapData := make(map[string]*VMValue)
-		err := JSONValueMapUnmarshal([]byte(data.Value.(string)), &mapData)
-
-		if err == nil {
-			m := lockfree.NewHashMap()
-			for k, v := range mapData {
-				m.Set(k, v)
-			}
-			return m
-		}
-	}
-	return nil
-}
-
-// ChLoad 加载角色，成功返回角色表，失败返回nil
-func (ctx *MsgContext) ChLoad(name string) lockfree.HashMap {
-	m := ctx.ChGet(name)
-	if m != nil {
-		ctx.Player.Name = name
-		ctx.Player.Vars.ValueMap = m
-		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
-		ctx.Player.UpdatedAtTime = time.Now().Unix()
-		return m
-	}
-	return nil
-}
-
-// ChNew 新建角色
-func (ctx *MsgContext) ChNew(name string) bool {
-	vars := ctx.LoadPlayerGlobalVars()
-	varName := "$ch:" + name
-
-	if _, exists := vars.ValueMap.Get(varName); exists {
-		return false
-	}
-
-	vars.ValueMap.Set(varName, &VMValue{
-		TypeID: VMTypeString,
-		Value:  "{}",
-	})
-
-	vars.LastWriteTime = time.Now().Unix()
-	return true
-}
-
-func (ctx *MsgContext) ChBindCur(name string) bool {
-	// 绑卡过程:
-	// 全局变量 $:group-bind:群号  = 卡片名 // 至少需要保留一个，用于序列化，VMValue
-	// 全局变量 $:ch-bind-data:角色  = 卡片数据 // 不序列化
-	// 全局变量 $:ch-bind-mtime:角色 = 时间 // 卡片被修改时，不序列化
-	// 个人群内 $:card = 卡片数据 // 不序列化
-	// 个人群内 $:cardBindMark = 1 // 标记
-	// 卡片数据中存放卡片名称，不序列化的部分，在加载个人全局变量时临时生成
-	vars := ctx.LoadPlayerGlobalVars()
-	key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
-
-	// 如果已经绑定过，继续用
-	var m lockfree.HashMap
-	_m, exists := vars.ValueMap.Get(key2)
-	if exists {
-		m, _ = _m.(lockfree.HashMap)
-	} else {
-		// 如果不存在，整一份新的
-		m = ctx.ChGet(name)
-	}
-
-	if m != nil {
-		m.Set("$:cardName", &VMValue{TypeID: VMTypeString, Value: name}) // 防止出事，覆盖一次
-		vars.ValueMap.Set(key2, m)                                       // 同上，$:ch-bind-data:角色 = 数据
-
-		// $:group-bind:群号  = 卡片名
-		key := fmt.Sprintf("$:group-bind:%s", ctx.Group.GroupID)
-		vars.ValueMap.Set(key, &VMValue{TypeID: VMTypeString, Value: name})
-		// fmt.Println("$$$$$$$$$$$$$$", key)
-		vars.LastWriteTime = time.Now().Unix()
-
-		// $:card = 卡片数据
-		ctx.Player.Vars.ValueMap.Set("$:card", m)
-		ctx.Player.Vars.ValueMap.Set("$:cardBindMark", &VMValue{TypeID: VMTypeInt64, Value: 1})
-		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
-		ctx.Player.Name = name
-		ctx.Player.UpdatedAtTime = time.Now().Unix()
-		return true
-	}
-	return false
-}
-
-func (ctx *MsgContext) ChUnbindCur() (string, bool) {
-	if _, exists := ctx.Player.Vars.ValueMap.Get("$:card"); exists {
-		name := ctx.ChBindCurGet()
-		vars := ctx.LoadPlayerGlobalVars()
-		key := fmt.Sprintf("$:group-bind:%s", ctx.Group.GroupID)
-		vars.ValueMap.Del(key)
-
-		ctx.Player.Vars.ValueMap.Del("$:card")
-		ctx.Player.Vars.ValueMap.Del("$:cardBindMark")
-		ctx.Player.Vars.LastWriteTime = time.Now().Unix()
-
-		lst := ctx.ChBindGetList(name)
-
-		if len(lst) == 0 {
-			// 没有群绑这个卡了，释放内存
-			vars := ctx.LoadPlayerGlobalVars()
-			key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
-			vars.ValueMap.Del(key2)
-			vars.LastWriteTime = time.Now().Unix()
-		}
-
-		return name, true
-	}
-	return "", false
-}
-
-// ChBindCurGet 获取当前群绑定角色
-func (ctx *MsgContext) ChBindCurGet() string {
-	if _card, exists := ctx.Player.Vars.ValueMap.Get("$:card"); exists {
-		if card, ok := _card.(lockfree.HashMap); ok {
-			if _v, ok := card.Get("$:cardName"); ok {
-				if v, ok := _v.(*VMValue); ok {
-					name, _ := v.ReadString()
-					return name
-				}
-			}
-		}
-	}
-	return ""
-}
-
-// ChBindGet 获取一个正在绑定状态的卡，可用于该卡片是否绑卡检测
-func (ctx *MsgContext) ChBindGet(name string) lockfree.HashMap {
-	vars := ctx.LoadPlayerGlobalVars()
-	key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
-
-	var m lockfree.HashMap
-	_m, exists := vars.ValueMap.Get(key2)
-	if exists {
-		m, _ = _m.(lockfree.HashMap)
-		if m != nil {
-			return m
-		}
-	}
-
-	return nil
-}
-
-// ChUnbind 解除某个角色的绑定
-func (ctx *MsgContext) ChUnbind(name string) []string {
-	lst := ctx.ChBindGetList(name)
-
-	for _, groupID := range lst {
-		groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
-		if ok {
-			p := groupInfo.PlayerGet(ctx.Dice.DBData, ctx.Player.UserID)
-			if p.Vars == nil || !p.Vars.Loaded {
-				LoadPlayerGroupVars(ctx.Dice, groupInfo, p)
-			}
-			p.Vars.ValueMap.Del("$:card")
-			p.Vars.ValueMap.Del("$:cardBindMark")
-			p.Vars.LastWriteTime = time.Now().Unix()
-		}
-	}
-
-	if len(lst) > 0 {
-		// 没有群绑这个卡了，释放内存
-		vars := ctx.LoadPlayerGlobalVars()
-		key2 := fmt.Sprintf("$:ch-bind-data:%s", name)
-		vars.ValueMap.Del(key2)
-		for _, i := range lst {
-			// 删除绑定标记
-			vars.ValueMap.Del(fmt.Sprintf("$:group-bind:%s", i))
-		}
-		vars.LastWriteTime = time.Now().Unix()
-	}
-
-	return lst
-}
-
-func (ctx *MsgContext) ChBindGetList(name string) []string {
-	vars := ctx.LoadPlayerGlobalVars()
-	groups := map[string]bool{}
-	_ = vars.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
-		k := _k.(string)
-		if v, ok := _v.(*VMValue); ok {
-			if strings.HasPrefix(k, "$:group-bind:") {
-				if val, _ := v.ReadString(); val == name {
-					groups[k[len("$:group-bind:"):]] = true
-				}
-			}
-		}
-		return nil
-	})
-	var grps []string
-	for k := range groups {
-		grps = append(grps, k)
-	}
-	return grps
 }
 
 func (ctx *MsgContext) InitSplitKey() {
