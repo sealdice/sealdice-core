@@ -2564,7 +2564,6 @@ func (d *Dice) Save(isAuto bool) {
 				}
 				groupInfo.UpdatedAtTime = 0
 			}
-
 		}
 		return true
 	})
