@@ -93,9 +93,18 @@ func (i *ConfigItem) UnmarshalJSON(data []byte) error {
 		i.DefaultValue = raw["defaultValue"]
 		i.Value = raw["value"]
 	case "int":
-		i.DefaultValue = int64(raw["defaultValue"].(float64))
+		// 2024.08.09 1.4.6首发版本unmarshal产生类型报错修复
+		if v, ok := raw["defaultValue"].(float64); ok {
+			i.DefaultValue = int64(v)
+		} else if v, ok := raw["defaultValue"].(int64); ok {
+			i.DefaultValue = v
+		}
 		if v, ok := raw["value"]; ok {
-			i.Value = int64(v.(float64))
+			if v2, ok := v.(float64); ok {
+				i.Value = int64(v2)
+			} else if v2, ok := v.(int64); ok {
+				i.Value = v2
+			}
 		}
 	case "template":
 		{
@@ -2607,7 +2616,10 @@ func (d *Dice) Save(isAuto bool) {
 			allCount++
 		}
 	}
-	d.Logger.Infof("本次ServiceAtNew群组数据，保存影响数据库操作数为: %d", allCount)
+	// 会频繁刷屏，改为控制台输出
+	if allCount > 0 {
+		fmt.Printf("本次ServiceAtNew群组数据，保存影响数据库操作数为: %d\n", allCount)
+	}
 	// 同步绑定的角色卡数据
 	chPrefix := "$:ch-bind-mtime:"
 	chPrefixData := "$:ch-bind-data:"
