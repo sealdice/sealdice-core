@@ -580,8 +580,9 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 		return
 	}
 
-	if ctx.Session.ServiceAtNew[groupId] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
+	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
+	if ok {
+		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnMessageSend(ctx, &Message{
@@ -672,18 +673,20 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 	s := pa.Session
 	session := s
 	if pa.memberMap == nil {
-		pa.memberMap = &SyncMap[string, *SyncMap[string, *GroupMember]]{}
+		// Pinenutn: 不清楚在这种情况下，内部结构的兼容性如何，只能是走一步看一步
+		// 该说好消息是，似乎只有下面在用……
+		pa.memberMap = new(SyncMap[string, *SyncMap[string, *GroupMember]])
 	}
 
 	refreshMembers := func(group *Group) {
 		groupID := formatDiceIDRedGroup(group.GroupCode)
 		members := pa.getMemberList(group.GroupCode, group.MemberCount)
-		groupInfo := session.ServiceAtNew[groupID]
-		groupMemberMap := &SyncMap[string, *GroupMember]{}
+		groupInfo, ok := session.ServiceAtNew.Load(groupID)
+		groupMemberMap := new(SyncMap[string, *GroupMember])
 		for _, member := range members {
 			userID := formatDiceIDRed(member.Uin)
 			groupMemberMap.Store(userID, member)
-			if groupInfo != nil {
+			if ok {
 				p := groupInfo.PlayerGet(d.DBData, userID)
 				if p == nil {
 					name := member.CardName
@@ -713,8 +716,8 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 					time: time.Now().Unix(),
 				})
 
-				groupInfo := session.ServiceAtNew[groupId]
-				if groupInfo == nil {
+				groupInfo, ok := session.ServiceAtNew.Load(groupId)
+				if !ok {
 					// 新检测到群
 					ctx := &MsgContext{
 						Session:  session,

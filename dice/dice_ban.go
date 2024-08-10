@@ -205,15 +205,15 @@ func (i *BanListInfo) addJointScore(_ string, score int64, place string, reason 
 		i.AddScoreBase(place, int64(score), place, reason, ctx)
 	}
 	if i.JointScorePercentOfInviter > 0 {
-		group := d.ImSession.ServiceAtNew[place]
-		if group != nil && group.InviteUserID != "" {
-			rank := i.NoticeCheckPrepare(group.InviteUserID)
+		groupInfo, ok := d.ImSession.ServiceAtNew.Load(place)
+		if ok && groupInfo.InviteUserID != "" {
+			rank := i.NoticeCheckPrepare(groupInfo.InviteUserID)
 			score := i.JointScorePercentOfInviter * float64(score)
-			i.AddScoreBase(group.InviteUserID, int64(score), place, reason, ctx)
+			i.AddScoreBase(groupInfo.InviteUserID, int64(score), place, reason, ctx)
 
-			// text := fmt.Sprintf("提醒: 你邀请的骰子在群组<%s>中被禁言/踢出/指令刷屏了", group.GroupName)
-			// ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserId: group.InviteUserId}}, text, "")
-			return group.InviteUserID, rank
+			// text := fmt.Sprintf("提醒: 你邀请的骰子在群组<%s>中被禁言/踢出/指令刷屏了", groupInfo.GroupName)
+			// ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserId: groupInfo.InviteUserId}}, text, "")
+			return groupInfo.InviteUserID, rank
 		}
 	}
 	return "", BanRankNormal
@@ -267,12 +267,12 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 
 		// 发给邀请者
 		time.Sleep(1 * time.Second)
-		group := i.Parent.ImSession.ServiceAtNew[place]
-		if group != nil && group.InviteUserID != "" {
-			VarSetValueStr(ctx, "$t事发群名", group.GroupName)
-			VarSetValueStr(ctx, "$t事发群号", group.GroupID)
+		groupInfo, ok := i.Parent.ImSession.ServiceAtNew.Load(place)
+		if ok && groupInfo.InviteUserID != "" {
+			VarSetValueStr(ctx, "$t事发群名", groupInfo.GroupName)
+			VarSetValueStr(ctx, "$t事发群号", groupInfo.GroupID)
 			text := DiceFormatTmpl(ctx, "核心:黑名单触发_邀请人")
-			ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserID: group.InviteUserID}}, text, "")
+			ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserID: groupInfo.InviteUserID}}, text, "")
 		}
 	}
 
