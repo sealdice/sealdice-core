@@ -199,9 +199,12 @@ func (d *Dice) JsInit() {
 				ei.OnLoad()
 			}
 			d.ApplyExtDefaultSettings()
-			for _, i := range d.ImSession.ServiceAtNew {
-				i.ExtActive(ei)
-			}
+			// Pinenutn: Range模板 ServiceAtNew重构代码
+			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+				// Pinenutn: ServiceAtNew重构
+				groupInfo.ExtActive(ei)
+				return true
+			})
 		})
 		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string) error {
 			if ei.dice == nil {
@@ -621,7 +624,8 @@ func (d *Dice) jsClear() {
 	// 清理脚本列表
 	d.JsScriptList = []*JsScriptInfo{}
 	// 清理规则模板
-	d.GameSystemMap = &SyncMap[string, *GameSystemTemplate]{}
+	// Pinenutn: 由于切换成了其他的syncMap，所以初始化策略需要修改
+	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.RegisterBuiltinSystemTemplate()
 	// 关闭js vm
 	if d.JsLoop != nil {

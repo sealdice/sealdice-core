@@ -366,9 +366,10 @@ func (d *Dice) Init() {
 	initVerify()
 
 	d.CommandCompatibleMode = true
+	// Pinenutn: 预先初始化对应的SyncMap
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
-	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
+	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 	d.CmdMap = CmdMapCls{}
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
@@ -449,23 +450,24 @@ func (d *Dice) Init() {
 			// 自动更新群信息
 			for _, i := range d.ImSession.EndPoints {
 				if i.Enable {
-					for k, v := range d.ImSession.ServiceAtNew {
+					// Pinenutn: Range模板 ServiceAtNew重构代码
+					d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+						// Pinenutn: ServiceAtNew重构
 						// TODO: 注意这里的Active可能不需要改
-						if !strings.HasPrefix(k, "PG-") && v.Active {
+						if !strings.HasPrefix(key, "PG-") && groupInfo.Active {
 							diceID := i.UserID
 							now := time.Now().Unix()
 
 							// 上次被人使用小于60s
-							if now-v.RecentDiceSendTime < 60 {
+							if now-groupInfo.RecentDiceSendTime < 60 {
 								// 在群内存在，且开启时
-								if _, exists := v.DiceIDExistsMap.Load(diceID); exists {
-									if _, exists := v.DiceIDActiveMap.Load(diceID); exists {
-										i.Adapter.GetGroupInfoAsync(k)
-									}
+								if groupInfo.DiceIDExistsMap.Exists(diceID) && groupInfo.DiceIDActiveMap.Exists(diceID) {
+									i.Adapter.GetGroupInfoAsync(key)
 								}
 							}
 						}
-					}
+						return true
+					})
 				}
 			}
 		}
@@ -637,9 +639,12 @@ func (d *Dice) ExtAliasToName(s string) string {
 }
 
 func (d *Dice) ExtRemove(ei *ExtInfo) bool {
-	for _, i := range d.ImSession.ServiceAtNew {
-		i.ExtInactive(ei)
-	}
+	// Pinenutn: Range模板 ServiceAtNew重构代码
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		// Pinenutn: ServiceAtNew重构
+		groupInfo.ExtInactive(ei)
+		return true
+	})
 
 	for index, i := range d.ExtList {
 		if i == ei {
