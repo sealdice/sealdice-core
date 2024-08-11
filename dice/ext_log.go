@@ -518,7 +518,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 	helpOb := `.ob // 进入ob模式
 .ob exit // 退出ob
-.stat help // 帮助
+.ob help // 帮助
 `
 	cmdOb := &CmdItemInfo{
 		Name:          "ob",
@@ -915,7 +915,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	return tempLog, nil
 }
 
-func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
+func LogSendT。ackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
 	dice := ctx.Dice
 	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
