@@ -11,11 +11,12 @@ import (
 	"sync"
 	"time"
 
-	ds "github.com/sealdice/dicescript"
-	rand2 "golang.org/x/exp/rand"
-
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
+
+	"github.com/golang-module/carbon"
+	ds "github.com/sealdice/dicescript"
+	rand2 "golang.org/x/exp/rand"
 
 	"github.com/dop251/goja"
 	"github.com/jmoiron/sqlx"
@@ -1486,8 +1487,18 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	}
 
 	banQuitGroup := func() {
+		v, _ := d.BanList.Map.Load(msg.Sender.UserID)
+		var reasontext = fmt.Sprintf("黑名单原因：")
+		for i, reason := range v.Reasons {
+			reasontext += fmt.Sprintf(
+				"\n%s在「%s」，原因：%s",
+				carbon.CreateFromTimestamp(v.Times[i]).ToDateTimeString(),
+				v.Places[i],
+				reason,
+			)
+		}
 		groupID := msg.GroupID
-		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 		log.Info(noticeMsg)
 
 		text := fmt.Sprintf("因<%s>(%s)是黑名单用户，将自动退群。", msg.Sender.Nickname, msg.Sender.UserID)
@@ -1503,6 +1514,16 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		groupLevel := ctx.GroupRoleLevel
 		if d.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
+			v, _ := d.BanList.Map.Load(msg.Sender.UserID)
+			var reasontext = fmt.Sprintf("黑名单原因：")
+			for i, reason := range v.Reasons {
+				reasontext += fmt.Sprintf(
+					"\n%s在「%s」，原因：%s",
+					carbon.CreateFromTimestamp(v.Times[i]).ToDateTimeString(),
+					v.Places[i],
+					reason,
+				)
+			}
 			groupID := msg.GroupID
 			notReply = true
 			if groupLevel >= 40 {
@@ -1512,7 +1533,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 					text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知并退群。", msg.Sender.Nickname, msg.Sender.UserID)
 					ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 
-					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是管理以上权限，执行通告后自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是管理以上权限，执行通告后自动退群\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 					log.Info(noticeMsg)
 					ctx.Notice(noticeMsg)
 					banQuitGroup()
@@ -1522,7 +1543,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 					log.Infof("收到群(%s)内普通群员黑名单用户<%s>(%s)的消息，但在信任群所以不做其他操作", groupID, msg.Sender.Nickname, msg.Sender.UserID)
 				} else {
 					notReply = true
-					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 					log.Info(noticeMsg)
 
 					text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
@@ -1549,11 +1570,21 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		if d.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
 			notReply = true
 			// 黑名单群 - 立即退出
+			v, _ := d.BanList.Map.Load(msg.Sender.UserID)
+			var reasontext = fmt.Sprintf("黑名单原因：")
+			for i, reason := range v.Reasons {
+				reasontext += fmt.Sprintf(
+					"\n%s在「%s」，原因：%s",
+					carbon.CreateFromTimestamp(v.Times[i]).ToDateTimeString(),
+					v.Places[i],
+					reason,
+				)
+			}
 			groupID := msg.GroupID
 			if isWhiteGroup {
 				log.Infof("群(%s)处于黑名单中，但在信任群所以不尝试退群", groupID)
 			} else {
-				noticeMsg := fmt.Sprintf("群(%s)处于黑名单中，自动退群", groupID)
+				noticeMsg := fmt.Sprintf("群(%s)处于黑名单中，自动退群\n%s", groupID, reasontext)
 				log.Info(noticeMsg)
 
 				ReplyGroupRaw(ctx, &Message{GroupID: groupID}, "因本群处于黑名单中，将自动退群。", "")
