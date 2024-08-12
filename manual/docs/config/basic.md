@@ -73,7 +73,7 @@ title: 基础设置
 
 请使用：
 
-- 海豹版本 <Badge type="tip" text="1.4.6" /> 之前的内置客户端
+- 海豹版本 <Badge type="tip" text="v1.4.6" /> 之前的内置客户端
 - <Badge type="tip" text="6e350b0" /> 之前的 Lagrange
 - <Badge type="tip" text="v3.27.0" /> 之前的 LLOneBot
 - <Badge type="tip" text="v1.6.7" /> 之前的 Napcat
