@@ -24,7 +24,7 @@ title: 名词/术语速查表
 
 本节旨在帮助先前未曾接触过计算机以及服务器，或者对计算机及服务器知之甚少的用户快速查询特定名词/术语的含义。本节不能代替权威解释或各项目的官方文档。
 
-关于如何正确地提问，请看 [如何正确提问](./newbie_question)，关于如何快速学习相关背景知识，请看 [如何高效学习](./newbie_learn.md)；关于一些小白常见的问题，请看 [计算机小白常见问题](./newbie_faq.md)。
+关于如何正确地提问，请看 [如何正确提问](./archive-guide#如何正确提问)，关于如何快速学习相关背景知识，请看 [如何高效学习](./archive-guide#如何高效学习)；关于一些小白常见的问题，请看 [计算机小白常见问题](./archive-guide#计算机小白常见问题)。
 
 :::
 
@@ -66,7 +66,7 @@ CQ 码是酷 Q （CoolQ） 时代定义的一套接口语言，方便用户快�
 
 海豹核心要求的、和实际运行时的工作目录即为「包含 `sealdice-core(.exe)` 文件和 `data` 目录、通常还包含 `lagrange` 目录」的目录（文件夹）。
 
-海豹工作目录内的文件结构可以参考 [海豹的本地文件](./about_file)。
+海豹工作目录内的文件结构可以参考 [海豹的本地文件](../deploy/about_file)。
 
 ## H
 
@@ -116,7 +116,7 @@ Lagrange（拉格兰）是一个 [NTQQ](#ntqq) 协议相关的开源项目。其
 
 Lagrange 可以很方便的在多个平台（Windows、Linux、Mac）部署，海豹核心可以对接其提供的 OneBot-V11 Api 来提供 QQ 骰子服务。
 
-可以参考 [连接平台 - QQ](./platform-qq) 中 [有关的部分](./platform-qq#lagrange) 和 Lagrange 的官方 [GitHub 页面](https://github.com/LagrangeDev/Lagrange.Core)。
+可以参考 [连接平台 - QQ](../deploy/platform-qq) 中 [有关的部分](../deploy/platform-qq#Lagrange) 和 Lagrange 的官方 [GitHub 页面](https://github.com/LagrangeDev/Lagrange.Core)。
 
 ### Linux
 
@@ -128,7 +128,7 @@ Linux 的主要优点包括稳定性、安全性、低成本（大部分 Linux �
 
 [LiteLoaderQQNT](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)（LiteLoader）是 [NTQQ](#ntqq) 的插件加载器，允许通过插件注入 QQ 实现某些特定的功能。
 
-可以参考 [连接平台 - QQ](./platform-qq) 中 [有关的部分](./platform-qq#llonebot) 和 LiteLoader 的官方 [GitHub 页面](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)。
+可以参考 [连接平台 - QQ](../deploy/platform-qq) 中 [有关的部分](../deploy/platform-qq#llonebot) 和 LiteLoader 的官方 [GitHub 页面](https://github.com/LiteLoaderQQNT/LiteLoaderQQNT)。
 
 ### Log
 
@@ -166,7 +166,7 @@ Linux 的主要优点包括稳定性、安全性、低成本（大部分 Linux �
 
 NapCatQQ 是基于 PC [NTQQ](#ntqq) 本体实现一套 [无头](#无头) Bot 框架。
 
-可以参考 [连接平台 - QQ](./platform-qq) 中 [有关的部分](./platform-qq#napcatqq) 和 NapCatQQ 的官方 [GitHub 页面](https://github.com/NapNeko/NapCatQQ)。
+可以参考 [连接平台 - QQ](../deploy/platform-qq) 中 [有关的部分](../deploy/platform-qq#napcatqq) 和 NapCatQQ 的官方 [GitHub 页面](https://github.com/NapNeko/NapCatQQ)。
 
 ### NTQQ
 

@@ -3,15 +3,6 @@ export const deployNav = {
   base: "",
   items: [
     {
-      text: "基础知识（电脑小白先看我）",
-      items: [
-        { text: "如何正确提问", link: "/deploy/newbie_question" },
-        { text: "如何高效学习", link: "/deploy/newbie_learn" },
-        { text: "计算机小白常见问题", link: "/deploy/newbie_faq" },
-        { text: "名词/术语速查表", link: "/deploy/newbie_terms" },
-      ],
-    },
-    {
       text: "部署指南",
       items: [
         { text: "快速开始", link: "/deploy/quick-start" },
@@ -49,15 +40,6 @@ export const deploySidebar = {
   text: "部署",
   base: "",
   items: [
-    {
-      text: "基础知识（电脑小白先看我）",
-      items: [
-        { text: "如何正确提问", link: "/deploy/newbie_question" },
-        { text: "如何高效学习", link: "/deploy/newbie_learn" },
-        { text: "计算机小白常见问题", link: "/deploy/newbie_faq" },
-        { text: "名词/术语速查表", link: "/deploy/newbie_terms" },
-      ],
-    },
     {
       text: "部署指南",
       items: [
@@ -276,6 +258,6 @@ export const about = {
     { text: "关于", link: "/about/about" },
     { text: "许可协议", link: "/about/license" },
     { text: "参与项目", link: "/about/develop" },
-    { text: "归档", link: "/about/archieve" },
+    { text: "归档内容", link: "/archive/README" },
   ],
 }

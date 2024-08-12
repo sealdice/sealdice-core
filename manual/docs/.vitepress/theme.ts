@@ -28,6 +28,7 @@ export const theme: DefaultTheme.Config = {
     "/use/": useSidebar,
     "/advanced/": advanced,
     "/about/": about,
+    "/archive/": about,
   } as DefaultTheme.SidebarMulti,
   outline: {
     label: '页面导航',
