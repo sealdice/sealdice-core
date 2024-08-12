@@ -1488,7 +1488,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 
 	banQuitGroup := func() {
 		v, _ := d.BanList.Map.Load(msg.Sender.UserID)
-		var reasontext = fmt.Sprintf("黑名单原因：")
+		var reasontext = "黑名单原因："
 		for i, reason := range v.Reasons {
 			reasontext += fmt.Sprintf(
 				"\n%s在「%s」，原因：%s",
@@ -1515,7 +1515,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		if d.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
 			v, _ := d.BanList.Map.Load(msg.Sender.UserID)
-			var reasontext = fmt.Sprintf("黑名单原因：")
+			var reasontext = "黑名单原因："
 			for i, reason := range v.Reasons {
 				reasontext += fmt.Sprintf(
 					"\n%s在「%s」，原因：%s",
@@ -1570,8 +1570,8 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		if d.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
 			notReply = true
 			// 黑名单群 - 立即退出
-			v, _ := d.BanList.Map.Load(msg.Sender.UserID)
-			var reasontext = fmt.Sprintf("黑名单原因：")
+			v, _ := d.BanList.Map.Load(msg.GroupID)
+			var reasontext = "黑名单原因："
 			for i, reason := range v.Reasons {
 				reasontext += fmt.Sprintf(
 					"\n%s在「%s」，原因：%s",
