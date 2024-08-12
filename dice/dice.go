@@ -3,7 +3,6 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -762,22 +761,27 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 	return false
 }
 
-var randSource = rand2.NewSource(uint64(time.Now().Unix()))
+// var randSource = rand2.NewSource(uint64(time.Now().Unix()))
+var randSource = &rand2.PCGSource{}
 
 func DiceRoll(dicePoints int) int { //nolint:revive
 	if dicePoints <= 0 {
 		return 0
 	}
-	val := int(randSource.Uint64()%math.MaxInt32)%dicePoints + 1
-	return val
+	val := ds.Roll(randSource, ds.IntType(dicePoints), 0)
+	return int(val)
+}
+
+func DiceRoll64x(src *rand2.PCGSource, dicePoints int64) int64 { //nolint:revive
+	if src == nil {
+		src = randSource
+	}
+	val := ds.Roll(src, ds.IntType(dicePoints), 0)
+	return int64(val)
 }
 
 func DiceRoll64(dicePoints int64) int64 { //nolint:revive
-	if dicePoints == 0 {
-		return 0
-	}
-	val := int64(randSource.Uint64()%math.MaxInt64)%dicePoints + 1
-	return val
+	return DiceRoll64x(nil, dicePoints)
 }
 
 func CrashLog() {
