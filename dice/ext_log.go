@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/golang-module/carbon"
+	ds "github.com/sealdice/dicescript"
 	"go.uber.org/zap"
 
 	"sealdice-core/dice/model"
@@ -1061,12 +1063,12 @@ func LogRollBriefByPC(ctx *MsgContext, items []*model.LogOneItem, showAll bool, 
 					}
 					continue
 				case "st":
-					items, ok2 := info["items"].([]interface{})
+					items, ok2 := info["items"].([]any)
 					if !ok2 {
 						continue
 					}
 					for _, _j := range items {
-						j, ok2 := _j.(map[string]interface{})
+						j, ok2 := _j.(map[string]any)
 						if !ok2 {
 							continue
 						}
@@ -1074,16 +1076,33 @@ func LogRollBriefByPC(ctx *MsgContext, items []*model.LogOneItem, showAll bool, 
 						setupName(nickname)
 
 						if j["type"] == "mod" {
+							readNum := func(dataKey, key string) {
+								if val, ok := j[dataKey].(float64); ok {
+									// 旧版本兼容，float64是因为json unmarshal默认就是这个
+									pcInfo[nickname][key] = int(val)
+								} else {
+									// TODO: 处理的不是很好，这里后续大段代码依赖了值为int的情况，但是现在实际可以为任何类型，只是不常用
+									b, _ := json.Marshal(j[dataKey])
+									var v ds.VMValue
+									if err := v.UnmarshalJSON(b); err != nil {
+										if v.TypeId == ds.VMTypeInt {
+											i, _ := v.ReadInt()
+											pcInfo[nickname][key] = int(i)
+										}
+									}
+								}
+							}
+
 							attr := getName(j["attr"].(string))
 							// 如果没有旧值，弄一个
 							key := fmt.Sprintf("%v:旧值", attr)
 							if pcInfo[nickname][key] == 0 {
-								pcInfo[nickname][key] = int(j["valOld"].(float64))
+								readNum("valOld", key)
 							}
 
 							key2 := fmt.Sprintf("%v:新值", attr)
 							// if pcInfo[nickname][key2] == 0 {
-							pcInfo[nickname][key2] = int(j["valNew"].(float64))
+							readNum("valNew", key2)
 							// }
 						}
 					}
