@@ -102,9 +102,10 @@ func getAutoStart() *autostart.App {
 var systrayQuited bool = false
 
 func onReady() {
+	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 	systray.SetIcon(icon.Data)
 	systray.SetTitle("海豹TRPG骰点核心")
-	systray.SetTooltip("海豹TRPG骰点核心")
+	systray.SetTooltip("海豹TRPG骰点核心 " + ver)
 
 	mOpen := systray.AddMenuItem("打开界面", "开启WebUI")
 	mOpenExeDir := systray.AddMenuItem("打开海豹目录", "资源管理器访问程序所在目录")
@@ -189,13 +190,14 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	// runtime.LockOSThread()
 
 	go func() {
+		ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 		for {
 			time.Sleep(5 * time.Second)
 			if systrayQuited {
 				break
 			}
 			runtime.LockOSThread()
-			systray.SetTooltip("海豹TRPG骰点核心 #" + portStr)
+			systray.SetTooltip("海豹TRPG骰点核心 " + ver + " #" + portStr)
 			runtime.UnlockOSThread()
 		}
 	}()

@@ -525,7 +525,8 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					SetBotOnAtGroup(ctx, msg.GroupID)
-					ctx.Group = ctx.Session.ServiceAtNew[msg.GroupID]
+					// TODO：ServiceAtNew此处忽略是否合理？
+					ctx.Group, _ = ctx.Session.ServiceAtNew.Load(msg.GroupID)
 					ctx.IsCurGroupBotOn = true
 
 					text := DiceFormatTmpl(ctx, "核心:骰子开启")
@@ -595,7 +596,9 @@ func (d *Dice) registerCoreCommands() {
 
 			activeCount := 0
 			serveCount := 0
-			for _, gp := range d.ImSession.ServiceAtNew {
+			// Pinenutn: Range模板 ServiceAtNew重构代码
+			d.ImSession.ServiceAtNew.Range(func(_ string, gp *GroupInfo) bool {
+				// Pinenutn: ServiceAtNew重构
 				if gp.GroupID != "" &&
 					!strings.HasPrefix(gp.GroupID, "PG-") &&
 					gp.DiceIDExistsMap.Exists(ctx.EndPoint.UserID) {
@@ -604,7 +607,8 @@ func (d *Dice) registerCoreCommands() {
 						activeCount++
 					}
 				}
-			}
+				return true
+			})
 
 			onlineVer := ""
 			if d.Parent.AppVersionOnline != nil {
@@ -1093,7 +1097,7 @@ func (d *Dice) registerCoreCommands() {
 				n := strings.Split(gid, ":") // 不验证是否合法，反正下面会检查是否在 ServiceAtNew
 				platform := strings.Split(n[0], "-")[0]
 
-				gp, ok := ctx.Session.ServiceAtNew[gid]
+				gp, ok := ctx.Session.ServiceAtNew.Load(gid)
 				if !ok || len(n[0]) < 2 {
 					ReplyToSender(ctx, msg, fmt.Sprintf("群组列表中没有找到%s", gid))
 					return CmdExecuteResult{Matched: true, Solved: true}

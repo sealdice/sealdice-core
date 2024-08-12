@@ -103,9 +103,18 @@ func (i *ConfigItem) UnmarshalJSON(data []byte) error {
 		i.DefaultValue = raw["defaultValue"]
 		i.Value = raw["value"]
 	case "int":
-		i.DefaultValue = int64(raw["defaultValue"].(float64))
+		// 2024.08.09 1.4.6首发版本unmarshal产生类型报错修复
+		if v, ok := raw["defaultValue"].(float64); ok {
+			i.DefaultValue = int64(v)
+		} else if v, ok := raw["defaultValue"].(int64); ok {
+			i.DefaultValue = v
+		}
 		if v, ok := raw["value"]; ok {
-			i.Value = int64(v.(float64))
+			if v2, ok := v.(float64); ok {
+				i.Value = int64(v2)
+			} else if v2, ok := v.(int64); ok {
+				i.Value = v2
+			}
 		}
 	case "template":
 		{
@@ -1760,7 +1769,7 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"记录_结束": {
 				SubType: ".log end",
-				Vars:    []string{"$t记录名称"},
+				Vars:    []string{"$t记录名称", "$t当前记录条数"},
 			},
 			"记录_新建_失败_未结束的记录": {
 				SubType: ".log new",
@@ -2154,8 +2163,9 @@ func (d *Dice) loads() {
 			}
 		}
 		d.DiceMasters = newDiceMasters
-		// 装载ServiceAt
-		d.ImSession.ServiceAtNew = map[string]*GroupInfo{}
+		// 装载ServiceAtNew
+		// Pinenutn: So,我还是不知道ServiceAtNew到底是个什么鬼东西……太反直觉了……
+		d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 		_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
 			var groupInfo GroupInfo
 			err := json.Unmarshal(data, &groupInfo)
@@ -2176,7 +2186,7 @@ func (d *Dice) loads() {
 						groupInfo.DiceIDExistsMap.Delete(i)
 					}
 				}
-				d.ImSession.ServiceAtNew[id] = &groupInfo
+				d.ImSession.ServiceAtNew.Store(id, &groupInfo)
 			} else {
 				d.Logger.Errorf("加载群信息失败: %s", id)
 			}
@@ -2186,30 +2196,35 @@ func (d *Dice) loads() {
 		for _, i := range d.ExtList {
 			m[i.Name] = i
 		}
-
 		// 设置群扩展
-		for _, v := range d.ImSession.ServiceAtNew {
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		d.ImSession.ServiceAtNew.Range(func(_ string, groupInfo *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
 			var tmp []*ExtInfo
-			for _, i := range v.ActivatedExtList {
+			for _, i := range groupInfo.ActivatedExtList {
 				if m[i.Name] != nil {
 					tmp = append(tmp, m[i.Name])
 				}
 			}
-			v.ActivatedExtList = tmp
-		}
+			groupInfo.ActivatedExtList = tmp
+			return true
+		})
 
 		// 读取群变量
-		for _, g := range d.ImSession.ServiceAtNew {
-			if g.DiceIDActiveMap == nil {
-				g.DiceIDActiveMap = new(SyncMap[string, bool])
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
+			if groupInfo.DiceIDActiveMap == nil {
+				groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
 			}
-			if g.DiceIDExistsMap == nil {
-				g.DiceIDExistsMap = new(SyncMap[string, bool])
+			if groupInfo.DiceIDExistsMap == nil {
+				groupInfo.DiceIDExistsMap = new(SyncMap[string, bool])
 			}
-			if g.BotList == nil {
-				g.BotList = new(SyncMap[string, bool])
+			if groupInfo.BotList == nil {
+				groupInfo.BotList = new(SyncMap[string, bool])
 			}
-		}
+			return true
+		})
 
 		if d.VersionCode != 0 && d.VersionCode < 10000 {
 			d.CustomReplyConfigEnable = false
@@ -2328,13 +2343,32 @@ func (d *Dice) loads() {
 			d.SaveText()
 		})
 
+		// 1.4.5 版本 - 覆写lagrange配置
+		for _, i := range d.ImSession.EndPoints {
+			if i.ProtocolType == "onebot" {
+				pa := i.Adapter.(*PlatformAdapterGocq)
+				if pa.BuiltinMode == "lagrange" {
+					signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "25765")
+					if signServerUrl != "" {
+						// 版本为空，覆写为 "25765"
+						if signServerVersion == "" {
+							RWLagrangeSignServerUrl(d, i, "sealdice", true, "25765")
+						}
+					}
+				}
+			}
+		}
+
 		// 设置全局群名缓存和用户名缓存
 		dm := d.Parent
 		now := time.Now().Unix()
-		for k, v := range d.ImSession.ServiceAtNew {
-			dm.GroupNameCache.Store(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
-		}
-
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
+			// Pinenutn: 这里曾经可能是个Lockfree.hashmap？ 函数有变动
+			dm.GroupNameCache.Store(key, &GroupNameCacheItem{Name: groupInfo.GroupName, time: now})
+			return true
+		})
 		d.Logger.Info("serve.yaml loaded")
 	} else {
 		// 这里是没有加载到配置文件，所以写默认设置项
@@ -2532,30 +2566,32 @@ func (d *Dice) Save(isAuto bool) {
 			}
 		}
 	}
-
-	for _, g := range d.ImSession.ServiceAtNew {
+	// Pinenutn: Range模板 ServiceAtNew重构代码
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		// Pinenutn: ServiceAtNew重构
 		// 保存群内玩家信息
-		if g.Players != nil {
-			g.Players.Range(func(key string, value *GroupPlayerInfo) bool {
+		if groupInfo.Players != nil {
+			groupInfo.Players.Range(func(key string, value *GroupPlayerInfo) bool {
 				if value.UpdatedAtTime != 0 {
-					_ = model.GroupPlayerInfoSave(d.DBData, g.GroupID, key, (*model.GroupPlayerInfoBase)(value))
+					_ = model.GroupPlayerInfoSave(d.DBData, groupInfo.GroupID, key, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
 				return true
 			})
 		}
 
-		if g.UpdatedAtTime != 0 {
-			data, err := json.Marshal(g)
+		if groupInfo.UpdatedAtTime != 0 {
+			data, err := json.Marshal(groupInfo)
 			if err == nil {
-				err := model.GroupInfoSave(d.DBData, g.GroupID, g.UpdatedAtTime, data)
+				err := model.GroupInfoSave(d.DBData, groupInfo.GroupID, groupInfo.UpdatedAtTime, data)
 				if err != nil {
-					d.Logger.Warnf("保存群组数据失败 %v : %v", g.GroupID, err.Error())
+					d.Logger.Warnf("保存群组数据失败 %v : %v", groupInfo.GroupID, err.Error())
 				}
-				g.UpdatedAtTime = 0
+				groupInfo.UpdatedAtTime = 0
 			}
 		}
-	}
+		return true
+	})
 
 	// 同步全部属性数据：个人角色卡、群内角色卡、群数据、个人全局数据
 	d.AttrsManager.CheckForSave()

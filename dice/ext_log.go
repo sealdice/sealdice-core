@@ -278,7 +278,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-
+				lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
+				VarSetValueInt64(ctx, "$t当前记录条数", lines)
 				VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
 				// Note: 2024-02-28 经过讨论，日志在 off 的情况下 end 属于合理操作，这里不再检查是否开启
@@ -296,6 +297,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "halt") {
 				if len(group.LogCurName) > 0 {
+					lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
+					VarSetValueInt64(ctx, "$t当前记录条数", lines)
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 				}
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
@@ -709,8 +712,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 			if msg.MessageType == "private" && ctx.CommandHideFlag != "" {
 				if _, exists := privateCommandListen[ctx.CommandID]; exists {
 					session := ctx.Session
-					group := session.ServiceAtNew[ctx.CommandHideFlag]
-
+					// TODO： 这里的OK被忽略了，没问题？
+					groupInfo, ok := session.ServiceAtNew.Load(ctx.CommandHideFlag)
+					if !ok {
+						ctx.Dice.Logger.Warn("ServiceAtNew ext_log加载groupInfo异常")
+						return
+					}
 					a := model.LogOneItem{
 						Nickname:    ctx.EndPoint.Nickname,
 						IMUserID:    UserIDExtract(ctx.EndPoint.UserID),
@@ -722,14 +729,18 @@ func RegisterBuiltinExtLog(self *Dice) {
 						CommandInfo: ctx.CommandInfo,
 					}
 
-					LogAppend(ctx, group.GroupID, group.LogCurName, &a)
+					LogAppend(ctx, groupInfo.GroupID, groupInfo.LogCurName, &a)
 				}
 			}
 
 			if IsCurGroupBotOnByID(ctx.Session, ctx.EndPoint, msg.MessageType, msg.GroupID) {
 				session := ctx.Session
-				group := session.ServiceAtNew[msg.GroupID]
-				if group.LogOn {
+				groupInfo, ok := session.ServiceAtNew.Load(msg.GroupID)
+				if !ok {
+					ctx.Dice.Logger.Warn("ServiceAtNew ext_log加载groupInfo异常")
+					return
+				}
+				if groupInfo.LogOn {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					if ctx.CommandHideFlag != "" {
 						// 记录当前指令和时间
@@ -746,7 +757,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						CommandID:   ctx.CommandID,
 						CommandInfo: ctx.CommandInfo,
 					}
-					LogAppend(ctx, group.GroupID, group.LogCurName, &a)
+					LogAppend(ctx, groupInfo.GroupID, groupInfo.LogCurName, &a)
 				}
 			}
 		},

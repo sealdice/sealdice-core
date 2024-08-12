@@ -425,9 +425,6 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 					version, _ = strings.CutPrefix(version, "/")
 					val = "lagrange"
 				}
-				if version == "" {
-					version = "13107"
-				}
 				return val, version
 			}
 			err = errors.New("SignServerUrl字段无法正常读取")

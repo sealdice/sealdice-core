@@ -221,8 +221,9 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 		return
 	}
 
-	if ctx.Session.ServiceAtNew[groupID] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[groupID].ActivatedExtList {
+	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
+	if ok {
+		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnMessageSend(ctx, &Message{

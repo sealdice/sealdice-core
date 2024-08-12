@@ -503,6 +503,7 @@ func NewSealChatConnItem(url string, token string) *EndPointInfo {
 	conn.ProtocolType = ""
 	conn.Enable = true
 	conn.RelWorkDir = "extra/sealchat-" + conn.ID
+	// Pinenutn: 初始化对应的EchoMap
 	conn.Adapter = &PlatformAdapterSealChat{
 		EndPoint:   conn,
 		ConnectURL: url,

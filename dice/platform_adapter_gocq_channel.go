@@ -66,10 +66,10 @@ func (pa *PlatformAdapterGocq) QQChannelTrySolve(message string) {
 
 		// 消息撤回
 		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "guild_channel_recall" {
-			group := session.ServiceAtNew[msg.GroupID]
-			if group != nil {
-				if group.LogOn {
-					_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBLogs, group.GroupID, group.LogCurName, msgQQ.MessageID)
+			groupInfo, ok := session.ServiceAtNew.Load(msg.GroupID)
+			if ok {
+				if groupInfo.LogOn {
+					_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBLogs, groupInfo.GroupID, groupInfo.LogCurName, msgQQ.MessageID)
 				}
 			}
 			return

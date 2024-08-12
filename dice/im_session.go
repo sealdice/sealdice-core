@@ -217,7 +217,7 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 		return &GameSystemTemplate{
 			Name:     group.System,
 			FullName: "空白模板",
-			AliasMap: &SyncMap[string, string]{},
+			AliasMap: new(SyncMap[string, string]),
 		}
 	}
 	// 没有system，查看扩展的启动情况
@@ -236,7 +236,7 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	blankTmpl := &GameSystemTemplate{
 		Name:     "空白模板",
 		FullName: "空白模板",
-		AliasMap: &SyncMap[string, string]{},
+		AliasMap: new(SyncMap[string, string]),
 	}
 	return blankTmpl
 }
@@ -460,10 +460,9 @@ func (ep *EndPointInfo) StatsDump(d *Dice) {
 }
 
 type IMSession struct {
-	Parent    *Dice           `yaml:"-"`
-	EndPoints []*EndPointInfo `yaml:"endPoints"`
-
-	ServiceAtNew map[string]*GroupInfo `json:"servicesAt" yaml:"-"`
+	Parent       *Dice                        `yaml:"-"`
+	EndPoints    []*EndPointInfo              `yaml:"endPoints"`
+	ServiceAtNew *SyncMap[string, *GroupInfo] `json:"servicesAt" yaml:"-"`
 }
 
 type MsgContext struct {
@@ -557,32 +556,35 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	// 处理命令
 	if msg.MessageType == "group" || msg.MessageType == "private" { //nolint:nestif
 		// GroupEnableCheck TODO: 后续看看是否需要
-		group := s.ServiceAtNew[msg.GroupID]
-		if group == nil && msg.GroupID != "" {
+		groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
+		if !ok && msg.GroupID != "" {
 			// 注意: 此处必须开启，不然下面mctx.player取不到
 			autoOn := true
 			if msg.Platform == "QQ-CH" {
 				autoOn = d.QQChannelAutoOn
 			}
-			group = SetBotOnAtGroup(mctx, msg.GroupID)
-			group.Active = autoOn
-			group.DiceIDExistsMap.Store(ep.UserID, true)
+			groupInfo = SetBotOnAtGroup(mctx, msg.GroupID)
+			groupInfo.Active = autoOn
+			groupInfo.DiceIDExistsMap.Store(ep.UserID, true)
 			if msg.GroupName != "" {
-				group.GroupName = msg.GroupName
+				groupInfo.GroupName = msg.GroupName
 			}
-			group.UpdatedAtTime = time.Now().Unix()
+			groupInfo.UpdatedAtTime = time.Now().Unix()
 
 			dm := d.Parent
-			groupName := dm.TryGetGroupName(group.GroupID)
+			groupName := dm.TryGetGroupName(groupInfo.GroupID)
 
-			txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, group.GroupID, autoOn)
+			txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, groupInfo.GroupID, autoOn)
 			ep.Adapter.GetGroupInfoAsync(msg.GroupID)
 			log.Info(txt)
 			mctx.Notice(txt)
 
 			if msg.Platform == "QQ" || msg.Platform == "TG" {
-				if mctx.Session.ServiceAtNew[msg.GroupID] != nil {
-					for _, i := range mctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+				// ServiceAtNew changed
+				// Pinenutn:这个i不知道是啥，放你一马（
+				activatedList, _ := mctx.Session.ServiceAtNew.Load(msg.GroupID)
+				if ok {
+					for _, i := range activatedList.ActivatedExtList {
 						if i.OnGroupJoined != nil {
 							i.callWithJsCheck(mctx.Dice, func() {
 								i.OnGroupJoined(mctx, msg)
@@ -630,11 +632,11 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// mctx.SystemTemplate = tmpl
 		}
 
-		if group != nil && !strings.HasPrefix(group.GroupID, "UI-Group:") {
+		if groupInfo != nil && !strings.HasPrefix(groupInfo.GroupID, "UI-Group:") {
 			// 自动激活存在状态
-			if _, exists := group.DiceIDExistsMap.Load(ep.UserID); !exists {
-				group.DiceIDExistsMap.Store(ep.UserID, true)
-				group.UpdatedAtTime = time.Now().Unix()
+			if _, exists := groupInfo.DiceIDExistsMap.Load(ep.UserID); !exists {
+				groupInfo.DiceIDExistsMap.Store(ep.UserID, true)
+				groupInfo.UpdatedAtTime = time.Now().Unix()
 			}
 		}
 
@@ -917,35 +919,36 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	}
 
 	// 处理命令
-	group := s.ServiceAtNew[msg.GroupID]
-	if group == nil && msg.GroupID != "" {
+	groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
+	if !ok && msg.GroupID != "" {
 		// 注意: 此处必须开启，不然下面mctx.player取不到
 		autoOn := true
 		if msg.Platform == "QQ-CH" {
 			autoOn = d.QQChannelAutoOn
 		}
-		group = SetBotOnAtGroup(mctx, msg.GroupID)
-		group.Active = autoOn
-		group.DiceIDExistsMap.Store(ep.UserID, true)
+		groupInfo = SetBotOnAtGroup(mctx, msg.GroupID)
+		groupInfo.Active = autoOn
+		groupInfo.DiceIDExistsMap.Store(ep.UserID, true)
 		if msg.GroupName != "" {
-			group.GroupName = msg.GroupName
+			groupInfo.GroupName = msg.GroupName
 		}
-		group.UpdatedAtTime = time.Now().Unix()
+		groupInfo.UpdatedAtTime = time.Now().Unix()
 
 		// dm := d.Parent
 		// 愚蠢调用，改了
 		// groupName := dm.TryGetGroupName(group.GroupID)
 		groupName := msg.GroupName
 
-		txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, group.GroupID, autoOn)
+		txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, groupInfo.GroupID, autoOn)
 		// 意义不明，删掉
 		// ep.Adapter.GetGroupInfoAsync(msg.GroupID)
 		log.Info(txt)
 		mctx.Notice(txt)
 
 		if msg.Platform == "QQ" || msg.Platform == "TG" {
-			if mctx.Session.ServiceAtNew[msg.GroupID] != nil {
-				for _, i := range mctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+			groupInfo, ok = mctx.Session.ServiceAtNew.Load(msg.GroupID)
+			if ok {
+				for _, i := range groupInfo.ActivatedExtList {
 					if i.OnGroupJoined != nil {
 						i.callWithJsCheck(mctx.Dice, func() {
 							i.OnGroupJoined(mctx, msg)
@@ -956,8 +959,8 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		}
 	}
 	// 重新赋值
-	if group != nil {
-		group.GroupName = msg.GroupName
+	if groupInfo != nil {
+		groupInfo.GroupName = msg.GroupName
 	}
 
 	// Note(Szzrain): 判断是否被@
@@ -981,11 +984,11 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		// mctx.SystemTemplate = tmpl
 	}
 
-	if group != nil {
+	if groupInfo != nil {
 		// 自动激活存在状态
-		if _, exists := group.DiceIDExistsMap.Load(ep.UserID); !exists {
-			group.DiceIDExistsMap.Store(ep.UserID, true)
-			group.UpdatedAtTime = time.Now().Unix()
+		if _, exists := groupInfo.DiceIDExistsMap.Load(ep.UserID); !exists {
+			groupInfo.DiceIDExistsMap.Store(ep.UserID, true)
+			groupInfo.UpdatedAtTime = time.Now().Unix()
 		}
 	}
 
@@ -1313,11 +1316,11 @@ var lastWelcome *LastWelcomeInfo
 func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 	log := s.Parent.Logger
 
-	group := s.ServiceAtNew[msg.GroupID]
+	groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 	// 进群的是别人，是否迎新？
 	// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 	// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
-	if group != nil && group.ShowGroupWelcome {
+	if ok && groupInfo.ShowGroupWelcome {
 		isDouble := false
 		if lastWelcome != nil {
 			isDouble = msg.GroupID == lastWelcome.GroupID &&
@@ -1346,7 +1349,7 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 				stdID := msg.Sender.UserID
 				VarSetValueStr(ctx, "$t帐号ID", stdID)
 				VarSetValueStr(ctx, "$t账号ID", stdID)
-				text := DiceFormat(ctx, group.GroupWelcomeMessage)
+				text := DiceFormat(ctx, groupInfo.GroupWelcomeMessage)
 				for _, i := range ctx.SplitText(text) {
 					doSleepQQ(ctx)
 					ReplyGroup(ctx, msg, strings.TrimSpace(i))
@@ -1384,14 +1387,17 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 		groupLeaveNum = 0
 		platformRE := regexp.MustCompile(`^(.*)-Group:`)
 		selectedGroupEndpoints := []*GroupEndpointPair{} // 创建一个存放 grp 和 ep 组合的切片
-		for _, grp := range s.ServiceAtNew {
+
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		s.ServiceAtNew.Range(func(key string, grp *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
 			if strings.HasPrefix(grp.GroupID, "PG-") {
-				continue
+				return true
 			}
 			if s.Parent.BanList != nil {
 				info, ok := s.Parent.BanList.GetByID(grp.GroupID)
 				if ok && info.Rank > BanRankNormal {
-					continue // 信任等级高于普通的不清理
+					return true // 信任等级高于普通的不清理
 				}
 			}
 
@@ -1401,11 +1407,11 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 			}
 			match := platformRE.FindStringSubmatch(grp.GroupID)
 			if len(match) != 2 {
-				continue
+				return true
 			}
 			platform := match[1]
 			if platform != "QQ" {
-				continue
+				return true
 			}
 			if last.Before(threshold) {
 				for _, ep := range s.EndPoints {
@@ -1417,7 +1423,8 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 			} else if last.Before(hint) {
 				s.Parent.Logger.Warnf("检测到群 %s 上次活动时间为 %s，将在未来自动退出", grp.GroupID, last.Format(time.RFC3339))
 			}
-		}
+			return true
+		})
 		// 采用类似分页的手法进行退群
 		groupCount := len(selectedGroupEndpoints)
 		rounds := (groupCount + groupsPerRound - 1) / groupsPerRound
@@ -1739,11 +1746,11 @@ func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
 	d := mctx.Dice
 	mctx.MessageType = msg.MessageType
 	mctx.IsPrivate = mctx.MessageType == "private"
-	group := s.ServiceAtNew[msg.GroupID]
-	mctx.Group = group
-	if group == nil {
+	group, ok := s.ServiceAtNew.Load(msg.GroupID)
+	if !ok {
 		return
 	}
+	mctx.Group = group
 	mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
 
 	mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
@@ -1787,7 +1794,7 @@ func (s *IMSession) OnMessageEdit(ctx *MsgContext, msg *Message) {
 	)
 	s.Parent.Logger.Info(m)
 
-	if group, ok := s.ServiceAtNew[msg.GroupID]; ok {
+	if group, ok := s.ServiceAtNew.Load(msg.GroupID); ok {
 		ctx.Group = group
 	} else {
 		return
@@ -1892,20 +1899,23 @@ func (ep *EndPointInfo) RefreshGroupNum() {
 	serveCount := 0
 	session := ep.Session
 	if session != nil && session.ServiceAtNew != nil {
-		for _, i := range session.ServiceAtNew {
-			if i.GroupID != "" {
-				if strings.HasPrefix(i.GroupID, "PG-") {
-					continue
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		session.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
+			if groupInfo.GroupID != "" {
+				if strings.HasPrefix(groupInfo.GroupID, "PG-") {
+					return true
 				}
-				if i.DiceIDExistsMap.Exists(ep.UserID) {
+				if groupInfo.DiceIDExistsMap.Exists(ep.UserID) {
 					serveCount++
 					// 在群内的开启数量才被计算，虽然也有被踢出的
-					// if i.DiceIdActiveMap.Exists(ep.UserId) {
+					// if groupInfo.DiceIdActiveMap.Exists(ep.UserId) {
 					// activeCount += 1
 					// }
 				}
 			}
-		}
+			return true
+		})
 		ep.GroupNum = int64(serveCount)
 	}
 }
@@ -1914,6 +1924,7 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
 	_ = allowCrossPlatform
 	// 通知种类之一：每个noticeId  *  每个平台匹配的ep：存活
 	// TODO: 先复制几次实现，后面重构
+	// Pinenutn: 啥时候重构啊.jpg
 	foo := func() {
 		defer func() {
 			if r := recover(); r != nil {
