@@ -50,7 +50,7 @@ func resourceGetList(c echo.Context) error {
 					Type: t,
 					Name: filepath.Base(path),
 					Ext:  ext,
-					Path: path,
+					Path: filepath.ToSlash(path),
 					Size: info.Size(),
 				})
 			}
@@ -88,6 +88,7 @@ func resourceDownload(c echo.Context) error {
 	}
 	var param resourceOperationParam
 	err := c.Bind(&param)
+	param.Path = filepath.FromSlash(param.Path)
 	if err != nil {
 		return c.NoContent(http.StatusBadRequest)
 	}
@@ -182,6 +183,7 @@ func resourceDelete(c echo.Context) error {
 	}
 	var param resourceOperationParam
 	err := c.Bind(&param)
+	param.Path = filepath.FromSlash(param.Path)
 	if err != nil {
 		return c.NoContent(http.StatusBadRequest)
 	}
@@ -208,6 +210,7 @@ func resourceGetData(c echo.Context) error {
 	}
 	var param resourceDataParam
 	err := c.Bind(&param)
+	param.Path = filepath.FromSlash(param.Path)
 	if err != nil {
 		return c.NoContent(http.StatusBadRequest)
 	}
