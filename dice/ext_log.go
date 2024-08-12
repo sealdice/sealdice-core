@@ -459,6 +459,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					uri = "files://" + logFile.Name()
 				}
 				SendFileToSenderRaw(ctx, msg, uri, "skip")
+				ReplyToSender(ctx, msg, fmt.Sprintf("日志文件「%s」已上传至群文件，请自行到群文件查看。", logFileNamePrefix))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
