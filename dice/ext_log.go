@@ -1084,7 +1084,7 @@ func LogRollBriefByPC(ctx *MsgContext, items []*model.LogOneItem, showAll bool, 
 									// TODO: 处理的不是很好，这里后续大段代码依赖了值为int的情况，但是现在实际可以为任何类型，只是不常用
 									b, _ := json.Marshal(j[dataKey])
 									var v ds.VMValue
-									if err := v.UnmarshalJSON(b); err != nil {
+									if err := v.UnmarshalJSON(b); err == nil {
 										if v.TypeId == ds.VMTypeInt {
 											i, _ := v.ReadInt()
 											pcInfo[nickname][key] = int(i)
