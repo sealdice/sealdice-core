@@ -1760,7 +1760,7 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"记录_结束": {
 				SubType: ".log end",
-				Vars:    []string{"$t记录名称"},
+				Vars:    []string{"$t记录名称", "$t当前记录条数"},
 			},
 			"记录_新建_失败_未结束的记录": {
 				SubType: ".log new",
