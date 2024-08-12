@@ -1473,9 +1473,8 @@ func FormatBlacklistReasons(ctx *MsgContext, targetID string) string {
 	d := ctx.Dice
 	v, _ := d.BanList.Map.Load(targetID)
 	var sb strings.Builder
-	var reasontext = "黑名单原因："
-	sb.WriteString(reasontext)
 	for i, reason := range v.Reasons {
+		sb.WriteString("黑名单原因：")
 		sb.WriteString("\n")
 		sb.WriteString(carbon.CreateFromTimestamp(v.Times[i]).ToDateTimeString())
 		sb.WriteString("在「")
@@ -1483,7 +1482,7 @@ func FormatBlacklistReasons(ctx *MsgContext, targetID string) string {
 		sb.WriteString("」，原因：")
 		sb.WriteString(reason)
 	}
-	reasontext = sb.String()
+	reasontext := sb.String()
 	return reasontext
 }
 
