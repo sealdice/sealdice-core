@@ -103,9 +103,18 @@ func (i *ConfigItem) UnmarshalJSON(data []byte) error {
 		i.DefaultValue = raw["defaultValue"]
 		i.Value = raw["value"]
 	case "int":
-		i.DefaultValue = int64(raw["defaultValue"].(float64))
+		// 2024.08.09 1.4.6首发版本unmarshal产生类型报错修复
+		if v, ok := raw["defaultValue"].(float64); ok {
+			i.DefaultValue = int64(v)
+		} else if v, ok := raw["defaultValue"].(int64); ok {
+			i.DefaultValue = v
+		}
 		if v, ok := raw["value"]; ok {
-			i.Value = int64(v.(float64))
+			if v2, ok := v.(float64); ok {
+				i.Value = int64(v2)
+			} else if v2, ok := v.(int64); ok {
+				i.Value = v2
+			}
 		}
 	case "template":
 		{
@@ -2333,6 +2342,22 @@ func (d *Dice) loads() {
 			d.GenerateTextMap()
 			d.SaveText()
 		})
+
+		// 1.4.5 版本 - 覆写lagrange配置
+		for _, i := range d.ImSession.EndPoints {
+			if i.ProtocolType == "onebot" {
+				pa := i.Adapter.(*PlatformAdapterGocq)
+				if pa.BuiltinMode == "lagrange" {
+					signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "25765")
+					if signServerUrl != "" {
+						// 版本为空，覆写为 "25765"
+						if signServerVersion == "" {
+							RWLagrangeSignServerUrl(d, i, "sealdice", true, "25765")
+						}
+					}
+				}
+			}
+		}
 
 		// 设置全局群名缓存和用户名缓存
 		dm := d.Parent
