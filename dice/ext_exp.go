@@ -293,8 +293,8 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *Attributes
 		"type":    "mod",
 		"attr":    i.name,
 		"modExpr": i.expr,
-		"valOld":  theOldValue,
-		"valNew":  theNewValue,
+		"valOld":  theOldValue.Value,
+		"valNew":  theNewValue.Value,
 		"isInc":   signText == "增加", // 增加还是扣除
 		"op":      i.op,
 	})
