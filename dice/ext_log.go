@@ -518,7 +518,6 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 	helpOb := `.ob // 进入ob模式
 .ob exit // 退出ob
-.ob help // 帮助
 `
 	cmdOb := &CmdItemInfo{
 		Name:          "ob",
