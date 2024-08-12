@@ -403,21 +403,21 @@ const getPreviewInfo = (k: string, text: string) => {
     }
     const exists = info.presetExists ? '是' : '否';
 
-    return <div>
+    return <div style="max-width: 80vw" class="whitespace-nowrap break-words">
       <div>
-        <span class="bg-white text-black rounded-sm px-1 mr-1">引擎版本</span>
+        <span class="bg-blue-50 text-blue-600 preview-tip-label">引擎版本</span>
         {version}
       </div>
-      <div class="whitespace-pre">
-        <span class="bg-white text-black rounded-sm px-1 mr-1">V2预览</span>
+      <div class="whitespace-pre-wrap">
+        <span class="bg-blue-500 preview-tip-label text-center">V2预览</span>
          {info.textV2 || info.errV2}
       </div>
-      <div class="whitespace-pre">
-        <span class="bg-white text-black rounded-sm px-1 mr-1">V1预览</span>
+      <div class="whitespace-pre-wrap">
+        <span class="bg-orange-600 text-white preview-tip-label text-center">V1预览</span>
         {info.textV1 || info.errV1}
       </div>
       <div>
-        <span class="bg-white text-black rounded-sm px-1 mr-1">存在预设</span>
+        <span class="bg-blue-50 text-blue-600 preview-tip-label">存在预设</span>
         {exists} [存在时预览较为可靠]
       </div>
       <div>
@@ -547,5 +547,9 @@ watch(props, () => {
   :deep(.el-collapse-item__wrap) {
     background-color: #f3f5f7;
   }
+}
+
+.preview-tip-label {
+  @apply rounded-sm px-1 mr-1 my-1 inline-block w-14 text-center border border-gray-700;
 }
 </style>

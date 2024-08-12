@@ -23,6 +23,15 @@
     <div></div>
     <div class="subtitle">社区协力</div>
 
+    <div style="margin-top: 2rem;" class="subtitle">V1.5 版本</div>
+    <div class="developers">
+      <el-link :underline="false" href="https://github.com/fy0" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/fy0'"/>木落</el-link>
+      <el-link :underline="false" href="https://github.com/MintCider" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/MintCider'"/>Mint Cider</el-link>
+      <el-link :underline="false" href="https://github.com/MX-fox" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/MX-fox'"/>暮星</el-link>
+      <el-link :underline="false" href="https://github.com/Xiangze-Li" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/Xiangze-Li'"/>JohNSoN</el-link>
+      <el-link :underline="false" href="https://github.com/bugtower100" target="_blank"><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/bugtower100'"/>Bugtower100</el-link>
+    </div>
+
     <div style="margin-top: 2rem;" class="subtitle">V1.4 版本</div>
     <div class="developers">
       <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
