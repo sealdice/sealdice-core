@@ -914,7 +914,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	return tempLog, nil
 }
 
-func LogSendT。ackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
+func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
 	dice := ctx.Dice
 	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
