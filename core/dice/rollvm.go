@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	rand2 "golang.org/x/exp/rand"
 )
 
 type Type uint8
@@ -655,7 +656,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			continue
 		case TypeDiceWod:
 			t := &stack[top-1] // 加骰线
-			ret, nums, rounds, details := DiceWodRollVM(e, t, wodState.pool, wodState.points, wodState.threshold, wodState.isGE)
+			ret, nums, rounds, details := DiceWodRollVM(ctx._v1Rand, e, t, wodState.pool, wodState.points, wodState.threshold, wodState.isGE)
 			if e.Error != nil {
 				return nil, "", e.Error
 			}
@@ -690,7 +691,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			continue
 		case TypeDiceDC:
 			t := &stack[top-1] // 暴击值 / 也可以理解为加骰线
-			ret, nums, rounds, details := DiceDCRollVM(e, t, dcState.pool, dcState.points)
+			ret, nums, rounds, details := DiceDCRollVM(ctx._v1Rand, e, t, dcState.pool, dcState.points)
 			if e.Error != nil {
 				return nil, "", e.Error
 			}
@@ -718,7 +719,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			continue
 		case TypeDicePenalty, TypeDiceBonus:
 			t := stack[top-1]
-			diceResult := DiceRoll64(100)
+			diceResult := DiceRoll64x(ctx._v1Rand, 100)
 			diceTens := diceResult / 10
 			diceUnits := diceResult % 10
 
@@ -732,7 +733,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			}
 
 			for i := int64(0); i < t.Value.(int64); i++ {
-				n := DiceRoll64(10)
+				n := DiceRoll64x(ctx._v1Rand, 10)
 
 				if n == 10 {
 					num10Exists = true
@@ -1041,7 +1042,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 		case TypeDiceUnary:
 			a := &stack[top-1]
 			// Dice XXX, 如 d100
-			a.Value = DiceRoll64(a.Value.(int64))
+			a.Value = DiceRoll64x(ctx._v1Rand, a.Value.(int64))
 			e.Calculated = true
 			continue
 		case TypeHalt:
@@ -1315,7 +1316,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 					if e.flags.BigFailDiceOn {
 						nums = append(nums, bInt)
 					} else {
-						nums = append(nums, DiceRoll64(bInt))
+						nums = append(nums, DiceRoll64x(ctx._v1Rand, bInt))
 					}
 				}
 
@@ -1358,7 +1359,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 					if e.flags.BigFailDiceOn {
 						curNum = bInt
 					} else {
-						curNum = DiceRoll64(bInt)
+						curNum = DiceRoll64x(ctx._v1Rand, bInt)
 					}
 
 					num += curNum
@@ -1386,7 +1387,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 	return &stack[0], calcDetail, nil
 }
 
-func DiceDCRollVM(e *RollExpression, addLine *VMValue, pool *VMValue, points *VMValue) (*VMValue, int64, int64, []string) { //nolint:revive
+func DiceDCRollVM(randSrc *rand2.PCGSource, e *RollExpression, addLine *VMValue, pool *VMValue, points *VMValue) (*VMValue, int64, int64, []string) { //nolint:revive
 	makeE6 := func() {
 		e.Error = errors.New("E6: 类型错误")
 	}
@@ -1420,11 +1421,11 @@ func DiceDCRollVM(e *RollExpression, addLine *VMValue, pool *VMValue, points *VM
 		return nil, 0, 0, nil
 	}
 
-	ret1, ret2, ret3, details := DiceDCRoll(valAddLine, valPool, valPoints)
+	ret1, ret2, ret3, details := DiceDCRoll(randSrc, valAddLine, valPool, valPoints)
 	return &VMValue{TypeID: VMTypeInt64, Value: ret1}, ret2, ret3, details
 }
 
-func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, []string) { //nolint:revive
+func DiceDCRoll(randSrc *rand2.PCGSource, addLine int64, pool int64, points int64) (int64, int64, int64, []string) { //nolint:revive
 	var details []string
 	addTimes := 1
 
@@ -1438,7 +1439,7 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 		maxDice := int64(0)
 
 		for i := int64(0); i < pool; i++ {
-			one := DiceRoll64(points)
+			one := DiceRoll64x(randSrc, points)
 			if one > maxDice {
 				maxDice = one
 			}
@@ -1482,7 +1483,7 @@ func DiceDCRoll(addLine int64, pool int64, points int64) (int64, int64, int64, [
 	return resultDice, allRollCount, int64(addTimes), details
 }
 
-func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE bool) (int64, int64, int64, []string) { //nolint:revive
+func DiceWodRoll(randSrc *rand2.PCGSource, addLine int64, pool int64, points int64, threshold int64, isGE bool) (int64, int64, int64, []string) { //nolint:revive
 	var details []string
 	addTimes := 1
 
@@ -1497,7 +1498,7 @@ func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE 
 		for i := int64(0); i < pool; i++ {
 			var reachSuccess bool
 			var reachAddRound bool
-			one := DiceRoll64(points)
+			one := DiceRoll64x(randSrc, points)
 
 			if addLine != 0 {
 				reachAddRound = one >= addLine
@@ -1550,7 +1551,7 @@ func DiceWodRoll(addLine int64, pool int64, points int64, threshold int64, isGE 
 	return successCount, allRollCount, int64(addTimes), details
 }
 
-func DiceWodRollVM(e *RollExpression, addLine *VMStack, pool *VMValue, points *VMValue, threshold *VMValue, isGE bool) (*VMValue, int64, int64, []string) { //nolint:revive
+func DiceWodRollVM(randSrc *rand2.PCGSource, e *RollExpression, addLine *VMStack, pool *VMValue, points *VMValue, threshold *VMValue, isGE bool) (*VMValue, int64, int64, []string) { //nolint:revive
 	makeE6 := func() {
 		e.Error = errors.New("E6: 类型错误")
 	}
@@ -1592,7 +1593,7 @@ func DiceWodRollVM(e *RollExpression, addLine *VMStack, pool *VMValue, points *V
 		return nil, 0, 0, nil
 	}
 
-	ret1, ret2, ret3, details := DiceWodRoll(valAddLine, valPool, valPoints, valThreshold, isGE)
+	ret1, ret2, ret3, details := DiceWodRoll(randSrc, valAddLine, valPool, valPoints, valThreshold, isGE)
 	return &VMValue{TypeID: VMTypeInt64, Value: ret1}, ret2, ret3, details
 }
 
