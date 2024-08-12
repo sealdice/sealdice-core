@@ -1102,6 +1102,19 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_上传_失败": {
 				{`跑团日志上传失败：{$t错误原因}\n若未出现线上日志地址，可换时间重试，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成`, 1},
 			},
+			// 1.5.0+
+			"名片_coc": {
+				{`已自动设置名片为COC7格式: {$t名片格式}\n如有权限会持续自动改名片。使用.sn off可关闭`, 1},
+			},
+			"名片_dnd": {
+				{`已自动设置名片为DND5E格式: {$t名片格式}\n如有权限会持续自动改名片。使用.sn off可关闭`, 1},
+			},
+			"名片_none": {
+				{`已自动设置名片为空白格式: {$t名片格式}\n如有权限会持续自动改名片。使用.sn off可关闭`, 1},
+			},
+			"名片_expr": {
+				{`应用玩家自设，预览文本: {$t名片格式}`, 1},
+			},
 		},
 	}
 
@@ -1821,6 +1834,20 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_上传_失败": {
 				SubType: ".log end",
 				Vars:    []string{"$t错误原因"},
+			},
+
+			// 1.5.0+
+			"名片_coc": {
+				SubType: ".sn",
+			},
+			"名片_dnd": {
+				SubType: ".sn",
+			},
+			"名片_none": {
+				SubType: ".sn",
+			},
+			"名片_expr": {
+				SubType: ".sn",
 			},
 		},
 	}
