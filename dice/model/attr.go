@@ -37,7 +37,3 @@ func attrGetAllBase(db *sqlx.DB, bucket string, key string) []byte {
 func AttrUserGetAll(db *sqlx.DB, userID string) []byte {
 	return attrGetAllBase(db, "attrs_user", userID)
 }
-
-// func AttrUserSave(db *sqlx.DB, userID string, data []byte) {
-// 	attrSave(db, "attrs_user", userID, data)
-// }
