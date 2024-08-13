@@ -459,6 +459,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 					uri = "files://" + logFile.Name()
 				}
 				SendFileToSenderRaw(ctx, msg, uri, "skip")
+				VarSetValueStr(ctx, "$t文件名字", logFileNamePrefix)
+				ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_成功"), "skip")
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
