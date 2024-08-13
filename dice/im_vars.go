@@ -287,6 +287,7 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueStr(ctx, "$t规则模板", ctx.Group.System)
 		VarSetValueStr(ctx, "$tSystem", ctx.Group.System)
 		VarSetValueStr(ctx, "$t当前记录", ctx.Group.LogCurName)
+		VarSetValueInt64(ctx, "$t权限等级", int64(ctx.PrivilegeLevel))
 
 		var isLogOn int64
 		if ctx.Group.LogOn {
