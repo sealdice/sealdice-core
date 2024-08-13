@@ -1503,8 +1503,8 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	}
 
 	banQuitGroup := func() {
-		BanListInfoItem, _ := ctx.Dice.BanList.Map.Load(msg.Sender.UserID)
-		reasontext := FormatBlacklistReasons(BanListInfoItem)
+		banListInfoItem, _ := ctx.Dice.BanList.Map.Load(msg.Sender.UserID)
+		reasontext := FormatBlacklistReasons(banListInfoItem)
 		groupID := msg.GroupID
 		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 		log.Info(noticeMsg)
@@ -1522,8 +1522,8 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		groupLevel := ctx.GroupRoleLevel
 		if d.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
-			BanListInfoItem, _ := ctx.Dice.BanList.Map.Load(msg.Sender.UserID)
-			reasontext := FormatBlacklistReasons(BanListInfoItem)
+			banListInfoItem, _ := ctx.Dice.BanList.Map.Load(msg.Sender.UserID)
+			reasontext := FormatBlacklistReasons(banListInfoItem)
 			groupID := msg.GroupID
 			notReply = true
 			if groupLevel >= 40 {
@@ -1570,8 +1570,8 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		if d.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
 			notReply = true
 			// 黑名单群 - 立即退出
-			BanListInfoItem, _ := ctx.Dice.BanList.Map.Load(msg.Sender.UserID)
-			reasontext := FormatBlacklistReasons(BanListInfoItem)
+			banListInfoItem, _ := ctx.Dice.BanList.Map.Load(msg.Sender.UserID)
+			reasontext := FormatBlacklistReasons(banListInfoItem)
 			groupID := msg.GroupID
 			if isWhiteGroup {
 				log.Infof("群(%s)处于黑名单中，但在信任群所以不尝试退群", groupID)
