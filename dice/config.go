@@ -1115,6 +1115,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"名片_取消设置": {
 				{`已关闭对{$t玩家}的名片自动修改。`, 1},
 			},
+			"记录_导出_成功": {
+				{`日志文件《{$t文件名字}》已上传至群文件，请自行到群文件查看。`, 1},
+			},
 		},
 	}
 
@@ -1849,6 +1852,9 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"名片_取消设置": {
 				SubType: ".sn",
+			},
+			"记录_导出_成功": {
+				SubType: ".log export",
 			},
 		},
 	}
