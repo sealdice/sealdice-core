@@ -615,8 +615,10 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if errors.Is(err, ErrGroupCardOverlong) {
 					return handleOverlong(ctx, msg, text)
 				}
+				VarSetValueStr(ctx, "$t名片格式", val)
+				VarSetValueStr(ctx, "$t名片预览", text)
 				// 玩家 SAN60 HP10/10 DEX65
-				ReplyToSender(ctx, msg, "已自动设置名片为COC7格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_自动设置"))
 			case "dnd", "dnd5e":
 				// PW{pw}
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PP{pp}"
@@ -625,8 +627,10 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if errors.Is(err, ErrGroupCardOverlong) {
 					return handleOverlong(ctx, msg, text)
 				}
+				VarSetValueStr(ctx, "$t名片格式", val)
+				VarSetValueStr(ctx, "$t名片预览", text)
 				// 玩家 HP10/10 AC15 DC15 PW10
-				ReplyToSender(ctx, msg, "已自动设置名片为DND5E格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_自动设置"))
 			case "none":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
@@ -634,12 +638,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if errors.Is(err, ErrGroupCardOverlong) { // 大约不至于会走到这里，但是为了统一也这样写了
 					return handleOverlong(ctx, msg, text)
 				}
-				ReplyToSender(ctx, msg, "已自动设置名片为空白格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
+				VarSetValueStr(ctx, "$t名片格式", "空白")
+				VarSetValueStr(ctx, "$t名片预览", text)
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_自动设置"))
 			case "off", "cancel":
 				_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				ctx.Player.AutoSetNameTemplate = ""
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
-				ReplyToSender(ctx, msg, fmt.Sprintf("已关闭对%s的名片自动修改", getPlayerNameTempFunc(ctx)))
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_取消设置"))
 			case "expr":
 				t := cmdArgs.GetRestArgsFrom(2)
 				if len(t) > 80 {
@@ -661,7 +667,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 						return handleOverlong(ctx, msg, text)
 					} else {
 						ctx.Player.UpdatedAtTime = time.Now().Unix()
-						ReplyToSender(ctx, msg, "应用玩家自设，预览文本: "+text)
+						VarSetValueStr(ctx, "$t名片格式", "玩家自设")
+						VarSetValueStr(ctx, "$t名片预览", text)
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_自动设置"))
 					}
 				}
 			default:
@@ -681,7 +689,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 					text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
 					ctx.Player.AutoSetNameTemplate = t.Template
-					ReplyToSender(ctx, msg, "已自动设置名片为"+val+"格式: "+text+"\n如有权限会持续自动改名片。使用.sn off可关闭")
+					VarSetValueStr(ctx, "$t名片格式", val)
+					VarSetValueStr(ctx, "$t名片预览", text)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_自动设置"))
 					ok = true
 					return false
 				})
