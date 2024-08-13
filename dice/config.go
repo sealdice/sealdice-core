@@ -1449,6 +1449,13 @@ func setupBaseTextTemplate(d *Dice) {
 			"受到伤害_进入昏迷_附加语": {
 				SubType:   ".st hp-1d4",
 				ExtraText: "hp在st后从正数变为0",
+			"制卡_预设模式": {
+				SubType: ".dnd",
+                ExtraText: "不带属性名",
+			"制卡_自由分配模式": {
+				SubType: ".dndx",
+				ExtraText: "带属性名",
+			},
 			},
 		},
 		"核心": {
