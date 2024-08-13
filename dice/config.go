@@ -1102,6 +1102,11 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_上传_失败": {
 				{`跑团日志上传失败：{$t错误原因}\n若未出现线上日志地址，可换时间重试，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成`, 1},
 			},
+
+			// 1.5.0+
+			"记录_导出_成功": {
+				{`日志文件《{$t文件名字}》已上传至群文件，请自行到群文件查看。`, 1},
+			},
 		},
 	}
 
@@ -1821,6 +1826,11 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_上传_失败": {
 				SubType: ".log end",
 				Vars:    []string{"$t错误原因"},
+			},
+
+			// 1.5.0+
+			"记录_导出_成功": {
+				SubType: ".log export",
 			},
 		},
 	}
