@@ -689,7 +689,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ctx.Player.AutoSetNameTemplate = t.Template
 					VarSetValueStr(ctx, "$t名片格式", val)
 					VarSetValueStr(ctx, "$t名片预览", text)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_规则模板"))
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_自动设置"))
 					ok = true
 					return false
 				})
