@@ -1131,14 +1131,17 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			info := strings.Join(ss, sep)
 			VarSetValueStr(ctx, "$t制卡结果文本", info)
 			var text string
+			_ = text
 			if isMode2 {
-				text = DiceFormatTmpl(ctx, "DND:制卡_预设模式")
+				text := DiceFormatTmpl(ctx, "DND:制卡_预设模式")
+				_ = text
 			} else {
-				text = DiceFormatTmpl(ctx, "DND:制卡_自由分配模式")
+				text := DiceFormatTmpl(ctx, "DND:制卡_自由分配模式")
+				_ = text
 			}
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
-
+	}
 	helpRi := `.ri 小明 // 格式1，值为D20
 .ri 12 张三 // 格式2，值12(只能写数字)
 .ri +2 李四 // 格式3，值为D20+2
