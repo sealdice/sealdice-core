@@ -2,26 +2,21 @@
 import {Delete, QuestionFilled} from "@element-plus/icons-vue";
 import {breakpointsTailwind} from "@vueuse/core";
 
-const condModel = defineModel();
-const cond: any = condModel.value
-
-const props = defineProps<{
-  key: number
-}>();
+const listModel = defineModel();
+const data = listModel.value;
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const notMobile = breakpoints.greater('sm')
 
-const emit = defineEmits(['delete']);
-
-const deleteSelf = () => {
-  emit('delete', props.key)
+const deleteByIndex = (index) => {
+  listModel.value.splice(index, 1)
 }
 
 </script>
 
 <template>
-  <div class="mb-3 pl-2 border-l-2 border-orange-500">
+  <div v-for="(cond, index) in data" :key="index"
+       class="mb-3 pl-2 border-l-2 border-orange-500">
     <div class="pb-2 flex justify-between border-b">
       <el-space>
         <el-text>模式</el-text>
@@ -32,7 +27,7 @@ const deleteSelf = () => {
         </el-radio-group>
       </el-space>
       <el-button type="danger" :icon="Delete" size="small" plain
-                 @click="deleteSelf">
+                 @click="deleteByIndex(index)">
         <template #default v-if="notMobile">
           删除条件
         </template>

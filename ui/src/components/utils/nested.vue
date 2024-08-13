@@ -37,9 +37,7 @@
 
           <el-text class="block mb-2" size="large">条件（需同时满足，即 and）</el-text>
           <div class="pl-4 border-l-4 border-orange-500">
-            <custom-reply-condition v-for="(_, index2) in (el.conditions || [])" :key="index2"
-                                    v-model="el.conditions[index2]" @delete="deleteAnyItem(el.conditions, index2)"/>
-
+            <custom-reply-conditions v-model="el.conditions"/>
             <el-button type="success" size="small" :icon="Plus" @click="addCond(el.conditions)">增加</el-button>
           </div>
 
