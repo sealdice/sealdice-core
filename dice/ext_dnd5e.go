@@ -1131,14 +1131,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			info := strings.Join(ss, sep)
 			VarSetValueStr(ctx, "$t制卡结果文本", info)
 			var text string
-			_ = text
 			if isMode2 {
-				text := DiceFormatTmpl(ctx, "DND:制卡_预设模式")
-				_ = text
+				text = DiceFormatTmpl(ctx, "DND:制卡_预设模式")
 			} else {
-				text := DiceFormatTmpl(ctx, "DND:制卡_自由分配模式")
-				_ = text
+				text = DiceFormatTmpl(ctx, "DND:制卡_自由分配模式")
 			}
+			ReplyToSender(ctx, msg, text)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
