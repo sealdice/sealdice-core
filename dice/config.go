@@ -746,6 +746,12 @@ func setupBaseTextTemplate(d *Dice) {
 			"受到伤害_进入昏迷_附加语": {
 				{`\n{$t玩家}遭受了{$t伤害点数}点过量伤害，生命值降至0，陷入了昏迷！`, 1},
 			},
+			"制卡_预设模式": {
+				{"{$t玩家}使用预设模板的DND5E人物作成:\n{$t制卡结果文本}", 1},
+			},
+			"制卡_自由分配模式": {
+				{"{$t玩家}使用自由分配的DND5E人物作成:\n{$t制卡结果文本}", 1},
+			},
 			"制卡_分隔符": {
 				{`\n`, 1},
 			},
@@ -1109,6 +1115,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"名片_取消设置": {
 				{`已关闭对{$t玩家}的名片自动修改。`, 1},
 			},
+			"记录_导出_成功": {
+				{`日志文件《{$t文件名字}》已上传至群文件，请自行到群文件查看。`, 1},
+			},
 		},
 	}
 
@@ -1443,6 +1452,13 @@ func setupBaseTextTemplate(d *Dice) {
 			"受到伤害_进入昏迷_附加语": {
 				SubType:   ".st hp-1d4",
 				ExtraText: "hp在st后从正数变为0",
+			},
+			"制卡_预设模式": {
+				SubType:   ".dnd",
+				ExtraText: "不带属性名"},
+			"制卡_自由分配模式": {
+				SubType:   ".dndx",
+				ExtraText: "带属性名",
 			},
 		},
 		"核心": {
@@ -1836,6 +1852,9 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"名片_取消设置": {
 				SubType: ".sn",
+			},
+			"记录_导出_成功": {
+				SubType: ".log export",
 			},
 		},
 	}
