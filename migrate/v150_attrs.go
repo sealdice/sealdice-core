@@ -457,28 +457,28 @@ CREATE TABLE IF NOT EXISTS attrs (
 	}
 
 	if exists, _ := checkTableExists(db, "attrs_user"); exists {
-		count, countSheetsNum, countFailed, err := attrsUserMigrate(tx)
+		count, countSheetsNum, countFailed, err2 := attrsUserMigrate(tx)
 		fmt.Printf("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
-		if err != nil {
-			fmt.Println("异常", err.Error())
+		if err2 != nil {
+			fmt.Println("异常", err2.Error())
 			return false
 		}
 	}
 
 	if exists, _ := checkTableExists(db, "attrs_group_user"); exists {
-		count, countFailed, err := attrsGroupUserMigrate(tx)
+		count, countFailed, err2 := attrsGroupUserMigrate(tx)
 		fmt.Printf("数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
-		if err != nil {
-			fmt.Println("异常", err.Error())
+		if err2 != nil {
+			fmt.Println("异常", err2.Error())
 			return false
 		}
 	}
 
 	if exists, _ := checkTableExists(db, "attrs_group"); exists {
-		count, countFailed, err := attrsGroupMigrate(tx)
+		count, countFailed, err2 := attrsGroupMigrate(tx)
 		fmt.Printf("数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
-		if err != nil {
-			fmt.Println("异常", err.Error())
+		if err2 != nil {
+			fmt.Println("异常", err2.Error())
 			return false
 		}
 	}
@@ -488,6 +488,7 @@ CREATE TABLE IF NOT EXISTS attrs (
 	_, _ = tx.Exec("drop table attrs_group")
 	_, _ = tx.Exec("drop table attrs_group_user")
 	_, _ = tx.Exec("drop table attrs_user")
+	_, _ = db.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
 	_, _ = tx.Exec("VACUUM;") // 收尾
 
 	sheetIdBindByGroupUserId = nil
