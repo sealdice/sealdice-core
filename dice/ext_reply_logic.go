@@ -145,7 +145,7 @@ func (m *ReplyConditionExprTrue) Clean() {
 
 func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, _ string) bool {
 	// r := ctx.Eval(m.Value, ds.RollConfig{})
-	r, _, err := DiceExprEvalBase(ctx, m.Value, RollExtraFlags{})
+	r, _, err := DiceExprEvalBase(ctx, m.Value, RollExtraFlags{V2Only: true})
 
 	if err != nil {
 		ctx.Dice.Logger.Infof("自定义回复表达式执行失败: %s", m.Value)
@@ -156,6 +156,7 @@ func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, 
 		ctx.Dice.Logger.Infof("自定义回复表达式执行失败(后半部分不能识别 %s): %s", r.GetRestInput(), m.Value)
 		return false
 	}
+
 	// fmt.Println("???", r, err, r.AsBool(), r.Value == int64(0), r.Value != int64(0))
 	return r.AsBool()
 }
