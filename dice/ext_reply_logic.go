@@ -61,6 +61,26 @@ func (m *ReplyConditionTextMatch) Clean() {
 	m.Value = strings.TrimSpace(m.Value)
 }
 
+type replyRegexCacheType struct {
+	cache SyncMap[string, *regexp.Regexp]
+}
+
+func (r *replyRegexCacheType) compile(expr string) *regexp.Regexp {
+	if re, ok := r.cache.Load(expr); ok {
+		return re
+	}
+
+	if ret, err := regexp.Compile(expr); err == nil {
+		r.cache.Store(expr, ret)
+		return ret
+	} else {
+		r.cache.Store(expr, nil)
+		return nil
+	}
+}
+
+var replyRegexCache replyRegexCacheType
+
 func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, cleanText string) bool {
 	var ret bool
 	switch m.MatchType {
@@ -80,8 +100,8 @@ func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, _ *Message, _ *CmdArgs,
 	case "matchSuffix":
 		ret = strings.HasSuffix(strings.ToLower(cleanText), strings.ToLower(m.Value))
 	case "matchRegex":
-		re, err := regexp.Compile(m.Value)
-		if err == nil {
+		re := replyRegexCache.compile(m.Value)
+		if re != nil {
 			lst := re.FindStringSubmatch(cleanText)
 			gName := re.SubexpNames()
 			for index, s := range lst {
