@@ -1148,7 +1148,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	cmdTi := &CmdItemInfo{
 		Name:      "ti",
 		ShortHelp: ".ti // 抽取一个临时性疯狂症状",
-		Help:      "抽取临时性疯狂症状:\n.li // 抽取一个临时性疯狂症状",
+		Help:      "抽取临时性疯狂症状:\n.ti // 抽取一个临时性疯狂症状",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "help") {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
