@@ -61,6 +61,26 @@ func (m *ReplyConditionTextMatch) Clean() {
 	m.Value = strings.TrimSpace(m.Value)
 }
 
+type replyRegexCacheType struct {
+	cache SyncMap[string, *regexp.Regexp]
+}
+
+func (r *replyRegexCacheType) compile(expr string) *regexp.Regexp {
+	if re, ok := r.cache.Load(expr); ok {
+		return re
+	}
+
+	if ret, err := regexp.Compile(expr); err == nil {
+		r.cache.Store(expr, ret)
+		return ret
+	} else {
+		r.cache.Store(expr, nil)
+		return nil
+	}
+}
+
+var replyRegexCache replyRegexCacheType
+
 func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, cleanText string) bool {
 	var ret bool
 	switch m.MatchType {
@@ -80,8 +100,8 @@ func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, _ *Message, _ *CmdArgs,
 	case "matchSuffix":
 		ret = strings.HasSuffix(strings.ToLower(cleanText), strings.ToLower(m.Value))
 	case "matchRegex":
-		re, err := regexp.Compile(m.Value)
-		if err == nil {
+		re := replyRegexCache.compile(m.Value)
+		if re != nil {
 			lst := re.FindStringSubmatch(cleanText)
 			gName := re.SubexpNames()
 			for index, s := range lst {
@@ -125,7 +145,7 @@ func (m *ReplyConditionExprTrue) Clean() {
 
 func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, _ string) bool {
 	// r := ctx.Eval(m.Value, ds.RollConfig{})
-	r, _, err := DiceExprEvalBase(ctx, m.Value, RollExtraFlags{})
+	r, _, err := DiceExprEvalBase(ctx, m.Value, RollExtraFlags{V2Only: true})
 
 	if err != nil {
 		ctx.Dice.Logger.Infof("自定义回复表达式执行失败: %s", m.Value)
@@ -136,6 +156,7 @@ func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, 
 		ctx.Dice.Logger.Infof("自定义回复表达式执行失败(后半部分不能识别 %s): %s", r.GetRestInput(), m.Value)
 		return false
 	}
+
 	// fmt.Println("???", r, err, r.AsBool(), r.Value == int64(0), r.Value != int64(0))
 	return r.AsBool()
 }
