@@ -133,7 +133,7 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 「QQ(onebot11正向WS)」遵循 onebot11 标准，由海豹核心主动连接 QQ 登录框架。在 UI 界面添加「连接地址」格式应当为 `ws://{Host}:{Port}`。
 
-「QQ(onebot11正向WS)」遵循 onebot11 标准，由 QQ 登录框架主动连接海豹核心。在 UI 界面添加「连接地址」格式应当为 `{Host}:{Port}`。
+「QQ(onebot11反向WS)」遵循 onebot11 标准，由 QQ 登录框架主动连接海豹核心。在 UI 界面添加「连接地址」格式应当为 `{Host}:{Port}`。
 
 「[WIP]Satori」遵循 Satori 标准，由海豹核心主动连接 QQ 登录框架。
 
@@ -181,16 +181,16 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 请参考 [官方文档](https://llonebot.github.io/zh-CN/) 中的说明。
 
-#### 配置海豹
+#### 配置 LLOneBot
 
-安装完成后重新登录 QQ，进入 LLOneBot 的设置页：
+安装完成后重新登录 QQ，在 QQ 设置中 LLOneBot 的设置页：
 
 ![LLOneBot 设置页](./images/platform-qq-llonebot-2.png)
 
 支持两种方式与海豹对接：
 
 - 正向连接：默认开放的正向 ws 端口为 3001，在海豹的新添账号选择「QQ(onebot11正向WS)」，账号处随便填写，连接地址填 `ws://localhost:3001`。
-- 反向连接：关闭正向连接开关，打开反向连接，点击「添加」，输入 `ws://127.0.0.1:4001/ws`，在海豹的新添账号选择「QQ(onebot11反向WS)」，输入账号。
+- 反向连接：关闭 LLOneBot 的正向连接开关，打开 LLOneBot 的反向连接开关，在「反向WebSocket监听地址」里点击「添加」，输入 `ws://127.0.0.1:4001/ws`，然后在海豹的新添账号选择「QQ(onebot11反向WS)」，输入账号。
 
 ::: tip
 
