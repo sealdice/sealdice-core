@@ -36,7 +36,7 @@ seal.memberBan(ctx, groupID, userID, dur) //将指定群的指定用户封禁指
 seal.memberKick(ctx, groupID, userID)  //将指定群的指定用户踢出 (似乎也只实现了 walleq 协议？)
 seal.format(ctx, something) //将 something 经过一层 rollvm 转译并返回，注意需要配合 replyToSender 才能发送给触发者！
 seal.formatTmpl(ctx, something) //调用自定义文案 something
-seal.getCtxProxyFirst(ctx, cmdArgs)  //获取被 at 的第一个人，等价于 getCtxProxyAtPos(ctx, 0)
+seal.getCtxProxyFirst(ctx, cmdArgs)  //获取被 at 的第一个人，等价于 getCtxProxyAtPos(ctx, cmdArgs, 0)
 seal.vars.intGet(ctx, `$XXX`) //返回一个数组，其为 `[int 类型的触发者的该变量的值，bool]` 当 strGet 一个 int 或 intGet 一个 str 时 bool 为 false，若一切正常则为 true。（之所以会有这么奇怪的说法是因为 rollvm 的「个人变量」机制）。
 seal.vars.intSet(ctx, `$XXX`, valueToSet) //`$XXX` 即 rollvm（初阶豹语）中的变量，其会将 $XXX 的值设定为 int 类型的 valueToSet。
 seal.vars.strGet(ctx, `$XXX`) //返回一个数组，其为 `[str 类型的触发者的该变量的值，bool]`（之所以会有这么奇怪的说法是因为 rollvm 的「个人变量」机制），当 strGet 一个 int 或 intGet 一个 str 时 bool 为 false，如果一切正常则为 true。
@@ -59,7 +59,7 @@ seal.createTempCtx(endpoint, msg) // 制作一个 ctx, 需要 msg.MessageType �
 seal.applyPlayerGroupCardByTemplate(ctx, tmpl) // 设定当前 ctx 玩家的自动名片格式
 seal.gameSystem.newTemplate(string) //从 json 解析新的游戏规则。
 seal.gameSystem.newTemplateByYaml(string) //从 yaml 解析新的游戏规则。
-seal.getCtxProxyAtPos(ctx, pos) //获取第 pos 个被 at 的人，pos 从 0 开始计数
+seal.getCtxProxyAtPos(ctx, cmdArgs, pos) //获取第 pos 个被 at 的人，pos 从 0 开始计数
 atob(base64String) //返回被解码的 base64 编码
 btoa(string) //将 string 编码为 base64 并返回
 
@@ -140,12 +140,12 @@ ext.cmdMap['test'] = cmd
 //输入：.test @A @B
 //返回：A 的名称。这里其实获取的是 A 玩家的 ctx，具体见 ctx 数据结构。
 cmd.solve = (ctx, msg, cmdArgs) => {
-    let ctx3 = seal.getCtxProxyAtPos(ctx, 3)
+    let ctx2 = seal.getCtxProxyAtPos(ctx, 2)
     seal.replyToSender(ctx, msg, ctx3.player.name)
 }
 ext.cmdMap['test'] = cmd
 //输入：.test @A @B @C
-//返回：C（第三个被@的人）的名称。这里其实获取的是 C 玩家的 ctx，具体见 ctx 数据结构。
+//返回：C（第三个被@的人，从 0 开始计算）的名称。这里其实获取的是 C 玩家的 ctx，具体见 ctx 数据结构。
 ```
 
 ## `vars`
