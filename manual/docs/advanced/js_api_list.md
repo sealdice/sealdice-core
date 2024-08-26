@@ -121,11 +121,11 @@ seal.memberKick(ctx, groupID, userID) //将群为 groupID，userid 为 userID �
 
 ```javascript
 //注意 format 不会自动 reply，而是 return，所以请套一层 reply
-seal.replyToSender(ctx, msg, seal.format(`{$t玩家}的人品为：{$t人品}`))
+seal.replyToSender(ctx, msg, seal.format(ctx, `{$t玩家}的人品为：{$t人品}`))
 //{$t人品} 是一个 rollvm 变量，其值等于 .jrrp 出的数值
 //回复：
 //群主的人品为：87
-seal.replyToSender(ctx, msg, seal.formatTmpl(unknown))
+seal.replyToSender(ctx, msg, seal.formatTmpl(ctx, unknown))
 //这里等大佬来了再研究
 ```
 
