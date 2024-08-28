@@ -146,10 +146,11 @@ func (m *ReplyConditionExprTrue) Clean() {
 
 func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, _ string) bool {
 	// r := ctx.Eval(m.Value, ds.RollConfig{})
-	flags := RollExtraFlags{V2Only: true}
-	if ctx.Dice.VMVersionForReply == "v1" {
-		flags.V1Only = true
+	flags := RollExtraFlags{
+		V2Only: true,
+		V1Only: ctx.Dice.VMVersionForReply == "v1",
 	}
+
 	r, _, err := DiceExprEvalBase(ctx, m.Value, flags)
 
 	if err != nil {
