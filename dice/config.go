@@ -2120,6 +2120,17 @@ func (d *Dice) loads() {
 		d.CensorMatchPinyin = dNew.CensorMatchPinyin
 		d.CensorFilterRegexStr = dNew.CensorFilterRegexStr
 
+		d.VMVersionForDeck = dNew.VMVersionForDeck
+		d.VMVersionForReply = dNew.VMVersionForReply
+
+		if d.VMVersionForDeck == "" {
+			d.VMVersionForDeck = "v2"
+		}
+
+		if d.VMVersionForReply == "" {
+			d.VMVersionForReply = "v1"
+		}
+
 		if dNew.BanList != nil {
 			d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
 			d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite
@@ -2429,6 +2440,10 @@ func (d *Dice) loads() {
 
 		d.QuitInactiveBatchSize = 10
 		d.QuitInactiveBatchWait = 30
+
+		// 1.5
+		d.VMVersionForDeck = "v2"
+		d.VMVersionForReply = "v1"
 	}
 
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {

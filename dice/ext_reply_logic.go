@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -145,7 +146,11 @@ func (m *ReplyConditionExprTrue) Clean() {
 
 func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, _ string) bool {
 	// r := ctx.Eval(m.Value, ds.RollConfig{})
-	r, _, err := DiceExprEvalBase(ctx, m.Value, RollExtraFlags{V2Only: true})
+	flags := RollExtraFlags{V2Only: true}
+	if ctx.Dice.VMVersionForReply == "v1" {
+		flags.V1Only = true
+	}
+	r, _, err := DiceExprEvalBase(ctx, m.Value, flags)
 
 	if err != nil {
 		ctx.Dice.Logger.Infof("自定义回复表达式执行失败: %s", m.Value)
@@ -172,12 +177,34 @@ func (m *ReplyResultReplyToSender) Clean() {
 	m.Message.Clean()
 }
 
+func formatExprForReply(ctx *MsgContext, expr string) string {
+	var text string
+	var err error
+
+	if ctx.Dice.VMVersionForReply == "v1" {
+		text, err = DiceFormatV1(ctx, expr)
+		if err != nil {
+			text = fmt.Sprintf("执行出错V1: %s", err.Error())
+		}
+	} else {
+		text, err = DiceFormatV2(ctx, expr)
+		if err != nil {
+			text = fmt.Sprintf("执行出错V2: %s\n原始文本: %s", err.Error(), strconv.Quote(expr))
+		}
+	}
+
+	return text
+}
+
 func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs) {
 	// go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-	ReplyToSender(ctx, msg, DiceFormat(ctx, p.Pick().(string)))
+
+	expr := p.Pick().(string)
+	text := formatExprForReply(ctx, expr)
+	ReplyToSender(ctx, msg, text)
 	// }()
 }
 
@@ -195,7 +222,10 @@ func (m *ReplyResultReplyPrivate) Clean() {
 func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
-	ReplyPerson(ctx, msg, DiceFormat(ctx, p.Pick().(string)))
+
+	expr := p.Pick().(string)
+	text := formatExprForReply(ctx, expr)
+	ReplyPerson(ctx, msg, text)
 }
 
 // ReplyResultReplyGroup 回复到群组 replyGroup
@@ -213,7 +243,10 @@ func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, _ *CmdArg
 	// go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
-	ReplyGroup(ctx, msg, DiceFormat(ctx, p.Pick().(string)))
+
+	expr := p.Pick().(string)
+	text := formatExprForReply(ctx, expr)
+	ReplyGroup(ctx, msg, text)
 	// }()
 }
 
@@ -226,7 +259,11 @@ type ReplyResultRunText struct {
 
 func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-	_, _, _ = DiceExprTextBase(ctx, m.Message, RollExtraFlags{})
+	flags := RollExtraFlags{V2Only: true}
+	if ctx.Dice.VMVersionForReply == "v1" {
+		flags.V1Only = true
+	}
+	_, _, _ = DiceExprTextBase(ctx, m.Message, flags)
 }
 
 type ReplyConditions []ReplyConditionBase

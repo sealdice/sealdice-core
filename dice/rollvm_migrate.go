@@ -222,6 +222,14 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 
 	s = CompatibleReplace(ctx, s)
 
+	if flags.V1Only {
+		val, detail, err := ctx.Dice._ExprEvalBaseV1(s, ctx, flags)
+		if err != nil {
+			return nil, detail, err
+		}
+		return &VMResultV2m{val.ConvertToV2(), ctx.vm, val, cocFlagVarPrefix, nil}, detail, err
+	}
+
 	err := ctx.vm.Run(s)
 	if err != nil || ctx.vm.Ret == nil {
 		if flags.V2Only {
@@ -698,8 +706,9 @@ func DiceFormatV2(ctx *MsgContext, s string) (string, error) { //nolint:revive
 	// err := ctx.vm.Run("\x1e" + s + "\x1e")
 	v, err := ctx.vm.RunExpr("\x1e"+s+"\x1e", true)
 	if err != nil || v == nil {
-		fmt.Println("脚本执行出错V2f: ", s, "->", err)
-		return "", err
+		// fmt.Println("脚本执行出错V2f: ", s, "->", err)
+		errText := "格式化错误V2:" + strconv.Quote(s)
+		return errText, err
 	} else {
 		return v.ToString(), nil
 	}

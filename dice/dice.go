@@ -279,6 +279,9 @@ type Dice struct {
 	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
 
+	VMVersionForReply string `json:"VMVersionForReply" yaml:"VMVersionForReply"` // 自定义回复使用的vm版本
+	VMVersionForDeck  string `json:"VMVersionForDeck" yaml:"VMVersionForDeck"`   // 牌堆使用的vm版本
+
 	AttrsManager *AttrsManager `json:"-" yaml:"-"`
 
 	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
@@ -602,7 +605,8 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 		return val.Value.(string), detail, err
 	}
 
-	return "格式化错误:" + strconv.Quote(buffer), "", errors.New("格式化错误:" + strconv.Quote(buffer))
+	textQuote := strconv.Quote(buffer) // 主意，这个返回的err是错误的，但是历史代码，不做修改
+	return "格式化错误V1:" + textQuote, "", errors.New(textQuote)
 }
 
 // ExtFind 根据名称或别名查找扩展
