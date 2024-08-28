@@ -242,7 +242,7 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		if ctx.EndPoint.ProtocolType != "official" {
 			VarSetValueStr(ctx, "$t平台", ctx.EndPoint.Platform)
 		} else {
-			VarSetValueStr(ctx, "$t平台", "official-QQ")
+			VarSetValueStr(ctx, "$t平台", "QQ-official")
 		}
 
 		rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
