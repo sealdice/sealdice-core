@@ -605,7 +605,7 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 		return val.Value.(string), detail, err
 	}
 
-	textQuote := strconv.Quote(buffer) // 主意，这个返回的err是错误的，但是历史代码，不做修改
+	textQuote := strconv.Quote(buffer) // 主意，这个返回中对err进行改写是错误的，但是历史代码，不做修改
 	return "格式化错误V1:" + textQuote, "", errors.New(textQuote)
 }
 

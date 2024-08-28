@@ -256,7 +256,7 @@ type RollExtraFlags struct {
 	DisableDicePool    bool  // 禁用骰池
 
 	V2Only     bool                                                                    // 仅使用v2
-	V1Only     bool                                                                    // 仅使用v2
+	V1Only     bool                                                                    // 仅使用v1，如果v1 v2两个选项同开，会走v1
 	vmDepth    int64                                                                   // 层数
 	StCallback func(_type string, name string, val *VMValue, op string, detail string) // st回调
 }
