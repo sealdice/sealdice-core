@@ -184,7 +184,8 @@ func formatExprForReply(ctx *MsgContext, expr string) string {
 	if ctx.Dice.VMVersionForReply == "v1" {
 		text, err = DiceFormatV1(ctx, expr)
 		if err != nil {
-			text = fmt.Sprintf("执行出错V1: %s", err.Error())
+			// text = fmt.Sprintf("执行出错V1: %s", err.Error())
+			text = err.Error()
 		}
 	} else {
 		text, err = DiceFormatV2(ctx, expr)

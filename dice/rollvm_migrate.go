@@ -747,6 +747,8 @@ func _MsgCreate(messageType string, message string) *Message {
 	return msg
 }
 
+var reEngineVersionMark = regexp.MustCompile(`\/\/[^\r\n]+\[(v[12])\]`)
+
 // TextMapCompatibleCheck 新旧预设文本兼容性检测
 func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplateItem) {
 	key := fmt.Sprintf("%s:%s", category, k)
@@ -851,10 +853,14 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 			}
 		}
 
-		if strings.Contains(formatExpr, "[v1]") {
-			ver = "v1" // 强制v1
-		} else if strings.Contains(formatExpr, "[v2]") {
-			ver = "v2" // 强制v2
+		m := reEngineVersionMark.FindStringSubmatch(formatExpr)
+		if len(m) > 0 {
+			v := m[1]
+			if v == "v1" {
+				ver = "v1" // 强制v1
+			} else if v == "v2" {
+				ver = "v2" // 强制v2
+			}
 		}
 
 		info := TextItemCompatibleInfo{Version: ver, TextV2: text2, TextV1: text1, PresetExists: presetExists}

@@ -606,7 +606,7 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 	}
 
 	textQuote := strconv.Quote(buffer) // 主意，这个返回中对err进行改写是错误的，但是历史代码，不做修改
-	return "格式化错误V1:" + textQuote, "", errors.New(textQuote)
+	return "格式化错误V1:" + textQuote, "", errors.New("格式化错误V1:" + textQuote)
 }
 
 // ExtFind 根据名称或别名查找扩展
