@@ -546,7 +546,7 @@ func DiceMailTest(c echo.Context) error {
 	return Success(&c, Response{})
 }
 
-func vmVersionForReplySetBase(c echo.Context, callback func(val string)) error {
+func vmVersionForExtSetBase(c echo.Context, callback func(val string)) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
@@ -570,13 +570,13 @@ func vmVersionForReplySetBase(c echo.Context, callback func(val string)) error {
 }
 
 func vmVersionForReplySet(c echo.Context) error {
-	return vmVersionForReplySetBase(c, func(val string) {
+	return vmVersionForExtSetBase(c, func(val string) {
 		myDice.VMVersionForReply = val
 	})
 }
 
 func vmVersionForDeckSet(c echo.Context) error {
-	return vmVersionForReplySetBase(c, func(val string) {
+	return vmVersionForExtSetBase(c, func(val string) {
 		myDice.VMVersionForDeck = val
 	})
 }

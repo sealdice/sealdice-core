@@ -227,7 +227,7 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 		if err != nil {
 			return nil, detail, err
 		}
-		return &VMResultV2m{val.ConvertToV2(), ctx.vm, val, cocFlagVarPrefix, nil}, detail, err
+		return &VMResultV2m{val.ConvertToV2(), ctx.vm, val, cocFlagVarPrefix, nil}, detail, nil
 	}
 
 	err := ctx.vm.Run(s)

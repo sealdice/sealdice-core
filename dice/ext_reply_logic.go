@@ -204,8 +204,7 @@ func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, _ *Cmd
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 
 	expr := p.Pick().(string)
-	text := formatExprForReply(ctx, expr)
-	ReplyToSender(ctx, msg, text)
+	ReplyToSender(ctx, msg, formatExprForReply(ctx, expr))
 	// }()
 }
 
@@ -225,8 +224,7 @@ func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, _ *CmdA
 	p := m.Message.toRandomPool()
 
 	expr := p.Pick().(string)
-	text := formatExprForReply(ctx, expr)
-	ReplyPerson(ctx, msg, text)
+	ReplyPerson(ctx, msg, formatExprForReply(ctx, expr))
 }
 
 // ReplyResultReplyGroup 回复到群组 replyGroup
@@ -246,8 +244,7 @@ func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, _ *CmdArg
 	p := m.Message.toRandomPool()
 
 	expr := p.Pick().(string)
-	text := formatExprForReply(ctx, expr)
-	ReplyGroup(ctx, msg, text)
+	ReplyGroup(ctx, msg, formatExprForReply(ctx, expr))
 	// }()
 }
 
@@ -260,9 +257,9 @@ type ReplyResultRunText struct {
 
 func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-	flags := RollExtraFlags{V2Only: true}
-	if ctx.Dice.VMVersionForReply == "v1" {
-		flags.V1Only = true
+	flags := RollExtraFlags{
+		V2Only: true,
+		V1Only: ctx.Dice.VMVersionForReply == "v1",
 	}
 	_, _, _ = DiceExprTextBase(ctx, m.Message, flags)
 }
