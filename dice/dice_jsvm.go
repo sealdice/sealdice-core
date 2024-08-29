@@ -22,6 +22,7 @@ import (
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
+	esbuild "github.com/evanw/esbuild/pkg/api"
 	fetch "github.com/fy0/gojax/fetch"
 	"github.com/golang-module/carbon"
 	"github.com/pkg/errors"
@@ -630,6 +631,11 @@ func (d *Dice) jsClear() {
 	}
 }
 
+func isScriptFile(filename string) bool {
+	temp := strings.ToLower(filepath.Ext(filename))
+	return temp == ".js" || temp == ".ts"
+}
+
 func (d *Dice) JsLoadScripts() {
 	d.JsScriptList = []*JsScriptInfo{}
 
@@ -640,7 +646,7 @@ func (d *Dice) JsLoadScripts() {
 	builtinScripts, _ := fs.ReadDir(static.Scripts, "scripts")
 	_ = os.MkdirAll(builtinPath, 0o755)
 	for _, script := range builtinScripts {
-		if !script.IsDir() && filepath.Ext(script.Name()) == ".js" {
+		if !script.IsDir() && isScriptFile(script.Name()) {
 			target := filepath.Join(builtinPath, script.Name())
 			data, _ := static.Scripts.ReadFile("scripts/" + script.Name())
 			d.JsBuiltinDigestSet[crypto.CalculateSHA512Str(data)] = true
@@ -662,7 +668,7 @@ func (d *Dice) JsLoadScripts() {
 	var jsInfos []*JsScriptInfo
 	// 解析内置脚本
 	_ = filepath.Walk(builtinPath, func(path string, info fs.FileInfo, err error) error {
-		if filepath.Ext(path) == ".js" {
+		if isScriptFile(path) {
 			d.Logger.Info("正在读取内置脚本: ", path)
 			data, err := os.ReadFile(path)
 			if err != nil {
@@ -690,7 +696,7 @@ func (d *Dice) JsLoadScripts() {
 		if info.IsDir() && info.Name() == "_builtin" {
 			return fs.SkipDir
 		}
-		if filepath.Ext(path) == ".js" {
+		if isScriptFile(path) {
 			d.Logger.Info("正在读取脚本: ", path)
 			data, err := os.ReadFile(path)
 			if err != nil {
@@ -750,6 +756,11 @@ func (d *Dice) JsLoadScripts() {
 			}
 			d.Logger.Infof("正在加载脚本「%s:%s:%s」，其依赖：%s", jsInfo.Author, jsInfo.Name, jsInfo.Version, strings.Join(depends, "、"))
 		}
+
+		if strings.ToLower(filepath.Ext(jsInfo.Filename)) == ".ts" {
+			jsInfo.needCompiled = true
+		}
+
 		d.JsLoadScriptRaw(jsInfo)
 	}
 }
@@ -857,6 +868,8 @@ type JsScriptInfo struct {
 	Digest string `json:"-"`
 	/** 依赖项 */
 	Depends []JsScriptDepends `json:"depends"`
+	/** 需要被编译 */
+	needCompiled bool
 }
 
 type JsScriptDepends struct {
@@ -993,7 +1006,19 @@ func (d *Dice) JsLoadScriptRaw(jsInfo *JsScriptInfo) {
 	var err error
 	if jsInfo.Enable {
 		d.JsLoadingScript = jsInfo
-		_, err = d.JsRequire.Require(jsInfo.Filename)
+		var targetPath string
+		if jsInfo.needCompiled {
+			d.Logger.Infof("脚本<%s>正在经过编译处理……", jsInfo.Name)
+			targetPath, err = tsScriptCompile(jsInfo.Filename)
+			defer func(name string) {
+				_ = os.Remove(name)
+			}(targetPath)
+		} else {
+			targetPath = jsInfo.Filename
+		}
+		if err != nil {
+			_, err = d.JsRequire.Require(targetPath)
+		}
 		d.JsLoadingScript = nil
 	} else {
 		d.Logger.Infof("脚本<%s>已被禁用，跳过加载", jsInfo.Name)
@@ -1005,6 +1030,32 @@ func (d *Dice) JsLoadScriptRaw(jsInfo *JsScriptInfo) {
 		jsInfo.Enable = false
 		d.Logger.Error("读取脚本失败(解析失败): ", errText)
 	}
+}
+
+func tsScriptCompile(path string) (string, error) {
+	script, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	compiled := esbuild.Transform(string(script), esbuild.TransformOptions{
+		Loader: esbuild.LoaderTS,
+	})
+	if len(compiled.Errors) > 0 {
+		var msg string
+		for _, e := range compiled.Errors {
+			msg += e.Text // FIXME 优化错误信息展示
+		}
+		return "", errors.New(msg)
+	}
+	compiledPath, err := os.CreateTemp("", "compiled-*-"+filepath.Base(path))
+	if err != nil {
+		return "", err
+	}
+	_, err = compiledPath.Write(compiled.Code)
+	if err != nil {
+		return "", err
+	}
+	return compiledPath.Name(), nil
 }
 
 func CheckJsSign(rawData []byte) (bool, SignStatus) {
