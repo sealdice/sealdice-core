@@ -11,11 +11,12 @@ import (
 	"sync"
 	"time"
 
-	ds "github.com/sealdice/dicescript"
-	rand2 "golang.org/x/exp/rand"
-
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
+
+	"github.com/golang-module/carbon"
+	ds "github.com/sealdice/dicescript"
+	rand2 "golang.org/x/exp/rand"
 
 	"github.com/dop251/goja"
 	"github.com/jmoiron/sqlx"
@@ -1362,6 +1363,7 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 // 借助类似操作系统信号量的思路来做一个互斥锁
 var muxAutoQuit sync.Mutex
 var groupLeaveNum int
+var platformRE = regexp.MustCompile(`^(.*)-Group:`)
 
 // LongTimeQuitInactiveGroup 另一种退群方案,其中minute代表间隔多久执行一次，num代表一次退几个群（每次退群之间有10秒的等待时间）
 func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIntervalMinute int, groupsPerRound int) {
@@ -1385,7 +1387,6 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 		defer muxAutoQuit.Unlock()
 
 		groupLeaveNum = 0
-		platformRE := regexp.MustCompile(`^(.*)-Group:`)
 		selectedGroupEndpoints := []*GroupEndpointPair{} // 创建一个存放 grp 和 ep 组合的切片
 
 		// Pinenutn: Range模板 ServiceAtNew重构代码
@@ -1467,6 +1468,22 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 	}()
 }
 
+// FormatBlacklistReasons 格式化黑名单原因文本
+func FormatBlacklistReasons(v *BanListInfoItem) string {
+	var sb strings.Builder
+	sb.WriteString("黑名单原因：")
+	for i, reason := range v.Reasons {
+		sb.WriteString("\n")
+		sb.WriteString(carbon.CreateFromTimestamp(v.Times[i]).ToDateTimeString())
+		sb.WriteString("在「")
+		sb.WriteString(v.Places[i])
+		sb.WriteString("」，原因：")
+		sb.WriteString(reason)
+	}
+	reasontext := sb.String()
+	return reasontext
+}
+
 // checkBan 黑名单拦截
 func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	d := ctx.Dice
@@ -1486,8 +1503,10 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	}
 
 	banQuitGroup := func() {
+		banListInfoItem, _ := ctx.Dice.BanList.Map.Load(msg.Sender.UserID)
+		reasontext := FormatBlacklistReasons(banListInfoItem)
 		groupID := msg.GroupID
-		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 		log.Info(noticeMsg)
 
 		text := fmt.Sprintf("因<%s>(%s)是黑名单用户，将自动退群。", msg.Sender.Nickname, msg.Sender.UserID)
@@ -1503,6 +1522,8 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		groupLevel := ctx.GroupRoleLevel
 		if d.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
+			banListInfoItem, _ := ctx.Dice.BanList.Map.Load(msg.Sender.UserID)
+			reasontext := FormatBlacklistReasons(banListInfoItem)
 			groupID := msg.GroupID
 			notReply = true
 			if groupLevel >= 40 {
@@ -1512,7 +1533,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 					text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知并退群。", msg.Sender.Nickname, msg.Sender.UserID)
 					ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 
-					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是管理以上权限，执行通告后自动退群", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是管理以上权限，执行通告后自动退群\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 					log.Info(noticeMsg)
 					ctx.Notice(noticeMsg)
 					banQuitGroup()
@@ -1522,7 +1543,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 					log.Infof("收到群(%s)内普通群员黑名单用户<%s>(%s)的消息，但在信任群所以不做其他操作", groupID, msg.Sender.Nickname, msg.Sender.UserID)
 				} else {
 					notReply = true
-					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告", groupID, msg.Sender.Nickname, msg.Sender.UserID)
+					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 					log.Info(noticeMsg)
 
 					text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
@@ -1549,11 +1570,13 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		if d.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
 			notReply = true
 			// 黑名单群 - 立即退出
+			banListInfoItem, _ := ctx.Dice.BanList.Map.Load(msg.Sender.UserID)
+			reasontext := FormatBlacklistReasons(banListInfoItem)
 			groupID := msg.GroupID
 			if isWhiteGroup {
 				log.Infof("群(%s)处于黑名单中，但在信任群所以不尝试退群", groupID)
 			} else {
-				noticeMsg := fmt.Sprintf("群(%s)处于黑名单中，自动退群", groupID)
+				noticeMsg := fmt.Sprintf("群(%s)处于黑名单中，自动退群\n%s", groupID, reasontext)
 				log.Info(noticeMsg)
 
 				ReplyGroupRaw(ctx, &Message{GroupID: groupID}, "因本群处于黑名单中，将自动退群。", "")
