@@ -238,7 +238,12 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueStr(ctx, "$t骰子昵称", ctx.EndPoint.Nickname)
 		VarSetValueStr(ctx, "$t帐号ID_RAW", UserIDExtract(ctx.Player.UserID))
 		VarSetValueStr(ctx, "$t账号ID_RAW", UserIDExtract(ctx.Player.UserID))
-		VarSetValueStr(ctx, "$t平台", ctx.EndPoint.Platform)
+
+		if ctx.EndPoint.ProtocolType != "official" {
+			VarSetValueStr(ctx, "$t平台", ctx.EndPoint.Platform)
+		} else {
+			VarSetValueStr(ctx, "$t平台", "QQ-official")
+		}
 
 		rpSeed := (time.Now().Unix() + (8 * 60 * 60)) / (24 * 60 * 60)
 		rpSeed += int64(fingerprint(ctx.EndPoint.UserID))
