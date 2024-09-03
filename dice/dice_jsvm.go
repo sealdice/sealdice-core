@@ -988,6 +988,8 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 				if !verOK {
 					errMsg = append(errMsg, fmt.Sprintf("插件「%s」依赖的海豹版本限制在 %s，与海豹版本(%s)的JSAPI不兼容", jsInfo.Name, v, VERSION.String()))
 				}
+			case "needCompiled":
+				jsInfo.needCompiled = true
 			}
 		}
 		jsInfo.UpdateUrls = updateUrls
@@ -1016,7 +1018,7 @@ func (d *Dice) JsLoadScriptRaw(jsInfo *JsScriptInfo) {
 		} else {
 			targetPath = jsInfo.Filename
 		}
-		if err != nil {
+		if err == nil {
 			_, err = d.JsRequire.Require(targetPath)
 		}
 		d.JsLoadingScript = nil
@@ -1048,6 +1050,9 @@ func tsScriptCompile(path string) (string, error) {
 		return "", errors.New(msg)
 	}
 	compiledPath, err := os.CreateTemp("", "compiled-*-"+filepath.Base(path))
+	defer func(compiledPath *os.File) {
+		_ = compiledPath.Close()
+	}(compiledPath)
 	if err != nil {
 		return "", err
 	}
