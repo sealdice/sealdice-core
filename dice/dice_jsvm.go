@@ -1050,12 +1050,12 @@ func tsScriptCompile(path string) (string, error) {
 		return "", errors.New(msg)
 	}
 	compiledPath, err := os.CreateTemp("", "compiled-*-"+filepath.Base(path))
-	defer func(compiledPath *os.File) {
-		_ = compiledPath.Close()
-	}(compiledPath)
 	if err != nil {
 		return "", err
 	}
+	defer func(compiledPath *os.File) {
+		_ = compiledPath.Close()
+	}(compiledPath)
 	_, err = compiledPath.Write(compiled.Code)
 	if err != nil {
 		return "", err
