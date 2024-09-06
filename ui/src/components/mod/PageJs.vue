@@ -43,7 +43,7 @@
         <el-tab-pane label="插件列表" name="list">
           <header class="js-list-header">
             <el-space>
-              <el-upload action="" multiple accept="application/javascript, .js" class="upload"
+              <el-upload action="" multiple accept="application/javascript,application/typescript,.js,.ts" class="upload"
                 :before-upload="beforeUpload" :file-list="uploadFileList">
                 <el-button type="primary" :icon="Upload">上传插件</el-button>
               </el-upload>
@@ -65,6 +65,10 @@
                   <el-text size="large" tag="b">{{ i.name }}</el-text>
                   <el-text>{{ i.version || '&lt;未定义>' }}</el-text>
                   <el-tag v-if="i.official" size="small" type="success">官方</el-tag>
+
+                  <el-tooltip content="该插件使用 TypeScript 编写">
+                    <el-tag v-if="i.filename.toLowerCase().endsWith('.ts')" size="small" type="primary">TS</el-tag>
+                  </el-tooltip>
                 </el-space>
               </template>
 
