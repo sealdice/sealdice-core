@@ -1363,6 +1363,7 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 // 借助类似操作系统信号量的思路来做一个互斥锁
 var muxAutoQuit sync.Mutex
 var groupLeaveNum int
+var platformRE = regexp.MustCompile(`^(.*)-Group:`)
 
 // LongTimeQuitInactiveGroup 另一种退群方案,其中minute代表间隔多久执行一次，num代表一次退几个群（每次退群之间有10秒的等待时间）
 func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIntervalMinute int, groupsPerRound int) {
@@ -1386,7 +1387,6 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 		defer muxAutoQuit.Unlock()
 
 		groupLeaveNum = 0
-		platformRE := regexp.MustCompile(`^(.*)-Group:`)
 		selectedGroupEndpoints := []*GroupEndpointPair{} // 创建一个存放 grp 和 ep 组合的切片
 
 		// Pinenutn: Range模板 ServiceAtNew重构代码
