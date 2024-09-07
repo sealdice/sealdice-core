@@ -656,7 +656,7 @@ func textAssetsConvert(s string) string {
 				}
 				cq := CQCommand{
 					Type: cqType,
-					Args: map[string]string{"file": u.String(), "cache": "0"},
+					Args: map[string]string{"file": EscapeComma(u.String()), "cache": "0"},
 				}
 				return cq.Compile()
 			}
@@ -683,7 +683,7 @@ func textAssetsConvert(s string) string {
 			}
 			cq := CQCommand{
 				Type: cqType,
-				Args: map[string]string{"file": u.String()},
+				Args: map[string]string{"file": EscapeComma(u.String())},
 			}
 			return cq.Compile()
 		}
@@ -702,6 +702,7 @@ func textAssetsConvert(s string) string {
 				return
 			}
 			if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") || strings.HasPrefix(fn, "base64://") {
+				cq.Args["file"] = EscapeComma(cq.Args["file"])
 				return
 			}
 			if strings.HasSuffix(fn, ".image") && len(fn) == 32+6 {
@@ -728,7 +729,7 @@ func textAssetsConvert(s string) string {
 						Scheme: "file",
 						Path:   filepath.ToSlash(afn),
 					}
-					cq.Args["file"] = u.String()
+					cq.Args["file"] = EscapeComma(u.String())
 				}
 			} else {
 				cq.Overwrite = "[CQ码读取的不是当前目录文件或临时文件，可能是恶意行为，已禁止]"
@@ -740,4 +741,12 @@ func textAssetsConvert(s string) string {
 	text := strings.ReplaceAll(s, `\n`, "\n")
 	text = ImageRewrite(text, solve2)
 	return CQRewrite(text, solve)
+}
+
+func EscapeComma(text string) string {
+	// 逗号属于URL合法字符，故只对file协议格式进行处理
+	if strings.HasPrefix(text, "file://") {
+		return strings.ReplaceAll(text, ",", "%2C")
+	}
+	return text
 }
