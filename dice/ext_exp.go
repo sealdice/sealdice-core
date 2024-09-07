@@ -289,7 +289,7 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *Attributes
 	}
 
 	// 指令信息
-	commandInfo["items"] = append(commandInfo["items"].([]interface{}), map[string]interface{}{
+	commandInfo["items"] = append(commandInfo["items"].([]any), map[string]any{
 		"type":    "mod",
 		"attr":    i.name,
 		"modExpr": i.expr,

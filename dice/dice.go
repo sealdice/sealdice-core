@@ -3,7 +3,6 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -12,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
@@ -30,35 +28,6 @@ import (
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
-)
-
-var (
-	APPNAME = "SealDice"
-
-	// VERSION 版本号，按固定格式，action 在构建时可能会自动注入部分信息
-	// 正式：主版本号+yyyyMMdd，如 1.4.5+20240308
-	// dev：主版本号-dev+yyyyMMdd.7位hash，如 1.4.5-dev+20240308.1a2b3c4
-	// rc：主版本号-rc.序号+yyyyMMdd.7位hash如 1.4.5-rc.0+20240308.1a2b3c4，1.4.5-rc.1+20240309.2a3b4c4，……
-	VERSION = semver.MustParse(VERSION_MAIN + VERSION_PRERELEASE + VERSION_BUILD_METADATA)
-
-	// VERSION_MAIN 主版本号
-	VERSION_MAIN = "1.5.0"
-	// VERSION_PRERELEASE 先行版本号
-	VERSION_PRERELEASE = "-dev"
-	// VERSION_BUILD_METADATA 版本编译信息
-	VERSION_BUILD_METADATA = ""
-
-	// APP_CHANNEL 更新频道，stable/dev，在 action 构建时自动注入
-	APP_CHANNEL = "dev" //nolint:revive
-
-	VERSION_CODE = int64(1004005) //nolint:revive
-
-	VERSION_JSAPI_COMPATIBLE = []*semver.Version{
-		VERSION,
-		semver.MustParse("1.4.5"),
-		semver.MustParse("1.4.4"),
-		semver.MustParse("1.4.3"),
-	}
 )
 
 type CmdExecuteResult struct {
@@ -762,22 +731,27 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 	return false
 }
 
-var randSource = rand2.NewSource(uint64(time.Now().Unix()))
+// var randSource = rand2.NewSource(uint64(time.Now().Unix()))
+var randSource = &rand2.PCGSource{}
 
 func DiceRoll(dicePoints int) int { //nolint:revive
 	if dicePoints <= 0 {
 		return 0
 	}
-	val := int(randSource.Uint64()%math.MaxInt32)%dicePoints + 1
-	return val
+	val := ds.Roll(randSource, ds.IntType(dicePoints), 0)
+	return int(val)
+}
+
+func DiceRoll64x(src *rand2.PCGSource, dicePoints int64) int64 { //nolint:revive
+	if src == nil {
+		src = randSource
+	}
+	val := ds.Roll(src, ds.IntType(dicePoints), 0)
+	return int64(val)
 }
 
 func DiceRoll64(dicePoints int64) int64 { //nolint:revive
-	if dicePoints == 0 {
-		return 0
-	}
-	val := int64(randSource.Uint64()%math.MaxInt64)%dicePoints + 1
-	return val
+	return DiceRoll64x(nil, dicePoints)
 }
 
 func CrashLog() {

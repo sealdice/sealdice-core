@@ -192,7 +192,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 
 // 群数据转换
 func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
-	rows, err := db.NamedQuery("select id, updated_at, data from main.attrs_group", map[string]any{})
+	rows, err := db.NamedQuery("select id, updated_at, data from attrs_group", map[string]any{})
 	if err != nil {
 		return 0, 0, err
 	}
@@ -380,6 +380,21 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 	return count, countSheetsNum, countFailed, nil
 }
 
+func checkTableExists(db *sqlx.DB, tableName string) (bool, error) {
+	var name string
+	err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name = $1;", tableName).Scan(&name)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		// 表格不存在，继续执行
+		return false, nil
+	case err != nil:
+		return false, err
+	default:
+		// 表格已经存在，说明转换完成，退出
+		return true, nil
+	}
+}
+
 func V150Upgrade() bool {
 	dbDataPath, _ := filepath.Abs("./data/default/data.db")
 	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
@@ -395,15 +410,12 @@ func V150Upgrade() bool {
 		_ = db.Close()
 	}()
 
-	var name string
-	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='attrs';").Scan(&name)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		// 表格不存在，继续执行
-	case err != nil:
+	exists, err := checkTableExists(db, "attrs")
+	if err != nil {
 		fmt.Println("V150数据转换未知错误:", err.Error())
 		return false
-	default:
+	}
+	if exists {
 		// 表格已经存在，说明转换完成，退出
 		return true
 	}
@@ -444,25 +456,31 @@ CREATE TABLE IF NOT EXISTS attrs (
 		return false
 	}
 
-	count, countSheetsNum, countFailed, err := attrsUserMigrate(tx)
-	fmt.Printf("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
-	if err != nil {
-		fmt.Println("异常", err.Error())
-		return false
+	if exists, _ := checkTableExists(db, "attrs_user"); exists {
+		count, countSheetsNum, countFailed, err2 := attrsUserMigrate(tx)
+		fmt.Printf("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
+		if err2 != nil {
+			fmt.Println("异常", err2.Error())
+			return false
+		}
 	}
 
-	count, countFailed, err = attrsGroupUserMigrate(tx)
-	fmt.Printf("数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
-	if err != nil {
-		fmt.Println("异常", err.Error())
-		return false
+	if exists, _ := checkTableExists(db, "attrs_group_user"); exists {
+		count, countFailed, err2 := attrsGroupUserMigrate(tx)
+		fmt.Printf("数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
+		if err2 != nil {
+			fmt.Println("异常", err2.Error())
+			return false
+		}
 	}
 
-	count, countFailed, err = attrsGroupMigrate(tx)
-	fmt.Printf("数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
-	if err != nil {
-		fmt.Println("异常", err.Error())
-		return false
+	if exists, _ := checkTableExists(db, "attrs_group"); exists {
+		count, countFailed, err2 := attrsGroupMigrate(tx)
+		fmt.Printf("数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
+		if err2 != nil {
+			fmt.Println("异常", err2.Error())
+			return false
+		}
 	}
 
 	// 删档
@@ -470,6 +488,7 @@ CREATE TABLE IF NOT EXISTS attrs (
 	_, _ = tx.Exec("drop table attrs_group")
 	_, _ = tx.Exec("drop table attrs_group_user")
 	_, _ = tx.Exec("drop table attrs_user")
+	_, _ = db.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
 	_, _ = tx.Exec("VACUUM;") // 收尾
 
 	sheetIdBindByGroupUserId = nil

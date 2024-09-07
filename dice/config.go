@@ -103,9 +103,18 @@ func (i *ConfigItem) UnmarshalJSON(data []byte) error {
 		i.DefaultValue = raw["defaultValue"]
 		i.Value = raw["value"]
 	case "int":
-		i.DefaultValue = int64(raw["defaultValue"].(float64))
+		// 2024.08.09 1.4.6首发版本unmarshal产生类型报错修复
+		if v, ok := raw["defaultValue"].(float64); ok {
+			i.DefaultValue = int64(v)
+		} else if v, ok := raw["defaultValue"].(int64); ok {
+			i.DefaultValue = v
+		}
 		if v, ok := raw["value"]; ok {
-			i.Value = int64(v.(float64))
+			if v2, ok := v.(float64); ok {
+				i.Value = int64(v2)
+			} else if v2, ok := v.(int64); ok {
+				i.Value = v2
+			}
 		}
 	case "template":
 		{
@@ -737,6 +746,12 @@ func setupBaseTextTemplate(d *Dice) {
 			"受到伤害_进入昏迷_附加语": {
 				{`\n{$t玩家}遭受了{$t伤害点数}点过量伤害，生命值降至0，陷入了昏迷！`, 1},
 			},
+			"制卡_预设模式": {
+				{"{$t玩家}使用预设模板的DND5E人物作成:\n{$t制卡结果文本}", 1},
+			},
+			"制卡_自由分配模式": {
+				{"{$t玩家}使用自由分配的DND5E人物作成:\n{$t制卡结果文本}", 1},
+			},
 			"制卡_分隔符": {
 				{`\n`, 1},
 			},
@@ -1093,6 +1108,16 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_上传_失败": {
 				{`跑团日志上传失败：{$t错误原因}\n若未出现线上日志地址，可换时间重试，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成`, 1},
 			},
+			// 1.5.0+
+			"名片_自动设置": {
+				{`已自动设置名片格式为{$t名片格式}：{$t名片预览}\n如有权限会在属性更新时自动更新名片。使用.sn off可关闭。`, 1},
+			},
+			"名片_取消设置": {
+				{`已关闭对{$t玩家}的名片自动修改。`, 1},
+			},
+			"记录_导出_成功": {
+				{`日志文件《{$t文件名字}》已上传至群文件，请自行到群文件查看。`, 1},
+			},
 		},
 	}
 
@@ -1428,6 +1453,13 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType:   ".st hp-1d4",
 				ExtraText: "hp在st后从正数变为0",
 			},
+			"制卡_预设模式": {
+				SubType:   ".dnd",
+				ExtraText: "不带属性名"},
+			"制卡_自由分配模式": {
+				SubType:   ".dndx",
+				ExtraText: "带属性名",
+			},
 		},
 		"核心": {
 			"骰子名字": {
@@ -1760,7 +1792,7 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"记录_结束": {
 				SubType: ".log end",
-				Vars:    []string{"$t记录名称"},
+				Vars:    []string{"$t记录名称", "$t当前记录条数"},
 			},
 			"记录_新建_失败_未结束的记录": {
 				SubType: ".log new",
@@ -1812,6 +1844,17 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_上传_失败": {
 				SubType: ".log end",
 				Vars:    []string{"$t错误原因"},
+			},
+
+			// 1.5.0+
+			"名片_自动设置": {
+				SubType: ".sn",
+			},
+			"名片_取消设置": {
+				SubType: ".sn",
+			},
+			"记录_导出_成功": {
+				SubType: ".log export",
 			},
 		},
 	}
@@ -2162,7 +2205,7 @@ func (d *Dice) loads() {
 			err := json.Unmarshal(data, &groupInfo)
 			if err == nil {
 				groupInfo.GroupID = id
-				groupInfo.UpdatedAtTime = updatedAt
+				groupInfo.UpdatedAtTime = 0
 
 				// 找出其中以群号开头的，这是1.2版本的bug
 				var toDelete []string
@@ -2333,6 +2376,22 @@ func (d *Dice) loads() {
 			d.GenerateTextMap()
 			d.SaveText()
 		})
+
+		// 1.4.5 版本 - 覆写lagrange配置
+		for _, i := range d.ImSession.EndPoints {
+			if i.ProtocolType == "onebot" {
+				pa := i.Adapter.(*PlatformAdapterGocq)
+				if pa.BuiltinMode == "lagrange" {
+					signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "25765")
+					if signServerUrl != "" {
+						// 版本为空，覆写为 "25765"
+						if signServerVersion == "" {
+							RWLagrangeSignServerUrl(d, i, "sealdice", true, "25765")
+						}
+					}
+				}
+			}
+		}
 
 		// 设置全局群名缓存和用户名缓存
 		dm := d.Parent
@@ -2541,6 +2600,7 @@ func (d *Dice) Save(isAuto bool) {
 			}
 		}
 	}
+
 	// Pinenutn: Range模板 ServiceAtNew重构代码
 	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 		// Pinenutn: ServiceAtNew重构
