@@ -23,6 +23,10 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 		conn := ep.Adapter.(*PlatformAdapterSatori)
 		serverSatori(d, ep, conn)
 
+	case "official":
+		conn := ep.Adapter.(*PlatformAdapterOfficialQQ)
+		serverOfficialQQ(d, ep, conn)
+
 	case "onebot":
 		fallthrough
 	default: // onebot 作为默认情况
@@ -217,6 +221,38 @@ func serverSatori(d *Dice, ep *EndPointInfo, conn *PlatformAdapterSatori) {
 		waitTimes += 1
 		if waitTimes > 5 {
 			d.Logger.Infof("satori 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
+			conn.DiceServing = false
+			break
+		}
+
+		time.Sleep(15 * time.Second)
+	}
+}
+
+func serverOfficialQQ(d *Dice, ep *EndPointInfo, conn *PlatformAdapterOfficialQQ) {
+	if conn.DiceServing {
+		return
+	}
+	conn.DiceServing = true
+
+	ep.Enable = true
+	ep.State = 2 // 连接中
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
+	waitTimes := 0
+
+	for {
+		// 骰子开始连接
+		d.Logger.Infof("开始连接 official qq，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
+		ret := ep.Adapter.Serve()
+
+		if ret == 0 {
+			break
+		}
+
+		waitTimes += 1
+		if waitTimes > 5 {
+			d.Logger.Infof("official qq 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
 			conn.DiceServing = false
 			break
 		}
