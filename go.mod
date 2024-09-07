@@ -26,7 +26,6 @@ require (
 	github.com/go-creed/sat v1.0.3
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang-module/carbon v1.7.3
-	github.com/gonutz/w32/v2 v2.11.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/grokify/html-strip-tags-go v0.0.1
@@ -69,7 +68,7 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.25.0
 	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8
-	golang.org/x/sys v0.22.0
+	golang.org/x/sys v0.25.0
 	golang.org/x/text v0.16.0
 	golang.org/x/time v0.5.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
