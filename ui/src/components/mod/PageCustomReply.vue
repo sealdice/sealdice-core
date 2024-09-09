@@ -96,8 +96,7 @@
         </template>
 
         <template v-if="conditions && conditions.length > 0">
-          <custom-reply-condition v-for="(_, index2) in (conditions || [])" :key="index2"
-                                  v-model="conditions[index2]" @delete="deleteAnyItem(conditions, index2)"/>
+          <custom-reply-conditions v-model="conditions"/>
         </template>
         <template v-else>
           <el-text type="info">当前无公共条件</el-text>
