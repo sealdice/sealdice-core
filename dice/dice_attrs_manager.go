@@ -150,11 +150,8 @@ func (am *AttrsManager) Init(d *Dice) {
 	am.db = d.DBData
 	am.logger = d.Logger
 	go func() {
+		// NOTE(Xiangze Li): 这种不退出的goroutine不利于平稳结束程序
 		for {
-			if am.logger == nil {
-				return
-			}
-			// fmt.Println(am.CheckForSave())
 			am.CheckForSave()
 			am.CheckAndFreeUnused()
 			time.Sleep(15 * time.Second)
@@ -173,8 +170,10 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 	}
 
 	tx, err := db.Begin()
-	if err != nil && am.logger != nil {
-		am.logger.Errorf("定期写入用户数据出错(创建事务): %v", err)
+	if err != nil {
+		if am.logger != nil {
+			am.logger.Errorf("定期写入用户数据出错(创建事务): %v", err)
+		}
 		return 0, 0
 	}
 
@@ -189,7 +188,9 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 
 	err = tx.Commit()
 	if err != nil {
-		am.logger.Errorf("定期写入用户数据出错(提交事务): %v", err)
+		if am.logger != nil {
+			am.logger.Errorf("定期写入用户数据出错(提交事务): %v", err)
+		}
 		_ = tx.Rollback()
 		return times, 0
 	}
