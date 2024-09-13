@@ -1272,3 +1272,68 @@ if (!seal.ext.find('js-config-example')) {
 注册后的配置项会在 UI 中显示，可以在 UI 中修改配置项的值
 
 ![JS 配置项](./images/js-config-example.png)
+
+## 注册定时任务 <Badge type="tip" text="v1.4.6" />
+
+::: tip 提示：Cron 表达式
+
+如果你对 `cron` 或下文中提到的 Cron 表达式并不熟悉，可以参考 [Linux crontab 命令| 菜鸟教程](https://www.runoob.com/linux/linux-comm-crontab.html) 或 [Cron表达式 - 阿里云文档](https://help.aliyun.com/zh/ecs/user-guide/cron-expressions)。
+
+:::
+
+从 `v1.4.6` 版本开始，海豹核心新增了用于定时任务的 API。
+
+### API 参数
+
+```javascript
+seal.ext.registerTask(ext, taskType, value, func, key="", description="")
+```
+
+其各个参数的含义如下：
+
+- `taskType: string`：`registerTask` 接受两种类型的定时任务表达式——使用 Cron 表达式或使用 `hh:mm/h:mm` 格式的「每日」任务。当使用前者时，`taskType` 应填入 `"cron"`，而后者应填入 `"daily"`。
+- `value: string`：
+  - 当 `taskType` 填入 `"cron"` 时，`value` 应填入有效的 Cron 表达式，例如：`"*/5 * * * *"`。`registerTask` 会根据 Cron 表达式定时执行 `func`。
+  - 当 `taskType` 填入 `"daily"` 时，`value` 应填入 `hh:mm` 或 `h:mm` 格式的时间，例如：`"08:00"`、`"3:00"`、`"20:35"`。`registerTask` 会根据时间，每天定时执行 `func`。
+- `func: (taskCtx: JsScriptTaskCtx) => void`：定时任务的实际执行函数。其中 `taskCtx` 的数据类型为：
+
+  ```typescript
+  type JsScriptTaskCtx {
+    now: number;
+    key: string;
+  }
+  ```
+
+  `taskCtx.now` 提供了 `func` 实际被唤起时的 Unix 时间戳；如果填写了可选参数 `key`，`taskCtx.key` 则与之相同。
+
+  使用定时任务 API 的用户应该将实际业务逻辑放置在 `func` 内，定时任务 API 仅承担唤醒功能。
+- `key: string`：可选参数。为此定时任务提供唯一索引。当填写了 `key` 时，此定时任务也会出现在 WebUI 的插件配置项中，可以通过 WebUI 修改定时任务表达式。
+- `description: string`：可选参数。为此定时任务提供可读性更高的描述。当同时填写了 `key` 与 `description` 时，WebUI 的插件配置项中将会显示关于此定时任务的描述。
+
+### 使用示例
+
+```javascript
+// 实现任意定时功能
+seal.ext.registerTask(ext, "cron", "* * * * *", (taskCtx) => {
+  // 检查当前时间点附近，尚未执行的所有任务
+  const tasks = getTasks(taskCtx.now, ext.StorageGet("tasks"));
+  for (const task of tasks) {
+    // 检查当前群聊中，插件功能是否开启
+    if (!checkGroupStatus(task.groupId, ext.storageGet("status"))) {
+      continue;
+    }
+    doTask(task);
+  }
+});
+```
+
+```javascript
+// 类似每日新闻
+seal.ext.registerTask(ext, "daily", "08:30", (taskCtx) => {
+  // 所有需要发送每日新闻的群聊
+  const groups = getGroups(ext.StorageGet("groups"));
+  for (const group of groups) {
+    sendDailyNews(group);
+  }
+}, "daily_news", "每天触发「每日新闻」的时间");
+```
