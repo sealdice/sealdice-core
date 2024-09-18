@@ -755,6 +755,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"制卡_分隔符": {
 				{`\n`, 1},
 			},
+			"检定": {
+				{`{$t玩家}的"{$t技能}"检定（DND5E）结果为: {$t检定过程文本} = {$t检定结果}`, 1},
+			},
 		},
 		"核心": {
 			"骰子名字": {
@@ -1459,6 +1462,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"制卡_自由分配模式": {
 				SubType:   ".dndx",
 				ExtraText: "带属性名",
+			},
+			"检定": {
+				SubType: ".rc 力量",
 			},
 		},
 		"核心": {

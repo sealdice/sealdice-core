@@ -442,8 +442,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 				detail := r.vm.GetDetailText()
 
-				text := fmt.Sprintf("%s的“%s”检定(dnd5e)结果为:\n%s = %s", getPlayerNameTempFunc(mctx), reason, detail, r.ToString())
+				VarSetValueStr(ctx, "$t技能", reason)
+				VarSetValueStr(ctx, "$t检定过程文本", detail)
+				VarSetValueStr(ctx, "$t检定结果", r.ToString())
 
+				text := DiceFormatTmpl(ctx, "DND:检定")
 				// 指令信息
 				commandInfo := map[string]interface{}{
 					"cmd":    "rc",
