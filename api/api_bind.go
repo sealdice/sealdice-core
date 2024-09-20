@@ -626,6 +626,9 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/dice/cmdList", DiceAllCommand)
 	e.POST(prefix+"/dice/upload_to_upgrade", DiceNewVersionUpload)
 
+	e.POST(prefix+"/dice/config/vm-version-for-reply-set", vmVersionForReplySet)
+	e.POST(prefix+"/dice/config/vm-version-for-deck-set", vmVersionForDeckSet)
+
 	e.POST(prefix+"/signin", doSignIn)
 	e.GET(prefix+"/signin/salt", doSignInGetSalt)
 	e.GET(prefix+"/checkSecurity", checkSecurity)
