@@ -314,6 +314,10 @@ func (d *Dice) Init() {
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0o755)
 
+	log := logger.Init(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
+	d.Logger = log.Logger
+	d.LogWriter = log.WX
+
 	d.Cron = cron.New()
 	d.Cron.Start()
 
@@ -322,16 +326,13 @@ func (d *Dice) Init() {
 	var err error
 	d.DBData, d.DBLogs, err = model.SQLiteDBInit(d.BaseConfig.DataDir)
 	if err != nil {
-		// TODO:
 		fmt.Println(err)
+		d.Logger.Errorf("Failed to init database: %v", err)
 	}
 
 	d.AttrsManager = &AttrsManager{}
 	d.AttrsManager.Init(d)
 
-	log := logger.Init(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
-	d.Logger = log.Logger
-	d.LogWriter = log.WX
 	d.BanList = &BanListInfo{Parent: d}
 	d.BanList.Init()
 
@@ -345,7 +346,10 @@ func (d *Dice) Init() {
 	d.CmdMap = CmdMapCls{}
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
-	_ = d.ConfigManager.Load()
+	err = d.ConfigManager.Load()
+	if err != nil {
+		d.Logger.Error("Failed to load plugin configs: ", err)
+	}
 
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
@@ -395,11 +399,16 @@ func (d *Dice) Init() {
 				count++
 				d.Save(true)
 				if count%2 == 0 {
-					// d.Logger.Info("测试: flush wal")
-					_ = model.FlushWAL(d.DBData)
-					_ = model.FlushWAL(d.DBLogs)
+					if err := model.FlushWAL(d.DBData); err != nil {
+						d.Logger.Error("Failed to flush WAL: ", err)
+					}
+					if err := model.FlushWAL(d.DBLogs); err != nil {
+						d.Logger.Error("Failed to flush WAL: ", err)
+					}
 					if d.CensorManager != nil && d.CensorManager.DB != nil {
-						_ = model.FlushWAL(d.CensorManager.DB)
+						if err := model.FlushWAL(d.CensorManager.DB); err != nil {
+							d.Logger.Error("Failed to flush WAL: ", err)
+						}
 					}
 				}
 			}
