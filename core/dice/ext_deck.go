@@ -948,7 +948,11 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 	s = ImageRewrite(s, imgSolve)
 
 	s = strings.ReplaceAll(s, "\n", `\n`)
-	return DiceFormat(ctx, s), nil
+	if ctx.Dice.VMVersionForDeck == "v1" {
+		return DiceFormatV1(ctx, s)
+	} else {
+		return DiceFormatV2(ctx, s)
+	}
 }
 
 func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePool bool) (string, error) {
