@@ -1350,7 +1350,10 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 				stdID := msg.Sender.UserID
 				VarSetValueStr(ctx, "$t帐号ID", stdID)
 				VarSetValueStr(ctx, "$t账号ID", stdID)
-				text := DiceFormat(ctx, groupInfo.GroupWelcomeMessage)
+				text, err := DiceFormatV2(ctx, groupInfo.GroupWelcomeMessage)
+				if err != nil {
+					text = fmt.Sprintf("执行出错V2: %s", err.Error())
+				}
 				for _, i := range ctx.SplitText(text) {
 					doSleepQQ(ctx)
 					ReplyGroup(ctx, msg, strings.TrimSpace(i))
