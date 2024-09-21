@@ -311,6 +311,7 @@ var defaultLagrangeConfig = `
         }
     },
     "SignServerUrl": "{NTSignServer地址}",
+    "MusicSignServerUrl": "https://ss.xingzhige.com/music_card/card",
     "Account": {
         "Uin": {账号UIN},
         "Password": "",
