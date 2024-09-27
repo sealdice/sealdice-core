@@ -542,8 +542,8 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	reSimpleBP := regexp.MustCompile(`^[bpBP]\d*$`)
 
 	mctx := ctx
-	ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte) string {
-		detailResult := dataBuffer[:len(ctx.Matched)]
+	ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte, parsedOffset int) string {
+		detailResult := dataBuffer[:parsedOffset]
 
 		var curPoint ds.IntType
 		lastEnd := ds.IntType(-1) //nolint:ineffassign
@@ -653,6 +653,8 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 				if reSimpleBP.MatchString(exprText) {
 					detail = "[" + last.Text[1:len(last.Text)-1]
 				}
+			case "load.computed":
+				detail += "=" + partRet
 			}
 
 			detail += subDetailsText + "]"
