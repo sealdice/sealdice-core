@@ -3,7 +3,7 @@ module sealdice-core
 go 1.20
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/Milly/go-base2048 v0.1.0
 	github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
