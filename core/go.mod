@@ -26,6 +26,7 @@ require (
 	github.com/go-creed/sat v1.0.3
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang-module/carbon v1.7.3
+	github.com/gonutz/w32/v2 v2.11.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/grokify/html-strip-tags-go v0.0.1
@@ -38,7 +39,7 @@ require (
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/matoous/go-nanoid/v2 v2.1.0
-	github.com/mattn/go-sqlite3 v1.14.22
+	github.com/mattn/go-sqlite3 v1.14.23
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/monaco-io/request v1.0.16
 	github.com/mozillazg/go-pinyin v0.20.0
@@ -55,7 +56,7 @@ require (
 	github.com/samber/lo v1.44.0
 	github.com/schollz/progressbar/v3 v3.14.6
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
-	github.com/sealdice/dicescript v0.0.0-20240816161158-28fab8cf354e
+	github.com/sealdice/dicescript v0.0.0-20240927083134-65269b7d051c
 	github.com/slack-go/slack v0.13.0
 	github.com/sunshineplan/imgconv v1.1.4
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
@@ -66,10 +67,10 @@ require (
 	github.com/yuin/goldmark v1.7.4
 	go.etcd.io/bbolt v1.3.9
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.25.0
+	golang.org/x/crypto v0.27.0
 	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8
-	golang.org/x/sys v0.22.0
-	golang.org/x/text v0.16.0
+	golang.org/x/sys v0.25.0
+	golang.org/x/text v0.18.0
 	golang.org/x/time v0.5.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
@@ -162,8 +163,8 @@ require (
 	golang.org/x/image v0.18.0 // indirect
 	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/term v0.22.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/term v0.24.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
