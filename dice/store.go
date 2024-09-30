@@ -19,6 +19,46 @@ const (
 	StoreExtTypeReply  StoreExtType = "reply"
 )
 
+func (d *Dice) getStoreBackends() []string {
+	if d.AdvancedConfig.Enable && d.AdvancedConfig.StoreBackendUrl != "" {
+		return []string{d.AdvancedConfig.StoreBackendUrl}
+	}
+	return lo.Map(BackendUrls, func(backend string, _ int) string {
+		return backend + "/dice/api/store"
+	})
+}
+
+type StoreBackend struct {
+	Url string `json:"url"`
+
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
+	ProtocolVersions []string `json:"protocolVersions"`
+	Announcement     string   `json:"announcement"`
+}
+
+func (d *Dice) StoreQueryInfo(backend string) (StoreBackend, error) {
+	resp, err := http.Get(backend + "/info")
+	if err != nil {
+		return StoreBackend{}, err
+	}
+	defer resp.Body.Close()
+
+	respData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return StoreBackend{}, err
+	}
+
+	respResult := StoreBackend{}
+	err = json.Unmarshal(respData, &respResult)
+	if err != nil {
+		return StoreBackend{}, err
+	}
+	result := respResult
+	result.Url = backend
+	return result, nil
+}
+
 type StoreExt struct {
 	ID        string `json:"id"` // @<namespace>/<key>@<version>, e.g. @seal/example@1.0.0
 	Key       string `json:"key"`
@@ -45,15 +85,6 @@ type StoreExt struct {
 	HomePage     string            `json:"homePage"`
 	SealVersion  string            `json:"sealVersion"`
 	Dependencies map[string]string `json:"dependencies"`
-}
-
-func (d *Dice) getStoreBackends() []string {
-	if d.AdvancedConfig.Enable && d.AdvancedConfig.StoreBackendUrl != "" {
-		return []string{d.AdvancedConfig.StoreBackendUrl}
-	}
-	return lo.Map(BackendUrls, func(backend string, _ int) string {
-		return backend + "/dice/api/store"
-	})
 }
 
 func (d *Dice) StoreQueryRecommend() ([]*StoreExt, error) {
@@ -180,4 +211,42 @@ func (d *Dice) getStorePageFromBackend(backend string, params StoreQueryPagePara
 		return nil, fmt.Errorf("%s", respResult.Err)
 	}
 	return respResult.Data, nil
+}
+
+type StoreUploadFormOption struct {
+	Key  string `json:"key"`
+	Desc string `json:"desc"`
+}
+
+type StoreUploadFormElem struct {
+	Key      string                  `json:"key"`
+	Desc     string                  `json:"desc"`
+	Required bool                    `json:"required"`
+	Default  string                  `json:"default"`
+	Options  []StoreUploadFormOption `json:"options"`
+}
+
+type StoreUploadInfo struct {
+	UploadNotice string                `json:"uploadNotice"`
+	UploadForm   []StoreUploadFormElem `json:"uploadForm"`
+}
+
+func (d *Dice) StoreQueryUploadInfo(backend string) (StoreUploadInfo, error) {
+	resp, err := http.Get(backend + "/upload/info")
+	if err != nil {
+		return StoreUploadInfo{}, err
+	}
+	defer resp.Body.Close()
+
+	respData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return StoreUploadInfo{}, err
+	}
+
+	err = json.Unmarshal(respData, &StoreUploadInfo{})
+	if err != nil {
+		return StoreUploadInfo{}, err
+	}
+	result := StoreUploadInfo{}
+	return result, nil
 }
