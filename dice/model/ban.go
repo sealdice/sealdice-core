@@ -1,36 +1,40 @@
 package model
 
-import (
-	"github.com/jmoiron/sqlx"
-)
+import "gorm.io/gorm"
 
-func BanItemDel(db *sqlx.DB, id string) error {
-	_, err := db.Exec("delete from ban_info where id=$1", id)
-	return err
+// BanItemDel 删除指定 ID 的禁用项
+func BanItemDel(db *gorm.DB, id string) error {
+	// 使用 GORM 的 Delete 方法删除指定 ID 的记录
+	result := db.Where("id = ?", id).Delete(&BanInfo{})
+	return result.Error // 返回错误
 }
 
-func BanItemSave(db *sqlx.DB, id string, updatedAt int64, banUpdatedAt int64, data []byte) error {
-	_, err := db.NamedExec("replace into ban_info (id, updated_at, ban_updated_at, data) values (:id, :updated_at, :ban_updated_at, :data)",
-		map[string]interface{}{
-			"id":             id,
-			"updated_at":     updatedAt,
-			"ban_updated_at": banUpdatedAt,
-			"data":           data,
-		})
-	return err
+// BanItemSave 保存或替换禁用项
+func BanItemSave(db *gorm.DB, id string, updatedAt int64, banUpdatedAt int64, data []byte) error {
+	// 定义一个新的禁用项
+	item := BanInfo{
+		ID:           id,
+		UpdatedAt:    int(updatedAt),    // 确保类型一致
+		BanUpdatedAt: int(banUpdatedAt), // 确保类型一致
+		Data:         data,
+	}
+
+	// 使用 GORM 的 Save 方法保存或替换记录
+	return db.Save(&item).Error // 返回错误
 }
 
-func BanItemList(db *sqlx.DB, callback func(id string, banUpdatedAt int64, data []byte)) error {
-	var items []struct {
-		ID           string `db:"id"`
-		BanUpdatedAt int64  `db:"ban_updated_at"`
-		Data         []byte `db:"data"`
+// BanItemList 列出所有禁用项并调用回调函数处理
+func BanItemList(db *gorm.DB, callback func(id string, banUpdatedAt int64, data []byte)) error {
+	var items []BanInfo
+
+	// 使用 GORM 查询所有禁用项
+	if err := db.Order("ban_updated_at DESC").Find(&items).Error; err != nil {
+		return err // 返回错误
 	}
-	if err := db.Select(&items, "SELECT id, ban_updated_at, data FROM ban_info ORDER BY ban_updated_at DESC"); err != nil {
-		return err
-	}
+
+	// 遍历每个禁用项并调用回调函数
 	for _, item := range items {
-		callback(item.ID, item.BanUpdatedAt, item.Data)
+		callback(item.ID, int64(item.BanUpdatedAt), item.Data) // 确保类型一致
 	}
-	return nil
+	return nil // 操作成功，返回 nil
 }

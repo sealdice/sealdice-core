@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/model"
@@ -18,7 +18,7 @@ type CensorManager struct {
 	IsLoading           bool
 	Parent              *Dice
 	Censor              *censor.Censor
-	DB                  *sqlx.DB
+	DB                  *gorm.DB
 	SensitiveWordsFiles map[string]*censor.WordFile
 }
 

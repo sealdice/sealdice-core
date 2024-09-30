@@ -2,9 +2,10 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 
 	"sealdice-core/dice/censor"
 )
@@ -19,98 +20,105 @@ type CensorLog struct {
 	CreatedAt    int    `json:"createdAt"`
 }
 
-func CensorAppend(db *sqlx.DB, msgType string, userID string, groupID string, content string, sensitiveWords interface{}, highestLevel int) bool {
-	now := time.Now()
-	nowTimestamp := now.Unix()
+func CensorAppend(db *gorm.DB, msgType string, userID string, groupID string, content string, sensitiveWords interface{}, highestLevel int) bool {
+	// 获取当前时间的 Unix 时间戳
+	nowTimestamp := time.Now().Unix()
 
+	// 将敏感词转换为 JSON 字符串
 	words, err := json.Marshal(sensitiveWords)
 	if err != nil {
 		return false
 	}
 
-	_, err = db.Exec(`
-INSERT INTO censor_log(
-    msg_type,
-    user_id,
-    group_id,
-    content,
-    sensitive_words,
-    highest_level,
-    created_at,
-    clear_mark
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		msgType, userID, groupID, content, words, highestLevel, nowTimestamp, false)
-
-	if err != nil {
+	// 创建 CensorLogGorm 实例，手动设置 CreatedAt
+	censorLog := CensorLogGorm{
+		MsgType:        msgType,
+		UserID:         userID,
+		GroupID:        groupID,
+		Content:        content,
+		SensitiveWords: string(words),
+		HighestLevel:   highestLevel,
+		CreatedAt:      int(nowTimestamp), // Unix 时间戳
+		ClearMark:      false,
+	}
+	// 使用 GORM 的 Create 方法插入记录
+	if err := db.Create(&censorLog).Error; err != nil {
 		return false
 	}
-	return err == nil
+	return true
 }
 
-func CensorCount(db *sqlx.DB, userID string) map[censor.Level]int {
+func CensorCount(db *gorm.DB, userID string) map[censor.Level]int {
+	// 定义要查询的不同敏感级别
 	levels := [5]censor.Level{censor.Ignore, censor.Notice, censor.Caution, censor.Warning, censor.Danger}
-	var temp int
+	var temp int64
 	res := make(map[censor.Level]int)
+
+	// 遍历每个敏感级别并执行查询
 	for _, level := range levels {
-		_ = db.Get(&temp, `SELECT COUNT(*) FROM censor_log WHERE user_id = ? AND highest_level = ? AND clear_mark = ?`, userID, level, false)
-		res[level] = temp
+		// 使用 GORM 的链式查询
+		err := db.Model(&CensorLogGorm{}).Where("user_id = ? AND highest_level = ? AND clear_mark = ?", userID, level, false).
+			Count(&temp).Error
+
+		// 如果查询出现错误，忽略并赋值为 0
+		if err != nil {
+			res[level] = 0
+		} else {
+			res[level] = int(temp)
+		}
 	}
+
 	return res
 }
 
-func CensorClearLevelCount(db *sqlx.DB, userID string, level censor.Level) {
-	_, _ = db.Exec(`UPDATE censor_log SET clear_mark = ? WHERE user_id = ? AND highest_level = ?`, true, userID, level)
+func CensorClearLevelCount(db *gorm.DB, userID string, level censor.Level) {
+	// 使用 GORM 的链式查询执行批量更新
+	err := db.Model(&CensorLogGorm{}).
+		Where("user_id = ? AND highest_level = ?", userID, level).
+		Update("clear_mark", true).Error
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
+// QueryCensorLog 是分页查询的参数
 type QueryCensorLog struct {
-	PageNum  int    `query:"pageNum"`
-	PageSize int    `query:"pageSize"`
-	UserID   string `query:"userId"`
-	Level    int    `query:"level"`
+	PageNum  int    `query:"pageNum"`  // 当前页码
+	PageSize int    `query:"pageSize"` // 每页条数
+	UserID   string `query:"userId"`   // 用户ID
+	Level    int    `query:"level"`    // 敏感级别
 }
 
-func CensorGetLogPage(db *sqlx.DB, params QueryCensorLog) (int, []CensorLog, error) {
-	var total int
-	res := make([]CensorLog, 0, params.PageSize)
+// CensorGetLogPage 使用 GORM 进行分页查询
+func CensorGetLogPage(db *gorm.DB, params QueryCensorLog) (int64, []CensorLogGorm, error) {
+	var total int64
+	var logs []CensorLogGorm
 
-	err := db.QueryRow("SELECT COUNT(*) FROM censor_log").Scan(&total)
-	if err != nil {
+	// 首先统计总记录数
+	query := db.Model(&CensorLogGorm{})
+
+	// 如果传入了 UserID 和 Level，则添加查询条件
+	if params.UserID != "" {
+		query = query.Where("user_id = ?", params.UserID)
+	}
+	if params.Level != 0 {
+		query = query.Where("highest_level = ?", params.Level)
+	}
+
+	// 统计符合条件的总记录数
+	if err := query.Count(&total).Error; err != nil {
 		return 0, nil, err
 	}
-	rows, err := db.Queryx(`
-SELECT id,
-       msg_type,
-       user_id,
-       group_id,
-       content,
-       highest_level,
-       created_at
-FROM censor_log
-ORDER BY created_at DESC
-LIMIT ? OFFSET ?`, params.PageSize, (params.PageNum-1)*params.PageSize)
-	if err != nil {
+
+	// 查询分页数据
+	if err := query.
+		Order("created_at DESC").                       // 按照创建时间倒序排列
+		Limit(params.PageSize).                         // 限制返回条数
+		Offset((params.PageNum - 1) * params.PageSize). // 偏移
+		Find(&logs).                                    // 查询数据
+		Error; err != nil {
 		return 0, nil, err
 	}
-	defer func(rows *sqlx.Rows) {
-		_ = rows.Close()
-	}(rows)
 
-	for rows.Next() {
-		log := CensorLog{}
-		err := rows.Scan(
-			&log.ID,
-			&log.MsgType,
-			&log.UserID,
-			&log.GroupID,
-			&log.Content,
-			&log.HighestLevel,
-			&log.CreatedAt,
-		)
-		if err != nil {
-			return 0, nil, err
-		}
-		res = append(res, log)
-	}
-
-	return total, res, nil
+	return total, logs, nil
 }

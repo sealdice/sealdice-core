@@ -1,13 +1,12 @@
 package model
 
 import (
-	"database/sql"
 	"errors"
 	"time"
 
-	"sealdice-core/utils"
+	"gorm.io/gorm"
 
-	"github.com/jmoiron/sqlx"
+	"sealdice-core/utils"
 
 	ds "github.com/sealdice/dicescript"
 )
@@ -22,23 +21,24 @@ const (
 // 注: 角色表有用sheet也有用sheets的，这里数据结构中使用sheet
 
 // AttributesItemModel 新版人物卡。说明一下，这里带s的原因是attrs指的是一个map
+
 type AttributesItemModel struct {
-	Id        string `json:"id" db:"id"`                // 如果是群内，那么是类似 QQ-Group:12345-QQ:678910，群外是nanoid
-	Data      []byte `json:"data" db:"data"`            // 序列化后的卡数据，理论上[]byte不会进入字符串缓存，要更好些？
-	AttrsType string `json:"attrsType" db:"attrs_type"` // 分为: 角色卡(character)、组内用户(group_user)、群组(group)、用户(user)
+	Id        string `json:"id" gorm:"column:id"`                // 如果是群内，那么是类似 QQ-Group:12345-QQ:678910，群外是nanoid
+	Data      []byte `json:"data" gorm:"column:data"`            // 序列化后的卡数据，理论上[]byte不会进入字符串缓存，要更好些？
+	AttrsType string `json:"attrsType" gorm:"column:attrs_type"` // 分为: 角色卡(character)、组内用户(group_user)、群组(group)、用户(user)
 
 	// 这些是群组内置卡专用的，其实就是替代了绑卡关系表，作为群组内置卡时，这个字段用于存放绑卡关系
-	BindingSheetId string `json:"bindingSheetId" db:"binding_sheet_id"` // 绑定的卡片ID
+	BindingSheetId string `json:"bindingSheetId" gorm:"column:binding_sheet_id"` // 绑定的卡片ID
 
 	// 这些是角色卡专用的
-	Name      string `json:"name" db:"name"`            // 卡片名称
-	OwnerId   string `json:"ownerId" db:"owner_id"`     // 若有明确归属，就是对应的UniformID
-	SheetType string `json:"sheetType" db:"sheet_type"` // 卡片类型，如dnd5e coc7
-	IsHidden  bool   `json:"isHidden" db:"is_hidden"`   // 隐藏的卡片不出现在 pc list 中
+	Name      string `json:"name" gorm:"column:name"`            // 卡片名称
+	OwnerId   string `json:"ownerId" gorm:"column:owner_id"`     // 若有明确归属，就是对应的UniformID
+	SheetType string `json:"sheetType" gorm:"column:sheet_type"` // 卡片类型，如dnd5e coc7
+	IsHidden  bool   `json:"isHidden" gorm:"column:is_hidden"`   // 隐藏的卡片不出现在 pc list 中
 
 	// 通用属性
-	CreatedAt int64 `json:"createdAt" db:"created_at"`
-	UpdatedAt int64 `json:"updatedAt" db:"updated_at"`
+	CreatedAt int64 `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt int64 `json:"updatedAt" gorm:"column:updated_at"`
 
 	// 下面的属性并非数据库字段，而是用于内存中的缓存
 	BindingGroupsNum int64 `json:"bindingGroupNum"` // 当前绑定中群数
@@ -52,158 +52,177 @@ func (m *AttributesItemModel) IsDataExists() bool {
 
 // PlatformMappingModel 虚拟ID - 平台用户ID 映射表
 type PlatformMappingModel struct {
-	Id       string `json:"id" db:"id"`               // 虚拟ID，格式为 U:nanoid 意为 User / Uniform / Universal
-	IMUserID string `json:"IMUserID" db:"im_user_id"` // IM平台的用户ID
+	Id       string `json:"id" gorm:"column:id"`               // 虚拟ID，格式为 U:nanoid 意为 User / Uniform / Universal
+	IMUserID string `json:"IMUserID" gorm:"column:im_user_id"` // IM平台的用户ID
 }
 
-func AttrsGetById(db *sqlx.DB, id string) (*AttributesItemModel, error) {
+func AttrsGetById(db *gorm.DB, id string) (*AttributesItemModel, error) {
 	var item AttributesItemModel
-	err := db.Get(&item, `select id, data, COALESCE(attrs_type, '') as attrs_type, binding_sheet_id, name, owner_id,
-       sheet_type, is_hidden, created_at, updated_at from attrs where id = $1`, id)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
+	if err := db.Table("attrs").
+		Select("id, data, COALESCE(attrs_type, '') as attrs_type, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at").
+		Where("id = ?", id).
+		First(&item).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // No rows found
+		}
+		return nil, err // Other error
 	}
 	return &item, nil
 }
 
 // AttrsGetBindingSheetIdByGroupId 获取当前正在绑定的ID
-func AttrsGetBindingSheetIdByGroupId(db *sqlx.DB, id string) (string, error) {
-	var item AttributesItemModel
-	err := db.Get(&item, "select binding_sheet_id from attrs where id = $1", id)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return "", err
+func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
+	var item struct {
+		BindingSheetId string `gorm:"column:binding_sheet_id"`
+	}
+	if err := db.Table("attrs").
+		Select("binding_sheet_id").
+		Where("id = ?", id).
+		First(&item).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", nil // No rows found
+		}
+		return "", err // Other error
 	}
 	return item.BindingSheetId, nil
 }
 
-func AttrsGetIdByUidAndName(db *sqlx.DB, userId string, name string) (string, error) {
-	var item AttributesItemModel
-	err := db.Get(&item, "select id from attrs where owner_id = $1 and name = $2", userId, name)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return "", err
+func AttrsGetIdByUidAndName(db *gorm.DB, userId string, name string) (string, error) {
+	var item struct {
+		Id string `gorm:"column:id"` // 定义一个匿名结构体以获取 id
 	}
-	return item.Id, nil
-}
-
-func AttrsPutById(db *sqlx.DB, tx *sql.Tx, id string, data []byte, name, sheetType string) error {
-	// TODO: 好像还不够，需要nickname 需要sheetType，还有别的吗
-	var err error
-	now := time.Now().Unix()
-	query := `insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at, name, sheet_type)
-			  values ($1, $2, true, '', $3, $3, $4, $5)
-			  on conflict (id) do update set data = $2, updated_at = $3, name = $4, sheet_type = $5`
-	args := []any{id, data, now, name, sheetType}
-
-	if tx != nil {
-		_, err = tx.Exec(query, args...)
-	} else {
-		_, err = db.Exec(query, args...)
-	}
-	return err
-}
-
-func AttrsDeleteById(db *sqlx.DB, id string) error {
-	var err error
-	query := `delete from attrs where id = ?`
-	args := []any{id}
-
-	_, err = db.Exec(query, args...)
-	return err
-}
-
-func AttrsCharGetBindingList(db *sqlx.DB, id string) ([]string, error) {
-	rows, err := db.Query(`select id from attrs where binding_sheet_id = $1`, id)
-	if err != nil {
-		return nil, err
-	}
-
-	lst := []string{}
-	for rows.Next() {
-		item := ""
-		err = rows.Scan(&item)
-		if err != nil {
-			return nil, err
+	// 使用 GORM 查询 attrs 表，选择 id 字段
+	if err := db.Table("attrs").
+		Select("id").
+		Where("owner_id = ? AND name = ?", userId, name).
+		First(&item).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", nil // 如果没有找到记录，返回空字符串
 		}
-		lst = append(lst, item)
+		return "", err // 返回其他错误
 	}
-
-	return lst, err
+	return item.Id, nil // 返回找到的 id
 }
 
-func AttrsCharUnbindAll(db *sqlx.DB, id string) (int64, error) {
-	rows, err := db.Exec(`update attrs set binding_sheet_id = '' where binding_sheet_id = $1`, id)
-	if err != nil {
-		return 0, err
+func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) error {
+	now := time.Now().Unix() // 获取当前时间
+	// 定义一个结构体用于插入或更新数据
+	attr := AttributesItemModel{
+		Id:             id,
+		Data:           data,
+		IsHidden:       true,
+		BindingSheetId: "",
+		CreatedAt:      now,
+		UpdatedAt:      now,
+		Name:           name,
+		SheetType:      sheetType,
 	}
-	affected, err := rows.RowsAffected()
-	if err != nil {
-		return 0, err
+
+	// 使用 GORM 的 Save 方法进行插入或更新操作
+	if err := db.Save(&attr).Error; err != nil {
+		return err // 返回错误
 	}
-	return affected, err
+	return nil // 操作成功，返回 nil
+}
+
+func AttrsDeleteById(db *gorm.DB, id string) error {
+	// 使用 GORM 的 Delete 方法删除指定 id 的记录
+	if err := db.Where("id = ?", id).Delete(&AttributesItemModel{}).Error; err != nil {
+		return err // 返回错误
+	}
+	return nil // 操作成功，返回 nil
+}
+
+func AttrsCharGetBindingList(db *gorm.DB, id string) ([]string, error) {
+	// 定义一个切片用于存储结果
+	var lst []string
+
+	// 使用 GORM 查询绑定的 id 列表
+	if err := db.Table("attrs").
+		Select("id").
+		Where("binding_sheet_id = ?", id).
+		Find(&lst).Error; err != nil {
+		return nil, err // 返回错误
+	}
+
+	return lst, nil // 返回结果切片
+}
+
+func AttrsCharUnbindAll(db *gorm.DB, id string) (int64, error) {
+	// 使用 GORM 更新绑定的记录，将 binding_sheet_id 设为空字符串
+	result := db.Model(&AttributesItemModel{}).
+		Where("binding_sheet_id = ?", id).
+		Update("binding_sheet_id", "")
+
+	if result.Error != nil {
+		return 0, result.Error // 返回错误
+	}
+	return result.RowsAffected, nil // 返回受影响的行数
 }
 
 // AttrsNewItem 新建一个角色卡/属性容器
-func AttrsNewItem(db *sqlx.DB, item *AttributesItemModel) (*AttributesItemModel, error) {
-	id := utils.NewID()
-	now := time.Now().Unix()
-	item.CreatedAt, item.UpdatedAt = now, now
+func AttrsNewItem(db *gorm.DB, item *AttributesItemModel) (*AttributesItemModel, error) {
+	id := utils.NewID()                       // 生成新的 ID
+	now := time.Now().Unix()                  // 获取当前时间
+	item.CreatedAt, item.UpdatedAt = now, now // 设置创建和更新时间
+
 	if item.Id == "" {
-		item.Id = id
+		item.Id = id // 如果 ID 为空，则赋值新生成的 ID
 	}
 
-	var err error
-	_, err = db.Exec(`
-		insert into attrs (id, data, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at, attrs_type)
-		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-		item.Id, item.Data, item.BindingSheetId, item.Name, item.OwnerId, item.SheetType, item.IsHidden,
-		item.CreatedAt, item.UpdatedAt, item.AttrsType)
-	return item, err
+	// 使用 GORM 的 Create 方法插入新记录
+	if err := db.Create(item).Error; err != nil {
+		return nil, err // 返回错误
+	}
+	return item, nil // 返回新创建的项
 }
 
-func AttrsBindCharacter(db *sqlx.DB, charId string, id string) error {
+func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
+	// 将新字典值转换为 JSON
 	json, err := ds.NewDictVal(nil).V().ToJSON()
 	if err != nil {
-		return err
+		return err // 返回错误
 	}
-	_, _ = db.Exec(`insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at)
-					       values ($1, $3, true, '', $2, $2)`, id, time.Now().Unix(), json)
 
-	ret, err := db.Exec(`update attrs set binding_sheet_id = $1 where id = $2`, charId, id)
-	if err == nil {
-		var affected int64
-		affected, err = ret.RowsAffected()
-		if err != nil {
-			return err
-		}
-		if affected == 0 {
-			return errors.New("群信息不存在: " + id)
-		}
+	// 插入新的属性记录
+	item := AttributesItemModel{
+		Id:             id,
+		Data:           json,
+		IsHidden:       true,
+		BindingSheetId: "",
+		CreatedAt:      time.Now().Unix(),
+		UpdatedAt:      time.Now().Unix(),
 	}
-	return err
+
+	if err := db.Create(&item).Error; err != nil {
+		return err // 返回错误
+	}
+
+	// 更新指定 id 的绑定记录
+	result := db.Model(&AttributesItemModel{}).
+		Where("id = ?", id).
+		Update("binding_sheet_id", charId)
+
+	if result.Error != nil {
+		return result.Error // 返回错误
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("群信息不存在: " + id) // 如果没有记录被更新，返回错误
+	}
+	return nil // 操作成功，返回 nil
 }
 
-func AttrsGetCharacterListByUserId(db *sqlx.DB, userId string) (lst []*AttributesItemModel, err error) {
-	rows, err := db.Queryx(`
-	select id, name, sheet_type,
-	       (select count(id) from attrs where binding_sheet_id = t1.id)
-	from attrs as t1 where owner_id = $1 and is_hidden is false
-	`, userId)
-	if err != nil {
-		return nil, err
-	}
+func AttrsGetCharacterListByUserId(db *gorm.DB, userId string) ([]*AttributesItemModel, error) {
 	var items []*AttributesItemModel
-	for rows.Next() {
-		item := &AttributesItemModel{}
-		err := rows.Scan(
-			&item.Id,
-			&item.Name,
-			&item.SheetType,
-			&item.BindingGroupsNum,
-		)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
+
+	// 使用 GORM 查询用户的角色列表
+	if err := db.Table("attrs").
+		Select("id, name, sheet_type, (select count(id) from attrs where binding_sheet_id = t1.id) as binding_groups_num").
+		Where("owner_id = ? AND is_hidden = false", userId).
+		Scan(&items).Error; err != nil {
+		return nil, err // 返回错误
 	}
-	return items, nil
+
+	return items, nil // 返回角色列表
 }

@@ -1,20 +1,19 @@
 package dice
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	ds "github.com/sealdice/dicescript"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"sealdice-core/dice/model"
 )
 
 type AttrsManager struct {
-	db     *sqlx.DB
+	db     *gorm.DB
 	logger *zap.SugaredLogger
 	m      SyncMap[string, *AttributesItem]
 }
@@ -169,24 +168,18 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 		return 0, 0
 	}
 
-	tx, err := db.Begin()
-	if err != nil {
-		if am.logger != nil {
-			am.logger.Errorf("定期写入用户数据出错(创建事务): %v", err)
-		}
-		return 0, 0
-	}
+	tx := db.Begin()
 
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if !value.IsSaved {
 			saved += 1
-			value.SaveToDB(db, tx)
+			value.SaveToDB(db)
 		}
 		times += 1
 		return true
 	})
 
-	err = tx.Commit()
+	err := tx.Commit()
 	if err != nil {
 		if am.logger != nil {
 			am.logger.Errorf("定期写入用户数据出错(提交事务): %v", err)
@@ -210,7 +203,8 @@ func (am *AttrsManager) CheckAndFreeUnused() {
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if value.LastUsedTime-currentTime > 60*10 {
 			prepareToFree[key] = 1
-			value.SaveToDB(am.db, nil)
+			// 直接保存
+			value.SaveToDB(am.db)
 		}
 		return true
 	})
@@ -279,13 +273,13 @@ type AttributesItem struct {
 	SheetType        string
 }
 
-func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
+func (i *AttributesItem) SaveToDB(db *gorm.DB) {
 	// 使用事务写入
 	rawData, err := ds.NewDictVal(i.valueMap).V().ToJSON()
 	if err != nil {
 		return
 	}
-	err = model.AttrsPutById(db, tx, i.ID, rawData, i.Name, i.SheetType)
+	err = model.AttrsPutById(db, i.ID, rawData, i.Name, i.SheetType)
 	if err != nil {
 		fmt.Println("保存数据失败", err.Error())
 		return

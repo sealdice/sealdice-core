@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// TODO: 这个得修啊
 func _SQLiteDBInit(path string, useWAL bool) (*sqlx.DB, error) {
 	db, err := sqlx.Open("sqlite", path)
 	if err != nil {
