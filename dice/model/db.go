@@ -85,11 +85,12 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 	}
 	// data建表
 	err = dataDB.AutoMigrate(
-		&GroupPlayerInfo{},
+		&GroupPlayerInfoBase{},
 		&GroupInfo{},
 		&BanInfo{},
 		&EndpointInfo{},
-		&Attrs{},
+		// ATTRS_NEW
+		&AttributesItemModel{},
 	)
 	if err != nil {
 		return nil, nil, err

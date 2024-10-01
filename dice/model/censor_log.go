@@ -11,13 +11,16 @@ import (
 )
 
 type CensorLog struct {
-	ID           uint64 `json:"id"`
-	MsgType      string `json:"msgType"`
-	UserID       string `json:"userId"`
-	GroupID      string `json:"groupId"`
-	Content      string `json:"content"`
-	HighestLevel int    `json:"highestLevel"`
-	CreatedAt    int    `json:"createdAt"`
+	ID           uint64 `json:"id" gorm:"primarykey;autoIncrement;column:id"`
+	MsgType      string `json:"msgType" gorm:"column:msg_type"`
+	UserID       string `json:"userId" gorm:"index:idx_censor_log_user_id;column:user_id"`
+	GroupID      string `json:"groupId" gorm:"column:group_id"`
+	Content      string `json:"content" gorm:"column:content"`
+	HighestLevel int    `json:"highestLevel" gorm:"index:idx_censor_log_level;column:highest_level"`
+	CreatedAt    int    `json:"createdAt" gorm:"column:created_at"`
+	// 补充gorm有的部分：
+	SensitiveWords string `json:"-" gorm:"column:sensitive_words"`
+	ClearMark      bool   `json:"-" gorm:"column:clear_mark"`
 }
 
 func CensorAppend(db *gorm.DB, msgType string, userID string, groupID string, content string, sensitiveWords interface{}, highestLevel int) bool {
@@ -30,8 +33,8 @@ func CensorAppend(db *gorm.DB, msgType string, userID string, groupID string, co
 		return false
 	}
 
-	// 创建 CensorLogGorm 实例，手动设置 CreatedAt
-	censorLog := CensorLogGorm{
+	// 创建 CensorLog 实例，手动设置 CreatedAt
+	censorLog := CensorLog{
 		MsgType:        msgType,
 		UserID:         userID,
 		GroupID:        groupID,
@@ -57,7 +60,7 @@ func CensorCount(db *gorm.DB, userID string) map[censor.Level]int {
 	// 遍历每个敏感级别并执行查询
 	for _, level := range levels {
 		// 使用 GORM 的链式查询
-		err := db.Model(&CensorLogGorm{}).Where("user_id = ? AND highest_level = ? AND clear_mark = ?", userID, level, false).
+		err := db.Model(&CensorLog{}).Where("user_id = ? AND highest_level = ? AND clear_mark = ?", userID, level, false).
 			Count(&temp).Error
 
 		// 如果查询出现错误，忽略并赋值为 0
@@ -73,7 +76,7 @@ func CensorCount(db *gorm.DB, userID string) map[censor.Level]int {
 
 func CensorClearLevelCount(db *gorm.DB, userID string, level censor.Level) {
 	// 使用 GORM 的链式查询执行批量更新
-	err := db.Model(&CensorLogGorm{}).
+	err := db.Model(&CensorLog{}).
 		Where("user_id = ? AND highest_level = ?", userID, level).
 		Update("clear_mark", true).Error
 	if err != nil {
@@ -90,12 +93,12 @@ type QueryCensorLog struct {
 }
 
 // CensorGetLogPage 使用 GORM 进行分页查询
-func CensorGetLogPage(db *gorm.DB, params QueryCensorLog) (int64, []CensorLogGorm, error) {
+func CensorGetLogPage(db *gorm.DB, params QueryCensorLog) (int64, []CensorLog, error) {
 	var total int64
-	var logs []CensorLogGorm
+	var logs []CensorLog
 
 	// 首先统计总记录数
-	query := db.Model(&CensorLogGorm{})
+	query := db.Model(&CensorLog{})
 
 	// 如果传入了 UserID 和 Level，则添加查询条件
 	if params.UserID != "" {

@@ -1,14 +1,12 @@
 package model
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 )
 
 type LogOne struct {
@@ -18,70 +16,90 @@ type LogOne struct {
 }
 
 type LogOneItem struct {
-	ID          uint64      `json:"id" db:"id"`
-	Nickname    string      `json:"nickname" db:"nickname"`
-	IMUserID    string      `json:"IMUserId" db:"im_userid"`
-	Time        int64       `json:"time" db:"time"`
-	Message     string      `json:"message" db:"message"`
-	IsDice      bool        `json:"isDice" db:"is_dice"`
-	CommandID   int64       `json:"commandId" db:"command_id"`
-	CommandInfo interface{} `json:"commandInfo" db:"command_info"`
-	RawMsgID    interface{} `json:"rawMsgId" db:"raw_msg_id"`
+	ID        uint64 `json:"id" db:"id" gorm:"primarykey;autoIncrement;column:id"`
+	LogID     uint64 `json:"-" gorm:"column:log_id"`
+	GroupID   string `gorm:"index:idx_log_items_group_id;column:group_id"`
+	Nickname  string `json:"nickname" db:"nickname" gorm:"column:nickname"`
+	IMUserID  string `json:"IMUserId" db:"im_userid" gorm:"column:im_user_id"`
+	Time      int64  `json:"time" db:"time" gorm:"column:time"`
+	Message   string `json:"message" db:"message" gorm:"column:message"`
+	IsDice    bool   `json:"isDice" db:"is_dice" gorm:"column:is_dice"`
+	CommandID int64  `json:"commandId" db:"command_id" gorm:"column:command_id"`
+	// TODO: 两个Interface，怎么处理？
+	CommandInfo interface{} `json:"commandInfo" db:"command_info" gorm:"column:command_info"`
+	RawMsgID    interface{} `json:"rawMsgId" db:"raw_msg_id" gorm:"column:raw_msg_id"`
 
-	UniformID string `json:"uniformId" db:"user_uniform_id"`
-	Channel   string `json:"channel"`
+	UniformID string `json:"uniformId" db:"user_uniform_id" gorm:"column:user_uniform_id"`
+	// 数据库里没有的
+	Channel string `json:"channel" gorm:"-"`
+	// 数据库里有，JSON里没有的
+	Removed  int `gorm:"column:removed" json:"-"`
+	ParentID int `gorm:"index:idx_log_items_log_id;column:parent_id" json:"-"`
 }
 
 type LogInfo struct {
-	ID        uint64 `json:"id" db:"id"`
-	Name      string `json:"name" db:"name"`
-	GroupID   string `json:"groupId" db:"groupId"`
-	CreatedAt int64  `json:"createdAt" db:"created_at"`
-	UpdatedAt int64  `json:"updatedAt" db:"updated_at"`
+	ID        uint64 `json:"id" db:"id" gorm:"primarykey;autoIncrement;column:id"`
+	Name      string `json:"name" db:"name" gorm:"column:name"`
+	GroupID   string `json:"groupId" db:"groupId" gorm:"index:idx_logs_group;column:group_id"`
+	CreatedAt int64  `json:"createdAt" db:"created_at" gorm:"column:created_at"`
+	UpdatedAt int64  `json:"updatedAt" db:"updated_at" gorm:"column:updated_at"`
 	Size      int    `json:"size" db:"size"`
+	// 数据库里有，json不展示的
+	Extra string `json:"-" gorm:"column:extra"`
+	// 未知：测试版特供了什么？此处处理方式存疑
+	UploadURL  string `json:"-" gorm:"-"` // 测试版特供
+	UploadTime int    `json:"-" gorm:"-"` // 测试版特供
 }
 
-func LogGetInfo(db *sqlx.DB) ([]int, error) {
+// 兼容旧版本的数据库设计
+func (LogItems) TableName() string {
+	return "log_items"
+}
+
+func (LogInfo) TableName() string {
+	return "logs"
+}
+
+// LogGetInfo 查询日志简略信息，使用通用函数替代SQLITE专属函数
+func LogGetInfo(db *gorm.DB) ([]int, error) {
 	lst := []int{0, 0, 0, 0}
-	err := db.Get(&lst[0], "SELECT seq FROM sqlite_sequence WHERE name == 'logs'")
+
+	// 获取 logs 表的记录数和最大 ID
+	err := db.Table("logs").Select("COUNT(*)").Scan(&lst[2]).Error
 	if err != nil {
 		return nil, err
 	}
-	err = db.Get(&lst[1], "SELECT seq FROM sqlite_sequence WHERE name == 'log_items'")
+
+	err = db.Table("logs").Select("MAX(id)").Scan(&lst[0]).Error
 	if err != nil {
 		return nil, err
 	}
-	err = db.Get(&lst[2], "SELECT COUNT(*) FROM logs")
+
+	// 获取 log_items 表的记录数和最大 ID
+	err = db.Table("log_items").Select("COUNT(*)").Scan(&lst[3]).Error
 	if err != nil {
 		return nil, err
 	}
-	err = db.Get(&lst[3], "SELECT COUNT(*) FROM log_items")
+
+	err = db.Table("log_items").Select("MAX(id)").Scan(&lst[1]).Error
 	if err != nil {
 		return nil, err
 	}
+
 	return lst, nil
 }
 
 // Deprecated: replaced by page
-func LogGetLogs(db *sqlx.DB) ([]*LogInfo, error) {
+func LogGetLogs(db *gorm.DB) ([]*LogInfo, error) {
 	var lst []*LogInfo
-	rows, err := db.Queryx("SELECT id,name,group_id,created_at, updated_at FROM logs")
-	if err != nil {
+
+	// 使用 GORM 查询 logs 表
+	if err := db.Table("logs").
+		Select("id, name, group_id, created_at, updated_at").
+		Find(&lst).Error; err != nil {
 		return nil, err
 	}
-	for rows.Next() {
-		log := &LogInfo{}
-		if err := rows.Scan(
-			&log.ID,
-			&log.Name,
-			&log.GroupID,
-			&log.CreatedAt,
-			&log.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		lst = append(lst, log)
-	}
+
 	return lst, nil
 }
 
@@ -95,181 +113,144 @@ type QueryLogPage struct {
 }
 
 // LogGetLogPage 获取分页
-func LogGetLogPage(db *sqlx.DB, param *QueryLogPage) (int, []*LogInfo, error) {
-	countQuery := `SELECT count(*) FROM logs`
-	query := `
-SELECT logs.id         as id,
-       logs.name       as name,
-       logs.group_id   as group_id,
-       logs.created_at as created_at,
-       logs.updated_at as updated_at,
-       count(logs.id)  as size
-FROM logs
-         LEFT JOIN log_items items ON logs.id = items.log_id
-`
-	var conditions []string
+func LogGetLogPage(db *gorm.DB, param *QueryLogPage) (int, []*LogInfo, error) {
+	var lst []*LogInfo
+
+	// 构建查询
+	query := db.Table("logs").Select("logs.id, logs.name, logs.group_id, logs.created_at, logs.updated_at, COUNT(log_items.id) as size").
+		Joins("LEFT JOIN log_items ON logs.id = log_items.log_id")
+
+	// 添加条件
 	if param.Name != "" {
-		conditions = append(conditions, "logs.name like '%' || :name || '%'")
+		query = query.Where("logs.name LIKE ?", "%"+param.Name+"%")
 	}
 	if param.GroupID != "" {
-		conditions = append(conditions, "logs.group_id like '%' || :group_id || '%'")
+		query = query.Where("logs.group_id LIKE ?", "%"+param.GroupID+"%")
 	}
 	if param.CreatedTimeBegin != "" {
-		conditions = append(conditions, "logs.created_at >= :created_time_begin")
+		query = query.Where("logs.created_at >= ?", param.CreatedTimeBegin)
 	}
 	if param.CreatedTimeEnd != "" {
-		conditions = append(conditions, "logs.created_at <= :created_time_end")
-	}
-	if len(conditions) > 0 {
-		where := " WHERE " + strings.Join(conditions, " AND ")
-		query += where
-		countQuery += where
+		query = query.Where("logs.created_at <= ?", param.CreatedTimeEnd)
 	}
 
-	query += fmt.Sprintf(" GROUP BY logs.id LIMIT %d, %d", (param.PageNum-1)*param.PageSize, param.PageSize)
-
-	var total int
-	count, err := db.NamedQuery(countQuery, param)
-	if err != nil {
-		return 0, nil, err
-	}
-	count.Next()
-	err = count.Scan(&total)
-	if err != nil {
+	// 获取总数
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
 		return 0, nil, err
 	}
 
-	lst := make([]*LogInfo, 0, param.PageSize)
-	rows, err := db.NamedQuery(query, param)
-	if err != nil {
+	// 分页查询
+	query = query.Group("logs.id").Limit(param.PageSize).Offset((param.PageNum - 1) * param.PageSize)
+
+	// 执行查询
+	if err := query.Scan(&lst).Error; err != nil {
 		return 0, nil, err
 	}
-	for rows.Next() {
-		log := &LogInfo{}
-		if err := rows.Scan(
-			&log.ID,
-			&log.Name,
-			&log.GroupID,
-			&log.CreatedAt,
-			&log.UpdatedAt,
-			&log.Size,
-		); err != nil {
-			return 0, nil, err
-		}
-		lst = append(lst, log)
-	}
-	return total, lst, nil
+
+	return int(count), lst, nil
 }
 
 // LogGetList 获取列表
-func LogGetList(db *sqlx.DB, groupID string) ([]string, error) {
+func LogGetList(db *gorm.DB, groupID string) ([]string, error) {
 	var lst []string
-	err := db.Select(&lst, "SELECT name FROM logs WHERE group_id = $1 ORDER BY updated_at DESC", groupID)
-	if err != nil {
+
+	// 执行查询
+	if err := db.Table("logs").
+		Select("name").
+		Where("group_id = ?", groupID).
+		Order("updated_at DESC").
+		Pluck("name", &lst).Error; err != nil {
 		return nil, err
 	}
+
 	return lst, nil
 }
 
 // LogGetIDByGroupIDAndName 获取ID
-func LogGetIDByGroupIDAndName(db *sqlx.DB, groupID string, logName string) (logID int64, err error) {
-	err = db.Get(&logID, "SELECT id FROM logs WHERE group_id = $1 AND name = $2", groupID, logName)
+func LogGetIDByGroupIDAndName(db *gorm.DB, groupID string, logName string) (logID uint64, err error) {
+	err = db.Table("logs").
+		Select("id").
+		Where("group_id = ? AND name = ?", groupID, logName).
+		Scan(&logID).Error
+
 	if err != nil {
 		// 如果出现错误，判断是否没有找到对应的记录
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, nil
 		}
 		return 0, err
 	}
+
 	return logID, nil
 }
 
-func LogGetUploadInfo(db *sqlx.DB, groupID string, logName string) (url string, uploadTime, updateTime int64, err error) {
-	res, err := db.Queryx(
-		`SELECT updated_at, upload_url, upload_time FROM logs WHERE group_id = $1 AND name = $2`,
-		groupID, logName,
-	)
+// LogGetUploadInfo 获取上传信息
+func LogGetUploadInfo(db *gorm.DB, groupID string, logName string) (url string, uploadTime, updateTime int64, err error) {
+	var logInfo struct {
+		UpdatedAt  int64  `gorm:"column:updated_at"`
+		UploadURL  string `gorm:"column:upload_url"`
+		UploadTime int64  `gorm:"column:upload_time"`
+	}
+
+	err = db.Table("logs").
+		Select("updated_at, upload_url, upload_time").
+		Where("group_id = ? AND name = ?", groupID, logName).
+		Scan(&logInfo).Error
+
 	if err != nil {
 		return "", 0, 0, err
 	}
-	defer func() { _ = res.Close() }()
 
-	for res.Next() {
-		err = res.Scan(&updateTime, &url, &uploadTime)
-		if err != nil {
-			return "", 0, 0, err
-		}
-	}
+	// 提取结果
+	updateTime = logInfo.UpdatedAt
+	url = logInfo.UploadURL
+	uploadTime = logInfo.UploadTime
 
 	return
 }
 
-func LogSetUploadInfo(db *sqlx.DB, groupID string, logName string, url string) error {
+// LogSetUploadInfo 设置上传信息
+func LogSetUploadInfo(db *gorm.DB, groupID string, logName string, url string) error {
 	if len(url) == 0 {
 		return nil
 	}
 
 	now := time.Now().Unix()
 
-	_, err := db.Exec(
-		`UPDATE logs SET upload_url = $1, upload_time = $2 WHERE group_id = $3 AND name = $4`,
-		url, now, groupID, logName,
-	)
+	// 使用 GORM 更新上传信息
+	err := db.Table("logs").Where("group_id = ? AND name = ?", groupID, logName).
+		Update("upload_url", url).
+		Update("upload_time", now).
+		Error
+
 	return err
 }
 
 // LogGetAllLines 获取log的所有行数据
-func LogGetAllLines(db *sqlx.DB, groupID string, logName string) ([]*LogOneItem, error) {
+func LogGetAllLines(db *gorm.DB, groupID string, logName string) ([]*LogOneItem, error) {
 	// 获取log的ID
 	logID, err := LogGetIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
 		return nil, err
 	}
 
+	var items []*LogOneItem
+
 	// 查询行数据
-	rows, err := db.Queryx(`SELECT id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id
-	                        FROM log_items WHERE log_id=$1 ORDER BY time ASC`, logID)
+	err = db.Table("log_items").
+		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
+		Where("log_id = ?", logID).
+		Order("time ASC").
+		Scan(&items).Error
+
 	if err != nil {
 		return nil, err
 	}
-	defer func(rows *sqlx.Rows) {
-		_ = rows.Close()
-	}(rows)
 
-	var ret []*LogOneItem
-	for rows.Next() {
-		item := &LogOneItem{}
-		var commandInfoStr []byte
+	// 好像是不需要再反序列化成那个奇怪的interface{}了？
 
-		// 使用Scan方法将查询结果映射到结构体中
-		if err := rows.Scan(
-			&item.ID,
-			&item.Nickname,
-			&item.IMUserID,
-			&item.Time,
-			&item.Message,
-			&item.IsDice,
-			&item.CommandID,
-			&commandInfoStr,
-			&item.RawMsgID,
-			&item.UniformID,
-		); err != nil {
-			return nil, err
-		}
-
-		// 反序列化commandInfo
-		if commandInfoStr != nil {
-			_ = json.Unmarshal(commandInfoStr, &item.CommandInfo)
-		}
-
-		ret = append(ret, item)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return ret, nil
+	return items, nil
 }
 
 type QueryLogLinePage struct {
@@ -280,75 +261,33 @@ type QueryLogLinePage struct {
 }
 
 // LogGetLinePage 获取log的行分页
-func LogGetLinePage(db *sqlx.DB, param *QueryLogLinePage) ([]*LogOneItem, error) {
+func LogGetLinePage(db *gorm.DB, param *QueryLogLinePage) ([]*LogOneItem, error) {
 	// 获取log的ID
 	logID, err := LogGetIDByGroupIDAndName(db, param.GroupID, param.LogName)
 	if err != nil {
 		return nil, err
 	}
 
+	var items []*LogOneItem
+
 	// 查询行数据
-	rows, err := db.Queryx(`
-SELECT id,
-       nickname,
-       im_userid,
-       time,
-       message,
-       is_dice,
-       command_id,
-       command_info,
-       raw_msg_id,
-       user_uniform_id
-FROM log_items
-WHERE log_id =$1
-ORDER BY time ASC
-LIMIT $2, $3;`, logID, (param.PageNum-1)*param.PageSize, param.PageSize)
+	err = db.Table("log_items").
+		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
+		Where("log_id = ?", logID).
+		Order("time ASC").
+		Limit(param.PageSize).
+		Offset((param.PageNum - 1) * param.PageSize).
+		Scan(&items).Error
 
 	if err != nil {
 		return nil, err
 	}
-	defer func(rows *sqlx.Rows) {
-		_ = rows.Close()
-	}(rows)
 
-	var ret []*LogOneItem
-	for rows.Next() {
-		item := &LogOneItem{}
-		var commandInfoStr []byte
-
-		// 使用Scan方法将查询结果映射到结构体中
-		if err := rows.Scan(
-			&item.ID,
-			&item.Nickname,
-			&item.IMUserID,
-			&item.Time,
-			&item.Message,
-			&item.IsDice,
-			&item.CommandID,
-			&commandInfoStr,
-			&item.RawMsgID,
-			&item.UniformID,
-		); err != nil {
-			return nil, err
-		}
-
-		// 反序列化commandInfo
-		if commandInfoStr != nil {
-			_ = json.Unmarshal(commandInfoStr, &item.CommandInfo)
-		}
-
-		ret = append(ret, item)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return ret, nil
+	return items, nil
 }
 
 // LogLinesCountGet 获取日志行数
-func LogLinesCountGet(db *sqlx.DB, groupID string, logName string) (int64, bool) {
+func LogLinesCountGet(db *gorm.DB, groupID string, logName string) (int64, bool) {
 	// 获取日志 ID
 	logID, err := LogGetIDByGroupIDAndName(db, groupID, logName)
 	if err != nil || logID == 0 {
@@ -357,9 +296,10 @@ func LogLinesCountGet(db *sqlx.DB, groupID string, logName string) (int64, bool)
 
 	// 获取日志行数
 	var count int64
-	err = db.Get(&count, `
-		SELECT COUNT(id) FROM log_items WHERE log_id=$1 AND removed IS NULL
-	`, logID)
+	err = db.Table("log_items").
+		Where("log_id = ? AND removed IS NULL", logID).
+		Count(&count).Error
+
 	if err != nil {
 		return 0, false
 	}
@@ -368,17 +308,16 @@ func LogLinesCountGet(db *sqlx.DB, groupID string, logName string) (int64, bool)
 }
 
 // LogDelete 删除log
-func LogDelete(db *sqlx.DB, groupID string, logName string) bool {
-	// 获取 log id
+func LogDelete(db *gorm.DB, groupID string, logName string) bool {
+	// 获取 log ID
 	logID, err := LogGetIDByGroupIDAndName(db, groupID, logName)
 	if err != nil || logID == 0 {
 		return false
 	}
 
-	// 获取文本
-	// 通过BeginTxx方法开启事务
-	tx, err := db.Beginx()
-	if err != nil {
+	// 开启事务
+	tx := db.Begin()
+	if err := tx.Error; err != nil {
 		return false
 	}
 	defer func() {
@@ -387,41 +326,38 @@ func LogDelete(db *sqlx.DB, groupID string, logName string) bool {
 		}
 	}()
 
-	// 删除log_id相关的log_items记录
-	_, err = tx.Exec("DELETE FROM log_items WHERE log_id = $1", logID)
-	if err != nil {
+	// 删除 log_id 相关的 log_items 记录
+	if err := tx.Where("log_id = ?", logID).Delete(&LogOneItem{}).Error; err != nil {
 		return false
 	}
 
-	// 删除log_id相关的logs记录
-	_, err = tx.Exec("DELETE FROM logs WHERE id = $1", logID)
-	if err != nil {
+	// 删除 log_id 相关的 logs 记录
+	if err := tx.Where("id = ?", logID).Delete(&LogInfo{}).Error; err != nil {
 		return false
 	}
 
 	// 提交事务
-	err = tx.Commit()
+	err = tx.Commit().Error
 	return err == nil
 }
 
 // LogAppend 向指定的log中添加一条信息
-func LogAppend(db *sqlx.DB, groupID string, logName string, logItem *LogOneItem) bool {
-	// 获取 log id
+func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem) bool {
+	// 获取 log ID
 	logID, err := LogGetIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
 		return false
 	}
 
-	// 如果不存在，创建
+	// 获取当前时间戳
 	now := time.Now()
 	nowTimestamp := now.Unix()
 
 	// 开始事务
-	tx, err := db.Beginx()
-	if err != nil {
+	tx := db.Begin()
+	if err := tx.Error; err != nil {
 		return false
 	}
-	// 执行事务时发生错误时回滚
 	defer func() {
 		if err != nil {
 			_ = tx.Rollback()
@@ -429,42 +365,50 @@ func LogAppend(db *sqlx.DB, groupID string, logName string, logItem *LogOneItem)
 	}()
 
 	if logID == 0 {
-		// 创建一个新的log
-		query := "INSERT INTO logs (name, group_id, created_at, updated_at) VALUES (?, ?, ?, ?)"
-		rst, errNew := tx.Exec(query, logName, groupID, nowTimestamp, nowTimestamp)
-		if errNew != nil {
+		// 创建一个新的 log
+		newLog := LogInfo{Name: logName, GroupID: groupID, CreatedAt: nowTimestamp, UpdatedAt: nowTimestamp}
+		if err := tx.Create(&newLog).Error; err != nil {
 			return false
 		}
-		// 获取新创建log的ID
-		logID, errNew = rst.LastInsertId()
-		if errNew != nil {
-			return false
-		}
+		logID = newLog.ID // 假设 LogInfo 结构体有 ID 字段
 	}
 
-	// 向log_items表中添加一条信息
+	// 向 log_items 表中添加一条信息
 	data, err := json.Marshal(logItem.CommandInfo)
-	query := "INSERT INTO log_items (log_id, group_id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-
-	rid := ""
-	if logItem.RawMsgID != nil {
-		rid = fmt.Sprintf("%v", logItem.RawMsgID)
-	}
-
-	// fmt.Println("log append", logId, rid, "|", groupId, logName)
-	_, err = tx.Exec(query, logID, groupID, logItem.Nickname, logItem.IMUserID, nowTimestamp, logItem.Message, logItem.IsDice, logItem.CommandID, data, rid, logItem.UniformID)
-	_, err = tx.Exec("UPDATE logs SET updated_at = ? WHERE id = ?", nowTimestamp, logID)
 	if err != nil {
 		return false
 	}
 
+	newLogItem := LogOneItem{
+		LogID:       logID,
+		GroupID:     groupID,
+		Nickname:    logItem.Nickname,
+		IMUserID:    logItem.IMUserID,
+		Time:        nowTimestamp,
+		Message:     logItem.Message,
+		IsDice:      logItem.IsDice,
+		CommandID:   logItem.CommandID,
+		CommandInfo: data,
+		RawMsgID:    logItem.RawMsgID,
+		UniformID:   logItem.UniformID,
+	}
+
+	if err := tx.Create(&newLogItem).Error; err != nil {
+		return false
+	}
+
+	// 更新 logs 表中的 updated_at 字段
+	if err := tx.Model(&LogInfo{}).Where("id = ?", logID).Update("updated_at", nowTimestamp).Error; err != nil {
+		return false
+	}
+
 	// 提交事务
-	err = tx.Commit()
+	err = tx.Commit().Error
 	return err == nil
 }
 
 // LogMarkDeleteByMsgID 撤回删除
-func LogMarkDeleteByMsgID(db *sqlx.DB, groupID string, logName string, rawID interface{}) error {
+func LogMarkDeleteByMsgID(db *gorm.DB, groupID string, logName string, rawID interface{}) error {
 	// 获取 log id
 	logID, err := LogGetIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
@@ -478,8 +422,7 @@ func LogMarkDeleteByMsgID(db *sqlx.DB, groupID string, logName string, rawID int
 	}
 
 	// fmt.Printf("log delete %v %d\n", rawId, logId)
-	_, err = db.Exec("DELETE FROM log_items WHERE log_id=? AND raw_msg_id=?", logID, rid)
-	if err != nil {
+	if err := db.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&LogOneItem{}).Error; err != nil {
 		fmt.Println("log delete error", err.Error())
 		return err
 	}
@@ -487,7 +430,8 @@ func LogMarkDeleteByMsgID(db *sqlx.DB, groupID string, logName string, rawID int
 	return nil
 }
 
-func LogEditByMsgID(db *sqlx.DB, groupID, logName, newContent string, rawID interface{}) error {
+// LogEditByMsgID 编辑日志
+func LogEditByMsgID(db *gorm.DB, groupID, logName, newContent string, rawID interface{}) error {
 	logID, err := LogGetIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
 		return err
@@ -498,11 +442,11 @@ func LogEditByMsgID(db *sqlx.DB, groupID, logName, newContent string, rawID inte
 		rid = fmt.Sprintf("%v", rawID)
 	}
 
-	_, err = db.Exec(`UPDATE log_items
-SET message = ?
-WHERE log_id = ? AND raw_msg_id = ?`, newContent, logID, rid)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+	// 更新 log_items 表中的内容
+	if err := db.Model(&LogOneItem{}).
+		Where("log_id = ? AND raw_msg_id = ?", logID, rid).
+		Update("message", newContent).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
 		}
 		return fmt.Errorf("log edit: %w", err)
