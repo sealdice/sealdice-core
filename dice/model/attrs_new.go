@@ -44,6 +44,11 @@ type AttributesItemModel struct {
 	BindingGroupsNum int64 `json:"bindingGroupNum" gorm:"-"` // 当前绑定中群数
 }
 
+// 兼容旧版本数据库
+func (AttributesItemModel) TableName() string {
+	return "attrs"
+}
+
 func (m *AttributesItemModel) IsDataExists() bool {
 	return m.Data != nil && len(m.Data) > 0
 }
@@ -58,14 +63,12 @@ type PlatformMappingModel struct {
 
 func AttrsGetById(db *gorm.DB, id string) (*AttributesItemModel, error) {
 	var item AttributesItemModel
-	if err := db.Table("attrs").
+	err := db.Table("attrs").
 		Select("id, data, COALESCE(attrs_type, '') as attrs_type, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at").
-		Where("id = ?", id).
-		First(&item).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil // No rows found
-		}
-		return nil, err // Other error
+		Where("id = ?", id). // gorm.ErrRecordNotFound
+		First(&item).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
 	}
 	return &item, nil
 }
@@ -75,14 +78,12 @@ func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
 	var item struct {
 		BindingSheetId string `gorm:"column:binding_sheet_id"`
 	}
-	if err := db.Table("attrs").
+	err := db.Table("attrs").
 		Select("binding_sheet_id").
 		Where("id = ?", id).
-		First(&item).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil // No rows found
-		}
-		return "", err // Other error
+		First(&item).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", err
 	}
 	return item.BindingSheetId, nil
 }
@@ -92,14 +93,12 @@ func AttrsGetIdByUidAndName(db *gorm.DB, userId string, name string) (string, er
 		Id string `gorm:"column:id"` // 定义一个匿名结构体以获取 id
 	}
 	// 使用 GORM 查询 attrs 表，选择 id 字段
-	if err := db.Table("attrs").
+	err := db.Table("attrs").
 		Select("id").
 		Where("owner_id = ? AND name = ?", userId, name).
-		First(&item).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil // 如果没有找到记录，返回空字符串
-		}
-		return "", err // 返回其他错误
+		First(&item).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", err
 	}
 	return item.Id, nil // 返回找到的 id
 }
@@ -216,13 +215,17 @@ func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
 func AttrsGetCharacterListByUserId(db *gorm.DB, userId string) ([]*AttributesItemModel, error) {
 	var items []*AttributesItemModel
 
-	// 使用 GORM 查询用户的角色列表
-	if err := db.Table("attrs").
-		Select("id, name, sheet_type, (select count(id) from attrs where binding_sheet_id = t1.id) as binding_groups_num").
-		Where("owner_id = ? AND is_hidden = false", userId).
-		Scan(&items).Error; err != nil {
-		return nil, err // 返回错误
-	}
+	// 构建子查询
+	subQuery := db.Table("attrs").
+		Select("count(id)").
+		Where("binding_sheet_id = t1.id")
+
+	// 主查询
+	db.Table("attrs as t1").
+		Select("t1.id, t1.name, t1.sheet_type, (?) as binding_count", subQuery).
+		Where("t1.owner_id = ?", userId).
+		Where("t1.is_hidden = ?", false).
+		Find(&items)
 
 	return items, nil // 返回角色列表
 }

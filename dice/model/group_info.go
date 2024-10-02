@@ -12,10 +12,14 @@ import (
 
 // GroupInfo 模型
 type GroupInfo struct {
-	ID        string `gorm:"column:id;primarykey"` // 主键，字符串类型
+	ID        string `gorm:"column:id;primaryKey"` // 主键，字符串类型
 	CreatedAt int    `gorm:"column:created_at"`    // 创建时间
 	UpdatedAt int64  `gorm:"column:updated_at"`    // 更新时间，int64类型
 	Data      []byte `gorm:"column:data"`          // BLOB 类型字段，使用 []byte 表示
+}
+
+func (GroupInfo) TableName() string {
+	return "group_info"
 }
 
 // GroupInfoListGet 使用 GORM 实现，遍历 group_info 表中的数据并调用回调函数
@@ -96,6 +100,11 @@ type GroupPlayerInfoBase struct {
 	CreatedAt int    `yaml:"-" json:"-" gorm:"column:created_at"` // 创建时间
 	UpdatedAt int    `yaml:"-" json:"-" gorm:"column:updated_at"` // 更新时间
 	GroupID   string `yaml:"-" json:"-" gorm:"index:idx_group_player_info_group_id"`
+}
+
+// 兼容设置
+func (GroupPlayerInfoBase) TableName() string {
+	return "group_player_info"
 }
 
 // GroupPlayerNumGet 获取指定群组的玩家数量

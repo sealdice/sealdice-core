@@ -1,6 +1,7 @@
 package model
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,18 +17,18 @@ type LogOne struct {
 }
 
 type LogOneItem struct {
-	ID        uint64 `json:"id" db:"id" gorm:"primarykey;autoIncrement;column:id"`
+	ID        uint64 `json:"id" db:"id" gorm:"primaryKey;autoIncrement;column:id"`
 	LogID     uint64 `json:"-" gorm:"column:log_id"`
 	GroupID   string `gorm:"index:idx_log_items_group_id;column:group_id"`
 	Nickname  string `json:"nickname" db:"nickname" gorm:"column:nickname"`
-	IMUserID  string `json:"IMUserId" db:"im_userid" gorm:"column:im_user_id"`
+	IMUserID  string `json:"IMUserId" db:"im_userid" gorm:"column:im_userid"`
 	Time      int64  `json:"time" db:"time" gorm:"column:time"`
 	Message   string `json:"message" db:"message" gorm:"column:message"`
 	IsDice    bool   `json:"isDice" db:"is_dice" gorm:"column:is_dice"`
 	CommandID int64  `json:"commandId" db:"command_id" gorm:"column:command_id"`
 	// TODO: 两个Interface，怎么处理？
-	CommandInfo interface{} `json:"commandInfo" db:"command_info" gorm:"column:command_info"`
-	RawMsgID    interface{} `json:"rawMsgId" db:"raw_msg_id" gorm:"column:raw_msg_id"`
+	CommandInfo interface{} `json:"commandInfo" db:"command_info" gorm:"column:command_info;type:json"`
+	RawMsgID    interface{} `json:"rawMsgId" db:"raw_msg_id" gorm:"column:raw_msg_id;type:json"`
 
 	UniformID string `json:"uniformId" db:"user_uniform_id" gorm:"column:user_uniform_id"`
 	// 数据库里没有的
@@ -38,7 +39,7 @@ type LogOneItem struct {
 }
 
 type LogInfo struct {
-	ID        uint64 `json:"id" db:"id" gorm:"primarykey;autoIncrement;column:id"`
+	ID        uint64 `json:"id" db:"id" gorm:"primaryKey;autoIncrement;column:id"`
 	Name      string `json:"name" db:"name" gorm:"column:name"`
 	GroupID   string `json:"groupId" db:"groupId" gorm:"index:idx_logs_group;column:group_id"`
 	CreatedAt int64  `json:"createdAt" db:"created_at" gorm:"column:created_at"`
@@ -52,7 +53,7 @@ type LogInfo struct {
 }
 
 // 兼容旧版本的数据库设计
-func (LogItems) TableName() string {
+func (LogOneItem) TableName() string {
 	return "log_items"
 }
 
@@ -64,16 +65,20 @@ func (LogInfo) TableName() string {
 func LogGetInfo(db *gorm.DB) ([]int, error) {
 	lst := []int{0, 0, 0, 0}
 
+	var maxID sql.NullInt64      // 使用sql.NullInt64来处理NULL值
+	var itemsMaxID sql.NullInt64 // 使用sql.NullInt64来处理NULL值
+
 	// 获取 logs 表的记录数和最大 ID
 	err := db.Table("logs").Select("COUNT(*)").Scan(&lst[2]).Error
 	if err != nil {
 		return nil, err
 	}
 
-	err = db.Table("logs").Select("MAX(id)").Scan(&lst[0]).Error
+	err = db.Table("logs").Select("MAX(id)").Scan(&maxID).Error
 	if err != nil {
 		return nil, err
 	}
+	lst[0] = int(maxID.Int64)
 
 	// 获取 log_items 表的记录数和最大 ID
 	err = db.Table("log_items").Select("COUNT(*)").Scan(&lst[3]).Error
@@ -81,10 +86,11 @@ func LogGetInfo(db *gorm.DB) ([]int, error) {
 		return nil, err
 	}
 
-	err = db.Table("log_items").Select("MAX(id)").Scan(&lst[1]).Error
+	err = db.Table("log_items").Select("MAX(id)").Scan(&itemsMaxID).Error
 	if err != nil {
 		return nil, err
 	}
+	lst[1] = int(itemsMaxID.Int64)
 
 	return lst, nil
 }

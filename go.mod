@@ -23,6 +23,7 @@ require (
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/gen2brain/beeep v0.0.0-20230907135156-1a38885a97fc
 	github.com/glebarez/go-sqlite v1.22.0
+	github.com/glebarez/sqlite v1.11.0
 	github.com/go-creed/sat v1.0.3
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang-module/carbon v1.7.3
@@ -57,7 +58,6 @@ require (
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
 	github.com/sealdice/dicescript v0.0.0-20240816161158-28fab8cf354e
 	github.com/slack-go/slack v0.13.0
-	github.com/sunshineplan/imgconv v1.1.4
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	github.com/tdewolff/minify/v2 v2.20.37
 	github.com/tidwall/buntdb v1.3.1
@@ -77,6 +77,8 @@ require (
 	gorm.io/driver/sqlite v1.5.6
 	gorm.io/gorm v1.25.12
 )
+
+require github.com/sunshineplan/imgconv v1.1.4
 
 require (
 	github.com/RoaringBitmap/roaring v1.2.3 // indirect
@@ -147,7 +149,7 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/sacOO7/go-logger v0.0.0-20180719173527-9ac9add5a50d // indirect
-	github.com/sunshineplan/pdf v1.0.3 // indirect
+	github.com/sunshineplan/pdf v1.0.7 // indirect
 	github.com/sunshineplan/tiff v0.0.0-20220128141034-29b9d69bd906 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/tdewolff/parse/v2 v2.7.15 // indirect
@@ -163,7 +165,7 @@ require (
 	github.com/xuri/efp v0.0.0-20231025114914-d1ff6096ae53 // indirect
 	github.com/xuri/nfp v0.0.0-20230919160717-d98342af3f05 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/image v0.19.0 // indirect
+	golang.org/x/image v0.20.0 // indirect
 	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect

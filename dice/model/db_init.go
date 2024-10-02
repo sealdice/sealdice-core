@@ -4,25 +4,32 @@
 package model
 
 import (
-	_ "github.com/glebarez/go-sqlite"
-	"github.com/jmoiron/sqlx"
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
 )
 
 // TODO: 这个得修啊
-func _SQLiteDBInit(path string, useWAL bool) (*sqlx.DB, error) {
-	db, err := sqlx.Open("sqlite", path)
+func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
+	//db, err := sqlx.Open("sqlite", path)
+	//
+	//
+	//if err != nil {
+	//	panic(err)
+	//}
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	// _, err = db.Exec("vacuum")
 	// if err != nil {
 	// 	panic(err)
 	// }
+	// github.com/mattn/go-sqlite3
 
 	// enable WAL mode
 	if useWAL {
-		_, err = db.Exec("PRAGMA journal_mode=WAL")
+		err = db.Exec("PRAGMA journal_mode=WAL").Error
 		if err != nil {
 			panic(err)
 		}

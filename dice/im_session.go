@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"gorm.io/gorm"
+
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
 
@@ -19,7 +21,6 @@ import (
 	rand2 "golang.org/x/exp/rand"
 
 	"github.com/dop251/goja"
-	"github.com/jmoiron/sqlx"
 	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
 )
@@ -191,7 +192,7 @@ func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
 	return false
 }
 
-func (group *GroupInfo) PlayerGet(db *sqlx.DB, id string) *GroupPlayerInfo {
+func (group *GroupInfo) PlayerGet(db *gorm.DB, id string) *GroupPlayerInfo {
 	if group.Players == nil {
 		group.Players = new(SyncMap[string, *GroupPlayerInfo])
 	}

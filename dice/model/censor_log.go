@@ -11,7 +11,7 @@ import (
 )
 
 type CensorLog struct {
-	ID           uint64 `json:"id" gorm:"primarykey;autoIncrement;column:id"`
+	ID           uint64 `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
 	MsgType      string `json:"msgType" gorm:"column:msg_type"`
 	UserID       string `json:"userId" gorm:"index:idx_censor_log_user_id;column:user_id"`
 	GroupID      string `json:"groupId" gorm:"column:group_id"`
@@ -21,6 +21,10 @@ type CensorLog struct {
 	// 补充gorm有的部分：
 	SensitiveWords string `json:"-" gorm:"column:sensitive_words"`
 	ClearMark      bool   `json:"-" gorm:"column:clear_mark"`
+}
+
+func (CensorLog) TableName() string {
+	return "censor_log"
 }
 
 func CensorAppend(db *gorm.DB, msgType string, userID string, groupID string, content string, sensitiveWords interface{}, highestLevel int) bool {

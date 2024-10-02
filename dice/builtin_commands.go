@@ -1904,7 +1904,7 @@ func (d *Dice) registerCoreCommands() {
 								setCurPlayerName(b)
 							}
 							attrs.LastModifiedTime = time.Now().Unix()
-							attrs.SaveToDB(am.db, nil) // 直接保存
+							attrs.SaveToDB(am.db) // 直接保存
 							ReplyToSender(ctx, msg, "操作完成")
 						} else {
 							ReplyToSender(ctx, msg, "此角色名已存在")

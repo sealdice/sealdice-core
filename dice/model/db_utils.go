@@ -7,18 +7,12 @@ import (
 	"runtime"
 	"sync"
 
-	"gorm.io/gorm"
-
 	"sealdice-core/utils/spinner"
 )
 
 // DBCacheDelete 删除SQLite数据库缓存文件
-func DBCacheDelete(db *gorm.DB) bool {
-	// 检查数据库驱动是否是 SQLite
-	if db.Dialector.Name() != "sqlite" {
-		fmt.Println("数据库类型不是 SQLite，跳过缓存删除")
-		return true
-	}
+func DBCacheDelete() bool {
+	// TODO: 判断缓存是否应该被删除
 
 	dataDir := "./data/default"
 
@@ -59,7 +53,7 @@ func DBCacheDelete(db *gorm.DB) bool {
 }
 
 // DBVacuum 整理数据库
-func DBVacuum(db *gorm.DB) {
+func DBVacuum() {
 	done := make(chan interface{}, 1)
 	fmt.Println("开始进行数据库整理")
 
@@ -75,7 +69,7 @@ func DBVacuum(db *gorm.DB) {
 		defer wg.Done()
 		// 使用 GORM 初始化数据库
 		vacuumDB, err := _SQLiteDBInit(path, true)
-		if db.Dialector.Name() != "sqlite" {
+		if vacuumDB.Dialector.Name() != "sqlite" {
 			fmt.Println("数据库类型不是 SQLite，跳过缓存删除")
 			return
 		}

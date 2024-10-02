@@ -179,7 +179,7 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 		return true
 	})
 
-	err := tx.Commit()
+	err := tx.Commit().Error
 	if err != nil {
 		if am.logger != nil {
 			am.logger.Errorf("定期写入用户数据出错(提交事务): %v", err)

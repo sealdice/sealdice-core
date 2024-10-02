@@ -5,10 +5,14 @@ import "gorm.io/gorm"
 // BanInfo 模型
 // GORM STRUCT
 type BanInfo struct {
-	ID           string `gorm:"primarykey"`
+	ID           string `gorm:"primaryKey"`
 	BanUpdatedAt int    `gorm:"index:idx_ban_info_ban_updated_at"`
 	UpdatedAt    int    `gorm:"index:idx_ban_info_updated_at"`
 	Data         []byte // 使用[]byte表示BLOB类型
+}
+
+func (BanInfo) TableName() string {
+	return "ban_info"
 }
 
 // BanItemDel 删除指定 ID 的禁用项
