@@ -27,8 +27,9 @@ type LogOneItem struct {
 	IsDice    bool   `json:"isDice" db:"is_dice" gorm:"column:is_dice"`
 	CommandID int64  `json:"commandId" db:"command_id" gorm:"column:command_id"`
 	// TODO: 两个Interface，怎么处理？
-	CommandInfo interface{} `json:"commandInfo" db:"command_info" gorm:"column:command_info;type:json"`
-	RawMsgID    interface{} `json:"rawMsgId" db:"raw_msg_id" gorm:"column:raw_msg_id;type:json"`
+	// TODO: 不同的数据库之间，可能会导致type出现BUG，应该使用动态的方式
+	CommandInfo interface{} `json:"commandInfo" db:"command_info" gorm:"column:command_info;type:text"`
+	RawMsgID    interface{} `json:"rawMsgId" db:"raw_msg_id" gorm:"column:raw_msg_id;type:text"`
 
 	UniformID string `json:"uniformId" db:"user_uniform_id" gorm:"column:user_uniform_id"`
 	// 数据库里没有的
@@ -40,10 +41,10 @@ type LogOneItem struct {
 
 type LogInfo struct {
 	ID        uint64 `json:"id" db:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	Name      string `json:"name" db:"name" gorm:"column:name"`
-	GroupID   string `json:"groupId" db:"groupId" gorm:"index:idx_logs_group;column:group_id"`
+	Name      string `json:"name" db:"name" gorm:"column:name;index:idx_log_group_id_name,unique"`
+	GroupID   string `json:"groupId" db:"groupId" gorm:"index:idx_logs_group;index:idx_log_group_id_name,unique;column:group_id"`
 	CreatedAt int64  `json:"createdAt" db:"created_at" gorm:"column:created_at"`
-	UpdatedAt int64  `json:"updatedAt" db:"updated_at" gorm:"column:updated_at"`
+	UpdatedAt int64  `json:"updatedAt" db:"updated_at" gorm:"column:updated_at;index:idx_logs_update_at"`
 	Size      int    `json:"size" db:"size"`
 	// 数据库里有，json不展示的
 	Extra string `json:"-" gorm:"column:extra"`

@@ -113,23 +113,14 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 	}
 
 	// 添加额外的字段
-	// 估计原本木落直接忽略了所有错误，所以这里不要闲的没事返回，错误的。
+	// 估计原本木落直接忽略了所有错误，所以这里不能返回错误。
 	if err2 := logsDB.Exec(`ALTER TABLE logs ADD COLUMN upload_url TEXT;`).Error; err2 != nil {
-		fmt.Println("已经创建过upload_url字段!")
+		fmt.Println("已经创建过upload_url字段，跳过重复创建。")
 	}
 	if err2 := logsDB.Exec(`ALTER TABLE logs ADD COLUMN upload_time INTEGER;`).Error; err2 != nil {
-		fmt.Println("已经创建过upload_time字段!")
+		fmt.Println("已经创建过upload_time字段，跳过重复创建。")
 	}
-
-	// 添加联合唯一索引
-	if err := logsDB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_log_group_id_name ON logs (group_id, name);`).Error; err != nil {
-		return nil, err
-	}
-
-	// 添加更新时间索引
-	if err := logsDB.Exec(`CREATE INDEX IF NOT EXISTS idx_logs_update_at ON logs (updated_at);`).Error; err != nil {
-		return nil, err
-	}
+	// 移动添加索引到标签处
 
 	return logsDB, nil
 }

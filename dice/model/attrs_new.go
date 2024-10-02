@@ -23,9 +23,9 @@ const (
 // AttributesItemModel 新版人物卡。说明一下，这里带s的原因是attrs指的是一个map
 // 补全GORM缺少部分
 type AttributesItemModel struct {
-	Id        string `json:"id" gorm:"column:id"`                                              // 如果是群内，那么是类似 QQ-Group:12345-QQ:678910，群外是nanoid
-	Data      []byte `json:"data" gorm:"column:data"`                                          // 序列化后的卡数据，理论上[]byte不会进入字符串缓存，要更好些？
-	AttrsType string `json:"attrsType" gorm:"column:attrs_type;index:idx_attrs_attrs_type_id"` // 分为: 角色卡(character)、组内用户(group_user)、群组(group)、用户(user)
+	Id        string `json:"id" gorm:"column:id"`                                                           // 如果是群内，那么是类似 QQ-Group:12345-QQ:678910，群外是nanoid
+	Data      []byte `json:"data" gorm:"column:data"`                                                       // 序列化后的卡数据，理论上[]byte不会进入字符串缓存，要更好些？
+	AttrsType string `json:"attrsType" gorm:"column:attrs_type;index:idx_attrs_attrs_type_id;default:NULL"` // 分为: 角色卡(character)、组内用户(group_user)、群组(group)、用户(user)
 
 	// 这些是群组内置卡专用的，其实就是替代了绑卡关系表，作为群组内置卡时，这个字段用于存放绑卡关系
 	BindingSheetId string `json:"bindingSheetId" gorm:"column:binding_sheet_id;default:'';index:idx_attrs_binding_sheet_id"` // 绑定的卡片ID
@@ -62,10 +62,11 @@ type PlatformMappingModel struct {
 }
 
 func AttrsGetById(db *gorm.DB, id string) (*AttributesItemModel, error) {
+	// 这里必须使用AttributesItemModel结构体，如果你定义一个只有ID属性的结构体去接收，居然能接收到值，这样就会豹错
 	var item AttributesItemModel
 	err := db.Table("attrs").
 		Select("id, data, COALESCE(attrs_type, '') as attrs_type, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at").
-		Where("id = ?", id). // gorm.ErrRecordNotFound
+		Where("id = ?", id).
 		First(&item).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
@@ -75,13 +76,13 @@ func AttrsGetById(db *gorm.DB, id string) (*AttributesItemModel, error) {
 
 // AttrsGetBindingSheetIdByGroupId 获取当前正在绑定的ID
 func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
-	var item struct {
-		BindingSheetId string `gorm:"column:binding_sheet_id"`
-	}
+	// 这里必须使用AttributesItemModel结构体，如果你定义一个只有ID属性的结构体去接收，居然能接收到值，这样就会豹错
+	var item AttributesItemModel
 	err := db.Table("attrs").
 		Select("binding_sheet_id").
 		Where("id = ?", id).
 		First(&item).Error
+	//panic("喵了个咪")
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", err
 	}
@@ -89,14 +90,14 @@ func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
 }
 
 func AttrsGetIdByUidAndName(db *gorm.DB, userId string, name string) (string, error) {
-	var item struct {
-		Id string `gorm:"column:id"` // 定义一个匿名结构体以获取 id
-	}
+	// 这里必须使用AttributesItemModel结构体，如果你定义一个只有ID属性的结构体去接收，居然能接收到值，这样就会豹错
+	var item AttributesItemModel
 	// 使用 GORM 查询 attrs 表，选择 id 字段
 	err := db.Table("attrs").
 		Select("id").
 		Where("owner_id = ? AND name = ?", userId, name).
 		First(&item).Error
+	// 如果有错误，但是错误不是找不到记录的情况下：
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", err
 	}
