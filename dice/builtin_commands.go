@@ -268,7 +268,7 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			if id != "" {
-				text, exists := d.Parent.Help.TextMap[id]
+				text, exists := d.Parent.Help.TextMap.Load(id)
 				if exists {
 					content := d.Parent.Help.GetContent(text, 0)
 					ReplyToSender(ctx, msg, fmt.Sprintf("词条: %s:%s\n%s", text.PackageName, text.Title, content))
@@ -334,11 +334,19 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			hasSecond := len(search.Hits) >= 2
-			best := d.Parent.Help.TextMap[search.Hits[0].ID]
+			best, ok := d.Parent.Help.TextMap.Load(search.Hits[0].ID)
+			if !ok {
+				ReplyToSender(ctx, msg, "加载d.Parent.Help.TextMap.Load(search.Hits[0].ID)的数据出现错误!")
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
 			others := ""
 
 			for _, i := range search.Hits {
-				t := d.Parent.Help.TextMap[i.ID]
+				t, ok := d.Parent.Help.TextMap.Load(i.ID)
+				if !ok {
+					ReplyToSender(ctx, msg, "加载d.Parent.Help.TextMap.Load(i.ID)的数据出现错误!")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				if t.Group != "" && t.Group != HelpBuiltinGroup {
 					others += fmt.Sprintf("[%s][%s]【%s:%s】 匹配度%.2f\n", i.ID, t.Group, t.PackageName, t.Title, i.Score)
 				} else {
@@ -458,7 +466,10 @@ func (d *Dice) registerCoreCommands() {
 				if len(search.Hits) > 0 {
 					// 居然会出现 hits[0] 为nil的情况？？
 					// a := d.Parent.ShortHelp.GetContent(search.Hits[0].ID)
-					a := d.Parent.Help.TextMap[search.Hits[0].ID]
+					a, ok := d.Parent.Help.TextMap.Load(search.Hits[0].ID)
+					if !ok {
+						ReplyToSender(ctx, msg, "HELPDOC:读取ID对应的信息出现问题")
+					}
 					content := d.Parent.Help.GetContent(a, 0)
 					ReplyToSender(ctx, msg, fmt.Sprintf("%s:%s\n%s", a.PackageName, a.Title, content))
 				} else {
