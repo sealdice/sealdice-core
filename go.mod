@@ -56,7 +56,7 @@ require (
 	github.com/samber/lo v1.44.0
 	github.com/schollz/progressbar/v3 v3.14.6
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
-	github.com/sealdice/dicescript v0.0.0-20240816161158-28fab8cf354e
+	github.com/sealdice/dicescript v0.0.0-20240927083134-65269b7d051c
 	github.com/slack-go/slack v0.13.0
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	github.com/tdewolff/minify/v2 v2.20.37
@@ -66,9 +66,9 @@ require (
 	github.com/yuin/goldmark v1.7.4
 	go.etcd.io/bbolt v1.3.9
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.25.0
+	golang.org/x/crypto v0.27.0
 	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8
-	golang.org/x/sys v0.22.0
+	golang.org/x/sys v0.25.0
 	golang.org/x/text v0.18.0
 	golang.org/x/time v0.5.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
@@ -78,7 +78,10 @@ require (
 	gorm.io/gorm v1.25.12
 )
 
-require github.com/sunshineplan/imgconv v1.1.4
+require (
+	github.com/sunshineplan/imgconv v1.1.4
+	gorm.io/driver/mysql v1.5.7
+)
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
@@ -171,13 +174,12 @@ require (
 	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/term v0.22.0 // indirect
+	golang.org/x/term v0.24.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gorm.io/driver/mysql v1.5.7 // indirect
 	modernc.org/libc v1.37.6 // indirect
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.7.2 // indirect
