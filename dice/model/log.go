@@ -18,7 +18,7 @@ type LogOne struct {
 
 type LogOneItem struct {
 	ID        uint64 `json:"id" db:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	LogID     uint64 `json:"-" gorm:"column:log_id"`
+	LogID     uint64 `json:"-" gorm:"column:log_id;index:idx_log_items_log_id"`
 	GroupID   string `gorm:"index:idx_log_items_group_id;column:group_id"`
 	Nickname  string `json:"nickname" db:"nickname" gorm:"column:nickname"`
 	IMUserID  string `json:"IMUserId" db:"im_userid" gorm:"column:im_userid"`
@@ -35,19 +35,23 @@ type LogOneItem struct {
 	// 数据库里没有的
 	Channel string `json:"channel" gorm:"-"`
 	// 数据库里有，JSON里没有的
-	Removed  int `gorm:"column:removed" json:"-"`
-	ParentID int `gorm:"index:idx_log_items_log_id;column:parent_id" json:"-"`
+	// 允许default=NULL
+	Removed *int `gorm:"column:removed" json:"-"`
+	// 允许default=NULL
+	ParentID *int `gorm:"column:parent_id" json:"-"`
 }
 
 type LogInfo struct {
 	ID        uint64 `json:"id" db:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	Name      string `json:"name" db:"name" gorm:"column:name;index:idx_log_group_id_name,unique"`
-	GroupID   string `json:"groupId" db:"groupId" gorm:"index:idx_logs_group;index:idx_log_group_id_name,unique;column:group_id"`
+	Name      string `json:"name" db:"name" gorm:"column:name;index:idx_log_group_id_name"`
+	GroupID   string `json:"groupId" db:"groupId" gorm:"index:idx_logs_group;index:idx_log_group_id_name;column:group_id"`
 	CreatedAt int64  `json:"createdAt" db:"created_at" gorm:"column:created_at"`
 	UpdatedAt int64  `json:"updatedAt" db:"updated_at" gorm:"column:updated_at;index:idx_logs_update_at"`
-	Size      int    `json:"size" db:"size"`
+	// 允许数据库NULL值
+	Size *int `json:"size" db:"size"`
 	// 数据库里有，json不展示的
-	Extra string `json:"-" gorm:"column:extra"`
+	// 允许数据库NULL值
+	Extra *string `json:"-" gorm:"column:extra"`
 	// 未知：测试版特供了什么？此处处理方式存疑
 	UploadURL  string `json:"-" gorm:"-"` // 测试版特供
 	UploadTime int    `json:"-" gorm:"-"` // 测试版特供
@@ -304,7 +308,8 @@ func LogLinesCountGet(db *gorm.DB, groupID string, logName string) (int64, bool)
 	// 获取日志行数
 	var count int64
 	err = db.Table("log_items").
-		Where("log_id = ? AND removed IS NULL", logID).
+		//  AND removed IS NULL
+		Where("log_id = ? and removed = 0", logID).
 		Count(&count).Error
 
 	if err != nil {
@@ -429,6 +434,7 @@ func LogMarkDeleteByMsgID(db *gorm.DB, groupID string, logName string, rawID int
 	}
 
 	// fmt.Printf("log delete %v %d\n", rawId, logId)
+	// TODO: 此处的代码是否有点问题？
 	if err := db.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&LogOneItem{}).Error; err != nil {
 		fmt.Println("log delete error", err.Error())
 		return err

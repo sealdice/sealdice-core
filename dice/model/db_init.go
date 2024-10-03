@@ -41,12 +41,12 @@ func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 		}
 	}
 	fmt.Println(db)
-	init, err := _MySQLDBInit("root", "password", "127.0.0.1", "sealdice")
-	if err != nil {
-		return nil, err
-	}
-	MYSQL = init
-	return init, err
+	//init, err := _MySQLDBInit("root", "password", "127.0.0.1", "sealdice")
+	//if err != nil {
+	//	return nil, err
+	//}
+	//MYSQL = init
+	return db, err
 }
 
 // _MySQLDBInit 初始化 MySQL 数据库连接

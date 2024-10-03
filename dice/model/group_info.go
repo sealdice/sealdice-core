@@ -14,7 +14,7 @@ import (
 type GroupInfo struct {
 	ID        string `gorm:"column:id;primaryKey"` // 主键，字符串类型
 	CreatedAt int    `gorm:"column:created_at"`    // 创建时间
-	UpdatedAt int64  `gorm:"column:updated_at"`    // 更新时间，int64类型
+	UpdatedAt *int64 `gorm:"column:updated_at"`    // 更新时间，int64类型
 	Data      []byte `gorm:"column:data"`          // BLOB 类型字段，使用 []byte 表示
 }
 
@@ -59,8 +59,9 @@ func GroupInfoListGet(db *gorm.DB, callback func(id string, updatedAt int64, dat
 func GroupInfoSave(db *gorm.DB, groupID string, updatedAt int64, data []byte) error {
 	// 创建一个 GroupInfo 实例
 	groupInfo := GroupInfo{
-		ID:        groupID,
-		UpdatedAt: updatedAt,
+		ID: groupID,
+		// 兼容零值和NULL值问题
+		UpdatedAt: &updatedAt,
 		Data:      data,
 	}
 
@@ -153,7 +154,7 @@ func GroupPlayerInfoGet(db *gorm.DB, groupID string, playerID string) *GroupPlay
 	return &ret
 }
 
-// GroupPlayerInfoSave 保存玩家信息，使用 REPLACE INTO 语句
+// GroupPlayerInfoSave 保存玩家信息，不再使用 REPLACE INTO 语句
 func GroupPlayerInfoSave(db *gorm.DB, groupID string, playerID string, info *GroupPlayerInfoBase) error {
 	// 使用 GORM 的 Create 方法插入新的记录
 	// 设置 groupID 和 playerID 到 info 中
