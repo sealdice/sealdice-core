@@ -755,6 +755,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"制卡_分隔符": {
 				{`\n`, 1},
 			},
+			"检定": {
+				{`{$t玩家}的"{$t技能}"检定（DND5E）结果为: {$t检定过程文本} = {$t检定结果}`, 1},
+			},
 		},
 		"核心": {
 			"骰子名字": {
@@ -1460,6 +1463,9 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType:   ".dndx",
 				ExtraText: "带属性名",
 			},
+			"检定": {
+				SubType: ".rc 力量",
+			},
 		},
 		"核心": {
 			"骰子名字": {
@@ -2120,6 +2126,17 @@ func (d *Dice) loads() {
 		d.CensorMatchPinyin = dNew.CensorMatchPinyin
 		d.CensorFilterRegexStr = dNew.CensorFilterRegexStr
 
+		d.VMVersionForDeck = dNew.VMVersionForDeck
+		d.VMVersionForReply = dNew.VMVersionForReply
+
+		if d.VMVersionForDeck == "" {
+			d.VMVersionForDeck = "v2"
+		}
+
+		if d.VMVersionForReply == "" {
+			d.VMVersionForReply = "v1"
+		}
+
 		if dNew.BanList != nil {
 			d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
 			d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite
@@ -2429,6 +2446,10 @@ func (d *Dice) loads() {
 
 		d.QuitInactiveBatchSize = 10
 		d.QuitInactiveBatchWait = 30
+
+		// 1.5
+		d.VMVersionForDeck = "v2"
+		d.VMVersionForReply = "v1"
 	}
 
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {

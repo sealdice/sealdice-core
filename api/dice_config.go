@@ -545,3 +545,38 @@ func DiceMailTest(c echo.Context) error {
 	}
 	return Success(&c, Response{})
 }
+
+func vmVersionForExtSetBase(c echo.Context, callback func(val string)) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+
+	var data struct {
+		Value string `json:"value"`
+	}
+
+	err := c.Bind(&data)
+	if err != nil {
+		return Error(&c, err.Error(), nil)
+	}
+
+	callback(data.Value)
+	myDice.MarkModified()
+	myDice.Parent.Save()
+	return Success(&c, Response{})
+}
+
+func vmVersionForReplySet(c echo.Context) error {
+	return vmVersionForExtSetBase(c, func(val string) {
+		myDice.VMVersionForReply = val
+	})
+}
+
+func vmVersionForDeckSet(c echo.Context) error {
+	return vmVersionForExtSetBase(c, func(val string) {
+		myDice.VMVersionForDeck = val
+	})
+}
