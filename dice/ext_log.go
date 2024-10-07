@@ -579,7 +579,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 		CheckCurrentBotOn:  true,
 		CheckMentionOthers: true,
 		HelpFunc: func(isShort bool) string {
-			text := ""
+			// 手动添加特定的命令示例到帮助信息的开头
+    			text := ".sn coc // 自动设置coc名片\n" +
+            			".sn dnd // 自动设置dnd名片\n"
 			self.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
 				for k, v := range value.NameTemplate {
 					text += fmt.Sprintf(".sn %s // %s\n", k, v.HelpText)
