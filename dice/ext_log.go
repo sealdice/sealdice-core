@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -580,17 +581,32 @@ func RegisterBuiltinExtLog(self *Dice) {
 		CheckMentionOthers: true,
 		HelpFunc: func(isShort bool) string {
 			// 手动添加特定的命令示例到帮助信息的开头
-    			text := ".sn coc // 自动设置coc名片\n" +
-            			".sn dnd // 自动设置dnd名片\n"
+			fixedExamples := ".sn coc // 自动设置coc名片\n" +
+				".sn cocL // 自动设置coc名片，小写\n" +
+				".sn dnd // 自动设置dnd名片\n"
+
+			text := fixedExamples
+
+			var tempStrList []string
+
 			self.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
 				for k, v := range value.NameTemplate {
-					text += fmt.Sprintf(".sn %s // %s\n", k, v.HelpText)
+					if k != "coc" && k != "dnd" && k != "cocL" {
+						// 考虑到这里的量级不会太大，所以直接排序已经生成好的提示文本或许更划算
+						tempStrList = append(tempStrList, fmt.Sprintf(".sn %s // %s\n", k, v.HelpText))
+					}
 				}
 				return true
 			})
+			// 对剩余部分进行排序
+			sort.Strings(tempStrList)
+			// 将排序后的命令提示文本追加到 text 后
+			text += strings.Join(tempStrList, "")
+			// 末尾部分
 			text += ".sn expr {$t玩家_RAW} HP{hp}/{hpmax} // 自设格式\n" +
 				".sn none // 设置为空白格式\n" +
 				".sn off // 取消自动设置"
+
 			if isShort {
 				return text
 			}
