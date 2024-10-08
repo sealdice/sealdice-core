@@ -336,7 +336,7 @@ func (d *Dice) registerCoreCommands() {
 			hasSecond := len(search.Hits) >= 2
 			best, ok := d.Parent.Help.TextMap.Load(search.Hits[0].ID)
 			if !ok {
-				d.Logger.Error("加载d.Parent.Help.TextMap.Load(search.Hits[0].ID)的数据出现错误!")
+				d.Logger.Errorf("加载d.Parent.Help.TextMap.Load(search.Hits[0].ID)->(%s)的数据出现错误!", search.Hits[0].ID)
 				ReplyToSender(ctx, msg, "未找到搜索结果，出现数据加载错误!")
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -345,7 +345,7 @@ func (d *Dice) registerCoreCommands() {
 			for _, i := range search.Hits {
 				t, ok := d.Parent.Help.TextMap.Load(i.ID)
 				if !ok {
-					d.Logger.Error("加载d.Parent.Help.TextMap.Load(search.Hits[0].ID)的数据出现错误!")
+					d.Logger.Errorf("加载d.Parent.Help.TextMap.Load(search.Hits[0].ID)->(%s)的数据出现错误!", search.Hits[0].ID)
 					ReplyToSender(ctx, msg, "未找到搜索结果，出现数据加载错误!")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -466,13 +466,10 @@ func (d *Dice) registerCoreCommands() {
 			search, _, _, _, err := d.Parent.Help.Search(ctx, cmdArgs.CleanArgs, true, 1, 1, "")
 			if err == nil {
 				if len(search.Hits) > 0 {
-					// 居然会出现 hits[0] 为nil的情况？？
-					// a := d.Parent.ShortHelp.GetContent(search.Hits[0].ID)
 					a, ok := d.Parent.Help.TextMap.Load(search.Hits[0].ID)
 					if !ok {
 						d.Logger.Error("HELPDOC:读取ID对应的信息出现问题")
 						ReplyToSender(ctx, msg, "HELPDOC:读取ID对应的信息出现问题")
-						// 这段代码是从最下面的return那里抄来的，所以我不清楚这两个参数，是否应该都是true
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					content := d.Parent.Help.GetContent(a, 0)
