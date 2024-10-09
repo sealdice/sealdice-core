@@ -598,11 +598,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 				return true
 			})
-			// 对剩余部分进行排序
+
 			sort.Strings(tempStrList)
-			// 将排序后的命令提示文本追加到 text 后
 			text += strings.Join(tempStrList, "")
-			// 末尾部分
 			text += ".sn expr {$t玩家_RAW} HP{hp}/{hpmax} // 自设格式\n" +
 				".sn none // 设置为空白格式\n" +
 				".sn off // 取消自动设置"
