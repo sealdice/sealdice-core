@@ -2,12 +2,6 @@
 
 ![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)
 ![Core](https://img.shields.io/badge/SealDice-Core-blue)
-个人使用GORM重构的版本。相比于正常版本，目前准备提供多数据库支持。
-
-请按需使用代码。同时提供个人编译豹，理所当然的，通不过海豹校验码。
-
-如若您使用此处提供的版本出现任何问题，请不要找海豹官方，以免海豹开发者一脸懵逼。
-
 海豹 TRPG 骰点核心，开源跑团辅助工具，支持 QQ/Kook/Discord 等。
 
 轻量 · 易用 · 全能
