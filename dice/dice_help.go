@@ -71,7 +71,7 @@ func (e HelpTextItems) Len() int {
 type HelpManager struct {
 	CurID        uint64
 	Index        bleve.Index
-	TextMap      map[string]*HelpTextItem
+	TextMap      SyncMap[string, *HelpTextItem] // map[string]*HelpTextItem
 	Parent       *DiceManager
 	EngineType   int
 	batch        *bleve.Batch
@@ -106,8 +106,6 @@ func (m *HelpManager) loadSearchEngine() {
 	if runtime.GOARCH == "arm64" {
 		m.EngineType = 1 // 默认0，bleve
 	}
-
-	m.TextMap = map[string]*HelpTextItem{}
 
 	// not bleve
 	if m.EngineType != 0 {
@@ -486,7 +484,7 @@ func (m *HelpManager) AddItem(item HelpTextItem) error {
 	}
 
 	id := m.GetNextID()
-	m.TextMap[id] = &item
+	m.TextMap.Store(id, &item)
 
 	if m.EngineType == 0 {
 		if m.batch == nil {
@@ -577,10 +575,11 @@ func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageS
 	items := HelpTextItems{}
 	var idLst []string
 
-	for id, v := range m.TextMap {
+	m.TextMap.Range(func(id string, v *HelpTextItem) bool {
 		items = append(items, v)
 		idLst = append(idLst, id)
-	}
+		return true
+	})
 
 	hits := search.DocumentMatchCollection{}
 	matches := fuzzy.FindFrom(text, items)
@@ -674,14 +673,15 @@ func (m *HelpManager) GetContent(item *HelpTextItem, depth int) string {
 		formattedIdx = right
 		name := txt[left+1 : right-1]
 		matched := false
-		// 注意: 效率不高
-		for _, v := range m.TextMap {
+		// 注意: 效率更加不高
+		m.TextMap.Range(func(key string, v *HelpTextItem) bool {
 			if v.Title == name {
 				result.WriteString(m.GetContent(v, depth+1))
 				matched = true
-				break
+				return false
 			}
-		}
+			return true
+		})
 		if !matched {
 			result.WriteByte('{')
 			result.WriteString(name)
@@ -923,8 +923,8 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 	}
 
 	if id != "" {
-		item := m.TextMap[id]
-		if item != nil &&
+		item, ok := m.TextMap.Load(id)
+		if ok &&
 			strings.Contains(item.Group, group) &&
 			strings.Contains(item.From, from) &&
 			strings.Contains(item.Title, title) {
@@ -941,8 +941,8 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 		}
 		return 0, HelpTextVos{}
 	}
-	temp := make(HelpTextVos, 0, len(m.TextMap))
-	for i, item := range m.TextMap {
+	temp := make(HelpTextVos, 0, m.TextMap.Len())
+	m.TextMap.Range(func(i string, item *HelpTextItem) bool {
 		if strings.Contains(item.Group, group) &&
 			strings.Contains(item.From, from) &&
 			strings.Contains(item.Title, title) {
@@ -957,7 +957,9 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 			vo.ID, _ = strconv.Atoi(i)
 			temp = append(temp, vo)
 		}
-	}
+		return true
+	})
+
 	sort.Sort(temp)
 
 	start := (pageNum - 1) * pageSize
