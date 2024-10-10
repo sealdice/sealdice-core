@@ -10,8 +10,10 @@ import (
 	"sealdice-core/utils/spinner"
 )
 
+// DBCacheDelete 删除SQLite数据库缓存文件
 func DBCacheDelete() bool {
-	// d.BaseConfig.DataDir
+	// TODO: 判断缓存是否应该被删除
+
 	dataDir := "./data/default"
 
 	tryDelete := func(fn string) bool {
@@ -23,7 +25,7 @@ func DBCacheDelete() bool {
 		return os.Remove(fnPath) == nil
 	}
 
-	// 非 windows 不删缓存
+	// 非 Windows 系统不删除缓存
 	if runtime.GOOS != "windows" {
 		return true
 	}
@@ -33,23 +35,24 @@ func DBCacheDelete() bool {
 		ok = tryDelete("data.db-shm")
 	}
 	if ok {
-		tryDelete("data.db-wal")
+		ok = tryDelete("data.db-wal")
 	}
 	if ok {
-		tryDelete("data-logs.db-shm")
+		ok = tryDelete("data-logs.db-shm")
 	}
 	if ok {
-		tryDelete("data-logs.db-wal")
+		ok = tryDelete("data-logs.db-wal")
 	}
 	if ok {
-		tryDelete("data-censor.db-shm")
+		ok = tryDelete("data-censor.db-shm")
 	}
 	if ok {
-		tryDelete("data-censor.db-wal")
+		ok = tryDelete("data-censor.db-wal")
 	}
 	return ok
 }
 
+// DBVacuum 整理数据库
 func DBVacuum() {
 	done := make(chan interface{}, 1)
 	fmt.Println("开始进行数据库整理")
@@ -64,13 +67,27 @@ func DBVacuum() {
 
 	vacuum := func(path string, wg *sync.WaitGroup) {
 		defer wg.Done()
-		db, err := _SQLiteDBInit(path, true)
-		defer func() { _ = db.Close() }()
+		// 使用 GORM 初始化数据库
+		vacuumDB, err := _SQLiteDBInit(path, true)
+		if vacuumDB.Dialector.Name() != "sqlite" {
+			fmt.Println("数据库类型不是 SQLite，跳过缓存删除")
+			return
+		}
+		defer func() {
+			rawdb, err := vacuumDB.DB()
+			if err != nil {
+				return
+			}
+			err = rawdb.Close()
+			if err != nil {
+				return
+			}
+		}()
 		if err != nil {
 			fmt.Printf("清理 %q 时出现错误：%v", path, err)
 			return
 		}
-		_, err = db.Exec("VACUUM;")
+		err = vacuumDB.Exec("VACUUM;").Error
 		if err != nil {
 			fmt.Printf("清理 %q 时出现错误：%v", path, err)
 		}
