@@ -173,7 +173,7 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if !value.IsSaved {
 			saved += 1
-			value.SaveToDB(db)
+			value.SaveToDB(tx)
 		}
 		times += 1
 		return true
