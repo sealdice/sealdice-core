@@ -17,19 +17,20 @@ type LogOne struct {
 }
 
 type LogOneItem struct {
-	ID        uint64 `json:"id" db:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	LogID     uint64 `json:"-" gorm:"column:log_id;index:idx_log_items_log_id"`
-	GroupID   string `gorm:"index:idx_log_items_group_id;column:group_id"`
-	Nickname  string `json:"nickname" db:"nickname" gorm:"column:nickname"`
-	IMUserID  string `json:"IMUserId" db:"im_userid" gorm:"column:im_userid"`
-	Time      int64  `json:"time" db:"time" gorm:"column:time"`
-	Message   string `json:"message" db:"message" gorm:"column:message"`
-	IsDice    bool   `json:"isDice" db:"is_dice" gorm:"column:is_dice"`
-	CommandID int64  `json:"commandId" db:"command_id" gorm:"column:command_id"`
-	// TODO: 两个Interface，怎么处理？
-	// TODO: 不同的数据库之间，可能会导致type出现BUG，应该使用动态的方式
-	CommandInfo interface{} `json:"commandInfo" db:"command_info" gorm:"column:command_info;type:text"`
-	RawMsgID    interface{} `json:"rawMsgId" db:"raw_msg_id" gorm:"column:raw_msg_id;type:text"`
+	ID             uint64      `json:"id" db:"id" gorm:"primaryKey;autoIncrement;column:id"`
+	LogID          uint64      `json:"-" gorm:"column:log_id;index:idx_log_items_log_id"`
+	GroupID        string      `gorm:"index:idx_log_items_group_id;column:group_id"`
+	Nickname       string      `json:"nickname" db:"nickname" gorm:"column:nickname"`
+	IMUserID       string      `json:"IMUserId" db:"im_userid" gorm:"column:im_userid"`
+	Time           int64       `json:"time" db:"time" gorm:"column:time"`
+	Message        string      `json:"message" db:"message" gorm:"column:message"`
+	IsDice         bool        `json:"isDice" db:"is_dice" gorm:"column:is_dice"`
+	CommandID      int64       `json:"commandId" db:"command_id" gorm:"column:command_id"`
+	CommandInfo    interface{} `json:"commandInfo" db:"-" gorm:"-"`
+	CommandInfoStr string      `json:"-" db:"command_info" gorm:"column:command_info"`
+	// 这里的RawMsgID 真的什么都有可能
+	RawMsgID    interface{} `json:"rawMsgId" db:"-" gorm:"-"`
+	RawMsgIDStr string      `json:"-" db:"raw_msg_id" gorm:"column:raw_msg_id"`
 
 	UniformID string `json:"uniformId" db:"user_uniform_id" gorm:"column:user_uniform_id"`
 	// 数据库里没有的
@@ -39,6 +40,42 @@ type LogOneItem struct {
 	Removed *int `gorm:"column:removed" json:"-"`
 	// 允许default=NULL
 	ParentID *int `gorm:"column:parent_id" json:"-"`
+}
+
+// 钩子函数: 保存前
+func (item *LogOneItem) BeforeSave(tx *gorm.DB) (err error) {
+	// 将 CommandInfo 转换为 JSON 字符串保存到 CommandInfoStr
+	if item.CommandInfo != nil {
+		if data, err := json.Marshal(item.CommandInfo); err == nil {
+			item.CommandInfoStr = string(data)
+		} else {
+			return err
+		}
+	}
+
+	// 将 RawMsgID 转换为 string 字符串，保存到 RawMsgIDStr
+	if item.RawMsgID != nil {
+		item.RawMsgIDStr = fmt.Sprintf("%v", item.RawMsgID)
+	}
+
+	return nil
+}
+
+// 钩子函数: 查询后
+func (item *LogOneItem) AfterFind(tx *gorm.DB) (err error) {
+	// 将 CommandInfoStr 从 JSON 字符串反序列化为 CommandInfo
+	if item.CommandInfoStr != "" {
+		if err := json.Unmarshal([]byte(item.CommandInfoStr), &item.CommandInfo); err != nil {
+			return err
+		}
+	}
+
+	// 将 RawMsgIDStr string 直接赋值给 RawMsgID
+	if item.RawMsgIDStr != "" {
+		item.RawMsgID = item.RawMsgIDStr
+	}
+
+	return nil
 }
 
 type LogInfo struct {
@@ -52,17 +89,17 @@ type LogInfo struct {
 	// 数据库里有，json不展示的
 	// 允许数据库NULL值
 	Extra *string `json:"-" gorm:"column:extra"`
-	// 未知：测试版特供了什么？此处处理方式存疑
+	// 测试版特供了什么？此处处理方式存疑
 	UploadURL  string `json:"-" gorm:"-"` // 测试版特供
 	UploadTime int    `json:"-" gorm:"-"` // 测试版特供
 }
 
 // 兼容旧版本的数据库设计
-func (LogOneItem) TableName() string {
+func (*LogOneItem) TableName() string {
 	return "log_items"
 }
 
-func (LogInfo) TableName() string {
+func (*LogInfo) TableName() string {
 	return "logs"
 }
 
@@ -386,7 +423,9 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 	}
 
 	// 向 log_items 表中添加一条信息
+	// Pinenutn: 由此可以推知，CommandInfo必然是一个 map[string]interface{}
 	data, err := json.Marshal(logItem.CommandInfo)
+
 	if err != nil {
 		return false
 	}
