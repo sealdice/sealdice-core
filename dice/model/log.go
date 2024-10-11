@@ -36,8 +36,8 @@ type LogOneItem struct {
 	Channel string `json:"channel" gorm:"-"`
 	// 数据库里有，JSON里没有的
 	// 允许default=NULL
-	Removed  sql.NullInt64 `gorm:"column:removed" json:"-"`
-	ParentID sql.NullInt64 `gorm:"column:parent_id" json:"-"`
+	Removed  *int `gorm:"column:removed" json:"-"`
+	ParentID *int `gorm:"column:parent_id" json:"-"`
 }
 
 // 钩子函数: 保存前
@@ -83,10 +83,10 @@ type LogInfo struct {
 	CreatedAt int64  `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt int64  `json:"updatedAt" gorm:"column:updated_at;index:idx_logs_update_at"`
 	// 允许数据库NULL值
-	Size sql.NullInt32 `json:"size" gorm:"column:size"`
+	Size *int `json:"size" gorm:"column:size"`
 	// 数据库里有，json不展示的
 	// 允许数据库NULL值
-	Extra sql.NullString `json:"-" gorm:"column:extra"`
+	Extra *string `json:"-" gorm:"column:extra"`
 	// 原本标记为：测试版特供，由于原代码每次都会执行，故直接启用此处column记录。
 	UploadURL  string `json:"-" gorm:"column:upload_url"`  // 测试版特供
 	UploadTime int    `json:"-" gorm:"column:upload_time"` // 测试版特供
@@ -343,8 +343,7 @@ func LogLinesCountGet(db *gorm.DB, groupID string, logName string) (int64, bool)
 	// 获取日志行数
 	var count int64
 	err = db.Table("log_items").
-		//  AND removed IS NULL
-		Where("log_id = ? and removed = 0", logID).
+		Where("log_id = ? and removed IS NULL", logID).
 		Count(&count).Error
 
 	if err != nil {
