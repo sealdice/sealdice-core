@@ -85,13 +85,13 @@ type LogInfo struct {
 	CreatedAt int64  `json:"createdAt" db:"created_at" gorm:"column:created_at"`
 	UpdatedAt int64  `json:"updatedAt" db:"updated_at" gorm:"column:updated_at;index:idx_logs_update_at"`
 	// 允许数据库NULL值
-	Size *int `json:"size" db:"size"`
+	Size *int `json:"size" db:"size" gorm:"column:size"`
 	// 数据库里有，json不展示的
 	// 允许数据库NULL值
 	Extra *string `json:"-" gorm:"column:extra"`
-	// 测试版特供了什么？此处处理方式存疑
-	UploadURL  string `json:"-" gorm:"-"` // 测试版特供
-	UploadTime int    `json:"-" gorm:"-"` // 测试版特供
+	// 原本标记为：测试版特供，由于原代码每次都会执行，故直接启用此处column记录。
+	UploadURL  string `json:"-" gorm:"column:upload_url"`  // 测试版特供
+	UploadTime int    `json:"-" gorm:"column:upload_time"` // 测试版特供
 }
 
 // 兼容旧版本的数据库设计

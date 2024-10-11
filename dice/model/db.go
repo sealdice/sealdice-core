@@ -107,21 +107,9 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 		return
 	}
 	// logs建表
-	// 先创建基本的表结构
 	if err := logsDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
 		return nil, err
 	}
-
-	// 添加额外的字段
-	// 估计原本木落直接忽略了所有错误，所以这里不能返回错误。
-	if err2 := logsDB.Exec(`ALTER TABLE logs ADD COLUMN upload_url TEXT;`).Error; err2 != nil {
-		fmt.Println("已经创建过upload_url字段，跳过重复创建。")
-	}
-	if err2 := logsDB.Exec(`ALTER TABLE logs ADD COLUMN upload_time INTEGER;`).Error; err2 != nil {
-		fmt.Println("已经创建过upload_time字段，跳过重复创建。")
-	}
-	// 移动添加索引到标签处
-
 	return logsDB, nil
 }
 
