@@ -10,8 +10,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// TODO：重构整个Init方案，采用高级配置读取的方式
 func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
-	// TODO: Pinenutn:这里先不完全修改，回头再说，这样应该能直接兼容
 	db, err := sqlx.Open("sqlite3", path)
 	if err != nil {
 		panic(err)

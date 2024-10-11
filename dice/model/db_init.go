@@ -17,6 +17,7 @@ import (
 
 var MYSQL *gorm.DB
 
+// TODO：重构整个Init方案，采用高级配置读取的方式
 func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	// 防止重复初始化连接
 	if MYSQL != nil {

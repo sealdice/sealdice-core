@@ -27,6 +27,7 @@ func (CensorLog) TableName() string {
 	return "censor_log"
 }
 
+// 添加一个敏感词记录
 func CensorAppend(db *gorm.DB, msgType string, userID string, groupID string, content string, sensitiveWords interface{}, highestLevel int) bool {
 	// 获取当前时间的 Unix 时间戳
 	nowTimestamp := time.Now().Unix()

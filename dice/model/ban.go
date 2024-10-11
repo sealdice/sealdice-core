@@ -24,16 +24,24 @@ func BanItemDel(db *gorm.DB, id string) error {
 
 // BanItemSave 保存或替换禁用项
 func BanItemSave(db *gorm.DB, id string, updatedAt int64, banUpdatedAt int64, data []byte) error {
-	// 定义一个新的禁用项
-	item := BanInfo{
-		ID:           id,
-		UpdatedAt:    int(updatedAt),    // 确保类型一致
-		BanUpdatedAt: int(banUpdatedAt), // 确保类型一致
-		Data:         data,
+	// 定义用于查找的条件
+	conditions := map[string]any{
+		"id": id,
 	}
 
-	// 使用 GORM 的 Save 方法保存或替换记录
-	return db.Save(&item).Error // 返回错误
+	// 使用 FirstOrCreate 查找或创建新的禁用项
+	if err := db.FirstOrCreate(&BanInfo{}, conditions).
+		Attrs(map[string]any{
+			"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
+		}).
+		Assign(map[string]any{
+			"updated_at": int(updatedAt), // 更新时覆盖的字段
+			"data":       data,           // 禁用项数据
+		}).Error; err != nil {
+		return err // 返回错误
+	}
+
+	return nil // 操作成功，返回 nil
 }
 
 // BanItemList 列出所有禁用项并调用回调函数处理

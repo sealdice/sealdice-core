@@ -17,29 +17,27 @@ type LogOne struct {
 }
 
 type LogOneItem struct {
-	ID             uint64      `json:"id" db:"id" gorm:"primaryKey;autoIncrement;column:id"`
+	ID             uint64      `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
 	LogID          uint64      `json:"-" gorm:"column:log_id;index:idx_log_items_log_id"`
 	GroupID        string      `gorm:"index:idx_log_items_group_id;column:group_id"`
-	Nickname       string      `json:"nickname" db:"nickname" gorm:"column:nickname"`
-	IMUserID       string      `json:"IMUserId" db:"im_userid" gorm:"column:im_userid"`
-	Time           int64       `json:"time" db:"time" gorm:"column:time"`
-	Message        string      `json:"message" db:"message" gorm:"column:message"`
-	IsDice         bool        `json:"isDice" db:"is_dice" gorm:"column:is_dice"`
-	CommandID      int64       `json:"commandId" db:"command_id" gorm:"column:command_id"`
-	CommandInfo    interface{} `json:"commandInfo" db:"-" gorm:"-"`
-	CommandInfoStr string      `json:"-" db:"command_info" gorm:"column:command_info"`
+	Nickname       string      `json:"nickname" gorm:"column:nickname"`
+	IMUserID       string      `json:"IMUserId" gorm:"column:im_userid"`
+	Time           int64       `json:"time" gorm:"column:time"`
+	Message        string      `json:"message"  gorm:"column:message"`
+	IsDice         bool        `json:"isDice"  gorm:"column:is_dice"`
+	CommandID      int64       `json:"commandId"  gorm:"column:command_id"`
+	CommandInfo    interface{} `json:"commandInfo" gorm:"-"`
+	CommandInfoStr string      `json:"-" gorm:"column:command_info"`
 	// 这里的RawMsgID 真的什么都有可能
-	RawMsgID    interface{} `json:"rawMsgId" db:"-" gorm:"-"`
-	RawMsgIDStr string      `json:"-" db:"raw_msg_id" gorm:"column:raw_msg_id"`
-
-	UniformID string `json:"uniformId" db:"user_uniform_id" gorm:"column:user_uniform_id"`
+	RawMsgID    interface{} `json:"rawMsgId" gorm:"-"`
+	RawMsgIDStr string      `json:"-" gorm:"column:raw_msg_id"`
+	UniformID   string      `json:"uniformId" gorm:"column:user_uniform_id"`
 	// 数据库里没有的
 	Channel string `json:"channel" gorm:"-"`
 	// 数据库里有，JSON里没有的
 	// 允许default=NULL
-	Removed *int `gorm:"column:removed" json:"-"`
-	// 允许default=NULL
-	ParentID *int `gorm:"column:parent_id" json:"-"`
+	Removed  sql.NullInt64 `gorm:"column:removed" json:"-"`
+	ParentID sql.NullInt64 `gorm:"column:parent_id" json:"-"`
 }
 
 // 钩子函数: 保存前
@@ -79,16 +77,16 @@ func (item *LogOneItem) AfterFind(tx *gorm.DB) (err error) {
 }
 
 type LogInfo struct {
-	ID        uint64 `json:"id" db:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	Name      string `json:"name" db:"name" gorm:"column:name;index:idx_log_group_id_name"`
-	GroupID   string `json:"groupId" db:"groupId" gorm:"index:idx_logs_group;index:idx_log_group_id_name;column:group_id"`
-	CreatedAt int64  `json:"createdAt" db:"created_at" gorm:"column:created_at"`
-	UpdatedAt int64  `json:"updatedAt" db:"updated_at" gorm:"column:updated_at;index:idx_logs_update_at"`
+	ID        uint64 `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
+	Name      string `json:"name" gorm:"column:name;index:idx_log_group_id_name"`
+	GroupID   string `json:"groupId" gorm:"index:idx_logs_group;index:idx_log_group_id_name;column:group_id"`
+	CreatedAt int64  `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt int64  `json:"updatedAt" gorm:"column:updated_at;index:idx_logs_update_at"`
 	// 允许数据库NULL值
-	Size *int `json:"size" db:"size" gorm:"column:size"`
+	Size sql.NullInt32 `json:"size" gorm:"column:size"`
 	// 数据库里有，json不展示的
 	// 允许数据库NULL值
-	Extra *string `json:"-" gorm:"column:extra"`
+	Extra sql.NullString `json:"-" gorm:"column:extra"`
 	// 原本标记为：测试版特供，由于原代码每次都会执行，故直接启用此处column记录。
 	UploadURL  string `json:"-" gorm:"column:upload_url"`  // 测试版特供
 	UploadTime int    `json:"-" gorm:"column:upload_time"` // 测试版特供
@@ -424,7 +422,7 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 
 	// 向 log_items 表中添加一条信息
 	// Pinenutn: 由此可以推知，CommandInfo必然是一个 map[string]interface{}
-	data, err := json.Marshal(logItem.CommandInfo)
+	//data, err := json.Marshal(logItem.CommandInfo)
 
 	if err != nil {
 		return false
@@ -439,7 +437,7 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 		Message:     logItem.Message,
 		IsDice:      logItem.IsDice,
 		CommandID:   logItem.CommandID,
-		CommandInfo: data,
+		CommandInfo: logItem.CommandInfo,
 		RawMsgID:    logItem.RawMsgID,
 		UniformID:   logItem.UniformID,
 	}

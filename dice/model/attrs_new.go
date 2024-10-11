@@ -106,20 +106,25 @@ func AttrsGetIdByUidAndName(db *gorm.DB, userId string, name string) (string, er
 
 func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) error {
 	now := time.Now().Unix() // 获取当前时间
-	// 定义一个结构体用于插入或更新数据
-	attr := AttributesItemModel{
-		Id:             id,
-		Data:           data,
-		IsHidden:       true,
-		BindingSheetId: "",
-		CreatedAt:      now,
-		UpdatedAt:      now,
-		Name:           name,
-		SheetType:      sheetType,
+	// 定义用于查询的条件
+	conditions := map[string]any{
+		"id": id,
 	}
-
-	// 使用 GORM 的 Save 方法进行插入或更新操作
-	if err := db.Save(&attr).Error; err != nil {
+	// 要么更新，要么创建，查询条件来源于conditions
+	if err := db.FirstOrCreate(&AttributesItemModel{}, conditions).
+		// 如果是新创建的，则这些赋值为：
+		Attrs(map[string]any{
+			"is_hidden":        true,
+			"binding_sheet_id": "",
+			"created_at":       now,
+		}).
+		// 如果是更新的，则需要被更新的为：
+		Assign(map[string]any{
+			"data":       data,
+			"updated_at": now,
+			"name":       name,
+			"sheet_type": sheetType,
+		}).Error; err != nil {
 		return err // 返回错误
 	}
 	return nil // 操作成功，返回 nil

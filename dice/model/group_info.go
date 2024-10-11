@@ -18,7 +18,7 @@ type GroupInfo struct {
 	Data      []byte `gorm:"column:data"`          // BLOB 类型字段，使用 []byte 表示
 }
 
-func (GroupInfo) TableName() string {
+func (*GroupInfo) TableName() string {
 	return "group_info"
 }
 
