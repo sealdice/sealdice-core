@@ -23,7 +23,9 @@ func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	if MYSQL != nil {
 		return MYSQL, nil
 	}
-	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	if err != nil {
 		return nil, err
 	}
