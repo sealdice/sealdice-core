@@ -25,10 +25,12 @@ title: 功能
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.gugu', send: true},
 {content: '🕊️:今天发版本，领导说发不完不让走'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -36,10 +38,12 @@ title: 功能
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.gugu 来源', send: true},
 {content: '🕊️: 前往了一个以前捕鲸的小岛度假~这里人很亲切！但是吃了这里的鱼肉料理之后有点晕晕的诶...想到前几天<木落>的短信，还是别追究他为什么不在了。\n\t——鹊鹊结合实际经历创作'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -49,10 +53,12 @@ title: 功能
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.jsr 5# 100', send: true},
 {content: '<木落>掷骰5次:\nD100=6\nD100=71\nD100=53\nD100=31\nD100=2'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -68,6 +74,7 @@ title: 功能
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.drl', send: true},
 {content: '当前群组无骰池，请使用.drl new创建一个。'},
@@ -78,6 +85,7 @@ title: 功能
 {content: '.drl # 第 10 次', send: true},
 {content: '<木落>掷出了 D1000=539\n骰池已经抽空，现在关闭。'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -89,10 +97,12 @@ title: 功能
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.text 看看手气 {1d16}', send: true},
 {content: '看看手气 2'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -110,15 +120,19 @@ title: 功能
 
 == 群聊
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {username: 'Szz', avatar: 'user2', content: '.send 骰主你好！'},
 ]" />
+<!-- autocorrect-enable -->
 
 == Master 收到的消息
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '一条来自群组<群名>(群号)，作者<Szz>(用户 IM 账号)的留言:\n骰主你好！'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -134,17 +148,21 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 == Master 回复
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '一条来自群组<群名>(群号)，作者<Szz>(用户 IM 账号)的留言:\n骰主你好！'},
 {content: '.send to <群号> 我收到了！', send: true},
 ]" />
+<!-- autocorrect-enable -->
 
 == 群聊
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {username: 'Szz', avatar: 'user2', content: '.send 骰主你好！'},
 {content: '本消息由骰主<木落>通过指令发送:\n我收到了！'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -181,11 +199,13 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 == 频道私聊
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '我发出第一条消息。', send: true},
 {content: '我发出第二条消息。', send: true},
 {content: '我发出第三条消息，机器人怎么还不理我？', send: true},
 ]" />
+<!-- autocorrect-enable -->
 
 ::: tip
 
@@ -197,16 +217,20 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 :::
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: 'pong！这里是海豹核心！'},
 {content: '好耶，我又可以发私信给骰子了！', send: true},
 ]" />
+<!-- autocorrect-enable -->
 
 == 频道公屏
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '@海豹核心 .ping', send: true},
 ]"/>
+<!-- autocorrect-enable -->
 
 ::::
 
@@ -243,12 +267,14 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 == 私聊
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.alias 终极答案 .r 11+45-14 计算生命、宇宙以及一切的问题的答案', send: true},
 {content: '已成功定义指令「.r 11+45-14 计算生命、宇宙以及一切的问题的答案」的个人快捷方式「终极答案」，触发方式：\n.&终极答案 或\n.a 终极答案'},
 {content: '.&终极答案', send: true},
 {content: '※ 个人快捷指令 .r 11+45-14 计算生命、宇宙以及一切的问题的答案\n由于计算生命、宇宙以及一切的问题的答案，<木落>掷出了 11+45-14=11+45-14=42'},
 ]"/>
+<!-- autocorrect-enable -->
 
 :::
 
@@ -264,10 +290,12 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.ww 5', send: true},
 {content: '<木落>掷出了 5a10=[成功0/5 {6,2,2,7,4}]=0'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -277,6 +305,7 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.ww set a6m10k9', send: true},
 {content: '成功线k: 已修改为9\n骰子面数m: 已修改为10\n加骰线a: 已修改为6'},
@@ -285,6 +314,7 @@ Master 可以通过这个指令进行回复。目标 ID 可以是群号，也可
 {content: '.ww set clr', send: true},
 {content: '骰池设定已恢复默认'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 

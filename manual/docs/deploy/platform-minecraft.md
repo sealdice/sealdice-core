@@ -145,7 +145,7 @@ eula=true  # 请把该项修改为 true
 
 ![SealDice UI](./images/platform-minecraft_4.jpg)
 
-Url 的填写请根据下列情况选择：
+URL 的填写请根据下列情况选择：
 
 :::: tabs
 

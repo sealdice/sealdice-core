@@ -8,13 +8,16 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#node_modules\"",
-    "lint:md:fix": "markdownlint-cli2 \"**/*.md\" \"#node_modules\" --fix"
+    "lint:md:fix": "markdownlint-cli2 \"**/*.md\" \"#node_modules\" --fix",
+    "lint:autocorrect": "autocorrect --lint",
+    "lint:autocorrect:fix": "autocorrect --fix"
   },
   "keywords": [],
   "author": "Sealdice Team",
   "license": "MIT",
   "devDependencies": {
     "markdownlint-cli2": "^0.14.0",
+    "autocorrect-node": "^2.11.1",
     "mermaid": "^11.3.0",
     "sass": "^1.79.4",
     "vitepress": "^1.3.4",

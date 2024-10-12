@@ -70,13 +70,13 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 <img src="./images/platform-qq-qsign-2.png" alt="配置签名服务" width="65%">
 
-- 服务 url：你要链接的 qsign url
+- 服务 URL：你要链接的 qsign URL
 - 服务 key：密码
 - 服务鉴权：默认为空，如果有的服务器要求特定的鉴权，就填上吧
 
 ::: tip 提示：默认的 qsign 配置
 
-没有特殊设置的话，qsign 的 url 通常默认为 `http://localhost:13579`，key 通常默认为 `114514`。
+没有特殊设置的话，qsign 的 URL 通常默认为 `http://localhost:13579`，key 通常默认为 `114514`。
 
 :::
 
@@ -104,7 +104,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 参阅 qsign 提供的完整教程，看 [这里](https://github.com/fuqiuluo/unidbg-fetch-qsign/wiki/%E9%83%A8%E7%BD%B2%E5%9C%A8Linux)。
 
-== MacOS
+== macOS
 
 可以尝试使用 [AutoQSignForMac](https://github.com/Verplitic/AutoQSignForMac)。
 
@@ -140,7 +140,7 @@ Go-cqhttp 的开发者已无力维护项目（见 [go-cqhttp/issue#2471](https:/
 
 ![选择简易配置](./images/qsign-select.png)
 
-服务 url 填你的 qsign 服务地址。
+服务 URL 填你的 qsign 服务地址。
 
 服务 key 填你的 qsign 服务密码，没有可以不填。
 
@@ -297,7 +297,7 @@ Shamrock 已于 2024 年 4 月 20 日归档，将不再进行更新。
 
 ::: info Shamrock
 
-[Shamrock](https://whitechi73.github.io/OpenShamrock/) 是一个基于 [LSPosed](https://github.com/LSPosed/LSPosed)/Xposed 框架，实现劫持 QQ 以对外暴露 Onebot Api 的软件。你可以在 Android 手机/模拟器中使用 Shamrock 代替已经停止开发的 gocq。
+[Shamrock](https://whitechi73.github.io/OpenShamrock/) 是一个基于 [LSPosed](https://github.com/LSPosed/LSPosed)/Xposed 框架，实现劫持 QQ 以对外暴露 Onebot API 的软件。你可以在 Android 手机/模拟器中使用 Shamrock 代替已经停止开发的 gocq。
 
 遗憾的是，Shamrock 的使用依赖于 Android 的 root 权限，而手机厂商对 root 管控愈加严格，实体手机获取 root 权限的门槛很高，而模拟器中使用 Shamrock 的效果也不是很可观。因此，这种解决方案适合个人与朋友使用骰子的场景。
 

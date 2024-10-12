@@ -107,17 +107,17 @@ title: 参与项目
 
 你的修改完成后，在你 fork 的新仓库向主仓库发起 Pull Request：
 
-![创建PR](./images/develop-pr-1.png)
+![创建 PR](./images/develop-pr-1.png)
 
 提交时间很近的时候，GitHub 会提示快捷发起 PR 的操作按钮：
 
-![快速创建PR](./images/develop-pr-2.png)
+![快速创建 PR](./images/develop-pr-2.png)
 
 进入 PR 编辑页填写信息，请确认是从你的仓库的新分支，提向主仓库的主分支的：
 
 `主仓库 主分支 <- fork仓库 功能分支`
 
-![填写PR信息](./images/develop-open-pr-1.png)
+![填写 PR 信息](./images/develop-open-pr-1.png)
 
 填写完成后，等待开发组进行 review，有时会给你提出一些修改建议。在你的 PR review 通过并合并后，功能分支就可以被删除了。
 

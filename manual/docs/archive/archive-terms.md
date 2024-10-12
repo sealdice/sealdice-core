@@ -32,7 +32,7 @@ title: 名词/术语速查表
 
 ### CQ 码
 
-CQ 码是酷 Q （CoolQ） 时代定义的一套接口语言，方便用户快速编写指定类型 QQ 消息。可以参考 [这个页面](https://docs.go-cqhttp.org/cqcode) 进行编写。
+CQ 码是酷 Q（CoolQ）时代定义的一套接口语言，方便用户快速编写指定类型 QQ 消息。可以参考 [这个页面](https://docs.go-cqhttp.org/cqcode) 进行编写。
 
 ## D
 
@@ -112,9 +112,9 @@ JSON 是一种 [数据序列化语言](#数据序列化语言)。语法入门可
 
 ### Lagrange
 
-Lagrange（拉格兰）是一个 [NTQQ](#ntqq) 协议相关的开源项目。其包括目前实现了 [Linux](#linux) NTQQ 协议的 Lagrange.Core，和提供 OneBot-V11 Api 的 Lagrange.Onebot 两部分。
+Lagrange（拉格兰）是一个 [NTQQ](#ntqq) 协议相关的开源项目。其包括目前实现了 [Linux](#linux) NTQQ 协议的 Lagrange.Core，和提供 OneBot-V11 API 的 Lagrange.Onebot 两部分。
 
-Lagrange 可以很方便的在多个平台（Windows、Linux、Mac）部署，海豹核心可以对接其提供的 OneBot-V11 Api 来提供 QQ 骰子服务。
+Lagrange 可以很方便的在多个平台（Windows、Linux、Mac）部署，海豹核心可以对接其提供的 OneBot-V11 API 来提供 QQ 骰子服务。
 
 可以参考 [连接平台 - QQ](../deploy/platform-qq) 中 [有关的部分](../deploy/platform-qq#Lagrange) 和 Lagrange 的官方 [GitHub 页面](https://github.com/LagrangeDev/Lagrange.Core)。
 
@@ -238,7 +238,7 @@ UI 即「用户界面（User Interface）」，通常指用户与程序发生交
 
 > Windows 终端是一个为命令行用户准备的全新的、现代的、功能丰富的生产力 [终端](#终端)。它包含了 Windows 命令行社区经常希望加入的新功能，例如标签页、富文本、全球化、可配置性和主题与风格化等等。
 
-如果你在 Windows 「开始菜单」的搜素功能中，输入「终端」后并没有出现如上所示的图标。那么强烈建议你下载并安装 Windows 终端，而不是继续使用 [命令提示符](#命令提示符) 集成的 [控制台](#控制台)。
+如果你在 Windows「开始菜单」的搜素功能中，输入「终端」后并没有出现如上所示的图标。那么强烈建议你下载并安装 Windows 终端，而不是继续使用 [命令提示符](#命令提示符) 集成的 [控制台](#控制台)。
 
 如果你发现你在启动海豹核心、[Lagrange](#lagrange) 或 [NapCatQQ](#napcatqq) 等程序时，弹出窗口的字体与风格都不属于 Windows 终端，那么强烈建议你在 Windows 终端中手动启动这些程序。
 

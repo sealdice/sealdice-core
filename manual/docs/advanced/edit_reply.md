@@ -77,10 +77,12 @@ func strCompare(a string, b string) float64 {
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '购买猫粮', send: true},
 {username: '海豹牌猫粮店', content: '<木落>购买了猫粮'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -114,12 +116,14 @@ func strCompare(a string, b string) float64 {
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.text {$t玩家}进行测试', send: true},
 {content: '<木落>进行测试'},
 {content: '.text {d100}', send: true},
 {content: '1'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -267,10 +271,12 @@ if 判断3 { $tRand=d10; $t输出 = $tRand==1 ? `内容1`, …… };
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '踢海豹', send: true},
 {content: '<木落>一脚踢向海豹，踢了3格。\n海豹现在离终点还有37格。\n\n海豹的逃走骰：1d100=60，海豹没能逃脱凶猛恶汉们的掌控！'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -381,29 +387,39 @@ if ($t0=="石头" && $tDicePlay=="剪刀") || ($t0=="布" && $tDicePlay=="石头
 
 == 输入：AB
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: 'AB', send: true},
 {content: '怎么辉石呢'},
 ]" />
+<!-- autocorrect-enable -->
 
+<!-- autocorrect-disable -->
 == 输入：A间隔B
+<!-- autocorrect-enable -->
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: 'A间隔B', send: true},
 {content: '怎么辉石呢'},
 ]" />
+<!-- autocorrect-enable -->
 
 == 输入：A（无回复）
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: 'A', send: true}
 ]" />
+<!-- autocorrect-enable -->
 
 == 输入：B（无回复）
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: 'B', send: true}
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -419,6 +435,7 @@ if ($t0=="石头" && $tDicePlay=="剪刀") || ($t0=="布" && $tDicePlay=="石头
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '开始吧 @海豹核心', send: true},
 {content: '那么，故事就这么开始了？如果你想听的话，回复我：说下去'},
@@ -431,6 +448,7 @@ if ($t0=="石头" && $tDicePlay=="剪刀") || ($t0=="布" && $tDicePlay=="石头
 {content: '说下去 @海豹核心', send: true},
 {content: '我讲完了。'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 

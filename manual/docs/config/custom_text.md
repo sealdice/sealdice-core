@@ -52,12 +52,14 @@ title: 自定义文案
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.ra 力量', send: true},
 {content: '<木落>的力量检定结果为:D100=3/30=([1d100=3]) 大成功！'},
 {content: '.ra 力量', send: true},
 {content: '<木落>的力量检定结果为:D100=2/30=([1d100=3]) 运气不错，大成功！'}
 ]"/>
+<!-- autocorrect-enable -->
 
 :::
 

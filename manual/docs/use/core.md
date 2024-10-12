@@ -81,6 +81,7 @@ title: 核心指令
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.bot on', send: true},
 {content: '<海豹bot> 已启用 SealDice <版本号>'},
@@ -91,6 +92,7 @@ title: 核心指令
 {content: '.bot', send: true},
 {content: 'SealDice <版本号>'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -108,6 +110,7 @@ title: 核心指令
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.ext', send: true},
 {content: '检测到以下扩展：\n1. [开]coc7 - 版本:1.0.0 作者:木落\n2. [开]log - 版本:1.0.0 作者:木落\n3. [开]fun - 版本:1.0.0 作者:木落\n4. [开]deck - 版本:1.0.0 作者:木落\n5. [关]reply - 版本:1.0.0 作者:木落\n6. [开]dnd5e - 版本:1.0.0 作者:木落\n7. [开]story - 版本:1.0.0 作者:木落\n使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n命令: .ext <扩展名> 可以查看扩展介绍及帮助'},
@@ -118,6 +121,7 @@ title: 核心指令
 {content: '.ext reply off', send: true},
 {content: '关闭扩展 reply'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -147,6 +151,7 @@ title: 核心指令
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r', send: true},
 {content: '<木落>掷出了 D100=69'},
@@ -161,6 +166,7 @@ title: 核心指令
 {content: '.r 100 + 3 * 2', send: true},
 {content: '<木落>掷出了 100 + 3 * 2=100 + 6=106'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -170,10 +176,12 @@ title: 核心指令
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r 2#d10', send: true},
 {content: '<木落>掷骰2次:\nd10=[1d10=7]=7\nd10=[1d10=8]=8'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -185,10 +193,12 @@ title: 核心指令
 
 此时木落的侦查技能点是 53
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r 侦查+10', send: true},
 {content: '<木落>掷出了 侦查+10=53[侦查=53] + 10=63'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -198,6 +208,7 @@ CoC 规则中，对于百分骰的一种补偿骰法，通过额外骰一定数�
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r b', send: true},
 {content: '<木落>掷出了 b=[D100=72, 奖励 4]=42'},
@@ -206,6 +217,7 @@ CoC 规则中，对于百分骰的一种补偿骰法，通过额外骰一定数�
 {content: '.r p4 惩罚骰', send: true},
 {content: '由于惩罚骰，<木落>掷出了 p4=[D100=27, 惩罚 5 6 8 7]=87'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -215,6 +227,7 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.set 20', send: true},
 {content: '设定默认骰子面数为 20'},
@@ -223,6 +236,7 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 {content: '.r d劣势', send: true},
 {content: '<木落>掷出了 d劣势=[{16 | 18 }]=16'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -230,12 +244,14 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r 2d20k1 等于优势骰', send: true},
 {content: '由于等于优势骰，<木落>掷出了 2d20k1=[{19 | 17 }]=19'},
 {content: '.r 2d20q1 等于劣势骰', send: true},
 {content: '由于等于劣势骰，<木落>掷出了 2d20k1=[{19 | 17 }]=17'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -247,35 +263,43 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 
 == 优势骰
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r d20kh', send: true},
 {content: '<木落>掷出了 d20kh=[{10 | 3 }]=10'},
 ]" />
+<!-- autocorrect-enable -->
 
 == 劣势骰
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r d20kl', send: true},
 {content: '<木落>掷出了 d20kl=[{6 | 15 }]=6'},
 ]" />
+<!-- autocorrect-enable -->
 
 == 排除低值
 
 骰 4 个排除 1 个最低值：
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r 4d6dl1', send: true},
 {content: '<木落>掷出了 4d6dl1=[{5 3 2 | 1 }]=10'},
 ]" />
+<!-- autocorrect-enable -->
 
 == 排除高值
 
 骰 4 个排除 1 个最高值：
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r 4d6dh1', send: true},
 {content: '<木落>掷出了 4d6dh1=[{3 3 5 | 6 }]=11'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -293,17 +317,21 @@ D&D 规则中对 20 面骰的一种补偿骰法。额外骰一次，取较高或
 
 == 一般使用
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r f', send: true},
 {content: '<木落>掷出了 f=[---+]=-2'},
 ]" />
+<!-- autocorrect-enable -->
 
 == 带补正的情况
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r f+1', send: true},
 {content: '<木落>掷出了 f+1=0[+0-0] + 1=1'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -325,12 +353,14 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r 5a6', send: true},
 {content: '<木落>掷出了 5a6=[成功2/8 轮数:3 {4,<10*>,<10*>,5,1},{5,<6>},{1}]=2'},
 {content: '.r 10a6k4m9', send: true},
 {content: '<木落>掷出了 10a6k4m9=[成功11/16 轮数:3 {1,<6*>,5*,3,<8*>,5*,<8*>,<6*>,2,<8*>},{5*,2,<9*>,1,4*},{5*}]=11'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -342,10 +372,12 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r 5a6q4', send: true},
 {content: '<木落>掷出了 5a6q4=[成功4/9 轮数:3 {<9>,5,<9>,3*,<9>},{<10>,3*,2*},{2*}]=4'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -365,10 +397,12 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r 4c3m7', send: true},
 {content: '<木落>掷出了 4c3m7=[出目32/9 轮数:4 {<4>,2,<4>,<5>},{<7>,1,2},{<7>},{2}]=32'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -380,6 +414,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r 30 + (-1d20) + 49', send: true},
 {content: '<木落>掷出了 30 + (-1d20) + 49=30 + -1[1d20=1] + 49=78'},
@@ -388,6 +423,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 {content: '.r d50 * 3 + (2 - p2) 多项式', send: true},
 {content: '由于多项式，<木落>掷出了 d50 * 3 + (2 - p2)=25[1d50=25] * 3 + -64[D100=6, 惩罚 6 5]=11'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -395,12 +431,14 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.r 1d1d1d1d1d1d1d1d1d1d1d1d1d1d(20+1d3*4)', send: true},
 {content: '<木落>掷出了 1d1d1d1d1d1d1d1d1d1d1d1d1d1d(20+1d3*4)=13'},
 {content: '.r 1d10+(1+32)d(4*6)d20', send: true},
 {content: '<木落>掷出了 1d10+(1+32)d(4*6)d20=1[1d10=1] + 3941[33d24=384,384d20=3941]=3942'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -424,16 +462,20 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 == 群聊
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.rh d50', send: true},
 {content: '命运正在低语！'},
 ]" />
+<!-- autocorrect-enable -->
 
 == 收到的私聊
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '来自群<群名>(群号)的暗骰:\n<木落>掷出了 d10=[1d10=3]=3'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -449,12 +491,14 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 此时木落的侦查是 75，Szz 的侦查是 80
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.rx 侦查+1d20**2', send: true},
 {content: '<木落>掷出了 侦查+1d20**2=75[侦查=75] + 324[1d20=18]=399'},
 {content: '.rx 侦查+1d20**2 @Szz', send: true},
 {content: '由<木落>代骰:\n<Szz>掷出了 侦查+1d20**2=80[侦查=80] + 144[1d20=12]=224'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -470,6 +514,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.nn 简·拉基·茨德', send: true},
 {content: '<木落>(IM 账号)的昵称被设定为<简·拉基·茨德>'},
@@ -480,6 +525,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 {content: '.nn clr', send: true},
 {content: '<简·拉基·茨德>(IM 账号)的昵称已重置为<木落>'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -543,6 +589,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.find config --group=COC', send: true},
 {content: '指定默认搜索分组为COC'},
@@ -553,6 +600,7 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 {content: '.find 火球术', send: true},
 {content: '[全文搜索]最优先结果:\n词条: PHB法术:火球术'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -560,10 +608,12 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.find 30尺 法术', send: true},
 {content: '全部结果:\n[序号3066]【术士:超魔法:远程法术】 匹配度 0.16\n[序号3015]【游侠:驯兽师:法术共享】 匹配度 0.13\n[序号2396]【法术详述:迷踪步】 匹配度 0.12\n[序号1319]【法术详述:阿迦纳萨喷火术】 匹配度 0.12\n[序号507]【法术详述:智能堡垒/智力堡垒/智慧堡垒/智能壁垒/心智堡垒/心智壁垒】 匹配度 0.12\n[序号2514]【法术详述:水下呼吸/水中呼吸】 匹配度 0.11\n[序号2212]【法术详述:原力法阵】 匹配度 0.11\n[序号1403]【法术详述:众星冠冕/星辰冠冕/星之冠冕】 匹配度 0.11\n[序号2243]【法术详述:造水/枯水术/造水术/枯水术】 匹配度 0.11\n[序号2176]【法术详述:秘法眼】 匹配度 0.11\n\n(本次搜索由全文搜索完成)'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -571,10 +621,12 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.find 2212', send: true},
 {content: '词条: 法术详述:原力法阵\n原力法阵 Circle of Power\n圣武士\n5环 防护\n施法时间：1动作\n施法距离：自身（30尺半径）\n法术成分：V\n持续时间：专注，至多10分钟\n你身上发出神圣能量并以扭曲散溢的魔法能量构成一个半径30尺的球状力场。法术持续时间内力场将以你为中心随你移动。力场范围内的友方生物（包括你自己）为对抗法术或其他魔法效应而进行的豁免检定具有优势。此外，受本法术效应影响的生物在对抗豁免成功则伤害减半的法术或魔法效应时，若成功则不受伤害。'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -588,10 +640,12 @@ WOD 骰点规则是一个多轮骰点规则，国内多见于无限团。
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.find 测试词条', send: true},
 {content: '最优先结果:\n词条: 测试:测试词条\n他在命运的沉浮中随波逐流, 扮演着受害与加害者的双重角色\n\n全部结果:\n[序号2]【测试:测试词条】 匹配度 67.00\n\n(本次搜索由快速文档查找完成)'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -633,6 +687,7 @@ D&D 系列资料的整理者主要为 DicePP 项目组成员，包括**Farevell*
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.set 20', send: true},
 {content: '设定默认骰子面数为 20'},
@@ -643,6 +698,7 @@ D&D 系列资料的整理者主要为 DicePP 项目组成员，包括**Farevell*
 {content: '.set info', send: true},
 {content: '个人骰子面数: 0\n群组骰子面数: 20\n当前骰子面数: 20'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 

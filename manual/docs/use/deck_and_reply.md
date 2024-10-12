@@ -35,6 +35,7 @@ title: 牌堆 自定义回复
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.draw list', send: true},
 {content: '载入并开启的牌堆:\n- GRE单词 格式: Dice! 作者:于言诺 版本:1.0.1 牌组数量: 1\n- IELTS单词 格式: Dice! 作者:于言诺 版本:1.0.1 牌组数量: 1\n- TOEFL单词 格式: Dice! 作者:于言诺 版本:1.0.1 牌组数量: 1\n- SealDice内置牌堆 格式: Dice! 作者:<因过长略去> 版本:1.2.0 牌组数量: 8'},
@@ -45,10 +46,11 @@ title: 牌堆 自定义回复
 {content: '.draw desc GRE单词', send: true},
 {content: '牌堆信息:\n牌堆: GRE单词\n格式: Dice!\n作者: 于言诺\n版本: 1.0.1\n牌组数量: 1\n时间: 2022/5/23\n更新时间: 2022/8/16\n牌组: GRE单词'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
-<!--  autocorrect-disable: GRE单词 是牌堆名专词 -->
+<!-- autocorrect-disable: GRE单词 是牌堆名专词 -->
 需要说明，在以上的例子中，「GRE单词」同时是牌堆名与牌组名。在 `.draw keys GRE单词` 中，它作为牌堆名出现；在 `.draw desc GRE单词` 中，它作为牌组名出现。
 <!-- autocorrect-enable -->
 
@@ -66,12 +68,14 @@ title: 牌堆 自定义回复
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.draw GRE单词 3#', send: true},
 {content: '<木落>抽出了：\nGRE3178\ninvoice n.\n发票, 发货单, 货物。'},
 {content: '<木落>抽出了：\nGRE4889\nrig n.\n索具装备, 钻探设备, 钻探平台, 钻塔。'},
 {content: '<木落>抽出了：\nGRE5421\nausterity n.\n严峻, 严厉, 朴素, 节俭, 苦行。'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 
@@ -79,10 +83,12 @@ title: 牌堆 自定义回复
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.draw 单词', send: true},
 {content: '找不到这个牌组，但发现一些相似的:\n- GRE单词\n- TOEFL单词\n- IELTS单词'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 

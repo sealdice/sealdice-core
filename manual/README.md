@@ -10,23 +10,37 @@ VitePress 驱动的海豹骰官方使用手册。
 
 如需调整导航栏和侧边栏，则涉及到修改 `docs/.vitepress/theme.ts` 和 `docs/.vitepress/catalogue.ts` 中的配置。
 
-## Lint
+## 安装依赖
+
+编写文档原则上不需要安装任何依赖。但是，如果希望利用 linter 自检或本地运行预览效果，则需要执行以下指令安装依赖。
+
+```shell
+pnpm install
+```
+
+## MarkDown 格式规范
 
 提交前请务必使用 markdownlint 进行检查，不满足格式要求的修改无法合并入主仓库。
 
 ```shell
-pnpm install
 pnpm run lint:md
-pnpm run lint:md:fix // 检查并进行部分自动修复
+pnpm run lint:md:fix # 检查并进行部分自动修复
 ```
 
 对于 VS Code 用户，请使用 [markdownlint](https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint) 插件获取编辑器警告。这一插件已经被添加到本项目的推荐插件中，只需在打开本项目时按 VS Code 的提示安装即可。
 
-## 排版
+## 排版规范
 
 文档排版应当遵循 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines) 的规范。
 
-使用 AutoCorrect 插件可以提供相关帮助。
+项目集成了自动检查和修复插件，可以通过以下指令调用。
+
+```shell
+pnpm run lint:autocorrect
+pnpm run lint:autocorrect:fix # 检查并进行部分自动修复
+```
+
+使用 AutoCorrect 插件可以提供编辑器集成的提示，但确有观察到编辑器插件不识别配置文件造成假阳性报告的问题。
 
 - [VS Code](https://marketplace.visualstudio.com/items?itemName=huacnlee.autocorrect)
 - [JetBrains](https://plugins.jetbrains.com/plugin/20244-autocorrect)

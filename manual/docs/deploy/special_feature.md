@@ -59,17 +59,21 @@ title: 特色功能
 
 == .gugu
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.gugu', send: true},
 {content: '🕊️: <木落>在来开团的路上被巨龙叼走了！'}
 ]"/>
+<!-- autocorrect-enable -->
 
 == 查看鸽子背后的故事
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.gugu 来源', send: true},
 {content: '🕊️: 前往了一个以前捕鲸的小岛度假~这里人很亲切！但是吃了这里的鱼肉料理之后有点晕晕的诶...想到前几天<木落>的短信，还是别追究他为什么不在了。\n\t——鹊鹊结合实际经历创作'}
 ]"/>
+<!-- autocorrect-enable -->
 
 :::
 
@@ -117,6 +121,7 @@ title: 特色功能
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '.set 20', send: true},
 {content: '设定默认骰子面数为 20'},
@@ -125,6 +130,7 @@ title: 特色功能
 {content: '.r d劣势', send: true},
 {content: '<木落>掷出了 d劣势=[{16 | 18 }]=16'},
 ]" />
+<!-- autocorrect-enable -->
 
 :::
 

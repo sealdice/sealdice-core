@@ -52,7 +52,7 @@ title: 编写牌堆
 
 :::: tabs key:deck-format
 
-== toml
+== TOML
 
 #### TOML 注释
 
@@ -164,7 +164,7 @@ TRPG = [
 ]
 ```
 
-== json
+== JSON
 
 ::: info JSON with Comment / JWCC <Badge type="tip" text="v1.4.4"/>
 
@@ -267,7 +267,7 @@ JSON 键值对以 `"key": value` 的形式表达，需要包裹在 `{}` 或 `[]`
 
 从序列 `/*` 开始到随后出现的第一个 `*/` 序列为止的所有文本，包括换行，都被视为注释。
 
-== yaml
+== YAML
 
 ### YAML 注释
 
@@ -368,7 +368,7 @@ YAML 的语法极其灵活，同一种形式在 YAML 中可以有多种等价表
 
 ::: tabs key:deck-format
 
-== toml
+== TOML
 
 ```toml
 # 元信息表
@@ -407,7 +407,7 @@ desc = "这个示例牌堆怎么这么臭（恼）"
 
 可以将上述内容保存名为 `野兽牌堆.toml`（名称任意，但必须是以 `.toml` 为后缀扩展名）的文件进行测试。
 
-== json
+== JSON
 
 ```json
 {
@@ -441,7 +441,7 @@ desc = "这个示例牌堆怎么这么臭（恼）"
 
 可以将上述内容保存名为 `野兽牌堆.json`（名称任意，但必须是以 `.json` 为后缀扩展名）的文件进行测试。
 
-== yaml
+== YAML
 
 ```yaml
 name: 野兽牌堆
@@ -488,7 +488,7 @@ command:
 
 :::: tabs key:deck-format
 
-== toml
+== TOML
 
 ```toml
 [decks]
@@ -502,7 +502,7 @@ command:
 ]
 ```
 
-== json
+== JSON
 
 ```json
 {
@@ -517,7 +517,7 @@ command:
 }
 ```
 
-== yaml
+== YAML
 
 ::: warning 注意：YAML 的放回表示
 
@@ -593,7 +593,7 @@ YAML 牌堆中的表示正好相反：
 
 ::: tabs key:deck-format
 
-== toml
+== TOML
 
 ```toml
 [decks]
@@ -603,7 +603,7 @@ YAML 牌堆中的表示正好相反：
 ]
 ```
 
-== json
+== JSON
 
 ```json
 {
@@ -614,7 +614,7 @@ YAML 牌堆中的表示正好相反：
 }
 ```
 
-== yaml
+== YAML
 
 ```yaml
 捕捉海豹:
@@ -680,11 +680,11 @@ YAML 牌堆中的表示正好相反：
 └─ test.json
 ```
 
-选中牌堆文件和 assets 文件夹压缩为 ZIP 文件，修改文件后缀为 deck 。
+选中牌堆文件和 assets 文件夹压缩为 ZIP 文件，修改文件后缀为 deck。
 
 ![示例](./images/edit-deck-pkg.png)
 
-图例中所使用的软件为 Bandizip ，使用 Windows 右键菜单中的 `压缩为 ZIP 文件` 与之等价的。
+图例中所使用的软件为 Bandizip，使用 Windows 右键菜单中的 `压缩为 ZIP 文件` 与之等价的。
 
 ::: warning 注意：小心嵌套文件夹
 
@@ -697,7 +697,7 @@ YAML 牌堆中的表示正好相反：
 `.draw keys` 指令会列出所有允许抽取的牌组，但在牌堆编写过程中，经常会需要用到辅助的牌组，这些辅助项是不希望暴露给用户的。我们可以通过一定方式来隐藏这些项。
 
 ::: tabs key:deck-format
-== toml
+== TOML
 
 在 TOML 牌堆中，当牌组的名称以 `_` 开头，那么这个牌组将不会暴露在 `.draw keys` 中。
 
@@ -715,7 +715,7 @@ YAML 牌堆中的表示正好相反：
 
 这样在 `.draw keys` 中就不会展示 `_时间点` 这一牌组。
 
-== json
+== JSON
 
 在 JSON 牌堆中，可以通过配置牌堆文件的 `_keys` 指定所有显示的牌组，未指定在列表中的牌组将不会暴露在 `.draw keys` 中。
 
@@ -735,7 +735,7 @@ YAML 牌堆中的表示正好相反：
 
 这样在 `.draw keys` 中就不会展示 `时间点` 这一牌组。
 
-== yaml
+== YAML
 
 YAML 牌堆**没有支持**这一功能。
 
@@ -745,7 +745,7 @@ YAML 牌堆**没有支持**这一功能。
 
 ::: tabs key:deck-format
 
-== toml
+== TOML
 
 在 TOML 牌堆中，当牌组的名称以 `__`（双下划线）开头，那么这个牌组将不导出，即无法使用 `.draw <key>` 进行抽取，更不会显示在列表中。
 
@@ -761,7 +761,7 @@ YAML 牌堆**没有支持**这一功能。
 ]
 ```
 
-== json
+== JSON
 
 在 JSON 牌堆中，当牌组的名称以 `_` 开头，那么这个牌组将不导出，即无法使用 `.draw <key>` 进行抽取，更不会显示在列表中。
 
@@ -796,7 +796,7 @@ YAML 牌堆**没有支持**这一功能。
 }
 ```
 
-== yaml
+== YAML
 
 如果在 YAML 牌堆中定义了 `default` 字段，海豹将以 `command` 字段的值为关键字，`default` 字段的值为内容组成一个牌组。除了这个牌组以外的牌组都被视为不导出。
 
@@ -835,7 +835,7 @@ default:
 
 ::: tabs key:deck-format
 
-== toml
+== TOML
 
 配置牌堆文件的 `updateUrls` 以指定对应的更新链接：
 
@@ -858,7 +858,7 @@ updateUrls = [
 ]
 ```
 
-== json
+== JSON
 
 配置牌堆文件的 `_updateUrls` 以指定对应的更新链接：
 
@@ -877,7 +877,7 @@ updateUrls = [
 }
 ```
 
-== yaml
+== YAML
 
 配置牌堆文件的 `update_urls` 以指定对应的更新链接：
 
@@ -910,7 +910,7 @@ update_urls:
 
 ::: tabs key:deck-format
 
-== toml
+== TOML
 
 ```toml
 [decks]
@@ -920,7 +920,7 @@ update_urls:
 ]
 ```
 
-== json
+== JSON
 
 ```json
 {
@@ -931,7 +931,7 @@ update_urls:
 }
 ```
 
-== yaml
+== YAML
 
 ```yaml
 幸运转盘:

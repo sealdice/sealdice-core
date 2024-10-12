@@ -17,7 +17,7 @@ title: Slack
 
 ## 获取 Token
 
-要获取用于连接海豹的 Token 之前，你需要建立好一个应用。登录 [Slack Api 平台](https://api.slack.com/apps)，点击「Create New App」，再点击「From Scratch」。按照要求填写应用名字，并选择你想要海豹被部署到的工作区后点击「Create App」。
+要获取用于连接海豹的 Token 之前，你需要建立好一个应用。登录 [Slack API 平台](https://api.slack.com/apps)，点击「Create New App」，再点击「From Scratch」。按照要求填写应用名字，并选择你想要海豹被部署到的工作区后点击「Create App」。
 
 ::: tip 提示：私骰模式
 
@@ -43,7 +43,7 @@ Slack 平台的机制使没有公开发布的应用无法加入被指定的单�
 
 ### Bot Token
 
-在侧边栏点击「OAuth & Permissions」，下滑在「Bot Token Scopes」下，添加海豹运作需要的权限:
+在侧边栏点击「OAuth & Permissions」，下滑在「Bot Token Scopes」下，添加海豹运作需要的权限：
 
 1. `channels:history`
 1. `channels:read`

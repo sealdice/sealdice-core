@@ -129,7 +129,7 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 :::
 
-使用此方法你可能需要对「QQ(onebot11正向WS)」、「QQ(onebot11正向WS)」、「QQ(onebot11正向WS)」、「[WIP]Satori」的区别有一定了解。
+使用此方法你可能需要对「QQ(onebot11正向WS)」、「QQ(onebot11反向WS)」、「[WIP]Satori」的区别有一定了解。
 
 「QQ(onebot11正向WS)」遵循 onebot11 标准，由海豹核心主动连接 QQ 登录框架。在 UI 界面添加「连接地址」格式应当为 `ws://{Host}:{Port}`。
 

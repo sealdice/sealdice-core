@@ -23,10 +23,10 @@ cmd.solve = (ctx, msg, cmdArgs) => {
 }
 ```
 
-下面是 api 的说明（完全了吧......应该？）：
+下面是 API 的说明（完全了吧………应该？）：
 
 ```javascript
-//被注释掉的 api 是可以提供的，但是在源码中被注释。
+//被注释掉的 API 是可以提供的，但是在源码中被注释。
 //seal.setVarInt(ctx, `$XXX`, valueToSet) //`$XXX`即 rollvm（初阶豹语）中的变量，其会将$XXX 的值设定为 int 类型的 valueToSet。
 //seal.setVarStr(ctx, `$XXX`, valueToSet) //同上，区别是设定的为 str 类型的 valueToSet。
 seal.replyGroup(ctx, msg, something) //向收到指令的群中发送 something。
@@ -90,7 +90,7 @@ seal.ban.getUser(id)
 ```
 <!-- TODO: 添加 1.4.1 中新增的插件配置项 -->
 
-以下为部分 api 使用示例。
+以下为部分 API 使用示例。
 
 ::: tip
 

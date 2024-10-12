@@ -85,11 +85,11 @@ pause
 
 ## 修复数据库 - 通过数据库修复指令
 
-如果你熟悉 Sqlite 3，或者没有可用的备份文件，尝试以下方案。
+如果你熟悉 SQLite 3，或者没有可用的备份文件，尝试以下方案。
 
 这种办法有一定的操作难度，酌情进行使用。这里我们以 Windows 系统为例。
 
-首先，你需要安装或下载一个 Sqlite 3 程序。
+首先，你需要安装或下载一个 SQLite 3 程序。
 
 你可以从其[官网下载页](https://www.sqlite.org/download.html)，找到 Precompiled Binaries for Windows，下载其中的 sqlite-tools。确保你下载的是 3.40 以上版本，通常来说，直接下载最新版即可。
 

@@ -21,10 +21,12 @@ title: 自定义回复
 
 ::: info 示例
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: 'v我50', send: true},
 {content: '¥50'}
 ]"/>
+<!-- autocorrect-enable -->
 
 :::
 
@@ -138,7 +140,9 @@ title: 自定义回复
 - 前缀匹配：消息以内容为开头时触发；
 - 后缀匹配：消息以此内容为结尾时触发。
 
+<!-- autocorrect-disable -->
 :::: info 「任意相符」示例
+<!-- autocorrect-enable -->
 
 设置：任意相符，文本 `a|b`，回复 `c`。
 
@@ -146,35 +150,45 @@ title: 自定义回复
 
 == 输入：a
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: 'a', send: true},
 {content: 'c'}
 ]"/>
+<!-- autocorrect-enable -->
 
 == 输入：b
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: 'b', send: true},
 {content: 'c'}
 ]"/>
+<!-- autocorrect-enable -->
 
 == 输入：ab（不回复）
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: 'ab', send: true}
 ]"/>
+<!-- autocorrect-enable -->
 
 == 输入：a|b（不回复）
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: 'a|b', send: true}
 ]"/>
+<!-- autocorrect-enable -->
 
 == 输入：其它（不回复）
 
+<!-- autocorrect-disable -->
 <ChatBox :messages="[
 {content: '114514', send: true}
 ]"/>
+<!-- autocorrect-enable -->
 
 :::
 

@@ -37,7 +37,7 @@ title: 快速开始
 - Linux: 提供给更专业的用户使用，需要使用终端启动。适用于服务器、树莓派等设备。
   - x64：绝大多数使用 Intel 或 AMD CPU 的服务器都应使用此版本。
   - arm64：树莓派等 arm 设备请使用 arm64 版。
-- MacOS：提供给 Mac 用户使用，需要使用终端启动。
+- macOS：提供给 Mac 用户使用，需要使用终端启动。
   - arm64：Apple Silicon 芯片（M1、M2 等）请使用 arm64 版。
   - x64：Intel 芯片请使用 x64 版。
 - Docker：提供对应 Docker 镜像，支持多种架构。
@@ -75,7 +75,7 @@ chmod +x ./sealdice-core
 
 给予其足够的运行权限。随后，运行 `./sealdice-core` 来启动海豹。在浏览器中输入 `localhost:3211` 来访问后台（WebUI）。
 
-== MacOS
+== macOS
 
 在 `sealdice-core` 所在的目录启动终端，输入以下命令：
 
@@ -88,10 +88,10 @@ chmod +x ./lagrange/Lagrange.OneBot && xattr -rd com.apple.quarantine ./lagrange
 
 随后，运行 `./sealdice-core` 来启动海豹。在浏览器中输入 `localhost:3211` 来访问后台（WebUI）。
 
-::: info MacOS 启动海豹失败问题排查
+::: info macOS 启动海豹失败问题排查
 
 1. 启动时若出现 `Bad CPU type in executable`，请确认你是否下载的是正确版本的海豹。**Intel 芯片的 Mac 请下载 `darwin x64` ，Apple Silicon 芯片请下载 `darwin arm64`。**
-2. 请确认 MacOS 版本高于 10.12，低版本 MacOS 不支持运行，建议尽量将 MacOS 更新至最新稳定版本。
+2. 请确认 macOS 版本高于 10.12，低版本 macOS 不支持运行，建议尽量将 macOS 更新至最新稳定版本。
 
 :::
 

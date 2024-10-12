@@ -342,7 +342,7 @@ if (!seal.ext.find('draw-decks-example')) {
 
 白名单用户即通过骰主手动添加的信任名单用户，可以使用所有需要群管理权限的功能，但不具备 Master 权限。
 
-信任名单可以通过 .ban trust <统一ID> 添加，通过 .ban list trust 查看。
+信任名单可以通过 `.ban trust <统一ID>` 添加，通过 `.ban list trust` 查看。
 
 :::
 
@@ -437,7 +437,7 @@ if (!seal.ext.find('myperm')) {
 - `id`：用户 ID，字符串类型
 - `name`：用户昵称，字符串类型
 - `score`：怒气值，整数类型
-- `rank`：拉黑/信任等级 0 没事 -10警告 -30禁止 30信任
+- `rank`：拉黑/信任等级 0=没事 -10=警告 -30=禁止 30=信任
 - `times`：事发时间，数组类型，内部元素为整数时间戳
 - `reasons`：拉黑/信任原因，数组类型，内部元素为字符串
 - `places`：拉黑/信任的发生地点，数组类型，内部元素为字符串
@@ -1124,7 +1124,7 @@ seal.coc.registerRule(rule);
 
 ## 补充：使用非指令关键词
 
-> 你是否因为自定义回复能实现的功能有限而烦恼？你是否因为自定义回复的匹配方式不全而愤怒？你是否因为自定义回复只能调用图片 api 而感到焦头烂额？
+> 你是否因为自定义回复能实现的功能有限而烦恼？你是否因为自定义回复的匹配方式不全而愤怒？你是否因为自定义回复只能调用图片 API 而感到焦头烂额？
 >
 > 不要紧张，我的朋友，试试非指令关键词，这会非常有用。
 
@@ -1277,7 +1277,7 @@ if (!seal.ext.find('js-config-example')) {
 
 ::: tip 提示：Cron 表达式
 
-如果你对 `cron` 或下文中提到的 Cron 表达式并不熟悉，可以参考 [Linux crontab 命令| 菜鸟教程](https://www.runoob.com/linux/linux-comm-crontab.html) 或 [Cron表达式 - 阿里云文档](https://help.aliyun.com/zh/ecs/user-guide/cron-expressions)。
+如果你对 `cron` 或下文中提到的 Cron 表达式并不熟悉，可以参考 [Linux crontab 命令 | 菜鸟教程](https://www.runoob.com/linux/linux-comm-crontab.html) 或 [Cron 表达式 - 阿里云文档](https://help.aliyun.com/zh/ecs/user-guide/cron-expressions)。
 
 :::
 
