@@ -24,6 +24,7 @@ export const deployNav = {
       items: [
         { text: "QQ", link: "/deploy/platform-qq" },
         { text: "QQ - Docker 中的海豹", link: "/deploy/platform-qq-docker" },
+        { text: "QQ 官方机器人", link: "/deploy/platform-qq-official" },
         { text: "KOOK", link: "/deploy/platform-kook" },
         { text: "DoDo", link: "/deploy/platform-dodo" },
         { text: "Discord", link: "/deploy/platform-discord" },
@@ -80,10 +81,10 @@ export const deploySidebar = {
             { text: "LLOneBot", link: "/deploy/platform-qq#llonebot" },
             { text: "NapCatQQ", link: "/deploy/platform-qq#napcatqq" },
             { text: "Chronocat", link: "/deploy/platform-qq#chronocat" },
-            { text: "官方机器人", link: "/deploy/platform-qq#%E5%AE%98%E6%96%B9%E6%9C%BA%E5%99%A8%E4%BA%BA" },
           ]
         },
         { text: "QQ - Docker 中的海豹", link: "/deploy/platform-qq-docker" },
+        { text: "QQ 官方机器人", link: "/deploy/platform-qq-official" },
         { text: "KOOK", link: "/deploy/platform-kook" },
         { text: "DoDo", link: "/deploy/platform-dodo" },
         { text: "Discord", link: "/deploy/platform-discord" },
