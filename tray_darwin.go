@@ -20,6 +20,7 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/icon"
+	log "sealdice-core/utils/kratos"
 )
 
 var theDm *dice.DiceManager

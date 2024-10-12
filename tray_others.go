@@ -15,6 +15,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
+	log "sealdice-core/utils/kratos"
 )
 
 func trayInit(dm *dice.DiceManager) {
