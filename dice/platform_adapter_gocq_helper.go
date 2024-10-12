@@ -18,9 +18,9 @@ import (
 	"github.com/ShiraazMoollatjie/goluhn"
 	"github.com/acarl005/stripansi"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 
 	"sealdice-core/utils"
+	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 )
 
@@ -1036,7 +1036,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 
 var isGocqDownloading = false
 
-func downloadGoCqhttp(logger *zap.SugaredLogger) {
+func downloadGoCqhttp(logger *log.Helper) {
 	fn := "go-cqhttp/go-cqhttp"
 	if runtime.GOOS == "windows" {
 		fn += ".exe"

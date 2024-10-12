@@ -18,10 +18,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sacOO7/gowebsocket"
 	"github.com/samber/lo"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/message"
+	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 )
 
@@ -273,7 +273,7 @@ func FormatDiceIDQQChGroup(guildID, channelID string) string {
 	return fmt.Sprintf("QQ-CH-Group:%s-%s", guildID, channelID)
 }
 
-func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeTo *MessageQQ) error {
+func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *MessageQQ) error {
 	msgQQType2 := new(MessageQQArray)
 	err := json.Unmarshal([]byte(message), msgQQType2)
 

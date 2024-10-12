@@ -8,10 +8,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"go.uber.org/zap"
+	log "sealdice-core/utils/kratos"
 )
 
-func Base64ToImageFunc(logger *zap.SugaredLogger) func(string) (string, error) {
+func Base64ToImageFunc(logger *log.Helper) func(string) (string, error) {
 	return func(b64 string) (string, error) {
 		// 解码 Base64 值
 		data, e := base64.StdEncoding.DecodeString(b64)

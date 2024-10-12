@@ -25,6 +25,7 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/icon"
+	log "sealdice-core/utils/kratos"
 )
 
 func hideWindow() {
@@ -239,7 +240,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 				dm.ServeAddress = fmt.Sprintf("0.0.0.0:%d", newPort)
 				continue
 			} else {
-				logger.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
+				log.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
 				os.Exit(0)
 			}
 		} else {
