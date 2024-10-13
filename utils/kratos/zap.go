@@ -13,6 +13,12 @@ import (
 // TODO：或许有更好的方案，但是现在我没什么想法
 
 var logLimitDefault int64 = 100
+var originZapLogger *zap.Logger
+
+// GetLoggerRaw 特殊情况下，获取原生的LOGGER进行处理
+func GetLoggerRaw() *zap.Logger {
+	return originZapLogger
+}
 
 type LogItem struct {
 	Level  string  `json:"level"`
@@ -42,7 +48,6 @@ func (w *WriterX) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// InitZapWithKartosLog 将所有的信息都会输出到main.log，以及输出到控制台
 var enabledLevel = zap.InfoLevel
 
 func SetEnableLevel(level zapcore.Level) {
@@ -56,6 +61,7 @@ func SetEnableLevel(level zapcore.Level) {
 	}
 }
 
+// InitZapWithKartosLog 将所有的信息都会输出到main.log，以及输出到控制台
 func InitZapWithKartosLog(level zapcore.Level) {
 	SetEnableLevel(level)
 	// 日志文件的路径
@@ -93,7 +99,7 @@ func InitZapWithKartosLog(level zapcore.Level) {
 		MessageKey:     "msg",
 		StacktraceKey:  "stacktrace",
 		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.CapitalColorLevelEncoder,
+		EncodeLevel:    zapcore.CapitalLevelEncoder,
 		EncodeTime:     zapcore.ISO8601TimeEncoder,
 		EncodeDuration: zapcore.StringDurationEncoder,
 		EncodeCaller:   zapcore.ShortCallerEncoder,
@@ -109,10 +115,10 @@ func InitZapWithKartosLog(level zapcore.Level) {
 	core := zapcore.NewTee(cores...)
 
 	// 创建带有调用者信息的日志记录器，注意跳过两层，这样就能正常提供给log
-	loggerRaw := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2))
+	originZapLogger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2))
 
-	// 设置全局日志记录器
-	global.SetLogger(NewZapLogger(loggerRaw))
+	// 设置全局日志记录器，并默认为SEAL
+	global.SetLogger(NewZapLogger(originZapLogger.Named("SEAL")))
 }
 
 func getEncoder() zapcore.Encoder {

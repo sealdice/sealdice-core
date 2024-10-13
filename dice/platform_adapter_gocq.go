@@ -560,7 +560,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				} else {
 					// TODO: 这玩意的创建是个专业活，等下来弄
 					// session.ServiceAtNew[groupId] = GroupInfo{}
-					fmt.Println("TODO create group")
+					log.Debug("TODO create group")
 				}
 				// 这句话太吵了
 				// log.Debug("群信息刷新: ", msgQQ.Data.GroupName)
@@ -992,7 +992,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if pa.riskAlertShieldCount > 0 {
 				pa.riskAlertShieldCount--
 			} else {
-				fmt.Println("群消息发送失败: 账号可能被风控")
+				log.Warn("群消息发送失败: 账号可能被风控")
 				_ = ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", MailTypeCIAMLock)
 			}
 		}
@@ -1050,7 +1050,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			}
 			session.Execute(ep, msg, false)
 		} else {
-			fmt.Println("Received message " + message)
+			log.Debug("Received message " + message)
 		}
 	}
 

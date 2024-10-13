@@ -881,7 +881,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 
 			if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
 				// TODO
-				fmt.Println("请使用手机QQ扫描二维码以继续登录")
+				log.Info("请使用手机QQ扫描二维码以继续登录")
 			}
 
 			if (pa.IsLoginSuccessed() && strings.Contains(line, "[ERROR]:") && strings.Contains(line, "Protocol -> sendPacket msg error: 120")) || strings.Contains(line, "账号可能被风控####2测试触发语句") {

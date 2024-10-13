@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/fs"
 	"mime"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"sealdice-core/api"
@@ -198,7 +198,7 @@ func main() {
 	}
 
 	if opts.Version {
-		fmt.Println(dice.VERSION.String())
+		log.Info(dice.VERSION.String())
 		return
 	}
 	if opts.DBCheck {
@@ -218,7 +218,7 @@ func main() {
 	deleteOldWrongFile()
 
 	if opts.Delay != 0 {
-		fmt.Println("延迟启动", opts.Delay, "秒")
+		log.Infof("延迟启动 %d 秒", opts.Delay)
 		time.Sleep(time.Duration(opts.Delay) * time.Second)
 	}
 
@@ -246,7 +246,7 @@ func main() {
 	diceManager.IsReady = true
 
 	if opts.Address != "" {
-		fmt.Println("由参数输入了服务地址:", opts.Address)
+		log.Infof("由参数输入了服务地址: %s", opts.Address)
 		diceManager.ServeAddress = opts.Address
 	}
 
@@ -343,8 +343,8 @@ func main() {
 	}
 
 	cwd, _ := os.Getwd()
-	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION.String())
-	fmt.Println("工作路径: ", cwd)
+	log.Infof("%s %s\n", dice.APPNAME, dice.VERSION.String())
+	log.Info("工作路径: ", cwd)
 
 	if strings.HasPrefix(cwd, os.TempDir()) {
 		// C:\Users\XXX\AppData\Local\Temp
@@ -439,7 +439,7 @@ func main() {
 	})()
 
 	if opts.Address != "" {
-		fmt.Println("由参数输入了服务地址:", opts.Address)
+		log.Infof("由参数输入了服务地址: %s", opts.Address)
 	}
 
 	for _, d := range diceManager.Dice {
@@ -564,9 +564,9 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	// Echo instance
 	e := echo.New()
 
-	// Middleware
-	// e.Use(middleware.log())
-	// e.Use(middleware.Recover())
+	// 为UI添加日志，以echo方式输出
+	echoHelper := log.NewCustomHelper("WEB", nil, zap.WithCaller(false))
+	e.Use(log.EchoMiddleLogger(echoHelper))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		Skipper:      middleware.DefaultSkipper,
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, "token"},

@@ -1,8 +1,6 @@
 package logger
 
 import (
-	"fmt"
-
 	log "sealdice-core/utils/kratos"
 )
 
@@ -13,9 +11,11 @@ type LogInfo struct {
 
 func Init() *LogInfo {
 	// KV输出
-	loghelper := log.NewHelper(log.GetLogger(), log.WithSprintf(func(format string, a ...interface{}) string {
-		return fmt.Sprintf("DICE日志: %s", fmt.Sprintf(format, a...))
-	}))
+	loghelper := log.NewCustomHelper("DICE", nil)
+
+	//loghelper := log.NewHelper(log.GetLogger(), log.WithSprintf(func(format string, a ...interface{}) string {
+	//	return fmt.Sprintf("DICE日志: %s", fmt.Sprintf(format, a...))
+	//}))
 	loghelper.Info("Dice日志开始记录")
 	return &LogInfo{
 		Logger: loghelper,

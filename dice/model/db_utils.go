@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sync"
 
+	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/spinner"
 )
 
@@ -52,7 +53,7 @@ func DBCacheDelete() bool {
 
 func DBVacuum() {
 	done := make(chan interface{}, 1)
-	fmt.Println("开始进行数据库整理")
+	log.Info("开始进行数据库整理")
 
 	go spinner.WithLines(done, 3, 10)
 	defer func() {
@@ -82,5 +83,5 @@ func DBVacuum() {
 
 	wg.Wait()
 
-	fmt.Println("\n数据库整理完成")
+	log.Info("\n数据库整理完成")
 }

@@ -3,14 +3,9 @@ package log
 
 import (
 	"context"
-
-	"go.uber.org/zap"
 )
 
-// DefaultLogger is default logger.
-var DefaultLogger = NewZapLogger(zap.NewExample()) // NewStdLogger(log.Writer())
-
-// Logger is a logger interface.
+// Zlogger is a logger interface.
 type Logger interface {
 	Log(level Level, keyvals ...interface{}) error
 }

@@ -11,7 +11,7 @@ import (
 // globalLogger is designed as a global logger in current process.
 var global = &loggerAppliance{}
 
-// loggerAppliance is the proxy of `Logger` to
+// loggerAppliance is the proxy of `Zlogger` to
 // make logger change will affect all sub-logger.
 type loggerAppliance struct {
 	lock   sync.Mutex

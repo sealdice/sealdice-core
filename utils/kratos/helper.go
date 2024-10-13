@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+
+	"go.uber.org/zap"
 )
 
 // DefaultMessageKey default message key.
@@ -54,6 +56,35 @@ func NewHelper(logger Logger, opts ...Option) *Helper {
 		o(options)
 	}
 	return options
+}
+
+// ADD 获取自定义Helper
+func NewCustomHelper(loggerName string, sprintfFunc func(format string, a ...interface{}) string, withOptions ...zap.Option) *Helper {
+	// 获取原始zap logger
+	// 根据传入的Named名称和Option配置创建zap logger
+	var zapLogger Logger
+	originZapLogger = GetLoggerRaw()
+	if len(withOptions) > 0 {
+		// 如果有传入Options，使用WithOptions
+		zapLogger = NewZapLogger(
+			originZapLogger.Named(loggerName).WithOptions(withOptions...),
+		)
+	} else {
+		// 如果没有传入Options，不使用WithOptions
+		zapLogger = NewZapLogger(
+			originZapLogger.Named(loggerName),
+		)
+	}
+
+	// 如果 sprintfFunc 为 nil，则不使用 WithSprintf，直接使用 NewHelper
+	var helper *Helper
+	if sprintfFunc != nil {
+		helper = NewHelper(zapLogger, WithSprintf(sprintfFunc))
+	} else {
+		helper = NewHelper(zapLogger) // 使用默认的 Helper
+	}
+
+	return helper
 }
 
 // WithContext returns a shallow copy of h with its context changed
