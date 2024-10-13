@@ -354,7 +354,6 @@ create index if not exists idx_log_items_log_id
 
 	dbSQL, err := openDB(dbDataLogsPath)
 	if err != nil {
-		log.Error("xxx", err)
 		return err
 	}
 	defer func(dbSql *sqlx.DB) {
