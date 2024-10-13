@@ -231,9 +231,6 @@ func main() {
 	// 初始化全局Kartos日志，由于DICE部分已经完全被砍掉了，所以原本的日志等级用来设置控制台展示的日志等级或许更合适
 	log.InitZapWithKartosLog(zapcore.Level(opts.LogLevel))
 
-	// TODO: 将这个日志部分的赋值方案重构
-	//dicelog.SetEnableLevel(zapcore.Level(opts.LogLevel))
-
 	// 提早初始化是为了读取ServiceName
 	diceManager := &dice.DiceManager{}
 
