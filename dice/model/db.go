@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/jmoiron/sqlx"
-
-	log "sealdice-core/utils/kratos"
 )
 
 func DBCheck(dataDir string) {
@@ -43,7 +41,7 @@ func DBCheck(dataDir string) {
 	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
 	dataDB, err = _SQLiteDBInit(dbDataPath, false)
 	if err != nil {
-		log.Info("数据库 data.db 无法打开")
+		fmt.Println("数据库 data.db 无法打开")
 	} else {
 		ok1 = checkDB(dataDB)
 		dataDB.Close()
@@ -52,7 +50,7 @@ func DBCheck(dataDir string) {
 	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
 	logsDB, err = _SQLiteDBInit(dbDataLogsPath, false)
 	if err != nil {
-		log.Info("数据库 data-logs.db 无法打开")
+		fmt.Println("数据库 data-logs.db 无法打开")
 	} else {
 		ok2 = checkDB(logsDB)
 		logsDB.Close()
@@ -61,16 +59,16 @@ func DBCheck(dataDir string) {
 	dbDataCensorPath, _ := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
 	censorDB, err = _SQLiteDBInit(dbDataCensorPath, false)
 	if err != nil {
-		log.Info("数据库 data-censor.db 无法打开")
+		fmt.Println("数据库 data-censor.db 无法打开")
 	} else {
 		ok3 = checkDB(censorDB)
 		censorDB.Close()
 	}
 
-	log.Info("数据库检查结果：")
-	log.Info("data.db:", ok1)
-	log.Info("data-logs.db:", ok2)
-	log.Info("data-censor.db:", ok3)
+	fmt.Println("数据库检查结果：")
+	fmt.Println("data.db:", ok1)
+	fmt.Println("data-logs.db:", ok2)
+	fmt.Println("data-censor.db:", ok3)
 }
 
 func SQLiteDBInit(dataDir string) (dataDB *sqlx.DB, logsDB *sqlx.DB, err error) {

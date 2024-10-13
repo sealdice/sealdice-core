@@ -103,11 +103,11 @@ type ExtInfo struct {
 	OnLoad              func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
-// TODO：似乎目前的方案，这里的控制就没什么意义了
 type DiceConfig struct { //nolint:revive
-	Name       string `yaml:"name"`       // 名称，默认为default
-	DataDir    string `yaml:"dataDir"`    // 数据路径，为./data/{name}，例如data/default
-	IsLogPrint bool   `yaml:"isLogPrint"` // 是否在控制台打印log
+	Name    string `yaml:"name"`    // 名称，默认为default
+	DataDir string `yaml:"dataDir"` // 数据路径，为./data/{name}，例如data/default
+	// TODO：当前配置下，该配置无法生效于任何位置。
+	IsLogPrint bool `yaml:"isLogPrint"` // 是否在控制台打印log
 }
 
 type ExtDefaultSettingItem struct {
@@ -314,7 +314,6 @@ func (d *Dice) Init() {
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0o755)
 
-	// log := logger.Init(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
 	log := logger.Init()
 	d.Logger = log.Logger
 	d.LogWriter = log.WX

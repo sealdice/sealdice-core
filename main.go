@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"mime"
 	"net/http"
@@ -198,7 +199,7 @@ func main() {
 	}
 
 	if opts.Version {
-		log.Info(dice.VERSION.String())
+		fmt.Println(dice.VERSION.String())
 		return
 	}
 	if opts.DBCheck {
@@ -340,8 +341,7 @@ func main() {
 	}
 
 	cwd, _ := os.Getwd()
-	log.Infof("%s %s\n", dice.APPNAME, dice.VERSION.String())
-	log.Info("工作路径: ", cwd)
+	log.Info(dice.APPNAME, dice.VERSION.String(), "当前工作路径: ", cwd)
 
 	if strings.HasPrefix(cwd, os.TempDir()) {
 		// C:\Users\XXX\AppData\Local\Temp
@@ -373,22 +373,22 @@ func main() {
 	migrate.TryMigrateToV12()
 	// 尝试修正log_items表的message字段类型
 	if migrateErr := migrate.LogItemFixDatatype(); migrateErr != nil {
-		log.Errorf("修正log_items表时出错，%s", migrateErr.Error())
+		log.Fatalf("修正log_items表时出错，%s", migrateErr.Error())
 		return
 	}
 	// v131迁移历史设置项到自定义文案
 	if migrateErr := migrate.V131DeprecatedConfig2CustomText(); migrateErr != nil {
-		log.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
+		log.Fatalf("迁移历史设置项时出错，%s", migrateErr.Error())
 		return
 	}
 	// v141重命名刷屏警告字段
 	if migrateErr := migrate.V141DeprecatedConfigRename(); migrateErr != nil {
-		log.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
+		log.Fatalf("迁移历史设置项时出错，%s", migrateErr.Error())
 		return
 	}
 	// v144删除旧的帮助文档
 	if migrateErr := migrate.V144RemoveOldHelpdoc(); migrateErr != nil {
-		log.Errorf("移除旧帮助文档时出错，%v", migrateErr)
+		log.Fatalf("移除旧帮助文档时出错，%v", migrateErr)
 	}
 	// v150升级
 	if !migrate.V150Upgrade() {
