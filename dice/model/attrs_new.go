@@ -111,9 +111,8 @@ func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) e
 		"id": id,
 	}
 	// 要么更新，要么创建，查询条件来源于conditions
-	if err := db.FirstOrCreate(&AttributesItemModel{}, conditions).
-		// 如果是新创建的，则这些赋值为：
-		Attrs(map[string]any{
+	if err := db. // 如果是新创建的，则这些赋值为：
+			Attrs(map[string]any{
 			"is_hidden":        true,
 			"binding_sheet_id": "",
 			"created_at":       now,
@@ -124,7 +123,7 @@ func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) e
 			"updated_at": now,
 			"name":       name,
 			"sheet_type": sheetType,
-		}).Error; err != nil {
+		}).FirstOrCreate(&AttributesItemModel{}, conditions).Error; err != nil {
 		return err // 返回错误
 	}
 	return nil // 操作成功，返回 nil

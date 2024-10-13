@@ -30,14 +30,13 @@ func BanItemSave(db *gorm.DB, id string, updatedAt int64, banUpdatedAt int64, da
 	}
 
 	// 使用 FirstOrCreate 查找或创建新的禁用项
-	if err := db.FirstOrCreate(&BanInfo{}, conditions).
-		Attrs(map[string]any{
-			"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
-		}).
+	if err := db.Attrs(map[string]any{
+		"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
+	}).
 		Assign(map[string]any{
 			"updated_at": int(updatedAt), // 更新时覆盖的字段
 			"data":       data,           // 禁用项数据
-		}).Error; err != nil {
+		}).FirstOrCreate(&BanInfo{}, conditions).Error; err != nil {
 		return err // 返回错误
 	}
 
