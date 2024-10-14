@@ -465,9 +465,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				VarSetValueStr(mctx, "$t计算过程", detailWrap)
 
 				SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
-
-				//VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
-				//单项结果文本会在下方判定是否是多轮检定的时额外格式化一遍，造成#1036的问题，先注释掉
 				return nil
 			}
 
