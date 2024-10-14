@@ -25,8 +25,8 @@ importers:
         version: 4.3.7
     devDependencies:
       autocorrect-node:
-        specifier: ^2.11.1
-        version: 2.11.1
+        specifier: ^2.12.0
+        version: 2.12.0
       markdownlint-cli2:
         specifier: ^0.14.0
         version: 0.14.0
@@ -583,38 +583,38 @@ packages:
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
-  autocorrect-node-darwin-arm64@2.11.1:
-    resolution: {integrity: sha512-7VdYsMAbJuLVHXPM6hv9+Sds91VX55DaMjiVvC6/p/orAg3pIy1wnk2JfJ0GKouKbkOKBp1fT2XFCJXVPBdh5w==}
+  autocorrect-node-darwin-arm64@2.12.0:
+    resolution: {integrity: sha512-40CtwUvV9/NIWbfrNeQG84ubpoNi5P5Bn/tATt3l+hCDu/x8wx2cOqmw6+ff6RZQdCsTrUWQ79QA8cwck9JoFA==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [darwin]
 
-  autocorrect-node-darwin-x64@2.11.1:
-    resolution: {integrity: sha512-oHiIq+RQm70DfgliW2W5/J8i7ov2cZyyK6l73fHxKOUzwVi7CSxMV6CHnthOZ7yUA07Y2QlFqVyYYPYbMykavA==}
+  autocorrect-node-darwin-x64@2.12.0:
+    resolution: {integrity: sha512-d3VWYpLc1Ed2IoP5nBbS6uvbW3qn4EsaMJbOIRD0DdLI+k4OsLCwqNRF3+lMqWGGjaEgPnGYJMe5iswyULqKLg==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
 
-  autocorrect-node-linux-x64-gnu@2.11.1:
-    resolution: {integrity: sha512-qWFiur7vXgnMLQ0zLpJ+ZRpBg23FQY0UrWIXgv+5uSVgPIUcDWa78FVpSDVmeWelpP3XTJ4ljUQuuXdok8oQEA==}
+  autocorrect-node-linux-x64-gnu@2.12.0:
+    resolution: {integrity: sha512-M5ebzPmr9fI63pf4x/3XOHyif5mhYEFssvH/T+frLaMeTCxdlv1bo5374HCJkpo1nF9OtfU+67EgmqQlYXEZyw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
 
-  autocorrect-node-linux-x64-musl@2.11.1:
-    resolution: {integrity: sha512-Hml5ZRdZMqpeM1p/j7TVy6xdv0+I5yxpRBAMCIkYJp6Le/NIz9EkEP9eYFxHOwdL+MexXvOd/1xSeHEjUL6JDw==}
+  autocorrect-node-linux-x64-musl@2.12.0:
+    resolution: {integrity: sha512-tFdMJdEsHtAf18L/Ctsjw5+zDIJlRoPeVSwvoreYTiVmF+hbFT2GLIcDsy+KRgSL912VCYFmRnV0BWhHKDHmqw==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
 
-  autocorrect-node-win32-x64-msvc@2.11.1:
-    resolution: {integrity: sha512-1Cx2iI0eVz/tLyjnkaDx0uH+fXMRxV16tEjbnX0mWPV+LVp2KM5zqYYuzsSkm6f9O6dOFWGUn0ybKZ4QpZb/Dg==}
+  autocorrect-node-win32-x64-msvc@2.12.0:
+    resolution: {integrity: sha512-tM9eGRtwoKMCeqpOsi8VsLJ8XfCTjvnwmceiXps0kkbVEXHiOg5rQfbnRxqkdDIFvMF0EUaWBKugW1COQdxpfg==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
 
-  autocorrect-node@2.11.1:
-    resolution: {integrity: sha512-xalvvRcynT9BEKCq05SinOkaoINtmkqWk8qHQMh/R6ZA962we3W+zv1I4Qx6Ac3CcegSbGoJgCcYM59ZABhBNQ==}
+  autocorrect-node@2.12.0:
+    resolution: {integrity: sha512-EvFr9N0whajPMpEm+UceE6x9VNqTfmCUfCcZ10/7pYXM0b8emLMo/J404mzTgZkmBwh5jD5VNNvumkKF9jRyrg==}
     engines: {node: '>= 10'}
     hasBin: true
 
@@ -1859,28 +1859,28 @@ snapshots:
 
   argparse@2.0.1: {}
 
-  autocorrect-node-darwin-arm64@2.11.1:
+  autocorrect-node-darwin-arm64@2.12.0:
     optional: true
 
-  autocorrect-node-darwin-x64@2.11.1:
+  autocorrect-node-darwin-x64@2.12.0:
     optional: true
 
-  autocorrect-node-linux-x64-gnu@2.11.1:
+  autocorrect-node-linux-x64-gnu@2.12.0:
     optional: true
 
-  autocorrect-node-linux-x64-musl@2.11.1:
+  autocorrect-node-linux-x64-musl@2.12.0:
     optional: true
 
-  autocorrect-node-win32-x64-msvc@2.11.1:
+  autocorrect-node-win32-x64-msvc@2.12.0:
     optional: true
 
-  autocorrect-node@2.11.1:
+  autocorrect-node@2.12.0:
     optionalDependencies:
-      autocorrect-node-darwin-arm64: 2.11.1
-      autocorrect-node-darwin-x64: 2.11.1
-      autocorrect-node-linux-x64-gnu: 2.11.1
-      autocorrect-node-linux-x64-musl: 2.11.1
-      autocorrect-node-win32-x64-msvc: 2.11.1
+      autocorrect-node-darwin-arm64: 2.12.0
+      autocorrect-node-darwin-x64: 2.12.0
+      autocorrect-node-linux-x64-gnu: 2.12.0
+      autocorrect-node-linux-x64-musl: 2.12.0
+      autocorrect-node-win32-x64-msvc: 2.12.0
 
   birpc@0.2.17: {}
 

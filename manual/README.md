@@ -18,7 +18,7 @@ VitePress 驱动的海豹骰官方使用手册。
 pnpm install
 ```
 
-## MarkDown 格式规范
+## Markdown 格式规范
 
 提交前请务必使用 markdownlint 进行检查，不满足格式要求的修改无法合并入主仓库。
 
@@ -40,7 +40,7 @@ pnpm run lint:autocorrect
 pnpm run lint:autocorrect:fix # 检查并进行部分自动修复
 ```
 
-使用 AutoCorrect 插件可以提供编辑器集成的提示，但确有观察到编辑器插件不识别配置文件造成假阳性报告的问题。
+使用 AutoCorrect 插件可以提供编辑器集成的提示。这一插件已经被添加到本项目的推荐插件中，只需在打开本项目时按 VS Code 的提示安装即可。
 
 - [VS Code](https://marketplace.visualstudio.com/items?itemName=huacnlee.autocorrect)
 - [JetBrains](https://plugins.jetbrains.com/plugin/20244-autocorrect)
