@@ -28,12 +28,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
-	"go.uber.org/zap"
 	"gopkg.in/elazarl/goproxy.v1"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
+	log "sealdice-core/utils/kratos"
 )
 
 var (
@@ -1331,7 +1331,7 @@ type JsScriptTask struct {
 	entryID  *cron.EntryID
 	lock     *sync.Mutex
 
-	logger *zap.SugaredLogger
+	logger *log.Helper
 }
 
 type JsScriptTaskCtx struct {

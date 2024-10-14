@@ -205,7 +205,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 	// tempFriendInviteSent := map[string]int64{}     // gocq会重新发送已经发过的邀请
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
-		fmt.Println(message)
+		log.Debug(message)
 		event := new(EventWalleQBase)
 		err := json.Unmarshal([]byte(message), event)
 		if err != nil {
@@ -596,7 +596,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 		// 事件都有 ID，没有就是响应 but 有几个元事件 ID 是 "" ；把响应处理放到最后吧
 		//nolint:nestif
 		if event.ID == "" {
-			fmt.Println(message)
+			log.Debug(message)
 			echo := new(EchoWalleQ)
 			err = json.Unmarshal([]byte(message), echo)
 			if err != nil {

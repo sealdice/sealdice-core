@@ -17,10 +17,7 @@ import (
 	"github.com/go-creed/sat"
 	"github.com/jmoiron/sqlx"
 	wr "github.com/mroth/weightedrand"
-	"github.com/robfig/cron/v3"
 	"github.com/tidwall/buntdb"
-	"go.uber.org/zap"
-
 	rand2 "golang.org/x/exp/rand"
 	"golang.org/x/exp/slices"
 	"golang.org/x/time/rate"
@@ -28,6 +25,7 @@ import (
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
+	log "sealdice-core/utils/kratos"
 )
 
 type CmdExecuteResult struct {
@@ -104,10 +102,10 @@ type ExtInfo struct {
 	OnLoad              func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
+// DiceConfig TODO：历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
 type DiceConfig struct { //nolint:revive
-	Name       string `yaml:"name"`       // 名称，默认为default
-	DataDir    string `yaml:"dataDir"`    // 数据路径，为./data/{name}，例如data/default
-	IsLogPrint bool   `yaml:"isLogPrint"` // 是否在控制台打印log
+	Name    string `yaml:"name"`    // 名称，默认为default
+	DataDir string `yaml:"dataDir"` // 数据路径，为./data/{name}，例如data/default
 }
 
 type ExtDefaultSettingItem struct {
@@ -138,8 +136,8 @@ type Dice struct {
 	BaseConfig              DiceConfig             `yaml:"-"`
 	DBData                  *sqlx.DB               `yaml:"-"`                                    // 数据库对象
 	DBLogs                  *sqlx.DB               `yaml:"-"`                                    // 数据库对象
-	Logger                  *zap.SugaredLogger     `yaml:"-"`                                    // 日志
-	LogWriter               *logger.WriterX        `yaml:"-"`                                    // 用于api的log对象
+	Logger                  *log.Helper            `yaml:"-"`                                    // 日志
+	LogWriter               *log.WriterX           `yaml:"-"`                                    // 用于api的log对象
 	IsDeckLoading           bool                   `yaml:"-"`                                    // 正在加载中
 	DeckList                []*DeckInfo            `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
 	CommandPrefix           []string               `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
@@ -323,7 +321,7 @@ func (d *Dice) Init() {
 		fmt.Println(err)
 	}
 
-	log := logger.Init(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
+	log := logger.Init()
 	d.Logger = log.Logger
 	d.LogWriter = log.WX
 	d.BanList = &BanListInfo{Parent: d}
