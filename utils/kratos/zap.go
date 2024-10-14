@@ -118,8 +118,8 @@ func GetWebLogger() *Helper {
 		MaxAge:     7,       // 日志文件保存7天
 	}
 	webCore := zapcore.NewCore(getEncoder(), zapcore.AddSync(weblumlog), zapcore.DebugLevel)
-	originZapLogger = zap.New(webCore, zap.WithCaller(false))
-	return NewHelper(NewZapLogger(originZapLogger.Named("WEB")))
+	webZapLogger := zap.New(webCore, zap.WithCaller(false))
+	return NewHelper(NewZapLogger(webZapLogger.Named("WEB")))
 }
 
 func getEncoder() zapcore.Encoder {

@@ -62,9 +62,10 @@ func NewHelper(logger Logger, opts ...Option) *Helper {
 func NewCustomHelper(loggerName string, hideConsole bool, sprintfFunc func(format string, a ...interface{}) string, withOptions ...zap.Option) *Helper {
 	var zapLogger Logger
 	var tempZapLogger *zap.Logger
+	// 添加HIDE的不会被输出到控制台，但会被输出到文件，或者其他位置。
+	// Named会保证克隆一个
 	if hideConsole {
-		// 添加HIDE的不会被输出到控制台，但会被输出到文件，或者其他位置。
-		tempZapLogger = GetLoggerRaw().Named("HIDE")
+		tempZapLogger = GetLoggerRaw().Named("HIDE").Named(loggerName)
 	} else {
 		tempZapLogger = GetLoggerRaw().Named(loggerName)
 	}
