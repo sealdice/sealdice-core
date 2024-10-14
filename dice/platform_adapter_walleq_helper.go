@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pelletier/go-toml/v2"
 
+	log2 "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 )
 
@@ -133,7 +134,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	pa.CurLoginIndex++
 	loginIndex := pa.CurLoginIndex
 	pa.WalleQState = WqStateCodeInLogin
-	fmt.Println("WalleQServe begin")
+	log2.Debug("WalleQServe begin")
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 	_ = os.MkdirAll(workDir, 0o755)
 	log := dice.Logger
@@ -173,7 +174,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 			wqc := new(WalleQConfig)
 			_, err = toml.DecodeFile(configFilePath,wqc)
 			if err != nil {
-				dice.Logger.Error("读取 Walle-q 配置文件失败，请检查！")
+				dice.Zlogger.Error("读取 Walle-q 配置文件失败，请检查！")
 				return
 			}
 			id, _ := pa.mustExtractId(conn.UserId)
@@ -197,7 +198,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	isSeldKilling := false
 
 	p.OutputHandler = func(line string, _type string) string {
-		fmt.Println(line)
+		log.Debug(line)
 		if loginIndex != pa.CurLoginIndex {
 			// 当前连接已经无用，进程自杀
 			if !isSeldKilling {
