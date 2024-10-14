@@ -226,20 +226,20 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 
 		err := model.FlushWAL(d.DBData)
 		if err != nil {
-			d.Logger.Warnln("备份时data数据库flush出错", err.Error())
+			d.Logger.Errorf("备份时data数据库flush出错 错误为:%v", err.Error())
 		} else {
 			backup(d, filepath.Join(dataDir, "data.db"))
 		}
 		err = model.FlushWAL(d.DBLogs)
 		if err != nil {
-			d.Logger.Warnln("备份时logs数据库flush出错", err.Error())
+			d.Logger.Errorf("备份时logs数据库flush出错 错误为:%v", err.Error())
 		} else {
 			backup(d, filepath.Join(dataDir, "data-logs.db"))
 		}
 		if d.CensorManager != nil && d.CensorManager.DB != nil {
 			err = model.FlushWAL(d.CensorManager.DB)
 			if err != nil {
-				d.Logger.Warnln("备份时censor数据库flush出错", err.Error())
+				d.Logger.Errorf("备份时censor数据库flush出错 %v", err.Error())
 			} else {
 				backup(d, filepath.Join(dataDir, "data-censor.db"))
 			}

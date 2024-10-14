@@ -8,8 +8,9 @@ import (
 
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/robfig/cron/v3"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+
+	log "sealdice-core/utils/kratos"
 )
 
 type VersionInfo struct {
@@ -75,7 +76,7 @@ type DiceManager struct { //nolint:revive
 	ServiceName          string
 	JustForTest          bool
 	JsRegistry           *require.Registry
-	UpdateSealdiceByFile func(packName string, log *zap.SugaredLogger) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
+	UpdateSealdiceByFile func(packName string, log *log.Helper) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
 
 	ContainerMode bool          // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 	CleanupFlag   atomic.Uint32 // 1 为正在清理，0为普通状态
@@ -325,7 +326,6 @@ func (dm *DiceManager) TryCreateDefault() {
 	if len(dm.Dice) == 0 {
 		defaultDice := new(Dice)
 		defaultDice.BaseConfig.Name = "default"
-		defaultDice.BaseConfig.IsLogPrint = true
 		defaultDice.MessageDelayRangeStart = 0.4
 		defaultDice.MessageDelayRangeEnd = 0.9
 		defaultDice.MarkModified()

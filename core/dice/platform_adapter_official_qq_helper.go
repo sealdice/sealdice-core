@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
+
+	log "sealdice-core/utils/kratos"
 )
 
 func NewOfficialQQConnItem(appID uint64, token string, appSecret string, onlyQQGuild bool) *EndPointInfo {
@@ -45,12 +46,12 @@ func ServerOfficialQQ(d *Dice, ep *EndPointInfo) {
 }
 
 type DummyLogger struct {
-	logger *zap.Logger
+	logger *log.Helper
 }
 
-func NewDummyLogger(logger *zap.Logger) DummyLogger {
+func NewDummyLogger() DummyLogger {
 	return DummyLogger{
-		logger: logger,
+		logger: log.NewHelper(log.With(log.GetLogger(), "caller", "officialQQ")),
 	}
 }
 

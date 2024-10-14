@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"go.etcd.io/bbolt"
+
+	log "sealdice-core/utils/kratos"
 )
 
 type LogOneItem struct {
@@ -212,7 +213,7 @@ func LogAppend(ctx *MsgContext, group *GroupInfo, l *LogOneItem) error {
 	return ctx.Dice.DB.Update(func(tx *bbolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("logs"))
 		if err != nil {
-			// ctx.Dice.Logger.Error("日志写入问题", err.Error())
+			// ctx.Dice.Zlogger.Error("日志写入问题", err.Error())
 			return err
 		}
 
@@ -353,7 +354,6 @@ create index if not exists idx_log_items_log_id
 
 	dbSQL, err := openDB(dbDataLogsPath)
 	if err != nil {
-		fmt.Println("xxx", err)
 		return err
 	}
 	defer func(dbSql *sqlx.DB) {
@@ -380,7 +380,7 @@ create index if not exists idx_log_items_log_id
 		})
 	})
 
-	fmt.Println("群组数量", len(groupIds))
+	log.Info("群组数量", len(groupIds))
 
 	times := 0
 	itemNumber := 0
@@ -409,14 +409,14 @@ create index if not exists idx_log_items_log_id
 			}
 			exec, errExec := dbSQL.NamedExec(`insert into logs (name, group_id, created_at, updated_at) VALUES (:name, :group_id, :created_at, :updated_at)`, args)
 			if errExec != nil {
-				fmt.Println("错误:", errExec, i, j)
+				log.Error("错误:", errExec, i, j)
 				return errExec
 			}
 
 			logID, _ := exec.LastInsertId()
 			logNum++
 			if logNum%10 == 0 {
-				fmt.Printf("进度: %d\n", logNum)
+				log.Infof("进度: %d\n", logNum)
 			}
 
 			tx := dbSQL.MustBegin()
@@ -450,15 +450,15 @@ create index if not exists idx_log_items_log_id
 		}
 	}
 
-	fmt.Println("群组数量", len(groupIds))
-	fmt.Println("log完成", times)
-	fmt.Println("行数", itemNumber)
+	log.Info("群组数量", len(groupIds))
+	log.Info("log完成", times)
+	log.Info("行数", itemNumber)
 
 	err = dbSQL.Get(&num, "select count(id) from log_items")
 	if err != nil {
 		return err
 	}
-	fmt.Println("行数确认", num)
+	log.Info("行数确认", num)
 
 	_ = dbSQL.Close()
 	return nil
