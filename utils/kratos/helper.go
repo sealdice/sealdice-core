@@ -60,21 +60,20 @@ func NewHelper(logger Logger, opts ...Option) *Helper {
 
 // ADD 获取自定义Helper
 func NewCustomHelper(loggerName string, hideConsole bool, sprintfFunc func(format string, a ...interface{}) string, withOptions ...zap.Option) *Helper {
-	// 获取原始zap logger
-	// 根据传入的Named名称和Option配置创建zap logger
 	var zapLogger Logger
-	originZapLogger = GetLoggerRaw()
+	var tempZapLogger *zap.Logger
+	// 添加HIDE的不会被输出到控制台，但会被输出到文件，或者其他位置。
+	// Named会保证克隆一个
 	if hideConsole {
-		// 添加HIDE的不会被输出到控制台，但会被输出到文件，或者其他位置。
-		originZapLogger = originZapLogger.Named("HIDE")
-	}
-	if len(withOptions) > 0 {
-		// 如果有传入Options，使用WithOptions
-		originZapLogger = originZapLogger.Named(loggerName).WithOptions(withOptions...)
+		tempZapLogger = GetLoggerRaw().Named("HIDE").Named(loggerName)
 	} else {
-		originZapLogger = originZapLogger.Named(loggerName)
+		tempZapLogger = GetLoggerRaw().Named(loggerName)
 	}
-	zapLogger = NewZapLogger(originZapLogger)
+	// 添加存在的
+	if len(withOptions) > 0 {
+		tempZapLogger = tempZapLogger.WithOptions(withOptions...)
+	}
+	zapLogger = NewZapLogger(tempZapLogger)
 	// 如果 sprintfFunc 为 nil，则不使用 WithSprintf，直接使用 NewHelper
 	var helper *Helper
 	if sprintfFunc != nil {
@@ -82,7 +81,6 @@ func NewCustomHelper(loggerName string, hideConsole bool, sprintfFunc func(forma
 	} else {
 		helper = NewHelper(zapLogger) // 使用默认的 Helper
 	}
-
 	return helper
 }
 
