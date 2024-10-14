@@ -67,7 +67,6 @@ func InitZapWithKartosLog(level zapcore.Level) {
 	SetEnableLevel(level)
 	// 日志文件的路径
 	path := "./data/main.log"
-	webpath := "./data/web.log"
 
 	// 使用lumberjack进行日志文件轮转配置
 	lumlog := &lumberjack.Logger{
@@ -77,43 +76,16 @@ func InitZapWithKartosLog(level zapcore.Level) {
 		MaxAge:     7,    // 日志文件保存7天
 	}
 
-	weblumlog := &lumberjack.Logger{
-		Filename:   webpath, // 日志文件的名称和路径
-		MaxSize:    10,      // 每个日志文件最大10MB
-		MaxBackups: 3,       // 最多保留3个旧日志文件
-		MaxAge:     7,       // 日志文件保存7天
-	}
-
 	// 获取日志编码器，定义日志的输出格式
 	encoder := getEncoder()
 
 	// 输出到UI的配置部分
 	pe := zap.NewProductionEncoderConfig()
 	global.wx = &WriterX{}
-	// 输出到文件的配置部分，main不要WEB日志，WEB只要WEB日志。
-	// 提醒：zapfilter有坑，这里的DebugLevel实际上是不生效的，想生效，请参考下面console的控制代码。这里由于我们的目标，刚好就是输出所有日志，所以不再重复设置了。
-	mainLogCoreRaw := zapcore.NewCore(encoder, zapcore.AddSync(lumlog), zapcore.DebugLevel)
-	mainLogCore := zapfilter.NewFilteringCore(mainLogCoreRaw, zapfilter.ByNamespaces("*,-WEB"))
-
-	webLogCoreRaw := zapcore.NewCore(encoder, zapcore.AddSync(weblumlog), zapcore.DebugLevel)
-	webLogCore := zapfilter.NewFilteringCore(webLogCoreRaw, zapfilter.ByNamespaces("WEB"))
-	// 输出到控制台的配置部分
-	stdOutencoderConfig := zapcore.EncoderConfig{
-		TimeKey:        "time",
-		LevelKey:       "level",
-		NameKey:        "logger",
-		CallerKey:      "caller",
-		MessageKey:     "msg",
-		StacktraceKey:  "stacktrace",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.CapitalLevelEncoder,
-		EncodeTime:     zapcore.ISO8601TimeEncoder,
-		EncodeDuration: zapcore.StringDurationEncoder,
-		EncodeCaller:   zapcore.ShortCallerEncoder,
-	}
-	// 创建控制台的日志编码器（以较友好的格式显示日志）
-	consoleEncoder := zapcore.NewConsoleEncoder(stdOutencoderConfig)
-	consoleCoreRaw := zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), enabledLevel)
+	// 输出到文件的配置部分
+	mainLogCore := zapcore.NewCore(encoder, zapcore.AddSync(lumlog), zapcore.DebugLevel)
+	// 创建控制台的日志编码器
+	consoleCoreRaw := zapcore.NewCore(encoder, zapcore.AddSync(os.Stdout), enabledLevel)
 	// 适配隐藏控制台输出的部分，重新设置日志级别，并输出除了HIDE以外的所有情况。这里ByNamespaces注意要先定义”全部选择“，然后定义”HIDE的不要“。
 	consoleCore := zapfilter.NewFilteringCore(consoleCoreRaw, zapfilter.All(zapfilter.MinimumLevel(enabledLevel), zapfilter.ByNamespaces("*,-HIDE.*")))
 
@@ -121,8 +93,6 @@ func InitZapWithKartosLog(level zapcore.Level) {
 	cores := []zapcore.Core{
 		// 默认输出到main.log的，全量日志文件
 		mainLogCore,
-		// 默认输入到web.Log的
-		webLogCore,
 		// 默认输出到UI的，只输出Info级别
 		// This outputs to WebUI, DO NOT apply enabledLevel
 		zapcore.NewCore(zapcore.NewJSONEncoder(pe), zapcore.AddSync(global.wx), zapcore.InfoLevel),
@@ -137,6 +107,19 @@ func InitZapWithKartosLog(level zapcore.Level) {
 
 	// 设置全局日志记录器，默认全局记录器为SEAL命名空间
 	global.SetLogger(NewZapLogger(originZapLogger.Named(LOG_SEAL)))
+}
+
+func GetWebLogger() *Helper {
+	webpath := "./data/web.log"
+	weblumlog := &lumberjack.Logger{
+		Filename:   webpath, // 日志文件的名称和路径
+		MaxSize:    10,      // 每个日志文件最大10MB
+		MaxBackups: 3,       // 最多保留3个旧日志文件
+		MaxAge:     7,       // 日志文件保存7天
+	}
+	webCore := zapcore.NewCore(getEncoder(), zapcore.AddSync(weblumlog), zapcore.DebugLevel)
+	originZapLogger = zap.New(webCore, zap.WithCaller(false))
+	return NewHelper(NewZapLogger(originZapLogger.Named("WEB")))
 }
 
 func getEncoder() zapcore.Encoder {

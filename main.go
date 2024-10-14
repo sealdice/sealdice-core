@@ -20,7 +20,6 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"sealdice-core/api"
@@ -562,7 +561,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	e := echo.New()
 
 	// 为UI添加日志，以echo方式输出
-	echoHelper := log.NewCustomHelper(log.LOG_WEB, true, nil, zap.WithCaller(false))
+	echoHelper := log.GetWebLogger()
 	e.Use(log.EchoMiddleLogger(echoHelper))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		Skipper:      middleware.DefaultSkipper,
