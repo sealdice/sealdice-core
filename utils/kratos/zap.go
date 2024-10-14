@@ -7,10 +7,11 @@ import (
 	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"moul.io/zapfilter"
 )
 
+// TODO：或许有更好的方案,目前只是保证能够使用了
 // 搬运过来WriterX，然后默认初始化，给一个方式获取那个WriterX
-// TODO：或许有更好的方案，但是现在我没什么想法
 
 var logLimitDefault int64 = 100
 var originZapLogger *zap.Logger
@@ -66,6 +67,7 @@ func InitZapWithKartosLog(level zapcore.Level) {
 	SetEnableLevel(level)
 	// 日志文件的路径
 	path := "./data/main.log"
+	webpath := "./data/web.log"
 
 	// 使用lumberjack进行日志文件轮转配置
 	lumlog := &lumberjack.Logger{
@@ -75,22 +77,27 @@ func InitZapWithKartosLog(level zapcore.Level) {
 		MaxAge:     7,    // 日志文件保存7天
 	}
 
+	weblumlog := &lumberjack.Logger{
+		Filename:   webpath, // 日志文件的名称和路径
+		MaxSize:    10,      // 每个日志文件最大10MB
+		MaxBackups: 3,       // 最多保留3个旧日志文件
+		MaxAge:     7,       // 日志文件保存7天
+	}
+
 	// 获取日志编码器，定义日志的输出格式
 	encoder := getEncoder()
 
 	// 输出到UI的配置部分
 	pe := zap.NewProductionEncoderConfig()
 	global.wx = &WriterX{}
+	// 输出到文件的配置部分，main不要WEB日志，WEB只要WEB日志。
+	// 提醒：zapfilter有坑，这里的DebugLevel实际上是不生效的，想生效，请参考下面console的控制代码。这里由于我们的目标，刚好就是输出所有日志，所以不再重复设置了。
+	mainLogCoreRaw := zapcore.NewCore(encoder, zapcore.AddSync(lumlog), zapcore.DebugLevel)
+	mainLogCore := zapfilter.NewFilteringCore(mainLogCoreRaw, zapfilter.ByNamespaces("*,-WEB"))
 
-	// 创建日志核心，将日志写入lumberjack的文件中，并设置日志级别为Debug
-	cores := []zapcore.Core{
-		// 默认输出到main.log的，全量日志文件
-		zapcore.NewCore(encoder, zapcore.AddSync(lumlog), zapcore.DebugLevel),
-		// 默认输出到UI的，只输出Info级别
-		// This outputs to WebUI, DO NOT apply enabledLevel
-		zapcore.NewCore(zapcore.NewJSONEncoder(pe), zapcore.AddSync(global.wx), zapcore.InfoLevel),
-	}
-
+	webLogCoreRaw := zapcore.NewCore(encoder, zapcore.AddSync(weblumlog), zapcore.DebugLevel)
+	webLogCore := zapfilter.NewFilteringCore(webLogCoreRaw, zapfilter.ByNamespaces("WEB"))
+	// 输出到控制台的配置部分
 	stdOutencoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "time",
 		LevelKey:       "level",
@@ -104,12 +111,23 @@ func InitZapWithKartosLog(level zapcore.Level) {
 		EncodeDuration: zapcore.StringDurationEncoder,
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
-
 	// 创建控制台的日志编码器（以较友好的格式显示日志）
 	consoleEncoder := zapcore.NewConsoleEncoder(stdOutencoderConfig)
+	consoleCoreRaw := zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), enabledLevel)
+	// 适配隐藏控制台输出的部分，重新设置日志级别，并输出除了HIDE以外的所有情况。这里ByNamespaces注意要先定义”全部选择“，然后定义”HIDE的不要“。
+	consoleCore := zapfilter.NewFilteringCore(consoleCoreRaw, zapfilter.All(zapfilter.MinimumLevel(enabledLevel), zapfilter.ByNamespaces("*,-HIDE.*")))
 
-	// 将控制台输出作为另一个日志核心，日志级别为Info
-	cores = append(cores, zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), enabledLevel))
+	// 创建日志核心，将日志写入lumberjack的文件中，并设置日志级别为Debug
+	cores := []zapcore.Core{
+		// 默认输出到main.log的，全量日志文件
+		mainLogCore,
+		// 默认输入到web.Log的
+		webLogCore,
+		// 默认输出到UI的，只输出Info级别
+		// This outputs to WebUI, DO NOT apply enabledLevel
+		zapcore.NewCore(zapcore.NewJSONEncoder(pe), zapcore.AddSync(global.wx), zapcore.InfoLevel),
+		consoleCore,
+	}
 
 	// 将多个日志核心组合到一起，以同时记录到文件和控制台
 	core := zapcore.NewTee(cores...)
@@ -117,7 +135,7 @@ func InitZapWithKartosLog(level zapcore.Level) {
 	// 创建带有调用者信息的日志记录器，注意跳过两层，这样就能正常提供给log
 	originZapLogger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2))
 
-	// 设置全局日志记录器，并默认为SEAL
+	// 设置全局日志记录器，默认全局记录器为SEAL命名空间
 	global.SetLogger(NewZapLogger(originZapLogger.Named("SEAL")))
 }
 

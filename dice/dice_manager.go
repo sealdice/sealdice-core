@@ -326,7 +326,6 @@ func (dm *DiceManager) TryCreateDefault() {
 	if len(dm.Dice) == 0 {
 		defaultDice := new(Dice)
 		defaultDice.BaseConfig.Name = "default"
-		defaultDice.BaseConfig.IsLogPrint = true
 		defaultDice.MessageDelayRangeStart = 0.4
 		defaultDice.MessageDelayRangeEnd = 0.9
 		defaultDice.MarkModified()

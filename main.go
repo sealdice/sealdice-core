@@ -562,7 +562,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	e := echo.New()
 
 	// 为UI添加日志，以echo方式输出
-	echoHelper := log.NewCustomHelper("WEB", nil, zap.WithCaller(false))
+	echoHelper := log.NewCustomHelper("WEB", true, nil, zap.WithCaller(false))
 	e.Use(log.EchoMiddleLogger(echoHelper))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		Skipper:      middleware.DefaultSkipper,

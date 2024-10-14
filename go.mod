@@ -173,6 +173,7 @@ require (
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.7.2 // indirect
 	modernc.org/sqlite v1.28.0 // indirect
+	moul.io/zapfilter v1.7.0 // indirect
 )
 
 replace (

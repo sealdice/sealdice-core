@@ -11,7 +11,7 @@ type LogInfo struct {
 
 func Init() *LogInfo {
 	// KV输出
-	loghelper := log.NewCustomHelper("DICE", nil)
+	loghelper := log.NewCustomHelper("DICE", false, nil)
 	loghelper.Info("Dice日志开始记录")
 	return &LogInfo{
 		Logger: loghelper,

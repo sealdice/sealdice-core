@@ -103,11 +103,10 @@ type ExtInfo struct {
 	OnLoad              func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
+// DiceConfig TODO：历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
 type DiceConfig struct { //nolint:revive
 	Name    string `yaml:"name"`    // 名称，默认为default
 	DataDir string `yaml:"dataDir"` // 数据路径，为./data/{name}，例如data/default
-	// TODO：当前配置下，该配置无法生效于任何位置。
-	IsLogPrint bool `yaml:"isLogPrint"` // 是否在控制台打印log
 }
 
 type ExtDefaultSettingItem struct {
