@@ -260,7 +260,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				getAndUpload(groupID, logName)
+				go getAndUpload(groupID, logName)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "get") {
 				logName := group.LogCurName
@@ -274,7 +274,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				getAndUpload(group.GroupID, logName)
+				go getAndUpload(group.GroupID, logName)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "end") {
 				if group.LogCurName == "" {
@@ -294,7 +294,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				group.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
-				getAndUpload(group.GroupID, group.LogCurName)
+				go getAndUpload(group.GroupID, group.LogCurName)
 				group.LogCurName = ""
 				group.UpdatedAtTime = time.Now().Unix()
 				return CmdExecuteResult{Matched: true, Solved: true}
