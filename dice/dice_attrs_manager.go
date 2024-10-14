@@ -8,14 +8,14 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	ds "github.com/sealdice/dicescript"
-	"go.uber.org/zap"
 
 	"sealdice-core/dice/model"
+	log "sealdice-core/utils/kratos"
 )
 
 type AttrsManager struct {
 	db     *sqlx.DB
-	logger *zap.SugaredLogger
+	logger *log.Helper
 	m      SyncMap[string, *AttributesItem]
 }
 

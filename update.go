@@ -14,15 +14,14 @@ import (
 	"syscall"
 	"time"
 
-	"go.uber.org/zap"
-
 	"sealdice-core/dice"
 	"sealdice-core/utils"
+	log "sealdice-core/utils/kratos"
 )
 
 var binPrefix = "https://sealdice.coding.net/p/sealdice/d/sealdice-binaries/git/raw/master"
 
-func downloadUpdate(dm *dice.DiceManager, log *zap.SugaredLogger) (string, error) {
+func downloadUpdate(dm *dice.DiceManager, log *log.Helper) (string, error) {
 	var packFn string
 	if dm.AppVersionOnline != nil {
 		ver := dm.AppVersionOnline
@@ -112,7 +111,7 @@ func doReboot(dm *dice.DiceManager) {
 
 	binary, err := exec.LookPath(executablePath)
 	if err != nil {
-		logger.Errorf("Restart Error: %s", err)
+		log.Errorf("Restart Error: %s", err)
 		return
 	}
 	platform := runtime.GOOS
@@ -124,7 +123,7 @@ func doReboot(dm *dice.DiceManager) {
 		cmd := executeWin(binary, "--delay=15")
 		err := cmd.Start()
 		if err != nil {
-			logger.Errorf("Restart error: %s %v", binary, err)
+			log.Errorf("Restart error: %s %v", binary, err)
 		}
 	} else {
 		// 手动cleanup
@@ -132,7 +131,7 @@ func doReboot(dm *dice.DiceManager) {
 		// os.Args[1:]...
 		execErr := syscall.Exec(binary, []string{os.Args[0], "--delay=25"}, os.Environ())
 		if execErr != nil {
-			logger.Errorf("Restart error: %s %v", binary, execErr)
+			log.Errorf("Restart error: %s %v", binary, execErr)
 		}
 	}
 	os.Exit(0)

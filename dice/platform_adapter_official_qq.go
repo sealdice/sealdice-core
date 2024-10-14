@@ -42,7 +42,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	d := pa.Session.Parent
 
 	log.Debug("official qq server")
-	qqbot.SetLogger(NewDummyLogger(log.Desugar()))
+	qqbot.SetLogger(NewDummyLogger())
 	token := qqtoken.BotToken(pa.AppID, pa.Token)
 	pa.Api = qqbot.NewOpenAPI(token).WithTimeout(3 * time.Second)
 	pa.Ctx, pa.CancelFunc = context.WithCancel(context.Background())

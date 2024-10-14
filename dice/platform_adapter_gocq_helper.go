@@ -18,9 +18,9 @@ import (
 	"github.com/ShiraazMoollatjie/goluhn"
 	"github.com/acarl005/stripansi"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 
 	"sealdice-core/utils"
+	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 )
 
@@ -881,7 +881,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 
 			if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
 				// TODO
-				fmt.Println("请使用手机QQ扫描二维码以继续登录")
+				log.Info("请使用手机QQ扫描二维码以继续登录")
 			}
 
 			if (pa.IsLoginSuccessed() && strings.Contains(line, "[ERROR]:") && strings.Contains(line, "Protocol -> sendPacket msg error: 120")) || strings.Contains(line, "账号可能被风控####2测试触发语句") {
@@ -1036,7 +1036,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 
 var isGocqDownloading = false
 
-func downloadGoCqhttp(logger *zap.SugaredLogger) {
+func downloadGoCqhttp(logger *log.Helper) {
 	fn := "go-cqhttp/go-cqhttp"
 	if runtime.GOOS == "windows" {
 		fn += ".exe"

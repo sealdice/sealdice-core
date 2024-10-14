@@ -10,6 +10,7 @@ import (
 	"github.com/vmihailenco/msgpack"
 
 	"sealdice-core/utils/crypto"
+	log "sealdice-core/utils/kratos"
 )
 
 var (
@@ -23,7 +24,7 @@ func initVerify() {
 	if len(key) > 0 {
 		SealTrustedClientPrivateKey = key
 	} else {
-		fmt.Println("SEAL_TRUSTED_PRIVATE_KEY not found, maybe in development mode")
+		log.Warn("SEAL_TRUSTED_PRIVATE_KEY not found, maybe in development mode")
 	}
 }
 

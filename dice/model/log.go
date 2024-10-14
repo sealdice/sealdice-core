@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+
+	log "sealdice-core/utils/kratos"
 )
 
 type LogOne struct {
@@ -480,7 +482,7 @@ func LogMarkDeleteByMsgID(db *sqlx.DB, groupID string, logName string, rawID int
 	// fmt.Printf("log delete %v %d\n", rawId, logId)
 	_, err = db.Exec("DELETE FROM log_items WHERE log_id=? AND raw_msg_id=?", logID, rid)
 	if err != nil {
-		fmt.Println("log delete error", err.Error())
+		log.Error("log delete error", err.Error())
 		return err
 	}
 
