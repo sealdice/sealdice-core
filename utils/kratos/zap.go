@@ -136,7 +136,7 @@ func InitZapWithKartosLog(level zapcore.Level) {
 	originZapLogger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2))
 
 	// 设置全局日志记录器，默认全局记录器为SEAL命名空间
-	global.SetLogger(NewZapLogger(originZapLogger.Named("SEAL")))
+	global.SetLogger(NewZapLogger(originZapLogger.Named(LOG_SEAL)))
 }
 
 func getEncoder() zapcore.Encoder {

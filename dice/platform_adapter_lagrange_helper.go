@@ -55,7 +55,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 	pa.GoCqhttpState = StateCodeInLogin
 
 	if pa.UseInPackClient && pa.BuiltinMode == "lagrange" { //nolint:nestif
-		helper := log.NewCustomHelper("LAGR", false, nil)
+		helper := log.NewCustomHelper(log.LOG_LAGR, false, nil)
 
 		if dice.ContainerMode {
 			helper.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
