@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -18,6 +19,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sacOO7/gowebsocket"
 	"github.com/samber/lo"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/message"
@@ -273,38 +276,61 @@ func FormatDiceIDQQChGroup(guildID, channelID string) string {
 	return fmt.Sprintf("QQ-CH-Group:%s-%s", guildID, channelID)
 }
 
+func hasURLScheme(text string) bool {
+	// 正则表达式匹配三种情况：file URI、http(s) URL 和 base64 URI
+	regex := `^[a-z]+://`
+	match, _ := regexp.MatchString(regex, text)
+	return match
+}
+
 func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *MessageQQ) error {
-	msgQQType2 := new(MessageQQArray)
-	err := json.Unmarshal([]byte(message), msgQQType2)
-
-	if err != nil {
+	// 不合法的信息体
+	if !gjson.Valid(message) {
 		log.Warn("无法解析 onebot11 字段:", message)
-		return err
+		return errors.New("解析失败")
 	}
-
+	// 原版本转换为gjson对象
+	parseContent := gjson.Parse(message)
+	arrayContent := parseContent.Get("message").Array()
 	cqMessage := strings.Builder{}
 
-	for _, i := range msgQQType2.Message {
-		switch i.Type {
+	for _, i := range arrayContent {
+		// 使用String()方法，如果为空，会自动产生空字符串
+		typeStr := i.Get("type").String()
+		dataObj := i.Get("data")
+		switch typeStr {
 		case "text":
-			cqMessage.WriteString(i.Data["text"].(string))
+			cqMessage.WriteString(dataObj.Get("text").String())
 		case "image":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", i.Data["file"]))
+			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
+			if !hasURLScheme(dataObj.Get("file").String()) && hasURLScheme(dataObj.Get("url").String()) {
+				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("url").String()))
+			} else {
+				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("file").String()))
+			}
 		case "face":
 			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64，这是go解析的问题
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", i.Data["id"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", dataObj.Get("id").String()))
 		case "record":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", i.Data["file"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("file").String()))
 		case "at":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", i.Data["qq"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", dataObj.Get("qq").String()))
 		case "poke":
 			cqMessage.WriteString("[CQ:poke]")
 		case "reply":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", i.Data["id"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", dataObj.Get("id").String()))
 		}
 	}
-	writeTo.MessageQQBase = msgQQType2.MessageQQBase
-	writeTo.Message = cqMessage.String()
+	// 赋值对应的Message
+	tempStr, err := sjson.Set(parseContent.String(), "message", cqMessage.String())
+	if err != nil {
+		return err
+	}
+	// 返回被转换成结构体的结果
+	err = json.Unmarshal([]byte(tempStr), &writeTo)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -329,8 +355,14 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 		// 将 CQ 拼入数组
 		switch cq.Type {
 		case "image":
-			i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
-			arr = append(arr, i)
+			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
+			if !hasURLScheme(cq.Args["file"]) && hasURLScheme(cq.Args["url"]) {
+				i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["url"]}}
+				arr = append(arr, i)
+			} else {
+				i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
+				arr = append(arr, i)
+			}
 		case "record":
 			i := OneBotV11ArrMsgItem[OneBotV11MsgItemRecordType]{Type: "record", Data: OneBotV11MsgItemRecordType{File: cq.Args["file"]}}
 			arr = append(arr, i)
