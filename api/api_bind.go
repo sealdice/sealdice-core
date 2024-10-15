@@ -190,7 +190,11 @@ func forceStop(c echo.Context) error {
 				dbData := d.DBData
 				if dbData != nil {
 					d.DBData = nil
-					_ = dbData.Close()
+					db, err := dbData.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 
@@ -201,7 +205,11 @@ func forceStop(c echo.Context) error {
 				dbLogs := d.DBLogs
 				if dbLogs != nil {
 					d.DBLogs = nil
-					_ = dbLogs.Close()
+					db, err := dbLogs.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 
@@ -213,7 +221,11 @@ func forceStop(c echo.Context) error {
 				if cm != nil && cm.DB != nil {
 					dbCensor := cm.DB
 					cm.DB = nil
-					_ = dbCensor.Close()
+					db, err := dbCensor.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 		}

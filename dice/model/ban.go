@@ -1,36 +1,60 @@
 package model
 
-import (
-	"github.com/jmoiron/sqlx"
-)
+import "gorm.io/gorm"
 
-func BanItemDel(db *sqlx.DB, id string) error {
-	_, err := db.Exec("delete from ban_info where id=$1", id)
-	return err
+// BanInfo 模型
+// GORM STRUCT
+type BanInfo struct {
+	ID           string `gorm:"primaryKey"`
+	BanUpdatedAt int    `gorm:"index:idx_ban_info_ban_updated_at"`
+	UpdatedAt    int    `gorm:"index:idx_ban_info_updated_at"`
+	Data         []byte // 使用[]byte表示BLOB类型
 }
 
-func BanItemSave(db *sqlx.DB, id string, updatedAt int64, banUpdatedAt int64, data []byte) error {
-	_, err := db.NamedExec("replace into ban_info (id, updated_at, ban_updated_at, data) values (:id, :updated_at, :ban_updated_at, :data)",
-		map[string]interface{}{
-			"id":             id,
-			"updated_at":     updatedAt,
-			"ban_updated_at": banUpdatedAt,
-			"data":           data,
-		})
-	return err
+func (BanInfo) TableName() string {
+	return "ban_info"
 }
 
-func BanItemList(db *sqlx.DB, callback func(id string, banUpdatedAt int64, data []byte)) error {
-	var items []struct {
-		ID           string `db:"id"`
-		BanUpdatedAt int64  `db:"ban_updated_at"`
-		Data         []byte `db:"data"`
+// BanItemDel 删除指定 ID 的禁用项
+func BanItemDel(db *gorm.DB, id string) error {
+	// 使用 GORM 的 Delete 方法删除指定 ID 的记录
+	result := db.Where("id = ?", id).Delete(&BanInfo{})
+	return result.Error // 返回错误
+}
+
+// BanItemSave 保存或替换禁用项
+func BanItemSave(db *gorm.DB, id string, updatedAt int64, banUpdatedAt int64, data []byte) error {
+	// 定义用于查找的条件
+	conditions := map[string]any{
+		"id": id,
 	}
-	if err := db.Select(&items, "SELECT id, ban_updated_at, data FROM ban_info ORDER BY ban_updated_at DESC"); err != nil {
-		return err
+
+	// 使用 FirstOrCreate 查找或创建新的禁用项
+	if err := db.Attrs(map[string]any{
+		"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
+	}).
+		Assign(map[string]any{
+			"updated_at": int(updatedAt), // 更新时覆盖的字段
+			"data":       data,           // 禁用项数据
+		}).FirstOrCreate(&BanInfo{}, conditions).Error; err != nil {
+		return err // 返回错误
 	}
+
+	return nil // 操作成功，返回 nil
+}
+
+// BanItemList 列出所有禁用项并调用回调函数处理
+func BanItemList(db *gorm.DB, callback func(id string, banUpdatedAt int64, data []byte)) error {
+	var items []BanInfo
+
+	// 使用 GORM 查询所有禁用项
+	if err := db.Order("ban_updated_at DESC").Find(&items).Error; err != nil {
+		return err // 返回错误
+	}
+
+	// 遍历每个禁用项并调用回调函数
 	for _, item := range items {
-		callback(item.ID, item.BanUpdatedAt, item.Data)
+		callback(item.ID, int64(item.BanUpdatedAt), item.Data) // 确保类型一致
 	}
-	return nil
+	return nil // 操作成功，返回 nil
 }

@@ -14,11 +14,12 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
-	"github.com/jmoiron/sqlx"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
+	"gorm.io/gorm"
+
 	rand2 "golang.org/x/exp/rand"
 	"golang.org/x/exp/slices"
 	"golang.org/x/time/rate"
@@ -103,10 +104,10 @@ type ExtInfo struct {
 	OnLoad              func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
-// DiceConfig TODO：历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
 type DiceConfig struct { //nolint:revive
-	Name    string `yaml:"name"`    // 名称，默认为default
-	DataDir string `yaml:"dataDir"` // 数据路径，为./data/{name}，例如data/default
+	Name       string `yaml:"name"`       // 名称，默认为default
+	DataDir    string `yaml:"dataDir"`    // 数据路径，为./data/{name}，例如data/default
+	IsLogPrint bool   `yaml:"isLogPrint"` // 是否在控制台打印log
 }
 
 type ExtDefaultSettingItem struct {
@@ -135,8 +136,8 @@ type Dice struct {
 	LastUpdatedTime         int64                  `yaml:"-"`
 	TextMap                 map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig              DiceConfig             `yaml:"-"`
-	DBData                  *sqlx.DB               `yaml:"-"`                                    // 数据库对象
-	DBLogs                  *sqlx.DB               `yaml:"-"`                                    // 数据库对象
+	DBData                  *gorm.DB               `yaml:"-"`                                    // 数据库对象
+	DBLogs                  *gorm.DB               `yaml:"-"`                                    // 数据库对象
 	Logger                  *log.Helper            `yaml:"-"`                                    // 日志
 	LogWriter               *log.WriterX           `yaml:"-"`                                    // 用于api的log对象
 	IsDeckLoading           bool                   `yaml:"-"`                                    // 正在加载中

@@ -89,7 +89,11 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				dbData := d.DBData
 				if dbData != nil {
 					d.DBData = nil
-					_ = dbData.Close()
+					db, err := dbData.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 
@@ -100,7 +104,11 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				dbLogs := d.DBLogs
 				if dbLogs != nil {
 					d.DBLogs = nil
-					_ = dbLogs.Close()
+					db, err := dbLogs.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 
@@ -112,7 +120,11 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				if cm != nil && cm.DB != nil {
 					dbCensor := cm.DB
 					cm.DB = nil
-					_ = dbCensor.Close()
+					db, err := dbCensor.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 		}
