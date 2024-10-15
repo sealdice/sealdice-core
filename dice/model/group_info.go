@@ -74,7 +74,7 @@ func GroupInfoSave(db *gorm.DB, groupID string, updatedAt int64, data []byte) er
 // GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
 	Name   string `yaml:"name" jsbind:"name" gorm:"column:name"` // 玩家昵称
-	UserID string `yaml:"userId" jsbind:"userId" gorm:"column:user_id;index:idx_group_player_info_user_id"`
+	UserID string `yaml:"userId" jsbind:"userId" gorm:"column:user_id;index:idx_group_player_info_user_id; uniqueIndex:idx_group_player_info_group_user"`
 	// 非数据库信息：是否在群内
 	InGroup         bool  `yaml:"inGroup" gorm:"-"`                                                         // 是否在群内，有时一个人走了，信息还暂时残留
 	LastCommandTime int64 `yaml:"lastCommandTime" jsbind:"lastCommandTime" gorm:"column:last_command_time"` // 上次发送指令时间
@@ -100,7 +100,7 @@ type GroupPlayerInfoBase struct {
 	// 缺少信息
 	CreatedAt int    `yaml:"-" json:"-" gorm:"column:created_at"` // 创建时间
 	UpdatedAt int    `yaml:"-" json:"-" gorm:"column:updated_at"` // 更新时间
-	GroupID   string `yaml:"-" json:"-" gorm:"index:idx_group_player_info_group_id"`
+	GroupID   string `yaml:"-" json:"-" gorm:"column:group_id;index:idx_group_player_info_group_id; uniqueIndex:idx_group_player_info_group_user"`
 }
 
 // 兼容设置
