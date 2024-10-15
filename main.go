@@ -20,16 +20,15 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"sealdice-core/api"
 	"sealdice-core/dice"
-	diceLogger "sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
+	log "sealdice-core/utils/kratos"
 )
 
 /**
@@ -43,11 +42,11 @@ extensions/
 
 func cleanupCreate(diceManager *dice.DiceManager) func() {
 	return func() {
-		logger.Info("程序即将退出，进行清理……")
+		log.Info("程序即将退出，进行清理……")
 		err := recover()
 		if err != nil {
 			showWindow()
-			logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
+			log.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
 			// 顺便修正一下上面这个，应该是木落忘了。
 			if runtime.GOOS == "windows" {
 				exec.Command("pause") // windows专属
@@ -69,7 +68,7 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 						err := j.StorageClose()
 						if err != nil {
 							showWindow()
-							logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
+							log.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
 							// 木落没有加该检查 补充上
 							if runtime.GOOS == "windows" {
 								exec.Command("pause") // windows专属
@@ -231,7 +230,7 @@ func main() {
 	deleteOldWrongFile()
 
 	if opts.Delay != 0 {
-		fmt.Println("延迟启动", opts.Delay, "秒")
+		log.Infof("延迟启动 %d 秒", opts.Delay)
 		time.Sleep(time.Duration(opts.Delay) * time.Second)
 	}
 
@@ -240,15 +239,15 @@ func main() {
 	}
 
 	_ = os.MkdirAll("./data", 0o755)
-	MainLoggerInit("./data/main.log", true)
 
-	diceLogger.SetEnableLevel(zapcore.Level(opts.LogLevel))
+	// 初始化全局Kartos日志，由于DICE部分已经完全被砍掉了，所以原本的日志等级用来设置控制台展示的日志等级或许更合适
+	log.InitZapWithKartosLog(zapcore.Level(opts.LogLevel))
 
 	// 提早初始化是为了读取ServiceName
 	diceManager := &dice.DiceManager{}
 
 	if opts.ContainerMode {
-		logger.Info("当前为容器模式，内置适配器与更新功能已被禁用")
+		log.Info("当前为容器模式，内置适配器与更新功能已被禁用")
 		diceManager.ContainerMode = true
 	}
 
@@ -256,7 +255,7 @@ func main() {
 	diceManager.IsReady = true
 
 	if opts.Address != "" {
-		fmt.Println("由参数输入了服务地址:", opts.Address)
+		log.Infof("由参数输入了服务地址: %s", opts.Address)
 		diceManager.ServeAddress = opts.Address
 	}
 
@@ -293,17 +292,17 @@ func main() {
 			// 只有不同文件才进行校验
 			// windows平台旧版本到1.4.0流程
 			_ = os.WriteFile("./升级失败指引.txt", []byte("如果升级成功不用理会此文档，直接删除即可。\r\n\r\n如果升级后无法启动，或再次启动后恢复到旧版本，先不要紧张。\r\n你升级前的数据备份在backups目录。\r\n如果无法启动，请删除海豹目录中的\"update\"、\"auto_update.exe\"并手动进行升级。\n如果升级成功但在再次重启后回退版本，同上。\n\n如有其他问题可以加企鹅群询问：524364253 562897832"), 0o644)
-			logger.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
-			logger.Warn("程序目录下会出现“升级日志.log”，这代表升级正在进行中，如果失败了请检查此文件。")
+			log.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
+			log.Warn("程序目录下会出现“升级日志.log”，这代表升级正在进行中，如果失败了请检查此文件。")
 
 			err := CheckUpdater(diceManager)
 			if err != nil {
-				logger.Error("升级程序检查失败: ", err.Error())
+				log.Error("升级程序检查失败: ", err.Error())
 			} else {
 				_ = os.Remove("./auto_update.exe")
 				// ui资源已经内置，删除旧的ui文件，这里有点风险，但是此时已经不考虑升级失败的情况
 				_ = os.RemoveAll("./frontend")
-				UpdateByFile(diceManager, nil, "./update/update.zip", true)
+				UpdateByFile(diceManager, "./update/update.zip", true)
 			}
 			return
 		}
@@ -320,12 +319,12 @@ func main() {
 		if doNext {
 			err := CheckUpdater(diceManager)
 			if err != nil {
-				logger.Error("升级程序检查失败: ", err.Error())
+				log.Error("升级程序检查失败: ", err.Error())
 			} else {
 				_ = os.Remove("./auto_update")
 				// ui资源已经内置，删除旧的ui文件，这里有点风险，但是此时已经不考虑升级失败的情况
 				_ = os.RemoveAll("./frontend")
-				UpdateByFile(diceManager, nil, "./update/update.tar.gz", true)
+				UpdateByFile(diceManager, "./update/update.tar.gz", true)
 			}
 			return
 		}
@@ -335,26 +334,25 @@ func main() {
 	if opts.UpdateTest {
 		err := CheckUpdater(diceManager)
 		if err != nil {
-			logger.Error("升级程序检查失败: ", err.Error())
+			log.Error("升级程序检查失败: ", err.Error())
 		} else {
-			UpdateByFile(diceManager, nil, "./xx.zip", true)
+			UpdateByFile(diceManager, "./xx.zip", true)
 		}
 	}
 
 	// 先临时放这里，后面再整理一下升级模块
-	diceManager.UpdateSealdiceByFile = func(packName string, log *zap.SugaredLogger) bool {
+	diceManager.UpdateSealdiceByFile = func(packName string, log *log.Helper) bool {
 		err := CheckUpdater(diceManager)
 		if err != nil {
-			logger.Error("升级程序检查失败: ", err.Error())
+			log.Error("升级程序检查失败: ", err.Error())
 			return false
 		} else {
-			return UpdateByFile(diceManager, log, packName, false)
+			return UpdateByFile(diceManager, packName, false)
 		}
 	}
 
 	cwd, _ := os.Getwd()
-	fmt.Printf("%s %s\n", dice.APPNAME, dice.VERSION.String())
-	fmt.Println("工作路径: ", cwd)
+	log.Info(dice.APPNAME, dice.VERSION.String(), "当前工作路径: ", cwd)
 
 	if strings.HasPrefix(cwd, os.TempDir()) {
 		// C:\Users\XXX\AppData\Local\Temp
@@ -369,15 +367,15 @@ func main() {
 		return err == nil && stat.IsDir()
 	}
 	if !checkFrontendExists() {
-		logger.Info("未检测到外置的UI资源文件，将使用内置资源启动UI")
+		log.Info("未检测到外置的UI资源文件，将使用内置资源启动UI")
 		useBuiltinUI = true
 	} else {
-		logger.Info("检测到外置的UI资源文件，将使用frontend_overwrite文件夹内的资源启动UI")
+		log.Info("检测到外置的UI资源文件，将使用frontend_overwrite文件夹内的资源启动UI")
 	}
 
 	// 删除遗留的shm和wal文件
 	if !model.DBCacheDelete() {
-		logger.Error("数据库缓存文件删除失败")
+		log.Error("数据库缓存文件删除失败")
 		showMsgBox("数据库缓存文件删除失败", "为避免数据损坏，拒绝继续启动。请检查是否启动多份程序，或有其他程序正在使用数据库文件！")
 		return
 	}
@@ -386,22 +384,22 @@ func main() {
 	migrate.TryMigrateToV12()
 	// 尝试修正log_items表的message字段类型
 	if migrateErr := migrate.LogItemFixDatatype(); migrateErr != nil {
-		logger.Errorf("修正log_items表时出错，%s", migrateErr.Error())
+		log.Fatalf("修正log_items表时出错，%s", migrateErr.Error())
 		return
 	}
 	// v131迁移历史设置项到自定义文案
 	if migrateErr := migrate.V131DeprecatedConfig2CustomText(); migrateErr != nil {
-		logger.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
+		log.Fatalf("迁移历史设置项时出错，%s", migrateErr.Error())
 		return
 	}
 	// v141重命名刷屏警告字段
 	if migrateErr := migrate.V141DeprecatedConfigRename(); migrateErr != nil {
-		logger.Errorf("迁移历史设置项时出错，%s", migrateErr.Error())
+		log.Fatalf("迁移历史设置项时出错，%s", migrateErr.Error())
 		return
 	}
 	// v144删除旧的帮助文档
 	if migrateErr := migrate.V144RemoveOldHelpdoc(); migrateErr != nil {
-		logger.Errorf("移除旧帮助文档时出错，%v", migrateErr)
+		log.Fatalf("移除旧帮助文档时出错，%v", migrateErr)
 	}
 	// v150升级
 	if !migrate.V150Upgrade() {
@@ -449,7 +447,7 @@ func main() {
 	})()
 
 	if opts.Address != "" {
-		fmt.Println("由参数输入了服务地址:", opts.Address)
+		log.Infof("由参数输入了服务地址: %s", opts.Address)
 	}
 
 	for _, d := range diceManager.Dice {
@@ -487,7 +485,7 @@ func removeUpdateFiles() {
 func diceServe(d *dice.Dice) {
 	defer dice.CrashLog()
 	if len(d.ImSession.EndPoints) == 0 {
-		d.Logger.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
+		log.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
 	}
 
 	d.UIEndpoint = new(dice.EndPointInfo)
@@ -570,13 +568,13 @@ func diceServe(d *dice.Dice) {
 }
 
 func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
-	logger.Info("即将启动webui")
+	log.Info("即将启动webui")
 	// Echo instance
 	e := echo.New()
 
-	// Middleware
-	// e.Use(middleware.Logger())
-	// e.Use(middleware.Recover())
+	// 为UI添加日志，以echo方式输出
+	echoHelper := log.GetWebLogger()
+	e.Use(log.EchoMiddleLogger(echoHelper))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		Skipper:      middleware.DefaultSkipper,
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, "token"},
