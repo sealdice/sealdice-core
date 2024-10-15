@@ -294,7 +294,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				group.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
-				getAndUpload(group.GroupID, group.LogCurName)
+				// Note: 2024-10-15 经过简单测试，似乎能缓解#1034的问题，但无法根本解决。
+				go getAndUpload(group.GroupID, group.LogCurName)
 				group.LogCurName = ""
 				group.UpdatedAtTime = time.Now().Unix()
 				return CmdExecuteResult{Matched: true, Solved: true}
