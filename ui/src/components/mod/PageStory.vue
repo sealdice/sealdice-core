@@ -1,13 +1,12 @@
 <script lang="ts" setup>
 import { Back, Delete, Select, Upload } from '@element-plus/icons-vue'
-import { useStore, urlPrefix } from '~/store'
-import { backend } from '~/backend'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import randomColor from "randomcolor";
 import resolveConfig from 'tailwindcss/resolveConfig'
 import tailwindConfig from '../../../tailwind.config'
-
+import { getStoryInfo,getStoryLogPage,getStoryItemPage,deleteStoryLog } from '~/api/story'
+import { postStoryLog } from '~/api/story'
 const twColors = resolveConfig(tailwindConfig).theme.colors
 
 interface Log {
@@ -32,12 +31,9 @@ interface Item {
     isEdit?: boolean
 }
 
-const store = useStore()
-const token = store.token
-const url = (p: string) => urlPrefix + "/story/" + p;
-
 async function getInfo() {
-  return backend.get(url("info")) as any
+    return getStoryInfo()
+//   return backend.get(url("info")) as any
 }
 
 // async function getLogs() {
@@ -55,11 +51,12 @@ const queryLogPage = ref({
     createdTime: ([undefined, undefined] as unknown) as [Date, Date],
 })
 
-async function getLogPage(params: { pageNum: number, pageSize: number, name?: string, groupId?: string, createdTimeBegin?: number, createdTimeEnd?: number }) {
-    return await backend.get(url("logs/page"), {
-      headers: {token: token}, params: params
-    }) as any
-}
+const getLogPage = getStoryLogPage
+// async function getLogPage(params: { pageNum: number, pageSize: number, name?: string, groupId?: string, createdTimeBegin?: number, createdTimeEnd?: number }) {
+//     return await backend.get(url("logs/page"), {
+//       headers: {token: token}, params: params
+//     }) as any
+// }
 
 // async function getItems(v: Log) {
 //     // ofetch get+params 至少在开发模式有莫名奇妙的 bug ，会丢失 baseURL
@@ -75,14 +72,16 @@ const logItemPage = ref({
     groupId: "",
 })
 
-async function getItemPage(params: { pageNum: number, pageSize: number, logName: string, groupId: string }) {
-    return backend.get(url("items/page"), {
-        headers: { token: token }, params: params
-    })
-}
+// async function getItemPage(params: { pageNum: number, pageSize: number, logName: string, groupId: string }) {
+//     return backend.get(url("items/page"), {
+//         headers: { token: token }, params: params
+//     })
+// }
+const getItemPage = getStoryItemPage
 
 async function delLog(v: Log) {
-    return backend.delete(url('log'), { headers: { token }, data: v }) as unknown as boolean
+    return deleteStoryLog(v)
+    // return backend.delete(url('log'), { headers: { token }, data: v }) as unknown as boolean
 }
 
 async function uploadLog(v: Log) {
@@ -95,7 +94,8 @@ async function uploadLog(v: Log) {
             type: 'warning',
         }
     );
-    return backend.post(url("uploadLog"), v,{ headers: { token }}) as any
+    return postStoryLog(v)
+    // return backend.post(url("uploadLog"), v,{ headers: { token }}) as any
 }
 
 //

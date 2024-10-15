@@ -52,17 +52,14 @@
 <script setup lang="ts">
 import type {UploadUserFile} from "element-plus";
 import {Delete, Download, Upload} from "@element-plus/icons-vue";
-import {urlPrefix, useStore} from "~/store";
-import {backend, urlBase} from "~/backend";
+import { urlBase} from "~/backend";
 import {useCensorStore} from "~/components/mod/censor/censor";
+import { deleteCensorFiles, getCensorFiles, uploadCensorFile } from "~/api/censor";
 
 onBeforeMount(() => {
   refreshFiles()
 })
 
-const store = useStore()
-const url = (p: string) => urlPrefix + "/censor/" + p;
-const token = store.token
 const censorStore = useCensorStore()
 
 interface SensitiveWordFile {
@@ -84,7 +81,7 @@ const refreshFiles = async () => {
   const c: { result: false } | {
     result: true,
     data: SensitiveWordFile[]
-  } = await backend.get(url("files"), {headers: {token}})
+  } = await getCensorFiles()
   if (c.result) {
     files.value = c.data
   }
@@ -94,7 +91,7 @@ const beforeUpload = async (file: UploadUserFile) => {
   let fd = new FormData()
   fd.append('file', file as unknown as Blob)
 
-  const c = await censorStore.fileUpload({form: fd})
+  const c = await uploadCensorFile(file as unknown as File)
   if (c.result) {
     await refreshFiles()
     ElMessage.success('上传完成，请在全部操作完成后，手动重载拦截')
@@ -115,10 +112,7 @@ const deleteFile = async (key: string) => {
       }
   ).then(async () => {
     const c: { result: true } | { result: false, err: string }
-        = await backend.delete(url("files"), {
-      headers: {token},
-      data: {keys: [key]}
-    })
+        = await deleteCensorFiles([key])
     if (c.result) {
       ElMessage.success('删除词库完成，请在全部操作完成后，手动重载拦截')
       censorStore.markReload()

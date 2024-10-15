@@ -160,6 +160,7 @@ import { useStore } from '~/store';
 import { Delete, Plus, Refresh, Setting, Upload } from '@element-plus/icons-vue'
 import { trim } from 'lodash-es';
 import type {HelpDoc, HelpTextItem, HelpTextItemQuery} from "~/type.d.ts";
+import { deleteHelpDoc, getHelpDocConfig, getHelpDocPage, getHelpDocTree, postHelpDocConfig, reloadHelpDoc, uploadHelpDoc } from '~/api/helpdoc';
 
 interface Group {
   key: string,
@@ -207,13 +208,13 @@ const submitUpload = async (formData: FormInstance | undefined) => {
   if (!formData) return
   await formData.validate(async (valid, _) => {
     if (valid) {
-      const fd = new FormData();
-      fd.append("group", uploadForm.group)
-      uploadForm.files.forEach(f => {
-        fd.append("files", f.raw)
-      })
+      // const fd = new FormData();
+      // fd.append("group", uploadForm.group)
+      // uploadForm.files.forEach(f => {
+      //   fd.append("files", f.raw)
+      // })
 
-      const res = await store.helpDocUpload(fd)
+      const res = await uploadHelpDoc(uploadForm)
       if (res.result) {
         ElMessage.success('上传完成，请在全部操作完成后，手动重载帮助文件')
       } else {
@@ -245,7 +246,7 @@ const deleteFiles = async () => {
       }
     )
       .then(() => {
-        store.helpDocDelete(checkedFileKeys).then((res) => {
+        deleteHelpDoc(checkedFileKeys).then((res) => {
           if (res.result) {
             ElMessage({
               type: 'success',
@@ -294,7 +295,7 @@ const getHelpDocTag = (loadStatus: number, deleted: boolean, group: string): { t
 }
 
 const refreshFileTree = async () => {
-  const resp = await store.helpDocTree()
+  const resp = await getHelpDocTree()
   if (resp?.result) {
     docTree.value = resp.data.map((entry) => {
       const e: any = { ...entry }
@@ -341,7 +342,7 @@ const handleCurrentPageChange = async (val: number) => {
   await refreshTextItems()
 }
 const refreshTextItems = async () => {
-  const resp = await store.helpGetTextItemPage(textItemQuery.value)
+  const resp = await getHelpDocPage(textItemQuery.value)
   if (resp?.result) {
     textItems.value = resp.data
     textItemQuery.value.total = resp.total
@@ -353,7 +354,7 @@ const refreshTextItems = async () => {
 const reloadLoading = ref<boolean>(false)
 const reload = async () => {
   reloadLoading.value = true
-  const resp = await store.helpDocReload()
+  const resp = await reloadHelpDoc()
   if (resp?.result) {
     ElMessage.success('重载帮助文件成功')
     needReload.value = false
@@ -371,7 +372,7 @@ const configNeedSave = ref<boolean>(false)
 const helpAliases = ref<Map<string, string[]>>(new Map())
 
 const refreshConfig = async () => {
-  const config = await store.helpGetConfig()
+  const config = await getHelpDocConfig()
   helpAliases.value = new Map(Object.entries(config.aliases))
   configNeedSave.value = false
 }
@@ -407,7 +408,7 @@ const removeAlias = (groupKey: string, alias: string) => {
 const summitConfig = async () => {
   if (helpAliases.value) {
     console.log("aliases=", helpAliases.value)
-    const res = await store.helpSetConfig({aliases: Object.fromEntries(helpAliases.value)})
+    const res = await postHelpDocConfig({aliases: Object.fromEntries(helpAliases.value)})
     if (res.result) {
       ElMessage.success("保存设置成功")
       configDialogClose()

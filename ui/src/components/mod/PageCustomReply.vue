@@ -181,6 +181,7 @@ import {
   Upload,
   Plus
 } from '@element-plus/icons-vue'
+import { getCustomReply, getCustomReplyFileList, postCustomReplyDel, postCustomReplyNew, saveCustomReply, uploadCustomReply } from "~/api/configs";
 
 const store = useStore()
 const dialogFormVisible = ref(false)
@@ -265,14 +266,14 @@ const customReplyFileNew = () => {
     if (!data.value) {
       data.value = `reply${Math.ceil(Math.random() * 10000)}.yaml`;
     }
-    const ret = await store.customReplyFileNew(data.value);
-    let ret2 = await store.customReplyFileList() as any;
+    const ret = await postCustomReplyNew(data.value);
+    let ret2 = await getCustomReplyFileList();
     fileItems.value = ret2.items;
     curFilename.value = ret2.items[0].filename;
 
     ElMessage({
       type: 'success',
-      message: (ret as any).success ? '成功!' : '失败',
+      message: ret.success ? '成功!' : '失败',
     })
   })
 }
@@ -287,10 +288,10 @@ const customReplyFileDelete = () => {
       type: 'warning',
     }
   ).then(async () => {
-    const ret = await store.customReplyFileDelete(curFilename.value);
+    const ret = await postCustomReplyDel(curFilename.value);
 
-    if ((ret as any).success) {
-      let ret = await store.customReplyFileList() as any;
+    if (ret.success) {
+      let ret = await getCustomReplyFileList();
       fileItems.value = ret.items;
       curFilename.value = ret.items[0].filename;
       await refreshCurrent();
@@ -304,12 +305,10 @@ const customReplyFileDelete = () => {
 }
 
 const beforeUpload = async (file: any) => { // UploadRawFile
-  let fd = new FormData()
-  fd.append('file', file)
   try {
-    const resp = await store.customReplyFileUpload({ form: fd });
+    const resp = await uploadCustomReply(file);
     ElMessage.success('上传完成');
-    let ret = await store.customReplyFileList() as any;
+    let ret = await getCustomReplyFileList();
     fileItems.value = ret.items;
     curFilename.value = ret.items[0].filename;
     await refreshCurrent();
@@ -357,7 +356,7 @@ const doSave = async () => {
         cond.value = parseInt(cond.value) || 0;
       }
     }
-    await store.setCustomReply(cr.value)
+    await saveCustomReply(cr.value)
     ElMessage.success('已保存')
     modified.value = false
   } catch (e) {
@@ -453,7 +452,7 @@ const doImport = () => {
 }
 
 onBeforeMount(async () => {
-  let ret = await store.customReplyFileList() as any;
+  let ret = await getCustomReplyFileList();
   fileItems.value = ret.items;
   curFilename.value = ret.items[0].filename;
   await store.diceConfigGet();
@@ -462,7 +461,7 @@ onBeforeMount(async () => {
 
 const refreshCurrent = async () => {
   console.log('load', curFilename.value);
-  const ret = await store.getCustomReply(curFilename.value) as any
+  const ret = await getCustomReply(curFilename.value)
   cr.value = ret
   conditions.value = ret.conditions
   list.value = ret.items

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type {Resource} from "~/store";
-import {useStore} from "~/store";
 import {Microphone, Picture, VideoCamera} from '@element-plus/icons-vue'
+import { getResourceData } from "~/api/resource";
 
-const store = useStore()
 const url = ref<string>('')
 
 const getImageUrl = async (path: string) => {
-  const blob = await store.resourceData(path, props.mini)
+  const blob = await getResourceData(path, props.mini)
   return window.URL.createObjectURL(blob);
 }
 

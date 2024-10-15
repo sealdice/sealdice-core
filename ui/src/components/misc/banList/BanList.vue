@@ -10,6 +10,7 @@ import { useStore } from '~/store'
 import { urlBase } from '~/backend'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import { getBanConfigList, importBanConfig, postMapAddOne, postMapDelOne } from "~/api/banconfig";
 
 dayjs.extend(relativeTime)
 
@@ -43,7 +44,7 @@ const addData = ref<{ id: string, rank: number, name:string, reason: string }>({
 
 const doAdd = async () => {
   if (addData.value.id === '') return
-  await store.banConfigMapAddOne(addData.value.id, addData.value.rank, addData.value.name, addData.value.reason)
+  await postMapAddOne(addData.value.id, addData.value.rank, addData.value.name, addData.value.reason)
   await refreshList()
   ElMessage.success('已保存')
   dialogAddShow.value = false
@@ -99,7 +100,7 @@ const groupItems = computed(() => {
 })
 
 const refreshList = async () => {
-  const lst = await store.banConfigMapGet()
+  const lst = await getBanConfigList()
   recordList.value = lst
   recordPage.value.total = lst.length
   recordPage.value.no = 1
@@ -116,17 +117,15 @@ const deleteOne = async (i: any, index: number) => {
       }
   );
   if (res) {
-    await store.banConfigMapDeleteOne(i)
+    await postMapDelOne(i)
     await refreshList()
     ElMessage.success('已保存')
   }
 }
 
 const beforeUpload = async (file: UploadUserFile) => {
-  let fd = new FormData()
-  fd.append('file', file as unknown as Blob)
 
-  const c = await store.banUpload({form: fd})
+  const c = await importBanConfig(file)
   if (c.result) {
     ElMessage.success('导入黑白名单完成')
     await nextTick(async () => {

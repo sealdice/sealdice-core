@@ -168,6 +168,7 @@
 
 import {DocumentChecked, QuestionFilled} from "@element-plus/icons-vue";
 import {isArray, isEqual, isObject, transform} from "lodash-es";
+import { getCensorConfig, postCensorConfig } from "~/api/censor";
 import {useCensorStore} from "~/components/mod/censor/censor";
 
 onBeforeMount(async () => {
@@ -238,12 +239,7 @@ watch(config, () => {
   modified.value = true
 }, {deep: true});
 
-const getCensorConfig = async () => {
-  const c = await censorStore.getConfig()
-  if (c.result) {
-    return c
-  }
-}
+
 
 censorStore.$subscribe(async (_, state) => {
   if (state.settingsNeedRefresh === true) {
@@ -252,11 +248,11 @@ censorStore.$subscribe(async (_, state) => {
   }
 })
 
-let timerId: number
+let timerId: number = 0
 const refreshCensorConfig = async () => {
   const c = await getCensorConfig()
-  if (c) {
-    config.value = c as any;
+  if (c.result) {
+    config.value = c;
   }
   modified.value = false
   await nextTick(() => {
@@ -281,7 +277,7 @@ const submit = async () => {
   const conf = await getCensorConfig()
   const modify = confDiff(config.value, conf)
 
-  const resp = await censorStore.saveConfig(modify);
+  const resp = await postCensorConfig(modify);
   if (resp.result) {
     ElMessage.success("保存设置成功")
   } else {

@@ -15,6 +15,7 @@
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.2",
     "@element-plus/icons-vue": "^2.3.1",
+    "@types/qs": "^6.9.16",
     "@vueuse/core": "^10.11.0",
     "asmcrypto.js": "^2.3.2",
     "axios": "^1.7.2",
@@ -28,6 +29,7 @@
     "highlight.js": "^11.10.0",
     "lodash-es": "^4.17.21",
     "pinia": "^2.1.7",
+    "qs": "^6.13.0",
     "randomcolor": "^0.6.2",
     "vue": "^3.4.33",
     "vue-diff": "^1.2.4",

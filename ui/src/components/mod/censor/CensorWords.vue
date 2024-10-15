@@ -26,6 +26,7 @@ import {useCensorStore} from "~/components/mod/censor/censor";
 import type {Column} from "element-plus";
 import type {CellRendererParams} from "element-plus/es/components/table-v2/src/types";
 import {template} from "lodash-es";
+import { getCensorWords } from "~/api/censor";
 
 const columns: Column<any>[] = [
   {
@@ -73,10 +74,7 @@ onMounted(() => {
   refreshWords()
 })
 
-const url = (p: string) => urlPrefix + "/censor/" + p;
 const censorStore = useCensorStore()
-const store = useStore()
-const token = store.token
 
 interface SensitiveRelatedWord {
   word: string
@@ -112,7 +110,7 @@ const refreshWords = async () => {
   const c: { result: false } | {
     result: true,
     data: SensitiveWord[]
-  } = await backend.get(url("words"), {headers: {token}})
+  } = await getCensorWords()
   if (c.result) {
     words.value = c.data
   }

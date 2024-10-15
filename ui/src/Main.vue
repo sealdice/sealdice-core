@@ -133,6 +133,8 @@ import {CircleCloseFilled} from '@element-plus/icons-vue'
 
 import {passwordHash} from "./utils"
 import { delay, replace } from "lodash-es"
+import { getNewUtils, postUtilsCheckNews } from './api/utils'
+import { checkSecurity } from './api/others'
 
 dayjs.locale('zh-cn')
 dayjs.extend(relativeTime);
@@ -149,7 +151,7 @@ const newsChecked = ref(true)
 const newsMark = ref('')
 const checkNews = async (close: any) => {
   console.log('newsMark', newsMark.value)
-  const ret = await store.checkNews(newsMark.value)
+  const ret = await postUtilsCheckNews(newsMark.value)
   if (ret?.result) {
     ElMessage.success('已阅读最新的海豹新闻')
   } else {
@@ -159,7 +161,7 @@ const checkNews = async (close: any) => {
   close()
 }
 const updateNews = async () => {
-  const newsInfo = await store.news()
+  const newsInfo = await getNewUtils()
   if (newsInfo.result) {
     newsData.value = newsInfo.news
     newsChecked.value = newsInfo.checked
@@ -190,7 +192,7 @@ const doUnlock = async () => {
 }
 
 const checkPassword = async () => {
-  if (!await store.checkSecurity()) {
+  if (!(await checkSecurity()).isOk) {
     ElMessageBox.alert('欢迎使用海豹核心。<br/>如果您的服务开启在公网，为了保证您的安全性，请前往<b>“综合设置->基本设置”</b>界面，设置<b>UI界面密码</b>。<br/>或切换为只有本机可访问。<br><b>如果您不了解上面在说什么，请务必设置一个密码</b>', '提示', {dangerouslyUseHTMLString: true})
   }
 }

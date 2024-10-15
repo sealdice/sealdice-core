@@ -370,7 +370,6 @@
 </template>
 
 <script lang="ts" setup>
-import {useStore} from '~/store'
 import {
   BrushFilled,
   CaretRight,
@@ -390,8 +389,9 @@ import {basicSetup, EditorView} from "codemirror"
 import {javascript} from "@codemirror/lang-javascript"
 import {isEqual, size} from "lodash-es";
 import type {JsPluginConfig, JsPluginConfigItem, JsScriptInfo} from "~/type.d.ts";
+import { postUtilsCheckCronExpr } from '~/api/utils'
+import { checkJsUpdate, deleteJs, deleteUnusedJsConfig, disableJS, enableJS, executeJS, getJsConfigs, getJsList, getJsRecord, getJsStatus, reloadJS, resetJsConfig, setJsConfigs, shutDownJS, updateJs, uploadJs } from '~/api/js'
 
-const store = useStore()
 const jsEnable = ref(false)
 const editorBox = ref(null);
 const mode = ref('console');
@@ -426,7 +426,7 @@ const defaultText = [
 const doExecute = async () => {
   jsLines.value = [];
   const txt = editor.state.doc.toString();
-  const data = await store.jsExec(txt);
+  const data = await executeJS(txt);
 
   // 优先填充print输出
   const lines = []
@@ -455,7 +455,7 @@ let jsConfigFormatErrKeys: Ref<string[]> = ref([]);
 const doTaskCronFormatCheck = async (pluginName: string, key: string, expr: string) => {
   let index = jsConfigFormatErrKeys.value.indexOf(pluginName + '/' + key);
   try{
-    await store.checkCronExpr(expr);
+    await postUtilsCheckCronExpr(expr);
     if (index !== -1) {
       jsConfigFormatErrKeys.value.splice(index, 1);
     }
@@ -494,7 +494,7 @@ const doDeleteUnusedConfig = (pluginName: any, key: any, isTask: boolean) => {
       type: 'warning',
     }
   ).then(async (data) => {
-    await store.jsDeleteUnusedConfig(pluginName, key )
+    await deleteUnusedJsConfig(pluginName, key )
     setTimeout(() => {
       // 稍等等再重载，以免出现没删掉
       refreshConfig()
@@ -513,7 +513,7 @@ const doResetJsConfig = (plginName: string, key: string) => {
         type: 'warning',
       }
   ).then(async () => {
-    await store.jsResetConfig(plginName, key)
+    await resetJsConfig(plginName, key)
     ElMessage({
       type: 'success',
       message: '成功!',
@@ -540,7 +540,7 @@ const doJsConfigRemoveItemAt = <T>(arr: T[], index: number) => {
 }
 
 const doJsConfigSave = async () => {
-  await store.jsSetConfig(jsConfig.value)
+  await setJsConfigs(jsConfig.value)
     jsConfigEdited.value = false
     ElMessage.success('已保存')
 }
@@ -583,12 +583,12 @@ onMounted(async () => {
 
   timerId = setInterval(async () => {
     console.log('refresh')
-    const data = await store.jsGetRecord();
+    const data = await getJsRecord();
 
     if (data.outputs) {
       jsLines.value.push(...data.outputs)
     }
-  }, 3000) as any;
+  }, 3000);
 })
 
 onBeforeUnmount(() => {
@@ -608,7 +608,7 @@ const filteredJsList = computed(() => jsList.value.filter((js) => {
       || js.desc?.toLowerCase()?.includes(val)
       || js.author?.toLowerCase()?.includes(val)
 }))
-const jsConfig = ref<Map<string, JsPluginConfig>>(new Map<string, JsPluginConfig>());
+const jsConfig = ref<{[key:string]: JsPluginConfig}>({});
 const uploadFileList = ref<any[]>([]);
 
 const jsVisitDir = async () => {
@@ -617,20 +617,21 @@ const jsVisitDir = async () => {
 }
 
 const jsStatus = async () => {
-  return store.jsStatus()
+  const res = await getJsStatus()
+  return res.result? res.status: false
 }
 
 const refreshList = async () => {
-  const lst = await store.jsList();
+  const lst = await getJsList();
   jsList.value = lst;
 }
 
 const refreshConfig = async () => {
-  jsConfig.value = await store.jsGetConfig();
+  jsConfig.value = await getJsConfigs();
 }
 
 const jsReload = async () => {
-  const ret = await store.jsReload()
+  const ret = await reloadJS()
   if (ret && ret.testMode) {
     ElMessage.success('展示模式无法重载脚本')
   } else {
@@ -642,7 +643,7 @@ const jsReload = async () => {
 }
 
 const jsShutdown = async () => {
-  const ret = await store.jsShutdown()
+  const ret = await shutDownJS()
   if (ret?.testMode) {
     ElMessage.success('展示模式无法关闭')
   } else if (ret?.result === true) {
@@ -656,7 +657,7 @@ const jsShutdown = async () => {
 const beforeUpload = async (file: any) => { // UploadRawFile
   let fd = new FormData()
   fd.append('file', file)
-  await store.jsUpload({ form: fd })
+  await uploadJs({ form: fd })
   refreshList();
   ElMessage.success('上传完成，请在全部操作完成后，手动重载插件')
   needReload.value = true
@@ -672,7 +673,7 @@ const doDelete = async (data: JsScriptInfo, index: number) => {
       type: 'warning',
     }
   ).then(async (data) => {
-    await store.jsDelete({ index })
+    await deleteJs(index)
     setTimeout(() => {
       // 稍等等再重载，以免出现没删掉
       refreshList()
@@ -684,7 +685,7 @@ const doDelete = async (data: JsScriptInfo, index: number) => {
 
 const changejsScriptStatus = async (name: string, status: boolean) => {
   if (status) {
-    const ret = await store.jsEnable({ name })
+    const ret = await enableJS(name)
     setTimeout(() => {
       refreshList()
     }, 1000);
@@ -692,7 +693,7 @@ const changejsScriptStatus = async (name: string, status: boolean) => {
       ElMessage.success('插件已启用，请手动重载后生效')
     }
   } else {
-    const ret = await store.jsDisable({ name })
+    const ret = await disableJS(name)
     setTimeout(() => {
       refreshList()
     }, 1000);
@@ -739,7 +740,7 @@ const jsCheck = ref<JsCheckResult>({
 
 const doCheckUpdate = async (data: any, index: number) => {
   diffLoading.value = true
-  const checkResult = await store.jsCheckUpdate({ index });
+  const checkResult = await checkJsUpdate(index);
   diffLoading.value = false
   if (checkResult.result) {
     jsCheck.value = { ...checkResult, index }
@@ -750,7 +751,7 @@ const doCheckUpdate = async (data: any, index: number) => {
 }
 
 const jsUpdate = async () => {
-  const res = await store.jsUpdate(jsCheck.value);
+  const res = await updateJs(jsCheck.value.tempFileName,jsCheck.value.index);
   if (res.result) {
     showDiff.value = false
     needReload.value = true

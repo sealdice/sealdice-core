@@ -1184,6 +1184,8 @@ import { sleep } from '~/utils'
 import * as dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { urlBase } from '~/backend';
+import { getConnectQQVersion, postConnectionDel, postConnectionQrcode, postConnectSetData, postConnectSetEnable, postGoCqCaptchaSet, postGoCqHttpRelogin, postSetSignServer, postSmsCodeSet } from '~/api/im_connections';
+import { postToolOnebot } from '~/api/others';
 
 dayjs.extend(relativeTime)
 
@@ -1308,7 +1310,7 @@ const closeCaptchaFrame = () => {
 }
 
 const submitCaptchaCode = async (i: DiceConnection, code: string) => {
-  store.ImConnectionsCaptchaSet(i, code)
+  postGoCqCaptchaSet(i.id, code)
 }
 
 const submitSmsCode = async (i: DiceConnection) => {
@@ -1316,7 +1318,7 @@ const submitSmsCode = async (i: DiceConnection) => {
   if (!smsCode.value) return;
   const code = smsCode.value;
   smsCode.value = '';
-  store.ImConnectionsSmsCodeSet(i, code)
+  postSmsCodeSet(i.id, code)
 }
 
 const setRecentLogin = () => {
@@ -1330,7 +1332,7 @@ const setRecentLogin = () => {
 }
 
 const openSocks = async () => {
-  const ret = await store.toolOnebot()
+  const ret = await postToolOnebot()
   if (ret.ok) {
     const msg = h('p', null, [
       h('div', null, '将在服务器上开启临时socks5服务，端口13325'),
@@ -1407,7 +1409,7 @@ const formClose = async () => {
 }
 
 const setEnable = async (i: DiceConnection, val: boolean) => {
-  const ret = await store.getImConnectionsSetEnable(i, val)
+  const ret = await postConnectSetEnable(i.id, val)
   i.enable = ret.enable
   curCaptchaIdSet.value = '';
   ElMessage.success('状态修改完成')
@@ -1470,7 +1472,7 @@ const doSetData = async () => {
       signServerConfig: form.signServerConfig,
     }
   }
-  const ret = await store.getImConnectionsSetData(form.endpoint, param);
+  const ret = await postConnectSetData(form.endpoint.id, param);
   if (form.endpoint.adapter) {
     form.endpoint.adapter.inPackGoCqHttpProtocol = form.protocol;
   }
@@ -1479,7 +1481,7 @@ const doSetData = async () => {
 }
 const showSetSignServerDialog = async (i: DiceConnection) => {
   form.endpoint = i;
-  const ret = await store.getImConnectionsSetSignServerUrl(form.endpoint, "",false, form.signServerVersion);
+  const ret = await postSetSignServer(form.endpoint.id, "",false, form.signServerVersion);
   if (ret.result) {
     form.signServerUrl = ret.signServerUrl
     switch (form.signServerUrl) {
@@ -1511,7 +1513,12 @@ const doSetSignServer = async() =>{
       form.signServerUrl = "lagrange";
       break;
   }
-  const ret = await store.getImConnectionsSetSignServerUrl(form.endpoint, form.signServerUrl, true, form.signServerVersion);
+  const ret = await postSetSignServer(
+    form.endpoint.id, 
+    ["sealdice","lagrange"].includes(form.signServerUrl) 
+    ? form.signServerUrl as "sealdice"|"lagrange" : '', 
+    true, 
+    form.signServerVersion);
   if (ret.result) {
     ElMessage.success('修改完成，请手动启用账号以生效');
   } else {
@@ -1573,7 +1580,7 @@ const gocqhttpReLogin = async (i: DiceConnection) => {
   if (curConn.value && curConn.value.adapter) {
     curConn.value.adapter.loginState = goCqHttpStateCode.Init;
   }
-  store.gocqhttpReloginImConnection(i).then(theConn => {
+  postGoCqHttpRelogin(i.id).then(theConn => {
     curConnId.value = i.id;
   }).finally(() => {
     form.isEnd = true
@@ -1716,7 +1723,7 @@ onBeforeMount(async () => {
     delete store.curDice.qrcodes[i.id]
   }
 
-  const versionsRes = await store.getSupportedQQVersions();
+  const versionsRes = await getConnectQQVersion();
   if (versionsRes.result) {
     supportedQQVersions.value = ['', ...versionsRes.versions]
   }
@@ -1737,7 +1744,7 @@ onBeforeMount(async () => {
 
       // 获取二维码
       if (i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode) {
-        store.curDice.qrcodes[i.id] = (await store.getImConnectionsQrCode(i)).img
+        store.curDice.qrcodes[i.id] = (await postConnectionQrcode(i.id)).img
       }
 
       if (i.id === curConnId.value) {
@@ -1777,7 +1784,7 @@ const doRemove = async (i: DiceConnection) => {
       type: 'warning',
     }
   ).then(async () => {
-    await store.removeImConnection(i)
+    await postConnectionDel(i.id)
     await store.getImConnections()
     ElMessage({
       type: 'success',

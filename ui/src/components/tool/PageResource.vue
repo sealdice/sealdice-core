@@ -5,6 +5,7 @@ import {filesize} from "filesize";
 import {urlBase} from "~/backend";
 import {CopyDocument, Delete, Download, Search, Upload} from "@element-plus/icons-vue";
 import ClipboardJS from 'clipboard'
+import { createResource,deleteResource as deleteResourceApi, getResourcePage } from "~/api/resource";
 
 const store = useStore();
 
@@ -18,7 +19,7 @@ const fileList = ref<any[]>([])
 
 const refreshResources = async () => {
   loading.value = true
-  const imagesRes = await store.resourceList("image");
+  const imagesRes = await getResourcePage("image");
   if (imagesRes.result) {
     images.value = imagesRes.data
   } else {
@@ -37,7 +38,7 @@ const deleteResource = async (resource: Resource) => {
         type: 'warning',
       }
   ).then(async () => {
-    const res = await store.resourceDelete(resource.path);
+    const res = await deleteResourceApi(resource.path);
     if (res.result) {
       ElMessage.success("删除成功")
     } else {
@@ -64,7 +65,7 @@ const beforeUpload = async (file: any) => { // UploadRawFile
   let fd = new FormData()
   fd.append('files', file)
   try {
-    const resp = await store.resourceUpload({form: fd});
+    const resp = await createResource(file)
     if (resp.result) {
       ElMessage.success('上传完成');
     } else {

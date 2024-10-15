@@ -592,6 +592,7 @@ import {
   Upload
 } from '@element-plus/icons-vue'
 import { cloneDeep, toNumber } from 'lodash-es';
+import { postMailTest, postUploadToUpgrade } from '~/api/dice';
 import { useStore } from '~/store';
 import { objDiff, passwordHash } from '~/utils';
 
@@ -608,7 +609,8 @@ const beforeUpload = async (file: any) => { // UploadRawFile
   let fd = new FormData()
   fd.append('files', file)
   try {
-    const resp = await store.diceUploadToUpgrade({ form: fd });
+    // const resp = 
+    await postUploadToUpgrade(file)
     ElMessage.success('上传完成，程序即将离线');
   } catch (e: any) {
     ElMessage.error(e.toString());
@@ -735,7 +737,7 @@ const nameWrapUncheck = (v: boolean) => {
 }
 
 const mailTest = async () => {
-  const res = await store.diceMailTest()
+  const res = await postMailTest()
   if (res.result) {
     ElMessage.success("已尝试发送测试邮件")
   } else {

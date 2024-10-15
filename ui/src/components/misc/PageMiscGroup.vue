@@ -144,6 +144,7 @@ import {
 import * as dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { now, sortBy } from 'lodash-es'
+import { getGroupList, postQuitGroup, setGroup } from '~/api/group'
 
 dayjs.extend(relativeTime)
 
@@ -203,7 +204,7 @@ const groupItems = computed<any[]>(() => {
 })
 
 const refreshList = async () => {
-  const data = await store.groupList()
+  const data = await getGroupList()
   groupList.value = data
 }
 
@@ -219,7 +220,7 @@ const quitTextSave = ref(false);
 const saveOne = async (i: any, index: number) => {
   // await store.backupConfigSave(cfg.value)
   // console.log(222, i, index)
-  await store.groupSetOne(i)
+  await setGroup(i)
   i.changed = false
   ElMessage.success('已保存')
 }
@@ -250,7 +251,7 @@ const quitGroup = async (i: any, index: number, diceId: string) => {
       ])
     }
   ).then(async (data) => {
-    await store.setGroupQuit({
+    await postQuitGroup({
       groupId: i.groupId,
       diceId,
       silence: data.value === 'NO',

@@ -8,7 +8,7 @@ export interface JsScriptInfo {
   license: string;
   homepage: string;
   desc: string;
-  grant?: any;
+  grant?: string;
   updateTime: number;
   installTime: number;
   errText: string;

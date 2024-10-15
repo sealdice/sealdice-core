@@ -38,19 +38,13 @@
 
 <script lang='ts' setup>
 import {Download, Refresh, Search} from '@element-plus/icons-vue';
-import {urlPrefix, useStore} from '~/store';
-import {backend, urlBase} from '~/backend'
-
+import { getCensorStatus } from '~/api/censor'
 onBeforeMount(() => {
   refreshCensorStatus()
 })
 
 import {useCensorStore} from "~/components/mod/censor/censor";
 
-const store = useStore()
-const token = store.token
-
-const url = (p: string) => urlPrefix + "/censor/" + p;
 const censorEnable = ref<boolean>(false)
 
 const censorStore = useCensorStore()
@@ -60,7 +54,7 @@ const refreshCensorStatus = async () => {
     result: true,
     enable: boolean,
     isLoading: boolean
-  } = await backend.get(url("status"), {});
+  } = await getCensorStatus()
   if (status.result) {
     censorEnable.value = status.enable
   }

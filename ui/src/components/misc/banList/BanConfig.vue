@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { DocumentChecked } from "@element-plus/icons-vue";
-import { useStore } from "~/store";
+import { getBanConfig, setBanConfig } from "~/api/banconfig";
 import type { BanConfig } from "~/type";
-
-const store = useStore()
 
 const banConfig = ref<BanConfig>({} as BanConfig)
 const modified = ref<boolean>(false)
 
 const banConfigSave = async () => {
-  await store.banConfigSet(banConfig.value)
+  await setBanConfig(banConfig.value)
   await configGet()
   ElMessage.success('已保存')
   modified.value = false
@@ -19,7 +17,7 @@ const banConfigSave = async () => {
 }
 
 const configGet = async () => {
-  banConfig.value = await store.banConfigGet()
+  banConfig.value = await getBanConfig()
 }
 
 onBeforeMount(async () => {

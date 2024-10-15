@@ -184,6 +184,7 @@ import {
 } from '@element-plus/icons-vue'
 import {sum} from "lodash-es";
 import { dayjs } from 'element-plus'
+import { getBackupConfig, getBackupList, postBackupBatchDel, postBackupDel, postDoBackup, setBackupConfig } from "~/api/backup";
 
 const store = useStore()
 
@@ -284,12 +285,12 @@ watch(() => cfg.value.autoBackupSelectionList, (v) => {
 })
 
 const refreshList = async () => {
-  const lst = await store.backupList()
+  const lst = await getBackupList()
   data.value = lst
 }
 
 const configGet = async () => {
-  const data = await store.backupConfigGet()
+  const data = await getBackupConfig()
   cfg.value = data
   cfg.value.autoBackupSelectionList = parseSelection(data.autoBackupSelection)
   if (data.backupCleanTrigger) {
@@ -311,7 +312,7 @@ const bakDeleteConfirm = async (name: string) => {
     type: 'warning'
   })
   if (ret) {
-    const r = await store.backupDelete(name)
+    const r = await postBackupDel(name)
     if (!r.success) {
       ElMessage.error('删除失败')
     } else {
@@ -349,7 +350,7 @@ const bakBatchDeleteConfirm = async () => {
     type: 'warning'
   })
   if (ret) {
-    const res = await store.backupBatchDelete(selectedBaks.value.map(bak => bak.name))
+    const res = await postBackupBatchDel(selectedBaks.value.map(bak => bak.name))
     if (res.result) {
       ElMessage.success('已删除所选备份')
     } else {
@@ -361,9 +362,7 @@ const bakBatchDeleteConfirm = async () => {
 }
 
 const doBackup = async () => {
-  const ret = await store.backupDoSimple({
-    selection: formatSelection(backupSelections.value)
-  })
+  const ret = await postDoBackup( formatSelection(backupSelections.value))
   showBackup.value = false
   await refreshList()
   if (ret.testMode) {
@@ -374,7 +373,7 @@ const doBackup = async () => {
 }
 
 const doSave = async () => {
-  await store.backupConfigSave(cfg.value)
+  await setBackupConfig(cfg.value)
   ElMessage.success('已保存')
 }
 

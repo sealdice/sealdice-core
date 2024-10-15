@@ -102,6 +102,7 @@ import {QuestionFilled} from "@element-plus/icons-vue";
 import {useStore} from "~/store";
 import {cloneDeep} from "lodash-es";
 import type {AdvancedConfig} from "~/type.d.ts";
+import { getCustomReplyDebug, postCustomReplyDebug } from "~/api/configs";
 
 const emit = defineEmits(['update:advanced-settings-show'])
 
@@ -118,7 +119,7 @@ const replyDebugMode = ref(false);
 
 onBeforeMount(async () => {
   config.value = await store.diceAdvancedConfigGet()
-  replyDebugMode.value = (await store.customReplyDebugModeGet()).value
+  replyDebugMode.value = (await getCustomReplyDebug()).value
   nextTick(() => {
     modified.value = false
   })
@@ -136,7 +137,7 @@ watch(() => replyDebugMode.value, (newValue, oldValue) => { //直接监听
 
 const submit = async () => {
   await store.diceAdvancedConfigSet(config.value)
-  store.customReplyDebugModeSet(replyDebugMode.value);
+  await postCustomReplyDebug(replyDebugMode.value);
   config.value = await store.diceAdvancedConfigGet()
   modified.value = false
   emit('update:advanced-settings-show', config.value.show)
@@ -147,7 +148,7 @@ const submit = async () => {
 
 const submitGiveup = async () => {
   config.value = await store.diceAdvancedConfigGet()
-  replyDebugMode.value = (await store.customReplyDebugModeGet()).value
+  replyDebugMode.value = (await getCustomReplyDebug()).value
   modified.value = false
   nextTick(() => {
     modified.value = false
