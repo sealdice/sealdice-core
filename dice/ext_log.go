@@ -213,7 +213,15 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 						VarSetValueStr(ctx, "$t记录名称", name)
 						VarSetValueInt64(ctx, "$t当前记录条数", lines)
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_成功"))
+
+						logEnabledPrompt := DiceFormatTmpl(ctx, "日志:记录_开启_成功")
+						// TODO: 到这里相当于全文 query 了两遍日志。可以优化吗？
+						lastRecord, err := model.LogGetLastLine(ctx.Dice.DBLogs, group.GroupID, name)
+						if err == nil {
+							logEnabledPrompt = fmt.Sprintf("[CQ:reply,id=%v] %s", lastRecord.RawMsgID, logEnabledPrompt)
+						}
+
+						ReplyToSender(ctx, msg, logEnabledPrompt)
 					} else {
 						VarSetValueStr(ctx, "$t记录名称", name)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_无此记录"))
