@@ -29,6 +29,7 @@ import (
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
 	log "sealdice-core/utils/kratos"
+	"sealdice-core/utils/paniclog"
 )
 
 /**
@@ -196,6 +197,11 @@ func main() {
 	if err != nil {
 		return
 	}
+	// 提前到最开始初始化所有日志
+	// 1. 初始化全局Kartos日志
+	log.InitZapWithKartosLog(zapcore.Level(opts.LogLevel))
+	// 2. 初始化全局panic捕获日志
+	paniclog.InitPanicLog()
 
 	if opts.Version {
 		fmt.Println(dice.VERSION.String())
@@ -227,9 +233,6 @@ func main() {
 	}
 
 	_ = os.MkdirAll("./data", 0o755)
-
-	// 初始化全局Kartos日志，由于DICE部分已经完全被砍掉了，所以原本的日志等级用来设置控制台展示的日志等级或许更合适
-	log.InitZapWithKartosLog(zapcore.Level(opts.LogLevel))
 
 	// 提早初始化是为了读取ServiceName
 	diceManager := &dice.DiceManager{}
