@@ -275,7 +275,7 @@ func FormatDiceIDQQChGroup(guildID, channelID string) string {
 
 func isLink(text string) bool {
 	// 正则表达式匹配三种情况：file URI、http(s) URL 和 base64 URI
-	regex := `^(file:\/\/\/[^\s]+|(http|https):\/\/[^\s]+|base64:\/\/[a-zA-Z0-9+/=]+)$`
+	regex := `^[a-z]+://`
 	match, _ := regexp.MatchString(regex, text)
 	return match
 }
