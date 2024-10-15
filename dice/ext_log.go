@@ -260,7 +260,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				go getAndUpload(groupID, logName)
+				getAndUpload(groupID, logName)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "get") {
 				logName := group.LogCurName
@@ -274,7 +274,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				go getAndUpload(group.GroupID, logName)
+				getAndUpload(group.GroupID, logName)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "end") {
 				if group.LogCurName == "" {
@@ -294,6 +294,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				group.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
+				// Note: 2024-10-15 经过简单测试，似乎能缓解#1034的问题，但无法根本解决。
 				go getAndUpload(group.GroupID, group.LogCurName)
 				group.LogCurName = ""
 				group.UpdatedAtTime = time.Now().Unix()
