@@ -82,7 +82,6 @@ func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
 		Select("binding_sheet_id").
 		Where("id = ?", id).
 		First(&item).Error
-	//panic("喵了个咪")
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", err
 	}
