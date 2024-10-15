@@ -24,7 +24,6 @@ func GroupInfoListGet(db *sqlx.DB, callback func(id string, updatedAt int64, dat
 
 		err = rows.Scan(&id, &pUpdatedAt, &data)
 		if err != nil {
-			fmt.Println("!!!", err.Error())
 			return err
 		}
 
