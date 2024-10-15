@@ -273,6 +273,13 @@ func FormatDiceIDQQChGroup(guildID, channelID string) string {
 	return fmt.Sprintf("QQ-CH-Group:%s-%s", guildID, channelID)
 }
 
+func isLink(text string) bool {
+	// 正则表达式匹配三种情况：file URI、http(s) URL 和 base64 URI
+	regex := `^(file:\/\/\/[^\s]+|(http|https):\/\/[^\s]+|base64:\/\/[a-zA-Z0-9+/=]+)$`
+	match, _ := regexp.MatchString(regex, text)
+	return match
+}
+
 func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *MessageQQ) error {
 	msgQQType2 := new(MessageQQArray)
 	err := json.Unmarshal([]byte(message), msgQQType2)
@@ -289,7 +296,15 @@ func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *Mess
 		case "text":
 			cqMessage.WriteString(i.Data["text"].(string))
 		case "image":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", i.Data["file"]))
+			// 兼容NC的URL，这里的转换目前只有收到的时候才会用，所以如果收到的file没有http/https前缀，那目前可以判断一定是nc的情况，这样的话，我们读取URL。
+			fileurl := fmt.Sprintf("[CQ:image,file=%v]", i.Data["file"])
+			if isLink(fileurl) {
+				// 是正常的图片
+				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", fileurl))
+			} else {
+				// 非正常图片，取URL
+				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", i.Data["url"]))
+			}
 		case "face":
 			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64，这是go解析的问题
 			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", i.Data["id"]))
@@ -329,8 +344,15 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 		// 将 CQ 拼入数组
 		switch cq.Type {
 		case "image":
-			i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
-			arr = append(arr, i)
+			// 同理，兼容NC的URL，这种情况一般是用户需要发送
+			if isLink(cq.Args["file"]) {
+				i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
+				arr = append(arr, i)
+			} else {
+				i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["url"]}}
+				arr = append(arr, i)
+			}
+
 		case "record":
 			i := OneBotV11ArrMsgItem[OneBotV11MsgItemRecordType]{Type: "record", Data: OneBotV11MsgItemRecordType{File: cq.Args["file"]}}
 			arr = append(arr, i)
