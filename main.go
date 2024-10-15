@@ -202,6 +202,8 @@ func main() {
 	log.InitZapWithKartosLog(zapcore.Level(opts.LogLevel))
 	// 2. 初始化全局panic捕获日志
 	paniclog.InitPanicLog()
+	// 3. 提示日志打印
+	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
 
 	if opts.Version {
 		fmt.Println(dice.VERSION.String())

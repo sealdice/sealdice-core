@@ -107,7 +107,6 @@ func InitZapWithKartosLog(level zapcore.Level) {
 
 	// 设置全局日志记录器，默认全局记录器为SEAL命名空间
 	global.SetLogger(NewZapLogger(originZapLogger.Named(LOG_SEAL)))
-	Info("海豹全局日志核心已启动。当海豹出现非闪退问题时，可考虑提供data/main.log至开发者或提交至ISSUE.")
 }
 
 func GetWebLogger() *Helper {

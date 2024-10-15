@@ -27,7 +27,5 @@ func InitPanicLog() {
 	if err != nil {
 		log.Fatalf("Failed to write separator to log file: %v", err)
 	}
-	// 重定向
-	log.Info("重定向Panic日志模块已启动，当海豹突然豹炸时，请查看data/main.log及data/panic.log，并在必要时将其提供给群友/开发者")
 	redirectStderr(f)
 }
