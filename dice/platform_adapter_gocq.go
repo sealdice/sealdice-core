@@ -296,7 +296,7 @@ func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *Mess
 		case "text":
 			cqMessage.WriteString(i.Data["text"].(string))
 		case "image":
-			// 兼容NC的URL，这里的转换目前只有收到的时候才会用，所以如果收到的file没有http/https前缀，那目前可以判断一定是nc的情况，这样的话，我们读取URL。
+			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
 			fileurl := fmt.Sprintf("[CQ:image,file=%v]", i.Data["file"])
 			if isLink(fileurl) {
 				// 是正常的图片
