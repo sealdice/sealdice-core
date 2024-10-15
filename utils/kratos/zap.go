@@ -107,6 +107,8 @@ func InitZapWithKartosLog(level zapcore.Level) {
 
 	// 设置全局日志记录器，默认全局记录器为SEAL命名空间
 	global.SetLogger(NewZapLogger(originZapLogger.Named(LOG_SEAL)))
+	// 设置GORM记录器
+	wrapLogger(originZapLogger.Named("GORM")).SetAsDefault()
 }
 
 func GetWebLogger() *Helper {
