@@ -196,7 +196,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 
 				if name != "" {
-					lines, exists := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, name)
+					lineCount, lastLine, exists := model.LogGetCountAndLastLine(ctx.Dice.DBLogs, group.GroupID, name)
 
 					if exists {
 						if groupNotActiveCheck() {
@@ -208,15 +208,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 						group.UpdatedAtTime = time.Now().Unix()
 
 						VarSetValueStr(ctx, "$t记录名称", name)
-						VarSetValueInt64(ctx, "$t当前记录条数", lines)
+						VarSetValueInt64(ctx, "$t当前记录条数", lineCount)
 
-						logEnabledPrompt := DiceFormatTmpl(ctx, "日志:记录_开启_成功")
-						// TODO: 到这里相当于全文 query 了两遍日志。可以优化吗？
-						lastRecord, err := model.LogGetLastLine(ctx.Dice.DBLogs, group.GroupID, name)
-						if err == nil {
-							logEnabledPrompt = fmt.Sprintf("[CQ:reply,id=%v] %s", lastRecord.RawMsgID, logEnabledPrompt)
-						}
-
+						logEnabledPrompt := fmt.Sprintf("[CQ:reply,id=%v] %s", lastLine.RawMsgID, DiceFormatTmpl(ctx, "日志:记录_开启_成功"))
 						ReplyToSender(ctx, msg, logEnabledPrompt)
 					} else {
 						VarSetValueStr(ctx, "$t记录名称", name)
