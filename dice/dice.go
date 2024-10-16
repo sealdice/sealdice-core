@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
@@ -20,42 +19,13 @@ import (
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
 	"github.com/tidwall/buntdb"
-	"go.uber.org/zap"
-
 	rand2 "golang.org/x/exp/rand"
 	"golang.org/x/exp/slices"
 
+	log "sealdice-core/utils/kratos"
+
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
-)
-
-var (
-	APPNAME = "SealDice"
-
-	// VERSION 版本号，按固定格式，action 在构建时可能会自动注入部分信息
-	// 正式：主版本号+yyyyMMdd，如 1.4.5+20240308
-	// dev：主版本号-dev+yyyyMMdd.7位hash，如 1.4.5-dev+20240308.1a2b3c4
-	// rc：主版本号-rc.序号+yyyyMMdd.7位hash如 1.4.5-rc.0+20240308.1a2b3c4，1.4.5-rc.1+20240309.2a3b4c4，……
-	VERSION = semver.MustParse(VERSION_MAIN + VERSION_PRERELEASE + VERSION_BUILD_METADATA)
-
-	// VERSION_MAIN 主版本号
-	VERSION_MAIN = "1.4.6"
-	// VERSION_PRERELEASE 先行版本号
-	VERSION_PRERELEASE = "-dev"
-	// VERSION_BUILD_METADATA 版本编译信息
-	VERSION_BUILD_METADATA = ""
-
-	// APP_CHANNEL 更新频道，stable/dev，在 action 构建时自动注入
-	APP_CHANNEL = "dev" //nolint:revive
-
-	VERSION_CODE = int64(1004005) //nolint:revive
-
-	VERSION_JSAPI_COMPATIBLE = []*semver.Version{
-		VERSION,
-		semver.MustParse("1.4.5"),
-		semver.MustParse("1.4.4"),
-		semver.MustParse("1.4.3"),
-	}
 )
 
 type CmdExecuteResult struct {
@@ -112,6 +82,9 @@ type ExtInfo struct {
 	dbMu sync.Mutex `yaml:"-"` // 互斥锁
 	init bool       `yaml:"-"` // 标记Storage是否已初始化
 
+	// 定时任务列表，用于避免 task 失去引用
+	taskList []*JsScriptTask `yaml:"-" json:"-"`
+
 	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
 	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
 
@@ -129,10 +102,10 @@ type ExtInfo struct {
 	OnLoad              func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
 }
 
-type RootConfig struct {
-	Name       string `yaml:"name"`       // 名称，默认为default
-	DataDir    string `yaml:"dataDir"`    // 数据路径，为./data/{name}，例如data/default
-	IsLogPrint bool   `yaml:"isLogPrint"` // 是否在控制台打印log
+// RootConfig TODO：历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
+type RootConfig struct { //nolint:revive
+	Name    string `yaml:"name"`    // 名称，默认为default
+	DataDir string `yaml:"dataDir"` // 数据路径，为./data/{name}，例如data/default
 }
 
 type ExtDefaultSettingItem struct {
@@ -160,11 +133,11 @@ type Dice struct {
 	RollParser      *DiceRollParser        `yaml:"-"`
 	LastUpdatedTime int64                  `yaml:"-"`
 	TextMap         map[string]*wr.Chooser `yaml:"-"`
-	BaseConfig      RootConfig             `yaml:"-"`
+	BaseConfig      BaseConfig             `yaml:"-"`
 	DBData          *sqlx.DB               `yaml:"-"` // 数据库对象
 	DBLogs          *sqlx.DB               `yaml:"-"` // 数据库对象
-	Logger          *zap.SugaredLogger     `yaml:"-"` // 日志
-	LogWriter       *logger.WriterX        `yaml:"-"` // 用于api的log对象
+	Logger          *log.Helper            `yaml:"-"` // 日志
+	LogWriter       *log.WriterX           `yaml:"-"` // 用于api的log对象
 	IsDeckLoading   bool                   `yaml:"-"` // 正在加载中
 
 	// 由于被导出的原因，暂时不迁移至 config
@@ -184,6 +157,10 @@ type Dice struct {
 	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
 	JsLoop           *eventloop.EventLoop   `yaml:"-" json:"-"`
 	JsScriptList     []*JsScriptInfo        `yaml:"-" json:"-"`
+	JsScriptCron     *cron.Cron             `yaml:"-" json:"-"`
+	JsScriptCronLock *sync.Mutex            `yaml:"-" json:"-"`
+	// 重载使用的互斥锁
+	JsReloadLock sync.Mutex `yaml:"-" json:"-"`
 	// 内置脚本摘要表，用于判断内置脚本是否有更新
 	JsBuiltinDigestSet map[string]bool `yaml:"-" json:"-"`
 	// 当前在加载的脚本路径，用于关联 jsScriptInfo 和 ExtInfo
@@ -200,12 +177,16 @@ type Dice struct {
 
 	CensorManager *CensorManager `json:"-" yaml:"-"`
 
-	Config              Config `json:"-" yaml:"-"`
+	Config Config `json:"-" yaml:"-"`
 
 	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
-	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+	ContainerMode  bool           `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 
-	IsAlreadyLoadConfig bool   `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
+	// 用于检查是否需要插入到数据库的哈希表 150因为没有对应插入 到时候这个就没用了
+	SaveDatabaseInsertCheckMapFlag sync.Once                `json:"-" yaml:"-"`
+	SaveDatabaseInsertCheckMap     *SyncMap[string, string] `json:"-" yaml:"-"`
+
+	IsAlreadyLoadConfig bool `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 }
 
 func (d *Dice) MarkModified() {
@@ -241,10 +222,13 @@ func (d *Dice) Init() {
 		fmt.Println(err)
 	}
 
-	log := logger.Init(filepath.Join(d.BaseConfig.DataDir, "record.log"), d.BaseConfig.Name, d.BaseConfig.IsLogPrint)
+	log := logger.Init()
 	d.Logger = log.Logger
 	d.LogWriter = log.WX
 
+	initVerify()
+
+	d.BaseConfig.CommandCompatibleMode = true
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)

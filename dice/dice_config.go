@@ -159,6 +159,10 @@ type BaseConfig struct {
 	AliveNoticeValue        string         `yaml:"aliveNoticeValue" json:"aliveNoticeValue"`         // 定时通知间隔
 	ReplyDebugMode          bool           `yaml:"replyDebugMode" json:"replyDebugMode"`             // 回复调试
 	PlayerNameWrapEnable    bool           `yaml:"playerNameWrapEnable" json:"playerNameWrapEnable"` // 启用玩家名称外框
+
+	// TODO: 历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
+	Name    string `yaml:"name"`    // 名称，默认为default
+	DataDir string `yaml:"dataDir"` // 数据路径，为./data/{name}，例如data/default
 }
 
 type RateLimitConfig struct {

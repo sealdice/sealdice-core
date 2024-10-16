@@ -733,7 +733,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".rc <属性>豁免 // .rc 力量豁免\n" +
 		".rc <表达式> // .rc 力量+3\n" +
 		".rc 优势 <表达式> // .rc 优势 力量+4\n" +
-		".rc 劣势 <表达式> (原因) // .rc 劣势 力量+4 推一下试试\n" +
+		".rc 劣势 <表达式> [<原因>] // .rc 劣势 力量+4 推一下试试\n" +
 		".rc <表达式> @某人 // 对某人做检定"
 
 	cmdRc := &CmdItemInfo{
@@ -1503,8 +1503,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 	}
 
-	helpDnd := ".dnd (<数量>) // 制卡指令，返回<数量>组人物属性，最高为10次\n" +
-		".dndx (<数量>) // 制卡指令，但带有属性名，最高为10次"
+	helpDnd := ".dnd [<数量>] // 制卡指令，返回<数量>组人物属性，最高为10次\n" +
+		".dndx [<数量>] // 制卡指令，但带有属性名，最高为10次"
 
 	cmdDnd := &CmdItemInfo{
 		Name:      "dnd",

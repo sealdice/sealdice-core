@@ -14,6 +14,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
+	"github.com/robfig/cron/v3"
+	"github.com/samber/lo"
 
 	"sealdice-core/dice"
 )
@@ -28,6 +30,12 @@ type VersionDetail struct {
 	Patch         uint64 `json:"patch"`
 	Prerelease    string `json:"prerelease"`
 	BuildMetaData string `json:"buildMetaData"`
+}
+
+func preInfo(c echo.Context) error {
+	return c.JSON(200, map[string]interface{}{
+		"testMode": dm.JustForTest,
+	})
 }
 
 func baseInfo(c echo.Context) error {
@@ -82,6 +90,7 @@ func baseInfo(c echo.Context) error {
 		ExtraTitle     string        `json:"extraTitle"`
 		OS             string        `json:"OS"`
 		Arch           string        `json:"arch"`
+		JustForTest    bool          `json:"justForTest"`
 		ContainerMode  bool          `json:"containerMode"`
 	}{
 		AppName:        dice.APPNAME,
@@ -99,6 +108,7 @@ func baseInfo(c echo.Context) error {
 		ExtraTitle:     extraTitle,
 		OS:             runtime.GOOS,
 		Arch:           runtime.GOARCH,
+		JustForTest:    dm.JustForTest,
 		ContainerMode:  dm.ContainerMode,
 	})
 }
@@ -291,7 +301,10 @@ func logFetchAndClear(c echo.Context) error {
 	return info
 }
 
-var lastExecTime int64
+var (
+	lastPrivateExecTime int64
+	lastGroupExecTime   int64
+)
 
 func DiceExec(c echo.Context) error {
 	if !doAuth(c) {
@@ -299,8 +312,9 @@ func DiceExec(c echo.Context) error {
 	}
 
 	v := struct {
-		ID      string `form:"id" json:"id"`
-		Message string `form:"message"`
+		ID          string `form:"id" json:"id"`
+		Message     string `form:"message"`
+		MessageType string `form:"messageType"`
 	}{}
 	err := c.Bind(&v)
 	if err != nil {
@@ -309,40 +323,46 @@ func DiceExec(c echo.Context) error {
 	if v.Message == "" {
 		return c.JSON(400, "格式错误")
 	}
-	now := time.Now().UnixMilli()
 	timeNeed := int64(500)
 	if dm.JustForTest {
 		timeNeed = 80
 	}
-	if now-lastExecTime < timeNeed {
-		return c.JSON(400, "过于频繁")
-	}
-	lastExecTime = now
 
-	// pa := dice.PlatformAdapterHttp{
-	// 	RecentMessage: []dice.HttpSimpleMessage{},
-	// }
-	// tmpEp := &dice.EndPointInfo{
-	// 	EndPointInfoBase: dice.EndPointInfoBase{
-	// 		Id:       "1",
-	// 		Nickname: "海豹核心",
-	// 		State:    2,
-	// 		UserId:   "UI:1000",
-	// 		Platform: "UI",
-	// 		Enable:   true,
-	// 	},
-	// 	Adapter: &pa,
-	// }
+	now := time.Now().UnixMilli()
+	userID := "UI:1001"
+	messageType := "private"
+	groupID := ""
+	groupName := ""
+	groupRole := ""
+	if v.MessageType == "group" {
+		userID = "UI:1002"
+		messageType = "group"
+		groupID = "UI-Group:2001"
+		groupName = "UI-Group 2001"
+		groupRole = "owner"
+		if now-lastGroupExecTime < timeNeed {
+			return c.JSON(400, "过于频繁")
+		}
+		lastGroupExecTime = now
+	} else {
+		if now-lastPrivateExecTime < timeNeed {
+			return c.JSON(400, "过于频繁")
+		}
+		lastPrivateExecTime = now
+	}
+
 	msg := &dice.Message{
-		MessageType: "private",
+		MessageType: messageType,
 		Message:     v.Message,
 		Platform:    "UI",
 		Sender: dice.SenderBase{
-			Nickname: "User",
-			UserID:   "UI:1001",
+			Nickname:  "User",
+			UserID:    userID,
+			GroupRole: groupRole,
 		},
+		GroupID:   groupID,
+		GroupName: groupName,
 	}
-	// pa := myDice.UIEndpoint.Adapter.(*dice.PlatformAdapterHttp)
 	myDice.ImSession.Execute(myDice.UIEndpoint, msg, false)
 	return c.JSON(200, "ok")
 }
@@ -411,11 +431,31 @@ func onebotTool(c echo.Context) error {
 	return resp
 }
 
+type apiPluginConfig struct {
+	PluginName string             `json:"pluginName"`
+	Configs    []*dice.ConfigItem `json:"configs" jsbind:"configs"`
+}
+
+type getConfigResp map[string]*apiPluginConfig
+
+type setConfigReq map[string]*apiPluginConfig
+
 func handleGetConfigs(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	data, err := json.Marshal(myDice.ConfigManager.Plugins)
+	resp := getConfigResp{}
+	for k, v := range myDice.ConfigManager.Plugins {
+		configs := make([]*dice.ConfigItem, 0, len(v.OrderedConfigKeys))
+		for _, key := range v.OrderedConfigKeys {
+			configs = append(configs, v.Configs[key])
+		}
+		resp[k] = &apiPluginConfig{
+			PluginName: v.PluginName,
+			Configs:    configs,
+		}
+	}
+	data, err := json.Marshal(resp)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to marshal data")
 	}
@@ -427,15 +467,25 @@ func handleSetConfigs(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	var data map[string]dice.PluginConfig
+	var data setConfigReq
 	err := c.Bind(&data)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
 	}
+	var errors []error
 	for k, v := range data {
 		for _, i := range v.Configs {
-			myDice.ConfigManager.SetConfig(k, i.Key, i.Value)
+			err := myDice.ConfigManager.SetConfig(k, i.Key, i.Value)
+			if err != nil {
+				errors = append(errors, err)
+			}
 		}
+	}
+	if len(errors) > 0 {
+		errMsg := strings.Join(lo.Map(errors, func(e error, _ int) string {
+			return e.Error()
+		}), "\n")
+		return c.JSON(http.StatusInternalServerError, errMsg)
 	}
 	return c.JSON(http.StatusOK, nil)
 }
@@ -487,12 +537,29 @@ func getToken(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{})
 }
 
+func checkCronExpr(c echo.Context) error {
+	req := make(map[string]string)
+	err := c.Bind(&req)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
+	}
+	if _, exist := req["expr"]; !exist {
+		return echo.NewHTTPError(http.StatusBadRequest, "No expression")
+	}
+	_, err = cron.ParseStandard(req["expr"])
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid expression")
+	}
+	return c.JSON(http.StatusOK, nil)
+}
+
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
 
 	prefix := "/sd-api"
 
+	e.GET(prefix+"/preInfo", preInfo)
 	e.GET(prefix+"/baseInfo", baseInfo)
 	e.GET(prefix+"/hello", hello2)
 	e.GET(prefix+"/log/fetchAndClear", logFetchAndClear)
@@ -529,6 +596,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)
+	e.POST(prefix+"/im_connections/set_sign_server", ImConnectionsRWSignServerUrl)
 	e.POST(prefix+"/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
 	e.POST(prefix+"/im_connections/walleQRelogin", ImConnectionsWalleQRelogin)
 	e.GET(prefix+"/im_connections/gocq_config_download.zip", ImConnectionsGocqConfigDownload)
@@ -561,7 +629,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/checkSecurity", checkSecurity)
 
 	e.GET(prefix+"/backup/list", backupGetList)
-	e.POST(prefix+"/backup/do_backup", backupSimple)
+	e.POST(prefix+"/backup/do_backup", backupExec)
 	e.GET(prefix+"/backup/config_get", backupConfigGet)
 	e.POST(prefix+"/backup/config_set", backupConfigSave)
 	e.GET(prefix+"/backup/download", backupDownload)
@@ -636,6 +704,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/utils/news", getNews)
 	e.POST(prefix+"/utils/check_news", checkNews)
 	e.GET(prefix+"/utils/get_token", getToken)
+	e.POST(prefix+"/utils/check_cron_expr", checkCronExpr)
+	e.GET(prefix+"/utils/check_network_health", checkNetworkHealth)
 
 	e.POST(prefix+"/censor/restart", censorRestart)
 	e.POST(prefix+"/censor/stop", censorStop)
@@ -649,4 +719,12 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/censor/files/template/toml", censorGetTomlFileTemplate)
 	e.GET(prefix+"/censor/files/template/txt", censorGetTxtFileTemplate)
 	e.GET(prefix+"/censor/logs/page", censorGetLogPage)
+
+	e.GET(prefix+"/resource/page", resourceGetList)
+	e.GET(prefix+"/resource/download", resourceDownload)
+	e.POST(prefix+"/resource", resourceUpload)
+	e.DELETE(prefix+"/resource", resourceDelete)
+	e.GET(prefix+"/resource/data", resourceGetData)
+
+	e.GET(prefix+"/verify/generate_code", verifyGenerateCode)
 }

@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -14,8 +15,16 @@ import (
 
 	"github.com/google/uuid"
 
+	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 )
+
+type LagrangeLoginInfo struct {
+	UIN               int64
+	SignServerUrl     string
+	SignServerVersion string
+	IsAsyncRun        bool
+}
 
 func lagrangeGetWorkDir(dice *Dice, conn *EndPointInfo) string {
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
@@ -38,7 +47,7 @@ func NewLagrangeConnectInfoItem(account string) *EndPointInfo {
 	return conn
 }
 
-func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) {
+func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) {
 	pa := conn.Adapter.(*PlatformAdapterGocq)
 
 	pa.CurLoginIndex++
@@ -46,10 +55,10 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 	pa.GoCqhttpState = StateCodeInLogin
 
 	if pa.UseInPackClient && pa.BuiltinMode == "lagrange" { //nolint:nestif
-		log := dice.Logger
+		helper := log.NewCustomHelper(log.LOG_LAGR, false, nil)
 
 		if dice.ContainerMode {
-			log.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
+			helper.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
 			conn.State = 3
 			pa.GoCqhttpState = StateCodeLoginFailed
 			dice.Save(false)
@@ -70,15 +79,29 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		if _, err := os.Stat(qrcodeFilePath); err == nil {
 			// 如果已经存在二维码文件，将其删除
 			_ = os.Remove(qrcodeFilePath)
-			log.Info("onebot: 删除已存在的二维码文件")
+		} else {
+			// 如果找不到二维码文件，有一种可能是用户添加账号时写错了账号，这里做个兼容让错误的账号依旧能获取到二维码
+			qrcodeFilePath = filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.RelWorkDir[17:]))
+			if _, err := os.Stat(qrcodeFilePath); err == nil {
+				_ = os.Remove(qrcodeFilePath)
+			}
 		}
+		helper.Info("onebot: 删除已存在的二维码文件")
 
 		// 创建配置文件
-		if _, err := os.Stat(configFilePath); pa.ConnectURL == "" || errors.Is(err, os.ErrNotExist) {
-			// 如果不存在，进行创建
+		pa.ConnectURL = ""
+		if file, err := os.ReadFile(configFilePath); err == nil {
+			var result map[string]interface{}
+			if err := json.Unmarshal(file, &result); err == nil {
+				if val, ok := result["Implementations"].([]interface{})[0].(map[string]interface{})["Port"].(float64); ok {
+					pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", int(val))
+				}
+			}
+		}
+		if pa.ConnectURL == "" {
 			p, _ := GetRandomFreePort()
 			pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", p)
-			c := GenerateLagrangeConfig(p, conn)
+			c := GenerateLagrangeConfig(p, loginInfo.SignServerUrl, loginInfo.SignServerVersion, conn)
 			_ = os.WriteFile(configFilePath, []byte(c), 0o644)
 		}
 
@@ -94,7 +117,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		if runtime.GOOS == "android" {
 			for i, s := range os.Environ() {
 				if strings.HasPrefix(s, "RUNNER_PATH=") {
-					log.Infof("RUNNER_PATH: %s", os.Environ()[i][12:])
+					helper.Infof("RUNNER_PATH: %s", os.Environ()[i][12:])
 					command = os.Environ()[i][12:]
 					break
 				}
@@ -105,7 +128,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		} else {
 			command = fmt.Sprintf(`"%s"`, exeFilePath)
 		}
-		log.Info("onebot: 正在启动 onebot 客户端…… ", command)
+		helper.Info("onebot: 正在启动 onebot 客户端…… ", command)
 		conn.State = 2
 		conn.Enable = true
 		p := procs.NewProcess(command)
@@ -121,7 +144,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			if loginIndex != pa.CurLoginIndex {
 				// 当前连接已经无用，进程自杀
 				if !isSelfKilling {
-					log.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
+					helper.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
 					// 注: 这里不要调用kill
 					isSelfKilling = true
 					_ = p.Stop()
@@ -140,31 +163,33 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 				if strings.Contains(line, "Success") || strings.Contains(line, "Bot Online: ") {
 					pa.GoCqhttpState = StateCodeLoginSuccessed
 					pa.GoCqhttpLoginSucceeded = true
-					log.Infof("onebot: 登录成功，账号：<%s>(%s)", conn.Nickname, conn.UserID)
+					helper.Infof("onebot: 登录成功，账号：<%s>(%s)", conn.Nickname, conn.UserID)
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
 					isPrintLog = false
 
+					// 经测试，若不延时，登录成功的同一时刻进行ws正向连接有几率导致第一次连接失败
+					time.Sleep(1 * time.Second)
 					go ServeQQ(dice, conn)
 				}
 
 				if strings.Contains(line, "QrCode Expired, Please Fetch QrCode Again") {
 					// 二维码过期，登录失败，杀掉进程
 					pa.GoCqhttpState = StateCodeLoginFailed
-					log.Infof("onebot: 二维码过期，登录失败，账号：%s", conn.UserID)
+					helper.Infof("onebot: 二维码过期，登录失败，账号：%s", conn.UserID)
 					BuiltinQQServeProcessKill(dice, conn)
 				}
 			}
 
 			if _type == "stderr" {
-				log.Error("onebot | ", line)
+				helper.Error("onebot | ", line)
 			} else {
 				isPrint := isPrintLog || pa.ForcePrintLog || strings.HasPrefix(line, "warn:")
 				if isPrint {
-					log.Warn("onebot | ", line)
+					helper.Warn("onebot | ", line)
 				}
 				if regFatal.MatchString(line) {
-					log.Error("onebot | ", line)
+					helper.Error("onebot | ", line)
 				}
 			}
 
@@ -175,12 +200,12 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			<-chQrCode
 			time.Sleep(3 * time.Second)
 			if _, err := os.Stat(qrcodeFilePath); err == nil {
-				log.Info("onebot: 二维码已就绪")
+				helper.Info("onebot: 二维码已就绪")
 				qrdata, err := os.ReadFile(qrcodeFilePath)
 				if err == nil {
 					pa.GoCqhttpState = StateCodeInLoginQrCode
 					pa.GoCqhttpQrcodeData = qrdata
-					log.Info("onebot: 读取二维码成功")
+					helper.Info("onebot: 读取二维码成功")
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
 				} else {
@@ -189,7 +214,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					pa.GocqhttpLoginFailedReason = "读取二维码失败"
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
-					log.Infof("onebot: 读取二维码失败：%s", err)
+					helper.Infof("onebot: 读取二维码失败：%s", err)
 				}
 			}
 		}()
@@ -197,7 +222,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		run := func() {
 			defer func() {
 				if r := recover(); r != nil {
-					log.Errorf("onebot: 异常: %v 堆栈: %v", r, string(debug.Stack()))
+					helper.Errorf("onebot: 异常: %v 堆栈: %v", r, string(debug.Stack()))
 				}
 			}()
 
@@ -225,7 +250,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 			}
 
 			if err != nil {
-				log.Info("lagrange 进程异常退出: ", err)
+				helper.Info("lagrange 进程异常退出: ", err)
 				pa.GoCqhttpState = StateCodeLoginFailed
 
 				var exitErr *exec.ExitError
@@ -235,21 +260,21 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					case 137:
 						// Failed to create CoreCLR, HRESULT: 0x8007054F
 						// +++ exited with 137 +++
-						log.Info("你的设备尚未被支持，请等待后续更新。")
+						helper.Info("你的设备尚未被支持，请等待后续更新。")
 					case 134:
 						// Resource temporarily unavailable
 						// System.Net.Dns.GetHostEntryOrAddressesCore(String hostName, Boolean justAddresses, AddressFamily addressFamily, Int64 startingTimestamp)
-						log.Info("当前网络无法进行域名解析，请更换网络。")
+						helper.Info("当前网络无法进行域名解析，请更换网络。")
 					default:
 						if time.Now().Unix()-processStartTime < 10 {
-							log.Info("进程在启动后10秒内即退出，请检查配置是否正确")
+							helper.Info("进程在启动后10秒内即退出，请检查配置是否正确")
 						} else {
 							if pa.lagrangeRebootTimes > 5 {
-								log.Info("自动重启次数达到上限，放弃")
+								helper.Info("自动重启次数达到上限，放弃")
 							} else {
 								pa.lagrangeRebootTimes++
 								if conn.Enable {
-									log.Info("5秒后，尝试对其进行重启")
+									helper.Info("5秒后，尝试对其进行重启")
 									time.Sleep(5 * time.Second)
 								}
 								if conn.Enable {
@@ -260,7 +285,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 					}
 				}
 			} else {
-				log.Info("lagrange 进程退出")
+				helper.Info("lagrange 进程退出")
 			}
 		}
 
@@ -315,10 +340,28 @@ var defaultLagrangeConfig = `
 
 // 在构建时注入
 var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
+var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
 
-func GenerateLagrangeConfig(port int, info *EndPointInfo) string {
+func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion string, info *EndPointInfo) string {
+	switch signServerUrl {
+	case "":
+		signServerUrl = defaultNTSignServer
+		if signServerVersion != "" && signServerVersion != "13107" {
+			signServerUrl += "/" + signServerVersion
+		}
+	case "sealdice":
+		signServerUrl = defaultNTSignServer
+		if signServerVersion != "" && signServerVersion != "13107" {
+			signServerUrl += "/" + signServerVersion
+		}
+	case "lagrange":
+		signServerUrl = lagrangeNTSignServer
+		if signServerVersion != "" && signServerVersion != "13107" {
+			signServerUrl += "/" + signServerVersion
+		}
+	}
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", fmt.Sprintf("%d", port))
-	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", defaultNTSignServer)
+	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
 	conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
 	return conf
 }
@@ -328,4 +371,66 @@ func LagrangeServeRemoveSession(dice *Dice, conn *EndPointInfo) {
 	if _, err := os.Stat(filepath.Join(workDir, "keystore.json")); err == nil {
 		_ = os.Remove(filepath.Join(workDir, "keystore.json"))
 	}
+}
+
+// 清理内置客户端配置文件目录
+func LagrangeServeRemoveConfig(dice *Dice, conn *EndPointInfo) {
+	workDir := lagrangeGetWorkDir(dice, conn)
+	err := os.RemoveAll(workDir)
+	if err != nil {
+		dice.Logger.Errorf("清理内置客户端文件失败, 原因: %s, 请手动删除目录: %s", err.Error(), workDir)
+	} else {
+		dice.Logger.Infof("已自动清理内置客户端目录: %s", workDir)
+	}
+}
+
+func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl string, w bool, signServerVersion string) (string, string) {
+	switch signServerUrl {
+	case "sealdice":
+		signServerUrl = defaultNTSignServer
+		if signServerVersion != "" && signServerVersion != "13107" {
+			signServerUrl += "/" + signServerVersion
+		}
+	case "lagrange":
+		signServerUrl = "https://sign.lagrangecore.org/api/sign"
+		if signServerVersion != "" && signServerVersion != "13107" {
+			signServerUrl += "/" + signServerVersion
+		}
+	}
+	workDir := lagrangeGetWorkDir(dice, conn)
+	configFilePath := filepath.Join(workDir, "appsettings.json")
+	file, err := os.ReadFile(configFilePath)
+	if err == nil {
+		var result map[string]interface{}
+		err = json.Unmarshal(file, &result)
+		if err == nil {
+			if val, ok := result["SignServerUrl"].(string); ok {
+				if w {
+					result["SignServerUrl"] = signServerUrl
+					result["SignServerVersion"] = signServerVersion
+					var c []byte
+					if c, err = json.MarshalIndent(result, "", "    "); err == nil {
+						_ = os.WriteFile(configFilePath, c, 0o644)
+					} else {
+						dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
+					}
+				}
+
+				var version string
+				if strings.HasPrefix(val, defaultNTSignServer) {
+					version, _ = strings.CutPrefix(val, defaultNTSignServer)
+					version, _ = strings.CutPrefix(version, "/")
+					val = "sealdice"
+				} else if strings.HasPrefix(val, lagrangeNTSignServer) {
+					version, _ = strings.CutPrefix(val, lagrangeNTSignServer)
+					version, _ = strings.CutPrefix(version, "/")
+					val = "lagrange"
+				}
+				return val, version
+			}
+			err = errors.New("SignServerUrl字段无法正常读取")
+		}
+	}
+	dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
+	return "", ""
 }

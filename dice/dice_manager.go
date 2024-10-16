@@ -3,13 +3,15 @@ package dice
 import (
 	"fmt"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/fy0/lockfree"
 	"github.com/robfig/cron/v3"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+
+	log "sealdice-core/utils/kratos"
 )
 
 type VersionInfo struct {
@@ -45,9 +47,11 @@ type DiceManager struct { //nolint:revive
 	AccessTokens   map[string]bool
 	IsReady        bool
 
-	AutoBackupEnable bool
-	AutoBackupTime   string
-	backupEntryID    cron.EntryID
+	AutoBackupEnable    bool
+	AutoBackupTime      string
+	AutoBackupSelection BackupSelection
+	backupEntryID       cron.EntryID
+
 	// 备份自动清理配置
 	BackupCleanStrategy  BackupCleanStrategy // 关闭 / 保留一定数量 / 保留一定时间
 	BackupCleanKeepCount int                 // 保留的数量
@@ -73,13 +77,14 @@ type DiceManager struct { //nolint:revive
 	ServiceName          string
 	JustForTest          bool
 	JsRegistry           *require.Registry
-	UpdateSealdiceByFile func(packName string, log *zap.SugaredLogger) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
+	UpdateSealdiceByFile func(packName string, log *log.Helper) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
 
-	ContainerMode bool // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+	ContainerMode bool          // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+	CleanupFlag   atomic.Uint32 // 1 为正在清理，0为普通状态
 }
 
 type Configs struct { //nolint:revive
-	DiceConfigs       []RootConfig `yaml:"diceConfigs"`
+	DiceConfigs       []BaseConfig `yaml:"diceConfigs"`
 	ServeAddress      string       `yaml:"serveAddress"`
 	WebUIAddress      string       `yaml:"webUIAddress"`
 	HelpDocEngineType int          `yaml:"helpDocEngineType"`
@@ -88,8 +93,9 @@ type Configs struct { //nolint:revive
 	UIPasswordHash string   `yaml:"uiPasswordHash"`
 	AccessTokens   []string `yaml:"accessTokens"`
 
-	AutoBackupEnable bool   `yaml:"autoBackupEnable"`
-	AutoBackupTime   string `yaml:"autoBackupTime"`
+	AutoBackupEnable    bool   `yaml:"autoBackupEnable"`
+	AutoBackupTime      string `yaml:"autoBackupTime"`
+	AutoBackupSelection uint64 `yaml:"autoBackupSelection"`
 
 	BackupClean struct {
 		Strategy  int    `yaml:"strategy"`
@@ -167,6 +173,7 @@ func (dm *DiceManager) LoadDice() {
 
 	dm.AutoBackupTime = dc.AutoBackupTime
 	dm.AutoBackupEnable = dc.AutoBackupEnable
+	dm.AutoBackupSelection = BackupSelection(dc.AutoBackupSelection)
 
 	if dc.AutoBackupTime == "" {
 		// 从旧版升级
@@ -201,6 +208,7 @@ func (dm *DiceManager) Save() {
 	dc.AccessTokens = []string{}
 	dc.AutoBackupTime = dm.AutoBackupTime
 	dc.AutoBackupEnable = dm.AutoBackupEnable
+	dc.AutoBackupSelection = uint64(dm.AutoBackupSelection)
 	dc.BackupClean.Strategy = int(dm.BackupCleanStrategy)
 	dc.BackupClean.KeepCount = dm.BackupCleanKeepCount
 	dc.BackupClean.KeepDur = int64(dm.BackupCleanKeepDur)
@@ -322,7 +330,6 @@ func (dm *DiceManager) TryCreateDefault() {
 	if len(dm.Dice) == 0 {
 		defaultDice := new(Dice)
 		defaultDice.BaseConfig.Name = "default"
-		defaultDice.BaseConfig.IsLogPrint = true
 		defaultDice.Config.MessageDelayRangeStart = DefaultConfig.MessageDelayRangeStart
 		defaultDice.Config.MessageDelayRangeEnd = DefaultConfig.MessageDelayRangeEnd
 		defaultDice.MarkModified()

@@ -14,15 +14,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/labstack/echo/v4"
+	"gopkg.in/yaml.v3"
+
 	"sealdice-core/message"
 	"sealdice-core/utils/procs"
 
 	"github.com/gorilla/websocket"
-	"github.com/labstack/echo/v4"
 	"github.com/sacOO7/gowebsocket"
 	"github.com/samber/lo"
-	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
+
+	log "sealdice-core/utils/kratos"
 )
 
 // 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
@@ -273,7 +275,7 @@ func FormatDiceIDQQChGroup(guildID, channelID string) string {
 	return fmt.Sprintf("QQ-CH-Group:%s-%s", guildID, channelID)
 }
 
-func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeTo *MessageQQ) error {
+func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *MessageQQ) error {
 	msgQQType2 := new(MessageQQArray)
 	err := json.Unmarshal([]byte(message), msgQQType2)
 
@@ -560,7 +562,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				} else {
 					// TODO: 这玩意的创建是个专业活，等下来弄
 					// session.ServiceAtNew[groupId] = GroupInfo{}
-					fmt.Println("TODO create group")
+					log.Debug("TODO create group")
 				}
 				// 这句话太吵了
 				// log.Debug("群信息刷新: ", msgQQ.Data.GroupName)
@@ -989,7 +991,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if pa.riskAlertShieldCount > 0 {
 				pa.riskAlertShieldCount--
 			} else {
-				fmt.Println("群消息发送失败: 账号可能被风控")
+				log.Warn("群消息发送失败: 账号可能被风控")
 				_ = ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", MailTypeCIAMLock)
 			}
 		}
@@ -1047,7 +1049,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			}
 			session.Execute(ep, msg, false)
 		} else {
-			fmt.Println("Received message " + message)
+			log.Debug("Received message " + message)
 		}
 	}
 
@@ -1117,6 +1119,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			err := e.Start(pa.ReverseAddr)
 			if err != nil {
 				log.Error("Onebot v11 反向WS服务关闭: ", err)
+				pa.diceServing = false
 			}
 		}()
 	} else {
@@ -1160,6 +1163,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 				_ = recover()
 			}()
 			pa.Socket.Close()
+			pa.diceServing = false
 		}()
 	}
 
@@ -1181,13 +1185,15 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 			myDice.Logger.Infof("重新启动 lagrange 进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
 			pa.CurLoginIndex++
 			pa.GoCqhttpState = StateCodeInit
+			ep.Enable = false // 拉格朗进程杀死前应先禁用账号，否则拉格朗会自动重启（该行为在LagrangeServe中）
 			go BuiltinQQServeProcessKill(myDice, ep)
 			time.Sleep(10 * time.Second)           // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
 			LagrangeServeRemoveSession(myDice, ep) // 删除 keystore
 			pa.GoCqhttpLastRestrictedTime = 0      // 重置风控时间
+			ep.Enable = true
 			myDice.LastUpdatedTime = time.Now().Unix()
 			myDice.Save(false)
-			GoCqhttpServe(myDice, ep, GoCqhttpLoginInfo{
+			LagrangeServe(myDice, ep, LagrangeLoginInfo{
 				IsAsyncRun: true,
 			})
 			return true
@@ -1225,7 +1231,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 			if pa.BuiltinMode == "lagrange" {
 				BuiltinQQServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
-				LagrangeServe(d, c, GoCqhttpLoginInfo{
+				LagrangeServe(d, c, LagrangeLoginInfo{
 					IsAsyncRun: true,
 				})
 			} else {
@@ -1239,9 +1245,10 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 					UseSignServer:    pa.UseSignServer,
 					SignServerConfig: pa.SignServerConfig,
 				})
+				go ServeQQ(d, c)
 			}
-			go ServeQQ(d, c)
 		} else {
+			pa.GoCqhttpState = StateCodeLoginSuccessed
 			go ServeQQ(d, c)
 		}
 	} else {
@@ -1337,16 +1344,28 @@ func (pa *PlatformAdapterGocq) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgC
 			ctx.Player.Name = d.Nickname
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
 		}
-		SetTempVars(ctx, ctx.Player.Name)
+		SetTempVars(ctx, d.Nickname)
 	case "group":
-		d := pa.GetGroupMemberInfo(string(msgQQ.GroupID), string(msgQQ.UserID)) // 先获取个人信息，避免不存在id
+		d := pa.GetGroupMemberInfo(string(msgQQ.GroupID), string(msgQQ.UserID))
 		msg.Sender.UserID = FormatDiceIDQQ(string(msgQQ.UserID))
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		if ctx.Group == nil {
+			gi := pa.GetGroupInfo(msg.GroupID, false)
+			ctx.Group = &GroupInfo{GroupID: msg.GroupID, GroupName: gi.GroupName}
+			ctx.Group.UpdatedAtTime = time.Now().Unix()
+		}
+		if ctx.Player == nil {
+			ctx.Player = &GroupPlayerInfo{UserID: msg.Sender.UserID}
+		}
 		if ctx.Player.Name == "" {
-			ctx.Player.Name = d.Card
+			if d.Card == "" {
+				ctx.Player.Name = d.Nickname
+			} else {
+				ctx.Player.Name = d.Card
+			}
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
 		}
-		SetTempVars(ctx, ctx.Player.Name)
+		SetTempVars(ctx, d.Nickname)
 	}
 
 	return ctx

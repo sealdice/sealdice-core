@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/alexmullins/zip"
 	"github.com/labstack/echo/v4"
@@ -165,4 +167,49 @@ func checkUidExists(c echo.Context, uid string) bool {
 		}
 	}
 	return false
+}
+
+var timeout = 5 * time.Second
+
+func checkNetworkHealth(c echo.Context) error {
+	total := 5 // baidu, seal, sign, google, github
+	var ok []string
+	var wg sync.WaitGroup
+	wg.Add(total)
+	rsChan := make(chan string, 5)
+
+	checkHTTPConnectivity := func(target string, urls []string) {
+		defer wg.Done()
+		client := http.Client{
+			Timeout: timeout,
+		}
+		for _, url := range urls {
+			resp, err := client.Get(url)
+			if err == nil {
+				_ = resp.Body.Close()
+				rsChan <- target
+				break
+			}
+		}
+	}
+	go checkHTTPConnectivity("baidu", []string{"https://baidu.com"})
+	go checkHTTPConnectivity("seal", dice.BackendUrls)
+	go checkHTTPConnectivity("sign", []string{"https://sign.lagrangecore.org/api/sign/ping"})
+	go checkHTTPConnectivity("google", []string{"https://google.com"})
+	go checkHTTPConnectivity("github", []string{"https://github.com"})
+
+	go func() {
+		wg.Wait()
+		close(rsChan)
+	}()
+
+	for targetOk := range rsChan {
+		ok = append(ok, targetOk)
+	}
+
+	return Success(&c, Response{
+		"total":     total,
+		"ok":        ok,
+		"timestamp": time.Now().Unix(),
+	})
 }

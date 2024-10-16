@@ -137,6 +137,48 @@ func ImConnectionsSetData(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
+func ImConnectionsRWSignServerUrl(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	v := struct {
+		ID                string `form:"id" json:"id"`
+		SignServerUrl     string `form:"signServerUrl" json:"signServerUrl"`
+		W                 bool   `form:"w" json:"w"`
+		SignServerVersion string `form:"signServerVersion" json:"signServerVersion"`
+	}{}
+
+	err := c.Bind(&v)
+	if err != nil {
+		myDice.Save(false)
+		return c.JSON(http.StatusNotFound, nil)
+	}
+	for _, i := range myDice.ImSession.EndPoints {
+		if i.ID != v.ID {
+			continue
+		}
+		if i.ProtocolType == "onebot" {
+			pa := i.Adapter.(*dice.PlatformAdapterGocq)
+			if pa.BuiltinMode == "lagrange" {
+				signServerUrl, signServerVersion := dice.RWLagrangeSignServerUrl(myDice, i, v.SignServerUrl, v.W, v.SignServerVersion)
+				if signServerUrl != "" {
+					return Success(&c, Response{
+						"signServerUrl":     signServerUrl,
+						"signServerVersion": signServerVersion,
+					})
+				}
+			}
+		}
+	}
+	return Error(&c, "读取signServerUrl字段失败", Response{})
+}
+
 func ImConnectionsDel(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -164,7 +206,15 @@ func ImConnectionsDel(c echo.Context) error {
 				case "QQ":
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					if i.ProtocolType == "onebot" {
-						dice.BuiltinQQServeProcessKill(myDice, i)
+						pa := i.Adapter.(*dice.PlatformAdapterGocq)
+						if pa.BuiltinMode == "lagrange" {
+							dice.BuiltinQQServeProcessKillBase(myDice, i, true)
+							// 经测试，若不延时，可能导致清理对应目录失败（原因：文件被占用）
+							time.Sleep(1 * time.Second)
+							dice.LagrangeServeRemoveConfig(myDice, i)
+						} else {
+							dice.BuiltinQQServeProcessKill(myDice, i)
+						}
 					}
 					return c.JSON(http.StatusOK, i)
 				case "DISCORD":
@@ -916,8 +966,9 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 	}
 
 	v := struct {
-		Account  string `yaml:"account" json:"account"`
-		Protocol int    `yaml:"protocol" json:"protocol"`
+		Account           string `yaml:"account" json:"account"`
+		SignServerUrl     string `yaml:"signServerUrl" json:"signServerUrl"`
+		SignServerVersion string `yaml:"signServerVersion" json:"signServerVersion"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -930,7 +981,7 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-		pa.InPackGoCqhttpProtocol = v.Protocol
+		// pa.InPackGoCqhttpProtocol = v.Protocol
 		pa.Session = myDice.ImSession
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
@@ -939,10 +990,11 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		dice.LagrangeServe(myDice, conn, dice.GoCqhttpLoginInfo{
-			Protocol:   v.Protocol,
-			UIN:        uin,
-			IsAsyncRun: true,
+		dice.LagrangeServe(myDice, conn, dice.LagrangeLoginInfo{
+			UIN:               uin,
+			SignServerUrl:     v.SignServerUrl,
+			SignServerVersion: v.SignServerVersion,
+			IsAsyncRun:        true,
 		})
 		return c.JSON(http.StatusOK, v)
 	}

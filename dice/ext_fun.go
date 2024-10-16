@@ -638,7 +638,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 
 	// Emoklore(共鸣性怪异)规则支持
-	helpEk := ".ek <技能名称>(+<奖励骰>) 判定值\n" +
+	helpEk := ".ek <技能名称>[+<奖励骰>] 判定值\n" +
 		".ek 检索 // 骰“检索”等级个d10，计算成功数\n" +
 		".ek 检索+2 // 在上一条基础上加骰2个d10\n" +
 		".ek 检索 6  // 骰“检索”等级个d10，计算小于6的骰个数\n" +
@@ -825,7 +825,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
-	helpEkGen := ".ekgen (<数量>) // 制卡指令，生成<数量>组人物属性，最高为10次"
+	helpEkGen := ".ekgen [<数量>] // 制卡指令，生成<数量>组人物属性，最高为10次"
 	cmdEkgen := CmdItemInfo{
 		Name:      "ekgen",
 		ShortHelp: helpEkGen,
@@ -1112,7 +1112,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		EnableExecuteTimesParse: true,
 		Name:                    "jsr",
 		ShortHelp:               ".jsr 3# 10 // 投掷 10 面骰 3 次，结果不重复。结果存入骰池并可用 .drl 抽取。",
-		Help: "不重复骰点(Jetter sans répéter):\n.jsr 次数# 投骰表达式 (名字)" +
+		Help: "不重复骰点(Jetter sans répéter):\n.jsr <次数># <投骰表达式> [<名字>]" +
 			"\n用例：.jsr 3# 10 // 投掷 10 面骰 3 次，结果不重复，结果存入骰池并可用 .drl 抽取。",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "help") {
@@ -1195,7 +1195,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		Name:                    "drl",
 		ShortHelp: ".drl new 10 5# // 在当前群组创建一个面数为 10，能抽取 5 次的骰池\n.drl // 抽取当前群组的骰池\n" +
 			".drlh //抽取当前群组的骰池，结果私聊发送",
-		Help: "drl（Draw Lot）：.drl new 次数 投骰表达式 (名字) // 在当前群组创建一个骰池\n" +
+		Help: "drl（Draw Lot）：.drl new <次数> <投骰表达式> [<名字>] // 在当前群组创建一个骰池\n" +
 			"用例：.drl new 10 5# // 在当前群组创建一个面数为 10，能抽取 5 次的骰池\n\n.drl // 抽取当前群组的骰池\n" +
 			".drlh //抽取当前群组的骰池，结果私聊发送",
 		DisabledInPrivate: true,
@@ -1309,6 +1309,45 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
+	cmdCheckHelp := `.check // 生成海豹校验码，可用于在官网校验是否是可信海豹
+.check --plain // 生成 ASCII 字符的海豹校验码`
+	cmdCheck := CmdItemInfo{
+		Name:      "check",
+		ShortHelp: cmdCheckHelp,
+		Help:      "校验:\n" + cmdCheckHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			var code string
+			if kv := cmdArgs.GetKwarg("plain"); kv != nil && kv.AsBool {
+				code = GenerateVerificationCode(
+					msg.Platform,
+					msg.Sender.UserID,
+					msg.Sender.Nickname,
+					true,
+				)
+			} else {
+				code = GenerateVerificationCode(
+					msg.Platform,
+					msg.Sender.UserID,
+					msg.Sender.Nickname,
+					false,
+				)
+			}
+			var result string
+			if len(code) == 0 {
+				result = "无法生成海豹校验码，该骰子不是官方发布的海豹！"
+			} else {
+				VarSetValueStr(ctx, "$tcode", code)
+				VarSetValueStr(ctx, "$t校验码", code)
+				result = DiceFormatTmpl(ctx, "其它:校验_成功")
+			}
+			ReplyToSender(ctx, msg, result)
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
 	self.RegisterExtension(&ExtInfo{
 		Name:            "fun", // 扩展的名称，需要用于指令中，写简短点      2024.05.10: 目前被看成是 function 的缩写了（
 		Version:         "1.1.0",
@@ -1345,6 +1384,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"jsr":     &cmdJsr,
 			"drl":     &cmdDrl,
 			"drlh":    &cmdDrl,
+			"check":   &cmdCheck,
 		},
 	})
 }

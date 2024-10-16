@@ -20,8 +20,9 @@ import (
 )
 
 type PlatformAdapterOfficialQQ struct {
-	Session  *IMSession    `yaml:"-" json:"-"`
-	EndPoint *EndPointInfo `yaml:"-" json:"-"`
+	Session     *IMSession    `yaml:"-" json:"-"`
+	EndPoint    *EndPointInfo `yaml:"-" json:"-"`
+	DiceServing bool          `yaml:"-"`
 
 	AppID       uint64 `yaml:"appID" json:"appID"`
 	AppSecret   string `yaml:"appSecret" json:"appSecret"`
@@ -41,7 +42,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	d := pa.Session.Parent
 
 	log.Debug("official qq server")
-	qqbot.SetLogger(NewDummyLogger(log.Desugar()))
+	qqbot.SetLogger(NewDummyLogger())
 	token := qqtoken.BotToken(pa.AppID, pa.Token)
 	pa.Api = qqbot.NewOpenAPI(token).WithTimeout(3 * time.Second)
 	pa.Ctx, pa.CancelFunc = context.WithCancel(context.Background())
@@ -193,6 +194,7 @@ func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
 	if enable {
 		if pa.Ctx == nil {
 			ep.Enable = false
+			pa.DiceServing = false
 			ep.State = 2
 			ServerOfficialQQ(d, ep)
 		} else {

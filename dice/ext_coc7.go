@@ -260,16 +260,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		maniaMap[n] = i[2]
 	}
 
-	// 初始化规则模板
-	self.GameSystemTemplateAdd(getCoc7CharTemplate())
-
 	helpRc := "" +
 		".ra/rc <属性表达式> // 属性检定指令，当前者小于等于后者，检定通过\n" +
 		".ra <难度><属性> // 如 .ra 困难侦查\n" +
 		".ra b <属性表达式> // 奖励骰或惩罚骰\n" +
 		".ra p2 <属性表达式> // 多个奖励骰或惩罚骰\n" +
 		".ra 3#p <属性表达式> // 多重检定\n" +
-		".ra <属性表达式> (@某人) // 对某人做检定(使用他的属性)\n" +
+		".ra <属性表达式> @某人 // 对某人做检定(使用他的属性)\n" +
 		".rch/rah // 暗中检定，和检定指令用法相同"
 
 	cmdRc := &CmdItemInfo{
@@ -857,11 +854,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	cmdSt := getCmdStBase()
 
-	helpEn := `.en <技能名称>(技能点数) (+(<失败成长值>/)<成功成长值>) // 整体格式，可以直接看下面几个分解格式
+	helpEn := `.en <技能名称>[<技能点数>] [+[<失败成长值>/]<成功成长值>] // 整体格式，可以直接看下面几个分解格式
 .en <技能名称> // 骰D100，若点数大于当前值，属性成长1d10
-.en <技能名称>(技能点数) // 骰D100，若点数大于技能点数，属性=技能点数+1d10
-.en <技能名称>(技能点数) +<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点
-.en <技能名称>(技能点数) +<失败成长值>/<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点，否则增加失败
+.en <技能名称>[<技能点数>] // 骰D100，若点数大于技能点数，属性=技能点数+1d10
+.en <技能名称>[<技能点数>] +<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点
+.en <技能名称>[<技能点数>] +<失败成长值>/<成功成长值> // 骰D100，若点数大于当前值，属性成长成功成长值点，否则增加失败
 .en <技能名称1> <技能名称2> // 批量技能成长，支持上述多种格式，复杂情况建议用|隔开每个技能`
 
 	cmdEn := &CmdItemInfo{
@@ -1162,7 +1159,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			case 7:
 				desc += fmt.Sprintf("逃避行为：调查员会用任何的手段试图逃离现在所处的位置，即使这意味着开走唯一一辆交通工具并将其它人抛诸脑后，调查员会试图逃离 1D10=%d 轮。", extraNum1)
 			case 8:
-				desc += fmt.Sprintf("竭嘶底里：调查员表现出大笑，哭泣，嘶吼，害怕等的极端情绪表现，持续 1D10=%d 轮。", extraNum1)
+				desc += fmt.Sprintf("歇斯底里：调查员表现出大笑，哭泣，嘶吼，害怕等的极端情绪表现，持续 1D10=%d 轮。", extraNum1)
 			case 9:
 				desc += fmt.Sprintf("恐惧：调查员通过一次 D100 或者由守秘人选择，来从恐惧症状表中选择一个恐惧源，就算这一恐惧的事物是并不存在的，调查员的症状会持续 1D10=%d 轮。", extraNum1)
 				extraNum2 := DiceRoll(100)
@@ -1237,7 +1234,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	helpSc := ".sc <成功时掉san>/<失败时掉san> // 对理智进行一次D100检定，根据结果扣除理智\n" +
 		".sc <失败时掉san> //同上，简易写法 \n" +
-		".sc (b/p) (<成功时掉san>/)<失败时掉san> // 加上奖惩骰"
+		".sc [b|p] [<成功时掉san>/]<失败时掉san> // 加上奖惩骰"
 	cmdSc := &CmdItemInfo{
 		Name:          "sc",
 		ShortHelp:     helpSc,
@@ -1492,8 +1489,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 	cmdCoc := &CmdItemInfo{
 		Name:      "coc",
-		ShortHelp: ".coc (<数量>) // 制卡指令，返回<数量>组人物属性",
-		Help:      "COC制卡指令:\n.coc (<数量>) // 制卡指令，返回<数量>组人物属性",
+		ShortHelp: ".coc [<数量>] // 制卡指令，返回<数量>组人物属性",
+		Help:      "COC制卡指令:\n.coc [<数量>] // 制卡指令，返回<数量>组人物属性",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n := cmdArgs.GetArgN(1)
 			val, err := strconv.ParseInt(n, 10, 64)

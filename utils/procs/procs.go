@@ -46,6 +46,7 @@ func (p *Process) Start() error {
 		cmd.Env = p.Env
 	}
 	p.Cmd = cmd
+	p.Setpgid()
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err
@@ -135,7 +136,7 @@ func (p *Process) Stop() error {
 		return nil
 	}
 
-	err := cmd.Process.Kill()
+	err := p.KillProcess()
 	if err != nil {
 		return err
 	}

@@ -61,11 +61,88 @@ type ConfigItem struct {
 	Deprecated   bool        `json:"deprecated,omitempty" jsbind:"deprecated"`
 
 	Description string `json:"description" jsbind:"description"`
+
+	task *JsScriptTask
 }
 
+func (i *ConfigItem) UnmarshalJSON(data []byte) error {
+	raw := map[string]any{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	var ok bool
+	if i.Key, ok = raw["key"].(string); !ok {
+		return errors.New("'key' must be a string")
+	}
+	if i.Type, ok = raw["type"].(string); !ok {
+		return errors.New("'type' must be a string")
+	}
+	if i.Description, ok = raw["description"].(string); !ok {
+		return errors.New("'description' must be a string")
+	}
+	if v, ok := raw["deprecated"]; ok {
+		if i.Deprecated, ok = v.(bool); !ok {
+			return errors.New("'deprecated' must be a bool")
+		}
+	}
+
+	switch i.Type {
+	case "string", "bool", "float":
+		i.DefaultValue = raw["defaultValue"]
+		i.Value = raw["value"]
+	case "int":
+		// 2024.08.09 1.4.6首发版本unmarshal产生类型报错修复
+		if v, ok := raw["defaultValue"].(float64); ok {
+			i.DefaultValue = int64(v)
+		} else if v, ok := raw["defaultValue"].(int64); ok {
+			i.DefaultValue = v
+		}
+		if v, ok := raw["value"]; ok {
+			if v2, ok := v.(float64); ok {
+				i.Value = int64(v2)
+			} else if v2, ok := v.(int64); ok {
+				i.Value = v2
+			}
+		}
+	case "template":
+		{
+			v := raw["defaultValue"].([]interface{})
+			strarr := make([]string, len(v))
+			for i, vv := range v {
+				strarr[i] = vv.(string)
+			}
+			i.DefaultValue = strarr
+		}
+		if v, ok := raw["value"]; ok {
+			vv := v.([]interface{})
+			strarr := make([]string, len(vv))
+			for i, vv := range vv {
+				strarr[i] = vv.(string)
+			}
+			i.Value = strarr
+		}
+	case "option":
+		i.DefaultValue = raw["defaultValue"]
+		i.Value = raw["value"]
+		v := raw["option"].([]interface{})
+		strarr := make([]string, len(v))
+		for i, vv := range v {
+			strarr[i] = vv.(string)
+		}
+		i.Option = strarr
+	default:
+		return errors.New("unsupported type " + i.Type)
+	}
+
+	return nil
+}
+
+var _ json.Unmarshaler = (*ConfigItem)(nil)
+
 type PluginConfig struct {
-	PluginName string                 `json:"pluginName"`
-	Configs    map[string]*ConfigItem `json:"configs" jsbind:"configs"`
+	PluginName        string                 `json:"pluginName"`
+	Configs           map[string]*ConfigItem `json:"configs" jsbind:"configs"`
+	OrderedConfigKeys []string               `json:"orderedConfigKeys" jsbind:"orderedConfigKeys"`
 }
 
 type ConfigManager struct {
@@ -121,21 +198,35 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 				existingItem.Option = newItem.Option
 				existingItem.Description = newItem.Description
 				existingItem.Deprecated = false // Reset deprecated flag
+				existingItem.task = newItem.task
 				existingPlugin.Configs[newItem.Key] = existingItem
+				// Extension can reorder config by re-registering it
+				// Time complexity of removing the old position is O(1) if the order doesn't change
+				for i, configKey := range existingPlugin.OrderedConfigKeys {
+					if configKey == existingItem.Key {
+						existingPlugin.OrderedConfigKeys = append(existingPlugin.OrderedConfigKeys[:i], existingPlugin.OrderedConfigKeys[i+1:]...)
+						break
+					}
+				}
+				existingPlugin.OrderedConfigKeys = append(existingPlugin.OrderedConfigKeys, existingItem.Key)
 			} else {
 				existingPlugin.Configs[newItem.Key] = newItem
+				existingPlugin.OrderedConfigKeys = append(existingPlugin.OrderedConfigKeys, newItem.Key)
 			}
 		}
 
 		cm.Plugins[pluginName] = existingPlugin
 	} else {
 		configs := make(map[string]*ConfigItem)
+		orderedConfigKeys := make([]string, 0, len(configItems))
 		for _, item := range configItems {
 			configs[item.Key] = item
+			orderedConfigKeys = append(orderedConfigKeys, item.Key)
 		}
 		cm.Plugins[pluginName] = &PluginConfig{
-			PluginName: pluginName,
-			Configs:    configs,
+			PluginName:        pluginName,
+			Configs:           configs,
+			OrderedConfigKeys: orderedConfigKeys,
 		}
 	}
 	_ = cm.save()
@@ -151,8 +242,19 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	}
 
 	for _, key := range keys {
+		if config, exist := plugin.Configs[key]; exist && strings.HasPrefix(config.Type, "task:") && config.task != nil {
+			config.task.Off()
+		}
 		delete(plugin.Configs, key)
 	}
+	// Remove from orderedConfigKeys
+	newOrderedConfigKeys := make([]string, 0, len(plugin.OrderedConfigKeys))
+	for _, configKey := range plugin.OrderedConfigKeys {
+		if _, ok := plugin.Configs[configKey]; ok {
+			newOrderedConfigKeys = append(newOrderedConfigKeys, configKey)
+		}
+	}
+	plugin.OrderedConfigKeys = newOrderedConfigKeys
 	if cm.Plugins[pluginName] == nil || len(cm.Plugins[pluginName].Configs) == 0 {
 		delete(cm.Plugins, pluginName)
 	} else {
@@ -161,35 +263,35 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	_ = cm.save()
 }
 
-func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) {
+func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) error {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
 
 	plugin, ok := cm.Plugins[pluginName]
 	if !ok {
-		return
+		return fmt.Errorf("plugin: %v not found", pluginName)
 	}
 
 	configItem, exists := plugin.Configs[key]
 	if exists {
 		switch configItem.Type {
-		case "int":
-			// Json 默认解析数字为 float64，需要转换
-			configItem.Value = int64(value.(float64))
-		case "template":
-			// 修复无法从[]interface{}断言[]string
-			var strarr []string
-			for _, strv := range value.([]interface{}) {
-				strarr = append(strarr, strv.(string))
+		case "task:cron", "task:daily":
+			val := value.(string)
+			configItem.Value = val
+			// 立即生效
+			if configItem.task != nil {
+				err := configItem.task.reset(val)
+				if err != nil {
+					return err
+				}
 			}
-			configItem.Value = strarr
 		default:
 			configItem.Value = value
 		}
 		plugin.Configs[key] = configItem
 		cm.Plugins[pluginName] = plugin
 	}
-	_ = cm.save()
+	return cm.save()
 }
 
 func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
@@ -224,6 +326,11 @@ func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 		fmt.Println("reset config to default", pluginName, key)
 		configItem.Value = configItem.DefaultValue
 		plugin.Configs[key] = configItem
+		if strings.HasPrefix(configItem.Type, "task:") {
+			if configItem.task != nil {
+				_ = configItem.task.reset(configItem.Value.(string))
+			}
+		}
 		cm.Plugins[pluginName] = plugin
 	}
 	_ = cm.save()
@@ -267,25 +374,9 @@ func (cm *ConfigManager) Load() error {
 	if err != nil {
 		return err
 	}
-
-	// Mark all loaded configs as deprecated
 	for i := range cm.Plugins {
 		for j := range cm.Plugins[i].Configs {
-			temp := cm.Plugins[i].Configs[j]
-			// 将 json 数值反序列化到 any 类型时，即使数值是整数也会使用 float64。因此新增的配置项（int64）和从文件里恢复的配置项（float64）类型不同。
-			if f64v, ok := temp.Value.(float64); ok && temp.Type == "int" {
-				temp.Value = int64(f64v)
-			}
-			// 修复无法从[]interface{}断言[]string
-			if infv, ok := temp.Value.([]interface{}); ok && temp.Type == "template" {
-				var strarr []string
-				for _, strv := range infv {
-					strarr = append(strarr, strv.(string))
-				}
-				temp.Value = strarr
-			}
-			temp.Deprecated = true
-			cm.Plugins[i].Configs[j] = temp
+			cm.Plugins[i].Configs[j].Deprecated = true
 		}
 	}
 	return nil
@@ -918,6 +1009,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"ping响应": {
 				{"pong！这里是{核心:骰子名字}", 1},
 			},
+			"校验_成功": {
+				{"本次生成的神秘海豹码：\n{$t校验码}", 1},
+			},
 		},
 		"日志": {
 			"记录_新建": {
@@ -1308,6 +1402,15 @@ func setupBaseTextTemplate(d *Dice) {
 			"死亡豁免_结局_角色死亡": {
 				SubType: ".ds/死亡豁免",
 			},
+			"受到伤害_超过HP上限_附加语": {
+				SubType: ".st hp-3",
+			},
+			"受到伤害_昏迷中_附加语": {
+				SubType: ".st hp-3",
+			},
+			"受到伤害_进入昏迷_附加语": {
+				SubType: ".st hp-3",
+			},
 			"制卡_分隔符": {
 				SubType: ".dnd 2/.dndx 3",
 			},
@@ -1604,6 +1707,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"ping响应": {
 				SubType:   ".ping",
 				ExtraText: ".ping命令的响应语",
+			},
+			"校验_成功": {
+				SubType: ".check",
 			},
 		},
 		"日志": {
@@ -2092,6 +2198,22 @@ func (d *Dice) loads() {
 
 		d.Config = config
 
+		// 1.4.5 版本 - 覆写lagrange配置
+		for _, i := range d.ImSession.EndPoints {
+			if i.ProtocolType == "onebot" {
+				pa := i.Adapter.(*PlatformAdapterGocq)
+				if pa.BuiltinMode == "lagrange" {
+					signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "25765")
+					if signServerUrl != "" {
+						// 版本为空，覆写为 "25765"
+						if signServerVersion == "" {
+							RWLagrangeSignServerUrl(d, i, "sealdice", true, "25765")
+						}
+					}
+				}
+			}
+		}
+
 		// 设置全局群名缓存和用户名缓存
 		dm := d.Parent
 		now := time.Now().Unix()
@@ -2171,7 +2293,7 @@ func (d *Dice) SaveText() {
 	} else {
 		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
-		// ioutil.WriteFile(filepath.Join(d.RootConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
+		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
 		current, err := os.ReadFile(newFn)
 		if err != nil {
 			_ = os.WriteFile(bakFn, current, 0o644)
@@ -2245,11 +2367,32 @@ func (d *Dice) ApplyExtDefaultSettings() {
 }
 
 func (d *Dice) Save(isAuto bool) {
+	d.SaveDatabaseInsertCheckMapFlag.Do(func() {
+		if d.SaveDatabaseInsertCheckMap == nil {
+			d.Logger.Info("初始化哈希记录表")
+			d.SaveDatabaseInsertCheckMap = new(SyncMap[string, string])
+		}
+	})
+	allCount := 0
+	timestampNow := time.Now().Unix()
 	if d.LastUpdatedTime != 0 {
 		totalConf := &struct {
-			Dice   `yaml:",inline"`
+			// copy from Dice
+			ImSession     *IMSession  `yaml:"imSession" jsbind:"imSession" json:"-"`
+			DeckList      []*DeckInfo `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
+			CommandPrefix []string    `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
+			DiceMasters   []string    `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
+
 			Config `yaml:",inline"`
-		}{*d, d.Config}
+		}{
+			// 这些都是由于导出到 goja 无法拆分的字段
+			d.ImSession,
+			d.DeckList,
+			d.CommandPrefix,
+			d.DiceMasters,
+
+			d.Config,
+		}
 		a, err1 := yaml.Marshal(totalConf)
 		advancedData, err2 := yaml.Marshal(d.AdvancedConfig)
 
@@ -2266,11 +2409,11 @@ func (d *Dice) Save(isAuto bool) {
 				}
 				d.LastUpdatedTime = 0
 			} else if err1 != nil && err2 != nil {
-				d.Logger.Errorln("保存 serve.yaml 和 advanced.yaml 出错", err2)
+				d.Logger.Error("保存 serve.yaml 和 advanced.yaml 出错", err2)
 			} else if err1 != nil {
-				d.Logger.Errorln("保存 serve.yaml 出错", err1)
+				d.Logger.Error("保存 serve.yaml 出错", err1)
 			} else {
-				d.Logger.Errorln("保存 advanced.yaml 出错", err2)
+				d.Logger.Error("保存 advanced.yaml 出错", err2)
 			}
 		}
 	}
@@ -2281,6 +2424,7 @@ func (d *Dice) Save(isAuto bool) {
 			g.Players.Range(func(key string, value *GroupPlayerInfo) bool {
 				if value.UpdatedAtTime != 0 {
 					_ = model.GroupPlayerInfoSave(d.DBData, g.GroupID, key, (*model.GroupPlayerInfoBase)(value))
+					allCount++
 					value.UpdatedAtTime = 0
 				}
 
@@ -2289,6 +2433,7 @@ func (d *Dice) Save(isAuto bool) {
 					if value.Vars.LastWriteTime != 0 {
 						data, _ := json.Marshal(LockFreeMapToMap(value.Vars.ValueMap))
 						model.AttrGroupUserSave(d.DBData, g.GroupID, key, data)
+						allCount++
 						value.Vars.LastWriteTime = 0
 					}
 				}
@@ -2300,19 +2445,40 @@ func (d *Dice) Save(isAuto bool) {
 		if g.UpdatedAtTime != 0 {
 			data, err := json.Marshal(g)
 			if err == nil {
-				err := model.GroupInfoSave(d.DBData, g.GroupID, g.UpdatedAtTime, data)
+				// 修改保存时间为当前时间
+				err := model.GroupInfoSave(d.DBData, g.GroupID, timestampNow, data)
+				allCount++
 				if err != nil {
 					d.Logger.Warnf("保存群组数据失败 %v : %v", g.GroupID, err.Error())
 				}
 				g.UpdatedAtTime = 0
 			}
 		}
-
-		// TODO: 这里其实还能优化
+		// Pinenutn: 由于未知原因，这里每次都会大量插入相同没修改的数据，群越多，疑似占用越大
+		// 由于150已经删除了对应的代码，此处不做刨根问底，只研究优化方案
+		// 已经在某骰上测试的：
+		// 方案1：循环中的整体作为一个事务，减少提交（由于木落担心可能会导致一次保存插入失败一条就全部回退，放弃）
+		// 方案2：使用哈希记录实际没有修改的，然后只插入修改过的，这种情况下，会导致第一次启动的时候这里的占用很高（因为第一次还会全量插入），以后就少了
+		// 之前想过要不要把事务分块插入，不会做，摆了:(
+		// TODO: 这里其实真的还能优化
 		data, _ := json.Marshal(LockFreeMapToMap(g.ValueMap))
-		model.AttrGroupSave(d.DBData, g.GroupID, data)
+		dataHash := GenerateShortHash(data)
+		oldHash, ok := d.SaveDatabaseInsertCheckMap.Load(g.GroupID)
+		// 理论上，只要角色卡没修改过，那么就不需要再次入库
+		// 只要我们记录上一次的HashID和本次的HashID，比较ID应该会比插入占用更低？
+		// 实际上，这并没有解决第一次入库会产生大量插入的问题，但总比没有好……
+		// 如果没修改，请不要入库
+		if !ok || dataHash != oldHash {
+			// 入库
+			model.AttrGroupSave(d.DBData, g.GroupID, data)
+			d.SaveDatabaseInsertCheckMap.Store(g.GroupID, dataHash)
+			allCount++
+		}
 	}
-
+	// 会频繁刷屏，改为控制台输出
+	if allCount > 0 {
+		fmt.Printf("本次ServiceAtNew群组数据，保存影响数据库操作数为: %d\n", allCount)
+	}
 	// 同步绑定的角色卡数据
 	chPrefix := "$:ch-bind-mtime:"
 	chPrefixData := "$:ch-bind-data:"
