@@ -10,10 +10,6 @@
 	path = sealdice-android
 	url = https://github.com/sealdice/sealdice-android
 	branch = master
-[submodule "go-cqhttp"]
-	path = go-cqhttp
-	url = https://github.com/sealdice/go-cqhttp
-	branch = master
 [submodule "sealdice-builtins"]
 	path = sealdice-builtins
 	url = https://github.com/sealdice/sealdice-builtins
