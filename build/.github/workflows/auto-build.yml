@@ -644,7 +644,7 @@ jobs:
 
   preparation:
     name: Compressed Files Preparation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs:
       - pc-pack
       - android-build
