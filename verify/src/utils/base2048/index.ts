@@ -1,23 +1,15 @@
 import alphabet from './base2048.txt?raw'
 
-const encodeChars = alphabet.trim().split('\n')
-  .map(c => c.charCodeAt(0))
+const encodeChars = alphabet
+  .trim()
+  .split('\n')
+  .map((c) => c.charCodeAt(0))
 const decodeMap = new Map(encodeChars.map((c, i) => [c, i]))
 
-const tail = [
-  0xf0d,
-  0xf0e,
-  0xf0f,
-  0xf10,
-  0xf11,
-  0xf06,
-  0xf08,
-  0xf12
-]
+const tail = [0xf0d, 0xf0e, 0xf0f, 0xf10, 0xf11, 0xf06, 0xf08, 0xf12]
 const tailMap = new Map(tail.map((c, i) => [c, i]))
 
-class DecodeError extends Error {
-}
+class DecodeError extends Error {}
 
 export const decode = (src: string): Uint8Array => {
   const ret = []
@@ -41,11 +33,10 @@ export const decode = (src: string): Uint8Array => {
     if (newBits === undefined) {
       newBitsCount = 8 - remaining
       newBits = tailMap.get(c)
-      if (newBits === undefined || si < se || newBits >= (1 << newBitsCount)) {
+      if (newBits === undefined || si < se || newBits >= 1 << newBitsCount) {
         throw new DecodeError(`Invalid character: ${c}`)
       }
-    }
-    else {
+    } else {
       if (si == se) {
         newBitsCount = 11 - residue
       } else {

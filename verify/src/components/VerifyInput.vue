@@ -18,7 +18,7 @@ const time = computed(() => {
 })
 
 function toHexString(byteArray: Uint8Array) {
-  return Array.from(byteArray, b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('')
+  return Array.from(byteArray, (b) => ('0' + (b & 0xff).toString(16)).slice(-2)).join('')
 }
 
 const signVerify = (payload: Uint8Array, signData: Uint8Array): boolean => {
@@ -51,7 +51,7 @@ const verify = async () => {
     let rawData: Uint8Array
     if (code.startsWith('#')) {
       // base64 编码的海豹校验码
-      rawData = Uint8Array.from(atob(code.slice(1)), c => c.charCodeAt(0))
+      rawData = Uint8Array.from(atob(code.slice(1)), (c) => c.charCodeAt(0))
     } else {
       // base2048 编码的海豹校验码
       rawData = base2048Decode(code.slice(1))
@@ -116,22 +116,30 @@ const getTimeTagType = (t: dayjs.Dayjs) => {
 
 <template>
   <div class="break-all">
-    <n-input type="textarea" :autosize="{ minRows: 3 }"
-             placeholder="请输入生成的神秘海豹码，以「SEAL%」或「SEAL#」开头" v-model:value="sealCode"
-             @blur="verify" />
+    <n-input
+      type="textarea"
+      :autosize="{ minRows: 3 }"
+      placeholder="请输入生成的神秘海豹码，以「SEAL%」或「SEAL#」开头"
+      v-model:value="sealCode"
+      @blur="verify"
+    />
   </div>
 
-  <n-flex v-if="result" vertical align="center"
-          class="mt-8 text-base">
+  <n-flex v-if="result" vertical align="center" class="mt-8 text-base">
     <template v-if="result.success">
-      <n-text :type="getTimeDiffLevel(time!) >= 2 ? 'warning' : 'success'" class="my-4 text-xl flex items-center gap-2">
-        <n-icon size="32"><i-carbon-checkmark-filled/></n-icon>
+      <n-text
+        :type="getTimeDiffLevel(time!) >= 2 ? 'warning' : 'success'"
+        class="my-4 text-xl flex items-center gap-2"
+      >
+        <n-icon size="32"><i-carbon-checkmark-filled /></n-icon>
         校验通过
         <span v-if="getTimeDiffLevel(time!) >= 2">，但……</span>
       </n-text>
 
       <div class="max-w-xl">
-        <n-text class="break-all">由 &lt;{{ result.username }}&gt;({{ result.uid }}) 于 {{ result.platform }} 生成</n-text>
+        <n-text class="break-all"
+          >由 &lt;{{ result.username }}&gt;({{ result.uid }}) 于 {{ result.platform }} 生成</n-text
+        >
       </div>
 
       <n-flex v-if="time" justify="center" align="center">
@@ -148,13 +156,11 @@ const getTimeTagType = (t: dayjs.Dayjs) => {
     </template>
     <template v-else>
       <n-text type="error" class="text-lg flex items-center gap-2">
-        <n-icon size="32"><i-carbon-error-filled/></n-icon>
+        <n-icon size="32"><i-carbon-error-filled /></n-icon>
         校验失败！{{ result.err }}
       </n-text>
     </template>
   </n-flex>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

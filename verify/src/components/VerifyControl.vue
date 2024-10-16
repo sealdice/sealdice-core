@@ -10,10 +10,7 @@ const isDark = useDark({
 })
 const toggleDark = useToggle(isDark)
 
-const darkBtnStyle = ({ focused, checked }: {
-  focused: boolean
-  checked: boolean
-}) => {
+const darkBtnStyle = ({ focused, checked }: { focused: boolean; checked: boolean }) => {
   const style: CSSProperties = {}
   if (checked) {
     style.background = themeVars.value.infoColor
@@ -32,8 +29,12 @@ const darkBtnStyle = ({ focused, checked }: {
 
 <template>
   <aside class="flex flex-row justify-end">
-    <n-switch v-model:value="isDark" @on-update:value="toggleDark"
-              size="large" :rail-style="darkBtnStyle">
+    <n-switch
+      v-model:value="isDark"
+      @on-update:value="toggleDark"
+      size="large"
+      :rail-style="darkBtnStyle"
+    >
       <template #checked-icon>
         <n-icon>
           <i-carbon-moon />
@@ -48,6 +49,4 @@ const darkBtnStyle = ({ focused, checked }: {
   </aside>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

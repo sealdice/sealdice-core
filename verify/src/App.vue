@@ -6,9 +6,8 @@ const isDark = useDark()
 
 <template>
   <n-config-provider :theme="isDark ? darkTheme : lightTheme">
-    <main-page/>
+    <main-page />
   </n-config-provider>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>
