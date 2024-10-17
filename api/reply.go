@@ -24,11 +24,11 @@ func customReplySave(c echo.Context) error {
 	}
 
 	v.Clean()
-	for index, i := range myDice.Config.CustomReplyConfig {
+	for index, i := range myDice.CustomReplyConfig {
 		if i.Filename == v.Filename {
-			myDice.Config.CustomReplyConfig[index].Enable = v.Enable
-			myDice.Config.CustomReplyConfig[index].Conditions = v.Conditions
-			myDice.Config.CustomReplyConfig[index].Items = v.Items
+			myDice.CustomReplyConfig[index].Enable = v.Enable
+			myDice.CustomReplyConfig[index].Conditions = v.Conditions
+			myDice.CustomReplyConfig[index].Items = v.Items
 			break
 		}
 	}
@@ -56,7 +56,7 @@ func customReplyFileList(c echo.Context) error {
 	}
 
 	var items []*ReplyConfigInfo
-	for _, i := range myDice.Config.CustomReplyConfig {
+	for _, i := range myDice.CustomReplyConfig {
 		items = append(items, &ReplyConfigInfo{
 			Enable:   i.Enable,
 			Filename: i.Filename,

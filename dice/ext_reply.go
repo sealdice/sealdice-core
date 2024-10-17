@@ -47,7 +47,7 @@ func CustomReplyConfigCheckExists(dice *Dice, filename string) bool {
 }
 
 func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
-	for _, i := range dice.Config.CustomReplyConfig {
+	for _, i := range dice.CustomReplyConfig {
 		if strings.EqualFold(i.Filename, filename) {
 			return nil
 		}
@@ -64,7 +64,7 @@ func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 		Author:          []string{"无名海豹"},
 		Conditions:      []ReplyConditionBase{},
 	}
-	dice.Config.CustomReplyConfig = append(dice.Config.CustomReplyConfig, rc)
+	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
 	rc.Save(dice)
 	return rc
 }
@@ -75,12 +75,12 @@ func CustomReplyConfigDelete(dice *Dice, filename string) bool {
 		err := os.Remove(attrConfigFn)
 		if err == nil {
 			var rcs []*ReplyConfig
-			for _, i := range dice.Config.CustomReplyConfig {
+			for _, i := range dice.CustomReplyConfig {
 				if i.Filename != filename {
 					rcs = append(rcs, i)
 				}
 			}
-			dice.Config.CustomReplyConfig = rcs
+			dice.CustomReplyConfig = rcs
 		}
 		return true
 	}
@@ -127,7 +127,7 @@ func ReplyReload(dice *Dice) {
 		}
 	}
 
-	dice.Config.CustomReplyConfig = rcs
+	dice.CustomReplyConfig = rcs
 }
 
 func RegisterBuiltinExtReply(dice *Dice) {
@@ -142,7 +142,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 		Official:   true,
 		OnNotCommandReceived: func(ctx *MsgContext, msg *Message) {
 			// 当前，只有非指令才会匹配
-			rcs := ctx.Dice.Config.CustomReplyConfig
+			rcs := ctx.Dice.CustomReplyConfig
 			if !ctx.Dice.Config.CustomReplyConfigEnable {
 				return
 			}

@@ -129,36 +129,33 @@ func (c *Config) migrateOld2Version1() {
 }
 
 type BaseConfig struct {
-	CommandCompatibleMode   bool           `yaml:"commandCompatibleMode" json:"-"`
-	LastSavedTime           *time.Time     `yaml:"lastSavedTime" json:"-"`
-	NoticeIDs               []string       `yaml:"noticeIds" json:"noticeIds"`                             // 通知ID
-	OnlyLogCommandInGroup   bool           `yaml:"onlyLogCommandInGroup" json:"onlyLogCommandInGroup"`     // 日志中仅记录命令
-	OnlyLogCommandInPrivate bool           `yaml:"onlyLogCommandInPrivate" json:"onlyLogCommandInPrivate"` // 日志中仅记录命令
-	VersionCode             int            `yaml:"versionCode" json:"versionCode"`                         // 版本ID(配置文件)
-	MessageDelayRangeStart  float64        `yaml:"messageDelayRangeStart" json:"messageDelayRangeStart"`   // 指令延迟区间
-	MessageDelayRangeEnd    float64        `yaml:"messageDelayRangeEnd" json:"messageDelayRangeEnd"`
-	WorkInQQChannel         bool           `yaml:"workInQQChannel" json:"workInQQChannel"`
-	QQChannelAutoOn         bool           `yaml:"QQChannelAutoOn" json:"QQChannelAutoOn"`                 // QQ频道中自动开启(默认不开)
-	QQChannelLogMessage     bool           `yaml:"QQChannelLogMessage" json:"QQChannelLogMessage"`         // QQ频道中记录消息(默认不开)
-	QQEnablePoke            bool           `yaml:"QQEnablePoke" json:"QQEnablePoke"`                       // 启用戳一戳
-	TextCmdTrustOnly        bool           `yaml:"textCmdTrustOnly" json:"textCmdTrustOnly"`               // 只允许信任用户或master使用text指令
-	IgnoreUnaddressedBotCmd bool           `yaml:"ignoreUnaddressedBotCmd" json:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
-	UILogLimit              int64          `yaml:"UILogLimit" json:"-"`
-	FriendAddComment        string         `yaml:"friendAddComment" json:"friendAddComment"` // 加好友验证信息
-	MasterUnlockCode        string         `yaml:"-" json:"masterUnlockCode"`                // 解锁码，每20分钟变化一次，使用后立即变化
-	MasterUnlockCodeTime    int64          `yaml:"-" json:"masterUnlockCodeTime"`
-	CustomReplyConfigEnable bool           `yaml:"customReplyConfigEnable" json:"customReplyConfigEnable"`
-	CustomReplyConfig       []*ReplyConfig `yaml:"-" json:"-"`
-	AutoReloginEnable       bool           `yaml:"autoReloginEnable" json:"autoReloginEnable"`       // 启用自动重新登录
-	RefuseGroupInvite       bool           `yaml:"refuseGroupInvite" json:"refuseGroupInvite"`       // 拒绝加入新群
-	UpgradeWindowID         string         `yaml:"upgradeWindowId" json:"-"`                         // 执行升级指令的窗口
-	UpgradeEndpointID       string         `yaml:"upgradeEndpointId" json:"-"`                       // 执行升级指令的端点
-	BotExtFreeSwitch        bool           `yaml:"botExtFreeSwitch" json:"botExtFreeSwitch"`         // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
-	TrustOnlyMode           bool           `yaml:"trustOnlyMode" json:"trustOnlyMode"`               // 只有信任的用户/master可以拉群和使用
-	AliveNoticeEnable       bool           `yaml:"aliveNoticeEnable" json:"aliveNoticeEnable"`       // 定时通知
-	AliveNoticeValue        string         `yaml:"aliveNoticeValue" json:"aliveNoticeValue"`         // 定时通知间隔
-	ReplyDebugMode          bool           `yaml:"replyDebugMode" json:"replyDebugMode"`             // 回复调试
-	PlayerNameWrapEnable    bool           `yaml:"playerNameWrapEnable" json:"playerNameWrapEnable"` // 启用玩家名称外框
+	CommandCompatibleMode   bool       `yaml:"commandCompatibleMode" json:"-"`
+	LastSavedTime           *time.Time `yaml:"lastSavedTime" json:"-"`
+	NoticeIDs               []string   `yaml:"noticeIds" json:"noticeIds"`                             // 通知ID
+	OnlyLogCommandInGroup   bool       `yaml:"onlyLogCommandInGroup" json:"onlyLogCommandInGroup"`     // 日志中仅记录命令
+	OnlyLogCommandInPrivate bool       `yaml:"onlyLogCommandInPrivate" json:"onlyLogCommandInPrivate"` // 日志中仅记录命令
+	VersionCode             int        `yaml:"versionCode" json:"versionCode"`                         // 版本ID(配置文件)
+	MessageDelayRangeStart  float64    `yaml:"messageDelayRangeStart" json:"messageDelayRangeStart"`   // 指令延迟区间
+	MessageDelayRangeEnd    float64    `yaml:"messageDelayRangeEnd" json:"messageDelayRangeEnd"`
+	WorkInQQChannel         bool       `yaml:"workInQQChannel" json:"workInQQChannel"`
+	QQChannelAutoOn         bool       `yaml:"QQChannelAutoOn" json:"QQChannelAutoOn"`                 // QQ频道中自动开启(默认不开)
+	QQChannelLogMessage     bool       `yaml:"QQChannelLogMessage" json:"QQChannelLogMessage"`         // QQ频道中记录消息(默认不开)
+	QQEnablePoke            bool       `yaml:"QQEnablePoke" json:"QQEnablePoke"`                       // 启用戳一戳
+	TextCmdTrustOnly        bool       `yaml:"textCmdTrustOnly" json:"textCmdTrustOnly"`               // 只允许信任用户或master使用text指令
+	IgnoreUnaddressedBotCmd bool       `yaml:"ignoreUnaddressedBotCmd" json:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
+	UILogLimit              int64      `yaml:"UILogLimit" json:"-"`
+	FriendAddComment        string     `yaml:"friendAddComment" json:"friendAddComment"` // 加好友验证信息
+	CustomReplyConfigEnable bool       `yaml:"customReplyConfigEnable" json:"customReplyConfigEnable"`
+	AutoReloginEnable       bool       `yaml:"autoReloginEnable" json:"autoReloginEnable"`       // 启用自动重新登录
+	RefuseGroupInvite       bool       `yaml:"refuseGroupInvite" json:"refuseGroupInvite"`       // 拒绝加入新群
+	UpgradeWindowID         string     `yaml:"upgradeWindowId" json:"-"`                         // 执行升级指令的窗口
+	UpgradeEndpointID       string     `yaml:"upgradeEndpointId" json:"-"`                       // 执行升级指令的端点
+	BotExtFreeSwitch        bool       `yaml:"botExtFreeSwitch" json:"botExtFreeSwitch"`         // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
+	TrustOnlyMode           bool       `yaml:"trustOnlyMode" json:"trustOnlyMode"`               // 只有信任的用户/master可以拉群和使用
+	AliveNoticeEnable       bool       `yaml:"aliveNoticeEnable" json:"aliveNoticeEnable"`       // 定时通知
+	AliveNoticeValue        string     `yaml:"aliveNoticeValue" json:"aliveNoticeValue"`         // 定时通知间隔
+	ReplyDebugMode          bool       `yaml:"replyDebugMode" json:"replyDebugMode"`             // 回复调试
+	PlayerNameWrapEnable    bool       `yaml:"playerNameWrapEnable" json:"playerNameWrapEnable"` // 启用玩家名称外框
 
 	// TODO: 历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
 	Name    string `yaml:"name"`    // 名称，默认为default

@@ -145,6 +145,10 @@ type Dice struct {
 	CommandPrefix []string    `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
 	DiceMasters   []string    `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
 
+	MasterUnlockCode     string         `yaml:"-" json:"masterUnlockCode"` // 解锁码，每20分钟变化一次，使用后立即变化
+	MasterUnlockCodeTime int64          `yaml:"-" json:"masterUnlockCodeTime"`
+	CustomReplyConfig    []*ReplyConfig `yaml:"-" json:"-"`
+
 	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
 	ConfigManager   *ConfigManager             `yaml:"-"`
@@ -557,18 +561,18 @@ func (d *Dice) MasterRemove(uid string) bool {
 func (d *Dice) UnlockCodeUpdate(force bool) {
 	now := time.Now().Unix()
 	// 大于20分钟重置
-	if now-d.Config.MasterUnlockCodeTime > 20*60 || force {
-		d.Config.MasterUnlockCode = DefaultConfig.MasterUnlockCode
+	if now-d.MasterUnlockCodeTime > 20*60 || force {
+		d.MasterUnlockCode = ""
 	}
-	if d.Config.MasterUnlockCode == "" {
-		d.Config.MasterUnlockCode = RandStringBytesMaskImprSrcSB(8)
-		d.Config.MasterUnlockCodeTime = now
+	if d.MasterUnlockCode == "" {
+		d.MasterUnlockCode = RandStringBytesMaskImprSrcSB(8)
+		d.MasterUnlockCodeTime = now
 	}
 }
 
 func (d *Dice) UnlockCodeVerify(code string) bool {
 	d.UnlockCodeUpdate(false)
-	return code == d.Config.MasterUnlockCode
+	return code == d.MasterUnlockCode
 }
 
 func (d *Dice) IsMaster(uid string) bool {
