@@ -174,7 +174,7 @@ func stExport(mctx *MsgContext, whiteList map[string]bool, regexps []*regexp.Reg
 }
 
 func getPlayerNameTempFunc(mctx *MsgContext) string {
-	if mctx.Dice.PlayerNameWrapEnable {
+	if mctx.Dice.Config.PlayerNameWrapEnable {
 		return fmt.Sprintf("<%s>", mctx.Player.Name)
 	}
 	return mctx.Player.Name

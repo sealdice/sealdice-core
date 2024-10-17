@@ -26,7 +26,7 @@ func jsExec(c echo.Context) error {
 			"testMode": true,
 		})
 	}
-	if !myDice.JsEnable {
+	if !myDice.Config.JsEnable {
 		resp := c.JSON(200, map[string]interface{}{
 			"result": false,
 			"err":    "js扩展支持已关闭",
@@ -86,7 +86,7 @@ func jsGetRecord(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	if !myDice.JsEnable {
+	if !myDice.Config.JsEnable {
 		resp := c.JSON(200, map[string]interface{}{
 			"outputs": []string{},
 		})
@@ -109,7 +109,7 @@ func jsDelete(c echo.Context) error {
 			"testMode": true,
 		})
 	}
-	if !myDice.JsEnable {
+	if !myDice.Config.JsEnable {
 		resp := c.JSON(200, map[string]interface{}{
 			"result": false,
 			"err":    "js扩展支持已关闭",
@@ -200,7 +200,7 @@ func jsList(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	if !myDice.JsEnable {
+	if !myDice.Config.JsEnable {
 		resp := c.JSON(200, []*dice.JsScriptInfo{})
 		return resp
 	}
@@ -231,7 +231,7 @@ func jsShutdown(c echo.Context) error {
 		})
 	}
 
-	if myDice.JsEnable {
+	if myDice.Config.JsEnable {
 		myDice.JsShutdown()
 	}
 
@@ -243,7 +243,7 @@ func jsShutdown(c echo.Context) error {
 func jsStatus(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"result": true,
-		"status": myDice.JsEnable,
+		"status": myDice.Config.JsEnable,
 	})
 }
 
@@ -333,7 +333,7 @@ func jsUpdate(c echo.Context) error {
 	if dm.JustForTest {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
-	if !myDice.JsEnable {
+	if !myDice.Config.JsEnable {
 		return Error(&c, "js扩展支持已关闭", Response{})
 	}
 
