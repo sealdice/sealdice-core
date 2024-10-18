@@ -13,6 +13,7 @@ func DBCheck(dataDir string) {
 		if err != nil {
 			return false
 		}
+		defer rows.Close()
 		var ok bool
 		for rows.Next() {
 			var s string

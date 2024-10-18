@@ -620,7 +620,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			if size > 1 {
 				// 次级结果，如 (10d3)d5 中，此处为10d3的结果
 				// 例如 (10d3)d5=63[(10d3)d5=...,10d3=19]
-				for j := 0; j < len(item.spans)-1; j++ {
+				for j := range len(item.spans) - 1 {
 					span := item.spans[j]
 					subDetailsText += "," + string(detailResult[span.Begin:span.End]) + "=" + span.Ret.ToString()
 				}
@@ -689,7 +689,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	// 设置默认骰子面数
 	if ctx.Group != nil {
 		// 情况不明，在sealchat的第一次测试中出现Group为nil
-		ctx.vm.Config.DefaultDiceSideExpr = fmt.Sprintf("%d", ctx.Group.DiceSideNum)
+		ctx.vm.Config.DefaultDiceSideExpr = strconv.FormatInt(ctx.Group.DiceSideNum, 10)
 		if ctx.vm.Config.DefaultDiceSideExpr == "0" {
 			ctx.vm.Config.DefaultDiceSideExpr = "100"
 		}
