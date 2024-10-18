@@ -697,8 +697,17 @@ jobs:
           echo "PROJECT_VERSION_C=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
         env:
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
+
       - name: Get Files
         uses: actions/download-artifact@v4
+        if: matrix.goos == 'linux'
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}_musl
+          path: ./temp/
+
+      - name: Get Files(!linux)
+        uses: actions/download-artifact@v4
+        if: matrix.goos != 'linux'
         with:
           name: sealdice_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./temp/
