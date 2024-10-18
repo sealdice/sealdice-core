@@ -511,3 +511,54 @@ WHERE log_id = ? AND raw_msg_id = ?`, newContent, logID, rid)
 
 	return nil
 }
+
+func LogGetLastLine(db *sqlx.DB, groupID, logName string) (*LogOneItem, error) {
+	logID, err := LogGetIDByGroupIDAndName(db, groupID, logName)
+	if err != nil {
+		return nil, err
+	}
+
+	const recentLineQuery = `
+SELECT id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id
+FROM log_items
+WHERE log_id=$1
+ORDER BY time DESC
+LIMIT 1`
+
+	var record LogOneItem
+	if err = db.Get(&record, recentLineQuery, logID); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// LogGetCountAndLastLine performs a specialised union search.
+func LogGetCountAndLastLine(db *sqlx.DB, groupID, logName string) (lineCount int64, lastLine *LogOneItem, exists bool) {
+	logID, err := LogGetIDByGroupIDAndName(db, groupID, logName)
+	if err != nil {
+		return
+	}
+
+	const filterQuery = `
+WITH filtered AS (
+	SELECT id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id
+	FROM log_items
+	WHERE log_id=$1 AND removed IS NULL
+)
+SELECT COUNT(*) OVER () AS line_count, *
+FROM filtered
+ORDER BY time DESC
+LIMIT 1`
+
+	type QueryResult struct {
+		LineCount int64 `db:"line_count"`
+		LogOneItem
+	}
+
+	var result QueryResult
+	if err = db.Get(&result, filterQuery, logID); err != nil {
+		return
+	}
+
+	return result.LineCount, &result.LogOneItem, true
+}
