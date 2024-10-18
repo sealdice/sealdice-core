@@ -3,8 +3,8 @@ package dice
 import (
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -21,7 +21,7 @@ func Base64ToImageFunc(logger *log.Helper) func(string) (string, error) {
 		}
 		// 计算 MD5 哈希值作为文件名
 		hash := md5.Sum(data) //nolint:gosec
-		filename := fmt.Sprintf("%x", hash)
+		filename := hex.EncodeToString(hash[:])
 		tempDir := os.TempDir()
 		// 构建文件路径
 		imageurlPath := filepath.Join(tempDir, filename)

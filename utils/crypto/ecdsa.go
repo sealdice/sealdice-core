@@ -4,7 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
+	"errors"
 )
 
 // EcdsaSign Ecdsa 签名
@@ -39,7 +39,7 @@ func EcdsaVerify(data []byte, base64Sig, publicKey string) error {
 	if ok := ecdsa.VerifyASN1(key, hashed, sign); ok {
 		return nil
 	}
-	return fmt.Errorf("verify failed")
+	return errors.New("verify failed")
 }
 
 func EcdsaVerifyRow(data []byte, sign []byte, publicKey string) error {
@@ -48,5 +48,5 @@ func EcdsaVerifyRow(data []byte, sign []byte, publicKey string) error {
 	if ok := ecdsa.VerifyASN1(key, hashed, sign); ok {
 		return nil
 	}
-	return fmt.Errorf("verify failed")
+	return errors.New("verify failed")
 }

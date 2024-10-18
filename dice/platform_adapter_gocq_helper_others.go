@@ -8,7 +8,7 @@ import "os"
 type ProcessExitGroup uintptr
 
 func NewProcessExitGroup() (ProcessExitGroup, error) {
-	return 0, nil
+	return 0, nil //nolint:nilnil
 }
 
 func (g ProcessExitGroup) Dispose() error {

@@ -45,7 +45,7 @@ type AttributesItemModel struct {
 }
 
 func (m *AttributesItemModel) IsDataExists() bool {
-	return m.Data != nil && len(m.Data) > 0
+	return len(m.Data) > 0
 }
 
 // TOOD: 下面这个表记得添加 unique 索引
@@ -116,6 +116,7 @@ func AttrsCharGetBindingList(db *sqlx.DB, id string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	lst := []string{}
 	for rows.Next() {
@@ -191,6 +192,8 @@ func AttrsGetCharacterListByUserId(db *sqlx.DB, userId string) (lst []*Attribute
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	var items []*AttributesItemModel
 	for rows.Next() {
 		item := &AttributesItemModel{}

@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -360,7 +361,7 @@ func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion st
 			signServerUrl += "/" + signServerVersion
 		}
 	}
-	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", fmt.Sprintf("%d", port))
+	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", strconv.Itoa(port))
 	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
 	conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
 	return conf

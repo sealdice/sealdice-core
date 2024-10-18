@@ -440,7 +440,7 @@ func (pa *PlatformAdapterSatori) SendToGroup(ctx *MsgContext, groupID string, te
 	pa.sendMsgRaw(ctx, UserIDExtract(groupID), text, flag, "group")
 }
 
-func (pa *PlatformAdapterSatori) sendMsgRaw(ctx *MsgContext, channelID string, text string, flag string, msgType string) {
+func (pa *PlatformAdapterSatori) sendMsgRaw( /* ctx */ _ *MsgContext, channelID string, text string /* flag */, _ string, msgType string) {
 	log := pa.Session.Parent.Logger
 	req, err := json.Marshal(map[string]interface{}{
 		"channel_id": channelID,
@@ -554,6 +554,7 @@ func (pa *PlatformAdapterSatori) post(resource string, body io.Reader) ([]byte, 
 		request.Header.Add("Authorization", "Bearer "+pa.Token)
 	}
 	request.Header.Add("X-Platform", pa.Platform)
+	//nolint:canonicalheader
 	request.Header.Add("X-Self-ID", UserIDExtract(pa.EndPoint.UserID))
 	resp, err := client.Do(request)
 	if err != nil {

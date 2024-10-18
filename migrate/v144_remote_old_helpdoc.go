@@ -19,7 +19,7 @@ func V144RemoveOldHelpdoc() error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("Get file info for %s failed: %w", oldName, err)
+		return fmt.Errorf("get file info for %s failed: %w", oldName, err)
 	}
 
 	_, err = os.Stat(newName)
@@ -28,7 +28,7 @@ func V144RemoveOldHelpdoc() error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("Get file info for %s failed: %w", newName, err)
+		return fmt.Errorf("get file info for %s failed: %w", newName, err)
 	}
 
 	if crypto.Sha256Checksum(oldName) != oldSHA256 {

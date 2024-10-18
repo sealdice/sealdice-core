@@ -1432,7 +1432,7 @@ func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIn
 		// 采用类似分页的手法进行退群
 		groupCount := len(selectedGroupEndpoints)
 		rounds := (groupCount + groupsPerRound - 1) / groupsPerRound
-		for round := 0; round < rounds; round++ {
+		for round := range rounds {
 			startIndex := round * groupsPerRound
 			endIndex := (round + 1) * groupsPerRound
 			if endIndex > groupCount {

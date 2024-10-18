@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -31,7 +32,7 @@ func (d *Dice) CanSendMail() bool {
 
 func (d *Dice) SendMail(body string, m MailCode) error {
 	if !d.CanSendMail() {
-		return fmt.Errorf("邮件配置不完整")
+		return errors.New("邮件配置不完整")
 	}
 	sub := "Seal News: "
 	switch m {

@@ -79,7 +79,7 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 	}
 
 	// 开始抽取
-	for i := int64(0); i < num; i++ {
+	for range num {
 		rule := rules[rand.Int()%len(rules)]
 		names = append(names, ctx.Dice.Parent.NamesGenerator.NameGenerate(rule))
 	}

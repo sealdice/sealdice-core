@@ -91,9 +91,7 @@ LIMIT ? OFFSET ?`, params.PageSize, (params.PageNum-1)*params.PageSize)
 	if err != nil {
 		return 0, nil, err
 	}
-	defer func(rows *sqlx.Rows) {
-		_ = rows.Close()
-	}(rows)
+	defer rows.Close()
 
 	for rows.Next() {
 		log := CensorLog{}

@@ -2,7 +2,7 @@ package api
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"io"
 	"io/fs"
 	"mime/multipart"
@@ -246,7 +246,7 @@ func ensurePathSafe(path string) error {
 	if !strings.HasPrefix(abs, imagesPath) &&
 		!strings.HasPrefix(abs, audiosPath) &&
 		!strings.HasPrefix(abs, videosPath) {
-		return fmt.Errorf("invalid path")
+		return errors.New("invalid path")
 	}
 	return nil
 }
