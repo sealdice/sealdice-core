@@ -1,0 +1,47 @@
+name: Test & Lint
+
+on:
+  push:
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - '.github/workflows/reviewdog.yml'
+  pull_request_target:
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - '.github/workflows/reviewdog.yml'
+
+jobs:
+  review-dog:
+    name: Review Dog
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: false
+      - run: go get
+      - run: go generate ./...
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
+      - name: GolangCI-Lint with review-dog
+        uses: reviewdog/action-golangci-lint@v2
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        with:
+          tool_name: 'golangci-lint'
+          level: 'warning'
+          reporter: 'github-pr-review'
+          golangci_lint_version: 'v1.61.0'
+          go_version: '1.22'
+          cache: false
