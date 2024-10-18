@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 
 	"sealdice-core/dice/model"
 	log "sealdice-core/utils/kratos"
@@ -17,7 +17,7 @@ import (
 
 type UploadEnv struct {
 	Dir      string
-	Db       *sqlx.DB
+	Db       *gorm.DB
 	Log      *log.Helper
 	Backends []string
 	Version  StoryVersion
