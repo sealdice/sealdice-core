@@ -29,6 +29,7 @@ import (
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
 	log "sealdice-core/utils/kratos"
+	"sealdice-core/utils/oschecker"
 	"sealdice-core/utils/paniclog"
 )
 
@@ -204,7 +205,11 @@ func main() {
 	paniclog.InitPanicLog()
 	// 3. 提示日志打印
 	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
-
+	judge, osr := oschecker.OldVersionCheck()
+	if !judge {
+		log.Warnf("当前操作系统%s版本过低，可能无法正常启动，请升级到 Windows 10 1903 或更高版本", osr)
+	}
+	log.Info(osr)
 	if opts.Version {
 		fmt.Println(dice.VERSION.String())
 		return
