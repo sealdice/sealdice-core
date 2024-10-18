@@ -190,24 +190,13 @@ jobs:
         # target: linux/amd64, linux/arm64, windows/amd64
         goos: [ linux, windows ]
         goarch: [ '386', amd64, arm64 ]
-        musl: [ '' ]
-        include:
-          - goos: linux
-            goarch: amd64
-            musl: musl
-          - goos: linux
-            goarch: arm64
-            musl: musl
         exclude:
           - goos: linux
             goarch: '386'
-            musl: ''
           - goos: windows
             goarch: arm64
-            musl: ''
           - goos: windows
             goarch: '386'
-            musl: ''
       fail-fast: true
     steps:
       - name: Apt-get Update
@@ -219,14 +208,11 @@ jobs:
       - name: Install Cross-compiler for Windows
         if: matrix.goos == 'windows'
         run: sudo apt-get -y install mingw-w64
-      - name: Install Cross-compiler for Linux Arm64
-        if: matrix.goos == 'linux' && matrix.goarch == 'arm64' && matrix.musl == ''
-        run: sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Install Cross-compiler for Linux Amd64 Musl
-        if: matrix.goos == 'linux' && matrix.goarch == 'amd64' && matrix.musl == 'musl'
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
         run: sudo apt-get -y install musl-tools
       - name: Install Cross-compiler for Linux Arm64 Musl
-        if: matrix.goos == 'linux' && matrix.goarch == 'arm64' && matrix.musl == 'musl'
+        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         run: |
           curl -O https://musl.cc/aarch64-linux-musl-cross.tgz;
           tar zxf aarch64-linux-musl-cross.tgz;
@@ -274,7 +260,6 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          MUSL: ${{ matrix.musl }}
           CUR_TIME: ${{ steps.currentTime.outputs.time }}
         working-directory: ./sealdice-core
         run: |
@@ -289,20 +274,12 @@ jobs:
           elif [ $GOOS = 'windows' ] && [ $GOARCH = 'amd64' ]; then
             echo "CC=x86_64-w64-mingw32-gcc" >> $GITHUB_ENV;
           elif [ $GOOS = 'linux' ] && [ $GOARCH = 'amd64' ]; then
-            if [ $MUSL = 'musl' ]; then
-              echo "CC=musl-gcc" >> $GITHUB_ENV;
-            else
-              echo "CC=gcc" >> $GITHUB_ENV;
-            fi
+            echo "CC=musl-gcc" >> $GITHUB_ENV;
           elif [ $GOOS = 'linux' ] && [ $GOARCH = 'arm64' ]; then
-            if [ $MUSL = 'musl' ]; then
-              echo "CC=$(readlink -f ../aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc)" >> $GITHUB_ENV;
-            else
-              echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV;
-            fi
+            echo "CC=$(readlink -f ../aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc)" >> $GITHUB_ENV;
           fi
       - name: Build Binary
-        if: matrix.musl == ''
+        if: matrix.goos != 'linux'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -313,8 +290,8 @@ jobs:
           SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
         working-directory: ./sealdice-core
         run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
-      - name: Build Binary (musl)
-        if: matrix.musl == 'musl'
+      - name: Build Binary (linux musl)
+        if: matrix.goos == 'linux'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -327,22 +304,14 @@ jobs:
         run: go build -tags musl -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -linkmode external -extldflags '-static' -X sealdice-core/dice.VERSION_PRERELEASE=-dev -X sealdice-core/dice.VERSION_BUILD_METADATA=+${CUR_TIME}.${COMMIT_ID::7} -X sealdice-core/dice.APP_CHANNEL=dev -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
       - name: Run UPX
         uses: crazy-max/ghaction-upx@v3
-        if: matrix.musl == ''
         with:
           version: latest
           files: ./sealdice-core/output/${{ env.BINARY_NAME }}
           args: -9 -fq
       - name: Upload Core
         uses: actions/upload-artifact@v4
-        if: matrix.musl == ''
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: ./sealdice-core/output
-      - name: Upload Core (musl)
-        uses: actions/upload-artifact@v4
-        if: matrix.musl == 'musl'
-        with:
-          name: sealdice-core_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}_musl
           path: ./sealdice-core/output
 
   core-darwin-build:
@@ -583,27 +552,15 @@ jobs:
         # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64
         goos: [ linux, windows, darwin ]
         goarch: [ '386', amd64, arm64 ]
-        musl: [ '' ]
-        include:
-          - goos: linux
-            goarch: amd64
-            musl: musl
-          - goos: linux
-            goarch: arm64
-            musl: musl
         exclude:
           - goos: linux
             goarch: '386'
-            musl: ''
           - goos: windows
             goarch: arm64
-            musl: ''
           - goos: windows
             goarch: '386'
-            musl: ''
           - goos: darwin
             goarch: '386'
-            musl: ''
     steps:
       - name: Get current time
         uses: Kaven-Universe/github-action-current-date-time@v1
@@ -624,22 +581,14 @@ jobs:
 
       - name: Get Lagrange
         uses: actions/download-artifact@v4
-        if: matrix.musl == ''
         with:
           name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./lagrange/
 
       - name: Get Core
         uses: actions/download-artifact@v4
-        if: matrix.musl == ''
         with:
           name: sealdice-core_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: .
-      - name: Get Core (musl)
-        uses: actions/download-artifact@v4
-        if: matrix.musl == 'musl'
-        with:
-          name: sealdice-core_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}_musl
           path: .
 
       - name: Set Execute Attribute
@@ -648,15 +597,8 @@ jobs:
 
       - name: Upload
         uses: actions/upload-artifact@v4
-        if: matrix.musl == ''
         with:
           name: sealdice_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: .
-      - name: Upload (musl)
-        uses: actions/upload-artifact@v4
-        if: matrix.musl == 'musl'
-        with:
-          name: sealdice_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}_musl
           path: .
 
   preparation:
@@ -700,14 +642,6 @@ jobs:
 
       - name: Get Files
         uses: actions/download-artifact@v4
-        if: matrix.goos == 'linux'
-        with:
-          name: sealdice_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}_musl
-          path: ./temp/
-
-      - name: Get Files(!linux)
-        uses: actions/download-artifact@v4
-        if: matrix.goos != 'linux'
         with:
           name: sealdice_${{ env.PROJECT_VERSION_C }}_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ./temp/
@@ -824,12 +758,12 @@ jobs:
       - name: Get Amd64 Files
         uses: actions/download-artifact@v4
         with:
-          name: sealdice_${{ env.PROJECT_VERSION_C }}_linux_amd64_musl
+          name: sealdice_${{ env.PROJECT_VERSION_C }}_linux_amd64
           path: ./amd64/
       - name: Get Arm64 Files
         uses: actions/download-artifact@v4
         with:
-          name: sealdice_${{ env.PROJECT_VERSION_C }}_linux_arm64_musl
+          name: sealdice_${{ env.PROJECT_VERSION_C }}_linux_arm64
           path: ./arm64/
 
       - name: Chmod
