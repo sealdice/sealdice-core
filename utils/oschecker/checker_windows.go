@@ -1,3 +1,6 @@
+//go:build windows
+// +build windows
+
 package oschecker
 
 // copied from https://github.com/jfjallid/go-secdump/blob/e307524e114f9abb39e2cd2b13ae421aae02d2de/utils.go with some changes
