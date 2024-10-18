@@ -698,7 +698,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 				if len(m2) == len(items) {
 					ok := true
-					for i := 0; i < len(m2); i++ {
+					for i := range len(m2) {
 						if m2[i] != items[i] {
 							ok = false
 							break
