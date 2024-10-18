@@ -33,7 +33,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         if: github.event.name == 'pull_request'
         with:
-          version: 'vv1.60'
+          version: 'v1.60'
           args: '--timeout 9999s'
           only-new-issues: true
           skip-pkg-cache: true
