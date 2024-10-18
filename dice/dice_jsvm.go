@@ -1129,7 +1129,7 @@ func JsDisable(d *Dice, jsInfoName string) {
 func (d *Dice) JsCheckUpdate(jsScriptInfo *JsScriptInfo) (string, string, string, error) {
 	// FIXME: dirty, copy from check deck update.
 	if len(jsScriptInfo.UpdateUrls) == 0 {
-		return "", "", "", fmt.Errorf("插件未提供更新链接")
+		return "", "", "", errors.New("插件未提供更新链接")
 	}
 
 	statusCode, newData, err := GetCloudContent(jsScriptInfo.UpdateUrls, jsScriptInfo.Etag)
@@ -1137,10 +1137,10 @@ func (d *Dice) JsCheckUpdate(jsScriptInfo *JsScriptInfo) (string, string, string
 		return "", "", "", err
 	}
 	if statusCode == http.StatusNotModified {
-		return "", "", "", fmt.Errorf("插件没有更新")
+		return "", "", "", errors.New("插件没有更新")
 	}
 	if statusCode != http.StatusOK {
-		return "", "", "", fmt.Errorf("未获取到插件更新")
+		return "", "", "", errors.New("未获取到插件更新")
 	}
 	oldData, err := os.ReadFile(jsScriptInfo.Filename)
 	if err != nil {
@@ -1179,7 +1179,7 @@ func (d *Dice) JsUpdate(jsScriptInfo *JsScriptInfo, tempFileName string) error {
 		return err
 	}
 	if len(newData) == 0 {
-		return fmt.Errorf("new data is empty")
+		return errors.New("new data is empty")
 	}
 	// 更新插件
 	err = os.WriteFile(jsScriptInfo.Filename, newData, 0o755)
@@ -1407,7 +1407,7 @@ func (t *JsScriptTask) reset(expr string) error {
 func parseTaskTime(taskTimeStr string) (string, error) {
 	match := taskTimeRe.MatchString(taskTimeStr)
 	if !match {
-		return "", fmt.Errorf("仅接受 24 小时表示的时间作为每天的执行时间，如 0:05 13:30")
+		return "", errors.New("仅接受 24 小时表示的时间作为每天的执行时间，如 0:05 13:30")
 	}
 	time, err := time.Parse("15:04", taskTimeStr)
 	if err != nil {

@@ -114,7 +114,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 				length = length2
 			}
 
-			for index := 0; index < length; index++ {
+			for index := range length {
 				choices = append(choices, wr.NewChoice(index, uint(weightLst[index])))
 			}
 			restText = sp[0]

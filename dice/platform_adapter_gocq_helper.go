@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -74,7 +75,7 @@ func RandString(n int) string {
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 
 	bytes := make([]byte, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		b := r.Intn(26) + 65
 		bytes[i] = byte(b)
 	}
@@ -380,8 +381,8 @@ servers:
 `
 
 func GenerateConfig(qq int64, port int, info GoCqhttpLoginInfo) string {
-	ret := strings.ReplaceAll(defaultConfig, "{WS端口}", fmt.Sprintf("%d", port))
-	ret = strings.Replace(ret, "{QQ帐号}", fmt.Sprintf("%d", qq), 1)
+	ret := strings.ReplaceAll(defaultConfig, "{WS端口}", strconv.Itoa(port))
+	ret = strings.Replace(ret, "{QQ帐号}", strconv.FormatInt(qq, 10), 1)
 	ret = strings.Replace(ret, "{QQ密码}", info.Password, 1)
 
 	if info.UseSignServer && info.SignServerConfig != nil {
@@ -820,7 +821,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 							pa.GoCqhttpLoginCaptcha = ""
 							go func() {
 								// 检查是否有短信验证码
-								for i := 0; i < 100; i++ {
+								for range 100 {
 									if pa.GoCqhttpState != GoCqhttpStateCodeInLoginBar {
 										break
 									}
@@ -844,7 +845,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 					pa.GoCqhttpLoginVerifyCode = ""
 					go func() {
 						// 检查是否有短信验证码
-						for i := 0; i < 100; i++ {
+						for range 100 {
 							if pa.GoCqhttpState != GoCqhttpStateCodeInLoginVerifyCode {
 								break
 							}

@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -393,7 +394,7 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 	}
 
 	if len(errDel) > 0 {
-		return fmt.Errorf("error(s) occured when deleting files:\n" + strings.Join(errDel, "\n"))
+		return errors.New("error(s) occured when deleting files:\n" + strings.Join(errDel, "\n"))
 	}
 	return nil
 }

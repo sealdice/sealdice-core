@@ -43,7 +43,7 @@ type PlatformAdapterRed struct {
 	memberMap *SyncMap[string, *SyncMap[string, *GroupMember]]
 }
 
-type RedPack[T interface{}] struct {
+type RedPack[T any] struct {
 	Type    string `json:"type"`
 	Payload *T     `json:"payload"`
 }
@@ -883,7 +883,7 @@ func (pa *PlatformAdapterRed) httpDo(method, action string, headers map[string]s
 }
 
 // encodeMessage 将带 cq code 的内容转换为 red 所需的格式
-func (pa *PlatformAdapterRed) encodeMessage(ctx *MsgContext, content string) []*RedElement {
+func (pa *PlatformAdapterRed) encodeMessage( /* ctx */ _ *MsgContext, content string) []*RedElement {
 	elems := message.ConvertStringMessage(content)
 	var redElems []*RedElement
 	for _, elem := range elems {
