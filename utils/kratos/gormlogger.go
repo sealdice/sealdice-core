@@ -10,6 +10,6 @@ func wrapLogger(zaplogger *zap.Logger) zapgorm2.Logger {
 	wraper := zapgorm2.New(zaplogger)
 	wraper.IgnoreRecordNotFoundError = true
 	wraper.LogLevel = gormlogger.Info
-	wraper.SkipCallerLookup = true
+	wraper.SkipCallerLookup = false
 	return wraper
 }

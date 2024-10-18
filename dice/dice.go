@@ -314,9 +314,9 @@ func (d *Dice) Init() {
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0o755)
 
-	log := logger.Init()
-	d.Logger = log.Logger
-	d.LogWriter = log.WX
+	plog := logger.Init()
+	d.Logger = plog.Logger
+	d.LogWriter = plog.WX
 
 	d.Cron = cron.New()
 	d.Cron.Start()
@@ -339,7 +339,6 @@ func (d *Dice) Init() {
 	initVerify()
 
 	d.CommandCompatibleMode = true
-	// Pinenutn: 预先初始化对应的SyncMap
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])

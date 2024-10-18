@@ -41,7 +41,7 @@ type LogOneItem struct {
 }
 
 // 钩子函数: 保存前
-func (item *LogOneItem) BeforeSave(tx *gorm.DB) (err error) {
+func (item *LogOneItem) BeforeSave(_ *gorm.DB) (err error) {
 	// 将 CommandInfo 转换为 JSON 字符串保存到 CommandInfoStr
 	if item.CommandInfo != nil {
 		if data, err := json.Marshal(item.CommandInfo); err == nil {
@@ -60,10 +60,10 @@ func (item *LogOneItem) BeforeSave(tx *gorm.DB) (err error) {
 }
 
 // 钩子函数: 查询后
-func (item *LogOneItem) AfterFind(tx *gorm.DB) (err error) {
+func (item *LogOneItem) AfterFind(_ *gorm.DB) (err error) {
 	// 将 CommandInfoStr 从 JSON 字符串反序列化为 CommandInfo
 	if item.CommandInfoStr != "" {
-		if err := json.Unmarshal([]byte(item.CommandInfoStr), &item.CommandInfo); err != nil {
+		if err = json.Unmarshal([]byte(item.CommandInfoStr), &item.CommandInfo); err != nil {
 			return err
 		}
 	}
@@ -363,7 +363,7 @@ func LogDelete(db *gorm.DB, groupID string, logName string) bool {
 
 	// 开启事务
 	tx := db.Begin()
-	if err := tx.Error; err != nil {
+	if err = tx.Error; err != nil {
 		return false
 	}
 	defer func() {
@@ -373,12 +373,12 @@ func LogDelete(db *gorm.DB, groupID string, logName string) bool {
 	}()
 
 	// 删除 log_id 相关的 log_items 记录
-	if err := tx.Where("log_id = ?", logID).Delete(&LogOneItem{}).Error; err != nil {
+	if err = tx.Where("log_id = ?", logID).Delete(&LogOneItem{}).Error; err != nil {
 		return false
 	}
 
 	// 删除 log_id 相关的 logs 记录
-	if err := tx.Where("id = ?", logID).Delete(&LogInfo{}).Error; err != nil {
+	if err = tx.Where("id = ?", logID).Delete(&LogInfo{}).Error; err != nil {
 		return false
 	}
 
@@ -401,7 +401,7 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 
 	// 开始事务
 	tx := db.Begin()
-	if err := tx.Error; err != nil {
+	if err = tx.Error; err != nil {
 		return false
 	}
 	defer func() {
@@ -413,15 +413,15 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 	if logID == 0 {
 		// 创建一个新的 log
 		newLog := LogInfo{Name: logName, GroupID: groupID, CreatedAt: nowTimestamp, UpdatedAt: nowTimestamp}
-		if err := tx.Create(&newLog).Error; err != nil {
+		if err = tx.Create(&newLog).Error; err != nil {
 			return false
 		}
 		logID = newLog.ID // 假设 LogInfo 结构体有 ID 字段
 	}
 
 	// 向 log_items 表中添加一条信息
-	// Pinenutn: 由此可以推知，CommandInfo必然是一个 map[string]interface{}
-	//data, err := json.Marshal(logItem.CommandInfo)
+	// Pinenutn: 由原本（当前被注释的）代码可以推知，CommandInfo必然是一个 map[string]interface{}
+	// data, err := json.Marshal(logItem.CommandInfo)
 
 	if err != nil {
 		return false
@@ -441,12 +441,12 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 		UniformID:   logItem.UniformID,
 	}
 
-	if err := tx.Create(&newLogItem).Error; err != nil {
+	if err = tx.Create(&newLogItem).Error; err != nil {
 		return false
 	}
 
 	// 更新 logs 表中的 updated_at 字段
-	if err := tx.Model(&LogInfo{}).Where("id = ?", logID).Update("updated_at", nowTimestamp).Error; err != nil {
+	if err = tx.Model(&LogInfo{}).Where("id = ?", logID).Update("updated_at", nowTimestamp).Error; err != nil {
 		return false
 	}
 
@@ -467,12 +467,14 @@ func LogMarkDeleteByMsgID(db *gorm.DB, groupID string, logName string, rawID int
 	rid := ""
 	if rawID != nil {
 		rid = fmt.Sprintf("%v", rawID)
+	} else {
+		// 考虑到这个参数可能为空，如果强行转换，有概率删除掉其他数据，故拒绝删除
+		return errors.New("rawID is nil, refuse to delete")
 	}
 
 	// fmt.Printf("log delete %v %d\n", rawId, logId)
-	// TODO: 此处的代码是否有点问题？
-	if err := db.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&LogOneItem{}).Error; err != nil {
-		fmt.Println("log delete error", err.Error())
+	// TODO: 添加对应它的索引
+	if err = db.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&LogOneItem{}).Error; err != nil {
 		return err
 	}
 
@@ -492,7 +494,7 @@ func LogEditByMsgID(db *gorm.DB, groupID, logName, newContent string, rawID inte
 	}
 
 	// 更新 log_items 表中的内容
-	if err := db.Model(&LogOneItem{}).
+	if err = db.Model(&LogOneItem{}).
 		Where("log_id = ? AND raw_msg_id = ?", logID, rid).
 		Update("message", newContent).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

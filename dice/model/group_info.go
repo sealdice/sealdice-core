@@ -100,7 +100,7 @@ type GroupPlayerInfoBase struct {
 	// 缺少信息
 	CreatedAt int    `yaml:"-" json:"-" gorm:"column:created_at"` // 创建时间
 	UpdatedAt int    `yaml:"-" json:"-" gorm:"column:updated_at"` // 更新时间
-	GroupID   string `yaml:"-" json:"-" gorm:"column:group_id;index:idx_group_player_info_group_id; uniqueIndex:idx_group_player_info_group_user"`
+	GroupID   string `yaml:"-" json:"-" gorm:"column:group_id;index:idx_group_player_info_group_id;uniqueIndex:idx_group_player_info_group_user"`
 }
 
 // 兼容设置

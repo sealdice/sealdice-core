@@ -1,12 +1,6 @@
 module sealdice-core
 
-<<<<<<< HEAD
-go 1.21
-
-toolchain go1.22.8
-=======
 go 1.22
->>>>>>> TRULY远端/master
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
@@ -64,6 +58,7 @@ require (
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
 	github.com/sealdice/dicescript v0.0.0-20240927083134-65269b7d051c
 	github.com/slack-go/slack v0.13.0
+	github.com/sunshineplan/imgconv v1.1.4
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	github.com/tdewolff/minify/v2 v2.20.37
 	github.com/tidwall/buntdb v1.3.2
@@ -82,16 +77,10 @@ require (
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 	gopkg.in/yaml.v3 v3.0.1
-<<<<<<< HEAD
 	gorm.io/driver/sqlite v1.5.6
 	gorm.io/gorm v1.25.12
-)
-
-require (
-	github.com/sunshineplan/imgconv v1.1.4
-=======
->>>>>>> TRULY远端/master
 	moul.io/zapfilter v1.7.0
+	moul.io/zapgorm2 v1.3.0
 )
 
 require (
@@ -192,10 +181,6 @@ require (
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.7.2 // indirect
 	modernc.org/sqlite v1.28.0 // indirect
-<<<<<<< HEAD
-	moul.io/zapgorm2 v1.3.0 // indirect
-=======
->>>>>>> TRULY远端/master
 )
 
 replace (
