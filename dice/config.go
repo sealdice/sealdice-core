@@ -2613,11 +2613,11 @@ func (d *Dice) Save(isAuto bool) {
 				}
 				d.LastUpdatedTime = 0
 			} else if err1 != nil && err2 != nil {
-				d.Logger.Errorln("保存 serve.yaml 和 advanced.yaml 出错", err2)
+				d.Logger.Error("保存 serve.yaml 和 advanced.yaml 出错", err2)
 			} else if err1 != nil {
-				d.Logger.Errorln("保存 serve.yaml 出错", err1)
+				d.Logger.Error("保存 serve.yaml 出错", err1)
 			} else {
-				d.Logger.Errorln("保存 advanced.yaml 出错", err2)
+				d.Logger.Error("保存 advanced.yaml 出错", err2)
 			}
 		}
 	}

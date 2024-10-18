@@ -6,15 +6,15 @@ import (
 	"time"
 
 	ds "github.com/sealdice/dicescript"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"sealdice-core/dice/model"
+	log "sealdice-core/utils/kratos"
 )
 
 type AttrsManager struct {
 	db     *gorm.DB
-	logger *zap.SugaredLogger
+	logger *log.Helper
 	m      SyncMap[string, *AttributesItem]
 }
 

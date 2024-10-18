@@ -12,6 +12,8 @@ import (
 
 	"github.com/samber/lo"
 	ds "github.com/sealdice/dicescript"
+
+	log "sealdice-core/utils/kratos"
 )
 
 func (v *VMValue) ConvertToV2() *ds.VMValue {
@@ -138,7 +140,7 @@ func (ctx *MsgContext) EvalFString(expr string, flags *ds.RollConfig) *VMResultV
 	// 隐藏的内置字符串符号 \x1e
 	r := ctx.Eval("\x1e"+expr+"\x1e", flags)
 	if r.vm.Error != nil {
-		fmt.Println("脚本执行出错: ", expr, "->", r.vm.Error)
+		log.Error("脚本执行出错: ", expr, "->", r.vm.Error)
 	}
 	return r
 }
@@ -235,7 +237,7 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 		if flags.V2Only {
 			return nil, "", err
 		}
-		fmt.Println("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
+		log.Error("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
 		errV2 := err // 某种情况下没有这个值，很奇怪
 
 		// 尝试一下V1

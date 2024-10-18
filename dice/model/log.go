@@ -78,8 +78,8 @@ func (item *LogOneItem) AfterFind(tx *gorm.DB) (err error) {
 
 type LogInfo struct {
 	ID        uint64 `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	Name      string `json:"name" gorm:"column:name;index:idx_log_group_id_name"`
-	GroupID   string `json:"groupId" gorm:"index:idx_logs_group;index:idx_log_group_id_name;column:group_id"`
+	Name      string `json:"name" gorm:"column:name;uniqueIndex:idx_log_group_id_name"`
+	GroupID   string `json:"groupId" gorm:"column:group_id;index:idx_logs_group; uniqueIndex:idx_log_group_id_name"`
 	CreatedAt int64  `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt int64  `json:"updatedAt" gorm:"column:updated_at;index:idx_logs_update_at"`
 	// 允许数据库NULL值
