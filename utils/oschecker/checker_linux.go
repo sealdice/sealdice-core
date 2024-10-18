@@ -5,6 +5,7 @@ package oschecker
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -72,7 +73,7 @@ func execShell(cmdStr string) (string, error) {
 			}
 		}
 		fmt.Printf("ExecShell-errMsg-> %s\n", errMsg)
-		return errMsg, fmt.Errorf(errMsg)
+		return errMsg, errors.New(errMsg)
 	}
 	return stdout.String(), nil
 }
