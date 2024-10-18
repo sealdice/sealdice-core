@@ -69,7 +69,6 @@ func OldVersionCheck() (bool, string) {
 		showMsgBox("版本升级提示", fmt.Sprintf("您的操作系统:%s 即将不受支持，请升级至 Windows 10/Windows Server 2016 或更高版本。", osNameMap[os]))
 		return true, osNameMap[os]
 	} else {
-		showMsgBox("版本升级提示", fmt.Sprintf("您的操作系统:%s 还在受支持，您无需考虑升级到更高版本。", osNameMap[os]))
 		return false, osNameMap[os]
 	}
 }
