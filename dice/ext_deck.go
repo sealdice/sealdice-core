@@ -1155,7 +1155,7 @@ func extractExecuteContent(s string) (string, string) {
 
 func (d *Dice) DeckCheckUpdate(deckInfo *DeckInfo) (string, string, string, error) {
 	if len(deckInfo.UpdateUrls) == 0 {
-		return "", "", "", fmt.Errorf("牌堆未提供更新链接")
+		return "", "", "", errors.New("牌堆未提供更新链接")
 	}
 
 	statusCode, newData, err := GetCloudContent(deckInfo.UpdateUrls, deckInfo.Etag)
@@ -1163,10 +1163,10 @@ func (d *Dice) DeckCheckUpdate(deckInfo *DeckInfo) (string, string, string, erro
 		return "", "", "", err
 	}
 	if statusCode == http.StatusNotModified {
-		return "", "", "", fmt.Errorf("牌堆没有更新")
+		return "", "", "", errors.New("牌堆没有更新")
 	}
 	if statusCode != http.StatusOK {
-		return "", "", "", fmt.Errorf("未获取到牌堆更新")
+		return "", "", "", errors.New("未获取到牌堆更新")
 	}
 
 	oldData, err := os.ReadFile(deckInfo.Filename)
@@ -1206,13 +1206,13 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 		return err
 	}
 	if len(newData) == 0 {
-		return fmt.Errorf("new data is empty")
+		return errors.New("new data is empty")
 	}
 	// 更新牌堆
 	ok := parseDeck(d, tempFileName, newData, deckInfo)
 	if !ok {
 		d.Logger.Errorf("牌堆“%s”更新失败，无法解析获取到的牌堆数据", deckInfo.Name)
-		return fmt.Errorf("无法解析获取到的牌堆数据")
+		return errors.New("无法解析获取到的牌堆数据")
 	}
 
 	err = os.WriteFile(deckInfo.Filename, newData, 0755)

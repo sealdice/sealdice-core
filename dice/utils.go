@@ -350,7 +350,7 @@ func GenerateShortHash(input []byte) string {
 
 	// 将哈希值转换为 8 位十六进制字符串
 	hashBytes := make([]byte, 8)
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		hashBytes[i] = byte(hash >> (56 - 8*i))
 	}
 	return hex.EncodeToString(hashBytes)
