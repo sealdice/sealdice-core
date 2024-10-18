@@ -206,10 +206,10 @@ func main() {
 	// 3. 提示日志打印
 	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
 	judge, osr := oschecker.OldVersionCheck()
-	if !judge {
-		log.Warnf("当前操作系统%s版本过低，可能无法正常启动，请升级到 Windows 10 1903 或更高版本", osr)
+	// 预留收集信息的接口，如果有需要可以考虑从这里拿数据。不从这里做提示的原因是Windows和Linux的展示方式不同。
+	if judge {
+		log.Info(osr)
 	}
-	log.Info(osr)
 	if opts.Version {
 		fmt.Println(dice.VERSION.String())
 		return

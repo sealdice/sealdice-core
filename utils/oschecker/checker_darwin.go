@@ -4,6 +4,7 @@ import (
 	mac "github.com/wobsoriano/go-macos-version"
 )
 
+// TODO: MacOS 如何提示用户？
 func OldVersionCheck() (bool, string) {
 	version, err := mac.MacOSVersion()
 	if err != nil {

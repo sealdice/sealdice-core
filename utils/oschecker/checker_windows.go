@@ -3,9 +3,12 @@ package oschecker
 // copied from https://github.com/jfjallid/go-secdump/blob/e307524e114f9abb39e2cd2b13ae421aae02d2de/utils.go with some changes
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
+	"syscall"
 
+	"github.com/lxn/win"
 	"golang.org/x/sys/windows/registry"
 
 	log "sealdice-core/utils/kratos"
@@ -57,11 +60,21 @@ func OldVersionCheck() (bool, string) {
 		return true, osNameMap[WIN_UNKNOWN]
 	}
 	os := GetOSVersion(build, f, b)
-	if (WINXP <= os) && (os <= WIN10) {
+	// 这里用WinXP打底的原因是，WinXP下面是未知系统，我们默认放行未知系统
+	if (WINXP <= os) && (os < WIN10) {
+		// 展示提示弹窗，提示用户升级
+		showMsgBox("版本升级提示", fmt.Sprintf("您的操作系统:%s 即将不受支持，请升级至 Windows 10/Windows Server 2016 或更高版本。", osNameMap[os]))
 		return true, osNameMap[os]
 	} else {
+		showMsgBox("版本升级提示", fmt.Sprintf("您的操作系统:%s 还在受支持，您无需考虑升级到更高版本。", osNameMap[os]))
 		return false, osNameMap[os]
 	}
+}
+
+func showMsgBox(title string, message string) {
+	s1, _ := syscall.UTF16PtrFromString(title)
+	s2, _ := syscall.UTF16PtrFromString(message)
+	win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONERROR)
 }
 
 func GetOSVersion(currentBuild int, currentVersion float64, server bool) (os byte) {
@@ -154,11 +167,12 @@ func getOSVersionBuild() (build int, version float64, server bool, err error) {
 		log.Errorf("Failed to get CurrentVersion with error: %v\n", err)
 		return
 	}
+	// 二次判断：由于有Win8升级成Win10的情况，这个参数不准确。这个参数只有Win10往上有，所以下面
 	majorVersionStr, _, err := hSubKey.GetIntegerValue("CurrentMajorVersionNumber")
 	if err != nil {
-		return
+		log.Debug("非Win8以上系统，不包含CurrentMajorVersionNumber参数。")
 	}
-	// 据说，当前Win11和Win10的大版本号还相同，没有Win11，难以测试
+	// TODO: 据说，当前Win11和Win10的大版本号还相同，没有Win11，难以测试
 	if majorVersionStr == 10 {
 		version = 10.0
 	}

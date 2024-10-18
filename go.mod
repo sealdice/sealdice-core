@@ -64,6 +64,7 @@ require (
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
+	github.com/wobsoriano/go-macos-version v0.1.2
 	github.com/xuri/excelize/v2 v2.8.1
 	github.com/yuin/goldmark v1.7.4
 	go.etcd.io/bbolt v1.3.9
@@ -159,7 +160,6 @@ require (
 	github.com/tidwall/tinyqueue v0.1.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	github.com/wobsoriano/go-macos-version v0.1.2 // indirect
 	github.com/xuri/efp v0.0.0-20231025114914-d1ff6096ae53 // indirect
 	github.com/xuri/nfp v0.0.0-20230919160717-d98342af3f05 // indirect
 	go.uber.org/multierr v1.10.0 // indirect

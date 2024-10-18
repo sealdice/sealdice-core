@@ -10,6 +10,7 @@ import (
 	log "sealdice-core/utils/kratos"
 )
 
+// 如果使用musl，这个有没有用就存疑了
 func OldVersionCheck() (bool, string) {
 	version := getGlibcVersion()
 	if version == 0 {
