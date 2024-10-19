@@ -247,7 +247,7 @@ func sameScriptInfos(a []*JsScriptInfo, b []*JsScriptInfo) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for i := range len(a) {
+	for i := range a {
 		if !sameScriptInfo(a[i], b[i]) {
 			return false
 		}

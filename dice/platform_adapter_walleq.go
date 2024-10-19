@@ -491,7 +491,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 					if len(m2) == len(items) {
 						ok := true
-						for i := range len(m2) {
+						for i := range m2 {
 							if m2[i] != items[i] {
 								ok = false
 								break

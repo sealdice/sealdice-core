@@ -1,4 +1,4 @@
-name: Test & Lint
+name: Review Dog
 
 on:
   push:
