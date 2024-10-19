@@ -754,7 +754,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					// if times > 5 {
 					// 	times = 5
 					// }
-					if times > int(ctx.Dice.MaxExecuteTime) {
+					if times > int(ctx.Dice.Config.MaxExecuteTime) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -948,7 +948,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 	s = ImageRewrite(s, imgSolve)
 
 	s = strings.ReplaceAll(s, "\n", `\n`)
-	if ctx.Dice.VMVersionForDeck == "v1" {
+	if ctx.Dice.Config.VMVersionForDeck == "v1" {
 		return DiceFormatV1(ctx, s)
 	} else {
 		return DiceFormatV2(ctx, s)

@@ -82,8 +82,8 @@ type DiceManager struct { //nolint:revive
 	CleanupFlag   atomic.Uint32 // 1 为正在清理，0为普通状态
 }
 
-type DiceConfigs struct { //nolint:revive
-	DiceConfigs       []DiceConfig `yaml:"diceConfigs"`
+type Configs struct { //nolint:revive
+	DiceConfigs       []BaseConfig `yaml:"diceConfigs"`
 	ServeAddress      string       `yaml:"serveAddress"`
 	WebUIAddress      string       `yaml:"webUIAddress"`
 	HelpDocEngineType int          `yaml:"helpDocEngineType"`
@@ -150,7 +150,7 @@ func (dm *DiceManager) LoadDice() {
 		return
 	}
 
-	var dc DiceConfigs
+	var dc Configs
 	err = yaml.Unmarshal(data, &dc)
 	if err != nil {
 		fmt.Println("读取 data/dice.yaml 发生错误: 配置文件格式不正确")
@@ -196,7 +196,7 @@ func (dm *DiceManager) LoadDice() {
 }
 
 func (dm *DiceManager) Save() {
-	var dc DiceConfigs
+	var dc Configs
 	dc.ServeAddress = dm.ServeAddress
 	dc.HelpDocEngineType = dm.HelpDocEngineType
 	dc.UIPasswordSalt = dm.UIPasswordSalt
@@ -326,8 +326,8 @@ func (dm *DiceManager) TryCreateDefault() {
 	if len(dm.Dice) == 0 {
 		defaultDice := new(Dice)
 		defaultDice.BaseConfig.Name = "default"
-		defaultDice.MessageDelayRangeStart = 0.4
-		defaultDice.MessageDelayRangeEnd = 0.9
+		defaultDice.Config.MessageDelayRangeStart = DefaultConfig.MessageDelayRangeStart
+		defaultDice.Config.MessageDelayRangeEnd = DefaultConfig.MessageDelayRangeEnd
 		defaultDice.MarkModified()
 		defaultDice.ContainerMode = dm.ContainerMode
 		dm.Dice = append(dm.Dice, defaultDice)

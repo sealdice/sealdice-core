@@ -244,7 +244,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 				os.Exit(0)
 			}
 		} else {
-			log.Info("如果浏览器没有自动打开，请手动访问:\nhttp://localhost:%s\n", portStr)
+			log.Infof("如果浏览器没有自动打开，请手动访问:\nhttp://localhost:%s\n", portStr)
 			go showUI()
 			break
 		}

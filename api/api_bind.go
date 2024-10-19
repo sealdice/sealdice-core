@@ -166,7 +166,7 @@ func forceStop(c echo.Context) error {
 
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
-				i.BanList.SaveChanged(i)
+				i.Config.BanList.SaveChanged(i)
 				i.AttrsManager.CheckForSave()
 				i.Save(true)
 				for _, j := range i.ExtList {
