@@ -216,9 +216,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 						logEnabledPrompt := DiceFormatTmpl(ctx, "日志:记录_开启_成功")
 						// TODO: 到这里相当于全文 query 了两遍日志。可以优化吗？
-						lastRecord, err := model.LogGetLastLine(ctx.Dice.DBLogs, group.GroupID, name)
+						lastLines, err := model.LogGetLastLineN(ctx.Dice.DBLogs, group.GroupID, name, 1)
 						if err == nil {
-							logEnabledPrompt = fmt.Sprintf("[CQ:reply,id=%v] %s", lastRecord.RawMsgID, logEnabledPrompt)
+							logEnabledPrompt = fmt.Sprintf("[CQ:reply,id=%v] %s", lastLines[0].RawMsgID, logEnabledPrompt)
 						}
 
 						ReplyToSender(ctx, msg, logEnabledPrompt)
