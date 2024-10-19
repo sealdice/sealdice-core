@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-module/carbon"
 	ds "github.com/sealdice/dicescript"
 	"go.uber.org/zap"
 
@@ -139,346 +138,315 @@ func RegisterBuiltinExtLog(self *Dice) {
 		Name:      "log",
 		ShortHelp: helpLog,
 		Help:      "日志指令:\n" + helpLog,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			group := ctx.Group
-			cmdArgs.ChopPrefixToArgsWith("on", "off", "del", "rm", "masterget",
-				"get", "end", "halt", "list", "new", "stat", "export")
+		Solve: func(ctx *MsgContext, msg *Message, args *CmdArgs) CmdExecuteResult {
+			args.ChopPrefixToArgsWith("on", "off", "del", "rm", "masterget", "get", "end", "halt", "list", "new", "stat", "export", "last")
 
-			groupNotActiveCheck := func() bool {
-				if !group.IsActive(ctx) {
+			currentGroup := ctx.Group
+			logDB := ctx.Dice.DBLogs
+
+			checkGroupEnviron := func(requireActive bool) bool {
+				if ctx.IsPrivate {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+					return false
+				}
+				if requireActive && !currentGroup.IsActive(ctx) {
 					ReplyToSender(ctx, msg, "未开启时不会记录日志，请先.bot on")
 					return true
 				}
 				return false
 			}
 
-			if len(cmdArgs.Args) == 0 {
-				onText := "关闭"
-				if group.LogOn {
-					onText = "开启"
+			if len(args.Args) == 0 {
+				if checkGroupEnviron(false) {
+					status := "关闭"
+					if currentGroup.LogOn {
+						status = "开启"
+					}
+					lineCount, _ := model.LogLinesCountGet(logDB, currentGroup.GroupID, currentGroup.LogCurName)
+					ReplyToSender(ctx, msg, fmt.Sprintf("当前记录: %s\n开启状态: %s\n已记录文本%d条", currentGroup.LogCurName, status, lineCount))
 				}
-				lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
-				text := fmt.Sprintf("当前故事: %s\n当前状态: %s\n已记录文本%d条", group.LogCurName, onText, lines)
-				ReplyToSender(ctx, msg, text)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			getAndUpload := func(gid, lname string) {
-				unofficial, fn, err := LogSendToBackend(ctx, gid, lname)
+			collectLogAndUpload := func(groupID, logName string) {
+				isUnofficialBackend, feedbackURL, err := LogSendToBackend(ctx, groupID, logName)
 				if err != nil {
-					reason := strings.TrimPrefix(err.Error(), "#")
-					VarSetValueStr(ctx, "$t错误原因", reason)
-
-					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_失败")
-					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
-				} else {
-					VarSetValueStr(ctx, "$t日志链接", fn)
-					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
-					if unofficial {
-						tmpl += "\n[注意：该链接非海豹官方染色器]"
-					}
-					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
+					cause := strings.TrimPrefix(err.Error(), "#")
+					VarSetValueStr(ctx, "$t错误原因", cause)
+					ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_上传_失败"), "skip")
+					return
 				}
+
+				VarSetValueStr(ctx, "$t日志链接", feedbackURL)
+				successPrompt := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
+				if isUnofficialBackend {
+					successPrompt += "\n[注意: 该链接非海豹官方染色器]"
+				}
+				ReplyToSenderRaw(ctx, msg, successPrompt, "skip")
 			}
 
-			if cmdArgs.IsArgEqual(1, "on") { //nolint:nestif
-				if ctx.IsPrivate {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+			if args.IsArgEqual(1, "on") {
+				if !checkGroupEnviron(true) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				// 如果日志已经开启，报错返回
-				if group.LogOn {
-					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_未结束的记录"))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				name := cmdArgs.GetArgN(2)
-				if name == "" {
-					name = group.LogCurName
-				}
-
-				if name != "" {
-					lines, exists := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, name)
-
-					if exists {
-						if groupNotActiveCheck() {
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-
-						group.LogOn = true
-						group.LogCurName = name
-						group.UpdatedAtTime = time.Now().Unix()
-
-						VarSetValueStr(ctx, "$t记录名称", name)
-						VarSetValueInt64(ctx, "$t当前记录条数", lines)
-
-						logEnabledPrompt := DiceFormatTmpl(ctx, "日志:记录_开启_成功")
-						// TODO: 到这里相当于全文 query 了两遍日志。可以优化吗？
-						lastLines, err := model.LogGetLastLineN(ctx.Dice.DBLogs, group.GroupID, name, 1)
-						if err == nil {
-							logEnabledPrompt = fmt.Sprintf("[CQ:reply,id=%v] %s", lastLines[0].RawMsgID, logEnabledPrompt)
-						}
-
-						ReplyToSender(ctx, msg, logEnabledPrompt)
-					} else {
-						VarSetValueStr(ctx, "$t记录名称", name)
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_无此记录"))
+				logName := args.GetArgN(2)
+				if logName == "" {
+					if currentGroup.LogCurName == "" {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_尚未新建"))
+						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-				} else {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_尚未新建"))
+					logName = currentGroup.LogCurName
 				}
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else if cmdArgs.IsArgEqual(1, "off") {
-				if group.LogCurName != "" && group.LogOn {
-					group.LogOn = false
-					group.UpdatedAtTime = time.Now().Unix()
-					lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
-					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
-					VarSetValueInt64(ctx, "$t当前记录条数", lines)
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_成功"))
-				} else {
+
+				lineCount, logExistent := model.LogLinesCountGet(logDB, currentGroup.GroupID, logName)
+				if !logExistent {
+					VarSetValueStr(ctx, "$t记录名称", logName)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_无此记录"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				currentGroup.LogOn = true
+				currentGroup.LogCurName = logName
+				currentGroup.UpdatedAtTime = time.Now().Unix()
+
+				VarSetValueStr(ctx, "$t记录名称", logName)
+				VarSetValueInt64(ctx, "$t当前记录条数", lineCount)
+
+				successPrompt := DiceFormatTmpl(ctx, "日志:记录_开启_成功")
+				lastLines, err := model.LogGetLastLineN(logDB, currentGroup.GroupID, logName, 1)
+				if err == nil {
+					successPrompt = fmt.Sprintf("[CQ:reply,id=%v] %s", lastLines[0].RawMsgID, successPrompt)
+				}
+				ReplyToSender(ctx, msg, successPrompt)
+			} else if args.IsArgEqual(1, "off") {
+				if currentGroup.LogCurName == "" || !currentGroup.LogOn {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else if cmdArgs.IsArgEqual(1, "del", "rm") {
-				name := cmdArgs.GetArgN(2)
-				if name == "" {
+
+				currentGroup.LogOn = false
+				currentGroup.UpdatedAtTime = time.Now().Unix()
+
+				lineCount, _ := model.LogLinesCountGet(logDB, currentGroup.GroupID, currentGroup.LogCurName)
+				VarSetValueStr(ctx, "$t记录名称", currentGroup.LogCurName)
+				VarSetValueInt64(ctx, "$t当前记录条数", lineCount)
+
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_成功"))
+			} else if args.IsArgEqual(1, "del", "rm") {
+				logName := args.GetArgN(2)
+				if logName == "" {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				VarSetValueStr(ctx, "$t记录名称", name)
-				if name == group.LogCurName {
+				VarSetValueStr(ctx, "$t记录名称", logName)
+				if logName == currentGroup.LogCurName {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_失败_正在进行"))
-				} else {
-					ok := model.LogDelete(ctx.Dice.DBLogs, group.GroupID, name)
-					if ok {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_成功"))
-					} else {
-						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_失败_找不到"))
-					}
-				}
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else if cmdArgs.IsArgEqual(1, "masterget") {
-				groupID, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
-				if requestForAnotherGroup && groupID == "" {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				logName := cmdArgs.GetArgN(3)
+				successful := model.LogDelete(logDB, currentGroup.GroupID, logName)
+				if !successful {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_失败_找不到"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_成功"))
+			} else if args.IsArgEqual(1, "masterget") {
+				groupID, requireAnother := getSpecifiedGroupIfMaster(ctx, msg, args)
+				if requireAnother && groupID == "" {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				logName := args.GetArgN(3)
 				if logName == "" {
 					ReplyToSenderRaw(ctx, msg, "请遵循 .log masterget <群号> <日志名> 格式给出日志名，注意空格\n若不清楚可以.log list <群号>查询", "skip")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				getAndUpload(groupID, logName)
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else if cmdArgs.IsArgEqual(1, "get") {
-				logName := group.LogCurName
-				if newName := cmdArgs.GetArgN(2); newName != "" {
-					logName = newName
-				}
-
-				if logName == "" {
-					text := DiceFormatTmpl(ctx, "日志:记录_取出_未指定记录")
-					ReplyToSenderRaw(ctx, msg, text, "skip")
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				getAndUpload(group.GroupID, logName)
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else if cmdArgs.IsArgEqual(1, "end") {
-				if group.LogCurName == "" {
+				collectLogAndUpload(groupID, logName)
+			} else if args.IsArgEqual(1, "end") {
+				if currentGroup.LogCurName == "" {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
-				VarSetValueInt64(ctx, "$t当前记录条数", lines)
-				VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
-				text := DiceFormatTmpl(ctx, "日志:记录_结束")
-				// Note: 2024-02-28 经过讨论，日志在 off 的情况下 end 属于合理操作，这里不再检查是否开启
-				// if !group.LogOn {
-				//	 text = strings.TrimRightFunc(DiceFormatTmpl(ctx, "日志:记录_关闭_失败"), unicode.IsSpace) + "\n" + text
-				// }
-				ReplyToSender(ctx, msg, text)
-				group.LogOn = false
-				group.UpdatedAtTime = time.Now().Unix()
+
+				lineCount, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, currentGroup.GroupID, currentGroup.LogCurName)
+				VarSetValueInt64(ctx, "$t当前记录条数", lineCount)
+				VarSetValueStr(ctx, "$t记录名称", currentGroup.LogCurName)
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_结束"))
+
+				currentGroup.LogOn = false
+				currentGroup.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
-				// Note: 2024-10-15 经过简单测试，似乎能缓解#1034的问题，但无法根本解决。
-				go getAndUpload(group.GroupID, group.LogCurName)
-				group.LogCurName = ""
-				group.UpdatedAtTime = time.Now().Unix()
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else if cmdArgs.IsArgEqual(1, "halt") {
-				if len(group.LogCurName) > 0 {
-					lines, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, group.GroupID, group.LogCurName)
-					VarSetValueInt64(ctx, "$t当前记录条数", lines)
-					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
+				collectLogAndUpload(currentGroup.GroupID, currentGroup.LogCurName)
+
+				currentGroup.LogCurName = ""
+				currentGroup.UpdatedAtTime = time.Now().Unix()
+			} else if args.IsArgEqual(1, "halt") {
+				if currentGroup.LogCurName == "" {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				text := DiceFormatTmpl(ctx, "日志:记录_结束")
-				ReplyToSender(ctx, msg, text)
-				group.LogOn = false
-				group.LogCurName = ""
-				group.UpdatedAtTime = time.Now().Unix()
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else if cmdArgs.IsArgEqual(1, "list") {
-				groupID, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
-				if requestForAnotherGroup && groupID == "" {
+
+				lineCount, _ := model.LogLinesCountGet(ctx.Dice.DBLogs, currentGroup.GroupID, currentGroup.LogCurName)
+				VarSetValueInt64(ctx, "$t当前记录条数", lineCount)
+				VarSetValueStr(ctx, "$t记录名称", currentGroup.LogCurName)
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_结束"))
+
+				currentGroup.LogOn = false
+				currentGroup.LogCurName = ""
+				currentGroup.UpdatedAtTime = time.Now().Unix()
+			} else if args.IsArgEqual(1, "list") {
+				groupID, requireAnother := getSpecifiedGroupIfMaster(ctx, msg, args)
+				if requireAnother && groupID == "" {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				if groupID == "" {
 					groupID = ctx.Group.GroupID
 				}
 
-				text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
-				lst, err := model.LogGetList(ctx.Dice.DBLogs, groupID)
-				if err == nil {
-					for _, i := range lst {
-						text += "- " + i + "\n"
-					}
-					if len(lst) == 0 {
-						text += "暂无记录"
-					}
-				} else {
-					text += "获取记录出错: " + err.Error()
-				}
-				ReplyToSender(ctx, msg, text)
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else if cmdArgs.IsArgEqual(1, "new") {
-				if ctx.IsPrivate {
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				logList, err := model.LogGetList(logDB, groupID)
+				if err != nil {
+					ReplyToSender(ctx, msg, fmt.Sprintf("获取记录出错: %v", err))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				name := cmdArgs.GetArgN(2)
-				if group.LogCurName != "" && name == "" {
-					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
+				logEntries := make([]string, 0, len(logList))
+				for _, name := range logList {
+					logEntries = append(logEntries, fmt.Sprintf("- %s", name))
+				}
+
+				listResult := "暂无记录"
+				if len(logEntries) > 0 {
+					listResult = strings.Join(logEntries, "\n")
+				}
+				ReplyToSender(ctx, msg, fmt.Sprintf("%s\n%s", DiceFormatTmpl(ctx, "日志:记录_列出_导入语"), listResult))
+			} else if args.IsArgEqual(1, "new") {
+				if !checkGroupEnviron(true) {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				logName := args.GetArgN(2)
+				if currentGroup.LogCurName != "" && logName == "" {
+					VarSetValueStr(ctx, "$t记录名称", currentGroup.LogCurName)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建_失败_未结束的记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				if groupNotActiveCheck() {
-					return CmdExecuteResult{Matched: true, Solved: true}
+				if logName == "" {
+					logName = time.Now().Format("2006_01_02_15_04_05")
 				}
 
-				if name == "" {
-					name = time.Now().Format("2006_01_02_15_04_05")
+				var hasActiveLog int64
+				if currentGroup.LogCurName != "" {
+					hasActiveLog = 1
 				}
-				if group.LogCurName != "" {
-					VarSetValueInt64(ctx, "$t存在开启记录", 1)
-				} else {
-					VarSetValueInt64(ctx, "$t存在开启记录", 0)
-				}
-				VarSetValueStr(ctx, "$t上一记录名称", group.LogCurName)
-				VarSetValueStr(ctx, "$t记录名称", name)
-				group.LogCurName = name
-				group.LogOn = true
-				group.UpdatedAtTime = time.Now().Unix()
+				VarSetValueInt64(ctx, "$t存在开启记录", hasActiveLog)
+				VarSetValueStr(ctx, "$t上一记录名称", currentGroup.LogCurName)
+				VarSetValueStr(ctx, "$t记录名称", logName)
+				currentGroup.LogCurName = logName
+				currentGroup.LogOn = true
+				currentGroup.UpdatedAtTime = time.Now().Unix()
 
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else if cmdArgs.IsArgEqual(1, "stat") {
-				// group := ctx.Group
-				_, name := getLogName(ctx, msg, cmdArgs, 2)
-				items, err := model.LogGetAllLines(ctx.Dice.DBLogs, group.GroupID, name)
-				if err == nil && len(items) > 0 {
-					// showDetail := cmdArgs.GetKwarg("detail")
-					// var showDetail *Kwarg
-					showAll := cmdArgs.GetKwarg("all")
-
-					/* if showDetail != nil { //nolint // 故意保留
-						results := LogRollBriefDetail(items)
-
-						if len(results) > 0 {
-							ReplyToSender(ctx, msg, "统计结果如下:\n"+strings.Join(results, "\n"))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-					} else */{
-						isShowAll := showAll != nil
-						text := LogRollBriefByPC(ctx, items, isShowAll, ctx.Player.Name)
-						if text == "" {
-							if isShowAll {
-								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
-							} else {
-								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到角色<%s>的任何记录\n若需查看全团，请在指令后加 --all", ctx.Player.Name))
-							}
-						} else {
-							if !isShowAll {
-								text += "\n\n若需查看全团，请在指令后加 --all"
-							}
-							ReplyToSender(ctx, msg, text)
-						}
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-				}
-				ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else if cmdArgs.IsArgEqual(1, "export") {
-				logName := group.LogCurName
-				if newName := cmdArgs.GetArgN(2); newName != "" {
-					logName = newName
-				}
+			} else if args.IsArgEqual(1, "stat") {
+				logName := args.GetArgN(2)
 				if logName == "" {
-					ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_未指定记录"), "skip")
+					logName = currentGroup.LogCurName
+				}
+
+				lines, err := model.LogGetAllLines(logDB, currentGroup.GroupID, logName)
+				if err != nil || len(lines) == 0 {
+					ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				now := carbon.Now()
+				shouldShowAll := args.GetKwarg("all") != nil
+
+				/* if showDetail != nil { //nolint // 故意保留
+					results := LogRollBriefDetail(items)
+
+					if len(results) > 0 {
+						ReplyToSender(ctx, msg, "统计结果如下:\n"+strings.Join(results, "\n"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+				} else {} */
+
+				playerCharacterRollBrief := LogRollBriefByPC(ctx, lines, shouldShowAll, ctx.Player.Name)
+				if playerCharacterRollBrief == "" {
+					if shouldShowAll {
+						ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", logName))
+					} else {
+						ReplyToSender(ctx, msg, fmt.Sprintf("没有找到角色<%s>的任何记录\n若需查看全团，请在指令后加 --all", ctx.Player.Name))
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				if !shouldShowAll {
+					playerCharacterRollBrief += "\n\n若需查看全团，请在指令后加 --all"
+				}
+				ReplyToSender(ctx, msg, playerCharacterRollBrief)
+			} else if args.IsArgEqual(1, "export") {
+				logName := args.GetArgN(2)
+				if logName == "" {
+					if currentGroup.LogCurName == "" {
+						ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_未指定记录"), "skip")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					logName = currentGroup.LogCurName
+				}
+
+				timeNow := time.Now()
 				VarSetValueStr(ctx, "$t记录名", logName)
-				VarSetValueStr(ctx, "$t日期", now.ToShortDateString())
-				VarSetValueStr(ctx, "$t时间", now.ToShortTimeString())
+				VarSetValueStr(ctx, "$t日期", timeNow.Format("20060102"))
+				VarSetValueStr(ctx, "$t时间", timeNow.Format("150405"))
+
 				logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
-				logFile, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
+				logFile, err := GetLogTxt(ctx, currentGroup.GroupID, logName, logFileNamePrefix)
 				if err != nil {
 					ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				defer os.Remove(logFile.Name())
+				defer logFile.Close()
 
-				var emails []string
-				if len(cmdArgs.Args) > 2 {
-					emails = cmdArgs.Args[2:]
-					// 试图发送邮件
-					dice := ctx.Session.Parent
-					if dice.CanSendMail() {
-						rightEmails := make([]string, 0, len(emails))
-						emailExp := regexp.MustCompile(`.*@.*`)
-						for _, email := range emails {
-							if emailExp.MatchString(email) {
-								rightEmails = append(rightEmails, email)
-							}
+				dice := ctx.Session.Parent
+				if len(args.Args) > 2 && dice.CanSendMail() {
+					emailAddresses := args.Args[2:]
+					canonicalEmails := make([]string, 0, len(emailAddresses))
+					emailExp := regexp.MustCompile(`.*@.*`)
+					for _, email := range emailAddresses {
+						if emailExp.MatchString(email) {
+							canonicalEmails = append(canonicalEmails, email)
 						}
-						if len(rightEmails) > 0 {
-							emailMsg := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
-							dice.SendMailRow(
-								fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
-								rightEmails,
-								emailMsg,
-								[]string{logFile.Name()},
-							)
-							text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
-							ReplyToSenderRaw(ctx, msg, text, "skip")
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-						ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_无格式有效邮箱"), "skip")
 					}
-					ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
+					if len(canonicalEmails) == 0 {
+						ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_无格式有效邮箱"), "skip")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					emailBody := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
+					dice.SendMailRow(fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix), canonicalEmails, emailBody, []string{logFile.Name()})
+					successPrompt := fmt.Sprintf("%s%s", DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀"), strings.Join(canonicalEmails, "\n"))
+					ReplyToSenderRaw(ctx, msg, successPrompt, "skip")
 				}
 
-				var uri string
+				ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
+
+				var url string
 				if runtime.GOOS == "windows" {
-					uri = "files:///" + logFile.Name()
+					url = fmt.Sprintf("files:///%s", logFile.Name())
 				} else {
-					uri = "files://" + logFile.Name()
+					url = fmt.Sprintf("files://%s", logFile.Name())
 				}
-				SendFileToSenderRaw(ctx, msg, uri, "skip")
+				SendFileToSenderRaw(ctx, msg, url, "skip")
+
 				VarSetValueStr(ctx, "$t文件名字", logFileNamePrefix)
 				ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_成功"), "skip")
-				return CmdExecuteResult{Matched: true, Solved: true}
-			} else {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
+
+			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
 
@@ -893,11 +861,11 @@ func LogAppend(ctx *MsgContext, groupID string, logName string, logItem *model.L
 	if ok {
 		if size, okCount := model.LogLinesCountGet(ctx.Dice.DBLogs, groupID, logName); okCount {
 			// 默认每记录500条发出提示
-			if ctx.Dice.Config.LogSizeNoticeEnable {
-				if ctx.Dice.Config.LogSizeNoticeCount == 0 {
-					ctx.Dice.Config.LogSizeNoticeCount = DefaultConfig.LogSizeNoticeCount
+			if ctx.Dice.LogSizeNoticeEnable {
+				if ctx.Dice.LogSizeNoticeCount == 0 {
+					ctx.Dice.LogSizeNoticeCount = 500
 				}
-				if size > 0 && int(size)%ctx.Dice.Config.LogSizeNoticeCount == 0 {
+				if size > 0 && int(size)%ctx.Dice.LogSizeNoticeCount == 0 {
 					VarSetValueInt64(ctx, "$t条数", size)
 					text := DiceFormatTmpl(ctx, "日志:记录_条数提醒")
 					// text := fmt.Sprintf("提示: 当前故事的文本已经记录了 %d 条", size)
