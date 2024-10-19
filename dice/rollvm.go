@@ -1332,7 +1332,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 				}
 
 				text := "{"
-				for i := range len(nums) {
+				for i := range nums {
 					if int64(i) == diceKQ {
 						text += "| "
 					}
