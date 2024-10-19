@@ -4,23 +4,28 @@
 package model
 
 import (
-	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-func _SQLiteDBInit(path string, useWAL bool) (*sqlx.DB, error) {
-	db, err := sqlx.Open("sqlite3", path)
+// TODO：重构整个Init方案，采用高级配置读取的方式
+func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
+	open, err := gorm.Open(sqlite.Open(path), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	// enable WAL mode
 	if useWAL {
-		_, err = db.Exec("PRAGMA journal_mode=WAL")
+		err = open.Exec("PRAGMA journal_mode=WAL").Error
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	return db, err
+	return open, err
 }
