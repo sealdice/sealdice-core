@@ -202,7 +202,7 @@ func customReplyDebugModeGet(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"value": myDice.ReplyDebugMode,
+		"value": myDice.Config.ReplyDebugMode,
 	})
 }
 
@@ -219,9 +219,9 @@ func customReplyDebugModeSet(c echo.Context) error {
 		return c.String(430, err.Error())
 	}
 
-	myDice.ReplyDebugMode = v.Value
+	myDice.Config.ReplyDebugMode = v.Value
 	myDice.MarkModified()
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"value": myDice.ReplyDebugMode,
+		"value": myDice.Config.ReplyDebugMode,
 	})
 }
