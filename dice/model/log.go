@@ -512,22 +512,23 @@ WHERE log_id = ? AND raw_msg_id = ?`, newContent, logID, rid)
 	return nil
 }
 
-func LogGetLastLine(db *sqlx.DB, groupID, logName string) (*LogOneItem, error) {
+func LogGetLastLineN(db *sqlx.DB, groupID, logName string, n int) ([]*LogOneItem, error) {
 	logID, err := LogGetIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
 		return nil, err
 	}
 
-	const recentLineQuery = `
+	const lineQuery = `
 SELECT id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id
 FROM log_items
 WHERE log_id=$1
 ORDER BY time DESC
-LIMIT 1`
+LIMIT $2`
 
-	var record LogOneItem
-	if err = db.Get(&record, recentLineQuery, logID); err != nil {
+	records := make([]*LogOneItem, 0, n)
+	if err = db.Select(&records, lineQuery, logID, n); err != nil {
 		return nil, err
 	}
-	return &record, nil
+
+	return records, nil
 }
