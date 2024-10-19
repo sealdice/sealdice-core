@@ -185,7 +185,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ReplyToSenderRaw(ctx, msg, successPrompt, "skip")
 			}
 
-			if args.IsArgEqual(1, "on") {
+			if args.IsArgEqual(1, "on") { //nolint:nestif
 				if !checkGroupEnviron(true) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -264,7 +264,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				collectLogAndUpload(groupID, logName)
+				go collectLogAndUpload(groupID, logName)
 			} else if args.IsArgEqual(1, "end") {
 				if currentGroup.LogCurName == "" {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
@@ -280,7 +280,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				currentGroup.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
-				collectLogAndUpload(currentGroup.GroupID, currentGroup.LogCurName)
+				go collectLogAndUpload(currentGroup.GroupID, currentGroup.LogCurName)
 
 				currentGroup.LogCurName = ""
 				currentGroup.UpdatedAtTime = time.Now().Unix()
