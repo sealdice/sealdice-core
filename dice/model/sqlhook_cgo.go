@@ -67,7 +67,7 @@ func (z *zapHook) After(ctx context.Context, query string, args ...interface{}) 
 
 	var durationField string
 	if v, ok := ctx.Value((*sqlDurationKey)(nil)).(time.Time); ok {
-		durationField = fmt.Sprintf("%v", time.Now().Sub(v))
+		durationField = fmt.Sprintf("%v", time.Since(v))
 	}
 
 	z.Debugf("SQL 执行后: %v 耗时: %v 秒", buildQueryArgsFields(query, args...), durationField)
