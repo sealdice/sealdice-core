@@ -64,7 +64,6 @@ require (
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
-	github.com/wobsoriano/go-macos-version v0.1.2
 	github.com/xuri/excelize/v2 v2.8.1
 	github.com/yuin/goldmark v1.7.4
 	go.etcd.io/bbolt v1.3.9
@@ -81,7 +80,6 @@ require (
 )
 
 require (
-	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/RoaringBitmap/roaring v1.2.3 // indirect
 	github.com/bits-and-blooms/bitset v1.2.2 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.2.0 // indirect
