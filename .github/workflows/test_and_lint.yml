@@ -1,3 +1,5 @@
+name: Test & Lint
+
 on:
   push:
     paths:
@@ -10,10 +12,9 @@ on:
       - 'go.mod'
       - '.github/workflows/test_and_lint.yml'
 
-name: Test & Lint
-
 jobs:
   test-and-lint:
+    name: Test & Lint
     runs-on: ubuntu-latest
     steps:
       - name: Code
@@ -26,22 +27,13 @@ jobs:
       - run: go get
       - run: go generate ./...
 
-      - run: go test -v ./...
+      - run: go test -v -race ./...
       - run: go vet ./...
 
       - name: GolangCI-Lint
         uses: golangci/golangci-lint-action@v6
-        if: github.event.name == 'pull_request'
+        if: github.event_name != 'pull_request'
         with:
-          version: 'v1.60'
-          args: '--timeout 9999s'
-          only-new-issues: true
-          skip-cache: true
-
-      - name: GolangCI-Lint
-        uses: golangci/golangci-lint-action@v6
-        if: github.event.name != 'pull_request'
-        with:
-          version: 'v1.60'
+          version: 'v1.61.0'
           args: '--timeout 9999s'
           skip-cache: true
