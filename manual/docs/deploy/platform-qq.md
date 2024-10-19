@@ -129,13 +129,15 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 :::
 
+::: tip 提示：不同的对接方式
+
 使用此方法你可能需要对「QQ(onebot11正向WS)」、「QQ(onebot11反向WS)」、「[WIP]Satori」的区别有一定了解。
 
-「QQ(onebot11正向WS)」遵循 onebot11 标准，由海豹核心主动连接 QQ 登录框架。在 UI 界面添加「连接地址」格式应当为 `ws://{Host}:{Port}`。
+- 「QQ(onebot11正向WS)」为 onebot11 标准的连接方式之一，由海豹核心主动连接 QQ 登录框架。在 UI 界面添加「连接地址」格式应当为 `ws://{Host}:{Port}`。
+- 「QQ(onebot11反向WS)」为 onebot11 标准的连接方式之二，由 QQ 登录框架主动连接海豹核心。在 UI 界面添加「连接地址」格式应当为 `{Host}:{Port}`。
+- 「[WIP]Satori」为 Satori 标准的连接方式，由海豹核心主动连接 QQ 登录框架。WIP 代表该对接方式为实验性的，可能会在未来发生变化。
 
-「QQ(onebot11反向WS)」遵循 onebot11 标准，由 QQ 登录框架主动连接海豹核心。在 UI 界面添加「连接地址」格式应当为 `{Host}:{Port}`。
-
-「[WIP]Satori」遵循 Satori 标准，由海豹核心主动连接 QQ 登录框架。
+:::
 
 ### Lagrange <Badge type="tip" text="v1.4.2" />
 
@@ -206,23 +208,21 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 [NapCatQQ](https://github.com/NapNeko/NapCatQQ) 是在后台低占用运行的无头（没有界面）的 NTQQ，具体占用会因人而异，QQ 群、好友越多占用越高。
 
-[NapCat 官方文档](https://napneko.github.io/zh-CN/)
+[NapCat 官方文档](https://napneko.github.io)
 
 :::
 
-::: warning 使用此方案的用户请注意不要随意*更新* QQ 客户端。
+::: warning 使用此方案的用户请注意不要随意 *更新* QQ 客户端。
 
 由于 QQ 客户端检测机制的变化，更新 QQ 客户端后可能导致方案不可用，并且更新后需要重新安装登录框架，所以不建议用户随意更新 QQ 客户端。
 
 :::
 
-NapCat 是基于官方 NTQQ 实现的 Bot 框架，因此在开始前，你需要根据 [NapCatQQ](https://napneko.github.io/zh-CN/guide/getting-started#%E5%AE%89%E8%A3%85-qq) 的手册安装官方 QQ，若 QQ 版本过低会导致程序无法正常启动。
+NapCat 是基于官方 NTQQ 实现的 Bot 框架，因此在开始前，你需要根据 [NapCatQQ](https://napneko.github.io/guide/start-install) 的手册安装官方 QQ，若 QQ 版本过低会导致程序无法正常启动。
 
 #### 下载 NapCatQQ
 
-请按照 [NapCat 官方手册](https://napneko.github.io/zh-CN/guide/getting-started)下载安装，如果你不确定自己可以完全理解 NapCat 官方手册并操作，请不要安装 9.9.12 版本 QQ。
-
-然后按照[基础配置](https://napneko.github.io/zh-CN/guide/config/basic)和自己的需求修改配置文件。
+请按照 [NapCat 官方手册](https://napneko.github.io/guide/start-install) 下载安装，然后按照 [基础配置](https://napneko.github.io/config/basic) 和自己的需求修改配置文件。
 
 #### 海豹连接
 
