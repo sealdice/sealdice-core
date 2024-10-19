@@ -60,13 +60,14 @@ func OldVersionCheck() (bool, string) {
 	build, f, b, err := getOSVersionBuild()
 	if err != nil {
 		// 不知道的版本，就认为是支持的
+		showNoticeBox("版本确认提示", "海豹无法获取您的操作系统版本，请确认正在使用 Windows 10/Windows Server 2016 或更高版本的 Windows。")
 		return true, osNameMap[WIN_UNKNOWN]
 	}
 	os := GetOSVersion(build, f, b)
 	// 这里用WinXP打底的原因是，WinXP下面是未知系统，我们默认放行未知系统
 	if (WINXP <= os) && (os < WIN10) {
 		// 展示提示弹窗，提示用户升级
-		showMsgBox("版本升级提示", fmt.Sprintf("您的操作系统:%s 即将不受支持，请升级至 Windows 10/Windows Server 2016 或更高版本。", osNameMap[os]))
+		showMsgBox("版本升级提示", fmt.Sprintf("您的操作系统版本「%s」过旧，海豹未来将不再支持，请尽快升级系统至 Windows 10/Windows Server 2016 或更高版本。", osNameMap[os]))
 		return true, osNameMap[os]
 	} else {
 		return false, osNameMap[os]
@@ -77,6 +78,12 @@ func showMsgBox(title string, message string) {
 	s1, _ := syscall.UTF16PtrFromString(title)
 	s2, _ := syscall.UTF16PtrFromString(message)
 	win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONERROR)
+}
+
+func showNoticeBox(title string, message string) {
+	s1, _ := syscall.UTF16PtrFromString(title)
+	s2, _ := syscall.UTF16PtrFromString(message)
+	win.MessageBox(0, s2, s1, win.MB_OK|win.MB_ICONWARNING)
 }
 
 func GetOSVersion(currentBuild int, currentVersion float64, server bool) (os byte) {
