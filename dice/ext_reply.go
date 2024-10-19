@@ -143,7 +143,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 		OnNotCommandReceived: func(ctx *MsgContext, msg *Message) {
 			// 当前，只有非指令才会匹配
 			rcs := ctx.Dice.CustomReplyConfig
-			if !ctx.Dice.CustomReplyConfigEnable {
+			if !ctx.Dice.Config.CustomReplyConfigEnable {
 				return
 			}
 			executed := false
@@ -153,7 +153,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 			cleanText = strings.TrimSpace(cleanText)
 			VarSetValueInt64(ctx, "$t文本长度", int64(len(cleanText)))
 
-			if dice.ReplyDebugMode {
+			if dice.Config.ReplyDebugMode {
 				log.Infof("[回复调试]当前文本:“%s” hex: %x 字节形式: %v", cleanText, cleanText, []byte(cleanText))
 			}
 

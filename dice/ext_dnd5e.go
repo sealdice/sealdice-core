@@ -72,7 +72,7 @@ func setupConfigDND(_ *Dice) AttributeConfigs {
 }
 
 func getPlayerNameTempFunc(mctx *MsgContext) string {
-	if mctx.Dice.PlayerNameWrapEnable {
+	if mctx.Dice.Config.PlayerNameWrapEnable {
 		return fmt.Sprintf("<%s>", mctx.Player.Name)
 	}
 	return mctx.Player.Name
