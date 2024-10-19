@@ -29,7 +29,7 @@ func getNews(c echo.Context) error {
 		}
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"result":   true,
-			"checked":  mark == myDice.NewsMark,
+			"checked":  mark == myDice.Config.NewsMark,
 			"news":     news,
 			"newsMark": mark,
 		})
@@ -55,7 +55,7 @@ func checkNews(c echo.Context) error {
 	err := c.Bind(&v)
 
 	if err == nil {
-		myDice.NewsMark = v.NewsMark
+		myDice.Config.NewsMark = v.NewsMark
 		myDice.MarkModified()
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"result":   true,
