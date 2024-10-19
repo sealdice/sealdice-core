@@ -1244,14 +1244,14 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 
 func (d *Dice) DeckDownload(name string, ext string, url string, hash map[string]string) error {
 	if len(url) == 0 {
-		return fmt.Errorf("未提供下载链接")
+		return errors.New("未提供下载链接")
 	}
 	statusCode, data, err := GetCloudContent([]string{url}, "")
 	if err != nil {
 		return err
 	}
 	if statusCode != http.StatusOK {
-		return fmt.Errorf("无法获取牌堆内容")
+		return errors.New("无法获取牌堆内容")
 	}
 
 	// TODO 检查 hash
@@ -1268,7 +1268,7 @@ func (d *Dice) DeckDownload(name string, ext string, url string, hash map[string
 	_, err = os.Stat(target)
 	if !errors.Is(err, os.ErrNotExist) {
 		d.Logger.Errorf("牌堆“%s”下载时检查到同名文件", name)
-		return fmt.Errorf("存在文件名相同的牌堆")
+		return errors.New("存在文件名相同的牌堆")
 	}
 	err = os.WriteFile(target, deck, 0755)
 	if err != nil {
