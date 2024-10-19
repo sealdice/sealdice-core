@@ -57,7 +57,7 @@ func (t *trie) Match(text string) (sensitiveWords map[string]Level) {
 
 	sensitiveWords = map[string]Level{}
 	chars := []rune(text)
-	for i := range len(chars) {
+	for i := range chars {
 		cur := t.root.findChild(chars[i])
 		if cur == nil {
 			continue
