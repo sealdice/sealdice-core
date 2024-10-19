@@ -1,0 +1,10 @@
+# reviewdog.yml
+runner:
+  golint-by-project-conf:
+    cmd: golint $(go list ./... | grep -v /vendor/)
+    format: golint
+    level: warning
+  govet-by-project-conf:
+    cmd: go vet
+    format: govet
+    level: error
