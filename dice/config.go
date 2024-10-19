@@ -2010,7 +2010,7 @@ func (d *Dice) loads() {
 		}
 		d.ImSession.EndPoints = dNew.ImSession.EndPoints
 		d.DiceMasters = dNew.DiceMasters
-		if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
+		if len(d.DiceMasters) == 0 {
 			d.DiceMasters = []string{"UI:1001"}
 		}
 		var newDiceMasters []string

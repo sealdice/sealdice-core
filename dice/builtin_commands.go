@@ -981,7 +981,7 @@ func (d *Dice) registerCoreCommands() {
 					dm.UpdateCheckRequestChan <- 1
 
 					// 等待获取新版本，最多10s
-					for i := 0; i < 5; i++ {
+					for range 5 {
 						time.Sleep(2 * time.Second)
 						if dm.AppVersionOnline != nil {
 							break
@@ -1290,7 +1290,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				var texts []string
-				for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
+				for range cmdArgs.SpecialExecuteTimes {
 					ret := rollOne()
 					if ret != nil {
 						return *ret
@@ -1641,7 +1641,7 @@ func (d *Dice) registerCoreCommands() {
 
 				var extNames []string
 				var conflictsAll []string
-				for index := 0; index < len(cmdArgs.Args); index++ {
+				for index := range len(cmdArgs.Args) {
 					extName := strings.ToLower(cmdArgs.Args[index])
 					if i := d.ExtFind(extName); i != nil {
 						extNames = append(extNames, extName)
@@ -1668,7 +1668,7 @@ func (d *Dice) registerCoreCommands() {
 
 				var closed []string
 				var notfound []string
-				for index := 0; index < len(cmdArgs.Args); index++ {
+				for index := range len(cmdArgs.Args) {
 					extName := cmdArgs.Args[index]
 					extName = d.ExtAliasToName(extName)
 					ei := ctx.Group.ExtInactiveByName(extName)
@@ -2277,7 +2277,7 @@ func tryConvertIndex2Name(ctx *MsgContext, name string) string {
 					idx--
 					if idx == 0 {
 						name = k[4:]
-						return fmt.Errorf("break")
+						return errors.New("break")
 					}
 				}
 				return nil

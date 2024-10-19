@@ -71,6 +71,7 @@ func LogGetLogs(db *sqlx.DB) ([]*LogInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		log := &LogInfo{}
 		if err := rows.Scan(
@@ -135,6 +136,7 @@ FROM logs
 	if err != nil {
 		return 0, nil, err
 	}
+	defer count.Close()
 	count.Next()
 	err = count.Scan(&total)
 	if err != nil {
@@ -146,6 +148,7 @@ FROM logs
 	if err != nil {
 		return 0, nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		log := &LogInfo{}
 		if err := rows.Scan(
@@ -194,7 +197,7 @@ func LogGetUploadInfo(db *sqlx.DB, groupID string, logName string) (url string, 
 	if err != nil {
 		return "", 0, 0, err
 	}
-	defer func() { _ = res.Close() }()
+	defer res.Close()
 
 	for res.Next() {
 		err = res.Scan(&updateTime, &url, &uploadTime)
@@ -234,9 +237,7 @@ func LogGetAllLines(db *sqlx.DB, groupID string, logName string) ([]*LogOneItem,
 	if err != nil {
 		return nil, err
 	}
-	defer func(rows *sqlx.Rows) {
-		_ = rows.Close()
-	}(rows)
+	defer rows.Close()
 
 	var ret []*LogOneItem
 	for rows.Next() {
@@ -309,9 +310,7 @@ LIMIT $2, $3;`, logID, (param.PageNum-1)*param.PageSize, param.PageSize)
 	if err != nil {
 		return nil, err
 	}
-	defer func(rows *sqlx.Rows) {
-		_ = rows.Close()
-	}(rows)
+	defer rows.Close()
 
 	var ret []*LogOneItem
 	for rows.Next() {

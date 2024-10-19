@@ -590,7 +590,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				successDegrees := int64(0)
 				failedCount := int64(0)
 				var results []string
-				for i := int64(0); i < num; i++ {
+				for range num {
 					v := DiceRoll64(6)
 					if v >= 5 {
 						successDegrees++
@@ -759,7 +759,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 			successDegrees := int64(0)
 			var results []string
-			for i := int64(0); i < diceNum; i++ {
+			for range diceNum {
 				v := DiceRoll64(10)
 				if v <= checkVal {
 					successDegrees++
@@ -1247,7 +1247,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				for i := range allNum {
 					allNum[i] = i + 1
 				}
-				for idx := 0; idx < roulette.Time; idx++ {
+				for idx := range roulette.Time {
 					i := int(roulette.Face) - 1 - idx
 					j := rand.Intn(i + 1)
 					allNum[i], allNum[j] = allNum[j], allNum[i]

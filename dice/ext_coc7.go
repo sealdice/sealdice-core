@@ -464,7 +464,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				texts := []string{}
-				for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
+				for range cmdArgs.SpecialExecuteTimes {
 					ret := rollOne(true)
 					if ret != nil {
 						return *ret
@@ -586,7 +586,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				ReplyToSender(ctx, msg, text)
 			case "details":
 				help := "当前有coc7规则如下:\n"
-				for i := 0; i < 6; i++ {
+				for i := range 6 {
 					basicStr := strings.ReplaceAll(SetCocRuleText[i], "\n", " ")
 					help += fmt.Sprintf(".setcoc %d // %s\n", i, basicStr)
 				}
@@ -894,12 +894,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				increment   int64
 				newVarValue int64
 			}
-			RuleNotMatch := fmt.Errorf("rule not match")
-			FormatMismatch := fmt.Errorf("format mismatch")
-			SkillNotEntered := fmt.Errorf("skill not entered")
-			SkillTypeError := fmt.Errorf("skill value type error")
-			SuccessExprFormatError := fmt.Errorf("success expr format error")
-			FailExprFormatError := fmt.Errorf("fail expr format error")
+			RuleNotMatch := errors.New("rule not match")
+			FormatMismatch := errors.New("format mismatch")
+			SkillNotEntered := errors.New("skill not entered")
+			SkillTypeError := errors.New("skill value type error")
+			SuccessExprFormatError := errors.New("success expr format error")
+			FailExprFormatError := errors.New("fail expr format error")
 			singleRe := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+(([^/]+)/)?\s*(.+))?`)
 			check := func(skill string) (checkResult enCheckResult) {
 				checkResult.valid = true
@@ -1504,10 +1504,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			if val > ctx.Dice.Config.MaxCocCardGen {
 				val = ctx.Dice.Config.MaxCocCardGen
 			}
-			var i int64
 
 			var ss []string
-			for i = 0; i < val; i++ {
+			for range val {
 				result, _, err := self.ExprText(`力量:{$t1=3d6*5} 敏捷:{$t2=3d6*5} 意志:{$t3=3d6*5}\n体质:{$t4=3d6*5} 外貌:{$t5=3d6*5} 教育:{$t6=(2d6+6)*5}\n体型:{$t7=(2d6+6)*5} 智力:{$t8=(2d6+6)*5}\nHP:{($t4+$t7)/10} 幸运:{$t9=3d6*5} [{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8}/{$t1+$t2+$t3+$t4+$t5+$t6+$t7+$t8+$t9}]`, ctx)
 				if err != nil {
 					break

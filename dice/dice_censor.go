@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -112,7 +113,7 @@ func (cm *CensorManager) Load(_ *Dice) {
 
 func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, checkContent string) (*MsgCheckResult, error) {
 	if cm.IsLoading {
-		return nil, fmt.Errorf("censor is loading")
+		return nil, errors.New("censor is loading")
 	}
 	res := cm.Censor.Check(checkContent)
 	if !ctx.Censored && res.HighestLevel > censor.Ignore {
