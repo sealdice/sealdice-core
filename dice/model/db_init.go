@@ -9,7 +9,7 @@ import (
 )
 
 func _SQLiteDBInit(path string, useWAL bool) (*sqlx.DB, error) {
-	db, err := sqlx.Open("sqlite", path)
+	db, err := sqlx.Open(zapDriverName, path)
 	if err != nil {
 		panic(err)
 	}
