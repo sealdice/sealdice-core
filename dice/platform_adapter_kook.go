@@ -145,15 +145,15 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupID string) {
 		logger.Errorf("获取Kook频道信息#%s时出错:%s", groupID, err.Error())
 		return
 	}
-	dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
+	dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 		Name: channel.Name,
 		time: time.Now().Unix(),
 	})
-	group := pa.Session.ServiceAtNew[groupID]
-	if group != nil {
-		if channel.Name != group.GroupName {
-			group.GroupName = channel.Name
-			group.UpdatedAtTime = time.Now().Unix()
+	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
+	if ok {
+		if channel.Name != groupInfo.GroupName {
+			groupInfo.GroupName = channel.Name
+			groupInfo.UpdatedAtTime = time.Now().Unix()
 		}
 	}
 }
@@ -216,7 +216,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 			msg.GuildID = FormatDiceIDKookGuild(ctx.Extra.GuildID)
 			// if pa.checkIfGuildAdmin(ctx) {
 			//	send.GroupRole = "admin"
-			//}
+			// }
 		}
 		msg.Message = fmt.Sprintf("[CQ:image,file=someimage,url=%s]", ctx.Common.Content)
 		msg.Sender = *send
@@ -294,18 +294,22 @@ func (pa *PlatformAdapterKook) Serve() int {
 		}()
 
 		// 此时 ServiceAtNew 中这个频道一般为空，照 im_session.go 中的方法处理
-		channel := mctx.Session.ServiceAtNew[msg.GroupID]
-		if channel == nil {
-			channel = SetBotOnAtGroup(mctx, msg.GroupID)
+		// Pinenutn: 不清楚此处的逻辑，修改为Exists检查
+		// channel, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
+		ok := mctx.Session.ServiceAtNew.Exists(msg.GroupID)
+		if !ok {
+			channel := SetBotOnAtGroup(mctx, msg.GroupID)
 			channel.Active = true
 			channel.DiceIDExistsMap.Store(pa.EndPoint.UserID, true)
 			now := time.Now().Unix()
 			channel.UpdatedAtTime = now
 			channel.EnteredTime = now
+			mctx.Session.ServiceAtNew.Store(msg.GroupID, channel)
 		}
 
-		if mctx.Session.ServiceAtNew[msg.GroupID] != nil {
-			for _, i := range mctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+		groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
+		if ok {
+			for _, i := range groupInfo.ActivatedExtList {
 				if i.OnGuildJoined != nil {
 					i.callWithJsCheck(mctx.Dice, func() {
 						i.OnGuildJoined(mctx, msg)

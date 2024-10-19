@@ -285,7 +285,7 @@ func RegisterBuiltinStory(self *Dice) {
 					var recInfo string
 					// if len(ret.Data.RecommendList) > 0 {
 					//	rec := ret.Data.RecommendList[0]
-					//	recInfo = fmt.Sprintf("推荐语: %s - by %s\n", rec.Content, rec.LoginUser.NickName)
+					//	recInfo = fmt.Sprintf("推荐语: %s - by %s\n", rec.Content, rec.LoginUser.Name)
 					// }
 
 					text := fmt.Sprintf("[%d]%s\n作者: %s\n背景: %s,%s\n规模: %d-%d人，%d-%d时\n原创: %v\n简介: %s\n%sPC端链接：%s\n移动端链接：%s",

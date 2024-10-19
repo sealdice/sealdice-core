@@ -948,7 +948,11 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 	s = ImageRewrite(s, imgSolve)
 
 	s = strings.ReplaceAll(s, "\n", `\n`)
-	return DiceFormat(ctx, s), nil
+	if ctx.Dice.Config.VMVersionForDeck == "v1" {
+		return DiceFormatV1(ctx, s)
+	} else {
+		return DiceFormatV2(ctx, s)
+	}
 }
 
 func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePool bool) (string, error) {
@@ -994,7 +998,7 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		if pool == nil {
 			return "", errors.New("牌组为空，可能尚未加载完成")
 		}
-		key = pool.Pick().(string)
+		key = pool.PickSource(randSourceDrawAndTmplSelect).(string)
 	}
 	cmd, err := deckStringFormat(ctx, deckInfo, key)
 	return cmd, err
@@ -1088,11 +1092,13 @@ func NewChooser(choices ...wr.Choice) (*ShuffleRandomPool, error) {
 	return &ShuffleRandomPool{data: choices, totals: totals, max: runningTotal}, nil
 }
 
+var randSourceDrawAndTmplSelect = rand.New(rand.NewSource(time.Now().UnixMilli()))
+
 // Pick returns a single weighted random Choice.Item from the Chooser.
 //
 // Utilizes global rand as the source of randomness.
 func (c *ShuffleRandomPool) Pick() interface{} {
-	r := rand.Intn(c.max) + 1
+	r := randSourceDrawAndTmplSelect.Intn(c.max) + 1
 	i := searchInts(c.totals, r)
 
 	theOne := c.data[i]

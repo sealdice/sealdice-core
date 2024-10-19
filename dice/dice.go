@@ -3,7 +3,6 @@ package dice
 import (
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -18,14 +17,14 @@ import (
 	"github.com/jmoiron/sqlx"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
+	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
 	rand2 "golang.org/x/exp/rand"
 	"golang.org/x/exp/slices"
 
-	log "sealdice-core/utils/kratos"
-
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
+	log "sealdice-core/utils/kratos"
 )
 
 type CmdExecuteResult struct {
@@ -149,10 +148,12 @@ type Dice struct {
 	MasterUnlockCodeTime int64          `yaml:"-" json:"masterUnlockCodeTime"`
 	CustomReplyConfig    []*ReplyConfig `yaml:"-" json:"-"`
 
-	TextMapRaw      TextTemplateWithWeightDict `yaml:"-"`
-	TextMapHelpInfo TextTemplateWithHelpDict   `yaml:"-"`
-	ConfigManager   *ConfigManager             `yaml:"-"`
-	Parent          *DiceManager               `yaml:"-"`
+	TextMapRaw        TextTemplateWithWeightDict `yaml:"-"`
+	TextMapHelpInfo   TextTemplateWithHelpDict   `yaml:"-"`
+	TextMapCompatible TextTemplateCompatibleDict `yaml:"-"` // 兼容信息，格式 { "COC:测试": { "回复A": {...}, "回复B": ... } } 这样字符串可以不占据新的内存
+
+	ConfigManager *ConfigManager `yaml:"-"`
+	Parent        *DiceManager   `yaml:"-"`
 
 	CocExtraRules    map[int]*CocRuleInfo   `yaml:"-" json:"cocExtraRules"`
 	Cron             *cron.Cron             `yaml:"-" json:"-"`
@@ -183,12 +184,11 @@ type Dice struct {
 
 	Config Config `json:"-" yaml:"-"`
 
-	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
-	ContainerMode  bool           `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+	AttrsManager *AttrsManager `json:"-" yaml:"-"`
 
-	// 用于检查是否需要插入到数据库的哈希表 150因为没有对应插入 到时候这个就没用了
-	SaveDatabaseInsertCheckMapFlag sync.Once                `json:"-" yaml:"-"`
-	SaveDatabaseInsertCheckMap     *SyncMap[string, string] `json:"-" yaml:"-"`
+	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
+
+	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 
 	IsAlreadyLoadConfig bool `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 }
@@ -214,6 +214,10 @@ func (d *Dice) Init() {
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0o755)
 
+	log := logger.Init()
+	d.Logger = log.Logger
+	d.LogWriter = log.WX
+
 	d.Cron = cron.New()
 	d.Cron.Start()
 
@@ -222,24 +226,30 @@ func (d *Dice) Init() {
 	var err error
 	d.DBData, d.DBLogs, err = model.SQLiteDBInit(d.BaseConfig.DataDir)
 	if err != nil {
-		// TODO:
 		fmt.Println(err)
+		d.Logger.Errorf("Failed to init database: %v", err)
 	}
 
-	log := logger.Init()
-	d.Logger = log.Logger
-	d.LogWriter = log.WX
+	d.AttrsManager = &AttrsManager{}
+	d.AttrsManager.Init(d)
+
+	d.Config.BanList = &BanListInfo{Parent: d}
+	d.Config.BanList.Init()
 
 	initVerify()
 
 	d.BaseConfig.CommandCompatibleMode = true
+	// Pinenutn: 预先初始化对应的SyncMap
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
-	d.ImSession.ServiceAtNew = make(map[string]*GroupInfo)
+	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 	d.CmdMap = CmdMapCls{}
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
-	_ = d.ConfigManager.Load()
+	err = d.ConfigManager.Load()
+	if err != nil {
+		d.Logger.Error("Failed to load plugin configs: ", err)
+	}
 
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
@@ -288,12 +298,17 @@ func (d *Dice) Init() {
 			if d.IsAlreadyLoadConfig {
 				count++
 				d.Save(true)
-				if count%5 == 0 {
-					// d.Logger.Info("测试: flush wal")
-					_ = model.FlushWAL(d.DBData)
-					_ = model.FlushWAL(d.DBLogs)
+				if count%2 == 0 {
+					if err := model.FlushWAL(d.DBData); err != nil {
+						d.Logger.Error("Failed to flush WAL: ", err)
+					}
+					if err := model.FlushWAL(d.DBLogs); err != nil {
+						d.Logger.Error("Failed to flush WAL: ", err)
+					}
 					if d.CensorManager != nil && d.CensorManager.DB != nil {
-						_ = model.FlushWAL(d.CensorManager.DB)
+						if err := model.FlushWAL(d.CensorManager.DB); err != nil {
+							d.Logger.Error("Failed to flush WAL: ", err)
+						}
 					}
 				}
 			}
@@ -316,23 +331,24 @@ func (d *Dice) Init() {
 			// 自动更新群信息
 			for _, i := range d.ImSession.EndPoints {
 				if i.Enable {
-					for k, v := range d.ImSession.ServiceAtNew {
+					// Pinenutn: Range模板 ServiceAtNew重构代码
+					d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+						// Pinenutn: ServiceAtNew重构
 						// TODO: 注意这里的Active可能不需要改
-						if !strings.HasPrefix(k, "PG-") && v.Active {
+						if !strings.HasPrefix(key, "PG-") && groupInfo.Active {
 							diceID := i.UserID
 							now := time.Now().Unix()
 
 							// 上次被人使用小于60s
-							if now-v.RecentDiceSendTime < 60 {
+							if now-groupInfo.RecentDiceSendTime < 60 {
 								// 在群内存在，且开启时
-								if _, exists := v.DiceIDExistsMap.Load(diceID); exists {
-									if _, exists := v.DiceIDActiveMap.Load(diceID); exists {
-										i.Adapter.GetGroupInfoAsync(k)
-									}
+								if groupInfo.DiceIDExistsMap.Exists(diceID) && groupInfo.DiceIDActiveMap.Exists(diceID) {
+									i.Adapter.GetGroupInfoAsync(key)
 								}
 							}
 						}
-					}
+						return true
+					})
 				}
 			}
 		}
@@ -404,7 +420,12 @@ func (d *Dice) rebuildParser(buffer string) *DiceRollParser {
 	return p
 }
 
-func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
+type VMResultV2 struct {
+	ds.VMValue
+	vm *ds.Context
+}
+
+func (d *Dice) _ExprEvalBaseV1(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
 	parser := d.rebuildParser(buffer)
 	parser.RollExpression.flags = flags // 千万记得在parse之前赋值
 	err := parser.Parse()
@@ -440,15 +461,11 @@ func (d *Dice) ExprEvalBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 	return nil, "", err
 }
 
-func (d *Dice) ExprEval(buffer string, ctx *MsgContext) (*VMResult, string, error) {
-	return d.ExprEvalBase(buffer, ctx, RollExtraFlags{})
-}
-
-func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
+func (d *Dice) _ExprTextBaseV1(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
 	buffer = CompatibleReplace(ctx, buffer)
 
 	// 隐藏的内置字符串符号 \x1e
-	val, detail, err := d.ExprEvalBase("\x1e"+buffer+"\x1e", ctx, flags)
+	val, detail, err := d._ExprEvalBaseV1("\x1e"+buffer+"\x1e", ctx, flags)
 	if err != nil {
 		fmt.Println("脚本执行出错: ", buffer, "->", err)
 	}
@@ -460,14 +477,15 @@ func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 	return nil, "", errors.New("错误的表达式")
 }
 
-func (d *Dice) ExprText(buffer string, ctx *MsgContext) (string, string, error) {
-	val, detail, err := d.ExprTextBase(buffer, ctx, RollExtraFlags{})
+func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, error) {
+	val, detail, err := d._ExprTextBaseV1(buffer, ctx, RollExtraFlags{})
 
 	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {
 		return val.Value.(string), detail, err
 	}
 
-	return "格式化错误:" + strconv.Quote(buffer), "", errors.New("错误的表达式")
+	textQuote := strconv.Quote(buffer) // 主意，这个返回中对err进行改写是错误的，但是历史代码，不做修改
+	return "格式化错误V1:" + textQuote, "", errors.New("格式化错误V1:" + textQuote)
 }
 
 // ExtFind 根据名称或别名查找扩展
@@ -503,9 +521,12 @@ func (d *Dice) ExtAliasToName(s string) string {
 }
 
 func (d *Dice) ExtRemove(ei *ExtInfo) bool {
-	for _, i := range d.ImSession.ServiceAtNew {
-		i.ExtInactive(ei)
-	}
+	// Pinenutn: Range模板 ServiceAtNew重构代码
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		// Pinenutn: ServiceAtNew重构
+		groupInfo.ExtInactive(ei)
+		return true
+	})
 
 	for index, i := range d.ExtList {
 		if i == ei {
@@ -623,22 +644,27 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 	return false
 }
 
-var randSource = rand2.NewSource(uint64(time.Now().Unix()))
+// var randSource = rand2.NewSource(uint64(time.Now().Unix()))
+var randSource = &rand2.PCGSource{}
 
 func DiceRoll(dicePoints int) int { //nolint:revive
 	if dicePoints <= 0 {
 		return 0
 	}
-	val := int(randSource.Uint64()%math.MaxInt32)%dicePoints + 1
-	return val
+	val := ds.Roll(randSource, ds.IntType(dicePoints), 0)
+	return int(val)
+}
+
+func DiceRoll64x(src *rand2.PCGSource, dicePoints int64) int64 { //nolint:revive
+	if src == nil {
+		src = randSource
+	}
+	val := ds.Roll(src, ds.IntType(dicePoints), 0)
+	return int64(val)
 }
 
 func DiceRoll64(dicePoints int64) int64 { //nolint:revive
-	if dicePoints == 0 {
-		return 0
-	}
-	val := int64(randSource.Uint64()%math.MaxInt64)%dicePoints + 1
-	return val
+	return DiceRoll64x(nil, dicePoints)
 }
 
 func CrashLog() {

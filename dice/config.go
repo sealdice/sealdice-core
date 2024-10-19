@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fy0/lockfree"
 	wr "github.com/mroth/weightedrand"
 	"gopkg.in/yaml.v3"
 
@@ -22,13 +21,23 @@ import (
 
 // type TextTemplateWithWeight = map[string]map[string]uint
 type (
-	TextTemplateItem     = []interface{} // 实际上是 [](string | int) 类型
+	TextTemplateItem     = []any // 实际上是 [](string | int) 类型
 	TextTemplateItemList []TextTemplateItem
 )
+
+type TextItemCompatibleInfo struct {
+	Version      string `json:"version"` // v1 v2 默认为v2(如果为空)
+	TextV2       string `json:"textV2"`
+	TextV1       string `json:"textV1"`
+	ErrV1        string `json:"errV1"`
+	ErrV2        string `json:"errV2"`
+	PresetExists bool   `json:"presetExists"` // 是否存在预设变量(即指令执行后环境的模拟)
+}
 
 type (
 	TextTemplateWithWeight     = map[string][]TextTemplateItem
 	TextTemplateWithWeightDict = map[string]TextTemplateWithWeight
+	TextTemplateCompatibleDict = SyncMap[string, *SyncMap[string, TextItemCompatibleInfo]]
 )
 
 // TextTemplateHelpItem 辅助信息，用于UI中，大部分自动生成
@@ -44,6 +53,7 @@ type TextTemplateHelpItem = struct {
 	NotBuiltin      bool               `json:"notBuiltin"`      // 非内置
 	TopOrder        int                `json:"topOrder"`        // 置顶序号，越高越靠前
 }
+
 type (
 	TextTemplateHelpGroup    = map[string]*TextTemplateHelpItem
 	TextTemplateWithHelpDict = map[string]TextTemplateHelpGroup
@@ -702,7 +712,10 @@ func setupBaseTextTemplate(d *Dice) {
 				{`{$t玩家}的ri格式不正确!`, 1},
 			},
 			"先攻_下一回合": {
-				{"【{$t当前回合角色名}】{$t当前回合at}戏份结束了，下面该【{$t下一回合角色名}】{$t下一回合at}出场了！同时请【{$t下下一回合角色名}】{$t下下一回合at}做好准备", 1},
+				{"【{$t当前回合角色名}】戏份结束了。\n{$t新轮开始提示}下面该【{$t下一回合角色名}】{$t下一回合at}出场了！\n同时请【{$t下下一回合角色名}】{$t下下一回合at}做好准备", 1},
+			},
+			"先攻_新轮开始提示": {
+				{"新的一轮开始了！\n", 1},
 			},
 			"死亡豁免_D20_附加语": {
 				{`你觉得你还可以抢救一下！HP回复1点！`, 1},
@@ -731,8 +744,17 @@ func setupBaseTextTemplate(d *Dice) {
 			"受到伤害_进入昏迷_附加语": {
 				{`\n{$t玩家}遭受了{$t伤害点数}点过量伤害，生命值降至0，陷入了昏迷！`, 1},
 			},
+			"制卡_预设模式": {
+				{"{$t玩家}使用预设模板的DND5E人物作成:\n{$t制卡结果文本}", 1},
+			},
+			"制卡_自由分配模式": {
+				{"{$t玩家}使用自由分配的DND5E人物作成:\n{$t制卡结果文本}", 1},
+			},
 			"制卡_分隔符": {
 				{`\n`, 1},
+			},
+			"检定": {
+				{`{$t玩家}的"{$t技能}"检定（DND5E）结果为: {$t检定过程文本} = {$t检定结果}`, 1},
 			},
 		},
 		"核心": {
@@ -1087,6 +1109,16 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_上传_失败": {
 				{`跑团日志上传失败：{$t错误原因}\n若未出现线上日志地址，可换时间重试，或联系骰主在data/default/log-exports路径下取出日志\n文件名: 群号_日志名_随机数.zip\n注意此文件log end/get后才会生成`, 1},
 			},
+			// 1.5.0+
+			"名片_自动设置": {
+				{`已自动设置名片格式为{$t名片格式}：{$t名片预览}\n如有权限会在属性更新时自动更新名片。使用.sn off可关闭。`, 1},
+			},
+			"名片_取消设置": {
+				{`已关闭对{$t玩家}的名片自动修改。`, 1},
+			},
+			"记录_导出_成功": {
+				{`日志文件《{$t文件名字}》已上传至群文件，请自行到群文件查看。`, 1},
+			},
 		},
 	}
 
@@ -1368,6 +1400,11 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"先攻_下一回合": {
 				SubType: ".init ed",
+				Vars: []string{"$t当前回合角色名", "$t当前回合at", "$t新轮开始提示", "$t下一回合角色名",
+					"$t下一回合at", "$t下下一回合角色名", "$t下下一回合at"},
+			},
+			"先攻_新轮开始提示": {
+				SubType: ".init ed",
 			},
 			"先攻_移除_前缀": {
 				SubType: ".init rm",
@@ -1402,17 +1439,30 @@ func setupBaseTextTemplate(d *Dice) {
 			"死亡豁免_结局_角色死亡": {
 				SubType: ".ds/死亡豁免",
 			},
-			"受到伤害_超过HP上限_附加语": {
-				SubType: ".st hp-3",
-			},
-			"受到伤害_昏迷中_附加语": {
-				SubType: ".st hp-3",
-			},
-			"受到伤害_进入昏迷_附加语": {
-				SubType: ".st hp-3",
-			},
 			"制卡_分隔符": {
 				SubType: ".dnd 2/.dndx 3",
+			},
+			"受到伤害_昏迷中_附加语": {
+				SubType:   ".st hp-1d4",
+				ExtraText: "hp已经为0时扣血",
+			},
+			"受到伤害_超过HP上限_附加语": {
+				SubType:   ".st hp-50",
+				ExtraText: "造成伤害大于生命上限",
+			},
+			"受到伤害_进入昏迷_附加语": {
+				SubType:   ".st hp-1d4",
+				ExtraText: "hp在st后从正数变为0",
+			},
+			"制卡_预设模式": {
+				SubType:   ".dnd",
+				ExtraText: "不带属性名"},
+			"制卡_自由分配模式": {
+				SubType:   ".dndx",
+				ExtraText: "带属性名",
+			},
+			"检定": {
+				SubType: ".rc 力量",
 			},
 		},
 		"核心": {
@@ -1746,7 +1796,7 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 			"记录_结束": {
 				SubType: ".log end",
-				Vars:    []string{"$t记录名称"},
+				Vars:    []string{"$t记录名称", "$t当前记录条数"},
 			},
 			"记录_新建_失败_未结束的记录": {
 				SubType: ".log new",
@@ -1798,6 +1848,17 @@ func setupBaseTextTemplate(d *Dice) {
 			"记录_上传_失败": {
 				SubType: ".log end",
 				Vars:    []string{"$t错误原因"},
+			},
+
+			// 1.5.0+
+			"名片_自动设置": {
+				SubType: ".sn",
+			},
+			"名片_取消设置": {
+				SubType: ".sn",
+			},
+			"记录_导出_成功": {
+				SubType: ".log export",
 			},
 		},
 	}
@@ -1934,7 +1995,7 @@ func setupTextTemplate(d *Dice) {
 
 func (d *Dice) GenerateTextMap() {
 	// 生成TextMap
-	d.TextMap = map[string]*wr.Chooser{}
+	newTextMap := map[string]*wr.Chooser{}
 
 	for category, item := range d.TextMapRaw {
 		for k, v := range item {
@@ -1944,15 +2005,17 @@ func (d *Dice) GenerateTextMap() {
 			}
 
 			pool, _ := wr.NewChooser(choices...)
-			d.TextMap[fmt.Sprintf("%s:%s", category, k)] = pool
+			newTextMap[fmt.Sprintf("%s:%s", category, k)] = pool
 		}
 	}
 
 	picker, _ := wr.NewChooser(wr.Choice{Item: APPNAME, Weight: 1})
-	d.TextMap["常量:APPNAME"] = picker
+	newTextMap["常量:APPNAME"] = picker
 
 	picker, _ = wr.NewChooser(wr.Choice{Item: VERSION.String(), Weight: 1})
-	d.TextMap["常量:VERSION"] = picker
+	newTextMap["常量:VERSION"] = picker
+
+	d.TextMap = newTextMap
 }
 
 func getNumVal(i interface{}) uint {
@@ -2020,15 +2083,15 @@ func (d *Dice) loads() {
 			}
 		}
 		d.DiceMasters = newDiceMasters
-
-		// 装载ServiceAt
-		d.ImSession.ServiceAtNew = map[string]*GroupInfo{}
+		// 装载ServiceAtNew
+		// Pinenutn: So,我还是不知道ServiceAtNew到底是个什么鬼东西……太反直觉了……
+		d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 		_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
 			var groupInfo GroupInfo
 			err := json.Unmarshal(data, &groupInfo)
 			if err == nil {
 				groupInfo.GroupID = id
-				groupInfo.UpdatedAtTime = updatedAt
+				groupInfo.UpdatedAtTime = 0
 
 				// 找出其中以群号开头的，这是1.2版本的bug
 				var toDelete []string
@@ -2043,7 +2106,7 @@ func (d *Dice) loads() {
 						groupInfo.DiceIDExistsMap.Delete(i)
 					}
 				}
-				d.ImSession.ServiceAtNew[id] = &groupInfo
+				d.ImSession.ServiceAtNew.Store(id, &groupInfo)
 			} else {
 				d.Logger.Errorf("加载群信息失败: %s", id)
 			}
@@ -2053,46 +2116,35 @@ func (d *Dice) loads() {
 		for _, i := range d.ExtList {
 			m[i.Name] = i
 		}
-
 		// 设置群扩展
-		for _, v := range d.ImSession.ServiceAtNew {
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		d.ImSession.ServiceAtNew.Range(func(_ string, groupInfo *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
 			var tmp []*ExtInfo
-			for _, i := range v.ActivatedExtList {
+			for _, i := range groupInfo.ActivatedExtList {
 				if m[i.Name] != nil {
 					tmp = append(tmp, m[i.Name])
 				}
 			}
-			v.ActivatedExtList = tmp
-		}
+			groupInfo.ActivatedExtList = tmp
+			return true
+		})
 
 		// 读取群变量
-		for _, g := range d.ImSession.ServiceAtNew {
-			// 群组数据
-			if g.ValueMap == nil {
-				g.ValueMap = lockfree.NewHashMap()
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
+			if groupInfo.DiceIDActiveMap == nil {
+				groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
 			}
-
-			data := model.AttrGroupGetAll(d.DBData, g.GroupID)
-			if len(data) != 0 {
-				mapData := make(map[string]*VMValue)
-				err := JSONValueMapUnmarshal(data, &mapData)
-				if err != nil {
-					d.Logger.Error("读取群变量失败: ", err)
-				}
-				for k, v := range mapData {
-					g.ValueMap.Set(k, v)
-				}
+			if groupInfo.DiceIDExistsMap == nil {
+				groupInfo.DiceIDExistsMap = new(SyncMap[string, bool])
 			}
-			if g.DiceIDActiveMap == nil {
-				g.DiceIDActiveMap = new(SyncMap[string, bool])
+			if groupInfo.BotList == nil {
+				groupInfo.BotList = new(SyncMap[string, bool])
 			}
-			if g.DiceIDExistsMap == nil {
-				g.DiceIDExistsMap = new(SyncMap[string, bool])
-			}
-			if g.BotList == nil {
-				g.BotList = new(SyncMap[string, bool])
-			}
-		}
+			return true
+		})
 
 		if config.VersionCode != 0 && config.VersionCode < 10005 {
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
@@ -2217,10 +2269,13 @@ func (d *Dice) loads() {
 		// 设置全局群名缓存和用户名缓存
 		dm := d.Parent
 		now := time.Now().Unix()
-		for k, v := range d.ImSession.ServiceAtNew {
-			dm.GroupNameCache.Set(k, &GroupNameCacheItem{Name: v.GroupName, time: now})
-		}
-
+		// Pinenutn: Range模板 ServiceAtNew重构代码
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			// Pinenutn: ServiceAtNew重构
+			// Pinenutn: 这里曾经可能是个Lockfree.hashmap？ 函数有变动
+			dm.GroupNameCache.Store(key, &GroupNameCacheItem{Name: groupInfo.GroupName, time: now})
+			return true
+		})
 		d.Logger.Info("serve.yaml loaded")
 	} else {
 		d.Logger.Info("serve.yaml not found")
@@ -2367,14 +2422,6 @@ func (d *Dice) ApplyExtDefaultSettings() {
 }
 
 func (d *Dice) Save(isAuto bool) {
-	d.SaveDatabaseInsertCheckMapFlag.Do(func() {
-		if d.SaveDatabaseInsertCheckMap == nil {
-			d.Logger.Info("初始化哈希记录表")
-			d.SaveDatabaseInsertCheckMap = new(SyncMap[string, string])
-		}
-	})
-	allCount := 0
-	timestampNow := time.Now().Unix()
 	if d.LastUpdatedTime != 0 {
 		totalConf := &struct {
 			// copy from Dice
@@ -2418,129 +2465,35 @@ func (d *Dice) Save(isAuto bool) {
 		}
 	}
 
-	for _, g := range d.ImSession.ServiceAtNew {
+	// Pinenutn: Range模板 ServiceAtNew重构代码
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		// Pinenutn: ServiceAtNew重构
 		// 保存群内玩家信息
-		if g.Players != nil {
-			g.Players.Range(func(key string, value *GroupPlayerInfo) bool {
+		if groupInfo.Players != nil {
+			groupInfo.Players.Range(func(key string, value *GroupPlayerInfo) bool {
 				if value.UpdatedAtTime != 0 {
-					_ = model.GroupPlayerInfoSave(d.DBData, g.GroupID, key, (*model.GroupPlayerInfoBase)(value))
-					allCount++
+					_ = model.GroupPlayerInfoSave(d.DBData, groupInfo.GroupID, key, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
-
-				// 保存群组卡
-				if value.Vars != nil && value.Vars.Loaded {
-					if value.Vars.LastWriteTime != 0 {
-						data, _ := json.Marshal(LockFreeMapToMap(value.Vars.ValueMap))
-						model.AttrGroupUserSave(d.DBData, g.GroupID, key, data)
-						allCount++
-						value.Vars.LastWriteTime = 0
-					}
-				}
-
 				return true
 			})
 		}
 
-		if g.UpdatedAtTime != 0 {
-			data, err := json.Marshal(g)
+		if groupInfo.UpdatedAtTime != 0 {
+			data, err := json.Marshal(groupInfo)
 			if err == nil {
-				// 修改保存时间为当前时间
-				err := model.GroupInfoSave(d.DBData, g.GroupID, timestampNow, data)
-				allCount++
+				err := model.GroupInfoSave(d.DBData, groupInfo.GroupID, groupInfo.UpdatedAtTime, data)
 				if err != nil {
-					d.Logger.Warnf("保存群组数据失败 %v : %v", g.GroupID, err.Error())
+					d.Logger.Warnf("保存群组数据失败 %v : %v", groupInfo.GroupID, err.Error())
 				}
-				g.UpdatedAtTime = 0
-			}
-		}
-		// Pinenutn: 由于未知原因，这里每次都会大量插入相同没修改的数据，群越多，疑似占用越大
-		// 由于150已经删除了对应的代码，此处不做刨根问底，只研究优化方案
-		// 已经在某骰上测试的：
-		// 方案1：循环中的整体作为一个事务，减少提交（由于木落担心可能会导致一次保存插入失败一条就全部回退，放弃）
-		// 方案2：使用哈希记录实际没有修改的，然后只插入修改过的，这种情况下，会导致第一次启动的时候这里的占用很高（因为第一次还会全量插入），以后就少了
-		// 之前想过要不要把事务分块插入，不会做，摆了:(
-		// TODO: 这里其实真的还能优化
-		data, _ := json.Marshal(LockFreeMapToMap(g.ValueMap))
-		dataHash := GenerateShortHash(data)
-		oldHash, ok := d.SaveDatabaseInsertCheckMap.Load(g.GroupID)
-		// 理论上，只要角色卡没修改过，那么就不需要再次入库
-		// 只要我们记录上一次的HashID和本次的HashID，比较ID应该会比插入占用更低？
-		// 实际上，这并没有解决第一次入库会产生大量插入的问题，但总比没有好……
-		// 如果没修改，请不要入库
-		if !ok || dataHash != oldHash {
-			// 入库
-			model.AttrGroupSave(d.DBData, g.GroupID, data)
-			d.SaveDatabaseInsertCheckMap.Store(g.GroupID, dataHash)
-			allCount++
-		}
-	}
-	// 会频繁刷屏，改为控制台输出
-	if allCount > 0 {
-		fmt.Printf("本次ServiceAtNew群组数据，保存影响数据库操作数为: %d\n", allCount)
-	}
-	// 同步绑定的角色卡数据
-	chPrefix := "$:ch-bind-mtime:"
-	chPrefixData := "$:ch-bind-data:"
-	d.ImSession.PlayerVarsData.Range(func(key string, v *PlayerVariablesItem) bool {
-		if v.Loaded {
-			if v.LastWriteTime != 0 {
-				var toDelete []string
-				syncMap := map[string]bool{}
-				allCh := map[string]lockfree.HashMap{}
-
-				_ = v.ValueMap.Iterate(func(_k interface{}, _v interface{}) error {
-					if k, ok := _k.(string); ok {
-						if strings.HasPrefix(k, chPrefixData) {
-							v := _v.(lockfree.HashMap)
-							allCh[k[len(chPrefixData):]] = v
-						}
-						if strings.HasPrefix(k, chPrefix) {
-							// 只要存在，就是修改过，数值多少不重要
-							syncMap[k[len(chPrefix):]] = true
-							toDelete = append(toDelete, k)
-						}
-					}
-					return nil
-				})
-
-				for _, i := range toDelete {
-					v.ValueMap.Del(i)
-				}
-
-				// 这里面的角色是需要同步的
-				for name := range syncMap {
-					chData := allCh[name]
-					if chData != nil {
-						val, err := json.Marshal(LockFreeMapToMap(chData))
-						if err == nil {
-							varName := "$ch:" + name
-							v.ValueMap.Set(varName, &VMValue{
-								TypeID: VMTypeString,
-								Value:  string(val),
-							})
-						}
-					} else {
-						// 过期了，可能该角色已经被删除
-						v.ValueMap.Del("$:ch-bind-data:" + name)
-					}
-				}
+				groupInfo.UpdatedAtTime = 0
 			}
 		}
 		return true
 	})
 
-	// 保存玩家个人全局数据
-	d.ImSession.PlayerVarsData.Range(func(k string, v *PlayerVariablesItem) bool {
-		if v.Loaded {
-			if v.LastWriteTime != 0 {
-				data, _ := json.Marshal(LockFreeMapToMap(v.ValueMap))
-				model.AttrUserSave(d.DBData, k, data)
-				v.LastWriteTime = 0
-			}
-		}
-		return true
-	})
+	// 同步全部属性数据：个人角色卡、群内角色卡、群数据、个人全局数据
+	d.AttrsManager.CheckForSave()
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 
 	"sealdice-core/utils/spinner"
@@ -20,6 +21,11 @@ func DBCacheDelete() bool {
 			return true
 		}
 		return os.Remove(fnPath) == nil
+	}
+
+	// 非 windows 不删缓存
+	if runtime.GOOS != "windows" {
+		return true
 	}
 
 	ok := true

@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -61,6 +62,26 @@ func (m *ReplyConditionTextMatch) Clean() {
 	m.Value = strings.TrimSpace(m.Value)
 }
 
+type replyRegexCacheType struct {
+	cache SyncMap[string, *regexp.Regexp]
+}
+
+func (r *replyRegexCacheType) compile(expr string) *regexp.Regexp {
+	if re, ok := r.cache.Load(expr); ok {
+		return re
+	}
+
+	if ret, err := regexp.Compile(expr); err == nil {
+		r.cache.Store(expr, ret)
+		return ret
+	} else {
+		r.cache.Store(expr, nil)
+		return nil
+	}
+}
+
+var replyRegexCache replyRegexCacheType
+
 func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, cleanText string) bool {
 	var ret bool
 	switch m.MatchType {
@@ -80,8 +101,8 @@ func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, _ *Message, _ *CmdArgs,
 	case "matchSuffix":
 		ret = strings.HasSuffix(strings.ToLower(cleanText), strings.ToLower(m.Value))
 	case "matchRegex":
-		re, err := regexp.Compile(m.Value)
-		if err == nil {
+		re := replyRegexCache.compile(m.Value)
+		if re != nil {
 			lst := re.FindStringSubmatch(cleanText)
 			gName := re.SubexpNames()
 			for index, s := range lst {
@@ -124,16 +145,24 @@ func (m *ReplyConditionExprTrue) Clean() {
 }
 
 func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, _ string) bool {
-	r, _, err := ctx.Dice.ExprEval(m.Value, ctx)
+	// r := ctx.Eval(m.Value, ds.RollConfig{})
+	flags := RollExtraFlags{
+		V2Only: true,
+		V1Only: ctx.Dice.Config.VMVersionForReply == "v1",
+	}
+
+	r, _, err := DiceExprEvalBase(ctx, m.Value, flags)
+
 	if err != nil {
 		ctx.Dice.Logger.Infof("自定义回复表达式执行失败: %s", m.Value)
 		return false
 	}
 
-	if r.restInput != "" {
-		ctx.Dice.Logger.Infof("自定义回复表达式执行失败(后半部分不能识别 %s): %s", r.restInput, m.Value)
+	if r.GetRestInput() != "" {
+		ctx.Dice.Logger.Infof("自定义回复表达式执行失败(后半部分不能识别 %s): %s", r.GetRestInput(), m.Value)
 		return false
 	}
+
 	// fmt.Println("???", r, err, r.AsBool(), r.Value == int64(0), r.Value != int64(0))
 	return r.AsBool()
 }
@@ -149,12 +178,34 @@ func (m *ReplyResultReplyToSender) Clean() {
 	m.Message.Clean()
 }
 
+func formatExprForReply(ctx *MsgContext, expr string) string {
+	var text string
+	var err error
+
+	if ctx.Dice.Config.VMVersionForReply == "v1" {
+		text, err = DiceFormatV1(ctx, expr)
+		if err != nil {
+			// text = fmt.Sprintf("执行出错V1: %s", err.Error())
+			text = err.Error()
+		}
+	} else {
+		text, err = DiceFormatV2(ctx, expr)
+		if err != nil {
+			text = fmt.Sprintf("执行出错V2: %s\n原始文本: %s", err.Error(), strconv.Quote(expr))
+		}
+	}
+
+	return text
+}
+
 func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs) {
 	// go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-	ReplyToSender(ctx, msg, DiceFormat(ctx, p.Pick().(string)))
+
+	expr := p.Pick().(string)
+	ReplyToSender(ctx, msg, formatExprForReply(ctx, expr))
 	// }()
 }
 
@@ -172,7 +223,9 @@ func (m *ReplyResultReplyPrivate) Clean() {
 func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
-	ReplyPerson(ctx, msg, DiceFormat(ctx, p.Pick().(string)))
+
+	expr := p.Pick().(string)
+	ReplyPerson(ctx, msg, formatExprForReply(ctx, expr))
 }
 
 // ReplyResultReplyGroup 回复到群组 replyGroup
@@ -190,7 +243,9 @@ func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, _ *CmdArg
 	// go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
-	ReplyGroup(ctx, msg, DiceFormat(ctx, p.Pick().(string)))
+
+	expr := p.Pick().(string)
+	ReplyGroup(ctx, msg, formatExprForReply(ctx, expr))
 	// }()
 }
 
@@ -203,7 +258,11 @@ type ReplyResultRunText struct {
 
 func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-	_, _, _ = ctx.Dice.ExprTextBase(m.Message, ctx, RollExtraFlags{})
+	flags := RollExtraFlags{
+		V2Only: true,
+		V1Only: ctx.Dice.Config.VMVersionForReply == "v1",
+	}
+	_, _, _ = DiceExprTextBase(ctx, m.Message, flags)
 }
 
 type ReplyConditions []ReplyConditionBase

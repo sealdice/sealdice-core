@@ -38,13 +38,13 @@ func (pa *PlatformAdapterTelegram) GetGroupInfoAsync(groupID string) {
 		return
 	}
 	dm := pa.Session.Parent.Parent
-	dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
+	dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 		Name: chat.Title,
 		time: time.Now().Unix(),
 	})
-	group := pa.Session.ServiceAtNew[groupID]
-	if group != nil {
-		group.GroupName = chat.Title
+	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
+	if ok {
+		groupInfo.GroupName = chat.Title
 	}
 }
 
@@ -113,8 +113,8 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 					Dice:        pa.Session.Parent,
 					MessageType: msg.MessageType,
 				}
-				if g, ok := pa.Session.ServiceAtNew[msg.GroupID]; ok {
-					if p, ok2 := g.Players.Load(msg.Sender.UserID); ok2 {
+				if groupInfo, ok := pa.Session.ServiceAtNew.Load(msg.GroupID); ok {
+					if p, ok2 := groupInfo.Players.Load(msg.Sender.UserID); ok2 {
 						mctx.Player = p
 					}
 				}
@@ -161,17 +161,17 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 }
 
 func (pa *PlatformAdapterTelegram) groupNewMember(msg *Message, msgRaw *tgbotapi.Message, member *tgbotapi.User) {
-	ucache := pa.Session.Parent.Parent.UserIDCache
+	ucache := &pa.Session.Parent.Parent.UserIDCache
 	logger := pa.Session.Parent.Logger
 	ep := pa.EndPoint
-	group := pa.Session.ServiceAtNew[msg.GroupID]
+	groupInfo, ok := pa.Session.ServiceAtNew.Load(msg.GroupID)
 	if member.UserName != "" {
-		_, cacheExist := ucache.Get(member.UserName)
+		_, cacheExist := ucache.Load(member.UserName)
 		if !cacheExist {
-			ucache.Set(member.UserName, member.ID)
+			ucache.Store(member.UserName, member.ID)
 		}
 	}
-	if group != nil && group.ShowGroupWelcome {
+	if ok && groupInfo.ShowGroupWelcome {
 		ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.Session, Dice: pa.Session.Parent}
 		ctx.Player = &GroupPlayerInfo{}
 		uidRaw := strconv.FormatInt(member.ID, 10)
@@ -181,7 +181,7 @@ func (pa *PlatformAdapterTelegram) groupNewMember(msg *Message, msgRaw *tgbotapi
 		VarSetValueStr(ctx, "$t帐号ID", stdID)
 		VarSetValueStr(ctx, "$t账号ID", stdID)
 		groupName := msgRaw.Chat.Title
-		text := DiceFormat(ctx, group.GroupWelcomeMessage)
+		text := DiceFormat(ctx, groupInfo.GroupWelcomeMessage)
 		logger.Infof("发送欢迎致辞，群: <%s>(%d),新成员id:%d", groupName, msgRaw.Chat.ID, member.ID)
 		for _, i := range ctx.SplitText(text) {
 			pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
@@ -204,8 +204,10 @@ func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Mes
 	for _, i := range ctx.SplitText(text) {
 		pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 	}
-	if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+	// Pinenutn ActivatedExtList模板
+	groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+	if ok {
+		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnGroupJoined != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnGroupJoined(ctx, msg)
@@ -226,8 +228,9 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 	for _, i := range ctx.SplitText(welcome) {
 		pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 	}
-	if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+	groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+	if ok {
+		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnBecomeFriend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnBecomeFriend(ctx, msg)
@@ -238,7 +241,7 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 }
 
 func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
-	ucache := pa.Session.Parent.Parent.UserIDCache
+	ucache := &pa.Session.Parent.Parent.UserIDCache
 	logger := pa.Session.Parent.Logger
 	self := pa.IntentSession.Self
 	msg := new(Message)
@@ -260,7 +263,7 @@ func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
 					} else {
 						// @的不是自己，查看是否能从用户名缓存中找到username
 						name := string(utf16.Decode(u16[entity.Offset+1 : entity.Offset+entity.Length]))
-						v, exist := ucache.Get(name)
+						v, exist := ucache.Load(name)
 						if exist {
 							replacedText += string(utf16.Decode(u16[index:entity.Offset])) + fmt.Sprintf("tg://user?id=%d", v)
 						} else {
@@ -290,9 +293,9 @@ func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
 			send.Nickname = m.From.FirstName
 		} else {
 			send.Nickname = m.From.UserName
-			_, cacheExist := ucache.Get(m.From.UserName)
+			_, cacheExist := ucache.Load(m.From.UserName)
 			if !cacheExist {
-				ucache.Set(m.From.UserName, m.From.ID)
+				ucache.Store(m.From.UserName, m.From.ID)
 			}
 		}
 		if m.From.ID == m.Chat.ID {

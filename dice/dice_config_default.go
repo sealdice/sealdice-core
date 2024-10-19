@@ -37,6 +37,8 @@ var DefaultConfig = Config{
 		AliveNoticeValue:        "@every 3h",
 		ReplyDebugMode:          false,
 		PlayerNameWrapEnable:    true,
+		VMVersionForDeck:        "v2",
+		VMVersionForReply:       "v1",
 		Name:                    "default",
 		DataDir:                 "data/default",
 	},

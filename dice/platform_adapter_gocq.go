@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -15,16 +16,17 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/message"
+	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 
 	"github.com/gorilla/websocket"
 	"github.com/sacOO7/gowebsocket"
 	"github.com/samber/lo"
-
-	log "sealdice-core/utils/kratos"
 )
 
 // 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
@@ -275,38 +277,61 @@ func FormatDiceIDQQChGroup(guildID, channelID string) string {
 	return fmt.Sprintf("QQ-CH-Group:%s-%s", guildID, channelID)
 }
 
+func hasURLScheme(text string) bool {
+	// 正则表达式匹配三种情况：file URI、http(s) URL 和 base64 URI
+	regex := `^[a-z]+://`
+	match, _ := regexp.MatchString(regex, text)
+	return match
+}
+
 func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *MessageQQ) error {
-	msgQQType2 := new(MessageQQArray)
-	err := json.Unmarshal([]byte(message), msgQQType2)
-
-	if err != nil {
+	// 不合法的信息体
+	if !gjson.Valid(message) {
 		log.Warn("无法解析 onebot11 字段:", message)
-		return err
+		return errors.New("解析失败")
 	}
-
+	// 原版本转换为gjson对象
+	parseContent := gjson.Parse(message)
+	arrayContent := parseContent.Get("message").Array()
 	cqMessage := strings.Builder{}
 
-	for _, i := range msgQQType2.Message {
-		switch i.Type {
+	for _, i := range arrayContent {
+		// 使用String()方法，如果为空，会自动产生空字符串
+		typeStr := i.Get("type").String()
+		dataObj := i.Get("data")
+		switch typeStr {
 		case "text":
-			cqMessage.WriteString(i.Data["text"].(string))
+			cqMessage.WriteString(dataObj.Get("text").String())
 		case "image":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", i.Data["file"]))
+			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
+			if !hasURLScheme(dataObj.Get("file").String()) && hasURLScheme(dataObj.Get("url").String()) {
+				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("url").String()))
+			} else {
+				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("file").String()))
+			}
 		case "face":
 			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64，这是go解析的问题
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", i.Data["id"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", dataObj.Get("id").String()))
 		case "record":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", i.Data["file"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("file").String()))
 		case "at":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", i.Data["qq"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", dataObj.Get("qq").String()))
 		case "poke":
 			cqMessage.WriteString("[CQ:poke]")
 		case "reply":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", i.Data["id"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", dataObj.Get("id").String()))
 		}
 	}
-	writeTo.MessageQQBase = msgQQType2.MessageQQBase
-	writeTo.Message = cqMessage.String()
+	// 赋值对应的Message
+	tempStr, err := sjson.Set(parseContent.String(), "message", cqMessage.String())
+	if err != nil {
+		return err
+	}
+	// 返回被转换成结构体的结果
+	err = json.Unmarshal([]byte(tempStr), &writeTo)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -331,8 +356,14 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 		// 将 CQ 拼入数组
 		switch cq.Type {
 		case "image":
-			i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
-			arr = append(arr, i)
+			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
+			if !hasURLScheme(cq.Args["file"]) && hasURLScheme(cq.Args["url"]) {
+				i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["url"]}}
+				arr = append(arr, i)
+			} else {
+				i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
+				arr = append(arr, i)
+			}
 		case "record":
 			i := OneBotV11ArrMsgItem[OneBotV11MsgItemRecordType]{Type: "record", Data: OneBotV11MsgItemRecordType{File: cq.Args["file"]}}
 			arr = append(arr, i)
@@ -429,7 +460,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		// if strings.Contains(message, `.`) {
 		//	log.Info("...", message)
-		//}
+		// }
 		if strings.Contains(message, `"guild_id"`) {
 			// log.Info("!!!", message, s.Parent.Config.WorkInQQChannel)
 			// 暂时忽略频道消息
@@ -470,7 +501,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if msg.Sender.UserID != "" {
 			// 用户名缓存
 			if msg.Sender.Nickname != "" {
-				dm.UserNameCache.Set(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+				dm.UserNameCache.Store(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
 			}
 		}
 
@@ -509,34 +540,34 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if string(msgQQ.Echo) == "-2" { //nolint:nestif
 			if msgQQ.Data != nil {
 				groupID := FormatDiceIDQQGroup(string(msgQQ.Data.GroupID))
-				dm.GroupNameCache.Set(groupID, &GroupNameCacheItem{
+				dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 					Name: msgQQ.Data.GroupName,
 					time: time.Now().Unix(),
 				}) // 不论如何，先试图取一下群名
 
-				group := session.ServiceAtNew[groupID]
-				if group != nil {
+				groupInfo, ok := session.ServiceAtNew.Load(groupID)
+				if ok {
 					if msgQQ.Data.MaxMemberCount == 0 {
 						diceID := ep.UserID
-						if _, exists := group.DiceIDExistsMap.Load(diceID); exists {
+						if _, exists := groupInfo.DiceIDExistsMap.Load(diceID); exists {
 							// 不在群里了，更新信息
-							group.DiceIDExistsMap.Delete(diceID)
-							group.UpdatedAtTime = time.Now().Unix()
+							groupInfo.DiceIDExistsMap.Delete(diceID)
+							groupInfo.UpdatedAtTime = time.Now().Unix()
 						}
-					} else if msgQQ.Data.GroupName != group.GroupName {
+					} else if msgQQ.Data.GroupName != groupInfo.GroupName {
 						// 更新群名
-						group.GroupName = msgQQ.Data.GroupName
-						group.UpdatedAtTime = time.Now().Unix()
+						groupInfo.GroupName = msgQQ.Data.GroupName
+						groupInfo.UpdatedAtTime = time.Now().Unix()
 					}
 
 					// 处理被强制拉群的情况
-					uid := group.InviteUserID
+					uid := groupInfo.InviteUserID
 					banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
 					if ok {
 						if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
 							// 如果是被ban之后拉群，判定为强制拉群
-							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
-								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", group.InviteUserID)
+							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
+								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
 								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 								time.Sleep(1 * time.Second)
 								pa.QuitGroup(ctx, groupID)
@@ -550,7 +581,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					if ok {
 						if banInfo.Rank == BanRankBanned {
 							// 如果是被ban之后拉群，判定为强制拉群
-							if group.EnteredTime > 0 && group.EnteredTime > banInfo.BanTime {
+							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
 								text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
 								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 								time.Sleep(1 * time.Second)
@@ -746,9 +777,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// d := pa.GetStrangerInfo(msgQQ.UserId) // 先获取个人信息，避免不存在id
 				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 				// if ctx.Player.Name == "" {
-				//	ctx.Player.Name = d.Nickname
+				//	ctx.Player.Name = d.Name
 				//	ctx.Player.UpdatedAtTime = time.Now().Unix()
-				//}
+				// }
 
 				uid := FormatDiceIDQQ(string(msgQQ.UserID))
 
@@ -771,8 +802,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						doSleepQQ(ctx)
 						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 					}
-					if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
-						for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+					groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+					if ok {
+						for _, i := range groupInfo.ActivatedExtList {
 							if i.OnBecomeFriend != nil {
 								i.callWithJsCheck(ctx.Dice, func() {
 									i.OnBecomeFriend(ctx, msg)
@@ -815,7 +847,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			gi.UpdatedAtTime = time.Now().Unix()
 			// 立即获取群信息
 			pa.GetGroupInfoAsync(msg.GroupID)
-			// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Nickname)
+			// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Name)
 
 			time.Sleep(2 * time.Second)
 			groupName := dm.TryGetGroupName(msg.GroupID)
@@ -840,8 +872,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, msgQQ.GroupID)
 			log.Info(txt)
 			ctx.Notice(txt)
-			if ctx.Session.ServiceAtNew[msg.GroupID] != nil {
-				for _, i := range ctx.Session.ServiceAtNew[msg.GroupID].ActivatedExtList {
+			groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+			if ok {
+				for _, i := range groupInfo.ActivatedExtList {
 					if i.OnGroupJoined != nil {
 						i.callWithJsCheck(ctx.Dice, func() {
 							i.OnGroupJoined(ctx, msg)
@@ -852,8 +885,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 入群的另一种情况: 管理员审核
-		group := s.ServiceAtNew[msg.GroupID]
-		if group == nil && msg.GroupID != "" {
+		isGroupExist := s.ServiceAtNew.Exists(msg.GroupID)
+		// Pinenutn: 如果不存在这个群聊，但GroupID存在
+		if !isGroupExist && msg.GroupID != "" {
 			now := time.Now().Unix()
 			if tempInviteMap[msg.GroupID] != 0 && now > tempInviteMap[msg.GroupID] {
 				delete(tempInviteMap, msg.GroupID)
@@ -868,11 +902,11 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
 				groupEntered()
 			} else {
-				group := session.ServiceAtNew[msg.GroupID]
+				group, ok := session.ServiceAtNew.Load(msg.GroupID)
 				// 进群的是别人，是否迎新？
 				// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 				// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
-				if group != nil && group.ShowGroupWelcome {
+				if ok && group.ShowGroupWelcome {
 					isDouble := false
 					if lastWelcome != nil {
 						isDouble = string(msgQQ.GroupID) == lastWelcome.GroupID &&
@@ -894,7 +928,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 							}()
 
 							ctx.Player = &GroupPlayerInfo{}
-							// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
+							// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Name+">")
 							uidRaw := string(msgQQ.UserID)
 							VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
 							VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)

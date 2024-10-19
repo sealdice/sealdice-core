@@ -157,6 +157,9 @@ type BaseConfig struct {
 	ReplyDebugMode          bool       `yaml:"replyDebugMode" json:"replyDebugMode"`             // 回复调试
 	PlayerNameWrapEnable    bool       `yaml:"playerNameWrapEnable" json:"playerNameWrapEnable"` // 启用玩家名称外框
 
+	VMVersionForReply string `json:"VMVersionForReply" yaml:"VMVersionForReply"` // 自定义回复使用的vm版本
+	VMVersionForDeck  string `json:"VMVersionForDeck" yaml:"VMVersionForDeck"`   // 牌堆使用的vm版本
+
 	// TODO: 历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
 	Name    string `yaml:"name"`    // 名称，默认为default
 	DataDir string `yaml:"dataDir"` // 数据路径，为./data/{name}，例如data/default

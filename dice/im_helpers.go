@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fy0/lockfree"
 	"golang.org/x/time/rate"
+
+	ds "github.com/sealdice/dicescript"
 )
 
 var (
@@ -17,37 +18,42 @@ var (
 )
 
 func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType string, groupID string) bool {
-	a := messageType == "group" &&
-		session.ServiceAtNew[groupID] != nil
+	// Pinenutn: 总觉得这里还能优化，但是又想不到怎么优化，可恶，要长脑子了
+	a := messageType == "group" && session.ServiceAtNew.Exists(groupID)
 	if !a {
 		return false
 	}
-	_, exists := session.ServiceAtNew[groupID].DiceIDActiveMap.Load(ep.UserID)
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
+	if !ok {
+		// Pinenutn: 这里是否要打一下日志呢……
+		return false
+	}
+	_, exists := groupInfo.DiceIDActiveMap.Load(ep.UserID)
 	return exists
 }
 
 func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 	session := ctx.Session
-	group := session.ServiceAtNew[groupID]
-	if group != nil {
-		if group.DiceIDActiveMap == nil {
-			group.DiceIDActiveMap = new(SyncMap[string, bool])
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
+	if ok {
+		if groupInfo.DiceIDActiveMap == nil {
+			groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
 
 		// TODO: 进行更好的是否变更的检查
-		group.DiceIDActiveMap.Delete(ctx.EndPoint.UserID)
-		if group.DiceIDActiveMap.Len() == 0 {
-			group.Active = false
+		groupInfo.DiceIDActiveMap.Delete(ctx.EndPoint.UserID)
+		if groupInfo.DiceIDActiveMap.Len() == 0 {
+			groupInfo.Active = false
 		}
-		group.UpdatedAtTime = time.Now().Unix()
+		groupInfo.UpdatedAtTime = time.Now().Unix()
 	}
 }
 
 // SetBotOnAtGroup 在群内开启
 func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	session := ctx.Session
-	group := session.ServiceAtNew[groupID]
-	if group != nil {
+	group, ok := session.ServiceAtNew.Load(groupID)
+	if ok {
 		if group.DiceIDActiveMap == nil {
 			group.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
@@ -68,18 +74,18 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			}
 		}
 
-		session.ServiceAtNew[groupID] = &GroupInfo{
+		session.ServiceAtNew.Store(groupID, &GroupInfo{
 			Active:           true,
 			ActivatedExtList: extLst,
 			Players:          new(SyncMap[string, *GroupPlayerInfo]),
 			GroupID:          groupID,
-			ValueMap:         lockfree.NewHashMap(),
 			DiceIDActiveMap:  new(SyncMap[string, bool]),
 			DiceIDExistsMap:  new(SyncMap[string, bool]),
 			CocRuleIndex:     int(session.Parent.Config.DefaultCocRuleIndex),
 			UpdatedAtTime:    time.Now().Unix(),
-		}
-		group = session.ServiceAtNew[groupID]
+		})
+		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
+		group, _ = session.ServiceAtNew.Load(groupID)
 	}
 
 	if group.DiceIDActiveMap == nil {
@@ -109,33 +115,34 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		groupID = "PG-" + msg.Sender.UserID
 		SetBotOnAtGroup(ctx, groupID)
 	}
-	group := session.ServiceAtNew[groupID]
+
+	// Pinenutn:ServiceAtNew
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
+	if !ok {
+		groupInfo = SetBotOnAtGroup(ctx, groupID)
+	}
 	if msg.GuildID != "" {
-		group.GuildID = msg.GuildID
+		groupInfo.GuildID = msg.GuildID
 	}
 	if msg.ChannelID != "" {
-		group.ChannelID = msg.ChannelID
-	}
-	if group == nil {
-		return nil, nil
+		groupInfo.ChannelID = msg.ChannelID
 	}
 
-	p := group.PlayerGet(ctx.Dice.DBData, msg.Sender.UserID)
+	p := groupInfo.PlayerGet(ctx.Dice.DBData, msg.Sender.UserID)
 	if p == nil {
 		p = &GroupPlayerInfo{
 			Name:          msg.Sender.Nickname,
 			UserID:        msg.Sender.UserID,
-			ValueMapTemp:  lockfree.NewHashMap(),
+			ValueMapTemp:  &ds.ValueMap{},
 			UpdatedAtTime: 0, // 新创建时不赋值，这样不会入库保存，减轻数据库负担
 		}
-		group.Players.Store(msg.Sender.UserID, p)
+		groupInfo.Players.Store(msg.Sender.UserID, p)
 	}
 	if p.ValueMapTemp == nil {
-		p.ValueMapTemp = lockfree.NewHashMap()
+		p.ValueMapTemp = &ds.ValueMap{}
 	}
 	p.InGroup = true
-	ctx.LoadPlayerGroupVars(group, p)
-	return group, p
+	return groupInfo, p
 }
 
 func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
@@ -316,9 +323,9 @@ func CrossMsgBySearch(se *IMSession, p, t, txt string, pr bool) bool {
 		Dice:     ep.Session.Parent,
 	}
 
-	if g, ok := mctx.Session.ServiceAtNew[t]; ok {
-		mctx.IsCurGroupBotOn = g.Active
-		mctx.Group = g
+	if groupInfo, ok := mctx.Session.ServiceAtNew.Load(t); ok {
+		mctx.IsCurGroupBotOn = groupInfo.Active
+		mctx.Group = groupInfo
 	}
 
 	if !pr {
@@ -384,17 +391,6 @@ func (s ByLength) Less(i, j int) bool {
 	return len(s[i]) > len(s[j])
 }
 
-func DiceFormatTmpl(ctx *MsgContext, s string) string { //nolint:revive
-	var text string
-	a := ctx.Dice.TextMap[s]
-	if a == nil {
-		text = "<%未知项-" + s + "%>"
-	} else {
-		text = ctx.Dice.TextMap[s].Pick().(string)
-	}
-	return DiceFormat(ctx, text)
-}
-
 func CompatibleReplace(ctx *MsgContext, s string) string {
 	s = ctx.TranslateSplit(s)
 
@@ -411,7 +407,10 @@ func CompatibleReplace(ctx *MsgContext, s string) string {
 		s = DeckRewrite(s, func(deckName string) string {
 			// 如果牌组名中含有表达式, 在此进行求值
 			// 不含表达式也无妨, 求值完还是原来的字符串
-			deckName, _, _ = ctx.Dice.ExprText(deckName, ctx)
+			r, _, err := DiceExprTextBase(ctx, deckName, RollExtraFlags{})
+			if err == nil {
+				deckName = r.ToString()
+			}
 
 			exists, result, err := deckDraw(ctx, deckName, false)
 			if !exists {
@@ -424,13 +423,6 @@ func CompatibleReplace(ctx *MsgContext, s string) string {
 		})
 	}
 	return s
-}
-
-func DiceFormat(ctx *MsgContext, s string) string { //nolint:revive
-	s = CompatibleReplace(ctx, s)
-
-	r, _, _ := ctx.Dice.ExprText(s, ctx)
-	return r
 }
 
 func FormatDiceID(ctx *MsgContext, id interface{}, isGroup bool) string {

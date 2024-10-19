@@ -17,11 +17,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fy0/lockfree"
+	"sealdice-core/message"
+
 	"github.com/gorilla/websocket"
 	"github.com/samber/lo"
 
-	"sealdice-core/message"
+	ds "github.com/sealdice/dicescript"
 )
 
 type PlatformAdapterRed struct {
@@ -425,7 +426,7 @@ func (pa *PlatformAdapterRed) Serve() int {
 	refreshFriends := func() {
 		friends := pa.getFriends()
 		for _, friend := range friends {
-			dm.UserNameCache.Set(friend.Uin, &GroupNameCacheItem{
+			dm.UserNameCache.Store(friend.Uin, &GroupNameCacheItem{
 				Name: friend.Nick,
 				time: time.Now().Unix(),
 			})
@@ -579,8 +580,9 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 		return
 	}
 
-	if ctx.Session.ServiceAtNew[groupId] != nil {
-		for _, i := range ctx.Session.ServiceAtNew[groupId].ActivatedExtList {
+	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
+	if ok {
+		for _, i := range groupInfo.ActivatedExtList {
 			if i.OnMessageSend != nil {
 				i.callWithJsCheck(ctx.Dice, func() {
 					i.OnMessageSend(ctx, &Message{
@@ -671,18 +673,20 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 	s := pa.Session
 	session := s
 	if pa.memberMap == nil {
-		pa.memberMap = &SyncMap[string, *SyncMap[string, *GroupMember]]{}
+		// Pinenutn: 不清楚在这种情况下，内部结构的兼容性如何，只能是走一步看一步
+		// 该说好消息是，似乎只有下面在用……
+		pa.memberMap = new(SyncMap[string, *SyncMap[string, *GroupMember]])
 	}
 
 	refreshMembers := func(group *Group) {
 		groupID := formatDiceIDRedGroup(group.GroupCode)
 		members := pa.getMemberList(group.GroupCode, group.MemberCount)
-		groupInfo := session.ServiceAtNew[groupID]
-		groupMemberMap := &SyncMap[string, *GroupMember]{}
+		groupInfo, ok := session.ServiceAtNew.Load(groupID)
+		groupMemberMap := new(SyncMap[string, *GroupMember])
 		for _, member := range members {
 			userID := formatDiceIDRed(member.Uin)
 			groupMemberMap.Store(userID, member)
-			if groupInfo != nil {
+			if ok {
 				p := groupInfo.PlayerGet(d.DBData, userID)
 				if p == nil {
 					name := member.CardName
@@ -692,7 +696,7 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 					p = &GroupPlayerInfo{
 						Name:          name,
 						UserID:        userID,
-						ValueMapTemp:  lockfree.NewHashMap(),
+						ValueMapTemp:  &ds.ValueMap{},
 						UpdatedAtTime: 0,
 					}
 					groupInfo.Players.Store(userID, p)
@@ -707,13 +711,13 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 		for _, group := range groups {
 			if group != nil {
 				groupId := formatDiceIDRedGroup(group.GroupCode)
-				dm.GroupNameCache.Set(groupId, &GroupNameCacheItem{
+				dm.GroupNameCache.Store(groupId, &GroupNameCacheItem{
 					Name: group.GroupName,
 					time: time.Now().Unix(),
 				})
 
-				groupInfo := session.ServiceAtNew[groupId]
-				if groupInfo == nil {
+				groupInfo, ok := session.ServiceAtNew.Load(groupId)
+				if !ok {
 					// 新检测到群
 					ctx := &MsgContext{
 						Session:  session,
@@ -1037,9 +1041,8 @@ func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 		// 私聊消息
 		msg.MessageType = "private"
 		dm := pa.Session.Parent.Parent
-		if nick, ok := dm.UserNameCache.Get(uid); ok {
-			nameInfo := nick.(*GroupNameCacheItem)
-			send.Nickname = nameInfo.Name
+		if nick, ok := dm.UserNameCache.Load(uid); ok {
+			send.Nickname = nick.Name
 		}
 		if send.Nickname == "" {
 			send.Nickname = "未知用户"
