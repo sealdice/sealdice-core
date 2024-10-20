@@ -78,6 +78,6 @@ func (z *zapHook) OnError(_ context.Context, err error, query string, args ...in
 	if z == nil || z.Helper == nil {
 		return nil
 	}
-	z.Errorf("SQL 执行出错日志 %v 豹错为: %v", buildQueryArgsFields(query, args...), err)
+	z.Debugf("SQL 执行出错日志 %v 报错为: %v", buildQueryArgsFields(query, args...), err)
 	return nil
 }
