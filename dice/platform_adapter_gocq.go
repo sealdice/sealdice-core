@@ -1000,8 +1000,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				ctx.Notice(txtErr)
 				return
 			}
-			// TODO：存疑，根据其他地方的描述，这里的ep.UserID等价于v.DiceID，这样使用是否正确有待进一步测试
+			// TODO：存疑，根据DISMISS的代码复制而来
 			group.DiceIDExistsMap.Delete(ep.UserID)
+			group.UpdatedAtTime = time.Now().Unix()
 			log.Info(txt)
 			ctx.Notice(txt)
 			return
