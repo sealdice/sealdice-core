@@ -996,6 +996,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// 同时考虑到：QQ群团队发布公告称，由于业务调整，“恢复QQ群”功能将于2023年10月13日起正式下线，届时涉及QQ群相关的恢复功能都将无法使用，可以安心删除群聊对应绑定信息。
 			group, exists := session.ServiceAtNew.Load(msg.GroupID)
 			if !exists {
+				txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, msgQQ.GroupID)
 				log.Error(txtErr)
 				ctx.Notice(txtErr)
 				return
