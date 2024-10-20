@@ -391,6 +391,7 @@ import {isEqual, size} from "lodash-es";
 import type {JsPluginConfig, JsPluginConfigItem, JsScriptInfo} from "~/type.d.ts";
 import { postUtilsCheckCronExpr } from '~/api/utils'
 import { checkJsUpdate, deleteJs, deleteUnusedJsConfig, disableJS, enableJS, executeJS, getJsConfigs, getJsList, getJsRecord, getJsStatus, reloadJS, resetJsConfig, setJsConfigs, shutDownJS, updateJs, uploadJs } from '~/api/js'
+import type { UploadRawFile } from 'element-plus';
 
 const jsEnable = ref(false)
 const editorBox = ref(null);
@@ -654,10 +655,10 @@ const jsShutdown = async () => {
   jsEnable.value = await jsStatus()
 }
 
-const beforeUpload = async (file: any) => { // UploadRawFile
+const beforeUpload = async (file: UploadRawFile) => { // UploadRawFile
   let fd = new FormData()
   fd.append('file', file)
-  await uploadJs({ form: fd })
+  await uploadJs(file)
   refreshList();
   ElMessage.success('上传完成，请在全部操作完成后，手动重载插件')
   needReload.value = true

@@ -10,17 +10,18 @@ export function getResourcePage(type: ResourceType) {
         result: true,
         total?: number,
         data: Resource[]
-      }>('get', '/page',{type});
+    }>('get', '/page', { type });
 }
 
-export function createResource(files:UploadRawFile|Blob) {
-    return request<{ result: false, err: string } | { result: true }>('post', '', {files},'formdata');
+export function createResource(files: UploadRawFile | Blob) {
+    return request<{ result: false, err: string } | { result: true }>('post', '', { files }, 'formdata');
 }
 
 export function deleteResource(path: string) {
-    return request<{ result: false, err: string } | { result: true }>('delete', '',{path});
+    return request<{ result: false, err: string } | { result: true }>('delete', '', { path });
 }
 
 export function getResourceData(path: string, thumbnail: boolean = false) {
-    return request<Blob>('get', '/data',{ path, thumbnail });
+    return request<Blob>('get', '/data',{ path, thumbnail },'form',{responseType:'blob'})
 }
+
