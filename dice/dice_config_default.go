@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"sealdice-core/dice/censor"
 )
 
 var DefaultConfig = Config{
@@ -61,14 +63,14 @@ var DefaultConfig = Config{
 		DefaultCocRuleIndex: 0,
 		MaxExecuteTime:      12,
 		MaxCocCardGen:       5,
-		ExtDefaultSettings:  nil,
+		ExtDefaultSettings:  make([]*ExtDefaultSettingItem, 0),
 	},
 	BanConfig{
 		BanList: nil,
 	},
 	JsConfig{
 		JsEnable:          true,
-		DisabledJsScripts: nil,
+		DisabledJsScripts: make(map[string]bool),
 	},
 	StoryLogConfig{
 		LogSizeNoticeEnable: true,
@@ -86,9 +88,9 @@ var DefaultConfig = Config{
 	CensorConfig{
 		EnableCensor:         false,
 		CensorMode:           0,
-		CensorThresholds:     nil,
-		CensorHandlers:       nil,
-		CensorScores:         nil,
+		CensorThresholds:     make(map[censor.Level]int),
+		CensorHandlers:       make(map[censor.Level]uint8),
+		CensorScores:         make(map[censor.Level]int),
 		CensorCaseSensitive:  false,
 		CensorMatchPinyin:    false,
 		CensorFilterRegexStr: "",

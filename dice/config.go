@@ -2288,7 +2288,7 @@ func (d *Dice) loads() {
 		err := json.Unmarshal(data, &v)
 		if err == nil {
 			v.BanUpdatedAt = banUpdatedAt
-			d.Config.BanList.Map.Store(id, &v)
+			(&d.Config).BanList.Map.Store(id, &v)
 		}
 	})
 
@@ -2375,7 +2375,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 	for k, v := range exts2 {
 		if _, exists := exts1[k]; !exists {
 			item := &ExtDefaultSettingItem{Name: k, AutoActive: v.AutoActive, DisabledCommand: map[string]bool{}}
-			d.Config.ExtDefaultSettings = append(d.Config.ExtDefaultSettings, item)
+			(&d.Config).ExtDefaultSettings = append((&d.Config).ExtDefaultSettings, item)
 			exts1[k] = item
 		}
 	}

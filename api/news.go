@@ -55,7 +55,7 @@ func checkNews(c echo.Context) error {
 	err := c.Bind(&v)
 
 	if err == nil {
-		myDice.Config.NewsMark = v.NewsMark
+		(&myDice.Config).NewsMark = v.NewsMark
 		myDice.MarkModified()
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"result":   true,
