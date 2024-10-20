@@ -42,20 +42,21 @@ func banConfigSet(c echo.Context) error {
 		v.ThresholdBan = 200
 	}
 
-	myDice.Config.BanList.BanBehaviorRefuseReply = v.BanBehaviorRefuseReply
-	myDice.Config.BanList.BanBehaviorRefuseInvite = v.BanBehaviorRefuseInvite
-	myDice.Config.BanList.BanBehaviorQuitLastPlace = v.BanBehaviorQuitLastPlace
-	myDice.Config.BanList.BanBehaviorQuitPlaceImmediately = v.BanBehaviorQuitPlaceImmediately
-	myDice.Config.BanList.BanBehaviorQuitIfAdmin = v.BanBehaviorQuitIfAdmin
-	myDice.Config.BanList.ScoreReducePerMinute = v.ScoreReducePerMinute
-	myDice.Config.BanList.ThresholdWarn = v.ThresholdWarn
-	myDice.Config.BanList.ThresholdBan = v.ThresholdBan
-	myDice.Config.BanList.ScoreGroupMuted = v.ScoreGroupMuted
-	myDice.Config.BanList.ScoreGroupKicked = v.ScoreGroupKicked
-	myDice.Config.BanList.ScoreTooManyCommand = v.ScoreTooManyCommand
+	config := &myDice.Config
+	config.BanList.BanBehaviorRefuseReply = v.BanBehaviorRefuseReply
+	config.BanList.BanBehaviorRefuseInvite = v.BanBehaviorRefuseInvite
+	config.BanList.BanBehaviorQuitLastPlace = v.BanBehaviorQuitLastPlace
+	config.BanList.BanBehaviorQuitPlaceImmediately = v.BanBehaviorQuitPlaceImmediately
+	config.BanList.BanBehaviorQuitIfAdmin = v.BanBehaviorQuitIfAdmin
+	config.BanList.ScoreReducePerMinute = v.ScoreReducePerMinute
+	config.BanList.ThresholdWarn = v.ThresholdWarn
+	config.BanList.ThresholdBan = v.ThresholdBan
+	config.BanList.ScoreGroupMuted = v.ScoreGroupMuted
+	config.BanList.ScoreGroupKicked = v.ScoreGroupKicked
+	config.BanList.ScoreTooManyCommand = v.ScoreTooManyCommand
 
-	myDice.Config.BanList.JointScorePercentOfGroup = v.JointScorePercentOfGroup
-	myDice.Config.BanList.JointScorePercentOfInviter = v.JointScorePercentOfInviter
+	config.BanList.JointScorePercentOfGroup = v.JointScorePercentOfGroup
+	config.BanList.JointScorePercentOfInviter = v.JointScorePercentOfInviter
 	myDice.MarkModified()
 
 	return c.JSON(http.StatusOK, myDice.Config.BanList)
@@ -75,7 +76,7 @@ func banMapDeleteOne(c echo.Context) error {
 	if err != nil {
 		return c.String(430, err.Error())
 	}
-	myDice.Config.BanList.DeleteByID(myDice, v.ID)
+	(&myDice.Config).BanList.DeleteByID(myDice, v.ID)
 	return c.JSON(http.StatusOK, nil)
 }
 
@@ -102,7 +103,7 @@ func banMapAddOne(c echo.Context) error {
 		platform := strings.Replace(prefix, "-Group", "", 1)
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.Platform == platform && i.Enable {
-				v2 := myDice.Config.BanList.AddScoreBase(v.ID, score, "海豹后台", reason, &dice.MsgContext{Dice: myDice, EndPoint: i})
+				v2 := (&myDice.Config).BanList.AddScoreBase(v.ID, score, "海豹后台", reason, &dice.MsgContext{Dice: myDice, EndPoint: i})
 				if v2 != nil {
 					if v.Name != "" {
 						v2.Name = v.Name
@@ -112,7 +113,7 @@ func banMapAddOne(c echo.Context) error {
 		}
 	}
 	if v.Rank == dice.BanRankTrusted {
-		myDice.Config.BanList.SetTrustByID(v.ID, "海豹后台", "骰主后台设置")
+		(&myDice.Config).BanList.SetTrustByID(v.ID, "海豹后台", "骰主后台设置")
 	}
 
 	return c.JSON(http.StatusOK, nil)
@@ -132,7 +133,7 @@ func banMapAddOne(c echo.Context) error {
 //		return c.String(430, err.Error())
 //	}
 //
-//	myDice.Config.BanList.LoadMapFromJSON(v.data)
+//	(&myDice.Config).BanList.LoadMapFromJSON(v.data)
 //	return c.JSON(http.StatusOK, nil)
 //}
 
@@ -199,9 +200,9 @@ func banImport(c echo.Context) error {
 			}
 		}
 		item.Reasons = newReasons
-		myDice.Config.BanList.Map.Store(item.ID, item)
+		(&myDice.Config).BanList.Map.Store(item.ID, item)
 	}
-	myDice.Config.BanList.SaveChanged(myDice)
+	(&myDice.Config).BanList.SaveChanged(myDice)
 
 	return Success(&c, Response{})
 }
