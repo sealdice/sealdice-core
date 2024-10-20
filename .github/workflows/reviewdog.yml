@@ -25,7 +25,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-          cache: false
       - run: go get
       - run: go generate ./...
       - name: Set Up GolangCI-Lint
