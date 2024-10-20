@@ -233,8 +233,8 @@ func (d *Dice) Init() {
 	d.AttrsManager = &AttrsManager{}
 	d.AttrsManager.Init(d)
 
-	d.Config.BanList = &BanListInfo{Parent: d}
-	d.Config.BanList.Init()
+	(&d.Config).BanList = &BanListInfo{Parent: d}
+	(&d.Config).BanList.Init()
 
 	initVerify()
 
@@ -255,8 +255,8 @@ func (d *Dice) Init() {
 	d.RegisterBuiltinExt()
 	d.loads()
 	d.loadAdvanced()
-	d.Config.BanList.Loads()
-	d.Config.BanList.AfterLoads()
+	(&d.Config).BanList.Loads()
+	(&d.Config).BanList.AfterLoads()
 	d.IsAlreadyLoadConfig = true
 
 	if d.Config.EnableCensor {
@@ -399,8 +399,8 @@ func (d *Dice) Init() {
 				}
 
 				d.Logger.Infof("升级完成，当前版本: %s", VERSION.String())
-				d.Config.UpgradeWindowID = ""
-				d.Config.UpgradeEndpointID = ""
+				(&d.Config).UpgradeWindowID = ""
+				(&d.Config).UpgradeEndpointID = ""
 				d.MarkModified()
 				d.Save(false)
 				break
@@ -611,7 +611,7 @@ func (d *Dice) ApplyAliveNotice() {
 		d.Cron.Remove(d.AliveNoticeEntry)
 	}
 	if d.Config.AliveNoticeEnable {
-		entry, err := d.Cron.AddFunc(d.Config.AliveNoticeValue, func() {
+		entry, err := d.Cron.AddFunc((&d.Config).AliveNoticeValue, func() {
 			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)), false)
 		})
 		if err == nil {
@@ -689,12 +689,12 @@ func (d *Dice) ResetQuitInactiveCron() {
 	dm := d.Parent
 	if d.Config.quitInactiveCronEntry > 0 {
 		dm.Cron.Remove(d.Config.quitInactiveCronEntry)
-		d.Config.quitInactiveCronEntry = DefaultConfig.quitInactiveCronEntry
+		(&d.Config).quitInactiveCronEntry = DefaultConfig.quitInactiveCronEntry
 	}
 
 	if d.Config.QuitInactiveThreshold > 0 {
 		var err error
-		d.Config.quitInactiveCronEntry, err = dm.Cron.AddFunc("0 4 * * *", func() {
+		(&d.Config).quitInactiveCronEntry, err = dm.Cron.AddFunc("0 4 * * *", func() {
 			thr := time.Now().Add(-d.Config.QuitInactiveThreshold)
 			hint := thr.Add(d.Config.QuitInactiveThreshold / 10) // 进入退出判定线的9/10开始提醒
 			d.ImSession.LongTimeQuitInactiveGroup(thr, hint,
