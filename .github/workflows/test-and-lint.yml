@@ -5,12 +5,12 @@ on:
     paths:
       - '**.go'
       - 'go.mod'
-      - '.github/workflows/test_and_lint.yml'
+      - 'test-and-lint.yml'
   pull_request:
     paths:
       - '**.go'
       - 'go.mod'
-      - '.github/workflows/test_and_lint.yml'
+      - 'test-and-lint.yml'
 
 jobs:
   test-and-lint:
@@ -23,7 +23,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-          cache: false
       - run: go get
       - run: go generate ./...
 
@@ -36,4 +35,3 @@ jobs:
         with:
           version: 'v1.61.0'
           args: '--timeout 9999s'
-          skip-cache: true
