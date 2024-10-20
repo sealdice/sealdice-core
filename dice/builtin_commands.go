@@ -75,7 +75,7 @@ func (d *Dice) registerCoreCommands() {
 				if reason == "" {
 					reason = "骰主指令"
 				}
-				d.Config.BanList.AddScoreBase(uid, d.Config.BanList.ThresholdBan, "骰主指令", reason, ctx)
+				(&d.Config).BanList.AddScoreBase(uid, (&d.Config).BanList.ThresholdBan, "骰主指令", reason, ctx)
 				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入黑名单，原因: %s", uid, reason))
 			case "rm", "del":
 				uid = getID()
@@ -83,7 +83,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				item, ok := d.Config.BanList.GetByID(uid)
+				item, ok := (&d.Config).BanList.GetByID(uid)
 				if !ok || (item.Rank != BanRankBanned && item.Rank != BanRankTrusted && item.Rank != BanRankWarn) {
 					ReplyToSender(ctx, msg, "找不到用户/群组")
 					break
@@ -99,14 +99,14 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				d.Config.BanList.SetTrustByID(uid, "骰主指令", "骰主指令")
+				(&d.Config).BanList.SetTrustByID(uid, "骰主指令", "骰主指令")
 				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入信任列表", uid))
 			case "list", "show":
 				// ban/warn/trust
 				var extra, text string
 
 				extra = cmdArgs.GetArgN(2)
-				d.Config.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
+				(&d.Config).BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
 					if v.Rank == BanRankNormal {
 						return true
 					}
@@ -133,7 +133,7 @@ func (d *Dice) registerCoreCommands() {
 					break
 				}
 
-				v, exists := d.Config.BanList.Map.Load(targetID)
+				v, exists := (&d.Config).BanList.Map.Load(targetID)
 				if !exists {
 					ReplyToSender(ctx, msg, fmt.Sprintf("所查询的<%s>情况：正常(0)", targetID))
 					break

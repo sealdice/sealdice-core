@@ -121,30 +121,30 @@ func (d *Dice) JsInit() {
 		ban := vm.NewObject()
 		_ = seal.Set("ban", ban)
 		_ = ban.Set("addBan", func(ctx *MsgContext, id string, place string, reason string) {
-			d.Config.BanList.AddScoreBase(id, d.Config.BanList.ThresholdBan, place, reason, ctx)
-			d.Config.BanList.SaveChanged(d)
+			(&d.Config).BanList.AddScoreBase(id, d.Config.BanList.ThresholdBan, place, reason, ctx)
+			(&d.Config).BanList.SaveChanged(d)
 		})
 		_ = ban.Set("addTrust", func(ctx *MsgContext, id string, place string, reason string) {
-			d.Config.BanList.SetTrustByID(id, place, reason)
-			d.Config.BanList.SaveChanged(d)
+			(&d.Config).BanList.SetTrustByID(id, place, reason)
+			(&d.Config).BanList.SaveChanged(d)
 		})
 		_ = ban.Set("remove", func(ctx *MsgContext, id string) {
-			_, ok := d.Config.BanList.GetByID(id)
+			_, ok := (&d.Config).BanList.GetByID(id)
 			if !ok {
 				return
 			}
-			d.Config.BanList.DeleteByID(d, id)
+			(&d.Config).BanList.DeleteByID(d, id)
 		})
 		_ = ban.Set("getList", func() []BanListInfoItem {
 			var list []BanListInfoItem
-			d.Config.BanList.Map.Range(func(key string, value *BanListInfoItem) bool {
+			(&d.Config).BanList.Map.Range(func(key string, value *BanListInfoItem) bool {
 				list = append(list, *value)
 				return true
 			})
 			return list
 		})
 		_ = ban.Set("getUser", func(id string) *BanListInfoItem {
-			i, ok := d.Config.BanList.GetByID(id)
+			i, ok := (&d.Config).BanList.GetByID(id)
 			if !ok {
 				return nil
 			}
@@ -599,14 +599,18 @@ func (d *Dice) JsInit() {
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
 	loop.Start()
-	d.Config.JsEnable = true
+	(&d.Config).JsEnable = true
 	d.Logger.Info("已加载JS环境")
+	d.MarkModified()
+	d.Save(false)
 }
 
 func (d *Dice) JsShutdown() {
-	d.Config.JsEnable = false
+	(&d.Config).JsEnable = false
 	d.jsClear()
 	d.Logger.Info("已关闭JS环境")
+	d.MarkModified()
+	d.Save(false)
 }
 
 func (d *Dice) jsClear() {
@@ -777,6 +781,8 @@ func (d *Dice) JsReload() {
 	d.JsInit()
 	_ = d.ConfigManager.Load()
 	d.JsLoadScripts()
+	d.MarkModified()
+	d.Save(false)
 }
 
 // JsExtSettingVacuum 清理已被删除的脚本对应的插件配置
@@ -806,7 +812,7 @@ func (d *Dice) JsExtSettingVacuum() {
 
 	for i := len(idxToDel) - 1; i >= 0; i-- {
 		idx := idxToDel[i]
-		d.Config.ExtDefaultSettings = append(d.Config.ExtDefaultSettings[:idx], d.Config.ExtDefaultSettings[idx+1:]...)
+		(&d.Config).ExtDefaultSettings = append((&d.Config).ExtDefaultSettings[:idx], (&d.Config).ExtDefaultSettings[idx+1:]...)
 	}
 
 	panic("DONT USE ME")
@@ -1004,7 +1010,7 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 		jsInfo.ErrText = strings.Join(errMsg, "\n")
 		return nil, errors.New(strings.Join(errMsg, "|"))
 	}
-	jsInfo.Enable = !d.Config.DisabledJsScripts[jsInfo.Name]
+	jsInfo.Enable = !(&d.Config).DisabledJsScripts[jsInfo.Name]
 	return jsInfo, nil
 }
 
@@ -1109,21 +1115,25 @@ func JsDelete(_ *Dice, jsInfo *JsScriptInfo) {
 }
 
 func JsEnable(d *Dice, jsInfoName string) {
-	delete(d.Config.DisabledJsScripts, jsInfoName)
+	delete((&d.Config).DisabledJsScripts, jsInfoName)
 	for _, jsInfo := range d.JsScriptList {
 		if jsInfo.Name == jsInfoName {
 			jsInfo.Enable = true
 		}
 	}
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 }
 
 func JsDisable(d *Dice, jsInfoName string) {
-	d.Config.DisabledJsScripts[jsInfoName] = true
+	(&d.Config).DisabledJsScripts[jsInfoName] = true
 	for _, jsInfo := range d.JsScriptList {
 		if jsInfo.Name == jsInfoName {
 			jsInfo.Enable = false
 		}
 	}
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 }
 
 func (d *Dice) JsCheckUpdate(jsScriptInfo *JsScriptInfo) (string, string, string, error) {
