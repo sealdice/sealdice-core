@@ -14,3 +14,5 @@ stats.html
 
 .idea
 /.vscode/settings.json
+
+.env.*
