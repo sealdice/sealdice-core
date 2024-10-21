@@ -23,8 +23,8 @@
   }
   /* Hide scrollbar for IE, Edge and Firefox */
   .no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
   }
 }
 
@@ -63,7 +63,6 @@ code {
   color: var(--el-color-primary);
 }
 
-
 .tip-danger {
   > .title {
     font-weight: 700;
@@ -85,7 +84,6 @@ code {
   border-left: 3px solid var(--el-color-primary);
   margin: 0px 0;
 }
-
 
 /* 弹窗优化 */
 @media screen and (max-width: 750px) {

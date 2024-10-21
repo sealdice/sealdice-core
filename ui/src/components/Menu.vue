@@ -1,8 +1,13 @@
+<!-- eslint-disable vue/multi-word-component-names -->
 <template>
-  <el-menu :unique-opened="true" style="border-right: 0;" :active-text-color="twColors.amber[300]"
-           :background-color="props.type === 'dark' ? twColors.gray[600] : undefined"
-           :text-color="props.type === 'dark' ? '#fff' : undefined"
-           router :default-active="route.path">
+  <el-menu
+    :unique-opened="true"
+    style="border-right: 0"
+    :active-text-color="twColors.amber[300]"
+    :background-color="props.type === 'dark' ? twColors.gray[600] : undefined"
+    :text-color="props.type === 'dark' ? '#fff' : undefined"
+    router
+    :default-active="route.path">
     <el-menu-item index="/home">
       <el-icon><home-filled /></el-icon>
       <span>主页</span>
@@ -10,7 +15,7 @@
 
     <el-menu-item index="/connect">
       <el-icon>
-        <connection/>
+        <connection />
       </el-icon>
       <span>账号设置</span>
     </el-menu-item>
@@ -18,13 +23,15 @@
     <el-sub-menu index="/custom-text">
       <template #title>
         <el-icon>
-          <setting/>
+          <setting />
         </el-icon>
         <span>自定义文案</span>
       </template>
 
-      <el-menu-item :index="`/custom-text/${k}`"
-                    :key="k" v-for="(_, k) in store.curDice.customTexts">
+      <el-menu-item
+        v-for="(_, k) in store.curDice.customTexts"
+        :key="k"
+        :index="`/custom-text/${k}`">
         <span>{{ k }}</span>
       </el-menu-item>
     </el-sub-menu>
@@ -32,7 +39,7 @@
     <el-sub-menu index="/mod">
       <template #title>
         <el-icon>
-          <edit-pen/>
+          <edit-pen />
         </el-icon>
         <span>扩展功能</span>
       </template>
@@ -50,7 +57,7 @@
       </el-menu-item>
 
       <el-menu-item index="/mod/js">
-        <span>JS扩展</span>
+        <span>JS 扩展</span>
       </el-menu-item>
 
       <el-menu-item index="/mod/helpdoc">
@@ -65,7 +72,7 @@
     <el-sub-menu index="/misc">
       <template #title>
         <el-icon>
-          <operation/>
+          <operation />
         </el-icon>
         <span>综合设置</span>
       </template>
@@ -86,7 +93,7 @@
         <span>备份</span>
       </el-menu-item>
 
-      <el-menu-item index="/misc/advanced-setting" v-if="advancedConfigCounter >= 8">
+      <el-menu-item v-if="advancedConfigCounter >= 8" index="/misc/advanced-setting">
         <span>高级设置</span>
       </el-menu-item>
     </el-sub-menu>
@@ -94,7 +101,7 @@
     <el-sub-menu index="/tool">
       <template #title>
         <el-icon>
-          <tools/>
+          <tools />
         </el-icon>
         <span>辅助工具</span>
       </template>
@@ -110,7 +117,7 @@
 
     <el-menu-item index="/about">
       <el-icon>
-        <star/>
+        <star />
       </el-icon>
       <span>关于</span>
     </el-menu-item>
@@ -125,26 +132,26 @@ import {
   Star,
   Operation,
   Tools,
-  EditPen
-} from '@element-plus/icons-vue'
-import { useStore } from "~/store";
-import type { ModelRef } from "vue";
-import resolveConfig from 'tailwindcss/resolveConfig'
-import tailwindConfig from '../../tailwind.config'
+  EditPen,
+} from '@element-plus/icons-vue';
+import { useStore } from '~/store';
+import type { ModelRef } from 'vue';
+import resolveConfig from 'tailwindcss/resolveConfig';
+import tailwindConfig from '../../tailwind.config';
 
-const twColors = resolveConfig(tailwindConfig).theme.colors
+const twColors = resolveConfig(tailwindConfig).theme.colors;
 
 const props = defineProps<{
-  type: 'light' | 'dark'
-}>()
+  type: 'light' | 'dark';
+}>();
 
-const advancedConfigCounter: ModelRef<number> = defineModel('advancedConfigCounter', { default: 0 })
+const advancedConfigCounter: ModelRef<number> = defineModel('advancedConfigCounter', {
+  default: 0,
+});
 
-const store = useStore()
+const store = useStore();
 
-const route = useRoute()
+const route = useRoute();
 </script>
 
-<style scoped lang="css">
-
-</style>
+<style scoped lang="css"></style>

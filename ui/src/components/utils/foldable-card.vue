@@ -1,52 +1,55 @@
 <script setup lang="ts">
-import {ArrowDown, ArrowRight, CircleClose} from "@element-plus/icons-vue";
+import { ArrowDown, ArrowRight, CircleClose } from '@element-plus/icons-vue';
 
-const props = withDefaults(defineProps<{
-  shadow?: 'always' | 'never' | 'hover'
-  type?: 'card' | 'div' | string
-  errTitle?: string,
-  errText?: string,
-  defaultFold?: 'auto' | boolean,
-  compact?: boolean
-}>(), {
-  shadow: 'hover',
-  type: 'card',
-  defaultFold: 'auto',
-  compact: false
-});
+const props = withDefaults(
+  defineProps<{
+    shadow?: 'always' | 'never' | 'hover';
+    type?: 'card' | 'div' | string;
+    errTitle?: string;
+    errText?: string;
+    defaultFold?: 'auto' | boolean;
+    compact?: boolean;
+  }>(),
+  {
+    shadow: 'hover',
+    type: 'card',
+    defaultFold: 'auto',
+    compact: false,
+  },
+);
 
 const getCardType = (t: string) => {
   switch (t) {
     case 'card':
-      return ElCard
+      return ElCard;
     default:
-      return t
+      return t;
   }
-}
+};
 
-const folded = ref<boolean | undefined>(undefined)
+const folded = ref<boolean | undefined>(undefined);
 
 const open = () => {
-  folded.value = false
-}
+  folded.value = false;
+};
 
 const close = () => {
-  folded.value = true
-}
+  folded.value = true;
+};
 
 const updateFolded = () => {
   if (props.defaultFold === 'auto') {
-    folded.value = folded.value ?? !window.matchMedia("(min-width: 768px)").matches;
+    folded.value = folded.value ?? !window.matchMedia('(min-width: 768px)').matches;
   } else {
-    folded.value = folded.value ?? props.defaultFold
+    folded.value = folded.value ?? props.defaultFold;
   }
-}
-window.addEventListener("resize", updateFolded);
+};
+window.addEventListener('resize', updateFolded);
 onMounted(() => {
-  updateFolded()
-})
+  updateFolded();
+});
 
-defineExpose({open, close})
+defineExpose({ open, close });
 </script>
 
 <template>
@@ -55,18 +58,18 @@ defineExpose({open, close})
       <header :class="props.compact ? 'header' : 'header mb-4'">
         <div class="title">
           <div class="title-warp">
-            <slot name="title"/>
+            <slot name="title" />
           </div>
 
           <div class="title-extra">
             <div class="title-extra-warp">
-              <slot name="title-extra"/>
+              <slot name="title-extra" />
             </div>
             <div class="mx-2">
               <el-button link size="small" @click="folded = !folded">
                 <template #icon>
                   <el-icon color="var(--el-color-info)">
-                    <component :is="folded ? ArrowRight : ArrowDown"/>
+                    <component :is="folded ? ArrowRight : ArrowDown" />
                   </el-icon>
                 </template>
               </el-button>
@@ -76,26 +79,26 @@ defineExpose({open, close})
 
         <div class="nav">
           <div class="description">
-            <slot name="description"/>
+            <slot name="description" />
           </div>
 
           <div class="action">
-            <slot name="action"/>
+            <slot name="action" />
           </div>
         </div>
       </header>
 
       <template v-if="!folded">
         <main class="default">
-          <slot name="default"/>
+          <slot name="default" />
         </main>
 
         <div class="extra">
-          <slot name="extra"/>
+          <slot name="extra" />
         </div>
       </template>
       <div v-else class="unfolded-extra">
-        <slot name="unfolded-extra"/>
+        <slot name="unfolded-extra" />
       </div>
     </main>
 
@@ -105,7 +108,7 @@ defineExpose({open, close})
           <div class="title-warp">
             <el-space alignment="center">
               <el-icon size="20" color="var(--el-color-danger)">
-                <circle-close/>
+                <circle-close />
               </el-icon>
               <del>
                 <el-text size="large" tag="b">{{ errTitle }}</el-text>
@@ -115,21 +118,21 @@ defineExpose({open, close})
 
           <div class="title-extra">
             <div class="title-extra-warp">
-              <slot name="title-extra-error"/>
+              <slot name="title-extra-error" />
             </div>
           </div>
         </div>
       </header>
       <div class="nav">
         <div class="description">
-          <el-descriptions style="white-space: pre-line;">
+          <el-descriptions style="white-space: pre-line">
             <el-descriptions-item label="错误信息">
               <el-text type="danger">{{ errText }}</el-text>
             </el-descriptions-item>
           </el-descriptions>
         </div>
         <div class="action">
-          <slot name="action-error"/>
+          <slot name="action-error" />
         </div>
       </div>
     </main>
@@ -208,5 +211,4 @@ defineExpose({open, close})
 .unfolded-extra {
   width: 100%;
 }
-
 </style>

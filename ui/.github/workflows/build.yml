@@ -28,7 +28,7 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
       - name: Build WebUI
-        run: pnpm run build
+        run: pnpm run build-only
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:

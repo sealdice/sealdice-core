@@ -1,6 +1,5 @@
 <script setup lang="ts">
-const mode = ref<string>('list')
-
+const mode = ref<string>('list');
 </script>
 
 <template>
@@ -12,9 +11,6 @@ const mode = ref<string>('list')
       <ban-config />
     </el-tab-pane>
   </el-tabs>
-
 </template>
 
-<style scoped lang="css">
-
-</style>
+<style scoped lang="css"></style>

@@ -1,13 +1,16 @@
 <template>
   <header class="page-header">
-    <el-switch v-model="censorEnable" @change="enableChange" active-text="启用"
-               inactive-text="关闭"/>
-    <el-button type="primary" :icon="Refresh"
-               v-show="censorEnable" @click="restartCensor">重载拦截
+    <el-switch
+      v-model="censorEnable"
+      active-text="启用"
+      inactive-text="关闭"
+      @change="enableChange" />
+    <el-button v-show="censorEnable" type="primary" :icon="Refresh" @click="restartCensor"
+      >重载拦截
     </el-button>
   </header>
 
-  <el-affix :offset="60" v-if="censorStore.needReload">
+  <el-affix v-if="censorStore.needReload" :offset="60">
     <div class="tip-danger">
       <el-text type="danger" size="large" tag="strong">存在修改，需要重载后生效！</el-text>
     </div>
@@ -31,58 +34,60 @@
     </el-tabs>
   </template>
   <template v-else>
-    <el-text type="danger" size="large" style="font-size: 1.5rem; display: block; margin-top: 1rem;">请先启用拦截！
+    <el-text type="danger" size="large" style="font-size: 1.5rem; display: block; margin-top: 1rem"
+      >请先启用拦截！
     </el-text>
   </template>
 </template>
 
-<script lang='ts' setup>
-import {Download, Refresh, Search} from '@element-plus/icons-vue';
-import { getCensorStatus } from '~/api/censor'
+<script lang="ts" setup>
+import { Refresh } from '@element-plus/icons-vue';
+import { getCensorStatus } from '~/api/censor';
 onBeforeMount(() => {
-  refreshCensorStatus()
-})
+  refreshCensorStatus();
+});
 
-import {useCensorStore} from "~/components/mod/censor/censor";
+import { useCensorStore } from '~/components/mod/censor/censor';
 
-const censorEnable = ref<boolean>(false)
+const censorEnable = ref<boolean>(false);
 
-const censorStore = useCensorStore()
+const censorStore = useCensorStore();
 
 const refreshCensorStatus = async () => {
-  const status: { result: false } | {
-    result: true,
-    enable: boolean,
-    isLoading: boolean
-  } = await getCensorStatus()
+  const status:
+    | { result: false }
+    | {
+        result: true;
+        enable: boolean;
+        isLoading: boolean;
+      } = await getCensorStatus();
   if (status.result) {
-    censorEnable.value = status.enable
+    censorEnable.value = status.enable;
   }
-}
+};
 
 const restartCensor = async () => {
-  const restart = await censorStore.restartCensor()
+  const restart = await censorStore.restartCensor();
   if (restart.result) {
-    censorEnable.value = restart.enable
-    censorStore.reload()
+    censorEnable.value = restart.enable;
+    censorStore.reload();
   }
-}
+};
 
 const stopCensor = async () => {
-  const stop = await censorStore.stopCensor()
+  const stop = await censorStore.stopCensor();
   if (stop.result) {
-    censorEnable.value = false
+    censorEnable.value = false;
   }
-}
+};
 
 const enableChange = async (value: boolean | number | string) => {
   if (value === true) {
-    await restartCensor()
+    await restartCensor();
   } else {
-    await stopCensor()
+    await stopCensor();
   }
-}
+};
 
-const tab = ref("setting")
-
+const tab = ref('setting');
 </script>

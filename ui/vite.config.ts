@@ -1,32 +1,32 @@
-import path from "path";
-import {defineConfig,loadEnv} from "vite";
-import vue from "@vitejs/plugin-vue";
-import vueJsx from '@vitejs/plugin-vue-jsx'
-import legacy from "@vitejs/plugin-legacy";
-import AutoImport from 'unplugin-auto-import/vite'
-import Components from "unplugin-vue-components/vite";
-import {ElementPlusResolver} from "unplugin-vue-components/resolvers";
-import Icons from "unplugin-icons/vite";
-import IconsResolver from "unplugin-icons/resolver";
+import path from 'path';
+import { defineConfig, loadEnv } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import vueJsx from '@vitejs/plugin-vue-jsx';
+import legacy from '@vitejs/plugin-legacy';
+import AutoImport from 'unplugin-auto-import/vite';
+import Components from 'unplugin-vue-components/vite';
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
+import Icons from 'unplugin-icons/vite';
+import IconsResolver from 'unplugin-icons/resolver';
 
-const pathSrc = path.resolve(__dirname, "src");
+const pathSrc = path.resolve(__dirname, 'src');
 
 // https://vitejs.dev/config/
-export default defineConfig(({mode})=>({
-  base: "./",
+export default defineConfig(({ mode }) => ({
+  base: './',
   resolve: {
     alias: {
-      "~/": `${pathSrc}/`,
+      '~/': `${pathSrc}/`,
     },
   },
   server: {
     proxy: {
       '/sd-api': {
-        target: loadEnv(mode,'./').VITE_APP_APIURL,
+        target: loadEnv(mode, './').VITE_APP_APIURL,
         changeOrigin: true,
-        rewrite: path => path
-      }
-    }
+        rewrite: path => path,
+      },
+    },
   },
   plugins: [
     vue(),
@@ -37,15 +37,12 @@ export default defineConfig(({mode})=>({
         /\.vue$/,
         /\.vue\?vue/, // .vue
       ],
-      imports: ["vue", "pinia", "vue-router", "@vueuse/core"],
+      imports: ['vue', 'pinia', 'vue-router', '@vueuse/core'],
       dts: true,
       vueTemplate: true,
-      eslintrc: {
-        enabled: true,
-      },
       resolvers: [
         ElementPlusResolver({
-          importStyle: "css",
+          importStyle: 'css',
         }),
         IconsResolver(),
       ],
@@ -53,17 +50,17 @@ export default defineConfig(({mode})=>({
     Components({
       resolvers: [
         ElementPlusResolver({
-          importStyle: "css",
+          importStyle: 'css',
         }),
         IconsResolver(),
       ],
     }),
     Icons({
-      compiler: "vue3",
+      compiler: 'vue3',
       autoInstall: true,
     }),
     legacy({
-      targets: ["defaults"],
+      targets: ['defaults'],
     }),
   ],
   build: {
@@ -72,23 +69,20 @@ export default defineConfig(({mode})=>({
     rollupOptions: {
       output: {
         manualChunks: {
-          base: ["vue", "pinia", "vue-router"],
-          codemirror: ["codemirror", "@codemirror/lang-javascript"],
-          common: [
-            "element-plus",
-            "lodash-es",
-          ],
+          base: ['vue', 'pinia', 'vue-router'],
+          codemirror: ['codemirror', '@codemirror/lang-javascript'],
+          common: ['element-plus', 'lodash-es'],
           utils: [
-            "@vueuse/core",
-            "asmcrypto.js",
-            "axios",
-            "axios-retry",
-            "clipboard",
-            "dayjs",
-            "filesize",
-            "randomcolor",
-            "vue-diff",
-            "vuedraggable",
+            '@vueuse/core',
+            'asmcrypto.js',
+            'axios',
+            'axios-retry',
+            'clipboard',
+            'dayjs',
+            'filesize',
+            'randomcolor',
+            'vue-diff',
+            'vuedraggable',
           ],
         },
       },

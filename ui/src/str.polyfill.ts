@@ -1,4 +1,3 @@
-
 /**
  * String.prototype.replaceAll() polyfill
  * https://gomakethings.com/how-to-replace-a-section-of-a-string-with-another-one-with-vanilla-js/
@@ -7,7 +6,6 @@
  */
 if (!String.prototype.replaceAll) {
   (String.prototype as any).replaceAll = function (str: string, newStr: string) {
-
     // If a regex pattern
     if (Object.prototype.toString.call(str).toLowerCase() === '[object regexp]') {
       return this.replace(str, newStr);
@@ -18,10 +16,9 @@ if (!String.prototype.replaceAll) {
   };
 }
 
-
 if (!String.prototype.matchAll) {
   (String.prototype as any).matchAll = function (rx: any) {
-    if (typeof rx === "string") rx = new RegExp(rx, "g"); // coerce a string to be a global regex
+    if (typeof rx === 'string') rx = new RegExp(rx, 'g'); // coerce a string to be a global regex
     rx = new RegExp(rx); // Clone the regex so we don't update the last index on the regex they pass us
     let cap = []; // the single capture
     const all = []; // all the captures (return this)

@@ -6,7 +6,7 @@ import PageCustomText from '~/components/PageCustomText.vue';
 import PageCustomReply from '~/components/mod/PageCustomReply.vue';
 import PageJs from '~/components/mod/PageJs.vue';
 import PageMiscDeck from '~/components/mod/PageMiscDeck.vue';
-import PageHelpDoc from "~/components/mod/PageHelpDoc.vue";
+import PageHelpDoc from '~/components/mod/PageHelpDoc.vue';
 import PageStory from '~/components/mod/PageStory.vue';
 import PageCensor from '~/components/mod/PageCensor.vue';
 import PageTest from '~/components/tool/PageTest.vue';
@@ -32,14 +32,14 @@ const router = createRouter({
         { path: 'helpdoc', component: PageHelpDoc },
         { path: 'story', component: PageStory },
         { path: 'censor', component: PageCensor },
-      ]
+      ],
     },
     {
       path: '/tool',
       children: [
         { path: 'test', component: PageTest },
         { path: 'resource', component: PageResource },
-      ]
+      ],
     },
     {
       path: '/misc',
@@ -49,11 +49,11 @@ const router = createRouter({
         { path: 'group', component: PageMiscGroup },
         { path: 'ban', component: PageMiscBan },
         { path: 'advanced-setting', component: PageMiscAdvancedSettings },
-      ]
+      ],
     },
     { path: '/about', component: PageAbout },
     { path: '/:catchAll(.*)', name: 'default', redirect: { name: 'home' } },
-  ]
-})
+  ],
+});
 
-export default router
+export default router;

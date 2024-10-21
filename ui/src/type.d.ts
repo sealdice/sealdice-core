@@ -1,4 +1,4 @@
-import type BanConfig from "./components/misc/banList/BanConfig.vue";
+import type BanConfig from './components/misc/banList/BanConfig.vue';
 
 export interface JsScriptInfo {
   name: string;
@@ -47,7 +47,7 @@ export interface HelpDoc {
   name: string;
   path: string;
   group: string;
-  type: ".json" | ".xlsx";
+  type: '.json' | '.xlsx';
   isDir: boolean;
   loadStatus: 0 | 1 | 2;
   deleted: boolean;
@@ -70,32 +70,32 @@ export interface HelpTextItem {
   group: string;
   from: string;
   title: string;
-  content: string
-  packageName: string
-  keyWords: string
+  content: string;
+  packageName: string;
+  keyWords: string;
 }
 
 export interface AdvancedConfig {
-  show: boolean,
-  enable: boolean,
-  storyLogBackendUrl: string,
-  storyLogApiVersion: string,
-  storyLogBackendToken: string,
+  show: boolean;
+  enable: boolean;
+  storyLogBackendUrl: string;
+  storyLogApiVersion: string;
+  storyLogBackendToken: string;
 }
 
 export interface BanConfig {
-  banBehaviorRefuseReply: boolean,
-  banBehaviorRefuseInvite: boolean,
-  banBehaviorQuitLastPlace: boolean,
-  banBehaviorQuitPlaceImmediately: boolean,
-  banBehaviorQuitIfAdmin: boolean,
+  banBehaviorRefuseReply: boolean;
+  banBehaviorRefuseInvite: boolean;
+  banBehaviorQuitLastPlace: boolean;
+  banBehaviorQuitPlaceImmediately: boolean;
+  banBehaviorQuitIfAdmin: boolean;
 
-  thresholdWarn: number,
-  thresholdBan: number,
-  scoreGroupMuted: number,
-  scoreGroupKicked: number,
-  scoreTooManyCommand: number,
-  scoreReducePerMinute: number,
-  jointScorePercentOfGroup: number,
-  jointScorePercentOfInviter: number,
+  thresholdWarn: number;
+  thresholdBan: number;
+  scoreGroupMuted: number;
+  scoreGroupKicked: number;
+  scoreTooManyCommand: number;
+  scoreReducePerMinute: number;
+  jointScorePercentOfGroup: number;
+  jointScorePercentOfInviter: number;
 }

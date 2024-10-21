@@ -4,4 +4,4 @@ export default {
     autoprefixer: {},
     'postcss-nested': {},
   },
-}
+};

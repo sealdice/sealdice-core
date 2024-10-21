@@ -1,11 +1,11 @@
-name: Check
+name: Lint
 
 on:
   push:
   pull_request:
 
 jobs:
-  type-check:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Code

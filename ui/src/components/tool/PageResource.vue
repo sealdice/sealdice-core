@@ -1,71 +1,74 @@
 <script setup lang="ts">
-import type {Resource} from "~/store";
-import {useStore} from "~/store";
-import {filesize} from "filesize";
-import {urlBase} from "~/backend";
-import {CopyDocument, Delete, Download, Search, Upload} from "@element-plus/icons-vue";
-import ClipboardJS from 'clipboard'
-import { createResource,deleteResource as deleteResourceApi, getResourcePage } from "~/api/resource";
+import type { Resource } from '~/store';
+import { useStore } from '~/store';
+import { filesize } from 'filesize';
+import { urlBase } from '~/backend';
+import { CopyDocument, Delete, Download, Search, Upload } from '@element-plus/icons-vue';
+import ClipboardJS from 'clipboard';
+import {
+  createResource,
+  deleteResource as deleteResourceApi,
+  getResourcePage,
+} from '~/api/resource';
 
 const store = useStore();
 
 const loading = ref(true);
 const images = ref<Resource[]>([]);
 
-const drawer = ref(false)
-const currentResource = ref<Resource>({} as Resource)
+const drawer = ref(false);
+const currentResource = ref<Resource>({} as Resource);
 
-const fileList = ref<any[]>([])
+const fileList = ref<any[]>([]);
 
 const refreshResources = async () => {
-  loading.value = true
-  const imagesRes = await getResourcePage("image");
+  loading.value = true;
+  const imagesRes = await getResourcePage('image');
   if (imagesRes.result) {
-    images.value = imagesRes.data
+    images.value = imagesRes.data;
   } else {
-    ElMessage.error(imagesRes.err)
+    ElMessage.error(imagesRes.err);
   }
-  loading.value = false
-}
+  loading.value = false;
+};
 
 const deleteResource = async (resource: Resource) => {
   ElMessageBox.confirm(
-      `确认删除「${resource.name}（${resource.path}）」吗？删除后将无法找回`,
-      '删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
+    `确认删除「${resource.name}（${resource.path}）」吗？删除后将无法找回`,
+    '删除',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    },
   ).then(async () => {
     const res = await deleteResourceApi(resource.path);
     if (res.result) {
-      ElMessage.success("删除成功")
+      ElMessage.success('删除成功');
     } else {
-      ElMessage.error(res.err)
+      ElMessage.error(res.err);
     }
     await nextTick(async () => {
-      await refreshResources()
-    })
-  })
-}
+      await refreshResources();
+    });
+  });
+};
 
 const handleShow = async (resource: Resource) => {
-  currentResource.value = resource
-  drawer.value = true
-}
+  currentResource.value = resource;
+  drawer.value = true;
+};
 
-const beforeUpload = async (file: any) => { // UploadRawFile
-  if (file.type !== 'image/jpeg'
-      && file.type !== 'image/png'
-      && file.type !== 'image/gif') {
-    ElMessage.error('上传的文件不是图片！')
-    return false
+const beforeUpload = async (file: any) => {
+  // UploadRawFile
+  if (file.type !== 'image/jpeg' && file.type !== 'image/png' && file.type !== 'image/gif') {
+    ElMessage.error('上传的文件不是图片！');
+    return false;
   }
-  let fd = new FormData()
-  fd.append('files', file)
+  const fd = new FormData();
+  fd.append('files', file);
   try {
-    const resp = await createResource(file)
+    const resp = await createResource(file);
     if (resp.result) {
       ElMessage.success('上传完成');
     } else {
@@ -75,21 +78,20 @@ const beforeUpload = async (file: any) => { // UploadRawFile
     ElMessage.error(e.toString());
   } finally {
     await nextTick(async () => {
-      await refreshResources()
-    })
+      await refreshResources();
+    });
   }
-}
+};
 
 const copySealCode = async () => {
-  ElMessage.success('复制海豹码成功！')
-}
+  ElMessage.success('复制海豹码成功！');
+};
 
 onBeforeMount(async () => {
-  loading.value = true
-  await refreshResources()
-  new ClipboardJS('.resource-seal-code-copy-btn')
-})
-
+  loading.value = true;
+  await refreshResources();
+  new ClipboardJS('.resource-seal-code-copy-btn');
+});
 </script>
 
 <template>
@@ -111,18 +113,23 @@ onBeforeMount(async () => {
   <main>
     <h3 class="flex items-center justify-between">
       <span>图片列表</span>
-      <el-upload action="" multiple accept=".png, .jpg, jpeg, .gif"
-                 :before-upload="beforeUpload" :file-list="fileList" :show-file-list="false">
+      <el-upload
+        action=""
+        multiple
+        accept=".png, .jpg, jpeg, .gif"
+        :before-upload="beforeUpload"
+        :file-list="fileList"
+        :show-file-list="false">
         <el-button type="primary" :icon="Upload">上传图片</el-button>
       </el-upload>
     </h3>
     <el-table v-loading="loading" :data="images" table-layout="auto">
       <el-table-column align="center" min-width="64px">
         <template #default="scope">
-          <resource-render class="min-w-10" :key="scope.row.path" :data="scope.row" mini/>
+          <resource-render :key="scope.row.path" class="min-w-10" :data="scope.row" mini />
         </template>
       </el-table-column>
-      <el-table-column prop="path" label="路径"/>
+      <el-table-column prop="path" label="路径" />
       <el-table-column align="center" prop="size" label="大小">
         <template #default="scope">
           {{ filesize(scope.row.size) }}
@@ -131,22 +138,45 @@ onBeforeMount(async () => {
       <el-table-column fixed="right">
         <template #default="scope">
           <el-space size="small" direction="vertical">
-            <el-button type="primary" link size="small" :icon="CopyDocument" plain
-                       v-if="scope.row.type === 'image'"
-                       class="resource-seal-code-copy-btn" :data-clipboard-text="`[图:${scope.row.path}]`"
-                       @click="copySealCode()">
+            <el-button
+              v-if="scope.row.type === 'image'"
+              type="primary"
+              link
+              size="small"
+              :icon="CopyDocument"
+              plain
+              class="resource-seal-code-copy-btn"
+              :data-clipboard-text="`[图:${scope.row.path}]`"
+              @click="copySealCode()">
               复制海豹码
             </el-button>
-            <el-button type="primary" link size="small" :icon="Search" plain
-                       @click="handleShow(scope.row)">
+            <el-button
+              type="primary"
+              link
+              size="small"
+              :icon="Search"
+              plain
+              @click="handleShow(scope.row)">
               详情
             </el-button>
-            <el-button type="success" link size="small" :icon="Download" plain tag="a" style="text-decoration: none;"
-                       :href="`${urlBase}/sd-api/resource/download?path=${encodeURIComponent(scope.row.path)}&token=${encodeURIComponent(store.token)}`">
+            <el-button
+              type="success"
+              link
+              size="small"
+              :icon="Download"
+              plain
+              tag="a"
+              style="text-decoration: none"
+              :href="`${urlBase}/sd-api/resource/download?path=${encodeURIComponent(scope.row.path)}&token=${encodeURIComponent(store.token)}`">
               下载
             </el-button>
-            <el-button type="danger" link size="small" :icon="Delete" plain
-                       @click="deleteResource(scope.row)">
+            <el-button
+              type="danger"
+              link
+              size="small"
+              :icon="Delete"
+              plain
+              @click="deleteResource(scope.row)">
               删除
             </el-button>
           </el-space>
@@ -155,19 +185,17 @@ onBeforeMount(async () => {
     </el-table>
   </main>
 
-  <el-drawer
-      v-model="drawer"
-      title="详情"
-      class="resource-detail-drawer"
-      direction="rtl">
+  <el-drawer v-model="drawer" title="详情" class="resource-detail-drawer" direction="rtl">
     <el-space class="mx-auto" size="large" direction="vertical" alignment="center">
       <div class="max-w-xs">
-        <resource-render :key="currentResource.path" :data="currentResource"/>
+        <resource-render :key="currentResource.path" :data="currentResource" />
       </div>
       <el-descriptions title="" :column="1">
         <el-descriptions-item label="文件名">{{ currentResource.name }}</el-descriptions-item>
         <el-descriptions-item label="路径">{{ currentResource.path }}</el-descriptions-item>
-        <el-descriptions-item label="大小">{{ filesize(currentResource.size) }}</el-descriptions-item>
+        <el-descriptions-item label="大小">{{
+          filesize(currentResource.size)
+        }}</el-descriptions-item>
       </el-descriptions>
     </el-space>
   </el-drawer>
