@@ -1099,17 +1099,11 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 	}
 
-	socket.OnBinaryMessage = func(data []byte, socket gowebsocket.Socket) {
-		log.Debug("Recieved binary data ", data)
-	}
+	socket.OnBinaryMessage = func(_ /* data */ []byte, _ /* socket */ gowebsocket.Socket) {}
 
-	socket.OnPingReceived = func(data string, socket gowebsocket.Socket) {
-		log.Debug("Recieved ping " + data)
-	}
+	socket.OnPingReceived = func(_ /* data */ string, _ /* socket */ gowebsocket.Socket) {}
 
-	socket.OnPongReceived = func(data string, socket gowebsocket.Socket) {
-		log.Debug("Recieved pong " + data)
-	}
+	socket.OnPongReceived = func(_ /* data */ string, _ /* socket */ gowebsocket.Socket) {}
 
 	var lastDisconnect int64
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {

@@ -17,6 +17,7 @@ import (
 	"sealdice-core/dice/model"
 	"sealdice-core/utils"
 	"sealdice-core/utils/crypto"
+	log "sealdice-core/utils/kratos"
 )
 
 const BackupDir = "./backups"
@@ -341,7 +342,7 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 		return nil
 	}
 
-	// fmt.Println("开始定时清理备份", fromAuto)
+	log.Info("开始清理备份文件")
 
 	backupDir, err := os.Open(BackupDir)
 	if err != nil {
@@ -370,28 +371,39 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 	sort.Sort(utils.ByModtime(fileInfos))
 
 	var fileInfoOld []os.FileInfo
+
+	logMsg := strings.Builder{}
+	logMsg.WriteString(fmt.Sprintf("现有备份文件 %d 个, 清理模式为 ", len(fileInfos)))
+
 	switch dm.BackupCleanStrategy {
 	case BackupCleanStrategyByCount:
+		logMsg.WriteString(fmt.Sprintf("保留一定数量(%d)", dm.BackupCleanKeepCount))
 		if len(fileInfos) > dm.BackupCleanKeepCount {
 			fileInfoOld = fileInfos[:len(fileInfos)-dm.BackupCleanKeepCount]
 		}
 	case BackupCleanStrategyByTime:
 		threshold := time.Now().Add(-dm.BackupCleanKeepDur)
+		logMsg.WriteString(fmt.Sprintf("保留一定时间(%v, %s)", dm.BackupCleanKeepDur, threshold.Format(time.DateTime)))
 		idx, _ := sort.Find(len(fileInfos), func(i int) int {
 			return threshold.Compare(fileInfos[i].ModTime())
 		})
-		fileInfoOld = fileInfos[:idx+1]
+		fileInfoOld = fileInfos[:idx]
 	default:
 		// no-op
 	}
 
+	logMsg.WriteString(fmt.Sprintf(", 有以下 %d 个将要被删除", len(fileInfoOld)))
+
 	errDel := []string{}
-	for _, fi := range fileInfoOld {
+	for i, fi := range fileInfoOld {
+		logMsg.WriteString(fmt.Sprintf("\n%d. %s", i+1, fi.Name()))
 		errDelete := os.Remove(filepath.Join(BackupDir, fi.Name()))
 		if errDelete != nil {
 			errDel = append(errDel, errDelete.Error())
 		}
 	}
+
+	log.Info(logMsg.String())
 
 	if len(errDel) > 0 {
 		return errors.New("error(s) occured when deleting files:\n" + strings.Join(errDel, "\n"))
