@@ -360,7 +360,7 @@ func LogDelete(db *gorm.DB, groupID string, logName string) bool {
 
 	// 开启事务
 	tx := db.Begin()
-	if err := tx.Error; err != nil {
+	if err = tx.Error; err != nil {
 		return false
 	}
 	defer func() {
@@ -370,12 +370,12 @@ func LogDelete(db *gorm.DB, groupID string, logName string) bool {
 	}()
 
 	// 删除 log_id 相关的 log_items 记录
-	if err := tx.Where("log_id = ?", logID).Delete(&LogOneItem{}).Error; err != nil {
+	if err = tx.Where("log_id = ?", logID).Delete(&LogOneItem{}).Error; err != nil {
 		return false
 	}
 
 	// 删除 log_id 相关的 logs 记录
-	if err := tx.Where("id = ?", logID).Delete(&LogInfo{}).Error; err != nil {
+	if err = tx.Where("id = ?", logID).Delete(&LogInfo{}).Error; err != nil {
 		return false
 	}
 
@@ -398,7 +398,7 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 
 	// 开始事务
 	tx := db.Begin()
-	if err := tx.Error; err != nil {
+	if err = tx.Error; err != nil {
 		return false
 	}
 	defer func() {
@@ -410,7 +410,7 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 	if logID == 0 {
 		// 创建一个新的 log
 		newLog := LogInfo{Name: logName, GroupID: groupID, CreatedAt: nowTimestamp, UpdatedAt: nowTimestamp}
-		if err := tx.Create(&newLog).Error; err != nil {
+		if err = tx.Create(&newLog).Error; err != nil {
 			return false
 		}
 		logID = newLog.ID
@@ -418,7 +418,6 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 
 	// 向 log_items 表中添加一条信息
 	// Pinenutn: 由此可以推知，CommandInfo必然是一个 map[string]interface{}
-	//data, err := json.Marshal(logItem.CommandInfo)
 
 	if err != nil {
 		return false
@@ -438,12 +437,12 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 		UniformID:   logItem.UniformID,
 	}
 
-	if err := tx.Create(&newLogItem).Error; err != nil {
+	if err = tx.Create(&newLogItem).Error; err != nil {
 		return false
 	}
 
 	// 更新 logs 表中的 updated_at 字段
-	if err := tx.Model(&LogInfo{}).Where("id = ?", logID).Update("updated_at", nowTimestamp).Error; err != nil {
+	if err = tx.Model(&LogInfo{}).Where("id = ?", logID).Update("updated_at", nowTimestamp).Error; err != nil {
 		return false
 	}
 
