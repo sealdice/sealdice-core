@@ -2,6 +2,7 @@
 
 ![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)
 ![Core](https://img.shields.io/badge/SealDice-Core-blue)
+
 海豹 TRPG 骰点核心，开源跑团辅助工具，支持 QQ/Kook/Discord 等。
 
 轻量 · 易用 · 全能

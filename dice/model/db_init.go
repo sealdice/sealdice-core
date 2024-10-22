@@ -14,6 +14,7 @@ import (
 // _SQLiteDBInit 初始化 SQLite 数据库连接
 func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{
+		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {

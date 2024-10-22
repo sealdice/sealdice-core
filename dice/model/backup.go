@@ -1,16 +1,16 @@
 package model
 
 import (
-	"fmt"
-
 	"gorm.io/gorm"
+
+	log "sealdice-core/utils/kratos"
 )
 
 // Vacuum 执行数据库的 vacuum 操作
 func Vacuum(db *gorm.DB, path string) error {
 	// 检查数据库驱动是否为 SQLite
 	if db.Dialector.Name() != "sqlite" {
-		fmt.Println("非SQLITE，跳过运行")
+		log.Debug("非SQLITE，跳过运行VACUUM")
 		return nil
 	}
 
@@ -23,7 +23,7 @@ func Vacuum(db *gorm.DB, path string) error {
 func FlushWAL(db *gorm.DB) error {
 	// 检查数据库驱动是否为 SQLite
 	if db.Dialector.Name() != "sqlite" {
-		fmt.Println("非SQLITE，跳过运行")
+		log.Debug("非SQLITE，跳过运行FlushWAL")
 		return nil
 	}
 

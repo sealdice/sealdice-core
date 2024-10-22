@@ -10,15 +10,10 @@ import (
 	"github.com/spaolacci/murmur3"
 	"github.com/tidwall/buntdb"
 	"gorm.io/gorm"
-
-	log "sealdice-core/utils/kratos"
 )
 
 type buntDBCacher struct {
 	db *buntdb.DB
-	// 缓存命中率计算
-	hitCount  int
-	missCount int
 }
 
 func generateHashKey(key string) string {
@@ -47,7 +42,6 @@ func (c *buntDBCacher) Get(_ context.Context, key string, q *caches.Query[any]) 
 
 	// 如果键在数据库中不存在，记录信息并返回nil, nil。
 	if errors.Is(err, buntdb.ErrNotFound) {
-		c.missCount++ // Increment miss count
 		// 此处不得不忽略，因为这个cache的实现机理就是如此，除非修改gorm cache的源码。
 		return nil, nil //nolint:nilnil
 	}
@@ -56,16 +50,10 @@ func (c *buntDBCacher) Get(_ context.Context, key string, q *caches.Query[any]) 
 	if err != nil {
 		return nil, err
 	}
-	c.hitCount++
 	// 将获取到的值解码为查询对象。
 	if err = q.Unmarshal([]byte(res)); err != nil {
 		return nil, err
 	}
-
-	// Calculate and output hit rate
-	totalRequests := c.hitCount + c.missCount
-	hitRate := float64(c.hitCount) / float64(totalRequests) * 100
-	log.Infof("当前缓存命中率: %.2f%%\n", hitRate)
 
 	return q, nil
 }
