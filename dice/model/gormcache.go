@@ -3,7 +3,7 @@ package model
 import (
 	"context"
 	"errors"
-	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/go-gorm/caches/v4"
@@ -23,7 +23,7 @@ type buntDBCacher struct {
 
 func generateHashKey(key string) string {
 	hash := murmur3.Sum64([]byte(key))
-	return fmt.Sprintf("%x", hash) // 返回十六进制字符串
+	return strconv.FormatUint(hash, 16) // 返回十六进制字符串
 }
 
 // Get 从缓存中获取与给定键关联的数据。
@@ -48,7 +48,8 @@ func (c *buntDBCacher) Get(_ context.Context, key string, q *caches.Query[any]) 
 	// 如果键在数据库中不存在，记录信息并返回nil, nil。
 	if errors.Is(err, buntdb.ErrNotFound) {
 		c.missCount++ // Increment miss count
-		return nil, nil
+		// 此处不得不忽略，因为这个cache的实现机理就是如此，除非修改gorm cache的源码。
+		return nil, nil //nolint:nilnil
 	}
 
 	// 如果发生其他错误，返回错误信息。
