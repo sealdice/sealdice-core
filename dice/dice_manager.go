@@ -309,14 +309,11 @@ func (dm *DiceManager) ResetBackupClean() {
 		dm.backupCleanCronID, err = dm.Cron.AddFunc(dm.BackupCleanCron, func() {
 			errBackup := dm.BackupClean(false)
 			if errBackup != nil {
-				fmt.Println("定时清理备份失败: ", errBackup.Error())
+				log.Errorf("定时清理备份失败: %v", errBackup)
 			}
 		})
-
 		if err != nil {
-			if len(dm.Dice) > 0 {
-				dm.Dice[0].Logger.Errorf("设定的备份清理cron有误: %q %v", dm.BackupCleanCron, err)
-			}
+			log.Errorf("设定的备份清理cron有误: %q %v", dm.BackupCleanCron, err)
 			return
 		}
 	}
