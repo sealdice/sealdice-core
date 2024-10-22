@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -14,15 +15,18 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
-	"github.com/sacOO7/gowebsocket"
-	"github.com/samber/lo"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/message"
 	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
+
+	"github.com/gorilla/websocket"
+	"github.com/sacOO7/gowebsocket"
+	"github.com/samber/lo"
 )
 
 // 0 默认 1登录中 2登录中-二维码 3登录中-滑条 4登录中-手机验证码 10登录成功 11登录失败
@@ -273,38 +277,61 @@ func FormatDiceIDQQChGroup(guildID, channelID string) string {
 	return fmt.Sprintf("QQ-CH-Group:%s-%s", guildID, channelID)
 }
 
+func hasURLScheme(text string) bool {
+	// 正则表达式匹配三种情况：file URI、http(s) URL 和 base64 URI
+	regex := `^[a-z]+://`
+	match, _ := regexp.MatchString(regex, text)
+	return match
+}
+
 func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *MessageQQ) error {
-	msgQQType2 := new(MessageQQArray)
-	err := json.Unmarshal([]byte(message), msgQQType2)
-
-	if err != nil {
+	// 不合法的信息体
+	if !gjson.Valid(message) {
 		log.Warn("无法解析 onebot11 字段:", message)
-		return err
+		return errors.New("解析失败")
 	}
-
+	// 原版本转换为gjson对象
+	parseContent := gjson.Parse(message)
+	arrayContent := parseContent.Get("message").Array()
 	cqMessage := strings.Builder{}
 
-	for _, i := range msgQQType2.Message {
-		switch i.Type {
+	for _, i := range arrayContent {
+		// 使用String()方法，如果为空，会自动产生空字符串
+		typeStr := i.Get("type").String()
+		dataObj := i.Get("data")
+		switch typeStr {
 		case "text":
-			cqMessage.WriteString(i.Data["text"].(string))
+			cqMessage.WriteString(dataObj.Get("text").String())
 		case "image":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", i.Data["file"]))
+			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
+			if !hasURLScheme(dataObj.Get("file").String()) && hasURLScheme(dataObj.Get("url").String()) {
+				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("url").String()))
+			} else {
+				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("file").String()))
+			}
 		case "face":
 			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64，这是go解析的问题
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", i.Data["id"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", dataObj.Get("id").String()))
 		case "record":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", i.Data["file"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("file").String()))
 		case "at":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", i.Data["qq"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", dataObj.Get("qq").String()))
 		case "poke":
 			cqMessage.WriteString("[CQ:poke]")
 		case "reply":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", i.Data["id"]))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", dataObj.Get("id").String()))
 		}
 	}
-	writeTo.MessageQQBase = msgQQType2.MessageQQBase
-	writeTo.Message = cqMessage.String()
+	// 赋值对应的Message
+	tempStr, err := sjson.Set(parseContent.String(), "message", cqMessage.String())
+	if err != nil {
+		return err
+	}
+	// 返回被转换成结构体的结果
+	err = json.Unmarshal([]byte(tempStr), &writeTo)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -329,8 +356,14 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 		// 将 CQ 拼入数组
 		switch cq.Type {
 		case "image":
-			i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
-			arr = append(arr, i)
+			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
+			if !hasURLScheme(cq.Args["file"]) && hasURLScheme(cq.Args["url"]) {
+				i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["url"]}}
+				arr = append(arr, i)
+			} else {
+				i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "image", Data: OneBotV11MsgItemImageType{File: cq.Args["file"]}}
+				arr = append(arr, i)
+			}
 		case "record":
 			i := OneBotV11ArrMsgItem[OneBotV11MsgItemRecordType]{Type: "record", Data: OneBotV11MsgItemRecordType{File: cq.Args["file"]}}
 			arr = append(arr, i)
@@ -429,9 +462,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		//	log.Info("...", message)
 		// }
 		if strings.Contains(message, `"guild_id"`) {
-			// log.Info("!!!", message, s.Parent.WorkInQQChannel)
+			// log.Info("!!!", message, s.Parent.Config.WorkInQQChannel)
 			// 暂时忽略频道消息
-			if s.Parent.WorkInQQChannel {
+			if s.Parent.Config.WorkInQQChannel {
 				pa.QQChannelTrySolve(message)
 			}
 			return
@@ -529,9 +562,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 					// 处理被强制拉群的情况
 					uid := groupInfo.InviteUserID
-					banInfo, ok := ctx.Dice.BanList.GetByID(uid)
+					banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
 					if ok {
-						if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
+						if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
 							// 如果是被ban之后拉群，判定为强制拉群
 							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
 								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
@@ -544,7 +577,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					}
 
 					// 强制拉群情况2 - 群在黑名单
-					banInfo, ok = ctx.Dice.BanList.GetByID(groupID)
+					banInfo, ok = ctx.Dice.Config.BanList.GetByID(groupID)
 					if ok {
 						if banInfo.Rank == BanRankBanned {
 							// 如果是被ban之后拉群，判定为强制拉群
@@ -593,9 +626,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			tempInviteMap2[msg.GroupID] = uid
 
 			// 邀请人在黑名单上
-			banInfo, ok := ctx.Dice.BanList.GetByID(uid)
+			banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
 			if ok {
-				if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
+				if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
 					pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "黑名单")
 					return
 				}
@@ -603,13 +636,13 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			// 信任模式，如果不是信任，又不是master则拒绝拉群邀请
 			isMaster := ctx.Dice.IsMaster(uid)
-			if ctx.Dice.TrustOnlyMode && ((banInfo != nil && banInfo.Rank != BanRankTrusted) && !isMaster) {
+			if ctx.Dice.Config.TrustOnlyMode && ((banInfo != nil && banInfo.Rank != BanRankTrusted) && !isMaster) {
 				pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "只允许骰主设置信任的人拉群")
 				return
 			}
 
 			// 群在黑名单上
-			banInfo, ok = ctx.Dice.BanList.GetByID(msg.GroupID)
+			banInfo, ok = ctx.Dice.Config.BanList.GetByID(msg.GroupID)
 			if ok {
 				if banInfo.Rank == BanRankBanned {
 					pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "群黑名单")
@@ -617,7 +650,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				}
 			}
 
-			if ctx.Dice.RefuseGroupInvite {
+			if ctx.Dice.Config.RefuseGroupInvite {
 				pa.SetGroupAddRequest(msgQQ.Flag, msgQQ.SubType, false, "设置拒绝加群")
 				return
 			}
@@ -645,7 +678,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				comment = strings.ReplaceAll(comment, "\u00a0", "")
 			}
 
-			toMatch := strings.TrimSpace(session.Parent.FriendAddComment)
+			toMatch := strings.TrimSpace(session.Parent.Config.FriendAddComment)
 			willAccept := comment == DiceFormat(ctx, toMatch)
 			if toMatch == "" {
 				willAccept = true
@@ -666,7 +699,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 				if len(m2) == len(items) {
 					ok := true
-					for i := 0; i < len(m2); i++ {
+					for i := range m2 {
 						if m2[i] != items[i] {
 							ok = false
 							break
@@ -685,9 +718,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// 检查黑名单
 			extra := ""
 			uid := FormatDiceIDQQ(string(msgQQ.UserID))
-			banInfo, ok := ctx.Dice.BanList.GetByID(uid)
+			banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
 			if ok {
-				if banInfo.Rank == BanRankBanned && ctx.Dice.BanList.BanBehaviorRefuseInvite {
+				if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
 					if willAccept {
 						extra = "。回答正确，但为被禁止用户，准备自动拒绝"
 					} else {
@@ -924,7 +957,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 				skip := false
 				skipReason := ""
-				banInfo, ok := ctx.Dice.BanList.GetByID(opUID)
+				banInfo, ok := ctx.Dice.Config.BanList.GetByID(opUID)
 				if ok {
 					if banInfo.Rank == 30 {
 						skip = true
@@ -940,7 +973,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				if skip {
 					extra = fmt.Sprintf("\n取消处罚，原因为%s", skipReason)
 				} else {
-					ctx.Dice.BanList.AddScoreByGroupKicked(opUID, msg.GroupID, ctx)
+					ctx.Dice.Config.BanList.AddScoreByGroupKicked(opUID, msg.GroupID, ctx)
 				}
 
 				txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, msgQQ.GroupID, userName, msgQQ.OperatorID, extra)
@@ -958,6 +991,18 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// {"group_id":564808710,"notice_type":"group_decrease","operator_id":2589922907,"post_type":"notice","self_id":2589922907,"sub_type":"leave","time":1651584460,"user_id":2589922907}
 			groupName := dm.TryGetGroupName(msg.GroupID)
 			txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, msgQQ.GroupID)
+			// 这个就是要删除的部分，离开这个群组=群组退出=删除对应的群聊绑定信息（也就是用户的骰子和这个群聊无关了）
+			// 同时考虑到：QQ群团队发布公告称，由于业务调整，“恢复QQ群”功能将于2023年10月13日起正式下线，届时涉及QQ群相关的恢复功能都将无法使用，可以安心删除群聊对应绑定信息。
+			group, exists := session.ServiceAtNew.Load(msg.GroupID)
+			if !exists {
+				txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, msgQQ.GroupID)
+				log.Error(txtErr)
+				ctx.Notice(txtErr)
+				return
+			}
+			// TODO：存疑，根据DISMISS的代码复制而来
+			group.DiceIDExistsMap.Delete(ep.UserID)
+			group.UpdatedAtTime = time.Now().Unix()
 			log.Info(txt)
 			ctx.Notice(txt)
 			return
@@ -971,7 +1016,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				groupName := dm.TryGetGroupName(msg.GroupID)
 				userName := dm.TryGetUserName(opUID)
 
-				ctx.Dice.BanList.AddScoreByGroupMuted(opUID, msg.GroupID, ctx)
+				ctx.Dice.Config.BanList.AddScoreByGroupMuted(opUID, msg.GroupID, ctx)
 				txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, msgQQ.GroupID, msgQQ.Duration, userName, msgQQ.OperatorID)
 				log.Info(txt)
 				ctx.Notice(txt)
@@ -1002,7 +1047,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
 
 			// 检查设置中是否开启
-			if !ctx.Dice.QQEnablePoke {
+			if !ctx.Dice.Config.QQEnablePoke {
 				return
 			}
 

@@ -29,6 +29,8 @@ import (
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
 	log "sealdice-core/utils/kratos"
+	"sealdice-core/utils/oschecker"
+	"sealdice-core/utils/paniclog"
 )
 
 /**
@@ -60,7 +62,7 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
-				i.BanList.SaveChanged(i)
+				i.Config.BanList.SaveChanged(i)
 				i.Save(true)
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
@@ -208,7 +210,20 @@ func main() {
 	if err != nil {
 		return
 	}
-
+	// 提前到最开始初始化所有日志
+	// 1. 初始化全局Kartos日志
+	log.InitZapWithKartosLog(zapcore.Level(opts.LogLevel))
+	// 2. 初始化全局panic捕获日志
+	paniclog.InitPanicLog()
+	// 3. 提示日志打印
+	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
+	logger := log.NewCustomHelper("SQLX", false, nil)
+	model.InitZapHook(logger)
+	judge, osr := oschecker.OldVersionCheck()
+	// 预留收集信息的接口，如果有需要可以考虑从这里拿数据。不从这里做提示的原因是Windows和Linux的展示方式不同。
+	if judge {
+		log.Info(osr)
+	}
 	if opts.Version {
 		fmt.Println(dice.VERSION.String())
 		return
@@ -239,9 +254,6 @@ func main() {
 	}
 
 	_ = os.MkdirAll("./data", 0o755)
-
-	// 初始化全局Kartos日志，由于DICE部分已经完全被砍掉了，所以原本的日志等级用来设置控制台展示的日志等级或许更合适
-	log.InitZapWithKartosLog(zapcore.Level(opts.LogLevel))
 
 	// 提早初始化是为了读取ServiceName
 	diceManager := &dice.DiceManager{}
