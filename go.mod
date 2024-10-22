@@ -49,6 +49,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/phuslu/log v1.0.88
 	github.com/pkg/errors v0.9.1
+	github.com/qustavo/sqlhooks/v2 v2.1.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105
 	github.com/sahilm/fuzzy v0.1.1
@@ -140,7 +141,6 @@ require (
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/pdfcpu/pdfcpu v0.8.1 // indirect
-	github.com/qustavo/sqlhooks/v2 v2.1.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
