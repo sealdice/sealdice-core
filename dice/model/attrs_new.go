@@ -67,7 +67,8 @@ func AttrsGetById(db *gorm.DB, id string) (*AttributesItemModel, error) {
 	err := db.Table("attrs").
 		Select("id, data, COALESCE(attrs_type, '') as attrs_type, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at").
 		Where("id = ?", id).
-		First(&item).Error
+		Limit(1).
+		Find(&item).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
@@ -81,7 +82,8 @@ func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
 	err := db.Table("attrs").
 		Select("binding_sheet_id").
 		Where("id = ?", id).
-		First(&item).Error
+		Limit(1).
+		Find(&item).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", err
 	}
@@ -95,7 +97,8 @@ func AttrsGetIdByUidAndName(db *gorm.DB, userId string, name string) (string, er
 	err := db.Table("attrs").
 		Select("id").
 		Where("owner_id = ? AND name = ?", userId, name).
-		First(&item).Error
+		Limit(1).
+		Find(&item).Error
 	// 如果有错误，但是错误不是找不到记录的情况下：
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", err

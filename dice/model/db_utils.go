@@ -13,7 +13,6 @@ import (
 // DBCacheDelete 删除SQLite数据库缓存文件
 // TODO: 判断缓存是否应该被删除
 func DBCacheDelete() bool {
-
 	dataDir := "./data/default"
 
 	tryDelete := func(fn string) bool {

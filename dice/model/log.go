@@ -78,8 +78,8 @@ func (item *LogOneItem) AfterFind(tx *gorm.DB) (err error) {
 
 type LogInfo struct {
 	ID        uint64 `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	Name      string `json:"name" gorm:"column:name;uniqueIndex:idx_log_group_id_name"`
-	GroupID   string `json:"groupId" gorm:"column:group_id;index:idx_logs_group; uniqueIndex:idx_log_group_id_name"`
+	Name      string `json:"name" gorm:"index:idx_log_group_id_name,unique;size:200"`
+	GroupID   string `json:"groupId" gorm:"index:idx_logs_group;index:idx_log_group_id_name,unique;size:200"`
 	CreatedAt int64  `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt int64  `json:"updatedAt" gorm:"column:updated_at;index:idx_logs_update_at"`
 	// 允许数据库NULL值
@@ -293,9 +293,6 @@ func LogGetAllLines(db *gorm.DB, groupID string, logName string) ([]*LogOneItem,
 	if err != nil {
 		return nil, err
 	}
-
-	// 好像是不需要再反序列化成那个奇怪的interface{}了？
-
 	return items, nil
 }
 
@@ -416,7 +413,7 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 		if err := tx.Create(&newLog).Error; err != nil {
 			return false
 		}
-		logID = newLog.ID // 假设 LogInfo 结构体有 ID 字段
+		logID = newLog.ID
 	}
 
 	// 向 log_items 表中添加一条信息
