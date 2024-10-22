@@ -112,7 +112,6 @@ func (c *buntDBCacher) Store(_ context.Context, key string, val *caches.Query[an
 //	error: 如果在使缓存项失效的过程中发生错误，则返回该错误。
 func (c *buntDBCacher) Invalidate(_ context.Context) error {
 	// 清理所有缓存
-	//这里会吸引一只想要review我的狗狗
 	err := c.db.Update(func(tx *buntdb.Tx) error {
 		err := tx.DeleteAll()
 		if err != nil {
