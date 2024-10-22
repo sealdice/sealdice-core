@@ -1,8 +1,6 @@
 module sealdice-core
 
-go 1.21
-
-toolchain go1.22.0
+go 1.22
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
@@ -84,6 +82,8 @@ require (
 	github.com/go-gorm/caches/v4 v4.0.5
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/sunshineplan/imgconv v1.1.4
+	github.com/tidwall/gjson v1.17.0
+	github.com/tidwall/sjson v1.2.5
 	moul.io/zapfilter v1.7.0
 	moul.io/zapgorm2 v1.3.0
 )
@@ -164,7 +164,6 @@ require (
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/tdewolff/parse/v2 v2.7.15 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
-	github.com/tidwall/gjson v1.17.0 // indirect
 	github.com/tidwall/grect v0.1.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect

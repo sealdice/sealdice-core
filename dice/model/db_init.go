@@ -19,13 +19,11 @@ func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// err = db.Exec("vacuum").Error
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// github.com/glebarez/sqlite
-
+	// Enable Cache Mode
+	db, err = GetBuntCacheDB(db)
+	if err != nil {
+		return nil, err
+	}
 	// enable WAL mode
 	if useWAL {
 		err = db.Exec("PRAGMA journal_mode=WAL").Error
@@ -38,7 +36,7 @@ func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 }
 
 // _MySQLDBInit 初始化 MySQL 数据库连接 暂时不用它
-//func _MySQLDBInit(user, password, host, dbName string) (*gorm.DB, error) {
+// func _MySQLDBInit(user, password, host, dbName string) (*gorm.DB, error) {
 //	// 构建 MySQL DSN (Data Source Name)
 //	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, password, host, dbName)
 //
@@ -57,4 +55,4 @@ func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 //
 //	// 返回数据库连接
 //	return db, nil
-//}
+// }

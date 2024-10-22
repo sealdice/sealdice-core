@@ -64,7 +64,14 @@ func censorStop(c echo.Context) error {
 
 	(&myDice.Config).EnableCensor = false
 	myDice.MarkModified()
-	_ = myDice.CensorManager.DB.Close()
+	db, err2 := myDice.CensorManager.DB.DB()
+	if err2 != nil {
+		return Error(&c, "关闭拦截引擎失败", Response{})
+	}
+	err = db.Close()
+	if err != nil {
+		return err
+	}
 	myDice.CensorManager = nil
 
 	return Success(&c, Response{})

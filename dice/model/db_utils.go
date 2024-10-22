@@ -28,7 +28,6 @@ func DBCacheDelete() bool {
 	if runtime.GOOS != "windows" {
 		return true
 	}
-
 	ok := true
 	if ok {
 		ok = tryDelete("data.db-shm")
@@ -73,8 +72,8 @@ func DBVacuum() {
 			return
 		}
 		defer func() {
-			rawdb, err := vacuumDB.DB()
-			if err != nil {
+			rawdb, err2 := vacuumDB.DB()
+			if err2 != nil {
 				return
 			}
 			err = rawdb.Close()

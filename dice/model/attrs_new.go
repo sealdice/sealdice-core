@@ -50,7 +50,7 @@ func (AttributesItemModel) TableName() string {
 }
 
 func (m *AttributesItemModel) IsDataExists() bool {
-	return m.Data != nil && len(m.Data) > 0
+	return len(m.Data) > 0
 }
 
 // TOOD: 下面这个表记得添加 unique 索引

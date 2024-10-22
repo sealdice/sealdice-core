@@ -459,16 +459,10 @@ func LogMarkDeleteByMsgID(db *gorm.DB, groupID string, logName string, rawID int
 	if err != nil {
 		return err
 	}
-
-	// 删除记录
-	rid := ""
-	if rawID != nil {
-		rid = fmt.Sprintf("%v", rawID)
-	}
-
+	rid := fmt.Sprintf("%v", rawID)
 	// fmt.Printf("log delete %v %d\n", rawId, logId)
 	// TODO: 此处的代码是否有点问题？
-	if err := db.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&LogOneItem{}).Error; err != nil {
+	if err = db.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&LogOneItem{}).Error; err != nil {
 		fmt.Println("log delete error", err.Error())
 		return err
 	}
