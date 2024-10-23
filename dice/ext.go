@@ -118,9 +118,7 @@ func (i *ExtInfo) StorageInit() error {
 	// 使用互斥锁保护初始化过程，确保只初始化一次
 	i.dbMu.Lock()
 	defer i.dbMu.Unlock()
-	d.Logger.Debugf("[扩展]：%s 正在尝试获取锁进行初始化", i.Name)
 	if i.init {
-		d.Logger.Debug("[扩展]:初始化调用，但数据库已经加载")
 		// 如果已经初始化，则直接返回
 		return nil
 	}
