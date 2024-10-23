@@ -948,7 +948,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 	s = ImageRewrite(s, imgSolve)
 
 	s = strings.ReplaceAll(s, "\n", `\n`)
-	if ctx.Dice.Config.VMVersionForDeck == "v1" {
+	if ctx.Dice.getTargetVmEngineVersion("deck") == "v1" {
 		return DiceFormatV1(ctx, s)
 	} else {
 		return DiceFormatV2(ctx, s)
