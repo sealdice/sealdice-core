@@ -38,4 +38,8 @@ func redirectStderr(f *os.File) {
 	if err != nil {
 		log.Fatalf("Failed to redirect stderr to file: %v", err)
 	}
+	// https://stackoverflow.com/questions/34772012/capturing-panic-in-golang rclone can't get some
+	// I did some more experimenting and on window's you must also do os.Stderr = f since SetStdHandle does not affect the prior reference to stderr.
+	// On unix it is not necessary since the Dup2 does affect the prior reference to stderr. ( Tim Lewis Commented)
+	os.Stderr = f
 }
