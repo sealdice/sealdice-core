@@ -14,8 +14,8 @@ require (
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/blevesearch/bleve/v2 v2.3.10
 	github.com/bwmarrin/discordgo v0.28.1
-	github.com/dop251/goja v0.0.0-20231027120936-b396bb4c349d
-	github.com/dop251/goja_nodejs v0.0.0-20231022114343-5c1f9037c9ab
+	github.com/dop251/goja v0.0.0-20241009100908-5f46f2705ca3
+	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc
 	github.com/evanw/esbuild v0.23.1
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd
@@ -85,7 +85,6 @@ require (
 	github.com/tidwall/gjson v1.17.0
 	github.com/tidwall/sjson v1.2.5
 	moul.io/zapfilter v1.7.0
-	moul.io/zapgorm2 v1.3.0
 )
 
 require (
@@ -109,7 +108,7 @@ require (
 	github.com/blevesearch/zapx/v14 v14.3.10 // indirect
 	github.com/blevesearch/zapx/v15 v15.3.13 // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
-	github.com/dlclark/regexp2 v1.10.0 // indirect
+	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20230808193330-2592e75ae04a // indirect
@@ -121,7 +120,7 @@ require (
 	github.com/getlantern/ops v0.0.0-20190325191751-d70cb0d6f85f // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-resty/resty/v2 v2.11.0 // indirect
-	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
+	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/go-toast/toast v0.0.0-20190211030409-01e6764cf0a4 // indirect
 	github.com/gobuffalo/envy v1.7.0 // indirect
@@ -132,7 +131,7 @@ require (
 	github.com/golang/geo v0.0.0-20230404232722-c4acd7a044dc // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/pprof v0.0.0-20230926050212-f7f687d19a98 // indirect
+	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/hhrutter/tiff v1.0.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
@@ -176,7 +175,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/image v0.20.0 // indirect
 	golang.org/x/mod v0.18.0 // indirect
-	golang.org/x/net v0.24.0 // indirect
+	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/term v0.24.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect

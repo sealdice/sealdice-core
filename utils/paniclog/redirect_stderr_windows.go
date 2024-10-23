@@ -38,4 +38,6 @@ func redirectStderr(f *os.File) {
 	if err != nil {
 		log.Fatalf("Failed to redirect stderr to file: %v", err)
 	}
+	// 这个不要忘记
+	os.Stderr = f
 }
