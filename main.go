@@ -383,12 +383,12 @@ func main() {
 		log.Info("检测到外置的UI资源文件，将使用frontend_overwrite文件夹内的资源启动UI")
 	}
 
-	// TODO: 测试的时候，不要删除遗留的shm和wal文件
-	// if !model.DBCacheDelete() {
-	//	 log.Error("数据库缓存文件删除失败")
-	//	 showMsgBox("数据库缓存文件删除失败", "为避免数据损坏，拒绝继续启动。请检查是否启动多份程序，或有其他程序正在使用数据库文件！")
-	//	 return
-	// }
+	// 删除遗留的shm和wal文件
+	if !model.DBCacheDelete() {
+		log.Error("数据库缓存文件删除失败")
+		showMsgBox("数据库缓存文件删除失败", "为避免数据损坏，拒绝继续启动。请检查是否启动多份程序，或有其他程序正在使用数据库文件！")
+		return
+	}
 
 	// 尝试进行升级
 	migrate.TryMigrateToV12()

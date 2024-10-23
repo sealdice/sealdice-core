@@ -634,7 +634,7 @@ func (d *Dice) jsClear() {
 	d.RegisterBuiltinSystemTemplate()
 	// 关闭js vm
 	if d.JsLoop != nil {
-		d.JsLoop.Terminate()
+		d.JsLoop.Stop()
 		d.JsLoop = nil
 	}
 }
