@@ -160,10 +160,12 @@ type Dice struct {
 	AliveNoticeEntry cron.EntryID           `yaml:"-" json:"-"`
 	JsPrinter        *PrinterFunc           `yaml:"-" json:"-"`
 	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
-	JsLoop           *eventloop.EventLoop   `yaml:"-" json:"-"`
-	JsScriptList     []*JsScriptInfo        `yaml:"-" json:"-"`
-	JsScriptCron     *cron.Cron             `yaml:"-" json:"-"`
-	JsScriptCronLock *sync.Mutex            `yaml:"-" json:"-"`
+	// 如果我们重用它呢？
+	JSRegistry       *require.Registry    `yaml:"-" json:"-"`
+	JsLoop           *eventloop.EventLoop `yaml:"-" json:"-"`
+	JsScriptList     []*JsScriptInfo      `yaml:"-" json:"-"`
+	JsScriptCron     *cron.Cron           `yaml:"-" json:"-"`
+	JsScriptCronLock *sync.Mutex          `yaml:"-" json:"-"`
 	// 重载使用的互斥锁
 	JsReloadLock sync.Mutex `yaml:"-" json:"-"`
 	// 内置脚本摘要表，用于判断内置脚本是否有更新
