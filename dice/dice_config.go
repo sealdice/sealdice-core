@@ -157,7 +157,6 @@ type BaseConfig struct {
 	ReplyDebugMode          bool       `yaml:"replyDebugMode" json:"replyDebugMode"`             // 回复调试
 	PlayerNameWrapEnable    bool       `yaml:"playerNameWrapEnable" json:"playerNameWrapEnable"` // 启用玩家名称外框
 
-	VMVersionGlobal        string `json:"VMVersionGlobal" yaml:"VMVersionGlobal"`               // 全局vm版本，其他独立开关的版本高于该项控制的版本时覆盖
 	VMVersionForReply      string `json:"VMVersionForReply" yaml:"VMVersionForReply"`           // 自定义回复使用的vm版本
 	VMVersionForDeck       string `json:"VMVersionForDeck" yaml:"VMVersionForDeck"`             // 牌堆使用的vm版本
 	VMVersionForCustomText string `json:"VMVersionForCustomText" yaml:"VMVersionForCustomText"` // 自定义文案使用的vm版本

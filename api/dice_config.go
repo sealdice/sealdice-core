@@ -499,8 +499,6 @@ func vmVersionSet(c echo.Context) error {
 			(&myDice.Config).VMVersionForCustomText = data.Value
 		case "msg":
 			(&myDice.Config).VMVersionForMsg = data.Value
-		case "global":
-			(&myDice.Config).VMVersionGlobal = data.Value
 		default:
 			failTypes = append(failTypes, data.Type)
 		}
