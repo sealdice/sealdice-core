@@ -491,13 +491,13 @@ func vmVersionSet(c echo.Context) error {
 			continue
 		}
 		switch data.Type {
-		case "reply":
+		case dice.VMVersionReply:
 			(&myDice.Config).VMVersionForReply = data.Value
-		case "deck":
+		case dice.VMVersionDeck:
 			(&myDice.Config).VMVersionForDeck = data.Value
-		case "custom-text":
+		case dice.VMVersionCustomText:
 			(&myDice.Config).VMVersionForCustomText = data.Value
-		case "msg":
+		case dice.VmVersionMsg:
 			(&myDice.Config).VMVersionForMsg = data.Value
 		default:
 			failTypes = append(failTypes, data.Type)

@@ -574,15 +574,22 @@ func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 	return "", "", false
 }
 
+const (
+	VMVersionReply      = "reply"
+	VMVersionDeck       = "deck"
+	VMVersionCustomText = "custom-text"
+	VmVersionMsg        = "msg"
+)
+
 func (d *Dice) getTargetVmEngineVersion(targetType string) string {
 	switch targetType {
-	case "reply":
+	case VMVersionReply:
 		return d.Config.VMVersionForReply
-	case "deck":
+	case VMVersionDeck:
 		return d.Config.VMVersionForDeck
-	case "custom-text":
+	case VMVersionCustomText:
 		return d.Config.VMVersionForCustomText
-	case "msg":
+	case VmVersionMsg:
 		return d.Config.VMVersionForMsg
 	default:
 		return "v2"

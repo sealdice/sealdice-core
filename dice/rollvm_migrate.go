@@ -80,7 +80,7 @@ func DiceFormatV1(ctx *MsgContext, s string) (string, error) { //nolint:revive
 }
 
 func DiceFormat(ctx *MsgContext, s string) string {
-	engineVersion := ctx.Dice.getTargetVmEngineVersion("msg")
+	engineVersion := ctx.Dice.getTargetVmEngineVersion(VmVersionMsg)
 	if engineVersion == "v2" {
 		ret, err := DiceFormatV2(ctx, s)
 		if err != nil {
@@ -104,7 +104,7 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 		text = ctx.Dice.TextMap[s].PickSource(randSourceDrawAndTmplSelect).(string)
 
 		// 找出其兼容情况，以决定使用什么版本的引擎
-		engineVersion := ctx.Dice.getTargetVmEngineVersion("custom-text")
+		engineVersion := ctx.Dice.getTargetVmEngineVersion(VMVersionCustomText)
 		if items, exists := ctx.Dice.TextMapCompatible.Load(s); exists {
 			if info, exists := items.Load(text); exists {
 				if info.Version == "v1" {
