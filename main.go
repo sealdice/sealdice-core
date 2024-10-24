@@ -91,7 +91,11 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				dbData := d.DBData
 				if dbData != nil {
 					d.DBData = nil
-					_ = dbData.Close()
+					db, err := dbData.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 
@@ -102,7 +106,11 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				dbLogs := d.DBLogs
 				if dbLogs != nil {
 					d.DBLogs = nil
-					_ = dbLogs.Close()
+					db, err := dbLogs.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 
@@ -114,7 +122,11 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				if cm != nil && cm.DB != nil {
 					dbCensor := cm.DB
 					cm.DB = nil
-					_ = dbCensor.Close()
+					db, err := dbCensor.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 		}
@@ -205,8 +217,6 @@ func main() {
 	paniclog.InitPanicLog()
 	// 3. 提示日志打印
 	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
-	logger := log.NewCustomHelper("SQLX", false, nil)
-	model.InitZapHook(logger)
 	judge, osr := oschecker.OldVersionCheck()
 	// 预留收集信息的接口，如果有需要可以考虑从这里拿数据。不从这里做提示的原因是Windows和Linux的展示方式不同。
 	if judge {
