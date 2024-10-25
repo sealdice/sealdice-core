@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/model"
+	log "sealdice-core/utils/kratos"
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint
@@ -324,16 +325,16 @@ func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
 func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
-	fmt.Println("try reset config to default", pluginName, key)
+	log.Debug("try reset config to default", pluginName, key)
 	plugin, ok := cm.Plugins[pluginName]
 	if !ok {
-		fmt.Println("plugin not found", pluginName)
+		log.Debug("plugin not found", pluginName)
 		return
 	}
 
 	configItem, exists := plugin.Configs[key]
 	if exists {
-		fmt.Println("reset config to default", pluginName, key)
+		log.Debug("reset config to default", pluginName, key)
 		configItem.Value = configItem.DefaultValue
 		plugin.Configs[key] = configItem
 		if strings.HasPrefix(configItem.Type, "task:") {
@@ -2344,7 +2345,7 @@ func (d *Dice) loadAdvanced() {
 func (d *Dice) SaveText() {
 	buf, err := yaml.Marshal(d.TextMapRaw)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("Dice.SaveText", err)
 	} else {
 		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")

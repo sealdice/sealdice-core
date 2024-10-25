@@ -2,7 +2,6 @@ package dice
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"sealdice-core/dice/model"
@@ -88,8 +87,6 @@ func (pa *PlatformAdapterGocq) QQChannelTrySolve(message string) {
 
 			// fmt.Println("Recieved message1 " + message)
 			session.Execute(ep, msg, false)
-		} else {
-			fmt.Println("CH Recieved message " + message)
 		}
 	}
 	// pa.SendToChannelGroup(ctx, msg.GroupId, msg.Message+"asdasd", "")

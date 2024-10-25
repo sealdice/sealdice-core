@@ -9,12 +9,13 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/dice/model"
+	log "sealdice-core/utils/kratos"
 )
 
 func storyGetInfo(c echo.Context) error {
 	info, err := model.LogGetInfo(myDice.DBLogs)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("storyGetInfo", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, info)
@@ -27,7 +28,7 @@ func storyGetLogs(c echo.Context) error {
 	}
 	logs, err := model.LogGetLogs(myDice.DBLogs)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("storyGetLogs", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, logs)
@@ -70,7 +71,7 @@ func storyGetItems(c echo.Context) error {
 	}
 	lines, err := model.LogGetAllLines(myDice.DBLogs, c.QueryParam("groupId"), c.QueryParam("name"))
 	if err != nil {
-		fmt.Println(err)
+		log.Error("storyGetItems", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, lines)
@@ -84,7 +85,7 @@ func storyGetItemPage(c echo.Context) error {
 	v := model.QueryLogLinePage{}
 	err := c.Bind(&v)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("storyGetItemPage", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	if v.PageNum < 1 {
@@ -96,7 +97,7 @@ func storyGetItemPage(c echo.Context) error {
 
 	lines, err := model.LogGetLinePage(myDice.DBLogs, &v)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("storyGetItemPage", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, lines)
@@ -109,12 +110,12 @@ func storyDelLog(c echo.Context) error {
 	v := &model.LogInfo{}
 	err := c.Bind(&v)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("storyDelLog", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	is := model.LogDelete(myDice.DBLogs, v.GroupID, v.Name)
 	if !is {
-		fmt.Println(err)
+		log.Error("storyDelLog", "failed to delete")
 		return c.JSON(http.StatusInternalServerError, false)
 	}
 	return c.JSON(http.StatusOK, true)
@@ -128,7 +129,7 @@ func storyUploadLog(c echo.Context) error {
 	_ = c.Bind(&v)
 	unofficial, url, err := logSendToBackend(v.GroupID, v.Name)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("storyUploadLog", err)
 		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 	ret := fmt.Sprintf("跑团日志已上传服务器，链接如下：<br/>%s", url)

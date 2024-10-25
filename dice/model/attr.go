@@ -1,7 +1,7 @@
 package model
 
 import (
-	"fmt"
+	log "sealdice-core/utils/kratos"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -12,7 +12,7 @@ func attrGetAllBase(db *sqlx.DB, bucket string, key string) []byte {
 	query := `SELECT updated_at, data FROM ` + bucket + ` WHERE id=:id`
 	rows, err := db.NamedQuery(query, map[string]interface{}{"id": key})
 	if err != nil {
-		fmt.Println("Failed to execute query:", err)
+		log.Errorf("Failed to execute query: %v", err)
 		return buf
 	}
 
@@ -24,7 +24,7 @@ func attrGetAllBase(db *sqlx.DB, bucket string, key string) []byte {
 
 		err := rows.Scan(&updatedAt, &data)
 		if err != nil {
-			fmt.Println("Failed to scan row:", err)
+			log.Errorf("Failed to scan row: %v", err)
 			break
 		}
 
