@@ -1234,6 +1234,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					text = strings.TrimPrefix(text, "，")
 					// 情况1，名字是自己
 					name = mctx.Player.Name
+					// replace any space or \n with _
+					name = strings.ReplaceAll(name, " ", "_")
+					name = strings.ReplaceAll(name, "\n", "_")
 					// 情况2，名字是自己，没有加值
 					if !exprExists {
 						val = int64(ds.Roll(nil, 20, 0))
