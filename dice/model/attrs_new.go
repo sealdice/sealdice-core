@@ -177,6 +177,7 @@ func AttrsNewItem(db *gorm.DB, item *AttributesItemModel) (*AttributesItemModel,
 	}
 
 	// 使用 GORM 的 Create 方法插入新记录
+	// 这个木落没有忽略错误，所以说这个可以安心使用Create而不用担心出现问题……
 	if err := db.Create(item).Error; err != nil {
 		return nil, err // 返回错误
 	}
@@ -184,39 +185,65 @@ func AttrsNewItem(db *gorm.DB, item *AttributesItemModel) (*AttributesItemModel,
 }
 
 func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
+	// 开始事务
+	tx := db.Begin()
+	if tx.Error != nil {
+		return tx.Error // 返回错误
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback() // 发生恐慌时回滚
+		}
+	}()
+
 	// 将新字典值转换为 JSON
+	now := time.Now().Unix()
 	json, err := ds.NewDictVal(nil).V().ToJSON()
 	if err != nil {
-		return err // 返回错误
+		tx.Rollback() // 返回错误时回滚
+		return err
 	}
 
-	// 插入新的属性记录
-	item := AttributesItemModel{
-		Id:             id,
-		Data:           json,
-		IsHidden:       true,
-		BindingSheetId: "",
-		CreatedAt:      time.Now().Unix(),
-		UpdatedAt:      time.Now().Unix(),
+	// 定义用于查询的条件
+	conditions := map[string]any{
+		"id": id,
 	}
 
-	if err := db.Create(&item).Error; err != nil {
-		return err // 返回错误
+	// 使用 FirstOrCreate，定义初始值和更新值
+	if err = tx.Model(&AttributesItemModel{}).
+		Attrs(map[string]any{
+			"is_hidden":        true,
+			"binding_sheet_id": "",
+			"created_at":       now,
+			"updated_at":       now,
+			"data":             json,
+		}).
+		Assign(map[string]any{
+			"updated_at": now,
+		}).
+		FirstOrCreate(&AttributesItemModel{}, conditions).Error; err != nil {
+		tx.Rollback() // 返回错误时回滚
+		return err
 	}
 
 	// 更新指定 id 的绑定记录
-	result := db.Model(&AttributesItemModel{}).
+	result := tx.Model(&AttributesItemModel{}).
 		Where("id = ?", id).
 		Update("binding_sheet_id", charId)
 
 	if result.Error != nil {
-		return result.Error // 返回错误
+		tx.Rollback() // 返回错误时回滚
+		return result.Error
 	}
 
 	if result.RowsAffected == 0 {
-		return errors.New("群信息不存在: " + id) // 如果没有记录被更新，返回错误
+		tx.Rollback() // 如果没有记录被更新，那么也不需要绑卡的时候更新UpdateTime.
+		return errors.New("群信息不存在: " + id)
 	}
-	return nil // 操作成功，返回 nil
+
+	// 提交事务
+	return tx.Commit().Error
 }
 
 func AttrsGetCharacterListByUserId(db *gorm.DB, userId string) ([]*AttributesItemModel, error) {
