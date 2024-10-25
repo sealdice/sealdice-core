@@ -1350,7 +1350,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
 			case "del", "rm":
 				tryDeleteMembersInInitList := func(deleteNames []string, riList RIList) (newList RIList, textOut strings.Builder, ok bool) {
-					//names := cmdArgs.Args[1:]
 					round, _ := VarGetValueInt64(ctx, "$g回合数")
 					round %= int64(len(riList))
 					toDeleted := map[string]bool{}
@@ -1406,7 +1405,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				riList := (RIList{}).LoadByCurGroup(ctx)
 				_, textOut, ok := tryDeleteMembersInInitList([]string{nameWithSpace}, riList)
 				if !ok {
-					_, textOut, ok = tryDeleteMembersInInitList(cmdArgs.Args[1:], riList)
+					_, textOut, _ = tryDeleteMembersInInitList(cmdArgs.Args[1:], riList)
 				}
 				textToSend := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀") + textOut.String()
 
