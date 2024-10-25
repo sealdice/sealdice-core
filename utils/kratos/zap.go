@@ -104,7 +104,8 @@ func InitZapWithKartosLog(level zapcore.Level) {
 
 	// 创建带有调用者信息的日志记录器，注意跳过两层，这样就能正常提供给log
 	originZapLogger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2))
-
+	// 设置全局日志记录器，默认全局记录器为SEAL命名空间
+	global.SetLogger(NewZapLogger(originZapLogger.Named(LOG_SEAL)))
 	// GORM部分
 	SetDefaultGoRMLogger()
 }
@@ -121,8 +122,6 @@ func SetDefaultGoRMLogger() {
 	// 层层进行包装
 	gormZapLogger := NewHelper(NewZapLogger(zap.New(gormCore).Named("GORM").WithOptions(zap.WithCaller(true), zap.AddCallerSkip(6))))
 
-	// 设置全局日志记录器，默认全局记录器为SEAL命名空间
-	global.SetLogger(NewZapLogger(originZapLogger.Named(LOG_SEAL)))
 	NewGormLogger(gormZapLogger).SetAsDefault()
 }
 

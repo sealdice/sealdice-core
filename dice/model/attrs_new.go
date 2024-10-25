@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/tidwall/gjson"
 	"gorm.io/gorm"
 
 	"sealdice-core/utils"
@@ -112,16 +113,25 @@ func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) e
 	conditions := map[string]any{
 		"id": id,
 	}
-	// 要么更新，要么创建，查询条件来源于conditions
-	if err := db. // 如果是新创建的，则这些赋值为：
-			Attrs(map[string]any{
+	// 这里的原本逻辑是：第一次全量创建，第二次修改部分属性
+	// 所以使用了Attrs和Assign配合使用
+	if err := db.
+		Attrs(map[string]any{
+			// 第一次全量建表
+			"id": id,
+			// 如果想在[]bytes里输入值，注意传参的时候不能给any传[]bytes，否则会无法读取，同时还没有豹错，浪费大量时间。
+			// 这里为了兼容，不使用gob的序列化方法处理结构体（同时，也不知道序列化方法是否可用）
+			"data":             gjson.ParseBytes(data).String(),
 			"is_hidden":        true,
 			"binding_sheet_id": "",
+			"name":             name,
+			"sheet_type":       sheetType,
 			"created_at":       now,
+			"updated_at":       now,
 		}).
-		// 如果是更新的，则需要被更新的为：
+		// 如果是更新的情况，更新下面这部分，则需要被更新的为：
 		Assign(map[string]any{
-			"data":       data,
+			"data":       gjson.ParseBytes(data).String(),
 			"updated_at": now,
 			"name":       name,
 			"sheet_type": sheetType,
@@ -178,6 +188,7 @@ func AttrsNewItem(db *gorm.DB, item *AttributesItemModel) (*AttributesItemModel,
 
 	// 使用 GORM 的 Create 方法插入新记录
 	// 这个木落没有忽略错误，所以说这个可以安心使用Create而不用担心出现问题……
+	// 这里使用Create可以正确插入byte数组，注意map[string]any里面不可以用byte数组，否则无法入库
 	if err := db.Create(item).Error; err != nil {
 		return nil, err // 返回错误
 	}
@@ -209,37 +220,43 @@ func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
 	conditions := map[string]any{
 		"id": id,
 	}
+	// 原本代码为：
+	//	_, _ = db.Exec(`insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at)
+	//					       values ($1, $3, true, '', $2, $2)`, id, time.Now().Unix(), json)
+	//
+	//	ret, err := db.Exec(`update attrs set binding_sheet_id = $1 where id = $2`, charId, id)
 
 	// 使用 FirstOrCreate，定义初始值和更新值
-	if err = tx.Model(&AttributesItemModel{}).
+	result := tx.
+		// 按照木落的原版代码，应该是这么个逻辑：查不到的时候能正确执行，查到了就不执行了，所以用Attrs而不是Assign
 		Attrs(map[string]any{
-			"is_hidden":        true,
-			"binding_sheet_id": "",
+			"id": id,
+			// 如果想在[]bytes里输入值，注意传参的时候不能给any传[]bytes，否则会无法读取，同时还没有豹错，浪费大量时间。
+			// 这里为了兼容，不使用gob的序列化方法处理结构体（同时，也不知道序列化方法是否可用）
+			"data":      gjson.ParseBytes(json).String(),
+			"is_hidden": true,
+			// 如果插入成功，原版代码接下来更新这个值，那么现在就是等价的
+			"binding_sheet_id": charId,
 			"created_at":       now,
 			"updated_at":       now,
-			"data":             json,
 		}).
+		// 按照原版代码，无论是不是能插入成功，都要更新这个值，所以这么写就是等价的了
 		Assign(map[string]any{
-			"updated_at": now,
+			"binding_sheet_id": charId,
 		}).
-		FirstOrCreate(&AttributesItemModel{}, conditions).Error; err != nil {
-		tx.Rollback() // 返回错误时回滚
-		return err
-	}
-
-	// 更新指定 id 的绑定记录
-	result := tx.Model(&AttributesItemModel{}).
-		Where("id = ?", id).
-		Update("binding_sheet_id", charId)
-
+		FirstOrCreate(&AttributesItemModel{}, conditions)
 	if result.Error != nil {
 		tx.Rollback() // 返回错误时回滚
 		return result.Error
 	}
-
+	// 四种情况：没有数据->初始化成功->返回1条
+	// 没有数据->更新失败->返回0条
+	// 有数据->更新成功->返回1条
+	// 有数据->更新失败->返回0条，但理论上所有返回0条的情况应该都会被丢出去
+	// 对于FirstOrCreate来说
 	if result.RowsAffected == 0 {
-		tx.Rollback() // 如果没有记录被更新，那么也不需要绑卡的时候更新UpdateTime.
-		return errors.New("群信息不存在: " + id)
+		tx.Rollback()
+		return errors.New("群信息不存在或发生更新异常: " + id)
 	}
 
 	// 提交事务

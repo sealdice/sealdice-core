@@ -61,6 +61,7 @@ func GroupInfoSave(db *gorm.DB, groupID string, updatedAt int64, data []byte) er
 	groupInfo := GroupInfo{
 		ID: groupID,
 		// 兼容零值和NULL值问题
+		// 原代码本来就没有CreateAt
 		UpdatedAt: &updatedAt,
 		Data:      data,
 	}
@@ -97,7 +98,7 @@ type GroupPlayerInfoBase struct {
 	UpdatedAtTime int64 `yaml:"-" json:"-"  gorm:"-"`
 	// 非数据库信息
 	RecentUsedTime int64 `yaml:"-" json:"-"  gorm:"-"`
-	// 缺少信息
+	// 缺少信息 -> 这边原来就是int吗？
 	CreatedAt int    `yaml:"-" json:"-" gorm:"column:created_at"` // 创建时间
 	UpdatedAt int    `yaml:"-" json:"-" gorm:"column:updated_at"` // 更新时间
 	GroupID   string `yaml:"-" json:"-" gorm:"column:group_id;index:idx_group_player_info_group_id; uniqueIndex:idx_group_player_info_group_user"`
@@ -156,17 +157,34 @@ func GroupPlayerInfoGet(db *gorm.DB, groupID string, playerID string) *GroupPlay
 
 // GroupPlayerInfoSave 保存玩家信息，不再使用 REPLACE INTO 语句
 func GroupPlayerInfoSave(db *gorm.DB, groupID string, playerID string, info *GroupPlayerInfoBase) error {
-	// 使用 GORM 的 Create 方法插入新的记录
-	// 设置 groupID 和 playerID 到 info 中
+	// 考虑到info是指针，为了防止可能info还会被用到其他地方，这里的给info指针赋值也是有意义的
+	// 但强烈建议将这段去除掉，数据库层面理论上不应该混杂业务层逻辑？
+	now := int(time.Now().Unix())
 	info.UserID = playerID
 	info.GroupID = groupID
-	info.UpdatedAt = int(time.Now().Unix()) // 更新当前时间为 UpdatedAt
+	info.UpdatedAt = now // 更新当前时间为 UpdatedAt
 
-	// 直接使用 Create 方法插入记录，ID 字段由数据库自增生成
-	err := db.Table("group_player_info").Create(info).Error
-
-	// 如果保存操作出现错误，返回错误信息
-	if err != nil {
+	// 判断条件：联合主键相同
+	conditions := map[string]any{
+		"user_id":  info.UserID,
+		"group_id": info.GroupID,
+	}
+	data := map[string]any{
+		"name":                   info.Name,
+		"user_id":                info.UserID,
+		"last_command_time":      info.LastCommandTime,
+		"auto_set_name_template": info.AutoSetNameTemplate,
+		"dice_side_num":          info.DiceSideNum,
+		"group_id":               info.GroupID,
+		"updated_at":             info.UpdatedAt,
+	}
+	// 原代码逻辑：
+	// REPLACE INTO group_player_info (name, updated_at, last_command_time, auto_set_name_template, dice_side_num, group_id, user_id)
+	// VALUES (:name, :updated_at, :last_command_time, :auto_set_name_template, :dice_side_num, :group_id, :user_id)
+	// 所以它是全局替换，使用Assign方法，无论如何都给我替换
+	if err := db.
+		Where(conditions).
+		Assign(data).FirstOrCreate(&GroupPlayerInfoBase{}).Error; err != nil {
 		return err
 	}
 

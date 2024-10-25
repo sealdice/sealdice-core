@@ -64,7 +64,7 @@ func (l GORMLogger) LogMode(level gormlogger.LogLevel) gormlogger.Interface {
 
 func (l GORMLogger) Info(_ context.Context, msg string, args ...interface{}) {
 	if l.LogLevel >= gormlogger.Info {
-		l.ZapLogger.Debugf(infoStr+msg, args...)
+		l.ZapLogger.Infof(infoStr+msg, args...)
 	}
 }
 
