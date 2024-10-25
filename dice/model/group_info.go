@@ -1,7 +1,7 @@
 package model
 
 import (
-	"fmt"
+	log "sealdice-core/utils/kratos"
 
 	"github.com/fy0/lockfree"
 	"github.com/jmoiron/sqlx"
@@ -100,7 +100,7 @@ func GroupPlayerInfoGet(db *sqlx.DB, groupID string, playerID string) *GroupPlay
 	})
 
 	if err != nil {
-		fmt.Printf("error getting group player info: %s", err.Error())
+		log.Errorf("error getting group player info: %v", err)
 		return nil
 	}
 
@@ -122,7 +122,7 @@ func GroupPlayerInfoGet(db *sqlx.DB, groupID string, playerID string) *GroupPlay
 			&ret.AutoSetNameTemplate,
 			&ret.DiceSideNum,
 		); err != nil {
-			fmt.Printf("error getting group player info: %s", err.Error())
+			log.Errorf("error getting group player info: %v", err)
 			return nil
 		}
 	}

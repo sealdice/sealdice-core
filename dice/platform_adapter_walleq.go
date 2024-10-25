@@ -699,11 +699,11 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 	socket.Connect()
 	defer func() {
-		fmt.Println("socket close")
+		log.Info("socket close")
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					fmt.Println("关闭连接时遭遇异常")
+					log.Error("关闭连接时遭遇异常", r)
 				}
 			}()
 			socket.Close()
