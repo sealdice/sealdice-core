@@ -15,7 +15,7 @@ type Response struct {
 	Msg  string      `json:"msg"`
 }
 
-var logger = log.NewCustomHelper(log.LOG_API, false, nil)
+// 这里本来是初始化了一个自定义logger，但是好像会空指针，所以暂时用全局变量替代。
 
 const (
 	ERROR        = 400
@@ -24,7 +24,7 @@ const (
 )
 
 func GetGenericErrorMsg(err error) string {
-	return fmt.Sprintf("执行失败，原因为:%v ，请反馈开发者", err)
+	return fmt.Sprintf("执行失败，原因为:%v ，请反馈开发者", err.Error())
 }
 
 func Result(code int, data interface{}, msg string, c echo.Context) error {
@@ -35,20 +35,20 @@ func Result(code int, data interface{}, msg string, c echo.Context) error {
 		Msg:  msg,
 	})
 	if err != nil {
-		logger.Debug("Error: ", err)
+		log.Debug("Error: ", err)
 		return err
 	}
 	return nil
 }
 
-func NoAuth(message string, c echo.Context) error {
+func NoAuth(c echo.Context) error {
 	err := c.JSON(http.StatusUnauthorized, Response{
-		Code: 7,
+		Code: http.StatusUnauthorized,
 		Data: nil,
-		Msg:  message,
+		Msg:  "您未登录或登录态已失效",
 	})
 	if err != nil {
-		logger.Debug("Error: ", err)
+		log.Debug("Error: ", err)
 		return err
 	}
 	return nil
@@ -77,8 +77,3 @@ func Fail(c echo.Context) error {
 func FailWithMessage(message string, c echo.Context) error {
 	return Result(ERROR, map[string]interface{}{}, message, c)
 }
-
-// 必要性不强，大部分情况下，我们不需要返回所谓data，只需要展示给用户提示信息即可
-// func FailWithDetailed(data interface{}, message string, c echo.Context) {
-//	Result(ERROR, data, message, c)
-// }

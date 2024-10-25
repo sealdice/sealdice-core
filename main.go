@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"sealdice-core/api"
+	v2 "sealdice-core/api/v2"
 	"sealdice-core/dice"
 	"sealdice-core/dice/model"
 	"sealdice-core/migrate"
@@ -615,6 +616,9 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	}
 
 	api.Bind(e, dm)
+	// V2 ADD
+	v2.InitRouter(e, dm.Dice[0])
+
 	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置
 
 	httpServe(e, dm, hideUI)
