@@ -367,7 +367,7 @@ func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 	ev := satori.Event{}
 	err := json.Unmarshal([]byte(msg), &ev)
 	if err != nil {
-		fmt.Println(err)
+		pa.Session.Parent.Logger.Error("PlatformAdapterSealChat.dispatchMessage", err)
 		return
 	}
 

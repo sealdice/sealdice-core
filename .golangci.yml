@@ -298,6 +298,10 @@ linters-settings:
     # Default: ["200", "400", "404", "500"]
     http-status-code-whitelist: ["200", "400", "404", "500"]
 
+  forbidigo:
+    exclude-godoc-examples: true
+    analyze-types: true
+
 linters:
   disable-all: true
   enable:
@@ -323,7 +327,7 @@ linters:
     - errorlint # finds code that will cause problems with the error wrapping scheme introduced in Go 1.13
     - exhaustive # checks exhaustiveness of enum switch statements
     - fatcontext # detects nested contexts in loops
-    # - forbidigo # forbids identifiers
+    - forbidigo # forbids identifiers
     # - funlen # tool for detection of long functions
     - gocheckcompilerdirectives # validates go compiler directive comments (//go:)
     # - gochecknoglobals # checks that no global variables exist

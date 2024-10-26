@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 
+	log "sealdice-core/utils/kratos"
+
 	"gopkg.in/yaml.v3"
 
 	nanoid "github.com/matoous/go-nanoid/v2"
@@ -223,7 +225,7 @@ func (m *HelpManager) Load() {
 	m.HelpDocTree = make([]*HelpDoc, 0)
 	entries, err := os.ReadDir("data/helpdoc")
 	if err != nil {
-		fmt.Println("unable to read helpdoc folder: ", err.Error())
+		log.Errorf("unable to read helpdoc folder: %v", err)
 	}
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), ".") {
@@ -330,7 +332,7 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 		m.LoadingFn = path
 		f, err := excelize.OpenFile(path)
 		if err != nil {
-			fmt.Println(err)
+			log.Error("HelpManager.loadHelpDoc", err)
 			break
 		}
 
@@ -345,7 +347,7 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 							// 跳过第一行
 							continue
 						} else {
-							fmt.Printf("%s sheet %d(zero-based): %s\n", path, index, err)
+							log.Errorf("%s sheet %d(zero-based): %s\n", path, index, err)
 							break
 						}
 					}
@@ -373,7 +375,7 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 
 		// Close the spreadsheet.
 		if err := f.Close(); err != nil {
-			fmt.Println(err)
+			log.Error("HelpManager.loadHelpDoc", err)
 		}
 		return true
 	}

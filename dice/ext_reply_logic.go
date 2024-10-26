@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	log "sealdice-core/utils/kratos"
+
 	"github.com/antlabs/strsim"
 	"gopkg.in/yaml.v3"
 )
@@ -244,7 +246,7 @@ func (c *ReplyConfig) Save(dice *Dice) {
 	attrConfigFn := dice.GetExtConfigFilePath("reply", c.Filename)
 	buf, err := yaml.Marshal(c)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("ReplyConfig.Save", err)
 	} else {
 		_ = os.WriteFile(attrConfigFn, buf, 0644)
 	}

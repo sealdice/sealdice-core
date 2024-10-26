@@ -319,7 +319,7 @@ func (d *Dice) Init() {
 	d.DBData, d.DBLogs, err = model.SQLiteDBInit(d.BaseConfig.DataDir)
 	if err != nil {
 		// TODO:
-		fmt.Println(err)
+		log.Error("Dice.Init", err)
 	}
 
 	log := logger.Init()
@@ -548,7 +548,7 @@ func (d *Dice) ExprTextBase(buffer string, ctx *MsgContext, flags RollExtraFlags
 	// 隐藏的内置字符串符号 \x1e
 	val, detail, err := d.ExprEvalBase("\x1e"+buffer+"\x1e", ctx, flags)
 	if err != nil {
-		fmt.Println("脚本执行出错: ", buffer, "->", err)
+		log.Warnf("脚本执行出错: %s -> %v", buffer, err)
 	}
 
 	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {

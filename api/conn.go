@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/base64"
-	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
+	log "sealdice-core/utils/kratos"
 )
 
 func ImConnections(c echo.Context) error {
@@ -437,7 +437,7 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 	if err == nil {
 		for _, i := range myDice.ImSession.EndPoints {
 			if i.ID == v.ID {
-				fmt.Print("!!! relogin ", v.ID)
+				log.Warnf("relogin %s", v.ID)
 				i.Adapter.DoRelogin()
 				return c.JSON(http.StatusOK, nil)
 			}

@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	log "sealdice-core/utils/kratos"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -115,7 +117,7 @@ func setupConfigDND(d *Dice) AttributeConfigs {
 	}
 	buf, err2 := yaml.Marshal(defaultVals)
 	if err2 != nil {
-		fmt.Println(err2)
+		log.Error("setupConfigDND", err2)
 	} else {
 		_ = os.WriteFile(attrConfigFn, buf, 0644)
 	}
