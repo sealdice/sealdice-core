@@ -262,6 +262,8 @@ func AttrsGetCharacterListByUserId(db *gorm.DB, userId string) ([]*AttributesIte
 	// 如果带上标签"column:xxxxx"，则会使用指定的名称映射，如column:xxxxx对应映射xxxxx
 	// GPT 说带上JSON标签，可以映射到结果中，但实际上是错误的，无法映射。
 	// 所以最终”BindingGroupNum“需要创建这个结构体用来临时存放结果，然后将结果映射到AttributesItemModel结构体上。
+	// TODO: 在gorm="-"这里的配置还有更多，需要查看https://gorm.io/zh_CN/docs/models.html#embedded_struct
+	// 或许可以使用无写入权限，有读权限，且不迁移的配置标签，目前暂时还不想试。
 	type AttrResult struct {
 		ID              string `gorm:"column:id"`
 		Name            string `gorm:"column:name"`
