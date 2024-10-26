@@ -115,8 +115,11 @@ func GetBuntCacheDB(db *gorm.DB) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Easer参数：使用ServantGo任务执行与合并库
+	// ServantGo提供了一种简单且惯用的方法来合并同时运行的相同类型的任务。
+	// 可以先尝试一下easer=true是否可以加速
 	cachesPlugin := &caches.Caches{Conf: &caches.Config{
-		Easer: false,
+		Easer: true,
 		Cacher: &buntDBCacher{
 			db: open,
 		},

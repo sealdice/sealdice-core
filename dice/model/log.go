@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	log "sealdice-core/utils/kratos"
 )
 
 type LogOne struct {
@@ -109,24 +111,24 @@ func LogGetInfo(db *gorm.DB) ([]int, error) {
 	var itemsMaxID sql.NullInt64 // 使用sql.NullInt64来处理NULL值
 
 	// 获取 logs 表的记录数和最大 ID
-	err := db.Table("logs").Select("COUNT(*)").Scan(&lst[2]).Error
+	err := db.Model(&LogInfo{}).Select("COUNT(*)").Scan(&lst[2]).Error
 	if err != nil {
 		return nil, err
 	}
 
-	err = db.Table("logs").Select("MAX(id)").Scan(&maxID).Error
+	err = db.Model(&LogInfo{}).Select("MAX(id)").Scan(&maxID).Error
 	if err != nil {
 		return nil, err
 	}
 	lst[0] = int(maxID.Int64)
 
 	// 获取 log_items 表的记录数和最大 ID
-	err = db.Table("log_items").Select("COUNT(*)").Scan(&lst[3]).Error
+	err = db.Model(&LogOneItem{}).Select("COUNT(*)").Scan(&lst[3]).Error
 	if err != nil {
 		return nil, err
 	}
 
-	err = db.Table("log_items").Select("MAX(id)").Scan(&itemsMaxID).Error
+	err = db.Model(&LogOneItem{}).Select("MAX(id)").Scan(&itemsMaxID).Error
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +142,7 @@ func LogGetLogs(db *gorm.DB) ([]*LogInfo, error) {
 	var lst []*LogInfo
 
 	// 使用 GORM 查询 logs 表
-	if err := db.Table("logs").
+	if err := db.Model(&LogInfo{}).
 		Select("id, name, group_id, created_at, updated_at").
 		Find(&lst).Error; err != nil {
 		return nil, err
@@ -163,7 +165,7 @@ func LogGetLogPage(db *gorm.DB, param *QueryLogPage) (int, []*LogInfo, error) {
 	var lst []*LogInfo
 
 	// 构建查询
-	query := db.Table("logs").Select("logs.id, logs.name, logs.group_id, logs.created_at, logs.updated_at, COUNT(log_items.id) as size").
+	query := db.Model(&LogInfo{}).Select("logs.id, logs.name, logs.group_id, logs.created_at, logs.updated_at, COUNT(log_items.id) as size").
 		Joins("LEFT JOIN log_items ON logs.id = log_items.log_id")
 
 	// 添加条件
@@ -202,7 +204,7 @@ func LogGetList(db *gorm.DB, groupID string) ([]string, error) {
 	var lst []string
 
 	// 执行查询
-	if err := db.Table("logs").
+	if err := db.Model(&LogInfo{}).
 		Select("name").
 		Where("group_id = ?", groupID).
 		Order("updated_at DESC").
@@ -215,7 +217,7 @@ func LogGetList(db *gorm.DB, groupID string) ([]string, error) {
 
 // LogGetIDByGroupIDAndName 获取ID
 func LogGetIDByGroupIDAndName(db *gorm.DB, groupID string, logName string) (logID uint64, err error) {
-	err = db.Table("logs").
+	err = db.Model(&LogInfo{}).
 		Select("id").
 		Where("group_id = ? AND name = ?", groupID, logName).
 		Scan(&logID).Error
@@ -239,7 +241,7 @@ func LogGetUploadInfo(db *gorm.DB, groupID string, logName string) (url string, 
 		UploadTime int64  `gorm:"column:upload_time"`
 	}
 
-	err = db.Table("logs").
+	err = db.Model(&LogInfo{}).
 		Select("updated_at, upload_url, upload_time").
 		Where("group_id = ? AND name = ?", groupID, logName).
 		Scan(&logInfo).Error
@@ -265,7 +267,7 @@ func LogSetUploadInfo(db *gorm.DB, groupID string, logName string, url string) e
 	now := time.Now().Unix()
 
 	// 使用 GORM 更新上传信息
-	err := db.Table("logs").Where("group_id = ? AND name = ?", groupID, logName).
+	err := db.Model(&LogInfo{}).Where("group_id = ? AND name = ?", groupID, logName).
 		Update("upload_url", url).
 		Update("upload_time", now).
 		Error
@@ -284,7 +286,7 @@ func LogGetAllLines(db *gorm.DB, groupID string, logName string) ([]*LogOneItem,
 	var items []*LogOneItem
 
 	// 查询行数据
-	err = db.Table("log_items").
+	err = db.Model(&LogOneItem{}).
 		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
 		Where("log_id = ?", logID).
 		Order("time ASC").
@@ -314,7 +316,7 @@ func LogGetLinePage(db *gorm.DB, param *QueryLogLinePage) ([]*LogOneItem, error)
 	var items []*LogOneItem
 
 	// 查询行数据
-	err = db.Table("log_items").
+	err = db.Model(&LogOneItem{}).
 		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
 		Where("log_id = ?", logID).
 		Order("time ASC").
@@ -339,7 +341,7 @@ func LogLinesCountGet(db *gorm.DB, groupID string, logName string) (int64, bool)
 
 	// 获取日志行数
 	var count int64
-	err = db.Table("log_items").
+	err = db.Model(&LogOneItem{}).
 		Where("log_id = ? and removed IS NULL", logID).
 		Count(&count).Error
 
@@ -459,10 +461,8 @@ func LogMarkDeleteByMsgID(db *gorm.DB, groupID string, logName string, rawID int
 		return err
 	}
 	rid := fmt.Sprintf("%v", rawID)
-	// fmt.Printf("log delete %v %d\n", rawId, logId)
-	// TODO: 此处的代码是否有点问题？
 	if err = db.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&LogOneItem{}).Error; err != nil {
-		fmt.Println("log delete error", err.Error())
+		log.Errorf("log delete error %s", err.Error())
 		return err
 	}
 

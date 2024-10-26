@@ -1,17 +1,20 @@
 package model
 
-import "gorm.io/gorm"
+import (
+	"github.com/tidwall/gjson"
+	"gorm.io/gorm"
+)
 
 // BanInfo 模型
 // GORM STRUCT
 type BanInfo struct {
-	ID           string `gorm:"primaryKey"`
-	BanUpdatedAt int    `gorm:"index:idx_ban_info_ban_updated_at"`
-	UpdatedAt    int    `gorm:"index:idx_ban_info_updated_at"`
-	Data         []byte // 使用[]byte表示BLOB类型
+	ID           string `gorm:"primaryKey;column:id"`                                    // 主键列
+	BanUpdatedAt int    `gorm:"index:idx_ban_info_ban_updated_at;column:ban_updated_at"` // BanUpdatedAt 列
+	UpdatedAt    int    `gorm:"index:idx_ban_info_updated_at;column:updated_at"`         // UpdatedAt 列
+	Data         []byte `gorm:"column:data"`                                             // BLOB 类型
 }
 
-func (BanInfo) TableName() string {
+func (*BanInfo) TableName() string {
 	return "ban_info"
 }
 
@@ -22,21 +25,20 @@ func BanItemDel(db *gorm.DB, id string) error {
 	return result.Error // 返回错误
 }
 
-// BanItemSave 保存或替换禁用项
+// BanItemSave 保存或替换禁用项 这里的[]byte也是json反序列化产物
 func BanItemSave(db *gorm.DB, id string, updatedAt int64, banUpdatedAt int64, data []byte) error {
-	// 定义用于查找的条件
-	conditions := map[string]any{
-		"id": id,
-	}
-
-	// 使用 FirstOrCreate 查找或创建新的禁用项
-	if err := db.Attrs(map[string]any{
-		"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
+	// 使用 FirstOrCreate ，这里显然，第一次初始化的时候替换ID，而剩余的时候只换ID以外的数据
+	if err := db.Where("id = ?", id).Attrs(map[string]any{
+		"id":             id,
+		"updated_at":     int(updatedAt),
+		"ban_updated_at": int(banUpdatedAt),               // 只在创建时设置的字段
+		"data":           gjson.ParseBytes(data).String(), // 禁用项数据
 	}).
 		Assign(map[string]any{
-			"updated_at": int(updatedAt), // 更新时覆盖的字段
-			"data":       data,           // 禁用项数据
-		}).FirstOrCreate(&BanInfo{}, conditions).Error; err != nil {
+			"updated_at":     int(updatedAt),
+			"ban_updated_at": int(banUpdatedAt),               // 只在创建时设置的字段
+			"data":           gjson.ParseBytes(data).String(), // 禁用项数据
+		}).FirstOrCreate(&BanInfo{}).Error; err != nil {
 		return err // 返回错误
 	}
 

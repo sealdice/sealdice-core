@@ -29,7 +29,7 @@ func (e *EndpointInfo) Query(db *gorm.DB) error {
 		return errors.New("db is nil")
 	}
 
-	err := db.Table("endpoint_info").
+	err := db.Model(&EndpointInfo{}).
 		Where("user_id = ?", e.UserID).
 		Select("cmd_num", "cmd_last_time", "online_time", "updated_at").
 		Scan(&e).Error
@@ -54,7 +54,8 @@ func (e *EndpointInfo) Save(db *gorm.DB) error {
 
 	// 直接使用 Save 函数
 	// Save 会根据主键（user_id）进行插入或更新
-	err := db.Table("endpoint_info").Save(&e).Error
+	// 以我的理解，这里不会写入CmdNum=0，所以可以安心认为Save是可用的，不用转换成FirstOrCreate
+	err := db.Model(&EndpointInfo{}).Save(&e).Error
 	if err != nil {
 		return err
 	}

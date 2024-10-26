@@ -1,13 +1,14 @@
 package model
 
 import (
-	"fmt"
 	"time"
 
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
 	ds "github.com/sealdice/dicescript"
+
+	log "sealdice-core/utils/kratos"
 )
 
 // GroupInfo 模型
@@ -32,7 +33,7 @@ func GroupInfoListGet(db *gorm.DB, callback func(id string, updatedAt int64, dat
 	}
 
 	// 使用 GORM 查询 group_info 表中的 id, updated_at, data 列
-	err := db.Table("group_info").Select("id, updated_at, data").Find(&results).Error
+	err := db.Model(&GroupInfo{}).Select("id, updated_at, data").Find(&results).Error
 	if err != nil {
 		// 如果查询发生错误，返回错误信息
 		return err
@@ -116,7 +117,7 @@ func GroupPlayerNumGet(db *gorm.DB, groupID string) (int64, error) {
 	// 使用 GORM 的 Table 方法指定表名进行查询
 	// db.Table("表名").Where("条件").Count(&count) 是通用的 GORM 用法
 	// 将 group_id 作为查询条件
-	err := db.Table("group_player_info").Where("group_id = ?", groupID).Count(&count).Error
+	err := db.Model(&GroupPlayerInfoBase{}).Where("group_id = ?", groupID).Count(&count).Error
 	if err != nil {
 		// 如果查询出现错误，返回错误信息
 		return 0, err
@@ -132,14 +133,14 @@ func GroupPlayerInfoGet(db *gorm.DB, groupID string, playerID string) *GroupPlay
 
 	// 使用 GORM 查询数据并绑定到结构体中
 	// db.Table("表名").Where("条件").First(&ret) 查询一条数据并映射到结构体
-	err := db.Table("group_player_info").
+	err := db.Model(&GroupPlayerInfoBase{}).
 		Where("group_id = ? AND user_id = ?", groupID, playerID).
 		Select("name, last_command_time, auto_set_name_template, dice_side_num").
 		Scan(&ret).Error
 
 	// 如果查询发生错误，打印错误并返回 nil
 	if err != nil {
-		fmt.Printf("error getting group player info: %s", err.Error())
+		log.Errorf("error getting group player info: %s", err.Error())
 		return nil
 	}
 

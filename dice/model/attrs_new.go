@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -46,7 +47,7 @@ type AttributesItemModel struct {
 }
 
 // 兼容旧版本数据库
-func (AttributesItemModel) TableName() string {
+func (*AttributesItemModel) TableName() string {
 	return "attrs"
 }
 
@@ -65,7 +66,7 @@ type PlatformMappingModel struct {
 func AttrsGetById(db *gorm.DB, id string) (*AttributesItemModel, error) {
 	// 这里必须使用AttributesItemModel结构体，如果你定义一个只有ID属性的结构体去接收，居然能接收到值，这样就会豹错
 	var item AttributesItemModel
-	err := db.Table("attrs").
+	err := db.Model(&AttributesItemModel{}).
 		Select("id, data, COALESCE(attrs_type, '') as attrs_type, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at").
 		Where("id = ?", id).
 		Limit(1).
@@ -80,7 +81,7 @@ func AttrsGetById(db *gorm.DB, id string) (*AttributesItemModel, error) {
 func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
 	// 这里必须使用AttributesItemModel结构体，如果你定义一个只有ID属性的结构体去接收，居然能接收到值，这样就会豹错
 	var item AttributesItemModel
-	err := db.Table("attrs").
+	err := db.Model(&AttributesItemModel{}).
 		Select("binding_sheet_id").
 		Where("id = ?", id).
 		Limit(1).
@@ -92,10 +93,10 @@ func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
 }
 
 func AttrsGetIdByUidAndName(db *gorm.DB, userId string, name string) (string, error) {
-	// 这里必须使用AttributesItemModel结构体，如果你定义一个只有ID属性的结构体去接收，居然能接收到值，这样就会豹错
+	// 这里必须使用AttributesItemModel结构体
+	// 如果你定义一个只有ID属性的结构体去接收，居然有概率能接收到值，这样就会和之前的行为不一致了
 	var item AttributesItemModel
-	// 使用 GORM 查询 attrs 表，选择 id 字段
-	err := db.Table("attrs").
+	err := db.Model(&AttributesItemModel{}).
 		Select("id").
 		Where("owner_id = ? AND name = ?", userId, name).
 		Limit(1).
@@ -109,13 +110,9 @@ func AttrsGetIdByUidAndName(db *gorm.DB, userId string, name string) (string, er
 
 func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) error {
 	now := time.Now().Unix() // 获取当前时间
-	// 定义用于查询的条件
-	conditions := map[string]any{
-		"id": id,
-	}
 	// 这里的原本逻辑是：第一次全量创建，第二次修改部分属性
 	// 所以使用了Attrs和Assign配合使用
-	if err := db.
+	if err := db.Where("id = ?", id).
 		Attrs(map[string]any{
 			// 第一次全量建表
 			"id": id,
@@ -135,7 +132,7 @@ func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) e
 			"updated_at": now,
 			"name":       name,
 			"sheet_type": sheetType,
-		}).FirstOrCreate(&AttributesItemModel{}, conditions).Error; err != nil {
+		}).FirstOrCreate(&AttributesItemModel{}).Error; err != nil {
 		return err // 返回错误
 	}
 	return nil // 操作成功，返回 nil
@@ -154,7 +151,7 @@ func AttrsCharGetBindingList(db *gorm.DB, id string) ([]string, error) {
 	var lst []string
 
 	// 使用 GORM 查询绑定的 id 列表
-	if err := db.Table("attrs").
+	if err := db.Model(&AttributesItemModel{}).
 		Select("id").
 		Where("binding_sheet_id = ?", id).
 		Find(&lst).Error; err != nil {
@@ -216,18 +213,13 @@ func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
 		return err
 	}
 
-	// 定义用于查询的条件
-	conditions := map[string]any{
-		"id": id,
-	}
 	// 原本代码为：
 	//	_, _ = db.Exec(`insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at)
 	//					       values ($1, $3, true, '', $2, $2)`, id, time.Now().Unix(), json)
 	//
 	//	ret, err := db.Exec(`update attrs set binding_sheet_id = $1 where id = $2`, charId, id)
 
-	// 使用 FirstOrCreate，定义初始值和更新值
-	result := tx.
+	result := tx.Where("id = ?", id).
 		// 按照木落的原版代码，应该是这么个逻辑：查不到的时候能正确执行，查到了就不执行了，所以用Attrs而不是Assign
 		Attrs(map[string]any{
 			"id": id,
@@ -244,7 +236,7 @@ func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
 		Assign(map[string]any{
 			"binding_sheet_id": charId,
 		}).
-		FirstOrCreate(&AttributesItemModel{}, conditions)
+		FirstOrCreate(&AttributesItemModel{})
 	if result.Error != nil {
 		tx.Rollback() // 返回错误时回滚
 		return result.Error
@@ -277,11 +269,13 @@ func AttrsGetCharacterListByUserId(db *gorm.DB, userId string) ([]*AttributesIte
 		BindingGroupNum int64  `gorm:"column:binding_group_num"` // 映射 COUNT(a.id)
 	}
 	var tempResultList []AttrResult
-
+	// 由于是复杂查询，无法直接使用Models，又为了防止以后attrs表名称修改，故不使用Table而是用TableName替换
+	model := AttributesItemModel{}
+	tableName := model.TableName()
 	// 此处使用了JOIN来避免子查询，数据库一般对JOIN有使用索引的优化，所以有性能提升，但是我没有实际测试过性能差距。
-	err := db.Table("attrs AS t1").
+	err := db.Table(fmt.Sprintf("%s AS t1", tableName)).
 		Select("t1.id, t1.name, t1.sheet_type, COUNT(a.id) AS binding_group_num").
-		Joins("LEFT JOIN attrs AS a ON a.binding_sheet_id = t1.id").
+		Joins(fmt.Sprintf("LEFT JOIN %s AS a ON a.binding_sheet_id = t1.id", tableName)).
 		Where("t1.owner_id = ? AND t1.is_hidden IS FALSE", userId).
 		Group("t1.id, t1.name, t1.sheet_type").
 		// Pinenutn：此处我根据创建时间对创建的卡进行排序，不知道是否有意义？

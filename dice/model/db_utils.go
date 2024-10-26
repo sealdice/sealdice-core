@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sync"
 
+	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/spinner"
 )
 
@@ -82,12 +83,12 @@ func DBVacuum() {
 			}
 		}()
 		if err != nil {
-			fmt.Printf("清理 %q 时出现错误：%v", path, err)
+			log.Errorf("清理 %q 时出现错误：%v", path, err)
 			return
 		}
 		err = vacuumDB.Exec("VACUUM;").Error
 		if err != nil {
-			fmt.Printf("清理 %q 时出现错误：%v", path, err)
+			log.Errorf("清理 %q 时出现错误：%v", path, err)
 		}
 	}
 
@@ -97,5 +98,5 @@ func DBVacuum() {
 
 	wg.Wait()
 
-	fmt.Println("\n数据库整理完成")
+	log.Infof("\n数据库整理完成")
 }
