@@ -55,7 +55,8 @@ func (e *EndpointInfo) Save(db *gorm.DB) error {
 	// 直接使用 Save 函数
 	// Save 会根据主键（user_id）进行插入或更新
 	// 以我的理解，这里不会写入CmdNum=0，所以可以安心认为Save是可用的，不用转换成FirstOrCreate
-	err := db.Model(&EndpointInfo{}).Save(&e).Error
+	// TODO: 这个主键是否未能正确设置？Where不加是无法使用的
+	err := db.Model(&EndpointInfo{}).Where("user_id = ?", e.UserID).Save(&e).Error
 	if err != nil {
 		return err
 	}
