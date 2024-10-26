@@ -75,7 +75,7 @@ func (d *Dice) registerCoreCommands() {
 				if reason == "" {
 					reason = "骰主指令"
 				}
-				d.BanList.AddScoreBase(uid, d.BanList.ThresholdBan, "骰主指令", reason, ctx)
+				(&d.Config).BanList.AddScoreBase(uid, (&d.Config).BanList.ThresholdBan, "骰主指令", reason, ctx)
 				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入黑名单，原因: %s", uid, reason))
 			case "rm", "del":
 				uid = getID()
@@ -83,7 +83,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				item, ok := d.BanList.GetByID(uid)
+				item, ok := (&d.Config).BanList.GetByID(uid)
 				if !ok || (item.Rank != BanRankBanned && item.Rank != BanRankTrusted && item.Rank != BanRankWarn) {
 					ReplyToSender(ctx, msg, "找不到用户/群组")
 					break
@@ -99,14 +99,14 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				d.BanList.SetTrustByID(uid, "骰主指令", "骰主指令")
+				(&d.Config).BanList.SetTrustByID(uid, "骰主指令", "骰主指令")
 				ReplyToSender(ctx, msg, fmt.Sprintf("已将用户/群组 %s 加入信任列表", uid))
 			case "list", "show":
 				// ban/warn/trust
 				var extra, text string
 
 				extra = cmdArgs.GetArgN(2)
-				d.BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
+				(&d.Config).BanList.Map.Range(func(k string, v *BanListInfoItem) bool {
 					if v.Rank == BanRankNormal {
 						return true
 					}
@@ -133,7 +133,7 @@ func (d *Dice) registerCoreCommands() {
 					break
 				}
 
-				v, exists := d.BanList.Map.Load(targetID)
+				v, exists := (&d.Config).BanList.Map.Load(targetID)
 				if !exists {
 					ReplyToSender(ctx, msg, fmt.Sprintf("所查询的<%s>情况：正常(0)", targetID))
 					break
@@ -495,7 +495,7 @@ func (d *Dice) registerCoreCommands() {
 
 			if inGroup {
 				// 不响应裸指令选项
-				if len(cmdArgs.At) < 1 && ctx.Dice.IgnoreUnaddressedBotCmd {
+				if len(cmdArgs.At) < 1 && ctx.Dice.Config.IgnoreUnaddressedBotCmd {
 					return CmdExecuteResult{Matched: true, Solved: false}
 				}
 				// 不响应at其他人
@@ -527,7 +527,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				if cmdArgs.IsArgEqual(1, "on") {
-					if !(msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
+					if !(msg.Platform == "QQ-CH" || ctx.Dice.Config.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -550,7 +550,7 @@ func (d *Dice) registerCoreCommands() {
 
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else if cmdArgs.IsArgEqual(1, "off") {
-					if !(msg.Platform == "QQ-CH" || ctx.Dice.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
+					if !(msg.Platform == "QQ-CH" || ctx.Dice.Config.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -1006,7 +1006,7 @@ func (d *Dice) registerCoreCommands() {
 					dm.UpdateCheckRequestChan <- 1
 
 					// 等待获取新版本，最多10s
-					for i := 0; i < 5; i++ {
+					for range 5 {
 						time.Sleep(2 * time.Second)
 						if dm.AppVersionOnline != nil {
 							break
@@ -1036,11 +1036,11 @@ func (d *Dice) registerCoreCommands() {
 					ret := <-dm.UpdateDownloadedChan
 
 					if ctx.IsPrivate {
-						ctx.Dice.UpgradeWindowID = msg.Sender.UserID
+						ctx.Dice.Config.UpgradeWindowID = msg.Sender.UserID
 					} else {
-						ctx.Dice.UpgradeWindowID = ctx.Group.GroupID
+						ctx.Dice.Config.UpgradeWindowID = ctx.Group.GroupID
 					}
-					ctx.Dice.UpgradeEndpointID = ctx.EndPoint.ID
+					ctx.Dice.Config.UpgradeEndpointID = ctx.EndPoint.ID
 					ctx.Dice.Save(true)
 
 					bakFn, _ := ctx.Dice.Parent.Backup(BackupSelectionAll, false)
@@ -1207,7 +1207,7 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
-			if ctx.Dice.CommandCompatibleMode {
+			if ctx.Dice.Config.CommandCompatibleMode {
 				if (cmdArgs.Command == "rd" || cmdArgs.Command == "rhd" || cmdArgs.Command == "rdh") && len(cmdArgs.Args) >= 1 {
 					if m, _ := regexp.MatchString(`^\d|优势|劣势|\+|-`, cmdArgs.CleanArgs); m {
 						if cmdArgs.IsSpaceBeforeArgs {
@@ -1348,12 +1348,12 @@ func (d *Dice) registerCoreCommands() {
 
 			if cmdArgs.SpecialExecuteTimes > 1 {
 				VarSetValueInt64(ctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
-				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.MaxExecuteTime) {
+				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.Config.MaxExecuteTime) {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				var texts []string
-				for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
+				for range cmdArgs.SpecialExecuteTimes {
 					ret := rollOne()
 					if ret != nil {
 						return *ret
@@ -1501,7 +1501,7 @@ func (d *Dice) registerCoreCommands() {
 			if cmdArgs.IsArgEqual(1, "list") {
 				showList()
 			} else if cmdArgs.IsArgEqual(last, "on") {
-				if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
+				if !ctx.Dice.Config.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -1524,7 +1524,7 @@ func (d *Dice) registerCoreCommands() {
 
 				var extNames []string
 				var conflictsAll []string
-				for index := 0; index < len(cmdArgs.Args); index++ {
+				for index := range len(cmdArgs.Args) {
 					extName := strings.ToLower(cmdArgs.Args[index])
 					if i := d.ExtFind(extName); i != nil {
 						extNames = append(extNames, extName)
@@ -1544,14 +1544,14 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, text)
 				}
 			} else if cmdArgs.IsArgEqual(last, "off") {
-				if !ctx.Dice.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
+				if !ctx.Dice.Config.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
 				var closed []string
 				var notfound []string
-				for index := 0; index < len(cmdArgs.Args); index++ {
+				for index := range len(cmdArgs.Args) {
 					extName := cmdArgs.Args[index]
 					extName = d.ExtAliasToName(extName)
 					ei := ctx.Group.ExtInactiveByName(extName)

@@ -166,7 +166,7 @@ func forceStop(c echo.Context) error {
 
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
-				i.BanList.SaveChanged(i)
+				i.Config.BanList.SaveChanged(i)
 				i.AttrsManager.CheckForSave()
 				i.Save(true)
 				for _, j := range i.ExtList {
@@ -626,8 +626,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/dice/cmdList", DiceAllCommand)
 	e.POST(prefix+"/dice/upload_to_upgrade", DiceNewVersionUpload)
 
-	e.POST(prefix+"/dice/config/vm-version-for-reply-set", vmVersionForReplySet)
-	e.POST(prefix+"/dice/config/vm-version-for-deck-set", vmVersionForDeckSet)
+	e.POST(prefix+"/dice/config/vm-version-set", vmVersionSet)
 
 	e.POST(prefix+"/signin", doSignIn)
 	e.GET(prefix+"/signin/salt", doSignInGetSalt)

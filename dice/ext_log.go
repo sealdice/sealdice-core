@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -293,7 +294,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				group.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
-				getAndUpload(group.GroupID, group.LogCurName)
+				// Note: 2024-10-15 经过简单测试，似乎能缓解#1034的问题，但无法根本解决。
+				go getAndUpload(group.GroupID, group.LogCurName)
 				group.LogCurName = ""
 				group.UpdatedAtTime = time.Now().Unix()
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -579,16 +581,31 @@ func RegisterBuiltinExtLog(self *Dice) {
 		CheckCurrentBotOn:  true,
 		CheckMentionOthers: true,
 		HelpFunc: func(isShort bool) string {
-			text := ""
+			// 手动添加特定的命令示例到帮助信息的开头
+			fixedExamples := ".sn coc // 自动设置coc名片\n" +
+				".sn cocL // 自动设置coc名片，小写\n" +
+				".sn dnd // 自动设置dnd名片\n"
+
+			text := fixedExamples
+
+			var tempStrList []string
+
 			self.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
 				for k, v := range value.NameTemplate {
-					text += fmt.Sprintf(".sn %s // %s\n", k, v.HelpText)
+					if k != "coc" && k != "dnd" && k != "cocL" {
+						// 考虑到这里的量级不会太大，所以直接排序已经生成好的提示文本或许更划算
+						tempStrList = append(tempStrList, fmt.Sprintf(".sn %s // %s\n", k, v.HelpText))
+					}
 				}
 				return true
 			})
+
+			sort.Strings(tempStrList)
+			text += strings.Join(tempStrList, "")
 			text += ".sn expr {$t玩家_RAW} HP{hp}/{hpmax} // 自设格式\n" +
 				".sn none // 设置为空白格式\n" +
 				".sn off // 取消自动设置"
+
 			if isShort {
 				return text
 			}
@@ -864,11 +881,11 @@ func LogAppend(ctx *MsgContext, groupID string, logName string, logItem *model.L
 	if ok {
 		if size, okCount := model.LogLinesCountGet(ctx.Dice.DBLogs, groupID, logName); okCount {
 			// 默认每记录500条发出提示
-			if ctx.Dice.LogSizeNoticeEnable {
-				if ctx.Dice.LogSizeNoticeCount == 0 {
-					ctx.Dice.LogSizeNoticeCount = 500
+			if ctx.Dice.Config.LogSizeNoticeEnable {
+				if ctx.Dice.Config.LogSizeNoticeCount == 0 {
+					ctx.Dice.Config.LogSizeNoticeCount = DefaultConfig.LogSizeNoticeCount
 				}
-				if size > 0 && int(size)%ctx.Dice.LogSizeNoticeCount == 0 {
+				if size > 0 && int(size)%ctx.Dice.Config.LogSizeNoticeCount == 0 {
 					VarSetValueInt64(ctx, "$t条数", size)
 					text := DiceFormatTmpl(ctx, "日志:记录_条数提醒")
 					// text := fmt.Sprintf("提示: 当前故事的文本已经记录了 %d 条", size)

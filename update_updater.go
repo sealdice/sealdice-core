@@ -13,10 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	"go.uber.org/zap"
-
 	"sealdice-core/dice"
 	"sealdice-core/utils"
+	log "sealdice-core/utils/kratos"
 )
 
 const updaterVersion = "0.1.1"
@@ -73,7 +72,7 @@ func CheckUpdater(dm *dice.DiceManager) error {
 	exists := false
 	fn := getUpdaterFn()
 	if _, err := os.Stat(fn); err == nil {
-		logger.Info("检测到海豹更新程序")
+		log.Info("检测到海豹更新程序")
 		exists = true
 	}
 
@@ -82,15 +81,15 @@ func CheckUpdater(dm *dice.DiceManager) error {
 	if exists {
 		err := os.Chmod(fn, 0o755)
 		if err != nil {
-			logger.Error("设置升级程序执行权限失败", err.Error())
+			log.Error("设置升级程序执行权限失败", err.Error())
 		}
 		cmd := exec.Command(fn, "--version")
 		out, err := cmd.Output()
 		if err != nil {
-			logger.Error("获取升级程序版本失败")
+			log.Error("获取升级程序版本失败")
 		} else {
 			ver := strings.TrimSpace(string(out))
-			logger.Info("升级程序版本：", ver)
+			log.Info("升级程序版本：", ver)
 			if ver == "seal-updater "+updaterVersion {
 				isUpdaterOk = true
 			}
@@ -99,16 +98,16 @@ func CheckUpdater(dm *dice.DiceManager) error {
 
 	// 如果升级程序不可用，那么下载一个
 	if !isUpdaterOk {
-		logger.Info("未检测到可用更新程序，开始下载")
+		log.Info("未检测到可用更新程序，开始下载")
 		err := downloadUpdater(dm)
 		if err != nil {
-			logger.Error("下载更新程序失败")
+			log.Error("下载更新程序失败")
 			return errors.New("下载更新程序失败，无可用更新程序")
 		} else {
-			logger.Info("下载更新程序成功")
+			log.Info("下载更新程序成功")
 			err := os.Chmod(fn, 0o755)
 			if err != nil {
-				logger.Error("设置升级程序执行权限失败", err.Error())
+				log.Error("设置升级程序执行权限失败", err.Error())
 			}
 		}
 	}
@@ -145,11 +144,8 @@ func downloadUpdater(dm *dice.DiceManager) error {
 	return nil
 }
 
-func UpdateByFile(dm *dice.DiceManager, log *zap.SugaredLogger, packName string, syncMode bool) bool {
+func UpdateByFile(dm *dice.DiceManager, packName string, syncMode bool) bool {
 	// 注意: 当执行完就立即退进程的情况下，需要使用 syncMode 为true
-	if log == nil {
-		log = logger
-	}
 	fn := getUpdaterFn()
 	err := os.Chmod(fn, 0o755)
 	if err != nil {

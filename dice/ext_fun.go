@@ -436,7 +436,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			} else if val == "help" || val == "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			} else {
-				if self.MailEnable {
+				if self.Config.MailEnable {
 					_ = ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -569,7 +569,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				successDegrees := int64(0)
 				failedCount := int64(0)
 				var results []string
-				for i := int64(0); i < num; i++ {
+				for range num {
 					v := DiceRoll64(6)
 					if v >= 5 {
 						successDegrees++
@@ -738,7 +738,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 			successDegrees := int64(0)
 			var results []string
-			for i := int64(0); i < diceNum; i++ {
+			for range diceNum {
 				v := DiceRoll64(10)
 				if v <= checkVal {
 					successDegrees++
@@ -1031,7 +1031,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 		ShortHelp: textHelp,
 		Help:      "文本模板指令:\n" + textHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if ctx.Dice.TextCmdTrustOnly {
+			if ctx.Dice.Config.TextCmdTrustOnly {
 				// 检查master和信任权限
 				// 拒绝无权限访问
 				if ctx.PrivilegeLevel < 70 {
@@ -1118,7 +1118,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			if m == 0 {
 				m = int(getDefaultDicePoints(ctx))
 			}
-			if t > int(ctx.Dice.MaxExecuteTime) {
+			if t > int(ctx.Dice.Config.MaxExecuteTime) {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
@@ -1208,7 +1208,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 
 				// NOTE(Xiangze Li): 允许创建更多轮数。使用洗牌算法后并不会很重复计算
-				// if roulette.Time > int(ctx.Dice.MaxExecuteTime) {
+				// if roulette.Time > int(ctx.Dice.Config.MaxExecuteTime) {
 				// 	ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰点_轮数过多警告"))
 				// 	return CmdExecuteResult{Matched: true, Solved: true}
 				// }
@@ -1226,7 +1226,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				for i := range allNum {
 					allNum[i] = i + 1
 				}
-				for idx := 0; idx < roulette.Time; idx++ {
+				for idx := range roulette.Time {
 					i := int(roulette.Face) - 1 - idx
 					j := rand.Intn(i + 1)
 					allNum[i], allNum[j] = allNum[j], allNum[i]

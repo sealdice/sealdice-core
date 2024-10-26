@@ -12,6 +12,8 @@ import (
 
 	"github.com/samber/lo"
 	ds "github.com/sealdice/dicescript"
+
+	log "sealdice-core/utils/kratos"
 )
 
 func (v *VMValue) ConvertToV2() *ds.VMValue {
@@ -78,13 +80,19 @@ func DiceFormatV1(ctx *MsgContext, s string) (string, error) { //nolint:revive
 }
 
 func DiceFormat(ctx *MsgContext, s string) string {
-	ret, err := DiceFormatV2(ctx, s)
-	if err != nil {
-		// 遇到异常，尝试一下V1
-		ret, _ = DiceFormatV1(ctx, s)
+	engineVersion := ctx.Dice.getTargetVmEngineVersion(VmVersionMsg)
+	if engineVersion == "v2" {
+		ret, err := DiceFormatV2(ctx, s)
+		if err != nil {
+			// 遇到异常，尝试一下V1
+			ret, _ = DiceFormatV1(ctx, s)
+			return ret
+		}
+		return ret
+	} else {
+		ret, _ := DiceFormatV1(ctx, s)
 		return ret
 	}
-	return ret
 }
 
 func DiceFormatTmpl(ctx *MsgContext, s string) string {
@@ -96,7 +104,7 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 		text = ctx.Dice.TextMap[s].PickSource(randSourceDrawAndTmplSelect).(string)
 
 		// 找出其兼容情况，以决定使用什么版本的引擎
-		engineVersion := "v2"
+		engineVersion := ctx.Dice.getTargetVmEngineVersion(VMVersionCustomText)
 		if items, exists := ctx.Dice.TextMapCompatible.Load(s); exists {
 			if info, exists := items.Load(text); exists {
 				if info.Version == "v1" {
@@ -108,7 +116,7 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 		if engineVersion == "v2" {
 			ret, _ := DiceFormatV2(ctx, text)
 			return ret
-		} else if engineVersion == "v1" {
+		} else {
 			ret, _ := DiceFormatV1(ctx, text)
 			return ret
 		}
@@ -138,7 +146,7 @@ func (ctx *MsgContext) EvalFString(expr string, flags *ds.RollConfig) *VMResultV
 	// 隐藏的内置字符串符号 \x1e
 	r := ctx.Eval("\x1e"+expr+"\x1e", flags)
 	if r.vm.Error != nil {
-		fmt.Println("脚本执行出错: ", expr, "->", r.vm.Error)
+		log.Error("脚本执行出错: ", expr, "->", r.vm.Error)
 	}
 	return r
 }
@@ -235,7 +243,7 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 		if flags.V2Only {
 			return nil, "", err
 		}
-		fmt.Println("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
+		log.Error("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
 		errV2 := err // 某种情况下没有这个值，很奇怪
 
 		// 尝试一下V1
@@ -618,7 +626,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			if size > 1 {
 				// 次级结果，如 (10d3)d5 中，此处为10d3的结果
 				// 例如 (10d3)d5=63[(10d3)d5=...,10d3=19]
-				for j := 0; j < len(item.spans)-1; j++ {
+				for j := range len(item.spans) - 1 {
 					span := item.spans[j]
 					subDetailsText += "," + string(detailResult[span.Begin:span.End]) + "=" + span.Ret.ToString()
 				}
@@ -687,7 +695,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	// 设置默认骰子面数
 	if ctx.Group != nil {
 		// 情况不明，在sealchat的第一次测试中出现Group为nil
-		ctx.vm.Config.DefaultDiceSideExpr = fmt.Sprintf("%d", ctx.Group.DiceSideNum)
+		ctx.vm.Config.DefaultDiceSideExpr = strconv.FormatInt(ctx.Group.DiceSideNum, 10)
 		if ctx.vm.Config.DefaultDiceSideExpr == "0" {
 			ctx.vm.Config.DefaultDiceSideExpr = "100"
 		}

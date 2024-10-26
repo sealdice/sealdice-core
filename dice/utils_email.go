@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -23,7 +24,7 @@ const (
 )
 
 func (d *Dice) CanSendMail() bool {
-	if d.MailFrom == "" || d.MailPassword == "" || d.MailSMTP == "" {
+	if d.Config.MailFrom == "" || d.Config.MailPassword == "" || d.Config.MailSMTP == "" {
 		return false
 	}
 	return true
@@ -31,7 +32,7 @@ func (d *Dice) CanSendMail() bool {
 
 func (d *Dice) SendMail(body string, m MailCode) error {
 	if !d.CanSendMail() {
-		return fmt.Errorf("邮件配置不完整")
+		return errors.New("邮件配置不完整")
 	}
 	sub := "Seal News: "
 	switch m {
@@ -47,7 +48,7 @@ func (d *Dice) SendMail(body string, m MailCode) error {
 		sub += "Test 测试邮件"
 	}
 	var to []string
-	for _, id := range d.NoticeIDs {
+	for _, id := range d.Config.NoticeIDs {
 		if strings.HasPrefix(id, "QQ:") {
 			to = append(to, id[3:]+"@qq.com")
 		}
@@ -70,7 +71,7 @@ func (d *Dice) SendMailRow(subject string, to []string, content string, attachme
 		}
 	}
 	m.SetHeader("Subject", fmt.Sprintf("[%s] %s", diceName, subject))
-	m.SetHeader("From", d.MailFrom)
+	m.SetHeader("From", d.Config.MailFrom)
 	m.SetHeader("To", to...)
 	if content == "" {
 		m.SetBody("text/plain", "***自动邮件，无需回复***")
@@ -83,7 +84,7 @@ func (d *Dice) SendMailRow(subject string, to []string, content string, attachme
 		}
 	}
 
-	dialer := gomail.NewDialer(d.MailSMTP, 25, d.MailFrom, d.MailPassword)
+	dialer := gomail.NewDialer(d.Config.MailSMTP, 25, d.Config.MailFrom, d.Config.MailPassword)
 	if err := dialer.DialAndSend(m); err != nil {
 		d.Logger.Error(err)
 	} else {
