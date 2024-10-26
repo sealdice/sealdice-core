@@ -253,7 +253,7 @@ func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
 	// 没有数据->更新失败->返回0条
 	// 有数据->更新成功->返回1条
 	// 有数据->更新失败->返回0条，但理论上所有返回0条的情况应该都会被丢出去
-	// 对于FirstOrCreate来说
+	// 对于FirstOrCreate来说应该不会遇到下面的情况，但是保底一下
 	if result.RowsAffected == 0 {
 		tx.Rollback()
 		return errors.New("群信息不存在或发生更新异常: " + id)
@@ -264,19 +264,40 @@ func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
 }
 
 func AttrsGetCharacterListByUserId(db *gorm.DB, userId string) ([]*AttributesItemModel, error) {
-	var items []*AttributesItemModel
+	// Pinenutn: 在Gorm中，如果gorm:"-"，优先级似乎很高，经过我自己测试：
+	// 结构体内若使用gorm="-" ，Scan将无法映射到结果中（GPT胡说八道说可以映射上，我试了半天，被骗。）
+	// 如果不带任何标签: GORM对结构体名称进行转换，如BindingGroupNum对应映射:binding_group_num，结果里有binding_group_num自动映射
+	// 如果带上标签"column:xxxxx"，则会使用指定的名称映射，如column:xxxxx对应映射xxxxx
+	// GPT 说带上JSON标签，可以映射到结果中，但实际上是错误的，无法映射。
+	// 所以最终”BindingGroupNum“需要创建这个结构体用来临时存放结果，然后将结果映射到AttributesItemModel结构体上。
+	type AttrResult struct {
+		ID              string `gorm:"column:id"`
+		Name            string `gorm:"column:name"`
+		SheetType       string `gorm:"column:sheet_type"`
+		BindingGroupNum int64  `gorm:"column:binding_group_num"` // 映射 COUNT(a.id)
+	}
+	var tempResultList []AttrResult
 
-	// 构建子查询
-	subQuery := db.Table("attrs").
-		Select("count(id)").
-		Where("binding_sheet_id = t1.id")
-
-	// 主查询
-	db.Table("attrs as t1").
-		Select("t1.id, t1.name, t1.sheet_type, (?) as binding_count", subQuery).
-		Where("t1.owner_id = ?", userId).
-		Where("t1.is_hidden = ?", false).
-		Find(&items)
-
+	// 此处使用了JOIN来避免子查询，数据库一般对JOIN有使用索引的优化，所以有性能提升，但是我没有实际测试过性能差距。
+	err := db.Table("attrs AS t1").
+		Select("t1.id, t1.name, t1.sheet_type, COUNT(a.id) AS binding_group_num").
+		Joins("LEFT JOIN attrs AS a ON a.binding_sheet_id = t1.id").
+		Where("t1.owner_id = ? AND t1.is_hidden IS FALSE", userId).
+		Group("t1.id, t1.name, t1.sheet_type").
+		// Pinenutn：此处我根据创建时间对创建的卡进行排序，不知道是否有意义？
+		Order("t1.created_at ASC").
+		Scan(&tempResultList).Error
+	if err != nil {
+		return nil, err
+	}
+	items := make([]*AttributesItemModel, len(tempResultList))
+	for i, tempResult := range tempResultList {
+		items[i] = &AttributesItemModel{
+			Id:               tempResult.ID,
+			Name:             tempResult.Name,
+			SheetType:        tempResult.SheetType,
+			BindingGroupsNum: tempResult.BindingGroupNum,
+		}
+	}
 	return items, nil // 返回角色列表
 }
