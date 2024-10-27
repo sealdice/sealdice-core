@@ -3,10 +3,11 @@ package utils
 import (
 	"compress/gzip"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
+
+	log "sealdice-core/utils/kratos"
 )
 
 func DownloadFile(filepath string, url string) error {
@@ -41,7 +42,7 @@ func DownloadFile(filepath string, url string) error {
 			var reader io.ReadCloser
 			reader, err = gzip.NewReader(resp.Body)
 			if err != nil {
-				fmt.Println("GZIP解压出错:", err)
+				log.Errorf("GZIP解压出错: %v", err)
 				return err
 			}
 			defer reader.Close()
