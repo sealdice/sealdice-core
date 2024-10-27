@@ -463,7 +463,7 @@ func DiceMailTest(c echo.Context) error {
 	return Success(&c, Response{})
 }
 
-func vmVersionSet(c echo.Context) error {
+func vmVersionForExtSetBase(c echo.Context, callback func(val string)) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
@@ -471,42 +471,29 @@ func vmVersionSet(c echo.Context) error {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
 
-	var req []struct {
-		Type  string `json:"type"`
+	var data struct {
 		Value string `json:"value"`
 	}
 
-	err := c.Bind(&req)
+	err := c.Bind(&data)
 	if err != nil {
 		return Error(&c, err.Error(), nil)
 	}
-	if len(req) == 0 {
-		return Error(&c, "缺少设置vm版本的参数", Response{})
-	}
 
-	var failTypes []string
-	for _, data := range req {
-		if data.Type == "" || data.Value == "" {
-			failTypes = append(failTypes, data.Type)
-			continue
-		}
-		switch data.Type {
-		case dice.VMVersionReply:
-			(&myDice.Config).VMVersionForReply = data.Value
-		case dice.VMVersionDeck:
-			(&myDice.Config).VMVersionForDeck = data.Value
-		case dice.VMVersionCustomText:
-			(&myDice.Config).VMVersionForCustomText = data.Value
-		case dice.VmVersionMsg:
-			(&myDice.Config).VMVersionForMsg = data.Value
-		default:
-			failTypes = append(failTypes, data.Type)
-		}
-	}
+	callback(data.Value)
 	myDice.MarkModified()
-	myDice.Save(false)
+	myDice.Parent.Save()
+	return Success(&c, Response{})
+}
 
-	return Success(&c, Response{
-		"failTypes": failTypes,
+func vmVersionForReplySet(c echo.Context) error {
+	return vmVersionForExtSetBase(c, func(val string) {
+		(&myDice.Config).VMVersionForReply = val
+	})
+}
+
+func vmVersionForDeckSet(c echo.Context) error {
+	return vmVersionForExtSetBase(c, func(val string) {
+		(&myDice.Config).VMVersionForDeck = val
 	})
 }
