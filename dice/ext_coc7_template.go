@@ -2,7 +2,8 @@ package dice
 
 import (
 	"encoding/json"
-	"fmt"
+
+	log "sealdice-core/utils/kratos"
 )
 
 var coc7TemplateData = `
@@ -762,7 +763,7 @@ func getCoc7CharTemplate() *GameSystemTemplate {
 	temp := &GameSystemTemplate{}
 	err := json.Unmarshal([]byte(coc7TemplateData), temp)
 	if err != nil {
-		fmt.Println("解析模板错误:", err.Error())
+		log.Errorf("解析模板错误: %v", err)
 		return nil
 	}
 

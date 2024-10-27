@@ -52,7 +52,7 @@ func DBCacheDelete() bool {
 
 func DBVacuum() {
 	done := make(chan interface{}, 1)
-	fmt.Println("开始进行数据库整理")
+	fmt.Fprintln(os.Stdout, "开始进行数据库整理")
 
 	go spinner.WithLines(done, 3, 10)
 	defer func() {
@@ -67,12 +67,12 @@ func DBVacuum() {
 		db, err := _SQLiteDBInit(path, true)
 		defer func() { _ = db.Close() }()
 		if err != nil {
-			fmt.Printf("清理 %q 时出现错误：%v", path, err)
+			fmt.Fprintf(os.Stdout, "清理 %q 时出现错误：%v", path, err)
 			return
 		}
 		_, err = db.Exec("VACUUM;")
 		if err != nil {
-			fmt.Printf("清理 %q 时出现错误：%v", path, err)
+			fmt.Fprintf(os.Stdout, "清理 %q 时出现错误：%v", path, err)
 		}
 	}
 
@@ -82,5 +82,5 @@ func DBVacuum() {
 
 	wg.Wait()
 
-	fmt.Println("\n数据库整理完成")
+	fmt.Fprintln(os.Stdout, "\n数据库整理完成")
 }

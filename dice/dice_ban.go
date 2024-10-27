@@ -191,6 +191,7 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 		// 警告: XXX 因为等行为，进入警告列表
 		// 黑名单: XXX 因为等行为，进入黑名单。将作出以下惩罚：拒绝回复、拒绝邀请、退出事发群
 		// TODO
+		//nolint:forbidigo // that is a todo
 		fmt.Println("TODO Alert")
 	}
 

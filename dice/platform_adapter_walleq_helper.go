@@ -272,9 +272,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 					dice.Logger.Warn("添加到进程组失败，若主进程崩溃，walle-q 进程可能需要手动结束")
 				}
 			}
-			fmt.Println("wait！")
 			err = p.Wait()
-			fmt.Println(err)
 		}
 
 		if err != nil {

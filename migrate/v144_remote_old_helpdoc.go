@@ -24,7 +24,7 @@ func V144RemoveOldHelpdoc() error {
 
 	_, err = os.Stat(newName)
 	if errors.Is(err, os.ErrNotExist) {
-		fmt.Printf("New helpdoc %s not found. Skip removing old helpdoc %s\n", newName, oldName)
+		fmt.Fprintf(os.Stdout, "New helpdoc %s not found. Skip removing old helpdoc %s\n", newName, oldName)
 		return nil
 	}
 	if err != nil {
@@ -32,16 +32,16 @@ func V144RemoveOldHelpdoc() error {
 	}
 
 	if crypto.Sha256Checksum(oldName) != oldSHA256 {
-		fmt.Printf("Old helpdoc %s checksum mismatch. You may have edited this file?\n", oldName)
+		fmt.Fprintf(os.Stdout, "Old helpdoc %s checksum mismatch. You may have edited this file?\n", oldName)
 		return nil
 	}
 
 	if crypto.Sha256Checksum(newName) != newSHA256 {
-		fmt.Printf("New helpdoc %s checksum mismatch. Skip removing old helpdoc %s\n", newName, oldName)
+		fmt.Fprintf(os.Stdout, "New helpdoc %s checksum mismatch. Skip removing old helpdoc %s\n", newName, oldName)
 		return nil
 	}
 
-	fmt.Printf("Removing old helpdoc %s\n", oldName)
+	fmt.Fprintf(os.Stdout, "Removing old helpdoc %s\n", oldName)
 	os.Remove(oldName)
 	return nil
 }

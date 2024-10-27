@@ -152,7 +152,6 @@ func checkUidExists(c echo.Context, uid string) bool {
 				// 默认为gocq
 				relWorkDir = "extra/go-cqhttp-qq" + uid
 			}
-			fmt.Println(relWorkDir, i.RelWorkDir)
 			if relWorkDir == i.RelWorkDir {
 				// 不允许工作路径重复
 				_ = c.JSON(CodeAlreadyExists, i)

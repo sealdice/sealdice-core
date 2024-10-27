@@ -121,8 +121,8 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 		_, userIdPart, ok := dice.UnpackGroupUserId(id)
 		if !ok {
 			countFailed += 1
-			fmt.Println("数据库读取出错，退出转换")
-			fmt.Println("ID解析失败: ", id)
+			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
+			fmt.Fprintln(os.Stdout, "ID解析失败: ", id)
 			continue
 		}
 
@@ -131,7 +131,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 
 		if err != nil {
 			countFailed += 1
-			fmt.Println("解析失败: ", string(data))
+			fmt.Fprintln(os.Stdout, "解析失败: ", string(data))
 			continue
 		}
 
@@ -156,11 +156,10 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
-			fmt.Printf("群-用户 %s 的数据无法转换\n", id)
+			fmt.Fprintf(os.Stdout, "群-用户 %s 的数据无法转换\n", id)
 			continue
 		}
 
-		// fmt.Println("UnpackID:", id, " UserPart:", userIdPart, " Sheet:", sheetIdBindByGroupUserId[id])
 		item := &model.AttributesItemModel{
 			Id:        id,
 			Data:      rawData,
@@ -212,7 +211,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 		)
 
 		if err != nil {
-			fmt.Println("数据库读取出错，退出转换")
+			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
 			return count, countFailed, err
 		}
 
@@ -221,7 +220,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 
 		if err != nil {
 			countFailed += 1
-			fmt.Println("解析失败: ", string(data))
+			fmt.Fprintln(os.Stdout, "解析失败: ", string(data))
 			continue
 		}
 
@@ -234,7 +233,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
-			fmt.Printf("群 %s 的数据无法转换\n", id)
+			fmt.Fprintf(os.Stdout, "群 %s 的数据无法转换\n", id)
 			continue
 		}
 
@@ -283,7 +282,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 		)
 
 		if err != nil {
-			fmt.Println("数据库读取出错，退出转换")
+			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
 			return count, countSheetsNum, countFailed, err
 		}
 
@@ -295,7 +294,6 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 			continue
 		}
 
-		// fmt.Println("数据转换-用户:", ownerId)
 		var newSheetsList []*model.AttributesItemModel
 		var sheetNameBindByGroupId = map[string]string{}
 
@@ -314,7 +312,6 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 				groupId := k[len("$:group-bind:"):]
 				name, _ := v.ReadString()
 				sheetNameBindByGroupId[groupId] = name
-				// fmt.Println("绑卡关联:", groupId, name)
 				continue
 			}
 			if strings.HasPrefix(k, "$ch:") {
@@ -324,7 +321,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 
 				toNew, err = convertToNew(name, ownerId, []byte(v.ToString()), updatedAt)
 				if err != nil {
-					fmt.Printf("用户 %s 的角色卡 %s 无法转换", ownerId, name)
+					fmt.Fprintf(os.Stdout, "用户 %s 的角色卡 %s 无法转换", ownerId, name)
 					continue
 				}
 				newSheetsList = append(newSheetsList, toNew)
@@ -337,7 +334,6 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 			// 一次性，双循环罢
 			for groupID, j := range sheetNameBindByGroupId {
 				if j == i.Name {
-					// fmt.Println("GUID:", fmt.Sprintf("%s-%s", groupID, ownerId), " sheetID:", i.Id)
 					sheetIdBindByGroupUserId[fmt.Sprintf("%s-%s", groupID, ownerId)] = i.Id
 				}
 			}
@@ -347,7 +343,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 		for _, i := range newSheetsList {
 			_, err = AttrsNewItem(db, i)
 			if err != nil {
-				fmt.Printf("用户 %s 的角色卡 %s 无法写入数据库: %s\n", ownerId, i.Name, err.Error())
+				fmt.Fprintf(os.Stdout, "用户 %s 的角色卡 %s 无法写入数据库: %s\n", ownerId, i.Name, err.Error())
 			}
 		}
 
@@ -355,7 +351,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
-			fmt.Printf("用户 %s 的个人数据无法转换\n", ownerId)
+			fmt.Fprintf(os.Stdout, "用户 %s 的个人数据无法转换\n", ownerId)
 			continue
 		}
 
@@ -403,7 +399,7 @@ func V150Upgrade() bool {
 
 	db, err := openDB(dbDataPath)
 	if err != nil {
-		fmt.Println("升级失败，无法打开数据库:", err)
+		fmt.Fprintln(os.Stdout, "升级失败，无法打开数据库:", err)
 		return false
 	}
 	defer func() {
@@ -412,7 +408,7 @@ func V150Upgrade() bool {
 
 	exists, err := checkTableExists(db, "attrs")
 	if err != nil {
-		fmt.Println("V150数据转换未知错误:", err.Error())
+		fmt.Fprintln(os.Stdout, "V150数据转换未知错误:", err.Error())
 		return false
 	}
 	if exists {
@@ -420,7 +416,7 @@ func V150Upgrade() bool {
 		return true
 	}
 
-	fmt.Println("1.5 数据迁移")
+	fmt.Fprintln(os.Stdout, "1.5 数据迁移")
 	sheetIdBindByGroupUserId = map[string]string{}
 
 	sqls := []string{
@@ -452,39 +448,39 @@ CREATE TABLE IF NOT EXISTS attrs (
 
 	tx, err := db.Beginx()
 	if err != nil {
-		fmt.Println("V150数据转换创建事务失败:", err.Error())
+		fmt.Fprintln(os.Stdout, "V150数据转换创建事务失败:", err.Error())
 		return false
 	}
 
 	if exists, _ := checkTableExists(db, "attrs_user"); exists {
 		count, countSheetsNum, countFailed, err2 := attrsUserMigrate(tx)
-		fmt.Printf("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
+		fmt.Fprintf(os.Stdout, "数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
 		if err2 != nil {
-			fmt.Println("异常", err2.Error())
+			fmt.Fprintln(os.Stdout, "异常", err2.Error())
 			return false
 		}
 	}
 
 	if exists, _ := checkTableExists(db, "attrs_group_user"); exists {
 		count, countFailed, err2 := attrsGroupUserMigrate(tx)
-		fmt.Printf("数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
+		fmt.Fprintf(os.Stdout, "数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
 		if err2 != nil {
-			fmt.Println("异常", err2.Error())
+			fmt.Fprintln(os.Stdout, "异常", err2.Error())
 			return false
 		}
 	}
 
 	if exists, _ := checkTableExists(db, "attrs_group"); exists {
 		count, countFailed, err2 := attrsGroupMigrate(tx)
-		fmt.Printf("数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
+		fmt.Fprintf(os.Stdout, "数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
 		if err2 != nil {
-			fmt.Println("异常", err2.Error())
+			fmt.Fprintln(os.Stdout, "异常", err2.Error())
 			return false
 		}
 	}
 
 	// 删档
-	fmt.Println("删除旧版本数据")
+	fmt.Fprintln(os.Stdout, "删除旧版本数据")
 	_, _ = tx.Exec("drop table attrs_group")
 	_, _ = tx.Exec("drop table attrs_group_user")
 	_, _ = tx.Exec("drop table attrs_user")
@@ -495,10 +491,10 @@ CREATE TABLE IF NOT EXISTS attrs (
 
 	err = tx.Commit()
 	if err != nil {
-		fmt.Println("V150 数据转换失败:", err.Error())
+		fmt.Fprintln(os.Stdout, "V150 数据转换失败:", err.Error())
 		return false
 	}
 
-	fmt.Println("V150 数据转换完成")
+	fmt.Fprintln(os.Stdout, "V150 数据转换完成")
 	return true
 }

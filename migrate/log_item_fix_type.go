@@ -60,8 +60,8 @@ func LogItemFixDatatype() error {
 		return nil
 	}
 
-	fmt.Println("开始修复log_items表message字段类型")
-	fmt.Println("【不要关闭海豹程序！】")
+	fmt.Fprintln(os.Stdout, "开始修复log_items表message字段类型")
+	fmt.Fprintln(os.Stdout, "【不要关闭海豹程序！】")
 
 	done := make(chan interface{}, 1)
 
@@ -88,7 +88,7 @@ func LogItemFixDatatype() error {
 	}
 	_, _ = db.Exec(`VACUUM;`)
 
-	fmt.Println("\n修复log_items表message字段类型成功")
-	fmt.Println("您现在可以正常使用海豹程序了")
+	fmt.Fprintln(os.Stdout, "\n修复log_items表message字段类型成功")
+	fmt.Fprintln(os.Stdout, "您现在可以正常使用海豹程序了")
 	return nil
 }

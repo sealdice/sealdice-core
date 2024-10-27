@@ -99,7 +99,7 @@ func V131DeprecatedConfig2CustomText() error {
 	}
 
 	if needUpdateCustomText {
-		fmt.Println("检测到旧设置项需要迁移到自定义文案，试图进行迁移")
+		fmt.Fprintln(os.Stdout, "检测到旧设置项需要迁移到自定义文案，试图进行迁移")
 
 		// 保存修改了的 custom text 设置
 		newData, err := yaml.Marshal(customTexts)
@@ -137,7 +137,7 @@ func V131DeprecatedConfig2CustomText() error {
 			return err
 		}
 
-		fmt.Println("旧设置项迁移到自定义文案成功")
+		fmt.Fprintln(os.Stdout, "旧设置项迁移到自定义文案成功")
 	}
 
 	return nil
