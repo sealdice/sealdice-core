@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"regexp"
 	"runtime/debug"
 	"sort"
@@ -1455,7 +1456,11 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			// 发出提示
 			msgCtx.Notice(hint)
 			// 等待十秒
-			time.Sleep(10 * time.Second)
+			r := rand.New(rand.NewSource(time.Now().UnixNano()))
+			// 生成一个随机值（8~11秒随机）
+			randomSleep := time.Duration(r.Intn(3000)+8000) * time.Millisecond
+			log.Infof("退群等待，等待 %f 秒后继续", randomSleep.Seconds())
+			time.Sleep(randomSleep)
 		}
 	}()
 }
