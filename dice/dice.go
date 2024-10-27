@@ -684,25 +684,43 @@ func ErrorLogAndContinue(d *Dice) {
 }
 
 var chsS2T = sat.DefaultDict()
+var taskId *cron.EntryID
+var quitMutex sync.Mutex
 
 func (d *Dice) ResetQuitInactiveCron() {
+	// TODO: 这里加锁是否有必要？
+	quitMutex.Lock()
+	defer quitMutex.Unlock()
 	dm := d.Parent
 	if d.Config.quitInactiveCronEntry > 0 {
 		dm.Cron.Remove(d.Config.quitInactiveCronEntry)
 		(&d.Config).quitInactiveCronEntry = DefaultConfig.quitInactiveCronEntry
 	}
-
+	// 如果退群功能开启，那么设定退群的Cron
 	if d.Config.QuitInactiveThreshold > 0 {
 		var err error
-		(&d.Config).quitInactiveCronEntry, err = dm.Cron.AddFunc("0 4 * * *", func() {
+		duration, err := time.ParseDuration(fmt.Sprintf("%dm", d.Config.QuitInactiveBatchWait))
+		if err != nil {
+			d.Logger.Error("退群信息设置发生错误,错误为: %s", err.Error())
+			return
+		}
+		// 没有必要坚持之前的4点开始，而是直接开始新的函数
+		// 每隔上面的退群时间，执行一次函数
+		if taskId != nil {
+			dm.Cron.Remove(*taskId)
+		}
+		addFunc, err := dm.Cron.AddFunc(fmt.Sprintf("@every %s", duration), func() {
 			thr := time.Now().Add(-d.Config.QuitInactiveThreshold)
-			hint := thr.Add(d.Config.QuitInactiveThreshold / 10) // 进入退出判定线的9/10开始提醒
-			d.ImSession.LongTimeQuitInactiveGroup(thr, hint,
-				int(d.Config.QuitInactiveBatchWait),
-				int(d.Config.QuitInactiveBatchSize))
+			// 进入退出判定线的9/10开始提醒, 但是目前来看，原版的只有一个提示，提示会被大量刷屏然后消失不见。所以认为目前它没有意义
+			// hint := thr.Add(d.Config.QuitInactiveThreshold / 10)
+			d.ImSession.LongTimeQuitInactiveGroupReborn(thr, int(d.Config.QuitInactiveBatchSize))
 		})
 		if err != nil {
-			d.Logger.Errorf("创建自动清理群聊cron任务失败: %v", err)
+			d.Logger.Error("退群调度启动设置发生错误,错误为: %s", err.Error())
+			return
 		}
+		// 持有对应的引用
+		taskId = &addFunc
+		d.Logger.Infof("退群功能已启动，每 %s 执行一次退群判定", duration.String())
 	}
 }
