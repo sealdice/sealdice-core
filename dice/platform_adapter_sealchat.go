@@ -29,7 +29,7 @@ type PlatformAdapterSealChat struct {
 }
 
 func (pa *PlatformAdapterSealChat) Serve() int {
-	if !strings.HasPrefix(pa.ConnectURL, "ws://") {
+	if !strings.HasPrefix(pa.ConnectURL, "ws://") && !strings.HasPrefix(pa.ConnectURL, "wss://") {
 		pa.ConnectURL = "ws://" + pa.ConnectURL
 	}
 	socket := gowebsocket.New(pa.ConnectURL)
