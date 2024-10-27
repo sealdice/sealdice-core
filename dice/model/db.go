@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 
 	"gorm.io/gorm"
+
+	log "sealdice-core/utils/kratos"
 )
 
 func DBCheck(dataDir string) {
@@ -82,7 +84,7 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
 	dataDB, err = _SQLiteDBInit(dbDataPath, true)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 	// data建表
 	err = dataDB.AutoMigrate(
@@ -96,7 +98,14 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 	if err != nil {
 		return nil, nil, err
 	}
+	log.Info("数据库初始化中，请稍候...")
+	// data vacuum
+	err = InitVacuum(dataDB)
+	if err != nil {
+		return nil, nil, err
+	}
 	logsDB, err = LogDBInit(dataDir)
+	log.Info("数据库初始化完毕")
 	return
 }
 
@@ -105,10 +114,14 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
 	logsDB, err = _SQLiteDBInit(dbDataLogsPath, true)
 	if err != nil {
-		return
+		return nil, err
 	}
 	// logs建表
 	if err := logsDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
+		return nil, err
+	}
+	err = InitVacuum(logsDB)
+	if err != nil {
 		return nil, err
 	}
 	return logsDB, nil
@@ -127,5 +140,21 @@ func SQLiteCensorDBInit(dataDir string) (censorDB *gorm.DB, err error) {
 	if err = censorDB.AutoMigrate(&CensorLog{}); err != nil {
 		return nil, err
 	}
+	err = InitVacuum(censorDB)
+	if err != nil {
+		return nil, err
+	}
 	return censorDB, nil
+}
+
+func InitVacuum(db *gorm.DB) error {
+	// 检查数据库驱动是否为 SQLite
+	if db.Dialector.Name() != "sqlite" {
+		log.Debug("非SQLITE，跳过运行VACUUM")
+		return nil
+	}
+
+	// 使用 GORM 执行 vacuum 操作，并将数据库保存到指定路径
+	err := db.Exec("VACUUM").Error
+	return err // 返回错误
 }

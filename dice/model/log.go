@@ -85,9 +85,11 @@ type LogInfo struct {
 	CreatedAt int64  `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt int64  `json:"updatedAt" gorm:"column:updated_at;index:idx_logs_update_at"`
 	// 允许数据库NULL值
-	Size *int `json:"size" gorm:"column:size"`
+	// 原版代码中，此处标记了db:size，但实际上，该列并不存在。
+	// 考虑到该处数据将会为未来log查询提供优化手段，保留该结构体定义，但不使用。
+	Size *int `json:"size" gorm:"-"`
 	// 数据库里有，json不展示的
-	// 允许数据库NULL值
+	// 允许数据库NULL值（该字段当前不使用）
 	Extra *string `json:"-" gorm:"column:extra"`
 	// 原本标记为：测试版特供，由于原代码每次都会执行，故直接启用此处column记录。
 	UploadURL  string `json:"-" gorm:"column:upload_url"`  // 测试版特供
