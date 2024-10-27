@@ -118,6 +118,7 @@ func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) e
 			"id": id,
 			// 如果想在[]bytes里输入值，注意传参的时候不能给any传[]bytes，否则会无法读取，同时还没有豹错，浪费大量时间。
 			// 这里为了兼容，不使用gob的序列化方法处理结构体（同时，也不知道序列化方法是否可用）
+			// TODO: 是否在这里string(data)更快更合理？
 			"data":             gjson.ParseBytes(data).String(),
 			"is_hidden":        true,
 			"binding_sheet_id": "",
