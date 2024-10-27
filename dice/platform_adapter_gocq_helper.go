@@ -931,11 +931,11 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 					if !skip {
 						dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
 					} else if strings.HasSuffix(line, "\n") {
-						fmt.Printf("onebot | %s", line)
+						dice.Logger.Infof("onebot | %s", line[:len(line)-1])
 					}
 				} else {
 					if strings.HasSuffix(line, "\n") {
-						fmt.Printf("onebot | %s", line)
+						dice.Logger.Infof("onebot | %s", line[:len(line)-1])
 					}
 
 					skip := false
@@ -964,7 +964,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 			<-chQrCode
 			if _, err := os.Stat(qrcodeFile); err == nil {
 				dice.Logger.Info("onebot: 二维码已经就绪")
-				fmt.Println("如控制台二维码不好扫描，可以手动打开 ./data/default/extra/go-cqhttp-qqXXXXX 目录下qrcode.png")
+				fmt.Fprintln(os.Stdout, "如控制台二维码不好扫描，可以手动打开 ./data/default/extra/go-cqhttp-qqXXXXX 目录下qrcode.png")
 				qrdata, err := os.ReadFile(qrcodeFile)
 				if err == nil {
 					pa.GoCqhttpState = StateCodeInLoginQrCode
