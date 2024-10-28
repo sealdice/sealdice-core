@@ -140,8 +140,7 @@ func socketSendText(socket *gowebsocket.Socket, s string) {
 
 	if socket != nil {
 		// 什么也不做，这样就能用来做不发话的测试
-		fmt.Printf("才不要干活呢! %s", s)
-		// socket.SendText(s)
+		socket.SendText(s)
 	}
 }
 
