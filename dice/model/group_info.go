@@ -69,7 +69,9 @@ func GroupInfoSave(db *gorm.DB, groupID string, updatedAt int64, data []byte) er
 
 	// 使用 GORM 的 Save 方法：Save 会根据主键决定是插入还是更新记录
 	// 如果记录存在则更新，不存在则插入。
-	err := db.Model().Save(&groupInfo).Error
+	// 修改为定义Model而不是使用Where
+	// NOTE Don’t use Save with Model, it’s an Undefined Behavior.
+	err := db.Save(&groupInfo).Error
 	return err
 }
 
