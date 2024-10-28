@@ -105,7 +105,7 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 		tx := dataDB.Begin()
 		// 检查是否有这个影响的注释
 		var count int64
-		err = dataDB.Raw("SELECT `sql` FROM `sqlite_master` WHERE tbl_name = 'attrs' AND `sql` LIKE '%这个方法也太严格了%'").Count(&count).Error
+		err = dataDB.Raw("SELECT count(*) FROM `sqlite_master` WHERE tbl_name = 'attrs' AND `sql` LIKE '%这个方法太严格了%'").Count(&count).Error
 		if err != nil {
 			tx.Rollback()
 			return nil, nil, err
@@ -142,6 +142,10 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 	if err != nil {
 		return nil, nil, err
 	}
+	err = dataDB.Exec("VACUUM").Error
+	if err != nil {
+		return nil, nil, err
+	}
 	logsDB, err = LogDBInit(dataDir)
 	return
 }
@@ -155,6 +159,10 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 	}
 	// logs建表
 	if err := logsDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
+		return nil, err
+	}
+	err = logsDB.Exec("VACUUM").Error
+	if err != nil {
 		return nil, err
 	}
 	return logsDB, nil
@@ -171,6 +179,10 @@ func SQLiteCensorDBInit(dataDir string) (censorDB *gorm.DB, err error) {
 	}
 	// 创建基本的表结构，并通过标签定义索引
 	if err = censorDB.AutoMigrate(&CensorLog{}); err != nil {
+		return nil, err
+	}
+	err = censorDB.Exec("VACUUM").Error
+	if err != nil {
 		return nil, err
 	}
 	return censorDB, nil
