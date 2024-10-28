@@ -3,7 +3,6 @@ package api
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/model"
+	log "sealdice-core/utils/kratos"
 )
 
 func check(c echo.Context) (bool, error) {
@@ -159,7 +159,7 @@ func censorSetConfig(c echo.Context) error {
 	jsonMap := make(map[string]interface{})
 	err = json.NewDecoder(c.Request().Body).Decode(&jsonMap)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("censorSetConfig", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
@@ -445,7 +445,7 @@ func censorDeleteWordFiles(c echo.Context) error {
 	}{}
 	err = c.Bind(&v)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("censorDeleteWordFiles", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
@@ -520,7 +520,7 @@ func censorGetLogPage(c echo.Context) error {
 	v := model.QueryCensorLog{}
 	err = c.Bind(&v)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("censorGetLogPage", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	if v.PageNum < 1 {

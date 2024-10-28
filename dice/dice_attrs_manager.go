@@ -281,7 +281,7 @@ func (i *AttributesItem) SaveToDB(db *gorm.DB) {
 	}
 	err = model.AttrsPutById(db, i.ID, rawData, i.Name, i.SheetType)
 	if err != nil {
-		fmt.Println("保存数据失败", err.Error())
+		log.Error("保存数据失败", err.Error())
 		return
 	}
 	i.IsSaved = true

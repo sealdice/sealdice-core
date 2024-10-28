@@ -179,7 +179,6 @@ func jsUpload(c echo.Context) error {
 	// fmt.Println("????", filepath.Join("./data/decks", file.Filename))
 	file.Filename = strings.ReplaceAll(file.Filename, "/", "_")
 	file.Filename = strings.ReplaceAll(file.Filename, "\\", "_")
-	fmt.Println("XXXX", filepath.Join(myDice.BaseConfig.DataDir, "scripts", file.Filename))
 	dst, err := os.Create(filepath.Join(myDice.BaseConfig.DataDir, "scripts", file.Filename))
 	if err != nil {
 		return err

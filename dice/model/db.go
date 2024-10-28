@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -22,7 +23,7 @@ func DBCheck(dataDir string) {
 				ok = false
 				break
 			}
-			fmt.Println(s)
+			fmt.Fprintln(os.Stdout, s)
 			if s == "ok" {
 				ok = true
 			}
@@ -43,7 +44,7 @@ func DBCheck(dataDir string) {
 	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
 	dataDB, err = _SQLiteDBInit(dbDataPath, false)
 	if err != nil {
-		fmt.Println("数据库 data.db 无法打开")
+		fmt.Fprintln(os.Stdout, "数据库 data.db 无法打开")
 	} else {
 		ok1 = checkDB(dataDB)
 		db, _ := dataDB.DB()
@@ -54,7 +55,7 @@ func DBCheck(dataDir string) {
 	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
 	logsDB, err = _SQLiteDBInit(dbDataLogsPath, false)
 	if err != nil {
-		fmt.Println("数据库 data-logs.db 无法打开")
+		fmt.Fprintln(os.Stdout, "数据库 data-logs.db 无法打开")
 	} else {
 		ok2 = checkDB(logsDB)
 		db, _ := logsDB.DB()
@@ -65,7 +66,7 @@ func DBCheck(dataDir string) {
 	dbDataCensorPath, _ := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
 	censorDB, err = _SQLiteDBInit(dbDataCensorPath, false)
 	if err != nil {
-		fmt.Println("数据库 data-censor.db 无法打开")
+		fmt.Fprintln(os.Stdout, "数据库 data-censor.db 无法打开")
 	} else {
 		ok3 = checkDB(censorDB)
 		db, _ := censorDB.DB()
@@ -73,10 +74,10 @@ func DBCheck(dataDir string) {
 		db.Close()
 	}
 
-	fmt.Println("数据库检查结果：")
-	fmt.Println("data.db:", ok1)
-	fmt.Println("data-logs.db:", ok2)
-	fmt.Println("data-censor.db:", ok3)
+	fmt.Fprintln(os.Stdout, "数据库检查结果：")
+	fmt.Fprintln(os.Stdout, "data.db:", ok1)
+	fmt.Fprintln(os.Stdout, "data-logs.db:", ok2)
+	fmt.Fprintln(os.Stdout, "data-censor.db:", ok3)
 }
 
 var createSql = `
