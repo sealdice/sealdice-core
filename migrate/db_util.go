@@ -18,6 +18,9 @@ func openDB(path string) (*sqlx.DB, error) {
 		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
 		Logger: logger.Default.LogMode(logger.Info),
 	})
+	if err != nil {
+		panic(err)
+	}
 	db, err := utils.GetSQLXDB(gdb)
 	// db, err := sqlx.Open("sqlite", path)
 	if err != nil {

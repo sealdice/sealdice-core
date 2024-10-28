@@ -129,8 +129,16 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 			}
 			// 删除旧的表
 			err = tx.Exec("DROP TABLE `attrs`").Error
+			if err != nil {
+				tx.Rollback()
+				return nil, nil, err
+			}
 			// 改名
 			err = tx.Exec("ALTER TABLE `attrs__temp` RENAME TO `attrs`").Error
+			if err != nil {
+				tx.Rollback()
+				return nil, nil, err
+			}
 			tx.Commit()
 		}
 	}
@@ -161,7 +169,7 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 		return
 	}
 	// logs建表
-	if err := logsDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
+	if err = logsDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
 		return nil, err
 	}
 	err = logsDB.Exec("VACUUM").Error
@@ -174,11 +182,11 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 func SQLiteCensorDBInit(dataDir string) (censorDB *gorm.DB, err error) {
 	path, err := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
 	if err != nil {
-		return
+		return nil, err
 	}
 	censorDB, err = _SQLiteDBInit(path, true)
 	if err != nil {
-		return
+		return nil, err
 	}
 	// 创建基本的表结构，并通过标签定义索引
 	if err = censorDB.AutoMigrate(&CensorLog{}); err != nil {
