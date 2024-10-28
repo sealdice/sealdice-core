@@ -97,4 +97,14 @@ var DefaultConfig = Config{
 		CensorMatchPinyin:    false,
 		CensorFilterRegexStr: "",
 	},
+	DirtyConfig{
+		DeckList: nil,
+		CommandPrefix: []string{
+			"!",
+			".",
+			"。",
+			"/",
+		},
+		DiceMasters: []string{"UI:1001"},
+	},
 }
