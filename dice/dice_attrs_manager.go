@@ -287,7 +287,7 @@ func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
 	}
 	err = model.AttrsPutById(db, tx, i.ID, rawData, i.Name, i.SheetType)
 	if err != nil {
-		fmt.Println("保存数据失败", err.Error())
+		log.Error("保存数据失败", err.Error())
 		return
 	}
 	i.IsSaved = true

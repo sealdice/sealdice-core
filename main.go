@@ -213,7 +213,7 @@ func main() {
 		log.Info(osr)
 	}
 	if opts.Version {
-		fmt.Println(dice.VERSION.String())
+		fmt.Fprintln(os.Stdout, dice.VERSION.String())
 		return
 	}
 	if opts.DBCheck {
@@ -226,7 +226,7 @@ func main() {
 	}
 	if opts.ShowEnv {
 		for i, e := range os.Environ() {
-			println(i, e)
+			fmt.Fprintln(os.Stdout, i, e)
 		}
 		return
 	}
@@ -464,7 +464,7 @@ func main() {
 	// err = nil
 	// err = http.ListenAndServe(":9090", nil)
 	// if err != nil {
-	// 	fmt.Printf("ListenAndServe: %s", err)
+	// 	fmt.Fprintf(os.Stdout, "ListenAndServe: %s", err)
 	// }
 
 	// darwin 的托盘菜单似乎需要在主线程启动才能工作，调整到这里

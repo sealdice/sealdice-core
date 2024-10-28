@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/utils"
+	log "sealdice-core/utils/kratos"
 )
 
 type DiceConfigInfo struct {
@@ -109,7 +109,7 @@ func DiceConfigSet(c echo.Context) error {
 	}
 
 	if err != nil {
-		fmt.Println(err)
+		log.Error("DiceConfigSet", err)
 		return c.JSON(http.StatusOK, nil)
 	}
 	if val, ok := jsonMap["commandPrefix"]; ok {

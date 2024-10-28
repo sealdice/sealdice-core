@@ -3,10 +3,11 @@ package procs
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 	"os/exec"
 	"strings"
+
+	log "sealdice-core/utils/kratos"
 
 	"github.com/fyrchik/go-shlex"
 )
@@ -87,7 +88,7 @@ func (p *Process) Start() error {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Println("Recovered from panic:", r)
+				log.Errorf("Recovered from panic: %v", r)
 			}
 		}()
 
@@ -107,7 +108,7 @@ func (p *Process) Start() error {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Println("Recovered from panic:", r)
+				log.Errorf("Recovered from panic: %v", r)
 			}
 		}()
 
