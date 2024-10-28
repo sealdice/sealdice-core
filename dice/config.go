@@ -2081,8 +2081,13 @@ func (d *Dice) loads() {
 		d.ImSession.EndPoints = dNew.ImSession.EndPoints
 		d.DiceMasters = dNew.DiceMasters
 		if len(d.DiceMasters) == 0 {
-			d.DiceMasters = []string{"UI:1001"}
+			d.DiceMasters = DefaultConfig.DiceMasters
 		}
+		d.CommandPrefix = dNew.CommandPrefix
+		if len(d.CommandPrefix) == 0 {
+			d.CommandPrefix = DefaultConfig.CommandPrefix
+		}
+		d.DeckList = dNew.DeckList
 		var newDiceMasters []string
 		for _, i := range d.DiceMasters {
 			if i != "<平台,如QQ>:<帐号,如QQ号>" {
@@ -2302,15 +2307,6 @@ func (d *Dice) loads() {
 	for _, i := range d.ImSession.EndPoints {
 		i.Session = d.ImSession
 		i.AdapterSetup()
-	}
-
-	if len(d.CommandPrefix) == 0 {
-		d.CommandPrefix = []string{
-			"!",
-			".",
-			"。",
-			"/",
-		}
 	}
 
 	d.LogWriter.LogLimit = d.Config.UILogLimit
