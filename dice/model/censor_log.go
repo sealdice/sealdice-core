@@ -2,12 +2,12 @@ package model
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"gorm.io/gorm"
 
 	"sealdice-core/dice/censor"
+	log "sealdice-core/utils/kratos"
 )
 
 type CensorLog struct {
@@ -85,7 +85,7 @@ func CensorClearLevelCount(db *gorm.DB, userID string, level censor.Level) {
 		Where("user_id = ? AND highest_level = ?", userID, level).
 		Update("clear_mark", true).Error
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 	}
 }
 

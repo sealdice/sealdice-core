@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"gorm.io/gorm"
+
+	log "sealdice-core/utils/kratos"
 )
 
 func DBCheck(dataDir string) {
@@ -112,7 +114,7 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 			return nil, nil, err
 		}
 		if count > 0 {
-			fmt.Println("数据库 attrs 表结构有变化，正在重建")
+			log.Warn("数据库 attrs 表结构为前置测试版本150,重建中")
 			// 创建临时表
 			err = tx.Exec(createSql).Error
 			if err != nil {

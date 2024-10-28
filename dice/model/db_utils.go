@@ -1,10 +1,10 @@
 package model
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	log "sealdice-core/utils/kratos"
@@ -54,7 +54,7 @@ func DBCacheDelete() bool {
 // DBVacuum 整理数据库
 func DBVacuum() {
 	done := make(chan interface{}, 1)
-	fmt.Println("开始进行数据库整理")
+	log.Info("开始进行数据库整理")
 
 	go spinner.WithLines(done, 3, 10)
 	defer func() {
@@ -68,8 +68,8 @@ func DBVacuum() {
 		defer wg.Done()
 		// 使用 GORM 初始化数据库
 		vacuumDB, err := _SQLiteDBInit(path, true)
-		if vacuumDB.Dialector.Name() != "sqlite" {
-			fmt.Println("数据库类型不是 SQLite，跳过缓存删除")
+		if strings.Contains(vacuumDB.Dialector.Name(), "sqlite") {
+			log.Info("数据库类型不是 SQLite，跳过缓存删除")
 			return
 		}
 		defer func() {
@@ -98,5 +98,5 @@ func DBVacuum() {
 
 	wg.Wait()
 
-	log.Infof("\n数据库整理完成")
+	log.Info("数据库整理完成")
 }

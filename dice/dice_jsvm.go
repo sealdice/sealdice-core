@@ -84,7 +84,6 @@ func (d *Dice) JsInit() {
 	// 清理目前的js相关
 	d.jsClear()
 	if d.JsLoop != nil {
-		fmt.Println("重用测试")
 		d.JsLoop.Start()
 		(&d.Config).JsEnable = true
 		d.Logger.Info("已加载JS环境")
