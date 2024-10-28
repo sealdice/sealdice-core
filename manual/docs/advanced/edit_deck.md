@@ -663,11 +663,11 @@ YAML 牌堆中的表示正好相反：
 
 :::
 
-假如牌堆文件内容如下（使用相对路径 `./asstes/...` ）：
+假如牌堆文件内容如下（使用相对路径 `./assets/...` ）：
 
 ```json
 {
-  "test":["[图:./asstes/1.jpg]"]
+  "test":["[图:./assets/1.jpg]"]
 }
 ```
 
@@ -675,7 +675,7 @@ YAML 牌堆中的表示正好相反：
 
 ```text
 .
-├─asstes
+├─assets
 │  └─1.jpg
 └─ test.json
 ```
