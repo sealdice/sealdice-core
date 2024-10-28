@@ -20,7 +20,7 @@ type CensorLog struct {
 	CreatedAt    int    `json:"createdAt" gorm:"column:created_at"`
 	// 补充gorm有的部分：
 	SensitiveWords string `json:"-" gorm:"column:sensitive_words"`
-	ClearMark      bool   `json:"-" gorm:"column:clear_mark"`
+	ClearMark      bool   `json:"-" gorm:"column:clear_mark;type:bool"`
 }
 
 func (CensorLog) TableName() string {

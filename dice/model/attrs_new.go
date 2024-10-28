@@ -36,7 +36,8 @@ type AttributesItemModel struct {
 	Name      string `json:"name" gorm:"column:name"`                                    // 卡片名称
 	OwnerId   string `json:"ownerId" gorm:"column:owner_id;index:idx_attrs_owner_id_id"` // 若有明确归属，就是对应的UniformID
 	SheetType string `json:"sheetType" gorm:"column:sheet_type"`                         // 卡片类型，如dnd5e coc7
-	IsHidden  bool   `json:"isHidden" gorm:"column:is_hidden"`                           // 隐藏的卡片不出现在 pc list 中
+	// 手动定义bool类的豹存方式
+	IsHidden bool `json:"isHidden" gorm:"column:is_hidden;type:bool"` // 隐藏的卡片不出现在 pc list 中
 
 	// 通用属性
 	CreatedAt int64 `json:"createdAt" gorm:"column:created_at"`
@@ -225,7 +226,7 @@ func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
 			"id": id,
 			// 如果想在[]bytes里输入值，注意传参的时候不能给any传[]bytes，否则会无法读取，同时还没有豹错，浪费大量时间。
 			// 这里为了兼容，不使用gob的序列化方法处理结构体（同时，也不知道序列化方法是否可用）
-			"data": gjson.ParseBytes(json).String(),
+			"data":      gjson.ParseBytes(json).String(),
 			"is_hidden": true,
 			// 如果插入成功，原版代码接下来更新这个值，那么现在就是等价的
 			"binding_sheet_id": charId,
