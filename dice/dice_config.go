@@ -186,8 +186,8 @@ type QuitInactiveConfig struct {
 
 	QuitInactiveThresholdDays float64 `yaml:"-" json:"quitInactiveThreshold"` // 为了和前端通信
 
-	QuitInactiveBatchSize int64 `yaml:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
-	QuitInactiveBatchWait int64 `yaml:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
+	QuitInactiveBatchSize int64 `yaml:"quitInactiveBatchSize" json:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
+	QuitInactiveBatchWait int64 `yaml:"quitInactiveBatchWait" json:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
 }
 
 type ExtConfig struct {
