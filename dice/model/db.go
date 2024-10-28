@@ -3,10 +3,9 @@ package model
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"gorm.io/gorm"
-
-	log "sealdice-core/utils/kratos"
 )
 
 func DBCheck(dataDir string) {
@@ -80,11 +79,57 @@ func DBCheck(dataDir string) {
 	fmt.Println("data-censor.db:", ok3)
 }
 
+var createSql = `
+CREATE TABLE attrs__temp (
+    id TEXT PRIMARY KEY,
+    data BYTEA,
+    attrs_type TEXT,
+	binding_sheet_id TEXT default '',
+    name TEXT default '',
+    owner_id TEXT default '',
+    sheet_type TEXT default '',
+    is_hidden BOOLEAN default FALSE,
+    created_at INTEGER default 0,
+    updated_at INTEGER  default 0
+);
+`
+
 func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) {
 	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
 	dataDB, err = _SQLiteDBInit(dbDataPath, true)
 	if err != nil {
 		return nil, nil, err
+	}
+	// 特殊情况建表语句处置
+	if strings.Contains(dataDB.Dialector.Name(), "sqlite") {
+		tx := dataDB.Begin()
+		// 检查是否有这个影响的注释
+		var count int64
+		err = dataDB.Raw("SELECT count(*) FROM `sqlite_master` WHERE tbl_name = 'attrs' AND `sql` LIKE '%这个方法太严格了%'").Count(&count).Error
+		if err != nil {
+			tx.Rollback()
+			return nil, nil, err
+		}
+		if count > 0 {
+			fmt.Println("数据库 attrs 表结构有变化，正在重建")
+			// 创建临时表
+			err = tx.Exec(createSql).Error
+			if err != nil {
+				tx.Rollback()
+				return nil, nil, err
+			}
+			// 迁移数据
+			err = tx.Exec("INSERT INTO `attrs__temp` SELECT * FROM `attrs`").Error
+			if err != nil {
+				tx.Rollback()
+				return nil, nil, err
+			}
+			// 删除旧的表
+			err = tx.Exec("DROP TABLE `attrs`").Error
+			// 改名
+			err = tx.Exec("ALTER TABLE `attrs__temp` RENAME TO `attrs`").Error
+			tx.Commit()
+		}
 	}
 	// data建表
 	err = dataDB.AutoMigrate(
@@ -92,20 +137,16 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 		&GroupInfo{},
 		&BanInfo{},
 		&EndpointInfo{},
-		// ATTRS_NEW
 		&AttributesItemModel{},
 	)
 	if err != nil {
 		return nil, nil, err
 	}
-	log.Info("数据库初始化中，请稍候...")
-	// data vacuum
-	err = InitVacuum(dataDB)
+	err = dataDB.Exec("VACUUM").Error
 	if err != nil {
 		return nil, nil, err
 	}
 	logsDB, err = LogDBInit(dataDir)
-	log.Info("数据库初始化完毕")
 	return
 }
 
@@ -114,13 +155,13 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
 	logsDB, err = _SQLiteDBInit(dbDataLogsPath, true)
 	if err != nil {
-		return nil, err
+		return
 	}
 	// logs建表
 	if err := logsDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
 		return nil, err
 	}
-	err = InitVacuum(logsDB)
+	err = logsDB.Exec("VACUUM").Error
 	if err != nil {
 		return nil, err
 	}
@@ -140,21 +181,9 @@ func SQLiteCensorDBInit(dataDir string) (censorDB *gorm.DB, err error) {
 	if err = censorDB.AutoMigrate(&CensorLog{}); err != nil {
 		return nil, err
 	}
-	err = InitVacuum(censorDB)
+	err = censorDB.Exec("VACUUM").Error
 	if err != nil {
 		return nil, err
 	}
 	return censorDB, nil
-}
-
-func InitVacuum(db *gorm.DB) error {
-	// 检查数据库驱动是否为 SQLite
-	if db.Dialector.Name() != "sqlite" {
-		log.Debug("非SQLITE，跳过运行VACUUM")
-		return nil
-	}
-
-	// 使用 GORM 执行 vacuum 操作，并将数据库保存到指定路径
-	err := db.Exec("VACUUM").Error
-	return err // 返回错误
 }

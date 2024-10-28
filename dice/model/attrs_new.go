@@ -36,7 +36,8 @@ type AttributesItemModel struct {
 	Name      string `json:"name" gorm:"column:name"`                                    // 卡片名称
 	OwnerId   string `json:"ownerId" gorm:"column:owner_id;index:idx_attrs_owner_id_id"` // 若有明确归属，就是对应的UniformID
 	SheetType string `json:"sheetType" gorm:"column:sheet_type"`                         // 卡片类型，如dnd5e coc7
-	IsHidden  bool   `json:"isHidden" gorm:"column:is_hidden"`                           // 隐藏的卡片不出现在 pc list 中
+	// 手动定义bool类的豹存方式
+	IsHidden bool `json:"isHidden" gorm:"column:is_hidden;type:bool"` // 隐藏的卡片不出现在 pc list 中
 
 	// 通用属性
 	CreatedAt int64 `json:"createdAt" gorm:"column:created_at"`

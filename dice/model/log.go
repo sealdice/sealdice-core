@@ -26,7 +26,7 @@ type LogOneItem struct {
 	IMUserID       string      `json:"IMUserId" gorm:"column:im_userid"`
 	Time           int64       `json:"time" gorm:"column:time"`
 	Message        string      `json:"message"  gorm:"column:message"`
-	IsDice         bool        `json:"isDice"  gorm:"column:is_dice"`
+	IsDice         bool        `json:"isDice"  gorm:"column:is_dice;type:bool"`
 	CommandID      int64       `json:"commandId"  gorm:"column:command_id"`
 	CommandInfo    interface{} `json:"commandInfo" gorm:"-"`
 	CommandInfoStr string      `json:"-" gorm:"column:command_info"`
