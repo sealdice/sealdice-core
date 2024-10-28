@@ -23,7 +23,7 @@
     "vitepress": "^1.4.1",
     "vitepress-plugin-mermaid": "^2.0.17",
     "vitepress-plugin-tabs": "^0.5.0",
-    "vue": "^3.5.11"
+    "vue": "^3.5.12"
   },
   "dependencies": {
     "@braintree/sanitize-url": "^7.1.0",
