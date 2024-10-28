@@ -34,17 +34,17 @@ importers:
         specifier: ^11.3.0
         version: 11.3.0
       sass:
-        specifier: ^1.80.3
-        version: 1.80.3
+        specifier: ^1.80.4
+        version: 1.80.4
       vitepress:
         specifier: ^1.4.1
-        version: 1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.3)(search-insights@2.13.0)
+        version: 1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.4)(search-insights@2.13.0)
       vitepress-plugin-mermaid:
         specifier: ^2.0.17
-        version: 2.0.17(mermaid@11.3.0)(vitepress@1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.3)(search-insights@2.13.0))
+        version: 2.0.17(mermaid@11.3.0)(vitepress@1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.4)(search-insights@2.13.0))
       vitepress-plugin-tabs:
         specifier: ^0.5.0
-        version: 0.5.0(vitepress@1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.3)(search-insights@2.13.0))(vue@3.5.12)
+        version: 0.5.0(vitepress@1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.4)(search-insights@2.13.0))(vue@3.5.12)
       vue:
         specifier: ^3.5.12
         version: 3.5.12
@@ -1234,8 +1234,8 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  sass@1.80.3:
-    resolution: {integrity: sha512-ptDWyVmDMVielpz/oWy3YP3nfs7LpJTHIJZboMVs8GEC9eUmtZTZhMHlTW98wY4aEorDfjN38+Wr/XjskFWcfA==}
+  sass@1.80.4:
+    resolution: {integrity: sha512-rhMQ2tSF5CsuuspvC94nPM9rToiAFw2h3JTrLlgmNw1MH79v8Cr3DH6KF6o6r+8oofY3iYVPUf66KzC8yuVN1w==}
     engines: {node: '>=14.0.0'}
     hasBin: true
 
@@ -1870,9 +1870,9 @@ snapshots:
 
   '@ungap/structured-clone@1.2.0': {}
 
-  '@vitejs/plugin-vue@5.1.4(vite@5.4.8(sass@1.80.3))(vue@3.5.12)':
+  '@vitejs/plugin-vue@5.1.4(vite@5.4.8(sass@1.80.4))(vue@3.5.12)':
     dependencies:
-      vite: 5.4.8(sass@1.80.3)
+      vite: 5.4.8(sass@1.80.4)
       vue: 3.5.12
 
   '@vue/compiler-core@3.5.12':
@@ -2638,7 +2638,7 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  sass@1.80.3:
+  sass@1.80.4:
     dependencies:
       '@parcel/watcher': 2.4.1
       chokidar: 4.0.1
@@ -2730,28 +2730,28 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.2
 
-  vite@5.4.8(sass@1.80.3):
+  vite@5.4.8(sass@1.80.4):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.4.47
       rollup: 4.24.0
     optionalDependencies:
       fsevents: 2.3.3
-      sass: 1.80.3
+      sass: 1.80.4
 
-  vitepress-plugin-mermaid@2.0.17(mermaid@11.3.0)(vitepress@1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.3)(search-insights@2.13.0)):
+  vitepress-plugin-mermaid@2.0.17(mermaid@11.3.0)(vitepress@1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.4)(search-insights@2.13.0)):
     dependencies:
       mermaid: 11.3.0
-      vitepress: 1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.3)(search-insights@2.13.0)
+      vitepress: 1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.4)(search-insights@2.13.0)
     optionalDependencies:
       '@mermaid-js/mermaid-mindmap': 9.3.0
 
-  vitepress-plugin-tabs@0.5.0(vitepress@1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.3)(search-insights@2.13.0))(vue@3.5.12):
+  vitepress-plugin-tabs@0.5.0(vitepress@1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.4)(search-insights@2.13.0))(vue@3.5.12):
     dependencies:
-      vitepress: 1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.3)(search-insights@2.13.0)
+      vitepress: 1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.4)(search-insights@2.13.0)
       vue: 3.5.12
 
-  vitepress@1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.3)(search-insights@2.13.0):
+  vitepress@1.4.1(@algolia/client-search@4.24.0)(postcss@8.4.47)(sass@1.80.4)(search-insights@2.13.0):
     dependencies:
       '@docsearch/css': 3.6.2
       '@docsearch/js': 3.6.2(@algolia/client-search@4.24.0)(search-insights@2.13.0)
@@ -2759,7 +2759,7 @@ snapshots:
       '@shikijs/transformers': 1.22.1
       '@shikijs/types': 1.22.1
       '@types/markdown-it': 14.1.2
-      '@vitejs/plugin-vue': 5.1.4(vite@5.4.8(sass@1.80.3))(vue@3.5.12)
+      '@vitejs/plugin-vue': 5.1.4(vite@5.4.8(sass@1.80.4))(vue@3.5.12)
       '@vue/devtools-api': 7.4.6
       '@vue/shared': 3.5.12
       '@vueuse/core': 11.1.0(vue@3.5.12)
@@ -2768,7 +2768,7 @@ snapshots:
       mark.js: 8.11.1
       minisearch: 7.1.0
       shiki: 1.22.1
-      vite: 5.4.8(sass@1.80.3)
+      vite: 5.4.8(sass@1.80.4)
       vue: 3.5.12
     optionalDependencies:
       postcss: 8.4.47
