@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -78,11 +79,57 @@ func DBCheck(dataDir string) {
 	fmt.Println("data-censor.db:", ok3)
 }
 
+var createSql = `
+CREATE TABLE attrs__temp (
+    id TEXT PRIMARY KEY,
+    data BYTEA,
+    attrs_type TEXT,
+	binding_sheet_id TEXT default '',
+    name TEXT default '',
+    owner_id TEXT default '',
+    sheet_type TEXT default '',
+    is_hidden BOOLEAN default FALSE,
+    created_at INTEGER default 0,
+    updated_at INTEGER  default 0
+);
+`
+
 func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) {
 	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
 	dataDB, err = _SQLiteDBInit(dbDataPath, true)
 	if err != nil {
-		return
+		return nil, nil, err
+	}
+	// 特殊情况建表语句处置
+	if strings.Contains(dataDB.Dialector.Name(), "sqlite") {
+		tx := dataDB.Begin()
+		// 检查是否有这个影响的注释
+		var count int64
+		err = dataDB.Raw("SELECT `sql` FROM `sqlite_master` WHERE tbl_name = 'attrs' AND `sql` LIKE '%这个方法也太严格了%'").Count(&count).Error
+		if err != nil {
+			tx.Rollback()
+			return nil, nil, err
+		}
+		if count > 0 {
+			fmt.Println("数据库 attrs 表结构有变化，正在重建")
+			// 创建临时表
+			err = tx.Exec(createSql).Error
+			if err != nil {
+				tx.Rollback()
+				return nil, nil, err
+			}
+			// 迁移数据
+			err = tx.Exec("INSERT INTO `attrs__temp` SELECT * FROM `attrs`").Error
+			if err != nil {
+				tx.Rollback()
+				return nil, nil, err
+			}
+			// 删除旧的表
+			err = tx.Exec("DROP TABLE `attrs`").Error
+			// 改名
+			err = tx.Exec("ALTER TABLE `attrs__temp` RENAME TO `attrs`").Error
+			tx.Commit()
+		}
 	}
 	// data建表
 	err = dataDB.AutoMigrate(
@@ -90,7 +137,6 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 		&GroupInfo{},
 		&BanInfo{},
 		&EndpointInfo{},
-		// ATTRS_NEW
 		&AttributesItemModel{},
 	)
 	if err != nil {
