@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -98,7 +99,6 @@ func (d *Dice) JsInit() {
 	d.JsScriptCron = cron.New()
 	d.JsScriptCronLock = &sync.Mutex{}
 	d.JsScriptCron.Start()
-
 	// 初始化
 	loop.Run(func(vm *goja.Runtime) {
 		vm.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
@@ -598,7 +598,13 @@ func (d *Dice) JsInit() {
 		// `)
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
-	loop.Start()
+	go func() {
+		if r := recover(); r != nil {
+			log.Errorf("JS核心执行异常: %v 堆栈: %v", r, string(debug.Stack()))
+		}
+		loop.StartInForeground()
+	}()
+	// loop.Start()
 	(&d.Config).JsEnable = true
 	d.Logger.Info("已加载JS环境")
 	d.MarkModified()
@@ -634,7 +640,7 @@ func (d *Dice) jsClear() {
 	d.RegisterBuiltinSystemTemplate()
 	// 关闭js vm
 	if d.JsLoop != nil {
-		d.JsLoop.Stop()
+		d.JsLoop.Terminate()
 		d.JsLoop = nil
 	}
 }
