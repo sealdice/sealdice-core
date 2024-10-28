@@ -1370,7 +1370,6 @@ var platformRE = regexp.MustCompile(`^(.*)-Group:`)
 // 当前版本的问题：如果用户设置了很短的时间，那可能之前的群还没退完，就又退那部分的群，造成一些奇怪的问题，但应该概率不大 + 豹错会被捕获
 func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsPerRound int) {
 	s.Parent.Logger.Infof("开始清理不活跃群聊. 判定线 %s, 本次退群数: %d", threshold.Format(time.RFC3339), groupsPerRound)
-	// 定义
 	type GroupEndpointPair struct {
 		Group    *GroupInfo
 		Endpoint *EndPointInfo
