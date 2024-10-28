@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -83,19 +84,14 @@ func (d *Dice) JsInit() {
 
 	// 清理目前的js相关
 	d.jsClear()
-	if d.JsLoop != nil {
-		d.JsLoop.Start()
-		(&d.Config).JsEnable = true
-		d.Logger.Info("已加载JS环境")
-		d.MarkModified()
-		d.Save(false)
-		return
-	}
+
+	// 重建js vm
 	reg := new(require.Registry)
+
 	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false), eventloop.WithRegistry(reg))
+	_ = fetch.Enable(loop, goproxy.NewProxyHttpServer())
 	d.JsLoop = loop
 
-	_ = fetch.Enable(d.JsLoop, goproxy.NewProxyHttpServer())
 	printer := &PrinterFunc{d, false, []string{}}
 	d.JsPrinter = printer
 	reg.RegisterNativeModule("console", console.RequireWithPrinter(printer))
@@ -103,9 +99,8 @@ func (d *Dice) JsInit() {
 	d.JsScriptCron = cron.New()
 	d.JsScriptCronLock = &sync.Mutex{}
 	d.JsScriptCron.Start()
-
 	// 初始化
-	d.JsLoop.Run(func(vm *goja.Runtime) {
+	loop.Run(func(vm *goja.Runtime) {
 		vm.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
 
 		// console 模块
@@ -603,7 +598,13 @@ func (d *Dice) JsInit() {
 		// `)
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
-	d.JsLoop.Start()
+	go func() {
+		if r := recover(); r != nil {
+			log.Errorf("JS核心执行异常: %v 堆栈: %v", r, string(debug.Stack()))
+		}
+		loop.StartInForeground()
+	}()
+	// loop.Start()
 	(&d.Config).JsEnable = true
 	d.Logger.Info("已加载JS环境")
 	d.MarkModified()
@@ -639,9 +640,8 @@ func (d *Dice) jsClear() {
 	d.RegisterBuiltinSystemTemplate()
 	// 关闭js vm
 	if d.JsLoop != nil {
-		d.JsLoop.Stop()
-		// 尝试并不把它置为null
-		// d.JsLoop = nil
+		d.JsLoop.Terminate()
+		d.JsLoop = nil
 	}
 }
 
