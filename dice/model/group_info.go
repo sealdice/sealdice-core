@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	ds "github.com/sealdice/dicescript"
 
@@ -56,23 +57,19 @@ func GroupInfoListGet(db *gorm.DB, callback func(id string, updatedAt int64, dat
 	return nil
 }
 
-// GroupInfoSave 保存群组信息，兼容多种数据库
+// GroupInfoSave 保存群组信息
 func GroupInfoSave(db *gorm.DB, groupID string, updatedAt int64, data []byte) error {
-	// 创建一个 GroupInfo 实例
+	// 使用 gorm 的 Upsert 功能实现插入或更新
 	groupInfo := GroupInfo{
-		ID: groupID,
-		// 兼容零值和NULL值问题
-		// 原代码本来就没有CreateAt
+		ID:        groupID,
 		UpdatedAt: &updatedAt,
 		Data:      data,
 	}
-
-	// 使用 GORM 的 Save 方法：Save 会根据主键决定是插入还是更新记录
-	// 如果记录存在则更新，不存在则插入。
-	// 修改为定义Model而不是使用Where
-	// NOTE Don’t use Save with Model, it’s an Undefined Behavior.
-	err := db.Save(&groupInfo).Error
-	return err
+	result := db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"updated_at", "data"}),
+	}).Create(&groupInfo)
+	return result.Error
 }
 
 // GroupPlayerInfoBase 群内玩家信息

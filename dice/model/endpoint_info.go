@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var ErrEndpointInfoUIDEmpty = errors.New("user id is empty")
@@ -46,20 +47,13 @@ func (e *EndpointInfo) Save(db *gorm.DB) error {
 	if len(e.UserID) == 0 {
 		return ErrEndpointInfoUIDEmpty
 	}
+	// 检查user_id冲突时更新，否则进行创建
+	result := db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "user_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"cmd_num", "cmd_last_time", "online_time", "updated_at",
+		}),
+	}).Create(e)
 
-	// 检查数据库连接是否为 nil
-	if db == nil {
-		return errors.New("db is nil")
-	}
-
-	// 直接使用 Save 函数
-	// Save 会根据主键（user_id）进行插入或更新
-	// 以我的理解，这里不会写入CmdNum=0，所以可以安心认为Save是可用的，不用转换成FirstOrCreate
-	// NOTE Don’t use Save with Model, it’s an Undefined Behavior.
-	err := db.Save(&e).Error
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return result.Error
 }

@@ -111,7 +111,6 @@ func LogGetInfo(db *gorm.DB) ([]int, error) {
 
 	var maxID sql.NullInt64      // 使用sql.NullInt64来处理NULL值
 	var itemsMaxID sql.NullInt64 // 使用sql.NullInt64来处理NULL值
-
 	// 获取 logs 表的记录数和最大 ID
 	err := db.Model(&LogInfo{}).Select("COUNT(*)").Scan(&lst[2]).Error
 	if err != nil {
