@@ -1406,7 +1406,8 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		}
 		// 如果在上述所有操作后，发现时间仍然是0，那么必须忽略该值，因为可能是还没初始化的群，不能人家刚进来就走
 		// 注意不能用last.Equal(time.Time{})，因为这里是时间戳的1970-01-01，而Go初始时间是0000-01-01.
-		if last.Unix() == 0 {
+		// 预防性代码：如果last是0000-01-01，那也不应该被退群。
+		if last.Unix() <= 0 {
 			return true
 		}
 		// 如果时间比要退群的时间早
