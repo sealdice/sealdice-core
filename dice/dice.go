@@ -685,25 +685,32 @@ func ErrorLogAndContinue(d *Dice) {
 }
 
 var chsS2T = sat.DefaultDict()
+var taskId cron.EntryID
+var quitMutex sync.Mutex
 
 func (d *Dice) ResetQuitInactiveCron() {
+	// TODO: 这里加锁是否有必要？
+	quitMutex.Lock()
+	defer quitMutex.Unlock()
 	dm := d.Parent
 	if d.Config.quitInactiveCronEntry > 0 {
 		dm.Cron.Remove(d.Config.quitInactiveCronEntry)
 		(&d.Config).quitInactiveCronEntry = DefaultConfig.quitInactiveCronEntry
 	}
-
+	// 如果退群功能开启，那么设定退群的Cron
 	if d.Config.QuitInactiveThreshold > 0 {
-		var err error
-		(&d.Config).quitInactiveCronEntry, err = dm.Cron.AddFunc("0 4 * * *", func() {
-			thr := time.Now().Add(-d.Config.QuitInactiveThreshold)
-			hint := thr.Add(d.Config.QuitInactiveThreshold / 10) // 进入退出判定线的9/10开始提醒
-			d.ImSession.LongTimeQuitInactiveGroup(thr, hint,
-				int(d.Config.QuitInactiveBatchWait),
-				int(d.Config.QuitInactiveBatchSize))
-		})
-		if err != nil {
-			d.Logger.Errorf("创建自动清理群聊cron任务失败: %v", err)
+		duration := time.Duration(d.Config.QuitInactiveBatchWait) * time.Minute
+		// 每隔上面的退群时间，执行一次函数
+		if taskId != 0 {
+			dm.Cron.Remove(taskId)
 		}
+		taskId = dm.Cron.Schedule(cron.Every(duration), cron.FuncJob(func() {
+			thr := time.Now().Add(-d.Config.QuitInactiveThreshold)
+			// 进入退出判定线的9/10开始提醒, 但是目前来看，原版退群只有一个提示，提示会被大量刷屏然后消失不见。同时并没有告知对应的群
+			// 或许也不应该告知对应的群，因为群可能被解散了，大量告知容易出问题？
+			// hint := thr.Add(d.Config.QuitInactiveThreshold / 10)
+			d.ImSession.LongTimeQuitInactiveGroupReborn(thr, int(d.Config.QuitInactiveBatchSize))
+		}))
+		d.Logger.Infof("退群功能已启动，每 %s 执行一次退群判定", duration.String())
 	}
 }

@@ -4,17 +4,18 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"regexp"
 	"runtime/debug"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"gorm.io/gorm"
 
 	"sealdice-core/dice/model"
 	"sealdice-core/message"
+	log "sealdice-core/utils/kratos"
 
 	"github.com/golang-module/carbon"
 	ds "github.com/sealdice/dicescript"
@@ -1361,110 +1362,103 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 	}
 }
 
-// 借助类似操作系统信号量的思路来做一个互斥锁
-var muxAutoQuit sync.Mutex
-var groupLeaveNum int
 var platformRE = regexp.MustCompile(`^(.*)-Group:`)
 
-// LongTimeQuitInactiveGroup 另一种退群方案,其中minute代表间隔多久执行一次，num代表一次退几个群（每次退群之间有10秒的等待时间）
-func (s *IMSession) LongTimeQuitInactiveGroup(threshold, hint time.Time, roundIntervalMinute int, groupsPerRound int) {
-	// 该方案目前是issue方案的简化版，是我制作的鲨群机的略高级解决方式。
-	// 该方案下，将会创建一个线程，从该时间开始计算将要退出的群聊并以minute为间隔的时间退出num个群。
-	if !muxAutoQuit.TryLock() {
-		// 如果没能获得“临界资源”信号量
-		// 直接输出有任务在运行中
-		hint := fmt.Sprintf("有任务在运行中，已经退群 %d 个", groupLeaveNum)
-		s.Parent.Logger.Info(hint)
-		return
+// LongTimeQuitInactiveGroupReborn
+// 完全抛弃当初不懂Go的时候的方案，改成如下方案：
+// 每次尝试找到n个符合要求的群，然后启一个线程，将群统一干掉
+// 这样子牺牲了可显示的总群数，但大大增强了稳定性，而且总群数的参考并无意义，因为已经在的群很可能突然活了而不符合判定
+// 当前版本的问题：如果用户设置了很短的时间，那可能之前的群还没退完，就又退那部分的群，造成一些奇怪的问题，但应该概率不大 + 豹错会被捕获
+func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsPerRound int) {
+	s.Parent.Logger.Infof("开始清理不活跃群聊. 判定线 %s, 本次退群数: %d", threshold.Format(time.RFC3339), groupsPerRound)
+	type GroupEndpointPair struct {
+		Group    *GroupInfo
+		Endpoint *EndPointInfo
+		Last     time.Time
 	}
-
-	s.Parent.Logger.Infof("开始清理不活跃群聊. 判定线 %s", threshold.Format(time.RFC3339))
-	go func() {
-		type GroupEndpointPair struct {
-			Group    *GroupInfo
-			Endpoint *EndPointInfo
-		}
-
-		defer muxAutoQuit.Unlock()
-
-		groupLeaveNum = 0
-		selectedGroupEndpoints := []*GroupEndpointPair{} // 创建一个存放 grp 和 ep 组合的切片
-
-		// Pinenutn: Range模板 ServiceAtNew重构代码
-		s.ServiceAtNew.Range(func(key string, grp *GroupInfo) bool {
-			// Pinenutn: ServiceAtNew重构
-			if strings.HasPrefix(grp.GroupID, "PG-") {
-				return true
-			}
-			if s.Parent.Config.BanList != nil {
-				info, ok := s.Parent.Config.BanList.GetByID(grp.GroupID)
-				if ok && info.Rank > BanRankNormal {
-					return true // 信任等级高于普通的不清理
-				}
-			}
-
-			last := time.Unix(grp.RecentDiceSendTime, 0)
-			if enter := time.Unix(grp.EnteredTime, 0); enter.After(last) {
-				last = enter
-			}
-			match := platformRE.FindStringSubmatch(grp.GroupID)
-			if len(match) != 2 {
-				return true
-			}
-			platform := match[1]
-			if platform != "QQ" {
-				return true
-			}
-			if last.Before(threshold) {
-				for _, ep := range s.EndPoints {
-					if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
-						continue
-					}
-					selectedGroupEndpoints = append(selectedGroupEndpoints, &GroupEndpointPair{Group: grp, Endpoint: ep})
-				}
-			} else if last.Before(hint) {
-				s.Parent.Logger.Warnf("检测到群 %s 上次活动时间为 %s，将在未来自动退出", grp.GroupID, last.Format(time.RFC3339))
-			}
+	var selectedGroupEndpoints = make([]*GroupEndpointPair, 0)
+	var groupCount int
+	s.ServiceAtNew.Range(func(key string, grp *GroupInfo) bool {
+		// 如果是PG开头的，忽略掉
+		if strings.HasPrefix(grp.GroupID, "PG-") {
 			return true
-		})
-		// 采用类似分页的手法进行退群
-		groupCount := len(selectedGroupEndpoints)
-		rounds := (groupCount + groupsPerRound - 1) / groupsPerRound
-		for round := range rounds {
-			startIndex := round * groupsPerRound
-			endIndex := (round + 1) * groupsPerRound
-			if endIndex > groupCount {
-				endIndex = groupCount
+		}
+		// 如果在BanList（这应该是白名单？）内，忽略掉
+		if s.Parent.Config.BanList != nil {
+			info, ok := s.Parent.Config.BanList.GetByID(grp.GroupID)
+			if ok && info.Rank > BanRankNormal {
+				return true // 信任等级高于普通的不清理
 			}
-			for _, pair := range selectedGroupEndpoints[startIndex:endIndex] {
-				grp := pair.Group
-				ep := pair.Endpoint
-				last := time.Unix(grp.RecentDiceSendTime, 0)
-				if enter := time.Unix(grp.EnteredTime, 0); enter.After(last) {
-					last = enter
+		}
+		// 看看是不是QQ群，如果是QQ群，才进一步判断
+		match := platformRE.FindStringSubmatch(grp.GroupID)
+		if len(match) != 2 {
+			return true
+		}
+		platform := match[1]
+		if platform != "QQ" {
+			return true
+		}
+		// 获取上次骰子活动时间
+		last := time.Unix(grp.RecentDiceSendTime, 0)
+		// 如果enter是进入时间，它比活动时间更晚（说明骰子刚进去，但是骰子还没有说话），那么上次骰子活动时间=进入时间
+		if enter := time.Unix(grp.EnteredTime, 0); enter.After(last) {
+			last = enter
+		}
+		// 如果在上述所有操作后，发现时间仍然是0，那么必须忽略该值，因为可能是还没初始化的群，不能人家刚进来就走
+		// 注意不能用last.Equal(time.Time{})，因为这里是时间戳的1970-01-01，而Go初始时间是0000-01-01.
+		if last.Unix() == 0 {
+			return true
+		}
+		// 如果时间比要退群的时间早
+		if last.Before(threshold) {
+			for _, ep := range s.EndPoints {
+				// 找到对应的endpoints，并准备退掉它的群
+				if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
+					continue
 				}
-				hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出", grp.GroupID, last.Format(time.RFC3339))
-				s.Parent.Logger.Info(hint)
-				msgCtx := CreateTempCtx(ep, &Message{
-					MessageType: "group",
-					Sender:      SenderBase{UserID: ep.UserID},
-					GroupID:     grp.GroupID,
-				})
-				msgText := DiceFormatTmpl(msgCtx, "核心:骰子自动退群告别语")
-				ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
-				// 和我自制的鲨群机时间同步
-				time.Sleep(10 * time.Second)
-				grp.DiceIDExistsMap.Delete(ep.UserID)
-				grp.UpdatedAtTime = time.Now().Unix()
-				ep.Adapter.QuitGroup(&MsgContext{Dice: s.Parent}, grp.GroupID)
-				// 保证在多次点击时可以收到日志
-				groupLeaveNum++
-				(&MsgContext{Dice: s.Parent, EndPoint: ep, Session: s}).Notice(hint)
+				selectedGroupEndpoints = append(selectedGroupEndpoints, &GroupEndpointPair{Group: grp, Endpoint: ep, Last: last})
+				// 如果群数量超过本次要退的群数量，就不再继续了，退出出去
+				groupCount++
+				// 如果已经超过了一次退群的数量，则退出循环
+				if groupCount > groupsPerRound {
+					return false
+				}
 			}
-			// 等三十分钟
-			hint := fmt.Sprintf("第 %d 轮退群已经完成，共计 %d 轮，休息 %d 分钟中", round, rounds, roundIntervalMinute)
+		}
+		return true
+	})
+	// 循环完毕，要不然是因为够了要退的数量，要不就是遍历完毕了，但是不够，总之要进行退群活动了
+	go func() {
+		if r := recover(); r != nil {
+			log.Errorf("自动退群异常: %v 堆栈: %v", r, string(debug.Stack()))
+		}
+		for i, pair := range selectedGroupEndpoints {
+			grp := pair.Group
+			ep := pair.Endpoint
+			last := pair.Last
+			hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出,当前为本轮第 %d 个", grp.GroupID, last.Format(time.RFC3339), i+1)
 			s.Parent.Logger.Info(hint)
-			time.Sleep(time.Duration(roundIntervalMinute) * time.Minute)
+			// 创建对应退群信息
+			msgCtx := CreateTempCtx(ep, &Message{
+				MessageType: "group",
+				Sender:      SenderBase{UserID: ep.UserID},
+				GroupID:     grp.GroupID,
+			})
+			// 发送退群消息
+			msgText := DiceFormatTmpl(msgCtx, "核心:骰子自动退群告别语")
+			ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
+			// 删除群聊绑定信息，更新群处理时间
+			grp.DiceIDExistsMap.Delete(ep.UserID)
+			grp.UpdatedAtTime = time.Now().Unix()
+			// 执行真正的退群活动，理论上这个msgCtx就能直接用
+			ep.Adapter.QuitGroup(msgCtx, grp.GroupID)
+			// 发出提示
+			msgCtx.Notice(hint)
+			// 生成一个随机值（8~11秒随机）
+			randomSleep := time.Duration(rand.Intn(3000)+8000) * time.Millisecond
+			log.Infof("退群等待，等待 %f 秒后继续", randomSleep.Seconds())
+			time.Sleep(randomSleep)
 		}
 	}()
 }
