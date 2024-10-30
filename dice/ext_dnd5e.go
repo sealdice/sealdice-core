@@ -470,6 +470,29 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						text += "\n" + "指令信息无法序列化"
 					}
 				}
+
+				isHide := cmdArgs.Command == "rah" || cmdArgs.Command == "rch"
+
+				if isHide {
+					if msg.Platform == "QQ-CH" {
+						ReplyToSender(ctx, msg, "QQ频道内尚不支持暗骰")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					if ctx.Group != nil {
+						if ctx.IsPrivate {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						} else {
+							ctx.CommandHideFlag = ctx.Group.GroupID
+							prefix := DiceFormatTmpl(ctx, "核心:暗骰_私聊_前缀")
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:暗骰_群内"))
+							ReplyPerson(ctx, msg, prefix+text)
+						}
+					} else {
+						ReplyToSender(ctx, msg, text)
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				ReplyToSender(mctx, msg, text)
 			}
 
@@ -1482,6 +1505,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"dst":        cmdSt,
 			"rc":         cmdRc,
 			"ra":         cmdRc,
+			"rah":        cmdRc,
+			"rch":        cmdRc,
 			"drc":        cmdRc,
 			"buff":       cmdBuff,
 			"dbuff":      cmdBuff,
