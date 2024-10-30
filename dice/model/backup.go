@@ -11,7 +11,7 @@ import (
 // Vacuum 执行数据库的 vacuum 操作
 func Vacuum(db *gorm.DB, path string) error {
 	// 检查数据库驱动是否为 SQLite
-	if strings.Contains(db.Dialector.Name(), "sqlite") {
+	if !strings.Contains(db.Dialector.Name(), "sqlite") {
 		log.Debug("非SQLITE，跳过运行VACUUM")
 		return nil
 	}
@@ -24,7 +24,7 @@ func Vacuum(db *gorm.DB, path string) error {
 // FlushWAL 执行 WAL 日志的检查点和内存收缩
 func FlushWAL(db *gorm.DB) error {
 	// 检查数据库驱动是否为 SQLite
-	if strings.Contains(db.Dialector.Name(), "sqlite") {
+	if !strings.Contains(db.Dialector.Name(), "sqlite") {
 		log.Debug("非SQLITE，跳过运行FlushWAL")
 		return nil
 	}
