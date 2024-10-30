@@ -42,8 +42,8 @@ type LogOneItem struct {
 	ParentID *int `gorm:"column:parent_id" json:"-"`
 }
 
-// 钩子函数: 保存前
-func (item *LogOneItem) BeforeSave(tx *gorm.DB) (err error) {
+// BeforeSave 钩子函数: 查询前,interface{}转换为json
+func (item *LogOneItem) BeforeSave(_ *gorm.DB) (err error) {
 	// 将 CommandInfo 转换为 JSON 字符串保存到 CommandInfoStr
 	if item.CommandInfo != nil {
 		if data, err := json.Marshal(item.CommandInfo); err == nil {
@@ -61,8 +61,8 @@ func (item *LogOneItem) BeforeSave(tx *gorm.DB) (err error) {
 	return nil
 }
 
-// 钩子函数: 查询后
-func (item *LogOneItem) AfterFind(tx *gorm.DB) (err error) {
+// AfterFind 钩子函数: 查询后,interface{}转换为json
+func (item *LogOneItem) AfterFind(_ *gorm.DB) (err error) {
 	// 将 CommandInfoStr 从 JSON 字符串反序列化为 CommandInfo
 	if item.CommandInfoStr != "" {
 		if err := json.Unmarshal([]byte(item.CommandInfoStr), &item.CommandInfo); err != nil {
@@ -87,7 +87,10 @@ type LogInfo struct {
 	// 允许数据库NULL值
 	// 原版代码中，此处标记了db:size，但实际上，该列并不存在。
 	// 考虑到该处数据将会为未来log查询提供优化手段，保留该结构体定义，但不使用。
-	Size *int `json:"size" gorm:"-"`
+	// 使用GORM:<-:false 无写入权限，这样它就不会建库，但请注意，下面LogGetLogPage处，如果你查询出的名称不是size
+	// 不能在这里绑定column，因为column会给你建立那一列。
+	// TODO: 将这个字段使用上会不会比后台查询就JOIN更合适？
+	Size *int `json:"size" gorm:"<-:false"`
 	// 数据库里有，json不展示的
 	// 允许数据库NULL值（该字段当前不使用）
 	Extra *string `json:"-" gorm:"column:extra"`
@@ -185,7 +188,7 @@ func LogGetLogPage(db *gorm.DB, param *QueryLogPage) (int, []*LogInfo, error) {
 
 	// 获取总数
 	var count int64
-	if err := query.Count(&count).Error; err != nil {
+	if err := db.Model(&LogInfo{}).Count(&count).Error; err != nil {
 		return 0, nil, err
 	}
 
