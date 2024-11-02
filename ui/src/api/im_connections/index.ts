@@ -228,7 +228,7 @@ export function postConnectSetData(
 
 export function postSetSignServer(
   id: string,
-  signServerUrl: '' | 'sealdice' | 'lagrange',
+  signServerUrl: string | 'sealdice' | 'lagrange',
   w: boolean,
   signServerVersion: string,
 ) {

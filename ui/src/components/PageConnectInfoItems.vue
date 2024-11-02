@@ -712,7 +712,7 @@
         <el-button @click="dialogSetSignServerVisible = false">取消</el-button>
         <el-button
           type="primary"
-          :disabled="form.signServerType === 2 && form.signServerUrl === ''"
+          :disabled="form.signServerType === 2 && isEmpty(trim(form.signServerUrl))"
           @click="doSetSignServer"
           >确定</el-button
         >
@@ -1833,6 +1833,7 @@ import {
   postSmsCodeSet,
 } from '~/api/im_connections';
 import { postToolOnebot } from '~/api/others';
+import { isEmpty, trim } from 'lodash-es';
 
 dayjs.extend(relativeTime);
 
@@ -2176,9 +2177,7 @@ const doSetSignServer = async () => {
   }
   const ret = await postSetSignServer(
     form.endpoint.id,
-    ['sealdice', 'lagrange'].includes(form.signServerUrl)
-      ? (form.signServerUrl as 'sealdice' | 'lagrange')
-      : '',
+    trim(form.signServerUrl),
     true,
     form.signServerVersion,
   );
