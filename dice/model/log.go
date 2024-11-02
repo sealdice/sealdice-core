@@ -21,7 +21,7 @@ type LogOne struct {
 type LogOneItem struct {
 	ID             uint64      `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
 	LogID          uint64      `json:"-" gorm:"column:log_id;index:idx_log_items_log_id"`
-	GroupID        string      `gorm:"index:idx_log_items_group_id;column:group_id"`
+	GroupID        string      `gorm:"index:idx_log_items_group_id;column:group_id;index:idx_log_delete_by_id"`
 	Nickname       string      `json:"nickname" gorm:"column:nickname"`
 	IMUserID       string      `json:"IMUserId" gorm:"column:im_userid"`
 	Time           int64       `json:"time" gorm:"column:time"`
@@ -32,7 +32,7 @@ type LogOneItem struct {
 	CommandInfoStr string      `json:"-" gorm:"column:command_info"`
 	// 这里的RawMsgID 真的什么都有可能
 	RawMsgID    interface{} `json:"rawMsgId" gorm:"-"`
-	RawMsgIDStr string      `json:"-" gorm:"column:raw_msg_id"`
+	RawMsgIDStr string      `json:"-" gorm:"column:raw_msg_id;index:idx_raw_msg_id;index:idx_log_delete_by_id"`
 	UniformID   string      `json:"uniformId" gorm:"column:user_uniform_id"`
 	// 数据库里没有的
 	Channel string `json:"channel" gorm:"-"`
@@ -465,6 +465,7 @@ func LogMarkDeleteByMsgID(db *gorm.DB, groupID string, logName string, rawID int
 		return err
 	}
 	rid := fmt.Sprintf("%v", rawID)
+	// TODO：如果索引工作不理想，我们或许要在这里使用Index Hint指定索引，目前好像还没出问题。
 	if err = db.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&LogOneItem{}).Error; err != nil {
 		log.Errorf("log delete error %s", err.Error())
 		return err
