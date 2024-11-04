@@ -18,7 +18,7 @@
   "devDependencies": {
     "markdownlint-cli2": "^0.14.0",
     "autocorrect-node": "^2.13.0",
-    "mermaid": "^11.3.0",
+    "mermaid": "^11.4.0",
     "sass": "^1.80.4",
     "vitepress": "^1.4.1",
     "vitepress-plugin-mermaid": "^2.0.17",
