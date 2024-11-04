@@ -1,5 +1,13 @@
 # story painter
 
+## 关于
+
+本仓库为海豹核心的跑团Log染色器前端源码。
+
+此仓库的 Issue 已关闭，请在 [sealdice-core](https://github.com/sealdice/sealdice-core/issues) 仓库中提交相关 Issue。
+
+## 更新日志
+
 ### 2.5.0 2024/05/25
 
 * 新增：增加随机色板，生成柔和的随机颜色供选择
