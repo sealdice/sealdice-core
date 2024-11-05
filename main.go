@@ -48,7 +48,6 @@ var sealLock = flock.New("sealdice-lock.lock")
 
 func cleanupCreate(diceManager *dice.DiceManager) func() {
 	return func() {
-
 		log.Info("程序即将退出，进行清理……")
 		err := recover()
 		if err != nil {
