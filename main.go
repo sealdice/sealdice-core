@@ -41,9 +41,9 @@ import (
 data/configs
 data/extensions
 data/logs
-
 extensions/
 */
+
 var sealLock = flock.New("sealdice-lock.lock")
 
 func cleanupCreate(diceManager *dice.DiceManager) func() {
