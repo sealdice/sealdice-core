@@ -10,8 +10,7 @@ import (
 )
 
 func InitPanicLog() {
-	// TODO: 当配置文件彻底被抽离的时候，修改这个地方，让它读取d.BaseConfig，而不是写死data文件夹
-	// 它应该是初始化最早的一部分，早于Dice初始化，所以不能让它依赖dice
+	// TODO: 全局写死写入在data目录，这东西几乎没有任何值得配置的
 	if err := os.MkdirAll("./data", 0755); err != nil {
 		log.Fatalf("未发现data文件夹，且未能创建data文件夹，请检查写入权限: %v", err)
 	}

@@ -13,7 +13,7 @@ import (
 
 func DBCheck(dataDir string) {
 	checkDB := func(db *gorm.DB) bool {
-		rows, err := db.Exec("PRAGMA integrity_check").Rows() //nolint:execinquery
+		rows, err := db.Exec("PRAGMA integrity_check").Rows()
 		if err != nil {
 			return false
 		}

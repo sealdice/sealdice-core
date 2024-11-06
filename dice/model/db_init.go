@@ -10,6 +10,7 @@ import (
 )
 
 // _SQLiteDBInit 初始化 SQLite 数据库连接
+// 警告:这个替代品的封装应该有建表问题，修正之前请谨慎使用它
 // 非CGO的另一个替代品使用了WASM方案：https://github.com/ncruces/go-sqlite3/tree/main/gormlite
 func _SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{

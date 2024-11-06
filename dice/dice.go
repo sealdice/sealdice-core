@@ -160,8 +160,7 @@ type Dice struct {
 	AliveNoticeEntry cron.EntryID           `yaml:"-" json:"-"`
 	JsPrinter        *PrinterFunc           `yaml:"-" json:"-"`
 	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
-	// 如果我们重用它呢？
-	JSRegistry       *require.Registry    `yaml:"-" json:"-"`
+
 	JsLoop           *eventloop.EventLoop `yaml:"-" json:"-"`
 	JsScriptList     []*JsScriptInfo      `yaml:"-" json:"-"`
 	JsScriptCron     *cron.Cron           `yaml:"-" json:"-"`
