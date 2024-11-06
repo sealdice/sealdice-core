@@ -71,8 +71,9 @@ func AttrsGetById(db *gorm.DB, id string) (*AttributesItemModel, error) {
 		Select("id, data, COALESCE(attrs_type, '') as attrs_type, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at").
 		Where("id = ?", id).
 		Limit(1).
+		// 使用Find，如果找不到不会豹错，而是提示RowsAffected = 0，此处返回空对象本身就是预期正常的行为
 		Find(&item).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -86,8 +87,9 @@ func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
 		Select("binding_sheet_id").
 		Where("id = ?", id).
 		Limit(1).
+		// 使用Find，如果找不到不会豹错，而是提示RowsAffected = 0，此处返回id=""就是预期正常的行为
 		Find(&item).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
 		return "", err
 	}
 	return item.BindingSheetId, nil
@@ -101,12 +103,12 @@ func AttrsGetIdByUidAndName(db *gorm.DB, userId string, name string) (string, er
 		Select("id").
 		Where("owner_id = ? AND name = ?", userId, name).
 		Limit(1).
+		// 使用Find，如果找不到不会豹错，而是提示RowsAffected = 0，此处返回空对象的id=""就是预期正常的行为
 		Find(&item).Error
-	// 如果有错误，但是错误不是找不到记录的情况下：
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
 		return "", err
 	}
-	return item.Id, nil // 返回找到的 id
+	return item.Id, nil
 }
 
 func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) error {
