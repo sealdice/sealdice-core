@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"mime"
@@ -17,6 +18,7 @@ import (
 
 	// _ "net/http/pprof"
 
+	"github.com/gofrs/flock"
 	"github.com/jessevdk/go-flags"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -33,14 +35,16 @@ import (
 	"sealdice-core/utils/paniclog"
 )
 
-/**
+/*
+*
 二进制目录结构:
 data/configs
 data/extensions
 data/logs
-
 extensions/
 */
+
+var sealLock = flock.New("sealdice-lock.lock")
 
 func cleanupCreate(diceManager *dice.DiceManager) func() {
 	return func() {
@@ -53,6 +57,10 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 			if runtime.GOOS == "windows" {
 				exec.Command("pause") // windows专属
 			}
+		}
+		err = sealLock.Unlock()
+		if err != nil {
+			log.Errorf("文件锁归还出现异常 %v", err)
 		}
 
 		if !diceManager.CleanupFlag.CompareAndSwap(0, 1) {
@@ -91,7 +99,11 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				dbData := d.DBData
 				if dbData != nil {
 					d.DBData = nil
-					_ = dbData.Close()
+					db, err := dbData.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 
@@ -102,7 +114,11 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				dbLogs := d.DBLogs
 				if dbLogs != nil {
 					d.DBLogs = nil
-					_ = dbLogs.Close()
+					db, err := dbLogs.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 
@@ -114,7 +130,11 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				if cm != nil && cm.DB != nil {
 					dbCensor := cm.DB
 					cm.DB = nil
-					_ = dbCensor.Close()
+					db, err := dbCensor.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 		}
@@ -205,8 +225,19 @@ func main() {
 	paniclog.InitPanicLog()
 	// 3. 提示日志打印
 	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
-	logger := log.NewCustomHelper("SQLX", false, nil)
-	model.InitZapHook(logger)
+	// 初始化文件加锁系统
+
+	locked, err := sealLock.TryLock()
+	// 如果有错误，或者未能取到锁
+	if err != nil || !locked {
+		// 打日志的时候防止打出nil
+		if err == nil {
+			err = errors.New("海豹正在运行中")
+		}
+		log.Errorf("获取锁文件失败，原因为: %v", err)
+		showMsgBox("获取锁文件失败", "为避免数据损坏，拒绝继续启动。请检查是否启动多份海豹程序！")
+		return
+	}
 	judge, osr := oschecker.OldVersionCheck()
 	// 预留收集信息的接口，如果有需要可以考虑从这里拿数据。不从这里做提示的原因是Windows和Linux的展示方式不同。
 	if judge {
@@ -374,11 +405,11 @@ func main() {
 	}
 
 	// 删除遗留的shm和wal文件
-	if !model.DBCacheDelete() {
-		log.Error("数据库缓存文件删除失败")
-		showMsgBox("数据库缓存文件删除失败", "为避免数据损坏，拒绝继续启动。请检查是否启动多份程序，或有其他程序正在使用数据库文件！")
-		return
-	}
+	//  if !model.DBCacheDelete() {
+	//	  log.Error("数据库缓存文件删除失败")
+	//	  showMsgBox("数据库缓存文件删除失败", "为避免数据损坏，拒绝继续启动。请检查是否启动多份程序，或有其他程序正在使用数据库文件！")
+	//	  return
+	//  }
 
 	// 尝试进行升级
 	migrate.TryMigrateToV12()

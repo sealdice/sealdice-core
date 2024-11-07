@@ -1,54 +1,59 @@
 package model
 
 import (
-	"database/sql"
 	"errors"
-	"time"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
-
-type EndpointInfo struct {
-	UserID      string `db:"user_id"`
-	CmdNum      int64  `db:"cmd_num"`
-	CmdLastTime int64  `db:"cmd_last_time"`
-	OnlineTime  int64  `db:"online_time"`
-	UpdatedAt   int64  `db:"updated_at"`
-}
 
 var ErrEndpointInfoUIDEmpty = errors.New("user id is empty")
 
-func (e *EndpointInfo) Query(db *sqlx.DB) error {
+// 仅修改为gorm格式
+type EndpointInfo struct {
+	UserID      string `gorm:"column:user_id;primaryKey"`
+	CmdNum      int64  `gorm:"column:cmd_num;"`
+	CmdLastTime int64  `gorm:"column:cmd_last_time;"`
+	OnlineTime  int64  `gorm:"column:online_time;"`
+	UpdatedAt   int64  `gorm:"column:updated_at;"`
+}
+
+func (EndpointInfo) TableName() string {
+	return "endpoint_info"
+}
+
+func (e *EndpointInfo) Query(db *gorm.DB) error {
 	if len(e.UserID) == 0 {
 		return ErrEndpointInfoUIDEmpty
 	}
 	if db == nil {
 		return errors.New("db is nil")
 	}
-	row := db.QueryRowx(
-		`SELECT cmd_num, cmd_last_time, online_time, updated_at FROM endpoint_info WHERE user_id = $1`,
-		e.UserID,
-	)
-	err := row.Scan(&e.CmdNum, &e.CmdLastTime, &e.OnlineTime, &e.UpdatedAt)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+
+	err := db.Model(&EndpointInfo{}).
+		Where("user_id = ?", e.UserID).
+		Select("cmd_num", "cmd_last_time", "online_time", "updated_at").
+		Scan(&e).Error
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
+
 	return nil
 }
 
-func (e *EndpointInfo) Save(db *sqlx.DB) error {
+func (e *EndpointInfo) Save(db *gorm.DB) error {
+	// 检查 user_id 是否为空
 	if len(e.UserID) == 0 {
 		return ErrEndpointInfoUIDEmpty
 	}
-	if db == nil {
-		return errors.New("db is nil")
-	}
-	now := time.Now().Unix()
-	e.UpdatedAt = now
+	// 检查user_id冲突时更新，否则进行创建
+	result := db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "user_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"cmd_num", "cmd_last_time", "online_time", "updated_at",
+		}),
+	}).Create(e)
 
-	_, err := db.Exec(
-		`REPLACE INTO endpoint_info (user_id, cmd_num, cmd_last_time, online_time, updated_at) VALUES (?, ?, ?, ?, ?)`,
-		e.UserID, e.CmdNum, e.CmdLastTime, e.OnlineTime, e.UpdatedAt,
-	)
-	return err
+	return result.Error
 }

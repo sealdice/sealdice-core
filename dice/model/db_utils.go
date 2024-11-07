@@ -1,17 +1,19 @@
 package model
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
+	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/spinner"
 )
 
+// DBCacheDelete 删除SQLite数据库缓存文件
+// TODO: 判断缓存是否应该被删除
 func DBCacheDelete() bool {
-	// d.BaseConfig.DataDir
 	dataDir := "./data/default"
 
 	tryDelete := func(fn string) bool {
@@ -23,36 +25,36 @@ func DBCacheDelete() bool {
 		return os.Remove(fnPath) == nil
 	}
 
-	// 非 windows 不删缓存
+	// 非 Windows 系统不删除缓存
 	if runtime.GOOS != "windows" {
 		return true
 	}
-
 	ok := true
 	if ok {
 		ok = tryDelete("data.db-shm")
 	}
 	if ok {
-		tryDelete("data.db-wal")
+		ok = tryDelete("data.db-wal")
 	}
 	if ok {
-		tryDelete("data-logs.db-shm")
+		ok = tryDelete("data-logs.db-shm")
 	}
 	if ok {
-		tryDelete("data-logs.db-wal")
+		ok = tryDelete("data-logs.db-wal")
 	}
 	if ok {
-		tryDelete("data-censor.db-shm")
+		ok = tryDelete("data-censor.db-shm")
 	}
 	if ok {
-		tryDelete("data-censor.db-wal")
+		ok = tryDelete("data-censor.db-wal")
 	}
 	return ok
 }
 
+// DBVacuum 整理数据库
 func DBVacuum() {
 	done := make(chan interface{}, 1)
-	fmt.Fprintln(os.Stdout, "开始进行数据库整理")
+	log.Info("开始进行数据库整理")
 
 	go spinner.WithLines(done, 3, 10)
 	defer func() {
@@ -64,15 +66,29 @@ func DBVacuum() {
 
 	vacuum := func(path string, wg *sync.WaitGroup) {
 		defer wg.Done()
-		db, err := _SQLiteDBInit(path, true)
-		defer func() { _ = db.Close() }()
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "清理 %q 时出现错误：%v", path, err)
+		// 使用 GORM 初始化数据库
+		vacuumDB, err := _SQLiteDBInit(path, true)
+		// 数据库类型不是 SQLite 直接返回
+		if !strings.Contains(vacuumDB.Dialector.Name(), "sqlite") {
 			return
 		}
-		_, err = db.Exec("VACUUM;")
+		defer func() {
+			rawdb, err2 := vacuumDB.DB()
+			if err2 != nil {
+				return
+			}
+			err = rawdb.Close()
+			if err != nil {
+				return
+			}
+		}()
 		if err != nil {
-			fmt.Fprintf(os.Stdout, "清理 %q 时出现错误：%v", path, err)
+			log.Errorf("清理 %q 时出现错误：%v", path, err)
+			return
+		}
+		err = vacuumDB.Exec("VACUUM;").Error
+		if err != nil {
+			log.Errorf("清理 %q 时出现错误：%v", path, err)
 		}
 	}
 
@@ -82,5 +98,5 @@ func DBVacuum() {
 
 	wg.Wait()
 
-	fmt.Fprintln(os.Stdout, "\n数据库整理完成")
+	log.Info("数据库整理完成")
 }

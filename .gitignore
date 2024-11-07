@@ -42,3 +42,4 @@ _help_cache
 
 .vscode/
 !.vscode/settings.json
+sealdice-lock.lock
