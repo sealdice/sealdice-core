@@ -6,6 +6,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// 废弃代码先不改
+
 func attrGetAllBase(db *sqlx.DB, bucket string, key string) []byte {
 	var buf []byte
 

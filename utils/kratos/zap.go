@@ -104,18 +104,35 @@ func InitZapWithKartosLog(level zapcore.Level) {
 
 	// 创建带有调用者信息的日志记录器，注意跳过两层，这样就能正常提供给log
 	originZapLogger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2))
-
 	// 设置全局日志记录器，默认全局记录器为SEAL命名空间
 	global.SetLogger(NewZapLogger(originZapLogger.Named(LOG_SEAL)))
+	// GORM部分
+	SetDefaultGoRMLogger()
+}
+
+func SetDefaultGoRMLogger() {
+	gormpath := "./data/database.log"
+	gormpathlumlog := &lumberjack.Logger{
+		Filename:   gormpath, // 日志文件的名称和路径
+		MaxSize:    10,       // 每个日志文件最大10MB
+		MaxBackups: 3,        // 最多保留3个旧日志文件
+		MaxAge:     7,        // 日志文件保存7天
+	}
+	gormCore := zapcore.NewCore(getEncoder(), zapcore.AddSync(gormpathlumlog), zapcore.DebugLevel)
+	// 层层进行包装
+	gormZapLogger := NewHelper(NewZapLogger(zap.New(gormCore).Named("GORM").WithOptions(zap.WithCaller(true), zap.AddCallerSkip(6))))
+
+	NewGormLogger(gormZapLogger).SetAsDefault()
 }
 
 func GetWebLogger() *Helper {
 	webpath := "./data/web.log"
+	// WEB的可以少一点点~
 	weblumlog := &lumberjack.Logger{
 		Filename:   webpath, // 日志文件的名称和路径
-		MaxSize:    10,      // 每个日志文件最大10MB
-		MaxBackups: 3,       // 最多保留3个旧日志文件
-		MaxAge:     7,       // 日志文件保存7天
+		MaxSize:    5,       // 每个日志文件最大5MB
+		MaxBackups: 3,       // 最多保留1个旧日志文件
+		MaxAge:     3,       // 日志文件保存3天
 	}
 	webCore := zapcore.NewCore(getEncoder(), zapcore.AddSync(weblumlog), zapcore.DebugLevel)
 	webZapLogger := zap.New(webCore, zap.WithCaller(false))

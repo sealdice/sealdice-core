@@ -14,13 +14,13 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
-	"github.com/jmoiron/sqlx"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
 	rand2 "golang.org/x/exp/rand"
 	"golang.org/x/exp/slices"
+	"gorm.io/gorm"
 
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
@@ -133,8 +133,8 @@ type Dice struct {
 	LastUpdatedTime int64                  `yaml:"-"`
 	TextMap         map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig      BaseConfig             `yaml:"-"`
-	DBData          *sqlx.DB               `yaml:"-"` // 数据库对象
-	DBLogs          *sqlx.DB               `yaml:"-"` // 数据库对象
+	DBData          *gorm.DB               `yaml:"-"` // 数据库对象
+	DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	Logger          *log.Helper            `yaml:"-"` // 日志
 	LogWriter       *log.WriterX           `yaml:"-"` // 用于api的log对象
 	IsDeckLoading   bool                   `yaml:"-"` // 正在加载中
@@ -160,10 +160,11 @@ type Dice struct {
 	AliveNoticeEntry cron.EntryID           `yaml:"-" json:"-"`
 	JsPrinter        *PrinterFunc           `yaml:"-" json:"-"`
 	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
-	JsLoop           *eventloop.EventLoop   `yaml:"-" json:"-"`
-	JsScriptList     []*JsScriptInfo        `yaml:"-" json:"-"`
-	JsScriptCron     *cron.Cron             `yaml:"-" json:"-"`
-	JsScriptCronLock *sync.Mutex            `yaml:"-" json:"-"`
+
+	JsLoop           *eventloop.EventLoop `yaml:"-" json:"-"`
+	JsScriptList     []*JsScriptInfo      `yaml:"-" json:"-"`
+	JsScriptCron     *cron.Cron           `yaml:"-" json:"-"`
+	JsScriptCronLock *sync.Mutex          `yaml:"-" json:"-"`
 	// 重载使用的互斥锁
 	JsReloadLock sync.Mutex `yaml:"-" json:"-"`
 	// 内置脚本摘要表，用于判断内置脚本是否有更新
