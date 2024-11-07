@@ -418,22 +418,19 @@ func V150Upgrade() bool {
 
 	fmt.Fprintln(os.Stdout, "1.5 数据迁移")
 	sheetIdBindByGroupUserId = map[string]string{}
-
+	// Pinenutn: 2024-10-28 我要把这个注释全文背诵，它扰乱了GORM的初始化逻辑
+	// -- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
 	sqls := []string{
 		`
 CREATE TABLE IF NOT EXISTS attrs (
     id TEXT PRIMARY KEY,
     data BYTEA,
     attrs_type TEXT,
-
-	-- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
 	binding_sheet_id TEXT default '',
-
     name TEXT default '',
     owner_id TEXT default '',
     sheet_type TEXT default '',
     is_hidden BOOLEAN default FALSE,
-
     created_at INTEGER default 0,
     updated_at INTEGER  default 0
 );
